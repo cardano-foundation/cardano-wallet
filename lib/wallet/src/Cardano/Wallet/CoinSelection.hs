@@ -50,6 +50,7 @@ module Cardano.Wallet.CoinSelection
     , SelectionOf (..)
     , SelectionParams (..)
     , SelectionStrategy (..)
+    , PreSelection (..)
 
     -- * Selection skeletons
     , SelectionSkeleton (..)
@@ -381,6 +382,28 @@ toExternalSelectionSkeleton Internal.SelectionSkeleton {..} =
 --------------------------------------------------------------------------------
 -- Selections
 --------------------------------------------------------------------------------
+
+-- | Represents a unbalanced selection.
+--
+data PreSelection = PreSelection
+    { outputs
+        :: ![TxOut]
+        -- ^ User-specified outputs
+    , assetsToMint
+        :: !TokenMap
+        -- ^ Assets to mint.
+    , assetsToBurn
+        :: !TokenMap
+        -- ^ Assets to burn.
+    , extraCoinSource
+        :: !Coin
+        -- ^ An extra source of ada.
+    , extraCoinSink
+        :: !Coin
+        -- ^ An extra sink for ada.
+    }
+    deriving (Generic, Eq, Show)
+
 
 -- | Represents a balanced selection.
 --
