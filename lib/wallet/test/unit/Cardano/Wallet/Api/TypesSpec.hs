@@ -545,6 +545,8 @@ spec = parallel $ do
         jsonTest @(ApiT AddressPoolGap)
         jsonTest @(ApiT DerivationIndex)
         jsonTest @(ApiT Direction)
+        jsonTest @(ApiT StakePool)
+        jsonTest @(ApiT StakePoolMetrics)
         jsonTest @(ApiT StakePoolMetadata)
         jsonTest @(ApiT SyncProgress)
         jsonTest @(ApiT TxMetadata)
@@ -604,8 +606,6 @@ spec = parallel $ do
         jsonTest @ApiSharedWalletPostDataFromMnemonics
         jsonTest @ApiSignTransactionPostData
         jsonTest @ApiSlotReference
-        jsonTest @(ApiT StakePool)
-        jsonTest @(ApiT StakePoolMetrics)
         jsonTest @ApiTokenAmountFingerprint
         jsonTest @ApiTokens
         jsonTest @ApiTxId

@@ -2356,7 +2356,7 @@ deriving via DefaultRecord EpochInfo instance ToJSON EpochInfo
 
 instance FromJSON (ApiT StakePool) where
     parseJSON = fmap (ApiT <$>) . withObject "StakePool" $ \o -> do
-        poolId <- o .: "id"
+        ApiT poolId <- o .: "id"
         metrics <- o .: "metrics" >>= parseJsonStakePoolMetrics
         metadata <- o .: "metadata"
         cost <- o .: "cost"
