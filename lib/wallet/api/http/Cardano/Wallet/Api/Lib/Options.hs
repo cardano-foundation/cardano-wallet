@@ -13,6 +13,7 @@ module Cardano.Wallet.Api.Lib.Options
     , strictRecordTypeOptions
     , taggedSumTypeOptions
     , DefaultRecord (..)
+    , DefaultSum (..)
     )
     where
 
@@ -77,3 +78,13 @@ instance (Generic a, GFromJSON Zero (Rep a)) => FromJSON (DefaultRecord a)
 instance (Generic a, GToJSON' Value Zero (Rep a)) => ToJSON (DefaultRecord a)
   where
     toJSON = genericToJSON defaultRecordTypeOptions . unDefaultRecord
+
+newtype DefaultSum a = DefaultSum {unDefaultSum :: a}
+
+instance (Generic a, GFromJSON Zero (Rep a)) => FromJSON (DefaultSum a)
+  where
+    parseJSON = fmap DefaultSum . genericParseJSON defaultSumTypeOptions
+
+instance (Generic a, GToJSON' Value Zero (Rep a)) => ToJSON (DefaultSum a)
+  where
+    toJSON = genericToJSON defaultSumTypeOptions . unDefaultSum
