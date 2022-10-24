@@ -37,7 +37,7 @@ import Cardano.Wallet.Api.Lib.ApiAsArray
 import Cardano.Wallet.Api.Lib.ApiT
     ( ApiT (ApiT) )
 import Cardano.Wallet.Api.Lib.Options
-    ( defaultRecordTypeOptions )
+    ( DefaultRecord (..) )
 import Cardano.Wallet.Api.Types.Certificate
     ( ApiAnyCertificate )
 import Cardano.Wallet.Api.Types.Key
@@ -69,8 +69,6 @@ import Data.Aeson.Types
     , KeyValue (..)
     , ToJSON (..)
     , Value (..)
-    , genericParseJSON
-    , genericToJSON
     , object
     , prependFailure
     , withObject
@@ -135,20 +133,8 @@ data ApiDecodedTransaction (n :: NetworkDiscriminant) = ApiDecodedTransaction
     , validityInterval :: Maybe ValidityIntervalExplicit
     }
     deriving (Eq, Generic, Show, Typeable)
+    deriving (FromJSON, ToJSON) via DefaultRecord (ApiDecodedTransaction n)
     deriving anyclass NFData
-
-instance
-    ( DecodeAddress n
-    , DecodeStakeAddress n
-    ) => FromJSON (ApiDecodedTransaction n)
-  where
-    parseJSON = genericParseJSON defaultRecordTypeOptions
-instance
-    ( EncodeAddress n
-    , EncodeStakeAddress n
-    ) => ToJSON (ApiDecodedTransaction n)
-  where
-    toJSON = genericToJSON defaultRecordTypeOptions
 
 data ApiWalletInput (n :: NetworkDiscriminant) = ApiWalletInput
     { id :: ApiT (Hash "Tx")
@@ -159,12 +145,8 @@ data ApiWalletInput (n :: NetworkDiscriminant) = ApiWalletInput
     , assets :: ApiT W.TokenMap
     }
     deriving (Eq, Generic, Show, Typeable)
+    deriving (FromJSON, ToJSON) via DefaultRecord (ApiWalletInput n)
     deriving anyclass NFData
-
-instance DecodeAddress n => FromJSON (ApiWalletInput n) where
-    parseJSON = genericParseJSON defaultRecordTypeOptions
-instance EncodeAddress n => ToJSON (ApiWalletInput n) where
-    toJSON = genericToJSON defaultRecordTypeOptions
 
 data ApiTxInputGeneral (n :: NetworkDiscriminant) =
       ExternalInput (ApiT TxIn)
@@ -216,11 +198,8 @@ data ApiWalletOutput (n :: NetworkDiscriminant) = ApiWalletOutput
     , derivationPath :: NonEmpty (ApiT DerivationIndex)
     }
     deriving (Eq, Generic, Show, Typeable)
+    deriving (FromJSON, ToJSON) via DefaultRecord (ApiWalletOutput n)
     deriving anyclass NFData
-instance DecodeAddress n => FromJSON (ApiWalletOutput n) where
-    parseJSON = genericParseJSON defaultRecordTypeOptions
-instance EncodeAddress n => ToJSON (ApiWalletOutput n) where
-    toJSON = genericToJSON defaultRecordTypeOptions
 
 data AddressAmount addr = AddressAmount
     { address :: addr
@@ -228,6 +207,7 @@ data AddressAmount addr = AddressAmount
     , assets :: ApiT W.TokenMap
     }
     deriving (Eq, Generic, Show)
+    deriving ToJSON via DefaultRecord (AddressAmount addr)
     deriving anyclass NFData
 
 instance FromJSON a => FromJSON (AddressAmount a) where
@@ -244,8 +224,6 @@ instance FromJSON a => FromJSON (AddressAmount a) where
                 "invalid coin value: value has to be lower than or equal to "
                 <> show (unCoin txOutMaxCoin) <> " lovelace."
 
-instance ToJSON a => ToJSON (AddressAmount a) where
-    toJSON = genericToJSON defaultRecordTypeOptions
 -- | A helper type to reduce the amount of repetition.
 --
 type ApiTxOutput n = AddressAmount (ApiT Address, Proxy n)
@@ -287,6 +265,7 @@ newtype ApiPostPolicyKeyData = ApiPostPolicyKeyData
     { passphrase :: ApiT (Passphrase "user")
     }
     deriving (Eq, Generic, Show)
+    deriving (FromJSON, ToJSON) via DefaultRecord ApiPostPolicyKeyData
     deriving anyclass NFData
 
 data ApiTokenAmountFingerprint = ApiTokenAmountFingerprint
@@ -295,12 +274,8 @@ data ApiTokenAmountFingerprint = ApiTokenAmountFingerprint
     , fingerprint :: ApiT W.TokenFingerprint
     }
     deriving (Eq, Generic, Show)
+    deriving (FromJSON, ToJSON) via DefaultRecord ApiTokenAmountFingerprint
     deriving anyclass NFData
-
-instance FromJSON ApiTokenAmountFingerprint where
-    parseJSON = genericParseJSON defaultRecordTypeOptions
-instance ToJSON ApiTokenAmountFingerprint where
-    toJSON = genericToJSON defaultRecordTypeOptions
 
 data ApiTokens = ApiTokens
     { policyId :: ApiT W.TokenPolicyId
@@ -308,12 +283,8 @@ data ApiTokens = ApiTokens
     , assets :: NonEmpty ApiTokenAmountFingerprint
     }
     deriving (Eq, Generic, Show)
+    deriving (FromJSON, ToJSON) via DefaultRecord ApiTokens
     deriving anyclass NFData
-
-instance FromJSON ApiTokens where
-    parseJSON = genericParseJSON defaultRecordTypeOptions
-instance ToJSON ApiTokens where
-    toJSON = genericToJSON defaultRecordTypeOptions
 
 data ApiAssetMintBurn = ApiAssetMintBurn
     { tokens :: [ApiTokens]
@@ -321,24 +292,16 @@ data ApiAssetMintBurn = ApiAssetMintBurn
     , walletPolicyKeyIndex :: Maybe (ApiT DerivationIndex)
     }
     deriving (Eq, Generic, Show)
+    deriving (FromJSON, ToJSON) via DefaultRecord ApiAssetMintBurn
     deriving anyclass NFData
 
-instance FromJSON ApiAssetMintBurn where
-    parseJSON = genericParseJSON defaultRecordTypeOptions
-instance ToJSON ApiAssetMintBurn where
-    toJSON = genericToJSON defaultRecordTypeOptions
-
-data ApiWithdrawal n = ApiWithdrawal
+data ApiWithdrawal (n :: NetworkDiscriminant) = ApiWithdrawal
     { stakeAddress :: !(ApiT W.RewardAccount, Proxy n)
     , amount :: !(Quantity "lovelace" Natural)
     }
     deriving (Eq, Generic, Show)
+    deriving (FromJSON, ToJSON) via DefaultRecord (ApiWithdrawal n)
     deriving anyclass NFData
-
-instance DecodeStakeAddress n => FromJSON (ApiWithdrawal n) where
-    parseJSON = genericParseJSON defaultRecordTypeOptions
-instance EncodeStakeAddress n => ToJSON (ApiWithdrawal n) where
-    toJSON = genericToJSON defaultRecordTypeOptions
 
 instance DecodeStakeAddress n => FromJSON (ApiWithdrawalGeneral n) where
     parseJSON obj = do

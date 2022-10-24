@@ -29,10 +29,7 @@ import Cardano.Wallet.Api.Lib.ApiT
 import Cardano.Wallet.Primitive.AddressDerivation
     ( DerivationIndex, RewardAccount )
 import Cardano.Wallet.Primitive.Passphrase.Types
-    ( Passphrase (..)
-    , PassphraseMaxLength (..)
-    , PassphraseMinLength (..)
-    )
+    ( Passphrase (..), PassphraseMaxLength (..), PassphraseMinLength (..) )
 import Cardano.Wallet.Primitive.Types
     ( EpochNo (..)
     , NonWalletCertificate (..)
