@@ -287,6 +287,7 @@ import Cardano.Wallet.Api.Lib.ApiT
     ( ApiT (..), fromTextApiT, toTextApiT )
 import Cardano.Wallet.Api.Lib.Options
     ( DefaultRecord (..)
+    , DefaultSum (..)
     , TaggedObjectOptions (..)
     , defaultRecordTypeOptions
     , defaultSumTypeOptions
@@ -595,6 +596,7 @@ fmtAllowedWords =
 
 data MaintenanceAction = GcStakePools
     deriving (Eq, Generic, Show)
+    deriving (FromJSON, ToJSON) via DefaultSum MaintenanceAction
 
 newtype ApiMaintenanceActionPostData = ApiMaintenanceActionPostData
     { maintenanceAction :: MaintenanceAction
@@ -635,6 +637,7 @@ data ApiAsset = ApiAsset
 
 data ApiMetadataError = Fetch | Parse
     deriving (Eq, Generic, Show)
+    deriving (FromJSON, ToJSON) via DefaultSum ApiMetadataError
     deriving anyclass NFData
 
 data ApiAssetMetadata = ApiAssetMetadata
@@ -843,6 +846,7 @@ data ApiWalletDelegationStatus
     = NotDelegating
     | Delegating
     deriving (Eq, Generic, Show)
+    deriving (FromJSON, ToJSON) via DefaultSum ApiWalletDelegationStatus
     deriving anyclass NFData
 
 newtype ApiWalletPassphrase = ApiWalletPassphrase
@@ -1969,11 +1973,6 @@ data ApiStakeKeys (n :: NetworkDiscriminant) = ApiStakeKeys
                                JSON Instances
 -------------------------------------------------------------------------------}
 
-instance FromJSON ApiMetadataError where
-    parseJSON = genericParseJSON defaultSumTypeOptions
-instance ToJSON ApiMetadataError where
-    toJSON = genericToJSON defaultSumTypeOptions
-
 instance FromJSON (ApiT W.AssetURL) where
     parseJSON value = parseJSON value >>= either fail (pure . ApiT) . W.validateMetadataURL
 instance ToJSON (ApiT W.AssetURL) where
@@ -1990,11 +1989,6 @@ instance FromJSON (ApiT W.AssetDecimals) where
     parseJSON = parseJSON >=> (pure . ApiT . W.AssetDecimals)
 instance ToJSON (ApiT W.AssetDecimals) where
     toJSON = toJSON . W.unAssetDecimals . getApiT
-
-instance FromJSON KeyFormat where
-    parseJSON = genericParseJSON defaultSumTypeOptions
-instance ToJSON KeyFormat where
-    toJSON = genericToJSON defaultSumTypeOptions
 
 instance DecodeAddress n => FromJSON (ApiSelectCoinsData n) where
     parseJSON = withObject "DelegationAction" $ \o -> do
@@ -2057,10 +2051,8 @@ instance FromJSON ApiMultiDelegationAction where
                 Leaving <$> o .: "stake_key_index"
             _ -> fail "ApiMultiDelegationAction needs either 'join' or 'quit', but not both"
 
-instance FromJSON (ApiT AddressState) where
-    parseJSON = fmap ApiT . genericParseJSON defaultSumTypeOptions
-instance ToJSON (ApiT AddressState) where
-    toJSON = genericToJSON defaultSumTypeOptions . getApiT
+deriving via DefaultSum AddressState instance FromJSON (ApiT AddressState)
+deriving via DefaultSum AddressState instance ToJSON (ApiT AddressState)
 
 instance FromJSON ApiAccountPublicKey where
     parseJSON =
@@ -2207,11 +2199,6 @@ instance ToJSON (ApiT PoolMetadataGCStatus) where
     toJSON (ApiT (HasRun gctime)) =
         object [ "status" .= String "has_run"
             , "last_run" .= ApiT (Iso8601Time (posixSecondsToUTCTime gctime)) ]
-
-instance FromJSON MaintenanceAction where
-    parseJSON = genericParseJSON defaultSumTypeOptions
-instance ToJSON MaintenanceAction where
-    toJSON = genericToJSON defaultSumTypeOptions
 
 instance FromJSON ApiCredential where
     parseJSON v =
@@ -2360,11 +2347,6 @@ data ApiByronWalletBalance = ApiByronWalletBalance
     deriving (FromJSON, ToJSON) via DefaultRecord ApiByronWalletBalance
     deriving anyclass NFData
 
-instance FromJSON ApiWalletDelegationStatus where
-    parseJSON = genericParseJSON defaultSumTypeOptions
-instance ToJSON ApiWalletDelegationStatus where
-    toJSON = genericToJSON defaultSumTypeOptions
-
 instance FromJSON EpochNo where
     parseJSON = fmap unsafeEpochNo . parseJSON
 instance ToJSON EpochNo where
@@ -2411,10 +2393,8 @@ toJsonStakePoolMetrics = genericToJSON defaultRecordTypeOptions
 
 deriving via DefaultRecord StakePoolMetadata instance ToJSON StakePoolMetadata
 
-instance FromJSON StakePoolFlag where
-    parseJSON = genericParseJSON defaultSumTypeOptions
-instance ToJSON StakePoolFlag where
-    toJSON = genericToJSON defaultSumTypeOptions
+deriving via DefaultSum StakePoolFlag instance FromJSON StakePoolFlag
+deriving via DefaultSum StakePoolFlag instance ToJSON StakePoolFlag
 
 instance FromJSON (ApiT WalletName) where
     parseJSON = fromTextApiT "WalletName"
@@ -2429,10 +2409,8 @@ instance FromJSON (ApiT SyncProgress) where
 instance ToJSON (ApiT SyncProgress) where
     toJSON = genericToJSON syncProgressOptions . getApiT
 
-instance ToJSON (ApiT BoundType) where
-    toJSON = genericToJSON defaultSumTypeOptions . getApiT
-instance FromJSON (ApiT BoundType) where
-    parseJSON = fmap ApiT . genericParseJSON defaultSumTypeOptions
+deriving via DefaultSum BoundType instance FromJSON (ApiT BoundType)
+deriving via DefaultSum BoundType instance ToJSON (ApiT BoundType)
 
 instance (HasBase base, ByteArray bs) => FromJSON (ApiBytesT base bs) where
     parseJSON = withText (show (typeRep (Proxy @base)) ++ " ByteString") $
@@ -2632,15 +2610,11 @@ instance FromJSON (ApiT (Hash "Datum")) where
 instance ToJSON (ApiT (Hash "Datum")) where
     toJSON = toTextApiT
 
-instance FromJSON (ApiT Direction) where
-    parseJSON = fmap ApiT . genericParseJSON defaultSumTypeOptions
-instance ToJSON (ApiT Direction) where
-    toJSON = genericToJSON defaultSumTypeOptions . getApiT
+deriving via DefaultSum Direction instance FromJSON (ApiT Direction)
+deriving via DefaultSum Direction instance ToJSON (ApiT Direction)
 
-instance FromJSON (ApiT TxStatus) where
-    parseJSON = fmap ApiT . genericParseJSON defaultSumTypeOptions
-instance ToJSON (ApiT TxStatus) where
-    toJSON = genericToJSON defaultSumTypeOptions . getApiT
+deriving via DefaultSum TxStatus instance FromJSON (ApiT TxStatus)
+deriving via DefaultSum TxStatus instance ToJSON (ApiT TxStatus)
 
 instance FromJSON NtpSyncingStatus where
     parseJSON = parseJSON >=> eitherToParser . first ShowFmt . fromText
@@ -2806,8 +2780,7 @@ instance ToJSON ApiSharedWallet where
     toJSON (ApiSharedWallet (Left c))= toJSON c
     toJSON (ApiSharedWallet (Right c))= toJSON c
 
-instance ToJSON ApiErrorCode where
-    toJSON = genericToJSON defaultSumTypeOptions
+deriving via DefaultSum ApiErrorCode instance ToJSON ApiErrorCode
 
 -- | Options for encoding synchronization progress. It can be serialized to
 -- and from JSON as follows:

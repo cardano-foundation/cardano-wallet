@@ -28,6 +28,8 @@ module Cardano.Wallet.Api.Types.Key
 
 import Prelude
 
+import Cardano.Wallet.Api.Lib.Options
+    ( DefaultSum (..) )
 import Cardano.Wallet.Primitive.AddressDerivation
     ( Depth (..), DerivationType (..), Index (..), Role (..) )
 import Cardano.Wallet.Primitive.AddressDerivation.SharedKey
@@ -253,6 +255,7 @@ instance FromJSON ApiAccountKey where
 
 data KeyFormat = Extended | NonExtended
     deriving (Eq, Generic, Show)
+    deriving (FromJSON, ToJSON) via DefaultSum KeyFormat
     deriving anyclass NFData
 
 instance ToText KeyFormat where
