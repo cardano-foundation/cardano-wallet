@@ -33,9 +33,6 @@ task :secrets_encode do
   log ">> Encoding #{FIXTURES_FILE}..."
   log `gpg --pinentry-mode loopback --passphrase=#{FIXTURES_SECRET} --symmetric --output=#{FIXTURES_FILE}.gpg #{FIXTURES_FILE}`
 
-  log ">> Encoding #{BLOCKFROST_FILE}..."
-  log `gpg --pinentry-mode loopback --passphrase=#{FIXTURES_SECRET} --symmetric --output=#{BLOCKFROST_FILE}.gpg #{BLOCKFROST_FILE}`
-
 end
 
 task :secrets_decode do
@@ -48,12 +45,6 @@ task :secrets_decode do
     log `gpg --pinentry-mode loopback --yes --passphrase=#{FIXTURES_SECRET} --output #{FIXTURES_FILE} --decrypt #{FIXTURES_FILE}.gpg`
   end
 
-  if File.exists?(BLOCKFROST_FILE)
-    log ">> Skipping decoding #{BLOCKFROST_FILE}.gpg... #{BLOCKFROST_FILE} already exists!"
-  else
-    log ">> Decoding #{BLOCKFROST_FILE}.gpg..."
-    log `gpg --pinentry-mode loopback --yes --passphrase=#{FIXTURES_SECRET} --output #{BLOCKFROST_FILE} --decrypt #{BLOCKFROST_FILE}.gpg`
-  end
 end
 
 task :fixture_wallets_template do
@@ -241,54 +232,6 @@ task :stop_node_and_wallet, [:env] do |task, args|
     cmd "screen -XS WALLET_#{args[:env]} quit"
     cmd "screen -S NODE_#{args[:env]} -X at '0' stuff '^C'"
     cmd "screen -XS NODE_#{args[:env]} quit"
-  end
-
-end
-
-task :start_wallet_light, [:env] do |task, args|
-  puts "\n  >> Setting up cardano-wallet-light"
-
-  bin_dir = BINS == '' ? BINS : "#{BINS}/"
-  config_dir = File.join(CONFIGS, args[:env])
-  log_dir = File.join(LOGS, args[:env])
-  wallet_db_dir = File.join(WALLET_DB, args[:env])
-  cd = Dir.pwd
-  mk_dir(STATE)
-  mk_dir(log_dir)
-  network =  (args[:env] == 'mainnet') ? '--mainnet' : "--testnet #{config_dir}/byron-genesis.json"
-
-  if is_win?
-    # create cardano-wallet.bat file
-    wallet_cmd = "#{bin_dir}cardano-wallet.exe serve --port #{WALLET_PORT} --light --blockfrost-token-file #{BLOCKFROST_FILE} #{network} --database #{wallet_db_dir} --token-metadata-server #{TOKEN_METADATA}"
-    File.open("cardano-wallet.bat", "w") do |f|
-      f.write(wallet_cmd)
-    end
-
-    install_wallet = "nssm install cardano-wallet-light #{cd}/cardano-wallet.bat"
-    log_stdout_wallet = "nssm set cardano-wallet-light AppStdout #{log_dir}/wallet.log"
-    log_stderr_wallet = "nssm set cardano-wallet-light AppStderr #{log_dir}/wallet.log"
-    start_wallet = "nssm start cardano-wallet-light"
-
-    cmd install_wallet
-    cmd log_stdout_wallet
-    cmd log_stderr_wallet
-    cmd start_wallet
-  else
-    start_wallet = "#{bin_dir}cardano-wallet serve --port #{WALLET_PORT} --light --blockfrost-token-file #{BLOCKFROST_FILE} #{network} --database #{wallet_db_dir} --token-metadata-server #{TOKEN_METADATA}"
-
-    cmd "screen -dmS WALLET_#{args[:env]}_light -L -Logfile #{log_dir}/wallet.log #{start_wallet}"
-    cmd "screen -ls", true
-  end
-end
-
-task :stop_wallet_light, [:env] do |task, args|
-  puts "\n  >> Stopping cardano-wallet-light"
-
-  if is_win?
-    cmd "nssm stop cardano-wallet-light"
-    cmd "nssm remove cardano-wallet-light confirm"
-  else
-    cmd "screen -XS WALLET_#{args[:env]}_light quit"
   end
 
 end
