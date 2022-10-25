@@ -80,6 +80,7 @@ import Cardano.Wallet.CoinSelection
     , SelectionError (..)
     , SelectionOutputCoinInsufficientError
     , SelectionOutputError (..)
+    , SelectionOutputErrorInfo (..)
     , SelectionOutputSizeExceedsLimitError
     , SelectionOutputTokenQuantityExceedsLimitError (..)
     , UnableToConstructChangeError (..)
@@ -764,7 +765,8 @@ instance IsServerError (ErrInvalidDerivationIndex 'Soft level) where
                 ]
 
 instance IsServerError (SelectionOutputError WalletSelectionContext) where
-    toServerError = \case
+    toServerError (SelectionOutputError _index info) = case info of
+        -- TODO: ADP-2299: report the index
         SelectionOutputCoinInsufficient e ->
             toServerError e
         SelectionOutputSizeExceedsLimit e ->
