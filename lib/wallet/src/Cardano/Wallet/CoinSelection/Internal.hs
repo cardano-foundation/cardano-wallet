@@ -5,7 +5,6 @@
 {-# LANGUAGE LambdaCase #-}
 {-# LANGUAGE NamedFieldPuns #-}
 {-# LANGUAGE OverloadedLabels #-}
-{-# LANGUAGE PatternGuards #-}
 {-# LANGUAGE RecordWildCards #-}
 {-# LANGUAGE ScopedTypeVariables #-}
 {-# LANGUAGE StandaloneDeriving #-}
@@ -32,6 +31,7 @@ module Cardano.Wallet.CoinSelection.Internal
     -- * Output preparation
     , prepareOutputsWith
     , SelectionOutputError (..)
+    , SelectionOutputErrorInfo (..)
     , SelectionOutputCoinInsufficientError (..)
     , SelectionOutputSizeExceedsLimitError (..)
     , SelectionOutputTokenQuantityExceedsLimitError (..)
@@ -1205,13 +1205,14 @@ verifySelectionCollateralError cs ps e =
 verifySelectionOutputError
     :: SelectionContext ctx
     => VerifySelectionError (SelectionOutputError ctx) ctx
-verifySelectionOutputError cs ps = \case
-    SelectionOutputCoinInsufficient e ->
-        verifySelectionOutputCoinInsufficientError cs ps e
-    SelectionOutputSizeExceedsLimit e ->
-        verifySelectionOutputSizeExceedsLimitError cs ps e
-    SelectionOutputTokenQuantityExceedsLimit e ->
-        verifySelectionOutputTokenQuantityExceedsLimitError cs ps e
+verifySelectionOutputError cs ps (SelectionOutputError _index info) =
+    case info of
+        SelectionOutputCoinInsufficient e ->
+            verifySelectionOutputCoinInsufficientError cs ps e
+        SelectionOutputSizeExceedsLimit e ->
+            verifySelectionOutputSizeExceedsLimitError cs ps e
+        SelectionOutputTokenQuantityExceedsLimit e ->
+            verifySelectionOutputTokenQuantityExceedsLimitError cs ps e
 
 --------------------------------------------------------------------------------
 -- Selection error verification: output size errors
@@ -1407,52 +1408,30 @@ prepareOutputsInternal
     :: forall ctx. SelectionConstraints ctx
     -> [(Address ctx, TokenBundle)]
     -> Either (SelectionOutputError ctx) [(Address ctx, TokenBundle)]
-prepareOutputsInternal constraints outputsUnprepared
-    | e : _ <- excessivelyLargeBundles =
-        Left $
-        -- We encountered one or more excessively large token bundles.
-        -- Just report the first such bundle:
-        SelectionOutputSizeExceedsLimit e
-    | e : _ <- excessiveTokenQuantities =
-        Left $
-        -- We encountered one or more excessive token quantities.
-        -- Just report the first such quantity:
-        SelectionOutputTokenQuantityExceedsLimit e
-    | e : _ <- insufficientCoins =
-        Left $
-        -- We encountered one or more outputs with an ada quantity that is
-        -- below the minimum required quantity.
-        -- Just report the first such output:
-        SelectionOutputCoinInsufficient e
-    | otherwise =
-        pure outputsToCover
+prepareOutputsInternal constraints outputsUnprepared =
+    -- If we encounter an error, just report the first error we encounter:
+    case errors of
+        e : _ -> Left e
+        []    -> pure outputs
   where
     SelectionConstraints
         { computeMinimumAdaQuantity
         } = constraints
 
-    -- The complete list of token bundles whose serialized lengths are greater
-    -- than the limit of what is allowed in a transaction output:
-    excessivelyLargeBundles
-        :: [SelectionOutputSizeExceedsLimitError ctx]
-    excessivelyLargeBundles =
-        mapMaybe (verifyOutputSize constraints) outputsToCover
+    errors :: [SelectionOutputError ctx]
+    errors = uncurry SelectionOutputError <$> foldMap withOutputsIndexed
+        [ (fmap . fmap) SelectionOutputSizeExceedsLimit
+            . mapMaybe (traverse (verifyOutputSize constraints))
+        , (fmap . fmap) SelectionOutputTokenQuantityExceedsLimit
+            . foldMap (traverse verifyOutputTokenQuantities)
+        , (fmap . fmap) SelectionOutputCoinInsufficient
+            . mapMaybe (traverse (verifyOutputCoinSufficient constraints))
+        ]
+      where
+        withOutputsIndexed f = f $ zip [0 ..] outputs
 
-    -- The complete list of token quantities that exceed the maximum quantity
-    -- allowed in a transaction output:
-    excessiveTokenQuantities
-        :: [SelectionOutputTokenQuantityExceedsLimitError ctx]
-    excessiveTokenQuantities = verifyOutputTokenQuantities =<< outputsToCover
-
-    -- The complete list of outputs whose ada quantities are below the minimum
-    -- required:
-    insufficientCoins
-        :: [SelectionOutputCoinInsufficientError ctx]
-    insufficientCoins =
-        mapMaybe (verifyOutputCoinSufficient constraints) outputsToCover
-
-    outputsToCover =
-        prepareOutputsWith computeMinimumAdaQuantity outputsUnprepared
+    outputs :: [(Address ctx, TokenBundle)]
+    outputs = prepareOutputsWith computeMinimumAdaQuantity outputsUnprepared
 
 -- | Assigns minimal ada quantities to outputs without ada quantities.
 --
@@ -1475,7 +1454,15 @@ prepareOutputsWith minCoinValueFor =
 
 -- | Indicates a problem when preparing outputs for a coin selection.
 --
-data SelectionOutputError ctx
+data SelectionOutputError ctx = SelectionOutputError
+    { outputIndex :: Int
+    , outputErrorInfo :: SelectionOutputErrorInfo ctx
+    }
+
+deriving instance SelectionContext ctx => Eq (SelectionOutputError ctx)
+deriving instance SelectionContext ctx => Show (SelectionOutputError ctx)
+
+data SelectionOutputErrorInfo ctx
     = SelectionOutputCoinInsufficient
         (SelectionOutputCoinInsufficientError ctx)
     | SelectionOutputSizeExceedsLimit
@@ -1484,8 +1471,8 @@ data SelectionOutputError ctx
         (SelectionOutputTokenQuantityExceedsLimitError ctx)
     deriving Generic
 
-deriving instance SelectionContext ctx => Eq (SelectionOutputError ctx)
-deriving instance SelectionContext ctx => Show (SelectionOutputError ctx)
+deriving instance SelectionContext ctx => Eq (SelectionOutputErrorInfo ctx)
+deriving instance SelectionContext ctx => Show (SelectionOutputErrorInfo ctx)
 
 newtype SelectionOutputSizeExceedsLimitError ctx =
     SelectionOutputSizeExceedsLimitError
