@@ -202,7 +202,7 @@ import Cardano.Wallet.Api.Types
     , ApiAsArray (..)
     , ApiAsset (..)
     , ApiAssetMintBurn (..)
-    , ApiBalanceTransactionPostData
+    , ApiBalanceTransactionPostData (..)
     , ApiBlockInfo (..)
     , ApiBlockReference (..)
     , ApiBurnData (..)
@@ -2621,10 +2621,20 @@ constructSharedTransaction1
                         , extraCoinSource = Coin 0
                         , extraCoinSink = Coin 0
                         }
-                tx <- liftHandler
+                unbalancedTx <- liftHandler
                     $ W.constructUnbalancedSharedTransaction @_ @s @k @n wrk wid era txCtx preSel
-
-                undefined
+                let balancedPostData = ApiBalanceTransactionPostData
+                        { transaction = ApiT unbalancedTx
+                        , inputs = []
+                        , redeemers = []
+                        , encoding = body ^. #encoding
+                        }
+                balancedTx <- balanceTransaction ctx genChange (ApiT wid) balancedPostData
+                pure $ ApiConstructTransaction
+                    { transaction = balancedTx
+                    , coinSelection = mkApiCoinSelection [] [] Nothing md undefined
+                    , fee = undefined
+                    }
   where
     ti :: TimeInterpreter (ExceptT PastHorizonException IO)
     ti = timeInterpreter (ctx ^. networkLayer)
