@@ -242,6 +242,8 @@ import Cardano.Wallet.DB
     ( DBFactory, DBLayer )
 import Cardano.Wallet.Network
     ( NetworkLayer )
+import Cardano.Wallet.Pools
+    ( StakePool )
 import Cardano.Wallet.Primitive.AddressDerivation
     ( Depth, DerivationIndex, Role )
 import Cardano.Wallet.Primitive.Types
@@ -308,8 +310,6 @@ import Servant.API.Verbs
     )
 
 import qualified Cardano.Wallet.Primitive.Types as W
-import Cardano.Wallet.Shelley.Pools
-    ( StakePool )
 
 type ApiV2 n = "v2" :> Api n
 

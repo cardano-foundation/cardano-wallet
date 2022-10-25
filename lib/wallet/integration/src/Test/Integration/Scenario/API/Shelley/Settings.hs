@@ -15,12 +15,12 @@ import Prelude
 
 import Cardano.Wallet.Api.Lib.ApiT
     ( ApiT (..) )
+import Cardano.Wallet.Pools
+    ( StakePool )
 import Cardano.Wallet.Primitive.Types
     ( PoolMetadataSource (..), Settings )
 import Cardano.Wallet.Primitive.Types.Coin
     ( Coin (..) )
-import Cardano.Wallet.Shelley.Pools
-    ( StakePool )
 import Data.Either
     ( fromRight )
 import Data.Generics.Internal.VL.Lens

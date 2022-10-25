@@ -252,6 +252,7 @@ library
     Cardano.Wallet.Network.Light
     Cardano.Wallet.Network.Ports
     Cardano.Wallet.Orphans
+    Cardano.Wallet.Pools
     Cardano.Wallet.Primitive.AddressDerivation
     Cardano.Wallet.Primitive.AddressDerivation.Byron
     Cardano.Wallet.Primitive.AddressDerivation.Icarus
@@ -362,7 +363,6 @@ library
     Cardano.Wallet.Shelley.Network.Blockfrost.Monad
     Cardano.Wallet.Shelley.Network.Discriminant
     Cardano.Wallet.Shelley.Network.Node
-    Cardano.Wallet.Shelley.Pools
     Cardano.Wallet.Shelley.Transaction
     Cardano.Wallet.TokenMetadata
     Cardano.Wallet.Transaction

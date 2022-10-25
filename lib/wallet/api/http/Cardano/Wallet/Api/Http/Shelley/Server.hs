@@ -338,6 +338,8 @@ import Cardano.Wallet.DB
     ( DBFactory (..) )
 import Cardano.Wallet.Network
     ( NetworkLayer (..), fetchRewardAccountBalances, timeInterpreter )
+import Cardano.Wallet.Pools
+    ( EpochInfo (..), toEpochInfo )
 import Cardano.Wallet.Primitive.AddressDerivation
     ( BoundedAddressLength (..)
     , DelegationAddress (..)
@@ -491,8 +493,6 @@ import Cardano.Wallet.Registry
     )
 import Cardano.Wallet.Shelley.Compatibility.Ledger
     ( toLedger )
-import Cardano.Wallet.Shelley.Pools
-    ( EpochInfo (..), toEpochInfo )
 import Cardano.Wallet.TokenMetadata
     ( TokenMetadataClient, fillMetadata )
 import Cardano.Wallet.Transaction

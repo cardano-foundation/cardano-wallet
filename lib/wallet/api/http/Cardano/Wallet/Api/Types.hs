@@ -334,6 +334,8 @@ import Cardano.Wallet.Api.Types.Transaction
     , ApiWithdrawalGeneral (..)
     , ResourceContext (..)
     )
+import Cardano.Wallet.Pools
+    ( EpochInfo, StakePool (..), StakePoolFlag, StakePoolMetrics )
 import Cardano.Wallet.Primitive.AddressDerivation
     ( Depth (..), DerivationIndex (..), Index (..), NetworkDiscriminant (..) )
 import Cardano.Wallet.Primitive.AddressDiscovery.Random
@@ -386,8 +388,6 @@ import Cardano.Wallet.Shelley.Network.Discriminant
     , EncodeAddress (..)
     , EncodeStakeAddress (..)
     )
-import Cardano.Wallet.Shelley.Pools
-    ( EpochInfo, StakePool (..), StakePoolFlag, StakePoolMetrics )
 import Cardano.Wallet.TokenMetadata
     ( TokenMetadataError (..) )
 import Cardano.Wallet.Util

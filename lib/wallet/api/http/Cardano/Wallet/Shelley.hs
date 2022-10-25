@@ -43,6 +43,12 @@ import Cardano.Wallet.DB.Store.Checkpoints
     ( PersistAddressBook )
 import Cardano.Wallet.Network
     ( NetworkLayer (..) )
+import Cardano.Wallet.Pools
+    ( StakePoolLayer (..)
+    , withBlockfrostStakePoolLayer
+    , withNodeStakePoolLayer
+    , withStakePoolDbLayer
+    )
 import Cardano.Wallet.Primitive.AddressDerivation
     ( DelegationAddress (..)
     , Depth (..)
@@ -106,12 +112,6 @@ import Cardano.Wallet.Shelley.Network.Discriminant
     , SomeNetworkDiscriminant (..)
     , discriminantNetwork
     , networkDiscriminantToId
-    )
-import Cardano.Wallet.Shelley.Pools
-    ( StakePoolLayer (..)
-    , withBlockfrostStakePoolLayer
-    , withNodeStakePoolLayer
-    , withStakePoolDbLayer
     )
 import Cardano.Wallet.Shelley.Transaction
     ( newTransactionLayer )

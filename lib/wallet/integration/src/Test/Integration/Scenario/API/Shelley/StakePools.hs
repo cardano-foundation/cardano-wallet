@@ -36,6 +36,8 @@ import Cardano.Wallet.Api.Types
     , ApiWithdrawal (..)
     , WalletStyle (..)
     )
+import Cardano.Wallet.Pools
+    ( StakePool (..), StakePoolFlag (Delisted) )
 import Cardano.Wallet.Primitive.Types
     ( FeePolicy (..), LinearFunction (..), PoolMetadataSource (..) )
 import Cardano.Wallet.Primitive.Types.Coin
@@ -44,8 +46,6 @@ import Cardano.Wallet.Primitive.Types.Tx.TxMeta
     ( Direction (..), TxStatus (..) )
 import Cardano.Wallet.Shelley.Network.Discriminant
     ( DecodeAddress (..), DecodeStakeAddress (..), EncodeAddress (..) )
-import Cardano.Wallet.Shelley.Pools
-    ( StakePool (..), StakePoolFlag (Delisted) )
 import Cardano.Wallet.Unsafe
     ( unsafeFromHex, unsafeMkPercentage )
 import Control.Monad

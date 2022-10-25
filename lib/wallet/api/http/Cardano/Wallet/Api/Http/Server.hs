@@ -169,6 +169,8 @@ import Cardano.Wallet.Api.Types.Error
     ( ApiErrorInfo (..) )
 import Cardano.Wallet.Api.Types.SchemaMetadata
     ( TxMetadataSchema (..), parseSimpleMetadataFlag )
+import Cardano.Wallet.Pools
+    ( StakePoolLayer (..) )
 import Cardano.Wallet.Primitive.AddressDerivation
     ( DelegationAddress (..), Depth (..), PaymentAddress (..), Role (..) )
 import Cardano.Wallet.Primitive.AddressDerivation.Byron
@@ -195,8 +197,6 @@ import Cardano.Wallet.Shelley.Compatibility
     ( inspectAddress, rewardAccountFromAddress )
 import Cardano.Wallet.Shelley.Network.Discriminant
     ( HasNetworkId (networkIdVal) )
-import Cardano.Wallet.Shelley.Pools
-    ( StakePoolLayer (..) )
 import Control.Applicative
     ( liftA2 )
 import Control.Monad

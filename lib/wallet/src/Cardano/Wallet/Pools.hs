@@ -22,7 +22,7 @@
 --
 -- This module provides tools to collect a consistent view of stake pool data,
 -- as provided through @StakePoolLayer@.
-module Cardano.Wallet.Shelley.Pools
+module Cardano.Wallet.Pools
     ( StakePoolLayer (..)
     , StakePool (..)
     , StakePoolMetrics (..)
