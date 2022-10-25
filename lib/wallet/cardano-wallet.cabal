@@ -440,6 +440,7 @@ library cardano-wallet-api-http
     , quiet
     , random
     , retry
+    , safe
     , servant
     , servant-client
     , servant-client-core
