@@ -2,7 +2,6 @@
 | Flavor | Results |
 |--|--|
 |**Full mode** |[![E2E Docker](https://github.com/input-output-hk/cardano-wallet/actions/workflows/e2e-docker.yml/badge.svg)](https://github.com/input-output-hk/cardano-wallet/actions/workflows/e2e-docker.yml) [![E2E Linux](https://github.com/input-output-hk/cardano-wallet/actions/workflows/e2e-linux.yml/badge.svg)](https://github.com/input-output-hk/cardano-wallet/actions/workflows/e2e-linux.yml) [![E2E MacOS](https://github.com/input-output-hk/cardano-wallet/actions/workflows/e2e-macos.yml/badge.svg)](https://github.com/input-output-hk/cardano-wallet/actions/workflows/e2e-macos.yml) [![E2E Windows](https://github.com/input-output-hk/cardano-wallet/actions/workflows/e2e-windows.yml/badge.svg)](https://github.com/input-output-hk/cardano-wallet/actions/workflows/e2e-windows.yml)  |
-|**Light mode** | [![E2E Linux --light](https://github.com/input-output-hk/cardano-wallet/actions/workflows/e2e-linux-lite.yml/badge.svg)](https://github.com/input-output-hk/cardano-wallet/actions/workflows/e2e-linux-lite.yml) [![E2E MacOS --light](https://github.com/input-output-hk/cardano-wallet/actions/workflows/e2e-macos-lite.yml/badge.svg)](https://github.com/input-output-hk/cardano-wallet/actions/workflows/e2e-macos-lite.yml) [![E2E Windows --light](https://github.com/input-output-hk/cardano-wallet/actions/workflows/e2e-windows-lite.yml/badge.svg)](https://github.com/input-output-hk/cardano-wallet/actions/workflows/e2e-windows-lite.yml) |
 |**Docker compose** | [![Docker-compose Linux](https://github.com/input-output-hk/cardano-wallet/actions/workflows/docker_linux.yml/badge.svg)](https://github.com/input-output-hk/cardano-wallet/actions/workflows/docker_linux.yml) [![Docker-compose MacOS](https://github.com/input-output-hk/cardano-wallet/actions/workflows/docker_macos.yml/badge.svg)](https://github.com/input-output-hk/cardano-wallet/actions/workflows/docker_macos.yml)
 |
 
@@ -80,19 +79,6 @@ $ TESTS_E2E_BINDIR="" rake run_on[testnet]
 ```
 Running tests as such skips downloading latest binaries from Hydra.
 
-#### Running tests against wallet started in `--light` mode
-
-One can also run some tests against wallet started in `--light` mode. Similar rake workflow can be applied except there is no need to start `cardano-node` and wait for it to be synced with the network:
-```bash
-$ rake secrets_decode
-$ rake get_latest_bins
-$ rake get_latest_configs[testnet]
-$ rake start_wallet_light[testnet]
-$ rake spec SPEC_OPTS="-t light"
-$ rake stop_wallet_light[testnet]
-```
-All tests that are suitable for `--light` mode are tagged with `:light` tag.
-
 ### Test artifacts
 
 By default following locations are used for different artifacts used by the tests:
@@ -159,7 +145,7 @@ end
 
 ### Running tests from GH actions workflow
 
-There are several e2e workflows in GH actions for testing against different platforms (Docker, Linux, MacOS, Windows) and against different wallet modes (full, light).
+There are several e2e workflows in GH actions for testing against different platforms (Docker, Linux, MacOS, Windows).
 
 #### Node DB cache
 
@@ -188,4 +174,4 @@ It is also possible to trigger each workflow manually from [GH actions](https://
 
 Cardano-wallet-rb repository: https://github.com/piotr-iohk/cardano-wallet-rb.
 
-Ruby doc: https://rubydoc.info/gems/cardano_wallet.
+Ruby doc: https://piotr-iohk.github.io/cardano-wallet-rb/master/.
