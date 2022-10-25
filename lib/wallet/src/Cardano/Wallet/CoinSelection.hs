@@ -60,6 +60,7 @@ module Cardano.Wallet.CoinSelection
     , SelectionBalanceError (..)
     , SelectionCollateralError
     , SelectionOutputError (..)
+    , SelectionOutputErrorInfo (..)
     , SelectionOutputCoinInsufficientError (..)
     , SelectionOutputSizeExceedsLimitError (..)
     , SelectionOutputTokenQuantityExceedsLimitError (..)
@@ -83,6 +84,7 @@ import Cardano.Wallet.CoinSelection.Internal
     , SelectionError (..)
     , SelectionOutputCoinInsufficientError (..)
     , SelectionOutputError (..)
+    , SelectionOutputErrorInfo (..)
     , SelectionOutputSizeExceedsLimitError (..)
     , SelectionOutputTokenQuantityExceedsLimitError (..)
     )
