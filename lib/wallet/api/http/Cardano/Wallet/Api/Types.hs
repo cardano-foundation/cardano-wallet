@@ -1716,6 +1716,7 @@ data ApiErrorCode
     | WrongMnemonic
     | ValidityIntervalNotInsideScriptTimelock
     deriving (Eq, Generic, Show, Data, Typeable)
+    deriving (FromJSON, ToJSON) via DefaultSum ApiErrorCode
     deriving anyclass NFData
 
 -- | Defines a point in time that can be formatted as and parsed from an
@@ -2778,8 +2779,6 @@ instance FromJSON ApiSharedWallet where
 instance ToJSON ApiSharedWallet where
     toJSON (ApiSharedWallet (Left c))= toJSON c
     toJSON (ApiSharedWallet (Right c))= toJSON c
-
-deriving via DefaultSum ApiErrorCode instance ToJSON ApiErrorCode
 
 -- | Options for encoding synchronization progress. It can be serialized to
 -- and from JSON as follows:

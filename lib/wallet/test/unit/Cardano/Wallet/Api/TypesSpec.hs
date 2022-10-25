@@ -581,6 +581,7 @@ spec = parallel $ do
         jsonTest @ApiDelegationAction
         jsonTest @ApiEra
         jsonTest @ApiEraInfo
+        jsonTest @ApiErrorCode
         jsonTest @ApiFee
         jsonTest @ApiHealthCheck
         jsonTest @ApiMaintenanceAction
@@ -984,6 +985,10 @@ instance {-# OVERLAPPING #-} DecodeStakeAddress ('Testnet 0) where
 {-------------------------------------------------------------------------------
                               Arbitrary Instances
 -------------------------------------------------------------------------------}
+
+instance Arbitrary ApiErrorCode where
+    arbitrary = genericArbitrary
+    shrink = genericShrink
 
 instance Arbitrary (ApiAddress n) where
     shrink _ = []
