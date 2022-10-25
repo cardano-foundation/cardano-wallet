@@ -2,7 +2,7 @@ RSpec.describe CardanoWallet::Misc, :all, :misc do
 
   describe CardanoWallet::Misc::Node do
 
-    it "Can get latest block header info", :light do
+    it "Can get latest block header info" do
       res = NODE.block_header
       expect(res).to be_correct_and_respond 200
       expect(res.to_s).to include 'block_height'
@@ -22,7 +22,7 @@ RSpec.describe CardanoWallet::Misc, :all, :misc do
       expect(res['wallet_mode']).to eq 'node'
     end
 
-    it "Can check network clock offset", :light do
+    it "Can check network clock offset" do
       res = NETWORK.clock
       expect(res).to be_correct_and_respond 200
     end
@@ -48,7 +48,7 @@ RSpec.describe CardanoWallet::Misc, :all, :misc do
     end
   end
 
-  describe CardanoWallet::Misc::Utils, :light do
+  describe CardanoWallet::Misc::Utils do
 
     describe "SMASH health" do
       it "SMASH health - unreachable" do

@@ -3,7 +3,7 @@ RSpec.describe CardanoWallet::Shelley, :all, :shelley do
     teardown
   end
 
-  describe CardanoWallet::Shelley::Wallets, :light do
+  describe CardanoWallet::Shelley::Wallets do
 
     it "I can list wallets" do
       l = SHELLEY.wallets.list
@@ -272,7 +272,7 @@ RSpec.describe CardanoWallet::Shelley, :all, :shelley do
     end
   end
 
-  describe CardanoWallet::Shelley::Addresses, :light do
+  describe CardanoWallet::Shelley::Addresses do
 
     it "Can list addresses" do
       id = create_shelley_wallet
@@ -297,7 +297,7 @@ RSpec.describe CardanoWallet::Shelley, :all, :shelley do
     end
   end
 
-  describe CardanoWallet::Shelley::CoinSelections, :light do
+  describe CardanoWallet::Shelley::CoinSelections do
 
     it "I could trigger random coin selection - if had money" do
       wid = create_shelley_wallet
@@ -313,7 +313,7 @@ RSpec.describe CardanoWallet::Shelley, :all, :shelley do
     end
   end
 
-  describe CardanoWallet::Shelley::Transactions, :light do
+  describe CardanoWallet::Shelley::Transactions do
 
     it "I could get a tx if I had proper id" do
       wid = create_shelley_wallet
@@ -403,7 +403,7 @@ RSpec.describe CardanoWallet::Shelley, :all, :shelley do
       s = settings.update({ :pool_metadata_source => "none" })
     end
 
-    it "I can list stake keys", :light do
+    it "I can list stake keys" do
       id = create_shelley_wallet
       stake_keys = SHELLEY.stake_pools.list_stake_keys(id)
       expect(stake_keys).to be_correct_and_respond 200
@@ -482,7 +482,7 @@ RSpec.describe CardanoWallet::Shelley, :all, :shelley do
         end
       end
     end
-    it "I could quit stake pool - if I was delegating", :light do
+    it "I could quit stake pool - if I was delegating" do
       id = create_shelley_wallet
 
       pools = SHELLEY.stake_pools
@@ -493,7 +493,7 @@ RSpec.describe CardanoWallet::Shelley, :all, :shelley do
 
   end
 
-  describe CardanoWallet::Shelley::Migrations, :light do
+  describe CardanoWallet::Shelley::Migrations do
 
     it "I could create migration plan" do
       id = create_shelley_wallet
@@ -515,7 +515,7 @@ RSpec.describe CardanoWallet::Shelley, :all, :shelley do
     end
   end
 
-  describe CardanoWallet::Shelley::Keys, :light do
+  describe CardanoWallet::Shelley::Keys do
 
     it "Get signed metadata" do
       wid = create_shelley_wallet
