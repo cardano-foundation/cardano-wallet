@@ -68,6 +68,14 @@ import Cardano.Pool.Metadata
     , registryUrlBuilder
     , toHealthCheckSMASH
     )
+import Cardano.Pool.Metadata.Types
+    ( PoolMetadataGCStatus (..)
+    , StakePoolMetadata
+    , StakePoolMetadataHash
+    , StakePoolMetadataUrl (..)
+    )
+import Cardano.Pool.Types
+    ( PoolId (..), PoolOwner (..), StakePoolsSummary (..), decodePoolIdBech32 )
 import Cardano.Wallet.Byron.Compatibility
     ( toByronBlockHeader )
 import Cardano.Wallet.Network
@@ -91,22 +99,14 @@ import Cardano.Wallet.Primitive.Types
     , GenesisParameters (..)
     , NetworkParameters (..)
     , PoolCertificate (..)
-    , PoolId
     , PoolLifeCycleStatus (..)
-    , PoolMetadataGCStatus (..)
     , PoolMetadataSource (..)
-    , PoolOwner (PoolOwner)
     , PoolRegistrationCertificate (..)
     , PoolRetirementCertificate (..)
     , Settings (..)
     , SlotLength (..)
     , SlotNo (..)
     , SlottingParameters (..)
-    , StakePoolMetadata
-    , StakePoolMetadataHash
-    , StakePoolMetadataUrl (StakePoolMetadataUrl)
-    , StakePoolsSummary (..)
-    , decodePoolIdBech32
     , getPoolRegistrationCertificate
     , getPoolRetirementCertificate
     , unSmashServer
@@ -208,7 +208,9 @@ import Fmt
 import GHC.Generics
     ( Generic )
 import Network.HTTP.Client
-    ( Manager, defaultManagerSettings, newManager )
+    ( Manager )
+import Network.HTTP.Client.TLS
+    ( newTlsManager )
 import Numeric.Natural
     ( Natural )
 import Ouroboros.Consensus.Cardano.Block
@@ -897,7 +899,7 @@ monitorMetadata
     -> IO ()
 monitorMetadata gcStatus tr sp db@DBLayer{..} = do
     settings <- atomically readSettings
-    manager <- newManager defaultManagerSettings
+    manager <- newTlsManager
 
     health <- case poolMetadataSource settings of
         FetchSMASH uri -> do
@@ -1086,7 +1088,6 @@ data StakePoolLog
     | MsgGCTakeBreak Int
     | MsgGCThreadExit AfterThreadLog
     | MsgSMASHUnreachable
-    deriving (Show, Eq)
 
 instance HasPrivacyAnnotation StakePoolLog
 instance HasSeverityAnnotation StakePoolLog where

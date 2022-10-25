@@ -98,12 +98,10 @@ import Cardano.Wallet.Primitive.Types
     , GenesisParameters (..)
     , LinearFunction (..)
     , NetworkParameters (..)
-    , PoolId
     , ProtocolParameters (..)
     , SlotLength (SlotLength)
     , SlotNo (..)
     , SlottingParameters (..)
-    , StakePoolsSummary (..)
     , StartTime
     , TokenBundleMaxSize (..)
     , TxParameters (..)
@@ -261,6 +259,8 @@ import qualified Blockfrost.Client as BF
 import qualified Cardano.Api.Shelley as Node
 import qualified Cardano.Ledger.Alonzo.PParams as Alonzo
 import qualified Cardano.Ledger.Coin as Ledger
+import Cardano.Pool.Types
+    ( PoolId, StakePoolsSummary (..) )
 import qualified Cardano.Slotting.Time as ST
 import qualified Cardano.Wallet.Network.Light as LN
 import qualified Cardano.Wallet.Primitive.Types.Coin as Coin

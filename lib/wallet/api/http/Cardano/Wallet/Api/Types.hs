@@ -275,6 +275,10 @@ import Cardano.Mnemonic
     )
 import Cardano.Pool.Metadata
     ( HealthCheckSMASH, HealthStatusSMASH (..), SMASHPoolId (..) )
+import Cardano.Pool.Metadata.Types
+    ( PoolMetadataGCStatus (..), StakePoolMetadata (..) )
+import Cardano.Pool.Types
+    ( PoolId (..), decodePoolIdBech32, encodePoolIdBech32 )
 import Cardano.Wallet.Api.Aeson
     ( eitherToParser )
 import Cardano.Wallet.Api.Aeson.Variant
@@ -347,19 +351,14 @@ import Cardano.Wallet.Primitive.Types
     , ExecutionUnitPrices (..)
     , GenesisParameters (..)
     , NetworkParameters (..)
-    , PoolId (..)
-    , PoolMetadataGCStatus (..)
     , SlotInEpoch (..)
     , SlotLength (..)
     , SlotNo (..)
     , SlottingParameters (..)
     , SmashServer (..)
-    , StakePoolMetadata (..)
     , StartTime (..)
     , WalletId (..)
     , WalletName (..)
-    , decodePoolIdBech32
-    , encodePoolIdBech32
     , getDecentralizationLevel
     , unsafeEpochNo
     )
@@ -2357,7 +2356,7 @@ deriving via DefaultRecord EpochInfo instance ToJSON EpochInfo
 
 instance FromJSON (ApiT StakePool) where
     parseJSON = fmap (ApiT <$>) . withObject "StakePool" $ \o -> do
-        poolId <- o .: "id"
+        ApiT poolId <- o .: "id"
         metrics <- o .: "metrics" >>= parseJsonStakePoolMetrics
         metadata <- o .: "metadata"
         cost <- o .: "cost"
@@ -2369,7 +2368,7 @@ instance FromJSON (ApiT StakePool) where
 
 instance ToJSON (ApiT StakePool) where
     toJSON (ApiT pool) = Aeson.object
-        [ "id" .= view #id pool
+        [ "id" .= ApiT (view #id pool)
         , "metrics" .= toJsonStakePoolMetrics (view #metrics pool)
         , "metadata" .= view #metadata pool
         , "cost" .= view #cost pool

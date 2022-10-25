@@ -120,6 +120,8 @@ import Cardano.Ledger.Shelley.API
     ( ShelleyGenesis (..), ShelleyGenesisStaking (sgsPools) )
 import Cardano.Pool.Metadata
     ( SMASHPoolId (..) )
+import Cardano.Pool.Types
+    ( PoolId (..) )
 import Cardano.Startup
     ( restrictFileMode )
 import Cardano.Wallet.Api.Http.Shelley.Server
@@ -143,7 +145,6 @@ import Cardano.Wallet.Primitive.Types
     , EpochNo (..)
     , NetworkParameters (..)
     , PoolCertificate
-    , PoolId (..)
     , TokenMetadataServer (..)
     )
 import Cardano.Wallet.Primitive.Types.Address

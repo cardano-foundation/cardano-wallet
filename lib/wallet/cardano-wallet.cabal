@@ -208,8 +208,10 @@ library
     Cardano.Pool.DB.Sqlite
     Cardano.Pool.DB.Sqlite.TH
     Cardano.Pool.Metadata
+    Cardano.Pool.Metadata.Types
     Cardano.Pool.Rank
     Cardano.Pool.Rank.Likelihood
+    Cardano.Pool.Types
     Cardano.Wallet
     Cardano.Wallet.Address.Book
     Cardano.Wallet.Address.HasDelegation
@@ -367,9 +369,11 @@ library
     Data.Aeson.Extra
     Data.Function.Utils
     Data.Quantity
+    Data.Text.Class.Extended
     Data.Time.Text
     Data.Time.Utils
     Data.Vector.Shuffle
+    Database.Persist.PersistValue.Extended
     Network.Ntp
     Ouroboros.Network.Client.Wallet
     UnliftIO.Compat

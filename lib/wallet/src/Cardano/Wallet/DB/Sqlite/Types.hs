@@ -32,6 +32,8 @@ import Cardano.Api
     , metadataFromJson
     , metadataToJson
     )
+import Cardano.Pool.Types
+    ( PoolId )
 import Cardano.Slotting.Slot
     ( SlotNo (..) )
 import Cardano.Wallet.Primitive.AddressDerivation
@@ -49,13 +51,7 @@ import Cardano.Wallet.Primitive.Passphrase.Types
 import Cardano.Wallet.Primitive.Types
     ( EpochNo (..)
     , FeePolicy
-    , PoolId
     , PoolMetadataSource (..)
-    , PoolOwner (..)
-    , StakeKeyCertificate (..)
-    , StakePoolMetadataHash (..)
-    , StakePoolMetadataUrl (..)
-    , StakePoolTicker
     , WalletId (..)
     , isValidEpochNo
     , unsafeEpochNo
@@ -73,23 +69,20 @@ import Cardano.Wallet.Primitive.Types.TokenPolicy
     ( TokenName, TokenPolicyId )
 import Cardano.Wallet.Primitive.Types.TokenQuantity
     ( TokenQuantity (..) )
-import Cardano.Wallet.Primitive.Types.Tx
-    ( Direction (..)
-    , SealedTx (..)
-    , TxMetadata
-    , TxScriptValidity (..)
-    , TxStatus (..)
-    , persistSealedTx
-    , unPersistSealedTx
-    )
+import Cardano.Wallet.Primitive.Types.Tx.SealedTx
+    ( SealedTx (..), persistSealedTx, unPersistSealedTx )
+import Cardano.Wallet.Primitive.Types.Tx.Tx
+    ( TxMetadata, TxScriptValidity (..) )
+import Cardano.Wallet.Primitive.Types.Tx.TxMeta
+    ( Direction (..), TxStatus (..) )
 import Control.Arrow
     ( left )
 import Control.Monad
     ( (<=<), (>=>) )
 import Data.Aeson
-    ( FromJSON (..), ToJSON (..), Value (..), withText )
-import Data.Aeson.Types
-    ( Parser )
+    ( FromJSON (..), ToJSON (..), Value (..) )
+import Data.Aeson.Extra
+    ( aesonFromText )
 import Data.Bifunctor
     ( bimap, first )
 import Data.ByteArray.Encoding
@@ -104,12 +97,12 @@ import Data.Quantity
     ( Percentage )
 import Data.Text
     ( Text )
-import Data.Text.Class
+import Data.Text.Class.Extended
     ( FromText (..)
-    , TextDecodingError (..)
+    , TextDecodingError (TextDecodingError)
     , ToText (..)
+    , fromText'
     , fromTextMaybe
-    , getTextDecodingError
     )
 import Data.Text.Encoding
     ( decodeUtf8, encodeUtf8 )
@@ -121,6 +114,8 @@ import Data.Word
     ( Word32, Word64 )
 import Data.Word.Odd
     ( Word31 )
+import Database.Persist.PersistValue.Extended
+    ( fromPersistValueFromText )
 import Database.Persist.Sqlite
     ( PersistField (..), PersistFieldSql (..), PersistValue (..) )
 import Database.Persist.TH
@@ -152,40 +147,6 @@ import qualified Data.Text.Encoding as T
 -- | Settings for generating the Persistent types.
 sqlSettings' :: MkPersistSettings
 sqlSettings' = sqlSettings { mpsPrefixFields = False }
-
-----------------------------------------------------------------------------
--- Helper functions
-
--- | 'fromText' but with a simpler error type.
-fromText' :: FromText a => Text -> Either Text a
-fromText' = first (T.pack . getTextDecodingError) . fromText
-
--- | Aeson parser defined in terms of 'fromText'
-aesonFromText :: FromText a => String -> Value -> Parser a
-aesonFromText what = withText what $ either (fail . show) pure . fromText
-
--- | 'fromPersistValue' defined in terms of 'fromText'
-fromPersistValueFromText :: FromText a => PersistValue -> Either Text a
-fromPersistValueFromText = fromPersistValue >=> fromTextWithErr
-    where fromTextWithErr = first ("not a valid value: " <>) . fromText'
-
--- | 'fromPersistValue' defined in terms of the 'Read' class
-fromPersistValueRead :: Read a => PersistValue -> Either Text a
-fromPersistValueRead pv = fromPersistValue pv >>= readWithErr
-  where
-    readWithErr = toEither . readMaybe . T.unpack
-    toEither = maybe (Left $ "not a valid value: " <> T.pack (show pv)) Right
-
-
-----------------------------------------------------------------------------
--- StakeKeyCertificate
-
-instance PersistField StakeKeyCertificate where
-    toPersistValue = toPersistValue . show
-    fromPersistValue = fromPersistValueRead
-
-instance PersistFieldSql StakeKeyCertificate where
-    sqlType _ = sqlType (Proxy @Text)
 
 ----------------------------------------------------------------------------
 -- Direction
@@ -625,29 +586,6 @@ instance FromHttpApiData PoolId where
     parseUrlPiece = error "parseUrlPiece stub needed for persistent"
 
 ----------------------------------------------------------------------------
--- PoolOwner
-
-instance PersistField PoolOwner where
-    toPersistValue = toPersistValue . toText
-    fromPersistValue = fromPersistValueFromText
-
-instance PersistFieldSql PoolOwner where
-    sqlType _ = sqlType (Proxy @Text)
-
-instance Read PoolOwner where
-    readsPrec _ = error "readsPrec stub needed for persistent"
-
-instance FromText [PoolOwner] where
-    fromText t = mapM fromText $ T.words t
-
-instance PersistField [PoolOwner] where
-    toPersistValue v = toPersistValue $ T.unwords $ toText <$> v
-    fromPersistValue = fromPersistValueFromText
-
-instance PersistFieldSql [PoolOwner] where
-    sqlType _ = sqlType (Proxy @Text)
-
-----------------------------------------------------------------------------
 -- HDPassphrase
 
 newtype HDPassphrase = HDPassphrase (Passphrase "addr-derivation-payload")
@@ -669,7 +607,6 @@ instance Read HDPassphrase where
 
 ----------------------------------------------------------------------------
 -- PassphraseScheme
---
 
 instance PersistField PassphraseScheme where
     toPersistValue = toPersistValue . show
@@ -677,76 +614,6 @@ instance PersistField PassphraseScheme where
 
 instance PersistFieldSql PassphraseScheme where
     sqlType _ = sqlType (Proxy @String)
-
-----------------------------------------------------------------------------
--- StakePoolTicker
-
-instance PersistField StakePoolTicker where
-    toPersistValue = toPersistValue . toText
-    fromPersistValue = fromPersistValueFromText
-
-instance PersistFieldSql StakePoolTicker where
-    sqlType _ = sqlType (Proxy @Text)
-
-----------------------------------------------------------------------------
--- StakePoolMetadataHash
-
-instance PersistField StakePoolMetadataHash where
-    toPersistValue = toPersistValue . toText
-    fromPersistValue = fromPersistValueFromText
-
-instance PersistFieldSql StakePoolMetadataHash where
-    sqlType _ = sqlType (Proxy @Text)
-
-instance Read StakePoolMetadataHash where
-    readsPrec _ = error "readsPrec stub needed for persistent"
-
-instance ToHttpApiData StakePoolMetadataHash where
-    toUrlPiece = toText
-
-instance FromHttpApiData StakePoolMetadataHash where
-    parseUrlPiece = fromText'
-
-instance ToJSON StakePoolMetadataHash where
-    toJSON = String . toText
-
-instance FromJSON StakePoolMetadataHash where
-    parseJSON = aesonFromText "StakePoolMetadataHash"
-
-instance PathPiece StakePoolMetadataHash where
-    fromPathPiece = fromTextMaybe
-    toPathPiece = toText
-
-
-----------------------------------------------------------------------------
--- StakePoolMetadataUrl
-
-
-instance PersistField StakePoolMetadataUrl where
-    toPersistValue = toPersistValue . toText
-    fromPersistValue = fromPersistValueFromText
-
-instance PersistFieldSql StakePoolMetadataUrl where
-    sqlType _ = sqlType (Proxy @Text)
-
-instance Read StakePoolMetadataUrl where
-    readsPrec _ = error "readsPrec stub needed for persistent"
-
-instance ToHttpApiData StakePoolMetadataUrl where
-    toUrlPiece = toText
-
-instance FromHttpApiData StakePoolMetadataUrl where
-    parseUrlPiece = fromText'
-
-instance ToJSON StakePoolMetadataUrl where
-    toJSON = String . toText
-
-instance FromJSON StakePoolMetadataUrl where
-    parseJSON = aesonFromText "StakePoolMetadataUrl"
-
-instance PathPiece StakePoolMetadataUrl where
-    fromPathPiece = fromTextMaybe
-    toPathPiece = toText
 
 ----------------------------------------------------------------------------
 -- RewardAccount

@@ -218,7 +218,7 @@ main = withLocalClusterSetup $ \dir clusterLogs walletLogs ->
     unsafeDecodeAddr = either (error . show) id . decodeAddress @'Mainnet
 
     faucetFunds = FaucetFunds
-        { pureAdaFunds =
+        { pureAdaFunds =
             shelleyIntegrationTestFunds
              <> byronIntegrationTestFunds
              <> map (first unsafeDecodeAddr) hwWalletFunds

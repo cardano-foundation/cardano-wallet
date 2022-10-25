@@ -11,11 +11,7 @@
 {-# LANGUAGE TypeApplications #-}
 {-# LANGUAGE TypeFamilies #-}
 
-{- HLINT ignore "Use head" -}
-
-module Test.Integration.Scenario.API.Shelley.TransactionsNew
-    ( spec
-    ) where
+module Test.Integration.Scenario.API.Shelley.TransactionsNew (spec) where
 
 import Prelude
 
@@ -35,6 +31,10 @@ import Cardano.Crypto.DSIGN.Class
     ( rawDeserialiseVerKeyDSIGN )
 import Cardano.Mnemonic
     ( SomeMnemonic (..) )
+import Cardano.Pool.Metadata.Types
+    ( StakePoolMetadataHash (..), StakePoolMetadataUrl (..) )
+import Cardano.Pool.Types
+    ( PoolId (..), PoolOwner (..), decodePoolIdBech32 )
 import Cardano.Wallet.Api.Types
     ( AddressAmount (..)
     , ApiAddress (..)
@@ -79,15 +79,7 @@ import Cardano.Wallet.Primitive.AddressDerivation
     , hex
     )
 import Cardano.Wallet.Primitive.Types
-    ( EpochNo (..)
-    , NonWalletCertificate (..)
-    , PoolId (..)
-    , PoolOwner (..)
-    , SlotNo (..)
-    , StakePoolMetadataHash (..)
-    , StakePoolMetadataUrl (..)
-    , decodePoolIdBech32
-    )
+    ( EpochNo (..), NonWalletCertificate (..), SlotNo (..) )
 import Cardano.Wallet.Primitive.Types.Address
     ( Address (..) )
 import Cardano.Wallet.Primitive.Types.Coin

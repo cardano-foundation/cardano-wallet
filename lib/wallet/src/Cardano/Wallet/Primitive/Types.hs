@@ -11,15 +11,12 @@
 {-# LANGUAGE LambdaCase #-}
 {-# LANGUAGE MultiParamTypeClasses #-}
 {-# LANGUAGE NamedFieldPuns #-}
-{-# LANGUAGE NumericUnderscores #-}
 {-# LANGUAGE OverloadedLabels #-}
-{-# LANGUAGE QuasiQuotes #-}
 {-# LANGUAGE RankNTypes #-}
 {-# LANGUAGE RecordWildCards #-}
 {-# LANGUAGE ScopedTypeVariables #-}
 {-# LANGUAGE TypeApplications #-}
 {-# LANGUAGE TypeFamilies #-}
-{-# LANGUAGE TypeOperators #-}
 
 -- Technically,  instance Buildable Slot
 -- in an orphan instance, but `Slot` is a type synonym
@@ -110,18 +107,7 @@ module Cardano.Wallet.Primitive.Types
     , IsDelegatingTo (..)
 
     -- * Stake Pools
-    , StakePoolsSummary (..)
-    , PoolId(..)
-    , PoolOwner(..)
-    , poolIdBytesLength
-    , decodePoolIdBech32
-    , encodePoolIdBech32
-    , StakePoolMetadata (..)
-    , StakePoolMetadataHash (..)
-    , StakePoolMetadataUrl (..)
-    , StakePoolTicker (..)
     , StakeKeyCertificate (..)
-    , PoolMetadataGCStatus (..)
 
     -- * Querying
     , SortOrder (..)
@@ -165,6 +151,10 @@ module Cardano.Wallet.Primitive.Types
 
 import Prelude
 
+import Cardano.Pool.Metadata.Types
+    ( StakePoolMetadataHash, StakePoolMetadataUrl )
+import Cardano.Pool.Types
+    ( PoolId, PoolOwner )
 import Cardano.Slotting.Slot
     ( SlotNo (..), WithOrigin (..) )
 import Cardano.Wallet.Orphans
@@ -174,15 +164,15 @@ import Cardano.Wallet.Primitive.Passphrase.Types
 import Cardano.Wallet.Primitive.Types.Coin
     ( Coin (..) )
 import Cardano.Wallet.Primitive.Types.Hash
-    ( Hash (..), hashFromText )
+    ( Hash (..) )
 import Cardano.Wallet.Primitive.Types.MinimumUTxO
     ( MinimumUTxO )
 import Cardano.Wallet.Primitive.Types.RewardAccount
     ( RewardAccount (..) )
-import Cardano.Wallet.Primitive.Types.Tx
-    ( Tx (..) )
 import Cardano.Wallet.Primitive.Types.Tx.Constraints
     ( TxSize (..) )
+import Cardano.Wallet.Primitive.Types.Tx.Tx
+    ( Tx (..) )
 import Cardano.Wallet.Util
     ( ShowFmt (..), parseURI, uriToText )
 import Control.Arrow
@@ -190,35 +180,25 @@ import Control.Arrow
 import Control.DeepSeq
     ( NFData (..) )
 import Control.Monad
-    ( when, (<=<), (>=>) )
+    ( (<=<), (>=>) )
 import Crypto.Hash
     ( Blake2b_160, Digest, digestFromByteString )
 import Data.Aeson
-    ( FromJSON (..)
-    , ToJSON (..)
-    , Value
-    , object
-    , withObject
-    , (.:)
-    , (.:?)
-    , (.=)
-    )
+    ( FromJSON (..), ToJSON (..), Value, object, withObject, (.:), (.=) )
 import Data.ByteArray
     ( ByteArrayAccess )
 import Data.ByteArray.Encoding
     ( Base (Base16), convertFromBase, convertToBase )
 import Data.ByteString
     ( ByteString )
+import Data.Data
+    ( Proxy (..) )
 import Data.Generics.Internal.VL.Lens
     ( set, view, (^.) )
 import Data.Generics.Labels
     ()
 import Data.Kind
     ( Type )
-import Data.List
-    ( intercalate )
-import Data.Map.Strict
-    ( Map )
 import Data.Maybe
     ( isJust, isNothing )
 import Data.Quantity
@@ -247,13 +227,18 @@ import Data.Word
     ( Word16, Word32, Word64 )
 import Data.Word.Odd
     ( Word31 )
+import Database.Persist.Class.PersistField
+    ( PersistField (fromPersistValue, toPersistValue) )
+import Database.Persist.PersistValue.Extended
+    ( fromPersistValueRead )
+import Database.Persist.Sql
+    ( PersistFieldSql (sqlType) )
 import Fmt
     ( Buildable (..)
     , blockListF
     , blockListF'
     , indentF
     , listF'
-    , mapF
     , prefixF
     , pretty
     , suffixF
@@ -272,10 +257,6 @@ import Test.QuickCheck
     ( Arbitrary (..), oneof )
 
 import qualified Cardano.Api.Shelley as Node
-import qualified Codec.Binary.Bech32 as Bech32
-import qualified Codec.Binary.Bech32.TH as Bech32
-import qualified Data.ByteString as BS
-import qualified Data.Map.Strict as Map
 import qualified Data.Text as T
 import qualified Data.Text.Encoding as T
 
@@ -304,8 +285,7 @@ data WalletMetadata = WalletMetadata
 instance NFData WalletMetadata
 
 formatUTCTime :: UTCTime -> Text
-formatUTCTime =
-    T.pack . formatTime defaultTimeLocale "%Y-%m-%d %H:%M:%S %Z"
+formatUTCTime = T.pack . formatTime defaultTimeLocale "%Y-%m-%d %H:%M:%S %Z"
 
 instance Buildable WalletMetadata where
     build (WalletMetadata wName wTime _ wDelegation) = mempty
@@ -540,220 +520,7 @@ isSubrangeOf r1 r2 =
     rangeLowerBound r1 >= rangeLowerBound r2 &&
     rangeUpperBound r1 <= rangeUpperBound r2
 
-{-------------------------------------------------------------------------------
-                                  Stake Pools
--------------------------------------------------------------------------------}
 
--- Status encoding of the metadata GC thread, which queries
--- the SMASH server for delisted pools.
-data PoolMetadataGCStatus
-    = NotApplicable
-    | NotStarted
-    | Restarting POSIXTime -- shows last GC before restart occurred
-    | HasRun POSIXTime     -- shows last GC
-    deriving (Eq, Show, Generic)
-
--- | A newtype to wrap metadata hash.
---
--- NOTE: not using the 'Hash' type as this newtype is primarily for database
--- interop which doesn't quite like DataKinds.
-newtype StakePoolMetadataHash = StakePoolMetadataHash ByteString
-    deriving (Eq, Ord, Show, Generic)
-
-instance NFData StakePoolMetadataHash
-
-instance ToText StakePoolMetadataHash where
-    toText (StakePoolMetadataHash bytes) =
-        toText (Hash bytes)
-
-instance FromText StakePoolMetadataHash where
-    fromText = fmap (StakePoolMetadataHash . getHash @"_") . hashFromText 32
-
-instance Buildable StakePoolMetadataHash where
-    build (StakePoolMetadataHash hash) = build (Hash hash)
-
--- | A newtype to wrap metadata Url, mostly needed for database lookups and
--- signature clarity.
-newtype StakePoolMetadataUrl = StakePoolMetadataUrl Text
-    deriving (Eq, Ord, Show, Generic)
-
-instance NFData StakePoolMetadataUrl
-
-instance ToText StakePoolMetadataUrl where
-    toText (StakePoolMetadataUrl url) = url
-
-instance FromText StakePoolMetadataUrl where
-    fromText = pure . StakePoolMetadataUrl
-
--- | Information about a stake pool.
---
--- The metadata information is not used directly by cardano-wallet, but rather
--- passed straight through to API consumers.
-data StakePoolMetadata = StakePoolMetadata
-    { ticker :: StakePoolTicker
-    -- ^ Very short human-readable ID for the stake pool.
-    , name :: Text
-    -- ^ Name of the stake pool.
-    , description :: Maybe Text
-    -- ^ Short description of the stake pool.
-    , homepage :: Text
-    -- ^ Absolute URL for the stake pool's homepage link.
-    } deriving (Eq, Ord, Show, Generic)
-
-instance FromJSON StakePoolMetadata where
-    parseJSON = withObject "StakePoolMetadta" $ \obj -> do
-        ticker <- obj .: "ticker"
-        let tickerLen = T.length . unStakePoolTicker $ ticker
-        when (tickerLen > 5 || tickerLen < 3)
-            $ fail "ticker length must be between 3 and 5 characters"
-
-        name <- obj .: "name"
-        when (T.length name > 50)
-            $ fail "name exceeds max length of 50 chars"
-
-        description <- obj .:? "description"
-        when ((T.length <$> description) > Just 255)
-            $ fail "description exceeds max length of 255 characters"
-
-        homepage <- obj .: "homepage"
-
-        pure $ StakePoolMetadata{ticker,name,description,homepage}
-
--- | Very short name for a stake pool.
-newtype StakePoolTicker = StakePoolTicker { unStakePoolTicker :: Text }
-    deriving stock (Generic, Show, Eq, Ord)
-    deriving newtype (ToText)
-
-instance FromText StakePoolTicker where
-    fromText t
-        | T.length t >= 3 && T.length t <= 5
-            = Right $ StakePoolTicker t
-        | otherwise
-            = Left . TextDecodingError $
-                "stake pool ticker length must be 3-5 characters"
-
--- Here to avoid needless orphan instances in the API types.
-instance FromJSON StakePoolTicker where
-    parseJSON = parseJSON >=> either (fail . show . ShowFmt) pure . fromText
-
-instance ToJSON StakePoolTicker where
-    toJSON = toJSON . toText
-
--- | Identifies a stake pool.
--- For Jörmungandr a 'PoolId' is the blake2b-256 hash of the stake pool
--- registration certificate.
-newtype PoolId = PoolId { getPoolId :: ByteString }
-    deriving (Generic, Eq, Show, Ord)
-
-poolIdBytesLength :: [Int]
-poolIdBytesLength = [28, 32]
-
-instance NFData PoolId
-
-instance Buildable PoolId where
-    build poolId = mempty
-        <> prefixF 8 poolIdF
-      where
-        poolIdF = build (toText poolId)
-
-instance ToText PoolId where
-    toText = T.decodeUtf8
-        . convertToBase Base16
-        . getPoolId
-
-instance FromText PoolId where
-    fromText t = case convertFromBase Base16 $ T.encodeUtf8 t of
-        Left _ ->
-            textDecodingError
-        Right bytes | BS.length bytes `elem` poolIdBytesLength ->
-            Right $ PoolId bytes
-        Right _ ->
-            textDecodingError
-      where
-        textDecodingError = Left $ TextDecodingError $ unwords
-            [ "Invalid stake pool id: expecting a hex-encoded value that is"
-            , intercalate " or " (show <$> poolIdBytesLength)
-            , "bytes in length."
-            ]
-
--- | Encode 'PoolId' as Bech32 with "pool" hrp.
-encodePoolIdBech32 :: PoolId -> T.Text
-encodePoolIdBech32 =
-    Bech32.encodeLenient hrp
-        . Bech32.dataPartFromBytes
-        . getPoolId
-  where
-    hrp = [Bech32.humanReadablePart|pool|]
-
--- | Decode a Bech32 encoded 'PoolId'.
-decodePoolIdBech32 :: T.Text -> Either TextDecodingError PoolId
-decodePoolIdBech32 t =
-    case fmap Bech32.dataPartToBytes <$> Bech32.decodeLenient t of
-        Left _ -> Left textDecodingError
-        Right (_, Just bytes) ->
-            Right $ PoolId bytes
-        Right _ -> Left textDecodingError
-      where
-        textDecodingError = TextDecodingError $ unwords
-            [ "Invalid stake pool id: expecting a Bech32 encoded value"
-            , "with human readable part of 'pool'."
-            ]
-
--- | A stake pool owner, which is a public key encoded in bech32 with prefix
--- ed25519_pk.
-newtype PoolOwner = PoolOwner { getPoolOwner :: ByteString }
-    deriving (Generic, Eq, Show, Ord)
-
-poolOwnerPrefix :: Bech32.HumanReadablePart
-poolOwnerPrefix = [Bech32.humanReadablePart|ed25519_pk|]
-
-instance NFData PoolOwner
-
-instance Buildable PoolOwner where
-    build poolId = build (toText poolId)
-
-instance ToText PoolOwner where
-    toText = Bech32.encodeLenient poolOwnerPrefix
-        . Bech32.dataPartFromBytes
-        . getPoolOwner
-
-instance FromText PoolOwner where
-    fromText t = case fmap Bech32.dataPartToBytes <$> Bech32.decode t of
-        Left err ->
-            Left $ TextDecodingError $
-            "Stake pool owner is not a valid bech32 string: "
-            <> show err
-        Right (hrp, Just bytes)
-            | hrp == poolOwnerPrefix ->
-                Right $ PoolOwner bytes
-            | otherwise ->
-                Left $ TextDecodingError $
-                "Stake pool owner has wrong prefix:"
-                <> " expected "
-                <> T.unpack (Bech32.humanReadablePartToText poolOwnerPrefix)
-                <> " but got "
-                <> show hrp
-        Right (_, Nothing) ->
-                Left $ TextDecodingError "Stake pool owner is invalid"
-
-instance FromJSON PoolOwner where
-    parseJSON = parseJSON >=> either (fail . show . ShowFmt) pure . fromText
-
-instance ToJSON PoolOwner where
-    toJSON = toJSON . toText
-
-data StakePoolsSummary = StakePoolsSummary
-    { nOpt :: Int
-    , rewards :: Map PoolId Coin
-    , stake :: Map PoolId Percentage
-    } deriving (Show, Eq)
-
-instance Buildable StakePoolsSummary where
-    build StakePoolsSummary{nOpt,rewards,stake} = listF' id
-        [ "Stake: " <> mapF (Map.toList stake)
-        , "Non-myopic member rewards: " <> mapF (Map.toList rewards)
-        , "Optimum number of pools: " <> pretty nOpt
-        ]
 
 {-------------------------------------------------------------------------------
                                     Block
@@ -1392,6 +1159,13 @@ data StakeKeyCertificate
     deriving (Generic, Show, Read, Eq)
 
 instance NFData StakeKeyCertificate
+
+instance PersistField StakeKeyCertificate where
+    toPersistValue = toPersistValue . show
+    fromPersistValue = fromPersistValueRead
+
+instance PersistFieldSql StakeKeyCertificate where
+    sqlType _ = sqlType (Proxy @Text)
 
 dlgCertAccount :: DelegationCertificate -> RewardAccount
 dlgCertAccount = \case

@@ -24,10 +24,16 @@ module Cardano.Pool.DB.Sqlite.TH where
 
 import Prelude
 
+import Cardano.Pool.Metadata.Types
+    ( StakePoolMetadataHash (..), StakePoolMetadataUrl (..) )
+import Cardano.Pool.Types
+    ( PoolId (..), StakePoolTicker )
 import Cardano.Slotting.Slot
     ( SlotNo )
 import Cardano.Wallet.DB.Sqlite.Types
     ( sqlSettings' )
+import Cardano.Wallet.Primitive.Types
+    ()
 import Data.Text
     ( Text )
 import Data.Time.Clock
@@ -43,6 +49,7 @@ import GHC.Generics
 import System.Random
     ( StdGen )
 
+import qualified Cardano.Pool.Types as P
 import qualified Cardano.Wallet.DB.Sqlite.Types as W
 import qualified Cardano.Wallet.Primitive.Types as W
 
@@ -70,7 +77,7 @@ ArbitrarySeed sql=arbitrary_seed
 
 -- The set of stake pools that produced a given block
 PoolProduction sql=pool_production
-    poolProductionPoolId         W.PoolId     sql=pool_id
+    poolProductionPoolId         PoolId       sql=pool_id
     poolProductionSlot           SlotNo       sql=slot
     poolProductionHeaderHash     W.BlockId    sql=header_hash
     poolProductionParentHash     W.BlockId    sql=parent_header_hash
@@ -91,7 +98,7 @@ BlockHeader sql=block_headers
 
 -- Stake distribution for each stake pool
 StakeDistribution sql=stake_distribution
-    stakeDistributionPoolId     W.PoolId     sql=pool_id
+    stakeDistributionPoolId     PoolId       sql=pool_id
     stakeDistributionEpoch      Word64       sql=epoch
     stakeDistributionStake      Word64       sql=stake
 
@@ -100,10 +107,10 @@ StakeDistribution sql=stake_distribution
 
 -- Mapping from pool id to owner.
 PoolOwner sql=pool_owner
-    poolOwnerPoolId             W.PoolId            sql=pool_id
+    poolOwnerPoolId             PoolId              sql=pool_id
     poolOwnerSlot               W.SlotNo            sql=slot
     poolOwnerSlotInternalIndex  Word64              sql=slot_internal_index
-    poolOwnerOwner              W.PoolOwner         sql=pool_owner
+    poolOwnerOwner              P.PoolOwner         sql=pool_owner
     poolOwnerIndex              Word8               sql=pool_owner_index
 
     Primary poolOwnerPoolId poolOwnerSlot poolOwnerSlotInternalIndex poolOwnerOwner poolOwnerIndex
@@ -112,27 +119,27 @@ PoolOwner sql=pool_owner
 
 -- Mapping of registration certificate to pool
 PoolRegistration sql=pool_registration
-    poolRegistrationPoolId            W.PoolId                      sql=pool_id
+    poolRegistrationPoolId            PoolId                        sql=pool_id
     poolRegistrationSlot              W.SlotNo                      sql=slot
     poolRegistrationSlotInternalIndex Word64                        sql=slot_internal_index
     poolRegistrationMarginNumerator   Word64                        sql=margin_numerator
     poolRegistrationMarginDenominator Word64                        sql=margin_denominator
     poolRegistrationCost              Word64                        sql=cost
     poolRegistrationPledge            Word64                        sql=pledge
-    poolRegistrationMetadataUrl       W.StakePoolMetadataUrl  Maybe sql=metadata_url
-    poolRegistrationMetadataHash      W.StakePoolMetadataHash Maybe sql=metadata_hash
+    poolRegistrationMetadataUrl       StakePoolMetadataUrl  Maybe sql=metadata_url
+    poolRegistrationMetadataHash      StakePoolMetadataHash Maybe sql=metadata_hash
 
     Primary poolRegistrationPoolId poolRegistrationSlot poolRegistrationSlotInternalIndex
     deriving Show Generic
 
 PoolDelistment sql=pool_delistment
-    delistedPoolId                W.PoolId                      sql=pool_id
+    delistedPoolId                PoolId                      sql=pool_id
     Primary delistedPoolId
     deriving Show Generic
 
 -- Mapping of retirement certificates to pools
 PoolRetirement sql=pool_retirement
-    poolRetirementPoolId              W.PoolId            sql=pool_id
+    poolRetirementPoolId              PoolId              sql=pool_id
     poolRetirementSlot                W.SlotNo            sql=slot
     poolRetirementSlotInternalIndex   Word64              sql=slot_internal_index
     poolRetirementEpoch               Word64              sql=epoch
@@ -142,9 +149,9 @@ PoolRetirement sql=pool_retirement
 
 -- Cached metadata after they've been fetched from a remote server.
 PoolMetadata sql=pool_metadata
-    poolMetadataHash                   W.StakePoolMetadataHash sql=metadata_hash
+    poolMetadataHash                   StakePoolMetadataHash sql=metadata_hash
     poolMetadataName                   Text                    sql=name
-    poolMetadataTicker                 W.StakePoolTicker       sql=ticker
+    poolMetadataTicker                 StakePoolTicker         sql=ticker
     poolMetadataDescription            Text Maybe              sql=description
     poolMetadataHomepage               Text                    sql=homepage
 
@@ -152,8 +159,8 @@ PoolMetadata sql=pool_metadata
     deriving Show Generic
 
 PoolMetadataFetchAttempts sql=pool_metadata_fetch_attempts
-    poolFetchAttemptsMetadataHash    W.StakePoolMetadataHash sql=metadata_hash
-    poolFetchAttemptsMetadataUrl     W.StakePoolMetadataUrl  sql=metadata_url
+    poolFetchAttemptsMetadataHash    StakePoolMetadataHash sql=metadata_hash
+    poolFetchAttemptsMetadataUrl     StakePoolMetadataUrl  sql=metadata_url
     poolFetchAttemptsRetryAfter      UTCTime                 sql=retry_after
     poolFetchAttemptsRetryCount      Word8                   sql=retry_count
 

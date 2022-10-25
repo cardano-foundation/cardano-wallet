@@ -60,6 +60,9 @@ import Cardano.Mnemonic
     )
 import Cardano.Pool.Metadata
     ( HealthCheckSMASH )
+import Cardano.Pool.Metadata.Types
+import Cardano.Pool.Types
+    ( PoolId (..), PoolOwner (..), StakePoolTicker (..) )
 import Cardano.Wallet.Api
     ( Api )
 import Cardano.Wallet.Api.Types
@@ -256,18 +259,13 @@ import Cardano.Wallet.Primitive.Types
     ( EpochNo (..)
     , ExecutionUnitPrices (..)
     , NonWalletCertificate (..)
-    , PoolId (..)
-    , PoolMetadataGCStatus (..)
     , PoolMetadataSource
-    , PoolOwner (..)
     , Settings
     , SlotId (..)
     , SlotInEpoch (..)
     , SlotNo (..)
     , SmashServer
     , SortOrder (..)
-    , StakePoolMetadata (..)
-    , StakePoolTicker
     , StartTime (..)
     , WalletDelegationStatus (..)
     , WalletId (..)
@@ -547,6 +545,8 @@ spec = parallel $ do
         jsonTest @(ApiT AddressPoolGap)
         jsonTest @(ApiT DerivationIndex)
         jsonTest @(ApiT Direction)
+        jsonTest @(ApiT StakePool)
+        jsonTest @(ApiT StakePoolMetrics)
         jsonTest @(ApiT StakePoolMetadata)
         jsonTest @(ApiT SyncProgress)
         jsonTest @(ApiT TxMetadata)
@@ -606,8 +606,6 @@ spec = parallel $ do
         jsonTest @ApiSharedWalletPostDataFromMnemonics
         jsonTest @ApiSignTransactionPostData
         jsonTest @ApiSlotReference
-        jsonTest @(ApiT StakePool)
-        jsonTest @(ApiT StakePoolMetrics)
         jsonTest @ApiTokenAmountFingerprint
         jsonTest @ApiTokens
         jsonTest @ApiTxId

@@ -20,6 +20,13 @@ module Cardano.Pool.DB.Arbitrary
 
 import Prelude
 
+import Cardano.Pool.Metadata.Types
+    ( StakePoolMetadata (..)
+    , StakePoolMetadataHash (..)
+    , StakePoolMetadataUrl (..)
+    )
+import Cardano.Pool.Types
+    ( PoolId (..), PoolOwner (..), StakePoolTicker (..) )
 import Cardano.Wallet.Gen
     ( genPercentage, genSlotNo, shrinkSlotNo )
 import Cardano.Wallet.Primitive.Types
@@ -27,19 +34,13 @@ import Cardano.Wallet.Primitive.Types
     , CertificatePublicationTime (..)
     , EpochNo (..)
     , PoolCertificate (..)
-    , PoolId (..)
     , PoolMetadataSource (..)
-    , PoolOwner (..)
     , PoolRegistrationCertificate (..)
     , PoolRetirementCertificate (..)
     , Settings (..)
     , SlotInEpoch (..)
     , SlotNo (..)
     , SmashServer
-    , StakePoolMetadata (..)
-    , StakePoolMetadataHash (..)
-    , StakePoolMetadataUrl (..)
-    , StakePoolTicker (..)
     , getPoolCertificatePoolId
     , setPoolCertificatePoolId
     , unsafeEpochNo

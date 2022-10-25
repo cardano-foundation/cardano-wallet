@@ -43,6 +43,8 @@ import Cardano.BM.Data.Severity
     ( Severity (..) )
 import Cardano.BM.Data.Tracer
     ( HasPrivacyAnnotation (..), HasSeverityAnnotation (..) )
+import Cardano.Pool.Types
+    ( StakePoolsSummary )
 import Cardano.Wallet.Checkpoints.Policy
     ( CheckpointPolicy )
 import Cardano.Wallet.Primitive.BlockSummary
@@ -58,13 +60,12 @@ import Cardano.Wallet.Primitive.Types
     , ProtocolParameters
     , SlotNo (..)
     , SlottingParameters (..)
-    , StakePoolsSummary
     )
 import Cardano.Wallet.Primitive.Types.Coin
     ( Coin )
 import Cardano.Wallet.Primitive.Types.RewardAccount
     ( RewardAccount (..) )
-import Cardano.Wallet.Primitive.Types.Tx
+import Cardano.Wallet.Primitive.Types.Tx.SealedTx
     ( SealedTx )
 import Control.Monad.Class.MonadSTM
     ( atomically )

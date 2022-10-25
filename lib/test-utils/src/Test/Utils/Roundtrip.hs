@@ -70,7 +70,7 @@ jsonRoundtripAndGolden dir proxy = do
     mkCompatibleTypeNameInfo :: IO (TypeNameInfo a)
     mkCompatibleTypeNameInfo = do
         typeNameInfo <- mkTypeNameInfo settings proxy
-        pure $ typeNameInfo
+        pure typeNameInfo
             { typeNameTypeName =
                 mkValidForWindows (typeNameTypeName typeNameInfo)
             }
@@ -81,10 +81,8 @@ jsonRoundtripAndGolden dir proxy = do
 
     settings :: Settings
     settings = defaultSettings
-        { goldenDirectoryOption =
-            CustomDirectoryName dir
-        , useModuleNameAsSubDirectory =
-            False
+        { goldenDirectoryOption = CustomDirectoryName dir
+        , useModuleNameAsSubDirectory = False
         , sampleSize = 10
         -- Note that we fail the test if the random seed does not produce the
         -- same values as those within the golden file. It's important that

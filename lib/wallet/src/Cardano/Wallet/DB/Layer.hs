@@ -845,9 +845,7 @@ readWalletMetadata wid walDel =
                             Wallet Delegation
 -----------------------------------------------------------------------}
 {- HLINT ignore mkDBDelegation "Avoid lambda" -}
-mkDBDelegation
-    :: W.WalletId
-    -> DBDelegation (SqlPersistT IO)
+mkDBDelegation :: W.WalletId -> DBDelegation (SqlPersistT IO)
 mkDBDelegation wid = DBDelegation
     { isStakeKeyRegistered_ = do
         val <- fmap entityVal <$> selectFirst

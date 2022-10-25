@@ -37,6 +37,8 @@ import Cardano.Crypto.Wallet
     ( unXPrv )
 import Cardano.Mnemonic
     ( SomeMnemonic (..) )
+import Cardano.Pool.Types
+    ( PoolId (..) )
 import Cardano.Wallet.Address.Book
     ( AddressBookIso (..) )
 import Cardano.Wallet.DB.Pure.Implementation
@@ -94,7 +96,6 @@ import Cardano.Wallet.Primitive.Types
     , ExecutionUnits (..)
     , FeePolicy (..)
     , LinearFunction (LinearFunction)
-    , PoolId (..)
     , ProtocolParameters (..)
     , Range (..)
     , Slot
@@ -129,24 +130,20 @@ import Cardano.Wallet.Primitive.Types.TokenMap
     ( TokenMap )
 import Cardano.Wallet.Primitive.Types.TokenMap.Gen
     ( genTokenMap, shrinkTokenMap )
-import Cardano.Wallet.Primitive.Types.Tx
-    ( Direction (..)
-    , Tx (..)
-    , TxCBOR
-    , TxIn (..)
-    , TxMeta (..)
-    , TxMetadata
-    , TxOut (..)
-    , TxScriptValidity (..)
-    , TxStatus (..)
-    , isPending
-    )
 import Cardano.Wallet.Primitive.Types.Tx.Gen
     ( genTxOutCoin, genTxScriptValidity, shrinkTxScriptValidity )
+import Cardano.Wallet.Primitive.Types.Tx.Tx
+    ( Tx (..), TxIn (..), TxMetadata, TxOut (..), TxScriptValidity (..) )
+import Cardano.Wallet.Primitive.Types.Tx.TxMeta
+    ( Direction (..), TxMeta (..), TxStatus (..), isPending )
 import Cardano.Wallet.Primitive.Types.UTxO
     ( UTxO (..) )
-import Cardano.Wallet.Read.Eras
-    ( eraValueSerialize, knownEraIndices )
+import Cardano.Wallet.Read.Eras.EraValue
+    ( eraValueSerialize )
+import Cardano.Wallet.Read.Eras.KnownEras
+    ( knownEraIndices )
+import Cardano.Wallet.Read.Tx.CBOR
+    ( TxCBOR )
 import Cardano.Wallet.Unsafe
     ( someDummyMnemonic, unsafeMkPercentage )
 import Cardano.Wallet.Util
@@ -800,8 +797,7 @@ instance Arbitrary PassphraseHash where
     arbitrary = PassphraseHash . convertToBase Base16 . BS.pack <$> vector 16
 
 instance Arbitrary PoolId where
-    arbitrary = do
-        PoolId . convertToBase Base16 . BS.pack <$> vector 16
+    arbitrary = PoolId . convertToBase Base16 . BS.pack <$> vector 16
 
 instance Arbitrary DelegationCertificate where
     arbitrary = oneof

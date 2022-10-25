@@ -11,9 +11,7 @@
 {-# LANGUAGE TypeSynonymInstances #-}
 {-# OPTIONS_GHC -fno-warn-orphans #-}
 
-module Cardano.Pool.DB.Properties
-    ( properties
-    ) where
+module Cardano.Pool.DB.Properties (properties) where
 
 import Prelude
 
@@ -32,6 +30,10 @@ import Cardano.Pool.DB.Arbitrary
     , getMultiPoolCertificateSequence
     , isValidSinglePoolCertificateSequence
     )
+import Cardano.Pool.Metadata.Types
+    ( StakePoolMetadata (..) )
+import Cardano.Pool.Types
+    ( PoolId (..), StakePoolTicker (..) )
 import Cardano.Wallet.DummyTarget.Primitive.Types
     ( dummyTimeInterpreter )
 import Cardano.Wallet.Gen
@@ -43,14 +45,11 @@ import Cardano.Wallet.Primitive.Types
     , CertificatePublicationTime (..)
     , EpochNo (..)
     , PoolCertificate (..)
-    , PoolId
     , PoolLifeCycleStatus (..)
     , PoolRegistrationCertificate (..)
     , PoolRetirementCertificate
     , Settings
     , SlotNo (..)
-    , StakePoolMetadata (..)
-    , StakePoolTicker (..)
     , defaultSettings
     , getPoolCertificatePoolId
     , getPoolRetirementCertificate
