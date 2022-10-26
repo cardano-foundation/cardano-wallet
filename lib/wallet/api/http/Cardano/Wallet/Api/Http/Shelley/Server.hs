@@ -329,7 +329,7 @@ import Cardano.Wallet.Api.Types.MintBurn
 import Cardano.Wallet.Api.Types.SchemaMetadata
     ( TxMetadataSchema (..), TxMetadataWithSchema (TxMetadataWithSchema) )
 import Cardano.Wallet.CoinSelection
-    ( SelectionOf (..), SelectionStrategy (..), selectionDelta )
+    ( PreSelection (..), SelectionOf (..), SelectionStrategy (..), selectionDelta )
 import Cardano.Wallet.Compat
     ( (^?) )
 import Cardano.Wallet.DB
@@ -2211,6 +2211,278 @@ postTransactionFeeOld ctx (ApiT wid) body = do
         minCoins <- liftIO (W.calcMinimumCoinValues @_ @k @'CredFromKeyK wrk era (F.toList outs))
         liftHandler $ mkApiFee Nothing minCoins <$> W.estimateFee runSelection
 
+constructTransaction1
+    :: forall ctx s k n.
+        ( ctx ~ ApiLayer s k 'CredFromKeyK
+        , Bounded (Index (AddressIndexDerivationType k) (AddressCredential k))
+        , GenChange s
+        , HardDerivation k
+        , HasNetworkLayer IO ctx
+        , IsOurs s Address
+        , Typeable n
+        , Typeable s
+        , WalletKey k
+        , BoundedAddressLength k
+        )
+    => ctx
+    -> ArgGenChange s
+    -> IO (Set PoolId)
+    -> (PoolId -> IO PoolLifeCycleStatus)
+    -> ApiT WalletId
+    -> ApiConstructTransactionData n
+    -> Handler (ApiConstructTransaction n)
+constructTransaction1 ctx genChange knownPools getPoolStatus (ApiT wid) body = do
+    let isNoPayload =
+            isNothing (body ^. #payments) &&
+            isNothing (body ^. #withdrawal) &&
+            isNothing (body ^. #metadata) &&
+            isNothing (body ^. #mintBurn) &&
+            isNothing (body ^. #delegations)
+    when isNoPayload $
+        liftHandler $ throwE ErrConstructTxWrongPayload
+
+    let mintingBurning = body ^. #mintBurn
+    let handleMissingAssetName :: ApiMintBurnData n -> ApiMintBurnData n
+        handleMissingAssetName mb = case mb ^. #assetName of
+            Nothing -> mb {assetName = Just $ ApiT nullTokenName}
+            Just _ -> mb
+    let mintingBurning' = fmap handleMissingAssetName <$> mintingBurning
+    let retrieveAllCosigners = foldScript (:) []
+    let wrongMintingTemplate (ApiMintBurnData (ApiT scriptTempl) _ _) =
+            isLeft (validateScriptOfTemplate RecommendedValidation scriptTempl)
+            || length (retrieveAllCosigners scriptTempl) /= 1
+            || (L.any (/= Cosigner 0)) (retrieveAllCosigners scriptTempl)
+    when
+        ( isJust mintingBurning' &&
+          L.any wrongMintingTemplate (NE.toList $ fromJust mintingBurning')
+        ) $ liftHandler $ throwE ErrConstructTxWrongMintingBurningTemplate
+
+    let assetNameTooLong = \case
+            (ApiMintBurnData _ (Just (ApiT (UnsafeTokenName bs))) _) ->
+                BS.length bs > tokenNameMaxLength
+            _ ->
+                error "tokenName should be nonempty at this step"
+    when
+        ( isJust mintingBurning' &&
+          L.any assetNameTooLong (NE.toList $ fromJust mintingBurning')
+        ) $ liftHandler $ throwE ErrConstructTxAssetNameTooLong
+
+    let assetQuantityOutOfBounds
+            (ApiMintBurnData _ _ (ApiMint (ApiMintData _ amt))) =
+            amt <= 0 || amt > unTokenQuantity txMintBurnMaxTokenQuantity
+        assetQuantityOutOfBounds
+            (ApiMintBurnData _ _ (ApiBurn (ApiBurnData amt))) =
+            amt <= 0 || amt > unTokenQuantity txMintBurnMaxTokenQuantity
+    when
+        ( isJust mintingBurning' &&
+          L.any assetQuantityOutOfBounds (NE.toList $ fromJust mintingBurning')
+        ) $ liftHandler $
+            throwE ErrConstructTxMintOrBurnAssetQuantityOutOfBounds
+
+    let checkIx (ApiStakeKeyIndex (ApiT derIndex)) =
+            derIndex == DerivationIndex (getIndex @'Hardened minBound)
+    let validApiDelAction = \case
+            Joining _ stakeKeyIx -> checkIx stakeKeyIx
+            Leaving stakeKeyIx -> checkIx stakeKeyIx
+    let notall0Haccount = case body ^. #delegations of
+            Nothing -> False
+            Just delegs -> not . all validApiDelAction $ NE.toList delegs
+    when notall0Haccount $
+        liftHandler $ throwE ErrConstructTxMultiaccountNotSupported
+
+    let md = body ^? #metadata . traverse . #txMetadataWithSchema_metadata
+
+    (before, hereafter, isThereNegativeTime) <-
+        decodeValidityInterval ti (body ^. #validityInterval)
+
+    when (hereafter < before || isThereNegativeTime) $
+        liftHandler $ throwE ErrConstructTxWrongValidityBounds
+
+    let notWithinValidityInterval (ApiMintBurnData (ApiT scriptTempl) _ _) =
+            not $ withinSlotInterval before hereafter $
+            scriptSlotIntervals scriptTempl
+    when
+        ( isJust mintingBurning' &&
+          L.any notWithinValidityInterval (NE.toList $ fromJust mintingBurning')
+        )
+        $ liftHandler
+        $ throwE ErrConstructTxValidityIntervalNotWithinScriptTimelock
+
+    -- FIXME [ADP-1489] mkRewardAccountBuilder does itself read
+    -- @currentNodeEra@ which is not guaranteed with the era read here. This
+    -- could cause problems under exceptional circumstances.
+    let apiwithdrawal = case body ^. #withdrawal of
+            Just SelfWithdraw -> Just SelfWithdrawal
+            _ -> Nothing
+    (wdrl, _) <-
+        mkRewardAccountBuilder @_ @s @_ @n ctx wid apiwithdrawal
+
+    withWorkerCtx ctx wid liftE liftE $ \wrk -> do
+        pp <- liftIO $ NW.currentProtocolParameters (wrk ^. networkLayer)
+        era <- liftIO $ NW.currentNodeEra (wrk ^. networkLayer)
+        (deposit, refund, txCtx) <- case body ^. #delegations of
+            Nothing -> pure (Nothing, Nothing, defaultTransactionCtx
+                 { txWithdrawal = wdrl
+                 , txMetadata = md
+                 , txValidityInterval = (Just before, hereafter)
+                 })
+            Just delegs -> do
+                -- TODO: Current limitation:
+                -- at this moment we are handling just one delegation action:
+                -- either joining pool, or rejoining or quitting
+                -- When we support multi-account this should be lifted
+                (action, deposit, refund) <- case NE.toList delegs of
+                    [(Joining (ApiT pid) _)] -> do
+                        poolStatus <- liftIO (getPoolStatus pid)
+                        pools <- liftIO knownPools
+                        curEpoch <- getCurrentEpoch ctx
+                        (del, act) <- liftHandler $ W.joinStakePool
+                            @_ @s @k wrk curEpoch pools pid poolStatus wid
+                        pure (del, act, Nothing)
+                    [(Leaving _)] -> do
+                        del <- liftHandler $
+                            W.quitStakePool @_ @s @k wrk wid wdrl
+                        pure (del, Nothing, Just $ W.stakeKeyDeposit pp)
+                    _ ->
+                        liftHandler $
+                            throwE ErrConstructTxMultidelegationNotSupported
+
+                pure (deposit, refund, defaultTransactionCtx
+                    { txWithdrawal = wdrl
+                    , txMetadata = md
+                    , txValidityInterval = (Just before, hereafter)
+                    , txDelegationAction = Just action
+                    })
+
+        (txCtx', policyXPubM) <-
+            if isJust mintingBurning' then do
+                (policyXPub, _) <-
+                    liftHandler $ W.readPolicyPublicKey @_ @s @k @n wrk wid
+                let isMinting (ApiMintBurnData _ _ (ApiMint _)) = True
+                    isMinting _ = False
+                let getMinting = \case
+                        ApiMintBurnData
+                            (ApiT scriptT)
+                            (Just (ApiT tName))
+                            (ApiMint (ApiMintData _ amt)) ->
+                            toTokenMapAndScript @k
+                                scriptT
+                                (Map.singleton (Cosigner 0) policyXPub)
+                                tName
+                                amt
+                        _ -> error "getMinting should not be used in this way"
+                let getBurning = \case
+                        ApiMintBurnData
+                            (ApiT scriptT)
+                            (Just (ApiT tName))
+                            (ApiBurn (ApiBurnData amt)) ->
+                            toTokenMapAndScript @k
+                                scriptT
+                                (Map.singleton (Cosigner 0) policyXPub)
+                                tName
+                                amt
+                        _ -> error "getBurning should not be used in this way"
+                let toTokenMap =
+                        fromFlatList .
+                        map (\(a,q,_) -> (a,q))
+                let toScriptTemplateMap =
+                        Map.fromList .
+                        map (\(a,_,s) -> (a,s))
+                let mintingData =
+                        toTokenMap &&& toScriptTemplateMap $
+                        map getMinting $
+                        filter isMinting $
+                        NE.toList $ fromJust mintingBurning'
+                let burningData =
+                        toTokenMap &&& toScriptTemplateMap $
+                        map getBurning $
+                        filter (not . isMinting) $
+                        NE.toList $ fromJust mintingBurning'
+                pure ( txCtx
+                      { txAssetsToMint = mintingData
+                      , txAssetsToBurn = burningData
+                      }
+                     , Just policyXPub)
+            else
+                pure (txCtx, Nothing)
+
+        outs <- case (body ^. #payments) of
+            Nothing -> pure []
+            Just (ApiPaymentAddresses content) ->
+                pure $ F.toList (addressAmountToTxOut <$> content)
+
+        let mintWithAddress
+                (ApiMintBurnData _ _ (ApiMint (ApiMintData (Just _) _)))
+                = True
+            mintWithAddress _ = False
+        let mintingOuts = case mintingBurning' of
+                Just mintBurns ->
+                    coalesceTokensPerAddr $
+                    map (toMintTxOut (fromJust policyXPubM)) $
+                    filter mintWithAddress $
+                    NE.toList mintBurns
+                Nothing -> []
+
+        let preSel = PreSelection
+                { outputs = outs ++ mintingOuts
+                , assetsToMint = fst $ txCtx' ^. #txAssetsToMint
+                , assetsToBurn = fst $ txCtx' ^. #txAssetsToBurn
+                , extraCoinSource = fromMaybe (Coin 0)refund
+                , extraCoinSink = fromMaybe (Coin 0) deposit
+                }
+        unbalancedTx <- liftHandler
+            $ W.constructTransaction @_ @s @k @n wrk wid era txCtx' (Left preSel)
+
+        undefined
+{--
+
+
+            (sel', utx, fee') <- liftHandler $
+                runSelection (outs ++ mintingOuts)
+            sel <- liftHandler $
+                W.assignChangeAddressesWithoutDbUpdate wrk wid genChange utx
+            (FeeEstimation estMin _) <- liftHandler $ W.estimateFee (pure fee')
+            pure (sel, sel', estMin)
+
+        tx <- liftHandler
+            $ W.constructTransaction @_ @s @k @n wrk wid era txCtx' sel
+
+        pure $ ApiConstructTransaction
+            { transaction = case body ^. #encoding of
+                    Just HexEncoded -> ApiSerialisedTransaction (ApiT tx) HexEncoded
+                    _ -> ApiSerialisedTransaction (ApiT tx) Base64Encoded
+            , coinSelection = mkApiCoinSelection
+                (maybeToList deposit) (maybeToList refund) Nothing md sel'
+            , fee = Quantity $ fromIntegral fee
+            }
+--}
+  where
+    ti :: TimeInterpreter (ExceptT PastHorizonException IO)
+    ti = timeInterpreter (ctx ^. networkLayer)
+
+    toMintTxOut policyXPub
+        (ApiMintBurnData (ApiT scriptT) (Just (ApiT tName))
+            (ApiMint (ApiMintData (Just addr) amt))) =
+                let (assetId, tokenQuantity, _) =
+                        toTokenMapAndScript @k
+                            scriptT (Map.singleton (Cosigner 0) policyXPub)
+                            tName amt
+                    assets = fromFlatList [(assetId, tokenQuantity)]
+                in
+                (addr, assets)
+    toMintTxOut _ _ = error
+        "toMintTxOut can only be used in the minting context with addr \
+        \specified"
+
+    coalesceTokensPerAddr =
+        let toTxOut (addr, assets) =
+                addressAmountToTxOut $
+                AddressAmount addr (Quantity 0) (ApiT assets)
+        in
+        map toTxOut
+            . Map.toList
+            . foldr (uncurry (Map.insertWith (<>))) Map.empty
+
 constructTransaction
     :: forall ctx s k n.
         ( ctx ~ ApiLayer s k 'CredFromKeyK
@@ -2457,7 +2729,7 @@ constructTransaction ctx genChange knownPools getPoolStatus (ApiT wid) body = do
             pure (sel, sel', estMin)
 
         tx <- liftHandler
-            $ W.constructTransaction @_ @s @k @n wrk wid era txCtx' sel
+            $ W.constructTransaction @_ @s @k @n wrk wid era txCtx' (Right sel)
 
         pure $ ApiConstructTransaction
             { transaction = case body ^. #encoding of
