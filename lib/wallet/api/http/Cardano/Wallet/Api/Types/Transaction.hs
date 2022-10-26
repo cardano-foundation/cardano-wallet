@@ -13,11 +13,9 @@
 
 module Cardano.Wallet.Api.Types.Transaction
     ( AddressAmount (..)
-    , ApiAssetMintBurn (..)
+    , ApiAssetMintBurn
     , ApiDecodedTransaction (..)
     , ApiPostPolicyKeyData (..)
-    , ApiTokenAmountFingerprint (..)
-    , ApiTokens (..)
     , ApiTxInputGeneral (..)
     , ApiTxMetadata (..)
     , ApiTxOutput
@@ -40,8 +38,8 @@ import Cardano.Wallet.Api.Lib.Options
     ( DefaultRecord (..) )
 import Cardano.Wallet.Api.Types.Certificate
     ( ApiAnyCertificate )
-import Cardano.Wallet.Api.Types.Key
-    ( ApiPolicyKey )
+import Cardano.Wallet.Api.Types.MintBurn
+    ( ApiAssetMintBurn )
 import Cardano.Wallet.Api.Types.Primitive
     ()
 import Cardano.Wallet.Primitive.AddressDerivation
@@ -61,7 +59,7 @@ import Cardano.Wallet.Primitive.Types.Tx.Tx
 import Cardano.Wallet.Shelley.Network.Discriminant
     ( DecodeAddress, DecodeStakeAddress, EncodeAddress, EncodeStakeAddress )
 import Cardano.Wallet.Transaction
-    ( AnyScript, ValidityIntervalExplicit (..) )
+    ( ValidityIntervalExplicit (..) )
 import Control.DeepSeq
     ( NFData )
 import Data.Aeson.Types
@@ -95,7 +93,6 @@ import Quiet
 
 import qualified Cardano.Wallet.Primitive.Types.RewardAccount as W
 import qualified Cardano.Wallet.Primitive.Types.TokenMap as W
-import qualified Cardano.Wallet.Primitive.Types.TokenPolicy as W
 import qualified Data.Aeson.Types as Aeson
 
 newtype ApiTxMetadata = ApiTxMetadata
@@ -266,33 +263,6 @@ newtype ApiPostPolicyKeyData = ApiPostPolicyKeyData
     }
     deriving (Eq, Generic, Show)
     deriving (FromJSON, ToJSON) via DefaultRecord ApiPostPolicyKeyData
-    deriving anyclass NFData
-
-data ApiTokenAmountFingerprint = ApiTokenAmountFingerprint
-    { assetName :: ApiT W.TokenName
-    , quantity :: Natural
-    , fingerprint :: ApiT W.TokenFingerprint
-    }
-    deriving (Eq, Generic, Show)
-    deriving (FromJSON, ToJSON) via DefaultRecord ApiTokenAmountFingerprint
-    deriving anyclass NFData
-
-data ApiTokens = ApiTokens
-    { policyId :: ApiT W.TokenPolicyId
-    , policyScript :: ApiT AnyScript
-    , assets :: NonEmpty ApiTokenAmountFingerprint
-    }
-    deriving (Eq, Generic, Show)
-    deriving (FromJSON, ToJSON) via DefaultRecord ApiTokens
-    deriving anyclass NFData
-
-data ApiAssetMintBurn = ApiAssetMintBurn
-    { tokens :: [ApiTokens]
-    , walletPolicyKeyHash :: Maybe ApiPolicyKey
-    , walletPolicyKeyIndex :: Maybe (ApiT DerivationIndex)
-    }
-    deriving (Eq, Generic, Show)
-    deriving (FromJSON, ToJSON) via DefaultRecord ApiAssetMintBurn
     deriving anyclass NFData
 
 data ApiWithdrawal (n :: NetworkDiscriminant) = ApiWithdrawal

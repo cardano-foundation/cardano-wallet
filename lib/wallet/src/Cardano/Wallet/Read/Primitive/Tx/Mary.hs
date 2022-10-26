@@ -10,30 +10,22 @@
 
 module Cardano.Wallet.Read.Primitive.Tx.Mary
     ( fromMaryTx
-    , getScriptMap
-    , fromLedgerMintValue
     , fromCardanoValue
     )
     where
 
 import Prelude
 
-import Cardano.Address.Script
-    ( KeyRole (..) )
 import Cardano.Api
     ( MaryEra )
-import Cardano.Ledger.Era
-    ( Era (..) )
-import Cardano.Wallet.Primitive.Types.TokenMap
-    ( TokenMap, toNestedList )
-import Cardano.Wallet.Primitive.Types.TokenPolicy
-    ( TokenPolicyId )
 import Cardano.Wallet.Read.Eras
     ( inject, mary )
 import Cardano.Wallet.Read.Primitive.Tx.Allegra
     ( fromLedgerTxValidity )
 import Cardano.Wallet.Read.Primitive.Tx.Features.Certificates
     ( anyEraCerts )
+import Cardano.Wallet.Read.Primitive.Tx.Features.Mint
+    ( maryMint )
 import Cardano.Wallet.Read.Primitive.Tx.Shelley
     ( fromShelleyAddress
     , fromShelleyCoin
@@ -42,43 +34,24 @@ import Cardano.Wallet.Read.Primitive.Tx.Shelley
     , fromShelleyWdrl
     )
 import Cardano.Wallet.Read.Tx
-    ( Tx (..) )
+    ( Tx (Tx) )
 import Cardano.Wallet.Read.Tx.CBOR
     ( renderTxToCBOR )
 import Cardano.Wallet.Read.Tx.Hash
     ( shelleyTxHash )
-import Cardano.Wallet.Shelley.Compatibility.Ledger
-    ( toWalletScript
-    , toWalletTokenName
-    , toWalletTokenPolicyId
-    , toWalletTokenQuantity
-    )
 import Cardano.Wallet.Transaction
-    ( AnyScript (..), TokenMapWithScripts (..), ValidityIntervalExplicit (..) )
+    ( TokenMapWithScripts, ValidityIntervalExplicit )
 import Cardano.Wallet.Util
     ( internalError )
 import Data.Foldable
-    ( toList )
-import Data.Function
-    ( (&) )
-import Data.Map.Strict
-    ( Map )
-import Data.Maybe
-    ( isJust )
 import GHC.Stack
     ( HasCallStack )
-import Ouroboros.Consensus.Shelley.Eras
-    ( StandardCrypto )
 
 import qualified Cardano.Api as Cardano
 import qualified Cardano.Api.Shelley as Cardano
 import qualified Cardano.Ledger.BaseTypes as SL
-import qualified Cardano.Ledger.Core as SL.Core
-import qualified Cardano.Ledger.Mary.Value as SL
 import qualified Cardano.Ledger.Shelley.API as SL
 import qualified Cardano.Ledger.Shelley.API as SLAPI
-import qualified Cardano.Ledger.Shelley.Tx as Shelley
-import qualified Cardano.Ledger.ShelleyMA as MA
 import qualified Cardano.Ledger.ShelleyMA.AuxiliaryData as MA
 import qualified Cardano.Ledger.ShelleyMA.TxBody as MA
 import qualified Cardano.Wallet.Primitive.Types as W
@@ -86,12 +59,9 @@ import qualified Cardano.Wallet.Primitive.Types.Coin as Coin
 import qualified Cardano.Wallet.Primitive.Types.Coin as W
 import qualified Cardano.Wallet.Primitive.Types.Hash as W
 import qualified Cardano.Wallet.Primitive.Types.TokenBundle as TokenBundle
-import qualified Cardano.Wallet.Primitive.Types.TokenMap as TokenMap
 import qualified Cardano.Wallet.Primitive.Types.TokenPolicy as W
 import qualified Cardano.Wallet.Primitive.Types.TokenQuantity as W
 import qualified Cardano.Wallet.Primitive.Types.Tx as W
-import qualified Data.Map.Strict as Map
-import qualified Data.Map.Strict.NonEmptyMap as NonEmptyMap
 
 fromMaryTx
     :: SLAPI.Tx (Cardano.ShelleyLedgerEra MaryEra)
@@ -126,18 +96,14 @@ fromMaryTx tx =
             Nothing
         }
     , anyEraCerts certs
-    , TokenMapWithScripts assetsToMint mintScriptMap
-    , TokenMapWithScripts assetsToBurn burnScriptMap
+    , assetsToMint
+    , assetsToBurn
     , Just (fromLedgerTxValidity ttl)
     )
   where
     SL.Tx bod wits mad = tx
     MA.TxBody ins outs certs wdrls fee ttl _upd _adh mint = bod
-    (assetsToMint, assetsToBurn) = fromLedgerMintValue mint
-    scriptMap = fromMaryScriptMap $ Shelley.scriptWits wits
-
-    mintScriptMap = getScriptMap scriptMap assetsToMint
-    burnScriptMap = getScriptMap scriptMap assetsToBurn
+    (assetsToMint, assetsToBurn) = maryMint mint wits
 
     -- fixme: [ADP-525] It is fine for now since we do not look at script
     -- pre-images. But this is precisely what we want as part of the
@@ -150,26 +116,6 @@ fromMaryTx tx =
     fromMaryTxOut (SL.TxOut addr value) =
         W.TxOut (fromShelleyAddress addr) $
         fromCardanoValue $ Cardano.fromMaryValue value
-
-    fromMaryScriptMap
-        :: Map
-            (SL.ScriptHash (Crypto (MA.ShelleyMAEra 'MA.Mary StandardCrypto)))
-            (SL.Core.Script (MA.ShelleyMAEra 'MA.Mary StandardCrypto))
-        -> Map TokenPolicyId AnyScript
-    fromMaryScriptMap =
-        Map.map (NativeScript . toWalletScript Policy) .
-        Map.mapKeys (toWalletTokenPolicyId . SL.PolicyID)
-
-getScriptMap
-    :: Map TokenPolicyId AnyScript
-    -> TokenMap
-    -> Map TokenPolicyId AnyScript
-getScriptMap scriptMap =
-    Map.fromList .
-    map (\(policyid, Just script) -> (policyid, script)) .
-    filter (isJust . snd) .
-    map (\(policyid, _) -> (policyid, Map.lookup policyid scriptMap) ) .
-    toNestedList
 
 -- Lovelace to coin. Quantities from ledger should always fit in Word64.
 fromCardanoLovelace :: HasCallStack => Cardano.Lovelace -> W.Coin
@@ -202,27 +148,3 @@ fromCardanoValue = uncurry TokenBundle.fromFlatList . extract
 
     mkPolicyId = W.UnsafeTokenPolicyId . W.Hash . Cardano.serialiseToRawBytes
     mkTokenName = W.UnsafeTokenName . Cardano.serialiseToRawBytes
-
-fromLedgerMintValue
-    :: SL.Value StandardCrypto
-    -> (TokenMap, TokenMap)
-fromLedgerMintValue (SL.Value _ ledgerTokens) =
-    (assetsToMint, assetsToBurn)
-  where
-    assetsToMint = ledgerTokens
-        & Map.map (Map.filter (> 0))
-        & Map.mapKeys toWalletTokenPolicyId
-        & Map.map mapInner
-        & Map.mapMaybe NonEmptyMap.fromMap
-        & TokenMap.fromNestedMap
-
-    assetsToBurn = ledgerTokens
-        & Map.map (Map.mapMaybe (\n -> if n > 0 then Nothing else Just (-n)))
-        & Map.mapKeys toWalletTokenPolicyId
-        & Map.map mapInner
-        & Map.mapMaybe NonEmptyMap.fromMap
-        & TokenMap.fromNestedMap
-
-    mapInner inner = inner
-        & Map.mapKeys toWalletTokenName
-        & Map.map toWalletTokenQuantity

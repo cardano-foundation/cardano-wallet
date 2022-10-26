@@ -331,13 +331,16 @@ library
     Cardano.Wallet.Read.Primitive.Tx.Babbage
     Cardano.Wallet.Read.Primitive.Tx.Byron
     Cardano.Wallet.Read.Primitive.Tx.Features.Certificates
+    Cardano.Wallet.Read.Primitive.Tx.Features.Mint
     Cardano.Wallet.Read.Primitive.Tx.Mary
     Cardano.Wallet.Read.Primitive.Tx.Shelley
     Cardano.Wallet.Read.Tx
     Cardano.Wallet.Read.Tx.CBOR
     Cardano.Wallet.Read.Tx.Certificates
     Cardano.Wallet.Read.Tx.Eras
+    Cardano.Wallet.Read.Tx.Mint
     Cardano.Wallet.Read.Tx.Hash
+    Cardano.Wallet.Read.Tx.Witnesses
     Cardano.Wallet.Registry
     Cardano.Wallet.Shelley.BlockchainSource
     Cardano.Wallet.Shelley.Compatibility
@@ -475,6 +478,7 @@ library cardano-wallet-api-http
     Cardano.Wallet.Api.Http.Server
     Cardano.Wallet.Api.Http.Server.Error
     Cardano.Wallet.Api.Http.Server.Handlers.Certificates
+    Cardano.Wallet.Api.Http.Server.Handlers.MintBurn
     Cardano.Wallet.Api.Http.Server.Handlers.TxCBOR
     Cardano.Wallet.Api.Http.Server.Tls
     Cardano.Wallet.Api.Http.Shelley.Server
@@ -486,6 +490,7 @@ library cardano-wallet-api-http
     Cardano.Wallet.Api.Types
     Cardano.Wallet.Api.Types.BlockHeader
     Cardano.Wallet.Api.Types.Certificate
+    Cardano.Wallet.Api.Types.MintBurn
     Cardano.Wallet.Api.Types.Key
     Cardano.Wallet.Api.Types.Primitive
     Cardano.Wallet.Api.Types.SchemaMetadata
