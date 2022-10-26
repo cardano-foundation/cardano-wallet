@@ -25,8 +25,8 @@
 {-# LANGUAGE TypeApplications #-}
 {-# LANGUAGE TypeFamilies #-}
 {-# LANGUAGE UndecidableInstances #-}
-
 {-# OPTIONS_GHC -Wno-orphans #-}
+{-# OPTIONS_GHC -fno-warn-unticked-promoted-constructors #-}
 
 -- |
 -- Copyright: © 2018-2020 IOHK
@@ -85,6 +85,7 @@ module Cardano.Wallet.Api.Types
     , ApiEra (..)
     , ApiEraInfo (..)
     , ApiErrorCode (..)
+    , ApiErrorDetailed (..)
     , ApiErrorTxOutputLovelaceInsufficient (..)
     , ApiExternalCertificate (..)
     , ApiExternalInput (..)
@@ -1719,6 +1720,15 @@ data ApiErrorCode
     deriving (Eq, Generic, Show, Data, Typeable)
     deriving (FromJSON, ToJSON) via DefaultSum ApiErrorCode
     deriving anyclass NFData
+
+class ToJSON (ApiErrorDetailOf code) => ApiErrorDetailed (code :: ApiErrorCode)
+  where
+    type ApiErrorDetailOf code
+    apiErrorDetailedCode :: Proxy code -> ApiErrorCode
+
+instance ApiErrorDetailed UtxoTooSmall where
+    type ApiErrorDetailOf UtxoTooSmall = ApiErrorTxOutputLovelaceInsufficient
+    apiErrorDetailedCode _ = UtxoTooSmall
 
 data ApiErrorTxOutputLovelaceInsufficient = ApiErrorTxOutputLovelaceInsufficient
     { txOutputIndex
