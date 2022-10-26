@@ -236,8 +236,6 @@ library
     Cardano.Wallet.DB.Sqlite.Schema
     Cardano.Wallet.DB.Sqlite.Stores
     Cardano.Wallet.DB.Sqlite.Types
-    Cardano.Wallet.DB.Store.CBOR.Model
-    Cardano.Wallet.DB.Store.CBOR.Store
     Cardano.Wallet.DB.Store.Checkpoints
     Cardano.Wallet.DB.Store.Meta.Model
     Cardano.Wallet.DB.Store.Meta.Store
@@ -245,8 +243,6 @@ library
     Cardano.Wallet.DB.Store.Submissions.Store
     Cardano.Wallet.DB.Store.Transactions.Model
     Cardano.Wallet.DB.Store.Transactions.Store
-    Cardano.Wallet.DB.Store.TransactionsWithCBOR.Model
-    Cardano.Wallet.DB.Store.TransactionsWithCBOR.Store
     Cardano.Wallet.DB.Store.Wallets.Model
     Cardano.Wallet.DB.Store.Wallets.Store
     Cardano.Wallet.DB.WalletState
@@ -855,8 +851,6 @@ test-suite unit
     Cardano.Wallet.DB.Sqlite.StoresSpec
     Cardano.Wallet.DB.Sqlite.TypesSpec
     Cardano.Wallet.DB.StateMachine
-    Cardano.Wallet.DB.Store.CBOR.ModelSpec
-    Cardano.Wallet.DB.Store.CBOR.StoreSpec
     Cardano.Wallet.DB.Store.Meta.ModelSpec
     Cardano.Wallet.DB.Store.Meta.StoreSpec
     Cardano.Wallet.DB.Store.Submissions.ModelSpec

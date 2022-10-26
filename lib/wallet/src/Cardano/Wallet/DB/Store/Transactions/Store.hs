@@ -1,7 +1,7 @@
 {-# LANGUAGE DataKinds #-}
 {-# LANGUAGE NoMonomorphismRestriction #-}
 {-# LANGUAGE RankNTypes #-}
-{-# LANGUAGE RecordWildCards #-}
+
 {-# LANGUAGE ScopedTypeVariables #-}
 {-# LANGUAGE TypeApplications #-}
 {-# LANGUAGE TypeFamilies #-}
@@ -16,12 +16,14 @@ Implementation of a 'Store' for 'TxSet'.
 module Cardano.Wallet.DB.Store.Transactions.Store
     ( selectTxSet
     , putTxSet
-    , mkStoreTransactions ) where
+    , mkStoreTransactions
+    ) where
 
 import Prelude
 
 import Cardano.Wallet.DB.Sqlite.Schema
-    ( EntityField (..)
+    ( CBOR (..)
+    , EntityField (..)
     , TxCollateral (..)
     , TxCollateralOut (..)
     , TxCollateralOutToken (..)
@@ -44,7 +46,9 @@ import Control.Arrow
 import Data.DBVar
     ( Store (..) )
 import Data.Foldable
-    ( fold, forM_, toList )
+    ( fold, toList )
+import Data.Functor
+    ( (<&>) )
 import Data.List
     ( sortOn )
 import Data.List.Split
@@ -54,7 +58,7 @@ import Data.Map.Strict
 import Data.Maybe
     ( maybeToList )
 import Data.Monoid
-    ( getFirst )
+    ( First (..), getFirst )
 import Database.Persist.Sql
     ( Entity
     , SqlPersistT
@@ -88,6 +92,7 @@ update _ change = case change of
         deleteWhere [TxCollateralOutTokenTxId ==. tid ]
         deleteWhere [TxCollateralOutTxId ==. tid ]
         deleteWhere [TxWithdrawalTxId ==. tid ]
+        deleteWhere [CborTxId ==. tid ]
 
 write :: TxSet -> SqlPersistT IO ()
 write txs = do
@@ -98,31 +103,35 @@ write txs = do
     deleteWhere @_ @_ @TxCollateralOutToken mempty
     deleteWhere @_ @_ @TxCollateralOut mempty
     deleteWhere @_ @_ @TxWithdrawal mempty
+    deleteWhere @_ @_ @CBOR mempty
     putTxSet txs
 
 -- | Insert multiple transactions.
 putTxSet:: TxSet -> SqlPersistT IO ()
-putTxSet (TxSet tx_map) = forM_ tx_map $ \TxRelation {..} -> do
-    repsertMany' ins
-    repsertMany' collateralIns
-    repsertMany' $ fst <$> outs
-    repsertMany' $ outs >>= snd
-    repsertMany' $ maybeToList $ fst <$> collateralOuts
-    repsertMany' $ maybeToList (collateralOuts) >>= snd
-    repsertMany' withdrawals
+putTxSet (TxSet tx_map) = do
+    repsertMany' $ tx_list >>= ins
+    repsertMany' $ tx_list >>= collateralIns
+    repsertMany' $ (tx_list >>= outs) <&> fst
+    repsertMany' $ tx_list >>= outs >>= snd
+    repsertMany' $ (tx_list >>= maybeToList . collateralOuts) <&> fst
+    repsertMany' $ (tx_list >>= maybeToList . collateralOuts) >>= snd
+    repsertMany' $ tx_list >>= withdrawals
+    repsertMany' $ tx_list >>= maybeToList . cbor
 
-    where
-        repsertMany' xs = let
-            Just f = keyFromRecordM
-            in chunked repsertMany [(f x, x) | x <- xs]
-        -- needed to submit large numberot transactions
-        chunked f xs = mapM_ f (chunksOf 1000 xs)
+  where
+    tx_list = toList tx_map
+    repsertMany' xs = let
+        Just f = keyFromRecordM
+        in chunked repsertMany [(f x, x) | x <- xs]
+    -- needed to submit large number of elements
+    chunked f xs = mapM_ f (chunksOf 1000 xs)
 
 -- | Select transactions from the database.
 selectTxSet :: SqlPersistT IO TxSet
 selectTxSet = TxSet <$> select
   where
     selectListAll = selectList [] []
+    orEmpty = Map.findWithDefault []
     select :: SqlPersistT IO (Map TxId TxRelation)
     select = do
         inputs <- mkMap txInputTxId selectListAll
@@ -130,45 +139,44 @@ selectTxSet = TxSet <$> select
         outputs <- mkMap txOutputTxId selectListAll
         collateralOutputs
             <- fmap getFirst <$> mkMap txCollateralOutTxId selectListAll
-        withdrawals <- mkMap txWithdrawalTxId selectListAll
+        widths <- mkMap txWithdrawalTxId selectListAll
         outTokens <- mkMap txOutTokenTxId selectListAll
         collateralTokens <- mkMap txCollateralOutTokenTxId selectListAll
+        cbors :: Map TxId (First  CBOR) <- mkMap cborTxId selectListAll
         let ids =
                 fold
                     [Map.keysSet inputs
                    , Map.keysSet collaterals
                    , Map.keysSet outputs
                    , Map.keysSet collateralOutputs
-                   , Map.keysSet withdrawals
+                   , Map.keysSet widths
                    , Map.keysSet outTokens
                    , Map.keysSet collateralTokens
                     ]
             selectOutTokens :: TxId -> TxOut -> [TxOutToken]
-            selectOutTokens txId txOut =
-                filter
-                    (\token -> txOutTokenTxIndex token == txOutputIndex txOut)
-                $ Map.findWithDefault [] txId outTokens
+            selectOutTokens txId txOut = filter
+                (\token -> txOutTokenTxIndex token == txOutputIndex txOut)
+                $ orEmpty txId outTokens
             selectCollateralTokens
                 :: TxId -> TxCollateralOut -> [TxCollateralOutToken]
-            selectCollateralTokens txId _ =
-                Map.findWithDefault [] txId collateralTokens
+            selectCollateralTokens txId _ = orEmpty txId collateralTokens
         pure $ mconcat $ do
             k <- toList ids
             pure
                 $ Map.singleton k
                 $ TxRelation
-                { ins = sortOn txInputOrder $ Map.findWithDefault [] k inputs
+                { ins = sortOn txInputOrder $ orEmpty k inputs
                 , collateralIns = sortOn txCollateralOrder
-                      $ Map.findWithDefault [] k collaterals
+                      $ orEmpty k collaterals
                 , outs = fmap (fmap $ sortOn tokenOutOrd)
                       $ sortOn (txOutputIndex . fst)
                       $ (id &&& selectOutTokens k)
-                      <$> Map.findWithDefault [] k outputs
+                      <$> orEmpty k outputs
                 , collateralOuts = fmap (fmap $ sortOn tokenCollateralOrd)
                       $ (id &&& selectCollateralTokens k)
                       <$> Map.findWithDefault Nothing k collateralOutputs
-                , withdrawals = sortOn txWithdrawalAccount
-                      $ Map.findWithDefault [] k withdrawals
+                , withdrawals = sortOn txWithdrawalAccount $ orEmpty k widths
+                , cbor = getFirst $ Map.findWithDefault (First Nothing) k cbors
                 }
 
 mkMap :: (Ord k, Functor f, Applicative g, Semigroup (g b))
