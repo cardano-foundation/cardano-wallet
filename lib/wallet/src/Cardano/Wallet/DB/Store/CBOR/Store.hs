@@ -1,6 +1,7 @@
 
 {-# LANGUAGE DataKinds #-}
 {-# LANGUAGE LambdaCase #-}
+{-# LANGUAGE NoMonomorphismRestriction #-}
 {-# LANGUAGE RankNTypes #-}
 {-# LANGUAGE RecordWildCards #-}
 {-# LANGUAGE ScopedTypeVariables #-}
@@ -15,7 +16,7 @@ Implementation of a 'Store' for 'TxCBORPile'.
 
 -}
 
-module Cardano.Wallet.DB.Store.CBOR.Store ( mkStoreCBOR ) where
+module Cardano.Wallet.DB.Store.CBOR.Store ( mkStoreCBOR , txCBORPrism) where
 
 import Prelude
 
@@ -41,7 +42,7 @@ import Data.ByteString.Lazy.Char8
 import Data.DBVar
     ( Store (..) )
 import Data.Generics.Internal.VL
-    ( Iso', build, fromIso, iso, match, (^.) )
+    ( Iso', Prism, build, fromIso, iso, match, prism, (^.) )
 import Data.Maybe
     ( fromJust )
 import Data.Typeable
@@ -75,6 +76,10 @@ toTxCBOR (id', tx) =
 fromTxCBOR :: CBOR -> Either (CBOR, TxCBORRaw ) (TxId, TxCBOR)
 fromTxCBOR s@(CBOR {..}) = bimap (s ,) (cborTxId ,) $
     match eraValueSerialize $ (cborTxCBOR, cborTxEra) ^. fromIso i
+
+
+txCBORPrism :: Prism CBOR (CBOR, TxCBORRaw) (TxId, TxCBOR) (TxId, TxCBOR)
+txCBORPrism = prism toTxCBOR fromTxCBOR
 
 repsertCBORs :: TxCBORPile -> SqlPersistT IO ()
 repsertCBORs (TxCBORPile txs) =
