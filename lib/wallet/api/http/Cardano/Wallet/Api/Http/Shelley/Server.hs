@@ -2447,25 +2447,37 @@ constructTransaction1 ctx genChange knownPools getPoolStatus apiw@(ApiT wid) bod
 
         pure $ ApiConstructTransaction
             { transaction = balancedTx
-            , coinSelection =
-                    mkApiCoinSelection
-                    (maybe [] (\x->[x]) deposit)
-                    (maybe [] (\x->[x]) refund)
-                    ((,rewardPath) <$> txCtx' ^. #txDelegationAction)
-                    md
-                    (unsignedTx apiDecoded)
+            , coinSelection = mkApiCoinSelection
+                (maybe [] (\x->[x]) deposit)
+                (maybe [] (\x->[x]) refund)
+                ((,rewardPath) <$> txCtx' ^. #txDelegationAction)
+                md
+                (unsignedTx rewardPath apiDecoded)
             , fee = apiDecoded ^. #fee
             }
   where
     ti :: TimeInterpreter (ExceptT PastHorizonException IO)
     ti = timeInterpreter (ctx ^. networkLayer)
 
-    unsignedTx decodedTx = UnsignedTx
+{-
+        ( input ~ (TxIn, TxOut, NonEmpty DerivationIndex)
+        , output ~ TxOut
+        , change ~ TxChange (NonEmpty DerivationIndex)
+        , withdrawal ~ (RewardAccount, Coin, NonEmpty DerivationIndex)
+
+--}
+    toUsignedTxWdrl p (ApiWithdrawalGeneral (ApiT rewardAcc,_) (Quantity amt) Our) =
+        Just (rewardAcc, Coin $ fromIntegral amt, p)
+    toUsignedTxWdrl _p (ApiWithdrawalGeneral _ _ External) =
+        Nothing
+
+    unsignedTx path decodedTx = UnsignedTx
         { unsignedCollateral = undefined
         , unsignedInputs = undefined
         , unsignedOutputs = undefined
         , unsignedChange = undefined
-        , unsignedWithdrawals = undefined
+        , unsignedWithdrawals =
+                mapMaybe (toUsignedTxWdrl path) (decodedTx ^. #withdrawals)
         }
 
     toMintTxOut policyXPub
