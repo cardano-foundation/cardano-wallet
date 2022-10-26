@@ -218,7 +218,6 @@ module Cardano.Wallet.Api.Types
     , ApiT (..)
     , ApiMnemonicT (..)
     , ApiBytesT (..)
-    , TaglessSum (..)
 
     -- * Type families
     , ApiAddressIdT
@@ -295,6 +294,7 @@ import Cardano.Wallet.Api.Lib.Options
     ( DefaultRecord (..)
     , DefaultSum (..)
     , TaggedObjectOptions (..)
+    , TaglessSum (..)
     , defaultRecordTypeOptions
     , defaultSumTypeOptions
     , explicitNothingRecordTypeOptions
@@ -1729,16 +1729,6 @@ instance ToJSON ApiErrorCode where
     toJSON e = case toJSON (TaglessSum e) of
         Aeson.Object {} -> toJSON (DefaultSum e)
         anythingElse    -> anythingElse
-
-newtype TaglessSum a = TaglessSum {unTaglessSum :: a}
-
-taglessSumOptions :: Aeson.Options
-taglessSumOptions = defaultSumTypeOptions {sumEncoding = UntaggedValue}
-
-instance FromJSON (TaglessSum ApiErrorCode) where
-    parseJSON = fmap TaglessSum . genericParseJSON taglessSumOptions
-instance ToJSON (TaglessSum ApiErrorCode) where
-    toJSON = genericToJSON taglessSumOptions . unTaglessSum
 
 data ApiErrorTxOutputLovelaceInsufficient = ApiErrorTxOutputLovelaceInsufficient
     { txOutputIndex

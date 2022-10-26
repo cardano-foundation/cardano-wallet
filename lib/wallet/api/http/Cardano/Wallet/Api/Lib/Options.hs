@@ -16,6 +16,7 @@ module Cardano.Wallet.Api.Lib.Options
     -- * Support for deriving default JSON encodings
     , DefaultRecord (..)
     , DefaultSum (..)
+    , TaglessSum (..)
     )
     where
 
@@ -66,6 +67,9 @@ taggedSumTypeOptions base opts = base
     { sumEncoding = TaggedObject (_tagFieldName opts) (_contentsFieldName opts)
     }
 
+taglessSumOptions :: Aeson.Options
+taglessSumOptions = defaultSumTypeOptions {sumEncoding = UntaggedValue}
+
 explicitNothingRecordTypeOptions :: Aeson.Options
 explicitNothingRecordTypeOptions = defaultRecordTypeOptions
     { omitNothingFields = False
@@ -115,3 +119,25 @@ instance (Generic a, GFromJSON Zero (Rep a)) => FromJSON (DefaultSum a)
 instance (Generic a, GToJSON' Value Zero (Rep a)) => ToJSON (DefaultSum a)
   where
     toJSON = genericToJSON defaultSumTypeOptions . unDefaultSum
+
+-- | Enables deriving of a tagless API JSON encoding for sum types.
+--
+-- Usage:
+--
+-- @
+-- data ApiMySum
+--     = Foo
+--     | Bar
+--     | Baz
+--     deriving (FromJSON, ToJSON) via TaglessSum ApiMySum
+-- @
+--
+newtype TaglessSum a = TaglessSum {unTaglessSum :: a}
+
+instance (Generic a, GFromJSON Zero (Rep a)) => FromJSON (TaglessSum a)
+  where
+    parseJSON = fmap TaglessSum . genericParseJSON taglessSumOptions
+
+instance (Generic a, GToJSON' Value Zero (Rep a)) => ToJSON (TaglessSum a)
+  where
+    toJSON = genericToJSON taglessSumOptions . unTaglessSum
