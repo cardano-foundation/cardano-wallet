@@ -8,7 +8,7 @@ import Cardano.Wallet.DB.Arbitrary
 import Cardano.Wallet.DB.Sqlite.Types
     ( TxId (..) )
 import Cardano.Wallet.DB.Store.CBOR.Model
-    ( DeltaTxCBOR (..), TxCBORHistory (..) )
+    ( DeltaTxCBOR (..), TxCBORSet (..) )
 import Control.Monad
     ( forM )
 import Test.Hspec
@@ -22,24 +22,24 @@ spec :: Spec
 spec = pure ()
 
 genDeltas
-    :: TxCBORHistory
+    :: TxCBORSet
     -- ^ submitted ones
     -> Gen (DeltaTxCBOR)
 genDeltas  old = genDeltasConstrained old Nothing
 
 genDeltasConstrained
-    ::  TxCBORHistory
+    ::  TxCBORSet
     -- ^ submitted ones
     -> Maybe [TxId]
     -- ^ possible pool of txids
     -> Gen (DeltaTxCBOR)
-genDeltasConstrained (TxCBORHistory old) txids = frequency $
+genDeltasConstrained (TxCBORSet old) txids = frequency $
     [(1, sized $ \n -> do
         tids <- genTxIds n txids
         locals <- forM tids $ \txId' -> do
                 txcbor  <- arbitrary
                 pure (txId', txcbor)
-        pure $ Append . TxCBORHistory $ Map.fromList locals)
+        pure $ Append . TxCBORSet $ Map.fromList locals)
     ] <>
     [(3, DeleteTx <$> elements (Map.keys old) ) | not (null old)]
 

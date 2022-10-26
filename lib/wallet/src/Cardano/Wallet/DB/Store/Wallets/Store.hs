@@ -34,15 +34,15 @@ import Cardano.Wallet.DB.Store.Submissions.Model
 import Cardano.Wallet.DB.Store.Submissions.Store
     ( mkStoreSubmissions )
 import Cardano.Wallet.DB.Store.Transactions.Model
-    ( TxHistory (..) )
+    ( TxSet (..) )
 import Cardano.Wallet.DB.Store.TransactionsWithCBOR.Model
-    ( DeltaTx (..), TxHistoryWithCBOR (TxHistoryWithCBOR) )
+    ( DeltaTx (..), TxSetWithCBOR (..) )
 import Cardano.Wallet.DB.Store.TransactionsWithCBOR.Store
     ( mkStoreTransactionsWithCBOR )
 import Cardano.Wallet.DB.Store.Wallets.Model
     ( DeltaTxWalletsHistory (..)
     , DeltaWalletsMetaWithSubmissions (..)
-    , mkTxHistoryWithCBORs
+    , mkTxSetWithCBOR
     , walletsLinkedTransactions
     )
 import Control.Applicative
@@ -152,10 +152,10 @@ mkStoreTxWalletsHistory =
           liftA2 (,)
             <$> loadS mkStoreTransactionsWithCBOR
             <*> loadS mkStoreWalletsMetaWithSubmissions
-    , writeS = \(txHistory,txMetaHistory) -> do
-          writeS mkStoreTransactionsWithCBOR txHistory
+    , writeS = \(txSet,txMetaHistory) -> do
+          writeS mkStoreTransactionsWithCBOR txSet
           writeS mkStoreWalletsMetaWithSubmissions txMetaHistory
-    , updateS = \(txh@(TxHistoryWithCBOR (TxHistory mtxh) _) ,mtxmh) -> \case
+    , updateS = \(txh@(TxSetWithCBOR (TxSet mtxh) _) ,mtxmh) -> \case
             ChangeTxMetaWalletsHistory wid change
                 -> updateS mkStoreWalletsMetaWithSubmissions mtxmh
                 $ Adjust wid change
@@ -169,7 +169,7 @@ mkStoreTxWalletsHistory =
             ExpandTxWalletsHistory wid cs -> do
                 updateS mkStoreTransactionsWithCBOR txh
                     $ Append
-                    $ mkTxHistoryWithCBORs
+                    $ mkTxSetWithCBOR
                     $ fst <$> cs
                 updateS mkStoreWalletsMetaWithSubmissions mtxmh
                     $ case Map.lookup wid mtxmh of
