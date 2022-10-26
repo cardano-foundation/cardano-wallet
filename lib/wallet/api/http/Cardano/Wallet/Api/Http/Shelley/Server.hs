@@ -3291,9 +3291,7 @@ quitStakePool
     -> ApiT WalletId
     -> ApiWalletPassphrase
     -> Handler (ApiTransaction n)
-quitStakePool ctx (ApiT wid) body = do
-    let pwd = coerce $ getApiT $ body ^. #passphrase
-
+quitStakePool ctx (ApiT wid) body =
     withWorkerCtx ctx wid liftE liftE $ \wrk -> do
         -- FIXME [ADP-1489] mkRewardAccountBuilder does itself read
         -- @currentNodeEra@ which is not guaranteed with the era read here. This
@@ -3327,15 +3325,13 @@ quitStakePool ctx (ApiT wid) body = do
             $ const Prelude.id
         sel' <- liftHandler
             $ W.assignChangeAddressesAndUpdateDb wrk wid genChange sel
-        (tx, txMeta, txTime, sealedTx) <- liftHandler
-            $ W.buildAndSignTransaction @_ @s @k
+        (tx, txMeta, txTime, sealedTx) <- do
+            let pwd = coerce $ getApiT $ body ^. #passphrase
+            liftHandler $ W.buildAndSignTransaction @_ @s @k
                 wrk wid era mkRwdAcct pwd txCtx sel'
         liftHandler
             $ W.submitTx @_ @s @k wrk wid (tx, txMeta, sealedTx)
-        mkApiTransaction
-            (timeInterpreter (ctx ^. networkLayer))
-            wrk wid
-            (#pendingSince)
+        mkApiTransaction ti wrk wid #pendingSince
             MkApiTransactionParams
                 { txId = tx ^. #txId
                 , txFee = tx ^. #fee
@@ -3351,7 +3347,7 @@ quitStakePool ctx (ApiT wid) body = do
                 , txScriptValidity = tx ^. #scriptValidity
                 , txDeposit = W.stakeKeyDeposit pp
                 , txMetadataSchema = TxMetadataDetailedSchema
-                , txCBOR  = tx ^. #txCBOR
+                , txCBOR = tx ^. #txCBOR
                 }
   where
     ti :: TimeInterpreter (ExceptT PastHorizonException IO)
