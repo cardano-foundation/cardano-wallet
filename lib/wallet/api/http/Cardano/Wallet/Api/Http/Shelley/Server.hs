@@ -2231,7 +2231,7 @@ constructTransaction1
     -> ApiT WalletId
     -> ApiConstructTransactionData n
     -> Handler (ApiConstructTransaction n)
-constructTransaction1 ctx genChange knownPools getPoolStatus (ApiT wid) body = do
+constructTransaction1 ctx genChange knownPools getPoolStatus apiw@(ApiT wid) body = do
     let isNoPayload =
             isNothing (body ^. #payments) &&
             isNothing (body ^. #withdrawal) &&
@@ -2440,10 +2440,12 @@ constructTransaction1 ctx genChange knownPools getPoolStatus (ApiT wid) body = d
                 , encoding = body ^. #encoding
                 }
         balancedTx <- balanceTransaction ctx genChange (ApiT wid) balancedPostData
+        apiDecoded <- decodeTransaction @_ @s @k @n ctx apiw balancedTx
+
         pure $ ApiConstructTransaction
             { transaction = balancedTx
             , coinSelection = mkApiCoinSelection [] [] Nothing md undefined
-            , fee = undefined
+            , fee = apiDecoded ^. #fee
             }
   where
     ti :: TimeInterpreter (ExceptT PastHorizonException IO)
