@@ -4931,10 +4931,24 @@ x-errUtxoTooSmall: &errUtxoTooSmall
   properties:
     message:
       type: string
-      description: May occur when a requested output is below the minimum utxo value.
+      description:
+        Occurs when a requested output has a quantity of lovelace that is below
+        the minimum required by the ledger.
     code:
       type: string
       enum: ['utxo_too_small']
+    info:
+      type: object
+      required:
+        - tx_output_index
+        - tx_output_lovelace_specified
+        - tx_output_lovelace_required_minimum
+      properties:
+          tx_output_index:
+            type: integer
+            minimum: 0
+          tx_output_lovelace_specified: *amount
+          tx_output_lovelace_required_minimum: *amount
 
 x-errMinWithdrawalWrong: &errMinWithdrawalWrong
   <<: *responsesErr
