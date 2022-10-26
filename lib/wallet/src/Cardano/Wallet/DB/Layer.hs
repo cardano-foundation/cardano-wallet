@@ -95,7 +95,6 @@ import Cardano.Wallet.DB.Sqlite.Schema
     , PrivateKey (..)
     , StakeKeyCertificate (..)
     , TxMeta (..)
-    , TxWithdrawal (txWithdrawalAmount)
     , Wallet (..)
     , migrateAll
     , unWalletKey
@@ -112,7 +111,7 @@ import Cardano.Wallet.DB.Store.Meta.Model
 import Cardano.Wallet.DB.Store.Submissions.Model
     ( TxLocalSubmissionHistory (..) )
 import Cardano.Wallet.DB.Store.Transactions.Model
-    ( TxSet (..), decorateTxIns, withdrawals )
+    ( TxSet (..), decorateTxIns )
 import Cardano.Wallet.DB.Store.Wallets.Model
     ( DeltaWalletsMetaWithSubmissions (..)
     , TxWalletsHistory
@@ -1054,28 +1053,38 @@ selectTxHistory tip ti wid minWithdrawal order whichMeta
     tinfos <- sequence $ do
         (TxMetaHistory metas, _) <- maybeToList $ Map.lookup wid wmetas
         meta <- toList metas
-        guard $  whichMeta meta
+        guard $ whichMeta meta
         transaction <- maybeToList $ Map.lookup (txMetaTxId meta) txs
-        guard $ maybe
-            True
-            (\coin -> any (>= coin)
-                $ txWithdrawalAmount <$>  withdrawals transaction)
-            minWithdrawal
         let decoration = decorateTxIns txSet transaction
         pure $ mkTransactionInfo
             ti tip
                 transaction
                 decoration
                 meta
-    pure $ sortTx tinfos
-    where
-        sortTx = case order of
-            W.Ascending -> sortOn
-                $ (,) <$> slotNo . txInfoMeta <*> Down . txInfoId
-            W.Descending -> sortOn
-                $ (,) <$> (Down . slotNo . txInfoMeta) <*> txInfoId
-        TxSet txs = txSet
+    pure
+        . sortTransactionsBySlot order
+        . filterMinWithdrawal minWithdrawal
+        $ tinfos
+  where
+    TxSet txs = txSet
 
+-- | Sort transactions by slot number.
+sortTransactionsBySlot
+    :: W.SortOrder -> [W.TransactionInfo] -> [W.TransactionInfo]
+sortTransactionsBySlot = \case
+    W.Ascending -> sortOn
+        $ (,) <$> slotNo . txInfoMeta <*> Down . txInfoId
+    W.Descending -> sortOn
+        $ (,) <$> (Down . slotNo . txInfoMeta) <*> txInfoId
+
+-- | Keep all transactions where at least one withdrawal is
+-- above a given minimum amount.
+filterMinWithdrawal
+    :: Maybe W.Coin -> [W.TransactionInfo] -> [W.TransactionInfo]
+filterMinWithdrawal Nothing = id
+filterMinWithdrawal (Just minWithdrawal) = filter p
+  where
+    p = any (>= minWithdrawal) . Map.elems . txInfoWithdrawals
 
 -- | Returns the initial submission slot and submission record for all pending
 -- transactions in the wallet.
