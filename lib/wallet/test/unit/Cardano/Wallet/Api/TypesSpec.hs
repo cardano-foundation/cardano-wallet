@@ -200,6 +200,7 @@ import Cardano.Wallet.Api.Types
     , ResourceContext (..)
     , SettingsPutData (..)
     , SomeByronWalletPostData (..)
+    , TaglessSum (..)
     , VerificationKeyHashing (..)
     , WalletOrAccountPostData (..)
     , WalletPostData (..)
@@ -566,6 +567,7 @@ spec = parallel $ do
         jsonTest @(ApiWithdrawalGeneral ('Testnet 0))
         jsonTest @(PostTransactionFeeOldData ('Testnet 0))
         jsonTest @(PostTransactionOldData ('Testnet 0))
+        jsonTest @(TaglessSum ApiErrorCode)
         jsonTest @AccountPostData
         jsonTest @AnyAddress
         jsonTest @ApiAccountKey
@@ -991,6 +993,8 @@ instance {-# OVERLAPPING #-} DecodeStakeAddress ('Testnet 0) where
 instance Arbitrary ApiErrorCode where
     arbitrary = genericArbitrary
     shrink = genericShrink
+
+deriving instance Arbitrary a => Arbitrary (TaglessSum a)
 
 instance Arbitrary (ApiAddress n) where
     shrink _ = []
