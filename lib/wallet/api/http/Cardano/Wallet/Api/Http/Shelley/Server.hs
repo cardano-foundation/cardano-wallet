@@ -207,7 +207,7 @@ import Cardano.Wallet.Api.Types
     , ApiAsArray (..)
     , ApiAsset (..)
     , ApiAssetMintBurn (..)
-    , ApiBalanceTransactionPostData
+    , ApiBalanceTransactionPostData (..)
     , ApiBlockInfo (..)
     , ApiBlockReference (..)
     , ApiBurnData (..)
@@ -2433,29 +2433,18 @@ constructTransaction1 ctx genChange knownPools getPoolStatus (ApiT wid) body = d
         unbalancedTx <- liftHandler
             $ W.constructTransaction @_ @s @k @n wrk wid era txCtx' (Left preSel)
 
-        undefined
-{--
-
-
-            (sel', utx, fee') <- liftHandler $
-                runSelection (outs ++ mintingOuts)
-            sel <- liftHandler $
-                W.assignChangeAddressesWithoutDbUpdate wrk wid genChange utx
-            (FeeEstimation estMin _) <- liftHandler $ W.estimateFee (pure fee')
-            pure (sel, sel', estMin)
-
-        tx <- liftHandler
-            $ W.constructTransaction @_ @s @k @n wrk wid era txCtx' sel
-
+        let balancedPostData = ApiBalanceTransactionPostData
+                { transaction = ApiT unbalancedTx
+                , inputs = []
+                , redeemers = []
+                , encoding = body ^. #encoding
+                }
+        balancedTx <- balanceTransaction ctx genChange (ApiT wid) balancedPostData
         pure $ ApiConstructTransaction
-            { transaction = case body ^. #encoding of
-                    Just HexEncoded -> ApiSerialisedTransaction (ApiT tx) HexEncoded
-                    _ -> ApiSerialisedTransaction (ApiT tx) Base64Encoded
-            , coinSelection = mkApiCoinSelection
-                (maybeToList deposit) (maybeToList refund) Nothing md sel'
-            , fee = Quantity $ fromIntegral fee
+            { transaction = balancedTx
+            , coinSelection = mkApiCoinSelection [] [] Nothing md undefined
+            , fee = undefined
             }
---}
   where
     ti :: TimeInterpreter (ExceptT PastHorizonException IO)
     ti = timeInterpreter (ctx ^. networkLayer)
