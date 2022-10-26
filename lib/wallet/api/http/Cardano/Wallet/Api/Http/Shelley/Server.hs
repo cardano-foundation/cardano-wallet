@@ -2471,9 +2471,18 @@ constructTransaction1 ctx genChange knownPools getPoolStatus apiw@(ApiT wid) bod
     toUsignedTxWdrl _p (ApiWithdrawalGeneral _ _ External) =
         Nothing
 
+    toUnsignedTxInp (WalletInput (ApiWalletInput (ApiT txid) ix (ApiT addr,_) derPath (Quantity c) (ApiT tmap) )) =
+        Just ( TxIn txid ix
+             , TxOut addr (TokenBundle (Coin $ fromIntegral c) tmap)
+             , NE.map getApiT derPath)
+    toUnsignedTxInp (ExternalInput _) =
+        Nothing
+
     unsignedTx path decodedTx = UnsignedTx
-        { unsignedCollateral = undefined
-        , unsignedInputs = undefined
+        { unsignedCollateral =
+                mapMaybe toUnsignedTxInp (decodedTx ^. #collateral)
+        , unsignedInputs =
+                mapMaybe toUnsignedTxInp (decodedTx ^. #inputs)
         , unsignedOutputs = undefined
         , unsignedChange = undefined
         , unsignedWithdrawals =
