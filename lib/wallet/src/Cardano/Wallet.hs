@@ -244,7 +244,8 @@ import Cardano.Wallet.Checkpoints
     , sparseCheckpoints
     )
 import Cardano.Wallet.CoinSelection
-    ( Selection
+    ( PreSelection
+    , Selection
     , SelectionBalanceError (..)
     , SelectionCollateralRequirement (..)
     , SelectionConstraints (..)
@@ -2533,7 +2534,7 @@ constructTransaction
     -> WalletId
     -> Cardano.AnyCardanoEra
     -> TransactionCtx
-    -> SelectionOf TxOut
+    -> Either PreSelection (SelectionOf TxOut)
     -> ExceptT ErrConstructTx IO SealedTx
 constructTransaction ctx wid era txCtx sel = db & \DBLayer{..} -> do
     (_, xpub, _) <- withExceptT ErrConstructTxReadRewardAccount $
@@ -2541,7 +2542,7 @@ constructTransaction ctx wid era txCtx sel = db & \DBLayer{..} -> do
     mapExceptT atomically $ do
         pp <- liftIO $ currentProtocolParameters nl
         withExceptT ErrConstructTxBody $ ExceptT $ pure $
-            mkUnsignedTransaction tl era xpub pp txCtx (Right sel)
+            mkUnsignedTransaction tl era xpub pp txCtx sel
   where
     db = ctx ^. dbLayer @IO @s @k
     tl = ctx ^. transactionLayer @k @ktype
