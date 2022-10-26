@@ -3,7 +3,7 @@
 {-# LANGUAGE TypeFamilies #-}
 
 module Cardano.Wallet.DB.Store.CBOR.Model
-    ( TxCBORHistory (..)
+    ( TxCBORPile (..)
     , DeltaTxCBOR (..)
     )
     where
@@ -24,12 +24,12 @@ import Fmt
 import GHC.Generics
     ( Generic )
 
-newtype TxCBORHistory =
-    TxCBORHistory {relations :: Map TxId TxCBOR}
+newtype TxCBORPile =
+    TxCBORPile {relations :: Map TxId TxCBOR}
     deriving ( Eq, Show, Generic, Monoid, Semigroup )
 
 data DeltaTxCBOR
-    = Append TxCBORHistory
+    = Append TxCBORPile
     -- ^ Add or overwrite (by id) transactions cbor.
     | DeleteTx TxId
     -- ^ Remove cbor by transaction id.
@@ -39,7 +39,7 @@ instance Buildable DeltaTxCBOR where
     build = build . show
 
 instance Delta DeltaTxCBOR where
-    type Base DeltaTxCBOR = TxCBORHistory
+    type Base DeltaTxCBOR = TxCBORPile
     apply (Append addendum) x = addendum <> x
-    apply (DeleteTx tid) (TxCBORHistory m) = TxCBORHistory
+    apply (DeleteTx tid) (TxCBORPile m) = TxCBORPile
         $ Map.delete tid m

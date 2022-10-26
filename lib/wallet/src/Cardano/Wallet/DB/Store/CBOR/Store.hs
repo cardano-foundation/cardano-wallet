@@ -11,7 +11,7 @@
 Copyright: 2022 IOHK
 License: Apache-2.0
 
-Implementation of a 'Store' for 'TxCBORHistory'.
+Implementation of a 'Store' for 'TxCBORPile'.
 
 -}
 
@@ -24,7 +24,7 @@ import Cardano.Wallet.DB.Sqlite.Schema
 import Cardano.Wallet.DB.Sqlite.Types
     ( TxId (..) )
 import Cardano.Wallet.DB.Store.CBOR.Model
-    ( DeltaTxCBOR (..), TxCBORHistory (..) )
+    ( DeltaTxCBOR (..), TxCBORPile (..) )
 import Cardano.Wallet.Read.Eras
 import Cardano.Wallet.Read.Tx.CBOR
     ( TxCBOR )
@@ -76,8 +76,8 @@ fromTxCBOR :: CBOR -> Either (CBOR, TxCBORRaw ) (TxId, TxCBOR)
 fromTxCBOR s@(CBOR {..}) = bimap (s ,) (cborTxId ,) $
     match eraValueSerialize $ (cborTxCBOR, cborTxEra) ^. fromIso i
 
-repsertCBORs :: TxCBORHistory -> SqlPersistT IO ()
-repsertCBORs (TxCBORHistory txs) =
+repsertCBORs :: TxCBORPile -> SqlPersistT IO ()
+repsertCBORs (TxCBORPile txs) =
     repsertMany
         [(fromJust keyFromRecordM x, x)
         | x <- fst . toTxCBOR <$> Map.assocs txs
@@ -94,7 +94,7 @@ mkStoreCBOR = Store
         cbors <- selectList [] []
         pure $ first (SomeException . CBOROutOfEra . snd) $ do
             ps <- mapM (fromTxCBOR . entityVal) cbors
-            pure . TxCBORHistory . Map.fromList $ ps
+            pure . TxCBORPile . Map.fromList $ ps
     , writeS = \txs -> do
           repsertCBORs txs
     , updateS = \_ -> \case

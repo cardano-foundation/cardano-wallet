@@ -10,12 +10,12 @@
 Copyright: 2022 IOHK
 License: Apache-2.0
 
-Implementation of a 'Store' for 'TxHistory'.
+Implementation of a 'Store' for 'TxPile'.
 
 -}
 module Cardano.Wallet.DB.Store.Transactions.Store
-    ( selectTxHistory
-    , putTxHistory
+    ( selectTxPile
+    , putTxPile
     , mkStoreTransactions ) where
 
 import Prelude
@@ -33,8 +33,8 @@ import Cardano.Wallet.DB.Sqlite.Schema
 import Cardano.Wallet.DB.Sqlite.Types
     ( TxId )
 import Cardano.Wallet.DB.Store.Transactions.Model
-    ( DeltaTxHistory (..)
-    , TxHistory (..)
+    ( DeltaTxPile (..)
+    , TxPile (..)
     , TxRelation (..)
     , tokenCollateralOrd
     , tokenOutOrd
@@ -69,17 +69,17 @@ import Database.Persist.Sql
 import qualified Data.Map.Strict as Map
 
 mkStoreTransactions
-    :: Store (SqlPersistT IO) DeltaTxHistory
+    :: Store (SqlPersistT IO) DeltaTxPile
 mkStoreTransactions =
     Store
-    { loadS = Right <$> selectTxHistory
+    { loadS = Right <$> selectTxPile
     , writeS = write
     , updateS = update
     }
 
-update :: TxHistory -> DeltaTxHistory -> SqlPersistT IO ()
+update :: TxPile -> DeltaTxPile -> SqlPersistT IO ()
 update _ change = case change of
-    Append txs -> putTxHistory txs
+    Append txs -> putTxPile txs
     DeleteTx tid -> do
         deleteWhere [TxInputTxId ==. tid ]
         deleteWhere [TxCollateralTxId ==. tid ]
@@ -89,7 +89,7 @@ update _ change = case change of
         deleteWhere [TxCollateralOutTxId ==. tid ]
         deleteWhere [TxWithdrawalTxId ==. tid ]
 
-write :: TxHistory -> SqlPersistT IO ()
+write :: TxPile -> SqlPersistT IO ()
 write txs = do
     deleteWhere @_ @_ @TxIn mempty
     deleteWhere @_ @_ @TxCollateral mempty
@@ -98,12 +98,11 @@ write txs = do
     deleteWhere @_ @_ @TxCollateralOutToken mempty
     deleteWhere @_ @_ @TxCollateralOut mempty
     deleteWhere @_ @_ @TxWithdrawal mempty
-    putTxHistory txs
+    putTxPile txs
 
-
--- | Insert multiple transactions
-putTxHistory :: TxHistory -> SqlPersistT IO ()
-putTxHistory (TxHistory tx_map) = forM_ tx_map $ \TxRelation {..} -> do
+-- | Insert multiple transactions.
+putTxPile:: TxPile -> SqlPersistT IO ()
+putTxPile (TxPile tx_map) = forM_ tx_map $ \TxRelation {..} -> do
     repsertMany' ins
     repsertMany' collateralIns
     repsertMany' $ fst <$> outs
@@ -119,9 +118,9 @@ putTxHistory (TxHistory tx_map) = forM_ tx_map $ \TxRelation {..} -> do
         -- needed to submit large numberot transactions
         chunked f xs = mapM_ f (chunksOf 1000 xs)
 
--- | Select transactions history from the database
-selectTxHistory :: SqlPersistT IO TxHistory
-selectTxHistory = TxHistory <$> select
+-- | Select transactions from the database.
+selectTxPile :: SqlPersistT IO TxPile
+selectTxPile = TxPile <$> select
   where
     selectListAll = selectList [] []
     select :: SqlPersistT IO (Map TxId TxRelation)

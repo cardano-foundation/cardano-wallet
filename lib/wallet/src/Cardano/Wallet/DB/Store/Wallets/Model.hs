@@ -20,7 +20,7 @@ module Cardano.Wallet.DB.Store.Wallets.Model
     , TxWalletsHistory
     , mkTransactionInfo
     , walletsLinkedTransactions
-    , mkTxHistoryWithCBORs
+    , mkTxPileWithCBOR
     ) where
 
 import Prelude
@@ -30,23 +30,23 @@ import Cardano.Wallet.DB.Sqlite.Schema
 import Cardano.Wallet.DB.Sqlite.Types
     ( TxId (..) )
 import Cardano.Wallet.DB.Store.CBOR.Model
-    ( TxCBORHistory (TxCBORHistory) )
+    ( TxCBORPile (..) )
 import Cardano.Wallet.DB.Store.Meta.Model
     ( DeltaTxMetaHistory (..), TxMetaHistory (..), mkTxMetaHistory )
 import Cardano.Wallet.DB.Store.Submissions.Model
     ( DeltaTxLocalSubmission (..), TxLocalSubmissionHistory (..) )
 import Cardano.Wallet.DB.Store.Transactions.Model
     ( DecoratedTxIns
-    , TxHistory (..)
+    , TxPile (..)
     , TxRelation (..)
     , fromTxCollateralOut
     , fromTxOut
     , lookupTxOutForTxCollateral
     , lookupTxOutForTxIn
-    , mkTxHistory
+    , mkTxPile
     )
 import Cardano.Wallet.DB.Store.TransactionsWithCBOR.Model
-    ( TxHistoryWithCBOR (..) )
+    ( TxPileWithCBOR (..) )
 import Cardano.Wallet.Primitive.Slotting
     ( TimeInterpreter, interpretQuery, slotToUTCTime )
 import Cardano.Wallet.Primitive.Types.Tx
@@ -115,17 +115,17 @@ instance Delta DeltaWalletsMetaWithSubmissions where
         constraintSubmissions (metas, apply cs submissions)
 
 type TxWalletsHistory =
-    (TxHistoryWithCBOR, Map W.WalletId MetasAndSubmissionsHistory)
+    (TxPileWithCBOR, Map W.WalletId MetasAndSubmissionsHistory)
 
-mkTxHistoryWithCBORs :: [WT.Tx] -> TxHistoryWithCBOR
-mkTxHistoryWithCBORs cs = TxHistoryWithCBOR (mkTxHistory cs)
-    $ TxCBORHistory $ Map.fromList
+mkTxPileWithCBOR :: [WT.Tx] -> TxPileWithCBOR
+mkTxPileWithCBOR cs = TxPileWithCBOR (mkTxPile cs)
+    $ TxCBORPile $ Map.fromList
         [(TxId txId, cbor) | Tx{..} <- cs, cbor <- maybeToList txCBOR]
 
 instance Delta DeltaTxWalletsHistory where
     type Base DeltaTxWalletsHistory = TxWalletsHistory
     apply (ExpandTxWalletsHistory wid cs) (txh,mtxmh) =
-        ( apply (TxStore.Append $ mkTxHistoryWithCBORs $ fst <$> cs) txh
+        ( apply (TxStore.Append $ mkTxPileWithCBOR $ fst <$> cs) txh
         , flip apply mtxmh $ case Map.lookup wid mtxmh of
               Nothing -> Insert wid (mkTxMetaHistory wid cs, mempty)
               Just _ ->
@@ -138,13 +138,13 @@ instance Delta DeltaTxWalletsHistory where
             $ mtxmh & apply (Adjust wid change)
             )
     apply GarbageCollectTxWalletsHistory
-        (TxHistoryWithCBOR (TxHistory txh) (TxCBORHistory cborh) , mtxmh) =
+        (TxPileWithCBOR (TxPile txh) (TxCBORPile cborh) , mtxmh) =
             let gc :: Map TxId x -> Map TxId x
                 gc x = Map.restrictKeys x
                     $ walletsLinkedTransactions mtxmh
-            in (TxHistoryWithCBOR
-                (TxHistory $ gc txh)
-                (TxCBORHistory $ gc cborh)
+            in (TxPileWithCBOR
+                (TxPile $ gc txh)
+                (TxCBORPile $ gc cborh)
                     , mtxmh)
     apply (RemoveWallet wid) (x , mtxmh) = (x, Map.delete wid mtxmh)
 

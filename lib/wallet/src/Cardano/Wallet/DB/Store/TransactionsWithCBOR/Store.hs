@@ -22,7 +22,7 @@ import Cardano.Wallet.DB.Store.CBOR.Store
 import Cardano.Wallet.DB.Store.Transactions.Store
     ( mkStoreTransactions )
 import Cardano.Wallet.DB.Store.TransactionsWithCBOR.Model
-    ( DeltaTx (Append, DeleteTx), TxHistoryWithCBOR (TxHistoryWithCBOR) )
+    ( DeltaTx (Append, DeleteTx), TxPileWithCBOR (..) )
 import Control.Monad.Except
     ( ExceptT (..), runExceptT )
 import Data.DBVar
@@ -38,14 +38,14 @@ mkStoreTransactionsWithCBOR
     :: Store (SqlPersistT IO) WithCBOR.DeltaTx
 mkStoreTransactionsWithCBOR =
     Store
-    { loadS = runExceptT $ TxHistoryWithCBOR
+    { loadS = runExceptT $ TxPileWithCBOR
                 <$> ExceptT (loadS mkStoreTransactions)
                 <*> ExceptT (loadS mkStoreCBOR)
-    , writeS = \(TxHistoryWithCBOR txs cbors) -> do
+    , writeS = \(TxPileWithCBOR txs cbors) -> do
                 writeS mkStoreTransactions txs
                 writeS mkStoreCBOR cbors
-    , updateS = \(TxHistoryWithCBOR oldtxs oldcbors) -> \case
-        Append (TxHistoryWithCBOR newtxs newcbors) -> do
+    , updateS = \(TxPileWithCBOR oldtxs oldcbors) -> \case
+        Append (TxPileWithCBOR newtxs newcbors) -> do
             updateS mkStoreTransactions oldtxs (Txs.Append newtxs)
             updateS mkStoreCBOR oldcbors (CBOR.Append newcbors)
         DeleteTx tid  -> do

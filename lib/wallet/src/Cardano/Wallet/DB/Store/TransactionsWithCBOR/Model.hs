@@ -2,7 +2,7 @@
 {-# LANGUAGE TypeFamilies #-}
 
 module Cardano.Wallet.DB.Store.TransactionsWithCBOR.Model
-    ( TxHistoryWithCBOR (..)
+    ( TxPileWithCBOR (..)
     , DeltaTx (..)
     )
     where
@@ -12,9 +12,9 @@ import Prelude
 import Cardano.Wallet.DB.Sqlite.Types
     ( TxId )
 import Cardano.Wallet.DB.Store.CBOR.Model
-    ( TxCBORHistory )
+    ( TxCBORPile )
 import Cardano.Wallet.DB.Store.Transactions.Model
-    ( TxHistory )
+    ( TxPile )
 import Data.Delta
     ( Delta (..) )
 import Fmt
@@ -25,22 +25,22 @@ import GHC.Generics
 import qualified Cardano.Wallet.DB.Store.CBOR.Model as CBOR
 import qualified Cardano.Wallet.DB.Store.Transactions.Model as Txs
 
-data TxHistoryWithCBOR =
-    TxHistoryWithCBOR
-      { txHistory :: !TxHistory
-      , txCBORs :: !TxCBORHistory
+data TxPileWithCBOR =
+    TxPileWithCBOR
+      { txHistory :: !TxPile
+      , txCBORs :: !TxCBORPile
       }
     deriving ( Eq, Show, Generic )
 
-instance Monoid TxHistoryWithCBOR where
-  mempty = TxHistoryWithCBOR mempty mempty
+instance Monoid TxPileWithCBOR where
+  mempty = TxPileWithCBOR mempty mempty
 
-instance Semigroup TxHistoryWithCBOR where
-  TxHistoryWithCBOR tx cb <> TxHistoryWithCBOR tx' cb' =
-    TxHistoryWithCBOR (tx <> tx') (cb <> cb')
+instance Semigroup TxPileWithCBOR where
+  TxPileWithCBOR tx cb <> TxPileWithCBOR tx' cb' =
+    TxPileWithCBOR (tx <> tx') (cb <> cb')
 
 data DeltaTx
-    = Append TxHistoryWithCBOR
+    = Append TxPileWithCBOR
     -- ^ Add or overwrite (by id) transactions history.
     | DeleteTx TxId
     -- ^ Remove transaction by id.
@@ -50,12 +50,12 @@ instance Buildable DeltaTx where
     build = build . show
 
 instance Delta DeltaTx where
-    type Base DeltaTx = TxHistoryWithCBOR
-    apply (Append (TxHistoryWithCBOR oldtxs oldcbors))
-        (TxHistoryWithCBOR newtxs newcbors)
-          = TxHistoryWithCBOR
+    type Base DeltaTx = TxPileWithCBOR
+    apply (Append (TxPileWithCBOR oldtxs oldcbors))
+        (TxPileWithCBOR newtxs newcbors)
+          = TxPileWithCBOR
               (apply (Txs.Append newtxs) oldtxs)
               (apply (CBOR.Append newcbors) oldcbors)
-    apply (DeleteTx tid) (TxHistoryWithCBOR txs bors) = TxHistoryWithCBOR
+    apply (DeleteTx tid) (TxPileWithCBOR txs bors) = TxPileWithCBOR
       (apply (Txs.DeleteTx tid) txs)
       (apply (CBOR.DeleteTx tid) bors)

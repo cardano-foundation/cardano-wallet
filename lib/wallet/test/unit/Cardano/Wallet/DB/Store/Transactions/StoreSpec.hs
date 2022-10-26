@@ -20,14 +20,14 @@ import Cardano.Wallet.DB.Fixtures
 import Cardano.Wallet.DB.Sqlite.Types
     ( TxId (TxId) )
 import Cardano.Wallet.DB.Store.Transactions.Model
-    ( DeltaTxHistory (..)
-    , TxHistory (..)
+    ( DeltaTxPile (..)
+    , TxPile (..)
     , collateralIns
     , decorateTxIns
     , ins
     , lookupTxOutForTxCollateral
     , lookupTxOutForTxIn
-    , mkTxHistory
+    , mkTxPile
     )
 import Cardano.Wallet.DB.Store.Transactions.Store
     ( mkStoreTransactions )
@@ -85,11 +85,11 @@ prop_DecorateLinksTxInToTxOuts = do
                     , let txin = (W.TxIn txId txOutPos, W.Coin 0)
                     ]
             let guinea' = set #resolvedInputs txins guinea
-            pure (guineaId, mkTxHistory (guinea' : transactions), txouts)
+            pure (guineaId, mkTxPile (guinea' : transactions), txouts)
 
-    forAll transactionsGen $ \(txid, TxHistory history, txouts) ->
-        let guinea = history Map.! txid
-            deco   = decorateTxIns (TxHistory history) guinea
+    forAll transactionsGen $ \(txid, TxPile pile, txouts) ->
+        let guinea = pile Map.! txid
+            deco   = decorateTxIns (TxPile pile) guinea
         in  [ lookupTxOutForTxIn txin deco | txin <- ins guinea]
             === map Just txouts
 
@@ -112,11 +112,11 @@ prop_DecorateLinksTxCollateralsToTxOuts = do
                     , let txin = (W.TxIn txId txOutPos, W.Coin 0)
                     ]
             let guinea' = set #resolvedCollateralInputs txins guinea
-            pure (guineaId, mkTxHistory (guinea' : transactions), txouts)
+            pure (guineaId, mkTxPile (guinea' : transactions), txouts)
 
-    forAll transactionsGen $ \(txid, TxHistory history, txouts) ->
-        let guinea = history Map.! txid
-            deco   = decorateTxIns (TxHistory history) guinea
+    forAll transactionsGen $ \(txid, TxPile pile, txouts) ->
+        let guinea = pile Map.! txid
+            deco   = decorateTxIns (TxPile pile) guinea
         in  [ lookupTxOutForTxCollateral txcol deco
             | txcol <- collateralIns guinea
             ]
@@ -130,17 +130,17 @@ prop_StoreLaws = withStoreProp $ \runQ ->
         (pure mempty)
         (logScale . genDeltas)
 
--- | Generate interesting changes to 'TxHistory'.
-genDeltas :: GenDelta DeltaTxHistory
-genDeltas (TxHistory history) =
+-- | Generate interesting changes to 'TxPile'.
+genDeltas :: GenDelta DeltaTxPile
+genDeltas (TxPile pile) =
     frequency
-        [ (8, Append . mkTxHistory <$> arbitrary)
+        [ (8, Append . mkTxPile <$> arbitrary)
         , (1, DeleteTx . TxId <$> arbitrary)
         ,
             ( 2
             , DeleteTx
-                <$> if null history
+                <$> if null pile
                     then TxId <$> arbitrary
-                    else elements (Map.keys history)
+                    else elements (Map.keys pile)
             )
         ]
