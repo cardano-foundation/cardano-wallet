@@ -1718,8 +1718,17 @@ data ApiErrorCode
     | WrongMnemonic
     | ValidityIntervalNotInsideScriptTimelock
     deriving (Eq, Generic, Show, Data, Typeable)
-    deriving (FromJSON, ToJSON) via DefaultSum ApiErrorCode
     deriving anyclass NFData
+
+instance FromJSON ApiErrorCode where
+    parseJSON j = (<|>)
+        (unTaglessSum <$> parseJSON j)
+        (unDefaultSum <$> parseJSON j)
+
+instance ToJSON ApiErrorCode where
+    toJSON e = case toJSON (TaglessSum e) of
+        Aeson.Object {} -> toJSON (DefaultSum e)
+        anythingElse    -> anythingElse
 
 newtype TaglessSum a = TaglessSum {unTaglessSum :: a}
 
