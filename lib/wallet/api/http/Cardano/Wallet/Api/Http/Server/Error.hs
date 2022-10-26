@@ -1,8 +1,11 @@
+{-# LANGUAGE AllowAmbiguousTypes #-}
 {-# LANGUAGE DataKinds #-}
 {-# LANGUAGE FlexibleInstances #-}
 {-# LANGUAGE LambdaCase #-}
 {-# LANGUAGE OverloadedLabels #-}
+{-# LANGUAGE ScopedTypeVariables #-}
 {-# LANGUAGE TypeApplications #-}
+{-# OPTIONS_GHC -fno-warn-unticked-promoted-constructors #-}
 
 -- |
 -- Copyright: © 2018-2022 IOHK
@@ -15,6 +18,7 @@ module Cardano.Wallet.Api.Http.Server.Error
   , liftHandler
   , liftE
   , apiError
+  , apiErrorDetailed
   , err425
   , showT
   )
@@ -73,7 +77,7 @@ import Cardano.Wallet
     , ErrWrongPassphrase (..)
     )
 import Cardano.Wallet.Api.Types
-    ( ApiErrorCode (..), Iso8601Time (..) )
+    ( ApiErrorCode (..), ApiErrorDetailed (..), Iso8601Time (..) )
 import Cardano.Wallet.CoinSelection
     ( SelectionBalanceError (..)
     , SelectionCollateralError
@@ -170,6 +174,22 @@ apiError err code message = err
         : errHeaders err
     }
 
+apiErrorDetailed
+    :: forall code. ApiErrorDetailed code
+    => ServerError
+    -> Text
+    -> ApiErrorDetailOf code
+    -> ServerError
+apiErrorDetailed err message details = err
+    { errBody = Aeson.encode $ Aeson.object
+        [ "code" .= apiErrorDetailedCode (Proxy @code)
+        , "message" .= T.replace "\n" " " message
+        , "details" .= details
+        ]
+    , errHeaders =
+        (hContentType, renderHeader $ contentType $ Proxy @JSON)
+        : errHeaders err
+    }
 err425 :: ServerError
 err425 = ServerError 425 "Too early" "" []
 
