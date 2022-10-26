@@ -2459,27 +2459,16 @@ constructTransaction ctx genChange knownPools getPoolStatus apiw@(ApiT wid) body
     ti :: TimeInterpreter (ExceptT PastHorizonException IO)
     ti = timeInterpreter (ctx ^. networkLayer)
 
-{-
-        ( input ~ (TxIn, TxOut, NonEmpty DerivationIndex)
-        , output ~ TxOut
-        , change ~ TxChange (NonEmpty DerivationIndex)
-        , withdrawal ~ (RewardAccount, Coin, NonEmpty DerivationIndex)
+    toUnsignedTxChange initialOuts (WalletOutput (ApiWalletOutput (ApiT addr, _) (Quantity c) (ApiT tmap) derPath)) =
+        let txchange = TxChange addr (Coin $ fromIntegral c) tmap (NE.map getApiT derPath)
+            txout = TxOut addr (TokenBundle (Coin $ fromIntegral c) tmap)
+        in if txout `L.notElem` initialOuts then
+              Just txchange
+           else
+              Nothing
+    toUnsignedTxChange _initialOuts (ExternalOutput _) =
+              Nothing
 
-toOut
-    :: forall n. (TxOut, Maybe (NonEmpty DerivationIndex))
-    -> ApiTxOutputGeneral n
-toOut (txoutIncoming, Nothing) =
-    ExternalOutput $ toAddressAmount @n txoutIncoming
-toOut ((TxOut addr (TokenBundle (Coin c) tmap)), (Just path)) =
-        WalletOutput $ ApiWalletOutput
-            { address = (ApiT addr, Proxy @n)
-            , amount = Quantity $ fromIntegral c
-            , assets = ApiT tmap
-            , derivationPath = NE.map ApiT path
-            }
-
-
---}
     toUnsignedTxOut initialOuts (WalletOutput (ApiWalletOutput (ApiT addr, _) (Quantity c) (ApiT tmap) _)) =
         let txout = TxOut addr (TokenBundle (Coin $ fromIntegral c) tmap)
         in if txout `L.elem` initialOuts then
@@ -2512,7 +2501,8 @@ toOut ((TxOut addr (TokenBundle (Coin c) tmap)), (Just path)) =
                 mapMaybe toUnsignedTxInp (decodedTx ^. #inputs)
         , unsignedOutputs =
                 mapMaybe (toUnsignedTxOut initialOuts) (decodedTx ^. #outputs)
-        , unsignedChange = undefined
+        , unsignedChange =
+                mapMaybe (toUnsignedTxChange initialOuts) (decodedTx ^. #outputs)
         , unsignedWithdrawals =
                 mapMaybe (toUsignedTxWdrl path) (decodedTx ^. #withdrawals)
         }
