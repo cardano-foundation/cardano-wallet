@@ -2442,14 +2442,31 @@ constructTransaction1 ctx genChange knownPools getPoolStatus apiw@(ApiT wid) bod
         balancedTx <- balanceTransaction ctx genChange (ApiT wid) balancedPostData
         apiDecoded <- decodeTransaction @_ @s @k @n ctx apiw balancedTx
 
+        (_, _, rewardPath) <-
+            liftHandler $ W.readRewardAccount @_ @s @k @n wrk wid
+
         pure $ ApiConstructTransaction
             { transaction = balancedTx
-            , coinSelection = mkApiCoinSelection [] [] Nothing md undefined
+            , coinSelection =
+                    mkApiCoinSelection
+                    (maybe [] (\x->[x]) deposit)
+                    (maybe [] (\x->[x]) refund)
+                    ((,rewardPath) <$> txCtx' ^. #txDelegationAction)
+                    md
+                    (unsignedTx apiDecoded)
             , fee = apiDecoded ^. #fee
             }
   where
     ti :: TimeInterpreter (ExceptT PastHorizonException IO)
     ti = timeInterpreter (ctx ^. networkLayer)
+
+    unsignedTx decodedTx = UnsignedTx
+        { unsignedCollateral = undefined
+        , unsignedInputs = undefined
+        , unsignedOutputs = undefined
+        , unsignedChange = undefined
+        , unsignedWithdrawals = undefined
+        }
 
     toMintTxOut policyXPub
         (ApiMintBurnData (ApiT scriptT) (Just (ApiT tName))
