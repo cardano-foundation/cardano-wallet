@@ -68,9 +68,9 @@ import Cardano.Wallet.Primitive.Types.Hash
 import Cardano.Wallet.Primitive.Types.Tx
     ( LocalTxSubmissionStatus
     , SealedTx
-    , TransactionInfo
+    , TransactionInfo (..)
     , Tx (..)
-    , TxMeta
+    , TxMeta (..)
     , TxStatus
     )
 import Control.Monad.IO.Class
@@ -79,12 +79,18 @@ import Control.Monad.Trans.Except
     ( ExceptT (..), runExceptT )
 import Data.DBVar
     ( DBVar )
+import Data.List
+    ( sortOn )
+import Data.Ord
+    ( Down (..) )
 import Data.Quantity
     ( Quantity (..) )
 import Data.Word
     ( Word32 )
 import UnliftIO.Exception
     ( Exception )
+
+import qualified Data.Map.Strict as Map
 
 -- | Instantiate database layers at will
 data DBFactory m s k = DBFactory
@@ -422,9 +428,12 @@ mkDBLayerFromParts DBLayerCollection{..} = DBLayer
         putTxHistory_ dbTxHistory wid a
     , readTxHistory = \wid minWithdrawal order range status ->
         readCurrentTip wid >>= \case
-            Just tip ->
-                (readTxHistory_ dbTxHistory)
-                    wid minWithdrawal order range status tip
+            Just tip -> do
+                tinfos <- (readTxHistory_ dbTxHistory) wid range status tip
+                pure
+                    . sortTransactionsBySlot order
+                    . filterMinWithdrawal minWithdrawal
+                    $ tinfos
             Nothing ->
                 pure []
     , getTx = \wid txid -> wrapNoSuchWallet wid $ do
@@ -597,8 +606,6 @@ data DBTxHistory stm = DBTxHistory
 
     , readTxHistory_
         :: WalletId
-        -> Maybe Coin
-        -> SortOrder
         -> Range SlotNo
         -> Maybe TxStatus
         -> BlockHeader
@@ -675,6 +682,24 @@ data DBPrivateKey stm k = DBPrivateKey
 cleanDB :: DBLayer m s k -> m ()
 cleanDB DBLayer{..} = atomically $
     listWallets >>= mapM_ (runExceptT . removeWallet)
+
+-- | Sort transactions by slot number.
+sortTransactionsBySlot
+    :: SortOrder -> [TransactionInfo] -> [TransactionInfo]
+sortTransactionsBySlot = \case
+    Ascending -> sortOn
+        $ (,) <$> slotNo . txInfoMeta <*> Down . txInfoId
+    Descending -> sortOn
+        $ (,) <$> (Down . slotNo . txInfoMeta) <*> txInfoId
+
+-- | Keep all transactions where at least one withdrawal is
+-- above a given minimum amount.
+filterMinWithdrawal
+    :: Maybe Coin -> [TransactionInfo] -> [TransactionInfo]
+filterMinWithdrawal Nothing = id
+filterMinWithdrawal (Just minWithdrawal) = filter p
+  where
+    p = any (>= minWithdrawal) . Map.elems . txInfoWithdrawals
 
 {-----------------------------------------------------------------------------
     Errors

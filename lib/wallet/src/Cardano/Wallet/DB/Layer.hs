@@ -136,8 +136,6 @@ import Cardano.Wallet.Primitive.Passphrase
     ( PassphraseHash )
 import Cardano.Wallet.Primitive.Slotting
     ( TimeInterpreter, epochOf, firstSlotInEpoch, interpretQuery )
-import Cardano.Wallet.Primitive.Types.Tx
-    ( TransactionInfo (..), TxMeta (..) )
 import Control.Exception
     ( throw )
 import Control.Monad
@@ -160,12 +158,8 @@ import Data.Foldable
     ( toList )
 import Data.Generics.Internal.VL.Lens
     ( view, (^.) )
-import Data.List
-    ( sortOn )
 import Data.Maybe
     ( catMaybes, fromMaybe, isJust, listToMaybe, maybeToList )
-import Data.Ord
-    ( Down (..) )
 import Data.Proxy
     ( Proxy (..) )
 import Data.Quantity
@@ -220,7 +214,6 @@ import qualified Cardano.Wallet.Primitive.Model as W
 import qualified Cardano.Wallet.Primitive.Passphrase as W
 import qualified Cardano.Wallet.Primitive.Types as W
 import qualified Cardano.Wallet.Primitive.Types.Coin as Coin
-import qualified Cardano.Wallet.Primitive.Types.Coin as W
 import qualified Cardano.Wallet.Primitive.Types.Hash as W
 import qualified Cardano.Wallet.Primitive.Types.Tx as W
 import qualified Data.Map.Strict as Map
@@ -717,7 +710,7 @@ newDBLayerWith _cacheBehavior _tr ti SqliteContext{runQuery} = do
         { putTxHistory_ = \wid ->
             updateDBVar transactionsDBVar . ExpandTxWalletsHistory wid
 
-        , readTxHistory_ = \wid minWithdrawal order range status tip -> do
+        , readTxHistory_ = \wid range status tip -> do
             txHistory <- readDBVar transactionsDBVar
             let filtering DB.TxMeta{..} = and $ catMaybes
                     [ (txMetaSlot >=) <$> W.inclusiveLowerBound range
@@ -725,13 +718,11 @@ newDBLayerWith _cacheBehavior _tr ti SqliteContext{runQuery} = do
                     , (txMetaStatus ==) <$> status
                     ]
             lift $ selectTxHistory tip
-                ti wid minWithdrawal
-                order filtering txHistory
+                ti wid filtering txHistory
 
         , getTx_ = \wid txid tip -> do
             txHistory <- readDBVar transactionsDBVar
-            metas <- lift $ selectTxHistory tip
-                ti wid Nothing W.Descending
+            metas <- lift $ selectTxHistory tip ti wid
                     (\meta -> txMetaTxId meta == TxId txid )
                     txHistory
             pure $ listToMaybe metas
@@ -1043,14 +1034,12 @@ selectTxHistory
     => W.BlockHeader
     -> TimeInterpreter m
     -> W.WalletId
-    -> Maybe W.Coin
-    -> W.SortOrder
     -> (DB.TxMeta -> Bool)
     -> TxWalletsHistory
     -> m [W.TransactionInfo]
-selectTxHistory tip ti wid minWithdrawal order whichMeta
+selectTxHistory tip ti wid whichMeta
     (txPile, wmetas) = do
-    tinfos <- sequence $ do
+    sequence $ do
         (TxMetaHistory metas, _) <- maybeToList $ Map.lookup wid wmetas
         meta <- toList metas
         guard $ whichMeta meta
@@ -1061,30 +1050,8 @@ selectTxHistory tip ti wid minWithdrawal order whichMeta
                 transaction
                 decoration
                 meta
-    pure
-        . sortTransactionsBySlot order
-        . filterMinWithdrawal minWithdrawal
-        $ tinfos
   where
     TxPile txs = txPile
-
--- | Sort transactions by slot number.
-sortTransactionsBySlot
-    :: W.SortOrder -> [W.TransactionInfo] -> [W.TransactionInfo]
-sortTransactionsBySlot = \case
-    W.Ascending -> sortOn
-        $ (,) <$> slotNo . txInfoMeta <*> Down . txInfoId
-    W.Descending -> sortOn
-        $ (,) <$> (Down . slotNo . txInfoMeta) <*> txInfoId
-
--- | Keep all transactions where at least one withdrawal is
--- above a given minimum amount.
-filterMinWithdrawal
-    :: Maybe W.Coin -> [W.TransactionInfo] -> [W.TransactionInfo]
-filterMinWithdrawal Nothing = id
-filterMinWithdrawal (Just minWithdrawal) = filter p
-  where
-    p = any (>= minWithdrawal) . Map.elems . txInfoWithdrawals
 
 -- | Returns the initial submission slot and submission record for all pending
 -- transactions in the wallet.
