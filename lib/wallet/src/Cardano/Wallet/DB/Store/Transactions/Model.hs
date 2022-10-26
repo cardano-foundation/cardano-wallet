@@ -3,6 +3,7 @@
 {-# LANGUAGE FlexibleContexts #-}
 {-# LANGUAGE NamedFieldPuns #-}
 {-# LANGUAGE OverloadedLabels #-}
+{-# LANGUAGE TupleSections #-}
 {-# LANGUAGE TypeFamilies #-}
 
 {- |
@@ -40,7 +41,8 @@ module Cardano.Wallet.DB.Store.Transactions.Model
 import Prelude
 
 import Cardano.Wallet.DB.Sqlite.Schema
-    ( TxCollateral (..)
+    ( CBOR (..)
+    , TxCollateral (..)
     , TxCollateralOut (..)
     , TxCollateralOutToken (..)
     , TxIn (..)
@@ -50,6 +52,8 @@ import Cardano.Wallet.DB.Sqlite.Schema
     )
 import Cardano.Wallet.DB.Sqlite.Types
     ( TxId (TxId) )
+import Cardano.Wallet.DB.Store.CBOR.Store
+    ( txCBORPrism )
 import Cardano.Wallet.Primitive.Types.RewardAccount
     ( RewardAccount )
 import Cardano.Wallet.Primitive.Types.TokenMap
@@ -58,6 +62,8 @@ import Cardano.Wallet.Primitive.Types.TokenPolicy
     ( TokenName, TokenPolicyId )
 import Cardano.Wallet.Primitive.Types.TokenQuantity
     ( TokenQuantity )
+import Cardano.Wallet.Primitive.Types.Tx
+    ( Tx (txCBOR) )
 import Control.Applicative
     ( (<|>) )
 import Control.Arrow
@@ -79,13 +85,14 @@ import Data.Maybe
 import Data.Word
     ( Word32 )
 import Fmt
-    ( Buildable (build) )
+    ( Buildable (..) )
 import GHC.Generics
     ( Generic )
 
 import qualified Cardano.Wallet.Primitive.Types.Coin as W
 import qualified Cardano.Wallet.Primitive.Types.TokenBundle as TokenBundle
 import qualified Cardano.Wallet.Primitive.Types.Tx as W
+import qualified Data.Generics.Internal.VL as L
 import qualified Data.Map.Strict as Map
 
 {- | A low level definition of a transaction covering all transaction content
@@ -102,6 +109,7 @@ data TxRelation =
     , outs :: [(TxOut, [TxOutToken])]
     , collateralOuts :: Maybe (TxCollateralOut, [TxCollateralOutToken])
     , withdrawals :: [TxWithdrawal]
+    , cbor :: Maybe CBOR
     }
     deriving ( Generic, Eq, Show )
 
@@ -247,6 +255,7 @@ mkTxRelation tx =
     , collateralOuts = mkTxCollateralOut tid <$> W.collateralOutput tx
     , withdrawals =
           fmap (mkTxWithdrawal tid) $ Map.toList $ W.withdrawals tx
+    , cbor = fst . L.build txCBORPrism . (tid,) <$> txCBOR tx
     }
   where
     tid = TxId $ tx ^. #txId

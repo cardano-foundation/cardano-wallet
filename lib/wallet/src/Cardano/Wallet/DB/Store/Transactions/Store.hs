@@ -21,7 +21,8 @@ module Cardano.Wallet.DB.Store.Transactions.Store
 import Prelude
 
 import Cardano.Wallet.DB.Sqlite.Schema
-    ( EntityField (..)
+    ( CBOR (..)
+    , EntityField (..)
     , TxCollateral (..)
     , TxCollateralOut (..)
     , TxCollateralOutToken (..)
@@ -54,7 +55,7 @@ import Data.Map.Strict
 import Data.Maybe
     ( maybeToList )
 import Data.Monoid
-    ( getFirst )
+    ( First (..), getFirst )
 import Database.Persist.Sql
     ( Entity
     , SqlPersistT
@@ -133,6 +134,7 @@ selectTxPile = TxPile <$> select
         withdrawals <- mkMap txWithdrawalTxId selectListAll
         outTokens <- mkMap txOutTokenTxId selectListAll
         collateralTokens <- mkMap txCollateralOutTokenTxId selectListAll
+        cbors :: Map TxId (First  CBOR) <- mkMap cborTxId selectListAll
         let ids =
                 fold
                     [Map.keysSet inputs
@@ -169,6 +171,8 @@ selectTxPile = TxPile <$> select
                       <$> Map.findWithDefault Nothing k collateralOutputs
                 , withdrawals = sortOn txWithdrawalAccount
                       $ Map.findWithDefault [] k withdrawals
+                , cbor = getFirst $
+                      Map.findWithDefault (First Nothing) k cbors
                 }
 
 mkMap :: (Ord k, Functor f, Applicative g, Semigroup (g b))
