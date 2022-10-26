@@ -4473,17 +4473,14 @@ withWorkerCtx
         -- ^ Do something with the wallet
     -> m a
 withWorkerCtx ctx wid onMissing onNotResponding action =
-    Registry.lookup re wid >>= \case
+    Registry.lookup (ctx ^. workerRegistry @s @k) wid >>= \case
         Nothing -> do
-            wids <- liftIO $ listDatabases df
+            wids <- liftIO $ listDatabases $ ctx ^. dbFactory @s @k
             if wid `elem` wids
                 then onNotResponding (ErrWalletNotResponding wid)
                 else onMissing (ErrNoSuchWallet wid)
         Just wrk ->
             action $ hoistResource (workerResource wrk) (MsgFromWorker wid) ctx
-  where
-    re = ctx ^. workerRegistry @s @k
-    df = ctx ^. dbFactory @s @k
 
 {-------------------------------------------------------------------------------
     Atomic handler operations
