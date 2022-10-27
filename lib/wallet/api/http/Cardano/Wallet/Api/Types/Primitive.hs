@@ -1,5 +1,6 @@
 {-# LANGUAGE DataKinds #-}
 {-# LANGUAGE FlexibleInstances #-}
+{-# LANGUAGE QuasiQuotes #-}
 {-# LANGUAGE ScopedTypeVariables #-}
 {-# LANGUAGE TypeApplications #-}
 {-# LANGUAGE ViewPatterns #-}
@@ -30,6 +31,8 @@ import Cardano.Wallet.Api.Hex
     ( fromHexText, hexText )
 import Cardano.Wallet.Api.Lib.ApiT
     ( ApiT (..), fromTextApiT, toTextApiT )
+import Cardano.Wallet.Api.Types.Key
+    ( parseBech32 )
 import Cardano.Wallet.Primitive.AddressDerivation
     ( DerivationIndex, RewardAccount )
 import Cardano.Wallet.Primitive.Passphrase.Types
@@ -61,8 +64,12 @@ import Cardano.Wallet.Transaction
     ( AnyScript (..) )
 import Cardano.Wallet.Util
     ( ShowFmt (..) )
+import Codec.Binary.Bech32
+    ( dataPartFromBytes )
+import Codec.Binary.Bech32.TH
+    ( humanReadablePart )
 import Control.Monad
-    ( (>=>) )
+    ( when, (>=>) )
 import Data.Aeson
     ( FromJSON (parseJSON)
     , KeyValue (..)
@@ -98,7 +105,9 @@ import qualified Cardano.Wallet.Primitive.Types as W
 import qualified Cardano.Wallet.Primitive.Types.TokenBundle as W
 import qualified Cardano.Wallet.Primitive.Types.TokenMap as W
 import qualified Cardano.Wallet.Primitive.Types.TokenPolicy as W
+import qualified Codec.Binary.Bech32 as Bech32
 import qualified Data.Aeson.Types as Aeson
+import qualified Data.ByteString as BS
 
 instance ToJSON (ApiT DerivationIndex) where
     toJSON = toTextApiT
@@ -276,3 +285,20 @@ instance FromJSON (ApiT TxMetadata) where
 
 instance ToJSON (ApiT TxMetadata) where
     toJSON = metadataToJson TxMetadataJsonDetailedSchema . getApiT
+
+instance FromJSON (ApiT (Hash "ScriptIntegrity")) where
+    parseJSON value = do
+        (hrp, bytes) <- parseJSON value >>=
+            parseBech32 "Malformed policy key"
+        when
+            (hrp /= [humanReadablePart|script_data|])
+            $ fail "expected a bech32 script_data hash"
+        when
+            (BS.length bytes /= 32)
+            $ fail "expected a bech32 script_data hash of 32 bytes"
+        pure $ ApiT $ Hash bytes
+instance ToJSON (ApiT (Hash "ScriptIntegrity")) where
+    toJSON (ApiT (Hash hashed')) =
+        toJSON $ Bech32.encodeLenient
+            [humanReadablePart|script_data|]
+             $ dataPartFromBytes hashed'

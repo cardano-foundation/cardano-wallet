@@ -23,7 +23,9 @@ module Cardano.Wallet.Api.Types.Key
     , ApiVerificationKeyShelley (..)
     , KeyFormat (..)
     , VerificationKeyHashing (..)
-    , computeKeyPayload)
+    , computeKeyPayload
+    , parseBech32
+    )
     where
 
 import Prelude

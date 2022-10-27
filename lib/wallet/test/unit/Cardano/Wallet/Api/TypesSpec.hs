@@ -2166,6 +2166,7 @@ instance Arbitrary (ApiTransaction n) where
             <*> arbitrary
             <*> arbitrary
             <*> arbitrary
+            <*> arbitrary
       where
         genInputs =
             Test.QuickCheck.scale (`mod` 3) arbitrary
@@ -2274,6 +2275,9 @@ instance Arbitrary (Hash "Tx") where
 
 instance Arbitrary (Hash "Datum") where
     arbitrary = Hash . B8.pack <$> replicateM 32 arbitrary
+
+instance Arbitrary (Hash "ScriptIntegrity") where
+    arbitrary = Hash . BS.pack <$> vector 32
 
 instance Arbitrary Direction where
     arbitrary = genericArbitrary

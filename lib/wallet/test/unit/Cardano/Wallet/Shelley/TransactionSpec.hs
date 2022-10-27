@@ -215,12 +215,15 @@ import Cardano.Wallet.Primitive.Types.UTxO
     ( UTxO (..) )
 import Cardano.Wallet.Primitive.Types.UTxOIndex
     ( UTxOIndex )
+import Cardano.Wallet.Read.Primitive.Tx.Features.Integrity
+    ( txIntegrity )
+import Cardano.Wallet.Read.Tx.Cardano
+    ( fromCardanoApiTx )
 import Cardano.Wallet.Shelley.Compatibility
     ( AnyShelleyBasedEra (..)
     , computeTokenBundleSerializedLengthBytes
     , fromCardanoLovelace
     , fromCardanoValue
-    , getScriptIntegrityHash
     , getShelleyBasedEra
     , shelleyToCardanoEra
     , toCardanoLovelace
@@ -982,12 +985,13 @@ prop_signTransaction_preservesScriptIntegrity (AnyCardanoEra era) rootK utxo =
                 utxo
                 sealedTx
 
+            txIntegrityCardanoApi = txIntegrity . fromCardanoApiTx
+
             getScriptIntegrityHashInAnyCardanoEra
                 :: InAnyCardanoEra Cardano.Tx
                 -> Maybe ByteString
-            getScriptIntegrityHashInAnyCardanoEra
-                (InAnyCardanoEra _ transaction) =
-                    getScriptIntegrityHash transaction
+            getScriptIntegrityHashInAnyCardanoEra (InAnyCardanoEra _ tx') =
+                getHash <$> txIntegrityCardanoApi tx'
 
             scriptIntegrityHashBefore =
                 getScriptIntegrityHashInAnyCardanoEra $ cardanoTx sealedTx
