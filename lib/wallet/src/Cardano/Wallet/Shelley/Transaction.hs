@@ -1061,13 +1061,17 @@ estimateNumberOfWitnesses (Cardano.TxBody txbodycontent) =
             Cardano.TxCertificates _ certs _ -> length certs
             -- FIXME [ADP-1515] Not all certificates require witnesses. Will
             -- over-estimate unnecessarily.
+        txMintingScripts = case Cardano.txMintValue txbodycontent of
+            Cardano.TxMintValue _ _ _ -> 1
+            Cardano.TxMintNone -> 0
     in
     fromIntegral $
         length txInsUnique +
         length txExtraKeyWits' +
         length txWithdrawals' +
         txUpdateProposal' +
-        txCerts
+        txCerts +
+        txMintingScripts
   where
     -- Silence warning from redundant @IsShelleyBasedEra@ constraint:
     _ = shelleyBasedEra @era
