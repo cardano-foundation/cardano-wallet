@@ -41,10 +41,12 @@ import Cardano.Wallet.Read.Tx.Certificates
     ( getEraCertificates )
 import Cardano.Wallet.Read.Tx.Mint
     ( getEraMint )
+import Cardano.Wallet.Read.Tx.Validity
+    ( getEraValidity )
 import Cardano.Wallet.Read.Tx.Witnesses
     ( getEraWitnesses )
 import Cardano.Wallet.Transaction
-    ( TokenMapWithScripts )
+    ( TokenMapWithScripts, ValidityIntervalExplicit )
 import Codec.CBOR.Read
     ( DeserialiseFailure )
 import Control.Category
@@ -56,6 +58,7 @@ import Servant.Server
 
 import qualified Cardano.Wallet.Read.Primitive.Tx.Features.Certificates as Feature
 import qualified Cardano.Wallet.Read.Primitive.Tx.Features.Mint as Feature
+import qualified Cardano.Wallet.Read.Primitive.Tx.Features.Validity as Feature
 import qualified Data.ByteString.Lazy as BL
 
 newtype ErrParseCBOR = ErrParseCBOR DeserialiseFailure
@@ -72,6 +75,7 @@ instance IsServerError ErrParseCBOR where
 data ParsedTxCBOR = ParsedTxCBOR
     { certificates :: [Certificate]
     , mintBurn :: (TokenMapWithScripts, TokenMapWithScripts)
+    , validityInterval :: Maybe ValidityIntervalExplicit
     }
     deriving Generic
 
@@ -80,6 +84,7 @@ parser = fromEraFunK
     $ ParsedTxCBOR
         <$> EraFunK (Feature.certificates . getEraCertificates)
         <*> EraFunK (Feature.mint . (getEraMint *&&&* getEraWitnesses))
+        <*> EraFunK (Feature.validity . getEraValidity)
 
 txCBORParser :: EraFun
     (K BL.ByteString)

@@ -28,6 +28,8 @@ module Cardano.Wallet.Api.Types.Key
 
 import Prelude
 
+import Cardano.Address.Derivation
+    ( XPub, xpubPublicKey )
 import Cardano.Wallet.Api.Lib.Options
     ( DefaultSum (..) )
 import Cardano.Wallet.Primitive.AddressDerivation
@@ -42,6 +44,8 @@ import Codec.Binary.Bech32.TH
     ( humanReadablePart )
 import Control.DeepSeq
     ( NFData )
+import Crypto.Hash.Utils
+    ( blake2b224 )
 import Data.Aeson.Types
     ( FromJSON (..), ToJSON (..) )
 import Data.ByteString
@@ -59,11 +63,7 @@ import Servant.API
 import Web.Internal.HttpApiData
     ( ToHttpApiData (..) )
 
-import Cardano.Address.Derivation
-    ( XPub, xpubPublicKey )
 import qualified Codec.Binary.Bech32 as Bech32
-import Crypto.Hash.Utils
-    ( blake2b224 )
 import qualified Data.Aeson.Types as Aeson
 import qualified Data.ByteString as BS
 import qualified Data.Text as T
