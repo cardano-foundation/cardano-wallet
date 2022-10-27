@@ -1035,7 +1035,7 @@ estimateNumberOfWitnesses
     :: forall era. Cardano.IsShelleyBasedEra era
     => Cardano.TxBody era
     -> Word
-estimateNumberOfWitnesses (Cardano.TxBody txbodycontent) =
+estimateNumberOfWitnesses txbody@(Cardano.TxBody txbodycontent) =
     let txIns = Cardano.txIns txbodycontent
         txIns' = [ txin | (txin, Cardano.ViewTx) <- txIns ]
         txInsCollateral = Cardano.txInsCollateral txbodycontent
@@ -1063,9 +1063,7 @@ estimateNumberOfWitnesses (Cardano.TxBody txbodycontent) =
             Cardano.TxCertificates _ certs _ -> length certs
             -- FIXME [ADP-1515] Not all certificates require witnesses. Will
             -- over-estimate unnecessarily.
-        txMintingScripts = case Cardano.txMintValue txbodycontent of
-            Cardano.TxMintValue _ _ _ -> 1
-            Cardano.TxMintNone -> 0
+        txMintingScripts = length $ filter isScriptNative scripts
     in
     fromIntegral $
         length txInsUnique +
@@ -1075,8 +1073,22 @@ estimateNumberOfWitnesses (Cardano.TxBody txbodycontent) =
         txCerts +
         txMintingScripts
   where
-    -- Silence warning from redundant @IsShelleyBasedEra@ constraint:
-    _ = shelleyBasedEra @era
+    (Cardano.ShelleyTxBody _ _ scripts _ _ _) = txbody
+    isScriptNative script = case Cardano.shelleyBasedEra @era of
+        Cardano.ShelleyBasedEraShelley ->
+            False
+        Cardano.ShelleyBasedEraAllegra ->
+            False
+        Cardano.ShelleyBasedEraMary->
+            True --only native scripts allowed
+        Cardano.ShelleyBasedEraAlonzo ->
+            case script of
+                Alonzo.TimelockScript _ -> True
+                _ -> False
+        Cardano.ShelleyBasedEraBabbage ->
+            case script of
+                Alonzo.TimelockScript _ -> True
+                _ -> False
 
 _maxScriptExecutionCost
     :: ProtocolParameters
