@@ -147,7 +147,7 @@ import Cardano.Wallet.Api.Types
     , ApiAddressInspectData (..)
     , ApiCredential (..)
     , ApiDelegationAction (..)
-    , ApiErrorCode (..)
+    , ApiErrorInfo (..)
     , ApiHealthCheck (..)
     , ApiMaintenanceAction (..)
     , ApiMaintenanceActionPostData (..)
