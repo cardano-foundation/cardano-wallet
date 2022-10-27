@@ -1,3 +1,4 @@
+{-# LANGUAGE FlexibleContexts #-}
 {-# LANGUAGE FlexibleInstances #-}
 {-# LANGUAGE GADTs #-}
 {-# LANGUAGE LambdaCase #-}
@@ -18,7 +19,9 @@
 -- wallet migration.
 module Cardano.Wallet.Write.Tx
     (
-    -- * RecentEra
+    -- * Eras
+
+    -- ** RecentEra
       RecentEra (..)
     , IsRecentEra (..)
     , toRecentEra
@@ -37,12 +40,34 @@ module Cardano.Wallet.Write.Tx
     , asAnyRecentEra
     , withRecentEra
 
+    -- ** Misc
+    , StandardCrypto
+    , StandardBabbage
+    , StandardAlonzo
+
+
+    -- * PParams
+    , Core.PParams
+
+    -- * Tx
+    , Core.Tx
+    , modifyTxOutputs
+    , outputs
+    , body
+
     -- * TxOut
     , Core.TxOut
     , TxOutInBabbage
     , TxOutInRecentEra (..)
     , unwrapTxOutInRecentEra
     , ErrInvalidTxOutInEra (..)
+    , modifyTxOutValue
+    , modifyTxOutCoin
+    , value
+
+    , computeMinimumCoinForTxOut
+    , setMinimumCoinForTxOut
+    , isBelowMinimumCoinForTxOut
 
     -- ** Address
     , Address
@@ -50,6 +75,9 @@ module Cardano.Wallet.Write.Tx
 
     -- ** Value
     , Value
+    , modifyCoin
+    , coin
+    , Coin
 
     -- ** Datum
     , Datum (..)
@@ -109,6 +137,10 @@ import Cardano.Ledger.Mary
     ( Value )
 import Cardano.Ledger.SafeHash
     ( SafeHash, extractHash, unsafeMakeSafeHash )
+import Cardano.Ledger.Serialization
+    ( Sized (..), mkSized )
+import Cardano.Ledger.Val
+    ( coin, modifyCoin, (<->) )
 import Control.Arrow
     ( second )
 import Data.ByteString
@@ -130,15 +162,26 @@ import qualified Cardano.Crypto.Hash.Class as Crypto
 import qualified Cardano.Ledger.Address as Ledger
 import qualified Cardano.Ledger.Alonzo.Data as Alonzo
 import qualified Cardano.Ledger.Alonzo.Scripts as Alonzo
+import qualified Cardano.Ledger.Alonzo.Tx as Alonzo
 import qualified Cardano.Ledger.Alonzo.TxBody as Alonzo
 import qualified Cardano.Ledger.Babbage as Babbage
 import qualified Cardano.Ledger.Babbage.TxBody as Babbage
 import qualified Cardano.Ledger.Core as Core
+import Cardano.Ledger.Shelley.API
+    ( CLI (evaluateMinLovelaceOutput), Coin )
 import qualified Cardano.Ledger.Shelley.UTxO as Shelley
 import qualified Cardano.Ledger.TxIn as Ledger
+import Cardano.Wallet.Primitive.Types.Tx.Constraints
+    ( txOutMaxCoin )
+import Cardano.Wallet.Shelley.Compatibility.Ledger
+    ( toLedger )
 import qualified Data.Aeson as Aeson
 import qualified Data.Aeson.Types as Aeson
+import Data.Foldable
+    ( toList )
 import qualified Data.Map as Map
+import Test.Cardano.Ledger.Alonzo.Examples.Consensus
+    ( StandardAlonzo )
 
 --------------------------------------------------------------------------------
 -- Eras
@@ -253,6 +296,31 @@ unsafeMkTxIn hash ix = Ledger.mkTxInPartial
 --------------------------------------------------------------------------------
 
 type TxOut era = Core.TxOut era
+
+modifyTxOutValue
+    :: RecentEra era
+    -> (Value (ShelleyLedgerEra era) -> Value (ShelleyLedgerEra era))
+    -> TxOut (ShelleyLedgerEra era)
+    -> TxOut (ShelleyLedgerEra era)
+modifyTxOutValue RecentEraBabbage f (Babbage.TxOut addr val dat script)=
+        withStandardCryptoConstraint RecentEraBabbage $ Babbage.TxOut addr (f val) dat script
+modifyTxOutValue RecentEraAlonzo f (Alonzo.TxOut addr val dat) =
+        withStandardCryptoConstraint RecentEraAlonzo $ Alonzo.TxOut addr (f val) dat
+
+modifyTxOutCoin
+    :: RecentEra era
+    -> (Coin -> Coin)
+    -> TxOut (ShelleyLedgerEra era)
+    -> TxOut (ShelleyLedgerEra era)
+modifyTxOutCoin era f = withStandardCryptoConstraint era $
+    modifyTxOutValue era (modifyCoin f)
+
+value
+    :: RecentEra era
+    -> TxOut (ShelleyLedgerEra era)
+    -> Value (ShelleyLedgerEra era)
+value RecentEraBabbage (Babbage.TxOut _ val _ _) = val
+value RecentEraAlonzo (Alonzo.TxOut _ val _) = val
 
 type TxOutInBabbage = Babbage.TxOut (Babbage.BabbageEra StandardCrypto)
 
@@ -454,6 +522,65 @@ downcastTxOut (TxOutInRecentEra addr val Alonzo.NoDatum Nothing)
 downcastTxOut (TxOutInRecentEra addr val (Alonzo.DatumHash dh) Nothing)
     = Right $ Alonzo.TxOut addr val (SJust dh)
 
+--
+-- MinimumUTxO
+--
+
+-- |
+--
+-- prop> forall out.
+-- prop> let
+-- prop>     c = computeMinimumCoinForUTxO out
+-- prop> in
+-- prop>     forall c' > c. satisfiesMinimumUTxO (out { coin = c' })
+--
+-- NOTE:
+computeMinimumCoinForTxOut
+    :: forall era. RecentEra era -- FIXME [ADP-2353] Replace 'RecentEra' with 'IsRecentEra'
+    -> Core.PParams (ShelleyLedgerEra era)
+    -> TxOut (ShelleyLedgerEra era)
+    -> Coin
+computeMinimumCoinForTxOut era pp out = withCLIConstraint era $
+    evaluateMinLovelaceOutput pp (withMaxLengthSerializedCoin out)
+  where
+    withMaxLengthSerializedCoin
+        :: TxOut (ShelleyLedgerEra era)
+        -> TxOut (ShelleyLedgerEra era)
+    withMaxLengthSerializedCoin =
+        withStandardCryptoConstraint era $
+            modifyTxOutValue era $ modifyCoin (const $ toLedger txOutMaxCoin)
+
+isBelowMinimumCoinForTxOut
+    :: forall era. RecentEra era -- FIXME [ADP-2353] Replace 'RecentEra' with 'IsRecentEra'
+    -> Core.PParams (ShelleyLedgerEra era)
+    -> TxOut (ShelleyLedgerEra era)
+    -> Either Coin ()
+isBelowMinimumCoinForTxOut era pp out = withCLIConstraint era $
+    let
+        requiredMin = evaluateMinLovelaceOutput pp out
+        actualCoin = getCoin era out
+    in
+        if actualCoin >= requiredMin
+        then Right ()
+        else Left $ requiredMin <-> actualCoin
+
+getCoin :: RecentEra era -> TxOut (ShelleyLedgerEra era) -> Coin
+getCoin RecentEraBabbage (Babbage.TxOut _ val _ _) = coin val
+getCoin RecentEraAlonzo (Alonzo.TxOut _ val _) = coin val
+
+
+setMinimumCoinForTxOut
+    :: forall era. RecentEra era -- FIXME [ADP-2353] Replace 'RecentEra' with 'IsRecentEra'
+    -> Core.PParams (ShelleyLedgerEra era)
+    -> TxOut (ShelleyLedgerEra era)
+    -> TxOut (ShelleyLedgerEra era)
+setMinimumCoinForTxOut era pp out =
+    let
+        minCoin = computeMinimumCoinForTxOut era pp out
+    in
+        withStandardCryptoConstraint era $
+            modifyTxOutValue era (modifyCoin (const minCoin)) out
+
 --------------------------------------------------------------------------------
 -- UTxO
 --------------------------------------------------------------------------------
@@ -490,6 +617,40 @@ utxoFromTxOutsInLatestEra
     -> Shelley.UTxO LatestLedgerEra
 utxoFromTxOutsInLatestEra = withStandardCryptoConstraint RecentEraBabbage $
     Shelley.UTxO . Map.fromList . map (second castTxOut)
+
+--------------------------------------------------------------------------------
+-- Tx
+--------------------------------------------------------------------------------
+
+modifyTxOutputs
+    :: RecentEra era
+    -> (TxOut (ShelleyLedgerEra era) -> TxOut (ShelleyLedgerEra era))
+    -> Core.TxBody (ShelleyLedgerEra era)
+    -> Core.TxBody (ShelleyLedgerEra era)
+modifyTxOutputs era f body = case era of
+    RecentEraBabbage -> body
+        { Babbage.outputs = mapSized f <$> Babbage.outputs body
+        }
+    RecentEraAlonzo -> body
+        { Alonzo.outputs = f <$> Alonzo.outputs body
+        }
+  where
+    mapSized f = mkSized . f . sizedValue
+
+body
+    :: RecentEra era
+    -> Core.Tx (ShelleyLedgerEra era)
+    -> Core.TxBody (ShelleyLedgerEra era)
+body RecentEraBabbage = Alonzo.body -- same type for babbage
+body RecentEraAlonzo = Alonzo.body
+
+-- Until we have convenient lenses to use
+outputs
+    :: RecentEra era
+    -> Core.TxBody (ShelleyLedgerEra era)
+    -> [TxOut (ShelleyLedgerEra era)]
+outputs RecentEraBabbage = map sizedValue . toList . Babbage.outputs
+outputs RecentEraAlonzo = toList . Alonzo.outputs
 
 --------------------------------------------------------------------------------
 -- Compatibility
@@ -541,5 +702,13 @@ withStandardCryptoConstraint
     -> ((Crypto (Cardano.ShelleyLedgerEra era) ~ StandardCrypto) => a)
     -> a
 withStandardCryptoConstraint era a = case era of
+    RecentEraBabbage -> a
+    RecentEraAlonzo -> a
+
+withCLIConstraint
+    :: RecentEra era
+    -> (CLI (ShelleyLedgerEra era) => a)
+    -> a
+withCLIConstraint era a = case era of
     RecentEraBabbage -> a
     RecentEraAlonzo -> a

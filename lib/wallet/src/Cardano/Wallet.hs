@@ -227,6 +227,8 @@ import Cardano.BM.Data.Tracer
     ( HasPrivacyAnnotation (..), HasSeverityAnnotation (..) )
 import Cardano.Crypto.Wallet
     ( toXPub )
+import Cardano.Pool.Types
+    ( PoolId )
 import Cardano.Slotting.Slot
     ( SlotNo (..) )
 import Cardano.Wallet.Address.Book
@@ -604,8 +606,6 @@ import qualified Cardano.Address.Style.Shelley as CAShelley
 import qualified Cardano.Api as Cardano
 import qualified Cardano.Api.Shelley as Cardano
 import qualified Cardano.Crypto.Wallet as CC
-import Cardano.Pool.Types
-    ( PoolId )
 import qualified Cardano.Wallet.Checkpoints.Policy as CP
 import qualified Cardano.Wallet.CoinSelection as CS
 import qualified Cardano.Wallet.DB.WalletState as WS
@@ -620,6 +620,7 @@ import qualified Cardano.Wallet.Primitive.Types.TokenMap as TokenMap
 import qualified Cardano.Wallet.Primitive.Types.UTxO as UTxO
 import qualified Cardano.Wallet.Primitive.Types.UTxOIndex as UTxOIndex
 import qualified Cardano.Wallet.Primitive.Types.UTxOSelection as UTxOSelection
+import qualified Cardano.Wallet.Write.Tx as WriteTx
 import qualified Data.ByteArray as BA
 import qualified Data.Foldable as F
 import qualified Data.List as L
@@ -628,6 +629,9 @@ import qualified Data.Map.Strict as Map
 import qualified Data.Set as Set
 import qualified Data.Text as T
 import qualified Data.Vector as V
+
+import qualified Cardano.Ledger.Babbage.TxBody as Babbage
+import qualified Cardano.Ledger.Core as Ledger
 
 -- $Development
 -- __Naming Conventions__
@@ -1587,6 +1591,8 @@ instance Buildable (PartialTx era) where
         cardanoTxF :: Cardano.Tx era -> Builder
         cardanoTxF tx' = pretty $ pShow tx'
 
+
+
 balanceTransaction
     :: forall era m s k ktype ctx.
         ( HasTransactionLayer k ktype ctx
@@ -1633,6 +1639,43 @@ balanceTransaction ctx change pp ti wallet ptx = do
             otherErr
                 -> throwE otherErr
 
+increaseZeroAdaOutputs
+    :: forall era. WriteTx.RecentEra era
+    -> WriteTx.PParams (Cardano.ShelleyLedgerEra era)
+    -> Cardano.Tx era
+    -> Cardano.Tx era
+increaseZeroAdaOutputs era pp (Cardano.Tx cardanoBody keyWits) =
+    let
+        Cardano.ShelleyTxBody
+            era
+            body
+            scripts
+            scriptData
+            aux
+            val = cardanoBody
+
+        cardanoBody' =
+            Cardano.ShelleyTxBody
+                era
+                (modifyLedgerBody body)
+                scripts
+                scriptData
+                aux
+                val
+
+    in
+        Cardano.Tx cardanoBody' keyWits
+  where
+    modifyLedgerBody
+        :: Ledger.TxBody (Cardano.ShelleyLedgerEra era)
+        -> Ledger.TxBody (Cardano.ShelleyLedgerEra era)
+    modifyLedgerBody =
+        WriteTx.modifyTxOutputs era $ \out ->
+            flip (WriteTx.modifyTxOutCoin era) out $ \c ->
+                if c == mempty
+                then WriteTx.computeMinimumCoinForTxOut era pp out
+                else c
+
 balanceTransactionWithSelectionStrategy
     :: forall era m s k ktype ctx.
         ( HasTransactionLayer k ktype ctx
@@ -1657,12 +1700,11 @@ balanceTransactionWithSelectionStrategy
     ti
     (internalUtxoAvailable, wallet, _pendingTxs)
     selectionStrategy
-    ptx@(PartialTx partialTx inputUTxO redeemers)
+    ptx'
     = do
     guardExistingCollateral partialTx
     guardExistingTotalCollateral partialTx
     guardExistingReturnCollateral partialTx
-    guardZeroAdaOutputs (extractOutputsFromTx $ toSealed partialTx)
     guardConflictingWithdrawalNetworks partialTx
     guardWalletUTxOConsistencyWith inputUTxO
 
@@ -1905,6 +1947,16 @@ balanceTransactionWithSelectionStrategy
       where
          unUTxO (Cardano.UTxO u) = u
 
+    ptx@(PartialTx partialTx inputUTxO redeemers) =
+        let
+            PartialTx tx u rs =  ptx'
+            ledgerPParams = Cardano.toLedgerPParams
+                    (Cardano.shelleyBasedEra @era)
+                    nodePParams
+            Just recentEra = WriteTx.toRecentEra $ Cardano.cardanoEra @era
+        in
+            PartialTx (increaseZeroAdaOutputs recentEra ledgerPParams tx) u rs
+
     assembleTransaction
         :: TxUpdate
         -> ExceptT ErrBalanceTx m (Cardano.Tx era)
@@ -1912,32 +1964,6 @@ balanceTransactionWithSelectionStrategy
         tx' <- left ErrBalanceTxUpdateError $ updateTx tl partialTx update
         left ErrBalanceTxAssignRedeemers $ assignScriptRedeemers
             tl nodePParams ti combinedUTxO redeemers tx'
-
-    guardZeroAdaOutputs outputs = do
-        -- We seem to produce imbalanced transactions if zero-ada
-        -- outputs are pre-specified. Example from
-        -- 'prop_balanceTransactionBalanced':
-        --
-        -- balanced tx:
-        --  2afeed9b
-        --  []
-        --  inputs 2nd 01f4b788
-        --  outputs address: 82d81858...6f57b300
-        --          coin: 0.000000
-        --          tokens: []
-        --  []
-        --  metadata:
-        --  scriptValidity: valid
-
-        --  Lovelace 1000000 /= Lovelace 0
-        --
-        --  This is probably due to selectAssets replacing 0 ada outputs with
-        --  minUTxOValue in the selection, which doesn't end up in the CBOR tx.
-        let zeroAdaOutputs =
-                filter (\o -> view (#tokens . #coin) o == Coin 0 ) outputs
-
-        unless (null zeroAdaOutputs) $
-            throwE ErrBalanceTxZeroAdaOutput
 
     extractOutputsFromTx tx =
         let
