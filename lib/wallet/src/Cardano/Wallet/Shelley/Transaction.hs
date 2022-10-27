@@ -97,7 +97,6 @@ import Cardano.Slotting.EpochInfo.API
     ( hoistEpochInfo )
 import Cardano.Wallet.CoinSelection
     ( PreSelection (..)
-    , PreSelection (..)
     , SelectionLimitOf (..)
     , SelectionOf (..)
     , SelectionSkeleton (..)
@@ -180,6 +179,8 @@ import Cardano.Wallet.Shelley.Compatibility
     , toStakeKeyRegCert
     , toStakePoolDlgCert
     )
+import Cardano.Wallet.Shelley.Compatibility.Ledger
+    ( toLedger )
 import Cardano.Wallet.Shelley.MinimumUTxO
     ( computeMinimumCoinForUTxO, isBelowMinimumCoinForUTxO )
 import Cardano.Wallet.Transaction
@@ -799,7 +800,6 @@ modifyShelleyTxBody txUpdate era ledgerBody = case era of
                 . toCardanoTxOut era <$> extraOutputs
                 )
         , Babbage.inputs =
-               filterOutDummyInp $
                Babbage.inputs ledgerBody
             <> Set.fromList (Cardano.toShelleyTxIn <$> extraInputs')
         , Babbage.collateral = Babbage.collateral ledgerBody
@@ -815,7 +815,6 @@ modifyShelleyTxBody txUpdate era ledgerBody = case era of
                 . toCardanoTxOut era <$> extraOutputs
                 )
         , Alonzo.inputs =
-               filterOutDummyInp $
                Alonzo.inputs ledgerBody
             <> Set.fromList (Cardano.toShelleyTxIn <$> extraInputs')
         , Alonzo.collateral = Alonzo.collateral ledgerBody
@@ -834,7 +833,7 @@ modifyShelleyTxBody txUpdate era ledgerBody = case era of
                 . toCardanoTxOut era
         in
         ShelleyMA.TxBody
-            (filterOutDummyInp $ inputs <> Set.fromList (Cardano.toShelleyTxIn <$> extraInputs'))
+            (inputs <> Set.fromList (Cardano.toShelleyTxIn <$> extraInputs'))
             (outputs <> StrictSeq.fromList (toTxOut <$> extraOutputs))
             certs
             wdrls
@@ -854,7 +853,7 @@ modifyShelleyTxBody txUpdate era ledgerBody = case era of
                 . toCardanoTxOut era
         in
         ShelleyMA.TxBody
-            (filterOutDummyInp $ inputs <> Set.fromList (Cardano.toShelleyTxIn <$> extraInputs'))
+            (inputs <> Set.fromList (Cardano.toShelleyTxIn <$> extraInputs'))
             (outputs <> StrictSeq.fromList (toTxOut <$> extraOutputs))
             certs
             wdrls
@@ -873,7 +872,7 @@ modifyShelleyTxBody txUpdate era ledgerBody = case era of
                 . toCardanoTxOut era
         in
         Shelley.TxBody
-            (filterOutDummyInp $ inputs <> Set.fromList (Cardano.toShelleyTxIn <$> extraInputs'))
+            (inputs <> Set.fromList (Cardano.toShelleyTxIn <$> extraInputs'))
             (outputs <> StrictSeq.fromList (toTxOut <$> extraOutputs))
             certs
             wdrls
@@ -887,9 +886,6 @@ modifyShelleyTxBody txUpdate era ledgerBody = case era of
 
     extraInputs' = toCardanoTxIn . fst <$> extraInputs
     extraCollateral' = toCardanoTxIn <$> extraCollateral
-
-    filterOutDummyInp =
-        Set.delete (Cardano.toShelleyTxIn $ toCardanoTxIn dummyInput)
 
     modifyFee old = case feeUpdate of
         UseNewTxFee new -> toLedgerCoin new
@@ -2242,7 +2238,7 @@ mkUnsignedTx
     -> Map TxIn (Script KeyHash)
     -> Either ErrMkTransaction (Cardano.TxBody era)
 mkUnsignedTx era ttl cs md wdrls certs fees mintData burnData mintingScripts inpsScripts =
-    left toErrMkTx $ Cardano.makeTransactionBody $ Cardano.TxBodyContent
+    left toErrMkTx $ fmap removeDummyInput $ Cardano.makeTransactionBody $ Cardano.TxBodyContent
     { Cardano.txIns = inputWits
 
     , txInsReference = Cardano.TxInsReferenceNone
@@ -2418,10 +2414,27 @@ mkUnsignedTx era ttl cs md wdrls certs fees mintData burnData mintingScripts inp
             [( toCardanoTxIn dummyInput
              , Cardano.BuildTxWith (Cardano.KeyWitness Cardano.KeyWitnessForSpending))]
 
+
+
+
 -- cardano-node does not allow to construct tx without inputs at this moment.
 -- this should change and this hack should be removed
 dummyInput :: TxIn
 dummyInput = TxIn (Hash $ BS.replicate 32 0) 999
+
+removeDummyInput
+    :: Cardano.IsCardanoEra era
+    => Cardano.TxBody era
+    -> Cardano.TxBody era
+removeDummyInput (Cardano.ShelleyTxBody era bod scripts scriptData aux val) =
+    (Cardano.ShelleyTxBody era (removeDummyIn bod) scripts scriptData aux val)
+
+  where
+    removeDummyIn body = case era of
+        ShelleyBasedEraBabbage -> body
+            { Babbage.inputs = Set.delete (toLedger dummyInput) (Babbage.inputs body)
+            }
+        _ -> error "todo"
 
 mkWithdrawals
     :: NetworkId
