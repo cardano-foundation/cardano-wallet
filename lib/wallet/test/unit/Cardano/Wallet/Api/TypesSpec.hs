@@ -930,7 +930,7 @@ spec = parallel $ do
                 `shouldBe` (Left @Text @(ApiT AddressState) msg)
 
     describe "Api Errors" $ do
-        it "Every constructor from ApiErrorCode has a corresponding type in the schema" $
+        it "Every ApiErrorCode constructor has a corresponding schema type" $
             let res = fromJSON @SchemaApiErrorCode specification
                 errStr = case res of
                     Error s -> s
@@ -938,28 +938,29 @@ spec = parallel $ do
             in counterexample errStr $ res == Success SchemaApiErrorCode
 
 {-------------------------------------------------------------------------------
-                              Error type Encoding
+                              Error type encoding
 -------------------------------------------------------------------------------}
 
--- | We use this empty data type to define a custom
--- JSON instance that checks ApiErrorCode has corresponding
--- constructors in the schema file.
+-- | We use this empty data type to define a custom JSON instance that checks
+--   'ApiErrorCode' has corresponding constructors in the schema file.
 data SchemaApiErrorCode = SchemaApiErrorCode
     deriving (Show, Eq)
 
 instance FromJSON SchemaApiErrorCode where
     parseJSON = withObject "SchemaApiErrorCode" $ \o -> do
-        vals <- forM (fmap showConstr $ dataTypeConstrs $ dataTypeOf NoSuchWallet)
-            $ \n -> do
-                (r :: Maybe Yaml.Value) <-
-                    o .:? Aeson.fromString (toSchemaName n)
-                pure $ maybe (Left n) Right r
+        let constructors :: [String] =
+                showConstr <$> dataTypeConstrs (dataTypeOf NoSuchWallet)
+        vals :: [Either String Yaml.Value] <-
+            forM constructors $ \c ->
+                maybe (Left c) Right <$> o .:? Aeson.fromString (toSchemaName c)
         case lefts vals of
             [] -> pure SchemaApiErrorCode
-            xs -> fail ("Missing ApiErrorCode constructors for: "
-                <> show xs
-                <> "\nEach of these need a corresponding swagger type of the form: "
-                <> "x-errConstructorName")
+            xs -> fail $ unlines
+                [ "Missing ApiErrorCode constructors for:"
+                , show xs
+                , "Each of these need a corresponding swagger type of the form:"
+                , "x-errConstructorName"
+                ]
       where
         toSchemaName :: String -> String
         toSchemaName [] = []
