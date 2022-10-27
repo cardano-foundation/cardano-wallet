@@ -9,17 +9,17 @@
 Copyright: © 2022 IOHK
 License: Apache-2.0
 
-Data type 'TxHistory' for storing a set of transactions.
+Data type 'TxSet' for storing a set of transactions.
 Transactions are encoded "as" expressed in DB tables.
 
 -}
 module Cardano.Wallet.DB.Store.Transactions.Model
-    ( DeltaTxHistory (..)
-    , TxHistory (..)
+    ( DeltaTxSet (..)
+    , TxSet (..)
     , TxRelation (..)
     , tokenCollateralOrd
     , tokenOutOrd
-    , mkTxHistory
+    , mkTxSet
 
     -- * Decoration
     , DecoratedTxIns
@@ -105,40 +105,40 @@ data TxRelation =
     }
     deriving ( Generic, Eq, Show )
 
--- | Transactions history is 'TxRelation's indexed by 'TxId'
-newtype TxHistory =
-    TxHistory { relations :: Map TxId TxRelation }
+-- | A 'TxSet' is a map of 'TxRelation's indexed by their 'TxId'.
+newtype TxSet =
+    TxSet { relations :: Map TxId TxRelation }
     deriving ( Generic, Eq, Show )
 
-instance Monoid TxHistory where
-    mempty = TxHistory mempty
+instance Monoid TxSet where
+    mempty = TxSet mempty
 
-instance Semigroup TxHistory where
-    TxHistory h1 <> TxHistory h2 =
-        TxHistory $ h1 <> h2
+instance Semigroup TxSet where
+    TxSet h1 <> TxSet h2 =
+        TxSet $ h1 <> h2
 
-instance Buildable TxHistory where
-    build txs = "TxHistory " <> build (show $ relations txs)
+instance Buildable TxSet where
+    build txs = "TxSet " <> build (show $ relations txs)
 
--- | Verbs to change a 'TxHistory'.
-data DeltaTxHistory
-    = Append TxHistory
+-- | Verbs to change a 'TxSet'.
+data DeltaTxSet
+    = Append TxSet
     -- ^ Add new set of transactions.
-    -- Overwrites transactions whose id is already present in the 'TxHistory'.
+    -- /Overwrites/ transactions whose id is already present in the 'TxSet'.
     | DeleteTx TxId
     -- ^ Try to remove the transaction at the given transaction id.
     deriving ( Show, Eq, Generic )
 
-instance Buildable DeltaTxHistory where
+instance Buildable DeltaTxSet where
     build action = build $ show action
 
-instance Delta DeltaTxHistory where
-    type Base DeltaTxHistory = TxHistory
+instance Delta DeltaTxSet where
+    type Base DeltaTxSet = TxSet
     -- transactions are immutable so here there should happen no rewriting
     -- but we mimic the repsert in the store
     apply (Append txs) h = txs <> h
-    apply (DeleteTx tid) (TxHistory txs) =
-        TxHistory $ Map.delete tid txs
+    apply (DeleteTx tid) (TxSet txs) =
+        TxSet $ Map.delete tid txs
 
 {-------------------------------------------------------------------------------
     Type conversions
@@ -253,9 +253,9 @@ mkTxRelation tx =
     indexed :: (Enum a, Num a) => [b] -> [(a, b)]
     indexed = zip [0 .. ]
 
--- | Convert high level transactions definition in low level DB history
-mkTxHistory :: [W.Tx] -> TxHistory
-mkTxHistory txs = TxHistory $ fold $ do
+-- | Convert high level transactions definition in low level 'TxSet'.
+mkTxSet :: [W.Tx] -> TxSet
+mkTxSet txs = TxSet $ fold $ do
     tx <- txs
     let relation = mkTxRelation tx
     pure $ Map.singleton (TxId $ tx ^. #txId) relation
@@ -330,10 +330,10 @@ lookupTxOutForTxCollateral tx =
     Map.lookup (toKeyTxCollateral tx) . unDecoratedTxIns
 
 -- | Decorate the Tx inputs of a given 'TxRelation'
--- by searching the 'TxHistory' for corresponding output values.
+-- by searching the 'TxSet' for corresponding output values.
 decorateTxIns
-    :: TxHistory -> TxRelation -> DecoratedTxIns
-decorateTxIns (TxHistory relations) TxRelation{ins,collateralIns} =
+    :: TxSet -> TxRelation -> DecoratedTxIns
+decorateTxIns (TxSet relations) TxRelation{ins,collateralIns} =
     DecoratedTxIns . Map.fromList . catMaybes $
         (lookupOutput . toKeyTxIn <$> ins)
         ++ (lookupOutput . toKeyTxCollateral <$> collateralIns)
