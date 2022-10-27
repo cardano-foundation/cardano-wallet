@@ -132,6 +132,8 @@ import Cardano.Wallet.Primitive.Types.Address
     ( Address (..) )
 import Cardano.Wallet.Primitive.Types.Coin
     ( Coin (..) )
+import Cardano.Wallet.Primitive.Types.Hash
+    ( Hash (..) )
 import Cardano.Wallet.Primitive.Types.Redeemer
     ( Redeemer, redeemerData )
 import Cardano.Wallet.Primitive.Types.TokenBundle
@@ -154,7 +156,7 @@ import Cardano.Wallet.Primitive.Types.Tx
 import Cardano.Wallet.Primitive.Types.Tx.Constraints
     ( TxConstraints (..), TxSize (..), txSizeDistance )
 import Cardano.Wallet.Primitive.Types.Tx.TxIn
-    ( TxIn )
+    ( TxIn (..) )
 import Cardano.Wallet.Primitive.Types.Tx.TxOut
     ( TxOut (..) )
 import Cardano.Wallet.Read.Primitive.Tx
@@ -283,6 +285,7 @@ import qualified Cardano.Wallet.Shelley.Compatibility as Compatibility
 import qualified Codec.CBOR.Encoding as CBOR
 import qualified Codec.CBOR.Write as CBOR
 import qualified Data.ByteString as BS
+import qualified Data.ByteString.Char8 as B8
 import qualified Data.ByteString.Lazy as BL
 import qualified Data.Foldable as F
 import qualified Data.List as L
@@ -795,7 +798,9 @@ modifyShelleyTxBody txUpdate era ledgerBody = case era of
                 . Cardano.toCtxUTxOTxOut
                 . toCardanoTxOut era <$> extraOutputs
                 )
-        , Babbage.inputs = Babbage.inputs ledgerBody
+        , Babbage.inputs =
+               filterOutDummyInp $
+               Babbage.inputs ledgerBody
             <> Set.fromList (Cardano.toShelleyTxIn <$> extraInputs')
         , Babbage.collateral = Babbage.collateral ledgerBody
             <> Set.fromList (Cardano.toShelleyTxIn <$> extraCollateral')
@@ -809,7 +814,9 @@ modifyShelleyTxBody txUpdate era ledgerBody = case era of
                 . Cardano.toCtxUTxOTxOut
                 . toCardanoTxOut era <$> extraOutputs
                 )
-        , Alonzo.inputs = Alonzo.inputs ledgerBody
+        , Alonzo.inputs =
+               filterOutDummyInp $
+               Alonzo.inputs ledgerBody
             <> Set.fromList (Cardano.toShelleyTxIn <$> extraInputs')
         , Alonzo.collateral = Alonzo.collateral ledgerBody
             <> Set.fromList (Cardano.toShelleyTxIn <$> extraCollateral')
@@ -827,7 +834,7 @@ modifyShelleyTxBody txUpdate era ledgerBody = case era of
                 . toCardanoTxOut era
         in
         ShelleyMA.TxBody
-            (inputs <> Set.fromList (Cardano.toShelleyTxIn <$> extraInputs'))
+            (filterOutDummyInp $ inputs <> Set.fromList (Cardano.toShelleyTxIn <$> extraInputs'))
             (outputs <> StrictSeq.fromList (toTxOut <$> extraOutputs))
             certs
             wdrls
@@ -847,7 +854,7 @@ modifyShelleyTxBody txUpdate era ledgerBody = case era of
                 . toCardanoTxOut era
         in
         ShelleyMA.TxBody
-            (inputs <> Set.fromList (Cardano.toShelleyTxIn <$> extraInputs'))
+            (filterOutDummyInp $ inputs <> Set.fromList (Cardano.toShelleyTxIn <$> extraInputs'))
             (outputs <> StrictSeq.fromList (toTxOut <$> extraOutputs))
             certs
             wdrls
@@ -866,7 +873,7 @@ modifyShelleyTxBody txUpdate era ledgerBody = case era of
                 . toCardanoTxOut era
         in
         Shelley.TxBody
-            (inputs <> Set.fromList (Cardano.toShelleyTxIn <$> extraInputs'))
+            (filterOutDummyInp $ inputs <> Set.fromList (Cardano.toShelleyTxIn <$> extraInputs'))
             (outputs <> StrictSeq.fromList (toTxOut <$> extraOutputs))
             certs
             wdrls
@@ -880,6 +887,9 @@ modifyShelleyTxBody txUpdate era ledgerBody = case era of
 
     extraInputs' = toCardanoTxIn . fst <$> extraInputs
     extraCollateral' = toCardanoTxIn <$> extraCollateral
+
+    filterOutDummyInp =
+        Set.delete (Cardano.toShelleyTxIn $ toCardanoTxIn dummyInput)
 
     modifyFee old = case feeUpdate of
         UseNewTxFee new -> toLedgerCoin new
@@ -2405,7 +2415,13 @@ mkUnsignedTx era ttl cs md wdrls certs fees mintData burnData mintingScripts inp
             else
                 constructInpScriptWit . fst <$> F.toList (view #inputs selOf)
         Left _preSel ->
-            []
+            [( toCardanoTxIn dummyInput
+             , Cardano.BuildTxWith (Cardano.KeyWitness Cardano.KeyWitnessForSpending))]
+
+-- cardano-node does not allow to construct tx without inputs at this moment.
+-- this should change and this hack should be removed
+dummyInput :: TxIn
+dummyInput = TxIn (Hash $ B8.replicate 32 '0') 0
 
 mkWithdrawals
     :: NetworkId
