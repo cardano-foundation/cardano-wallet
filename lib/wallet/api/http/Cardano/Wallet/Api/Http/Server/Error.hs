@@ -1,6 +1,8 @@
 {-# LANGUAGE DataKinds #-}
+{-# LANGUAGE DuplicateRecordFields #-}
 {-# LANGUAGE FlexibleInstances #-}
 {-# LANGUAGE LambdaCase #-}
+{-# LANGUAGE NamedFieldPuns #-}
 {-# LANGUAGE OverloadedLabels #-}
 {-# LANGUAGE TypeApplications #-}
 
@@ -73,7 +75,7 @@ import Cardano.Wallet
     , ErrWrongPassphrase (..)
     )
 import Cardano.Wallet.Api.Types
-    ( ApiErrorInfo (..), Iso8601Time (..) )
+    ( ApiError (..), ApiErrorInfo (..), ApiErrorMessage (..), Iso8601Time (..) )
 import Cardano.Wallet.CoinSelection
     ( SelectionBalanceError (..)
     , SelectionCollateralError
@@ -101,8 +103,6 @@ import Control.Monad.Except
     ( ExceptT, withExceptT )
 import Control.Monad.Trans.Except
     ( throwE )
-import Data.Aeson
-    ( (.=) )
 import Data.Generics.Internal.VL
     ( view, (^.) )
 import Data.List
@@ -160,15 +160,14 @@ liftE :: IsServerError e => e -> Handler a
 liftE = liftHandler . throwE
 
 apiError :: ServerError -> ApiErrorInfo -> Text -> ServerError
-apiError err info message = err
-    { errBody = Aeson.encode $ Aeson.object
-        [ "code" .= info
-        , "message" .= T.replace "\n" " " message
-        ]
+apiError err info messageUnformatted = err
+    { errBody = Aeson.encode ApiError {info, message}
     , errHeaders =
         (hContentType, renderHeader $ contentType $ Proxy @JSON)
         : errHeaders err
     }
+  where
+    message = ApiErrorMessage (T.replace "\n" " " messageUnformatted)
 
 err425 :: ServerError
 err425 = ServerError 425 "Too early" "" []
