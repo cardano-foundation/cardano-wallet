@@ -461,6 +461,14 @@ x-scriptHash: &scriptHash
   example:
     - script1gr69m385thgvkrtspk73zmkwk537wxyxuevs2u9cukglvtlkz4k
 
+x-scriptIntegrityHash: &scriptIntegrityHash
+  description: A script data integrity hash - 32 bytes
+  type: string
+  format: bech32
+  pattern: "^(script_data)1[0-9a-z]*$"
+  example:
+    - script_data16apaenn9ut6s40lcw3l8v68xawlrlq20z2966uzcx8jmv2q9uy7qau558d
+
 x-credentialPubKey: &credentialPubKey
   description: A public key (public key without chain code) for credential - 32 bytes
   type: string
@@ -2721,6 +2729,7 @@ components:
         mint: *ApiAssetMintBurn
         burn: *ApiAssetMintBurn
         validity_interval: *ApiValidityIntervalExplicit
+        script_integrity: *scriptIntegrityHash 
 
     x-txBody: &txBody
       oneOf:
