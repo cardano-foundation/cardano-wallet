@@ -85,7 +85,9 @@ module Cardano.Wallet.Api.Types
     , ApiDeregisterPool (..)
     , ApiEra (..)
     , ApiEraInfo (..)
+    , ApiError (..)
     , ApiErrorInfo (..)
+    , ApiErrorMessage (..)
     , ApiErrorTxOutputLovelaceInsufficient (..)
     , ApiExternalCertificate (..)
     , ApiExternalInput (..)
@@ -1650,6 +1652,30 @@ data ApiSharedWalletPatchData = ApiSharedWalletPatchData
     deriving (Eq, Generic, Show)
     deriving anyclass NFData
 
+data ApiError = ApiError
+    { info :: !ApiErrorInfo
+    , message :: !ApiErrorMessage
+    }
+    deriving (Eq, Generic, Show)
+    deriving anyclass NFData
+
+instance ToJSON ApiError where
+    toJSON ApiError {info, message} = object
+        [ "code" .= info
+        , "message" .= message
+        ]
+
+instance FromJSON ApiError where
+    parseJSON = withObject "ApiError" $ \o ->
+        ApiError
+            <$> o .: "code"
+            <*> o .: "message"
+
+newtype ApiErrorMessage = ApiErrorMessage {message :: Text}
+    deriving (Eq, Generic, Show)
+    deriving (FromJSON, ToJSON) via Text
+    deriving anyclass NFData
+
 data ApiErrorInfo
     = AddressAlreadyExists
     | AlreadyWithdrawing
@@ -1741,6 +1767,7 @@ data ApiErrorInfo
     | WrongMnemonic
     | ValidityIntervalNotInsideScriptTimelock
     deriving (Eq, Generic, Show, Data, Typeable)
+    deriving (FromJSON, ToJSON) via DefaultSum ApiErrorInfo
     deriving anyclass NFData
 
 data ApiErrorTxOutputLovelaceInsufficient = ApiErrorTxOutputLovelaceInsufficient
@@ -2816,8 +2843,6 @@ instance FromJSON ApiSharedWallet where
 instance ToJSON ApiSharedWallet where
     toJSON (ApiSharedWallet (Left c))= toJSON c
     toJSON (ApiSharedWallet (Right c))= toJSON c
-
-deriving via DefaultSum ApiErrorInfo instance ToJSON ApiErrorInfo
 
 -- | Options for encoding synchronization progress. It can be serialized to
 -- and from JSON as follows:
