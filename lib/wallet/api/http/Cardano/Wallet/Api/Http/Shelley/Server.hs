@@ -2448,8 +2448,8 @@ constructTransaction ctx genChange knownPools getPoolStatus apiw@(ApiT wid) body
         pure $ ApiConstructTransaction
             { transaction = balancedTx
             , coinSelection = mkApiCoinSelection
-                (maybe [] (\x->[x]) deposit)
-                (maybe [] (\x->[x]) refund)
+                (maybe [] singleton deposit)
+                (maybe [] singleton refund)
                 ((,rewardPath) <$> txCtx' ^. #txDelegationAction)
                 md
                 (unsignedTx rewardPath (outs ++ mintingOuts) apiDecoded)
@@ -2458,6 +2458,8 @@ constructTransaction ctx genChange knownPools getPoolStatus apiw@(ApiT wid) body
   where
     ti :: TimeInterpreter (ExceptT PastHorizonException IO)
     ti = timeInterpreter (ctx ^. networkLayer)
+
+    singleton x = [x]
 
     toUnsignedTxChange initialOuts (WalletOutput (ApiWalletOutput (ApiT addr, _) (Quantity c) (ApiT tmap) derPath)) =
         let txchange = TxChange addr (Coin $ fromIntegral c) tmap (NE.map getApiT derPath)
