@@ -2421,7 +2421,7 @@ mkUnsignedTx era ttl cs md wdrls certs fees mintData burnData mintingScripts inp
 -- cardano-node does not allow to construct tx without inputs at this moment.
 -- this should change and this hack should be removed
 dummyInput :: TxIn
-dummyInput = TxIn (Hash $ B8.replicate 32 '0') 0
+dummyInput = TxIn (Hash $ BS.replicate 32 0) 999
 
 mkWithdrawals
     :: NetworkId
