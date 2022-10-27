@@ -73,7 +73,7 @@ import Cardano.Wallet
     , ErrWrongPassphrase (..)
     )
 import Cardano.Wallet.Api.Types
-    ( ApiErrorCode (..), Iso8601Time (..) )
+    ( ApiErrorInfo (..), Iso8601Time (..) )
 import Cardano.Wallet.CoinSelection
     ( SelectionBalanceError (..)
     , SelectionCollateralError
@@ -161,10 +161,10 @@ liftHandler action = Handler (withExceptT toServerError action)
 liftE :: IsServerError e => e -> Handler a
 liftE = liftHandler . throwE
 
-apiError :: ServerError -> ApiErrorCode -> Text -> ServerError
-apiError err code message = err
+apiError :: ServerError -> ApiErrorInfo -> Text -> ServerError
+apiError err info message = err
     { errBody = Aeson.encode $ Aeson.object
-        [ "code" .= code
+        [ "code" .= info
         , "message" .= T.replace "\n" " " message
         ]
     , errHeaders =

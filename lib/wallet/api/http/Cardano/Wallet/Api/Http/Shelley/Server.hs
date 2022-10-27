@@ -223,7 +223,7 @@ import Cardano.Wallet.Api.Types
     , ApiConstructTransaction (..)
     , ApiConstructTransactionData (..)
     , ApiDecodedTransaction (..)
-    , ApiErrorCode (..)
+    , ApiErrorInfo (..)
     , ApiExternalInput (..)
     , ApiFee (..)
     , ApiForeignStakeKey (..)

@@ -85,7 +85,7 @@ module Cardano.Wallet.Api.Types
     , ApiDeregisterPool (..)
     , ApiEra (..)
     , ApiEraInfo (..)
-    , ApiErrorCode (..)
+    , ApiErrorInfo (..)
     , ApiErrorTxOutputLovelaceInsufficient (..)
     , ApiExternalCertificate (..)
     , ApiExternalInput (..)
@@ -1650,8 +1650,7 @@ data ApiSharedWalletPatchData = ApiSharedWalletPatchData
     deriving (Eq, Generic, Show)
     deriving anyclass NFData
 
--- | Error codes returned by the API, in the form of snake_cased strings
-data ApiErrorCode
+data ApiErrorInfo
     = AddressAlreadyExists
     | AlreadyWithdrawing
     | AssetNameTooLong
@@ -2818,7 +2817,7 @@ instance ToJSON ApiSharedWallet where
     toJSON (ApiSharedWallet (Left c))= toJSON c
     toJSON (ApiSharedWallet (Right c))= toJSON c
 
-deriving via DefaultSum ApiErrorCode instance ToJSON ApiErrorCode
+deriving via DefaultSum ApiErrorInfo instance ToJSON ApiErrorInfo
 
 -- | Options for encoding synchronization progress. It can be serialized to
 -- and from JSON as follows:
