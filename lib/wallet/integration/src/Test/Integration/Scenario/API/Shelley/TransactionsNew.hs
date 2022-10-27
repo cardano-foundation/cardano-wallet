@@ -416,7 +416,7 @@ spec = describe "NEW_SHELLEY_TRANSACTIONS" $ do
         verify rTx
             [ expectResponseCode HTTP.status202
             , expectField (#coinSelection . #metadata) (`shouldBe` Nothing)
-            , expectField (#coinSelection . #withdrawals) (`shouldSatisfy` (not . null))
+            , expectField (#coinSelection . #withdrawals) (`shouldSatisfy` null)
             ]
         let expectedFee = getFromResponse (#fee . #getQuantity) rTx
 
