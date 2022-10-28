@@ -753,19 +753,19 @@ estimateMinWitnessRequiredPerInput = \case
     RequireAllOf xs      ->
         sum $ map estimateMinWitnessRequiredPerInput xs
     RequireAnyOf xs      ->
-        optimumWithoutZeros minimum $ map estimateMinWitnessRequiredPerInput xs
+        optimum minimum $ map estimateMinWitnessRequiredPerInput xs
     RequireSomeOf m xs   ->
         let smallestReqFirst =
-                sortWithoutZeros $ map estimateMinWitnessRequiredPerInput xs
+                L.sort $ map estimateMinWitnessRequiredPerInput xs
         in sum $ take (fromIntegral m) smallestReqFirst
     ActiveFromSlot _     -> 0
     ActiveUntilSlot _    -> 0
 
-optimumWithoutZeros :: (Eq a, Num a) => ([a] -> c) -> [a] -> c
-optimumWithoutZeros f = f . filter (/= 0)
-
-sortWithoutZeros :: [Int] -> [Int]
-sortWithoutZeros = L.sort . filter (/= 0)
+optimum :: (Foldable t, Num p) => (t a -> p) -> t a -> p
+optimum f xs =
+    if length xs == 0 then
+        0
+    else f xs
 
 estimateMaxWitnessRequiredPerInput :: Script k -> Int
 estimateMaxWitnessRequiredPerInput = \case
@@ -773,10 +773,10 @@ estimateMaxWitnessRequiredPerInput = \case
     RequireAllOf xs      ->
         sum $ map estimateMaxWitnessRequiredPerInput xs
     RequireAnyOf xs      ->
-        optimumWithoutZeros maximum $ map estimateMaxWitnessRequiredPerInput xs
+        optimum maximum $ map estimateMaxWitnessRequiredPerInput xs
     RequireSomeOf m xs   ->
         let smallestReqFirst =
-                sortWithoutZeros $ map estimateMaxWitnessRequiredPerInput xs
+                L.sort $ map estimateMaxWitnessRequiredPerInput xs
         in sum $ take (fromIntegral m) (reverse smallestReqFirst)
     ActiveFromSlot _     -> 0
     ActiveUntilSlot _    -> 0
