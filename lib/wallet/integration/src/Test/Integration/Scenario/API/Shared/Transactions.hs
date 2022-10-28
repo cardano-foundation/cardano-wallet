@@ -53,7 +53,7 @@ import Cardano.Wallet.Primitive.Types.Tx
 import Cardano.Wallet.Transaction
     ( AnyScript (..), WitnessCount (..) )
 import Control.Monad
-    ( when )
+    ( forM_ )
 import Control.Monad.IO.Unlift
     ( MonadUnliftIO (..), liftIO )
 import Control.Monad.Trans.Resource
@@ -65,7 +65,7 @@ import Data.Either.Combinators
 import Data.Generics.Internal.VL.Lens
     ( view, (^.) )
 import Data.Maybe
-    ( fromJust, isJust )
+    ( isJust )
 import Data.Quantity
     ( Quantity (..) )
 import Numeric.Natural
@@ -211,7 +211,7 @@ spec = describe "SHARED_TRANSACTIONS" $ do
             ]
 
         let amt = 10 * minUTxOValue (_mainEra ctx)
-        fundSharedWallet ctx amt walShared Nothing Nothing
+        fundSharedWallet ctx amt (NE.fromList [walShared])
 
         rTx2 <- request @(ApiConstructTransaction n) ctx
             (Link.createUnsignedTransaction @'Shared wal) Default metadata
@@ -787,8 +787,8 @@ spec = describe "SHARED_TRANSACTIONS" $ do
                 ]
 
   where
-     fundSharedWallet ctx amt walShared1 walShared2 walShared3 = do
-        let wal = case walShared1 of
+     fundSharedWallet ctx amt sharedWals = do
+        let wal = case NE.head sharedWals of
                 ApiSharedWallet (Right wal') -> wal'
                 _ -> error "funding of shared wallet make sense only for active one"
 
@@ -821,22 +821,9 @@ spec = describe "SHARED_TRANSACTIONS" $ do
                 (#balance . #available)
                 (`shouldBe` Quantity (faucetAmt - feeMax - amt)) ra
 
-        rWal <- getSharedWallet ctx walShared1
-        verify (fmap (view #wallet) <$> rWal)
-            [ expectResponseCode HTTP.status200
-            , expectField (traverse . #balance . #available) (`shouldBe` Quantity amt)
-            ]
-
-        when (isJust walShared2) $ do
-            rWal2 <- getSharedWallet ctx (fromJust walShared2)
-            verify (fmap (view #wallet) <$> rWal2)
-                [ expectResponseCode HTTP.status200
-                , expectField (traverse . #balance . #available) (`shouldBe` Quantity amt)
-                ]
-
-        when (isJust walShared3) $ do
-            rWal3 <- getSharedWallet ctx (fromJust walShared3)
-            verify (fmap (view #wallet) <$> rWal3)
+        forM_ sharedWals $ \walShared -> do
+            rWal <- getSharedWallet ctx walShared
+            verify (fmap (view #wallet) <$> rWal)
                 [ expectResponseCode HTTP.status200
                 , expectField (traverse . #balance . #available) (`shouldBe` Quantity amt)
                 ]
@@ -871,7 +858,7 @@ spec = describe "SHARED_TRANSACTIONS" $ do
         let walShared@(ApiSharedWallet (Right wal)) =
                 getFromResponse Prelude.id rPost
 
-        fundSharedWallet ctx faucetUtxoAmt walShared Nothing Nothing
+        fundSharedWallet ctx faucetUtxoAmt (NE.fromList [walShared])
 
         return wal
 
@@ -925,7 +912,7 @@ spec = describe "SHARED_TRANSACTIONS" $ do
         let walShared2@(ApiSharedWallet (Right walB)) =
                 getFromResponse Prelude.id rPostB
 
-        fundSharedWallet ctx faucetUtxoAmt walShared1 (Just walShared2) Nothing
+        fundSharedWallet ctx faucetUtxoAmt (NE.fromList [walShared1, walShared2])
 
         return (walA, walB)
 
@@ -997,7 +984,7 @@ spec = describe "SHARED_TRANSACTIONS" $ do
         let walShared3@(ApiSharedWallet (Right walC)) =
                 getFromResponse Prelude.id rPostC
 
-        fundSharedWallet ctx faucetUtxoAmt walShared1 (Just walShared2) (Just walShared3)
+        fundSharedWallet ctx faucetUtxoAmt (NE.fromList [walShared1, walShared2, walShared3])
 
         return (walA, walB, walC)
 
