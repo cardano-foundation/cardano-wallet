@@ -28,6 +28,7 @@ import Cardano.Wallet.Api.Types
     , ApiAsset (..)
     , ApiCoinSelectionOutput (..)
     , ApiEra (..)
+    , ApiErrorInfo (..)
     , ApiFee (..)
     , ApiT (..)
     , ApiTransaction
@@ -106,6 +107,7 @@ import Test.Integration.Framework.DSL
     , between
     , computeApiCoinSelectionFee
     , counterexample
+    , decodeErrorInfo
     , emptyRandomWallet
     , emptyWallet
     , eventually
@@ -198,30 +200,66 @@ spec :: forall n.
     ) => SpecWith Context
 spec = describe "SHELLEY_TRANSACTIONS" $ do
 
-    it "TRANS_MIN_UTXO_01 - I cannot spend less than minUTxOValue" $
+    it "TRANS_MIN_UTXO_01: \
+
+        \Specifying a non-zero quantity of lovelace that is below the minimum \
+        \required by the ledger results in an error, but specifying a quantity \
+        \that is equal to the required minimum results in success." $
+
         \ctx -> runResourceT $ do
 
-        wSrc <- fixtureWallet ctx
-        wDest <- emptyWallet ctx
-
-        let amt = minUTxOValue (_mainEra ctx) - 1
-        addrs <- listAddresses @n ctx wDest
-        let destination = (addrs !! 1) ^. #id
-        let payload = Json [json|{
-                "payments": [{
-                    "address": #{destination},
-                    "amount": {
-                        "quantity": #{amt},
-                        "unit": "lovelace"
+        sourceWallet <- fixtureWallet ctx
+        targetWallet <- emptyWallet ctx
+        targetAddresses <- listAddresses @n ctx targetWallet
+        let targetAddress = (targetAddresses !! 1) ^. #id
+        let endpoint = Link.createTransactionOld @'Shelley sourceWallet
+        let mkRequest = request @(ApiTransaction n) ctx endpoint Default
+        let mkPayload :: Quantity "lovelace" Natural -> Payload
+            mkPayload lovelaceRequested = Json
+                [json|
+                    { "payments":
+                        [
+                            { "address": #{targetAddress}
+                            , "amount": #{lovelaceRequested}
+                            }
+                        ]
+                    , "passphrase": #{fixturePassphrase}
                     }
-                }],
-                "passphrase": #{fixturePassphrase}
-            }|]
+                |]
 
-        let ep = Link.createTransactionOld @'Shelley
-        r <- request @(ApiTransaction n) ctx (ep wSrc) Default payload
-        expectResponseCode HTTP.status403 r
-        expectErrorMessage errMsg403MinUTxOValue r
+        -- Attempt #1:
+        --
+        -- Attempt to create a transaction with a non-zero quantity of lovelace
+        -- that is significantly below the minimum required by the ledger.
+        --
+        -- This attempt should fail with an error that states the minimum
+        -- required amount.
+        --
+        e <- counterexample "Attempt #1" $ do
+            let lovelaceRequested = Quantity 1
+            response <- mkRequest (mkPayload lovelaceRequested)
+            expectResponseCode HTTP.status403 response
+            UtxoTooSmall e <- decodeErrorInfo response
+            e ^. #txOutputIndex
+                `shouldBe` 0
+            e ^. #txOutputLovelaceSpecified
+                `shouldBe` lovelaceRequested
+            e ^. #txOutputLovelaceRequiredMinimum `shouldSatisfy`
+                (> lovelaceRequested)
+            pure e
+
+        -- Attempt #2:
+        --
+        -- Attempt to create a transaction with a quantity of lovelace equal to
+        -- the minimum required amount, as specified by the error returned in
+        -- the previous attempt.
+        --
+        -- This attempt should succeed.
+        --
+        counterexample "Attempt #2" $ do
+            let lovelaceRequested = e ^. #txOutputLovelaceRequiredMinimum
+            response <- mkRequest (mkPayload lovelaceRequested)
+            expectResponseCode HTTP.status202 response
 
     it "TRANS_MIN_UTXO_BABBAGE_VALIDATION - I can spend exactly minUTxOValue" $
         \ctx -> runResourceT $ do
