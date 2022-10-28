@@ -91,11 +91,7 @@ RSpec.describe "Cardano Wallet E2E tests", :all, :e2e do
 
       # Fund payment address to be used as collateral utxo
       collateral_amt = 10000000
-      payment = [{ :address => payment_address,
-                   :amount => { :quantity => collateral_amt,
-                                :unit => 'lovelace' }
-                }]
-      tx = construct_sign_submit(@wid, payment)
+      tx = construct_sign_submit(@wid, payment_payload(collateral_amt, payment_address))
       wait_for_tx_in_ledger(@wid, tx.last['id'])
       collateral_utxo = CARDANO_CLI.get_utxos(payment_address).last
       # Try to spend from alwaysfails.plutus address
@@ -132,11 +128,7 @@ RSpec.describe "Cardano Wallet E2E tests", :all, :e2e do
       expect(target_after['available']).to eq (target_before['available'] + collateral_ret_amt)
 
       # Make sure you can spend collateral return output from the wallet
-      payment = [{ :address => payment_address,
-                   :amount => { :quantity => 6500000,
-                                :unit => 'lovelace' }
-                }]
-      tx = construct_sign_submit(@target_id, payment)
+      tx = construct_sign_submit(@target_id, payment_address(6500000, payment_address))
       wait_for_tx_in_ledger(@target_id, tx.last['id'])
 
     end
@@ -400,17 +392,24 @@ RSpec.describe "Cardano Wallet E2E tests", :all, :e2e do
   end
 
   describe "E2E Construct -> Sign -> Submit" do
+    it "I can get min_utxo_value when contructing tx" do
+      amt = 1
+      tx_constructed = SHELLEY.transactions.construct(@wid, payment_payload(amt))
+      expect(tx_constructed.code).to eq 403
+      expect(tx_constructed['code']).to eq 'utxo_too_small'
+      required_minimum = tx_constructed['info']['tx_output_lovelace_required_minimum']['quantity']
+
+      tx_constructed = SHELLEY.transactions.construct(@wid, payment_payload(required_minimum))
+      expect(tx_constructed).to be_correct_and_respond 202
+    end
+
     it "Single output transaction" do
       amt = MIN_UTXO_VALUE_PURE_ADA
       address = SHELLEY.addresses.list(@target_id)[0]['id']
       target_before = get_shelley_balances(@target_id)
       src_before = get_shelley_balances(@wid)
 
-      payment = [{ :address => address,
-                 :amount => { :quantity => amt,
-                           :unit => 'lovelace' }
-               }]
-      tx_constructed = SHELLEY.transactions.construct(@wid, payment)
+      tx_constructed = SHELLEY.transactions.construct(@wid, payment_payload(amt, address))
       expect(tx_constructed).to be_correct_and_respond 202
       expected_fee = tx_constructed['fee']['quantity']
       tx_decoded = SHELLEY.transactions.decode(@wid, tx_constructed["transaction"])
@@ -1794,17 +1793,24 @@ RSpec.describe "Cardano Wallet E2E tests", :all, :e2e do
 
   describe "E2E Shared" do
     describe "E2E Construct -> Sign -> Submit", :shared do
+      it "I can get min_utxo_value when contructing tx" do
+        amt = 1
+        tx_constructed = SHARED.transactions.construct(@wid_sha, payment_payload(amt))
+        expect(tx_constructed.code).to eq 403
+        expect(tx_constructed['code']).to eq 'utxo_too_small'
+        required_minimum = tx_constructed['info']['tx_output_lovelace_required_minimum']['quantity']
+
+        tx_constructed = SHARED.transactions.construct(@wid_sha, payment_payload(required_minimum))
+        expect(tx_constructed).to be_correct_and_respond 202
+      end
+
       it "Single output transaction" do
         amt = MIN_UTXO_VALUE_PURE_ADA
         address = SHELLEY.addresses.list(@target_id)[1]['id']
         target_before = get_shelley_balances(@target_id)
         src_before = get_shared_balances(@wid_sha)
 
-        payment = [{ :address => address,
-                   :amount => { :quantity => amt,
-                             :unit => 'lovelace' }
-                 }]
-        tx_constructed = SHARED.transactions.construct(@wid_sha, payment)
+        tx_constructed = SHARED.transactions.construct(@wid_sha, payment_payload(amt, address))
         expect(tx_constructed).to be_correct_and_respond 202
         expected_fee = tx_constructed['fee']['quantity']
 
@@ -2048,13 +2054,9 @@ RSpec.describe "Cardano Wallet E2E tests", :all, :e2e do
         target_before = get_shelley_balances(@target_id)
         src_before = get_shared_balances(@wid_sha)
 
-        payment = [{ :address => address,
-                   :amount => { :quantity => amt,
-                             :unit => 'lovelace' }
-                 }]
         validity_interval = {"invalid_before" => {"quantity" => 500, "unit" => "slot"},
                              "invalid_hereafter" => {"quantity" => 5000000000, "unit" => "slot"}}
-        tx_constructed = SHARED.transactions.construct(@wid_sha, payment,
+        tx_constructed = SHARED.transactions.construct(@wid_sha, payment_payload(amt, address),
                                                         withdrawal = nil,
                                                         metadata = nil,
                                                         delegations = nil,
@@ -2438,14 +2440,18 @@ RSpec.describe "Cardano Wallet E2E tests", :all, :e2e do
     end
 
     describe "Shelley Transactions" do
-      it "I can send transaction and funds are received" do
-        amt = MIN_UTXO_VALUE_PURE_ADA
-
+      it "I can send transaction and funds are received (min_utxo_value)" do
         address = SHELLEY.addresses.list(@target_id)[0]['id']
         available_before = SHELLEY.wallets.get(@target_id)['balance']['available']['quantity']
         total_before = SHELLEY.wallets.get(@target_id)['balance']['total']['quantity']
 
-        tx_sent = SHELLEY.transactions.create(@wid, PASS, [{ address => amt }])
+        # get required minimum ada
+        tx = SHELLEY.transactions.create(@wid, PASS, payment_payload(1, address))
+        expect(tx.code).to eq 403
+        expect(tx['code']).to eq 'utxo_too_small'
+        amt = tx['info']['tx_output_lovelace_required_minimum']['quantity']
+
+        tx_sent = SHELLEY.transactions.create(@wid, PASS, payment_payload(amt, address))
 
         expect(tx_sent).to be_correct_and_respond 202
         expect(tx_sent.to_s).to include "pending"
@@ -2457,7 +2463,6 @@ RSpec.describe "Cardano Wallet E2E tests", :all, :e2e do
           total = SHELLEY.wallets.get(@target_id)['balance']['total']['quantity']
           (available == amt + available_before) && (total == amt + total_before)
         end
-
 
         # examine the tx in history
         # on src wallet
@@ -2594,20 +2599,22 @@ RSpec.describe "Cardano Wallet E2E tests", :all, :e2e do
 
       end
 
-      it "I can estimate fee" do
+      it "I can estimate fee (min_utxo_value)" do
         metadata = METADATA
-
-        address = SHELLEY.addresses.list(@target_id)[0]['id']
-        amt = [{ address => MIN_UTXO_VALUE_PURE_ADA }]
-
         txs = SHELLEY.transactions
-        fees = txs.payment_fees(@wid, amt)
+        # get required minimum ada
+        fees = txs.payment_fees(@wid, payment_payload(1))
+        expect(fees.code).to eq 403
+        expect(fees['code']).to eq 'utxo_too_small'
+        amt = fees['info']['tx_output_lovelace_required_minimum']['quantity']
+
+        fees = txs.payment_fees(@wid, payment_payload(amt))
         expect(fees).to be_correct_and_respond 202
 
-        fees = txs.payment_fees(@wid, amt, 'self')
+        fees = txs.payment_fees(@wid, payment_payload(amt), 'self')
         expect(fees).to be_correct_and_respond 202
 
-        fees = txs.payment_fees(@wid, amt, 'self', metadata)
+        fees = txs.payment_fees(@wid, payment_payload(amt), 'self', metadata)
         expect(fees).to be_correct_and_respond 202
       end
     end
@@ -2820,13 +2827,30 @@ RSpec.describe "Cardano Wallet E2E tests", :all, :e2e do
 
   describe "E2E Byron" do
 
+    def test_byron_fees(source_wid)
+      txs = BYRON.transactions
+      # get required minimum ada
+      fees = txs.payment_fees(source_wid, payment_payload(1))
+      expect(fees.code).to eq 403
+      expect(fees['code']).to eq 'utxo_too_small'
+      amt = fees['info']['tx_output_lovelace_required_minimum']['quantity']
+
+      fees = txs.payment_fees(source_wid, payment_payload(amt))
+      expect(fees).to be_correct_and_respond 202
+    end
+
     def test_byron_tx(source_wid, target_wid)
-      amt = MIN_UTXO_VALUE_PURE_ADA
       address = SHELLEY.addresses.list(target_wid)[0]['id']
       target_before = get_shelley_balances(target_wid)
       src_before = get_byron_balances(source_wid)
 
-      tx_sent = BYRON.transactions.create(source_wid, PASS, [{ address => amt }])
+      # get required minimum ada
+      tx = BYRON.transactions.create(source_wid, PASS, payment_payload(1, address))
+      expect(tx.code).to eq 403
+      expect(tx['code']).to eq 'utxo_too_small'
+      amt = tx['info']['tx_output_lovelace_required_minimum']['quantity']
+
+      tx_sent = BYRON.transactions.create(source_wid, PASS, payment_payload(amt, address))
 
       expect(tx_sent).to be_correct_and_respond 202
       expect(tx_sent.to_s).to include "pending"
@@ -2892,12 +2916,19 @@ RSpec.describe "Cardano Wallet E2E tests", :all, :e2e do
     end
 
     describe "Byron Transactions" do
+      it "I can estimate fees (min_utxo_value), random" do
+        test_byron_fees(@wid_rnd)
+      end
 
-      it "I can send transaction and funds are received, random -> shelley" do
+      it "I can estimate fees (min_utxo_value), icarus" do
+        test_byron_fees(@wid_ic)
+      end
+
+      it "I can send transaction and funds are received (min_utxo_value), random -> shelley" do
         test_byron_tx(@wid_rnd, @target_id)
       end
 
-      it "I can send transaction and funds are received, icarus -> shelley" do
+      it "I can send transaction and funds are received (min_utxo_value), icarus -> shelley" do
         test_byron_tx(@wid_ic, @target_id)
       end
     end
@@ -2927,7 +2958,6 @@ RSpec.describe "Cardano Wallet E2E tests", :all, :e2e do
     end
 
     describe "Native Assets" do
-
       it "I can list assets -> random" do
         assets = BYRON.assets.get @wid_rnd
         expect(assets).to be_correct_and_respond 200
@@ -2988,11 +3018,7 @@ RSpec.describe "Cardano Wallet E2E tests", :all, :e2e do
       target_before = get_shelley_balances(@target_id)
       src_before = get_shelley_balances(@wid)
 
-      payment = [{ :address => address,
-                 :amount => { :quantity => amt,
-                           :unit => 'lovelace' }
-               }]
-      tx_constructed = SHELLEY.transactions.construct(@wid, payment)
+      tx_constructed = SHELLEY.transactions.construct(@wid, payment_payload(amt, address))
       expect(tx_constructed).to be_correct_and_respond 202
       expected_fee = tx_constructed['fee']['quantity']
       tx_decoded = SHELLEY.transactions.decode(@wid, tx_constructed["transaction"])
