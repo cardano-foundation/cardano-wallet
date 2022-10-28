@@ -139,7 +139,7 @@ import Cardano.Wallet.Primitive.Slotting
 import Control.Exception
     ( throw )
 import Control.Monad
-    ( forM, guard, unless, void, when, (<=<) )
+    ( forM, unless, void, when, (<=<) )
 import Control.Monad.IO.Class
     ( MonadIO (..) )
 import Control.Monad.Trans
@@ -1037,21 +1037,37 @@ selectTxHistory
     -> (DB.TxMeta -> Bool)
     -> TxWalletsHistory
     -> m [W.TransactionInfo]
-selectTxHistory tip ti wid whichMeta
-    (txSet, wmetas) = do
-    sequence $ do
-        (TxMetaHistory metas, _) <- maybeToList $ Map.lookup wid wmetas
-        meta <- toList metas
-        guard $ whichMeta meta
-        transaction <- maybeToList $ Map.lookup (txMetaTxId meta) txs
-        let decoration = decorateTxIns txSet transaction
-        pure $ mkTransactionInfo
-            ti tip
-                transaction
-                decoration
-                meta
-  where
-    TxSet txs = txSet
+selectTxHistory tip ti wid whichMeta txs@(txSet, wmetas) =
+    let transactions = filter whichMeta $ getTxMetas wid txs
+    in  forM transactions $ selectTransactionInfo ti tip txSet
+
+-- | Get all 'TxMeta' for a given wallet.
+-- Returns empty list if the wallet does not exist.
+getTxMetas
+    :: W.WalletId
+    -> TxWalletsHistory
+    -> [DB.TxMeta]
+getTxMetas wid (_,wmetas) = do
+    (TxMetaHistory metas, _) <- maybeToList $ Map.lookup wid wmetas
+    toList metas
+
+-- | For a given 'TxMeta', read all necessary data to construct
+-- the corresponding 'W.TransactionInfo'.
+--
+-- Assumption: The 'TxMeta' is contained in the given 'TxSet'.
+selectTransactionInfo
+    :: Monad m
+    => TimeInterpreter m
+    -> W.BlockHeader
+    -> TxSet
+    -> TxMeta
+    -> m W.TransactionInfo
+selectTransactionInfo ti tip txSet meta =
+    let err = error $ "Transaction not found: " <> show meta
+        transaction = fromMaybe err $
+            Map.lookup (txMetaTxId meta) (view #relations txSet)
+        decoration = decorateTxIns txSet transaction
+    in  mkTransactionInfo ti tip transaction decoration meta
 
 -- | Returns the initial submission slot and submission record for all pending
 -- transactions in the wallet.
