@@ -101,8 +101,6 @@ import Cardano.Wallet.CoinSelection
     , SelectionSkeleton (..)
     , selectionDelta
     )
-import Cardano.Wallet.Primitive.AddressDiscovery.Shared
-    ( estimateMinWitnessRequiredPerInput )
 import Cardano.Wallet.Primitive.AddressDerivation
     ( Depth (..), RewardAccount (..), WalletKey (..) )
 import Cardano.Wallet.Primitive.AddressDerivation.Byron
@@ -113,6 +111,8 @@ import Cardano.Wallet.Primitive.AddressDerivation.Shared
     ( SharedKey )
 import Cardano.Wallet.Primitive.AddressDerivation.Shelley
     ( ShelleyKey, toRewardAccountRaw )
+import Cardano.Wallet.Primitive.AddressDiscovery.Shared
+    ( estimateMinWitnessRequiredPerInput )
 import Cardano.Wallet.Primitive.Passphrase
     ( Passphrase (..) )
 import Cardano.Wallet.Primitive.Slotting
