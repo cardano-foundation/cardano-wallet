@@ -1,3 +1,5 @@
+# frozen_string_literal: true
+
 ##
 # Class for keeping track of wallet ids. WalletFactory keeps track of the context.
 #  CONTEXT = Context.new
@@ -7,6 +9,7 @@
 #  end
 class Context
   attr_accessor :env, :shelley, :shared, :byron
+
   def initialize
     clear!
   end

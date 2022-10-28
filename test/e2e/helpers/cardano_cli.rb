@@ -1,12 +1,13 @@
+# frozen_string_literal: true
+
 ##
 # cardano-cli cmd helper wrapper
 #
 class CardanoCli
-
   attr_reader :node_state, :socket_path, :protocol_magic
 
   def initialize(protocol_magic)
-    @node_state = File.join(absolute_path(ENV['TESTS_NODE_DB']), CONTEXT.env)
+    @node_state = File.join(absolute_path(ENV.fetch('TESTS_NODE_DB', nil)), CONTEXT.env)
     @protocol_magic = protocol_magic
 
     if is_win?
@@ -28,9 +29,9 @@ class CardanoCli
 
   def generate_payment_keys
     keys = {
-              vkey: File.join(@node_state, 'payment.vkey'),
-              skey: File.join(@node_state, 'payment.skey')
-           }
+      vkey: File.join(@node_state, 'payment.vkey'),
+      skey: File.join(@node_state, 'payment.skey')
+    }
     cmd(%(cardano-cli address key-gen \
            --verification-key-file #{keys[:vkey]} \
            --signing-key-file #{keys[:skey]}))
@@ -59,9 +60,9 @@ class CardanoCli
                     --testnet-magic #{@protocol_magic}))
     # [utxo1, utxo2, ... utxoN]
     #     where utxoN = {utxo: utxoId, ix: index, amt: ada amount}
-    output.partition("-" * 86).last.strip.split("\n").map do |utxo|
-      utxo_arr = utxo.split(" ")
-      {utxo: utxo_arr[0], ix: utxo_arr[1], amt: utxo_arr[2]}
+    output.partition('-' * 86).last.strip.split("\n").map do |utxo|
+      utxo_arr = utxo.split
+      { utxo: utxo_arr[0], ix: utxo_arr[1], amt: utxo_arr[2] }
     end
   end
 
@@ -92,7 +93,7 @@ class CardanoCli
     txbody = File.join(@node_state, 'txbody')
     cmd(%(cardano-cli transaction build-raw \
           --tx-in #{script_utxo} \
-          --tx-out "#{target_addr}+#{50000000 - fee}" \
+          --tx-out "#{target_addr}+#{50_000_000 - fee}" \
           --tx-in-script-file #{script_file} \
           --tx-in-datum-value 1914 \
           --tx-in-redeemer-value 123 \
@@ -127,5 +128,4 @@ class CardanoCli
     # return tx id
     cmd(%(cardano-cli transaction txid --tx-file #{txsigned})).gsub("\n", '')
   end
-
 end

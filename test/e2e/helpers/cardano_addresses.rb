@@ -1,3 +1,5 @@
+# frozen_string_literal: true
+
 ##
 # cardano-address cmd helper wrapper
 #
@@ -9,7 +11,7 @@ class CardanoAddresses
   end
 
   def key_public(key, with_chain_code = true)
-    cmd(%(echo #{key}| cardano-address key public #{with_chain_code ? "--with-chain-code" : "--without-chain-code"})).gsub("\n", '')
+    cmd(%(echo #{key}| cardano-address key public #{with_chain_code ? '--with-chain-code' : '--without-chain-code'})).gsub("\n", '')
   end
 
   def key_child(key, derivation_path)

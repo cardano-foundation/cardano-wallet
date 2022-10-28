@@ -1,11 +1,13 @@
-require "rspec/expectations"
+# frozen_string_literal: true
+
+require 'rspec/expectations'
 
 RSpec::Matchers.define :be_correct_and_respond do |code|
   match do |response|
     if code == 204
       response.code == code
     else
-      ((response.code == code) && ({ 'content-type' => ['application/json;charset=utf-8'] } <= response.headers))
+      ((response.code == code) && (response.headers >= { 'content-type' => ['application/json;charset=utf-8'] }))
     end
   end
   failure_message do |response|
@@ -21,8 +23,8 @@ RSpec::Matchers.define :be_correct_and_respond do |code|
 
         Actual request:
         #{method} #{uri}
-        #{'Body: ' + body if body}
-        #{'Headers: ' + headers.to_s if headers}
+        #{"Body: #{body}" if body}
+        #{"Headers: #{headers}" if headers}
 
         Actual response:
         #{response}
@@ -52,8 +54,8 @@ RSpec::Matchers.define :respond_with do |code|
 
         Actual request:
         #{method} #{uri}
-        #{'Body: ' + body if body}
-        #{'Headers: ' + headers.to_s if headers}
+        #{"Body: #{body}" if body}
+        #{"Headers: #{headers}" if headers}
 
         Actual response:
         #{response}
