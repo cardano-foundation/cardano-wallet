@@ -59,7 +59,7 @@ import Cardano.Wallet.Primitive.Types.Tx.Tx
 import Cardano.Wallet.Shelley.Network.Discriminant
     ( DecodeAddress, DecodeStakeAddress, EncodeAddress, EncodeStakeAddress )
 import Cardano.Wallet.Transaction
-    ( AnyScript, ValidityIntervalExplicit (..), WitnessCount )
+    ( ValidityIntervalExplicit (..), WitnessCount )
 import Control.DeepSeq
     ( NFData )
 import Data.Aeson.Types

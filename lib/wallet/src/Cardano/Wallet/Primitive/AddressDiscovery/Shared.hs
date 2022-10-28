@@ -43,7 +43,8 @@ module Cardano.Wallet.Primitive.AddressDiscovery.Shared
     , retrieveAllCosigners
     , validateScriptTemplates
     , toSharedWalletId
-    , estimateWitnessRequiredPerInput
+    , estimateMinWitnessRequiredPerInput
+    , estimateMaxWitnessRequiredPerInput
 
     , CredentialType (..)
     , liftPaymentAddress
@@ -746,11 +747,36 @@ instance ( key ~ SharedKey
                     , pwd )
         (Nothing, _) -> Nothing
 
-estimateWitnessRequiredPerInput :: Script k -> Int
-estimateWitnessRequiredPerInput = \case
+estimateMinWitnessRequiredPerInput :: Script k -> Int
+estimateMinWitnessRequiredPerInput = \case
     RequireSignatureOf _ -> 1
-    RequireAllOf xs      -> sum $ map estimateWitnessRequiredPerInput xs
-    RequireAnyOf xs      -> minimum $ map estimateWitnessRequiredPerInput xs
-    RequireSomeOf m _    -> fromIntegral m
+    RequireAllOf xs      ->
+        sum $ map estimateMinWitnessRequiredPerInput xs
+    RequireAnyOf xs      ->
+        optimumWithoutZeros minimum $ map estimateMinWitnessRequiredPerInput xs
+    RequireSomeOf m xs   ->
+        let smallestReqFirst =
+                sortWithoutZeros $ map estimateMinWitnessRequiredPerInput xs
+        in sum $ take (fromIntegral m) smallestReqFirst
+    ActiveFromSlot _     -> 0
+    ActiveUntilSlot _    -> 0
+
+optimumWithoutZeros :: (Eq a, Num a) => ([a] -> c) -> [a] -> c
+optimumWithoutZeros f = f . filter (/= 0)
+
+sortWithoutZeros :: [Int] -> [Int]
+sortWithoutZeros = L.sort . filter (/= 0)
+
+estimateMaxWitnessRequiredPerInput :: Script k -> Int
+estimateMaxWitnessRequiredPerInput = \case
+    RequireSignatureOf _ -> 1
+    RequireAllOf xs      ->
+        sum $ map estimateMaxWitnessRequiredPerInput xs
+    RequireAnyOf xs      ->
+        optimumWithoutZeros maximum $ map estimateMaxWitnessRequiredPerInput xs
+    RequireSomeOf m xs   ->
+        let smallestReqFirst =
+                sortWithoutZeros $ map estimateMaxWitnessRequiredPerInput xs
+        in sum $ take (fromIntegral m) (reverse smallestReqFirst)
     ActiveFromSlot _     -> 0
     ActiveUntilSlot _    -> 0

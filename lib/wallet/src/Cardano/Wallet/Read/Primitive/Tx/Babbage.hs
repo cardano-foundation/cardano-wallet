@@ -15,12 +15,18 @@ module Cardano.Wallet.Read.Primitive.Tx.Babbage
 
 import Prelude
 
+import Cardano.Address.Script
+    ( KeyRole (..) )
 import Cardano.Api
     ( BabbageEra )
+import Cardano.Ledger.Era
+    ( Era (..) )
 import Cardano.Ledger.Serialization
     ( sizedValue )
 import Cardano.Ledger.Shelley.API
     ( StrictMaybe (SJust, SNothing) )
+import Cardano.Wallet.Primitive.Types.TokenPolicy
+    ( TokenPolicyId )
 import Cardano.Wallet.Read.Eras
     ( babbage, inject )
 import Cardano.Wallet.Read.Primitive.Tx.Features.Certificates
@@ -43,22 +49,35 @@ import Cardano.Wallet.Read.Tx.CBOR
     ( renderTxToCBOR )
 import Cardano.Wallet.Read.Tx.Hash
     ( alonzoTxHash )
+import Cardano.Wallet.Shelley.Compatibility.Ledger
+    ( toWalletScript, toWalletTokenPolicyId )
 import Cardano.Wallet.Transaction
-    ( TokenMapWithScripts (..)
+    ( AnyScript (..)
+    , PlutusScriptInfo (..)
+    , PlutusVersion (..)
+    , TokenMapWithScripts (..)
     , TokenMapWithScripts (..)
     , ValidityIntervalExplicit (..)
     , WitnessCount (..)
     )
 import Data.Foldable
     ( toList )
+import Data.Map.Strict
+    ( Map )
+import Ouroboros.Consensus.Cardano.Block
+    ( StandardBabbage )
 
 import qualified Cardano.Api.Shelley as Cardano
 import qualified Cardano.Ledger.Alonzo.Data as Alonzo
+import qualified Cardano.Ledger.Alonzo.Language as Alonzo
+import qualified Cardano.Ledger.Alonzo.Scripts as Alonzo
 import qualified Cardano.Ledger.Alonzo.Tx as Alonzo
 import qualified Cardano.Ledger.Alonzo.TxWitness as Alonzo
 import qualified Cardano.Ledger.Babbage as Babbage
 import qualified Cardano.Ledger.Babbage.TxBody as Babbage
 import qualified Cardano.Ledger.BaseTypes as SL
+import qualified Cardano.Ledger.Core as SL.Core
+import qualified Cardano.Ledger.Mary.Value as SL
 import qualified Cardano.Ledger.Shelley.API as SL
 import qualified Cardano.Wallet.Primitive.Types as W
 import qualified Cardano.Wallet.Primitive.Types.Coin as W
@@ -128,8 +147,6 @@ fromBabbageTx tx@(Alonzo.ValidatedTx bod wits (Alonzo.IsValid isValid) aux) =
         = bod
     (assetsToMint, assetsToBurn) = babbageMint mint wits
     scriptMap = fromBabbageScriptMap $ Alonzo.txscripts' wits
-    mintScriptMap = getScriptMap scriptMap assetsToMint
-    burnScriptMap = getScriptMap scriptMap assetsToBurn
 
     countWits = WitnessCount
         (fromIntegral $ Set.size $ Alonzo.txwitsVKey' wits)

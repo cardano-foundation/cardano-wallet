@@ -3099,7 +3099,7 @@ submitSharedTransaction ctx apiw@(ApiT wid) apitx = do
         (cp, _, _) <- liftHandler $ withExceptT ErrSubmitTransactionNoSuchWallet $
             W.readWallet @_ @s @k wrk wid
         let (ScriptTemplate _ script) = (Shared.paymentTemplate $ getState cp)
-        let witsPerInput = Shared.estimateWitnessRequiredPerInput script
+        let witsPerInput = Shared.estimateMinWitnessRequiredPerInput script
 
         let witsRequiredForInputs =
                 length $ L.nubBy samePaymentKey $

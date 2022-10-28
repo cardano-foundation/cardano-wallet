@@ -101,6 +101,8 @@ import Cardano.Wallet.CoinSelection
     , SelectionSkeleton (..)
     , selectionDelta
     )
+import Cardano.Wallet.Primitive.AddressDiscovery.Shared
+    ( estimateMinWitnessRequiredPerInput )
 import Cardano.Wallet.Primitive.AddressDerivation
     ( Depth (..), RewardAccount (..), WalletKey (..) )
 import Cardano.Wallet.Primitive.AddressDerivation.Byron
@@ -1745,27 +1747,12 @@ estimateTxSize era skeleton =
 
     -- Total number of signatures the scripts require
     numberOf_MintingWitnesses
-        = sumVia scriptRequiredKeySigs txMintOrBurnScripts
+        = fromIntegral $
+        sumVia estimateMinWitnessRequiredPerInput txMintOrBurnScripts
 
     numberOf_ScriptVkeyWitnesses
-        = maybe 0 scriptRequiredKeySigs txPaymentTemplate
-
-    scriptRequiredKeySigs :: Num num => Script object -> num
-    scriptRequiredKeySigs = \case
-        RequireSignatureOf _ ->
-            1
-        RequireAllOf ss ->
-            sumVia scriptRequiredKeySigs ss
-        RequireAnyOf ss ->
-            sumVia scriptRequiredKeySigs ss
-        ActiveFromSlot _ ->
-            0
-        ActiveUntilSlot _ ->
-            0
-        RequireSomeOf _ ss ->
-            -- We don't know how many the user will sign with, so we just assume
-            -- the worst case of "signs with all".
-            sumVia scriptRequiredKeySigs ss
+        = fromIntegral $
+        maybe 0 estimateMinWitnessRequiredPerInput txPaymentTemplate
 
     numberOf_VkeyWitnesses
         = case txWitnessTag of

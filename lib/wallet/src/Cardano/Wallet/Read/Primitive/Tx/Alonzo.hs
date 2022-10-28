@@ -16,8 +16,14 @@ module Cardano.Wallet.Read.Primitive.Tx.Alonzo
 
 import Prelude
 
+import Cardano.Address.Script
+    ( KeyRole (..) )
 import Cardano.Api
     ( AlonzoEra )
+import Cardano.Ledger.Era
+    ( Era (..) )
+import Cardano.Wallet.Primitive.Types.TokenPolicy
+    ( TokenPolicyId )
 import Cardano.Wallet.Read.Eras
     ( alonzo, inject )
 import Cardano.Wallet.Read.Primitive.Tx.Features.Certificates
@@ -41,6 +47,8 @@ import Cardano.Wallet.Read.Tx.CBOR
     ( renderTxToCBOR )
 import Cardano.Wallet.Read.Tx.Hash
     ( alonzoTxHash )
+import Cardano.Wallet.Shelley.Compatibility.Ledger
+    ( toWalletScript, toWalletTokenPolicyId )
 import Cardano.Wallet.Transaction
     ( AnyScript (..)
     , PlutusScriptInfo (..)
@@ -51,14 +59,22 @@ import Cardano.Wallet.Transaction
     )
 import Data.Foldable
     ( toList )
+import Data.Map.Strict
+    ( Map )
+import Ouroboros.Consensus.Cardano.Block
+    ( StandardAlonzo )
 
 import qualified Cardano.Api.Shelley as Cardano
 import qualified Cardano.Ledger.Alonzo as Alonzo
 import qualified Cardano.Ledger.Alonzo.Data as Alonzo
+import qualified Cardano.Ledger.Alonzo.Language as Alonzo
+import qualified Cardano.Ledger.Alonzo.Scripts as Alonzo
 import qualified Cardano.Ledger.Alonzo.Tx as Alonzo
 import qualified Cardano.Ledger.Alonzo.TxBody as Alonzo
 import qualified Cardano.Ledger.Alonzo.TxWitness as Alonzo
 import qualified Cardano.Ledger.BaseTypes as SL
+import qualified Cardano.Ledger.Core as SL.Core
+import qualified Cardano.Ledger.Mary.Value as SL
 import qualified Cardano.Ledger.Shelley.API as SL
 import qualified Cardano.Wallet.Primitive.Types as W
 import qualified Cardano.Wallet.Primitive.Types.Coin as W
@@ -124,8 +140,6 @@ fromAlonzoTx tx@(Alonzo.ValidatedTx bod wits (Alonzo.IsValid isValid) aux) =
         = bod
     (assetsToMint, assetsToBurn) = alonzoMint mint wits
     scriptMap = fromAlonzoScriptMap $ Alonzo.txscripts' wits
-    mintScriptMap = getScriptMap scriptMap assetsToMint
-    burnScriptMap = getScriptMap scriptMap assetsToBurn
 
     countWits = WitnessCount
         (fromIntegral $ Set.size $ Alonzo.txwitsVKey' wits)

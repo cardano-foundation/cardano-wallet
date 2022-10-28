@@ -16,8 +16,14 @@ module Cardano.Wallet.Read.Primitive.Tx.Mary
 
 import Prelude
 
+import Cardano.Address.Script
+    ( KeyRole (..) )
 import Cardano.Api
     ( MaryEra )
+import Cardano.Ledger.Era
+    ( Era (..) )
+import Cardano.Wallet.Primitive.Types.TokenPolicy
+    ( TokenPolicyId )
 import Cardano.Wallet.Read.Eras
     ( inject, mary )
 import Cardano.Wallet.Read.Primitive.Tx.Features.Certificates
@@ -39,6 +45,8 @@ import Cardano.Wallet.Read.Tx.CBOR
     ( renderTxToCBOR )
 import Cardano.Wallet.Read.Tx.Hash
     ( shelleyTxHash )
+import Cardano.Wallet.Shelley.Compatibility.Ledger
+    ( toWalletScript, toWalletTokenPolicyId )
 import Cardano.Wallet.Transaction
     ( AnyScript (..)
     , TokenMapWithScripts (..)
@@ -48,12 +56,18 @@ import Cardano.Wallet.Transaction
 import Cardano.Wallet.Util
     ( internalError )
 import Data.Foldable
+    ( toList )
+import Data.Map.Strict
+    ( Map )
 import GHC.Stack
     ( HasCallStack )
 
 import qualified Cardano.Api as Cardano
 import qualified Cardano.Api.Shelley as Cardano
 import qualified Cardano.Ledger.BaseTypes as SL
+import qualified Cardano.Ledger.Core as SL.Core
+import qualified Cardano.Ledger.Crypto as Crypto
+import qualified Cardano.Ledger.Mary.Value as SL
 import qualified Cardano.Ledger.Shelley.API as SL
 import qualified Cardano.Ledger.Shelley.Tx as Shelley
 import qualified Cardano.Ledger.ShelleyMA as MA
@@ -68,7 +82,6 @@ import qualified Cardano.Wallet.Primitive.Types.TokenPolicy as W
 import qualified Cardano.Wallet.Primitive.Types.TokenQuantity as W
 import qualified Cardano.Wallet.Primitive.Types.Tx as W
 import qualified Data.Map.Strict as Map
-import qualified Data.Map.Strict.NonEmptyMap as NonEmptyMap
 import qualified Data.Set as Set
 
 fromMaryTx
@@ -105,7 +118,9 @@ fromMaryTx tx =
             Nothing
         }
     , anyEraCerts certs
-    , emptyWitnessCount
+    , assetsToMint
+    , assetsToBurn
+    , Just $ afterShelleyValidityInterval ttl
     , countWits
     )
   where
@@ -118,9 +133,6 @@ fromMaryTx tx =
         (Map.elems scriptMap)
         (fromIntegral $ Set.size $ Shelley.bootWits wits)
 
-    mintScriptMap = getScriptMap scriptMap assetsToMint
-    burnScriptMap = getScriptMap scriptMap assetsToBurn
-
     -- fixme: [ADP-525] It is fine for now since we do not look at script
     -- pre-images. But this is precisely what we want as part of the
     -- multisig/script balance reporting.
@@ -132,6 +144,15 @@ fromMaryTx tx =
     fromMaryTxOut (SL.TxOut addr value) =
         W.TxOut (fromShelleyAddress addr) $
         fromCardanoValue $ Cardano.fromMaryValue value
+
+    fromMaryScriptMap
+        :: Map
+            (SL.ScriptHash (Crypto (MA.ShelleyMAEra 'MA.Mary Crypto.StandardCrypto)))
+            (SL.Core.Script (MA.ShelleyMAEra 'MA.Mary Crypto.StandardCrypto))
+        -> Map TokenPolicyId AnyScript
+    fromMaryScriptMap =
+        Map.map (NativeScript . toWalletScript Policy) .
+        Map.mapKeys (toWalletTokenPolicyId . SL.PolicyID)
 
 -- Lovelace to coin. Quantities from ledger should always fit in Word64.
 fromCardanoLovelace :: HasCallStack => Cardano.Lovelace -> W.Coin
