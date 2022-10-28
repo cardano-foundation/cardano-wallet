@@ -112,7 +112,7 @@ import Cardano.Wallet.Primitive.AddressDerivation.Shared
 import Cardano.Wallet.Primitive.AddressDerivation.Shelley
     ( ShelleyKey, toRewardAccountRaw )
 import Cardano.Wallet.Primitive.AddressDiscovery.Shared
-    ( estimateMinWitnessRequiredPerInput )
+    ( estimateMaxWitnessRequiredPerInput )
 import Cardano.Wallet.Primitive.Passphrase
     ( Passphrase (..) )
 import Cardano.Wallet.Primitive.Slotting
@@ -1747,12 +1747,10 @@ estimateTxSize era skeleton =
 
     -- Total number of signatures the scripts require
     numberOf_MintingWitnesses
-        = fromIntegral $
-        sumVia estimateMinWitnessRequiredPerInput txMintOrBurnScripts
+        = intCast $ sumVia estimateMaxWitnessRequiredPerInput txMintOrBurnScripts
 
     numberOf_ScriptVkeyWitnesses
-        = fromIntegral $
-        maybe 0 estimateMinWitnessRequiredPerInput txPaymentTemplate
+        = intCast $ maybe 0 estimateMaxWitnessRequiredPerInput txPaymentTemplate
 
     numberOf_VkeyWitnesses
         = case txWitnessTag of

@@ -3106,7 +3106,7 @@ submitSharedTransaction ctx apiw@(ApiT wid) apitx = do
                 filter isInpOurs $
                 (apiDecoded ^. #inputs) ++ (apiDecoded ^. #collateral)
         let totalNumberOfWits = length $ getSealedTxWitnesses sealedTx
-        let allWitsRequired = witsPerInput * witsRequiredForInputs
+        let allWitsRequired = fromIntegral witsPerInput * witsRequiredForInputs
         when (allWitsRequired > totalNumberOfWits) $
             liftHandler $ throwE $
             ErrSubmitTransactionPartiallySignedOrNoSignedTx allWitsRequired totalNumberOfWits

@@ -145,6 +145,8 @@ import Fmt
     ( Buildable (..), blockListF', indentF )
 import GHC.Generics
     ( Generic )
+import Numeric.Natural
+    ( Natural )
 import Type.Reflection
     ( Typeable )
 
@@ -747,13 +749,13 @@ instance ( key ~ SharedKey
                     , pwd )
         (Nothing, _) -> Nothing
 
-estimateMinWitnessRequiredPerInput :: Script k -> Int
+estimateMinWitnessRequiredPerInput :: Script k -> Natural
 estimateMinWitnessRequiredPerInput = \case
     RequireSignatureOf _ -> 1
     RequireAllOf xs      ->
         sum $ map estimateMinWitnessRequiredPerInput xs
     RequireAnyOf xs      ->
-        optimum minimum $ map estimateMinWitnessRequiredPerInput xs
+        optimumIfNotEmpty minimum $ map estimateMinWitnessRequiredPerInput xs
     RequireSomeOf m xs   ->
         let smallestReqFirst =
                 L.sort $ map estimateMinWitnessRequiredPerInput xs
@@ -761,19 +763,19 @@ estimateMinWitnessRequiredPerInput = \case
     ActiveFromSlot _     -> 0
     ActiveUntilSlot _    -> 0
 
-optimum :: (Foldable t, Num p) => (t a -> p) -> t a -> p
-optimum f xs =
-    if length xs == 0 then
+optimumIfNotEmpty :: (Foldable t, Num p) => (t a -> p) -> t a -> p
+optimumIfNotEmpty f xs =
+    if null xs then
         0
     else f xs
 
-estimateMaxWitnessRequiredPerInput :: Script k -> Int
+estimateMaxWitnessRequiredPerInput :: Script k -> Natural
 estimateMaxWitnessRequiredPerInput = \case
     RequireSignatureOf _ -> 1
     RequireAllOf xs      ->
         sum $ map estimateMaxWitnessRequiredPerInput xs
     RequireAnyOf xs      ->
-        optimum maximum $ map estimateMaxWitnessRequiredPerInput xs
+        optimumIfNotEmpty maximum $ map estimateMaxWitnessRequiredPerInput xs
     RequireSomeOf m xs   ->
         let smallestReqFirst =
                 L.sort $ map estimateMaxWitnessRequiredPerInput xs
