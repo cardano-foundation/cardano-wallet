@@ -469,6 +469,15 @@ x-scriptIntegrityHash: &scriptIntegrityHash
   example:
     - script_data16apaenn9ut6s40lcw3l8v68xawlrlq20z2966uzcx8jmv2q9uy7qau558d
 
+x-extraSignatureHash: &extraSignatureHash
+  description: An extra signature hash - 28 bytes
+  type: string
+  format: bech32
+  pattern: "^(addr_keyhash)1[0-9a-z]*$"
+  example:
+    - addr_keyhash1gr69m385thgvkrtspk73zmkwk537wxyxuevs2u9cukglvtlkz4k
+
+
 x-credentialPubKey: &credentialPubKey
   description: A public key (public key without chain code) for credential - 32 bytes
   type: string
@@ -2730,6 +2739,10 @@ components:
         burn: *ApiAssetMintBurn
         validity_interval: *ApiValidityIntervalExplicit
         script_integrity: *scriptIntegrityHash 
+        extra_signatures:
+          type: array
+          minItems: 0
+          items: *extraSignatureHash
 
     x-txBody: &txBody
       oneOf:
