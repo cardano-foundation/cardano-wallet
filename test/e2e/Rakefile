@@ -22,7 +22,7 @@ FIXTURES_SECRET = absolute_path ENV.fetch('TESTS_E2E_FIXTURES', nil)
 TOKEN_METADATA = ENV.fetch('TESTS_E2E_TOKEN_METADATA', nil)
 WALLET_PORT = ENV.fetch('WALLET_PORT', nil)
 
-path_separator = is_win? ? ';' : ':'
+path_separator = win? ? ';' : ':'
 ENV['PATH'] = "#{BINS}#{path_separator}#{ENV.fetch('PATH', nil)}"
 
 RSpec::Core::RakeTask.new(:spec)
@@ -149,7 +149,7 @@ task :start_node_and_wallet, [:env] do |_task, args|
   mk_dir(log_dir)
   network = args[:env] == 'mainnet' ? '--mainnet' : "--testnet #{config_dir}/byron-genesis.json"
 
-  if is_win?
+  if win?
     # Turn off p2p for Windows
     # TODO: remove after https://github.com/input-output-hk/ouroboros-network/issues/3968 released
     config_win = JSON.parse(File.read("#{config_dir}/config.json"))
@@ -204,7 +204,7 @@ end
 task :stop_node_and_wallet, [:env] do |_task, args|
   log '>> Stopping cardano-node and cardano-wallet'
 
-  if is_win?
+  if win?
     cmd 'nssm stop cardano-wallet'
     cmd 'nssm stop cardano-node'
 
@@ -222,7 +222,7 @@ task :display_versions do
   puts "\n  >> cardano-node and cardano-wallet versions:"
 
   bin_dir = BINS == '' ? BINS : "#{BINS}/"
-  if is_win?
+  if win?
     cmd "#{bin_dir}cardano-wallet.exe version", true
     cmd "#{bin_dir}cardano-node.exe version", true
   else
@@ -244,7 +244,7 @@ task :get_latest_bins, [:pr] do |_task, args|
   end
   wget(get_latest_binary_url(pr_num))
 
-  if is_win?
+  if win?
     mk_dir(BINS)
     cmd "unzip -o binary-dist -d #{BINS}"
     cmd "#{BINS}/cardano-node.exe version"
@@ -276,7 +276,7 @@ task :get_latest_node_db, [:env] do |_task, args|
   cmd "wget #{url} -O #{node_db_file}"
 
   log "Start extracting archive into #{NODE_DB}..."
-  fs_switch = is_win? ? '--force-local' : ''
+  fs_switch = win? ? '--force-local' : ''
   cmd "tar #{fs_switch} -xvf #{node_db_file} -C #{NODE_DB}"
 
   log "Start moving from #{node_db_extracted_dir} into #{node_db_dir}..."

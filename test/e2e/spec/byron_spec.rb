@@ -98,7 +98,7 @@ RSpec.describe CardanoWallet::Byron, :all, :byron do
         wallet_style = m[1]
         it "I can get #{wallet_type} #{wallet_style} walletid using cardano-addresses" do
           mnemonics = CW.utils.mnemonic_sentence(24)
-          wid = create_byron_wallet(style = wallet_style, 'Wallet - ID', mnemonics)
+          wid = create_byron_wallet(wallet_style, 'Wallet - ID', mnemonics)
 
           # based on root prv key
           root_xsk = CA.prv_key_from_recovery_phrase(mnemonics, wallet_type)
@@ -106,14 +106,14 @@ RSpec.describe CardanoWallet::Byron, :all, :byron do
           expect(wid).to eq ca_wid_root_xsk
 
           # based on pub key
-          pub_key = CA.key_public(root_xsk, with_chain_code = true)
+          pub_key = CA.key_public(root_xsk)
           ca_wid_pub_key = CA.key_walletid(pub_key)
           expect(wid).to eq ca_wid_pub_key
         end
 
         it "#{wallet_type} walletid is not based on acct key" do
           mnemonics = CW.utils.mnemonic_sentence(24)
-          wid = create_byron_wallet(style = wallet_style, 'Wallet - ID', mnemonics)
+          wid = create_byron_wallet(wallet_style, 'Wallet - ID', mnemonics)
 
           # based on acct prv key
           root_xsk = CA.prv_key_from_recovery_phrase(mnemonics, wallet_type)
@@ -121,7 +121,7 @@ RSpec.describe CardanoWallet::Byron, :all, :byron do
           ca_wid_acct_key = CA.key_walletid(acct_key)
 
           # based on pub key from acct prv key
-          pub_key = CA.key_public(acct_key, with_chain_code = true)
+          pub_key = CA.key_public(acct_key)
           ca_wid_pub_key = CA.key_walletid(pub_key)
 
           # wallet id from cardano-wallet is not the same

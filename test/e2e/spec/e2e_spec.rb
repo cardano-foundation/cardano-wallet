@@ -216,11 +216,11 @@ RSpec.describe 'Cardano Wallet E2E tests', :all, :e2e do
       policy = read_mustached_file('mintBurn_policy', { vkHash: vkHash })
       policy_id = get_policy_id(policy)
       def fingerprint
-        if is_linux?
+        if linux?
           'asset1q78ea9ds0rc3tfwu2damsjehjup2xuzddtg6xh'
-        elsif is_mac?
+        elsif mac?
           'asset1kjxaamf0p2p2z9g3k4xu0ne0g6h5j70st6z4pz'
-        elsif is_win?
+        elsif win?
           'asset1arj5nz8zxjuxvut5wqt5q0xw7905hllugahvu7'
         end
       end
@@ -760,7 +760,7 @@ RSpec.describe 'Cardano Wallet E2E tests', :all, :e2e do
 
     it 'Delegation (join and quit)' do
       balance = get_shelley_balances(@target_id)
-      expected_deposit = CARDANO_CLI.get_protocol_params['stakeAddressDeposit']
+      expected_deposit = CARDANO_CLI.protocol_params['stakeAddressDeposit']
       puts "Expected deposit #{expected_deposit}"
       # Check wallet stake keys before joing stake pool
       stake_keys = SHELLEY.stake_pools.list_stake_keys(@target_id)
@@ -2140,7 +2140,7 @@ RSpec.describe 'Cardano Wallet E2E tests', :all, :e2e do
       it 'Delegation (without submitting)' do
         # Delegation not yet implemented, only construct and sign in this tc
         balance = get_shared_balances(@wid_sha)
-        expected_deposit = CARDANO_CLI.get_protocol_params['stakeAddressDeposit']
+        expected_deposit = CARDANO_CLI.protocol_params['stakeAddressDeposit']
         puts "Expected deposit #{expected_deposit}"
 
         # Pick up pool id to join
@@ -2606,7 +2606,7 @@ RSpec.describe 'Cardano Wallet E2E tests', :all, :e2e do
         # Get funds on the wallet
         address = SHELLEY.addresses.list(@target_id)[0]['id']
         amt = 10_000_000
-        deposit = CARDANO_CLI.get_protocol_params['stakeAddressDeposit']
+        deposit = CARDANO_CLI.protocol_params['stakeAddressDeposit']
         tx_sent = SHELLEY.transactions.create(@wid,
                                               PASS,
                                               [{ address => amt }])

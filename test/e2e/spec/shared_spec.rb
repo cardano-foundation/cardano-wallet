@@ -601,17 +601,18 @@ RSpec.describe CardanoWallet::Shared, :all, :shared do
           expect(res).to be_correct_and_respond 202
           expect(res.to_s).to include cardano_address_get_acc_xpub(m24,
                                                                    "1854H/1815H/#{index}",
-                                                                   hex = false,
-                                                                   'Shared')
+                                                                   'Shared',
+                                                                   '--with-chain-code',
+                                                                   hex: false)
 
           payload = { passphrase: PASS, format: 'non_extended' }
           res = SHARED.keys.create_acc_public_key(incomplete_wid, index, payload)
           expect(res).to be_correct_and_respond 202
           expect(res.to_s).to include cardano_address_get_acc_xpub(m24,
                                                                    "1854H/1815H/#{index}",
-                                                                   hex = false,
                                                                    'Shared',
-                                                                   '--without-chain-code')
+                                                                   '--without-chain-code',
+                                                                   hex: false)
         end
       end
 
@@ -640,16 +641,17 @@ RSpec.describe CardanoWallet::Shared, :all, :shared do
           expect(res).to be_correct_and_respond 202
           expect(res.to_s).to include cardano_address_get_acc_xpub(m24,
                                                                    "1854H/1815H/#{index}",
-                                                                   hex = false,
-                                                                   'Shared')
+                                                                   'Shared',
+                                                                   '--with-chain-code',
+                                                                   hex: false)
 
           res = SHARED.keys.create_acc_public_key(active_wid, index, { passphrase: PASS, format: 'non_extended' })
           expect(res).to be_correct_and_respond 202
           expect(res.to_s).to include cardano_address_get_acc_xpub(m24,
                                                                    "1854H/1815H/#{index}",
-                                                                   hex = false,
                                                                    'Shared',
-                                                                   '--without-chain-code')
+                                                                   '--without-chain-code',
+                                                                   hex: false)
         end
       end
 

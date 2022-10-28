@@ -4,12 +4,13 @@ require 'httparty'
 require 'fileutils'
 
 module Helpers
+  # general utility methods
   module Utils
     def log(message)
       puts "[#{Time.now}] #{message}"
     end
 
-    def cmd(cmd, display_result = false)
+    def cmd(cmd, display_result: false)
       cmd.gsub(/\s+/, ' ')
       res = `#{cmd}`
       log cmd if display_result
@@ -28,7 +29,9 @@ module Helpers
     #   | cardano-address address bootstrap --root $(cat root.prv | cardano-address key public --with-chain-code) \
     #       --network-tag testnet 14H/42H
     def cardano_address_get_byron_addr(mnemonics, derivation_path)
-      root = cmd(%(echo #{mnemonics.join(' ')} | cardano-address key from-recovery-phrase Byron | cardano-address key public --with-chain-code)).gsub("\n", '')
+      root = cmd(%(echo #{mnemonics.join(' ')} | cardano-address key from-recovery-phrase Byron | cardano-address key public --with-chain-code)).gsub(
+        "\n", ''
+      )
       cmd(%(echo #{mnemonics.join(' ')} \
          | cardano-address key from-recovery-phrase Byron \
          | cardano-address key child #{derivation_path} \
@@ -39,7 +42,8 @@ module Helpers
          )).gsub("\n", '')
     end
 
-    def cardano_address_get_acc_xpub(mnemonics, derivation_path, hex = true, wallet_type = 'Shared', chain_code = '--with-chain-code')
+    def cardano_address_get_acc_xpub(mnemonics, derivation_path, wallet_type = 'Shared',
+                                     chain_code = '--with-chain-code', hex: true)
       cmd(%(echo #{mnemonics.join(' ')} \
          | cardano-address key from-recovery-phrase #{wallet_type} \
          | cardano-address key child #{derivation_path} \
@@ -50,12 +54,12 @@ module Helpers
       cmd(%(echo #{key} | bech32)).gsub("\n", '')
     end
 
-    def hex_to_bytes(s)
-      s.scan(/../).map { |x| x.hex.chr }.join
+    def hex_to_bytes(str)
+      str.scan(/../).map { |x| x.hex.chr }.join
     end
 
     def binary_to_hex(binary_as_string)
-      '%02x' % binary_as_string.to_i(2)
+      format('%02x', binary_as_string.to_i(2))
     end
 
     ##
@@ -82,14 +86,14 @@ module Helpers
       wallets = JSON.parse File.read(fixture)
       k = kind.to_s
       t = type.to_s
-      if is_linux?
+      if linux?
         wallets['linux'][k][t]
-      elsif is_mac?
+      elsif mac?
         wallets['macos'][k][t]
-      elsif is_win?
+      elsif win?
         wallets['windows'][k][t]
       else
-        wallets['linux'][k][t]
+        raise 'Unsupported platform!'
       end
     end
 
@@ -112,22 +116,22 @@ module Helpers
       FileUtils.mv(src, dst, force: true)
     end
 
-    def is_win?
+    def win?
       RUBY_PLATFORM =~ /cygwin|mswin|mingw|bccwin|wince|emx/
     end
 
-    def is_linux?
+    def linux?
       RUBY_PLATFORM =~ /linux/
     end
 
-    def is_mac?
+    def mac?
       RUBY_PLATFORM =~ /darwin/
     end
 
     def get_latest_binary_url(pr = nil)
-      os = 'linux.musl.cardano-wallet-linux64' if is_linux?
-      os = 'macos.intel.cardano-wallet-macos-intel' if is_mac?
-      os = 'linux.windows.cardano-wallet-win64' if is_win?
+      os = 'linux.musl.cardano-wallet-linux64' if linux?
+      os = 'macos.intel.cardano-wallet-macos-intel' if mac?
+      os = 'linux.windows.cardano-wallet-win64' if win?
       if pr
         "https://hydra.iohk.io/job/Cardano/cardano-wallet-pr-#{pr}/#{os}/latest/download-by-type/file/binary-dist"
       else
@@ -181,6 +185,6 @@ end
 # extend String class with hexdump methods
 class String
   def cbor_to_hex
-    bytes.map { |x| '%02x' % x }.join
+    bytes.map { |x| format('%02x', x) }.join
   end
 end

@@ -10,7 +10,7 @@ class CardanoCli
     @node_state = File.join(absolute_path(ENV.fetch('TESTS_NODE_DB', nil)), CONTEXT.env)
     @protocol_magic = protocol_magic
 
-    if is_win?
+    if win?
       @socket_path = '\\\\.\\pipe\\cardano-node-testnet'
     else
       @socket_path = File.join(@node_state, 'node.socket')
@@ -74,7 +74,7 @@ class CardanoCli
     pparams_path
   end
 
-  def get_protocol_params
+  def protocol_params
     pparams = cmd(%(cardano-cli query protocol-parameters \
                     --testnet-magic #{@protocol_magic}))
     JSON.parse(pparams)

@@ -1,4 +1,5 @@
 # frozen_string_literal: true
+
 RSpec.describe CardanoWallet::Shelley, :all, :shelley do
   after(:each) do
     teardown
@@ -30,7 +31,7 @@ RSpec.describe CardanoWallet::Shelley, :all, :shelley do
       it 'I can create, get and delete wallet from mnemonics' do
         payload = { name: 'Wallet from mnemonic_sentence',
                     passphrase: 'Secure Passphrase',
-                    mnemonic_sentence: CW.utils.mnemonic_sentence(15)}
+                    mnemonic_sentence: CW.utils.mnemonic_sentence(15) }
         wallet = WalletFactory.create(:shelley, payload)
         expect(wallet).to be_correct_and_respond 201
 
@@ -45,7 +46,7 @@ RSpec.describe CardanoWallet::Shelley, :all, :shelley do
         payload = { name: 'Wallet from mnemonic_sentence',
                     passphrase: 'Secure Passphrase',
                     mnemonic_sentence: CW.utils.mnemonic_sentence(15),
-                    mnemonic_second_factor: CW.utils.mnemonic_sentence(12)}
+                    mnemonic_second_factor: CW.utils.mnemonic_sentence(12) }
         wallet = WalletFactory.create(:shelley, payload)
         expect(wallet).to be_correct_and_respond 201
 
@@ -60,7 +61,7 @@ RSpec.describe CardanoWallet::Shelley, :all, :shelley do
         payload = { name: 'Wallet from mnemonic_sentence',
                     passphrase: 'Secure Passphrase',
                     mnemonic_sentence: CW.utils.mnemonic_sentence(15),
-                    address_pool_gap: pool_gap}
+                    address_pool_gap: pool_gap }
         wallet = WalletFactory.create(:shelley, payload)
         expect(wallet).to be_correct_and_respond 201
         addr = SHELLEY.addresses.list(wallet['id'])
@@ -71,7 +72,7 @@ RSpec.describe CardanoWallet::Shelley, :all, :shelley do
       it 'I can create, get and delete wallet from pub key' do
         payload = { name: 'Wallet from pub key',
                     account_public_key: 'b47546e661b6c1791452d003d375756dde6cac2250093ce4630f16b9b9c0ac87411337bda4d5bc0216462480b809824ffb48f17e08d95ab9f1b91d391e48e66b',
-                    address_pool_gap: 20}
+                    address_pool_gap: 20 }
         wallet = WalletFactory.create(:shelley, payload)
         expect(wallet).to be_correct_and_respond 201
 
@@ -92,7 +93,7 @@ RSpec.describe CardanoWallet::Shelley, :all, :shelley do
           expect(wid).to eq ca_wid_root_xsk
 
           # based on pub key
-          pub_key = CA.key_public(root_xsk, with_chain_code = true)
+          pub_key = CA.key_public(root_xsk)
           ca_wid_pub_key = CA.key_walletid(pub_key)
           expect(wid).to eq ca_wid_pub_key
         end
@@ -107,7 +108,7 @@ RSpec.describe CardanoWallet::Shelley, :all, :shelley do
           ca_wid_acct_key = CA.key_walletid(acct_key)
 
           # based on pub key from acct prv key
-          pub_key = CA.key_public(acct_key, with_chain_code = true)
+          pub_key = CA.key_public(acct_key)
           ca_wid_pub_key = CA.key_walletid(pub_key)
 
           # wallet id from cardano-wallet is not the same
@@ -191,7 +192,7 @@ RSpec.describe CardanoWallet::Shelley, :all, :shelley do
       it 'Cannot update_passphrase of wallet from pub key' do
         payload = { name: 'Wallet from pub key',
                     account_public_key: 'b47546e661b6c1791452d003d375756dde6cac2250093ce4630f16b9b9c0ac87411337bda4d5bc0216462480b809824ffb48f17e08d95ab9f1b91d391e48e66b',
-                    address_pool_gap: 20}
+                    address_pool_gap: 20 }
         wallet = WalletFactory.create(:shelley, payload)
         expect(wallet).to be_correct_and_respond 201
 
@@ -206,12 +207,12 @@ RSpec.describe CardanoWallet::Shelley, :all, :shelley do
         mnemonics = CW.utils.mnemonic_sentence(24)
         root_xsk = CA.prv_key_from_recovery_phrase(mnemonics, 'Shelley')
         acct_key = CA.key_child(root_xsk, '1852H/1815H/0H')
-        pub_key = CA.key_public(acct_key, with_chain_code = true)
+        pub_key = CA.key_public(acct_key)
         acc_pub_key_base16 = bech32_to_base16(pub_key)
 
         payload = { name: 'Wallet from pub key',
                     account_public_key: acc_pub_key_base16,
-                    address_pool_gap: 20}
+                    address_pool_gap: 20 }
         wallet = WalletFactory.create(:shelley, payload)
         expect(wallet).to be_correct_and_respond 201
 
@@ -233,12 +234,12 @@ RSpec.describe CardanoWallet::Shelley, :all, :shelley do
         mnemonics = CW.utils.mnemonic_sentence(24)
         root_xsk = CA.prv_key_from_recovery_phrase(mnemonics, 'Shelley')
         acct_key = CA.key_child(root_xsk, '1852H/1815H/0H')
-        pub_key = CA.key_public(acct_key, with_chain_code = true)
+        pub_key = CA.key_public(acct_key)
         acc_pub_key_base16 = bech32_to_base16(pub_key)
 
         payload = { name: 'Wallet from pub key',
                     account_public_key: acc_pub_key_base16,
-                    address_pool_gap: 20}
+                    address_pool_gap: 20 }
         wallet = WalletFactory.create(:shelley, payload)
         expect(wallet).to be_correct_and_respond 201
 
@@ -294,7 +295,7 @@ RSpec.describe CardanoWallet::Shelley, :all, :shelley do
       addresses = SHELLEY.addresses.list(wid)
       addr_amount = [
         { addresses[0]['id'] => MIN_UTXO_VALUE_PURE_ADA },
-         { addresses[1]['id'] => MIN_UTXO_VALUE_PURE_ADA }
+        { addresses[1]['id'] => MIN_UTXO_VALUE_PURE_ADA }
       ]
 
       rnd = SHELLEY.coin_selections.random wid, addr_amount
@@ -370,7 +371,7 @@ RSpec.describe CardanoWallet::Shelley, :all, :shelley do
                    '2' => { 'bytes' => '2512a00e9653fe49a44a5886202e24d77eeb998f' },
                    '3' => { 'list' => [{ 'int' => 14 }, { 'int' => 42 }, { 'string' => '1337' }] },
                    '4' => { 'map' => [{ 'k' => { 'string' => 'key' }, 'v' => { 'string' => 'value' } },
-                                       { 'k' => { 'int' => 14 }, 'v' => { 'int' => 42 } }] } }
+                                      { 'k' => { 'int' => 14 }, 'v' => { 'int' => 42 } }] } }
 
       fees = txs.payment_fees(id, amt, 'self', metadata)
       expect(fees).to be_correct_and_respond 403
@@ -388,7 +389,7 @@ RSpec.describe CardanoWallet::Shelley, :all, :shelley do
   describe CardanoWallet::Shelley::StakePools do
     after(:each) do
       settings = CW.misc.settings
-      s = settings.update({ pool_metadata_source: 'none' })
+      settings.update({ pool_metadata_source: 'none' })
     end
 
     it 'I can list stake keys' do
@@ -504,7 +505,7 @@ RSpec.describe CardanoWallet::Shelley, :all, :shelley do
   describe CardanoWallet::Shelley::Keys do
     it 'Get signed metadata' do
       wid = create_shelley_wallet
-      ['utxo_internal', 'utxo_external', 'mutable_account'].each do |role|
+      %w[utxo_internal utxo_external mutable_account].each do |role|
         id = [*0..100_000].sample
         res = SHELLEY.keys.sign_metadata(wid,
                                          role,
@@ -518,7 +519,7 @@ RSpec.describe CardanoWallet::Shelley, :all, :shelley do
 
     it 'Get public key' do
       wid = create_shelley_wallet
-      ['utxo_internal', 'utxo_external', 'mutable_account'].each do |role|
+      %w[utxo_internal utxo_external mutable_account].each do |role|
         id = [*0..100_000].sample
         res = SHELLEY.keys.get_public_key(wid, role, id)
         puts "#{wid}/#{role}/#{id}"
@@ -529,66 +530,68 @@ RSpec.describe CardanoWallet::Shelley, :all, :shelley do
     it 'Create account public key - extended' do
       m24 = CW.utils.mnemonic_sentence(24)
       wid = create_shelley_wallet('Wallet', m24)
-      ['0H', '1H', '2147483647H', '44H'].each do |index|
+      %w[0H 1H 2147483647H 44H].each do |index|
         payload = { passphrase: PASS, format: 'extended' }
         res = SHELLEY.keys.create_acc_public_key(wid, index, payload)
         expect(res).to be_correct_and_respond 202
         expect(res.parsed_response).to eq cardano_address_get_acc_xpub(m24,
                                                                        "1852H/1815H/#{index}",
-                                                                       hex = false,
-                                                                       'Shelley')
+                                                                       'Shelley',
+                                                                       '--with-chain-code',
+                                                                       hex: false)
       end
     end
 
     it 'Create account public key - non_extended' do
       m24 = CW.utils.mnemonic_sentence(24)
       wid = create_shelley_wallet('Wallet', m24)
-      ['0H', '1H', '2147483647H', '44H'].each do |index|
+      %w[0H 1H 2147483647H 44H].each do |index|
         payload = { passphrase: PASS, format: 'non_extended' }
         res = SHELLEY.keys.create_acc_public_key(wid, index, payload)
         expect(res.parsed_response).to eq cardano_address_get_acc_xpub(m24,
                                                                        "1852H/1815H/#{index}",
-                                                                       hex = false,
                                                                        'Shelley',
-                                                                       '--without-chain-code')
+                                                                       '--without-chain-code',
+                                                                       hex: false)
       end
     end
 
     it 'Create account public key - extended with purpose' do
       m24 = CW.utils.mnemonic_sentence(24)
       wid = create_shelley_wallet('Wallet', m24)
-      ['0H', '1H', '2147483647H', '1854H'].each do |index_purpose|
+      %w[0H 1H 2147483647H 1854H].each do |index_purpose|
         payload = { passphrase: PASS, format: 'extended', purpose: index_purpose }
         res = SHELLEY.keys.create_acc_public_key(wid, index_purpose, payload)
         expect(res).to be_correct_and_respond 202
         type_for_cardano_address = index_purpose == '1854H' ? 'Shared' : 'Shelley'
         expect(res.parsed_response).to eq cardano_address_get_acc_xpub(m24,
                                                                        "#{index_purpose}/1815H/#{index_purpose}",
-                                                                       hex = false,
-                                                                       type_for_cardano_address)
+                                                                       type_for_cardano_address,
+                                                                       '--with-chain-code',
+                                                                       hex: false)
       end
     end
 
     it 'Create account public key - non_extended with purpose' do
       m24 = CW.utils.mnemonic_sentence(24)
       wid = create_shelley_wallet('Wallet', m24)
-      ['0H', '1H', '2147483647H', '1854H'].each do |index_purpose|
+      %w[0H 1H 2147483647H 1854H].each do |index_purpose|
         payload = { passphrase: PASS, format: 'non_extended', purpose: index_purpose }
         res = SHELLEY.keys.create_acc_public_key(wid, index_purpose, payload)
         expect(res).to be_correct_and_respond 202
         type_for_cardano_address = index_purpose == '1854H' ? 'Shared' : 'Shelley'
         expect(res.parsed_response).to eq cardano_address_get_acc_xpub(m24,
                                                                        "#{index_purpose}/1815H/#{index_purpose}",
-                                                                       hex = false,
                                                                        type_for_cardano_address,
-                                                                       '--without-chain-code')
+                                                                       '--without-chain-code',
+                                                                       hex: false)
       end
     end
 
     it 'Get account public key - wallet from acc pub key' do
       payload = { name: 'Wallet from pub key 2',
                   account_public_key: 'b47546e661b6c1791452d003d375756dde6cac2250093ce4630f16b9b9c0ac87411337bda4d5bc0216462480b809824ffb48f17e08d95ab9f1b91d391e48e66b',
-                  address_pool_gap: 20}
+                  address_pool_gap: 20 }
       wallet = WalletFactory.create(:shelley, payload)
       expect(wallet).to be_correct_and_respond 201
 
@@ -608,7 +611,7 @@ RSpec.describe CardanoWallet::Shelley, :all, :shelley do
       # Get equivalent account pub key using cardano-addresses
       root_xsk = CA.prv_key_from_recovery_phrase(m24, 'Shelley')
       acct_key = CA.key_child(root_xsk, '1852H/1815H/0H')
-      pub_key = CA.key_public(acct_key, with_chain_code = true)
+      pub_key = CA.key_public(acct_key)
 
       expect(pub_key).to eq w_acct_key.parsed_response
     end
@@ -625,10 +628,10 @@ RSpec.describe CardanoWallet::Shelley, :all, :shelley do
       # Get equivalent account pub key using cardano-addresses
       pub_key = Dir.mktmpdir do |dir|
         sndfactor_file = File.join(dir, 'sndfactor.prv')
-        File.write(sndfactor_file, m12.join ' ')
+        File.write(sndfactor_file, m12.join(' '))
         root_xsk = CA.prv_key_from_recovery_phrase(m24, "Shelley --passphrase from-mnemonic --from-file #{sndfactor_file}")
         acct_key = CA.key_child(root_xsk, '1852H/1815H/0H')
-        CA.key_public(acct_key, with_chain_code = true)
+        CA.key_public(acct_key)
       end
 
       expect(pub_key).to eq w_acct_key.parsed_response
