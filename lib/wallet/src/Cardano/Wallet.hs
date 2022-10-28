@@ -455,6 +455,8 @@ import Cardano.Wallet.Primitive.Types.UTxOSelection
     ( UTxOSelection )
 import Cardano.Wallet.Read.Tx.CBOR
     ( TxCBOR )
+import Cardano.Wallet.Shelley.Compatibility
+    ( fromCardanoTxIn, fromCardanoTxOut, toCardanoUTxO )
 import Cardano.Wallet.Transaction
     ( DelegationAction (..)
     , ErrAssignRedeemers (..)
@@ -1805,8 +1807,8 @@ balanceTransactionWithSelectionStrategy
                     Nothing ->
                        Left i
                     Just o -> do
-                        let i' = fromCardanoTxIn tl i
-                        let TxOut addr bundle = fromCardanoTxOut tl o
+                        let i' = fromCardanoTxIn i
+                        let TxOut addr bundle = fromCardanoTxOut o
                         pure (WalletUTxO i' addr, bundle)
 
         case partitionEithers res of
@@ -1815,7 +1817,7 @@ balanceTransactionWithSelectionStrategy
             (unresolvedInsHead:unresolvedInsTail, _) ->
                 throwE
                 . ErrBalanceTxUnresolvedInputs
-                . fmap (fromCardanoTxIn tl)
+                . fmap fromCardanoTxIn
                 $ (unresolvedInsHead :| unresolvedInsTail)
       where
         Cardano.UTxO utxo = combinedUTxO
@@ -1871,8 +1873,8 @@ balanceTransactionWithSelectionStrategy
         :: Cardano.UTxO era
         -> ExceptT ErrBalanceTx m ()
     guardWalletUTxOConsistencyWith u' = do
-        let u = Map.mapKeys (fromCardanoTxIn tl)
-                . Map.map (fromCardanoTxOut tl)
+        let u = Map.mapKeys fromCardanoTxIn
+                . Map.map fromCardanoTxOut
                 $ (unUTxO u')
         let conflicts = lefts $ flip map (Map.toList u) $ \(i, o) ->
                 case i `UTxO.lookup` walletUTxO of
@@ -1897,8 +1899,9 @@ balanceTransactionWithSelectionStrategy
          -- UTxO set. (Whether or not this is a sane thing for the user to do,
          -- is another question.)
          [ unUTxO inputUTxO
-         , unUTxO $ toCardanoUTxO tl walletUTxO []
+         , unUTxO $ toCardanoUTxO Cardano.shelleyBasedEra walletUTxO
          ]
+
       where
          unUTxO (Cardano.UTxO u) = u
 
@@ -3675,7 +3678,7 @@ data ErrBalanceTx
     | ErrBalanceTxZeroAdaOutput
     | ErrBalanceTxInputResolutionConflicts (NonEmpty (TxOut, TxOut))
     | ErrBalanceTxUnresolvedInputs (NonEmpty TxIn)
-    | ErrByronTxNotSupported
+    | ErrOldEraNotSupported Cardano.AnyCardanoEra
     deriving (Show, Eq)
 
 data ErrBalanceTxInternalError

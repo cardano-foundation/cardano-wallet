@@ -134,8 +134,10 @@ import Servant.Server
     , err503
     )
 
+import qualified Cardano.Api as Cardano
 import qualified Cardano.Wallet.Primitive.Types.TokenBundle as TokenBundle
 import qualified Cardano.Wallet.Primitive.Types.TokenMap as TokenMap
+import qualified Cardano.Wallet.Write.Tx as WriteTx
 import qualified Data.Aeson as Aeson
 import qualified Data.ByteString as BS
 import qualified Data.ByteString.Lazy as BL
@@ -381,11 +383,22 @@ instance IsServerError ErrDecodeTx where
             , errReasonPhrase = errReasonPhrase err404
             }
 
+instance IsServerError WriteTx.ErrInvalidTxOutInEra where
+     toServerError = \case
+         WriteTx.ErrInlineDatumNotSupportedInAlonzo ->
+             apiError err400 BalanceTxInlineDatumsNotSupportedInAlonzo
+                 "Inline datums are not supported in the Alonzo era."
+         WriteTx.ErrInlineScriptNotSupportedInAlonzo ->
+             apiError err400 BalanceTxInlineScriptsNotSupportedInAlonzo
+                 "Inline scripts are not supported in the Alonzo era."
+
 instance IsServerError ErrBalanceTx where
     toServerError = \case
-        ErrByronTxNotSupported ->
-            apiError err403 BalanceTxByronNotSupported
-                "Balancing Byron transactions is not supported."
+        ErrOldEraNotSupported (Cardano.AnyCardanoEra era) ->
+            apiError err403 BalanceTxEraNotSupported $ T.unwords
+                [ "Balancing in ", showT era, " "
+                , "is not supported."
+                ]
         ErrBalanceTxUpdateError (ErrExistingKeyWitnesses n) ->
             apiError err403 BalanceTxExistingKeyWitnesses $ mconcat
                 [ "The transaction could not be balanced, because it contains "

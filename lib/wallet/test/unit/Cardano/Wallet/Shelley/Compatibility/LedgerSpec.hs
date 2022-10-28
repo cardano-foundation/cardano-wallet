@@ -23,8 +23,10 @@ import Cardano.Wallet.Primitive.Types.TokenQuantity
     ( TokenQuantity (..) )
 import Cardano.Wallet.Primitive.Types.TokenQuantity.Gen
     ( genTokenQuantityFullRange, shrinkTokenQuantityFullRange )
+import Cardano.Wallet.Primitive.Types.Tx
+    ( TxIn (..) )
 import Cardano.Wallet.Primitive.Types.Tx.Gen
-    ( genTxOutCoin, shrinkTxOutCoin )
+    ( genTxIn, genTxOutCoin, shrinkTxIn, shrinkTxOutCoin )
 import Cardano.Wallet.Shelley.Compatibility.Ledger
     ( Convert (..) )
 import Data.Proxy
@@ -50,6 +52,7 @@ spec = describe "Cardano.Wallet.Shelley.Compatibility.LedgerSpec" $
         ledgerRoundtrip $ Proxy @TokenName
         ledgerRoundtrip $ Proxy @TokenPolicyId
         ledgerRoundtrip $ Proxy @TokenQuantity
+        ledgerRoundtrip $ Proxy @TxIn
 
 --------------------------------------------------------------------------------
 -- Utilities
@@ -93,3 +96,7 @@ instance Arbitrary TokenPolicyId where
 instance Arbitrary TokenQuantity where
     arbitrary = genTokenQuantityFullRange
     shrink = shrinkTokenQuantityFullRange
+
+instance Arbitrary TxIn where
+    arbitrary = genTxIn
+    shrink = shrinkTxIn

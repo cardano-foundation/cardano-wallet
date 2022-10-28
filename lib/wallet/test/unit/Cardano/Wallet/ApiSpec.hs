@@ -138,7 +138,7 @@ import qualified Data.Map.Strict as Map
 import qualified Data.Text as T
 import qualified Servant
 
-
+-- TODO [ADP-2302] Remove need for overlapping dummy instances
 instance {-# OVERLAPPING #-} EncodeAddress ('Testnet 0) where
     encodeAddress = T.pack . show
 
