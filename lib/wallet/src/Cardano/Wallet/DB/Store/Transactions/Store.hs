@@ -17,6 +17,8 @@ module Cardano.Wallet.DB.Store.Transactions.Store
     ( selectTxSet
     , putTxSet
     , mkStoreTransactions
+    , mkDBTxSet
+    , DBTxSet (..)
     ) where
 
 import Prelude
@@ -36,6 +38,7 @@ import Cardano.Wallet.DB.Sqlite.Types
     ( TxId )
 import Cardano.Wallet.DB.Store.Transactions.Model
     ( DeltaTxSet (..)
+    , DeltaTxSet
     , TxRelation (..)
     , TxSet (..)
     , tokenCollateralOrd
@@ -78,11 +81,11 @@ mkStoreTransactions =
     Store
     { loadS = Right <$> selectTxSet
     , writeS = write
-    , updateS = update
+    , updateS = const update
     }
 
-update :: TxSet -> DeltaTxSet -> SqlPersistT IO ()
-update _ change = case change of
+update :: DeltaTxSet -> SqlPersistT IO ()
+update change = case change of
     Append txs -> putTxSet txs
     DeleteTx tid -> do
         deleteWhere [TxInputTxId ==. tid ]
@@ -187,3 +190,17 @@ mkMap k v =
     Map.fromListWith (<>)
     . fmap ((k &&& pure) . entityVal)
     <$> v
+
+-- | A database layer that stores transactions.
+data DBTxSet stm = DBTxSet
+    { getTxById
+        :: TxId -> stm (Maybe TxRelation)
+    , updateTxSet
+        :: DeltaTxSet -> stm ()
+    }
+
+mkDBTxSet :: DBTxSet (SqlPersistT IO)
+mkDBTxSet = DBTxSet
+    {   getTxById = undefined
+    ,   updateTxSet = update
+    }
