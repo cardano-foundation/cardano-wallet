@@ -18,7 +18,7 @@ import Prelude hiding
 
 import Cardano.Wallet.Api.Http.Server.Error
     ( IsServerError (..), apiError, liftE, showT )
-import Cardano.Wallet.Api.Types
+import Cardano.Wallet.Api.Types.Error
     ( ApiErrorInfo (UnexpectedError) )
 import Cardano.Wallet.Primitive.Types
     ( Certificate )

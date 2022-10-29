@@ -85,10 +85,6 @@ module Cardano.Wallet.Api.Types
     , ApiDeregisterPool (..)
     , ApiEra (..)
     , ApiEraInfo (..)
-    , ApiError (..)
-    , ApiErrorInfo (..)
-    , ApiErrorMessage (..)
-    , ApiErrorTxOutputLovelaceInsufficient (..)
     , ApiExternalCertificate (..)
     , ApiExternalInput (..)
     , ApiFee (..)
@@ -407,8 +403,6 @@ import Control.DeepSeq
     ( NFData (..) )
 import Control.Monad
     ( guard, when, (<=<), (>=>) )
-import Data.Aeson.Extra
-    ( objectUnion )
 import Data.Aeson.Types
     ( FromJSON (..)
     , Parser
@@ -440,8 +434,6 @@ import Data.ByteString
     ( ByteString )
 import Data.Char
     ( toLower )
-import Data.Data
-    ( Data )
 import Data.Either.Combinators
     ( maybeToRight )
 import Data.Either.Extra
@@ -460,8 +452,6 @@ import Data.List.NonEmpty
     ( NonEmpty (..) )
 import Data.Map.Strict
     ( Map )
-import Data.Maybe
-    ( fromMaybe )
 import Data.Proxy
     ( Proxy (..) )
 import Data.Quantity
@@ -1654,146 +1644,6 @@ data ApiSharedWalletPatchData = ApiSharedWalletPatchData
     , accountPublicKey :: !ApiAccountPublicKey
     }
     deriving (Eq, Generic, Show)
-    deriving anyclass NFData
-
-data ApiError = ApiError
-    { info :: !ApiErrorInfo
-    , message :: !ApiErrorMessage
-    }
-    deriving (Eq, Generic, Show)
-    deriving anyclass NFData
-
-instance ToJSON ApiError where
-    toJSON ApiError {info, message}
-        = fromMaybe (error "ToJSON ApiError: Unexpected encoding")
-        $ toJSON info `objectUnion` toJSON message
-
-instance FromJSON ApiError where
-    parseJSON o = ApiError <$> parseJSON o <*> parseJSON o
-
-newtype ApiErrorMessage = ApiErrorMessage {message :: Text}
-    deriving (Eq, Generic, Show)
-    deriving (FromJSON, ToJSON) via DefaultRecord ApiErrorMessage
-    deriving anyclass NFData
-
-data ApiErrorInfo
-    = AddressAlreadyExists
-    | AlreadyWithdrawing
-    | AssetNameTooLong
-    | AssetNotPresent
-    | BadRequest
-    | BalanceTxEraNotSupported
-    | BalanceTxInlineDatumsNotSupportedInAlonzo
-    | BalanceTxInlineScriptsNotSupportedInAlonzo
-    | BalanceTxConflictingNetworks
-    | BalanceTxExistingCollateral
-    | BalanceTxExistingKeyWitnesses
-    | BalanceTxExistingReturnCollateral
-    | BalanceTxExistingTotalCollateral
-    | BalanceTxInternalError
-    | BalanceTxMaxSizeLimitExceeded
-    | BalanceTxUnderestimatedFee
-    | BalanceTxZeroAdaOutput
-    | CannotCoverFee
-    | CreatedInvalidTransaction
-    | CreatedMultiaccountTransaction
-    | CreatedMultidelegationTransaction
-    | CreatedWrongPolicyScriptTemplate
-    | ExistingKeyWitnesses
-    | ForeignTransaction
-    | HardenedDerivationRequired
-    | InputsDepleted
-    | InsufficientCollateral
-    | InvalidCoinSelection
-    | InvalidWalletType
-    | InvalidValidityBounds
-    | KeyNotFoundForAddress
-    | MalformedTxPayload
-    | MempoolIsFull
-    | MethodNotAllowed
-    | MinWithdrawalWrong
-    | MintOrBurnAssetQuantityOutOfBounds
-    | MissingPolicyPublicKey
-    | MissingWitnessesInTransaction
-    | NetworkMisconfigured
-    | NetworkQueryFailed
-    | NetworkUnreachable
-    | NoRootKey
-    | NoSuchPool
-    | NoSuchTransaction
-    | NoSuchWallet
-    | NonNullRewards
-    | NotAcceptable
-    | NotDelegatingTo
-    | NotEnoughMoney
-    | NotFound
-    | NotImplemented
-    | NotSynced
-    | NothingToMigrate
-    | OutputTokenBundleSizeExceedsLimit
-    | OutputTokenQuantityExceedsLimit
-    | PastHorizon
-    | PoolAlreadyJoined
-    | QueryParamMissing
-    | RedeemerInvalidData
-    | RedeemerScriptFailure
-    | RedeemerTargetNotFound
-    | RejectedByCoreNode
-    | SharedWalletCannotUpdateKey
-    | SharedWalletKeyAlreadyExists
-    | SharedWalletNoDelegationTemplate
-    | SharedWalletNoSuchCosigner
-    | SharedWalletNotPending
-    | SharedWalletPending
-    | SharedWalletScriptTemplateInvalid
-    | SoftDerivationRequired
-    | StartTimeLaterThanEndTime
-    | TokensMintedButNotSpentOrBurned
-    | TransactionAlreadyBalanced
-    | TransactionAlreadyInLedger
-    | TransactionIsTooBig
-    | TranslationError
-    | UnableToAssignInputOutput
-    | UnableToDetermineCurrentEpoch
-    | UnexpectedError
-    | UnresolvedInputs
-    | InputResolutionConflicts
-    | UnsupportedMediaType
-    | UtxoTooSmall ApiErrorTxOutputLovelaceInsufficient
-    | WalletAlreadyExists
-    | WalletNotResponding
-    | WithdrawalNotWorth
-    | WrongEncryptionPassphrase
-    | WrongMnemonic
-    | ValidityIntervalNotInsideScriptTimelock
-    deriving (Eq, Generic, Show, Data, Typeable)
-    deriving anyclass NFData
-
-instance FromJSON ApiErrorInfo where
-    parseJSON = genericParseJSON apiErrorInfoOptions
-
-instance ToJSON ApiErrorInfo where
-    toJSON = genericToJSON apiErrorInfoOptions
-
-apiErrorInfoOptions :: Aeson.Options
-apiErrorInfoOptions = defaultSumTypeOptions
-    { sumEncoding = TaggedObject
-        { tagFieldName = "code"
-        , contentsFieldName = "info"
-        }
-    }
-
-data ApiErrorTxOutputLovelaceInsufficient = ApiErrorTxOutputLovelaceInsufficient
-    { txOutputIndex
-        :: !Word32
-    , txOutputLovelaceSpecified
-        :: !(Quantity "lovelace" Natural)
-    , txOutputLovelaceRequiredMinimum
-        :: !(Quantity "lovelace" Natural)
-    }
-    deriving (Data, Eq, Generic, Show, Typeable)
-    deriving (FromJSON, ToJSON)
-        via DefaultRecord ApiErrorTxOutputLovelaceInsufficient
     deriving anyclass NFData
 
 -- | Defines a point in time that can be formatted as and parsed from an

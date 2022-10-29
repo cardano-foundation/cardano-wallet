@@ -251,7 +251,6 @@ import Cardano.Wallet.Api.Types
     , ApiByronWallet
     , ApiCoinSelection
     , ApiEra (..)
-    , ApiErrorInfo (..)
     , ApiFee
     , ApiMaintenanceAction (..)
     , ApiNetworkInformation
@@ -278,6 +277,8 @@ import Cardano.Wallet.Api.Types
     , WalletStyle (..)
     , insertedAt
     )
+import Cardano.Wallet.Api.Types.Error
+    ( ApiErrorInfo (..) )
 import Cardano.Wallet.Api.Types.SchemaMetadata
     ( TxMetadataSchema, toSimpleMetadataFlag )
 import Cardano.Wallet.Compat

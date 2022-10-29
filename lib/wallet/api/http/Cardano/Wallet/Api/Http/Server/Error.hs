@@ -75,11 +75,12 @@ import Cardano.Wallet
     , ErrWrongPassphrase (..)
     )
 import Cardano.Wallet.Api.Types
+    ( Iso8601Time (..) )
+import Cardano.Wallet.Api.Types.Error
     ( ApiError (..)
     , ApiErrorInfo (..)
     , ApiErrorMessage (..)
     , ApiErrorTxOutputLovelaceInsufficient (..)
-    , Iso8601Time (..)
     )
 import Cardano.Wallet.CoinSelection
     ( SelectionBalanceError (..)

@@ -104,10 +104,6 @@ import Cardano.Wallet.Api.Types
     , ApiDeregisterPool (..)
     , ApiEra (..)
     , ApiEraInfo (..)
-    , ApiError (..)
-    , ApiErrorInfo (..)
-    , ApiErrorMessage (..)
-    , ApiErrorTxOutputLovelaceInsufficient (..)
     , ApiExternalCertificate (..)
     , ApiExternalInput (..)
     , ApiFee (..)
@@ -214,6 +210,12 @@ import Cardano.Wallet.Api.Types
     )
 import Cardano.Wallet.Api.Types.BlockHeader
     ( ApiBlockHeader )
+import Cardano.Wallet.Api.Types.Error
+    ( ApiError (..)
+    , ApiErrorInfo (..)
+    , ApiErrorMessage (..)
+    , ApiErrorTxOutputLovelaceInsufficient (..)
+    )
 import Cardano.Wallet.Api.Types.SchemaMetadata
     ( TxMetadataSchema (..), TxMetadataWithSchema (..) )
 import Cardano.Wallet.Gen

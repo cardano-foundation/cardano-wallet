@@ -28,7 +28,6 @@ import Cardano.Wallet.Api.Types
     , ApiAsset (..)
     , ApiCoinSelectionOutput (..)
     , ApiEra (..)
-    , ApiErrorInfo (..)
     , ApiFee (..)
     , ApiT (..)
     , ApiTransaction
@@ -42,6 +41,8 @@ import Cardano.Wallet.Api.Types
     , insertedAt
     , pendingSince
     )
+import Cardano.Wallet.Api.Types.Error
+    ( ApiErrorInfo (..) )
 import Cardano.Wallet.Api.Types.SchemaMetadata
     ( detailedMetadata )
 import Cardano.Wallet.Primitive.AddressDerivation
