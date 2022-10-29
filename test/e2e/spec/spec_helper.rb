@@ -61,6 +61,7 @@ PASS = "Secure Passphrase"
 TXID = "1acf9c0f504746cbd102b49ffaf16dcafd14c0a2f1bbb23af265fbe0a04951cc"
 SPID = "feea59bc6664572e631e9adfee77142cb51264156debf2e52970cc00"
 SPID_BECH32 = "pool1v7g9ays8h668d74xjvln9xuh9adzh6xz0v0hvcd3xukpck5z56d"
+DEV_NULL_ADDR = "addr_test1qp760qtlwv6cyvvkpz3a6s0y72aea4xd4da85rm5qe2u6awgscyn6cz7plwgtanjanvpg9xt4lc3wlrqhcw5cmxk334q0wca8l"
 
 # exemplary metadata
 METADATA = { "0" => { "string" => "cardano" },
@@ -98,6 +99,13 @@ ASSETS = [ { "policy_id" => "ee1ce9d7560f48a4ba3867037dbec2d8fed776d94dd6b00a353
 # Since alonzo min_utxo_value is calculated based on the particular output size
 # 1 ADA, however should be enough for sending pure Ada output to shelley address
 MIN_UTXO_VALUE_PURE_ADA = 1000000
+
+def payment_payload(amt, addr = DEV_NULL_ADDR)
+  [{ :address => addr,
+     :amount => { :quantity => amt,
+                  :unit => 'lovelace' }
+   }]
+end
 
 def create_incomplete_shared_wallet(m, acc_ix, acc_xpub)
   script_template = { 'cosigners' =>

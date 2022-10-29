@@ -85,7 +85,6 @@ module Cardano.Wallet.Api.Types
     , ApiDeregisterPool (..)
     , ApiEra (..)
     , ApiEraInfo (..)
-    , ApiErrorCode (..)
     , ApiExternalCertificate (..)
     , ApiExternalInput (..)
     , ApiFee (..)
@@ -435,8 +434,6 @@ import Data.ByteString
     ( ByteString )
 import Data.Char
     ( toLower )
-import Data.Data
-    ( Data )
 import Data.Either.Combinators
     ( maybeToRight )
 import Data.Either.Extra
@@ -1649,100 +1646,6 @@ data ApiSharedWalletPatchData = ApiSharedWalletPatchData
     deriving (Eq, Generic, Show)
     deriving anyclass NFData
 
--- | Error codes returned by the API, in the form of snake_cased strings
-data ApiErrorCode
-    = AddressAlreadyExists
-    | AlreadyWithdrawing
-    | AssetNameTooLong
-    | AssetNotPresent
-    | BadRequest
-    | BalanceTxEraNotSupported
-    | BalanceTxInlineDatumsNotSupportedInAlonzo
-    | BalanceTxInlineScriptsNotSupportedInAlonzo
-    | BalanceTxConflictingNetworks
-    | BalanceTxExistingCollateral
-    | BalanceTxExistingKeyWitnesses
-    | BalanceTxExistingReturnCollateral
-    | BalanceTxExistingTotalCollateral
-    | BalanceTxInternalError
-    | BalanceTxMaxSizeLimitExceeded
-    | BalanceTxUnderestimatedFee
-    | BalanceTxZeroAdaOutput
-    | CannotCoverFee
-    | CreatedInvalidTransaction
-    | CreatedMultiaccountTransaction
-    | CreatedMultidelegationTransaction
-    | CreatedWrongPolicyScriptTemplate
-    | ExistingKeyWitnesses
-    | ForeignTransaction
-    | HardenedDerivationRequired
-    | InputsDepleted
-    | InsufficientCollateral
-    | InvalidCoinSelection
-    | InvalidWalletType
-    | InvalidValidityBounds
-    | KeyNotFoundForAddress
-    | MalformedTxPayload
-    | MempoolIsFull
-    | MethodNotAllowed
-    | MinWithdrawalWrong
-    | MintOrBurnAssetQuantityOutOfBounds
-    | MissingPolicyPublicKey
-    | MissingWitnessesInTransaction
-    | NetworkMisconfigured
-    | NetworkQueryFailed
-    | NetworkUnreachable
-    | NoRootKey
-    | NoSuchPool
-    | NoSuchTransaction
-    | NoSuchWallet
-    | NonNullRewards
-    | NotAcceptable
-    | NotDelegatingTo
-    | NotEnoughMoney
-    | NotFound
-    | NotImplemented
-    | NotSynced
-    | NothingToMigrate
-    | OutputTokenBundleSizeExceedsLimit
-    | OutputTokenQuantityExceedsLimit
-    | PastHorizon
-    | PoolAlreadyJoined
-    | QueryParamMissing
-    | RedeemerInvalidData
-    | RedeemerScriptFailure
-    | RedeemerTargetNotFound
-    | RejectedByCoreNode
-    | SharedWalletCannotUpdateKey
-    | SharedWalletKeyAlreadyExists
-    | SharedWalletNoDelegationTemplate
-    | SharedWalletNoSuchCosigner
-    | SharedWalletNotPending
-    | SharedWalletPending
-    | SharedWalletScriptTemplateInvalid
-    | SoftDerivationRequired
-    | StartTimeLaterThanEndTime
-    | TokensMintedButNotSpentOrBurned
-    | TransactionAlreadyBalanced
-    | TransactionAlreadyInLedger
-    | TransactionIsTooBig
-    | TranslationError
-    | UnableToAssignInputOutput
-    | UnableToDetermineCurrentEpoch
-    | UnexpectedError
-    | UnresolvedInputs
-    | InputResolutionConflicts
-    | UnsupportedMediaType
-    | UtxoTooSmall
-    | WalletAlreadyExists
-    | WalletNotResponding
-    | WithdrawalNotWorth
-    | WrongEncryptionPassphrase
-    | WrongMnemonic
-    | ValidityIntervalNotInsideScriptTimelock
-    deriving (Eq, Generic, Show, Data, Typeable)
-    deriving anyclass NFData
-
 -- | Defines a point in time that can be formatted as and parsed from an
 --   ISO 8601-compliant string.
 --
@@ -2803,8 +2706,6 @@ instance FromJSON ApiSharedWallet where
 instance ToJSON ApiSharedWallet where
     toJSON (ApiSharedWallet (Left c))= toJSON c
     toJSON (ApiSharedWallet (Right c))= toJSON c
-
-deriving via DefaultSum ApiErrorCode instance ToJSON ApiErrorCode
 
 -- | Options for encoding synchronization progress. It can be serialized to
 -- and from JSON as follows:

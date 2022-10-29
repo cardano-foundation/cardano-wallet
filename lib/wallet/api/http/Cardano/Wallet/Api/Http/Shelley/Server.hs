@@ -223,7 +223,6 @@ import Cardano.Wallet.Api.Types
     , ApiConstructTransaction (..)
     , ApiConstructTransactionData (..)
     , ApiDecodedTransaction (..)
-    , ApiErrorCode (..)
     , ApiExternalInput (..)
     , ApiFee (..)
     , ApiForeignStakeKey (..)
@@ -321,6 +320,8 @@ import Cardano.Wallet.Api.Types.BlockHeader
     ( ApiBlockHeader, mkApiBlockHeader )
 import Cardano.Wallet.Api.Types.Certificate
     ( mkApiAnyCertificate )
+import Cardano.Wallet.Api.Types.Error
+    ( ApiErrorInfo (..) )
 import Cardano.Wallet.Api.Types.Key
     ( computeKeyPayload )
 import Cardano.Wallet.Api.Types.MintBurn

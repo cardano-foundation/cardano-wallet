@@ -453,6 +453,7 @@ library cardano-wallet-api-http
     , quiet
     , random
     , retry
+    , safe
     , servant
     , servant-client
     , servant-client-core
@@ -500,6 +501,7 @@ library cardano-wallet-api-http
     Cardano.Wallet.Api.Types
     Cardano.Wallet.Api.Types.BlockHeader
     Cardano.Wallet.Api.Types.Certificate
+    Cardano.Wallet.Api.Types.Error
     Cardano.Wallet.Api.Types.MintBurn
     Cardano.Wallet.Api.Types.Key
     Cardano.Wallet.Api.Types.Primitive

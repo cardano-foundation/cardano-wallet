@@ -24,6 +24,9 @@ module Test.Integration.Framework.DSL
     , unsafeRequest
     , unsafeResponse
 
+    -- * Decoding errors
+    , decodeErrorInfo
+
     -- * Expectations
     , expectPathEventuallyExist
     , expectSuccess
@@ -274,6 +277,8 @@ import Cardano.Wallet.Api.Types
     , WalletStyle (..)
     , insertedAt
     )
+import Cardano.Wallet.Api.Types.Error
+    ( ApiErrorInfo (..) )
 import Cardano.Wallet.Api.Types.SchemaMetadata
     ( TxMetadataSchema, toSimpleMetadataFlag )
 import Cardano.Wallet.Compat
@@ -508,6 +513,27 @@ expectErrorMessage want = either expectation wantedErrorButSuccess . snd
         ClientError val       -> BL8.unpack $ Aeson.encode val
         RawClientError val    -> BL8.unpack val
         HttpException err     -> show err
+
+-- | Decodes the information about an error into an 'ApiErrorInfo' value.
+decodeErrorInfo
+    :: (HasCallStack, MonadIO m, Show a)
+    => (s, Either RequestException a)
+    -> m ApiErrorInfo
+decodeErrorInfo (_, response) =
+    case response of
+        Left (ClientError value) ->
+            maybe decodeFailure pure $ Aeson.decode $ Aeson.encode value
+        somethingElse ->
+            error $ unwords
+                [ "decodeErrorInfo:"
+                , "Expected a 'ClientError', but encountered something else:"
+                , show somethingElse
+                ]
+  where
+    decodeFailure = error $ unwords
+        [ "decodeErrorInfo:"
+        , "Unable to decode 'ApiErrorInfo' value"
+        ]
 
 -- | Expect a given response code on the response.
 expectResponseCode

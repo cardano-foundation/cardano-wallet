@@ -104,7 +104,6 @@ import Cardano.Wallet.Api.Types
     , ApiDeregisterPool (..)
     , ApiEra (..)
     , ApiEraInfo (..)
-    , ApiErrorCode (..)
     , ApiExternalCertificate (..)
     , ApiExternalInput (..)
     , ApiFee (..)
@@ -211,6 +210,12 @@ import Cardano.Wallet.Api.Types
     )
 import Cardano.Wallet.Api.Types.BlockHeader
     ( ApiBlockHeader )
+import Cardano.Wallet.Api.Types.Error
+    ( ApiError (..)
+    , ApiErrorInfo (..)
+    , ApiErrorMessage (..)
+    , ApiErrorTxOutputLovelaceInsufficient (..)
+    )
 import Cardano.Wallet.Api.Types.SchemaMetadata
     ( TxMetadataSchema (..), TxMetadataWithSchema (..) )
 import Cardano.Wallet.Gen
@@ -550,8 +555,8 @@ spec = parallel $ do
         jsonTest @(ApiT DerivationIndex)
         jsonTest @(ApiT Direction)
         jsonTest @(ApiT StakePool)
-        jsonTest @(ApiT StakePoolMetrics)
         jsonTest @(ApiT StakePoolMetadata)
+        jsonTest @(ApiT StakePoolMetrics)
         jsonTest @(ApiT SyncProgress)
         jsonTest @(ApiT TxMetadata)
         jsonTest @(ApiT TxScriptValidity)
@@ -585,6 +590,8 @@ spec = parallel $ do
         jsonTest @ApiDelegationAction
         jsonTest @ApiEra
         jsonTest @ApiEraInfo
+        jsonTest @ApiError
+        jsonTest @ApiErrorTxOutputLovelaceInsufficient
         jsonTest @ApiFee
         jsonTest @ApiHealthCheck
         jsonTest @ApiMaintenanceAction
@@ -932,36 +939,37 @@ spec = parallel $ do
                 `shouldBe` (Left @Text @(ApiT AddressState) msg)
 
     describe "Api Errors" $ do
-        it "Every constructor from ApiErrorCode has a corresponding type in the schema" $
-            let res = fromJSON @SchemaApiErrorCode specification
+        it "Every ApiErrorInfo constructor has a corresponding schema type" $
+            let res = fromJSON @SchemaApiErrorInfo specification
                 errStr = case res of
                     Error s -> s
                     _ -> ""
-            in counterexample errStr $ res == Success SchemaApiErrorCode
+            in counterexample errStr $ res == Success SchemaApiErrorInfo
 
 {-------------------------------------------------------------------------------
-                              Error type Encoding
+                              Error type encoding
 -------------------------------------------------------------------------------}
 
--- | We use this empty data type to define a custom
--- JSON instance that checks ApiErrorCode has corresponding
--- constructors in the schema file.
-data SchemaApiErrorCode = SchemaApiErrorCode
+-- | We use this empty data type to define a custom JSON instance that checks
+--   'ApiErrorInfo' has corresponding constructors in the schema file.
+data SchemaApiErrorInfo = SchemaApiErrorInfo
     deriving (Show, Eq)
 
-instance FromJSON SchemaApiErrorCode where
-    parseJSON = withObject "SchemaApiErrorCode" $ \o -> do
-        vals <- forM (fmap showConstr $ dataTypeConstrs $ dataTypeOf NoSuchWallet)
-            $ \n -> do
-                (r :: Maybe Yaml.Value) <-
-                    o .:? Aeson.fromString (toSchemaName n)
-                pure $ maybe (Left n) Right r
+instance FromJSON SchemaApiErrorInfo where
+    parseJSON = withObject "SchemaApiErrorInfo" $ \o -> do
+        let constructors :: [String] =
+                showConstr <$> dataTypeConstrs (dataTypeOf NoSuchWallet)
+        vals :: [Either String Yaml.Value] <-
+            forM constructors $ \c ->
+                maybe (Left c) Right <$> o .:? Aeson.fromString (toSchemaName c)
         case lefts vals of
-            [] -> pure SchemaApiErrorCode
-            xs -> fail ("Missing ApiErrorCode constructors for: "
-                <> show xs
-                <> "\nEach of these need a corresponding swagger type of the form: "
-                <> "x-errConstructorName")
+            [] -> pure SchemaApiErrorInfo
+            xs -> fail $ unlines
+                [ "Missing ApiErrorInfo constructors for:"
+                , show xs
+                , "Each of these need a corresponding swagger type of the form:"
+                , "x-errConstructorName"
+                ]
       where
         toSchemaName :: String -> String
         toSchemaName [] = []
@@ -2130,6 +2138,22 @@ instance Arbitrary SerialisedTxParts where
 instance Arbitrary TxMetadata where
     arbitrary = genNestedTxMetadata
     shrink = shrinkTxMetadata
+
+instance Arbitrary ApiError where
+    arbitrary = genericArbitrary
+    shrink = genericShrink
+
+instance Arbitrary ApiErrorInfo where
+    arbitrary = genericArbitrary
+    shrink = genericShrink
+
+instance Arbitrary ApiErrorMessage where
+    arbitrary = genericArbitrary
+    shrink = genericShrink
+
+instance Arbitrary ApiErrorTxOutputLovelaceInsufficient where
+    arbitrary = genericArbitrary
+    shrink = genericShrink
 
 instance Arbitrary ApiTxMetadata where
     arbitrary = genericArbitrary

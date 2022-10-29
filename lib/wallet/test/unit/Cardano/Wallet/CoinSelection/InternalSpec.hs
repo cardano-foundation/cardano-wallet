@@ -26,6 +26,7 @@ import Cardano.Wallet.CoinSelection.Internal
     , SelectionConstraints (..)
     , SelectionError (..)
     , SelectionOutputError (..)
+    , SelectionOutputErrorInfo (..)
     , SelectionParams (..)
     , VerificationResult (..)
     , computeMinimumCollateral
@@ -281,13 +282,28 @@ prop_performSelection_coverage params r innerProperty =
         Left (SelectionCollateralErrorOf _)
             -> True; _ -> False
     isSelectionOutputError_SelectionOutputCoinInsufficient = \case
-        Left (SelectionOutputErrorOf SelectionOutputCoinInsufficient {})
+        Left
+            (SelectionOutputErrorOf
+                (SelectionOutputError _index
+                    SelectionOutputCoinInsufficient {}
+                )
+            )
             -> True; _ -> False
     isSelectionOutputError_SelectionOutputSizeExceedsLimit = \case
-        Left (SelectionOutputErrorOf SelectionOutputSizeExceedsLimit {})
+        Left
+            (SelectionOutputErrorOf
+                (SelectionOutputError _index
+                    SelectionOutputSizeExceedsLimit {}
+                )
+            )
             -> True; _ -> False
     isSelectionOutputError_SelectionOutputTokenQuantityExceedsLimit = \case
-        Left (SelectionOutputErrorOf SelectionOutputTokenQuantityExceedsLimit {})
+        Left
+            (SelectionOutputErrorOf
+                (SelectionOutputError _index
+                    SelectionOutputTokenQuantityExceedsLimit {}
+                )
+            )
             -> True; _ -> False
 
     -- Provides an exhaustiveness check for all possible constructors of
@@ -306,7 +322,7 @@ prop_performSelection_coverage params r innerProperty =
             Balance.EmptyUTxO {} -> ()
         SelectionCollateralErrorOf e -> case e of
             SelectionCollateralError {} -> ()
-        SelectionOutputErrorOf e -> case e of
+        SelectionOutputErrorOf (SelectionOutputError _index e) -> case e of
             SelectionOutputCoinInsufficient {} -> ()
             SelectionOutputSizeExceedsLimit {} -> ()
             SelectionOutputTokenQuantityExceedsLimit {} -> ()

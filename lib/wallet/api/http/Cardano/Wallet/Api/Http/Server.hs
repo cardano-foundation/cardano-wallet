@@ -147,7 +147,6 @@ import Cardano.Wallet.Api.Types
     , ApiAddressInspectData (..)
     , ApiCredential (..)
     , ApiDelegationAction (..)
-    , ApiErrorCode (..)
     , ApiHealthCheck (..)
     , ApiMaintenanceAction (..)
     , ApiMaintenanceActionPostData (..)
@@ -166,6 +165,8 @@ import Cardano.Wallet.Api.Types
     )
 import Cardano.Wallet.Api.Types.BlockHeader
     ( ApiBlockHeader )
+import Cardano.Wallet.Api.Types.Error
+    ( ApiErrorInfo (..) )
 import Cardano.Wallet.Api.Types.SchemaMetadata
     ( TxMetadataSchema (..), parseSimpleMetadataFlag )
 import Cardano.Wallet.Primitive.AddressDerivation

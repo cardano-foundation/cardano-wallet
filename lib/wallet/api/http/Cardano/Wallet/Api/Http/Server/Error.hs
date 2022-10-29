@@ -1,6 +1,8 @@
 {-# LANGUAGE DataKinds #-}
+{-# LANGUAGE DuplicateRecordFields #-}
 {-# LANGUAGE FlexibleInstances #-}
 {-# LANGUAGE LambdaCase #-}
+{-# LANGUAGE NamedFieldPuns #-}
 {-# LANGUAGE OverloadedLabels #-}
 {-# LANGUAGE TypeApplications #-}
 
@@ -73,13 +75,19 @@ import Cardano.Wallet
     , ErrWrongPassphrase (..)
     )
 import Cardano.Wallet.Api.Types
-    ( ApiErrorCode (..), Iso8601Time (..) )
+    ( Iso8601Time (..) )
+import Cardano.Wallet.Api.Types.Error
+    ( ApiError (..)
+    , ApiErrorInfo (..)
+    , ApiErrorMessage (..)
+    , ApiErrorTxOutputLovelaceInsufficient (..)
+    )
 import Cardano.Wallet.CoinSelection
     ( SelectionBalanceError (..)
     , SelectionCollateralError
     , SelectionError (..)
-    , SelectionOutputCoinInsufficientError
     , SelectionOutputError (..)
+    , SelectionOutputErrorInfo (..)
     , SelectionOutputSizeExceedsLimitError
     , SelectionOutputTokenQuantityExceedsLimitError (..)
     , UnableToConstructChangeError (..)
@@ -100,10 +108,10 @@ import Control.Monad.Except
     ( ExceptT, withExceptT )
 import Control.Monad.Trans.Except
     ( throwE )
-import Data.Aeson
-    ( (.=) )
 import Data.Generics.Internal.VL
     ( view, (^.) )
+import Data.IntCast
+    ( intCastMaybe )
 import Data.List
     ( isInfixOf, isPrefixOf, isSubsequenceOf )
 import Data.Maybe
@@ -112,6 +120,8 @@ import Data.Text
     ( Text )
 import Data.Text.Class
     ( ToText (..) )
+import Data.Word
+    ( Word32 )
 import Fmt
     ( blockListF', build, fmt, listF, pretty )
 import Network.HTTP.Media
@@ -120,6 +130,8 @@ import Network.HTTP.Types
     ( hContentType )
 import Network.Wai
     ( Request (pathInfo) )
+import Safe
+    ( fromJustNote )
 import Servant
     ( Accept (contentType), JSON, Proxy (Proxy) )
 import Servant.Server
@@ -135,6 +147,7 @@ import Servant.Server
     )
 
 import qualified Cardano.Api as Cardano
+import qualified Cardano.Wallet.Primitive.Types.Coin as Coin
 import qualified Cardano.Wallet.Primitive.Types.TokenBundle as TokenBundle
 import qualified Cardano.Wallet.Primitive.Types.TokenMap as TokenMap
 import qualified Cardano.Wallet.Write.Tx as WriteTx
@@ -160,16 +173,15 @@ liftHandler action = Handler (withExceptT toServerError action)
 liftE :: IsServerError e => e -> Handler a
 liftE = liftHandler . throwE
 
-apiError :: ServerError -> ApiErrorCode -> Text -> ServerError
-apiError err code message = err
-    { errBody = Aeson.encode $ Aeson.object
-        [ "code" .= code
-        , "message" .= T.replace "\n" " " message
-        ]
+apiError :: ServerError -> ApiErrorInfo -> Text -> ServerError
+apiError err info messageUnformatted = err
+    { errBody = Aeson.encode ApiError {info, message}
     , errHeaders =
         (hContentType, renderHeader $ contentType $ Proxy @JSON)
         : errHeaders err
     }
+  where
+    message = ApiErrorMessage (T.replace "\n" " " messageUnformatted)
 
 err425 :: ServerError
 err425 = ServerError 425 "Too early" "" []
@@ -777,34 +789,32 @@ instance IsServerError (ErrInvalidDerivationIndex 'Soft level) where
                 ]
 
 instance IsServerError (SelectionOutputError WalletSelectionContext) where
-    toServerError = \case
+    toServerError (SelectionOutputError index info) = case info of
         SelectionOutputCoinInsufficient e ->
-            toServerError e
+            flip (apiError err403) selectionOutputCoinInsufficientMessage $
+            UtxoTooSmall ApiErrorTxOutputLovelaceInsufficient
+                { txOutputIndex =
+                    flip fromJustNote (intCastMaybe @Int @Word32 index) $
+                        unwords
+                            [ "SelectionOutputError: index out of bounds:"
+                            , show index
+                            ]
+                , txOutputLovelaceSpecified =
+                    Coin.toQuantity $ TokenBundle.getCoin $ snd $ view #output e
+                , txOutputLovelaceRequiredMinimum =
+                    Coin.toQuantity $ view #minimumExpectedCoin e
+                }
         SelectionOutputSizeExceedsLimit e ->
             toServerError e
         SelectionOutputTokenQuantityExceedsLimit e ->
             toServerError e
-
-instance IsServerError
-    (SelectionOutputCoinInsufficientError WalletSelectionContext)
-  where
-    toServerError e =
-        apiError err403 UtxoTooSmall $ T.unlines [preamble, details]
       where
-        preamble = T.unwords
+        selectionOutputCoinInsufficientMessage = T.unwords
             [ "One of the outputs you've specified has an ada quantity that is"
             , "below the minimum required. Either increase the ada quantity to"
             , "at least the minimum, or specify an ada quantity of zero, in"
             , "which case the wallet will automatically assign the correct"
             , "minimum ada quantity to the output."
-            ]
-        details = T.unlines
-            [ "Destination address:"
-            , pretty (fst $ view #output e)
-            , "Required minimum ada quantity:"
-            , pretty (view #minimumExpectedCoin e)
-            , "Specified ada quantity:"
-            , pretty (TokenBundle.getCoin $ snd $ view #output e)
             ]
 
 instance IsServerError

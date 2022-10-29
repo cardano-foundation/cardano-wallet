@@ -1,4 +1,5 @@
 {-# LANGUAGE DataKinds #-}
+{-# LANGUAGE DeriveDataTypeable #-}
 {-# LANGUAGE DeriveGeneric #-}
 {-# LANGUAGE DerivingVia #-}
 {-# LANGUAGE FlexibleInstances #-}
@@ -50,6 +51,8 @@ import Data.Aeson
     )
 import Data.Aeson.Types
     ( Parser )
+import Data.Data
+    ( Data )
 import Data.Hashable
     ( Hashable )
 import Data.Proxy
@@ -72,7 +75,6 @@ import Quiet
     ( Quiet (..) )
 
 import qualified Data.Text as T
-
 
 -- | @Quantity (unit :: Symbol) a@ is a primitive @a@  multiplied by an @unit@.
 --
@@ -98,7 +100,7 @@ import qualified Data.Text as T
 -- >>> Aeson.encode $ Quantity @"lovelace" 14
 -- {"unit":"lovelace","quantity":14}
 newtype Quantity (unit :: Symbol) a = Quantity { getQuantity :: a }
-    deriving stock (Generic, Eq, Ord)
+    deriving stock (Data, Generic, Eq, Ord)
     deriving newtype (Bounded, Enum, Hashable)
     deriving Show via (Quiet (Quantity unit a))
 
