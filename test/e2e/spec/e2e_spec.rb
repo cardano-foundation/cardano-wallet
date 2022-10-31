@@ -872,10 +872,15 @@ RSpec.describe 'Cardano Wallet E2E tests', :all, :e2e do
       tx = SHELLEY.transactions.get(@target_id, tx_id)
       # Certificates
       expect(tx['certificates']).to eq decoded_tx['certificates']
+      expect(tx['certificates'].to_s).to include 'register_reward_account'
+      expect(tx['certificates'].to_s).to include 'join_pool'
+      expect(tx['certificates'].to_s).to include pool_id
       # Fees & deposits
       expect(tx['fee']['quantity']).to eq expected_fee
       expect(tx['deposit_taken']['quantity']).to eq deposit_taken
       expect(tx['deposit_returned']['quantity']).to eq 0
+      expect(tx['amount']['quantity']).to eq (expected_fee + expected_deposit)
+      expect(tx['direction']).to eq 'outgoing'
       expected_join_balance = balance['total'] - deposit_taken - expected_fee
       expect(join_balance['total']).to eq expected_join_balance
 
@@ -934,14 +939,20 @@ RSpec.describe 'Cardano Wallet E2E tests', :all, :e2e do
       tx = SHELLEY.transactions.get(@target_id, tx_id)
       # Certificates
       expect(tx['certificates']).to eq decoded_tx['certificates']
+      expect(tx['certificates'].to_s).to include 'quit_pool'
+
       # Fees & deposits
       # tx is changed to 'incoming' and fee = 0 because deposit was returned
       expect(tx['fee']['quantity']).to eq 0
       expect(tx['direction']).to eq 'incoming'
       expect(tx['deposit_taken']['quantity']).to eq 0
       expect(tx['deposit_returned']['quantity']).to eq deposit_returned
+      expect(tx['amount']['quantity']).to be > 0
+      expect(tx['amount']['quantity']).to be < deposit_returned
+
       expected_quit_balance = join_balance['total'] + deposit_returned - expected_fee
       expect(quit_balance['total']).to eq expected_quit_balance
+
 
       # Check wallet stake keys after quitting
       stake_keys = SHELLEY.stake_pools.list_stake_keys(@target_id)
@@ -2484,6 +2495,7 @@ RSpec.describe 'Cardano Wallet E2E tests', :all, :e2e do
 
         expect(tx['inputs'].to_s).to include 'address'
         expect(tx['inputs'].to_s).to include 'amount'
+        expect(tx['direction']).to eq 'outgoing'
         expect(tx['outputs']).not_to eq []
         expect(tx['script_validity']).to eq 'valid'
         expect(tx['status']).to eq 'in_ledger'
@@ -2497,6 +2509,7 @@ RSpec.describe 'Cardano Wallet E2E tests', :all, :e2e do
         # on target wallet
         txt = SHELLEY.transactions.get(@target_id, tx_sent['id'])
         expect(txt['amount']['quantity']).to eq amt
+        expect(txt['direction']).to eq 'incoming'
         expect(txt['inputs']).not_to eq []
         expect(txt['outputs']).not_to eq []
         expect(txt['script_validity']).to eq 'valid'
@@ -2709,7 +2722,8 @@ RSpec.describe 'Cardano Wallet E2E tests', :all, :e2e do
           tx = SHELLEY.transactions.get(@target_id, join_tx_id)
           tx['status'] == 'in_ledger'
         end
-        fee = SHELLEY.transactions.get(@target_id, join_tx_id)['fee']['quantity']
+        tx = SHELLEY.transactions.get(@target_id, join_tx_id)
+        fee = tx['fee']['quantity']
 
         stake_after_joining = stake - deposit - fee
 
@@ -2722,6 +2736,24 @@ RSpec.describe 'Cardano Wallet E2E tests', :all, :e2e do
         expect(stake_keys['none']['stake']['quantity']).to eq 0
         expect(stake_keys['ours'].first['delegation']['active']['status']).to eq 'not_delegating'
         expect(stake_keys['ours'].first['delegation']['next'].last['status']).to eq 'delegating'
+
+        # examine the tx in history
+        expect(tx['amount']['quantity']).to eq (fee + deposit)
+        expect(tx['direction']).to eq 'outgoing'
+        expect(tx['certificates'].to_s).to include 'register_reward_account'
+        expect(tx['certificates'].to_s).to include 'join_pool'
+        expect(tx['certificates'].to_s).to include pool_id
+        expect(tx['inputs'].to_s).to include 'address'
+        expect(tx['inputs'].to_s).to include 'amount'
+        expect(tx['outputs']).not_to eq []
+        expect(tx['script_validity']).to eq 'valid'
+        expect(tx['status']).to eq 'in_ledger'
+        expect(tx['collateral']).to eq []
+        expect(tx['collateral_outputs']).to eq []
+        expect(tx['metadata']).to eq nil
+        expect(tx['deposit_taken']).to eq({ 'quantity' => deposit, 'unit' => 'lovelace' })
+        expect(tx['deposit_returned']).to eq({ 'quantity' => 0, 'unit' => 'lovelace' })
+        expect(tx['withdrawals']).to eq []
 
         # Quit pool
         puts "Quitting pool: #{pool_id}"
@@ -2749,6 +2781,26 @@ RSpec.describe 'Cardano Wallet E2E tests', :all, :e2e do
         expect(stake_keys['ours'].first['delegation']['active']['status']).to eq 'not_delegating'
         expect(stake_keys['ours'].first['delegation']['next'].first['status']).to eq 'not_delegating'
         expect(stake_keys['ours'].first['delegation']['next'].last['status']).to eq 'not_delegating'
+
+        tx = SHELLEY.transactions.get(@target_id, quit_tx_id)
+
+        # examine the tx in history
+        expect(tx['amount']['quantity']).to be > 0
+        expect(tx['amount']['quantity']).to be < deposit
+        expect(tx['fee']['quantity']).to eq 0
+        expect(tx['direction']).to eq 'incoming'
+        expect(tx['certificates'].to_s).to include 'quit_pool'
+        expect(tx['inputs'].to_s).to include 'address'
+        expect(tx['inputs'].to_s).to include 'amount'
+        expect(tx['outputs']).not_to eq []
+        expect(tx['script_validity']).to eq 'valid'
+        expect(tx['status']).to eq 'in_ledger'
+        expect(tx['collateral']).to eq []
+        expect(tx['collateral_outputs']).to eq []
+        expect(tx['metadata']).to eq nil
+        expect(tx['deposit_taken']).to eq({ 'quantity' => 0, 'unit' => 'lovelace' })
+        expect(tx['deposit_returned']).to eq({ 'quantity' => deposit, 'unit' => 'lovelace' })
+        expect(tx['withdrawals']).to eq []
       end
     end
 
