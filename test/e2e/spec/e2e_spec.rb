@@ -128,7 +128,7 @@ RSpec.describe "Cardano Wallet E2E tests", :all, :e2e do
       expect(target_after['available']).to eq (target_before['available'] + collateral_ret_amt)
 
       # Make sure you can spend collateral return output from the wallet
-      tx = construct_sign_submit(@target_id, payment_address(6500000, payment_address))
+      tx = construct_sign_submit(@target_id, payment_payload(6500000, payment_address))
       wait_for_tx_in_ledger(@target_id, tx.last['id'])
 
     end
