@@ -197,7 +197,7 @@ task :start_node_and_wallet, [:env] do |_task, args|
 
     cmd "screen -dmS NODE_#{args[:env]} -L -Logfile #{log_dir}/node.log #{start_node}"
     cmd "screen -dmS WALLET_#{args[:env]} -L -Logfile #{log_dir}/wallet.log #{start_wallet}"
-    cmd 'screen -ls', true
+    cmd 'screen -ls', display_result: true
   end
 end
 
