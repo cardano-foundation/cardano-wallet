@@ -95,7 +95,6 @@ import Cardano.Wallet.DB.Sqlite.Schema
     , PrivateKey (..)
     , StakeKeyCertificate (..)
     , TxMeta (..)
-    , TxWithdrawal (txWithdrawalAmount)
     , Wallet (..)
     , migrateAll
     , unWalletKey
@@ -112,7 +111,7 @@ import Cardano.Wallet.DB.Store.Meta.Model
 import Cardano.Wallet.DB.Store.Submissions.Model
     ( TxLocalSubmissionHistory (..) )
 import Cardano.Wallet.DB.Store.Transactions.Model
-    ( TxSet (..), decorateTxIns, withdrawals )
+    ( TxSet (..), decorateTxIns )
 import Cardano.Wallet.DB.Store.Wallets.Model
     ( DeltaWalletsMetaWithSubmissions (..)
     , TxWalletsHistory
@@ -137,8 +136,6 @@ import Cardano.Wallet.Primitive.Passphrase
     ( PassphraseHash )
 import Cardano.Wallet.Primitive.Slotting
     ( TimeInterpreter, epochOf, firstSlotInEpoch, interpretQuery )
-import Cardano.Wallet.Primitive.Types.Tx
-    ( TransactionInfo (..), TxMeta (..) )
 import Control.Exception
     ( throw )
 import Control.Monad
@@ -161,12 +158,8 @@ import Data.Foldable
     ( toList )
 import Data.Generics.Internal.VL.Lens
     ( view, (^.) )
-import Data.List
-    ( sortOn )
 import Data.Maybe
     ( catMaybes, fromMaybe, isJust, listToMaybe, maybeToList )
-import Data.Ord
-    ( Down (..) )
 import Data.Proxy
     ( Proxy (..) )
 import Data.Quantity
@@ -221,7 +214,6 @@ import qualified Cardano.Wallet.Primitive.Model as W
 import qualified Cardano.Wallet.Primitive.Passphrase as W
 import qualified Cardano.Wallet.Primitive.Types as W
 import qualified Cardano.Wallet.Primitive.Types.Coin as Coin
-import qualified Cardano.Wallet.Primitive.Types.Coin as W
 import qualified Cardano.Wallet.Primitive.Types.Hash as W
 import qualified Cardano.Wallet.Primitive.Types.Tx as W
 import qualified Data.Map.Strict as Map
@@ -718,7 +710,7 @@ newDBLayerWith _cacheBehavior _tr ti SqliteContext{runQuery} = do
         { putTxHistory_ = \wid ->
             updateDBVar transactionsDBVar . ExpandTxWalletsHistory wid
 
-        , readTxHistory_ = \wid minWithdrawal order range status tip -> do
+        , readTxHistory_ = \wid range status tip -> do
             txHistory <- readDBVar transactionsDBVar
             let filtering DB.TxMeta{..} = and $ catMaybes
                     [ (txMetaSlot >=) <$> W.inclusiveLowerBound range
@@ -726,13 +718,11 @@ newDBLayerWith _cacheBehavior _tr ti SqliteContext{runQuery} = do
                     , (txMetaStatus ==) <$> status
                     ]
             lift $ selectTxHistory tip
-                ti wid minWithdrawal
-                order filtering txHistory
+                ti wid filtering txHistory
 
         , getTx_ = \wid txid tip -> do
             txHistory <- readDBVar transactionsDBVar
-            metas <- lift $ selectTxHistory tip
-                ti wid Nothing W.Descending
+            metas <- lift $ selectTxHistory tip ti wid
                     (\meta -> txMetaTxId meta == TxId txid )
                     txHistory
             pure $ listToMaybe metas
@@ -1044,38 +1034,24 @@ selectTxHistory
     => W.BlockHeader
     -> TimeInterpreter m
     -> W.WalletId
-    -> Maybe W.Coin
-    -> W.SortOrder
     -> (DB.TxMeta -> Bool)
     -> TxWalletsHistory
     -> m [W.TransactionInfo]
-selectTxHistory tip ti wid minWithdrawal order whichMeta
+selectTxHistory tip ti wid whichMeta
     (txSet, wmetas) = do
-    tinfos <- sequence $ do
+    sequence $ do
         (TxMetaHistory metas, _) <- maybeToList $ Map.lookup wid wmetas
         meta <- toList metas
-        guard $  whichMeta meta
+        guard $ whichMeta meta
         transaction <- maybeToList $ Map.lookup (txMetaTxId meta) txs
-        guard $ maybe
-            True
-            (\coin -> any (>= coin)
-                $ txWithdrawalAmount <$>  withdrawals transaction)
-            minWithdrawal
         let decoration = decorateTxIns txSet transaction
         pure $ mkTransactionInfo
             ti tip
                 transaction
                 decoration
                 meta
-    pure $ sortTx tinfos
-    where
-        sortTx = case order of
-            W.Ascending -> sortOn
-                $ (,) <$> slotNo . txInfoMeta <*> Down . txInfoId
-            W.Descending -> sortOn
-                $ (,) <$> (Down . slotNo . txInfoMeta) <*> txInfoId
-        TxSet txs = txSet
-
+  where
+    TxSet txs = txSet
 
 -- | Returns the initial submission slot and submission record for all pending
 -- transactions in the wallet.
