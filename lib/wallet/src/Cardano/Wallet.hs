@@ -31,13 +31,14 @@
 -- following the convention below:
 --
 -- - @s@: A __s__tate used to keep track of known addresses. Typically, possible
---   values for this parameter are described in 'Cardano.Wallet.AddressDiscovery' sub-modules.
+--   values for this parameter are described in
+--   'Cardano.Wallet.AddressDiscovery' sub-modules.
 --   For instance @SeqState@ or @Rnd State@.
 --
--- - @k@: A __k__ey derivation scheme intrinsically connected to the underlying discovery
---   state @s@. This describes how the hierarchical structure of a wallet is
---   defined as well as the relationship between secret keys and public
---   addresses.
+-- - @k@: A __k__ey derivation scheme intrinsically connected to the underlying
+--   discovery state @s@. This describes how the hierarchical structure of a
+--   wallet is defined as well as the relationship between secret keys and
+--   public addresses.
 
 module Cardano.Wallet
     (
