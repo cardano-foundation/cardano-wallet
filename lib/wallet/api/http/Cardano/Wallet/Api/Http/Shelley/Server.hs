@@ -1993,7 +1993,7 @@ postTransactionOld ctx genChange (ApiT wid) body = do
     mkRwdAcct <- mkRewardAccountBuilder @s @_ @n (body ^. #withdrawal)
     withWorkerCtx ctx wid liftE liftE $ \wrk -> do
         era <- liftIO $ NW.currentNodeEra (wrk ^. networkLayer)
-        ttl <- liftIO $ W.getTxExpiry ti mTTL
+        ttl <- liftIO $ W.transactionExpirySlot ti mTTL
         wdrl <- case body ^. #withdrawal of
             Nothing -> pure NoWithdrawal
             Just apiWdrl -> mkWithdrawal @s @_ @n wrk wid era apiWdrl
@@ -2507,11 +2507,11 @@ decodeValidityInterval ti validityInterval = do
             Left ApiValidityBoundUnspecified ->
                 pure $ SlotNo 0
             Right ApiValidityBoundUnspecified ->
-                W.getTxExpiry ti Nothing
+                W.transactionExpirySlot ti Nothing
             Right (ApiValidityBoundAsTimeFromNow (Quantity sec)) ->
-                W.getTxExpiry ti (Just sec)
+                W.transactionExpirySlot ti (Just sec)
             Left (ApiValidityBoundAsTimeFromNow (Quantity sec)) ->
-                W.getTxExpiry ti (Just sec)
+                W.transactionExpirySlot ti (Just sec)
             Right (ApiValidityBoundAsSlot (Quantity slot)) ->
                 pure $ SlotNo slot
             Left (ApiValidityBoundAsSlot (Quantity slot)) ->
@@ -2944,7 +2944,7 @@ submitTransaction
     -> Handler ApiTxId
 submitTransaction ctx apiw@(ApiT wid) apitx = do
     --TODO: revisit/possibly set proper ttls in ADP-1193
-    ttl <- liftIO $ W.getTxExpiry ti Nothing
+    ttl <- liftIO $ W.transactionExpirySlot ti Nothing
     era <- liftIO $ NW.currentNodeEra nl
 
     let sealedTx = getApiT . (view #serialisedTxSealed) $ apitx
@@ -3074,7 +3074,7 @@ submitSharedTransaction
     -> ApiSerialisedTransaction
     -> Handler ApiTxId
 submitSharedTransaction ctx apiw@(ApiT wid) apitx = do
-    ttl <- liftIO $ W.getTxExpiry ti Nothing
+    ttl <- liftIO $ W.transactionExpirySlot ti Nothing
     era <- liftIO $ NW.currentNodeEra nl
 
     let sealedTx = getApiT . (view #serialisedTxSealed) $ apitx
@@ -3153,7 +3153,7 @@ joinStakePool ctx knownPools getPoolStatus apiPool (ApiT wid) body = do
         (action, _) <- liftHandler
             $ W.joinStakePool @_ @s @k wrk curEpoch pools poolId poolStatus wid
 
-        ttl <- liftIO $ W.getTxExpiry ti Nothing
+        ttl <- liftIO $ W.transactionExpirySlot ti Nothing
         let txCtx = defaultTransactionCtx
                 { txWithdrawal = NoWithdrawal
                 , txValidityInterval = (Nothing, ttl)
@@ -3548,7 +3548,7 @@ migrateWallet ctx withdrawalType (ApiT wid) postData = do
             maybe (pure NoWithdrawal) (mkWithdrawal @s @_ @n wrk wid era)
                 withdrawalType
         plan <- liftHandler $ W.createMigrationPlan wrk era wid rewardWithdrawal
-        ttl <- liftIO $ W.getTxExpiry ti Nothing
+        ttl <- liftIO $ W.transactionExpirySlot ti Nothing
         pp <- liftIO $ NW.currentProtocolParameters (wrk ^. networkLayer)
         selectionWithdrawals <- liftHandler
             $ failWith ErrCreateMigrationPlanEmpty

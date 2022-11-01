@@ -116,7 +116,7 @@ module Cardano.Wallet
     , ErrDecodeTx (..)
 
     -- ** Payment
-    , getTxExpiry
+    , transactionExpirySlot
     , SelectAssetsParams (..)
     , selectAssets
     , readWalletUTxOIndex
@@ -2558,20 +2558,19 @@ constructSharedTransaction ctx wid era txCtx sel = db & \DBLayer{..} -> do
 --
 -- If no TTL is provided, a default of 2 hours is used (note: there is no
 -- particular reason why we chose that duration).
-getTxExpiry
+transactionExpirySlot
     :: TimeInterpreter (ExceptT PastHorizonException IO)
     -- ^ Context for time to slot calculation.
     -> Maybe NominalDiffTime
     -- ^ Time to live (TTL) in seconds from now.
     -> IO SlotNo
-getTxExpiry ti maybeTTL = do
-    expTime <- addRelTime ttl <$> currentRelativeTime (unsafeExtendSafeZone ti)
-    interpretQuery (unsafeExtendSafeZone ti) $ ceilingSlotAt expTime
+transactionExpirySlot safeTimeInterpreter maybeTTL =
+    interpretQuery timeInterpreter . ceilingSlotAt . addRelTime ttl
+        =<< currentRelativeTime timeInterpreter
   where
-    ttl = fromMaybe defaultTTL maybeTTL
-
-    defaultTTL :: NominalDiffTime
-    defaultTTL = 7200  -- that's 2 hours
+    timeInterpreter = unsafeExtendSafeZone safeTimeInterpreter
+    ttl :: NominalDiffTime = fromMaybe defaultTTL maybeTTL
+    defaultTTL :: NominalDiffTime = 7200  -- that's 2 hours
 
 constructTxMeta
     :: forall ctx s k.
