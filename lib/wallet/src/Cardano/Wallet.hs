@@ -42,12 +42,10 @@
 --   public addresses.
 
 module Cardano.Wallet
-    (
-    -- * Development
-    -- $Development
+    ( WalletException (..)
 
     -- * WalletLayer
-        WalletLayer (..)
+    , WalletLayer (..)
 
     -- * Capabilities
     -- $Capabilities
@@ -481,6 +479,8 @@ import Control.Arrow
     ( first, left )
 import Control.DeepSeq
     ( NFData )
+import Control.Exception
+    ( throw )
 import Control.Monad
     ( forM, forM_, replicateM, unless, when )
 import Control.Monad.Class.MonadTime
@@ -822,25 +822,15 @@ createIcarusWallet ctx wid wname credentials = db & \DBLayer{..} -> do
     (block0, NetworkParameters gp _sp _pp) = ctx ^. genesisData
 
 -- | Check whether a wallet is in good shape when restarting a worker.
-checkWalletIntegrity
-    :: forall ctx s k. HasDBLayer IO s k ctx
-    => ctx
-    -> WalletId
-    -> GenesisParameters
-    -> ExceptT ErrCheckWalletIntegrity IO ()
-checkWalletIntegrity ctx wid gp = db & \DBLayer{..} -> mapExceptT atomically $ do
-    gp' <- withExceptT ErrCheckWalletIntegrityNoSuchWallet $ withNoSuchWallet wid $
-        readGenesisParameters wid
-
-    whenDifferentGenesis gp gp $ throwE $
-        ErrCheckIntegrityDifferentGenesis
-            (getGenesisBlockHash gp)
-            (getGenesisBlockHash gp')
-  where
-    db = ctx ^. dbLayer @IO @s @k
-    whenDifferentGenesis bp1 bp2 = when $
-        (bp1 ^. #getGenesisBlockHash /= bp2 ^. #getGenesisBlockHash) ||
-        (bp1 ^. #getGenesisBlockDate /= bp2 ^. #getGenesisBlockDate)
+checkWalletIntegrity :: DBLayer IO s k -> WalletId -> GenesisParameters -> IO ()
+checkWalletIntegrity db walletId gp = db & \DBLayer{..} -> do
+    gp' <- atomically (readGenesisParameters walletId) >>= do
+        let noSuchWallet = ErrNoSuchWallet walletId
+        maybe (throw $ ErrCheckWalletIntegrityNoSuchWallet noSuchWallet) pure
+    when ( (gp ^. #getGenesisBlockHash /= gp' ^. #getGenesisBlockHash) ||
+           (gp ^. #getGenesisBlockDate /= gp' ^. #getGenesisBlockDate) )
+        (throw $ ErrCheckIntegrityDifferentGenesis
+            (getGenesisBlockHash gp) (getGenesisBlockHash gp'))
 
 -- | Retrieve the wallet state for the wallet with the given ID.
 readWallet

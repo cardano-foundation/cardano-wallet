@@ -187,7 +187,7 @@ import Cardano.Wallet.Api
     , workerRegistry
     )
 import Cardano.Wallet.Api.Http.Server.Error
-    ( IsServerError (..), apiError, liftE, liftHandler )
+    ( IsServerError (..), apiError, handleWalletException, liftE, liftHandler )
 import Cardano.Wallet.Api.Http.Server.Handlers.Certificates
     ( getApiAnyCertificates )
 import Cardano.Wallet.Api.Http.Server.Handlers.MintBurn
@@ -611,7 +611,7 @@ import UnliftIO.Async
 import UnliftIO.Concurrent
     ( threadDelay )
 import UnliftIO.Exception
-    ( IOException, bracket, throwIO, tryAnyDeep, tryJust )
+    ( IOException, bracket, tryAnyDeep, tryJust )
 
 import qualified Cardano.Api as Cardano
 import qualified Cardano.Wallet as W
@@ -4378,8 +4378,7 @@ startWalletWorker
 startWalletWorker ctx coworker = void . registerWorker ctx before coworker
   where
     before ctx' wid =
-        runExceptT (W.checkWalletIntegrity ctx' wid gp)
-        >>= either throwIO pure
+        W.checkWalletIntegrity (ctx' ^. typed @(DBLayer IO s k)) wid gp
     (_, NetworkParameters gp _ _) = ctx ^. genesisData
 
 -- | Register a wallet create and restore thread with the worker registry.
