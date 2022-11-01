@@ -150,6 +150,7 @@ module Cardano.Wallet
     , PoolRetirementEpochInfo (..)
     , joinStakePool
     , quitStakePool
+    , validatedQuitStakePoolAction
     , guardJoin
     , guardQuit
     , ErrStakePoolDelegation (..)
@@ -3075,28 +3076,37 @@ joinStakePool ctx currentEpoch knownPools pid poolStatus wid =
     nl = ctx ^. networkLayer
 
 -- | Helper function to factor necessary logic for quitting a stake pool.
-quitStakePool
-    :: forall ctx s k
-     . HasDBLayer IO s k ctx
-    => ctx
+validatedQuitStakePoolAction
+    :: forall s k. DBLayer IO s k
     -> WalletId
     -> Withdrawal
-    -> ExceptT ErrStakePoolDelegation IO DelegationAction
-quitStakePool ctx wid wdrl = db & \DBLayer{..} -> do
-    (_ , walDelegation) <- mapExceptT atomically
-        $ withExceptT ErrStakePoolDelegationNoSuchWallet
-        $ withNoSuchWallet wid
-        $ readWalletMeta wid
+    -> IO DelegationAction
+validatedQuitStakePoolAction db walletId withdrawal = db & \DBLayer{..} -> do
+    (_, delegation) <- atomically (readWalletMeta walletId)
+        >>= maybe
+            (throw (ExceptionStakePoolDelegation
+                (ErrStakePoolDelegationNoSuchWallet
+                    (ErrNoSuchWallet walletId))))
+            pure
+    rewards <- liftIO $ fetchRewardBalance @s @k db walletId
+    Quit <$
+        either (throw . ExceptionStakePoolDelegation . ErrStakePoolQuit) pure
+            (guardQuit delegation withdrawal rewards)
 
-    rewards <- liftIO
-        $ fetchRewardBalance @ctx @s @k ctx wid
-
-    withExceptT ErrStakePoolQuit $ except $
-        guardQuit walDelegation wdrl rewards
-
-    pure Quit
-  where
-    db = ctx ^. dbLayer @IO @s @k
+quitStakePool
+    :: forall s k (n :: NetworkDiscriminant)
+     . (Typeable s, Typeable n)
+    => NetworkLayer IO Block
+    -> DBLayer IO s k
+    -> WalletId
+    -> IO (Withdrawal, DelegationAction)
+quitStakePool netLayer db walletId = do
+    (rewardAccount, _, derivationPath) <-
+        runExceptT (readRewardAccount @s @k @n db walletId)
+            >>= either (throw . ExceptionReadRewardAccount) pure
+    withdrawal <- WithdrawalSelf rewardAccount derivationPath
+        <$> getCachedRewardAccountBalance netLayer rewardAccount
+    (withdrawal,) <$> validatedQuitStakePoolAction db walletId withdrawal
 
 {-------------------------------------------------------------------------------
                                  Fee Estimation

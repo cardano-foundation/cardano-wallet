@@ -2330,8 +2330,8 @@ constructTransaction ctx genChange knownPools getPoolStatus (ApiT wid) body = do
                             @_ @s @k wrk curEpoch pools pid poolStatus wid
                         pure (del, act, Nothing)
                     [(Leaving _)] -> do
-                        del <- liftHandler $
-                            W.quitStakePool @_ @s @k wrk wid wdrl
+                        del <- handleWalletException $
+                            W.validatedQuitStakePoolAction @s @k db wid wdrl
                         pure (del, Nothing, Just $ W.stakeKeyDeposit pp)
                     _ ->
                         liftHandler $
