@@ -1195,17 +1195,9 @@ deleteWallet ctx wid = db & \DBLayer{..} -> do
     db = ctx ^. dbLayer @IO @s @k
 
 -- | Fetch the cached reward balance of a given wallet from the database.
-fetchRewardBalance
-    :: forall ctx s k.
-        ( HasDBLayer IO s k ctx
-        )
-    => ctx
-    -> WalletId
-    -> IO Coin
-fetchRewardBalance ctx wid = db & \DBLayer{..} ->
+fetchRewardBalance :: forall s k. DBLayer IO s k -> WalletId -> IO Coin
+fetchRewardBalance db wid = db & \DBLayer{..} ->
     atomically $ readDelegationRewardBalance wid
-  where
-    db = ctx ^. dbLayer @IO @s @k
 
 -- | Read the current withdrawal capacity of a wallet. Note that, this simply
 -- returns 0 if:
@@ -1251,16 +1243,15 @@ readNextWithdrawal ctx era (Coin withdrawal) = do
             DerivationIndex 0 :| []
 
 readRewardAccount
-    :: forall ctx s k (n :: NetworkDiscriminant) shelley.
-        ( HasDBLayer IO s k ctx
-        , shelley ~ SeqState n ShelleyKey
+    :: forall s k (n :: NetworkDiscriminant) shelley.
+        ( shelley ~ SeqState n ShelleyKey
         , Typeable n
         , Typeable s
         )
-    => ctx
+    => DBLayer IO s k
     -> WalletId
     -> ExceptT ErrReadRewardAccount IO (RewardAccount, XPub, NonEmpty DerivationIndex)
-readRewardAccount ctx wid = db & \DBLayer{..} -> do
+readRewardAccount db wid = db & \DBLayer{..} -> do
     cp <- withExceptT ErrReadRewardAccountNoSuchWallet
         $ mapExceptT atomically
         $ withNoSuchWallet wid
@@ -1274,8 +1265,6 @@ readRewardAccount ctx wid = db & \DBLayer{..} -> do
             let acct = toRewardAccount xpub
             let path = stakeDerivationPath $ Seq.derivationPrefix s
             pure (acct, getRawKey xpub, path)
-  where
-    db = ctx ^. dbLayer @IO @s @k
 
 readPolicyPublicKey
     :: forall ctx s k (n :: NetworkDiscriminant) shelley.
@@ -2499,7 +2488,7 @@ constructTransaction
     -> ExceptT ErrConstructTx IO SealedTx
 constructTransaction ctx wid era txCtx sel = db & \DBLayer{..} -> do
     (_, xpub, _) <- withExceptT ErrConstructTxReadRewardAccount $
-        readRewardAccount @ctx @s @k @n ctx wid
+        readRewardAccount @s @k @n db wid
     mapExceptT atomically $ do
         pp <- liftIO $ currentProtocolParameters nl
         withExceptT ErrConstructTxBody $ ExceptT $ pure $
