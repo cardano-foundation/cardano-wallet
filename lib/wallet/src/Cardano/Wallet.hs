@@ -84,7 +84,6 @@ module Cardano.Wallet
     , someRewardAccount
     , readPolicyPublicKey
     , writePolicyPublicKey
-    , queryRewardBalance
     , ErrWalletAlreadyExists (..)
     , ErrNoSuchWallet (..)
     , ErrListUTxOStatistics (..)
@@ -1318,22 +1317,6 @@ readPolicyPublicKey ctx wid = db & \DBLayer{..} -> do
   where
     db = ctx ^. dbLayer @IO @s @k
 
--- | Query the node for the reward balance of a given wallet.
---
--- Rather than force all callers of 'readWallet' to wait for fetching the
--- account balance (via the 'NetworkLayer'), we expose this function for it.
-queryRewardBalance
-    :: forall ctx.
-        ( HasNetworkLayer IO ctx
-        )
-    => ctx
-    -> RewardAccount
-    -> ExceptT ErrFetchRewards IO Coin
-queryRewardBalance ctx acct = do
-    liftIO $ getCachedRewardAccountBalance nw acct
-  where
-    nw = ctx ^. networkLayer
-
 manageRewardBalance
     :: forall ctx s k (n :: NetworkDiscriminant).
         ( HasLogger IO WalletWorkerLog ctx
@@ -1351,8 +1334,8 @@ manageRewardBalance _ ctx wid = db & \DBLayer{..} -> do
          traceWith tr $ MsgRewardBalanceQuery bh
          query <- runExceptT $ do
             (acct, _, _) <- withExceptT ErrFetchRewardsReadRewardAccount $
-                readRewardAccount @ctx @s @k @n ctx wid
-            queryRewardBalance @ctx ctx acct
+                readRewardAccount @s @k @n db wid
+            liftIO $ getCachedRewardAccountBalance (ctx ^. networkLayer) acct
          traceWith tr $ MsgRewardBalanceResult query
          case query of
             Right amt -> do
