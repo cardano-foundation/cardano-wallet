@@ -40,7 +40,7 @@ import Test.DBVar
 import Test.Hspec
     ( Spec, around, describe, it )
 import Test.QuickCheck
-    ( Property, arbitrary, elements, forAll, frequency, property, (===) )
+    ( Gen, Property, arbitrary, elements, forAll, frequency, property, (===) )
 
 import qualified Cardano.Wallet.Primitive.Types.Coin as W
 import qualified Cardano.Wallet.Primitive.Types.Tx as W
@@ -130,11 +130,16 @@ prop_StoreLaws = withStoreProp $ \runQ ->
         (pure mempty)
         (logScale . genDeltas)
 
+addCBOR :: Tx -> Gen Tx
+addCBOR tx = do
+    mcbor <- arbitrary
+    pure $ tx{txCBOR = mcbor}
+
 -- | Generate interesting changes to 'TxSet'.
 genDeltas :: GenDelta DeltaTxSet
 genDeltas (TxSet pile) =
     frequency
-        [ (8, Append . mkTxSet <$> arbitrary)
+        [ (8, Append . mkTxSet <$> (arbitrary >>= mapM addCBOR))
         , (1, DeleteTx . TxId <$> arbitrary)
         ,
             ( 2

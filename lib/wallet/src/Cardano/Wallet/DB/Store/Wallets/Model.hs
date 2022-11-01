@@ -20,7 +20,6 @@ module Cardano.Wallet.DB.Store.Wallets.Model
     , TxWalletsHistory
     , mkTransactionInfo
     , walletsLinkedTransactions
-    , mkTxSetWithCBOR
     ) where
 
 import Prelude
@@ -29,8 +28,6 @@ import Cardano.Wallet.DB.Sqlite.Schema
     ( TxCollateral (..), TxIn (..), TxMeta (..), TxWithdrawal (..) )
 import Cardano.Wallet.DB.Sqlite.Types
     ( TxId (..) )
-import Cardano.Wallet.DB.Store.CBOR.Model
-    ( TxCBORSet (..) )
 import Cardano.Wallet.DB.Store.Meta.Model
     ( DeltaTxMetaHistory (..), TxMetaHistory (..), mkTxMetaHistory )
 import Cardano.Wallet.DB.Store.Submissions.Model
@@ -44,13 +41,12 @@ import Cardano.Wallet.DB.Store.Transactions.Model
     , lookupTxOutForTxCollateral
     , lookupTxOutForTxIn
     , mkTxSet
+    , txCBORPrism
     )
-import Cardano.Wallet.DB.Store.TransactionsWithCBOR.Model
-    ( TxSetWithCBOR (..) )
 import Cardano.Wallet.Primitive.Slotting
     ( TimeInterpreter, interpretQuery, slotToUTCTime )
 import Cardano.Wallet.Primitive.Types.Tx
-    ( Tx (..), TxCBOR, TxMeta (..) )
+    ( TxCBOR, TxMeta (..) )
 import Data.Delta
     ( Delta (..) )
 import Data.DeltaMap
@@ -65,8 +61,6 @@ import Data.Generics.Internal.VL
     ( over, view, (^.) )
 import Data.Map.Strict
     ( Map )
-import Data.Maybe
-    ( maybeToList )
 import Data.Quantity
     ( Quantity (..) )
 import Data.Set
@@ -76,10 +70,11 @@ import Fmt
 
 import qualified Cardano.Wallet.DB.Sqlite.Schema as DB
 import qualified Cardano.Wallet.DB.Store.Meta.Model as TxMetaStore
-import qualified Cardano.Wallet.DB.Store.TransactionsWithCBOR.Model as TxStore
+import qualified Cardano.Wallet.DB.Store.Transactions.Model as TxStore
 import qualified Cardano.Wallet.Primitive.Types as W
 import qualified Cardano.Wallet.Primitive.Types.Coin as WC
 import qualified Cardano.Wallet.Primitive.Types.Tx as WT
+import qualified Data.Generics.Internal.VL as L
 import qualified Data.Map.Strict as Map
 import qualified Data.Set as Set
 
@@ -115,17 +110,12 @@ instance Delta DeltaWalletsMetaWithSubmissions where
         constraintSubmissions (metas, apply cs submissions)
 
 type TxWalletsHistory =
-    (TxSetWithCBOR, Map W.WalletId MetasAndSubmissionsHistory)
-
-mkTxSetWithCBOR :: [WT.Tx] -> TxSetWithCBOR
-mkTxSetWithCBOR cs = TxSetWithCBOR (mkTxSet cs)
-    $ TxCBORSet $ Map.fromList
-        [(TxId txId, cbor) | Tx{..} <- cs, cbor <- maybeToList txCBOR]
+    (TxSet, Map W.WalletId MetasAndSubmissionsHistory)
 
 instance Delta DeltaTxWalletsHistory where
     type Base DeltaTxWalletsHistory = TxWalletsHistory
     apply (ExpandTxWalletsHistory wid cs) (txh,mtxmh) =
-        ( apply (TxStore.Append $ mkTxSetWithCBOR $ fst <$> cs) txh
+        ( apply (TxStore.Append $ mkTxSet $ fst <$> cs) txh
         , flip apply mtxmh $ case Map.lookup wid mtxmh of
               Nothing -> Insert wid (mkTxMetaHistory wid cs, mempty)
               Just _ ->
@@ -138,14 +128,11 @@ instance Delta DeltaTxWalletsHistory where
             $ mtxmh & apply (Adjust wid change)
             )
     apply GarbageCollectTxWalletsHistory
-        (TxSetWithCBOR (TxSet txh) (TxCBORSet cborh) , mtxmh) =
+        (TxSet txh  , mtxmh) =
             let gc :: Map TxId x -> Map TxId x
                 gc x = Map.restrictKeys x
                     $ walletsLinkedTransactions mtxmh
-            in (TxSetWithCBOR
-                (TxSet $ gc txh)
-                (TxCBORSet $ gc cborh)
-                    , mtxmh)
+            in ( (TxSet $ gc txh) , mtxmh)
     apply (RemoveWallet wid) (x , mtxmh) = (x, Map.delete wid mtxmh)
 
 
@@ -171,15 +158,14 @@ mkTransactionInfo :: Monad m
     -> W.BlockHeader
     -> TxRelation
     -> DecoratedTxIns
-    -> Maybe TxCBOR
     -> DB.TxMeta
     -> m WT.TransactionInfo
-mkTransactionInfo ti tip TxRelation{..} decor txCBOR DB.TxMeta{..} = do
+mkTransactionInfo ti tip TxRelation{..} decor DB.TxMeta{..} = do
     txTime <- interpretQuery ti . slotToUTCTime $ txMetaSlot
     return
         $ WT.TransactionInfo
         { WT.txInfoId = getTxId txMetaTxId
-        , WT.txInfoCBOR = txCBOR
+        , WT.txInfoCBOR = cbor >>= mkTxCBOR
         , WT.txInfoFee = WC.Coin . fromIntegral <$> txMetaFee
         , WT.txInfoInputs = mkTxIn <$> ins
         , WT.txInfoCollateralInputs = mkTxCollateral <$> collateralIns
@@ -224,3 +210,6 @@ mkTransactionInfo ti tip TxRelation{..} decor txCBOR DB.TxMeta{..} = do
         , lookupTxOutForTxCollateral tx decor
         )
     mkTxWithdrawal w = (txWithdrawalAccount w, txWithdrawalAmount w)
+
+mkTxCBOR :: DB.CBOR -> Maybe TxCBOR
+mkTxCBOR = either (const Nothing) (Just . snd) . L.match txCBORPrism

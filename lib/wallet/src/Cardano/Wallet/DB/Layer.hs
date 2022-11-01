@@ -102,8 +102,6 @@ import Cardano.Wallet.DB.Sqlite.Schema
     )
 import Cardano.Wallet.DB.Sqlite.Types
     ( BlockId (..), TxId (..) )
-import Cardano.Wallet.DB.Store.CBOR.Model
-    ( TxCBORSet (..) )
 import Cardano.Wallet.DB.Store.Checkpoints
     ( PersistAddressBook (..), blockHeaderFromEntity, mkStoreWallets )
 import Cardano.Wallet.DB.Store.Meta.Model
@@ -115,8 +113,6 @@ import Cardano.Wallet.DB.Store.Submissions.Model
     ( TxLocalSubmissionHistory (..) )
 import Cardano.Wallet.DB.Store.Transactions.Model
     ( TxSet (..), decorateTxIns, withdrawals )
-import Cardano.Wallet.DB.Store.TransactionsWithCBOR.Model
-    ( TxSetWithCBOR (..) )
 import Cardano.Wallet.DB.Store.Wallets.Model
     ( DeltaWalletsMetaWithSubmissions (..)
     , TxWalletsHistory
@@ -1054,7 +1050,7 @@ selectTxHistory
     -> TxWalletsHistory
     -> m [W.TransactionInfo]
 selectTxHistory tip ti wid minWithdrawal order whichMeta
-    (TxSetWithCBOR txSet (TxCBORSet txCBORSet), wmetas) = do
+    (txSet, wmetas) = do
     tinfos <- sequence $ do
         (TxMetaHistory metas, _) <- maybeToList $ Map.lookup wid wmetas
         meta <- toList metas
@@ -1070,7 +1066,6 @@ selectTxHistory tip ti wid minWithdrawal order whichMeta
             ti tip
                 transaction
                 decoration
-                (Map.lookup (txMetaTxId meta) txCBORSet)
                 meta
     pure $ sortTx tinfos
     where

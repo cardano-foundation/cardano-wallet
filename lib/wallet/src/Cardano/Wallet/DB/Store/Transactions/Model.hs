@@ -3,6 +3,8 @@
 {-# LANGUAGE FlexibleContexts #-}
 {-# LANGUAGE NamedFieldPuns #-}
 {-# LANGUAGE OverloadedLabels #-}
+{-# LANGUAGE RecordWildCards #-}
+{-# LANGUAGE TupleSections #-}
 {-# LANGUAGE TypeFamilies #-}
 
 {- |
@@ -35,12 +37,14 @@ module Cardano.Wallet.DB.Store.Transactions.Model
     -- * Type conversions to wallet types
     , fromTxOut
     , fromTxCollateralOut
+    , txCBORPrism
     ) where
 
 import Prelude
 
 import Cardano.Wallet.DB.Sqlite.Schema
-    ( TxCollateral (..)
+    ( CBOR (..)
+    , TxCollateral (..)
     , TxCollateralOut (..)
     , TxCollateralOutToken (..)
     , TxIn (..)
@@ -49,7 +53,7 @@ import Cardano.Wallet.DB.Sqlite.Schema
     , TxWithdrawal (..)
     )
 import Cardano.Wallet.DB.Sqlite.Types
-    ( TxId (TxId) )
+    ( TxId (..) )
 import Cardano.Wallet.Primitive.Types.RewardAccount
     ( RewardAccount )
 import Cardano.Wallet.Primitive.Types.TokenMap
@@ -58,18 +62,30 @@ import Cardano.Wallet.Primitive.Types.TokenPolicy
     ( TokenName, TokenPolicyId )
 import Cardano.Wallet.Primitive.Types.TokenQuantity
     ( TokenQuantity )
+import Cardano.Wallet.Primitive.Types.Tx.Tx
+    ( Tx (txCBOR) )
+import Cardano.Wallet.Read.Eras.EraValue
+    ( eraValueSerialize )
+import Cardano.Wallet.Read.Tx.CBOR
+    ( TxCBOR )
 import Control.Applicative
     ( (<|>) )
 import Control.Arrow
-    ( (&&&) )
+    ( (&&&), (***) )
 import Control.Monad
     ( guard )
+import Data.Bifunctor
+    ( bimap )
+import Data.ByteString
+    ( ByteString )
+import Data.ByteString.Lazy.Char8
+    ( fromStrict, toStrict )
 import Data.Delta
     ( Delta (..) )
 import Data.Foldable
     ( fold )
 import Data.Generics.Internal.VL
-    ( view, (^.) )
+    ( Iso', Prism, fromIso, iso, match, prism, view, (^.) )
 import Data.List
     ( find, sortOn )
 import Data.Map.Strict
@@ -77,15 +93,17 @@ import Data.Map.Strict
 import Data.Maybe
     ( catMaybes )
 import Data.Word
-    ( Word32 )
+    ( Word16, Word32 )
 import Fmt
-    ( Buildable (build) )
+    ( Buildable (..) )
 import GHC.Generics
     ( Generic )
 
 import qualified Cardano.Wallet.Primitive.Types.Coin as W
 import qualified Cardano.Wallet.Primitive.Types.TokenBundle as TokenBundle
-import qualified Cardano.Wallet.Primitive.Types.Tx as W
+import qualified Cardano.Wallet.Primitive.Types.Tx.Tx as W
+import qualified Data.ByteString.Lazy as BL
+import qualified Data.Generics.Internal.VL as L
 import qualified Data.Map.Strict as Map
 
 {- | A low level definition of a transaction covering all transaction content
@@ -102,6 +120,7 @@ data TxRelation =
     , outs :: [(TxOut, [TxOutToken])]
     , collateralOuts :: Maybe (TxCollateralOut, [TxCollateralOutToken])
     , withdrawals :: [TxWithdrawal]
+    , cbor :: Maybe CBOR
     }
     deriving ( Generic, Eq, Show )
 
@@ -247,6 +266,7 @@ mkTxRelation tx =
     , collateralOuts = mkTxCollateralOut tid <$> W.collateralOutput tx
     , withdrawals =
           fmap (mkTxWithdrawal tid) $ Map.toList $ W.withdrawals tx
+    , cbor = fst . L.build txCBORPrism . (tid,) <$> txCBOR tx
     }
   where
     tid = TxId $ tx ^. #txId
@@ -351,3 +371,22 @@ decorateTxIns (TxSet relations) TxRelation{ins,collateralIns} =
         let collateralOutputIndex = toEnum $ length (outs tx)
         guard $ index == collateralOutputIndex  -- Babbage leder spec
         pure $ fromTxCollateralOut out
+
+
+type TxCBORRaw = (BL.ByteString, Int)
+
+i :: Iso' (BL.ByteString, Int) (ByteString, Word16)
+i = iso (toStrict *** fromIntegral) (fromStrict *** fromIntegral)
+
+toTxCBOR :: (TxId, TxCBOR) -> (CBOR, TxCBORRaw)
+toTxCBOR (id', tx) =
+    let r = L.build eraValueSerialize tx
+    in (uncurry (CBOR id') $ r ^. i, r)
+
+fromTxCBOR :: CBOR -> Either (CBOR, TxCBORRaw ) (TxId, TxCBOR)
+fromTxCBOR s@CBOR {..} = bimap (s ,) (cborTxId ,) $
+    match eraValueSerialize $ (cborTxCBOR, cborTxEra) ^. fromIso i
+
+
+txCBORPrism :: Prism CBOR (CBOR, TxCBORRaw) (TxId, TxCBOR) (TxId, TxCBOR)
+txCBORPrism = prism toTxCBOR fromTxCBOR

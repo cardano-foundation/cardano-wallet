@@ -34,15 +34,12 @@ import Cardano.Wallet.DB.Store.Submissions.Model
 import Cardano.Wallet.DB.Store.Submissions.Store
     ( mkStoreSubmissions )
 import Cardano.Wallet.DB.Store.Transactions.Model
-    ( TxSet (..) )
-import Cardano.Wallet.DB.Store.TransactionsWithCBOR.Model
-    ( DeltaTx (..), TxSetWithCBOR (..) )
-import Cardano.Wallet.DB.Store.TransactionsWithCBOR.Store
-    ( mkStoreTransactionsWithCBOR )
+    ( DeltaTxSet (Append, DeleteTx), TxSet (..), mkTxSet )
+import Cardano.Wallet.DB.Store.Transactions.Store
+    ( mkStoreTransactions )
 import Cardano.Wallet.DB.Store.Wallets.Model
     ( DeltaTxWalletsHistory (..)
     , DeltaWalletsMetaWithSubmissions (..)
-    , mkTxSetWithCBOR
     , walletsLinkedTransactions
     )
 import Control.Applicative
@@ -70,7 +67,6 @@ import qualified Cardano.Wallet.DB.Store.Meta.Model as TxMetaStore
 import qualified Cardano.Wallet.Primitive.Types as W
 import qualified Data.Map.Strict as Map
 import qualified Data.Set as Set
-
 
 mkStoreWalletMetaWithSubmissions :: W.WalletId -> Store
         (SqlPersistT IO)
@@ -150,26 +146,26 @@ mkStoreTxWalletsHistory =
     Store
     { loadS =
           liftA2 (,)
-            <$> loadS mkStoreTransactionsWithCBOR
+            <$> loadS mkStoreTransactions
             <*> loadS mkStoreWalletsMetaWithSubmissions
     , writeS = \(txSet,txMetaHistory) -> do
-          writeS mkStoreTransactionsWithCBOR txSet
+          writeS mkStoreTransactions txSet
           writeS mkStoreWalletsMetaWithSubmissions txMetaHistory
-    , updateS = \(txh@(TxSetWithCBOR (TxSet mtxh) _) ,mtxmh) -> \case
+    , updateS = \(txh@(TxSet mtxh) ,mtxmh) -> \case
             ChangeTxMetaWalletsHistory wid change
                 -> updateS mkStoreWalletsMetaWithSubmissions mtxmh
                 $ Adjust wid change
             GarbageCollectTxWalletsHistory -> mapM_
-                (updateS mkStoreTransactionsWithCBOR txh . DeleteTx)
+                (updateS mkStoreTransactions txh . DeleteTx)
                 $ Map.keys
                 $ Map.withoutKeys mtxh
                 $ walletsLinkedTransactions mtxmh
             RemoveWallet wid -> updateS mkStoreWalletsMetaWithSubmissions mtxmh
                 $ Delete wid
             ExpandTxWalletsHistory wid cs -> do
-                updateS mkStoreTransactionsWithCBOR txh
+                updateS mkStoreTransactions txh
                     $ Append
-                    $ mkTxSetWithCBOR
+                    $ mkTxSet
                     $ fst <$> cs
                 updateS mkStoreWalletsMetaWithSubmissions mtxmh
                     $ case Map.lookup wid mtxmh of
