@@ -14,6 +14,7 @@
 {-# LANGUAGE RankNTypes #-}
 {-# LANGUAGE RecordWildCards #-}
 {-# LANGUAGE ScopedTypeVariables #-}
+{-# LANGUAGE StandaloneDeriving #-}
 {-# LANGUAGE TupleSections #-}
 {-# LANGUAGE TypeApplications #-}
 {-# LANGUAGE TypeFamilies #-}
@@ -2498,7 +2499,7 @@ buildAndSignTransaction
     -> TransactionCtx
     -> SelectionOf TxOut
     -> ExceptT ErrSignPayment IO (Tx, TxMeta, UTCTime, SealedTx)
-buildAndSignTransaction ctx wid era mkRwdAcct pwd txCtx sel = db & \DBLayer{..} -> do
+buildAndSignTransaction ctx wid era mkRwdAcct pwd txCtx sel = db & \DBLayer{..} ->
     withRootKey @_ @s ctx wid pwd ErrSignPaymentWithRootKey $ \xprv scheme -> do
         let pwdP = preparePassphrase scheme pwd
         mapExceptT atomically $ do
@@ -3793,6 +3794,7 @@ data ErrStakePoolDelegation
     = ErrStakePoolDelegationNoSuchWallet ErrNoSuchWallet
     | ErrStakePoolJoin ErrCannotJoin
     | ErrStakePoolQuit ErrCannotQuit
+    deriving (Show)
 
 -- | Errors that can occur when fetching the reward balance of a wallet
 newtype ErrFetchRewards
@@ -3847,6 +3849,51 @@ data ErrWritePolicyPublicKey
     = ErrWritePolicyPublicKeyNoSuchWallet ErrNoSuchWallet
     | ErrWritePolicyPublicKeyWithRootKey ErrWithRootKey
     deriving (Generic, Eq, Show)
+
+-- | This exception type should gradually replace all cases of `ExceptT Err*`
+-- as there is no point in tracking errors at the type level
+-- which represent exceptional cases and are always propagated to clients.
+data WalletException
+    = ExceptionSignMetadataWith ErrSignMetadataWith
+    | ExceptionDerivePublicKey ErrDerivePublicKey
+    | ExceptionAddCosignerKey ErrAddCosignerKey
+    | ExceptionConstructSharedWallet ErrConstructSharedWallet
+    | ExceptionReadAccountPublicKey ErrReadAccountPublicKey
+    | ExceptionListUTxOStatistics ErrListUTxOStatistics
+    | ExceptionSignPayment ErrSignPayment
+    | ExceptionBalanceTx ErrBalanceTx
+    | ExceptionBalanceTxInternalError ErrBalanceTxInternalError
+    | ExceptionSubmitTransaction ErrSubmitTransaction
+    | ExceptionConstructTx ErrConstructTx
+    | ExceptionGetPolicyId ErrGetPolicyId
+    | ExceptionWitnessTx ErrWitnessTx
+    | ExceptionDecodeTx ErrDecodeTx
+    | ExceptionSubmitTx ErrSubmitTx
+    | ExceptionUpdatePassphrase ErrUpdatePassphrase
+    | ExceptionWithRootKey ErrWithRootKey
+    | ExceptionListTransactions ErrListTransactions
+    | ExceptionGetTransaction ErrGetTransaction
+    | ExceptionStartTimeLaterThanEndTime ErrStartTimeLaterThanEndTime
+    | ExceptionCreateMigrationPlan ErrCreateMigrationPlan
+    | ExceptionSelectAssets ErrSelectAssets
+    | ExceptionStakePoolDelegation ErrStakePoolDelegation
+    | ExceptionFetchRewards ErrFetchRewards
+    | ExceptionWalletNotResponding ErrWalletNotResponding
+    | ExceptionCreateRandomAddress ErrCreateRandomAddress
+    | ExceptionImportRandomAddress ErrImportRandomAddress
+    | ExceptionNotASequentialWallet ErrNotASequentialWallet
+    | ExceptionReadRewardAccount ErrReadRewardAccount
+    | ExceptionWithdrawalNotWorth ErrWithdrawalNotWorth
+    | ExceptionReadPolicyPublicKey ErrReadPolicyPublicKey
+    | ExceptionWritePolicyPublicKey ErrWritePolicyPublicKey
+    | forall level. ExceptionSoftDerivationIndex
+        (ErrInvalidDerivationIndex 'Soft level)
+    | forall level. ExceptionHardenedDerivationIndex
+        (ErrInvalidDerivationIndex 'Hardened level)
+
+deriving instance (Show WalletException)
+
+instance Exception WalletException
 
 {-------------------------------------------------------------------------------
                                    Utils
