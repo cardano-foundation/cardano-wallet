@@ -133,7 +133,6 @@ module Cardano.Wallet
     , ErrNotASequentialWallet (..)
     , ErrWithdrawalNotWorth (..)
     , ErrConstructTx (..)
-    , ErrMintBurnAssets (..)
     , ErrBalanceTx (..)
     , ErrBalanceTxInternalError (..)
     , ErrUpdateSealedTx (..)
@@ -3688,11 +3687,6 @@ data ErrConstructTx
 data ErrGetPolicyId
     = ErrGetPolicyIdReadPolicyPubliKey ErrReadPolicyPublicKey
     | ErrGetPolicyIdWrongMintingBurningTemplate
-    deriving (Show, Eq)
-
-newtype ErrMintBurnAssets
-    = ErrMintBurnNotImplemented T.Text
-      -- ^ Temporary error constructor.
     deriving (Show, Eq)
 
 -- | Errors that can occur when signing a transaction.
