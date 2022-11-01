@@ -21,6 +21,7 @@ services:
     volumes:
       - wallet-${NETWORK}-db:/wallet-db
       - node-ipc:/ipc
+      - ./config:/config
     ports:
       - 8090:8090
     entrypoint: []
