@@ -507,7 +507,7 @@ server byron icarus shelley multisig spl ntp blockchainSource =
                 (icarus, deleteTransaction icarus wid txid)
              )
         :<|> (\wid tx -> withLegacyLayer wid
-                 (byron , do
+                 (byron, do
                     let pwd = coerce (getApiT $ tx ^. #passphrase)
                     genChange <- rndStateChange byron wid pwd
                     postTransactionOld byron genChange wid tx
@@ -519,7 +519,7 @@ server byron icarus shelley multisig spl ntp blockchainSource =
                  )
              )
        :<|> (\wid tx -> withLegacyLayer wid
-                (byron , postTransactionFeeOld byron wid tx)
+                (byron, postTransactionFeeOld byron wid tx)
                 (icarus, postTransactionFeeOld icarus wid tx)
             )
 

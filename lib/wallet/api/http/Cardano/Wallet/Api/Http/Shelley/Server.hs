@@ -2218,7 +2218,9 @@ postTransactionFeeOld ctx (ApiT wid) body = do
         let runSelection =
                 W.selectAssets @_ @_ @s @k @'CredFromKeyK
                   wrk era pp selectAssetsParams getFee
-        minCoins <- liftIO (W.calcMinimumCoinValues @_ @k @'CredFromKeyK wrk era (F.toList outs))
+        minCoins <- liftIO
+            $ W.calcMinimumCoinValues @_ @k @'CredFromKeyK
+                wrk era (F.toList outs)
         liftHandler $ mkApiFee Nothing minCoins <$> W.estimateFee runSelection
 
 constructTransaction
@@ -3199,19 +3201,18 @@ joinStakePool ctx knownPools getPoolStatus apiPool (ApiT wid) body = do
                 , selectionStrategy = SelectionStrategyOptimal
                 }
         sel <- liftHandler
-            $ W.selectAssets @_ @_ @s @k @'CredFromKeyK wrk era pp selectAssetsParams
-            $ const Prelude.id
+            $ W.selectAssets @_ @_ @s @k @'CredFromKeyK
+                wrk era pp selectAssetsParams (const Prelude.id)
         sel' <- liftHandler
             $ W.assignChangeAddressesAndUpdateDb wrk wid genChange sel
         (tx, txMeta, txTime, sealedTx) <- liftHandler
             $ W.buildAndSignTransaction @_ @s @k
                 wrk wid era mkRwdAcct pwd txCtx sel'
-        liftHandler
-            $ W.submitTx @_ @s @k wrk wid (tx, txMeta, sealedTx)
+        liftHandler $ W.submitTx @_ @s @k wrk wid (tx, txMeta, sealedTx)
         mkApiTransaction
             (timeInterpreter (ctx ^. networkLayer))
             wrk wid
-            (#pendingSince)
+            #pendingSince
             MkApiTransactionParams
                 { txId = tx ^. #txId
                 , txFee = tx ^. #fee
@@ -3310,7 +3311,9 @@ quitStakePool ctx (ApiT wid) body =
             liftHandler $ W.readWalletUTxOIndex @_ @s @k wrk wid
         pp <- liftIO $ NW.currentProtocolParameters (wrk ^. networkLayer)
         era <- liftIO $ NW.currentNodeEra (wrk ^. networkLayer)
-        let selectAssetsParams = W.SelectAssetsParams
+        sel <- liftHandler
+            $ W.selectAssets @_ @_ @s @k @'CredFromKeyK wrk era pp
+                W.SelectAssetsParams
                 { outputs = []
                 , pendingTxs
                 , randomSeed = Nothing
@@ -3320,8 +3323,6 @@ quitStakePool ctx (ApiT wid) body =
                 , wallet
                 , selectionStrategy = SelectionStrategyOptimal
                 }
-        sel <- liftHandler
-            $ W.selectAssets @_ @_ @s @k @'CredFromKeyK wrk era pp selectAssetsParams
             $ const Prelude.id
         sel' <- liftHandler
             $ W.assignChangeAddressesAndUpdateDb wrk wid genChange sel
@@ -3386,8 +3387,7 @@ listStakeKeys' utxo lookupStakeRef fetchRewards ourKeysWithInfo = do
         -- `NetworkLayer` interface.
         rewardsMap <- fetchRewards $ Set.fromList allKeys
 
-        let rewards acc = fromMaybe (Coin 0) $
-                Map.lookup acc rewardsMap
+        let rewards acc = fromMaybe (Coin 0) $ Map.lookup acc rewardsMap
 
         let mkOurs (acc, ix, deleg) = ApiOurStakeKey
                 { _index = ix
@@ -4084,8 +4084,6 @@ data MkApiTransactionParams = MkApiTransactionParams
     , txCBOR :: Maybe TxCBOR
     }
     deriving (Eq, Generic, Show)
-
-
 
 mkApiTransaction
     :: forall n s k . (Typeable s, Typeable n, HasDelegation s)
