@@ -3264,7 +3264,9 @@ quitStakePool
         , Typeable s
         , WalletKey k
         , AddressBookIso s
-        , BoundedAddressLength k, HasDelegation s)
+        , BoundedAddressLength k
+        , HasDelegation s
+        )
     => ctx
     -> ApiT WalletId
     -> ApiWalletPassphrase
@@ -3274,14 +3276,8 @@ quitStakePool ctx (ApiT walletId) body = do
     withWorkerCtx ctx walletId liftE liftE $ \wrk -> do
         let db = wrk ^. typed @(DBLayer IO s k)
             netLayer = wrk ^. typed @(NetworkLayer IO Block)
-        (withdrawal, action) <- handleWalletException
-            $ W.quitStakePool @s @k @n netLayer db walletId
-        ttl <- liftIO $ W.getTxExpiry ti Nothing
-        let txCtx = defaultTransactionCtx
-                { txWithdrawal = withdrawal
-                , txValidityInterval = (Nothing, ttl)
-                , txDelegationAction = Just action
-                }
+        txCtx <- handleWalletException
+            $ W.quitStakePool @s @k @n netLayer db ti walletId
 
         (utxoAvailable, wallet, pendingTxs) <-
             liftHandler $ W.readWalletUTxOIndex @_ @s @k wrk walletId

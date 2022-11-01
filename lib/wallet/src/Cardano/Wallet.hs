@@ -3097,15 +3097,22 @@ quitStakePool
      . (Typeable s, Typeable n)
     => NetworkLayer IO Block
     -> DBLayer IO s k
+    -> TimeInterpreter (ExceptT PastHorizonException IO)
     -> WalletId
-    -> IO (Withdrawal, DelegationAction)
-quitStakePool netLayer db walletId = do
+    -> IO TransactionCtx
+quitStakePool netLayer db timeInterpreter walletId = do
     (rewardAccount, _, derivationPath) <-
         runExceptT (readRewardAccount @s @k @n db walletId)
             >>= either (throw . ExceptionReadRewardAccount) pure
     withdrawal <- WithdrawalSelf rewardAccount derivationPath
         <$> getCachedRewardAccountBalance netLayer rewardAccount
-    (withdrawal,) <$> validatedQuitStakePoolAction db walletId withdrawal
+    action <- validatedQuitStakePoolAction db walletId withdrawal
+    ttl <- transactionExpirySlot timeInterpreter  Nothing
+    pure defaultTransactionCtx
+        { txWithdrawal = withdrawal
+        , txValidityInterval = (Nothing, ttl)
+        , txDelegationAction = Just action
+        }
 
 {-------------------------------------------------------------------------------
                                  Fee Estimation
