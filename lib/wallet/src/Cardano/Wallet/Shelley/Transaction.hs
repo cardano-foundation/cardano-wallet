@@ -2454,10 +2454,7 @@ mkUnsignedTx
 dummyInput :: TxIn
 dummyInput = TxIn (Hash $ BS.replicate 32 0) 999
 
-removeDummyInput
-    :: Cardano.IsCardanoEra era
-    => Cardano.TxBody era
-    -> Cardano.TxBody era
+removeDummyInput :: Cardano.TxBody era -> Cardano.TxBody era
 removeDummyInput (Cardano.ShelleyTxBody era bod scripts scriptData aux val) =
     (Cardano.ShelleyTxBody era (removeDummyIn bod) scripts scriptData aux val)
 
