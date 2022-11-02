@@ -2521,7 +2521,6 @@ buildAndSignTransaction ctx wid era mkRwdAcct pwd txCtx sel = db & \DBLayer{..} 
     nl = ctx ^. networkLayer
     ti = timeInterpreter nl
 
-
 -- | Construct an unsigned transaction from a given selection.
 constructTransaction
     :: forall ctx s k (n :: NetworkDiscriminant).

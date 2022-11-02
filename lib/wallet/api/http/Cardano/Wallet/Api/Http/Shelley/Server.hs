@@ -2235,7 +2235,9 @@ constructTransaction
     -> ApiT WalletId
     -> ApiConstructTransactionData n
     -> Handler (ApiConstructTransaction n)
-constructTransaction ctx genChange knownPools getPoolStatus apiw@(ApiT wid) body = do
+constructTransaction
+    ctx genChange knownPools getPoolStatus apiw@(ApiT wid) body = do
+
     let isNoPayload =
             isNothing (body ^. #payments) &&
             isNothing (body ^. #withdrawal) &&
@@ -2431,11 +2433,11 @@ constructTransaction ctx genChange knownPools getPoolStatus apiw@(ApiT wid) body
                 { outputs = outs ++ mintingOuts
                 , assetsToMint = fst $ txCtx' ^. #txAssetsToMint
                 , assetsToBurn = fst $ txCtx' ^. #txAssetsToBurn
-                , extraCoinSource = fromMaybe (Coin 0)refund
+                , extraCoinSource = fromMaybe (Coin 0) refund
                 , extraCoinSink = fromMaybe (Coin 0) deposit
                 }
-        unbalancedTx <- liftHandler
-            $ W.constructTransaction @_ @s @k @n wrk wid era txCtx' (Left preSel)
+        unbalancedTx <- liftHandler $
+            W.constructTransaction @_ @s @k @n wrk wid era txCtx' (Left preSel)
 
         let balancedPostData = ApiBalanceTransactionPostData
                 { transaction = ApiT unbalancedTx
@@ -2443,7 +2445,8 @@ constructTransaction ctx genChange knownPools getPoolStatus apiw@(ApiT wid) body
                 , redeemers = []
                 , encoding = body ^. #encoding
                 }
-        balancedTx <- balanceTransaction ctx genChange (ApiT wid) balancedPostData
+        balancedTx <- balanceTransaction
+            ctx genChange (ApiT wid) balancedPostData
         apiDecoded <- decodeTransaction @_ @s @k @n ctx apiw balancedTx
 
         (_, _, rewardPath) <-
@@ -2502,15 +2505,15 @@ constructTransaction ctx genChange knownPools getPoolStatus apiw@(ApiT wid) body
 
     unsignedTx path initialOuts decodedTx = UnsignedTx
         { unsignedCollateral =
-                mapMaybe toUnsignedTxInp (decodedTx ^. #collateral)
+            mapMaybe toUnsignedTxInp (decodedTx ^. #collateral)
         , unsignedInputs =
-                mapMaybe toUnsignedTxInp (decodedTx ^. #inputs)
+            mapMaybe toUnsignedTxInp (decodedTx ^. #inputs)
         , unsignedOutputs =
-                mapMaybe (toUnsignedTxOut initialOuts) (decodedTx ^. #outputs)
+            mapMaybe (toUnsignedTxOut initialOuts) (decodedTx ^. #outputs)
         , unsignedChange =
-                mapMaybe (toUnsignedTxChange initialOuts) (decodedTx ^. #outputs)
+            mapMaybe (toUnsignedTxChange initialOuts) (decodedTx ^. #outputs)
         , unsignedWithdrawals =
-                mapMaybe (toUsignedTxWdrl path) (decodedTx ^. #withdrawals)
+            mapMaybe (toUsignedTxWdrl path) (decodedTx ^. #withdrawals)
         }
 
     toMintTxOut policyXPub

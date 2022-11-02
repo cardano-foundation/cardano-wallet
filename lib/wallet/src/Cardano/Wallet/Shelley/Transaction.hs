@@ -22,6 +22,7 @@
 {-# LANGUAGE TypeOperators #-}
 {-# LANGUAGE UndecidableInstances #-}
 {-# LANGUAGE ViewPatterns #-}
+{- HLINT ignore "Use <$>" -}
 
 -- |
 -- Copyright: © 2020 IOHK
@@ -402,14 +403,17 @@ mkTx
     -- ^ Explicit fee amount
     -> ShelleyBasedEra era
     -> Either ErrMkTransaction (Tx, SealedTx)
-mkTx networkId payload ttl (rewardAcnt, pwdAcnt) addrResolver wdrl cs fees era = do
+mkTx networkId payload ttl (rewardAcnt, pwdAcnt) addrResolver wdrl cs fees era =
+    do
+
     let TxPayload md certs mkExtraWits = payload
     let wdrls = mkWithdrawals
             networkId
             (toRewardAccountRaw . toXPub $ rewardAcnt)
             wdrl
 
-    unsigned <- mkUnsignedTx era ttl (Right cs) md wdrls certs (toCardanoLovelace fees)
+    unsigned <- mkUnsignedTx era ttl (Right cs) md wdrls certs
+        (toCardanoLovelace fees)
         TokenMap.empty TokenMap.empty Map.empty Map.empty
     let signed = signTransaction networkId acctResolver (const Nothing)
             addrResolver inputResolver (unsigned, mkExtraWits unsigned)
@@ -796,8 +800,7 @@ modifyShelleyTxBody txUpdate era ledgerBody = case era of
                 . Cardano.toCtxUTxOTxOut
                 . toCardanoTxOut era <$> extraOutputs
                 )
-        , Babbage.inputs =
-               Babbage.inputs ledgerBody
+        , Babbage.inputs = Babbage.inputs ledgerBody
             <> Set.fromList (Cardano.toShelleyTxIn <$> extraInputs')
         , Babbage.collateral = Babbage.collateral ledgerBody
             <> Set.fromList (Cardano.toShelleyTxIn <$> extraCollateral')
@@ -811,8 +814,7 @@ modifyShelleyTxBody txUpdate era ledgerBody = case era of
                 . Cardano.toCtxUTxOTxOut
                 . toCardanoTxOut era <$> extraOutputs
                 )
-        , Alonzo.inputs =
-               Alonzo.inputs ledgerBody
+        , Alonzo.inputs = Alonzo.inputs ledgerBody
             <> Set.fromList (Cardano.toShelleyTxIn <$> extraInputs')
         , Alonzo.collateral = Alonzo.collateral ledgerBody
             <> Set.fromList (Cardano.toShelleyTxIn <$> extraCollateral')
@@ -2267,26 +2269,28 @@ mkUnsignedTx
     -> Map AssetId (Script KeyHash)
     -> Map TxIn (Script KeyHash)
     -> Either ErrMkTransaction (Cardano.TxBody era)
-mkUnsignedTx era ttl cs md wdrls certs fees mintData burnData mintingScripts inpsScripts =
-    left toErrMkTx $ fmap removeDummyInput $ Cardano.makeTransactionBody $ Cardano.TxBodyContent
+mkUnsignedTx
+    era ttl cs md wdrls certs fees mintData burnData mintingScripts inpsScripts =
+    left toErrMkTx $ fmap removeDummyInput $ Cardano.makeTransactionBody
+    Cardano.TxBodyContent
     { Cardano.txIns = inputWits
 
     , txInsReference = Cardano.TxInsReferenceNone
 
     , Cardano.txOuts = case cs of
-            Right selOf ->
-                toCardanoTxOut era <$> view #outputs selOf ++ F.toList (view #change selOf)
-            Left preSel ->
-                toCardanoTxOut era <$> view #outputs preSel
+        Right selOf ->
+            toCardanoTxOut era <$>
+                view #outputs selOf ++ F.toList (view #change selOf)
+        Left preSel ->
+            toCardanoTxOut era <$>
+                view #outputs preSel
 
     , Cardano.txWithdrawals =
-        let
-            wit = Cardano.BuildTxWith
+        let wit = Cardano.BuildTxWith
                 $ Cardano.KeyWitness Cardano.KeyWitnessForStakeAddr
         in
-            Cardano.TxWithdrawals wdrlsSupported
-                (map (\(key, coin) -> (key, coin, wit)) wdrls)
-
+        Cardano.TxWithdrawals wdrlsSupported
+            (map (\(key, coin) -> (key, coin, wit)) wdrls)
 
     -- @mkUnsignedTx@ is never used with Plutus scripts, and so we never have to
     -- care about collateral or PParams (for script integrity hash) here.
@@ -2298,10 +2302,7 @@ mkUnsignedTx era ttl cs md wdrls certs fees mintData burnData mintingScripts inp
     , txTotalCollateral = Cardano.TxTotalCollateralNone
     , txReturnCollateral = Cardano.TxReturnCollateralNone
     , txProtocolParams = Cardano.BuildTxWith Nothing
-
-    , txScriptValidity =
-        Cardano.TxScriptValidityNone
-
+    , txScriptValidity = Cardano.TxScriptValidityNone
     , txExtraKeyWits = Cardano.TxExtraKeyWitnessesNone
 
     , Cardano.txCertificates =
@@ -2310,7 +2311,7 @@ mkUnsignedTx era ttl cs md wdrls certs fees mintData burnData mintingScripts inp
             witMap = Map.empty
             ctx = Cardano.BuildTxWith witMap
         in
-            Cardano.TxCertificates certSupported certs ctx
+        Cardano.TxCertificates certSupported certs ctx
 
     , Cardano.txFee = explicitFees era fees
 
@@ -2318,7 +2319,8 @@ mkUnsignedTx era ttl cs md wdrls certs fees mintData burnData mintingScripts inp
         let toLowerBound from = case txValidityLowerBoundSupported of
                 Just lowerBoundSupported ->
                     Cardano.TxValidityLowerBound lowerBoundSupported from
-                Nothing -> Cardano.TxValidityNoLowerBound
+                Nothing ->
+                    Cardano.TxValidityNoLowerBound
         in
         bimap
             (maybe Cardano.TxValidityNoLowerBound toLowerBound)

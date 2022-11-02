@@ -406,7 +406,6 @@ data PreSelection = PreSelection
     }
     deriving (Generic, Eq, Show)
 
-
 -- | Represents a balanced selection.
 --
 data SelectionOf change = Selection
