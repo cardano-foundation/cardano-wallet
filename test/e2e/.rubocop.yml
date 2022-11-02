@@ -14,7 +14,7 @@ Metrics/BlockLength:
 Layout/LineLength:
   Enabled: false
 
-Layout/MethodLength:
+Metrics/MethodLength:
   Enabled: false
 
 Metrics/ParameterLists:
