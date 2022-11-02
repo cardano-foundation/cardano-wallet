@@ -53,13 +53,15 @@ import Cardano.Wallet.Primitive.Types
     ( BlockHeader
     , ChainPoint
     , DelegationCertificate
+    , EpochNo (..)
     , GenesisParameters
     , Range (..)
     , Slot
     , SlotNo (..)
     , SortOrder (..)
+    , WalletDelegation (..)
     , WalletId
-    , WalletMetadata, EpochNo (..), WalletDelegation (..)
+    , WalletMetadata
     )
 import Cardano.Wallet.Primitive.Types.Coin
     ( Coin )

@@ -2,12 +2,12 @@
 {-# LANGUAGE DataKinds #-}
 {-# LANGUAGE DeriveGeneric #-}
 {-# LANGUAGE LambdaCase #-}
+{-# LANGUAGE MultiWayIf #-}
 {-# LANGUAGE NamedFieldPuns #-}
 {-# LANGUAGE OverloadedLabels #-}
 {-# LANGUAGE RecordWildCards #-}
 {-# LANGUAGE ScopedTypeVariables #-}
 {-# LANGUAGE TypeApplications #-}
-{-# LANGUAGE MultiWayIf #-}
 
 -- |
 -- Copyright: © 2018-2020 IOHK
@@ -832,9 +832,9 @@ readWalletMetadata wid walDel =
                             Wallet Delegation
 -----------------------------------------------------------------------}
 {- HLINT ignore mkDBDelegation "Avoid lambda" -}
-mkDBDelegation 
-    :: TimeInterpreter IO 
-    -> W.WalletId 
+mkDBDelegation
+    :: TimeInterpreter IO
+    -> W.WalletId
     -> DBDelegation (SqlPersistT IO)
 mkDBDelegation ti wid = DBDelegation
     { isStakeKeyRegistered_ = do
@@ -881,13 +881,13 @@ mkDBDelegation ti wid = DBDelegation
                     [ CertSlot <. eMinus1
                     ]
             next <- catMaybes <$> sequence
-                [ fmap (W.WalletDelegationNext (epoch + 1) 
+                [ fmap (W.WalletDelegationNext (epoch + 1)
                     . toWalletDelegationStatus)
                     <$> readDelegationCertificate wid
                         [ CertSlot >=. eMinus1
                         , CertSlot <. e
                         ]
-                , fmap (W.WalletDelegationNext (epoch + 2) 
+                , fmap (W.WalletDelegationNext (epoch + 2)
                     . toWalletDelegationStatus)
                     <$> readDelegationCertificate wid
                         [ CertSlot >=. e
@@ -895,34 +895,6 @@ mkDBDelegation ti wid = DBDelegation
                 ]
             pure $ W.WalletDelegation active next
     }
-
-readWalletDelegation
-    :: TimeInterpreter IO
-    -> W.WalletId
-    -> W.EpochNo
-    -> SqlPersistT IO W.WalletDelegation
-readWalletDelegation ti wid epoch
-    | epoch == 0 = pure $ W.WalletDelegation W.NotDelegating []
-    | otherwise = do
-        (eMinus1, e) <- liftIO $ interpretQuery ti $
-            (,) <$> firstSlotInEpoch (epoch - 1) <*> firstSlotInEpoch epoch
-        active <- maybe W.NotDelegating toWalletDelegationStatus
-            <$> readDelegationCertificate wid
-                [ CertSlot <. eMinus1
-                ]
-
-        next <- catMaybes <$> sequence
-            [ fmap (W.WalletDelegationNext (epoch + 1) . toWalletDelegationStatus)
-                <$> readDelegationCertificate wid
-                    [ CertSlot >=. eMinus1
-                    , CertSlot <. e
-                    ]
-            , fmap (W.WalletDelegationNext (epoch + 2) . toWalletDelegationStatus)
-                <$> readDelegationCertificate wid
-                    [ CertSlot >=. e
-                    ]
-            ]
-        pure $ W.WalletDelegation active next
 
 readDelegationCertificate
     :: W.WalletId
