@@ -2434,6 +2434,7 @@ mkUnsignedTx
             = Cardano.BuildTxWith
             $ Cardano.KeyWitness Cardano.KeyWitnessForSpending
 
+-- TODO: ADP-2257
 -- cardano-node does not allow to construct tx without inputs at this moment.
 -- this should change and this hack should be removed
 dummyInput :: TxIn
