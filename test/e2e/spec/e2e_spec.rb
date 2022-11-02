@@ -90,7 +90,7 @@ RSpec.describe 'Cardano Wallet E2E tests', :all, :e2e do
       payment_address = CARDANO_CLI.build_payment_address(payment_keys)
 
       # Fund payment address to be used as collateral utxo
-      collateral_amt = 10000000
+      collateral_amt = 10_000_000
       tx = construct_sign_submit(@wid, payment_payload(collateral_amt, payment_address))
       wait_for_tx_in_ledger(@wid, tx.last['id'])
       collateral_utxo = CARDANO_CLI.get_utxos(payment_address).last
@@ -98,13 +98,13 @@ RSpec.describe 'Cardano Wallet E2E tests', :all, :e2e do
       target_address = SHELLEY.addresses.list(@target_id)[0]['id']
       target_before = get_shelley_balances(@target_id)
       explicit_fee = 2_000_000 # setting fee explicitely because we build tx raw
-      txbody = CARDANO_CLI.tx_build_raw_always_fails(script = get_plutus_file_path('alwaysfails.plutus'),
+      txbody = CARDANO_CLI.tx_build_raw_always_fails(get_plutus_file_path('alwaysfails.plutus'),
                                                      script_utxo,
                                                      "#{collateral_utxo[:utxo]}##{collateral_utxo[:ix]}",
                                                      collateral_amt,
                                                      explicit_fee,
                                                      target_address,
-                                                     collateral_ret_addr = target_address)
+                                                     target_address) # collateral_ret_addr
       txsigned = CARDANO_CLI.tx_sign(txbody, payment_keys)
       txid = CARDANO_CLI.tx_submit(txsigned)
       wait_for_tx_in_ledger(@target_id, txid)
@@ -128,7 +128,7 @@ RSpec.describe 'Cardano Wallet E2E tests', :all, :e2e do
       expect(target_after['available']).to eq(target_before['available'] + collateral_ret_amt)
 
       # Make sure you can spend collateral return output from the wallet
-      tx = construct_sign_submit(@target_id, payment_payload(6500000, payment_address))
+      tx = construct_sign_submit(@target_id, payment_payload(6_500_000, payment_address))
       wait_for_tx_in_ledger(@target_id, tx.last['id'])
     end
   end
@@ -212,8 +212,8 @@ RSpec.describe 'Cardano Wallet E2E tests', :all, :e2e do
 
     it 'mint-burn' do
       vk = SHELLEY.keys.get_public_key(@wid, 'utxo_external', 0, { hash: true }).gsub('"', '')
-      vkHash = bech32_to_base16(vk)
-      policy = read_mustached_file('mintBurn_policy', { vkHash: vkHash })
+      vk_hash = bech32_to_base16(vk)
+      policy = read_mustached_file('mintBurn_policy', { vkHash: vk_hash })
       policy_id = get_policy_id(policy)
       def fingerprint
         if linux?
@@ -232,11 +232,11 @@ RSpec.describe 'Cardano Wallet E2E tests', :all, :e2e do
                                  'quantity' => 1,
                                  'asset_name' => asset_name('mint-burn') }] }]
 
-      payload_mint = get_templated_plutus_tx(mint_script, { vkHash: vkHash,
+      payload_mint = get_templated_plutus_tx(mint_script, { vkHash: vk_hash,
                                                             policyId: policy_id,
                                                             policy: policy })
 
-      payload_burn = get_templated_plutus_tx(burn_script, { vkHash: vkHash,
+      payload_burn = get_templated_plutus_tx(burn_script, { vkHash: vk_hash,
                                                             policyId: policy_id,
                                                             policy: policy })
       mint = run_script(mint_script, payload_mint)
@@ -383,8 +383,8 @@ RSpec.describe 'Cardano Wallet E2E tests', :all, :e2e do
     end
   end
 
-  describe "E2E Construct -> Sign -> Submit" do
-    it "I can get min_utxo_value when contructing tx" do
+  describe 'E2E Construct -> Sign -> Submit' do
+    it 'I can get min_utxo_value when contructing tx' do
       amt = 1
       tx_constructed = SHELLEY.transactions.construct(@wid, payment_payload(amt))
       expect(tx_constructed.code).to eq 403
@@ -395,7 +395,7 @@ RSpec.describe 'Cardano Wallet E2E tests', :all, :e2e do
       expect(tx_constructed).to be_correct_and_respond 202
     end
 
-    it "Single output transaction" do
+    it 'Single output transaction' do
       amt = MIN_UTXO_VALUE_PURE_ADA
       address = SHELLEY.addresses.list(@target_id)[0]['id']
       target_before = get_shelley_balances(@target_id)
@@ -641,8 +641,8 @@ RSpec.describe 'Cardano Wallet E2E tests', :all, :e2e do
     it 'Only withdrawal' do
       balance = get_shelley_balances(@wid)
       tx_constructed = SHELLEY.transactions.construct(@wid,
-                                                      payments = nil,
-                                                      withdrawal = 'self')
+                                                      nil, # payments
+                                                      'self') # withdrawal
       expect(tx_constructed).to be_correct_and_respond 202
       withdrawal = tx_constructed['coin_selection']['withdrawals'].map { |x| x['amount']['quantity'] }.first
       expect(withdrawal).to eq 0
@@ -708,8 +708,8 @@ RSpec.describe 'Cardano Wallet E2E tests', :all, :e2e do
       metadata = METADATA
       balance = get_shelley_balances(@wid)
       tx_constructed = SHELLEY.transactions.construct(@wid,
-                                                      payments = nil,
-                                                      withdrawal = nil,
+                                                      nil, # payments
+                                                      nil, # withdrawal
                                                       metadata)
       expect(tx_constructed).to be_correct_and_respond 202
       expected_fee = tx_constructed['fee']['quantity']
@@ -782,11 +782,11 @@ RSpec.describe 'Cardano Wallet E2E tests', :all, :e2e do
           'stake_key_index' => '0H'
         }
       }]
-      tx_constructed, tx_signed, tx_submitted = construct_sign_submit(@target_id,
-                                                                      payments = nil,
-                                                                      withdrawal = nil,
-                                                                      metadata = nil,
-                                                                      delegation)
+      tx_constructed, _, tx_submitted = construct_sign_submit(@target_id,
+                                                              nil, # payments
+                                                              nil, # withdrawal
+                                                              nil, # metadata
+                                                              delegation)
       # Check fee and deposit on joining
       decoded_tx = SHELLEY.transactions.decode(@target_id, tx_constructed['transaction'])
       deposit_taken = tx_constructed['coin_selection']['deposits_taken'].first['quantity']
@@ -835,11 +835,11 @@ RSpec.describe 'Cardano Wallet E2E tests', :all, :e2e do
 
       # Quit pool
       quit_pool = [{ 'quit' => { 'stake_key_index' => '0H' } }]
-      tx_constructed, tx_signed, tx_submitted = construct_sign_submit(@target_id,
-                                                                      payments = nil,
-                                                                      withdrawal = nil,
-                                                                      metadata = nil,
-                                                                      quit_pool)
+      tx_constructed, _, tx_submitted = construct_sign_submit(@target_id,
+                                                              nil, # payments
+                                                              nil, # withdrawal
+                                                              nil, # metadata
+                                                              quit_pool)
 
       # Check fee and deposit on quitting
       decoded_tx = SHELLEY.transactions.decode(@target_id, tx_constructed['transaction'])
@@ -918,12 +918,12 @@ RSpec.describe 'Cardano Wallet E2E tests', :all, :e2e do
                 mint(asset_name('Token2'), 1000, policy_script2),
                 mint('', 1000, policy_script3)]
         create_policy_key_if_not_exists(@wid)
-        tx_constructed, tx_signed, tx_submitted = construct_sign_submit(@wid,
-                                                                        payments = nil,
-                                                                        withdrawal = nil,
-                                                                        metadata = nil,
-                                                                        delegations = nil,
-                                                                        mint)
+        tx_constructed, _, tx_submitted = construct_sign_submit(@wid,
+                                                                nil, # payments
+                                                                nil, # withdrawal
+                                                                nil, # metadata
+                                                                nil, # delegations
+                                                                mint)
         tx_decoded = SHELLEY.transactions.decode(@wid, tx_constructed['transaction'])
         expect(tx_constructed).to be_correct_and_respond 202
         expected_fee = tx_constructed['fee']['quantity']
@@ -960,12 +960,12 @@ RSpec.describe 'Cardano Wallet E2E tests', :all, :e2e do
         burn = [burn(asset_name('Token1'), 500, policy_script1),
                 burn(asset_name('Token2'), 500, policy_script2),
                 burn('', 500, policy_script3)]
-        tx_constructed, tx_signed, tx_submitted = construct_sign_submit(@wid,
-                                                                        payments = nil,
-                                                                        withdrawal = nil,
-                                                                        metadata = nil,
-                                                                        delegations = nil,
-                                                                        burn)
+        tx_constructed, _, tx_submitted = construct_sign_submit(@wid,
+                                                                nil, # payments
+                                                                nil, # withdrawal
+                                                                nil, # metadata
+                                                                nil, # delegations
+                                                                burn)
         tx_decoded = SHELLEY.transactions.decode(@wid, tx_constructed['transaction'])
         expect(tx_constructed).to be_correct_and_respond 202
         expected_fee = tx_constructed['fee']['quantity']
@@ -1002,12 +1002,12 @@ RSpec.describe 'Cardano Wallet E2E tests', :all, :e2e do
         burn = [burn(asset_name('Token1'), 500, policy_script1),
                 burn(asset_name('Token2'), 500, policy_script2),
                 burn(nil, 500, policy_script3)]
-        tx_constructed, tx_signed, tx_submitted = construct_sign_submit(@wid,
-                                                                        payments = nil,
-                                                                        withdrawal = nil,
-                                                                        metadata = nil,
-                                                                        delegations = nil,
-                                                                        burn)
+        tx_constructed, _, tx_submitted = construct_sign_submit(@wid,
+                                                                nil, # payments
+                                                                nil, # withdrawal
+                                                                nil, # metadata
+                                                                nil, # delegations
+                                                                burn)
         tx_decoded = SHELLEY.transactions.decode(@wid, tx_constructed['transaction'])
         expect(tx_constructed).to be_correct_and_respond 202
         expected_fee = tx_constructed['fee']['quantity']
@@ -1058,12 +1058,12 @@ RSpec.describe 'Cardano Wallet E2E tests', :all, :e2e do
                 mint(asset_name('TokenMetadata2'), assets_quantity, policy_script2),
                 mint(asset_name('TokenMetadata3'), assets_quantity, policy_script3)]
         create_policy_key_if_not_exists(@wid)
-        tx_constructed, tx_signed, tx_submitted = construct_sign_submit(@wid,
-                                                                        payments = nil,
-                                                                        withdrawal = nil,
-                                                                        metadata,
-                                                                        delegations = nil,
-                                                                        mint)
+        tx_constructed, _, tx_submitted = construct_sign_submit(@wid,
+                                                                nil, # payments
+                                                                nil, # withdrawal
+                                                                metadata,
+                                                                nil, # delegations
+                                                                mint)
         tx_decoded = SHELLEY.transactions.decode(@wid, tx_constructed['transaction'])
         expect(tx_constructed).to be_correct_and_respond 202
         expected_fee = tx_constructed['fee']['quantity']
@@ -1091,12 +1091,12 @@ RSpec.describe 'Cardano Wallet E2E tests', :all, :e2e do
         burn = [burn(asset_name('TokenMetadata1'), assets_quantity, policy_script1),
                 burn(asset_name('TokenMetadata2'), assets_quantity, policy_script2),
                 burn(asset_name('TokenMetadata3'), assets_quantity, policy_script3)]
-        tx_constructed, tx_signed, tx_submitted = construct_sign_submit(@wid,
-                                                                        payments = nil,
-                                                                        withdrawal = nil,
-                                                                        metadata,
-                                                                        delegations = nil,
-                                                                        burn)
+        tx_constructed, _, tx_submitted = construct_sign_submit(@wid,
+                                                                nil, # payments
+                                                                nil, # withdrawal
+                                                                metadata,
+                                                                nil, # delegations
+                                                                burn)
         tx_decoded = SHELLEY.transactions.decode(@wid, tx_constructed['transaction'])
         expect(tx_constructed).to be_correct_and_respond 202
         expected_fee = tx_constructed['fee']['quantity']
@@ -1148,12 +1148,12 @@ RSpec.describe 'Cardano Wallet E2E tests', :all, :e2e do
         } }
 
         # Minting:
-        tx_constructed, tx_signed, tx_submitted = construct_sign_submit(@wid,
-                                                                        payments = nil,
-                                                                        withdrawal = nil,
-                                                                        cip25_metadata,
-                                                                        delegations = nil,
-                                                                        mint)
+        tx_constructed, _, tx_submitted = construct_sign_submit(@wid,
+                                                                nil, # payments
+                                                                nil, # withdrawal
+                                                                cip25_metadata,
+                                                                nil, # delegations
+                                                                mint)
         tx_decoded = SHELLEY.transactions.decode(@wid, tx_constructed['transaction'])
         expect(tx_constructed).to be_correct_and_respond 202
         expected_fee = tx_constructed['fee']['quantity']
@@ -1178,13 +1178,12 @@ RSpec.describe 'Cardano Wallet E2E tests', :all, :e2e do
         # Burn:
         burn = [burn(nft_name_hex, assets_quantity, policy_script)]
 
-        tx_constructed, tx_signed, tx_submitted = construct_sign_submit(@wid,
-                                                                        payments = nil,
-                                                                        withdrawal = nil,
-                                                                        metadata = nil,
-                                                                        delegations = nil,
-                                                                        burn)
-        tx_decoded = SHELLEY.transactions.decode(@wid, tx_constructed['transaction'])
+        tx_constructed, _, tx_submitted = construct_sign_submit(@wid,
+                                                                nil, # payments
+                                                                nil, # withdrawal
+                                                                nil, # metadata
+                                                                nil, # delegations
+                                                                burn)
         expect(tx_constructed).to be_correct_and_respond 202
         expected_fee = tx_constructed['fee']['quantity']
 
@@ -1217,12 +1216,12 @@ RSpec.describe 'Cardano Wallet E2E tests', :all, :e2e do
                 mint(asset_name('Asset2'), 500, policy_script2)]
 
         create_policy_key_if_not_exists(@wid)
-        tx_constructed, tx_signed, tx_submitted = construct_sign_submit(@wid,
-                                                                        payments = nil,
-                                                                        withdrawal = nil,
-                                                                        metadata = nil,
-                                                                        delegations = nil,
-                                                                        mint)
+        tx_constructed, _, tx_submitted = construct_sign_submit(@wid,
+                                                                nil, # payments
+                                                                nil, # withdrawal
+                                                                nil, # metadata
+                                                                nil, # delegations
+                                                                mint)
         tx_decoded = SHELLEY.transactions.decode(@wid, tx_constructed['transaction'])
         expect(tx_constructed).to be_correct_and_respond 202
         expected_fee = tx_constructed['fee']['quantity']
@@ -1247,12 +1246,12 @@ RSpec.describe 'Cardano Wallet E2E tests', :all, :e2e do
                      burn(asset_name('Asset2'), 500, policy_script2)]
 
         # p JSON.parse(mint_burn.to_json)
-        tx_constructed, tx_signed, tx_submitted = construct_sign_submit(@wid,
-                                                                        payments = nil,
-                                                                        withdrawal = nil,
-                                                                        metadata = nil,
-                                                                        delegations = nil,
-                                                                        mint_burn)
+        tx_constructed, _, tx_submitted = construct_sign_submit(@wid,
+                                                                nil, # payments
+                                                                nil, # withdrawal
+                                                                nil, # metadata
+                                                                nil, # delegations
+                                                                mint_burn)
         tx_decoded = SHELLEY.transactions.decode(@wid, tx_constructed['transaction'])
         expect(tx_constructed).to be_correct_and_respond 202
         expected_fee = tx_constructed['fee']['quantity']
@@ -1280,12 +1279,12 @@ RSpec.describe 'Cardano Wallet E2E tests', :all, :e2e do
 
         # Burn all the rest:
         burn = [burn(asset_name('Asset1'), 1000, policy_script1)]
-        tx_constructed, tx_signed, tx_submitted = construct_sign_submit(@wid,
-                                                                        payments = nil,
-                                                                        withdrawal = nil,
-                                                                        metadata = nil,
-                                                                        delegations = nil,
-                                                                        burn)
+        tx_constructed, _, tx_submitted = construct_sign_submit(@wid,
+                                                                nil, # payments
+                                                                nil, # withdrawal
+                                                                nil, # metadata
+                                                                nil, # delegations
+                                                                burn)
 
         tx_decoded = SHELLEY.transactions.decode(@wid, tx_constructed['transaction'])
         expect(tx_constructed).to be_correct_and_respond 202
@@ -1322,12 +1321,12 @@ RSpec.describe 'Cardano Wallet E2E tests', :all, :e2e do
         mint = [mint(assets_name, 10, policy_script, address)]
 
         create_policy_key_if_not_exists(@wid)
-        tx_constructed, tx_signed, tx_submitted = construct_sign_submit(@wid,
-                                                                        payments = nil,
-                                                                        withdrawal = nil,
-                                                                        metadata = nil,
-                                                                        delegations = nil,
-                                                                        mint)
+        tx_constructed, _, tx_submitted = construct_sign_submit(@wid,
+                                                                nil, # payments
+                                                                nil, # withdrawal
+                                                                nil, # metadata
+                                                                nil, # delegations
+                                                                mint)
         tx_decoded = SHELLEY.transactions.decode(@wid, tx_constructed['transaction'])
         expect(tx_constructed).to be_correct_and_respond 202
         expected_fee = tx_constructed['fee']['quantity']
@@ -1351,12 +1350,12 @@ RSpec.describe 'Cardano Wallet E2E tests', :all, :e2e do
         mint_burn = [burn(assets_name, 10, policy_script),
                      mint(assets_name, 1, policy_script, address)]
 
-        tx_constructed, tx_signed, tx_submitted = construct_sign_submit(@wid,
-                                                                        payments = nil,
-                                                                        withdrawal = nil,
-                                                                        metadata = nil,
-                                                                        delegations = nil,
-                                                                        mint_burn)
+        tx_constructed, _, tx_submitted = construct_sign_submit(@wid,
+                                                                nil, # payments
+                                                                nil, # withdrawal
+                                                                nil, # metadata
+                                                                nil, # delegations
+                                                                mint_burn)
         tx_decoded = SHELLEY.transactions.decode(@wid, tx_constructed['transaction'])
         expect(tx_constructed).to be_correct_and_respond 202
         expected_fee = tx_constructed['fee']['quantity']
@@ -1373,22 +1372,19 @@ RSpec.describe 'Cardano Wallet E2E tests', :all, :e2e do
 
         # verify MintBurn has 1 (because 10 was burned and 1 additional minted)
         assets_minted_to_check = get_assets_from_decode(tx_decoded['mint'])
-        assets_burned_to_check = get_assets_from_decode(tx_decoded['burn'])
         assets_minted = assets_balance(src_after_minting_burning['assets_total'],
                                        { assets_to_check: assets_minted_to_check })
-        assets_burned = assets_balance(src_after_minting_burning['assets_total'],
-                                       { assets_to_check: assets_burned_to_check })
 
         expect(assets_minted).to eq(assets_minted_to_check.map { |z| { z => 1 } }.to_set)
 
         # Burn all the rest:
         burn = [burn(assets_name, 1, policy_script)]
-        tx_constructed, tx_signed, tx_submitted = construct_sign_submit(@wid,
-                                                                        payments = nil,
-                                                                        withdrawal = nil,
-                                                                        metadata = nil,
-                                                                        delegations = nil,
-                                                                        burn)
+        tx_constructed, _, tx_submitted = construct_sign_submit(@wid,
+                                                                nil, # payments
+                                                                nil, # withdrawal
+                                                                nil, # metadata
+                                                                nil, # delegations
+                                                                burn)
 
         tx_decoded = SHELLEY.transactions.decode(@wid, tx_constructed['transaction'])
         expect(tx_constructed).to be_correct_and_respond 202
@@ -1418,10 +1414,10 @@ RSpec.describe 'Cardano Wallet E2E tests', :all, :e2e do
         burn = [burn(asset_name('AmazingNFTIdontHave'), 1, policy_script)]
         create_policy_key_if_not_exists(@wid)
         tx_constructed = SHELLEY.transactions.construct(@wid,
-                                                        payments = nil,
-                                                        withdrawal = nil,
-                                                        metadata = nil,
-                                                        delegations = nil,
+                                                        nil, # payments
+                                                        nil, # withdrawal
+                                                        nil, # metadata
+                                                        nil, # delegations
                                                         burn)
         expect(tx_constructed).to be_correct_and_respond 403
         expect(tx_constructed['code'].to_s).to eq 'not_enough_money'
@@ -1435,20 +1431,18 @@ RSpec.describe 'Cardano Wallet E2E tests', :all, :e2e do
       # Tx2: Fails to burn 1022 assets using correct policy_script
       # Tx3: Burns remaining 1000 assets
       it 'Cannot burn with wrong policy_script or more than I have' do
-        src_before = get_shelley_balances(@wid)
         address = SHELLEY.addresses.list(@wid).first['id']
         policy_script = 'cosigner#0'
 
         # Mint it:
         mint = [mint(asset_name('MintIt'), 1000, policy_script, address)]
         create_policy_key_if_not_exists(@wid)
-        tx_constructed, tx_signed, tx_submitted = construct_sign_submit(@wid,
-                                                                        payments = nil,
-                                                                        withdrawal = nil,
-                                                                        metadata = nil,
-                                                                        delegations = nil,
-                                                                        mint)
-        expected_fee = tx_constructed['fee']['quantity']
+        _, _, tx_submitted = construct_sign_submit(@wid,
+                                                   nil, # payments
+                                                   nil, # withdrawal
+                                                   nil, # metadata
+                                                   nil, # delegations
+                                                   mint)
 
         tx_id = tx_submitted['id']
         wait_for_tx_in_ledger(@wid, tx_id)
@@ -1457,10 +1451,10 @@ RSpec.describe 'Cardano Wallet E2E tests', :all, :e2e do
         #  - with different policy_script
         burn1 = [burn(asset_name('MintIt'), 1000, { 'all' => ['cosigner#0'] })]
         tx_constructed = SHELLEY.transactions.construct(@wid,
-                                                        payments = nil,
-                                                        withdrawal = nil,
-                                                        metadata = nil,
-                                                        delegations = nil,
+                                                        nil, # payments
+                                                        nil, # withdrawal
+                                                        nil, # metadata
+                                                        nil, # delegations
                                                         burn1)
 
         expect(tx_constructed).to be_correct_and_respond 403
@@ -1471,10 +1465,10 @@ RSpec.describe 'Cardano Wallet E2E tests', :all, :e2e do
         #  - correct policy_script but too much
         burn2 = [burn(asset_name('MintIt'), 1022, policy_script)]
         tx_constructed = SHELLEY.transactions.construct(@wid,
-                                                        payments = nil,
-                                                        withdrawal = nil,
-                                                        metadata = nil,
-                                                        delegations = nil,
+                                                        nil, # payments
+                                                        nil, # withdrawal
+                                                        nil, # metadata
+                                                        nil, # delegations
                                                         burn2)
 
         expect(tx_constructed).to be_correct_and_respond 403
@@ -1484,13 +1478,12 @@ RSpec.describe 'Cardano Wallet E2E tests', :all, :e2e do
 
         # Burn it:
         burn3 = [burn(asset_name('MintIt'), 1000, policy_script)]
-        tx_constructed, tx_signed, tx_submitted = construct_sign_submit(@wid,
-                                                                        payments = nil,
-                                                                        withdrawal = nil,
-                                                                        metadata = nil,
-                                                                        delegations = nil,
-                                                                        burn3)
-        expected_fee = tx_constructed['fee']['quantity']
+        tx_constructed, _, tx_submitted = construct_sign_submit(@wid,
+                                                                nil, # payments
+                                                                nil, # withdrawal
+                                                                nil, # metadata
+                                                                nil, # delegations
+                                                                burn3)
         tx_decoded = SHELLEY.transactions.decode(@wid, tx_constructed['transaction'])
 
         tx_id = tx_submitted['id']
@@ -1510,7 +1503,6 @@ RSpec.describe 'Cardano Wallet E2E tests', :all, :e2e do
       # Tx3: Sends assets back to src wallet
       # Tx4: Burns them
       it "Mint to foreign wallet / Cannot burn if I don't have keys" do
-        target_before = get_shelley_balances(@target_id)
         address = SHELLEY.addresses.list(@target_id).first['id']
         policy_script = 'cosigner#0'
         assets_quantity = 1500
@@ -1519,12 +1511,12 @@ RSpec.describe 'Cardano Wallet E2E tests', :all, :e2e do
         # Mint it:
         mint = [mint(assets_name, assets_quantity, policy_script, address)]
         create_policy_key_if_not_exists(@wid)
-        tx_constructed, tx_signed, tx_submitted = construct_sign_submit(@wid,
-                                                                        payments = nil,
-                                                                        withdrawal = nil,
-                                                                        metadata = nil,
-                                                                        delegations = nil,
-                                                                        mint)
+        tx_constructed, _, tx_submitted = construct_sign_submit(@wid,
+                                                                nil, # payments
+                                                                nil, # withdrawal
+                                                                nil, # metadata
+                                                                nil, # delegations
+                                                                mint)
 
         tx_decoded = SHELLEY.transactions.decode(@wid, tx_constructed['transaction'])
         expect(tx_constructed).to be_correct_and_respond 202
@@ -1545,10 +1537,10 @@ RSpec.describe 'Cardano Wallet E2E tests', :all, :e2e do
         create_policy_key_if_not_exists(@target_id)
         burn = [burn(assets_name, assets_quantity, policy_script)]
         tx_constructed = SHELLEY.transactions.construct(@target_id,
-                                                        payments = nil,
-                                                        withdrawal = nil,
-                                                        metadata = nil,
-                                                        delegations = nil,
+                                                        nil, # payments
+                                                        nil, # withdrawal
+                                                        nil, # metadata
+                                                        nil, # delegations
                                                         burn)
         expect(tx_constructed).to be_correct_and_respond 403
         expect(tx_constructed['code'].to_s).to eq 'not_enough_money'
@@ -1566,7 +1558,7 @@ RSpec.describe 'Cardano Wallet E2E tests', :all, :e2e do
                                     'asset_name' => assets_name,
                                     'quantity' => assets_quantity }] }]
 
-        tx_constructed, tx_signed, tx_submitted = construct_sign_submit(@target_id, payment)
+        _, _, tx_submitted = construct_sign_submit(@target_id, payment)
         tx_id = tx_submitted['id']
         wait_for_tx_in_ledger(@target_id, tx_id)
         src_after_sending = get_shelley_balances(@wid)
@@ -1575,12 +1567,12 @@ RSpec.describe 'Cardano Wallet E2E tests', :all, :e2e do
 
         # Burn them on src wallet:
         burn = [burn(assets_name, assets_quantity, policy_script)]
-        tx_constructed, tx_signed, tx_submitted = construct_sign_submit(@wid,
-                                                                        payments = nil,
-                                                                        withdrawal = nil,
-                                                                        metadata = nil,
-                                                                        delegations = nil,
-                                                                        burn)
+        tx_constructed, _, tx_submitted = construct_sign_submit(@wid,
+                                                                nil, # payments
+                                                                nil, # withdrawal
+                                                                nil, # metadata
+                                                                nil, # delegations
+                                                                burn)
 
         tx_decoded = SHELLEY.transactions.decode(@wid, tx_constructed['transaction'])
         expect(tx_constructed).to be_correct_and_respond 202
@@ -1619,10 +1611,10 @@ RSpec.describe 'Cardano Wallet E2E tests', :all, :e2e do
             mint = [mint(assets_name, assets_quantity, policy_script, address)]
             create_policy_key_if_not_exists(@wid)
             tx_constructed = SHELLEY.transactions.construct(@wid,
-                                                            payments = nil,
-                                                            withdrawal = nil,
-                                                            metadata = nil,
-                                                            delegations = nil,
+                                                            nil, # payments
+                                                            nil, # withdrawal
+                                                            nil, # metadata
+                                                            nil, # delegations
                                                             mint)
             expect(tx_constructed).to be_correct_and_respond code
             expect(tx_constructed['code'].to_s).to eq message
@@ -1637,10 +1629,10 @@ RSpec.describe 'Cardano Wallet E2E tests', :all, :e2e do
             burn = [burn(assets_name, assets_quantity, policy_script)]
             create_policy_key_if_not_exists(@wid)
             tx_constructed = SHELLEY.transactions.construct(@wid,
-                                                            payments = nil,
-                                                            withdrawal = nil,
-                                                            metadata = nil,
-                                                            delegations = nil,
+                                                            nil, # payments
+                                                            nil, # withdrawal
+                                                            nil, # metadata
+                                                            nil, # delegations
                                                             burn)
             expect(tx_constructed).to be_correct_and_respond code
             expect(tx_constructed['code'].to_s).to eq message
@@ -1666,10 +1658,10 @@ RSpec.describe 'Cardano Wallet E2E tests', :all, :e2e do
             assets_quantity = 1500
             mint = [mint(assets_name, assets_quantity, policy_script, address)]
             tx_constructed = SHELLEY.transactions.construct(@wid,
-                                                            payments = nil,
-                                                            withdrawal = nil,
-                                                            metadata = nil,
-                                                            delegations = nil,
+                                                            nil, # payments
+                                                            nil, # withdrawal
+                                                            nil, # metadata
+                                                            nil, # delegations
                                                             mint)
 
             expect(tx_constructed).to be_correct_and_respond code
@@ -1699,10 +1691,10 @@ RSpec.describe 'Cardano Wallet E2E tests', :all, :e2e do
             assets_quantity = 1500
             mint = [mint(assets_name, assets_quantity, policy_script, address)]
             tx_constructed = SHELLEY.transactions.construct(@wid,
-                                                            payments = nil,
-                                                            withdrawal = nil,
-                                                            metadata = nil,
-                                                            delegations = nil,
+                                                            nil, # payments
+                                                            nil, # withdrawal
+                                                            nil, # metadata
+                                                            nil, # delegations
                                                             mint)
 
             expect(tx_constructed).to be_correct_and_respond code
@@ -1721,10 +1713,10 @@ RSpec.describe 'Cardano Wallet E2E tests', :all, :e2e do
           mint << mint(asset_name("TooBIG#{i}"), assets_quantity, policy_script, address)
         end
         tx_constructed = SHELLEY.transactions.construct(@wid,
-                                                        payments = nil,
-                                                        withdrawal = nil,
-                                                        metadata = nil,
-                                                        delegations = nil,
+                                                        nil, # payments
+                                                        nil, # withdrawal
+                                                        nil, # metadata
+                                                        nil, # delegations
                                                         mint)
 
         expect(tx_constructed).to be_correct_and_respond 403
@@ -1739,19 +1731,19 @@ RSpec.describe 'Cardano Wallet E2E tests', :all, :e2e do
       matrix.each do |o_enc|
         it o_enc do
           tx_constructed = SHELLEY.transactions.construct(@wid,
-                                                          payments = nil,
-                                                          withdrawal = nil,
+                                                          nil, # payments
+                                                          nil, # withdrawal
                                                           METADATA,
-                                                          delegations = nil,
-                                                          mint = nil,
-                                                          validity_interval = nil,
-                                                          encoding = o_enc)
+                                                          nil, # delegations
+                                                          nil, # mint
+                                                          nil, # validity_interval
+                                                          o_enc) # encoding
           expect(tx_constructed).to be_correct_and_respond 202
           expect(method("#{o_enc}?".to_sym).call(tx_constructed['transaction'])).to be true
 
           tx_signed = SHELLEY.transactions.sign(@wid, PASS,
                                                 tx_constructed['transaction'],
-                                                encoding = o_enc)
+                                                o_enc)
           expect(tx_signed).to be_correct_and_respond 202
           expect(method("#{o_enc}?".to_sym).call(tx_signed['transaction'])).to be true
         end
@@ -1759,9 +1751,9 @@ RSpec.describe 'Cardano Wallet E2E tests', :all, :e2e do
     end
   end
 
-  describe "E2E Shared" do
-    describe "E2E Construct -> Sign -> Submit", :shared do
-      it "I can get min_utxo_value when contructing tx" do
+  describe 'E2E Shared' do
+    describe 'E2E Construct -> Sign -> Submit', :shared do
+      it 'I can get min_utxo_value when contructing tx' do
         amt = 1
         tx_constructed = SHARED.transactions.construct(@wid_sha, payment_payload(amt))
         expect(tx_constructed.code).to eq 403
@@ -1772,7 +1764,7 @@ RSpec.describe 'Cardano Wallet E2E tests', :all, :e2e do
         expect(tx_constructed).to be_correct_and_respond 202
       end
 
-      it "Single output transaction" do
+      it 'Single output transaction' do
         amt = MIN_UTXO_VALUE_PURE_ADA
         address = SHELLEY.addresses.list(@target_id)[1]['id']
         target_before = get_shelley_balances(@target_id)
@@ -2014,14 +2006,15 @@ RSpec.describe 'Cardano Wallet E2E tests', :all, :e2e do
         target_before = get_shelley_balances(@target_id)
         src_before = get_shared_balances(@wid_sha)
 
-        validity_interval = {"invalid_before" => {"quantity" => 500, "unit" => "slot"},
-                             "invalid_hereafter" => {"quantity" => 5000000000, "unit" => "slot"}}
-        tx_constructed = SHARED.transactions.construct(@wid_sha, payment_payload(amt, address),
-                                                        withdrawal = nil,
-                                                        metadata = nil,
-                                                        delegations = nil,
-                                                        mint_burn = nil,
-                                                        validity_interval)
+        validity_interval = { 'invalid_before' => { 'quantity' => 500, 'unit' => 'slot' },
+                              'invalid_hereafter' => { 'quantity' => 5_000_000_000, 'unit' => 'slot' } }
+        tx_constructed = SHARED.transactions.construct(@wid_sha,
+                                                       payment_payload(amt, address),
+                                                       nil, # withdrawal
+                                                       nil, # metadata
+                                                       nil, # delegations
+                                                       nil, # mint_burn
+                                                       validity_interval)
         expect(tx_constructed).to be_correct_and_respond 202
         expected_fee = tx_constructed['fee']['quantity']
 
@@ -2041,7 +2034,7 @@ RSpec.describe 'Cardano Wallet E2E tests', :all, :e2e do
         expect(tx_decoded['validity_interval']['invalid_hereafter']).to eq validity_interval['invalid_hereafter']
         expect(tx_decoded['collateral']).to eq []
         expect(tx_decoded['collateral_outputs']).to eq []
-        expect(tx_decoded['metadata']).to eq metadata
+        expect(tx_decoded['metadata']).to eq nil
         expect(tx_decoded['deposits_taken']).to eq []
         expect(tx_decoded['deposits_returned']).to eq []
         expect(tx_decoded['withdrawals']).to eq []
@@ -2092,10 +2085,10 @@ RSpec.describe 'Cardano Wallet E2E tests', :all, :e2e do
         # We can submit such tx, but cannot tell when tx is actually in ledger
         # (as we cannot get tx history (ADP-2224))
         metadata = METADATA
-        balance = get_shared_balances(@wid_sha)
+        # balance = get_shared_balances(@wid_sha)
         tx_constructed = SHARED.transactions.construct(@wid_sha,
-                                                       payments = nil,
-                                                       withdrawal = nil,
+                                                       nil, # payments
+                                                       nil, # withdrawal
                                                        metadata)
         expect(tx_constructed).to be_correct_and_respond 202
         expected_fee = tx_constructed['fee']['quantity']
@@ -2139,7 +2132,7 @@ RSpec.describe 'Cardano Wallet E2E tests', :all, :e2e do
 
       it 'Delegation (without submitting)' do
         # Delegation not yet implemented, only construct and sign in this tc
-        balance = get_shared_balances(@wid_sha)
+        # balance = get_shared_balances(@wid_sha)
         expected_deposit = CARDANO_CLI.protocol_params['stakeAddressDeposit']
         puts "Expected deposit #{expected_deposit}"
 
@@ -2155,12 +2148,13 @@ RSpec.describe 'Cardano Wallet E2E tests', :all, :e2e do
           }
         }]
 
-        tx_constructed = SHARED.transactions.construct(@wid_sha, payment = nil,
-                                                       withdrawal = nil,
-                                                       metadata = nil,
+        tx_constructed = SHARED.transactions.construct(@wid_sha,
+                                                       nil, # payment
+                                                       nil, # withdrawal
+                                                       nil, # metadata
                                                        delegation,
-                                                       mint_burn = nil,
-                                                       validity_interval = nil)
+                                                       nil, # mint_burn
+                                                       nil) # validity_interval
         # Check fee and deposit on joining
         tx_decoded = SHARED.transactions.decode(@wid_sha, tx_constructed['transaction'])
         expect(tx_decoded).to be_correct_and_respond 202
@@ -2198,7 +2192,7 @@ RSpec.describe 'Cardano Wallet E2E tests', :all, :e2e do
       describe 'Minting and Burning' do
         it 'Can mint and then burn (without submitting)' do
           # Minting and Burning not yet implemented, only construct and sign in this tc
-          src_before = get_shared_balances(@wid_sha)
+          # src_before = get_shared_balances(@wid_sha)
           policy_script1 = 'cosigner#0'
           policy_script2 = { 'all' => ['cosigner#0'] }
           policy_script3 = { 'any' => ['cosigner#0'] }
@@ -2208,10 +2202,11 @@ RSpec.describe 'Cardano Wallet E2E tests', :all, :e2e do
                   mint(asset_name('Token2'), 1000, policy_script2),
                   mint('', 1000, policy_script3)]
 
-          tx_constructed = SHARED.transactions.construct(@wid_sha, payment = nil,
-                                                         withdrawal = nil,
-                                                         metadata = nil,
-                                                         delegations = nil,
+          tx_constructed = SHARED.transactions.construct(@wid_sha,
+                                                         nil, # payment
+                                                         nil, # withdrawal
+                                                         nil, # metadata
+                                                         nil, # delegation
                                                          mint)
           expect(tx_constructed).to be_correct_and_respond 202
 
@@ -2291,14 +2286,14 @@ RSpec.describe 'Cardano Wallet E2E tests', :all, :e2e do
         expect(assets.to_s).to include ASSETS[1]['policy_id']
         expect(assets.to_s).to include ASSETS[1]['asset_name']
 
-        assets = SHELLEY.assets.get(@wid, policy_id = ASSETS[0]['policy_id'])
+        assets = SHELLEY.assets.get(@wid, ASSETS[0]['policy_id'])
         expect(assets).to be_correct_and_respond 200
         expect(assets['policy_id']).to eq ASSETS[0]['policy_id']
         expect(assets['asset_name']).to eq ASSETS[0]['asset_name']
         expect(assets['asset_name']).not_to eq ASSETS[1]['asset_name']
 
-        assets = SHELLEY.assets.get(@wid, policy_id = ASSETS[1]['policy_id'],
-                                    asset_name = ASSETS[1]['asset_name'])
+        assets = SHELLEY.assets.get(@wid, ASSETS[1]['policy_id'],
+                                    ASSETS[1]['asset_name'])
         expect(assets).to be_correct_and_respond 200
         expect(assets['policy_id']).to eq ASSETS[1]['policy_id']
         expect(assets['asset_name']).to eq ASSETS[1]['asset_name']
@@ -2315,7 +2310,7 @@ RSpec.describe 'Cardano Wallet E2E tests', :all, :e2e do
         expect(assets.to_s).to include ASSETS[1]['asset_name']
         expect(assets.to_s).to include ASSETS[1]['metadata']['name']
 
-        assets = SHELLEY.assets.get(@wid, policy_id = ASSETS[0]['policy_id'])
+        assets = SHELLEY.assets.get(@wid, ASSETS[0]['policy_id'])
         expect(assets).to be_correct_and_respond 200
         expect(assets['policy_id']).to eq ASSETS[0]['policy_id']
         expect(assets['asset_name']).to eq ASSETS[0]['asset_name']
@@ -2323,8 +2318,8 @@ RSpec.describe 'Cardano Wallet E2E tests', :all, :e2e do
         expect(assets['asset_name']).not_to eq ASSETS[1]['asset_name']
         expect(assets['metadata']).not_to eq ASSETS[1]['metadata']
 
-        assets = SHELLEY.assets.get(@wid, policy_id = ASSETS[1]['policy_id'],
-                                    asset_name = ASSETS[1]['asset_name'])
+        assets = SHELLEY.assets.get(@wid, ASSETS[1]['policy_id'],
+                                    ASSETS[1]['asset_name'])
         expect(assets).to be_correct_and_respond 200
         expect(assets['policy_id']).to eq ASSETS[1]['policy_id']
         expect(assets['asset_name']).to eq ASSETS[1]['asset_name']
@@ -2386,8 +2381,8 @@ RSpec.describe 'Cardano Wallet E2E tests', :all, :e2e do
       end
     end
 
-    describe "Shelley Transactions" do
-      it "I can send transaction and funds are received (min_utxo_value)" do
+    describe 'Shelley Transactions' do
+      it 'I can send transaction and funds are received (min_utxo_value)' do
         address = SHELLEY.addresses.list(@target_id)[0]['id']
         available_before = SHELLEY.wallets.get(@target_id)['balance']['available']['quantity']
         total_before = SHELLEY.wallets.get(@target_id)['balance']['total']['quantity']
@@ -2452,8 +2447,8 @@ RSpec.describe 'Cardano Wallet E2E tests', :all, :e2e do
         tx_sent = SHELLEY.transactions.create(@wid,
                                               PASS,
                                               [{ address => amt }],
-                                              withdrawal = nil,
-                                              metadata = nil,
+                                              nil, # withdrawal
+                                              nil, # metadata
                                               ttl_in_s)
 
         expect(tx_sent).to be_correct_and_respond 202
@@ -2476,8 +2471,8 @@ RSpec.describe 'Cardano Wallet E2E tests', :all, :e2e do
         tx_sent = SHELLEY.transactions.create(@wid,
                                               PASS,
                                               [{ address => amt }],
-                                              withdrawal = nil,
-                                              metadata = nil,
+                                              nil, # withdrawal
+                                              nil, # metadata
                                               ttl_in_s)
 
         expect(tx_sent).to be_correct_and_respond 202
@@ -2544,7 +2539,7 @@ RSpec.describe 'Cardano Wallet E2E tests', :all, :e2e do
         expect(meta_dst).to eq metadata
       end
 
-      it "I can estimate fee (min_utxo_value)" do
+      it 'I can estimate fee (min_utxo_value)' do
         metadata = METADATA
         txs = SHELLEY.transactions
         # get required minimum ada
@@ -2698,7 +2693,7 @@ RSpec.describe 'Cardano Wallet E2E tests', :all, :e2e do
                                     'asset_name' => ASSETS[1]['asset_name'],
                                     'quantity' => 1 }] }]
 
-        rnd = SHELLEY.coin_selections.random(@wid, payload, withdrawal = 'self', m = METADATA)
+        rnd = SHELLEY.coin_selections.random(@wid, payload, 'self', METADATA)
 
         expect(rnd).to be_correct_and_respond 200
         expect(rnd.to_s).to include 'outputs'
@@ -2736,7 +2731,6 @@ RSpec.describe 'Cardano Wallet E2E tests', :all, :e2e do
       end
 
       it 'I could trigger random coin selection delegation action - if I known pool id' do
-        addresses = SHELLEY.addresses.list(@wid)
         action_join = { action: 'join', pool: SPID_BECH32 }
         action_quit = { action: 'quit' }
 
@@ -2762,8 +2756,7 @@ RSpec.describe 'Cardano Wallet E2E tests', :all, :e2e do
     end
   end
 
-  describe "E2E Byron" do
-
+  describe 'E2E Byron' do
     def test_byron_fees(source_wid)
       txs = BYRON.transactions
       # get required minimum ada
@@ -2847,20 +2840,20 @@ RSpec.describe 'Cardano Wallet E2E tests', :all, :e2e do
       expect(assets.to_s).to include ASSETS[1]['metadata']['name']
     end
 
-    describe "Byron Transactions" do
-      it "I can estimate fees (min_utxo_value), random" do
+    describe 'Byron Transactions' do
+      it 'I can estimate fees (min_utxo_value), random' do
         test_byron_fees(@wid_rnd)
       end
 
-      it "I can estimate fees (min_utxo_value), icarus" do
+      it 'I can estimate fees (min_utxo_value), icarus' do
         test_byron_fees(@wid_ic)
       end
 
-      it "I can send transaction and funds are received (min_utxo_value), random -> shelley" do
+      it 'I can send transaction and funds are received (min_utxo_value), random -> shelley' do
         test_byron_tx(@wid_rnd, @target_id)
       end
 
-      it "I can send transaction and funds are received (min_utxo_value), icarus -> shelley" do
+      it 'I can send transaction and funds are received (min_utxo_value), icarus -> shelley' do
         test_byron_tx(@wid_ic, @target_id)
       end
     end
@@ -2913,7 +2906,7 @@ RSpec.describe 'Cardano Wallet E2E tests', :all, :e2e do
       end
 
       it 'I can get native assets by policy_id -> random' do
-        assets = BYRON.assets.get(@wid_rnd, policy_id = ASSETS[0]['policy_id'])
+        assets = BYRON.assets.get(@wid_rnd, ASSETS[0]['policy_id'])
         expect(assets).to be_correct_and_respond 200
         expect(assets['policy_id']).to eq ASSETS[0]['policy_id']
         expect(assets['asset_name']).to eq ASSETS[0]['asset_name']
@@ -2923,7 +2916,7 @@ RSpec.describe 'Cardano Wallet E2E tests', :all, :e2e do
       end
 
       it 'I can get native assets by policy_id and asset_name -> random' do
-        assets = BYRON.assets.get(@wid_rnd, policy_id = ASSETS[1]['policy_id'], asset_name = ASSETS[1]['asset_name'])
+        assets = BYRON.assets.get(@wid_rnd, ASSETS[1]['policy_id'], ASSETS[1]['asset_name'])
         expect(assets).to be_correct_and_respond 200
         expect(assets['policy_id']).to eq ASSETS[1]['policy_id']
         expect(assets['asset_name']).to eq ASSETS[1]['asset_name']
