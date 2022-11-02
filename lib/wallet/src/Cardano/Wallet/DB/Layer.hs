@@ -136,7 +136,7 @@ import Cardano.Wallet.Primitive.AddressDerivation
 import Cardano.Wallet.Primitive.Passphrase
     ( PassphraseHash )
 import Cardano.Wallet.Primitive.Slotting
-    ( TimeInterpreter, epochOf, firstSlotInEpoch, interpretQuery )
+    ( TimeInterpreter, firstSlotInEpoch, interpretQuery )
 import Control.Exception
     ( throw )
 import Control.Monad
@@ -692,14 +692,7 @@ newDBLayerWith _cacheBehavior _tr ti SqliteContext{runQuery} = do
                         (mkWalletMetadataUpdate meta)
                     pure $ Right ()
 
-        , readWalletMeta_ = \wid -> do
-            readCheckpoint wid >>= \case
-                Nothing -> pure Nothing
-                Just cp -> do
-                    currentEpoch <- liftIO $
-                        interpretQuery ti (epochOf $ cp ^. #currentTip . #slotNo)
-                    readDelegation_ (dbDelegation wid) currentEpoch
-                        >>= readWalletMetadata wid
+        , readWalletMeta_ = readWalletMetadata
         }
 
 
@@ -817,15 +810,14 @@ newDBLayerWith _cacheBehavior _tr ti SqliteContext{runQuery} = do
 
     let atomically_ = withMVar queryLock . const . runQuery
 
-    pure $ mkDBLayerFromParts DBLayerCollection{..}
+    pure $ mkDBLayerFromParts ti DBLayerCollection{..}
 
 
 readWalletMetadata
     :: W.WalletId
-    -> W.WalletDelegation
     -> SqlPersistT IO (Maybe W.WalletMetadata)
-readWalletMetadata wid walDel =
-     fmap (metadataFromEntity walDel . entityVal)
+readWalletMetadata wid =
+     fmap (metadataFromEntity . entityVal)
         <$> selectFirst [WalId ==. wid] []
 
 {-----------------------------------------------------------------------
@@ -939,14 +931,14 @@ mkWalletMetadataUpdate meta =
         W.passphraseScheme <$> meta ^. #passphraseInfo
     ]
 
-metadataFromEntity :: W.WalletDelegation -> Wallet -> W.WalletMetadata
-metadataFromEntity walDelegation wal = W.WalletMetadata
+metadataFromEntity :: Wallet -> W.WalletMetadata
+metadataFromEntity wal = W.WalletMetadata
     { name = W.WalletName (walName wal)
     , creationTime = walCreationTime wal
     , passphraseInfo = W.WalletPassphraseInfo
         <$> walPassphraseLastUpdatedAt wal
         <*> walPassphraseScheme wal
-    , delegation = walDelegation
+    , delegation = error "to be removed"
     }
 
 genesisParametersFromEntity

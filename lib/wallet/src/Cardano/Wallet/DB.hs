@@ -1,6 +1,7 @@
 {-# LANGUAGE DataKinds #-}
 {-# LANGUAGE ExistentialQuantification #-}
 {-# LANGUAGE LambdaCase #-}
+{-# LANGUAGE OverloadedLabels #-}
 {-# LANGUAGE RankNTypes #-}
 {-# LANGUAGE RecordWildCards #-}
 {-# LANGUAGE ScopedTypeVariables #-}
@@ -61,7 +62,7 @@ import Cardano.Wallet.Primitive.Types
     , SortOrder (..)
     , WalletDelegation (..)
     , WalletId
-    , WalletMetadata
+    , WalletMetadata (..)
     )
 import Cardano.Wallet.Primitive.Types.Coin
     ( Coin )
@@ -76,7 +77,7 @@ import Cardano.Wallet.Primitive.Types.Tx
     , TxStatus
     )
 import Control.Monad.IO.Class
-    ( MonadIO )
+    ( MonadIO, liftIO )
 import Control.Monad.Trans.Except
     ( ExceptT (..), runExceptT )
 import Data.DBVar
@@ -92,6 +93,10 @@ import Data.Word
 import UnliftIO.Exception
     ( Exception )
 
+import Cardano.Wallet.Primitive.Slotting
+    ( TimeInterpreter, epochOf, interpretQuery )
+import Data.Generics.Internal.VL
+    ( (^.) )
 import qualified Data.Map.Strict as Map
 
 -- | Instantiate database layers at will
@@ -407,17 +412,27 @@ data DBLayerCollection stm m s k = DBLayerCollection
 -- | Create a legacy 'DBLayer' from smaller database layers.
 mkDBLayerFromParts
     :: forall stm m s k. (MonadIO stm, MonadFail stm)
-    => DBLayerCollection stm m s k -> DBLayer m s k
-mkDBLayerFromParts DBLayerCollection{..} = DBLayer
+    => TimeInterpreter IO
+    -> DBLayerCollection stm m s k
+    -> DBLayer m s k
+mkDBLayerFromParts ti DBLayerCollection{..} = DBLayer
     { initializeWallet = initializeWallet_ dbWallets
     , removeWallet = removeWallet_ dbWallets
     , listWallets = listWallets_ dbWallets
     , walletsDB = walletsDB_ dbCheckpoints
     , putCheckpoint = putCheckpoint_ dbCheckpoints
-    , readCheckpoint = readCheckpoint_ dbCheckpoints
+    , readCheckpoint = readCheckpoint'
     , listCheckpoints = listCheckpoints_ dbCheckpoints
     , putWalletMeta = putWalletMeta_ dbWalletMeta
-    , readWalletMeta = readWalletMeta_ dbWalletMeta
+    , readWalletMeta = \wid -> do
+        readCheckpoint' wid >>= \case
+            Nothing -> pure Nothing
+            Just cp -> do
+                currentEpoch <- liftIO $
+                    interpretQuery ti (epochOf $ cp ^. #currentTip . #slotNo)
+                del <- readDelegation_ (dbDelegation wid) currentEpoch
+                mwm <- readWalletMeta_ dbWalletMeta wid
+                pure $ fmap (\m -> m{delegation=del}) mwm
     , isStakeKeyRegistered = \wid -> wrapNoSuchWallet wid $
         isStakeKeyRegistered_ (dbDelegation wid)
     , putDelegationCertificate = \wid a b -> wrapNoSuchWallet wid $
@@ -455,6 +470,7 @@ mkDBLayerFromParts DBLayerCollection{..} = DBLayer
     , atomically = atomically_
     }
   where
+    readCheckpoint' = readCheckpoint_ dbCheckpoints
     wrapNoSuchWallet
         :: WalletId
         -> stm a
