@@ -99,7 +99,7 @@ RSpec.describe CardanoWallet::Shared, :all, :shared do
                     name: 'Shared wallet',
                     account_index: acc_ix,
                     payment_script_template: payment_script_template,
-                    payment_script_template: delegation_script_template }
+                    delegation_script_template: delegation_script_template }
 
         size = SHARED.wallets.list.size
         wallet = SHARED.wallets.create(payload)
@@ -132,7 +132,7 @@ RSpec.describe CardanoWallet::Shared, :all, :shared do
                     name: 'Shared wallet',
                     account_index: acc_ix,
                     payment_script_template: payment_script_template,
-                    payment_script_template: delegation_script_template }
+                    delegation_script_template: delegation_script_template }
 
         size = SHARED.wallets.list.size
         wallet = SHARED.wallets.create(payload)
@@ -336,11 +336,11 @@ RSpec.describe CardanoWallet::Shared, :all, :shared do
           ca_wid_acct_key = CA.key_walletid(acct_key, template)
 
           # based on pub key from acct prv key
-          pub_key = CA.key_public(acct_key, with_chain_code = true)
+          pub_key = CA.key_public(acct_key, with_chain_code: true)
           ca_wid_pub_key = CA.key_walletid(pub_key, template)
 
           # wallet id from cardano-wallet is the same
-          expect(ca_wid_acct_key).to eq ca_wid_acct_key
+          expect(ca_wid_acct_key).to eq ca_wid_pub_key
           expect(wid).to eq ca_wid_acct_key
         end
 
@@ -377,11 +377,11 @@ RSpec.describe CardanoWallet::Shared, :all, :shared do
           ca_wid_acct_key = CA.key_walletid(acct_key, template)
 
           # based on pub key from acct prv key
-          pub_key = CA.key_public(acct_key, with_chain_code = true)
+          pub_key = CA.key_public(acct_key, with_chain_code: true)
           ca_wid_pub_key = CA.key_walletid(pub_key, template)
 
           # wallet id from cardano-wallet is the same
-          expect(ca_wid_acct_key).to eq ca_wid_acct_key
+          expect(ca_wid_acct_key).to eq ca_wid_pub_key
           expect(wid).to eq ca_wid_acct_key
         end
       end
