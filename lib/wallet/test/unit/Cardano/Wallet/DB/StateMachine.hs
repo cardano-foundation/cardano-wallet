@@ -446,7 +446,8 @@ runMock = \case
     PutWalletMeta wid meta ->
         first (Resp . fmap Unit) . mPutWalletMeta wid meta
     ReadWalletMeta wid ->
-        first (Resp . fmap Metadata) . mReadWalletMeta timeInterpreter wid
+        first (Resp . fmap (Metadata . fmap fst) )
+            . mReadWalletMeta timeInterpreter wid
     PutDelegationCertificate wid cert sl ->
         first (Resp . fmap Unit) . mPutDelegationCertificate wid cert sl
     IsStakeKeyRegistered wid ->
@@ -520,7 +521,7 @@ runIO db@DBLayer{..} = fmap Resp . go
             atomically (listCheckpoints wid)
         PutWalletMeta wid meta -> catchNoSuchWallet Unit $
             mapExceptT atomically $ putWalletMeta wid meta
-        ReadWalletMeta wid -> fmap (Right . Metadata) $
+        ReadWalletMeta wid -> fmap (Right . (Metadata . fmap fst)) $
             atomically $ readWalletMeta wid
         PutDelegationCertificate wid pool sl -> catchNoSuchWallet Unit $
             mapExceptT atomically $ putDelegationCertificate wid pool sl

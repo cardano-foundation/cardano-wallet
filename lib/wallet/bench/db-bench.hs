@@ -121,8 +121,6 @@ import Cardano.Wallet.Primitive.Types
     , SlottingParameters (..)
     , SortOrder (..)
     , StartTime (..)
-    , WalletDelegation (..)
-    , WalletDelegationStatus (..)
     , WalletId (..)
     , WalletMetadata (..)
     , WalletName (..)
@@ -859,7 +857,6 @@ testMetadata :: WalletMetadata
 testMetadata = WalletMetadata
     { name = WalletName "test wallet"
     , passphraseInfo = Nothing
-    , delegation = WalletDelegation NotDelegating []
     , creationTime = systemToUTCTime (MkSystemTime 0 0)
     }
 

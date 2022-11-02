@@ -153,7 +153,7 @@ properties = do
         it "Wallet Metadata" $
             property . prop_readAfterPut
                 (\DBLayer{..} a0 -> mapExceptT atomically . putWalletMeta a0)
-                (\DBLayer{..} -> atomically . readWalletMeta)
+                (\DBLayer{..} -> atomically . fmap (fmap fst) . readWalletMeta)
         it "Tx History" $
             property . prop_readAfterPut
                 putTxHistory_
@@ -180,7 +180,7 @@ properties = do
         it "Wallet Metadata" $
             property . prop_putBeforeInit
                 (\DBLayer{..} a0 -> mapExceptT atomically . putWalletMeta a0)
-                (\DBLayer{..} -> atomically . readWalletMeta)
+                (\DBLayer{..} -> atomically . fmap (fmap fst) . readWalletMeta)
                 Nothing
         it "Tx History" $
             property . prop_putBeforeInit
@@ -240,7 +240,7 @@ properties = do
         it "Wallet Metadata" $
             checkCoverage . prop_sequentialPut
                 (\DBLayer{..} a0 -> mapExceptT atomically . putWalletMeta a0)
-                (\DBLayer{..} -> atomically . readWalletMeta)
+                (\DBLayer{..} -> atomically . fmap (fmap fst) . readWalletMeta)
                 lrp
         it "Tx History" $
             checkCoverage . prop_sequentialPut
@@ -262,7 +262,7 @@ properties = do
         it "Wallet Metadata" $
             checkCoverage . prop_parallelPut
                 (\DBLayer{..} a0 -> mapExceptT atomically . putWalletMeta a0)
-                (\DBLayer{..} -> atomically . readWalletMeta)
+                (\DBLayer{..} -> atomically . fmap (fmap fst) . readWalletMeta)
                 (length . lrp @Maybe)
         it "Tx History" $
             checkCoverage . prop_parallelPut

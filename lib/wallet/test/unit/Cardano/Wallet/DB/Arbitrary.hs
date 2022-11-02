@@ -103,8 +103,6 @@ import Cardano.Wallet.Primitive.Types
     , SlotNo (..)
     , SortOrder (..)
     , TxParameters (..)
-    , WalletDelegation (..)
-    , WalletDelegationStatus (..)
     , WalletId (..)
     , WalletMetadata (..)
     , WalletName (..)
@@ -365,7 +363,6 @@ instance Arbitrary WalletMetadata where
             [ pure Nothing
             , Just <$> (WalletPassphraseInfo <$> genUniformTime <*> arbitrary)
             ]
-        <*> pure (WalletDelegation NotDelegating [])
 
 instance Arbitrary PassphraseScheme where
     arbitrary = genericArbitrary

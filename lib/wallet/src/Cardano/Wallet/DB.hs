@@ -5,6 +5,7 @@
 {-# LANGUAGE RankNTypes #-}
 {-# LANGUAGE RecordWildCards #-}
 {-# LANGUAGE ScopedTypeVariables #-}
+{-# LANGUAGE TupleSections #-}
 
 -- |
 -- Copyright: © 2018-2020 IOHK
@@ -50,6 +51,8 @@ import Cardano.Wallet.Primitive.Model
     ( Wallet, currentTip )
 import Cardano.Wallet.Primitive.Passphrase
     ( PassphraseHash )
+import Cardano.Wallet.Primitive.Slotting
+    ( TimeInterpreter, epochOf, interpretQuery )
 import Cardano.Wallet.Primitive.Types
     ( BlockHeader
     , ChainPoint
@@ -82,6 +85,10 @@ import Control.Monad.Trans.Except
     ( ExceptT (..), runExceptT )
 import Data.DBVar
     ( DBVar )
+import Data.Functor
+    ( (<&>) )
+import Data.Generics.Internal.VL
+    ( (^.) )
 import Data.List
     ( sortOn )
 import Data.Ord
@@ -93,10 +100,6 @@ import Data.Word
 import UnliftIO.Exception
     ( Exception )
 
-import Cardano.Wallet.Primitive.Slotting
-    ( TimeInterpreter, epochOf, interpretQuery )
-import Data.Generics.Internal.VL
-    ( (^.) )
 import qualified Data.Map.Strict as Map
 
 -- | Instantiate database layers at will
@@ -209,7 +212,7 @@ data DBLayer m s k = forall stm. (MonadIO stm, MonadFail stm) => DBLayer
 
     , readWalletMeta
         :: WalletId
-        -> stm (Maybe WalletMetadata)
+        -> stm (Maybe (WalletMetadata, WalletDelegation))
         -- ^ Fetch a wallet metadata, if they exist.
         --
         -- Return 'Nothing' if there's no such wallet.
@@ -432,7 +435,7 @@ mkDBLayerFromParts ti DBLayerCollection{..} = DBLayer
                     interpretQuery ti (epochOf $ cp ^. #currentTip . #slotNo)
                 del <- readDelegation_ (dbDelegation wid) currentEpoch
                 mwm <- readWalletMeta_ dbWalletMeta wid
-                pure $ fmap (\m -> m{delegation=del}) mwm
+                pure $ mwm <&> (, del)
     , isStakeKeyRegistered = \wid -> wrapNoSuchWallet wid $
         isStakeKeyRegistered_ (dbDelegation wid)
     , putDelegationCertificate = \wid a b -> wrapNoSuchWallet wid $

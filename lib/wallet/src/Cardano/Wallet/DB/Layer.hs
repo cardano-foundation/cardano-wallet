@@ -938,7 +938,6 @@ metadataFromEntity wal = W.WalletMetadata
     , passphraseInfo = W.WalletPassphraseInfo
         <$> walPassphraseLastUpdatedAt wal
         <*> walPassphraseScheme wal
-    , delegation = error "to be removed"
     }
 
 genesisParametersFromEntity
