@@ -203,7 +203,7 @@ import Cardano.Wallet.Transaction
     , withdrawalToCoin
     )
 import Cardano.Wallet.Util
-    ( internalError, modifyM )
+    ( HasCallStack, internalError, modifyM )
 import Cardano.Wallet.Write.Tx
     ( fromCardanoUTxO )
 import Codec.Serialise
@@ -2439,16 +2439,26 @@ mkUnsignedTx
 dummyInput :: TxIn
 dummyInput = TxIn (Hash $ BS.replicate 32 0) 999
 
-removeDummyInput :: Cardano.TxBody era -> Cardano.TxBody era
-removeDummyInput (Cardano.ShelleyTxBody era bod scripts scriptData aux val) =
-    (Cardano.ShelleyTxBody era (removeDummyIn bod) scripts scriptData aux val)
-
+removeDummyInput :: HasCallStack => Cardano.TxBody era -> Cardano.TxBody era
+removeDummyInput = \case
+    Byron.ByronTxBody {} ->
+        bailOut
+    Cardano.ShelleyTxBody era body scripts scriptData aux val -> case era of
+        ShelleyBasedEraShelley ->
+            bailOut
+        ShelleyBasedEraAllegra ->
+            bailOut
+        ShelleyBasedEraMary ->
+            bailOut
+        ShelleyBasedEraAlonzo ->
+            bailOut
+        ShelleyBasedEraBabbage ->
+            Cardano.ShelleyTxBody
+                era (body `removeInput` dummyInput) scripts scriptData aux val
   where
-    removeDummyIn body = case era of
-        ShelleyBasedEraBabbage -> body
-            { Babbage.inputs = Set.delete (toLedger dummyInput) (Babbage.inputs body)
-            }
-        _ -> error "todo"
+    bailOut = error "removeDummyInput only supported for the Babbage era"
+    removeInput b i = b
+        {Babbage.inputs = Set.delete (toLedger i) (Babbage.inputs b)}
 
 mkWithdrawals
     :: NetworkId
