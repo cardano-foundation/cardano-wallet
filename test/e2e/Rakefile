@@ -223,11 +223,11 @@ task :display_versions do
 
   bin_dir = BINS == '' ? BINS : "#{BINS}/"
   if win?
-    cmd "#{bin_dir}cardano-wallet.exe version", true
-    cmd "#{bin_dir}cardano-node.exe version", true
+    cmd "#{bin_dir}cardano-wallet.exe version", display_result: true
+    cmd "#{bin_dir}cardano-node.exe version", display_result: true
   else
-    cmd "#{bin_dir}cardano-wallet version", true
-    cmd "#{bin_dir}cardano-node version", true
+    cmd "#{bin_dir}cardano-wallet version", display_result: true
+    cmd "#{bin_dir}cardano-node version", display_result: true
   end
 end
 
