@@ -2244,25 +2244,17 @@ postTransactionFeeOld ctx@ApiLayer{..} (ApiT wid) body =
         liftHandler $ mkApiFee Nothing minCoins <$> W.estimateFee runSelection
 
 constructTransaction
-    :: forall ctx s k n ktype.
-        ( ctx ~ ApiLayer s k ktype
-        , GenChange s
-        , HasNetworkLayer IO ctx
-        , IsOurs s Address
-        , Typeable n
-        , Typeable s
-        , Typeable k
-        , WalletKey k
-        , BoundedAddressLength k
-        )
-    => ctx
-    -> ArgGenChange s
+    :: forall n. Typeable n
+    => ApiLayer (SeqState n ShelleyKey) ShelleyKey 'CredFromKeyK
+    -> ArgGenChange (SeqState n ShelleyKey)
     -> IO (Set PoolId)
     -> (PoolId -> IO PoolLifeCycleStatus)
     -> ApiT WalletId
     -> ApiConstructTransactionData n
     -> Handler (ApiConstructTransaction n)
-constructTransaction ctx genChange knownPools getPoolStatus apiw@(ApiT wid) body = do
+constructTransaction
+    ctx genChange knownPools getPoolStatus apiw@(ApiT wid) body = do
+
     let isNoPayload =
             isNothing (body ^. #payments) &&
             isNothing (body ^. #withdrawal) &&
@@ -2341,12 +2333,12 @@ constructTransaction ctx genChange knownPools getPoolStatus apiw@(ApiT wid) body
     withWorkerCtx ctx wid liftE liftE $ \wrk -> do
         let db = wrk ^. dbLayer
             netLayer = wrk ^. networkLayer
-            txLayer = wrk ^. transactionLayer
+            txLayer = wrk ^. transactionLayer @ShelleyKey @'CredFromKeyK
         pp <- liftIO $ NW.currentProtocolParameters netLayer
         era <- liftIO $ NW.currentNodeEra netLayer
         wdrl <- case body ^. #withdrawal of
-            Just SelfWithdraw ->
-                liftIO $ W.shelleyOnlyMkSelfWithdrawal @s @k @ktype @_ @n
+            Just SelfWithdraw -> liftIO
+                $ W.shelleyOnlyMkSelfWithdrawal @_ @_ @_ @_ @n
                     netLayer txLayer era db wid
             _ -> pure NoWithdrawal
         (deposit, refund, txCtx) <- case body ^. #delegations of
@@ -2366,11 +2358,11 @@ constructTransaction ctx genChange knownPools getPoolStatus apiw@(ApiT wid) body
                         pools <- liftIO knownPools
                         curEpoch <- getCurrentEpoch ctx
                         (del, act) <- liftHandler $ W.joinStakePool
-                            @_ @s @k wrk curEpoch pools pid poolStatus wid
+                            wrk curEpoch pools pid poolStatus wid
                         pure (del, act, Nothing)
                     [(Leaving _)] -> do
-                        del <- liftIO $
-                            W.validatedQuitStakePoolAction @s @k db wid wdrl
+                        del <-
+                            liftIO $ W.validatedQuitStakePoolAction db wid wdrl
                         pure (del, Nothing, Just $ W.stakeKeyDeposit pp)
                     _ ->
                         liftHandler $
@@ -2386,7 +2378,7 @@ constructTransaction ctx genChange knownPools getPoolStatus apiw@(ApiT wid) body
         (txCtx', policyXPubM) <-
             if isJust mintingBurning' then do
                 (policyXPub, _) <-
-                    liftHandler $ W.readPolicyPublicKey @_ @s @k @n wrk wid
+                    liftHandler $ W.readPolicyPublicKey @_ @_ @_ @n wrk wid
                 let isMinting (ApiMintBurnData _ _ (ApiMint _)) = True
                     isMinting _ = False
                 let getMinting = \case
@@ -2394,7 +2386,7 @@ constructTransaction ctx genChange knownPools getPoolStatus apiw@(ApiT wid) body
                             (ApiT scriptT)
                             (Just (ApiT tName))
                             (ApiMint (ApiMintData _ amt)) ->
-                            toTokenMapAndScript @k
+                            toTokenMapAndScript @ShelleyKey
                                 scriptT
                                 (Map.singleton (Cosigner 0) policyXPub)
                                 tName
@@ -2405,7 +2397,7 @@ constructTransaction ctx genChange knownPools getPoolStatus apiw@(ApiT wid) body
                             (ApiT scriptT)
                             (Just (ApiT tName))
                             (ApiBurn (ApiBurnData amt)) ->
-                            toTokenMapAndScript @k
+                            toTokenMapAndScript @ShelleyKey
                                 scriptT
                                 (Map.singleton (Cosigner 0) policyXPub)
                                 tName
@@ -2456,11 +2448,11 @@ constructTransaction ctx genChange knownPools getPoolStatus apiw@(ApiT wid) body
                 { outputs = outs ++ mintingOuts
                 , assetsToMint = fst $ txCtx' ^. #txAssetsToMint
                 , assetsToBurn = fst $ txCtx' ^. #txAssetsToBurn
-                , extraCoinSource = fromMaybe (Coin 0)refund
+                , extraCoinSource = fromMaybe (Coin 0) refund
                 , extraCoinSink = fromMaybe (Coin 0) deposit
                 }
-        _unbalancedTx <- liftHandler
-            $ W.constructTransaction @_ @s @k @n @ktype
+        unbalancedTx <- liftHandler $
+            W.constructTransaction @_ @_ @_ @n @'CredFromKeyK
                 wrk wid era txCtx' (Left preSel)
 
         let balancedPostData = ApiBalanceTransactionPostData
@@ -2469,11 +2461,11 @@ constructTransaction ctx genChange knownPools getPoolStatus apiw@(ApiT wid) body
                 , redeemers = []
                 , encoding = body ^. #encoding
                 }
-        balancedTx <- balanceTransaction ctx genChange (ApiT wid) balancedPostData
-        apiDecoded <- decodeTransaction @_ @s @k @n ctx apiw balancedTx
+        balancedTx <-
+            balanceTransaction ctx genChange (ApiT wid) balancedPostData
+        apiDecoded <- decodeTransaction @_ @_ @n ctx apiw balancedTx
 
-        (_, _, rewardPath) <-
-            liftHandler $ W.readRewardAccount @_ @s @k @n wrk wid
+        (_, _, rewardPath) <- liftHandler $ W.readRewardAccount @n db wid
 
         pure $ ApiConstructTransaction
             { transaction = balancedTx
@@ -2528,22 +2520,22 @@ constructTransaction ctx genChange knownPools getPoolStatus apiw@(ApiT wid) body
 
     unsignedTx path initialOuts decodedTx = UnsignedTx
         { unsignedCollateral =
-                mapMaybe toUnsignedTxInp (decodedTx ^. #collateral)
+            mapMaybe toUnsignedTxInp (decodedTx ^. #collateral)
         , unsignedInputs =
-                mapMaybe toUnsignedTxInp (decodedTx ^. #inputs)
+            mapMaybe toUnsignedTxInp (decodedTx ^. #inputs)
         , unsignedOutputs =
-                mapMaybe (toUnsignedTxOut initialOuts) (decodedTx ^. #outputs)
+            mapMaybe (toUnsignedTxOut initialOuts) (decodedTx ^. #outputs)
         , unsignedChange =
-                mapMaybe (toUnsignedTxChange initialOuts) (decodedTx ^. #outputs)
+            mapMaybe (toUnsignedTxChange initialOuts) (decodedTx ^. #outputs)
         , unsignedWithdrawals =
-                mapMaybe (toUsignedTxWdrl path) (decodedTx ^. #withdrawals)
+            mapMaybe (toUsignedTxWdrl path) (decodedTx ^. #withdrawals)
         }
 
     toMintTxOut policyXPub
         (ApiMintBurnData (ApiT scriptT) (Just (ApiT tName))
             (ApiMint (ApiMintData (Just addr) amt))) =
                 let (assetId, tokenQuantity, _) =
-                        toTokenMapAndScript @k
+                        toTokenMapAndScript @ShelleyKey
                             scriptT (Map.singleton (Cosigner 0) policyXPub)
                             tName amt
                     assets = fromFlatList [(assetId, tokenQuantity)]
