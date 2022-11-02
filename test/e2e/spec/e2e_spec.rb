@@ -54,7 +54,7 @@ RSpec.describe 'Cardano Wallet E2E tests', :all, :e2e do
       # cardano-cli transaction build  \
       # 	--babbage-era  \
       # 	$NETWORK_ID \
-      # 	--tx-in "f26945b0bcc0ad3de6c44fcc78473a193017748ce0d54189a8e4d3c810d04295#0"  \
+      # 	--tx-in "ab08ccdf5c62ad8008d0ac165b68ff714b88de19235a9bd65c731fc264125daf#0"  \
       # 	--tx-out $(<AlwaysFails.addr)+50000000  \
       # 	--tx-out-datum-hash $(<datumhash) \
       # 	--change-address $(cat payment.addr) \
@@ -77,7 +77,7 @@ RSpec.describe 'Cardano Wallet E2E tests', :all, :e2e do
       when 'testnet'
         script_utxo = '54b4e4e34a022424e441b00d8a73e9aaef71b3c63084e76246d326074c5d3756#1'
       when 'preview'
-        script_utxo = '3a759fbbcacacdeced0a885c1835f4c4dd583387acc393e0cebae60e2de678a2#1'
+        script_utxo = '0c07395aed88bdddc6de0518d1462dd0ec7e52e1e3a53599f7cdb24dc80237f8#1'
       else
         skip %(
                 This test cannot be executed on '#{ENV.fetch('NETWORK', nil)}' yet!
