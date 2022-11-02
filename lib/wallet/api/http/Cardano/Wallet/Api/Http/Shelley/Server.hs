@@ -2483,40 +2483,55 @@ constructTransaction
 
     singleton x = [x]
 
-    toUnsignedTxChange initialOuts (WalletOutput (ApiWalletOutput (ApiT addr, _) (Quantity c) (ApiT tmap) derPath)) =
-        let txchange = TxChange addr (Coin $ fromIntegral c) tmap (NE.map getApiT derPath)
-            txout = TxOut addr (TokenBundle (Coin $ fromIntegral c) tmap)
-        in if txout `L.notElem` initialOuts then
-              Just txchange
-           else
-              Nothing
-    toUnsignedTxChange _initialOuts (ExternalOutput _) =
-              Nothing
+    toUnsignedTxChange initialOuts = \case
+        WalletOutput o ->
+            let address = getApiT (fst (o ^. #address))
+                derivationPath = fmap getApiT (o ^. #derivationPath)
+                coin = Coin.fromQuantity (o ^. #amount)
+                assets = getApiT (o ^. #assets)
+                txChange = TxChange address coin assets derivationPath
+                txOut = TxOut address (TokenBundle coin assets)
+            in
+            if txOut `L.notElem` initialOuts then Just txChange else Nothing
+        ExternalOutput _ ->
+            Nothing
 
-    toUnsignedTxOut initialOuts (WalletOutput (ApiWalletOutput (ApiT addr, _) (Quantity c) (ApiT tmap) _)) =
-        let txout = TxOut addr (TokenBundle (Coin $ fromIntegral c) tmap)
-        in if txout `L.elem` initialOuts then
-              Just txout
-           else
-              Nothing
-    toUnsignedTxOut initialOuts (ExternalOutput (AddressAmount (ApiT addr, _) (Quantity c) (ApiT tmap))) =
-        let txout = TxOut addr (TokenBundle (Coin $ fromIntegral c) tmap)
-        in if txout `L.elem` initialOuts then
-              Just txout
-           else
-              Nothing
+    toUnsignedTxOut initialOuts = \case
+        WalletOutput o ->
+            let address = getApiT (fst (o ^. #address))
+                coin = Coin.fromQuantity (o ^. #amount)
+                assets = getApiT (o ^. #assets)
+                txOut = TxOut address (TokenBundle coin assets)
+            in
+            if txOut `L.elem` initialOuts then Just txOut else Nothing
+        ExternalOutput o ->
+            let address = getApiT (fst (o ^. #address))
+                coin = Coin.fromQuantity (o ^. #amount)
+                assets = getApiT (o ^. #assets)
+                txOut = TxOut address (TokenBundle coin assets)
+            in
+            if txOut `L.elem` initialOuts then Just txOut else Nothing
 
-    toUsignedTxWdrl p (ApiWithdrawalGeneral (ApiT rewardAcc,_) (Quantity amt) Our) =
-        Just (rewardAcc, Coin $ fromIntegral amt, p)
-    toUsignedTxWdrl _p (ApiWithdrawalGeneral _ _ External) =
-        Nothing
+    toUsignedTxWdrl p = \case
+        ApiWithdrawalGeneral (ApiT rewardAcc, _) amount Our ->
+            Just (rewardAcc, Coin.fromQuantity amount, p)
+        ApiWithdrawalGeneral _ _ External ->
+            Nothing
 
-    toUnsignedTxInp (WalletInput (ApiWalletInput (ApiT txid) ix (ApiT addr,_) derPath (Quantity c) (ApiT tmap) )) =
-        Just ( TxIn txid ix
-             , TxOut addr (TokenBundle (Coin $ fromIntegral c) tmap)
-             , NE.map getApiT derPath)
-    toUnsignedTxInp (ExternalInput _) =
-        Nothing
+    toUnsignedTxInp = \case
+        WalletInput i ->
+            let txId = getApiT (i ^. #id)
+                index = i ^. #index
+                address = getApiT (fst (i ^. #address))
+                derivationPath = fmap getApiT (i ^. #derivationPath)
+                coin = Coin.fromQuantity (i ^. #amount)
+                assets = getApiT (i ^. #assets)
+                txIn = TxIn txId index
+                txOut = TxOut address (TokenBundle coin assets)
+            in
+            Just (txIn, txOut, derivationPath)
+        ExternalInput _ ->
+            Nothing
 
     unsignedTx path initialOuts decodedTx = UnsignedTx
         { unsignedCollateral =
