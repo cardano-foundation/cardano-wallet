@@ -329,7 +329,11 @@ import Cardano.Wallet.Api.Types.MintBurn
 import Cardano.Wallet.Api.Types.SchemaMetadata
     ( TxMetadataSchema (..), TxMetadataWithSchema (TxMetadataWithSchema) )
 import Cardano.Wallet.CoinSelection
-    ( PreSelection (..), SelectionOf (..), SelectionStrategy (..), selectionDelta )
+    ( PreSelection (..)
+    , SelectionOf (..)
+    , SelectionStrategy (..)
+    , selectionDelta
+    )
 import Cardano.Wallet.Compat
     ( (^?) )
 import Cardano.Wallet.DB
