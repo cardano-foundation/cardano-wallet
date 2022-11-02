@@ -2422,17 +2422,17 @@ mkUnsignedTx
     inputWits = case cs of
         Right selOf ->
             if inpsScripts == Map.empty then
-                (,Cardano.BuildTxWith (Cardano.KeyWitness Cardano.KeyWitnessForSpending))
-                . toCardanoTxIn
-                . fst <$> F.toList (view #inputs selOf)
+                (, buildTxCommand)
+                    . toCardanoTxIn
+                    . fst <$> F.toList (view #inputs selOf)
             else
                 constructInpScriptWit . fst <$> F.toList (view #inputs selOf)
         Left _preSel ->
-            [( toCardanoTxIn dummyInput
-             , Cardano.BuildTxWith (Cardano.KeyWitness Cardano.KeyWitnessForSpending))]
-
-
-
+            [(toCardanoTxIn dummyInput, buildTxCommand)]
+      where
+        buildTxCommand
+            = Cardano.BuildTxWith
+            $ Cardano.KeyWitness Cardano.KeyWitnessForSpending
 
 -- cardano-node does not allow to construct tx without inputs at this moment.
 -- this should change and this hack should be removed
