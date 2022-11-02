@@ -7,6 +7,7 @@
 {-# LANGUAGE RecordWildCards #-}
 {-# LANGUAGE ScopedTypeVariables #-}
 {-# LANGUAGE TypeApplications #-}
+{-# LANGUAGE MultiWayIf #-}
 
 -- |
 -- Copyright: © 2018-2020 IOHK
@@ -675,6 +676,10 @@ newDBLayerWith _cacheBehavior _tr ti SqliteContext{runQuery} = do
                 (Just GarbageCollectTxWalletsHistory, ())
 
         {-----------------------------------------------------------------------
+                                    Wallet Delegation
+        -----------------------------------------------------------------------}
+    let dbDelegation = mkDBDelegation ti
+        {-----------------------------------------------------------------------
                                    Wallet Metadata
         -----------------------------------------------------------------------}
     let
@@ -693,14 +698,10 @@ newDBLayerWith _cacheBehavior _tr ti SqliteContext{runQuery} = do
                 Just cp -> do
                     currentEpoch <- liftIO $
                         interpretQuery ti (epochOf $ cp ^. #currentTip . #slotNo)
-                    readWalletDelegation ti wid currentEpoch
+                    readDelegation_ (dbDelegation wid) currentEpoch
                         >>= readWalletMetadata wid
         }
 
-        {-----------------------------------------------------------------------
-                                    Wallet Delegation
-        -----------------------------------------------------------------------}
-    let dbDelegation = mkDBDelegation
 
         {-----------------------------------------------------------------------
                                      Tx History
@@ -831,8 +832,11 @@ readWalletMetadata wid walDel =
                             Wallet Delegation
 -----------------------------------------------------------------------}
 {- HLINT ignore mkDBDelegation "Avoid lambda" -}
-mkDBDelegation :: W.WalletId -> DBDelegation (SqlPersistT IO)
-mkDBDelegation wid = DBDelegation
+mkDBDelegation 
+    :: TimeInterpreter IO 
+    -> W.WalletId 
+    -> DBDelegation (SqlPersistT IO)
+mkDBDelegation ti wid = DBDelegation
     { isStakeKeyRegistered_ = do
         val <- fmap entityVal <$> selectFirst
             [StakeKeyCertWalletId ==. wid]
@@ -867,6 +871,29 @@ mkDBDelegation wid = DBDelegation
     , readDelegationRewardBalance_ =
         Coin.fromWord64 . maybe 0 (rewardAccountBalance . entityVal) <$>
             selectFirst [RewardWalletId ==. wid] []
+    , readDelegation_ = \epoch -> if
+        | epoch == 0 -> pure $ W.WalletDelegation W.NotDelegating []
+        | otherwise -> do
+            (eMinus1, e) <- liftIO $ interpretQuery ti $
+                (,) <$> firstSlotInEpoch (epoch - 1) <*> firstSlotInEpoch epoch
+            active <- maybe W.NotDelegating toWalletDelegationStatus
+                <$> readDelegationCertificate wid
+                    [ CertSlot <. eMinus1
+                    ]
+            next <- catMaybes <$> sequence
+                [ fmap (W.WalletDelegationNext (epoch + 1) 
+                    . toWalletDelegationStatus)
+                    <$> readDelegationCertificate wid
+                        [ CertSlot >=. eMinus1
+                        , CertSlot <. e
+                        ]
+                , fmap (W.WalletDelegationNext (epoch + 2) 
+                    . toWalletDelegationStatus)
+                    <$> readDelegationCertificate wid
+                        [ CertSlot >=. e
+                        ]
+                ]
+            pure $ W.WalletDelegation active next
     }
 
 readWalletDelegation
@@ -895,7 +922,6 @@ readWalletDelegation ti wid epoch
                     [ CertSlot >=. e
                     ]
             ]
-
         pure $ W.WalletDelegation active next
 
 readDelegationCertificate
