@@ -59,10 +59,10 @@ PASS = 'Secure Passphrase'
 
 ##
 # Artificial, non-existing id's
-TXID = "1acf9c0f504746cbd102b49ffaf16dcafd14c0a2f1bbb23af265fbe0a04951cc"
-SPID = "feea59bc6664572e631e9adfee77142cb51264156debf2e52970cc00"
-SPID_BECH32 = "pool1v7g9ays8h668d74xjvln9xuh9adzh6xz0v0hvcd3xukpck5z56d"
-DEV_NULL_ADDR = "addr_test1qp760qtlwv6cyvvkpz3a6s0y72aea4xd4da85rm5qe2u6awgscyn6cz7plwgtanjanvpg9xt4lc3wlrqhcw5cmxk334q0wca8l"
+TXID = '1acf9c0f504746cbd102b49ffaf16dcafd14c0a2f1bbb23af265fbe0a04951cc'
+SPID = 'feea59bc6664572e631e9adfee77142cb51264156debf2e52970cc00'
+SPID_BECH32 = 'pool1v7g9ays8h668d74xjvln9xuh9adzh6xz0v0hvcd3xukpck5z56d'
+DEV_NULL_ADDR = 'addr_test1qp760qtlwv6cyvvkpz3a6s0y72aea4xd4da85rm5qe2u6awgscyn6cz7plwgtanjanvpg9xt4lc3wlrqhcw5cmxk334q0wca8l'
 
 # exemplary metadata
 METADATA = { '0' => { 'string' => 'cardano' },
@@ -99,8 +99,7 @@ MIN_UTXO_VALUE_PURE_ADA = 1_000_000
 def payment_payload(amt, addr = DEV_NULL_ADDR)
   [{ :address => addr,
      :amount => { :quantity => amt,
-                  :unit => 'lovelace' }
-   }]
+                  :unit => 'lovelace' } }]
 end
 
 def create_incomplete_shared_wallet(m, acc_ix, acc_xpub)
@@ -138,12 +137,12 @@ def patch_incomplete_shared_wallet(wid, payment_patch, deleg_patch)
     expect(p_upd).to be_correct_and_respond 200
   end
 
-  if deleg_patch
-    d_upd = SHARED.wallets.update_delegation_script(wid,
-                                                    deleg_patch.keys.first,
-                                                    deleg_patch.values.first)
-    expect(d_upd).to be_correct_and_respond 200
-  end
+  return unless deleg_patch
+
+  d_upd = SHARED.wallets.update_delegation_script(wid,
+                                                  deleg_patch.keys.first,
+                                                  deleg_patch.values.first)
+  expect(d_upd).to be_correct_and_respond 200
 end
 
 def create_active_shared_wallet(m, acc_ix, acc_xpub)

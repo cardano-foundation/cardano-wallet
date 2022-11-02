@@ -19,13 +19,17 @@ Layout/MethodLength:
 
 Metrics/ParameterLists:
   Max: 15
+  MaxOptionalParameters: 10
 
 Naming/VariableNumber:
   CheckSymbols: false
 
 Naming/MethodParameterName:
-  Enabled: False
-  
+  Enabled: false
+
 Style/HashSyntax:
   EnforcedStyle: no_mixed_keys
   EnforcedShorthandSyntax: either
+
+Style/MixinUsage:
+  Enabled: false
