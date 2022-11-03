@@ -1,8 +1,8 @@
 {-# LANGUAGE DataKinds #-}
 {-# LANGUAGE NoMonomorphismRestriction #-}
 {-# LANGUAGE RankNTypes #-}
-
 {-# LANGUAGE ScopedTypeVariables #-}
+{-# LANGUAGE TupleSections #-}
 {-# LANGUAGE TypeApplications #-}
 {-# LANGUAGE TypeFamilies #-}
 
@@ -17,12 +17,15 @@ module Cardano.Wallet.DB.Store.Transactions.Store
     ( selectTxSet
     , putTxSet
     , mkStoreTransactions
+    , mkDBTxSet
+    , DBTxSet (..)
     ) where
 
 import Prelude
 
 import Cardano.Wallet.DB.Sqlite.Schema
     ( CBOR (..)
+    , CBOR (..)
     , EntityField (..)
     , TxCollateral (..)
     , TxCollateralOut (..)
@@ -36,6 +39,7 @@ import Cardano.Wallet.DB.Sqlite.Types
     ( TxId )
 import Cardano.Wallet.DB.Store.Transactions.Model
     ( DeltaTxSet (..)
+    , DeltaTxSet
     , TxRelation (..)
     , TxSet (..)
     , tokenCollateralOrd
@@ -43,6 +47,8 @@ import Cardano.Wallet.DB.Store.Transactions.Model
     )
 import Control.Arrow
     ( Arrow ((&&&)) )
+import Control.Monad.Reader
+    ( MonadIO, ReaderT )
 import Data.DBVar
     ( Store (..) )
 import Data.Foldable
@@ -56,11 +62,14 @@ import Data.List.Split
 import Data.Map.Strict
     ( Map )
 import Data.Maybe
-    ( maybeToList )
+    ( listToMaybe, maybeToList )
 import Data.Monoid
     ( First (..), getFirst )
 import Database.Persist.Sql
-    ( Entity
+    ( BaseBackend
+    , Entity
+    , PersistEntity (PersistEntityBackend)
+    , PersistQueryRead
     , SqlPersistT
     , deleteWhere
     , entityVal
@@ -78,11 +87,11 @@ mkStoreTransactions =
     Store
     { loadS = Right <$> selectTxSet
     , writeS = write
-    , updateS = update
+    , updateS = const update
     }
 
-update :: TxSet -> DeltaTxSet -> SqlPersistT IO ()
-update _ change = case change of
+update :: DeltaTxSet -> SqlPersistT IO ()
+update change = case change of
     Append txs -> putTxSet txs
     DeleteTx tid -> do
         deleteWhere [TxInputTxId ==. tid ]
@@ -139,17 +148,17 @@ selectTxSet = TxSet <$> select
         outputs <- mkMap txOutputTxId selectListAll
         collateralOutputs
             <- fmap getFirst <$> mkMap txCollateralOutTxId selectListAll
-        widths <- mkMap txWithdrawalTxId selectListAll
+        withs <- mkMap txWithdrawalTxId selectListAll
         outTokens <- mkMap txOutTokenTxId selectListAll
         collateralTokens <- mkMap txCollateralOutTokenTxId selectListAll
-        cbors :: Map TxId (First  CBOR) <- mkMap cborTxId selectListAll
+        cbors <- mkMap cborTxId selectListAll
         let ids =
                 fold
                     [Map.keysSet inputs
                    , Map.keysSet collaterals
                    , Map.keysSet outputs
                    , Map.keysSet collateralOutputs
-                   , Map.keysSet widths
+                   , Map.keysSet withs
                    , Map.keysSet outTokens
                    , Map.keysSet collateralTokens
                     ]
@@ -167,7 +176,7 @@ selectTxSet = TxSet <$> select
                 $ TxRelation
                 { ins = sortOn txInputOrder $ orEmpty k inputs
                 , collateralIns = sortOn txCollateralOrder
-                      $ orEmpty k collaterals
+                    $ orEmpty k collaterals
                 , outs = fmap (fmap $ sortOn tokenOutOrd)
                       $ sortOn (txOutputIndex . fst)
                       $ (id &&& selectOutTokens k)
@@ -175,7 +184,7 @@ selectTxSet = TxSet <$> select
                 , collateralOuts = fmap (fmap $ sortOn tokenCollateralOrd)
                       $ (id &&& selectCollateralTokens k)
                       <$> Map.findWithDefault Nothing k collateralOutputs
-                , withdrawals = sortOn txWithdrawalAccount $ orEmpty k widths
+                , withdrawals = sortOn txWithdrawalAccount $ orEmpty k withs
                 , cbor = getFirst $ Map.findWithDefault (First Nothing) k cbors
                 }
 
@@ -187,3 +196,56 @@ mkMap k v =
     Map.fromListWith (<>)
     . fmap ((k &&& pure) . entityVal)
     <$> v
+
+-- | Select one transaction from the database.
+selectTx :: TxId -> SqlPersistT IO (Maybe TxRelation)
+selectTx k = select
+  where
+    selectK
+        :: (MonadIO m, PersistEntityBackend record ~ BaseBackend backend
+            , PersistQueryRead backend, PersistEntity record)
+        => EntityField record TxId
+        -> ReaderT backend m [record]
+    selectK f = fmap entityVal <$> selectList [f ==. k] []
+    select :: SqlPersistT IO (Maybe TxRelation)
+    select = do
+        inputs <- selectK TxInputTxId
+        collaterals <- selectK TxCollateralTxId
+        outputs <- selectK TxOutputTxId
+        collateralOutputs <-  selectK TxCollateralOutTxId
+        withds <- selectK TxWithdrawalTxId
+        outTokens <- selectK TxOutTokenTxId
+        collateralTokens <- selectK TxCollateralOutTokenTxId
+        mcbor <- selectK CborTxId
+        let
+            selectOutTokens :: TxOut -> [TxOutToken]
+            selectOutTokens txOut = filter
+                (\token -> txOutTokenTxIndex token == txOutputIndex txOut)
+                outTokens
+        pure $ Just $ TxRelation
+                { ins = sortOn txInputOrder inputs
+                , collateralIns = sortOn txCollateralOrder collaterals
+                , outs = fmap (fmap $ sortOn tokenOutOrd)
+                    $ sortOn (txOutputIndex . fst)
+                    $ (id &&& selectOutTokens)
+                    <$> outputs
+                , collateralOuts = listToMaybe collateralOutputs
+                    <&> (, sortOn tokenCollateralOrd collateralTokens)
+                , withdrawals = sortOn txWithdrawalAccount withds
+                , cbor = listToMaybe mcbor
+                }
+
+-- | A database layer that stores transactions.
+data DBTxSet stm = DBTxSet
+    { getTxById
+        :: TxId -> stm (Maybe TxRelation)
+    , updateTxSet
+        :: DeltaTxSet -> stm ()
+    }
+
+-- | Create a 'DBTxSet' specialized for sqlite backend
+mkDBTxSet :: DBTxSet (SqlPersistT IO)
+mkDBTxSet = DBTxSet
+    {   getTxById = selectTx
+    ,   updateTxSet = update
+    }
