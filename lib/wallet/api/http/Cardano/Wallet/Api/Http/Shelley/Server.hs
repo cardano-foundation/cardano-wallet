@@ -2453,7 +2453,7 @@ constructTransaction
                 }
         unbalancedTx <- liftHandler $
             W.constructTransaction @_ @_ @_ @n @'CredFromKeyK
-                wrk wid era txCtx' (Left preSel)
+                wrk wid era txCtx' preSel
 
         let balancedPostData = ApiBalanceTransactionPostData
                 { transaction = ApiT unbalancedTx
