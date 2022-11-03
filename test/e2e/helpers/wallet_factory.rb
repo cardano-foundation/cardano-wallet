@@ -1,3 +1,5 @@
+# frozen_string_literal: true
+
 ##
 # Factory helper for creating and deleting wallets and keeping their ids in shared context.
 # Assumes CONTEXT, SHELLEY, SHARED, BYRON to be initialized.

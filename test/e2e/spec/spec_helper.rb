@@ -1,23 +1,25 @@
-require "bundler/setup"
-require "cardano_wallet"
-require "base64"
-require "blake2b"
-require "mustache"
-require "cbor"
+# frozen_string_literal: true
+
+require 'bundler/setup'
+require 'cardano_wallet'
+require 'base64'
+require 'blake2b'
+require 'mustache'
+require 'cbor'
 require 'tmpdir'
-require_relative "../env"
-require_relative "../helpers/utils"
-require_relative "../helpers/matchers"
-require_relative "../helpers/context"
-require_relative "../helpers/wallet_factory"
-require_relative "../helpers/cardano_addresses"
-require_relative "../helpers/cardano_cli"
+require_relative '../env'
+require_relative '../helpers/utils'
+require_relative '../helpers/matchers'
+require_relative '../helpers/context'
+require_relative '../helpers/wallet_factory'
+require_relative '../helpers/cardano_addresses'
+require_relative '../helpers/cardano_cli'
 
 include Helpers::Utils
 
 RSpec.configure do |config|
   # Enable flags like --only-failures and --next-failure
-  config.example_status_persistence_file_path = ".rspec_status"
+  config.example_status_persistence_file_path = '.rspec_status'
 
   # Disable RSpec exposing methods globally on `Module` and `main`
   config.disable_monkey_patching!
@@ -26,7 +28,6 @@ RSpec.configure do |config|
     c.syntax = :expect
   end
 end
-
 
 # Helpers
 
@@ -48,63 +49,57 @@ NODE = CW.misc.node
 CA = CardanoAddresses.new
 
 CONTEXT = Context.new
-CONTEXT.env = ENV['NETWORK']
+CONTEXT.env = ENV.fetch('NETWORK', nil)
 
 CARDANO_CLI = CardanoCli.new(get_protocol_magic(CONTEXT.env))
 
 ##
 # default passphrase for wallets
-PASS = "Secure Passphrase"
+PASS = 'Secure Passphrase'
 
 ##
 # Artificial, non-existing id's
-TXID = "1acf9c0f504746cbd102b49ffaf16dcafd14c0a2f1bbb23af265fbe0a04951cc"
-SPID = "feea59bc6664572e631e9adfee77142cb51264156debf2e52970cc00"
-SPID_BECH32 = "pool1v7g9ays8h668d74xjvln9xuh9adzh6xz0v0hvcd3xukpck5z56d"
-DEV_NULL_ADDR = "addr_test1qp760qtlwv6cyvvkpz3a6s0y72aea4xd4da85rm5qe2u6awgscyn6cz7plwgtanjanvpg9xt4lc3wlrqhcw5cmxk334q0wca8l"
+TXID = '1acf9c0f504746cbd102b49ffaf16dcafd14c0a2f1bbb23af265fbe0a04951cc'
+SPID = 'feea59bc6664572e631e9adfee77142cb51264156debf2e52970cc00'
+SPID_BECH32 = 'pool1v7g9ays8h668d74xjvln9xuh9adzh6xz0v0hvcd3xukpck5z56d'
+DEV_NULL_ADDR = 'addr_test1qp760qtlwv6cyvvkpz3a6s0y72aea4xd4da85rm5qe2u6awgscyn6cz7plwgtanjanvpg9xt4lc3wlrqhcw5cmxk334q0wca8l'
 
 # exemplary metadata
-METADATA = { "0" => { "string" => "cardano" },
-             "1" => { "int" => 14 },
-             "2" => { "bytes" => "2512a00e9653fe49a44a5886202e24d77eeb998f" },
-             "3" => { "list" => [ { "int" => 14 }, { "int" => 42 }, { "string" => "1337" } ] },
-             "4" => { "map" => [ { "k" => { "string" => "key" }, "v" => { "string" => "value" } },
-                             { "k" => { "int" => 14 }, "v" => { "int" => 42 } } ] } }
+METADATA = { '0' => { 'string' => 'cardano' },
+             '1' => { 'int' => 14 },
+             '2' => { 'bytes' => '2512a00e9653fe49a44a5886202e24d77eeb998f' },
+             '3' => { 'list' => [{ 'int' => 14 }, { 'int' => 42 }, { 'string' => '1337' }] },
+             '4' => { 'map' => [{ 'k' => { 'string' => 'key' }, 'v' => { 'string' => 'value' } },
+                                { 'k' => { 'int' => 14 }, 'v' => { 'int' => 42 } }] } }.freeze
 
 # Testnet assets with metadata from mock server https://metadata.cardano-testnet.iohkdev.io/
-ASSETS = [ { "policy_id" => "ee1ce9d7560f48a4ba3867037dbec2d8fed776d94dd6b00a35309073",
-             "asset_name" => "",
-             "fingerprint" => "asset1s3yhz885gnyu2wcpz5h275u37hw3axz3c9sfqu",
-             "metadata" => { "name" => "SadCoin",
-                            "description" => "Coin with no asset name",
-                            "url" => "https://sad.io",
-                            "ticker" => "SAD",
-                            "logo" => "iVBORw0KGgoAAAANSUhEUgAAABkAAAAeCAYAAADZ7LXbAAAACXBIWXMAAA7EAAAOxAGVKw4bAAACbUlEQVRIie3Vy0tUURzA8e855965c8lXUhlhEQVBSEmQRAURQbSIEqFl4N6/oHYtAhdtonatK8hVBCERZC+0jbZpIRVkIeagTJrO3Nd5tBhDMHOcGiHCA2dxHvDh9zs/fkc45xwbPORGA5tI/RFdGCL9MgAm/mNEVKuuaHA3OW+RlDb8zjt4O07VjFRPV8NBZC5PGMxj3/YQv7uGs7p+iJ5+ipgfIZr7hnWSXBjgT98iHr6IS+fqg7h0Dl8ZQpmQFKdJSmWkkuSj10TD3WCzv0f89m6S8BjWQehbVDpPWiojsASlEeLxG3WIJFtANneQei3EqpnMeWRxgtMahYGP/dhoqiry2+rKJh9i3l8l2KIRUlVQazDlRXTpOzIr43uQ7LlCvrO/9kjisT7Ehz6CBgtCki4sEC+ALpdQQUC+qQmXC3EO3NQAsHaP/QVx1mBnh5BKYpOYON2L6npJ/sw4svMRacmCc+TyOQwKGX/CRl9rQ4SQyPZeFqM27L7bhCcHUY37AVCtR7EtZ8EZhLN4vkIKhy1N1Ibo4ijq83UavAl04QmIFVekB1aDNQhnQFBZ14KABauRaFThHrrwbPmkPImYeQw6A5OBNRjnIxsPrIl4KzdUcwep9SFL8JVHNnqJeFcvyBCm7hJQBKPBZJWH334eGe5cE1m1hKM3l8nP3kcICVLiEEuXLfycQKpBnnhRtWmuWsLBkZtEucNYa8BkCJMiTFrJ/RLgHJjWc+vqyqsiMthGePo5SWsP2ohKWpamdZBqQbz1AvnjD6oCsI7/RM+8whTHljf8RrzWLlTLoXUB60LqMf6NP34T+T+RH/HOKLJ+ho1iAAAAAElFTkSuQmCC"
-                            }
-           },
-           { "policy_id" => "919e8a1922aaa764b1d66407c6f62244e77081215f385b60a6209149",
-             "asset_name" => asset_name("HappyCoin"),
-             "fingerprint" => "asset19mwamgpre24at3z34v2e5achszlhhqght9djqp",
-             "metadata" => { "name" => "HappyCoin",
-                            "description" => "Coin with asset name - and everyone is happy!!!",
-                            "url" => "https://happy.io",
-                            "decimals" => 6,
-                            "ticker" => "HAPP",
-                            "logo" => "iVBORw0KGgoAAAANSUhEUgAAABkAAAAeCAYAAADZ7LXbAAAACXBIWXMAAA7EAAAOxAGVKw4bAAACbUlEQVRIie3Vy0tUURzA8e855965c8lXUhlhEQVBSEmQRAURQbSIEqFl4N6/oHYtAhdtonatK8hVBCERZC+0jbZpIRVkIeagTJrO3Nd5tBhDMHOcGiHCA2dxHvDh9zs/fkc45xwbPORGA5tI/RFdGCL9MgAm/mNEVKuuaHA3OW+RlDb8zjt4O07VjFRPV8NBZC5PGMxj3/YQv7uGs7p+iJ5+ipgfIZr7hnWSXBjgT98iHr6IS+fqg7h0Dl8ZQpmQFKdJSmWkkuSj10TD3WCzv0f89m6S8BjWQehbVDpPWiojsASlEeLxG3WIJFtANneQei3EqpnMeWRxgtMahYGP/dhoqiry2+rKJh9i3l8l2KIRUlVQazDlRXTpOzIr43uQ7LlCvrO/9kjisT7Ehz6CBgtCki4sEC+ALpdQQUC+qQmXC3EO3NQAsHaP/QVx1mBnh5BKYpOYON2L6npJ/sw4svMRacmCc+TyOQwKGX/CRl9rQ4SQyPZeFqM27L7bhCcHUY37AVCtR7EtZ8EZhLN4vkIKhy1N1Ibo4ijq83UavAl04QmIFVekB1aDNQhnQFBZ14KABauRaFThHrrwbPmkPImYeQw6A5OBNRjnIxsPrIl4KzdUcwep9SFL8JVHNnqJeFcvyBCm7hJQBKPBZJWH334eGe5cE1m1hKM3l8nP3kcICVLiEEuXLfycQKpBnnhRtWmuWsLBkZtEucNYa8BkCJMiTFrJ/RLgHJjWc+vqyqsiMthGePo5SWsP2ohKWpamdZBqQbz1AvnjD6oCsI7/RM+8whTHljf8RrzWLlTLoXUB60LqMf6NP34T+T+RH/HOKLJ+ho1iAAAAAElFTkSuQmCC"
-                            }
-            },
-         ]
+ASSETS = [{ 'policy_id' => 'ee1ce9d7560f48a4ba3867037dbec2d8fed776d94dd6b00a35309073',
+            'asset_name' => '',
+            'fingerprint' => 'asset1s3yhz885gnyu2wcpz5h275u37hw3axz3c9sfqu',
+            'metadata' => { 'name' => 'SadCoin',
+                            'description' => 'Coin with no asset name',
+                            'url' => 'https://sad.io',
+                            'ticker' => 'SAD',
+                            'logo' => 'iVBORw0KGgoAAAANSUhEUgAAABkAAAAeCAYAAADZ7LXbAAAACXBIWXMAAA7EAAAOxAGVKw4bAAACbUlEQVRIie3Vy0tUURzA8e855965c8lXUhlhEQVBSEmQRAURQbSIEqFl4N6/oHYtAhdtonatK8hVBCERZC+0jbZpIRVkIeagTJrO3Nd5tBhDMHOcGiHCA2dxHvDh9zs/fkc45xwbPORGA5tI/RFdGCL9MgAm/mNEVKuuaHA3OW+RlDb8zjt4O07VjFRPV8NBZC5PGMxj3/YQv7uGs7p+iJ5+ipgfIZr7hnWSXBjgT98iHr6IS+fqg7h0Dl8ZQpmQFKdJSmWkkuSj10TD3WCzv0f89m6S8BjWQehbVDpPWiojsASlEeLxG3WIJFtANneQei3EqpnMeWRxgtMahYGP/dhoqiry2+rKJh9i3l8l2KIRUlVQazDlRXTpOzIr43uQ7LlCvrO/9kjisT7Ehz6CBgtCki4sEC+ALpdQQUC+qQmXC3EO3NQAsHaP/QVx1mBnh5BKYpOYON2L6npJ/sw4svMRacmCc+TyOQwKGX/CRl9rQ4SQyPZeFqM27L7bhCcHUY37AVCtR7EtZ8EZhLN4vkIKhy1N1Ibo4ijq83UavAl04QmIFVekB1aDNQhnQFBZ14KABauRaFThHrrwbPmkPImYeQw6A5OBNRjnIxsPrIl4KzdUcwep9SFL8JVHNnqJeFcvyBCm7hJQBKPBZJWH334eGe5cE1m1hKM3l8nP3kcICVLiEEuXLfycQKpBnnhRtWmuWsLBkZtEucNYa8BkCJMiTFrJ/RLgHJjWc+vqyqsiMthGePo5SWsP2ohKWpamdZBqQbz1AvnjD6oCsI7/RM+8whTHljf8RrzWLlTLoXUB60LqMf6NP34T+T+RH/HOKLJ+ho1iAAAAAElFTkSuQmCC' } },
+          { 'policy_id' => '919e8a1922aaa764b1d66407c6f62244e77081215f385b60a6209149',
+            'asset_name' => asset_name('HappyCoin'),
+            'fingerprint' => 'asset19mwamgpre24at3z34v2e5achszlhhqght9djqp',
+            'metadata' => { 'name' => 'HappyCoin',
+                            'description' => 'Coin with asset name - and everyone is happy!!!',
+                            'url' => 'https://happy.io',
+                            'decimals' => 6,
+                            'ticker' => 'HAPP',
+                            'logo' => 'iVBORw0KGgoAAAANSUhEUgAAABkAAAAeCAYAAADZ7LXbAAAACXBIWXMAAA7EAAAOxAGVKw4bAAACbUlEQVRIie3Vy0tUURzA8e855965c8lXUhlhEQVBSEmQRAURQbSIEqFl4N6/oHYtAhdtonatK8hVBCERZC+0jbZpIRVkIeagTJrO3Nd5tBhDMHOcGiHCA2dxHvDh9zs/fkc45xwbPORGA5tI/RFdGCL9MgAm/mNEVKuuaHA3OW+RlDb8zjt4O07VjFRPV8NBZC5PGMxj3/YQv7uGs7p+iJ5+ipgfIZr7hnWSXBjgT98iHr6IS+fqg7h0Dl8ZQpmQFKdJSmWkkuSj10TD3WCzv0f89m6S8BjWQehbVDpPWiojsASlEeLxG3WIJFtANneQei3EqpnMeWRxgtMahYGP/dhoqiry2+rKJh9i3l8l2KIRUlVQazDlRXTpOzIr43uQ7LlCvrO/9kjisT7Ehz6CBgtCki4sEC+ALpdQQUC+qQmXC3EO3NQAsHaP/QVx1mBnh5BKYpOYON2L6npJ/sw4svMRacmCc+TyOQwKGX/CRl9rQ4SQyPZeFqM27L7bhCcHUY37AVCtR7EtZ8EZhLN4vkIKhy1N1Ibo4ijq83UavAl04QmIFVekB1aDNQhnQFBZ14KABauRaFThHrrwbPmkPImYeQw6A5OBNRjnIxsPrIl4KzdUcwep9SFL8JVHNnqJeFcvyBCm7hJQBKPBZJWH334eGe5cE1m1hKM3l8nP3kcICVLiEEuXLfycQKpBnnhRtWmuWsLBkZtEucNYa8BkCJMiTFrJ/RLgHJjWc+vqyqsiMthGePo5SWsP2ohKWpamdZBqQbz1AvnjD6oCsI7/RM+8whTHljf8RrzWLlTLoXUB60LqMf6NP34T+T+RH/HOKLJ+ho1iAAAAAElFTkSuQmCC' } }].freeze
 
 ##
 # Since alonzo min_utxo_value is calculated based on the particular output size
 # 1 ADA, however should be enough for sending pure Ada output to shelley address
-MIN_UTXO_VALUE_PURE_ADA = 1000000
+MIN_UTXO_VALUE_PURE_ADA = 1_000_000
 
 def payment_payload(amt, addr = DEV_NULL_ADDR)
   [{ :address => addr,
      :amount => { :quantity => amt,
-                  :unit => 'lovelace' }
-   }]
+                  :unit => 'lovelace' } }]
 end
 
 def create_incomplete_shared_wallet(m, acc_ix, acc_xpub)
@@ -112,30 +107,25 @@ def create_incomplete_shared_wallet(m, acc_ix, acc_xpub)
                         { 'cosigner#0' => acc_xpub },
                       'template' =>
                           { 'all' =>
-                             [ 'cosigner#0',
-                               'cosigner#1'
-                             ]
-                          }
-                      }
+                             ['cosigner#0',
+                              'cosigner#1'] } }
   pscript = script_template
   dscript = script_template
-  if (m.kind_of? Array)
-    payload = { mnemonic_sentence: m,
+  payload = if m.is_a? Array
+              { mnemonic_sentence: m,
                 passphrase: PASS,
-                name: "Shared wallet",
+                name: 'Shared wallet',
                 account_index: acc_ix,
                 payment_script_template: pscript,
-                delegation_script_template: dscript,
-                }
-  else
-    payload = { account_public_key: m,
+                delegation_script_template: dscript }
+            else
+              { account_public_key: m,
                 passphrase: PASS,
-                name: "Shared wallet",
+                name: 'Shared wallet',
                 account_index: acc_ix,
                 payment_script_template: pscript,
-                delegation_script_template: dscript
-                }
-  end
+                delegation_script_template: dscript }
+            end
   WalletFactory.create(:shared, payload)['id']
 end
 
@@ -147,12 +137,12 @@ def patch_incomplete_shared_wallet(wid, payment_patch, deleg_patch)
     expect(p_upd).to be_correct_and_respond 200
   end
 
-  if deleg_patch
-    d_upd = SHARED.wallets.update_delegation_script(wid,
-                                                    deleg_patch.keys.first,
-                                                    deleg_patch.values.first)
-    expect(d_upd).to be_correct_and_respond 200
-  end
+  return unless deleg_patch
+
+  d_upd = SHARED.wallets.update_delegation_script(wid,
+                                                  deleg_patch.keys.first,
+                                                  deleg_patch.values.first)
+  expect(d_upd).to be_correct_and_respond 200
 end
 
 def create_active_shared_wallet(m, acc_ix, acc_xpub)
@@ -160,43 +150,38 @@ def create_active_shared_wallet(m, acc_ix, acc_xpub)
                         { 'cosigner#0' => acc_xpub },
                       'template' =>
                           { 'all' =>
-                             [ 'cosigner#0'
-                             ]
-                          }
-                      }
+                             ['cosigner#0'] } }
   pscript = script_template
   dscript = script_template
-  if (m.kind_of? Array)
-    payload = { mnemonic_sentence: m,
+  payload = if m.is_a? Array
+              { mnemonic_sentence: m,
                 passphrase: PASS,
-                name: "Shared wallet",
+                name: 'Shared wallet',
                 account_index: acc_ix,
                 payment_script_template: pscript,
-                delegation_script_template: dscript,
-                }
-  else
-    payload = { account_public_key: m,
+                delegation_script_template: dscript }
+            else
+              { account_public_key: m,
                 passphrase: PASS,
-                name: "Shared wallet",
+                name: 'Shared wallet',
                 account_index: acc_ix,
                 payment_script_template: pscript,
-                delegation_script_template: dscript
-                }
-  end
+                delegation_script_template: dscript }
+            end
 
   WalletFactory.create(:shared, payload)['id']
 end
 
 def wait_for_shared_wallet_to_sync(wid)
-  puts "Syncing Shared wallet..."
+  puts 'Syncing Shared wallet...'
   retry_count = 10
   begin
-    while (SHARED.wallets.get(wid)['state']['status'].to_s == "syncing") do
+    while SHARED.wallets.get(wid)['state']['status'].to_s == 'syncing'
       w = SHARED.wallets.get(wid)
       puts "  Syncing... #{w['state']['progress']['quantity'].to_i}%" if w['state']['progress']
       sleep 5
     end
-  rescue
+  rescue StandardError
     puts "Retry #{retry_count}"
     retry_count -= 1
     puts "SHARED.wallets.get(#{wid}) returned:"
@@ -211,27 +196,26 @@ def wait_for_all_shared_wallets(wids)
   end
 end
 
-def create_shelley_wallet(name = "Wallet from mnemonic_sentence",
+def create_shelley_wallet(name = 'Wallet from mnemonic_sentence',
                           mnemonic_sentence = CW.utils.mnemonic_sentence(24),
                           mnemonic_second_factor = nil)
   payload = { name: name,
               passphrase: PASS,
-              mnemonic_sentence: mnemonic_sentence
-             }
+              mnemonic_sentence: mnemonic_sentence }
   payload[:mnemonic_second_factor] = mnemonic_second_factor if mnemonic_second_factor
   WalletFactory.create(:shelley, payload)['id']
 end
 
 def wait_for_shelley_wallet_to_sync(wid)
-  puts "Syncing Shelley wallet..."
+  puts 'Syncing Shelley wallet...'
   retry_count = 10
   begin
-    while (SHELLEY.wallets.get(wid)['state']['status'].to_s == "syncing") do
+    while SHELLEY.wallets.get(wid)['state']['status'].to_s == 'syncing'
       w = SHELLEY.wallets.get(wid)
       puts "  Syncing... #{w['state']['progress']['quantity'].to_i}%" if w['state']['progress']
       sleep 5
     end
-  rescue
+  rescue StandardError
     puts "Retry #{retry_count}"
     retry_count -= 1
     puts "SHELLEY.wallets.get(#{wid}) returned:"
@@ -246,27 +230,26 @@ def wait_for_all_shelley_wallets(wids)
   end
 end
 
-def create_byron_wallet(style = "random",
-                        name = "Wallet from mnemonic_sentence",
+def create_byron_wallet(style = 'random',
+                        name = 'Wallet from mnemonic_sentence',
                         mnemonics = CW.utils.mnemonic_sentence(24))
   payload = { style: style,
               name: name,
               passphrase: PASS,
-              mnemonic_sentence: mnemonics
-             }
+              mnemonic_sentence: mnemonics }
   WalletFactory.create(:byron, payload)['id']
 end
 
 def wait_for_byron_wallet_to_sync(wid)
-  puts "Syncing Byron wallet..."
+  puts 'Syncing Byron wallet...'
   retry_count = 10
   begin
-    while (BYRON.wallets.get(wid)['state']['status'].to_s == "syncing") do
+    while BYRON.wallets.get(wid)['state']['status'].to_s == 'syncing'
       w = BYRON.wallets.get(wid)
       puts "  Syncing... #{w['state']['progress']['quantity'].to_i}%" if w['state']['progress']
       sleep 5
     end
-  rescue
+  rescue StandardError
     puts "Retry #{retry_count}"
     retry_count -= 1
     puts "BYRON.wallets.get(#{wid}) returned:"
@@ -297,10 +280,9 @@ end
 # create fixture wallet or return it's id if it exists
 # @param type [Symbol] :shelley, :shelley_light, :random, :icarus
 def create_fixture_wallet(type)
-  payload = { name: "Fixture wallet with funds",
+  payload = { name: 'Fixture wallet with funds',
               passphrase: PASS,
-              mnemonic_sentence: get_fixture_wallet_mnemonics(:fixture, type.to_sym)
-            }
+              mnemonic_sentence: get_fixture_wallet_mnemonics(:fixture, type.to_sym) }
   case type.to_sym
   when :shelley, :shelley_light
     wallet = SHELLEY.wallets.create(payload)
@@ -318,10 +300,9 @@ end
 # create target wallet or return it's id if it exists
 # @param type [Symbol] :shelley, :shared
 def create_target_wallet(type)
-  payload = { name: "Target wallet for txs",
+  payload = { name: 'Target wallet for txs',
               passphrase: PASS,
-              mnemonic_sentence: get_fixture_wallet_mnemonics(:target, type.to_sym)
-            }
+              mnemonic_sentence: get_fixture_wallet_mnemonics(:target, type.to_sym) }
   case type.to_sym
   when :shelley
     wallet = SHELLEY.wallets.create(payload)
@@ -331,10 +312,7 @@ def create_target_wallet(type)
                           { 'cosigner#0' => 'self' },
                         'template' =>
                             { 'all' =>
-                               [ 'cosigner#0'
-                               ]
-                            }
-                        }
+                               ['cosigner#0'] } }
     payload[:account_index] = '0H'
     payload[:payment_script_template] = script_template
     payload[:delegation_script_template] = script_template
@@ -350,13 +328,11 @@ end
 def eventually(label, &block)
   current_time = Time.now
   timeout_treshold = current_time + TIMEOUT
-  while (block.call == false) && (current_time <= timeout_treshold) do
+  while (block.call == false) && (current_time <= timeout_treshold)
     sleep 5
     current_time = Time.now
   end
-  if (current_time > timeout_treshold)
-    fail "Action '#{label}' did not resolve within timeout: #{TIMEOUT}s"
-  end
+  raise "Action '#{label}' did not resolve within timeout: #{TIMEOUT}s" if current_time > timeout_treshold
 end
 
 def teardown
@@ -403,11 +379,10 @@ def get_wallet_balances(wid, wallet_api)
   assets_total = w['assets']['total']
   assets_available = w['assets']['available']
   { 'total' => total,
-   'available' => available,
-   'rewards' => reward,
-   'assets_available' => assets_available,
-   'assets_total' => assets_total
-  }
+    'available' => available,
+    'rewards' => reward,
+    'assets_available' => assets_available,
+    'assets_total' => assets_total }
 end
 
 def get_shelley_balances(wid)
@@ -425,21 +400,20 @@ def get_byron_balances(wid)
   assets_total = w['assets']['total']
   assets_available = w['assets']['available']
   { 'total' => total,
-   'available' => available,
-   'assets_available' => assets_available,
-   'assets_total' => assets_total
-  }
+    'available' => available,
+    'assets_available' => assets_available,
+    'assets_total' => assets_total }
 end
 
 ##
 # verify ADA balance on src and target wallets after transaction for amt ADA
 # incurring fee ADA
 def verify_ada_balance(src_after, src_before, target_after, target_before, amt, fee)
-  expect(target_after['available']).to eq (amt + target_before['available'])
-  expect(target_after['total']).to eq (amt + target_before['total'])
+  expect(target_after['available']).to eq(amt + target_before['available'])
+  expect(target_after['total']).to eq(amt + target_before['total'])
 
-  expect(src_after['available']).to eq (src_before['available'] - amt - fee)
-  expect(src_after['total']).to eq (src_before['total'] - amt - fee)
+  expect(src_after['available']).to eq(src_before['available'] - amt - fee)
+  expect(src_after['total']).to eq(src_before['total'] - amt - fee)
 end
 
 ##
@@ -453,12 +427,12 @@ def verify_asset_balance(src_after, src_before, target_after, target_before, amt
 
   target_total_after = assets_balance(target_after['assets_total'], { assets_to_check: assets_to_check })
   target_avail_after = assets_balance(target_after['assets_available'], { assets_to_check: assets_to_check })
-  target_total_expected = assets_balance(target_before['assets_total'], { assets_to_check: assets_to_check, delta: (+amt) })
-  target_avail_expected = assets_balance(target_before['assets_available'], { assets_to_check: assets_to_check, delta: (+amt) })
+  target_total_expected = assets_balance(target_before['assets_total'], { assets_to_check: assets_to_check, delta: +amt })
+  target_avail_expected = assets_balance(target_before['assets_available'], { assets_to_check: assets_to_check, delta: +amt })
   src_total_after = assets_balance(src_after['assets_total'], { assets_to_check: assets_to_check })
   src_avail_after = assets_balance(src_after['assets_available'], { assets_to_check: assets_to_check })
-  src_total_expected = assets_balance(src_before['assets_total'], { assets_to_check: assets_to_check, delta: (-amt) })
-  src_avail_expected = assets_balance(src_before['assets_available'], { assets_to_check: assets_to_check, delta: (-amt) })
+  src_total_expected = assets_balance(src_before['assets_total'], { assets_to_check: assets_to_check, delta: -amt })
+  src_avail_expected = assets_balance(src_before['assets_available'], { assets_to_check: assets_to_check, delta: -amt })
 
   if target_before['assets_total'] == []
     target_balance_expected = assets_to_check.map { |a| { a => amt } }.to_set
@@ -485,19 +459,17 @@ end
 # Build mint payload for construct tx
 def mint(asset_name, quantity, policy_script, address = nil)
   mint = { 'operation' => { 'mint' => { 'quantity' => quantity } },
-           'policy_script_template' => policy_script
-         }
-   mint['operation']['mint']['receiving_address'] = address unless address == nil
-   mint['asset_name'] = asset_name unless asset_name == nil
-   mint
+           'policy_script_template' => policy_script }
+  mint['operation']['mint']['receiving_address'] = address unless address.nil?
+  mint['asset_name'] = asset_name unless asset_name.nil?
+  mint
 end
 
 # Build burn payload for construct tx
 def burn(asset_name, quantity, policy_script)
   burn = { 'operation' => { 'burn' => { 'quantity' => quantity } },
-           'policy_script_template' => policy_script
-         }
-  burn['asset_name'] = asset_name unless asset_name == nil
+           'policy_script_template' => policy_script }
+  burn['asset_name'] = asset_name unless asset_name.nil?
   burn
 end
 
@@ -506,8 +478,8 @@ end
 # @return [Array] - ["#{policy_id}#{asset_name}"...] of all minted/burnt assets
 def get_assets_from_decode(tx_decoded_mint_or_burn)
   tx_decoded_mint_or_burn['tokens'].map do |x|
-     assets = x['assets'].map {|z| z['asset_name']}
-     assets.map {|a| "#{x['policy_id']}#{a}"}
+    assets = x['assets'].map { |z| z['asset_name'] }
+    assets.map { |a| "#{x['policy_id']}#{a}" }
   end.flatten
 end
 
@@ -516,7 +488,7 @@ def get_policy_id_from_decode(tx_decoded_mint_or_burn)
 end
 
 ## Plutus helpers
-PLUTUS_DIR = "fixtures/plutus"
+PLUTUS_DIR = 'fixtures/plutus'
 
 ##
 # Encode input index the way Plutus does in hex-encoded CBOR script
@@ -537,17 +509,17 @@ PLUTUS_DIR = "fixtures/plutus"
 #                  $ toBits "00" <> Bits.bits (fromIntegral idx :: Integer) <> toBits "001100"
 #      ```
 def plutus_encode_idx(int)
-  raise "Not supported index. (0-127) are supported." if int > 127
+  raise 'Not supported index. (0-127) are supported.' if int > 127
+
   # convert int to binary and add trailing bit
-  b = int.to_s(2) + "0"
+  b = "#{int.to_s(2)}0"
   # add additional leading bits so it is 8-bit long
-  b = "0" * (8 - b.length) + b
+  b = ('0' * (8 - b.length)) + b
   # add additional leading and trailing bits
-  b = "00" + b + "001100"
+  b = "00#{b}001100"
   # convert to hex and add leading 0's if needed (so it is 4 digit long)
   h = binary_to_hex(b)
-  h = "0" * (4 - h.length) + h
-  h
+  ('0' * (4 - h.length)) + h
 end
 
 ##
@@ -595,7 +567,7 @@ end
 
 def create_policy_key_if_not_exists(wid)
   gpkey = SHELLEY.keys.get_policy_key(wid)
-  if gpkey.code == 403 && gpkey['code'] == "missing_policy_public_key"
+  if gpkey.code == 403 && gpkey['code'] == 'missing_policy_public_key'
     pkey = SHELLEY.keys.create_policy_key(wid, PASS)
     expect(pkey).to be_correct_and_respond 202
     pkey
@@ -627,16 +599,16 @@ end
 # which is Blake2b (28 byte long) hash of (script tag = 0x01 + policy)
 def get_policy_id(policy)
   key = Blake2b::Key.none
-  policy_id = Blake2b.hex(hex_to_bytes("01#{policy}"), key, 28)
-  policy_id
+  Blake2b.hex(hex_to_bytes("01#{policy}"), key, 28)
 end
 
 ##
 # Get all sent ADA amounts from the wallet from decoded tx outputs
 # We assume multi output transaction
 def get_sent_amts(outputs)
-  outputs.map { |o| o["amount"]["quantity"] if o["derivation_path"] == nil }
+  outputs.map { |o| o['amount']['quantity'] if o['derivation_path'].nil? }
 end
+
 ##
 # The same as get_sent_amts, but we assume single output tx
 def get_sent_amt(outputs)

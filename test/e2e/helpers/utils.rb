@@ -1,13 +1,16 @@
+# frozen_string_literal: true
+
 require 'httparty'
 require 'fileutils'
 
 module Helpers
+  # general utility methods
   module Utils
     def log(message)
       puts "[#{Time.now}] #{message}"
     end
 
-    def cmd(cmd, display_result = false)
+    def cmd(cmd, display_result: false)
       cmd.gsub(/\s+/, ' ')
       res = `#{cmd}`
       log cmd if display_result
@@ -26,7 +29,9 @@ module Helpers
     #   | cardano-address address bootstrap --root $(cat root.prv | cardano-address key public --with-chain-code) \
     #       --network-tag testnet 14H/42H
     def cardano_address_get_byron_addr(mnemonics, derivation_path)
-      root = cmd(%(echo #{mnemonics.join(' ')} | cardano-address key from-recovery-phrase Byron | cardano-address key public --with-chain-code)).gsub("\n", '')
+      root = cmd(%(echo #{mnemonics.join(' ')} | cardano-address key from-recovery-phrase Byron | cardano-address key public --with-chain-code)).gsub(
+        "\n", ''
+      )
       cmd(%(echo #{mnemonics.join(' ')} \
          | cardano-address key from-recovery-phrase Byron \
          | cardano-address key child #{derivation_path} \
@@ -37,34 +42,35 @@ module Helpers
          )).gsub("\n", '')
     end
 
-    def cardano_address_get_acc_xpub(mnemonics, derivation_path, hex = true, wallet_type = "Shared", chain_code = "--with-chain-code")
+    def cardano_address_get_acc_xpub(mnemonics, derivation_path, wallet_type = 'Shared',
+                                     chain_code = '--with-chain-code', hex: true)
       cmd(%(echo #{mnemonics.join(' ')} \
          | cardano-address key from-recovery-phrase #{wallet_type} \
          | cardano-address key child #{derivation_path} \
-         | cardano-address key public #{chain_code} #{" | bech32" if hex})).gsub("\n", '')
+         | cardano-address key public #{chain_code} #{' | bech32' if hex})).gsub("\n", '')
     end
 
     def bech32_to_base16(key)
       cmd(%(echo #{key} | bech32)).gsub("\n", '')
     end
 
-    def hex_to_bytes(s)
-      s.scan(/../).map { |x| x.hex.chr }.join
+    def hex_to_bytes(str)
+      str.scan(/../).map { |x| x.hex.chr }.join
     end
 
     def binary_to_hex(binary_as_string)
-      "%02x" % binary_as_string.to_i(2)
+      format('%02x', binary_as_string.to_i(2))
     end
 
     ##
     # encode string asset_name to hex representation
     def asset_name(asset_name)
-      asset_name.unpack("H*").first
+      asset_name.unpack1('H*')
     end
 
     def absolute_path(path)
-      if path.start_with? "."
-        File.join(Dir.pwd, path[1..-1])
+      if path.start_with? '.'
+        File.join(Dir.pwd, path[1..])
       else
         path
       end
@@ -74,21 +80,20 @@ module Helpers
     # @param kind [Symbol] :fixture or :target (fixture wallet with funds or target wallet)
     # @param type [Symbol] wallet type = :shelley, :shared, :icarus, :random
     def get_fixture_wallet_mnemonics(kind, type)
-      fixture = ENV['TESTS_E2E_FIXTURES_FILE']
-      unless File.exists? fixture
-        raise "File #{fixture} does not exist! (Hint: Template fixture file can be created with 'rake fixture_wallets_template'). Make sure to feed it with mnemonics of wallets with funds and assets."
-      end
+      fixture = ENV.fetch('TESTS_E2E_FIXTURES_FILE', nil)
+      raise "File #{fixture} does not exist! (Hint: Template fixture file can be created with 'rake fixture_wallets_template'). Make sure to feed it with mnemonics of wallets with funds and assets." unless File.exist? fixture
+
       wallets = JSON.parse File.read(fixture)
       k = kind.to_s
       t = type.to_s
-      if is_linux?
-        wallets["linux"][k][t]
-      elsif is_mac?
-        wallets["macos"][k][t]
-      elsif is_win?
-        wallets["windows"][k][t]
+      if linux?
+        wallets['linux'][k][t]
+      elsif mac?
+        wallets['macos'][k][t]
+      elsif win?
+        wallets['windows'][k][t]
       else
-        wallets["linux"][k][t]
+        raise 'Unsupported platform!'
       end
     end
 
@@ -111,28 +116,22 @@ module Helpers
       FileUtils.mv(src, dst, force: true)
     end
 
-    def is_win?
+    def win?
       RUBY_PLATFORM =~ /cygwin|mswin|mingw|bccwin|wince|emx/
     end
 
-    def is_linux?
+    def linux?
       RUBY_PLATFORM =~ /linux/
     end
 
-    def is_mac?
+    def mac?
       RUBY_PLATFORM =~ /darwin/
     end
 
     def get_latest_binary_url(pr = nil)
-      if is_linux?
-        os = "linux.musl.cardano-wallet-linux64"
-      end
-      if is_mac?
-        os = "macos.intel.cardano-wallet-macos-intel"
-      end
-      if is_win?
-        os = "linux.windows.cardano-wallet-win64"
-      end
+      os = 'linux.musl.cardano-wallet-linux64' if linux?
+      os = 'macos.intel.cardano-wallet-macos-intel' if mac?
+      os = 'linux.windows.cardano-wallet-win64' if win?
       if pr
         "https://hydra.iohk.io/job/Cardano/cardano-wallet-pr-#{pr}/#{os}/latest/download-by-type/file/binary-dist"
       else
@@ -155,19 +154,20 @@ module Helpers
     # Latest node-db snapshot updated at the end of every epoch
     def get_latest_node_db_url(env)
       raise "Unsupported env, supported are: 'mainnet' or 'testnet'" if (env != 'testnet') && (env != 'mainnet')
+
       case env
       when 'testnet'
-        "https://updates-cardano-testnet.s3.amazonaws.com/cardano-node-state/db-testnet.tar.gz"
+        'https://updates-cardano-testnet.s3.amazonaws.com/cardano-node-state/db-testnet.tar.gz'
       when 'mainnet'
-        "https://update-cardano-mainnet.iohk.io/cardano-node-state/db-mainnet.tar.gz"
+        'https://update-cardano-mainnet.iohk.io/cardano-node-state/db-mainnet.tar.gz'
       end
     end
 
     ##
     # Get protocol magic from byron-genesis.json corresponding to particular env
     def get_protocol_magic(env)
-      config = File.join(absolute_path(ENV['CARDANO_NODE_CONFIGS']), env)
-      byron_genesis = JSON.parse(File.read(File.join(config, "byron-genesis.json")))
+      config = File.join(absolute_path(ENV.fetch('CARDANO_NODE_CONFIGS', nil)), env)
+      byron_genesis = JSON.parse(File.read(File.join(config, 'byron-genesis.json')))
       byron_genesis['protocolConsts']['protocolMagic'].to_i
     end
 
@@ -185,6 +185,6 @@ end
 # extend String class with hexdump methods
 class String
   def cbor_to_hex
-    bytes.map { |x| "%02x" % x }.join
+    bytes.map { |x| format('%02x', x) }.join
   end
 end
