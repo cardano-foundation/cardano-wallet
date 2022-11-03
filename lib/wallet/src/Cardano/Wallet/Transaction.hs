@@ -25,6 +25,7 @@ module Cardano.Wallet.Transaction
       TransactionLayer (..)
     , DelegationAction (..)
     , TransactionCtx (..)
+    , PreSelection (..)
     , defaultTransactionCtx
     , Withdrawal (..)
     , withdrawalToCoin
@@ -68,8 +69,7 @@ import Cardano.Ledger.Crypto
 import Cardano.Pool.Types
     ( PoolId )
 import Cardano.Wallet.CoinSelection
-    ( PreSelection
-    , SelectionCollateralRequirement (..)
+    ( SelectionCollateralRequirement (..)
     , SelectionLimit
     , SelectionOf (..)
     , SelectionSkeleton
@@ -393,6 +393,27 @@ data TransactionCtx = TransactionCtx
     -- cardano-wallet types, which makes it useful to account for them like
     -- this. For instance: datums.
     } deriving (Show, Generic, Eq)
+
+-- | Represents a unbalanced selection.
+--
+data PreSelection = PreSelection
+    { outputs
+        :: ![TxOut]
+        -- ^ User-specified outputs
+    , assetsToMint
+        :: !TokenMap
+        -- ^ Assets to mint.
+    , assetsToBurn
+        :: !TokenMap
+        -- ^ Assets to burn.
+    , extraCoinSource
+        :: !Coin
+        -- ^ An extra source of ada.
+    , extraCoinSink
+        :: !Coin
+        -- ^ An extra sink for ada.
+    }
+    deriving (Generic, Eq, Show)
 
 data Withdrawal
     = WithdrawalSelf RewardAccount (NonEmpty DerivationIndex) Coin

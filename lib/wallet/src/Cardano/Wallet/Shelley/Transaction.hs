@@ -97,8 +97,7 @@ import Cardano.Slotting.EpochInfo
 import Cardano.Slotting.EpochInfo.API
     ( hoistEpochInfo )
 import Cardano.Wallet.CoinSelection
-    ( PreSelection (..)
-    , SelectionLimitOf (..)
+    ( SelectionLimitOf (..)
     , SelectionOf (..)
     , SelectionSkeleton (..)
     , selectionDelta
@@ -191,6 +190,7 @@ import Cardano.Wallet.Transaction
     , ErrMkTransaction (..)
     , ErrMoreSurplusNeeded (ErrMoreSurplusNeeded)
     , ErrUpdateSealedTx (..)
+    , PreSelection (..)
     , TokenMapWithScripts
     , TransactionCtx (..)
     , TransactionLayer (..)

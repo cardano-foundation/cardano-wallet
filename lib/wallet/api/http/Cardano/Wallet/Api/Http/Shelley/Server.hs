@@ -337,11 +337,7 @@ import Cardano.Wallet.Api.Types.SchemaMetadata
 import Cardano.Wallet.Api.Types.Transaction
     ( ApiValidityIntervalExplicit (..), mkApiWitnessCount )
 import Cardano.Wallet.CoinSelection
-    ( PreSelection (..)
-    , SelectionOf (..)
-    , SelectionStrategy (..)
-    , selectionDelta
-    )
+    ( SelectionOf (..), SelectionStrategy (..), selectionDelta )
 import Cardano.Wallet.Compat
     ( (^?) )
 import Cardano.Wallet.DB
@@ -509,6 +505,7 @@ import Cardano.Wallet.TokenMetadata
     ( TokenMetadataClient, fillMetadata )
 import Cardano.Wallet.Transaction
     ( DelegationAction (..)
+    , PreSelection (..)
     , TransactionCtx (..)
     , TransactionLayer (..)
     , Withdrawal (..)
