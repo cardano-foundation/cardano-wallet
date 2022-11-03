@@ -577,7 +577,7 @@ import Data.Text.Class
 import Data.Time
     ( UTCTime )
 import Data.Type.Equality
-    ( type (==), testEquality )
+    ( type (==), testEquality,type  (:~:) (..) )
 import Data.Word
     ( Word32 )
 import Fmt
@@ -3942,7 +3942,7 @@ mkRewardAccountBuilder withdrawal = do
             (getRawKey (deriveRewardAccount @k pwdP rootK), pwdP)
     case testEquality (typeRep @s) (typeRep @(SeqState n ShelleyKey)) of
         Nothing -> liftHandler $ throwE ErrReadRewardAccountNotAShelleyWallet
-        Just {} -> case withdrawal of
+        Just Refl -> case withdrawal of
             Nothing -> pure selfRewardCredentials
             Just w -> case w of
                 SelfWithdrawal -> pure selfRewardCredentials
