@@ -2437,7 +2437,7 @@ constructTransaction
                 , extraCoinSink = fromMaybe (Coin 0) deposit
                 }
         unbalancedTx <- liftHandler $
-            W.constructTransaction @_ @s @k @n wrk wid era txCtx' (Left preSel)
+            W.constructTransaction @_ @s @k @n wrk wid era txCtx' preSel
 
         let balancedPostData = ApiBalanceTransactionPostData
                 { transaction = ApiT unbalancedTx

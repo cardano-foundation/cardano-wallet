@@ -2534,15 +2534,15 @@ constructTransaction
     -> WalletId
     -> Cardano.AnyCardanoEra
     -> TransactionCtx
-    -> Either PreSelection (SelectionOf TxOut)
+    -> PreSelection
     -> ExceptT ErrConstructTx IO SealedTx
-constructTransaction ctx wid era txCtx sel = db & \DBLayer{..} -> do
+constructTransaction ctx wid era txCtx preSel = db & \DBLayer{..} -> do
     (_, xpub, _) <- withExceptT ErrConstructTxReadRewardAccount $
         readRewardAccount @ctx @s @k @n ctx wid
     mapExceptT atomically $ do
         pp <- liftIO $ currentProtocolParameters nl
         withExceptT ErrConstructTxBody $ ExceptT $ pure $
-            mkUnsignedTransaction tl era xpub pp txCtx sel
+            mkUnsignedTransaction tl era xpub pp txCtx (Left preSel)
   where
     db = ctx ^. dbLayer @IO @s @k
     tl = ctx ^. transactionLayer @k @'CredFromKeyK
