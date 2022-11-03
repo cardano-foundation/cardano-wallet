@@ -777,8 +777,8 @@ estimateMaxWitnessRequiredPerInput = \case
     RequireAnyOf xs      ->
         optimumIfNotEmpty maximum $ map estimateMaxWitnessRequiredPerInput xs
     RequireSomeOf m xs   ->
-        let smallestReqFirst =
-                L.sort $ map estimateMaxWitnessRequiredPerInput xs
-        in sum $ take (fromIntegral m) (reverse smallestReqFirst)
+        let largestReqFirst =
+                reverse $ L.sort $ map estimateMaxWitnessRequiredPerInput xs
+        in sum $ take (fromIntegral m) largestReqFirst
     ActiveFromSlot _     -> 0
     ActiveUntilSlot _    -> 0
