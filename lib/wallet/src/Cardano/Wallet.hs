@@ -1207,41 +1207,26 @@ fetchRewardBalance db wid = db & \DBLayer{..} ->
 -- b) The current reward value is too small to be considered (adding it would
 -- cost more than its value).
 readNextWithdrawal
-    :: forall ctx k ktype.
-        ( HasTransactionLayer k ktype ctx
-        , HasNetworkLayer IO ctx
-        )
-    => ctx
+    :: forall k ktype tx
+     . NetworkLayer IO Block
+    -> TransactionLayer k ktype tx
     -> Cardano.AnyCardanoEra
     -> Coin
     -> IO Coin
-readNextWithdrawal ctx era (Coin withdrawal) = do
-    pp <- currentProtocolParameters nl
-
-    let costWith =
-            calcMinimumCost tl era pp (mkTxCtx $ Coin withdrawal) emptySkeleton
-
-    let costWithout =
-            calcMinimumCost tl era pp (mkTxCtx $ Coin 0) emptySkeleton
-
-    let costOfWithdrawal =
-            Coin.toInteger costWith - Coin.toInteger costWithout
-
+readNextWithdrawal netLayer txLayer era (Coin withdrawal) = do
+    pp <- currentProtocolParameters netLayer
+    let minimumCost txCtx = calcMinimumCost txLayer era pp txCtx emptySkeleton
+        costWith = minimumCost $ mkTxCtx $ Coin withdrawal
+        costWithout = minimumCost $ mkTxCtx $ Coin 0
+        costOfWithdrawal = Coin.toInteger costWith - Coin.toInteger costWithout
     pure . Coin $
-        if toInteger withdrawal < 2 * costOfWithdrawal
-            then 0
-            else withdrawal
+        if toInteger withdrawal < 2 * costOfWithdrawal then 0 else withdrawal
   where
-    tl = ctx ^. transactionLayer @k @ktype
-    nl = ctx ^. networkLayer
-
     mkTxCtx wdrl = defaultTransactionCtx
         { txWithdrawal = WithdrawalSelf dummyAcct dummyPath wdrl }
       where
-        dummyAcct =
-            RewardAccount mempty
-        dummyPath =
-            DerivationIndex 0 :| []
+        dummyAcct = RewardAccount mempty
+        dummyPath = DerivationIndex 0 :| []
 
 readRewardAccount
     :: forall s k (n :: NetworkDiscriminant) shelley.
