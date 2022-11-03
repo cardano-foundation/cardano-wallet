@@ -308,14 +308,14 @@ instance FromJSON (ApiT (Hash "ExtraSignature")) where
         (hrp, bytes) <- parseJSON value >>=
             parseBech32 "Malformed policy key"
         when
-            (hrp /= [humanReadablePart|addr_keyhash|])
-            $ fail "expected a bech32 addr_keyhash hash"
+            (hrp /= [humanReadablePart|req_signer_vkh|])
+            $ fail "expected a bech32 req_signer_vkh hash"
         when
             (BS.length bytes /= 28)
-            $ fail "expected a bech32 addr_keyhash hash of 28 bytes"
+            $ fail "expected a bech32 req_signer_vkh hash of 28 bytes"
         pure $ ApiT $ Hash bytes
 instance ToJSON (ApiT (Hash "ExtraSignature")) where
     toJSON (ApiT (Hash hashed')) =
         toJSON $ Bech32.encodeLenient
-            [humanReadablePart|addr_keyhash|]
+            [humanReadablePart|req_signer_vkh|]
              $ dataPartFromBytes hashed'
