@@ -30,12 +30,7 @@ import Prelude
 import Cardano.Address.Derivation
     ( XPrv, XPub, toXPub, xprvFromBytes, xprvToBytes, xpubPublicKey )
 import Cardano.Address.Script
-    ( KeyHash (..)
-    , KeyRole (Delegation, Payment)
-    , Script
-    , foldScript
-    , serializeScript
-    )
+    ( KeyHash (..), KeyRole (Delegation, Payment), Script, serializeScript )
 import Cardano.Api
     ( AnyCardanoEra (..)
     , CardanoEra (..)
@@ -129,6 +124,8 @@ import Cardano.Wallet.Primitive.AddressDerivation.Shelley
     ( ShelleyKey, generateKeyFromSeed )
 import Cardano.Wallet.Primitive.AddressDiscovery.Sequential
     ( SeqState, defaultAddressPoolGap, mkSeqStateFromRootXPrv, purposeCIP1852 )
+import Cardano.Wallet.Primitive.AddressDiscovery.Shared
+    ( estimateMaxWitnessRequiredPerInput )
 import Cardano.Wallet.Primitive.Model
     ( Wallet (..), unsafeInitWallet )
 import Cardano.Wallet.Primitive.Passphrase
@@ -1211,7 +1208,8 @@ feeCalculationSpec era = describe "fee calculations" $ do
         $ property $ \scripts ->
         let
             -- Number of signatures required in the script
-            numWitnesses = sum $ (foldScript (const (+ 1)) 0) <$> scripts
+            numWitnesses = fromIntegral $ sum $
+                estimateMaxWitnessRequiredPerInput <$> scripts
             sizeWitness  =    1 -- small array
                            + 34 -- vkey
                            + 66 -- signature
@@ -1375,7 +1373,8 @@ feeCalculationSpec era = describe "fee calculations" $ do
             $ property $ \scripts ->
             let
                 -- Number of signatures required in the script
-                numWitnesses = sum $ (foldScript (const (+ 1)) 0) <$> scripts
+                numWitnesses = fromIntegral $ sum $
+                    estimateMaxWitnessRequiredPerInput <$> scripts
                 sizeWitness  =    1 -- small array
                                + 34 -- vkey
                                + 66 -- signature
@@ -2475,7 +2474,7 @@ balanceTransactionSpec = describe "balanceTransaction" $ do
 
         let balance = balanceTransaction' wallet testStdGenSeed
         let totalOutput tx =
-                let (wtx, _, _, _, _) =
+                let (wtx, _, _, _, _, _) =
                         decodeTx testTxLayer maxBound (sealedTxFromCardano' tx)
                 in
                     F.foldMap (view (#tokens . #coin)) (view #outputs wtx)
@@ -4063,12 +4062,12 @@ estimateSignedTxSizeSpec =
     forAllGoldens goldens f = forM_ goldens $ \x ->
         Hspec.counterexample (show x) $ f x
 
-fst5 :: (a, b, c, d, e) -> a
-fst5 (a,_,_,_, _) = a
+fst6 :: (a, b, c, d, e, f) -> a
+fst6 (a,_,_,_,_,_) = a
 
 sealedInputs :: SealedTx -> Set TxIn
 sealedInputs =
-    Set.fromList . map fst . view #resolvedInputs . fst5 . _decodeSealedTx maxBound
+    Set.fromList . map fst . view #resolvedInputs . fst6 . _decodeSealedTx maxBound
 
 sealedCollateralInputs
     :: SealedTx -> Set TxIn
@@ -4076,13 +4075,13 @@ sealedCollateralInputs =
     Set.fromList
     . map fst
     . view #resolvedCollateralInputs
-    . fst5
+    . fst6
     . _decodeSealedTx maxBound
 
 sealedOutputs
     :: SealedTx -> Set TxOut
 sealedOutputs =
-    Set.fromList . view #outputs . fst5 . _decodeSealedTx maxBound
+    Set.fromList . view #outputs . fst6 . _decodeSealedTx maxBound
 
 sealedNumberOfRedeemers :: SealedTx -> Int
 sealedNumberOfRedeemers sealedTx =
@@ -4113,7 +4112,7 @@ sealedNumberOfRedeemers sealedTx =
 sealedFee
     :: forall era. Cardano.IsCardanoEra era => Cardano.Tx era -> Maybe Coin
 sealedFee =
-    view #fee . fst5 . _decodeSealedTx maxBound . sealedTxFromCardano'
+    view #fee . fst6 . _decodeSealedTx maxBound . sealedTxFromCardano'
 
 paymentPartialTx :: [TxOut] -> PartialTx Cardano.BabbageEra
 paymentPartialTx txouts = PartialTx (Cardano.Tx body []) mempty []

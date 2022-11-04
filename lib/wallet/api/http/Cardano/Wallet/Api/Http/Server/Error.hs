@@ -525,8 +525,8 @@ instance IsServerError ErrSubmitTransaction where
                 ]
         ErrSubmitTransactionPartiallySignedOrNoSignedTx expectedWitsNo foundWitsNo ->
             apiError err403 MissingWitnessesInTransaction $ mconcat
-                [ "The transaction has ", toText expectedWitsNo
-                , " inputs and ", toText foundWitsNo, " witnesses included."
+                [ "The transaction expects ", toText expectedWitsNo
+                , " witness(es) to be fully-signed but ", toText foundWitsNo, " was provided."
                 , " Submit fully-signed transaction."
                 ]
         ErrSubmitTransactionMultidelegationNotSupported ->

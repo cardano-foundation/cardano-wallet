@@ -61,7 +61,7 @@ import Cardano.Wallet.Shelley.Network.Discriminant
     , EncodeStakeAddress (..)
     )
 import Cardano.Wallet.Transaction
-    ( AnyScript (..) )
+    ( AnyScript )
 import Cardano.Wallet.Util
     ( ShowFmt (..) )
 import Codec.Binary.Bech32
@@ -84,7 +84,6 @@ import Data.Aeson
     , withText
     , (.!=)
     , (.:)
-    , (.:?)
     )
 import Data.Aeson.Types
     ( prependFailure )
@@ -126,22 +125,10 @@ instance ToJSON (ApiT W.TokenPolicyId) where
     toJSON = toTextApiT
 
 instance FromJSON (ApiT AnyScript) where
-    parseJSON = withObject "ApiT AnyScript" $ \obj -> do
-        scriptType <- obj .:? "script_type"
-        case (scriptType :: Maybe String) of
-            Just t | t == "plutus"  ->
-                ApiT . PlutusScript <$> obj .: "language_version"
-            Just t | t == "native" ->
-                ApiT . NativeScript <$> obj .: "script"
-            _ -> fail "AnyScript needs either 'native' or 'plutus' in 'script_type'"
+    parseJSON = fmap ApiT . parseJSON
 
 instance ToJSON (ApiT AnyScript) where
-    toJSON (ApiT (NativeScript s)) =
-        object [ "script_type" .= String "native"
-               , "script" .= toJSON s]
-    toJSON (ApiT (PlutusScript v)) =
-        object [ "script_type" .= String "plutus"
-               , "language_version" .= toJSON v]
+    toJSON (ApiT s) = toJSON s
 
 instance FromJSON (ApiT W.TokenName) where
     parseJSON = withText "AssetName"

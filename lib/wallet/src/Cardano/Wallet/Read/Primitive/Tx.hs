@@ -28,7 +28,9 @@ import Cardano.Wallet.Read.Primitive.Tx.Shelley
 import Cardano.Wallet.Transaction
     ( TokenMapWithScripts (..)
     , ValidityIntervalExplicit (..)
+    , WitnessCount
     , emptyTokenMapWithScripts
+    , emptyWitnessCount
     )
 
 import qualified Cardano.Api as Cardano
@@ -45,6 +47,7 @@ fromCardanoTx
         , TokenMapWithScripts
         , [W.Certificate]
         , Maybe ValidityIntervalExplicit
+        , WitnessCount
         )
 fromCardanoTx = \case
     Cardano.ShelleyTx era tx -> case era of
@@ -64,9 +67,8 @@ fromCardanoTx = \case
         , emptyTokenMapWithScripts
         , []
         , Nothing
+        , emptyWitnessCount
         )
   where
-    extract (tx, certs, mint, burn, validity) =
-        (tx, mint, burn, certs, validity)
-
-
+    extract (tx, certs, mint, burn, validity, wits) =
+        (tx, mint, burn, certs, validity, wits)

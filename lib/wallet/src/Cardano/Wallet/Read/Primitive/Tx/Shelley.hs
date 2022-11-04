@@ -1,5 +1,6 @@
 {-# LANGUAGE DataKinds #-}
 {-# LANGUAGE DuplicateRecordFields #-}
+{-# LANGUAGE FlexibleContexts #-}
 {-# LANGUAGE TupleSections #-}
 {-# LANGUAGE TypeFamilies #-}
 
@@ -21,10 +22,14 @@ module Cardano.Wallet.Read.Primitive.Tx.Shelley
 
 import Prelude
 
+import Cardano.Address.Script
+    ( KeyHash (..), KeyRole (..), Script (..) )
 import Cardano.Api
     ( ShelleyEra )
 import Cardano.Api.Shelley
     ( fromShelleyMetadata )
+import Cardano.Crypto.Hash
+    ( hashToBytes )
 import Cardano.Ledger.Era
     ( Era (..) )
 import Cardano.Wallet.Read.Eras
@@ -40,8 +45,10 @@ import Cardano.Wallet.Read.Tx.CBOR
 import Cardano.Wallet.Read.Tx.Hash
     ( fromShelleyTxId, shelleyTxHash )
 import Cardano.Wallet.Transaction
-    ( TokenMapWithScripts (..)
+    ( AnyScript (..)
+    , TokenMapWithScripts (..)
     , ValidityIntervalExplicit (..)
+    , WitnessCount (..)
     , emptyTokenMapWithScripts
     )
 import Data.Bifunctor
@@ -53,13 +60,16 @@ import Data.Map.Strict
 import Data.Word
     ( Word16, Word32, Word64 )
 
+
 import qualified Cardano.Api as Cardano
 import qualified Cardano.Api.Shelley as Cardano
 import qualified Cardano.Ledger.Address as SL
 import qualified Cardano.Ledger.BaseTypes as SL
 import qualified Cardano.Ledger.Core as SL.Core
+import qualified Cardano.Ledger.Crypto as SL
+import qualified Cardano.Ledger.Keys as SL
 import qualified Cardano.Ledger.Shelley.API as SL
-import qualified Cardano.Ledger.Shelley.API as SLAPI
+import qualified Cardano.Ledger.Shelley.Tx as SL
 import qualified Cardano.Wallet.Primitive.Types as W
 import qualified Cardano.Wallet.Primitive.Types.Address as W
 import qualified Cardano.Wallet.Primitive.Types.Coin as Coin
@@ -69,6 +79,7 @@ import qualified Cardano.Wallet.Primitive.Types.RewardAccount as W
 import qualified Cardano.Wallet.Primitive.Types.TokenBundle as TokenBundle
 import qualified Cardano.Wallet.Primitive.Types.Tx as W
 import qualified Data.Map.Strict as Map
+import qualified Data.Set as Set
 
 fromShelleyTxIn
     :: SL.TxIn crypto
@@ -92,9 +103,9 @@ fromShelleyTxOut
     :: ( Era era
        , SL.Core.Value era ~ SL.Coin
        )
-    => SLAPI.TxOut era
+    => SL.TxOut era
     -> W.TxOut
-fromShelleyTxOut (SLAPI.TxOut addr amount) = W.TxOut
+fromShelleyTxOut (SL.TxOut addr amount) = W.TxOut
     (fromShelleyAddress addr)
     (TokenBundle.fromCoin $ fromShelleyCoin amount)
 
@@ -106,12 +117,13 @@ fromShelleyCoin (SL.Coin c) = Coin.unsafeFromIntegral c
 
 -- NOTE: For resolved inputs we have to pass in a dummy value of 0.
 fromShelleyTx
-    :: SLAPI.Tx (Cardano.ShelleyLedgerEra ShelleyEra)
+    :: SL.Tx (Cardano.ShelleyLedgerEra ShelleyEra)
     -> ( W.Tx
        , [W.Certificate]
        , TokenMapWithScripts
        , TokenMapWithScripts
        , Maybe ValidityIntervalExplicit
+       , WitnessCount
        )
 fromShelleyTx tx =
     ( W.Tx
@@ -141,9 +153,14 @@ fromShelleyTx tx =
     , emptyTokenMapWithScripts
     , emptyTokenMapWithScripts
     , Just $ shelleyValidityInterval ttl
+    , countWits
     )
   where
-    SL.Tx (SL.TxBody ins outs certs wdrls fee ttl _ _) _ mmd = tx
+    SL.Tx (SL.TxBody ins outs certs wdrls fee ttl _ _) wits mmd = tx
+    countWits = WitnessCount
+        (fromIntegral $ Set.size $ SL.addrWits wits)
+        (fmap (NativeScript . fromLedgerScript Payment) $ Map.elems $ SL.scriptWits wits)
+        (fromIntegral $ Set.size $ SL.bootWits wits)
 
 fromShelleyWdrl :: SL.Wdrl crypto -> Map W.RewardAccount W.Coin
 fromShelleyWdrl (SL.Wdrl wdrl) = Map.fromList $
@@ -153,3 +170,19 @@ fromShelleyWdrl (SL.Wdrl wdrl) = Map.fromList $
 fromShelleyMD :: SL.Metadata c -> Cardano.TxMetadata
 fromShelleyMD (SL.Metadata m) =
     Cardano.makeTransactionMetadata . fromShelleyMetadata $ m
+
+fromLedgerScript
+    :: SL.Crypto crypto
+    => KeyRole
+    -> SL.MultiSig crypto
+    -> Script KeyHash
+fromLedgerScript keyrole = fromLedgerScript'
+  where
+    fromLedgerScript' (SL.RequireSignature (SL.KeyHash h)) =
+        RequireSignatureOf (KeyHash keyrole (hashToBytes h))
+    fromLedgerScript' (SL.RequireAllOf contents) =
+        RequireAllOf $ map fromLedgerScript' $ toList contents
+    fromLedgerScript' (SL.RequireAnyOf contents) =
+        RequireAnyOf $ map fromLedgerScript' $ toList contents
+    fromLedgerScript' (SL.RequireMOf num contents) =
+        RequireSomeOf (fromIntegral num) $ fromLedgerScript' <$> toList contents

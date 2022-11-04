@@ -2672,7 +2672,7 @@ decodeSharedTransaction
     -> Handler (ApiDecodedTransaction n)
 decodeSharedTransaction ctx (ApiT wid) (ApiSerialisedTransaction (ApiT sealed) _) = do
     era <- liftIO $ NW.currentNodeEra nl
-    let (decodedTx, _toMint, _toBurn, _allCerts, interval) =
+    let (decodedTx, _toMint, _toBurn, _allCerts, interval, witsCount) =
             decodeTx tl era sealed
     let (Tx { txId
             , fee
@@ -2716,6 +2716,7 @@ decodeSharedTransaction ctx (ApiT wid) (ApiSerialisedTransaction (ApiT sealed) _
         , metadata = ApiTxMetadata $ ApiT <$> metadata
         , scriptValidity = ApiT <$> scriptValidity
         , validityInterval = interval
+        , witnessCount = witsCount
         }
   where
     tl = ctx ^. W.transactionLayer @k @'CredFromScriptK
@@ -2843,7 +2844,7 @@ decodeTransaction
     -> Handler (ApiDecodedTransaction n)
 decodeTransaction ctx (ApiT wid) (ApiSerialisedTransaction (ApiT sealed) _) = do
     era <- liftIO $ NW.currentNodeEra nl
-    let (decodedTx, toMint, toBurn, allCerts, interval) =
+    let (decodedTx, toMint, toBurn, allCerts, interval, witsCount) =
             decodeTx tl era sealed
         Tx { txId
             , fee
@@ -2890,6 +2891,7 @@ decodeTransaction ctx (ApiT wid) (ApiSerialisedTransaction (ApiT sealed) _) = do
             , metadata = ApiTxMetadata $ ApiT <$> metadata
             , scriptValidity = ApiT <$> scriptValidity
             , validityInterval = interval
+            , witnessCount = witsCount
             }
   where
     tl = ctx ^. W.transactionLayer @k @'CredFromKeyK
@@ -2955,7 +2957,7 @@ submitTransaction ctx apiw@(ApiT wid) apitx = do
     era <- liftIO $ NW.currentNodeEra nl
 
     let sealedTx = getApiT . (view #serialisedTxSealed) $ apitx
-    let (tx,_,_,_,_) = decodeTx tl era sealedTx
+    let (tx,_,_,_,_,_) = decodeTx tl era sealedTx
 
     apiDecoded <- decodeTransaction @_ @s @k @n ctx apiw apitx
     when (isForeign apiDecoded) $
@@ -3069,8 +3071,9 @@ isForeign apiDecodedTx =
         all isWdrlForeign generalWdrls
 
 submitSharedTransaction
-    :: forall ctx s k.
+    :: forall ctx s k (n :: NetworkDiscriminant).
         ( ctx ~ ApiLayer s k 'CredFromScriptK
+        , s ~ SharedState n k
         , HasNetworkLayer IO ctx
         , IsOwned s k 'CredFromScriptK
         )
@@ -3083,7 +3086,7 @@ submitSharedTransaction ctx apiw@(ApiT wid) apitx = do
     era <- liftIO $ NW.currentNodeEra nl
 
     let sealedTx = getApiT . (view #serialisedTxSealed) $ apitx
-    let (tx,_,_,_,_) = decodeTx tl era sealedTx
+    let (tx,_,_,_,_,_) = decodeTx tl era sealedTx
 
     apiDecoded <- decodeSharedTransaction @_ @s @k ctx apiw apitx
     when (isForeign apiDecoded) $
@@ -3091,15 +3094,23 @@ submitSharedTransaction ctx apiw@(ApiT wid) apitx = do
     let ourOuts = getOurOuts apiDecoded
     let ourInps = getOurInps apiDecoded
 
-    let witsRequiredForInputs = length $ L.nubBy samePaymentKey $
-            filter isInpOurs $
-            (apiDecoded ^. #inputs) ++ (apiDecoded ^. #collateral)
-    let totalNumberOfWits = length $ getSealedTxWitnesses sealedTx
-    when (witsRequiredForInputs > totalNumberOfWits) $
-        liftHandler $ throwE $
-        ErrSubmitTransactionPartiallySignedOrNoSignedTx witsRequiredForInputs totalNumberOfWits
-
     _ <- withWorkerCtx ctx wid liftE liftE $ \wrk -> do
+
+        (cp, _, _) <- liftHandler $ withExceptT ErrSubmitTransactionNoSuchWallet $
+            W.readWallet @_ @s @k wrk wid
+        let (ScriptTemplate _ script) = (Shared.paymentTemplate $ getState cp)
+        let witsPerInput = Shared.estimateMinWitnessRequiredPerInput script
+
+        let witsRequiredForInputs =
+                length $ L.nubBy samePaymentKey $
+                filter isInpOurs $
+                (apiDecoded ^. #inputs) ++ (apiDecoded ^. #collateral)
+        let totalNumberOfWits = length $ getSealedTxWitnesses sealedTx
+        let allWitsRequired = fromIntegral witsPerInput * witsRequiredForInputs
+        when (allWitsRequired > totalNumberOfWits) $
+            liftHandler $ throwE $
+            ErrSubmitTransactionPartiallySignedOrNoSignedTx allWitsRequired totalNumberOfWits
+
         let txCtx = defaultTransactionCtx
                 { txValidityInterval = (Nothing, ttl)
                 }

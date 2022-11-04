@@ -111,6 +111,8 @@ import Cardano.Wallet.Primitive.AddressDerivation.Shared
     ( SharedKey )
 import Cardano.Wallet.Primitive.AddressDerivation.Shelley
     ( ShelleyKey, toRewardAccountRaw )
+import Cardano.Wallet.Primitive.AddressDiscovery.Shared
+    ( estimateMaxWitnessRequiredPerInput )
 import Cardano.Wallet.Primitive.Passphrase
     ( Passphrase (..) )
 import Cardano.Wallet.Primitive.Slotting
@@ -190,6 +192,7 @@ import Cardano.Wallet.Transaction
     , TxFeeUpdate (..)
     , TxUpdate (..)
     , ValidityIntervalExplicit
+    , WitnessCount
     , mapTxFeeAndChange
     , withdrawalToCoin
     )
@@ -410,7 +413,7 @@ mkTx networkId payload ttl (rewardAcnt, pwdAcnt) addrResolver wdrl cs fees era =
     let signed = signTransaction networkId acctResolver (const Nothing)
             addrResolver inputResolver (unsigned, mkExtraWits unsigned)
 
-    let withResolvedInputs (tx, _, _, _, _) = tx
+    let withResolvedInputs (tx, _, _, _, _, _) = tx
             { resolvedInputs = second txOutCoin <$> F.toList (view #inputs cs)
             }
     Right ( withResolvedInputs (fromCardanoTx signed)
@@ -501,7 +504,7 @@ signTransaction
         certs = cardanoCertKeysForWitnesses $ Cardano.txCertificates bodyContent
 
         mintBurnScripts =
-            let (_, toMint, toBurn, _, _) = fromCardanoTx $
+            let (_, toMint, toBurn, _, _, _) = fromCardanoTx $
                     Cardano.makeSignedTransaction wits body
             in
             -- Note that we use 'nub' here because multiple scripts can share
@@ -681,6 +684,7 @@ _decodeSealedTx
         , TokenMapWithScripts
         , [Certificate]
         , Maybe ValidityIntervalExplicit
+        , WitnessCount
         )
 _decodeSealedTx preferredLatestEra (cardanoTxIdeallyNoLaterThan preferredLatestEra -> Cardano.InAnyCardanoEra _ tx) =
     fromCardanoTx tx
@@ -1743,27 +1747,10 @@ estimateTxSize era skeleton =
 
     -- Total number of signatures the scripts require
     numberOf_MintingWitnesses
-        = sumVia scriptRequiredKeySigs txMintOrBurnScripts
+        = intCast $ sumVia estimateMaxWitnessRequiredPerInput txMintOrBurnScripts
 
     numberOf_ScriptVkeyWitnesses
-        = maybe 0 scriptRequiredKeySigs txPaymentTemplate
-
-    scriptRequiredKeySigs :: Num num => Script object -> num
-    scriptRequiredKeySigs = \case
-        RequireSignatureOf _ ->
-            1
-        RequireAllOf ss ->
-            sumVia scriptRequiredKeySigs ss
-        RequireAnyOf ss ->
-            sumVia scriptRequiredKeySigs ss
-        ActiveFromSlot _ ->
-            0
-        ActiveUntilSlot _ ->
-            0
-        RequireSomeOf _ ss ->
-            -- We don't know how many the user will sign with, so we just assume
-            -- the worst case of "signs with all".
-            sumVia scriptRequiredKeySigs ss
+        = intCast $ maybe 0 estimateMaxWitnessRequiredPerInput txPaymentTemplate
 
     numberOf_VkeyWitnesses
         = case txWitnessTag of

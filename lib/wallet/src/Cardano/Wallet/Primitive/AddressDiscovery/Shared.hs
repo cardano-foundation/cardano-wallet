@@ -43,6 +43,8 @@ module Cardano.Wallet.Primitive.AddressDiscovery.Shared
     , retrieveAllCosigners
     , validateScriptTemplates
     , toSharedWalletId
+    , estimateMinWitnessRequiredPerInput
+    , estimateMaxWitnessRequiredPerInput
 
     , CredentialType (..)
     , liftPaymentAddress
@@ -143,6 +145,8 @@ import Fmt
     ( Buildable (..), blockListF', indentF )
 import GHC.Generics
     ( Generic )
+import Numeric.Natural
+    ( Natural )
 import Type.Reflection
     ( Typeable )
 
@@ -744,3 +748,37 @@ instance ( key ~ SharedKey
             in Just ( deriveAddressPrivateKey pwd accXPrv role' ix
                     , pwd )
         (Nothing, _) -> Nothing
+
+estimateMinWitnessRequiredPerInput :: Script k -> Natural
+estimateMinWitnessRequiredPerInput = \case
+    RequireSignatureOf _ -> 1
+    RequireAllOf xs      ->
+        sum $ map estimateMinWitnessRequiredPerInput xs
+    RequireAnyOf xs      ->
+        optimumIfNotEmpty minimum $ map estimateMinWitnessRequiredPerInput xs
+    RequireSomeOf m xs   ->
+        let smallestReqFirst =
+                L.sort $ map estimateMinWitnessRequiredPerInput xs
+        in sum $ take (fromIntegral m) smallestReqFirst
+    ActiveFromSlot _     -> 0
+    ActiveUntilSlot _    -> 0
+
+optimumIfNotEmpty :: (Foldable t, Num p) => (t a -> p) -> t a -> p
+optimumIfNotEmpty f xs =
+    if null xs then
+        0
+    else f xs
+
+estimateMaxWitnessRequiredPerInput :: Script k -> Natural
+estimateMaxWitnessRequiredPerInput = \case
+    RequireSignatureOf _ -> 1
+    RequireAllOf xs      ->
+        sum $ map estimateMaxWitnessRequiredPerInput xs
+    RequireAnyOf xs      ->
+        optimumIfNotEmpty maximum $ map estimateMaxWitnessRequiredPerInput xs
+    RequireSomeOf m xs   ->
+        let largestReqFirst =
+                reverse $ L.sort $ map estimateMaxWitnessRequiredPerInput xs
+        in sum $ take (fromIntegral m) largestReqFirst
+    ActiveFromSlot _     -> 0
+    ActiveUntilSlot _    -> 0

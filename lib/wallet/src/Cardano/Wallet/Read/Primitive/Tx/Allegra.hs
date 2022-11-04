@@ -23,6 +23,8 @@ module Cardano.Wallet.Read.Primitive.Tx.Allegra
 
 import Prelude
 
+import Cardano.Address.Script
+    ( KeyRole (..) )
 import Cardano.Api
     ( AllegraEra )
 import Cardano.Wallet.Read.Eras
@@ -44,9 +46,13 @@ import Cardano.Wallet.Read.Tx.CBOR
     ( renderTxToCBOR )
 import Cardano.Wallet.Read.Tx.Hash
     ( shelleyTxHash )
+import Cardano.Wallet.Shelley.Compatibility.Ledger
+    ( toWalletScript )
 import Cardano.Wallet.Transaction
-    ( TokenMapWithScripts (..)
+    ( AnyScript (..)
+    , TokenMapWithScripts (..)
     , ValidityIntervalExplicit (..)
+    , WitnessCount (..)
     , emptyTokenMapWithScripts
     )
 import Data.Foldable
@@ -55,23 +61,26 @@ import Data.Foldable
 import qualified Cardano.Api.Shelley as Cardano
 import qualified Cardano.Ledger.BaseTypes as SL
 import qualified Cardano.Ledger.Shelley.API as SL
-import qualified Cardano.Ledger.Shelley.API as SLAPI
+import qualified Cardano.Ledger.Shelley.Tx as SL
 import qualified Cardano.Ledger.ShelleyMA.AuxiliaryData as MA
 import qualified Cardano.Ledger.ShelleyMA.TxBody as MA
 import qualified Cardano.Wallet.Primitive.Types as W
 import qualified Cardano.Wallet.Primitive.Types.Coin as W
 import qualified Cardano.Wallet.Primitive.Types.Hash as W
 import qualified Cardano.Wallet.Primitive.Types.Tx as W
+import qualified Data.Map.Strict as Map
+import qualified Data.Set as Set
 
 -- NOTE: For resolved inputs we have to pass in a dummy value of 0.
 
 fromAllegraTx
-    :: SLAPI.Tx (Cardano.ShelleyLedgerEra AllegraEra)
+    :: SL.Tx (Cardano.ShelleyLedgerEra AllegraEra)
     -> ( W.Tx
        , [W.Certificate]
        , TokenMapWithScripts
        , TokenMapWithScripts
        , Maybe ValidityIntervalExplicit
+       , WitnessCount
        )
 fromAllegraTx tx =
     ( W.Tx
@@ -102,9 +111,16 @@ fromAllegraTx tx =
     , emptyTokenMapWithScripts
     , emptyTokenMapWithScripts
     , Just $ afterShelleyValidityInterval ttl
+    , countWits
     )
   where
-    SL.Tx (MA.TxBody ins outs certs wdrls fee ttl _ _ _) _ mmd = tx
+    SL.Tx (MA.TxBody ins outs certs wdrls fee ttl _ _ _) wits mmd = tx
+    scriptMap =
+        Map.map (NativeScript . toWalletScript Payment) $ SL.scriptWits wits
+    countWits = WitnessCount
+        (fromIntegral $ Set.size $ SL.addrWits wits)
+        (Map.elems scriptMap)
+        (fromIntegral $ Set.size $ SL.bootWits wits)
 
     -- fixme: [ADP-525] It is fine for now since we do not look at script
     -- pre-images. But this is precisely what we want as part of the

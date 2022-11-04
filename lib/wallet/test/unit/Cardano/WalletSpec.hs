@@ -148,7 +148,11 @@ import Cardano.Wallet.Primitive.Types.Tx.Gen
 import Cardano.Wallet.Primitive.Types.UTxO
     ( UTxO (..) )
 import Cardano.Wallet.Transaction
-    ( TransactionLayer (..), Withdrawal (..), emptyTokenMapWithScripts )
+    ( TransactionLayer (..)
+    , Withdrawal (..)
+    , emptyTokenMapWithScripts
+    , emptyWitnessCount
+    )
 import Cardano.Wallet.Unsafe
     ( unsafeRunExceptT )
 import Cardano.Wallet.Util
@@ -1412,6 +1416,7 @@ dummyTransactionLayer = TransactionLayer
         , emptyTokenMapWithScripts
         , []
         , Nothing
+        , emptyWitnessCount
         )
     , updateTx = \sealed _update ->
         pure sealed
