@@ -486,7 +486,6 @@ library cardano-wallet-api-http
     Cardano.Wallet.Api.Http.Logging
     Cardano.Wallet.Api.Http.Server
     Cardano.Wallet.Api.Http.Server.Error
-    Cardano.Wallet.Api.Http.Server.Handlers.Certificates
     Cardano.Wallet.Api.Http.Server.Handlers.MintBurn
     Cardano.Wallet.Api.Http.Server.Handlers.TxCBOR
     Cardano.Wallet.Api.Http.Server.Tls

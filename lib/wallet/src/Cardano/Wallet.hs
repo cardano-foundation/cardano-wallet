@@ -79,8 +79,11 @@ module Cardano.Wallet
     , manageRewardBalance
     , rollbackBlocks
     , checkWalletIntegrity
-    , readNextWithdrawal
+    , mkExternalWithdrawal
+    , mkSelfWithdrawal
+    , unsafeShelleyMkSelfWithdrawal
     , readRewardAccount
+    , unsafeShelleyReadRewardAccount
     , someRewardAccount
     , readPolicyPublicKey
     , writePolicyPublicKey
@@ -219,13 +222,15 @@ import Cardano.Address.Script
 import Cardano.Address.Style.Shared
     ( deriveDelegationPublicKey )
 import Cardano.Api
-    ( serialiseToCBOR )
+    ( AnyCardanoEra, serialiseToCBOR )
 import Cardano.BM.Data.Severity
     ( Severity (..) )
 import Cardano.BM.Data.Tracer
     ( HasPrivacyAnnotation (..), HasSeverityAnnotation (..) )
 import Cardano.Crypto.Wallet
     ( toXPub )
+import Cardano.Mnemonic
+    ( SomeMnemonic )
 import Cardano.Pool.Types
     ( PoolId )
 import Cardano.Slotting.Slot
@@ -1197,30 +1202,75 @@ deleteWallet ctx wid = db & \DBLayer{..} -> do
 
 -- | Fetch the cached reward balance of a given wallet from the database.
 fetchRewardBalance :: forall s k. DBLayer IO s k -> WalletId -> IO Coin
-fetchRewardBalance db wid = db & \DBLayer{..} ->
-    atomically $ readDelegationRewardBalance wid
+fetchRewardBalance DBLayer{..} = atomically . readDelegationRewardBalance
 
--- | Read the current withdrawal capacity of a wallet. Note that, this simply
--- returns 0 if:
---
--- a) There's no reward account for this type of wallet.
--- b) The current reward value is too small to be considered (adding it would
--- cost more than its value).
-readNextWithdrawal
+mkExternalWithdrawal
     :: forall k ktype tx
      . NetworkLayer IO Block
     -> TransactionLayer k ktype tx
-    -> Cardano.AnyCardanoEra
-    -> Coin
-    -> IO Coin
-readNextWithdrawal netLayer txLayer era (Coin withdrawal) = do
+    -> AnyCardanoEra
+    -> SomeMnemonic
+    -> IO (Either ErrWithdrawalNotWorth Withdrawal)
+mkExternalWithdrawal netLayer txLayer era mnemonic = do
+    let (_, rewardAccount, derivationPath) =
+            someRewardAccount @ShelleyKey mnemonic
+    balance <- getCachedRewardAccountBalance netLayer rewardAccount
     pp <- currentProtocolParameters netLayer
+    pure $ checkRewardIsWorthTxCost txLayer pp era balance $>
+        WithdrawalExternal rewardAccount derivationPath balance
+
+mkSelfWithdrawal
+    :: forall ktype tx (n :: NetworkDiscriminant)
+     . NetworkLayer IO Block
+    -> TransactionLayer ShelleyKey ktype tx
+    -> AnyCardanoEra
+    -> DBLayer IO (SeqState n ShelleyKey) ShelleyKey
+    -> WalletId
+    -> IO (Either ErrWithdrawalNotWorth Withdrawal)
+mkSelfWithdrawal netLayer txLayer era db wallet = do
+    (rewardAccount, _, derivationPath) <-
+        runExceptT (readRewardAccount db wallet)
+            >>= either (throw . ExceptionReadRewardAccount) pure
+    balance <- getCachedRewardAccountBalance netLayer rewardAccount
+    pp <- currentProtocolParameters netLayer
+    pure $ checkRewardIsWorthTxCost txLayer pp era balance $>
+        WithdrawalSelf rewardAccount derivationPath balance
+
+-- | Unsafe version of the `mkSelfWithdrawal` function that throws an exception
+-- when applied to a non-shelley or a non-sequential wallet.
+unsafeShelleyMkSelfWithdrawal
+    :: forall s k ktype tx (n :: NetworkDiscriminant)
+     . (Typeable s, Typeable k, Typeable n)
+    => NetworkLayer IO Block
+    -> TransactionLayer k ktype tx
+    -> AnyCardanoEra
+    -> DBLayer IO s k
+    -> WalletId
+    -> IO (Either ErrWithdrawalNotWorth Withdrawal)
+unsafeShelleyMkSelfWithdrawal netLayer txLayer era db wallet =
+    case testEquality (typeRep @s) (typeRep @(SeqState n k)) of
+        Nothing -> notShelleyWallet
+        Just Refl -> case testEquality (typeRep @k) (typeRep @ShelleyKey) of
+            Nothing -> notShelleyWallet
+            Just Refl -> mkSelfWithdrawal netLayer txLayer era db wallet
+  where
+    notShelleyWallet = throw
+        $ ExceptionReadRewardAccount ErrReadRewardAccountNotAShelleyWallet
+
+checkRewardIsWorthTxCost
+    :: forall k ktype tx
+     . TransactionLayer k ktype tx
+    -> ProtocolParameters
+    -> AnyCardanoEra
+    -> Coin
+    -> Either ErrWithdrawalNotWorth ()
+checkRewardIsWorthTxCost txLayer pp era balance = do
     let minimumCost txCtx = calcMinimumCost txLayer era pp txCtx emptySkeleton
-        costWith = minimumCost $ mkTxCtx $ Coin withdrawal
+        costWith = minimumCost $ mkTxCtx balance
         costWithout = minimumCost $ mkTxCtx $ Coin 0
         costOfWithdrawal = Coin.toInteger costWith - Coin.toInteger costWithout
-    pure . Coin $
-        if toInteger withdrawal < 2 * costOfWithdrawal then 0 else withdrawal
+    when (Coin.toInteger balance < 2 * costOfWithdrawal)
+        $ Left ErrWithdrawalNotWorth
   where
     mkTxCtx wdrl = defaultTransactionCtx
         { txWithdrawal = WithdrawalSelf dummyAcct dummyPath wdrl }
@@ -1229,28 +1279,42 @@ readNextWithdrawal netLayer txLayer era (Coin withdrawal) = do
         dummyPath = DerivationIndex 0 :| []
 
 readRewardAccount
-    :: forall s k (n :: NetworkDiscriminant) shelley.
-        ( shelley ~ SeqState n ShelleyKey
-        , Typeable n
-        , Typeable s
-        )
+    :: forall (n :: NetworkDiscriminant)
+     . DBLayer IO (SeqState n ShelleyKey) ShelleyKey
+    -> WalletId
+    -> ExceptT ErrReadRewardAccount IO
+        (RewardAccount, XPub, NonEmpty DerivationIndex)
+readRewardAccount db wid = do
+    walletState <- getState <$>
+        withExceptT ErrReadRewardAccountNoSuchWallet
+            (readWalletCheckpoint db wid)
+    let xpub = Seq.rewardAccountKey walletState
+    let path = stakeDerivationPath $ Seq.derivationPrefix walletState
+    pure (toRewardAccount xpub, getRawKey xpub, path)
+  where
+    readWalletCheckpoint ::
+        DBLayer IO s k -> WalletId -> ExceptT ErrNoSuchWallet IO (Wallet s)
+    readWalletCheckpoint DBLayer{..} wallet =
+        liftIO (atomically (readCheckpoint wallet)) >>=
+            maybe (throwE (ErrNoSuchWallet wallet)) pure
+
+-- | Unsafe version of the `readRewardAccount` function
+-- that throws error when applied to a non-sequential
+-- or a non-shelley wallet state.
+unsafeShelleyReadRewardAccount
+    :: forall s k (n :: NetworkDiscriminant)
+     . (Typeable s, Typeable n, Typeable k)
     => DBLayer IO s k
     -> WalletId
-    -> ExceptT ErrReadRewardAccount IO (RewardAccount, XPub, NonEmpty DerivationIndex)
-readRewardAccount db wid = db & \DBLayer{..} -> do
-    cp <- withExceptT ErrReadRewardAccountNoSuchWallet
-        $ mapExceptT atomically
-        $ withNoSuchWallet wid
-        $ readCheckpoint wid
-    case testEquality (typeRep @s) (typeRep @shelley) of
-        Nothing ->
-            throwE ErrReadRewardAccountNotAShelleyWallet
-        Just Refl -> do
-            let s = getState cp
-            let xpub = Seq.rewardAccountKey s
-            let acct = toRewardAccount xpub
-            let path = stakeDerivationPath $ Seq.derivationPrefix s
-            pure (acct, getRawKey xpub, path)
+    -> ExceptT ErrReadRewardAccount IO
+        (RewardAccount, XPub, NonEmpty DerivationIndex)
+unsafeShelleyReadRewardAccount db wid =
+    case testEquality (typeRep @s) (typeRep @(SeqState n k)) of
+        Nothing -> throwE ErrReadRewardAccountNotAShelleyWallet
+        Just Refl ->
+            case testEquality (typeRep @k) (typeRep @ShelleyKey) of
+                Nothing -> throwE ErrReadRewardAccountNotAShelleyWallet
+                Just Refl -> readRewardAccount db wid
 
 readPolicyPublicKey
     :: forall ctx s k (n :: NetworkDiscriminant) shelley.
@@ -1273,32 +1337,25 @@ readPolicyPublicKey ctx wid = db & \DBLayer{..} -> do
         Just Refl -> do
             let s = getState cp
             case Seq.policyXPub s of
-                Nothing ->
-                    throwE ErrReadPolicyPublicKeyAbsent
-                Just xpub ->
-                    pure (getRawKey xpub, policyDerivationPath)
+                Nothing -> throwE ErrReadPolicyPublicKeyAbsent
+                Just xpub -> pure (getRawKey xpub, policyDerivationPath)
   where
     db = ctx ^. dbLayer @IO @s @k
 
 manageRewardBalance
-    :: forall ctx s k (n :: NetworkDiscriminant).
-        ( HasLogger IO WalletWorkerLog ctx
-        , HasNetworkLayer IO ctx
-        , HasDBLayer IO s k ctx
-        , Typeable s
-        , Typeable n
-        )
-    => Proxy n
-    -> ctx
+    :: forall (n :: NetworkDiscriminant)
+     . Tracer IO WalletWorkerLog
+    -> NetworkLayer IO Block
+    -> DBLayer IO (SeqState n ShelleyKey) ShelleyKey
     -> WalletId
     -> IO ()
-manageRewardBalance _ ctx wid = db & \DBLayer{..} -> do
-    watchNodeTip $ \bh -> do
+manageRewardBalance tr' netLayer db@DBLayer{..} wid = do
+    watchNodeTip netLayer $ \bh -> do
          traceWith tr $ MsgRewardBalanceQuery bh
          query <- runExceptT $ do
-            (acct, _, _) <- withExceptT ErrFetchRewardsReadRewardAccount $
-                readRewardAccount @s @k @n db wid
-            liftIO $ getCachedRewardAccountBalance (ctx ^. networkLayer) acct
+            (acct, _, _) <- withExceptT ErrFetchRewardsReadRewardAccount
+                $ readRewardAccount db wid
+            liftIO $ getCachedRewardAccountBalance netLayer acct
          traceWith tr $ MsgRewardBalanceResult query
          case query of
             Right amt -> do
@@ -1317,9 +1374,7 @@ manageRewardBalance _ ctx wid = db & \DBLayer{..} -> do
     traceWith tr MsgRewardBalanceExited
 
   where
-    db = ctx ^. dbLayer @IO @s @k
-    NetworkLayer{watchNodeTip} = ctx ^. networkLayer
-    tr = contramap MsgWallet $ ctx ^. logger @_ @WalletWorkerLog
+    tr = contramap MsgWallet tr'
 
 {-------------------------------------------------------------------------------
                                     Address
@@ -2456,7 +2511,6 @@ buildAndSignTransaction ctx wid era mkRwdAcct pwd txCtx sel = db & \DBLayer{..} 
     nl = ctx ^. networkLayer
     ti = timeInterpreter nl
 
-
 -- | Construct an unsigned transaction from a given selection.
 constructTransaction
     :: forall ctx s k (n :: NetworkDiscriminant).
@@ -2465,6 +2519,7 @@ constructTransaction
         , HasNetworkLayer IO ctx
         , Typeable s
         , Typeable n
+        , Typeable k
         )
     => ctx
     -> WalletId
@@ -2474,7 +2529,7 @@ constructTransaction
     -> ExceptT ErrConstructTx IO SealedTx
 constructTransaction ctx wid era txCtx sel = db & \DBLayer{..} -> do
     (_, xpub, _) <- withExceptT ErrConstructTxReadRewardAccount $
-        readRewardAccount @s @k @n db wid
+        unsafeShelleyReadRewardAccount @s @k @n db wid
     mapExceptT atomically $ do
         pp <- liftIO $ currentProtocolParameters nl
         withExceptT ErrConstructTxBody $ ExceptT $ pure $
@@ -3061,11 +3116,12 @@ joinStakePool ctx currentEpoch knownPools pid poolStatus wid =
 
 -- | Helper function to factor necessary logic for quitting a stake pool.
 validatedQuitStakePoolAction
-    :: forall s k. DBLayer IO s k
+    :: forall s k
+     . DBLayer IO s k
     -> WalletId
     -> Withdrawal
     -> IO DelegationAction
-validatedQuitStakePoolAction db walletId withdrawal = db & \DBLayer{..} -> do
+validatedQuitStakePoolAction db@DBLayer{..} walletId withdrawal = do
     (_, delegation) <- atomically (readWalletMeta walletId)
         >>= maybe
             (throw (ExceptionStakePoolDelegation
@@ -3078,16 +3134,15 @@ validatedQuitStakePoolAction db walletId withdrawal = db & \DBLayer{..} -> do
             (guardQuit delegation withdrawal rewards)
 
 quitStakePool
-    :: forall s k (n :: NetworkDiscriminant)
-     . (Typeable s, Typeable n)
-    => NetworkLayer IO Block
-    -> DBLayer IO s k
+    :: forall (n :: NetworkDiscriminant)
+     . NetworkLayer IO Block
+    -> DBLayer IO (SeqState n ShelleyKey) ShelleyKey
     -> TimeInterpreter (ExceptT PastHorizonException IO)
     -> WalletId
     -> IO TransactionCtx
 quitStakePool netLayer db timeInterpreter walletId = do
     (rewardAccount, _, derivationPath) <-
-        runExceptT (readRewardAccount @s @k @n db walletId)
+        runExceptT (readRewardAccount db walletId)
             >>= either (throw . ExceptionReadRewardAccount) pure
     withdrawal <- WithdrawalSelf rewardAccount derivationPath
         <$> getCachedRewardAccountBalance netLayer rewardAccount

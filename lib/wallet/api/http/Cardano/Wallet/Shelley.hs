@@ -137,6 +137,10 @@ import Control.Tracer
     ( Tracer, traceWith )
 import Data.Function
     ( (&) )
+import Data.Generics.Internal.VL
+    ( view )
+import Data.Generics.Product
+    ( typed )
 import Data.Maybe
     ( fromJust )
 import Data.Proxy
@@ -288,8 +292,11 @@ serveWallet
         lift $ apiLayer (newTransactionLayer netId) netLayer Server.idleWorker
 
     withShelleyApi netLayer =
-        lift $ apiLayer (newTransactionLayer netId) netLayer
-            (Server.manageRewardBalance proxyNetwork)
+        lift $ apiLayer (newTransactionLayer netId) netLayer $
+            Server.manageRewardBalance
+                <$> view typed
+                <*> view typed
+                <*> view typed
 
     withMultisigApi netLayer =
         lift $ apiLayer (newTransactionLayer netId) netLayer Server.idleWorker
