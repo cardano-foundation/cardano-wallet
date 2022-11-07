@@ -483,8 +483,6 @@ import Control.Arrow
     ( first, left )
 import Control.DeepSeq
     ( NFData )
-import Control.Exception
-    ( throw )
 import Control.Monad
     ( forM, forM_, replicateM, unless, when )
 import Control.Monad.Class.MonadTime
@@ -819,10 +817,10 @@ checkWalletIntegrity :: DBLayer IO s k -> WalletId -> GenesisParameters -> IO ()
 checkWalletIntegrity db walletId gp = db & \DBLayer{..} -> do
     gp' <- atomically (readGenesisParameters walletId) >>= do
         let noSuchWallet = ErrNoSuchWallet walletId
-        maybe (throw $ ErrCheckWalletIntegrityNoSuchWallet noSuchWallet) pure
+        maybe (throwIO $ ErrCheckWalletIntegrityNoSuchWallet noSuchWallet) pure
     when ( (gp ^. #getGenesisBlockHash /= gp' ^. #getGenesisBlockHash) ||
            (gp ^. #getGenesisBlockDate /= gp' ^. #getGenesisBlockDate) )
-        (throw $ ErrCheckIntegrityDifferentGenesis
+        (throwIO $ ErrCheckIntegrityDifferentGenesis
             (getGenesisBlockHash gp) (getGenesisBlockHash gp'))
 
 -- | Retrieve the wallet state for the wallet with the given ID.
@@ -1230,7 +1228,7 @@ mkSelfWithdrawal
 mkSelfWithdrawal netLayer txLayer era db wallet = do
     (rewardAccount, _, derivationPath) <-
         runExceptT (readRewardAccount db wallet)
-            >>= either (throw . ExceptionReadRewardAccount) pure
+            >>= either (throwIO . ExceptionReadRewardAccount) pure
     balance <- getCachedRewardAccountBalance netLayer rewardAccount
     pp <- currentProtocolParameters netLayer
     pure $ checkRewardIsWorthTxCost txLayer pp era balance $>
@@ -1254,7 +1252,7 @@ unsafeShelleyMkSelfWithdrawal netLayer txLayer era db wallet =
             Nothing -> notShelleyWallet
             Just Refl -> mkSelfWithdrawal netLayer txLayer era db wallet
   where
-    notShelleyWallet = throw
+    notShelleyWallet = throwIO
         $ ExceptionReadRewardAccount ErrReadRewardAccountNotAShelleyWallet
 
 checkRewardIsWorthTxCost
@@ -3124,14 +3122,14 @@ validatedQuitStakePoolAction
 validatedQuitStakePoolAction db@DBLayer{..} walletId withdrawal = do
     (_, delegation) <- atomically (readWalletMeta walletId)
         >>= maybe
-            (throw (ExceptionStakePoolDelegation
+            (throwIO (ExceptionStakePoolDelegation
                 (ErrStakePoolDelegationNoSuchWallet
                     (ErrNoSuchWallet walletId))))
             pure
     rewards <- liftIO $ fetchRewardBalance @s @k db walletId
-    Quit <$
-        either (throw . ExceptionStakePoolDelegation . ErrStakePoolQuit) pure
-            (guardQuit delegation withdrawal rewards)
+    either (throwIO . ExceptionStakePoolDelegation . ErrStakePoolQuit) pure
+        (guardQuit delegation withdrawal rewards)
+    pure Quit
 
 quitStakePool
     :: forall (n :: NetworkDiscriminant)
@@ -3143,7 +3141,7 @@ quitStakePool
 quitStakePool netLayer db timeInterpreter walletId = do
     (rewardAccount, _, derivationPath) <-
         runExceptT (readRewardAccount db walletId)
-            >>= either (throw . ExceptionReadRewardAccount) pure
+            >>= either (throwIO . ExceptionReadRewardAccount) pure
     withdrawal <- WithdrawalSelf rewardAccount derivationPath
         <$> getCachedRewardAccountBalance netLayer rewardAccount
     action <- validatedQuitStakePoolAction db walletId withdrawal
