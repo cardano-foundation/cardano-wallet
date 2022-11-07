@@ -689,7 +689,7 @@ getTransaction
 getTransaction w t = discriminate @style
     (endpoint @(Api.GetTransaction Net) mkShelleyURL)
     (endpoint @(Api.GetByronTransaction Net) mkByronURL)
-    (endpoint @(Api.GetTransaction Net) mkShelleyURL)
+    (endpoint @(Api.GetSharedTransaction Net) mkShelleyURL)
   where
     wid = w ^. typed @(ApiT WalletId)
     tid = ApiTxId (t ^. typed @(ApiT (Hash "Tx")))
