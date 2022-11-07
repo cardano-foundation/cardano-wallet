@@ -43,11 +43,16 @@ jobs:
             tag=""
             commit_message="$default_commit_message"
           fi
-          echo "commit_message=$commit_message" >> $GITHUB_OUTPUT
+          # commit message can be multiline
+          echo 'commit_message<<EOF' >> $GITHUB_OUTPUT
+          echo $commit_message >> $GITHUB_OUTPUT
+          echo 'EOF' >> $GITHUB_OUTPUT
           echo "tag=$tag" >> $GITHUB_OUTPUT
         env:
           default_commit_message: |
-            docs: ${{ github.event.head_commit.message }} Source commit: ${{ github.sha }}
+            docs: ${{ github.event.head_commit.message }}
+
+            Source commit: ${{ github.sha }}
 
       - name: '❄ Install dependencies'
         run: 'nix develop .#docs --command emanote --version'
