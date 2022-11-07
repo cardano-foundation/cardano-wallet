@@ -33,6 +33,7 @@ import Cardano.Wallet.Api.Types
     , ApiSharedWallet (..)
     , ApiT (..)
     , ApiTransaction
+    , ApiTxId (..)
     , ApiTxInputGeneral (..)
     , ApiTxMetadata (..)
     , ApiTxOutputGeneral (..)
@@ -54,7 +55,12 @@ import Cardano.Wallet.Primitive.AddressDiscovery.Shared
 import Cardano.Wallet.Primitive.Passphrase
     ( Passphrase (..) )
 import Cardano.Wallet.Primitive.Types.Tx
-    ( TxMetadata (..), TxMetadataValue (..), TxScriptValidity (..) )
+    ( Direction (..)
+    , TxMetadata (..)
+    , TxMetadataValue (..)
+    , TxScriptValidity (..)
+    , TxStatus (..)
+    )
 import Cardano.Wallet.Transaction
     ( AnyScript (..), WitnessCount (..) )
 import Control.Monad
@@ -260,6 +266,14 @@ spec = describe "SHARED_TRANSACTIONS" $ do
             , expectResponseCode HTTP.status202
             ]
 
+        let txid = getFromResponse (#id) submittedTx
+        let queryTx = Link.getTransaction @'Shared wal (ApiTxId txid)
+        rGetTx <- request @(ApiTransaction n) ctx queryTx Default Empty
+        verify rGetTx
+            [ expectResponseCode HTTP.status200
+            , expectField (#direction . #getApiT) (`shouldBe` Outgoing)
+            ]
+
         -- Make sure only fee is deducted from shared Wallet
         eventually "Wallet balance is as expected" $ do
             rWal <- getSharedWallet ctx walShared
@@ -268,6 +282,13 @@ spec = describe "SHARED_TRANSACTIONS" $ do
                 , expectField
                     (traverse . #balance . #available . #getQuantity)
                     (`shouldBe` (amt - expectedFee))
+                ]
+
+        eventually "Tx is in ledger finally" $ do
+            rGetTx' <- request @(ApiTransaction n) ctx queryTx Default Empty
+            verify rGetTx'
+                [ expectResponseCode HTTP.status200
+                , expectField (#status . #getApiT) (`shouldBe` InLedger)
                 ]
 
     it "SHARED_TRANSACTIONS_CREATE_01a - Empty payload is not allowed" $ \ctx -> runResourceT $ do

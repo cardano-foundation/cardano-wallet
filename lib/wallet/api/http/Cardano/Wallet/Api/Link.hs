@@ -679,8 +679,7 @@ deleteTransaction w t = discriminate @style
 
 getTransaction
     :: forall (style :: WalletStyle) w t.
-        ( HasCallStack
-        , Discriminate style
+        ( Discriminate style
         , HasType (ApiT WalletId) w
         , HasType (ApiT (Hash "Tx")) t
         )
@@ -690,7 +689,7 @@ getTransaction
 getTransaction w t = discriminate @style
     (endpoint @(Api.GetTransaction Net) mkShelleyURL)
     (endpoint @(Api.GetByronTransaction Net) mkByronURL)
-    (notSupported "Shared")
+    (endpoint @(Api.GetTransaction Net) mkShelleyURL)
   where
     wid = w ^. typed @(ApiT WalletId)
     tid = ApiTxId (t ^. typed @(ApiT (Hash "Tx")))
