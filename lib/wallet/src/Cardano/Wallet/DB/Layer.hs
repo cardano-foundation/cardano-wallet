@@ -1016,29 +1016,6 @@ deleteDelegationCertificates
 deleteDelegationCertificates wid filters = do
     deleteWhere ((CertWalletId ==. wid) : filters)
 
--- This relies on available information from the database to reconstruct coin
--- selection information for __outgoing__ payments. We can't however guarantee
--- that we have such information for __incoming__ payments (we usually don't
--- have it).
---
--- To reliably provide this information for incoming payments, it should be
--- looked up when applying blocks from the global ledger, but that is future
--- work.
---
-
--- See also: issue #573.
-selectTxHistory
-    :: Monad m
-    => W.BlockHeader
-    -> TimeInterpreter m
-    -> W.WalletId
-    -> (DB.TxMeta -> Bool)
-    -> TxWalletsHistory
-    -> m [W.TransactionInfo]
-selectTxHistory tip ti wid whichMeta txs@(txSet, wmetas) =
-    let transactions = filter whichMeta $ getTxMetas wid txs
-    in  forM transactions $ selectTransactionInfo ti tip txSet
-
 -- | Get all 'TxMeta' for a given wallet.
 -- Returns empty list if the wallet does not exist.
 getTxMetas
@@ -1064,6 +1041,15 @@ lookupTxMeta wid txid (_,wmetas) = do
 -- the corresponding 'W.TransactionInfo'.
 --
 -- Assumption: The 'TxMeta' is contained in the given 'TxSet'.
+--
+-- Note: Transaction inputs are references to the outputs of
+-- previous transactions. Given any input, the Ada quantity and
+-- assets associated with it are unknown until we look them up.
+-- Here, 'selectTransactionInfo' will try to look up those outputs that
+-- are in the transaction history of the wallet,
+-- but the function will not attempt to look up all possible outputs.
+-- This approach typically provides enough information
+-- for /outgoing/ payments, but less so for /ingoing/ payments.
 selectTransactionInfo
     :: Monad m
     => TimeInterpreter m
