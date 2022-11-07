@@ -195,7 +195,7 @@ import Cardano.Wallet.Api
     , workerRegistry
     )
 import Cardano.Wallet.Api.Http.Server.Error
-    ( IsServerError (..), apiError, handleWalletException, liftE, liftHandler )
+    ( IsServerError (..), apiError, liftE, liftHandler )
 import Cardano.Wallet.Api.Http.Server.Handlers.MintBurn
     ( convertApiAssetMintBurn, getTxApiAssetMintBurn )
 import Cardano.Wallet.Api.Http.Server.Handlers.TxCBOR
@@ -1741,8 +1741,7 @@ selectCoinsForQuit ctx@ApiLayer{..} (ApiT wid) =
         wdrl <- liftHandler $ ExceptT
             $ W.unsafeShelleyMkSelfWithdrawal @s @k @_ @_ @n
                 netLayer txLayer era db wid
-        action <- handleWalletException
-            $ W.validatedQuitStakePoolAction db wid wdrl
+        action <- liftIO $ W.validatedQuitStakePoolAction db wid wdrl
 
         let txCtx = defaultTransactionCtx
                 { txDelegationAction = Just action
@@ -2362,7 +2361,7 @@ constructTransaction ctx genChange knownPools getPoolStatus (ApiT wid) body = do
                             @_ @s @k wrk curEpoch pools pid poolStatus wid
                         pure (del, act, Nothing)
                     [(Leaving _)] -> do
-                        del <- handleWalletException $
+                        del <- liftIO $
                             W.validatedQuitStakePoolAction @s @k db wid wdrl
                         pure (del, Nothing, Just $ W.stakeKeyDeposit pp)
                     _ ->
@@ -3309,7 +3308,7 @@ quitStakePool ctx@ApiLayer{..} (ApiT walletId) body = do
                 Just Refl -> case testEquality (typeRep @k)
                                                (typeRep @ShelleyKey) of
                     Nothing -> notShelleyWallet
-                    Just Refl -> handleWalletException $
+                    Just Refl -> liftIO $
                         W.quitStakePool netLayer db ti walletId
         (utxoAvailable, wallet, pendingTxs) <-
             liftHandler $ W.readWalletUTxOIndex @_ @s @k wrk walletId

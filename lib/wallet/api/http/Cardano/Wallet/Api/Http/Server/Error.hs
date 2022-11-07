@@ -17,7 +17,6 @@ module Cardano.Wallet.Api.Http.Server.Error
   ( IsServerError (..)
   , liftHandler
   , liftE
-  , handleWalletException
   , apiError
   , err425
   , showT
@@ -103,16 +102,12 @@ import Cardano.Wallet.Primitive.AddressDiscovery.Shared
     ( ErrAddCosigner (..), ErrScriptTemplate (..) )
 import Cardano.Wallet.Primitive.Slotting
     ( PastHorizonException )
-import Cardano.Wallet.Primitive.Types.TokenBundle
+import Cardano.Wallet.Primitive.Types.TokenMap
     ( Flat (..) )
 import Cardano.Wallet.Transaction
     ( ErrAssignRedeemers (..), ErrSignTx (..) )
-import Control.Exception
-    ( try )
 import Control.Monad.Except
     ( ExceptT, withExceptT )
-import Control.Monad.IO.Class
-    ( liftIO )
 import Control.Monad.Trans.Except
     ( throwE )
 import Data.Generics.Internal.VL
@@ -140,7 +135,7 @@ import Network.Wai
 import Safe
     ( fromJustNote )
 import Servant
-    ( Accept (contentType), JSON, Proxy (Proxy), throwError )
+    ( Accept (contentType), JSON, Proxy (Proxy) )
 import Servant.Server
     ( Handler (Handler)
     , ServerError (..)
@@ -176,11 +171,6 @@ class IsServerError e where
 -- corresponding servant error.
 liftHandler :: IsServerError e => ExceptT e IO a -> Handler a
 liftHandler action = Handler (withExceptT toServerError action)
-
-handleWalletException :: IO a -> Handler a
-handleWalletException action =
-    liftIO (try @WalletException action) >>=
-      either (throwError . toServerError) pure
 
 liftE :: IsServerError e => e -> Handler a
 liftE = liftHandler . throwE
