@@ -136,6 +136,8 @@ import Cardano.Wallet.Tracers as Tracers
     )
 import Cardano.Wallet.Transaction
     ( TransactionLayer )
+import Control.Exception.Extra
+    ( handle )
 import Control.Monad.Trans.Class
     ( lift )
 import Control.Monad.Trans.Cont
@@ -166,6 +168,8 @@ import Network.Wai.Handler.Warp
     ( setBeforeMainLoop )
 import Ouroboros.Network.Client.Wallet
     ( PipeliningStrategy )
+import Servant.Server
+    ( ServerError )
 import System.Exit
     ( ExitCode (..) )
 import System.IOManager
@@ -176,11 +180,7 @@ import Type.Reflection
 import qualified Cardano.Pool.DB.Sqlite as Pool
 import qualified Cardano.Wallet.Api.Http.Shelley.Server as Server
 import qualified Cardano.Wallet.DB.Layer as Sqlite
-import Control.Exception.Extra
-    ( handle )
 import qualified Network.Wai.Handler.Warp as Warp
-import Servant.Server
-    ( ServerError )
 import qualified Servant.Server as Servant
 
 -- | The @cardano-wallet@ main function. It takes the configuration
