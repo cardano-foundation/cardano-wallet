@@ -22,6 +22,7 @@ import Cardano.Wallet.Write.Tx
     ( BinaryData
     , Datum (..)
     , DatumHash
+    , IsRecentEra
     , LatestLedgerEra
     , RecentEra
     , ShelleyLedgerEra
@@ -31,6 +32,7 @@ import Cardano.Wallet.Write.Tx
     , datumHashFromBytes
     , datumToCardanoScriptData
     , shelleyBasedEraFromRecentEra
+    , withEraConversionConstraints
     )
 import Data.ByteString
     ( ByteString )
@@ -85,7 +87,9 @@ shrinkDatum (Datum x) = NoDatum : map Datum (shrinkBinaryData x)
 shrinkDatum (DatumHash _) = [NoDatum]
 shrinkDatum NoDatum = []
 
-shrinkBinaryData :: BinaryData LatestLedgerEra -> [BinaryData LatestLedgerEra]
+shrinkBinaryData
+    :: IsRecentEra era
+    => BinaryData era -> [BinaryData era]
 shrinkBinaryData = shrinkMapBy
     datumFromCardanoScriptData
     datumToCardanoScriptData
@@ -100,6 +104,7 @@ genDatumHash =
 genByteString :: Gen ByteString
 genByteString = BS.pack <$> (choose (0, 64) >>= vector)
 
-genTxOut :: RecentEra era -> Gen (TxOut (ShelleyLedgerEra era))
-genTxOut era = Cardano.toShelleyTxOut (shelleyBasedEraFromRecentEra era)
+genTxOut :: RecentEra era -> Gen (TxOut era)
+genTxOut era = withEraConversionConstraints era $
+    Cardano.toShelleyTxOut (shelleyBasedEraFromRecentEra era)
     <$> Cardano.genTxOut (cardanoEraFromRecentEra era)

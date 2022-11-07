@@ -612,6 +612,7 @@ import UnliftIO.Exception
     ( IOException, bracket, throwIO, tryAnyDeep, tryJust )
 
 import qualified Cardano.Api as Cardano
+import qualified Cardano.Api.Write.Tx as WriteTx
 import qualified Cardano.Wallet as W
 import qualified Cardano.Wallet.Api.Types as Api
 import qualified Cardano.Wallet.DB as W
@@ -628,7 +629,6 @@ import qualified Cardano.Wallet.Primitive.Types.UTxO as UTxO
 import qualified Cardano.Wallet.Primitive.Types.UTxOIndex.Internal as UTxOIndex
 import qualified Cardano.Wallet.Primitive.Types.UTxOSelection as UTxOSelection
 import qualified Cardano.Wallet.Registry as Registry
-import qualified Cardano.Wallet.Write.Tx as WriteTx
 import qualified Control.Concurrent.Concierge as Concierge
 import qualified Data.ByteString as BS
 import qualified Data.Foldable as F
@@ -2751,7 +2751,7 @@ balanceTransaction ctx genChange (ApiT wid) body = do
         ti <- liftIO $ snapshot $ timeInterpreter $ ctx ^. networkLayer
 
         let mkPartialTx
-                :: forall era. WriteTx.IsRecentEra era => Cardano.Tx era
+                :: forall era. (WriteTx.IsRecentCardanoEra era) => Cardano.Tx era
                 -> Handler (W.PartialTx era)
             mkPartialTx tx = do
                 utxo <- fmap WriteTx.toCardanoUTxO $ mkLedgerUTxO $ body ^. #inputs
@@ -2778,7 +2778,7 @@ balanceTransaction ctx genChange (ApiT wid) body = do
                 --          -> res
                 -- @@
 
-                mkRecentEra :: Handler (WriteTx.RecentEra era)
+                mkRecentEra :: Handler (WriteTx.RecentEra (ShelleyLedgerEra era))
                 mkRecentEra = case Cardano.cardanoEra @era of
                     Cardano.BabbageEra -> pure WriteTx.RecentEraBabbage
                     Cardano.AlonzoEra -> pure WriteTx.RecentEraAlonzo
@@ -2797,7 +2797,7 @@ balanceTransaction ctx genChange (ApiT wid) body = do
                         $ ins
 
         let balanceTx
-                :: forall era. Cardano.IsShelleyBasedEra era
+                :: forall era. WriteTx.IsRecentCardanoEra era
                 => W.PartialTx era
                 -> Handler (Cardano.Tx era)
             balanceTx partialTx =

@@ -197,6 +197,7 @@ library
 
   exposed-modules:
     Cardano.Api.Extra
+    Cardano.Api.Write.Tx
     Cardano.Api.Gen
     Cardano.Byron.Codec.Cbor
     Cardano.DB.Sqlite

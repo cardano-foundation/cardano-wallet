@@ -632,6 +632,8 @@ import qualified Data.Vector as V
 
 import qualified Cardano.Ledger.Babbage.TxBody as Babbage
 import qualified Cardano.Ledger.Core as Ledger
+import Cardano.Wallet.Write.Tx
+    ( withEraConversionConstraints )
 
 -- $Development
 -- __Naming Conventions__
@@ -1640,36 +1642,12 @@ balanceTransaction ctx change pp ti wallet ptx = do
                 -> throwE otherErr
 
 increaseZeroAdaOutputs
-    :: forall era. WriteTx.RecentEra era
+    :: forall era. WriteTx.RecentEra (Cardano.ShelleyLedgerEra era)
     -> WriteTx.PParams (Cardano.ShelleyLedgerEra era)
     -> Cardano.Tx era
     -> Cardano.Tx era
-increaseZeroAdaOutputs era pp (Cardano.Tx cardanoBody keyWits) =
-    let
-        Cardano.ShelleyTxBody
-            era
-            body
-            scripts
-            scriptData
-            aux
-            val = cardanoBody
-
-        cardanoBody' =
-            Cardano.ShelleyTxBody
-                era
-                (modifyLedgerBody body)
-                scripts
-                scriptData
-                aux
-                val
-
-    in
-        Cardano.Tx cardanoBody' keyWits
-  where
-    modifyLedgerBody
-        :: Ledger.TxBody (Cardano.ShelleyLedgerEra era)
-        -> Ledger.TxBody (Cardano.ShelleyLedgerEra era)
-    modifyLedgerBody =
+increaseZeroAdaOutputs era pp =
+    WriteTx.modifyLedgerBody era .
         WriteTx.modifyTxOutputs era $ \out ->
             flip (WriteTx.modifyTxOutCoin era) out $ \c ->
                 if c == mempty

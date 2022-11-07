@@ -1,4 +1,5 @@
 {-# LANGUAGE FlexibleInstances #-}
+{-# LANGUAGE IncoherentInstances #-}
 {-# LANGUAGE ScopedTypeVariables #-}
 {-# LANGUAGE TypeApplications #-}
 {-# LANGUAGE TypeFamilies #-}
@@ -15,7 +16,6 @@ import Cardano.Wallet.Unsafe
     ( unsafeFromHex )
 import Cardano.Wallet.Write.Tx
     ( BinaryData
-    , LatestEra
     , LatestLedgerEra
     , RecentEra (RecentEraBabbage)
     , Script
@@ -71,9 +71,11 @@ spec = do
         it "BinaryData is isomorphic to Cardano.ScriptData" $
             testIsomorphism
                 (NamedFun
-                    datumToCardanoScriptData "datumToCardanoScriptData")
+                    (datumToCardanoScriptData @LatestLedgerEra)
+                        "datumToCardanoScriptData")
                 (NamedFun
-                    datumFromCardanoScriptData "datumFromCardanoScriptData")
+                    (datumFromCardanoScriptData @LatestLedgerEra)
+                        "datumFromCardanoScriptData")
                 id
         it "binaryDataFromBytes . binaryDataToBytes == Right"
             $ property $ \d -> do
@@ -147,10 +149,10 @@ spec = do
         it "is isomorphic to Cardano.UTxO (modulo SimpleScriptV1/2)" $ do
             testIsomorphism
                 (NamedFun
-                    (toCardanoUTxO @Cardano.BabbageEra)
+                    (toCardanoUTxO @LatestLedgerEra)
                     "toCardanoUTxO")
                 (NamedFun
-                    (fromCardanoUTxO @Cardano.BabbageEra)
+                    (fromCardanoUTxO @LatestLedgerEra)
                     "fromCardanoUTxO")
                 normalizeCardanoUTxO
 
@@ -170,7 +172,7 @@ instance Arbitrary Cardano.ScriptInAnyLang where
 instance Arbitrary (Script LatestLedgerEra) where
     arbitrary = scriptFromCardanoScriptInAnyLang <$> arbitrary
 
-instance Arbitrary (Cardano.UTxO LatestEra) where
+instance Arbitrary (Cardano.UTxO Cardano.BabbageEra) where
     arbitrary = Cardano.UTxO . Map.fromList <$> liftArbitrary genTxInOutEntry
       where
         genTxInOutEntry = (,)
