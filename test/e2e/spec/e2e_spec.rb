@@ -288,6 +288,38 @@ RSpec.describe 'Cardano Wallet E2E tests', :all, :e2e do
       expect(mint[:tx_balanced]['burn']['tokens']).to eq []
       expect(burn[:tx_balanced]['mint']['tokens']).to eq []
       expect(burn[:tx_balanced]['burn']['tokens']).to eq assets
+
+      # examine tx history
+      mint_tx = SHELLEY.transactions.get(@wid, mint[:tx_id])
+      burn_tx = SHELLEY.transactions.get(@wid, burn[:tx_id])
+
+      tx_inputs(mint_tx, present: true)
+      tx_outputs(mint_tx, present: true)
+      tx_extra_signatures(mint_tx, present: true)
+      tx_direction(mint_tx, 'outgoing')
+      tx_script_validity(mint_tx, 'valid')
+      tx_script_integrity(mint_tx, present: true)
+      tx_status(mint_tx, 'in_ledger')
+      tx_collateral(mint_tx, present: true)
+      tx_collateral_outputs(mint_tx, present: false)
+      tx_metadata(mint_tx, nil)
+      tx_deposits(mint_tx, deposit_taken: 0, deposit_returned: 0)
+      tx_withdrawals(mint_tx, present: false)
+      tx_mint_burn(mint_tx, mint: assets, burn: [])
+
+      tx_inputs(burn_tx, present: true)
+      tx_outputs(burn_tx, present: true)
+      tx_extra_signatures(burn_tx, present: true)
+      tx_direction(burn_tx, 'outgoing')
+      tx_script_validity(burn_tx, 'valid')
+      tx_script_integrity(burn_tx, present: true)
+      tx_status(burn_tx, 'in_ledger')
+      tx_collateral(burn_tx, present: true)
+      tx_collateral_outputs(burn_tx, present: false)
+      tx_metadata(burn_tx, nil)
+      tx_deposits(burn_tx, deposit_taken: 0, deposit_returned: 0)
+      tx_withdrawals(burn_tx, present: false)
+      tx_mint_burn(burn_tx, mint: [], burn: assets)
     end
 
     it 'withdrawal' do
@@ -879,7 +911,7 @@ RSpec.describe 'Cardano Wallet E2E tests', :all, :e2e do
       expect(tx['fee']['quantity']).to eq expected_fee
       expect(tx['deposit_taken']['quantity']).to eq deposit_taken
       expect(tx['deposit_returned']['quantity']).to eq 0
-      expect(tx['amount']['quantity']).to eq (expected_fee + expected_deposit)
+      expect(tx['amount']['quantity']).to eq(expected_fee + expected_deposit)
       expect(tx['direction']).to eq 'outgoing'
       expected_join_balance = balance['total'] - deposit_taken - expected_fee
       expect(join_balance['total']).to eq expected_join_balance
@@ -952,7 +984,6 @@ RSpec.describe 'Cardano Wallet E2E tests', :all, :e2e do
 
       expected_quit_balance = join_balance['total'] + deposit_returned - expected_fee
       expect(quit_balance['total']).to eq expected_quit_balance
-
 
       # Check wallet stake keys after quitting
       stake_keys = SHELLEY.stake_pools.list_stake_keys(@target_id)
@@ -2738,7 +2769,7 @@ RSpec.describe 'Cardano Wallet E2E tests', :all, :e2e do
         expect(stake_keys['ours'].first['delegation']['next'].last['status']).to eq 'delegating'
 
         # examine the tx in history
-        expect(tx['amount']['quantity']).to eq (fee + deposit)
+        expect(tx['amount']['quantity']).to eq(fee + deposit)
         expect(tx['direction']).to eq 'outgoing'
         expect(tx['certificates'].to_s).to include 'register_reward_account'
         expect(tx['certificates'].to_s).to include 'join_pool'

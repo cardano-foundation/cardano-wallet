@@ -9,6 +9,7 @@ require 'cbor'
 require 'tmpdir'
 require_relative '../env'
 require_relative '../helpers/utils'
+require_relative '../helpers/tx_history'
 require_relative '../helpers/matchers'
 require_relative '../helpers/context'
 require_relative '../helpers/wallet_factory'
@@ -16,6 +17,7 @@ require_relative '../helpers/cardano_addresses'
 require_relative '../helpers/cardano_cli'
 
 include Helpers::Utils
+include TxHistory
 
 RSpec.configure do |config|
   # Enable flags like --only-failures and --next-failure
