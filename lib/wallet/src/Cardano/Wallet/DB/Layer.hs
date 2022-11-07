@@ -159,7 +159,7 @@ import Data.Foldable
 import Data.Generics.Internal.VL.Lens
     ( view, (^.) )
 import Data.Maybe
-    ( catMaybes, fromMaybe, isJust, listToMaybe, maybeToList )
+    ( catMaybes, fromMaybe, isJust, maybeToList )
 import Data.Proxy
     ( Proxy (..) )
 import Data.Quantity
@@ -721,11 +721,9 @@ newDBLayerWith _cacheBehavior _tr ti SqliteContext{runQuery} = do
                 ti wid filtering txHistory
 
         , getTx_ = \wid txid tip -> do
-            txHistory <- readDBVar transactionsDBVar
-            metas <- lift $ selectTxHistory tip ti wid
-                    (\meta -> txMetaTxId meta == TxId txid )
-                    txHistory
-            pure $ listToMaybe metas
+            txHistory@(txSet,_) <- readDBVar transactionsDBVar
+            let transactions = lookupTxMeta wid (TxId txid) txHistory
+            lift $ forM transactions $ selectTransactionInfo ti tip txSet
         }
 
         {-----------------------------------------------------------------------
@@ -1050,6 +1048,17 @@ getTxMetas
 getTxMetas wid (_,wmetas) = do
     (TxMetaHistory metas, _) <- maybeToList $ Map.lookup wid wmetas
     toList metas
+
+-- | Lookup 'TxMeta' for a given wallet and 'TxId'.
+-- Returns 'Nothing' if the wallet or the transaction id do not exist.
+lookupTxMeta
+    :: W.WalletId
+    -> TxId
+    -> TxWalletsHistory
+    -> Maybe DB.TxMeta
+lookupTxMeta wid txid (_,wmetas) = do
+    (TxMetaHistory metas, _) <- Map.lookup wid wmetas
+    Map.lookup txid metas
 
 -- | For a given 'TxMeta', read all necessary data to construct
 -- the corresponding 'W.TransactionInfo'.
