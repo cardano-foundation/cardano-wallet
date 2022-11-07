@@ -2130,10 +2130,10 @@ listTransactions
     defaultSortOrder = Descending
 
 getTransaction
-    :: forall s k n.
+    :: forall ctx s k ktype n.
         ( Typeable s
         , Typeable n
-        , Typeable k
+        , ctx ~ ApiLayer s k ktype
         , HasDelegation s
         )
     => ApiLayer s k 'CredFromKeyK
@@ -2155,7 +2155,7 @@ getTransaction ctx (ApiT wid) (ApiTxId (ApiT (tid))) metadataSchema =
 mkApiTransactionFromInfo
     :: (Typeable s, Typeable n, HasDelegation s, Typeable k)
     => TimeInterpreter (ExceptT PastHorizonException IO)
-    -> W.WalletLayer IO s k 'CredFromKeyK
+    -> W.WalletLayer IO s k ktype
     -> WalletId
     -> Coin
     -> TransactionInfo
@@ -4162,10 +4162,14 @@ data MkApiTransactionParams = MkApiTransactionParams
     deriving (Eq, Generic, Show)
 
 mkApiTransaction
+<<<<<<< HEAD
     :: forall n s k
      . (Typeable s, Typeable n, Typeable k, HasDelegation s)
+=======
+    :: forall n s k ktype . (Typeable s, Typeable n, HasDelegation s)
+>>>>>>> 3410d992b (reuse getTransaction in shared context)
     => TimeInterpreter (ExceptT PastHorizonException IO)
-    -> W.WalletLayer IO s k 'CredFromKeyK
+    -> W.WalletLayer IO s k ktype
     -> WalletId
     -> Lens' (ApiTransaction n) (Maybe ApiBlockReference)
     -> MkApiTransactionParams

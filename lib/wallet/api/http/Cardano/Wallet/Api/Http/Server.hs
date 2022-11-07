@@ -614,6 +614,11 @@ server byron icarus shelley multisig spl ntp blockchainSource =
         :<|> signTransaction @_ @_ @_ @'CredFromScriptK apilayer
         :<|> decodeSharedTransaction apilayer
         :<|> submitSharedTransaction @_ @_ @_ apilayer
+        :<|>
+            (\wid txId simpleMetadataFlag ->
+                getTransaction apilayer wid txId
+                    (parseSimpleMetadataFlag simpleMetadataFlag)
+            )
 
     blocks :: Handler ApiBlockHeader
     blocks = getBlocksLatestHeader (shelley ^. networkLayer)
