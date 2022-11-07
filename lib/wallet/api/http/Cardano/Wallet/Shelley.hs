@@ -136,14 +136,12 @@ import Cardano.Wallet.Tracers as Tracers
     )
 import Cardano.Wallet.Transaction
     ( TransactionLayer )
-import Control.Exception
-    ( handle, throwIO )
 import Control.Monad.Trans.Class
     ( lift )
 import Control.Monad.Trans.Cont
     ( ContT (ContT), evalContT )
 import Control.Monad.Trans.Except
-    ( ExceptT (ExceptT) )
+    ( ExceptT (ExceptT), mapExceptT )
 import Control.Tracer
     ( Tracer, traceWith )
 import Data.Function
@@ -178,7 +176,11 @@ import Type.Reflection
 import qualified Cardano.Pool.DB.Sqlite as Pool
 import qualified Cardano.Wallet.Api.Http.Shelley.Server as Server
 import qualified Cardano.Wallet.DB.Layer as Sqlite
+import Control.Exception.Extra
+    ( handle )
 import qualified Network.Wai.Handler.Warp as Warp
+import Servant.Server
+    ( ServerError )
 import qualified Servant.Server as Servant
 
 -- | The @cardano-wallet@ main function. It takes the configuration
@@ -411,10 +413,11 @@ serveWallet
 
 handleWalletExceptions :: forall x. Servant.Handler x -> Servant.Handler x
 handleWalletExceptions =
-    Servant.Handler . ExceptT . walletExceptionToServerErr . Servant.runHandler
+    Servant.Handler . mapExceptT handleServerErr . ExceptT . Servant.runHandler
   where
-    walletExceptionToServerErr = handle $ \(e :: WalletException) ->
-        throwIO (toServerError e)
+    handleServerErr :: IO (Either ServerError x) -> IO (Either ServerError x)
+    handleServerErr = handle $ \(e :: WalletException) ->
+        pure (Left (toServerError e))
 
 withNtpClient :: Tracer IO NtpTrace -> ContT r IO NtpClient
 withNtpClient tr = do
