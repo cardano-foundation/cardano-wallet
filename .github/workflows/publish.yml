@@ -47,9 +47,7 @@ jobs:
           echo "tag=$tag" >> $GITHUB_OUTPUT
         env:
           default_commit_message: |
-            docs: ${{ github.event.head_commit.message }}
-
-            Source commit: ${{ github.sha }}
+            docs: ${{ github.event.head_commit.message }} Source commit: ${{ github.sha }}
 
       - name: '❄ Install dependencies'
         run: 'nix develop .#docs --command emanote --version'
