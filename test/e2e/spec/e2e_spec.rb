@@ -144,9 +144,9 @@ RSpec.describe 'Cardano Wallet E2E tests', :all, :e2e do
       end
 
       { tx_id: tx_id,
-        tx_unbalanced: SHELLEY.transactions.decode(@wid, payload['transaction']),
-        tx_balanced: SHELLEY.transactions.decode(@wid, tx_balanced['transaction']),
-        tx_signed: SHELLEY.transactions.decode(@wid, tx_signed['transaction']) }
+        tx_unbalanced: SHELLEY.transactions.decode(@wid, payload['transaction']).parsed_response,
+        tx_balanced: SHELLEY.transactions.decode(@wid, tx_balanced['transaction']).parsed_response,
+        tx_signed: SHELLEY.transactions.decode(@wid, tx_signed['transaction']).parsed_response }
     end
 
     def run_contract(contract_setup, scripts)
@@ -179,8 +179,16 @@ RSpec.describe 'Cardano Wallet E2E tests', :all, :e2e do
       # run contract setup
       payload = get_plutus_tx(contract_setup)
       r = run_script(contract_setup, payload)
-      # verify that decoded balanced tx is the same as signed tx
-      expect(r[:tx_balanced].parsed_response).to eq r[:tx_signed].parsed_response
+      # verify that decoded balanced tx is the same as signed tx (modulo witness_count)
+      r_balanced = r[:tx_balanced].clone
+      r_signed = r[:tx_signed].clone
+      r_balanced.delete('witness_count')
+      r_signed.delete('witness_count')
+      expect(r_balanced).to eq r_signed
+
+      #verify witness count
+      expect(r[:tx_balanced]['witness_count']['verification_key']).to eq 0
+      expect(r[:tx_signed]['witness_count']['verification_key']).to eq 1
 
       # verify wallet balance decreases as expected after transaction (by fee + amt)
       fee = r[:tx_balanced]['fee']['quantity']
@@ -193,8 +201,17 @@ RSpec.describe 'Cardano Wallet E2E tests', :all, :e2e do
       payload2 = get_templated_plutus_tx(script, { transactionId: r[:tx_id] })
       r2 = run_script(script, payload2)
 
-      # verify that decoded balanced tx is the same as signed tx
-      expect(r2[:tx_balanced].parsed_response).to eq r2[:tx_signed].parsed_response
+      # verify that decoded balanced tx is the same as signed tx (modulo witness_count)
+      r2_balanced = r2[:tx_balanced].clone
+      r2_signed = r2[:tx_signed].clone
+      r2_balanced.delete('witness_count')
+      r2_signed.delete('witness_count')
+      expect(r2_balanced).to eq r2_signed
+
+      #verify witness count
+      expect(r2[:tx_balanced]['witness_count']['verification_key']).to eq 0
+      expect(r2[:tx_signed]['witness_count']['verification_key']).to be >=1
+
       fee2 = r2[:tx_balanced]['fee']['quantity']
 
       # verify balance decreases as expected after transaction
@@ -242,9 +259,23 @@ RSpec.describe 'Cardano Wallet E2E tests', :all, :e2e do
       mint = run_script(mint_script, payload_mint)
       burn = run_script(burn_script, payload_burn)
 
-      # verify that decoded balanced tx is the same as signed tx
-      expect(mint[:tx_balanced].parsed_response).to eq mint[:tx_signed].parsed_response
-      expect(burn[:tx_balanced].parsed_response).to eq burn[:tx_signed].parsed_response
+      # verify that decoded balanced tx is the same as signed tx (modulo witness_count)
+      mint_balanced = mint[:tx_balanced].clone
+      mint_signed = mint[:tx_signed].clone
+      mint_balanced.delete('witness_count')
+      mint_signed.delete('witness_count')
+      expect(mint_balanced).to eq mint_signed
+      burn_balanced = burn[:tx_balanced].clone
+      burn_signed = burn[:tx_signed].clone
+      burn_balanced.delete('witness_count')
+      burn_signed.delete('witness_count')
+      expect(burn_balanced).to eq burn_signed
+
+      #verify witness count
+      expect(mint[:tx_balanced]['witness_count']['verification_key']).to eq 0
+      expect(mint[:tx_signed]['witness_count']['verification_key']).to be >=1
+      expect(burn[:tx_balanced]['witness_count']['verification_key']).to eq 0
+      expect(burn[:tx_signed]['witness_count']['verification_key']).to be >=1
 
       # verify decoded unbalanced transaction includes assets minted and burned
       expect(mint[:tx_unbalanced]['mint']['tokens']).to eq assets
