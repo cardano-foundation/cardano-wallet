@@ -511,10 +511,10 @@ instance IsServerError ErrBalanceTx where
 
 instance IsServerError ErrBalanceTxInternalError where
     toServerError = \case
-        ErrUnderestimatedFee co _st ->
+        ErrUnderestimatedFee coin _st ->
             apiError err500 BalanceTxUnderestimatedFee $ T.unwords
                 [ "I have somehow underestimated the fee of the transaction by"
-                , pretty co
+                , pretty coin
                 , "and cannot finish balancing."
                 ]
         ErrFailedBalancing v ->
