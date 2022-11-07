@@ -186,9 +186,9 @@ RSpec.describe 'Cardano Wallet E2E tests', :all, :e2e do
       r_signed.delete('witness_count')
       expect(r_balanced).to eq r_signed
 
-      #verify witness count
+      # verify witness count
       expect(r[:tx_balanced]['witness_count']['verification_key']).to eq 0
-      expect(r[:tx_signed]['witness_count']['verification_key']).to eq 1
+      expect(r[:tx_signed]['witness_count']['verification_key']).to be >= 1
 
       # verify wallet balance decreases as expected after transaction (by fee + amt)
       fee = r[:tx_balanced]['fee']['quantity']
@@ -208,9 +208,9 @@ RSpec.describe 'Cardano Wallet E2E tests', :all, :e2e do
       r2_signed.delete('witness_count')
       expect(r2_balanced).to eq r2_signed
 
-      #verify witness count
+      # verify witness count
       expect(r2[:tx_balanced]['witness_count']['verification_key']).to eq 0
-      expect(r2[:tx_signed]['witness_count']['verification_key']).to be >=1
+      expect(r2[:tx_signed]['witness_count']['verification_key']).to be >= 1
 
       fee2 = r2[:tx_balanced]['fee']['quantity']
 
@@ -271,11 +271,11 @@ RSpec.describe 'Cardano Wallet E2E tests', :all, :e2e do
       burn_signed.delete('witness_count')
       expect(burn_balanced).to eq burn_signed
 
-      #verify witness count
+      # verify witness count
       expect(mint[:tx_balanced]['witness_count']['verification_key']).to eq 0
-      expect(mint[:tx_signed]['witness_count']['verification_key']).to be >=1
+      expect(mint[:tx_signed]['witness_count']['verification_key']).to be >= 1
       expect(burn[:tx_balanced]['witness_count']['verification_key']).to eq 0
-      expect(burn[:tx_signed]['witness_count']['verification_key']).to be >=1
+      expect(burn[:tx_signed]['witness_count']['verification_key']).to be >= 1
 
       # verify decoded unbalanced transaction includes assets minted and burned
       expect(mint[:tx_unbalanced]['mint']['tokens']).to eq assets
@@ -453,12 +453,16 @@ RSpec.describe 'Cardano Wallet E2E tests', :all, :e2e do
       expect(tx_decoded['mint']).to eq({ 'tokens' => [] })
       expect(tx_decoded['burn']).to eq({ 'tokens' => [] })
       expect(tx_decoded['certificates']).to eq []
+      expect(tx_decoded['witness_count']['verification_key']).to eq 0
 
       decoded_fee = tx_decoded['fee']['quantity']
       expect(expected_fee).to eq decoded_fee
 
       tx_signed = SHELLEY.transactions.sign(@wid, PASS, tx_constructed['transaction'])
       expect(tx_signed).to be_correct_and_respond 202
+      signed_decoded = SHELLEY.transactions.decode(@wid, tx_signed['transaction'])
+      expect(signed_decoded['witness_count']['verification_key']).to be >= 1
+      expect(expected_fee).to eq signed_decoded['fee']['quantity']
 
       tx_submitted = SHELLEY.transactions.submit(@wid, tx_signed['transaction'])
       expect(tx_submitted).to be_correct_and_respond 202
@@ -540,12 +544,16 @@ RSpec.describe 'Cardano Wallet E2E tests', :all, :e2e do
       expect(tx_decoded['mint']).to eq({ 'tokens' => [] })
       expect(tx_decoded['burn']).to eq({ 'tokens' => [] })
       expect(tx_decoded['certificates']).to eq []
+      expect(tx_decoded['witness_count']['verification_key']).to eq 0
 
       decoded_fee = tx_decoded['fee']['quantity']
       expect(expected_fee).to eq decoded_fee
 
       tx_signed = SHELLEY.transactions.sign(@wid, PASS, tx_constructed['transaction'])
       expect(tx_signed).to be_correct_and_respond 202
+      signed_decoded = SHELLEY.transactions.decode(@wid, tx_signed['transaction'])
+      expect(signed_decoded['witness_count']['verification_key']).to be >= 1
+      expect(expected_fee).to eq signed_decoded['fee']['quantity']
 
       tx_submitted = SHELLEY.transactions.submit(@wid, tx_signed['transaction'])
       expect(tx_submitted).to be_correct_and_respond 202
@@ -616,12 +624,16 @@ RSpec.describe 'Cardano Wallet E2E tests', :all, :e2e do
       expect(tx_decoded['mint']).to eq({ 'tokens' => [] })
       expect(tx_decoded['burn']).to eq({ 'tokens' => [] })
       expect(tx_decoded['certificates']).to eq []
+      expect(tx_decoded['witness_count']['verification_key']).to eq 0
 
       decoded_fee = tx_decoded['fee']['quantity']
       expect(expected_fee).to eq decoded_fee
 
       tx_signed = SHELLEY.transactions.sign(@wid, PASS, tx_constructed['transaction'])
       expect(tx_signed).to be_correct_and_respond 202
+      signed_decoded = SHELLEY.transactions.decode(@wid, tx_signed['transaction'])
+      expect(signed_decoded['witness_count']['verification_key']).to be >= 1
+      expect(expected_fee).to eq signed_decoded['fee']['quantity']
 
       tx_submitted = SHELLEY.transactions.submit(@wid, tx_signed['transaction'])
       expect(tx_submitted).to be_correct_and_respond 202
@@ -696,12 +708,16 @@ RSpec.describe 'Cardano Wallet E2E tests', :all, :e2e do
       expect(tx_decoded['mint']).to eq({ 'tokens' => [] })
       expect(tx_decoded['burn']).to eq({ 'tokens' => [] })
       expect(tx_decoded['certificates']).to eq []
+      expect(tx_decoded['witness_count']['verification_key']).to eq 0
 
       decoded_fee = tx_decoded['fee']['quantity']
       expect(expected_fee).to eq decoded_fee
 
       tx_signed = SHELLEY.transactions.sign(@wid, PASS, tx_constructed['transaction'])
       expect(tx_signed).to be_correct_and_respond 202
+      signed_decoded = SHELLEY.transactions.decode(@wid, tx_signed['transaction'])
+      expect(signed_decoded['witness_count']['verification_key']).to be >= 1
+      expect(expected_fee).to eq signed_decoded['fee']['quantity']
 
       tx_submitted = SHELLEY.transactions.submit(@wid, tx_signed['transaction'])
       expect(tx_submitted).to be_correct_and_respond 202
@@ -766,9 +782,13 @@ RSpec.describe 'Cardano Wallet E2E tests', :all, :e2e do
       expect(tx_decoded['mint']).to eq({ 'tokens' => [] })
       expect(tx_decoded['burn']).to eq({ 'tokens' => [] })
       expect(tx_decoded['certificates']).to eq []
+      expect(tx_decoded['witness_count']['verification_key']).to eq 0
 
       tx_signed = SHELLEY.transactions.sign(@wid, PASS, tx_constructed['transaction'])
       expect(tx_signed).to be_correct_and_respond 202
+      signed_decoded = SHELLEY.transactions.decode(@wid, tx_signed['transaction'])
+      expect(signed_decoded['witness_count']['verification_key']).to be >= 1
+      expect(expected_fee).to eq signed_decoded['fee']['quantity']
 
       tx_submitted = SHELLEY.transactions.submit(@wid, tx_signed['transaction'])
       expect(tx_submitted).to be_correct_and_respond 202
@@ -813,11 +833,11 @@ RSpec.describe 'Cardano Wallet E2E tests', :all, :e2e do
           'stake_key_index' => '0H'
         }
       }]
-      tx_constructed, _, tx_submitted = construct_sign_submit(@target_id,
-                                                              nil, # payments
-                                                              nil, # withdrawal
-                                                              nil, # metadata
-                                                              delegation)
+      tx_constructed, tx_signed, tx_submitted = construct_sign_submit(@target_id,
+                                                                      nil, # payments
+                                                                      nil, # withdrawal
+                                                                      nil, # metadata
+                                                                      delegation)
       # Check fee and deposit on joining
       decoded_tx = SHELLEY.transactions.decode(@target_id, tx_constructed['transaction'])
       deposit_taken = tx_constructed['coin_selection']['deposits_taken'].first['quantity']
@@ -829,6 +849,11 @@ RSpec.describe 'Cardano Wallet E2E tests', :all, :e2e do
       expected_fee = tx_constructed['fee']['quantity']
       decoded_fee = decoded_tx['fee']['quantity']
       expect(decoded_fee).to eq expected_fee
+
+      # witness count
+      expect(decoded_tx['witness_count']['verification_key']).to eq 0
+      signed_tx = SHELLEY.transactions.decode(@target_id, tx_signed['transaction'])
+      expect(signed_tx['witness_count']['verification_key']).to be >= 1
 
       # Certificates
       expect(decoded_tx['certificates']).to include(have_key('certificate_type')).twice
@@ -866,15 +891,20 @@ RSpec.describe 'Cardano Wallet E2E tests', :all, :e2e do
 
       # Quit pool
       quit_pool = [{ 'quit' => { 'stake_key_index' => '0H' } }]
-      tx_constructed, _, tx_submitted = construct_sign_submit(@target_id,
-                                                              nil, # payments
-                                                              nil, # withdrawal
-                                                              nil, # metadata
-                                                              quit_pool)
+      tx_constructed, tx_signed, tx_submitted = construct_sign_submit(@target_id,
+                                                                      nil, # payments
+                                                                      nil, # withdrawal
+                                                                      nil, # metadata
+                                                                      quit_pool)
 
       # Check fee and deposit on quitting
       decoded_tx = SHELLEY.transactions.decode(@target_id, tx_constructed['transaction'])
       expect(decoded_tx).to be_correct_and_respond 202
+
+      # witness count
+      expect(decoded_tx['witness_count']['verification_key']).to eq 0
+      signed_tx = SHELLEY.transactions.decode(@target_id, tx_signed['transaction'])
+      expect(signed_tx['witness_count']['verification_key']).to be >= 1
 
       # Certificates
       expect(decoded_tx['certificates']).to include(have_key('certificate_type')).once
@@ -949,17 +979,22 @@ RSpec.describe 'Cardano Wallet E2E tests', :all, :e2e do
                 mint(asset_name('Token2'), 1000, policy_script2),
                 mint('', 1000, policy_script3)]
         create_policy_key_if_not_exists(@wid)
-        tx_constructed, _, tx_submitted = construct_sign_submit(@wid,
-                                                                nil, # payments
-                                                                nil, # withdrawal
-                                                                nil, # metadata
-                                                                nil, # delegations
-                                                                mint)
+        tx_constructed, tx_signed, tx_submitted = construct_sign_submit(@wid,
+                                                                        nil, # payments
+                                                                        nil, # withdrawal
+                                                                        nil, # metadata
+                                                                        nil, # delegations
+                                                                        mint)
         tx_decoded = SHELLEY.transactions.decode(@wid, tx_constructed['transaction'])
         expect(tx_constructed).to be_correct_and_respond 202
         expected_fee = tx_constructed['fee']['quantity']
         decoded_fee = tx_decoded['fee']['quantity']
         expect(expected_fee).to eq decoded_fee
+
+        # witness count
+        expect(tx_decoded['witness_count']['verification_key']).to eq 0
+        signed_tx = SHELLEY.transactions.decode(@wid, tx_signed['transaction'])
+        expect(signed_tx['witness_count']['verification_key']).to be >= 1
 
         # Mint
         expect(tx_decoded['mint']['tokens']).to include(have_key('assets')).exactly(3).times
@@ -991,17 +1026,22 @@ RSpec.describe 'Cardano Wallet E2E tests', :all, :e2e do
         burn = [burn(asset_name('Token1'), 500, policy_script1),
                 burn(asset_name('Token2'), 500, policy_script2),
                 burn('', 500, policy_script3)]
-        tx_constructed, _, tx_submitted = construct_sign_submit(@wid,
-                                                                nil, # payments
-                                                                nil, # withdrawal
-                                                                nil, # metadata
-                                                                nil, # delegations
-                                                                burn)
+        tx_constructed, tx_signed, tx_submitted = construct_sign_submit(@wid,
+                                                                        nil, # payments
+                                                                        nil, # withdrawal
+                                                                        nil, # metadata
+                                                                        nil, # delegations
+                                                                        burn)
         tx_decoded = SHELLEY.transactions.decode(@wid, tx_constructed['transaction'])
         expect(tx_constructed).to be_correct_and_respond 202
         expected_fee = tx_constructed['fee']['quantity']
         decoded_fee = tx_decoded['fee']['quantity']
         expect(expected_fee).to eq decoded_fee
+
+        # witness count
+        expect(tx_decoded['witness_count']['verification_key']).to eq 0
+        signed_tx = SHELLEY.transactions.decode(@target_id, tx_signed['transaction'])
+        expect(signed_tx['witness_count']['verification_key']).to be >= 1
 
         # Burn
         expect(tx_decoded['burn']['tokens']).to include(have_key('assets')).exactly(3).times
