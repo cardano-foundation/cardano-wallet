@@ -45,10 +45,10 @@ jobs:
       run: |
         export TAG=$(cat ../../README.md | grep -o '`master` branch | \[.*\]' | awk '{ print $4 }' | sed -n -e 's/^.*tag\///p' | sed 's/)//g')
         if [ -z "${{github.event.inputs.nodeTag}}" ]; then
-          echo "::set-output name=NODE_TAG::$TAG"
+          echo "NODE_TAG=$TAG" >> $GITHUB_OUTPUT
           echo "Using cardano-node tag from README.md = $TAG"
         else
-          echo "::set-output name=NODE_TAG::${{github.event.inputs.nodeTag}}"
+          echo "NODE_TAG=${{github.event.inputs.nodeTag}}" >> $GITHUB_OUTPUT
           echo "Using cardano-node tag from workflow trigger parameter = ${{github.event.inputs.nodeTag}}"
         fi
       id: cardano-node-tag
@@ -69,7 +69,7 @@ jobs:
       id: date-time
       shell: bash
       run: |
-        echo "::set-output name=value::$(rake datetime)"
+        echo "value=$(rake datetime)" >> $GITHUB_OUTPUT
 
     - name: 💽 AWS Cache node db
       if: ${{ env.NODE_DB_CACHE == 'AWS' }}
