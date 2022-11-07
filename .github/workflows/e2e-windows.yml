@@ -48,7 +48,7 @@ jobs:
     - name: Set up Ruby
       uses: ruby/setup-ruby@v1
       with:
-        ruby-version: 3.1.2
+        ruby-version: 2.7.1
         bundler-cache: true
 
     - name: Install dependencies
@@ -66,7 +66,7 @@ jobs:
       id: date-time
       shell: bash
       run: |
-        echo "::set-output name=value::$(rake datetime)"
+        echo "value=$(rake datetime)" >> $GITHUB_OUTPUT
 
     - name: 💽 AWS Cache node db
       if: ${{ env.NODE_DB_CACHE == 'AWS' }}
