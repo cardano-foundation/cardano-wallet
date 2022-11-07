@@ -711,14 +711,14 @@ newDBLayerWith _cacheBehavior _tr ti SqliteContext{runQuery} = do
             updateDBVar transactionsDBVar . ExpandTxWalletsHistory wid
 
         , readTxHistory_ = \wid range status tip -> do
-            txHistory <- readDBVar transactionsDBVar
-            let filtering DB.TxMeta{..} = and $ catMaybes
+            txHistory@(txSet,_) <- readDBVar transactionsDBVar
+            let whichMeta DB.TxMeta{..} = and $ catMaybes
                     [ (txMetaSlot >=) <$> W.inclusiveLowerBound range
                     , (txMetaSlot <=) <$> W.inclusiveUpperBound range
                     , (txMetaStatus ==) <$> status
                     ]
-            lift $ selectTxHistory tip
-                ti wid filtering txHistory
+            let transactions = filter whichMeta $ getTxMetas wid txHistory
+            lift $ forM transactions $ selectTransactionInfo ti tip txSet
 
         , getTx_ = \wid txid tip -> do
             txHistory@(txSet,_) <- readDBVar transactionsDBVar
