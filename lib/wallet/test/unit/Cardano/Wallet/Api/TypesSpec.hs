@@ -625,6 +625,7 @@ spec = parallel $ do
         jsonTest @ApiTxId
         jsonTest @ApiTxMetadata
         jsonTest @ApiUtxoStatistics
+        jsonTest @ApiValidityIntervalExplicit
         jsonTest @ApiVerificationKeyShared
         jsonTest @ApiVerificationKeyShelley
         jsonTest @ApiWallet
