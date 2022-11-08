@@ -2480,34 +2480,30 @@ constructTransaction
 
     singleton x = [x]
 
-    toUnsignedTxChange initialOuts = \case
+    toUnsignedTxChange = \case
         WalletOutput o ->
             let address = getApiT (fst (o ^. #address))
                 derivationPath = fmap getApiT (o ^. #derivationPath)
                 coin = Coin.fromQuantity (o ^. #amount)
                 assets = getApiT (o ^. #assets)
-                txChange = TxChange address coin assets derivationPath
-                txOut = TxOut address (TokenBundle coin assets)
             in
-            if txOut `L.notElem` initialOuts then Just txChange else Nothing
+                TxChange address coin assets derivationPath
         ExternalOutput _ ->
-            Nothing
+            error "constructTx.toUnsignedTxChange: change should always be ours"
 
-    toUnsignedTxOut initialOuts = \case
+    toUnsignedTxOut = \case
         WalletOutput o ->
             let address = getApiT (fst (o ^. #address))
                 coin = Coin.fromQuantity (o ^. #amount)
                 assets = getApiT (o ^. #assets)
-                txOut = TxOut address (TokenBundle coin assets)
             in
-            if txOut `L.elem` initialOuts then Just txOut else Nothing
+                TxOut address (TokenBundle coin assets)
         ExternalOutput o ->
             let address = getApiT (fst (o ^. #address))
                 coin = Coin.fromQuantity (o ^. #amount)
                 assets = getApiT (o ^. #assets)
-                txOut = TxOut address (TokenBundle coin assets)
             in
-            if txOut `L.elem` initialOuts then Just txOut else Nothing
+                TxOut address (TokenBundle coin assets)
 
     toUsignedTxWdrl p = \case
         ApiWithdrawalGeneral (ApiT rewardAcc, _) amount Our ->
@@ -2536,9 +2532,17 @@ constructTransaction
         , unsignedInputs =
             mapMaybe toUnsignedTxInp (decodedTx ^. #inputs)
         , unsignedOutputs =
-            mapMaybe (toUnsignedTxOut initialOuts) (decodedTx ^. #outputs)
+            -- HACK: we leverage that balanceTx will append change outputs after
+            -- the initial outputs to tell them apart. 'List.\\' does not work
+            -- when balanceTx may change ada-quantities of initial inputs.
+            take (length initialOuts)
+                $ map toUnsignedTxOut (decodedTx ^. #outputs)
         , unsignedChange =
-            mapMaybe (toUnsignedTxChange initialOuts) (decodedTx ^. #outputs)
+            -- HACK: we leverage that balanceTx will append change outputs after
+            -- the initial outputs to tell them apart. 'List.\\' does not work
+            -- when balanceTx may change ada-quantities of initial inputs.
+            drop (length initialOuts)
+                $ map toUnsignedTxChange (decodedTx ^. #outputs)
         , unsignedWithdrawals =
             mapMaybe (toUsignedTxWdrl path) (decodedTx ^. #withdrawals)
         }
