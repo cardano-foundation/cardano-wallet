@@ -196,6 +196,24 @@ RSpec.describe 'Cardano Wallet E2E tests', :all, :e2e do
       src_after = get_shelley_balances(@wid)
       expect(src_after['total']).to eq(init_src['total'] - fee - amt)
 
+      # examine tx history
+      tx1 = SHELLEY.transactions.get(@wid, r[:tx_id])
+      tx_inputs(tx1, present: true)
+      tx_outputs(tx1, present: true)
+      tx_direction(tx1, 'outgoing')
+      tx_script_validity(tx1, 'valid')
+      tx_status(tx1, 'in_ledger')
+      tx_collateral(tx1, present: false)
+      tx_collateral_outputs(tx1, present: false)
+      tx_metadata(tx1, nil)
+      tx_deposits(tx1, deposit_taken: 0, deposit_returned: 0)
+      tx_withdrawals(tx1, present: false)
+      tx_mint_burn(tx1, mint: [], burn: [])
+      tx_extra_signatures(tx1, present: true)
+      tx_script_integrity(tx1, present: true)
+      tx_validity_interval_default(tx1)
+      tx_certificates(tx1, present: false)
+
       # run ping-pong_2
       src_before2 = get_shelley_balances(@wid)
       payload2 = get_templated_plutus_tx(script, { transactionId: r[:tx_id] })
@@ -218,6 +236,24 @@ RSpec.describe 'Cardano Wallet E2E tests', :all, :e2e do
       # ping-pong_2 spends from external utxo, so wallet balance decreases only by fee2
       src_after2 = get_shelley_balances(@wid)
       expect(src_after2['total']).to eq(src_before2['total'] - fee2)
+
+      # examine tx history
+      tx2 = SHELLEY.transactions.get(@wid, r2[:tx_id])
+      tx_inputs(tx2, present: true)
+      tx_outputs(tx2, present: true)
+      tx_direction(tx2, 'outgoing')
+      tx_script_validity(tx2, 'valid')
+      tx_status(tx2, 'in_ledger')
+      tx_collateral(tx2, present: true)
+      tx_collateral_outputs(tx2, present: false)
+      tx_metadata(tx2, nil)
+      tx_deposits(tx2, deposit_taken: 0, deposit_returned: 0)
+      tx_withdrawals(tx2, present: false)
+      tx_mint_burn(tx2, mint: [], burn: [])
+      tx_extra_signatures(tx2, present: true)
+      tx_script_integrity(tx2, present: true)
+      tx_validity_interval_default(tx2)
+      tx_certificates(tx2, present: false)
     end
 
     it 'game' do
@@ -295,10 +331,8 @@ RSpec.describe 'Cardano Wallet E2E tests', :all, :e2e do
 
       tx_inputs(mint_tx, present: true)
       tx_outputs(mint_tx, present: true)
-      tx_extra_signatures(mint_tx, present: true)
       tx_direction(mint_tx, 'outgoing')
       tx_script_validity(mint_tx, 'valid')
-      tx_script_integrity(mint_tx, present: true)
       tx_status(mint_tx, 'in_ledger')
       tx_collateral(mint_tx, present: true)
       tx_collateral_outputs(mint_tx, present: false)
@@ -306,13 +340,15 @@ RSpec.describe 'Cardano Wallet E2E tests', :all, :e2e do
       tx_deposits(mint_tx, deposit_taken: 0, deposit_returned: 0)
       tx_withdrawals(mint_tx, present: false)
       tx_mint_burn(mint_tx, mint: assets, burn: [])
+      tx_extra_signatures(mint_tx, present: true)
+      tx_script_integrity(mint_tx, present: true)
+      tx_validity_interval_default(mint_tx)
+      tx_certificates(mint_tx, present: false)
 
       tx_inputs(burn_tx, present: true)
       tx_outputs(burn_tx, present: true)
-      tx_extra_signatures(burn_tx, present: true)
       tx_direction(burn_tx, 'outgoing')
       tx_script_validity(burn_tx, 'valid')
-      tx_script_integrity(burn_tx, present: true)
       tx_status(burn_tx, 'in_ledger')
       tx_collateral(burn_tx, present: true)
       tx_collateral_outputs(burn_tx, present: false)
@@ -320,6 +356,10 @@ RSpec.describe 'Cardano Wallet E2E tests', :all, :e2e do
       tx_deposits(burn_tx, deposit_taken: 0, deposit_returned: 0)
       tx_withdrawals(burn_tx, present: false)
       tx_mint_burn(burn_tx, mint: [], burn: assets)
+      tx_extra_signatures(burn_tx, present: true)
+      tx_script_integrity(burn_tx, present: true)
+      tx_validity_interval_default(burn_tx)
+      tx_certificates(burn_tx, present: false)
     end
 
     it 'withdrawal' do
@@ -372,6 +412,24 @@ RSpec.describe 'Cardano Wallet E2E tests', :all, :e2e do
       fee = r[:tx_balanced]['fee']['quantity']
       src_after = get_shelley_balances(@wid)
       expect(src_after['total']).to eq(init_src['total'] - fee)
+
+      # examine tx history
+      tx = SHELLEY.transactions.get(@wid, r[:tx_id])
+      tx_inputs(tx, present: true)
+      tx_outputs(tx, present: true)
+      tx_direction(tx, 'outgoing')
+      tx_script_validity(tx, 'valid')
+      tx_status(tx, 'in_ledger')
+      tx_collateral(tx, present: true)
+      tx_collateral_outputs(tx, present: false)
+      tx_metadata(tx, nil)
+      tx_deposits(tx, deposit_taken: 0, deposit_returned: 0)
+      tx_withdrawals(tx, present: true)
+      tx_mint_burn(tx, mint: [], burn: [])
+      tx_extra_signatures(tx, present: true)
+      tx_script_integrity(tx, present: true)
+      tx_validity_interval_default(tx)
+      tx_certificates(tx, present: false)
     end
 
     it 'currency' do
@@ -428,6 +486,29 @@ RSpec.describe 'Cardano Wallet E2E tests', :all, :e2e do
       src_balance = get_shelley_balances(@wid)
       expect(src_balance['assets_total']).to include(apfel)
       expect(src_balance['assets_total']).to include(banana)
+
+      # examine tx history
+      tx = SHELLEY.transactions.get(@wid, r[:tx_id])
+      tx_inputs(tx, present: true)
+      tx_outputs(tx, present: true)
+      tx_direction(tx, 'outgoing')
+      tx_script_validity(tx, 'valid')
+      tx_status(tx, 'in_ledger')
+      tx_collateral(tx, present: true)
+      tx_collateral_outputs(tx, present: false)
+      tx_metadata(tx, nil)
+      tx_deposits(tx, deposit_taken: 0, deposit_returned: 0)
+      tx_withdrawals(tx, present: false)
+      mint_tokens = tx['mint']['tokens'].to_s
+      expect(mint_tokens).to include(asset_name('apfel'))
+      expect(mint_tokens).to include(asset_name('banana'))
+      expect(mint_tokens).to include(policy_id)
+      expect(mint_tokens).to include('plutus')
+      tx_mint_burn(tx, burn: [])
+      tx_extra_signatures(tx, present: true)
+      tx_script_integrity(tx, present: true)
+      tx_validity_interval_default(tx)
+      tx_certificates(tx, present: false)
 
       # send out minted currency to special address not to litter fixture wallet
       payment = [{ address: 'addr_test1qqkgrywfhejgd67twkzqmx84rsr3v374pzujd5rlm0e8exnlxjupjgrqwk5dk9tard6zfwwjq4lc89szs2w599js35tqmaykuj',
@@ -504,39 +585,47 @@ RSpec.describe 'Cardano Wallet E2E tests', :all, :e2e do
 
       target_after = get_shelley_balances(@target_id)
       src_after = get_shelley_balances(@wid)
-      tx = SHELLEY.transactions.get(@wid, tx_id)
-      # verify actual fee the same as constructed
-      expect(expected_fee).to eq tx['fee']['quantity']
-
+      
       # examine the tx in history
       # on src wallet
-      expect(tx['amount']['quantity']).to be > amt
-
-      expect(tx['inputs'].to_s).to include 'address'
-      expect(tx['inputs'].to_s).to include 'amount'
-      expect(tx['outputs']).not_to eq []
-      expect(tx['script_validity']).to eq 'valid'
-      expect(tx['status']).to eq 'in_ledger'
-      expect(tx['collateral']).to eq []
-      expect(tx['collateral_outputs']).to eq []
-      expect(tx['metadata']).to eq nil
-      expect(tx['deposit_taken']).to eq({ 'quantity' => 0, 'unit' => 'lovelace' })
-      expect(tx['deposit_returned']).to eq({ 'quantity' => 0, 'unit' => 'lovelace' })
-      expect(tx['withdrawals']).to eq []
+      tx = SHELLEY.transactions.get(@wid, tx_id)
+      tx_amount(tx, amt + expected_fee)
+      tx_fee(tx, expected_fee)
+      tx_inputs(tx, present: true)
+      tx_outputs(tx, present: true)
+      tx_direction(tx, 'outgoing')
+      tx_script_validity(tx, 'valid')
+      tx_status(tx, 'in_ledger')
+      tx_collateral(tx, present: false)
+      tx_collateral_outputs(tx, present: false)
+      tx_metadata(tx, nil)
+      tx_deposits(tx, deposit_taken: 0, deposit_returned: 0)
+      tx_withdrawals(tx, present: false)
+      tx_mint_burn(tx, mint: [], burn: [])
+      tx_extra_signatures(tx, present: false)
+      tx_script_integrity(tx, present: false)
+      tx_validity_interval_default(tx)
+      tx_certificates(tx, present: false)
 
       # on target wallet
       txt = SHELLEY.transactions.get(@target_id, tx_id)
-      expect(txt['amount']['quantity']).to eq amt
-      expect(txt['inputs']).not_to eq []
-      expect(txt['outputs']).not_to eq []
-      expect(txt['script_validity']).to eq 'valid'
-      expect(txt['status']).to eq 'in_ledger'
-      expect(txt['collateral']).to eq []
-      expect(txt['collateral_outputs']).to eq []
-      expect(txt['metadata']).to eq nil
-      expect(txt['deposit_taken']).to eq({ 'quantity' => 0, 'unit' => 'lovelace' })
-      expect(txt['deposit_returned']).to eq({ 'quantity' => 0, 'unit' => 'lovelace' })
-      expect(txt['withdrawals']).to eq []
+      tx_amount(txt, amt)
+      tx_fee(txt, 0)
+      tx_inputs(txt, present: true)
+      tx_outputs(txt, present: true)
+      tx_direction(txt, 'incoming')
+      tx_script_validity(txt, 'valid')
+      tx_status(txt, 'in_ledger')
+      tx_collateral(txt, present: false)
+      tx_collateral_outputs(txt, present: false)
+      tx_metadata(txt, nil)
+      tx_deposits(txt, deposit_taken: 0, deposit_returned: 0)
+      tx_withdrawals(txt, present: false)
+      tx_mint_burn(txt, mint: [], burn: [])
+      tx_extra_signatures(txt, present: false)
+      tx_script_integrity(txt, present: false)
+      tx_validity_interval_default(txt)
+      tx_certificates(txt, present: false)
 
       verify_ada_balance(src_after, src_before,
                          target_after, target_before,
@@ -595,24 +684,47 @@ RSpec.describe 'Cardano Wallet E2E tests', :all, :e2e do
 
       target_after = get_shelley_balances(@target_id)
       src_after = get_shelley_balances(@wid)
-      tx = SHELLEY.transactions.get(@wid, tx_id)
-      # verify actual fee the same as constructed
-      expect(expected_fee).to eq tx['fee']['quantity']
 
-      expect(tx['inputs'].to_s).to include 'address'
-      expect(tx['inputs'].to_s).to include 'amount'
-      expect(tx['outputs']).not_to eq []
-      expect(tx['script_validity']).to eq 'valid'
-      expect(tx['status']).to eq 'in_ledger'
-      expect(tx['collateral']).to eq []
-      expect(tx['collateral_outputs']).to eq []
-      expect(tx['metadata']).to eq nil
-      expect(tx['deposit_taken']).to eq({ 'quantity' => 0, 'unit' => 'lovelace' })
-      expect(tx['deposit_returned']).to eq({ 'quantity' => 0, 'unit' => 'lovelace' })
-      expect(tx['withdrawals']).to eq []
-      # expect(tx['mint']).to eq ({"tokens"=>[]})
-      # expect(tx['burn']).to eq ({"tokens"=>[]})
-      # expect(tx['certificates']).to eq []
+            # examine the tx in history
+      # on src wallet
+      tx = SHELLEY.transactions.get(@wid, tx_id)
+      tx_amount(txt, amt*2 + expected_fee)
+      tx_fee(tx, expected_fee)
+      tx_inputs(tx, present: true)
+      tx_outputs(tx, present: true)
+      tx_direction(tx, 'outgoing')
+      tx_script_validity(tx, 'valid')
+      tx_status(tx, 'in_ledger')
+      tx_collateral(tx, present: false)
+      tx_collateral_outputs(tx, present: false)
+      tx_metadata(tx, nil)
+      tx_deposits(tx, deposit_taken: 0, deposit_returned: 0)
+      tx_withdrawals(tx, present: false)
+      tx_mint_burn(tx, mint: [], burn: [])
+      tx_extra_signatures(tx, present: false)
+      tx_script_integrity(tx, present: false)
+      tx_validity_interval_default(tx)
+      tx_certificates(tx, present: false)
+
+      # on target wallet
+      txt = SHELLEY.transactions.get(@target_id, tx_id)
+      tx_amount(txt, amt*2)
+      tx_fee(txt, 0)
+      tx_inputs(txt, present: true)
+      tx_outputs(txt, present: true)
+      tx_direction(txt, 'incoming')
+      tx_script_validity(txt, 'valid')
+      tx_status(txt, 'in_ledger')
+      tx_collateral(txt, present: false)
+      tx_collateral_outputs(txt, present: false)
+      tx_metadata(txt, nil)
+      tx_deposits(txt, deposit_taken: 0, deposit_returned: 0)
+      tx_withdrawals(txt, present: false)
+      tx_mint_burn(txt, mint: [], burn: [])
+      tx_extra_signatures(txt, present: false)
+      tx_script_integrity(txt, present: false)
+      tx_validity_interval_default(txt)
+      tx_certificates(txt, present: false)
 
       verify_ada_balance(src_after, src_before,
                          target_after, target_before,
@@ -675,24 +787,47 @@ RSpec.describe 'Cardano Wallet E2E tests', :all, :e2e do
 
       target_after = get_shelley_balances(@target_id)
       src_after = get_shelley_balances(@wid)
-      tx = SHELLEY.transactions.get(@wid, tx_id)
-      # verify actual fee the same as constructed
-      expect(expected_fee).to eq tx['fee']['quantity']
 
-      expect(tx['inputs'].to_s).to include 'address'
-      expect(tx['inputs'].to_s).to include 'amount'
-      expect(tx['outputs']).not_to eq []
-      expect(tx['script_validity']).to eq 'valid'
-      expect(tx['status']).to eq 'in_ledger'
-      expect(tx['collateral']).to eq []
-      expect(tx['collateral_outputs']).to eq []
-      expect(tx['metadata']).to eq nil
-      expect(tx['deposit_taken']).to eq({ 'quantity' => 0, 'unit' => 'lovelace' })
-      expect(tx['deposit_returned']).to eq({ 'quantity' => 0, 'unit' => 'lovelace' })
-      expect(tx['withdrawals']).to eq []
-      # expect(tx['mint']).to eq ({"tokens"=>[]})
-      # expect(tx['burn']).to eq ({"tokens"=>[]})
-      # expect(tx['certificates']).to eq []
+      # examine the tx in history
+      # on src wallet
+      tx = SHELLEY.transactions.get(@wid, tx_id)
+      tx_amount(tx, amt_ada + expected_fee)
+      tx_fee(tx, expected_fee)
+      tx_inputs(tx, present: true)
+      tx_outputs(tx, present: true)
+      tx_direction(tx, 'outgoing')
+      tx_script_validity(tx, 'valid')
+      tx_status(tx, 'in_ledger')
+      tx_collateral(tx, present: false)
+      tx_collateral_outputs(tx, present: false)
+      tx_metadata(tx, nil)
+      tx_deposits(tx, deposit_taken: 0, deposit_returned: 0)
+      tx_withdrawals(tx, present: false)
+      tx_mint_burn(tx, mint: [], burn: [])
+      tx_extra_signatures(tx, present: false)
+      tx_script_integrity(tx, present: false)
+      tx_validity_interval_default(tx)
+      tx_certificates(tx, present: false)
+
+      # on target wallet
+      txt = SHELLEY.transactions.get(@target_id, tx_id)
+      tx_amount(txt, amt_ada)
+      tx_fee(txt, 0)
+      tx_inputs(txt, present: true)
+      tx_outputs(txt, present: true)
+      tx_direction(txt, 'incoming')
+      tx_script_validity(txt, 'valid')
+      tx_status(txt, 'in_ledger')
+      tx_collateral(txt, present: false)
+      tx_collateral_outputs(txt, present: false)
+      tx_metadata(txt, nil)
+      tx_deposits(txt, deposit_taken: 0, deposit_returned: 0)
+      tx_withdrawals(txt, present: false)
+      tx_mint_burn(txt, mint: [], burn: [])
+      tx_extra_signatures(txt, present: false)
+      tx_script_integrity(txt, present: false)
+      tx_validity_interval_default(txt)
+      tx_certificates(txt, present: false)
 
       verify_ada_balance(src_after, src_before,
                          target_after, target_before,
@@ -757,28 +892,29 @@ RSpec.describe 'Cardano Wallet E2E tests', :all, :e2e do
 
       wait_for_tx_in_ledger(@wid, tx_id)
 
-      new_balance = get_shelley_balances(@wid)
+      # examine the tx in history
+      # on src wallet
       tx = SHELLEY.transactions.get(@wid, tx_id)
-
-      expect(tx['inputs'].to_s).to include 'address'
-      expect(tx['inputs'].to_s).to include 'amount'
-      expect(tx['outputs']).not_to eq []
-      expect(tx['script_validity']).to eq 'valid'
-      expect(tx['status']).to eq 'in_ledger'
-      expect(tx['collateral']).to eq []
-      expect(tx['collateral_outputs']).to eq []
-      expect(tx['metadata']).to eq nil
-      expect(tx['deposit_taken']).to eq({ 'quantity' => 0, 'unit' => 'lovelace' })
-      expect(tx['deposit_returned']).to eq({ 'quantity' => 0, 'unit' => 'lovelace' })
-      expect(tx['withdrawals']).to eq []
-      # expect(tx['mint']).to eq ({"tokens"=>[]})
-      # expect(tx['burn']).to eq ({"tokens"=>[]})
-      # expect(tx['certificates']).to eq []
-
-      # verify actual fee the same as constructed
-      expect(expected_fee).to eq tx['fee']['quantity']
-
+      tx_amount(tx, expected_fee)
+      tx_fee(tx, expected_fee)
+      tx_inputs(tx, present: true)
+      tx_outputs(tx, present: true)
+      tx_direction(tx, 'outgoing')
+      tx_script_validity(tx, 'valid')
+      tx_status(tx, 'in_ledger')
+      tx_collateral(tx, present: false)
+      tx_collateral_outputs(tx, present: false)
+      tx_metadata(tx, nil)
+      tx_deposits(tx, deposit_taken: 0, deposit_returned: 0)
+      tx_withdrawals(tx, present: false) # tx has no withdrawals
+      tx_mint_burn(tx, mint: [], burn: [])
+      tx_extra_signatures(tx, present: false)
+      tx_script_integrity(tx, present: false)
+      tx_validity_interval_default(tx)
+      tx_certificates(tx, present: false)
+      
       # verify balance is as expected
+      new_balance = get_shelley_balances(@wid)
       expect(new_balance['available']).to eq(balance['available'] - expected_fee)
       expect(new_balance['total']).to eq(balance['total'] - expected_fee)
     end
@@ -828,17 +964,134 @@ RSpec.describe 'Cardano Wallet E2E tests', :all, :e2e do
 
       wait_for_tx_in_ledger(@wid, tx_id)
 
-      new_balance = get_shelley_balances(@wid)
+      # examine the tx in history
+      # on src wallet
       tx = SHELLEY.transactions.get(@wid, tx_id)
-      # verify actual fee the same as constructed
-      expect(expected_fee).to eq tx['fee']['quantity']
-
-      # verify tx has metadata
-      expect(tx['metadata']).to eq metadata
-
+      tx_amount(tx, expected_fee)
+      tx_fee(tx, expected_fee)
+      tx_inputs(tx, present: true)
+      tx_outputs(tx, present: true)
+      tx_direction(tx, 'outgoing')
+      tx_script_validity(tx, 'valid')
+      tx_status(tx, 'in_ledger')
+      tx_collateral(tx, present: false)
+      tx_collateral_outputs(tx, present: false)
+      tx_metadata(tx, metadata)
+      tx_deposits(tx, deposit_taken: 0, deposit_returned: 0)
+      tx_withdrawals(tx, present: false)
+      tx_mint_burn(tx, mint: [], burn: [])
+      tx_extra_signatures(tx, present: false)
+      tx_script_integrity(tx, present: false)
+      tx_validity_interval_default(tx)
+      tx_certificates(tx, present: false)
+      
       # verify balance is as expected
+      new_balance = get_shelley_balances(@wid)
       expect(new_balance['available']).to eq(balance['available'] - expected_fee)
       expect(new_balance['total']).to eq(balance['total'] - expected_fee)
+    end
+
+    it 'Validity intervals' do
+      amt = MIN_UTXO_VALUE_PURE_ADA
+      address = SHELLEY.addresses.list(@target_id)[0]['id']
+      target_before = get_shelley_balances(@target_id)
+      src_before = get_shelley_balances(@wid)
+      inv_before = 500
+      inv_hereafter = 5_000_000_000
+      validity_interval = { 'invalid_before' => { 'quantity' => inv_before, 'unit' => 'slot' },
+                            'invalid_hereafter' => { 'quantity' => inv_hereafter, 'unit' => 'slot' } }
+
+      tx_constructed = SHELLEY.transactions.construct(@wid,
+                                                      payment_payload(amt, address),
+                                                      nil, # withdrawal
+                                                      nil, # metadata
+                                                      nil, # delegations
+                                                      nil, # mint_burn
+                                                      validity_interval)
+      expect(tx_constructed).to be_correct_and_respond 202
+      expected_fee = tx_constructed['fee']['quantity']
+      tx_decoded = SHELLEY.transactions.decode(@wid, tx_constructed['transaction'])
+      expect(tx_decoded).to be_correct_and_respond 202
+      # inputs are ours
+      expect(tx_decoded['inputs'].to_s).to include 'address'
+      expect(tx_decoded['inputs'].to_s).to include 'amount'
+      expect(tx_decoded['outputs']).not_to eq []
+      expect(tx_decoded['script_validity']).to eq 'valid'
+      expect(tx_decoded['validity_interval']['invalid_before']).to eq validity_interval['invalid_before']
+      expect(tx_decoded['validity_interval']['invalid_hereafter']).to eq validity_interval['invalid_hereafter']
+      expect(tx_decoded['collateral']).to eq []
+      expect(tx_decoded['collateral_outputs']).to eq []
+      expect(tx_decoded['metadata']).to eq nil
+      expect(tx_decoded['deposits_taken']).to eq []
+      expect(tx_decoded['deposits_returned']).to eq []
+      expect(tx_decoded['withdrawals']).to eq []
+      expect(tx_decoded['mint']).to eq({ 'tokens' => [] })
+      expect(tx_decoded['burn']).to eq({ 'tokens' => [] })
+      expect(tx_decoded['certificates']).to eq []
+      expect(tx_decoded['witness_count']['verification_key']).to eq 0
+
+      decoded_fee = tx_decoded['fee']['quantity']
+      expect(expected_fee).to eq decoded_fee
+
+      tx_signed = SHELLEY.transactions.sign(@wid, PASS, tx_constructed['transaction'])
+      expect(tx_signed).to be_correct_and_respond 202
+      signed_decoded = SHELLEY.transactions.decode(@wid, tx_signed['transaction'])
+      expect(signed_decoded['witness_count']['verification_key']).to be >= 1
+      expect(expected_fee).to eq signed_decoded['fee']['quantity']
+
+      tx_submitted = SHELLEY.transactions.submit(@wid, tx_signed['transaction'])
+      expect(tx_submitted).to be_correct_and_respond 202
+      tx_id = tx_submitted['id']
+
+      wait_for_tx_in_ledger(@wid, tx_id)
+
+      target_after = get_shelley_balances(@target_id)
+      src_after = get_shelley_balances(@wid)
+      
+      # examine the tx in history
+      # on src wallet
+      tx = SHELLEY.transactions.get(@wid, tx_id)
+      tx_amount(tx, amt + expected_fee)
+      tx_fee(tx, expected_fee)
+      tx_inputs(tx, present: true)
+      tx_outputs(tx, present: true)
+      tx_direction(tx, 'outgoing')
+      tx_script_validity(tx, 'valid')
+      tx_status(tx, 'in_ledger')
+      tx_collateral(tx, present: false)
+      tx_collateral_outputs(tx, present: false)
+      tx_metadata(tx, nil)
+      tx_deposits(tx, deposit_taken: 0, deposit_returned: 0)
+      tx_withdrawals(tx, present: false)
+      tx_mint_burn(tx, mint: [], burn: [])
+      tx_extra_signatures(tx, present: false)
+      tx_script_integrity(tx, present: false)
+      tx_validity_interval(tx, invalid_before: inv_before, invalid_hereafter: inv_hereafter)
+      tx_certificates(tx, present: false)
+
+      # on target wallet
+      txt = SHELLEY.transactions.get(@target_id, tx_id)
+      tx_amount(txt, amt)
+      tx_fee(txt, 0)
+      tx_inputs(txt, present: true)
+      tx_outputs(txt, present: true)
+      tx_direction(txt, 'incoming')
+      tx_script_validity(txt, 'valid')
+      tx_status(txt, 'in_ledger')
+      tx_collateral(txt, present: false)
+      tx_collateral_outputs(txt, present: false)
+      tx_metadata(txt, nil)
+      tx_deposits(txt, deposit_taken: 0, deposit_returned: 0)
+      tx_withdrawals(txt, present: false)
+      tx_mint_burn(txt, mint: [], burn: [])
+      tx_extra_signatures(txt, present: false)
+      tx_script_integrity(txt, present: false)
+      tx_validity_interval(txt, invalid_before: inv_before, invalid_hereafter: inv_hereafter)
+      tx_certificates(txt, present: false)
+
+      verify_ada_balance(src_after, src_before,
+                         target_after, target_before,
+                         amt, expected_fee)
     end
 
     it 'Delegation (join and quit)' do
@@ -900,19 +1153,29 @@ RSpec.describe 'Cardano Wallet E2E tests', :all, :e2e do
       wait_for_tx_in_ledger(@target_id, tx_id)
 
       # Check fee and balance and deposit after joining
-      join_balance = get_shelley_balances(@target_id)
       tx = SHELLEY.transactions.get(@target_id, tx_id)
-      # Certificates
-      expect(tx['certificates']).to eq decoded_tx['certificates']
+      tx_amount(tx, expected_deposit + expected_fee)
+      tx_fee(tx, expected_fee)
+      tx_inputs(tx, present: true)
+      tx_outputs(tx, present: true)
+      tx_direction(tx, 'outgoing')
+      tx_script_validity(tx, 'valid')
+      tx_status(tx, 'in_ledger')
+      tx_collateral(tx, present: false)
+      tx_collateral_outputs(tx, present: false)
+      tx_metadata(tx, nil)
+      tx_deposits(tx, deposit_taken: deposit_taken, deposit_returned: 0)
+      tx_withdrawals(tx, present: false)
+      tx_mint_burn(tx, mint: [], burn: [])
+      tx_extra_signatures(tx, present: false)
+      tx_script_integrity(tx, present: false)
+      tx_validity_interval_default(tx)
+      tx_certificates(tx, present: true, certificates: decoded_tx['certificates'])
       expect(tx['certificates'].to_s).to include 'register_reward_account'
       expect(tx['certificates'].to_s).to include 'join_pool'
       expect(tx['certificates'].to_s).to include pool_id
-      # Fees & deposits
-      expect(tx['fee']['quantity']).to eq expected_fee
-      expect(tx['deposit_taken']['quantity']).to eq deposit_taken
-      expect(tx['deposit_returned']['quantity']).to eq 0
-      expect(tx['amount']['quantity']).to eq(expected_fee + expected_deposit)
-      expect(tx['direction']).to eq 'outgoing'
+      
+      join_balance = get_shelley_balances(@target_id)
       expected_join_balance = balance['total'] - deposit_taken - expected_fee
       expect(join_balance['total']).to eq expected_join_balance
 
@@ -969,18 +1232,25 @@ RSpec.describe 'Cardano Wallet E2E tests', :all, :e2e do
       # Check fee and balance and deposit after quitting
       quit_balance = get_shelley_balances(@target_id)
       tx = SHELLEY.transactions.get(@target_id, tx_id)
-      # Certificates
-      expect(tx['certificates']).to eq decoded_tx['certificates']
-      expect(tx['certificates'].to_s).to include 'quit_pool'
-
-      # Fees & deposits
-      # tx is changed to 'incoming' and fee = 0 because deposit was returned
-      expect(tx['fee']['quantity']).to eq 0
-      expect(tx['direction']).to eq 'incoming'
-      expect(tx['deposit_taken']['quantity']).to eq 0
-      expect(tx['deposit_returned']['quantity']).to eq deposit_returned
       expect(tx['amount']['quantity']).to be > 0
       expect(tx['amount']['quantity']).to be < deposit_returned
+      tx_fee(tx, 0)
+      tx_inputs(tx, present: true)
+      tx_outputs(tx, present: true)
+      tx_direction(tx, 'incoming')
+      tx_script_validity(tx, 'valid')
+      tx_status(tx, 'in_ledger')
+      tx_collateral(tx, present: false)
+      tx_collateral_outputs(tx, present: false)
+      tx_metadata(tx, nil)
+      tx_deposits(tx, deposit_taken: 0, deposit_returned: deposit_returned)
+      tx_withdrawals(tx, present: false)
+      tx_mint_burn(tx, mint: [], burn: [])
+      tx_extra_signatures(tx, present: false)
+      tx_script_integrity(tx, present: false)
+      tx_validity_interval_default(tx)
+      tx_certificates(tx, present: true, certificates: decoded_tx['certificates'])
+      expect(tx['certificates'].to_s).to include 'quit_pool'
 
       expected_quit_balance = join_balance['total'] + deposit_returned - expected_fee
       expect(quit_balance['total']).to eq expected_quit_balance
@@ -1050,12 +1320,31 @@ RSpec.describe 'Cardano Wallet E2E tests', :all, :e2e do
 
         tx_id = tx_submitted['id']
         wait_for_tx_in_ledger(@wid, tx_id)
-        src_after_minting = get_shelley_balances(@wid)
-        # Mint
-        tx = SHELLEY.transactions.get(@wid, tx_id)
-        expect(tx['mint']).to eq tx_decoded['mint']
 
+        # examine the tx in history
+        # on src wallet
+        tx = SHELLEY.transactions.get(@wid, tx_id)
+        tx_amount(tx, expected_fee)
+        tx_fee(tx, expected_fee)
+        tx_inputs(tx, present: true)
+        tx_outputs(tx, present: true)
+        tx_direction(tx, 'outgoing')
+        tx_script_validity(tx, 'valid')
+        tx_status(tx, 'in_ledger')
+        tx_collateral(tx, present: false)
+        tx_collateral_outputs(tx, present: false)
+        tx_metadata(tx, nil)
+        tx_deposits(tx, deposit_taken: 0, deposit_returned: 0)
+        tx_withdrawals(tx, present: false)
+        expect(tx['mint']).to eq tx_decoded['mint']
+        tx_mint_burn(tx, mint: tx_decoded['mint']['tokens'], burn: [])
+        tx_extra_signatures(tx, present: false)
+        tx_script_integrity(tx, present: false)
+        tx_validity_interval_default(tx)
+        tx_certificates(tx, present: false)
+        
         # verify ADA balance is correct (fee is deducted)
+        src_after_minting = get_shelley_balances(@wid)
         expect(src_after_minting['available']).to eq(src_before['available'] - expected_fee)
         expect(src_after_minting['total']).to eq(src_before['total'] - expected_fee)
 
@@ -1097,12 +1386,30 @@ RSpec.describe 'Cardano Wallet E2E tests', :all, :e2e do
 
         tx_id = tx_submitted['id']
         wait_for_tx_in_ledger(@wid, tx_id)
-        src_after_burning = get_shelley_balances(@wid)
-        # Burn
+        # examine the burn tx in history
+        # on src wallet
         tx = SHELLEY.transactions.get(@wid, tx_id)
+        tx_amount(tx, expected_fee)
+        tx_fee(tx, expected_fee)
+        tx_inputs(tx, present: true)
+        tx_outputs(tx, present: true)
+        tx_direction(tx, 'outgoing')
+        tx_script_validity(tx, 'valid')
+        tx_status(tx, 'in_ledger')
+        tx_collateral(tx, present: false)
+        tx_collateral_outputs(tx, present: false)
+        tx_metadata(tx, nil)
+        tx_deposits(tx, deposit_taken: 0, deposit_returned: 0)
+        tx_withdrawals(tx, present: false)
         expect(tx['burn']).to eq tx_decoded['burn']
-
+        tx_mint_burn(tx, mint: [], burn: tx_decoded['burn']['tokens'])
+        tx_extra_signatures(tx, present: false)
+        tx_script_integrity(tx, present: false)
+        tx_validity_interval_default(tx)
+        tx_certificates(tx, present: false)
+        
         # verify ADA balance is correct (fee is deducted)
+        src_after_burning = get_shelley_balances(@wid)
         expect(src_after_burning['available']).to eq(src_after_minting['available'] - expected_fee)
         expect(src_after_burning['total']).to eq(src_after_minting['total'] - expected_fee)
 
@@ -1140,9 +1447,27 @@ RSpec.describe 'Cardano Wallet E2E tests', :all, :e2e do
         tx_id = tx_submitted['id']
         wait_for_tx_in_ledger(@wid, tx_id)
         src_after_burning_all = get_shelley_balances(@wid)
-        # Burn again
+        # examine the burn again tx in history
+        # on src wallet
         tx = SHELLEY.transactions.get(@wid, tx_id)
+        tx_amount(tx, expected_fee)
+        tx_fee(tx, expected_fee)
+        tx_inputs(tx, present: true)
+        tx_outputs(tx, present: true)
+        tx_direction(tx, 'outgoing')
+        tx_script_validity(tx, 'valid')
+        tx_status(tx, 'in_ledger')
+        tx_collateral(tx, present: false)
+        tx_collateral_outputs(tx, present: false)
+        tx_metadata(tx, nil)
+        tx_deposits(tx, deposit_taken: 0, deposit_returned: 0)
+        tx_withdrawals(tx, present: false)
         expect(tx['burn']).to eq tx_decoded['burn']
+        tx_mint_burn(tx, mint: [], burn: tx_decoded['burn']['tokens'])
+        tx_extra_signatures(tx, present: false)
+        tx_script_integrity(tx, present: false)
+        tx_validity_interval_default(tx)
+        tx_certificates(tx, present: false)
 
         # verify ADA balance is correct (fee is deducted)
         expect(src_after_burning_all['available']).to eq(src_after_burning['available'] - expected_fee)
