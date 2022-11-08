@@ -2,6 +2,15 @@
 
 # helper methods for inspecting tx history from GET/LIST tx or decoded tx
 module TxHistory
+
+  def tx_amount(tx, amt)
+    expect(tx['amount']['quantity'].to_i).to eq amt
+  end
+
+  def tx_fee(tx, fee)
+    expect(tx['fee']['quantity'].to_i).to eq fee
+  end
+
   def tx_inputs(tx, present: true)
     if present
       expect(tx['inputs']).not_to eq []
@@ -34,7 +43,7 @@ module TxHistory
     if present
       expect(tx['script_integrity']).to start_with 'script_data'
     else
-      expect(tx['outputs']).to eq []
+      expect(tx['script_integrity']).to eq nil
     end
   end
 
@@ -44,7 +53,7 @@ module TxHistory
         expect(e).to start_with 'req_signer_vkh'
       end
     else
-      expect(tx['extra_signatures']).to eq nil
+      expect(tx['extra_signatures']).to eq []
     end
   end
 
@@ -81,8 +90,27 @@ module TxHistory
     end
   end
 
-  def tx_mint_burn(tx, mint: mint_tokens, burn: burn_tokens)
-    expect(tx['mint']['tokens']).to eq mint
-    expect(tx['burn']['tokens']).to eq burn
+  def tx_mint_burn(tx, mint: nil, burn: nil)
+    expect(tx['mint']['tokens']).to eq mint if mint
+    expect(tx['burn']['tokens']).to eq burn if burn
+  end
+
+  def tx_validity_interval(tx, invalid_before: before, invalid_hereafter: hereafter)
+    expect(tx['validity_interval']['invalid_before']).to eq({ 'quantity' => invalid_before, 'unit' => 'slot' })
+    expect(tx['validity_interval']['invalid_hereafter']).to eq({ 'quantity' => invalid_hereafter, 'unit' => 'slot' })
+  end
+
+  def tx_validity_interval_default(tx)
+    expect(tx['validity_interval']['invalid_before']).to eq({ 'quantity' => 0, 'unit' => 'slot' })
+    expect(tx['validity_interval']['invalid_hereafter']['quantity']).to be > 0
+  end
+
+  def tx_certificates(tx, present: true, certificates: nil)
+    if present
+      expect(tx['certificates']).not_to eq []
+      expect(tx['certificates']).to eq certificates if certificates
+    else
+      expect(tx['certificates']).to eq []
+    end
   end
 end
