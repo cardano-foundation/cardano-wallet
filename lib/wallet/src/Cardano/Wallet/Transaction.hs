@@ -110,16 +110,7 @@ import Control.DeepSeq
 import Control.Monad
     ( (>=>) )
 import Data.Aeson.Types
-    ( FromJSON (..)
-    , Parser
-    , ToJSON (..)
-    , Value (..)
-    , object
-    , withObject
-    , (.:)
-    , (.:?)
-    , (.=)
-    )
+    ( FromJSON (..), Parser, ToJSON (..) )
 import Data.Bifunctor
     ( bimap )
 import Data.List.NonEmpty
@@ -474,24 +465,6 @@ instance FromJSON PlutusScriptInfo where
           eitherToParser = either (fail . show) pure
 instance ToJSON PlutusScriptInfo where
     toJSON (PlutusScriptInfo v) = toJSON $ toText v
-
-instance FromJSON AnyScript where
-    parseJSON = withObject "AnyScript" $ \obj -> do
-        scriptType <- obj .:? "script_type"
-        case (scriptType :: Maybe String) of
-            Just t | t == "plutus"  ->
-                PlutusScript <$> obj .: "language_version"
-            Just t | t == "native" ->
-                NativeScript <$> obj .: "script"
-            _ -> fail "AnyScript needs either 'native' or 'plutus' in 'script_type'"
-
-instance ToJSON AnyScript where
-    toJSON (NativeScript s) =
-        object [ "script_type" .= String "native"
-               , "script" .= toJSON s]
-    toJSON (PlutusScript v) =
-        object [ "script_type" .= String "plutus"
-               , "language_version" .= toJSON v]
 
 data AnyScript =
       NativeScript !(Script KeyHash)

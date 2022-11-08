@@ -219,7 +219,10 @@ import Cardano.Wallet.Api.Types.Error
 import Cardano.Wallet.Api.Types.SchemaMetadata
     ( TxMetadataSchema (..), TxMetadataWithSchema (..) )
 import Cardano.Wallet.Api.Types.Transaction
-    ( ApiValidityIntervalExplicit (..), ApiWitnessCount (..) )
+    ( ApiValidityIntervalExplicit (..)
+    , ApiWitnessCount (..)
+    , mkApiWitnessCount
+    )
 import Cardano.Wallet.Gen
     ( genMnemonic
     , genMockXPub
@@ -1898,10 +1901,10 @@ instance Arbitrary ValidityIntervalExplicit where
         slot2 <- arbitrary `suchThat` (> slot1)
         pure $ ValidityIntervalExplicit (Quantity slot1) (Quantity slot2)
 
-instance Arbitrary WitnessCount where
+instance Arbitrary ApiWitnessCount where
     arbitrary = do
         numberOfScripts <- choose (0, 1)
-        WitnessCount
+        fmap mkApiWitnessCount $ WitnessCount
             <$> choose (0, 10)
             <*> vectorOf numberOfScripts (NativeScript <$> arbitrary)
             <*> choose (0, 2)
@@ -2067,8 +2070,6 @@ instance Arbitrary ApiWithdrawalPostData where
     shrink = genericShrink
 
 deriving instance Arbitrary ApiValidityIntervalExplicit
-
-deriving instance Arbitrary ApiWitnessCount
 
 instance Arbitrary (ApiPutAddressesData n) where
     arbitrary = do
