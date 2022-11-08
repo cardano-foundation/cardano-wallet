@@ -19,6 +19,7 @@ Implementation of a store for 'TxWalletsHistory'
 module Cardano.Wallet.DB.Store.Wallets.Store
     ( mkStoreTxWalletsHistory
     , DeltaTxWalletsHistory(..)
+    , mkStoreWalletsMeta
     ) where
 
 import Prelude

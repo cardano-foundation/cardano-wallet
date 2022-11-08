@@ -241,6 +241,7 @@ library
     Cardano.Wallet.DB.Store.Transactions.Model
     Cardano.Wallet.DB.Store.Transactions.Store
     Cardano.Wallet.DB.Store.Transactions.TransactionInfo
+    Cardano.Wallet.DB.Store.Wallets.Layer
     Cardano.Wallet.DB.Store.Wallets.Model
     Cardano.Wallet.DB.Store.Wallets.Store
     Cardano.Wallet.DB.WalletState
