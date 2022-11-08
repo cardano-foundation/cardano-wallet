@@ -2,7 +2,6 @@
 
 # helper methods for inspecting tx history from GET/LIST tx or decoded tx
 module TxHistory
-
   def tx_amount(tx, amt)
     expect(tx['amount']['quantity'].to_i).to eq amt
   end
@@ -102,7 +101,7 @@ module TxHistory
 
   def tx_validity_interval_default(tx)
     expect(tx['validity_interval']['invalid_before']).to eq({ 'quantity' => 0, 'unit' => 'slot' })
-    expect(tx['validity_interval']['invalid_hereafter']['quantity']).to be > 0
+    expect(tx['validity_interval']['invalid_hereafter']['quantity']).to be.positive?
   end
 
   def tx_certificates(tx, present: true, certificates: nil)

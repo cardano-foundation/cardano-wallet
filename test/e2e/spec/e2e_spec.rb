@@ -585,7 +585,7 @@ RSpec.describe 'Cardano Wallet E2E tests', :all, :e2e do
 
       target_after = get_shelley_balances(@target_id)
       src_after = get_shelley_balances(@wid)
-      
+
       # examine the tx in history
       # on src wallet
       tx = SHELLEY.transactions.get(@wid, tx_id)
@@ -685,10 +685,10 @@ RSpec.describe 'Cardano Wallet E2E tests', :all, :e2e do
       target_after = get_shelley_balances(@target_id)
       src_after = get_shelley_balances(@wid)
 
-            # examine the tx in history
+      # examine the tx in history
       # on src wallet
       tx = SHELLEY.transactions.get(@wid, tx_id)
-      tx_amount(txt, amt*2 + expected_fee)
+      tx_amount(txt, (amt * 2) + expected_fee)
       tx_fee(tx, expected_fee)
       tx_inputs(tx, present: true)
       tx_outputs(tx, present: true)
@@ -708,7 +708,7 @@ RSpec.describe 'Cardano Wallet E2E tests', :all, :e2e do
 
       # on target wallet
       txt = SHELLEY.transactions.get(@target_id, tx_id)
-      tx_amount(txt, amt*2)
+      tx_amount(txt, amt * 2)
       tx_fee(txt, 0)
       tx_inputs(txt, present: true)
       tx_outputs(txt, present: true)
@@ -912,7 +912,7 @@ RSpec.describe 'Cardano Wallet E2E tests', :all, :e2e do
       tx_script_integrity(tx, present: false)
       tx_validity_interval_default(tx)
       tx_certificates(tx, present: false)
-      
+
       # verify balance is as expected
       new_balance = get_shelley_balances(@wid)
       expect(new_balance['available']).to eq(balance['available'] - expected_fee)
@@ -984,7 +984,7 @@ RSpec.describe 'Cardano Wallet E2E tests', :all, :e2e do
       tx_script_integrity(tx, present: false)
       tx_validity_interval_default(tx)
       tx_certificates(tx, present: false)
-      
+
       # verify balance is as expected
       new_balance = get_shelley_balances(@wid)
       expect(new_balance['available']).to eq(balance['available'] - expected_fee)
@@ -1047,7 +1047,7 @@ RSpec.describe 'Cardano Wallet E2E tests', :all, :e2e do
 
       target_after = get_shelley_balances(@target_id)
       src_after = get_shelley_balances(@wid)
-      
+
       # examine the tx in history
       # on src wallet
       tx = SHELLEY.transactions.get(@wid, tx_id)
@@ -1174,7 +1174,7 @@ RSpec.describe 'Cardano Wallet E2E tests', :all, :e2e do
       expect(tx['certificates'].to_s).to include 'register_reward_account'
       expect(tx['certificates'].to_s).to include 'join_pool'
       expect(tx['certificates'].to_s).to include pool_id
-      
+
       join_balance = get_shelley_balances(@target_id)
       expected_join_balance = balance['total'] - deposit_taken - expected_fee
       expect(join_balance['total']).to eq expected_join_balance
@@ -1342,7 +1342,7 @@ RSpec.describe 'Cardano Wallet E2E tests', :all, :e2e do
         tx_script_integrity(tx, present: false)
         tx_validity_interval_default(tx)
         tx_certificates(tx, present: false)
-        
+
         # verify ADA balance is correct (fee is deducted)
         src_after_minting = get_shelley_balances(@wid)
         expect(src_after_minting['available']).to eq(src_before['available'] - expected_fee)
@@ -1407,7 +1407,7 @@ RSpec.describe 'Cardano Wallet E2E tests', :all, :e2e do
         tx_script_integrity(tx, present: false)
         tx_validity_interval_default(tx)
         tx_certificates(tx, present: false)
-        
+
         # verify ADA balance is correct (fee is deducted)
         src_after_burning = get_shelley_balances(@wid)
         expect(src_after_burning['available']).to eq(src_after_minting['available'] - expected_fee)
