@@ -143,7 +143,7 @@ import Control.Monad.Trans.Class
 import Control.Monad.Trans.Cont
     ( ContT (ContT), evalContT )
 import Control.Monad.Trans.Except
-    ( ExceptT (ExceptT), mapExceptT )
+    ( ExceptT (ExceptT) )
 import Control.Tracer
     ( Tracer, traceWith )
 import Data.Function
@@ -413,11 +413,10 @@ serveWallet
 
 handleWalletExceptions :: forall x. Servant.Handler x -> Servant.Handler x
 handleWalletExceptions =
-    Servant.Handler . mapExceptT handleServerErr . ExceptT . Servant.runHandler
-  where
-    handleServerErr :: IO (Either ServerError x) -> IO (Either ServerError x)
-    handleServerErr = handle $ \(e :: WalletException) ->
-        pure (Left (toServerError e))
+    Servant.Handler
+    . ExceptT
+    . handle (pure . Left . toServerError @WalletException)
+    . Servant.runHandler
 
 withNtpClient :: Tracer IO NtpTrace -> ContT r IO NtpClient
 withNtpClient tr = do
