@@ -522,11 +522,6 @@ data WitnessCount = WitnessCount
     deriving (Eq, Generic, Show)
     deriving anyclass NFData
 
-instance ToJSON WitnessCount where
-    toJSON = genericToJSON defaultRecordTypeOptions
-instance FromJSON WitnessCount where
-    parseJSON = genericParseJSON defaultRecordTypeOptions
-
 emptyWitnessCount :: WitnessCount
 emptyWitnessCount = WitnessCount
     { verificationKey = 0

@@ -328,6 +328,8 @@ import Cardano.Wallet.Api.Types.MintBurn
     ( noApiAsset )
 import Cardano.Wallet.Api.Types.SchemaMetadata
     ( TxMetadataSchema (..), TxMetadataWithSchema (TxMetadataWithSchema) )
+import Cardano.Wallet.Api.Types.Transaction
+    ( ApiWitnessCount (..) )
 import Cardano.Wallet.CoinSelection
     ( SelectionOf (..), SelectionStrategy (..), selectionDelta )
 import Cardano.Wallet.Compat
@@ -2716,7 +2718,7 @@ decodeSharedTransaction ctx (ApiT wid) (ApiSerialisedTransaction (ApiT sealed) _
         , metadata = ApiTxMetadata $ ApiT <$> metadata
         , scriptValidity = ApiT <$> scriptValidity
         , validityInterval = interval
-        , witnessCount = witsCount
+        , witnessCount = ApiWitnessCount witsCount
         }
   where
     tl = ctx ^. W.transactionLayer @k @'CredFromScriptK
@@ -2891,7 +2893,7 @@ decodeTransaction ctx (ApiT wid) (ApiSerialisedTransaction (ApiT sealed) _) = do
             , metadata = ApiTxMetadata $ ApiT <$> metadata
             , scriptValidity = ApiT <$> scriptValidity
             , validityInterval = interval
-            , witnessCount = witsCount
+            , witnessCount = ApiWitnessCount witsCount
             }
   where
     tl = ctx ^. W.transactionLayer @k @'CredFromKeyK

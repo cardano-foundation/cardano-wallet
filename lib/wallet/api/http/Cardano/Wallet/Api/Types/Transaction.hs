@@ -24,6 +24,7 @@ module Cardano.Wallet.Api.Types.Transaction
     , ApiWalletOutput (..)
     , ApiWithdrawal (..)
     , ApiWithdrawalGeneral (..)
+    , ApiWitnessCount (..)
     , ResourceContext (..)
     )
     where
@@ -128,7 +129,7 @@ data ApiDecodedTransaction (n :: NetworkDiscriminant) = ApiDecodedTransaction
     , metadata :: ApiTxMetadata
     , scriptValidity :: Maybe (ApiT TxScriptValidity)
     , validityInterval :: Maybe ValidityIntervalExplicit
-    , witnessCount :: WitnessCount
+    , witnessCount :: ApiWitnessCount
     }
     deriving (Eq, Generic, Show, Typeable)
     deriving (FromJSON, ToJSON) via DefaultRecord (ApiDecodedTransaction n)
@@ -144,6 +145,11 @@ data ApiWalletInput (n :: NetworkDiscriminant) = ApiWalletInput
     }
     deriving (Eq, Generic, Show, Typeable)
     deriving (FromJSON, ToJSON) via DefaultRecord (ApiWalletInput n)
+    deriving anyclass NFData
+
+newtype ApiWitnessCount = ApiWitnessCount WitnessCount
+    deriving (Eq, Generic, Show)
+    deriving (FromJSON, ToJSON) via DefaultRecord WitnessCount
     deriving anyclass NFData
 
 data ApiTxInputGeneral (n :: NetworkDiscriminant) =
