@@ -327,6 +327,7 @@ import Cardano.Wallet.Api.Types.Transaction
     , ApiTxMetadata (..)
     , ApiTxOutput
     , ApiTxOutputGeneral (..)
+    , ApiValidityIntervalExplicit (..)
     , ApiWalletInput (..)
     , ApiWalletOutput (..)
     , ApiWithdrawal (..)
@@ -389,8 +390,6 @@ import Cardano.Wallet.Shelley.Pools
     ( EpochInfo, StakePool (..), StakePoolFlag, StakePoolMetrics )
 import Cardano.Wallet.TokenMetadata
     ( TokenMetadataError (..) )
-import Cardano.Wallet.Transaction
-    ( ValidityIntervalExplicit )
 import Cardano.Wallet.Util
     ( ShowFmt (..) )
 import "cardano-addresses" Codec.Binary.Encoding
@@ -1298,7 +1297,7 @@ data ApiTransaction (n :: NetworkDiscriminant) = ApiTransaction
     , certificates :: [ApiAnyCertificate n]
     , mint :: ApiAssetMintBurn
     , burn :: ApiAssetMintBurn
-    , validityInterval :: Maybe ValidityIntervalExplicit
+    , validityInterval :: Maybe ApiValidityIntervalExplicit
     , scriptIntegrity :: Maybe (ApiT (Hash "ScriptIntegrity"))
     , extraSignatures :: [ApiT (Hash "ExtraSignature")]
     }

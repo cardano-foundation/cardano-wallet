@@ -329,7 +329,7 @@ import Cardano.Wallet.Api.Types.MintBurn
 import Cardano.Wallet.Api.Types.SchemaMetadata
     ( TxMetadataSchema (..), TxMetadataWithSchema (TxMetadataWithSchema) )
 import Cardano.Wallet.Api.Types.Transaction
-    ( ApiWitnessCount (..) )
+    ( ApiValidityIntervalExplicit (..), ApiWitnessCount (..) )
 import Cardano.Wallet.CoinSelection
     ( SelectionOf (..), SelectionStrategy (..), selectionDelta )
 import Cardano.Wallet.Compat
@@ -2717,7 +2717,7 @@ decodeSharedTransaction ctx (ApiT wid) (ApiSerialisedTransaction (ApiT sealed) _
         , depositsReturned = []
         , metadata = ApiTxMetadata $ ApiT <$> metadata
         , scriptValidity = ApiT <$> scriptValidity
-        , validityInterval = interval
+        , validityInterval = ApiValidityIntervalExplicit <$> interval
         , witnessCount = ApiWitnessCount witsCount
         }
   where
@@ -2892,7 +2892,7 @@ decodeTransaction ctx (ApiT wid) (ApiSerialisedTransaction (ApiT sealed) _) = do
                     <$ filter ourRewardAccountDeregistration certs
             , metadata = ApiTxMetadata $ ApiT <$> metadata
             , scriptValidity = ApiT <$> scriptValidity
-            , validityInterval = interval
+            , validityInterval = ApiValidityIntervalExplicit <$> interval
             , witnessCount = ApiWitnessCount witsCount
             }
   where
@@ -4111,16 +4111,15 @@ mkApiTransaction timeInterpreter wrk wid setTimeReference tx = do
         parsedIntegrity = view #scriptIntegrity =<< parsedValues
         parsedExtraSigs = view #extraSignatures <$> parsedValues
 
-    return $
-        apiTx
-            & setTimeReference .~ Just timeRef
-            & #expiresAt .~ expRef
-            & #certificates .~ fromMaybe [] parsedCertificates
-            & #mint  .~ maybe noApiAsset fst parsedMintBurn
-            & #burn  .~ maybe noApiAsset snd parsedMintBurn
-            & #validityInterval .~ parsedValidity
-            & #scriptIntegrity .~ (ApiT <$> parsedIntegrity)
-            & #extraSignatures .~ maybe [] (fmap ApiT) parsedExtraSigs
+    return $ apiTx
+        & setTimeReference .~ Just timeRef
+        & #expiresAt .~ expRef
+        & #certificates .~ fromMaybe [] parsedCertificates
+        & #mint  .~ maybe noApiAsset fst parsedMintBurn
+        & #burn  .~ maybe noApiAsset snd parsedMintBurn
+        & #validityInterval .~ fmap ApiValidityIntervalExplicit parsedValidity
+        & #scriptIntegrity .~ (ApiT <$> parsedIntegrity)
+        & #extraSignatures .~ maybe [] (fmap ApiT) parsedExtraSigs
   where
     -- Since tx expiry can be far in the future, we use unsafeExtendSafeZone for
     -- now.

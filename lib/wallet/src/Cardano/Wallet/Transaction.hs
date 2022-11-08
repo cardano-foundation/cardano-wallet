@@ -114,9 +114,6 @@ import Data.Aeson.Types
     , Parser
     , ToJSON (..)
     , Value (..)
-    , camelTo2
-    , genericParseJSON
-    , genericToJSON
     , object
     , withObject
     , (.:)
@@ -145,7 +142,6 @@ import GHC.Generics
 import qualified Cardano.Api as Cardano
 import qualified Cardano.Api.Shelley as Cardano
 import qualified Cardano.Wallet.Primitive.Types.TokenMap as TokenMap
-import qualified Data.Aeson.Types as Aeson
 import qualified Data.Map.Strict as Map
 
 data TransactionLayer k ktype tx = TransactionLayer
@@ -608,14 +604,3 @@ data ValidityIntervalExplicit = ValidityIntervalExplicit
     }
     deriving (Generic, Eq, Show)
     deriving anyclass NFData
-
-instance ToJSON ValidityIntervalExplicit where
-    toJSON = genericToJSON defaultRecordTypeOptions
-instance FromJSON ValidityIntervalExplicit where
-    parseJSON = genericParseJSON defaultRecordTypeOptions
-
-defaultRecordTypeOptions :: Aeson.Options
-defaultRecordTypeOptions = Aeson.defaultOptions
-    { Aeson.fieldLabelModifier = camelTo2 '_' . dropWhile (== '_')
-    , Aeson.omitNothingFields = True
-    }

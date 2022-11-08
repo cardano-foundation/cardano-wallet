@@ -219,7 +219,7 @@ import Cardano.Wallet.Api.Types.Error
 import Cardano.Wallet.Api.Types.SchemaMetadata
     ( TxMetadataSchema (..), TxMetadataWithSchema (..) )
 import Cardano.Wallet.Api.Types.Transaction
-    ( ApiWitnessCount (..) )
+    ( ApiValidityIntervalExplicit (..), ApiWitnessCount (..) )
 import Cardano.Wallet.Gen
     ( genMnemonic
     , genMockXPub
@@ -2064,6 +2064,8 @@ instance Arbitrary TokenName where
 instance Arbitrary ApiWithdrawalPostData where
     arbitrary = genericArbitrary
     shrink = genericShrink
+
+deriving instance Arbitrary ApiValidityIntervalExplicit
 
 deriving instance Arbitrary ApiWitnessCount
 

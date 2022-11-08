@@ -20,6 +20,7 @@ module Cardano.Wallet.Api.Types.Transaction
     , ApiTxMetadata (..)
     , ApiTxOutput
     , ApiTxOutputGeneral (..)
+    , ApiValidityIntervalExplicit (..)
     , ApiWalletInput (..)
     , ApiWalletOutput (..)
     , ApiWithdrawal (..)
@@ -128,11 +129,17 @@ data ApiDecodedTransaction (n :: NetworkDiscriminant) = ApiDecodedTransaction
     , depositsReturned :: [Quantity "lovelace" Natural]
     , metadata :: ApiTxMetadata
     , scriptValidity :: Maybe (ApiT TxScriptValidity)
-    , validityInterval :: Maybe ValidityIntervalExplicit
+    , validityInterval :: Maybe ApiValidityIntervalExplicit
     , witnessCount :: ApiWitnessCount
     }
     deriving (Eq, Generic, Show, Typeable)
     deriving (FromJSON, ToJSON) via DefaultRecord (ApiDecodedTransaction n)
+    deriving anyclass NFData
+
+newtype ApiValidityIntervalExplicit =
+    ApiValidityIntervalExplicit ValidityIntervalExplicit
+    deriving (Eq, Generic, Show)
+    deriving (FromJSON, ToJSON) via DefaultRecord ValidityIntervalExplicit
     deriving anyclass NFData
 
 data ApiWalletInput (n :: NetworkDiscriminant) = ApiWalletInput
