@@ -97,6 +97,7 @@ import Test.Integration.Framework.DSL
     , eventually
     , expectErrorMessage
     , expectField
+    , expectListField
     , expectResponseCode
     , expectSuccess
     , faucetAmt
@@ -289,6 +290,13 @@ spec = describe "SHARED_TRANSACTIONS" $ do
             verify rGetTx'
                 [ expectResponseCode HTTP.status200
                 , expectField (#status . #getApiT) (`shouldBe` InLedger)
+                ]
+            let listTxEp = Link.listTransactions @'Shared wal
+            request @[ApiTransaction n] ctx listTxEp Default Empty >>= flip verify
+                [ expectListField 1
+                    (#direction . #getApiT) (`shouldBe` Incoming)
+                , expectListField 1
+                    (#status . #getApiT) (`shouldBe` InLedger)
                 ]
 
     it "SHARED_TRANSACTIONS_CREATE_01a - Empty payload is not allowed" $ \ctx -> runResourceT $ do
