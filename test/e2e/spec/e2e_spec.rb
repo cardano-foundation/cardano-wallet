@@ -3655,7 +3655,7 @@ RSpec.describe 'Cardano Wallet E2E tests', :all, :e2e do
   end
 
   describe 'E2E External transaction' do
-    it 'Single output transaction' do
+    it 'Submit tx via POST /proxy/transactions' do
       amt = MIN_UTXO_VALUE_PURE_ADA
       address = SHELLEY.addresses.list(@target_id)[0]['id']
       target_before = get_shelley_balances(@target_id)
@@ -3673,10 +3673,14 @@ RSpec.describe 'Cardano Wallet E2E tests', :all, :e2e do
       tx_signed = SHELLEY.transactions.sign(@wid, PASS, tx_constructed['transaction'])
       expect(tx_signed).to be_correct_and_respond 202
 
-      tx_submitted = SHELLEY.transactions.submit(@wid, tx_signed['transaction'])
+      # construct tx binary blob
+      serialized_tx = Base64.decode64(tx_signed['transaction'].strip)
+      # submitting tx via POST /proxy/transactions
+      tx_submitted = PROXY.submit_external_transaction(serialized_tx)
       expect(tx_submitted).to be_correct_and_respond 202
-      tx_id = tx_submitted['id']
 
+      # tx is visible on the src wallet as inputs belong to it
+      tx_id = tx_submitted['id']
       wait_for_tx_in_ledger(@wid, tx_id)
 
       target_after = get_shelley_balances(@target_id)
@@ -3688,6 +3692,20 @@ RSpec.describe 'Cardano Wallet E2E tests', :all, :e2e do
       verify_ada_balance(src_after, src_before,
                          target_after, target_before,
                          amt, expected_fee)
+    end
+
+    it 'Cannot submit unsigned tx via POST /proxy/transactions' do
+      amt = MIN_UTXO_VALUE_PURE_ADA
+      address = SHELLEY.addresses.list(@target_id)[0]['id']
+
+      tx_constructed = SHELLEY.transactions.construct(@wid, payment_payload(amt, address))
+      expect(tx_constructed).to be_correct_and_respond 202
+
+      # construct tx binary blob
+      serialized_tx = Base64.decode64(tx_constructed['transaction'].strip)
+      # submitting tx via POST /proxy/transactions
+      tx_submitted = PROXY.submit_external_transaction(serialized_tx)
+      expect(tx_submitted.parsed_response).to include 'code' => 'created_invalid_transaction'
     end
   end
 
