@@ -16,6 +16,7 @@ Implementation of a 'Store' for 'TxSet'.
 module Cardano.Wallet.DB.Store.Transactions.Store
     ( selectTxSet
     , putTxSet
+    , updateTxSet
     , mkStoreTransactions
     , mkDBTxSet
     , DBTxSet (..)
@@ -87,11 +88,11 @@ mkStoreTransactions =
     Store
     { loadS = Right <$> selectTxSet
     , writeS = write
-    , updateS = const update
+    , updateS = const updateTxSet
     }
 
-update :: DeltaTxSet -> SqlPersistT IO ()
-update change = case change of
+updateTxSet :: DeltaTxSet -> SqlPersistT IO ()
+updateTxSet change = case change of
     Append txs -> putTxSet txs
     DeleteTx tid -> do
         deleteWhere [TxInputTxId ==. tid ]
