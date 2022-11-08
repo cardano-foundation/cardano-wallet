@@ -101,7 +101,7 @@ module TxHistory
 
   def tx_validity_interval_default(tx)
     expect(tx['validity_interval']['invalid_before']).to eq({ 'quantity' => 0, 'unit' => 'slot' })
-    expect(tx['validity_interval']['invalid_hereafter']['quantity']).to be.positive?
+    expect(tx['validity_interval']['invalid_hereafter']['quantity'].positive?).to be true
   end
 
   def tx_certificates(tx, present: true, certificates: nil)
