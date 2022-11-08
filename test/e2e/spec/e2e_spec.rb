@@ -688,7 +688,7 @@ RSpec.describe 'Cardano Wallet E2E tests', :all, :e2e do
       # examine the tx in history
       # on src wallet
       tx = SHELLEY.transactions.get(@wid, tx_id)
-      tx_amount(txt, (amt * 2) + expected_fee)
+      tx_amount(tx, (amt * 2) + expected_fee)
       tx_fee(tx, expected_fee)
       tx_inputs(tx, present: true)
       tx_outputs(tx, present: true)
