@@ -71,6 +71,8 @@ import Cardano.Wallet.Api.Types
     , WalletStyle (..)
     , fromApiEra
     )
+import Cardano.Wallet.Api.Types.Transaction
+    ( ApiValidityIntervalExplicit (..) )
 import Cardano.Wallet.Primitive.AddressDerivation
     ( DerivationIndex (..)
     , HardDerivation (..)
@@ -1189,7 +1191,7 @@ spec = describe "NEW_SHELLEY_TRANSACTIONS" $ do
             ]
 
         let (SlotNo toSlot) = sl
-        let validityInterval =
+        let validityInterval = ApiValidityIntervalExplicit $
                 ValidityIntervalExplicit (Quantity 0) (Quantity $ toSlot + 10)
 
         let apiTx'@(ApiSerialisedTransaction apiTx _)=

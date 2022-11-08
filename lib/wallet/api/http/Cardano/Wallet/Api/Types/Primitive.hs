@@ -61,7 +61,7 @@ import Cardano.Wallet.Shelley.Network.Discriminant
     , EncodeStakeAddress (..)
     )
 import Cardano.Wallet.Transaction
-    ( AnyScript )
+    ( AnyScript (NativeScript, PlutusScript), PlutusScriptInfo (..) )
 import Cardano.Wallet.Util
     ( ShowFmt (..) )
 import Codec.Binary.Bech32
@@ -84,6 +84,8 @@ import Data.Aeson
     , withText
     , (.!=)
     , (.:)
+    , (.:?)
+    , (.=)
     )
 import Data.Aeson.Types
     ( prependFailure )
@@ -94,7 +96,7 @@ import Data.Proxy
 import Data.Quantity
     ( Quantity (..) )
 import Data.Text.Class
-    ( ToText (..) )
+    ( FromText (..), ToText (..) )
 import Data.Word
     ( Word32, Word64 )
 import Data.Word.Odd
@@ -124,11 +126,36 @@ instance FromJSON (ApiT W.TokenPolicyId) where
 instance ToJSON (ApiT W.TokenPolicyId) where
     toJSON = toTextApiT
 
+instance FromJSON (ApiT PlutusScriptInfo) where
+    parseJSON = (fmap. fmap) ApiT $ parseJSON >=>
+        eitherToParser . bimap ShowFmt PlutusScriptInfo . fromText
+
+instance ToJSON (ApiT PlutusScriptInfo) where
+    toJSON (ApiT (PlutusScriptInfo v)) = toJSON $ toText v
+
 instance FromJSON (ApiT AnyScript) where
-    parseJSON = fmap ApiT . parseJSON
+    parseJSON = (fmap . fmap) ApiT . withObject "AnyScript" $ \obj -> do
+        scriptType <- obj .:? "script_type"
+        case (scriptType :: Maybe String) of
+            Just t | t == "plutus" ->
+                PlutusScript . getApiT <$> obj .: "language_version"
+            Just t | t == "native" ->
+                NativeScript <$> obj .: "script"
+            _ -> fail
+                "AnyScript needs either 'native' or 'plutus' in 'script_type'"
 
 instance ToJSON (ApiT AnyScript) where
-    toJSON (ApiT s) = toJSON s
+    toJSON (ApiT anyScript) = case anyScript of
+        NativeScript s ->
+            object
+                [ "script_type" .= String "native"
+                , "script" .= toJSON s
+                ]
+        PlutusScript v ->
+            object
+                [ "script_type" .= String "plutus"
+                , "language_version" .= toJSON (ApiT v)
+                ]
 
 instance FromJSON (ApiT W.TokenName) where
     parseJSON = withText "AssetName"

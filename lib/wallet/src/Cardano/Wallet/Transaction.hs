@@ -103,28 +103,8 @@ import Cardano.Wallet.Primitive.Types.Tx.Constraints
     ( TokenBundleSizeAssessor, TxConstraints, TxSize )
 import Cardano.Wallet.Primitive.Types.Tx.Tx
     ( Tx (..), TxIn, TxMetadata, TxOut )
-import Cardano.Wallet.Util
-    ( ShowFmt (..) )
 import Control.DeepSeq
     ( NFData (..) )
-import Control.Monad
-    ( (>=>) )
-import Data.Aeson.Types
-    ( FromJSON (..)
-    , Parser
-    , ToJSON (..)
-    , Value (..)
-    , camelTo2
-    , genericParseJSON
-    , genericToJSON
-    , object
-    , withObject
-    , (.:)
-    , (.:?)
-    , (.=)
-    )
-import Data.Bifunctor
-    ( bimap )
 import Data.List.NonEmpty
     ( NonEmpty )
 import Data.Map.Strict
@@ -145,7 +125,6 @@ import GHC.Generics
 import qualified Cardano.Api as Cardano
 import qualified Cardano.Api.Shelley as Cardano
 import qualified Cardano.Wallet.Primitive.Types.TokenMap as TokenMap
-import qualified Data.Aeson.Types as Aeson
 import qualified Data.Map.Strict as Map
 
 data TransactionLayer k ktype tx = TransactionLayer
@@ -470,33 +449,6 @@ newtype PlutusScriptInfo = PlutusScriptInfo
     deriving (Eq, Generic, Show)
     deriving anyclass NFData
 
-instance FromJSON PlutusScriptInfo where
-    parseJSON = parseJSON >=>
-        eitherToParser . bimap ShowFmt PlutusScriptInfo . fromText
-      where
-          eitherToParser :: Show s => Either s a -> Parser a
-          eitherToParser = either (fail . show) pure
-instance ToJSON PlutusScriptInfo where
-    toJSON (PlutusScriptInfo v) = toJSON $ toText v
-
-instance FromJSON AnyScript where
-    parseJSON = withObject "AnyScript" $ \obj -> do
-        scriptType <- obj .:? "script_type"
-        case (scriptType :: Maybe String) of
-            Just t | t == "plutus"  ->
-                PlutusScript <$> obj .: "language_version"
-            Just t | t == "native" ->
-                NativeScript <$> obj .: "script"
-            _ -> fail "AnyScript needs either 'native' or 'plutus' in 'script_type'"
-
-instance ToJSON AnyScript where
-    toJSON (NativeScript s) =
-        object [ "script_type" .= String "native"
-               , "script" .= toJSON s]
-    toJSON (PlutusScript v) =
-        object [ "script_type" .= String "plutus"
-               , "language_version" .= toJSON v]
-
 data AnyScript =
       NativeScript !(Script KeyHash)
     | PlutusScript !PlutusScriptInfo
@@ -521,11 +473,6 @@ data WitnessCount = WitnessCount
     }
     deriving (Eq, Generic, Show)
     deriving anyclass NFData
-
-instance ToJSON WitnessCount where
-    toJSON = genericToJSON defaultRecordTypeOptions
-instance FromJSON WitnessCount where
-    parseJSON = genericParseJSON defaultRecordTypeOptions
 
 emptyWitnessCount :: WitnessCount
 emptyWitnessCount = WitnessCount
@@ -613,14 +560,3 @@ data ValidityIntervalExplicit = ValidityIntervalExplicit
     }
     deriving (Generic, Eq, Show)
     deriving anyclass NFData
-
-instance ToJSON ValidityIntervalExplicit where
-    toJSON = genericToJSON defaultRecordTypeOptions
-instance FromJSON ValidityIntervalExplicit where
-    parseJSON = genericParseJSON defaultRecordTypeOptions
-
-defaultRecordTypeOptions :: Aeson.Options
-defaultRecordTypeOptions = Aeson.defaultOptions
-    { Aeson.fieldLabelModifier = camelTo2 '_' . dropWhile (== '_')
-    , Aeson.omitNothingFields = True
-    }

@@ -1,5 +1,6 @@
 {-# LANGUAGE AllowAmbiguousTypes #-}
 {-# LANGUAGE DataKinds #-}
+{-# LANGUAGE DuplicateRecordFields #-}
 {-# LANGUAGE FlexibleContexts #-}
 {-# LANGUAGE LambdaCase #-}
 {-# LANGUAGE NamedFieldPuns #-}
@@ -42,6 +43,8 @@ import Cardano.Wallet.Api.Types
     , EncodeAddress (..)
     , WalletStyle (..)
     )
+import Cardano.Wallet.Api.Types.Transaction
+    ( mkApiWitnessCount )
 import Cardano.Wallet.Primitive.AddressDerivation
     ( DerivationIndex (..), Index (..) )
 import Cardano.Wallet.Primitive.AddressDerivation.SharedKey
@@ -557,7 +560,7 @@ spec = describe "SHARED_TRANSACTIONS" $ do
                 NativeScript $ changeRole CA.Policy $
                 replaceCosignersWithVerKeys CA.UTxOExternal scriptTemplate (Index 1)
 
-        let noVerKeyWitness = WitnessCount
+        let noVerKeyWitness = mkApiWitnessCount WitnessCount
                 { verificationKey = 0
                 , scripts = [paymentScript]
                 , bootstrap = 0
@@ -588,7 +591,7 @@ spec = describe "SHARED_TRANSACTIONS" $ do
         rDecodedTx2Target <- request @(ApiDecodedTransaction n) ctx
             (Link.decodeTransaction @'Shelley wb) Default decodePayload2
 
-        let oneVerKeyWitness = WitnessCount
+        let oneVerKeyWitness = mkApiWitnessCount WitnessCount
                 { verificationKey = 1
                 , scripts = [paymentScript]
                 , bootstrap = 0
@@ -705,7 +708,7 @@ spec = describe "SHARED_TRANSACTIONS" $ do
                 -- TODO- ADP-2312 We will want CA.Payment here
                 NativeScript $ changeRole CA.Policy $
                 replaceCosignersWithVerKeys CA.UTxOExternal scriptTemplate (Index 1)
-        let noVerKeyWitness = WitnessCount
+        let noVerKeyWitness = mkApiWitnessCount WitnessCount
                 { verificationKey = 0
                 , scripts = [paymentScript]
                 , bootstrap = 0
@@ -732,7 +735,7 @@ spec = describe "SHARED_TRANSACTIONS" $ do
         rDecodedTx2Target <- request @(ApiDecodedTransaction n) ctx
             (Link.decodeTransaction @'Shelley wb) Default decodePayload2
 
-        let oneVerKeyWitness = WitnessCount
+        let oneVerKeyWitness = mkApiWitnessCount WitnessCount
                 { verificationKey = 1
                 , scripts = [paymentScript]
                 , bootstrap = 0

@@ -3,6 +3,7 @@
 {-# LANGUAGE DeriveGeneric #-}
 {-# LANGUAGE DerivingVia #-}
 {-# LANGUAGE DuplicateRecordFields #-}
+{-# LANGUAGE NamedFieldPuns #-}
 {-# LANGUAGE PolyKinds #-}
 {-# LANGUAGE ScopedTypeVariables #-}
 {-# LANGUAGE StrictData #-}
@@ -20,10 +21,13 @@ module Cardano.Wallet.Api.Types.Transaction
     , ApiTxMetadata (..)
     , ApiTxOutput
     , ApiTxOutputGeneral (..)
+    , ApiValidityIntervalExplicit (..)
     , ApiWalletInput (..)
     , ApiWalletOutput (..)
     , ApiWithdrawal (..)
     , ApiWithdrawalGeneral (..)
+    , ApiWitnessCount (..)
+    , mkApiWitnessCount
     , ResourceContext (..)
     )
     where
@@ -59,7 +63,7 @@ import Cardano.Wallet.Primitive.Types.Tx.Tx
 import Cardano.Wallet.Shelley.Network.Discriminant
     ( DecodeAddress, DecodeStakeAddress, EncodeAddress, EncodeStakeAddress )
 import Cardano.Wallet.Transaction
-    ( ValidityIntervalExplicit (..), WitnessCount )
+    ( AnyScript (..), ValidityIntervalExplicit (..), WitnessCount (..) )
 import Control.DeepSeq
     ( NFData )
 import Data.Aeson.Types
@@ -83,7 +87,7 @@ import Data.Text
 import Data.Typeable
     ( Proxy, Typeable )
 import Data.Word
-    ( Word32 )
+    ( Word32, Word8 )
 import GHC.Generics
     ( Generic )
 import Numeric.Natural
@@ -127,11 +131,17 @@ data ApiDecodedTransaction (n :: NetworkDiscriminant) = ApiDecodedTransaction
     , depositsReturned :: [Quantity "lovelace" Natural]
     , metadata :: ApiTxMetadata
     , scriptValidity :: Maybe (ApiT TxScriptValidity)
-    , validityInterval :: Maybe ValidityIntervalExplicit
-    , witnessCount :: WitnessCount
+    , validityInterval :: Maybe ApiValidityIntervalExplicit
+    , witnessCount :: ApiWitnessCount
     }
     deriving (Eq, Generic, Show, Typeable)
     deriving (FromJSON, ToJSON) via DefaultRecord (ApiDecodedTransaction n)
+    deriving anyclass NFData
+
+newtype ApiValidityIntervalExplicit =
+    ApiValidityIntervalExplicit ValidityIntervalExplicit
+    deriving (Eq, Generic, Show)
+    deriving (FromJSON, ToJSON) via DefaultRecord ValidityIntervalExplicit
     deriving anyclass NFData
 
 data ApiWalletInput (n :: NetworkDiscriminant) = ApiWalletInput
@@ -145,6 +155,23 @@ data ApiWalletInput (n :: NetworkDiscriminant) = ApiWalletInput
     deriving (Eq, Generic, Show, Typeable)
     deriving (FromJSON, ToJSON) via DefaultRecord (ApiWalletInput n)
     deriving anyclass NFData
+
+data ApiWitnessCount = ApiWitnessCount
+    { verificationKey :: Word8
+    , scripts :: [ApiT AnyScript]
+    , bootstrap :: Word8
+    }
+    deriving (Eq, Generic, Show)
+    deriving (FromJSON, ToJSON) via DefaultRecord ApiWitnessCount
+    deriving anyclass NFData
+
+mkApiWitnessCount :: WitnessCount -> ApiWitnessCount
+mkApiWitnessCount WitnessCount {verificationKey, scripts, bootstrap} =
+    ApiWitnessCount
+        { verificationKey
+        , scripts = ApiT <$> scripts
+        , bootstrap
+        }
 
 data ApiTxInputGeneral (n :: NetworkDiscriminant) =
       ExternalInput (ApiT TxIn)
