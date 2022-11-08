@@ -635,6 +635,7 @@ spec = parallel $ do
         jsonTest @ApiWalletPassphrase
         jsonTest @ApiWalletPassphraseInfo
         jsonTest @ApiWalletUtxoSnapshot
+        jsonTest @ApiWitnessCount
         jsonTest @ByronWalletFromXPrvPostData
         jsonTest @ByronWalletPutPassphraseData
         jsonTest @SettingsPutData
