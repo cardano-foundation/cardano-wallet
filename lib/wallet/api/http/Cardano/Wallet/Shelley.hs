@@ -168,8 +168,6 @@ import Network.Wai.Handler.Warp
     ( setBeforeMainLoop )
 import Ouroboros.Network.Client.Wallet
     ( PipeliningStrategy )
-import Servant.Server
-    ( ServerError )
 import System.Exit
     ( ExitCode (..) )
 import System.IOManager

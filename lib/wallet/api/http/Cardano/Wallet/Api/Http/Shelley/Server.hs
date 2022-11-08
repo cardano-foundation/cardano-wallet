@@ -641,6 +641,8 @@ import qualified Cardano.Wallet.Primitive.Types.UTxOSelection as UTxOSelection
 import qualified Cardano.Wallet.Registry as Registry
 import qualified Cardano.Wallet.Write.Tx as WriteTx
 import qualified Control.Concurrent.Concierge as Concierge
+import Control.Monad.Error.Class
+    ( throwError )
 import qualified Data.ByteString as BS
 import qualified Data.Foldable as F
 import qualified Data.List as L
@@ -1636,7 +1638,7 @@ selectCoins ctx@ApiLayer {..} genChange (ApiT wid) body = do
         wdrl <- case body ^. #withdrawal of
             Nothing -> pure NoWithdrawal
             Just apiWdrl ->
-                unsafeShelleyMkWithdrawal @s @k @n @'CredFromKeyK
+                shelleyOnlyMkWithdrawal @s @k @n @'CredFromKeyK
                     netLayer txLayer db wid era apiWdrl
         let outs = addressAmountToTxOut <$> body ^. #payments
         let txCtx = defaultTransactionCtx
@@ -1739,7 +1741,7 @@ selectCoinsForQuit ctx@ApiLayer{..} (ApiT wid) =
         let db = wrk ^. typed @(DBLayer IO s k)
         era <- liftIO $ NW.currentNodeEra netLayer
         wdrl <- liftHandler $ ExceptT
-            $ W.unsafeShelleyMkSelfWithdrawal @s @k @_ @_ @n
+            $ W.shelleyOnlyMkSelfWithdrawal @s @k @_ @_ @n
                 netLayer txLayer era db wid
         action <- liftIO $ W.validatedQuitStakePoolAction db wid wdrl
 
@@ -1768,7 +1770,7 @@ selectCoinsForQuit ctx@ApiLayer{..} (ApiT wid) =
             liftHandler $ W.selectAssets @_ @_ @s @k @'CredFromKeyK
                 wrk era pp selectAssetsParams transform
         (_, _, path) <- liftHandler
-            $ W.unsafeShelleyReadRewardAccount @s @k @n db wid
+            $ W.shelleyOnlyReadRewardAccount @s @k @n db wid
         let refund = W.stakeKeyDeposit pp
         pure $ mkApiCoinSelection [] [refund] (Just (action, path)) Nothing utx
 
@@ -2005,8 +2007,9 @@ postTransactionOld ctx@ApiLayer{..} genChange (ApiT wid) body = do
     let outs = addressAmountToTxOut <$> body ^. #payments
     let md = body ^? #metadata . traverse . #txMetadataWithSchema_metadata
     let mTTL = body ^? #timeToLive . traverse . #getQuantity
-
-    mkRwdAcct <- mkRewardAccountBuilder @s @_ @n (body ^. #withdrawal)
+    mkRwdAcct <- case body ^. #withdrawal of
+        Nothing -> pure selfRewardAccountBuilder
+        Just w -> either liftE pure $ shelleyOnlyRewardAccountBuilder @s @_ @n w
     withWorkerCtx ctx wid liftE liftE $ \wrk -> do
         let db = wrk ^. dbLayer
         era <- liftIO $ NW.currentNodeEra netLayer
@@ -2014,7 +2017,7 @@ postTransactionOld ctx@ApiLayer{..} genChange (ApiT wid) body = do
         wdrl <- case body ^. #withdrawal of
             Nothing -> pure NoWithdrawal
             Just apiWdrl ->
-                unsafeShelleyMkWithdrawal @s @k @n
+                shelleyOnlyMkWithdrawal @s @k @n
                     netLayer txLayer db wid era apiWdrl
         let txCtx = defaultTransactionCtx
                 { txWithdrawal = wdrl
@@ -2204,7 +2207,7 @@ postTransactionFeeOld ctx@ApiLayer{..} (ApiT wid) body =
         wdrl <- case body ^. #withdrawal of
             Nothing -> pure NoWithdrawal
             Just apiWdrl ->
-                unsafeShelleyMkWithdrawal @s @k @n @'CredFromKeyK
+                shelleyOnlyMkWithdrawal @s @k @n @'CredFromKeyK
                     netLayer txLayer db wid era apiWdrl
         let txCtx = defaultTransactionCtx
                 { txWithdrawal = wdrl
@@ -2338,7 +2341,7 @@ constructTransaction ctx genChange knownPools getPoolStatus (ApiT wid) body = do
         era <- liftIO $ NW.currentNodeEra netLayer
         wdrl <- case body ^. #withdrawal of
             Just SelfWithdraw -> liftHandler
-                $ ExceptT $ W.unsafeShelleyMkSelfWithdrawal
+                $ ExceptT $ W.shelleyOnlyMkSelfWithdrawal
                     @s @k @'CredFromKeyK @_ @n netLayer txLayer era db wid
             _ -> pure NoWithdrawal
         (deposit, refund, txCtx) <- case body ^. #delegations of
@@ -2875,7 +2878,7 @@ decodeTransaction
     withWorkerCtx ctx wid liftE liftE $ \wrk -> do
         let db = wrk ^. dbLayer
         (acct, _, acctPath) <-
-            liftHandler $ W.unsafeShelleyReadRewardAccount @s @k @n db wid
+            liftHandler $ W.shelleyOnlyReadRewardAccount @s @k @n db wid
         inputPaths <-
             liftHandler $ W.lookupTxIns @_ @s @k wrk wid $
             fst <$> resolvedInputs
@@ -3011,7 +3014,7 @@ submitTransaction ctx apiw@(ApiT wid) apitx = do
 
     _ <- withWorkerCtx ctx wid liftE liftE $ \wrk -> do
         let db = wrk ^. dbLayer
-        (acct, _, path) <- liftHandler $ W.unsafeShelleyReadRewardAccount @s @k @n db wid
+        (acct, _, path) <- liftHandler $ W.shelleyOnlyReadRewardAccount @s @k @n db wid
         let wdrl = getOurWdrl acct path apiDecoded
         let txCtx = defaultTransactionCtx
                 { -- TODO: [ADP-1193]
@@ -3206,11 +3209,10 @@ joinStakePool ctx knownPools getPoolStatus apiPool (ApiT wid) body = do
                 wrk era pp selectAssetsParams (const Prelude.id)
         sel' <- liftHandler
             $ W.assignChangeAddressesAndUpdateDb wrk wid genChange sel
-        mkRwdAcct <- mkRewardAccountBuilder @s @_ @n Nothing
         (tx, txMeta, txTime, sealedTx) <- liftHandler $ do
             let pwd = coerce $ getApiT $ body ^. #passphrase
             W.buildAndSignTransaction @_ @s @k
-                wrk wid era mkRwdAcct pwd txCtx sel'
+                wrk wid era selfRewardAccountBuilder pwd txCtx sel'
         liftHandler $ W.submitTx @_ @s @k wrk wid (tx, txMeta, sealedTx)
         mkApiTransaction
             (timeInterpreter (ctx ^. networkLayer))
@@ -3297,7 +3299,6 @@ quitStakePool
     -> ApiWalletPassphrase
     -> Handler (ApiTransaction n)
 quitStakePool ctx@ApiLayer{..} (ApiT walletId) body = do
-    mkRwdAcct <- mkRewardAccountBuilder @s @_ @n (Just SelfWithdrawal)
     withWorkerCtx ctx walletId liftE liftE $ \wrk -> do
         let db = wrk ^. typed @(DBLayer IO s k)
             notShelleyWallet =
@@ -3333,7 +3334,7 @@ quitStakePool ctx@ApiLayer{..} (ApiT walletId) body = do
         (tx, txMeta, txTime, sealedTx) <- do
             let pwd = coerce $ getApiT $ body ^. #passphrase
             liftHandler $ W.buildAndSignTransaction @_ @s @k
-                wrk walletId era mkRwdAcct pwd txCtx sel'
+                wrk walletId era selfRewardAccountBuilder pwd txCtx sel'
         liftHandler
             $ W.submitTx @_ @s @k wrk walletId (tx, txMeta, sealedTx)
         mkApiTransaction ti wrk walletId #pendingSince
@@ -3469,7 +3470,7 @@ createMigrationPlan ctx@ApiLayer{..} withdrawalType (ApiT wid) postData =
         era <- liftIO $ NW.currentNodeEra netLayer
         rewardWithdrawal <- case withdrawalType of
             Nothing -> pure NoWithdrawal
-            Just pd -> unsafeShelleyMkWithdrawal @s @k @n @'CredFromKeyK
+            Just pd -> shelleyOnlyMkWithdrawal @s @k @n @'CredFromKeyK
                 netLayer txLayer db wid era pd
         (wallet, _, _) <- liftHandler
             $ withExceptT ErrCreateMigrationPlanNoSuchWallet
@@ -3561,13 +3562,17 @@ migrateWallet
     -> ApiWalletMigrationPostData n p
     -> Handler (NonEmpty (ApiTransaction n))
 migrateWallet ctx@ApiLayer{..} withdrawalType (ApiT wid) postData = do
-    mkRewardAccount <- mkRewardAccountBuilder @s @_ @n withdrawalType
+    mkRewardAccount <-
+        case withdrawalType of
+            Nothing -> pure selfRewardAccountBuilder
+            Just w ->
+                either liftE pure $ shelleyOnlyRewardAccountBuilder @s @_ @n w
     withWorkerCtx ctx wid liftE liftE $ \wrk -> do
         let db = wrk ^. dbLayer
         era <- liftIO $ NW.currentNodeEra netLayer
         rewardWithdrawal <- case withdrawalType of
             Nothing -> pure NoWithdrawal
-            Just pd -> unsafeShelleyMkWithdrawal @s @k @n
+            Just pd -> shelleyOnlyMkWithdrawal @s @k @n
                 netLayer txLayer db wid era pd
         plan <- liftHandler $ W.createMigrationPlan wrk era wid rewardWithdrawal
         ttl <- liftIO $ W.transactionExpirySlot ti Nothing
@@ -3928,7 +3933,7 @@ mkWithdrawal netLayer txLayer db wallet era = \case
 
 -- | Unsafe version of `mkWithdrawal` that throws runtime error
 -- when applied to a non-shelley or non-sequential wallet state.
-unsafeShelleyMkWithdrawal
+shelleyOnlyMkWithdrawal
     :: forall s k (n :: NetworkDiscriminant) ktype tx
      . (Typeable n, Typeable s, Typeable k)
     => NetworkLayer IO Block
@@ -3938,7 +3943,7 @@ unsafeShelleyMkWithdrawal
     -> AnyCardanoEra
     -> ApiWithdrawalPostData
     -> Handler Withdrawal
-unsafeShelleyMkWithdrawal netLayer txLayer db wallet era postData =
+shelleyOnlyMkWithdrawal netLayer txLayer db wallet era postData =
     case testEquality (typeRep @s) (typeRep @(SeqState n k)) of
         Nothing -> notShelleyWallet
         Just Refl -> case testEquality (typeRep @k) (typeRep @ShelleyKey) of
@@ -3948,7 +3953,7 @@ unsafeShelleyMkWithdrawal netLayer txLayer db wallet era postData =
     notShelleyWallet =
         liftHandler $ throwE ErrReadRewardAccountNotAShelleyWallet
 
-mkRewardAccountBuilder
+shelleyOnlyRewardAccountBuilder
     :: forall s k (n :: NetworkDiscriminant)
      . ( HardDerivation k
        , Bounded (Index (AddressIndexDerivationType k) (AddressCredential k))
@@ -3956,20 +3961,26 @@ mkRewardAccountBuilder
        , Typeable s
        , Typeable n
        )
-    => Maybe ApiWithdrawalPostData
-    -> Handler (RewardAccountBuilder k)
-mkRewardAccountBuilder withdrawal = do
-    let selfRewardCredentials (rootK, pwdP) =
-            (getRawKey (deriveRewardAccount @k pwdP rootK), pwdP)
+    => ApiWithdrawalPostData
+    -> Either ErrReadRewardAccount (RewardAccountBuilder k)
+shelleyOnlyRewardAccountBuilder w =
     case testEquality (typeRep @s) (typeRep @(SeqState n ShelleyKey)) of
-        Nothing -> liftHandler $ throwE ErrReadRewardAccountNotAShelleyWallet
-        Just Refl -> case withdrawal of
-            Nothing -> pure selfRewardCredentials
-            Just w -> case w of
-                SelfWithdrawal -> pure selfRewardCredentials
-                ExternalWithdrawal (ApiMnemonicT m) -> do
-                    let (xprv, _acct, _path) = W.someRewardAccount @ShelleyKey m
-                    pure (const (xprv, mempty))
+        Nothing -> throwError ErrReadRewardAccountNotAShelleyWallet
+        Just Refl -> case w of
+            SelfWithdrawal -> pure selfRewardAccountBuilder
+            ExternalWithdrawal (ApiMnemonicT m) -> do
+                let (xprv, _acct, _path) = W.someRewardAccount @ShelleyKey m
+                pure (const (xprv, mempty))
+
+selfRewardAccountBuilder
+    :: forall k
+     . ( HardDerivation k
+       , Bounded (Index (AddressIndexDerivationType k) (AddressCredential k))
+       , WalletKey k
+       )
+    => RewardAccountBuilder k
+selfRewardAccountBuilder (rootK, pwdP) =
+    (getRawKey (deriveRewardAccount @k pwdP rootK), pwdP)
 
 -- | Makes an 'ApiCoinSelection' from the given 'UnsignedTx'.
 mkApiCoinSelection
@@ -4173,7 +4184,7 @@ mkApiTransaction timeInterpreter wrk wid timeRefLens tx = do
     -- using additional context from the 'WorkerCtx'.
     getApiAnyCertificates db ParsedTxCBOR{certificates} = do
         (rewardAccount, _, derivPath) <- liftHandler
-            $ W.unsafeShelleyReadRewardAccount @s @k @n db wid
+            $ W.shelleyOnlyReadRewardAccount @s @k @n db wid
         pure $ mkApiAnyCertificate rewardAccount derivPath <$> certificates
 
     depositIfAny :: Natural

@@ -81,9 +81,9 @@ module Cardano.Wallet
     , checkWalletIntegrity
     , mkExternalWithdrawal
     , mkSelfWithdrawal
-    , unsafeShelleyMkSelfWithdrawal
+    , shelleyOnlyMkSelfWithdrawal
     , readRewardAccount
-    , unsafeShelleyReadRewardAccount
+    , shelleyOnlyReadRewardAccount
     , someRewardAccount
     , readPolicyPublicKey
     , writePolicyPublicKey
@@ -1236,7 +1236,7 @@ mkSelfWithdrawal netLayer txLayer era db wallet = do
 
 -- | Unsafe version of the `mkSelfWithdrawal` function that throws an exception
 -- when applied to a non-shelley or a non-sequential wallet.
-unsafeShelleyMkSelfWithdrawal
+shelleyOnlyMkSelfWithdrawal
     :: forall s k ktype tx (n :: NetworkDiscriminant)
      . (Typeable s, Typeable k, Typeable n)
     => NetworkLayer IO Block
@@ -1245,7 +1245,7 @@ unsafeShelleyMkSelfWithdrawal
     -> DBLayer IO s k
     -> WalletId
     -> IO (Either ErrWithdrawalNotWorth Withdrawal)
-unsafeShelleyMkSelfWithdrawal netLayer txLayer era db wallet =
+shelleyOnlyMkSelfWithdrawal netLayer txLayer era db wallet =
     case testEquality (typeRep @s) (typeRep @(SeqState n k)) of
         Nothing -> notShelleyWallet
         Just Refl -> case testEquality (typeRep @k) (typeRep @ShelleyKey) of
@@ -1299,14 +1299,14 @@ readRewardAccount db wid = do
 -- | Unsafe version of the `readRewardAccount` function
 -- that throws error when applied to a non-sequential
 -- or a non-shelley wallet state.
-unsafeShelleyReadRewardAccount
+shelleyOnlyReadRewardAccount
     :: forall s k (n :: NetworkDiscriminant)
      . (Typeable s, Typeable n, Typeable k)
     => DBLayer IO s k
     -> WalletId
     -> ExceptT ErrReadRewardAccount IO
         (RewardAccount, XPub, NonEmpty DerivationIndex)
-unsafeShelleyReadRewardAccount db wid =
+shelleyOnlyReadRewardAccount db wid =
     case testEquality (typeRep @s) (typeRep @(SeqState n k)) of
         Nothing -> throwE ErrReadRewardAccountNotAShelleyWallet
         Just Refl ->
@@ -2527,7 +2527,7 @@ constructTransaction
     -> ExceptT ErrConstructTx IO SealedTx
 constructTransaction ctx wid era txCtx sel = db & \DBLayer{..} -> do
     (_, xpub, _) <- withExceptT ErrConstructTxReadRewardAccount $
-        unsafeShelleyReadRewardAccount @s @k @n db wid
+        shelleyOnlyReadRewardAccount @s @k @n db wid
     mapExceptT atomically $ do
         pp <- liftIO $ currentProtocolParameters nl
         withExceptT ErrConstructTxBody $ ExceptT $ pure $
