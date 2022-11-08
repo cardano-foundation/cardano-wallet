@@ -619,6 +619,11 @@ server byron icarus shelley multisig spl ntp blockchainSource =
                 getTransaction apilayer wid txId
                     (parseSimpleMetadataFlag simpleMetadataFlag)
             )
+        :<|>
+            (\wid mMinWithdrawal mStart mEnd mOrder simpleMetadataFlag ->
+                listTransactions apilayer wid mMinWithdrawal mStart mEnd mOrder
+                    (parseSimpleMetadataFlag simpleMetadataFlag)
+            )
 
     blocks :: Handler ApiBlockHeader
     blocks = getBlocksLatestHeader (shelley ^. networkLayer)

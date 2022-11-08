@@ -152,6 +152,7 @@ module Cardano.Wallet.Api
         , DecodeSharedTransaction
         , SubmitSharedTransaction
         , GetSharedTransaction
+        , ListSharedTransactions
 
     , GetBlocksLatestHeader
     , Proxy_
@@ -1116,6 +1117,7 @@ type SharedTransactions n =
     :<|> DecodeSharedTransaction n
     :<|> SubmitSharedTransaction
     :<|> GetSharedTransaction n
+    :<|> ListSharedTransactions n
 
 -- | https://input-output-hk.github.io/cardano-wallet/api/#operation/constructSharedTransaction
 type ConstructSharedTransaction n = "shared-wallets"
@@ -1152,6 +1154,17 @@ type GetSharedTransaction n = "shared-wallets"
     :> Capture "transactionId" ApiTxId
     :> QueryFlag "simple-metadata"
     :> Get '[JSON] (ApiTransactionT n)
+
+-- | https://input-output-hk.github.io/cardano-wallet/api/#operation/listSharedTransactions
+type ListSharedTransactions n = "shared-wallets"
+    :> Capture "walletId" (ApiT WalletId)
+    :> "transactions"
+    :> QueryParam "minWithdrawal" MinWithdrawal
+    :> QueryParam "start" Iso8601Time
+    :> QueryParam "end" Iso8601Time
+    :> QueryParam "order" (ApiT SortOrder)
+    :> QueryFlag "simple-metadata"
+    :> Get '[JSON] [ApiTransactionT n]
 
 {-------------------------------------------------------------------------------
                                    Proxy_
