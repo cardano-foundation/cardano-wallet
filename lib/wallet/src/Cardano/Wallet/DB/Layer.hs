@@ -139,7 +139,7 @@ import Cardano.Wallet.Primitive.Slotting
 import Control.Exception
     ( throw )
 import Control.Monad
-    ( forM, guard, unless, void, when, (<=<) )
+    ( forM, unless, void, when, (<=<) )
 import Control.Monad.IO.Class
     ( MonadIO (..) )
 import Control.Monad.Trans
@@ -159,7 +159,7 @@ import Data.Foldable
 import Data.Generics.Internal.VL.Lens
     ( view, (^.) )
 import Data.Maybe
-    ( catMaybes, fromMaybe, isJust, listToMaybe, maybeToList )
+    ( catMaybes, fromMaybe, isJust, maybeToList )
 import Data.Proxy
     ( Proxy (..) )
 import Data.Quantity
@@ -711,21 +711,19 @@ newDBLayerWith _cacheBehavior _tr ti SqliteContext{runQuery} = do
             updateDBVar transactionsDBVar . ExpandTxWalletsHistory wid
 
         , readTxHistory_ = \wid range status tip -> do
-            txHistory <- readDBVar transactionsDBVar
-            let filtering DB.TxMeta{..} = and $ catMaybes
+            txHistory@(txSet,_) <- readDBVar transactionsDBVar
+            let whichMeta DB.TxMeta{..} = and $ catMaybes
                     [ (txMetaSlot >=) <$> W.inclusiveLowerBound range
                     , (txMetaSlot <=) <$> W.inclusiveUpperBound range
                     , (txMetaStatus ==) <$> status
                     ]
-            lift $ selectTxHistory tip
-                ti wid filtering txHistory
+            let transactions = filter whichMeta $ getTxMetas wid txHistory
+            lift $ forM transactions $ selectTransactionInfo ti tip txSet
 
         , getTx_ = \wid txid tip -> do
-            txHistory <- readDBVar transactionsDBVar
-            metas <- lift $ selectTxHistory tip ti wid
-                    (\meta -> txMetaTxId meta == TxId txid )
-                    txHistory
-            pure $ listToMaybe metas
+            txHistory@(txSet,_) <- readDBVar transactionsDBVar
+            let transactions = lookupTxMeta wid (TxId txid) txHistory
+            lift $ forM transactions $ selectTransactionInfo ti tip txSet
         }
 
         {-----------------------------------------------------------------------
@@ -1018,40 +1016,53 @@ deleteDelegationCertificates
 deleteDelegationCertificates wid filters = do
     deleteWhere ((CertWalletId ==. wid) : filters)
 
--- This relies on available information from the database to reconstruct coin
--- selection information for __outgoing__ payments. We can't however guarantee
--- that we have such information for __incoming__ payments (we usually don't
--- have it).
---
--- To reliably provide this information for incoming payments, it should be
--- looked up when applying blocks from the global ledger, but that is future
--- work.
---
-
--- See also: issue #573.
-selectTxHistory
-    :: Monad m
-    => W.BlockHeader
-    -> TimeInterpreter m
-    -> W.WalletId
-    -> (DB.TxMeta -> Bool)
+-- | Get all 'TxMeta' for a given wallet.
+-- Returns empty list if the wallet does not exist.
+getTxMetas
+    :: W.WalletId
     -> TxWalletsHistory
-    -> m [W.TransactionInfo]
-selectTxHistory tip ti wid whichMeta
-    (txSet, wmetas) = do
-    sequence $ do
-        (TxMetaHistory metas, _) <- maybeToList $ Map.lookup wid wmetas
-        meta <- toList metas
-        guard $ whichMeta meta
-        transaction <- maybeToList $ Map.lookup (txMetaTxId meta) txs
-        let decoration = decorateTxIns txSet transaction
-        pure $ mkTransactionInfo
-            ti tip
-                transaction
-                decoration
-                meta
-  where
-    TxSet txs = txSet
+    -> [DB.TxMeta]
+getTxMetas wid (_,wmetas) = do
+    (TxMetaHistory metas, _) <- maybeToList $ Map.lookup wid wmetas
+    toList metas
+
+-- | Lookup 'TxMeta' for a given wallet and 'TxId'.
+-- Returns 'Nothing' if the wallet or the transaction id do not exist.
+lookupTxMeta
+    :: W.WalletId
+    -> TxId
+    -> TxWalletsHistory
+    -> Maybe DB.TxMeta
+lookupTxMeta wid txid (_,wmetas) = do
+    (TxMetaHistory metas, _) <- Map.lookup wid wmetas
+    Map.lookup txid metas
+
+-- | For a given 'TxMeta', read all necessary data to construct
+-- the corresponding 'W.TransactionInfo'.
+--
+-- Assumption: The 'TxMeta' is contained in the given 'TxSet'.
+--
+-- Note: Transaction inputs are references to the outputs of
+-- previous transactions. Given any input, the Ada quantity and
+-- assets associated with it are unknown until we look them up.
+-- Here, 'selectTransactionInfo' will try to look up those outputs that
+-- are in the transaction history of the wallet,
+-- but the function will not attempt to look up all possible outputs.
+-- This approach typically provides enough information
+-- for /outgoing/ payments, but less so for /ingoing/ payments.
+selectTransactionInfo
+    :: Monad m
+    => TimeInterpreter m
+    -> W.BlockHeader
+    -> TxSet
+    -> TxMeta
+    -> m W.TransactionInfo
+selectTransactionInfo ti tip txSet meta =
+    let err = error $ "Transaction not found: " <> show meta
+        transaction = fromMaybe err $
+            Map.lookup (txMetaTxId meta) (view #relations txSet)
+        decoration = decorateTxIns txSet transaction
+    in  mkTransactionInfo ti tip transaction decoration meta
 
 -- | Returns the initial submission slot and submission record for all pending
 -- transactions in the wallet.
