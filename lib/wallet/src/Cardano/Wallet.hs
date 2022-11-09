@@ -1263,11 +1263,13 @@ checkRewardIsWorthTxCost
     -> Coin
     -> Either ErrWithdrawalNotWorth ()
 checkRewardIsWorthTxCost txLayer pp era balance = do
+    when (balance == Coin 0)
+        $ Left ErrWithdrawalNotWorth
     let minimumCost txCtx = calcMinimumCost txLayer era pp txCtx emptySkeleton
         costWith = minimumCost $ mkTxCtx balance
         costWithout = minimumCost $ mkTxCtx $ Coin 0
-        costOfWithdrawal = Coin.toInteger costWith - Coin.toInteger costWithout
-    when (Coin.toInteger balance < 2 * costOfWithdrawal)
+        worthOfWithdrawal = Coin.toInteger costWith - Coin.toInteger costWithout
+    when (Coin.toInteger balance < 2 * worthOfWithdrawal)
         $ Left ErrWithdrawalNotWorth
   where
     mkTxCtx wdrl = defaultTransactionCtx
