@@ -267,7 +267,7 @@ spec = describe "SHARED_TRANSACTIONS" $ do
             , expectResponseCode HTTP.status202
             ]
 
-        let txid = getFromResponse (#id) submittedTx
+        let txid = getFromResponse #id submittedTx
         let queryTx = Link.getTransaction @'Shared wal (ApiTxId txid)
         rGetTx <- request @(ApiTransaction n) ctx queryTx Default Empty
         verify rGetTx
