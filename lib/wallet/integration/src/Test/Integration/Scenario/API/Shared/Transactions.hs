@@ -49,6 +49,8 @@ import Cardano.Wallet.Primitive.AddressDerivation
     ( DerivationIndex (..), Index (..) )
 import Cardano.Wallet.Primitive.AddressDerivation.SharedKey
     ( replaceCosignersWithVerKeys )
+import Cardano.Wallet.Primitive.AddressDiscovery.Shared
+    ( CredentialType (..) )
 import Cardano.Wallet.Primitive.Passphrase
     ( Passphrase (..) )
 import Cardano.Wallet.Primitive.Types.Tx
@@ -101,6 +103,7 @@ import Test.Integration.Framework.DSL
     , json
     , listAddresses
     , minUTxOValue
+    , patchSharedWallet
     , postSharedWallet
     , request
     , signSharedTx
@@ -735,6 +738,89 @@ spec = describe "SHARED_TRANSACTIONS" $ do
             ]
         let walShared2@(ApiSharedWallet (Right walB)) =
                 getFromResponse Prelude.id rPostB
+
+        fundSharedWallet ctx faucetUtxoAmt (NE.fromList [walShared1, walShared2])
+
+        return (walA, walB)
+
+     fixtureTwoPartySharedWalletPatched ctx = do
+
+        let index = 30
+        let passphrase = Passphrase $ BA.convert $ T.encodeUtf8 fixturePassphrase
+
+        -- first participant, cosigner 0
+        m15txtA <- liftIO $ genMnemonics M15
+        m12txtA <- liftIO $ genMnemonics M12
+        let (Right m15A) = mkSomeMnemonic @'[ 15 ] m15txtA
+        let (Right m12A) = mkSomeMnemonic @'[ 12 ] m12txtA
+        let accXPubDerivedA = accPubKeyFromMnemonics m15A (Just m12A) index passphrase
+
+        -- second participant, cosigner 1
+        m15txtB <- liftIO $ genMnemonics M15
+        m12txtB <- liftIO $ genMnemonics M12
+        let (Right m15B) = mkSomeMnemonic @'[ 15 ] m15txtB
+        let (Right m12B) = mkSomeMnemonic @'[ 12 ] m12txtB
+        let accXPubDerivedB = accPubKeyFromMnemonics m15B (Just m12B) index passphrase
+
+        -- payload for A
+        let payloadA = Json [json| {
+                "name": "Shared Wallet",
+                "mnemonic_sentence": #{m15txtA},
+                "mnemonic_second_factor": #{m12txtA},
+                "passphrase": #{fixturePassphrase},
+                "account_index": "30H",
+                "payment_script_template":
+                    { "cosigners":
+                        { "cosigner#0": "self" },
+                      "template":
+                          { "all":
+                             [ "cosigner#0", "cosigner#1" ]
+                          }
+                    }
+                } |]
+
+        rPostA <- postSharedWallet ctx Default payloadA
+        verify (fmap (swapEither . view #wallet) <$> rPostA)
+            [ expectResponseCode HTTP.status201
+            ]
+        let walPendingA = getFromResponse Prelude.id rPostA
+        let payloadPatchA = Json [json| {
+                "cosigner#1": #{accXPubDerivedB}
+                } |]
+        rPatchA <- patchSharedWallet ctx walPendingA Payment payloadPatchA
+        expectResponseCode HTTP.status200 rPatchA
+        let walShared1@(ApiSharedWallet (Right walA)) =
+                getFromResponse Prelude.id rPatchA
+
+        -- payload for B
+        let payloadB = Json [json| {
+                "name": "Shared Wallet",
+                "mnemonic_sentence": #{m15txtB},
+                "mnemonic_second_factor": #{m12txtB},
+                "passphrase": #{fixturePassphrase},
+                "account_index": "30H",
+                "payment_script_template":
+                    { "cosigners":
+                        { "cosigner#1": "self" },
+                      "template":
+                          { "all":
+                             [ "cosigner#0", "cosigner#1" ]
+                          }
+                    }
+                } |]
+
+        rPostB <- postSharedWallet ctx Default payloadB
+        verify (fmap (swapEither . view #wallet) <$> rPostB)
+            [ expectResponseCode HTTP.status201
+            ]
+        let walPendingB = getFromResponse Prelude.id rPostB
+        let payloadPatchB = Json [json| {
+                "cosigner#0": #{accXPubDerivedA}
+                } |]
+        rPatchB <- patchSharedWallet ctx walPendingB Payment payloadPatchB
+        expectResponseCode HTTP.status200 rPatchB
+        let walShared2@(ApiSharedWallet (Right walB)) =
+                getFromResponse Prelude.id rPatchB
 
         fundSharedWallet ctx faucetUtxoAmt (NE.fromList [walShared1, walShared2])
 
