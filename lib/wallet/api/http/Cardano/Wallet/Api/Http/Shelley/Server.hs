@@ -520,6 +520,8 @@ import Control.Error.Util
     ( failWith )
 import Control.Monad
     ( forM, forever, join, void, when, (<=<), (>=>) )
+import Control.Monad.Error.Class
+    ( throwError )
 import Control.Monad.IO.Class
     ( MonadIO, liftIO )
 import Control.Monad.Trans.Except
@@ -641,8 +643,6 @@ import qualified Cardano.Wallet.Primitive.Types.UTxOSelection as UTxOSelection
 import qualified Cardano.Wallet.Registry as Registry
 import qualified Cardano.Wallet.Write.Tx as WriteTx
 import qualified Control.Concurrent.Concierge as Concierge
-import Control.Monad.Error.Class
-    ( throwError )
 import qualified Data.ByteString as BS
 import qualified Data.Foldable as F
 import qualified Data.List as L
