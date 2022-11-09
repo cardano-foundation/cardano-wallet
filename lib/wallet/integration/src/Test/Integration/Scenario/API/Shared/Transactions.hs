@@ -486,6 +486,11 @@ spec = describe "SHARED_TRANSACTIONS" $ do
         (sharedWal1, sharedWal2) <- fixtureTwoPartySharedWallet ctx
         singleOutputTxTwoParty ctx sharedWal1 sharedWal2
 
+    it "SHARED_TRANSACTIONS_CREATE_05b - Single Output Transaction with decode transaction - multi party" $ \ctx -> runResourceT $ do
+
+        (sharedWal1, sharedWal2) <- fixtureTwoPartySharedWalletPatched ctx
+        singleOutputTxTwoParty ctx sharedWal1 sharedWal2
+
     it "SHARED_TRANSACTIONS_CREATE_05c - Single Output Transaction with decode transaction - multi party" $ \ctx -> runResourceT $ do
 
         (sharedWal1, sharedWal2, sharedWal3) <- fixtureThreePartySharedWallet ctx
