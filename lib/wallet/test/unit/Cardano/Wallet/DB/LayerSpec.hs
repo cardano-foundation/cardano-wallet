@@ -495,7 +495,7 @@ fileModeSpec =  do
                        { passphraseInfo = Just $ WalletPassphraseInfo now EncryptWithPBKDF2 }
                 atomically $ unsafeRunExceptT $
                     initializeWallet testWid testCp meta mempty gp
-                return meta
+                return (meta, WalletDelegation NotDelegating [])
             testOpeningCleaning f (`readWalletMeta'` testWid) (Just meta) Nothing
 
         it "create and get private key" $ \f -> do
@@ -895,7 +895,7 @@ readCheckpoint' DBLayer{..} =
 readWalletMeta'
     :: DBLayer m s k
     -> WalletId
-    -> m (Maybe WalletMetadata)
+    -> m (Maybe (WalletMetadata, WalletDelegation))
 readWalletMeta' DBLayer{..} =
     atomically . readWalletMeta
 
@@ -1278,7 +1278,7 @@ testMigrationPassphraseScheme = do
                     Just b <- readWalletMeta walNewScheme
                     Just c <- readWalletMeta walOldScheme
                     Just d <- readWalletMeta walNoPassphrase
-                    pure (a,b,c,d)
+                    pure (fst a, fst b, fst c, fst d)
 
         -- Migration is visible from the logs
         let migrationMsg = filter isMsgManualMigration logs
@@ -1376,7 +1376,6 @@ testMetadata = WalletMetadata
     { name = WalletName "test wallet"
     , creationTime = unsafePerformIO getCurrentTime
     , passphraseInfo = Nothing
-    , delegation = WalletDelegation NotDelegating []
     }
 
 testWid :: WalletId

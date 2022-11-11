@@ -364,16 +364,18 @@ mReadWalletMeta
     :: Ord wid
     => TimeInterpreter Identity
     -> wid
-    -> ModelOp wid s xprv (Maybe WalletMetadata)
+    -> ModelOp wid s xprv (Maybe (WalletMetadata, WalletDelegation))
 mReadWalletMeta ti wid db@(Database wallets _) =
     (Right (mkMetadata =<< Map.lookup wid wallets), db)
   where
     epochOf' = runIdentity . interpretQuery ti . epochOf
-    mkMetadata :: WalletDatabase s xprv -> Maybe WalletMetadata
+    mkMetadata
+        :: WalletDatabase s xprv
+        -> Maybe (WalletMetadata, WalletDelegation)
     mkMetadata WalletDatabase{checkpoints,certificates,metadata} = do
         (slot, _) <- Map.lookupMax checkpoints
         let currentEpoch = epochOf' slot
-        pure $ metadata { delegation = readWalletDelegation certificates currentEpoch }
+        pure (metadata, readWalletDelegation certificates currentEpoch)
 
     readWalletDelegation :: Map SlotNo (Maybe PoolId) -> EpochNo -> WalletDelegation
     readWalletDelegation certificates currentEpoch

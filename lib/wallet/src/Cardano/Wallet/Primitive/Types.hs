@@ -278,8 +278,6 @@ data WalletMetadata = WalletMetadata
         :: !UTCTime
     , passphraseInfo
         :: !(Maybe WalletPassphraseInfo)
-    , delegation
-        :: !WalletDelegation
     } deriving (Eq, Show, Generic)
 
 instance NFData WalletMetadata
@@ -288,10 +286,12 @@ formatUTCTime :: UTCTime -> Text
 formatUTCTime = T.pack . formatTime defaultTimeLocale "%Y-%m-%d %H:%M:%S %Z"
 
 instance Buildable WalletMetadata where
-    build (WalletMetadata wName wTime _ wDelegation) = mempty
+    build (WalletMetadata wName wTime _ ) = mempty
         <> build wName <> ", "
-        <> "created at " <> build (formatUTCTime wTime) <> ", "
-        <> build wDelegation
+        <> "created at " <> build (formatUTCTime wTime)
+
+instance Buildable (WalletMetadata, WalletDelegation) where
+    build (meta, delegation) = build meta <> ", " <>  build delegation
 
 -- | Length-restricted name of a wallet
 newtype WalletName = WalletName { getWalletName ::  Text }

@@ -546,7 +546,7 @@ walletUpdateName wallet@(_, wName0, _) names = monadicIO $ do
         WalletLayerFixture _ wl [wid] _ <- setupFixture wallet
         unsafeRunExceptT $ forM_ names $ \wName ->
             W.updateWallet wl wid (\x -> x { name = wName })
-        fmap (name . (\(_, b, _) -> b))
+        fmap (name . (\(_, (b, _), _) -> b))
             <$> unsafeRunExceptT $ W.readWallet wl wid
     assert (wName == last (wName0 : names))
 
@@ -622,7 +622,7 @@ walletUpdatePassphraseDate
 walletUpdatePassphraseDate wallet (xprv, pwd) = monadicIO $ liftIO $ do
     (WalletLayerFixture _ wl [wid] _) <- liftIO $ setupFixture wallet
     let infoShouldSatisfy predicate = do
-            info <- (passphraseInfo . (\(_,b,_) -> b)) <$>
+            info <- (passphraseInfo . (\(_, (b, _), _) -> b)) <$>
                 unsafeRunExceptT (W.readWallet wl wid)
             info `shouldSatisfy` predicate
             return info

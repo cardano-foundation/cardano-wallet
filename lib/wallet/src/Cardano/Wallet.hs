@@ -227,6 +227,8 @@ import Cardano.BM.Data.Tracer
     ( HasPrivacyAnnotation (..), HasSeverityAnnotation (..) )
 import Cardano.Crypto.Wallet
     ( toXPub )
+import Cardano.Pool.Types
+    ( PoolId )
 import Cardano.Slotting.Slot
     ( SlotNo (..) )
 import Cardano.Wallet.Address.Book
@@ -402,7 +404,6 @@ import Cardano.Wallet.Primitive.Types
     , SlottingParameters (..)
     , SortOrder (..)
     , WalletDelegation (..)
-    , WalletDelegationStatus (..)
     , WalletId (..)
     , WalletMetadata (..)
     , WalletName (..)
@@ -604,8 +605,6 @@ import qualified Cardano.Address.Style.Shelley as CAShelley
 import qualified Cardano.Api as Cardano
 import qualified Cardano.Api.Shelley as Cardano
 import qualified Cardano.Crypto.Wallet as CC
-import Cardano.Pool.Types
-    ( PoolId )
 import qualified Cardano.Wallet.Checkpoints.Policy as CP
 import qualified Cardano.Wallet.CoinSelection as CS
 import qualified Cardano.Wallet.DB.WalletState as WS
@@ -777,7 +776,6 @@ createWallet ctx wid wname s = db & \DBLayer{..} -> do
             { name = wname
             , creationTime = now
             , passphraseInfo = Nothing
-            , delegation = WalletDelegation NotDelegating []
             }
     mapExceptT atomically $
         initializeWallet wid cp meta hist gp $> wid
@@ -814,7 +812,6 @@ createIcarusWallet ctx wid wname credentials = db & \DBLayer{..} -> do
             { name = wname
             , creationTime = now
             , passphraseInfo = Nothing
-            , delegation = WalletDelegation NotDelegating []
             }
     mapExceptT atomically $
         initializeWallet wid cp meta hist gp $> wid
@@ -848,7 +845,8 @@ readWallet
     :: forall ctx s k. HasDBLayer IO s k ctx
     => ctx
     -> WalletId
-    -> ExceptT ErrNoSuchWallet IO (Wallet s, WalletMetadata, Set Tx)
+    -> ExceptT ErrNoSuchWallet IO
+        (Wallet s, (WalletMetadata, WalletDelegation), Set Tx)
 readWallet ctx wid = db & \DBLayer{..} -> mapExceptT atomically $ do
     cp <- withNoSuchWallet wid $ readCheckpoint wid
     meta <- withNoSuchWallet wid $ readWalletMeta wid
@@ -878,7 +876,7 @@ updateWallet
     -> (WalletMetadata -> WalletMetadata)
     -> ExceptT ErrNoSuchWallet IO ()
 updateWallet ctx wid modify = db & \DBLayer{..} -> mapExceptT atomically $ do
-    meta <- withNoSuchWallet wid $ readWalletMeta wid
+    meta <- fmap fst . withNoSuchWallet wid $ readWalletMeta wid
     putWalletMeta wid (modify meta)
   where
     db = ctx ^. dbLayer @IO @s @k
@@ -3096,7 +3094,7 @@ joinStakePool
     -- ^ snd is the deposit
 joinStakePool ctx currentEpoch knownPools pid poolStatus wid =
     db & \DBLayer{..} -> do
-        (walMeta, isKeyReg) <- mapExceptT atomically $ do
+        ((_ , walDelegation), isKeyReg) <- mapExceptT atomically $ do
             walMeta <- withExceptT ErrStakePoolDelegationNoSuchWallet
                 $ withNoSuchWallet wid
                 $ readWalletMeta wid
@@ -3110,7 +3108,7 @@ joinStakePool ctx currentEpoch knownPools pid poolStatus wid =
                 PoolRetirementEpochInfo currentEpoch <$> mRetirementEpoch
 
         withExceptT ErrStakePoolJoin $ except $
-            guardJoin knownPools (walMeta ^. #delegation) pid retirementInfo
+            guardJoin knownPools walDelegation pid retirementInfo
 
         liftIO $ traceWith tr $ MsgIsStakeKeyRegistered isKeyReg
 
@@ -3133,7 +3131,7 @@ quitStakePool
     -> Withdrawal
     -> ExceptT ErrStakePoolDelegation IO DelegationAction
 quitStakePool ctx wid wdrl = db & \DBLayer{..} -> do
-    walMeta <- mapExceptT atomically
+    (_ , walDelegation) <- mapExceptT atomically
         $ withExceptT ErrStakePoolDelegationNoSuchWallet
         $ withNoSuchWallet wid
         $ readWalletMeta wid
@@ -3142,7 +3140,7 @@ quitStakePool ctx wid wdrl = db & \DBLayer{..} -> do
         $ fetchRewardBalance @ctx @s @k ctx wid
 
     withExceptT ErrStakePoolQuit $ except $
-        guardQuit (walMeta ^. #delegation) wdrl rewards
+        guardQuit walDelegation wdrl rewards
 
     pure Quit
   where
@@ -3326,7 +3324,7 @@ attachPrivateKey db wid (xprv, hpwd) scheme = db & \DBLayer{..} -> do
                     , passphraseScheme = scheme
                     }
                 }
-        putWalletMeta wid (modify meta)
+        putWalletMeta wid (modify $ fst meta)
 
 -- | Execute an action which requires holding a root XPrv.
 --
@@ -3355,7 +3353,7 @@ withRootKey
 withRootKey ctx wid pwd embed action = db & \DBLayer{..} -> do
     (xprv, scheme) <- withExceptT embed $ mapExceptT atomically $ do
         mScheme <- (>>= (fmap passphraseScheme . passphraseInfo)) <$>
-            lift (readWalletMeta wid)
+            lift (fmap fst <$> readWalletMeta wid)
         mXPrv <- lift $ readPrivateKey wid
         case (mXPrv, mScheme) of
             (Just (xprv, hpwd), Just scheme) -> do

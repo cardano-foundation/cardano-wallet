@@ -448,6 +448,7 @@ import Cardano.Wallet.Primitive.Types
     , SlotId
     , SlotNo (..)
     , SortOrder (..)
+    , WalletDelegation
     , WalletId (..)
     , WalletMetadata (..)
     )
@@ -753,6 +754,7 @@ type MkApiWallet ctx s w
     -> WalletId
     -> Wallet s
     -> WalletMetadata
+    -> WalletDelegation
     -> Set Tx
     -> SyncProgress
     -> Handler w
@@ -862,7 +864,7 @@ mkShelleyWallet
         , HasWorkerRegistry s k ctx
         )
     => MkApiWallet ctx s ApiWallet
-mkShelleyWallet ctx wid cp meta pending progress = do
+mkShelleyWallet ctx wid cp meta delegation pending progress = do
     reward <- withWorkerCtx @_ @s @k ctx wid liftE liftE $ \wrk ->
         -- never fails - returns zero if balance not found
         liftIO $ W.fetchRewardBalance @_ @s @k wrk wid
@@ -880,7 +882,7 @@ mkShelleyWallet ctx wid cp meta pending progress = do
     --
     -- But ultimately, we might want to make the uncertainty transparent to API
     -- users. TODO: ADP-575
-    apiDelegation <- liftIO $ toApiWalletDelegation (meta ^. #delegation)
+    apiDelegation <- liftIO $ toApiWalletDelegation delegation
         (unsafeExtendSafeZone ti)
 
     tip' <- liftIO $ getWalletTip
@@ -1053,7 +1055,7 @@ mkSharedWallet
         , Shared.SupportsDiscovery n k
         )
     => MkApiWallet ctx s ApiSharedWallet
-mkSharedWallet ctx wid cp meta pending progress = case Shared.ready st of
+mkSharedWallet ctx wid cp meta delegation pending progress = case Shared.ready st of
     Shared.Pending -> pure $ ApiSharedWallet $ Left $ ApiPendingSharedWallet
         { id = ApiT wid
         , name = ApiT $ meta ^. #name
@@ -1068,7 +1070,7 @@ mkSharedWallet ctx wid cp meta pending progress = case Shared.ready st of
             liftIO $ W.fetchRewardBalance @_ @s @k wrk wid
 
         let ti = timeInterpreter $ ctx ^. networkLayer
-        apiDelegation <- liftIO $ toApiWalletDelegation (meta ^. #delegation)
+        apiDelegation <- liftIO $ toApiWalletDelegation delegation
             (unsafeExtendSafeZone ti)
 
         tip' <- liftIO $ getWalletTip
@@ -1171,10 +1173,11 @@ mkLegacyWallet
     -> WalletId
     -> Wallet s
     -> WalletMetadata
+    -> WalletDelegation
     -> Set Tx
     -> SyncProgress
     -> Handler ApiByronWallet
-mkLegacyWallet ctx wid cp meta pending progress = do
+mkLegacyWallet ctx wid cp meta _ pending progress = do
     -- NOTE
     -- Legacy wallets imported through via XPrv might have an empty passphrase
     -- set. The passphrase is empty from a client perspective, but in practice
@@ -1432,14 +1435,19 @@ getWallet ctx mkApiWallet (ApiT wid) = do
     df = ctx ^. dbFactory @s @k
 
     whenAlive wrk = do
-        (cp, meta, pending) <- liftHandler $ W.readWallet @_ @s @k wrk wid
+        (cp, (meta, delegation), pending)
+            <- liftHandler $ W.readWallet @_ @s @k wrk wid
         progress <- liftIO $ W.walletSyncProgress @_ @_ ctx cp
-        (, meta ^. #creationTime) <$> mkApiWallet ctx wid cp meta pending progress
+        (, meta ^. #creationTime)
+            <$> mkApiWallet ctx wid cp meta delegation pending progress
 
-    whenNotResponding _ = Handler $ ExceptT $ withDatabase df wid $ \db -> runHandler $ do
-        let wrk = hoistResource db (MsgFromWorker wid) ctx
-        (cp, meta, pending) <- liftHandler $ W.readWallet @_ @s @k wrk wid
-        (, meta ^. #creationTime) <$> mkApiWallet ctx wid cp meta pending NotResponding
+    whenNotResponding _ = Handler $ ExceptT $ withDatabase df wid
+        $ \db -> runHandler $ do
+            let wrk = hoistResource db (MsgFromWorker wid) ctx
+            (cp, (meta, delegation), pending)
+                <- liftHandler $ W.readWallet @_ @s @k wrk wid
+            (, meta ^. #creationTime)
+                <$> mkApiWallet ctx wid cp meta delegation pending NotResponding
 
 listWallets
     :: forall ctx s k ktype apiWallet.
@@ -3429,13 +3437,13 @@ listStakeKeys
     -> Handler (ApiStakeKeys n)
 listStakeKeys lookupStakeRef ctx (ApiT wid) = do
     withWorkerCtx ctx wid liftE liftE $ \wrk -> liftHandler $ do
-            (wal, meta, pending) <- W.readWallet @_ @s @k wrk wid
+            (wal, (_, delegation) ,pending) <- W.readWallet @_ @s @k wrk wid
             let utxo = availableUTxO @s pending wal
 
             let takeFst (a,_,_) = a
             mourAccount <- fmap (fmap takeFst . eitherToMaybe)
                 <$> liftIO . runExceptT $ W.readRewardAccount @_ @s @k @n wrk wid
-            ourApiDelegation <- liftIO $ toApiWalletDelegation (meta ^. #delegation)
+            ourApiDelegation <- liftIO $ toApiWalletDelegation delegation
                 (unsafeExtendSafeZone (timeInterpreter $ ctx ^. networkLayer))
             let ourKeys = case mourAccount of
                     Just acc -> [(acc, 0, ourApiDelegation)]

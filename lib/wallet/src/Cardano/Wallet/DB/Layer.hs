@@ -2,6 +2,7 @@
 {-# LANGUAGE DataKinds #-}
 {-# LANGUAGE DeriveGeneric #-}
 {-# LANGUAGE LambdaCase #-}
+{-# LANGUAGE MultiWayIf #-}
 {-# LANGUAGE NamedFieldPuns #-}
 {-# LANGUAGE OverloadedLabels #-}
 {-# LANGUAGE RecordWildCards #-}
@@ -135,7 +136,7 @@ import Cardano.Wallet.Primitive.AddressDerivation
 import Cardano.Wallet.Primitive.Passphrase
     ( PassphraseHash )
 import Cardano.Wallet.Primitive.Slotting
-    ( TimeInterpreter, epochOf, firstSlotInEpoch, interpretQuery )
+    ( TimeInterpreter, firstSlotInEpoch, interpretQuery )
 import Control.Exception
     ( throw )
 import Control.Monad
@@ -675,6 +676,10 @@ newDBLayerWith _cacheBehavior _tr ti SqliteContext{runQuery} = do
                 (Just GarbageCollectTxWalletsHistory, ())
 
         {-----------------------------------------------------------------------
+                                    Wallet Delegation
+        -----------------------------------------------------------------------}
+    let dbDelegation = mkDBDelegation ti
+        {-----------------------------------------------------------------------
                                    Wallet Metadata
         -----------------------------------------------------------------------}
     let
@@ -687,20 +692,9 @@ newDBLayerWith _cacheBehavior _tr ti SqliteContext{runQuery} = do
                         (mkWalletMetadataUpdate meta)
                     pure $ Right ()
 
-        , readWalletMeta_ = \wid -> do
-            readCheckpoint wid >>= \case
-                Nothing -> pure Nothing
-                Just cp -> do
-                    currentEpoch <- liftIO $
-                        interpretQuery ti (epochOf $ cp ^. #currentTip . #slotNo)
-                    readWalletDelegation ti wid currentEpoch
-                        >>= readWalletMetadata wid
+        , readWalletMeta_ = readWalletMetadata
         }
 
-        {-----------------------------------------------------------------------
-                                    Wallet Delegation
-        -----------------------------------------------------------------------}
-    let dbDelegation = mkDBDelegation
 
         {-----------------------------------------------------------------------
                                      Tx History
@@ -814,23 +808,25 @@ newDBLayerWith _cacheBehavior _tr ti SqliteContext{runQuery} = do
 
     let atomically_ = withMVar queryLock . const . runQuery
 
-    pure $ mkDBLayerFromParts DBLayerCollection{..}
+    pure $ mkDBLayerFromParts ti DBLayerCollection{..}
 
 
 readWalletMetadata
     :: W.WalletId
-    -> W.WalletDelegation
     -> SqlPersistT IO (Maybe W.WalletMetadata)
-readWalletMetadata wid walDel =
-     fmap (metadataFromEntity walDel . entityVal)
+readWalletMetadata wid =
+     fmap (metadataFromEntity . entityVal)
         <$> selectFirst [WalId ==. wid] []
 
 {-----------------------------------------------------------------------
                             Wallet Delegation
 -----------------------------------------------------------------------}
 {- HLINT ignore mkDBDelegation "Avoid lambda" -}
-mkDBDelegation :: W.WalletId -> DBDelegation (SqlPersistT IO)
-mkDBDelegation wid = DBDelegation
+mkDBDelegation
+    :: TimeInterpreter IO
+    -> W.WalletId
+    -> DBDelegation (SqlPersistT IO)
+mkDBDelegation ti wid = DBDelegation
     { isStakeKeyRegistered_ = do
         val <- fmap entityVal <$> selectFirst
             [StakeKeyCertWalletId ==. wid]
@@ -865,36 +861,30 @@ mkDBDelegation wid = DBDelegation
     , readDelegationRewardBalance_ =
         Coin.fromWord64 . maybe 0 (rewardAccountBalance . entityVal) <$>
             selectFirst [RewardWalletId ==. wid] []
-    }
-
-readWalletDelegation
-    :: TimeInterpreter IO
-    -> W.WalletId
-    -> W.EpochNo
-    -> SqlPersistT IO W.WalletDelegation
-readWalletDelegation ti wid epoch
-    | epoch == 0 = pure $ W.WalletDelegation W.NotDelegating []
-    | otherwise = do
-        (eMinus1, e) <- liftIO $ interpretQuery ti $
-            (,) <$> firstSlotInEpoch (epoch - 1) <*> firstSlotInEpoch epoch
-        active <- maybe W.NotDelegating toWalletDelegationStatus
-            <$> readDelegationCertificate wid
-                [ CertSlot <. eMinus1
+    , readDelegation_ = \epoch -> if
+        | epoch == 0 -> pure $ W.WalletDelegation W.NotDelegating []
+        | otherwise -> do
+            (eMinus1, e) <- liftIO $ interpretQuery ti $
+                (,) <$> firstSlotInEpoch (epoch - 1) <*> firstSlotInEpoch epoch
+            active <- maybe W.NotDelegating toWalletDelegationStatus
+                <$> readDelegationCertificate wid
+                    [ CertSlot <. eMinus1
+                    ]
+            next <- catMaybes <$> sequence
+                [ fmap (W.WalletDelegationNext (epoch + 1)
+                    . toWalletDelegationStatus)
+                    <$> readDelegationCertificate wid
+                        [ CertSlot >=. eMinus1
+                        , CertSlot <. e
+                        ]
+                , fmap (W.WalletDelegationNext (epoch + 2)
+                    . toWalletDelegationStatus)
+                    <$> readDelegationCertificate wid
+                        [ CertSlot >=. e
+                        ]
                 ]
-
-        next <- catMaybes <$> sequence
-            [ fmap (W.WalletDelegationNext (epoch + 1) . toWalletDelegationStatus)
-                <$> readDelegationCertificate wid
-                    [ CertSlot >=. eMinus1
-                    , CertSlot <. e
-                    ]
-            , fmap (W.WalletDelegationNext (epoch + 2) . toWalletDelegationStatus)
-                <$> readDelegationCertificate wid
-                    [ CertSlot >=. e
-                    ]
-            ]
-
-        pure $ W.WalletDelegation active next
+            pure $ W.WalletDelegation active next
+    }
 
 readDelegationCertificate
     :: W.WalletId
@@ -939,14 +929,13 @@ mkWalletMetadataUpdate meta =
         W.passphraseScheme <$> meta ^. #passphraseInfo
     ]
 
-metadataFromEntity :: W.WalletDelegation -> Wallet -> W.WalletMetadata
-metadataFromEntity walDelegation wal = W.WalletMetadata
+metadataFromEntity :: Wallet -> W.WalletMetadata
+metadataFromEntity wal = W.WalletMetadata
     { name = W.WalletName (walName wal)
     , creationTime = walCreationTime wal
     , passphraseInfo = W.WalletPassphraseInfo
         <$> walPassphraseLastUpdatedAt wal
         <*> walPassphraseScheme wal
-    , delegation = walDelegation
     }
 
 genesisParametersFromEntity
