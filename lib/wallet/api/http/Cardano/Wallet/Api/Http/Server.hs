@@ -338,7 +338,10 @@ server byron icarus shelley multisig spl ntp blockchainSource =
 
     shelleyTransactions :: Server (ShelleyTransactions n)
     shelleyTransactions =
-             constructTransaction shelley (delegationAddress @n) (knownPools spl) (getPoolLifeCycleStatus spl)
+             constructTransaction shelley
+                (delegationAddress @n)
+                (knownPools spl)
+                (getPoolLifeCycleStatus spl)
         :<|> signTransaction @_ @_ @_ @'CredFromKeyK shelley
         :<|>
             (\wid mMinWithdrawal mStart mEnd mOrder simpleMetadataFlag ->

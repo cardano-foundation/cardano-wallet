@@ -1740,9 +1740,9 @@ selectCoinsForQuit ctx@ApiLayer{..} (ApiT wid) =
     withWorkerCtx ctx wid liftE liftE $ \wrk -> do
         let db = wrk ^. typed @(DBLayer IO s k)
         era <- liftIO $ NW.currentNodeEra netLayer
-        wdrl <- liftHandler $ ExceptT
-            $ W.shelleyOnlyMkSelfWithdrawal @s @k @_ @_ @n
-                netLayer txLayer era db wid
+        wdrl <-
+            liftIO $ W.shelleyOnlyMkSelfWithdrawal
+                @_ @_ @_ @_ @n netLayer txLayer era db wid
         action <- liftIO $ W.validatedQuitStakePoolAction db wid wdrl
 
         let txCtx = defaultTransactionCtx
@@ -2238,8 +2238,8 @@ postTransactionFeeOld ctx@ApiLayer{..} (ApiT wid) body =
         liftHandler $ mkApiFee Nothing minCoins <$> W.estimateFee runSelection
 
 constructTransaction
-    :: forall ctx s k n.
-        ( ctx ~ ApiLayer s k 'CredFromKeyK
+    :: forall ctx s k n ktype.
+        ( ctx ~ ApiLayer s k ktype
         , GenChange s
         , HasNetworkLayer IO ctx
         , IsOurs s Address
@@ -2340,9 +2340,9 @@ constructTransaction ctx genChange knownPools getPoolStatus (ApiT wid) body = do
         pp <- liftIO $ NW.currentProtocolParameters netLayer
         era <- liftIO $ NW.currentNodeEra netLayer
         wdrl <- case body ^. #withdrawal of
-            Just SelfWithdraw -> liftHandler
-                $ ExceptT $ W.shelleyOnlyMkSelfWithdrawal
-                    @s @k @'CredFromKeyK @_ @n netLayer txLayer era db wid
+            Just SelfWithdraw ->
+                liftIO $ W.shelleyOnlyMkSelfWithdrawal @s @k @ktype @_ @n
+                    netLayer txLayer era db wid
             _ -> pure NoWithdrawal
         (deposit, refund, txCtx) <- case body ^. #delegations of
             Nothing -> pure (Nothing, Nothing, defaultTransactionCtx
@@ -2439,7 +2439,7 @@ constructTransaction ctx genChange knownPools getPoolStatus (ApiT wid) body = do
                 pure (txCtx, Nothing)
 
         let runSelection outs =
-                W.selectAssets @_ @_ @s @k @'CredFromKeyK
+                W.selectAssets @_ @_ @s @k @ktype
                   wrk era pp selectAssetsParams transform
               where
                 selectAssetsParams = W.SelectAssetsParams
@@ -2481,12 +2481,12 @@ constructTransaction ctx genChange knownPools getPoolStatus (ApiT wid) body = do
             pure (sel, sel', estMin)
 
         tx <- liftHandler
-            $ W.constructTransaction @_ @s @k @n wrk wid era txCtx' sel
+            $ W.constructTransaction @_ @s @k @n @ktype wrk wid era txCtx' sel
 
         pure ApiConstructTransaction
             { transaction = case body ^. #encoding of
-                    Just HexEncoded -> ApiSerialisedTransaction (ApiT tx) HexEncoded
-                    _ -> ApiSerialisedTransaction (ApiT tx) Base64Encoded
+                Just HexEncoded -> ApiSerialisedTransaction (ApiT tx) HexEncoded
+                _ -> ApiSerialisedTransaction (ApiT tx) Base64Encoded
             , coinSelection = mkApiCoinSelection
                 (maybeToList deposit) (maybeToList refund) Nothing md sel'
             , fee = Quantity $ fromIntegral fee
@@ -3925,8 +3925,7 @@ mkWithdrawal
     -> Handler Withdrawal
 mkWithdrawal netLayer txLayer db wallet era = \case
     SelfWithdrawal ->
-        liftHandler . ExceptT
-            $ W.mkSelfWithdrawal netLayer txLayer era db wallet
+        liftIO $ W.mkSelfWithdrawal netLayer txLayer era db wallet
     ExternalWithdrawal (ApiMnemonicT mnemonic) ->
         liftHandler . ExceptT
             $ W.mkExternalWithdrawal netLayer txLayer era mnemonic

@@ -1224,15 +1224,16 @@ mkSelfWithdrawal
     -> AnyCardanoEra
     -> DBLayer IO (SeqState n ShelleyKey) ShelleyKey
     -> WalletId
-    -> IO (Either ErrWithdrawalNotWorth Withdrawal)
+    -> IO Withdrawal
 mkSelfWithdrawal netLayer txLayer era db wallet = do
     (rewardAccount, _, derivationPath) <-
         runExceptT (readRewardAccount db wallet)
             >>= either (throwIO . ExceptionReadRewardAccount) pure
     balance <- getCachedRewardAccountBalance netLayer rewardAccount
     pp <- currentProtocolParameters netLayer
-    pure $ checkRewardIsWorthTxCost txLayer pp era balance $>
-        WithdrawalSelf rewardAccount derivationPath balance
+    pure $ WithdrawalSelf rewardAccount derivationPath
+        $ either (\_notWorth -> Coin 0) (\_worth -> balance)
+        $ checkRewardIsWorthTxCost txLayer pp era balance
 
 -- | Unsafe version of the `mkSelfWithdrawal` function that throws an exception
 -- when applied to a non-shelley or a non-sequential wallet.
@@ -1244,7 +1245,7 @@ shelleyOnlyMkSelfWithdrawal
     -> AnyCardanoEra
     -> DBLayer IO s k
     -> WalletId
-    -> IO (Either ErrWithdrawalNotWorth Withdrawal)
+    -> IO Withdrawal
 shelleyOnlyMkSelfWithdrawal netLayer txLayer era db wallet =
     case testEquality (typeRep @s) (typeRep @(SeqState n k)) of
         Nothing -> notShelleyWallet
@@ -2513,8 +2514,8 @@ buildAndSignTransaction ctx wid era mkRwdAcct pwd txCtx sel = db & \DBLayer{..} 
 
 -- | Construct an unsigned transaction from a given selection.
 constructTransaction
-    :: forall ctx s k (n :: NetworkDiscriminant).
-        ( HasTransactionLayer k 'CredFromKeyK ctx
+    :: forall ctx s k (n :: NetworkDiscriminant) ktype.
+        ( HasTransactionLayer k ktype ctx
         , HasDBLayer IO s k ctx
         , HasNetworkLayer IO ctx
         , Typeable s
@@ -2536,7 +2537,7 @@ constructTransaction ctx wid era txCtx sel = db & \DBLayer{..} -> do
             mkUnsignedTransaction tl era xpub pp txCtx sel
   where
     db = ctx ^. dbLayer @IO @s @k
-    tl = ctx ^. transactionLayer @k @'CredFromKeyK
+    tl = ctx ^. transactionLayer @k @ktype
     nl = ctx ^. networkLayer
 
 -- | Construct an unsigned transaction from a given selection
