@@ -67,6 +67,8 @@ import Cardano.Wallet.Primitive.Types.TokenBundle
     ( TokenBundle (..) )
 import Cardano.Wallet.Primitive.Types.TokenMap
     ( AssetId, Lexicographic (..) )
+import Cardano.Wallet.Primitive.Types.Tx.TxIn
+    ( TxIn (..) )
 import Cardano.Wallet.Read.Tx.CBOR
     ( TxCBOR )
 import Control.DeepSeq
@@ -85,18 +87,8 @@ import Data.Ord
     ( comparing )
 import Data.Set
     ( Set )
-import Data.Word
-    ( Word32 )
 import Fmt
-    ( Buildable (..)
-    , blockListF'
-    , blockMapF
-    , nameF
-    , ordinalF
-    , prefixF
-    , suffixF
-    , tupleF
-    )
+    ( Buildable (..), blockListF', blockMapF, nameF, prefixF, suffixF, tupleF )
 import GHC.Generics
     ( Generic )
 
@@ -208,21 +200,6 @@ inputs = map fst . resolvedInputs
 
 collateralInputs :: Tx -> [TxIn]
 collateralInputs = map fst . resolvedCollateralInputs
-
-data TxIn = TxIn
-    { inputId
-        :: !(Hash "Tx")
-    , inputIx
-        :: !Word32
-    } deriving (Read, Show, Generic, Eq, Ord)
-
-instance NFData TxIn
-
-instance Buildable TxIn where
-    build txin = mempty
-        <> ordinalF (inputIx txin + 1)
-        <> " "
-        <> build (inputId txin)
 
 data TxOut = TxOut
     { address

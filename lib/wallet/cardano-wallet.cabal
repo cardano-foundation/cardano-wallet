@@ -306,6 +306,7 @@ library
     Cardano.Wallet.Primitive.Types.Tx.SealedTx
     Cardano.Wallet.Primitive.Types.Tx.TransactionInfo
     Cardano.Wallet.Primitive.Types.Tx.Tx
+    Cardano.Wallet.Primitive.Types.Tx.TxIn
     Cardano.Wallet.Primitive.Types.Tx.TxMeta
     Cardano.Wallet.Primitive.Types.Tx.TxSeq
     Cardano.Wallet.Primitive.Types.Tx.TxSeq.Gen
