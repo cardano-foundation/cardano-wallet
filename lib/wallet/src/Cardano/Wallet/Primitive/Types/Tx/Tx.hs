@@ -6,7 +6,6 @@
 {-# LANGUAGE NamedFieldPuns #-}
 {-# LANGUAGE OverloadedLabels #-}
 {-# LANGUAGE ScopedTypeVariables #-}
-{-# LANGUAGE TypeApplications #-}
 {-# LANGUAGE TypeFamilies #-}
 
 -- |
@@ -31,21 +30,16 @@ module Cardano.Wallet.Primitive.Types.Tx.Tx
     , collateralInputs
     , txIns
     , txMetadataIsNull
-    , txOutCoin
-    , txOutAddCoin
-    , txOutSubtractCoin
     , txScriptInvalid
 
     -- * Queries
     , txAssetIds
-    , txOutAssetIds
+    , TxOut.assetIds
 
     -- * Transformations
     , txMapAssetIds
     , txMapTxIds
     , txRemoveAssetId
-    , txOutMapAssetIds
-    , txOutRemoveAssetId
 
     ) where
 
@@ -55,18 +49,18 @@ import Cardano.Api
     ( ScriptWitnessIndex (..), TxMetadata (..), TxMetadataValue (..) )
 import Cardano.Wallet.Orphans
     ()
-import Cardano.Wallet.Primitive.Types.Address
-    ( Address (..) )
 import Cardano.Wallet.Primitive.Types.Coin
     ( Coin (..) )
 import Cardano.Wallet.Primitive.Types.Hash
     ( Hash (..) )
 import Cardano.Wallet.Primitive.Types.RewardAccount
     ( RewardAccount (..) )
-import Cardano.Wallet.Primitive.Types.TokenBundle
-    ( TokenBundle (..) )
 import Cardano.Wallet.Primitive.Types.TokenMap
-    ( AssetId, Lexicographic (..) )
+    ( AssetId )
+import Cardano.Wallet.Primitive.Types.Tx.TxIn
+    ( TxIn (..) )
+import Cardano.Wallet.Primitive.Types.Tx.TxOut
+    ( TxOut (..) )
 import Cardano.Wallet.Read.Tx.CBOR
     ( TxCBOR )
 import Control.DeepSeq
@@ -81,28 +75,14 @@ import Data.Generics.Labels
     ()
 import Data.Map.Strict
     ( Map )
-import Data.Ord
-    ( comparing )
 import Data.Set
     ( Set )
-import Data.Word
-    ( Word32 )
 import Fmt
-    ( Buildable (..)
-    , blockListF'
-    , blockMapF
-    , nameF
-    , ordinalF
-    , prefixF
-    , suffixF
-    , tupleF
-    )
+    ( Buildable (..), blockListF', nameF, tupleF )
 import GHC.Generics
     ( Generic )
 
-import qualified Cardano.Wallet.Primitive.Types.Coin as Coin
-import qualified Cardano.Wallet.Primitive.Types.TokenBundle as TokenBundle
-import qualified Cardano.Wallet.Primitive.Types.TokenMap as TokenMap
+import qualified Cardano.Wallet.Primitive.Types.Tx.TxOut as TxOut
 import qualified Data.Foldable as F
 import qualified Data.Map.Strict as Map
 import qualified Data.Set as Set
@@ -209,92 +189,6 @@ inputs = map fst . resolvedInputs
 collateralInputs :: Tx -> [TxIn]
 collateralInputs = map fst . resolvedCollateralInputs
 
-data TxIn = TxIn
-    { inputId
-        :: !(Hash "Tx")
-    , inputIx
-        :: !Word32
-    } deriving (Read, Show, Generic, Eq, Ord)
-
-instance NFData TxIn
-
-instance Buildable TxIn where
-    build txin = mempty
-        <> ordinalF (inputIx txin + 1)
-        <> " "
-        <> build (inputId txin)
-
-data TxOut = TxOut
-    { address
-        :: !Address
-    , tokens
-        :: !TokenBundle
-    } deriving (Read, Show, Generic, Eq)
-
--- Gets the current 'Coin' value from a transaction output.
---
--- 'Coin' values correspond to the ada asset.
---
-txOutCoin :: TxOut -> Coin
-txOutCoin = TokenBundle.getCoin . view #tokens
-
--- | Increments the 'Coin' value of a 'TxOut'.
---
--- Satisfies the following property for all values of 'c':
---
--- >>> txOutSubtractCoin c . txOutAddCoin c == id
---
-txOutAddCoin :: Coin -> TxOut -> TxOut
-txOutAddCoin val (TxOut addr tokens) =
-    TxOut addr (tokens <> TokenBundle.fromCoin val)
-
--- | Decrements the 'Coin' value of a 'TxOut'.
---
--- Satisfies the following property for all values of 'c':
---
--- >>> txOutSubtractCoin c . txOutAddCoin c == id
---
--- If the given 'Coin' is greater than the 'Coin' value of the given 'TxOut',
--- the resulting 'TxOut' will have a 'Coin' value of zero.
---
-txOutSubtractCoin :: Coin -> TxOut -> TxOut
-txOutSubtractCoin toSubtract =
-    over (#tokens . #coin) (`Coin.difference` toSubtract)
-
--- Since the 'TokenBundle' type deliberately does not provide an 'Ord' instance
--- (as that would lead to arithmetically invalid orderings), this means we can't
--- automatically derive an 'Ord' instance for the 'TxOut' type.
---
--- Instead, we define an 'Ord' instance that makes comparisons based on
--- lexicographic ordering of 'TokenBundle' values.
---
-instance Ord TxOut where
-    compare = comparing projection
-      where
-        projection (TxOut address bundle) = (address, Lexicographic bundle)
-
-instance NFData TxOut
-
-instance Buildable TxOut where
-    build txOut = buildMap
-        [ ("address"
-          , addressShort)
-        , ("coin"
-          , build (txOutCoin txOut))
-        , ("tokens"
-          , build (TokenMap.Nested $ view (#tokens . #tokens) txOut))
-        ]
-      where
-        addressShort = mempty
-            <> prefixF 8 addressFull
-            <> "..."
-            <> suffixF 8 addressFull
-        addressFull = build $ view #address txOut
-        buildMap = blockMapF . fmap (first $ id @String)
-
-instance Buildable (TxIn, TxOut) where
-    build (txin, txout) = build txin <> " ==> " <> build txout
-
 -- | Indicates whether or not a transaction is marked as having an invalid
 --   script.
 --
@@ -315,12 +209,9 @@ instance NFData TxScriptValidity
 
 txAssetIds :: Tx -> Set AssetId
 txAssetIds tx = F.fold
-    [ F.foldMap txOutAssetIds (view #outputs tx)
-    , F.foldMap txOutAssetIds (view #collateralOutput tx)
+    [ F.foldMap TxOut.assetIds (view #outputs tx)
+    , F.foldMap TxOut.assetIds (view #collateralOutput tx)
     ]
-
-txOutAssetIds :: TxOut -> Set AssetId
-txOutAssetIds (TxOut _ bundle) = TokenBundle.getAssets bundle
 
 -- | Returns 'True' if (and only if) the given transaction is marked as having
 --   an invalid script.
@@ -346,9 +237,9 @@ txMetadataIsNull (TxMetadata md) = Map.null md
 txMapAssetIds :: (AssetId -> AssetId) -> Tx -> Tx
 txMapAssetIds f tx = tx
     & over #outputs
-        (fmap (txOutMapAssetIds f))
+        (fmap (TxOut.mapAssetIds f))
     & over #collateralOutput
-        (fmap (txOutMapAssetIds f))
+        (fmap (TxOut.mapAssetIds f))
 
 txMapTxIds :: (Hash "Tx" -> Hash "Tx") -> Tx -> Tx
 txMapTxIds f tx = tx
@@ -362,14 +253,6 @@ txMapTxIds f tx = tx
 txRemoveAssetId :: Tx -> AssetId -> Tx
 txRemoveAssetId tx asset = tx
     & over #outputs
-        (fmap (`txOutRemoveAssetId` asset))
+        (fmap (`TxOut.removeAssetId` asset))
     & over #collateralOutput
-        (fmap (`txOutRemoveAssetId` asset))
-
-txOutMapAssetIds :: (AssetId -> AssetId) -> TxOut -> TxOut
-txOutMapAssetIds f (TxOut address bundle) =
-    TxOut address (TokenBundle.mapAssetIds f bundle)
-
-txOutRemoveAssetId :: TxOut -> AssetId -> TxOut
-txOutRemoveAssetId (TxOut address bundle) asset =
-    TxOut address (TokenBundle.setQuantity bundle asset mempty)
+        (fmap (`TxOut.removeAssetId` asset))

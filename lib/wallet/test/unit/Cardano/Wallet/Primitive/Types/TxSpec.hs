@@ -34,9 +34,6 @@ import Cardano.Wallet.Primitive.Types.Tx
     , txAssetIds
     , txMapAssetIds
     , txMapTxIds
-    , txOutAssetIds
-    , txOutMapAssetIds
-    , txOutRemoveAssetId
     , txRemoveAssetId
     )
 import Cardano.Wallet.Primitive.Types.Tx.Gen
@@ -68,6 +65,7 @@ import Test.QuickCheck
 import Test.QuickCheck.Instances.ByteString
     ()
 
+import qualified Cardano.Wallet.Primitive.Types.Tx.TxOut as TxOut
 import qualified Data.Foldable as F
 import qualified Data.Set as Set
 
@@ -167,13 +165,13 @@ prop_txRemoveAssetId_txAssetIds tx =
 
 prop_txOutMapAssetIds_identity :: TxOut -> Property
 prop_txOutMapAssetIds_identity m =
-    txOutMapAssetIds id m === m
+    TxOut.mapAssetIds id m === m
 
 prop_txOutMapAssetIds_composition
     :: TxOut -> Fun AssetId AssetId -> Fun AssetId AssetId -> Property
 prop_txOutMapAssetIds_composition m (applyFun -> f) (applyFun -> g) =
-    txOutMapAssetIds f (txOutMapAssetIds g m) ===
-    txOutMapAssetIds (f . g) m
+    TxOut.mapAssetIds f (TxOut.mapAssetIds g m) ===
+    TxOut.mapAssetIds (f . g) m
 
 prop_txOutRemoveAssetId_txOutAssetIds :: TxOut -> Property
 prop_txOutRemoveAssetId_txOutAssetIds txOut =
@@ -182,11 +180,11 @@ prop_txOutRemoveAssetId_txOutAssetIds txOut =
             assetIds === mempty
         Just assetId ->
             Set.notMember assetId
-                (txOutAssetIds (txOut `txOutRemoveAssetId` assetId))
+                (TxOut.assetIds (txOut `TxOut.removeAssetId` assetId))
             === True
   where
     assetIdM = listToMaybe $ F.toList assetIds
-    assetIds = txOutAssetIds txOut
+    assetIds = TxOut.assetIds txOut
 
 --------------------------------------------------------------------------------
 -- Arbitrary instances

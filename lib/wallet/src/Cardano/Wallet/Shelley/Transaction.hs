@@ -149,8 +149,6 @@ import Cardano.Wallet.Primitive.Types.Tx
     , cardanoTxIdeallyNoLaterThan
     , sealedTxFromCardano'
     , sealedTxFromCardanoBody
-    , txOutAddCoin
-    , txOutCoin
     , withinEra
     )
 import Cardano.Wallet.Primitive.Types.Tx.Constraints
@@ -276,6 +274,7 @@ import qualified Cardano.Ledger.ShelleyMA.TxBody as ShelleyMA
 import qualified Cardano.Wallet.Primitive.Types.Coin as Coin
 import qualified Cardano.Wallet.Primitive.Types.TokenBundle as TokenBundle
 import qualified Cardano.Wallet.Primitive.Types.TokenMap as TokenMap
+import qualified Cardano.Wallet.Primitive.Types.Tx.TxOut as TxOut
 import qualified Cardano.Wallet.Shelley.Compatibility as Compatibility
 import qualified Codec.CBOR.Encoding as CBOR
 import qualified Codec.CBOR.Write as CBOR
@@ -414,7 +413,7 @@ mkTx networkId payload ttl (rewardAcnt, pwdAcnt) addrResolver wdrl cs fees era =
             addrResolver inputResolver (unsigned, mkExtraWits unsigned)
 
     let withResolvedInputs (tx, _, _, _, _, _) = tx
-            { resolvedInputs = second txOutCoin <$> F.toList (view #inputs cs)
+            { resolvedInputs = second TxOut.coin <$> F.toList (view #inputs cs)
             }
     Right ( withResolvedInputs (fromCardanoTx signed)
           , sealedTxFromCardano' signed
@@ -564,7 +563,7 @@ newTransactionLayer networkId = TransactionLayer
     { mkTransaction = \era stakeCreds keystore _pp ctx selection -> do
         let ttl   = txValidityInterval ctx
         let wdrl  = withdrawalToCoin $ view #txWithdrawal ctx
-        let delta = selectionDelta txOutCoin selection
+        let delta = selectionDelta TxOut.coin selection
         case view #txDelegationAction ctx of
             Nothing -> do
                 withShelleyBasedEra era $ do
@@ -620,7 +619,7 @@ newTransactionLayer networkId = TransactionLayer
     , mkUnsignedTransaction = \era stakeXPub _pp ctx selection -> do
         let ttl   = txValidityInterval ctx
         let wdrl  = withdrawalToCoin $ view #txWithdrawal ctx
-        let delta = selectionDelta txOutCoin selection
+        let delta = selectionDelta TxOut.coin selection
         let rewardAcct = toRewardAccountRaw stakeXPub
         let assetsToBeMinted = view #txAssetsToMint ctx
         let assetsToBeBurned = view #txAssetsToBurn ctx
@@ -1597,10 +1596,10 @@ _distributeSurplus
     -- ^ Adjusted fee and change outputs.
 _distributeSurplus feePolicy surplus fc@(TxFeeAndChange fee change) =
     distributeSurplusDelta feePolicy surplus
-        (mapTxFeeAndChange id (fmap txOutCoin) fc)
+        (mapTxFeeAndChange id (fmap TxOut.coin) fc)
     <&> mapTxFeeAndChange
         (fee <>)
-        (zipWith (flip txOutAddCoin) change)
+        (zipWith (flip TxOut.addCoin) change)
 
 distributeSurplusDelta
     :: FeePolicy

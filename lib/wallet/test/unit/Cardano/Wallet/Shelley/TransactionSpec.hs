@@ -201,8 +201,6 @@ import Cardano.Wallet.Primitive.Types.Tx
     , sealedTxFromCardano'
     , serialisedTx
     , txMetadataIsNull
-    , txOutCoin
-    , txOutSubtractCoin
     , withinEra
     )
 import Cardano.Wallet.Primitive.Types.Tx.Constraints
@@ -434,6 +432,7 @@ import qualified Cardano.Wallet.Primitive.Types.Coin as Coin
 import qualified Cardano.Wallet.Primitive.Types.TokenBundle as TokenBundle
 import qualified Cardano.Wallet.Primitive.Types.TokenMap as TokenMap
 import qualified Cardano.Wallet.Primitive.Types.Tx.Gen as TxGen
+import qualified Cardano.Wallet.Primitive.Types.Tx.TxOut as TxOut
 import qualified Cardano.Wallet.Primitive.Types.UTxO as UTxO
 import qualified Cardano.Wallet.Primitive.Types.UTxOIndex as UTxOIndex
 import qualified Cardano.Wallet.Shelley.Compatibility as Compatibility
@@ -1811,7 +1810,7 @@ binaryCalculationsSpec' era = describe ("calculateBinary - "+||era||+"") $ do
           mkByronWitness' unsignedTx (_, (TxOut addr _)) =
               mkByronWitness @era unsignedTx net addr
           addrWits = zipWith (mkByronWitness' unsigned) inps pairs
-          fee = toCardanoLovelace $ selectionDelta txOutCoin cs
+          fee = toCardanoLovelace $ selectionDelta TxOut.coin cs
           Right unsigned =
               mkUnsignedTx era (Nothing, slotNo) cs md mempty [] fee
               TokenMap.empty TokenMap.empty Map.empty Map.empty
@@ -1900,7 +1899,7 @@ makeShelleyTx era testCase = Cardano.makeSignedTransaction addrWits unsigned
   where
     DecodeSetup utxo outs md slotNo pairs _netwk = testCase
     inps = Map.toList $ unUTxO utxo
-    fee = toCardanoLovelace $ selectionDelta txOutCoin cs
+    fee = toCardanoLovelace $ selectionDelta TxOut.coin cs
     Right unsigned =
         mkUnsignedTx era (Nothing, slotNo) cs md mempty [] fee
         TokenMap.empty TokenMap.empty Map.empty Map.empty
@@ -1943,7 +1942,7 @@ makeByronTx era testCase = Cardano.makeSignedTransaction byronWits unsigned
   where
     ForByron (DecodeSetup utxo outs _ slotNo pairs _ntwrk) = testCase
     inps = Map.toList $ unUTxO utxo
-    fee = toCardanoLovelace $ selectionDelta txOutCoin cs
+    fee = toCardanoLovelace $ selectionDelta TxOut.coin cs
     Right unsigned =
         mkUnsignedTx era (Nothing, slotNo) cs Nothing mempty [] fee
         TokenMap.empty TokenMap.empty Map.empty Map.empty
@@ -2946,8 +2945,8 @@ prop_distributeSurplus_onSuccess_conservesSurplus =
         (TxFeeAndChange feeOriginal changeOriginal)
         (TxFeeAndChange feeModified changeModified) ->
         surplus === Coin.difference
-            (feeModified <> F.foldMap txOutCoin changeModified)
-            (feeOriginal <> F.foldMap txOutCoin changeOriginal)
+            (feeModified <> F.foldMap TxOut.coin changeModified)
+            (feeOriginal <> F.foldMap TxOut.coin changeOriginal)
 
 -- The 'distributeSurplus' function should cover the cost of any increases in
 -- 'Coin' values.
@@ -2961,8 +2960,8 @@ prop_distributeSurplus_onSuccess_coversCostIncrease =
     prop_distributeSurplus_onSuccess $ \policy _surplus
         (TxFeeAndChange feeOriginal changeOriginal)
         (TxFeeAndChange feeModified changeModified) -> do
-        let coinsOriginal = feeOriginal : (txOutCoin <$> changeOriginal)
-        let coinsModified = feeModified : (txOutCoin <$> changeModified)
+        let coinsOriginal = feeOriginal : (TxOut.coin <$> changeOriginal)
+        let coinsModified = feeModified : (TxOut.coin <$> changeModified)
         let coinDeltas = zipWith Coin.difference coinsModified coinsOriginal
         let costIncrease = F.foldMap
                 (uncurry $ costOfIncreasingCoin policy)
@@ -2983,8 +2982,8 @@ prop_distributeSurplus_onSuccess_doesNotReduceChangeCoinValues =
         (TxFeeAndChange _feeOriginal changeOriginal)
         (TxFeeAndChange _feeModified changeModified) ->
             all (uncurry (<=)) $ zip
-                (txOutCoin <$> changeOriginal)
-                (txOutCoin <$> changeModified)
+                (TxOut.coin <$> changeOriginal)
+                (TxOut.coin <$> changeModified)
 
 -- The 'distributeSurplus' function should never return a 'fee' value that is
 -- less than the original value.
@@ -3072,11 +3071,11 @@ prop_distributeSurplus_onSuccess_increasesValuesByDelta =
             let Right (TxFeeAndChange feeDelta changeDeltas) =
                     distributeSurplusDelta policy surplus $ TxFeeAndChange
                         (feeOriginal)
-                        (txOutCoin <$> changeOriginal)
+                        (TxOut.coin <$> changeOriginal)
             in
             (TxFeeAndChange
                 (feeModified `Coin.difference` feeDelta)
-                (zipWith txOutSubtractCoin changeDeltas changeModified)
+                (zipWith TxOut.subtractCoin changeDeltas changeModified)
             )
             ===
             TxFeeAndChange feeOriginal changeOriginal

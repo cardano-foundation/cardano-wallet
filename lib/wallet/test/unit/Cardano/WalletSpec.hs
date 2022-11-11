@@ -139,7 +139,6 @@ import Cardano.Wallet.Primitive.Types.Tx
     , TxStatus (..)
     , isPending
     , mockSealedTx
-    , txOutCoin
     )
 import Cardano.Wallet.Primitive.Types.Tx.Constraints
     ( txOutMaxCoin )
@@ -290,6 +289,7 @@ import qualified Cardano.Wallet.Primitive.Migration as Migration
 import qualified Cardano.Wallet.Primitive.Types.Coin as Coin
 import qualified Cardano.Wallet.Primitive.Types.TokenBundle as TokenBundle
 import qualified Cardano.Wallet.Primitive.Types.TokenMap as TokenMap
+import qualified Cardano.Wallet.Primitive.Types.Tx.TxOut as TxOut
 import qualified Data.ByteArray as BA
 import qualified Data.ByteString as BS
 import qualified Data.ByteString.Char8 as B8
@@ -1348,7 +1348,7 @@ setupFixture (wid, wname, wstate) = do
 dummyTransactionLayer :: TransactionLayer ShelleyKey 'CredFromKeyK SealedTx
 dummyTransactionLayer = TransactionLayer
     { mkTransaction = \_era _stakeCredentials keystore _pp _ctx cs -> do
-        let inps' = NE.toList $ second txOutCoin <$> view #inputs cs
+        let inps' = NE.toList $ second TxOut.coin <$> view #inputs cs
         -- TODO: (ADP-957)
         let cinps' = []
         let txId = mkTxId inps' (view #outputs cs) mempty Nothing

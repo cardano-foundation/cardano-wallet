@@ -108,7 +108,6 @@ import Cardano.Wallet.Primitive.Types.Tx
     , TxStatus (..)
     , collateralInputs
     , inputs
-    , txOutCoin
     , txScriptInvalid
     )
 import Cardano.Wallet.Primitive.Types.UTxO
@@ -143,6 +142,7 @@ import GHC.Generics
     ( Generic )
 
 import qualified Cardano.Wallet.Primitive.Types.TokenBundle as TB
+import qualified Cardano.Wallet.Primitive.Types.Tx.TxOut as TxOut
 import qualified Cardano.Wallet.Primitive.Types.UTxO as UTxO
 import qualified Data.Delta as Delta
 import qualified Data.Foldable as F
@@ -796,7 +796,7 @@ applyOurTxToUTxO !slot !blockHeight !s !tx !u0 =
             Just x
         (Nothing, Outgoing) ->
             -- Byron:
-            let totalOut = F.fold (txOutCoin <$> outputs tx)
+            let totalOut = F.fold (TxOut.coin <$> outputs tx)
                 totalIn = TB.getCoin spent
             in
             Just $ distance totalIn totalOut

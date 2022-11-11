@@ -78,13 +78,7 @@ import Cardano.Wallet.Primitive.Types.TokenBundle
 import Cardano.Wallet.Primitive.Types.TokenMap
     ( AssetId )
 import Cardano.Wallet.Primitive.Types.Tx
-    ( TxIn
-    , TxOut (..)
-    , txOutAssetIds
-    , txOutCoin
-    , txOutMapAssetIds
-    , txOutRemoveAssetId
-    )
+    ( TxIn, TxOut (..) )
 import Control.DeepSeq
     ( NFData (..) )
 import Data.Bifunctor
@@ -110,6 +104,7 @@ import GHC.Generics
 
 import qualified Cardano.Wallet.Primitive.Types.Coin as Coin
 import qualified Cardano.Wallet.Primitive.Types.TokenBundle as TB
+import qualified Cardano.Wallet.Primitive.Types.Tx.TxOut as TxOut
 import qualified Control.Foldl as F
 import qualified Data.List as L
 import qualified Data.List.NonEmpty as NE
@@ -290,7 +285,7 @@ receiveD a b = (da, a <> b)
 --------------------------------------------------------------------------------
 
 assetIds :: UTxO -> Set AssetId
-assetIds (UTxO u) = foldMap txOutAssetIds u
+assetIds (UTxO u) = foldMap TxOut.assetIds u
 
 txIds :: UTxO -> Set (Hash "Tx")
 txIds (UTxO u) = Set.map (view #inputId) (Map.keysSet u)
@@ -300,7 +295,7 @@ txIds (UTxO u) = Set.map (view #inputId) (Map.keysSet u)
 --------------------------------------------------------------------------------
 
 mapAssetIds :: (AssetId -> AssetId) -> UTxO -> UTxO
-mapAssetIds f (UTxO u) = UTxO $ Map.map (txOutMapAssetIds f) u
+mapAssetIds f (UTxO u) = UTxO $ Map.map (TxOut.mapAssetIds f) u
 
 -- | Applies a mapping on transaction identifiers to a 'UTxO' set.
 --
@@ -312,7 +307,7 @@ mapTxIds :: (Hash "Tx" -> Hash "Tx") -> UTxO -> UTxO
 mapTxIds f (UTxO u) = UTxO $ Map.mapKeysWith min (over #inputId f) u
 
 removeAssetId :: UTxO -> AssetId -> UTxO
-removeAssetId (UTxO u) a = UTxO $ Map.map (`txOutRemoveAssetId` a) u
+removeAssetId (UTxO u) a = UTxO $ Map.map (`TxOut.removeAssetId` a) u
 
 --------------------------------------------------------------------------------
 -- UTxO Statistics
@@ -399,7 +394,7 @@ log10 = Log10
 -- | Compute UtxoStatistics from UTxOs
 computeUtxoStatistics :: BoundType -> UTxO -> UTxOStatistics
 computeUtxoStatistics btype
-    = computeStatistics (pure . Coin.unsafeToWord64 . txOutCoin) btype
+    = computeStatistics (pure . Coin.unsafeToWord64 . TxOut.coin) btype
     . Map.elems
     . unUTxO
 

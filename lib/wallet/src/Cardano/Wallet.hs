@@ -443,7 +443,6 @@ import Cardano.Wallet.Primitive.Types.Tx
     , UnsignedTx (..)
     , fromTransactionInfo
     , sealedTxFromCardano
-    , txOutCoin
     , withdrawals
     )
 import Cardano.Wallet.Primitive.Types.Tx.Constraints
@@ -616,6 +615,7 @@ import qualified Cardano.Wallet.Primitive.Types as W
 import qualified Cardano.Wallet.Primitive.Types.Coin as Coin
 import qualified Cardano.Wallet.Primitive.Types.TokenBundle as TokenBundle
 import qualified Cardano.Wallet.Primitive.Types.TokenMap as TokenMap
+import qualified Cardano.Wallet.Primitive.Types.Tx.TxOut as TxOut
 import qualified Cardano.Wallet.Primitive.Types.UTxO as UTxO
 import qualified Cardano.Wallet.Primitive.Types.UTxOIndex as UTxOIndex
 import qualified Cardano.Wallet.Primitive.Types.UTxOSelection as UTxOSelection
@@ -2648,7 +2648,7 @@ mkTxMetaWithoutSel
     -> IO TxMeta
 mkTxMetaWithoutSel blockHeader txCtx inps outs =
     let
-        amtOuts = F.fold $ map txOutCoin outs
+        amtOuts = F.fold $ map TxOut.coin outs
 
         amtInps
             = F.fold (map snd inps)
@@ -2691,12 +2691,12 @@ mkTxMeta
 mkTxMeta ti' blockHeader wState txCtx sel =
     let
         amtOuts = F.fold $
-            (txOutCoin <$> view #change sel)
+            (TxOut.coin <$> view #change sel)
             ++
             mapMaybe (`ourCoin` wState) (view #outputs sel)
 
         amtInps
-            = F.fold (txOutCoin . snd <$> view #inputs sel)
+            = F.fold (TxOut.coin . snd <$> view #inputs sel)
             -- NOTE: In case where rewards were pulled from an external
             -- source, they aren't added to the calculation because the
             -- money is considered to come from outside of the wallet; which
