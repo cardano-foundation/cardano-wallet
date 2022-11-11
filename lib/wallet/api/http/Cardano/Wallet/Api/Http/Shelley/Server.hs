@@ -1072,7 +1072,7 @@ mkSharedWallet
         , Shared.SupportsDiscovery n k
         )
     => MkApiWallet ctx s ApiSharedWallet
-mkSharedWallet ctx@ApiLayer{..} wid cp meta delegation pending progress =
+mkSharedWallet ctx wid cp meta delegation pending progress =
     case Shared.ready st of
     Shared.Pending -> pure $ ApiSharedWallet $ Left $ ApiPendingSharedWallet
         { id = ApiT wid
