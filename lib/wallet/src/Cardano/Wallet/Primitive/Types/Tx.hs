@@ -62,21 +62,15 @@ module Cardano.Wallet.Primitive.Types.Tx
     , toTxHistory
     , txIns
     , txMetadataIsNull
-    , txOutCoin
-    , txOutAddCoin
-    , txOutSubtractCoin
     , txScriptInvalid
 
     -- * Queries
     , txAssetIds
-    , txOutAssetIds
 
     -- * Transformations
     , txMapAssetIds
     , txMapTxIds
     , txRemoveAssetId
-    , txOutMapAssetIds
-    , txOutRemoveAssetId
 
     -- * Conversions (Unsafe)
     , unsafeCoinToTxOutCoinValue
@@ -133,12 +127,6 @@ import Cardano.Wallet.Primitive.Types.Tx.Tx
     , txMapAssetIds
     , txMapTxIds
     , txMetadataIsNull
-    , txOutAddCoin
-    , txOutAssetIds
-    , txOutCoin
-    , txOutMapAssetIds
-    , txOutRemoveAssetId
-    , txOutSubtractCoin
     , txRemoveAssetId
     , txScriptInvalid
     )

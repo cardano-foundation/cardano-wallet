@@ -97,7 +97,6 @@ import Cardano.Wallet.Primitive.Types.Tx
     , collateralInputs
     , inputs
     , txIns
-    , txOutCoin
     , txScriptInvalid
     )
 import Cardano.Wallet.Primitive.Types.Tx.Gen
@@ -219,6 +218,7 @@ import Test.Utils.Pretty
 
 import qualified Cardano.Wallet.Primitive.Types.Coin as Coin
 import qualified Cardano.Wallet.Primitive.Types.TokenBundle as TokenBundle
+import qualified Cardano.Wallet.Primitive.Types.Tx.TxOut as TxOut
 import qualified Cardano.Wallet.Primitive.Types.Tx.TxSeq as TxSeq
 import qualified Cardano.Wallet.Primitive.Types.UTxO as UTxO
 import qualified Data.ByteString as BS
@@ -495,7 +495,7 @@ prop_countRewardsOnce (WithPending wallet pending rewards)
       else property (totalWithPending == totalWithoutPending)
   where
     pendingBalance =
-        sum $ (unCoin . txOutCoin) <$> concatMap outputs (Set.elems pending)
+        sum $ (unCoin . TxOut.coin) <$> concatMap outputs (Set.elems pending)
     totalWithPending =
         TokenBundle.getCoin $ totalBalance pending rewards wallet
     totalWithoutPending =
@@ -1229,13 +1229,13 @@ instance Arbitrary (WithPending WalletState) where
                 -- - Sometimes, we also add a withdrawal by creating another
                 --   change output and an explicit withdrawal in the
                 --   transaction.
-                let tokens = TokenBundle.fromCoin $ simulateFee $ txOutCoin out
+                let tokens = TokenBundle.fromCoin $ simulateFee $ TxOut.coin out
                 scriptValidity <- liftArbitrary genTxScriptValidity
                 let pending = withWithdrawal $ Tx
                         { txId = arbitraryHash
                         , txCBOR = Nothing
                         , fee = Nothing
-                        , resolvedInputs = [(inp, txOutCoin out)]
+                        , resolvedInputs = [(inp, TxOut.coin out)]
                         -- TODO: (ADP-957)
                         , resolvedCollateralInputs = []
                         -- TODO: [ADP-1670]

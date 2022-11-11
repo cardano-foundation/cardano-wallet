@@ -478,7 +478,6 @@ import Cardano.Wallet.Primitive.Types.Tx
     , UnsignedTx (..)
     , cardanoTxIdeallyNoLaterThan
     , getSealedTxWitnesses
-    , txOutCoin
     )
 import Cardano.Wallet.Primitive.Types.Tx.Constraints
     ( txMintBurnMaxTokenQuantity )
@@ -626,6 +625,7 @@ import qualified Cardano.Wallet.Primitive.Types as W
 import qualified Cardano.Wallet.Primitive.Types.Coin as Coin
 import qualified Cardano.Wallet.Primitive.Types.TokenBundle as TokenBundle
 import qualified Cardano.Wallet.Primitive.Types.Tx as W
+import qualified Cardano.Wallet.Primitive.Types.Tx.TxOut as TxOut
 import qualified Cardano.Wallet.Primitive.Types.UTxO as UTxO
 import qualified Cardano.Wallet.Primitive.Types.UTxOIndex.Internal as UTxOIndex
 import qualified Cardano.Wallet.Primitive.Types.UTxOSelection as UTxOSelection
@@ -4203,7 +4203,7 @@ mkApiTransaction timeInterpreter wrk wid setTimeReference tx = do
         + maybe 0 (fromIntegral . unCoin) (tx ^. #txFee)
 
     txOutValue :: TxOut -> Natural
-    txOutValue = fromIntegral . unCoin . txOutCoin
+    txOutValue = fromIntegral . unCoin . TxOut.coin
 
     toAddressAmountNoAssets
         :: TxOut

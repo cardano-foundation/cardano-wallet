@@ -16,14 +16,14 @@ module Cardano.Wallet.Primitive.Types.Tx.TxOut
       TxOut (..)
 
     -- * Queries
-    , txOutAssetIds
-    , txOutCoin
+    , assetIds
+    , coin
 
     -- * Modifiers
-    , txOutAddCoin
-    , txOutMapAssetIds
-    , txOutRemoveAssetId
-    , txOutSubtractCoin
+    , addCoin
+    , mapAssetIds
+    , removeAssetId
+    , subtractCoin
 
     ) where
 
@@ -93,7 +93,7 @@ instance Buildable TxOut where
         [ ("address"
           , addressShort)
         , ("coin"
-          , build (txOutCoin txOut))
+          , build (coin txOut))
         , ("tokens"
           , build (TokenMap.Nested $ view (#tokens . #tokens) txOut))
         ]
@@ -111,15 +111,15 @@ instance Buildable TxOut where
 
 -- | Gets the current set of asset identifiers from a transaction output.
 --
-txOutAssetIds :: TxOut -> Set AssetId
-txOutAssetIds (TxOut _ bundle) = TokenBundle.getAssets bundle
+assetIds :: TxOut -> Set AssetId
+assetIds (TxOut _ bundle) = TokenBundle.getAssets bundle
 
 -- | Gets the current 'Coin' value from a transaction output.
 --
 -- 'Coin' values correspond to the ada asset.
 --
-txOutCoin :: TxOut -> Coin
-txOutCoin = TokenBundle.getCoin . view #tokens
+coin :: TxOut -> Coin
+coin = TokenBundle.getCoin . view #tokens
 
 --------------------------------------------------------------------------------
 -- Modifiers
@@ -129,33 +129,33 @@ txOutCoin = TokenBundle.getCoin . view #tokens
 --
 -- Satisfies the following property for all values of 'c':
 --
--- >>> txOutSubtractCoin c . txOutAddCoin c == id
+-- >>> subtractCoin c . addCoin c == id
 --
-txOutAddCoin :: Coin -> TxOut -> TxOut
-txOutAddCoin val TxOut {address, tokens} =
+addCoin :: Coin -> TxOut -> TxOut
+addCoin val TxOut {address, tokens} =
     TxOut address (tokens <> TokenBundle.fromCoin val)
 
 -- | Applies the given function to all asset identifiers in a 'TxOut'.
 --
-txOutMapAssetIds :: (AssetId -> AssetId) -> TxOut -> TxOut
-txOutMapAssetIds f (TxOut address bundle) =
+mapAssetIds :: (AssetId -> AssetId) -> TxOut -> TxOut
+mapAssetIds f (TxOut address bundle) =
     TxOut address (TokenBundle.mapAssetIds f bundle)
 
 -- | Removes the asset corresponding to the given 'AssetId' from a 'TxOut'.
 --
-txOutRemoveAssetId :: TxOut -> AssetId -> TxOut
-txOutRemoveAssetId (TxOut address bundle) asset =
+removeAssetId :: TxOut -> AssetId -> TxOut
+removeAssetId (TxOut address bundle) asset =
     TxOut address (TokenBundle.setQuantity bundle asset mempty)
 
 -- | Decrements the 'Coin' value of a 'TxOut'.
 --
 -- Satisfies the following property for all values of 'c':
 --
--- >>> txOutSubtractCoin c . txOutAddCoin c == id
+-- >>> subtractCoin c . addCoin c == id
 --
 -- If the given 'Coin' is greater than the 'Coin' value of the given 'TxOut',
 -- the resulting 'TxOut' will have a 'Coin' value of zero.
 --
-txOutSubtractCoin :: Coin -> TxOut -> TxOut
-txOutSubtractCoin toSubtract =
+subtractCoin :: Coin -> TxOut -> TxOut
+subtractCoin toSubtract =
     over (#tokens . #coin) (`Coin.difference` toSubtract)

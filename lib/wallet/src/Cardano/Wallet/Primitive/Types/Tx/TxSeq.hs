@@ -143,6 +143,7 @@ import Data.Set
 
 import qualified Cardano.Wallet.Primitive.Types.StateDeltaSeq as Seq
 import qualified Cardano.Wallet.Primitive.Types.Tx as Tx
+import qualified Cardano.Wallet.Primitive.Types.Tx.TxOut as TxOut
 import qualified Cardano.Wallet.Primitive.Types.UTxO as UTxO
 import qualified Data.Foldable as F
 import qualified Data.List.NonEmpty as NE
@@ -528,7 +529,7 @@ canApplyTxToUTxO tx u =  (&&)
     inputRefIsValid :: (TxIn, Coin) -> Bool
     inputRefIsValid (ti, c) = case UTxO.lookup ti u of
         Nothing -> False
-        Just to -> Tx.txOutCoin to == c
+        Just to -> TxOut.coin to == c
 
 safeAppendTx :: MonadFail m => UTxO -> Tx -> m UTxO
 safeAppendTx = flip safeApplyTxToUTxO

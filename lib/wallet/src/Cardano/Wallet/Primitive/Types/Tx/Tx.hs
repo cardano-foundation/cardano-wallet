@@ -31,21 +31,16 @@ module Cardano.Wallet.Primitive.Types.Tx.Tx
     , collateralInputs
     , txIns
     , txMetadataIsNull
-    , txOutCoin
-    , txOutAddCoin
-    , txOutSubtractCoin
     , txScriptInvalid
 
     -- * Queries
     , txAssetIds
-    , txOutAssetIds
+    , TxOut.assetIds
 
     -- * Transformations
     , txMapAssetIds
     , txMapTxIds
     , txRemoveAssetId
-    , txOutMapAssetIds
-    , txOutRemoveAssetId
 
     ) where
 
@@ -66,14 +61,7 @@ import Cardano.Wallet.Primitive.Types.TokenMap
 import Cardano.Wallet.Primitive.Types.Tx.TxIn
     ( TxIn (..) )
 import Cardano.Wallet.Primitive.Types.Tx.TxOut
-    ( TxOut (..)
-    , txOutAddCoin
-    , txOutAssetIds
-    , txOutCoin
-    , txOutMapAssetIds
-    , txOutRemoveAssetId
-    , txOutSubtractCoin
-    )
+    ( TxOut (..) )
 import Cardano.Wallet.Read.Tx.CBOR
     ( TxCBOR )
 import Control.DeepSeq
@@ -95,6 +83,7 @@ import Fmt
 import GHC.Generics
     ( Generic )
 
+import qualified Cardano.Wallet.Primitive.Types.Tx.TxOut as TxOut
 import qualified Data.Foldable as F
 import qualified Data.Map.Strict as Map
 import qualified Data.Set as Set
@@ -224,8 +213,8 @@ instance NFData TxScriptValidity
 
 txAssetIds :: Tx -> Set AssetId
 txAssetIds tx = F.fold
-    [ F.foldMap txOutAssetIds (view #outputs tx)
-    , F.foldMap txOutAssetIds (view #collateralOutput tx)
+    [ F.foldMap TxOut.assetIds (view #outputs tx)
+    , F.foldMap TxOut.assetIds (view #collateralOutput tx)
     ]
 
 -- | Returns 'True' if (and only if) the given transaction is marked as having
@@ -252,9 +241,9 @@ txMetadataIsNull (TxMetadata md) = Map.null md
 txMapAssetIds :: (AssetId -> AssetId) -> Tx -> Tx
 txMapAssetIds f tx = tx
     & over #outputs
-        (fmap (txOutMapAssetIds f))
+        (fmap (TxOut.mapAssetIds f))
     & over #collateralOutput
-        (fmap (txOutMapAssetIds f))
+        (fmap (TxOut.mapAssetIds f))
 
 txMapTxIds :: (Hash "Tx" -> Hash "Tx") -> Tx -> Tx
 txMapTxIds f tx = tx
@@ -268,6 +257,6 @@ txMapTxIds f tx = tx
 txRemoveAssetId :: Tx -> AssetId -> Tx
 txRemoveAssetId tx asset = tx
     & over #outputs
-        (fmap (`txOutRemoveAssetId` asset))
+        (fmap (`TxOut.removeAssetId` asset))
     & over #collateralOutput
-        (fmap (`txOutRemoveAssetId` asset))
+        (fmap (`TxOut.removeAssetId` asset))

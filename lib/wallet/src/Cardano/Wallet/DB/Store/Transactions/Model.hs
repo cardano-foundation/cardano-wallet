@@ -102,6 +102,7 @@ import GHC.Generics
 import qualified Cardano.Wallet.Primitive.Types.Coin as W
 import qualified Cardano.Wallet.Primitive.Types.TokenBundle as TokenBundle
 import qualified Cardano.Wallet.Primitive.Types.Tx.Tx as W
+import qualified Cardano.Wallet.Primitive.Types.Tx.TxOut as W.TxOut
 import qualified Data.ByteString.Lazy as BL
 import qualified Data.Generics.Internal.VL as L
 import qualified Data.Map.Strict as Map
@@ -204,7 +205,7 @@ mkTxOut tid (ix,txOut) = (out, sortOn tokenOutOrd tokens)
         { txOutputTxId = tid
         , txOutputIndex = ix
         , txOutputAddress = view #address txOut
-        , txOutputAmount = W.txOutCoin txOut
+        , txOutputAmount = W.TxOut.coin txOut
         }
     tokens =
         mkTxOutToken tid ix
@@ -234,7 +235,7 @@ mkTxCollateralOut tid txCollateralOut = (out, sortOn tokenCollateralOrd tokens)
         TxCollateralOut
         { txCollateralOutTxId = tid
         , txCollateralOutAddress = view #address txCollateralOut
-        , txCollateralOutAmount = W.txOutCoin txCollateralOut
+        , txCollateralOutAmount = W.TxOut.coin txCollateralOut
         }
     tokens =
         mkTxCollateralOutToken tid
