@@ -7,7 +7,6 @@
 {-# LANGUAGE OverloadedLabels #-}
 {-# LANGUAGE ScopedTypeVariables #-}
 {-# LANGUAGE TypeFamilies #-}
-{-# OPTIONS_GHC -fno-warn-orphans #-}
 
 -- |
 -- Copyright: © 2018-2020 IOHK
@@ -189,9 +188,6 @@ inputs = map fst . resolvedInputs
 
 collateralInputs :: Tx -> [TxIn]
 collateralInputs = map fst . resolvedCollateralInputs
-
-instance Buildable (TxIn, TxOut) where
-    build (txin, txout) = build txin <> " ==> " <> build txout
 
 -- | Indicates whether or not a transaction is marked as having an invalid
 --   script.
