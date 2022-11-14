@@ -4,6 +4,7 @@
 {-# LANGUAGE LambdaCase #-}
 {-# LANGUAGE NamedFieldPuns #-}
 {-# LANGUAGE OverloadedLabels #-}
+{-# LANGUAGE ScopedTypeVariables #-}
 {-# LANGUAGE TypeApplications #-}
 
 -- |
@@ -73,6 +74,7 @@ import Cardano.Wallet
     , ErrWitnessTx (..)
     , ErrWritePolicyPublicKey (..)
     , ErrWrongPassphrase (..)
+    , WalletException (..)
     )
 import Cardano.Wallet.Api.Types
     ( Iso8601Time (..) )
@@ -100,7 +102,7 @@ import Cardano.Wallet.Primitive.AddressDiscovery.Shared
     ( ErrAddCosigner (..), ErrScriptTemplate (..) )
 import Cardano.Wallet.Primitive.Slotting
     ( PastHorizonException )
-import Cardano.Wallet.Primitive.Types.TokenBundle
+import Cardano.Wallet.Primitive.Types.TokenMap
     ( Flat (..) )
 import Cardano.Wallet.Transaction
     ( ErrAssignRedeemers (..), ErrSignTx (..) )
@@ -189,6 +191,43 @@ err425 = ServerError 425 "Too early" "" []
 -- | Small helper to easy show things to Text
 showT :: Show a => a -> Text
 showT = T.pack . show
+
+instance IsServerError WalletException where
+    toServerError = \case
+        ExceptionSignMetadataWith e -> toServerError e
+        ExceptionDerivePublicKey e -> toServerError e
+        ExceptionAddCosignerKey e -> toServerError e
+        ExceptionConstructSharedWallet e -> toServerError e
+        ExceptionReadAccountPublicKey e -> toServerError e
+        ExceptionListUTxOStatistics e -> toServerError e
+        ExceptionSignPayment e -> toServerError e
+        ExceptionBalanceTx e -> toServerError e
+        ExceptionBalanceTxInternalError e -> toServerError e
+        ExceptionSubmitTransaction e -> toServerError e
+        ExceptionConstructTx e -> toServerError e
+        ExceptionGetPolicyId e -> toServerError e
+        ExceptionWitnessTx e -> toServerError e
+        ExceptionDecodeTx e -> toServerError e
+        ExceptionSubmitTx e -> toServerError e
+        ExceptionUpdatePassphrase e -> toServerError e
+        ExceptionWithRootKey e -> toServerError e
+        ExceptionListTransactions e -> toServerError e
+        ExceptionGetTransaction e -> toServerError e
+        ExceptionStartTimeLaterThanEndTime e -> toServerError e
+        ExceptionCreateMigrationPlan e -> toServerError e
+        ExceptionSelectAssets e -> toServerError e
+        ExceptionStakePoolDelegation e -> toServerError e
+        ExceptionFetchRewards e -> toServerError e
+        ExceptionWalletNotResponding e -> toServerError e
+        ExceptionCreateRandomAddress e -> toServerError e
+        ExceptionImportRandomAddress e -> toServerError e
+        ExceptionNotASequentialWallet e -> toServerError e
+        ExceptionReadRewardAccount e -> toServerError e
+        ExceptionWithdrawalNotWorth e -> toServerError e
+        ExceptionReadPolicyPublicKey e -> toServerError e
+        ExceptionWritePolicyPublicKey e -> toServerError e
+        ExceptionSoftDerivationIndex e -> toServerError e
+        ExceptionHardenedDerivationIndex e -> toServerError e
 
 instance IsServerError ErrNoSuchWallet where
     toServerError = \case
@@ -447,18 +486,7 @@ instance IsServerError ErrBalanceTx where
                 , "one or more zero-ada outputs. In the future I might be able"
                 , "to increase the values to the minimum allowed ada value."
                 ]
-        ErrBalanceTxInternalError (ErrFailedBalancing v) ->
-            apiError err500 BalanceTxInternalError $ T.unwords
-                [ "I have somehow failed to balance the transaction."
-                , "The balance is"
-                , T.pack (show v)
-                ]
-        ErrBalanceTxInternalError (ErrUnderestimatedFee c _) ->
-            apiError err500 BalanceTxUnderestimatedFee $ T.unwords
-                [ "I have somehow underestimated the fee of the transaction by"
-                , pretty c
-                , "and cannot finish balancing."
-                ]
+        ErrBalanceTxInternalError e -> toServerError e
         ErrBalanceTxMaxSizeLimitExceeded ->
             apiError err403 BalanceTxMaxSizeLimitExceeded $ T.unwords
                 [ "I was not able to balance the transaction without exceeding"
@@ -479,6 +507,21 @@ instance IsServerError ErrBalanceTx where
                 , "\n"
                 , "The conflict(s) are:\n"
                 , fmt $ blockListF' "-" conflictF conflicts
+                ]
+
+instance IsServerError ErrBalanceTxInternalError where
+    toServerError = \case
+        ErrUnderestimatedFee coin _st ->
+            apiError err500 BalanceTxUnderestimatedFee $ T.unwords
+                [ "I have somehow underestimated the fee of the transaction by"
+                , pretty coin
+                , "and cannot finish balancing."
+                ]
+        ErrFailedBalancing v ->
+            apiError err500 BalanceTxInternalError $ T.unwords
+                [ "I have somehow failed to balance the transaction."
+                , "The balance is"
+                , T.pack (show v)
                 ]
 
 instance IsServerError ErrRemoveTx where

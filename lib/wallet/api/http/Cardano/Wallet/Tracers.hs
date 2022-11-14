@@ -35,10 +35,10 @@ import Cardano.Wallet.DB.Layer
     ( DBFactoryLog )
 import Cardano.Wallet.Logging
     ( trMessageText )
+import Cardano.Wallet.Pools
+    ( StakePoolLog )
 import Cardano.Wallet.Shelley.Network
     ( NetworkLayerLog )
-import Cardano.Wallet.Shelley.Pools
-    ( StakePoolLog )
 import Cardano.Wallet.TokenMetadata
     ( TokenMetadataLog )
 import Control.Applicative

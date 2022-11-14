@@ -97,6 +97,8 @@ import Cardano.Wallet.Api.Types
     )
 import Cardano.Wallet.Api.Types.SchemaMetadata
     ( TxMetadataSchema, toSimpleMetadataFlag )
+import Cardano.Wallet.Pools
+    ( StakePool )
 import Cardano.Wallet.Primitive.Types
     ( SortOrder, WalletId )
 import Cardano.Wallet.Primitive.Types.Address
@@ -122,8 +124,6 @@ import Servant.Client
 import UnliftIO.Exception
     ( throwString )
 
-import Cardano.Wallet.Shelley.Pools
-    ( StakePool )
 import qualified Data.Aeson as Aeson
 
 {-------------------------------------------------------------------------------

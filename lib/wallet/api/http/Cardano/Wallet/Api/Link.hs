@@ -785,7 +785,7 @@ getPoolMaintenance = endpoint @Api.GetPoolMaintenance id
 listStakePools :: Maybe Coin -> (Method, Text)
 listStakePools stake = endpoint @Api.ListStakePools ($ ApiT <$> stake)
 
-listStakeKeys :: forall w. (HasType (ApiT WalletId) w) => w -> (Method, Text)
+listStakeKeys :: forall w. HasType (ApiT WalletId) w => w -> (Method, Text)
 listStakeKeys w = endpoint @(Api.ListStakeKeys ()) ($ w^.typed @(ApiT WalletId))
 
 joinStakePool
@@ -796,31 +796,18 @@ joinStakePool
     => s
     -> w
     -> (Method, Text)
-joinStakePool s w =
-    endpoint @(Api.JoinStakePool Net) (\mk -> mk sid wid)
+joinStakePool s w = endpoint @(Api.JoinStakePool Net) (\mk -> mk sid wid)
   where
     sid = s ^. typed @ApiPoolSpecifier
     wid = w ^. typed @(ApiT WalletId)
 
-quitStakePool
-    :: forall w.
-        ( HasType (ApiT WalletId) w
-        )
-    => w
-    -> (Method, Text)
-quitStakePool w =
-    endpoint @(Api.QuitStakePool Net) (wid &)
+quitStakePool :: forall w. HasType (ApiT WalletId) w => w -> (Method, Text)
+quitStakePool w = endpoint @(Api.QuitStakePool Net) (wid &)
   where
     wid = w ^. typed @(ApiT WalletId)
 
-getDelegationFee
-    :: forall w.
-        ( HasType (ApiT WalletId) w
-        )
-    => w
-    -> (Method, Text)
-getDelegationFee w =
-    endpoint @Api.DelegationFee (wid &)
+getDelegationFee :: forall w. HasType (ApiT WalletId) w => w -> (Method, Text)
+getDelegationFee w = endpoint @Api.DelegationFee (wid &)
   where
     wid = w ^. typed @(ApiT WalletId)
 
@@ -828,27 +815,19 @@ getDelegationFee w =
 -- Network Information
 --
 
-getNetworkInfo
-    :: (Method, Text)
-getNetworkInfo =
-    endpoint @Api.GetNetworkInformation id
+getNetworkInfo :: (Method, Text)
+getNetworkInfo = endpoint @Api.GetNetworkInformation id
 
-getNetworkParams
-    :: (Method, Text)
-getNetworkParams =
-    endpoint @Api.GetNetworkParameters id
+getNetworkParams :: (Method, Text)
+getNetworkParams = endpoint @Api.GetNetworkParameters id
 
-getNetworkClock
-    :: (Method, Text)
-getNetworkClock =
-    endpoint @Api.GetNetworkClock (False &)
+getNetworkClock :: (Method, Text)
+getNetworkClock = endpoint @Api.GetNetworkClock (False &)
 
 getNetworkClock'
     :: Bool -- ^ When 'True', block and force NTP check
     -> (Method, Text)
-getNetworkClock' forceNtpCheck =
-    endpoint @Api.GetNetworkClock (forceNtpCheck &)
-
+getNetworkClock' forceNtpCheck = endpoint @Api.GetNetworkClock (forceNtpCheck &)
 
 --
 -- Proxy

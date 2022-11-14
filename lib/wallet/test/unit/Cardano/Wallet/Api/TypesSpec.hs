@@ -234,6 +234,12 @@ import Cardano.Wallet.Gen
     , shrinkPercentage
     , shrinkTxMetadata
     )
+import Cardano.Wallet.Pools
+    ( EpochInfo (..)
+    , StakePool (StakePool)
+    , StakePoolFlag
+    , StakePoolMetrics (StakePoolMetrics)
+    )
 import Cardano.Wallet.Primitive.AddressDerivation
     ( Depth (..)
     , DerivationIndex (..)
@@ -341,12 +347,6 @@ import Cardano.Wallet.Shelley.Network.Discriminant
     , DecodeStakeAddress (..)
     , EncodeAddress (..)
     , EncodeStakeAddress (..)
-    )
-import Cardano.Wallet.Shelley.Pools
-    ( EpochInfo (..)
-    , StakePool (StakePool)
-    , StakePoolFlag
-    , StakePoolMetrics (StakePoolMetrics)
     )
 import Cardano.Wallet.TokenMetadata
     ( TokenMetadataError (..) )

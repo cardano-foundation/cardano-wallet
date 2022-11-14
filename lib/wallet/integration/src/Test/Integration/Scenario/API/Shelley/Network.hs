@@ -12,10 +12,10 @@ import Prelude
 
 import Cardano.Wallet.Api.Types
     ( ApiEra (..), ApiNetworkParameters (..) )
+import Cardano.Wallet.Pools
+    ( EpochInfo (..) )
 import Cardano.Wallet.Primitive.Types
     ( ExecutionUnitPrices (..) )
-import Cardano.Wallet.Shelley.Pools
-    ( EpochInfo (..) )
 import Data.List
     ( (\\) )
 import Data.Quantity

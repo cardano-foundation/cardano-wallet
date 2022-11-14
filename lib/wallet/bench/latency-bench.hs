@@ -58,6 +58,8 @@ import Cardano.Wallet.Logging
     ( trMessage )
 import Cardano.Wallet.Network.Ports
     ( portFromURL )
+import Cardano.Wallet.Pools
+    ( StakePool )
 import Cardano.Wallet.Primitive.AddressDerivation
     ( NetworkDiscriminant (..) )
 import Cardano.Wallet.Primitive.SyncProgress
@@ -75,8 +77,6 @@ import Cardano.Wallet.Shelley.BlockchainSource
     ( BlockchainSource (..) )
 import Cardano.Wallet.Shelley.Faucet
     ( initFaucet )
-import Cardano.Wallet.Shelley.Pools
-    ( StakePool )
 import Cardano.Wallet.Unsafe
     ( unsafeFromText )
 import Control.Monad

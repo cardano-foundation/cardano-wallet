@@ -73,6 +73,8 @@ import Cardano.Wallet.Api.Types
     )
 import Cardano.Wallet.Api.Types.Transaction
     ( ApiValidityIntervalExplicit (..) )
+import Cardano.Wallet.Pools
+    ( StakePool )
 import Cardano.Wallet.Primitive.AddressDerivation
     ( DerivationIndex (..)
     , HardDerivation (..)
@@ -108,8 +110,6 @@ import Cardano.Wallet.Primitive.Types.Tx
     , getSealedTxBody
     , sealedTxFromCardanoBody
     )
-import Cardano.Wallet.Shelley.Pools
-    ( StakePool )
 import Cardano.Wallet.Transaction
     ( AnyScript (..), ValidityIntervalExplicit (..) )
 import Cardano.Wallet.Unsafe

@@ -283,6 +283,8 @@ import Cardano.Wallet.Api.Types.SchemaMetadata
     ( TxMetadataSchema, toSimpleMetadataFlag )
 import Cardano.Wallet.Compat
     ( (^?) )
+import Cardano.Wallet.Pools
+    ( EpochInfo, StakePool )
 import Cardano.Wallet.Primitive.AddressDerivation
     ( Depth (..)
     , DerivationIndex (..)
@@ -342,8 +344,6 @@ import Cardano.Wallet.Primitive.Types.UTxO
     , computeUtxoStatistics
     , log10
     )
-import Cardano.Wallet.Shelley.Pools
-    ( EpochInfo, StakePool )
 import Control.Arrow
     ( second )
 import Control.Monad

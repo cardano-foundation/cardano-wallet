@@ -14,6 +14,7 @@
 {-# LANGUAGE RankNTypes #-}
 {-# LANGUAGE RecordWildCards #-}
 {-# LANGUAGE ScopedTypeVariables #-}
+{-# LANGUAGE StandaloneDeriving #-}
 {-# LANGUAGE TupleSections #-}
 {-# LANGUAGE TypeApplications #-}
 {-# LANGUAGE TypeFamilies #-}
@@ -31,21 +32,20 @@
 -- following the convention below:
 --
 -- - @s@: A __s__tate used to keep track of known addresses. Typically, possible
---   values for this parameter are described in 'Cardano.Wallet.AddressDiscovery' sub-modules.
+--   values for this parameter are described in
+--   'Cardano.Wallet.AddressDiscovery' sub-modules.
 --   For instance @SeqState@ or @Rnd State@.
 --
--- - @k@: A __k__ey derivation scheme intrinsically connected to the underlying discovery
---   state @s@. This describes how the hierarchical structure of a wallet is
---   defined as well as the relationship between secret keys and public
---   addresses.
+-- - @k@: A __k__ey derivation scheme intrinsically connected to the underlying
+--   discovery state @s@. This describes how the hierarchical structure of a
+--   wallet is defined as well as the relationship between secret keys and
+--   public addresses.
 
 module Cardano.Wallet
-    (
-    -- * Development
-    -- $Development
+    ( WalletException (..)
 
     -- * WalletLayer
-        WalletLayer (..)
+    , WalletLayer (..)
 
     -- * Capabilities
     -- $Capabilities
@@ -79,12 +79,14 @@ module Cardano.Wallet
     , manageRewardBalance
     , rollbackBlocks
     , checkWalletIntegrity
-    , readNextWithdrawal
+    , mkExternalWithdrawal
+    , mkSelfWithdrawal
+    , shelleyOnlyMkSelfWithdrawal
     , readRewardAccount
+    , shelleyOnlyReadRewardAccount
     , someRewardAccount
     , readPolicyPublicKey
     , writePolicyPublicKey
-    , queryRewardBalance
     , ErrWalletAlreadyExists (..)
     , ErrNoSuchWallet (..)
     , ErrListUTxOStatistics (..)
@@ -117,7 +119,7 @@ module Cardano.Wallet
     , ErrDecodeTx (..)
 
     -- ** Payment
-    , getTxExpiry
+    , transactionExpirySlot
     , SelectAssetsParams (..)
     , selectAssets
     , readWalletUTxOIndex
@@ -134,7 +136,6 @@ module Cardano.Wallet
     , ErrNotASequentialWallet (..)
     , ErrWithdrawalNotWorth (..)
     , ErrConstructTx (..)
-    , ErrMintBurnAssets (..)
     , ErrBalanceTx (..)
     , ErrBalanceTxInternalError (..)
     , ErrUpdateSealedTx (..)
@@ -152,6 +153,7 @@ module Cardano.Wallet
     , PoolRetirementEpochInfo (..)
     , joinStakePool
     , quitStakePool
+    , validatedQuitStakePoolAction
     , guardJoin
     , guardQuit
     , ErrStakePoolDelegation (..)
@@ -220,13 +222,15 @@ import Cardano.Address.Script
 import Cardano.Address.Style.Shared
     ( deriveDelegationPublicKey )
 import Cardano.Api
-    ( serialiseToCBOR )
+    ( AnyCardanoEra, serialiseToCBOR )
 import Cardano.BM.Data.Severity
     ( Severity (..) )
 import Cardano.BM.Data.Tracer
     ( HasPrivacyAnnotation (..), HasSeverityAnnotation (..) )
 import Cardano.Crypto.Wallet
     ( toXPub )
+import Cardano.Mnemonic
+    ( SomeMnemonic )
 import Cardano.Pool.Types
     ( PoolId )
 import Cardano.Slotting.Slot
@@ -720,35 +724,24 @@ type HasNetworkLayer m = HasType (NetworkLayer m Block)
 
 type HasTransactionLayer k ktype = HasType (TransactionLayer k ktype SealedTx)
 
-dbLayer
-    :: forall m s k ctx. HasDBLayer m s k ctx
-    => Lens' ctx (DBLayer m s k)
-dbLayer =
-    typed @(DBLayer m s k)
+dbLayer :: forall m s k ctx. HasDBLayer m s k ctx => Lens' ctx (DBLayer m s k)
+dbLayer = typed @(DBLayer m s k)
 
-genesisData
-    :: forall ctx. HasGenesisData ctx
-    => Lens' ctx (Block, NetworkParameters)
-genesisData =
-    typed @(Block, NetworkParameters)
+genesisData ::
+    forall ctx. HasGenesisData ctx => Lens' ctx (Block, NetworkParameters)
+genesisData = typed @(Block, NetworkParameters)
 
-logger
-    :: forall m msg ctx. HasLogger m msg ctx
-    => Lens' ctx (Tracer m msg)
-logger =
-    typed @(Tracer m msg)
+logger :: forall m msg ctx. HasLogger m msg ctx => Lens' ctx (Tracer m msg)
+logger = typed @(Tracer m msg)
 
-networkLayer
-    :: forall m ctx. (HasNetworkLayer m ctx)
-    => Lens' ctx (NetworkLayer m Block)
-networkLayer =
-    typed @(NetworkLayer m Block)
+networkLayer ::
+    forall m ctx. (HasNetworkLayer m ctx) => Lens' ctx (NetworkLayer m Block)
+networkLayer = typed @(NetworkLayer m Block)
 
-transactionLayer
-    :: forall k ktype ctx. (HasTransactionLayer k ktype ctx)
+transactionLayer ::
+    forall k ktype ctx. (HasTransactionLayer k ktype ctx)
     => Lens' ctx (TransactionLayer k ktype SealedTx)
-transactionLayer =
-    typed @(TransactionLayer k ktype SealedTx)
+transactionLayer = typed @(TransactionLayer k ktype SealedTx)
 
 {-------------------------------------------------------------------------------
                                    Wallet
@@ -820,25 +813,15 @@ createIcarusWallet ctx wid wname credentials = db & \DBLayer{..} -> do
     (block0, NetworkParameters gp _sp _pp) = ctx ^. genesisData
 
 -- | Check whether a wallet is in good shape when restarting a worker.
-checkWalletIntegrity
-    :: forall ctx s k. HasDBLayer IO s k ctx
-    => ctx
-    -> WalletId
-    -> GenesisParameters
-    -> ExceptT ErrCheckWalletIntegrity IO ()
-checkWalletIntegrity ctx wid gp = db & \DBLayer{..} -> mapExceptT atomically $ do
-    gp' <- withExceptT ErrCheckWalletIntegrityNoSuchWallet $ withNoSuchWallet wid $
-        readGenesisParameters wid
-
-    whenDifferentGenesis gp gp $ throwE $
-        ErrCheckIntegrityDifferentGenesis
-            (getGenesisBlockHash gp)
-            (getGenesisBlockHash gp')
-  where
-    db = ctx ^. dbLayer @IO @s @k
-    whenDifferentGenesis bp1 bp2 = when $
-        (bp1 ^. #getGenesisBlockHash /= bp2 ^. #getGenesisBlockHash) ||
-        (bp1 ^. #getGenesisBlockDate /= bp2 ^. #getGenesisBlockDate)
+checkWalletIntegrity :: DBLayer IO s k -> WalletId -> GenesisParameters -> IO ()
+checkWalletIntegrity db walletId gp = db & \DBLayer{..} -> do
+    gp' <- atomically (readGenesisParameters walletId) >>= do
+        let noSuchWallet = ErrNoSuchWallet walletId
+        maybe (throwIO $ ErrCheckWalletIntegrityNoSuchWallet noSuchWallet) pure
+    when ( (gp ^. #getGenesisBlockHash /= gp' ^. #getGenesisBlockHash) ||
+           (gp ^. #getGenesisBlockDate /= gp' ^. #getGenesisBlockDate) )
+        (throwIO $ ErrCheckIntegrityDifferentGenesis
+            (getGenesisBlockHash gp) (getGenesisBlockHash gp'))
 
 -- | Retrieve the wallet state for the wallet with the given ID.
 readWallet
@@ -1216,87 +1199,123 @@ deleteWallet ctx wid = db & \DBLayer{..} -> do
     db = ctx ^. dbLayer @IO @s @k
 
 -- | Fetch the cached reward balance of a given wallet from the database.
-fetchRewardBalance
-    :: forall ctx s k.
-        ( HasDBLayer IO s k ctx
-        )
-    => ctx
+fetchRewardBalance :: forall s k. DBLayer IO s k -> WalletId -> IO Coin
+fetchRewardBalance DBLayer{..} = atomically . readDelegationRewardBalance
+
+mkExternalWithdrawal
+    :: forall k ktype tx
+     . NetworkLayer IO Block
+    -> TransactionLayer k ktype tx
+    -> AnyCardanoEra
+    -> SomeMnemonic
+    -> IO (Either ErrWithdrawalNotWorth Withdrawal)
+mkExternalWithdrawal netLayer txLayer era mnemonic = do
+    let (_, rewardAccount, derivationPath) =
+            someRewardAccount @ShelleyKey mnemonic
+    balance <- getCachedRewardAccountBalance netLayer rewardAccount
+    pp <- currentProtocolParameters netLayer
+    pure $ checkRewardIsWorthTxCost txLayer pp era balance $>
+        WithdrawalExternal rewardAccount derivationPath balance
+
+mkSelfWithdrawal
+    :: forall ktype tx (n :: NetworkDiscriminant)
+     . NetworkLayer IO Block
+    -> TransactionLayer ShelleyKey ktype tx
+    -> AnyCardanoEra
+    -> DBLayer IO (SeqState n ShelleyKey) ShelleyKey
     -> WalletId
-    -> IO Coin
-fetchRewardBalance ctx wid = db & \DBLayer{..} ->
-    atomically $ readDelegationRewardBalance wid
-  where
-    db = ctx ^. dbLayer @IO @s @k
+    -> IO Withdrawal
+mkSelfWithdrawal netLayer txLayer era db wallet = do
+    (rewardAccount, _, derivationPath) <-
+        runExceptT (readRewardAccount db wallet)
+            >>= either (throwIO . ExceptionReadRewardAccount) pure
+    balance <- getCachedRewardAccountBalance netLayer rewardAccount
+    pp <- currentProtocolParameters netLayer
+    pure $ WithdrawalSelf rewardAccount derivationPath
+        $ either (\_notWorth -> Coin 0) (\_worth -> balance)
+        $ checkRewardIsWorthTxCost txLayer pp era balance
 
--- | Read the current withdrawal capacity of a wallet. Note that, this simply
--- returns 0 if:
---
--- a) There's no reward account for this type of wallet.
--- b) The current reward value is too small to be considered (adding it would
--- cost more than its value).
-readNextWithdrawal
-    :: forall ctx k ktype.
-        ( HasTransactionLayer k ktype ctx
-        , HasNetworkLayer IO ctx
-        )
-    => ctx
-    -> Cardano.AnyCardanoEra
+-- | Unsafe version of the `mkSelfWithdrawal` function that throws an exception
+-- when applied to a non-shelley or a non-sequential wallet.
+shelleyOnlyMkSelfWithdrawal
+    :: forall s k ktype tx (n :: NetworkDiscriminant)
+     . (Typeable s, Typeable k, Typeable n)
+    => NetworkLayer IO Block
+    -> TransactionLayer k ktype tx
+    -> AnyCardanoEra
+    -> DBLayer IO s k
+    -> WalletId
+    -> IO Withdrawal
+shelleyOnlyMkSelfWithdrawal netLayer txLayer era db wallet =
+    case testEquality (typeRep @s) (typeRep @(SeqState n k)) of
+        Nothing -> notShelleyWallet
+        Just Refl -> case testEquality (typeRep @k) (typeRep @ShelleyKey) of
+            Nothing -> notShelleyWallet
+            Just Refl -> mkSelfWithdrawal netLayer txLayer era db wallet
+  where
+    notShelleyWallet = throwIO
+        $ ExceptionReadRewardAccount ErrReadRewardAccountNotAShelleyWallet
+
+checkRewardIsWorthTxCost
+    :: forall k ktype tx
+     . TransactionLayer k ktype tx
+    -> ProtocolParameters
+    -> AnyCardanoEra
     -> Coin
-    -> IO Coin
-readNextWithdrawal ctx era (Coin withdrawal) = do
-    pp <- currentProtocolParameters nl
-
-    let costWith =
-            calcMinimumCost tl era pp (mkTxCtx $ Coin withdrawal) emptySkeleton
-
-    let costWithout =
-            calcMinimumCost tl era pp (mkTxCtx $ Coin 0) emptySkeleton
-
-    let costOfWithdrawal =
-            Coin.toInteger costWith - Coin.toInteger costWithout
-
-    pure . Coin $
-        if toInteger withdrawal < 2 * costOfWithdrawal
-            then 0
-            else withdrawal
+    -> Either ErrWithdrawalNotWorth ()
+checkRewardIsWorthTxCost txLayer pp era balance = do
+    when (balance == Coin 0)
+        $ Left ErrWithdrawalNotWorth
+    let minimumCost txCtx = calcMinimumCost txLayer era pp txCtx emptySkeleton
+        costWith = minimumCost $ mkTxCtx balance
+        costWithout = minimumCost $ mkTxCtx $ Coin 0
+        worthOfWithdrawal = Coin.toInteger costWith - Coin.toInteger costWithout
+    when (Coin.toInteger balance < 2 * worthOfWithdrawal)
+        $ Left ErrWithdrawalNotWorth
   where
-    tl = ctx ^. transactionLayer @k @ktype
-    nl = ctx ^. networkLayer
-
     mkTxCtx wdrl = defaultTransactionCtx
         { txWithdrawal = WithdrawalSelf dummyAcct dummyPath wdrl }
       where
-        dummyAcct =
-            RewardAccount mempty
-        dummyPath =
-            DerivationIndex 0 :| []
+        dummyAcct = RewardAccount mempty
+        dummyPath = DerivationIndex 0 :| []
 
 readRewardAccount
-    :: forall ctx s k (n :: NetworkDiscriminant) shelley.
-        ( HasDBLayer IO s k ctx
-        , shelley ~ SeqState n ShelleyKey
-        , Typeable n
-        , Typeable s
-        )
-    => ctx
+    :: forall (n :: NetworkDiscriminant)
+     . DBLayer IO (SeqState n ShelleyKey) ShelleyKey
     -> WalletId
-    -> ExceptT ErrReadRewardAccount IO (RewardAccount, XPub, NonEmpty DerivationIndex)
-readRewardAccount ctx wid = db & \DBLayer{..} -> do
-    cp <- withExceptT ErrReadRewardAccountNoSuchWallet
-        $ mapExceptT atomically
-        $ withNoSuchWallet wid
-        $ readCheckpoint wid
-    case testEquality (typeRep @s) (typeRep @shelley) of
-        Nothing ->
-            throwE ErrReadRewardAccountNotAShelleyWallet
-        Just Refl -> do
-            let s = getState cp
-            let xpub = Seq.rewardAccountKey s
-            let acct = toRewardAccount xpub
-            let path = stakeDerivationPath $ Seq.derivationPrefix s
-            pure (acct, getRawKey xpub, path)
+    -> ExceptT ErrReadRewardAccount IO
+        (RewardAccount, XPub, NonEmpty DerivationIndex)
+readRewardAccount db wid = do
+    walletState <- getState <$>
+        withExceptT ErrReadRewardAccountNoSuchWallet
+            (readWalletCheckpoint db wid)
+    let xpub = Seq.rewardAccountKey walletState
+    let path = stakeDerivationPath $ Seq.derivationPrefix walletState
+    pure (toRewardAccount xpub, getRawKey xpub, path)
   where
-    db = ctx ^. dbLayer @IO @s @k
+    readWalletCheckpoint ::
+        DBLayer IO s k -> WalletId -> ExceptT ErrNoSuchWallet IO (Wallet s)
+    readWalletCheckpoint DBLayer{..} wallet =
+        liftIO (atomically (readCheckpoint wallet)) >>=
+            maybe (throwE (ErrNoSuchWallet wallet)) pure
+
+-- | Unsafe version of the `readRewardAccount` function
+-- that throws error when applied to a non-sequential
+-- or a non-shelley wallet state.
+shelleyOnlyReadRewardAccount
+    :: forall s k (n :: NetworkDiscriminant)
+     . (Typeable s, Typeable n, Typeable k)
+    => DBLayer IO s k
+    -> WalletId
+    -> ExceptT ErrReadRewardAccount IO
+        (RewardAccount, XPub, NonEmpty DerivationIndex)
+shelleyOnlyReadRewardAccount db wid =
+    case testEquality (typeRep @s) (typeRep @(SeqState n k)) of
+        Nothing -> throwE ErrReadRewardAccountNotAShelleyWallet
+        Just Refl ->
+            case testEquality (typeRep @k) (typeRep @ShelleyKey) of
+                Nothing -> throwE ErrReadRewardAccountNotAShelleyWallet
+                Just Refl -> readRewardAccount db wid
 
 readPolicyPublicKey
     :: forall ctx s k (n :: NetworkDiscriminant) shelley.
@@ -1319,48 +1338,25 @@ readPolicyPublicKey ctx wid = db & \DBLayer{..} -> do
         Just Refl -> do
             let s = getState cp
             case Seq.policyXPub s of
-                Nothing ->
-                    throwE ErrReadPolicyPublicKeyAbsent
-                Just xpub ->
-                    pure (getRawKey xpub, policyDerivationPath)
+                Nothing -> throwE ErrReadPolicyPublicKeyAbsent
+                Just xpub -> pure (getRawKey xpub, policyDerivationPath)
   where
     db = ctx ^. dbLayer @IO @s @k
 
--- | Query the node for the reward balance of a given wallet.
---
--- Rather than force all callers of 'readWallet' to wait for fetching the
--- account balance (via the 'NetworkLayer'), we expose this function for it.
-queryRewardBalance
-    :: forall ctx.
-        ( HasNetworkLayer IO ctx
-        )
-    => ctx
-    -> RewardAccount
-    -> ExceptT ErrFetchRewards IO Coin
-queryRewardBalance ctx acct = do
-    liftIO $ getCachedRewardAccountBalance nw acct
-  where
-    nw = ctx ^. networkLayer
-
 manageRewardBalance
-    :: forall ctx s k (n :: NetworkDiscriminant).
-        ( HasLogger IO WalletWorkerLog ctx
-        , HasNetworkLayer IO ctx
-        , HasDBLayer IO s k ctx
-        , Typeable s
-        , Typeable n
-        )
-    => Proxy n
-    -> ctx
+    :: forall (n :: NetworkDiscriminant)
+     . Tracer IO WalletWorkerLog
+    -> NetworkLayer IO Block
+    -> DBLayer IO (SeqState n ShelleyKey) ShelleyKey
     -> WalletId
     -> IO ()
-manageRewardBalance _ ctx wid = db & \DBLayer{..} -> do
-    watchNodeTip $ \bh -> do
+manageRewardBalance tr' netLayer db@DBLayer{..} wid = do
+    watchNodeTip netLayer $ \bh -> do
          traceWith tr $ MsgRewardBalanceQuery bh
          query <- runExceptT $ do
-            (acct, _, _) <- withExceptT ErrFetchRewardsReadRewardAccount $
-                readRewardAccount @ctx @s @k @n ctx wid
-            queryRewardBalance @ctx ctx acct
+            (acct, _, _) <- withExceptT ErrFetchRewardsReadRewardAccount
+                $ readRewardAccount db wid
+            liftIO $ getCachedRewardAccountBalance netLayer acct
          traceWith tr $ MsgRewardBalanceResult query
          case query of
             Right amt -> do
@@ -1379,9 +1375,7 @@ manageRewardBalance _ ctx wid = db & \DBLayer{..} -> do
     traceWith tr MsgRewardBalanceExited
 
   where
-    db = ctx ^. dbLayer @IO @s @k
-    NetworkLayer{watchNodeTip} = ctx ^. networkLayer
-    tr = contramap MsgWallet $ ctx ^. logger @_ @WalletWorkerLog
+    tr = contramap MsgWallet tr'
 
 {-------------------------------------------------------------------------------
                                     Address
@@ -2497,7 +2491,7 @@ buildAndSignTransaction
     -> TransactionCtx
     -> SelectionOf TxOut
     -> ExceptT ErrSignPayment IO (Tx, TxMeta, UTCTime, SealedTx)
-buildAndSignTransaction ctx wid era mkRwdAcct pwd txCtx sel = db & \DBLayer{..} -> do
+buildAndSignTransaction ctx wid era mkRwdAcct pwd txCtx sel = db & \DBLayer{..} ->
     withRootKey @_ @s ctx wid pwd ErrSignPaymentWithRootKey $ \xprv scheme -> do
         let pwdP = preparePassphrase scheme pwd
         mapExceptT atomically $ do
@@ -2518,15 +2512,15 @@ buildAndSignTransaction ctx wid era mkRwdAcct pwd txCtx sel = db & \DBLayer{..} 
     nl = ctx ^. networkLayer
     ti = timeInterpreter nl
 
-
 -- | Construct an unsigned transaction from a given selection.
 constructTransaction
-    :: forall ctx s k (n :: NetworkDiscriminant).
-        ( HasTransactionLayer k 'CredFromKeyK ctx
+    :: forall ctx s k (n :: NetworkDiscriminant) ktype.
+        ( HasTransactionLayer k ktype ctx
         , HasDBLayer IO s k ctx
         , HasNetworkLayer IO ctx
         , Typeable s
         , Typeable n
+        , Typeable k
         )
     => ctx
     -> WalletId
@@ -2536,14 +2530,14 @@ constructTransaction
     -> ExceptT ErrConstructTx IO SealedTx
 constructTransaction ctx wid era txCtx sel = db & \DBLayer{..} -> do
     (_, xpub, _) <- withExceptT ErrConstructTxReadRewardAccount $
-        readRewardAccount @ctx @s @k @n ctx wid
+        shelleyOnlyReadRewardAccount @s @k @n db wid
     mapExceptT atomically $ do
         pp <- liftIO $ currentProtocolParameters nl
         withExceptT ErrConstructTxBody $ ExceptT $ pure $
             mkUnsignedTransaction tl era xpub pp txCtx sel
   where
     db = ctx ^. dbLayer @IO @s @k
-    tl = ctx ^. transactionLayer @k @'CredFromKeyK
+    tl = ctx ^. transactionLayer @k @ktype
     nl = ctx ^. networkLayer
 
 -- | Construct an unsigned transaction from a given selection
@@ -2605,20 +2599,19 @@ constructSharedTransaction ctx wid era txCtx sel = db & \DBLayer{..} -> do
 --
 -- If no TTL is provided, a default of 2 hours is used (note: there is no
 -- particular reason why we chose that duration).
-getTxExpiry
+transactionExpirySlot
     :: TimeInterpreter (ExceptT PastHorizonException IO)
     -- ^ Context for time to slot calculation.
     -> Maybe NominalDiffTime
     -- ^ Time to live (TTL) in seconds from now.
     -> IO SlotNo
-getTxExpiry ti maybeTTL = do
-    expTime <- addRelTime ttl <$> currentRelativeTime (unsafeExtendSafeZone ti)
-    interpretQuery (unsafeExtendSafeZone ti) $ ceilingSlotAt expTime
+transactionExpirySlot safeTimeInterpreter maybeTTL =
+    interpretQuery timeInterpreter . ceilingSlotAt . addRelTime ttl
+        =<< currentRelativeTime timeInterpreter
   where
-    ttl = fromMaybe defaultTTL maybeTTL
-
-    defaultTTL :: NominalDiffTime
-    defaultTTL = 7200  -- that's 2 hours
+    timeInterpreter = unsafeExtendSafeZone safeTimeInterpreter
+    ttl :: NominalDiffTime = fromMaybe defaultTTL maybeTTL
+    defaultTTL :: NominalDiffTime = 7200  -- that's 2 hours
 
 constructTxMeta
     :: forall ctx s k.
@@ -3123,28 +3116,44 @@ joinStakePool ctx currentEpoch knownPools pid poolStatus wid =
     nl = ctx ^. networkLayer
 
 -- | Helper function to factor necessary logic for quitting a stake pool.
-quitStakePool
-    :: forall ctx s k
-     . HasDBLayer IO s k ctx
-    => ctx
+validatedQuitStakePoolAction
+    :: forall s k
+     . DBLayer IO s k
     -> WalletId
     -> Withdrawal
-    -> ExceptT ErrStakePoolDelegation IO DelegationAction
-quitStakePool ctx wid wdrl = db & \DBLayer{..} -> do
-    (_ , walDelegation) <- mapExceptT atomically
-        $ withExceptT ErrStakePoolDelegationNoSuchWallet
-        $ withNoSuchWallet wid
-        $ readWalletMeta wid
-
-    rewards <- liftIO
-        $ fetchRewardBalance @ctx @s @k ctx wid
-
-    withExceptT ErrStakePoolQuit $ except $
-        guardQuit walDelegation wdrl rewards
-
+    -> IO DelegationAction
+validatedQuitStakePoolAction db@DBLayer{..} walletId withdrawal = do
+    (_, delegation) <- atomically (readWalletMeta walletId)
+        >>= maybe
+            (throwIO (ExceptionStakePoolDelegation
+                (ErrStakePoolDelegationNoSuchWallet
+                    (ErrNoSuchWallet walletId))))
+            pure
+    rewards <- liftIO $ fetchRewardBalance @s @k db walletId
+    either (throwIO . ExceptionStakePoolDelegation . ErrStakePoolQuit) pure
+        (guardQuit delegation withdrawal rewards)
     pure Quit
-  where
-    db = ctx ^. dbLayer @IO @s @k
+
+quitStakePool
+    :: forall (n :: NetworkDiscriminant)
+     . NetworkLayer IO Block
+    -> DBLayer IO (SeqState n ShelleyKey) ShelleyKey
+    -> TimeInterpreter (ExceptT PastHorizonException IO)
+    -> WalletId
+    -> IO TransactionCtx
+quitStakePool netLayer db timeInterpreter walletId = do
+    (rewardAccount, _, derivationPath) <-
+        runExceptT (readRewardAccount db walletId)
+            >>= either (throwIO . ExceptionReadRewardAccount) pure
+    withdrawal <- WithdrawalSelf rewardAccount derivationPath
+        <$> getCachedRewardAccountBalance netLayer rewardAccount
+    action <- validatedQuitStakePoolAction db walletId withdrawal
+    ttl <- transactionExpirySlot timeInterpreter  Nothing
+    pure defaultTransactionCtx
+        { txWithdrawal = withdrawal
+        , txValidityInterval = (Nothing, ttl)
+        , txDelegationAction = Just action
+        }
 
 {-------------------------------------------------------------------------------
                                  Fee Estimation
@@ -3522,7 +3531,8 @@ guardSoftIndex
     => DerivationIndex
     -> ExceptT (ErrInvalidDerivationIndex 'Soft 'CredFromKeyK) m (Index 'Soft whatever)
 guardSoftIndex ix =
-    if ix > DerivationIndex (getIndex @'Soft maxBound) || ix < DerivationIndex (getIndex @'Soft minBound)
+    if ix > DerivationIndex (getIndex @'Soft maxBound) ||
+       ix < DerivationIndex (getIndex @'Soft minBound)
     then throwE $ ErrIndexOutOfBound minBound maxBound ix
     else pure (Index $ getDerivationIndex ix)
 
@@ -3531,7 +3541,8 @@ guardHardIndex
     => DerivationIndex
     -> ExceptT (ErrInvalidDerivationIndex 'Hardened level) m (Index 'Hardened whatever)
 guardHardIndex ix =
-    if ix > DerivationIndex (getIndex @'Hardened maxBound) || ix < DerivationIndex (getIndex @'Hardened minBound)
+    if ix > DerivationIndex (getIndex @'Hardened maxBound) ||
+       ix < DerivationIndex (getIndex @'Hardened minBound)
     then throwE $ ErrIndexOutOfBound minBound maxBound ix
     else pure (Index $ getDerivationIndex ix)
 
@@ -3715,11 +3726,6 @@ data ErrGetPolicyId
     | ErrGetPolicyIdWrongMintingBurningTemplate
     deriving (Show, Eq)
 
-newtype ErrMintBurnAssets
-    = ErrMintBurnNotImplemented T.Text
-      -- ^ Temporary error constructor.
-    deriving (Show, Eq)
-
 -- | Errors that can occur when signing a transaction.
 data ErrWitnessTx
     = ErrWitnessTxSignTx ErrSignTx
@@ -3792,6 +3798,7 @@ data ErrStakePoolDelegation
     = ErrStakePoolDelegationNoSuchWallet ErrNoSuchWallet
     | ErrStakePoolJoin ErrCannotJoin
     | ErrStakePoolQuit ErrCannotQuit
+    deriving (Show)
 
 -- | Errors that can occur when fetching the reward balance of a wallet
 newtype ErrFetchRewards
@@ -3847,6 +3854,51 @@ data ErrWritePolicyPublicKey
     | ErrWritePolicyPublicKeyWithRootKey ErrWithRootKey
     deriving (Generic, Eq, Show)
 
+-- | This exception type should gradually replace all cases of `ExceptT Err*`
+-- as there is no point in tracking errors at the type level
+-- which represent exceptional cases and are always propagated to clients.
+data WalletException
+    = ExceptionSignMetadataWith ErrSignMetadataWith
+    | ExceptionDerivePublicKey ErrDerivePublicKey
+    | ExceptionAddCosignerKey ErrAddCosignerKey
+    | ExceptionConstructSharedWallet ErrConstructSharedWallet
+    | ExceptionReadAccountPublicKey ErrReadAccountPublicKey
+    | ExceptionListUTxOStatistics ErrListUTxOStatistics
+    | ExceptionSignPayment ErrSignPayment
+    | ExceptionBalanceTx ErrBalanceTx
+    | ExceptionBalanceTxInternalError ErrBalanceTxInternalError
+    | ExceptionSubmitTransaction ErrSubmitTransaction
+    | ExceptionConstructTx ErrConstructTx
+    | ExceptionGetPolicyId ErrGetPolicyId
+    | ExceptionWitnessTx ErrWitnessTx
+    | ExceptionDecodeTx ErrDecodeTx
+    | ExceptionSubmitTx ErrSubmitTx
+    | ExceptionUpdatePassphrase ErrUpdatePassphrase
+    | ExceptionWithRootKey ErrWithRootKey
+    | ExceptionListTransactions ErrListTransactions
+    | ExceptionGetTransaction ErrGetTransaction
+    | ExceptionStartTimeLaterThanEndTime ErrStartTimeLaterThanEndTime
+    | ExceptionCreateMigrationPlan ErrCreateMigrationPlan
+    | ExceptionSelectAssets ErrSelectAssets
+    | ExceptionStakePoolDelegation ErrStakePoolDelegation
+    | ExceptionFetchRewards ErrFetchRewards
+    | ExceptionWalletNotResponding ErrWalletNotResponding
+    | ExceptionCreateRandomAddress ErrCreateRandomAddress
+    | ExceptionImportRandomAddress ErrImportRandomAddress
+    | ExceptionNotASequentialWallet ErrNotASequentialWallet
+    | ExceptionReadRewardAccount ErrReadRewardAccount
+    | ExceptionWithdrawalNotWorth ErrWithdrawalNotWorth
+    | ExceptionReadPolicyPublicKey ErrReadPolicyPublicKey
+    | ExceptionWritePolicyPublicKey ErrWritePolicyPublicKey
+    | forall level. ExceptionSoftDerivationIndex
+        (ErrInvalidDerivationIndex 'Soft level)
+    | forall level. ExceptionHardenedDerivationIndex
+        (ErrInvalidDerivationIndex 'Hardened level)
+
+deriving instance (Show WalletException)
+
+instance Exception WalletException
+
 {-------------------------------------------------------------------------------
                                    Utils
 -------------------------------------------------------------------------------}
@@ -3891,11 +3943,7 @@ guardJoin knownPools delegation pid mRetirementEpochInfo = do
   where
     WalletDelegation {active, next} = delegation
 
-guardQuit
-    :: WalletDelegation
-    -> Withdrawal
-    -> Coin
-    -> Either ErrCannotQuit ()
+guardQuit :: WalletDelegation -> Withdrawal -> Coin -> Either ErrCannotQuit ()
 guardQuit WalletDelegation{active,next} wdrl rewards = do
     let last_ = maybe active (view #status) $ lastMay next
 
@@ -4149,7 +4197,7 @@ posAndNegFromCardanoValue = foldMap go . Cardano.valueToList
        -> (TokenBundle.TokenBundle, TokenBundle.TokenBundle)
     go (Cardano.AdaAssetId, q) = partition q $
         TokenBundle.fromCoin . Coin.fromNatural
-    go ((Cardano.AssetId policy name), q) = partition q $ \n ->
+    go (Cardano.AssetId policy name, q) = partition q $ \n ->
         TokenBundle.fromFlatList (Coin 0)
             [ ( TokenBundle.AssetId (mkPolicyId policy) (mkTokenName name)
               , TokenQuantity n

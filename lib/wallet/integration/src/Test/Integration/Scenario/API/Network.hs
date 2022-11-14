@@ -18,6 +18,8 @@ import Cardano.Wallet.Api.Types
     , WalletStyle (..)
     , nextEpoch
     )
+import Cardano.Wallet.Pools
+    ( EpochInfo (..) )
 import Cardano.Wallet.Primitive.SyncProgress
     ( SyncProgress (..) )
 import Cardano.Wallet.Primitive.Types.ProtocolMagic
@@ -55,8 +57,6 @@ import Test.Utils.Paths
     ( inNixBuild )
 
 import qualified Cardano.Wallet.Api.Link as Link
-import Cardano.Wallet.Shelley.Pools
-    ( EpochInfo (..) )
 import qualified Network.HTTP.Types.Status as HTTP
 
 spec :: SpecWith Context

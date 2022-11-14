@@ -169,6 +169,8 @@ import Cardano.Wallet.Api.Types.Error
     ( ApiErrorInfo (..) )
 import Cardano.Wallet.Api.Types.SchemaMetadata
     ( TxMetadataSchema (..), parseSimpleMetadataFlag )
+import Cardano.Wallet.Pools
+    ( StakePoolLayer (..) )
 import Cardano.Wallet.Primitive.AddressDerivation
     ( DelegationAddress (..), Depth (..), PaymentAddress (..), Role (..) )
 import Cardano.Wallet.Primitive.AddressDerivation.Byron
@@ -195,8 +197,6 @@ import Cardano.Wallet.Shelley.Compatibility
     ( inspectAddress, rewardAccountFromAddress )
 import Cardano.Wallet.Shelley.Network.Discriminant
     ( HasNetworkId (networkIdVal) )
-import Cardano.Wallet.Shelley.Pools
-    ( StakePoolLayer (..) )
 import Control.Applicative
     ( liftA2 )
 import Control.Monad
@@ -338,7 +338,10 @@ server byron icarus shelley multisig spl ntp blockchainSource =
 
     shelleyTransactions :: Server (ShelleyTransactions n)
     shelleyTransactions =
-             constructTransaction shelley (delegationAddress @n) (knownPools spl) (getPoolLifeCycleStatus spl)
+             constructTransaction shelley
+                (delegationAddress @n)
+                (knownPools spl)
+                (getPoolLifeCycleStatus spl)
         :<|> signTransaction @_ @_ @_ @'CredFromKeyK shelley
         :<|>
             (\wid mMinWithdrawal mStart mEnd mOrder simpleMetadataFlag ->
@@ -507,7 +510,7 @@ server byron icarus shelley multisig spl ntp blockchainSource =
                 (icarus, deleteTransaction icarus wid txid)
              )
         :<|> (\wid tx -> withLegacyLayer wid
-                 (byron , do
+                 (byron, do
                     let pwd = coerce (getApiT $ tx ^. #passphrase)
                     genChange <- rndStateChange byron wid pwd
                     postTransactionOld byron genChange wid tx
@@ -519,7 +522,7 @@ server byron icarus shelley multisig spl ntp blockchainSource =
                  )
              )
        :<|> (\wid tx -> withLegacyLayer wid
-                (byron , postTransactionFeeOld byron wid tx)
+                (byron, postTransactionFeeOld byron wid tx)
                 (icarus, postTransactionFeeOld icarus wid tx)
             )
 

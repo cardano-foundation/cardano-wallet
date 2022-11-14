@@ -29,6 +29,8 @@ import Prelude
 
 import Cardano.Api
     ( NetworkId )
+import Cardano.Wallet
+    ( WalletException )
 import Cardano.Wallet.Api
     ( ApiLayer, ApiV2 )
 import Cardano.Wallet.Api.Http.Logging
@@ -36,13 +38,24 @@ import Cardano.Wallet.Api.Http.Logging
 import Cardano.Wallet.Api.Http.Server
     ( server )
 import Cardano.Wallet.Api.Http.Shelley.Server
-    ( HostPreference, Listen (..), ListenError (..), TlsConfiguration )
+    ( HostPreference
+    , Listen (..)
+    , ListenError (..)
+    , TlsConfiguration
+    , toServerError
+    )
 import Cardano.Wallet.DB.Sqlite.Migration
     ( DefaultFieldValues (..) )
 import Cardano.Wallet.DB.Store.Checkpoints
     ( PersistAddressBook )
 import Cardano.Wallet.Network
     ( NetworkLayer (..) )
+import Cardano.Wallet.Pools
+    ( StakePoolLayer (..)
+    , withBlockfrostStakePoolLayer
+    , withNodeStakePoolLayer
+    , withStakePoolDbLayer
+    )
 import Cardano.Wallet.Primitive.AddressDerivation
     ( DelegationAddress (..)
     , Depth (..)
@@ -107,12 +120,6 @@ import Cardano.Wallet.Shelley.Network.Discriminant
     , discriminantNetwork
     , networkDiscriminantToId
     )
-import Cardano.Wallet.Shelley.Pools
-    ( StakePoolLayer (..)
-    , withBlockfrostStakePoolLayer
-    , withNodeStakePoolLayer
-    , withStakePoolDbLayer
-    )
 import Cardano.Wallet.Shelley.Transaction
     ( newTransactionLayer )
 import Cardano.Wallet.TokenMetadata
@@ -129,14 +136,22 @@ import Cardano.Wallet.Tracers as Tracers
     )
 import Cardano.Wallet.Transaction
     ( TransactionLayer )
+import Control.Exception.Extra
+    ( handle )
 import Control.Monad.Trans.Class
     ( lift )
 import Control.Monad.Trans.Cont
     ( ContT (ContT), evalContT )
+import Control.Monad.Trans.Except
+    ( ExceptT (ExceptT) )
 import Control.Tracer
     ( Tracer, traceWith )
 import Data.Function
     ( (&) )
+import Data.Generics.Internal.VL
+    ( view )
+import Data.Generics.Product
+    ( typed )
 import Data.Maybe
     ( fromJust )
 import Data.Proxy
@@ -164,6 +179,7 @@ import qualified Cardano.Pool.DB.Sqlite as Pool
 import qualified Cardano.Wallet.Api.Http.Shelley.Server as Server
 import qualified Cardano.Wallet.DB.Layer as Sqlite
 import qualified Network.Wai.Handler.Warp as Warp
+import qualified Servant.Server as Servant
 
 -- | The @cardano-wallet@ main function. It takes the configuration
 -- which was passed from the CLI and environment and starts all components of
@@ -288,8 +304,11 @@ serveWallet
         lift $ apiLayer (newTransactionLayer netId) netLayer Server.idleWorker
 
     withShelleyApi netLayer =
-        lift $ apiLayer (newTransactionLayer netId) netLayer
-            (Server.manageRewardBalance proxyNetwork)
+        lift $ apiLayer (newTransactionLayer netId) netLayer $
+            Server.manageRewardBalance
+                <$> view typed
+                <*> view typed
+                <*> view typed
 
     withMultisigApi netLayer =
         lift $ apiLayer (newTransactionLayer netId) netLayer Server.idleWorker
@@ -319,8 +338,10 @@ serveWallet
         serverUrl <- getServerUrl tlsConfig socket
         let serverSettings = Warp.defaultSettings
                 & setBeforeMainLoop (beforeMainLoop serverUrl)
-        let application = Server.serve (Proxy @(ApiV2 n)) $
-                server byron icarus shelley multisig spl ntp blockchainSource
+            api = Proxy @(ApiV2 n)
+        let application = Server.serve api
+                $ Servant.hoistServer api handleWalletExceptions
+                $ server byron icarus shelley multisig spl ntp blockchainSource
         Server.start serverSettings apiServerTracer tlsConfig socket application
 
     apiLayer
@@ -387,6 +408,13 @@ serveWallet
             dbFactory
             tokenMetaClient
             coworker
+
+handleWalletExceptions :: forall x. Servant.Handler x -> Servant.Handler x
+handleWalletExceptions =
+    Servant.Handler
+    . ExceptT
+    . handle (pure . Left . toServerError @WalletException)
+    . Servant.runHandler
 
 withNtpClient :: Tracer IO NtpTrace -> ContT r IO NtpClient
 withNtpClient tr = do

@@ -242,6 +242,8 @@ import Cardano.Wallet.DB
     ( DBFactory, DBLayer )
 import Cardano.Wallet.Network
     ( NetworkLayer )
+import Cardano.Wallet.Pools
+    ( StakePool )
 import Cardano.Wallet.Primitive.AddressDerivation
     ( Depth, DerivationIndex, Role )
 import Cardano.Wallet.Primitive.Types
@@ -308,8 +310,6 @@ import Servant.API.Verbs
     )
 
 import qualified Cardano.Wallet.Primitive.Types as W
-import Cardano.Wallet.Shelley.Pools
-    ( StakePool )
 
 type ApiV2 n = "v2" :> Api n
 
@@ -1164,15 +1164,16 @@ type PostExternalTransaction = "proxy"
 
 data ApiLayer s (k :: Depth -> Type -> Type) ktype
     = ApiLayer
-        (Tracer IO TxSubmitLog)
-        (Tracer IO (WorkerLog WalletId WalletWorkerLog))
-        (Block, NetworkParameters)
-        (NetworkLayer IO Block)
-        (TransactionLayer k ktype SealedTx)
-        (DBFactory IO s k)
-        (WorkerRegistry WalletId (DBLayer IO s k))
-        (Concierge IO WalletLock)
-        (TokenMetadataClient IO)
+        { tracerTxSubmit :: Tracer IO TxSubmitLog
+        , tracerWalletWorker :: Tracer IO (WorkerLog WalletId WalletWorkerLog)
+        , netParams :: (Block, NetworkParameters)
+        , netLayer :: NetworkLayer IO Block
+        , txLayer :: TransactionLayer k ktype SealedTx
+        , _dbFactory :: DBFactory IO s k
+        , _workerRegistry :: WorkerRegistry WalletId (DBLayer IO s k)
+        , concierge :: Concierge IO WalletLock
+        , _tokenMetadataClient :: TokenMetadataClient IO
+        }
     deriving (Generic)
 
 -- | Locks that are held by the wallet in order to enforce
