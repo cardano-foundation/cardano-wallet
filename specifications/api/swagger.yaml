@@ -1290,14 +1290,17 @@ x-otherCertificate: &otherCertificate
 x-transactionRedemptionRequest: &transactionRedemptionRequest
   <<: *walletMnemonicSentence
   description: |
-    When provided, attempts to withdraw rewards from the default stake address corresponding to the given mnemonic.
+    When provided, attempts to withdraw rewards from the default stake address
+    corresponding to the given mnemonic.
 
-    Should the rewards be null or too small to be worth withdrawing (i.e. the cost of adding them into the transaction
-    is more than their own intrinsic value), the server will reject the request with a `withdrawal_not_worth` error.
+    Should the rewards be null or too small to be worth withdrawing (i.e. the
+    cost of adding them into the transaction is more than their own intrinsic
+    value), the server will reject the request with a
+    `withdrawal_not_beneficial` error.
 
     withdrawal field    | reward balance | result
     ---                 | ---            | ---
-    any recovery phrase | too small      | x Error 403 `withdrawal_not_worth`
+    any recovery phrase | too small      | x Error 403 `withdrawal_not_beneficial`
     any recovery phrase | big enough     | ✓ withdrawal generated
 
 x-transactionWithdrawalRequestSelf: &transactionWithdrawalRequestSelf
@@ -4994,16 +4997,18 @@ x-errAlreadyWithdrawing: &errAlreadyWithdrawing
       enum: ['already_withdrawing']
 
 # TODO: Map this error to the place it belongs.
-x-errWithdrawalNotWorth: &errWithdrawalNotWorth
+x-errWithdrawalNotBeneficial: &errWithdrawalNotBeneficial
   <<: *responsesErr
-  title: withdrawal_not_worth
+  title: withdrawal_not_beneficial
   properties:
     message:
       type: string
-      description: May occur when withdrawing an amount would cost more than the withdrawn value.
+      description: |
+        Occurs when the cost of withdrawing a reward balance would be greater
+        than the reward balance itself.
     code:
       type: string
-      enum: ['withdrawal_not_worth']
+      enum: ['withdrawal_not_beneficial']
 
 # TODO: Map this error to the place it belongs.
 x-errPastHorizon: &errPastHorizon

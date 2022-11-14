@@ -156,7 +156,7 @@ data ApiErrorInfo
     | ValidityIntervalNotInsideScriptTimelock
     | WalletAlreadyExists
     | WalletNotResponding
-    | WithdrawalNotWorth
+    | WithdrawalNotBeneficial
     | WrongEncryptionPassphrase
     | WrongMnemonic
     deriving (Eq, Generic, Show, Data, Typeable)

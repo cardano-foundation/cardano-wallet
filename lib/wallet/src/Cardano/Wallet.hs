@@ -134,7 +134,7 @@ module Cardano.Wallet
     , ErrSelectAssets(..)
     , ErrSignPayment (..)
     , ErrNotASequentialWallet (..)
-    , ErrWithdrawalNotWorth (..)
+    , ErrWithdrawalNotBeneficial (..)
     , ErrConstructTx (..)
     , ErrBalanceTx (..)
     , ErrBalanceTxInternalError (..)
@@ -1208,7 +1208,7 @@ mkExternalWithdrawal
     -> TransactionLayer k ktype tx
     -> AnyCardanoEra
     -> SomeMnemonic
-    -> IO (Either ErrWithdrawalNotWorth Withdrawal)
+    -> IO (Either ErrWithdrawalNotBeneficial Withdrawal)
 mkExternalWithdrawal netLayer txLayer era mnemonic = do
     let (_, rewardAccount, derivationPath) =
             someRewardAccount @ShelleyKey mnemonic
@@ -1262,16 +1262,16 @@ checkRewardIsWorthTxCost
     -> ProtocolParameters
     -> AnyCardanoEra
     -> Coin
-    -> Either ErrWithdrawalNotWorth ()
+    -> Either ErrWithdrawalNotBeneficial ()
 checkRewardIsWorthTxCost txLayer pp era balance = do
     when (balance == Coin 0)
-        $ Left ErrWithdrawalNotWorth
+        $ Left ErrWithdrawalNotBeneficial
     let minimumCost txCtx = calcMinimumCost txLayer era pp txCtx emptySkeleton
         costWith = minimumCost $ mkTxCtx balance
         costWithout = minimumCost $ mkTxCtx $ Coin 0
         worthOfWithdrawal = Coin.toInteger costWith - Coin.toInteger costWithout
     when (Coin.toInteger balance < 2 * worthOfWithdrawal)
-        $ Left ErrWithdrawalNotWorth
+        $ Left ErrWithdrawalNotBeneficial
   where
     mkTxCtx wdrl = defaultTransactionCtx
         { txWithdrawal = WithdrawalSelf dummyAcct dummyPath wdrl }
@@ -3839,8 +3839,8 @@ data ErrReadRewardAccount
     | ErrReadRewardAccountNoSuchWallet ErrNoSuchWallet
     deriving (Generic, Eq, Show)
 
-data ErrWithdrawalNotWorth
-    = ErrWithdrawalNotWorth
+data ErrWithdrawalNotBeneficial
+    = ErrWithdrawalNotBeneficial
     deriving (Generic, Eq, Show)
 
 data ErrReadPolicyPublicKey
@@ -3887,7 +3887,7 @@ data WalletException
     | ExceptionImportRandomAddress ErrImportRandomAddress
     | ExceptionNotASequentialWallet ErrNotASequentialWallet
     | ExceptionReadRewardAccount ErrReadRewardAccount
-    | ExceptionWithdrawalNotWorth ErrWithdrawalNotWorth
+    | ExceptionWithdrawalNotBeneficial ErrWithdrawalNotBeneficial
     | ExceptionReadPolicyPublicKey ErrReadPolicyPublicKey
     | ExceptionWritePolicyPublicKey ErrWritePolicyPublicKey
     | forall level. ExceptionSoftDerivationIndex
