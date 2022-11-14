@@ -2762,7 +2762,7 @@ components:
         mint: *ApiAssetMintBurn
         burn: *ApiAssetMintBurn
         validity_interval: *ApiValidityIntervalExplicit
-        script_integrity: *scriptIntegrityHash 
+        script_integrity: *scriptIntegrityHash
         extra_signatures:
           type: array
           minItems: 0
