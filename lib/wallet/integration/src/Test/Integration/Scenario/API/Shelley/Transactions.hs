@@ -164,7 +164,7 @@ import Test.Integration.Framework.TestData
     , errMsg403NotAShelleyWallet
     , errMsg403NotEnoughMoney
     , errMsg403TxTooBig
-    , errMsg403WithdrawalNotWorth
+    , errMsg403WithdrawalNotBeneficial
     , errMsg403WrongPass
     , errMsg404CannotFindTx
     , errMsg404NoAsset
@@ -2148,7 +2148,7 @@ spec = describe "SHELLEY_TRANSACTIONS" $ do
             (Link.createTransactionOld @'Shelley wSelf) Default payload
         verify rTx
             [ expectResponseCode HTTP.status403
-            , expectErrorMessage errMsg403WithdrawalNotWorth
+            , expectErrorMessage errMsg403WithdrawalNotBeneficial
             ]
 
     it "SHELLEY_TX_REDEEM_04 - Can always ask for self redemption" $
@@ -2199,7 +2199,7 @@ spec = describe "SHELLEY_TRANSACTIONS" $ do
             (Link.createTransactionOld @'Shelley wSelf) Default payload
         verify rTx
             [ expectResponseCode HTTP.status403
-            , expectErrorMessage errMsg403WithdrawalNotWorth
+            , expectErrorMessage errMsg403WithdrawalNotBeneficial
             ]
 
     it "SHELLEY_TX_REDEEM_06 - Can't redeem rewards using byron wallet" $

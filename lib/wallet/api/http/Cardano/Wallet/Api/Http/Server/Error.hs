@@ -70,7 +70,7 @@ import Cardano.Wallet
     , ErrWalletAlreadyExists (..)
     , ErrWalletNotResponding (..)
     , ErrWithRootKey (..)
-    , ErrWithdrawalNotWorth (..)
+    , ErrWithdrawalNotBeneficial (..)
     , ErrWitnessTx (..)
     , ErrWritePolicyPublicKey (..)
     , ErrWrongPassphrase (..)
@@ -223,7 +223,7 @@ instance IsServerError WalletException where
         ExceptionImportRandomAddress e -> toServerError e
         ExceptionNotASequentialWallet e -> toServerError e
         ExceptionReadRewardAccount e -> toServerError e
-        ExceptionWithdrawalNotWorth e -> toServerError e
+        ExceptionWithdrawalNotBeneficial e -> toServerError e
         ExceptionReadPolicyPublicKey e -> toServerError e
         ExceptionWritePolicyPublicKey e -> toServerError e
         ExceptionSoftDerivationIndex e -> toServerError e
@@ -744,10 +744,10 @@ instance IsServerError ErrNotASequentialWallet where
                 , "Make sure to use a sequential wallet style, like Icarus."
                 ]
 
-instance IsServerError ErrWithdrawalNotWorth where
+instance IsServerError ErrWithdrawalNotBeneficial where
     toServerError = \case
-        ErrWithdrawalNotWorth ->
-            apiError err403 WithdrawalNotWorth $ mconcat
+        ErrWithdrawalNotBeneficial ->
+            apiError err403 WithdrawalNotBeneficial $ mconcat
                 [ "I've noticed that you're requesting a withdrawal from an "
                 , "account that is either empty or doesn't have a balance big "
                 , "enough to deserve being withdrawn. I won't proceed with that "

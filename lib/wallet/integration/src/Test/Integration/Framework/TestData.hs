@@ -80,7 +80,7 @@ module Test.Integration.Framework.TestData
     , errMsg400NumberOfWords
     , errMsgNotInDictionary
     , errMsg400MinWithdrawalWrong
-    , errMsg403WithdrawalNotWorth
+    , errMsg403WithdrawalNotBeneficial
     , errMsg403NotAShelleyWallet
     , errMsg403MinUTxOValue
     , errMsg403CouldntIdentifyAddrAsMine
@@ -512,8 +512,8 @@ errMsgNotInDictionary = "Found an unknown word not present in the pre-defined\
 errMsg400NumberOfWords :: String
 errMsg400NumberOfWords = "Invalid number of words:"
 
-errMsg403WithdrawalNotWorth :: String
-errMsg403WithdrawalNotWorth =
+errMsg403WithdrawalNotBeneficial :: String
+errMsg403WithdrawalNotBeneficial =
     "I've noticed that you're requesting a withdrawal from an account that is \
     \either empty or doesn't have a balance big enough to deserve being \
     \withdrawn. I won't proceed with that request."
