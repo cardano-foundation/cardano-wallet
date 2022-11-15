@@ -2441,30 +2441,30 @@ constructTransaction
                     NE.toList mintBurns
                 Nothing -> []
 
-        let preSel = PreSelection
-                { outputs = outs ++ mintingOuts
-                , assetsToMint = fst $ txCtx' ^. #txAssetsToMint
-                , assetsToBurn = fst $ txCtx' ^. #txAssetsToBurn
-                , extraCoinSource = fromMaybe (Coin 0) refund
-                , extraCoinSink = fromMaybe (Coin 0) deposit
-                }
         unbalancedTx <- liftHandler $
             W.constructTransaction @n @'CredFromKeyK
-                txLayer netLayer db wid era txCtx' preSel
+                txLayer netLayer db wid era txCtx' PreSelection
+                    { outputs = outs <> mintingOuts
+                    , assetsToMint = fst $ txCtx' ^. #txAssetsToMint
+                    , assetsToBurn = fst $ txCtx' ^. #txAssetsToBurn
+                    , extraCoinSource = fromMaybe (Coin 0) refund
+                    , extraCoinSink = fromMaybe (Coin 0) deposit
+                    }
 
-        let balancedPostData = ApiBalanceTransactionPostData
+        balancedTx <-
+            balanceTransaction ctx genChange (ApiT wid)
+                ApiBalanceTransactionPostData
                 { transaction = ApiT unbalancedTx
                 , inputs = []
                 , redeemers = []
                 , encoding = body ^. #encoding
                 }
-        balancedTx <-
-            balanceTransaction ctx genChange (ApiT wid) balancedPostData
+
         apiDecoded <- decodeTransaction @_ @_ @n ctx apiw balancedTx
 
         (_, _, rewardPath) <- liftHandler $ W.readRewardAccount @n db wid
 
-        pure $ ApiConstructTransaction
+        pure ApiConstructTransaction
             { transaction = balancedTx
             , coinSelection = mkApiCoinSelection
                 (maybe [] singleton deposit)

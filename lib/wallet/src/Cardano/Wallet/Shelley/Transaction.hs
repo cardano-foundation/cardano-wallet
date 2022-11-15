@@ -353,9 +353,8 @@ instance TxWitnessTagFor ByronKey where
     txWitnessTagFor = TxWitnessByronUTxO Byron
 
 constructUnsignedTx
-    :: forall era.
-        ( EraConstraints era
-        )
+    :: forall era
+     . EraConstraints era
     => Cardano.NetworkId
     -> (Maybe Cardano.TxMetadata, [Cardano.Certificate])
     -> (Maybe SlotNo, SlotNo)
@@ -2219,9 +2218,11 @@ sumVia :: (Foldable t, Num m) => (a -> m) -> t a -> m
 sumVia f = F.foldl' (\t -> (t +) . f) 0
 
 withShelleyBasedEra
-    :: forall a. ()
-    => AnyCardanoEra
-    -> (forall era. EraConstraints era => ShelleyBasedEra era -> Either ErrMkTransaction a)
+    :: forall a
+     . AnyCardanoEra
+    -> ( forall era. EraConstraints era
+         => ShelleyBasedEra era -> Either ErrMkTransaction a
+       )
     -> Either ErrMkTransaction a
 withShelleyBasedEra era fn = case era of
     AnyCardanoEra ByronEra    -> Left $ ErrMkTransactionInvalidEra era

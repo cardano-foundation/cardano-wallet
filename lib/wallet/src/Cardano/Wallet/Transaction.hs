@@ -397,21 +397,16 @@ data TransactionCtx = TransactionCtx
 -- | Represents a unbalanced selection.
 --
 data PreSelection = PreSelection
-    { outputs
-        :: ![TxOut]
-        -- ^ User-specified outputs
-    , assetsToMint
-        :: !TokenMap
-        -- ^ Assets to mint.
-    , assetsToBurn
-        :: !TokenMap
-        -- ^ Assets to burn.
-    , extraCoinSource
-        :: !Coin
-        -- ^ An extra source of ada.
-    , extraCoinSink
-        :: !Coin
-        -- ^ An extra sink for ada.
+    { outputs :: ![TxOut]
+      -- ^ User-specified outputs
+    , assetsToMint :: !TokenMap
+      -- ^ Assets to mint.
+    , assetsToBurn :: !TokenMap
+      -- ^ Assets to burn.
+    , extraCoinSource :: !Coin
+      -- ^ An extra source of ada.
+    , extraCoinSink :: !Coin
+      -- ^ An extra sink for ada.
     }
     deriving (Generic, Eq, Show)
 
