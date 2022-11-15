@@ -83,18 +83,20 @@ module Helpers
       fixture = ENV.fetch('TESTS_E2E_FIXTURES_FILE', nil)
       raise "File #{fixture} does not exist! (Hint: Template fixture file can be created with 'rake fixture_wallets_template'). Make sure to feed it with mnemonics of wallets with funds and assets." unless File.exist? fixture
 
-      wallets = JSON.parse File.read(fixture)
-      k = kind.to_s
-      t = type.to_s
+      wallets = from_json(fixture)
       if linux?
-        wallets['linux'][k][t]
+        wallets[:linux][kind][type]
       elsif mac?
-        wallets['macos'][k][t]
+        wallets[:macos][kind][type]
       elsif win?
-        wallets['windows'][k][t]
+        wallets[:windows][kind][type]
       else
         raise 'Unsupported platform!'
       end
+    end
+
+    def from_json(file)
+      JSON.parse(File.read(file), { symbolize_names: true })
     end
 
     def wget(url, file = nil)

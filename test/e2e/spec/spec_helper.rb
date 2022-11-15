@@ -286,12 +286,23 @@ def create_fixture_wallet(type)
               passphrase: PASS,
               mnemonic_sentence: get_fixture_wallet_mnemonics(:fixture, type.to_sym) }
   case type.to_sym
-  when :shelley, :shelley_light
+  when :shelley
     wallet = SHELLEY.wallets.create(payload)
     return_wallet_id(wallet)
   when :random, :icarus
     payload[:style] = type
     wallet = BYRON.wallets.create(payload)
+    return_wallet_id(wallet)
+  when :shared
+    script_template = { 'cosigners' =>
+                          { 'cosigner#0' => 'self' },
+                        'template' =>
+                            { 'all' =>
+                               ['cosigner#0'] } }
+    payload[:account_index] = '0H'
+    payload[:payment_script_template] = script_template
+    payload[:delegation_script_template] = script_template
+    wallet = SHARED.wallets.create(payload)
     return_wallet_id(wallet)
   else
     raise "Unsupported wallet type: #{type}"
@@ -308,17 +319,6 @@ def create_target_wallet(type)
   case type.to_sym
   when :shelley
     wallet = SHELLEY.wallets.create(payload)
-    return_wallet_id(wallet)
-  when :shared
-    script_template = { 'cosigners' =>
-                          { 'cosigner#0' => 'self' },
-                        'template' =>
-                            { 'all' =>
-                               ['cosigner#0'] } }
-    payload[:account_index] = '0H'
-    payload[:payment_script_template] = script_template
-    payload[:delegation_script_template] = script_template
-    wallet = SHARED.wallets.create(payload)
     return_wallet_id(wallet)
   else
     raise "Unsupported wallet type: #{type}"
@@ -449,9 +449,9 @@ def verify_asset_balance(src_after, src_before, target_after, target_before, amt
   expect(src_avail_after).to eq src_avail_expected
 end
 
-def wait_for_tx_in_ledger(wid, tx_id)
+def wait_for_tx_in_ledger(wid, tx_id, wallet_api = SHELLEY)
   eventually "Tx #{tx_id} is in ledger" do
-    tx = SHELLEY.transactions.get(wid, tx_id)
+    tx = wallet_api.transactions.get(wid, tx_id)
     tx.code == 200 && tx['status'] == 'in_ledger'
   end
 end
