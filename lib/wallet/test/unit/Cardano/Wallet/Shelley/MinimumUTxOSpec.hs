@@ -61,7 +61,7 @@ import Cardano.Wallet.Primitive.Types.Tx
     ( TxOut (..) )
 import Cardano.Wallet.Primitive.Types.Tx.Constraints
     ( txOutMaxCoin, txOutMaxTokenQuantity, txOutMinTokenQuantity )
-import Cardano.Wallet.Primitive.Types.Tx.Gen
+import Cardano.Wallet.Primitive.Types.Tx.TxOut.Gen
     ( genTxOutTokenBundle )
 import Cardano.Wallet.Shelley.MinimumUTxO
     ( computeMinimumCoinForUTxO, isBelowMinimumCoinForUTxO )

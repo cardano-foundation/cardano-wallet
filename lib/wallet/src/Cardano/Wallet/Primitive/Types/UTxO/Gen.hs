@@ -8,10 +8,14 @@ module Cardano.Wallet.Primitive.Types.UTxO.Gen
 
 import Prelude
 
-import Cardano.Wallet.Primitive.Types.Tx
-    ( TxIn, TxOut )
-import Cardano.Wallet.Primitive.Types.Tx.Gen
-    ( genTxIn, genTxInLargeRange, genTxOut, shrinkTxIn, shrinkTxOut )
+import Cardano.Wallet.Primitive.Types.Tx.TxIn
+    ( TxIn )
+import Cardano.Wallet.Primitive.Types.Tx.TxIn.Gen
+    ( genTxIn, genTxInLargeRange, shrinkTxIn )
+import Cardano.Wallet.Primitive.Types.Tx.TxOut
+    ( TxOut )
+import Cardano.Wallet.Primitive.Types.Tx.TxOut.Gen
+    ( genTxOut, shrinkTxOut )
 import Cardano.Wallet.Primitive.Types.UTxO
     ( UTxO (..) )
 import Control.Monad

@@ -49,7 +49,7 @@ import Cardano.Wallet.Primitive.Types.Coin
     ( Coin (..) )
 import Cardano.Wallet.Primitive.Types.Hash
     ( Hash (..) )
-import Cardano.Wallet.Primitive.Types.Tx.Gen
+import Cardano.Wallet.Primitive.Types.Tx.TxOut.Gen
     ( genTxOutCoin, shrinkTxOutCoin )
 import Control.Arrow
     ( second )

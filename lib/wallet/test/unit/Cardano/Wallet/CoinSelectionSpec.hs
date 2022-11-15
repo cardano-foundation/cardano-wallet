@@ -24,10 +24,14 @@ import Cardano.Wallet.Primitive.Types.TokenBundle.Gen
     ( genTokenBundle, shrinkTokenBundle )
 import Cardano.Wallet.Primitive.Types.TokenMap.Gen
     ( genTokenMap, shrinkTokenMap )
-import Cardano.Wallet.Primitive.Types.Tx
-    ( TxIn, TxOut (..) )
-import Cardano.Wallet.Primitive.Types.Tx.Gen
-    ( genTxIn, genTxOut, shrinkTxIn, shrinkTxOut )
+import Cardano.Wallet.Primitive.Types.Tx.TxIn
+    ( TxIn )
+import Cardano.Wallet.Primitive.Types.Tx.TxIn.Gen
+    ( genTxIn, shrinkTxIn )
+import Cardano.Wallet.Primitive.Types.Tx.TxOut
+    ( TxOut (..) )
+import Cardano.Wallet.Primitive.Types.Tx.TxOut.Gen
+    ( genTxOut, shrinkTxOut )
 import Cardano.Wallet.Primitive.Types.UTxO
     ( UTxO )
 import Cardano.Wallet.Primitive.Types.UTxO.Gen

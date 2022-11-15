@@ -143,7 +143,9 @@ import Cardano.Wallet.Primitive.Types.Tx
 import Cardano.Wallet.Primitive.Types.Tx.Constraints
     ( txOutMaxCoin )
 import Cardano.Wallet.Primitive.Types.Tx.Gen
-    ( genTx, genTxInLargeRange, shrinkTx )
+    ( genTx, shrinkTx )
+import Cardano.Wallet.Primitive.Types.Tx.TxIn.Gen
+    ( genTxInLargeRange )
 import Cardano.Wallet.Primitive.Types.UTxO
     ( UTxO (..) )
 import Cardano.Wallet.Transaction

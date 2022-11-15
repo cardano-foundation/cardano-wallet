@@ -13,7 +13,7 @@ import Cardano.Wallet.CoinSelection
     ( WalletUTxO (..) )
 import Cardano.Wallet.Primitive.Types.Address.Gen
     ( genAddress, shrinkAddress )
-import Cardano.Wallet.Primitive.Types.Tx.Gen
+import Cardano.Wallet.Primitive.Types.Tx.TxIn.Gen
     ( genTxIn, genTxInLargeRange, shrinkTxIn )
 import Generics.SOP
     ( NP (..) )
