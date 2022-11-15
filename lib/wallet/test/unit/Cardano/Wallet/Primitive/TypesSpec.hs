@@ -114,7 +114,7 @@ import Cardano.Wallet.Primitive.Types.UTxO
     , restrictedTo
     )
 import Cardano.Wallet.Primitive.Types.UTxOStatistics
-    ( BoundType, HistogramBar (..), UTxOStatistics (..) )
+    ( HistogramBar (..), UTxOStatistics (..) )
 import Cardano.Wallet.Unsafe
     ( someDummyMnemonic )
 import Cardano.Wallet.Util
@@ -1220,10 +1220,6 @@ instance Arbitrary WalletName where
     shrink (WalletName t)
         | T.length t <= walletNameMinLength = []
         | otherwise = [WalletName $ T.take walletNameMinLength t]
-
-instance Arbitrary BoundType where
-    shrink = genericShrink
-    arbitrary = genericArbitrary
 
 instance Arbitrary SlotLength where
     shrink (SlotLength t) =
