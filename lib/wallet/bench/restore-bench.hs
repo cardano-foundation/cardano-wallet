@@ -151,6 +151,8 @@ import Cardano.Wallet.Shelley.Compatibility
     , fromCardanoBlock
     , numberOfTransactionsInBlock
     )
+import Cardano.Wallet.Shelley.Network.Discriminant
+    ( HasNetworkId (networkIdVal) )
 import Cardano.Wallet.Shelley.Network.Node
     ( withNetworkLayer )
 import Cardano.Wallet.Shelley.Transaction
@@ -244,8 +246,6 @@ import qualified Cardano.Wallet.Primitive.AddressDerivation.Shelley as Shelley
 import qualified Cardano.Wallet.Primitive.Types.TokenBundle as TokenBundle
 import qualified Cardano.Wallet.Primitive.Types.UTxOIndex as UTxOIndex
 import qualified Cardano.Wallet.Primitive.Types.UTxOSelection as UTxOSelection
-import Cardano.Wallet.Shelley.Network.Discriminant
-    ( HasNetworkId (networkIdVal) )
 import qualified Data.Aeson as Aeson
 import qualified Data.ByteString as BS
 import qualified Data.ByteString.Char8 as B8
