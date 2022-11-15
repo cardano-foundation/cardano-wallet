@@ -139,7 +139,7 @@ import Cardano.Wallet.Primitive.Types.RewardAccount
     ( RewardAccount )
 import Cardano.Wallet.Primitive.Types.Tx
     ( TxOut (..) )
-import Cardano.Wallet.Primitive.Types.UTxO
+import Cardano.Wallet.Primitive.Types.UTxOStatistics
     ( UTxOStatistics (..), computeUtxoStatistics, log10 )
 import Cardano.Wallet.Shelley
     ( SomeNetworkDiscriminant (..) )

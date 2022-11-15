@@ -336,12 +336,9 @@ import Cardano.Wallet.Primitive.Types.Tx.Constraints
 import Cardano.Wallet.Primitive.Types.Tx.Gen
     ( genTxOutCoin, genTxScriptValidity, shrinkTxScriptValidity )
 import Cardano.Wallet.Primitive.Types.UTxO
-    ( HistogramBar (..)
-    , UTxO (..)
-    , UTxOStatistics (..)
-    , computeUtxoStatistics
-    , log10
-    )
+    ( UTxO (..) )
+import Cardano.Wallet.Primitive.Types.UTxOStatistics
+    ( HistogramBar (..), UTxOStatistics (..), computeUtxoStatistics, log10 )
 import Cardano.Wallet.Shelley.Network.Discriminant
     ( DecodeAddress (..)
     , DecodeStakeAddress (..)

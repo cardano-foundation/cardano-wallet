@@ -105,18 +105,20 @@ import Cardano.Wallet.Primitive.Types.Tx.Tx
 import Cardano.Wallet.Primitive.Types.Tx.TxMeta
     ( Direction (..), TxMeta (..), TxStatus (..) )
 import Cardano.Wallet.Primitive.Types.UTxO
-    ( BoundType
-    , HistogramBar (..)
-    , UTxO (..)
-    , UTxOStatistics (..)
+    ( UTxO (..)
     , balance
-    , computeUtxoStatistics
     , dom
     , excluding
     , isSubsetOf
-    , log10
     , restrictedBy
     , restrictedTo
+    )
+import Cardano.Wallet.Primitive.Types.UTxOStatistics
+    ( BoundType
+    , HistogramBar (..)
+    , UTxOStatistics (..)
+    , computeUtxoStatistics
+    , log10
     )
 import Cardano.Wallet.Unsafe
     ( someDummyMnemonic )

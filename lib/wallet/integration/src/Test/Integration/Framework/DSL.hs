@@ -338,12 +338,9 @@ import Cardano.Wallet.Primitive.Types.Tx
 import Cardano.Wallet.Primitive.Types.Tx.Constraints
     ( txOutMaxCoin, txOutMinCoin )
 import Cardano.Wallet.Primitive.Types.UTxO
-    ( HistogramBar (..)
-    , UTxO (..)
-    , UTxOStatistics (..)
-    , computeUtxoStatistics
-    , log10
-    )
+    ( UTxO (..) )
+import Cardano.Wallet.Primitive.Types.UTxOStatistics
+    ( HistogramBar (..), UTxOStatistics (..), computeUtxoStatistics, log10 )
 import Control.Arrow
     ( second )
 import Control.Monad

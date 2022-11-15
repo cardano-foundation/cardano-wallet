@@ -452,11 +452,13 @@ import Cardano.Wallet.Primitive.Types.Tx
 import Cardano.Wallet.Primitive.Types.Tx.Constraints
     ( TxSize (..) )
 import Cardano.Wallet.Primitive.Types.UTxO
-    ( UTxO (..), UTxOStatistics, computeUtxoStatistics, log10 )
+    ( UTxO (..) )
 import Cardano.Wallet.Primitive.Types.UTxOIndex
     ( UTxOIndex )
 import Cardano.Wallet.Primitive.Types.UTxOSelection
     ( UTxOSelection )
+import Cardano.Wallet.Primitive.Types.UTxOStatistics
+    ( UTxOStatistics, computeUtxoStatistics, log10 )
 import Cardano.Wallet.Read.Tx.CBOR
     ( TxCBOR )
 import Cardano.Wallet.Shelley.Compatibility
