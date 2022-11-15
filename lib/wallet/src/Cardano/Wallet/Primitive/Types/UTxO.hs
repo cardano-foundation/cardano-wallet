@@ -77,8 +77,10 @@ import Cardano.Wallet.Primitive.Types.TokenBundle
     ( TokenBundle )
 import Cardano.Wallet.Primitive.Types.TokenMap
     ( AssetId )
-import Cardano.Wallet.Primitive.Types.Tx
-    ( TxIn, TxOut (..) )
+import Cardano.Wallet.Primitive.Types.Tx.TxIn
+    ( TxIn )
+import Cardano.Wallet.Primitive.Types.Tx.TxOut
+    ( TxOut (..) )
 import Control.DeepSeq
     ( NFData (..) )
 import Data.Bifunctor
