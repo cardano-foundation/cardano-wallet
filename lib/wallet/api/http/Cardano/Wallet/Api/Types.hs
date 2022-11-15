@@ -380,7 +380,7 @@ import Cardano.Wallet.Primitive.Types.Tx
     , TxStatus (..)
     , sealedTxFromBytes
     )
-import Cardano.Wallet.Primitive.Types.UTxO
+import Cardano.Wallet.Primitive.Types.UTxOStatistics
     ( BoundType, HistogramBar (..), UTxOStatistics (..) )
 import Cardano.Wallet.Shelley.Network.Discriminant
     ( DecodeAddress (..)

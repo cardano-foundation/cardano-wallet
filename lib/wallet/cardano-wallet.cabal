@@ -319,6 +319,7 @@ library
     Cardano.Wallet.Primitive.Types.UTxOIndex.Internal
     Cardano.Wallet.Primitive.Types.UTxOSelection
     Cardano.Wallet.Primitive.Types.UTxOSelection.Gen
+    Cardano.Wallet.Primitive.Types.UTxOStatistics
     Cardano.Wallet.Read
     Cardano.Wallet.Read.Eras
     Cardano.Wallet.Read.Eras.EraFun

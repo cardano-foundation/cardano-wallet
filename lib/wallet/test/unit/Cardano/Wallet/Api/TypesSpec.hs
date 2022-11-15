@@ -336,12 +336,9 @@ import Cardano.Wallet.Primitive.Types.Tx.Constraints
 import Cardano.Wallet.Primitive.Types.Tx.Gen
     ( genTxOutCoin, genTxScriptValidity, shrinkTxScriptValidity )
 import Cardano.Wallet.Primitive.Types.UTxO
-    ( HistogramBar (..)
-    , UTxO (..)
-    , UTxOStatistics (..)
-    , computeUtxoStatistics
-    , log10
-    )
+    ( UTxO (..) )
+import Cardano.Wallet.Primitive.Types.UTxOStatistics
+    ( HistogramBar (..), UTxOStatistics (..) )
 import Cardano.Wallet.Shelley.Network.Discriminant
     ( DecodeAddress (..)
     , DecodeStakeAddress (..)
@@ -505,6 +502,7 @@ import Web.HttpApiData
 
 import qualified Cardano.Wallet.Api.Types as Api
 import qualified Cardano.Wallet.Primitive.Types.Coin as Coin
+import qualified Cardano.Wallet.Primitive.Types.UTxOStatistics as UTxOStatistics
 import qualified Data.Aeson as Aeson
 import qualified Data.Aeson.Key as Aeson
 import qualified Data.Aeson.KeyMap as Aeson
@@ -2302,7 +2300,7 @@ instance Arbitrary ApiUtxoStatistics where
     arbitrary = do
         utxos <- arbitrary
         let (UTxOStatistics histoBars stakes bType) =
-                computeUtxoStatistics log10 utxos
+                UTxOStatistics.compute utxos
         let boundCountMap =
                 Map.fromList $ map (\(HistogramBar k v)-> (k,v)) histoBars
         return $ ApiUtxoStatistics

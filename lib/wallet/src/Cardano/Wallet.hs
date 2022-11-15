@@ -452,11 +452,13 @@ import Cardano.Wallet.Primitive.Types.Tx
 import Cardano.Wallet.Primitive.Types.Tx.Constraints
     ( TxSize (..) )
 import Cardano.Wallet.Primitive.Types.UTxO
-    ( UTxO (..), UTxOStatistics, computeUtxoStatistics, log10 )
+    ( UTxO (..) )
 import Cardano.Wallet.Primitive.Types.UTxOIndex
     ( UTxOIndex )
 import Cardano.Wallet.Primitive.Types.UTxOSelection
     ( UTxOSelection )
+import Cardano.Wallet.Primitive.Types.UTxOStatistics
+    ( UTxOStatistics )
 import Cardano.Wallet.Read.Tx.CBOR
     ( TxCBOR )
 import Cardano.Wallet.Shelley.Compatibility
@@ -623,6 +625,7 @@ import qualified Cardano.Wallet.Primitive.Types.Tx.TxOut as TxOut
 import qualified Cardano.Wallet.Primitive.Types.UTxO as UTxO
 import qualified Cardano.Wallet.Primitive.Types.UTxOIndex as UTxOIndex
 import qualified Cardano.Wallet.Primitive.Types.UTxOSelection as UTxOSelection
+import qualified Cardano.Wallet.Primitive.Types.UTxOStatistics as UTxOStatistics
 import qualified Data.ByteArray as BA
 import qualified Data.Foldable as F
 import qualified Data.List as L
@@ -944,7 +947,7 @@ listUtxoStatistics ctx wid = do
     (wal, _, pending) <- withExceptT
         ErrListUTxOStatisticsNoSuchWallet (readWallet @ctx @s @k ctx wid)
     let utxo = availableUTxO @s pending wal
-    pure $ computeUtxoStatistics log10 utxo
+    pure $ UTxOStatistics.compute utxo
 
 -- | Restore a wallet from its current tip.
 --
