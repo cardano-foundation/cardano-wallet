@@ -58,6 +58,8 @@ import Cardano.Wallet.Primitive.Passphrase
     ( Passphrase (..) )
 import Cardano.Wallet.Primitive.Types
     ( SortOrder (..) )
+import Cardano.Wallet.Primitive.Types.Hash
+    ( Hash (..) )
 import Cardano.Wallet.Primitive.Types.Tx
     ( Direction (..)
     , TxMetadata (..)
@@ -84,7 +86,7 @@ import Data.Maybe
 import Data.Quantity
     ( Quantity (..) )
 import Data.Text.Class
-    ( FromText (..) )
+    ( FromText (..), ToText (..) )
 import Data.Time.Clock
     ( UTCTime, addUTCTime )
 import Data.Time.Utils
@@ -144,6 +146,7 @@ import Test.Integration.Framework.TestData
     , errMsg403MinUTxOValue
     , errMsg403MissingWitsInTransaction
     , errMsg403SharedWalletPending
+    , errMsg404CannotFindTx
     , errMsg404NoWallet
     )
 
@@ -152,6 +155,7 @@ import qualified Cardano.Address.Style.Shelley as CA
 import qualified Cardano.Wallet.Api.Link as Link
 import qualified Cardano.Wallet.Primitive.Types.TokenMap as TokenMap
 import qualified Data.ByteArray as BA
+import qualified Data.ByteString as BS
 import qualified Data.List.NonEmpty as NE
 import qualified Data.Map.Strict as Map
 import qualified Data.Text as T
@@ -1151,6 +1155,64 @@ spec = describe "SHARED_TRANSACTIONS" $ do
               txs1 <- listSharedTransactions ctx w (Nothing) (Just te) Nothing
               txs2 <- listSharedTransactions ctx w (Just te) (Just te) Nothing
               length <$> [txs1, txs2] `shouldSatisfy` all (== 0)
+
+    it "SHARED_TRANSACTIONS_GET_02 - Deleted wallet" $ \ctx -> runResourceT $ do
+        (ApiSharedWallet (Right w)) <- emptySharedWallet ctx
+        _ <- request @ApiWallet
+            ctx (Link.deleteWallet @'Shared w) Default Empty
+        let txid = ApiT $ Hash $ BS.pack $ replicate 32 1
+        let link = Link.getTransaction @'Shared w (ApiTxId txid)
+        r <- request @(ApiTransaction n) ctx link Default Empty
+        expectResponseCode HTTP.status404 r
+        expectErrorMessage (errMsg404NoWallet $ w ^. walletId) r
+
+    it "SHARED_TRANSACTIONS_GET_03 - Using wrong transaction id" $ \ctx -> runResourceT $ do
+        (wSrc, (ApiSharedWallet (Right walDest))) <-
+            (,) <$> fixtureSharedWallet ctx <*> emptySharedWallet ctx
+        -- post tx
+        let amt = minUTxOValue (_mainEra ctx) :: Natural
+        rAddr <- request @[ApiAddress n] ctx
+            (Link.listAddresses @'Shared walDest) Default Empty
+        expectResponseCode HTTP.status200 rAddr
+        let addrs = getFromResponse Prelude.id rAddr
+        let destAddr = (addrs !! 1) ^. #id
+        let payload = Json [json|{
+                "payments": [{
+                    "address": #{destAddr},
+                    "amount": {
+                        "quantity": #{amt},
+                        "unit": "lovelace"
+                    }
+                }],
+                "passphrase": "cardano-wallet"
+            }|]
+
+        rTx <- request @(ApiConstructTransaction n) ctx
+            (Link.createUnsignedTransaction @'Shared wSrc) Default payload
+        verify rTx
+            [ expectSuccess
+            , expectResponseCode HTTP.status202
+            ]
+        let (ApiSerialisedTransaction apiTx _) =
+                getFromResponse #transaction rTx
+        signedTx <-
+            signSharedTx ctx wSrc apiTx [ expectResponseCode HTTP.status202 ]
+        submittedTx <- submitSharedTxWithWid ctx wSrc signedTx
+        let txid1 = getFromResponse #id submittedTx
+        let queryTx = Link.getTransaction @'Shared wSrc (ApiTxId txid1)
+        rGetTx <- request @(ApiTransaction n) ctx queryTx Default Empty
+        verify rGetTx
+            [ expectSuccess
+            , expectResponseCode HTTP.status200
+            , expectField (#direction . #getApiT) (`shouldBe` Outgoing)
+            , expectField (#status . #getApiT) (`shouldBe` Pending)
+            ]
+
+        let txid2 =  Hash $ BS.pack $ replicate 32 1
+        let link = Link.getTransaction @'Shared wSrc (ApiTxId $ ApiT txid2)
+        r <- request @(ApiTransaction n) ctx link Default Empty
+        expectResponseCode HTTP.status404 r
+        expectErrorMessage (errMsg404CannotFindTx $ toText txid2) r
   where
      listSharedTransactions ctx w mStart mEnd mOrder = do
          let path = Link.listTransactions' @'Shared w
