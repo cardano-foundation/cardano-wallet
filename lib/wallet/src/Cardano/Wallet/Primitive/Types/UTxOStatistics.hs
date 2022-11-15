@@ -96,7 +96,7 @@ instance Eq UTxOStatistics where
         sorted :: [HistogramBar] -> [HistogramBar]
         sorted = L.sortOn (\(HistogramBar key _) -> key)
 
--- An 'HistogramBar' captures the value of a particular bucket. It specifies
+-- | A 'HistogramBar' captures the value of a particular bucket. It specifies
 -- the bucket upper bound, and its corresponding distribution (on the y-axis).
 data HistogramBar = HistogramBar
     { bucketUpperBound :: !Word64
@@ -108,25 +108,24 @@ instance NFData HistogramBar
 instance Buildable HistogramBar where
     build (HistogramBar k v) = tupleF (k, v)
 
---  Buckets boundaries can be constructed in different ways
+-- | A method of distributing values into buckets.
 data BoundType = Log10 deriving (Eq, Show, Ord, Generic)
 
 instance NFData BoundType
 
--- | Smart-constructor to create bounds using a log-10 scale
+-- | Smart constructor to create bounds using a log-10 scale.
 log10 :: BoundType
 log10 = Log10
 {-# INLINE log10 #-}
 
--- | Compute UtxoStatistics from UTxOs
+-- | Computes a 'UTxOStatistics' object from a 'UTxO' set.
 computeUtxoStatistics :: BoundType -> UTxO -> UTxOStatistics
 computeUtxoStatistics btype
     = computeStatistics (pure . Coin.unsafeToWord64 . TxOut.coin) btype
     . Map.elems
     . unUTxO
 
--- | A more generic function for computing UTxO statistics on some other type of
--- data that maps to UTxO's values.
+-- | Computes a 'UTxOStatistics' object from an abstract source of values.
 computeStatistics :: (a -> [Word64]) -> BoundType -> [a] -> UTxOStatistics
 computeStatistics getCoins btype utxos =
     (F.fold foldStatistics (mconcat $ getCoins <$> utxos)) btype
