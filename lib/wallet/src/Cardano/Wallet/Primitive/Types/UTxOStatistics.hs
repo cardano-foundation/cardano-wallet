@@ -11,8 +11,8 @@ module Cardano.Wallet.Primitive.Types.UTxOStatistics
     ( UTxOStatistics (..)
     , BoundType
     , HistogramBar (..)
-    , computeStatistics
-    , computeUtxoStatistics
+    , compute
+    , computeWith
     , log10
     ) where
 
@@ -119,15 +119,15 @@ log10 = Log10
 {-# INLINE log10 #-}
 
 -- | Computes a 'UTxOStatistics' object from a 'UTxO' set.
-computeUtxoStatistics :: BoundType -> UTxO -> UTxOStatistics
-computeUtxoStatistics btype
-    = computeStatistics (pure . Coin.unsafeToWord64 . TxOut.coin) btype
+compute :: BoundType -> UTxO -> UTxOStatistics
+compute btype
+    = computeWith (pure . Coin.unsafeToWord64 . TxOut.coin) btype
     . Map.elems
     . unUTxO
 
 -- | Computes a 'UTxOStatistics' object from an abstract source of values.
-computeStatistics :: (a -> [Word64]) -> BoundType -> [a] -> UTxOStatistics
-computeStatistics getCoins btype utxos =
+computeWith :: (a -> [Word64]) -> BoundType -> [a] -> UTxOStatistics
+computeWith getCoins btype utxos =
     (F.fold foldStatistics (mconcat $ getCoins <$> utxos)) btype
   where
     foldStatistics :: F.Fold Word64 (BoundType -> UTxOStatistics)

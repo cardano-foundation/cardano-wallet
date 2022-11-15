@@ -140,7 +140,7 @@ import Cardano.Wallet.Primitive.Types.RewardAccount
 import Cardano.Wallet.Primitive.Types.Tx
     ( TxOut (..) )
 import Cardano.Wallet.Primitive.Types.UTxOStatistics
-    ( UTxOStatistics (..), computeUtxoStatistics, log10 )
+    ( UTxOStatistics (..) )
 import Cardano.Wallet.Shelley
     ( SomeNetworkDiscriminant (..) )
 import Cardano.Wallet.Shelley.Compatibility
@@ -246,6 +246,7 @@ import qualified Cardano.Wallet.Primitive.AddressDerivation.Shelley as Shelley
 import qualified Cardano.Wallet.Primitive.Types.TokenBundle as TokenBundle
 import qualified Cardano.Wallet.Primitive.Types.UTxOIndex as UTxOIndex
 import qualified Cardano.Wallet.Primitive.Types.UTxOSelection as UTxOSelection
+import qualified Cardano.Wallet.Primitive.Types.UTxOStatistics as UTxOStatistics
 import qualified Data.Aeson as Aeson
 import qualified Data.ByteString as BS
 import qualified Data.ByteString.Char8 as B8
@@ -493,8 +494,9 @@ benchmarksRnd _ w wid wname benchname restoreTime = do
         (cp, _, pending) <- unsafeRunExceptT $ W.readWallet w wid
         pure (cp, pending)
 
-    (utxo, _) <- bench "utxo statistics" $ do
-        pure $ computeUtxoStatistics log10 (totalUTxO pending cp)
+    (utxo, _) <- bench "utxo statistics" $
+        pure $ UTxOStatistics.compute UTxOStatistics.log10
+            (totalUTxO pending cp)
 
     (addresses, listAddressesTime) <- bench "list addresses"
         $ fmap (fromIntegral . length)
@@ -597,8 +599,9 @@ benchmarksSeq _ w wid _wname benchname restoreTime = do
     ((cp, pending), readWalletTime) <- bench "read wallet" $ do
         (cp, _, pending) <- unsafeRunExceptT $ W.readWallet w wid
         pure (cp, pending)
-    (utxo, _) <- bench "utxo statistics" $ do
-        pure $ computeUtxoStatistics log10 (totalUTxO pending cp)
+    (utxo, _) <- bench "utxo statistics" $
+        pure $ UTxOStatistics.compute UTxOStatistics.log10
+            (totalUTxO pending cp)
 
     (addresses, listAddressesTime) <- bench "list addresses"
         $ fmap (fromIntegral . length)

@@ -340,7 +340,7 @@ import Cardano.Wallet.Primitive.Types.Tx.Constraints
 import Cardano.Wallet.Primitive.Types.UTxO
     ( UTxO (..) )
 import Cardano.Wallet.Primitive.Types.UTxOStatistics
-    ( HistogramBar (..), UTxOStatistics (..), computeUtxoStatistics, log10 )
+    ( HistogramBar (..), UTxOStatistics (..) )
 import Control.Arrow
     ( second )
 import Control.Monad
@@ -467,6 +467,7 @@ import qualified Cardano.Wallet.Primitive.Types.Coin as Coin
 import qualified Cardano.Wallet.Primitive.Types.TokenBundle as TokenBundle
 import qualified Cardano.Wallet.Primitive.Types.TokenMap as TokenMap
 import qualified Cardano.Wallet.Primitive.Types.TokenQuantity as TokenQuantity
+import qualified Cardano.Wallet.Primitive.Types.UTxOStatistics as UTxOStatistics
 import qualified Codec.Binary.Bech32 as Bech32
 import qualified Data.Aeson as Aeson
 import qualified Data.Aeson.Key as Aeson
@@ -610,7 +611,7 @@ expectWalletUTxO coins = \case
                 )
         let utxo = UTxO $ Map.fromList $ zipWith constructUtxoEntry [0..] coins
         let (UTxOStatistics hist stakes bType) =
-                computeUtxoStatistics log10 utxo
+                UTxOStatistics.compute UTxOStatistics.log10 utxo
         let distr = Map.fromList $ map (\(HistogramBar k v)-> (k,v)) hist
         (ApiUtxoStatistics (Quantity (fromIntegral stakes)) (ApiT bType) distr)
             `shouldBe` stats

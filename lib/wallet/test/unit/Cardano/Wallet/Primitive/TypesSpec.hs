@@ -114,12 +114,7 @@ import Cardano.Wallet.Primitive.Types.UTxO
     , restrictedTo
     )
 import Cardano.Wallet.Primitive.Types.UTxOStatistics
-    ( BoundType
-    , HistogramBar (..)
-    , UTxOStatistics (..)
-    , computeUtxoStatistics
-    , log10
-    )
+    ( BoundType, HistogramBar (..), UTxOStatistics (..) )
 import Cardano.Wallet.Unsafe
     ( someDummyMnemonic )
 import Cardano.Wallet.Util
@@ -215,6 +210,7 @@ import UnliftIO.Exception
 
 import qualified Cardano.Wallet.Primitive.Types.Coin as Coin
 import qualified Cardano.Wallet.Primitive.Types.TokenBundle as TokenBundle
+import qualified Cardano.Wallet.Primitive.Types.UTxOStatistics as UTxOStatistics
 import qualified Data.ByteString as BS
 import qualified Data.Map
 import qualified Data.Map.Strict as Map
@@ -322,7 +318,7 @@ spec = describe "Cardano.Wallet.Primitive.Types" $ do
                     , (txin "f", txout $ ada 9000)
                     , (txin "g", txout $ ada 3000)
                     ]
-            let stats = computeUtxoStatistics log10 utxo
+            let stats = UTxOStatistics.compute UTxOStatistics.log10 utxo
             pretty stats `shouldBe` mconcat @String
                 [ "= Total value of 14061000005 lovelace across 7 UTxOs\n"
                 , ""
@@ -1006,7 +1002,7 @@ propUtxoTotalIsBalance bType (ShowFmt utxo) =
     Coin.fromWord64 totalStake == TokenBundle.getCoin (balance utxo)
     & cover 75 (utxo /= mempty) "UTxO /= empty"
   where
-    UTxOStatistics _ totalStake _ = computeUtxoStatistics bType utxo
+    UTxOStatistics _ totalStake _ = UTxOStatistics.compute bType utxo
 
 -- | The sum of the weighted distribution is greater than the sum of UTxOs
 -- outputs (we distribute the UtxO over buckets with upper-bounds, so everything
@@ -1021,7 +1017,7 @@ propUtxoSumDistribution bType (ShowFmt utxo) =
     & cover 75 (utxo /= mempty) "UTxO /= empty"
     & counterexample ("Histogram: " <> pretty bars)
   where
-    UTxOStatistics bars _ _ = computeUtxoStatistics bType utxo
+    UTxOStatistics bars _ _ = UTxOStatistics.compute bType utxo
     upperVal (HistogramBar k v) = k * v
 
 -- | The distribution is empty if and only if the UTxO is empty
@@ -1034,7 +1030,7 @@ propUtxoEmptyIsEmpty bType (ShowFmt utxo) =
     & cover 75 (utxo /= mempty) "UTxO /= empty"
     & counterexample ("Histogram: " <> pretty bars)
   where
-    UTxOStatistics bars _ _ = computeUtxoStatistics bType utxo
+    UTxOStatistics bars _ _ = UTxOStatistics.compute bType utxo
     isEmpty (HistogramBar _ v) = v == 0
 
 -- | The sum of the distribution coefficients should is equal to the number of
@@ -1048,7 +1044,7 @@ propUtxoWeightsEqualSize bType (ShowFmt utxo) =
     & cover 75 (utxo /= mempty) "UTxO /= empty"
     & counterexample ("Coefficients: " <> pretty (histElems bars))
   where
-    UTxOStatistics bars _ _ = computeUtxoStatistics bType utxo
+    UTxOStatistics bars _ _ = UTxOStatistics.compute bType utxo
     histElems = fmap $ \(HistogramBar _ v) -> v
 
 {-------------------------------------------------------------------------------
