@@ -136,20 +136,16 @@ computeStatistics getCoins btype utxos =
         <*> F.sum
 
     foldBuckets :: NonEmpty Word64 -> F.Fold Word64 [HistogramBar]
-    foldBuckets bounds =
-        let
-            step :: Map Word64 Word64 -> Word64 -> Map Word64 Word64
-            step x a = case Map.lookupGE a x of
-                Just (k, v) -> Map.insert k (v+1) x
-                Nothing -> Map.adjust (+1) (NE.head bounds) x
-            initial :: Map Word64 Word64
-            initial =
-                Map.fromList $ zip (NE.toList bounds) (repeat 0)
-            extract :: Map Word64 Word64 -> [HistogramBar]
-            extract =
-                map (uncurry HistogramBar) . Map.toList
-        in
-            F.Fold step initial extract
+    foldBuckets bounds = F.Fold step initial extract
+      where
+        step :: Map Word64 Word64 -> Word64 -> Map Word64 Word64
+        step x a = case Map.lookupGE a x of
+            Just (k, v) -> Map.insert k (v+1) x
+            Nothing -> Map.adjust (+1) (NE.head bounds) x
+        initial :: Map Word64 Word64
+        initial = Map.fromList $ zip (NE.toList bounds) (repeat 0)
+        extract :: Map Word64 Word64 -> [HistogramBar]
+        extract = map (uncurry HistogramBar) . Map.toList
 
     generateBounds :: BoundType -> NonEmpty Word64
     generateBounds = \case
