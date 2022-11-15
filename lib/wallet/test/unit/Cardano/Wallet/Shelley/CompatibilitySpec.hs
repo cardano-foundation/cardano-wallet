@@ -76,7 +76,7 @@ import Cardano.Wallet.Primitive.Types.Tx.Constraints
     , txOutMaxCoin
     , txOutMinCoin
     )
-import Cardano.Wallet.Primitive.Types.Tx.Gen
+import Cardano.Wallet.Primitive.Types.Tx.TxOut.Gen
     ( genTxOutTokenBundle )
 import Cardano.Wallet.Shelley.Compatibility
     ( CardanoBlock

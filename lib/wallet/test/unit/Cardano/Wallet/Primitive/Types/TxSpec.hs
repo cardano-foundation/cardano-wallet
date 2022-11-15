@@ -37,7 +37,9 @@ import Cardano.Wallet.Primitive.Types.Tx
     , txRemoveAssetId
     )
 import Cardano.Wallet.Primitive.Types.Tx.Gen
-    ( genTx, genTxOut, shrinkTx, shrinkTxOut )
+    ( genTx, shrinkTx )
+import Cardano.Wallet.Primitive.Types.Tx.TxOut.Gen
+    ( genTxOut, shrinkTxOut )
 import Data.ByteString
     ( ByteString, pack )
 import Data.Either

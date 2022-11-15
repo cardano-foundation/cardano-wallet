@@ -311,6 +311,7 @@ library
     Cardano.Wallet.Primitive.Types.Tx.TxIn.Gen
     Cardano.Wallet.Primitive.Types.Tx.TxMeta
     Cardano.Wallet.Primitive.Types.Tx.TxOut
+    Cardano.Wallet.Primitive.Types.Tx.TxOut.Gen
     Cardano.Wallet.Primitive.Types.Tx.TxSeq
     Cardano.Wallet.Primitive.Types.Tx.TxSeq.Gen
     Cardano.Wallet.Primitive.Types.UTxO

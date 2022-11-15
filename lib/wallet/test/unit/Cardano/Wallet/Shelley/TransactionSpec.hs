@@ -205,10 +205,10 @@ import Cardano.Wallet.Primitive.Types.Tx
     )
 import Cardano.Wallet.Primitive.Types.Tx.Constraints
     ( TxConstraints (..), TxSize (..) )
-import Cardano.Wallet.Primitive.Types.Tx.Gen
-    ( genTxOutTokenBundle )
 import Cardano.Wallet.Primitive.Types.Tx.TxIn.Gen
     ( genTxIn )
+import Cardano.Wallet.Primitive.Types.Tx.TxOut.Gen
+    ( genTxOutTokenBundle )
 import Cardano.Wallet.Primitive.Types.UTxO
     ( UTxO (..) )
 import Cardano.Wallet.Primitive.Types.UTxOIndex
@@ -433,8 +433,8 @@ import qualified Cardano.Wallet.Primitive.AddressDerivation.Shelley as Shelley
 import qualified Cardano.Wallet.Primitive.Types.Coin as Coin
 import qualified Cardano.Wallet.Primitive.Types.TokenBundle as TokenBundle
 import qualified Cardano.Wallet.Primitive.Types.TokenMap as TokenMap
-import qualified Cardano.Wallet.Primitive.Types.Tx.Gen as TxGen
 import qualified Cardano.Wallet.Primitive.Types.Tx.TxOut as TxOut
+import qualified Cardano.Wallet.Primitive.Types.Tx.TxOut.Gen as TxOutGen
 import qualified Cardano.Wallet.Primitive.Types.UTxO as UTxO
 import qualified Cardano.Wallet.Primitive.Types.UTxOIndex as UTxOIndex
 import qualified Cardano.Wallet.Shelley.Compatibility as Compatibility
@@ -2869,14 +2869,14 @@ instance Arbitrary (TxFeeAndChange [TxOut]) where
         fee <- genCoin
         change <- frequency
             [ (1, pure [])
-            , (1, (: []) <$> TxGen.genTxOut)
-            , (6, listOf TxGen.genTxOut)
+            , (1, (: []) <$> TxOutGen.genTxOut)
+            , (6, listOf TxOutGen.genTxOut)
             ]
         pure $ TxFeeAndChange fee change
     shrink (TxFeeAndChange fee change) =
         uncurry TxFeeAndChange <$> liftShrink2
             (shrinkCoin)
-            (shrinkList TxGen.shrinkTxOut)
+            (shrinkList TxOutGen.shrinkTxOut)
             (fee, change)
 
 -- A helper function to generate properties for 'distributeSurplus' on
