@@ -4730,20 +4730,6 @@ x-errBalanceTxUnderestimatedFee: &errBalanceTxUnderestimatedFee
       type: string
       enum: ["balance_tx_underestimated_fee"]
 
-x-errBalanceTxZeroAdaOutput: &errBalanceTxZeroAdaOutput
-  <<: *responsesErr
-  title: balance_tx_zero_ada_output
-  properties:
-    message:
-      type: string
-      description: |
-        I don't currently support balancing transactions containing
-        one or more zero-ada outputs. In the future I might be able
-        to increase the values to the minimum allowed ada value.
-    code:
-      type: string
-      enum: ["balance_tx_zero_ada_output"]
-
 x-errMethodNotAllowed: &errMethodNotAllowed
   <<: *responsesErr
   title: method_not_allowed
