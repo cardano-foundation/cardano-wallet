@@ -13,7 +13,6 @@ module Cardano.Wallet.Primitive.Types.UTxOStatistics
     , HistogramBar (..)
     , compute
     , computeWith
-    , log10
     ) where
 
 import Prelude
@@ -113,15 +112,10 @@ data BoundType = Log10 deriving (Eq, Show, Ord, Generic)
 
 instance NFData BoundType
 
--- | Smart constructor to create bounds using a log-10 scale.
-log10 :: BoundType
-log10 = Log10
-{-# INLINE log10 #-}
-
 -- | Computes a 'UTxOStatistics' object from a 'UTxO' set.
 compute :: UTxO -> UTxOStatistics
 compute
-    = computeWith (pure . Coin.unsafeToWord64 . TxOut.coin) log10
+    = computeWith (pure . Coin.unsafeToWord64 . TxOut.coin) Log10
     . Map.elems
     . unUTxO
 
