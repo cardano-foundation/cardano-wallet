@@ -1156,6 +1156,81 @@ spec = describe "SHARED_TRANSACTIONS" $ do
               txs2 <- listSharedTransactions ctx w (Just te) (Just te) Nothing
               length <$> [txs1, txs2] `shouldSatisfy` all (== 0)
 
+    it "SHARED_TRANSACTIONS_GET_01 - Can get Incoming and Outgoing transaction" $
+        \ctx -> runResourceT $ do
+
+        (wSrc, (ApiSharedWallet (Right walDest))) <-
+            (,) <$> fixtureSharedWallet ctx <*> emptySharedWallet ctx
+        -- post tx
+        let amt = minUTxOValue (_mainEra ctx) :: Natural
+        rAddr <- request @[ApiAddress n] ctx
+            (Link.listAddresses @'Shared walDest) Default Empty
+        expectResponseCode HTTP.status200 rAddr
+        let addrs = getFromResponse Prelude.id rAddr
+        let destAddr = (addrs !! 1) ^. #id
+        let payload = Json [json|{
+                "payments": [{
+                    "address": #{destAddr},
+                    "amount": {
+                        "quantity": #{amt},
+                        "unit": "lovelace"
+                    }
+                }],
+                "passphrase": "cardano-wallet"
+            }|]
+
+        rTx <- request @(ApiConstructTransaction n) ctx
+            (Link.createUnsignedTransaction @'Shared wSrc) Default payload
+        verify rTx
+            [ expectSuccess
+            , expectResponseCode HTTP.status202
+            ]
+        let (ApiSerialisedTransaction apiTx _) =
+                getFromResponse #transaction rTx
+        signedTx <-
+            signSharedTx ctx wSrc apiTx [ expectResponseCode HTTP.status202 ]
+        submittedTx <- submitSharedTxWithWid ctx wSrc signedTx
+        let txid = getFromResponse #id submittedTx
+        let queryTx = Link.getTransaction @'Shared wSrc (ApiTxId txid)
+        rGetTx <- request @(ApiTransaction n) ctx queryTx Default Empty
+        verify rGetTx
+            [ expectSuccess
+            , expectResponseCode HTTP.status200
+            , expectField (#direction . #getApiT) (`shouldBe` Outgoing)
+            , expectField (#status . #getApiT) (`shouldBe` Pending)
+            ]
+
+        eventually "Wallet balance is as expected" $ do
+            rGet <- request @ApiWallet ctx
+                (Link.getWallet @'Shared walDest) Default Empty
+            verify rGet
+                [ expectField
+                        (#balance . #total) (`shouldBe` Quantity amt)
+                , expectField
+                        (#balance . #available) (`shouldBe` Quantity amt)
+                ]
+
+        eventually "Transactions are available and in ledger" $ do
+            -- Verify Tx in source wallet is Outgoing and InLedger
+            let linkSrc = Link.getTransaction @'Shared
+                    wSrc (ApiTxId txid)
+            r1 <- request @(ApiTransaction n) ctx linkSrc Default Empty
+            verify r1
+                [ expectResponseCode HTTP.status200
+                , expectField (#direction . #getApiT) (`shouldBe` Outgoing)
+                , expectField (#status . #getApiT) (`shouldBe` InLedger)
+                ]
+
+            -- Verify Tx in destination wallet is Incoming and InLedger
+            let linkDest = Link.getTransaction
+                    @'Shared walDest (ApiTxId txid)
+            r2 <- request @(ApiTransaction n) ctx linkDest Default Empty
+            verify r2
+                [ expectResponseCode HTTP.status200
+                , expectField (#direction . #getApiT) (`shouldBe` Incoming)
+                , expectField (#status . #getApiT) (`shouldBe` InLedger)
+                ]
+
     it "SHARED_TRANSACTIONS_GET_02 - Deleted wallet" $ \ctx -> runResourceT $ do
         (ApiSharedWallet (Right w)) <- emptySharedWallet ctx
         _ <- request @ApiWallet
