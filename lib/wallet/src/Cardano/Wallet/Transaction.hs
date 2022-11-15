@@ -394,8 +394,7 @@ data TransactionCtx = TransactionCtx
     -- this. For instance: datums.
     } deriving (Show, Generic, Eq)
 
--- | Represents a unbalanced selection.
---
+-- | Represents a preliminary selection of tx outputs typically made by user.
 data PreSelection = PreSelection
     { outputs :: ![TxOut]
       -- ^ User-specified outputs
