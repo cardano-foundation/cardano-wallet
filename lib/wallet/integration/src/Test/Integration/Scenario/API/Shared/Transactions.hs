@@ -80,8 +80,10 @@ import Data.Maybe
     ( isJust )
 import Data.Quantity
     ( Quantity (..) )
+import Data.Text.Class
+    ( FromText (..) )
 import Data.Time.Clock
-    ( NominalDiffTime, UTCTime, addUTCTime, getCurrentTime )
+    ( UTCTime, addUTCTime )
 import Numeric.Natural
     ( Natural )
 import Test.Hspec
@@ -127,7 +129,8 @@ import Test.Integration.Framework.DSL
 import Test.Integration.Framework.Request
     ( RequestException )
 import Test.Integration.Framework.TestData
-    ( errMsg403EmptyUTxO
+    ( errMsg400StartTimeLaterThanEndTime
+    , errMsg403EmptyUTxO
     , errMsg403Fee
     , errMsg403InvalidConstructTx
     , errMsg403MinUTxOValue
@@ -976,6 +979,100 @@ spec = describe "SHARED_TRANSACTIONS" $ do
                     withQuery (query tc) $ Link.listTransactions @'Shared walDest
             rf <- request @([ApiTransaction n]) ctx link Default Empty
             verify rf (assertions tc)
+
+    describe "SHARED_TRANSACTIONS_LIST_02,03 - Faulty start, end, order values" $ do
+        let orderErr = "Please specify one of the following values:\
+            \ ascending, descending."
+        let startEndErr = "Expecting ISO 8601 date-and-time format\
+            \ (basic or extended), e.g. 2012-09-25T10:15:00Z."
+        let queries :: [TestCase [ApiTransaction n]] =
+                [
+                  TestCase
+                    { query = toQueryString [ ("start", "2009") ]
+                    , assertions =
+                             [ expectResponseCode HTTP.status400
+                             , expectErrorMessage startEndErr
+                             ]
+
+                    }
+                 , TestCase
+                     { query = toQueryString
+                             [ ("start", "2012-09-25T10:15:00Z")
+                             , ("end", "2016-11-21")
+                             ]
+                     , assertions =
+                             [ expectResponseCode HTTP.status400
+                             , expectErrorMessage startEndErr
+                             ]
+
+                     }
+                 , TestCase
+                     { query = toQueryString
+                             [ ("start", "2012-09-25")
+                             , ("end", "2016-11-21T10:15:00Z")
+                             ]
+                     , assertions =
+                             [ expectResponseCode HTTP.status400
+                             , expectErrorMessage startEndErr
+                             ]
+
+                     }
+                 , TestCase
+                     { query = toQueryString
+                             [ ("end", "2012-09-25T10:15:00Z")
+                             , ("start", "2016-11-21")
+                             ]
+                     , assertions =
+                             [ expectResponseCode HTTP.status400
+                             , expectErrorMessage startEndErr
+                             ]
+
+                     }
+                 , TestCase
+                     { query = toQueryString [ ("order", "scending") ]
+                     , assertions =
+                            [ expectResponseCode HTTP.status400
+                            , expectErrorMessage orderErr
+                            ]
+
+                     }
+                 , TestCase
+                     { query = toQueryString
+                             [ ("start", "2012-09-25T10:15:00Z")
+                             , ("order", "asc")
+                             ]
+                     , assertions =
+                             [ expectResponseCode HTTP.status400
+                             , expectErrorMessage orderErr
+                             ]
+                     }
+                ]
+
+        let withQuery q (method, link) = (method, link <> q)
+
+        forM_ queries $ \tc -> it (T.unpack $ query tc) $
+            \ctx -> runResourceT $ do
+                (ApiSharedWallet (Right w)) <- emptySharedWallet ctx
+                let link = withQuery (query tc) $
+                        Link.listTransactions @'Shared w
+                r <- request @([ApiTransaction n]) ctx link Default Empty
+                liftIO $ verify r (assertions tc)
+
+    it "SHARED_TRANSACTIONS_LIST_02 - Start time shouldn't be later than end time" $
+        \ctx -> runResourceT $ do
+            (ApiSharedWallet (Right w)) <- emptySharedWallet ctx
+            let startTime = "2009-09-09T09:09:09Z"
+            let endTime = "2001-01-01T01:01:01Z"
+            let link = Link.listTransactions' @'Shared w
+                    Nothing
+                    (either (const Nothing) Just $ fromText $ T.pack startTime)
+                    (either (const Nothing) Just $ fromText $ T.pack endTime)
+                    Nothing
+            r <- request @([ApiTransaction n]) ctx link Default Empty
+            expectResponseCode HTTP.status400 r
+            expectErrorMessage
+                (errMsg400StartTimeLaterThanEndTime startTime endTime) r
+            pure ()
 
   where
      realizeTx ctx w payload = do
