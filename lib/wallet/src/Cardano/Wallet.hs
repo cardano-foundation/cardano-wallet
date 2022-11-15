@@ -947,7 +947,7 @@ listUtxoStatistics ctx wid = do
     (wal, _, pending) <- withExceptT
         ErrListUTxOStatisticsNoSuchWallet (readWallet @ctx @s @k ctx wid)
     let utxo = availableUTxO @s pending wal
-    pure $ UTxOStatistics.compute UTxOStatistics.log10 utxo
+    pure $ UTxOStatistics.compute utxo
 
 -- | Restore a wallet from its current tip.
 --

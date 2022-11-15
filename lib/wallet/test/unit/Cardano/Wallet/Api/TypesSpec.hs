@@ -2300,7 +2300,7 @@ instance Arbitrary ApiUtxoStatistics where
     arbitrary = do
         utxos <- arbitrary
         let (UTxOStatistics histoBars stakes bType) =
-                UTxOStatistics.compute UTxOStatistics.log10 utxos
+                UTxOStatistics.compute utxos
         let boundCountMap =
                 Map.fromList $ map (\(HistogramBar k v)-> (k,v)) histoBars
         return $ ApiUtxoStatistics

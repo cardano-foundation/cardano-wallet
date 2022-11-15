@@ -495,8 +495,7 @@ benchmarksRnd _ w wid wname benchname restoreTime = do
         pure (cp, pending)
 
     (utxo, _) <- bench "utxo statistics" $
-        pure $ UTxOStatistics.compute UTxOStatistics.log10
-            (totalUTxO pending cp)
+        pure $ UTxOStatistics.compute (totalUTxO pending cp)
 
     (addresses, listAddressesTime) <- bench "list addresses"
         $ fmap (fromIntegral . length)
@@ -600,8 +599,7 @@ benchmarksSeq _ w wid _wname benchname restoreTime = do
         (cp, _, pending) <- unsafeRunExceptT $ W.readWallet w wid
         pure (cp, pending)
     (utxo, _) <- bench "utxo statistics" $
-        pure $ UTxOStatistics.compute UTxOStatistics.log10
-            (totalUTxO pending cp)
+        pure $ UTxOStatistics.compute (totalUTxO pending cp)
 
     (addresses, listAddressesTime) <- bench "list addresses"
         $ fmap (fromIntegral . length)

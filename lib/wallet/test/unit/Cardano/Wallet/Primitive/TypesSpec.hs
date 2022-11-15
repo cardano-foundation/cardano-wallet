@@ -318,7 +318,7 @@ spec = describe "Cardano.Wallet.Primitive.Types" $ do
                     , (txin "f", txout $ ada 9000)
                     , (txin "g", txout $ ada 3000)
                     ]
-            let stats = UTxOStatistics.compute UTxOStatistics.log10 utxo
+            let stats = UTxOStatistics.compute utxo
             pretty stats `shouldBe` mconcat @String
                 [ "= Total value of 14061000005 lovelace across 7 UTxOs\n"
                 , ""
@@ -995,56 +995,48 @@ prop_2_6_2 (ins, u) =
 
 -- | The 'total' stake in the statistics is the UTxO's balance
 propUtxoTotalIsBalance
-    :: BoundType
-    -> ShowFmt UTxO
-    -> Property
-propUtxoTotalIsBalance bType (ShowFmt utxo) =
+    :: ShowFmt UTxO -> Property
+propUtxoTotalIsBalance (ShowFmt utxo) =
     Coin.fromWord64 totalStake == TokenBundle.getCoin (balance utxo)
     & cover 75 (utxo /= mempty) "UTxO /= empty"
   where
-    UTxOStatistics _ totalStake _ = UTxOStatistics.compute bType utxo
+    UTxOStatistics _ totalStake _ = UTxOStatistics.compute utxo
 
 -- | The sum of the weighted distribution is greater than the sum of UTxOs
 -- outputs (we distribute the UtxO over buckets with upper-bounds, so everything
 -- in a bucket is lower than its upper-bound).
 propUtxoSumDistribution
-    :: BoundType
-    -> ShowFmt UTxO
-    -> Property
-propUtxoSumDistribution bType (ShowFmt utxo) =
+    :: ShowFmt UTxO -> Property
+propUtxoSumDistribution (ShowFmt utxo) =
     intCast (sum (upperVal <$> bars)) >=
         unCoin (TokenBundle.getCoin (balance utxo))
     & cover 75 (utxo /= mempty) "UTxO /= empty"
     & counterexample ("Histogram: " <> pretty bars)
   where
-    UTxOStatistics bars _ _ = UTxOStatistics.compute bType utxo
+    UTxOStatistics bars _ _ = UTxOStatistics.compute utxo
     upperVal (HistogramBar k v) = k * v
 
 -- | The distribution is empty if and only if the UTxO is empty
 propUtxoEmptyIsEmpty
-    :: BoundType
-    -> ShowFmt UTxO
-    -> Property
-propUtxoEmptyIsEmpty bType (ShowFmt utxo) =
+    :: ShowFmt UTxO -> Property
+propUtxoEmptyIsEmpty (ShowFmt utxo) =
     if all isEmpty bars then utxo === mempty else utxo =/= mempty
     & cover 75 (utxo /= mempty) "UTxO /= empty"
     & counterexample ("Histogram: " <> pretty bars)
   where
-    UTxOStatistics bars _ _ = UTxOStatistics.compute bType utxo
+    UTxOStatistics bars _ _ = UTxOStatistics.compute utxo
     isEmpty (HistogramBar _ v) = v == 0
 
 -- | The sum of the distribution coefficients should is equal to the number of
 -- UTxO entries
 propUtxoWeightsEqualSize
-    :: BoundType
-    -> ShowFmt UTxO
-    -> Property
-propUtxoWeightsEqualSize bType (ShowFmt utxo) =
+    :: ShowFmt UTxO -> Property
+propUtxoWeightsEqualSize (ShowFmt utxo) =
     sum (histElems bars) === fromIntegral (Map.size $ unUTxO utxo)
     & cover 75 (utxo /= mempty) "UTxO /= empty"
     & counterexample ("Coefficients: " <> pretty (histElems bars))
   where
-    UTxOStatistics bars _ _ = UTxOStatistics.compute bType utxo
+    UTxOStatistics bars _ _ = UTxOStatistics.compute utxo
     histElems = fmap $ \(HistogramBar _ v) -> v
 
 {-------------------------------------------------------------------------------

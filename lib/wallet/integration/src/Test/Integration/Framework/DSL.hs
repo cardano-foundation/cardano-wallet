@@ -610,8 +610,7 @@ expectWalletUTxO coins = \case
                 , TxOut addr (TokenBundle.fromCoin $ Coin c)
                 )
         let utxo = UTxO $ Map.fromList $ zipWith constructUtxoEntry [0..] coins
-        let (UTxOStatistics hist stakes bType) =
-                UTxOStatistics.compute UTxOStatistics.log10 utxo
+        let (UTxOStatistics hist stakes bType) = UTxOStatistics.compute utxo
         let distr = Map.fromList $ map (\(HistogramBar k v)-> (k,v)) hist
         (ApiUtxoStatistics (Quantity (fromIntegral stakes)) (ApiT bType) distr)
             `shouldBe` stats

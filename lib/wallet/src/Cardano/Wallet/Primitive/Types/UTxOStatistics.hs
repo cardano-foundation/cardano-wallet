@@ -119,9 +119,9 @@ log10 = Log10
 {-# INLINE log10 #-}
 
 -- | Computes a 'UTxOStatistics' object from a 'UTxO' set.
-compute :: BoundType -> UTxO -> UTxOStatistics
-compute btype
-    = computeWith (pure . Coin.unsafeToWord64 . TxOut.coin) btype
+compute :: UTxO -> UTxOStatistics
+compute
+    = computeWith (pure . Coin.unsafeToWord64 . TxOut.coin) log10
     . Map.elems
     . unUTxO
 
