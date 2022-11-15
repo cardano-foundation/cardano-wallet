@@ -125,17 +125,20 @@ import Test.Integration.Framework.DSL
     , unsafeRequest
     , utcIso8601ToText
     , verify
+    , walletId
     )
 import Test.Integration.Framework.Request
     ( RequestException )
 import Test.Integration.Framework.TestData
-    ( errMsg400StartTimeLaterThanEndTime
+    ( errMsg400MinWithdrawalWrong
+    , errMsg400StartTimeLaterThanEndTime
     , errMsg403EmptyUTxO
     , errMsg403Fee
     , errMsg403InvalidConstructTx
     , errMsg403MinUTxOValue
     , errMsg403MissingWitsInTransaction
     , errMsg403SharedWalletPending
+    , errMsg404NoWallet
     )
 
 import qualified Cardano.Address.Script as CA
@@ -1073,6 +1076,43 @@ spec = describe "SHARED_TRANSACTIONS" $ do
             expectErrorMessage
                 (errMsg400StartTimeLaterThanEndTime startTime endTime) r
             pure ()
+
+    it "SHARED_TRANSACTIONS_LIST_03 - Minimum withdrawal shouldn't be 0" $
+        \ctx -> runResourceT $ do
+            (ApiSharedWallet (Right w)) <- emptySharedWallet ctx
+            let link = Link.listTransactions' @'Shared w
+                    (Just 0)
+                    Nothing
+                    Nothing
+                    Nothing
+            r <- request @([ApiTransaction n]) ctx link Default Empty
+            expectResponseCode HTTP.status400 r
+            expectErrorMessage errMsg400MinWithdrawalWrong r
+            pure ()
+
+    it "SHARED_TRANSACTIONS_LIST_03 - \
+        \Minimum withdrawal can be 1, shows empty when no withdrawals" $
+        \ctx -> runResourceT $ do
+            (ApiSharedWallet (Right w)) <- emptySharedWallet ctx
+            let link = Link.listTransactions' @'Shared w
+                    (Just 1)
+                    Nothing
+                    Nothing
+                    Nothing
+            r <- request @([ApiTransaction n]) ctx link Default Empty
+            expectResponseCode HTTP.status200 r
+            let txs = getFromResponse Prelude.id r
+            txs `shouldBe` []
+
+    it "SHARED_TRANSACTIONS_LIST_04 - Deleted wallet" $ \ctx -> runResourceT $ do
+        (ApiSharedWallet (Right w)) <- emptySharedWallet ctx
+        _ <- request @ApiWallet ctx
+            (Link.deleteWallet @'Shared w) Default Empty
+        r <- request @([ApiTransaction n]) ctx
+            (Link.listTransactions @'Shared w)
+            Default Empty
+        expectResponseCode HTTP.status404 r
+        expectErrorMessage (errMsg404NoWallet $ w ^. walletId) r
 
   where
      realizeTx ctx w payload = do
