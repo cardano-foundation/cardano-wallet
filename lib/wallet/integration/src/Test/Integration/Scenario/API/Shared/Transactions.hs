@@ -42,6 +42,7 @@ import Cardano.Wallet.Api.Types
     , DecodeAddress
     , DecodeStakeAddress
     , EncodeAddress (..)
+    , Iso8601Time (..)
     , WalletStyle (..)
     , insertedAt
     )
@@ -55,6 +56,8 @@ import Cardano.Wallet.Primitive.AddressDiscovery.Shared
     ( CredentialType (..) )
 import Cardano.Wallet.Primitive.Passphrase
     ( Passphrase (..) )
+import Cardano.Wallet.Primitive.Types
+    ( SortOrder (..) )
 import Cardano.Wallet.Primitive.Types.Tx
     ( Direction (..)
     , TxMetadata (..)
@@ -84,6 +87,8 @@ import Data.Text.Class
     ( FromText (..) )
 import Data.Time.Clock
     ( UTCTime, addUTCTime )
+import Data.Time.Utils
+    ( utcTimePred, utcTimeSucc )
 import Numeric.Natural
     ( Natural )
 import Test.Hspec
@@ -122,6 +127,7 @@ import Test.Integration.Framework.DSL
     , signSharedTx
     , submitSharedTxWithWid
     , toQueryString
+    , unsafeGetTransactionTime
     , unsafeRequest
     , utcIso8601ToText
     , verify
@@ -1114,7 +1120,90 @@ spec = describe "SHARED_TRANSACTIONS" $ do
         expectResponseCode HTTP.status404 r
         expectErrorMessage (errMsg404NoWallet $ w ^. walletId) r
 
+    it "SHARED_TRANSACTIONS_LIST_RANGE_01 - \
+       \Transaction at time t is SELECTED by small ranges that cover it" $
+          \ctx -> runResourceT $ do
+              w <- fixtureSharedWalletWith ctx (minUTxOValue (_mainEra ctx))
+              t <- unsafeGetTransactionTime =<< listAllSharedTransactions ctx w
+              let (te, tl) = (utcTimePred t, utcTimeSucc t)
+              txs1 <- listSharedTransactions ctx w (Just t ) (Just t ) Nothing
+              txs2 <- listSharedTransactions ctx w (Just te) (Just t ) Nothing
+              txs3 <- listSharedTransactions ctx w (Just t ) (Just tl) Nothing
+              txs4 <- listSharedTransactions ctx w (Just te) (Just tl) Nothing
+              length <$> [txs1, txs2, txs3, txs4] `shouldSatisfy` all (== 1)
+
+    it "SHARED_TRANSACTIONS_LIST_RANGE_02 - \
+       \Transaction at time t is NOT selected by range (t + 𝛿t, ...)" $
+          \ctx -> runResourceT $ do
+              w <- fixtureSharedWalletWith ctx (minUTxOValue (_mainEra ctx))
+              t <- unsafeGetTransactionTime =<< listAllSharedTransactions ctx w
+              let tl = utcTimeSucc t
+              txs1 <- listSharedTransactions ctx w (Just tl) (Nothing) Nothing
+              txs2 <- listSharedTransactions ctx w (Just tl) (Just tl) Nothing
+              length <$> [txs1, txs2] `shouldSatisfy` all (== 0)
+
+    it "SHARED_TRANSACTIONS_LIST_RANGE_03 - \
+       \Transaction at time t is NOT selected by range (..., t - 𝛿t)" $
+          \ctx -> runResourceT $ do
+              w <- fixtureSharedWalletWith ctx (minUTxOValue (_mainEra ctx))
+              t <- unsafeGetTransactionTime =<< listAllSharedTransactions ctx w
+              let te = utcTimePred t
+              txs1 <- listSharedTransactions ctx w (Nothing) (Just te) Nothing
+              txs2 <- listSharedTransactions ctx w (Just te) (Just te) Nothing
+              length <$> [txs1, txs2] `shouldSatisfy` all (== 0)
   where
+     listSharedTransactions ctx w mStart mEnd mOrder = do
+         let path = Link.listTransactions' @'Shared w
+                    Nothing
+                    (Iso8601Time <$> mStart)
+                    (Iso8601Time <$> mEnd)
+                    mOrder
+         r <- request @[ApiTransaction n] ctx path Default Empty
+         expectResponseCode HTTP.status200 r
+         let txs = getFromResponse Prelude.id r
+         return txs
+
+     listAllSharedTransactions ctx w = do
+         let path = Link.listTransactions' @'Shared w
+                    Nothing Nothing Nothing (Just Descending)
+         r <- request @[ApiTransaction n] ctx path Default Empty
+         expectResponseCode HTTP.status200 r
+         let txs = getFromResponse Prelude.id r
+         return txs
+
+     fixtureSharedWalletWith ctx amt = do
+        (wSrc, wDest@(ApiSharedWallet (Right walDest))) <-
+            (,) <$> fixtureSharedWallet ctx <*> emptySharedWallet ctx
+
+        -- destination wallet
+        rAddr <- request @[ApiAddress n] ctx
+            (Link.listAddresses @'Shared walDest) Default Empty
+        expectResponseCode HTTP.status200 rAddr
+        let addrs = getFromResponse Prelude.id rAddr
+        let destAddr = (addrs !! 1) ^. #id
+        let payload = Json [json|{
+                "payments": [{
+                    "address": #{destAddr},
+                    "amount": {
+                        "quantity": #{amt},
+                        "unit": "lovelace"
+                    }
+                }],
+                "passphrase": "cardano-wallet"
+            }|]
+
+        -- post txs
+        realizeTx ctx wSrc payload
+        eventually "wDest balance is increased" $ do
+            wal <- getSharedWallet ctx wDest
+            let balanceExp =
+                    [ expectResponseCode HTTP.status200
+                    , expectField (traverse . #balance . #available)
+                        (`shouldBe` Quantity amt)
+                    ]
+            verify (fmap (view #wallet) <$> wal) balanceExp
+        pure walDest
+
      realizeTx ctx w payload = do
         rTx <- request @(ApiConstructTransaction n) ctx
             (Link.createUnsignedTransaction @'Shared w) Default payload
