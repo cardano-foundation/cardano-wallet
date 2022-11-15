@@ -100,14 +100,9 @@ import Cardano.Wallet.Primitive.Types.Tx
     , txScriptInvalid
     )
 import Cardano.Wallet.Primitive.Types.Tx.Gen
-    ( genTx
-    , genTxIn
-    , genTxOut
-    , genTxScriptValidity
-    , shrinkTx
-    , shrinkTxIn
-    , shrinkTxOut
-    )
+    ( genTx, genTxOut, genTxScriptValidity, shrinkTx, shrinkTxOut )
+import Cardano.Wallet.Primitive.Types.Tx.TxIn.Gen
+    ( genTxIn, shrinkTxIn )
 import Cardano.Wallet.Primitive.Types.Tx.TxSeq
     ( TxSeq )
 import Cardano.Wallet.Primitive.Types.Tx.TxSeq.Gen

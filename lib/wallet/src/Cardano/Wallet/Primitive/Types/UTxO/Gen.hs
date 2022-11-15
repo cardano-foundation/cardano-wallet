@@ -11,7 +11,9 @@ import Prelude
 import Cardano.Wallet.Primitive.Types.Tx
     ( TxIn, TxOut )
 import Cardano.Wallet.Primitive.Types.Tx.Gen
-    ( genTxIn, genTxInLargeRange, genTxOut, shrinkTxIn, shrinkTxOut )
+    ( genTxOut, shrinkTxOut )
+import Cardano.Wallet.Primitive.Types.Tx.TxIn.Gen
+    ( genTxIn, genTxInLargeRange, shrinkTxIn )
 import Cardano.Wallet.Primitive.Types.UTxO
     ( UTxO (..) )
 import Control.Monad

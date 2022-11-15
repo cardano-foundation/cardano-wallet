@@ -27,7 +27,9 @@ import Cardano.Wallet.Primitive.Types.TokenMap.Gen
 import Cardano.Wallet.Primitive.Types.Tx
     ( TxIn, TxOut (..) )
 import Cardano.Wallet.Primitive.Types.Tx.Gen
-    ( genTxIn, genTxOut, shrinkTxIn, shrinkTxOut )
+    ( genTxOut, shrinkTxOut )
+import Cardano.Wallet.Primitive.Types.Tx.TxIn.Gen
+    ( genTxIn, shrinkTxIn )
 import Cardano.Wallet.Primitive.Types.UTxO
     ( UTxO )
 import Cardano.Wallet.Primitive.Types.UTxO.Gen

@@ -21,7 +21,7 @@ import Cardano.Wallet.Primitive.Types.Address.Gen
     ( genAddress )
 import Cardano.Wallet.Primitive.Types.Tx
     ( TxIn, TxOut (..) )
-import Cardano.Wallet.Primitive.Types.Tx.Gen
+import Cardano.Wallet.Primitive.Types.Tx.TxIn.Gen
     ( genTxInLargeRange )
 import Cardano.Wallet.Primitive.Types.UTxO
     ( UTxO (..) )

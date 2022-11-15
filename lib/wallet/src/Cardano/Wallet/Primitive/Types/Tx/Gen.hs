@@ -6,21 +6,12 @@
 {-# OPTIONS_GHC -fno-warn-partial-type-signatures #-}
 
 module Cardano.Wallet.Primitive.Types.Tx.Gen
-    ( coarbitraryTxIn
-    , genTx
-    , genTxHash
-    , genTxIndex
-    , genTxIn
-    , genTxInFunction
-    , genTxInLargeRange
+    ( genTx
     , genTxOut
     , genTxOutCoin
     , genTxOutTokenBundle
     , genTxScriptValidity
     , shrinkTx
-    , shrinkTxHash
-    , shrinkTxIndex
-    , shrinkTxIn
     , shrinkTxOut
     , shrinkTxOutCoin
     , shrinkTxScriptValidity
@@ -40,7 +31,7 @@ import Cardano.Wallet.Primitive.Types.Coin
 import Cardano.Wallet.Primitive.Types.Coin.Gen
     ( genCoinPositive, shrinkCoinPositive )
 import Cardano.Wallet.Primitive.Types.Hash
-    ( Hash (..), mockHash )
+    ( mockHash )
 import Cardano.Wallet.Primitive.Types.RewardAccount
     ( RewardAccount (..) )
 import Cardano.Wallet.Primitive.Types.RewardAccount.Gen
@@ -62,26 +53,19 @@ import Cardano.Wallet.Primitive.Types.Tx.Constraints
     , txOutMinCoin
     , txOutMinTokenQuantity
     )
+import Cardano.Wallet.Primitive.Types.Tx.TxIn.Gen
+    ( genTxIn, shrinkTxIn )
 import Control.Monad
     ( replicateM )
-import Data.Either
-    ( fromRight )
 import Data.Map.Strict
     ( Map )
-import Data.Text.Class
-    ( FromText (..) )
-import Data.Word
-    ( Word16, Word32 )
 import Generics.SOP
     ( NP (..) )
 import GHC.Generics
     ( Generic )
 import Test.QuickCheck
     ( Gen
-    , arbitrary
     , choose
-    , coarbitrary
-    , elements
     , frequency
     , liftArbitrary
     , liftArbitrary2
@@ -92,16 +76,13 @@ import Test.QuickCheck
     , oneof
     , shrinkList
     , shrinkMapBy
-    , sized
     , suchThat
     )
 import Test.QuickCheck.Arbitrary.Generic
     ( genericArbitrary, genericShrink )
 import Test.QuickCheck.Extra
     ( chooseNatural
-    , genFunction
     , genMapWith
-    , genSized2With
     , genericRoundRobinShrink
     , shrinkInterleaved
     , shrinkMapWith
@@ -112,9 +93,7 @@ import Test.QuickCheck.Extra
 
 import qualified Cardano.Wallet.Primitive.Types.Coin as Coin
 import qualified Cardano.Wallet.Primitive.Types.TokenBundle as TokenBundle
-import qualified Data.ByteString.Char8 as B8
 import qualified Data.List as L
-import qualified Data.Text as T
 
 --------------------------------------------------------------------------------
 -- Transactions generated according to the size parameter
@@ -173,79 +152,6 @@ genTxScriptValidity = genericArbitrary
 
 shrinkTxScriptValidity :: TxScriptValidity -> [TxScriptValidity]
 shrinkTxScriptValidity = genericShrink
-
---------------------------------------------------------------------------------
--- Transaction hashes generated according to the size parameter
---------------------------------------------------------------------------------
-
-genTxHash :: Gen (Hash "Tx")
-genTxHash = sized $ \size -> elements $ take (max 1 size) txHashes
-
-shrinkTxHash :: Hash "Tx" -> [Hash "Tx"]
-shrinkTxHash x
-    | x == simplest = []
-    | otherwise = [simplest]
-  where
-    simplest = head txHashes
-
-txHashes :: [Hash "Tx"]
-txHashes = mkTxHash <$> ['0' .. '9'] <> ['A' .. 'F']
-
---------------------------------------------------------------------------------
--- Transaction hashes chosen from a large range (to minimize collisions)
---------------------------------------------------------------------------------
-
-genTxHashLargeRange :: Gen (Hash "Tx")
-genTxHashLargeRange = Hash . B8.pack <$> replicateM 32 arbitrary
-
---------------------------------------------------------------------------------
--- Transaction indices generated according to the size parameter
---------------------------------------------------------------------------------
-
-genTxIndex :: Gen Word32
-genTxIndex = sized $ \size -> elements $ take (max 1 size) txIndices
-
-shrinkTxIndex :: Word32 -> [Word32]
-shrinkTxIndex 0 = []
-shrinkTxIndex _ = [0]
-
-txIndices :: [Word32]
-txIndices =
-    let w16range = [0 ..] :: [Word16]
-    in fromIntegral <$> w16range
-
---------------------------------------------------------------------------------
--- Transaction inputs generated according to the size parameter
---------------------------------------------------------------------------------
-
-genTxIn :: Gen TxIn
-genTxIn = genSized2With TxIn genTxHash genTxIndex
-
-shrinkTxIn :: TxIn -> [TxIn]
-shrinkTxIn (TxIn h i) = uncurry TxIn <$> shrinkInterleaved
-    (h, shrinkTxHash)
-    (i, shrinkTxIndex)
-
---------------------------------------------------------------------------------
--- Transaction input functions
---------------------------------------------------------------------------------
-
-coarbitraryTxIn :: TxIn -> Gen a -> Gen a
-coarbitraryTxIn = coarbitrary . show
-
-genTxInFunction :: Gen a -> Gen (TxIn -> a)
-genTxInFunction = genFunction coarbitraryTxIn
-
---------------------------------------------------------------------------------
--- Transaction inputs chosen from a large range (to minimize collisions)
---------------------------------------------------------------------------------
-
-genTxInLargeRange :: Gen TxIn
-genTxInLargeRange = TxIn
-    <$> genTxHashLargeRange
-    -- Note that we don't need to choose indices from a large range, as hashes
-    -- are already chosen from a large range:
-    <*> genTxIndex
 
 --------------------------------------------------------------------------------
 -- Transaction outputs generated according to the size parameter
@@ -324,22 +230,3 @@ genTxOutTokenBundle fixedAssetCount
 
         integerToTokenQuantity :: Integer -> TokenQuantity
         integerToTokenQuantity = TokenQuantity . fromIntegral
-
---------------------------------------------------------------------------------
--- Internal utilities
---------------------------------------------------------------------------------
-
--- The input must be a character in the range [0-9] or [A-F].
---
-mkTxHash :: Char -> Hash "Tx"
-mkTxHash c
-    = fromRight reportError
-    $ fromText
-    $ T.pack
-    $ replicate txHashHexStringLength c
-  where
-    reportError = error $
-        "Unable to generate transaction hash from character: " <> show c
-
-txHashHexStringLength :: Int
-txHashHexStringLength = 64

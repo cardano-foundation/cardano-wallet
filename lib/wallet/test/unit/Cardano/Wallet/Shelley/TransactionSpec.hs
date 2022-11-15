@@ -206,7 +206,9 @@ import Cardano.Wallet.Primitive.Types.Tx
 import Cardano.Wallet.Primitive.Types.Tx.Constraints
     ( TxConstraints (..), TxSize (..) )
 import Cardano.Wallet.Primitive.Types.Tx.Gen
-    ( genTxIn, genTxOutTokenBundle )
+    ( genTxOutTokenBundle )
+import Cardano.Wallet.Primitive.Types.Tx.TxIn.Gen
+    ( genTxIn )
 import Cardano.Wallet.Primitive.Types.UTxO
     ( UTxO (..) )
 import Cardano.Wallet.Primitive.Types.UTxOIndex

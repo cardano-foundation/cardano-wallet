@@ -26,7 +26,9 @@ import Cardano.Wallet.Primitive.Types.TokenQuantity.Gen
 import Cardano.Wallet.Primitive.Types.Tx
     ( TxIn (..) )
 import Cardano.Wallet.Primitive.Types.Tx.Gen
-    ( genTxIn, genTxOutCoin, shrinkTxIn, shrinkTxOutCoin )
+    ( genTxOutCoin, shrinkTxOutCoin )
+import Cardano.Wallet.Primitive.Types.Tx.TxIn.Gen
+    ( genTxIn, shrinkTxIn )
 import Cardano.Wallet.Shelley.Compatibility.Ledger
     ( Convert (..) )
 import Data.Proxy
