@@ -43,6 +43,7 @@ import Cardano.Wallet.Api.Types
     , DecodeStakeAddress
     , EncodeAddress (..)
     , WalletStyle (..)
+    , insertedAt
     )
 import Cardano.Wallet.Api.Types.Transaction
     ( mkApiWitnessCount )
@@ -79,6 +80,8 @@ import Data.Maybe
     ( isJust )
 import Data.Quantity
     ( Quantity (..) )
+import Data.Time.Clock
+    ( NominalDiffTime, UTCTime, addUTCTime, getCurrentTime )
 import Numeric.Natural
     ( Natural )
 import Test.Hspec
@@ -98,6 +101,7 @@ import Test.Integration.Framework.DSL
     , expectErrorMessage
     , expectField
     , expectListField
+    , expectListSize
     , expectResponseCode
     , expectSuccess
     , faucetAmt
@@ -115,9 +119,13 @@ import Test.Integration.Framework.DSL
     , request
     , signSharedTx
     , submitSharedTxWithWid
+    , toQueryString
     , unsafeRequest
+    , utcIso8601ToText
     , verify
     )
+import Test.Integration.Framework.Request
+    ( RequestException )
 import Test.Integration.Framework.TestData
     ( errMsg403EmptyUTxO
     , errMsg403Fee
@@ -134,9 +142,14 @@ import qualified Cardano.Wallet.Primitive.Types.TokenMap as TokenMap
 import qualified Data.ByteArray as BA
 import qualified Data.List.NonEmpty as NE
 import qualified Data.Map.Strict as Map
+import qualified Data.Text as T
 import qualified Data.Text.Encoding as T
 import qualified Network.HTTP.Types as HTTP
 
+data TestCase a = TestCase
+    { query :: T.Text
+    , assertions :: [(HTTP.Status, Either RequestException a) -> IO ()]
+    }
 
 spec :: forall n.
     ( DecodeAddress n
@@ -666,20 +679,7 @@ spec = describe "SHARED_TRANSACTIONS" $ do
                 "passphrase": "cardano-wallet"
             }|]
 
-        rTx <- request @(ApiConstructTransaction n) ctx
-            (Link.createUnsignedTransaction @'Shared wSrc) Default payload
-        verify rTx
-            [ expectSuccess
-            , expectResponseCode HTTP.status202
-            ]
-        let (ApiSerialisedTransaction apiTx _) =
-                getFromResponse #transaction rTx
-        signedTx <-
-            signSharedTx ctx wSrc apiTx [ expectResponseCode HTTP.status202 ]
-        submittedTx <- submitSharedTxWithWid ctx wSrc signedTx
-        verify submittedTx
-            [ expectResponseCode HTTP.status202
-            ]
+        realizeTx ctx wSrc payload
 
         eventually "Wallet balance is as expected" $ do
             rGet <- request @ApiWallet ctx
@@ -701,7 +701,299 @@ spec = describe "SHARED_TRANSACTIONS" $ do
             , expectListField 1 (#direction . #getApiT) (`shouldBe` Incoming)
             ]
 
+    -- This scenario covers the following matrix of cases. Cases were generated
+    -- using one of pairwise test cases generation tools available online.
+    -- +---+----------+----------+------------+--------------+
+    --     |  start   |   end    |   order    |    result    |
+    -- +---+----------+----------+------------+--------------+
+    --   1 | edge     | edge     | ascending  | 2 ascending  |
+    --   2 | edge     | edge + 1 | descending | 2 descending |
+    --   3 | edge     | edge - 1 | empty      | 1st one      |
+    --   4 | edge     | empty    | empty      | 2 descending |
+    --   5 | edge + 1 | edge + 1 | empty      | 2nd one      |
+    --   6 | edge + 1 | edge - 1 | empty      | none         |
+    --   7 | edge + 1 | empty    | ascending  | 2nd one      |
+    --   8 | edge + 1 | edge     | descending | 2nd one      |
+    --   9 | edge - 1 | edge - 1 | ascending  | 1st one      |
+    --  10 | edge - 1 | empty    | descending | 2 descending |
+    --  11 | edge - 1 | edge     | empty      | 2 descending |
+    --  12 | edge - 1 | edge + 1 | empty      | 2 descending |
+    --  13 | empty    | empty    | empty      | 2 descending |
+    --  14 | empty    | edge     | empty      | 2 descending |
+    --  15 | empty    | edge + 1 | ascending  | 2 ascending  |
+    --  16 | empty    | edge - 1 | descending | 1st one      |
+    --  17 | t1       | t1       | empty      | 1st one      |
+    --  18 | t2       | t2       | descending | 2nd one      |
+    -- +---+----------+----------+------------+--------------+
+    it "SHARED_TRANSACTIONS_LIST_02,03x - Can limit/order results with start, end and order"
+        $ \ctx -> runResourceT $ do
+        let amt1 = minUTxOValue (_mainEra ctx)
+        let amt2 = 2 * amt1
+        (wSrc, wDest@(ApiSharedWallet (Right walDest))) <-
+            (,) <$> fixtureSharedWallet ctx <*> emptySharedWallet ctx
+
+        -- destination wallet
+        rAddr <- request @[ApiAddress n] ctx
+            (Link.listAddresses @'Shared walDest) Default Empty
+        expectResponseCode HTTP.status200 rAddr
+        let addrs = getFromResponse Prelude.id rAddr
+        let destAddr1 = (addrs !! 0) ^. #id
+        let destAddr2 = (addrs !! 1) ^. #id
+        let payload destination amt = Json [json|{
+                "payments": [{
+                    "address": #{destination},
+                    "amount": {
+                        "quantity": #{amt},
+                        "unit": "lovelace"
+                    }
+                }],
+                "passphrase": "cardano-wallet"
+            }|]
+
+        -- post txs
+        realizeTx ctx wSrc (payload destAddr1 amt1)
+        eventually "wDest balance is increased" $ do
+            wal <- getSharedWallet ctx wDest
+            let balanceExp =
+                    [ expectResponseCode HTTP.status200
+                    , expectField (traverse . #balance . #available)
+                        (`shouldBe` Quantity amt1)
+                    ]
+            verify (fmap (view #wallet) <$> wal) balanceExp
+
+        realizeTx ctx wSrc (payload destAddr2 amt2)
+        eventually "wDest balance is increased again" $ do
+            wal <- getSharedWallet ctx wDest
+            let balanceExp =
+                    [ expectResponseCode HTTP.status200
+                    , expectField (traverse . #balance . #available)
+                        (`shouldBe` Quantity (amt1 + amt2))
+                    ]
+            verify (fmap (view #wallet) <$> wal) balanceExp
+
+        txs <- eventually "I make sure there are exactly 2 transactions" $ do
+            let linkList = Link.listTransactions' @'Shared walDest
+                    Nothing
+                    Nothing
+                    Nothing
+                    Nothing
+            rl <- request @([ApiTransaction n]) ctx linkList Default Empty
+            verify rl [expectListSize 2]
+            pure (getFromResponse Prelude.id rl)
+
+        let [Just t2, Just t1] = fmap (fmap (view #time) . insertedAt) txs
+        let plusDelta, minusDelta :: UTCTime -> UTCTime
+            plusDelta = addUTCTime (toEnum 1000000000)
+            minusDelta = addUTCTime (toEnum (-1000000000))
+
+        let matrix :: [TestCase [ApiTransaction n]] =
+                [ TestCase -- 1
+                    { query = toQueryString
+                        [ ("start", utcIso8601ToText t1)
+                        , ("end", utcIso8601ToText t2)
+                        , ("order", "ascending")
+                        ]
+                    , assertions =
+                        [ expectListSize 2
+                        , expectListField 0 #amount (`shouldBe` Quantity amt1)
+                        , expectListField 1 #amount (`shouldBe` Quantity amt2)
+                        ]
+                    }
+                , TestCase -- 2
+                    { query = toQueryString
+                        [ ("start", utcIso8601ToText t1)
+                        , ("end", utcIso8601ToText $ plusDelta t2)
+                        , ("order", "descending")
+                        ]
+                    , assertions =
+                        [ expectListSize 2
+                        , expectListField 0 #amount (`shouldBe` Quantity amt2)
+                        , expectListField 1 #amount (`shouldBe` Quantity amt1)
+                        ]
+                    }
+                , TestCase -- 3
+                    { query = toQueryString
+                        [ ("start", utcIso8601ToText t1)
+                        , ("end", utcIso8601ToText $ minusDelta t2)
+                        ]
+                    , assertions =
+                        [ expectListSize 1
+                        , expectListField 0 #amount (`shouldBe` Quantity amt1)
+                        ]
+                    }
+                , TestCase -- 4
+                    { query = toQueryString
+                        [ ("start", utcIso8601ToText t1) ]
+                    , assertions =
+                        [ expectListSize 2
+                        , expectListField 0 #amount (`shouldBe` Quantity amt2)
+                        , expectListField 1 #amount (`shouldBe` Quantity amt1)
+                        ]
+                    }
+                , TestCase --5
+                    { query = toQueryString
+                        [ ("start", utcIso8601ToText $ plusDelta t1)
+                        , ("end", utcIso8601ToText $ plusDelta t2)
+                        ]
+                    , assertions =
+                        [ expectListSize 1
+                        , expectListField 0 #amount (`shouldBe` Quantity amt2)
+                        ]
+                    }
+                , TestCase -- 6
+                    { query = toQueryString
+                        [ ("start", utcIso8601ToText $ plusDelta t1)
+                        , ("end", utcIso8601ToText $ minusDelta t2)
+                        ]
+                    , assertions =
+                        [ expectListSize 0 ]
+                    }
+                , TestCase -- 7
+                    { query = toQueryString
+                        [ ("start", utcIso8601ToText $ plusDelta t1)
+                        , ("order", "ascending")
+                        ]
+                    , assertions =
+                        [ expectListSize 1
+                        , expectListField 0 #amount (`shouldBe` Quantity amt2)
+                        ]
+                    }
+                , TestCase -- 8
+                    { query = toQueryString
+                        [ ("order", "descending")
+                        , ("start", utcIso8601ToText $ plusDelta t1)
+                        , ("end", utcIso8601ToText t2)
+                        ]
+                    , assertions =
+                        [ expectListSize 1
+                        , expectListField 0 #amount (`shouldBe` Quantity amt2)
+                        ]
+                    }
+                , TestCase -- 9
+                    { query = toQueryString
+                        [ ("order", "ascending")
+                        , ("start", utcIso8601ToText $ minusDelta t1)
+                        , ("end", utcIso8601ToText $ minusDelta t2)
+                        ]
+                    , assertions =
+                        [ expectListSize 1
+                        , expectListField 0 #amount (`shouldBe` Quantity amt1)
+                        ]
+                    }
+                , TestCase -- 10
+                    { query = toQueryString
+                        [ ("order", "descending")
+                        , ("start", utcIso8601ToText $ minusDelta t1)
+                        ]
+                    , assertions =
+                        [ expectListSize 2
+                        , expectListField 0 #amount (`shouldBe` Quantity amt2)
+                        , expectListField 1 #amount (`shouldBe` Quantity amt1)
+                        ]
+                    }
+                , TestCase -- 11
+                    { query = toQueryString
+                        [ ("start", utcIso8601ToText $ minusDelta t1)
+                        , ("end", utcIso8601ToText t2)
+                        ]
+                    , assertions =
+                        [ expectListSize 2
+                        , expectListField 0 #amount (`shouldBe` Quantity amt2)
+                        , expectListField 1 #amount (`shouldBe` Quantity amt1)
+                        ]
+                    }
+                , TestCase -- 12
+                    { query = toQueryString
+                        [ ("start", utcIso8601ToText $ minusDelta t1)
+                        , ("end", utcIso8601ToText $ plusDelta t2)
+                        ]
+                    , assertions =
+                        [ expectListSize 2
+                        , expectListField 0 #amount (`shouldBe` Quantity amt2)
+                        , expectListField 1 #amount (`shouldBe` Quantity amt1)
+                        ]
+                    }
+                , TestCase -- 13
+                    { query = mempty
+                    , assertions =
+                        [ expectListSize 2
+                        , expectListField 0 #amount (`shouldBe` Quantity amt2)
+                        , expectListField 1 #amount (`shouldBe` Quantity amt1)
+                        ]
+                    }
+                , TestCase -- 14
+                    { query = toQueryString
+                        [ ("end", utcIso8601ToText t2) ]
+                    , assertions =
+                        [ expectListSize 2
+                        , expectListField 0 #amount (`shouldBe` Quantity amt2)
+                        , expectListField 1 #amount (`shouldBe` Quantity amt1)
+                        ]
+                    }
+                , TestCase -- 15
+                    { query = toQueryString
+                        [ ("end", utcIso8601ToText $ plusDelta t2) ]
+                    , assertions =
+                        [ expectListSize 2
+                        , expectListField 0 #amount (`shouldBe` Quantity amt2)
+                        , expectListField 1 #amount (`shouldBe` Quantity amt1)
+                        ]
+                    }
+                , TestCase -- 16
+                    { query = toQueryString
+                        [ ("end", utcIso8601ToText $ minusDelta t2) ]
+                    , assertions =
+                        [ expectListSize 1
+                        , expectListField 0 #amount (`shouldBe` Quantity amt1)
+                        ]
+                    }
+                , TestCase -- 17
+                    { query = toQueryString
+                        [ ("start", utcIso8601ToText t1)
+                        , ("end", utcIso8601ToText t1)
+                        ]
+                    , assertions =
+                        [ expectListSize 1
+                        , expectListField 0 #amount (`shouldBe` Quantity amt1)
+                        ]
+                    }
+                , TestCase -- 18
+                    { query = toQueryString
+                        [ ("start", utcIso8601ToText t2)
+                        , ("end", utcIso8601ToText t2)
+                        ]
+                    , assertions =
+                        [ expectListSize 1
+                        , expectListField 0 #amount (`shouldBe` Quantity amt2)
+                        ]
+                    }
+                ]
+
+        let withQuery q (method, link) = (method, link <> q)
+
+        liftIO $ forM_ matrix $ \tc -> do
+            let link =
+                    withQuery (query tc) $ Link.listTransactions @'Shared walDest
+            rf <- request @([ApiTransaction n]) ctx link Default Empty
+            verify rf (assertions tc)
+
   where
+     realizeTx ctx w payload = do
+        rTx <- request @(ApiConstructTransaction n) ctx
+            (Link.createUnsignedTransaction @'Shared w) Default payload
+        verify rTx
+            [ expectSuccess
+            , expectResponseCode HTTP.status202
+            ]
+        let (ApiSerialisedTransaction apiTx _) =
+                getFromResponse #transaction rTx
+        signedTx <-
+            signSharedTx ctx w apiTx [ expectResponseCode HTTP.status202 ]
+        submittedTx <- submitSharedTxWithWid ctx w signedTx
+        verify submittedTx
+            [ expectResponseCode HTTP.status202
+            ]
+
      fundSharedWallet ctx amt sharedWals = do
         let wal = case NE.head sharedWals of
                 ApiSharedWallet (Right wal') -> wal'
@@ -743,7 +1035,7 @@ spec = describe "SHARED_TRANSACTIONS" $ do
                 , expectField (traverse . #balance . #available) (`shouldBe` Quantity amt)
                 ]
 
-     fixtureSharedWallet ctx = do
+     emptySharedWallet ctx = do
         m15txt <- liftIO $ genMnemonics M15
         m12txt <- liftIO $ genMnemonics M12
         let (Right m15) = mkSomeMnemonic @'[ 15 ] m15txt
@@ -770,11 +1062,11 @@ spec = describe "SHARED_TRANSACTIONS" $ do
         verify (fmap (swapEither . view #wallet) <$> rPost)
             [ expectResponseCode HTTP.status201
             ]
-        let walShared@(ApiSharedWallet (Right wal)) =
-                getFromResponse Prelude.id rPost
+        pure $ getFromResponse Prelude.id rPost
 
+     fixtureSharedWallet ctx = do
+        walShared@(ApiSharedWallet (Right wal)) <- emptySharedWallet ctx
         fundSharedWallet ctx faucetUtxoAmt (NE.fromList [walShared])
-
         return wal
 
      fixtureTwoPartySharedWallet ctx = do
