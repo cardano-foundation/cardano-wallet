@@ -12,7 +12,6 @@ module Cardano.Wallet.Primitive.Types.UTxOStatistics
     , BoundType
     , HistogramBar (..)
     , compute
-    , computeWith
     ) where
 
 import Prelude
