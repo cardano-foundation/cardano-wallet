@@ -647,6 +647,60 @@ spec = describe "SHARED_TRANSACTIONS" $ do
                         (`shouldBe` amt)
                 ]
 
+    it "SHARED_TRANSACTIONS_LIST_01 - Can list Incoming and Outgoing transactions" $
+        \ctx -> runResourceT $ do
+
+        (wSrc, wDest) <- (,) <$> fixtureSharedWallet ctx <*> emptyWallet ctx
+        addrs <- listAddresses @n ctx wDest
+
+        let amt = minUTxOValue (_mainEra ctx) :: Natural
+        let destination = (addrs !! 1) ^. #id
+        let payload = Json [json|{
+                "payments": [{
+                    "address": #{destination},
+                    "amount": {
+                        "quantity": #{amt},
+                        "unit": "lovelace"
+                    }
+                }],
+                "passphrase": "cardano-wallet"
+            }|]
+
+        rTx <- request @(ApiConstructTransaction n) ctx
+            (Link.createUnsignedTransaction @'Shared wSrc) Default payload
+        verify rTx
+            [ expectSuccess
+            , expectResponseCode HTTP.status202
+            ]
+        let (ApiSerialisedTransaction apiTx _) =
+                getFromResponse #transaction rTx
+        signedTx <-
+            signSharedTx ctx wSrc apiTx [ expectResponseCode HTTP.status202 ]
+        submittedTx <- submitSharedTxWithWid ctx wSrc signedTx
+        verify submittedTx
+            [ expectResponseCode HTTP.status202
+            ]
+
+        eventually "Wallet balance is as expected" $ do
+            rGet <- request @ApiWallet ctx
+                (Link.getWallet @'Shelley wDest) Default Empty
+            verify rGet
+                [ expectField
+                        (#balance . #total) (`shouldBe` Quantity amt)
+                , expectField
+                        (#balance . #available) (`shouldBe` Quantity amt)
+                ]
+
+        -- Verify Tx list contains Incoming and Outgoing
+        let link = Link.listTransactions @'Shared wSrc
+        r <- request @([ApiTransaction n]) ctx link Default Empty
+        expectResponseCode HTTP.status200 r
+
+        verify r
+            [ expectListField 0 (#direction . #getApiT) (`shouldBe` Outgoing)
+            , expectListField 1 (#direction . #getApiT) (`shouldBe` Incoming)
+            ]
+
   where
      fundSharedWallet ctx amt sharedWals = do
         let wal = case NE.head sharedWals of
