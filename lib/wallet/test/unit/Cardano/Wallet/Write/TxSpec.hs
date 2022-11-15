@@ -11,23 +11,30 @@ import Prelude
 
 import Cardano.Api.Gen
     ( genScriptData, genScriptInAnyLang, genTxIn, shrinkScriptData )
+import Cardano.Ledger.Alonzo.PParams
+    ( _coinsPerUTxOWord )
+import Cardano.Ledger.Babbage.PParams
+    ( _coinsPerUTxOByte )
 import Cardano.Wallet.Unsafe
     ( unsafeFromHex )
 import Cardano.Wallet.Write.Tx
     ( BinaryData
     , LatestEra
     , LatestLedgerEra
-    , RecentEra (RecentEraBabbage)
+    , RecentEra (..)
     , Script
     , TxOutInBabbage
     , binaryDataFromBytes
     , binaryDataToBytes
+    , computeMinimumCoinForTxOut
     , datumFromCardanoScriptData
     , datumHashFromBytes
     , datumHashToBytes
     , datumToCardanoScriptData
     , fromCardanoUTxO
+    , isBelowMinimumCoinForTxOut
     , isPlutusScript
+    , modifyTxOutCoin
     , scriptFromCardanoEnvelopeJSON
     , scriptFromCardanoScriptInAnyLang
     , scriptToCardanoEnvelopeJSON
@@ -40,6 +47,8 @@ import Data.Aeson
     ( (.=) )
 import Data.Aeson.Types
     ( parseEither )
+import Data.Default
+    ( Default (..) )
 import Plutus.V1.Ledger.Api
     ( Data (..) )
 import Test.Cardano.Ledger.Alonzo.Serialisation.Generators
@@ -143,6 +152,28 @@ spec = do
                 Aeson.Success s -> isPlutusScript s `shouldBe` True
                 Aeson.Error e -> expectationFailure e
 
+    describe "TxOut" $ do
+        describe "computeMinimumCoinForTxOut" $ do
+            it "isBelowMinimumCoinForTxOut (setCoin (result <> delta)) \
+               \ == False (Alonzo)"
+                $ property $ \out delta perWord -> do
+                    let pp = def { _coinsPerUTxOWord = perWord }
+                    let era = RecentEraAlonzo
+                    let c = delta <> computeMinimumCoinForTxOut era pp out
+                    isBelowMinimumCoinForTxOut era pp
+                        (modifyTxOutCoin era (const c) out)
+                        === False
+
+            it "isBelowMinimumCoinForTxOut (setCoin (result <> delta)) \
+               \ == False (Babbage)"
+                $ property $ \out delta perByte -> do
+                    let pp = def { _coinsPerUTxOByte = perByte }
+                    let era = RecentEraBabbage
+                    let c = delta <> computeMinimumCoinForTxOut era pp out
+                    isBelowMinimumCoinForTxOut era pp
+                        (modifyTxOutCoin era (const c) out)
+                        === False
+
     describe "UTxO" $ do
         it "is isomorphic to Cardano.UTxO (modulo SimpleScriptV1/2)" $ do
             testIsomorphism
@@ -179,7 +210,6 @@ instance Arbitrary (Cardano.UTxO LatestEra) where
 
 instance Arbitrary TxOutInBabbage where
     arbitrary = genTxOut RecentEraBabbage
-    shrink = shrink
 
 --------------------------------------------------------------------------------
 -- Work around the distinction between SimpleScriptV1 and SimpleScriptV2 in

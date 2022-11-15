@@ -3,6 +3,7 @@
 {-# LANGUAGE DeriveGeneric #-}
 {-# LANGUAGE DerivingStrategies #-}
 {-# LANGUAGE DuplicateRecordFields #-}
+{-# LANGUAGE EmptyCase #-}
 {-# LANGUAGE FlexibleContexts #-}
 {-# LANGUAGE FlexibleInstances #-}
 {-# LANGUAGE GADTs #-}
@@ -169,7 +170,7 @@ import Cardano.Wallet.Primitive.Types.Coin.Gen
 import Cardano.Wallet.Primitive.Types.Hash
     ( Hash (..), mockHash )
 import Cardano.Wallet.Primitive.Types.MinimumUTxO
-    ( MinimumUTxO (..) )
+    ( minimumUTxOForShelleyBasedEra )
 import Cardano.Wallet.Primitive.Types.MinimumUTxO.Gen
     ( testParameter_coinsPerUTxOByte_Babbage
     , testParameter_coinsPerUTxOWord_Alonzo
@@ -292,6 +293,8 @@ import Data.ByteArray.Encoding
     ( Base (..), convertToBase )
 import Data.ByteString
     ( ByteString )
+import Data.Default
+    ( Default (..) )
 import Data.Either
     ( isLeft, isRight )
 import Data.Function
@@ -420,14 +423,18 @@ import qualified Cardano.Api.Gen as Cardano
 import qualified Cardano.Api.Shelley as Cardano
 import qualified Cardano.Crypto.Hash.Blake2b as Crypto
 import qualified Cardano.Crypto.Hash.Class as Crypto
+import qualified Cardano.Ledger.Alonzo.PParams as Alonzo
 import qualified Cardano.Ledger.Alonzo.Tx as Alonzo
+import qualified Cardano.Ledger.Alonzo.TxBody as Alonzo
 import qualified Cardano.Ledger.Alonzo.TxWitness as Alonzo
+import qualified Cardano.Ledger.Babbage.PParams as Babbage
 import qualified Cardano.Ledger.Babbage.Tx as Babbage
 import qualified Cardano.Ledger.Coin as Ledger
 import qualified Cardano.Ledger.Core as Ledger
 import qualified Cardano.Ledger.Crypto as Crypto
 import qualified Cardano.Ledger.Serialization as Ledger
 import qualified Cardano.Ledger.Shelley.API as SL
+import qualified Cardano.Ledger.Val as Value
 import qualified Cardano.Wallet.CoinSelection as CS
 import qualified Cardano.Wallet.Primitive.AddressDerivation.Shelley as Shelley
 import qualified Cardano.Wallet.Primitive.Types.Coin as Coin
@@ -2214,7 +2221,10 @@ mockProtocolParameters = dummyProtocolParameters
         , getTokenBundleMaxSize = TokenBundleMaxSize $ TxSize 4000
         , getMaxExecutionUnits = ExecutionUnits 10_000_000_000 14_000_000
         }
-    , minimumUTxO = MinimumUTxOConstant $ Coin 1000000
+    , minimumUTxO = minimumUTxOForShelleyBasedEra Cardano.ShelleyBasedEraAlonzo
+        def
+            { Alonzo._coinsPerUTxOWord = testParameter_coinsPerUTxOWord_Alonzo
+            }
     , maximumCollateralInputCount = 3
     , minimumCollateralPercentage = 150
     }
@@ -2456,19 +2466,30 @@ balanceTransactionSpec = describe "balanceTransaction" $ do
         it "roundtrips with toCardanoValue" $
             property prop_posAndNegFromCardanoValueRoundtrip
 
-    describe "effect of txMaxSize on coin selection" $ do
-        let addr = Address $ unsafeFromHex
-                "60b1e5e0fb74c86c801f646841e07\
-                \cdb42df8b82ef3ce4e57cb5412e77"
-        let mw = SomeMnemonic $ either (error . show) id
-                (entropyToMnemonic @12 <$> mkEntropy "0000000000000000")
-        let rootK = Shelley.unsafeGenerateKeyFromSeed (mw, Nothing) mempty
+    it "increases zero-ada outputs to minimum" $ do
+        pendingWith "Needs correct mock PParams for Babbage"
+        let era = WriteTx.RecentEraBabbage
+        let out = TxOut dummyAddr (TokenBundle.fromCoin (Coin 0))
+        let out' = TxOut dummyAddr (TokenBundle.fromCoin (Coin 874_930))
+        let Cardano.ShelleyTx _ tx = either (error . show) id
+                $ balanceTx
+                $ paymentPartialTx [ out ]
+        let outs = WriteTx.outputs era $ WriteTx.txBody era tx
 
+        let pp = def
+                { Babbage._coinsPerUTxOByte =
+                    testParameter_coinsPerUTxOByte_Babbage
+                }
+        WriteTx.isBelowMinimumCoinForTxOut era pp (head outs)
+            `shouldBe` False
+
+        head outs `shouldBe` (toBabbageTxOut out' Nothing)
+    describe "effect of txMaxSize on coin selection" $ do
         -- Wallet with only small utxos, and enough of them to fill a tx in the
         -- tests below.
-        let wallet = mkTestWallet rootK $ UTxO $ Map.fromList $
+        let wallet = mkTestWallet dummyRootK $ UTxO $ Map.fromList $
                 [ ( TxIn (Hash $ B8.replicate 32 '1') ix
-                  , TxOut addr (TokenBundle.fromCoin $ Coin 1_000_000)
+                  , TxOut dummyAddr (TokenBundle.fromCoin $ Coin 1_000_000)
                   )
                 | ix <- [0 .. 500]
                 ]
@@ -2483,21 +2504,21 @@ balanceTransactionSpec = describe "balanceTransaction" $ do
 
         it "tries to select 2x the payment amount" $ do
             let tx = balance $ paymentPartialTx
-                    [ TxOut addr
+                    [ TxOut dummyAddr
                         (TokenBundle.fromCoin (Coin 50_000_000))
                     ]
             totalOutput <$> tx `shouldBe` Right (Coin 100_000_000)
 
         it "falls back to 1x if out of space" $ do
             let tx = balance $ paymentPartialTx
-                    [ TxOut addr
+                    [ TxOut dummyAddr
                         (TokenBundle.fromCoin (Coin 100_000_000))
                     ]
             totalOutput <$> tx `shouldBe` Right (Coin 102_000_000)
 
         it "otherwise fails with ErrBalanceTxMaxSizeLimitExceeded" $ do
             let tx = balance $ paymentPartialTx
-                    [ TxOut addr
+                    [ TxOut dummyAddr
                         (TokenBundle.fromCoin (Coin 200_000_000))
                     ]
             tx `shouldBe` Left ErrBalanceTxMaxSizeLimitExceeded
@@ -2506,14 +2527,12 @@ balanceTransactionSpec = describe "balanceTransaction" $ do
         it "fails with ErrBalanceTxUnresolvedTxIn" $ do
             let txin = TxIn (Hash $ B8.replicate 32 '3') 10
 
-            let addr = Address $ unsafeFromHex
-                    "60b1e5e0fb74c86c801f646841e07cdb42df8b82ef3ce4e57cb5412e77"
-
             -- 1 output, 1 input without utxo entry
             let partialTx :: PartialTx Cardano.BabbageEra
                 partialTx = over #tx (addExtraTxIns [txin]) $
                     paymentPartialTx
-                        [ TxOut addr (TokenBundle.fromCoin (Coin 1_000_000))
+                        [ TxOut dummyAddr
+                            (TokenBundle.fromCoin (Coin 1_000_000))
                         ]
             balanceTx partialTx
                 `shouldBe`
@@ -2596,7 +2615,7 @@ balanceTransactionSpec = describe "balanceTransaction" $ do
     beyondHorizon = SlotNo 21
 
     balanceTx
-        :: IsShelleyBasedEra era
+        :: WriteTx.IsRecentEra era
         => PartialTx era
         -> Either ErrBalanceTx (Cardano.Tx era)
     balanceTx tx = flip evalRand (stdGenFromSeed testStdGenSeed) $ runExceptT $
@@ -2608,18 +2627,22 @@ balanceTransactionSpec = describe "balanceTransaction" $ do
             (u, wal, pending)
             tx
       where
-        Wallet' u wal pending = mkTestWallet rootK (utxo [Coin 5_000_000])
+        Wallet' u wal pending
+            = mkTestWallet dummyRootK (utxo [Coin 5_000_000])
+
         utxo coins = UTxO $ Map.fromList $ zip ins outs
           where
             ins = map (TxIn dummyHash) [0..]
-            outs = map (TxOut addr . TokenBundle.fromCoin) coins
+            outs = map (TxOut dummyAddr . TokenBundle.fromCoin) coins
             dummyHash = Hash $ B8.replicate 32 '0'
 
+    dummyRootK = Shelley.unsafeGenerateKeyFromSeed (mw, Nothing) mempty
+      where
         mw = SomeMnemonic $ either (error . show) id
             (entropyToMnemonic @12 <$> mkEntropy "0000000000000000")
-        rootK = Shelley.unsafeGenerateKeyFromSeed (mw, Nothing) mempty
-        addr = Address $ unsafeFromHex
-            "60b1e5e0fb74c86c801f646841e07cdb42df8b82ef3ce4e57cb5412e77"
+
+    dummyAddr = Address $ unsafeFromHex
+        "60b1e5e0fb74c86c801f646841e07cdb42df8b82ef3ce4e57cb5412e77"
 
 distributeSurplusSpec :: Spec
 distributeSurplusSpec = do
@@ -3469,7 +3492,7 @@ shrinkStrictMaybe = \case
     SJust _ -> [SNothing]
 
 balanceTransaction'
-    :: IsShelleyBasedEra era
+    :: WriteTx.IsRecentEra era
     => Wallet'
     -> StdGenSeed
     -> PartialTx era
@@ -3664,6 +3687,8 @@ prop_balanceTransactionValid wallet (ShowBuildable partialTx) seed
                         "already balanced"
                     $ classify (txFee tx > Cardano.Lovelace 1_000_000)
                         "fee above 1 ada"
+                    $ classify (hasZeroAdaOutputs $ view #tx partialTx)
+                        "partial tx had zero ada outputs"
                     $ classify (hasCollateral tx)
                         "balanced tx has collateral"
                     $ conjoin
@@ -3680,6 +3705,7 @@ prop_balanceTransactionValid wallet (ShowBuildable partialTx) seed
                               prop_expectFeeExcessSmallerThan
                                   (minUTxOValue <> upperBoundCostOfOutput)
                                   tx
+                        , prop_outputsSatisfyMinAdaRequirement tx
                         ]
             Left
                 (ErrBalanceTxSelectAssets
@@ -3706,8 +3732,6 @@ prop_balanceTransactionValid wallet (ShowBuildable partialTx) seed
                 label "existing total collateral" True
             Left (ErrBalanceTxExistingReturnCollateral) ->
                 label "existing collateral return outputs" True
-            Left ErrBalanceTxZeroAdaOutput ->
-                label "not yet supported: zero ada output" $ property True
             Left ErrBalanceTxMaxSizeLimitExceeded ->
                 label "maxTxSize limit exceeded" $ property True
             Left ErrBalanceTxConflictingNetworks ->
@@ -3796,10 +3820,43 @@ prop_balanceTransactionValid wallet (ShowBuildable partialTx) seed
                 ]
         counterexample msg $ property (size <= limit)
 
+    prop_outputsSatisfyMinAdaRequirement
+        :: Cardano.Tx Cardano.AlonzoEra
+        -> Property
+    prop_outputsSatisfyMinAdaRequirement (Cardano.ShelleyTx _ tx) = do
+        let outputs = WriteTx.outputs era $ WriteTx.txBody era tx
+        conjoin $ map valid outputs
+      where
+        era = WriteTx.RecentEraAlonzo
+
+        valid :: WriteTx.TxOut WriteTx.StandardAlonzo -> Property
+        valid out = counterexample msg $ property $
+            not $ WriteTx.isBelowMinimumCoinForTxOut era pp out
+          where
+            pp = ledgerPParams
+            msg = unwords
+                [ "ada quantity is"
+                , "below minimum requirement"
+                , "\nin\n"
+                , show out
+                , "\n"
+                , "Suggested ada quantity (may overestimate requirement):"
+                , show $ WriteTx.computeMinimumCoinForTxOut
+                    WriteTx.RecentEraAlonzo
+                    ledgerPParams
+                    out
+                ]
+
     walletUTxO :: UTxO
     walletUTxO =
         let Wallet' _ w _ = wallet
         in view #utxo w
+
+    hasZeroAdaOutputs :: Cardano.Tx Cardano.AlonzoEra -> Bool
+    hasZeroAdaOutputs (Cardano.Tx (Cardano.ShelleyTxBody _ body _ _ _ _) _) =
+        any hasZeroAda (Alonzo.outputs body)
+      where
+        hasZeroAda (Alonzo.TxOut _ val _) = Value.coin val == Ledger.Coin 0
 
     hasCollateral :: Cardano.Tx era -> Bool
     hasCollateral (Cardano.Tx (Cardano.TxBody content) _) =
@@ -3833,6 +3890,8 @@ prop_balanceTransactionValid wallet (ShowBuildable partialTx) seed
         TxOutValue _ val -> val
 
     (_, nodePParams) = mockProtocolParametersForBalancing
+    ledgerPParams = Cardano.toLedgerPParams
+        Cardano.ShelleyBasedEraAlonzo nodePParams
 
 prop_balanceTransactionExistingTotalCollateral
     :: Wallet'
