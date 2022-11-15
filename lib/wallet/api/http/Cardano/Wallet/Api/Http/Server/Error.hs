@@ -480,12 +480,6 @@ instance IsServerError ErrBalanceTx where
                 [ "Balancing transactions with pre-defined"
                 , "collateral return outputs is not yet supported."
                 ]
-        ErrBalanceTxZeroAdaOutput ->
-            apiError err501 BalanceTxZeroAdaOutput $ T.unwords
-                [ "I don't currently support balancing transactions containing"
-                , "one or more zero-ada outputs. In the future I might be able"
-                , "to increase the values to the minimum allowed ada value."
-                ]
         ErrBalanceTxInternalError e -> toServerError e
         ErrBalanceTxMaxSizeLimitExceeded ->
             apiError err403 BalanceTxMaxSizeLimitExceeded $ T.unwords

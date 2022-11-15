@@ -537,7 +537,7 @@ import Data.Function
 import Data.Functor
     ( ($>) )
 import Data.Generics.Internal.VL.Lens
-    ( Lens', view, (.~), (^.) )
+    ( Lens', over, view, (.~), (^.) )
 import Data.Generics.Labels
     ()
 import Data.Generics.Product.Typed
@@ -626,6 +626,7 @@ import qualified Cardano.Wallet.Primitive.Types.UTxO as UTxO
 import qualified Cardano.Wallet.Primitive.Types.UTxOIndex as UTxOIndex
 import qualified Cardano.Wallet.Primitive.Types.UTxOSelection as UTxOSelection
 import qualified Cardano.Wallet.Primitive.Types.UTxOStatistics as UTxOStatistics
+import qualified Cardano.Wallet.Write.Tx as WriteTx
 import qualified Data.ByteArray as BA
 import qualified Data.Foldable as F
 import qualified Data.List as L
@@ -1588,7 +1589,7 @@ balanceTransaction
         , GenChange s
         , MonadRandom m
         , HasLogger m WalletWorkerLog ctx
-        , Cardano.IsShelleyBasedEra era
+        , WriteTx.IsRecentEra era
         , BoundedAddressLength k
         )
     => ctx
@@ -1617,25 +1618,53 @@ balanceTransaction
     -- @Wallet s@ for change address generation.
     -> PartialTx era
     -> ExceptT ErrBalanceTx m (Cardano.Tx era)
-balanceTransaction ctx change pp ti wallet ptx = do
+balanceTransaction ctx change pp ti wallet unadjustedPtx = do
+    -- TODO [ADP-1490] Take 'Ledger.PParams era' directly as argument, and avoid
+    -- converting to/from Cardano.ProtocolParameters. This may affect
+    -- performance. The addition of this one specific conversion seems to have
+    -- made the --match "balanceTransaction" unit tests 11% slower in CPU time.
+    let ledgerPP = Cardano.toLedgerPParams shelleyEra $ snd pp
+    let adjustedPtx = over (#tx)
+            (increaseZeroAdaOutputs recentEra ledgerPP)
+            unadjustedPtx
+
     let balanceWith strategy =
-            balanceTransactionWithSelectionStrategy @era @m @s @k @ktype
-                ctx change pp ti wallet strategy ptx
+            balanceTransactionWithSelectionStrategyAndNoZeroAdaAdjustment
+                @era @m @s @k @ktype
+                ctx change pp ti wallet strategy adjustedPtx
     balanceWith SelectionStrategyOptimal
         `catchE` \case
             ErrBalanceTxMaxSizeLimitExceeded
                 -> balanceWith SelectionStrategyMinimal
             otherErr
                 -> throwE otherErr
+  where
+    shelleyEra = Cardano.shelleyBasedEra @era
+    recentEra = WriteTx.recentEra @era
 
-balanceTransactionWithSelectionStrategy
+-- | Increases the ada value of any 0-ada outputs in the transaction to the
+-- minimum according to 'computeMinimumCoinForTxOut'.
+increaseZeroAdaOutputs
+    :: forall era. WriteTx.RecentEra era
+    -> WriteTx.PParams (Cardano.ShelleyLedgerEra era)
+    -> Cardano.Tx era
+    -> Cardano.Tx era
+increaseZeroAdaOutputs era pp = WriteTx.modifyLedgerBody $
+    WriteTx.modifyTxOutputs era $ \out ->
+        flip (WriteTx.modifyTxOutCoin era) out $ \c ->
+            if c == mempty
+            then WriteTx.computeMinimumCoinForTxOut era pp out
+            else c
+
+-- | Internal helper to 'balanceTransaction'
+balanceTransactionWithSelectionStrategyAndNoZeroAdaAdjustment
     :: forall era m s k ktype ctx.
         ( HasTransactionLayer k ktype ctx
         , GenChange s
         , BoundedAddressLength k
         , MonadRandom m
         , HasLogger m WalletWorkerLog ctx
-        , Cardano.IsShelleyBasedEra era
+        , WriteTx.IsRecentEra era
         )
     => ctx
     -> ArgGenChange s
@@ -1645,7 +1674,7 @@ balanceTransactionWithSelectionStrategy
     -> SelectionStrategy
     -> PartialTx era
     -> ExceptT ErrBalanceTx m (Cardano.Tx era)
-balanceTransactionWithSelectionStrategy
+balanceTransactionWithSelectionStrategyAndNoZeroAdaAdjustment
     ctx
     generateChange
     (pp, nodePParams)
@@ -1657,7 +1686,6 @@ balanceTransactionWithSelectionStrategy
     guardExistingCollateral partialTx
     guardExistingTotalCollateral partialTx
     guardExistingReturnCollateral partialTx
-    guardZeroAdaOutputs (extractOutputsFromTx $ toSealed partialTx)
     guardConflictingWithdrawalNetworks partialTx
     guardWalletUTxOConsistencyWith inputUTxO
 
@@ -1907,32 +1935,6 @@ balanceTransactionWithSelectionStrategy
         tx' <- left ErrBalanceTxUpdateError $ updateTx tl partialTx update
         left ErrBalanceTxAssignRedeemers $ assignScriptRedeemers
             tl nodePParams ti combinedUTxO redeemers tx'
-
-    guardZeroAdaOutputs outputs = do
-        -- We seem to produce imbalanced transactions if zero-ada
-        -- outputs are pre-specified. Example from
-        -- 'prop_balanceTransactionBalanced':
-        --
-        -- balanced tx:
-        --  2afeed9b
-        --  []
-        --  inputs 2nd 01f4b788
-        --  outputs address: 82d81858...6f57b300
-        --          coin: 0.000000
-        --          tokens: []
-        --  []
-        --  metadata:
-        --  scriptValidity: valid
-
-        --  Lovelace 1000000 /= Lovelace 0
-        --
-        --  This is probably due to selectAssets replacing 0 ada outputs with
-        --  minUTxOValue in the selection, which doesn't end up in the CBOR tx.
-        let zeroAdaOutputs =
-                filter (\o -> view (#tokens . #coin) o == Coin 0 ) outputs
-
-        unless (null zeroAdaOutputs) $
-            throwE ErrBalanceTxZeroAdaOutput
 
     extractOutputsFromTx tx =
         let
@@ -3687,7 +3689,6 @@ data ErrBalanceTx
     | ErrBalanceTxConflictingNetworks
     | ErrBalanceTxAssignRedeemers ErrAssignRedeemers
     | ErrBalanceTxInternalError ErrBalanceTxInternalError
-    | ErrBalanceTxZeroAdaOutput
     | ErrBalanceTxInputResolutionConflicts (NonEmpty (TxOut, TxOut))
     | ErrBalanceTxUnresolvedInputs (NonEmpty TxIn)
     | ErrOldEraNotSupported Cardano.AnyCardanoEra

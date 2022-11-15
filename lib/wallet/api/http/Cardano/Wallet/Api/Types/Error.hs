@@ -86,7 +86,6 @@ data ApiErrorInfo
     | BalanceTxInternalError
     | BalanceTxMaxSizeLimitExceeded
     | BalanceTxUnderestimatedFee
-    | BalanceTxZeroAdaOutput
     | CannotCoverFee
     | CreatedInvalidTransaction
     | CreatedMultiaccountTransaction

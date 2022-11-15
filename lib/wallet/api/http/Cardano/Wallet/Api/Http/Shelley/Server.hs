@@ -2817,7 +2817,7 @@ balanceTransaction ctx@ApiLayer{..} genChange (ApiT wid) body = do
                         $ ins
 
         let balanceTx
-                :: forall era. Cardano.IsShelleyBasedEra era
+                :: forall era. WriteTx.IsRecentEra era
                 => W.PartialTx era
                 -> Handler (Cardano.Tx era)
             balanceTx partialTx =
