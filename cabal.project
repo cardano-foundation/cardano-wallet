@@ -42,14 +42,16 @@ index-state: 2022-05-18T00:00:00Z
 with-compiler: ghc-8.10.7
 
 packages:
-    lib/dbvar/
-  , lib/wallet/
+    lib/coin-selection/
+  , lib/dbvar/
   , lib/launcher/
   , lib/numeric/
-  , lib/text-class/
-  , lib/test-utils/
+  , lib/primitive/
   , lib/strict-non-empty-containers/
+  , lib/test-utils/
+  , lib/text-class/
   , lib/wai-middleware-logging/
+  , lib/wallet/
 
 -- Using RDRAND instead of /dev/urandom as an entropy source for key
 -- generation is dubious. Set the flag so we use /dev/urandom by default.
