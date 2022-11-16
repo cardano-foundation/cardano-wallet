@@ -94,8 +94,6 @@ import Cardano.Wallet.Primitive.Types.Coin.Gen
     ( genCoin )
 import Cardano.Wallet.Primitive.Types.Hash
     ( Hash (..) )
-import Cardano.Wallet.Primitive.Types.HashSpec
-    ()
 import Cardano.Wallet.Primitive.Types.RewardAccount
     ( RewardAccount (..) )
 import Cardano.Wallet.Primitive.Types.Tx.Gen
@@ -116,7 +114,7 @@ import Cardano.Wallet.Primitive.Types.UTxO
 import Cardano.Wallet.Primitive.Types.UTxOStatistics
     ( HistogramBar (..), UTxOStatistics (..) )
 import Cardano.Wallet.Unsafe
-    ( someDummyMnemonic )
+    ( someDummyMnemonic, unsafeFromHex )
 import Cardano.Wallet.Util
     ( ShowFmt (..) )
 import Control.Monad
@@ -1311,6 +1309,17 @@ instance Arbitrary PoolId where
 
 instance Arbitrary PoolOwner where
     arbitrary = PoolOwner . BS.pack <$> vector 32
+
+instance Arbitrary (Hash "Tx") where
+    -- No Shrinking
+    arbitrary = elements
+        [ Hash $ unsafeFromHex
+            "0000000000000000000000000000000000000000000000000000000000000001"
+        , Hash $ unsafeFromHex
+            "0000000000000000000000000000000000000000000000000000000000000002"
+        , Hash $ unsafeFromHex
+            "0000000000000000000000000000000000000000000000000000000000000003"
+        ]
 
 {-------------------------------------------------------------------------------
                                   Test data
