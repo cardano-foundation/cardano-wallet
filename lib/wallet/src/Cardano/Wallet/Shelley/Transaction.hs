@@ -2450,7 +2450,20 @@ removeDummyInput txBody =
                 ShelleyBasedEraShelley -> txBody
                 ShelleyBasedEraAllegra -> txBody
                 ShelleyBasedEraMary -> txBody
-                ShelleyBasedEraAlonzo -> txBody
+                ShelleyBasedEraAlonzo ->
+                    let body' = body
+                            { Alonzo.inputs =
+                                Set.delete
+                                    (toLedger dummyInput)
+                                    (Alonzo.inputs body)
+                            }
+                    in Cardano.ShelleyTxBody
+                        era
+                        body'
+                        scripts
+                        scriptData
+                        aux
+                        val
                 ShelleyBasedEraBabbage ->
                     let body' = body
                             { Babbage.inputs =
