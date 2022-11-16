@@ -53,7 +53,9 @@ import Cardano.Wallet.Primitive.Types.Hash
 import Cardano.Wallet.Primitive.Types.Tx.Constraints
     ( coinIsValidForTxOut, txOutMaxCoin )
 import Cardano.Wallet.Primitive.Types.Tx.Tx
-    ( TxIn (..), TxMetadata (..), TxScriptValidity )
+    ( TxMetadata (..), TxScriptValidity )
+import Cardano.Wallet.Primitive.Types.Tx.TxIn
+    ( TxIn (..) )
 import Cardano.Wallet.Shelley.Network.Discriminant
     ( DecodeAddress (..)
     , DecodeStakeAddress (..)

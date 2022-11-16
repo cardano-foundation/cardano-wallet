@@ -37,6 +37,12 @@ import qualified Cardano.Wallet.Primitive.Types.Coin as W
 import qualified Cardano.Wallet.Primitive.Types.Hash as W
 import qualified Cardano.Wallet.Primitive.Types.TokenBundle as TokenBundle
 import qualified Cardano.Wallet.Primitive.Types.Tx as W
+import qualified Cardano.Wallet.Primitive.Types.Tx.TxIn as W
+    ( TxIn (TxIn) )
+import qualified Cardano.Wallet.Primitive.Types.Tx.TxIn as W.TxIn
+import qualified Cardano.Wallet.Primitive.Types.Tx.TxOut as W
+    ( TxOut (TxOut) )
+import qualified Cardano.Wallet.Primitive.Types.Tx.TxOut as W.TxOut
 import qualified Data.List.NonEmpty as NE
 
 fromTxAux :: ATxAux a -> W.Tx

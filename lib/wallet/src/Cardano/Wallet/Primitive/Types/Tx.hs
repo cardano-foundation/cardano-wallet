@@ -18,8 +18,6 @@ module Cardano.Wallet.Primitive.Types.Tx
     (
     -- * Types
       Tx (..)
-    , TxIn (..)
-    , TxOut (..)
     , TxChange (..)
     , TxMeta (..)
     , TxMetadata (..)
@@ -115,10 +113,8 @@ import Cardano.Wallet.Primitive.Types.Tx.TransactionInfo
 import Cardano.Wallet.Primitive.Types.Tx.Tx
     ( ScriptWitnessIndex (..)
     , Tx (..)
-    , TxIn (..)
     , TxMetadata (..)
     , TxMetadataValue (..)
-    , TxOut (..)
     , TxScriptValidity (..)
     , collateralInputs
     , inputs

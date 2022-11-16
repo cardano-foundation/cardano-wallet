@@ -63,8 +63,10 @@ import Cardano.Wallet.Primitive.Types.TokenPolicy
     ( TokenName (..), TokenPolicyId (..) )
 import Cardano.Wallet.Primitive.Types.TokenQuantity
     ( TokenQuantity (..) )
-import Cardano.Wallet.Primitive.Types.Tx
-    ( TxIn (..), TxOut (..) )
+import Cardano.Wallet.Primitive.Types.Tx.TxIn
+    ( TxIn (..) )
+import Cardano.Wallet.Primitive.Types.Tx.TxOut
+    ( TxOut (..) )
 import Data.ByteString.Short
     ( fromShort, toShort )
 import Data.Foldable

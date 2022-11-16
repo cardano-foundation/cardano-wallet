@@ -28,7 +28,6 @@ import Cardano.Wallet.Primitive.Types.TokenPolicy
 import Cardano.Wallet.Primitive.Types.Tx
     ( SealedTx (..)
     , Tx (..)
-    , TxOut (..)
     , mockSealedTx
     , sealedTxFromBytes
     , txAssetIds
@@ -38,6 +37,8 @@ import Cardano.Wallet.Primitive.Types.Tx
     )
 import Cardano.Wallet.Primitive.Types.Tx.Gen
     ( genTx, shrinkTx )
+import Cardano.Wallet.Primitive.Types.Tx.TxOut
+    ( TxOut (..) )
 import Cardano.Wallet.Primitive.Types.Tx.TxOut.Gen
     ( genTxOut, shrinkTxOut )
 import Data.ByteString

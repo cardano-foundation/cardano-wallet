@@ -334,9 +334,13 @@ import Cardano.Wallet.Primitive.Types.Coin
 import Cardano.Wallet.Primitive.Types.Hash
     ( Hash (..) )
 import Cardano.Wallet.Primitive.Types.Tx
-    ( SealedTx (..), TxIn (..), TxOut (..), TxStatus (..) )
+    ( SealedTx (..), TxStatus (..) )
 import Cardano.Wallet.Primitive.Types.Tx.Constraints
     ( txOutMaxCoin, txOutMinCoin )
+import Cardano.Wallet.Primitive.Types.Tx.TxIn
+    ( TxIn (..) )
+import Cardano.Wallet.Primitive.Types.Tx.TxOut
+    ( TxOut (..) )
 import Cardano.Wallet.Primitive.Types.UTxO
     ( UTxO (..) )
 import Cardano.Wallet.Primitive.Types.UTxOStatistics

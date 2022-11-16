@@ -19,10 +19,12 @@ import Cardano.Wallet.Primitive.Migration.SelectionSpec
     )
 import Cardano.Wallet.Primitive.Types.Address.Gen
     ( genAddress )
-import Cardano.Wallet.Primitive.Types.Tx
-    ( TxIn, TxOut (..) )
+import Cardano.Wallet.Primitive.Types.Tx.TxIn
+    ( TxIn (..) )
 import Cardano.Wallet.Primitive.Types.Tx.TxIn.Gen
     ( genTxInLargeRange )
+import Cardano.Wallet.Primitive.Types.Tx.TxOut
+    ( TxOut (..) )
 import Cardano.Wallet.Primitive.Types.UTxO
     ( UTxO (..) )
 import Control.Monad

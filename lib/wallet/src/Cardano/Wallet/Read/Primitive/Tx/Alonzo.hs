@@ -80,6 +80,8 @@ import qualified Cardano.Wallet.Primitive.Types as W
 import qualified Cardano.Wallet.Primitive.Types.Coin as W
 import qualified Cardano.Wallet.Primitive.Types.Hash as W
 import qualified Cardano.Wallet.Primitive.Types.Tx as W
+import qualified Cardano.Wallet.Primitive.Types.Tx.TxOut as W
+    ( TxOut (TxOut) )
 import qualified Data.Map.Strict as Map
 import qualified Data.Set as Set
 

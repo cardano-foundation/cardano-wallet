@@ -30,9 +30,13 @@ import Cardano.Wallet.Primitive.Types.RewardAccount
 import Cardano.Wallet.Primitive.Types.RewardAccount.Gen
     ( genRewardAccount, shrinkRewardAccount )
 import Cardano.Wallet.Primitive.Types.Tx
-    ( Tx (..), TxIn (..), TxMetadata (..), TxOut (..), TxScriptValidity (..) )
+    ( Tx (..), TxMetadata (..), TxScriptValidity (..) )
+import Cardano.Wallet.Primitive.Types.Tx.TxIn
+    ( TxIn (..) )
 import Cardano.Wallet.Primitive.Types.Tx.TxIn.Gen
     ( genTxIn, shrinkTxIn )
+import Cardano.Wallet.Primitive.Types.Tx.TxOut
+    ( TxOut (..) )
 import Cardano.Wallet.Primitive.Types.Tx.TxOut.Gen
     ( genTxOut, shrinkTxOut )
 import Data.Map.Strict

@@ -21,7 +21,7 @@ import Cardano.Wallet.Primitive.Types.Coin
     ( Coin )
 import Cardano.Wallet.Primitive.Types.MinimumUTxO
     ( MinimumUTxOForShelleyBasedEra (..) )
-import Cardano.Wallet.Primitive.Types.Tx
+import Cardano.Wallet.Primitive.Types.Tx.TxOut
     ( TxOut )
 import Cardano.Wallet.Shelley.Compatibility
     ( toCardanoTxOut, unsafeLovelaceToWalletCoin, unsafeValueToLovelace )

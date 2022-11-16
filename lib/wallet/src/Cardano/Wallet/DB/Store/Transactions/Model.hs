@@ -101,7 +101,14 @@ import GHC.Generics
 
 import qualified Cardano.Wallet.Primitive.Types.Coin as W
 import qualified Cardano.Wallet.Primitive.Types.TokenBundle as TokenBundle
+import qualified Cardano.Wallet.Primitive.Types.Tx.Tx as W.Tx
 import qualified Cardano.Wallet.Primitive.Types.Tx.Tx as W
+    ( Tx )
+import qualified Cardano.Wallet.Primitive.Types.Tx.TxIn as W
+    ( TxIn )
+import qualified Cardano.Wallet.Primitive.Types.Tx.TxIn as W.TxIn
+import qualified Cardano.Wallet.Primitive.Types.Tx.TxOut as W
+    ( TxOut (TxOut) )
 import qualified Cardano.Wallet.Primitive.Types.Tx.TxOut as W.TxOut
 import qualified Data.ByteString.Lazy as BL
 import qualified Data.Generics.Internal.VL as L
@@ -169,8 +176,8 @@ mkTxIn tid (ix,(txIn,amt)) =
     TxIn
     { txInputTxId = tid
     , txInputOrder = ix
-    , txInputSourceTxId = TxId (W.inputId txIn)
-    , txInputSourceIndex = W.inputIx txIn
+    , txInputSourceTxId = TxId (W.TxIn.inputId txIn)
+    , txInputSourceIndex = W.TxIn.inputIx txIn
     , txInputSourceAmount = amt
     }
 
@@ -181,8 +188,8 @@ mkTxCollateral tid (ix,(txCollateral,amt)) =
     TxCollateral
     { txCollateralTxId = tid
     , txCollateralOrder = ix
-    , txCollateralSourceTxId = TxId $ W.inputId txCollateral
-    , txCollateralSourceIndex = W.inputIx txCollateral
+    , txCollateralSourceTxId = TxId $ W.TxIn.inputId txCollateral
+    , txCollateralSourceIndex = W.TxIn.inputIx txCollateral
     , txCollateralSourceAmount = amt
     }
 
@@ -260,13 +267,13 @@ mkTxWithdrawal tid (txWithdrawalAccount,txWithdrawalAmount) =
 mkTxRelation :: W.Tx -> TxRelation
 mkTxRelation tx =
     TxRelation
-    { ins = fmap (mkTxIn tid) $ indexed . W.resolvedInputs $ tx
+    { ins = fmap (mkTxIn tid) $ indexed . W.Tx.resolvedInputs $ tx
     , collateralIns =
-          fmap (mkTxCollateral tid) $ indexed $ W.resolvedCollateralInputs tx
-    , outs = fmap (mkTxOut tid) $ indexed $ W.outputs tx
-    , collateralOuts = mkTxCollateralOut tid <$> W.collateralOutput tx
+          fmap (mkTxCollateral tid) $ indexed $ W.Tx.resolvedCollateralInputs tx
+    , outs = fmap (mkTxOut tid) $ indexed $ W.Tx.outputs tx
+    , collateralOuts = mkTxCollateralOut tid <$> W.Tx.collateralOutput tx
     , withdrawals =
-          fmap (mkTxWithdrawal tid) $ Map.toList $ W.withdrawals tx
+          fmap (mkTxWithdrawal tid) $ Map.toList $ W.Tx.withdrawals tx
     , cbor = fst . L.build txCBORPrism . (tid,) <$> txCBOR tx
     }
   where
@@ -288,8 +295,8 @@ mkTxSet txs = TxSet $ fold $ do
 fromTxOut :: (TxOut, [TxOutToken]) -> W.TxOut
 fromTxOut (out,tokens) =
     W.TxOut
-    { W.address = txOutputAddress out
-    , W.tokens = TokenBundle.fromFlatList
+    { W.TxOut.address = txOutputAddress out
+    , W.TxOut.tokens = TokenBundle.fromFlatList
             (txOutputAmount out)
             (fromTxOutToken <$> tokens)
     }
@@ -302,8 +309,8 @@ fromTxOut (out,tokens) =
 fromTxCollateralOut :: (TxCollateralOut, [TxCollateralOutToken]) -> W.TxOut
 fromTxCollateralOut (out,tokens) =
     W.TxOut
-    { W.address = txCollateralOutAddress out
-    , W.tokens = TokenBundle.fromFlatList
+    { W.TxOut.address = txCollateralOutAddress out
+    , W.TxOut.tokens = TokenBundle.fromFlatList
             (txCollateralOutAmount out)
             (fromTxCollateralOutToken <$> tokens)
     }

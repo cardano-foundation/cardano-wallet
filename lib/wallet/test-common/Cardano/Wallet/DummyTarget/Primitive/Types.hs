@@ -51,15 +51,13 @@ import Cardano.Wallet.Primitive.Types.MinimumUTxO
 import Cardano.Wallet.Primitive.Types.RewardAccount
     ( RewardAccount (..) )
 import Cardano.Wallet.Primitive.Types.Tx
-    ( Tx (..)
-    , TxCBOR
-    , TxIn (..)
-    , TxMetadata (..)
-    , TxOut (..)
-    , TxScriptValidity (..)
-    )
+    ( Tx (..), TxCBOR, TxMetadata (..), TxScriptValidity (..) )
 import Cardano.Wallet.Primitive.Types.Tx.Constraints
     ( TxSize (..) )
+import Cardano.Wallet.Primitive.Types.Tx.TxIn
+    ( TxIn (..) )
+import Cardano.Wallet.Primitive.Types.Tx.TxOut
+    ( TxOut (..) )
 import Data.Functor.Identity
     ( Identity (..) )
 import Data.Map.Strict

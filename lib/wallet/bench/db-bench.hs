@@ -136,14 +136,11 @@ import Cardano.Wallet.Primitive.Types.TokenPolicy
 import Cardano.Wallet.Primitive.Types.TokenQuantity
     ( TokenQuantity (..) )
 import Cardano.Wallet.Primitive.Types.Tx
-    ( Direction (..)
-    , TransactionInfo
-    , Tx (..)
-    , TxIn (..)
-    , TxMeta (..)
-    , TxOut (..)
-    , TxStatus (..)
-    )
+    ( Direction (..), TransactionInfo, Tx (..), TxMeta (..), TxStatus (..) )
+import Cardano.Wallet.Primitive.Types.Tx.TxIn
+    ( TxIn (..) )
+import Cardano.Wallet.Primitive.Types.Tx.TxOut
+    ( TxOut (..) )
 import Cardano.Wallet.Primitive.Types.UTxO
     ( UTxO (..) )
 import Cardano.Wallet.Unsafe

@@ -102,7 +102,11 @@ import Cardano.Wallet.Primitive.Types.TokenPolicy
 import Cardano.Wallet.Primitive.Types.Tx.Constraints
     ( TokenBundleSizeAssessor, TxConstraints, TxSize )
 import Cardano.Wallet.Primitive.Types.Tx.Tx
-    ( Tx (..), TxIn, TxMetadata, TxOut )
+    ( Tx (..), TxMetadata )
+import Cardano.Wallet.Primitive.Types.Tx.TxIn
+    ( TxIn (..) )
+import Cardano.Wallet.Primitive.Types.Tx.TxOut
+    ( TxOut (..) )
 import Control.DeepSeq
     ( NFData (..) )
 import Data.List.NonEmpty

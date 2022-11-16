@@ -60,7 +60,6 @@ import Data.Map.Strict
 import Data.Word
     ( Word16, Word32, Word64 )
 
-
 import qualified Cardano.Api as Cardano
 import qualified Cardano.Api.Shelley as Cardano
 import qualified Cardano.Ledger.Address as SL
@@ -78,6 +77,10 @@ import qualified Cardano.Wallet.Primitive.Types.Hash as W
 import qualified Cardano.Wallet.Primitive.Types.RewardAccount as W
 import qualified Cardano.Wallet.Primitive.Types.TokenBundle as TokenBundle
 import qualified Cardano.Wallet.Primitive.Types.Tx as W
+import qualified Cardano.Wallet.Primitive.Types.Tx.TxIn as W
+    ( TxIn (TxIn) )
+import qualified Cardano.Wallet.Primitive.Types.Tx.TxOut as W
+    ( TxOut (TxOut) )
 import qualified Data.Map.Strict as Map
 import qualified Data.Set as Set
 

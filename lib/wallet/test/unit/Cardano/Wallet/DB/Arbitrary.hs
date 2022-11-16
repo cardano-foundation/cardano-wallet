@@ -131,9 +131,13 @@ import Cardano.Wallet.Primitive.Types.TokenMap.Gen
 import Cardano.Wallet.Primitive.Types.Tx.Gen
     ( genTxScriptValidity, shrinkTxScriptValidity )
 import Cardano.Wallet.Primitive.Types.Tx.Tx
-    ( Tx (..), TxIn (..), TxMetadata, TxOut (..), TxScriptValidity (..) )
+    ( Tx (..), TxMetadata, TxScriptValidity (..) )
+import Cardano.Wallet.Primitive.Types.Tx.TxIn
+    ( TxIn (..) )
 import Cardano.Wallet.Primitive.Types.Tx.TxMeta
     ( Direction (..), TxMeta (..), TxStatus (..), isPending )
+import Cardano.Wallet.Primitive.Types.Tx.TxOut
+    ( TxOut (..) )
 import Cardano.Wallet.Primitive.Types.Tx.TxOut.Gen
     ( genTxOutCoin )
 import Cardano.Wallet.Primitive.Types.UTxO

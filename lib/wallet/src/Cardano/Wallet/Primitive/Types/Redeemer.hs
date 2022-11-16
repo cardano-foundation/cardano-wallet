@@ -19,7 +19,7 @@ import Cardano.Api
     ( StakeAddress, serialiseToBech32 )
 import Cardano.Wallet.Primitive.Types.TokenPolicy
     ( TokenPolicyId )
-import Cardano.Wallet.Primitive.Types.Tx
+import Cardano.Wallet.Primitive.Types.Tx.TxIn
     ( TxIn )
 import Data.ByteString
     ( ByteString )

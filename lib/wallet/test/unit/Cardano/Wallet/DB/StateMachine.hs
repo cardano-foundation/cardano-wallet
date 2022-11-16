@@ -177,10 +177,8 @@ import Cardano.Wallet.Primitive.Types.Tx
     , TransactionInfo (..)
     , Tx (..)
     , TxCBOR
-    , TxIn (..)
     , TxMeta
     , TxMetadata
-    , TxOut (..)
     , TxScriptValidity
     , TxStatus
     , inputs
@@ -188,6 +186,10 @@ import Cardano.Wallet.Primitive.Types.Tx
     )
 import Cardano.Wallet.Primitive.Types.Tx.Constraints
     ( TxSize (..) )
+import Cardano.Wallet.Primitive.Types.Tx.TxIn
+    ( TxIn (..) )
+import Cardano.Wallet.Primitive.Types.Tx.TxOut
+    ( TxOut (..) )
 import Cardano.Wallet.Primitive.Types.UTxO
     ( UTxO (..) )
 import Cardano.Wallet.Read.Eras.EraValue
