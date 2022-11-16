@@ -1,7 +1,5 @@
 {-# LANGUAGE FlexibleContexts #-}
 {-# LANGUAGE ScopedTypeVariables #-}
-{-# LANGUAGE TemplateHaskell #-}
-{-# LANGUAGE TypeApplications #-}
 {-# OPTIONS_GHC -fno-warn-orphans #-}
 
 module Control.Monad.Random.ExtraSpec
@@ -11,14 +9,6 @@ import Prelude
 
 import Control.Monad.Random.Extra
     ( StdGenSeed (..), stdGenFromSeed, stdGenToSeed )
-import Data.Aeson
-    ( FromJSON, ToJSON )
-import Data.Proxy
-    ( Proxy (..) )
-import Data.Typeable
-    ( Typeable )
-import System.FilePath
-    ( (</>) )
 import System.Random
     ( mkStdGen )
 import Test.Hspec
@@ -35,10 +25,6 @@ import Test.QuickCheck
     , shrinkIntegral
     , (===)
     )
-import Test.Utils.Paths
-    ( getTestData )
-
-import qualified Test.Utils.Roundtrip as Roundtrip
 
 spec :: Spec
 spec = describe "Control.Monad.Random.ExtraSpec" $ do
@@ -49,8 +35,6 @@ spec = describe "Control.Monad.Random.ExtraSpec" $ do
                 property prop_stdGenToSeed_stdGenFromSeed
             it "prop_stdGenFromSeed_stdGenToSeed" $
                 property prop_stdGenFromSeed_stdGenToSeed
-        describe "Roundtrip conversion to and from JSON" $
-            testJson $ Proxy @StdGenSeed
 
 --------------------------------------------------------------------------------
 -- Random number generator seeds
@@ -116,15 +100,3 @@ genBoundedIntegralWithUniformPriority uniformPriority = frequency
     , (1, pure (maxBound - 1))
     , (uniformPriority, arbitraryBoundedIntegral)
     ]
-
-testJson
-    :: (Arbitrary a, ToJSON a, FromJSON a, Typeable a) => Proxy a -> Spec
-testJson = Roundtrip.jsonRoundtripAndGolden testJsonDataDirectory
-
-testJsonDataDirectory :: FilePath
-testJsonDataDirectory =
-    ($(getTestData)
-        </> "Control"
-        </> "Monad"
-        </> "Random"
-        </> "Extra")
