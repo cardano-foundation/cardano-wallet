@@ -501,8 +501,6 @@ import Control.Monad.IO.Unlift
     ( MonadIO (..), MonadUnliftIO )
 import Control.Monad.Random.Class
     ( MonadRandom (..) )
-import Control.Monad.Random.Extra
-    ( StdGenSeed (..), stdGenFromSeed, stdGenSeed )
 import Control.Monad.Random.Strict
     ( evalRand )
 import Control.Monad.Trans.Class
@@ -597,6 +595,8 @@ import Safe
     ( lastMay )
 import Statistics.Quantile
     ( medianUnbiased, quantiles )
+import System.Random.StdGenSeed
+    ( StdGenSeed (..), stdGenFromSeed, stdGenSeed )
 import Text.Pretty.Simple
     ( pShow )
 import Type.Reflection

@@ -5,13 +5,12 @@
 {-# LANGUAGE TypeFamilies #-}
 
 -- |
--- Copyright: © 2021 IOHK
+-- Copyright: © 2021-2022 IOHK
 -- License: Apache-2.0
 --
--- This module provides functions and types that extend those provided by
--- the 'Control.Monad.Random' module hierarchy.
+-- This module provides the 'StdGenSeed' type and related functions.
 --
-module Control.Monad.Random.Extra
+module System.Random.StdGenSeed
     (
     -- * Random number generator seeds
       StdGenSeed (..)

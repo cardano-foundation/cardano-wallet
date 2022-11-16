@@ -2,15 +2,15 @@
 {-# LANGUAGE ScopedTypeVariables #-}
 {-# OPTIONS_GHC -fno-warn-orphans #-}
 
-module Control.Monad.Random.ExtraSpec
+module System.Random.StdGenSeedSpec
     where
 
 import Prelude
 
-import Control.Monad.Random.Extra
-    ( StdGenSeed (..), stdGenFromSeed, stdGenToSeed )
 import System.Random
     ( mkStdGen )
+import System.Random.StdGenSeed
+    ( StdGenSeed (..), stdGenFromSeed, stdGenToSeed )
 import Test.Hspec
     ( Spec, describe, it )
 import Test.QuickCheck
@@ -27,14 +27,12 @@ import Test.QuickCheck
     )
 
 spec :: Spec
-spec = describe "Control.Monad.Random.ExtraSpec" $ do
-
-    describe "StdGenSeed" $ do
-        describe "Roundtrip conversion between StdGen and StdGenSeed" $ do
-            it "prop_stdGenToSeed_stdGenFromSeed" $
-                property prop_stdGenToSeed_stdGenFromSeed
-            it "prop_stdGenFromSeed_stdGenToSeed" $
-                property prop_stdGenFromSeed_stdGenToSeed
+spec = do
+    describe "Roundtrip conversion between StdGen and StdGenSeed" $ do
+        it "prop_stdGenToSeed_stdGenFromSeed" $
+            property prop_stdGenToSeed_stdGenFromSeed
+        it "prop_stdGenFromSeed_stdGenToSeed" $
+            property prop_stdGenFromSeed_stdGenToSeed
 
 --------------------------------------------------------------------------------
 -- Random number generator seeds
