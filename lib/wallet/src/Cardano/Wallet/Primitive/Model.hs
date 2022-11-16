@@ -103,13 +103,14 @@ import Cardano.Wallet.Primitive.Types.TokenBundle
 import Cardano.Wallet.Primitive.Types.Tx
     ( Direction (..)
     , Tx (..)
-    , TxIn (..)
     , TxMeta (..)
     , TxStatus (..)
     , collateralInputs
     , inputs
     , txScriptInvalid
     )
+import Cardano.Wallet.Primitive.Types.Tx.TxIn
+    ( TxIn (..) )
 import Cardano.Wallet.Primitive.Types.UTxO
     ( DeltaUTxO, UTxO (..), balance, excluding, excludingD, receiveD )
 import Control.DeepSeq

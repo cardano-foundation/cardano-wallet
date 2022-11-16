@@ -74,6 +74,9 @@ import qualified Cardano.Wallet.DB.Store.Transactions.Model as TxStore
 import qualified Cardano.Wallet.Primitive.Types as W
 import qualified Cardano.Wallet.Primitive.Types.Coin as WC
 import qualified Cardano.Wallet.Primitive.Types.Tx as WT
+import qualified Cardano.Wallet.Primitive.Types.Tx.TxIn as WT
+    ( TxIn (TxIn) )
+import qualified Cardano.Wallet.Primitive.Types.Tx.TxIn as WT.TxIn
 import qualified Data.Generics.Internal.VL as L
 import qualified Data.Map.Strict as Map
 import qualified Data.Set as Set
@@ -195,16 +198,16 @@ mkTransactionInfo ti tip TxRelation{..} decor DB.TxMeta{..} = do
     tipH = getQuantity $ tip ^. #blockHeight
     mkTxIn tx =
         ( WT.TxIn
-          { WT.inputId = getTxId (txInputSourceTxId tx)
-          , WT.inputIx = txInputSourceIndex tx
+          { inputId = getTxId (txInputSourceTxId tx)
+          , inputIx = txInputSourceIndex tx
           }
         , txInputSourceAmount tx
         , lookupTxOutForTxIn tx decor
         )
     mkTxCollateral tx =
         ( WT.TxIn
-          { WT.inputId = getTxId (txCollateralSourceTxId tx)
-          , WT.inputIx = txCollateralSourceIndex tx
+          { inputId = getTxId (txCollateralSourceTxId tx)
+          , inputIx = txCollateralSourceIndex tx
           }
         , txCollateralSourceAmount tx
         , lookupTxOutForTxCollateral tx decor

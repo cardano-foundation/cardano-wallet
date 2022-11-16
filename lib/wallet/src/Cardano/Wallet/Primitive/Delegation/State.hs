@@ -58,8 +58,10 @@ import Cardano.Wallet.Primitive.Types.Hash
     ( Hash (..) )
 import Cardano.Wallet.Primitive.Types.RewardAccount
     ( RewardAccount )
-import Cardano.Wallet.Primitive.Types.Tx
-    ( TxIn (..), TxOut (..) )
+import Cardano.Wallet.Primitive.Types.Tx.TxIn
+    ( TxIn (..) )
+import Cardano.Wallet.Primitive.Types.Tx.TxOut
+    ( TxOut (..) )
 import Control.DeepSeq
     ( NFData )
 import Data.Maybe

@@ -132,15 +132,13 @@ import Cardano.Wallet.Primitive.Types.TokenMap
 import Cardano.Wallet.Primitive.Types.TokenQuantity
     ( TokenQuantity (..) )
 import Cardano.Wallet.Primitive.Types.Tx
-    ( SealedTx
-    , Tx (..)
-    , TxIn (..)
-    , TxOut (..)
-    , TxScriptValidity (..)
-    , serialisedTx
-    )
+    ( SealedTx, Tx (..), TxScriptValidity (..), serialisedTx )
 import Cardano.Wallet.Primitive.Types.Tx.Constraints
     ( TxSize (..) )
+import Cardano.Wallet.Primitive.Types.Tx.TxIn
+    ( TxIn (..) )
+import Cardano.Wallet.Primitive.Types.Tx.TxOut
+    ( TxOut (..) )
 import Cardano.Wallet.Shelley.Compatibility
     ( shelleyDecodeStakeAddress
     , shelleyEncodeAddress

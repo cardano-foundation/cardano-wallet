@@ -132,10 +132,8 @@ import Cardano.Wallet.Primitive.Types.Tx
     , SealedTx (..)
     , TransactionInfo (..)
     , Tx (..)
-    , TxIn (..)
     , TxMeta (..)
     , TxMetadata
-    , TxOut (..)
     , TxStatus (..)
     , isPending
     , mockSealedTx
@@ -144,8 +142,12 @@ import Cardano.Wallet.Primitive.Types.Tx.Constraints
     ( txOutMaxCoin )
 import Cardano.Wallet.Primitive.Types.Tx.Gen
     ( genTx, shrinkTx )
+import Cardano.Wallet.Primitive.Types.Tx.TxIn
+    ( TxIn (..) )
 import Cardano.Wallet.Primitive.Types.Tx.TxIn.Gen
     ( genTxInLargeRange )
+import Cardano.Wallet.Primitive.Types.Tx.TxOut
+    ( TxOut (..) )
 import Cardano.Wallet.Primitive.Types.UTxO
     ( UTxO (..) )
 import Cardano.Wallet.Transaction

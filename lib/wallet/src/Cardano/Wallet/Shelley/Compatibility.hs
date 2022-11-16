@@ -394,7 +394,11 @@ import qualified Cardano.Wallet.Primitive.Types.Tx.Constraints as W
 import qualified Cardano.Wallet.Primitive.Types.Tx.SealedTx as W
     ( SealedTx, cardanoTxIdeallyNoLaterThan )
 import qualified Cardano.Wallet.Primitive.Types.Tx.Tx as W
-    ( Tx (..), TxIn (TxIn), TxOut (TxOut) )
+    ( Tx (..) )
+import qualified Cardano.Wallet.Primitive.Types.Tx.TxIn as W
+    ( TxIn (TxIn) )
+import qualified Cardano.Wallet.Primitive.Types.Tx.TxOut as W
+    ( TxOut (TxOut) )
 import qualified Cardano.Wallet.Primitive.Types.UTxO as W
 import qualified Codec.Binary.Bech32 as Bech32
 import qualified Codec.Binary.Bech32.TH as Bech32

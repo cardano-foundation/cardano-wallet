@@ -162,13 +162,15 @@ import Cardano.Wallet.Primitive.Types.Tx
     ( Direction (..)
     , TransactionInfo (..)
     , Tx (..)
-    , TxIn (..)
     , TxMeta (..)
-    , TxOut (..)
     , TxScriptValidity (..)
     , TxStatus (..)
     , toTxHistory
     )
+import Cardano.Wallet.Primitive.Types.Tx.TxIn
+    ( TxIn (..) )
+import Cardano.Wallet.Primitive.Types.Tx.TxOut
+    ( TxOut (..) )
 import Cardano.Wallet.Unsafe
     ( unsafeFromHex, unsafeRunExceptT )
 import Control.Monad

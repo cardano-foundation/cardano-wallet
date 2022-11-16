@@ -53,6 +53,8 @@ import Test.QuickCheck.Monadic
 
 import qualified Cardano.Wallet.Primitive.Types.Coin as W
 import qualified Cardano.Wallet.Primitive.Types.Tx as W
+import qualified Cardano.Wallet.Primitive.Types.Tx.TxIn as W
+    ( TxIn (TxIn) )
 import qualified Data.Map.Strict as Map
 
 spec :: Spec

@@ -53,7 +53,9 @@ import Cardano.Wallet.Primitive.Types.Address
 import Cardano.Wallet.Primitive.Types.RewardAccount
     ( RewardAccount )
 import Cardano.Wallet.Primitive.Types.Tx
-    ( Tx (..), TxOut (..) )
+    ( Tx (..) )
+import Cardano.Wallet.Primitive.Types.Tx.TxOut
+    ( TxOut (..) )
 import Data.Foldable
     ( Foldable (toList) )
 import Data.Functor.Identity

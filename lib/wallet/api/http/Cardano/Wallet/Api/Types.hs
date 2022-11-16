@@ -374,12 +374,13 @@ import Cardano.Wallet.Primitive.Types.Tx
     ( Direction (..)
     , SealedTx (..)
     , SerialisedTx (..)
-    , TxIn (..)
     , TxMetadata
     , TxScriptValidity (..)
     , TxStatus (..)
     , sealedTxFromBytes
     )
+import Cardano.Wallet.Primitive.Types.Tx.TxIn
+    ( TxIn (..) )
 import Cardano.Wallet.Primitive.Types.UTxOStatistics
     ( BoundType, HistogramBar (..), UTxOStatistics (..) )
 import Cardano.Wallet.Shelley.Network.Discriminant

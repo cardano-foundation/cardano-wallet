@@ -90,9 +90,7 @@ import Cardano.Wallet.Primitive.Types.TokenBundle
 import Cardano.Wallet.Primitive.Types.Tx
     ( Direction (..)
     , Tx (..)
-    , TxIn (..)
     , TxMeta (direction)
-    , TxOut (..)
     , TxScriptValidity (..)
     , collateralInputs
     , inputs
@@ -101,8 +99,12 @@ import Cardano.Wallet.Primitive.Types.Tx
     )
 import Cardano.Wallet.Primitive.Types.Tx.Gen
     ( genTx, genTxScriptValidity, shrinkTx )
+import Cardano.Wallet.Primitive.Types.Tx.TxIn
+    ( TxIn (..) )
 import Cardano.Wallet.Primitive.Types.Tx.TxIn.Gen
     ( genTxIn, shrinkTxIn )
+import Cardano.Wallet.Primitive.Types.Tx.TxOut
+    ( TxOut (..) )
 import Cardano.Wallet.Primitive.Types.Tx.TxOut.Gen
     ( genTxOut, shrinkTxOut )
 import Cardano.Wallet.Primitive.Types.Tx.TxSeq

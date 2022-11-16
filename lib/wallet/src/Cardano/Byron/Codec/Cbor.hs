@@ -56,7 +56,11 @@ import Cardano.Wallet.Primitive.Types.Hash
 import Cardano.Wallet.Primitive.Types.ProtocolMagic
     ( ProtocolMagic (..) )
 import Cardano.Wallet.Primitive.Types.Tx
-    ( TxIn (..), TxOut (..), unsafeCoinToTxOutCoinValue )
+    ( unsafeCoinToTxOutCoinValue )
+import Cardano.Wallet.Primitive.Types.Tx.TxIn
+    ( TxIn (..) )
+import Cardano.Wallet.Primitive.Types.Tx.TxOut
+    ( TxOut (..) )
 import Control.Monad
     ( replicateM, when )
 import Crypto.Error

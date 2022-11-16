@@ -481,8 +481,6 @@ import Cardano.Wallet.Primitive.Types.Tx
     , Tx (..)
     , TxCBOR
     , TxChange (..)
-    , TxIn (..)
-    , TxOut (..)
     , TxStatus (..)
     , UnsignedTx (..)
     , cardanoTxIdeallyNoLaterThan
@@ -490,6 +488,10 @@ import Cardano.Wallet.Primitive.Types.Tx
     )
 import Cardano.Wallet.Primitive.Types.Tx.Constraints
     ( txMintBurnMaxTokenQuantity )
+import Cardano.Wallet.Primitive.Types.Tx.TxIn
+    ( TxIn (..) )
+import Cardano.Wallet.Primitive.Types.Tx.TxOut
+    ( TxOut (..) )
 import Cardano.Wallet.Registry
     ( HasWorkerCtx (..)
     , MkWorker (..)

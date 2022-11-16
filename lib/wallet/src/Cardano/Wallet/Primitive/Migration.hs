@@ -26,10 +26,12 @@ import Cardano.Wallet.Primitive.Migration.Selection
     ( RewardWithdrawal (..), Selection (..) )
 import Cardano.Wallet.Primitive.Types.Coin
     ( Coin )
-import Cardano.Wallet.Primitive.Types.Tx
-    ( TxIn, TxOut )
 import Cardano.Wallet.Primitive.Types.Tx.Constraints
     ( TxConstraints (..) )
+import Cardano.Wallet.Primitive.Types.Tx.TxIn
+    ( TxIn )
+import Cardano.Wallet.Primitive.Types.Tx.TxOut
+    ( TxOut )
 import Cardano.Wallet.Primitive.Types.UTxO
     ( UTxO )
 import Data.Generics.Internal.VL.Lens

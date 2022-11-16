@@ -47,9 +47,11 @@ import Cardano.Wallet.Primitive.Types.TokenBundle.Gen
 import Cardano.Wallet.Primitive.Types.TokenMap
     ( AssetId )
 import Cardano.Wallet.Primitive.Types.Tx
-    ( Tx (..), TxOut (..), TxScriptValidity (..) )
+    ( Tx (..), TxScriptValidity (..) )
 import Cardano.Wallet.Primitive.Types.Tx.Gen
     ( TxWithoutId (..), txWithoutIdToTx )
+import Cardano.Wallet.Primitive.Types.Tx.TxOut
+    ( TxOut (..) )
 import Cardano.Wallet.Primitive.Types.Tx.TxSeq
     ( TxSeq )
 import Cardano.Wallet.Primitive.Types.UTxO

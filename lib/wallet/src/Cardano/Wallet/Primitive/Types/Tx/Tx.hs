@@ -18,8 +18,6 @@ module Cardano.Wallet.Primitive.Types.Tx.Tx
     (
     -- * Types
       Tx (..)
-    , TxIn (..)
-    , TxOut (..)
     , TxMetadata (..)
     , TxMetadataValue (..)
     , TxScriptValidity(..)
@@ -34,7 +32,6 @@ module Cardano.Wallet.Primitive.Types.Tx.Tx
 
     -- * Queries
     , txAssetIds
-    , TxOut.assetIds
 
     -- * Transformations
     , txMapAssetIds

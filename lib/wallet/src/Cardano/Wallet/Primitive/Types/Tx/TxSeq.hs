@@ -121,7 +121,9 @@ import Cardano.Wallet.Primitive.Types.TokenMap
 import Cardano.Wallet.Primitive.Types.TokenPolicy
     ( TokenName (..), TokenPolicyId (..) )
 import Cardano.Wallet.Primitive.Types.Tx
-    ( Tx (..), TxIn, txAssetIds, txMapAssetIds, txMapTxIds, txRemoveAssetId )
+    ( Tx (..), txAssetIds, txMapAssetIds, txMapTxIds, txRemoveAssetId )
+import Cardano.Wallet.Primitive.Types.Tx.TxIn
+    ( TxIn )
 import Cardano.Wallet.Primitive.Types.UTxO
     ( UTxO )
 import Data.Bifoldable

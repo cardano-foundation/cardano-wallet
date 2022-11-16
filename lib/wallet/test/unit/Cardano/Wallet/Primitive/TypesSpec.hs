@@ -101,9 +101,13 @@ import Cardano.Wallet.Primitive.Types.RewardAccount
 import Cardano.Wallet.Primitive.Types.Tx.Gen
     ( genTx, shrinkTx )
 import Cardano.Wallet.Primitive.Types.Tx.Tx
-    ( Tx (..), TxIn (..), TxMetadata (..), TxMetadataValue (..), TxOut (..) )
+    ( Tx (..), TxMetadata (..), TxMetadataValue (..) )
+import Cardano.Wallet.Primitive.Types.Tx.TxIn
+    ( TxIn (..) )
 import Cardano.Wallet.Primitive.Types.Tx.TxMeta
     ( Direction (..), TxMeta (..), TxStatus (..) )
+import Cardano.Wallet.Primitive.Types.Tx.TxOut
+    ( TxOut (..) )
 import Cardano.Wallet.Primitive.Types.UTxO
     ( UTxO (..)
     , balance

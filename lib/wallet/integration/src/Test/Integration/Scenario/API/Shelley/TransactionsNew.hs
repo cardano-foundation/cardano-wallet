@@ -101,7 +101,6 @@ import Cardano.Wallet.Primitive.Types.TokenQuantity
 import Cardano.Wallet.Primitive.Types.Tx
     ( Direction (..)
     , SealedTx (..)
-    , TxIn (..)
     , TxMetadata (..)
     , TxMetadataValue (..)
     , TxScriptValidity (..)
@@ -110,6 +109,8 @@ import Cardano.Wallet.Primitive.Types.Tx
     , getSealedTxBody
     , sealedTxFromCardanoBody
     )
+import Cardano.Wallet.Primitive.Types.Tx.TxIn
+    ( TxIn (..) )
 import Cardano.Wallet.Transaction
     ( AnyScript (..), ValidityIntervalExplicit (..) )
 import Cardano.Wallet.Unsafe
