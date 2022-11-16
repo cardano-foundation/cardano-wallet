@@ -133,7 +133,7 @@ jobs:
       run: NODE_CONFIG_PATH=`pwd`/state/configs/$NETWORK docker-compose -f docker-compose-test.yml down
     env:
       TESTS_E2E_FIXTURES: ${{ secrets.TESTS_E2E_FIXTURES }}
-      NETWORK: ${{ github.event.inputs.network || 'preview' }}
+      NETWORK: ${{ github.event.inputs.network || 'preprod' }}
       WALLET: ${{ github.event.inputs.walletTag || 'dev-master' }}
       TESTS_E2E_TOKEN_METADATA: https://metadata.cardano-testnet.iohkdev.io/
       NODE_DB_CACHE: ${{ github.event.inputs.node_db_cache || 'GH' }}

@@ -132,7 +132,7 @@ jobs:
         path: C:/cardano-wallet/test/e2e/state/wallet_db
 
     env:
-      NETWORK: ${{ github.event.inputs.network || 'preview' }}
+      NETWORK: ${{ github.event.inputs.network || 'preprod' }}
       TESTS_E2E_FIXTURES: ${{ secrets.TESTS_E2E_FIXTURES }}
       PR: ${{ github.event.inputs.pr || 'master' }}
       NODE_DB_CACHE: ${{ github.event.inputs.node_db_cache || 'GH' }}

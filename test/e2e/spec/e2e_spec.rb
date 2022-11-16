@@ -78,6 +78,8 @@ RSpec.describe 'Cardano Wallet E2E tests', :all, :e2e do
         script_utxo = '54b4e4e34a022424e441b00d8a73e9aaef71b3c63084e76246d326074c5d3756#1'
       when 'preview'
         script_utxo = '0c07395aed88bdddc6de0518d1462dd0ec7e52e1e3a53599f7cdb24dc80237f8#1'
+      when 'preprod'
+        script_utxo = '6d2174d3956d8eb2b3e1e198e817ccf1332a599d5d7320400bfd820490d706be#0'
       else
         skip %(
                 This test cannot be executed on '#{ENV.fetch('NETWORK', nil)}' yet!
