@@ -19,21 +19,14 @@ module Control.Monad.Random.Extra
     , stdGenFromSeed
     , stdGenToSeed
 
-    -- * Non-random contexts
-    , NonRandom (..)
-
     ) where
 
 import Prelude
 
-import Control.Applicative
-    ( Applicative (..) )
 import Control.Monad.Random.Class
     ( MonadRandom (..) )
 import Data.Bits
     ( (.|.) )
-import Data.Coerce
-    ( coerce )
 import Data.Word
     ( Word64 )
 import Data.Word.Odd
@@ -42,8 +35,6 @@ import GHC.Generics
     ( Generic )
 import Quiet
     ( Quiet (..) )
-import System.Random
-    ( Random (..), RandomGen (..) )
 import System.Random.Internal
     ( StdGen (..) )
 import System.Random.SplitMix
@@ -114,42 +105,3 @@ stdGenToSeed
         (fromIntegral @Word64 @Word127 b `Bits.shiftR` 1))
     . unseedSMGen
     . unStdGen
-
---------------------------------------------------------------------------------
--- Non-random contexts
---------------------------------------------------------------------------------
-
--- | Provides a stateless context for computations that must be non-random.
---
--- This type is useful for testing functions that require a 'MonadRandom'
--- context, but when actual randomness is not required or even desired.
---
-newtype NonRandom a = NonRandom
-    { runNonRandom :: a }
-    deriving (Eq, Generic, Ord, Show)
-
-instance Functor NonRandom where
-    fmap = coerce
-
-instance Applicative NonRandom where
-    liftA2 = coerce
-    pure = NonRandom
-    (<*>) = coerce
-
-instance Monad NonRandom where
-    m >>= k = k (runNonRandom m)
-
-instance MonadRandom NonRandom where
-    getRandom = pure $ fst $ random NonRandomGen
-    getRandomR r = pure $ fst $ randomR r NonRandomGen
-    getRandomRs r = pure $ randomRs r NonRandomGen
-    getRandoms = pure $ randoms NonRandomGen
-
--- | Provides a stateless and non-random implementation of 'RandomGen'
---
-data NonRandomGen = NonRandomGen
-
-instance RandomGen NonRandomGen where
-    genRange NonRandomGen = (minBound, maxBound)
-    next NonRandomGen = (0, NonRandomGen)
-    split NonRandomGen = (NonRandomGen, NonRandomGen)

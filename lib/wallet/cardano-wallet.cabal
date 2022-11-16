@@ -378,6 +378,7 @@ library
     Control.Concurrent.Concierge
     Control.Monad.Exception.Unchecked
     Control.Monad.Random.Extra
+    Control.Monad.Random.NonRandom
     Control.Monad.Util
     Crypto.Hash.Utils
     Data.Aeson.Extra
