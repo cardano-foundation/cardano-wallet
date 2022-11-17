@@ -111,7 +111,7 @@ jobs:
 
     env:
       TESTS_E2E_FIXTURES: ${{ secrets.TESTS_E2E_FIXTURES }}
-      NETWORK: ${{ github.event.inputs.network || 'preview' }}
+      NETWORK: ${{ github.event.inputs.network || 'preprod' }}
       PR: ${{ github.event.inputs.pr || '' }}
       NODE_DB_CACHE: ${{ github.event.inputs.node_db_cache || 'GH' }}
       TAGS: ${{ github.event.inputs.tags || 'all' }}
