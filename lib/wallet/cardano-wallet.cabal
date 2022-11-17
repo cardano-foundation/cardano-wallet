@@ -377,7 +377,7 @@ library
     Cardano.Wallet.Write.Tx.Gen
     Control.Concurrent.Concierge
     Control.Monad.Exception.Unchecked
-    Control.Monad.Random.Extra
+    Control.Monad.Random.NonRandom
     Control.Monad.Util
     Crypto.Hash.Utils
     Data.Aeson.Extra
@@ -390,6 +390,7 @@ library
     Database.Persist.PersistValue.Extended
     Network.Ntp
     Ouroboros.Network.Client.Wallet
+    System.Random.StdGenSeed
     UnliftIO.Compat
 
   other-modules:   Paths_cardano_wallet
@@ -917,7 +918,6 @@ test-suite unit
     Cardano.Wallet.Write.TxSpec
     Cardano.WalletSpec
     Control.Concurrent.ConciergeSpec
-    Control.Monad.Random.ExtraSpec
     Control.Monad.UtilSpec
     Data.Function.UtilsSpec
     Data.QuantitySpec
@@ -925,6 +925,7 @@ test-suite unit
     Data.Time.UtilsSpec
     Data.Vector.ShuffleSpec
     Spec
+    System.Random.StdGenSeedSpec
 
 test-suite integration
   import:             language, opts-exe

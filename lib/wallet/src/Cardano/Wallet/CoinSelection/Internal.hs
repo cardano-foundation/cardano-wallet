@@ -95,7 +95,7 @@ import Control.Monad
     ( (<=<) )
 import Control.Monad.Random.Class
     ( MonadRandom (..) )
-import Control.Monad.Random.Extra
+import Control.Monad.Random.NonRandom
     ( NonRandom (..) )
 import Control.Monad.Trans.Except
     ( ExceptT (..), runExceptT, withExceptT )

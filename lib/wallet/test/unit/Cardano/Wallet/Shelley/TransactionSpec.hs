@@ -285,8 +285,6 @@ import Control.Monad.Random
     , random
     , randoms
     )
-import Control.Monad.Random.Extra
-    ( StdGenSeed (..), stdGenFromSeed )
 import Control.Monad.Trans.Except
     ( except, runExceptT )
 import Crypto.Hash.Utils
@@ -351,6 +349,8 @@ import System.Directory
     ( listDirectory )
 import System.FilePath
     ( takeExtension, (</>) )
+import System.Random.StdGenSeed
+    ( StdGenSeed (..), stdGenFromSeed )
 import Test.Hspec
     ( Spec
     , SpecWith
