@@ -401,7 +401,15 @@ package cardano-wallet-cli
   tests: True
   ghc-options: -fwrite-ide-info
 
+package cardano-wallet-coin-selection
+  tests: True
+  ghc-options: -fwrite-ide-info
+
 package cardano-wallet-launcher
+  tests: True
+  ghc-options: -fwrite-ide-info
+
+package cardano-wallet-primitive
   tests: True
   ghc-options: -fwrite-ide-info
 
