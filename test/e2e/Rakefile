@@ -50,30 +50,30 @@ task :fixture_wallets_template do
   log ">> Creating #{FIXTURES_FILE}"
   utils = CardanoWallet.new.utils
   fixture_wallets = { linux: {
-                        fixture: { shelley: utils.mnemonic_sentence(24),
-                                   icarus: utils.mnemonic_sentence(15),
-                                   random: utils.mnemonic_sentence(12),
-                                   shelley_light: utils.mnemonic_sentence(24) },
-                        target: { shelley: utils.mnemonic_sentence(24),
-                                  shared: utils.mnemonic_sentence(24) }
+                        fixture: { shelley: { mnemonics: utils.mnemonic_sentence(24) },
+                                   icarus: { mnemonics: utils.mnemonic_sentence(24) },
+                                   random: { mnemonics: utils.mnemonic_sentence(24) },
+                                   shared: { mnemonics: utils.mnemonic_sentence(24) },
+                                   shared2: { mnemonics: utils.mnemonic_sentence(24) } },
+                        target: { shelley: { mnemonics: utils.mnemonic_sentence(24) } }
                       },
                       macos: {
-                        fixture: { shelley: utils.mnemonic_sentence(24),
-                                   icarus: utils.mnemonic_sentence(15),
-                                   random: utils.mnemonic_sentence(12),
-                                   shelley_light: utils.mnemonic_sentence(24) },
-                        target: { shelley: utils.mnemonic_sentence(24),
-                                  shared: utils.mnemonic_sentence(24) }
+                        fixture: { shelley: { mnemonics: utils.mnemonic_sentence(24) },
+                                   icarus: { mnemonics: utils.mnemonic_sentence(24) },
+                                   random: { mnemonics: utils.mnemonic_sentence(24) },
+                                   shared: { mnemonics: utils.mnemonic_sentence(24) },
+                                   shared2: { mnemonics: utils.mnemonic_sentence(24) } },
+                        target: { shelley: { mnemonics: utils.mnemonic_sentence(24) } }
                       },
                       windows: {
-                        fixture: { shelley: utils.mnemonic_sentence(24),
-                                   icarus: utils.mnemonic_sentence(15),
-                                   random: utils.mnemonic_sentence(12),
-                                   shelley_light: utils.mnemonic_sentence(24) },
-                        target: { shelley: utils.mnemonic_sentence(24),
-                                  shared: utils.mnemonic_sentence(24) }
+                        fixture: { shelley: { mnemonics: utils.mnemonic_sentence(24) },
+                                   icarus: { mnemonics: utils.mnemonic_sentence(24) },
+                                   random: { mnemonics: utils.mnemonic_sentence(24) },
+                                   shared: { mnemonics: utils.mnemonic_sentence(24) },
+                                   shared2: { mnemonics: utils.mnemonic_sentence(24) } },
+                        target: { shelley: { mnemonics: utils.mnemonic_sentence(24) } }
                       },
-                      currency_contract_wallet: utils.mnemonic_sentence(24) }
+                      currency_contract_wallet: { mnemonics: utils.mnemonic_sentence(24) } }
   if File.exist?(FIXTURES_FILE)
     err = "
               File #{FIXTURES_FILE} already exists!
