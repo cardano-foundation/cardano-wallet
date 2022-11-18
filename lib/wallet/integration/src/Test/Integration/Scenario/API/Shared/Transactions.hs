@@ -753,7 +753,7 @@ spec = describe "SHARED_TRANSACTIONS" $ do
             (Link.listAddresses @'Shared walDest) Default Empty
         expectResponseCode HTTP.status200 rAddr
         let addrs = getFromResponse Prelude.id rAddr
-        let destAddr1 = (addrs !! 0) ^. #id
+        let destAddr1 = (head addrs) ^. #id
         let destAddr2 = (addrs !! 1) ^. #id
         let payload destination amt = Json [json|{
                 "payments": [{
