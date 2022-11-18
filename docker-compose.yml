@@ -4,8 +4,7 @@ services:
   cardano-node:
     image: inputoutput/cardano-node:1.35.4
     environment:
-      - NETWORK=${NETWORK:-mainnet}
-      - CARDANO_NODE_SOCKET_PATH=${CARDANO_NODE_SOCKET_PATH:-/ipc/node.socket}
+      NETWORK:
     volumes:
       - ./node-${NETWORK}-db:/data
       - node-ipc:/ipc
