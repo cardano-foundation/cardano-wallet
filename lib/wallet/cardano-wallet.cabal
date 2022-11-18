@@ -87,7 +87,9 @@ library
     , cardano-numeric
     , cardano-protocol-tpraos
     , cardano-slotting
+    , cardano-wallet-coin-selection
     , cardano-wallet-launcher
+    , cardano-wallet-primitive
     , cardano-wallet-test-utils
     , cborg
     , containers
@@ -220,13 +222,6 @@ library
     Cardano.Wallet.Byron.Compatibility
     Cardano.Wallet.Checkpoints
     Cardano.Wallet.Checkpoints.Policy
-    Cardano.Wallet.CoinSelection
-    Cardano.Wallet.CoinSelection.Gen
-    Cardano.Wallet.CoinSelection.Internal
-    Cardano.Wallet.CoinSelection.Internal.Balance
-    Cardano.Wallet.CoinSelection.Internal.Balance.Gen
-    Cardano.Wallet.CoinSelection.Internal.Collateral
-    Cardano.Wallet.CoinSelection.Internal.Context
     Cardano.Wallet.Compat
     Cardano.Wallet.DB
     Cardano.Wallet.DB.Layer
@@ -265,7 +260,6 @@ library
     Cardano.Wallet.Primitive.AddressDiscovery.Sequential
     Cardano.Wallet.Primitive.AddressDiscovery.Shared
     Cardano.Wallet.Primitive.BlockSummary
-    Cardano.Wallet.Primitive.Collateral
     Cardano.Wallet.Primitive.Delegation.State
     Cardano.Wallet.Primitive.Delegation.UTxO
     Cardano.Wallet.Primitive.Migration
@@ -280,12 +274,7 @@ library
     Cardano.Wallet.Primitive.Slotting
     Cardano.Wallet.Primitive.SyncProgress
     Cardano.Wallet.Primitive.Types
-    Cardano.Wallet.Primitive.Types.Address
     Cardano.Wallet.Primitive.Types.Address.Constants
-    Cardano.Wallet.Primitive.Types.Address.Gen
-    Cardano.Wallet.Primitive.Types.Coin
-    Cardano.Wallet.Primitive.Types.Coin.Gen
-    Cardano.Wallet.Primitive.Types.Hash
     Cardano.Wallet.Primitive.Types.MinimumUTxO
     Cardano.Wallet.Primitive.Types.MinimumUTxO.Gen
     Cardano.Wallet.Primitive.Types.ProtocolMagic
@@ -293,34 +282,14 @@ library
     Cardano.Wallet.Primitive.Types.RewardAccount
     Cardano.Wallet.Primitive.Types.RewardAccount.Gen
     Cardano.Wallet.Primitive.Types.StateDeltaSeq
-    Cardano.Wallet.Primitive.Types.TokenBundle
-    Cardano.Wallet.Primitive.Types.TokenBundle.Gen
-    Cardano.Wallet.Primitive.Types.TokenMap
-    Cardano.Wallet.Primitive.Types.TokenMap.Gen
-    Cardano.Wallet.Primitive.Types.TokenPolicy
-    Cardano.Wallet.Primitive.Types.TokenPolicy.Gen
-    Cardano.Wallet.Primitive.Types.TokenQuantity
-    Cardano.Wallet.Primitive.Types.TokenQuantity.Gen
     Cardano.Wallet.Primitive.Types.Tx
-    Cardano.Wallet.Primitive.Types.Tx.Constraints
     Cardano.Wallet.Primitive.Types.Tx.Gen
     Cardano.Wallet.Primitive.Types.Tx.SealedTx
     Cardano.Wallet.Primitive.Types.Tx.TransactionInfo
     Cardano.Wallet.Primitive.Types.Tx.Tx
-    Cardano.Wallet.Primitive.Types.Tx.TxIn
-    Cardano.Wallet.Primitive.Types.Tx.TxIn.Gen
     Cardano.Wallet.Primitive.Types.Tx.TxMeta
-    Cardano.Wallet.Primitive.Types.Tx.TxOut
-    Cardano.Wallet.Primitive.Types.Tx.TxOut.Gen
     Cardano.Wallet.Primitive.Types.Tx.TxSeq
     Cardano.Wallet.Primitive.Types.Tx.TxSeq.Gen
-    Cardano.Wallet.Primitive.Types.UTxO
-    Cardano.Wallet.Primitive.Types.UTxO.Gen
-    Cardano.Wallet.Primitive.Types.UTxOIndex
-    Cardano.Wallet.Primitive.Types.UTxOIndex.Gen
-    Cardano.Wallet.Primitive.Types.UTxOIndex.Internal
-    Cardano.Wallet.Primitive.Types.UTxOSelection
-    Cardano.Wallet.Primitive.Types.UTxOSelection.Gen
     Cardano.Wallet.Primitive.Types.UTxOStatistics
     Cardano.Wallet.Read
     Cardano.Wallet.Read.Eras
@@ -369,20 +338,16 @@ library
     Cardano.Wallet.Shelley.Transaction
     Cardano.Wallet.TokenMetadata
     Cardano.Wallet.Transaction
-    Cardano.Wallet.Unsafe
-    Cardano.Wallet.Util
     Cardano.Wallet.Version
     Cardano.Wallet.Version.TH
     Cardano.Wallet.Write.Tx
     Cardano.Wallet.Write.Tx.Gen
     Control.Concurrent.Concierge
     Control.Monad.Exception.Unchecked
-    Control.Monad.Random.NonRandom
     Control.Monad.Util
     Crypto.Hash.Utils
     Data.Aeson.Extra
     Data.Function.Utils
-    Data.Quantity
     Data.Text.Class.Extended
     Data.Time.Text
     Data.Time.Utils
@@ -422,7 +387,9 @@ library cardano-wallet-api-http
     , cardano-ledger-core
     , cardano-ledger-shelley
     , cardano-wallet
+    , cardano-wallet-coin-selection
     , cardano-wallet-launcher
+    , cardano-wallet-primitive
     , cardano-wallet-test-utils
     , cborg
     , containers
@@ -535,6 +502,7 @@ library cardano-wallet-integration
     , cardano-wallet
     , cardano-wallet-api-http
     , cardano-wallet-launcher
+    , cardano-wallet-primitive
     , cardano-wallet-test-utils
     , cborg
     , command
@@ -627,6 +595,7 @@ library mock-token-metadata
     , base
     , bytestring
     , cardano-wallet
+    , cardano-wallet-primitive
     , generic-lens
     , memory
     , network-uri
@@ -672,6 +641,7 @@ executable local-cluster
     , cardano-wallet-api-http
     , cardano-wallet-integration
     , cardano-wallet-launcher
+    , cardano-wallet-primitive
     , contra-tracer
     , directory
     , filepath
@@ -729,7 +699,9 @@ test-suite unit
     , cardano-slotting
     , cardano-wallet
     , cardano-wallet-api-http
+    , cardano-wallet-coin-selection
     , cardano-wallet-launcher
+    , cardano-wallet-primitive
     , cardano-wallet-test-utils
     , cborg
     , connection
@@ -844,10 +816,6 @@ test-suite unit
     Cardano.Wallet.ApiSpec
     Cardano.Wallet.Checkpoints.PolicySpec
     Cardano.Wallet.CheckpointsSpec
-    Cardano.Wallet.CoinSelection.Internal.BalanceSpec
-    Cardano.Wallet.CoinSelection.Internal.CollateralSpec
-    Cardano.Wallet.CoinSelection.InternalSpec
-    Cardano.Wallet.CoinSelectionSpec
     Cardano.Wallet.DB.Arbitrary
     Cardano.Wallet.DB.Fixtures
     Cardano.Wallet.DB.LayerSpec
@@ -875,7 +843,6 @@ test-suite unit
     Cardano.Wallet.Primitive.AddressDiscovery.SharedSpec
     Cardano.Wallet.Primitive.AddressDiscoverySpec
     Cardano.Wallet.Primitive.BlockSummarySpec
-    Cardano.Wallet.Primitive.CollateralSpec
     Cardano.Wallet.Primitive.Delegation.StateSpec
     Cardano.Wallet.Primitive.Migration.PlanningSpec
     Cardano.Wallet.Primitive.Migration.SelectionSpec
@@ -886,22 +853,9 @@ test-suite unit
     Cardano.Wallet.Primitive.Slotting.Legacy
     Cardano.Wallet.Primitive.SlottingSpec
     Cardano.Wallet.Primitive.SyncProgressSpec
-    Cardano.Wallet.Primitive.Types.AddressSpec
-    Cardano.Wallet.Primitive.Types.CoinSpec
-    Cardano.Wallet.Primitive.Types.HashSpec
     Cardano.Wallet.Primitive.Types.StateDeltaSeqSpec
-    Cardano.Wallet.Primitive.Types.TokenBundleSpec
-    Cardano.Wallet.Primitive.Types.TokenMapSpec
-    Cardano.Wallet.Primitive.Types.TokenMapSpec.TypeErrorSpec
-    Cardano.Wallet.Primitive.Types.TokenPolicySpec
-    Cardano.Wallet.Primitive.Types.TokenQuantitySpec
     Cardano.Wallet.Primitive.Types.Tx.TxSeqSpec
     Cardano.Wallet.Primitive.Types.TxSpec
-    Cardano.Wallet.Primitive.Types.UTxOIndex.TypeErrorSpec
-    Cardano.Wallet.Primitive.Types.UTxOIndexSpec
-    Cardano.Wallet.Primitive.Types.UTxOSelectionSpec
-    Cardano.Wallet.Primitive.Types.UTxOSelectionSpec.TypeErrorSpec
-    Cardano.Wallet.Primitive.Types.UTxOSpec
     Cardano.Wallet.Primitive.TypesSpec
     Cardano.Wallet.Read.Tx.CBORSpec
     Cardano.Wallet.RegistrySpec
@@ -920,7 +874,6 @@ test-suite unit
     Control.Concurrent.ConciergeSpec
     Control.Monad.UtilSpec
     Data.Function.UtilsSpec
-    Data.QuantitySpec
     Data.Time.TextSpec
     Data.Time.UtilsSpec
     Data.Vector.ShuffleSpec
@@ -938,6 +891,7 @@ test-suite integration
     , cardano-wallet-api-http
     , cardano-wallet-integration
     , cardano-wallet-launcher
+    , cardano-wallet-primitive
     , cardano-wallet-test-utils
     , contra-tracer
     , directory
@@ -969,7 +923,9 @@ benchmark restore
     , cardano-addresses
     , cardano-wallet
     , cardano-wallet-api-http
+    , cardano-wallet-coin-selection
     , cardano-wallet-integration
+    , cardano-wallet-primitive
     , contra-tracer
     , deepseq
     , filepath
@@ -995,6 +951,7 @@ benchmark latency
     , cardano-wallet-api-http
     , cardano-wallet-integration
     , cardano-wallet-launcher
+    , cardano-wallet-primitive
     , directory
     , filepath
     , generic-lens
@@ -1020,6 +977,7 @@ benchmark db
     , cardano-crypto
     , cardano-wallet
     , cardano-wallet-launcher
+    , cardano-wallet-primitive
     , cardano-wallet-test-utils
     , containers
     , contra-tracer

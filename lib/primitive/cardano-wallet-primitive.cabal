@@ -1,0 +1,182 @@
+cabal-version:      2.2
+name:               cardano-wallet-primitive
+version:            2022.10.6
+synopsis:           Selected primitive types for Cardano Wallet.
+description:        Please see README.md.
+homepage:           https://github.com/input-output-hk/cardano-wallet
+author:             IOHK Engineering Team
+maintainer:         operations@iohk.io
+copyright:          2018-2022 IOHK
+license:            Apache-2.0
+category:           Web
+build-type:         Simple
+
+common language
+  default-language:   Haskell2010
+  default-extensions:
+    NoImplicitPrelude
+    OverloadedStrings
+
+common opts-lib
+  ghc-options: -Wall -Wcompat -fwarn-redundant-constraints
+
+  if flag(release)
+    ghc-options: -O2 -Werror
+
+common opts-exe
+  ghc-options: -threaded -rtsopts -Wall
+
+  if flag(release)
+    ghc-options: -O2 -Werror
+
+flag release
+  description: Enable optimization and `-Werror`
+  default:     False
+  manual:      True
+
+flag scrypt
+  description: Enable compatibility support for legacy wallet passwords.
+  default:     True
+
+library
+  import:          language, opts-lib
+  hs-source-dirs:  lib
+
+  if flag(scrypt)
+    cpp-options:   -DHAVE_SCRYPT
+    build-depends: scrypt
+
+  build-depends:
+    , aeson
+    , base
+    , bech32
+    , bech32-th
+    , binary
+    , bytestring
+    , cardano-addresses
+    , cardano-crypto
+    , cardano-numeric
+    , cardano-wallet-test-utils
+    , cborg
+    , containers
+    , cryptonite
+    , dbvar
+    , deepseq
+    , errors
+    , extra
+    , fmt
+    , generic-lens
+    , generics-sop
+    , hashable
+    , int-cast
+    , lattices
+    , memory
+    , MonadRandom
+    , network-uri
+    , nothunks
+    , OddWord
+    , QuickCheck
+    , quiet
+    , random
+    , safe
+    , scientific
+    , strict-non-empty-containers
+    , text
+    , text-class
+    , transformers
+    , unliftio
+    , unliftio-core
+
+  exposed-modules:
+    Cardano.Wallet.Primitive.Collateral
+    Cardano.Wallet.Primitive.Types.Address
+    Cardano.Wallet.Primitive.Types.Address.Gen
+    Cardano.Wallet.Primitive.Types.Coin
+    Cardano.Wallet.Primitive.Types.Coin.Gen
+    Cardano.Wallet.Primitive.Types.Hash
+    Cardano.Wallet.Primitive.Types.TokenBundle
+    Cardano.Wallet.Primitive.Types.TokenBundle.Gen
+    Cardano.Wallet.Primitive.Types.TokenMap
+    Cardano.Wallet.Primitive.Types.TokenMap.Gen
+    Cardano.Wallet.Primitive.Types.TokenPolicy
+    Cardano.Wallet.Primitive.Types.TokenPolicy.Gen
+    Cardano.Wallet.Primitive.Types.TokenQuantity
+    Cardano.Wallet.Primitive.Types.TokenQuantity.Gen
+    Cardano.Wallet.Primitive.Types.Tx.Constraints
+    Cardano.Wallet.Primitive.Types.Tx.TxIn
+    Cardano.Wallet.Primitive.Types.Tx.TxIn.Gen
+    Cardano.Wallet.Primitive.Types.Tx.TxOut
+    Cardano.Wallet.Primitive.Types.Tx.TxOut.Gen
+    Cardano.Wallet.Primitive.Types.UTxO
+    Cardano.Wallet.Primitive.Types.UTxO.Gen
+    Cardano.Wallet.Primitive.Types.UTxOIndex
+    Cardano.Wallet.Primitive.Types.UTxOIndex.Gen
+    Cardano.Wallet.Primitive.Types.UTxOIndex.Internal
+    Cardano.Wallet.Primitive.Types.UTxOSelection
+    Cardano.Wallet.Primitive.Types.UTxOSelection.Gen
+    Cardano.Wallet.Unsafe
+    Cardano.Wallet.Util
+    Control.Monad.Random.NonRandom
+    Data.Quantity
+
+test-suite test
+  import:             language, opts-exe
+  ghc-options:        -with-rtsopts=-M2G -with-rtsopts=-N4
+  type:               exitcode-stdio-1.0
+  hs-source-dirs:     test
+  main-is:            run-test-suite.hs
+  build-depends:
+    , aeson
+    , aeson-qq
+    , base
+    , base58-bytestring
+    , binary
+    , bytestring
+    , cardano-ledger-byron-test
+    , cardano-ledger-core
+    , cardano-ledger-shelley-test
+    , cardano-numeric
+    , cardano-wallet-launcher
+    , cardano-wallet-primitive
+    , cardano-wallet-test-utils
+    , containers
+    , dbvar
+    , filepath
+    , fmt
+    , generic-lens
+    , hedgehog-quickcheck
+    , hspec
+    , hspec-core
+    , lattices
+    , MonadRandom
+    , QuickCheck
+    , quickcheck-classes
+    , quickcheck-instances
+    , quickcheck-quid
+    , should-not-typecheck
+    , string-qq
+    , text
+    , text-class
+
+  if flag(scrypt)
+    cpp-options:   -DHAVE_SCRYPT
+    build-depends: scrypt
+
+  build-tool-depends: hspec-discover:hspec-discover
+  other-modules:
+    Cardano.Wallet.Primitive.CollateralSpec
+    Cardano.Wallet.Primitive.Types.AddressSpec
+    Cardano.Wallet.Primitive.Types.CoinSpec
+    Cardano.Wallet.Primitive.Types.HashSpec
+    Cardano.Wallet.Primitive.Types.TokenBundleSpec
+    Cardano.Wallet.Primitive.Types.TokenMapSpec
+    Cardano.Wallet.Primitive.Types.TokenMapSpec.TypeErrorSpec
+    Cardano.Wallet.Primitive.Types.TokenPolicySpec
+    Cardano.Wallet.Primitive.Types.TokenQuantitySpec
+    Cardano.Wallet.Primitive.Types.UTxOIndex.TypeErrorSpec
+    Cardano.Wallet.Primitive.Types.UTxOIndexSpec
+    Cardano.Wallet.Primitive.Types.UTxOSelectionSpec
+    Cardano.Wallet.Primitive.Types.UTxOSelectionSpec.TypeErrorSpec
+    Cardano.Wallet.Primitive.Types.UTxOSpec
+    Data.QuantitySpec
+    Spec
