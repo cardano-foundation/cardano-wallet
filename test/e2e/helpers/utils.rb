@@ -76,20 +76,21 @@ module Helpers
       end
     end
 
-    # Get wallet mnemonics from fixures file
+    # Get wallet mnemonics/payment template/delegation template from fixures file
     # @param kind [Symbol] :fixture or :target (fixture wallet with funds or target wallet)
-    # @param type [Symbol] wallet type = :shelley, :shared, :icarus, :random
-    def get_fixture_wallet_mnemonics(kind, type)
+    # @param wallet_type [Symbol] wallet type = :shelley, :shared, :icarus, :random
+    # @param info_type [Symbol] wallet type = :mnemonics, :payment_template, :delegation_template
+    def get_fixture_wallet(kind, wallet_type, info_type = :mnemonics)
       fixture = ENV.fetch('TESTS_E2E_FIXTURES_FILE', nil)
       raise "File #{fixture} does not exist! (Hint: Template fixture file can be created with 'rake fixture_wallets_template'). Make sure to feed it with mnemonics of wallets with funds and assets." unless File.exist? fixture
 
       wallets = from_json(fixture)
       if linux?
-        wallets[:linux][kind][type]
+        wallets[:linux][kind][wallet_type][info_type]
       elsif mac?
-        wallets[:macos][kind][type]
+        wallets[:macos][kind][wallet_type][info_type]
       elsif win?
-        wallets[:windows][kind][type]
+        wallets[:windows][kind][wallet_type][info_type]
       else
         raise 'Unsupported platform!'
       end

@@ -8,10 +8,18 @@ RSpec.describe 'Cardano Wallet E2E tests - Shared wallets', :all, :e2e do
 
     # shared wallets
     @wid_sha = create_fixture_wallet(:shared)
-    # @wid_sha_cos0 = create_fixture_wallet(:shared, 0)
-    # @wid_sha_cos1 = create_fixture_wallet(:shared, 1)
+    @wid_sha_cos0 = create_fixture_wallet(:shared_cosigner_0)
+    @wid_sha_cos1 = create_fixture_wallet(:shared_cosigner_1)
+    cos0 = shared_acc_pubkey(@wid_sha_cos0)
+    cos1 = shared_acc_pubkey(@wid_sha_cos1)
+    patch_incomplete_shared_wallet(@wid_sha_cos0,
+                                   { 'cosigner#1' => cos1 },
+                                   { 'cosigner#1' => cos1 })
+    patch_incomplete_shared_wallet(@wid_sha_cos1,
+                                   { 'cosigner#0' => cos0 },
+                                   { 'cosigner#0' => cos0 })
 
-    @nightly_shared_wallets = [@wid_sha]
+    @nightly_shared_wallets = [@wid_sha, @wid_sha_cos0, @wid_sha_cos1]
     @nightly_shelley_wallets = [@wid, @target_id]
     wait_for_all_shelley_wallets(@nightly_shelley_wallets)
     wait_for_all_shared_wallets(@nightly_shared_wallets)

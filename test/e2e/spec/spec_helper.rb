@@ -131,6 +131,11 @@ def create_incomplete_shared_wallet(m, acc_ix, acc_xpub)
   WalletFactory.create(:shared, payload)['id']
 end
 
+def shared_acc_pubkey(wallet_id)
+  key_bech32 = SHARED.keys.get_acc_public_key(wallet_id, { format: 'extended' }).parsed_response.delete_prefix('"').delete_suffix('"')
+  bech32_to_base16(key_bech32)
+end
+
 def patch_incomplete_shared_wallet(wid, payment_patch, deleg_patch)
   if payment_patch
     p_upd = SHARED.wallets.update_payment_script(wid,
@@ -280,11 +285,11 @@ end
 
 ##
 # create fixture wallet or return it's id if it exists
-# @param type [Symbol] :shelley, :shelley_light, :random, :icarus
+# @param type [Symbol] :shelley, :shared, :shared_cosigner_0, :shared_cosigner_1, :random, :icarus
 def create_fixture_wallet(type)
-  payload = { name: 'Fixture wallet with funds',
+  payload = { name: "Fixture wallet with funds (#{type})",
               passphrase: PASS,
-              mnemonic_sentence: get_fixture_wallet_mnemonics(:fixture, type.to_sym) }
+              mnemonic_sentence: get_fixture_wallet(:fixture, type.to_sym, :mnemonics) }
   case type.to_sym
   when :shelley
     wallet = SHELLEY.wallets.create(payload)
@@ -304,6 +309,12 @@ def create_fixture_wallet(type)
     payload[:delegation_script_template] = script_template
     wallet = SHARED.wallets.create(payload)
     return_wallet_id(wallet)
+  when :shared_cosigner_0, :shared_cosigner_1
+    payload[:account_index] = '0H'
+    payload[:payment_script_template] = get_fixture_wallet(:fixture, type.to_sym, :payment_template)
+    payload[:delegation_script_template] = get_fixture_wallet(:fixture, type.to_sym, :delegation_template)
+    wallet = SHARED.wallets.create(payload)
+    return_wallet_id(wallet)
   else
     raise "Unsupported wallet type: #{type}"
   end
@@ -315,7 +326,7 @@ end
 def create_target_wallet(type)
   payload = { name: 'Target wallet for txs',
               passphrase: PASS,
-              mnemonic_sentence: get_fixture_wallet_mnemonics(:target, type.to_sym) }
+              mnemonic_sentence: get_fixture_wallet(:target, type.to_sym, :mnemonics) }
   case type.to_sym
   when :shelley
     wallet = SHELLEY.wallets.create(payload)

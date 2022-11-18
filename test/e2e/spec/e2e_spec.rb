@@ -2828,7 +2828,7 @@ RSpec.describe 'Cardano Wallet E2E tests', :all, :e2e do
 
     describe 'Update passphrase' do
       it 'I can update passphrase with mnemonic and the wallet does not have to re-sync' do
-        mnemonics = get_fixture_wallet_mnemonics(:fixture, :shelley)
+        mnemonics = get_fixture_wallet(:fixture, :shelley, :mnemonics)
         upd = SHELLEY.wallets.update_passphrase(@wid, { mnemonic_sentence: mnemonics,
                                                         new_passphrase: PASS })
         expect(upd).to be_correct_and_respond 204
