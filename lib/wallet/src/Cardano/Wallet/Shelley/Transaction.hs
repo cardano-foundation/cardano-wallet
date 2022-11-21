@@ -2444,12 +2444,12 @@ dummyInput = TxIn (Hash $ BS.replicate 32 0) 999
 removeDummyInput :: HasCallStack => Cardano.TxBody era -> Cardano.TxBody era
 removeDummyInput txBody =
     case txBody of
-        Byron.ByronTxBody {} -> txBody
+        Byron.ByronTxBody {} -> bailOut
         Cardano.ShelleyTxBody era body scripts scriptData aux val ->
             case era of
-                ShelleyBasedEraShelley -> txBody
-                ShelleyBasedEraAllegra -> txBody
-                ShelleyBasedEraMary -> txBody
+                ShelleyBasedEraShelley -> bailOut
+                ShelleyBasedEraAllegra -> bailOut
+                ShelleyBasedEraMary -> bailOut
                 ShelleyBasedEraAlonzo ->
                     let body' = body
                             { Alonzo.inputs =
@@ -2478,6 +2478,8 @@ removeDummyInput txBody =
                         scriptData
                         aux
                         val
+  where
+    bailOut = error "removeDummyInput only supported for the Babbage era"
 
 mkWithdrawals
     :: NetworkId

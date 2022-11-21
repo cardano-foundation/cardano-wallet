@@ -41,7 +41,6 @@ import Cardano.Api
     , IsShelleyBasedEra (..)
     , ShelleyBasedEra (..)
     , TxOutValue (TxOutAdaOnly, TxOutValue)
-    , cardanoEraStyle
     )
 import Cardano.Api.Extra
     ( asAnyShelleyBasedEra, withShelleyBasedTx )
@@ -221,12 +220,9 @@ import Cardano.Wallet.Read.Primitive.Tx.Features.Integrity
 import Cardano.Wallet.Read.Tx.Cardano
     ( fromCardanoApiTx )
 import Cardano.Wallet.Shelley.Compatibility
-    ( AnyShelleyBasedEra (..)
-    , computeTokenBundleSerializedLengthBytes
+    ( computeTokenBundleSerializedLengthBytes
     , fromCardanoLovelace
     , fromCardanoValue
-    , getShelleyBasedEra
-    , shelleyToCardanoEra
     , toCardanoLovelace
     , toCardanoTxIn
     , toCardanoValue
@@ -361,7 +357,6 @@ import Test.Hspec
     , runIO
     , shouldBe
     , shouldSatisfy
-    , xdescribe
     )
 import Test.Hspec.Core.Spec
     ( SpecM )
@@ -397,7 +392,6 @@ import Test.QuickCheck
     , shrinkList
     , shrinkMapBy
     , suchThat
-    , suchThatMap
     , vector
     , vectorOf
     , withMaxSuccess
@@ -447,6 +441,12 @@ import qualified Cardano.Wallet.Primitive.Types.Tx.TxOut.Gen as TxOutGen
 import qualified Cardano.Wallet.Primitive.Types.UTxO as UTxO
 import qualified Cardano.Wallet.Primitive.Types.UTxOIndex as UTxOIndex
 import qualified Cardano.Wallet.Shelley.Compatibility as Compatibility
+import Cardano.Wallet.Write.Tx
+    ( AnyRecentEra (..)
+    , RecentEra (..)
+    , cardanoEraFromRecentEra
+    , shelleyBasedEraFromRecentEra
+    )
 import qualified Cardano.Wallet.Write.Tx as WriteTx
 import qualified Codec.CBOR.Encoding as CBOR
 import qualified Codec.CBOR.Write as CBOR
@@ -473,7 +473,7 @@ spec = do
     forAllEras estimateMaxInputsSpec
     forAllEras feeCalculationSpec
     feeEstimationRegressionSpec
-    forAllEras binaryCalculationsSpec
+    forAllRecentEras binaryCalculationsSpec
     transactionConstraintsSpec
     updateSealedTxSpec
     balanceTransactionSpec
@@ -1035,6 +1035,11 @@ forAllShelleyBasedEras eraSpec = do
     eraSpec (AnyCardanoEra AlonzoEra)
     eraSpec (AnyCardanoEra BabbageEra)
 
+forAllRecentEras :: (AnyRecentEra -> Spec) -> Spec
+forAllRecentEras eraSpec = do
+    eraSpec (AnyRecentEra RecentEraAlonzo)
+    eraSpec (AnyRecentEra RecentEraBabbage)
+
 allEras :: [(Int, AnyCardanoEra)]
 allEras =
     [ (1, AnyCardanoEra ByronEra)
@@ -1048,17 +1053,20 @@ allEras =
 eraNum :: AnyCardanoEra -> Int
 eraNum e = fst $ head $ filter ((== e) . snd) allEras
 
-shelleyEraNum :: AnyShelleyBasedEra -> Int
-shelleyEraNum = eraNum . shelleyToCardanoEra
+shelleyEraNum :: AnyRecentEra -> Int
+shelleyEraNum (AnyRecentEra era) =
+    eraNum . AnyCardanoEra $ cardanoEraFromRecentEra era
 
 instance Arbitrary AnyCardanoEra where
     arbitrary = frequency $ zip [1..] $ map (pure . snd) allEras
     -- Shrink by choosing a *later* era
     shrink e = map snd $ filter ((> eraNum e) . fst) allEras
 
-instance Arbitrary AnyShelleyBasedEra where
-    arbitrary = suchThatMap (getShelleyBasedEra <$> arbitrary) id
-    -- shrink = _fixme
+instance Arbitrary AnyRecentEra where
+    arbitrary = elements
+        [ AnyRecentEra RecentEraAlonzo
+        , AnyRecentEra RecentEraBabbage
+        ]
 
 decodeSealedTxSpec :: Spec
 decodeSealedTxSpec = describe "SealedTx serialisation/deserialisation" $ do
@@ -1067,9 +1075,7 @@ decodeSealedTxSpec = describe "SealedTx serialisation/deserialisation" $ do
         let sealedTx = sealedTxFromBytes bytes
         sealedTx `shouldSatisfy` isRight
 
-    prop "roundtrip for Shelley witnesses" prop_sealedTxShelleyRoundtrip
-    xdescribe "Not implemented yet" $ do -- TODO: [ADP-919]
-        prop "roundtrip for Byron witnesses" prop_sealedTxByronRoundtrip
+    prop "roundtrip for Shelley witnesses" prop_sealedTxRecentEraRoundtrip
   where
     byteString =
         "84a70081825820410a9cd4af08b3abe25c2d3b87af4c23d0bb2fb7577b639d5cfbdf\
@@ -1455,24 +1461,13 @@ feeEstimationRegressionSpec = describe "Regression tests" $ do
                     , shortfall = Coin 100000
                     }
         result <- runExceptT (estimateFee runSelection)
-        result `shouldBe`
-            Right (FeeEstimation requiredCost requiredCost)
+        result `shouldBe` Right (FeeEstimation requiredCost requiredCost)
 
-binaryCalculationsSpec :: AnyCardanoEra -> Spec
-binaryCalculationsSpec (AnyCardanoEra era) =
-    case cardanoEraStyle era of
-        LegacyByronEra -> pure ()
-        ShelleyBasedEra shelleyEra -> case shelleyEra of
-            ShelleyBasedEraShelley ->
-                binaryCalculationsSpec' @Cardano.ShelleyEra shelleyEra
-            ShelleyBasedEraAllegra ->
-                binaryCalculationsSpec' @Cardano.AllegraEra shelleyEra
-            ShelleyBasedEraMary ->
-                binaryCalculationsSpec' @Cardano.MaryEra shelleyEra
-            ShelleyBasedEraAlonzo ->
-                binaryCalculationsSpec' @Cardano.AlonzoEra shelleyEra
-            ShelleyBasedEraBabbage ->
-                binaryCalculationsSpec' @Cardano.BabbageEra shelleyEra
+binaryCalculationsSpec :: AnyRecentEra -> Spec
+binaryCalculationsSpec (AnyRecentEra era) =
+    case era of
+        RecentEraAlonzo -> binaryCalculationsSpec' @Cardano.AlonzoEra era
+        RecentEraBabbage -> binaryCalculationsSpec' @Cardano.BabbageEra era
 
 -- Up till Mary era we have the following structure of transaction
 --   transaction =
@@ -1496,7 +1491,7 @@ binaryCalculationsSpec (AnyCardanoEra era) =
 -- extended in this era.
 binaryCalculationsSpec'
     :: forall era. EraConstraints era
-    => ShelleyBasedEra era -> Spec
+    => RecentEra era -> Spec
 binaryCalculationsSpec' era = describe ("calculateBinary - "+||era||+"") $ do
     describe "Byron witnesses - mainnet" $ do
         let net = Cardano.Mainnet
@@ -1518,7 +1513,7 @@ binaryCalculationsSpec' era = describe ("calculateBinary - "+||era||+"") $ do
                     [ TxOut (dummyAddress 2) (coinToBundle amtChange)
                     ]
             let binary = case era of
-                    ShelleyBasedEraBabbage ->
+                    RecentEraBabbage ->
                         "84a400818258200000000000000000000000000000000000000000\
                         \000000000000000000000000000182a20058390101010101010101\
                         \010101010101010101010101010101010101010101010101010101\
@@ -1532,7 +1527,7 @@ binaryCalculationsSpec' era = describe ("calculateBinary - "+||era||+"") $ do
                         \483a53a5aa35247e0d2b80e6300f7bdec763a20458200000000000\
                         \000000000000000000000000000000000000000000000000000000\
                         \41a0f5f6"
-                    ShelleyBasedEraAlonzo ->
+                    RecentEraAlonzo ->
                         "84a400818258200000000000000000000000000000000000000000\
                         \000000000000000000000000000182825839010101010101010101\
                         \010101010101010101010101010101010101010101010101010101\
@@ -1545,19 +1540,6 @@ binaryCalculationsSpec' era = describe ("calculateBinary - "+||era||+"") $ do
                         \cbb3732b54ef322daa142e6884023410f8be3c16e9bd52076f2bb3\
                         \6bf38dfe034a9f04658e9f56197ab80f5820000000000000000000\
                         \000000000000000000000000000000000000000000000041a0f5f6"
-                    _ ->
-                        "83a400818258200000000000000000000000000000000000000000\
-                        \000000000000000000000000000182825839010101010101010101\
-                        \010101010101010101010101010101010101010101010101010101\
-                        \0101010101010101010101010101010101010101011a001e848082\
-                        \583901020202020202020202020202020202020202020202020202\
-                        \020202020202020202020202020202020202020202020202020202\
-                        \02020202021a0078175c021a0001faa403191e46a1028184582001\
-                        \000000000000000000000000000000000000000000000000000000\
-                        \000000005840d7af60ae33d2af351411c1445c79590526990bfa73\
-                        \cbb3732b54ef322daa142e6884023410f8be3c16e9bd52076f2bb3\
-                        \6bf38dfe034a9f04658e9f56197ab80f5820000000000000000000\
-                        \000000000000000000000000000000000000000000000041a0f6"
 
             calculateBinary net utxo outs chgs pairs `shouldBe` binary
 
@@ -1583,7 +1565,7 @@ binaryCalculationsSpec' era = describe ("calculateBinary - "+||era||+"") $ do
                     [ TxOut (dummyAddress 4) (coinToBundle amtChange)
                     ]
             let binary = case era of
-                    ShelleyBasedEraBabbage ->
+                    RecentEraBabbage ->
                         "84a400828258200000000000000000000000000000000000000000\
                         \000000000000000000000000008258200000000000000000000000\
                         \000000000000000000000000000000000000000000010183a20058\
@@ -1606,7 +1588,7 @@ binaryCalculationsSpec' era = describe ("calculateBinary - "+||era||+"") $ do
                         \f6cd898eb4ab8439a16e08befdc415120e58200101010101010101\
                         \01010101010101010101010101010101010101010101010141a0f5\
                         \f6"
-                    ShelleyBasedEraAlonzo ->
+                    RecentEraAlonzo ->
                         "84a400828258200000000000000000000000000000000000000000\
                         \000000000000000000000000008258200000000000000000000000\
                         \000000000000000000000000000000000000000000010183825839\
@@ -1628,28 +1610,6 @@ binaryCalculationsSpec' era = describe ("calculateBinary - "+||era||+"") $ do
                         \a360d479c64ef169914b52ade49b19a7208fd63a6e67a19c406b48\
                         \26608fdc5307025506c30758200101010101010101010101010101\
                         \01010101010101010101010101010101010141a0f5f6"
-                    _ ->
-                        "83a400828258200000000000000000000000000000000000000000\
-                        \000000000000000000000000008258200000000000000000000000\
-                        \000000000000000000000000000000000000000000010183825839\
-                        \010202020202020202020202020202020202020202020202020202\
-                        \020202020202020202020202020202020202020202020202020202\
-                        \0202021a005b8d8082583901030303030303030303030303030303\
-                        \030303030303030303030303030303030303030303030303030303\
-                        \03030303030303030303030303031a005b8d808258390104040404\
-                        \040404040404040404040404040404040404040404040404040404\
-                        \040404040404040404040404040404040404040404040404041a00\
-                        \7801e0021a0002102003191e46a102828458200100000000000000\
-                        \0000000000000000000000000000000000000000000000005840e8\
-                        \e769ecd0f3c538f0a5a574a1c881775f086d6f4c845b81be9b7895\
-                        \5728bffa7efa54297c6a5d73337bd6280205b1759c13f79d4c93f2\
-                        \9871fc51b78aeba80e582000000000000000000000000000000000\
-                        \0000000000000000000000000000000041a0845820130ae82201d7\
-                        \072e6fbfc0a1884fb54636554d14945b799125cf7ce38d477f5158\
-                        \405835ff78c6fc5e4466a179ca659fa85c99b8a3fba083f3f3f42b\
-                        \a360d479c64ef169914b52ade49b19a7208fd63a6e67a19c406b48\
-                        \26608fdc5307025506c30758200101010101010101010101010101\
-                        \01010101010101010101010101010101010141a0f6"
 
             calculateBinary net utxo outs chgs pairs `shouldBe` binary
 
@@ -1673,7 +1633,7 @@ binaryCalculationsSpec' era = describe ("calculateBinary - "+||era||+"") $ do
                     [ TxOut (dummyAddress 2) (coinToBundle amtChange)
                     ]
             let binary = case era of
-                    ShelleyBasedEraBabbage ->
+                    RecentEraBabbage ->
                         "84a400818258200000000000000000000000000000000000000000\
                         \000000000000000000000000000182a20058390101010101010101\
                         \010101010101010101010101010101010101010101010101010101\
@@ -1687,7 +1647,7 @@ binaryCalculationsSpec' era = describe ("calculateBinary - "+||era||+"") $ do
                         \483a53a5aa35247e0d2b80e6300f7bdec763a20458200000000000\
                         \000000000000000000000000000000000000000000000000000000\
                         \44a1024100f5f6"
-                    ShelleyBasedEraAlonzo ->
+                    RecentEraAlonzo ->
                         "84a400818258200000000000000000000000000000000000000000\
                         \000000000000000000000000000182825839010101010101010101\
                         \010101010101010101010101010101010101010101010101010101\
@@ -1701,20 +1661,6 @@ binaryCalculationsSpec' era = describe ("calculateBinary - "+||era||+"") $ do
                         \6bf38dfe034a9f04658e9f56197ab80f5820000000000000000000\
                         \000000000000000000000000000000000000000000000044a10241\
                         \00f5f6"
-                    _ ->
-                        "83a400818258200000000000000000000000000000000000000000\
-                        \000000000000000000000000000182825839010101010101010101\
-                        \010101010101010101010101010101010101010101010101010101\
-                        \0101010101010101010101010101010101010101011a001e848082\
-                        \583901020202020202020202020202020202020202020202020202\
-                        \020202020202020202020202020202020202020202020202020202\
-                        \02020202021a0078175c021a0001faa403191e46a1028184582001\
-                        \000000000000000000000000000000000000000000000000000000\
-                        \000000005840d7af60ae33d2af351411c1445c79590526990bfa73\
-                        \cbb3732b54ef322daa142e6884023410f8be3c16e9bd52076f2bb3\
-                        \6bf38dfe034a9f04658e9f56197ab80f5820000000000000000000\
-                        \000000000000000000000000000000000000000000000044a10241\
-                        \00f6"
 
             calculateBinary net utxo outs chgs pairs `shouldBe` binary
 
@@ -1740,7 +1686,7 @@ binaryCalculationsSpec' era = describe ("calculateBinary - "+||era||+"") $ do
                     [ TxOut (dummyAddress 4) (coinToBundle amtChange)
                     ]
             let binary = case era of
-                    ShelleyBasedEraBabbage ->
+                    RecentEraBabbage ->
                         "84a400828258200000000000000000000000000000000000000000\
                         \000000000000000000000000008258200000000000000000000000\
                         \000000000000000000000000000000000000000000010183a20058\
@@ -1763,7 +1709,7 @@ binaryCalculationsSpec' era = describe ("calculateBinary - "+||era||+"") $ do
                         \40025f63192a382e526f4150e2b336ee9ed8080858200000000000\
                         \000000000000000000000000000000000000000000000000000000\
                         \44a1024100f5f6"
-                    ShelleyBasedEraAlonzo ->
+                    RecentEraAlonzo ->
                         "84a400828258200000000000000000000000000000000000000000\
                         \000000000000000000000000008258200000000000000000000000\
                         \000000000000000000000000000000000000000000010183825839\
@@ -1786,28 +1732,6 @@ binaryCalculationsSpec' era = describe ("calculateBinary - "+||era||+"") $ do
                         \f79d4c93f29871fc51b78aeba80e58200000000000000000000000\
                         \00000000000000000000000000000000000000000044a1024100f5\
                         \f6"
-                    _ ->
-                        "83a400828258200000000000000000000000000000000000000000\
-                        \000000000000000000000000008258200000000000000000000000\
-                        \000000000000000000000000000000000000000000010183825839\
-                        \010202020202020202020202020202020202020202020202020202\
-                        \020202020202020202020202020202020202020202020202020202\
-                        \0202021a005b8d8082583901030303030303030303030303030303\
-                        \030303030303030303030303030303030303030303030303030303\
-                        \03030303030303030303030303031a005b8d808258390104040404\
-                        \040404040404040404040404040404040404040404040404040404\
-                        \040404040404040404040404040404040404040404040404041a00\
-                        \7801e0021a0002102003191e46a10282845820130ae82201d7072e\
-                        \6fbfc0a1884fb54636554d14945b799125cf7ce38d477f51584058\
-                        \35ff78c6fc5e4466a179ca659fa85c99b8a3fba083f3f3f42ba360\
-                        \d479c64ef169914b52ade49b19a7208fd63a6e67a19c406b482660\
-                        \8fdc5307025506c307582001010101010101010101010101010101\
-                        \0101010101010101010101010101010144a1024100845820010000\
-                        \000000000000000000000000000000000000000000000000000000\
-                        \00005840e8e769ecd0f3c538f0a5a574a1c881775f086d6f4c845b\
-                        \81be9b78955728bffa7efa54297c6a5d73337bd6280205b1759c13\
-                        \f79d4c93f29871fc51b78aeba80e58200000000000000000000000\
-                        \00000000000000000000000000000000000000000044a1024100f6"
 
             calculateBinary net utxo outs chgs pairs `shouldBe` binary
 
@@ -1823,7 +1747,8 @@ binaryCalculationsSpec' era = describe ("calculateBinary - "+||era||+"") $ do
           addrWits = zipWith (mkByronWitness' unsigned) inps pairs
           fee = toCardanoLovelace $ selectionDelta TxOut.coin cs
           Right unsigned =
-              mkUnsignedTx era (Nothing, slotNo) (Right cs) md mempty [] fee
+              mkUnsignedTx (shelleyBasedEraFromRecentEra era)
+                (Nothing, slotNo) (Right cs) md mempty [] fee
               TokenMap.empty TokenMap.empty Map.empty Map.empty
           cs = Selection
             { inputs = NE.fromList inps
@@ -1881,12 +1806,13 @@ estimateMaxInputsTests era cases = do
 --------------------------------------------------------------------------------
 -- Roundtrip tests for SealedTx
 
-prop_sealedTxShelleyRoundtrip
-    :: AnyShelleyBasedEra
+prop_sealedTxRecentEraRoundtrip
+    :: AnyRecentEra
     -> AnyCardanoEra
     -> Pretty DecodeSetup
     -> Property
-prop_sealedTxShelleyRoundtrip txEra@(AnyShelleyBasedEra era) currentEra (Pretty tc) =
+prop_sealedTxRecentEraRoundtrip
+    txEra@(AnyRecentEra era) currentEra (Pretty tc) =
     conjoin
         [ txBytes ==== serialisedTx sealedTxC
         , either
@@ -1894,9 +1820,9 @@ prop_sealedTxShelleyRoundtrip txEra@(AnyShelleyBasedEra era) currentEra (Pretty 
             (compareOnCBOR tx)
             sealedTxB
         ]
-        .||. encodingFromTheFuture txEra currentEra
+        .||. encodingFromTheFuture (txEra) currentEra
   where
-    tx = makeShelleyTx era tc
+    tx = makeShelleyTx (shelleyBasedEraFromRecentEra era) tc
     txBytes = Cardano.serialiseToCBOR tx
     sealedTxC = sealedTxFromCardano' tx
     sealedTxB = sealedTxFromBytes' currentEra txBytes
@@ -1927,51 +1853,7 @@ makeShelleyTx era testCase = Cardano.makeSignedTransaction addrWits unsigned
         , assetsToBurn = TokenMap.empty
         }
 
-prop_sealedTxByronRoundtrip
-    :: AnyShelleyBasedEra
-    -> AnyCardanoEra
-    -> Pretty (ForByron DecodeSetup)
-    -> Property
-prop_sealedTxByronRoundtrip txEra@(AnyShelleyBasedEra era) currentEra (Pretty tc) =
-    conjoin
-        [ txBytes ==== serialisedTx sealedTxC
-        , either (\e -> counterexample (show e) False) (compareOnCBOR tx) sealedTxB
-        ]
-        .||. encodingFromTheFuture txEra currentEra
-  where
-    tx = makeByronTx era tc
-    txBytes = Cardano.serialiseToCBOR tx
-    sealedTxC = sealedTxFromCardano' tx
-    sealedTxB = sealedTxFromBytes' currentEra txBytes
-
-makeByronTx
-    :: IsShelleyBasedEra era
-    => ShelleyBasedEra era
-    -> ForByron DecodeSetup
-    -> Cardano.Tx era
-makeByronTx era testCase = Cardano.makeSignedTransaction byronWits unsigned
-  where
-    ForByron (DecodeSetup utxo outs _ slotNo pairs _ntwrk) = testCase
-    inps = Map.toList $ unUTxO utxo
-    fee = toCardanoLovelace $ selectionDelta TxOut.coin cs
-    Right unsigned =
-        mkUnsignedTx era (Nothing, slotNo) (Right cs) Nothing mempty [] fee
-        TokenMap.empty TokenMap.empty Map.empty Map.empty
-    -- byronWits = map (mkByronWitness unsigned ntwrk Nothing) pairs
-    byronWits = map (error "makeByronTx: broken") pairs  -- TODO: [ADP-919]
-    cs = Selection
-        { inputs = NE.fromList inps
-        , collateral = []
-        , extraCoinSource = Coin 0
-        , extraCoinSink = Coin 0
-        , outputs = []
-        , change = outs
-        -- TODO: [ADP-346]
-        , assetsToMint = TokenMap.empty
-        , assetsToBurn = TokenMap.empty
-        }
-
-encodingFromTheFuture :: AnyShelleyBasedEra -> AnyCardanoEra -> Bool
+encodingFromTheFuture :: AnyRecentEra -> AnyCardanoEra -> Bool
 encodingFromTheFuture tx current = shelleyEraNum tx > eraNum current
 
 compareOnCBOR :: IsCardanoEra era => Cardano.Tx era -> SealedTx -> Property
