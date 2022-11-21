@@ -152,6 +152,34 @@ def patch_incomplete_shared_wallet(wid, payment_patch, deleg_patch)
   expect(d_upd).to be_correct_and_respond 200
 end
 
+def patch_if_incomplete(wid, payment_patch, deleg_patch)
+  if payment_patch
+    p_upd = SHARED.wallets.update_payment_script(wid,
+                                                 payment_patch.keys.first,
+                                                 payment_patch.values.first)
+    case p_upd.code
+    when 200
+      expect(p_upd).to be_correct_and_respond 200
+    when 403
+      expect(p_upd).to be_correct_and_respond 403
+      expect(p_upd.parsed_response['code']).to eq 'shared_wallet_not_pending'
+    end
+  end
+
+  return unless deleg_patch
+
+  d_upd = SHARED.wallets.update_delegation_script(wid,
+                                                  deleg_patch.keys.first,
+                                                  deleg_patch.values.first)
+  case d_upd.code
+  when 200
+    expect(d_upd).to be_correct_and_respond 200
+  when 403
+    expect(d_upd).to be_correct_and_respond 403
+    expect(d_upd.parsed_response['code']).to eq 'shared_wallet_not_pending'
+  end
+end
+
 def create_active_shared_wallet(m, acc_ix, acc_xpub)
   script_template = { 'cosigners' =>
                         { 'cosigner#0' => acc_xpub },
@@ -286,8 +314,10 @@ end
 ##
 # create fixture wallet or return it's id if it exists
 # @param type [Symbol] :shelley, :shared, :shared_cosigner_0, :shared_cosigner_1, :random, :icarus
-def create_fixture_wallet(type)
-  payload = { name: "Fixture wallet with funds (#{type})",
+# @param templates [Symbols] ':payment_cosigner{0,1}_{all,any,all0}', :delegation_cosigner{0,1}_{all,any,all0}
+# rubocop:disable Metrics/CyclomaticComplexity
+def create_fixture_wallet(type, *templates)
+  payload = { name: "Fixture wallet with funds (#{type}#{" #{templates}" unless templates.empty?}",
               passphrase: PASS,
               mnemonic_sentence: get_fixture_wallet(:fixture, type.to_sym, :mnemonics) }
   case type.to_sym
@@ -298,27 +328,39 @@ def create_fixture_wallet(type)
     payload[:style] = type
     wallet = BYRON.wallets.create(payload)
     return_wallet_id(wallet)
-  when :shared
-    script_template = { 'cosigners' =>
-                          { 'cosigner#0' => 'self' },
-                        'template' =>
-                            { 'all' =>
-                               ['cosigner#0'] } }
+  when :shared, :shared2
+    templates.each do |t|
+      case t
+      when :payment_cosigner0_all
+        payload[:payment_script_template] = { 'cosigners' => { 'cosigner#0' => 'self' }, 'template' => { 'all' => ['cosigner#0', 'cosigner#1'] } }
+      when :delegation_cosigner0_all
+        payload[:delegation_script_template] = { 'cosigners' => { 'cosigner#0' => 'self' }, 'template' => { 'all' => ['cosigner#0', 'cosigner#1'] } }
+      when :payment_cosigner1_all
+        payload[:payment_script_template] = { 'cosigners' => { 'cosigner#1' => 'self' }, 'template' => { 'all' => ['cosigner#0', 'cosigner#1'] } }
+      when :delegation_cosigner1_all
+        payload[:delegation_script_template] = { 'cosigners' => { 'cosigner#1' => 'self' }, 'template' => { 'all' => ['cosigner#0', 'cosigner#1'] } }
+      when :payment_cosigner0_any
+        payload[:payment_script_template] = { 'cosigners' => { 'cosigner#0' => 'self' }, 'template' => { 'any' => ['cosigner#0', 'cosigner#1'] } }
+      when :delegation_cosigner0_any
+        payload[:delegation_script_template] = { 'cosigners' => { 'cosigner#0' => 'self' }, 'template' => { 'any' => ['cosigner#0', 'cosigner#1'] } }
+      when :payment_cosigner1_any
+        payload[:payment_script_template] = { 'cosigners' => { 'cosigner#1' => 'self' }, 'template' => { 'any' => ['cosigner#0', 'cosigner#1'] } }
+      when :delegation_cosigner1_any
+        payload[:delegation_script_template] = { 'cosigners' => { 'cosigner#1' => 'self' }, 'template' => { 'any' => ['cosigner#0', 'cosigner#1'] } }
+      when :payment_cosigner0_all0
+        payload[:payment_script_template] = { 'cosigners' => { 'cosigner#0' => 'self' }, 'template' => { 'all' => ['cosigner#0'] } }
+      when :delegation_cosigner0_all0
+        payload[:delegation_script_template] = { 'cosigners' => { 'cosigner#0' => 'self' }, 'template' => { 'all' => ['cosigner#0'] } }
+      end
+    end
     payload[:account_index] = '0H'
-    payload[:payment_script_template] = script_template
-    payload[:delegation_script_template] = script_template
-    wallet = SHARED.wallets.create(payload)
-    return_wallet_id(wallet)
-  when :shared_cosigner_0, :shared_cosigner_1
-    payload[:account_index] = '0H'
-    payload[:payment_script_template] = get_fixture_wallet(:fixture, type.to_sym, :payment_template)
-    payload[:delegation_script_template] = get_fixture_wallet(:fixture, type.to_sym, :delegation_template)
     wallet = SHARED.wallets.create(payload)
     return_wallet_id(wallet)
   else
     raise "Unsupported wallet type: #{type}"
   end
 end
+# rubocop:enable Metrics/CyclomaticComplexity
 
 ##
 # create target wallet or return it's id if it exists

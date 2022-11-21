@@ -1,25 +1,23 @@
 # frozen_string_literal: true
 
-RSpec.describe 'Cardano Wallet E2E tests - Shared wallets', :all, :e2e do
+RSpec.describe 'Cardano Wallet E2E tests - Shared wallets', :all, :e2e, :shared do
   before(:all) do
     # shelley wallets
     @wid = create_fixture_wallet(:shelley)
     @target_id = create_target_wallet(:shelley)
 
     # shared wallets
-    @wid_sha = create_fixture_wallet(:shared)
-    @wid_sha_cos0 = create_fixture_wallet(:shared_cosigner_0)
-    @wid_sha_cos1 = create_fixture_wallet(:shared_cosigner_1)
-    cos0 = shared_acc_pubkey(@wid_sha_cos0)
-    cos1 = shared_acc_pubkey(@wid_sha_cos1)
-    patch_incomplete_shared_wallet(@wid_sha_cos0,
-                                   { 'cosigner#1' => cos1 },
-                                   { 'cosigner#1' => cos1 })
-    patch_incomplete_shared_wallet(@wid_sha_cos1,
-                                   { 'cosigner#0' => cos0 },
-                                   { 'cosigner#0' => cos0 })
+    @wid_sha = create_fixture_wallet(:shared, :payment_cosigner0_all0, :delegation_cosigner0_all0)
+    @wid_sha_cos0_all = create_fixture_wallet(:shared, :payment_cosigner0_all, :delegation_cosigner0_all)
+    @wid_sha_cos1_all = create_fixture_wallet(:shared2, :payment_cosigner1_all, :delegation_cosigner1_all)
+    @wid_sha_cos0_any = create_fixture_wallet(:shared, :payment_cosigner0_any, :delegation_cosigner0_any)
+    cos0 = shared_acc_pubkey(@wid_sha_cos0_all)
+    cos1 = shared_acc_pubkey(@wid_sha_cos1_all)
+    patch_if_incomplete(@wid_sha_cos0_all, { 'cosigner#1' => cos1 }, { 'cosigner#1' => cos1 })
+    patch_if_incomplete(@wid_sha_cos1_all, { 'cosigner#0' => cos0 }, { 'cosigner#0' => cos0 })
+    patch_if_incomplete(@wid_sha_cos0_any, { 'cosigner#1' => cos1 }, { 'cosigner#1' => cos1 })
 
-    @nightly_shared_wallets = [@wid_sha, @wid_sha_cos0, @wid_sha_cos1]
+    @nightly_shared_wallets = [@wid_sha, @wid_sha_cos0_all, @wid_sha_cos1_all, @wid_sha_cos0_any]
     @nightly_shelley_wallets = [@wid, @target_id]
     wait_for_all_shelley_wallets(@nightly_shelley_wallets)
     wait_for_all_shared_wallets(@nightly_shared_wallets)
@@ -34,7 +32,652 @@ RSpec.describe 'Cardano Wallet E2E tests - Shared wallets', :all, :e2e do
   end
 
   describe 'E2E Shared' do
-    describe 'E2E Construct -> Sign -> Submit', :shared do
+    describe 'E2E Construct -> Sign -> Submit - multi signers' do
+      it 'Cannot submit if partially signed - one cosigner, all' do
+        amt = MIN_UTXO_VALUE_PURE_ADA * 2
+        src_wid = @wid_sha_cos0_all
+        target_wid = @target_id
+        address = SHELLEY.addresses.list(target_wid)[1]['id']
+
+        tx_constructed = SHARED.transactions.construct(src_wid, payment_payload(amt, address))
+        expect(tx_constructed).to be_correct_and_respond 202
+        expected_fee = tx_constructed['fee']['quantity']
+
+        # Can be decoded
+        tx_decoded = SHARED.transactions.decode(src_wid, tx_constructed['transaction'])
+        expect(tx_decoded).to be_correct_and_respond 202
+
+        expect(tx_decoded['id'].size).to be 64
+        decoded_fee = tx_decoded['fee']['quantity']
+        expect(expected_fee).to eq decoded_fee
+
+        # cosigner0 signs
+        tx_signed1 = SHARED.transactions.sign(src_wid, PASS, tx_constructed['transaction'])
+        expect(tx_signed1).to be_correct_and_respond 202
+
+        # cosigner0 submits
+        tx_submitted = SHARED.transactions.submit(src_wid, tx_signed1['transaction'])
+        expect(tx_submitted).to be_correct_and_respond 403
+        expect(tx_submitted['code']).to eq 'missing_witnesses_in_transaction'
+      end
+
+      it 'Cannot submit if tx is foreign - two cosigners, all' do
+        amt = MIN_UTXO_VALUE_PURE_ADA * 2
+        src_wid = @wid_sha_cos0_all
+        cosigner_wid = @wid_sha_cos1_all
+        foreign_wid = @wid_sha
+        target_wid = @target_id
+        address = SHELLEY.addresses.list(target_wid)[1]['id']
+
+        tx_constructed = SHARED.transactions.construct(src_wid, payment_payload(amt, address))
+        expect(tx_constructed).to be_correct_and_respond 202
+        expected_fee = tx_constructed['fee']['quantity']
+
+        # Can be decoded
+        tx_decoded = SHARED.transactions.decode(src_wid, tx_constructed['transaction'])
+        expect(tx_decoded).to be_correct_and_respond 202
+
+        expect(tx_decoded['id'].size).to be 64
+        decoded_fee = tx_decoded['fee']['quantity']
+        expect(expected_fee).to eq decoded_fee
+
+        # cosigner0 signs
+        tx_signed1 = SHARED.transactions.sign(src_wid, PASS, tx_constructed['transaction'])
+        expect(tx_signed1).to be_correct_and_respond 202
+
+        # cosigner1 signs
+        tx_signed = SHARED.transactions.sign(cosigner_wid, PASS, tx_constructed['transaction'])
+        expect(tx_signed).to be_correct_and_respond 202
+
+        # foreign submits
+        tx_submitted = SHARED.transactions.submit(foreign_wid, tx_signed['transaction'])
+        expect(tx_submitted).to be_correct_and_respond 403
+        expect(tx_submitted['code']).to eq 'foreign_transaction'
+      end
+
+      it 'Single output transaction - two cosigners, all' do
+        amt = MIN_UTXO_VALUE_PURE_ADA * 2
+        src_wid = @wid_sha_cos0_all
+        cosigner_wid = @wid_sha_cos1_all
+        target_wid = @target_id
+        address = SHELLEY.addresses.list(target_wid)[1]['id']
+        target_before = get_shelley_balances(target_wid)
+        src_before = get_shared_balances(src_wid)
+
+        tx_constructed = SHARED.transactions.construct(src_wid, payment_payload(amt, address))
+        expect(tx_constructed).to be_correct_and_respond 202
+        expected_fee = tx_constructed['fee']['quantity']
+
+        # Can be decoded
+        tx_decoded = SHARED.transactions.decode(src_wid, tx_constructed['transaction'])
+        expect(tx_decoded).to be_correct_and_respond 202
+
+        expect(tx_decoded['id'].size).to be 64
+        decoded_fee = tx_decoded['fee']['quantity']
+        expect(expected_fee).to eq decoded_fee
+
+        # cosigner0 signs
+        tx_signed1 = SHARED.transactions.sign(src_wid, PASS, tx_constructed['transaction'])
+        expect(tx_signed1).to be_correct_and_respond 202
+
+        # cosigner1 signs
+        tx_signed = SHARED.transactions.sign(cosigner_wid, PASS, tx_signed1['transaction'])
+        expect(tx_signed).to be_correct_and_respond 202
+
+        # cosigner0 submits
+        tx_submitted = SHARED.transactions.submit(src_wid, tx_signed['transaction'])
+        expect(tx_submitted).to be_correct_and_respond 202
+
+        tx_id = tx_submitted['id']
+        wait_for_tx_in_ledger(src_wid, tx_id, SHARED)
+
+        target_after = get_shelley_balances(target_wid)
+        src_after = get_shared_balances(src_wid)
+
+        verify_ada_balance(src_after, src_before,
+                           target_after, target_before,
+                           amt, expected_fee)
+        # tx history
+        # on src wallet
+        tx = SHARED.transactions.get(src_wid, tx_id)
+        tx_amount(tx, amt + expected_fee)
+        tx_fee(tx, expected_fee)
+        tx_inputs(tx, present: true)
+        tx_outputs(tx, present: true)
+        tx_direction(tx, 'outgoing')
+        tx_script_validity(tx, 'valid')
+        tx_status(tx, 'in_ledger')
+        tx_collateral(tx, present: false)
+        tx_collateral_outputs(tx, present: false)
+        tx_metadata(tx, nil)
+        tx_deposits(tx, deposit_taken: 0, deposit_returned: 0)
+        tx_withdrawals(tx, present: false)
+        tx_mint_burn(tx, mint: [], burn: [])
+        tx_extra_signatures(tx, present: false)
+        tx_script_integrity(tx, present: false)
+        tx_validity_interval_default(tx)
+        tx_certificates(tx, present: false)
+
+        # on co-signer wid
+        tx = SHARED.transactions.get(cosigner_wid, tx_id)
+        tx_amount(tx, amt + expected_fee)
+        tx_fee(tx, expected_fee)
+        tx_inputs(tx, present: true)
+        tx_outputs(tx, present: true)
+        tx_direction(tx, 'outgoing')
+        tx_script_validity(tx, 'valid')
+        tx_status(tx, 'in_ledger')
+        tx_collateral(tx, present: false)
+        tx_collateral_outputs(tx, present: false)
+        tx_metadata(tx, nil)
+        tx_deposits(tx, deposit_taken: 0, deposit_returned: 0)
+        tx_withdrawals(tx, present: false)
+        tx_mint_burn(tx, mint: [], burn: [])
+        tx_extra_signatures(tx, present: false)
+        tx_script_integrity(tx, present: false)
+        tx_validity_interval_default(tx)
+        tx_certificates(tx, present: false)
+
+        # on target wallet
+        txt = SHELLEY.transactions.get(target_wid, tx_id)
+        tx_amount(txt, amt)
+        tx_fee(txt, 0)
+        tx_inputs(txt, present: true)
+        tx_outputs(txt, present: true)
+        tx_direction(txt, 'incoming')
+        tx_script_validity(txt, 'valid')
+        tx_status(txt, 'in_ledger')
+        tx_collateral(txt, present: false)
+        tx_collateral_outputs(txt, present: false)
+        tx_metadata(txt, nil)
+        tx_deposits(txt, deposit_taken: 0, deposit_returned: 0)
+        tx_withdrawals(txt, present: false)
+        tx_mint_burn(txt, mint: [], burn: [])
+        tx_extra_signatures(txt, present: false)
+        tx_script_integrity(txt, present: false)
+        tx_validity_interval_default(txt)
+        tx_certificates(txt, present: false)
+      end
+
+      it 'Multi output transaction - two cosigners, all' do
+        amt = MIN_UTXO_VALUE_PURE_ADA
+        src_wid = @wid_sha_cos0_all
+        cosigner_wid = @wid_sha_cos1_all
+        target_wid = @target_id
+        address = SHELLEY.addresses.list(target_wid)[1]['id']
+        target_before = get_shelley_balances(target_wid)
+        src_before = get_shared_balances(src_wid)
+        payment = [{ address: address,
+                     amount: { quantity: amt,
+                               unit: 'lovelace' } },
+                   { address: address,
+                     amount: { quantity: amt,
+                               unit: 'lovelace' } }]
+
+        tx_constructed = SHARED.transactions.construct(src_wid, payment)
+        expect(tx_constructed).to be_correct_and_respond 202
+        expected_fee = tx_constructed['fee']['quantity']
+
+        # Can be decoded
+        tx_decoded = SHARED.transactions.decode(src_wid, tx_constructed['transaction'])
+        expect(tx_decoded).to be_correct_and_respond 202
+
+        expect(tx_decoded['id'].size).to be 64
+        decoded_fee = tx_decoded['fee']['quantity']
+        expect(expected_fee).to eq decoded_fee
+
+        # cosigner0 signs
+        tx_signed1 = SHARED.transactions.sign(src_wid, PASS, tx_constructed['transaction'])
+        expect(tx_signed1).to be_correct_and_respond 202
+
+        # cosigner1 signs
+        tx_signed = SHARED.transactions.sign(cosigner_wid, PASS, tx_signed1['transaction'])
+        expect(tx_signed).to be_correct_and_respond 202
+
+        # cosigner1 submits
+        tx_submitted = SHARED.transactions.submit(cosigner_wid, tx_signed['transaction'])
+        expect(tx_submitted).to be_correct_and_respond 202
+
+        tx_id = tx_submitted['id']
+        wait_for_tx_in_ledger(src_wid, tx_id, SHARED)
+
+        target_after = get_shelley_balances(target_wid)
+        src_after = get_shared_balances(src_wid)
+
+        verify_ada_balance(src_after, src_before,
+                           target_after, target_before,
+                           amt * 2, expected_fee)
+        # tx history
+        # on src wallet
+        tx = SHARED.transactions.get(src_wid, tx_id)
+        tx_amount(tx, (amt * 2) + expected_fee)
+        tx_fee(tx, expected_fee)
+        tx_inputs(tx, present: true)
+        tx_outputs(tx, present: true)
+        tx_direction(tx, 'outgoing')
+        tx_script_validity(tx, 'valid')
+        tx_status(tx, 'in_ledger')
+        tx_collateral(tx, present: false)
+        tx_collateral_outputs(tx, present: false)
+        tx_metadata(tx, nil)
+        tx_deposits(tx, deposit_taken: 0, deposit_returned: 0)
+        tx_withdrawals(tx, present: false)
+        tx_mint_burn(tx, mint: [], burn: [])
+        tx_extra_signatures(tx, present: false)
+        tx_script_integrity(tx, present: false)
+        tx_validity_interval_default(tx)
+        tx_certificates(tx, present: false)
+
+        # on co-signer wid
+        tx = SHARED.transactions.get(cosigner_wid, tx_id)
+        tx_amount(tx, (amt * 2) + expected_fee)
+        tx_fee(tx, expected_fee)
+        tx_inputs(tx, present: true)
+        tx_outputs(tx, present: true)
+        tx_direction(tx, 'outgoing')
+        tx_script_validity(tx, 'valid')
+        tx_status(tx, 'in_ledger')
+        tx_collateral(tx, present: false)
+        tx_collateral_outputs(tx, present: false)
+        tx_metadata(tx, nil)
+        tx_deposits(tx, deposit_taken: 0, deposit_returned: 0)
+        tx_withdrawals(tx, present: false)
+        tx_mint_burn(tx, mint: [], burn: [])
+        tx_extra_signatures(tx, present: false)
+        tx_script_integrity(tx, present: false)
+        tx_validity_interval_default(tx)
+        tx_certificates(tx, present: false)
+
+        # on target wallet
+        txt = SHELLEY.transactions.get(target_wid, tx_id)
+        tx_amount(txt, amt * 2)
+        tx_fee(txt, 0)
+        tx_inputs(txt, present: true)
+        tx_outputs(txt, present: true)
+        tx_direction(txt, 'incoming')
+        tx_script_validity(txt, 'valid')
+        tx_status(txt, 'in_ledger')
+        tx_collateral(txt, present: false)
+        tx_collateral_outputs(txt, present: false)
+        tx_metadata(txt, nil)
+        tx_deposits(txt, deposit_taken: 0, deposit_returned: 0)
+        tx_withdrawals(txt, present: false)
+        tx_mint_burn(txt, mint: [], burn: [])
+        tx_extra_signatures(txt, present: false)
+        tx_script_integrity(txt, present: false)
+        tx_validity_interval_default(txt)
+        tx_certificates(txt, present: false)
+      end
+
+      it 'Multi-assets transaction - two cosigners, all' do
+        amt = 1
+        amt_ada = 1_600_000
+        src_wid = @wid_sha_cos0_all
+        cosigner_wid = @wid_sha_cos1_all
+        target_wid = @target_id
+        address = SHELLEY.addresses.list(target_wid)[1]['id']
+        target_before = get_shelley_balances(target_wid)
+        src_before = get_shared_balances(src_wid)
+        payment = [{ 'address' => address,
+                     'amount' => { 'quantity' => amt_ada, 'unit' => 'lovelace' },
+                     'assets' => [{ 'policy_id' => ASSETS[0]['policy_id'],
+                                    'asset_name' => ASSETS[0]['asset_name'],
+                                    'quantity' => amt },
+                                  { 'policy_id' => ASSETS[1]['policy_id'],
+                                    'asset_name' => ASSETS[1]['asset_name'],
+                                    'quantity' => amt }] }]
+
+        tx_constructed = SHARED.transactions.construct(src_wid, payment)
+        expect(tx_constructed).to be_correct_and_respond 202
+        expected_fee = tx_constructed['fee']['quantity']
+
+        # Can be decoded
+        tx_decoded = SHARED.transactions.decode(src_wid, tx_constructed['transaction'])
+        expect(tx_decoded).to be_correct_and_respond 202
+
+        expect(tx_decoded['id'].size).to be 64
+        decoded_fee = tx_decoded['fee']['quantity']
+        expect(expected_fee).to eq decoded_fee
+
+        # cosigner0 signs
+        tx_signed1 = SHARED.transactions.sign(src_wid, PASS, tx_constructed['transaction'])
+        expect(tx_signed1).to be_correct_and_respond 202
+
+        # cosigner1 signs
+        tx_signed = SHARED.transactions.sign(cosigner_wid, PASS, tx_signed1['transaction'])
+        expect(tx_signed).to be_correct_and_respond 202
+
+        # cosigner0 submits
+        tx_submitted = SHARED.transactions.submit(src_wid, tx_signed['transaction'])
+        expect(tx_submitted).to be_correct_and_respond 202
+
+        tx_id = tx_submitted['id']
+        wait_for_tx_in_ledger(src_wid, tx_id, SHARED)
+
+        target_after = get_shelley_balances(target_wid)
+        src_after = get_shared_balances(src_wid)
+
+        verify_ada_balance(src_after, src_before,
+                           target_after, target_before,
+                           amt_ada, expected_fee)
+        # tx history
+        # on src wallet
+        tx = SHARED.transactions.get(src_wid, tx_id)
+        tx_amount(tx, amt_ada + expected_fee)
+        tx_fee(tx, expected_fee)
+        tx_inputs(tx, present: true)
+        tx_outputs(tx, present: true)
+        tx_direction(tx, 'outgoing')
+        tx_script_validity(tx, 'valid')
+        tx_status(tx, 'in_ledger')
+        tx_collateral(tx, present: false)
+        tx_collateral_outputs(tx, present: false)
+        tx_metadata(tx, nil)
+        tx_deposits(tx, deposit_taken: 0, deposit_returned: 0)
+        tx_withdrawals(tx, present: false)
+        tx_mint_burn(tx, mint: [], burn: [])
+        tx_extra_signatures(tx, present: false)
+        tx_script_integrity(tx, present: false)
+        tx_validity_interval_default(tx)
+        tx_certificates(tx, present: false)
+
+        # on co-signer wid
+        tx = SHARED.transactions.get(cosigner_wid, tx_id)
+        tx_amount(tx, amt_ada + expected_fee)
+        tx_fee(tx, expected_fee)
+        tx_inputs(tx, present: true)
+        tx_outputs(tx, present: true)
+        tx_direction(tx, 'outgoing')
+        tx_script_validity(tx, 'valid')
+        tx_status(tx, 'in_ledger')
+        tx_collateral(tx, present: false)
+        tx_collateral_outputs(tx, present: false)
+        tx_metadata(tx, nil)
+        tx_deposits(tx, deposit_taken: 0, deposit_returned: 0)
+        tx_withdrawals(tx, present: false)
+        tx_mint_burn(tx, mint: [], burn: [])
+        tx_extra_signatures(tx, present: false)
+        tx_script_integrity(tx, present: false)
+        tx_validity_interval_default(tx)
+        tx_certificates(tx, present: false)
+
+        # on target wallet
+        txt = SHELLEY.transactions.get(target_wid, tx_id)
+        tx_amount(txt, amt_ada)
+        tx_fee(txt, 0)
+        tx_inputs(txt, present: true)
+        tx_outputs(txt, present: true)
+        tx_direction(txt, 'incoming')
+        tx_script_validity(txt, 'valid')
+        tx_status(txt, 'in_ledger')
+        tx_collateral(txt, present: false)
+        tx_collateral_outputs(txt, present: false)
+        tx_metadata(txt, nil)
+        tx_deposits(txt, deposit_taken: 0, deposit_returned: 0)
+        tx_withdrawals(txt, present: false)
+        tx_mint_burn(txt, mint: [], burn: [])
+        tx_extra_signatures(txt, present: false)
+        tx_script_integrity(txt, present: false)
+        tx_validity_interval_default(txt)
+        tx_certificates(txt, present: false)
+      end
+
+      it 'Validity intervals - two cosigners, all' do
+        amt = MIN_UTXO_VALUE_PURE_ADA
+        src_wid = @wid_sha_cos0_all
+        cosigner_wid = @wid_sha_cos1_all
+        target_wid = @target_id
+        address = SHELLEY.addresses.list(target_wid)[1]['id']
+        target_before = get_shelley_balances(target_wid)
+        src_before = get_shared_balances(src_wid)
+        inv_before = 500
+        inv_hereafter = 5_000_000_000
+        validity_interval = { 'invalid_before' => { 'quantity' => inv_before, 'unit' => 'slot' },
+                              'invalid_hereafter' => { 'quantity' => inv_hereafter, 'unit' => 'slot' } }
+        tx_constructed = SHARED.transactions.construct(cosigner_wid,
+                                                       payment_payload(amt, address),
+                                                       nil, # withdrawal
+                                                       nil, # metadata
+                                                       nil, # delegations
+                                                       nil, # mint_burn
+                                                       validity_interval)
+        expect(tx_constructed).to be_correct_and_respond 202
+        expected_fee = tx_constructed['fee']['quantity']
+
+        # Can be decoded
+        tx_decoded = SHARED.transactions.decode(src_wid, tx_constructed['transaction'])
+        expect(tx_decoded).to be_correct_and_respond 202
+
+        expect(tx_decoded['id'].size).to be 64
+        decoded_fee = tx_decoded['fee']['quantity']
+        expect(expected_fee).to eq decoded_fee
+
+        # cosigner0 signs
+        tx_signed1 = SHARED.transactions.sign(src_wid, PASS, tx_constructed['transaction'])
+        expect(tx_signed1).to be_correct_and_respond 202
+
+        # cosigner1 signs
+        tx_signed = SHARED.transactions.sign(cosigner_wid, PASS, tx_signed1['transaction'])
+        expect(tx_signed).to be_correct_and_respond 202
+
+        # cosigner0 submits
+        tx_submitted = SHARED.transactions.submit(src_wid, tx_signed['transaction'])
+        expect(tx_submitted).to be_correct_and_respond 202
+
+        tx_id = tx_submitted['id']
+        wait_for_tx_in_ledger(src_wid, tx_id, SHARED)
+
+        target_after = get_shelley_balances(target_wid)
+        src_after = get_shared_balances(src_wid)
+
+        verify_ada_balance(src_after, src_before,
+                           target_after, target_before,
+                           amt, expected_fee)
+        # tx history
+        # on src wallet
+        tx = SHARED.transactions.get(src_wid, tx_id)
+        tx_amount(tx, amt + expected_fee)
+        tx_fee(tx, expected_fee)
+        tx_inputs(tx, present: true)
+        tx_outputs(tx, present: true)
+        tx_direction(tx, 'outgoing')
+        tx_script_validity(tx, 'valid')
+        tx_status(tx, 'in_ledger')
+        tx_collateral(tx, present: false)
+        tx_collateral_outputs(tx, present: false)
+        tx_metadata(tx, nil)
+        tx_deposits(tx, deposit_taken: 0, deposit_returned: 0)
+        tx_withdrawals(tx, present: false)
+        tx_mint_burn(tx, mint: [], burn: [])
+        tx_extra_signatures(tx, present: false)
+        tx_script_integrity(tx, present: false)
+        tx_validity_interval(tx, invalid_before: inv_before, invalid_hereafter: inv_hereafter)
+        tx_certificates(tx, present: false)
+
+        # on co-signer wid
+        tx = SHARED.transactions.get(cosigner_wid, tx_id)
+        tx_amount(tx, amt + expected_fee)
+        tx_fee(tx, expected_fee)
+        tx_inputs(tx, present: true)
+        tx_outputs(tx, present: true)
+        tx_direction(tx, 'outgoing')
+        tx_script_validity(tx, 'valid')
+        tx_status(tx, 'in_ledger')
+        tx_collateral(tx, present: false)
+        tx_collateral_outputs(tx, present: false)
+        tx_metadata(tx, nil)
+        tx_deposits(tx, deposit_taken: 0, deposit_returned: 0)
+        tx_withdrawals(tx, present: false)
+        tx_mint_burn(tx, mint: [], burn: [])
+        tx_extra_signatures(tx, present: false)
+        tx_script_integrity(tx, present: false)
+        tx_validity_interval(tx, invalid_before: inv_before, invalid_hereafter: inv_hereafter)
+        tx_certificates(tx, present: false)
+
+        # on target wallet
+        txt = SHELLEY.transactions.get(target_wid, tx_id)
+        tx_amount(txt, amt)
+        tx_fee(txt, 0)
+        tx_inputs(txt, present: true)
+        tx_outputs(txt, present: true)
+        tx_direction(txt, 'incoming')
+        tx_script_validity(txt, 'valid')
+        tx_status(txt, 'in_ledger')
+        tx_collateral(txt, present: false)
+        tx_collateral_outputs(txt, present: false)
+        tx_metadata(txt, nil)
+        tx_deposits(txt, deposit_taken: 0, deposit_returned: 0)
+        tx_withdrawals(txt, present: false)
+        tx_mint_burn(txt, mint: [], burn: [])
+        tx_extra_signatures(txt, present: false)
+        tx_script_integrity(txt, present: false)
+        tx_validity_interval(txt, invalid_before: inv_before, invalid_hereafter: inv_hereafter)
+        tx_certificates(txt, present: false)
+      end
+
+      it 'Only metadata - two cosigners, all' do
+        src_wid = @wid_sha_cos0_all
+        cosigner_wid = @wid_sha_cos1_all
+        metadata = METADATA
+        balance = get_shared_balances(src_wid)
+
+        tx_constructed = SHARED.transactions.construct(src_wid,
+                                                       nil, # payments
+                                                       nil, # withdrawal
+                                                       metadata)
+        expect(tx_constructed).to be_correct_and_respond 202
+        expected_fee = tx_constructed['fee']['quantity']
+
+        # Can be decoded
+        tx_decoded = SHARED.transactions.decode(src_wid, tx_constructed['transaction'])
+        expect(tx_decoded).to be_correct_and_respond 202
+
+        expect(tx_decoded['id'].size).to be 64
+        decoded_fee = tx_decoded['fee']['quantity']
+        expect(expected_fee).to eq decoded_fee
+
+        # cosigner0 signs
+        tx_signed1 = SHARED.transactions.sign(src_wid, PASS, tx_constructed['transaction'])
+        expect(tx_signed1).to be_correct_and_respond 202
+
+        # cosigner1 signs
+        tx_signed = SHARED.transactions.sign(cosigner_wid, PASS, tx_signed1['transaction'])
+        expect(tx_signed).to be_correct_and_respond 202
+
+        # cosigner0 submits
+        tx_submitted = SHARED.transactions.submit(src_wid, tx_signed['transaction'])
+        expect(tx_submitted).to be_correct_and_respond 202
+
+        tx_id = tx_submitted['id']
+        wait_for_tx_in_ledger(src_wid, tx_id, SHARED)
+
+        # examine the tx in history
+        # on src wallet
+        tx = SHARED.transactions.get(src_wid, tx_id)
+        tx_amount(tx, expected_fee)
+        tx_fee(tx, expected_fee)
+        tx_inputs(tx, present: true)
+        tx_outputs(tx, present: true)
+        tx_direction(tx, 'outgoing')
+        tx_script_validity(tx, 'valid')
+        tx_status(tx, 'in_ledger')
+        tx_collateral(tx, present: false)
+        tx_collateral_outputs(tx, present: false)
+        tx_metadata(tx, metadata)
+        tx_deposits(tx, deposit_taken: 0, deposit_returned: 0)
+        tx_withdrawals(tx, present: false)
+        tx_mint_burn(tx, mint: [], burn: [])
+        tx_extra_signatures(tx, present: false)
+        tx_script_integrity(tx, present: false)
+        tx_validity_interval_default(tx)
+        tx_certificates(tx, present: false)
+
+        # verify balance is as expected
+        new_balance = get_shared_balances(src_wid)
+        expect(new_balance['available']).to eq(balance['available'] - expected_fee)
+        expect(new_balance['total']).to eq(balance['total'] - expected_fee)
+      end
+
+      it 'Single output transaction - one cosigner, any' do
+        amt = MIN_UTXO_VALUE_PURE_ADA * 2
+        src_wid = @wid_sha_cos0_any
+        target_wid = @target_id
+        address = SHELLEY.addresses.list(target_wid)[1]['id']
+        target_before = get_shelley_balances(target_wid)
+        src_before = get_shared_balances(src_wid)
+
+        tx_constructed = SHARED.transactions.construct(src_wid, payment_payload(amt, address))
+        expect(tx_constructed).to be_correct_and_respond 202
+        expected_fee = tx_constructed['fee']['quantity']
+
+        # Can be decoded
+        tx_decoded = SHARED.transactions.decode(src_wid, tx_constructed['transaction'])
+        expect(tx_decoded).to be_correct_and_respond 202
+
+        expect(tx_decoded['id'].size).to be 64
+        decoded_fee = tx_decoded['fee']['quantity']
+        expect(expected_fee).to eq decoded_fee
+
+        # cosigner0 signs
+        tx_signed = SHARED.transactions.sign(src_wid, PASS, tx_constructed['transaction'])
+        expect(tx_signed).to be_correct_and_respond 202
+
+        # cosigner0 submits
+        tx_submitted = SHARED.transactions.submit(src_wid, tx_signed['transaction'])
+        expect(tx_submitted).to be_correct_and_respond 202
+
+        tx_id = tx_submitted['id']
+        wait_for_tx_in_ledger(src_wid, tx_id, SHARED)
+
+        target_after = get_shelley_balances(target_wid)
+        src_after = get_shared_balances(src_wid)
+
+        verify_ada_balance(src_after, src_before,
+                           target_after, target_before,
+                           amt, expected_fee)
+        # tx history
+        # on src wallet
+        tx = SHARED.transactions.get(src_wid, tx_id)
+        tx_amount(tx, amt + expected_fee)
+        tx_fee(tx, expected_fee)
+        tx_inputs(tx, present: true)
+        tx_outputs(tx, present: true)
+        tx_direction(tx, 'outgoing')
+        tx_script_validity(tx, 'valid')
+        tx_status(tx, 'in_ledger')
+        tx_collateral(tx, present: false)
+        tx_collateral_outputs(tx, present: false)
+        tx_metadata(tx, nil)
+        tx_deposits(tx, deposit_taken: 0, deposit_returned: 0)
+        tx_withdrawals(tx, present: false)
+        tx_mint_burn(tx, mint: [], burn: [])
+        tx_extra_signatures(tx, present: false)
+        tx_script_integrity(tx, present: false)
+        tx_validity_interval_default(tx)
+        tx_certificates(tx, present: false)
+
+        # on target wallet
+        txt = SHELLEY.transactions.get(target_wid, tx_id)
+        tx_amount(txt, amt)
+        tx_fee(txt, 0)
+        tx_inputs(txt, present: true)
+        tx_outputs(txt, present: true)
+        tx_direction(txt, 'incoming')
+        tx_script_validity(txt, 'valid')
+        tx_status(txt, 'in_ledger')
+        tx_collateral(txt, present: false)
+        tx_collateral_outputs(txt, present: false)
+        tx_metadata(txt, nil)
+        tx_deposits(txt, deposit_taken: 0, deposit_returned: 0)
+        tx_withdrawals(txt, present: false)
+        tx_mint_burn(txt, mint: [], burn: [])
+        tx_extra_signatures(txt, present: false)
+        tx_script_integrity(txt, present: false)
+        tx_validity_interval_default(txt)
+        tx_certificates(txt, present: false)
+      end
+    end
+    describe 'E2E Construct -> Sign -> Submit - single signer' do
       it 'I can get min_utxo_value when contructing tx' do
         amt = 1
         tx_constructed = SHARED.transactions.construct(@wid_sha, payment_payload(amt))
@@ -477,7 +1120,7 @@ RSpec.describe 'Cardano Wallet E2E tests - Shared wallets', :all, :e2e do
 
         tx_submitted = SHARED.transactions.submit(@wid_sha, tx_signed['transaction'])
         expect(tx_submitted).to be_correct_and_respond 202
-        signed_decoded = SHELLEY.transactions.decode(@wid, tx_signed['transaction'])
+        signed_decoded = SHARED.transactions.decode(@wid_sha, tx_signed['transaction'])
         expect(signed_decoded['witness_count']['verification_key']).to be >= 1
         expect(expected_fee).to eq signed_decoded['fee']['quantity']
 
