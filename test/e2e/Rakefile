@@ -159,7 +159,7 @@ task :start_node_and_wallet, [:env] do |_task, args|
           "Producers": [
             {
               "addr": "#{ENV.fetch('NETWORK', nil)}-node.world.dev.cardano.org",
-              "port": 30002,
+              "port": 30000,
               "valency": 2
             }
           ]

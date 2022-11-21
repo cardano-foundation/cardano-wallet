@@ -117,19 +117,15 @@ jobs:
       working-directory: C:/cardano-wallet/test/e2e
       run: rake stop_node_and_wallet[%NETWORK%]
 
-    - name: 📎 Upload logs
+    - name: 📎 Upload state
       uses: actions/upload-artifact@v2
       if: always()
       with:
-        name: ${{ runner.os }}-logs
-        path: C:/cardano-wallet/test/e2e/state/logs
-
-    - name: 📎 Upload wallet-db
-      uses: actions/upload-artifact@v2
-      if: failure()
-      with:
-        name: ${{ runner.os }}-wallet-db
-        path: C:/cardano-wallet/test/e2e/state/wallet_db
+        name: ${{ runner.os }}-state
+        path: |
+          C:/cardano-wallet/test/e2e/state/logs
+          C:/cardano-wallet/test/e2e/state/configs
+          C:/cardano-wallet/test/e2e/state/wallet_db
 
     env:
       NETWORK: ${{ github.event.inputs.network || 'preprod' }}
