@@ -2442,44 +2442,44 @@ dummyInput :: TxIn
 dummyInput = TxIn (Hash $ BS.replicate 32 0) 999
 
 removeDummyInput :: HasCallStack => Cardano.TxBody era -> Cardano.TxBody era
-removeDummyInput txBody =
-    case txBody of
-        Byron.ByronTxBody {} -> bailOut
-        Cardano.ShelleyTxBody era body scripts scriptData aux val ->
-            case era of
-                ShelleyBasedEraShelley -> bailOut
-                ShelleyBasedEraAllegra -> bailOut
-                ShelleyBasedEraMary -> bailOut
-                ShelleyBasedEraAlonzo ->
-                    let body' = body
-                            { Alonzo.inputs =
-                                Set.delete
-                                    (toLedger dummyInput)
-                                    (Alonzo.inputs body)
-                            }
-                    in Cardano.ShelleyTxBody
-                        era
-                        body'
-                        scripts
-                        scriptData
-                        aux
-                        val
-                ShelleyBasedEraBabbage ->
-                    let body' = body
-                            { Babbage.inputs =
-                                Set.delete
-                                    (toLedger dummyInput)
-                                    (Babbage.inputs body)
-                            }
-                    in Cardano.ShelleyTxBody
-                        era
-                        body'
-                        scripts
-                        scriptData
-                        aux
-                        val
+removeDummyInput = \case
+    Byron.ByronTxBody {} -> bailOut
+    Cardano.ShelleyTxBody era body scripts scriptData aux val ->
+        case era of
+            ShelleyBasedEraShelley -> bailOut
+            ShelleyBasedEraAllegra -> bailOut
+            ShelleyBasedEraMary -> bailOut
+            ShelleyBasedEraAlonzo ->
+                let body' = body
+                        { Alonzo.inputs =
+                            Set.delete
+                                (toLedger dummyInput)
+                                (Alonzo.inputs body)
+                        }
+                in Cardano.ShelleyTxBody
+                    era
+                    body'
+                    scripts
+                    scriptData
+                    aux
+                    val
+            ShelleyBasedEraBabbage ->
+                let body' = body
+                        { Babbage.inputs =
+                            Set.delete
+                                (toLedger dummyInput)
+                                (Babbage.inputs body)
+                        }
+                in Cardano.ShelleyTxBody
+                    era
+                    body'
+                    scripts
+                    scriptData
+                    aux
+                    val
   where
-    bailOut = error "removeDummyInput only supported for the Babbage era"
+    bailOut = error "removing dummy inputs is only supported \
+        \for the Alonzo or Babbage era"
 
 mkWithdrawals
     :: NetworkId
