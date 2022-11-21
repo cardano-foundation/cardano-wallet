@@ -5,6 +5,7 @@ services:
     image: inputoutput/cardano-node:1.35.3-configs
     environment:
       NETWORK:
+      CARDANO_NODE_SOCKET_PATH: /ipc/node.socket
     volumes:
       - node-${NETWORK}-db:/data
       - node-ipc:/ipc
