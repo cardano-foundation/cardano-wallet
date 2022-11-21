@@ -25,6 +25,7 @@ module Cardano.Wallet.Transaction
       TransactionLayer (..)
     , DelegationAction (..)
     , TransactionCtx (..)
+    , PreSelection (..)
     , defaultTransactionCtx
     , Withdrawal (..)
     , withdrawalToCoin
@@ -183,7 +184,7 @@ data TransactionLayer k ktype tx = TransactionLayer
             -- Current protocol parameters
         -> TransactionCtx
             -- An additional context about the transaction
-        -> SelectionOf TxOut
+        -> Either PreSelection (SelectionOf TxOut)
             -- A balanced coin selection where all change addresses have been
             -- assigned.
         -> Either ErrMkTransaction tx
@@ -392,6 +393,21 @@ data TransactionCtx = TransactionCtx
     -- cardano-wallet types, which makes it useful to account for them like
     -- this. For instance: datums.
     } deriving (Show, Generic, Eq)
+
+-- | Represents a preliminary selection of tx outputs typically made by user.
+data PreSelection = PreSelection
+    { outputs :: ![TxOut]
+      -- ^ User-specified outputs
+    , assetsToMint :: !TokenMap
+      -- ^ Assets to mint.
+    , assetsToBurn :: !TokenMap
+      -- ^ Assets to burn.
+    , extraCoinSource :: !Coin
+      -- ^ An extra source of ada.
+    , extraCoinSink :: !Coin
+      -- ^ An extra sink for ada.
+    }
+    deriving (Generic, Eq, Show)
 
 data Withdrawal
     = WithdrawalSelf RewardAccount (NonEmpty DerivationIndex) Coin

@@ -474,6 +474,7 @@ import Cardano.Wallet.Transaction
     , ErrMoreSurplusNeeded (ErrMoreSurplusNeeded)
     , ErrSignTx (..)
     , ErrUpdateSealedTx (..)
+    , PreSelection
     , TransactionCtx (..)
     , TransactionLayer (..)
     , TxFeeAndChange (TxFeeAndChange)
@@ -2521,31 +2522,21 @@ buildAndSignTransaction ctx wid era mkRwdAcct pwd txCtx sel = db & \DBLayer{..} 
 
 -- | Construct an unsigned transaction from a given selection.
 constructTransaction
-    :: forall ctx s k (n :: NetworkDiscriminant) ktype.
-        ( HasTransactionLayer k ktype ctx
-        , HasDBLayer IO s k ctx
-        , HasNetworkLayer IO ctx
-        , Typeable s
-        , Typeable n
-        , Typeable k
-        )
-    => ctx
+    :: forall (n :: NetworkDiscriminant) ktype
+     . TransactionLayer ShelleyKey ktype SealedTx
+    -> NetworkLayer IO Block
+    -> DBLayer IO (SeqState n ShelleyKey) ShelleyKey
     -> WalletId
     -> Cardano.AnyCardanoEra
     -> TransactionCtx
-    -> SelectionOf TxOut
+    -> PreSelection
     -> ExceptT ErrConstructTx IO SealedTx
-constructTransaction ctx wid era txCtx sel = db & \DBLayer{..} -> do
-    (_, xpub, _) <- withExceptT ErrConstructTxReadRewardAccount $
-        shelleyOnlyReadRewardAccount @s @k @n db wid
-    mapExceptT atomically $ do
-        pp <- liftIO $ currentProtocolParameters nl
-        withExceptT ErrConstructTxBody $ ExceptT $ pure $
-            mkUnsignedTransaction tl era xpub pp txCtx sel
-  where
-    db = ctx ^. dbLayer @IO @s @k
-    tl = ctx ^. transactionLayer @k @ktype
-    nl = ctx ^. networkLayer
+constructTransaction txLayer netLayer db wid era txCtx preSel = do
+    (_, xpub, _) <- readRewardAccount db wid
+        & withExceptT ErrConstructTxReadRewardAccount
+    pp <- liftIO $ currentProtocolParameters netLayer
+    mkUnsignedTransaction txLayer era xpub pp txCtx (Left preSel)
+        & withExceptT ErrConstructTxBody . except
 
 -- | Construct an unsigned transaction from a given selection
 -- for a shared wallet.
@@ -2595,7 +2586,7 @@ constructSharedTransaction ctx wid era txCtx sel = db & \DBLayer{..} -> do
     mapExceptT atomically $ do
         pp <- liftIO $ currentProtocolParameters nl
         withExceptT ErrConstructTxBody $ ExceptT $ pure $
-            mkUnsignedTransaction tl era xpub pp txCtx' sel
+            mkUnsignedTransaction tl era xpub pp txCtx' (Right sel)
   where
     db = ctx ^. dbLayer @IO @s @k
     tl = ctx ^. transactionLayer @k @'CredFromScriptK

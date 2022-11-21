@@ -4,6 +4,7 @@
 {-# LANGUAGE LambdaCase #-}
 {-# LANGUAGE RankNTypes #-}
 {-# LANGUAGE ScopedTypeVariables #-}
+{-# LANGUAGE StandaloneDeriving #-}
 {-# LANGUAGE TypeApplications #-}
 
 -- |
@@ -36,6 +37,7 @@ module Cardano.Wallet.Write.Tx
     , shelleyBasedEraFromRecentEra
 
     -- ** Existential wrapper
+    , AnyRecentEra (..)
     , InAnyRecentEra (..)
     , asAnyRecentEra
     , withRecentEra
@@ -212,6 +214,9 @@ data RecentEra era where
     RecentEraBabbage :: RecentEra BabbageEra
     RecentEraAlonzo :: RecentEra AlonzoEra
 
+deriving instance Eq (RecentEra era)
+deriving instance Show (RecentEra era)
+
 class Cardano.IsShelleyBasedEra era => IsRecentEra era where
     recentEra :: RecentEra era
 
@@ -276,6 +281,15 @@ asAnyRecentEra = \case
     Cardano.InAnyCardanoEra Cardano.AlonzoEra a ->
         Just $ InAnyRecentEra RecentEraAlonzo a
     _ -> Nothing
+
+-- | An existential type like 'AnyCardanoEra', but for 'RecentEra'.
+data AnyRecentEra where
+     AnyRecentEra :: IsRecentEra era -- Provide class constraint
+                  => RecentEra era   -- and explicit value.
+                  -> AnyRecentEra    -- and that's it.
+
+instance Show AnyRecentEra where
+    show (AnyRecentEra era) = "AnyRecentEra " <> show era
 
 --------------------------------------------------------------------------------
 -- TxIn
