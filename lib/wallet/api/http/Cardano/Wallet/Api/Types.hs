@@ -1740,16 +1740,23 @@ instance FromText ApiAccountPublicKey where
         xpubFromText = fmap eitherToMaybe fromHexText >=> xpubFromBytes
 
 instance FromText ApiAccountSharedPublicKey where
-    fromText txt = case xpubFromText txt of
-        Nothing ->
-            Left $ TextDecodingError $ unwords
-            [ "Invalid account public key: expecting a hex-encoded value"
-            , "that is 64 bytes in length."]
-        Just pubkey ->
-            Right $ ApiAccountSharedPublicKey $ ApiT pubkey
-      where
-        xpubFromText :: Text -> Maybe XPub
-        xpubFromText = fmap eitherToMaybe fromHexText >=> xpubFromBytes
+    fromText txt =
+        case detectEncoding (T.unpack txt) of
+            Just EBech32{} -> do
+                (hrp, dp) <- case Bech32.decodeLenient txt of
+                    Left _ -> Left $ TextDecodingError "Extended account's Bech32 has invalid text."
+                    Right res -> pure res
+                let checkPayload bytes = case xpubFromBytes bytes of
+                        Nothing -> Left $ TextDecodingError "Extended public key cannot be retrieved from a given bytestring"
+                        Just validXPub -> pure $ ApiAccountSharedPublicKey $ ApiT validXPub
+                let proceedWhenHrpCorrect = case Bech32.dataPartToBytes dp of
+                        Nothing ->
+                              Left $ TextDecodingError "Extended account has invalid Bech32 datapart."
+                        Just bytes -> checkPayload bytes
+                if Bech32.humanReadablePartToText hrp == "acct_shared_xvk"
+                    then proceedWhenHrpCorrect
+                    else Left $ TextDecodingError "Extended account must have 'acct_shared_xvk' prefix"
+            _ -> Left $ TextDecodingError "Extended account must be must be encoded as Bech32."
 
 instance FromText (ApiT XPrv) where
     fromText t = case convertFromBase Base16 $ T.encodeUtf8 t of
@@ -2012,8 +2019,9 @@ instance FromJSON ApiAccountSharedPublicKey where
     parseJSON =
         parseJSON >=> eitherToParser . first ShowFmt . fromText
 instance ToJSON ApiAccountSharedPublicKey where
-    toJSON =
-        toJSON . hexText . xpubToBytes . getApiT . sharedKey
+    toJSON (ApiAccountSharedPublicKey (ApiT xpub)) =
+        let hrp = [Bech32.humanReadablePart|acct_shared_xvk|]
+        in String $ T.decodeUtf8 $ encode (EBech32 hrp) $ xpubToBytes xpub
 
 instance FromJSON WalletOrAccountPostData where
     parseJSON obj = do
@@ -2628,26 +2636,10 @@ instance FromJSON XPubOrSelf where
     parseJSON t = parseXPub t <|> parseSelf t
       where
         parseXPub = withText "XPub" $ \txt ->
-            case detectEncoding (T.unpack txt) of
-                Just EBech32{} -> do
-                    (hrp, dp) <- case Bech32.decodeLenient txt of
-                        Left _ -> fail "Extended account's Bech32 has invalid text."
-                        Right res -> pure res
-                    let checkPayload bytes
-                            | BS.length bytes /= 64 =
-                                  fail $ "Extended account must be 64 bytes."
-                            | otherwise = case xpubFromBytes bytes of
-                                  Nothing -> fail "Extended public key cannot be retrieved from a given bytestring"
-                                  Just validXPub -> pure $ SomeAccountKey validXPub
-                    let proceedWhenHrpCorrect = case Bech32.dataPartToBytes dp of
-                            Nothing ->
-                                  fail "Extended account has invalid Bech32 datapart."
-                            Just bytes -> checkPayload bytes
-                    if Bech32.humanReadablePartToText hrp == "acct_shared_xvk"
-                        then proceedWhenHrpCorrect
-                        else fail $ "Credential must have 'acct_shared_xvk' prefix"
-                _ -> fail "Extended acount must be must be encoded as Bech32."
-
+            case fromText @ApiAccountSharedPublicKey txt of
+                Left (TextDecodingError err) -> fail err
+                Right (ApiAccountSharedPublicKey (ApiT xpub)) ->
+                    pure $ SomeAccountKey xpub
         parseSelf = withText "Self" $ \txt ->
             if txt == "self" then
                 pure Self
