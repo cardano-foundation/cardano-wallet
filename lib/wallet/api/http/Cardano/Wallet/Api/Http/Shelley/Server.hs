@@ -207,6 +207,7 @@ import Cardano.Wallet.Api.Types
     , AddressAmount (..)
     , AddressAmountNoAssets (..)
     , ApiAccountPublicKey (..)
+    , ApiAccountSharedPublicKey (..)
     , ApiActiveSharedWallet (..)
     , ApiAddress (..)
     , ApiAnyCertificate (..)
@@ -1054,7 +1055,7 @@ postSharedWalletFromAccountXPub ctx liftKey body = do
     pTemplate = scriptTemplateFromSelf accXPub $ body ^. #paymentScriptTemplate
     dTemplateM = scriptTemplateFromSelf accXPub <$> body ^. #delegationScriptTemplate
     wName = getApiT (body ^. #name)
-    (ApiAccountPublicKey accXPubApiT) =  body ^. #accountPublicKey
+    (ApiAccountSharedPublicKey accXPubApiT) =  body ^. #accountPublicKey
     accXPub = getApiT accXPubApiT
     wid = WalletId $ toSharedWalletId (liftKey accXPub) pTemplate dTemplateM
     scriptValidation = maybe RecommendedValidation getApiT (body ^. #scriptValidation)
@@ -1147,7 +1148,7 @@ patchSharedWallet ctx liftKey cred (ApiT wid) body = do
     fst <$> getWallet ctx (mkSharedWallet @_ @s @k) (ApiT wid)
   where
       cosigner = getApiT (body ^. #cosigner)
-      (ApiAccountPublicKey accXPubApiT) = (body ^. #accountPublicKey)
+      (ApiAccountSharedPublicKey accXPubApiT) = (body ^. #accountPublicKey)
       accXPub = getApiT accXPubApiT
 
 --------------------- Legacy

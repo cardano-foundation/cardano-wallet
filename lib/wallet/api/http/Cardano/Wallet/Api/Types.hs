@@ -196,6 +196,7 @@ module Cardano.Wallet.Api.Types
     -- * API Types (Hardware)
     , AccountPostData (..)
     , ApiAccountPublicKey (..)
+    , ApiAccountSharedPublicKey (..)
     , WalletOrAccountPostData (..)
 
     -- * User-Facing Address Encoding/Decoding
@@ -394,7 +395,7 @@ import Cardano.Wallet.TokenMetadata
 import Cardano.Wallet.Util
     ( ShowFmt (..) )
 import "cardano-addresses" Codec.Binary.Encoding
-    ( AbstractEncoding (..), detectEncoding, encode, fromBase16 )
+    ( AbstractEncoding (..), detectEncoding, encode )
 import Control.Applicative
     ( optional, (<|>) )
 import Control.Arrow
@@ -939,6 +940,13 @@ newtype ApiAccountPublicKey = ApiAccountPublicKey
     deriving (Eq, Generic)
     deriving anyclass NFData
     deriving Show via (Quiet ApiAccountPublicKey)
+
+newtype ApiAccountSharedPublicKey = ApiAccountSharedPublicKey
+    { sharedKey :: (ApiT XPub)
+    }
+    deriving (Eq, Generic)
+    deriving anyclass NFData
+    deriving Show via (Quiet ApiAccountSharedPublicKey)
 
 newtype WalletOrAccountPostData = WalletOrAccountPostData
     { postData :: Either WalletPostData AccountPostData
@@ -1585,7 +1593,7 @@ data ApiSharedWalletPostDataFromMnemonics =
 data ApiSharedWalletPostDataFromAccountPubX =
     ApiSharedWalletPostDataFromAccountPubX
     { name :: !(ApiT WalletName)
-    , accountPublicKey :: !ApiAccountPublicKey
+    , accountPublicKey :: !ApiAccountSharedPublicKey
     , accountIndex :: !(ApiT DerivationIndex)
     , paymentScriptTemplate :: !ApiScriptTemplateEntry
     , delegationScriptTemplate :: !(Maybe ApiScriptTemplateEntry)
@@ -1641,7 +1649,7 @@ newtype ApiSharedWallet = ApiSharedWallet
 
 data ApiSharedWalletPatchData = ApiSharedWalletPatchData
     { cosigner :: !(ApiT Cosigner)
-    , accountPublicKey :: !ApiAccountPublicKey
+    , accountPublicKey :: !ApiAccountSharedPublicKey
     }
     deriving (Eq, Generic, Show)
     deriving anyclass NFData
@@ -1727,6 +1735,18 @@ instance FromText ApiAccountPublicKey where
             , "that is 64 bytes in length."]
         Just pubkey ->
             Right $ ApiAccountPublicKey $ ApiT pubkey
+      where
+        xpubFromText :: Text -> Maybe XPub
+        xpubFromText = fmap eitherToMaybe fromHexText >=> xpubFromBytes
+
+instance FromText ApiAccountSharedPublicKey where
+    fromText txt = case xpubFromText txt of
+        Nothing ->
+            Left $ TextDecodingError $ unwords
+            [ "Invalid account public key: expecting a hex-encoded value"
+            , "that is 64 bytes in length."]
+        Just pubkey ->
+            Right $ ApiAccountSharedPublicKey $ ApiT pubkey
       where
         xpubFromText :: Text -> Maybe XPub
         xpubFromText = fmap eitherToMaybe fromHexText >=> xpubFromBytes
@@ -1987,6 +2007,13 @@ instance FromJSON ApiAccountPublicKey where
 instance ToJSON ApiAccountPublicKey where
     toJSON =
         toJSON . hexText . xpubToBytes . getApiT . key
+
+instance FromJSON ApiAccountSharedPublicKey where
+    parseJSON =
+        parseJSON >=> eitherToParser . first ShowFmt . fromText
+instance ToJSON ApiAccountSharedPublicKey where
+    toJSON =
+        toJSON . hexText . xpubToBytes . getApiT . sharedKey
 
 instance FromJSON WalletOrAccountPostData where
     parseJSON obj = do
@@ -2593,18 +2620,34 @@ instance ToJSON ApiEraInfo where
 
 instance ToJSON XPubOrSelf where
     toJSON (SomeAccountKey xpub) =
-        String $ T.decodeUtf8 $ encode EBase16 $ xpubToBytes xpub
+        let hrp = [Bech32.humanReadablePart|acct_shared_xvk|]
+        in String $ T.decodeUtf8 $ encode (EBech32 hrp) $ xpubToBytes xpub
     toJSON Self = "self"
 
 instance FromJSON XPubOrSelf where
     parseJSON t = parseXPub t <|> parseSelf t
       where
         parseXPub = withText "XPub" $ \txt ->
-            case fromBase16 (T.encodeUtf8 txt) of
-                Left err -> fail err
-                Right hex' -> case xpubFromBytes hex' of
-                    Nothing -> fail "Extended public key cannot be retrieved from a given hex bytestring"
-                    Just validXPub -> pure $ SomeAccountKey validXPub
+            case detectEncoding (T.unpack txt) of
+                Just EBech32{} -> do
+                    (hrp, dp) <- case Bech32.decodeLenient txt of
+                        Left _ -> fail "Extended account's Bech32 has invalid text."
+                        Right res -> pure res
+                    let checkPayload bytes
+                            | BS.length bytes /= 64 =
+                                  fail $ "Extended account must be 64 bytes."
+                            | otherwise = case xpubFromBytes bytes of
+                                  Nothing -> fail "Extended public key cannot be retrieved from a given bytestring"
+                                  Just validXPub -> pure $ SomeAccountKey validXPub
+                    let proceedWhenHrpCorrect = case Bech32.dataPartToBytes dp of
+                            Nothing ->
+                                  fail "Extended account has invalid Bech32 datapart."
+                            Just bytes -> checkPayload bytes
+                    if Bech32.humanReadablePartToText hrp == "acct_shared_xvk"
+                        then proceedWhenHrpCorrect
+                        else fail $ "Credential must have 'acct_shared_xvk' prefix"
+                _ -> fail "Extended acount must be must be encoded as Bech32."
+
         parseSelf = withText "Self" $ \txt ->
             if txt == "self" then
                 pure Self
@@ -2668,7 +2711,7 @@ instance FromJSON ApiSharedWalletPatchData where
             [(numTxt, str)] -> do
                 cosigner' <- parseJSON @(ApiT Cosigner)
                     (String $ Aeson.toText numTxt)
-                xpub <- parseJSON @ApiAccountPublicKey str
+                xpub <- parseJSON @ApiAccountSharedPublicKey str
                 pure $ ApiSharedWalletPatchData cosigner' xpub
             _ -> fail "ApiSharedWalletPatchData should have one pair"
 

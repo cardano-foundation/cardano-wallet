@@ -73,6 +73,7 @@ import Cardano.Wallet.Api.Types
     , ApiAccountKey (..)
     , ApiAccountKeyShared (..)
     , ApiAccountPublicKey (..)
+    , ApiAccountSharedPublicKey (..)
     , ApiActiveSharedWallet (..)
     , ApiAddress (..)
     , ApiAddressData (..)
@@ -1298,6 +1299,13 @@ instance Arbitrary ApiAccountPublicKey where
         let rootXPrv = generateKeyFromSeed (seed, Nothing) mempty
         let accXPub = publicKey $ deriveAccountPrivateKey mempty rootXPrv minBound
         pure $ ApiAccountPublicKey $ ApiT $ getKey accXPub
+
+instance Arbitrary ApiAccountSharedPublicKey where
+    arbitrary = do
+        seed <- SomeMnemonic <$> genMnemonic @15
+        let rootXPrv = generateKeyFromSeed (seed, Nothing) mempty
+        let accXPub = publicKey $ deriveAccountPrivateKey mempty rootXPrv minBound
+        pure $ ApiAccountSharedPublicKey $ ApiT $ getKey accXPub
 
 instance Arbitrary AccountPostData where
     arbitrary = do
