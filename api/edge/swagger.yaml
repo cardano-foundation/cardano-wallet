@@ -7627,6 +7627,39 @@ paths:
             schema: *ApiSignedTransactionEncoded
       responses: *responsesPostExternalTransaction
 
+  /shared-wallets/{walletId}/transactions:
+    get:
+      operationId: listSharedTransactions
+      tags: ["Shared Transactions"]
+      summary: List
+      description: |
+        <p align="right">status: <strong>stable</strong></p>
+
+        Lists all incoming and outgoing wallet's transactions.
+      parameters:
+        - *parametersWalletId
+        - *parametersStartDate
+        - *parametersEndDate
+        - *parametersSortOrder
+        - *parametersMinWithdrawal
+        - *parametersMetadataFormat
+      responses: *responsesListTransactions
+
+  /shared-wallets/{walletId}/transactions/{transactionId}:
+    get:
+      operationId: getSharedTransaction
+      tags: ["Shared Transactions"]
+      summary: Get
+      description: |
+        <p align="right">status: <strong>stable</strong></p>
+
+        Get transaction by id.
+      parameters:
+        - *parametersWalletId
+        - *parametersTransactionId
+        - *parametersMetadataFormat
+      responses: *responsesGetTransaction
+
   /shared-wallets/{walletId}/keys/{index}:
     post:
       operationId: postAccountKeyShared
