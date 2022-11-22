@@ -34,17 +34,9 @@ flag release
   default:     False
   manual:      True
 
-flag scrypt
-  description: Enable compatibility support for legacy wallet passwords.
-  default:     True
-
 library
   import:          language, opts-lib
   hs-source-dirs:  lib
-
-  if flag(scrypt)
-    cpp-options:   -DHAVE_SCRYPT
-    build-depends: scrypt
 
   build-depends:
     , aeson
@@ -157,10 +149,6 @@ test-suite test
     , string-qq
     , text
     , text-class
-
-  if flag(scrypt)
-    cpp-options:   -DHAVE_SCRYPT
-    build-depends: scrypt
 
   build-tool-depends: hspec-discover:hspec-discover
   other-modules:
