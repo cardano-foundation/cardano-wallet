@@ -16,6 +16,9 @@
 {-# LANGUAGE TypeApplications #-}
 {-# LANGUAGE TypeFamilies #-}
 {-# LANGUAGE TypeOperators #-}
+{-# OPTIONS_GHC -Wno-unrecognised-pragmas #-}
+
+{-# HLINT ignore "Use record patterns" #-}
 
 -- |
 -- Copyright: © 2018-2020 IOHK
@@ -528,7 +531,7 @@ import Control.Monad.Error.Class
 import Control.Monad.IO.Class
     ( MonadIO, liftIO )
 import Control.Monad.Trans.Except
-    ( ExceptT (..), mapExceptT, runExceptT, throwE, withExceptT )
+    ( ExceptT (..), except, mapExceptT, runExceptT, throwE, withExceptT )
 import Control.Monad.Trans.Maybe
     ( MaybeT (..), exceptToMaybeT )
 import Control.Tracer
@@ -582,6 +585,8 @@ import Data.Text.Class
     ( FromText (..), ToText (..) )
 import Data.Time
     ( UTCTime )
+import Data.Traversable
+    ( for )
 import Data.Type.Equality
     ( (:~:) (..), type (==), testEquality )
 import Data.Word
@@ -2241,7 +2246,8 @@ postTransactionFeeOld ctx@ApiLayer{..} (ApiT wid) body =
         liftHandler $ mkApiFee Nothing minCoins <$> W.estimateFee runSelection
 
 constructTransaction
-    :: forall n. Typeable n
+    :: forall (n :: NetworkDiscriminant)
+     . Typeable n
     => ApiLayer (SeqState n ShelleyKey) ShelleyKey 'CredFromKeyK
     -> ArgGenChange (SeqState n ShelleyKey)
     -> IO (Set PoolId)
@@ -2250,84 +2256,32 @@ constructTransaction
     -> ApiConstructTransactionData n
     -> Handler (ApiConstructTransaction n)
 constructTransaction
-    ctx genChange knownPools getPoolStatus apiw@(ApiT wid) body = do
+    apiLayer genChange knownPools getPoolStatus apiWalletId body = do
+    body & \(ApiConstructTransactionData _ _ _ _ _ _ _) ->
+    -- Above is the way to get a compiler error when number of fields changes,
+    -- in order not to forget to update the pattern below:
+        case body of
+            ApiConstructTransactionData
+                { payments = Nothing
+                , withdrawal = Nothing
+                , metadata = Nothing
+                , mintBurn = Nothing
+                , delegations = Nothing
+                } -> liftHandler $ throwE ErrConstructTxWrongPayload
+            _ -> pure ()
 
-    let isNoPayload =
-            isNothing (body ^. #payments) &&
-            isNothing (body ^. #withdrawal) &&
-            isNothing (body ^. #metadata) &&
-            isNothing (body ^. #mintBurn) &&
-            isNothing (body ^. #delegations)
-    when isNoPayload $ liftHandler $ throwE ErrConstructTxWrongPayload
+    validityInterval@(before, hereafter) <-
+        liftHandler $ validValidityInterval ti $ body ^. #validityInterval
 
-    let mintingBurning = body ^. #mintBurn
-    let handleMissingAssetName :: ApiMintBurnData n -> ApiMintBurnData n
-        handleMissingAssetName mb = case mb ^. #assetName of
-            Nothing -> mb {assetName = Just $ ApiT nullTokenName}
-            Just _ -> mb
-    let mintingBurning' = fmap handleMissingAssetName <$> mintingBurning
-    let retrieveAllCosigners = foldScript (:) []
-    let wrongMintingTemplate (ApiMintBurnData (ApiT scriptTempl) _ _) =
-            isLeft (validateScriptOfTemplate RecommendedValidation scriptTempl)
-            || length (retrieveAllCosigners scriptTempl) /= 1
-            || (L.any (/= Cosigner 0)) (retrieveAllCosigners scriptTempl)
-    when
-        ( isJust mintingBurning' &&
-          L.any wrongMintingTemplate (NE.toList $ fromJust mintingBurning')
-        ) $ liftHandler $ throwE ErrConstructTxWrongMintingBurningTemplate
+    mintingBurning <-
+        liftHandler $ except $ validMintingBurning body validityInterval
 
-    let assetNameTooLong = \case
-            (ApiMintBurnData _ (Just (ApiT (UnsafeTokenName bs))) _) ->
-                BS.length bs > tokenNameMaxLength
-            _ ->
-                error "tokenName should be nonempty at this step"
-    when
-        ( isJust mintingBurning' &&
-          L.any assetNameTooLong (NE.toList $ fromJust mintingBurning')
-        ) $ liftHandler $ throwE ErrConstructTxAssetNameTooLong
-
-    let assetQuantityOutOfBounds
-            (ApiMintBurnData _ _ (ApiMint (ApiMintData _ amt))) =
-            amt <= 0 || amt > unTokenQuantity txMintBurnMaxTokenQuantity
-        assetQuantityOutOfBounds
-            (ApiMintBurnData _ _ (ApiBurn (ApiBurnData amt))) =
-            amt <= 0 || amt > unTokenQuantity txMintBurnMaxTokenQuantity
-    when
-        ( isJust mintingBurning' &&
-          L.any assetQuantityOutOfBounds (NE.toList $ fromJust mintingBurning')
-        ) $ liftHandler $
-            throwE ErrConstructTxMintOrBurnAssetQuantityOutOfBounds
-
-    let checkIx (ApiStakeKeyIndex (ApiT derIndex)) =
-            derIndex == DerivationIndex (getIndex @'Hardened minBound)
-    let validApiDelAction = \case
-            Joining _ stakeKeyIx -> checkIx stakeKeyIx
-            Leaving stakeKeyIx -> checkIx stakeKeyIx
-    let notall0Haccount = case body ^. #delegations of
-            Nothing -> False
-            Just delegs -> not . all validApiDelAction $ NE.toList delegs
-    when notall0Haccount $
-        liftHandler $ throwE ErrConstructTxMultiaccountNotSupported
+    when (maybe False (not . all validDelegationAction) (body ^. #delegations))
+        $ liftHandler $ throwE ErrConstructTxMultiaccountNotSupported
 
     let md = body ^? #metadata . traverse . #txMetadataWithSchema_metadata
 
-    (before, hereafter, isThereNegativeTime) <-
-        decodeValidityInterval ti (body ^. #validityInterval)
-
-    when (hereafter < before || isThereNegativeTime) $
-        liftHandler $ throwE ErrConstructTxWrongValidityBounds
-
-    let notWithinValidityInterval (ApiMintBurnData (ApiT scriptTempl) _ _) =
-            not $ withinSlotInterval before hereafter $
-            scriptSlotIntervals scriptTempl
-    when
-        ( isJust mintingBurning' &&
-          L.any notWithinValidityInterval (NE.toList $ fromJust mintingBurning')
-        )
-        $ liftHandler
-        $ throwE ErrConstructTxValidityIntervalNotWithinScriptTimelock
-
-    withWorkerCtx ctx wid liftE liftE $ \wrk -> do
+    withWorkerCtx apiLayer walletId liftE liftE $ \wrk -> do
         let db = wrk ^. dbLayer
             netLayer = wrk ^. networkLayer
             txLayer = wrk ^. transactionLayer @ShelleyKey @'CredFromKeyK
@@ -2336,7 +2290,7 @@ constructTransaction
         wdrl <- case body ^. #withdrawal of
             Just SelfWithdraw -> liftIO
                 $ W.shelleyOnlyMkSelfWithdrawal @_ @_ @_ @_ @n
-                    netLayer txLayer era db wid
+                    netLayer txLayer era db walletId
             _ -> pure NoWithdrawal
         (deposit, refund, txCtx) <- case body ^. #delegations of
             Nothing -> pure (Nothing, Nothing, defaultTransactionCtx
@@ -2353,29 +2307,29 @@ constructTransaction
                     [(Joining (ApiT pid) _)] -> do
                         poolStatus <- liftIO (getPoolStatus pid)
                         pools <- liftIO knownPools
-                        curEpoch <- getCurrentEpoch ctx
+                        curEpoch <- getCurrentEpoch apiLayer
                         (del, act) <- liftHandler $ W.joinStakePool
-                            wrk curEpoch pools pid poolStatus wid
+                            wrk curEpoch pools pid poolStatus walletId
                         pure (del, act, Nothing)
-                    [(Leaving _)] -> do
-                        del <-
-                            liftIO $ W.validatedQuitStakePoolAction db wid wdrl
-                        pure (del, Nothing, Just $ W.stakeKeyDeposit pp)
+                    [(Leaving _)] -> liftIO $
+                        (, Nothing, Just (W.stakeKeyDeposit pp)) <$>
+                            W.validatedQuitStakePoolAction db walletId wdrl
                     _ ->
                         liftHandler $
                             throwE ErrConstructTxMultidelegationNotSupported
 
-                pure (deposit, refund, defaultTransactionCtx
-                    { txWithdrawal = wdrl
-                    , txMetadata = md
-                    , txValidityInterval = (Just before, hereafter)
-                    , txDelegationAction = Just action
-                    })
+                let txCtx = defaultTransactionCtx
+                        { txWithdrawal = wdrl
+                        , txMetadata = md
+                        , txValidityInterval = (Just before, hereafter)
+                        , txDelegationAction = Just action
+                        }
+                pure (deposit, refund, txCtx)
 
         (txCtx', policyXPubM) <-
-            if isJust mintingBurning' then do
+            if isJust mintingBurning then do
                 (policyXPub, _) <-
-                    liftHandler $ W.readPolicyPublicKey @_ @_ @_ @n wrk wid
+                    liftHandler $ W.readPolicyPublicKey @_ @_ @_ @n wrk walletId
                 let isMinting (ApiMintBurnData _ _ (ApiMint _)) = True
                     isMinting _ = False
                 let getMinting = \case
@@ -2410,12 +2364,12 @@ constructTransaction
                         toTokenMap &&& toScriptTemplateMap $
                         map getMinting $
                         filter isMinting $
-                        NE.toList $ fromJust mintingBurning'
+                        NE.toList $ fromJust mintingBurning
                 let burningData =
                         toTokenMap &&& toScriptTemplateMap $
                         map getBurning $
                         filter (not . isMinting) $
-                        NE.toList $ fromJust mintingBurning'
+                        NE.toList $ fromJust mintingBurning
                 pure ( txCtx
                       { txAssetsToMint = mintingData
                       , txAssetsToBurn = burningData
@@ -2433,7 +2387,7 @@ constructTransaction
                 (ApiMintBurnData _ _ (ApiMint (ApiMintData (Just _) _)))
                 = True
             mintWithAddress _ = False
-        let mintingOuts = case mintingBurning' of
+        let mintingOuts = case mintingBurning of
                 Just mintBurns ->
                     coalesceTokensPerAddr $
                     map (toMintTxOut (fromJust policyXPubM)) $
@@ -2443,7 +2397,7 @@ constructTransaction
 
         unbalancedTx <- liftHandler $
             W.constructTransaction @n @'CredFromKeyK
-                txLayer netLayer db wid era txCtx' PreSelection
+                txLayer netLayer db walletId era txCtx' PreSelection
                     { outputs = outs <> mintingOuts
                     , assetsToMint = fst $ txCtx' ^. #txAssetsToMint
                     , assetsToBurn = fst $ txCtx' ^. #txAssetsToBurn
@@ -2452,7 +2406,7 @@ constructTransaction
                     }
 
         balancedTx <-
-            balanceTransaction ctx genChange (ApiT wid)
+            balanceTransaction apiLayer genChange apiWalletId
                 ApiBalanceTransactionPostData
                 { transaction = ApiT unbalancedTx
                 , inputs = []
@@ -2460,9 +2414,9 @@ constructTransaction
                 , encoding = body ^. #encoding
                 }
 
-        apiDecoded <- decodeTransaction @_ @_ @n ctx apiw balancedTx
+        apiDecoded <- decodeTransaction @_ @_ @n apiLayer apiWalletId balancedTx
 
-        (_, _, rewardPath) <- liftHandler $ W.readRewardAccount @n db wid
+        (_, _, rewardPath) <- liftHandler $ W.readRewardAccount @n db walletId
 
         pure ApiConstructTransaction
             { transaction = balancedTx
@@ -2476,9 +2430,86 @@ constructTransaction
             }
   where
     ti :: TimeInterpreter (ExceptT PastHorizonException IO)
-    ti = timeInterpreter (ctx ^. networkLayer)
+    ti = timeInterpreter (apiLayer ^. networkLayer)
 
+    walletId = getApiT apiWalletId
     singleton x = [x]
+
+    validMintingBurning
+        :: ApiConstructTransactionData n
+        -> (SlotNo, SlotNo)
+        -> Either ErrConstructTx (Maybe (NonEmpty (ApiMintBurnData n)))
+    validMintingBurning tx validity = do
+        let mbMintingBurning :: Maybe (NonEmpty (ApiMintBurnData n))
+            mbMintingBurning = fmap handleMissingAssetName <$> tx ^. #mintBurn
+        for mbMintingBurning $ \mintingBurning -> do
+            guardWrongMintingTemplate mintingBurning
+            guardAssetNameTooLong mintingBurning
+            guardAssetQuantityOutOfBounds mintingBurning
+            guardOutsideOfValidityInterval validity mintingBurning
+            Right mintingBurning
+      where
+        handleMissingAssetName :: ApiMintBurnData n -> ApiMintBurnData n
+        handleMissingAssetName mb = case mb ^. #assetName of
+            Nothing -> mb {assetName = Just (ApiT nullTokenName)}
+            Just _ -> mb
+
+        guardWrongMintingTemplate
+            :: NonEmpty (ApiMintBurnData n) -> Either ErrConstructTx ()
+        guardWrongMintingTemplate mintingBurning =
+            when (any wrongMintingTemplate mintingBurning)
+                $ Left ErrConstructTxWrongMintingBurningTemplate
+          where
+            wrongMintingTemplate (ApiMintBurnData (ApiT script) _ _) =
+                isLeft (validateScriptOfTemplate RecommendedValidation script)
+                || countCosigners script /= (1 :: Int)
+                || existsNonZeroCosigner script
+            countCosigners = foldScript (const (+ 1)) 0
+            existsNonZeroCosigner =
+                foldScript (\cosigner a -> a || cosigner /= Cosigner 0) False
+
+        guardAssetNameTooLong
+            :: NonEmpty (ApiMintBurnData n) -> Either ErrConstructTx ()
+        guardAssetNameTooLong mintingBurning =
+            when (any assetNameTooLong mintingBurning)
+                $ Left ErrConstructTxAssetNameTooLong
+          where
+            assetNameTooLong = \case
+                ApiMintBurnData _ (Just (ApiT (UnsafeTokenName bs))) _ ->
+                    BS.length bs > tokenNameMaxLength
+                _ -> error "tokenName should be nonempty at this step"
+
+        guardAssetQuantityOutOfBounds
+            :: NonEmpty (ApiMintBurnData n) -> Either ErrConstructTx ()
+        guardAssetQuantityOutOfBounds mintingBurning =
+            when (any assetQuantityOutOfBounds mintingBurning)
+                $ Left ErrConstructTxMintOrBurnAssetQuantityOutOfBounds
+          where
+            assetQuantityOutOfBounds = \case
+                ApiMintBurnData _ _ (ApiMint (ApiMintData _ amt)) ->
+                    amt <= 0 || amt > unTokenQuantity txMintBurnMaxTokenQuantity
+                ApiMintBurnData _ _ (ApiBurn (ApiBurnData amt)) ->
+                    amt <= 0 || amt > unTokenQuantity txMintBurnMaxTokenQuantity
+
+        guardOutsideOfValidityInterval
+            :: (SlotNo, SlotNo)
+            -> NonEmpty (ApiMintBurnData n)
+            -> Either ErrConstructTx ()
+        guardOutsideOfValidityInterval (before, hereafter) mintingBurning =
+            when (any notWithinValidityInterval mintingBurning) $
+                Left ErrConstructTxValidityIntervalNotWithinScriptTimelock
+          where
+            notWithinValidityInterval (ApiMintBurnData (ApiT script) _ _) =
+                not $ withinSlotInterval before hereafter $
+                    scriptSlotIntervals script
+
+    validDelegationAction :: ApiMultiDelegationAction -> Bool
+    validDelegationAction = \case
+        Joining _poolId stakeKeyIx -> checkIx stakeKeyIx
+        Leaving stakeKeyIx -> checkIx stakeKeyIx
+      where
+        checkIx (ApiStakeKeyIndex (ApiT derIndex)) =
+            derIndex == DerivationIndex (getIndex @'Hardened minBound)
 
     toUnsignedTxChange = \case
         WalletOutput o ->
@@ -2570,11 +2601,11 @@ constructTransaction
             . Map.toList
             . foldr (uncurry (Map.insertWith (<>))) Map.empty
 
-decodeValidityInterval
+validValidityInterval
     :: TimeInterpreter (ExceptT PastHorizonException IO)
     -> Maybe ApiValidityInterval
-    -> Handler (SlotNo, SlotNo, Bool)
-decodeValidityInterval ti validityInterval = do
+    -> ExceptT ErrConstructTx IO (SlotNo, SlotNo)
+validValidityInterval ti validityInterval = do
     let isValidityBoundTimeNegative
             (ApiValidityBoundAsTimeFromNow (Quantity sec)) = sec < 0
         isValidityBoundTimeNegative _ = False
@@ -2587,7 +2618,8 @@ decodeValidityInterval ti validityInterval = do
             Just (ApiValidityInterval (Just before') (Just hereafter')) ->
                 isValidityBoundTimeNegative before' ||
                 isValidityBoundTimeNegative hereafter'
-            _ -> False
+            Just (ApiValidityInterval Nothing Nothing) -> False
+            Nothing -> False
 
     let fromValidityBound = liftIO . \case
             Left ApiValidityBoundUnspecified ->
@@ -2605,25 +2637,22 @@ decodeValidityInterval ti validityInterval = do
 
     (before, hereafter) <- case validityInterval of
         Nothing -> do
-            before' <-
-                fromValidityBound (Left ApiValidityBoundUnspecified)
-            hereafter' <-
-                fromValidityBound (Right ApiValidityBoundUnspecified)
+            before' <- fromValidityBound (Left ApiValidityBoundUnspecified)
+            hereafter' <- fromValidityBound (Right ApiValidityBoundUnspecified)
             pure (before', hereafter')
         Just (ApiValidityInterval before' hereafter') -> do
             before'' <- case before' of
-                Nothing ->
-                    fromValidityBound (Left ApiValidityBoundUnspecified)
-                Just val ->
-                    fromValidityBound (Left val)
+                Nothing -> fromValidityBound (Left ApiValidityBoundUnspecified)
+                Just val -> fromValidityBound (Left val)
             hereafter'' <- case hereafter' of
-                Nothing ->
-                    fromValidityBound (Right ApiValidityBoundUnspecified)
-                Just val ->
-                    fromValidityBound (Right val)
+                Nothing -> fromValidityBound (Right ApiValidityBoundUnspecified)
+                Just val -> fromValidityBound (Right val)
             pure (before'', hereafter'')
 
-    pure (before, hereafter, isThereNegativeTime)
+    when (hereafter < before || isThereNegativeTime) $
+        throwE ErrConstructTxWrongValidityBounds
+
+    pure (before, hereafter)
 
 -- TO-DO delegations/withdrawals
 -- TO-DO minting/burning
@@ -2658,11 +2687,8 @@ constructSharedTransaction
 
     let md = body ^? #metadata . traverse . #txMetadataWithSchema_metadata
 
-    (before, hereafter, isThereNegativeTime) <-
-        decodeValidityInterval ti (body ^. #validityInterval)
-
-    when (hereafter < before || isThereNegativeTime) $
-        liftHandler $ throwE ErrConstructTxWrongValidityBounds
+    (before, hereafter) <- liftHandler $
+        validValidityInterval ti (body ^. #validityInterval)
 
     withWorkerCtx ctx wid liftE liftE $ \wrk -> do
         (cp, _, _) <- liftHandler $ withExceptT ErrConstructTxNoSuchWallet $
