@@ -866,6 +866,7 @@ test-suite unit
     Cardano.Wallet.Shelley.NetworkSpec
     Cardano.Wallet.Shelley.TransactionSpec
     Cardano.Wallet.Submissions.Gen
+    Cardano.Wallet.Submissions.OperationsSpec
     Cardano.Wallet.Submissions.PrimitivesSpec
     Cardano.Wallet.TokenMetadataSpec
     Cardano.Wallet.Write.TxSpec
