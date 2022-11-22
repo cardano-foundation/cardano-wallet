@@ -873,6 +873,8 @@ test-suite unit
     Cardano.Wallet.Shelley.Network.BlockfrostSpec
     Cardano.Wallet.Shelley.NetworkSpec
     Cardano.Wallet.Shelley.TransactionSpec
+    Cardano.Wallet.Submissions.Generation
+    Cardano.Wallet.Submissions.PrimitivesSpec
     Cardano.Wallet.TokenMetadataSpec
     Cardano.Wallet.Read.Tx.CBORSpec
     Cardano.Wallet.Write.TxSpec
