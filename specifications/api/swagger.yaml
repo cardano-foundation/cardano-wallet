@@ -387,6 +387,12 @@ x-walletAccountXPubkey: &walletAccountXPubkey
   maxLength: 128
   example: 1423856bc91c49e928f6f30f4e8d665d53eb4ab6028bd0ac971809d514c92db11423856bc91c49e928f6f30f4e8d665d53eb4ab6028bd0ac971809d514c92db1
 
+x-sharedWalletAccountXPubkey: &sharedWalletAccountXPubkey
+  description: An extended account public key (public key + chain code) of shared wallet
+  type: string
+  format: bech32
+  pattern: "^(acct_shared_xvk)1[0-9a-z]*$"
+
 x-cosigner: &cosigner
   type: string
   pattern: "^(cosigner#)[0-9]+$"
@@ -394,12 +400,12 @@ x-cosigner: &cosigner
 x-cosigners: &cosigners
   description: Map of cosigners and their account public keys. Use key as in &cosigner, eg. "cosigner#"
   type: object
-  additionalProperties: *walletAccountXPubkey
+  additionalProperties: *sharedWalletAccountXPubkey
   # Note: propertyNames pattern not supported in current OpenAPI version.
   # propertyNames:
   #   pattern: '^(cosigner#)[0-9]+$'
   example:
-    - {"cosigner#0": "1423856bc91c49e928f6f30f4e8d665d53eb4ab6028bd0ac971809d514c92db11423856bc91c49e928f6f30f4e8d665d53eb4ab6028bd0ac971809d514c92db1"}
+    - {"cosigner#0": "acct_shared_xvk1423856bc91c49e928f6f30f4e8d665d53eb4ab6028bd0a"}
 
 x-self: &self
   type: string
@@ -409,7 +415,7 @@ x-self: &self
 x-accountPubkeyOrSelf: &accountPubkeyOrSelf
   nullable: false
   oneOf:
-    - <<: *walletAccountXPubkey
+    - <<: *sharedWalletAccountXPubkey
       title: public key
     - <<: *self
       title: self
@@ -422,7 +428,7 @@ x-cosignersEntry: &cosignersEntry
   # propertyNames:
   #   pattern: '^(cosigner#)[0-9]+$'
   example:
-    - {"cosigner#0": "1423856bc91c49e928f6f30f4e8d665d53eb4ab6028bd0ac971809d514c92db11423856bc91c49e928f6f30f4e8d665d53eb4ab6028bd0ac971809d514c92db1"}
+    - {"cosigner#0": "acct_shared_xvk1423856bc91c49e928f6f30f4e8d665d53eb4ab6028bd0a"}
     - {"cosigner#0": "self"}
 
 x-walletId: &walletId
@@ -2992,7 +2998,7 @@ components:
         - payment_script_template
       properties:
         name: *walletName
-        account_public_key: *walletAccountXPubkey
+        account_public_key: *sharedWalletAccountXPubkey
         account_index: *derivationSegment
         payment_script_template: *scriptTemplateEntry
         delegation_script_template: *scriptTemplateEntry
