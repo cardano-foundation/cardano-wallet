@@ -616,8 +616,7 @@ listTransactions w =
 
 listTransactions'
     :: forall (style :: WalletStyle) w.
-        ( HasCallStack
-        , Discriminate style
+        ( Discriminate style
         , HasType (ApiT WalletId) w
         )
     => w
@@ -639,7 +638,16 @@ listTransactions' w minWithdrawal inf sup order = discriminate @style
     )
     (endpoint @(Api.ListByronTransactions Net)
         (\mk -> mk wid inf sup (ApiT <$> order)))
-    (notSupported "Shared")
+    (endpoint @(Api.ListSharedTransactions Net)
+        (\mk -> mk
+            wid
+            (MinWithdrawal <$> minWithdrawal)
+            inf
+            sup
+            (ApiT <$> order)
+            (toSimpleMetadataFlag TxMetadataDetailedSchema)
+        )
+    )
   where
     wid = w ^. typed @(ApiT WalletId)
 
@@ -679,8 +687,7 @@ deleteTransaction w t = discriminate @style
 
 getTransaction
     :: forall (style :: WalletStyle) w t.
-        ( HasCallStack
-        , Discriminate style
+        ( Discriminate style
         , HasType (ApiT WalletId) w
         , HasType (ApiT (Hash "Tx")) t
         )
@@ -690,7 +697,7 @@ getTransaction
 getTransaction w t = discriminate @style
     (endpoint @(Api.GetTransaction Net) mkShelleyURL)
     (endpoint @(Api.GetByronTransaction Net) mkByronURL)
-    (notSupported "Shared")
+    (endpoint @(Api.GetSharedTransaction Net) mkShelleyURL)
   where
     wid = w ^. typed @(ApiT WalletId)
     tid = ApiTxId (t ^. typed @(ApiT (Hash "Tx")))

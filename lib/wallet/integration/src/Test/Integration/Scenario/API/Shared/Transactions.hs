@@ -33,6 +33,7 @@ import Cardano.Wallet.Api.Types
     , ApiSharedWallet (..)
     , ApiT (..)
     , ApiTransaction
+    , ApiTxId (..)
     , ApiTxInputGeneral (..)
     , ApiTxMetadata (..)
     , ApiTxOutputGeneral (..)
@@ -41,7 +42,9 @@ import Cardano.Wallet.Api.Types
     , DecodeAddress
     , DecodeStakeAddress
     , EncodeAddress (..)
+    , Iso8601Time (..)
     , WalletStyle (..)
+    , insertedAt
     )
 import Cardano.Wallet.Api.Types.Transaction
     ( mkApiWitnessCount )
@@ -53,8 +56,17 @@ import Cardano.Wallet.Primitive.AddressDiscovery.Shared
     ( CredentialType (..) )
 import Cardano.Wallet.Primitive.Passphrase
     ( Passphrase (..) )
+import Cardano.Wallet.Primitive.Types
+    ( SortOrder (..) )
+import Cardano.Wallet.Primitive.Types.Hash
+    ( Hash (..) )
 import Cardano.Wallet.Primitive.Types.Tx
-    ( TxMetadata (..), TxMetadataValue (..), TxScriptValidity (..) )
+    ( Direction (..)
+    , TxMetadata (..)
+    , TxMetadataValue (..)
+    , TxScriptValidity (..)
+    , TxStatus (..)
+    )
 import Cardano.Wallet.Transaction
     ( AnyScript (..), WitnessCount (..) )
 import Control.Monad
@@ -73,6 +85,12 @@ import Data.Maybe
     ( isJust )
 import Data.Quantity
     ( Quantity (..) )
+import Data.Text.Class
+    ( FromText (..), ToText (..) )
+import Data.Time.Clock
+    ( UTCTime, addUTCTime )
+import Data.Time.Utils
+    ( utcTimePred, utcTimeSucc )
 import Numeric.Natural
     ( Natural )
 import Test.Hspec
@@ -91,6 +109,8 @@ import Test.Integration.Framework.DSL
     , eventually
     , expectErrorMessage
     , expectField
+    , expectListField
+    , expectListSize
     , expectResponseCode
     , expectSuccess
     , faucetAmt
@@ -108,16 +128,26 @@ import Test.Integration.Framework.DSL
     , request
     , signSharedTx
     , submitSharedTxWithWid
+    , toQueryString
+    , unsafeGetTransactionTime
     , unsafeRequest
+    , utcIso8601ToText
     , verify
+    , walletId
     )
+import Test.Integration.Framework.Request
+    ( RequestException )
 import Test.Integration.Framework.TestData
-    ( errMsg403EmptyUTxO
+    ( errMsg400MinWithdrawalWrong
+    , errMsg400StartTimeLaterThanEndTime
+    , errMsg403EmptyUTxO
     , errMsg403Fee
     , errMsg403InvalidConstructTx
     , errMsg403MinUTxOValue
     , errMsg403MissingWitsInTransaction
     , errMsg403SharedWalletPending
+    , errMsg404CannotFindTx
+    , errMsg404NoWallet
     )
 
 import qualified Cardano.Address.Script as CA
@@ -125,11 +155,17 @@ import qualified Cardano.Address.Style.Shelley as CA
 import qualified Cardano.Wallet.Api.Link as Link
 import qualified Cardano.Wallet.Primitive.Types.TokenMap as TokenMap
 import qualified Data.ByteArray as BA
+import qualified Data.ByteString as BS
 import qualified Data.List.NonEmpty as NE
 import qualified Data.Map.Strict as Map
+import qualified Data.Text as T
 import qualified Data.Text.Encoding as T
 import qualified Network.HTTP.Types as HTTP
 
+data TestCase a = TestCase
+    { query :: T.Text
+    , assertions :: [(HTTP.Status, Either RequestException a) -> IO ()]
+    }
 
 spec :: forall n.
     ( DecodeAddress n
@@ -260,6 +296,14 @@ spec = describe "SHARED_TRANSACTIONS" $ do
             , expectResponseCode HTTP.status202
             ]
 
+        let txid = getFromResponse #id submittedTx
+        let queryTx = Link.getTransaction @'Shared wal (ApiTxId txid)
+        rGetTx <- request @(ApiTransaction n) ctx queryTx Default Empty
+        verify rGetTx
+            [ expectResponseCode HTTP.status200
+            , expectField (#direction . #getApiT) (`shouldBe` Outgoing)
+            ]
+
         -- Make sure only fee is deducted from shared Wallet
         eventually "Wallet balance is as expected" $ do
             rWal <- getSharedWallet ctx walShared
@@ -268,6 +312,20 @@ spec = describe "SHARED_TRANSACTIONS" $ do
                 , expectField
                     (traverse . #balance . #available . #getQuantity)
                     (`shouldBe` (amt - expectedFee))
+                ]
+
+        eventually "Tx is in ledger finally" $ do
+            rGetTx' <- request @(ApiTransaction n) ctx queryTx Default Empty
+            verify rGetTx'
+                [ expectResponseCode HTTP.status200
+                , expectField (#status . #getApiT) (`shouldBe` InLedger)
+                ]
+            let listTxEp = Link.listTransactions @'Shared wal
+            request @[ApiTransaction n] ctx listTxEp Default Empty >>= flip verify
+                [ expectListField 1
+                    (#direction . #getApiT) (`shouldBe` Incoming)
+                , expectListField 1
+                    (#status . #getApiT) (`shouldBe` InLedger)
                 ]
 
     it "SHARED_TRANSACTIONS_CREATE_01a - Empty payload is not allowed" $ \ctx -> runResourceT $ do
@@ -618,7 +676,687 @@ spec = describe "SHARED_TRANSACTIONS" $ do
                         (`shouldBe` amt)
                 ]
 
+    it "SHARED_TRANSACTIONS_LIST_01 - Can list Incoming and Outgoing transactions" $
+        \ctx -> runResourceT $ do
+
+        (wSrc, wDest) <- (,) <$> fixtureSharedWallet ctx <*> emptyWallet ctx
+        addrs <- listAddresses @n ctx wDest
+
+        let amt = minUTxOValue (_mainEra ctx) :: Natural
+        let destination = (addrs !! 1) ^. #id
+        let payload = Json [json|{
+                "payments": [{
+                    "address": #{destination},
+                    "amount": {
+                        "quantity": #{amt},
+                        "unit": "lovelace"
+                    }
+                }],
+                "passphrase": "cardano-wallet"
+            }|]
+
+        realizeTx ctx wSrc payload
+
+        eventually "Wallet balance is as expected" $ do
+            rGet <- request @ApiWallet ctx
+                (Link.getWallet @'Shelley wDest) Default Empty
+            verify rGet
+                [ expectField
+                        (#balance . #total) (`shouldBe` Quantity amt)
+                , expectField
+                        (#balance . #available) (`shouldBe` Quantity amt)
+                ]
+
+        -- Verify Tx list contains Incoming and Outgoing
+        let link = Link.listTransactions @'Shared wSrc
+        r <- request @([ApiTransaction n]) ctx link Default Empty
+        expectResponseCode HTTP.status200 r
+
+        verify r
+            [ expectListField 0 (#direction . #getApiT) (`shouldBe` Outgoing)
+            , expectListField 1 (#direction . #getApiT) (`shouldBe` Incoming)
+            ]
+
+    -- This scenario covers the following matrix of cases. Cases were generated
+    -- using one of pairwise test cases generation tools available online.
+    -- +---+----------+----------+------------+--------------+
+    --     |  start   |   end    |   order    |    result    |
+    -- +---+----------+----------+------------+--------------+
+    --   1 | edge     | edge     | ascending  | 2 ascending  |
+    --   2 | edge     | edge + 1 | descending | 2 descending |
+    --   3 | edge     | edge - 1 | empty      | 1st one      |
+    --   4 | edge     | empty    | empty      | 2 descending |
+    --   5 | edge + 1 | edge + 1 | empty      | 2nd one      |
+    --   6 | edge + 1 | edge - 1 | empty      | none         |
+    --   7 | edge + 1 | empty    | ascending  | 2nd one      |
+    --   8 | edge + 1 | edge     | descending | 2nd one      |
+    --   9 | edge - 1 | edge - 1 | ascending  | 1st one      |
+    --  10 | edge - 1 | empty    | descending | 2 descending |
+    --  11 | edge - 1 | edge     | empty      | 2 descending |
+    --  12 | edge - 1 | edge + 1 | empty      | 2 descending |
+    --  13 | empty    | empty    | empty      | 2 descending |
+    --  14 | empty    | edge     | empty      | 2 descending |
+    --  15 | empty    | edge + 1 | ascending  | 2 ascending  |
+    --  16 | empty    | edge - 1 | descending | 1st one      |
+    --  17 | t1       | t1       | empty      | 1st one      |
+    --  18 | t2       | t2       | descending | 2nd one      |
+    -- +---+----------+----------+------------+--------------+
+    it "SHARED_TRANSACTIONS_LIST_02,03x - Can limit/order results with start, end and order"
+        $ \ctx -> runResourceT $ do
+        let amt1 = minUTxOValue (_mainEra ctx)
+        let amt2 = 2 * amt1
+        (wSrc, wDest@(ApiSharedWallet (Right walDest))) <-
+            (,) <$> fixtureSharedWallet ctx <*> emptySharedWallet ctx
+
+        -- destination wallet
+        rAddr <- request @[ApiAddress n] ctx
+            (Link.listAddresses @'Shared walDest) Default Empty
+        expectResponseCode HTTP.status200 rAddr
+        let addrs = getFromResponse Prelude.id rAddr
+        let destAddr1 = (head addrs) ^. #id
+        let destAddr2 = (addrs !! 1) ^. #id
+        let payload destination amt = Json [json|{
+                "payments": [{
+                    "address": #{destination},
+                    "amount": {
+                        "quantity": #{amt},
+                        "unit": "lovelace"
+                    }
+                }],
+                "passphrase": "cardano-wallet"
+            }|]
+
+        -- post txs
+        realizeTx ctx wSrc (payload destAddr1 amt1)
+        eventually "wDest balance is increased" $ do
+            wal <- getSharedWallet ctx wDest
+            let balanceExp =
+                    [ expectResponseCode HTTP.status200
+                    , expectField (traverse . #balance . #available)
+                        (`shouldBe` Quantity amt1)
+                    ]
+            verify (fmap (view #wallet) <$> wal) balanceExp
+
+        realizeTx ctx wSrc (payload destAddr2 amt2)
+        eventually "wDest balance is increased again" $ do
+            wal <- getSharedWallet ctx wDest
+            let balanceExp =
+                    [ expectResponseCode HTTP.status200
+                    , expectField (traverse . #balance . #available)
+                        (`shouldBe` Quantity (amt1 + amt2))
+                    ]
+            verify (fmap (view #wallet) <$> wal) balanceExp
+
+        txs <- eventually "I make sure there are exactly 2 transactions" $ do
+            let linkList = Link.listTransactions' @'Shared walDest
+                    Nothing
+                    Nothing
+                    Nothing
+                    Nothing
+            rl <- request @([ApiTransaction n]) ctx linkList Default Empty
+            verify rl [expectListSize 2]
+            pure (getFromResponse Prelude.id rl)
+
+        let [Just t2, Just t1] = fmap (fmap (view #time) . insertedAt) txs
+        let plusDelta, minusDelta :: UTCTime -> UTCTime
+            plusDelta = addUTCTime (toEnum 1000000000)
+            minusDelta = addUTCTime (toEnum (-1000000000))
+
+        let matrix :: [TestCase [ApiTransaction n]] =
+                [ TestCase -- 1
+                    { query = toQueryString
+                        [ ("start", utcIso8601ToText t1)
+                        , ("end", utcIso8601ToText t2)
+                        , ("order", "ascending")
+                        ]
+                    , assertions =
+                        [ expectListSize 2
+                        , expectListField 0 #amount (`shouldBe` Quantity amt1)
+                        , expectListField 1 #amount (`shouldBe` Quantity amt2)
+                        ]
+                    }
+                , TestCase -- 2
+                    { query = toQueryString
+                        [ ("start", utcIso8601ToText t1)
+                        , ("end", utcIso8601ToText $ plusDelta t2)
+                        , ("order", "descending")
+                        ]
+                    , assertions =
+                        [ expectListSize 2
+                        , expectListField 0 #amount (`shouldBe` Quantity amt2)
+                        , expectListField 1 #amount (`shouldBe` Quantity amt1)
+                        ]
+                    }
+                , TestCase -- 3
+                    { query = toQueryString
+                        [ ("start", utcIso8601ToText t1)
+                        , ("end", utcIso8601ToText $ minusDelta t2)
+                        ]
+                    , assertions =
+                        [ expectListSize 1
+                        , expectListField 0 #amount (`shouldBe` Quantity amt1)
+                        ]
+                    }
+                , TestCase -- 4
+                    { query = toQueryString
+                        [ ("start", utcIso8601ToText t1) ]
+                    , assertions =
+                        [ expectListSize 2
+                        , expectListField 0 #amount (`shouldBe` Quantity amt2)
+                        , expectListField 1 #amount (`shouldBe` Quantity amt1)
+                        ]
+                    }
+                , TestCase --5
+                    { query = toQueryString
+                        [ ("start", utcIso8601ToText $ plusDelta t1)
+                        , ("end", utcIso8601ToText $ plusDelta t2)
+                        ]
+                    , assertions =
+                        [ expectListSize 1
+                        , expectListField 0 #amount (`shouldBe` Quantity amt2)
+                        ]
+                    }
+                , TestCase -- 6
+                    { query = toQueryString
+                        [ ("start", utcIso8601ToText $ plusDelta t1)
+                        , ("end", utcIso8601ToText $ minusDelta t2)
+                        ]
+                    , assertions =
+                        [ expectListSize 0 ]
+                    }
+                , TestCase -- 7
+                    { query = toQueryString
+                        [ ("start", utcIso8601ToText $ plusDelta t1)
+                        , ("order", "ascending")
+                        ]
+                    , assertions =
+                        [ expectListSize 1
+                        , expectListField 0 #amount (`shouldBe` Quantity amt2)
+                        ]
+                    }
+                , TestCase -- 8
+                    { query = toQueryString
+                        [ ("order", "descending")
+                        , ("start", utcIso8601ToText $ plusDelta t1)
+                        , ("end", utcIso8601ToText t2)
+                        ]
+                    , assertions =
+                        [ expectListSize 1
+                        , expectListField 0 #amount (`shouldBe` Quantity amt2)
+                        ]
+                    }
+                , TestCase -- 9
+                    { query = toQueryString
+                        [ ("order", "ascending")
+                        , ("start", utcIso8601ToText $ minusDelta t1)
+                        , ("end", utcIso8601ToText $ minusDelta t2)
+                        ]
+                    , assertions =
+                        [ expectListSize 1
+                        , expectListField 0 #amount (`shouldBe` Quantity amt1)
+                        ]
+                    }
+                , TestCase -- 10
+                    { query = toQueryString
+                        [ ("order", "descending")
+                        , ("start", utcIso8601ToText $ minusDelta t1)
+                        ]
+                    , assertions =
+                        [ expectListSize 2
+                        , expectListField 0 #amount (`shouldBe` Quantity amt2)
+                        , expectListField 1 #amount (`shouldBe` Quantity amt1)
+                        ]
+                    }
+                , TestCase -- 11
+                    { query = toQueryString
+                        [ ("start", utcIso8601ToText $ minusDelta t1)
+                        , ("end", utcIso8601ToText t2)
+                        ]
+                    , assertions =
+                        [ expectListSize 2
+                        , expectListField 0 #amount (`shouldBe` Quantity amt2)
+                        , expectListField 1 #amount (`shouldBe` Quantity amt1)
+                        ]
+                    }
+                , TestCase -- 12
+                    { query = toQueryString
+                        [ ("start", utcIso8601ToText $ minusDelta t1)
+                        , ("end", utcIso8601ToText $ plusDelta t2)
+                        ]
+                    , assertions =
+                        [ expectListSize 2
+                        , expectListField 0 #amount (`shouldBe` Quantity amt2)
+                        , expectListField 1 #amount (`shouldBe` Quantity amt1)
+                        ]
+                    }
+                , TestCase -- 13
+                    { query = mempty
+                    , assertions =
+                        [ expectListSize 2
+                        , expectListField 0 #amount (`shouldBe` Quantity amt2)
+                        , expectListField 1 #amount (`shouldBe` Quantity amt1)
+                        ]
+                    }
+                , TestCase -- 14
+                    { query = toQueryString
+                        [ ("end", utcIso8601ToText t2) ]
+                    , assertions =
+                        [ expectListSize 2
+                        , expectListField 0 #amount (`shouldBe` Quantity amt2)
+                        , expectListField 1 #amount (`shouldBe` Quantity amt1)
+                        ]
+                    }
+                , TestCase -- 15
+                    { query = toQueryString
+                        [ ("end", utcIso8601ToText $ plusDelta t2) ]
+                    , assertions =
+                        [ expectListSize 2
+                        , expectListField 0 #amount (`shouldBe` Quantity amt2)
+                        , expectListField 1 #amount (`shouldBe` Quantity amt1)
+                        ]
+                    }
+                , TestCase -- 16
+                    { query = toQueryString
+                        [ ("end", utcIso8601ToText $ minusDelta t2) ]
+                    , assertions =
+                        [ expectListSize 1
+                        , expectListField 0 #amount (`shouldBe` Quantity amt1)
+                        ]
+                    }
+                , TestCase -- 17
+                    { query = toQueryString
+                        [ ("start", utcIso8601ToText t1)
+                        , ("end", utcIso8601ToText t1)
+                        ]
+                    , assertions =
+                        [ expectListSize 1
+                        , expectListField 0 #amount (`shouldBe` Quantity amt1)
+                        ]
+                    }
+                , TestCase -- 18
+                    { query = toQueryString
+                        [ ("start", utcIso8601ToText t2)
+                        , ("end", utcIso8601ToText t2)
+                        ]
+                    , assertions =
+                        [ expectListSize 1
+                        , expectListField 0 #amount (`shouldBe` Quantity amt2)
+                        ]
+                    }
+                ]
+
+        let withQuery q (method, link) = (method, link <> q)
+
+        liftIO $ forM_ matrix $ \tc -> do
+            let link =
+                    withQuery (query tc) $ Link.listTransactions @'Shared walDest
+            rf <- request @([ApiTransaction n]) ctx link Default Empty
+            verify rf (assertions tc)
+
+    describe "SHARED_TRANSACTIONS_LIST_02,03 - Faulty start, end, order values" $ do
+        let orderErr = "Please specify one of the following values:\
+            \ ascending, descending."
+        let startEndErr = "Expecting ISO 8601 date-and-time format\
+            \ (basic or extended), e.g. 2012-09-25T10:15:00Z."
+        let queries :: [TestCase [ApiTransaction n]] =
+                [
+                  TestCase
+                    { query = toQueryString [ ("start", "2009") ]
+                    , assertions =
+                             [ expectResponseCode HTTP.status400
+                             , expectErrorMessage startEndErr
+                             ]
+
+                    }
+                 , TestCase
+                     { query = toQueryString
+                             [ ("start", "2012-09-25T10:15:00Z")
+                             , ("end", "2016-11-21")
+                             ]
+                     , assertions =
+                             [ expectResponseCode HTTP.status400
+                             , expectErrorMessage startEndErr
+                             ]
+
+                     }
+                 , TestCase
+                     { query = toQueryString
+                             [ ("start", "2012-09-25")
+                             , ("end", "2016-11-21T10:15:00Z")
+                             ]
+                     , assertions =
+                             [ expectResponseCode HTTP.status400
+                             , expectErrorMessage startEndErr
+                             ]
+
+                     }
+                 , TestCase
+                     { query = toQueryString
+                             [ ("end", "2012-09-25T10:15:00Z")
+                             , ("start", "2016-11-21")
+                             ]
+                     , assertions =
+                             [ expectResponseCode HTTP.status400
+                             , expectErrorMessage startEndErr
+                             ]
+
+                     }
+                 , TestCase
+                     { query = toQueryString [ ("order", "scending") ]
+                     , assertions =
+                            [ expectResponseCode HTTP.status400
+                            , expectErrorMessage orderErr
+                            ]
+
+                     }
+                 , TestCase
+                     { query = toQueryString
+                             [ ("start", "2012-09-25T10:15:00Z")
+                             , ("order", "asc")
+                             ]
+                     , assertions =
+                             [ expectResponseCode HTTP.status400
+                             , expectErrorMessage orderErr
+                             ]
+                     }
+                ]
+
+        let withQuery q (method, link) = (method, link <> q)
+
+        forM_ queries $ \tc -> it (T.unpack $ query tc) $
+            \ctx -> runResourceT $ do
+                (ApiSharedWallet (Right w)) <- emptySharedWallet ctx
+                let link = withQuery (query tc) $
+                        Link.listTransactions @'Shared w
+                r <- request @([ApiTransaction n]) ctx link Default Empty
+                liftIO $ verify r (assertions tc)
+
+    it "SHARED_TRANSACTIONS_LIST_02 - Start time shouldn't be later than end time" $
+        \ctx -> runResourceT $ do
+            (ApiSharedWallet (Right w)) <- emptySharedWallet ctx
+            let startTime = "2009-09-09T09:09:09Z"
+            let endTime = "2001-01-01T01:01:01Z"
+            let link = Link.listTransactions' @'Shared w
+                    Nothing
+                    (either (const Nothing) Just $ fromText $ T.pack startTime)
+                    (either (const Nothing) Just $ fromText $ T.pack endTime)
+                    Nothing
+            r <- request @([ApiTransaction n]) ctx link Default Empty
+            expectResponseCode HTTP.status400 r
+            expectErrorMessage
+                (errMsg400StartTimeLaterThanEndTime startTime endTime) r
+            pure ()
+
+    it "SHARED_TRANSACTIONS_LIST_03 - Minimum withdrawal shouldn't be 0" $
+        \ctx -> runResourceT $ do
+            (ApiSharedWallet (Right w)) <- emptySharedWallet ctx
+            let link = Link.listTransactions' @'Shared w
+                    (Just 0)
+                    Nothing
+                    Nothing
+                    Nothing
+            r <- request @([ApiTransaction n]) ctx link Default Empty
+            expectResponseCode HTTP.status400 r
+            expectErrorMessage errMsg400MinWithdrawalWrong r
+            pure ()
+
+    it "SHARED_TRANSACTIONS_LIST_03 - \
+        \Minimum withdrawal can be 1, shows empty when no withdrawals" $
+        \ctx -> runResourceT $ do
+            (ApiSharedWallet (Right w)) <- emptySharedWallet ctx
+            let link = Link.listTransactions' @'Shared w
+                    (Just 1)
+                    Nothing
+                    Nothing
+                    Nothing
+            r <- request @([ApiTransaction n]) ctx link Default Empty
+            expectResponseCode HTTP.status200 r
+            let txs = getFromResponse Prelude.id r
+            txs `shouldBe` []
+
+    it "SHARED_TRANSACTIONS_LIST_04 - Deleted wallet" $ \ctx -> runResourceT $ do
+        (ApiSharedWallet (Right w)) <- emptySharedWallet ctx
+        _ <- request @ApiWallet ctx
+            (Link.deleteWallet @'Shared w) Default Empty
+        r <- request @([ApiTransaction n]) ctx
+            (Link.listTransactions @'Shared w)
+            Default Empty
+        expectResponseCode HTTP.status404 r
+        expectErrorMessage (errMsg404NoWallet $ w ^. walletId) r
+
+    it "SHARED_TRANSACTIONS_LIST_RANGE_01 - \
+       \Transaction at time t is SELECTED by small ranges that cover it" $
+          \ctx -> runResourceT $ do
+              w <- fixtureSharedWalletWith ctx (minUTxOValue (_mainEra ctx))
+              t <- unsafeGetTransactionTime =<< listAllSharedTransactions ctx w
+              let (te, tl) = (utcTimePred t, utcTimeSucc t)
+              txs1 <- listSharedTransactions ctx w (Just t ) (Just t ) Nothing
+              txs2 <- listSharedTransactions ctx w (Just te) (Just t ) Nothing
+              txs3 <- listSharedTransactions ctx w (Just t ) (Just tl) Nothing
+              txs4 <- listSharedTransactions ctx w (Just te) (Just tl) Nothing
+              length <$> [txs1, txs2, txs3, txs4] `shouldSatisfy` all (== 1)
+
+    it "SHARED_TRANSACTIONS_LIST_RANGE_02 - \
+       \Transaction at time t is NOT selected by range (t + 𝛿t, ...)" $
+          \ctx -> runResourceT $ do
+              w <- fixtureSharedWalletWith ctx (minUTxOValue (_mainEra ctx))
+              t <- unsafeGetTransactionTime =<< listAllSharedTransactions ctx w
+              let tl = utcTimeSucc t
+              txs1 <- listSharedTransactions ctx w (Just tl) (Nothing) Nothing
+              txs2 <- listSharedTransactions ctx w (Just tl) (Just tl) Nothing
+              length <$> [txs1, txs2] `shouldSatisfy` all (== 0)
+
+    it "SHARED_TRANSACTIONS_LIST_RANGE_03 - \
+       \Transaction at time t is NOT selected by range (..., t - 𝛿t)" $
+          \ctx -> runResourceT $ do
+              w <- fixtureSharedWalletWith ctx (minUTxOValue (_mainEra ctx))
+              t <- unsafeGetTransactionTime =<< listAllSharedTransactions ctx w
+              let te = utcTimePred t
+              txs1 <- listSharedTransactions ctx w (Nothing) (Just te) Nothing
+              txs2 <- listSharedTransactions ctx w (Just te) (Just te) Nothing
+              length <$> [txs1, txs2] `shouldSatisfy` all (== 0)
+
+    it "SHARED_TRANSACTIONS_GET_01 - Can get Incoming and Outgoing transaction" $
+        \ctx -> runResourceT $ do
+
+        (wSrc, (ApiSharedWallet (Right walDest))) <-
+            (,) <$> fixtureSharedWallet ctx <*> emptySharedWallet ctx
+        -- post tx
+        let amt = minUTxOValue (_mainEra ctx) :: Natural
+        rAddr <- request @[ApiAddress n] ctx
+            (Link.listAddresses @'Shared walDest) Default Empty
+        expectResponseCode HTTP.status200 rAddr
+        let addrs = getFromResponse Prelude.id rAddr
+        let destAddr = (addrs !! 1) ^. #id
+        let payload = Json [json|{
+                "payments": [{
+                    "address": #{destAddr},
+                    "amount": {
+                        "quantity": #{amt},
+                        "unit": "lovelace"
+                    }
+                }],
+                "passphrase": "cardano-wallet"
+            }|]
+
+        rTx <- request @(ApiConstructTransaction n) ctx
+            (Link.createUnsignedTransaction @'Shared wSrc) Default payload
+        verify rTx
+            [ expectSuccess
+            , expectResponseCode HTTP.status202
+            ]
+        let (ApiSerialisedTransaction apiTx _) =
+                getFromResponse #transaction rTx
+        signedTx <-
+            signSharedTx ctx wSrc apiTx [ expectResponseCode HTTP.status202 ]
+        submittedTx <- submitSharedTxWithWid ctx wSrc signedTx
+        let txid = getFromResponse #id submittedTx
+        let queryTx = Link.getTransaction @'Shared wSrc (ApiTxId txid)
+        rGetTx <- request @(ApiTransaction n) ctx queryTx Default Empty
+        verify rGetTx
+            [ expectSuccess
+            , expectResponseCode HTTP.status200
+            , expectField (#direction . #getApiT) (`shouldBe` Outgoing)
+            , expectField (#status . #getApiT) (`shouldBe` Pending)
+            ]
+
+        eventually "Wallet balance is as expected" $ do
+            rGet <- request @ApiWallet ctx
+                (Link.getWallet @'Shared walDest) Default Empty
+            verify rGet
+                [ expectField
+                        (#balance . #total) (`shouldBe` Quantity amt)
+                , expectField
+                        (#balance . #available) (`shouldBe` Quantity amt)
+                ]
+
+        eventually "Transactions are available and in ledger" $ do
+            -- Verify Tx in source wallet is Outgoing and InLedger
+            let linkSrc = Link.getTransaction @'Shared
+                    wSrc (ApiTxId txid)
+            r1 <- request @(ApiTransaction n) ctx linkSrc Default Empty
+            verify r1
+                [ expectResponseCode HTTP.status200
+                , expectField (#direction . #getApiT) (`shouldBe` Outgoing)
+                , expectField (#status . #getApiT) (`shouldBe` InLedger)
+                ]
+
+            -- Verify Tx in destination wallet is Incoming and InLedger
+            let linkDest = Link.getTransaction
+                    @'Shared walDest (ApiTxId txid)
+            r2 <- request @(ApiTransaction n) ctx linkDest Default Empty
+            verify r2
+                [ expectResponseCode HTTP.status200
+                , expectField (#direction . #getApiT) (`shouldBe` Incoming)
+                , expectField (#status . #getApiT) (`shouldBe` InLedger)
+                ]
+
+    it "SHARED_TRANSACTIONS_GET_02 - Deleted wallet" $ \ctx -> runResourceT $ do
+        (ApiSharedWallet (Right w)) <- emptySharedWallet ctx
+        _ <- request @ApiWallet
+            ctx (Link.deleteWallet @'Shared w) Default Empty
+        let txid = ApiT $ Hash $ BS.pack $ replicate 32 1
+        let link = Link.getTransaction @'Shared w (ApiTxId txid)
+        r <- request @(ApiTransaction n) ctx link Default Empty
+        expectResponseCode HTTP.status404 r
+        expectErrorMessage (errMsg404NoWallet $ w ^. walletId) r
+
+    it "SHARED_TRANSACTIONS_GET_03 - Using wrong transaction id" $ \ctx -> runResourceT $ do
+        (wSrc, (ApiSharedWallet (Right walDest))) <-
+            (,) <$> fixtureSharedWallet ctx <*> emptySharedWallet ctx
+        -- post tx
+        let amt = minUTxOValue (_mainEra ctx) :: Natural
+        rAddr <- request @[ApiAddress n] ctx
+            (Link.listAddresses @'Shared walDest) Default Empty
+        expectResponseCode HTTP.status200 rAddr
+        let addrs = getFromResponse Prelude.id rAddr
+        let destAddr = (addrs !! 1) ^. #id
+        let payload = Json [json|{
+                "payments": [{
+                    "address": #{destAddr},
+                    "amount": {
+                        "quantity": #{amt},
+                        "unit": "lovelace"
+                    }
+                }],
+                "passphrase": "cardano-wallet"
+            }|]
+
+        rTx <- request @(ApiConstructTransaction n) ctx
+            (Link.createUnsignedTransaction @'Shared wSrc) Default payload
+        verify rTx
+            [ expectSuccess
+            , expectResponseCode HTTP.status202
+            ]
+        let (ApiSerialisedTransaction apiTx _) =
+                getFromResponse #transaction rTx
+        signedTx <-
+            signSharedTx ctx wSrc apiTx [ expectResponseCode HTTP.status202 ]
+        submittedTx <- submitSharedTxWithWid ctx wSrc signedTx
+        let txid1 = getFromResponse #id submittedTx
+        let queryTx = Link.getTransaction @'Shared wSrc (ApiTxId txid1)
+        rGetTx <- request @(ApiTransaction n) ctx queryTx Default Empty
+        verify rGetTx
+            [ expectSuccess
+            , expectResponseCode HTTP.status200
+            , expectField (#direction . #getApiT) (`shouldBe` Outgoing)
+            , expectField (#status . #getApiT) (`shouldBe` Pending)
+            ]
+
+        let txid2 =  Hash $ BS.pack $ replicate 32 1
+        let link = Link.getTransaction @'Shared wSrc (ApiTxId $ ApiT txid2)
+        r <- request @(ApiTransaction n) ctx link Default Empty
+        expectResponseCode HTTP.status404 r
+        expectErrorMessage (errMsg404CannotFindTx $ toText txid2) r
   where
+     listSharedTransactions ctx w mStart mEnd mOrder = do
+         let path = Link.listTransactions' @'Shared w
+                    Nothing
+                    (Iso8601Time <$> mStart)
+                    (Iso8601Time <$> mEnd)
+                    mOrder
+         r <- request @[ApiTransaction n] ctx path Default Empty
+         expectResponseCode HTTP.status200 r
+         let txs = getFromResponse Prelude.id r
+         return txs
+
+     listAllSharedTransactions ctx w = do
+         let path = Link.listTransactions' @'Shared w
+                    Nothing Nothing Nothing (Just Descending)
+         r <- request @[ApiTransaction n] ctx path Default Empty
+         expectResponseCode HTTP.status200 r
+         let txs = getFromResponse Prelude.id r
+         return txs
+
+     fixtureSharedWalletWith ctx amt = do
+        (wSrc, wDest@(ApiSharedWallet (Right walDest))) <-
+            (,) <$> fixtureSharedWallet ctx <*> emptySharedWallet ctx
+
+        -- destination wallet
+        rAddr <- request @[ApiAddress n] ctx
+            (Link.listAddresses @'Shared walDest) Default Empty
+        expectResponseCode HTTP.status200 rAddr
+        let addrs = getFromResponse Prelude.id rAddr
+        let destAddr = (addrs !! 1) ^. #id
+        let payload = Json [json|{
+                "payments": [{
+                    "address": #{destAddr},
+                    "amount": {
+                        "quantity": #{amt},
+                        "unit": "lovelace"
+                    }
+                }],
+                "passphrase": "cardano-wallet"
+            }|]
+
+        -- post txs
+        realizeTx ctx wSrc payload
+        eventually "wDest balance is increased" $ do
+            wal <- getSharedWallet ctx wDest
+            let balanceExp =
+                    [ expectResponseCode HTTP.status200
+                    , expectField (traverse . #balance . #available)
+                        (`shouldBe` Quantity amt)
+                    ]
+            verify (fmap (view #wallet) <$> wal) balanceExp
+        pure walDest
+
+     realizeTx ctx w payload = do
+        rTx <- request @(ApiConstructTransaction n) ctx
+            (Link.createUnsignedTransaction @'Shared w) Default payload
+        verify rTx
+            [ expectSuccess
+            , expectResponseCode HTTP.status202
+            ]
+        let (ApiSerialisedTransaction apiTx _) =
+                getFromResponse #transaction rTx
+        signedTx <-
+            signSharedTx ctx w apiTx [ expectResponseCode HTTP.status202 ]
+        submittedTx <- submitSharedTxWithWid ctx w signedTx
+        verify submittedTx
+            [ expectResponseCode HTTP.status202
+            ]
+
      fundSharedWallet ctx amt sharedWals = do
         let wal = case NE.head sharedWals of
                 ApiSharedWallet (Right wal') -> wal'
@@ -660,7 +1398,7 @@ spec = describe "SHARED_TRANSACTIONS" $ do
                 , expectField (traverse . #balance . #available) (`shouldBe` Quantity amt)
                 ]
 
-     fixtureSharedWallet ctx = do
+     emptySharedWallet ctx = do
         m15txt <- liftIO $ genMnemonics M15
         m12txt <- liftIO $ genMnemonics M12
         let (Right m15) = mkSomeMnemonic @'[ 15 ] m15txt
@@ -687,11 +1425,11 @@ spec = describe "SHARED_TRANSACTIONS" $ do
         verify (fmap (swapEither . view #wallet) <$> rPost)
             [ expectResponseCode HTTP.status201
             ]
-        let walShared@(ApiSharedWallet (Right wal)) =
-                getFromResponse Prelude.id rPost
+        pure $ getFromResponse Prelude.id rPost
 
+     fixtureSharedWallet ctx = do
+        walShared@(ApiSharedWallet (Right wal)) <- emptySharedWallet ctx
         fundSharedWallet ctx faucetUtxoAmt (NE.fromList [walShared])
-
         return wal
 
      fixtureTwoPartySharedWallet ctx = do

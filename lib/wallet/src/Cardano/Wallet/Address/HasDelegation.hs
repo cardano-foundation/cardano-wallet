@@ -14,12 +14,16 @@ import Prelude
 
 import Cardano.Wallet.Primitive.AddressDerivation.Icarus
     ( IcarusKey )
+import Cardano.Wallet.Primitive.AddressDerivation.SharedKey
+    ( SharedKey )
 import Cardano.Wallet.Primitive.AddressDerivation.Shelley
     ( ShelleyKey )
 import Cardano.Wallet.Primitive.AddressDiscovery.Random
     ( RndState (..) )
 import Cardano.Wallet.Primitive.AddressDiscovery.Sequential
     ( SeqState )
+import Cardano.Wallet.Primitive.AddressDiscovery.Shared
+    ( SharedState )
 
 -- | Discriminate whether an address state supports delegation.
 class HasDelegation s where
@@ -32,4 +36,7 @@ instance HasDelegation (RndState n) where
     hasDelegation _ = False
 
 instance HasDelegation (SeqState n IcarusKey) where
+    hasDelegation _ = False
+
+instance HasDelegation (SharedState n SharedKey) where
     hasDelegation _ = False

@@ -2093,13 +2093,13 @@ deleteTransaction ctx (ApiT wid) (ApiTxId (ApiT (tid))) = do
     return NoContent
 
 listTransactions
-    :: forall s k n.
+    :: forall s k ktype n.
         ( Typeable s
         , Typeable n
         , HasDelegation s
         , Typeable k
         )
-    => ApiLayer s k 'CredFromKeyK
+    => ApiLayer s k ktype
     -> ApiT WalletId
     -> Maybe MinWithdrawal
     -> Maybe Iso8601Time
@@ -2130,13 +2130,13 @@ listTransactions
     defaultSortOrder = Descending
 
 getTransaction
-    :: forall s k n.
+    :: forall s k ktype n.
         ( Typeable s
         , Typeable n
         , Typeable k
         , HasDelegation s
         )
-    => ApiLayer s k 'CredFromKeyK
+    => ApiLayer s k ktype
     -> ApiT WalletId
     -> ApiTxId
     -> TxMetadataSchema
@@ -2155,7 +2155,7 @@ getTransaction ctx (ApiT wid) (ApiTxId (ApiT (tid))) metadataSchema =
 mkApiTransactionFromInfo
     :: (Typeable s, Typeable n, HasDelegation s, Typeable k)
     => TimeInterpreter (ExceptT PastHorizonException IO)
-    -> W.WalletLayer IO s k 'CredFromKeyK
+    -> W.WalletLayer IO s k ktype
     -> WalletId
     -> Coin
     -> TransactionInfo
@@ -4162,10 +4162,13 @@ data MkApiTransactionParams = MkApiTransactionParams
     deriving (Eq, Generic, Show)
 
 mkApiTransaction
-    :: forall n s k
-     . (Typeable s, Typeable n, Typeable k, HasDelegation s)
+    :: forall n s k ktype.
+    ( Typeable s
+    , Typeable n
+    , Typeable k
+    , HasDelegation s)
     => TimeInterpreter (ExceptT PastHorizonException IO)
-    -> W.WalletLayer IO s k 'CredFromKeyK
+    -> W.WalletLayer IO s k ktype
     -> WalletId
     -> Lens' (ApiTransaction n) (Maybe ApiBlockReference)
     -> MkApiTransactionParams
