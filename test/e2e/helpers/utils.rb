@@ -43,7 +43,7 @@ module Helpers
     end
 
     def cardano_address_get_acc_xpub(mnemonics, derivation_path, wallet_type = 'Shared',
-                                     chain_code = '--with-chain-code', hex: true)
+                                     chain_code = '--with-chain-code', hex: false)
       cmd(%(echo #{mnemonics.join(' ')} \
          | cardano-address key from-recovery-phrase #{wallet_type} \
          | cardano-address key child #{derivation_path} \
