@@ -2271,12 +2271,12 @@ constructTransaction
             _ -> pure ()
 
     validityInterval@(before, hereafter) <-
-        liftHandler $ validValidityInterval ti $ body ^. #validityInterval
+        liftHandler $ parseValidityInterval ti $ body ^. #validityInterval
 
-    mintingBurning <-
-        liftHandler $ except $ validMintingBurning body validityInterval
+    mintBurnData <-
+        liftHandler $ except $ parseMintBurnData body validityInterval
 
-    when (maybe False (not . all validDelegationAction) (body ^. #delegations))
+    when (maybe False (not . all isValidDelegationAction) (body ^. #delegations))
         $ liftHandler $ throwE ErrConstructTxMultiaccountNotSupported
 
     let md = body ^? #metadata . traverse . #txMetadataWithSchema_metadata
@@ -2327,7 +2327,7 @@ constructTransaction
                 pure (deposit, refund, txCtx)
 
         (txCtx', policyXPubM) <-
-            if isJust mintingBurning then do
+            if isJust mintBurnData then do
                 (policyXPub, _) <-
                     liftHandler $ W.readPolicyPublicKey @_ @_ @_ @n wrk walletId
                 let isMinting (ApiMintBurnData _ _ (ApiMint _)) = True
@@ -2364,12 +2364,12 @@ constructTransaction
                         toTokenMap &&& toScriptTemplateMap $
                         map getMinting $
                         filter isMinting $
-                        NE.toList $ fromJust mintingBurning
+                        NE.toList $ fromJust mintBurnData
                 let burningData =
                         toTokenMap &&& toScriptTemplateMap $
                         map getBurning $
                         filter (not . isMinting) $
-                        NE.toList $ fromJust mintingBurning
+                        NE.toList $ fromJust mintBurnData
                 pure ( txCtx
                       { txAssetsToMint = mintingData
                       , txAssetsToBurn = burningData
@@ -2387,7 +2387,7 @@ constructTransaction
                 (ApiMintBurnData _ _ (ApiMint (ApiMintData (Just _) _)))
                 = True
             mintWithAddress _ = False
-        let mintingOuts = case mintingBurning of
+        let mintingOuts = case mintBurnData of
                 Just mintBurns ->
                     coalesceTokensPerAddr $
                     map (toMintTxOut (fromJust policyXPubM)) $
@@ -2435,19 +2435,19 @@ constructTransaction
     walletId = getApiT apiWalletId
     singleton x = [x]
 
-    validMintingBurning
+    parseMintBurnData
         :: ApiConstructTransactionData n
         -> (SlotNo, SlotNo)
         -> Either ErrConstructTx (Maybe (NonEmpty (ApiMintBurnData n)))
-    validMintingBurning tx validity = do
+    parseMintBurnData tx validity = do
         let mbMintingBurning :: Maybe (NonEmpty (ApiMintBurnData n))
             mbMintingBurning = fmap handleMissingAssetName <$> tx ^. #mintBurn
-        for mbMintingBurning $ \mintingBurning -> do
-            guardWrongMintingTemplate mintingBurning
-            guardAssetNameTooLong mintingBurning
-            guardAssetQuantityOutOfBounds mintingBurning
-            guardOutsideOfValidityInterval validity mintingBurning
-            Right mintingBurning
+        for mbMintingBurning $ \mintBurnData -> do
+            guardWrongMintingTemplate mintBurnData
+            guardAssetNameTooLong mintBurnData
+            guardAssetQuantityOutOfBounds mintBurnData
+            guardOutsideValidityInterval validity mintBurnData
+            Right mintBurnData
       where
         handleMissingAssetName :: ApiMintBurnData n -> ApiMintBurnData n
         handleMissingAssetName mb = case mb ^. #assetName of
@@ -2456,8 +2456,8 @@ constructTransaction
 
         guardWrongMintingTemplate
             :: NonEmpty (ApiMintBurnData n) -> Either ErrConstructTx ()
-        guardWrongMintingTemplate mintingBurning =
-            when (any wrongMintingTemplate mintingBurning)
+        guardWrongMintingTemplate mintBurnData =
+            when (any wrongMintingTemplate mintBurnData)
                 $ Left ErrConstructTxWrongMintingBurningTemplate
           where
             wrongMintingTemplate (ApiMintBurnData (ApiT script) _ _) =
@@ -2470,8 +2470,8 @@ constructTransaction
 
         guardAssetNameTooLong
             :: NonEmpty (ApiMintBurnData n) -> Either ErrConstructTx ()
-        guardAssetNameTooLong mintingBurning =
-            when (any assetNameTooLong mintingBurning)
+        guardAssetNameTooLong mintBurnData =
+            when (any assetNameTooLong mintBurnData)
                 $ Left ErrConstructTxAssetNameTooLong
           where
             assetNameTooLong = \case
@@ -2481,8 +2481,8 @@ constructTransaction
 
         guardAssetQuantityOutOfBounds
             :: NonEmpty (ApiMintBurnData n) -> Either ErrConstructTx ()
-        guardAssetQuantityOutOfBounds mintingBurning =
-            when (any assetQuantityOutOfBounds mintingBurning)
+        guardAssetQuantityOutOfBounds mintBurnData =
+            when (any assetQuantityOutOfBounds mintBurnData)
                 $ Left ErrConstructTxMintOrBurnAssetQuantityOutOfBounds
           where
             assetQuantityOutOfBounds = \case
@@ -2491,20 +2491,20 @@ constructTransaction
                 ApiMintBurnData _ _ (ApiBurn (ApiBurnData amt)) ->
                     amt <= 0 || amt > unTokenQuantity txMintBurnMaxTokenQuantity
 
-        guardOutsideOfValidityInterval
+        guardOutsideValidityInterval
             :: (SlotNo, SlotNo)
             -> NonEmpty (ApiMintBurnData n)
             -> Either ErrConstructTx ()
-        guardOutsideOfValidityInterval (before, hereafter) mintingBurning =
-            when (any notWithinValidityInterval mintingBurning) $
+        guardOutsideValidityInterval (before, hereafter) mintBurnData =
+            when (any notWithinValidityInterval mintBurnData) $
                 Left ErrConstructTxValidityIntervalNotWithinScriptTimelock
           where
             notWithinValidityInterval (ApiMintBurnData (ApiT script) _ _) =
                 not $ withinSlotInterval before hereafter $
                     scriptSlotIntervals script
 
-    validDelegationAction :: ApiMultiDelegationAction -> Bool
-    validDelegationAction = \case
+    isValidDelegationAction :: ApiMultiDelegationAction -> Bool
+    isValidDelegationAction = \case
         Joining _poolId stakeKeyIx -> checkIx stakeKeyIx
         Leaving stakeKeyIx -> checkIx stakeKeyIx
       where
@@ -2601,11 +2601,11 @@ constructTransaction
             . Map.toList
             . foldr (uncurry (Map.insertWith (<>))) Map.empty
 
-validValidityInterval
+parseValidityInterval
     :: TimeInterpreter (ExceptT PastHorizonException IO)
     -> Maybe ApiValidityInterval
     -> ExceptT ErrConstructTx IO (SlotNo, SlotNo)
-validValidityInterval ti validityInterval = do
+parseValidityInterval ti validityInterval = do
     let isValidityBoundTimeNegative
             (ApiValidityBoundAsTimeFromNow (Quantity sec)) = sec < 0
         isValidityBoundTimeNegative _ = False
@@ -2688,7 +2688,7 @@ constructSharedTransaction
     let md = body ^? #metadata . traverse . #txMetadataWithSchema_metadata
 
     (before, hereafter) <- liftHandler $
-        validValidityInterval ti (body ^. #validityInterval)
+        parseValidityInterval ti (body ^. #validityInterval)
 
     withWorkerCtx ctx wid liftE liftE $ \wrk -> do
         (cp, _, _) <- liftHandler $ withExceptT ErrConstructTxNoSuchWallet $
