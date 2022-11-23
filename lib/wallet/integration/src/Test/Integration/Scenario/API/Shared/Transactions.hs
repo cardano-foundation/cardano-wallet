@@ -105,7 +105,6 @@ import Test.Integration.Framework.DSL
     , Headers (..)
     , MnemonicLength (..)
     , Payload (..)
-    , accPubKeyFromMnemonics
     , emptyWallet
     , eventually
     , expectErrorMessage
@@ -127,6 +126,7 @@ import Test.Integration.Framework.DSL
     , patchSharedWallet
     , postSharedWallet
     , request
+    , sharedAccPubKeyFromMnemonics
     , signSharedTx
     , submitSharedTxWithWid
     , toQueryString
@@ -182,7 +182,7 @@ spec = describe "SHARED_TRANSACTIONS" $ do
         let (Right m12) = mkSomeMnemonic @'[ 12 ] m12txt
         let passphrase = Passphrase $ BA.convert $ T.encodeUtf8 fixturePassphrase
         let index = 30
-        let accXPubDerived = accPubKeyFromMnemonics m15 (Just m12) index passphrase
+        let accXPubDerived = sharedAccPubKeyFromMnemonics m15 (Just m12) index passphrase
         let payload = Json [json| {
                 "name": "Shared Wallet",
                 "mnemonic_sentence": #{m15txt},
@@ -1407,7 +1407,7 @@ spec = describe "SHARED_TRANSACTIONS" $ do
         let (Right m12) = mkSomeMnemonic @'[ 12 ] m12txt
         let passphrase = Passphrase $ BA.convert $ T.encodeUtf8 fixturePassphrase
         let index = 30
-        let accXPubDerived = accPubKeyFromMnemonics m15 (Just m12) index passphrase
+        let accXPubDerived = sharedAccPubKeyFromMnemonics m15 (Just m12) index passphrase
         let payload = Json [json| {
                 "name": "Shared Wallet",
                 "mnemonic_sentence": #{m15txt},
@@ -1444,14 +1444,14 @@ spec = describe "SHARED_TRANSACTIONS" $ do
         m12txtA <- liftIO $ genMnemonics M12
         let (Right m15A) = mkSomeMnemonic @'[ 15 ] m15txtA
         let (Right m12A) = mkSomeMnemonic @'[ 12 ] m12txtA
-        let accXPubDerivedA = accPubKeyFromMnemonics m15A (Just m12A) index passphrase
+        let accXPubDerivedA = sharedAccPubKeyFromMnemonics m15A (Just m12A) index passphrase
 
         -- second participant, cosigner 1
         m15txtB <- liftIO $ genMnemonics M15
         m12txtB <- liftIO $ genMnemonics M12
         let (Right m15B) = mkSomeMnemonic @'[ 15 ] m15txtB
         let (Right m12B) = mkSomeMnemonic @'[ 12 ] m12txtB
-        let accXPubDerivedB = accPubKeyFromMnemonics m15B (Just m12B) index passphrase
+        let accXPubDerivedB = sharedAccPubKeyFromMnemonics m15B (Just m12B) index passphrase
 
         -- payload
         let payload m15txt m12txt = Json [json| {
@@ -1498,14 +1498,14 @@ spec = describe "SHARED_TRANSACTIONS" $ do
         m12txtA <- liftIO $ genMnemonics M12
         let (Right m15A) = mkSomeMnemonic @'[ 15 ] m15txtA
         let (Right m12A) = mkSomeMnemonic @'[ 12 ] m12txtA
-        let accXPubDerivedA = accPubKeyFromMnemonics m15A (Just m12A) index passphrase
+        let accXPubDerivedA = sharedAccPubKeyFromMnemonics m15A (Just m12A) index passphrase
 
         -- second participant, cosigner 1
         m15txtB <- liftIO $ genMnemonics M15
         m12txtB <- liftIO $ genMnemonics M12
         let (Right m15B) = mkSomeMnemonic @'[ 15 ] m15txtB
         let (Right m12B) = mkSomeMnemonic @'[ 12 ] m12txtB
-        let accXPubDerivedB = accPubKeyFromMnemonics m15B (Just m12B) index passphrase
+        let accXPubDerivedB = sharedAccPubKeyFromMnemonics m15B (Just m12B) index passphrase
 
         -- payload for A
         let payloadA = Json [json| {
@@ -1581,21 +1581,21 @@ spec = describe "SHARED_TRANSACTIONS" $ do
         m12txtA <- liftIO $ genMnemonics M12
         let (Right m15A) = mkSomeMnemonic @'[ 15 ] m15txtA
         let (Right m12A) = mkSomeMnemonic @'[ 12 ] m12txtA
-        let accXPubDerivedA = accPubKeyFromMnemonics m15A (Just m12A) index passphrase
+        let accXPubDerivedA = sharedAccPubKeyFromMnemonics m15A (Just m12A) index passphrase
 
         -- second participant, cosigner 1
         m15txtB <- liftIO $ genMnemonics M15
         m12txtB <- liftIO $ genMnemonics M12
         let (Right m15B) = mkSomeMnemonic @'[ 15 ] m15txtB
         let (Right m12B) = mkSomeMnemonic @'[ 12 ] m12txtB
-        let accXPubDerivedB = accPubKeyFromMnemonics m15B (Just m12B) index passphrase
+        let accXPubDerivedB = sharedAccPubKeyFromMnemonics m15B (Just m12B) index passphrase
 
         -- third participant, cosigner 2
         m15txtC <- liftIO $ genMnemonics M15
         m12txtC <- liftIO $ genMnemonics M12
         let (Right m15C) = mkSomeMnemonic @'[ 15 ] m15txtC
         let (Right m12C) = mkSomeMnemonic @'[ 12 ] m12txtC
-        let accXPubDerivedC = accPubKeyFromMnemonics m15C (Just m12C) index passphrase
+        let accXPubDerivedC = sharedAccPubKeyFromMnemonics m15C (Just m12C) index passphrase
 
         -- payload
         let payload m15txt m12txt = Json [json| {
