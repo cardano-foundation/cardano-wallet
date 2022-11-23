@@ -1042,7 +1042,7 @@ genXPubsBech32 num =
         return (accXPub, accXPubTxt)
 
     xpubFromText :: Text -> Maybe XPub
-    xpubFromText = fmap getApiT . fmap sharedKey . fmap eitherToMaybe
+    xpubFromText = fmap (getApiT . sharedKey) . fmap eitherToMaybe
         (fromText @ApiAccountSharedPublicKey)
 
 fromHexText :: Text -> Either String ByteString

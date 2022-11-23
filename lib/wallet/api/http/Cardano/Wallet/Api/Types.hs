@@ -1576,7 +1576,7 @@ data ApiScriptTemplateEntry = ApiScriptTemplateEntry
     deriving (Eq, Generic, Show)
     deriving anyclass NFData
 
-data ApiScriptTemplate = ApiScriptTemplate ScriptTemplate
+newtype ApiScriptTemplate = ApiScriptTemplate ScriptTemplate
     deriving (Eq, Generic, Show)
     deriving anyclass NFData
 
