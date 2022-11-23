@@ -29,6 +29,7 @@ import Cardano.Wallet.Api.Types
     , ApiAddress
     , ApiAddress
     , ApiFee (..)
+    , ApiScriptTemplate (..)
     , ApiSharedWallet (..)
     , ApiT (..)
     , ApiTransaction
@@ -838,7 +839,8 @@ spec = describe "SHARED_WALLETS" $ do
         rPost <- postSharedWallet ctx Default payloadCreate
         expectResponseCode HTTP.status201 rPost
         let wal@(ApiSharedWallet (Left pendingWal)) = getFromResponse id rPost
-        let cosignerKeysPost = pendingWal ^. #paymentScriptTemplate
+        let (ApiScriptTemplate cosignerKeysPost) =
+                pendingWal ^. #paymentScriptTemplate
         liftIO $ cosigners cosignerKeysPost `shouldBe` Map.fromList [(Cosigner 0,accXPub0)]
 
         rAddrsPending <- request @[ApiAddress n] ctx
@@ -853,7 +855,8 @@ spec = describe "SHARED_WALLETS" $ do
         rPatch <- patchSharedWallet ctx wal Payment payloadPatch
         expectResponseCode HTTP.status200 rPatch
         let (ApiSharedWallet (Right activeWal)) = getFromResponse id rPatch
-        let cosignerKeysPatch = activeWal ^. #paymentScriptTemplate
+        let (ApiScriptTemplate cosignerKeysPatch) =
+                activeWal ^. #paymentScriptTemplate
         liftIO $ cosigners cosignerKeysPatch `shouldBe` Map.fromList [(Cosigner 0,accXPub0), (Cosigner 1,accXPub1)]
 
         rAddrsActive <- request @[ApiAddress n] ctx
@@ -896,9 +899,11 @@ spec = describe "SHARED_WALLETS" $ do
         rPost <- postSharedWallet ctx Default payloadCreate
         expectResponseCode HTTP.status201 rPost
         let wal@(ApiSharedWallet (Left pendingWal)) = getFromResponse id rPost
-        let cosignerKeysPostInPayment = pendingWal ^. #paymentScriptTemplate
+        let (ApiScriptTemplate cosignerKeysPostInPayment) =
+                pendingWal ^. #paymentScriptTemplate
         liftIO $ cosigners cosignerKeysPostInPayment `shouldBe` Map.fromList [(Cosigner 0,accXPub0)]
-        let (Just cosignerKeysPostInDelegation) = pendingWal ^. #delegationScriptTemplate
+        let (Just (ApiScriptTemplate cosignerKeysPostInDelegation)) =
+                pendingWal ^. #delegationScriptTemplate
         liftIO $ cosigners cosignerKeysPostInDelegation `shouldBe` Map.fromList [(Cosigner 0,accXPub0)]
 
         let payloadPatch = Json [json| {
@@ -908,7 +913,8 @@ spec = describe "SHARED_WALLETS" $ do
         rPatch <- patchSharedWallet ctx wal Delegation payloadPatch
         expectResponseCode HTTP.status200 rPatch
         let (ApiSharedWallet (Right activeWal)) = getFromResponse id rPatch
-        let (Just cosignerKeysPatch) = activeWal ^. #delegationScriptTemplate
+        let (Just (ApiScriptTemplate cosignerKeysPatch)) =
+                activeWal ^. #delegationScriptTemplate
         liftIO $ cosigners cosignerKeysPatch `shouldBe` Map.fromList [(Cosigner 0,accXPub0), (Cosigner 1,accXPub1)]
 
     it "SHARED_WALLETS_PATCH_03 - Cannot add cosigner key in an active shared wallet" $ \ctx -> runResourceT $ do

@@ -112,6 +112,7 @@ module Cardano.Wallet.Api.Types
     , ApiRedeemer (..)
     , ApiRegisterPool (..)
     , ApiScriptTemplateEntry (..)
+    , ApiScriptTemplate (..)
     , ApiSealedTxEncoding (..)
     , ApiSelectCoinsAction (..)
     , ApiSelectCoinsData (..)
@@ -500,6 +501,7 @@ import Servant.API
 import Web.HttpApiData
     ( FromHttpApiData (..), ToHttpApiData (..) )
 
+import qualified Cardano.Address.Script as CA
 import qualified Cardano.Crypto.Wallet as CC
 import qualified Cardano.Wallet.Primitive.AddressDerivation as AD
 import qualified Cardano.Wallet.Primitive.Types as W
@@ -1574,6 +1576,10 @@ data ApiScriptTemplateEntry = ApiScriptTemplateEntry
     deriving (Eq, Generic, Show)
     deriving anyclass NFData
 
+data ApiScriptTemplate = ApiScriptTemplate ScriptTemplate
+    deriving (Eq, Generic, Show)
+    deriving anyclass NFData
+
 data ApiSharedWalletPostDataFromMnemonics =
     ApiSharedWalletPostDataFromMnemonics
     { name :: !(ApiT WalletName)
@@ -1617,8 +1623,8 @@ data ApiActiveSharedWallet = ApiActiveSharedWallet
     , accountIndex :: !(ApiT DerivationIndex)
     , addressPoolGap :: !(ApiT AddressPoolGap)
     , passphrase :: !(Maybe ApiWalletPassphraseInfo)
-    , paymentScriptTemplate :: !ScriptTemplate
-    , delegationScriptTemplate :: !(Maybe ScriptTemplate)
+    , paymentScriptTemplate :: !ApiScriptTemplate
+    , delegationScriptTemplate :: !(Maybe ApiScriptTemplate)
     , delegation :: !ApiWalletDelegation
     , balance :: !ApiWalletBalance
     , assets :: !ApiWalletAssetsBalance
@@ -1634,8 +1640,8 @@ data ApiPendingSharedWallet = ApiPendingSharedWallet
     , name :: !(ApiT WalletName)
     , accountIndex :: !(ApiT DerivationIndex)
     , addressPoolGap :: !(ApiT AddressPoolGap)
-    , paymentScriptTemplate :: !ScriptTemplate
-    , delegationScriptTemplate :: !(Maybe ScriptTemplate)
+    , paymentScriptTemplate :: !ApiScriptTemplate
+    , delegationScriptTemplate :: !(Maybe ApiScriptTemplate)
     }
     deriving (Eq, Generic, Show)
     deriving anyclass NFData
@@ -2672,6 +2678,41 @@ instance ToJSON ApiScriptTemplateEntry where
             ( cosignerToKey cosigner'
             , toJSON xpubOrSelf
             )
+
+instance ToJSON ApiScriptTemplate where
+    toJSON (ApiScriptTemplate (CA.ScriptTemplate cosigners' template')) =
+        object [ "cosigners" .= object (fmap toPair (Map.toList cosigners'))
+               , "template" .= toJSON template' ]
+      where
+        cosignerToKey (Cosigner ix) =
+            Aeson.fromText $ "cosigner#"<> T.pack (show ix)
+        hrp = [Bech32.humanReadablePart|acct_shared_xvk|]
+        toPair (cosigner', xpub) =
+            ( cosignerToKey cosigner'
+            , String $ T.decodeUtf8 $ encode (EBech32 hrp) $ xpubToBytes xpub
+            )
+
+instance FromJSON ApiScriptTemplate where
+    parseJSON = withObject "ApiScriptTemplate" $ \o -> do
+        template' <- parseJSON <$> o .: "template"
+        cosigners' <- parseCosignerPairs <$> o .: "cosigners"
+        scriptTemplate <- CA.ScriptTemplate
+            <$> (Map.fromList <$> cosigners')
+            <*> template'
+        pure $ ApiScriptTemplate scriptTemplate
+      where
+        parseXPub = withText "XPub" $ \txt ->
+            case fromText @ApiAccountSharedPublicKey txt of
+                Left (TextDecodingError err) -> fail err
+                Right (ApiAccountSharedPublicKey (ApiT xpub)) -> pure xpub
+        parseCosignerPairs = withObject "Cosigner pairs" $ \o ->
+            case Aeson.toList o of
+                [] -> fail "Cosigners object array should not be empty"
+                cs -> for (reverse cs) $ \(numTxt, str) -> do
+                    cosigner' <- parseJSON @Cosigner $
+                        String $ Aeson.toText numTxt
+                    xpub <- parseXPub str
+                    pure (cosigner', xpub)
 
 instance FromJSON ApiSharedWalletPostData where
     parseJSON obj = do

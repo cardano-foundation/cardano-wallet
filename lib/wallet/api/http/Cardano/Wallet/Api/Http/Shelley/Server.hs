@@ -254,6 +254,7 @@ import Cardano.Wallet.Api.Types
     , ApiPostRandomAddressData (..)
     , ApiPutAddressesData (..)
     , ApiRedeemer (..)
+    , ApiScriptTemplate (..)
     , ApiScriptTemplateEntry (..)
     , ApiSealedTxEncoding (..)
     , ApiSelectCoinsPayments
@@ -1083,8 +1084,8 @@ mkSharedWallet ctx wid cp meta delegation pending progress =
         , name = ApiT $ meta ^. #name
         , accountIndex = ApiT $ DerivationIndex $ getIndex accIx
         , addressPoolGap = ApiT $ Shared.poolGap st
-        , paymentScriptTemplate = Shared.paymentTemplate st
-        , delegationScriptTemplate = Shared.delegationTemplate st
+        , paymentScriptTemplate = ApiScriptTemplate $ Shared.paymentTemplate st
+        , delegationScriptTemplate = ApiScriptTemplate <$> Shared.delegationTemplate st
         }
     Shared.Active _ -> do
         reward <- withWorkerCtx @_ @s @k ctx wid liftE liftE $ \wrk -> do
@@ -1108,8 +1109,8 @@ mkSharedWallet ctx wid cp meta delegation pending progress =
             , addressPoolGap = ApiT $ Shared.poolGap st
             , passphrase = ApiWalletPassphraseInfo
                 <$> fmap (view #lastUpdatedAt) (meta ^. #passphraseInfo)
-            , paymentScriptTemplate = Shared.paymentTemplate st
-            , delegationScriptTemplate = Shared.delegationTemplate st
+            , paymentScriptTemplate = ApiScriptTemplate $ Shared.paymentTemplate st
+            , delegationScriptTemplate = ApiScriptTemplate <$> Shared.delegationTemplate st
             , delegation = apiDelegation
             , balance = ApiWalletBalance
                 { available = Coin.toQuantity (available ^. #coin)

@@ -405,7 +405,7 @@ x-cosigners: &cosigners
   # propertyNames:
   #   pattern: '^(cosigner#)[0-9]+$'
   example:
-    - {"cosigner#0": "acct_shared_xvk1423856bc91c49e928f6f30f4e8d665d53eb4ab6028bd0a"}
+    - {"cosigner#0": "acct_shared_xvk1z8kc04yh544ksc9h2yhp7p6qwpf6syv5qnm8sgnhdne5z2esht5cwssxsec2wzw3nhxm2d9ph4s6ldmqdvxa0zuxzmukpajhyc7flug3te037"}
 
 x-self: &self
   type: string
@@ -428,7 +428,7 @@ x-cosignersEntry: &cosignersEntry
   # propertyNames:
   #   pattern: '^(cosigner#)[0-9]+$'
   example:
-    - {"cosigner#0": "acct_shared_xvk1423856bc91c49e928f6f30f4e8d665d53eb4ab6028bd0a"}
+    - {"cosigner#0": "acct_shared_xvk1z8kc04yh544ksc9h2yhp7p6qwpf6syv5qnm8sgnhdne5z2esht5cwssxsec2wzw3nhxm2d9ph4s6ldmqdvxa0zuxzmukpajhyc7flug3te037"}
     - {"cosigner#0": "self"}
 
 x-walletId: &walletId

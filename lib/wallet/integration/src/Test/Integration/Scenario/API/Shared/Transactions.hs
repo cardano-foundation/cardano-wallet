@@ -29,6 +29,7 @@ import Cardano.Wallet.Api.Types
     , ApiConstructTransaction (..)
     , ApiDecodedTransaction (..)
     , ApiFee (..)
+    , ApiScriptTemplate (..)
     , ApiSerialisedTransaction (..)
     , ApiSharedWallet (..)
     , ApiT (..)
@@ -590,7 +591,8 @@ spec = describe "SHARED_TRANSACTIONS" $ do
             (Link.decodeTransaction @'Shelley wb) Default decodePayload1
 
         let expectedFee = getFromResponse (#fee . #getQuantity) rTx
-        let scriptTemplate = sharedWal1 ^. #paymentScriptTemplate
+        let (ApiScriptTemplate scriptTemplate) =
+                sharedWal1 ^. #paymentScriptTemplate
         let paymentScript =
                 -- TODO- ADP-2312 We will want CA.Payment here
                 NativeScript $ changeRole CA.Policy $
@@ -1744,7 +1746,8 @@ spec = describe "SHARED_TRANSACTIONS" $ do
                 WalletOutput _ -> False
                 ExternalOutput _ -> True
 
-        let scriptTemplate = sharedWal1 ^. #paymentScriptTemplate
+        let (ApiScriptTemplate scriptTemplate) =
+                sharedWal1 ^. #paymentScriptTemplate
         let paymentScript =
                 -- TODO- ADP-2312 We will want CA.Payment here
                 NativeScript $ changeRole CA.Policy $

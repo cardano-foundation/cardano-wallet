@@ -135,6 +135,7 @@ import Cardano.Wallet.Api.Types
     , ApiPutAddressesData (..)
     , ApiRedeemer (..)
     , ApiRegisterPool (..)
+    , ApiScriptTemplate (..)
     , ApiScriptTemplateEntry (..)
     , ApiSealedTxEncoding (..)
     , ApiSelectCoinsAction (..)
@@ -1085,6 +1086,9 @@ instance Arbitrary ApiMultiDelegationAction where
 
 instance Arbitrary Cosigner where
     arbitrary = Cosigner <$> choose (0,10)
+
+instance Arbitrary ApiScriptTemplate where
+    arbitrary = ApiScriptTemplate <$> arbitrary
 
 instance Arbitrary ApiPendingSharedWallet where
     arbitrary = genericArbitrary -- fixme: seems to be slow
