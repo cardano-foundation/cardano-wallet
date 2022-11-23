@@ -3,7 +3,7 @@ GEM
   specs:
     bip_mnemonic (0.0.4)
     blake2b (0.10.0)
-    cardano_wallet (0.3.27)
+    cardano_wallet (0.4.0)
       bip_mnemonic (~> 0.0.4)
       httparty (~> 0.18.0)
     cbor (0.5.9.6)
@@ -36,7 +36,7 @@ PLATFORMS
 
 DEPENDENCIES
   blake2b (= 0.10.0)
-  cardano_wallet (~> 0.3.27)
+  cardano_wallet (~> 0.4.0)
   cbor (= 0.5.9.6)
   mustache (= 1.1.1)
   rake (= 12.3.3)

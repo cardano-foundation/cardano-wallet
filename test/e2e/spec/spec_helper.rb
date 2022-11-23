@@ -131,6 +131,11 @@ def create_incomplete_shared_wallet(m, acc_ix, acc_xpub)
   WalletFactory.create(:shared, payload)['id']
 end
 
+def shared_acc_pubkey(wallet_id)
+  key_bech32 = SHARED.keys.get_acc_public_key(wallet_id, { format: 'extended' }).parsed_response.delete_prefix('"').delete_suffix('"')
+  bech32_to_base16(key_bech32)
+end
+
 def patch_incomplete_shared_wallet(wid, payment_patch, deleg_patch)
   if payment_patch
     p_upd = SHARED.wallets.update_payment_script(wid,
@@ -145,6 +150,34 @@ def patch_incomplete_shared_wallet(wid, payment_patch, deleg_patch)
                                                   deleg_patch.keys.first,
                                                   deleg_patch.values.first)
   expect(d_upd).to be_correct_and_respond 200
+end
+
+def patch_if_incomplete(wid, payment_patch, deleg_patch)
+  if payment_patch
+    p_upd = SHARED.wallets.update_payment_script(wid,
+                                                 payment_patch.keys.first,
+                                                 payment_patch.values.first)
+    case p_upd.code
+    when 200
+      expect(p_upd).to be_correct_and_respond 200
+    when 403
+      expect(p_upd).to be_correct_and_respond 403
+      expect(p_upd.parsed_response['code']).to eq 'shared_wallet_not_pending'
+    end
+  end
+
+  return unless deleg_patch
+
+  d_upd = SHARED.wallets.update_delegation_script(wid,
+                                                  deleg_patch.keys.first,
+                                                  deleg_patch.values.first)
+  case d_upd.code
+  when 200
+    expect(d_upd).to be_correct_and_respond 200
+  when 403
+    expect(d_upd).to be_correct_and_respond 403
+    expect(d_upd.parsed_response['code']).to eq 'shared_wallet_not_pending'
+  end
 end
 
 def create_active_shared_wallet(m, acc_ix, acc_xpub)
@@ -280,23 +313,54 @@ end
 
 ##
 # create fixture wallet or return it's id if it exists
-# @param type [Symbol] :shelley, :shelley_light, :random, :icarus
-def create_fixture_wallet(type)
-  payload = { name: 'Fixture wallet with funds',
+# @param type [Symbol] :shelley, :shared, :shared_cosigner_0, :shared_cosigner_1, :random, :icarus
+# @param templates [Symbols] ':payment_cosigner{0,1}_{all,any,all0}', :delegation_cosigner{0,1}_{all,any,all0}
+# rubocop:disable Metrics/CyclomaticComplexity
+def create_fixture_wallet(type, *templates)
+  payload = { name: "Fixture wallet with funds (#{type}#{" #{templates}" unless templates.empty?}",
               passphrase: PASS,
-              mnemonic_sentence: get_fixture_wallet_mnemonics(:fixture, type.to_sym) }
+              mnemonic_sentence: get_fixture_wallet(:fixture, type.to_sym, :mnemonics) }
   case type.to_sym
-  when :shelley, :shelley_light
+  when :shelley
     wallet = SHELLEY.wallets.create(payload)
     return_wallet_id(wallet)
   when :random, :icarus
     payload[:style] = type
     wallet = BYRON.wallets.create(payload)
     return_wallet_id(wallet)
+  when :shared, :shared2
+    templates.each do |t|
+      case t
+      when :payment_cosigner0_all
+        payload[:payment_script_template] = { 'cosigners' => { 'cosigner#0' => 'self' }, 'template' => { 'all' => ['cosigner#0', 'cosigner#1'] } }
+      when :delegation_cosigner0_all
+        payload[:delegation_script_template] = { 'cosigners' => { 'cosigner#0' => 'self' }, 'template' => { 'all' => ['cosigner#0', 'cosigner#1'] } }
+      when :payment_cosigner1_all
+        payload[:payment_script_template] = { 'cosigners' => { 'cosigner#1' => 'self' }, 'template' => { 'all' => ['cosigner#0', 'cosigner#1'] } }
+      when :delegation_cosigner1_all
+        payload[:delegation_script_template] = { 'cosigners' => { 'cosigner#1' => 'self' }, 'template' => { 'all' => ['cosigner#0', 'cosigner#1'] } }
+      when :payment_cosigner0_any
+        payload[:payment_script_template] = { 'cosigners' => { 'cosigner#0' => 'self' }, 'template' => { 'any' => ['cosigner#0', 'cosigner#1'] } }
+      when :delegation_cosigner0_any
+        payload[:delegation_script_template] = { 'cosigners' => { 'cosigner#0' => 'self' }, 'template' => { 'any' => ['cosigner#0', 'cosigner#1'] } }
+      when :payment_cosigner1_any
+        payload[:payment_script_template] = { 'cosigners' => { 'cosigner#1' => 'self' }, 'template' => { 'any' => ['cosigner#0', 'cosigner#1'] } }
+      when :delegation_cosigner1_any
+        payload[:delegation_script_template] = { 'cosigners' => { 'cosigner#1' => 'self' }, 'template' => { 'any' => ['cosigner#0', 'cosigner#1'] } }
+      when :payment_cosigner0_all0
+        payload[:payment_script_template] = { 'cosigners' => { 'cosigner#0' => 'self' }, 'template' => { 'all' => ['cosigner#0'] } }
+      when :delegation_cosigner0_all0
+        payload[:delegation_script_template] = { 'cosigners' => { 'cosigner#0' => 'self' }, 'template' => { 'all' => ['cosigner#0'] } }
+      end
+    end
+    payload[:account_index] = '0H'
+    wallet = SHARED.wallets.create(payload)
+    return_wallet_id(wallet)
   else
     raise "Unsupported wallet type: #{type}"
   end
 end
+# rubocop:enable Metrics/CyclomaticComplexity
 
 ##
 # create target wallet or return it's id if it exists
@@ -304,21 +368,10 @@ end
 def create_target_wallet(type)
   payload = { name: 'Target wallet for txs',
               passphrase: PASS,
-              mnemonic_sentence: get_fixture_wallet_mnemonics(:target, type.to_sym) }
+              mnemonic_sentence: get_fixture_wallet(:target, type.to_sym, :mnemonics) }
   case type.to_sym
   when :shelley
     wallet = SHELLEY.wallets.create(payload)
-    return_wallet_id(wallet)
-  when :shared
-    script_template = { 'cosigners' =>
-                          { 'cosigner#0' => 'self' },
-                        'template' =>
-                            { 'all' =>
-                               ['cosigner#0'] } }
-    payload[:account_index] = '0H'
-    payload[:payment_script_template] = script_template
-    payload[:delegation_script_template] = script_template
-    wallet = SHARED.wallets.create(payload)
     return_wallet_id(wallet)
   else
     raise "Unsupported wallet type: #{type}"
@@ -449,9 +502,9 @@ def verify_asset_balance(src_after, src_before, target_after, target_before, amt
   expect(src_avail_after).to eq src_avail_expected
 end
 
-def wait_for_tx_in_ledger(wid, tx_id)
+def wait_for_tx_in_ledger(wid, tx_id, wallet_api = SHELLEY)
   eventually "Tx #{tx_id} is in ledger" do
-    tx = SHELLEY.transactions.get(wid, tx_id)
+    tx = wallet_api.transactions.get(wid, tx_id)
     tx.code == 200 && tx['status'] == 'in_ledger'
   end
 end
