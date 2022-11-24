@@ -41,6 +41,7 @@ module Cardano.Wallet.Transaction
     , ValidityIntervalExplicit (..)
     , WitnessCount (..)
     , emptyWitnessCount
+    , WitnessCountCtx (..)
 
     -- * Errors
     , ErrSignTx (..)
@@ -313,6 +314,7 @@ data TransactionLayer k ktype tx = TransactionLayer
 
     , decodeTx
         :: AnyCardanoEra
+        -> WitnessCountCtx
         -> tx ->
             ( Tx
             , TokenMapWithScripts
@@ -496,6 +498,17 @@ emptyWitnessCount = WitnessCount
     , scripts = []
     , bootstrap = 0
     }
+
+-- WitnessCount context is needed to differentiate verification keys present
+-- in native scripts.
+-- In shelley wallets they could be present due to only policy verification key.
+-- In multisig wallet they could stem from payment, policy and delegation roles,
+-- and as minting/burning and delegation support comes will be extended in needed
+-- data to differentiate that.
+data WitnessCountCtx =
+    ShelleyWalletCtx | SharedWalletCtx
+    deriving (Eq, Generic, Show)
+    deriving anyclass NFData
 
 data ErrMkTransaction
     = ErrMkTransactionNoSuchWallet WalletId

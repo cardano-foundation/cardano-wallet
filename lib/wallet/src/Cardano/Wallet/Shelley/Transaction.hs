@@ -199,6 +199,7 @@ import Cardano.Wallet.Transaction
     , TxUpdate (..)
     , ValidityIntervalExplicit
     , WitnessCount
+    , WitnessCountCtx
     , mapTxFeeAndChange
     , withdrawalToCoin
     )
@@ -685,6 +686,7 @@ newTransactionLayer networkId = TransactionLayer
 
 _decodeSealedTx
     :: AnyCardanoEra
+    -> WitnessCountCtx
     -> SealedTx ->
         ( Tx
         , TokenMapWithScripts
@@ -693,7 +695,7 @@ _decodeSealedTx
         , Maybe ValidityIntervalExplicit
         , WitnessCount
         )
-_decodeSealedTx preferredLatestEra (cardanoTxIdeallyNoLaterThan preferredLatestEra -> Cardano.InAnyCardanoEra _ tx) =
+_decodeSealedTx preferredLatestEra witCtx (cardanoTxIdeallyNoLaterThan preferredLatestEra -> Cardano.InAnyCardanoEra _ tx) =
     fromCardanoTx tx
 
 _evaluateTransactionBalance

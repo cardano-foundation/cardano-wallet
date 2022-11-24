@@ -472,6 +472,7 @@ import Cardano.Wallet.Transaction
     , TxFeeUpdate (..)
     , TxUpdate (..)
     , Withdrawal (..)
+    , WitnessCountCtx (..)
     , defaultTransactionCtx
     , withdrawalToCoin
     )
@@ -1978,7 +1979,7 @@ balanceTransactionWithSelectionStrategyAndNoZeroAdaAdjustment
     extractOutputsFromTx tx =
         let
             era = Cardano.AnyCardanoEra $ Cardano.cardanoEra @era
-            (Tx {outputs}, _, _, _, _, _) = decodeTx tl era tx
+            (Tx {outputs}, _, _, _, _, _) = decodeTx tl era ShelleyWalletCtx tx
         in outputs
 
     guardConflictingWithdrawalNetworks
@@ -2796,7 +2797,7 @@ submitExternalTx ctx sealedTx = do
     -- FIXME: We read the current era to constrain the @sealedTx@ **twice**:
     -- once here for decodeTx, and once in postTx before submitting.
     era <- liftIO $ currentNodeEra nw
-    let (tx, _, _, _, _, _) = decodeTx tl era sealedTx
+    let (tx, _, _, _, _, _) = decodeTx tl era ShelleyWalletCtx sealedTx
     let trPost = contramap (MsgSubmitExternalTx (tx ^. #txId)) (ctx ^. logger)
     traceResult trPost $ do
         postTx nw sealedTx

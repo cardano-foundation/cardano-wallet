@@ -264,6 +264,7 @@ import Cardano.Wallet.Transaction
     , TxFeeAndChange (TxFeeAndChange)
     , TxFeeUpdate (..)
     , Withdrawal (..)
+    , WitnessCountCtx (..)
     , defaultTransactionCtx
     )
 import Cardano.Wallet.Unsafe
@@ -2381,7 +2382,7 @@ balanceTransactionSpec = describe "balanceTransaction" $ do
         let balance = balanceTransaction' wallet testStdGenSeed
         let totalOutput tx =
                 let (wtx, _, _, _, _, _) =
-                        decodeTx testTxLayer maxBound (sealedTxFromCardano' tx)
+                        decodeTx testTxLayer maxBound ShelleyWalletCtx (sealedTxFromCardano' tx)
                 in
                     F.foldMap (view (#tokens . #coin)) (view #outputs wtx)
                     <> fromMaybe (Coin 0) (view #fee wtx)
@@ -4020,7 +4021,11 @@ fst6 (a,_,_,_,_,_) = a
 
 sealedInputs :: SealedTx -> Set TxIn
 sealedInputs =
-    Set.fromList . map fst . view #resolvedInputs . fst6 . _decodeSealedTx maxBound
+    Set.fromList
+    . map fst
+    . view #resolvedInputs
+    . fst6
+    . _decodeSealedTx maxBound ShelleyWalletCtx
 
 sealedCollateralInputs
     :: SealedTx -> Set TxIn
@@ -4029,12 +4034,15 @@ sealedCollateralInputs =
     . map fst
     . view #resolvedCollateralInputs
     . fst6
-    . _decodeSealedTx maxBound
+    . _decodeSealedTx maxBound ShelleyWalletCtx
 
 sealedOutputs
     :: SealedTx -> Set TxOut
 sealedOutputs =
-    Set.fromList . view #outputs . fst6 . _decodeSealedTx maxBound
+    Set.fromList
+    . view #outputs
+    . fst6
+    . _decodeSealedTx maxBound ShelleyWalletCtx
 
 sealedNumberOfRedeemers :: SealedTx -> Int
 sealedNumberOfRedeemers sealedTx =
@@ -4065,7 +4073,9 @@ sealedNumberOfRedeemers sealedTx =
 sealedFee
     :: forall era. Cardano.IsCardanoEra era => Cardano.Tx era -> Maybe Coin
 sealedFee =
-    view #fee . fst6 . _decodeSealedTx maxBound . sealedTxFromCardano'
+    view #fee
+    . fst6
+    . _decodeSealedTx maxBound ShelleyWalletCtx . sealedTxFromCardano'
 
 paymentPartialTx :: [TxOut] -> PartialTx Cardano.BabbageEra
 paymentPartialTx txouts = PartialTx (Cardano.Tx body []) mempty []

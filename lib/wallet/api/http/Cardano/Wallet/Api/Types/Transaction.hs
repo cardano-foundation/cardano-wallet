@@ -29,7 +29,6 @@ module Cardano.Wallet.Api.Types.Transaction
     , ApiWitnessCount (..)
     , mkApiWitnessCount
     , ResourceContext (..)
-    , WitnessCountCtx (..)
     )
     where
 
@@ -175,17 +174,6 @@ mkApiWitnessCount WitnessCount {verificationKey, scripts, bootstrap} =
         , scripts = ApiT <$> scripts
         , bootstrap
         }
-
--- WitnessCount context is needed to differentiate verification keys present
--- in native scripts.
--- In shelley wallets they could be present due to only policy verification key.
--- In multisig wallet they could stem from payment, policy and delegation roles,
--- and as minting/burning and delegation support comes will be extended in needed
--- data to differentiate that.
-data WitnessCountCtx =
-    ShelleyWalletCtx | SharedWalletCtx
-    deriving (Eq, Generic, Show)
-    deriving anyclass NFData
 
 data ApiTxInputGeneral (n :: NetworkDiscriminant) =
       ExternalInput (ApiT TxIn)

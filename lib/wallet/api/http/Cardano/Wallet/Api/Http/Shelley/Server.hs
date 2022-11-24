@@ -515,6 +515,7 @@ import Cardano.Wallet.Transaction
     , TransactionCtx (..)
     , TransactionLayer (..)
     , Withdrawal (..)
+    , WitnessCountCtx (..)
     , defaultTransactionCtx
     )
 import Cardano.Wallet.Unsafe
@@ -2795,7 +2796,7 @@ decodeSharedTransaction
 decodeSharedTransaction ctx (ApiT wid) (ApiSerialisedTransaction (ApiT sealed) _) = do
     era <- liftIO $ NW.currentNodeEra nl
     let (decodedTx, _toMint, _toBurn, _allCerts, interval, witsCount) =
-            decodeTx tl era sealed
+            decodeTx tl era SharedWalletCtx sealed
     let (Tx { txId
             , fee
             , resolvedInputs
@@ -2963,7 +2964,7 @@ decodeTransaction
     ctx@ApiLayer{..} (ApiT wid) (ApiSerialisedTransaction (ApiT sealed) _) = do
     era <- liftIO $ NW.currentNodeEra netLayer
     let (decodedTx, toMint, toBurn, allCerts, interval, witsCount) =
-            decodeTx tl era sealed
+            decodeTx tl era ShelleyWalletCtx sealed
         Tx { txId
             , fee
             , resolvedInputs
@@ -3075,7 +3076,7 @@ submitTransaction ctx apiw@(ApiT wid) apitx = do
     era <- liftIO $ NW.currentNodeEra nl
 
     let sealedTx = getApiT . (view #serialisedTxSealed) $ apitx
-    let (tx,_,_,_,_,_) = decodeTx tl era sealedTx
+    let (tx,_,_,_,_,_) = decodeTx tl era ShelleyWalletCtx sealedTx
 
     apiDecoded <- decodeTransaction @s @k @n ctx apiw apitx
     when (isForeign apiDecoded) $
@@ -3199,7 +3200,7 @@ submitSharedTransaction ctx apiw@(ApiT wid) apitx = do
     era <- liftIO $ NW.currentNodeEra nl
 
     let sealedTx = getApiT . (view #serialisedTxSealed) $ apitx
-    let (tx,_,_,_,_,_) = decodeTx tl era sealedTx
+    let (tx,_,_,_,_,_) = decodeTx tl era SharedWalletCtx sealedTx
 
     apiDecoded <- decodeSharedTransaction @_ @s @k ctx apiw apitx
     when (isForeign apiDecoded) $
