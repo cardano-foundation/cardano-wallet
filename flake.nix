@@ -55,9 +55,13 @@
     ema = {
       url = "github:srid/ema";
     };
+    tullia = {
+      url = "github:input-output-hk/tullia";
+      inputs.nixpkgs.follows = "nixpkgs";
+    };
   };
 
-  outputs = { self, nixpkgs, hostNixpkgs, flake-utils, haskellNix, iohkNix, customConfig, emanote, ... }:
+  outputs = { self, nixpkgs, hostNixpkgs, flake-utils, haskellNix, iohkNix, customConfig, emanote, tullia, ... }:
     let
       inherit (nixpkgs) lib;
       config = import ./nix/config.nix lib customConfig;
@@ -106,6 +110,12 @@
         in
         hydraJobs // {
           required = mkRequiredJob hydraJobs;
+          linux = hydraJobs.linux // {
+            required = mkRequiredJob { inherit (hydraJobs) linux; };
+          };
+          macos = hydraJobs.macos // {
+            required = mkRequiredJob { inherit (hydraJobs) macos; };
+          };
         };
 
       systems = eachSystem supportedSystems
@@ -405,7 +415,9 @@
             systemHydraJobs = mkSystemHydraJobs hydraProject;
             systemHydraJobsPr = mkSystemHydraJobs hydraProjectPr;
             systemHydraJobsBors = mkSystemHydraJobs hydraProjectBors;
-          });
+          }
+          // tullia.fromSimple system (import nix/tullia.nix)
+        );
 
     in
     lib.recursiveUpdate (removeAttrs systems [ "systemHydraJobs" "systemHydraJobsPr" "systemHydraJobsBors" ])
