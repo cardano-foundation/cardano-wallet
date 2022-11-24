@@ -73,6 +73,7 @@ import Cardano.Wallet.Api.Types
     , ApiAccountKey (..)
     , ApiAccountKeyShared (..)
     , ApiAccountPublicKey (..)
+    , ApiAccountSharedPublicKey (..)
     , ApiActiveSharedWallet (..)
     , ApiAddress (..)
     , ApiAddressData (..)
@@ -134,6 +135,7 @@ import Cardano.Wallet.Api.Types
     , ApiPutAddressesData (..)
     , ApiRedeemer (..)
     , ApiRegisterPool (..)
+    , ApiScriptTemplate (..)
     , ApiScriptTemplateEntry (..)
     , ApiSealedTxEncoding (..)
     , ApiSelectCoinsAction (..)
@@ -1085,6 +1087,9 @@ instance Arbitrary ApiMultiDelegationAction where
 instance Arbitrary Cosigner where
     arbitrary = Cosigner <$> choose (0,10)
 
+instance Arbitrary ApiScriptTemplate where
+    arbitrary = ApiScriptTemplate <$> arbitrary
+
 instance Arbitrary ApiPendingSharedWallet where
     arbitrary = genericArbitrary -- fixme: seems to be slow
 
@@ -1298,6 +1303,13 @@ instance Arbitrary ApiAccountPublicKey where
         let rootXPrv = generateKeyFromSeed (seed, Nothing) mempty
         let accXPub = publicKey $ deriveAccountPrivateKey mempty rootXPrv minBound
         pure $ ApiAccountPublicKey $ ApiT $ getKey accXPub
+
+instance Arbitrary ApiAccountSharedPublicKey where
+    arbitrary = do
+        seed <- SomeMnemonic <$> genMnemonic @15
+        let rootXPrv = generateKeyFromSeed (seed, Nothing) mempty
+        let accXPub = publicKey $ deriveAccountPrivateKey mempty rootXPrv minBound
+        pure $ ApiAccountSharedPublicKey $ ApiT $ getKey accXPub
 
 instance Arbitrary AccountPostData where
     arbitrary = do

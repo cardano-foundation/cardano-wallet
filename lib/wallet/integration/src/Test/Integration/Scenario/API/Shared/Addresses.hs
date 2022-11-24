@@ -46,7 +46,7 @@ import Test.Integration.Framework.DSL
     , expectListField
     , expectListSize
     , expectResponseCode
-    , genXPubs
+    , genXPubsBech32
     , getFromResponse
     , isValidDerivationPath
     , json
@@ -80,7 +80,7 @@ spec = describe "SHARED_ADDRESSES" $ do
                 (`shouldSatisfy` (isValidDerivationPath purposeCIP1854)) r
 
     it "SHARED_ADDRESSES_LIST_02 - Can list known addresses on a pending wallet" $ \ctx -> runResourceT $ do
-        (_, accXPubTxt):_ <- liftIO $ genXPubs 1
+        (_, accXPubTxt):_ <- liftIO $ genXPubsBech32 1
         let payload = Json [json| {
                 "name": "Shared Wallet",
                 "account_public_key": #{accXPubTxt},
@@ -109,7 +109,7 @@ spec = describe "SHARED_ADDRESSES" $ do
         expectListSize 0 r
   where
      getAccountWallet name = do
-          (_, accXPubTxt):_ <- liftIO $ genXPubs 1
+          (_, accXPubTxt):_ <- liftIO $ genXPubsBech32 1
           -- NOTE: A previous test had used "account_index": "30H",
           -- presumably to spice things up,
           -- but the `isValidDerivationPath` function expects that the

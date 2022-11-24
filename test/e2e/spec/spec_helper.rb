@@ -132,8 +132,7 @@ def create_incomplete_shared_wallet(m, acc_ix, acc_xpub)
 end
 
 def shared_acc_pubkey(wallet_id)
-  key_bech32 = SHARED.keys.get_acc_public_key(wallet_id, { format: 'extended' }).parsed_response.delete_prefix('"').delete_suffix('"')
-  bech32_to_base16(key_bech32)
+  SHARED.keys.get_acc_public_key(wallet_id, { format: 'extended' }).parsed_response.delete_prefix('"').delete_suffix('"')
 end
 
 def patch_incomplete_shared_wallet(wid, payment_patch, deleg_patch)

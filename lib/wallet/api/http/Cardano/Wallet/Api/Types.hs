@@ -112,6 +112,7 @@ module Cardano.Wallet.Api.Types
     , ApiRedeemer (..)
     , ApiRegisterPool (..)
     , ApiScriptTemplateEntry (..)
+    , ApiScriptTemplate (..)
     , ApiSealedTxEncoding (..)
     , ApiSelectCoinsAction (..)
     , ApiSelectCoinsData (..)
@@ -196,6 +197,7 @@ module Cardano.Wallet.Api.Types
     -- * API Types (Hardware)
     , AccountPostData (..)
     , ApiAccountPublicKey (..)
+    , ApiAccountSharedPublicKey (..)
     , WalletOrAccountPostData (..)
 
     -- * User-Facing Address Encoding/Decoding
@@ -394,7 +396,7 @@ import Cardano.Wallet.TokenMetadata
 import Cardano.Wallet.Util
     ( ShowFmt (..) )
 import "cardano-addresses" Codec.Binary.Encoding
-    ( AbstractEncoding (..), detectEncoding, encode, fromBase16 )
+    ( AbstractEncoding (..), detectEncoding, encode )
 import Control.Applicative
     ( optional, (<|>) )
 import Control.Arrow
@@ -499,6 +501,7 @@ import Servant.API
 import Web.HttpApiData
     ( FromHttpApiData (..), ToHttpApiData (..) )
 
+import qualified Cardano.Address.Script as CA
 import qualified Cardano.Crypto.Wallet as CC
 import qualified Cardano.Wallet.Primitive.AddressDerivation as AD
 import qualified Cardano.Wallet.Primitive.Types as W
@@ -939,6 +942,13 @@ newtype ApiAccountPublicKey = ApiAccountPublicKey
     deriving (Eq, Generic)
     deriving anyclass NFData
     deriving Show via (Quiet ApiAccountPublicKey)
+
+newtype ApiAccountSharedPublicKey = ApiAccountSharedPublicKey
+    { sharedKey :: (ApiT XPub)
+    }
+    deriving (Eq, Generic)
+    deriving anyclass NFData
+    deriving Show via (Quiet ApiAccountSharedPublicKey)
 
 newtype WalletOrAccountPostData = WalletOrAccountPostData
     { postData :: Either WalletPostData AccountPostData
@@ -1566,6 +1576,10 @@ data ApiScriptTemplateEntry = ApiScriptTemplateEntry
     deriving (Eq, Generic, Show)
     deriving anyclass NFData
 
+newtype ApiScriptTemplate = ApiScriptTemplate ScriptTemplate
+    deriving (Eq, Generic, Show)
+    deriving anyclass NFData
+
 data ApiSharedWalletPostDataFromMnemonics =
     ApiSharedWalletPostDataFromMnemonics
     { name :: !(ApiT WalletName)
@@ -1585,7 +1599,7 @@ data ApiSharedWalletPostDataFromMnemonics =
 data ApiSharedWalletPostDataFromAccountPubX =
     ApiSharedWalletPostDataFromAccountPubX
     { name :: !(ApiT WalletName)
-    , accountPublicKey :: !ApiAccountPublicKey
+    , accountPublicKey :: !ApiAccountSharedPublicKey
     , accountIndex :: !(ApiT DerivationIndex)
     , paymentScriptTemplate :: !ApiScriptTemplateEntry
     , delegationScriptTemplate :: !(Maybe ApiScriptTemplateEntry)
@@ -1609,8 +1623,8 @@ data ApiActiveSharedWallet = ApiActiveSharedWallet
     , accountIndex :: !(ApiT DerivationIndex)
     , addressPoolGap :: !(ApiT AddressPoolGap)
     , passphrase :: !(Maybe ApiWalletPassphraseInfo)
-    , paymentScriptTemplate :: !ScriptTemplate
-    , delegationScriptTemplate :: !(Maybe ScriptTemplate)
+    , paymentScriptTemplate :: !ApiScriptTemplate
+    , delegationScriptTemplate :: !(Maybe ApiScriptTemplate)
     , delegation :: !ApiWalletDelegation
     , balance :: !ApiWalletBalance
     , assets :: !ApiWalletAssetsBalance
@@ -1626,8 +1640,8 @@ data ApiPendingSharedWallet = ApiPendingSharedWallet
     , name :: !(ApiT WalletName)
     , accountIndex :: !(ApiT DerivationIndex)
     , addressPoolGap :: !(ApiT AddressPoolGap)
-    , paymentScriptTemplate :: !ScriptTemplate
-    , delegationScriptTemplate :: !(Maybe ScriptTemplate)
+    , paymentScriptTemplate :: !ApiScriptTemplate
+    , delegationScriptTemplate :: !(Maybe ApiScriptTemplate)
     }
     deriving (Eq, Generic, Show)
     deriving anyclass NFData
@@ -1641,7 +1655,7 @@ newtype ApiSharedWallet = ApiSharedWallet
 
 data ApiSharedWalletPatchData = ApiSharedWalletPatchData
     { cosigner :: !(ApiT Cosigner)
-    , accountPublicKey :: !ApiAccountPublicKey
+    , accountPublicKey :: !ApiAccountSharedPublicKey
     }
     deriving (Eq, Generic, Show)
     deriving anyclass NFData
@@ -1730,6 +1744,25 @@ instance FromText ApiAccountPublicKey where
       where
         xpubFromText :: Text -> Maybe XPub
         xpubFromText = fmap eitherToMaybe fromHexText >=> xpubFromBytes
+
+instance FromText ApiAccountSharedPublicKey where
+    fromText txt =
+        case detectEncoding (T.unpack txt) of
+            Just EBech32{} -> do
+                (hrp, dp) <- case Bech32.decodeLenient txt of
+                    Left _ -> Left $ TextDecodingError "Extended account's Bech32 has invalid text."
+                    Right res -> pure res
+                let checkPayload bytes = case xpubFromBytes bytes of
+                        Nothing -> Left $ TextDecodingError "Extended public key cannot be retrieved from a given bytestring"
+                        Just validXPub -> pure $ ApiAccountSharedPublicKey $ ApiT validXPub
+                let proceedWhenHrpCorrect = case Bech32.dataPartToBytes dp of
+                        Nothing ->
+                              Left $ TextDecodingError "Extended account has invalid Bech32 datapart."
+                        Just bytes -> checkPayload bytes
+                if Bech32.humanReadablePartToText hrp == "acct_shared_xvk"
+                    then proceedWhenHrpCorrect
+                    else Left $ TextDecodingError "Extended account must have 'acct_shared_xvk' prefix"
+            _ -> Left $ TextDecodingError "Extended account must be must be encoded as Bech32."
 
 instance FromText (ApiT XPrv) where
     fromText t = case convertFromBase Base16 $ T.encodeUtf8 t of
@@ -1987,6 +2020,14 @@ instance FromJSON ApiAccountPublicKey where
 instance ToJSON ApiAccountPublicKey where
     toJSON =
         toJSON . hexText . xpubToBytes . getApiT . key
+
+instance FromJSON ApiAccountSharedPublicKey where
+    parseJSON =
+        parseJSON >=> eitherToParser . first ShowFmt . fromText
+instance ToJSON ApiAccountSharedPublicKey where
+    toJSON (ApiAccountSharedPublicKey (ApiT xpub)) =
+        let hrp = [Bech32.humanReadablePart|acct_shared_xvk|]
+        in String $ T.decodeUtf8 $ encode (EBech32 hrp) $ xpubToBytes xpub
 
 instance FromJSON WalletOrAccountPostData where
     parseJSON obj = do
@@ -2593,18 +2634,18 @@ instance ToJSON ApiEraInfo where
 
 instance ToJSON XPubOrSelf where
     toJSON (SomeAccountKey xpub) =
-        String $ T.decodeUtf8 $ encode EBase16 $ xpubToBytes xpub
+        let hrp = [Bech32.humanReadablePart|acct_shared_xvk|]
+        in String $ T.decodeUtf8 $ encode (EBech32 hrp) $ xpubToBytes xpub
     toJSON Self = "self"
 
 instance FromJSON XPubOrSelf where
     parseJSON t = parseXPub t <|> parseSelf t
       where
         parseXPub = withText "XPub" $ \txt ->
-            case fromBase16 (T.encodeUtf8 txt) of
-                Left err -> fail err
-                Right hex' -> case xpubFromBytes hex' of
-                    Nothing -> fail "Extended public key cannot be retrieved from a given hex bytestring"
-                    Just validXPub -> pure $ SomeAccountKey validXPub
+            case fromText @ApiAccountSharedPublicKey txt of
+                Left (TextDecodingError err) -> fail err
+                Right (ApiAccountSharedPublicKey (ApiT xpub)) ->
+                    pure $ SomeAccountKey xpub
         parseSelf = withText "Self" $ \txt ->
             if txt == "self" then
                 pure Self
@@ -2638,6 +2679,41 @@ instance ToJSON ApiScriptTemplateEntry where
             , toJSON xpubOrSelf
             )
 
+instance ToJSON ApiScriptTemplate where
+    toJSON (ApiScriptTemplate (CA.ScriptTemplate cosigners' template')) =
+        object [ "cosigners" .= object (fmap toPair (Map.toList cosigners'))
+               , "template" .= toJSON template' ]
+      where
+        cosignerToKey (Cosigner ix) =
+            Aeson.fromText $ "cosigner#"<> T.pack (show ix)
+        hrp = [Bech32.humanReadablePart|acct_shared_xvk|]
+        toPair (cosigner', xpub) =
+            ( cosignerToKey cosigner'
+            , String $ T.decodeUtf8 $ encode (EBech32 hrp) $ xpubToBytes xpub
+            )
+
+instance FromJSON ApiScriptTemplate where
+    parseJSON = withObject "ApiScriptTemplate" $ \o -> do
+        template' <- parseJSON <$> o .: "template"
+        cosigners' <- parseCosignerPairs <$> o .: "cosigners"
+        scriptTemplate <- CA.ScriptTemplate
+            <$> (Map.fromList <$> cosigners')
+            <*> template'
+        pure $ ApiScriptTemplate scriptTemplate
+      where
+        parseXPub = withText "XPub" $ \txt ->
+            case fromText @ApiAccountSharedPublicKey txt of
+                Left (TextDecodingError err) -> fail err
+                Right (ApiAccountSharedPublicKey (ApiT xpub)) -> pure xpub
+        parseCosignerPairs = withObject "Cosigner pairs" $ \o ->
+            case Aeson.toList o of
+                [] -> fail "Cosigners object array should not be empty"
+                cs -> for (reverse cs) $ \(numTxt, str) -> do
+                    cosigner' <- parseJSON @Cosigner $
+                        String $ Aeson.toText numTxt
+                    xpub <- parseXPub str
+                    pure (cosigner', xpub)
+
 instance FromJSON ApiSharedWalletPostData where
     parseJSON obj = do
         mnemonic <-
@@ -2668,7 +2744,7 @@ instance FromJSON ApiSharedWalletPatchData where
             [(numTxt, str)] -> do
                 cosigner' <- parseJSON @(ApiT Cosigner)
                     (String $ Aeson.toText numTxt)
-                xpub <- parseJSON @ApiAccountPublicKey str
+                xpub <- parseJSON @ApiAccountSharedPublicKey str
                 pure $ ApiSharedWalletPatchData cosigner' xpub
             _ -> fail "ApiSharedWalletPatchData should have one pair"
 

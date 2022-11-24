@@ -4,6 +4,7 @@
 {-# LANGUAGE LambdaCase #-}
 {-# LANGUAGE NumericUnderscores #-}
 {-# LANGUAGE OverloadedLabels #-}
+{-# LANGUAGE PackageImports #-}
 {-# LANGUAGE QuasiQuotes #-}
 {-# LANGUAGE RankNTypes #-}
 {-# LANGUAGE ScopedTypeVariables #-}
@@ -176,9 +177,12 @@ module Test.Integration.Framework.DSL
     , triggerMaintenanceAction
     , verifyMaintenanceAction
     , genXPubs
+    , genXPubsBech32
     , hexText
     , fromHexText
+    , bech32Text
     , accPubKeyFromMnemonics
+    , sharedAccPubKeyFromMnemonics
     , submitSharedTxWithWid
 
     -- * Delegation helpers
@@ -224,7 +228,7 @@ module Test.Integration.Framework.DSL
 import Prelude
 
 import Cardano.Address.Derivation
-    ( XPub, xpubFromBytes )
+    ( XPub, xpubFromBytes, xpubToBytes )
 import Cardano.CLI
     ( Port (..) )
 import Cardano.Mnemonic
@@ -245,6 +249,7 @@ import Cardano.Pool.Types
 import Cardano.Wallet.Api.Types
     ( AddressAmount
     , ApiAccountKeyShared
+    , ApiAccountSharedPublicKey (..)
     , ApiActiveSharedWallet
     , ApiAddress
     , ApiBlockReference (..)
@@ -345,6 +350,8 @@ import Cardano.Wallet.Primitive.Types.UTxO
     ( UTxO (..) )
 import Cardano.Wallet.Primitive.Types.UTxOStatistics
     ( HistogramBar (..), UTxOStatistics (..) )
+import "cardano-addresses" Codec.Binary.Encoding
+    ( AbstractEncoding (..), encode )
 import Control.Arrow
     ( second )
 import Control.Monad
@@ -400,7 +407,7 @@ import Data.Set
 import Data.Text
     ( Text )
 import Data.Text.Class
-    ( ToText (..) )
+    ( FromText (..), ToText (..) )
 import Data.Time
     ( NominalDiffTime, UTCTime )
 import Data.Time.Text
@@ -473,6 +480,7 @@ import qualified Cardano.Wallet.Primitive.Types.TokenMap as TokenMap
 import qualified Cardano.Wallet.Primitive.Types.TokenQuantity as TokenQuantity
 import qualified Cardano.Wallet.Primitive.Types.UTxOStatistics as UTxOStatistics
 import qualified Codec.Binary.Bech32 as Bech32
+import qualified Codec.Binary.Bech32.TH as Bech32
 import qualified Data.Aeson as Aeson
 import qualified Data.Aeson.Key as Aeson
 import qualified Data.ByteArray as BA
@@ -991,6 +999,19 @@ accPubKeyFromMnemonics mnemonic1 mnemonic2 ix passphrase =
   where
     rootXPrv = Shared.generateKeyFromSeed (mnemonic1, mnemonic2) passphrase
 
+sharedAccPubKeyFromMnemonics
+    :: SomeMnemonic
+    -> Maybe SomeMnemonic
+    -> Word32
+    -> Passphrase "encryption"
+    -> Text
+sharedAccPubKeyFromMnemonics mnemonic1 mnemonic2 ix passphrase =
+    T.decodeUtf8 $ encode (EBech32 hrp) $ xpubToBytes $ getRawKey $ publicKey $
+        deriveAccountPrivateKey passphrase rootXPrv (Index $ 2147483648 + ix)
+  where
+    hrp = [Bech32.humanReadablePart|acct_shared_xvk|]
+    rootXPrv = Shared.generateKeyFromSeed (mnemonic1, mnemonic2) passphrase
+
 genXPubs :: Int -> IO [(XPub,Text)]
 genXPubs num =
     replicateM num genXPub
@@ -1007,11 +1028,31 @@ genXPubs num =
     xpubFromText :: Text -> Maybe XPub
     xpubFromText = fmap eitherToMaybe fromHexText >=> xpubFromBytes
 
+genXPubsBech32 :: Int -> IO [(XPub,Text)]
+genXPubsBech32 num =
+    replicateM num genXPub
+  where
+    genXPub = do
+        m15txt <- genMnemonics M15
+        m12txt <- genMnemonics M12
+        let (Right m15) = mkSomeMnemonic @'[ 15 ] m15txt
+        let (Right m12) = mkSomeMnemonic @'[ 12 ] m12txt
+        let accXPubTxt = sharedAccPubKeyFromMnemonics m15 (Just m12) 10 mempty
+        let (Just accXPub) = xpubFromText accXPubTxt
+        return (accXPub, accXPubTxt)
+
+    xpubFromText :: Text -> Maybe XPub
+    xpubFromText = fmap (getApiT . sharedKey) . fmap eitherToMaybe
+        (fromText @ApiAccountSharedPublicKey)
+
 fromHexText :: Text -> Either String ByteString
 fromHexText = fromHex . T.encodeUtf8
 
 hexText :: ByteString -> Text
 hexText = T.decodeLatin1 . hex
+
+bech32Text :: Bech32.HumanReadablePart -> ByteString -> Text
+bech32Text hrp = T.decodeUtf8 . encode (EBech32 hrp)
 
 getTxId :: (ApiTransaction n) -> String
 getTxId tx = T.unpack $ toUrlPiece $ ApiTxId (tx ^. #id)

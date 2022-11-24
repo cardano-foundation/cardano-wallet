@@ -1189,8 +1189,8 @@ instance Malformed (BodyParam ApiSharedWalletPatchData) where
             , ("{\"name : \"random\"}", msgJsonInvalid)
             ]
          exampleCosignerXPub =
-             "1423856bc91c49e928f6f30f4e8d665d53eb4ab6028bd0ac971809d514c92db11\
-             \423856bc91c49e928f6f30f4e8d665d53eb4ab6028bd0ac971809d514c92db1" :: Text
+             "acct_shared_xvk1z8kc04yh544ksc9h2yhp7p6qwpf6syv5qnm8sgnhdne5z2esh\
+             \t5cwssxsec2wzw3nhxm2d9ph4s6ldmqdvxa0zuxzmukpajhyc7flug3te037" :: Text
          jsonValid =
             first (BodyParam . Aeson.encode) <$>
             [ ( [aesonQQ| { "cosigner#1":[] }|]
@@ -1200,7 +1200,7 @@ instance Malformed (BodyParam ApiSharedWalletPatchData) where
               , "Error in $: parsing Text failed, expected String, but encountered Number"
               )
             , ( [aesonQQ| { "cosigner#0":"something"}|]
-              , "Error in $: Invalid account public key: expecting a hex-encoded value that is 64 bytes in length."
+              , "Error in $: Extended account must be must be encoded as Bech32."
               )
             , ( [aesonQQ| { "cosigner":#{exampleCosignerXPub} }|]
               , "Error in $: Cosigner should be of form: cosigner#num"
