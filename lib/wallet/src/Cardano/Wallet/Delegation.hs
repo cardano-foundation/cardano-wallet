@@ -8,11 +8,11 @@
 {-# LANGUAGE TypeApplications #-}
 
 module Cardano.Wallet.Delegation
-    ( joinStakePool
+    ( joinStakePoolDelegationAction
     , guardJoin
     , quitStakePool
     , guardQuit
-    , validatedQuitStakePoolAction
+    , quitStakePoolDelegationAction
     ) where
 
 import Prelude
@@ -50,7 +50,7 @@ import Cardano.Wallet.Primitive.Types
     ( Block (..)
     , IsDelegatingTo (..)
     , PoolLifeCycleStatus
-    , ProtocolParameters (..)
+    , ProtocolParameters
     , WalletDelegation (..)
     , WalletId (..)
     )
@@ -86,42 +86,38 @@ import Data.Set
     ( Set )
 
 
-joinStakePool
+joinStakePoolDelegationAction
     :: forall s k
      . Tracer IO WalletLog
     -> DBLayer IO s k
-    -> NetworkLayer IO Block
+    -> ProtocolParameters
     -> W.EpochNo
     -> Set PoolId
     -> PoolId
     -> PoolLifeCycleStatus
     -> WalletId
-    -> ExceptT ErrStakePoolDelegation IO (DelegationAction, Maybe Coin)
-    -- ^ snd is the deposit
-joinStakePool tr DBLayer{..} nl currentEpoch knownPools pid poolStatus wid = do
-    ((_ , walDelegation), isKeyReg) <- mapExceptT atomically $ do
-        walMeta <- withExceptT ErrStakePoolDelegationNoSuchWallet
-            $ withNoSuchWallet wid
-            $ readWalletMeta wid
-        isKeyReg <- withExceptT ErrStakePoolDelegationNoSuchWallet
-            $ isStakeKeyRegistered wid
-        pure (walMeta, isKeyReg)
+    -> ExceptT ErrStakePoolDelegation IO DelegationAction
+joinStakePoolDelegationAction
+    tr DBLayer{..} pp currentEpoch knownPools poolId poolStatus wid = do
+    (walletDelegation, stakeKeyIsRegistered) <-
+        mapExceptT atomically $
+            withExceptT ErrStakePoolDelegationNoSuchWallet $
+                (,) <$> withNoSuchWallet wid (fmap snd <$> readWalletMeta wid)
+                    <*> isStakeKeyRegistered wid
 
-    let mRetirementEpoch = view #retirementEpoch <$>
-            W.getPoolRetirementCertificate poolStatus
     let retirementInfo =
-            PoolRetirementEpochInfo currentEpoch <$> mRetirementEpoch
+            PoolRetirementEpochInfo currentEpoch . view #retirementEpoch <$>
+                W.getPoolRetirementCertificate poolStatus
 
     withExceptT ErrStakePoolJoin $ except $
-        guardJoin knownPools walDelegation pid retirementInfo
+        guardJoin knownPools walletDelegation poolId retirementInfo
 
-    liftIO $ traceWith tr $ MsgIsStakeKeyRegistered isKeyReg
+    liftIO $ traceWith tr $ MsgIsStakeKeyRegistered stakeKeyIsRegistered
 
-    dep <- liftIO $ stakeKeyDeposit <$> currentProtocolParameters nl
-
-    pure $ if isKeyReg
-        then (Join pid, Nothing)
-        else (RegisterKeyAndJoin pid, Just dep)
+    pure $
+        if stakeKeyIsRegistered
+        then Join poolId
+        else JoinRegsteringKey poolId (W.stakeKeyDeposit pp)
 
 guardJoin
     :: Set PoolId
@@ -146,13 +142,13 @@ guardJoin knownPools delegation pid mRetirementEpochInfo = do
     WalletDelegation {active, next} = delegation
 
 -- | Helper function to factor necessary logic for quitting a stake pool.
-validatedQuitStakePoolAction
+quitStakePoolDelegationAction
     :: forall s k
      . DBLayer IO s k
     -> WalletId
     -> Withdrawal
     -> IO DelegationAction
-validatedQuitStakePoolAction db@DBLayer{..} walletId withdrawal = do
+quitStakePoolDelegationAction db@DBLayer{..} walletId withdrawal = do
     (_, delegation) <- atomically (readWalletMeta walletId)
         >>= maybe
             (throwIO (ExceptionStakePoolDelegation
@@ -177,7 +173,7 @@ quitStakePool netLayer db timeInterpreter walletId = do
             >>= either (throwIO . ExceptionReadRewardAccount) pure
     withdrawal <- WithdrawalSelf rewardAccount derivationPath
         <$> getCachedRewardAccountBalance netLayer rewardAccount
-    action <- validatedQuitStakePoolAction db walletId withdrawal
+    action <- quitStakePoolDelegationAction db walletId withdrawal
     ttl <- transactionExpirySlot timeInterpreter  Nothing
     pure defaultTransactionCtx
         { txWithdrawal = withdrawal
@@ -190,7 +186,6 @@ guardQuit WalletDelegation{active,next} wdrl rewards = do
     let last_ = maybe active (view #status) $ lastMay next
     let anyone _ = True
     unless (isDelegatingTo anyone last_) $ Left ErrNotDelegatingOrAboutTo
-
     case wdrl of
         WithdrawalSelf {} -> Right ()
         _

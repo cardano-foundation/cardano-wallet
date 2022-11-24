@@ -2409,7 +2409,7 @@ selectAssets ctx era pp params transform = do
                     _ -> 0
             , certificateDepositsTaken =
                 case params ^. #txContext . #txDelegationAction of
-                    Just (RegisterKeyAndJoin _) -> 1
+                    Just (JoinRegsteringKey _ _) -> 1
                     _ -> 0
             , collateralRequirement =
                 params ^. #txContext . #txCollateralRequirement

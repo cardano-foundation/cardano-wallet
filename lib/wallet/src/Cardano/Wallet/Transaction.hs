@@ -24,6 +24,7 @@ module Cardano.Wallet.Transaction
     -- * Interface
       TransactionLayer (..)
     , DelegationAction (..)
+    , delegationActionDeposit
     , TransactionCtx (..)
     , PreSelection (..)
     , defaultTransactionCtx
@@ -438,9 +439,22 @@ defaultTransactionCtx = TransactionCtx
     , txFeePadding = Coin 0
     }
 
--- | Whether the user is attempting any particular delegation action.
-data DelegationAction = RegisterKeyAndJoin PoolId | Join PoolId | Quit
+-- | User-requested action related to a delegation
+-- that is taken into account when constructing a transaction.
+data DelegationAction
+    = JoinRegsteringKey PoolId Coin
+    -- ^ Join stake pool, registering stake key with deposit amount in `Coin`s
+    | Join PoolId
+    -- ^ Join stake pool, assuming that stake key has been registered before.
+    | Quit
+    -- ^ Quit all stake pools
     deriving (Show, Eq, Generic)
+
+delegationActionDeposit :: DelegationAction -> Maybe Coin
+delegationActionDeposit = \case
+  JoinRegsteringKey _poolId deposit -> Just deposit
+  Join _poolId -> Nothing
+  Quit -> Nothing
 
 instance Buildable DelegationAction where
     build = genericF

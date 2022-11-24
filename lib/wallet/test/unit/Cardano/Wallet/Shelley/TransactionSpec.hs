@@ -256,7 +256,7 @@ import Cardano.Wallet.Shelley.Transaction
     , _maxScriptExecutionCost
     )
 import Cardano.Wallet.Transaction
-    ( DelegationAction (RegisterKeyAndJoin)
+    ( DelegationAction (..)
     , ErrAssignRedeemers (..)
     , ErrMoreSurplusNeeded (..)
     , TransactionCtx (..)
@@ -3503,7 +3503,7 @@ balanceTransactionGoldenSpec = describe "balance goldens" $ do
             Nothing
             Cardano.TxScriptValidityNone
 
-        certs = mkDelegationCertificates (RegisterKeyAndJoin poolId) xpub
+        certs = mkDelegationCertificates delegationAction xpub
           where
             poolId = PoolId "\236(\243=\203\230\214@\n\RS^3\155\208d|\
                             \\ts\202l\f\249\194\187\230\131\141\198"
@@ -3511,6 +3511,7 @@ balanceTransactionGoldenSpec = describe "balance goldens" $ do
             mw = SomeMnemonic $ either (error . show) id
                 (entropyToMnemonic @12 <$> mkEntropy "0000000000000001")
             rootK = Shelley.unsafeGenerateKeyFromSeed (mw, Nothing) mempty
+            delegationAction = JoinRegsteringKey poolId (Coin 0)
         ledgerBody = Babbage.TxBody
           { Babbage.inputs = mempty
           , Babbage.collateral = mempty
