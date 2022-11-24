@@ -177,9 +177,10 @@ import Cardano.Wallet
     , FeeEstimation (..)
     , HasNetworkLayer
     , TxSubmitLog
-    , WalletWorkerLog
+    , WalletWorkerLog (..)
     , dbLayer
     , genesisData
+    , logger
     , manageRewardBalance
     , networkLayer
     , transactionLayer
@@ -637,6 +638,7 @@ import qualified Cardano.Api as Cardano
 import qualified Cardano.Wallet as W
 import qualified Cardano.Wallet.Api.Types as Api
 import qualified Cardano.Wallet.DB as W
+import qualified Cardano.Wallet.Delegation as WD
 import qualified Cardano.Wallet.Network as NW
 import qualified Cardano.Wallet.Primitive.AddressDerivation.Byron as Byron
 import qualified Cardano.Wallet.Primitive.AddressDerivation.Icarus as Icarus
@@ -1699,8 +1701,18 @@ selectCoinsForJoin ctx knownPools getPoolStatus pid wid = do
     curEpoch <- getCurrentEpoch ctx
 
     withWorkerCtx ctx wid liftE liftE $ \wrk -> do
+        let db = wrk ^. typed @(DBLayer IO s k)
+            netLayer = wrk ^. networkLayer
         (action, deposit) <- liftHandler
-            $ W.joinStakePool @_ @s @k wrk curEpoch pools pid poolStatus wid
+            $ WD.joinStakePool @s @k
+                (contramap MsgWallet $ wrk ^. logger)
+                db
+                netLayer
+                curEpoch
+                pools
+                pid
+                poolStatus
+                wid
 
         let txCtx = defaultTransactionCtx
                 { txDelegationAction = Just action
@@ -1728,7 +1740,7 @@ selectCoinsForJoin ctx knownPools getPoolStatus pid wid = do
             $ W.selectAssets @_ @_ @s @k @'CredFromKeyK
                 wrk era pp selectAssetsParams transform
         (_, _, path) <- liftHandler
-            $ W.readRewardAccount (wrk ^. dbLayer) wid
+            $ W.readRewardAccount db wid
 
         let deposits = maybeToList deposit
 
@@ -1753,7 +1765,7 @@ selectCoinsForQuit ctx@ApiLayer{..} (ApiT wid) =
         wdrl <-
             liftIO $ W.shelleyOnlyMkSelfWithdrawal
                 @_ @_ @_ @_ @n netLayer txLayer era db wid
-        action <- liftIO $ W.validatedQuitStakePoolAction db wid wdrl
+        action <- liftIO $ WD.validatedQuitStakePoolAction db wid wdrl
 
         let txCtx = defaultTransactionCtx
                 { txDelegationAction = Just action
@@ -2310,12 +2322,20 @@ constructTransaction
                         poolStatus <- liftIO (getPoolStatus pid)
                         pools <- liftIO knownPools
                         curEpoch <- getCurrentEpoch apiLayer
-                        (del, act) <- liftHandler $ W.joinStakePool
-                            wrk curEpoch pools pid poolStatus walletId
+                        (del, act) <- liftHandler $
+                            WD.joinStakePool
+                                (contramap MsgWallet $ wrk ^. logger)
+                                db
+                                netLayer
+                                curEpoch
+                                pools
+                                pid
+                                poolStatus
+                                walletId
                         pure (del, act, Nothing)
                     [(Leaving _)] -> liftIO $
                         (, Nothing, Just (W.stakeKeyDeposit pp)) <$>
-                            W.validatedQuitStakePoolAction db walletId wdrl
+                            WD.validatedQuitStakePoolAction db walletId wdrl
                     _ ->
                         liftHandler $
                             throwE ErrConstructTxMultidelegationNotSupported
@@ -3259,8 +3279,18 @@ joinStakePool ctx knownPools getPoolStatus apiPool (ApiT wid) body = do
     pools <- liftIO knownPools
     curEpoch <- getCurrentEpoch ctx
     withWorkerCtx ctx wid liftE liftE $ \wrk -> do
+        let db = wrk ^. dbLayer
+            netLayer = wrk ^. networkLayer
         (action, _) <- liftHandler
-            $ W.joinStakePool @_ @s @k wrk curEpoch pools poolId poolStatus wid
+            $ WD.joinStakePool @s @k
+                (contramap MsgWallet $ wrk ^. logger)
+                db
+                netLayer
+                curEpoch
+                pools
+                poolId
+                poolStatus
+                wid
 
         ttl <- liftIO $ W.transactionExpirySlot ti Nothing
         let txCtx = defaultTransactionCtx
@@ -3390,7 +3420,7 @@ quitStakePool ctx@ApiLayer{..} (ApiT walletId) body = do
                                                (typeRep @ShelleyKey) of
                     Nothing -> notShelleyWallet
                     Just Refl -> liftIO $
-                        W.quitStakePool netLayer db ti walletId
+                        WD.quitStakePool netLayer db ti walletId
         (utxoAvailable, wallet, pendingTxs) <-
             liftHandler $ W.readWalletUTxOIndex @_ @s @k wrk walletId
         pp <- liftIO $ NW.currentProtocolParameters (wrk ^. networkLayer)

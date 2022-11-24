@@ -28,8 +28,6 @@ import Cardano.Api
     ( AnyCardanoEra (..), CardanoEra (..) )
 import Cardano.Mnemonic
     ( SomeMnemonic (..) )
-import Cardano.Pool.Types
-    ( PoolId (..) )
 import Cardano.Tx.Balance.Internal.CoinSelection
     ( BalanceInsufficientError (..)
     , SelectionBalanceError (..)
@@ -60,12 +58,7 @@ import Cardano.Wallet.DummyTarget.Primitive.Types
     , mkTxId
     )
 import Cardano.Wallet.Gen
-    ( genMnemonic
-    , genNestedTxMetadata
-    , genSlotNo
-    , shrinkSlotNo
-    , shrinkTxMetadata
-    )
+    ( genMnemonic, genSlotNo, shrinkSlotNo )
 import Cardano.Wallet.Network
     ( NetworkLayer (..) )
 import Cardano.Wallet.Primitive.AddressDerivation
@@ -96,14 +89,10 @@ import Cardano.Wallet.Primitive.Types
     ( ActiveSlotCoefficient (..)
     , Block
     , BlockHeader (BlockHeader)
-    , EpochNo (..)
     , NetworkParameters (..)
     , SlotNo (..)
     , SlottingParameters (..)
     , SortOrder (..)
-    , WalletDelegation (..)
-    , WalletDelegationNext (WalletDelegationNext)
-    , WalletDelegationStatus (..)
     , WalletId (..)
     , WalletMetadata (..)
     , WalletName (..)
@@ -133,7 +122,6 @@ import Cardano.Wallet.Primitive.Types.Tx
     , TransactionInfo (..)
     , Tx (..)
     , TxMeta (..)
-    , TxMetadata
     , TxStatus (..)
     , isPending
     , mockSealedTx
@@ -218,8 +206,6 @@ import Data.Time.Clock.POSIX
     ( posixSecondsToUTCTime )
 import Data.Word
     ( Word64 )
-import Data.Word.Odd
-    ( Word31 )
 import GHC.Generics
     ( Generic )
 import Test.Hspec
@@ -234,7 +220,6 @@ import Test.QuickCheck
     , NonEmptyList (..)
     , Property
     , arbitraryBoundedEnum
-    , arbitrarySizedBoundedIntegral
     , arbitrarySizedFractional
     , checkCoverage
     , choose
@@ -252,18 +237,14 @@ import Test.QuickCheck
     , oneof
     , property
     , scale
-    , shrinkIntegral
     , shrinkList
     , sized
     , suchThat
     , vector
     , withMaxSuccess
-    , (.&&.)
     , (===)
     , (==>)
     )
-import Test.QuickCheck.Arbitrary.Generic
-    ( genericArbitrary, genericShrink )
 import Test.QuickCheck.Extra
     ( report )
 import Test.QuickCheck.Monadic
@@ -301,7 +282,6 @@ import qualified Data.Foldable as F
 import qualified Data.List as L
 import qualified Data.List.NonEmpty as NE
 import qualified Data.Map.Strict as Map
-import qualified Data.Set as Set
 import qualified Data.Text as T
 
 spec :: Spec
@@ -356,62 +336,6 @@ spec = parallel $ describe "Cardano.WalletSpec" $ do
         it "LocalTxSubmission updates are limited in frequency"
             (property prop_throttle)
 
-    describe "Join/Quit Stake pool properties" $ do
-        it "You can quit if you cannot join"
-            (property prop_guardJoinQuit)
-        it "You can join if you cannot quit"
-            (property prop_guardQuitJoin)
-
-    describe "Join/Quit Stake pool unit mockEventSource" $ do
-        let noRetirementPlanned = Nothing
-        it "Cannot join A, when active = A" $ do
-            let dlg = WalletDelegation {active = Delegating pidA, next = []}
-            W.guardJoin knownPools dlg pidA noRetirementPlanned
-                `shouldBe` Left (W.ErrAlreadyDelegating pidA)
-        it "Cannot join A, when next = [A]" $ do
-            let next1 = next (EpochNo 1) (Delegating pidA)
-            let dlg = WalletDelegation {active = NotDelegating, next = [next1]}
-            W.guardJoin knownPools dlg pidA noRetirementPlanned
-                `shouldBe` Left (W.ErrAlreadyDelegating pidA)
-        it "Can join A, when active = A, next = [B]" $ do
-            let next1 = next (EpochNo 1) (Delegating pidB)
-            let dlg = WalletDelegation
-                    {active = Delegating pidA, next = [next1]}
-            W.guardJoin knownPools dlg pidA noRetirementPlanned
-                `shouldBe` Right ()
-        it "Cannot join A, when active = A, next = [B, A]" $ do
-            let next1 = next (EpochNo 1) (Delegating pidB)
-            let next2 = next (EpochNo 2) (Delegating pidA)
-            let dlg = WalletDelegation
-                    {active = Delegating pidA, next = [next1, next2]}
-            W.guardJoin knownPools dlg pidA noRetirementPlanned
-                `shouldBe` Left (W.ErrAlreadyDelegating pidA)
-        it "Cannot join when pool is unknown" $ do
-            let dlg = WalletDelegation {active = NotDelegating, next = []}
-            W.guardJoin knownPools dlg pidUnknown noRetirementPlanned
-                `shouldBe` Left (W.ErrNoSuchPool pidUnknown)
-        it "Cannot quit when active: not_delegating, next = []" $ do
-            let dlg = WalletDelegation {active = NotDelegating, next = []}
-            W.guardQuit dlg NoWithdrawal (Coin 0)
-                `shouldBe` Left (W.ErrNotDelegatingOrAboutTo)
-        it "Cannot quit when active: A, next = [not_delegating]" $ do
-            let next1 = next (EpochNo 1) NotDelegating
-            let dlg = WalletDelegation
-                    {active = Delegating pidA, next = [next1]}
-            W.guardQuit dlg NoWithdrawal (Coin 0)
-                `shouldBe` Left (W.ErrNotDelegatingOrAboutTo)
-        it "Cannot quit when active: A, next = [B, not_delegating]" $ do
-            let next1 = next (EpochNo 1) (Delegating pidB)
-            let next2 = next (EpochNo 2) NotDelegating
-            let dlg = WalletDelegation
-                    {active = Delegating pidA, next = [next1, next2]}
-            W.guardQuit dlg NoWithdrawal (Coin 0)
-                `shouldBe` Left (W.ErrNotDelegatingOrAboutTo)
-        it "Can quit when active: not_delegating, next = [A]" $ do
-            let next1 = next (EpochNo 1) (Delegating pidA)
-            let dlg = WalletDelegation
-                    {active = NotDelegating, next = [next1]}
-            W.guardQuit dlg NoWithdrawal (Coin 0) `shouldBe` Right ()
 
     describe "Migration" $ do
         describe "migrationPlanToSelectionWithdrawals" $ do
@@ -420,77 +344,9 @@ spec = parallel $ describe "Cardano.WalletSpec" $ do
             it "Inputs and outputs are preserved in the correct order." $
                 property prop_migrationPlanToSelectionWithdrawals_io
 
-  where
-    pidA = PoolId "A"
-    pidB = PoolId "B"
-    pidUnknown = PoolId "unknown"
-    knownPools = Set.fromList [pidA, pidB]
-    next = WalletDelegationNext
-
 {-------------------------------------------------------------------------------
                                     Properties
 -------------------------------------------------------------------------------}
-
-prop_guardJoinQuit
-    :: [PoolId]
-    -> WalletDelegation
-    -> PoolId
-    -> Withdrawal
-    -> Maybe W.PoolRetirementEpochInfo
-    -> Property
-prop_guardJoinQuit knownPoolsList dlg pid wdrl mRetirementInfo = checkCoverage
-    $ cover 10 retirementNotPlanned
-        "retirementNotPlanned"
-    $ cover 10 retirementPlanned
-        "retirementPlanned"
-    $ cover 10 alreadyRetired
-        "alreadyRetired"
-    $ case W.guardJoin knownPools dlg pid mRetirementInfo of
-        Right () ->
-            label "I can join" $ property $
-                alreadyRetired `shouldBe` False
-        Left W.ErrNoSuchPool{} ->
-            label "ErrNoSuchPool" $ property True
-        Left W.ErrAlreadyDelegating{} ->
-            label "ErrAlreadyDelegating"
-                (W.guardQuit dlg wdrl (Coin 0) === Right ())
-  where
-    knownPools = Set.fromList knownPoolsList
-    retirementNotPlanned =
-        isNothing mRetirementInfo
-    retirementPlanned =
-        (Just True ==) $ do
-            info <- mRetirementInfo
-            pure $ W.currentEpoch info < W.retirementEpoch info
-    alreadyRetired =
-        (Just True ==) $ do
-            info <- mRetirementInfo
-            pure $ W.currentEpoch info >= W.retirementEpoch info
-
-prop_guardQuitJoin
-    :: NonEmptyList PoolId
-    -> WalletDelegation
-    -> Word64
-    -> Withdrawal
-    -> Property
-prop_guardQuitJoin (NonEmpty knownPoolsList) dlg rewards wdrl =
-    let knownPools = Set.fromList knownPoolsList in
-    let noRetirementPlanned = Nothing in
-    case W.guardQuit dlg wdrl (Coin.fromWord64 rewards) of
-        Right () ->
-            label "I can quit" $ property True
-        Left W.ErrNotDelegatingOrAboutTo ->
-            label "ErrNotDelegatingOrAboutTo" $
-                W.guardJoin
-                    knownPools dlg (last knownPoolsList) noRetirementPlanned
-                    === Right ()
-        Left W.ErrNonNullRewards{} ->
-            label "ErrNonNullRewards" $
-                property (rewards /= 0)
-                    .&&. not (isSelfWdrl wdrl)
-  where
-    isSelfWdrl WithdrawalSelf{} = True
-    isSelfWdrl _                = False
 
 walletCreationProp
     :: (WalletId, WalletName, DummyState)
@@ -1285,27 +1141,6 @@ prop_migrationPlanToSelectionWithdrawals_io_inner
                       Tests machinery, Arbitrary instances
 -------------------------------------------------------------------------------}
 
-instance Arbitrary WalletDelegation where
-    shrink = genericShrink
-    arbitrary = WalletDelegation
-        <$> arbitrary
-        <*> oneof [ pure [], vector 1, vector 2 ]
-
-instance Arbitrary WalletDelegationStatus where
-    shrink = genericShrink
-    arbitrary = genericArbitrary
-
-instance Arbitrary WalletDelegationNext where
-    shrink = genericShrink
-    arbitrary = genericArbitrary
-
-instance Arbitrary PoolId where
-    arbitrary = pure $ PoolId "a"
-
-instance Arbitrary W.PoolRetirementEpochInfo where
-    arbitrary = W.PoolRetirementEpochInfo <$> arbitrary <*> arbitrary
-    shrink = genericShrink
-
 instance Arbitrary UTxO where
     shrink (UTxO utxo) = UTxO <$> shrink utxo
     arbitrary = do
@@ -1537,14 +1372,6 @@ instance {-# OVERLAPS #-} Arbitrary (ShelleyKey 'RootK XPrv, Passphrase "user")
         let key = generateKeyFromSeed (mw, Nothing) (preparePassphrase pwd)
         return (key, pwd)
 
-instance Arbitrary EpochNo where
-    shrink (EpochNo x) = EpochNo <$> shrink x
-    arbitrary = EpochNo <$> arbitrary
-
-instance Arbitrary Word31 where
-    arbitrary = arbitrarySizedBoundedIntegral
-    shrink = shrinkIntegral
-
 instance Arbitrary SortOrder where
     shrink _ = []
     arbitrary = arbitraryBoundedEnum
@@ -1565,9 +1392,6 @@ instance Arbitrary Tx where
     arbitrary = genTx
     shrink = shrinkTx
 
-instance Arbitrary RewardAccount where
-    arbitrary = RewardAccount . BS.pack <$> vector 28
-
 instance Arbitrary TxIn where
     arbitrary = TxIn
         <$> (Hash . B8.pack <$> vector 32)
@@ -1586,17 +1410,3 @@ instance Arbitrary TxMeta where
         <*> fmap Quantity arbitrary
         <*> arbitrary
         <*> liftArbitrary genSlotNo
-
-instance Arbitrary TxMetadata where
-    shrink = shrinkTxMetadata
-    arbitrary = genNestedTxMetadata
-
-instance Arbitrary DerivationIndex where
-    arbitrary = DerivationIndex <$> arbitrary
-
-instance Arbitrary Withdrawal where
-    arbitrary = oneof
-        [ WithdrawalSelf <$> arbitrary <*> arbitrary <*> arbitrary
-        , WithdrawalExternal <$> arbitrary <*> arbitrary <*> arbitrary
-        , pure NoWithdrawal
-        ]
