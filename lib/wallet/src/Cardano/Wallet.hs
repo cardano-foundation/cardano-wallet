@@ -2379,8 +2379,7 @@ selectAssets
 selectAssets ctx era pp params transform = do
     guardPendingWithdrawal
     lift $ traceWith tr $ MsgSelectionStart
-        (UTxOSelection.availableSize
-            $ params ^. #utxoAvailableForInputs)
+        (UTxOSelection.availableSize $ params ^. #utxoAvailableForInputs)
         (params ^. #outputs)
     let selectionConstraints = SelectionConstraints
             { assessTokenBundleSize =
@@ -2390,11 +2389,9 @@ selectAssets ctx era pp params transform = do
             , certificateDepositAmount =
                 view #stakeKeyDeposit pp
             , computeMinimumAdaQuantity =
-                view #txOutputMinimumAdaQuantity
-                    (constraints tl era pp)
+                view #txOutputMinimumAdaQuantity (constraints tl era pp)
             , isBelowMinimumAdaQuantity =
-                view #txOutputBelowMinimumAdaQuantity
-                    (constraints tl era pp)
+                view #txOutputBelowMinimumAdaQuantity (constraints tl era pp)
             , computeMinimumCost =
                 calcMinimumCost tl era pp $ params ^. #txContext
             , computeSelectionLimit =
@@ -2409,24 +2406,24 @@ selectAssets ctx era pp params transform = do
             }
     let selectionParams = SelectionParams
             { assetsToMint =
-                fst $ params ^. (#txContext . #txAssetsToMint)
+                fst $ params ^. #txContext . #txAssetsToMint
             , assetsToBurn =
-                fst $ params ^. (#txContext . #txAssetsToBurn)
+                fst $ params ^. #txContext . #txAssetsToBurn
             , extraCoinIn = Coin 0
             , extraCoinOut = Coin 0
             , outputsToCover = params ^. #outputs
             , rewardWithdrawal =
-                withdrawalToCoin $ params ^. (#txContext . #txWithdrawal)
+                withdrawalToCoin $ params ^. #txContext . #txWithdrawal
             , certificateDepositsReturned =
-                case params ^. (#txContext . #txDelegationAction) of
+                case params ^. #txContext . #txDelegationAction of
                     Just Quit -> 1
                     _ -> 0
             , certificateDepositsTaken =
-                case params ^. (#txContext . #txDelegationAction) of
-                    Just (RegisterKeyAndJoin _) -> 1
+                case params ^. #txContext . #txDelegationAction of
+                    Just (JoinRegsteringKey _ _) -> 1
                     _ -> 0
             , collateralRequirement =
-                params ^. (#txContext . #txCollateralRequirement)
+                params ^. #txContext . #txCollateralRequirement
             , utxoAvailableForCollateral =
                 params ^. #utxoAvailableForCollateral
             , utxoAvailableForInputs =
