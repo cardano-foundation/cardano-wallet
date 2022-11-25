@@ -20,8 +20,6 @@ module Test.Integration.Scenario.API.Shared.Transactions
 
 import Prelude
 
-import Cardano.Address.Script
-    ( KeyHash (..), Script (..) )
 import Cardano.Mnemonic
     ( MkSomeMnemonic (..) )
 import Cardano.Wallet.Api.Types
@@ -155,7 +153,6 @@ import Test.Integration.Framework.TestData
     , errMsg404NoWallet
     )
 
-import qualified Cardano.Address.Script as CA
 import qualified Cardano.Address.Style.Shelley as CA
 import qualified Cardano.Api as Cardano
 import qualified Cardano.Wallet.Api.Link as Link
@@ -730,15 +727,12 @@ spec = describe "SHARED_TRANSACTIONS" $ do
             (Link.decodeTransaction @'Shared sharedWal2) Default decodePayload1
         rDecodedTx1Wal3 <- request @(ApiDecodedTransaction n) ctx
             (Link.decodeTransaction @'Shared sharedWal3) Default decodePayload1
-        rDecodedTx1Target <- request @(ApiDecodedTransaction n) ctx
-            (Link.decodeTransaction @'Shelley wb) Default decodePayload1
 
         let expectedFee = getFromResponse (#fee . #getQuantity) rTx
         let (ApiScriptTemplate scriptTemplate) =
                 sharedWal1 ^. #paymentScriptTemplate
         let paymentScript =
-                -- TODO- ADP-2312 We will want CA.Payment here
-                NativeScript $ changeRole CA.Policy $
+                NativeScript $
                 replaceCosignersWithVerKeys CA.UTxOExternal scriptTemplate (Index 1)
         let noVerKeyWitness = mkApiWitnessCount WitnessCount
                 { verificationKey = 0
@@ -750,7 +744,6 @@ spec = describe "SHARED_TRANSACTIONS" $ do
         verify rDecodedTx1Wal1 witsExp1
         verify rDecodedTx1Wal2 witsExp1
         verify rDecodedTx1Wal3 witsExp1
-        verify rDecodedTx1Target witsExp1
 
         -- adding one witness
         let (ApiSerialisedTransaction apiTx1 _) =
@@ -764,8 +757,6 @@ spec = describe "SHARED_TRANSACTIONS" $ do
             (Link.decodeTransaction @'Shared sharedWal2) Default decodePayload2
         rDecodedTx2Wal3 <- request @(ApiDecodedTransaction n) ctx
             (Link.decodeTransaction @'Shared sharedWal3) Default decodePayload2
-        rDecodedTx2Target <- request @(ApiDecodedTransaction n) ctx
-            (Link.decodeTransaction @'Shelley wb) Default decodePayload2
 
         let oneVerKeyWitness = mkApiWitnessCount WitnessCount
                 { verificationKey = 1
@@ -777,7 +768,6 @@ spec = describe "SHARED_TRANSACTIONS" $ do
         verify rDecodedTx2Wal1 witsExp2
         verify rDecodedTx2Wal2 witsExp2
         verify rDecodedTx2Wal3 witsExp2
-        verify rDecodedTx2Target witsExp2
 
         submittedTx1 <- submitSharedTxWithWid ctx sharedWal1 signedTx1
         verify submittedTx1
@@ -1805,17 +1795,6 @@ spec = describe "SHARED_TRANSACTIONS" $ do
                  }]
              }|]
 
-     --TODO- ADP-2312 Hack until we figure out what to do with Role in KeyHash. We
-     --may just get rid of it n the end if I cannot do it right in decodeTransaction
-     changeRole :: CA.KeyRole -> Script KeyHash -> Script KeyHash
-     changeRole role = \case
-         RequireSignatureOf (KeyHash _ p) -> RequireSignatureOf $ KeyHash role p
-         RequireAllOf xs      -> RequireAllOf (map (changeRole role) xs)
-         RequireAnyOf xs      -> RequireAnyOf (map (changeRole role) xs)
-         RequireSomeOf m xs   -> RequireSomeOf m (map (changeRole role) xs)
-         ActiveFromSlot s     -> ActiveFromSlot s
-         ActiveUntilSlot s    -> ActiveUntilSlot s
-
      singleOutputTxTwoParty ctx sharedWal1 sharedWal2 = do
         -- check we see balance from two wallets
         rSharedWal1 <- getSharedWallet ctx (ApiSharedWallet (Right sharedWal1))
@@ -1892,8 +1871,7 @@ spec = describe "SHARED_TRANSACTIONS" $ do
         let (ApiScriptTemplate scriptTemplate) =
                 sharedWal1 ^. #paymentScriptTemplate
         let paymentScript =
-                -- TODO- ADP-2312 We will want CA.Payment here
-                NativeScript $ changeRole CA.Policy $
+                NativeScript $
                 replaceCosignersWithVerKeys CA.UTxOExternal scriptTemplate (Index 1)
 
         let noVerKeyWitness = mkApiWitnessCount WitnessCount
