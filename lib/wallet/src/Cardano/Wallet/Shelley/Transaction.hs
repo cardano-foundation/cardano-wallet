@@ -96,7 +96,7 @@ import Cardano.Slotting.EpochInfo
     ( EpochInfo )
 import Cardano.Slotting.EpochInfo.API
     ( hoistEpochInfo )
-import Cardano.Wallet.CoinSelection
+import Cardano.Tx.Balance.Internal.CoinSelection
     ( SelectionLimitOf (..)
     , SelectionOf (..)
     , SelectionSkeleton (..)

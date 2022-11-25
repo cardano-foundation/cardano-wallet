@@ -42,7 +42,8 @@ index-state: 2022-05-18T00:00:00Z
 with-compiler: ghc-8.10.7
 
 packages:
-    lib/coin-selection/
+    lib/balance-tx/
+  , lib/coin-selection/
   , lib/dbvar/
   , lib/launcher/
   , lib/numeric/
@@ -389,6 +390,14 @@ package dbvar
   tests: True
   ghc-options: -fwrite-ide-info
 
+package cardano-balance-tx
+  tests: True
+  ghc-options: -fwrite-ide-info
+
+package cardano-coin-selection
+  tests: True
+  ghc-options: -fwrite-ide-info
+
 package cardano-wallet
   tests: True
   ghc-options: -fwrite-ide-info
@@ -398,10 +407,6 @@ package cardano-wallet-api-http
   ghc-options: -fwrite-ide-info
 
 package cardano-wallet-cli
-  tests: True
-  ghc-options: -fwrite-ide-info
-
-package cardano-wallet-coin-selection
   tests: True
   ghc-options: -fwrite-ide-info
 

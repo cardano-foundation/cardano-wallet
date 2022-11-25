@@ -75,6 +75,18 @@ import Cardano.Numeric.Util
     ( power )
 import Cardano.Pool.Types
     ( PoolId (..) )
+import Cardano.Tx.Balance.Internal.CoinSelection
+    ( SelectionBalanceError (..)
+    , SelectionError (..)
+    , SelectionOf (..)
+    , SelectionOutputError (..)
+    , SelectionOutputErrorInfo (..)
+    , UnableToConstructChangeError (..)
+    , WalletUTxO (..)
+    , balanceMissing
+    , emptySkeleton
+    , selectionDelta
+    )
 import Cardano.Wallet
     ( ErrBalanceTx (..)
     , ErrBalanceTxInternalError (..)
@@ -90,18 +102,6 @@ import Cardano.Wallet
     )
 import Cardano.Wallet.Byron.Compatibility
     ( maryTokenBundleMaxSize )
-import Cardano.Wallet.CoinSelection
-    ( SelectionBalanceError (..)
-    , SelectionError (..)
-    , SelectionOf (..)
-    , SelectionOutputError (..)
-    , SelectionOutputErrorInfo (..)
-    , UnableToConstructChangeError (..)
-    , WalletUTxO (..)
-    , balanceMissing
-    , emptySkeleton
-    , selectionDelta
-    )
 import Cardano.Wallet.Gen
     ( genMnemonic, genScript )
 import Cardano.Wallet.Primitive.AddressDerivation
@@ -431,7 +431,7 @@ import qualified Cardano.Ledger.Crypto as Crypto
 import qualified Cardano.Ledger.Serialization as Ledger
 import qualified Cardano.Ledger.Shelley.API as SL
 import qualified Cardano.Ledger.Val as Value
-import qualified Cardano.Wallet.CoinSelection as CS
+import qualified Cardano.Tx.Balance.Internal.CoinSelection as CS
 import qualified Cardano.Wallet.Primitive.AddressDerivation.Shelley as Shelley
 import qualified Cardano.Wallet.Primitive.Types.Coin as Coin
 import qualified Cardano.Wallet.Primitive.Types.TokenBundle as TokenBundle

@@ -156,6 +156,8 @@ import Cardano.Mnemonic
     ( SomeMnemonic )
 import Cardano.Pool.Types
     ( PoolId )
+import Cardano.Tx.Balance.Internal.CoinSelection
+    ( SelectionOf (..), SelectionStrategy (..), selectionDelta )
 import Cardano.Wallet
     ( ErrBalanceTx (..)
     , ErrConstructSharedWallet (..)
@@ -341,8 +343,6 @@ import Cardano.Wallet.Api.Types.SchemaMetadata
     ( TxMetadataSchema (..), TxMetadataWithSchema (TxMetadataWithSchema) )
 import Cardano.Wallet.Api.Types.Transaction
     ( ApiValidityIntervalExplicit (..), mkApiWitnessCount )
-import Cardano.Wallet.CoinSelection
-    ( SelectionOf (..), SelectionStrategy (..), selectionDelta )
 import Cardano.Wallet.Compat
     ( (^?) )
 import Cardano.Wallet.DB

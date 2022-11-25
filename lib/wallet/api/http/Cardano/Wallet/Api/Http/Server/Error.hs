@@ -29,6 +29,18 @@ import Cardano.Address.Script
     ( Cosigner (..) )
 import Cardano.Ledger.Alonzo.TxInfo
     ( TranslationError (..) )
+import Cardano.Tx.Balance.Internal.CoinSelection
+    ( SelectionBalanceError (..)
+    , SelectionCollateralError
+    , SelectionError (..)
+    , SelectionOutputError (..)
+    , SelectionOutputErrorInfo (..)
+    , SelectionOutputSizeExceedsLimitError
+    , SelectionOutputTokenQuantityExceedsLimitError (..)
+    , UnableToConstructChangeError (..)
+    , WalletSelectionContext
+    , balanceMissing
+    )
 import Cardano.Wallet
     ( ErrAddCosignerKey (..)
     , ErrBalanceTx (..)
@@ -83,18 +95,6 @@ import Cardano.Wallet.Api.Types.Error
     , ApiErrorInfo (..)
     , ApiErrorMessage (..)
     , ApiErrorTxOutputLovelaceInsufficient (..)
-    )
-import Cardano.Wallet.CoinSelection
-    ( SelectionBalanceError (..)
-    , SelectionCollateralError
-    , SelectionError (..)
-    , SelectionOutputError (..)
-    , SelectionOutputErrorInfo (..)
-    , SelectionOutputSizeExceedsLimitError
-    , SelectionOutputTokenQuantityExceedsLimitError (..)
-    , UnableToConstructChangeError (..)
-    , WalletSelectionContext
-    , balanceMissing
     )
 import Cardano.Wallet.Primitive.AddressDerivation
     ( DerivationType (Hardened, Soft), Index (Index) )

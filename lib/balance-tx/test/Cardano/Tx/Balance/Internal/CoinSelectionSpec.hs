@@ -1,12 +1,12 @@
 {-# LANGUAGE FlexibleInstances #-}
 {-# OPTIONS_GHC -fno-warn-orphans #-}
 
-module Cardano.Wallet.CoinSelectionSpec
+module Cardano.Tx.Balance.Internal.CoinSelectionSpec
     where
 
 import Prelude
 
-import Cardano.Wallet.CoinSelection
+import Cardano.Tx.Balance.Internal.CoinSelection
     ( Selection
     , SelectionOf (..)
     , toExternalSelection

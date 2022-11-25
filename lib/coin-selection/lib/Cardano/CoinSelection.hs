@@ -14,11 +14,7 @@
 -- Copyright: © 2021 IOHK
 -- License: Apache-2.0
 --
--- This module provides INTERNAL functions and types for coin selection.
---
--- It is recommended to import from 'Cardano.Wallet.CoinSelection' instead.
---
-module Cardano.Wallet.CoinSelection.Internal
+module Cardano.CoinSelection
     (
     -- * Performing selections
       performSelection
@@ -70,14 +66,14 @@ import Prelude
 
 import Algebra.PartialOrd
     ( PartialOrd (..) )
-import Cardano.Wallet.CoinSelection.Internal.Balance
+import Cardano.CoinSelection.Balance
     ( SelectionBalanceError (..)
     , SelectionDelta (..)
     , SelectionLimit
     , SelectionSkeleton
     , SelectionStrategy (..)
     )
-import Cardano.Wallet.CoinSelection.Internal.Context
+import Cardano.CoinSelection.Context
     ( SelectionContext (..) )
 import Cardano.Wallet.Primitive.Types.Coin
     ( Coin (..) )
@@ -124,8 +120,8 @@ import GHC.Stack
 import Numeric.Natural
     ( Natural )
 
-import qualified Cardano.Wallet.CoinSelection.Internal.Balance as Balance
-import qualified Cardano.Wallet.CoinSelection.Internal.Collateral as Collateral
+import qualified Cardano.CoinSelection.Balance as Balance
+import qualified Cardano.CoinSelection.Collateral as Collateral
 import qualified Cardano.Wallet.Primitive.Types.TokenBundle as TokenBundle
 import qualified Cardano.Wallet.Primitive.Types.TokenMap as TokenMap
 import qualified Cardano.Wallet.Primitive.Types.UTxOSelection as UTxOSelection

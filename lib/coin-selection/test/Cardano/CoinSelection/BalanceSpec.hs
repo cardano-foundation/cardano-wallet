@@ -15,7 +15,7 @@
 {-# OPTIONS_GHC -fno-warn-orphans #-}
 {- HLINT ignore "Use camelCase" -}
 
-module Cardano.Wallet.CoinSelection.Internal.BalanceSpec
+module Cardano.CoinSelection.BalanceSpec
     ( spec
     , MockAssessTokenBundleSize
     , MockComputeMinimumAdaQuantity
@@ -42,9 +42,7 @@ import Prelude
 
 import Algebra.PartialOrd
     ( PartialOrd (..) )
-import Cardano.Numeric.Util
-    ( inAscendingPartialOrder )
-import Cardano.Wallet.CoinSelection.Internal.Balance
+import Cardano.CoinSelection.Balance
     ( AssetCount (..)
     , BalanceInsufficientError (..)
     , MakeChangeCriteria (..)
@@ -100,12 +98,14 @@ import Cardano.Wallet.CoinSelection.Internal.Balance
     , splitBundlesWithExcessiveTokenQuantities
     , ungroupByKey
     )
-import Cardano.Wallet.CoinSelection.Internal.Balance.Gen
+import Cardano.CoinSelection.Balance.Gen
     ( genSelectionLimit
     , genSelectionStrategy
     , shrinkSelectionLimit
     , shrinkSelectionStrategy
     )
+import Cardano.Numeric.Util
+    ( inAscendingPartialOrder )
 import Cardano.Wallet.Primitive.Types.Coin
     ( Coin (..) )
 import Cardano.Wallet.Primitive.Types.Coin.Gen
@@ -241,7 +241,7 @@ import Test.Utils.Laws
 import Test.Utils.Pretty
     ( Pretty (..) )
 
-import qualified Cardano.Wallet.CoinSelection.Internal.Context as SC
+import qualified Cardano.CoinSelection.Context as SC
 import qualified Cardano.Wallet.Primitive.Types.Coin as Coin
 import qualified Cardano.Wallet.Primitive.Types.TokenBundle as TokenBundle
 import qualified Cardano.Wallet.Primitive.Types.TokenMap as TokenMap
@@ -256,7 +256,7 @@ import qualified Data.Maybe as Maybe
 import qualified Data.Set as Set
 
 spec :: Spec
-spec = describe "Cardano.Wallet.CoinSelection.Internal.BalanceSpec" $
+spec = describe "Cardano.CoinSelection.BalanceSpec" $
 
     modifyMaxSuccess (const 1000) $ do
 
