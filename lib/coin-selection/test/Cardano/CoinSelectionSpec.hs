@@ -13,12 +13,12 @@
 {-# OPTIONS_GHC -fno-warn-orphans #-}
 {- HLINT ignore "Use camelCase" -}
 
-module Cardano.Wallet.CoinSelection.InternalSpec
+module Cardano.CoinSelectionSpec
     where
 
 import Prelude
 
-import Cardano.Wallet.CoinSelection.Internal
+import Cardano.CoinSelection
     ( ComputeMinimumCollateralParams (..)
     , Selection
     , SelectionCollateralError (..)
@@ -37,15 +37,15 @@ import Cardano.Wallet.CoinSelection.Internal
     , verifySelection
     , verifySelectionError
     )
-import Cardano.Wallet.CoinSelection.Internal.Balance
+import Cardano.CoinSelection.Balance
     ( SelectionLimit, SelectionSkeleton )
-import Cardano.Wallet.CoinSelection.Internal.Balance.Gen
+import Cardano.CoinSelection.Balance.Gen
     ( genSelectionSkeleton
     , genSelectionStrategy
     , shrinkSelectionSkeleton
     , shrinkSelectionStrategy
     )
-import Cardano.Wallet.CoinSelection.Internal.BalanceSpec
+import Cardano.CoinSelection.BalanceSpec
     ( MockAssessTokenBundleSize
     , MockComputeMinimumAdaQuantity
     , MockComputeMinimumCost
@@ -150,14 +150,14 @@ import Test.QuickCheck.Extra
 import Test.QuickCheck.Monadic
     ( monadicIO, run )
 
-import qualified Cardano.Wallet.CoinSelection.Internal.Balance as Balance
+import qualified Cardano.CoinSelection.Balance as Balance
 import qualified Cardano.Wallet.Primitive.Types.TokenBundle as TokenBundle
 import qualified Cardano.Wallet.Primitive.Types.TokenMap as TokenMap
 import qualified Cardano.Wallet.Primitive.Types.UTxOSelection as UTxOSelection
 import qualified Data.Foldable as F
 
 spec :: Spec
-spec = describe "Cardano.Wallet.CoinSelection.InternalSpec" $ do
+spec = describe "Cardano.CoinSelectionSpec" $ do
 
     parallel $ describe "Performing selections" $ do
 

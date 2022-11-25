@@ -1,7 +1,7 @@
 {-# LANGUAGE LambdaCase #-}
 {-# LANGUAGE TypeApplications #-}
 
-module Cardano.Wallet.CoinSelection.Internal.Balance.Gen
+module Cardano.CoinSelection.Balance.Gen
     ( genSelectionLimit
     , genSelectionSkeleton
     , genSelectionStrategy
@@ -13,13 +13,13 @@ module Cardano.Wallet.CoinSelection.Internal.Balance.Gen
 
 import Prelude
 
-import Cardano.Wallet.CoinSelection.Internal.Balance
+import Cardano.CoinSelection.Balance
     ( SelectionLimit
     , SelectionLimitOf (..)
     , SelectionSkeleton (..)
     , SelectionStrategy (..)
     )
-import Cardano.Wallet.CoinSelection.Internal.Context
+import Cardano.CoinSelection.Context
     ( SelectionContext (..) )
 import Cardano.Wallet.Primitive.Types.Coin
     ( Coin (..) )

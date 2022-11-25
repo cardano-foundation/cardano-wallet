@@ -9,7 +9,7 @@
 -- This module provides the 'SelectionContext' class, which provides a shared
 -- context for types used by coin selection.
 --
-module Cardano.Wallet.CoinSelection.Internal.Context
+module Cardano.CoinSelection.Context
     (
     -- * Selection contexts
       SelectionContext (..)

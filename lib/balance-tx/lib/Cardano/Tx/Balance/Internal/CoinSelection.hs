@@ -78,7 +78,7 @@ module Cardano.Tx.Balance.Internal.CoinSelection
     )
     where
 
-import Cardano.Wallet.CoinSelection.Internal
+import Cardano.CoinSelection
     ( SelectionCollateralError
     , SelectionCollateralRequirement (..)
     , SelectionError (..)
@@ -88,7 +88,7 @@ import Cardano.Wallet.CoinSelection.Internal
     , SelectionOutputSizeExceedsLimitError (..)
     , SelectionOutputTokenQuantityExceedsLimitError (..)
     )
-import Cardano.Wallet.CoinSelection.Internal.Balance
+import Cardano.CoinSelection.Balance
     ( BalanceInsufficientError (..)
     , SelectionBalanceError (..)
     , SelectionLimit
@@ -142,8 +142,8 @@ import Numeric.Natural
 
 import Prelude
 
-import qualified Cardano.Wallet.CoinSelection.Internal as Internal
-import qualified Cardano.Wallet.CoinSelection.Internal.Context as SC
+import qualified Cardano.CoinSelection as Internal
+import qualified Cardano.CoinSelection.Context as SC
 import qualified Cardano.Wallet.Primitive.Types.TokenBundle as TokenBundle
 import qualified Data.Foldable as F
 import qualified Data.Map.Strict as Map

@@ -28,7 +28,7 @@
 -- See documentation for the 'performSelection' function for more details on
 -- how to perform a selection.
 --
-module Cardano.Wallet.CoinSelection.Internal.Balance
+module Cardano.CoinSelection.Balance
     (
     -- * Performing a selection
       PerformSelection
@@ -126,10 +126,10 @@ import Prelude
 
 import Algebra.PartialOrd
     ( PartialOrd (..) )
+import Cardano.CoinSelection.Context
+    ( SelectionContext (..) )
 import Cardano.Numeric.Util
     ( padCoalesce )
-import Cardano.Wallet.CoinSelection.Internal.Context
-    ( SelectionContext (..) )
 import Cardano.Wallet.Primitive.Types.Coin
     ( Coin (..) )
 import Cardano.Wallet.Primitive.Types.TokenBundle
