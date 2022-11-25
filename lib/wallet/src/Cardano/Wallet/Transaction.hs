@@ -68,7 +68,7 @@ import Cardano.Ledger.Crypto
     ( StandardCrypto )
 import Cardano.Pool.Types
     ( PoolId )
-import Cardano.Wallet.CoinSelection
+import Cardano.Tx.Balance.Internal.CoinSelection
     ( SelectionCollateralRequirement (..)
     , SelectionLimit
     , SelectionOf (..)

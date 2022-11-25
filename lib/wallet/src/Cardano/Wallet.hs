@@ -235,15 +235,7 @@ import Cardano.Pool.Types
     ( PoolId )
 import Cardano.Slotting.Slot
     ( SlotNo (..) )
-import Cardano.Wallet.Address.Book
-    ( AddressBookIso, Prologue (..), getDiscoveries, getPrologue )
-import Cardano.Wallet.Checkpoints
-    ( DeltaCheckpoints (..)
-    , SparseCheckpointsConfig (..)
-    , defaultSparseCheckpointsConfig
-    , sparseCheckpoints
-    )
-import Cardano.Wallet.CoinSelection
+import Cardano.Tx.Balance.Internal.CoinSelection
     ( Selection
     , SelectionBalanceError (..)
     , SelectionCollateralRequirement (..)
@@ -263,6 +255,14 @@ import Cardano.Wallet.CoinSelection
     , makeSelectionReportDetailed
     , makeSelectionReportSummarized
     , performSelection
+    )
+import Cardano.Wallet.Address.Book
+    ( AddressBookIso, Prologue (..), getDiscoveries, getPrologue )
+import Cardano.Wallet.Checkpoints
+    ( DeltaCheckpoints (..)
+    , SparseCheckpointsConfig (..)
+    , defaultSparseCheckpointsConfig
+    , sparseCheckpoints
     )
 import Cardano.Wallet.CoinSelection.Internal.Balance
     ( SelectionLimitOf (NoLimit) )
@@ -613,8 +613,8 @@ import qualified Cardano.Address.Style.Shelley as CAShelley
 import qualified Cardano.Api as Cardano
 import qualified Cardano.Api.Shelley as Cardano
 import qualified Cardano.Crypto.Wallet as CC
+import qualified Cardano.Tx.Balance.Internal.CoinSelection as CS
 import qualified Cardano.Wallet.Checkpoints.Policy as CP
-import qualified Cardano.Wallet.CoinSelection as CS
 import qualified Cardano.Wallet.DB.WalletState as WS
 import qualified Cardano.Wallet.Primitive.AddressDiscovery.Random as Rnd
 import qualified Cardano.Wallet.Primitive.AddressDiscovery.Sequential as Seq

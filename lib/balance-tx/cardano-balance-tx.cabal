@@ -51,8 +51,8 @@ library
     , transformers
   exposed-modules:
     Cardano.Tx.Balance
-    Cardano.Wallet.CoinSelection
-    Cardano.Wallet.CoinSelection.Gen
+    Cardano.Tx.Balance.Internal.CoinSelection
+    Cardano.Tx.Balance.Internal.CoinSelection.Gen
 
 test-suite test
   import:             language, opts-exe
@@ -72,5 +72,5 @@ test-suite test
     , QuickCheck
   build-tool-depends: hspec-discover:hspec-discover
   other-modules:
-    Cardano.Wallet.CoinSelectionSpec
+    Cardano.Tx.Balance.Internal.CoinSelectionSpec
     Spec

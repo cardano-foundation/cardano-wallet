@@ -52,6 +52,8 @@ import Cardano.BM.Trace
     ( Trace, nullTracer )
 import Cardano.Mnemonic
     ( SomeMnemonic (..), entropyToMnemonic )
+import Cardano.Tx.Balance.Internal.CoinSelection
+    ( SelectionStrategy (..), selectionDelta )
 import Cardano.Wallet
     ( WalletLayer (..), WalletWorkerLog (..), networkLayer )
 import Cardano.Wallet.Api.Types
@@ -65,8 +67,6 @@ import Cardano.Wallet.BenchShared
     , initBenchmarkLogging
     , runBenchmarks
     )
-import Cardano.Wallet.CoinSelection
-    ( SelectionStrategy (..), selectionDelta )
 import Cardano.Wallet.DB
     ( DBLayer )
 import Cardano.Wallet.DB.Layer

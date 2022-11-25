@@ -30,6 +30,11 @@ import Cardano.Mnemonic
     ( SomeMnemonic (..) )
 import Cardano.Pool.Types
     ( PoolId (..) )
+import Cardano.Tx.Balance.Internal.CoinSelection
+    ( BalanceInsufficientError (..)
+    , SelectionBalanceError (..)
+    , SelectionError (..)
+    )
 import Cardano.Wallet
     ( ErrSignPayment (..)
     , ErrSubmitTx (..)
@@ -41,11 +46,6 @@ import Cardano.Wallet
     , migrationPlanToSelectionWithdrawals
     , runLocalTxSubmissionPool
     , throttle
-    )
-import Cardano.Wallet.CoinSelection
-    ( BalanceInsufficientError (..)
-    , SelectionBalanceError (..)
-    , SelectionError (..)
     )
 import Cardano.Wallet.DB
     ( DBLayer (..), putTxHistory )

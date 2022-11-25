@@ -23,7 +23,7 @@
 --
 -- Use the 'performSelection' function to perform a coin selection.
 --
-module Cardano.Wallet.CoinSelection
+module Cardano.Tx.Balance.Internal.CoinSelection
     (
     -- * Selection contexts
       WalletSelectionContext
