@@ -2346,6 +2346,9 @@ balanceTransactionSpec = describe "balanceTransaction" $ do
 
     balanceTransactionGoldenSpec
 
+    it "<test failure>" $ do
+        True `shouldBe` False
+
     describe "posAndNegFromCardanoValue" $
         it "roundtrips with toCardanoValue" $
             property prop_posAndNegFromCardanoValueRoundtrip
