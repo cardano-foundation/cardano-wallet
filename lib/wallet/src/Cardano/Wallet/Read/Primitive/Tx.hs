@@ -58,11 +58,11 @@ fromCardanoTx witCtx = \case
         Cardano.ShelleyBasedEraAllegra ->
             extract $ fromAllegraTx tx
         Cardano.ShelleyBasedEraMary ->
-            extract $ fromMaryTx tx
+            extract $ fromMaryTx tx witCtx
         Cardano.ShelleyBasedEraAlonzo ->
-            extract $ fromAlonzoTx tx
+            extract $ fromAlonzoTx tx witCtx
         Cardano.ShelleyBasedEraBabbage ->
-            extract $ fromBabbageTx tx
+            extract $ fromBabbageTx tx witCtx
     Cardano.ByronTx tx ->
         ( fromTxAux tx
         , emptyTokenMapWithScripts

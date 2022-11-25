@@ -250,6 +250,8 @@ import Cardano.Wallet.Shelley.Network.Discriminant
     , EncodeAddress (..)
     , EncodeStakeAddress (..)
     )
+import Cardano.Wallet.Transaction
+    ( WitnessCountCtx (..) )
 import Cardano.Wallet.Unsafe
     ( unsafeIntToWord, unsafeMkPercentage )
 import Cardano.Wallet.Util
@@ -658,7 +660,8 @@ fromMaryBlock
     -> (W.Block, [PoolCertificate])
 fromMaryBlock gp blk@(ShelleyBlock (SL.Block _ (SL.TxSeq txs')) _) =
     let
-       (txs, certs, _, _, _, _) = unzip6 $ map fromMaryTx $ toList txs'
+       (txs, certs, _, _, _, _) = unzip6 $
+           map (flip fromMaryTx AnyWitnessCountCtx) $ toList txs'
        certs' = mconcat certs
     in
         ( W.Block
@@ -688,7 +691,8 @@ fromAlonzoBlock
 fromAlonzoBlock gp blk@(ShelleyBlock (SL.Block _ txSeq) _) =
     let
         Alonzo.TxSeq txs' = txSeq
-        (txs, certs, _, _, _, _) = unzip6 $ map fromAlonzoTx $ toList txs'
+        (txs, certs, _, _, _, _) = unzip6 $
+            map (flip fromAlonzoTx AnyWitnessCountCtx) $ toList txs'
         certs' = mconcat certs
     in
         ( W.Block
@@ -708,7 +712,8 @@ fromBabbageBlock
 fromBabbageBlock gp blk@(ShelleyBlock (SL.Block _ txSeq) _) =
     let
         Alonzo.TxSeq txs' = txSeq
-        (txs, certs, _, _, _, _) = unzip6 $ map fromBabbageTx $ toList txs'
+        (txs, certs, _, _, _, _) = unzip6 $
+            map (flip fromBabbageTx AnyWitnessCountCtx) $ toList txs'
         certs' = mconcat certs
     in
         ( W.Block

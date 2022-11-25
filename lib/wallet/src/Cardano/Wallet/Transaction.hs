@@ -42,6 +42,7 @@ module Cardano.Wallet.Transaction
     , WitnessCount (..)
     , emptyWitnessCount
     , WitnessCountCtx (..)
+    , toKeyRole
 
     -- * Errors
     , ErrSignTx (..)
@@ -58,7 +59,7 @@ import Prelude
 import Cardano.Address.Derivation
     ( XPrv, XPub )
 import Cardano.Address.Script
-    ( KeyHash, Script, ScriptTemplate )
+    ( KeyHash, KeyRole (..), Script, ScriptTemplate )
 import Cardano.Api
     ( AnyCardanoEra )
 import Cardano.Api.Extra
@@ -510,6 +511,12 @@ data WitnessCountCtx =
     ShelleyWalletCtx | SharedWalletCtx | AnyWitnessCountCtx
     deriving (Eq, Generic, Show)
     deriving anyclass NFData
+
+toKeyRole :: WitnessCountCtx -> KeyRole
+toKeyRole = \case
+    ShelleyWalletCtx -> Policy
+    SharedWalletCtx -> Payment
+    AnyWitnessCountCtx -> error "WtinessCountCtx was used in wrong place"
 
 data ErrMkTransaction
     = ErrMkTransactionNoSuchWallet WalletId
