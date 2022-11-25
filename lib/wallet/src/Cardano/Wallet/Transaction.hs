@@ -505,8 +505,9 @@ emptyWitnessCount = WitnessCount
 -- In multisig wallet they could stem from payment, policy and delegation roles,
 -- and as minting/burning and delegation support comes will be extended in needed
 -- data to differentiate that.
+-- WitnessCount is needed only during or after signing, in other phases it is not used.
 data WitnessCountCtx =
-    ShelleyWalletCtx | SharedWalletCtx
+    ShelleyWalletCtx | SharedWalletCtx | AnyWitnessCountCtx
     deriving (Eq, Generic, Show)
     deriving anyclass NFData
 
