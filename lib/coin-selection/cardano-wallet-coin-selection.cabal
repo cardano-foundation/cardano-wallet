@@ -57,8 +57,6 @@ library
     , transformers
 
   exposed-modules:
-    Cardano.Wallet.CoinSelection
-    Cardano.Wallet.CoinSelection.Gen
     Cardano.Wallet.CoinSelection.Internal
     Cardano.Wallet.CoinSelection.Internal.Balance
     Cardano.Wallet.CoinSelection.Internal.Balance.Gen
@@ -100,5 +98,4 @@ test-suite test
     Cardano.Wallet.CoinSelection.Internal.BalanceSpec
     Cardano.Wallet.CoinSelection.Internal.CollateralSpec
     Cardano.Wallet.CoinSelection.InternalSpec
-    Cardano.Wallet.CoinSelectionSpec
     Spec

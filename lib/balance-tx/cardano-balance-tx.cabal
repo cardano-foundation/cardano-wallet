@@ -39,8 +39,20 @@ library
   hs-source-dirs:  lib
   build-depends:
     , base
+    , cardano-wallet-coin-selection
+    , cardano-wallet-primitive
+    , cardano-wallet-test-utils
+    , containers
+    , fmt
+    , generic-lens
+    , generics-sop
+    , MonadRandom
+    , QuickCheck
+    , transformers
   exposed-modules:
     Cardano.Tx.Balance
+    Cardano.Wallet.CoinSelection
+    Cardano.Wallet.CoinSelection.Gen
 
 test-suite test
   import:             language, opts-exe
@@ -50,11 +62,15 @@ test-suite test
   main-is:            run-test-suite.hs
   build-depends:
     , base
+    , cardano-balance-tx
     , cardano-wallet-launcher
+    , cardano-wallet-primitive
     , cardano-wallet-test-utils
+    , generics-sop
     , hspec
     , hspec-core
-
+    , QuickCheck
   build-tool-depends: hspec-discover:hspec-discover
   other-modules:
+    Cardano.Wallet.CoinSelectionSpec
     Spec

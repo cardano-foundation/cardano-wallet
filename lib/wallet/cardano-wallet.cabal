@@ -380,6 +380,7 @@ library cardano-wallet-api-http
     , cardano-addresses
     , cardano-addresses-cli
     , cardano-api
+    , cardano-balance-tx
     , cardano-binary
     , cardano-cli
     , cardano-crypto
@@ -682,6 +683,7 @@ test-suite unit
     , bytestring
     , cardano-addresses
     , cardano-api
+    , cardano-balance-tx
     , cardano-binary
     , cardano-crypto
     , cardano-crypto-class
@@ -922,6 +924,7 @@ benchmark restore
     , base
     , bytestring
     , cardano-addresses
+    , cardano-balance-tx
     , cardano-wallet
     , cardano-wallet-api-http
     , cardano-wallet-coin-selection
