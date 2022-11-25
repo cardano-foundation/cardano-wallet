@@ -35,6 +35,10 @@
   inputs = {
     nixpkgs.follows = "haskellNix/nixpkgs-unstable";
     hostNixpkgs.follows = "nixpkgs";
+    CHaP = {
+      url = "github:input-output-hk/cardano-haskell-packages?ref=repo";
+      flake = false;
+    };
     haskellNix = {
       url = "github:input-output-hk/haskell.nix";
       inputs.nixpkgs.follows = "nixpkgs";
@@ -61,7 +65,7 @@
     };
   };
 
-  outputs = { self, nixpkgs, hostNixpkgs, flake-utils, haskellNix, iohkNix, customConfig, emanote, tullia, ... }:
+  outputs = { self, nixpkgs, hostNixpkgs, flake-utils, haskellNix, iohkNix, CHaP, customConfig, emanote, tullia, ... }:
     let
       inherit (nixpkgs) lib;
       config = import ./nix/config.nix lib customConfig;
@@ -150,7 +154,7 @@
               collectChecks
               check;
 
-            project = (import ./nix/haskell.nix pkgs.haskell-nix).appendModule [{
+            project = (import ./nix/haskell.nix CHaP pkgs.haskell-nix).appendModule [{
               gitrev =
                 if config.gitrev != null
                 then config.gitrev
