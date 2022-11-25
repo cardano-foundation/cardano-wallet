@@ -1,0 +1,59 @@
+cabal-version:      2.2
+name:               cardano-balance-tx
+version:            2022.10.6
+synopsis:           Balancing transactions for the Cardano blockchain.
+description:        Please see README.md.
+homepage:           https://github.com/input-output-hk/cardano-wallet
+author:             IOHK Engineering Team
+maintainer:         operations@iohk.io
+copyright:          2018-2022 IOHK
+license:            Apache-2.0
+category:           Blockchain, Cardano, Transactions
+build-type:         Simple
+
+common language
+  default-language:   Haskell2010
+  default-extensions:
+    NoImplicitPrelude
+    OverloadedStrings
+
+common opts-lib
+  ghc-options: -Wall -Wcompat -fwarn-redundant-constraints
+
+  if flag(release)
+    ghc-options: -O2 -Werror
+
+common opts-exe
+  ghc-options: -threaded -rtsopts -Wall
+
+  if flag(release)
+    ghc-options: -O2 -Werror
+
+flag release
+  description: Enable optimization and `-Werror`
+  default:     False
+  manual:      True
+
+library
+  import:          language, opts-lib
+  hs-source-dirs:  lib
+  build-depends:
+    , base
+  exposed-modules:
+
+test-suite test
+  import:             language, opts-exe
+  ghc-options:        -with-rtsopts=-M2G -with-rtsopts=-N4
+  type:               exitcode-stdio-1.0
+  hs-source-dirs:     test
+  main-is:            run-test-suite.hs
+  build-depends:
+    , base
+    , cardano-wallet-launcher
+    , cardano-wallet-test-utils
+    , hspec
+    , hspec-core
+
+  build-tool-depends: hspec-discover:hspec-discover
+  other-modules:
+    Spec
