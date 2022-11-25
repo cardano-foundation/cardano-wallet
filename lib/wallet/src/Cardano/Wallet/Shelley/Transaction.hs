@@ -727,10 +727,10 @@ mkDelegationCertificates da accXPub =
        Join poolId ->
                [ toStakePoolDlgCert accXPub poolId ]
        JoinRegsteringKey poolId _depositAmount ->
-               [ toStakeKeyRegCert  accXPub
-               , toStakePoolDlgCert accXPub poolId
-               ]
-       Quit -> [toStakeKeyDeregCert accXPub]
+            [ toStakeKeyRegCert accXPub
+            , toStakePoolDlgCert accXPub poolId
+            ]
+       Quit _refundAmount -> [toStakeKeyDeregCert accXPub]
 
 
 -- | For testing that

@@ -2405,7 +2405,7 @@ selectAssets ctx era pp params transform = do
                 withdrawalToCoin $ params ^. #txContext . #txWithdrawal
             , certificateDepositsReturned =
                 case params ^. #txContext . #txDelegationAction of
-                    Just Quit -> 1
+                    Just (Quit _refund) -> 1
                     _ -> 0
             , certificateDepositsTaken =
                 case params ^. #txContext . #txDelegationAction of

@@ -25,6 +25,7 @@ module Cardano.Wallet.Transaction
       TransactionLayer (..)
     , DelegationAction (..)
     , delegationActionDeposit
+    , delegationActionRefund
     , TransactionCtx (..)
     , PreSelection (..)
     , defaultTransactionCtx
@@ -446,15 +447,21 @@ data DelegationAction
     -- ^ Join stake pool, registering stake key with deposit amount in `Coin`s
     | Join PoolId
     -- ^ Join stake pool, assuming that stake key has been registered before.
-    | Quit
-    -- ^ Quit all stake pools
+    | Quit Coin
+    -- ^ Quit all stake pools, receiving deposit amount in `Coin`s back.
     deriving (Show, Eq, Generic)
 
 delegationActionDeposit :: DelegationAction -> Maybe Coin
 delegationActionDeposit = \case
   JoinRegsteringKey _poolId deposit -> Just deposit
   Join _poolId -> Nothing
-  Quit -> Nothing
+  Quit _refund -> Nothing
+
+delegationActionRefund :: DelegationAction -> Maybe Coin
+delegationActionRefund = \case
+  JoinRegsteringKey _poolId _deposit -> Nothing
+  Join _poolId -> Nothing
+  Quit refund -> Just refund
 
 instance Buildable DelegationAction where
     build = genericF
