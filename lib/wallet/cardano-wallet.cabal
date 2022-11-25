@@ -72,7 +72,6 @@ library
     , cardano-balance-tx
     , cardano-binary
     , cardano-cli
-    , cardano-coin-selection
     , cardano-crypto
     , cardano-crypto-class
     , cardano-crypto-test
@@ -383,7 +382,6 @@ library cardano-wallet-api-http
     , cardano-balance-tx
     , cardano-binary
     , cardano-cli
-    , cardano-coin-selection
     , cardano-crypto
     , cardano-ledger-alonzo
     , cardano-ledger-byron
@@ -685,7 +683,6 @@ test-suite unit
     , cardano-api
     , cardano-balance-tx
     , cardano-binary
-    , cardano-coin-selection
     , cardano-crypto
     , cardano-crypto-class
     , cardano-crypto-wrapper
@@ -925,7 +922,6 @@ benchmark restore
     , bytestring
     , cardano-addresses
     , cardano-balance-tx
-    , cardano-coin-selection
     , cardano-wallet
     , cardano-wallet-api-http
     , cardano-wallet-integration

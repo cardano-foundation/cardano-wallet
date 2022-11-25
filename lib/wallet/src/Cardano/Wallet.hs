@@ -227,8 +227,6 @@ import Cardano.BM.Data.Severity
     ( Severity (..) )
 import Cardano.BM.Data.Tracer
     ( HasPrivacyAnnotation (..), HasSeverityAnnotation (..) )
-import Cardano.CoinSelection.Balance
-    ( SelectionLimitOf (NoLimit) )
 import Cardano.Crypto.Wallet
     ( toXPub )
 import Cardano.Mnemonic
@@ -243,6 +241,7 @@ import Cardano.Tx.Balance.Internal.CoinSelection
     , SelectionCollateralRequirement (..)
     , SelectionConstraints (..)
     , SelectionError (..)
+    , SelectionLimitOf (NoLimit)
     , SelectionOf (..)
     , SelectionOutputError (..)
     , SelectionParams (..)
