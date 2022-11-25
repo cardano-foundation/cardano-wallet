@@ -69,6 +69,7 @@ library
     , cardano-addresses
     , cardano-addresses-cli
     , cardano-api
+    , cardano-balance-tx
     , cardano-binary
     , cardano-cli
     , cardano-crypto
