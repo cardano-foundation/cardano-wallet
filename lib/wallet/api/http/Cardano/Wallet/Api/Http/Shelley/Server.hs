@@ -1755,7 +1755,7 @@ selectCoinsForJoin ctx knownPools getPoolStatus pid wid = do
         let deposits = case action of
                 JoinRegsteringKey _poolId deposit -> [deposit]
                 Join _poolId -> []
-                Quit _redund -> []
+                Quit _refund -> []
 
         pure $ mkApiCoinSelection deposits [] (Just (action, path)) Nothing utx
 
