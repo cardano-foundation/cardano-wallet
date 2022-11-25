@@ -1,14 +1,14 @@
 cabal-version:      2.2
-name:               cardano-wallet-coin-selection
+name:               cardano-coin-selection
 version:            2022.10.6
-synopsis:           Coin selection algorithms for Cardano Wallet.
+synopsis:           Coin selection algorithms for the Cardano blockchain.
 description:        Please see README.md.
 homepage:           https://github.com/input-output-hk/cardano-wallet
 author:             IOHK Engineering Team
 maintainer:         operations@iohk.io
 copyright:          2018-2022 IOHK
 license:            Apache-2.0
-category:           Web
+category:           Blockchain, Cardano
 build-type:         Simple
 
 common language
@@ -72,8 +72,8 @@ test-suite test
   build-depends:
     , base
     , bytestring
+    , cardano-coin-selection
     , cardano-numeric
-    , cardano-wallet-coin-selection
     , cardano-wallet-launcher
     , cardano-wallet-primitive
     , cardano-wallet-test-utils

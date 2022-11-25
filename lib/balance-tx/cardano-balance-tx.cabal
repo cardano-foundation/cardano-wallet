@@ -39,7 +39,7 @@ library
   hs-source-dirs:  lib
   build-depends:
     , base
-    , cardano-wallet-coin-selection
+    , cardano-coin-selection
     , cardano-wallet-primitive
     , cardano-wallet-test-utils
     , containers

@@ -394,6 +394,10 @@ package cardano-balance-tx
   tests: True
   ghc-options: -fwrite-ide-info
 
+package cardano-coin-selection
+  tests: True
+  ghc-options: -fwrite-ide-info
+
 package cardano-wallet
   tests: True
   ghc-options: -fwrite-ide-info
@@ -403,10 +407,6 @@ package cardano-wallet-api-http
   ghc-options: -fwrite-ide-info
 
 package cardano-wallet-cli
-  tests: True
-  ghc-options: -fwrite-ide-info
-
-package cardano-wallet-coin-selection
   tests: True
   ghc-options: -fwrite-ide-info
 
