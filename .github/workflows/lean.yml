@@ -1,0 +1,33 @@
+name: Lean
+
+on:
+  push:
+    branches: [ "master" ]
+    paths: ['specifications/lean/**']
+  pull_request:
+    branches: [ "master" ]
+    paths: ['specifications/lean/**']
+
+permissions:
+  contents: read
+
+defaults:
+  run:
+    working-directory: ./specifications/lean
+
+jobs:
+  lean-syntax:
+    runs-on: ubuntu-latest
+
+    steps:
+    - name: '📥 Checkout repository'
+      uses: actions/checkout@v3
+
+    - name: ✏️ Set up Lean
+      run: |
+        wget https://raw.githubusercontent.com/leanprover/elan/master/elan-init.sh && chmod +x elan-init.sh && ./elan-init.sh -y && rm -f elan-init.sh
+        leanpkg configure
+        lean -v
+
+    - name: 🧪 Verify Lean specs syntax
+      run: lean --recursive .
