@@ -727,3 +727,13 @@ newtype EitherText a = EitherText { getEitherText :: Either Text a }
 
 instance MonadFail EitherText where
     fail = EitherText . Left . T.pack
+
+data TxSubmissionStatusEnum = InSubmissionE | InLedgerE | ExpiredE
+    deriving (Eq, Show, Enum, Generic)
+
+instance PersistField TxSubmissionStatusEnum where
+    toPersistValue = toPersistValue . fromEnum
+    fromPersistValue = fmap toEnum . fromPersistValue
+
+instance PersistFieldSql TxSubmissionStatusEnum where
+    sqlType _ = sqlType (Proxy @Int)
