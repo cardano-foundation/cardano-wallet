@@ -231,9 +231,7 @@ constraints:
   , HSOpenSSL >= 0.11.7.2
   , algebraic-graphs < 0.7
   , protolude < 0.3.1
-    -- TODO: these should be set in cabal files, but avoiding setting them in lower dependencies for initial CHaP release
   , cardano-prelude == 0.1.0.0
---  , cardano-prelude <0.1.0.1
   , base-deriving-via == 0.1.0.0
   , cardano-binary  == 1.5.0
   , cardano-binary-test == 1.3.0
@@ -252,6 +250,7 @@ constraints:
   , plutus-ghc-stub == 8.6.5
   , word-array == 0.1.0.0
   , word-array == 0.1.0.0
+
 -- ----------------------------------------------------------------
 -- Flags for dependencies
 
