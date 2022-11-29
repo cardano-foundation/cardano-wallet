@@ -1576,15 +1576,14 @@ instance Buildable (PartialTx era) where
         cardanoTxF tx' = pretty $ pShow tx'
 
 balanceTransaction
-    :: forall era m s k ktype ctx.
-        ( HasTransactionLayer k ktype ctx
-        , GenChange s
+    :: forall era m s k ktype.
+        ( GenChange s
         , MonadRandom m
-        , HasLogger m WalletWorkerLog ctx
         , WriteTx.IsRecentEra era
         , BoundedAddressLength k
         )
-    => ctx
+    => Tracer m WalletLog
+    -> TransactionLayer k ktype SealedTx
     -> ArgGenChange s
     -> (W.ProtocolParameters, Cardano.ProtocolParameters)
     -- ^ 'Cardano.ProtocolParameters' can be retrieved via a Local State Query
@@ -1610,7 +1609,7 @@ balanceTransaction
     -- @Wallet s@ for change address generation.
     -> PartialTx era
     -> ExceptT ErrBalanceTx m (Cardano.Tx era)
-balanceTransaction ctx change pp ti wallet unadjustedPtx = do
+balanceTransaction tr txLayer change pp ti wallet unadjustedPtx = do
     -- TODO [ADP-1490] Take 'Ledger.PParams era' directly as argument, and avoid
     -- converting to/from Cardano.ProtocolParameters. This may affect
     -- performance. The addition of this one specific conversion seems to have
@@ -1623,7 +1622,7 @@ balanceTransaction ctx change pp ti wallet unadjustedPtx = do
     let balanceWith strategy =
             balanceTransactionWithSelectionStrategyAndNoZeroAdaAdjustment
                 @era @m @s @k @ktype
-                ctx change pp ti wallet strategy adjustedPtx
+                tr txLayer change pp ti wallet strategy adjustedPtx
     balanceWith SelectionStrategyOptimal
         `catchE` \e ->
             if minimalStrategyIsWorthTrying e
@@ -1699,15 +1698,14 @@ increaseZeroAdaOutputs era pp = WriteTx.modifyLedgerBody $
 
 -- | Internal helper to 'balanceTransaction'
 balanceTransactionWithSelectionStrategyAndNoZeroAdaAdjustment
-    :: forall era m s k ktype ctx.
-        ( HasTransactionLayer k ktype ctx
-        , GenChange s
+    :: forall era m s k ktype.
+        ( GenChange s
         , BoundedAddressLength k
         , MonadRandom m
-        , HasLogger m WalletWorkerLog ctx
         , WriteTx.IsRecentEra era
         )
-    => ctx
+    => Tracer m WalletLog
+    -> TransactionLayer k ktype SealedTx
     -> ArgGenChange s
     -> (W.ProtocolParameters, Cardano.ProtocolParameters)
     -> TimeInterpreter (Either PastHorizonException)
@@ -1716,7 +1714,8 @@ balanceTransactionWithSelectionStrategyAndNoZeroAdaAdjustment
     -> PartialTx era
     -> ExceptT ErrBalanceTx m (Cardano.Tx era)
 balanceTransactionWithSelectionStrategyAndNoZeroAdaAdjustment
-    ctx
+    tr
+    txLayer
     generateChange
     (pp, nodePParams)
     ti
@@ -1831,7 +1830,7 @@ balanceTransactionWithSelectionStrategyAndNoZeroAdaAdjustment
         (\(ErrMoreSurplusNeeded c) ->
             ErrBalanceTxInternalError
                 $ ErrUnderestimatedFee c (toSealed candidateTx))
-        (ExceptT . pure $ distributeSurplus tl feePolicy surplus feeAndChange)
+        (ExceptT . pure $ distributeSurplus txLayer feePolicy surplus feeAndChange)
 
     guardTxSize =<< guardTxBalanced =<< (assembleTransaction $ TxUpdate
         { extraInputs
@@ -1840,9 +1839,6 @@ balanceTransactionWithSelectionStrategyAndNoZeroAdaAdjustment
         , feeUpdate = UseNewTxFee updatedFee
         })
   where
-    tl = ctx ^. transactionLayer @k @ktype
-    tr = contramap MsgWallet $ ctx ^. logger @m
-
     toSealed :: Cardano.Tx era -> SealedTx
     toSealed = sealedTxFromCardano . Cardano.InAnyCardanoEra Cardano.cardanoEra
 
@@ -1890,7 +1886,7 @@ balanceTransactionWithSelectionStrategyAndNoZeroAdaAdjustment
 
     guardTxSize :: Cardano.Tx era -> ExceptT ErrBalanceTx m (Cardano.Tx era)
     guardTxSize tx = do
-        let size = estimateSignedTxSize tl nodePParams tx
+        let size = estimateSignedTxSize txLayer nodePParams tx
         let maxSize = TxSize
                 . intCast
                 . getQuantity
@@ -1908,7 +1904,7 @@ balanceTransactionWithSelectionStrategyAndNoZeroAdaAdjustment
 
     txBalance :: Cardano.Tx era -> Cardano.Value
     txBalance tx =
-        evaluateTransactionBalance tl tx nodePParams combinedUTxO
+        evaluateTransactionBalance txLayer tx nodePParams combinedUTxO
 
     balanceAfterSettingMinFee
         :: Cardano.Tx era
@@ -1916,10 +1912,10 @@ balanceTransactionWithSelectionStrategyAndNoZeroAdaAdjustment
     balanceAfterSettingMinFee tx = ExceptT . pure $ do
         -- NOTE: evaluateMinimumFee relies on correctly estimating the required
         -- number of witnesses.
-        let minfee = evaluateMinimumFee tl nodePParams tx
+        let minfee = evaluateMinimumFee txLayer nodePParams tx
         let update = TxUpdate [] [] [] (UseNewTxFee minfee)
-        tx' <- left ErrBalanceTxUpdateError $ updateTx tl tx update
-        let balance = evaluateTransactionBalance tl tx' nodePParams combinedUTxO
+        tx' <- left ErrBalanceTxUpdateError $ updateTx txLayer tx update
+        let balance = evaluateTransactionBalance txLayer tx' nodePParams combinedUTxO
         let minfee' = Cardano.Lovelace $ fromIntegral $ unCoin minfee
         return (balance, minfee')
 
@@ -1973,14 +1969,14 @@ balanceTransactionWithSelectionStrategyAndNoZeroAdaAdjustment
         :: TxUpdate
         -> ExceptT ErrBalanceTx m (Cardano.Tx era)
     assembleTransaction update = ExceptT . pure $ do
-        tx' <- left ErrBalanceTxUpdateError $ updateTx tl partialTx update
+        tx' <- left ErrBalanceTxUpdateError $ updateTx txLayer partialTx update
         left ErrBalanceTxAssignRedeemers $ assignScriptRedeemers
-            tl nodePParams ti combinedUTxO redeemers tx'
+            txLayer nodePParams ti combinedUTxO redeemers tx'
 
     extractOutputsFromTx tx =
         let
             era = Cardano.AnyCardanoEra $ Cardano.cardanoEra @era
-            (Tx {outputs}, _, _, _, _, _) = decodeTx tl era AnyWitnessCountCtx tx
+            (Tx {outputs}, _, _, _, _, _) = decodeTx txLayer era AnyWitnessCountCtx tx
         in outputs
 
     guardConflictingWithdrawalNetworks
@@ -2046,7 +2042,7 @@ balanceTransactionWithSelectionStrategyAndNoZeroAdaAdjustment
         -> Either (SelectionError WalletSelectionContext) Selection
     selectAssets' era outs utxoSelection balance fee0 seed =
         let
-            txPlutusScriptExecutionCost = maxScriptExecutionCost tl pp redeemers
+            txPlutusScriptExecutionCost = maxScriptExecutionCost txLayer pp redeemers
             colReq =
                 if txPlutusScriptExecutionCost > Coin 0 then
                     SelectionCollateralRequired
@@ -2073,7 +2069,7 @@ balanceTransactionWithSelectionStrategyAndNoZeroAdaAdjustment
                         , skeletonChange = []
                         }
                 in calcMinimumCost
-                        tl
+                        txLayer
                         era
                         pp
                         defaultTransactionCtx
@@ -2102,20 +2098,20 @@ balanceTransactionWithSelectionStrategyAndNoZeroAdaAdjustment
             selectionConstraints = SelectionConstraints
                 { assessTokenBundleSize =
                     view #assessTokenBundleSize $
-                    tokenBundleSizeAssessor tl $
+                    tokenBundleSizeAssessor txLayer $
                     pp ^. (#txParameters . #getTokenBundleMaxSize)
                 , certificateDepositAmount =
                     view #stakeKeyDeposit pp
                 , computeMinimumAdaQuantity =
                     view #txOutputMinimumAdaQuantity
-                        (constraints tl era pp)
+                        (constraints txLayer era pp)
                 , isBelowMinimumAdaQuantity =
                     view #txOutputBelowMinimumAdaQuantity
-                        (constraints tl era pp)
+                        (constraints txLayer era pp)
                 , computeMinimumCost = \skeleton -> mconcat
                     [ feePadding
                     , fromCardanoLovelace fee0
-                    , calcMinimumCost tl era pp
+                    , calcMinimumCost txLayer era pp
                         (defaultTransactionCtx
                             { txPlutusScriptExecutionCost =
                                 txPlutusScriptExecutionCost })
