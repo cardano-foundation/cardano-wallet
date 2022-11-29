@@ -58,7 +58,7 @@ test-suite test
   import:             language, opts-exe
   ghc-options:        -with-rtsopts=-M2G -with-rtsopts=-N4
   type:               exitcode-stdio-1.0
-  hs-source-dirs:     test
+  hs-source-dirs:     test/data test/spec
   main-is:            run-test-suite.hs
   build-depends:
     , base
