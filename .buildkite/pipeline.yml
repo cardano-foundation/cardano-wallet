@@ -23,11 +23,6 @@ steps:
   - wait: ~
     if: 'build.branch == "bors/staging"'
 
-  - label: 'Check Cabal Configure'
-    command: 'nix develop .#cabal --command scripts/buildkite/cabal-ci.sh configure'
-    agents:
-      system: x86_64-linux
-
   - label: 'Check auto-generated Nix'
     key: nix
     commands:
@@ -52,14 +47,6 @@ steps:
     command: 'nix develop --command bash -c "echo +++ HLint ; hlint lib"'
     agents:
       system: x86_64-linux
-
-  - label: 'Full cabal build'
-    command:
-      - "mkdir -p config && echo '{  outputs = _: { withCabalCache = true; }; }'  > config/flake.nix"
-      - "nix develop --override-input customConfig path:./config .#cabal --command scripts/buildkite/cabal-ci.sh build"
-    agents:
-      system: x86_64-linux
-    if: 'build.env("step") == null || build.env("step") =~ /cabal/'
 
   - label: 'Validate OpenAPI Specification'
     depends_on: nix
@@ -89,36 +76,5 @@ steps:
     commands:
       - 'echo +++ Shellcheck'
       - './scripts/shellcheck.sh'
-    agents:
-      system: x86_64-linux
-
-  - block: "Clear cabal cache"
-    prompt: "This command cannot guarantee the caches to be cleared on every buildkite agent, but will try to make this likely by scheduling many duplicated cache-clearing steps."
-    key: 'should_clear_cache'
-    allow_dependency_failure: true
-    depends_on: [] # allows triggering this step even if previous steps failed
-
-  - label: 'Clearing cabal cache'
-    command: 'rm -vrf $CABAL_DIR'
-    agents:
-      system: x86_64-linux
-
-  - label: 'Clearing cabal cache 2'
-    command: 'rm -vrf $CABAL_DIR'
-    agents:
-      system: x86_64-linux
-
-  - label: 'Clearing cabal cache 3'
-    command: 'rm -vrf $CABAL_DIR'
-    agents:
-      system: x86_64-linux
-
-  - label: 'Clearing cabal cache 4'
-    command: 'rm -vrf $CABAL_DIR'
-    agents:
-      system: x86_64-linux
-
-  - label: 'Clearing cabal cache 5'
-    command: 'rm -vrf $CABAL_DIR'
     agents:
       system: x86_64-linux
