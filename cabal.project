@@ -138,6 +138,8 @@ source-repository-package
 -- Temporary patch for version 0.1.0.0 (181601bc3d9e9d21a671ce01e0b481348b3ca104)
 -- in order to change io-sim from 606de33fa2f467d108fb1efb86daeb3348bf34e3
 -- to 57e888b1894829056cb00b7b5785fdf6a74c3271 to include the ReaderT fix.
+--
+-- TODO [ADP-2447] This source-repository-package should be removable with next node bump.
 source-repository-package
   type: git
   location: https://github.com/Anviking/typed-protocols.git
@@ -159,6 +161,8 @@ source-repository-package
 -- With:
 -- config.hsPkgs.cardano-node.components.exes
 -- => [ "cardano-node" ]
+--
+-- TODO [ADP-2447] See if the situation has improved and try to remove this source-repository-package.
 source-repository-package
     type: git
     location: https://github.com/input-output-hk/cardano-node
