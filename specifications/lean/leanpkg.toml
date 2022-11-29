@@ -1,7 +1,0 @@
-[package]
-name = "cardano-wallet-lean-spec"
-version = "0.1"
-lean_version = "leanprover-community/lean:3.49.1"
-path = "src"
-
-[dependencies]

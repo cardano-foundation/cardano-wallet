@@ -3,17 +3,13 @@ name: Lean
 on:
   push:
     branches: [ "master" ]
-    paths: ['specifications/lean/**']
+    paths: ['specifications/**']
   pull_request:
     branches: [ "master" ]
-    paths: ['specifications/lean/**']
+    paths: ['specifications/**']
 
 permissions:
   contents: read
-
-defaults:
-  run:
-    working-directory: ./specifications/lean
 
 jobs:
   lean-syntax:
@@ -26,8 +22,10 @@ jobs:
     - name: ✏️ Set up Lean
       run: |
         wget https://raw.githubusercontent.com/leanprover/elan/master/elan-init.sh && chmod +x elan-init.sh && ./elan-init.sh -y && rm -f elan-init.sh
+        cd specifications
         leanpkg configure
         lean -v
+        cd -
 
     - name: 🧪 Verify Lean specs syntax
       run: lean --recursive .
