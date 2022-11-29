@@ -1743,7 +1743,7 @@ selectCoinsForJoin ctx knownPools getPoolStatus pid wid = do
             $ W.readRewardAccount db wid
 
         let deposits = case action of
-                JoinRegsteringKey _poolId -> [W.stakeKeyDeposit pp]
+                JoinRegisteringKey _poolId -> [W.stakeKeyDeposit pp]
                 Join _poolId -> []
                 Quit -> []
 
@@ -2420,7 +2420,7 @@ constructTransaction
         (_, _, rewardPath) <- liftHandler $ W.readRewardAccount @n db walletId
 
         let deposits = case txDelegationAction transactionCtx2 of
-              Just (JoinRegsteringKey _poolId) -> [W.stakeKeyDeposit pp]
+              Just (JoinRegisteringKey _poolId) -> [W.stakeKeyDeposit pp]
               _ -> []
 
         let refunds = case txDelegationAction transactionCtx2 of
@@ -4123,7 +4123,7 @@ mkApiCoinSelection deps refunds mcerts metadata unsignedTx =
         case action of
             Join pid -> pure $ Api.JoinPool apiStakePath (ApiT pid)
             Quit -> pure $ Api.QuitPool apiStakePath
-            JoinRegsteringKey pid -> NE.fromList
+            JoinRegisteringKey pid -> NE.fromList
                 [ Api.RegisterRewardAccount apiStakePath
                 , Api.JoinPool apiStakePath (ApiT pid)
                 ]

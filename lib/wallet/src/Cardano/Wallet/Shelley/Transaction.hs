@@ -726,7 +726,7 @@ mkDelegationCertificates da accXPub =
     case da of
        Join poolId ->
                [ toStakePoolDlgCert accXPub poolId ]
-       JoinRegsteringKey poolId ->
+       JoinRegisteringKey poolId ->
             [ toStakeKeyRegCert accXPub
             , toStakePoolDlgCert accXPub poolId
             ]
@@ -1859,7 +1859,7 @@ estimateTxSize era skeleton =
             = case txDelegationAction of
                 Nothing ->
                     0
-                Just JoinRegsteringKey{} ->
+                Just JoinRegisteringKey{} ->
                     sizeOf_SmallUInt
                     + sizeOf_SmallArray
                     + sizeOf_StakeRegistration

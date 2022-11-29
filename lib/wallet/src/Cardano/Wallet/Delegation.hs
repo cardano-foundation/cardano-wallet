@@ -150,7 +150,7 @@ joinStakePoolDelegationAction
     pure $
         if stakeKeyIsRegistered
         then Join poolId
-        else JoinRegsteringKey poolId
+        else JoinRegisteringKey poolId
 
 guardJoin
     :: Set PoolId

@@ -430,7 +430,7 @@ defaultTransactionCtx = TransactionCtx
 -- | User-requested action related to a delegation
 -- that is taken into account when constructing a transaction.
 data DelegationAction
-    = JoinRegsteringKey PoolId
+    = JoinRegisteringKey PoolId
     -- ^ Join stake pool, registering stake key.
     | Join PoolId
     -- ^ Join stake pool, assuming that stake key has been registered before.
