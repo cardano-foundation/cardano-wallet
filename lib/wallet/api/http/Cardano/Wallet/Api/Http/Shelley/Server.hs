@@ -3003,7 +3003,8 @@ balanceTransaction ctx@ApiLayer{..} genChange (ApiT wid) body = do
                 -> Handler (Cardano.Tx era)
             balanceTx partialTx =
                 liftHandler $ W.balanceTransaction @_ @IO @s @k @ktype
-                    wrk
+                    (MsgWallet >$< wrk ^. W.logger)
+                    (ctx ^. typed)
                     genChange
                     (pp, nodePParams)
                     ti
