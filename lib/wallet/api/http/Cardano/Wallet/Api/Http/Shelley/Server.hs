@@ -2420,12 +2420,12 @@ constructTransaction
         (_, _, rewardPath) <- liftHandler $ W.readRewardAccount @n db walletId
 
         let deposits = case txDelegationAction transactionCtx2 of
-              Just (JoinRegisteringKey _poolId) -> [W.stakeKeyDeposit pp]
-              _ -> []
+                Just (JoinRegisteringKey _poolId) -> [W.stakeKeyDeposit pp]
+                _ -> []
 
         let refunds = case txDelegationAction transactionCtx2 of
-              Just Quit -> [W.stakeKeyDeposit pp]
-              _ -> []
+                Just Quit -> [W.stakeKeyDeposit pp]
+                _ -> []
 
         pure ApiConstructTransaction
             { transaction = balancedTx
