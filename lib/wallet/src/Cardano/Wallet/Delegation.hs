@@ -53,7 +53,6 @@ import Cardano.Wallet.Primitive.Types
     ( Block (..)
     , IsDelegatingTo (..)
     , PoolLifeCycleStatus
-    , ProtocolParameters
     , WalletDelegation (..)
     , WalletId (..)
     )
@@ -104,7 +103,6 @@ handleDelegationRequest
     :: forall s k
      . Tracer IO WalletLog
     -> DBLayer IO s k
-    -> ProtocolParameters
     -> W.EpochNo
     -> IO (Set PoolId)
     -> (PoolId -> IO PoolLifeCycleStatus)
@@ -113,20 +111,19 @@ handleDelegationRequest
     -> DelegationRequest
     -> ExceptT ErrStakePoolDelegation IO DelegationAction
 handleDelegationRequest
-    tr db pp currEpoch getKnownPools getPoolStatus walletId withdrawal = \case
+    tr db currEpoch getKnownPools getPoolStatus walletId withdrawal = \case
     StartDelegatingRegisteringKey poolId -> do
         poolStatus <- liftIO $ getPoolStatus poolId
         pools <- liftIO getKnownPools
         joinStakePoolDelegationAction
-            tr db pp currEpoch pools poolId poolStatus walletId
+            tr db currEpoch pools poolId poolStatus walletId
     StopDelegating ->
-        liftIO $ quitStakePoolDelegationAction db pp walletId withdrawal
+        liftIO $ quitStakePoolDelegationAction db walletId withdrawal
 
 joinStakePoolDelegationAction
     :: forall s k
      . Tracer IO WalletLog
     -> DBLayer IO s k
-    -> ProtocolParameters
     -> W.EpochNo
     -> Set PoolId
     -> PoolId
@@ -134,7 +131,7 @@ joinStakePoolDelegationAction
     -> WalletId
     -> ExceptT ErrStakePoolDelegation IO DelegationAction
 joinStakePoolDelegationAction
-    tr DBLayer{..} pp currentEpoch knownPools poolId poolStatus wid = do
+    tr DBLayer{..} currentEpoch knownPools poolId poolStatus wid = do
     (walletDelegation, stakeKeyIsRegistered) <-
         mapExceptT atomically $
             withExceptT ErrStakePoolDelegationNoSuchWallet $
@@ -153,7 +150,7 @@ joinStakePoolDelegationAction
     pure $
         if stakeKeyIsRegistered
         then Join poolId
-        else JoinRegsteringKey poolId (W.stakeKeyDeposit pp)
+        else JoinRegsteringKey poolId
 
 guardJoin
     :: Set PoolId
@@ -181,11 +178,10 @@ guardJoin knownPools delegation pid mRetirementEpochInfo = do
 quitStakePoolDelegationAction
     :: forall s k
      . DBLayer IO s k
-    -> ProtocolParameters
     -> WalletId
     -> Withdrawal
     -> IO DelegationAction
-quitStakePoolDelegationAction db@DBLayer{..} pp walletId withdrawal = do
+quitStakePoolDelegationAction db@DBLayer{..} walletId withdrawal = do
     (_, delegation) <- atomically (readWalletMeta walletId)
         >>= maybe
             (throwIO (ExceptionStakePoolDelegation
@@ -195,23 +191,22 @@ quitStakePoolDelegationAction db@DBLayer{..} pp walletId withdrawal = do
     rewards <- liftIO $ fetchRewardBalance @s @k db walletId
     either (throwIO . ExceptionStakePoolDelegation . ErrStakePoolQuit) pure
         (guardQuit delegation withdrawal rewards)
-    pure $ Quit $ W.stakeKeyDeposit pp
+    pure Quit
 
 quitStakePool
     :: forall (n :: NetworkDiscriminant)
      . NetworkLayer IO Block
     -> DBLayer IO (SeqState n ShelleyKey) ShelleyKey
-    -> ProtocolParameters
     -> TimeInterpreter (ExceptT PastHorizonException IO)
     -> WalletId
     -> IO TransactionCtx
-quitStakePool netLayer db pp timeInterpreter walletId = do
+quitStakePool netLayer db timeInterpreter walletId = do
     (rewardAccount, _, derivationPath) <-
         runExceptT (readRewardAccount db walletId)
             >>= either (throwIO . ExceptionReadRewardAccount) pure
     withdrawal <- WithdrawalSelf rewardAccount derivationPath
         <$> getCachedRewardAccountBalance netLayer rewardAccount
-    action <- quitStakePoolDelegationAction db pp walletId withdrawal
+    action <- quitStakePoolDelegationAction db walletId withdrawal
     ttl <- transactionExpirySlot timeInterpreter  Nothing
     pure defaultTransactionCtx
         { txWithdrawal = withdrawal

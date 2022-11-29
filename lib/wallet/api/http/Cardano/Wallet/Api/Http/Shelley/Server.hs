@@ -516,8 +516,6 @@ import Cardano.Wallet.Transaction
     , TransactionLayer (..)
     , Withdrawal (..)
     , defaultTransactionCtx
-    , delegationActionDeposit
-    , delegationActionRefund
     )
 import Cardano.Wallet.Unsafe
     ( unsafeRunExceptT )
@@ -572,14 +570,7 @@ import Data.List.NonEmpty
 import Data.Map.Strict
     ( Map )
 import Data.Maybe
-    ( catMaybes
-    , fromJust
-    , fromMaybe
-    , isJust
-    , isNothing
-    , mapMaybe
-    , maybeToList
-    )
+    ( catMaybes, fromJust, fromMaybe, isJust, isNothing, mapMaybe )
 import Data.Proxy
     ( Proxy (..) )
 import Data.Quantity
@@ -1719,7 +1710,6 @@ selectCoinsForJoin ctx knownPools getPoolStatus pid wid = do
             $ WD.joinStakePoolDelegationAction @s @k
                 (contramap MsgWallet $ wrk ^. logger)
                 db
-                pp
                 curEpoch
                 pools
                 pid
@@ -1753,9 +1743,9 @@ selectCoinsForJoin ctx knownPools getPoolStatus pid wid = do
             $ W.readRewardAccount db wid
 
         let deposits = case action of
-                JoinRegsteringKey _poolId deposit -> [deposit]
+                JoinRegsteringKey _poolId -> [W.stakeKeyDeposit pp]
                 Join _poolId -> []
-                Quit _refund -> []
+                Quit -> []
 
         pure $ mkApiCoinSelection deposits [] (Just (action, path)) Nothing utx
 
@@ -1779,7 +1769,7 @@ selectCoinsForQuit ctx@ApiLayer{..} (ApiT wid) =
         wdrl <-
             liftIO $ W.shelleyOnlyMkSelfWithdrawal
                 @_ @_ @_ @_ @n netLayer txLayer era db wid
-        action <- liftIO $ WD.quitStakePoolDelegationAction db pp wid wdrl
+        action <- liftIO $ WD.quitStakePoolDelegationAction db wid wdrl
 
         let txCtx = defaultTransactionCtx
                 { txDelegationAction = Just action
@@ -2333,7 +2323,7 @@ constructTransaction
         optionalDelegationAction <- liftHandler $
             forM delegationRequest $
                 WD.handleDelegationRequest
-                    trWorker db pp epoch knownPools
+                    trWorker db epoch knownPools
                     poolStatus walletId withdrawal
 
         let transactionCtx1 =
@@ -2413,17 +2403,8 @@ constructTransaction
 
         unbalancedTx <- liftHandler $
             W.constructTransaction @n @'CredFromKeyK
-                txLayer netLayer db walletId era transactionCtx2 PreSelection
-                    { outputs = outs <> mintingOuts
-                    , assetsToMint = fst $ transactionCtx2 ^. #txAssetsToMint
-                    , assetsToBurn = fst $ transactionCtx2 ^. #txAssetsToBurn
-                    , extraCoinSource = fromMaybe (Coin 0) $
-                        delegationActionRefund =<<
-                            txDelegationAction transactionCtx2
-                    , extraCoinSink = fromMaybe (Coin 0) $
-                        delegationActionDeposit =<<
-                            txDelegationAction transactionCtx2
-                    }
+                txLayer netLayer db walletId era transactionCtx2
+                    PreSelection { outputs = outs <> mintingOuts }
 
         balancedTx <-
             balanceTransaction apiLayer genChange apiWalletId
@@ -2438,13 +2419,19 @@ constructTransaction
 
         (_, _, rewardPath) <- liftHandler $ W.readRewardAccount @n db walletId
 
+        let deposits = case txDelegationAction transactionCtx2 of
+              Just (JoinRegsteringKey _poolId) -> [W.stakeKeyDeposit pp]
+              _ -> []
+
+        let refunds = case txDelegationAction transactionCtx2 of
+              Just Quit -> [W.stakeKeyDeposit pp]
+              _ -> []
+
         pure ApiConstructTransaction
             { transaction = balancedTx
             , coinSelection = mkApiCoinSelection
-                (maybeToList (delegationActionDeposit =<<
-                    txDelegationAction transactionCtx2))
-                (maybeToList (delegationActionRefund =<<
-                    txDelegationAction transactionCtx2))
+                deposits
+                refunds
                 ((,rewardPath) <$> transactionCtx2 ^. #txDelegationAction)
                 metadata
                 (unsignedTx rewardPath (outs ++ mintingOuts) apiDecoded)
@@ -3288,7 +3275,6 @@ joinStakePool ctx knownPools getPoolStatus apiPool (ApiT wid) body = do
             $ WD.joinStakePoolDelegationAction @s @k
                 (contramap MsgWallet $ wrk ^. logger)
                 (wrk ^. dbLayer)
-                pp
                 curEpoch
                 pools
                 poolId
@@ -3422,8 +3408,8 @@ quitStakePool ctx@ApiLayer{..} (ApiT walletId) body =
                 Just Refl -> case testEquality (typeRep @k)
                                                (typeRep @ShelleyKey) of
                     Nothing -> notShelleyWallet
-                    Just Refl -> liftIO $
-                        WD.quitStakePool netLayer db pp ti walletId
+                    Just Refl ->
+                        liftIO $ WD.quitStakePool netLayer db ti walletId
         (utxoAvailable, wallet, pendingTxs) <-
             liftHandler $ W.readWalletUTxOIndex @_ @s @k wrk walletId
         era <- liftIO $ NW.currentNodeEra (wrk ^. networkLayer)
@@ -4136,8 +4122,8 @@ mkApiCoinSelection deps refunds mcerts metadata unsignedTx =
     mkCertificates action ixs =
         case action of
             Join pid -> pure $ Api.JoinPool apiStakePath (ApiT pid)
-            Quit _refund -> pure $ Api.QuitPool apiStakePath
-            JoinRegsteringKey pid _deposit -> NE.fromList
+            Quit -> pure $ Api.QuitPool apiStakePath
+            JoinRegsteringKey pid -> NE.fromList
                 [ Api.RegisterRewardAccount apiStakePath
                 , Api.JoinPool apiStakePath (ApiT pid)
                 ]

@@ -24,8 +24,6 @@ module Cardano.Wallet.Transaction
     -- * Interface
       TransactionLayer (..)
     , DelegationAction (..)
-    , delegationActionDeposit
-    , delegationActionRefund
     , TransactionCtx (..)
     , PreSelection (..)
     , defaultTransactionCtx
@@ -397,18 +395,7 @@ data TransactionCtx = TransactionCtx
     } deriving (Show, Generic, Eq)
 
 -- | Represents a preliminary selection of tx outputs typically made by user.
-data PreSelection = PreSelection
-    { outputs :: ![TxOut]
-      -- ^ User-specified outputs
-    , assetsToMint :: !TokenMap
-      -- ^ Assets to mint.
-    , assetsToBurn :: !TokenMap
-      -- ^ Assets to burn.
-    , extraCoinSource :: !Coin
-      -- ^ An extra source of ada.
-    , extraCoinSink :: !Coin
-      -- ^ An extra sink for ada.
-    }
+newtype PreSelection = PreSelection { outputs :: [TxOut] }
     deriving (Generic, Eq, Show)
 
 data Withdrawal
@@ -443,25 +430,13 @@ defaultTransactionCtx = TransactionCtx
 -- | User-requested action related to a delegation
 -- that is taken into account when constructing a transaction.
 data DelegationAction
-    = JoinRegsteringKey PoolId Coin
-    -- ^ Join stake pool, registering stake key with deposit amount in `Coin`s
+    = JoinRegsteringKey PoolId
+    -- ^ Join stake pool, registering stake key.
     | Join PoolId
     -- ^ Join stake pool, assuming that stake key has been registered before.
-    | Quit Coin
-    -- ^ Quit all stake pools, receiving deposit amount in `Coin`s back.
+    | Quit
+    -- ^ Quit all stake pools
     deriving (Show, Eq, Generic)
-
-delegationActionDeposit :: DelegationAction -> Maybe Coin
-delegationActionDeposit = \case
-  JoinRegsteringKey _poolId deposit -> Just deposit
-  Join _poolId -> Nothing
-  Quit _refund -> Nothing
-
-delegationActionRefund :: DelegationAction -> Maybe Coin
-delegationActionRefund = \case
-  JoinRegsteringKey _poolId _deposit -> Nothing
-  Join _poolId -> Nothing
-  Quit refund -> Just refund
 
 instance Buildable DelegationAction where
     build = genericF

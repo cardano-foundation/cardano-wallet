@@ -726,11 +726,11 @@ mkDelegationCertificates da accXPub =
     case da of
        Join poolId ->
                [ toStakePoolDlgCert accXPub poolId ]
-       JoinRegsteringKey poolId _depositAmount ->
+       JoinRegsteringKey poolId ->
             [ toStakeKeyRegCert accXPub
             , toStakePoolDlgCert accXPub poolId
             ]
-       Quit _refundAmount -> [toStakeKeyDeregCert accXPub]
+       Quit -> [toStakeKeyDeregCert accXPub]
 
 
 -- | For testing that

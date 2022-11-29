@@ -3511,7 +3511,7 @@ balanceTransactionGoldenSpec = describe "balance goldens" $ do
             mw = SomeMnemonic $ either (error . show) id
                 (entropyToMnemonic @12 <$> mkEntropy "0000000000000001")
             rootK = Shelley.unsafeGenerateKeyFromSeed (mw, Nothing) mempty
-            delegationAction = JoinRegsteringKey poolId (Coin 0)
+            delegationAction = JoinRegsteringKey poolId
         ledgerBody = Babbage.TxBody
           { Babbage.inputs = mempty
           , Babbage.collateral = mempty
