@@ -40,7 +40,7 @@ in {
 
     # Get the index-state and ghc version out of a cabal.project file.
     #
-    # TODO: It would be better to re-use functions from haskell.nix like:
+    # TODO [ADP-2445] It would be better to re-use functions from haskell.nix like:
     # https://github.com/input-output-hk/haskell.nix/blob/a30665693a1991341d067df55bbf2bec1124bddd/lib/cabal-project-parser.nix
     cabalProjectIndexState = cabalProject: let
       awkProgram = builtins.replaceStrings ["\n"] [" "] ''
