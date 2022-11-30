@@ -1635,14 +1635,20 @@ balanceTransaction ctx change pp ti wallet unadjustedPtx = do
                 @era @m @s @k @ktype
                 ctx change pp ti wallet strategy adjustedPtx
     balanceWith SelectionStrategyOptimal
-        `catchE` \case
-            ErrBalanceTxMaxSizeLimitExceeded
-                -> balanceWith SelectionStrategyMinimal
-            otherErr
-                -> throwE otherErr
+        `catchE` \e ->
+            if minimalStrategyIsWorthTrying e
+            then balanceWith SelectionStrategyMinimal
+            else throwE e
   where
     shelleyEra = Cardano.shelleyBasedEra @era
     recentEra = WriteTx.recentEra @era
+
+    minimalStrategyIsWorthTrying :: ErrBalanceTx -> Bool
+    minimalStrategyIsWorthTrying = \case
+        ErrBalanceTxMaxSizeLimitExceeded ->
+            True
+        _ ->
+            False
 
 -- | Increases the ada value of any 0-ada outputs in the transaction to the
 -- minimum according to 'computeMinimumCoinForTxOut'.
