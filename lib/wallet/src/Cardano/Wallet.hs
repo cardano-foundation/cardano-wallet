@@ -1644,6 +1644,8 @@ balanceTransaction ctx change pp ti wallet unadjustedPtx = do
     shelleyEra = Cardano.shelleyBasedEra @era
     recentEra = WriteTx.recentEra @era
 
+    -- Determines whether or not the minimal selection strategy is worth trying.
+    -- This depends upon the way in which the optimal selection strategy failed.
     minimalStrategyIsWorthTrying :: ErrBalanceTx -> Bool
     minimalStrategyIsWorthTrying e = or
         [ maxSizeLimitExceeded
@@ -1651,11 +1653,24 @@ balanceTransaction ctx change pp ti wallet unadjustedPtx = do
         , selectionCollateralError
         ]
       where
+        -- The size of a transaction can be reduced by selecting fewer inputs,
+        -- or by generating less change. Since the minimal selection strategy
+        -- selects as few inputs and generates as little change as possible,
+        -- using this strategy might allow us to generate a transaction within
+        -- the size limit.
         maxSizeLimitExceeded = case e of
             ErrBalanceTxMaxSizeLimitExceeded ->
                 True
             _someOtherError ->
                 False
+
+        -- In situations where the available supply of ada is constrained, or
+        -- where all available ada is bundled up with other tokens, this can
+        -- prevent us from generating change. In this case, trying again with
+        -- the minimal selection strategy might allow us to select fewer
+        -- inputs, generate less change, lower the amount of ada required to
+        -- pay for the change, and therefore increase the chance that we can
+        -- generate change successfully.
         unableToConstructChange = case e of
             ErrBalanceTxSelectAssets
                 (ErrSelectAssetsSelectionError
@@ -1664,6 +1679,13 @@ balanceTransaction ctx change pp ti wallet unadjustedPtx = do
                 True
             _someOtherError ->
                 False
+
+        -- The minimum required amount of collateral depends on the transaction
+        -- fee, which in turn depends on the space occupied by ordinary inputs
+        -- and generated change. If we select fewer inputs and generate less
+        -- change, we can lower the transaction fee, lower the minimum required
+        -- amount of collateral, and increase the chance of being able to
+        -- satisfy the minimum.
         selectionCollateralError = case e of
             ErrBalanceTxSelectAssets
                 (ErrSelectAssetsSelectionError
