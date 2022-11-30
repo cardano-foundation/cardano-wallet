@@ -218,7 +218,8 @@ spec = describe "SHARED_TRANSACTIONS" $ do
             , expectErrorMessage errMsg403SharedWalletPending
             ]
 
-    it "SHARED_TRANSACTIONS_CREATE_01 - Can create tx for an active shared wallet" $ \ctx -> runResourceT $ do
+    it "SHARED_TRANSACTIONS_CREATE_01 - Can create tx for an active shared wallet,\
+       \ typed metadata" $ \ctx -> runResourceT $ do
         m15txt <- liftIO $ genMnemonics M15
         m12txt <- liftIO $ genMnemonics M12
         let payload = Json [json| {
@@ -328,6 +329,65 @@ spec = describe "SHARED_TRANSACTIONS" $ do
                 , expectListField 1
                     (#status . #getApiT) (`shouldBe` InLedger)
                 ]
+
+    it "SHARED_TRANSACTIONS_CREATE_01 - Can create tx for an active shared wallet,\
+       \ untyped metadata" $ \ctx -> runResourceT $ do
+        m15txt <- liftIO $ genMnemonics M15
+        m12txt <- liftIO $ genMnemonics M12
+        let payload = Json [json| {
+                "name": "Shared Wallet",
+                "mnemonic_sentence": #{m15txt},
+                "mnemonic_second_factor": #{m12txt},
+                "passphrase": #{fixturePassphrase},
+                "account_index": "30H",
+                "payment_script_template":
+                    { "cosigners":
+                        { "cosigner#0": "self" },
+                      "template":
+                          { "all":
+                             [ "cosigner#0" ]
+                          }
+                    }
+                } |]
+        rPost <- postSharedWallet ctx Default payload
+        verify (fmap (swapEither . view #wallet) <$> rPost)
+            [ expectResponseCode HTTP.status201
+            ]
+
+        let walShared@(ApiSharedWallet (Right wal)) =
+                getFromResponse Prelude.id rPost
+
+        let metadata = Json [json|{ "metadata": { "1": "hello"  } }|]
+
+        let amt = 10 * minUTxOValue (_mainEra ctx)
+        fundSharedWallet ctx amt (NE.fromList [walShared])
+
+        rTx <- request @(ApiConstructTransaction n) ctx
+            (Link.createUnsignedTransaction @'Shared wal) Default metadata
+        verify rTx
+            [ expectResponseCode HTTP.status202
+            , expectField (#coinSelection . #metadata) (`shouldSatisfy` isJust)
+            , expectField (#fee . #getQuantity) (`shouldSatisfy` (>0))
+            ]
+
+        -- checking metadata before signing using decodeTransaction
+        let txCbor1 = getFromResponse #transaction rTx
+        let decodePayload1 = Json (toJSON txCbor1)
+        rDecodedTx1 <- request @(ApiDecodedTransaction n) ctx
+            (Link.decodeTransaction @'Shared wal) Default decodePayload1
+        let expectedFee = getFromResponse (#fee . #getQuantity) rTx
+        let metadata' = ApiT (TxMetadata (Map.fromList [(1,TxMetaText "hello")]))
+        let decodedExpectations =
+                [ expectResponseCode HTTP.status202
+                , expectField (#fee . #getQuantity) (`shouldBe` expectedFee)
+                , expectField #withdrawals (`shouldBe` [])
+                , expectField #collateral (`shouldBe` [])
+                , expectField #metadata
+                  (`shouldBe` (ApiTxMetadata (Just metadata')))
+                , expectField #scriptValidity (`shouldBe` (Just $ ApiT TxScriptValid))
+                ]
+        verify rDecodedTx1 decodedExpectations
+
 
     it "SHARED_TRANSACTIONS_CREATE_01a - Empty payload is not allowed" $ \ctx -> runResourceT $ do
         wa <- fixtureSharedWallet ctx
