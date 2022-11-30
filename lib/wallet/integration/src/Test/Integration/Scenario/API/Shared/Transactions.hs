@@ -45,6 +45,7 @@ import Cardano.Wallet.Api.Types
     , EncodeAddress (..)
     , Iso8601Time (..)
     , WalletStyle (..)
+    , fromApiEra
     , insertedAt
     )
 import Cardano.Wallet.Api.Types.Transaction
@@ -67,6 +68,7 @@ import Cardano.Wallet.Primitive.Types.Tx
     , TxMetadataValue (..)
     , TxScriptValidity (..)
     , TxStatus (..)
+    , cardanoTxIdeallyNoLaterThan
     )
 import Cardano.Wallet.Transaction
     ( AnyScript (..), WitnessCount (..) )
@@ -80,6 +82,8 @@ import Data.Aeson
     ( toJSON )
 import Data.Either.Combinators
     ( swapEither )
+import Data.Function
+    ( (&) )
 import Data.Generics.Internal.VL.Lens
     ( view, (^.) )
 import Data.Maybe
@@ -153,6 +157,7 @@ import Test.Integration.Framework.TestData
 
 import qualified Cardano.Address.Script as CA
 import qualified Cardano.Address.Style.Shelley as CA
+import qualified Cardano.Api as Cardano
 import qualified Cardano.Wallet.Api.Link as Link
 import qualified Cardano.Wallet.Primitive.Types.TokenMap as TokenMap
 import qualified Data.ByteArray as BA
@@ -387,6 +392,25 @@ spec = describe "SHARED_TRANSACTIONS" $ do
                 , expectField #scriptValidity (`shouldBe` (Just $ ApiT TxScriptValid))
                 ]
         verify rDecodedTx1 decodedExpectations
+
+        -- checking metadata before signing via directly inspecting serialized tx
+        let getMetadata (Cardano.InAnyCardanoEra _ tx) = Cardano.getTxBody tx &
+                \(Cardano.TxBody bodyContent) ->
+                    Cardano.txMetadata bodyContent & \case
+                        Cardano.TxMetadataNone ->
+                            Nothing
+                        Cardano.TxMetadataInEra _ (Cardano.TxMetadata m) ->
+                            Just m
+
+        let era = fromApiEra $ _mainEra ctx
+        let txbinary = cardanoTxIdeallyNoLaterThan era $
+                getApiT (txCbor1 ^. #serialisedTxSealed)
+        case getMetadata txbinary of
+            Nothing -> error "Tx doesn't include metadata"
+            Just m  -> case Map.lookup 1 m of
+                Nothing -> error "Tx doesn't include metadata"
+                Just (Cardano.TxMetaText "hello") -> pure ()
+                Just _ -> error "Tx metadata incorrect"
 
 
     it "SHARED_TRANSACTIONS_CREATE_01a - Empty payload is not allowed" $ \ctx -> runResourceT $ do
