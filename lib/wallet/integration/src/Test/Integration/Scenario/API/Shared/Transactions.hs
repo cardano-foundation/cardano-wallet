@@ -403,9 +403,30 @@ spec = describe "SHARED_TRANSACTIONS" $ do
                             Just m
 
         let era = fromApiEra $ _mainEra ctx
-        let txbinary = cardanoTxIdeallyNoLaterThan era $
+        let txbinary1 = cardanoTxIdeallyNoLaterThan era $
                 getApiT (txCbor1 ^. #serialisedTxSealed)
-        case getMetadata txbinary of
+        case getMetadata txbinary1 of
+            Nothing -> error "Tx doesn't include metadata"
+            Just m  -> case Map.lookup 1 m of
+                Nothing -> error "Tx doesn't include metadata"
+                Just (Cardano.TxMetaText "hello") -> pure ()
+                Just _ -> error "Tx metadata incorrect"
+
+        let (ApiSerialisedTransaction apiTx _) =
+                getFromResponse #transaction rTx
+        signedTx <-
+            signSharedTx ctx wal apiTx [ expectResponseCode HTTP.status202 ]
+
+        -- checking metadata after signing using decodeTransaction
+        let decodePayload2 = Json (toJSON signedTx)
+        rDecodedTx2 <- request @(ApiDecodedTransaction n) ctx
+            (Link.decodeTransaction @'Shared wal) Default decodePayload2
+        verify rDecodedTx2 decodedExpectations
+
+        -- checking metadata after signing via directly inspecting serialized tx
+        let txbinary2 = cardanoTxIdeallyNoLaterThan era $
+                getApiT (signedTx ^. #serialisedTxSealed)
+        case getMetadata txbinary2 of
             Nothing -> error "Tx doesn't include metadata"
             Just m  -> case Map.lookup 1 m of
                 Nothing -> error "Tx doesn't include metadata"
