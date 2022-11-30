@@ -45,6 +45,7 @@ import Cardano.Wallet.Api.Types
     , EncodeAddress (..)
     , Iso8601Time (..)
     , WalletStyle (..)
+    , fromApiEra
     , insertedAt
     )
 import Cardano.Wallet.Api.Types.Transaction
@@ -67,6 +68,7 @@ import Cardano.Wallet.Primitive.Types.Tx
     , TxMetadataValue (..)
     , TxScriptValidity (..)
     , TxStatus (..)
+    , cardanoTxIdeallyNoLaterThan
     )
 import Cardano.Wallet.Transaction
     ( AnyScript (..), WitnessCount (..) )
@@ -80,6 +82,8 @@ import Data.Aeson
     ( toJSON )
 import Data.Either.Combinators
     ( swapEither )
+import Data.Function
+    ( (&) )
 import Data.Generics.Internal.VL.Lens
     ( view, (^.) )
 import Data.Maybe
@@ -153,6 +157,7 @@ import Test.Integration.Framework.TestData
 
 import qualified Cardano.Address.Script as CA
 import qualified Cardano.Address.Style.Shelley as CA
+import qualified Cardano.Api as Cardano
 import qualified Cardano.Wallet.Api.Link as Link
 import qualified Cardano.Wallet.Primitive.Types.TokenMap as TokenMap
 import qualified Data.ByteArray as BA
@@ -218,7 +223,8 @@ spec = describe "SHARED_TRANSACTIONS" $ do
             , expectErrorMessage errMsg403SharedWalletPending
             ]
 
-    it "SHARED_TRANSACTIONS_CREATE_01 - Can create tx for an active shared wallet" $ \ctx -> runResourceT $ do
+    it "SHARED_TRANSACTIONS_CREATE_01 - Can create tx for an active shared wallet,\
+       \ typed metadata" $ \ctx -> runResourceT $ do
         m15txt <- liftIO $ genMnemonics M15
         m12txt <- liftIO $ genMnemonics M12
         let payload = Json [json| {
@@ -289,6 +295,143 @@ spec = describe "SHARED_TRANSACTIONS" $ do
         rDecodedTx2 <- request @(ApiDecodedTransaction n) ctx
             (Link.decodeTransaction @'Shared wal) Default decodePayload2
         verify rDecodedTx2 decodedExpectations
+
+        -- Submit tx
+        submittedTx <- submitSharedTxWithWid ctx wal signedTx
+        verify submittedTx
+            [ expectSuccess
+            , expectResponseCode HTTP.status202
+            ]
+
+        let txid = getFromResponse #id submittedTx
+        let queryTx = Link.getTransaction @'Shared wal (ApiTxId txid)
+        rGetTx <- request @(ApiTransaction n) ctx queryTx Default Empty
+        verify rGetTx
+            [ expectResponseCode HTTP.status200
+            , expectField (#direction . #getApiT) (`shouldBe` Outgoing)
+            ]
+
+        -- Make sure only fee is deducted from shared Wallet
+        eventually "Wallet balance is as expected" $ do
+            rWal <- getSharedWallet ctx walShared
+            verify (fmap (view #wallet) <$> rWal)
+                [ expectResponseCode HTTP.status200
+                , expectField
+                    (traverse . #balance . #available . #getQuantity)
+                    (`shouldBe` (amt - expectedFee))
+                ]
+
+        eventually "Tx is in ledger finally" $ do
+            rGetTx' <- request @(ApiTransaction n) ctx queryTx Default Empty
+            verify rGetTx'
+                [ expectResponseCode HTTP.status200
+                , expectField (#status . #getApiT) (`shouldBe` InLedger)
+                ]
+            let listTxEp = Link.listTransactions @'Shared wal
+            request @[ApiTransaction n] ctx listTxEp Default Empty >>= flip verify
+                [ expectListField 1
+                    (#direction . #getApiT) (`shouldBe` Incoming)
+                , expectListField 1
+                    (#status . #getApiT) (`shouldBe` InLedger)
+                ]
+
+    it "SHARED_TRANSACTIONS_CREATE_01 - Can create tx for an active shared wallet,\
+       \ untyped metadata" $ \ctx -> runResourceT $ do
+        m15txt <- liftIO $ genMnemonics M15
+        m12txt <- liftIO $ genMnemonics M12
+        let payload = Json [json| {
+                "name": "Shared Wallet",
+                "mnemonic_sentence": #{m15txt},
+                "mnemonic_second_factor": #{m12txt},
+                "passphrase": #{fixturePassphrase},
+                "account_index": "30H",
+                "payment_script_template":
+                    { "cosigners":
+                        { "cosigner#0": "self" },
+                      "template":
+                          { "all":
+                             [ "cosigner#0" ]
+                          }
+                    }
+                } |]
+        rPost <- postSharedWallet ctx Default payload
+        verify (fmap (swapEither . view #wallet) <$> rPost)
+            [ expectResponseCode HTTP.status201
+            ]
+
+        let walShared@(ApiSharedWallet (Right wal)) =
+                getFromResponse Prelude.id rPost
+
+        let metadata = Json [json|{ "metadata": { "1": "hello"  } }|]
+
+        let amt = 10 * minUTxOValue (_mainEra ctx)
+        fundSharedWallet ctx amt (NE.fromList [walShared])
+
+        rTx <- request @(ApiConstructTransaction n) ctx
+            (Link.createUnsignedTransaction @'Shared wal) Default metadata
+        verify rTx
+            [ expectResponseCode HTTP.status202
+            , expectField (#coinSelection . #metadata) (`shouldSatisfy` isJust)
+            , expectField (#fee . #getQuantity) (`shouldSatisfy` (>0))
+            ]
+
+        -- checking metadata before signing using decodeTransaction
+        let txCbor1 = getFromResponse #transaction rTx
+        let decodePayload1 = Json (toJSON txCbor1)
+        rDecodedTx1 <- request @(ApiDecodedTransaction n) ctx
+            (Link.decodeTransaction @'Shared wal) Default decodePayload1
+        let expectedFee = getFromResponse (#fee . #getQuantity) rTx
+        let metadata' = ApiT (TxMetadata (Map.fromList [(1,TxMetaText "hello")]))
+        let decodedExpectations =
+                [ expectResponseCode HTTP.status202
+                , expectField (#fee . #getQuantity) (`shouldBe` expectedFee)
+                , expectField #withdrawals (`shouldBe` [])
+                , expectField #collateral (`shouldBe` [])
+                , expectField #metadata
+                  (`shouldBe` (ApiTxMetadata (Just metadata')))
+                , expectField #scriptValidity (`shouldBe` (Just $ ApiT TxScriptValid))
+                ]
+        verify rDecodedTx1 decodedExpectations
+
+        -- checking metadata before signing via directly inspecting serialized tx
+        let getMetadata (Cardano.InAnyCardanoEra _ tx) = Cardano.getTxBody tx &
+                \(Cardano.TxBody bodyContent) ->
+                    Cardano.txMetadata bodyContent & \case
+                        Cardano.TxMetadataNone ->
+                            Nothing
+                        Cardano.TxMetadataInEra _ (Cardano.TxMetadata m) ->
+                            Just m
+
+        let era = fromApiEra $ _mainEra ctx
+        let txbinary1 = cardanoTxIdeallyNoLaterThan era $
+                getApiT (txCbor1 ^. #serialisedTxSealed)
+        case getMetadata txbinary1 of
+            Nothing -> error "Tx doesn't include metadata"
+            Just m  -> case Map.lookup 1 m of
+                Nothing -> error "Tx doesn't include metadata"
+                Just (Cardano.TxMetaText "hello") -> pure ()
+                Just _ -> error "Tx metadata incorrect"
+
+        let (ApiSerialisedTransaction apiTx _) =
+                getFromResponse #transaction rTx
+        signedTx <-
+            signSharedTx ctx wal apiTx [ expectResponseCode HTTP.status202 ]
+
+        -- checking metadata after signing using decodeTransaction
+        let decodePayload2 = Json (toJSON signedTx)
+        rDecodedTx2 <- request @(ApiDecodedTransaction n) ctx
+            (Link.decodeTransaction @'Shared wal) Default decodePayload2
+        verify rDecodedTx2 decodedExpectations
+
+        -- checking metadata after signing via directly inspecting serialized tx
+        let txbinary2 = cardanoTxIdeallyNoLaterThan era $
+                getApiT (signedTx ^. #serialisedTxSealed)
+        case getMetadata txbinary2 of
+            Nothing -> error "Tx doesn't include metadata"
+            Just m  -> case Map.lookup 1 m of
+                Nothing -> error "Tx doesn't include metadata"
+                Just (Cardano.TxMetaText "hello") -> pure ()
+                Just _ -> error "Tx metadata incorrect"
 
         -- Submit tx
         submittedTx <- submitSharedTxWithWid ctx wal signedTx
