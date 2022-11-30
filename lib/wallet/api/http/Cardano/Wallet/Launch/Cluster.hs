@@ -370,6 +370,9 @@ cliLine :: Tracer IO ClusterLog -> [String] -> IO String
 cliLine tr = cliConfig tr >=>
     fmap (BL8.unpack . getFirstLine) . readProcessStdoutOrFail
 
+cliEraFlag :: ClusterEra -> String
+cliEraFlag era = "--" ++ clusterEraToString era ++ "-era"
+
 readProcessStdoutOrFail :: ProcessConfig () () () -> IO BL.ByteString
 readProcessStdoutOrFail processConfig = do
     (st, out, err) <- readProcess processConfig
@@ -481,19 +484,21 @@ withPoolMetadataServer tr dir action = do
 configurePools
     :: Tracer IO ClusterLog
     -> FilePath
+    -> ClusterEra
     -> PoolMetadataServer
     -> [PoolRecipe]
     -> IO [ConfiguredPool]
-configurePools tr dir metadataServer =
-    mapM (configurePool tr dir metadataServer)
+configurePools tr dir era metadataServer =
+    mapM (configurePool tr dir era metadataServer)
 
 configurePool
     :: Tracer IO ClusterLog
     -> FilePath
+    -> ClusterEra
     -> PoolMetadataServer
     -> PoolRecipe
     -> IO ConfiguredPool
-configurePool tr baseDir metadataServer recipe = do
+configurePool tr baseDir era metadataServer recipe = do
     let PoolRecipe pledgeAmt i mretirementEpoch metadata _ _ = recipe
 
     -- Use pool-specific dir
@@ -594,7 +599,8 @@ configurePool tr baseDir metadataServer recipe = do
             -- do want to submit it here for the sake of babbage)
             let retire e = do
                     retCert <- issuePoolRetirementCert tr dir opPub e
-                    (rawTx, faucetPrv) <- preparePoolRetirement tr dir [retCert]
+                    (rawTx, faucetPrv)
+                        <- preparePoolRetirement tr dir era [retCert]
                     tx <- signTx tr dir rawTx [faucetPrv, ownerPrv, opPrv]
                     submitTx tr socket "retirement cert" tx
 
@@ -640,7 +646,7 @@ configurePool tr baseDir metadataServer recipe = do
                     , mPoolRetirementCert
                     ]
             (rawTx, faucetPrv) <- preparePoolRegistration
-                tr dir ownerPub certificates pledgeAmt
+                tr dir era ownerPub certificates pledgeAmt
             tx <- signTx tr dir rawTx [faucetPrv, ownerPrv, opPrv]
             submitTx tr socket name tx
         , metadataUrl = T.pack metadataURL
@@ -1028,10 +1034,10 @@ withCluster tr dir LocalClusterConfig{..} faucetFunds onClusterStart = bracketTr
         createDirectoryIfMissing True dir
         traceWith tr $ MsgStartingCluster dir
         resetGlobals
-        putClusterEra dir cfgLastHardFork
 
         systemStart <- addUTCTime 1 <$> getCurrentTime
-        configuredPools <- configurePools tr dir metadataServer cfgStakePools
+        configuredPools <-
+            configurePools tr dir cfgLastHardFork metadataServer cfgStakePools
 
         addGenesisPools <- do
             genesisDeltas <- mapM registerViaShelleyGenesis configuredPools
@@ -1107,7 +1113,7 @@ withCluster tr dir LocalClusterConfig{..} faucetFunds onClusterStart = bracketTr
 
         -- Needs to happen in the first 20% of the epoch, so we run this
         -- first.
-        moveInstantaneousRewardsTo tr conn dir mirFunds
+        moveInstantaneousRewardsTo tr conn dir cfgLastHardFork mirFunds
 
         -- Submit retirement certs for all pools using the connection to
         -- the only running first pool to avoid the certs being rolled
@@ -1122,10 +1128,12 @@ withCluster tr dir LocalClusterConfig{..} faucetFunds onClusterStart = bracketTr
             forM_ configuredPools $ \pool -> do
                 finalizeShelleyGenesisSetup pool runningNode
 
-        sendFaucetAssetsTo tr conn dir 20 (encodeAddresses maFunds)
+        sendFaucetAssetsTo tr conn dir cfgLastHardFork
+            20
+            (encodeAddresses maFunds)
 
         -- Should ideally not be hard-coded in 'withCluster'
-        (rawTx, faucetPrv) <- prepareKeyRegistration tr dir
+        (rawTx, faucetPrv) <- prepareKeyRegistration tr dir cfgLastHardFork
         tx <- signTx tr dir rawTx [faucetPrv]
         submitTx tr conn "pre-registered stake key" tx
 
@@ -1680,16 +1688,18 @@ issueDlgCert tr dir stakePub opPub = do
 preparePoolRegistration
     :: Tracer IO ClusterLog
     -> FilePath
+    -> ClusterEra
     -> FilePath
     -> [FilePath]
     -> Integer
     -> IO (FilePath, FilePath)
-preparePoolRegistration tr dir stakePub certs pledgeAmt = do
+preparePoolRegistration tr dir era stakePub certs pledgeAmt = do
     let file = dir </> "tx.raw"
     addr <- genSinkAddress tr dir (Just stakePub)
     (faucetInput, faucetPrv) <- takeFaucet
     cli tr $
         [ "transaction", "build-raw"
+        , cliEraFlag era
         , "--tx-in", faucetInput
         , "--tx-out", addr <> "+" <> show pledgeAmt
         , "--ttl", "400"
@@ -1702,13 +1712,15 @@ preparePoolRegistration tr dir stakePub certs pledgeAmt = do
 preparePoolRetirement
     :: Tracer IO ClusterLog
     -> FilePath
+    -> ClusterEra
     -> [FilePath]
     -> IO (FilePath, FilePath)
-preparePoolRetirement tr dir certs = do
+preparePoolRetirement tr dir era certs = do
     let file = dir </> "tx.raw"
     (faucetInput, faucetPrv) <- takeFaucet
     cli tr $
         [ "transaction", "build-raw"
+        , cliEraFlag era
         , "--tx-in", faucetInput
         , "--ttl", "400"
         , "--fee", show (faucetAmt)
@@ -1782,10 +1794,11 @@ sendFaucetFundsTo
     :: Tracer IO ClusterLog
     -> CardanoNodeConn
     -> FilePath
+    -> ClusterEra
     -> [(String, Coin)]
     -> IO ()
-sendFaucetFundsTo tr conn dir targets = batch 80 targets $
-    sendFaucet tr conn dir "ada" . map coinBundle
+sendFaucetFundsTo tr conn dir era targets = batch 80 targets $
+    sendFaucet tr conn dir era "ada" . map coinBundle
   where
     coinBundle = fmap (\c -> (TokenBundle.fromCoin c, []))
 
@@ -1798,13 +1811,13 @@ sendFaucetAssetsTo
     :: Tracer IO ClusterLog
     -> CardanoNodeConn
     -> FilePath
+    -> ClusterEra
     -> Int -- ^ batch size
     -> [(String, (TokenBundle, [(String, String)]))] -- ^ (address, assets)
     -> IO ()
-sendFaucetAssetsTo tr conn dir batchSize targets = do
-    era <- getClusterEra dir
+sendFaucetAssetsTo tr conn dir era batchSize targets = do
     when (era >= MaryHardFork) $
-        batch batchSize targets $ sendFaucet tr conn dir "assets"
+        batch batchSize targets $ sendFaucet tr conn dir era "assets"
 
 -- | Build, sign, and send a batch of faucet funding transactions using
 -- @cardano-cli@. This function is used by 'sendFaucetFundsTo' and
@@ -1813,10 +1826,11 @@ sendFaucet
     :: Tracer IO ClusterLog
     -> CardanoNodeConn
     -> FilePath
+    -> ClusterEra
     -> String -- ^ label for logging
     -> [(String, (TokenBundle, [(String, String)]))]
     -> IO ()
-sendFaucet tr conn dir what targets = do
+sendFaucet tr conn dir era what targets = do
     (faucetInput, faucetPrv) <- takeFaucet
     let file = dir </> "faucet-tx.raw"
 
@@ -1845,6 +1859,7 @@ sendFaucet tr conn dir what targets = do
 
     cli tr $
         [ "transaction", "build-raw"
+        , cliEraFlag era
         , "--tx-in", faucetInput
         , "--ttl", "6000000"
             -- Big enough to allow minting in the actual integration tests,
@@ -1882,9 +1897,10 @@ moveInstantaneousRewardsTo
     :: Tracer IO ClusterLog
     -> CardanoNodeConn
     -> FilePath
+    -> ClusterEra
     -> [(Credential, Coin)]
     -> IO ()
-moveInstantaneousRewardsTo tr conn dir targets = do
+moveInstantaneousRewardsTo tr conn dir era targets = do
     certs <- mapM mkCredentialCerts targets
     (faucetInput, faucetPrv) <- takeFaucet
     let file = dir </> "mir-tx.raw"
@@ -1897,6 +1913,7 @@ moveInstantaneousRewardsTo tr conn dir targets = do
 
     cli tr $
         [ "transaction", "build-raw"
+        , cliEraFlag era
         , "--tx-in", faucetInput
         , "--ttl", "999999999"
         , "--fee", show (faucetAmt - 1_000_000 - totalDeposit)
@@ -2000,8 +2017,9 @@ moveInstantaneousRewardsTo tr conn dir targets = do
 prepareKeyRegistration
     :: Tracer IO ClusterLog
     -> FilePath
+    -> ClusterEra
     -> IO (FilePath, FilePath)
-prepareKeyRegistration tr dir = do
+prepareKeyRegistration tr dir era = do
     let file = dir </> "tx.raw"
 
     let stakePub = dir </> "pre-registered-stake.pub"
@@ -2014,6 +2032,7 @@ prepareKeyRegistration tr dir = do
 
     cli tr
         [ "transaction", "build-raw"
+        , cliEraFlag era
         , "--tx-in", faucetInput
         , "--tx-out", sink <> "+" <> "1000000"
         , "--ttl", "400"
@@ -2332,12 +2351,6 @@ internalFaucetFunds = map
 resetGlobals :: IO ()
 resetGlobals = do
     void $ swapMVar faucetIndex 1
-
-getClusterEra :: FilePath -> IO ClusterEra
-getClusterEra dir = read <$> readFile (dir </> "era")
-
-putClusterEra :: FilePath -> ClusterEra -> IO ()
-putClusterEra dir = writeFile (dir </> "era") . show
 
 -- | A public stake key associated with a mnemonic that we pre-registered for
 -- STAKE_POOLS_JOIN_05.
