@@ -19,6 +19,7 @@
 {-# LANGUAGE TypeApplications #-}
 {-# LANGUAGE TypeFamilies #-}
 {-# LANGUAGE TypeOperators #-}
+{- HLINT ignore "Use ||" -}
 
 -- |
 -- Copyright: © 2018-2020 IOHK
@@ -1644,11 +1645,32 @@ balanceTransaction ctx change pp ti wallet unadjustedPtx = do
     recentEra = WriteTx.recentEra @era
 
     minimalStrategyIsWorthTrying :: ErrBalanceTx -> Bool
-    minimalStrategyIsWorthTrying = \case
-        ErrBalanceTxMaxSizeLimitExceeded ->
-            True
-        _ ->
-            False
+    minimalStrategyIsWorthTrying e = or
+        [ maxSizeLimitExceeded
+        , unableToConstructChange
+        , selectionCollateralError
+        ]
+      where
+        maxSizeLimitExceeded = case e of
+            ErrBalanceTxMaxSizeLimitExceeded ->
+                True
+            _someOtherError ->
+                False
+        unableToConstructChange = case e of
+            ErrBalanceTxSelectAssets
+                (ErrSelectAssetsSelectionError
+                (SelectionBalanceErrorOf
+                (UnableToConstructChange {}))) ->
+                True
+            _someOtherError ->
+                False
+        selectionCollateralError = case e of
+            ErrBalanceTxSelectAssets
+                (ErrSelectAssetsSelectionError
+                (SelectionCollateralErrorOf {})) ->
+                True
+            _someOtherError ->
+                False
 
 -- | Increases the ada value of any 0-ada outputs in the transaction to the
 -- minimum according to 'computeMinimumCoinForTxOut'.
