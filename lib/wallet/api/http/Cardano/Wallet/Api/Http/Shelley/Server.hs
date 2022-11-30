@@ -2518,9 +2518,9 @@ constructTransaction
         case otherActions of
             [] -> case action of
                Joining (ApiT pool) stakeKeyIdx | isValidKeyIdx stakeKeyIdx ->
-                    Right $ WD.StartDelegatingRegisteringKey pool
+                    Right $ WD.Join pool
                Leaving stakeKeyIdx | isValidKeyIdx stakeKeyIdx ->
-                    Right WD.StopDelegating
+                    Right WD.Quit
                _ -> Left ErrConstructTxMultiaccountNotSupported
             -- Current limitation:
             -- at this moment we are handling just one delegation action:

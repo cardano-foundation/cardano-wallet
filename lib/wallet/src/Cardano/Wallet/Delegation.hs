@@ -21,6 +21,7 @@ module Cardano.Wallet.Delegation
 import Prelude
 
 import qualified Cardano.Wallet.Primitive.Types as W
+import qualified Cardano.Wallet.Transaction as Tx
 import qualified Data.Set as Set
 
 import Cardano.Pool.Types
@@ -59,8 +60,7 @@ import Cardano.Wallet.Primitive.Types
 import Cardano.Wallet.Primitive.Types.Coin
     ( Coin (..) )
 import Cardano.Wallet.Transaction
-    ( DelegationAction (..)
-    , ErrCannotJoin (..)
+    ( ErrCannotJoin (..)
     , TransactionCtx
     , Withdrawal (..)
     , defaultTransactionCtx
@@ -92,10 +92,10 @@ import Data.Set
 -- the library figures out if stake key needs to be registered first
 -- so that clients don't have to worry about this concern.
 data DelegationRequest
-    = StartDelegatingRegisteringKey PoolId
+    = Join PoolId
     -- ^ Delegate to a pool using the default staking key (derivation index 0),
     -- registering the stake key if needed.
-    | StopDelegating
+    | Quit
     -- ^ Stop delegating if the wallet is delegating.
     deriving (Eq, Show)
 
@@ -109,16 +109,15 @@ handleDelegationRequest
     -> WalletId
     -> Withdrawal
     -> DelegationRequest
-    -> ExceptT ErrStakePoolDelegation IO DelegationAction
+    -> ExceptT ErrStakePoolDelegation IO Tx.DelegationAction
 handleDelegationRequest
     tr db currEpoch getKnownPools getPoolStatus walletId withdrawal = \case
-    StartDelegatingRegisteringKey poolId -> do
+    Join poolId -> do
         poolStatus <- liftIO $ getPoolStatus poolId
         pools <- liftIO getKnownPools
         joinStakePoolDelegationAction
             tr db currEpoch pools poolId poolStatus walletId
-    StopDelegating ->
-        liftIO $ quitStakePoolDelegationAction db walletId withdrawal
+    Quit -> liftIO $ quitStakePoolDelegationAction db walletId withdrawal
 
 joinStakePoolDelegationAction
     :: forall s k
@@ -129,7 +128,7 @@ joinStakePoolDelegationAction
     -> PoolId
     -> PoolLifeCycleStatus
     -> WalletId
-    -> ExceptT ErrStakePoolDelegation IO DelegationAction
+    -> ExceptT ErrStakePoolDelegation IO Tx.DelegationAction
 joinStakePoolDelegationAction
     tr DBLayer{..} currentEpoch knownPools poolId poolStatus wid = do
     (walletDelegation, stakeKeyIsRegistered) <-
@@ -149,8 +148,8 @@ joinStakePoolDelegationAction
 
     pure $
         if stakeKeyIsRegistered
-        then Join poolId
-        else JoinRegisteringKey poolId
+        then Tx.Join poolId
+        else Tx.JoinRegisteringKey poolId
 
 guardJoin
     :: Set PoolId
@@ -180,7 +179,7 @@ quitStakePoolDelegationAction
      . DBLayer IO s k
     -> WalletId
     -> Withdrawal
-    -> IO DelegationAction
+    -> IO Tx.DelegationAction
 quitStakePoolDelegationAction db@DBLayer{..} walletId withdrawal = do
     (_, delegation) <- atomically (readWalletMeta walletId)
         >>= maybe
@@ -191,7 +190,7 @@ quitStakePoolDelegationAction db@DBLayer{..} walletId withdrawal = do
     rewards <- liftIO $ fetchRewardBalance @s @k db walletId
     either (throwIO . ExceptionStakePoolDelegation . ErrStakePoolQuit) pure
         (guardQuit delegation withdrawal rewards)
-    pure Quit
+    pure Tx.Quit
 
 quitStakePool
     :: forall (n :: NetworkDiscriminant)
