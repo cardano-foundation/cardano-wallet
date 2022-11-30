@@ -433,6 +433,44 @@ spec = describe "SHARED_TRANSACTIONS" $ do
                 Just (Cardano.TxMetaText "hello") -> pure ()
                 Just _ -> error "Tx metadata incorrect"
 
+        -- Submit tx
+        submittedTx <- submitSharedTxWithWid ctx wal signedTx
+        verify submittedTx
+            [ expectSuccess
+            , expectResponseCode HTTP.status202
+            ]
+
+        let txid = getFromResponse #id submittedTx
+        let queryTx = Link.getTransaction @'Shared wal (ApiTxId txid)
+        rGetTx <- request @(ApiTransaction n) ctx queryTx Default Empty
+        verify rGetTx
+            [ expectResponseCode HTTP.status200
+            , expectField (#direction . #getApiT) (`shouldBe` Outgoing)
+            ]
+
+        -- Make sure only fee is deducted from shared Wallet
+        eventually "Wallet balance is as expected" $ do
+            rWal <- getSharedWallet ctx walShared
+            verify (fmap (view #wallet) <$> rWal)
+                [ expectResponseCode HTTP.status200
+                , expectField
+                    (traverse . #balance . #available . #getQuantity)
+                    (`shouldBe` (amt - expectedFee))
+                ]
+
+        eventually "Tx is in ledger finally" $ do
+            rGetTx' <- request @(ApiTransaction n) ctx queryTx Default Empty
+            verify rGetTx'
+                [ expectResponseCode HTTP.status200
+                , expectField (#status . #getApiT) (`shouldBe` InLedger)
+                ]
+            let listTxEp = Link.listTransactions @'Shared wal
+            request @[ApiTransaction n] ctx listTxEp Default Empty >>= flip verify
+                [ expectListField 1
+                    (#direction . #getApiT) (`shouldBe` Incoming)
+                , expectListField 1
+                    (#status . #getApiT) (`shouldBe` InLedger)
+                ]
 
     it "SHARED_TRANSACTIONS_CREATE_01a - Empty payload is not allowed" $ \ctx -> runResourceT $ do
         wa <- fixtureSharedWallet ctx
