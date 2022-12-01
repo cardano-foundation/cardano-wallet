@@ -1,7 +1,6 @@
 {-# LANGUAGE DataKinds #-}
 {-# LANGUAGE FlexibleContexts #-}
 {-# LANGUAGE NoMonomorphismRestriction #-}
-{-# LANGUAGE OverloadedLabels #-}
 {-# LANGUAGE RankNTypes #-}
 {-# LANGUAGE ScopedTypeVariables #-}
 {-# LANGUAGE TupleSections #-}
@@ -42,8 +41,6 @@ import Data.Delta
     ( Delta (..) )
 import Data.Foldable
     ( foldl', toList )
-import Data.Generics.Internal.VL
-    ( over )
 import Data.Map.Strict
     ( Map )
 import Data.Maybe
@@ -67,18 +64,10 @@ spec = do
             $ property prop_PruneToAllInLedger
         it "can mark pending transactions as expired based on current slot"
             $ property prop_AgeAllPending2Expire
-        it
-            "can mark past pending transactions as expired based on current slot"
+        it "can mark past pending transactions as expired based on current slot"
             $ property prop_AgeSomePending2Expire
-        it "can roll back to a given slot, removing all incoming transactions"
+        it "can roll back to a given slot, removing all transactions"
             $ property prop_RollBackRemoveAfterSlot
-        it
-            "can roll back to a given slot, switching all outgoing transactions \
-            \ after slot in pending state"
-            $ property prop_RollBackSwitchOutgoing
-        it
-            "can roll back to a given slot, preserving all outgoing transactions"
-            $ property prop_RollBackPreserveOutgoing
         it "can roll back to a given slot, leaving past untouched"
             $ property prop_RollBackDoNotTouchPast
 
@@ -152,39 +141,11 @@ prop_RollBackRemoveAfterSlot =
     withPropRollBack $ \((_afterBoot,_beforeBoot),(afterNew,_beforeNew)) _
     -> property $ null $ relations afterNew
 
-prop_RollBackSwitchOutgoing :: WithWalletProperty
-prop_RollBackSwitchOutgoing =
-    withPropRollBack $ \((_afterBoot,beforeBoot),(_afterNew,beforeNew)) _ -> do
-        let future = overTxMetaHistory beforeNew $ \beforeMap
-                -> Map.difference beforeMap $ relations beforeBoot
-        property
-            $ all
-                ((&&) <$> ((==) Pending . txMetaStatus)
-                 <*> ((==) Outgoing . txMetaDirection))
-                (relations future)
-
-prop_RollBackPreserveOutgoing :: WithWalletProperty
-prop_RollBackPreserveOutgoing =
-    withPropRollBack $ \((afterBoot,beforeBoot),(_afterNew,beforeNew)) _ -> do
-        let future = overTxMetaHistory beforeNew $ \beforeMap
-                -> Map.difference beforeMap $ relations beforeBoot
-        property
-            $ (==)
-                (Map.keys $ allOutgoing afterBoot)
-                (Map.keys $ relations future)
-
 prop_RollBackDoNotTouchPast :: WithWalletProperty
 prop_RollBackDoNotTouchPast =
-    withPropRollBack $ \((afterBoot,beforeBoot),(_afterNew,beforeNew)) _ -> do
-        let past = overTxMetaHistory beforeNew $ \beforeMap
-                -> Map.difference beforeMap $ relations afterBoot
-        property $ past == beforeBoot
-
-overTxMetaHistory
-    :: TxMetaHistory
-    -> (Map TxId TxMeta -> Map TxId TxMeta)
-    -> TxMetaHistory
-overTxMetaHistory = flip $ over #relations
+    withPropRollBack $ \((afterBoot,beforeBoot),(_afterNew,beforeNew)) _ ->
+        let past = (relations beforeNew) `Map.difference` (relations afterBoot)
+        in  property $ TxMetaHistory past == beforeBoot
 
 allWithDirection :: Direction -> TxMetaHistory -> Map TxId TxMeta
 allWithDirection dir (TxMetaHistory txs) =
