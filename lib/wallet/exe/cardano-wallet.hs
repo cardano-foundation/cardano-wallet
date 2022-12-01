@@ -78,7 +78,7 @@ import Cardano.Wallet.Api.Client
 import Cardano.Wallet.Api.Http.Shelley.Server
     ( HostPreference, Listen (..), TlsConfiguration )
 import Cardano.Wallet.Launch
-    ( Mode (Light, Normal)
+    ( Mode (Normal)
     , NetworkConfiguration (..)
     , modeOption
     , networkConfigurationOption
@@ -143,10 +143,9 @@ import System.Environment
 import System.Exit
     ( ExitCode (..), exitWith )
 import UnliftIO.Exception
-    ( catch, withException )
+    ( withException )
 
 import qualified Cardano.BM.Backend.EKGView as EKG
-import qualified Cardano.Wallet.Launch.Blockfrost as Blockfrost
 import qualified Cardano.Wallet.Version as V
 import qualified Data.Text as T
 import qualified System.Info as I
@@ -235,17 +234,6 @@ cmdServe = command "serve" $ info (helper <*> helper' <*> cmd) $
             blockchainSource <- case mode of
                 Normal conn syncTolerance ->
                     pure $ NodeSource conn vData syncTolerance
-                Light token -> BlockfrostSource <$> Blockfrost.readToken token
-                    `catch` \case
-                        Blockfrost.BadTokenFile f -> do
-                            logError tr $ MsgBlockfrostTokenFileError f
-                            exitWith $ ExitFailure 1
-                        Blockfrost.EmptyToken f -> do
-                            logError tr $ MsgBlockfrostTokenError f
-                            exitWith $ ExitFailure 1
-                        Blockfrost.InvalidToken f -> do
-                            logError tr $ MsgBlockfrostTokenError f
-                            exitWith $ ExitFailure 1
 
             exitWith =<< serveWallet
                 blockchainSource
@@ -285,8 +273,6 @@ data MainLog
     | MsgSigInt
     | MsgShutdownHandler ShutdownHandlerLog
     | MsgFailedToParseGenesis Text
-    | MsgBlockfrostTokenFileError FilePath
-    | MsgBlockfrostTokenError FilePath
     deriving (Show)
 
 instance ToText MainLog where
@@ -317,17 +303,6 @@ instance ToText MainLog where
             , "Shelley as it used to feed the wallet with the initial blockchain"
             , "parameters."
             , "Here's (perhaps) some helpful hint:", hint
-            ]
-        MsgBlockfrostTokenFileError tokenFile -> T.unwords
-            [ "File"
-            , "'" <> T.pack tokenFile <> "'"
-            , "specified in the --blockfrost-token-file can't be read."
-            ]
-        MsgBlockfrostTokenError tokenFile -> T.unwords
-            [ "File"
-            , "'" <> T.pack tokenFile <> "'"
-            , "specified in the --blockfrost-token-file\
-            \ argument doesn't contain a valid Blockfrost API token."
             ]
 
 withTracers
