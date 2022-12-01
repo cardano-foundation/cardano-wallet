@@ -3,6 +3,7 @@
 {-# LANGUAGE DerivingVia #-}
 {-# LANGUAGE DuplicateRecordFields #-}
 {-# LANGUAGE FlexibleInstances #-}
+{-# LANGUAGE GeneralizedNewtypeDeriving #-}
 {-# LANGUAGE TupleSections #-}
 {-# LANGUAGE TypeApplications #-}
 {-# LANGUAGE UndecidableInstances #-}
@@ -187,16 +188,11 @@ newtype TokenMap = TokenMap
     }
     deriving stock (Eq, Generic)
     deriving (Read, Show) via (Quiet TokenMap)
+    deriving newtype (Semigroup, Monoid)
 
 instance NFData TokenMap
 instance Hashable TokenMap where
     hashWithSalt = hashUsing toNestedList
-
-instance Semigroup TokenMap where
-    (<>) = add
-
-instance Monoid TokenMap where
-    mempty = empty
 
 -- | A combination of a token policy identifier and a token name that can be
 --   used as a compound identifier.
