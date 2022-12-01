@@ -242,6 +242,7 @@ import UnliftIO.Exception
 
 import qualified Cardano.Crypto.Wallet as CC
 import qualified Cardano.Wallet.Address.Pool as AddressPool
+import qualified Cardano.Wallet.Primitive.Types.TokenMap as TokenMap
 import qualified Control.Foldl as Foldl
 import qualified Data.ByteArray as BA
 import qualified Data.ByteString.Char8 as B8
@@ -782,7 +783,7 @@ instance ToExpr TokenBundle where
     toExpr = genericToExpr
 
 instance ToExpr TokenMap where
-    toExpr = genericToExpr
+    toExpr = genericToExpr . TokenMap.toNestedList
 
 instance ToExpr TokenName where
     toExpr = genericToExpr

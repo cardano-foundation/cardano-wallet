@@ -130,7 +130,9 @@ import Data.Map.Strict
 import Data.Map.Strict.NonEmptyMap
     ( NonEmptyMap )
 import Data.Maybe
-    ( fromMaybe, isJust )
+    ( mapMaybe )
+import Data.MonoidMap
+    ( MonoidMap )
 import Data.Ord
     ( comparing )
 import Data.Ratio
@@ -157,6 +159,8 @@ import qualified Data.List as L
 import qualified Data.List.NonEmpty as NE
 import qualified Data.Map.Strict as Map
 import qualified Data.Map.Strict.NonEmptyMap as NEMap
+import qualified Data.Monoid.Null as MonoidNull
+import qualified Data.MonoidMap as MonoidMap
 import qualified Data.Set as Set
 
 --------------------------------------------------------------------------------
@@ -182,14 +186,14 @@ import qualified Data.Set as Set
 --
 newtype TokenMap = TokenMap
     { unTokenMap
-        :: Map TokenPolicyId (NonEmptyMap TokenName TokenQuantity)
+        :: MonoidMap TokenPolicyId (MonoidMap TokenName TokenQuantity)
     }
     deriving stock (Eq, Generic)
     deriving (Read, Show) via (Quiet TokenMap)
 
 instance NFData TokenMap
 instance Hashable TokenMap where
-    hashWithSalt = hashUsing (Map.toList . unTokenMap)
+    hashWithSalt = hashUsing toNestedList
 
 instance Semigroup TokenMap where
     (<>) = add
@@ -312,12 +316,12 @@ instance Buildable (Nested TokenMap) where
     build = buildTokenMap . unTokenMap . getNested
       where
         buildTokenMap =
-            buildList buildPolicy . Map.toList
+            buildList buildPolicy . MonoidMap.toList
         buildPolicy (policy, assetMap) = buildMap
             [ ("policy",
                 build policy)
             , ("tokens",
-                buildList buildTokenQuantity (NEMap.toList assetMap))
+                buildList buildTokenQuantity (MonoidMap.toList assetMap))
             ]
         buildTokenQuantity (token, quantity) = buildMap
             [ ("token",
@@ -508,15 +512,17 @@ toFlatList b =
 --
 toNestedList
     :: TokenMap -> [(TokenPolicyId, NonEmpty (TokenName, TokenQuantity))]
-toNestedList =
-    fmap (fmap NEMap.toList) . Map.toList . unTokenMap
+toNestedList (TokenMap m) =
+    mapMaybe (traverse NE.nonEmpty) $
+    fmap MonoidMap.toList <$> MonoidMap.toList m
 
 -- | Converts a token map to a nested map.
 --
 toNestedMap
     :: TokenMap
     -> Map TokenPolicyId (NonEmptyMap TokenName TokenQuantity)
-toNestedMap = unTokenMap
+toNestedMap (TokenMap m) =
+    Map.mapMaybe NEMap.fromMap $ MonoidMap.toMap <$> MonoidMap.toMap m
 
 --------------------------------------------------------------------------------
 -- Filtering
@@ -625,7 +631,7 @@ isNotEmpty = (/= empty)
 --
 getQuantity :: TokenMap -> AssetId -> TokenQuantity
 getQuantity (TokenMap m) (AssetId policy token) =
-    fromMaybe TokenQuantity.zero $ NEMap.lookup token =<< Map.lookup policy m
+    MonoidMap.get token (MonoidMap.get policy m)
 
 -- | Updates the quantity associated with a given asset.
 --
@@ -633,38 +639,14 @@ getQuantity (TokenMap m) (AssetId policy token) =
 -- the given asset.
 --
 setQuantity :: TokenMap -> AssetId -> TokenQuantity -> TokenMap
-setQuantity originalMap@(TokenMap m) (AssetId policy token) quantity =
-    case getPolicyMap originalMap policy of
-        Nothing | TokenQuantity.isZero quantity ->
-            originalMap
-        Nothing ->
-            createPolicyMap
-        Just policyMap | TokenQuantity.isZero quantity ->
-            removeQuantityFromPolicyMap policyMap
-        Just policyMap ->
-            updateQuantityInPolicyMap policyMap
-  where
-    createPolicyMap = TokenMap
-        $ flip (Map.insert policy) m
-        $ NEMap.singleton token quantity
-
-    removeQuantityFromPolicyMap policyMap =
-        case NEMap.delete token policyMap of
-            Nothing ->
-                TokenMap $ Map.delete policy m
-            Just newPolicyMap ->
-                TokenMap $ Map.insert policy newPolicyMap m
-
-    updateQuantityInPolicyMap policyMap = TokenMap
-        $ flip (Map.insert policy) m
-        $ NEMap.insert token quantity policyMap
+setQuantity (TokenMap m) (AssetId policy token) quantity =
+    TokenMap $ MonoidMap.adjust (MonoidMap.set token quantity) policy m
 
 -- | Returns true if and only if the given map has a non-zero quantity for the
 --   given asset.
 --
 hasQuantity :: TokenMap -> AssetId -> Bool
-hasQuantity (TokenMap m) (AssetId policy token) =
-    isJust $ NEMap.lookup token =<< Map.lookup policy m
+hasQuantity m = not . MonoidNull.null . getQuantity m
 
 -- | Uses the specified function to adjust the quantity associated with a
 --   given asset.
@@ -690,8 +672,10 @@ removeQuantity m asset = setQuantity m asset TokenQuantity.zero
 -- | Get the largest quantity from this map.
 --
 maximumQuantity :: TokenMap -> TokenQuantity
-maximumQuantity =
-    Map.foldl' (\a -> Map.foldr findMaximum a . NEMap.toMap) zero . unTokenMap
+maximumQuantity
+    = Map.foldl' (\a -> Map.foldr findMaximum a . MonoidMap.toMap) zero
+    . MonoidMap.toMap
+    . unTokenMap
   where
     zero :: TokenQuantity
     zero = TokenQuantity 0
@@ -831,13 +815,3 @@ unsafeSubtract a b = F.foldl' acc a $ toFlatList b
   where
     acc c (asset, quantity) =
         adjustQuantity c asset (`TokenQuantity.unsafeSubtract` quantity)
-
---------------------------------------------------------------------------------
--- Internal functions
---------------------------------------------------------------------------------
-
-getPolicyMap
-    :: TokenMap
-    -> TokenPolicyId
-    -> Maybe (NonEmptyMap TokenName TokenQuantity)
-getPolicyMap b policy = Map.lookup policy (unTokenMap b)
