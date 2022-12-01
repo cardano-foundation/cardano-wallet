@@ -838,7 +838,7 @@ readWallet
     -> ExceptT ErrNoSuchWallet IO
         (Wallet s, (WalletMetadata, WalletDelegation), Set Tx)
 readWallet ctx wid = db & \DBLayer{..} -> mapExceptT atomically $ do
-    cp0 <- withNoSuchWallet wid $ readCheckpoint wid
+    cp <- withNoSuchWallet wid $ readCheckpoint wid
     meta <- withNoSuchWallet wid $ readWalletMeta wid
     pending <- lift $ readTxHistory wid Nothing Descending wholeRange (Just Pending)
     pure (cp, meta, Set.fromList (fromTransactionInfo <$> pending))
