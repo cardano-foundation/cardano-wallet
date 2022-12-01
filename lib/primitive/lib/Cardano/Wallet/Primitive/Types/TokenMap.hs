@@ -539,10 +539,7 @@ filter f = fromFlatList . L.filter (f . fst) . toFlatList
 -- | Adds one token map to another.
 --
 add :: TokenMap -> TokenMap -> TokenMap
-add a b = F.foldl' acc a $ toFlatList b
-  where
-    acc c (asset, quantity) =
-        adjustQuantity c asset (`TokenQuantity.add` quantity)
+add = (<>)
 
 -- | Subtracts the second token map from the first.
 --
