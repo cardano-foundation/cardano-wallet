@@ -4536,6 +4536,38 @@ createWalletWorker ctx wid createWallet coworker =
     before ctx' _ = void $ unsafeRunExceptT $ createWallet ctx'
     re = ctx ^. workerRegistry @s @k
 
+createNonrestoringWalletWorker
+    :: forall ctx s k ktype.
+        ( ctx ~ ApiLayer s k ktype
+        )
+    => ctx
+        -- ^ Surrounding API context
+    -> WalletId
+        -- ^ Wallet Id
+    -> (WorkerCtx ctx -> ExceptT ErrWalletAlreadyExists IO WalletId)
+        -- ^ Create action
+    -> ExceptT ErrCreateWallet IO WalletId
+createNonrestoringWalletWorker ctx wid createWallet =
+    liftIO (Registry.lookup re wid) >>= \case
+        Just _ ->
+            throwE $ ErrCreateWalletAlreadyExists $ ErrWalletAlreadyExists wid
+        Nothing ->
+            liftIO registerIdleWorker >>= \case
+                Nothing -> throwE ErrCreateWalletFailedToCreateWorker
+                Just _ -> pure wid
+  where
+    before ctx' _ = void $ unsafeRunExceptT $ createWallet ctx'
+    re = ctx ^. workerRegistry @s @k
+    df = ctx ^. dbFactory
+    config = MkWorker
+        { workerAcquire = withDatabase df wid
+        , workerBefore = before
+        , workerAfter = defaultWorkerAfter
+        , workerMain = idleWorker
+        }
+    registerIdleWorker =
+        fmap (const ctx) <$> Registry.register @_ @ctx re ctx wid config
+
 -- | Create a worker for an existing wallet, register it, then start the worker
 -- thread. This is used by 'startWalletWorker' and 'createWalletWorker'.
 registerWorker
