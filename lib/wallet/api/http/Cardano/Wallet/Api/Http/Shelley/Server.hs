@@ -4601,16 +4601,19 @@ startRestoringWalletWorker
 startRestoringWalletWorker ctx wid =
     liftIO (Registry.lookup re wid) >>= \case
         Just _ -> do
-            worker <- liftIO $ Registry.delete re wid
-            liftIO registerRestoringWorker (Registry.workerResource worker) >>= \case
+            liftIO (Registry.delete re wid) >>= \case
                 Nothing -> throwE ErrRestoreWalletFailedToCreateWorker
-                Just _ -> pure wid
+                Just worker -> do
+                    liftIO $ Registry.unregister re wid
+                    liftIO (registerRestoringWorker (Registry.workerResource worker)) >>= \case
+                        Nothing -> throwE ErrRestoreWalletFailedToCreateWorker
+                        Just _ -> pure wid
         Nothing ->
             throwE $ ErrRestoreWalletNoSuchWallet $ ErrNoSuchWallet wid
   where
     re = ctx ^. workerRegistry @s @k
     config db = MkWorker
-        { workerAcquire = withDatabase df wid
+        { workerAcquire = \action -> action db
         , workerBefore = idleWorker
         , workerAfter = defaultWorkerAfter
         , workerMain = \ctx' _ -> unsafeRunExceptT $ W.restoreWallet ctx' wid
