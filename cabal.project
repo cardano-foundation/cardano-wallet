@@ -125,6 +125,8 @@ source-repository-package
     tag: f73079303f663e028288f9f4a9e08bcca39a923e
     --sha256: 1n87i15x54s0cjkh3nsxs4r1x016cdw1fypwmr68936n3xxsjn6q
 
+-- Different version than from CHaP to include the ReaderT fix.
+-- TODO [ADP-2447] This source-repository-package should be removable with next node bump.
 source-repository-package
   type: git
   location: https://github.com/input-output-hk/io-sim
@@ -134,21 +136,6 @@ source-repository-package
     io-classes
     io-sim
     strict-stm
-
--- Temporary patch for version 0.1.0.0 (181601bc3d9e9d21a671ce01e0b481348b3ca104)
--- in order to change io-sim from 606de33fa2f467d108fb1efb86daeb3348bf34e3
--- to 57e888b1894829056cb00b7b5785fdf6a74c3271 to include the ReaderT fix.
---
--- TODO [ADP-2447] This source-repository-package should be removable with next node bump.
-source-repository-package
-  type: git
-  location: https://github.com/Anviking/typed-protocols.git
-  tag: 93b180f0a8cba67d54a23faf0a4c5ffe4629ed41
-  --sha256: 1hkdc75mwpgkgbdz92lsq7ybrrmyb8dkqnqxmp27xl3jd6vdd258
-  subdir:
-    typed-protocols
-    typed-protocols-cborg
-    typed-protocols-examples
 
 -- It seems that if we remove this source-repository-package to rely on CHaP,
 -- for some reason, we're unable to retrieve the cardano-node executables in
