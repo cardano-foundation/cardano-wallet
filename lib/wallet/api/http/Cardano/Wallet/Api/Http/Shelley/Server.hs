@@ -1015,9 +1015,14 @@ postSharedWalletFromRootXPrv ctx generateKey body = do
     ix' <- liftHandler $ withExceptT ErrConstructSharedWalletInvalidIndex $
         W.guardHardIndex ix
     let state = mkSharedStateFromRootXPrv (rootXPrv, pwdP) ix' g pTemplate dTemplateM
-    void $ liftHandler $ createWalletWorker @_ @s @k ctx wid
+    let stateReadiness = state ^. #ready
+    if stateReadiness == Shared.Pending then
+        void $ liftHandler $ createNonrestoringWalletWorker @_ @s @k ctx wid
         (\wrk -> W.createWallet @(WorkerCtx ctx) @_ @s @k wrk wid wName state)
-        idleWorker
+    else
+        void $ liftHandler $ createWalletWorker @_ @s @k ctx wid
+            (\wrk -> W.createWallet @(WorkerCtx ctx) @_ @s @k wrk wid wName state)
+            idleWorker
     withWorkerCtx @_ @s @k ctx wid liftE liftE $ \wrk -> liftHandler $
         W.attachPrivateKeyFromPwd @_ @s @k wrk wid (rootXPrv, pwd)
     fst <$> getWallet ctx (mkSharedWallet @_ @s @k) (ApiT wid)
@@ -1058,9 +1063,14 @@ postSharedWalletFromAccountXPub ctx liftKey body = do
     acctIx <- liftHandler $ withExceptT ErrConstructSharedWalletInvalidIndex $
         W.guardHardIndex ix
     let state = mkSharedStateFromAccountXPub (liftKey accXPub) acctIx g pTemplate dTemplateM
-    void $ liftHandler $ createWalletWorker @_ @s @k ctx wid
+    let stateReadiness = state ^. #ready
+    if stateReadiness == Shared.Pending then
+        void $ liftHandler $ createNonrestoringWalletWorker @_ @s @k ctx wid
         (\wrk -> W.createWallet @(WorkerCtx ctx) @_ @s @k wrk wid wName state)
-        idleWorker
+    else
+        void $ liftHandler $ createWalletWorker @_ @s @k ctx wid
+            (\wrk -> W.createWallet @(WorkerCtx ctx) @_ @s @k wrk wid wName state)
+            idleWorker
     fst <$> getWallet ctx (mkSharedWallet @_ @s @k) (ApiT wid)
   where
     g = defaultAddressPoolGap
