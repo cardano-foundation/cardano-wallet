@@ -39,13 +39,24 @@ in {
       go;
 
     # Get the index-state and ghc version out of a cabal.project file.
+    #
+    # TODO [ADP-2445] It would be better to re-use functions from haskell.nix like:
+    # https://github.com/input-output-hk/haskell.nix/blob/a30665693a1991341d067df55bbf2bec1124bddd/lib/cabal-project-parser.nix
     cabalProjectIndexState = cabalProject: let
+      awkProgram = builtins.replaceStrings ["\n"] [" "] ''
+            BEGIN { print "{"; }
+            END { print "}"; }
+            { if (($1=="index-state:" || $1=="with-compiler:") && $2!="cardano-haskell-packages")
+              { gsub(/:/, "", $1); print"  " $1 " = \"" $2 "\";"; }
+            }
+            '';
+
       parsed = import (self.runCommandNoCC "cabal-project-index-state.nix" {
         preferLocalBuild = true;
         allowSubstitutes = false;
-      } ''
-        awk 'BEGIN { print "{"; } END { print "}"; } /^(index-state|with-compiler)/ { gsub(/:/, "", $1); print"  " $1 " = \"" $2 "\";"; }' < ${cabalProject} > $out
-      '');
+      } (''
+          awk '${awkProgram}' < ${cabalProject} > $out
+        '' ));
     in {
       index-state = parsed.index-state or null;
       compiler-nix-name = if parsed ? with-compiler
