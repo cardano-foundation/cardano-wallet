@@ -1,0 +1,33 @@
+name: Coding Standards
+
+on:
+  pull_request:
+    branches: [ "master" ]
+  push:
+    branches: [ "master" ]
+    tags: [ "*.*.*" ]
+
+jobs:
+  build:
+    strategy:
+      matrix:
+        os: [ubuntu-latest]
+
+    runs-on: ${{ matrix.os }}
+    steps:
+    - name: 📥 Checkout repository
+      uses: actions/checkout@v1
+
+    - name: ✍  Check hlint and stylish
+      env:
+        VERSION: v0.11.0.0
+      run: |
+        curl -sSL https://raw.github.com/ndmitchell/hlint/master/misc/run.sh | sh -s .
+        curl -sSL https://raw.github.com/input-output-hk/adrestia/master/templates/haskell/stylish-haskell.sh | sh -s $(git ls-files '*.hs') -i
+        if [ -z "$(git status --porcelain)" ]; then
+            echo "No style errors detected."
+        else
+            echo "Style errors detected:"
+            git diff
+            exit 1
+        fi
