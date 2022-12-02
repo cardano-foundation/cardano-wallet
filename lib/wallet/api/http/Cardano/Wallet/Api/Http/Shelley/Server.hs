@@ -548,7 +548,7 @@ import Data.ByteString
 import Data.Coerce
     ( coerce )
 import Data.Either
-    ( isLeft )
+    ( isLeft, isRight )
 import Data.Either.Extra
     ( eitherToMaybe )
 import Data.Function
@@ -1166,9 +1166,16 @@ patchSharedWallet
     -> ApiSharedWalletPatchData
     -> Handler ApiSharedWallet
 patchSharedWallet ctx liftKey cred (ApiT wid) body = do
+    wal <- fst <$> getWallet ctx (mkSharedWallet @_ @s @k) (ApiT wid)
     withWorkerCtx ctx wid liftE liftE $ \wrk -> do
         liftHandler $ W.updateCosigner wrk wid (liftKey accXPub) cosigner cred
-    fst <$> getWallet ctx (mkSharedWallet @_ @s @k) (ApiT wid)
+    wal' <- fst <$> getWallet ctx (mkSharedWallet @_ @s @k) (ApiT wid)
+    -- we switch on restoring only after pending -> active transition
+    -- active -> active when transition of updating cosigner keys takes place
+    -- should not trigger this
+    when (isRight (wal' ^. #wallet) && isLeft (wal ^. #wallet)) $
+        void $ liftHandler $ startRestoringWalletWorker @_ @s @k ctx wid
+    pure wal'
   where
       cosigner = getApiT (body ^. #cosigner)
       (ApiAccountSharedPublicKey accXPubApiT) = (body ^. #accountPublicKey)
@@ -4578,6 +4585,39 @@ createNonrestoringWalletWorker ctx wid createWallet =
     registerIdleWorker =
         fmap (const ctx) <$> Registry.register @_ @ctx re ctx wid config
 
+startRestoringWalletWorker
+    :: forall ctx s k ktype.
+        ( ctx ~ ApiLayer s k ktype
+        , IsOurs s Address
+        , IsOurs s RewardAccount
+        , AddressBookIso s
+        , MaybeLight s
+        )
+    => ctx
+        -- ^ Surrounding API context
+    -> WalletId
+        -- ^ Wallet Id
+    -> ExceptT ErrRestoreWallet IO WalletId
+startRestoringWalletWorker ctx wid =
+    liftIO (Registry.lookup re wid) >>= \case
+        Just _ -> do
+            worker <- liftIO $ Registry.delete re wid
+            liftIO registerRestoringWorker (Registry.workerResource worker) >>= \case
+                Nothing -> throwE ErrRestoreWalletFailedToCreateWorker
+                Just _ -> pure wid
+        Nothing ->
+            throwE $ ErrRestoreWalletNoSuchWallet $ ErrNoSuchWallet wid
+  where
+    re = ctx ^. workerRegistry @s @k
+    config db = MkWorker
+        { workerAcquire = withDatabase df wid
+        , workerBefore = idleWorker
+        , workerAfter = defaultWorkerAfter
+        , workerMain = \ctx' _ -> unsafeRunExceptT $ W.restoreWallet ctx' wid
+        }
+    registerRestoringWorker resource =
+        fmap (const ctx) <$> Registry.register @_ @ctx re ctx wid (config resource)
+
 -- | Create a worker for an existing wallet, register it, then start the worker
 -- thread. This is used by 'startWalletWorker' and 'createWalletWorker'.
 registerWorker
@@ -4669,6 +4709,13 @@ data ErrCreateWallet
         -- ^ Somehow, we couldn't create a worker or open a db connection
     deriving (Eq, Show)
 
+data ErrRestoreWallet
+    = ErrRestoreWalletNoSuchWallet ErrNoSuchWallet
+        -- ^ Wallet does not exist
+    | ErrRestoreWalletFailedToCreateWorker
+        -- ^ Somehow, we couldn't create a worker or open a db connection
+    deriving (Eq, Show)
+
 data ErrTemporarilyDisabled = ErrTemporarilyDisabled
     deriving (Eq, Show)
 
@@ -4692,6 +4739,17 @@ instance IsServerError ErrCreateWallet where
     toServerError = \case
         ErrCreateWalletAlreadyExists e -> toServerError e
         ErrCreateWalletFailedToCreateWorker ->
+            apiError err500 UnexpectedError $ mconcat
+                [ "That's embarrassing. Your wallet looks good, but I couldn't "
+                , "open a new database to store its data. This is unexpected "
+                , "and likely not your fault. Perhaps, check your filesystem's "
+                , "permissions or available space?"
+                ]
+
+instance IsServerError ErrRestoreWallet where
+    toServerError = \case
+        ErrRestoreWalletNoSuchWallet e -> toServerError e
+        ErrRestoreWalletFailedToCreateWorker ->
             apiError err500 UnexpectedError $ mconcat
                 [ "That's embarrassing. Your wallet looks good, but I couldn't "
                 , "open a new database to store its data. This is unexpected "
