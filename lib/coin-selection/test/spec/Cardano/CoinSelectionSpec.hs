@@ -538,7 +538,7 @@ unitTests_computeMinimumCollateral = unitTests
         , ( 990, Coin 10, Coin  99)
         , ( 991, Coin 10, Coin 100) -- result is non-integral so we round up
         , ( 999, Coin 10, Coin 100) -- result is non-integral so we round up
-        , (1000, Coin 10, Coin 100)
+        , (1_000, Coin 10, Coin 100)
         ]
 
 --------------------------------------------------------------------------------
@@ -656,7 +656,7 @@ shrinkMaximumCollateralInputCount = shrink
 --------------------------------------------------------------------------------
 
 genMinimumCollateralPercentage :: Gen Natural
-genMinimumCollateralPercentage = chooseNatural (0, 1000)
+genMinimumCollateralPercentage = chooseNatural (0, 1_000)
 
 shrinkMinimumCollateralPercentage :: Natural -> [Natural]
 shrinkMinimumCollateralPercentage = shrinkNatural
