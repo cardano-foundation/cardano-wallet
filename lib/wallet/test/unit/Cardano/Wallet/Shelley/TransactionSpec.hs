@@ -2101,8 +2101,8 @@ mockProtocolParameters = dummyProtocolParameters
         (577 %     10_000)
     , txParameters = TxParameters
         { getFeePolicy = mockFeePolicy
-        , getTxMaxSize = Quantity 16384
-        , getTokenBundleMaxSize = TokenBundleMaxSize $ TxSize 4000
+        , getTxMaxSize = Quantity 16_384
+        , getTokenBundleMaxSize = TokenBundleMaxSize $ TxSize 4_000
         , getMaxExecutionUnits = ExecutionUnits 10_000_000_000 14_000_000
         }
     , minimumUTxO = minimumUTxOForShelleyBasedEra Cardano.ShelleyBasedEraAlonzo
