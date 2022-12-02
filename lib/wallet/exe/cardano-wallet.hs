@@ -229,7 +229,7 @@ cmdServe = command "serve" $ info (helper <*> helper' <*> cmd) $
                         Left err -> do
                             logError tr (MsgFailedToParseGenesis $ T.pack err)
                             exitWith $ ExitFailure 33
-            whenJust databaseDir $
+            forM_ databaseDir $
                 setupDirectory (logInfo tr . MsgSetupDatabases)
 
             blockchainSource <- case mode of
@@ -264,7 +264,6 @@ cmdServe = command "serve" $ info (helper <*> helper' <*> cmd) $
                 block0
                 (beforeMainLoop tr)
 
-    whenJust m fn = Data.Foldable.forM_ m fn
     withShutdownHandlerMaybe :: Trace IO MainLog -> Bool -> IO () -> IO ()
     withShutdownHandlerMaybe _ False = void
     withShutdownHandlerMaybe tr True = void . withShutdownHandler trShutdown

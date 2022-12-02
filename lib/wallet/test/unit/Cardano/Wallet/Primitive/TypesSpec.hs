@@ -1122,9 +1122,8 @@ instance (Arbitrary a, Ord a) => Arbitrary (NonSingletonRange a) where
     arbitrary = do
         -- Iterate through the infinite list of arbitrary ranges and return
         -- the first range that is not a singleton range:
-        ranges <- infiniteList
-        pure $ head $ mapMaybe
-            (makeNonSingletonRangeValid . NonSingletonRange) ranges
+        head . mapMaybe (makeNonSingletonRangeValid . NonSingletonRange)
+               <$> infiniteList
     shrink (NonSingletonRange r) = mapMaybe
         (makeNonSingletonRangeValid . NonSingletonRange) (shrink r)
 
