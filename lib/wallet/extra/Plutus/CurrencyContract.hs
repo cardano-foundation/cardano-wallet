@@ -20,17 +20,16 @@ import Prelude
 
 import Codec.Serialise
     ( serialise )
-import qualified Data.ByteString as BS
-import qualified Data.ByteString.Base16 as Base16
-import qualified Data.ByteString.Char8 as BS8
-import qualified Data.ByteString.Lazy as BSL
 import Ledger
     ( MintingPolicy (..), Script, TxId (..), TxOutRef (..) )
-import PlutusTx.Builtins.Class
-
--- Specific example contract
 import Plutus.Contracts.Currency as Example
     ( OneShotCurrency (..), curPolicy )
+import PlutusTx.Builtins.Class
+
+import qualified Data.ByteString as BS
+import qualified Data.ByteString.Base16 as B16
+import qualified Data.ByteString.Char8 as B8
+import qualified Data.ByteString.Lazy as BL
 import qualified PlutusTx.AssocMap as AssocMap
 
 {-----------------------------------------------------------------------------
@@ -53,7 +52,7 @@ type Base16 = String
 
 -- | 'serialise' produces a CBOR representation of the binary script
 rawScript :: Script -> Base16
-rawScript = BS8.unpack . Base16.encode . BSL.toStrict . serialise
+rawScript = B8.unpack . B16.encode . BL.toStrict . serialise
 
 -- | A dummy TxOutRef that is easy to copy & replace.
 dummyTxOutRef :: TxOutRef
@@ -62,4 +61,4 @@ dummyTxOutRef = TxOutRef (mkTxId s32) 31
 
 -- | TxId corresponds to 32 bytes
 mkTxId :: Base16 -> TxId
-mkTxId = TxId . toBuiltin . Base16.decodeLenient . BS8.pack
+mkTxId = TxId . toBuiltin . B16.decodeLenient . B8.pack
