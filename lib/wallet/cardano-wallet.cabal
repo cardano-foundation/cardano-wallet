@@ -909,6 +909,7 @@ test-suite unit
     Cardano.Wallet.DB.Store.UTxOHistory.ModelSpec
     Cardano.Wallet.DB.Store.Wallets.LayerSpec
     Cardano.Wallet.DB.Store.Wallets.StoreSpec
+    Cardano.Wallet.Delegation.ModelSpec
     Cardano.Wallet.DelegationSpec
     Cardano.Wallet.DummyTarget.Primitive.Types
     Cardano.Wallet.Network.LightSpec
