@@ -736,7 +736,7 @@ epochLengthValue = 160
 -- | Wallet server's chosen transaction TTL value (in seconds) when none is
 -- given.
 defaultTxTTL :: NominalDiffTime
-defaultTxTTL = 7200
+defaultTxTTL = 7_200
 
 maximumCollateralInputCountByEra :: ApiEra -> Word16
 maximumCollateralInputCountByEra = \case
@@ -995,7 +995,7 @@ accPubKeyFromMnemonics
     -> Text
 accPubKeyFromMnemonics mnemonic1 mnemonic2 ix passphrase =
     T.decodeUtf8 $ serializeXPub $ publicKey $
-        deriveAccountPrivateKey passphrase rootXPrv (Index $ 2147483648 + ix)
+        deriveAccountPrivateKey passphrase rootXPrv (Index $ 2_147_483_648 + ix)
   where
     rootXPrv = Shared.generateKeyFromSeed (mnemonic1, mnemonic2) passphrase
 
@@ -1212,7 +1212,7 @@ expectationFailure' msg = do
 eventually :: MonadIO m => String -> IO a -> m a
 eventually = eventuallyUsingDelay (500 * ms) 90
   where
-    ms = 1000
+    ms = 1_000
 
 -- Retry the given action a couple of time until it doesn't throw, or until it
 -- has been retried enough.
@@ -2144,7 +2144,7 @@ json = aesonQQ
 
 arbitraryStake :: Maybe Coin
 arbitraryStake = Just $ ada 10_000_000_000
-  where ada = Coin . (1000*1000*)
+  where ada = Coin . (1_000*1_000*)
 
 joinStakePool
     :: forall n w m.
@@ -2690,7 +2690,7 @@ createWalletViaCLI ctx args mnemonics secondFactor passphrase =
     free (ExitSuccess, output, _) = do
         w <- expectValidJSON (Proxy @ApiWallet) output
         let wid = T.unpack $ w ^. walletId
-        () <$ try @_ @SomeException (deleteWalletViaCLI @() ctx wid)
+        void (try @_ @SomeException (deleteWalletViaCLI @() ctx wid))
 
 createWalletFromPublicKeyViaCLI
     :: forall s m.
@@ -2713,7 +2713,7 @@ createWalletFromPublicKeyViaCLI ctx args = snd <$> allocate create free
     free (Exit ExitSuccess, Stdout output, _) = do
         w <- expectValidJSON (Proxy @ApiWallet) output
         let wid = T.unpack $ w ^. walletId
-        () <$ try @_ @SomeException (deleteWalletViaCLI @() ctx wid)
+        void (try @_ @SomeException (deleteWalletViaCLI @() ctx wid))
 
 deleteWalletViaCLI
     :: forall r s m.

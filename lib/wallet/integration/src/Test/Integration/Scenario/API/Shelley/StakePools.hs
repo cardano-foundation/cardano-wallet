@@ -167,7 +167,7 @@ spec = describe "SHELLEY_STAKE_POOLS" $ do
         updateMetadataSource ctx "direct"
         verifyMetadataSource ctx FetchDirect
         triggerMaintenanceAction ctx "gc_stake_pools"
-        let delay = 500 * 1000
+        let delay = 500 * 1_000
             timeout = 10
         eventuallyUsingDelay delay timeout "GC Status shows as NotApplicable" $ do
           verifyMaintenanceAction ctx NotApplicable
@@ -177,7 +177,7 @@ spec = describe "SHELLEY_STAKE_POOLS" $ do
         updateMetadataSource ctx "none"
         verifyMetadataSource ctx FetchNone
         triggerMaintenanceAction ctx "gc_stake_pools"
-        let delay = 500 * 1000
+        let delay = 500 * 1_000
             timeout = 10
         eventuallyUsingDelay delay timeout "GC Status shows as NotApplicable" $ do
           verifyMaintenanceAction ctx NotApplicable
@@ -224,7 +224,7 @@ spec = describe "SHELLEY_STAKE_POOLS" $ do
             [ expectResponseCode HTTP.status202
             , expectField (#status . #getApiT) (`shouldBe` Pending)
             , expectField (#direction . #getApiT) (`shouldBe` Outgoing)
-            , expectField #depositTaken (`shouldBe` Quantity 1000000)
+            , expectField #depositTaken (`shouldBe` Quantity 1_000_000)
             , expectField #inputs $ \inputs' -> do
                 inputs' `shouldSatisfy` all (isJust . source)
             ]
@@ -237,7 +237,7 @@ spec = describe "SHELLEY_STAKE_POOLS" $ do
                 [ expectResponseCode HTTP.status200
                 , expectField (#status . #getApiT) (`shouldBe` InLedger)
                 , expectField (#direction . #getApiT) (`shouldBe` Outgoing)
-                , expectField #depositTaken (`shouldBe` Quantity 1000000)
+                , expectField #depositTaken (`shouldBe` Quantity 1_000_000)
                 , expectField #depositReturned (`shouldBe` Quantity 0)
                 ]
 
@@ -400,7 +400,7 @@ spec = describe "SHELLEY_STAKE_POOLS" $ do
             , expectField (#status . #getApiT) (`shouldBe` Pending)
             , expectField (#direction . #getApiT) (`shouldBe` Incoming)
             , expectField #depositTaken (`shouldBe` Quantity 0)
-            , expectField #depositReturned (`shouldBe` Quantity 1000000)
+            , expectField #depositReturned (`shouldBe` Quantity 1_000_000)
             ]
         let txid = getFromResponse Prelude.id rq
         let quitFeeAmt = getFromResponse #amount rq
@@ -416,7 +416,7 @@ spec = describe "SHELLEY_STAKE_POOLS" $ do
                 , expectField
                     (#status . #getApiT) (`shouldBe` InLedger)
                 , expectField #depositTaken (`shouldBe` Quantity 0)
-                , expectField #depositReturned (`shouldBe` Quantity 1000000)
+                , expectField #depositReturned (`shouldBe` Quantity 1_000_000)
                 ]
 
             let epl = Link.listTransactions @'Shelley src
@@ -541,7 +541,7 @@ spec = describe "SHELLEY_STAKE_POOLS" $ do
             [ expectResponseCode HTTP.status202
             , expectField #depositTaken (`shouldBe` (Quantity 0))
             , expectField #depositReturned
-                (`shouldBe` (Quantity 1000000))
+                (`shouldBe` (Quantity 1_000_000))
             ]
 
     it "STAKE_POOLS_JOIN_01 - Can rejoin another stakepool" $ \ctx -> runResourceT $ do
@@ -647,7 +647,7 @@ spec = describe "SHELLEY_STAKE_POOLS" $ do
         -- Can quit with rewards
         quitStakePool @n ctx (w, fixturePassphrase) >>= flip verify
             [ expectResponseCode HTTP.status202
-            , expectField #depositReturned (`shouldBe` Quantity 1000000)
+            , expectField #depositReturned (`shouldBe` Quantity 1_000_000)
             , expectField (#withdrawals)
                 (\[ApiWithdrawal _ c] -> c .> Quantity 0)
             ]
@@ -1281,7 +1281,7 @@ spec = describe "SHELLEY_STAKE_POOLS" $ do
 
     it "STAKE_KEY_LIST_01 - Can list stake keys" $ \ctx -> runResourceT $ do
         w <- fixtureWallet ctx
-        let balance = Quantity 1000000000000
+        let balance = Quantity 1_000_000_000_000
 
         -- fixtureWallets have funds on payment addresses, so their entire ada
         -- balance is not associated with their first stake key.
@@ -1338,7 +1338,7 @@ spec = describe "SHELLEY_STAKE_POOLS" $ do
 
     it "STAKE_KEY_LIST_02 - Can list foreign stake key from UTxO" $ \ctx -> runResourceT $ do
         w <- fixtureWallet ctx
-        let balance = Quantity 1000000000000
+        let balance = Quantity 1_000_000_000_000
         otherWallet <- emptyWallet ctx
 
         -- We send funds to one of our addresses but with a modified stake key.

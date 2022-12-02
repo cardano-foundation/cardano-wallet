@@ -70,7 +70,7 @@ spec = describe "SHELLEY_SETTINGS" $ do
             toDirect = "direct"
             getMetadata = fmap (view #metadata . getApiT) . snd <$> unsafeRequest
                 @[ApiT StakePool] ctx (Link.listStakePools arbitraryStake) Empty
-            delay = 500 * 1000
+            delay = 500 * 1_000
             timeout = 120
 
         updateMetadataSource ctx toNone
@@ -90,4 +90,4 @@ spec = describe "SHELLEY_SETTINGS" $ do
 
 arbitraryStake :: Maybe Coin
 arbitraryStake = Just $ ada 10_000
-  where ada = Coin . (1000*1000*)
+  where ada = Coin . (1_000*1_000*)

@@ -579,9 +579,9 @@ spec = describe "NEW_SHELLEY_TRANSACTIONS" $ do
                 , amount = Quantity amt
                 , assets = ApiT TokenMap.empty
                 , derivationPath = NE.fromList
-                    [ ApiT (DerivationIndex 2147485500)
-                    , ApiT (DerivationIndex 2147485463)
-                    , ApiT (DerivationIndex 2147483648)
+                    [ ApiT (DerivationIndex 2_147_485_500)
+                    , ApiT (DerivationIndex 2_147_485_463)
+                    , ApiT (DerivationIndex 2_147_483_648)
                     , ApiT (DerivationIndex 0)
                     , ApiT (DerivationIndex $ fromIntegral addrIx)
                     ]
@@ -675,9 +675,9 @@ spec = describe "NEW_SHELLEY_TRANSACTIONS" $ do
                 , amount = Quantity amt
                 , assets = ApiT TokenMap.empty
                 , derivationPath = NE.fromList
-                    [ ApiT (DerivationIndex 2147485500)
-                    , ApiT (DerivationIndex 2147485463)
-                    , ApiT (DerivationIndex 2147483648)
+                    [ ApiT (DerivationIndex 2_147_485_500)
+                    , ApiT (DerivationIndex 2_147_485_463)
+                    , ApiT (DerivationIndex 2_147_483_648)
                     , ApiT (DerivationIndex 0)
                     , ApiT (DerivationIndex $ fromIntegral addrIx)
                     ]
@@ -685,9 +685,9 @@ spec = describe "NEW_SHELLEY_TRANSACTIONS" $ do
         addrsSourceAll <- listAddresses @n ctx wa
         --we expect change address here with x=0 as this wallet does not participated in outcoming tx before this one
         let derPath = NE.fromList
-                [ ApiT (DerivationIndex 2147485500)
-                , ApiT (DerivationIndex 2147485463)
-                , ApiT (DerivationIndex 2147483648)
+                [ ApiT (DerivationIndex 2_147_485_500)
+                , ApiT (DerivationIndex 2_147_485_463)
+                , ApiT (DerivationIndex 2_147_483_648)
                 , ApiT (DerivationIndex 1)
                 , ApiT (DerivationIndex 0)
                 ]
@@ -1263,7 +1263,7 @@ spec = describe "NEW_SHELLEY_TRANSACTIONS" $ do
             (Link.decodeTransaction @'Shelley wa) Default decodePayload
         verify rTx
             [ expectResponseCode HTTP.status202
-            , expectField (#fee . #getQuantity) (`shouldBe` 144600)
+            , expectField (#fee . #getQuantity) (`shouldBe` 144_600)
             , expectField #withdrawals (`shouldBe` [])
             , expectField #collateral (`shouldBe` [])
             , expectField #metadata (`shouldBe` (ApiTxMetadata Nothing))
@@ -1341,7 +1341,7 @@ spec = describe "NEW_SHELLEY_TRANSACTIONS" $ do
                 { tokens = [apiTokens]
                 , walletPolicyKeyHash = Just policyKeyHashPayload
                 , walletPolicyKeyIndex =
-                    Just $ ApiT (DerivationIndex 2147483648)
+                    Just $ ApiT (DerivationIndex 2_147_483_648)
                 }
         let inactiveAssetsInfo = ApiAssetMintBurn
                 { tokens = []
@@ -1586,7 +1586,7 @@ spec = describe "NEW_SHELLEY_TRANSACTIONS" $ do
                  , poolOwners = [ ApiT (PoolOwner "\DC2H'\240\159mP)\164k}\t\133J\198\169\171\SYN\243\169\145\195\226\177\154\192)Q") ]
                  , poolMargin = Quantity percentage
                  , poolCost = Quantity 0
-                 , poolPledge = Quantity 1000000000000
+                 , poolPledge = Quantity 1_000_000_000_000
                  , poolMetadata =
                          Just (ApiT (StakePoolMetadataUrl "http://localhost:44107/metadata.json")
                               ,ApiT (StakePoolMetadataHash "\241\148\ESC\ACK\216\137\161\169\189\138}\215-!`\170)M\129\164IO\153\&5<k\187\DC2\aF\128\137"))
@@ -1595,7 +1595,7 @@ spec = describe "NEW_SHELLEY_TRANSACTIONS" $ do
         let containDeregPool = elem
                 (StakePoolDeregister ApiDeregisterPool
                  { poolId = ApiT poolId'
-                 , retirementEpoch = ApiT (EpochNo 1000000)
+                 , retirementEpoch = ApiT (EpochNo 1_000_000)
                  })
 
         let decodePayloadJoin = Json [json|{
@@ -2156,7 +2156,7 @@ spec = describe "NEW_SHELLEY_TRANSACTIONS" $ do
                             "policyId": #{policyId'},
                             "vkHash": #{vkHash}
                         }|]
-                        let burn = \_ -> PlutusScenario.mintBurn_2 [json|{
+                        let burn _ = PlutusScenario.mintBurn_2 [json|{
                                 "policy": #{policy},
                                 "policyId": #{policyId'},
                                 "vkHash": #{vkHash}
@@ -2169,7 +2169,7 @@ spec = describe "NEW_SHELLEY_TRANSACTIONS" $ do
                         let (script, _scriptHash) = PlutusScenario.alwaysTrueValidator
                         liftIO $ _moveRewardsToScript ctx
                             ( unsafeFromHex $ T.encodeUtf8 script
-                            , Coin 42000000
+                            , Coin 42_000_000
                             )
                         waitForNextEpoch ctx
                         withdrawal <- PlutusScenario.withdrawScript_1
@@ -2232,7 +2232,7 @@ spec = describe "NEW_SHELLEY_TRANSACTIONS" $ do
                 ]
             let txid = getFromResponse Prelude.id submittedTx
 
-            let runStep = \previous step -> do
+            let runStep previous step = do
                     waitForTxImmutability ctx
 
                     -- Balance
@@ -2264,7 +2264,7 @@ spec = describe "NEW_SHELLEY_TRANSACTIONS" $ do
         let initialAmt = 10 * minUTxOValue (_mainEra ctx)
         src <- fixtureWalletWith @n ctx [initialAmt]
         dest <- emptyWallet ctx
-        let depositAmt = Quantity 1000000
+        let depositAmt = Quantity 1_000_000
 
         pool1:pool2:_ <- map (view $ _Unwrapped . #id) . snd <$> unsafeRequest @[ApiT StakePool]
             ctx (Link.listStakePools arbitraryStake) Empty
@@ -2290,9 +2290,9 @@ spec = describe "NEW_SHELLEY_TRANSACTIONS" $ do
 
         -- as we are joining for the first time we expect two certificates
         let stakeKeyDerPath = NE.fromList
-                [ ApiT (DerivationIndex 2147485500)
-                , ApiT (DerivationIndex 2147485463)
-                , ApiT (DerivationIndex 2147483648)
+                [ ApiT (DerivationIndex 2_147_485_500)
+                , ApiT (DerivationIndex 2_147_485_463)
+                , ApiT (DerivationIndex 2_147_483_648)
                 , ApiT (DerivationIndex 2)
                 , ApiT (DerivationIndex 0)
                 ]
@@ -2897,7 +2897,7 @@ spec = describe "NEW_SHELLEY_TRANSACTIONS" $ do
                 getFromResponse #transaction rUnsignedTx2
         verify rUnsignedTx2
             [ expectField (#coinSelection . #depositsReturned)
-                (`shouldBe` [Quantity 1000000])
+                (`shouldBe` [Quantity 1_000_000])
             , expectField (#coinSelection . #depositsTaken)
                 (`shouldBe` [])
             ]
@@ -4220,7 +4220,7 @@ spec = describe "NEW_SHELLEY_TRANSACTIONS" $ do
                 { tokens = [apiTokens]
                 , walletPolicyKeyHash = Just policyKeyHashPayload
                 , walletPolicyKeyIndex =
-                    Just $ ApiT (DerivationIndex 2147483648)
+                    Just $ ApiT (DerivationIndex 2_147_483_648)
                 }
         let inactiveAssetsInfo = ApiAssetMintBurn
                 { tokens = []
@@ -4337,7 +4337,7 @@ spec = describe "NEW_SHELLEY_TRANSACTIONS" $ do
                 { tokens = [apiTokens]
                 , walletPolicyKeyHash = Just policyKeyHashPayload
                 , walletPolicyKeyIndex =
-                    Just $ ApiT (DerivationIndex 2147483648)
+                    Just $ ApiT (DerivationIndex 2_147_483_648)
                 }
 
         rDecodedTx <- request @(ApiDecodedTransaction n) ctx
