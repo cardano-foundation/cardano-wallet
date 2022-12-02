@@ -134,7 +134,7 @@ import Data.Function.Utils
 import Data.IntCast
     ( intCast )
 import Data.Maybe
-    ( catMaybes, fromMaybe, isJust, isNothing )
+    ( fromMaybe, isJust, isNothing, mapMaybe )
 import Data.Proxy
     ( Proxy (..) )
 import Data.Quantity
@@ -1123,10 +1123,10 @@ instance (Arbitrary a, Ord a) => Arbitrary (NonSingletonRange a) where
         -- Iterate through the infinite list of arbitrary ranges and return
         -- the first range that is not a singleton range:
         ranges <- infiniteList
-        pure $ head $ catMaybes $
-            makeNonSingletonRangeValid . NonSingletonRange <$> ranges
-    shrink (NonSingletonRange r) = catMaybes $
-        makeNonSingletonRangeValid . NonSingletonRange <$> shrink r
+        pure $ head $ mapMaybe
+            (makeNonSingletonRangeValid . NonSingletonRange) ranges
+    shrink (NonSingletonRange r) = mapMaybe
+        (makeNonSingletonRangeValid . NonSingletonRange) (shrink r)
 
 -- Ensures that a range is not a singleton range.
 makeNonSingletonRangeValid

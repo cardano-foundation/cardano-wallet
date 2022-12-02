@@ -531,8 +531,6 @@ import Data.Either
     ( lefts, partitionEithers )
 import Data.Either.Extra
     ( eitherToMaybe )
-import Data.Foldable
-    ( fold )
 import Data.Function
     ( (&) )
 import Data.Functor
@@ -977,7 +975,7 @@ restoreWallet ctx wid = db & \DBLayer{..} ->
         readChainPoints = atomically $ listCheckpoints wid
         rollBackward =
             throwInIO . rollbackBlocks @_ @s @k ctx wid . toSlot
-        rollForward' = \blockdata tip -> throwInIO $
+        rollForward' blockdata tip = throwInIO $
             restoreBlocks @_ @s @k
                 ctx (contramap MsgWalletFollow tr) wid blockdata tip
     in
@@ -1107,7 +1105,7 @@ restoreBlocks ctx tr wid blocks nodeTip = db & \DBLayer{..} ->
             ]
         pseudoSlotNo Origin = 0
         pseudoSlotNo (At sl) = sl
-    let txs = fold $ view #transactions <$> filteredBlocks
+    let txs = foldMap (view #transactions) filteredBlocks
     let epochStability = (3*) <$> getSecurityParameter sp
     let localTip = currentTip $ NE.last cps
 
@@ -2267,8 +2265,8 @@ selectionToUnsignedTx wdrl sel s =
         :: (a -> Address)
         -> [a]
         -> [(a, NonEmpty DerivationIndex)]
-    qualifyAddresses getAddress hasAddresses =
-        mapMaybe withDerivationPath hasAddresses
+    qualifyAddresses getAddress =
+        mapMaybe withDerivationPath
       where
         withDerivationPath hasAddress =
             (hasAddress,) <$> fst (isOurs (getAddress hasAddress) s)

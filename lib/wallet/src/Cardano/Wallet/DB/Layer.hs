@@ -625,7 +625,7 @@ newDBLayerWith _cacheBehavior _tr ti SqliteContext{runQuery} = do
                 [ Asc CheckpointSlot ]
         }
 
-    let rollbackTo_ = \wid requestedPoint -> do
+    let rollbackTo_ wid requestedPoint = do
             mNearestCheckpoint <-  ExceptT $ do
                 modifyDBMaybe walletsDB $ \ws ->
                     case Map.lookup wid ws of
@@ -664,7 +664,7 @@ newDBLayerWith _cacheBehavior _tr ti SqliteContext{runQuery} = do
                         $ W.chainPointFromBlockHeader
                         $ view #currentTip wcp
 
-    let prune_ = \wid epochStability -> do
+    let prune_ wid epochStability = do
             ExceptT $ do
                 readCheckpoint wid >>= \case
                     Nothing -> pure $ Left $ ErrNoSuchWallet wid

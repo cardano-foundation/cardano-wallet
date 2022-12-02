@@ -119,7 +119,7 @@ import qualified Data.Text.Encoding as T
 spec :: Spec
 spec = describe "Cardano.Wallet.Primitive.Migration.SelectionSpec" $
 
-    modifyMaxSuccess (const 1000) $ do
+    modifyMaxSuccess (const 1_000) $ do
 
     parallel $ describe "Creating selections" $ do
 
@@ -791,7 +791,7 @@ data MockTxCostFunction = MockTxCostFunction
 
 genMockTxCostFunction :: Gen MockTxCostFunction
 genMockTxCostFunction = MockTxCostFunction
-    <$> chooseCoin (Coin 0, Coin 1000)
+    <$> chooseCoin (Coin 0, Coin 1_000)
     <*> chooseCoin (Coin 1, Coin 4)
 
 --------------------------------------------------------------------------------
@@ -804,7 +804,7 @@ newtype MockTxBaseSize = MockTxBaseSize
     deriving Show via Natural
 
 genMockTxBaseSize :: Gen MockTxBaseSize
-genMockTxBaseSize = MockTxBaseSize <$> genTxSizeRange 0 1000
+genMockTxBaseSize = MockTxBaseSize <$> genTxSizeRange 0 1_000
 
 --------------------------------------------------------------------------------
 -- Mock input sizes
@@ -844,7 +844,7 @@ newtype MockTxOutputMaximumTokenQuantity = MockTxOutputMaximumTokenQuantity
 
 genMockTxOutputMaximumTokenQuantity :: Gen MockTxOutputMaximumTokenQuantity
 genMockTxOutputMaximumTokenQuantity = MockTxOutputMaximumTokenQuantity <$>
-    genTokenQuantityRange (TokenQuantity 500) (TokenQuantity 2000)
+    genTokenQuantityRange (TokenQuantity 500) (TokenQuantity 2_000)
 
 --------------------------------------------------------------------------------
 -- Mock minimum ada quantities
@@ -948,7 +948,7 @@ genCoinAboveMinimumAdaQuantity mockConstraints =
   where
     constraints = unMockTxConstraints mockConstraints
     lo = txOutputMinimumAdaQuantity constraints dummyAddress TokenMap.empty
-    hi = lo `scaleCoin` 1000
+    hi = lo `scaleCoin` 1_000
 
 genCoinBelowMinimumAdaQuantity :: MockTxConstraints -> Gen Coin
 genCoinBelowMinimumAdaQuantity mockConstraints =
@@ -989,7 +989,7 @@ genTokenBundleAboveMinimumAdaQuantity :: MockTxConstraints -> Gen TokenBundle
 genTokenBundleAboveMinimumAdaQuantity mockConstraints = do
     m <- genTokenMap mockConstraints
     let minAda = txOutputMinimumAdaQuantity constraints dummyAddress m
-    c <- chooseCoin (minAda <> Coin 1, minAda `scaleCoin` 1000)
+    c <- chooseCoin (minAda <> Coin 1, minAda `scaleCoin` 1_000)
     pure $ TokenBundle c m
   where
     constraints = unMockTxConstraints mockConstraints

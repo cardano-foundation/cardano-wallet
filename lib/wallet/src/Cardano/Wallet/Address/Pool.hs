@@ -56,8 +56,7 @@ import Fmt
 import GHC.Generics
     ( Generic )
 
-{- HLINT ignore "Avoid restricted qualification" -}
-import qualified Data.List as List
+import qualified Data.List as L
 import qualified Data.Map.Strict as Map
 
 {-------------------------------------------------------------------------------
@@ -98,9 +97,9 @@ instance (NFData addr, NFData ix) => NFData (Pool addr ix)
 -- sequence beginning with 'fromEnum'@ 0@.
 prop_sequence :: (Ord ix, Enum ix) => Pool addr ix -> Bool
 prop_sequence Pool{addresses} =
-    indices `List.isPrefixOf` [toEnum 0..]
+    indices `L.isPrefixOf` [toEnum 0..]
   where
-    indices = List.sort $ map fst $ Map.elems addresses
+    indices = L.sort $ map fst $ Map.elems addresses
 
 -- | Internal invariant:
 -- If we order the 'addresses' by their indices,
@@ -109,14 +108,14 @@ prop_sequence Pool{addresses} =
 -- or before the first 'Used' address.
 prop_gap :: Ord ix => Pool addr ix -> Bool
 prop_gap Pool{gap,addresses}
-    = all (< gap) . consecutiveUnused . List.group $ statuses
+    = all (< gap) . consecutiveUnused . L.group $ statuses
   where
     consecutiveUnused ((Used:_):xs) = consecutiveUnused xs
     consecutiveUnused (x@(Unused:_):(Used:_):xs) =
         length x : consecutiveUnused xs
     consecutiveUnused _ = []
 
-    statuses = map snd $ List.sortOn fst $ Map.elems addresses
+    statuses = map snd $ L.sortOn fst $ Map.elems addresses
 
 -- | Internal invariant:
 -- If we order the 'addresses' by their indices,
@@ -126,7 +125,7 @@ prop_fresh :: Ord ix => Pool addr ix -> Bool
 prop_fresh Pool{gap,addresses} =
     takeWhile (== Unused) end == replicate gap Unused
   where
-    end = map snd $ List.sortOn (Down . fst) $ Map.elems addresses
+    end = map snd $ L.sortOn (Down . fst) $ Map.elems addresses
 
 -- | Internal invariant:
 -- All 'addresses' in the pool have been generated from their index

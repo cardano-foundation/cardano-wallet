@@ -47,7 +47,7 @@ import Data.Generics.Internal.VL
 import Data.Map.Strict
     ( Map )
 import Data.Maybe
-    ( catMaybes, fromJust )
+    ( fromJust, mapMaybe )
 import Data.Set
     ( Set )
 import Test.Hspec
@@ -95,8 +95,8 @@ genAge :: TxMetaHistory -> Gen ManipulateTxMetaHistory
 genAge (TxMetaHistory history) =
     fmap AgeTxMetaHistory
     $ elementsOrArbitrary id
-    $ catMaybes
-    $ txMetaSlotExpires <$> toList history
+    $ mapMaybe txMetaSlotExpires
+    $ toList history
 
 genPrune :: TxMetaHistory -> Gen ManipulateTxMetaHistory
 genPrune history =

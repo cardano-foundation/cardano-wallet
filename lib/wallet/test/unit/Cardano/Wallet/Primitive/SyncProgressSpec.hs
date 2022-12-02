@@ -58,10 +58,10 @@ spec :: Spec
 spec = do
     let t0 = read "2019-11-09 16:43:02 UTC"
     let sp = SlottingParameters
-            { getEpochLength = EpochLength 21600
+            { getEpochLength = EpochLength 21_600
             , getSlotLength  = SlotLength 10
             , getActiveSlotCoefficient = 1
-            , getSecurityParameter = Quantity 2160
+            , getSecurityParameter = Quantity 2_160
             }
     let st = SyncTolerance 10
 
@@ -137,9 +137,9 @@ spec = do
             let tip = SlotNo 1_000
             let ntwkTime = runQry $ slotToRelTime $ SlotNo 2_000_000
             runIdentity (syncProgress tolerance ti tip ntwkTime)
-                `shouldBe` Syncing (Quantity $ unsafeMkPercentage 0.0005)
+                `shouldBe` Syncing (Quantity $ unsafeMkPercentage 0.000_5)
 
-        it "syncProgress should never crash" $ withMaxSuccess 10000
+        it "syncProgress should never crash" $ withMaxSuccess 10_000
             $ property $ \tip dt -> monadicIO $ do
                 let x = runIdentity $ syncProgress tolerance ti tip dt
                 res <- run (try @IO @SomeException $ evaluate x)

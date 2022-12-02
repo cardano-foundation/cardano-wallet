@@ -127,8 +127,6 @@ import Control.Monad.Trans.State.Strict
     ( State, evalState, execState, runState, state )
 import Data.Delta
     ( apply )
-import Data.Foldable
-    ( fold )
 import Data.Function
     ( (&) )
 import Data.Functor
@@ -435,7 +433,7 @@ prop_applyBlockTxHistoryIncoming s =
     (_, cp0) = initWallet @_ block0 s
     bs = NE.fromList blockchain
     (filteredBlocks, (_, cp)) = applyBlocksOld bs cp0
-    txs = fold $ (view #transactions) <$> filteredBlocks
+    txs = foldMap (view #transactions) filteredBlocks
     s' = getState cp
     isIncoming (_, m) = direction m == Incoming
     outs = Set.fromList . concatMap (map address . outputs . fst)
@@ -982,14 +980,11 @@ isOurTx tx u
         u `UTxO.restrictedBy` Set.fromList
             (fst <$> tx ^. #resolvedCollateralInputs)
     txHasRelevantOutput =
-        F.or <$> sequence
-            (isOursState . (view #address) <$> tx ^. #outputs)
+        F.or <$> mapM (isOursState . (view #address)) (tx ^. #outputs)
     txHasRelevantCollateralOutput =
-        F.or <$> sequence
-            (isOursState . (view #address) <$> tx ^. #collateralOutput)
+        F.or <$> mapM (isOursState . (view #address)) (tx ^. #collateralOutput)
     txHasRelevantWithdrawal =
-        F.or <$> sequence
-            (isOursState . fst <$> Map.toList (tx ^. #withdrawals))
+        F.or <$> mapM (isOursState . fst) (Map.toList (tx ^. #withdrawals))
 
     isOursState :: IsOurs s addr => addr -> State s Bool
     isOursState = fmap isJust . state . isOurs
@@ -1057,7 +1052,7 @@ txOutsOurs
     -> (Set (Tx, TxOut), s)
 txOutsOurs txs =
     runState $ Set.fromList <$> forMaybe
-        (foldMap (\tx -> zip (repeat tx) (outputsCreatedByTx tx)) txs) pick
+        (foldMap (\tx -> map (tx,) (outputsCreatedByTx tx)) txs) pick
   where
     pick :: (Tx, TxOut) -> State s (Maybe (Tx, TxOut))
     pick (tx, out) = do

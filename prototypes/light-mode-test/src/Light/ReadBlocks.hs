@@ -1,5 +1,4 @@
 {-# LANGUAGE BangPatterns #-}
-{-# LANGUAGE NamedFieldPuns #-}
 {-# LANGUAGE NumericUnderscores #-}
 -- | Implementation of ledger query.
 module Light.ReadBlocks where
@@ -137,15 +136,13 @@ lightSync follower = do
                 fromBlock <$> (BF.getBlock . Left $ height - stabilityWindow)
     nextBlockFrom prev@(At height _) = do
         b <- hasBeenRolledBack prev
-        case b of
-            False -> fromBlock <$> BF.getLatestBlock
-            True  -> do
-                -- fall back to behind the stability window
-                target <- BF.getBlock . Left $ height - stabilityWindow
+       (if b then
+            (do target <- BF.getBlock . Left $ height - stabilityWindow
                 old <- rollBackward follower $ fromBlock target
-                nextBlockFrom old
-
-    stabilityWindow = 1000 :: Integer
+                nextBlockFrom old)
+        else
+            fromBlock <$> BF.getLatestBlock)
+    stabilityWindow = 1_000 :: Integer
 
 -- | Test whether a given 'ChainPoint' has become invalid due
 -- to a rollback.
@@ -189,8 +186,8 @@ genAddress addr = do
     txs <- BF.getAddressTransactions' addr (BF.Paged 100 1) BF.Ascending Nothing Nothing
     tx  <- BF.getTxUtxos . BF._addressTransactionTxHash =<< choose txs
     let choices =
-            (map _utxoInputAddress $ _transactionUtxosInputs tx)
-            <> (map _utxoOutputAddress $ _transactionUtxosOutputs tx)
+            map _utxoInputAddress (_transactionUtxosInputs tx)
+            <> map _utxoOutputAddress (_transactionUtxosOutputs tx)
     case filter (/= addr) choices of
         [] -> pure Nothing
         _  -> liftIO $ Just <$> choose choices

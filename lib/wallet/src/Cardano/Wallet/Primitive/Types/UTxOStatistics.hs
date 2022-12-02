@@ -1,5 +1,6 @@
 {-# LANGUAGE DeriveGeneric #-}
 {-# LANGUAGE LambdaCase #-}
+{-# LANGUAGE TupleSections #-}
 
 -- |
 -- Copyright: © 2018-2022 IOHK
@@ -136,7 +137,7 @@ computeWith getCoins btype utxos =
             Just (k, v) -> Map.insert k (v+1) x
             Nothing -> Map.adjust (+1) (NE.head bounds) x
         initial :: Map Word64 Word64
-        initial = Map.fromList $ zip (NE.toList bounds) (repeat 0)
+        initial = Map.fromList $ map (, 0) (NE.toList bounds)
         extract :: Map Word64 Word64 -> [HistogramBar]
         extract = map (uncurry HistogramBar) . Map.toList
 

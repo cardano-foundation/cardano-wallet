@@ -255,7 +255,7 @@ tunedForMainnetPipeliningStrategy :: HasHeader block => PipeliningStrategy block
 tunedForMainnetPipeliningStrategy =  PipeliningStrategy {..}
     where
         getPipeliningSize (blockNo -> n)
-            | n <= 5_200_000 = 1000
+            | n <= 5_200_000 = 1_000
             | n <= 6_100_000 = 200
             | n <= 6_500_000 = 125
             | otherwise      = 100
@@ -383,7 +383,7 @@ chainSyncWithBlocks tr pipeliningStrategy chainFollower =
     clientStIdle
         :: RequestNextStrategy m 'Z block
         -> m (P.ClientPipelinedStIdle 'Z block (Point block) (Tip block) m Void)
-    clientStIdle strategy = pure strategy
+    clientStIdle = pure
 
     -- Simple strategy that sends a request and waits for an answer.
     oneByOne :: RequestNextStrategy m 'Z block

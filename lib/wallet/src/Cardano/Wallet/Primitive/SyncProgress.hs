@@ -136,7 +136,7 @@ syncProgress (SyncTolerance tolerance) ti slot now = do
     start = RelativeTime 0
 
     convert :: RelativeTime -> Int
-    convert = round . (* 1000) . getRelativeTime
+    convert = round . (* 1_000) . getRelativeTime
 
     withinTolerance a b =  b `diffRelTime` a <= tolerance
 

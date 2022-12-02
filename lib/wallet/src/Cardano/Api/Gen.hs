@@ -1019,7 +1019,7 @@ genCostModel = case Plutus.defaultCostModelParams of
       CostModel
     -- TODO This needs to be the cost model struct for whichever
     -- Plutus version we're using, once we support multiple Plutus versions.
-    <$> mapM (const $ chooseInteger (0, 5000)) dcm
+    <$> mapM (const $ chooseInteger (0, 5_000)) dcm
 
 genCostModels :: Gen (Map AnyPlutusScriptVersion CostModel)
 genCostModels = do
