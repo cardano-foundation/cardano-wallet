@@ -1597,7 +1597,7 @@ instance Arbitrary ApiSlotId where
 
 instance Arbitrary ApiNetworkInfo where
     arbitrary = oneof
-        [ pure $ ApiNetworkInfo "mainnet" 764824073
+        [ pure $ ApiNetworkInfo "mainnet" 764_824_073
         , ApiNetworkInfo "testnet" <$> arbitrary
         ]
 
@@ -1962,7 +1962,7 @@ instance Arbitrary ApiTokenAmountFingerprint where
         policyid <- arbitrary
         let fingerprint = ApiT $ mkTokenFingerprint policyid name
         ApiTokenAmountFingerprint (ApiT name)
-            <$> (fromIntegral <$> choose @Int (1, 10000))
+            <$> (fromIntegral <$> choose @Int (1, 10_000))
             <*> pure fingerprint
 
 instance Arbitrary ApiTokens where

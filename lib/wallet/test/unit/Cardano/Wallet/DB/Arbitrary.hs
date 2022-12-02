@@ -748,7 +748,7 @@ instance Arbitrary TxParameters where
     shrink = genericShrink
     arbitrary = TxParameters
         <$> arbitrary
-        <*> fmap Quantity (choose (0, 1000))
+        <*> fmap Quantity (choose (0, 1_000))
         <*> arbitrary
         <*> arbitrary
 
@@ -760,7 +760,7 @@ instance Arbitrary ExecutionUnits where
 
 instance Arbitrary FeePolicy where
     arbitrary = (LinearFee . ) . LinearFunction
-        <$> choose (0, 1000)
+        <$> choose (0, 1_000)
         <*> choose (0, 100)
 
 instance (Integral a, Arbitrary a) => Arbitrary (Quantity n a) where

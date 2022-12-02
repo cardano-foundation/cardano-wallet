@@ -16,6 +16,8 @@ import Cardano.Wallet.Read.Eras
     ( EraValue, allegra, alonzo, babbage, byron, inject, mary, shelley )
 import Cardano.Wallet.Read.Tx
     ( Tx (..) )
+import Control.Monad
+    ( void )
 
 import qualified Cardano.Api as Cardano
 import qualified Cardano.Api.Byron as Cardano
@@ -29,4 +31,4 @@ fromCardanoApiTx = \case
         Cardano.ShelleyBasedEraMary -> inject mary $ Tx tx
         Cardano.ShelleyBasedEraAlonzo -> inject alonzo $ Tx tx
         Cardano.ShelleyBasedEraBabbage -> inject babbage $ Tx tx
-    Cardano.ByronTx tx -> inject byron $ Tx $ () <$ tx
+    Cardano.ByronTx tx -> inject byron $ Tx $ void tx

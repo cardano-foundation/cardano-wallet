@@ -116,17 +116,17 @@ mainnetNetworkParameters = W.NetworkParameters
         { getGenesisBlockHash = W.Hash $ unsafeFromHex
             "5f20df933584822601f9e3f8c024eb5eb252fe8cefb24d1317dc3d432e940ebb"
         , getGenesisBlockDate =
-            W.StartTime $ posixSecondsToUTCTime 1506203091
+            W.StartTime $ posixSecondsToUTCTime 1_506_203_091
         }
     , slottingParameters = W.SlottingParameters
         { getSlotLength =
             W.SlotLength 20
         , getEpochLength =
-            W.EpochLength 21600
+            W.EpochLength 21_600
         , getActiveSlotCoefficient =
             W.ActiveSlotCoefficient 1.0
         , getSecurityParameter =
-            Quantity 2160
+            Quantity 2_160
         }
     , protocolParameters = W.ProtocolParameters
         { decentralizationLevel =
@@ -134,9 +134,9 @@ mainnetNetworkParameters = W.NetworkParameters
         , txParameters = W.TxParameters
             { getFeePolicy =
                 W.LinearFee $
-                    W.LinearFunction { intercept = 155381, slope = 43.946 }
+                    W.LinearFunction { intercept = 155_381, slope = 43.946 }
             , getTxMaxSize =
-                Quantity 4096
+                Quantity 4_096
             , getTokenBundleMaxSize = maryTokenBundleMaxSize
             , getMaxExecutionUnits = W.ExecutionUnits 0 0
             }
@@ -160,7 +160,7 @@ mainnetNetworkParameters = W.NetworkParameters
 -- NOTE: A bit weird to define in "Cardano.Wallet.Byron.Compatibility", but we
 -- need it both here and in "Cardano.Wallet.Shelley.Compatibility".
 maryTokenBundleMaxSize :: W.TokenBundleMaxSize
-maryTokenBundleMaxSize = W.TokenBundleMaxSize $ W.TxSize 4000
+maryTokenBundleMaxSize = W.TokenBundleMaxSize $ W.TxSize 4_000
 
 -- NOTE
 -- For MainNet and TestNet, we can get away with empty genesis blocks with

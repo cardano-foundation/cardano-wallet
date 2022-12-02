@@ -78,6 +78,8 @@ import Control.Tracer.Transformers.ObserveOutcome
     )
 import Data.Aeson
     ( ToJSON (..), Value (Null), object, (.=) )
+import Data.Foldable
+    ( forM_ )
 import Data.Functor
     ( ($>) )
 import Data.Text
@@ -406,6 +408,4 @@ flatContramapTracer
     => (a -> Maybe b)
     -> Tracer m b
     -> Tracer m a
-flatContramapTracer p tr = Tracer $ \a -> case p a of
-     Just b -> runTracer tr b
-     Nothing -> pure ()
+flatContramapTracer p tr = Tracer $ \a -> forM_ (p a) (runTracer tr)

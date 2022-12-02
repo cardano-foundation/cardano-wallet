@@ -180,7 +180,7 @@ instance HasSeverityAnnotation NtpTrace where
         NtpTraceNoLocalAddr -> Notice
         NtpTraceResult (NtpDrift micro)
             | abs micro < (500*ms)  -> Debug   -- Not sure what limits actually
-            | abs micro < (1000*ms) -> Notice  -- matter, but these seem
+            | abs micro < (1_000*ms) -> Notice  -- matter, but these seem
             | otherwise             -> Warning -- reasonable.
         NtpTraceResult _ -> Debug
         NtpTraceRunProtocolResults _ -> Debug
@@ -190,7 +190,7 @@ instance HasSeverityAnnotation NtpTrace where
         NtpTracePacketReceived _ _ -> Debug
         NtpTraceWaitingForRepliesTimeout _ -> Notice
       where
-        ms = 1000
+        ms = 1_000
 
 data ForceCheck = ForceBlockingRequest | CanUseCachedResults
 

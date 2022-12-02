@@ -520,8 +520,7 @@ validateScriptTemplates accXPub level pTemplate dTemplateM = do
           mapLeft (ErrScriptTemplateInvalid cred) $
           handleUnusedCosigner $
           validateScriptTemplate level template'
-      checkXPub template' =
-          accountXPubCondition accXPub template'
+      checkXPub = accountXPubCondition accXPub
       accXPubErr = "The wallet's account key must be always present for the script template."
 
 -- | Do we have all public keys in the templates?

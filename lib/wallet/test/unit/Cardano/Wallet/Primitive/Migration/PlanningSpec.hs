@@ -85,7 +85,7 @@ import qualified Data.Set as Set
 spec :: Spec
 spec = describe "Cardano.Wallet.Primitive.Migration.PlanningSpec" $
 
-    modifyMaxSuccess (const 1000) $ do
+    modifyMaxSuccess (const 1_000) $ do
 
     parallel $ describe "Creating migration plans" $ do
 

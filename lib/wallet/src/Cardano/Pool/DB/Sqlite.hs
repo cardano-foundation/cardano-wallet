@@ -969,13 +969,13 @@ fromStakeDistribution distribution =
     )
 
 fromPoolMeta :: PoolMetadata -> (StakePoolMetadataHash, StakePoolMetadata)
-fromPoolMeta meta = (poolMetadataHash meta,) $
+fromPoolMeta meta = (poolMetadataHash meta,
     StakePoolMetadata
         { ticker = poolMetadataTicker meta
         , name = poolMetadataName meta
         , description = poolMetadataDescription meta
         , homepage = poolMetadataHomepage meta
-        }
+        })
 
 fromSettings :: Settings -> W.Settings
 fromSettings (Settings pms) = W.Settings pms

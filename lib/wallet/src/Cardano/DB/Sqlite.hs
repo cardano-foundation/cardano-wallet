@@ -313,7 +313,7 @@ retryOnBusy tr timeout action = recovering policy
   where
     policy = limitRetriesByCumulativeDelay usTimeout $ constantDelay (25*ms)
     usTimeout = truncate (timeout * 1_000_000)
-    ms = 1000 -- microseconds in a millisecond
+    ms = 1_000 -- microseconds in a millisecond
 
     isBusy (SqliteException name _ _) = pure (name == Sqlite.ErrorBusy)
 
@@ -417,7 +417,7 @@ newConnectionPool tr fp = do
             conn <- Sqlite.open (T.pack fp)
             (,conn) <$> wrapConnection conn (queryLogFunc tr)
 
-    let releaseConnection = \(backend, _) -> do
+    let releaseConnection (backend, _) =
             destroySqliteBackend tr backend fp
 
     createPool

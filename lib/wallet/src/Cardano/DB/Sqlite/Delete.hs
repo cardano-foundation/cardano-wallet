@@ -141,7 +141,7 @@ linearBackoff base = retryPolicy $ \ RetryStatus { rsIterNumber = n } ->
 
 -- | Recommended retry policy for 'deleteSqliteDatabase'.
 deleteSqliteDatabaseRetryPolicy :: RetryPolicy
-deleteSqliteDatabaseRetryPolicy = linearBackoff 25000 <> limitRetries 10
+deleteSqliteDatabaseRetryPolicy = linearBackoff 25_000 <> limitRetries 10
 
 -- | Log messages that may arise from 'deleteSqliteDatabase'.
 data DeleteSqliteDatabaseLog
