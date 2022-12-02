@@ -18,11 +18,16 @@ jobs:
     - name: 📥 Checkout repository
       uses: actions/checkout@v1
 
-    - name: ✍  Check hlint and stylish
+    - name: ✍  Check hlint
       env:
         VERSION: v0.11.0.0
       run: |
         curl -sSL https://raw.github.com/ndmitchell/hlint/master/misc/run.sh | sh -s .
+
+    - name: ✍  Check stylish-haskell
+      env:
+        VERSION: v0.11.0.0
+      run: |
         curl -sSL https://raw.github.com/input-output-hk/adrestia/master/templates/haskell/stylish-haskell.sh | sh -s $(git ls-files '*.hs') -i
         if [ -z "$(git status --porcelain)" ]; then
             echo "No style errors detected."
