@@ -64,7 +64,7 @@ convertApiAssetMintBurn
 convertApiAssetMintBurn ctx wid (mint, burn) = do
     xpubM <- fmap (fmap fst . eitherToMaybe)
         <$> liftIO . runExceptT $ readPolicyPublicKey @ctx @s @k @n ctx wid
-    let  convert =  \tokenWithScripts -> ApiAssetMintBurn
+    let  convert tokenWithScripts =  ApiAssetMintBurn
             { tokens = toApiTokens tokenWithScripts
             , walletPolicyKeyHash =
                 uncurry ApiPolicyKey . computeKeyPayload (Just True) <$>

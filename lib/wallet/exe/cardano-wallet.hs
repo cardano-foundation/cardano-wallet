@@ -113,6 +113,8 @@ import Control.Tracer
     ( contramap )
 import Data.Bifunctor
     ( second )
+import Data.Foldable
+    ( forM_ )
 import Data.Text
     ( Text )
 import Data.Text.Class
@@ -262,9 +264,7 @@ cmdServe = command "serve" $ info (helper <*> helper' <*> cmd) $
                 block0
                 (beforeMainLoop tr)
 
-    whenJust m fn = case m of
-       Nothing -> pure ()
-       Just a  -> fn a
+    whenJust m fn = Data.Foldable.forM_ m fn
     withShutdownHandlerMaybe :: Trace IO MainLog -> Bool -> IO () -> IO ()
     withShutdownHandlerMaybe _ False = void
     withShutdownHandlerMaybe tr True = void . withShutdownHandler trShutdown
