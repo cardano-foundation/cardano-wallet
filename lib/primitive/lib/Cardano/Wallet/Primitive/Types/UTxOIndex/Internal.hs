@@ -770,7 +770,7 @@ indexIsConsistent i = F.and
         => Map a (NonEmptySet u)
         -> Map a (NonEmptySet u)
         -> Bool
-    isSubmapOf m1 m2 = Map.isSubmapOfBy isNonEmptySubsetOf m1 m2
+    isSubmapOf = Map.isSubmapOfBy isNonEmptySubsetOf
       where
         isNonEmptySubsetOf s1 s2 =
             NonEmptySet.toSet s1 `Set.isSubsetOf` NonEmptySet.toSet s2

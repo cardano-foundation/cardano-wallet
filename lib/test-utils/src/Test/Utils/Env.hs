@@ -48,7 +48,7 @@ withEnv' prepare env = bracket getEnvironment resetEnvironment . run
   where
     resetEnvironment pre = clearEnv >> setEnvs pre
     setEnvs = mapM_ (uncurry setEnv)
-    run action = \pre -> prepare pre >> setEnvs env >> action
+    run action pre = prepare pre >> setEnvs env >> action
 
 -- | Unsets all environment variables for this process.
 clearEnv :: MonadIO m => m ()
