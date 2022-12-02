@@ -1007,7 +1007,7 @@ sharedAccPubKeyFromMnemonics
     -> Text
 sharedAccPubKeyFromMnemonics mnemonic1 mnemonic2 ix passphrase =
     T.decodeUtf8 $ encode (EBech32 hrp) $ xpubToBytes $ getRawKey $ publicKey $
-        deriveAccountPrivateKey passphrase rootXPrv (Index $ 2147483648 + ix)
+        deriveAccountPrivateKey passphrase rootXPrv (Index $ 2_147_483_648 + ix)
   where
     hrp = [Bech32.humanReadablePart|acct_shared_xvk|]
     rootXPrv = Shared.generateKeyFromSeed (mnemonic1, mnemonic2) passphrase

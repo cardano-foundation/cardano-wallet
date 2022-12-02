@@ -160,7 +160,7 @@ newDatabaseStore db = do
             rememberSupply (apply ds table) -- need to use updated supply
         }
   where
-    debug m = when False m
+    debug = when False
 
     update1 _ (InsertManyDB zs) = void $ repsertMany db zs
     update1 _ (DeleteManyDB ks) = forM_ ks $ deleteOne db

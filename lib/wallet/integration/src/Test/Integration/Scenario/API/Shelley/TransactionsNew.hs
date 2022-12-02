@@ -2759,7 +2759,7 @@ spec = describe "NEW_SHELLEY_TRANSACTIONS" $ do
             (Link.createUnsignedTransaction @'Shelley src) Default delegationJoin
         verify rTx1
             [ expectResponseCode HTTP.status202
-            , expectField (#coinSelection . #depositsTaken) (`shouldBe` [Quantity 1000000])
+            , expectField (#coinSelection . #depositsTaken) (`shouldBe` [Quantity 1_000_000])
             , expectField (#coinSelection . #depositsReturned) (`shouldBe` [])
             ]
 
@@ -2771,7 +2771,7 @@ spec = describe "NEW_SHELLEY_TRANSACTIONS" $ do
             (Link.decodeTransaction @'Shelley src) Default decodePayload1
         verify rDecodedTx1
             [ expectResponseCode HTTP.status202
-            , expectField #depositsTaken (`shouldBe` [Quantity 1000000])
+            , expectField #depositsTaken (`shouldBe` [Quantity 1_000_000])
             , expectField #depositsReturned (`shouldBe` [])
             ]
 

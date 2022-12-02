@@ -2391,7 +2391,7 @@ shelleyIntegrationTestFunds = mconcat
     , mirWallets
     ]
   where
-    defaultAmt = Coin 100000000000
+    defaultAmt = Coin 100_000_000_000
 
     -- NOTE: Generating e.g. 100 addresses for inclusion in the shelley genesis
     -- sgInitialFunds could theoretically cause some funds not to be

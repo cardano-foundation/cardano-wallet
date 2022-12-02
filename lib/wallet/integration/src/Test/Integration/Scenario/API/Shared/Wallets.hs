@@ -468,7 +468,7 @@ spec = describe "SHARED_WALLETS" $ do
                 (`shouldBe` Nothing)
             , expectField
                 (traverse . #accountIndex . #getApiT)
-                (`shouldBe` DerivationIndex 2147483658)
+                (`shouldBe` DerivationIndex 2_147_483_658)
             ]
 
         let wal = getFromResponse id rPost
