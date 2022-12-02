@@ -684,7 +684,7 @@ unitTests_selectCollateralLargest_insufficient = unitTests
         [ ( 225, [F ▶ 32, G ▶ 64, H ▶ 128])
         , ( 256, [F ▶ 32, G ▶ 64, H ▶ 128])
         , ( 512, [F ▶ 32, G ▶ 64, H ▶ 128])
-        , (1024, [F ▶ 32, G ▶ 64, H ▶ 128])
+        , (1_024, [F ▶ 32, G ▶ 64, H ▶ 128])
         ]
 
 --------------------------------------------------------------------------------
@@ -937,11 +937,11 @@ unitTests_numberOfSubsequencesOfSize_withinBounds = unitTests
     mkTest (n, k, output) =
         UnitTestData {params = (n, k), result = Just output}
     tests =
-        [ (100,  1,                 100)
-        , (100,  2,                4950)
-        , (100,  4,             3921225)
-        , (100,  8,        186087894300)
-        , (100, 16, 1345860629046814650)
+        [ (100,  1,                       100)
+        , (100,  2,                     4_950)
+        , (100,  4,                 3_921_225)
+        , (100,  8,           186_087_894_300)
+        , (100, 16, 1_345_860_629_046_814_650)
         ]
 
 -- This test allows us to demonstrate that `numberOfSubsequencesOfSize` gives
@@ -986,9 +986,9 @@ unitTests_numberOfSubsequencesOfSize_outOfBounds = unitTests
     mkTest (n, k) =
         UnitTestData {params = (n, k), result = Nothing}
     tests =
-        [ (1_000_000,   10)
-        , (1_000_000,  100)
-        , (1_000_000, 1000)
+        [ (1_000_000,    10)
+        , (1_000_000,   100)
+        , (1_000_000, 1_000)
         ]
 
 --------------------------------------------------------------------------------

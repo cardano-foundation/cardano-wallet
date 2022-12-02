@@ -258,7 +258,7 @@ import qualified Data.Set as Set
 spec :: Spec
 spec = describe "Cardano.CoinSelection.BalanceSpec" $
 
-    modifyMaxSuccess (const 1000) $ do
+    modifyMaxSuccess (const 1_000) $ do
 
     parallel $ describe "Coverage" $ do
 
@@ -536,11 +536,11 @@ prop_Large_UTxOIndex_coverage (Large index) =
         $ cover 80 (assetCount > 8)
             "asset count > 8"
         -- Entry counts:
-        $ cover 80 (entryCount >= 1024)
+        $ cover 80 (entryCount >= 1_024)
             "UTxO set size >= 1024 entries"
-        $ cover 20 (entryCount >= 2048)
+        $ cover 20 (entryCount >= 2_048)
             "UTxO set size >= 2048 entries"
-        $ cover 10 (entryCount >= 3072)
+        $ cover 10 (entryCount >= 3_072)
             "UTxO set size >= 3072 entries"
         True
   where
@@ -864,7 +864,7 @@ prop_performSelection_huge = ioProperty $
     -- the cost of re-generating it on every pass. This will still generate
     -- interesting cases, since selection within that large index is random.
     property . prop_performSelection_huge_inner <$> generate
-        (genUTxOIndexLargeN (resize 256 (arbitrary @TestUTxO)) 50000)
+        (genUTxOIndexLargeN (resize 256 (arbitrary @TestUTxO)) 50_000)
 
 prop_performSelection_huge_inner
     :: UTxOIndex TestUTxO
@@ -2377,24 +2377,24 @@ boundaryTest_selectionStrategies_4_minimal = BoundaryTestData
     boundaryTestBundleSizeAssessor = MockAssessTokenBundleSizeUnlimited
     boundaryTestSelectionStrategy = SelectionStrategyMinimal
     boundaryTestOutputs =
-      [ (Coin 2, [mockAssetQuantity "A" 2, mockAssetQuantity "B" 2000])
+      [ (Coin 2, [mockAssetQuantity "A" 2, mockAssetQuantity "B" 2_000])
       ]
     boundaryTestUTxO =
-      [ (Coin 1, [mockAssetQuantity "A" 2, mockAssetQuantity "B" 2000])
-      , (Coin 1, [mockAssetQuantity "A" 2, mockAssetQuantity "B" 2000])
-      , (Coin 1, [mockAssetQuantity "A" 2, mockAssetQuantity "B" 2000])
-      , (Coin 1, [mockAssetQuantity "A" 2, mockAssetQuantity "B" 2000])
-      , (Coin 1, [mockAssetQuantity "A" 2, mockAssetQuantity "B" 2000])
-      , (Coin 1, [mockAssetQuantity "A" 2, mockAssetQuantity "B" 2000])
-      , (Coin 1, [mockAssetQuantity "A" 2, mockAssetQuantity "B" 2000])
-      , (Coin 1, [mockAssetQuantity "A" 2, mockAssetQuantity "B" 2000])
+      [ (Coin 1, [mockAssetQuantity "A" 2, mockAssetQuantity "B" 2_000])
+      , (Coin 1, [mockAssetQuantity "A" 2, mockAssetQuantity "B" 2_000])
+      , (Coin 1, [mockAssetQuantity "A" 2, mockAssetQuantity "B" 2_000])
+      , (Coin 1, [mockAssetQuantity "A" 2, mockAssetQuantity "B" 2_000])
+      , (Coin 1, [mockAssetQuantity "A" 2, mockAssetQuantity "B" 2_000])
+      , (Coin 1, [mockAssetQuantity "A" 2, mockAssetQuantity "B" 2_000])
+      , (Coin 1, [mockAssetQuantity "A" 2, mockAssetQuantity "B" 2_000])
+      , (Coin 1, [mockAssetQuantity "A" 2, mockAssetQuantity "B" 2_000])
       ]
     boundaryTestInputs =
-      [ (Coin 1, [mockAssetQuantity "A" 2, mockAssetQuantity "B" 2000])
-      , (Coin 1, [mockAssetQuantity "A" 2, mockAssetQuantity "B" 2000])
+      [ (Coin 1, [mockAssetQuantity "A" 2, mockAssetQuantity "B" 2_000])
+      , (Coin 1, [mockAssetQuantity "A" 2, mockAssetQuantity "B" 2_000])
       ]
     boundaryTestChange =
-      [ (Coin 0, [mockAssetQuantity "A" 2, mockAssetQuantity "B" 2000])
+      [ (Coin 0, [mockAssetQuantity "A" 2, mockAssetQuantity "B" 2_000])
       ]
 
 boundaryTest_selectionStrategies_4_optimal :: BoundaryTestData
@@ -2406,26 +2406,26 @@ boundaryTest_selectionStrategies_4_optimal = BoundaryTestData
     boundaryTestBundleSizeAssessor = MockAssessTokenBundleSizeUnlimited
     boundaryTestSelectionStrategy = SelectionStrategyOptimal
     boundaryTestOutputs =
-      [ (Coin 2, [mockAssetQuantity "A" 2, mockAssetQuantity "B" 2000])
+      [ (Coin 2, [mockAssetQuantity "A" 2, mockAssetQuantity "B" 2_000])
       ]
     boundaryTestUTxO =
-      [ (Coin 1, [mockAssetQuantity "A" 2, mockAssetQuantity "B" 2000])
-      , (Coin 1, [mockAssetQuantity "A" 2, mockAssetQuantity "B" 2000])
-      , (Coin 1, [mockAssetQuantity "A" 2, mockAssetQuantity "B" 2000])
-      , (Coin 1, [mockAssetQuantity "A" 2, mockAssetQuantity "B" 2000])
-      , (Coin 1, [mockAssetQuantity "A" 2, mockAssetQuantity "B" 2000])
-      , (Coin 1, [mockAssetQuantity "A" 2, mockAssetQuantity "B" 2000])
-      , (Coin 1, [mockAssetQuantity "A" 2, mockAssetQuantity "B" 2000])
-      , (Coin 1, [mockAssetQuantity "A" 2, mockAssetQuantity "B" 2000])
+      [ (Coin 1, [mockAssetQuantity "A" 2, mockAssetQuantity "B" 2_000])
+      , (Coin 1, [mockAssetQuantity "A" 2, mockAssetQuantity "B" 2_000])
+      , (Coin 1, [mockAssetQuantity "A" 2, mockAssetQuantity "B" 2_000])
+      , (Coin 1, [mockAssetQuantity "A" 2, mockAssetQuantity "B" 2_000])
+      , (Coin 1, [mockAssetQuantity "A" 2, mockAssetQuantity "B" 2_000])
+      , (Coin 1, [mockAssetQuantity "A" 2, mockAssetQuantity "B" 2_000])
+      , (Coin 1, [mockAssetQuantity "A" 2, mockAssetQuantity "B" 2_000])
+      , (Coin 1, [mockAssetQuantity "A" 2, mockAssetQuantity "B" 2_000])
       ]
     boundaryTestInputs =
-      [ (Coin 1, [mockAssetQuantity "A" 2, mockAssetQuantity "B" 2000])
-      , (Coin 1, [mockAssetQuantity "A" 2, mockAssetQuantity "B" 2000])
-      , (Coin 1, [mockAssetQuantity "A" 2, mockAssetQuantity "B" 2000])
-      , (Coin 1, [mockAssetQuantity "A" 2, mockAssetQuantity "B" 2000])
+      [ (Coin 1, [mockAssetQuantity "A" 2, mockAssetQuantity "B" 2_000])
+      , (Coin 1, [mockAssetQuantity "A" 2, mockAssetQuantity "B" 2_000])
+      , (Coin 1, [mockAssetQuantity "A" 2, mockAssetQuantity "B" 2_000])
+      , (Coin 1, [mockAssetQuantity "A" 2, mockAssetQuantity "B" 2_000])
       ]
     boundaryTestChange =
-      [ (Coin 2, [mockAssetQuantity "A" 6, mockAssetQuantity "B" 6000])
+      [ (Coin 2, [mockAssetQuantity "A" 6, mockAssetQuantity "B" 6_000])
       ]
 
 --------------------------------------------------------------------------------
@@ -3407,8 +3407,8 @@ unit_assignCoinsToChangeMaps =
         -- Simple case, with a single MA output
         , ( Coin 2
           , computeMinimumAdaQuantityLinear
-          , m 42 [(assetA, 1337)] :| []
-          , Right [b 2 [(assetA, 1337)]]
+          , m 42 [(assetA, 1_337)] :| []
+          , Right [b 2 [(assetA, 1_337)]]
           )
 
         -- Single Ada-only output, but not enough left to create a change
@@ -3421,7 +3421,7 @@ unit_assignCoinsToChangeMaps =
         -- Single MA output, but not enough left to create a change
         , ( Coin 1
           , computeMinimumAdaQuantityLinear
-          , m 42 [(assetA, 1337)] :| []
+          , m 42 [(assetA, 1_337)] :| []
           , Left (Coin 1)
           )
 
@@ -3429,7 +3429,7 @@ unit_assignCoinsToChangeMaps =
         , ( Coin 2
           , computeMinimumAdaQuantityLinear
           , NE.fromList
-            [ m 1337 []
+            [ m 1_337 []
             , m   14 []
             , m   42 []
             ]
@@ -3442,9 +3442,9 @@ unit_assignCoinsToChangeMaps =
           , NE.fromList
             [ m 42 []
             , m 14 []
-            , m  2 [(assetA, 1337)]
+            , m  2 [(assetA, 1_337)]
             ]
-          , Right [b 2 [(assetA, 1337)]]
+          , Right [b 2 [(assetA, 1_337)]]
           )
         ]
 
