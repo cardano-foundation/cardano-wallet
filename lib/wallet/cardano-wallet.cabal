@@ -272,6 +272,7 @@ library
     Cardano.Wallet.DB.WalletState
     Cardano.Wallet.Delegation
     Cardano.Wallet.Delegation.Model
+    Cardano.Wallet.Delegation.Properties
     Cardano.Wallet.Flavor
     Cardano.Wallet.Gen
     Cardano.Wallet.Logging
