@@ -168,7 +168,6 @@ import qualified Data.Aeson as Aeson
 import qualified Data.Foldable as F
 import qualified Data.List as L
 import qualified Data.List.NonEmpty as NE
-import qualified Data.Map.Strict as Map
 import qualified Data.Monoid.Null as MonoidNull
 import qualified Data.MonoidMap as MonoidMap
 import qualified Data.Set as Set
@@ -670,20 +669,7 @@ removeQuantity m asset = setQuantity m asset TokenQuantity.zero
 -- | Get the largest quantity from this map.
 --
 maximumQuantity :: TokenMap -> TokenQuantity
-maximumQuantity
-    = Map.foldl' (\a -> Map.foldr findMaximum a . MonoidMap.toMap) zero
-    . MonoidMap.toMap
-    . unTokenMap
-  where
-    zero :: TokenQuantity
-    zero = TokenQuantity 0
-
-    findMaximum :: TokenQuantity -> TokenQuantity -> TokenQuantity
-    findMaximum challenger champion
-        | challenger > champion =
-            challenger
-        | otherwise =
-            champion
+maximumQuantity = F.foldl' (F.foldl' max) mempty . unTokenMap
 
 --------------------------------------------------------------------------------
 -- Partitioning
