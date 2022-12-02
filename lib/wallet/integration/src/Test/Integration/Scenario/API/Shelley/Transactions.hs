@@ -2578,8 +2578,8 @@ spec = describe "SHELLEY_TRANSACTIONS" $ do
     addTxMetadata _ _ = error "can't do that"
 
     plusDelta, minusDelta :: UTCTime -> UTCTime
-    plusDelta = addUTCTime (toEnum 1000000000)
-    minusDelta = addUTCTime (toEnum (-1000000000))
+    plusDelta = addUTCTime (toEnum 1_000_000_000)
+    minusDelta = addUTCTime (toEnum (-1_000_000_000))
 
     oneAda :: Natural
     oneAda = 1_000_000
