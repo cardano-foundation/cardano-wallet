@@ -59,7 +59,7 @@ spec = describe "RefCount" $ do
                 flip shouldBe 1
 
 testPol :: RetryPolicy
-testPol = constantDelay 50000 <> limitRetries 20
+testPol = constantDelay 50_000 <> limitRetries 20
 
 quickPol :: RetryPolicy
-quickPol = constantDelay 1000 <> limitRetries 1
+quickPol = constantDelay 1_000 <> limitRetries 1

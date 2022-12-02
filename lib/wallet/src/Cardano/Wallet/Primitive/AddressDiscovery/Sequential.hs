@@ -405,7 +405,7 @@ instance Buildable (SeqState n k) where
 --
 -- Hardened derivation is used at this level.
 purposeBIP44 :: Index 'Hardened 'PurposeK
-purposeBIP44 = toEnum 0x8000002C
+purposeBIP44 = toEnum 0x8000_002C
 
 -- | Purpose is a constant set to 1852' (or 0x8000073c) following the BIP-44
 -- extension for Cardano:
@@ -418,7 +418,7 @@ purposeBIP44 = toEnum 0x8000002C
 --
 -- Hardened derivation is used at this level.
 purposeCIP1852 :: Index 'Hardened 'PurposeK
-purposeCIP1852 = toEnum 0x8000073c
+purposeCIP1852 = toEnum 0x8000_073c
 
 -- | Construct a Sequential state for a wallet
 -- from root private key and password.
@@ -641,7 +641,7 @@ discoverSeq query state = do
     pure (discoveredEvents, state')
   where
     -- Only enterprise address (for legacy Icarus keys)
-    fromPayment hash = liftPaymentAddress @n @k @'CredFromKeyK hash
+    fromPayment = liftPaymentAddress @n @k @'CredFromKeyK
     discover :: SeqAddressPool r k -> m (ChainEvents, SeqAddressPool r k)
     discover = fmap (second SeqAddressPool)
         . AddressPool.discover (query . Left . fromPayment) . getPool
@@ -750,7 +750,7 @@ instance KnownNat p => IsOurs (SeqAnyState n k p) Address where
         | otherwise =
             (Nothing, st)
       where
-        p = floor (double sup * double (natVal (Proxy @p)) / 10000)
+        p = floor (double sup * double (natVal (Proxy @p)) / 10_000)
           where
             sup = maxBound :: Word32
 

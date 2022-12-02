@@ -556,7 +556,7 @@ instance
         insertSharedState prefix accXPub gap pTemplate dTemplateM
         insertCosigner (cosigners pTemplate) Payment
         when (isJust dTemplateM) $
-            insertCosigner (fromJust $ cosigners <$> dTemplateM) Delegation
+            insertCosigner (cosigners $ fromJust dTemplateM) Delegation
         unless (Shared.Pending == readiness) $ do
             let (Shared.Active (Shared.SharedAddressPools _ _ pendingIxs)) =
                     readiness

@@ -13,7 +13,6 @@ import Data.Text
     ( Text )
 import Data.Time.Clock
 import Light.ReadBlocks
-import Light.ReadBlocks
 import Light.Types
 import Say
     ( say, sayString )
@@ -114,8 +113,8 @@ unfoldrM f = go where
 -- | Execution time of a monadic action
 timed :: MonadIO m => m a -> m (a, NominalDiffTime)
 timed action = do
-    start <- liftIO $ getCurrentTime
+    start <- liftIO getCurrentTime
     res <- action
-    finish <- liftIO $ getCurrentTime
+    finish <- liftIO getCurrentTime
     let t = finish `diffUTCTime` start
     pure (res, t)

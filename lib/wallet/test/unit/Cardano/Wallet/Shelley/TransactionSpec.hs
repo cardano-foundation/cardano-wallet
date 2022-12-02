@@ -1266,7 +1266,7 @@ feeCalculationSpec era = describe "fee calculations" $ do
             ppWithPrices = dummyProtocolParameters
                 { executionUnitPrices = Just (ExecutionUnitPrices 1 1)
                 , txParameters = dummyTxParameters
-                    { getMaxExecutionUnits = ExecutionUnits 10000000 10000000000
+                    { getMaxExecutionUnits = ExecutionUnits 10_000_000 10_000_000_000
                     }
                 }
         txs <- readTestTransactions
@@ -1451,14 +1451,14 @@ feeCalculationSpec era = describe "fee calculations" $ do
 feeEstimationRegressionSpec :: Spec
 feeEstimationRegressionSpec = describe "Regression tests" $ do
     it "#1740 Fee estimation at the boundaries" $ do
-        let requiredCost = 166029
+        let requiredCost = 166_029
         let runSelection = except $ Left
                 $ ErrSelectAssetsSelectionError
                 $ SelectionBalanceErrorOf
                 $ UnableToConstructChange
                 $ UnableToConstructChangeError
                     { requiredCost = Coin.fromWord64 requiredCost
-                    , shortfall = Coin 100000
+                    , shortfall = Coin 100_000
                     }
         result <- runExceptT (estimateFee runSelection)
         result `shouldBe` Right (FeeEstimation requiredCost requiredCost)
@@ -1497,9 +1497,9 @@ binaryCalculationsSpec' era = describe ("calculateBinary - "+||era||+"") $ do
         let net = Cardano.Mainnet
         it "1 input, 2 outputs" $ do
             let pairs = [dummyWit 0]
-            let amtInp = 10000000
-            let amtFee = 129700
-            let amtOut = 2000000
+            let amtInp = 10_000_000
+            let amtFee = 129_700
+            let amtOut = 2_000_000
             let amtChange = amtInp - amtOut - amtFee
             let utxo = UTxO $ Map.fromList
                     [ ( TxIn dummyTxId 0
@@ -1545,9 +1545,9 @@ binaryCalculationsSpec' era = describe ("calculateBinary - "+||era||+"") $ do
 
         it "2 inputs, 3 outputs" $ do
             let pairs = [dummyWit 0, dummyWit 1]
-            let amtInp = 10000000
-            let amtFee = 135200
-            let amtOut = 6000000
+            let amtInp = 10_000_000
+            let amtFee = 135_200
+            let amtOut = 6_000_000
             let amtChange = 2*amtInp - 2*amtOut - amtFee
             let utxo = UTxO $ Map.fromList
                     [ ( TxIn dummyTxId 0
@@ -1617,9 +1617,9 @@ binaryCalculationsSpec' era = describe ("calculateBinary - "+||era||+"") $ do
         let net = Cardano.Testnet (Cardano.NetworkMagic 0)
         it "1 input, 2 outputs" $ do
             let pairs = [dummyWit 0]
-            let amtInp = 10000000
-            let amtFee = 129700
-            let amtOut = 2000000
+            let amtInp = 10_000_000
+            let amtFee = 129_700
+            let amtOut = 2_000_000
             let amtChange = amtInp - amtOut - amtFee
             let utxo = UTxO $ Map.fromList
                     [ ( TxIn dummyTxId 0
@@ -1666,9 +1666,9 @@ binaryCalculationsSpec' era = describe ("calculateBinary - "+||era||+"") $ do
 
         it "2 inputs, 3 outputs" $ do
             let pairs = [dummyWit 0, dummyWit 1]
-            let amtInp = 10000000
-            let amtFee = 135200
-            let amtOut = 6000000
+            let amtInp = 10_000_000
+            let amtFee = 135_200
+            let amtOut = 6_000_000
             let amtChange = 2*amtInp - 2*amtOut - amtFee
             let utxo = UTxO $ Map.fromList
                     [ ( TxIn dummyTxId 0
@@ -1736,7 +1736,7 @@ binaryCalculationsSpec' era = describe ("calculateBinary - "+||era||+"") $ do
             calculateBinary net utxo outs chgs pairs `shouldBe` binary
 
   where
-    slotNo = SlotNo 7750
+    slotNo = SlotNo 7_750
     md = Nothing
     calculateBinary net utxo outs chgs pairs =
         hex (Cardano.serialiseToCBOR ledgerTx)
@@ -1795,7 +1795,7 @@ estimateMaxInputsTests era cases = do
                 -- They also broke when bumping to lts-18.4.
                 let outs = [ generatePure r arbitrary | r <- [ 1 .. nOuts ] ]
                 length outs `shouldBe` nOuts
-                _estimateMaxNumberOfInputs @k era (Quantity 16384) defaultTransactionCtx outs
+                _estimateMaxNumberOfInputs @k era (Quantity 16_384) defaultTransactionCtx outs
                     `shouldBe` nInps
 
         prop "more outputs ==> less inputs"
@@ -1872,8 +1872,8 @@ prop_moreOutputsMeansLessInputs
     -> NonEmptyList TxOut
     -> Property
 prop_moreOutputsMeansLessInputs era size (NonEmpty xs)
-    = withMaxSuccess 1000
-    $ within 300000
+    = withMaxSuccess 1_000
+    $ within 300_000
     $ _estimateMaxNumberOfInputs @k era size defaultTransactionCtx (tail xs)
       >=
       _estimateMaxNumberOfInputs @k era size defaultTransactionCtx xs
@@ -1886,8 +1886,8 @@ prop_biggerMaxSizeMeansMoreInputs
     -> [TxOut]
     -> Property
 prop_biggerMaxSizeMeansMoreInputs era size outs
-    = withMaxSuccess 1000
-    $ within 300000
+    = withMaxSuccess 1_000
+    $ within 300_000
     $ getQuantity size < maxBound `div` 2 ==>
         _estimateMaxNumberOfInputs @k era size defaultTransactionCtx outs
         <=
@@ -1933,7 +1933,7 @@ instance Arbitrary Cardano.NetworkId where
         ]
 
 instance Arbitrary SlotNo where
-    arbitrary = SlotNo <$> choose (1, 1000)
+    arbitrary = SlotNo <$> choose (1, 1_000)
 
 instance Arbitrary TxIn where
     arbitrary = do
@@ -2018,7 +2018,7 @@ instance Arbitrary (Passphrase "encryption") where
         <$> arbitrary @(Passphrase "user")
 
 instance Arbitrary (Quantity "byte" Word16) where
-    arbitrary = Quantity <$> choose (128, 2048)
+    arbitrary = Quantity <$> choose (128, 2_048)
     shrink (Quantity size)
         | size <= 1 = []
         | otherwise = Quantity <$> shrink size
@@ -2090,7 +2090,7 @@ emptyTxSkeleton = mkTxSkeleton
 
 mockFeePolicy :: FeePolicy
 mockFeePolicy = LinearFee $ LinearFunction
-    { intercept = 155381
+    { intercept = 155_381
     , slope = 44
     }
 
@@ -2127,9 +2127,9 @@ data MockSelection = MockSelection
 genMockSelection :: Gen MockSelection
 genMockSelection = do
     txInputCount <-
-        oneof [ pure 0, choose (1, 1000) ]
+        oneof [ pure 0, choose (1, 1_000) ]
     txOutputCount <-
-        oneof [ pure 0, choose (1, 1000) ]
+        oneof [ pure 0, choose (1, 1_000) ]
     txOutputs <- replicateM txOutputCount genOut
     txRewardWithdrawal <-
         Coin <$> oneof [ pure 0, chooseNatural (1, 1_000_000) ]
@@ -2678,7 +2678,7 @@ distributeSurplusSpec = do
 
         it "prop_distributeSurplusDelta_coversCostIncreaseAndConservesSurplus" $
             prop_distributeSurplusDelta_coversCostIncreaseAndConservesSurplus
-                & withMaxSuccess 10000
+                & withMaxSuccess 10_000
                 & property
 
 -- Verify that 'distributeSurplusDelta':
@@ -3554,7 +3554,7 @@ prop_balanceTransactionValid
     -> StdGenSeed
     -> Property
 prop_balanceTransactionValid wallet (ShowBuildable partialTx) seed
-    = withMaxSuccess 1000 $ do
+    = withMaxSuccess 1_000 $ do
         let combinedUTxO = mconcat
                 [ view #inputs partialTx
                 , Compatibility.toCardanoUTxO Cardano.ShelleyBasedEraAlonzo walletUTxO
@@ -3581,7 +3581,7 @@ prop_balanceTransactionValid wallet (ShowBuildable partialTx) seed
                         , prop_minfeeIsCovered tx
                         , let
                               minUTxOValue = Cardano.Lovelace 999_978
-                              upperBoundCostOfOutput = Cardano.Lovelace 1000
+                              upperBoundCostOfOutput = Cardano.Lovelace 1_000
                           in
                               -- Coin selection should only pay more fees than
                               -- required when it can't afford to create a
@@ -3844,18 +3844,18 @@ mockProtocolParametersForBalancing
 mockProtocolParametersForBalancing = (mockProtocolParameters, nodePParams)
   where
     nodePParams = Cardano.ProtocolParameters
-        { Cardano.protocolParamTxFeeFixed = 155381
+        { Cardano.protocolParamTxFeeFixed = 155_381
         , Cardano.protocolParamTxFeePerByte = 44
-        , Cardano.protocolParamMaxTxSize = 16384
+        , Cardano.protocolParamMaxTxSize = 16_384
         , Cardano.protocolParamMinUTxOValue = Nothing
         , Cardano.protocolParamMaxTxExUnits =
-            Just $ Cardano.ExecutionUnits 10000000000 14000000
-        , Cardano.protocolParamMaxValueSize = Just 4000
+            Just $ Cardano.ExecutionUnits 10_000_000_000 14_000_000
+        , Cardano.protocolParamMaxValueSize = Just 4_000
         , Cardano.protocolParamProtocolVersion = (6, 0)
         , Cardano.protocolParamDecentralization = Just 0
         , Cardano.protocolParamExtraPraosEntropy = Nothing
-        , Cardano.protocolParamMaxBlockHeaderSize = 100000 -- Dummy value
-        , Cardano.protocolParamMaxBlockBodySize = 100000
+        , Cardano.protocolParamMaxBlockHeaderSize = 100_000 -- Dummy value
+        , Cardano.protocolParamMaxBlockBodySize = 100_000
         , Cardano.protocolParamStakeAddressDeposit = Cardano.Lovelace 2_000_000
         , Cardano.protocolParamStakePoolDeposit = Cardano.Lovelace 500_000_000
         , Cardano.protocolParamMinPoolCost = Cardano.Lovelace 32_000_000
@@ -3877,7 +3877,7 @@ mockProtocolParametersForBalancing = (mockProtocolParameters, nodePParams)
                 (721 % 10_000_000)
                 (577 % 10_000)
         , Cardano.protocolParamMaxBlockExUnits =
-            Just $ Cardano.ExecutionUnits 10000000000 14000000
+            Just $ Cardano.ExecutionUnits 10_000_000_000 14_000_000
         , Cardano.protocolParamCollateralPercent = Just 1
         , Cardano.protocolParamMaxCollateralInputs = Just 3
         }
@@ -4263,9 +4263,9 @@ dummyTimeInterpreter = hoistTimeInterpreter (pure . runIdentity)
 dummySlottingParameters :: SlottingParameters
 dummySlottingParameters = SlottingParameters
     { getSlotLength = SlotLength 1
-    , getEpochLength = EpochLength 21600
+    , getEpochLength = EpochLength 21_600
     , getActiveSlotCoefficient = ActiveSlotCoefficient 1
-    , getSecurityParameter = Quantity 2160
+    , getSecurityParameter = Quantity 2_160
     }
 
 dummyGenesisParameters :: GenesisParameters

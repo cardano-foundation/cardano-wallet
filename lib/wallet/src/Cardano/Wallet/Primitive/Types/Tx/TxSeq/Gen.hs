@@ -63,7 +63,7 @@ import Control.Monad.Util
 import Data.Function
     ( on )
 import Data.Maybe
-    ( catMaybes, fromMaybe, listToMaybe )
+    ( fromMaybe, listToMaybe, mapMaybe )
 import Test.QuickCheck
     ( Gen, chooseInt, elements, frequency, sized, vectorOf )
 import Test.QuickCheck.Extra
@@ -123,8 +123,7 @@ getTxSeq = txSeq
 --
 shrinkTxSeq :: ShrinkableTxSeq -> [ShrinkableTxSeq]
 shrinkTxSeq ShrinkableTxSeq {shrinkState, txSeq} =
-    catMaybes $ toShrinkable <$>
-        (applyShrinkStateAction shrinkState txSeq <> [txSeq])
+    mapMaybe toShrinkable (applyShrinkStateAction shrinkState txSeq <> [txSeq])
   where
     toShrinkable :: TxSeq -> Maybe ShrinkableTxSeq
     toShrinkable s = flip ShrinkableTxSeq s <$> nextShrinkState s shrinkState

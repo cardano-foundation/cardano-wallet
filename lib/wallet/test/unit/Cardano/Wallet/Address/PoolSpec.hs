@@ -80,7 +80,7 @@ spec = do
 
 prop_updates :: (Ord addr, Ord ix, Enum ix) => Pool addr ix -> Property
 prop_updates pool = forAll (genUsageForGap $ AddressPool.gap pool) $ \usage ->
-    let addr ix = AddressPool.addressFromIx pool ix
+    let addr    = AddressPool.addressFromIx pool
         g       = AddressPool.gap pool
         addrs1  = [ addr ix | (ix,Used) <- zip [toEnum 0..] usage ]
         addrs2  = map (addr . toEnum) [0..2*g]
@@ -95,8 +95,8 @@ prop_updates_order pool0 = forAll genUpdates $ \pool ->
     ===
       AddressPool.addresses (applyUsageInOrder pool0 $ toUsage pool)
   where
-    addr ix = AddressPool.addressFromIx pool0 ix
-    g       = AddressPool.gap pool0
+    addr = AddressPool.addressFromIx pool0
+    g    = AddressPool.gap pool0
 
     -- generate and apply a random sequence of updates
     genUpdates = sized $ randomUpdates pool0

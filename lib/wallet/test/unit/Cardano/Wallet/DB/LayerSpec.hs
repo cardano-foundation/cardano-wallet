@@ -430,7 +430,7 @@ fileModeSpec =  do
                 pid <- forkIO $ withDatabase testWid $ \(DBLayer{..} :: TestDBSeq) -> do
                     handle @IO @SomeException (const (pure ())) $ forever $ do
                         atomically $ do
-                            liftIO $ threadDelay 10000
+                            liftIO $ threadDelay 10_000
                             void $ readCheckpoint testWid
 
                 killThread pid *> removeDatabase testWid
@@ -447,7 +447,7 @@ fileModeSpec =  do
                 -- reading for 100ms.
                 -- This simulates an antivirus program on windows which may
                 -- interfere with file deletion.
-                whileFileOpened 100000 (dir </> head files) (removeDatabase testWid)
+                whileFileOpened 100_000 (dir </> head files) (removeDatabase testWid)
                 listDirectory dir `shouldReturn` mempty
 
         it "removeDatabase waits for connections to close" $ do
@@ -555,7 +555,7 @@ fileModeSpec =  do
                             { slotNo = slotA + 100
                             -- Increment blockHeight by steps greater than k
                             -- Such that old checkpoints are always pruned.
-                            , blockHeight = Quantity $ bhA + 5000
+                            , blockHeight = Quantity $ bhA + 5_000
                             , headerHash = h
                             , parentHeaderHash = Just hashA
                             })
@@ -566,7 +566,7 @@ fileModeSpec =  do
                     atomically $ do
                         unsafeRunExceptT $ putCheckpoint testWid cpB
                         unsafeRunExceptT $ putTxHistory testWid txs
-                        unsafeRunExceptT $ prune testWid (Quantity 2160)
+                        unsafeRunExceptT $ prune testWid (Quantity 2_160)
 
             it "Should spend collateral inputs and create spendable collateral \
                 \outputs if validation fails" $
@@ -983,12 +983,12 @@ manualMigrationsSpec = describe "Manual migrations" $ do
                 { getGenesisBlockHash = Hash $ unsafeFromHex
                     "5f20df933584822601f9e3f8c024eb5eb252fe8cefb24d1317dc3d432e940ebb"
                 , getGenesisBlockDate =
-                    StartTime $ posixSecondsToUTCTime 1506203091
+                    StartTime $ posixSecondsToUTCTime 1_506_203_091
                 }
             )
             (BlockHeader
-                { slotNo = SlotNo 1125119
-                , blockHeight = Quantity 1124949
+                { slotNo = SlotNo 1_125_119
+                , blockHeight = Quantity 1_124_949
                 , headerHash = Hash $ unsafeFromHex
                     "3b309f1ca388459f0ce2c4ccca20ea646b75e6fc1447be032a41d43f209ecb50"
                 , parentHeaderHash = Just $ Hash $ unsafeFromHex
@@ -1012,7 +1012,7 @@ manualMigrationsSpec = describe "Manual migrations" $ do
             -- -  174257 of fee
             --
             [ ( Hash $ unsafeFromHex "00058d433a73574a64d0b4a3c37f1e460697fa8f1e3265a51e95eb9e9573b5ab"
-              , Coin 174257
+              , Coin 174_257
               )
 
             -- This one (chosen because of its very round fee) has:
@@ -1023,7 +1023,7 @@ manualMigrationsSpec = describe "Manual migrations" $ do
             -- which gives a delta (and fee) of 1000000
 
             , ( Hash $ unsafeFromHex "8f79e7f79ddeb7a7494121259832c0180c1b6bb746d8b2337cd1f4fb5b0d8216"
-              , Coin 1000000
+              , Coin 1_000_000
               )
 
             -- This one (chosen for its withdrawal) has:
@@ -1035,7 +1035,7 @@ manualMigrationsSpec = describe "Manual migrations" $ do
             -- which gives a delta (and fee) of 174389
 
             , ( Hash $ unsafeFromHex "eefa06dfa8ce91237117f9b4bdc4f6970c31de54906313b545dafb7ca6235171"
-              , Coin 174389
+              , Coin 174_389
               )
 
             -- This one (chosen for its high fee) has:
@@ -1045,7 +1045,7 @@ manualMigrationsSpec = describe "Manual migrations" $ do
             --
             -- which gives a delta (and fee) of 875001
             , ( Hash $ unsafeFromHex "8943f9fa4b56b32cd44ab9c22d46693882f0bbca1bc3f0705124e75c2e40b9c2"
-              , Coin 875001
+              , Coin 875_001
               )
 
             -- This one (chosen for having many inputs and many outputs) has:
@@ -1079,7 +1079,7 @@ manualMigrationsSpec = describe "Manual migrations" $ do
             --
             -- which gives a delta (and fee) of 255613
             , ( Hash $ unsafeFromHex "99907bf6ac73f6fe6fe25bd6b68bae6776425b9d15a7c46c7a49b85b8b03f291"
-              , Coin 255613
+              , Coin 255_613
               )
 
             -- This one (chosen for its high ratio input:output) has:
@@ -1090,7 +1090,7 @@ manualMigrationsSpec = describe "Manual migrations" $ do
             --
             -- which gives a delta (and fee) of 267537
             , ( Hash $ unsafeFromHex "15940a7c1df8696279282046ebdb1ee890d4e9ac3c5d7213f360921648b36666"
-              , Coin 267537
+              , Coin 267_537
               )
             ]
 
@@ -1405,7 +1405,7 @@ testTxs = [(tx, txMeta)]
         , direction = Incoming
         , slotNo = SlotNo 140
         , blockHeight = Quantity 0
-        , amount = Coin 1337144
+        , amount = Coin 1_337_144
         , expiry = Nothing
         }
 

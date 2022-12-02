@@ -64,7 +64,7 @@ showVersionAsDate (Version (y:m:d:vs) tags) = fmt . mconcat $
     ["v", digits 4 y, "-", digits 2 m, "-", digits 2 d ] ++
     map (("." <>) . build) vs ++ (map (("-" <>) . build) tags)
   where
-    digits n i = padLeftF n '0' i
+    digits n = padLeftF n '0'
 showVersionAsDate (Version vs tags) = showVersion (Version vs tags)
 
 -- | The Git revision ID (40 character hex string) of this build.

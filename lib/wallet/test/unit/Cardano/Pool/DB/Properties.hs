@@ -1007,8 +1007,8 @@ prop_listRetiredPools_multiplePools_multipleCerts
         run $ mapM_ (uncurry $ putPoolCertificate db) allPublications
         lifeCycleStatuses <- run $ atomically $ do
             mapM readPoolLifeCycleStatus allPoolIds
-        let poolsMarkedToRetire = catMaybes $
-                getPoolRetirementCertificate <$> lifeCycleStatuses
+        let poolsMarkedToRetire =
+                mapMaybe getPoolRetirementCertificate lifeCycleStatuses
         let epochsToTest =
                 EpochNo minBound :
                 EpochNo maxBound :
@@ -1064,8 +1064,8 @@ prop_listPoolLifeCycleData_multiplePools_multipleCerts
         run $ mapM_ (uncurry $ putPoolCertificate db) allPublications
         lifeCycleDataReadIndividually <- filter isRegistered <$>
             run (atomically $ mapM readPoolLifeCycleStatus allPoolIds)
-        let poolsMarkedToRetire = catMaybes $
-                getPoolRetirementCertificate <$> lifeCycleDataReadIndividually
+        let poolsMarkedToRetire =
+                mapMaybe getPoolRetirementCertificate lifeCycleDataReadIndividually
         let epochsToTest =
                 EpochNo minBound :
                 EpochNo maxBound :
@@ -1317,10 +1317,10 @@ prop_SinglePoolCertificateSequence_coverage
   where
     shrunkenSequences = shrink s
 
-    registrationCertificates = catMaybes
-        (getRegistrationCertificate <$> certificates)
-    retirementCertificates = catMaybes
-        (getRetirementCertificate <$> certificates)
+    registrationCertificates =
+        mapMaybe getRegistrationCertificate certificates
+    retirementCertificates =
+        mapMaybe getRetirementCertificate certificates
     getRegistrationCertificate = \case
         Registration cert -> Just cert
         Retirement _ -> Nothing

@@ -29,6 +29,8 @@ import Cardano.Wallet.Read.Tx.CBOR
     ( renderTxToCBOR )
 import Cardano.Wallet.Read.Tx.Hash
     ( byronTxHash )
+import Control.Monad
+    ( void )
 
 import qualified Cardano.Crypto.Hashing as CC
 import qualified Cardano.Wallet.Primitive.Types.Address as W
@@ -50,7 +52,7 @@ fromTxAux txAux = case taTx txAux of
     UnsafeTx inputs outputs _attributes -> W.Tx
         { txId = W.Hash $ byronTxHash txAux
 
-        , txCBOR = Just $ renderTxToCBOR $ inject byron $ Tx $ () <$ txAux
+        , txCBOR = Just $ renderTxToCBOR $ inject byron $ Tx $ void txAux
 
         , fee = Nothing
 

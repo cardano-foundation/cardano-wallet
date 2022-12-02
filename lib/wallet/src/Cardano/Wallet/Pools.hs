@@ -986,7 +986,7 @@ monitorMetadata gcStatus tr sp db@DBLayer{..} = do
     -- magnitude as the (slot length / active slot coeff) sounds sound.
     blockFrequency = ceiling (1/f) * toMicroSecond slotLength
       where
-        toMicroSecond = (`div` 1000000) . fromEnum
+        toMicroSecond = (`div` 1_000_000) . fromEnum
         slotLength = unSlotLength $ getSlotLength sp
         f = unActiveSlotCoefficient (getActiveSlotCoefficient sp)
 
@@ -1130,7 +1130,7 @@ instance ToText StakePoolLog where
         MsgFetchTakeBreak delay -> mconcat
             [ "Taking a little break from fetching metadata, "
             , "back to it in about "
-            , pretty (fixedF 1 (toRational delay / 1000000)), "s"
+            , pretty (fixedF 1 (toRational delay / 1_000_000)), "s"
             ]
         MsgGCTakeBreak delay -> mconcat
             [ "Taking a little break from GCing delisted metadata pools, "
