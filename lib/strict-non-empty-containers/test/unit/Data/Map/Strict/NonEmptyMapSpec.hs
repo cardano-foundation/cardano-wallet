@@ -37,8 +37,7 @@ import Test.QuickCheck.Classes
 import Test.Utils.Laws
     ( testLawsMany )
 
-{- HLINT ignore "Avoid restricted qualification" -}
-import qualified Data.List.NonEmpty as NonEmptyList
+import qualified Data.List.NonEmpty as NE
 import qualified Data.Map.Strict as Map
 import qualified Data.Map.Strict.NonEmptyMap.Internal as NonEmptyMap
 
@@ -108,8 +107,8 @@ prop_fromList_toList :: NonEmpty (Int, Int) -> Property
 prop_fromList_toList xs =
     expected === actual
   where
-    expected = Map.toList $ Map.fromList $ NonEmptyList.toList xs
-    actual = NonEmptyList.toList $ NonEmptyMap.toList $ NonEmptyMap.fromList xs
+    expected = Map.toList $ Map.fromList $ NE.toList xs
+    actual = NE.toList $ NonEmptyMap.toList $ NonEmptyMap.fromList xs
 
 prop_fromMap_invariant :: [(Int, Int)] -> Property
 prop_fromMap_invariant xs = property $
@@ -121,7 +120,7 @@ prop_fromMap_toMap :: NonEmpty (Int, Int) -> Property
 prop_fromMap_toMap xs =
     expected === actual
   where
-    expected = Map.fromList $ NonEmptyList.toList xs
+    expected = Map.fromList $ NE.toList xs
     actual = NonEmptyMap.toMap $ NonEmptyMap.fromList xs
 
 prop_singleton_invariant :: (Int, Int) -> Property
@@ -155,7 +154,7 @@ prop_delete :: NonEmpty (Int, Int) -> Int -> Property
 prop_delete kvs k =
     expected === actual
   where
-    expected = Map.delete k $ Map.fromList $ NonEmptyList.toList kvs
+    expected = Map.delete k $ Map.fromList $ NE.toList kvs
     actual
         = maybe mempty NonEmptyMap.toMap
         $ NonEmptyMap.delete k
@@ -169,7 +168,7 @@ prop_lookup :: NonEmpty (Int, Int) -> Int -> Property
 prop_lookup kvs k =
     expected === actual
   where
-    expected = Map.lookup k $ Map.fromList $ NonEmptyList.toList kvs
+    expected = Map.lookup k $ Map.fromList $ NE.toList kvs
     actual = NonEmptyMap.lookup k $ NonEmptyMap.fromList kvs
 
 --------------------------------------------------------------------------------
@@ -187,8 +186,8 @@ prop_unionWith kvs1 kvs2 =
     expected === actual
   where
     expected = Map.unionWith (+)
-        (Map.fromList $ NonEmptyList.toList kvs1)
-        (Map.fromList $ NonEmptyList.toList kvs2)
+        (Map.fromList $ NE.toList kvs1)
+        (Map.fromList $ NE.toList kvs2)
     actual = NonEmptyMap.toMap $ NonEmptyMap.unionWith (+)
         (NonEmptyMap.fromList kvs1)
         (NonEmptyMap.fromList kvs2)

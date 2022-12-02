@@ -36,6 +36,8 @@ import Cardano.Wallet.Primitive.Types.UTxOIndex.Internal
     , categorizeTokenBundle
     , checkInvariant
     )
+import Control.Monad
+    ( void )
 import Control.Monad.Random.Class
     ( MonadRandom (..) )
 import Data.Function
@@ -408,7 +410,7 @@ prop_SelectionFilter_coverage selectionFilter = checkCoverage $ property
         "SelectAny"
     True
   where
-    category = () <$ selectionFilter
+    category = void selectionFilter
 
 -- | Attempt to select a random entry from an empty index.
 --
@@ -459,7 +461,7 @@ prop_selectRandom index selectionFilter = monadicIO $
             "matchNegative && category == SelectAny"
         $ maybe prop_inner_Nothing prop_inner_Just maybeSelected
       where
-        category = () <$ selectionFilter
+        category = void selectionFilter
         matchPositive = maybeSelected & isJust
         matchNegative = maybeSelected & isNothing
 

@@ -161,8 +161,8 @@ instance MonadSTM (NoLoggingT (ResourceT IO)) where
     atomically = liftIO . STM.atomically . unWrapSTM
     newTVar = WrapSTM . STM.newTVar
     readTVar = WrapSTM . STM.readTVar
-    writeTVar = \v -> WrapSTM . STM.writeTVar v
-    modifyTVar'    = \v -> WrapSTM . STM.modifyTVar' v
+    writeTVar v = WrapSTM . STM.writeTVar v
+    modifyTVar' v = WrapSTM . STM.modifyTVar' v
 
 -- | Helper type for the above instance.
 newtype WrapSTM a = WrapSTM { unWrapSTM :: STM.STM a }
@@ -180,8 +180,8 @@ instance MonadThrow (NoLoggingT (ResourceT IO)) where
 
 instance MonadCatch (NoLoggingT (ResourceT IO)) where
     catch = ResourceT.catch
-    generalBracket before after action =
-        ResourceT.generalBracket before (\a -> after a . contra) action
+    generalBracket before after =
+        ResourceT.generalBracket before (\a -> after a . contra)
       where
         contra (ResourceT.ExitCaseSuccess a) = ExitCaseSuccess a
         contra (ResourceT.ExitCaseException e) = ExitCaseException e

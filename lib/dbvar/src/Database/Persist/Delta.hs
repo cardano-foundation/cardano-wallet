@@ -18,7 +18,7 @@ import Prelude hiding
     ( all )
 
 import Control.Monad
-    ( forM_, void )
+    ( forM_, void, when )
 import Control.Monad.IO.Class
     ( MonadIO, liftIO )
 import Data.Bifunctor
@@ -160,7 +160,7 @@ newDatabaseStore db = do
             rememberSupply (apply ds table) -- need to use updated supply
         }
   where
-    debug m = if False then m else pure ()
+    debug m = when False m
 
     update1 _ (InsertManyDB zs) = void $ repsertMany db zs
     update1 _ (DeleteManyDB ks) = forM_ ks $ deleteOne db
