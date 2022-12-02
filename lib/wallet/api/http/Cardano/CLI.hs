@@ -1288,7 +1288,7 @@ portOption = optionT $ mempty
     <> long "port"
     <> metavar "INT"
     <> help "port used for serving the wallet API."
-    <> value (Port 8090)
+    <> value (Port 8_090)
     <> showDefaultWith showT
 
 -- | [--shutdown-handler]
@@ -1592,8 +1592,8 @@ newtype Port (tag :: Symbol) = Port { getPort :: Int }
 -- However, ports in [[-1; 1023]] \ {0} are well-known ports reserved
 -- and only "bindable" through root privileges.
 instance Bounded (Port tag) where
-    minBound = Port 1024
-    maxBound = Port 65535
+    minBound = Port 1_024
+    maxBound = Port 65_535
 
 instance FromText (Port tag) where
     fromText t = do

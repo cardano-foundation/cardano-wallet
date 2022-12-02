@@ -4420,7 +4420,7 @@ fromExternalInput ApiExternalInput
         script = Nothing
         addr' = toLedger addr
         val = toLedger $ TokenBundle (Coin.fromNatural amt) assets
-        datum' = maybe WriteTx.NoDatum WriteTx.DatumHash (getApiT <$> datum)
+        datum' = maybe WriteTx.NoDatum (WriteTx.DatumHash . getApiT) datum
         out = WriteTx.TxOutInRecentEra addr' val datum' script
     in
         (inp, out)

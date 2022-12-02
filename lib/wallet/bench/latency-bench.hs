@@ -5,7 +5,6 @@
 {-# LANGUAGE OverloadedLabels #-}
 {-# LANGUAGE QuasiQuotes #-}
 {-# LANGUAGE ScopedTypeVariables #-}
-{-# LANGUAGE TemplateHaskell #-}
 {-# LANGUAGE TupleSections #-}
 {-# LANGUAGE TypeApplications #-}
 {-# LANGUAGE TypeFamilies #-}
@@ -203,7 +202,7 @@ walletApiBench capture ctx = do
     runScenario (nFixtureWalletWithUTxOs 2 500)
 
     fmtTitle "Latencies for 2 fixture wallets with 1000 utxos scenario"
-    runScenario (nFixtureWalletWithUTxOs 2 1000)
+    runScenario (nFixtureWalletWithUTxOs 2 1_000)
   where
 
     -- Creates n fixture wallets and return 3 of them
@@ -415,8 +414,8 @@ walletApiBench capture ctx = do
         pure ()
      where
         arbitraryStake :: Maybe Coin
-        arbitraryStake = Just $ ada 10000
-            where ada = Coin . (1000*1000*)
+        arbitraryStake = Just $ ada 10_000
+            where ada = Coin . (1_000*1_000*)
 
     runWarmUpScenario = do
         -- this one is to have comparable results from first to last measurement
@@ -433,7 +432,7 @@ withShelleyServer
 withShelleyServer tracers action = do
     ctx <- newEmptyMVar
     let setupContext np baseUrl = do
-            let sixtySeconds = 60*1000*1000 -- 60s in microseconds
+            let sixtySeconds = 60*1_000*1_000 -- 60s in microseconds
             manager <- (baseUrl,) <$> newManager (defaultManagerSettings
                 { managerResponseTimeout =
                     responseTimeoutMicro sixtySeconds

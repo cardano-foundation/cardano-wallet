@@ -576,7 +576,7 @@ configurePool tr baseDir era metadataServer recipe = do
                         (blake2b256 (BL.toStrict metadataBytes))
                   }
 
-            let updateStaking = \sgs -> sgs
+            let updateStaking sgs = sgs
                     { Ledger.sgsPools = (Map.singleton poolId params)
                         <> (sgsPools sgs)
                     , Ledger.sgsStake = (Map.singleton stakePubHash poolId)
@@ -904,15 +904,15 @@ generateGenesis dir systemStart initialFunds addPoolsToGenesis = do
 
     let pparams = Ledger.PParams
             { _minfeeA = 100
-            , _minfeeB = 100000
+            , _minfeeB = 100_000
             , _minUTxOValue = Ledger.Coin 1_000_000
 
             , _keyDeposit = Ledger.Coin 1_000_000
             , _poolDeposit = Ledger.Coin 0
 
-            , _maxBBSize = 239857
-            , _maxBHSize = 217569
-            , _maxTxSize = 16384
+            , _maxBBSize = 239_857
+            , _maxBHSize = 217_569
+            , _maxTxSize = 16_384
 
             , _minPoolCost = Ledger.Coin 0
 
@@ -925,7 +925,7 @@ generateGenesis dir systemStart initialFunds addPoolsToGenesis = do
 
             -- Sensible pool & reward parameters:
             , _nOpt = 3
-            , _rho = unsafeUnitInterval 0.178650067
+            , _rho = unsafeUnitInterval 0.178_650_067
             , _tau = unsafeUnitInterval 0.1
             , _a0 = unsafeNonNegativeInterval 0.1
             , _d = unsafeUnitInterval 0
@@ -933,7 +933,7 @@ generateGenesis dir systemStart initialFunds addPoolsToGenesis = do
             -- The epoch bound on pool retirements specifies how many epochs
             -- in advance retirements may be announced. For testing purposes,
             -- we allow retirements to be announced far into the future.
-            ,  _eMax = 1000000
+            ,  _eMax = 1_000_000
             }
 
     let sg = addPoolsToGenesis $ ShelleyGenesis
@@ -943,11 +943,11 @@ generateGenesis dir systemStart initialFunds addPoolsToGenesis = do
             , sgSecurityParam = 10
             , sgEpochLength = 160
             , sgUpdateQuorum = 1
-            , sgNetworkMagic = 764824073
-            , sgSlotsPerKESPeriod = 86400
+            , sgNetworkMagic = 764_824_073
+            , sgSlotsPerKESPeriod = 86_400
             , sgMaxKESEvolutions = 5
             , sgNetworkId = Mainnet
-            , sgMaxLovelaceSupply = 1000000000000000000
+            , sgMaxLovelaceSupply = 1_000_000_000_000_000_000
             , sgProtocolParams = pparams
             , sgInitialFunds = extraInitialFunds
             , sgStaking = Ledger.emptyGenesisStaking
@@ -2120,7 +2120,7 @@ faucetIndex = unsafePerformIO $ newMVar 1
 -- the files on disk read by 'takeFaucet'.
 internalFaucetFunds :: [(Address, Coin)]
 internalFaucetFunds = map
-    ((,Coin 1000000000000000) . unsafeDecodeAddr . T.pack)
+    ((,Coin 1_000_000_000_000_000) . unsafeDecodeAddr . T.pack)
   [ "Ae2tdPwUPEZGc7WAmkmXxP3QJ8aiKSMGgfWV6w4A58ebjpr5ah147VvJfDH"
   , "Ae2tdPwUPEZCREUZxa3F1fTyVPMU2MLMYAkRe7DEVoyZsWKahphgdifWuc3"
   , "Ae2tdPwUPEYxL4wYjNxK8z5mCgMmnG1WkMFZaeZ6EGdV2LDZ5pgQzvzVpuo"
@@ -2370,11 +2370,11 @@ preRegisteredStakeKey = Aeson.object
 
 -- | Deposit amount required for registering certificates.
 depositAmt :: Integer
-depositAmt = 1000000
+depositAmt = 1_000_000
 
 -- | Initial amount in each of these special cluster faucet
 faucetAmt :: Integer
-faucetAmt = 1000 * oneMillionAda
+faucetAmt = 1_000 * oneMillionAda
 
 -- | Just one million Ada, in Lovelace.
 oneMillionAda :: Integer
