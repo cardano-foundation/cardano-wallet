@@ -130,10 +130,10 @@ import Data.Map.Strict
     ( Map )
 import Data.Maybe
     ( isJust )
+import Data.MonoidMap
+    ( MonoidMap )
 import Data.Set
     ( Set )
-import Data.Set.Strict.NonEmptySet
-    ( NonEmptySet )
 import GHC.Generics
     ( Generic )
 
@@ -143,8 +143,8 @@ import qualified Data.Foldable as F
 import qualified Data.List as L
 import qualified Data.List.NonEmpty as NE
 import qualified Data.Map.Strict as Map
+import qualified Data.MonoidMap as MonoidMap
 import qualified Data.Set as Set
-import qualified Data.Set.Strict.NonEmptySet as NonEmptySet
 
 --------------------------------------------------------------------------------
 -- Public Interface
@@ -175,14 +175,14 @@ import qualified Data.Set.Strict.NonEmptySet as NonEmptySet
 --
 data UTxOIndex u = UTxOIndex
     { indexAll
-        :: !(Map Asset (NonEmptySet u))
+        :: !(MonoidMap Asset (Set u))
         -- An index of all entries that contain the given asset.
     , indexSingletons
-        :: !(Map Asset (NonEmptySet u))
+        :: !(MonoidMap Asset (Set u))
         -- An index of all entries that contain the given asset and no other
         -- assets.
     , indexPairs
-        :: !(Map Asset (NonEmptySet u))
+        :: !(MonoidMap Asset (Set u))
         -- An index of all entries that contain the given asset and exactly
         -- one other asset.
     , balance
@@ -204,9 +204,9 @@ instance NFData u => NFData (UTxOIndex u)
 --
 empty :: UTxOIndex u
 empty = UTxOIndex
-    { indexAll = Map.empty
-    , indexSingletons = Map.empty
-    , indexPairs = Map.empty
+    { indexAll = MonoidMap.empty
+    , indexSingletons = MonoidMap.empty
+    , indexPairs = MonoidMap.empty
     , balance = TokenBundle.empty
     , universe = Map.empty
     }
@@ -324,10 +324,10 @@ delete u i =
 
     deleteEntry
         :: Ord asset
-        => Map asset (NonEmptySet u)
+        => MonoidMap asset (Set u)
         -> asset
-        -> Map asset (NonEmptySet u)
-    deleteEntry m a = Map.update (NonEmptySet.delete u) a m
+        -> MonoidMap asset (Set u)
+    deleteEntry m a = MonoidMap.adjust (Set.delete u) a m
 
 -- | Deletes multiple entries from an index.
 --
@@ -357,7 +357,7 @@ partition f = bimap fromSequence fromSequence . L.partition (f . fst) . toList
 -- | Returns the complete set of all assets contained in an index.
 --
 assets :: UTxOIndex u -> Set Asset
-assets = Map.keysSet . indexAll
+assets = MonoidMap.nonNullKeys . indexAll
 
 -- | Returns the value corresponding to the given UTxO identifier.
 --
@@ -454,8 +454,7 @@ selectRandom i selectionFilter =
         SelectAny ->
             Map.keysSet (universe i)
       where
-        a `lookupWith` index =
-            maybe mempty NonEmptySet.toSet $ Map.lookup a $ index i
+        a `lookupWith` index = MonoidMap.get a $ index i
 
 -- | Selects an entry at random from the index according to the given filters.
 --
@@ -598,14 +597,10 @@ insertUnsafe u b i = i
   where
     insertEntry
         :: Ord asset
-        => Map asset (NonEmptySet u)
+        => MonoidMap asset (Set u)
         -> asset
-        -> Map asset (NonEmptySet u)
-    insertEntry m a =
-        Map.alter (maybe (Just createNew) (Just . updateOld)) a m
-      where
-        createNew = NonEmptySet.singleton u
-        updateOld = NonEmptySet.insert u
+        -> MonoidMap asset (Set u)
+    insertEntry m a = MonoidMap.adjust (Set.insert u) a m
 
 -- | Selects an element at random from the given set.
 --
@@ -717,10 +712,10 @@ indexIsComplete i =
         :: Ord asset
         => asset
         -> u
-        -> (UTxOIndex u -> Map asset (NonEmptySet u))
+        -> (UTxOIndex u -> MonoidMap asset (Set u))
         -> Bool
     hasEntryForAsset asset u assetsMap =
-        maybe False (NonEmptySet.member u) $ Map.lookup asset $ assetsMap i
+        Set.member u $ MonoidMap.get asset $ assetsMap i
 
 -- | Checks that every indexed entry is required by some entry in the 'universe'
 --   map.
@@ -728,13 +723,13 @@ indexIsComplete i =
 indexIsMinimal :: forall u. Ord u => UTxOIndex u -> Bool
 indexIsMinimal i = F.and
     [ indexAll i
-        & Map.toList
+        & MonoidMap.toList
         & F.all (\(a, u) -> F.all (entryHasAsset a) u)
     , indexSingletons i
-        & Map.toList
+        & MonoidMap.toList
         & F.all (\(a, u) -> F.all (entryHasOneAsset a) u)
     , indexPairs i
-        & Map.toList
+        & MonoidMap.toList
         & F.all (\(a, u) -> F.all (entryHasTwoAssetsWith a) u)
     ]
   where
@@ -761,32 +756,12 @@ indexIsMinimal i = F.and
 indexIsConsistent :: Ord u => UTxOIndex u -> Bool
 indexIsConsistent i = F.and
     [ indexSingletons i
-        `isDisjointTo` indexPairs i
+        `MonoidMap.disjoint` indexPairs i
     , indexSingletons i
-        `isSubmapOf` indexAll i
+        `MonoidMap.isSubmapOf` indexAll i
     , indexPairs i
-        `isSubmapOf` indexAll i
+        `MonoidMap.isSubmapOf` indexAll i
     ]
-  where
-    isDisjointTo
-        :: Ord u
-        => Map a (NonEmptySet u)
-        -> Map a (NonEmptySet u)
-        -> Bool
-    isDisjointTo m1 m2 = s1 `Set.disjoint` s2
-      where
-        s1 = F.foldMap NonEmptySet.toSet m1
-        s2 = F.foldMap NonEmptySet.toSet m2
-
-    isSubmapOf
-        :: (Ord a, Ord u)
-        => Map a (NonEmptySet u)
-        -> Map a (NonEmptySet u)
-        -> Bool
-    isSubmapOf = Map.isSubmapOfBy isNonEmptySubsetOf
-      where
-        isNonEmptySubsetOf s1 s2 =
-            NonEmptySet.toSet s1 `Set.isSubsetOf` NonEmptySet.toSet s2
 
 -- | Checks that the asset sets are consistent.
 --
@@ -798,11 +773,11 @@ indexIsConsistent i = F.and
 --
 assetsConsistent :: UTxOIndex u -> Bool
 assetsConsistent i = and
-    [ Map.keysSet (indexAll i)
+    [ MonoidMap.nonNullKeys (indexAll i)
         == balanceAssets
-    , Map.keysSet (indexSingletons i)
+    , MonoidMap.nonNullKeys (indexSingletons i)
         `Set.isSubsetOf` balanceAssets
-    , Map.keysSet (indexPairs i)
+    , MonoidMap.nonNullKeys (indexPairs i)
         `Set.isSubsetOf` balanceAssets
     ]
   where
