@@ -557,9 +557,9 @@ spec = describe "SHARED_TRANSACTIONS" $ do
                 , amount = Quantity amt
                 , assets = ApiT TokenMap.empty
                 , derivationPath = NE.fromList
-                    [ ApiT (DerivationIndex 2147485500)
-                    , ApiT (DerivationIndex 2147485463)
-                    , ApiT (DerivationIndex 2147483648)
+                    [ ApiT (DerivationIndex 2_147_485_500)
+                    , ApiT (DerivationIndex 2_147_485_463)
+                    , ApiT (DerivationIndex 2_147_483_648)
                     , ApiT (DerivationIndex 0)
                     , ApiT (DerivationIndex $ fromIntegral addrIx)
                     ]
@@ -944,8 +944,8 @@ spec = describe "SHARED_TRANSACTIONS" $ do
 
         let [Just t2, Just t1] = fmap (fmap (view #time) . insertedAt) txs
         let plusDelta, minusDelta :: UTCTime -> UTCTime
-            plusDelta = addUTCTime (toEnum 1000000000)
-            minusDelta = addUTCTime (toEnum (-1000000000))
+            plusDelta = addUTCTime (toEnum 1_000_000_000)
+            minusDelta = addUTCTime (toEnum (-1_000_000_000))
 
         let matrix :: [TestCase [ApiTransaction n]] =
                 [ TestCase -- 1
@@ -1878,9 +1878,9 @@ spec = describe "SHARED_TRANSACTIONS" $ do
                 , amount = Quantity amt
                 , assets = ApiT TokenMap.empty
                 , derivationPath = NE.fromList
-                    [ ApiT (DerivationIndex 2147485500)
-                    , ApiT (DerivationIndex 2147485463)
-                    , ApiT (DerivationIndex 2147483648)
+                    [ ApiT (DerivationIndex 2_147_485_500)
+                    , ApiT (DerivationIndex 2_147_485_463)
+                    , ApiT (DerivationIndex 2_147_483_648)
                     , ApiT (DerivationIndex 0)
                     , ApiT (DerivationIndex $ fromIntegral addrIx)
                     ]

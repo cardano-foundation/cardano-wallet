@@ -1208,7 +1208,7 @@ spec = describe "SHELLEY_ADDRESSES" $ do
         -- Request first 10 extended account public keys
         let indices = [0..9]
         accountPublicKeys <- forM indices $ \index -> do
-            let accountPath = Link.postAccountKey @'Shelley w (DerivationIndex $ 2147483648 + index)
+            let accountPath = Link.postAccountKey @'Shelley w (DerivationIndex $ 2_147_483_648 + index)
             let payload1 = Json [json|{
                     "passphrase": #{fixturePassphrase},
                     "format": "extended"
@@ -1229,7 +1229,7 @@ spec = describe "SHELLEY_ADDRESSES" $ do
     it "POST_ACCOUNT_02 - Can get account public key using purpose" $ \ctx -> runResourceT $ do
         let initPoolGap = 10
         w <- emptyWalletWith ctx ("Wallet", fixturePassphrase, initPoolGap)
-        let accountPath = Link.postAccountKey @'Shelley w (DerivationIndex $ 2147483648 + 1)
+        let accountPath = Link.postAccountKey @'Shelley w (DerivationIndex $ 2_147_483_648 + 1)
         let payload1 = Json [json|{
                 "passphrase": #{fixturePassphrase},
                 "format": "extended"

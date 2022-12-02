@@ -195,7 +195,7 @@ spec = describe "SHARED_WALLETS" $ do
             , expectField (traverse . #delegationScriptTemplate)
                 (`shouldBe` Nothing)
             , expectField (traverse . #accountIndex . #getApiT)
-                (`shouldBe` DerivationIndex 2147483678)
+                (`shouldBe` DerivationIndex 2_147_483_678)
             ]
 
     it "SHARED_WALLETS_CREATE_01 - Compare wallet ids" $ \ctx -> runResourceT $ do
@@ -235,7 +235,7 @@ spec = describe "SHARED_WALLETS" $ do
                 "format": "extended"
             }|]
         rKey <-
-            postAccountKeyShared ctx wal (DerivationIndex $ 2147483648 + index) Default payloadKey
+            postAccountKeyShared ctx wal (DerivationIndex $ 2_147_483_648 + index) Default payloadKey
 
         verify rKey
             [ expectResponseCode HTTP.status202
@@ -405,7 +405,7 @@ spec = describe "SHARED_WALLETS" $ do
                 (`shouldBe` Nothing)
             , expectField
                 (traverse . #accountIndex . #getApiT)
-                (`shouldBe` DerivationIndex 2147483678)
+                (`shouldBe` DerivationIndex 2_147_483_678)
             ]
 
         let wal = getFromResponse id rPost
@@ -415,7 +415,7 @@ spec = describe "SHARED_WALLETS" $ do
                 "format": "extended"
             }|]
         rKey <-
-            postAccountKeyShared ctx wal (DerivationIndex $ 2147483648 + index) Default payloadKey
+            postAccountKeyShared ctx wal (DerivationIndex $ 2_147_483_648 + index) Default payloadKey
 
         verify rKey
             [ expectResponseCode HTTP.status202
@@ -513,7 +513,7 @@ spec = describe "SHARED_WALLETS" $ do
                 (`shouldBe` Nothing)
             , expectField
                 (traverse . #accountIndex . #getApiT)
-                (`shouldBe` DerivationIndex 2147483658)
+                (`shouldBe` DerivationIndex 2_147_483_658)
             ]
 
     it "SHARED_WALLETS_CREATE_05 - Create an active shared wallet from root xprv with self" $ \ctx -> runResourceT $ do
@@ -1188,7 +1188,7 @@ spec = describe "SHARED_WALLETS" $ do
             , expectListField 0 (traverse . #assets . #available) (`shouldBe` mempty)
             , expectListField 0 (traverse . #delegation) (`shouldBe` notDelegating [])
             , expectListField 0 (traverse . #delegationScriptTemplate) (`shouldBe` Nothing)
-            , expectListField 0 (traverse . #accountIndex . #getApiT) (`shouldBe` DerivationIndex 2147483678)
+            , expectListField 0 (traverse . #accountIndex . #getApiT) (`shouldBe` DerivationIndex 2_147_483_678)
             ]
 
     it "SHARED_WALLETS_LIST_01 - Wallets are listed from oldest to newest" $ \ctx -> runResourceT $ do

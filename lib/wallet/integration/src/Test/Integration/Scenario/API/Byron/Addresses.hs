@@ -115,7 +115,7 @@ spec = do
         scenario_ADDRESS_IMPORT_02 @n emptyIcarusWalletMws
         scenario_ADDRESS_IMPORT_03 @n emptyRandomWalletMws
         scenario_ADDRESS_IMPORT_04 @n fixtureRandomWallet
-        scenario_ADDRESS_IMPORT_05 @n 15000 emptyRandomWalletMws
+        scenario_ADDRESS_IMPORT_05 @n 15_000 emptyRandomWalletMws
         scenario_ADDRESS_IMPORT_06 @n emptyRandomWalletMws
 
 scenario_ADDRESS_LIST_01

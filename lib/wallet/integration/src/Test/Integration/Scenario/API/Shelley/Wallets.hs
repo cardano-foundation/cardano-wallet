@@ -1147,7 +1147,7 @@ spec = describe "SHELLEY_WALLETS" $ do
                   , "addr_vk1wchen6vz4zz7kpfjld3g89zdcpdv2hzvtsufphgvpjxjkl49pqrqaj4j0e"
                   )
                 , ( MutableAccount
-                  , DerivationIndex 2147483647
+                  , DerivationIndex 2_147_483_647
                   , "stake_vk1qy9tp370ze3cfre8f6daz7l85pgk3wpg6s5zqae2yjljwqkx4htqc7kr4p"
                   )
                 ]
@@ -1178,7 +1178,7 @@ spec = describe "SHELLEY_WALLETS" $ do
     it "WALLETS_GET_KEY_02 - invalid index for verification key" $ \ctx -> runResourceT $ do
         w <- emptyWallet ctx
 
-        let link = Link.getWalletKey @'Shelley w UtxoExternal (DerivationIndex 2147483648) Nothing
+        let link = Link.getWalletKey @'Shelley w UtxoExternal (DerivationIndex 2_147_483_648) Nothing
         r <- request @ApiVerificationKeyShelley ctx link Default Empty
 
         verify r
@@ -1254,7 +1254,7 @@ spec = describe "SHELLEY_WALLETS" $ do
               { "passphrase": #{fixturePassphrase}
               , "metadata": { "0": { "int": 1 } }
               }|]
-        let link = Link.signMetadata w UtxoExternal (DerivationIndex 2147483648)
+        let link = Link.signMetadata w UtxoExternal (DerivationIndex 2_147_483_648)
         r <- rawRequest ctx link
             (Headers [(HTTP.hAccept, "*/*"), (HTTP.hContentType, "application/json")])
             (Json payload)

@@ -67,8 +67,8 @@ import qualified Codec.Binary.Bech32 as Bech32
 import qualified Codec.CBOR.Term as CBOR
 import qualified Data.Aeson as Aeson
 import qualified Data.ByteString as BS
-import qualified "base16-bytestring" Data.ByteString.Base16 as Base16
-import qualified Data.ByteString.Lazy as BSL
+import qualified "base16-bytestring" Data.ByteString.Base16 as B16
+import qualified Data.ByteString.Lazy as BL
 import qualified Data.Text.Encoding as T
 import qualified Data.Text.Lazy as TL
 import qualified Data.Text.Lazy.Encoding as TL
@@ -359,7 +359,7 @@ currencyTx input = Aeson.object
         ] ]
     ]
   where
-    fromCBOR = BSL.toStrict . serialise
+    fromCBOR = BL.toStrict . serialise
 
     transaction = CBOR.TList
         [ transaction_body, transaction_witness_set
@@ -394,7 +394,7 @@ currencyTx input = Aeson.object
     (policy, policy_id) = mkCurrencyPolicy input
 
 toHex :: BS.ByteString -> Text
-toHex = T.decodeUtf8 . Base16.encode
+toHex = T.decodeUtf8 . B16.encode
 
 -- | Minting policy that mints 1_000 units of "apfel" and 1 unit of "banana"
 -- when a specific UTxO is spent (which can be done only once).
