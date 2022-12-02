@@ -97,8 +97,6 @@ import Data.List.NonEmpty
     ( NonEmpty (..) )
 import Data.Map.Strict
     ( Map )
-import Data.Map.Strict.NonEmptyMap
-    ( NonEmptyMap )
 import Data.Ord
     ( comparing )
 import Data.Set
@@ -221,7 +219,7 @@ fromNestedList
 fromNestedList c = TokenBundle c . TokenMap.fromNestedList
 
 fromNestedMap
-    :: (Coin, Map TokenPolicyId (NonEmptyMap TokenName TokenQuantity))
+    :: (Coin, Map TokenPolicyId (Map TokenName TokenQuantity))
     -> TokenBundle
 fromNestedMap (c, m) = TokenBundle c (TokenMap.fromNestedMap m)
 
