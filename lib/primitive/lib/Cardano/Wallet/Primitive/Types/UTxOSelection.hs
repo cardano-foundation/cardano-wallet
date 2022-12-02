@@ -162,11 +162,11 @@ newtype UTxOSelectionNonEmpty u = UTxOSelectionNonEmpty (State u)
 
 instance HasUTxOSelectionState UTxOSelection u where
     state (UTxOSelection s) = s
-    fromState s = UTxOSelection s
+    fromState = UTxOSelection
 
 instance HasUTxOSelectionState UTxOSelectionNonEmpty u where
     state (UTxOSelectionNonEmpty s) = s
-    fromState s = UTxOSelectionNonEmpty s
+    fromState = UTxOSelectionNonEmpty
 
 instance IsUTxOSelection UTxOSelection u where
     type SelectedList UTxOSelection u = [(u, TokenBundle)]

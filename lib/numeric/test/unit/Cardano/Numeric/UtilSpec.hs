@@ -12,7 +12,7 @@ import Cardano.Numeric.Util
 import Data.List.NonEmpty
     ( NonEmpty (..) )
 import Data.Maybe
-    ( catMaybes )
+    ( mapMaybe )
 import Data.Monoid
     ( Sum (..) )
 import Data.Ratio
@@ -190,7 +190,7 @@ prop_partitionNatural_fair target weights =
 
 instance Arbitrary a => Arbitrary (NE.NonEmpty a) where
     arbitrary = (:|) <$> arbitrary <*> arbitrary
-    shrink xs = catMaybes $ NE.nonEmpty <$> shrink (NE.toList xs)
+    shrink xs = mapMaybe NE.nonEmpty (shrink (NE.toList xs))
 
 instance Arbitrary Natural where
     arbitrary = arbitrarySizedNatural

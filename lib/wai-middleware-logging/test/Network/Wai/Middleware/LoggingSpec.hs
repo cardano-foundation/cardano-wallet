@@ -330,7 +330,7 @@ logMessage (ApiLog _ theMsg) = case theMsg of
 
 -- | Number of microsecond in one millisecond
 ms :: Int
-ms = 1000
+ms = 1_000
 
 {-------------------------------------------------------------------------------
                             Arbitrary instances

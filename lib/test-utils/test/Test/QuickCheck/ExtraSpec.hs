@@ -796,27 +796,27 @@ unit_shrinkWhileSteps_Int = unitTests
     tests :: [UnitTestData (Int, (Int -> Bool)) [Int]]
     tests =
         [ UnitTestData
-            { params = (1024, (>= 0))
+            { params = (1_024, (>= 0))
             , result = [0]
             }
         , UnitTestData
-            { params = (1024, (>= 1))
+            { params = (1_024, (>= 1))
             , result = [512, 256, 128, 64, 32, 16, 8, 4, 2, 1]
             }
         , UnitTestData
-            { params = (1024, (>= 10))
+            { params = (1_024, (>= 10))
             , result = [512, 256, 128, 64, 32, 16, 12, 11, 10]
             }
         , UnitTestData
-            { params = (1024, (>= 100))
+            { params = (1_024, (>= 100))
             , result = [512, 256, 128, 112, 105, 102, 101, 100]
             }
         , UnitTestData
-            { params = (1024, (>= 1000))
-            , result = [1008, 1001, 1000]
+            { params = (1_024, (>= 1_000))
+            , result = [1_008, 1_001, 1_000]
             }
         , UnitTestData
-            { params = (1024, (>= 10000))
+            { params = (1_024, (>= 10_000))
             , result = []
             }
         ]
