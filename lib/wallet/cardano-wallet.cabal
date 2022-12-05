@@ -189,6 +189,7 @@ library
     , string-interpolate
     , template-haskell
     , temporary
+    , these
     , text
     , text-class
     , these
@@ -253,6 +254,7 @@ library
     Cardano.Wallet.DB.Sqlite.Stores
     Cardano.Wallet.DB.Sqlite.Types
     Cardano.Wallet.DB.Store.Checkpoints
+    Cardano.Wallet.DB.Store.Delegations
     Cardano.Wallet.DB.Store.Info.Store
     Cardano.Wallet.DB.Store.Meta.Layer
     Cardano.Wallet.DB.Store.Meta.Model
