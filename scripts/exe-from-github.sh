@@ -19,7 +19,7 @@
 #   PACKAGE              Name of the release package
 #   PLATFORM             Target platform of the executable
 #   VERSION              Executable version number
-#   RELEASE              Release version
+#   RELEASE              Release git tag
 
 set -e
 
