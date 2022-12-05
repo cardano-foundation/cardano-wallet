@@ -60,6 +60,7 @@ steps:
       IS_NIGHTLY: "true"
     agents:
       system: x86_64-linux
+      queue: benchmark
     if: 'build.env("step") == null || build.env("step") =~ /cabal/'
 
   # TODO: ADP-549 Port migrations test to shelley
@@ -79,4 +80,5 @@ steps:
     command: "./.buildkite/push-branch.sh linux-tests-pass windows-tests-pass all-tests-pass"
     agents:
       system: x86_64-linux
+      queue: benchmark
     if: 'build.env("step") == null'
