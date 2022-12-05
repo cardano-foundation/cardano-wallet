@@ -14,7 +14,7 @@ jobs:
         os: [ubuntu-20.04]
     runs-on: ${{ matrix.os }}
     steps:
-    - name: 📥 Checkout repository
+    - name: 📥 Check out repository
       uses: actions/checkout@v2.3.3
       with:
         submodules: true
@@ -28,13 +28,18 @@ jobs:
         RELEASE: v3.3.1
         VERSION: 3.3.1
       run: |
-        chmod +x scripts/exe-from-github.sh
-        scripts/exe-from-github.sh | sh -s lib prototypes -h .hlint.yaml
+        curl -sSL https://raw.github.com/input-output-hk/cardano-wallet/master/scripts/exe-from-github.sh | sh -s lib prototypes -h .hlint.yaml
 
     - name: ✍  Check stylish-haskell
+      shell: bash
       env:
+        PACKAGE: stylish-haskell
+        REPOSITORY: haskell/stylish-haskell
+        PLATFORM: linux-x86_64
+        RELEASE: v0.11.0.0
         VERSION: v0.11.0.0
       run: |
+        curl -sSL https://raw.github.com/input-output-hk/cardano-wallet/master/scripts/exe-from-github.sh
         curl -sSL https://raw.github.com/input-output-hk/adrestia/master/templates/haskell/stylish-haskell.sh | sh -s $(git ls-files '*.hs') -i
         if [ -z "$(git status --porcelain)" ]; then
             echo "No style errors detected."

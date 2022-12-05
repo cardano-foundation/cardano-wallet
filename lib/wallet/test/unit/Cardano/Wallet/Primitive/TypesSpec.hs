@@ -1123,7 +1123,7 @@ instance (Arbitrary a, Ord a) => Arbitrary (NonSingletonRange a) where
         -- Iterate through the infinite list of arbitrary ranges and return
         -- the first range that is not a singleton range:
         head . mapMaybe (makeNonSingletonRangeValid . NonSingletonRange)
-               <$> infiniteList
+            <$> infiniteList
     shrink (NonSingletonRange r) = mapMaybe
         (makeNonSingletonRangeValid . NonSingletonRange) (shrink r)
 
