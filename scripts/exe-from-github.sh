@@ -19,11 +19,7 @@
 #   PACKAGE              Name of the release package
 #   PLATFORM             Target platform of the executable
 #   VERSION              Executable version number
-<<<<<<< HEAD
 #   RELEASE              Release git tag
-=======
-#   RELEASE              Release version
->>>>>>> 8bed00a60 (choose 3.3.1 hlint)
 
 set -e
 

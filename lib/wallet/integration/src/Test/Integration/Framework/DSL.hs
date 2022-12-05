@@ -2144,7 +2144,7 @@ json = aesonQQ
 
 arbitraryStake :: Maybe Coin
 arbitraryStake = Just $ ada 10_000_000_000
-  where ada = Coin . (1_000*1_000*)
+  where ada = Coin . (1_000_000 *)
 
 joinStakePool
     :: forall n w m.
