@@ -1,5 +1,4 @@
 status = [
-  "buildkite/cardano-wallet",
   "ci/hydra-build:required",
 ]
 timeout_sec = 14400
