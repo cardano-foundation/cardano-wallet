@@ -242,6 +242,8 @@ spec = describe "NEW_SHELLEY_TRANSACTIONS" $ do
         wa <- fixtureWallet ctx
         let emptyPayload = Json [json|{}|]
 
+        True `shouldBe` False
+
         rTx <- request @(ApiConstructTransaction n) ctx
             (Link.createUnsignedTransaction @'Shelley wa) Default emptyPayload
         verify rTx
