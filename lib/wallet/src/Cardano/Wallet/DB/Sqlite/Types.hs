@@ -9,7 +9,7 @@
 {-# OPTIONS_GHC -fno-warn-orphans #-}
 
 -- |
--- Copyright: © 2018-2020 IOHK
+-- Copyright: © 2018-2023 IOHK
 -- License: Apache-2.0
 --
 -- This module contains instances and types necessary for storing wallets in a
@@ -725,8 +725,6 @@ instance MonadFail EitherText where
 data TxSubmissionStatusEnum = InSubmissionE | InLedgerE | ExpiredE
     deriving (Eq, Show, Enum, Generic)
 
-
-
 instance PersistField TxSubmissionStatusEnum where
     toPersistValue = toPersistValue . fromEnum
     fromPersistValue = fmap toEnum . fromPersistValue
@@ -747,3 +745,22 @@ iso8601DateFormatHMS :: String
 -- Equivalent to `iso8601DateFormatHMS (Just "%H:%M:%S")`
 -- The function `iso8601DateFormatHMS` has been deprecated from the `time` library.
 iso8601DateFormatHMS = "%Y-%m-%dT%H:%M:%S"
+
+data DelegationStatusEnum = InactiveE | RegisteredE | ActiveE
+    deriving (Eq, Show, Enum, Generic)
+
+instance PersistField DelegationStatusEnum where
+    toPersistValue = toPersistValue . \case
+        InactiveE -> "inactive" :: Text
+        RegisteredE -> "registered"
+        ActiveE -> "active"
+    fromPersistValue = fromPersistValue >=> readDelegationStatus
+
+readDelegationStatus :: Text -> Either Text DelegationStatusEnum
+readDelegationStatus "inactive" = Right InactiveE
+readDelegationStatus "registered" = Right RegisteredE
+readDelegationStatus "active" = Right ActiveE
+readDelegationStatus other = Left $ "Invalid delegation status: " <> other
+
+instance PersistFieldSql DelegationStatusEnum where
+    sqlType _ = sqlType (Proxy @Text)
