@@ -136,12 +136,13 @@ lightSync follower = do
                 fromBlock <$> (BF.getBlock . Left $ height - stabilityWindow)
     nextBlockFrom prev@(At height _) = do
         b <- hasBeenRolledBack prev
-        (if b then
-             (do target <- BF.getBlock . Left $ height - stabilityWindow
-                 old <- rollBackward follower $ fromBlock target
-                 nextBlockFrom old)
-         else
-             fromBlock <$> BF.getLatestBlock)
+        case b of
+            False -> fromBlock <$> BF.getLatestBlock
+            True -> do
+                -- fall back to behind the stability window
+                target <- BF.getBlock . Left $ height - stabilityWindow
+                old <- rollBackward follower $ fromBlock target
+                nextBlockFrom old
     stabilityWindow = 1_000 :: Integer
 
 -- | Test whether a given 'ChainPoint' has become invalid due

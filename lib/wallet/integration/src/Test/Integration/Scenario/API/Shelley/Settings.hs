@@ -90,4 +90,4 @@ spec = describe "SHELLEY_SETTINGS" $ do
 
 arbitraryStake :: Maybe Coin
 arbitraryStake = Just $ ada 10_000
-  where ada = Coin . (1_000*1_000*)
+  where ada = Coin . (1_000_000 *)
