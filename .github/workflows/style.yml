@@ -11,18 +11,25 @@ jobs:
   build:
     strategy:
       matrix:
-        os: [ubuntu-latest]
-
+        os: [ubuntu-20.04]
     runs-on: ${{ matrix.os }}
     steps:
     - name: 📥 Checkout repository
-      uses: actions/checkout@v1
+      uses: actions/checkout@v2.3.3
+      with:
+        submodules: true
 
-    - name: ✍  Check hlint
+    - name: 🔬 Check hlint
+      shell: bash
       env:
-        VERSION: v0.11.0.0
+        PACKAGE: hlint
+        REPOSITORY: ndmitchell/hlint
+        PLATFORM: x86_64-linux
+        RELEASE: v3.3.1
+        VERSION: 3.3.1
       run: |
-        curl -sSL https://raw.github.com/ndmitchell/hlint/master/misc/run.sh | sh -s .
+        chmod +x scripts/exe-from-github.sh
+        scripts/exe-from-github.sh | sh -s lib prototypes -h .hlint.yaml
 
     - name: ✍  Check stylish-haskell
       env:
