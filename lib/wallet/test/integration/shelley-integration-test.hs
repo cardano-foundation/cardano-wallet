@@ -270,7 +270,7 @@ specWithServer testDir (tr, tracers) = aroundAll withContext
                     }
                 faucet <- initFaucet
 
-                era <- clusterEraFromEnv
+                era <- clusterToApiEra <$> clusterEraFromEnv
 
                 mintSeaHorseAssetsLock <- newMVar ()
 
@@ -282,15 +282,15 @@ specWithServer testDir (tr, tracers) = aroundAll withContext
                     , _feeEstimator = error "feeEstimator: unused in shelley specs"
                     , _networkParameters = np
                     , _poolGarbageCollectionEvents = poolGarbageCollectionEvents
-                    , _mainEra = clusterToApiEra era
+                    , _mainEra = era
                     , _smashUrl = smashUrl
                     , _mintSeaHorseAssets = \nPerAddr batchSize c addrs ->
                         withMVar mintSeaHorseAssetsLock $ \() ->
-                            sendFaucetAssetsTo tr' conn testDir era batchSize
+                            sendFaucetAssetsTo tr' conn testDir batchSize
                                 $ encodeAddresses
                                 $ seaHorseTestAssets nPerAddr c addrs
                     , _moveRewardsToScript = \(script, coin) ->
-                            moveInstantaneousRewardsTo tr' conn testDir era
+                            moveInstantaneousRewardsTo tr' conn testDir
                             [(ScriptCredential script, coin)]
                     }
         let action' = bracketTracer' tr "spec" . action

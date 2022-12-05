@@ -30,7 +30,7 @@ in rec {
         extra-system-features = kvm
       '';
 
-      memory = 1024 * 32;
+      memory = 1024 * 16;
       nomad.resources.cpu = 10000;
     };
   in

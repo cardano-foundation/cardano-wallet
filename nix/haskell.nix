@@ -1,7 +1,7 @@
 ############################################################################
 # Builds Haskell packages with Haskell.nix
 ############################################################################
-CHaP: haskell-nix: haskell-nix.cabalProject' [
+haskell-nix: haskell-nix.cabalProject' [
   ({ lib, pkgs, buildProject, ... }: {
     options = {
       gitrev = lib.mkOption {
@@ -148,8 +148,6 @@ CHaP: haskell-nix: haskell-nix.cabalProject' [
           (drv: lib.isDerivation drv && drv.name != "regenerate-materialized-nix")
           (lib.attrValues haskell-build-tools));
       };
-
-      inputMap = { "https://input-output-hk.github.io/cardano-haskell-packages" = CHaP; };
 
       modules =
         let inherit (config) src coverage profiling doIntegrationCheck buildBenchmarks;
