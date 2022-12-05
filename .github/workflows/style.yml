@@ -1,0 +1,50 @@
+name: Coding Standards
+
+on:
+  pull_request:
+    branches: [ "master" ]
+  push:
+    branches: [ "master" ]
+    tags: [ "*.*.*" ]
+
+jobs:
+  build:
+    strategy:
+      matrix:
+        os: [ubuntu-20.04]
+    runs-on: ${{ matrix.os }}
+    steps:
+    - name: 📥 Checkout repository
+      uses: actions/checkout@v2.3.3
+      with:
+        submodules: true
+
+    - name: 🔬 Check hlint
+      shell: bash
+      env:
+        PACKAGE: hlint
+        REPOSITORY: ndmitchell/hlint
+        PLATFORM: x86_64-linux
+        RELEASE: v3.3.1
+        VERSION: 3.3.1
+      run: |
+        curl -sSL https://raw.github.com/input-output-hk/cardano-wallet/master/scripts/exe-from-github.sh | sh -s lib prototypes -h .hlint.yaml
+
+    - name: ✍  Check stylish-haskell
+      shell: bash
+      env:
+        PACKAGE: stylish-haskell
+        REPOSITORY: jaspervdj/stylish-haskell
+        PLATFORM: linux-x86_64
+        RELEASE: v0.11.0.3
+        VERSION: v0.11.0.3
+      run: |
+        curl -sSL https://raw.github.com/input-output-hk/cardano-wallet/master/scripts/exe-from-github.sh
+        curl -sSL https://raw.github.com/input-output-hk/adrestia/master/templates/haskell/stylish-haskell.sh | sh -s $(git ls-files '*.hs') -i
+        if [ -z "$(git status --porcelain)" ]; then
+            echo "No style errors detected."
+        else
+            echo "Style errors detected:"
+            git diff
+            exit 1
+        fi
