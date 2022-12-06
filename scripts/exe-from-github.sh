@@ -61,4 +61,4 @@ trap cleanup EXIT
 curl --progress-bar --location -o"$TEMP/$PACKAGE.tar.gz" "$URL"
 tar -xzf "$TEMP/$PACKAGE.tar.gz" -C"$TEMP"
 
-"$TEMP/$PACKAGE-$VERSION*/$PACKAGE $*"
+"$TEMP/$PACKAGE-$VERSION*/$PACKAGE" "$@"
