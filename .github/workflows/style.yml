@@ -21,7 +21,6 @@ jobs:
 
     - name: 🔬 Check hlint
       shell: bash
-      uses: actions/checkout@v2.3.3
       env:
         PACKAGE: hlint
         REPOSITORY: ndmitchell/hlint
@@ -29,6 +28,7 @@ jobs:
         RELEASE: v3.3.1
         VERSION: 3.3.1
       run: |
+        ls .
         .scripts/exe-from-github.sh lib prototypes -h .hlint.yaml
 
     - name: ✍  Check stylish-haskell
