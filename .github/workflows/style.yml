@@ -1,19 +1,18 @@
 name: Coding Standards
 
-on:
-  pull_request:
-    branches: [ "master" ]
-  push:
-    branches: [ "master" ]
-    tags: [ "*.*.*" ]
+on: [push]
 
 jobs:
   build:
-    strategy:
-      matrix:
-        os: [ubuntu-20.04]
-    runs-on: ${{ matrix.os }}
+    runs-on: self-hosted
     steps:
+    
+    - name: 📥 Add packages
+      shell: bash
+      run: |
+        apt install -y libtinfo5 
+        apt install -y tree
+
     - name: 📥 Check out repository
       uses: actions/checkout@v2.3.3
       with:
@@ -28,7 +27,8 @@ jobs:
         RELEASE: v3.3.1
         VERSION: 3.3.1
       run: |
-        curl -sSL https://github.com/input-output-hk/cardano-wallet/blob/342d5a8f50c7d04d7b95361338341c23965c61f8/scripts/exe-from-github.sh | sh -s lib prototypes -h .hlint.yaml
+        apt install -y libtinfo5 
+        scripts/exe-from-github.sh -h .hlint.yaml lib
 
     - name: ✍  Check stylish-haskell
       shell: bash
@@ -39,8 +39,7 @@ jobs:
         RELEASE: v0.11.0.0
         VERSION: v0.11.0.0
       run: |
-        curl -sSL https://github.com/input-output-hk/cardano-wallet/blob/342d5a8f50c7d04d7b95361338341c23965c61f8/scripts/exe-from-github.sh
-        curl -sSL https://raw.github.com/input-output-hk/adrestia/master/templates/haskell/stylish-haskell.sh | sh -s $(git ls-files '*.hs') -i
+        scripts/exe-from-github.sh -i $(git ls-files '*.hs') 
         if [ -z "$(git status --porcelain)" ]; then
             echo "No style errors detected."
         else
