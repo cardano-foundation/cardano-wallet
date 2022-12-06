@@ -37,6 +37,7 @@ steps:
     command: 'nix develop --command scripts/buildkite/check-haskell-nix-cabal.sh'
     agents:
       system: x86_64-linux
+      queue: benchmark
 
   - label: 'Check Stylish Haskell'
     depends_on: nix
