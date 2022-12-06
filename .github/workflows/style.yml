@@ -28,8 +28,7 @@ jobs:
         RELEASE: v3.3.1
         VERSION: 3.3.1
       run: |
-        ls .
-        .scripts/exe-from-github.sh lib prototypes -h .hlint.yaml
+        scripts/exe-from-github.sh lib prototypes -h .hlint.yaml
 
     - name: ✍  Check stylish-haskell
       shell: bash
