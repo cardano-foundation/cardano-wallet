@@ -1,5 +1,5 @@
 -- |
--- Copyright: © 2018-2020 IOHK
+-- Copyright: © 2018-2022 IOHK
 -- License: Apache-2.0
 --
 -- Provides a strict implementation of a non-empty map.
