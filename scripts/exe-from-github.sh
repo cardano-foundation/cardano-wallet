@@ -60,5 +60,18 @@ trap cleanup EXIT
 
 curl --progress-bar --location -o"$TEMP/$PACKAGE.tar.gz" "$URL"
 tar -xzf "$TEMP/$PACKAGE.tar.gz" -C"$TEMP"
+tree "$TEMP"
+exep="$TEMP/$PACKAGE-$VERSION-$PLATFORM/$PACKAGE"
+echo $exep
+exe="$TEMP/$PACKAGE-$VERSION/$PACKAGE"
+echo $exe
 
-"$TEMP/$PACKAGE-$VERSION*/$PACKAGE $*"
+if [ -f "$exe" ]
+then "$exe" "$@"
+elif [ -f "$exep" ]
+then "$exep" "$@"
+else 
+  echo executable not found
+  exit 1
+fi
+ 
