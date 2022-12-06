@@ -49,16 +49,16 @@ if [ -z "$RELEASE" ]; then
 fi
 
 URL=https://github.com/$REPOSITORY/releases/download/$RELEASE/$PACKAGE-$VERSION-$PLATFORM.tar.gz
-TEMP=$(mktemp --directory .$PACKAGE-XXXXX)
+TEMP=$(mktemp --directory ."$PACKAGE-XXXXX")
 
-echo Downloading and running $PACKAGE-$VERSION FROM $URL
+echo "Downloading and running $PACKAGE-$VERSION FROM $URL"
 
 cleanup(){
-    rm -r $TEMP
+    rm -r "$TEMP"
 }
 trap cleanup EXIT
 
-curl --progress-bar --location -o$TEMP/$PACKAGE.tar.gz $URL
-tar -xzf $TEMP/$PACKAGE.tar.gz -C$TEMP
+curl --progress-bar --location -o"$TEMP/$PACKAGE.tar.gz" "$URL"
+tar -xzf "$TEMP/$PACKAGE.tar.gz" -C"$TEMP"
 
-$TEMP/$PACKAGE-$VERSION*/$PACKAGE $*
+"$TEMP/$PACKAGE-$VERSION*/$PACKAGE $*"
