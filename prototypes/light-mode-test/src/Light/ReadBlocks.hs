@@ -109,6 +109,7 @@ data ChainFollower m point = ChainFollower
 --
 -- TODO: We need to test the logic of this query sequence
 -- by mocking the Blockfrost / data source API.
+{- HLINT ignore lightSync "Use if" -}
 lightSync
     :: ChainFollower BlockfrostClient ChainPoint
     -> BlockfrostClient ()
