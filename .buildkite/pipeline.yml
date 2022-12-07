@@ -20,7 +20,6 @@ steps:
     command: './.buildkite/check-bors.sh'
     agents:
       system: x86_64-linux
-      queue: benchmark
   - wait: ~
     if: 'build.branch == "bors/staging"'
 
@@ -30,35 +29,30 @@ steps:
       - './nix/regenerate.sh'
     agents:
       system: x86_64-linux
-      queue: benchmark
 
   - label: 'Check Cabal Configure (Haskell.nix shellFor)'
     depends_on: nix
     command: 'nix develop --command scripts/buildkite/check-haskell-nix-cabal.sh'
     agents:
       system: x86_64-linux
-      queue: benchmark
 
   - label: 'Check Stylish Haskell'
     depends_on: nix
     command: 'nix develop --command .buildkite/check-stylish.sh'
     agents:
       system: x86_64-linux
-      queue: benchmark
 
   - label: 'HLint'
     depends_on: nix
     command: 'nix develop --command bash -c "echo +++ HLint ; hlint lib"'
     agents:
       system: x86_64-linux
-      queue: benchmark
 
   - label: 'Validate OpenAPI Specification'
     depends_on: nix
     command: 'nix develop --command bash -c "echo +++ openapi-spec-validator ; openapi-spec-validator --schema 3.0.0 specifications/api/swagger.yaml"'
     agents:
       system: x86_64-linux
-      queue: benchmark
 
   - label: 'Docker Image'
     depends_on: nix
@@ -68,7 +62,6 @@ steps:
       - "./docker-build-push"
     agents:
       system: x86_64-linux
-      queue: benchmark
     soft_fail:
       - exit_status: '*'
 
@@ -77,7 +70,6 @@ steps:
     command: 'nix develop --command scripts/todo-list.sh'
     agents:
       system: x86_64-linux
-      queue: benchmark
 
   - label: 'Lint bash shell scripts'
     depends_on: nix
@@ -86,4 +78,3 @@ steps:
       - './scripts/shellcheck.sh'
     agents:
       system: x86_64-linux
-      queue: benchmark
