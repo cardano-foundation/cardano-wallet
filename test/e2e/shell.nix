@@ -11,7 +11,7 @@ let
   gems = pkgs.bundlerEnv {
     name = "gems-cardano-wallet-e2e";
     gemdir = ./.;
-    ruby = pkgs.ruby_2_7;
+    ruby = pkgs.ruby_3_1;
   };
 in pkgs.mkShell {
   name = "cardano-wallet-e2e";
