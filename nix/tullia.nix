@@ -19,7 +19,7 @@ in rec {
           echo '["x86_64-linux", "x86_64-darwin"]' | nix-systems -i \
           | jq 'with_entries(.key |= {"x86_64-linux": "linux", "x86_64-darwin": "macos"}[.])'
         '';
-        each.text = ''nix build -L .#${lib.escapeShellArg top}."$1".required'';
+        each.text = ''nix build -L .#${lib.escapeShellArg top}."$1".required --max-jobs 1 --cores 1'';
         skippedDescription =  lib.escapeShellArg "No nix builder available for this platform";
       };
 
