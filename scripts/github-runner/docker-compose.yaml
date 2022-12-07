@@ -1,0 +1,18 @@
+version: "2.4"
+
+services:
+  ci-runner:
+    container_name: ci-runner
+    restart: always 
+    environment:
+      ACCESS_TOKEN: "${GITHUB_TOKEN}" 
+      REPO_URL: https://github.com/input-output-hk/cardano-wallet 
+      LABELS: "self-hosted,${RUNNER_NAME}"
+      RUNNER_NAME: "${RUNNER_NAME}" 
+      RUN_AS_ROOT: "false"
+      USER: runner
+    privileged: true 
+    volumes: 
+      - "/nix-ci:/nix" 
+    image: "myoung34/github-runner"
+    user: "1001:100"
