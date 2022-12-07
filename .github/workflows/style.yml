@@ -2,44 +2,45 @@ name: Coding Standards
 
 on: [push]
 
+env:
+  cachix_name: adp
+  nix_config: |
+    access-tokens = github.com=${{ secrets.GITHUB_TOKEN }}
+    substituters = https://cache.nixos.org/ https://cache.iog.io
+    trusted-public-keys = hydra.iohk.io:f/Ea+s+dFdN+3Y/G+FDgSq+a5NEWhJGzdjvKNGv0/EQ= cache.nixos.org-1:6NCHdD59X431o0gWypbMrAURkbJ16ZPMQFGspcDShjY=
+    allow-dirty = true
+  nix_version: "2.11.1"
+
 jobs:
   build:
-    runs-on: self-hosted
+    runs-on: linux
     steps:
-    
-    - name: 📥 Add packages
-      shell: bash
-      run: |
-        apt install -y libtinfo5 
-        apt install -y tree
 
     - name: 📥 Check out repository
       uses: actions/checkout@v2.3.3
       with:
         submodules: true
 
+    - name: '❄ Install Nix'
+      uses: cachix/install-nix-action@v18
+      with:
+        install_url: "https://releases.nixos.org/nix/nix-${{ env.nix_version }}/install"
+        extra_nix_config: ${{ env.nix_config }}
+
+    - name: '❄ Use cachix'
+      uses: cachix/cachix-action@v12
+      with:
+        name: ${{ env.cachix_name }}
+        authToken: ${{ secrets.CACHIX_AUTH_TOKEN }}
+    
     - name: 🔬 Check hlint
       shell: bash
-      env:
-        PACKAGE: hlint
-        REPOSITORY: ndmitchell/hlint
-        PLATFORM: x86_64-linux
-        RELEASE: v3.3.1
-        VERSION: 3.3.1
-      run: |
-        apt install -y libtinfo5 
-        scripts/exe-from-github.sh -h .hlint.yaml lib
+      run: nix develop --command hlint -h .hlint.yaml lib
 
-    - name: ✍  Check stylish-haskell
+    - name: 🔬 Check stylish-haskell
       shell: bash
-      env:
-        PACKAGE: stylish-haskell
-        REPOSITORY: haskell/stylish-haskell
-        PLATFORM: linux-x86_64
-        RELEASE: v0.11.0.0
-        VERSION: v0.11.0.0
-      run: |
-        scripts/exe-from-github.sh -i $(git ls-files '*.hs') 
+      run: | 
+        nix develop --command stylish-haskell -i $(git ls-files '*.hs')
         if [ -z "$(git status --porcelain)" ]; then
             echo "No style errors detected."
         else
