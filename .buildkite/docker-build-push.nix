@@ -55,11 +55,11 @@ in
 
     set -euo pipefail
 
-    export PATH=${lib.makeBinPath [ docker gnused ]}
+    export PATH=${lib.makeBinPath [ podman gnused ]}
 
     ${if dockerHubRepoName == null then ''
     reponame=cardano-wallet
-    username="$(docker info | sed '/Username:/!d;s/.* //')"
+    username="$(podman info | sed '/Username:/!d;s/.* //')"
     fullrepo="$username/$reponame"
     '' else ''
     fullrepo="${dockerHubRepoName}"
@@ -67,7 +67,7 @@ in
 
   '' + concatMapStringsSep "\n" (image: ''
     echo "Loading ${image}"
-    docker load -i "${image}"
+    podman load -i "${image}"
 
     # Apply tagging scheme
     orig_tag="${image.imageName}:${image.imageTag}"
@@ -86,7 +86,7 @@ in
     echo
     echo "Testing that entrypoint works"
     set +e
-    docker run --rm "$orig_tag" version
+    podman run --rm "$orig_tag" version
     docker_status="$?"
     if [ "$docker_status" -eq 0 ]; then
       echo "OK"
@@ -104,9 +104,9 @@ in
       tagged="$fullrepo:$tag"
       if [ "$tagged" != "$orig_tag" ]; then
         echo "Retagging with $tagged"
-        docker tag "$orig_tag" "$tagged"
+        podman tag "$orig_tag" "$tagged"
       fi
       echo "Pushing $tagged"
-      docker push "$tagged"
+      podman push "$tagged"
     done
   '') images)
