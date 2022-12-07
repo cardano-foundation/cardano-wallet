@@ -3,7 +3,7 @@ let
   repository = "input-output-hk/cardano-wallet";
 in rec {
   tasks = let
-    mkTask = top: { config, lib, pkgs, ... }: {
+    mkTask = top: system: path: { config, lib, pkgs, ... }: {
       preset = {
         nix.enable = true;
 
@@ -19,7 +19,7 @@ in rec {
           echo '["x86_64-linux", "x86_64-darwin"]' | nix-systems -i \
           | jq 'with_entries(.key |= {"x86_64-linux": "linux", "x86_64-darwin": "macos"}[.])'
         '';
-        each.text = ''nix build -L .#${lib.escapeShellArg top}."$1".required'';
+        each.text = ''nix build -L .#${lib.escapeShellArg top}.${system}.${lib.escapeShellArg path}'';
         skippedDescription =  lib.escapeShellArg "No nix builder available for this platform";
       };
 
@@ -35,8 +35,10 @@ in rec {
     };
   in
     {
-      "ci/push" = mkTask "hydraJobs";
-      "ci/pr" = mkTask "hydraJobsPr";
+      "ci/push" = mkTask "hydraJobs" ''"$1"'' "required";
+      "ci/pr" = mkTask "hydraJobsPr" ''"$1"'' "required";
+      "ci/integration" =
+        mkTask "hydraJobsBors" "linux.musl" "checks.cardano-wallet.integration";
     };
 
   actions = {
@@ -58,5 +60,15 @@ in rec {
         #target_default: false
       '';
     };
+
+    "cardano-wallet/ci/integration" = {
+      task = "ci/integration";
+      io = ''
+        #lib.io.github_pr
+        #input: "${ciInputName}"
+        #repo: "${repository}"
+        #target_default: false
+      '';
+    }
   };
 }
