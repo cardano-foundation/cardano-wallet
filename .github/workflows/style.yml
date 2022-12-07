@@ -24,6 +24,7 @@ jobs:
     - name: '❄ Install Nix'
       uses: cachix/install-nix-action@v18
       with:
+        nix_path: nixpkgs=channel:nixos-unstable
         install_url: "https://releases.nixos.org/nix/nix-${{ env.nix_version }}/install"
         extra_nix_config: ${{ env.nix_config }}
 
@@ -32,6 +33,10 @@ jobs:
       with:
         name: ${{ env.cachix_name }}
         authToken: ${{ secrets.CACHIX_AUTH_TOKEN }}
+    
+    - name: 🔬 Check bash lint  
+      shell: bash
+      run: ./scripts/shellcheck.sh 
     
     - name: 🔬 Check hlint
       shell: bash
