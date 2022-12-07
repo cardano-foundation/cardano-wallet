@@ -34,6 +34,10 @@ jobs:
         name: ${{ env.cachix_name }}
         authToken: ${{ secrets.CACHIX_AUTH_TOKEN }}
     
+    - name: 🔬 Check TODO list 
+      shell: bash
+      run: nix develop --command scripts/todo-list.sh
+    
     - name: 🔬 Check bash lint  
       shell: bash
       run: ./scripts/shellcheck.sh 
