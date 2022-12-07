@@ -48,12 +48,6 @@ steps:
     agents:
       system: x86_64-linux
 
-  - label: 'Validate OpenAPI Specification'
-    depends_on: nix
-    command: 'nix develop --command bash -c "echo +++ openapi-spec-validator ; openapi-spec-validator --schema 3.0.0 specifications/api/swagger.yaml"'
-    agents:
-      system: x86_64-linux
-
   - label: 'Docker Image'
     depends_on: nix
     command:
