@@ -1,0 +1,28 @@
+env:
+  LC_ALL: "en_US.UTF-8"
+  NIX_PATH: "channel:nixos-21.11"
+
+  # Per-container variables
+  SCRATCH_DIR: "/scratch/cardano-wallet"
+  BUILD_DIR: "/build/cardano-wallet"
+  CABAL_DIR: "/build/cardano-wallet.cabal"
+  XDG_STATE_HOME: "/build/cardano-wallet/.state"
+  XDG_CACHE_HOME: "/build/cardano-wallet/.cache"
+  TESTS_LOGDIR: "/build/cardano-wallet/integration-test-logs"
+
+  # Per-host variables - shared across containers on host
+  CACHE_DIR: "/cache/cardano-wallet"
+
+steps:
+  - label: 'Check auto-generated Nix'
+    key: nix
+    commands:
+      - './nix/regenerate.sh'
+    agents:
+      system: x86_64-linux
+
+  - label: 'Run unit tests'
+    depends_on: nix
+    command: 'nix build .#checks.cardano-wallet.unit'
+    agents:
+      system: x86_64-linux
