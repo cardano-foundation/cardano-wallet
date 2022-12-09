@@ -33,10 +33,10 @@ steps:
   - label: 'TODO list'
     depends_on: nix
     command: 'nix develop --command scripts/todo-list.sh > todo.txt'
+    artifact_paths:
+      - "todo.txt"
     agents:
       system: x86_64-linux
-     artifact_paths:
-      - "todo.txt"
 
   - label: 'Check Cabal Configure (Haskell.nix shellFor)'
     depends_on: nix
