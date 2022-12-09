@@ -32,6 +32,61 @@
   #
   ############################################################################
 
+  ############################################################################
+  # Continuous Integration
+  #
+  # This flake contains a few outputs useful for continous integration.
+  #
+  # To build a derivation, use e.g.
+  #
+  #   nix build .#ci."<system>".tests.run.unit
+  #
+  # (In some cases, this fails with a segmentation fault;
+  #  the nix garbage collection is likely to blame.
+  #  Use `GC_DONT_GC=1 nix build …` as workaround.)
+  #
+  # The derivations are:
+  #
+  #  - outputs.ci."<system>"
+  #     - tests             - test executables
+  #       - build           - build all tests on this platform
+  #       - run.unit        - run the unit tests on this platform
+  #                            (implies build)
+  #       - run.integration - run the integration tests on this platform
+  #                            (implies build)
+  #     - TODO benchmarks
+  #       - build           - build benchmarks on this platform
+  #       - run             - run benchmarks on this platform (implies build)
+  #     - TODO artifacts
+  #       - dockerImage     - tarball of the docker image
+  #       - TODO the hydraJobs do contain cross-compiled artifacts,
+  #         but we need to put them into this structure here.
+  #
+  # Recommended granularity:
+  #
+  #  after each commit:
+  #    outputs.ci.x86_64-linux.tests.build
+  #    outputs.ci.x86_64-linux.tests.run.unit
+  #    outputs.ci.x86_64-linux.benchmarks.build
+  #    for appropriate builder system:
+  #      outputs.ci.${system}.artifacts.linux
+  #      outputs.ci.${system}.artifacts.macos
+  #      outputs.ci.${system}.artifacts.windows
+  #
+  #  before each pull request merge:
+  #    for each supported system:
+  #      outputs.ci.${system}.benchmarks.build
+  #      outputs.ci.${system}.tests.build
+  #      outputs.ci.${system}.tests.run.unit
+  #      outputs.ci.${system}.tests.run.integration
+  #
+  #  nightly:
+  #    outputs.ci.x86_64-linux.benchmarks.run
+  #    outputs.ci.x86_64-linux.artifacts.dockerImage
+  #    … cross-compiled executables?
+  #
+  ############################################################################
+
   inputs = {
     nixpkgs.follows = "haskellNix/nixpkgs-unstable";
     hostNixpkgs.follows = "nixpkgs";
