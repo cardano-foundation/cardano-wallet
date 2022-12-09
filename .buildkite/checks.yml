@@ -21,14 +21,16 @@ steps:
     agents:
       system: x86_64-linux
 
-  - label: 'Run unit tests'
+  - block: "Proceed with integration tests"
+    prompt: "Clicking this button will proceed with integration tests"
+    key: 'trigger_integration_tests'
     depends_on: nix
-    command: 'nix build .#checks.cardano-wallet.unit'
-    agents:
-      system: x86_64-linux
+    # allow_dependency_failure: true
+    # depends_on: [] # allows triggering this step even if previous steps failed
 
   - label: 'Run integration tests'
-    depends_on: nix
+    depends_on: trigger_integration_tests
     command: 'nix build .#checks.cardano-wallet.integration'
     agents:
       system: x86_64-linux
+
