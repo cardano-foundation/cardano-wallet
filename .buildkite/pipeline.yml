@@ -30,13 +30,14 @@ steps:
     agents:
       system: x86_64-linux
 
-- label: 'build'
+  - label: 'build'
     depends_on: nix
     command: 'nix build'
     artifact_paths:
       - result
     agents:
       system: x86_64-linux
+      
   - label: 'TODO list'
     depends_on: nix
     command: 'nix develop --command scripts/todo-list.sh > todo.txt'
