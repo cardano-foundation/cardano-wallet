@@ -147,6 +147,18 @@
         "cardano-node"
       ];
 
+      # Helper functions for separating unit and integration tests
+      setEmptyAttrsWithCondition = cond:
+        lib.mapAttrsRecursiveCond
+          (value: !(lib.isDerivation value)) # do not modify attributes of derivations
+          (path: value: if cond path then {} else value);
+      keepIntegrationChecks =
+        setEmptyAttrsWithCondition
+          (path: !lib.any (lib.hasPrefix "integration") path);
+      keepUnitChecks =
+        setEmptyAttrsWithCondition
+          (path: !lib.any (name: name == "unit" || name == "test") path);
+
       mkRequiredJob = hydraJobs:
         let
           nonRequiredPaths = map lib.hasPrefix [
@@ -465,11 +477,40 @@
             };
           });
 
+          # Heinrich: I don't quite understand the 'checks' attribute. See also
+          # https://www.reddit.com/r/NixOS/comments/x5cjmz/comment/in0qqm6/?utm_source=share&utm_medium=web2x&context=3
+          checks = packages.checks;
+
           apps = lib.mapAttrs (n: p: { type = "app"; program = p.exePath or "${p}/bin/${p.name or n}"; }) packages;
 
           devShell = project.shell;
 
           devShells = mkDevShells project;
+
+          # Continuous integration
+          ci.tests.build = pkgs.releaseTools.aggregate
+            {
+              name = "tests.build";
+              meta.description = "Build (all) tests";
+              constituents =
+                lib.collect lib.isDerivation packages.tests;
+            };
+          ci.tests.run.unit = pkgs.releaseTools.aggregate
+            {
+              name = "tests.run.unit";
+              meta.description = "Run unit tests";
+              constituents =
+                lib.collect lib.isDerivation
+                  (keepUnitChecks packages.checks);
+            };
+          ci.tests.run.integration = pkgs.releaseTools.aggregate
+            {
+              name = "tests.run.integration";
+              meta.description = "Run integration tests";
+              constituents =
+                lib.collect lib.isDerivation
+                  (keepIntegrationChecks packages.checks);
+            };
 
           systemHydraJobs = mkSystemHydraJobs hydraProject;
           systemHydraJobsPr = mkSystemHydraJobs hydraProjectPr;
