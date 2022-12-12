@@ -4,6 +4,7 @@ require 'rspec/core/rake_task'
 require 'cardano_wallet'
 require_relative 'env'
 require_relative 'helpers/utils'
+require_relative 'helpers/buildkite'
 
 include Helpers::Utils
 
@@ -231,33 +232,24 @@ task :display_versions do
   end
 end
 
-task :get_latest_bins, [:pr] do |_task, args|
-  log ">> Getting latest node and wallet binaries from Hydra into #{BINS}"
-
-  pr = args[:pr] || 'master'
-  if pr.empty? || pr == 'master'
-    log 'From master branch 👇'
-    pr_num = nil
-  else
-    log "From PR: ##{pr} 👇"
-    pr_num = pr.to_i
-  end
-  wget(get_latest_binary_url(pr_num))
+task :get_latest_bins, [:branch] do |_task, args|
+  log ">> Getting latest node and wallet binaries from Buildkite into #{BINS}"
+  branch = args[:branch] || 'master'
+  bk = Buildkite.new
+  last_build = bk.last_build_number(branch: branch)
+  jobs = bk.jobs(last_build)
+  cn_id = jobs['Build cardano-node']
+  cw_id = jobs['Build cardano-wallet']
+  cn_url = bk.artifact_url(last_build, cn_id, 'cardano-node')
+  cw_url = bk.artifact_url(last_build, cw_id, 'cardano-wallet')
 
   if win?
-    mk_dir(BINS)
-    cmd "unzip -o binary-dist -d #{BINS}"
-    cmd "#{BINS}/cardano-node.exe version"
-    cmd "#{BINS}/cardano-wallet.exe version"
+    raise %(Windows binaries download not supported yet.
+            Please download them manually from #{cn_url} and #{cw_url} and put them into #{BINS} folder.)
   else
-    Rake::Task[:clean_bins].invoke
-    mk_dir(BINS)
-    cmd 'rm -rf cardano-wallet-*/'
-    cmd 'tar -xvf binary-dist'
-    cmd "cp -r cardano-wallet-*/* #{BINS}"
-
-    cmd "#{BINS}/cardano-node version"
-    cmd "#{BINS}/cardano-wallet version"
+    wget(cn_url, File.join(BINS, 'cardano-node'))
+    wget(cw_url, File.join(BINS, 'cardano-wallet'))
+    # missing bech32, cardano-cli, cardano-address
   end
 end
 
