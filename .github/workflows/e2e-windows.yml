@@ -8,7 +8,7 @@ on:
       network:
         description: 'Network'
         required: true
-        default: 'preview'
+        default: 'preprod'
       node_db_cache:
         description: 'Node DB Cache'
         required: true
@@ -17,8 +17,8 @@ on:
         options:
         - AWS
         - GH
-      pr:
-        description: 'PR number or "master"'
+      branch:
+        description: 'Run tests against branch'
         default: 'master'
       tags:
         description: 'Test tags (all, light, offchain...)'
@@ -95,7 +95,7 @@ jobs:
 
     - name: ⚙️ Setup (get latest bins and configs and decode fixtures)
       working-directory: C:/cardano-wallet/test/e2e
-      run: rake setup[%NETWORK%,%PR%]
+      run: rake setup[%NETWORK%,%BRANCH%]
 
     - name: 🔍 Display versions
       working-directory: C:/cardano-wallet/test/e2e
@@ -131,6 +131,6 @@ jobs:
       NETWORK: ${{ github.event.inputs.network || 'preprod' }}
       BUILDKITE_API_TOKEN: ${{ secrets.BUILDKITE_TOKEN_READ_BUILDS_ARTIFACTS }}
       TESTS_E2E_FIXTURES: ${{ secrets.TESTS_E2E_FIXTURES }}
-      PR: ${{ github.event.inputs.pr || 'master' }}
+      BRANCH: ${{ github.event.inputs.branch || 'master' }}
       NODE_DB_CACHE: ${{ github.event.inputs.node_db_cache || 'GH' }}
       TAGS: ${{ github.event.inputs.tags || 'all' }}
