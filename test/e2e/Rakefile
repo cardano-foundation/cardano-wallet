@@ -250,10 +250,21 @@ task :get_latest_bins, [:branch] do |_task, args|
     cmd "tar -xvf #{target_file}"
     cmd "cp -r cardano-wallet-*/* #{BINS}"
   elsif win?
-
+    job_id = jobs['Build cardano-wallet package for Windows']
+    filename = bk.artifacts(last_build, job_id).first[:filename]
+    url = bk.artifact_url(last_build, job_id, filename)
+    target_file = 'binary-dist.zip'
+    wget(url, target_file)
+    cmd "unzip -o #{target_file} -d #{BINS}"
   elsif mac?
-
-    cmd "chmod +x #{File.join(BINS, 'cardano-node')} #{File.join(BINS, 'cardano-wallet')}"
+    job_id = jobs['Build cardano-wallet package for Macos (Intel)']
+    filename = bk.artifacts(last_build, job_id).first[:filename]
+    url = bk.artifact_url(last_build, job_id, filename)
+    target_file = 'binary-dist.tar.gz'
+    wget(url, target_file)
+    cmd "rm -rf cardano-wallet-*/"
+    cmd "tar -xvf #{target_file}"
+    cmd "cp -r cardano-wallet-*/* #{BINS}"
   end
 end
 
