@@ -75,6 +75,10 @@ jobs:
 
     - name: ⚙️ Setup (get latest bins and configs and decode fixtures)
       run: rake setup[$NETWORK,$PR]
+    
+    - name: Inspect
+      run: |
+        ls -la bins/
 
     - name: 🔍 Display versions
       run: rake display_versions
