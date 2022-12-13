@@ -25,19 +25,6 @@ in {
           "versionTag: \"${cabalName}\" does not have a version in YYYY.M.D format";
         (name + tag + lib.concatStrings rest);
 
-    # Recursively traces an attrset as it's evaluated.
-    # This is helpful to use in the Hydra jobset so that we can more
-    # easily locate evaluation problems.
-    traceNames = let
-      go = prefix: builtins.mapAttrs (n: v:
-        if builtins.isAttrs v
-          then if v ? type && v.type == "derivation"
-            then __trace (prefix + n) v
-            else go (prefix + n + ".") v
-          else v);
-    in
-      go;
-
     # Get the index-state and ghc version out of a cabal.project file.
     #
     # TODO [ADP-2445] It would be better to re-use functions from haskell.nix like:
@@ -71,5 +58,21 @@ in {
           && haskellLib.isLocalPackage p.package
           && p.package.homepage == "https://github.com/input-output-hk/cardano-wallet")
         cardanoWalletHaskellProject.pkg-set.config.packages);
+
+    ############################################################################
+    # Debugging tools
+
+    # Recursively traces an attrset as it's evaluated.
+    # This is helpful to use in the Hydra jobset so that we can more
+    # easily locate evaluation problems.
+    traceNames = let
+      go = prefix: builtins.mapAttrs (n: v:
+        if builtins.isAttrs v
+          then if v ? type && v.type == "derivation"
+            then __trace (prefix + n) v
+            else go (prefix + n + ".") v
+          else v);
+    in
+      go;
   };
 }

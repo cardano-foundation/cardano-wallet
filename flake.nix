@@ -32,6 +32,61 @@
   #
   ############################################################################
 
+  ############################################################################
+  # Continuous Integration
+  #
+  # This flake contains a few outputs useful for continous integration.
+  #
+  # To build a derivation, use e.g.
+  #
+  #   nix build .#ci."<system>".tests.run.unit
+  #
+  # (In some cases, this fails with a segmentation fault;
+  #  the nix garbage collection is likely to blame.
+  #  Use `GC_DONT_GC=1 nix build …` as workaround.)
+  #
+  # The derivations are:
+  #
+  #  - outputs.ci."<system>"
+  #     - tests             - test executables
+  #       - build           - build all tests on this platform
+  #       - run.unit        - run the unit tests on this platform
+  #                            (implies build)
+  #       - run.integration - run the integration tests on this platform
+  #                            (implies build)
+  #     - TODO benchmarks
+  #       - build           - build benchmarks on this platform
+  #       - run             - run benchmarks on this platform (implies build)
+  #     - TODO artifacts
+  #       - dockerImage     - tarball of the docker image
+  #       - TODO the hydraJobs do contain cross-compiled artifacts,
+  #         but we need to put them into this structure here.
+  #
+  # Recommended granularity:
+  #
+  #  after each commit:
+  #    outputs.ci.x86_64-linux.tests.build
+  #    outputs.ci.x86_64-linux.tests.run.unit
+  #    outputs.ci.x86_64-linux.benchmarks.build
+  #    for appropriate builder system:
+  #      outputs.ci.${system}.artifacts.linux
+  #      outputs.ci.${system}.artifacts.macos
+  #      outputs.ci.${system}.artifacts.windows
+  #
+  #  before each pull request merge:
+  #    for each supported system:
+  #      outputs.ci.${system}.benchmarks.build
+  #      outputs.ci.${system}.tests.build
+  #      outputs.ci.${system}.tests.run.unit
+  #      outputs.ci.${system}.tests.run.integration
+  #
+  #  nightly:
+  #    outputs.ci.x86_64-linux.benchmarks.run
+  #    outputs.ci.x86_64-linux.artifacts.dockerImage
+  #    … cross-compiled executables?
+  #
+  ############################################################################
+
   inputs = {
     nixpkgs.follows = "haskellNix/nixpkgs-unstable";
     hostNixpkgs.follows = "nixpkgs";
@@ -92,6 +147,18 @@
         "cardano-node"
       ];
 
+      # Helper functions for separating unit and integration tests
+      setEmptyAttrsWithCondition = cond:
+        lib.mapAttrsRecursiveCond
+          (value: !(lib.isDerivation value)) # do not modify attributes of derivations
+          (path: value: if cond path then {} else value);
+      keepIntegrationChecks =
+        setEmptyAttrsWithCondition
+          (path: !lib.any (lib.hasPrefix "integration") path);
+      keepUnitChecks =
+        setEmptyAttrsWithCondition
+          (path: !lib.any (name: name == "unit" || name == "test") path);
+
       mkRequiredJob = hydraJobs:
         let
           nonRequiredPaths = map lib.hasPrefix [
@@ -122,307 +189,336 @@
           };
         };
 
-      systems = eachSystem supportedSystems
-        (system:
-          let
-            pkgs = import nixpkgs {
-              inherit system;
-              inherit (haskellNix) config;
-              overlays = [
-                haskellNix.overlay
-                iohkNix.overlays.utils
-                iohkNix.overlays.crypto
-                iohkNix.overlays.haskell-nix-extra
-                iohkNix.overlays.cardano-lib
-                # Haskell build tools
-                (import ./nix/overlays/build-tools.nix)
-                # Cardano deployments
-                (import ./nix/overlays/cardano-deployments.nix)
-                # Other packages overlay
-                (import ./nix/overlays/pkgs.nix)
-                # Our own utils (cardanoWalletLib)
-                (import ./nix/overlays/common-lib.nix)
-                overlay
-              ];
-            };
+      # Define flake outputs for a particular system.
+      mkOutputs = system:
+        let
+          pkgs = import nixpkgs {
+            inherit system;
+            inherit (haskellNix) config;
+            overlays = [
+              haskellNix.overlay
+              iohkNix.overlays.utils
+              iohkNix.overlays.crypto
+              iohkNix.overlays.haskell-nix-extra
+              iohkNix.overlays.cardano-lib
+              # Haskell build tools
+              (import ./nix/overlays/build-tools.nix)
+              # Cardano deployments
+              (import ./nix/overlays/cardano-deployments.nix)
+              # Other packages overlay
+              (import ./nix/overlays/pkgs.nix)
+              # Our own utils (cardanoWalletLib)
+              (import ./nix/overlays/common-lib.nix)
+              overlay
+            ];
+          };
 
-            inherit (pkgs.stdenv) buildPlatform;
+          inherit (pkgs.stdenv) buildPlatform;
 
-            inherit (pkgs.haskell-nix.haskellLib)
-              isProjectPackage
-              collectComponents
-              collectChecks
-              check;
+          inherit (pkgs.haskell-nix.haskellLib)
+            isProjectPackage
+            collectComponents
+            collectChecks
+            check;
 
-            project = (import ./nix/haskell.nix CHaP pkgs.haskell-nix).appendModule [{
-              gitrev =
-                if config.gitrev != null
-                then config.gitrev
-                else self.rev or "0000000000000000000000000000000000000000";
-            }
-              config.haskellNix];
-            profiledProject = project.appendModule { profiling = true; };
-            hydraProject = project.appendModule ({ pkgs, ... }: {
-              # FIXME: Set in the CI so we don't make mistakes.
-              #checkMaterialization = true;
-              # Don't build benchmarks for musl.
-              buildBenchmarks = !pkgs.stdenv.hostPlatform.isMusl;
-            });
-            hydraProjectBors = hydraProject.appendModule ({ pkgs, ... }: {
-              # Sets the anti-cache cookie only when building a jobset for bors.
-              cacheTestFailures = false;
-            });
-            hydraProjectPr = hydraProject.appendModule ({ pkgs, ... }: {
-              # Don't run integration tests on PR jobsets. Note that
-              # the master branch jobset will just re-use the cached Bors
-              # staging build and test results.
-              doIntegrationCheck = false;
-            });
+          project = (import ./nix/haskell.nix CHaP pkgs.haskell-nix).appendModule [{
+            gitrev =
+              if config.gitrev != null
+              then config.gitrev
+              else self.rev or "0000000000000000000000000000000000000000";
+          }
+            config.haskellNix];
+          profiledProject = project.appendModule { profiling = true; };
+          hydraProject = project.appendModule ({ pkgs, ... }: {
+            # FIXME: Set in the CI so we don't make mistakes.
+            #checkMaterialization = true;
+            # Don't build benchmarks for musl.
+            buildBenchmarks = !pkgs.stdenv.hostPlatform.isMusl;
+          });
+          hydraProjectBors = hydraProject.appendModule ({ pkgs, ... }: {
+            # Sets the anti-cache cookie only when building a jobset for bors.
+            cacheTestFailures = false;
+          });
+          hydraProjectPr = hydraProject.appendModule ({ pkgs, ... }: {
+            # Don't run integration tests on PR jobsets. Note that
+            # the master branch jobset will just re-use the cached Bors
+            # staging build and test results.
+            doIntegrationCheck = false;
+          });
 
-            mkPackages = project:
-              let
-                coveredProject = project.appendModule { coverage = true; };
-                self = {
-                  # Cardano wallet
-                  cardano-wallet = import ./nix/release-build.nix {
-                    inherit pkgs;
-                    exe = project.hsPkgs.cardano-wallet.components.exes.cardano-wallet;
-                    backend = self.cardano-node;
-                  };
-                  # Local test cluster and mock metadata server
-                  inherit (project.hsPkgs.cardano-wallet.components.exes) local-cluster mock-token-metadata-server;
-
-                  # Adrestia tool belt
-                  inherit (project.hsPkgs.bech32.components.exes) bech32;
-                  inherit (project.hsPkgs.cardano-addresses-cli.components.exes) cardano-address;
-
-                  # Cardano
-                  inherit (project.hsPkgs.cardano-cli.components.exes) cardano-cli;
-                  cardano-node = project.hsPkgs.cardano-node.components.exes.cardano-node // {
-                    deployments = pkgs.cardano-node-deployments;
-                  };
-
-                  # Provide db-converter, so daedalus can ship it without needing to
-                  # pin an ouroborus-network rev.
-                  inherit (project.hsPkgs.ouroboros-consensus-byron.components.exes) db-converter;
-
-                  # Combined project coverage report
-                  testCoverageReport = coveredProject.projectCoverageReport;
-                  # `tests` are the test suites which have been built.
-                  tests = removeRecurse (collectComponents "tests" isProjectPackage coveredProject.hsPkgs);
-                  # `checks` are the result of executing the tests.
-                  checks = removeRecurse (
-                    lib.recursiveUpdate
-                      (collectChecks isProjectPackage coveredProject.hsPkgs)
-                      # Run the integration tests in the previous era too:
-                      (
-                        let
-                          integrationCheck = check coveredProject.hsPkgs.cardano-wallet.components.tests.integration;
-                          integrationPrevEraCheck = integrationCheck.overrideAttrs (prev: {
-                            preCheck = prev.preCheck + ''
-                              export LOCAL_CLUSTER_ERA=alonzo
-                            '';
-                          });
-                        in
-                          if integrationCheck.doCheck == true
-                          then
-                            {
-                              cardano-wallet.integration-prev-era = integrationPrevEraCheck;
-                            }
-                          else
-                            {}
-                      )
-                  );
-                  # `benchmarks` are only built, not run.
-                  benchmarks = removeRecurse (collectComponents "benchmarks" isProjectPackage project.hsPkgs);
+          mkPackages = project:
+            let
+              coveredProject = project.appendModule { coverage = true; };
+              self = {
+                # Cardano wallet
+                cardano-wallet = import ./nix/release-build.nix {
+                  inherit pkgs;
+                  exe = project.hsPkgs.cardano-wallet.components.exes.cardano-wallet;
+                  backend = self.cardano-node;
                 };
-              in
-              self;
+                # Local test cluster and mock metadata server
+                inherit (project.hsPkgs.cardano-wallet.components.exes) local-cluster mock-token-metadata-server;
 
-            # nix run .#<network>/wallet
-            mkScripts = project: flattenTree (import ./nix/scripts.nix {
-              inherit project evalService;
-              customConfigs = [ config ];
+                # Adrestia tool belt
+                inherit (project.hsPkgs.bech32.components.exes) bech32;
+                inherit (project.hsPkgs.cardano-addresses-cli.components.exes) cardano-address;
+
+                # Cardano
+                inherit (project.hsPkgs.cardano-cli.components.exes) cardano-cli;
+                cardano-node = project.hsPkgs.cardano-node.components.exes.cardano-node // {
+                  deployments = pkgs.cardano-node-deployments;
+                };
+
+                # Provide db-converter, so daedalus can ship it without needing to
+                # pin an ouroborus-network rev.
+                inherit (project.hsPkgs.ouroboros-consensus-byron.components.exes) db-converter;
+
+                # Combined project coverage report
+                testCoverageReport = coveredProject.projectCoverageReport;
+                # `tests` are the test suites which have been built.
+                tests = removeRecurse (collectComponents "tests" isProjectPackage coveredProject.hsPkgs);
+                # `checks` are the result of executing the tests.
+                checks = removeRecurse (
+                  lib.recursiveUpdate
+                    (collectChecks isProjectPackage coveredProject.hsPkgs)
+                    # Run the integration tests in the previous era too:
+                    (
+                      let
+                        integrationCheck = check coveredProject.hsPkgs.cardano-wallet.components.tests.integration;
+                        integrationPrevEraCheck = integrationCheck.overrideAttrs (prev: {
+                          preCheck = prev.preCheck + ''
+                            export LOCAL_CLUSTER_ERA=alonzo
+                          '';
+                        });
+                      in
+                        if integrationCheck.doCheck == true
+                        then
+                          {
+                            cardano-wallet.integration-prev-era = integrationPrevEraCheck;
+                          }
+                        else
+                          {}
+                    )
+                );
+                # `benchmarks` are only built, not run.
+                benchmarks = removeRecurse (collectComponents "benchmarks" isProjectPackage project.hsPkgs);
+              };
+            in
+            self;
+
+          # nix run .#<network>/wallet
+          mkScripts = project: flattenTree (import ./nix/scripts.nix {
+            inherit project evalService;
+            customConfigs = [ config ];
+          });
+
+          # See the imported file for how to use the docker build.
+          mkDockerImage = packages: pkgs.callPackage ./nix/docker.nix {
+            exes = with packages; [ cardano-wallet local-cluster ];
+            base = with packages; [
+              bech32
+              cardano-address
+              cardano-cli
+              cardano-node
+              (pkgs.linkFarm "docker-config-layer" [{ name = "config"; path = pkgs.cardano-node-deployments; }])
+            ];
+          };
+
+          mkDevShells = project: rec {
+            profiled = (project.appendModule { profiling = true; }).shell;
+            cabal = import ./nix/cabal-shell.nix {
+              haskellProject = project;
+              inherit (config) withCabalCache ghcVersion;
+            };
+            stack = cabal.overrideAttrs (old: {
+              name = "cardano-wallet-stack-env";
+              nativeBuildInputs = old.nativeBuildInputs ++ [ pkgs.stack ];
+              # Build environment setup copied from
+              # <nixpkgs/pkgs/development/haskell-modules/generic-stack-builder.nix>
+              STACK_PLATFORM_VARIANT = "nix";
+              STACK_IN_NIX_SHELL = 1;
+              STACK_IN_NIX_EXTRA_ARGS = config.stackExtraArgs;
             });
-
-            # See the imported file for how to use the docker build.
-            mkDockerImage = packages: pkgs.callPackage ./nix/docker.nix {
-              exes = with packages; [ cardano-wallet local-cluster ];
-              base = with packages; [
-                bech32
-                cardano-address
-                cardano-cli
-                cardano-node
-                (pkgs.linkFarm "docker-config-layer" [{ name = "config"; path = pkgs.cardano-node-deployments; }])
-              ];
+            docs = pkgs.mkShell {
+              name = "cardano-wallet-docs";
+              nativeBuildInputs = [ emanote.packages.${system}.default pkgs.yq ];
+              # allow building the shell so that it can be cached in hydra
+              phases = [ "installPhase" ];
+              installPhase = "echo $nativeBuildInputs > $out";
             };
+          };
 
-            mkDevShells = project: rec {
-              profiled = (project.appendModule { profiling = true; }).shell;
-              cabal = import ./nix/cabal-shell.nix {
-                haskellProject = project;
-                inherit (config) withCabalCache ghcVersion;
-              };
-              stack = cabal.overrideAttrs (old: {
-                name = "cardano-wallet-stack-env";
-                nativeBuildInputs = old.nativeBuildInputs ++ [ pkgs.stack ];
-                # Build environment setup copied from
-                # <nixpkgs/pkgs/development/haskell-modules/generic-stack-builder.nix>
-                STACK_PLATFORM_VARIANT = "nix";
-                STACK_IN_NIX_SHELL = 1;
-                STACK_IN_NIX_EXTRA_ARGS = config.stackExtraArgs;
-              });
-              docs = pkgs.mkShell {
-                name = "cardano-wallet-docs";
-                nativeBuildInputs = [ emanote.packages.${system}.default pkgs.yq ];
-                # allow building the shell so that it can be cached in hydra
-                phases = [ "installPhase" ];
-                installPhase = "echo $nativeBuildInputs > $out";
-              };
-            };
-
-            mkSystemHydraJobs = hydraProject: lib.optionalAttrs buildPlatform.isLinux
-              rec {
-                linux = {
-                  # Don't run tests on linux native, because they are run for linux musl.
-                  native = removeAttrs (mkPackages hydraProject) [ "checks" "testCoverageReport" ] // {
-                    scripts = mkScripts hydraProject;
-                    shells = (mkDevShells hydraProject) // {
-                      default = hydraProject.shell;
+          mkSystemHydraJobs = hydraProject: lib.optionalAttrs buildPlatform.isLinux
+            rec {
+              linux = {
+                # Don't run tests on linux native, because they are run for linux musl.
+                native = removeAttrs (mkPackages hydraProject) [ "checks" "testCoverageReport" ] // {
+                  scripts = mkScripts hydraProject;
+                  shells = (mkDevShells hydraProject) // {
+                    default = hydraProject.shell;
+                  };
+                  internal.roots = {
+                    project = hydraProject.roots;
+                    iohk-nix-utils = pkgs.iohk-nix-utils.roots;
+                  };
+                  nixosTests = import ./nix/nixos/tests {
+                    inherit pkgs;
+                    project = hydraProject;
+                  };
+                };
+                musl =
+                  let
+                    project = hydraProject.projectCross.musl64;
+                    packages = mkPackages project;
+                  in
+                  packages // {
+                    dockerImage = mkDockerImage packages;
+                    internal.roots = {
+                      project = project.roots;
+                    };
+                    cardano-wallet-linux64 = import ./nix/release-package.nix {
+                      inherit pkgs;
+                      exes = releaseContents packages;
+                      platform = "linux64";
+                      format = "tar.gz";
+                    };
+                  };
+                windows =
+                  let
+                    project = hydraProject.projectCross.mingwW64;
+                    # Remove the test coverage report - only generate that for Linux musl.
+                    windowsPackages = removeAttrs (mkPackages project) [ "testCoverageReport" ];
+                  in
+                  windowsPackages // {
+                    cardano-wallet-win64 = import ./nix/release-package.nix {
+                      inherit pkgs;
+                      exes = releaseContents windowsPackages;
+                      platform = "win64";
+                      format = "zip";
+                    };
+                    # This is used for testing the build on windows.
+                    cardano-wallet-tests-win64 = import ./nix/windows-testing-bundle.nix {
+                      inherit pkgs;
+                      cardano-wallet = windowsPackages.cardano-wallet;
+                      cardano-node = windowsPackages.cardano-node;
+                      cardano-cli = windowsPackages.cardano-cli;
+                      tests = lib.collect lib.isDerivation windowsPackages.tests;
+                      benchmarks = lib.collect lib.isDerivation windowsPackages.benchmarks;
                     };
                     internal.roots = {
-                      project = hydraProject.roots;
-                      iohk-nix-utils = pkgs.iohk-nix-utils.roots;
-                    };
-                    nixosTests = import ./nix/nixos/tests {
-                      inherit pkgs;
-                      project = hydraProject;
+                      project = project.roots;
                     };
                   };
-                  musl =
-                    let
-                      project = hydraProject.projectCross.musl64;
-                      packages = mkPackages project;
-                    in
-                    packages // {
-                      dockerImage = mkDockerImage packages;
-                      internal.roots = {
-                        project = project.roots;
-                      };
-                      cardano-wallet-linux64 = import ./nix/release-package.nix {
-                        inherit pkgs;
-                        exes = releaseContents packages;
-                        platform = "linux64";
-                        format = "tar.gz";
-                      };
-                    };
-                  windows =
-                    let
-                      project = hydraProject.projectCross.mingwW64;
-                      # Remove the test coverage report - only generate that for Linux musl.
-                      windowsPackages = removeAttrs (mkPackages project) [ "testCoverageReport" ];
-                    in
-                    windowsPackages // {
-                      cardano-wallet-win64 = import ./nix/release-package.nix {
-                        inherit pkgs;
-                        exes = releaseContents windowsPackages;
-                        platform = "win64";
-                        format = "zip";
-                      };
-                      # This is used for testing the build on windows.
-                      cardano-wallet-tests-win64 = import ./nix/windows-testing-bundle.nix {
-                        inherit pkgs;
-                        cardano-wallet = windowsPackages.cardano-wallet;
-                        cardano-node = windowsPackages.cardano-node;
-                        cardano-cli = windowsPackages.cardano-cli;
-                        tests = lib.collect lib.isDerivation windowsPackages.tests;
-                        benchmarks = lib.collect lib.isDerivation windowsPackages.benchmarks;
-                      };
-                      internal.roots = {
-                        project = project.roots;
-                      };
-                    };
+              };
+            } // (lib.optionalAttrs buildPlatform.isMacOS {
+              macos.intel = lib.optionalAttrs buildPlatform.isx86_64 (let
+                packages = mkPackages hydraProject;
+              in packages // {
+                cardano-wallet-macos-intel = import ./nix/release-package.nix {
+                  inherit pkgs;
+                  exes = releaseContents packages;
+                  platform = "macos-intel";
+                  format = "tar.gz";
                 };
-              } // (lib.optionalAttrs buildPlatform.isMacOS {
-                macos.intel = lib.optionalAttrs buildPlatform.isx86_64 (let
-                  packages = mkPackages hydraProject;
-                in packages // {
-                  cardano-wallet-macos-intel = import ./nix/release-package.nix {
-                    inherit pkgs;
-                    exes = releaseContents packages;
-                    platform = "macos-intel";
-                    format = "tar.gz";
-                  };
-                  shells = mkDevShells hydraProject // {
-                    default = hydraProject.shell;
-                  };
-                  scripts = mkScripts hydraProject;
-                  internal.roots = {
-                    project = hydraProject.roots;
-                    iohk-nix-utils = pkgs.iohk-nix-utils.roots;
-                  };
-                });
-
-                macos.silicon = lib.optionalAttrs buildPlatform.isAarch64 (let
-                  packages = mkPackages hydraProject;
-                in packages // {
-                  cardano-wallet-macos-silicon = import ./nix/release-package.nix {
-                    inherit pkgs;
-                    exes = releaseContents packages;
-                    platform = "macos-silicon";
-                    format = "tar.gz";
-                  };
-                  shells = mkDevShells hydraProject // {
-                    default = hydraProject.shell;
-                  };
-                  scripts = mkScripts hydraProject;
-                  internal.roots = {
-                    project = hydraProject.roots;
-                    iohk-nix-utils = pkgs.iohk-nix-utils.roots;
-                  };
-                });
+                shells = mkDevShells hydraProject // {
+                  default = hydraProject.shell;
+                };
+                scripts = mkScripts hydraProject;
+                internal.roots = {
+                  project = hydraProject.roots;
+                  iohk-nix-utils = pkgs.iohk-nix-utils.roots;
+                };
               });
-          in
-          rec {
 
-            legacyPackages = project;
-
-            # Built by `nix build .`
-            defaultPackage = packages.cardano-wallet;
-
-            # Run by `nix run .`
-            defaultApp = apps.cardano-wallet;
-
-            packages = mkPackages project // mkScripts project // rec {
-              dockerImage = mkDockerImage (mkPackages project.projectCross.musl64);
-              pushDockerImage = import ./.buildkite/docker-build-push.nix {
-                hostPkgs = import hostNixpkgs { inherit system; };
-                inherit dockerImage;
-                inherit (config) dockerHubRepoName;
-              };
-              inherit (pkgs) checkCabalProject cabalProjectRegenerate;
-              inherit (project.stack-nix.passthru) generateMaterialized;
-              buildToolsGenerateMaterialized = pkgs.haskell-build-tools.regenerateMaterialized;
-              iohkNixGenerateMaterialized = pkgs.iohk-nix-utils.regenerateMaterialized;
-            } // (lib.optionalAttrs buildPlatform.isLinux {
-              nixosTests = import ./nix/nixos/tests {
-                inherit pkgs project;
-              };
+              macos.silicon = lib.optionalAttrs buildPlatform.isAarch64 (let
+                packages = mkPackages hydraProject;
+              in packages // {
+                cardano-wallet-macos-silicon = import ./nix/release-package.nix {
+                  inherit pkgs;
+                  exes = releaseContents packages;
+                  platform = "macos-silicon";
+                  format = "tar.gz";
+                };
+                shells = mkDevShells hydraProject // {
+                  default = hydraProject.shell;
+                };
+                scripts = mkScripts hydraProject;
+                internal.roots = {
+                  project = hydraProject.roots;
+                  iohk-nix-utils = pkgs.iohk-nix-utils.roots;
+                };
+              });
             });
+        in
+        rec {
 
-            apps = lib.mapAttrs (n: p: { type = "app"; program = p.exePath or "${p}/bin/${p.name or n}"; }) packages;
+          legacyPackages = project;
 
-            devShell = project.shell;
+          # Built by `nix build .`
+          defaultPackage = packages.cardano-wallet;
 
-            devShells = mkDevShells project;
+          # Run by `nix run .`
+          defaultApp = apps.cardano-wallet;
 
-            systemHydraJobs = mkSystemHydraJobs hydraProject;
-            systemHydraJobsPr = mkSystemHydraJobs hydraProjectPr;
-            systemHydraJobsBors = mkSystemHydraJobs hydraProjectBors;
-          }
-          // tullia.fromSimple system (import nix/tullia.nix)
-        );
+          packages = mkPackages project // mkScripts project // rec {
+            dockerImage = mkDockerImage (mkPackages project.projectCross.musl64);
+            pushDockerImage = import ./.buildkite/docker-build-push.nix {
+              hostPkgs = import hostNixpkgs { inherit system; };
+              inherit dockerImage;
+              inherit (config) dockerHubRepoName;
+            };
+            inherit (pkgs) checkCabalProject cabalProjectRegenerate;
+            inherit (project.stack-nix.passthru) generateMaterialized;
+            buildToolsGenerateMaterialized = pkgs.haskell-build-tools.regenerateMaterialized;
+            iohkNixGenerateMaterialized = pkgs.iohk-nix-utils.regenerateMaterialized;
+          } // (lib.optionalAttrs buildPlatform.isLinux {
+            nixosTests = import ./nix/nixos/tests {
+              inherit pkgs project;
+            };
+          });
 
+          # Heinrich: I don't quite understand the 'checks' attribute. See also
+          # https://www.reddit.com/r/NixOS/comments/x5cjmz/comment/in0qqm6/?utm_source=share&utm_medium=web2x&context=3
+          checks = packages.checks;
+
+          apps = lib.mapAttrs (n: p: { type = "app"; program = p.exePath or "${p}/bin/${p.name or n}"; }) packages;
+
+          devShell = project.shell;
+
+          devShells = mkDevShells project;
+
+          # Continuous integration
+          ci.tests.build = pkgs.releaseTools.aggregate
+            {
+              name = "tests.build";
+              meta.description = "Build (all) tests";
+              constituents =
+                lib.collect lib.isDerivation packages.tests;
+            };
+          ci.tests.run.unit = pkgs.releaseTools.aggregate
+            {
+              name = "tests.run.unit";
+              meta.description = "Run unit tests";
+              constituents =
+                lib.collect lib.isDerivation
+                  (keepUnitChecks packages.checks);
+            };
+          ci.tests.run.integration = pkgs.releaseTools.aggregate
+            {
+              name = "tests.run.integration";
+              meta.description = "Run integration tests";
+              constituents =
+                lib.collect lib.isDerivation
+                  (keepIntegrationChecks packages.checks);
+            };
+
+          systemHydraJobs = mkSystemHydraJobs hydraProject;
+          systemHydraJobsPr = mkSystemHydraJobs hydraProjectPr;
+          systemHydraJobsBors = mkSystemHydraJobs hydraProjectBors;
+        }
+        // tullia.fromSimple system (import nix/tullia.nix);
+      
+      systems = eachSystem supportedSystems mkOutputs;
     in
     lib.recursiveUpdate (removeAttrs systems [ "systemHydraJobs" "systemHydraJobsPr" "systemHydraJobsBors" ])
       {
