@@ -17,7 +17,6 @@ WALLET_DB = absolute_path ENV.fetch('TESTS_WALLET_DB', nil)
 BINS = absolute_path ENV.fetch('TESTS_E2E_BINDIR', nil)
 
 FIXTURES_FILE = absolute_path ENV.fetch('TESTS_E2E_FIXTURES_FILE', nil)
-BLOCKFROST_FILE = absolute_path ENV.fetch('TESTS_E2E_BLOCKFROST_FILE', nil)
 FIXTURES_SECRET = absolute_path ENV.fetch('TESTS_E2E_FIXTURES', nil)
 
 TOKEN_METADATA = ENV.fetch('TESTS_E2E_TOKEN_METADATA', nil)
