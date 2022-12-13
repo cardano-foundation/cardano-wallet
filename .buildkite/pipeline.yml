@@ -41,6 +41,7 @@ steps:
 
   - label: 'Build cardano-wallet package for Windows'
     depends_on: nix
+    key: build-windows
     command: nix build -o result/windows .#hydraJobs.linux.windows.cardano-wallet-win64
     artifact_paths: [ "./result/windows/**" ]
     agents:
