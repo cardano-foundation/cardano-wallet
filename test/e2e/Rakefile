@@ -236,12 +236,14 @@ task :get_latest_bins, [:branch] do |_task, args|
   branch = args[:branch] || 'master'
   bk = Buildkite.new
   last_build = bk.last_build_number(branch: branch, state: 'passed')
-  log "Latest passing build number for branch #{branch} is #{last_build}"
+  log "Latest passing buildkite '#{bk.pipeline}' pipeline for branch '#{branch}' is #{last_build}"
   jobs = bk.jobs(last_build)
   mk_dir(BINS)
 
   if linux?
-    job_id = jobs['Build cardano-wallet package for Linux']
+    job_name = 'Build cardano-wallet package for Linux'
+    log "Getting '#{job_name}' artifact 👇"
+    job_id = jobs[job_name]
     filename = bk.artifacts(last_build, job_id).first[:filename]
     url = bk.artifact_url(last_build, job_id, filename)
     target_file = 'binary-dist.tar.gz'
@@ -250,14 +252,18 @@ task :get_latest_bins, [:branch] do |_task, args|
     cmd "tar -xvf #{target_file}"
     cmd "cp -r cardano-wallet-*/* #{BINS}"
   elsif win?
-    job_id = jobs['Build cardano-wallet package for Windows']
+    job_name = 'Build cardano-wallet package for Windows'
+    log "Getting '#{job_name}' artifact 👇"
+    job_id = jobs[job_name]
     filename = bk.artifacts(last_build, job_id).first[:filename]
     url = bk.artifact_url(last_build, job_id, filename)
     target_file = 'binary-dist.zip'
     wget(url, target_file)
     cmd "unzip -o #{target_file} -d #{BINS}"
   elsif mac?
-    job_id = jobs['Build cardano-wallet package for Macos (Intel)']
+    job_name = 'Build cardano-wallet package for Macos (Intel)'
+    log "Getting '#{job_name}' artifact 👇"
+    job_id = jobs[job_name]
     filename = bk.artifacts(last_build, job_id).first[:filename]
     url = bk.artifact_url(last_build, job_id, filename)
     target_file = 'binary-dist.tar.gz'

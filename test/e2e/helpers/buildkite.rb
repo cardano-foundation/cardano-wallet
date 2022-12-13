@@ -8,6 +8,8 @@ require 'httparty'
 class Buildkite
   include HTTParty
 
+  attr_reader :org, :pipeline, :client
+
   def initialize
     @org = 'input-output-hk'
     @pipeline = 'cardano-wallet'
