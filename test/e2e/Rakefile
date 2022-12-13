@@ -250,6 +250,8 @@ task :get_latest_bins, [:branch] do |_task, args|
     wget(cn_url, File.join(BINS, 'cardano-node'))
     wget(cw_url, File.join(BINS, 'cardano-wallet'))
     # missing bech32, cardano-cli, cardano-address
+
+    cmd "chmod +x #{File.join(BINS, 'cardano-node')} #{File.join(BINS, 'cardano-wallet')}"
   end
 end
 
