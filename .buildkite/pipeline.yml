@@ -33,6 +33,7 @@ steps:
 
   - label: 'Build cardano-wallet package for Linux'
     depends_on: nix
+    key: build-linux
     command: nix build -o result/linux .#hydraJobs.linux.musl.cardano-wallet-linux64
     artifact_paths: [ "./result/linux/**" ]
     agents:
