@@ -246,7 +246,7 @@ task :get_latest_bins, [:branch] do |_task, args|
     url = bk.artifact_url(last_build, job_id, filename)
     target_file = 'binary-dist.tar.gz'
     wget(url, target_file)
-    cmd "rm -rf cardano-wallet-*/"
+    cmd 'rm -rf cardano-wallet-*/'
     cmd "tar -xvf #{target_file}"
     cmd "cp -r cardano-wallet-*/* #{BINS}"
   elsif win?
@@ -262,7 +262,7 @@ task :get_latest_bins, [:branch] do |_task, args|
     url = bk.artifact_url(last_build, job_id, filename)
     target_file = 'binary-dist.tar.gz'
     wget(url, target_file)
-    cmd "rm -rf cardano-wallet-*/"
+    cmd 'rm -rf cardano-wallet-*/'
     cmd "tar -xvf #{target_file}"
     cmd "cp -r cardano-wallet-*/* #{BINS}"
   end
