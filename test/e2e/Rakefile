@@ -235,8 +235,8 @@ task :get_latest_bins, [:branch] do |_task, args|
   log ">> Getting latest node and wallet binaries from Buildkite into #{BINS}"
   branch = args[:branch] || 'master'
   bk = Buildkite.new
-  last_build = bk.last_build_number(branch: branch)
-  log "Last build number for branch #{branch} is #{last_build}"
+  last_build = bk.last_build_number(branch: branch, state: 'passed')
+  log "Latest passing build number for branch #{branch} is #{last_build}"
   jobs = bk.jobs(last_build)
   mk_dir(BINS)
 
