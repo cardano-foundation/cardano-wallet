@@ -236,20 +236,22 @@ task :get_latest_bins, [:branch] do |_task, args|
   branch = args[:branch] || 'master'
   bk = Buildkite.new
   last_build = bk.last_build_number(branch: branch)
+  log "Last build number for branch #{branch} is #{last_build}"
   jobs = bk.jobs(last_build)
-  cn_id = jobs['Build cardano-node']
-  cw_id = jobs['Build cardano-wallet']
-  cn_url = bk.artifact_url(last_build, cn_id, 'cardano-node')
-  cw_url = bk.artifact_url(last_build, cw_id, 'cardano-wallet')
   mk_dir(BINS)
 
-  if win?
-    raise %(Windows binaries download not supported yet.
-            Please download them manually from #{cn_url} and #{cw_url} and put them into #{BINS} folder.)
-  else
-    wget(cn_url, File.join(BINS, 'cardano-node'))
-    wget(cw_url, File.join(BINS, 'cardano-wallet'))
-    # missing bech32, cardano-cli, cardano-address
+  if linux?
+    job_id = jobs['Build cardano-wallet package for Linux']
+    filename = bk.artifacts(last_build, job_id).first[:filename]
+    url = bk.artifact_url(last_build, job_id, filename)
+    target_file = 'binary-dist.tar.gz'
+    wget(url, target_file)
+    cmd "rm -rf cardano-wallet-*/"
+    cmd "tar -xvf #{target_file}"
+    cmd "cp -r cardano-wallet-*/* #{BINS}"
+  elsif win?
+
+  elsif mac?
 
     cmd "chmod +x #{File.join(BINS, 'cardano-node')} #{File.join(BINS, 'cardano-wallet')}"
   end
