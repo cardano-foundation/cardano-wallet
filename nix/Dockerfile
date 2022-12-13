@@ -61,7 +61,7 @@ WORKDIR cardano-wallet
 # Build
 
 # Build the wallet and node static binaries package, untar to "out" directory
-RUN nix --experimental-features "nix-command flakes" build .#hydraJobs.linux.musl.cardano-wallet-linux64
+RUN nix --experimental-features "nix-command flakes" build .#ci.x86_64-linux.artifacts.linux64.release
 RUN tar -xzvf result/*.tar.gz
 RUN rm result
 RUN mv cardano-wallet-* ../out

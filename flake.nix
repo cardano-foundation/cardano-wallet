@@ -68,6 +68,8 @@
   #    outputs.ci.x86_64-linux.tests.build
   #    outputs.ci.x86_64-linux.tests.run.unit
   #    outputs.ci.x86_64-linux.benchmarks.build
+  #    outputs.ci.x86_64-linux.artifacts.linux64.release
+  #    outputs.ci.x86_64-linux.artifacts.win64.release
   #
   #  before each pull request merge:
   #    for each supported system:
