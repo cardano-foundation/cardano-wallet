@@ -241,6 +241,7 @@ task :get_latest_bins, [:branch] do |_task, args|
   cw_id = jobs['Build cardano-wallet']
   cn_url = bk.artifact_url(last_build, cn_id, 'cardano-node')
   cw_url = bk.artifact_url(last_build, cw_id, 'cardano-wallet')
+  mk_dir(BINS)
 
   if win?
     raise %(Windows binaries download not supported yet.
