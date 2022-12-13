@@ -8,7 +8,7 @@ on:
       nodeTag:
         description: 'Node tag (docker)'
         required: true
-        default: '1.35.1'
+        default: '1.35.4'
       walletTag:
         description: 'Wallet tag (docker)'
         required: true
@@ -16,7 +16,7 @@ on:
       network:
         description: 'Network'
         required: true
-        default: 'preview'
+        default: 'preprod'
       node_db_cache:
         description: 'Node DB Cache'
         required: true
