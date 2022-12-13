@@ -57,7 +57,7 @@ steps:
     agents:
       system: x86_64-linux
 
-  - label: 'HLint'
+  - label: 'Check HLint'
     depends_on: nix
     command: 'nix develop --command bash -c "echo +++ HLint ; hlint lib"'
     agents:
@@ -69,7 +69,7 @@ steps:
     agents:
       system: x86_64-linux
 
-  - label: 'Docker Image'
+  - label: 'Build Docker Image'
     depends_on: nix
     command:
       - "mkdir -p config && echo '{  outputs = _: { dockerHubRepoName = \"inputoutput/cardano-wallet\"; }; }'  > config/flake.nix"
