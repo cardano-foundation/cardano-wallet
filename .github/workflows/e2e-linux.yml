@@ -78,10 +78,14 @@ jobs:
     
     - name: Inspect
       run: |
+        pwd
         ls -la bins/
 
     - name: 🔍 Display versions
-      run: rake display_versions
+      run: |
+        pwd
+        ls -la bins/
+        rake display_versions
 
     - name: 🚀 Start node and wallet
       run: rake start_node_and_wallet[$NETWORK]
