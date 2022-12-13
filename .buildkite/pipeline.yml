@@ -20,6 +20,7 @@ steps:
     command: './.buildkite/check-bors.sh'
     agents:
       system: x86_64-linux
+
   - wait: ~
     if: 'build.branch == "bors/staging"'
 
@@ -29,6 +30,34 @@ steps:
       - './nix/regenerate.sh'
     agents:
       system: x86_64-linux
+
+  - label: 'Build cardano-wallet package for Linux'
+    depends_on: nix
+    command: nix build -o result/linux .#hydraJobs.linux.musl.cardano-wallet-linux64
+    artifact_paths: [ "./result/linux/**" ]
+    agents:
+      system: x86_64-linux
+
+  - label: 'Build cardano-wallet package for Windows'
+    depends_on: nix
+    command: nix build -o result/windows .#hydraJobs.linux.windows.cardano-wallet-win64
+    artifact_paths: [ "./result/windows/**" ]
+    agents:
+      system: x86_64-linux
+
+  # BuildKite's mac agent fails this job:
+  # ```
+  # warning: unknown setting 'experimental-features'
+  # warning: unknown setting 'signed-binary-caches'
+  # error: creating directory '/build': Read-only file system
+  # ``` 
+  #
+  # - label: 'Build cardano-wallet package for Macos (Intel)'
+  #   depends_on: nix
+  #   command: nix-build -A hydraJobs.macos.intel.cardano-wallet-macos-intel -o result/macos/intel
+  #   artifact_paths: [ "./result/macos/intel/**" ]
+  #   agents:
+  #     system: x86_64-darwin
 
   - label: 'Check Cabal Configure (Haskell.nix shellFor)'
     depends_on: nix
