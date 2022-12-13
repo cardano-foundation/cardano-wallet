@@ -11,7 +11,7 @@ class Buildkite
   def initialize
     @org = 'input-output-hk'
     @pipeline = 'cardano-wallet'
-    @api_token = ENV.fetch('BUILDKITE_API_TOKEN', nil)
+    @api_token = ENV.fetch('BUILDKITE_TOKEN_READ_BUILDS_ARTIFACTS', nil)
     @client = Buildkit.new(token: @api_token)
   end
 

@@ -5,7 +5,7 @@
 ENV['TESTS_E2E_FIXTURES'] ||= 'this_is_wrong_secret'
 ENV['TESTS_E2E_FIXTURES_FILE'] ||= './fixtures/fixture_wallets.json'
 ENV['TESTS_E2E_BLOCKFROST_FILE'] ||= './fixtures/blockfrost.api.key'
-ENV['BUILDKITE_API_TOKEN'] ||= 'this_is_wrong_secret'
+ENV['BUILDKITE_TOKEN_READ_BUILDS_ARTIFACTS'] ||= 'this_is_wrong_secret'
 
 ##
 # Wallet/node databases, logs and configs will be stored here
