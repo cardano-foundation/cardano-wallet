@@ -8,7 +8,7 @@ on:
       network:
         description: 'Network'
         required: true
-        default: 'preview'
+        default: 'preprod'
       node_db_cache:
         description: 'Node DB Cache'
         required: true
@@ -17,8 +17,8 @@ on:
         options:
         - AWS
         - GH
-      pr:
-        description: 'PR number or "master"'
+      branch:
+        description: 'Run tests against branch'
         default: 'master'
       tags:
         description: 'Test tags (all, light, offchain...)'
@@ -74,7 +74,7 @@ jobs:
           wallet-db3-${{ runner.os }}-${{ env.NETWORK }}-
 
     - name: ⚙️ Setup (get latest bins and configs and decode fixtures)
-      run: rake setup[$NETWORK,$PR]
+      run: rake setup[$NETWORK,$BRANCH]
 
     - name: 🔍 Display versions
       run: rake display_versions
@@ -103,7 +103,8 @@ jobs:
 
     env:
       TESTS_E2E_FIXTURES: ${{ secrets.TESTS_E2E_FIXTURES }}
+      BUILDKITE_API_TOKEN: ${{ secrets.BUILDKITE_TOKEN_READ_BUILDS_ARTIFACTS }}
       NETWORK: ${{ github.event.inputs.network || 'preprod' }}
-      PR: ${{ github.event.inputs.pr || '' }}
+      BRANCH: ${{ github.event.inputs.branch || '' }}
       NODE_DB_CACHE: ${{ github.event.inputs.node_db_cache || 'GH' }}
       TAGS: ${{ github.event.inputs.tags || 'all' }}

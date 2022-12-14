@@ -4,6 +4,7 @@ require 'rspec/core/rake_task'
 require 'cardano_wallet'
 require_relative 'env'
 require_relative 'helpers/utils'
+require_relative 'helpers/buildkite'
 
 include Helpers::Utils
 
@@ -16,7 +17,6 @@ WALLET_DB = absolute_path ENV.fetch('TESTS_WALLET_DB', nil)
 BINS = absolute_path ENV.fetch('TESTS_E2E_BINDIR', nil)
 
 FIXTURES_FILE = absolute_path ENV.fetch('TESTS_E2E_FIXTURES_FILE', nil)
-BLOCKFROST_FILE = absolute_path ENV.fetch('TESTS_E2E_BLOCKFROST_FILE', nil)
 FIXTURES_SECRET = absolute_path ENV.fetch('TESTS_E2E_FIXTURES', nil)
 
 TOKEN_METADATA = ENV.fetch('TESTS_E2E_TOKEN_METADATA', nil)
@@ -231,33 +231,39 @@ task :display_versions do
   end
 end
 
-task :get_latest_bins, [:pr] do |_task, args|
-  log ">> Getting latest node and wallet binaries from Hydra into #{BINS}"
+task :get_latest_bins, [:branch] do |_task, args|
+  log ">> Getting latest node and wallet binaries from Buildkite into #{BINS}"
+  branch = args[:branch] || 'master'
+  bk = Buildkite.new
+  last_build = bk.last_build_number(branch: branch, state: 'passed')
+  log "Latest passing buildkite '#{bk.pipeline}' pipeline for branch '#{branch}' is #{last_build}"
+  jobs = bk.jobs(last_build)
+  mk_dir(BINS)
 
-  pr = args[:pr] || 'master'
-  if pr.empty? || pr == 'master'
-    log 'From master branch 👇'
-    pr_num = nil
-  else
-    log "From PR: ##{pr} 👇"
-    pr_num = pr.to_i
-  end
-  wget(get_latest_binary_url(pr_num))
-
-  if win?
-    mk_dir(BINS)
-    cmd "unzip -o binary-dist -d #{BINS}"
-    cmd "#{BINS}/cardano-node.exe version"
-    cmd "#{BINS}/cardano-wallet.exe version"
-  else
-    Rake::Task[:clean_bins].invoke
-    mk_dir(BINS)
-    cmd 'rm -rf cardano-wallet-*/'
-    cmd 'tar -xvf binary-dist'
-    cmd "cp -r cardano-wallet-*/* #{BINS}"
-
-    cmd "#{BINS}/cardano-node version"
-    cmd "#{BINS}/cardano-wallet version"
+  if linux?
+    job_name = 'Build cardano-wallet package for Linux'
+    job_id = jobs[job_name]
+    log "Getting '#{job_name}' artifact 👇"
+    url = bk.get_artifact_url(last_build, job_id)
+    target_file = 'binary-dist.tar.gz'
+    wget(url, target_file)
+    unzip_artifact(target_file, BINS)
+  elsif win?
+    job_name = 'Build cardano-wallet package for Windows'
+    job_id = jobs[job_name]
+    log "Getting '#{job_name}' artifact 👇"
+    url = bk.get_artifact_url(last_build, job_id)
+    target_file = 'binary-dist.zip'
+    wget(url, target_file)
+    unzip_artifact(target_file, BINS)
+  elsif mac?
+    job_name = 'Build cardano-wallet package for Macos (Intel)'
+    job_id = jobs[job_name]
+    log "Getting '#{job_name}' artifact 👇"
+    url = bk.get_artifact_url(last_build, job_id)
+    target_file = 'binary-dist.tar.gz'
+    wget(url, target_file)
+    unzip_artifact(target_file, BINS)
   end
 end
 
@@ -330,30 +336,30 @@ end
 ##
 # Setup utility task getting node and wallet binaries, configs and decoding fixtures
 # so it is ready to start
-task :setup, [:env, :pr, :skip_configs] do |_task, args|
+task :setup, [:env, :branch, :skip_configs] do |_task, args|
   log '>> Getting latest binaries and configs and decoding fixtures...'
   env = args[:env]
-  pr = args[:pr] || nil
+  branch = args[:branch] || 'master'
   skip_configs = args[:skip_configs] || nil
 
   if BINS == ''
     log '>> Skipping getting latest binaries. Will test wallet and node from $PATH.'
   else
-    Rake::Task[:get_latest_bins].invoke(pr)
+    Rake::Task[:get_latest_bins].invoke(branch)
   end
   Rake::Task[:get_latest_configs].invoke(env) unless skip_configs
   Rake::Task[:secrets_decode].invoke
 end
 
-task :run_on, [:env, :sync_strategy, :skip_configs, :pr] do |_task, args|
+task :run_on, [:env, :sync_strategy, :skip_configs, :branch] do |_task, args|
   log '>> Setting up env and running tests...'
   log "TESTS_E2E_STATEDIR=#{STATE}"
   env = args[:env]
   skip_configs = args[:skip_configs]
   sync_strategy = args[:sync_strategy] || :sync
-  pr = args[:pr] || nil
+  branch = args[:branch] || nil
 
-  Rake::Task[:setup].invoke(env, pr, skip_configs)
+  Rake::Task[:setup].invoke(env, branch, skip_configs)
   Rake::Task[:display_versions].invoke
   Rake::Task[:start_node_and_wallet].invoke(env)
 

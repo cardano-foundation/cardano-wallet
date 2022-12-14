@@ -8,7 +8,7 @@ on:
       nodeTag:
         description: 'Node tag (docker)'
         required: true
-        default: '1.35.1'
+        default: '1.35.4'
       walletTag:
         description: 'Wallet tag (docker)'
         required: true
@@ -16,7 +16,7 @@ on:
       network:
         description: 'Network'
         required: true
-        default: 'preview'
+        default: 'preprod'
       node_db_cache:
         description: 'Node DB Cache'
         required: true
@@ -133,6 +133,7 @@ jobs:
       run: NODE_CONFIG_PATH=`pwd`/state/configs/$NETWORK docker-compose -f docker-compose-test.yml down
     env:
       TESTS_E2E_FIXTURES: ${{ secrets.TESTS_E2E_FIXTURES }}
+      BUILDKITE_API_TOKEN: ${{ secrets.BUILDKITE_TOKEN_READ_BUILDS_ARTIFACTS }}
       NETWORK: ${{ github.event.inputs.network || 'preprod' }}
       WALLET: ${{ github.event.inputs.walletTag || 'dev-master' }}
       TESTS_E2E_TOKEN_METADATA: https://metadata.cardano-testnet.iohkdev.io/
