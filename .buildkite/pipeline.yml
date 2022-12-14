@@ -45,19 +45,12 @@ steps:
     agents:
       system: x86_64-linux
 
-  # BuildKite's mac agent fails this job:
-  # ```
-  # warning: unknown setting 'experimental-features'
-  # warning: unknown setting 'signed-binary-caches'
-  # error: creating directory '/build': Read-only file system
-  # ``` 
-  #
-  # - label: 'Build cardano-wallet package for Macos (Intel)'
-  #   depends_on: nix
-  #   command: nix-build -A hydraJobs.macos.intel.cardano-wallet-macos-intel -o result/macos/intel
-  #   artifact_paths: [ "./result/macos/intel/**" ]
-  #   agents:
-  #     system: x86_64-darwin
+  - label: 'Build cardano-wallet package for Macos (Intel)'
+    depends_on: nix
+    command: nix build -o result/macos/intel .#hydraJobs.macos.intel.cardano-wallet-macos-intel
+    artifact_paths: [ "./result/macos/intel/**" ]
+    agents:
+      system: x86_64-darwin
 
   - label: 'Check Cabal Configure (Haskell.nix shellFor)'
     depends_on: nix
