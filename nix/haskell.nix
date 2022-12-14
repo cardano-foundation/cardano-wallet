@@ -137,7 +137,7 @@ CHaP: haskell-nix: haskell-nix.cabalProject' [
           haskellPackages.ghcid
           pkgconfig
           python3Packages.openapi-spec-validator
-          (ruby.withPackages (ps: [ ps.thor ]))
+          (ruby_3_1.withPackages (ps: [ ps.rake ps.thor ]))
           sqlite-interactive
           curlFull
           jq
