@@ -38,9 +38,7 @@ steps:
 
   - label: 'Build cardano-wallet package for Macos (Intel)'
     depends_on: nix
-    command:
-      - 'nix --version'
-      - 'nix-build -A ci.x86_64-darwin.artifacts.macos-intel.release -o result/macos-intel'
+    command: nix build -o result/macos-intel .#ci.x86_64-darwin.artifacts.macos-intel.release
     artifact_paths: [ "./result/macos-intel/**" ]
     agents:
       system: x86_64-darwin
