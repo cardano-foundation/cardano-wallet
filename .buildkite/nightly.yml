@@ -9,7 +9,6 @@ env:
   CABAL_DIR: "/build/cardano-wallet.cabal"
   XDG_STATE_HOME: "/build/cardano-wallet/.state"
   XDG_CACHE_HOME: "/build/cardano-wallet/.cache"
-  TESTS_LOGDIR: "/build/cardano-wallet/integration-test-logs"
 
   # Per-host variables - shared across containers on host
   CACHE_DIR: "/cache/cardano-wallet"

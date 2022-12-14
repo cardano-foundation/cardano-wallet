@@ -68,10 +68,8 @@
   #    outputs.ci.x86_64-linux.tests.build
   #    outputs.ci.x86_64-linux.tests.run.unit
   #    outputs.ci.x86_64-linux.benchmarks.build
-  #    for appropriate builder system:
-  #      outputs.ci.${system}.artifacts.linux
-  #      outputs.ci.${system}.artifacts.macos
-  #      outputs.ci.${system}.artifacts.windows
+  #    outputs.ci.x86_64-linux.artifacts.linux64.release
+  #    outputs.ci.x86_64-linux.artifacts.win64.release
   #
   #  before each pull request merge:
   #    for each supported system:
@@ -348,6 +346,52 @@
             };
           };
 
+          # One ${system} can cross-compile artifacts for other platforms.
+          mkReleaseArtifacts = project:
+            lib.optionalAttrs buildPlatform.isLinux {
+              linux64.release =
+                let
+                  # compiling with musl gives us a statically linked executable
+                  linuxPackages = mkPackages project.projectCross.musl64;
+                in
+                import ./nix/release-package.nix {
+                  inherit pkgs;
+                  exes = releaseContents linuxPackages;
+                  platform = "linux64";
+                  format = "tar.gz";
+                };
+              win64.release =
+                let
+                  # windows is cross-compiled from linux
+                  windowsPackages = mkPackages project.projectCross.mingwW64;
+                in
+                import ./nix/release-package.nix {
+                  inherit pkgs;
+                  exes = releaseContents windowsPackages;
+                  platform = "win64";
+                  format = "zip";
+                };
+            }
+            # macos is never cross-compiled
+            // lib.optionalAttrs buildPlatform.isMacOS {
+              macos-intel = lib.optionalAttrs buildPlatform.isx86_64 {
+                release = import ./nix/release-package.nix {
+                  inherit pkgs;
+                  exes = releaseContents (mkPackages project);
+                  platform = "macos-intel";
+                  format = "tar.gz";
+                };
+              };
+              macos-silicon = lib.optionalAttrs buildPlatform.isAarch64 {
+                release = import ./nix/release-package.nix {
+                  inherit pkgs;
+                  exes = releaseContents (mkPackages project);
+                  platform = "macos-silicon";
+                  format = "tar.gz";
+                };
+              };
+            };
+
           mkSystemHydraJobs = hydraProject: lib.optionalAttrs buildPlatform.isLinux
             rec {
               linux = {
@@ -511,6 +555,7 @@
                 lib.collect lib.isDerivation
                   (keepIntegrationChecks packages.checks);
             };
+          ci.artifacts = mkReleaseArtifacts project;
 
           systemHydraJobs = mkSystemHydraJobs hydraProject;
           systemHydraJobsPr = mkSystemHydraJobs hydraProjectPr;

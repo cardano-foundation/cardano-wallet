@@ -103,6 +103,9 @@ Use the [[Nix]] build if:
 
 Follow the instructions on the [[Nix]] page to install _and configure_ Nix.
 
+> :warning: As of 2022-12, the following information is out of date
+> as https://hydra.iohk.io/ has been decomissioned.
+
 **Note**: It must be stressed that, if you see GHC being built by Nix,
 then you don't have the IOHK Hydra binary cache configured correctly.
 
