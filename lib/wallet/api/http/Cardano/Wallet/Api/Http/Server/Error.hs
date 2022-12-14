@@ -367,13 +367,13 @@ instance IsServerError ErrConstructTx where
         ErrConstructTxMultidelegationNotSupported ->
             apiError err403 CreatedMultidelegationTransaction $ mconcat
             [ "It looks like I've created a transaction "
-            , "with multiple delegations, which is not supported at this moment."
+            , "with multiple delegations, which is not supported at this moment. "
             , "Please use at most one delegation action: join, quit or none."
             ]
         ErrConstructTxMultiaccountNotSupported ->
             apiError err403 CreatedMultiaccountTransaction $ mconcat
             [ "It looks like I've created a transaction "
-            , "with a delegation, which uses a stake key for the unsupported account."
+            , "with a delegation, which uses a stake key for the unsupported account. "
             , "Please use delegation action engaging '0H' account."
             ]
         ErrConstructTxWrongMintingBurningTemplate ->

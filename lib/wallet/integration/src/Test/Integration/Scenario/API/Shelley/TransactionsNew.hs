@@ -2537,9 +2537,7 @@ spec = describe "NEW_SHELLEY_TRANSACTIONS" $ do
             ]
 
     it "TRANS_NEW_JOIN_01b - Invalid pool id" $ \ctx -> runResourceT $ do
-
         wa <- fixtureWallet ctx
-
         let invalidPoolId = T.replicate 32 "1"
         let delegation = Json [json|{
                 "delegations": [{
@@ -2557,7 +2555,6 @@ spec = describe "NEW_SHELLEY_TRANSACTIONS" $ do
             ]
 
     it "TRANS_NEW_JOIN_01b - Absent pool id" $ \ctx -> runResourceT $ do
-
         wa <- fixtureWallet ctx
         let absentPoolIdBech32 = "pool1mgjlw24rg8sp4vrzctqxtf2nn29rjhtkq2kdzvf4tcjd5pl547k"
         (Right absentPoolId) <- pure $ decodePoolIdBech32 absentPoolIdBech32
@@ -2577,7 +2574,6 @@ spec = describe "NEW_SHELLEY_TRANSACTIONS" $ do
             ]
 
     it "TRANS_NEW_JOIN_01c - Multidelegation not supported" $ \ctx -> runResourceT $ do
-
         wa <- fixtureWallet ctx
         let pool' = "pool1mgjlw24rg8sp4vrzctqxtf2nn29rjhtkq2kdzvf4tcjd5pl547k" :: Text
         let delegations = Json [json|{
@@ -2600,16 +2596,10 @@ spec = describe "NEW_SHELLEY_TRANSACTIONS" $ do
             ]
 
     it "TRANS_NEW_JOIN_01d - Multiaccount not supported" $ \ctx -> runResourceT $ do
-
         wa <- fixtureWallet ctx
         let pool' = "pool1mgjlw24rg8sp4vrzctqxtf2nn29rjhtkq2kdzvf4tcjd5pl547k" :: Text
         let delegations = Json [json|{
                 "delegations": [{
-                    "join": {
-                        "pool": #{pool'},
-                        "stake_key_index": "0H"
-                    }
-                },{
                     "join": {
                         "pool": #{pool'},
                         "stake_key_index": "1H"
