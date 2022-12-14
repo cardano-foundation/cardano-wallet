@@ -107,6 +107,16 @@ module Helpers
       log "#{url} -> #{resp.code}"
     end
 
+    def unzip_artifact(target_file, target_dir)
+      if win?
+        cmd "unzip -o #{target_file} -d #{target_dir}"
+      else
+        cmd 'rm -rf cardano-wallet-*/'
+        cmd "tar -xvf #{target_file}"
+        cmd "cp -r cardano-wallet-*/* #{target_dir}"
+      end
+    end
+
     def mk_dir(path)
       FileUtils.mkdir_p(path)
     end
