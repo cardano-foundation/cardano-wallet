@@ -17,7 +17,8 @@ steps:
     agents:
       system: ${linux}
 
-  - block: "Proceed with integration tests on linux"
+  - block: "Unblock integration tests on linux"
+    if: '(build.branch != "staging") && (build.branch != "trying")'
     prompt: "Clicking this button will proceed with integration tests"
     key: trigger_integration_tests
     depends_on:
