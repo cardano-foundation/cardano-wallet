@@ -2,9 +2,14 @@
 
 ##
 # secrets 🤫
-ENV['TESTS_E2E_FIXTURES'] ||= 'this_is_wrong_secret'
+# One needs to set these environment variables to run the tests
+# on CI they are set in GitHub Secrets
+# $ export TESTS_E2E_FIXTURES=... - for decrypting ./fixtures/fixture_wallets.json.gpg
+# $ export BUILDKITE_API_TOKEN=... - for downloading artifacts from Buildkite
+
+# file with mnemonics of fixture wallets
+# decoded from ./fixtures/fixture_wallets.json.gpg using $TESTS_E2E_FIXTURES
 ENV['TESTS_E2E_FIXTURES_FILE'] ||= './fixtures/fixture_wallets.json'
-ENV['BUILDKITE_API_TOKEN'] ||= 'this_is_wrong_secret'
 
 ##
 # Wallet/node databases, logs and configs will be stored here
