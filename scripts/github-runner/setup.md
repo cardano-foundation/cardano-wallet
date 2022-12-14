@@ -1,6 +1,6 @@
 ## How to prepare a self-hosted runner for this repo
 
-- get your `github-token` from [https://github.com/settings/tokens](https://github.com/settings/tokens), allowing access to the repo and to the workflow (to be asessed)
+- get your `github-token` from [https://github.com/settings/tokens](https://github.com/settings/tokens), allowing access to the repo and to the workflow (to be assessed)
 - place your token in the file system of the host (somewhere safe)
 - create space for the `/nix` folder, should go in NIX_VOLUME envvar
 - decide a name for your runner, should go in RUNNER_NAME envvar
