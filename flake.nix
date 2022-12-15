@@ -459,50 +459,12 @@
                     internal.roots = {
                       project = project.roots;
                     };
-                    cardano-wallet-linux64 = import ./nix/release-package.nix {
-                      inherit pkgs;
-                      exes = releaseContents packages;
-                      platform = "linux64";
-                      format = "tar.gz";
-                    };
-                  };
-                windows =
-                  let
-                    project = hydraProject.projectCross.mingwW64;
-                    # Remove the test coverage report - only generate that for Linux musl.
-                    windowsPackages = removeAttrs (mkPackages project) [ "testCoverageReport" ];
-                  in
-                  windowsPackages // {
-                    cardano-wallet-win64 = import ./nix/release-package.nix {
-                      inherit pkgs;
-                      exes = releaseContents windowsPackages;
-                      platform = "win64";
-                      format = "zip";
-                    };
-                    # This is used for testing the build on windows.
-                    cardano-wallet-tests-win64 = import ./nix/windows-testing-bundle.nix {
-                      inherit pkgs;
-                      cardano-wallet = windowsPackages.cardano-wallet;
-                      cardano-node = windowsPackages.cardano-node;
-                      cardano-cli = windowsPackages.cardano-cli;
-                      tests = lib.collect lib.isDerivation windowsPackages.tests;
-                      benchmarks = lib.collect lib.isDerivation windowsPackages.benchmarks;
-                    };
-                    internal.roots = {
-                      project = project.roots;
-                    };
                   };
               };
             } // (lib.optionalAttrs buildPlatform.isMacOS {
               macos.intel = lib.optionalAttrs buildPlatform.isx86_64 (let
                 packages = mkPackages hydraProject;
               in packages // {
-                cardano-wallet-macos-intel = import ./nix/release-package.nix {
-                  inherit pkgs;
-                  exes = releaseContents packages;
-                  platform = "macos-intel";
-                  format = "tar.gz";
-                };
                 shells = mkDevShells hydraProject // {
                   default = hydraProject.shell;
                 };
@@ -516,12 +478,6 @@
               macos.silicon = lib.optionalAttrs buildPlatform.isAarch64 (let
                 packages = mkPackages hydraProject;
               in packages // {
-                cardano-wallet-macos-silicon = import ./nix/release-package.nix {
-                  inherit pkgs;
-                  exes = releaseContents packages;
-                  platform = "macos-silicon";
-                  format = "tar.gz";
-                };
                 shells = mkDevShells hydraProject // {
                   default = hydraProject.shell;
                 };
