@@ -70,12 +70,12 @@ See **Installation Instructions** for each available [release](https://github.co
 
 > ### Latest releases
 >
-> | cardano-wallet | cardano-node (compatible versions) | SMASH (compatible versions)
-> | --- | --- | ---
-> | `master` branch | [1.35.4](https://github.com/input-output-hk/cardano-node/releases/tag/1.35.4) | [1.6.1](https://github.com/input-output-hk/smash/releases/tag/1.6.1)
-> | [v2022-12-14](https://github.com/input-output-hk/cardano-wallet/releases/tag/v2022-12-14) | [1.35.4](https://github.com/input-output-hk/cardano-node/releases/tag/1.35.4) | [1.6.1](https://github.com/input-output-hk/smash/releases/tag/1.6.1)
-> | [v2022-10-06](https://github.com/input-output-hk/cardano-wallet/releases/tag/v2022-10-06) | [1.35.3](https://github.com/input-output-hk/cardano-node/releases/tag/1.35.3) | [1.6.1](https://github.com/input-output-hk/smash/releases/tag/1.6.1)
-> | [v2022-08-16](https://github.com/input-output-hk/cardano-wallet/releases/tag/v2022-08-16) | [1.35.3](https://github.com/input-output-hk/cardano-node/releases/tag/1.35.3) | [1.6.1](https://github.com/input-output-hk/smash/releases/tag/1.6.1)
+> | cardano-wallet | cardano-node (compatible versions) |
+> | --- | --- |
+> | `master` branch | [1.35.4](https://github.com/input-output-hk/cardano-node/releases/tag/1.35.4) |
+> | [v2022-12-14](https://github.com/input-output-hk/cardano-wallet/releases/tag/v2022-12-14) | [1.35.4](https://github.com/input-output-hk/cardano-node/releases/tag/1.35.4) |
+> | [v2022-10-06](https://github.com/input-output-hk/cardano-wallet/releases/tag/v2022-10-06) | [1.35.3](https://github.com/input-output-hk/cardano-node/releases/tag/1.35.3) |
+> | [v2022-08-16](https://github.com/input-output-hk/cardano-wallet/releases/tag/v2022-08-16) | [1.35.3](https://github.com/input-output-hk/cardano-node/releases/tag/1.35.3) |
 
 ## How to build from sources
 
