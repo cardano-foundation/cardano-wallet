@@ -177,9 +177,10 @@ import Cardano.Wallet
     , FeeEstimation (..)
     , HasNetworkLayer
     , TxSubmitLog
-    , WalletWorkerLog
+    , WalletWorkerLog (..)
     , dbLayer
     , genesisData
+    , logger
     , manageRewardBalance
     , networkLayer
     , transactionLayer
@@ -538,6 +539,8 @@ import Control.Monad.Trans.Maybe
     ( MaybeT (..), exceptToMaybeT )
 import Control.Tracer
     ( Tracer, contramap )
+import Data.Bifunctor
+    ( first )
 import Data.ByteString
     ( ByteString )
 import Data.Coerce
@@ -550,6 +553,8 @@ import Data.Function
     ( (&) )
 import Data.Functor
     ( (<&>) )
+import Data.Functor.Contravariant
+    ( (>$<) )
 import Data.Functor.Identity
     ( Identity (..) )
 import Data.Generics.Internal.VL.Lens
@@ -565,14 +570,7 @@ import Data.List.NonEmpty
 import Data.Map.Strict
     ( Map )
 import Data.Maybe
-    ( catMaybes
-    , fromJust
-    , fromMaybe
-    , isJust
-    , isNothing
-    , mapMaybe
-    , maybeToList
-    )
+    ( catMaybes, fromJust, fromMaybe, isJust, isNothing, mapMaybe )
 import Data.Proxy
     ( Proxy (..) )
 import Data.Quantity
@@ -637,6 +635,7 @@ import qualified Cardano.Api as Cardano
 import qualified Cardano.Wallet as W
 import qualified Cardano.Wallet.Api.Types as Api
 import qualified Cardano.Wallet.DB as W
+import qualified Cardano.Wallet.Delegation as WD
 import qualified Cardano.Wallet.Network as NW
 import qualified Cardano.Wallet.Primitive.AddressDerivation.Byron as Byron
 import qualified Cardano.Wallet.Primitive.AddressDerivation.Icarus as Icarus
@@ -645,7 +644,12 @@ import qualified Cardano.Wallet.Primitive.AddressDiscovery.Shared as Shared
 import qualified Cardano.Wallet.Primitive.Types as W
 import qualified Cardano.Wallet.Primitive.Types.Coin as Coin
 import qualified Cardano.Wallet.Primitive.Types.TokenBundle as TokenBundle
-import qualified Cardano.Wallet.Primitive.Types.Tx as W
+import qualified Cardano.Wallet.Primitive.Types.Tx.SealedTx as W
+    ( SealedTx, sealedTxFromCardano )
+import qualified Cardano.Wallet.Primitive.Types.Tx.Tx as W
+    ( TxMetadata, TxScriptValidity )
+import qualified Cardano.Wallet.Primitive.Types.Tx.TxMeta as W
+    ( Direction (Incoming, Outgoing), TxMeta )
 import qualified Cardano.Wallet.Primitive.Types.Tx.TxOut as TxOut
 import qualified Cardano.Wallet.Primitive.Types.UTxO as UTxO
 import qualified Cardano.Wallet.Primitive.Types.UTxOIndex.Internal as UTxOIndex
@@ -1699,8 +1703,18 @@ selectCoinsForJoin ctx knownPools getPoolStatus pid wid = do
     curEpoch <- getCurrentEpoch ctx
 
     withWorkerCtx ctx wid liftE liftE $ \wrk -> do
-        (action, deposit) <- liftHandler
-            $ W.joinStakePool @_ @s @k wrk curEpoch pools pid poolStatus wid
+        let db = wrk ^. typed @(DBLayer IO s k)
+            netLayer = wrk ^. networkLayer
+        pp <- liftIO $ NW.currentProtocolParameters netLayer
+        action <- liftHandler
+            $ WD.joinStakePoolDelegationAction @s @k
+                (contramap MsgWallet $ wrk ^. logger)
+                db
+                curEpoch
+                pools
+                pid
+                poolStatus
+                wid
 
         let txCtx = defaultTransactionCtx
                 { txDelegationAction = Just action
@@ -1711,9 +1725,6 @@ selectCoinsForJoin ctx knownPools getPoolStatus pid wid = do
                 & uncurry (W.selectionToUnsignedTx (txWithdrawal txCtx))
         (utxoAvailable, wallet, pendingTxs) <-
             liftHandler $ W.readWalletUTxOIndex @_ @s @k wrk wid
-        pp <- liftIO $ NW.currentProtocolParameters (wrk ^. networkLayer)
-        era <- liftIO $ NW.currentNodeEra (wrk ^. networkLayer)
-
         let selectAssetsParams = W.SelectAssetsParams
                 { outputs = []
                 , pendingTxs
@@ -1724,13 +1735,17 @@ selectCoinsForJoin ctx knownPools getPoolStatus pid wid = do
                 , wallet
                 , selectionStrategy = SelectionStrategyOptimal
                 }
+        era <- liftIO $ NW.currentNodeEra netLayer
         utx <- liftHandler
             $ W.selectAssets @_ @_ @s @k @'CredFromKeyK
                 wrk era pp selectAssetsParams transform
         (_, _, path) <- liftHandler
-            $ W.readRewardAccount (wrk ^. dbLayer) wid
+            $ W.readRewardAccount db wid
 
-        let deposits = maybeToList deposit
+        let deposits = case action of
+                JoinRegisteringKey _poolId -> [W.stakeKeyDeposit pp]
+                Join _poolId -> []
+                Quit -> []
 
         pure $ mkApiCoinSelection deposits [] (Just (action, path)) Nothing utx
 
@@ -1750,10 +1765,11 @@ selectCoinsForQuit ctx@ApiLayer{..} (ApiT wid) =
     withWorkerCtx ctx wid liftE liftE $ \wrk -> do
         let db = wrk ^. typed @(DBLayer IO s k)
         era <- liftIO $ NW.currentNodeEra netLayer
+        pp <- liftIO $ NW.currentProtocolParameters netLayer
         wdrl <-
             liftIO $ W.shelleyOnlyMkSelfWithdrawal
                 @_ @_ @_ @_ @n netLayer txLayer era db wid
-        action <- liftIO $ W.validatedQuitStakePoolAction db wid wdrl
+        action <- liftIO $ WD.quitStakePoolDelegationAction db wid wdrl
 
         let txCtx = defaultTransactionCtx
                 { txDelegationAction = Just action
@@ -1775,7 +1791,6 @@ selectCoinsForQuit ctx@ApiLayer{..} (ApiT wid) =
                 , wallet
                 , selectionStrategy = SelectionStrategyOptimal
                 }
-        pp <- liftIO $ NW.currentProtocolParameters netLayer
         utx <-
             liftHandler $ W.selectAssets @_ @_ @s @k @'CredFromKeyK
                 wrk era pp selectAssetsParams transform
@@ -2258,7 +2273,7 @@ constructTransaction
     -> ApiConstructTransactionData n
     -> Handler (ApiConstructTransaction n)
 constructTransaction
-    apiLayer genChange knownPools getPoolStatus apiWalletId body = do
+    apiLayer genChange knownPools poolStatus apiWalletId body = do
     body & \(ApiConstructTransactionData _ _ _ _ _ _ _) ->
     -- Above is the way to get a compiler error when number of fields changes,
     -- in order not to forget to update the pattern below:
@@ -2272,63 +2287,52 @@ constructTransaction
                 } -> liftHandler $ throwE ErrConstructTxWrongPayload
             _ -> pure ()
 
-    validityInterval@(before, hereafter) <-
+    validityInterval <-
         liftHandler $ parseValidityInterval ti $ body ^. #validityInterval
 
     mintBurnData <-
         liftHandler $ except $ parseMintBurnData body validityInterval
 
-    when (maybe False (not . all isValidDelegationAction) (body ^. #delegations))
-        $ liftHandler $ throwE ErrConstructTxMultiaccountNotSupported
+    delegationRequest <-
+        liftHandler $ traverse parseDelegationRequest $ body ^. #delegations
 
-    let md = body ^? #metadata . traverse . #txMetadataWithSchema_metadata
+    let metadata =
+            body ^? #metadata . traverse . #txMetadataWithSchema_metadata
 
     withWorkerCtx apiLayer walletId liftE liftE $ \wrk -> do
         let db = wrk ^. dbLayer
             netLayer = wrk ^. networkLayer
             txLayer = wrk ^. transactionLayer @ShelleyKey @'CredFromKeyK
+            trWorker = MsgWallet >$< wrk ^. logger
         pp <- liftIO $ NW.currentProtocolParameters netLayer
         era <- liftIO $ NW.currentNodeEra netLayer
-        wdrl <- case body ^. #withdrawal of
-            Just SelfWithdraw -> liftIO
-                $ W.shelleyOnlyMkSelfWithdrawal @_ @_ @_ @_ @n
-                    netLayer txLayer era db walletId
-            _ -> pure NoWithdrawal
-        (deposit, refund, txCtx) <- case body ^. #delegations of
-            Nothing -> pure (Nothing, Nothing, defaultTransactionCtx
-                 { txWithdrawal = wdrl
-                 , txMetadata = md
-                 , txValidityInterval = (Just before, hereafter)
-                 })
-            Just delegs -> do
-                -- TODO: Current limitation:
-                -- at this moment we are handling just one delegation action:
-                -- either joining pool, or rejoining or quitting
-                -- When we support multi-account this should be lifted
-                (action, deposit, refund) <- case NE.toList delegs of
-                    [(Joining (ApiT pid) _)] -> do
-                        poolStatus <- liftIO (getPoolStatus pid)
-                        pools <- liftIO knownPools
-                        curEpoch <- getCurrentEpoch apiLayer
-                        (del, act) <- liftHandler $ W.joinStakePool
-                            wrk curEpoch pools pid poolStatus walletId
-                        pure (del, act, Nothing)
-                    [(Leaving _)] -> liftIO $
-                        (, Nothing, Just (W.stakeKeyDeposit pp)) <$>
-                            W.validatedQuitStakePoolAction db walletId wdrl
-                    _ ->
-                        liftHandler $
-                            throwE ErrConstructTxMultidelegationNotSupported
+        epoch <- getCurrentEpoch apiLayer
+        withdrawal <-
+            case body ^. #withdrawal of
+                Just SelfWithdraw -> liftIO
+                    $ W.shelleyOnlyMkSelfWithdrawal @_ @_ @_ @_ @n
+                        netLayer txLayer era db walletId
+                _ -> pure NoWithdrawal
 
-                let txCtx = defaultTransactionCtx
-                        { txWithdrawal = wdrl
-                        , txMetadata = md
-                        , txValidityInterval = (Just before, hereafter)
-                        , txDelegationAction = Just action
-                        }
-                pure (deposit, refund, txCtx)
+        let transactionCtx0 = defaultTransactionCtx
+                 { txWithdrawal = withdrawal
+                 , txMetadata = metadata
+                 , txValidityInterval = first Just validityInterval
+                 }
 
-        (txCtx', policyXPubM) <-
+        optionalDelegationAction <- liftHandler $
+            forM delegationRequest $
+                WD.handleDelegationRequest
+                    trWorker db epoch knownPools
+                    poolStatus walletId withdrawal
+
+        let transactionCtx1 =
+                case optionalDelegationAction of
+                    Nothing -> transactionCtx0
+                    Just action ->
+                        transactionCtx0 { txDelegationAction = Just action }
+
+        (transactionCtx2, policyXPubM) <-
             if isJust mintBurnData then do
                 (policyXPub, _) <-
                     liftHandler $ W.readPolicyPublicKey @_ @_ @_ @n wrk walletId
@@ -2372,13 +2376,13 @@ constructTransaction
                         map getBurning $
                         filter (not . isMinting) $
                         NE.toList $ fromJust mintBurnData
-                pure ( txCtx
+                pure ( transactionCtx1
                       { txAssetsToMint = mintingData
                       , txAssetsToBurn = burningData
                       }
                      , Just policyXPub)
             else
-                pure (txCtx, Nothing)
+                pure (transactionCtx1, Nothing)
 
         outs <- case body ^. #payments of
             Nothing -> pure []
@@ -2399,13 +2403,8 @@ constructTransaction
 
         unbalancedTx <- liftHandler $
             W.constructTransaction @n @'CredFromKeyK
-                txLayer netLayer db walletId era txCtx' PreSelection
-                    { outputs = outs <> mintingOuts
-                    , assetsToMint = fst $ txCtx' ^. #txAssetsToMint
-                    , assetsToBurn = fst $ txCtx' ^. #txAssetsToBurn
-                    , extraCoinSource = fromMaybe (Coin 0) refund
-                    , extraCoinSink = fromMaybe (Coin 0) deposit
-                    }
+                txLayer netLayer db walletId era transactionCtx2
+                    PreSelection { outputs = outs <> mintingOuts }
 
         balancedTx <-
             balanceTransaction apiLayer genChange apiWalletId
@@ -2420,13 +2419,21 @@ constructTransaction
 
         (_, _, rewardPath) <- liftHandler $ W.readRewardAccount @n db walletId
 
+        let deposits = case txDelegationAction transactionCtx2 of
+                Just (JoinRegisteringKey _poolId) -> [W.stakeKeyDeposit pp]
+                _ -> []
+
+        let refunds = case txDelegationAction transactionCtx2 of
+                Just Quit -> [W.stakeKeyDeposit pp]
+                _ -> []
+
         pure ApiConstructTransaction
             { transaction = balancedTx
             , coinSelection = mkApiCoinSelection
-                (maybe [] singleton deposit)
-                (maybe [] singleton refund)
-                ((,rewardPath) <$> txCtx' ^. #txDelegationAction)
-                md
+                deposits
+                refunds
+                ((,rewardPath) <$> transactionCtx2 ^. #txDelegationAction)
+                metadata
                 (unsignedTx rewardPath (outs ++ mintingOuts) apiDecoded)
             , fee = apiDecoded ^. #fee
             }
@@ -2435,7 +2442,6 @@ constructTransaction
     ti = timeInterpreter (apiLayer ^. networkLayer)
 
     walletId = getApiT apiWalletId
-    singleton x = [x]
 
     parseMintBurnData
         :: ApiConstructTransactionData n
@@ -2505,12 +2511,24 @@ constructTransaction
                 not $ withinSlotInterval before hereafter $
                     scriptSlotIntervals script
 
-    isValidDelegationAction :: ApiMultiDelegationAction -> Bool
-    isValidDelegationAction = \case
-        Joining _poolId stakeKeyIx -> checkIx stakeKeyIx
-        Leaving stakeKeyIx -> checkIx stakeKeyIx
+    parseDelegationRequest
+        :: NonEmpty ApiMultiDelegationAction
+        -> ExceptT ErrConstructTx IO WD.DelegationRequest
+    parseDelegationRequest (action :| otherActions) = except $
+        case otherActions of
+            [] -> case action of
+               Joining (ApiT pool) stakeKeyIdx | isValidKeyIdx stakeKeyIdx ->
+                    Right $ WD.Join pool
+               Leaving stakeKeyIdx | isValidKeyIdx stakeKeyIdx ->
+                    Right WD.Quit
+               _ -> Left ErrConstructTxMultiaccountNotSupported
+            -- Current limitation:
+            -- at this moment we are handling just one delegation action:
+            -- either joining pool, or rejoining or quitting
+            -- When we support multi-account this should be lifted
+            _ -> Left ErrConstructTxMultidelegationNotSupported
       where
-        checkIx (ApiStakeKeyIndex (ApiT derIndex)) =
+        isValidKeyIdx (ApiStakeKeyIndex (ApiT derIndex)) =
             derIndex == DerivationIndex (getIndex @'Hardened minBound)
 
     toUnsignedTxChange = \case
@@ -3076,16 +3094,9 @@ submitTransaction ctx apiw@(ApiT wid) apitx = do
             filter isInpOurs $
             (apiDecoded ^. #inputs) ++ (apiDecoded ^. #collateral)
     let totalNumberOfWits = length $ getSealedTxWitnesses sealedTx
-    let ourDel =
-            filter isJust $
-            map isJoiningOrQuitting $ apiDecoded ^. #certificates
-    when (length ourDel > 1) $
-        liftHandler $ throwE ErrSubmitTransactionMultidelegationNotSupported
 
-    let delAction = case ourDel of
-            [Just del] -> Just del
-            [] -> Nothing
-            _ -> error "impossible to be here due to check above"
+    when (countJoinsQuits (apiDecoded ^. #certificates) > 1) $
+        liftHandler $ throwE ErrSubmitTransactionMultidelegationNotSupported
 
     when (witsRequiredForInputs > totalNumberOfWits)
         $ liftHandler . throwE
@@ -3101,7 +3112,6 @@ submitTransaction ctx apiw@(ApiT wid) apitx = do
                   -- Get this from decodeTx:
                   txValidityInterval = (Nothing, ttl)
                 , txWithdrawal = wdrl
-                , txDelegationAction = delAction
                 }
         txMeta <- liftHandler $ W.constructTxMeta @_ @s @k wrk wid txCtx ourInps ourOuts
         liftHandler
@@ -3123,19 +3133,20 @@ submitTransaction ctx apiw@(ApiT wid) apitx = do
             _ ->
                 NoWithdrawal
 
-    isJoiningOrQuitting = \case
-        WalletDelegationCertificate (JoinPool _ (ApiT poolId)) ->
-            Just $ Join poolId
-        WalletDelegationCertificate (QuitPool _) ->
-            Just Quit
-        _ ->
-            Nothing
+    countJoinsQuits :: [ApiAnyCertificate n] -> Int
+    countJoinsQuits = sum . fmap ( \case
+            WalletDelegationCertificate (JoinPool _ _) -> 1
+            WalletDelegationCertificate (QuitPool _) -> 1
+            _ -> 0
+        )
 
 samePaymentKey :: ApiTxInputGeneral n -> ApiTxInputGeneral n -> Bool
-samePaymentKey inp1 inp2 = case (inp1, inp2) of
-    (WalletInput (ApiWalletInput _ _ _ derPath1 _ _), WalletInput (ApiWalletInput _ _ _ derPath2 _ _) ) ->
-           derPath1 == derPath2
-    _ -> False
+samePaymentKey inp1 inp2 =
+    case (inp1, inp2) of
+        ( WalletInput (ApiWalletInput _ _ _ derPath1 _ _)
+            , WalletInput (ApiWalletInput _ _ _ derPath2 _ _)
+            ) -> derPath1 == derPath2
+        _ -> False
 
 getOurOuts :: ApiDecodedTransaction n -> [TxOut]
 getOurOuts apiDecodedTx =
@@ -3259,8 +3270,16 @@ joinStakePool ctx knownPools getPoolStatus apiPool (ApiT wid) body = do
     pools <- liftIO knownPools
     curEpoch <- getCurrentEpoch ctx
     withWorkerCtx ctx wid liftE liftE $ \wrk -> do
-        (action, _) <- liftHandler
-            $ W.joinStakePool @_ @s @k wrk curEpoch pools poolId poolStatus wid
+        pp <- liftIO $ NW.currentProtocolParameters (wrk ^. networkLayer)
+        action <- liftHandler
+            $ WD.joinStakePoolDelegationAction @s @k
+                (contramap MsgWallet $ wrk ^. logger)
+                (wrk ^. dbLayer)
+                curEpoch
+                pools
+                poolId
+                poolStatus
+                wid
 
         ttl <- liftIO $ W.transactionExpirySlot ti Nothing
         let txCtx = defaultTransactionCtx
@@ -3272,7 +3291,6 @@ joinStakePool ctx knownPools getPoolStatus apiPool (ApiT wid) body = do
             liftHandler $ W.readWalletUTxOIndex @_ @s @k wrk wid
         -- FIXME [ADP-1489] pp and era are not guaranteed to be consistent,
         -- which could cause problems under exceptional circumstances.
-        pp <- liftIO $ NW.currentProtocolParameters (wrk ^. networkLayer)
         era <- liftIO $ NW.currentNodeEra (wrk ^. networkLayer)
         let selectAssetsParams = W.SelectAssetsParams
                 { outputs = []
@@ -3378,22 +3396,22 @@ quitStakePool
     -> ApiT WalletId
     -> ApiWalletPassphrase
     -> Handler (ApiTransaction n)
-quitStakePool ctx@ApiLayer{..} (ApiT walletId) body = do
+quitStakePool ctx@ApiLayer{..} (ApiT walletId) body =
     withWorkerCtx ctx walletId liftE liftE $ \wrk -> do
         let db = wrk ^. typed @(DBLayer IO s k)
             notShelleyWallet =
                 liftHandler $ throwE ErrReadRewardAccountNotAShelleyWallet
+        pp <- liftIO $ NW.currentProtocolParameters (wrk ^. networkLayer)
         txCtx <-
             case testEquality (typeRep @s) (typeRep @(SeqState n k)) of
                 Nothing -> notShelleyWallet
                 Just Refl -> case testEquality (typeRep @k)
                                                (typeRep @ShelleyKey) of
                     Nothing -> notShelleyWallet
-                    Just Refl -> liftIO $
-                        W.quitStakePool netLayer db ti walletId
+                    Just Refl ->
+                        liftIO $ WD.quitStakePool netLayer db ti walletId
         (utxoAvailable, wallet, pendingTxs) <-
             liftHandler $ W.readWalletUTxOIndex @_ @s @k wrk walletId
-        pp <- liftIO $ NW.currentProtocolParameters (wrk ^. networkLayer)
         era <- liftIO $ NW.currentNodeEra (wrk ^. networkLayer)
         sel <- liftHandler
             $ W.selectAssets @_ @_ @s @k @'CredFromKeyK wrk era pp
@@ -4101,22 +4119,16 @@ mkApiCoinSelection deps refunds mcerts metadata unsignedTx =
         :: DelegationAction
         -> NonEmpty DerivationIndex
         -> NonEmpty Api.ApiCertificate
-    mkCertificates action xs =
+    mkCertificates action ixs =
         case action of
-            Join pid -> NE.fromList
-                [ Api.JoinPool apiStakePath (ApiT pid)
-                ]
-
-            RegisterKeyAndJoin pid -> NE.fromList
+            Join pid -> pure $ Api.JoinPool apiStakePath (ApiT pid)
+            Quit -> pure $ Api.QuitPool apiStakePath
+            JoinRegisteringKey pid -> NE.fromList
                 [ Api.RegisterRewardAccount apiStakePath
                 , Api.JoinPool apiStakePath (ApiT pid)
                 ]
-
-            Quit -> NE.fromList
-                [ Api.QuitPool apiStakePath
-                ]
       where
-        apiStakePath = ApiT <$> xs
+        apiStakePath = ApiT <$> ixs
 
     mkApiCoinSelectionInput :: input -> ApiWalletInput n
     mkApiCoinSelectionInput

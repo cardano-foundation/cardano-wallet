@@ -395,18 +395,7 @@ data TransactionCtx = TransactionCtx
     } deriving (Show, Generic, Eq)
 
 -- | Represents a preliminary selection of tx outputs typically made by user.
-data PreSelection = PreSelection
-    { outputs :: ![TxOut]
-      -- ^ User-specified outputs
-    , assetsToMint :: !TokenMap
-      -- ^ Assets to mint.
-    , assetsToBurn :: !TokenMap
-      -- ^ Assets to burn.
-    , extraCoinSource :: !Coin
-      -- ^ An extra source of ada.
-    , extraCoinSink :: !Coin
-      -- ^ An extra sink for ada.
-    }
+newtype PreSelection = PreSelection { outputs :: [TxOut] }
     deriving (Generic, Eq, Show)
 
 data Withdrawal
@@ -438,8 +427,15 @@ defaultTransactionCtx = TransactionCtx
     , txFeePadding = Coin 0
     }
 
--- | Whether the user is attempting any particular delegation action.
-data DelegationAction = RegisterKeyAndJoin PoolId | Join PoolId | Quit
+-- | User-requested action related to a delegation
+-- that is taken into account when constructing a transaction.
+data DelegationAction
+    = JoinRegisteringKey PoolId
+    -- ^ Join stake pool, registering stake key.
+    | Join PoolId
+    -- ^ Join stake pool, assuming that stake key has been registered before.
+    | Quit
+    -- ^ Quit all stake pools
     deriving (Show, Eq, Generic)
 
 instance Buildable DelegationAction where

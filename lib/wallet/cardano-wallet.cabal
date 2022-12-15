@@ -241,6 +241,7 @@ library
     Cardano.Wallet.DB.Store.Wallets.Model
     Cardano.Wallet.DB.Store.Wallets.Store
     Cardano.Wallet.DB.WalletState
+    Cardano.Wallet.Delegation
     Cardano.Wallet.Gen
     Cardano.Wallet.Logging
     Cardano.Wallet.Network
@@ -310,6 +311,7 @@ library
     Cardano.Wallet.Read.Primitive.Tx.Mary
     Cardano.Wallet.Read.Primitive.Tx.Shelley
     Cardano.Wallet.Read.Tx
+    Cardano.Wallet.Read.Tx.Cardano
     Cardano.Wallet.Read.Tx.CBOR
     Cardano.Wallet.Read.Tx.Certificates
     Cardano.Wallet.Read.Tx.Eras
@@ -319,7 +321,6 @@ library
     Cardano.Wallet.Read.Tx.Mint
     Cardano.Wallet.Read.Tx.Validity
     Cardano.Wallet.Read.Tx.Witnesses
-    Cardano.Wallet.Read.Tx.Cardano
     Cardano.Wallet.Registry
     Cardano.Wallet.Shelley.BlockchainSource
     Cardano.Wallet.Shelley.Compatibility
@@ -722,6 +723,7 @@ test-suite unit
     , generic-lens
     , generics-sop
     , hedgehog
+    , hedgehog-corpus
     , hedgehog-quickcheck
     , hspec                        >=2.8.2
     , hspec-core                   >=2.8.2
@@ -830,6 +832,7 @@ test-suite unit
     Cardano.Wallet.DB.Store.Submissions.StoreSpec
     Cardano.Wallet.DB.Store.Transactions.StoreSpec
     Cardano.Wallet.DB.Store.Wallets.StoreSpec
+    Cardano.Wallet.DelegationSpec
     Cardano.Wallet.DummyTarget.Primitive.Types
     Cardano.Wallet.Network.LightSpec
     Cardano.Wallet.Network.PortsSpec
@@ -858,6 +861,7 @@ test-suite unit
     Cardano.Wallet.Primitive.Types.TxSpec
     Cardano.Wallet.Primitive.TypesSpec
     Cardano.Wallet.Read.Tx.CBORSpec
+    Cardano.Wallet.Read.Tx.CBORSpec
     Cardano.Wallet.RegistrySpec
     Cardano.Wallet.Shelley.Compatibility.LedgerSpec
     Cardano.Wallet.Shelley.CompatibilitySpec
@@ -868,7 +872,6 @@ test-suite unit
     Cardano.Wallet.Shelley.NetworkSpec
     Cardano.Wallet.Shelley.TransactionSpec
     Cardano.Wallet.TokenMetadataSpec
-    Cardano.Wallet.Read.Tx.CBORSpec
     Cardano.Wallet.Write.TxSpec
     Cardano.WalletSpec
     Control.Concurrent.ConciergeSpec
