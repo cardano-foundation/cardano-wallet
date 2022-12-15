@@ -388,16 +388,26 @@
                   platform = "linux64";
                   format = "tar.gz";
                 };
-              win64.release =
+              win64 =
                 let
                   # windows is cross-compiled from linux
                   windowsPackages = mkPackages project.projectCross.mingwW64;
-                in
-                import ./nix/release-package.nix {
-                  inherit pkgs;
-                  exes = releaseContents windowsPackages;
-                  platform = "win64";
-                  format = "zip";
+                in {
+                  release = import ./nix/release-package.nix {
+                    inherit pkgs;
+                    exes = releaseContents windowsPackages;
+                    platform = "win64";
+                    format = "zip";
+                  };
+                  # Testing on Windows is done using a collection of executables.
+                  tests = import ./nix/windows-testing-bundle.nix {
+                    inherit pkgs;
+                    cardano-wallet = windowsPackages.cardano-wallet;
+                    cardano-node = windowsPackages.cardano-node;
+                    cardano-cli = windowsPackages.cardano-cli;
+                    tests = lib.collect lib.isDerivation windowsPackages.tests;
+                    benchmarks = lib.collect lib.isDerivation windowsPackages.benchmarks;
+                  };
                 };
             }
             # macos is never cross-compiled
@@ -547,7 +557,12 @@
             nixosTests = import ./nix/nixos/tests {
               inherit pkgs project;
             };
-          });
+          }) // {
+            # Continuous integration builds
+            ci.artifacts = mkReleaseArtifacts project // {
+              dockerImage = packages.dockerImage;
+            };
+          };
 
           # Heinrich: I don't quite understand the 'checks' attribute. See also
           # https://www.reddit.com/r/NixOS/comments/x5cjmz/comment/in0qqm6/?utm_source=share&utm_medium=web2x&context=3
@@ -583,7 +598,6 @@
                 lib.collect lib.isDerivation
                   (keepIntegrationChecks packages.checks);
             };
-          ci.artifacts = mkReleaseArtifacts project;
 
           systemHydraJobs = mkSystemHydraJobs hydraProject;
           systemHydraJobsPr = mkSystemHydraJobs hydraProjectPr;
