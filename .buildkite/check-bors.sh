@@ -6,7 +6,7 @@
 #
 # Example variables:
 #
-#   BUILDKITE_BRANCH=bors/staging
+#   BUILDKITE_BRANCH=staging
 #   BUILDKITE_PIPELINE_DEFAULT_BRANCH=master
 #   BUILDKITE_REPO=https://github.com/input-output-hk/cardano-wallet.git
 #

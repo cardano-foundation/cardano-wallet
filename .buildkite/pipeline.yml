@@ -7,13 +7,13 @@ env:
 
 steps:
   - label: 'Prevent merging to wrong branch'
-    if: 'build.branch == "bors/staging"'
+    if: 'build.branch == "staging"'
     command: './.buildkite/check-bors.sh'
     agents:
       system: x86_64-linux
 
   - wait: ~
-    if: 'build.branch == "bors/staging"'
+    if: 'build.branch == "staging"'
 
   - label: 'Check auto-generated Nix'
     key: nix

@@ -6,8 +6,8 @@ on:
   push:
     branches:
       - master
-      - bors/staging
-      - bors/trying
+      - staging
+      - trying
       - 'release/v*'
   pull_request:
 
