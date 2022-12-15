@@ -60,7 +60,8 @@
   # The CI-related outputs are
   #
   #  - outputs.packages."<system>".ci.
-  #     - tests             - build all test executables
+  #     - tests
+  #       - all             - build all test executables
   #     - benchmarks
   #       - all             - build all benchmarks
   #       - restore         - build individual benchmark
@@ -559,6 +560,12 @@
             };
           }) // {
             # Continuous integration builds
+            ci.tests.all = pkgs.releaseTools.aggregate {
+              name = "cardano-wallet-tests";
+              meta.description = "Build (all) tests";
+              constituents =
+                lib.collect lib.isDerivation packages.tests;
+            };
             ci.benchmarks = packages.benchmarks.cardano-wallet // {
               all = pkgs.releaseTools.aggregate {
                 name = "cardano-wallet-benchmarks";
@@ -582,14 +589,6 @@
 
           devShells = mkDevShells project;
 
-          # Continuous integration
-          ci.tests.build = pkgs.releaseTools.aggregate
-            {
-              name = "tests.build";
-              meta.description = "Build (all) tests";
-              constituents =
-                lib.collect lib.isDerivation packages.tests;
-            };
           ci.tests.run.unit = pkgs.releaseTools.aggregate
             {
               name = "tests.run.unit";
