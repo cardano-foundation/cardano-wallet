@@ -539,7 +539,11 @@
           # https://www.reddit.com/r/NixOS/comments/x5cjmz/comment/in0qqm6/?utm_source=share&utm_medium=web2x&context=3
           checks = packages.checks;
 
-          apps = lib.mapAttrs (n: p: { type = "app"; program = p.exePath or "${p}/bin/${p.name or n}"; }) packages;
+          mkApp = name: pkg: {
+              type = "app";
+              program = pkg.exePath or "${pkg}/bin/${pkg.name or name}";
+            };
+          apps = lib.mapAttrs mkApp packages;
 
           devShell = project.shell;
 
