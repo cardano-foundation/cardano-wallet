@@ -33,55 +33,83 @@
   ############################################################################
 
   ############################################################################
-  # Continuous Integration
+  # Continuous Integration (CI)
   #
   # This flake contains a few outputs useful for continous integration.
+  # These outputs come in two flavors:
   #
-  # To build a derivation, use e.g.
+  #   outputs.packages."<system>".ci.*  - build a test, benchmark, …
+  #   outputs.apps."<system>".ci.*      - run a test, benchmark, …
   #
-  #   nix build .#ci."<system>".tests.run.unit
+  # For building, say all tests, use `nix build`:
   #
-  # (In some cases, this fails with a segmentation fault;
+  #   nix build .#ci.tests.all
+  #
+  # For running, say the unit tests use `nix run`:
+  #
+  #   nix run .#ci.tests.unit
+  #
+  # (Running an item will typically also build it if it has not been built
+  #  in the nix store already.)
+  #
+  # (In some cases, building or running fails with a segmentation fault;
   #  the nix garbage collection is likely to blame.
   #  Use `GC_DONT_GC=1 nix build …` as workaround.)
   #
-  # The derivations are:
   #
-  #  - outputs.ci."<system>"
-  #     - tests             - test executables
-  #       - build           - build all tests on this platform
-  #       - run.unit        - run the unit tests on this platform
-  #                            (implies build)
-  #       - run.integration - run the integration tests on this platform
-  #                            (implies build)
-  #     - TODO benchmarks
-  #       - build           - build benchmarks on this platform
-  #       - run             - run benchmarks on this platform (implies build)
-  #     - TODO artifacts
-  #       - dockerImage     - tarball of the docker image
-  #       - TODO the hydraJobs do contain cross-compiled artifacts,
-  #         but we need to put them into this structure here.
+  # The CI-related outputs are
+  #
+  #  - outputs.packages."<system>".ci.
+  #     - tests             - build all test executables
+  #     - benchmarks
+  #       - all             - build all benchmarks
+  #       - restore         - build individual benchmark
+  #       - …
+  #     - artifacts         - artifacts by platform
+  #       - linux64.release
+  #       - win64
+  #         - release
+  #         - tests         - bundle of executables for testing on Windows
+  #       - macos-intel.release
+  #       - macos-silicon.release
+  #       - dockerImage
+  #  - outputs.apps."<system>".ci.
+  #     - tests
+  #       - unit            - run the unit tests on this system
+  #       - integration     - run the integration tests on this system
+  #     - benchmarks
+  #       - restore
+  #       - …
   #
   # Recommended granularity:
   #
   #  after each commit:
-  #    outputs.ci.x86_64-linux.tests.build
-  #    outputs.ci.x86_64-linux.tests.run.unit
-  #    outputs.ci.x86_64-linux.benchmarks.build
-  #    outputs.ci.x86_64-linux.artifacts.linux64.release
-  #    outputs.ci.x86_64-linux.artifacts.win64.release
+  #    on x86_64-linux:
+  #      nix build .#ci.tests.all
+  #      nix build .#ci.benchmarks.all
+  #      nix build .#ci.artifacts.linux64.release
+  #      nix build .#ci.artifacts.win64.release
+  #      nix build .#ci.artifacts.win64.tests
+  #
+  #      nix run   .#ci.tests.unit
   #
   #  before each pull request merge:
-  #    for each supported system:
-  #      outputs.ci.${system}.benchmarks.build
-  #      outputs.ci.${system}.tests.build
-  #      outputs.ci.${system}.tests.run.unit
-  #      outputs.ci.${system}.tests.run.integration
+  #    on each supported system:
+  #      nix build .#ci.benchmarks.all
+  #      nix build .#ci.tests.all
+  #
+  #      nix run   .#ci.tests.unit
+  #      nix run   .#ci.tests.integration
   #
   #  nightly:
-  #    outputs.ci.x86_64-linux.benchmarks.run
-  #    outputs.ci.x86_64-linux.artifacts.dockerImage
-  #    … cross-compiled executables?
+  #    on x86_64-linux:
+  #      nix build  .#ci.artifacts.dockerImage
+  #
+  #      nix run    .#ci.benchmarks.restore
+  #      nix run    .#ci.benchmarks.…
+  #
+  #    on x65_64-darwin: (macos)
+  #      nix build .#ci.artifacts.win64.release
   #
   ############################################################################
 
