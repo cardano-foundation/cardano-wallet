@@ -11,7 +11,6 @@
   <a href="https://buildkite.com/input-output-hk/cardano-wallet"><img src="https://img.shields.io/buildkite/7ea3dac7a16f066d8dfc8f426a9a9f7a2131e899cd96c444cf/master?label=BUILD&style=for-the-badge"/></a>
   <a href="https://buildkite.com/input-output-hk/cardano-wallet-nightly"><img src="https://img.shields.io/buildkite/59ea9363b8526e867005ca8839db47715bc5f661f36e490143/master?label=BENCHMARK&style=for-the-badge" /></a>
   <a href="https://github.com/input-output-hk/cardano-wallet/actions?query=workflow%3Awindows"><img src="https://img.shields.io/github/workflow/status/input-output-hk/cardano-wallet/windows?label=Windows&style=for-the-badge" /></a>
-  <a href="https://hydra.iohk.io/jobset/Cardano/cardano-wallet#tabs-jobs"><img src="https://img.shields.io/endpoint?style=for-the-badge&url=https%3A%2F%2Fhydra.iohk.io%2Fjob%2FCardano%2Fcardano-wallet%2Frequired%2Fshield" /></a>
   <a href="https://github.com/input-output-hk/cardano-wallet/actions/workflows/publish.yml"><img src="https://img.shields.io/github/workflow/status/input-output-hk/cardano-wallet/Publish%20Docs?label=Docs&style=for-the-badge" /></a>
 
   <!--
