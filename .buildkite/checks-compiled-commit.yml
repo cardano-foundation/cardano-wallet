@@ -19,6 +19,12 @@ steps:
     agents:
       system: x86_64-linux
 
+  - label: 'Build all benchmarks'
+    depends_on: nix
+    command: 'nix build .#ci.benchmarks.all'
+    agents:
+      system: x86_64-linux
+
   - label: 'Run unit tests on linux'
     depends_on: nix
     command: 'nix build -L .#ci.x86_64-linux.tests.run.unit'

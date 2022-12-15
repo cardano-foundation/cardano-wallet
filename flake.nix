@@ -559,6 +559,14 @@
             };
           }) // {
             # Continuous integration builds
+            ci.benchmarks = packages.benchmarks.cardano-wallet // {
+              all = pkgs.releaseTools.aggregate {
+                name = "cardano-wallet-benchmarks";
+                meta.description = "Build all benchmarks";
+                constituents =
+                  lib.collect lib.isDerivation packages.benchmarks;
+              };
+            };
             ci.artifacts = mkReleaseArtifacts project // {
               dockerImage = packages.dockerImage;
             };
