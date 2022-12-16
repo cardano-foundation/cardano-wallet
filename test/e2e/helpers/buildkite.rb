@@ -7,6 +7,7 @@ require 'httparty'
 # Buildkite helper
 class Buildkite
   include HTTParty
+  include Helpers::Utils
 
   attr_reader :org, :pipeline, :client
 
@@ -36,9 +37,9 @@ class Buildkite
     build_details(last_build_number(options))
   end
 
-  # get job details for given build number: job_name => job_id
+  # get job details for given build number: job_key => job_id
   def jobs(build_no)
-    build_details(build_no)[:jobs].to_h { |j| [j[:name], j[:id]] }
+    build_details(build_no)[:jobs].to_h { |j| [j[:step_key], j[:id]] }
   end
 
   # get list of artifacts for given job_id
@@ -62,5 +63,12 @@ class Buildkite
   # we assume that there is only one artifact for given job
   def get_artifact_url(build_no, job_id)
     make_artifact_url_downloadable(artifact_urls(build_no, job_id).first)
+  end
+
+  def get_artifacts(build_no, job_id, target_dir)
+    url = get_artifact_url(build_no, job_id)
+    target_file = 'binary-dist'
+    wget(url, target_file)
+    unzip_artifact(target_file, target_dir)
   end
 end

@@ -24,6 +24,7 @@ steps:
 
   - label: 'Build cardano-wallet package for Linux'
     depends_on: nix
+    key: build-linux
     command: nix build -o result/linux .#ci.x86_64-linux.artifacts.linux64.release
     artifact_paths: [ "./result/linux/**" ]
     agents:
@@ -31,6 +32,7 @@ steps:
 
   - label: 'Build cardano-wallet package for Windows'
     depends_on: nix
+    key: build-windows
     command: nix build -o result/windows .#ci.x86_64-linux.artifacts.win64.release
     artifact_paths: [ "./result/windows/**" ]
     agents:
@@ -38,6 +40,7 @@ steps:
 
   - label: 'Build cardano-wallet package for Macos (Intel)'
     depends_on: nix
+    key: build-macos
     command: nix build -o result/macos-intel .#ci.x86_64-darwin.artifacts.macos-intel.release
     artifact_paths: [ "./result/macos-intel/**" ]
     agents:
