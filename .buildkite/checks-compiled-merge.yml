@@ -9,7 +9,7 @@ env:
 
 steps:
 
-  # linux 
+  # regenerate
   - label: 'Check auto-generated Nix on linux'
     key: linux-nix
     commands:
@@ -17,39 +17,45 @@ steps:
     agents:
       system: ${linux}
 
-  - block: "Unblock integration tests on linux"
+  - label: 'Check auto-generated Nix on macos'
+    key: macos-nix
+    commands:
+      - './nix/regenerate.sh'
+    agents:
+      system: ${macos}
+
+  - block: "Integration tests on linux"
     if: '(build.branch != "staging") && (build.branch != "trying")'
-    prompt: "Clicking this button will proceed with integration tests"
-    key: trigger_integration_tests
+    key: trigger-linux
+    prompt: "Clicking this button will proceed with linux integration tests"
     depends_on:
       - linux-nix
 
   - label: 'Run integration tests on linux'
-    depends_on: trigger_integration_tests
     command: 'nix build -L .#ci.${linux}.tests.run.integration'
+    depends_on:
+      trigger-linux
     agents:
       system: ${linux}
 
-  # macos
-  # TODO: Currently does not work due to nix version too old on
-  # build agents?
-  #
-  # - label: 'Check auto-generated Nix on macos'
-  #   key: macos-nix
-  #   commands:
-  #     - './nix/regenerate.sh'
-  #   agents:
-  #     system: ${macos}
+  - block: "Unit test on macos"
+    if: '(build.branch != "staging") && (build.branch != "trying")'
+    key: trigger-macos
+    prompt: "Clicking this button will proceed with macos unit tests"
+    depends_on:
+      - macos-nix
 
-  # - label: 'Build all tests on macos'
-  #   depends_on: macos-nix
-  #   command: 'nix build .#ci.tests.all'
-  #   agents:
-  #     system: ${macos}
+  - label: 'Build all tests on macos'
+    depends_on: [macos-nix, trigger-macos]
+    key: macos-build-tests
+    command: 'nix build .#ci.tests.all'
+    agents:
+      system: ${macos}
 
-  # - label: 'Run unit tests on macos'
-  #   key: macos-checks-runUnit
-  #   depends_on: macos-nix
-  #   command: 'nix build -L .#ci.${macos}.tests.run.unit'
-  #   agents:
-  #     system: ${macos}
+  - label: 'Run unit tests on macos'
+    key: macos-checks-runUnit
+    depends_on: macos-build-tests
+    command: 'GC_DONT_GC=1 nix build -L .#ci.${macos}.tests.run.unit'
+    agents:
+      system: ${macos}
+
