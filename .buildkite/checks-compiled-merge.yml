@@ -43,7 +43,7 @@ steps:
 
   # - label: 'Build all tests on macos'
   #   depends_on: macos-nix
-  #   command: 'nix build .#ci.${macos}.tests.build'
+  #   command: 'nix build .#ci.tests.all'
   #   agents:
   #     system: ${macos}
 

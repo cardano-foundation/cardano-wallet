@@ -15,7 +15,13 @@ steps:
 
   - label: 'Build all tests'
     depends_on: nix
-    command: 'nix build .#ci.x86_64-linux.tests.build'
+    command: 'nix build .#ci.tests.all'
+    agents:
+      system: x86_64-linux
+
+  - label: 'Build all benchmarks'
+    depends_on: nix
+    command: 'nix build .#ci.benchmarks.all'
     agents:
       system: x86_64-linux
 

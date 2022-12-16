@@ -42,7 +42,7 @@ RUN test -n "${USE_IOHK_CACHE}" && ( echo "Note: using IOHK nix cache" > /dev/st
 
 # Make a docker layer with a warm cache (helps re-use compilers for
 # subsequent builds).
-RUN nix --experimental-features "nix-command flakes" build github:input-output-hk/cardano-wallet#hydraJobs.linux.musl.cardano-wallet --no-link
+RUN nix --experimental-features "nix-command flakes" build github:input-output-hk/cardano-wallet#ci.artifacts.linux64.release --no-link
 
 
 ############################################################################
@@ -61,7 +61,7 @@ WORKDIR cardano-wallet
 # Build
 
 # Build the wallet and node static binaries package, untar to "out" directory
-RUN nix --experimental-features "nix-command flakes" build .#ci.x86_64-linux.artifacts.linux64.release
+RUN nix --experimental-features "nix-command flakes" build .#ci.artifacts.linux64.release
 RUN tar -xzvf result/*.tar.gz
 RUN rm result
 RUN mv cardano-wallet-* ../out
