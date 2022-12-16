@@ -20,6 +20,8 @@ module Test.Integration.Scenario.API.Shared.Transactions
 
 import Prelude
 
+import Cardano.Address.Script
+    ( KeyHash (..), Script (..) )
 import Cardano.Mnemonic
     ( MkSomeMnemonic (..) )
 import Cardano.Wallet.Api.Types
@@ -153,6 +155,7 @@ import Test.Integration.Framework.TestData
     , errMsg404NoWallet
     )
 
+import qualified Cardano.Address.Script as CA
 import qualified Cardano.Address.Style.Shelley as CA
 import qualified Cardano.Api as Cardano
 import qualified Cardano.Wallet.Api.Link as Link
@@ -727,6 +730,8 @@ spec = describe "SHARED_TRANSACTIONS" $ do
             (Link.decodeTransaction @'Shared sharedWal2) Default decodePayload1
         rDecodedTx1Wal3 <- request @(ApiDecodedTransaction n) ctx
             (Link.decodeTransaction @'Shared sharedWal3) Default decodePayload1
+        rDecodedTx1Target <- request @(ApiDecodedTransaction n) ctx
+            (Link.decodeTransaction @'Shelley wb) Default decodePayload1
 
         let expectedFee = getFromResponse (#fee . #getQuantity) rTx
         let (ApiScriptTemplate scriptTemplate) =
@@ -745,6 +750,16 @@ spec = describe "SHARED_TRANSACTIONS" $ do
         verify rDecodedTx1Wal2 witsExp1
         verify rDecodedTx1Wal3 witsExp1
 
+        -- for shelley wallet the script's verification key is unknown,
+        -- it only is aware of its policy verification key
+        let noVerKeyWitnessHex = mkApiWitnessCount WitnessCount
+                { verificationKey = 0
+                , scripts = [changeRole CA.Unknown paymentScript]
+                , bootstrap = 0
+                }
+        let witsExp1hex = [ expectField (#witnessCount) (`shouldBe` noVerKeyWitnessHex) ]
+        verify rDecodedTx1Target witsExp1hex
+
         -- adding one witness
         let (ApiSerialisedTransaction apiTx1 _) =
                 getFromResponse #transaction rTx
@@ -757,6 +772,8 @@ spec = describe "SHARED_TRANSACTIONS" $ do
             (Link.decodeTransaction @'Shared sharedWal2) Default decodePayload2
         rDecodedTx2Wal3 <- request @(ApiDecodedTransaction n) ctx
             (Link.decodeTransaction @'Shared sharedWal3) Default decodePayload2
+        rDecodedTx2Target <- request @(ApiDecodedTransaction n) ctx
+            (Link.decodeTransaction @'Shelley wb) Default decodePayload2
 
         let oneVerKeyWitness = mkApiWitnessCount WitnessCount
                 { verificationKey = 1
@@ -768,6 +785,15 @@ spec = describe "SHARED_TRANSACTIONS" $ do
         verify rDecodedTx2Wal1 witsExp2
         verify rDecodedTx2Wal2 witsExp2
         verify rDecodedTx2Wal3 witsExp2
+        -- for shelley wallet the script's verification key is unknown,
+        -- it only is aware of its policy verification key
+        let oneVerKeyWitnessHex = mkApiWitnessCount WitnessCount
+                { verificationKey = 1
+                , scripts = [changeRole CA.Unknown paymentScript]
+                , bootstrap = 0
+                }
+        let witsExp2hex = [ expectField (#witnessCount) (`shouldBe` oneVerKeyWitnessHex) ]
+        verify rDecodedTx2Target witsExp2hex
 
         submittedTx1 <- submitSharedTxWithWid ctx sharedWal1 signedTx1
         verify submittedTx1
@@ -1975,3 +2001,16 @@ spec = describe "SHARED_TRANSACTIONS" $ do
                         (#balance . #available . #getQuantity)
                         (`shouldBe` amt)
                 ]
+
+     changeRole :: CA.KeyRole -> AnyScript -> AnyScript
+     changeRole role = \case
+         NativeScript script ->
+             let changeRole' = \case
+                     RequireSignatureOf (KeyHash _ p) -> RequireSignatureOf $ KeyHash role p
+                     RequireAllOf xs      -> RequireAllOf (map changeRole' xs)
+                     RequireAnyOf xs      -> RequireAnyOf (map changeRole' xs)
+                     RequireSomeOf m xs   -> RequireSomeOf m (map changeRole' xs)
+                     ActiveFromSlot s     -> ActiveFromSlot s
+                     ActiveUntilSlot s    -> ActiveUntilSlot s
+             in NativeScript $ changeRole' script
+         PlutusScript _ -> error "wrong usage"
