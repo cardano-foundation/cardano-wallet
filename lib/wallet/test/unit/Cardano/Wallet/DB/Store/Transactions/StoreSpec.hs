@@ -31,7 +31,7 @@ import Cardano.Wallet.DB.Store.Transactions.Model
     , mkTxSet
     )
 import Cardano.Wallet.DB.Store.Transactions.Store
-    ( DBTxSet (getTxById), mkDBTxSet, mkStoreTransactions )
+    ( mkStoreTransactions, selectTx )
 import Cardano.Wallet.Primitive.Types.Tx
     ( Tx (..) )
 import Control.Monad
@@ -63,9 +63,9 @@ spec = do
         describe "Transactions store" $ do
             it "respects store laws" $
                 property . prop_StoreLaws
-        describe "DBTxSet" $
-                it "can be queried by id" $
-                    property . prop_getTxById
+        describe "selectTx" $
+            it "retrieves transaction that was written" $
+                property . prop_selectTx
 
     describe "TxOut decoration" $ do
         it
@@ -76,6 +76,7 @@ spec = do
             "reports a transaction where collateral inputs point \
             \to all other transactions output"
             $ property prop_DecorateLinksTxCollateralsToTxOuts
+
 {-----------------------------------------------------------------------------
     Properties
 ------------------------------------------------------------------------------}
@@ -166,11 +167,11 @@ genDeltas (TxSet pile) =
 genTxSet :: Gen TxSet
 genTxSet = (`apply` mempty) <$> genDeltas mempty
 
-prop_getTxById :: StoreProperty
-prop_getTxById =
+prop_selectTx :: StoreProperty
+prop_selectTx =
     withStoreProp $ \runQ ->
         forAllM genTxSet $ \txs -> do
             runQ $ writeS mkStoreTransactions txs
             forM_ (Map.assocs $ relations txs) $ \(txId, tx) -> do
-                Just tx' <- runQ $ getTxById mkDBTxSet txId
+                Just tx' <- runQ $ selectTx txId
                 assertWith "relation is consistent" $ tx == tx'

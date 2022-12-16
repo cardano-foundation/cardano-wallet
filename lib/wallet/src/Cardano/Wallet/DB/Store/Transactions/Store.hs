@@ -16,9 +16,10 @@ Implementation of a 'Store' for 'TxSet'.
 module Cardano.Wallet.DB.Store.Transactions.Store
     ( selectTxSet
     , putTxSet
+    , updateTxSet
     , mkStoreTransactions
-    , mkDBTxSet
-    , DBTxSet (..)
+
+    , selectTx
     ) where
 
 import Prelude
@@ -87,11 +88,11 @@ mkStoreTransactions =
     Store
     { loadS = Right <$> selectTxSet
     , writeS = write
-    , updateS = const update
+    , updateS = const updateTxSet
     }
 
-update :: DeltaTxSet -> SqlPersistT IO ()
-update change = case change of
+updateTxSet :: DeltaTxSet -> SqlPersistT IO ()
+updateTxSet change = case change of
     Append txs -> putTxSet txs
     DeleteTx tid -> do
         deleteWhere [TxInputTxId ==. tid ]
@@ -234,18 +235,3 @@ selectTx k = select
                 , withdrawals = sortOn txWithdrawalAccount withds
                 , cbor = listToMaybe mcbor
                 }
-
--- | A database layer that stores transactions.
-data DBTxSet stm = DBTxSet
-    { getTxById
-        :: TxId -> stm (Maybe TxRelation)
-    , updateTxSet
-        :: DeltaTxSet -> stm ()
-    }
-
--- | Create a 'DBTxSet' specialized for sqlite backend
-mkDBTxSet :: DBTxSet (SqlPersistT IO)
-mkDBTxSet = DBTxSet
-    {   getTxById = selectTx
-    ,   updateTxSet = update
-    }

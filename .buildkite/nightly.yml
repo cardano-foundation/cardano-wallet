@@ -71,11 +71,3 @@ steps:
   #   agents:
   #     system: x86_64-linux
   #   if: 'build.env("step") == null || build.env("step") =~ /migration-tests/'
-
-  - wait
-
-  - label: "Advance linux-tests-pass and all-tests-pass branches"
-    command: "./.buildkite/push-branch.sh linux-tests-pass windows-tests-pass all-tests-pass"
-    agents:
-      system: x86_64-linux
-    if: 'build.env("step") == null'
