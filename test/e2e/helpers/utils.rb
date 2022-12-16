@@ -111,9 +111,9 @@ module Helpers
       if win?
         cmd "unzip -o #{target_file} -d #{target_dir}"
       else
-        cmd 'rm -rf cardano-wallet-*/'
         cmd "tar -xvf #{target_file}"
         cmd "cp -r cardano-wallet-*/* #{target_dir}"
+        cmd 'rm -rf cardano-wallet-*/'
       end
     end
 

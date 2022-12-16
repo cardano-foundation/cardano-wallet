@@ -241,29 +241,17 @@ task :get_latest_bins, [:branch] do |_task, args|
   mk_dir(BINS)
 
   if linux?
-    job_name = 'Build cardano-wallet package for Linux'
-    job_id = jobs[job_name]
-    log "Getting '#{job_name}' artifact 👇"
-    url = bk.get_artifact_url(last_build, job_id)
-    target_file = 'binary-dist.tar.gz'
-    wget(url, target_file)
-    unzip_artifact(target_file, BINS)
+    job_key = 'build-linux'
+    log "Getting '#{job_key}' artifact 👇"
+    bk.get_artifacts(last_build, jobs[job_key], BINS)
   elsif win?
-    job_name = 'Build cardano-wallet package for Windows'
-    job_id = jobs[job_name]
-    log "Getting '#{job_name}' artifact 👇"
-    url = bk.get_artifact_url(last_build, job_id)
-    target_file = 'binary-dist.zip'
-    wget(url, target_file)
-    unzip_artifact(target_file, BINS)
+    job_key = 'build-windows'
+    log "Getting '#{job_key}' artifact 👇"
+    bk.get_artifacts(last_build, jobs[job_key], BINS)
   elsif mac?
-    job_name = 'Build cardano-wallet package for Macos (Intel)'
-    job_id = jobs[job_name]
-    log "Getting '#{job_name}' artifact 👇"
-    url = bk.get_artifact_url(last_build, job_id)
-    target_file = 'binary-dist.tar.gz'
-    wget(url, target_file)
-    unzip_artifact(target_file, BINS)
+    job_key = 'build-macos'
+    log "Getting '#{job_key}' artifact 👇"
+    bk.get_artifacts(last_build, jobs[job_key], BINS)
   end
 end
 
