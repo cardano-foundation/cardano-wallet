@@ -141,26 +141,13 @@ module Helpers
       RUBY_PLATFORM =~ /darwin/
     end
 
-    def get_latest_binary_url(pr = nil)
-      os = 'linux.musl.cardano-wallet-linux64' if linux?
-      os = 'macos.intel.cardano-wallet-macos-intel' if mac?
-      os = 'linux.windows.cardano-wallet-win64' if win?
-      if pr
-        "https://hydra.iohk.io/job/Cardano/cardano-wallet-pr-#{pr}/#{os}/latest/download-by-type/file/binary-dist"
-      else
-        "https://hydra.iohk.io/job/Cardano/cardano-wallet/#{os}/latest/download-by-type/file/binary-dist"
-      end
-    end
-
     ##
     # Latest Cardano configs
     def get_latest_configs_base_url(env)
-      case env
-      when 'mainnet', 'testnet', /vasil-*/, 'preview', 'preprod', 'shelley-qa'
-        "https://book.world.dev.cardano.org/environments/#{env}/"
-      else
-        "https://hydra.iohk.io/job/Cardano/iohk-nix/cardano-deployment/latest/download/1/#{env}-"
-      end
+      envs = %w[preview preprod].freeze
+      raise "Env '#{env}' is not supported, supported are: #{envs}" unless envs.include? env
+
+      "https://book.world.dev.cardano.org/environments/#{env}/"
     end
 
     ##
