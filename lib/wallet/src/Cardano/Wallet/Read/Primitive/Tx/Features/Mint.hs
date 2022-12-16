@@ -162,7 +162,7 @@ fromMaryScriptMap
         (SL.Core.Script (MA.ShelleyMAEra 'MA.Mary StandardCrypto))
     -> Map TokenPolicyId AnyScript
 fromMaryScriptMap =
-        Map.map (NativeScript . toWalletScript Policy) .
+        Map.map (NativeScript . toWalletScript (const Policy)) .
         Map.mapKeys (toWalletTokenPolicyId . SL.PolicyID)
 
 getScriptMap
@@ -186,7 +186,7 @@ fromAlonzoScriptMap =
     Map.mapKeys (toWalletTokenPolicyId . SL.PolicyID)
     where
     toAnyScript (Alonzo.TimelockScript script) =
-        NativeScript $ toWalletScript Policy script
+        NativeScript $ toWalletScript (const Policy) script
     toAnyScript (Alonzo.PlutusScript ver _) =
         PlutusScript (PlutusScriptInfo (toPlutusVer ver))
 
@@ -203,7 +203,7 @@ fromBabbageScriptMap =
     Map.mapKeys (toWalletTokenPolicyId . SL.PolicyID)
     where
     toAnyScript (Alonzo.TimelockScript script) =
-        NativeScript $ toWalletScript Policy script
+        NativeScript $ toWalletScript (const Policy) script
     toAnyScript (Alonzo.PlutusScript ver _) =
         PlutusScript (PlutusScriptInfo (toPlutusVer ver))
 

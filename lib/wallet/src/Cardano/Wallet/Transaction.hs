@@ -59,7 +59,7 @@ import Prelude
 import Cardano.Address.Derivation
     ( XPrv, XPub )
 import Cardano.Address.Script
-    ( KeyHash, KeyRole (..), Script, ScriptTemplate )
+    ( KeyHash (..), KeyRole (..), Script, ScriptTemplate )
 import Cardano.Api
     ( AnyCardanoEra )
 import Cardano.Api.Extra
@@ -112,6 +112,8 @@ import Cardano.Wallet.Primitive.Types.Tx.TxOut
     ( TxOut (..) )
 import Control.DeepSeq
     ( NFData (..) )
+import Data.ByteString
+    ( ByteString )
 import Data.List.NonEmpty
     ( NonEmpty )
 import Data.Map.Strict
@@ -504,19 +506,23 @@ emptyWitnessCount = WitnessCount
 -- in native scripts.
 -- In shelley wallets they could be present due to only policy verification key.
 -- In multisig wallet they could stem from payment, policy and delegation roles,
--- and as minting/burning and delegation support comes will be extended in needed
--- data to differentiate that.
+-- and as minting/burning and delegation support comes will be extended in additional
+-- data attached in SharedWalletCtx to differentiate that.
 -- WitnessCount is needed only during or after signing, in other phases it is not used.
 data WitnessCountCtx =
-    ShelleyWalletCtx | SharedWalletCtx | AnyWitnessCountCtx
+    ShelleyWalletCtx KeyHash | SharedWalletCtx | AnyWitnessCountCtx
     deriving (Eq, Generic, Show)
     deriving anyclass NFData
 
-toKeyRole :: WitnessCountCtx -> KeyRole
-toKeyRole = \case
-    ShelleyWalletCtx -> Policy
+toKeyRole :: WitnessCountCtx -> ByteString -> KeyRole
+toKeyRole witCtx key = case witCtx of
+    ShelleyWalletCtx (KeyHash _ mypolicykey) ->
+        if key == mypolicykey then
+            Policy
+        else
+            Unknown
     SharedWalletCtx -> Payment
-    AnyWitnessCountCtx -> error "WtinessCountCtx was used in wrong place"
+    AnyWitnessCountCtx -> error "toKeyRole was used in wrong WitnessCountCtx"
 
 data ErrMkTransaction
     = ErrMkTransactionNoSuchWallet WalletId

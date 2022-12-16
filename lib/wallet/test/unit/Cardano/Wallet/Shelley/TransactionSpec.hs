@@ -31,7 +31,11 @@ import Prelude
 import Cardano.Address.Derivation
     ( XPrv, XPub, toXPub, xprvFromBytes, xprvToBytes, xpubPublicKey )
 import Cardano.Address.Script
-    ( KeyHash (..), KeyRole (Delegation, Payment), Script, serializeScript )
+    ( KeyHash (..)
+    , KeyRole (Delegation, Payment, Policy)
+    , Script
+    , serializeScript
+    )
 import Cardano.Api
     ( AnyCardanoEra (..)
     , CardanoEra (..)
@@ -2382,7 +2386,9 @@ balanceTransactionSpec = describe "balanceTransaction" $ do
         let balance = balanceTransaction' wallet testStdGenSeed
         let totalOutput tx =
                 let (wtx, _, _, _, _, _) =
-                        decodeTx testTxLayer maxBound ShelleyWalletCtx (sealedTxFromCardano' tx)
+                        decodeTx testTxLayer maxBound
+                        (ShelleyWalletCtx dummyPolicyK)
+                        (sealedTxFromCardano' tx)
                 in
                     F.foldMap (view (#tokens . #coin)) (view #outputs wtx)
                     <> fromMaybe (Coin 0) (view #fee wtx)
@@ -4025,7 +4031,7 @@ sealedInputs =
     . map fst
     . view #resolvedInputs
     . fst6
-    . _decodeSealedTx maxBound ShelleyWalletCtx
+    . _decodeSealedTx maxBound (ShelleyWalletCtx dummyPolicyK)
 
 sealedCollateralInputs
     :: SealedTx -> Set TxIn
@@ -4034,7 +4040,7 @@ sealedCollateralInputs =
     . map fst
     . view #resolvedCollateralInputs
     . fst6
-    . _decodeSealedTx maxBound ShelleyWalletCtx
+    . _decodeSealedTx maxBound (ShelleyWalletCtx dummyPolicyK)
 
 sealedOutputs
     :: SealedTx -> Set TxOut
@@ -4042,7 +4048,7 @@ sealedOutputs =
     Set.fromList
     . view #outputs
     . fst6
-    . _decodeSealedTx maxBound ShelleyWalletCtx
+    . _decodeSealedTx maxBound (ShelleyWalletCtx dummyPolicyK)
 
 sealedNumberOfRedeemers :: SealedTx -> Int
 sealedNumberOfRedeemers sealedTx =
@@ -4075,7 +4081,8 @@ sealedFee
 sealedFee =
     view #fee
     . fst6
-    . _decodeSealedTx maxBound ShelleyWalletCtx . sealedTxFromCardano'
+    . _decodeSealedTx maxBound (ShelleyWalletCtx dummyPolicyK)
+    . sealedTxFromCardano'
 
 paymentPartialTx :: [TxOut] -> PartialTx Cardano.BabbageEra
 paymentPartialTx txouts = PartialTx (Cardano.Tx body []) mempty []
@@ -4337,3 +4344,6 @@ shelleyBasedTxFromBytes bytes =
 
 cardanoTx :: SealedTx -> InAnyCardanoEra Cardano.Tx
 cardanoTx = cardanoTxIdeallyNoLaterThan maxBound
+
+dummyPolicyK :: KeyHash
+dummyPolicyK = KeyHash Policy (BS.replicate 32 0)
