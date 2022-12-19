@@ -603,9 +603,9 @@ localStateQuery queue =
               -> (a -> (LSQ.ClientStAcquired block (Point block) (Query block) m Void))
               -> (LSQ.ClientStAcquired block (Point block) (Query block) m Void)
           go (LSQPure a) cont = cont a
-          go (LSQry qry) cont = LSQ.SendMsgQuery (BlockQuery qry)
-            -- We only need to support queries of the type `BlockQuery`.
-            $ LSQ.ClientStQuerying $ \res -> do
+          go (LSQry qry) cont = LSQ.SendMsgQuery (BlockQuery qry) $
+              -- We only need to support queries of the type `BlockQuery`.
+              LSQ.ClientStQuerying $ \res -> do
                   pure $ cont res
                   -- It would be nice to trace the time it takes to run the
                   -- queries. We don't have a good opportunity to run IO after a
