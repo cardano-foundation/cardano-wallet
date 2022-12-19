@@ -39,7 +39,7 @@ steps:
       system: x86_64-linux
 
   - label: 'Build Windows testing bundle'
-    depends_on: nix
+    depends_on: [nix, build_windows]
     command: nix build -o result/windows-tests .#ci.artifacts.win64.tests
     artifact_paths: [ "./result/windows-tests/**" ]
     agents:
