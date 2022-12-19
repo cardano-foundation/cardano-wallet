@@ -1333,9 +1333,9 @@ spec = describe "SHELLEY_WALLETS" $ do
         expectResponseCode HTTP.status404 r
         expectErrorMessage (errMsg404NoWallet $ w ^. walletId) r
 
-    it "BYRON_LIST_02,03 -\
-        \ Byron wallets listed only via Byron endpoints \\\
-        \ Shelley wallets listed only via new endpoints" $ \ctx -> runResourceT $ do
+    it "BYRON_LIST_02,03 - \
+        \Byron wallets listed only via Byron endpoints + \
+        \Shelley wallets listed only via new endpoints" $ \ctx -> runResourceT $ do
         m1 <- liftIO $ genMnemonics M12
         m2 <- liftIO $ genMnemonics M12
         m3 <- liftIO $ genMnemonics M12
@@ -1376,8 +1376,8 @@ spec = describe "SHELLEY_WALLETS" $ do
                     (#name . #getApiT . #getWalletName) (`shouldBe` "shelley3")
             ]
 
-    it "BYRON_LIST_04, DELETE_01 -\
-        \ Deleted wallets cannot be listed" $ \ctx -> runResourceT $ do
+    it "BYRON_LIST_04, DELETE_01 - \
+        \Deleted wallets cannot be listed" $ \ctx -> runResourceT $ do
         m1 <- liftIO $ genMnemonics M12
         m2 <- liftIO $ genMnemonics M12
         m3 <- liftIO $ genMnemonics M12
