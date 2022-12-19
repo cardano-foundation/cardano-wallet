@@ -2,7 +2,6 @@
   pkgs = hackage:
     {
       packages = {
-        "system-fileio".revision = (((hackage."system-fileio")."0.3.16.4").revisions).default;
         "streaming-commons".revision = (((hackage."streaming-commons")."0.2.2.4").revisions).default;
         "streaming-commons".flags.use-bytestring-builder = false;
         "pretty".revision = (((hackage."pretty")."1.1.3.6").revisions).default;
@@ -17,7 +16,7 @@
         "network".flags.devel = false;
         "parser-combinators".revision = (((hackage."parser-combinators")."1.3.0").revisions).default;
         "parser-combinators".flags.dev = false;
-        "vector".revision = (((hackage."vector")."0.12.3.1").revisions).default;
+        "vector".revision = (((hackage."vector")."0.13.0.0").revisions).default;
         "vector".flags.internalchecks = false;
         "vector".flags.wall = false;
         "vector".flags.boundschecks = true;
@@ -29,7 +28,7 @@
         "comonad".flags.distributive = true;
         "comonad".flags.indexed-traversable = true;
         "profunctors".revision = (((hackage."profunctors")."5.6.2").revisions).default;
-        "extra".revision = (((hackage."extra")."1.7.10").revisions).default;
+        "extra".revision = (((hackage."extra")."1.7.12").revisions).default;
         "contravariant".revision = (((hackage."contravariant")."1.5.5").revisions).default;
         "contravariant".flags.tagged = true;
         "contravariant".flags.semigroups = true;
@@ -52,16 +51,17 @@
         "filepath".revision = (((hackage."filepath")."1.4.2.1").revisions).default;
         "stm".revision = (((hackage."stm")."2.5.0.1").revisions).default;
         "foldl".revision = (((hackage."foldl")."1.4.12").revisions).default;
-        "unix-compat".revision = (((hackage."unix-compat")."0.5.4").revisions).default;
+        "unix-compat".revision = (((hackage."unix-compat")."0.6").revisions).default;
         "unix-compat".flags.old-time = false;
         "case-insensitive".revision = (((hackage."case-insensitive")."1.2.1.0").revisions).default;
         "ghc-prim".revision = (((hackage."ghc-prim")."0.6.1").revisions).default;
+        "vector-stream".revision = (((hackage."vector-stream")."0.1.0.0").revisions).default;
         "ghc-boot-th".revision = (((hackage."ghc-boot-th")."8.10.7").revisions).default;
         "indexed-traversable".revision = (((hackage."indexed-traversable")."0.1.2").revisions).default;
         "distributive".revision = (((hackage."distributive")."0.6.2.1").revisions).default;
         "distributive".flags.tagged = true;
         "distributive".flags.semigroups = true;
-        "bifunctors".revision = (((hackage."bifunctors")."5.5.12").revisions).default;
+        "bifunctors".revision = (((hackage."bifunctors")."5.5.13").revisions).default;
         "bifunctors".flags.tagged = true;
         "bifunctors".flags.semigroups = true;
         "base".revision = (((hackage."base")."4.14.3.0").revisions).default;
@@ -73,7 +73,7 @@
         "system-filepath".revision = (((hackage."system-filepath")."0.4.14").revisions).default;
         "megaparsec".revision = (((hackage."megaparsec")."9.2.1").revisions).default;
         "megaparsec".flags.dev = false;
-        "th-abstraction".revision = (((hackage."th-abstraction")."0.4.3.0").revisions).default;
+        "th-abstraction".revision = (((hackage."th-abstraction")."0.4.5.0").revisions).default;
         "semigroupoids".revision = (((hackage."semigroupoids")."5.3.7").revisions).default;
         "semigroupoids".flags.tagged = true;
         "semigroupoids".flags.containers = true;
@@ -84,8 +84,8 @@
         "hsc2hs".revision = (((hackage."hsc2hs")."0.68.8").revisions).default;
         "hsc2hs".flags.in-ghc-tree = false;
         "managed".revision = (((hackage."managed")."1.0.9").revisions).default;
-        "base-orphans".revision = (((hackage."base-orphans")."0.8.6").revisions).default;
-        "primitive".revision = (((hackage."primitive")."0.7.3.0").revisions).default;
+        "base-orphans".revision = (((hackage."base-orphans")."0.8.7").revisions).default;
+        "primitive".revision = (((hackage."primitive")."0.7.4.0").revisions).default;
         "directory".revision = (((hackage."directory")."1.3.6.0").revisions).default;
         "exceptions".revision = (((hackage."exceptions")."0.10.4").revisions).default;
         "optparse-applicative".revision = (((hackage."optparse-applicative")."0.17.0.0").revisions).default;
@@ -94,19 +94,19 @@
         "clock".flags.llvm = false;
         "hostname".revision = (((hackage."hostname")."1.0").revisions).default;
         "rts".revision = (((hackage."rts")."1.0.1").revisions).default;
-        "turtle".revision = (((hackage."turtle")."1.5.25").revisions).default;
+        "turtle".revision = (((hackage."turtle")."1.6.1").revisions).default;
         "transformers".revision = (((hackage."transformers")."0.5.6.2").revisions).default;
         "template-haskell".revision = (((hackage."template-haskell")."2.16.0.0").revisions).default;
         "deepseq".revision = (((hackage."deepseq")."1.4.4.0").revisions).default;
         "unix".revision = (((hackage."unix")."2.7.2.2").revisions).default;
         "ansi-terminal".revision = (((hackage."ansi-terminal")."0.11.3").revisions).default;
         "ansi-terminal".flags.example = false;
-        "hashable".revision = (((hackage."hashable")."1.4.0.2").revisions).default;
+        "hashable".revision = (((hackage."hashable")."1.4.1.0").revisions).default;
         "hashable".flags.containers = true;
         "hashable".flags.random-initial-seed = false;
         "hashable".flags.integer-gmp = true;
         "integer-gmp".revision = (((hackage."integer-gmp")."1.0.3.0").revisions).default;
-        "transformers-compat".revision = (((hackage."transformers-compat")."0.7.1").revisions).default;
+        "transformers-compat".revision = (((hackage."transformers-compat")."0.7.2").revisions).default;
         "transformers-compat".flags.two = false;
         "transformers-compat".flags.mtl = true;
         "transformers-compat".flags.four = false;
@@ -194,7 +194,6 @@
           "foldl".components.library.planned = lib.mkOverride 900 true;
           "directory".components.library.planned = lib.mkOverride 900 true;
           "time".components.library.planned = lib.mkOverride 900 true;
-          "system-fileio".components.library.planned = lib.mkOverride 900 true;
           "network".components.library.planned = lib.mkOverride 900 true;
           "StateVar".components.library.planned = lib.mkOverride 900 true;
           "case-insensitive".components.library.planned = lib.mkOverride 900 true;
@@ -226,6 +225,7 @@
           "unordered-containers".components.library.planned = lib.mkOverride 900 true;
           "random".components.library.planned = lib.mkOverride 900 true;
           "base".components.library.planned = lib.mkOverride 900 true;
+          "vector-stream".components.library.planned = lib.mkOverride 900 true;
           "integer-logarithms".components.library.planned = lib.mkOverride 900 true;
           "integer-gmp".components.library.planned = lib.mkOverride 900 true;
           "transformers-compat".components.library.planned = lib.mkOverride 900 true;
