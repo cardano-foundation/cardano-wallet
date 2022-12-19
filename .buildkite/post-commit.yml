@@ -66,6 +66,7 @@ steps:
 
   - label: 'Build Windows testing bundle'
     depends_on: nix
+    key: build-windows-tests
     command: nix build -o result/windows-tests .#ci.artifacts.win64.tests
     artifact_paths: [ "./result/windows-tests/**" ]
     agents:
@@ -78,14 +79,6 @@ steps:
     artifact_paths: [ "./result/macos-intel/**" ]
     agents:
       system: x86_64-darwin
-
-  - label: 'Build cardano-wallet package for Windows tests'
-    depends_on: nix
-    key: build-windows-tests
-    command: nix build -o result/windows .#ci.x86_64-linux.artifacts.win64-test.release
-    artifact_paths: [ "./result/windows/**" ]
-    agents:
-      system: x86_64-linux
 
   - label: 'Check Cabal Configure (Haskell.nix shellFor)'
     depends_on: nix
