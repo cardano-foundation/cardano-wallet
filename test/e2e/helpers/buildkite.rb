@@ -65,7 +65,7 @@ class Buildkite
     make_artifact_url_downloadable(artifact_urls(build_no, job_id).first)
   end
 
-  def get_artifacts(build_no, job_id, target_dir, target_file = 'binary-dist', unzip = true)
+  def get_artifacts(build_no, job_id, target_dir, target_file = 'binary-dist', unzip: true)
     url = get_artifact_url(build_no, job_id)
     wget(url, target_file)
     unzip_artifact(target_file, target_dir) if unzip
