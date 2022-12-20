@@ -67,8 +67,6 @@ import Cardano.Wallet.Primitive.Types.Tx.TxIn
     ( TxIn (..) )
 import Cardano.Wallet.Primitive.Types.Tx.TxOut
     ( TxOut (..) )
-import Data.ByteString
-    ( ByteString )
 import Data.ByteString.Short
     ( fromShort, toShort )
 import Data.Foldable
@@ -359,14 +357,14 @@ toBabbageTxOut (TxOut addr bundle) = \case
 
 toWalletScript
     :: Ledger.Crypto crypto
-    => (ByteString -> KeyRole)
+    => (Hash "VerificationKey" -> KeyRole)
     -> MA.Timelock crypto
     -> Script KeyHash
 toWalletScript tokeyrole = fromLedgerScript
   where
     fromLedgerScript (MA.RequireSignature (Ledger.KeyHash h)) =
         let payload = hashToBytes h
-        in RequireSignatureOf (KeyHash (tokeyrole payload) payload)
+        in RequireSignatureOf (KeyHash (tokeyrole (Hash payload)) payload)
     fromLedgerScript (MA.RequireAllOf contents) =
         RequireAllOf $ map fromLedgerScript $ toList contents
     fromLedgerScript (MA.RequireAnyOf contents) =

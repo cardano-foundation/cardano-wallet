@@ -94,6 +94,8 @@ import Cardano.Wallet.Primitive.Types.Address
     ( Address (..) )
 import Cardano.Wallet.Primitive.Types.Coin
     ( Coin (..) )
+import Cardano.Wallet.Primitive.Types.Hash
+    ( Hash (..) )
 import Cardano.Wallet.Primitive.Types.Redeemer
     ( Redeemer )
 import Cardano.Wallet.Primitive.Types.RewardAccount
@@ -516,8 +518,8 @@ data WitnessCountCtx =
     deriving (Eq, Generic, Show)
     deriving anyclass NFData
 
-toKeyRole :: WitnessCountCtx -> ByteString -> KeyRole
-toKeyRole witCtx key = case witCtx of
+toKeyRole :: WitnessCountCtx -> Hash "VerificationKey" -> KeyRole
+toKeyRole witCtx (Hash key) = case witCtx of
     ShelleyWalletCtx (KeyHash _ mypolicykey) ->
         if key == mypolicykey then
             Policy
