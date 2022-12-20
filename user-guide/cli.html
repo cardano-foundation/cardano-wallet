@@ -27,7 +27,7 @@
 
 
   
-  <link href='tailwind.css?instanceId=d49fe491-b854-4d28-9f97-adfecab85997' rel='stylesheet' type='text/css' />
+  <link href='tailwind.css?instanceId=a88deac9-1065-4177-8552-f27d77a6e436' rel='stylesheet' type='text/css' />
 
   <!-- Heist error element -->
   <style type='text/css'>
@@ -2501,8 +2501,7 @@ Available COMMANDS:
       Serve API that listens for commands/actions. Before launching user should start <a href='https://github.com/input-output-hk/cardano-node' class='text-blue-600 hover:underline' target='_blank' rel='noopener'><code class='py-0.5 px-0.5 bg-gray-100'>cardano-node</code></a>.
     </p>
   <div class='bg-blue-50 text-sm p-2 rounded-md shadow mb-4 mx-2'><div class='py-0.5 mb-3 text-sm'><pre><code class='language-none'>Usage: cardano-wallet serve [--listen-address HOST] 
-                            (--node-socket FILE [--sync-tolerance DURATION] | 
-                              --light --blockfrost-token-file FILE) 
+                            (--node-socket FILE [--sync-tolerance DURATION]) 
                             [--random-port | --port INT] 
                             [--tls-ca-cert FILE --tls-sv-cert FILE
                               --tls-sv-key FILE] 
@@ -2528,10 +2527,6 @@ Available options:
                            time duration within which we consider being synced
                            with the network. Expressed in seconds with a
                            trailing 's'. (default: 300s)
-  --light                  Enable light mode
-  --blockfrost-token-file FILE
-                           FILE contains an authentication token for BlockFrost
-                           Cardano API (https://blockfrost.io).
   --random-port            serve wallet API on any available port (conflicts
                            with --port)
   --port INT               port used for serving the wallet API. (default: 8090)
