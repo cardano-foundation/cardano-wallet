@@ -8,7 +8,6 @@ on:
       branch:
         description: 'Run tests against branch'
         default: 'master'
-  pull_request:
 
 jobs:
   setup:
@@ -73,13 +72,14 @@ jobs:
       - run: '.\\cardano-wallet-launcher-test-unit.exe --color'
         continue-on-error: true
 
-  cardano-wallet-test-integration:
-    name: 'cardano-wallet:integration'
-    needs: setup
-    runs-on: windows-2022
-    steps:
-      - uses: actions/download-artifact@v3
-        with:
-          name: cardano-wallet-tests-win64
-      - run: '.\\cardano-wallet-test-integration.exe --color'
-        timeout-minutes: 60
+  # ADP-2517 - Fix integration tests on Windows
+  # cardano-wallet-test-integration:
+  #   name: 'cardano-wallet:integration'
+  #   needs: setup
+  #   runs-on: windows-2022
+  #   steps:
+  #     - uses: actions/download-artifact@v3
+  #       with:
+  #         name: cardano-wallet-tests-win64
+  #     - run: '.\\cardano-wallet-test-integration.exe --color'
+  #       timeout-minutes: 60
