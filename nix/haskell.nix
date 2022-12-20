@@ -18,11 +18,6 @@ CHaP: haskell-nix: haskell-nix.cabalProject' [
         description = "Enable Haskell Program Coverage for cardano-wallet libraries and test suites.";
         default = false;
       };
-      doIntegrationCheck = lib.mkOption {
-        type = lib.types.bool;
-        description = ''Wether to run integration tests.'';
-        default = true;
-      };
       buildBenchmarks = lib.mkOption {
         type = lib.types.bool;
         description = ''Wether to run integration tests.'';
@@ -152,7 +147,7 @@ CHaP: haskell-nix: haskell-nix.cabalProject' [
       inputMap = { "https://input-output-hk.github.io/cardano-haskell-packages" = CHaP; };
 
       modules =
-        let inherit (config) src coverage profiling doIntegrationCheck buildBenchmarks;
+        let inherit (config) src coverage profiling buildBenchmarks;
         in
         [
           {
@@ -205,7 +200,7 @@ CHaP: haskell-nix: haskell-nix.cabalProject' [
               packages.cardano-wallet.components.tests = {
                 # Running Windows integration tests under Wine is disabled
                 # because ouroboros-network doesn't fully work under Wine.
-                integration.doCheck = doIntegrationCheck && !pkgs.stdenv.hostPlatform.isWindows;
+                integration.doCheck = !pkgs.stdenv.hostPlatform.isWindows;
 
                 unit.preCheck = noCacheTestFailuresCookie +
                   lib.optionalString stdenv.isDarwin ''

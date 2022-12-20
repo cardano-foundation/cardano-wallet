@@ -240,12 +240,6 @@
             # Sets the anti-cache cookie only when building a jobset for bors.
             cacheTestFailures = false;
           });
-          hydraProjectPr = hydraProject.appendModule ({ pkgs, ... }: {
-            # Don't run integration tests on PR jobsets. Note that
-            # the master branch jobset will just re-use the cached Bors
-            # staging build and test results.
-            doIntegrationCheck = false;
-          });
 
           mkPackages = project:
             let
