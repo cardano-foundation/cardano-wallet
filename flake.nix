@@ -229,11 +229,6 @@
               else self.rev or "0000000000000000000000000000000000000000";
           }
             config.haskellNix];
-          profiledProject = project.appendModule { profiling = true; };
-          hydraProjectBors = hydraProject.appendModule ({ pkgs, ... }: {
-            # Sets the anti-cache cookie only when building a jobset for bors.
-            cacheTestFailures = false;
-          });
 
           mkPackages = project:
             let
