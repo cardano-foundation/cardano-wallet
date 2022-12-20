@@ -27,7 +27,7 @@
 
 { defaultNix ? import ../default.nix {}
 , pkgs ? defaultNix.legacyPackages.pkgs
-, dockerImage ? defaultNix.hydraJobs.linux.musl.dockerImage
+, dockerImage ? defaultNix.dockerImage
 
 # Build system's Nixpkgs. We use this so that we have the same docker
 # version as the docker daemon.
