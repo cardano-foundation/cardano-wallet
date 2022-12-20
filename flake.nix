@@ -141,13 +141,9 @@
     ema = {
       url = "github:srid/ema";
     };
-    tullia = {
-      url = "github:input-output-hk/tullia";
-      inputs.nixpkgs.follows = "nixpkgs";
-    };
   };
 
-  outputs = { self, nixpkgs, hostNixpkgs, flake-utils, haskellNix, iohkNix, CHaP, customConfig, emanote, tullia, ... }:
+  outputs = { self, nixpkgs, hostNixpkgs, flake-utils, haskellNix, iohkNix, CHaP, customConfig, emanote, ... }:
     let
       inherit (nixpkgs) lib;
       config = import ./nix/config.nix lib customConfig;
@@ -535,8 +531,7 @@
                 lib.collect lib.isDerivation
                   (keepIntegrationChecks packages.checks);
             };
-        }
-        // tullia.fromSimple system (import nix/tullia.nix);
+        };
       
       systems = eachSystem supportedSystems mkOutputs;
     in
