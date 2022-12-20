@@ -18,19 +18,9 @@ CHaP: haskell-nix: haskell-nix.cabalProject' [
         description = "Enable Haskell Program Coverage for cardano-wallet libraries and test suites.";
         default = false;
       };
-      doIntegrationCheck = lib.mkOption {
-        type = lib.types.bool;
-        description = ''Wether to run integration tests.'';
-        default = true;
-      };
-      buildBenchmarks = lib.mkOption {
-        type = lib.types.bool;
-        description = ''Wether to run integration tests.'';
-        default = true;
-      };
       cacheTestFailures = lib.mkOption {
         type = lib.types.bool;
-        description = ''If false, prevent test results from being cached'';
+        description = ''If false, prevent check results from being cached on `nix build`'';
         default = true;
       };
     };
@@ -152,7 +142,7 @@ CHaP: haskell-nix: haskell-nix.cabalProject' [
       inputMap = { "https://input-output-hk.github.io/cardano-haskell-packages" = CHaP; };
 
       modules =
-        let inherit (config) src coverage profiling doIntegrationCheck buildBenchmarks;
+        let inherit (config) src coverage profiling;
         in
         [
           {
@@ -169,16 +159,6 @@ CHaP: haskell-nix: haskell-nix.cabalProject' [
               doCoverage = coverage;
             });
           }
-
-          (lib.optionalAttrs (!buildBenchmarks) {
-            packages = {
-              cardano-wallet.components.benchmarks.db.buildable = lib.mkForce false;
-              cardano-wallet.components.benchmarks = {
-                latency.buildable = lib.mkForce false;
-                restore.buildable = lib.mkForce false;
-              };
-            };
-          })
 
           # Provide configuration and dependencies to cardano-wallet components
           ({ config, pkgs, ... }:
@@ -205,7 +185,7 @@ CHaP: haskell-nix: haskell-nix.cabalProject' [
               packages.cardano-wallet.components.tests = {
                 # Running Windows integration tests under Wine is disabled
                 # because ouroboros-network doesn't fully work under Wine.
-                integration.doCheck = doIntegrationCheck && !pkgs.stdenv.hostPlatform.isWindows;
+                integration.doCheck = !pkgs.stdenv.hostPlatform.isWindows;
 
                 unit.preCheck = noCacheTestFailuresCookie +
                   lib.optionalString stdenv.isDarwin ''

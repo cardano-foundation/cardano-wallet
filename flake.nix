@@ -114,6 +114,14 @@
   #
   ############################################################################
 
+  ############################################################################
+  # TODO Continuous Integration (CI)
+  #
+  # Make the flake.nix file *itself* part of continuous integration,
+  # i.e. check that `devShells`, `scripts` or `nixosTests` evalute and build
+  # correctly.
+  ############################################################################
+
   inputs = {
     nixpkgs.follows = "haskellNix/nixpkgs-unstable";
     hostNixpkgs.follows = "nixpkgs";
@@ -141,13 +149,9 @@
     ema = {
       url = "github:srid/ema";
     };
-    tullia = {
-      url = "github:input-output-hk/tullia";
-      inputs.nixpkgs.follows = "nixpkgs";
-    };
   };
 
-  outputs = { self, nixpkgs, hostNixpkgs, flake-utils, haskellNix, iohkNix, CHaP, customConfig, emanote, tullia, ... }:
+  outputs = { self, nixpkgs, hostNixpkgs, flake-utils, haskellNix, iohkNix, CHaP, customConfig, emanote, ... }:
     let
       inherit (nixpkgs) lib;
       config = import ./nix/config.nix lib customConfig;
@@ -185,36 +189,6 @@
       keepUnitChecks =
         setEmptyAttrsWithCondition
           (path: !lib.any (name: name == "unit" || name == "test") path);
-
-      mkRequiredJob = hydraJobs:
-        let
-          nonRequiredPaths = map lib.hasPrefix [
-            # Temporarily disable macos builds until regular timeouts are fixed
-            # (ADP-1737).
-            "macos"
-          ];
-        in
-        self.legacyPackages.${lib.head supportedSystems}.pkgs.releaseTools.aggregate {
-          name = "github-required";
-          meta.description = "All jobs required to pass CI";
-          constituents = lib.collect lib.isDerivation (lib.mapAttrsRecursiveCond (v: !(lib.isDerivation v))
-            (path: value:
-              let stringPath = lib.concatStringsSep "." path; in if (lib.any (p: p stringPath) nonRequiredPaths) then { } else value)
-            hydraJobs);
-        };
-
-      mkHydraJobs = systemsJobs:
-        let hydraJobs = lib.foldl' lib.mergeAttrs { } (lib.attrValues systemsJobs);
-        in
-        hydraJobs // {
-          required = mkRequiredJob hydraJobs;
-          linux = hydraJobs.linux // {
-            required = mkRequiredJob { inherit (hydraJobs) linux; };
-          };
-          macos = hydraJobs.macos // {
-            required = mkRequiredJob { inherit (hydraJobs) macos; };
-          };
-        };
 
       # Define flake outputs for a particular system.
       mkOutputs = system:
@@ -255,23 +229,6 @@
               else self.rev or "0000000000000000000000000000000000000000";
           }
             config.haskellNix];
-          profiledProject = project.appendModule { profiling = true; };
-          hydraProject = project.appendModule ({ pkgs, ... }: {
-            # FIXME: Set in the CI so we don't make mistakes.
-            #checkMaterialization = true;
-            # Don't build benchmarks for musl.
-            buildBenchmarks = !pkgs.stdenv.hostPlatform.isMusl;
-          });
-          hydraProjectBors = hydraProject.appendModule ({ pkgs, ... }: {
-            # Sets the anti-cache cookie only when building a jobset for bors.
-            cacheTestFailures = false;
-          });
-          hydraProjectPr = hydraProject.appendModule ({ pkgs, ... }: {
-            # Don't run integration tests on PR jobsets. Note that
-            # the master branch jobset will just re-use the cached Bors
-            # staging build and test results.
-            doIntegrationCheck = false;
-          });
 
           mkPackages = project:
             let
@@ -369,7 +326,7 @@
             docs = pkgs.mkShell {
               name = "cardano-wallet-docs";
               nativeBuildInputs = [ emanote.packages.${system}.default pkgs.yq ];
-              # allow building the shell so that it can be cached in hydra
+              # allow building the shell so that it can be cached
               phases = [ "installPhase" ];
               installPhase = "echo $nativeBuildInputs > $out";
             };
@@ -430,64 +387,6 @@
                 };
               };
             };
-
-          mkSystemHydraJobs = hydraProject: lib.optionalAttrs buildPlatform.isLinux
-            rec {
-              linux = {
-                # Don't run tests on linux native, because they are run for linux musl.
-                native = removeAttrs (mkPackages hydraProject) [ "checks" "testCoverageReport" ] // {
-                  scripts = mkScripts hydraProject;
-                  shells = (mkDevShells hydraProject) // {
-                    default = hydraProject.shell;
-                  };
-                  internal.roots = {
-                    project = hydraProject.roots;
-                    iohk-nix-utils = pkgs.iohk-nix-utils.roots;
-                  };
-                  nixosTests = import ./nix/nixos/tests {
-                    inherit pkgs;
-                    project = hydraProject;
-                  };
-                };
-                musl =
-                  let
-                    project = hydraProject.projectCross.musl64;
-                    packages = mkPackages project;
-                  in
-                  packages // {
-                    dockerImage = mkDockerImage packages;
-                    internal.roots = {
-                      project = project.roots;
-                    };
-                  };
-              };
-            } // (lib.optionalAttrs buildPlatform.isMacOS {
-              macos.intel = lib.optionalAttrs buildPlatform.isx86_64 (let
-                packages = mkPackages hydraProject;
-              in packages // {
-                shells = mkDevShells hydraProject // {
-                  default = hydraProject.shell;
-                };
-                scripts = mkScripts hydraProject;
-                internal.roots = {
-                  project = hydraProject.roots;
-                  iohk-nix-utils = pkgs.iohk-nix-utils.roots;
-                };
-              });
-
-              macos.silicon = lib.optionalAttrs buildPlatform.isAarch64 (let
-                packages = mkPackages hydraProject;
-              in packages // {
-                shells = mkDevShells hydraProject // {
-                  default = hydraProject.shell;
-                };
-                scripts = mkScripts hydraProject;
-                internal.roots = {
-                  project = hydraProject.roots;
-                  iohk-nix-utils = pkgs.iohk-nix-utils.roots;
-                };
-              });
-            });
         in
         rec {
 
@@ -565,21 +464,12 @@
                 lib.collect lib.isDerivation
                   (keepIntegrationChecks packages.checks);
             };
-
-          systemHydraJobs = mkSystemHydraJobs hydraProject;
-          systemHydraJobsPr = mkSystemHydraJobs hydraProjectPr;
-          systemHydraJobsBors = mkSystemHydraJobs hydraProjectBors;
-        }
-        // tullia.fromSimple system (import nix/tullia.nix);
+        };
       
       systems = eachSystem supportedSystems mkOutputs;
     in
-    lib.recursiveUpdate (removeAttrs systems [ "systemHydraJobs" "systemHydraJobsPr" "systemHydraJobsBors" ])
-      {
+      lib.recursiveUpdate systems {
         inherit overlay nixosModule nixosModules;
-        hydraJobs = mkHydraJobs systems.systemHydraJobs;
-        hydraJobsPr = mkHydraJobs systems.systemHydraJobsPr;
-        hydraJobsBors = mkHydraJobs systems.systemHydraJobsBors;
       }
   ;
 }

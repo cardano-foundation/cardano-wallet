@@ -63,8 +63,7 @@ in {
     # Debugging tools
 
     # Recursively traces an attrset as it's evaluated.
-    # This is helpful to use in the Hydra jobset so that we can more
-    # easily locate evaluation problems.
+    # This is helpful for debugging large attribute sets.
     traceNames = let
       go = prefix: builtins.mapAttrs (n: v:
         if builtins.isAttrs v

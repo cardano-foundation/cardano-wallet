@@ -212,11 +212,11 @@ main = withTestsSetup $ \testDir tracers -> do
             -- Possible conflict with StakePools - mark as not parallizable
             sequential Settings.spec
 
-            -- Hydra runs tests with code coverage enabled. CLI tests run
+            -- CI runs tests with code coverage enabled. CLI tests run
             -- multiple processes. These processes can try to write to the
             -- same .tix file simultaneously, causing errors.
             --
-            -- Because of this, don't run the CLI tests in parallel in hydra.
+            -- Because of this, don't run the CLI tests in parallel in CI.
             parallelIf (not nix) $ describe "CLI Specifications" $ do
                 AddressesCLI.spec @n
                 TransactionsCLI.spec @n

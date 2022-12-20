@@ -6,8 +6,8 @@ branch you are on, and that these will be exactly the same as those
 versions used in CI.
 
 It is possible to specify any git revision for the dependency and Nix
-will automatically build it -- unless it has already been built by
-Hydra -- in which case the build result will be downloaded instead.
+will automatically build it -- unless it has already been built
+in a nix cache -- in which case the build result will be downloaded instead.
 
 ## nix develop
 
