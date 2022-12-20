@@ -18,11 +18,6 @@ CHaP: haskell-nix: haskell-nix.cabalProject' [
         description = "Enable Haskell Program Coverage for cardano-wallet libraries and test suites.";
         default = false;
       };
-      buildBenchmarks = lib.mkOption {
-        type = lib.types.bool;
-        description = ''Wether to run integration tests.'';
-        default = true;
-      };
       cacheTestFailures = lib.mkOption {
         type = lib.types.bool;
         description = ''If false, prevent test results from being cached'';
@@ -147,7 +142,7 @@ CHaP: haskell-nix: haskell-nix.cabalProject' [
       inputMap = { "https://input-output-hk.github.io/cardano-haskell-packages" = CHaP; };
 
       modules =
-        let inherit (config) src coverage profiling buildBenchmarks;
+        let inherit (config) src coverage profiling;
         in
         [
           {
@@ -164,16 +159,6 @@ CHaP: haskell-nix: haskell-nix.cabalProject' [
               doCoverage = coverage;
             });
           }
-
-          (lib.optionalAttrs (!buildBenchmarks) {
-            packages = {
-              cardano-wallet.components.benchmarks.db.buildable = lib.mkForce false;
-              cardano-wallet.components.benchmarks = {
-                latency.buildable = lib.mkForce false;
-                restore.buildable = lib.mkForce false;
-              };
-            };
-          })
 
           # Provide configuration and dependencies to cardano-wallet components
           ({ config, pkgs, ... }:

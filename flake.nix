@@ -230,12 +230,6 @@
           }
             config.haskellNix];
           profiledProject = project.appendModule { profiling = true; };
-          hydraProject = project.appendModule ({ pkgs, ... }: {
-            # FIXME: Set in the CI so we don't make mistakes.
-            #checkMaterialization = true;
-            # Don't build benchmarks for musl.
-            buildBenchmarks = !pkgs.stdenv.hostPlatform.isMusl;
-          });
           hydraProjectBors = hydraProject.appendModule ({ pkgs, ... }: {
             # Sets the anti-cache cookie only when building a jobset for bors.
             cacheTestFailures = false;
