@@ -114,6 +114,14 @@
   #
   ############################################################################
 
+  ############################################################################
+  # TODO Continuous Integration (CI)
+  #
+  # Make the flake.nix file *itself* part of continuous integration,
+  # i.e. check that `devShells`, `scripts` or `nixosTests` evalute and build
+  # correctly.
+  ############################################################################
+
   inputs = {
     nixpkgs.follows = "haskellNix/nixpkgs-unstable";
     hostNixpkgs.follows = "nixpkgs";
@@ -396,64 +404,6 @@
                 };
               };
             };
-
-          mkSystemHydraJobs = hydraProject: lib.optionalAttrs buildPlatform.isLinux
-            rec {
-              linux = {
-                # Don't run tests on linux native, because they are run for linux musl.
-                native = removeAttrs (mkPackages hydraProject) [ "checks" "testCoverageReport" ] // {
-                  scripts = mkScripts hydraProject;
-                  shells = (mkDevShells hydraProject) // {
-                    default = hydraProject.shell;
-                  };
-                  internal.roots = {
-                    project = hydraProject.roots;
-                    iohk-nix-utils = pkgs.iohk-nix-utils.roots;
-                  };
-                  nixosTests = import ./nix/nixos/tests {
-                    inherit pkgs;
-                    project = hydraProject;
-                  };
-                };
-                musl =
-                  let
-                    project = hydraProject.projectCross.musl64;
-                    packages = mkPackages project;
-                  in
-                  packages // {
-                    dockerImage = mkDockerImage packages;
-                    internal.roots = {
-                      project = project.roots;
-                    };
-                  };
-              };
-            } // (lib.optionalAttrs buildPlatform.isMacOS {
-              macos.intel = lib.optionalAttrs buildPlatform.isx86_64 (let
-                packages = mkPackages hydraProject;
-              in packages // {
-                shells = mkDevShells hydraProject // {
-                  default = hydraProject.shell;
-                };
-                scripts = mkScripts hydraProject;
-                internal.roots = {
-                  project = hydraProject.roots;
-                  iohk-nix-utils = pkgs.iohk-nix-utils.roots;
-                };
-              });
-
-              macos.silicon = lib.optionalAttrs buildPlatform.isAarch64 (let
-                packages = mkPackages hydraProject;
-              in packages // {
-                shells = mkDevShells hydraProject // {
-                  default = hydraProject.shell;
-                };
-                scripts = mkScripts hydraProject;
-                internal.roots = {
-                  project = hydraProject.roots;
-                  iohk-nix-utils = pkgs.iohk-nix-utils.roots;
-                };
-              });
-            });
         in
         rec {
 
