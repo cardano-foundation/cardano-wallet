@@ -30,7 +30,11 @@ jobs:
         working-directory: ${{ env.WORK_DIR }}
         run: |
           bundle install
-          rake get_latest_windows_tests[%BRANCH%]
+          rake get_latest_windows_tests[%BRANCH%,cardano-wallet-tests-win64]
+
+      - name: Report version
+        working-directory: ${{ env.WORK_DIR }}
+        run: rake display_versions[cardano-wallet-tests-win64]
 
       - name: Save files
         uses: actions/upload-artifact@v3

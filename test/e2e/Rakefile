@@ -218,16 +218,16 @@ task :stop_node_and_wallet, [:env] do |_task, args|
   end
 end
 
-task :display_versions do
+task :display_versions, [:bin_dir] do |_task, args|
   puts "\n  >> cardano-node and cardano-wallet versions:"
+  bin_dir = args[:bin_dir] || BINS
 
-  bin_dir = BINS == '' ? BINS : "#{BINS}/"
   if win?
-    cmd "#{bin_dir}cardano-wallet.exe version", display_result: true
-    cmd "#{bin_dir}cardano-node.exe version", display_result: true
+    cmd "#{bin_dir}/cardano-wallet.exe version", display_result: true
+    cmd "#{bin_dir}/cardano-node.exe version", display_result: true
   else
-    cmd "#{bin_dir}cardano-wallet version", display_result: true
-    cmd "#{bin_dir}cardano-node version", display_result: true
+    cmd "#{bin_dir}/cardano-wallet version", display_result: true
+    cmd "#{bin_dir}/cardano-node version", display_result: true
   end
 end
 
