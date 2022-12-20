@@ -114,8 +114,6 @@ import Cardano.Wallet.Primitive.Types.Tx.TxOut
     ( TxOut (..) )
 import Control.DeepSeq
     ( NFData (..) )
-import Data.ByteString
-    ( ByteString )
 import Data.List.NonEmpty
     ( NonEmpty )
 import Data.Map.Strict
