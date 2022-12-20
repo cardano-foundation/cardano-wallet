@@ -27,7 +27,6 @@ order: 3
 - [[Updating-Dependencies]]
 - [[Swagger-Development]]
 - [[Specifying-exceptions-with-Servant-and-Swagger]]
-- [[Hydra]]
 - [[Nix]]
 
 ## Maintainer Guides

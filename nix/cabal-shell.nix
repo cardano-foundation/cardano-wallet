@@ -62,7 +62,7 @@ mkShell rec {
 
   nativeBuildInputs = tools ++ libs;
 
-  # allow building the shell so that it can be cached in hydra
+  # allow building the shell so that it can be cached
   phases = [ "nobuildPhase" ];
   nobuildPhase = "echo '${lib.concatStringsSep "\n" nativeBuildInputs}' > $out";
   preferLocalBuild = true;

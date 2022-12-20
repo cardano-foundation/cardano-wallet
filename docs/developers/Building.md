@@ -118,7 +118,7 @@ nix build
 The resulting executable will appear at `./result/bin/cardano-wallet`.
 
 Unless you have local changes in your git repo, Nix will download the
-build from the Hydra cache rather than building locally.
+build from a nix cache rather than building locally.
 
 You may also run the executable directly with:
 
@@ -149,23 +149,13 @@ nix build .#hydraJobs.linux.windows.cardano-wallet
 
 #### Building straight from GitHub
 
-The following command will build the `master` branch, with the resulting executable appearing at `./result/bin/cardano-wallet`. To build another branch, add `/<branch name, tag, or commit hash>` (see [Nix Manual: Flake References](https://nixos.org/manual/nix/stable/command-ref/new-cli/nix3-flake.html#flake-references) for syntax). As before, if the target ref has already been built by [[Hydra]], then it will be fetched from cache rather than built locally.
+The following command will build the `master` branch, with the resulting executable appearing at `./result/bin/cardano-wallet`. To build another branch, add `/<branch name, tag, or commit hash>` (see [Nix Manual: Flake References](https://nixos.org/manual/nix/stable/command-ref/new-cli/nix3-flake.html#flake-references) for syntax). As before, if the target ref has already been built by Hydra, then it will be fetched from cache rather than built locally.
 
 ```console
 $ nix build github:input-output-hk/cardano-wallet
 $ ./result/bin/cardano-wallet version
 v2022-01-18 (git revision: ce772ff33623e2a522dcdc15b1d360815ac1336a)
 ```
-
-#### Navigating Hydra
-
-The Hydra [Jobset page](https://hydra.iohk.io/jobset/Cardano/cardano-wallet#tabs-jobs)
-shows all jobs defined in the `hydraJobs` attribute of `flake.nix`. Some of the release jobs have a download link.
-
-- [Windows](https://hydra.iohk.io/job/Cardano/cardano-wallet/cardano-wallet-win64/latest)
-- [macOS](https://hydra.iohk.io/job/Cardano/cardano-wallet/cardano-wallet-macos-intel/latest)
-
-See [[Hydra]] for more information.
 
 #### Cabal+Nix build
 

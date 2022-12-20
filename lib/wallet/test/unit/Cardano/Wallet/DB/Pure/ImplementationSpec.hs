@@ -42,7 +42,7 @@ import qualified Cardano.Wallet.DB.Pure.Layer as PureLayer
 
 spec :: Spec
 spec =
-    before (pendingOnMacOS "#2472: timeouts in hydra mac builds")
+    before (pendingOnMacOS "#2472: timeouts in CI mac builds")
     $ before (PureLayer.newDBLayer @IO @(SeqState 'Mainnet ShelleyKey) ti)
     $ describe "PureLayer" properties
   where
