@@ -102,7 +102,6 @@ import UnliftIO.Temporary
     ( withTempDirectory )
 
 import qualified Cardano.Wallet.Byron.Compatibility as Byron
-import qualified Cardano.Wallet.Launch.Blockfrost as Blockfrost
 import qualified Cardano.Wallet.Primitive.Types.ProtocolMagic as W
 import qualified Data.ByteString.Lazy.Char8 as BL8
 import qualified Data.Text as T
@@ -397,17 +396,11 @@ instance HasSeverityAnnotation TempDirLog where
                                     Mode
 -------------------------------------------------------------------------------}
 
-data Mode
-    = Normal CardanoNodeConn SyncTolerance
-    | Light Blockfrost.TokenFile
+data Mode = Normal CardanoNodeConn SyncTolerance
   deriving (Show)
 
 modeOption :: Parser Mode
-modeOption = normalMode <|> lightMode
+modeOption = normalMode
   where
     normalMode =
         Normal <$> nodeSocketOption <*> syncToleranceOption
-    lightMode =
-        flag' () (long "light" <> help "Enable light mode") *>
-        fmap Light Blockfrost.tokenFileOption
-

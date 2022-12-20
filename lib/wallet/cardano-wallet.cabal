@@ -479,7 +479,6 @@ library cardano-wallet-api-http
     Cardano.Wallet.Api.Types.SchemaMetadata
     Cardano.Wallet.Api.Types.Transaction
     Cardano.Wallet.Launch
-    Cardano.Wallet.Launch.Blockfrost
     Cardano.Wallet.Launch.Cluster
     Cardano.Wallet.Shelley
     Cardano.Wallet.Tracers
@@ -867,7 +866,6 @@ test-suite unit
     Cardano.Wallet.RegistrySpec
     Cardano.Wallet.Shelley.Compatibility.LedgerSpec
     Cardano.Wallet.Shelley.CompatibilitySpec
-    Cardano.Wallet.Shelley.Launch.BlockfrostSpec
     Cardano.Wallet.Shelley.LaunchSpec
     Cardano.Wallet.Shelley.MinimumUTxOSpec
     Cardano.Wallet.Shelley.Network.BlockfrostSpec
