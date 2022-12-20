@@ -186,36 +186,6 @@
         setEmptyAttrsWithCondition
           (path: !lib.any (name: name == "unit" || name == "test") path);
 
-      mkRequiredJob = hydraJobs:
-        let
-          nonRequiredPaths = map lib.hasPrefix [
-            # Temporarily disable macos builds until regular timeouts are fixed
-            # (ADP-1737).
-            "macos"
-          ];
-        in
-        self.legacyPackages.${lib.head supportedSystems}.pkgs.releaseTools.aggregate {
-          name = "github-required";
-          meta.description = "All jobs required to pass CI";
-          constituents = lib.collect lib.isDerivation (lib.mapAttrsRecursiveCond (v: !(lib.isDerivation v))
-            (path: value:
-              let stringPath = lib.concatStringsSep "." path; in if (lib.any (p: p stringPath) nonRequiredPaths) then { } else value)
-            hydraJobs);
-        };
-
-      mkHydraJobs = systemsJobs:
-        let hydraJobs = lib.foldl' lib.mergeAttrs { } (lib.attrValues systemsJobs);
-        in
-        hydraJobs // {
-          required = mkRequiredJob hydraJobs;
-          linux = hydraJobs.linux // {
-            required = mkRequiredJob { inherit (hydraJobs) linux; };
-          };
-          macos = hydraJobs.macos // {
-            required = mkRequiredJob { inherit (hydraJobs) macos; };
-          };
-        };
-
       # Define flake outputs for a particular system.
       mkOutputs = system:
         let
@@ -369,7 +339,7 @@
             docs = pkgs.mkShell {
               name = "cardano-wallet-docs";
               nativeBuildInputs = [ emanote.packages.${system}.default pkgs.yq ];
-              # allow building the shell so that it can be cached in hydra
+              # allow building the shell so that it can be cached
               phases = [ "installPhase" ];
               installPhase = "echo $nativeBuildInputs > $out";
             };
@@ -565,21 +535,13 @@
                 lib.collect lib.isDerivation
                   (keepIntegrationChecks packages.checks);
             };
-
-          systemHydraJobs = mkSystemHydraJobs hydraProject;
-          systemHydraJobsPr = mkSystemHydraJobs hydraProjectPr;
-          systemHydraJobsBors = mkSystemHydraJobs hydraProjectBors;
         }
         // tullia.fromSimple system (import nix/tullia.nix);
       
       systems = eachSystem supportedSystems mkOutputs;
     in
-    lib.recursiveUpdate (removeAttrs systems [ "systemHydraJobs" "systemHydraJobsPr" "systemHydraJobsBors" ])
-      {
+      lib.recursiveUpdate systems {
         inherit overlay nixosModule nixosModules;
-        hydraJobs = mkHydraJobs systems.systemHydraJobs;
-        hydraJobsPr = mkHydraJobs systems.systemHydraJobsPr;
-        hydraJobsBors = mkHydraJobs systems.systemHydraJobsBors;
       }
   ;
 }
