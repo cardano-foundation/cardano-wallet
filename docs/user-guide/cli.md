@@ -109,8 +109,7 @@ Serve API that listens for commands/actions. Before launching user should start 
 :::{.cli}
 ```
 Usage: cardano-wallet serve [--listen-address HOST] 
-                            (--node-socket FILE [--sync-tolerance DURATION] | 
-                              --light --blockfrost-token-file FILE) 
+                            (--node-socket FILE [--sync-tolerance DURATION]) 
                             [--random-port | --port INT] 
                             [--tls-ca-cert FILE --tls-sv-cert FILE
                               --tls-sv-key FILE] 
@@ -136,10 +135,6 @@ Available options:
                            time duration within which we consider being synced
                            with the network. Expressed in seconds with a
                            trailing 's'. (default: 300s)
-  --light                  Enable light mode
-  --blockfrost-token-file FILE
-                           FILE contains an authentication token for BlockFrost
-                           Cardano API (https://blockfrost.io).
   --random-port            serve wallet API on any available port (conflicts
                            with --port)
   --port INT               port used for serving the wallet API. (default: 8090)
