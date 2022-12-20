@@ -357,13 +357,14 @@ toBabbageTxOut (TxOut addr bundle) = \case
 
 toWalletScript
     :: Ledger.Crypto crypto
-    => KeyRole
+    => (Hash "VerificationKey" -> KeyRole)
     -> MA.Timelock crypto
     -> Script KeyHash
-toWalletScript keyrole = fromLedgerScript
+toWalletScript tokeyrole = fromLedgerScript
   where
     fromLedgerScript (MA.RequireSignature (Ledger.KeyHash h)) =
-        RequireSignatureOf (KeyHash keyrole (hashToBytes h))
+        let payload = hashToBytes h
+        in RequireSignatureOf (KeyHash (tokeyrole (Hash payload)) payload)
     fromLedgerScript (MA.RequireAllOf contents) =
         RequireAllOf $ map fromLedgerScript $ toList contents
     fromLedgerScript (MA.RequireAnyOf contents) =

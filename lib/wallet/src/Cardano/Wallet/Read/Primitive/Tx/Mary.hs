@@ -16,8 +16,6 @@ module Cardano.Wallet.Read.Primitive.Tx.Mary
 
 import Prelude
 
-import Cardano.Address.Script
-    ( KeyRole (..) )
 import Cardano.Api
     ( MaryEra )
 import Cardano.Ledger.Era
@@ -52,6 +50,8 @@ import Cardano.Wallet.Transaction
     , TokenMapWithScripts (..)
     , ValidityIntervalExplicit (..)
     , WitnessCount (..)
+    , WitnessCountCtx
+    , toKeyRole
     )
 import Cardano.Wallet.Util
     ( internalError )
@@ -88,6 +88,7 @@ import qualified Data.Set as Set
 
 fromMaryTx
     :: SL.Tx (Cardano.ShelleyLedgerEra MaryEra)
+    -> WitnessCountCtx
     -> ( W.Tx
        , [W.Certificate]
        , TokenMapWithScripts
@@ -95,7 +96,7 @@ fromMaryTx
        , Maybe ValidityIntervalExplicit
        , WitnessCount
        )
-fromMaryTx tx =
+fromMaryTx tx witCtx =
     ( W.Tx
         { txId =
             W.Hash $ shelleyTxHash tx
@@ -153,7 +154,7 @@ fromMaryTx tx =
             (SL.Core.Script (MA.ShelleyMAEra 'MA.Mary Crypto.StandardCrypto))
         -> Map TokenPolicyId AnyScript
     fromMaryScriptMap =
-        Map.map (NativeScript . toWalletScript Policy) .
+        Map.map (NativeScript . toWalletScript (toKeyRole witCtx)) .
         Map.mapKeys (toWalletTokenPolicyId . SL.PolicyID)
 
 -- Lovelace to coin. Quantities from ledger should always fit in Word64.

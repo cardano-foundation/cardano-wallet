@@ -41,6 +41,8 @@ module Cardano.Wallet.Transaction
     , ValidityIntervalExplicit (..)
     , WitnessCount (..)
     , emptyWitnessCount
+    , WitnessCountCtx (..)
+    , toKeyRole
 
     -- * Errors
     , ErrSignTx (..)
@@ -57,7 +59,7 @@ import Prelude
 import Cardano.Address.Derivation
     ( XPrv, XPub )
 import Cardano.Address.Script
-    ( KeyHash, Script, ScriptTemplate )
+    ( KeyHash (..), KeyRole (..), Script, ScriptTemplate )
 import Cardano.Api
     ( AnyCardanoEra )
 import Cardano.Api.Extra
@@ -92,6 +94,8 @@ import Cardano.Wallet.Primitive.Types.Address
     ( Address (..) )
 import Cardano.Wallet.Primitive.Types.Coin
     ( Coin (..) )
+import Cardano.Wallet.Primitive.Types.Hash
+    ( Hash (..) )
 import Cardano.Wallet.Primitive.Types.Redeemer
     ( Redeemer )
 import Cardano.Wallet.Primitive.Types.RewardAccount
@@ -313,6 +317,7 @@ data TransactionLayer k ktype tx = TransactionLayer
 
     , decodeTx
         :: AnyCardanoEra
+        -> WitnessCountCtx
         -> tx ->
             ( Tx
             , TokenMapWithScripts
@@ -496,6 +501,30 @@ emptyWitnessCount = WitnessCount
     , scripts = []
     , bootstrap = 0
     }
+
+-- WitnessCount context is needed to differentiate verification keys present
+-- in native scripts.
+-- In shelley wallets they could be present due to only policy verification key.
+-- In multisig wallet they could stem from payment, policy and delegation roles,
+-- and as minting/burning and delegation support comes will be extended in additional
+-- data attached in SharedWalletCtx to differentiate that.
+-- WitnessCount is needed only during or after signing, in other phases it is not used.
+data WitnessCountCtx =
+      ShelleyWalletCtx KeyHash -- Policy
+    | SharedWalletCtx
+    | AnyWitnessCountCtx
+    deriving (Eq, Generic, Show)
+    deriving anyclass NFData
+
+toKeyRole :: WitnessCountCtx -> Hash "VerificationKey" -> KeyRole
+toKeyRole witCtx (Hash key) = case witCtx of
+    ShelleyWalletCtx (KeyHash _ mypolicykey) ->
+        if key == mypolicykey then
+            Policy
+        else
+            Unknown
+    SharedWalletCtx -> Payment
+    AnyWitnessCountCtx -> Unknown
 
 data ErrMkTransaction
     = ErrMkTransactionNoSuchWallet WalletId

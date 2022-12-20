@@ -737,8 +737,7 @@ spec = describe "SHARED_TRANSACTIONS" $ do
         let (ApiScriptTemplate scriptTemplate) =
                 sharedWal1 ^. #paymentScriptTemplate
         let paymentScript =
-                -- TODO- ADP-2312 We will want CA.Payment here
-                NativeScript $ changeRole CA.Policy $
+                NativeScript $
                 replaceCosignersWithVerKeys CA.UTxOExternal scriptTemplate (Index 1)
         let noVerKeyWitness = mkApiWitnessCount WitnessCount
                 { verificationKey = 0
@@ -750,7 +749,16 @@ spec = describe "SHARED_TRANSACTIONS" $ do
         verify rDecodedTx1Wal1 witsExp1
         verify rDecodedTx1Wal2 witsExp1
         verify rDecodedTx1Wal3 witsExp1
-        verify rDecodedTx1Target witsExp1
+
+        -- for shelley wallet the script's verification key is unknown,
+        -- it only is aware of its policy verification key
+        let noVerKeyWitnessHex = mkApiWitnessCount WitnessCount
+                { verificationKey = 0
+                , scripts = [changeRole CA.Unknown paymentScript]
+                , bootstrap = 0
+                }
+        let witsExp1hex = [ expectField (#witnessCount) (`shouldBe` noVerKeyWitnessHex) ]
+        verify rDecodedTx1Target witsExp1hex
 
         -- adding one witness
         let (ApiSerialisedTransaction apiTx1 _) =
@@ -777,7 +785,15 @@ spec = describe "SHARED_TRANSACTIONS" $ do
         verify rDecodedTx2Wal1 witsExp2
         verify rDecodedTx2Wal2 witsExp2
         verify rDecodedTx2Wal3 witsExp2
-        verify rDecodedTx2Target witsExp2
+        -- for shelley wallet the script's verification key is unknown,
+        -- it only is aware of its policy verification key
+        let oneVerKeyWitnessHex = mkApiWitnessCount WitnessCount
+                { verificationKey = 1
+                , scripts = [changeRole CA.Unknown paymentScript]
+                , bootstrap = 0
+                }
+        let witsExp2hex = [ expectField (#witnessCount) (`shouldBe` oneVerKeyWitnessHex) ]
+        verify rDecodedTx2Target witsExp2hex
 
         submittedTx1 <- submitSharedTxWithWid ctx sharedWal1 signedTx1
         verify submittedTx1
@@ -1805,17 +1821,6 @@ spec = describe "SHARED_TRANSACTIONS" $ do
                  }]
              }|]
 
-     --TODO- ADP-2312 Hack until we figure out what to do with Role in KeyHash. We
-     --may just get rid of it n the end if I cannot do it right in decodeTransaction
-     changeRole :: CA.KeyRole -> Script KeyHash -> Script KeyHash
-     changeRole role = \case
-         RequireSignatureOf (KeyHash _ p) -> RequireSignatureOf $ KeyHash role p
-         RequireAllOf xs      -> RequireAllOf (map (changeRole role) xs)
-         RequireAnyOf xs      -> RequireAnyOf (map (changeRole role) xs)
-         RequireSomeOf m xs   -> RequireSomeOf m (map (changeRole role) xs)
-         ActiveFromSlot s     -> ActiveFromSlot s
-         ActiveUntilSlot s    -> ActiveUntilSlot s
-
      singleOutputTxTwoParty ctx sharedWal1 sharedWal2 = do
         -- check we see balance from two wallets
         rSharedWal1 <- getSharedWallet ctx (ApiSharedWallet (Right sharedWal1))
@@ -1892,8 +1897,7 @@ spec = describe "SHARED_TRANSACTIONS" $ do
         let (ApiScriptTemplate scriptTemplate) =
                 sharedWal1 ^. #paymentScriptTemplate
         let paymentScript =
-                -- TODO- ADP-2312 We will want CA.Payment here
-                NativeScript $ changeRole CA.Policy $
+                NativeScript $
                 replaceCosignersWithVerKeys CA.UTxOExternal scriptTemplate (Index 1)
 
         let noVerKeyWitness = mkApiWitnessCount WitnessCount
@@ -1997,3 +2001,16 @@ spec = describe "SHARED_TRANSACTIONS" $ do
                         (#balance . #available . #getQuantity)
                         (`shouldBe` amt)
                 ]
+
+     changeRole :: CA.KeyRole -> AnyScript -> AnyScript
+     changeRole role = \case
+         NativeScript script ->
+             let changeRole' = \case
+                     RequireSignatureOf (KeyHash _ p) -> RequireSignatureOf $ KeyHash role p
+                     RequireAllOf xs      -> RequireAllOf (map changeRole' xs)
+                     RequireAnyOf xs      -> RequireAnyOf (map changeRole' xs)
+                     RequireSomeOf m xs   -> RequireSomeOf m (map changeRole' xs)
+                     ActiveFromSlot s     -> ActiveFromSlot s
+                     ActiveUntilSlot s    -> ActiveUntilSlot s
+             in NativeScript $ changeRole' script
+         PlutusScript _ -> error "wrong usage"

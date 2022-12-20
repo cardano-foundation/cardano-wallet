@@ -29,6 +29,7 @@ import Cardano.Wallet.Transaction
     ( TokenMapWithScripts (..)
     , ValidityIntervalExplicit (..)
     , WitnessCount
+    , WitnessCountCtx
     , emptyTokenMapWithScripts
     , emptyWitnessCount
     )
@@ -41,7 +42,8 @@ import qualified Cardano.Wallet.Primitive.Types as W
 import qualified Cardano.Wallet.Primitive.Types.Tx as W
 
 fromCardanoTx
-    :: Cardano.Tx era
+    :: WitnessCountCtx
+    -> Cardano.Tx era
     ->  ( W.Tx
         , TokenMapWithScripts
         , TokenMapWithScripts
@@ -49,18 +51,18 @@ fromCardanoTx
         , Maybe ValidityIntervalExplicit
         , WitnessCount
         )
-fromCardanoTx = \case
+fromCardanoTx witCtx = \case
     Cardano.ShelleyTx era tx -> case era of
         Cardano.ShelleyBasedEraShelley ->
             extract $ fromShelleyTx tx
         Cardano.ShelleyBasedEraAllegra ->
             extract $ fromAllegraTx tx
         Cardano.ShelleyBasedEraMary ->
-            extract $ fromMaryTx tx
+            extract $ fromMaryTx tx witCtx
         Cardano.ShelleyBasedEraAlonzo ->
-            extract $ fromAlonzoTx tx
+            extract $ fromAlonzoTx tx witCtx
         Cardano.ShelleyBasedEraBabbage ->
-            extract $ fromBabbageTx tx
+            extract $ fromBabbageTx tx witCtx
     Cardano.ByronTx tx ->
         ( fromTxAux tx
         , emptyTokenMapWithScripts

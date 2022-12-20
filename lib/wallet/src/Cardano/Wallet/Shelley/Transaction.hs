@@ -199,6 +199,7 @@ import Cardano.Wallet.Transaction
     , TxUpdate (..)
     , ValidityIntervalExplicit
     , WitnessCount
+    , WitnessCountCtx (..)
     , mapTxFeeAndChange
     , withdrawalToCoin
     )
@@ -424,7 +425,7 @@ mkTx networkId payload ttl (rewardAcnt, pwdAcnt) addrResolver wdrl cs fees era =
     let withResolvedInputs (tx, _, _, _, _, _) = tx
             { resolvedInputs = second TxOut.coin <$> F.toList (view #inputs cs)
             }
-    Right ( withResolvedInputs (fromCardanoTx signed)
+    Right ( withResolvedInputs (fromCardanoTx AnyWitnessCountCtx signed)
           , sealedTxFromCardano' signed
           )
   where
@@ -512,7 +513,7 @@ signTransaction
         certs = cardanoCertKeysForWitnesses $ Cardano.txCertificates bodyContent
 
         mintBurnScripts =
-            let (_, toMint, toBurn, _, _, _) = fromCardanoTx $
+            let (_, toMint, toBurn, _, _, _) = fromCardanoTx AnyWitnessCountCtx $
                     Cardano.makeSignedTransaction wits body
             in
             -- Note that we use 'nub' here because multiple scripts can share
@@ -685,6 +686,7 @@ newTransactionLayer networkId = TransactionLayer
 
 _decodeSealedTx
     :: AnyCardanoEra
+    -> WitnessCountCtx
     -> SealedTx ->
         ( Tx
         , TokenMapWithScripts
@@ -693,8 +695,8 @@ _decodeSealedTx
         , Maybe ValidityIntervalExplicit
         , WitnessCount
         )
-_decodeSealedTx preferredLatestEra (cardanoTxIdeallyNoLaterThan preferredLatestEra -> Cardano.InAnyCardanoEra _ tx) =
-    fromCardanoTx tx
+_decodeSealedTx preferredLatestEra witCtx (cardanoTxIdeallyNoLaterThan preferredLatestEra -> Cardano.InAnyCardanoEra _ tx) =
+    fromCardanoTx witCtx tx
 
 _evaluateTransactionBalance
     :: forall era. IsShelleyBasedEra era

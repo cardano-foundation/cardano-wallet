@@ -15,8 +15,6 @@ module Cardano.Wallet.Read.Primitive.Tx.Babbage
 
 import Prelude
 
-import Cardano.Address.Script
-    ( KeyRole (..) )
 import Cardano.Api
     ( BabbageEra )
 import Cardano.Ledger.Era
@@ -59,6 +57,8 @@ import Cardano.Wallet.Transaction
     , TokenMapWithScripts (..)
     , ValidityIntervalExplicit (..)
     , WitnessCount (..)
+    , WitnessCountCtx
+    , toKeyRole
     )
 import Data.Foldable
     ( toList )
@@ -90,6 +90,7 @@ import qualified Data.Set as Set
 
 fromBabbageTx
     :: Alonzo.ValidatedTx (Cardano.ShelleyLedgerEra BabbageEra)
+    -> WitnessCountCtx
     -> ( W.Tx
        , [W.Certificate]
        , TokenMapWithScripts
@@ -97,7 +98,7 @@ fromBabbageTx
        , Maybe ValidityIntervalExplicit
        , WitnessCount
        )
-fromBabbageTx tx@(Alonzo.ValidatedTx bod wits (Alonzo.IsValid isValid) aux) =
+fromBabbageTx tx@(Alonzo.ValidatedTx bod wits (Alonzo.IsValid isValid) aux) witCtx =
     ( W.Tx
         { txId =
             W.Hash $ alonzoTxHash tx
@@ -165,7 +166,7 @@ fromBabbageTx tx@(Alonzo.ValidatedTx bod wits (Alonzo.IsValid isValid) aux) =
         Map.mapKeys (toWalletTokenPolicyId . SL.PolicyID)
       where
         toAnyScript (Alonzo.TimelockScript script) =
-            NativeScript $ toWalletScript Policy script
+            NativeScript $ toWalletScript (toKeyRole witCtx) script
         toAnyScript (Alonzo.PlutusScript ver _) =
             PlutusScript (PlutusScriptInfo (toPlutusVer ver))
 

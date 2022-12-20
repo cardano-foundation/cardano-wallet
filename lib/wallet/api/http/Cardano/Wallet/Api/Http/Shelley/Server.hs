@@ -134,6 +134,8 @@ import Cardano.Address.Derivation
     ( XPrv, XPub, xpubPublicKey, xpubToBytes )
 import Cardano.Address.Script
     ( Cosigner (..)
+    , KeyHash (..)
+    , KeyRole (..)
     , ScriptTemplate (..)
     , ValidationLevel (..)
     , foldScript
@@ -367,7 +369,6 @@ import Cardano.Wallet.Primitive.AddressDerivation
     , SoftDerivation (..)
     , WalletKey (..)
     , deriveRewardAccount
-    , digest
     , publicKey
     )
 import Cardano.Wallet.Primitive.AddressDerivation.Byron
@@ -515,6 +516,7 @@ import Cardano.Wallet.Transaction
     , TransactionCtx (..)
     , TransactionLayer (..)
     , Withdrawal (..)
+    , WitnessCountCtx (..)
     , defaultTransactionCtx
     )
 import Cardano.Wallet.Unsafe
@@ -637,6 +639,7 @@ import qualified Cardano.Wallet.Api.Types as Api
 import qualified Cardano.Wallet.DB as W
 import qualified Cardano.Wallet.Delegation as WD
 import qualified Cardano.Wallet.Network as NW
+import qualified Cardano.Wallet.Primitive.AddressDerivation as Addr
 import qualified Cardano.Wallet.Primitive.AddressDerivation.Byron as Byron
 import qualified Cardano.Wallet.Primitive.AddressDerivation.Icarus as Icarus
 import qualified Cardano.Wallet.Primitive.AddressDiscovery.Sequential as Seq
@@ -849,7 +852,7 @@ postShelleyWallet ctx generateKey body = do
     pwdP = preparePassphrase currentPassphraseScheme pwd
     rootXPrv = generateKey (seed, secondFactor) pwdP
     g = maybe defaultAddressPoolGap getApiT (body ^. #addressPoolGap)
-    wid = WalletId $ digest $ publicKey rootXPrv
+    wid = WalletId $ Addr.digest $ publicKey rootXPrv
     wName = getApiT (body ^. #name)
 
 postAccountWallet
@@ -883,7 +886,7 @@ postAccountWallet ctx mkWallet liftKey coworker body = do
     wName = getApiT (body ^. #name)
     (ApiAccountPublicKey accXPubApiT) =  body ^. #accountPublicKey
     accXPub = getApiT accXPubApiT
-    wid = WalletId $ digest (liftKey accXPub)
+    wid = WalletId $ Addr.digest (liftKey accXPub)
 
 mkShelleyWallet
     :: forall ctx s k n.
@@ -1191,7 +1194,7 @@ postLegacyWallet ctx (rootXPrv, pwd) createWallet = do
         W.attachPrivateKeyFromPwd wrk wid (rootXPrv, pwd)
     fst <$> getWallet ctx mkLegacyWallet (ApiT wid)
   where
-    wid = WalletId $ digest $ publicKey rootXPrv
+    wid = WalletId $ Addr.digest $ publicKey rootXPrv
 
 mkLegacyWallet
     :: forall ctx s k.
@@ -1302,7 +1305,7 @@ postRandomWalletFromXPrv ctx body = do
     pwd   = getApiT (body ^. #passphraseHash)
     masterKey = getApiT (body ^. #encryptedRootPrivateKey)
     byronKey = mkByronKeyFromMasterKey masterKey
-    wid = WalletId $ digest $ publicKey byronKey
+    wid = WalletId $ Addr.digest $ publicKey byronKey
 
 postIcarusWallet
     :: forall ctx s k n.
@@ -2795,7 +2798,7 @@ decodeSharedTransaction
 decodeSharedTransaction ctx (ApiT wid) (ApiSerialisedTransaction (ApiT sealed) _) = do
     era <- liftIO $ NW.currentNodeEra nl
     let (decodedTx, _toMint, _toBurn, _allCerts, interval, witsCount) =
-            decodeTx tl era sealed
+            decodeTx tl era SharedWalletCtx sealed
     let (Tx { txId
             , fee
             , resolvedInputs
@@ -2962,18 +2965,20 @@ decodeTransaction
 decodeTransaction
     ctx@ApiLayer{..} (ApiT wid) (ApiSerialisedTransaction (ApiT sealed) _) = do
     era <- liftIO $ NW.currentNodeEra netLayer
-    let (decodedTx, toMint, toBurn, allCerts, interval, witsCount) =
-            decodeTx tl era sealed
-        Tx { txId
-            , fee
-            , resolvedInputs
-            , resolvedCollateralInputs
-            , outputs
-            , withdrawals
-            , metadata
-            , scriptValidity
-            } = decodedTx
     withWorkerCtx ctx wid liftE liftE $ \wrk -> do
+        (k, _) <- liftHandler $ W.readPolicyPublicKey @_ @s @k @n wrk wid
+        let keyhash = KeyHash Policy (xpubToBytes k)
+        let (decodedTx, toMint, toBurn, allCerts, interval, witsCount) =
+                decodeTx tl era (ShelleyWalletCtx keyhash) sealed
+        let Tx { txId
+               , fee
+               , resolvedInputs
+               , resolvedCollateralInputs
+               , outputs
+               , withdrawals
+               , metadata
+               , scriptValidity
+               } = decodedTx
         let db = wrk ^. dbLayer
         (acct, _, acctPath) <-
             liftHandler $ W.shelleyOnlyReadRewardAccount @s @k @n db wid
@@ -3075,7 +3080,6 @@ submitTransaction ctx apiw@(ApiT wid) apitx = do
     era <- liftIO $ NW.currentNodeEra nl
 
     let sealedTx = getApiT . (view #serialisedTxSealed) $ apitx
-    let (tx,_,_,_,_,_) = decodeTx tl era sealedTx
 
     apiDecoded <- decodeTransaction @s @k @n ctx apiw apitx
     when (isForeign apiDecoded) $
@@ -3104,6 +3108,10 @@ submitTransaction ctx apiw@(ApiT wid) apitx = do
             witsRequiredForInputs totalNumberOfWits
 
     _ <- withWorkerCtx ctx wid liftE liftE $ \wrk -> do
+        (k, _) <- liftHandler $ W.readPolicyPublicKey @_ @s @k @n wrk wid
+        let keyhash = KeyHash Policy (xpubToBytes k)
+        let (tx,_,_,_,_,_) = decodeTx tl era (ShelleyWalletCtx keyhash) sealedTx
+
         let db = wrk ^. dbLayer
         (acct, _, path) <- liftHandler $ W.shelleyOnlyReadRewardAccount @s @k @n db wid
         let wdrl = getOurWdrl acct path apiDecoded
@@ -3199,7 +3207,7 @@ submitSharedTransaction ctx apiw@(ApiT wid) apitx = do
     era <- liftIO $ NW.currentNodeEra nl
 
     let sealedTx = getApiT . (view #serialisedTxSealed) $ apitx
-    let (tx,_,_,_,_,_) = decodeTx tl era sealedTx
+    let (tx,_,_,_,_,_) = decodeTx tl era SharedWalletCtx sealedTx
 
     apiDecoded <- decodeSharedTransaction @_ @s @k ctx apiw apitx
     when (isForeign apiDecoded) $
