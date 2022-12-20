@@ -20,7 +20,7 @@ CHaP: haskell-nix: haskell-nix.cabalProject' [
       };
       cacheTestFailures = lib.mkOption {
         type = lib.types.bool;
-        description = ''If false, prevent test results from being cached'';
+        description = ''If false, prevent check results from being cached on `nix build`'';
         default = true;
       };
     };
