@@ -510,7 +510,9 @@ emptyWitnessCount = WitnessCount
 -- data attached in SharedWalletCtx to differentiate that.
 -- WitnessCount is needed only during or after signing, in other phases it is not used.
 data WitnessCountCtx =
-    ShelleyWalletCtx KeyHash | SharedWalletCtx | AnyWitnessCountCtx
+      ShelleyWalletCtx KeyHash -- Policy
+    | SharedWalletCtx
+    | AnyWitnessCountCtx
     deriving (Eq, Generic, Show)
     deriving anyclass NFData
 
@@ -522,7 +524,7 @@ toKeyRole witCtx key = case witCtx of
         else
             Unknown
     SharedWalletCtx -> Payment
-    AnyWitnessCountCtx -> error "toKeyRole was used in wrong WitnessCountCtx"
+    AnyWitnessCountCtx -> Unknown
 
 data ErrMkTransaction
     = ErrMkTransactionNoSuchWallet WalletId
