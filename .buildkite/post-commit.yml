@@ -6,6 +6,14 @@ env:
   CACHE_DIR: "/cache/cardano-wallet"
 
 steps:
+env:
+  LC_ALL: "en_US.UTF-8"
+  NIX_PATH: "channel:nixos-21.11"
+
+  # Per-host variables - shared across containers on host
+  CACHE_DIR: "/cache/cardano-wallet"
+
+steps:
   - label: 'Prevent merging to wrong branch'
     if: 'build.branch == "staging"'
     command: './.buildkite/check-bors.sh'
@@ -27,6 +35,24 @@ steps:
     key: build-linux
     command: nix build -o result/linux .#ci.artifacts.linux64.release
     artifact_paths: [ "./result/linux/**" ]
+    agents:
+      system: x86_64-linux
+
+  - label: 'Build all tests (Linux)'
+    depends_on: nix
+    command: 'nix build .#ci.tests.all'
+    agents:
+      system: x86_64-linux
+
+  - label: 'Run unit tests on linux'
+    depends_on: nix
+    command: 'nix build -L .#ci.x86_64-linux.tests.run.unit'
+    agents:
+      system: x86_64-linux
+
+  - label: 'Build all benchmarks'
+    depends_on: nix
+    command: 'nix build .#ci.benchmarks.all'
     agents:
       system: x86_64-linux
 
