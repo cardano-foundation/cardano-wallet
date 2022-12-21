@@ -9,14 +9,6 @@ on:
         description: 'Network'
         required: true
         default: 'preprod'
-      node_db_cache:
-        description: 'Node DB Cache'
-        required: true
-        default: 'GH'
-        type: choice
-        options:
-        - AWS
-        - GH
       branch:
         description: 'Run tests against branch'
         default: 'master'
@@ -50,12 +42,7 @@ jobs:
       run: |
         echo "value=$(rake datetime)" >> $GITHUB_OUTPUT
 
-    - name: 💽 AWS Cache node db
-      if: ${{ env.NODE_DB_CACHE == 'AWS' }}
-      run: rake get_latest_node_db[$NETWORK]
-
     - name: 💾 GH Cache node db
-      if: ${{ env.NODE_DB_CACHE == 'GH' }}
       id: cache
       uses: actions/cache@v3
       with:

@@ -17,14 +17,6 @@ on:
         description: 'Network'
         required: true
         default: 'preprod'
-      node_db_cache:
-        description: 'Node DB Cache'
-        required: true
-        default: 'GH'
-        type: choice
-        options:
-        - AWS
-        - GH
       tags:
         description: 'Test tags (all, light, offchain...)'
         default: 'all'
@@ -71,12 +63,7 @@ jobs:
       run: |
         echo "value=$(rake datetime)" >> $GITHUB_OUTPUT
 
-    - name: 💽 AWS Cache node db
-      if: ${{ env.NODE_DB_CACHE == 'AWS' }}
-      run: rake get_latest_node_db[$NETWORK]
-
     - name: 💾 Cache node db
-      if: ${{ env.NODE_DB_CACHE == 'GH' }}
       id: cache
       uses: actions/cache@v3
       with:
@@ -92,9 +79,7 @@ jobs:
       with:
         path: test/e2e/state/wallet_db/${{ env.NETWORK }}
         key: wallet-db3-${{ runner.os }}-${{ env.NETWORK }}-${{ steps.date-time.outputs.value }}
-        restore-keys: |
-          wallet-db3-docker-${{ env.NETWORK }}-
-          wallet-db3-Linux-${{ env.NETWORK }}-
+        restore-keys: wallet-db3-docker-${{ env.NETWORK }}-
 
     - name: 🚀 Start node and wallet
       run: |
