@@ -46,7 +46,7 @@ jobs:
         git checkout ${GITHUB_REF#refs/heads/}
 
     - name: Set up Ruby
-      uses: ruby/setup-ruby@v1
+      uses: ruby/setup-ruby@v1.127.0.127.0
       with:
         ruby-version: 2.7.1
         bundler-cache: true
@@ -76,7 +76,7 @@ jobs:
     - name: 💾 GH Cache node db
       if: ${{ env.NODE_DB_CACHE == 'GH' }}
       id: cache
-      uses: actions/cache@v2.1.7
+      uses: actions/cache@v3
       with:
         path: C:/cardano-wallet/test/e2e/state/node_db/${{ env.NETWORK }}
         key: node-db-${{ runner.os }}-${{ env.NETWORK }}-${{ steps.date-time.outputs.value }}
@@ -86,7 +86,7 @@ jobs:
 
     - name: 💾 Cache wallet db
       id: cache-wallet
-      uses: actions/cache@v2.1.7
+      uses: actions/cache@v3
       with:
         path: C:/cardano-wallet/test/e2e/state/wallet_db/${{ env.NETWORK }}
         key: wallet-db3-${{ runner.os }}-${{ env.NETWORK }}-${{ steps.date-time.outputs.value }}
@@ -118,7 +118,7 @@ jobs:
       run: rake stop_node_and_wallet[%NETWORK%]
 
     - name: 📎 Upload state
-      uses: actions/upload-artifact@v2
+      uses: actions/upload-artifact@v3
       if: always()
       with:
         name: ${{ runner.os }}-state
