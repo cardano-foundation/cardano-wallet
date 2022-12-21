@@ -41,7 +41,7 @@ Full instructions are on the [[Building#cabalnix-build]] page.
 
 ### Code generation
 
-The Nix build depends on code which is generated from `stack.yaml` and
+The Nix build depends on code which is generated from
 the Cabal files. If you change these files, then you will probably
 need to update the generated files.
 

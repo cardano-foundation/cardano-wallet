@@ -397,7 +397,6 @@
               inherit (config) dockerHubRepoName;
             };
             inherit (pkgs) checkCabalProject cabalProjectRegenerate;
-            inherit (project.stack-nix.passthru) generateMaterialized;
             buildToolsGenerateMaterialized = pkgs.haskell-build-tools.regenerateMaterialized;
             iohkNixGenerateMaterialized = pkgs.iohk-nix-utils.regenerateMaterialized;
           } // (lib.optionalAttrs buildPlatform.isLinux {
