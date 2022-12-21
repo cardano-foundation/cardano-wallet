@@ -1,9 +1,8 @@
 # E2E testing
 | Flavor | Results |
 |--|--|
-|**Full mode** |[![E2E Docker](https://github.com/input-output-hk/cardano-wallet/actions/workflows/e2e-docker.yml/badge.svg)](https://github.com/input-output-hk/cardano-wallet/actions/workflows/e2e-docker.yml) [![E2E Linux](https://github.com/input-output-hk/cardano-wallet/actions/workflows/e2e-linux.yml/badge.svg)](https://github.com/input-output-hk/cardano-wallet/actions/workflows/e2e-linux.yml) [![E2E MacOS](https://github.com/input-output-hk/cardano-wallet/actions/workflows/e2e-macos.yml/badge.svg)](https://github.com/input-output-hk/cardano-wallet/actions/workflows/e2e-macos.yml) [![E2E Windows](https://github.com/input-output-hk/cardano-wallet/actions/workflows/e2e-windows.yml/badge.svg)](https://github.com/input-output-hk/cardano-wallet/actions/workflows/e2e-windows.yml)  |
-|**Docker compose** | [![Docker-compose Linux](https://github.com/input-output-hk/cardano-wallet/actions/workflows/docker_linux.yml/badge.svg)](https://github.com/input-output-hk/cardano-wallet/actions/workflows/docker_linux.yml) [![Docker-compose MacOS](https://github.com/input-output-hk/cardano-wallet/actions/workflows/docker_macos.yml/badge.svg)](https://github.com/input-output-hk/cardano-wallet/actions/workflows/docker_macos.yml)
-|
+|**Full mode** |<a href="https://github.com/input-output-hk/cardano-wallet/actions/workflows/e2e-docker.yml"><img src="https://img.shields.io/github/actions/workflow/status/input-output-hk/cardano-wallet/e2e-docker.yml?label=E2E Docker&style=for-the-badge&branch=master"  /></a> <a href="https://github.com/input-output-hk/cardano-wallet/actions/workflows/e2e-linux.yml"><img src="https://img.shields.io/github/actions/workflow/status/input-output-hk/cardano-wallet/e2e-linux.yml?label=E2E Linux&style=for-the-badge&branch=master"  /></a> <a href="https://github.com/input-output-hk/cardano-wallet/actions/workflows/e2e-macos.yml"><img src="https://img.shields.io/github/actions/workflow/status/input-output-hk/cardano-wallet/e2e-macos.yml?label=E2E MacOs&style=for-the-badge&branch=master"  /></a> <a href="https://github.com/input-output-hk/cardano-wallet/actions/workflows/e2e-windows.yml"><img src="https://img.shields.io/github/actions/workflow/status/input-output-hk/cardano-wallet/e2e-windows.yml?label=E2E Windows&style=for-the-badge&branch=master" /></a> |
+|**Docker compose** | <a href="https://github.com/input-output-hk/cardano-wallet/actions/workflows/docker_linux.yml"><img src="https://img.shields.io/github/actions/workflow/status/input-output-hk/cardano-wallet/docker_linux.yml?label=Docker-compose Linux&style=for-the-badge&branch=master"  /></a>  <a href="https://github.com/input-output-hk/cardano-wallet/actions/workflows/docker_macos.yml"><img src="https://img.shields.io/github/actions/workflow/status/input-output-hk/cardano-wallet/docker_macos.yml?label=Docker-compose Macos&style=for-the-badge&branch=master"  /></a>
 
 E2E functional tests of cardano-wallet are running nightly on [cardano testnet](https://testnets.cardano.org/en/cardano/overview/). Running tests against public testnet allows to exercise cardano-wallet on environment close to production (mainnet) utilizing and integrating maximally all components of the Cardano ecosystem like Stake pools, SMASH, metadata token server etc.
 
@@ -149,15 +148,7 @@ There are several e2e workflows in GH actions for testing against different plat
 
 #### Node DB cache
 
-For speeding up execution in wallet's full mode we use cardano-node DB from cache. Thanks to this we don't have to wait for hours on each execution until cardano-node is synced with the chain. There are two ways of acquiring node DB:
- - GH actions cache - node db is cached on every execution and reused on subsequent run
- - AWS cache - node db is downloaded from https://updates-cardano-testnet.s3.amazonaws.com/cardano-node-state/index.html (the snapshot there is updated on every epoch)
-
-While GH actions cache is realized by [actions/cache](https://github.com/actions/cache) for AWS one we have a dedicated rake step:
-
-```ruby
-$ rake get_latest_node_db[testnet]
-```
+For speeding up execution in wallet's full mode we use cardano-node DB from cache. Thanks to this we don't have to wait for hours on each execution until cardano-node is synced with the chain. On CI it is handled by [actions/cache](https://github.com/actions/cache).
 
 #### Test schedule
 
