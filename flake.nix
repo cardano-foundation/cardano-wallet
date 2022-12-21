@@ -314,15 +314,6 @@
               haskellProject = project;
               inherit (config) withCabalCache ghcVersion;
             };
-            stack = cabal.overrideAttrs (old: {
-              name = "cardano-wallet-stack-env";
-              nativeBuildInputs = old.nativeBuildInputs ++ [ pkgs.stack ];
-              # Build environment setup copied from
-              # <nixpkgs/pkgs/development/haskell-modules/generic-stack-builder.nix>
-              STACK_PLATFORM_VARIANT = "nix";
-              STACK_IN_NIX_SHELL = 1;
-              STACK_IN_NIX_EXTRA_ARGS = config.stackExtraArgs;
-            });
             docs = pkgs.mkShell {
               name = "cardano-wallet-docs";
               nativeBuildInputs = [ emanote.packages.${system}.default pkgs.yq ];
