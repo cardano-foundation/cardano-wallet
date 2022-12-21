@@ -1,6 +1,7 @@
 env:
   LC_ALL: "en_US.UTF-8"
   NIX_PATH: "channel:nixos-21.11"
+  NIX_BUILD_CORES: 1
 
   # Per-host variables - shared across containers on host
   CACHE_DIR: "/cache/cardano-wallet"

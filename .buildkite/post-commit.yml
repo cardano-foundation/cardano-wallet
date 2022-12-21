@@ -1,6 +1,7 @@
 env:
   LC_ALL: "en_US.UTF-8"
   NIX_PATH: "channel:nixos-21.11"
+  NIX_BUILD_CORES: 1
 
   # Per-host variables - shared across containers on host
   CACHE_DIR: "/cache/cardano-wallet"
@@ -130,7 +131,7 @@ steps:
       system: x86_64-linux
 
   - label: 'HLS works'
-    depends_on: nix 
+    depends_on: nix
     command: |
         ln -sf hie-direnv.yaml hie.yaml
         nix develop --command bash -c "haskell-language-server lib/wallet/src/Cardano/Wallet.hs"
