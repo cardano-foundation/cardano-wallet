@@ -128,3 +128,11 @@ steps:
       - './scripts/shellcheck.sh'
     agents:
       system: x86_64-linux
+
+  - label: 'HLS works'
+    depends_on: nix 
+    command: |
+        ln -sf hie-direnv.yaml hie.yaml
+        nix develop --command bash -c "haskell-language-server lib/wallet/src/Cardano/Wallet.hs"
+    agents:
+      system: x86_64-linux
