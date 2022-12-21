@@ -38,7 +38,7 @@ jobs:
         git checkout ${GITHUB_REF#refs/heads/}
 
     - name: Set up Ruby
-      uses: ruby/setup-ruby@v1.127.0.127.0
+      uses: ruby/setup-ruby@v1.127.0
       with:
         ruby-version: 2.7.1
         bundler-cache: true
