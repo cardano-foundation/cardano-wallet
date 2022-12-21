@@ -10,9 +10,6 @@
 -- It is assumed that all cardano-wallet packages have the same version, that of
 -- the core package.
 --
--- Stack builds will have the `git` command available to run during
--- compilation.
---
 -- Nix builds will inject the git revision into the executables after
 -- compiling. If the git revision has changed but the sources have
 -- not, then no haskell packages will be rebuilt, but the embedded git

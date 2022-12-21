@@ -107,5 +107,5 @@ warning: dumping very large path (> 256 MiB); this may run out of memory
 Make sure you don't have large files or directories in your git worktree.
 
 When building, Nix will copy the project sources into
-`/nix/store`. Standard folders such as `.stack-work` will be filtered
+`/nix/store`. Generated folders such as `dist-newstyle` will be filtered
 out, but everything else will be copied.
