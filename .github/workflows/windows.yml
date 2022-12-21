@@ -1,49 +1,52 @@
-# On branch push, download the windows testing bundle build and run it.
-
 name: windows
 
 on:
-  push:
-    branches:
-      - master
-      - staging
-      - trying
-      - 'release/v*'
-  pull_request:
+  schedule:
+  - cron:  "0 20 * * *"
+  workflow_dispatch:
+    inputs:
+      branch:
+        description: 'Run tests against branch'
+        default: 'master'
 
 jobs:
   setup:
+    env:
+      BUILDKITE_API_TOKEN: ${{ secrets.BUILDKITE_TOKEN_READ_BUILDS_ARTIFACTS }}
+      WORK_DIR: ./test/e2e
+      BRANCH: ${{ github.event.inputs.branch || 'master' }}
     runs-on: windows-2022
     name: Download testing bundle
     steps:
-      - name: 'Wait for Hydra build'
-        uses: rvl/hydra-build-products-action@master
-        id: hydra
+      - uses: actions/checkout@v2
+      - name: Set up Ruby
+        uses: ruby/setup-ruby@v1
         with:
-          hydra: 'https://hydra.iohk.io'
-          jobs: 'linux.windows.cardano-wallet-tests-win64'
-          # TODO ADP-2503.
-          #  For reference, the new path is
-          #  nix build -o result/windows-tests .#ci.artifacts.win64.tests
-      - name: 'Fetch Windows testing bundle'
-        shell: powershell
+          ruby-version: 2.7.1
+          bundler-cache: true
+
+      - name: Get 'cardano-wallet-tests-win64.zip'
+        working-directory: ${{ env.WORK_DIR }}
         run: |
-          $output = "cardano-wallet-tests-win64.zip"
-          Invoke-WebRequest -Uri ${{ steps.hydra.outputs.buildProducts }} -OutFile $output
-          Expand-Archive -LiteralPath $output -DestinationPath .
-          Get-ChildItem
+          bundle install
+          rake get_latest_windows_tests[%BRANCH%,cardano-wallet-tests-win64]
+
+      - name: Report version
+        working-directory: ${{ env.WORK_DIR }}
+        run: rake display_versions[cardano-wallet-tests-win64]
+
       - name: Save files
-        uses: actions/upload-artifact@v2
+        uses: actions/upload-artifact@v3
         with:
           name: cardano-wallet-tests-win64
-          path: "**/*"
+          path: ${{ env.WORK_DIR }}/cardano-wallet-tests-win64
 
   cardano-wallet-test-unit:
     name: 'cardano-wallet:unit'
     needs: setup
     runs-on: windows-2022
     steps:
-      - uses: actions/download-artifact@v2
+      - uses: actions/download-artifact@v3
         with:
           name: cardano-wallet-tests-win64
       - run: '.\\cardano-wallet-test-unit.exe --color --jobs 1 --skip /Cardano.Wallet.DB.Sqlite/ +RTS -M2G -N2'
@@ -53,7 +56,7 @@ jobs:
     needs: setup
     runs-on: windows-2022
     steps:
-      - uses: actions/download-artifact@v2
+      - uses: actions/download-artifact@v3
         with:
           name: cardano-wallet-tests-win64
       - run: '.\\text-class-test-unit.exe --color'
@@ -63,38 +66,20 @@ jobs:
     needs: setup
     runs-on: windows-2022
     steps:
-      - uses: actions/download-artifact@v2
+      - uses: actions/download-artifact@v3
         with:
           name: cardano-wallet-tests-win64
       - run: '.\\cardano-wallet-launcher-test-unit.exe --color'
         continue-on-error: true
 
-  cardano-wallet-test-integration:
-    name: 'cardano-wallet:integration'
-    needs: setup
-    if: ${{ startsWith(github.ref, 'refs/heads/bors/') || startsWith(github.ref, 'refs/heads/release/v') }}
-    runs-on: windows-2022
-    steps:
-      - uses: actions/download-artifact@v2
-        with:
-          name: cardano-wallet-tests-win64
-      - run: '.\\cardano-wallet-test-integration.exe --color'
-        timeout-minutes: 60
-
-  finish:
-    name: Finish
-    runs-on: windows-2022
-    if: always()
-    needs:
-      - cardano-wallet-test-unit
-      - text-class-test-unit
-      - cardano-wallet-launcher-test-unit
-      - cardano-wallet-test-integration
-    steps:
-      - uses: actions/checkout@v2
-        with:
-          fetch-depth: 1
-      - name: "Advance windows-tests-pass and all-tests-pass branches"
-        if: github.ref == 'ref/heads/master'
-        shell: bash
-        run: 'bash .buildkite/push-branch.sh windows-tests-pass linux-tests-pass all-tests-pass'
+  # ADP-2517 - Fix integration tests on Windows
+  # cardano-wallet-test-integration:
+  #   name: 'cardano-wallet:integration'
+  #   needs: setup
+  #   runs-on: windows-2022
+  #   steps:
+  #     - uses: actions/download-artifact@v3
+  #       with:
+  #         name: cardano-wallet-tests-win64
+  #     - run: '.\\cardano-wallet-test-integration.exe --color'
+  #       timeout-minutes: 60

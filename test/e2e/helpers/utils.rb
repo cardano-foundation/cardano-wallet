@@ -108,12 +108,14 @@ module Helpers
     end
 
     def unzip_artifact(target_file, target_dir)
+      log "Unzipping #{target_file} to #{target_dir}"
       if win?
         cmd "unzip -o #{target_file} -d #{target_dir}"
+        cmd "del \\f #{target_file}"
       else
         cmd "tar -xvf #{target_file}"
         cmd "cp -r cardano-wallet-*/* #{target_dir}"
-        cmd 'rm -rf cardano-wallet-*/'
+        cmd "rm -rf cardano-wallet-*/ #{target_file}"
       end
     end
 

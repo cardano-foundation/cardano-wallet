@@ -66,6 +66,7 @@ steps:
 
   - label: 'Build Windows testing bundle'
     depends_on: nix
+    key: build-windows-tests
     command: nix build -o result/windows-tests .#ci.artifacts.win64.tests
     artifact_paths: [ "./result/windows-tests/**" ]
     agents:
