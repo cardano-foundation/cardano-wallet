@@ -16,23 +16,23 @@ We choose to track the expiring `Slot` of the transaction
 as part of the `Status` for clarity, even though this `Slot`
 is part of the transaction data.
 -/
-inductive TxStatus : Type
+inductive Status : Type
     -- The transaction has been submitted but is not yet in the ledger.
     | InSubmission
       : Slot -- expiring
-      -> TxStatus
+      -> Status
     -- The transaction is in the ledger but can still be rolled back.
     | InLedger
         : Slot -- expiring
         -> Slot -- acceptance
-        -> TxStatus
+        -> Status
     -- The transaction has expired but could reappear in case of a rollback.
     | Expired
       : Slot -- expiring
-      -> TxStatus
+      -> Status
     -- The transaction is not known to the submission database.
-    | Unknown : TxStatus
-open TxStatus
+    | Unknown : Status
+open Status
 
 
 structure Submissions :=
@@ -53,7 +53,7 @@ structure Submissions :=
   (Tx : Type)
 
   -- Submission status of a `Tx` as tracked by the database.
-  (status : Tx -> Submissions -> TxStatus)
+  (status : Tx -> Submissions -> Status)
 
   -- Tip `Slot` of the database.
   --
