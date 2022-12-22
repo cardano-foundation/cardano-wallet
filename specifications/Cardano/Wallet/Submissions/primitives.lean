@@ -1,58 +1,73 @@
 section
 
+/-- `Slot` represents time. -/
 parameter Slot : Type
-  -- transaction database for submitted transactions
+
+/--
+Database that tracks the lifecycle of transactions that have been
+submitted to the distributed ledger.
+-/
 parameter Submissions : Type
 
--- we choose to explicitly move around the expiring slot 
--- to remove access to Tx
+/--
+Submission `Status` of a transaction.
+
+We choose to track the expiring `Slot` of the transaction
+as part of the `Status` for clarity, even though this `Slot`
+is part of the transaction data.
+-/
 inductive TxStatus : Type
-    -- a transaction has been submitted but it's not in the ledger
+    -- The transaction has been submitted but is not yet in the ledger.
     | InSubmission 
       : Slot -- expiring
       -> TxStatus
-    -- a transaction is in the ledger but can be rolled out
+    -- The transaction is in the ledger but can still be rolled back.
     | InLedger 
         : Slot -- expiring 
         -> Slot -- acceptance
         -> TxStatus
-    -- a transaction has Expired but could reappear in case of rollbacks
+    -- The transaction has expired but could reappear in case of a rollback.
     | Expired 
       : Slot -- expiring 
       -> TxStatus
-    -- a transaction is not known to the submission db
+    -- The transaction is not known to the submission database.
     | Unknown : TxStatus
 open TxStatus
 
 
-
 structure Submissions :=
-
+  -- Computations on `Slot`.
   (before
-    : Slot -- ^ transaction slot
-    -> Slot -- ^ reference slot
+    : Slot -- slot that is before or equal to
+    -> Slot -- reference slot
     -> Prop
   )
 
   (after
-    : Slot -- ^ transaction slot
-    -> Slot -- ^ reference slot
+    : Slot -- slot that strictly after
+    -> Slot -- reference slot
     -> Prop
   )
-  -- a transaction
+
+  -- A transaction.
   (Tx : Type)
 
-  -- transaction status relative to the database
+  -- Submission status of a `Tx` as tracked by the database.
   (status : Tx -> Submissions -> TxStatus)
 
-  -- tip slot of the database, no transactions have
-  -- acceptance slot > tip
+  -- Tip `Slot` of the database.
+  --
+  -- The tip separates the transactions that are `InLedger` or `Expired`
+  -- from the transactions that are still `InSubmission`.
   (tip : Submissions -> Slot)
-  -- finality slot of the database, no transactions have
-  -- acceptance slot <= finality ∨ expiring slot <= finality
+
+  -- Finality `Slot` of the database.
+  -- 
+  -- The finality slot represents the last slot after which
+  -- transactions are still tracked; older transactions are pruned.
   (finality : Submissions -> Slot)
 
-  -- tries to add a new transactions to the submissions store
+  -- Tries to add a new transaction to the submissions store.
   (addSubmission
     : Slot -- expiring slot, after which 
            -- a transaction cannot make it to the ledger
@@ -80,9 +95,11 @@ structure Submissions :=
             ¬ unknown → new = old
       )
 
-  -- moveToLedger
-  -- this operation is primitive and leaving tip untouched
-  -- no property is checked that the tip is not smaller than the acceptance slot 
+  -- Move a `Tx` into to the ledger.
+  --
+  -- This operation is primitive — it leaves the tip untouched,
+  -- and will only change the transaction status if the `acceptance` slot
+  -- is `after` the `tip` of the database.
   (moveToLedger
     : Slot -- acceptance slot for this tx
     -> Tx  -- landed transaction
@@ -94,8 +111,7 @@ structure Submissions :=
         , let xs' := moveToLedger acceptance x xs 
           in tip xs' = tip xs ∧ finality xs' = finality xs
       )
-      -- take care that transaction moved here will be with acceptance after the tip
-      -- in this phase the tip is staying behind marking the minimum acceptance
+
       (moveToLedger_changes_transaction_statuses
         : ∀ (acceptance:Slot) (xs:Submissions) (x:Tx) (expiring:Slot) (y : Tx)
         , let xs' := moveToLedger acceptance x xs 
@@ -111,12 +127,12 @@ structure Submissions :=
             ∧  ¬ inSubmission → new = old
       )
 
-  -- moveTip
+  -- Move the `tip` of the submission database.
   (moveTip
     : Slot  -- new tip, can be in the past or in the future
     -> Submissions  -- db
     -> Submissions  -- modified db
-    )
+  )
       (moveTip_changes_the_tip
         : ∀ (newTip:Slot) (xs:Submissions)
         , let xs' := moveTip newTip xs in tip xs' = newTip
@@ -130,7 +146,6 @@ structure Submissions :=
           before (finality xs) newTip → finality xs' = finality xs 
       )      
 
-      -- InLedger effects,  
       (moveTip_changes_transaction_statuses
         : ∀ (newTip:Slot) (xs:Submissions) (y:Tx) (acceptance:Slot) (expiring:Slot)
         , let xs' := moveTip newTip xs 
@@ -151,14 +166,15 @@ structure Submissions :=
          ∧  inLedger → new = InSubmission expiring 
          ∧  (¬ (inSubmission ∨ expired ∨ inLedger)) → new = old 
       )
-  -- moveFinality
+  
+  -- Move the `finality` of the submission database.
   (moveFinality
-    : Slot -- slot in the past for which transactions
-          -- cannot roll back to submission (persisted status)
-          -- or roll forward to ledger (dead status)
+    : Slot  -- slot in the past for which transactions
+            -- cannot roll back from InLedger to InSubmission (persisted)
+            -- or roll back from Expired to InSubmission (dead)
     -> Submissions -- db
     -> Submissions -- modified db
-    )
+  )
       (moveFinality_should_not_change_tip
         : ∀ (newFinality:Slot) (xs:Submissions)
         , let xs' := moveFinality newFinality xs in tip xs' = tip xs
@@ -193,6 +209,7 @@ structure Submissions :=
          ∧  (¬ (expired ∨  inLedger)) → new = old 
       )
 
+  -- Forget b
   (forget 
     : Tx 
     -> Submissions 
