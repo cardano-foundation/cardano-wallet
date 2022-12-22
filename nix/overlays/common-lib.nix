@@ -51,8 +51,8 @@ in {
         else null;
     };
 
-    # Since it's not automatically discovered from stack-pkgs yet, we use homepage as discriminant
-    # to retrieve local project packages:
+    # Retrieve the list of local project packages by
+    # filtering the set of *all* packages by their homepage.
     projectPackageList = lib.attrNames (lib.filterAttrs
         (_: p: p != null
           && haskellLib.isLocalPackage p.package

@@ -20,7 +20,7 @@
 # individually. For example, run step1 to set up a state directory for
 # the old version, then try:
 #   stateDir=./debug /nix/store/...-launch-migration-test-v2019-12-16.sh step1
-#   stack exec migration-test -- step2 launch --state-dir=./debug ...
+#   exec migration-test -- step2 launch --state-dir=./debug ...
 #
 ############################################################################
 

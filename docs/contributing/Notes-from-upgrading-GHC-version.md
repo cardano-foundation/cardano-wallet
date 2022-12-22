@@ -2,7 +2,7 @@
 
 Here is a reference PR that upgrades to GHC 8.10.7: https://github.com/input-output-hk/cardano-wallet/pull/2969
 
-**WARNING**: Updating haskell.nix, the stackage LTS, and/or GHC, changes a lot of the build environment. You should expect to spend time fixing breakages.
+**WARNING**: Updating haskell.nix and/or GHC changes a lot of the build environment. You should expect to spend time fixing breakages.
 
 ## Process
 - Update "with-compiler" in cabal.project:
@@ -40,25 +40,6 @@ index 28c46f2e4df..6b0778eb5d0 100644
  pkgs: super: let
 ```
 
-- Update compiler in stack.yaml. Update the resolver too if necessary (e.g. to get a newer set of packages):
-
-```diff
-diff --git a/stack.yaml b/stack.yaml
-index 18b0916933..29f2d6e961 100644
---- a/stack.yaml
-+++ b/stack.yaml
-@@ -13,8 +13,8 @@
- #
- ########################################################################
- 
--resolver: lts-18.5
--compiler: ghc-8.10.5
-+resolver: lts-18.13
-+compiler: ghc-8.10.7
- 
- packages:
- - lib/wallet
-```
 - Update haskell.nix `niv update haskell.nix -b master`.
 - Run nix/regenerate.sh.
 

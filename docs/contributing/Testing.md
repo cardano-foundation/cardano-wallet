@@ -213,7 +213,7 @@ $ cabal bench cardano-wallet:db
 
 1. Follow the pre-requisites from `integration` above
 
-2. (Optional) Install [hp2pretty](https://www.stackage.org/nightly-2019-03-25/package/hp2pretty-0.9)
+2. (Optional) Install [hp2pretty](https://hackage.haskell.org/package/hp2pretty)
 
     ```
     $ cabal install hp2pretty

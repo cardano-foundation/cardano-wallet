@@ -9,28 +9,26 @@
 -- -----------------------------------------------------------------------------
 -- Updating this file
 --
--- Note that the canonical source of dependencies is stack.yaml and
--- cabal.project should be kept in sync with that. The Nix packages
--- are generated from stack.yaml not cabal.project.
+-- This file is the canonical source of dependencies.
+-- To generate the Nix packages, use  ./nix/regenerate.sh
 --
 -- -----------------------------------------------------------------------------
--- How to use with the nix-shell
+-- How to use with the nix shell
 --
--- The advantage of building under nix-shell is that the correct
+-- The advantage of building under `nix develop` is that the correct
 -- versions of all build and test dependencies are set up for you in the
--- nix-shell environment.
+-- nix shell environment.
 --
 -- Many dependencies, including Haskell package dependencies,
 -- are downloaded from an IOG nix cache.
 --
--- The Haskell package set in shell.nix is automatically generated
--- from stack.yaml.
+-- To build, start `nix develop`, then run `cabal` inside:
 --
--- To build, start "nix-shell", then run Cabal inside:
 --     nix develop
 --     cabal build all -O0
 --
 -- To build with profiling enabled, use:
+--
 --    nix develop .#profiled
 --    cabal configure --enable-tests --enable-benchmarks --enable-profiling
 --    cabal build all

@@ -16,9 +16,6 @@ lib: customConfig: let config =
   # optional extra haskell.nix module
   haskellNix = {};
 
-  # optional arguments for stack (nix-shell -A stack --arg stackExtraArgs '[]')
-  stackExtraArgs = [];
-
   # optional string argument to override compiler, in cabal shell.
   ghcVersion = null;
 

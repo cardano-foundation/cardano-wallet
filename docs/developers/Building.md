@@ -84,12 +84,6 @@ See [`nix/overlays/build-tools.nix`](https://github.com/input-output-hk/cardano-
    $ cabal build cardano-wallet:exe:cardano-wallet
    ```
 
-#### Syncing `stack` and `cabal` dependencies
-
-1. Install [stack2cabal](https://hackage.haskell.org/package/stack2cabal)
-
-2. Run `stack2cabal -p now` to convert the dependencies list from `stack` into a suitable format for `cabal`.
-
 ## Nix
 
 Use the [[Nix]] build if:
