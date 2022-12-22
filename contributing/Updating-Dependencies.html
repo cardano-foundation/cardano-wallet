@@ -27,7 +27,7 @@
 
 
   
-  <link href='tailwind.css?instanceId=9d6f6c46-7b72-4710-a20e-eefdbe406797' rel='stylesheet' type='text/css' />
+  <link href='tailwind.css?instanceId=449b0103-b94a-4a28-81cd-76e3456f37d5' rel='stylesheet' type='text/css' />
 
   <!-- Heist error element -->
   <style type='text/css'>
@@ -2337,7 +2337,7 @@
     </p>
   <h2 id='nix-develop' class='inline-block mt-6 mb-4 text-4xl font-bold text-gray-700 border-b-2'>nix develop</h2>
     <p class='mb-3'>
-      The default <code class='py-0.5 px-0.5 bg-gray-100'>nix develop</code> contains build tools, utilities and GHC configured with a global package-db which matches <code class='py-0.5 px-0.5 bg-gray-100'>stack.yaml</code>. This is defined in the <code class='py-0.5 px-0.5 bg-gray-100'>devShell</code> attribute of <code class='py-0.5 px-0.5 bg-gray-100'>flake.nix</code>.
+      The default <code class='py-0.5 px-0.5 bg-gray-100'>nix develop</code> contains build tools, utilities and GHC configured with a global package-db which matches <code class='py-0.5 px-0.5 bg-gray-100'>cabal.project</code>. This is defined in the <code class='py-0.5 px-0.5 bg-gray-100'>devShell</code> attribute of <code class='py-0.5 px-0.5 bg-gray-100'>flake.nix</code>.
     </p>
   <h2 id='buildkite' class='inline-block mt-6 mb-4 text-4xl font-bold text-gray-700 border-b-2'>Buildkite</h2>
     <p class='mb-3'>
@@ -2349,48 +2349,20 @@
     </p>
   <h2 id='updating-node-backends' class='inline-block mt-6 mb-4 text-4xl font-bold text-gray-700 border-b-2'>Updating node backends</h2><h3 id='cardano-node-haskell-dependencies' class='mt-6 mb-2 text-3xl font-bold text-gray-700'><code class='py-0.5 px-0.5 bg-gray-100'>cardano-node</code> Haskell dependencies</h3>
     <p class='mb-3'>
-      These are defined by the <code class='py-0.5 px-0.5 bg-gray-100'>resolver</code> in <a href='https://github.com/input-output-hk/cardano-wallet/blob/master/stack.yaml' class='text-blue-600 hover:underline' target='_blank' rel='noopener'><code class='py-0.5 px-0.5 bg-gray-100'>stack.yaml</code></a>.
-    </p>
-  
-    <p class='mb-3'>
-      It points to a file in <a href='https://github.com/input-output-hk/cardano-haskell/tree/master/snapshots' class='text-blue-600 hover:underline' target='_blank' rel='noopener'><code class='py-0.5 px-0.5 bg-gray-100'>cardano-haskell/snapshots</code></a>.
-    </p>
-  
-    <p class='mb-3'>
       To bump to a new version:
     </p>
   
     <ul class='my-3 ml-6 space-y-1 list-decimal list-inside'>
       
         <li>
-          Make a copy of the latest snapshot file.
-        </li>
-      
-        <li>
-          Update the dependency revisions to match your chosen version of <code class='py-0.5 px-0.5 bg-gray-100'>cardano-node/cabal.project</code>. Refer to <code class='py-0.5 px-0.5 bg-gray-100'>cabal.project</code> rather than <code class='py-0.5 px-0.5 bg-gray-100'>stack.yaml</code> because it is more likely to be correct.
-        </li>
-      
-        <li>
-          Check that <code class='py-0.5 px-0.5 bg-gray-100'>extra-deps</code> are correct and there are no conflicts with those in <code class='py-0.5 px-0.5 bg-gray-100'>cardano-wallet</code>.
+          In <code class='py-0.5 px-0.5 bg-gray-100'>cardano-wallet/cabal.project</code>, update the dependency revisions to match your chosen version of <code class='py-0.5 px-0.5 bg-gray-100'>cardano-node/cabal.project</code>.
         </li>
       
         <li>
           Run <code class='py-0.5 px-0.5 bg-gray-100'>./nix/regenerate.sh</code> (or let Buildkite do it)
         </li>
       
-        <li>
-          Open a PR on <a href='https://github.com/input-output-hk/cardano-haskell' class='text-blue-600 hover:underline' target='_blank' rel='noopener'><code class='py-0.5 px-0.5 bg-gray-100'>cardano-haskell</code></a>.
-        </li>
-      
-        <li>
-          Temporarily the snapshot URL in <code class='py-0.5 px-0.5 bg-gray-100'>cardano-wallet/stack.yaml</code> to point to the PR branch so that you can test the build.
-        </li>
-      
     </ul>
-  
-    <p class='mb-3'>
-      <strong>Tip</strong>: The <code class='py-0.5 px-0.5 bg-gray-100'>stack.yaml</code> <code class='py-0.5 px-0.5 bg-gray-100'>resolver</code> file can also refer to a local file path – so you needn’t necessarily open a PR on <code class='py-0.5 px-0.5 bg-gray-100'>cardano-haskell</code> to make a temporary change.
-    </p>
   <h3 id='jörmungandr' class='mt-6 mb-2 text-3xl font-bold text-gray-700'>Jörmungandr</h3>
     <p class='mb-3'>
       Follow the instructions in <a href='https://github.com/input-output-hk/cardano-wallet/blob/master/nix/jormungandr.nix' class='text-blue-600 hover:underline' target='_blank' rel='noopener'><code class='py-0.5 px-0.5 bg-gray-100'>nix/jormungandr.nix</code></a>.

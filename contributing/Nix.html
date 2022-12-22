@@ -27,7 +27,7 @@
 
 
   
-  <link href='tailwind.css?instanceId=9d6f6c46-7b72-4710-a20e-eefdbe406797' rel='stylesheet' type='text/css' />
+  <link href='tailwind.css?instanceId=449b0103-b94a-4a28-81cd-76e3456f37d5' rel='stylesheet' type='text/css' />
 
   <!-- Heist error element -->
   <style type='text/css'>
@@ -2389,7 +2389,7 @@
     </p>
   <h2 id='development-tips' class='inline-block mt-6 mb-4 text-4xl font-bold text-gray-700 border-b-2'>Development tips</h2><h3 id='code-generation' class='mt-6 mb-2 text-3xl font-bold text-gray-700'>Code generation</h3>
     <p class='mb-3'>
-      The Nix build depends on code which is generated from <code class='py-0.5 px-0.5 bg-gray-100'>stack.yaml</code> and the Cabal files. If you change these files, then you will probably need to update the generated files.
+      The Nix build depends on code which is generated from the Cabal files. If you change these files, then you will probably need to update the generated files.
     </p>
   
     <p class='mb-3'>
@@ -2444,7 +2444,7 @@ warning: Git tree '/home/rodney/iohk/cw/flake' is dirty</code></pre></div>
     </p>
   
     <p class='mb-3'>
-      When building, Nix will copy the project sources into <code class='py-0.5 px-0.5 bg-gray-100'>/nix/store</code>. Standard folders such as <code class='py-0.5 px-0.5 bg-gray-100'>.stack-work</code> will be filtered out, but everything else will be copied.
+      When building, Nix will copy the project sources into <code class='py-0.5 px-0.5 bg-gray-100'>/nix/store</code>. Generated folders such as <code class='py-0.5 px-0.5 bg-gray-100'>dist-newstyle</code> will be filtered out, but everything else will be copied.
     </p>
   
   <!-- What goes in this file will appear below the note body-->

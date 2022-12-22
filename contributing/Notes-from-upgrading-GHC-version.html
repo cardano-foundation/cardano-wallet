@@ -27,7 +27,7 @@
 
 
   
-  <link href='tailwind.css?instanceId=9d6f6c46-7b72-4710-a20e-eefdbe406797' rel='stylesheet' type='text/css' />
+  <link href='tailwind.css?instanceId=449b0103-b94a-4a28-81cd-76e3456f37d5' rel='stylesheet' type='text/css' />
 
   <!-- Heist error element -->
   <style type='text/css'>
@@ -2333,7 +2333,7 @@
     </p>
   
     <p class='mb-3'>
-      <strong>WARNING</strong>: Updating haskell.nix, the stackage LTS, and/or GHC, changes a lot of the build environment. You should expect to spend time fixing breakages.
+      <strong>WARNING</strong>: Updating haskell.nix and/or GHC changes a lot of the build environment. You should expect to spend time fixing breakages.
     </p>
   <h2 id='process' class='inline-block mt-6 mb-4 text-4xl font-bold text-gray-700 border-b-2'>Process</h2>
     <ul class='my-3 ml-6 space-y-1 list-disc'>
@@ -2376,28 +2376,6 @@ index 28c46f2e4df..6b0778eb5d0 100644
  in
  
  pkgs: super: let</code></pre></div>
-    <ul class='my-3 ml-6 space-y-1 list-disc'>
-      
-        <li>
-          Update compiler in stack.yaml. Update the resolver too if necessary (e.g. to get a newer set of packages):
-        </li>
-      
-    </ul>
-  <div class='py-0.5 mb-3 text-sm'><pre><code class='diff language-diff'>diff --git a/stack.yaml b/stack.yaml
-index 18b0916933..29f2d6e961 100644
---- a/stack.yaml
-+++ b/stack.yaml
-@@ -13,8 +13,8 @@
- #
- ########################################################################
- 
--resolver: lts-18.5
--compiler: ghc-8.10.5
-+resolver: lts-18.13
-+compiler: ghc-8.10.7
- 
- packages:
- - lib/wallet</code></pre></div>
     <ul class='my-3 ml-6 space-y-1 list-disc'>
       
         <li>
