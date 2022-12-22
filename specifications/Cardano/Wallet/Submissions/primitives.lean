@@ -1,3 +1,4 @@
+namespace Cardano.Wallet.Submissions.Primitives
 section
 
 /-- `Slot` represents time. -/
@@ -229,4 +230,6 @@ structure Submissions :=
       in
         x = y → new = Unknown ∧ x ≠ y → new = old
       )
+
 end
+end Cardano.Wallet.Submissions.Primitives
