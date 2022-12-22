@@ -26,6 +26,7 @@ import Data.DeltaMap
 import Database.Persist.Sql
     ( SqlPersistT )
 
+-- TODO: This implementation is not completed / fully tested yet.
 mkDbPendingTxs
     :: DBVar (SqlPersistT IO) (DeltaMap WalletId DeltaTxSubmissions)
     -> DBPendingTxs stm
