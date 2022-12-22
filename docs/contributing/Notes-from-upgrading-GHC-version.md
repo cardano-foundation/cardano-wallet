@@ -2,7 +2,7 @@
 
 Here is a reference PR that upgrades to GHC 8.10.7: https://github.com/input-output-hk/cardano-wallet/pull/2969
 
-**WARNING**: Updating haskell.nix and/or GHC, changes a lot of the build environment. You should expect to spend time fixing breakages.
+**WARNING**: Updating haskell.nix and/or GHC changes a lot of the build environment. You should expect to spend time fixing breakages.
 
 ## Process
 - Update "with-compiler" in cabal.project:

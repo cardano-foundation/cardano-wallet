@@ -22,7 +22,7 @@
 -- Many dependencies, including Haskell package dependencies,
 -- are downloaded from an IOG nix cache.
 --
--- To build, start `nix develop`, then run Cabal inside:
+-- To build, start `nix develop`, then run `cabal` inside:
 --
 --     nix develop
 --     cabal build all -O0
