@@ -32,7 +32,7 @@ structure Submissions :=
 
   (after
     : Slot -- ^ what is strictly after of
-    -> Slot -- ^ reference 
+    -> Slot -- ^ reference
     -> Prop
   )
 
@@ -59,10 +59,10 @@ structure Submissions :=
   ,      t := tip xs
   ,      f := finality xs
   ,      included w := after w f ∧ before w t
-  in 
+  in
       s = InSubmission expiring         → after    expiring t
-    ∧ s = Expired expiring              → included expiring   
-    ∧ s = InLedger expiring acceptance  → included acceptance 
+    ∧ s = Expired expiring              → included expiring
+    ∧ s = InLedger expiring acceptance  → included acceptance
     ∧ before f t
   )
-end 
+end

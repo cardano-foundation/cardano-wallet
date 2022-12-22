@@ -18,17 +18,17 @@ is part of the transaction data.
 -/
 inductive TxStatus : Type
     -- The transaction has been submitted but is not yet in the ledger.
-    | InSubmission 
+    | InSubmission
       : Slot -- expiring
       -> TxStatus
     -- The transaction is in the ledger but can still be rolled back.
-    | InLedger 
-        : Slot -- expiring 
+    | InLedger
+        : Slot -- expiring
         -> Slot -- acceptance
         -> TxStatus
     -- The transaction has expired but could reappear in case of a rollback.
-    | Expired 
-      : Slot -- expiring 
+    | Expired
+      : Slot -- expiring
       -> TxStatus
     -- The transaction is not known to the submission database.
     | Unknown : TxStatus
@@ -62,36 +62,37 @@ structure Submissions :=
   (tip : Submissions -> Slot)
 
   -- Finality `Slot` of the database.
-  -- 
+  --
   -- The finality slot represents the last slot after which
   -- transactions are still tracked; older transactions are pruned.
   (finality : Submissions -> Slot)
 
   -- Tries to add a new transaction to the submissions store.
   (addSubmission
-    : Slot -- expiring slot, after which 
+    : Slot -- expiring slot, after which
            -- a transaction cannot make it to the ledger
     -> Tx  -- new submitted transaction
     -> Submissions -- db
     -> Submissions -- modified db
   )
-      (addSubmissions_tip_and_finality_are_not_changed 
+      (addSubmissions_tip_and_finality_are_not_changed
         : ∀ (x:Tx) (xs:Submissions) (expiring:Slot)
-        , let xs' := addSubmission expiring x xs 
+        , let xs' := addSubmission expiring x xs
           in tip xs' = tip xs ∧ finality xs' = finality xs
       )
+
       (addSubmission__changes_transaction_statuses
         : ∀ (x:Tx)  (xs:Submissions) (expiring:Slot) (y:Tx)
-        , let xs' := addSubmission expiring x xs 
+        , let xs' := addSubmission expiring x xs
         ,     old := status y xs
         ,     new := status y xs'
-        ,     unknown := 
-                old = Unknown 
+        ,     unknown :=
+                old = Unknown
                   ∧ after expiring (tip xs)
                   ∧ x = y
         in
-            unknown → new = InSubmission expiring 
-            ∧  
+            unknown → new = InSubmission expiring
+            ∧
             ¬ unknown → new = old
       )
 
@@ -106,24 +107,24 @@ structure Submissions :=
     -> Submissions -- db
     -> Submissions -- modified db
   )
-      (moveToLedger_tip_and_finality_are_not_changed 
+      (moveToLedger_tip_and_finality_are_not_changed
         : ∀ (x:Tx) (xs:Submissions) (acceptance:Slot)
-        , let xs' := moveToLedger acceptance x xs 
+        , let xs' := moveToLedger acceptance x xs
           in tip xs' = tip xs ∧ finality xs' = finality xs
       )
 
       (moveToLedger_changes_transaction_statuses
         : ∀ (acceptance:Slot) (xs:Submissions) (x:Tx) (expiring:Slot) (y : Tx)
-        , let xs' := moveToLedger acceptance x xs 
+        , let xs' := moveToLedger acceptance x xs
         ,     old := status y xs
         ,     new := status y xs'
-        ,     inSubmission := 
-                old = InSubmission expiring 
-                  ∧ after expiring acceptance  
-                  ∧ after acceptance (tip xs) 
+        ,     inSubmission :=
+                old = InSubmission expiring
+                  ∧ after expiring acceptance
+                  ∧ after acceptance (tip xs)
                   ∧ x = y
-        in 
-           inSubmission → new = InLedger expiring acceptance 
+        in
+           inSubmission → new = InLedger expiring acceptance
             ∧  ¬ inSubmission → new = old
       )
 
@@ -140,33 +141,33 @@ structure Submissions :=
 
       (moveTip_can_change_finality
         : ∀ (x:Tx) (xs:Submissions) (newTip:Slot)
-        , let xs' := moveTip newTip xs in 
+        , let xs' := moveTip newTip xs in
           after (finality xs) newTip → finality xs' = newTip
-          ∧ 
-          before (finality xs) newTip → finality xs' = finality xs 
-      )      
+          ∧
+          before (finality xs) newTip → finality xs' = finality xs
+      )
 
       (moveTip_changes_transaction_statuses
         : ∀ (newTip:Slot) (xs:Submissions) (y:Tx) (acceptance:Slot) (expiring:Slot)
-        , let xs' := moveTip newTip xs 
+        , let xs' := moveTip newTip xs
         ,     old := status y xs
         ,     new := status y xs'
-        ,     inSubmission := 
-                old = InSubmission expiring 
-                ∧ before expiring newTip 
-        ,     expired := 
-                old = Expired expiring 
-                ∧ after expiring newTip 
-        ,     inLedger := 
+        ,     inSubmission :=
+                old = InSubmission expiring
+                ∧ before expiring newTip
+        ,     expired :=
+                old = Expired expiring
+                ∧ after expiring newTip
+        ,     inLedger :=
                 old = InLedger expiring acceptance
-                ∧ after acceptance newTip 
+                ∧ after acceptance newTip
         in
-         inSubmission → new = Expired expiring 
+         inSubmission → new = Expired expiring
          ∧  expired → new = InSubmission expiring
-         ∧  inLedger → new = InSubmission expiring 
-         ∧  (¬ (inSubmission ∨ expired ∨ inLedger)) → new = old 
+         ∧  inLedger → new = InSubmission expiring
+         ∧  (¬ (inSubmission ∨ expired ∨ inLedger)) → new = old
       )
-  
+
   -- Move the `finality` of the submission database.
   (moveFinality
     : Slot  -- slot in the past for which transactions
@@ -182,50 +183,50 @@ structure Submissions :=
 
       (moveFinality_should_have_been_updated
         : ∀ (newFinality:Slot) (xs:Submissions)
-        , let xs' := moveFinality newFinality xs 
-          in 
-            after newFinality (finality xs) ∧ before newFinality (tip xs) 
+        , let xs' := moveFinality newFinality xs
+          in
+            after newFinality (finality xs) ∧ before newFinality (tip xs)
                   → finality xs' = newFinality
-            ∧ before newFinality (finality xs) 
+            ∧ before newFinality (finality xs)
                   → finality xs' = finality xs
-            ∧ after newFinality (tip xs) 
+            ∧ after newFinality (tip xs)
                   → finality xs' = tip xs
       )
 
       (moveFinality_changes_transaction_statuses
         : ∀ (newFinality:Slot) (xs:Submissions) (y:Tx) (acceptance:Slot) (expiring:Slot)
-        , let xs' := moveTip newFinality xs 
+        , let xs' := moveTip newFinality xs
         ,     old := status y xs
         ,     new := status y xs'
-        ,     expired := 
-                old = Expired expiring 
+        ,     expired :=
+                old = Expired expiring
                   ∧ before expiring (finality xs')
-        ,     inLedger := 
+        ,     inLedger :=
                 old = InLedger expiring acceptance
                   ∧ before acceptance (finality xs')
         in
          inLedger → new = Unknown
          ∧  expired → new = Unknown
-         ∧  (¬ (expired ∨  inLedger)) → new = old 
+         ∧  (¬ (expired ∨  inLedger)) → new = old
       )
 
-  -- Forget b
-  (forget 
-    : Tx 
-    -> Submissions 
-    -> Submissions 
+  -- Stop tracking a transaction in the database.
+  (forget
+    : Tx
+    -> Submissions
+    -> Submissions
     )
-      (forget_does_not_change_tip_and_finality 
+      (forget_does_not_change_tip_and_finality
         : ∀ (x:Tx) (xs:Submissions) (expiring:Slot)
-        , let xs' := forget x xs 
+        , let xs' := forget x xs
           in tip xs' = tip xs ∧ finality xs' = finality xs
       )
       (forget_removes_a_tx_whatever_status
-      : ∀ x y xs 
-      , let xs' := forget x xs 
+      : ∀ x y xs
+      , let xs' := forget x xs
       ,     old := status y xs
       ,     new := status y xs'
-      in 
+      in
         x = y → new = Unknown ∧ x ≠ y → new = old
       )
-end 
+end
