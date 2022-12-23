@@ -1,0 +1,8 @@
+[package]
+name = "cardano-wallet-lean-dummy-pkg"
+description = "Dummy lean package config file only to specify lean version"
+version = "0.1"
+lean_version = "leanprover-community/lean:3.49.1"
+path = "src"
+
+[dependencies]
