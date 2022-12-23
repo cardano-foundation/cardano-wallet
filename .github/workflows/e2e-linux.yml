@@ -9,14 +9,6 @@ on:
         description: 'Network'
         required: true
         default: 'preprod'
-      node_db_cache:
-        description: 'Node DB Cache'
-        required: true
-        default: 'GH'
-        type: choice
-        options:
-        - AWS
-        - GH
       branch:
         description: 'Run tests against branch'
         default: 'master'
@@ -33,10 +25,10 @@ jobs:
     runs-on: ubuntu-latest
 
     steps:
-    - uses: actions/checkout@v2
+    - uses: actions/checkout@v3.2.0
 
     - name: Set up Ruby
-      uses: ruby/setup-ruby@v1
+      uses: ruby/setup-ruby@v1.127.0
       with:
         ruby-version: 3.1.2
         bundler-cache: true
@@ -50,14 +42,9 @@ jobs:
       run: |
         echo "value=$(rake datetime)" >> $GITHUB_OUTPUT
 
-    - name: 💽 AWS Cache node db
-      if: ${{ env.NODE_DB_CACHE == 'AWS' }}
-      run: rake get_latest_node_db[$NETWORK]
-
     - name: 💾 GH Cache node db
-      if: ${{ env.NODE_DB_CACHE == 'GH' }}
       id: cache
-      uses: actions/cache@v2.1.7
+      uses: actions/cache@v3
       with:
         path: test/e2e/state/node_db/${{ env.NETWORK }}
         key: node-db-${{ runner.os }}-${{ env.NETWORK }}-${{ steps.date-time.outputs.value }}
@@ -66,7 +53,7 @@ jobs:
 
     - name: 💾 Cache wallet db
       id: cache-wallet
-      uses: actions/cache@v2.1.7
+      uses: actions/cache@v3
       with:
         path: test/e2e/state/wallet_db/${{ env.NETWORK }}
         key: wallet-db3-${{ runner.os }}-${{ env.NETWORK }}-${{ steps.date-time.outputs.value }}
@@ -92,7 +79,7 @@ jobs:
       run: rake stop_node_and_wallet[$NETWORK]
 
     - name: 📎 Upload state
-      uses: actions/upload-artifact@v2
+      uses: actions/upload-artifact@v3
       if: always()
       with:
         name: ${{ runner.os }}-state

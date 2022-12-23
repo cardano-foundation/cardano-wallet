@@ -268,30 +268,6 @@ task :get_latest_bins, [:branch] do |_task, args|
   end
 end
 
-task :get_latest_node_db, [:env] do |_task, args|
-  env = args[:env]
-  url = get_latest_node_db_url(env)
-  file = "db-#{env}.tar.gz"
-  node_db_file = File.join(NODE_DB, file)
-  node_db_dir = File.join(NODE_DB, env)
-  node_db_extracted_dir = File.join(NODE_DB, "db-#{env}")
-  Rake::Task[:clean_node_db].invoke(env)
-  mk_dir(NODE_DB)
-
-  log ">> Getting latest node db from #{url}"
-  log "Start downloading into #{node_db_file}..."
-  cmd "wget #{url} -O #{node_db_file}"
-
-  log "Start extracting archive into #{NODE_DB}..."
-  fs_switch = win? ? '--force-local' : ''
-  cmd "tar #{fs_switch} -xvf #{node_db_file} -C #{NODE_DB}"
-
-  log "Start moving from #{node_db_extracted_dir} into #{node_db_dir}..."
-  mv(node_db_extracted_dir, node_db_dir)
-
-  log 'Done.'
-end
-
 task :get_latest_configs, [:env] do |_task, args|
   env = args[:env]
   out = File.join(CONFIGS, env)

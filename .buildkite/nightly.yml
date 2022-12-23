@@ -18,12 +18,13 @@ steps:
       - './nix/regenerate.sh'
     agents:
       system: ${macos}
-
-  - label: 'Run integration tests on macos'
-    depends_on: macos-nix
-    command: 'GC_DONT_GC=1 nix build -L .#ci.${macos}.tests.run.integration'
-    agents:
-      system: ${macos}
+  
+  # ADP-2522 - Fix integration tests on MacOS  
+  # - label: 'Run integration tests on macos'
+  #   depends_on: macos-nix
+  #   command: 'GC_DONT_GC=1 nix build -L .#ci.${macos}.tests.run.integration'
+  #   agents:
+  #     system: ${macos}
       
   - label: 'Restore benchmark - cardano mainnet'
     command: "./.buildkite/bench-restore.sh mainnet"
@@ -34,17 +35,6 @@ steps:
       system: x86_64-linux
       queue: benchmark
     if: 'build.env("step") == null || build.env("step") =~ /restore-mainnet/'
-
-# Temporary disabled due to timing out (#2221)
-#  - label: 'Restore benchmark - cardano testnet'
-#    command: "./.buildkite/bench-restore.sh testnet"
-#    env:
-#      HOME: "/cache/cardano-wallet.home"
-#    timeout_in_minutes: 600
-#    agents:
-#      system: x86_64-linux
-#      queue: benchmark
-#    if: 'build.env("step") == null || build.env("step") =~ /restore-testnet/'
 
   - label: 'Database benchmark'
     command: "./.buildkite/bench-db.sh"

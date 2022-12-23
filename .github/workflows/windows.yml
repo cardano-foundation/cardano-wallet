@@ -18,9 +18,9 @@ jobs:
     runs-on: windows-2022
     name: Download testing bundle
     steps:
-      - uses: actions/checkout@v2
+      - uses: actions/checkout@v3.2.0
       - name: Set up Ruby
-        uses: ruby/setup-ruby@v1
+        uses: ruby/setup-ruby@v1.127.0
         with:
           ruby-version: 2.7.1
           bundler-cache: true
