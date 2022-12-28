@@ -1,10 +1,12 @@
 {-# LANGUAGE DataKinds #-}
 {-# LANGUAGE DeriveAnyClass #-}
 {-# LANGUAGE FlexibleInstances #-}
+{-# LANGUAGE OverloadedLabels #-}
 {-# LANGUAGE RecordWildCards #-}
 {-# LANGUAGE ScopedTypeVariables #-}
+{-# LANGUAGE TupleSections #-}
+{-# LANGUAGE TypeApplications #-}
 {-# LANGUAGE TypeFamilies #-}
-
 {-# OPTIONS_GHC -Wno-orphans #-}
 
 {- |
@@ -22,12 +24,13 @@ module Cardano.Wallet.DB.Store.Submissions.New.Operations
     , mkStoreSubmissions
     , DeltaTxSubmissions
     , SubmissionMeta (..)
+    , mkStoreWalletsSubmissions
     ) where
 
 import Prelude
 
 import Cardano.Wallet.DB.Sqlite.Schema
-    ( EntityField (SubmissionWallet, SubmissionsSlotsWallet)
+    ( EntityField (..)
     , Key (SubmissionsKey, SubmissionsSlotsKey)
     , Submissions (Submissions)
     , SubmissionsSlots (SubmissionsSlots)
@@ -43,13 +46,21 @@ import Cardano.Wallet.Submissions.Submissions
 import Control.Exception
     ( Exception, SomeException (..) )
 import Control.Lens
-    ( (^.) )
+    ( view, (^.) )
 import Control.Monad
-    ( forM_ )
+    ( forM, forM_ )
+import Control.Monad.Except
+    ( ExceptT (..), runExceptT )
+import Control.Monad.Trans
+    ( lift )
 import Data.DBVar
     ( Store (..) )
 import Data.Delta
     ( Delta (..) )
+import Data.DeltaMap
+    ( DeltaMap (..) )
+import Data.List
+    ( nub )
 import Data.Map.Strict
     ( Map )
 import Data.Quantity
@@ -57,7 +68,12 @@ import Data.Quantity
 import Data.Word
     ( Word32 )
 import Database.Persist
-    ( Entity (Entity), PersistStoreWrite (delete, repsert), selectList, (==.) )
+    ( Entity (..)
+    , PersistStoreWrite (delete, repsert)
+    , deleteWhere
+    , selectList
+    , (==.)
+    )
 import Database.Persist.Sql
     ( SqlPersistT )
 
@@ -186,3 +202,38 @@ instance Delta DeltaTxSubmissions where
 
 mkStoreSubmissions :: WalletId -> Store (SqlPersistT IO) DeltaTxSubmissions
 mkStoreSubmissions = mkStoreAnySubmissions
+
+type WalletsSubmissions = Map WalletId TxSubmissions
+
+-- | Store for 'TxSubmissions of multiple different wallets.
+mkStoreWalletsSubmissions :: Store
+        (SqlPersistT IO)
+        (DeltaMap WalletId DeltaTxSubmissions)
+mkStoreWalletsSubmissions =
+    Store
+    { loadS = load
+    , writeS = write
+    , updateS = update
+    }
+  where
+    write reset = forM_ (Map.assocs reset) $ \(wid, ms) ->
+        writeS (mkStoreAnySubmissions @DeltaTxSubmissions wid) ms
+    update :: WalletsSubmissions
+        -> DeltaMap WalletId DeltaTxSubmissions
+        -> SqlPersistT IO ()
+    update _ (Insert wid ms) = do
+        writeS (mkStoreAnySubmissions @DeltaTxSubmissions wid) ms
+    update _ (Delete wid) = do
+        deleteWhere [SubmissionWallet ==. wid]
+    update old (Adjust wid xda) =
+        case Map.lookup wid old of
+            Nothing -> pure ()
+            Just old' ->
+                updateS (mkStoreAnySubmissions wid) old' xda
+    load = runExceptT $ do
+        wids <- lift $ fmap (view #submissionWallet . entityVal)
+            <$> selectList @Submissions [] []
+        fmap Map.fromList
+            $ forM (nub wids) $ \wid -> (wid,)
+                <$> ExceptT
+                    (loadS $ mkStoreAnySubmissions @DeltaTxSubmissions wid)
