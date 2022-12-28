@@ -74,7 +74,6 @@ import Cardano.Wallet.DB
     , DBFactory (..)
     , DBLayer
     , DBLayerCollection (..)
-    , DBPendingTxs (..)
     , DBPrivateKey (..)
     , DBTxHistory (..)
     , DBWalletMeta (..)
@@ -105,6 +104,8 @@ import Cardano.Wallet.DB.Store.Meta.Model
     , ManipulateTxMetaHistory (..)
     , TxMetaHistory (..)
     )
+import Cardano.Wallet.DB.Store.Submissions.New.Layer
+    ( mkDbPendingTxs )
 import Cardano.Wallet.DB.Store.Submissions.New.Operations
     ( mkStoreWalletsSubmissions )
 import Cardano.Wallet.DB.Store.Transactions.Model
@@ -711,21 +712,7 @@ newDBLayerWith _cacheBehavior _tr ti SqliteContext{runQuery} = do
         {-----------------------------------------------------------------------
                                     Pending Txs
         -----------------------------------------------------------------------}
-    let
-      dbPendingTxs = DBPendingTxs
-        { putLocalTxSubmission_
-            = error "putLocalTxSubmissions_ not implemented"
-
-        , readLocalTxSubmissionPending_
-            = error "readLocalTxSubmissionPending_ not implemented"
-
-        , updatePendingTxForExpiry_ =
-            error "updatePendingTxForExpiry_ not implemented"
-
-        , removePendingOrExpiredTx_ =
-            error "removePendingOrExpiredTx_ not implemented"
-        }
-
+    let dbPendingTxs = mkDbPendingTxs submissionsDBVar
         {-----------------------------------------------------------------------
                                        Keystore
         -----------------------------------------------------------------------}
