@@ -38,6 +38,7 @@ module Cardano.Wallet.DB.Store.Transactions.Model
     , fromTxOut
     , fromTxCollateralOut
     , txCBORPrism
+    , WalletTransactions
     ) where
 
 import Prelude
@@ -99,6 +100,7 @@ import Fmt
 import GHC.Generics
     ( Generic )
 
+import qualified Cardano.Wallet.Primitive.Types as W
 import qualified Cardano.Wallet.Primitive.Types.Coin as W
 import qualified Cardano.Wallet.Primitive.Types.TokenBundle as TokenBundle
 import qualified Cardano.Wallet.Primitive.Types.Tx.Tx as W.Tx
@@ -398,3 +400,5 @@ fromTxCBOR s@CBOR {..} = bimap (s ,) (cborTxId ,) $
 
 txCBORPrism :: Prism CBOR (CBOR, TxCBORRaw) (TxId, TxCBOR) (TxId, TxCBOR)
 txCBORPrism = prism toTxCBOR fromTxCBOR
+
+type WalletTransactions = Map W.WalletId TxSet

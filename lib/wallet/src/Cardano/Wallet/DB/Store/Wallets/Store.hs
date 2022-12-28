@@ -24,24 +24,17 @@ module Cardano.Wallet.DB.Store.Wallets.Store
 import Prelude
 
 import Cardano.Wallet.DB.Sqlite.Schema
-    ( EntityField (..), LocalTxSubmission, TxMeta )
+    ( EntityField (..), TxMeta )
 import Cardano.Wallet.DB.Store.Meta.Model
-    ( TxMetaHistory (TxMetaHistory), mkTxMetaHistory )
+    ( DeltaTxMetaHistory, TxMetaHistory, mkTxMetaHistory )
 import Cardano.Wallet.DB.Store.Meta.Store
     ( mkStoreMetaTransactions )
-import Cardano.Wallet.DB.Store.Submissions.Model
-    ( TxLocalSubmissionHistory (TxLocalSubmissionHistory) )
-import Cardano.Wallet.DB.Store.Submissions.Store
-    ( mkStoreSubmissions )
 import Cardano.Wallet.DB.Store.Transactions.Model
     ( DeltaTxSet (Append, DeleteTx), TxSet (..), mkTxSet )
 import Cardano.Wallet.DB.Store.Transactions.Store
     ( mkStoreTransactions )
 import Cardano.Wallet.DB.Store.Wallets.Model
-    ( DeltaTxWalletsHistory (..)
-    , DeltaWalletsMetaWithSubmissions (..)
-    , walletsLinkedTransactions
-    )
+    ( DeltaTxWalletsHistory (..), walletsLinkedTransactions )
 import Control.Applicative
     ( liftA2 )
 import Control.Monad
@@ -50,8 +43,6 @@ import Control.Monad.Except
     ( ExceptT (ExceptT), lift, runExceptT )
 import Data.DBVar
     ( Store (..) )
-import Data.Delta
-    ( apply )
 import Data.DeltaMap
     ( DeltaMap (..) )
 import Data.Generics.Internal.VL
@@ -66,50 +57,12 @@ import Database.Persist.Sql
 import qualified Cardano.Wallet.DB.Store.Meta.Model as TxMetaStore
 import qualified Cardano.Wallet.Primitive.Types as W
 import qualified Data.Map.Strict as Map
-import qualified Data.Set as Set
-
-mkStoreWalletMetaWithSubmissions :: W.WalletId -> Store
-        (SqlPersistT IO)
-        (DeltaWalletsMetaWithSubmissions)
-mkStoreWalletMetaWithSubmissions wid =
-    Store
-    { loadS = load
-    , writeS = write
-    , updateS = update
-    }
-  where
-    write (metas,subs) = do
-        writeS (mkStoreMetaTransactions wid) metas
-        writeS (mkStoreSubmissions wid) subs
-    update (metas, subs) xda = do
-        localTxToBeRemoved <- case xda of
-            ChangeMeta da -> do
-                updateS (mkStoreMetaTransactions wid) undefined da
-                let TxLocalSubmissionHistory subs' = subs
-                    TxMetaHistory metas' = apply da metas
-                pure $ Set.difference (Map.keysSet subs') (Map.keysSet metas')
-            ChangeSubmissions da -> do
-                updateS (mkStoreSubmissions wid) undefined da
-                let TxLocalSubmissionHistory subs' = apply da subs
-                    TxMetaHistory metas' = metas
-                pure $ Set.difference (Map.keysSet subs') (Map.keysSet metas')
-        -- the next operation is potentially already executed via cascade delete
-        -- but we enforce it to avoid that DB feature in the future
-        forM_ localTxToBeRemoved $ \txId ->
-                deleteWhere
-                    [ LocalTxSubmissionWalletId ==. wid
-                    , LocalTxSubmissionTxId ==. txId
-                    ]
-    load = runExceptT $ do
-        metas <- ExceptT $ loadS (mkStoreMetaTransactions wid)
-        subs <- ExceptT $ loadS (mkStoreSubmissions wid)
-        pure (metas, subs)
 
 -- | Store for 'WalletsMeta' of multiple different wallets.
-mkStoreWalletsMetaWithSubmissions :: Store
+mkStoreWalletsMeta :: Store
         (SqlPersistT IO)
-        (DeltaMap W.WalletId DeltaWalletsMetaWithSubmissions)
-mkStoreWalletsMetaWithSubmissions =
+        (DeltaMap W.WalletId DeltaTxMetaHistory)
+mkStoreWalletsMeta =
     Store
     { loadS = load
     , writeS = write
@@ -117,29 +70,25 @@ mkStoreWalletsMetaWithSubmissions =
     }
   where
     write reset = forM_ (Map.assocs reset) $ \(wid, ms) ->
-        writeS (mkStoreWalletMetaWithSubmissions wid) ms
-    update :: Map W.WalletId (TxMetaHistory, TxLocalSubmissionHistory)
-        -> DeltaMap W.WalletId DeltaWalletsMetaWithSubmissions
+        writeS (mkStoreMetaTransactions wid) ms
+    update :: Map W.WalletId TxMetaHistory
+        -> DeltaMap W.WalletId DeltaTxMetaHistory
         -> SqlPersistT IO ()
     update _ (Insert wid ms) = do
-        writeS (mkStoreWalletMetaWithSubmissions wid) ms
+        writeS (mkStoreMetaTransactions wid) ms
     update _ (Delete wid) = do
         deleteWhere [TxMetaWalletId ==. wid ]
-        deleteWhere [LocalTxSubmissionWalletId ==. wid ]
     update old (Adjust wid xda) =
         case Map.lookup wid old of
             Nothing -> pure ()
             Just old' ->
-                updateS (mkStoreWalletMetaWithSubmissions wid) old' xda
+                updateS (mkStoreMetaTransactions wid) old' xda
     load = runExceptT $ do
         wids <- lift $ fmap (view #txMetaWalletId . entityVal)
             <$> selectList @TxMeta [] []
-        subsWids <- lift $ fmap (view #localTxSubmissionWalletId . entityVal)
-            <$> selectList @LocalTxSubmission [] []
         fmap Map.fromList
-            $ forM (nub $ wids <> subsWids) $ \wid -> (wid,)
-                <$> ExceptT (loadS $ mkStoreWalletMetaWithSubmissions wid)
-
+            $ forM (nub wids) $ \wid -> (wid,)
+                <$> ExceptT (loadS $ mkStoreMetaTransactions wid)
 
 mkStoreTxWalletsHistory :: Store (SqlPersistT IO) DeltaTxWalletsHistory
 mkStoreTxWalletsHistory =
@@ -147,31 +96,29 @@ mkStoreTxWalletsHistory =
     { loadS =
           liftA2 (,)
             <$> loadS mkStoreTransactions
-            <*> loadS mkStoreWalletsMetaWithSubmissions
+            <*> loadS mkStoreWalletsMeta
     , writeS = \(txSet,txMetaHistory) -> do
           writeS mkStoreTransactions txSet
-          writeS mkStoreWalletsMetaWithSubmissions txMetaHistory
+          writeS mkStoreWalletsMeta txMetaHistory
     , updateS = \(txh@(TxSet mtxh) ,mtxmh) -> \case
             ChangeTxMetaWalletsHistory wid change
-                -> updateS mkStoreWalletsMetaWithSubmissions mtxmh
+                -> updateS mkStoreWalletsMeta mtxmh
                 $ Adjust wid change
             GarbageCollectTxWalletsHistory -> mapM_
                 (updateS mkStoreTransactions txh . DeleteTx)
                 $ Map.keys
                 $ Map.withoutKeys mtxh
                 $ walletsLinkedTransactions mtxmh
-            RemoveWallet wid -> updateS mkStoreWalletsMetaWithSubmissions mtxmh
-                $ Delete wid
+            RemoveWallet wid -> updateS mkStoreWalletsMeta mtxmh $ Delete wid
             ExpandTxWalletsHistory wid cs -> do
                 updateS mkStoreTransactions txh
                     $ Append
                     $ mkTxSet
                     $ fst <$> cs
-                updateS mkStoreWalletsMetaWithSubmissions mtxmh
+                updateS mkStoreWalletsMeta mtxmh
                     $ case Map.lookup wid mtxmh of
-                        Nothing -> Insert wid (mkTxMetaHistory wid cs, mempty)
+                        Nothing -> Insert wid (mkTxMetaHistory wid cs)
                         Just _ -> Adjust wid
-                            $ ChangeMeta
                             $ TxMetaStore.Expand
                             $ mkTxMetaHistory wid cs
     }

@@ -22,6 +22,7 @@ module Cardano.Wallet.DB.Store.Submissions.New.Operations
     , mkStoreSubmissions
     , DeltaTxSubmissions
     , SubmissionMeta (..)
+    , WalletSubmissions
     ) where
 
 import Prelude
@@ -184,3 +185,5 @@ instance Delta DeltaTxSubmissions where
 
 mkStoreSubmissions :: WalletId -> Store (SqlPersistT IO) DeltaTxSubmissions
 mkStoreSubmissions = mkStoreAnySubmissions
+
+type WalletSubmissions = Map WalletId TxSubmissions
