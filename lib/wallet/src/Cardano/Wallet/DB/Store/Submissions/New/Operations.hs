@@ -165,7 +165,7 @@ mkTransactions :: [Entity Submissions] -> Map TxId TxSubmissionsStatus
 mkTransactions xs = Map.fromList $ do
     Entity _
         (Submissions iden sealed expiration acceptance _ status
-            direction slot height amount)
+            direction slot height amount resubmitted)
             <- xs
     pure
         ( iden
@@ -176,6 +176,7 @@ mkTransactions xs = Map.fromList $ do
 
 mkStatusMeta
     :: SubmissionMeta
+
     -> TxId
     -> W.SealedTx
     -> SlotNo
