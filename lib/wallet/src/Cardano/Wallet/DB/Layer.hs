@@ -1074,8 +1074,8 @@ listPendingLocalTxSubmissionQuery wid = fmap unRaw <$> rawSql query params
 localTxSubmissionFromEntity
     :: (W.SlotNo, LocalTxSubmission)
     -> W.LocalTxSubmissionStatus W.SealedTx
-localTxSubmissionFromEntity (sl0, LocalTxSubmission (TxId txid) _ sl tx) =
-    W.LocalTxSubmissionStatus txid tx sl0 sl
+localTxSubmissionFromEntity (_sl0, LocalTxSubmission (TxId txid) _ sl tx) =
+    W.LocalTxSubmissionStatus txid tx sl
 
 -- | Remove transactions from the local submission pool once they can no longer
 -- be rolled back.
