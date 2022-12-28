@@ -508,6 +508,7 @@ Submissions
     submissionMetaBlockHeight       BlockHeight         sql=block_height
     submissionMetaAmount            W.Coin              sql=amount
     submissionMetaDirection         W.Direction         sql=direction
+    submissionMetaResubmitted       SlotNo              sql=resubmitted
 
     Primary submissionTxId
     deriving Show Generic Eq
