@@ -56,7 +56,7 @@ data Submissions meta slot tx = Submissions
     }
 
 deriving instance
-    (Show slot, HasTxId tx, Show tx, Show meta) =>
+    (HasTxId tx, Show slot, Show tx, Show meta) =>
     (Show (Submissions meta slot tx))
 
 deriving instance

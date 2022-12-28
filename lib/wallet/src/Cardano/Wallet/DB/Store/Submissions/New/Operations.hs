@@ -23,6 +23,7 @@ module Cardano.Wallet.DB.Store.Submissions.New.Operations
     , syncSubmissions
     , mkStoreSubmissions
     , DeltaTxSubmissions
+    , TxSubmissionsStatus
     , SubmissionMeta (..)
     , mkStoreWalletsSubmissions
     ) where
@@ -89,6 +90,7 @@ data SubmissionMeta  = SubmissionMeta
     , submissionMetaSlot :: SlotNo
     , submissionMetaHeight :: Quantity "block" Word32
     , submissionMetaAmount :: W.Coin
+    , submissionMetaResubmitted :: SlotNo
     } deriving (Show, Eq)
 
 type TxSubmissions
@@ -125,6 +127,7 @@ syncSubmissions wid old new = do
                         submissionMetaSlot
                         submissionMetaHeight
                         submissionMetaAmount
+                        submissionMetaResubmitted
                     )
                 Nothing -> pure ()
     repsert
@@ -170,13 +173,12 @@ mkTransactions xs = Map.fromList $ do
     pure
         ( iden
         , mkStatusMeta
-            (SubmissionMeta direction slot height amount)
+            (SubmissionMeta direction slot height amount resubmitted)
                 iden sealed expiration acceptance status
         )
 
 mkStatusMeta
     :: SubmissionMeta
-
     -> TxId
     -> W.SealedTx
     -> SlotNo
