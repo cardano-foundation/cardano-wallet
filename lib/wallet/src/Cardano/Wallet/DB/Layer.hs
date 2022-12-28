@@ -105,6 +105,8 @@ import Cardano.Wallet.DB.Store.Meta.Model
     , ManipulateTxMetaHistory (..)
     , TxMetaHistory (..)
     )
+import Cardano.Wallet.DB.Store.Submissions.New.Operations
+    ( mkStoreWalletsSubmissions )
 import Cardano.Wallet.DB.Store.Transactions.Model
     ( TxSet (..), decorateTxIns )
 import Cardano.Wallet.DB.Store.Wallets.Model
@@ -497,6 +499,7 @@ newDBLayerWith _cacheBehavior _tr ti SqliteContext{runQuery} = do
     --   Handle the case where loading the database fails.
     walletsDB <- runQuery $ loadDBVar mkStoreWallets
     transactionsDBVar <- runQuery $ loadDBVar mkStoreTxWalletsHistory
+    submissionsDBVar <- runQuery $ loadDBVar mkStoreWalletsSubmissions
 
     -- NOTE
     -- The cache will not work properly unless 'atomically' is protected by a
