@@ -303,9 +303,10 @@ data DBLayer m s k = forall stm. (MonadIO stm, MonadFail stm) => DBLayer
         -- slot numbers for first submission and most recent submission are
         -- included.
 
-    , updatePendingTxForExpiry
+    , rollForwardTxSubmissions
         :: WalletId
         -> SlotNo
+        -> [(SlotNo, Hash "Tx")]
         -> ExceptT ErrNoSuchWallet stm ()
         -- ^ Removes any expired transactions from the pending set and marks
         -- their status as expired.
@@ -466,8 +467,8 @@ mkDBLayerFromParts ti DBLayerCollection{..} = DBLayer
         (getTx_ dbTxHistory) wid txid tip
     , putLocalTxSubmission = putLocalTxSubmission_ dbPendingTxs
     , readLocalTxSubmissionPending = readLocalTxSubmissionPending_ dbPendingTxs
-    , updatePendingTxForExpiry = \wid tip -> wrapNoSuchWallet wid $
-        updatePendingTxForExpiry_ dbPendingTxs wid tip
+    , rollForwardTxSubmissions = \wid tip txs -> wrapNoSuchWallet wid $
+        rollForwardTxSubmissions_ dbPendingTxs wid tip txs
     , removePendingOrExpiredTx = removePendingOrExpiredTx_ dbPendingTxs
     , putPrivateKey = \wid a -> wrapNoSuchWallet wid $
         putPrivateKey_ (dbPrivateKey wid) a
@@ -675,12 +676,15 @@ data DBPendingTxs stm = DBPendingTxs
         -- slot numbers for first submission and most recent submission are
         -- included.
 
-    , updatePendingTxForExpiry_
+    , rollForwardTxSubmissions_
         :: WalletId
         -> SlotNo
+        -> [(SlotNo, Hash "Tx")]
         -> stm ()
-        -- ^ Removes any expired transactions from the pending set and marks
-        -- their status as expired.
+        -- ^ Roll forward the submitted transaction,
+        -- given the local tip and the list of transactions that have been
+        -- included in the ledger until the local tip.
+        -- Marks pending transaction as `InLedger` or `Expired` as appropriate.
 
     , removePendingOrExpiredTx_
         :: WalletId

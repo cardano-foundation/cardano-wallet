@@ -1170,7 +1170,9 @@ restoreBlocks ctx tr wid blocks nodeTip = db & \DBLayer{..} ->
 
     putTxHistory wid txs
 
-    updatePendingTxForExpiry wid (view #slotNo localTip)
+    rollForwardTxSubmissions wid (localTip ^. #slotNo)
+        $ fmap (\(tx,meta) -> (meta ^. #slotNo, txId tx)) txs
+
     forM_ slotPoolDelegations $ \delegation@(slotNo, cert) -> do
         liftIO $ logDelegation delegation
         putDelegationCertificate wid cert slotNo

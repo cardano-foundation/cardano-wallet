@@ -42,6 +42,8 @@ import Control.Lens
     ( (^.) )
 import Control.Monad.Except
     ( ExceptT (ExceptT) )
+import Data.Bifunctor
+    ( second )
 import Data.DBVar
     ( DBVar, modifyDBMaybe, readDBVar, updateDBVar )
 import Data.DeltaMap
@@ -78,10 +80,9 @@ mkDbPendingTxs dbvar = DBPendingTxs
                     (_k, x) <- Map.assocs $ sub ^. transactionsL
                     mkLocalTxSubmission x
 
-    , updatePendingTxForExpiry_ = \wid tip ->
+    , rollForwardTxSubmissions_ = \wid tip txs ->
         updateDBVar dbvar
-            $ Adjust wid $ RollForward tip
-            $ error "needs transactions for rollforward"
+            $ Adjust wid $ RollForward tip (second TxId <$> txs)
 
     , removePendingOrExpiredTx_ = \wid txId -> do
         let errNoSuchWallet = ErrRemoveTxNoSuchWallet
