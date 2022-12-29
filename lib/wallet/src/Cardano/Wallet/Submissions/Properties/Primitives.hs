@@ -25,7 +25,7 @@ import Data.Function
 import Data.Set
     ( Set, singleton )
 import Test.QuickCheck
-    ( Property, counterexample, (.&.), (===) )
+    ( Property, counterexample, (.&&.), (.&.), (===) )
 
 import qualified Data.Map.Strict as Map
 
@@ -58,7 +58,7 @@ properties (Step xs xs' (AddSubmission expiring x _)) = do
                             "required should go to in-submission if unknown"
                 _ -> new === old
 properties (Step xs xs' (MoveToLedger acceptance x)) = do
-    let world = txIds xs <> txIds xs' <> singleton (txId x)
+    let world = txIds xs <> txIds xs' <> singleton x
     counterexample "on move-to-ledger" $ verify $ do
         that "tip and finality are not changed"
             $ tip xs === tip xs'
@@ -70,9 +70,8 @@ properties (Step xs xs' (MoveToLedger acceptance x)) = do
                 InSubmission expiring _
                     | acceptance > tip xs
                         && acceptance <= expiring
-                        && txId x == y
-                    ->
-                        (new === InLedger expiring acceptance x)
+                        && x == y
+                    -> (partialMatchInLedger new expiring acceptance x)
                         & counterexample
                             "required should go in ledger if acceptance is\
                             \ after tip and before expiration"
@@ -141,3 +140,12 @@ properties (Step xs xs' (Forget x)) = do
                         new === Unknown
                         & counterexample "transaction should have been removed"
                 _ -> new === old
+
+partialMatchInLedger
+    :: (Eq slot, Show slot, HasTxId tx) =>
+    TxStatus slot tx -> slot -> slot -> TxId tx -> Property
+partialMatchInLedger
+    (InLedger expiring acceptance tx) expiring' acceptance' txId'
+    = expiring' === expiring
+    .&&. acceptance' === acceptance
+    .&&. txId tx === txId'

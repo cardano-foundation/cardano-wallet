@@ -48,7 +48,7 @@ genOperationsDelta genMeta s =
                 txs <- scale (`div` 4) $ listOf $ genTx 1 6 1 1 s
                 slots <- scale (`div` 4) $ listOf $ genSlot 1 1 4 s
                 acceptance <- genSlot 1 1 4 s
-                pure $ RollForward acceptance $ zip slots txs
+                pure $ RollForward acceptance $ zip slots $ txId <$> txs
         )
         , (2, do
                 newtip <- genSlot 1 3 3 s

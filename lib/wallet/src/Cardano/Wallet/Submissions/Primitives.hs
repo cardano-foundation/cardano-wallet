@@ -2,6 +2,7 @@
 {-# LANGUAGE GADTSyntax #-}
 {-# LANGUAGE ScopedTypeVariables #-}
 {-# LANGUAGE StandaloneDeriving #-}
+{-# LANGUAGE TypeFamilies #-}
 {-# LANGUAGE UndecidableInstances #-}
 
 {- |
@@ -52,7 +53,7 @@ data Primitive meta slot tx where
         Primitive meta slot tx
     -- | Change a transaction state to 'InLedger'.
     MoveToLedger ::
-        {_acceptance :: slot, _transaction :: tx} ->
+        {_acceptance :: slot, _transactionId :: TxId tx} ->
         Primitive meta slot tx
     -- | Move the submission store tip slot.
     MoveTip ::
@@ -74,7 +75,11 @@ deriving instance
     , Show slot)
     => Show (Primitive meta slot tx)
 
--- | Apply a 'Primitive' to a submission, according to the specification.
+-- | Apply a 'Primitive' to a submission.
+--
+-- Not all primitives will eventually change the store, the specifications
+-- should be used to define when a primitive is allowed to act.
+-- When a primitive doesn't meet the specs, a no-op will be computed.
 applyPrimitive
     :: forall meta slot tx
     .  (Ord slot, Ord (TxId tx), HasTxId tx)
@@ -88,8 +93,8 @@ applyPrimitive (AddSubmission expiring tx meta ) s
                 (TxStatusMeta (InSubmission expiring tx) meta)
     | otherwise
         = s
-applyPrimitive (MoveToLedger acceptance tx) s =
-    s & transactionsL . ix (txId tx) . txStatus %~ f
+applyPrimitive (MoveToLedger acceptance txid) s =
+    s & transactionsL . ix txid . txStatus %~ f
   where
     f x@(InSubmission expiring tx')
         | acceptance > (tip s) && acceptance <= expiring =

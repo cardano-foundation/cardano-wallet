@@ -1,6 +1,7 @@
 {-# LANGUAGE FlexibleContexts #-}
 {-# LANGUAGE GADTSyntax #-}
 {-# LANGUAGE StandaloneDeriving #-}
+{-# LANGUAGE TypeFamilies #-}
 {-# LANGUAGE UndecidableInstances #-}
 
 {- |
@@ -39,7 +40,7 @@ data Operation meta slot tx where
     -- in-submission.
     RollForward
       :: slot -- ^ New tip.
-      -> [(slot, tx)] -- ^ Transactions that were found in the ledder.
+      -> [(slot, TxId tx)] -- ^ Transactions that were found in the ledder.
       -> Operation meta slot tx
     -- | Move transactions from the in-ledger state to in-submission state,
     -- when their acceptance slot falls after the new tip.

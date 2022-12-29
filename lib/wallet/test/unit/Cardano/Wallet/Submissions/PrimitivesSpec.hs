@@ -47,7 +47,7 @@ genPrimitiveDelta genMeta s =
         , (4, do
             tx <- genTx 1 6 1 1 s
             acceptance <- genSlot 1 1 4 s
-            pure $ MoveToLedger acceptance tx
+            pure $ MoveToLedger acceptance $ txId tx
           )
         , (2, do
             newtip <- genSlot 1 3 3 s
