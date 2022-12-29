@@ -198,7 +198,7 @@ newDBLayer timeInterpreter = do
         , readLocalTxSubmissionPending =
             readDB db . mReadLocalTxSubmissionPending
 
-        , updatePendingTxForExpiry = \pk tip -> ExceptT $
+        , updatePendingTxForExpiry = \pk tip _xs -> ExceptT $
             alterDB errNoSuchWallet db $
             mUpdatePendingTxForExpiry pk tip
 

@@ -547,6 +547,8 @@ runIO db@DBLayer{..} = fmap Resp . go
             atomically (readLocalTxSubmissionPending wid)
         UpdatePendingTxForExpiry wid sl -> catchNoSuchWallet Unit $
             mapExceptT atomically $ updatePendingTxForExpiry wid sl
+                $ error
+                "State machine is not compatible with new submissions design"
         RemovePendingOrExpiredTx wid tid ->
             (catchCannotRemovePendingTx wid) Unit $
             mapExceptT atomically $

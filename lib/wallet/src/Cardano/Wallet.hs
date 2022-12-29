@@ -1069,7 +1069,8 @@ restoreBlocks
     -> BlockData IO (Either Address RewardAccount) ChainEvents s
     -> BlockHeader
     -> ExceptT ErrNoSuchWallet IO ()
-restoreBlocks ctx tr wid blocks nodeTip = db & \DBLayer{..} ->
+restoreBlocks ctx tr wid blocks nodeTip@BlockHeader{slotNo}
+  = db & \DBLayer{..} ->
   mapExceptT atomically $ do
     sp  <- liftIO $ currentSlottingParameters nl
     cp0 <- withNoSuchWallet wid (readCheckpoint wid)
@@ -1152,9 +1153,11 @@ restoreBlocks ctx tr wid blocks nodeTip = db & \DBLayer{..} ->
     putTxHistory wid txs
 
     updatePendingTxForExpiry wid (view #slotNo localTip)
-    forM_ slotPoolDelegations $ \delegation@(slotNo, cert) -> do
+        $ fmap (\(tx,_) -> (slotNo, txId tx)) txs
+
+    forM_ slotPoolDelegations $ \delegation@(slot, cert) -> do
         liftIO $ logDelegation delegation
-        putDelegationCertificate wid cert slotNo
+        putDelegationCertificate wid cert slot
 
     liftIO $ mapM_ logCheckpoint cpsKeep
     ExceptT $ modifyDBMaybe walletsDB $

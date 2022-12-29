@@ -306,6 +306,7 @@ data DBLayer m s k = forall stm. (MonadIO stm, MonadFail stm) => DBLayer
     , updatePendingTxForExpiry
         :: WalletId
         -> SlotNo
+        -> [(SlotNo, Hash "Tx")]
         -> ExceptT ErrNoSuchWallet stm ()
         -- ^ Removes any expired transactions from the pending set and marks
         -- their status as expired.
@@ -672,6 +673,7 @@ data DBPendingTxs stm = DBPendingTxs
     , updatePendingTxForExpiry_
         :: WalletId
         -> SlotNo
+        -> [(SlotNo, Hash "Tx")]
         -> ExceptT ErrNoSuchWallet stm ()
         -- ^ Removes any expired transactions from the pending set and marks
         -- their status as expired.
