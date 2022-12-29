@@ -1,5 +1,8 @@
 {-# LANGUAGE FlexibleContexts #-}
 {-# LANGUAGE GADTSyntax #-}
+{-# LANGUAGE StandaloneDeriving #-}
+{-# LANGUAGE TypeFamilies #-}
+{-# LANGUAGE UndecidableInstances #-}
 
 {- |
 Copyright: © 2022 IOHK
@@ -37,7 +40,7 @@ data Operation meta slot tx where
     -- in-submission.
     RollForward
       :: slot -- ^ New tip.
-      -> [(slot, tx)] -- ^ Transactions that were found in the ledder.
+      -> [(slot, TxId tx)] -- ^ Transactions that were found in the ledder.
       -> Operation meta slot tx
     -- | Move transactions from the in-ledger state to in-submission state,
     -- when their acceptance slot falls after the new tip.
@@ -50,7 +53,13 @@ data Operation meta slot tx where
     Prune :: slot -> Operation meta slot tx
     -- | Remove a transaction from the tracked set.
     Forget :: tx -> Operation meta slot tx
-    deriving (Show)
+
+deriving instance
+    ( Show (TxId tx)
+    , Show meta
+    , Show tx
+    , Show slot)
+    => Show (Operation meta slot tx)
 
 
 -- | Apply a high level operation to the submission store.
