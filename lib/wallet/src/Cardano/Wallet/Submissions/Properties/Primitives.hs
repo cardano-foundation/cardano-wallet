@@ -127,7 +127,7 @@ properties (Step xs xs' (MoveFinality newFinality)) = do
                         & counterexample "expired should have been pruned"
                 _ -> new === old
 properties (Step xs xs' (Forget x)) = do
-    let world = txIds xs <> txIds xs' <> singleton (txId x)
+    let world = txIds xs <> txIds xs' <> singleton x
     counterexample "on move-tip" $ verify $ do
         that "tip shouldn't have changed" $ tip xs === tip xs'
         that "finality shouldn't have changed" $ finality xs === finality xs'
@@ -135,7 +135,7 @@ properties (Step xs xs' (Forget x)) = do
             let old = status y $ transactions xs
                 new = status y $ transactions xs'
             in case old of
-                _ | txId x == y
+                _ | x == y
                     ->
                         new === Unknown
                         & counterexample "transaction should have been removed"

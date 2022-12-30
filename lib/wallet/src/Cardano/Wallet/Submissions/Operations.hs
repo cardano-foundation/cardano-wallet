@@ -52,7 +52,7 @@ data Operation meta slot tx where
     -- and max rollback time.
     Prune :: slot -> Operation meta slot tx
     -- | Remove a transaction from the tracked set.
-    Forget :: tx -> Operation meta slot tx
+    Forget :: TxId tx -> Operation meta slot tx
 
 deriving instance
     ( Show (TxId tx)

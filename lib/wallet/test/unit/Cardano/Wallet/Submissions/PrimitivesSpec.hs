@@ -59,7 +59,7 @@ genPrimitiveDelta genMeta s =
           )
         , (1, do
             tx <- genTx 1 2 2 2 s
-            pure $ Forget tx
+            pure $ Forget $ txId tx
           )
         ]
 

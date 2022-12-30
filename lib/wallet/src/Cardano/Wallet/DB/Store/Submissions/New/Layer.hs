@@ -16,7 +16,10 @@ import Prelude
 import Cardano.Wallet
     ( ErrNoSuchWallet (..) )
 import Cardano.Wallet.DB
-    ( DBPendingTxs (..), ErrPutLocalTxSubmission (..) )
+    ( DBPendingTxs (..)
+    , ErrPutLocalTxSubmission (..)
+    , ErrRemoveTx (ErrRemoveTxNoSuchWallet)
+    )
 import Cardano.Wallet.DB.Sqlite.Types
     ( TxId (..) )
 import Cardano.Wallet.DB.Store.Submissions.New.Operations
@@ -71,11 +74,12 @@ catchWalletMissing dbvar wid f
 mkDbPendingTxs ::
   DBVar (SqlPersistT IO) (DeltaMap WalletId DeltaTxSubmissions) ->
   DBPendingTxs (SqlPersistT IO)
-mkDbPendingTxs dbvar =
-  DBPendingTxs
+mkDbPendingTxs dbvar = let
+    missingWallet = catchWalletMissing dbvar
+    in DBPendingTxs
     {   putLocalTxSubmission_ =
             \wid txid tx sl -> withExceptT ErrPutLocalTxSubmissionNoSuchWallet
-                $ catchWalletMissing dbvar wid $
+                $ missingWallet wid $
                     \_ ->
                         let delta = Just $
                                 Adjust wid $
@@ -89,15 +93,18 @@ mkDbPendingTxs dbvar =
                     x <- toList $ sub ^. transactionsL
                     mkLocalTxSubmission x
     ,   updatePendingTxForExpiry_ =
-            \wid tip xs -> catchWalletMissing dbvar wid $
+            \wid tip xs -> missingWallet wid $
                 \_ ->
                 let delta =
                         Just $
                         Adjust wid $
                             RollForward tip (second TxId <$> xs)
                 in (delta, Right ()),
-        removePendingOrExpiredTx_ = \wid txId ->
-            error "removePendingOrExpiredTx_ not implemented"
+        removePendingOrExpiredTx_ =
+            \wid txId ->
+                withExceptT ErrRemoveTxNoSuchWallet
+                    $ missingWallet wid
+                    $ \_ -> (Just $ Adjust wid $ Forget (TxId txId), Right ())
     }
 
 mkLocalTxSubmission
