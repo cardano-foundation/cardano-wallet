@@ -2634,6 +2634,14 @@ RSpec.describe 'Cardano Wallet E2E tests', :all, :e2e do
         expect(l_bad.to_s).to include 'query_param_missing'
       end
 
+      it 'ADP-2523 - Make sure there are no null values in the response' do
+        pools = SHELLEY.stake_pools
+        l = pools.list({ stake: 1000 })
+        expect(l).to be_correct_and_respond 200
+        expect(l.length).to be > 0
+        expect(l.to_s).not_to include 'null'
+      end
+
       it 'Can join and quit Stake Pool' do
         # Get funds on the wallet
         address = SHELLEY.addresses.list(@target_id)[0]['id']
