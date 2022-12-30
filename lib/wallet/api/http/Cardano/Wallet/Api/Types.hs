@@ -410,7 +410,7 @@ import Data.Aeson.Types
     , Parser
     , SumEncoding (..)
     , ToJSON (..)
-    , Value (Object, String)
+    , Value (Null, Object, String)
     , camelTo2
     , constructorTagModifier
     , fieldLabelModifier
@@ -2327,16 +2327,17 @@ instance FromJSON (ApiT StakePool) where
     parseJSON = fmap (ApiT <$>) . withObject "StakePool" $ \o -> do
         ApiT poolId <- o .: "id"
         metrics <- o .: "metrics" >>= parseJsonStakePoolMetrics
-        metadata <- o .: "metadata"
+        metadata <- o .:? "metadata"
         cost <- o .: "cost"
         margin <- o .: "margin"
         pledge <- o .: "pledge"
-        retirement <- o .: "retirement"
+        retirement <- o .:? "retirement"
         flags <- o .: "flags"
         pure StakePool{ id=poolId, .. }
 
 instance ToJSON (ApiT StakePool) where
     toJSON (ApiT pool) = Aeson.object
+        $ filter ((/= Null) . snd)
         [ "id" .= ApiT (view #id pool)
         , "metrics" .= toJsonStakePoolMetrics (view #metrics pool)
         , "metadata" .= view #metadata pool
