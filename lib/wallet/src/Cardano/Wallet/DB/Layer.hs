@@ -63,6 +63,8 @@ import Cardano.DB.Sqlite.Delete
     , waitForFree
     , withRef
     )
+import Cardano.Slotting.Slot
+    ( withOriginToMaybe )
 import Cardano.Wallet.Checkpoints
     ( DeltaCheckpoints (..)
     , defaultSparseCheckpointsConfig
@@ -74,6 +76,7 @@ import Cardano.Wallet.DB
     , DBFactory (..)
     , DBLayer
     , DBLayerCollection (..)
+    , DBPendingTxs (rollBackSubmissions_)
     , DBPrivateKey (..)
     , DBTxHistory (..)
     , DBWalletMeta (..)
@@ -613,12 +616,19 @@ newDBLayerWith _cacheBehavior _tr ti SqliteContext{runQuery} = do
                 [ CheckpointWalletId ==. wid ]
                 [ Asc CheckpointSlot ]
         }
+        {-----------------------------------------------------------------------
+                                    Pending Txs
+        -----------------------------------------------------------------------}
+    let dbPendingTxs = mkDbPendingTxs submissionsDBVar
 
     let rollbackTo_ wid requestedPoint = do
-            mNearestCheckpoint <-  ExceptT $ do
-                modifyDBMaybe walletsDB $ \ws ->
+            mNearestCheckpoint <-   do
+                mNewTip <- ExceptT $ modifyDBMaybe walletsDB $ \ws ->
                     case Map.lookup wid ws of
-                        Nothing  -> (Nothing, pure Nothing)
+                        Nothing  ->
+                            ( Nothing
+                            , pure Nothing -- WHY WE IGNORE THIS ?
+                            )
                         Just wal -> case findNearestPoint wal requestedPoint of
                             Nothing ->
                                 ( Nothing
@@ -626,10 +636,18 @@ newDBLayerWith _cacheBehavior _tr ti SqliteContext{runQuery} = do
                                 )
                             Just nearestPoint ->
                                 ( Just $ Adjust wid
-                                    [ UpdateCheckpoints [ RollbackTo nearestPoint ] ]
-                                , pure $ Map.lookup nearestPoint $
-                                    wal ^. #checkpoints . #checkpoints
+                                    [ UpdateCheckpoints
+                                        [ RollbackTo nearestPoint ] ]
+                                , pure $ Just (nearestPoint, wal)
                                 )
+                sequence_ $ do
+                    (newTip, _ ) <- mNewTip
+                    tipSlot <- withOriginToMaybe newTip
+                    pure $ rollBackSubmissions_ dbPendingTxs wid tipSlot
+
+                pure $ do
+                    (nearestPoint, wal) <- mNewTip
+                    Map.lookup nearestPoint $ wal ^. #checkpoints . #checkpoints
 
             case mNearestCheckpoint of
                 Nothing  -> ExceptT $ pure $ Left $ ErrNoSuchWallet wid
@@ -709,10 +727,7 @@ newDBLayerWith _cacheBehavior _tr ti SqliteContext{runQuery} = do
             lift $ forM transactions $ selectTransactionInfo ti tip txSet
         }
 
-        {-----------------------------------------------------------------------
-                                    Pending Txs
-        -----------------------------------------------------------------------}
-    let dbPendingTxs = mkDbPendingTxs submissionsDBVar
+
         {-----------------------------------------------------------------------
                                        Keystore
         -----------------------------------------------------------------------}
@@ -995,7 +1010,10 @@ selectGenesisParameters wid = do
 --
 -- If we don't find any checkpoint, it means that this invariant has been
 -- violated.
-data ErrRollbackTo = ErrNoOlderCheckpoint W.WalletId W.Slot deriving (Show)
+data ErrRollbackTo
+    = ErrNoOlderCheckpoint W.WalletId W.Slot
+    | ErrRollBackNoWallet W.WalletId
+    deriving (Show)
 instance Exception ErrRollbackTo
 
 -- | Can't initialize a wallet because the given 'BlockHeader' is not genesis.

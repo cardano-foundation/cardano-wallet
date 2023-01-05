@@ -683,6 +683,12 @@ data DBPendingTxs stm = DBPendingTxs
         -> Hash "Tx"
         -> ExceptT ErrRemoveTx stm ()
         -- ^ Manually remove a pending transaction.
+
+    , rollBackSubmissions_
+        :: WalletId
+        -> SlotNo
+        -> ExceptT ErrNoSuchWallet stm ()
+        -- ^ Rollback submissions store
     }
 
 -- | A database layer for storing the private key.

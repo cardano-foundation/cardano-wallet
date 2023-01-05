@@ -99,12 +99,16 @@ mkDbPendingTxs dbvar = let
                         Just $
                         Adjust wid $
                             RollForward tip (second TxId <$> xs)
-                in (delta, Right ()),
-        removePendingOrExpiredTx_ =
+                in (delta, Right ())
+    ,   removePendingOrExpiredTx_ =
             \wid txId ->
                 withExceptT ErrRemoveTxNoSuchWallet
                     $ missingWallet wid
                     $ \_ -> (Just $ Adjust wid $ Forget (TxId txId), Right ())
+    ,   rollBackSubmissions_ =
+            \wid slot -> missingWallet wid
+                $ \_ -> (Just $ Adjust wid $ RollBack slot , Right ())
+
     }
 
 mkLocalTxSubmission
