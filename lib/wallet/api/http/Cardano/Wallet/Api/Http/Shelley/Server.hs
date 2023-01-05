@@ -4601,25 +4601,23 @@ startRestoringWalletWorker
 startRestoringWalletWorker ctx wid =
     liftIO (Registry.lookup re wid) >>= \case
         Just _ -> do
-            liftIO (Registry.delete re wid) >>= \case
+            liftIO $ Registry.unregister re wid
+            liftIO registerRestoringWorker >>= \case
                 Nothing -> throwE ErrRestoreWalletFailedToCreateWorker
-                Just worker -> do
-                    liftIO $ Registry.unregister re wid
-                    liftIO (registerRestoringWorker (Registry.workerResource worker)) >>= \case
-                        Nothing -> throwE ErrRestoreWalletFailedToCreateWorker
-                        Just _ -> pure wid
+                Just _ -> pure wid
         Nothing ->
             throwE $ ErrRestoreWalletNoSuchWallet $ ErrNoSuchWallet wid
   where
     re = ctx ^. workerRegistry @s @k
-    config db = MkWorker
-        { workerAcquire = \action -> action db
+    df = ctx ^. dbFactory
+    config = MkWorker
+        { workerAcquire = withDatabase df wid
         , workerBefore = idleWorker
         , workerAfter = defaultWorkerAfter
         , workerMain = \ctx' _ -> unsafeRunExceptT $ W.restoreWallet ctx' wid
         }
-    registerRestoringWorker resource =
-        fmap (const ctx) <$> Registry.register @_ @ctx re ctx wid (config resource)
+    registerRestoringWorker =
+        fmap (const ctx) <$> Registry.register @_ @ctx re ctx wid config
 
 -- | Create a worker for an existing wallet, register it, then start the worker
 -- thread. This is used by 'startWalletWorker' and 'createWalletWorker'.
