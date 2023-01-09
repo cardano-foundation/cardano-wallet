@@ -49,7 +49,7 @@ Please note that `random` wallets are considered **deprecated** and should not b
 See more on [[hierarchical-deterministic-wallets]] and [[byron-address-format]].
 
 ## Shared wallets
-Shared wallets are modern `sequential` "Shelly-type wallets", so they will also support delegation in the future. The idea behind is that funds on the Shared wallets can be managed by more than one owner. While creating such wallet one provides `payment_script_template` listing all the future co-signers and their public keys for spending operations and the template script primitive which sets the rules for sharing custody of the wallet's spending operations between co-signers. Similarly one can provide `delegation_script_template` for sharing custody of delegation operations.
+Shared wallets are modern `sequential` "Shelly-type wallets". The idea behind is that funds on the Shared wallets can be managed by more than one owner. While creating such wallet one provides `payment_script_template` listing all the future co-signers and their public keys for spending operations and the template script primitive which sets the rules for sharing custody of the wallet's spending operations between co-signers. Similarly one can provide `delegation_script_template` for sharing custody of delegation operations.
 
 Exemplary request for creating new Shared wallet may look as follows:
 
@@ -63,3 +63,5 @@ $ curl -X POST http://localhost:8090/v2/shared-wallets \
 "delegation_script_template":{"cosigners":{"cosigner#0":"self","cosigner#1":"1423856bc91c49e928f6f30f4e8d665d53eb4ab6028bd0ac971809d514c92db11423856bc91c49e928f6f30f4e8d665d53eb4ab6028bd0ac971809d514c92db2"},"template":{"all":["cosigner#0","cosigner#1",{"active_from":120},{"active_until":300}]}}}' \
 -H "Content-Type: application/json"
 ```
+
+See more elaborate example on [[shared-wallets]].
