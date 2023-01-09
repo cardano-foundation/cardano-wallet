@@ -161,7 +161,8 @@ import Cardano.Pool.Types
 import Cardano.Tx.Balance.Internal.CoinSelection
     ( SelectionOf (..), SelectionStrategy (..), selectionDelta )
 import Cardano.Wallet
-    ( ErrBalanceTx (..)
+    ( ErrAddCosignerKey (..)
+    , ErrBalanceTx (..)
     , ErrConstructSharedWallet (..)
     , ErrConstructTx (..)
     , ErrCreateMigrationPlan (..)
@@ -535,6 +536,8 @@ import Control.Monad.Error.Class
     ( throwError )
 import Control.Monad.IO.Class
     ( MonadIO, liftIO )
+import Control.Monad.Trans.Class
+    ( lift )
 import Control.Monad.Trans.Except
     ( ExceptT (..), except, mapExceptT, runExceptT, throwE, withExceptT )
 import Control.Monad.Trans.Maybe
@@ -669,6 +672,8 @@ import qualified Data.Set as Set
 import qualified Network.Ntp as Ntp
 import qualified Network.Wai.Handler.Warp as Warp
 import qualified Network.Wai.Handler.WarpTLS as Warp
+
+import qualified Debug.Trace as TR
 
 -- | How the server should listen for incoming requests.
 data Listen
@@ -1173,8 +1178,30 @@ patchSharedWallet ctx liftKey cred (ApiT wid) body = do
     -- we switch on restoring only after pending -> active transition
     -- active -> active when transition of updating cosigner keys takes place
     -- should not trigger this
-    when (isRight (wal' ^. #wallet) && isLeft (wal ^. #wallet)) $
-        void $ liftHandler $ startRestoringWalletWorker @_ @s @k ctx wid
+
+    let wName = W.WalletName "wallet"
+    let pwd = Passphrase "pwd"
+
+    when (isRight (wal' ^. #wallet) && isLeft (wal ^. #wallet)) $ do
+        (state, prvKey) <- withWorkerCtx ctx wid liftE liftE $ \wrk -> liftHandler $ do
+            let db = wrk ^. W.dbLayer @IO @s @k
+            db & \W.DBLayer{atomically, readCheckpoint, readPrivateKey} -> do
+                cp <- mapExceptT atomically
+                      $ withExceptT ErrAddCosignerKeyNoSuchWallet
+                      $ W.withNoSuchWallet wid
+                      $ readCheckpoint wid
+                let state = getState cp
+                prvKeyM <- mapExceptT atomically $ lift $ readPrivateKey wid
+                --when (isNothing prvKeyM) $
+                --    throwE ErrAddCosignerKeyNoRootKey
+                pure (state, fromJust prvKeyM)
+
+        _ <- deleteWallet ctx (ApiT wid)
+        void $ liftHandler $ createWalletWorker @_ @s @k ctx wid
+            (\wrk -> W.createWallet @(WorkerCtx ctx) @_ @s @k wrk wid wName state)
+            idleWorker
+        --withWorkerCtx @_ @s @k ctx wid liftE liftE $ \wrk -> liftHandler $
+        --    W.attachPrivateKeyFromPwd @_ @s @k wrk wid (fst prvKey, pwd)
     pure wal'
   where
       cosigner = getApiT (body ^. #cosigner)

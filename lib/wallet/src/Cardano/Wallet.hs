@@ -3580,6 +3580,8 @@ data ErrAddCosignerKey
         -- ^ The shared wallet doesn't exist?
     | ErrAddCosignerKey ErrAddCosigner
         -- ^ Error adding this co-signer to the shared wallet.
+    | ErrAddCosignerKeyNoRootKey
+        -- ^ No root key was found.
     deriving (Eq, Show)
 
 data ErrConstructSharedWallet

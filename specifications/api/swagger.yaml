@@ -5369,6 +5369,7 @@ x-responsesPatchSharedWallet: &responsesPatchSharedWallet
   <<: *responsesErr400
   <<: *responsesErr404WalletNotFound
   <<: *responsesErr406
+  <<: *errNoRootKey
   403:
     description: Forbidden
     content:
