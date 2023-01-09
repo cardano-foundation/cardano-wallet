@@ -107,8 +107,10 @@ mkDbPendingTxs dbvar = let
                     $ \_ -> (Just $ Adjust wid $ Forget (TxId txId), Right ())
     ,   rollBackSubmissions_ =
             \wid slot -> missingWallet wid
-                $ \_ -> (Just $ Adjust wid $ RollBack slot , Right ())
-
+                $ \_ -> (Just $ Adjust wid $ RollBack slot, Right ())
+    ,   pruneByFinality_ =
+            \wid slot -> missingWallet wid
+                $ \_ -> (Just $ Adjust wid $ Prune slot, Right ())
     }
 
 mkLocalTxSubmission

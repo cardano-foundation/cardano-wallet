@@ -83,6 +83,7 @@ import Cardano.Wallet.DB
     , DBWallets (..)
     , ErrWalletAlreadyExists (..)
     , mkDBLayerFromParts
+    , pruneByFinality_
     )
 import Cardano.Wallet.DB.Sqlite.Migration
     ( DefaultFieldValues (..), migrateManually )
@@ -134,6 +135,8 @@ import Cardano.Wallet.Primitive.Passphrase
     ( PassphraseHash )
 import Cardano.Wallet.Primitive.Slotting
     ( TimeInterpreter, firstSlotInEpoch, interpretQuery )
+import Cardano.Wallet.Submissions.Submissions
+    ( Submissions (..) )
 import Control.Exception
     ( throw )
 import Control.Monad
@@ -563,6 +566,10 @@ newDBLayerWith _cacheBehavior _tr ti SqliteContext{runQuery} = do
                     void $ modifyDBMaybe transactionsDBVar $ \(_txsOld, _ws) ->
                         let delta = Just $ ExpandTxWalletsHistory wid txs
                         in  (delta, Right ())
+                    void $ modifyDBMaybe submissionsDBVar $ \_ ->
+                            ( Just $ Insert wid $ Submissions mempty 0 0
+                            , Right ()
+                            )
                 pure res
 
         , readGenesisParameters_ = selectGenesisParameters
@@ -670,15 +677,13 @@ newDBLayerWith _cacheBehavior _tr ti SqliteContext{runQuery} = do
                         $ W.chainPointFromBlockHeader
                         $ view #currentTip wcp
 
-    let prune_ wid epochStability = do
-            ExceptT $ do
+    let prune_ wid epochStability finalitySlot = do
+            tip <- ExceptT $ do
                 readCheckpoint wid >>= \case
                     Nothing -> pure $ Left $ ErrNoSuchWallet wid
-                    Just cp -> Right <$> do
-                        let tip = cp ^. #currentTip
-                        pruneCheckpoints wid epochStability tip
-                        -- pruneLocalTxSubmission wid epochStability tip
-                        void $ error "prune submissions not linked here"
+                    Just cp -> pure $ Right $ cp ^. #currentTip
+            lift $ pruneCheckpoints wid epochStability tip
+            pruneByFinality_ dbPendingTxs wid finalitySlot
             lift $ modifyDBMaybe transactionsDBVar $ \_ ->
                 (Just GarbageCollectTxWalletsHistory, ())
 
@@ -740,7 +745,6 @@ newDBLayerWith _cacheBehavior _tr ti SqliteContext{runQuery} = do
     let atomically_ = withMVar queryLock . const . runQuery
 
     pure $ mkDBLayerFromParts ti DBLayerCollection{..}
-
 
 readWalletMetadata
     :: W.WalletId
