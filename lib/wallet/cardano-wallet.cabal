@@ -126,6 +126,7 @@ library
     , io-classes
     , iohk-monitoring
     , lattices
+    , lens
     , lifted-async
     , math-functions
     , memory
@@ -339,6 +340,11 @@ library
     Cardano.Wallet.Shelley.Network.Discriminant
     Cardano.Wallet.Shelley.Network.Node
     Cardano.Wallet.Shelley.Transaction
+    Cardano.Wallet.Submissions.Primitives
+    Cardano.Wallet.Submissions.Properties.Common
+    Cardano.Wallet.Submissions.Properties.Primitives
+    Cardano.Wallet.Submissions.Submissions
+    Cardano.Wallet.Submissions.TxStatus
     Cardano.Wallet.TokenMetadata
     Cardano.Wallet.Transaction
     Cardano.Wallet.Version
@@ -871,6 +877,8 @@ test-suite unit
     Cardano.Wallet.Shelley.Network.BlockfrostSpec
     Cardano.Wallet.Shelley.NetworkSpec
     Cardano.Wallet.Shelley.TransactionSpec
+    Cardano.Wallet.Submissions.Gen
+    Cardano.Wallet.Submissions.PrimitivesSpec
     Cardano.Wallet.TokenMetadataSpec
     Cardano.Wallet.Write.TxSpec
     Cardano.WalletSpec
