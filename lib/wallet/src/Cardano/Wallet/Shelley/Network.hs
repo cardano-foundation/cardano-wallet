@@ -14,7 +14,6 @@ module Cardano.Wallet.Shelley.Network
 
 import Prelude
 
-import qualified Cardano.Wallet.Shelley.Network.Blockfrost as Blockfrost
 import qualified Cardano.Wallet.Shelley.Network.Node as Node
 
 import Cardano.BM.Tracing
@@ -40,21 +39,17 @@ import GHC.Stack
 import Ouroboros.Network.Client.Wallet
     ( PipeliningStrategy )
 
-data NetworkLayerLog
-    = NodeNetworkLog Node.Log
-    | BlockfrostNetworkLog Blockfrost.Log
+newtype NetworkLayerLog = NodeNetworkLog Node.Log
 
 instance ToText NetworkLayerLog where
     toText = \case
       NodeNetworkLog l -> toText l
-      BlockfrostNetworkLog l -> toText l
 
 instance HasPrivacyAnnotation NetworkLayerLog
 
 instance HasSeverityAnnotation NetworkLayerLog where
     getSeverityAnnotation = \case
         NodeNetworkLog l -> getSeverityAnnotation l
-        BlockfrostNetworkLog l -> getSeverityAnnotation l
 
 withNetworkLayer
     :: HasCallStack
@@ -64,12 +59,9 @@ withNetworkLayer
     -> SomeNetworkDiscriminant
     -> NetworkParameters
     -> ContT r IO (NetworkLayer IO (CardanoBlock StandardCrypto))
-withNetworkLayer tr pipeliningStrategy blockchainSrc net netParams =
+withNetworkLayer tr pipeliningStrategy blockchainSrc _net netParams =
     ContT $ case blockchainSrc of
         NodeSource nodeConn ver tol ->
             let tr' = NodeNetworkLog >$< tr
             in Node.withNetworkLayer
                 tr' pipeliningStrategy netParams nodeConn ver tol
-        BlockfrostSource project ->
-            let tr' = BlockfrostNetworkLog >$< tr
-            in Blockfrost.withNetworkLayer tr' net netParams project

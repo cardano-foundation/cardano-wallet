@@ -51,11 +51,7 @@ import Cardano.Wallet.DB.Store.Checkpoints
 import Cardano.Wallet.Network
     ( NetworkLayer (..) )
 import Cardano.Wallet.Pools
-    ( StakePoolLayer (..)
-    , withBlockfrostStakePoolLayer
-    , withNodeStakePoolLayer
-    , withStakePoolDbLayer
-    )
+    ( StakePoolLayer (..), withNodeStakePoolLayer, withStakePoolDbLayer )
 import Cardano.Wallet.Primitive.AddressDerivation
     ( DelegationAddress (..)
     , Depth (..)
@@ -117,7 +113,6 @@ import Cardano.Wallet.Shelley.Network.Discriminant
     , EncodeStakeAddress
     , HasNetworkId
     , SomeNetworkDiscriminant (..)
-    , discriminantNetwork
     , networkDiscriminantToId
     )
 import Cardano.Wallet.Shelley.Transaction
@@ -239,7 +234,6 @@ serveWallet
   beforeMainLoop = evalContT $ do
     lift $ case blockchainSource of
         NodeSource nodeConn _ _ -> trace $ MsgStartingNode nodeConn
-        BlockfrostSource project -> trace $ MsgStartingLite project
     lift . trace $ MsgNetworkName $ networkName proxyNetwork
     netLayer <- withNetworkLayer
         networkTracer
@@ -261,11 +255,6 @@ serveWallet
                 netParams
                 shelleyGenesisPools
                 netLayer
-        BlockfrostSource bfProject ->
-            withBlockfrostStakePoolLayer
-                poolsEngineTracer
-                bfProject
-                (discriminantNetwork network)
     randomApi <- withRandomApi netLayer
     icarusApi  <- withIcarusApi netLayer
     shelleyApi <- withShelleyApi netLayer

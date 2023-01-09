@@ -15,8 +15,6 @@ import Cardano.Wallet.Primitive.SyncProgress
 import Cardano.Wallet.Shelley.Compatibility
     ( NodeToClientVersionData )
 
-import qualified Blockfrost.Client as Blockfrost
 
 data BlockchainSource
     = NodeSource CardanoNodeConn NodeToClientVersionData SyncTolerance
-    | BlockfrostSource Blockfrost.Project

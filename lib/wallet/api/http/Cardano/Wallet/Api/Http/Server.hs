@@ -547,7 +547,6 @@ server byron icarus shelley multisig spl ntp blockchainSource =
         genesis@(_,_) = icarus ^. genesisData
         mode = case blockchainSource of
           NodeSource {} -> Node
-          BlockfrostSource {} -> Light
 
     proxy :: Server Proxy_
     proxy = postExternalTransaction icarus

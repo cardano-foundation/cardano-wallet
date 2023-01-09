@@ -62,9 +62,6 @@ library
     , bech32
     , bech32-th
     , binary
-    , blockfrost-api                ^>=0.4
-    , blockfrost-client             ^>=0.4
-    , blockfrost-client-core        ^>=0.4
     , bytestring
     , cardano-addresses
     , cardano-addresses-cli
@@ -330,12 +327,6 @@ library
     Cardano.Wallet.Shelley.MinimumUTxO
     Cardano.Wallet.Shelley.MinimumUTxO.Internal
     Cardano.Wallet.Shelley.Network
-    Cardano.Wallet.Shelley.Network.Blockfrost
-    Cardano.Wallet.Shelley.Network.Blockfrost.Conversion
-    Cardano.Wallet.Shelley.Network.Blockfrost.Error
-    Cardano.Wallet.Shelley.Network.Blockfrost.Fixture
-    Cardano.Wallet.Shelley.Network.Blockfrost.Layer
-    Cardano.Wallet.Shelley.Network.Blockfrost.Monad
     Cardano.Wallet.Shelley.Network.Discriminant
     Cardano.Wallet.Shelley.Network.Node
     Cardano.Wallet.Shelley.Transaction
@@ -376,8 +367,6 @@ library cardano-wallet-api-http
     , bech32
     , bech32-th
     , binary
-    , blockfrost-api
-    , blockfrost-client
     , bytestring
     , cardano-addresses
     , cardano-addresses-cli
@@ -678,8 +667,6 @@ test-suite unit
     , bech32
     , bech32-th
     , binary
-    , blockfrost-api
-    , blockfrost-client
     , bytestring
     , cardano-addresses
     , cardano-api
@@ -868,7 +855,6 @@ test-suite unit
     Cardano.Wallet.Shelley.CompatibilitySpec
     Cardano.Wallet.Shelley.LaunchSpec
     Cardano.Wallet.Shelley.MinimumUTxOSpec
-    Cardano.Wallet.Shelley.Network.BlockfrostSpec
     Cardano.Wallet.Shelley.NetworkSpec
     Cardano.Wallet.Shelley.TransactionSpec
     Cardano.Wallet.TokenMetadataSpec
