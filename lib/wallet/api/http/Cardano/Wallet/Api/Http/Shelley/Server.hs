@@ -1198,6 +1198,8 @@ patchSharedWallet ctx liftKey cred (ApiT wid) body = do
         void $ liftHandler $ createWalletWorker @_ @s @k ctx wid
             (\wrk -> W.createWallet @(WorkerCtx ctx) @_ @s @k wrk wid wName state)
             idleWorker
+        withWorkerCtx @_ @s @k ctx wid liftE liftE $ \wrk ->
+            liftHandler $ W.updateWallet wrk wid (const meta)
         when (isJust prvKeyM) $
             withWorkerCtx @_ @s @k ctx wid liftE liftE $ \wrk -> liftHandler $
                 W.attachPrivateKeyFromPwdHashShelley @_ @s @k wrk wid (fromJust prvKeyM)
