@@ -1,6 +1,5 @@
 status = [
-  "buildkite/cardano-wallet-post-commit", 
-  "buildkite/cardano-wallet-pre-merge"
+  "buildkite/cardano-wallet-pipeline", 
 ]
 timeout_sec = 14400
 required_approvals = 1
