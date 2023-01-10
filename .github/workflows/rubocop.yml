@@ -3,10 +3,10 @@ name: Rubocop
 on:
   push:
     branches: [ "master" ]
-    paths: ['test/e2e/**']
+    paths: ['test/e2e/**.rb']
   pull_request:
     branches: [ "master" ]
-    paths: ['test/e2e/**']
+    paths: ['test/e2e/**.rb']
 
 permissions:
   contents: read
@@ -20,7 +20,7 @@ jobs:
     runs-on: ubuntu-latest
 
     steps:
-    - name: '📥 Checkout repository'
+    - name: 📥 Checkout repository
       uses: actions/checkout@v3.2.0
 
     - name: 💎 Set up Ruby
