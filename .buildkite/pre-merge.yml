@@ -58,4 +58,69 @@ steps:
     command: 'GC_DONT_GC=1 nix build -L .#ci.${macos}.tests.run.unit'
     agents:
       system: ${macos}
+  
+  - block: "Linux build package"
+    if: '(build.branch != "staging") && (build.branch != "trying")'
+    key: trigger-build-linux-package
+    prompt: "Clicking this button will proceed to build linux package"
+    depends_on:
+      - nix
+  
+  - label: 'Build cardano-wallet package for Linux'
+    depends_on: [nix, trigger-build-linux-package]
+    key: build-linux
+    command: nix build -o result/linux .#ci.artifacts.linux64.release
+    artifact_paths: [ "./result/linux/**" ]
+    agents:
+      system: x86_64-linux
 
+  - block: "Build all benchmarks"
+    if: '(build.branch != "staging") && (build.branch != "trying")'
+    key: trigger-build-all-benchmarks
+    prompt: "Clicking this button will proceed to build all benchmarks"
+    depends_on:
+      - nix
+
+  - label: 'Build all benchmarks'
+    depends_on: [nix,trigger-build-all-benchmarks]
+    command: 'nix build .#ci.benchmarks.all'
+    agents:
+      system: x86_64-linux
+  
+  - block: "Build windows artifacts"
+    if: '(build.branch != "staging") && (build.branch != "trying")'
+    key: trigger-build-windows-artifacts
+    prompt: "Clicking this button will proceed to build windows artifacts"
+    depends_on:
+      - nix
+
+  - label: 'Build cardano-wallet package for Windows'
+    depends_on: [nix, trigger-build-windows-artifacts]
+    key: build-windows
+    command: nix build -o result/windows .#ci.artifacts.win64.release
+    artifact_paths: [ "./result/windows/**" ]
+    agents:
+      system: x86_64-linux
+
+  - label: 'Build Windows testing bundle'
+    depends_on: [nix, trigger-build-windows-artifacts]
+    key: build-windows-tests
+    command: nix build -o result/windows-tests .#ci.artifacts.win64.tests
+    artifact_paths: [ "./result/windows-tests/**" ]
+    agents:
+      system: x86_64-linux
+  
+  - block: "Build macos artifacts"
+    if: '(build.branch != "staging") && (build.branch != "trying")'
+    key: trigger-build-macos-artifacts
+    prompt: "Clicking this button will proceed to build macos artifacts"
+    depends_on:
+      - nix
+  
+  - label: 'Build cardano-wallet package for Macos (Intel)'
+    depends_on: [nix, trigger-build-macos-artifacts]
+    key: build-macos
+    command: nix build -o result/macos-intel .#ci.artifacts.macos-intel.release
+    artifact_paths: [ "./result/macos-intel/**" ]
+    agents:
+      system: x86_64-darwin
