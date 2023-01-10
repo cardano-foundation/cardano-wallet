@@ -49,7 +49,7 @@ Please note that `random` wallets are considered **deprecated** and should not b
 See more on [[hierarchical-deterministic-wallets]] and [[byron-address-format]].
 
 ## Shared wallets
-Shared wallets are modern `sequential` "Shelly-type wallets". The idea behind is that funds on the Shared wallets can be managed by more than one owner. While creating such wallet one provides `payment_script_template` listing all the future co-signers and their public keys for spending operations and the template script primitive which sets the rules for sharing custody of the wallet's spending operations between co-signers. Similarly one can provide `delegation_script_template` for sharing custody of delegation operations.
+Shared wallets are modern `sequential` "Shelly-type wallets". The idea behind is that funds on the Shared wallets can be managed by more than one owner. While creating such a wallet one provides `payment_script_template` listing all the future co-signers and their extended account public keys for spending operations and the template script primitive which sets the rules for sharing custody of the wallet's spending operations between the co-signers. Similarly one can provide `delegation_script_template` for sharing custody of delegation operations.
 
 Exemplary request for creating new Shared wallet may look as follows:
 

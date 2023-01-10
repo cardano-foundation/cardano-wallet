@@ -8,7 +8,7 @@ title: Shared wallets
   - In order to be able to send transactions, our wallet must have funds. In case of `preview` and `preprod` [testnets](https://testnets.cardano.org/en/testnets/cardano/overview/) we can request tADA from the [faucet](https://testnets.cardano.org/en/testnets/cardano/tools/faucet/).
 
 ## Overview
-This guide is to show how to create a shared wallet and make a shared transaction providing witnesses from all required co-signers required by `payment_script_template` and `delegation_script_template`. In this example we will create two shared wallets using the same template for both payment and delegation operations. The template that we use indicates that we require all signatures from co-owners in order to make a transaction. In our case the wallet will have two co-owners `cosigner#0` and `cosigner#1`:
+This guide is to show how to create a shared wallet and make a shared transaction providing witnesses from all required co-signers referenced in  `payment_script_template` and `delegation_script_template`. In this example we will create two shared wallets using the same template for both payment and delegation operations. The template that we use indicates that we require all signatures from co-owners in order to make a transaction. In our case the wallet will have two co-owners `cosigner#0` and `cosigner#1`:
 ```
 "template":
     { "all":
@@ -17,7 +17,7 @@ This guide is to show how to create a shared wallet and make a shared transactio
 ```
 
 ## Creating wallets
-First let's create two `incomplete` shared wallets using [`POST /shared-wallets`](https://input-output-hk.github.io/cardano-wallet/api/edge/#operation/postSharedWallet) encpoints. The wallets are called "incomplete" because they do not have full information about all cosigners yet.
+First let's create two `incomplete` shared wallets using [`POST /shared-wallets`](https://input-output-hk.github.io/cardano-wallet/api/edge/#operation/postSharedWallet) endpoint. The wallets are called "incomplete" because they do not have public keys from all cosigners yet.
 
 1. Cosigner#0 wallet
 
@@ -150,7 +150,7 @@ Notice that the templates `payment_script_template` and `delegation_script_templ
 ```
 However the `"cosigners":` part differs slightly. "Cosigner#0 wallet" has `"cosigner#0":"self"` and "Cosigner#1 wallet" - `"cosigner#1":"self"`. Each wallet has partial information about cosigners. "Cosigner#0 wallet" only knows about `cosigner#0` and "Cosigner#1 wallet" only knows about `cosigner#1`.
 
-Now we can look up just created wallets using [`GET /shared-wallets/{walletId}`](https://input-output-hk.github.io/cardano-wallet/api/edge/#operation/getSharedWallet) endpoint. From the respone we can tell that the wallet's status is "incomplete". For instance:
+Now we can look up just created wallets using [`GET /shared-wallets/{walletId}`](https://input-output-hk.github.io/cardano-wallet/api/edge/#operation/getSharedWallet) endpoint. From the response we can tell that the wallet's status is "incomplete". For instance:
 
 ```
 $ curl -X GET http://localhost:8090/v2/shared-wallets/5e46668c320bb4568dd25551e0c33b0539668aa8 | jq
@@ -202,7 +202,7 @@ $ curl -X GET http://localhost:8090/v2/shared-wallets/5e46668c320bb4568dd25551e0
 
 ```
 
-Now we can patch payment and delegation templates of the "Cosigner#0 wallet" with `cosigner#1` key using [`PATCH /shared-wallets/{walletId}/payment-script-template`](https://input-output-hk.github.io/cardano-wallet/api/edge/#operation/patchSharedWalletInPayment) and [`PATCH /shared-wallets/{walletId}/delegation-script-template`](https://input-output-hk.github.io/cardano-wallet/api/edge/#operation/patchSharedWalletInDelegation) respectively.
+Now we can patch payment and delegation templates of the "Cosigner#0 wallet" with `cosigner#1` key using [`PATCH /shared-wallets/{walletId}/payment-script-template`](https://input-output-hk.github.io/cardano-wallet/api/edge/#operation/patchSharedWalletInPayment) and [`PATCH /shared-wallets/{walletId}/delegation-script-template`](https://input-output-hk.github.io/cardano-wallet/api/edge/#operation/patchSharedWalletInDelegation) endpoints, respectively.
 
 ```
 $ curl -X PATCH http://localhost:8090/v2/shared-wallets/2a0ebd0cceab2161765badf2e389b26e0961de2f/payment-script-template \
@@ -276,7 +276,7 @@ $ curl -X GET http://localhost:8090/v2/shared-wallets/2a0ebd0cceab2161765badf2e3
 
 ### Spending transaction
 
-Our shared wallets are fully operational now. In particular we have access to the addresses of the wallets via [`GET /shared-wallets/{walletId}/addresses`](https://input-output-hk.github.io/cardano-wallet/api/edge/#operation/listSharedAddresses) endpoint. We can get the address and fund it from the [faucet](https://testnets.cardano.org/en/testnets/cardano/tools/faucet/) so we can spend it from our wallet.
+Our shared wallets are fully operational now. In particular we have access to the addresses of the wallets via [`GET /shared-wallets/{walletId}/addresses`](https://input-output-hk.github.io/cardano-wallet/api/edge/#operation/listSharedAddresses) endpoint. We can get the address and fund it from the [faucet](https://testnets.cardano.org/en/testnets/cardano/tools/faucet/) so that we can spend from our wallet later.
 
 After I have funded my "Cosigner#0 wallet" I see that the balance changed on "Cosigner#1 wallet" as well. Both wallets have the same balance:
 
@@ -316,9 +316,9 @@ $ curl -X GET http://localhost:8090/v2/shared-wallets/5e46668c320bb4568dd25551e0
 }
 ```
 
-Offcourse this is expected. Both co-owners have full knowledge of the balance, however they cannot spend it on their own. As required by the payment template the wallet needs all co-owners' signatures to spend from the wallet.
+Of course this is expected. Both co-owners have full knowledge of the balance, however they cannot spend it on their own. As required by the payment template the wallet needs both co-owners' signatures to spend from the wallet.
 
-Let's make a simple transaction. "Cosigner#0 wallet" owner will construct and sign the transaction on their end and then provide CBOR of this transaction to "Cosigner#1 wallet" owner. Then the Cosigner#1 can sign it on their side and submit it to the network.
+Let's make a simple transaction. "Cosigner#0 wallet" owner will construct and sign the transaction on their end and then provide CBOR of this transaction to "Cosigner#1 wallet" owner. Then the Cosigner#1 can sign it on his side and submit it to the network.
 
 We will be using shared wallet's transaction enpoints:
  - [`POST /shared-wallets/{walletId}/transactions-construct`](https://input-output-hk.github.io/cardano-wallet/api/edge/#operation/constructSharedTransaction)
@@ -329,7 +329,7 @@ We will be using shared wallet's transaction enpoints:
 
 ##### Construct
 
-"Cosigner#0" constructs transaction sending 10₳ to the external address using [`POST /shared-wallets/{walletId}/transactions-construct`](https://input-output-hk.github.io/cardano-wallet/api/edge/#operation/constructSharedTransaction). In response they get CBOR of unsigned transaction.
+"Cosigner#0" constructs transaction sending 10₳ to the external address using [`POST /shared-wallets/{walletId}/transactions-construct`](https://input-output-hk.github.io/cardano-wallet/api/edge/#operation/constructSharedTransaction). In response he gets CBOR of the unsigned transaction.
 
 ```
 $ curl -X POST http://localhost:8090/v2/shared-wallets/2a0ebd0cceab2161765badf2e389b26e0961de2f/transactions-construct \
@@ -366,11 +366,11 @@ and gets CBOR of partially signed transaction in response.
 
 #### Cosigner#1
 
-Now "Cosigner#0" can deliver the CBOR of partially signed transaction to "Cosigner#1" who can sign it on their end.
+Now "Cosigner#0" can hand over the CBOR of partially signed transaction to "Cosigner#1" who can sign it on his end.
 
 ##### Sign
 
-"Cosigner#1" signs the transaction with [`POST /shared-wallets/{walletId}/transactions-sign`](https://input-output-hk.github.io/cardano-wallet/api/edge/#operation/signSharedTransaction) and gets CBOR of fully signed transaction back.
+"Cosigner#1" signs the transaction with [`POST /shared-wallets/{walletId}/transactions-sign`](https://input-output-hk.github.io/cardano-wallet/api/edge/#operation/signSharedTransaction) and gets CBOR of fully signed transaction as a result.
 
 ```
 $ curl -X POST http://localhost:8090/v2/shared-wallets/5e46668c320bb4568dd25551e0c33b0539668aa8/transactions-sign \
@@ -384,7 +384,7 @@ $ curl -X POST http://localhost:8090/v2/shared-wallets/5e46668c320bb4568dd25551e
 ```
 ##### Submit
 
-Transaction is fully signed by both co-owners: "Cosigner#0" and "Cosigner#1". Now either of them can submit it to the network using their respective wallet and [`POST /shared-wallets/{walletId}/transactions-submit`](https://input-output-hk.github.io/cardano-wallet/api/edge/#operation/submitSharedTransaction) endpoint.
+Transaction is fully signed by both co-owners: "Cosigner#0" and "Cosigner#1". Now either of them can submit it to the network using their respective wallet via [`POST /shared-wallets/{walletId}/transactions-submit`](https://input-output-hk.github.io/cardano-wallet/api/edge/#operation/submitSharedTransaction) endpoint.
 
 ```
 $ curl -X POST http://localhost:8090/v2/shared-wallets/5e46668c320bb4568dd25551e0c33b0539668aa8/transactions-submit \
