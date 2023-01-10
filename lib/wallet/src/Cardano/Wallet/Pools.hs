@@ -29,7 +29,6 @@ module Cardano.Wallet.Pools
     , StakePoolFlag (..)
     , EpochInfo (..)
     , toEpochInfo
-    , withBlockfrostStakePoolLayer
     , withNodeStakePoolLayer
     , withStakePoolDbLayer
     , newStakePoolLayer
@@ -38,17 +37,11 @@ module Cardano.Wallet.Pools
 
     -- * Logs
     , StakePoolLog (..)
-
-    -- * Internal, for testing:
-    , _getPoolLifeCycleStatus
-    , _knownPools
     )
     where
 
 import Prelude
 
-import Blockfrost.Client
-    ( TransactionPoolRetiring (_transactionPoolRetiringCertIndex) )
 import Cardano.BM.Data.Severity
     ( Severity (..) )
 import Cardano.BM.Data.Tracer
@@ -69,13 +62,9 @@ import Cardano.Pool.Metadata
     , toHealthCheckSMASH
     )
 import Cardano.Pool.Metadata.Types
-    ( PoolMetadataGCStatus (..)
-    , StakePoolMetadata
-    , StakePoolMetadataHash
-    , StakePoolMetadataUrl (..)
-    )
+    ( PoolMetadataGCStatus (..), StakePoolMetadata, StakePoolMetadataHash )
 import Cardano.Pool.Types
-    ( PoolId (..), PoolOwner (..), StakePoolsSummary (..), decodePoolIdBech32 )
+    ( PoolId (..), StakePoolsSummary (..) )
 import Cardano.Wallet.Byron.Compatibility
     ( toByronBlockHeader )
 import Cardano.Wallet.Network
@@ -113,8 +102,6 @@ import Cardano.Wallet.Primitive.Types
     )
 import Cardano.Wallet.Primitive.Types.Coin
     ( Coin (..) )
-import Cardano.Wallet.Primitive.Types.RewardAccount
-    ( unRewardAccount )
 import Cardano.Wallet.Registry
     ( AfterThreadLog, traceAfterThread )
 import Cardano.Wallet.Shelley.Compatibility
@@ -129,34 +116,20 @@ import Cardano.Wallet.Shelley.Compatibility
     , toBabbageBlockHeader
     , toShelleyBlockHeader
     )
-import Cardano.Wallet.Shelley.Network.Blockfrost.Conversion
-    ( fromBfLovelaces
-    , fromBfStakeAddress
-    , percentageFromDouble
-    , stakePoolMetadataHashFromText
-    )
-import Cardano.Wallet.Shelley.Network.Blockfrost.Error
-    ( BlockfrostError (..) )
-import Cardano.Wallet.Shelley.Network.Blockfrost.Monad
-    ( BFM )
 import Cardano.Wallet.Unsafe
     ( unsafeMkPercentage )
 import Control.DeepSeq
     ( NFData )
 import Control.Monad
-    ( forM, forM_, forever, join, void, when, (>=>) )
+    ( forM, forM_, forever, void, when, (>=>) )
 import Control.Monad.Cont
     ( ContT (ContT) )
-import Control.Monad.Error.Class
-    ( throwError )
 import Control.Monad.IO.Class
     ( liftIO )
 import Control.Monad.Trans.Class
     ( lift )
 import Control.Monad.Trans.Except
     ( ExceptT (..), runExceptT )
-import Control.Monad.Trans.Maybe
-    ( MaybeT (MaybeT), runMaybeT )
 import Control.Monad.Trans.State
     ( State, evalState, state )
 import Control.Retry
@@ -165,12 +138,8 @@ import Control.Tracer
     ( Tracer, contramap, traceWith )
 import Data.Bifunctor
     ( first )
-import Data.Foldable
-    ( find )
 import Data.Function
     ( (&) )
-import Data.Functor
-    ( (<&>) )
 import Data.Generics.Internal.VL.Lens
     ( view )
 import Data.List
@@ -195,8 +164,6 @@ import Data.Time
     ( UTCTime )
 import Data.Time.Clock.POSIX
     ( getPOSIXTime, posixDayLength )
-import Data.Traversable
-    ( for )
 import Data.Tuple.Extra
     ( dupe )
 import Data.Void
@@ -238,13 +205,10 @@ import UnliftIO.STM
     , writeTVar
     )
 
-import qualified Blockfrost.Client as BF
-import qualified Cardano.Ledger.BaseTypes as Ledger
 import qualified Cardano.Pool.DB as PoolDb
 import qualified Cardano.Pool.DB.Sqlite as Pool
 import qualified Cardano.Wallet.Checkpoints.Policy as CP
 import qualified Cardano.Wallet.Primitive.Types.Coin as Coin
-import qualified Cardano.Wallet.Shelley.Network.Blockfrost.Monad as BFM
 import qualified Data.List as L
 import qualified Data.List.NonEmpty as NE
 import qualified Data.Map.Merge.Strict as Map
@@ -315,98 +279,6 @@ withStakePoolDbLayer poolDbTracer databaseDir poolDbDecorator netLayer =
         (Pool.defaultFilePath <$> databaseDir)
         (neverFails "withPoolsMonitoring never forecasts into the future" $
             timeInterpreter netLayer)
-
-withBlockfrostStakePoolLayer
-    :: Tracer IO StakePoolLog
-    -> BF.Project
-    -> Ledger.Network
-    -> ContT r IO StakePoolLayer
-withBlockfrostStakePoolLayer _tr project network = do
-    bfConfig <- lift (BFM.newClientConfig project)
-    ContT \k -> k StakePoolLayer
-        { getPoolLifeCycleStatus = _getPoolLifeCycleStatus bfConfig network
-        , knownPools = _knownPools bfConfig
-        , listStakePools = \_epochNo _coin -> pure []
-        , forceMetadataGC = pure ()
-        , putSettings = \_settings -> pure ()
-        , getSettings = pure $ Settings FetchNone
-        , getGCMetadataStatus = pure NotApplicable
-        }
-
-_getPoolLifeCycleStatus ::
-    BF.ClientConfig -> Ledger.Network -> PoolId -> IO PoolLifeCycleStatus
-_getPoolLifeCycleStatus cfg network poolId = BFM.run cfg do
-    let bfPoolId = BF.PoolId (toText poolId)
-    poolUpdates <- BF.allPages \paged ->
-        BF.getPoolUpdates' bfPoolId paged BF.Descending
-    case poolUpdates of
-        [] -> pure PoolNotRegistered
-        lastUpdate : otherUpdates ->
-            case BF._poolUpdateAction lastUpdate of
-                BF.PoolRegistered -> PoolRegistered <$> poolRegCert lastUpdate
-                BF.PoolDeregistered ->
-                    case findRegCert otherUpdates of
-                        Just regCertUpdate ->
-                            PoolRegisteredAndRetired
-                                <$> poolRegCert regCertUpdate
-                                <*> poolDeregCert lastUpdate
-                        Nothing -> throwError $
-                            PoolRegistrationIsMissing poolId
-
-  where
-    findRegCert :: [BF.PoolUpdate] -> Maybe BF.PoolUpdate
-    findRegCert = find \upd -> BF._poolUpdateAction upd == BF.PoolRegistered
-
-    poolRegCert :: BF.PoolUpdate -> BFM PoolRegistrationCertificate
-    poolRegCert update@BF.PoolUpdate{..} = do
-        let byIdx tpu = BF._transactionPoolUpdateCertIndex tpu
-                == _poolUpdateCertIndex
-        poolUpdates <- BF.getTxPoolUpdates _poolUpdateTxHash
-        case find byIdx poolUpdates of
-            Just BF.TransactionPoolUpdate{..} -> do
-                poolOwners <- for _transactionPoolUpdateOwners do
-                    (PoolOwner . unRewardAccount <$>)
-                        . fromBfStakeAddress network
-                poolMargin <-
-                    percentageFromDouble _transactionPoolUpdateMarginCost
-                poolCost <-
-                    fromBfLovelaces _transactionPoolUpdateFixedCost
-                poolPledge <-
-                    fromBfLovelaces _transactionPoolUpdatePledge
-                poolMetadata <-
-                    join <$> for _transactionPoolUpdateMetadata
-                        \BF.PoolUpdateMetadata{..} -> runMaybeT do
-                            url <- MaybeT . pure $
-                                StakePoolMetadataUrl <$> _poolUpdateMetadataUrl
-                            hash <- MaybeT do
-                                for _poolUpdateMetadataHash
-                                    stakePoolMetadataHashFromText
-                            pure (url, hash)
-                pure PoolRegistrationCertificate{..}
-            Nothing ->
-                throwError $ PoolUpdateCertificateNotFound poolId update
-
-    poolDeregCert :: BF.PoolUpdate -> BFM PoolRetirementCertificate
-    poolDeregCert update@BF.PoolUpdate{..} = do
-        poolRetiring <-
-            BF.getTxPoolRetiring _poolUpdateTxHash <&> find \r ->
-                _transactionPoolRetiringCertIndex r == _poolUpdateCertIndex
-        case poolRetiring of
-            Just BF.TransactionPoolRetiring{..} -> do
-                pure PoolRetirementCertificate
-                    { poolId
-                    , retirementEpoch =
-                        fromIntegral _transactionPoolRetiringRetiringEpoch
-                    }
-            Nothing ->
-                throwError $ PoolRetirementCertificateNotFound poolId update
-
-_knownPools :: BF.ClientConfig -> IO (Set PoolId)
-_knownPools bfConfig = Set.fromList <$> BFM.run bfConfig do
-    -- BF.listPools returns only 100 items (1 page) but we want all pages
-    BF.allPages (`BF.listPools'` BF.Ascending) >>=
-        traverse \(BF.PoolId poolId) -> decodePoolIdBech32 poolId
-            & either (throwError . InvalidPoolId poolId) pure
 
 newStakePoolLayer
     :: forall sc. ()

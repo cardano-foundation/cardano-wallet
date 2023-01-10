@@ -19,7 +19,6 @@ bundle install
 ```
 2. Decrypt secret files using `$TESTS_E2E_FIXTURES` secret:
   - `fixture_wallets.json.gpg` containing mnemonics of testnet fixture wallets
-  - `blockfrost.api.key.gpg` containing Blockfrost API key for `testnet`
 
 ```bash
 export TESTS_E2E_FIXTURES=*******

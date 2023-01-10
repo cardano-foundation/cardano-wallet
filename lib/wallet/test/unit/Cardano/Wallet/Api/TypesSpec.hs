@@ -491,6 +491,8 @@ import Test.QuickCheck.Extra
     ( reasonablySized )
 import Test.QuickCheck.Gen
     ( sublistOf )
+import Test.QuickCheck.Instances
+    ()
 import Test.QuickCheck.Modifiers
     ( NonNegative (..) )
 import Test.Text.Roundtrip
@@ -524,6 +526,7 @@ import qualified Data.Text.Encoding as T
 import qualified Data.Yaml as Yaml
 import qualified Prelude
 import qualified Test.Utils.Roundtrip as Utils
+
 
 spec :: Spec
 spec = parallel $ do
