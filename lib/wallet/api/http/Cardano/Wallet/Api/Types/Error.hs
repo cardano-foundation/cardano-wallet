@@ -111,6 +111,7 @@ data ApiErrorInfo
     | NetworkMisconfigured
     | NetworkQueryFailed
     | NetworkUnreachable
+    | NoMeta
     | NoRootKey
     | NoSuchPool
     | NoSuchTransaction

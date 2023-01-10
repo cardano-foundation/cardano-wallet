@@ -1179,24 +1179,26 @@ patchSharedWallet ctx liftKey cred (ApiT wid) body = do
     -- active -> active when transition of updating cosigner keys takes place
     -- should not trigger this
 
-    let wName = W.WalletName "wallet"
     let pwd = Passphrase "pwd"
 
     when (isRight (wal' ^. #wallet) && isLeft (wal ^. #wallet)) $ do
-        (state, prvKey) <- withWorkerCtx ctx wid liftE liftE $ \wrk -> liftHandler $ do
+        (state, prvKey, meta) <- withWorkerCtx ctx wid liftE liftE $ \wrk -> liftHandler $ do
             let db = wrk ^. W.dbLayer @IO @s @k
-            db & \W.DBLayer{atomically, readCheckpoint, readPrivateKey} -> do
+            db & \W.DBLayer{atomically, readCheckpoint, readPrivateKey, readWalletMeta} -> do
                 cp <- mapExceptT atomically
                       $ withExceptT ErrAddCosignerKeyNoSuchWallet
                       $ W.withNoSuchWallet wid
                       $ readCheckpoint wid
                 let state = getState cp
+                --could be for account and root key wallets
                 prvKeyM <- mapExceptT atomically $ lift $ readPrivateKey wid
-                --when (isNothing prvKeyM) $
-                --    throwE ErrAddCosignerKeyNoRootKey
-                pure (state, fromJust prvKeyM)
+                metaM <- mapExceptT atomically $ lift $ readWalletMeta wid
+                when (isNothing metaM) $
+                    throwE ErrAddCosignerKeyNoMeta
+                pure (state, fromJust prvKeyM, fst $ fromJust metaM)
 
         _ <- deleteWallet ctx (ApiT wid)
+        let wName = meta ^. #name
         void $ liftHandler $ createWalletWorker @_ @s @k ctx wid
             (\wrk -> W.createWallet @(WorkerCtx ctx) @_ @s @k wrk wid wName state)
             idleWorker
