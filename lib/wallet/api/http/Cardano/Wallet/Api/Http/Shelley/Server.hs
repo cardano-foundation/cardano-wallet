@@ -1179,8 +1179,6 @@ patchSharedWallet ctx liftKey cred (ApiT wid) body = do
     -- active -> active when transition of updating cosigner keys takes place
     -- should not trigger this
 
-    let pwd = Passphrase "pwd"
-
     when (isRight (wal' ^. #wallet) && isLeft (wal ^. #wallet)) $ do
         (state, prvKey, meta) <- withWorkerCtx ctx wid liftE liftE $ \wrk -> liftHandler $ do
             let db = wrk ^. W.dbLayer @IO @s @k
@@ -1202,9 +1200,10 @@ patchSharedWallet ctx liftKey cred (ApiT wid) body = do
         void $ liftHandler $ createWalletWorker @_ @s @k ctx wid
             (\wrk -> W.createWallet @(WorkerCtx ctx) @_ @s @k wrk wid wName state)
             idleWorker
-        --withWorkerCtx @_ @s @k ctx wid liftE liftE $ \wrk -> liftHandler $
-        --    W.attachPrivateKeyFromPwd @_ @s @k wrk wid (fst prvKey, pwd)
-    pure wal'
+        withWorkerCtx @_ @s @k ctx wid liftE liftE $ \wrk -> liftHandler $
+            W.attachPrivateKeyFromPwdHashShelley @_ @s @k wrk wid prvKey
+
+    fst <$> getWallet ctx (mkSharedWallet @_ @s @k) (ApiT wid)
   where
       cosigner = getApiT (body ^. #cosigner)
       (ApiAccountSharedPublicKey accXPubApiT) = (body ^. #accountPublicKey)
@@ -1344,7 +1343,7 @@ postRandomWalletFromXPrv ctx body = do
         (\wrk -> W.createWallet @(WorkerCtx ctx) @_ @s @k wrk wid wName s)
         idleWorker
     withWorkerCtx ctx wid liftE liftE $ \wrk -> liftHandler $
-        W.attachPrivateKeyFromPwdHash wrk wid (byronKey, pwd)
+        W.attachPrivateKeyFromPwdHashByron wrk wid (byronKey, pwd)
     fst <$> getWallet ctx mkLegacyWallet (ApiT wid)
   where
     wName = getApiT (body ^. #name)
@@ -4614,40 +4613,6 @@ createNonrestoringWalletWorker ctx wid createWallet =
     registerIdleWorker =
         fmap (const ctx) <$> Registry.register @_ @ctx re ctx wid config
 
-startRestoringWalletWorker
-    :: forall ctx s k ktype.
-        ( ctx ~ ApiLayer s k ktype
-        , IsOurs s Address
-        , IsOurs s RewardAccount
-        , AddressBookIso s
-        , MaybeLight s
-        )
-    => ctx
-        -- ^ Surrounding API context
-    -> WalletId
-        -- ^ Wallet Id
-    -> ExceptT ErrRestoreWallet IO WalletId
-startRestoringWalletWorker ctx wid =
-    liftIO (Registry.lookup re wid) >>= \case
-        Just _ -> do
-            liftIO $ Registry.unregister re wid
-            liftIO registerRestoringWorker >>= \case
-                Nothing -> throwE ErrRestoreWalletFailedToCreateWorker
-                Just _ -> pure wid
-        Nothing ->
-            throwE $ ErrRestoreWalletNoSuchWallet $ ErrNoSuchWallet wid
-  where
-    re = ctx ^. workerRegistry @s @k
-    df = ctx ^. dbFactory
-    config = MkWorker
-        { workerAcquire = withDatabase df wid
-        , workerBefore = idleWorker
-        , workerAfter = defaultWorkerAfter
-        , workerMain = \ctx' _ -> unsafeRunExceptT $ W.restoreWallet ctx' wid
-        }
-    registerRestoringWorker =
-        fmap (const ctx) <$> Registry.register @_ @ctx re ctx wid config
-
 -- | Create a worker for an existing wallet, register it, then start the worker
 -- thread. This is used by 'startWalletWorker' and 'createWalletWorker'.
 registerWorker
@@ -4739,13 +4704,6 @@ data ErrCreateWallet
         -- ^ Somehow, we couldn't create a worker or open a db connection
     deriving (Eq, Show)
 
-data ErrRestoreWallet
-    = ErrRestoreWalletNoSuchWallet ErrNoSuchWallet
-        -- ^ Wallet does not exist
-    | ErrRestoreWalletFailedToCreateWorker
-        -- ^ Somehow, we couldn't create a worker or open a db connection
-    deriving (Eq, Show)
-
 data ErrTemporarilyDisabled = ErrTemporarilyDisabled
     deriving (Eq, Show)
 
@@ -4769,17 +4727,6 @@ instance IsServerError ErrCreateWallet where
     toServerError = \case
         ErrCreateWalletAlreadyExists e -> toServerError e
         ErrCreateWalletFailedToCreateWorker ->
-            apiError err500 UnexpectedError $ mconcat
-                [ "That's embarrassing. Your wallet looks good, but I couldn't "
-                , "open a new database to store its data. This is unexpected "
-                , "and likely not your fault. Perhaps, check your filesystem's "
-                , "permissions or available space?"
-                ]
-
-instance IsServerError ErrRestoreWallet where
-    toServerError = \case
-        ErrRestoreWalletNoSuchWallet e -> toServerError e
-        ErrRestoreWalletFailedToCreateWorker ->
             apiError err500 UnexpectedError $ mconcat
                 [ "That's embarrassing. Your wallet looks good, but I couldn't "
                 , "open a new database to store its data. This is unexpected "
