@@ -11,7 +11,7 @@ class Buildkite
 
   attr_reader :org, :pipeline, :client
 
-  def initialize(pipeline = 'cardano-wallet-post-commit')
+  def initialize(pipeline = 'cardano-wallet-pipeline')
     @org = 'input-output-hk'
     @pipeline = pipeline
     @api_token = ENV.fetch('BUILDKITE_API_TOKEN', nil)
