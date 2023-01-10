@@ -673,8 +673,6 @@ import qualified Network.Ntp as Ntp
 import qualified Network.Wai.Handler.Warp as Warp
 import qualified Network.Wai.Handler.WarpTLS as Warp
 
-import qualified Debug.Trace as TR
-
 -- | How the server should listen for incoming requests.
 data Listen
     = ListenOnPort Port
@@ -1180,7 +1178,7 @@ patchSharedWallet ctx liftKey cred (ApiT wid) body = do
     -- should not trigger this
 
     when (isRight (wal' ^. #wallet) && isLeft (wal ^. #wallet)) $ do
-        (state, prvKey, meta) <- withWorkerCtx ctx wid liftE liftE $ \wrk -> liftHandler $ do
+        (state, prvKeyM, meta) <- withWorkerCtx ctx wid liftE liftE $ \wrk -> liftHandler $ do
             let db = wrk ^. W.dbLayer @IO @s @k
             db & \W.DBLayer{atomically, readCheckpoint, readPrivateKey, readWalletMeta} -> do
                 cp <- mapExceptT atomically
@@ -1193,15 +1191,16 @@ patchSharedWallet ctx liftKey cred (ApiT wid) body = do
                 metaM <- mapExceptT atomically $ lift $ readWalletMeta wid
                 when (isNothing metaM) $
                     throwE ErrAddCosignerKeyNoMeta
-                pure (state, fromJust prvKeyM, fst $ fromJust metaM)
+                pure (state, prvKeyM, fst $ fromJust metaM)
 
         _ <- deleteWallet ctx (ApiT wid)
         let wName = meta ^. #name
         void $ liftHandler $ createWalletWorker @_ @s @k ctx wid
             (\wrk -> W.createWallet @(WorkerCtx ctx) @_ @s @k wrk wid wName state)
             idleWorker
-        withWorkerCtx @_ @s @k ctx wid liftE liftE $ \wrk -> liftHandler $
-            W.attachPrivateKeyFromPwdHashShelley @_ @s @k wrk wid prvKey
+        when (isJust prvKeyM) $
+            withWorkerCtx @_ @s @k ctx wid liftE liftE $ \wrk -> liftHandler $
+                W.attachPrivateKeyFromPwdHashShelley @_ @s @k wrk wid (fromJust prvKeyM)
 
     fst <$> getWallet ctx (mkSharedWallet @_ @s @k) (ApiT wid)
   where
