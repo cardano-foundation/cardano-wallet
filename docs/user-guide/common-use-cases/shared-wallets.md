@@ -325,9 +325,12 @@ We will be using shared wallet's transaction enpoints:
  - [`POST /shared-wallets/{walletId}/transactions-sign`](https://input-output-hk.github.io/cardano-wallet/api/edge/#operation/signSharedTransaction)
  - [`POST /shared-wallets/{walletId}/transactions-submit`](https://input-output-hk.github.io/cardano-wallet/api/edge/#operation/submitSharedTransaction)
 
+> :information_source: Note that at any point in the process of constructing and signing a transaction both "Cosigner#0" and "Cosigner#1" may decode the CBOR of transaction using [`POST /shared-wallets/{walletId}/transactions-decode`](https://input-output-hk.github.io/cardano-wallet/api/edge/#operation/decodeSharedTransaction) endpoint and get all its details including, but not limited to, `inputs`, `outputs`, `fees`, `deposits`, `metadata` or `witness_count`.
+
+
 #### Cosigner#0
 
-##### Construct
+##### Constructing
 
 "Cosigner#0" constructs transaction sending 10₳ to the external address using [`POST /shared-wallets/{walletId}/transactions-construct`](https://input-output-hk.github.io/cardano-wallet/api/edge/#operation/constructSharedTransaction). In response he gets CBOR of the unsigned transaction.
 
@@ -348,7 +351,7 @@ $ curl -X POST http://localhost:8090/v2/shared-wallets/2a0ebd0cceab2161765badf2e
 
 "hKUAgYJYIP8Fwso5i5ovF8bJJuqZ4xOdvXC3mXJCN2O2vDIxQQOYAAGCogBYOQAPoKBp8QggxQSBkAcuvb5QKHyIYK/vZAoDka0HLbCXN3jw0iy454aNIf/2HHm0geZZd8Yu8ge2bAEaAJiWgKIAWDkwZ/CRYzhreLBgWdOZFReuuejo5RIhvNwLOk51lWQGg+0Ii6yF8VB/6jOUJdwEhwqE3Od9sHl14eQBGwAAAAJTcJsvAhoAArJRAxoBDHtNCAChAYGCAYKCAFgciTss5ZpPDifzTTlpVVbNSaZGERzre1z05XYVWYIAWBzHmpkAwWCRnUTfcTy0aZK2LLLM36Y/4gZMlJhm9fY="
 ```
-##### Sign
+##### Signing
 
 "Cosigner#0" signs the transaction with [`POST /shared-wallets/{walletId}/transactions-sign`](https://input-output-hk.github.io/cardano-wallet/api/edge/#operation/signSharedTransaction):
 
@@ -368,7 +371,7 @@ and gets CBOR of partially signed transaction in response.
 
 Now "Cosigner#0" can hand over the CBOR of partially signed transaction to "Cosigner#1" who can sign it on his end.
 
-##### Sign
+##### Signing
 
 "Cosigner#1" signs the transaction with [`POST /shared-wallets/{walletId}/transactions-sign`](https://input-output-hk.github.io/cardano-wallet/api/edge/#operation/signSharedTransaction) and gets CBOR of fully signed transaction as a result.
 
@@ -382,7 +385,7 @@ $ curl -X POST http://localhost:8090/v2/shared-wallets/5e46668c320bb4568dd25551e
 
 "hKUAgYJYIP8Fwso5i5ovF8bJJuqZ4xOdvXC3mXJCN2O2vDIxQQOYAAGCogBYOQAPoKBp8QggxQSBkAcuvb5QKHyIYK/vZAoDka0HLbCXN3jw0iy454aNIf/2HHm0geZZd8Yu8ge2bAEaAJiWgKIAWDkwZ/CRYzhreLBgWdOZFReuuejo5RIhvNwLOk51lWQGg+0Ii6yF8VB/6jOUJdwEhwqE3Od9sHl14eQBGwAAAAJTcJsvAhoAArJRAxoBDHzCCACiAIKCWCBOK9nJ9IxJt2gddyZ2fUHC4nre84+EbPQdL60OP0m4ZlhA11gVIBWSlDZl8NQyzV4v9U8AuX8n2UqJK9+Wt1sqnM7jAeYtbuyAN5weTaVV+NDVlpKVg3piowyC1eqZBeWWAYJYIKRn9pUgwcx7GBoIBVJd+9Gh8I/YOwFFK7KyXUXSfrWnWEAqOkD9ljkgYwqwPpuxV+4iJw0hf4PPXA7o9XVxZ4wqT6vSnu1hvsyM4ezuCP/ahTMQ7RzZHTLa1BDx6YawGHQHAYGCAYKCAFgciTss5ZpPDifzTTlpVVbNSaZGERzre1z05XYVWYIAWBzHmpkAwWCRnUTfcTy0aZK2LLLM36Y/4gZMlJhm9fY="
 ```
-##### Submit
+##### Submission
 
 Transaction is fully signed by both co-owners: "Cosigner#0" and "Cosigner#1". Now either of them can submit it to the network using their respective wallet via [`POST /shared-wallets/{walletId}/transactions-submit`](https://input-output-hk.github.io/cardano-wallet/api/edge/#operation/submitSharedTransaction) endpoint.
 

@@ -11,6 +11,7 @@ The easiest and most common way of managing your funds on the Cardano blockchain
 Here we are going to start `cardano-wallet` in full node mode, meaning that we need to have also `cardano-node` running on the same machine. We can get binaries of `cardano-wallet` and compatible version of `cardano-node` from [cardano wallet release page](https://github.com/input-output-hk/cardano-wallet/releases). `Cardano-wallet` archives published for each release, besides `cardano-wallet` itself, include all the relevant tools like `cardano-node`, `cardano-cli`, `cardano-addresses` or `bech32`.
 
 > :information_source: Alternatively one can use handy [docker-compose](https://github.com/input-output-hk/cardano-wallet#getting-started) to start wallet and the node on different networks:
+>
 > `$ NETWORK=mainnet docker-compose up`
 > `$ NETWORK=preprod docker-compose up`
 > `$ NETWORK=preview docker-compose up`
