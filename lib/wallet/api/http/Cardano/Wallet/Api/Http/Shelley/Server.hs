@@ -1202,37 +1202,47 @@ patchSharedWallet ctx liftKey cred (ApiT wid) body = do
     -- should not trigger this
 
     when (isRight (wal' ^. #wallet) && isLeft (wal ^. #wallet)) $ do
-        (state, prvKeyM, meta) <- withWorkerCtx ctx wid liftE liftE $ \wrk -> liftHandler $ do
-            let db = wrk ^. W.dbLayer @IO @s @k
-            db & \W.DBLayer{atomically, readCheckpoint, readPrivateKey, readWalletMeta} -> do
-                cp <- mapExceptT atomically
-                      $ withExceptT ErrAddCosignerKeyNoSuchWallet
-                      $ W.withNoSuchWallet wid
-                      $ readCheckpoint wid
-                let state = getState cp
-                --could be for account and root key wallets
-                prvKeyM <- mapExceptT atomically $ lift $ readPrivateKey wid
-                metaM <- mapExceptT atomically $ lift $ readWalletMeta wid
-                when (isNothing metaM) $
-                    throwE ErrAddCosignerKeyNoMeta
-                pure (state, prvKeyM, fst $ fromJust metaM)
+        (state, prvKeyM, meta) <- withWorkerCtx ctx wid liftE liftE
+            $ \wrk -> liftHandler $ do
+                let db = wrk ^. W.dbLayer @IO @s @k
+                db & \W.DBLayer
+                    { atomically
+                    , readCheckpoint
+                    , readPrivateKey
+                    , readWalletMeta
+                    } -> do
+                        cp <- mapExceptT atomically
+                            $ withExceptT ErrAddCosignerKeyNoSuchWallet
+                            $ W.withNoSuchWallet wid
+                            $ readCheckpoint wid
+                        let state = getState cp
+                        --could be for account and root key wallets
+                        prvKeyM <-
+                            mapExceptT atomically $ lift $ readPrivateKey wid
+                        metaM <-
+                            mapExceptT atomically $ lift $ readWalletMeta wid
+                        when (isNothing metaM) $
+                            throwE ErrAddCosignerKeyNoMeta
+                        pure (state, prvKeyM, fst $ fromJust metaM)
 
         _ <- deleteWallet ctx (ApiT wid)
         let wName = meta ^. #name
         void $ liftHandler $ createWalletWorker @_ @s @k ctx wid
-            (\wrk -> W.createWallet @(WorkerCtx ctx) @_ @s @k wrk wid wName state)
+            (\wrk ->
+                W.createWallet @(WorkerCtx ctx) @_ @s @k wrk wid wName state)
             idleWorker
         withWorkerCtx @_ @s @k ctx wid liftE liftE $ \wrk ->
             liftHandler $ W.updateWallet wrk wid (const meta)
-        when (isJust prvKeyM) $
-            withWorkerCtx @_ @s @k ctx wid liftE liftE $ \wrk -> liftHandler $
-                W.attachPrivateKeyFromPwdHashShelley @_ @s @k wrk wid (fromJust prvKeyM)
+        when (isJust prvKeyM)
+            $ withWorkerCtx @_ @s @k ctx wid liftE liftE $ \wrk -> liftHandler
+            $ W.attachPrivateKeyFromPwdHashShelley
+                @_ @s @k wrk wid (fromJust prvKeyM)
 
     fst <$> getWallet ctx (mkSharedWallet @_ @s @k) (ApiT wid)
   where
-      cosigner = getApiT (body ^. #cosigner)
-      (ApiAccountSharedPublicKey accXPubApiT) = (body ^. #accountPublicKey)
-      accXPub = getApiT accXPubApiT
+    cosigner = getApiT (body ^. #cosigner)
+    (ApiAccountSharedPublicKey accXPubApiT) = (body ^. #accountPublicKey)
+    accXPub = getApiT accXPubApiT
 
 --------------------- Legacy
 
