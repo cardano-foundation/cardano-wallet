@@ -725,7 +725,7 @@ RSpec.describe 'Cardano Wallet E2E tests', :all, :e2e do
 
       verify_ada_balance(src_after, src_before,
                          target_after, target_before,
-                         (2 * amt), expected_fee)
+                         (amt * 2), expected_fee)
     end
 
     it 'Multi-assets transaction' do
@@ -1348,7 +1348,7 @@ RSpec.describe 'Cardano Wallet E2E tests', :all, :e2e do
         # verify assets have been minted and on wallet's balance
         assets_to_check = get_assets_from_decode(tx_decoded['mint'])
         assets = assets_balance(src_after_minting['assets_total'], { assets_to_check: assets_to_check })
-        expect(assets).to eq(assets_to_check.map { |z| { z => 1000 } }.to_set)
+        expect(assets).to eq(assets_to_check.to_set { |z| { z => 1000 } })
 
         # Burn half:
         burn = [burn(asset_name('Token1'), 500, policy_script1),
@@ -1413,7 +1413,7 @@ RSpec.describe 'Cardano Wallet E2E tests', :all, :e2e do
         # verify half of assets have ben burned
         assets = assets_balance(src_after_burning['assets_total'],
                                 { assets_to_check: assets_to_check })
-        expect(assets).to eq(assets_to_check.map { |z| { z => 500 } }.to_set)
+        expect(assets).to eq(assets_to_check.to_set { |z| { z => 500 } })
 
         # Burn all the rest:
         burn = [burn(asset_name('Token1'), 500, policy_script1),
@@ -1520,7 +1520,7 @@ RSpec.describe 'Cardano Wallet E2E tests', :all, :e2e do
         # verify assets have been minted and on wallet's balance
         assets_to_check = get_assets_from_decode(tx_decoded['mint'])
         assets = assets_balance(src_after_minting['assets_total'], { assets_to_check: assets_to_check })
-        expect(assets).to eq(assets_to_check.map { |z| { z => assets_quantity } }.to_set)
+        expect(assets).to eq(assets_to_check.to_set { |z| { z => assets_quantity } })
 
         # Burn all:
         burn = [burn(asset_name('TokenMetadata1'), assets_quantity, policy_script1),
@@ -1608,7 +1608,7 @@ RSpec.describe 'Cardano Wallet E2E tests', :all, :e2e do
         # verify assets have been minted and on wallet's balance
         assets_to_check = get_assets_from_decode(tx_decoded['mint'])
         assets = assets_balance(src_after_minting['assets_total'], { assets_to_check: assets_to_check })
-        expect(assets).to eq(assets_to_check.map { |z| { z => assets_quantity } }.to_set)
+        expect(assets).to eq(assets_to_check.to_set { |z| { z => assets_quantity } })
 
         # Burn:
         burn = [burn(nft_name_hex, assets_quantity, policy_script)]
@@ -1674,7 +1674,7 @@ RSpec.describe 'Cardano Wallet E2E tests', :all, :e2e do
         # verify assets have been minted and on wallet's balance
         assets_to_check = get_assets_from_decode(tx_decoded['mint'])
         assets = assets_balance(src_after_minting['assets_total'], { assets_to_check: assets_to_check })
-        expect(assets).to eq(assets_to_check.map { |z| { z => 500 } }.to_set)
+        expect(assets).to eq(assets_to_check.to_set { |z| { z => 500 } })
 
         # Minting and burning:
         mint_burn = [mint(asset_name('Asset1'), 500, policy_script1),
@@ -1709,7 +1709,7 @@ RSpec.describe 'Cardano Wallet E2E tests', :all, :e2e do
         assets_burned = assets_balance(src_after_minting_burning['assets_total'],
                                        { assets_to_check: assets_burned_to_check })
 
-        expect(assets_minted).to eq(assets_minted_to_check.map { |z| { z => 1000 } }.to_set)
+        expect(assets_minted).to eq(assets_minted_to_check.to_set { |z| { z => 1000 } })
         expect(assets_burned).to eq({}.to_set)
 
         # Burn all the rest:
@@ -1779,7 +1779,7 @@ RSpec.describe 'Cardano Wallet E2E tests', :all, :e2e do
         # verify assets have been minted and on wallet's balance
         assets_to_check = get_assets_from_decode(tx_decoded['mint'])
         assets = assets_balance(src_after_minting['assets_total'], { assets_to_check: assets_to_check })
-        expect(assets).to eq(assets_to_check.map { |z| { z => 10 } }.to_set)
+        expect(assets).to eq(assets_to_check.to_set { |z| { z => 10 } })
 
         # Burning 10 MintBurn and minting 1 MintBurn:
         mint_burn = [burn(assets_name, 10, policy_script),
@@ -1810,7 +1810,7 @@ RSpec.describe 'Cardano Wallet E2E tests', :all, :e2e do
         assets_minted = assets_balance(src_after_minting_burning['assets_total'],
                                        { assets_to_check: assets_minted_to_check })
 
-        expect(assets_minted).to eq(assets_minted_to_check.map { |z| { z => 1 } }.to_set)
+        expect(assets_minted).to eq(assets_minted_to_check.to_set { |z| { z => 1 } })
 
         # Burn all the rest:
         burn = [burn(assets_name, 1, policy_script)]
@@ -1966,7 +1966,7 @@ RSpec.describe 'Cardano Wallet E2E tests', :all, :e2e do
         # verify assets have been minted and on target wallet's balance
         assets_to_check = get_assets_from_decode(tx_decoded['mint'])
         assets = assets_balance(target_after_minting['assets_total'], { assets_to_check: assets_to_check })
-        expect(assets).to eq(assets_to_check.map { |z| { z => assets_quantity } }.to_set)
+        expect(assets).to eq(assets_to_check.to_set { |z| { z => assets_quantity } })
 
         # Try to burn on target wallet and fail:
         create_policy_key_if_not_exists(@target_id)
@@ -1998,7 +1998,7 @@ RSpec.describe 'Cardano Wallet E2E tests', :all, :e2e do
         wait_for_tx_in_ledger(@target_id, tx_id)
         src_after_sending = get_shelley_balances(@wid)
         assets = assets_balance(src_after_sending['assets_total'], { assets_to_check: assets_to_check })
-        expect(assets).to eq(assets_to_check.map { |z| { z => assets_quantity } }.to_set)
+        expect(assets).to eq(assets_to_check.to_set { |z| { z => assets_quantity } })
 
         # Burn them on src wallet:
         burn = [burn(assets_name, assets_quantity, policy_script)]
@@ -2268,7 +2268,7 @@ RSpec.describe 'Cardano Wallet E2E tests', :all, :e2e do
         target_total_expected = assets_balance(target_before['assets_total'], { assets_to_check: assets_to_check, delta: +amt })
         target_avail_expected = assets_balance(target_before['assets_available'], { assets_to_check: assets_to_check, delta: +amt })
         if target_before['assets_total'] == []
-          target_balance_expected = assets_to_check.map { |a| { a => amt } }.to_set
+          target_balance_expected = assets_to_check.to_set { |a| { a => amt } }
           expect(target_total_after).to eq target_balance_expected
           expect(target_avail_after).to eq target_balance_expected
         else

@@ -414,7 +414,7 @@ def assets_balance(assets, options = {})
   options[:delta] ||= 0
   assets_to_check = options[:assets_to_check]
 
-  asset_set = assets.map { |x| { "#{x['policy_id']}#{x['asset_name']}" => x['quantity'] + options[:delta] } }.to_set
+  asset_set = assets.to_set { |x| { "#{x['policy_id']}#{x['asset_name']}" => x['quantity'] + options[:delta] } }
   if assets_to_check
     asset_set.select { |a| assets_to_check.include? a.keys.first }.to_set
   else
@@ -489,7 +489,7 @@ def verify_asset_balance(src_after, src_before, target_after, target_before, amt
   src_avail_expected = assets_balance(src_before['assets_available'], { assets_to_check: assets_to_check, delta: -amt })
 
   if target_before['assets_total'] == []
-    target_balance_expected = assets_to_check.map { |a| { a => amt } }.to_set
+    target_balance_expected = assets_to_check.to_set { |a| { a => amt } }
     expect(target_total_after).to eq target_balance_expected
     expect(target_avail_after).to eq target_balance_expected
   else
