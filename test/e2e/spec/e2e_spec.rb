@@ -160,6 +160,19 @@ RSpec.describe 'Cardano Wallet E2E tests', :all, :e2e do
       end
     end
 
+    before(:all) do
+      log 'Making transaction with 10 pure ADA inputs to the wallet to make sure there is collateral'
+      amt = 10_000_000
+      address = SHELLEY.addresses.list(@wid)[0]['id']
+      payment = []
+      10.times do
+        payment << { address: address, amount: { quantity: amt, unit: 'lovelace' } }
+      end
+      _, _, tx_submitted = construct_sign_submit(@wid, payment)
+      tx_id = tx_submitted['id']
+      wait_for_tx_in_ledger(@wid, tx_id)
+    end
+
     it 'cannot balance on empty wallet' do
       wid = create_shelley_wallet
       payload = get_plutus_tx 'ping-pong_1.json'
