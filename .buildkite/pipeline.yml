@@ -121,7 +121,7 @@ steps:
   - label: 'Run unit tests (macos)'
     depends_on: [macos-nix, trigger-macos]
     key: macos-build-tests
-    command: 'GC_DONT_GC=1 nix build -L .#ci.${macos}.tests.run.unit'
+    command: 'GC_DONT_GC=1 nix build --max-silent-time 0 -L .#ci.${macos}.tests.run.unit'
     agents:
       system: ${macos}
 
@@ -170,7 +170,7 @@ steps:
   - label: 'Build package (macos)'
     depends_on: [nix, trigger-build-macos-artifacts]
     key: build-macos
-    command: nix build -o result/macos-intel .#ci.artifacts.macos-intel.release
+    command: nix build --max-silent-time 0 -o result/macos-intel .#ci.artifacts.macos-intel.release
     artifact_paths: [ "./result/macos-intel/**" ]
     agents:
       system: ${macos}
