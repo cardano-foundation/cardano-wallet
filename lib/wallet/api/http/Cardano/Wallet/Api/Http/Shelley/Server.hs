@@ -985,7 +985,10 @@ postSharedWallet
         , HasWorkerRegistry s k ctx
         )
     => ctx
-    -> ((SomeMnemonic, Maybe SomeMnemonic) -> Passphrase "encryption" -> k 'RootK XPrv)
+    ->  ( (SomeMnemonic, Maybe SomeMnemonic)
+          -> Passphrase "encryption"
+          -> k 'RootK XPrv
+        )
     -> (XPub -> k 'AccountK XPub)
     -> ApiSharedWalletPostData
     -> Handler ApiSharedWallet
