@@ -4165,16 +4165,16 @@ x-errNoRootKey: &errNoRootKey
       type: string
       enum: ['no_root_key']
 
-x-errNoMeta: &errNoMeta
+x-errWalletMetadataNotFound: &errWalletMetadataNotFound
   <<: *responsesErr
-  title: no_meta
+  title: wallet_metadata_not_found
   properties:
     message:
       type: string
       description: May occur when a shared wallet is becoming active after being pending and suggest database problem.
     code:
       type: string
-      enum: ['no_meta']
+      enum: ['wallet_metadata_not_found']
 
 x-errWrongEncryptionPassphrase: &errWrongEncryptionPassphrase
   <<: *responsesErr
@@ -5219,12 +5219,12 @@ x-responsesErr404WalletNotFound: &responsesErr404WalletNotFound
       application/json:
         schema: *errNoSuchWallet
 
-x-responsesErr503NoMeta: &responsesErr503NoMeta
+x-responsesErr503WalletMetadataNotFound: &responsesErr503WalletMetadataNotFound
   503:
     description: No meta
     content:
       application/json:
-        schema: *errNoMeta
+        schema: *errWalletMetadataNotFound
 
 x-responsesErr409WalletAlreadyExists: &responsesErr409WalletAlreadyExists
   409:
@@ -5387,7 +5387,7 @@ x-responsesPatchSharedWallet: &responsesPatchSharedWallet
   <<: *responsesErr400
   <<: *responsesErr404WalletNotFound
   <<: *responsesErr406
-  <<: *responsesErr503NoMeta
+  <<: *responsesErr503WalletMetadataNotFound
   403:
     description: Forbidden
     content:

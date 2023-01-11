@@ -111,7 +111,6 @@ data ApiErrorInfo
     | NetworkMisconfigured
     | NetworkQueryFailed
     | NetworkUnreachable
-    | NoMeta
     | NoRootKey
     | NoSuchPool
     | NoSuchTransaction
@@ -155,6 +154,7 @@ data ApiErrorInfo
     | UtxoTooSmall ApiErrorTxOutputLovelaceInsufficient
     | ValidityIntervalNotInsideScriptTimelock
     | WalletAlreadyExists
+    | WalletMetadataNotFound
     | WalletNotResponding
     | WithdrawalNotBeneficial
     | WrongEncryptionPassphrase

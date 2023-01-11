@@ -1222,7 +1222,7 @@ patchSharedWallet ctx liftKey cred (ApiT wid) body = do
                         metaM <-
                             mapExceptT atomically $ lift $ readWalletMeta wid
                         when (isNothing metaM) $
-                            throwE ErrAddCosignerKeyNoMeta
+                            throwE ErrAddCosignerKeyWalletMetadataNotFound
                         pure (state, prvKeyM, fst $ fromJust metaM)
 
         void $ deleteWallet ctx (ApiT wid)

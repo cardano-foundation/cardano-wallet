@@ -3594,7 +3594,7 @@ data ErrAddCosignerKey
         -- ^ The shared wallet doesn't exist?
     | ErrAddCosignerKey ErrAddCosigner
         -- ^ Error adding this co-signer to the shared wallet.
-    | ErrAddCosignerKeyNoMeta
+    | ErrAddCosignerKeyWalletMetadataNotFound
         -- ^ No meta was found.
     deriving (Eq, Show)
 

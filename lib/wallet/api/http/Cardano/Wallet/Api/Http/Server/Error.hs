@@ -769,8 +769,8 @@ instance IsServerError ErrDerivePublicKey where
 instance IsServerError ErrAddCosignerKey where
     toServerError = \case
         ErrAddCosignerKeyNoSuchWallet e -> toServerError e
-        ErrAddCosignerKeyNoMeta ->
-            apiError err503 NoMeta $ mconcat
+        ErrAddCosignerKeyWalletMetadataNotFound ->
+            apiError err503 WalletMetadataNotFound $ mconcat
                 [ "No meta of wallet was found in database during migration"
                 , " from pending to active state. Could be database error."
                 ]
