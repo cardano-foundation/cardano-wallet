@@ -1010,25 +1010,30 @@ postSharedWalletFromRootXPrv
         , HasWorkerRegistry s k ctx
         )
     => ctx
-    -> ((SomeMnemonic, Maybe SomeMnemonic) -> Passphrase "encryption" -> k 'RootK XPrv)
+    ->  ( (SomeMnemonic, Maybe SomeMnemonic)
+          -> Passphrase "encryption"
+          -> k 'RootK XPrv
+        )
     -> ApiSharedWalletPostDataFromMnemonics
     -> Handler ApiSharedWallet
 postSharedWalletFromRootXPrv ctx generateKey body = do
-    case validateScriptTemplates accXPub scriptValidation pTemplate dTemplateM of
-        Left err ->
-            liftHandler $ throwE $ ErrConstructSharedWalletWrongScriptTemplate err
-        Right _ -> pure ()
+    validateScriptTemplates accXPub scriptValidation pTemplate dTemplateM
+        & \case
+            Left err -> liftHandler
+                $ throwE
+                $ ErrConstructSharedWalletWrongScriptTemplate err
+            Right _ -> pure ()
     ix' <- liftHandler $ withExceptT ErrConstructSharedWalletInvalidIndex $
         W.guardHardIndex ix
-    let state = mkSharedStateFromRootXPrv (rootXPrv, pwdP) ix' g pTemplate dTemplateM
+    let state = mkSharedStateFromRootXPrv
+            (rootXPrv, pwdP) ix' g pTemplate dTemplateM
     let stateReadiness = state ^. #ready
-    if stateReadiness == Shared.Pending then
-        void $ liftHandler $ createNonrestoringWalletWorker @_ @s @k ctx wid
+    if stateReadiness == Shared.Pending
+    then void $ liftHandler $ createNonrestoringWalletWorker @_ @s @k ctx wid
         (\wrk -> W.createWallet @(WorkerCtx ctx) @_ @s @k wrk wid wName state)
-    else
-        void $ liftHandler $ createWalletWorker @_ @s @k ctx wid
-            (\wrk -> W.createWallet @(WorkerCtx ctx) @_ @s @k wrk wid wName state)
-            idleWorker
+    else void $ liftHandler $ createWalletWorker @_ @s @k ctx wid
+        (\wrk -> W.createWallet @(WorkerCtx ctx) @_ @s @k wrk wid wName state)
+        idleWorker
     withWorkerCtx @_ @s @k ctx wid liftE liftE $ \wrk -> liftHandler $
         W.attachPrivateKeyFromPwd @_ @s @k wrk wid (rootXPrv, pwd)
     fst <$> getWallet ctx (mkSharedWallet @_ @s @k) (ApiT wid)
@@ -1040,12 +1045,16 @@ postSharedWalletFromRootXPrv ctx generateKey body = do
     rootXPrv = generateKey (seed, secondFactor) pwdP
     g = defaultAddressPoolGap
     ix = getApiT (body ^. #accountIndex)
-    pTemplate = scriptTemplateFromSelf (getRawKey accXPub) $ body ^. #paymentScriptTemplate
-    dTemplateM = scriptTemplateFromSelf (getRawKey accXPub) <$> body ^. #delegationScriptTemplate
+    pTemplate = scriptTemplateFromSelf (getRawKey accXPub)
+        $ body ^. #paymentScriptTemplate
+    dTemplateM = scriptTemplateFromSelf (getRawKey accXPub)
+        <$> body ^. #delegationScriptTemplate
     wName = getApiT (body ^. #name)
-    accXPub = publicKey $ deriveAccountPrivateKey pwdP rootXPrv (Index $ getDerivationIndex ix)
+    accXPub = publicKey
+        $ deriveAccountPrivateKey pwdP rootXPrv (Index $ getDerivationIndex ix)
     wid = WalletId $ toSharedWalletId accXPub pTemplate dTemplateM
-    scriptValidation = maybe RecommendedValidation getApiT (body ^. #scriptValidation)
+    scriptValidation =
+        maybe RecommendedValidation getApiT (body ^. #scriptValidation)
 
 postSharedWalletFromAccountXPub
     :: forall ctx s k n.
