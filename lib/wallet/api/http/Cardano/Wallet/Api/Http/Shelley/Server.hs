@@ -242,6 +242,7 @@ import Cardano.Wallet.Api.Types
     , ApiExternalInput (..)
     , ApiFee (..)
     , ApiForeignStakeKey (..)
+    , ApiIncompleteSharedWallet (..)
     , ApiMintBurnData (..)
     , ApiMintBurnOperation (..)
     , ApiMintData (..)
@@ -253,7 +254,6 @@ import Cardano.Wallet.Api.Types
     , ApiNullStakeKey (..)
     , ApiOurStakeKey (..)
     , ApiPaymentDestination (..)
-    , ApiPendingSharedWallet (..)
     , ApiPolicyId (..)
     , ApiPolicyKey (..)
     , ApiPoolSpecifier (..)
@@ -1125,7 +1125,7 @@ mkSharedWallet
     => MkApiWallet ctx s ApiSharedWallet
 mkSharedWallet ctx wid cp meta delegation pending progress =
     case Shared.ready st of
-    Shared.Pending -> pure $ ApiSharedWallet $ Left $ ApiPendingSharedWallet
+    Shared.Pending -> pure $ ApiSharedWallet $ Left $ ApiIncompleteSharedWallet
         { id = ApiT wid
         , name = ApiT $ meta ^. #name
         , accountIndex = ApiT $ DerivationIndex $ getIndex accIx
@@ -1197,7 +1197,7 @@ patchSharedWallet ctx liftKey cred (ApiT wid) body = do
     withWorkerCtx ctx wid liftE liftE $ \wrk -> do
         liftHandler $ W.updateCosigner wrk wid (liftKey accXPub) cosigner cred
     wal' <- fst <$> getWallet ctx (mkSharedWallet @_ @s @k) (ApiT wid)
-    -- we switch on restoring only after pending -> active transition
+    -- we switch on restoring only after incomplete -> active transition
     -- active -> active when transition of updating cosigner keys takes place
     -- should not trigger this
 
@@ -2815,7 +2815,7 @@ constructSharedTransaction
 
         case Shared.ready (getState cp) of
             Shared.Pending ->
-                liftHandler $ throwE ErrConstructTxSharedWalletPending
+                liftHandler $ throwE ErrConstructTxSharedWalletIncomplete
             Shared.Active _ -> do
                 pp <- liftIO $ NW.currentProtocolParameters (wrk ^. networkLayer)
                 era <- liftIO $ NW.currentNodeEra (wrk ^. networkLayer)

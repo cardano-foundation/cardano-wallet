@@ -114,7 +114,7 @@ module Test.Integration.Framework.TestData
     , errMsg403MintOrBurnAssetQuantityOutOfBounds
     , errMsg403InvalidValidityBounds
     , errMsg403ValidityIntervalNotInsideScriptTimelock
-    , errMsg403SharedWalletPending
+    , errMsg403SharedWalletIncomplete
     ) where
 
 import Prelude
@@ -583,8 +583,8 @@ errMsg403OutputTokenQuantityExceedsLimit
 errMsg403WalletAlreadyActive :: String
 errMsg403WalletAlreadyActive = mconcat
     [ "It looks like you've tried to add a cosigner key for a "
-    , "shared wallet that is active. This can be done only for "
-    , "pending shared wallet."
+    , "shared wallet that is active. This can be done only for the "
+    , "incomplete shared wallet."
     ]
 
 errMsg403NoDelegationTemplate :: String
@@ -739,8 +739,8 @@ errMsg403ValidityIntervalNotInsideScriptTimelock = unwords
     , "interval."
     ]
 
-errMsg403SharedWalletPending :: String
-errMsg403SharedWalletPending = unwords
+errMsg403SharedWalletIncomplete :: String
+errMsg403SharedWalletIncomplete = unwords
     [ "I cannot construct transaction for a shared wallet that is in 'incomplete'"
     , "state. Please update your wallet accordingly with"
     , "'PATCH /shared-wallets/{walletId}/payment-script-template' or"

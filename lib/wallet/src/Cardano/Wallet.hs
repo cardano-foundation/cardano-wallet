@@ -3676,7 +3676,7 @@ data ErrConstructTx
     | ErrConstructTxMintOrBurnAssetQuantityOutOfBounds
     | ErrConstructTxWrongValidityBounds
     | ErrConstructTxValidityIntervalNotWithinScriptTimelock
-    | ErrConstructTxSharedWalletPending
+    | ErrConstructTxSharedWalletIncomplete
     deriving (Show, Eq)
 
 -- | Errors that can occur when getting policy id.

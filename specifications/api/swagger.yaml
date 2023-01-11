@@ -2934,7 +2934,7 @@ components:
         state: *walletState
         tip: *blockReference
 
-    ApiPendingSharedWallet: &ApiPendingSharedWallet
+    ApiIncompleteSharedWallet: &ApiIncompleteSharedWallet
       type: object
       required:
         - id
@@ -2957,7 +2957,7 @@ components:
           properties:
             status:
               description: |
-                A pending shared wallet does not have a complete set
+                An incomplete shared wallet does not have a complete set
                 of keys, so the only possible status is `incomplete`.
               type: string
               enum:
@@ -2966,8 +2966,8 @@ components:
     ApiSharedWallet: &ApiSharedWallet
       type: object
       oneOf:
-        - title: Pending shared wallet (collecting account public keys for each co-signer)
-          <<: *ApiPendingSharedWallet
+        - title: Incomplete shared wallet (collecting account public keys for each co-signer)
+          <<: *ApiIncompleteSharedWallet
         - title: Active shared wallet (account public keys for each co-signers is collected)
           <<: *ApiActiveSharedWallet
 
@@ -4176,7 +4176,7 @@ x-errWalletMetadataNotFound: &errWalletMetadataNotFound
         wallet within the database.
 
         May occur when a shared wallet has not yet become active after being in
-        the pending state.
+        the incomplete state.
     code:
       type: string
       enum: ['wallet_metadata_not_found']
@@ -4371,17 +4371,17 @@ x-errValidityIntervalNotInsideScriptTimelock: &errValidityIntervalNotInsideScrip
       type: string
       enum: ['validity_interval_not_inside_script_timelock']
 
-x-errSharedWalletPending: &errSharedWalletPending
+x-errSharedWalletIncomplete: &errSharedWalletIncomplete
   <<: *responsesErr
-  title: shared_wallet_pending
+  title: shared_wallet_incomplete
   properties:
     message:
       type: string
       description: |
-        Occurs when attempting to create a transaction for a pending shared wallet.
+        Occurs when attempting to create a transaction for an incomplete shared wallet.
     code:
       type: string
-      enum: ['shared_wallet_pending']
+      enum: ['shared_wallet_incomplete']
 
 x-errInputsDepleted: &errInputsDepleted
   <<: *responsesErr
@@ -4444,18 +4444,18 @@ x-errOutputTokenQuantityExceedsLimit: &errOutputTokenQuantityExceedsLimit
       type: string
       enum: ['output_token_quantity_exceeds_limit']
 
-x-errSharedWalletNotPending: &errSharedWalletNotPending
+x-errSharedWalletActive: &errSharedWalletActive
   <<: *responsesErr
-  title: shared_wallet_not_pending
+  title: shared_wallet_active
   properties:
     message:
       type: string
       description: |
         Returned when a user tries to add cosigner key to a shared wallet
-        that is active, not pending anymore.
+        that is active, not incomplete anymore.
     code:
       type: string
-      enum: ['shared_wallet_not_pending']
+      enum: ['shared_wallet_active']
 
 x-errSharedWalletNoDelegationTemplate: &errSharedWalletNoDelegationTemplate
   <<: *responsesErr
@@ -5401,7 +5401,7 @@ x-responsesPatchSharedWallet: &responsesPatchSharedWallet
           oneOf:
             - <<: *errSharedWalletKeyAlreadyExists
             - <<: *errSharedWalletNoDelegationTemplate
-            - <<: *errSharedWalletNotPending
+            - <<: *errSharedWalletActive
             - <<: *errSharedWalletNoSuchCosigner
             - <<: *errSharedWalletCannotUpdateKey
   200:
@@ -5630,7 +5630,7 @@ x-responsesConstructTransaction: &responsesConstructTransaction
             - <<: *errMintOrBurnAssetQuantityOutOfBounds
             - <<: *errInvalidValidityBounds
             - <<: *errValidityIntervalNotInsideScriptTimelock
-            - <<: *errSharedWalletPending
+            - <<: *errSharedWalletIncomplete
   <<: *responsesErr404WalletNotFound
   <<: *responsesErr406
   <<: *responsesErr415UnsupportedMediaType
@@ -7539,7 +7539,7 @@ paths:
         Update payment script template for a given shared wallet by
         updating/adding account public key for cosigner. Updating the
         shared wallet account key results in an error. Also updating is
-        enabled only for pending shared wallet, ie., the wallet that has
+        enabled only for incomplete shared wallet, ie., the wallet that has
         a missing account public key for any cosigner.
 
       parameters:
@@ -7561,7 +7561,7 @@ paths:
         Update delegation script template for a given shared wallet by
         updating/adding account public key for cosigner. Updating the
         shared wallet account key results in an error. Also updating is
-        enabled only for pending shared wallet, ie., the wallet that has
+        enabled only for incomplete shared wallet, ie., the wallet that has
         a missing account public key for any cosigner.
 
       parameters:

@@ -208,7 +208,7 @@ module Cardano.Wallet.Api.Types
 
     -- * Shared Wallets
     , ApiSharedWallet (..)
-    , ApiPendingSharedWallet (..)
+    , ApiIncompleteSharedWallet (..)
     , ApiActiveSharedWallet (..)
     , ApiSharedWalletPostData (..)
     , ApiSharedWalletPostDataFromMnemonics (..)
@@ -1635,7 +1635,7 @@ data ApiActiveSharedWallet = ApiActiveSharedWallet
     deriving (FromJSON, ToJSON) via DefaultRecord ApiActiveSharedWallet
     deriving anyclass NFData
 
-data ApiPendingSharedWallet = ApiPendingSharedWallet
+data ApiIncompleteSharedWallet = ApiIncompleteSharedWallet
     { id :: !(ApiT WalletId)
     , name :: !(ApiT WalletName)
     , accountIndex :: !(ApiT DerivationIndex)
@@ -1647,7 +1647,7 @@ data ApiPendingSharedWallet = ApiPendingSharedWallet
     deriving anyclass NFData
 
 newtype ApiSharedWallet = ApiSharedWallet
-    { wallet :: Either ApiPendingSharedWallet ApiActiveSharedWallet
+    { wallet :: Either ApiIncompleteSharedWallet ApiActiveSharedWallet
     }
     deriving (Eq, Generic)
     deriving anyclass NFData
@@ -2753,14 +2753,14 @@ instance ToJSON ApiSharedWalletPatchData where
     toJSON (ApiSharedWalletPatchData cosigner accXPub) =
         object [ Aeson.fromText (toText cosigner) .= toJSON accXPub ]
 
-instance FromJSON ApiPendingSharedWallet where
+instance FromJSON ApiIncompleteSharedWallet where
     parseJSON val = case val of
         Aeson.Object obj -> do
             let obj' = Aeson.delete (Aeson.fromText "state") obj
             genericParseJSON defaultRecordTypeOptions (Aeson.Object obj')
-        _ -> fail "ApiPendingSharedWallet should be object"
+        _ -> fail "ApiIncompleteSharedWallet should be object"
 
-instance ToJSON ApiPendingSharedWallet where
+instance ToJSON ApiIncompleteSharedWallet where
     toJSON wal = Aeson.Object $ Aeson.insert
         (Aeson.fromText "state")
         (object ["status" .= String "incomplete"]) obj
@@ -2774,7 +2774,7 @@ instance FromJSON ApiSharedWallet where
              \o -> o .:? "balance" :: Aeson.Parser (Maybe ApiWalletBalance)) obj
         case balance of
             Nothing -> do
-                xs <- parseJSON obj :: Aeson.Parser ApiPendingSharedWallet
+                xs <- parseJSON obj :: Aeson.Parser ApiIncompleteSharedWallet
                 pure $ ApiSharedWallet $ Left xs
             _ -> do
                 xs <- parseJSON obj :: Aeson.Parser ApiActiveSharedWallet

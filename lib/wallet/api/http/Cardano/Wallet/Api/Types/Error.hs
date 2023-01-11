@@ -136,8 +136,8 @@ data ApiErrorInfo
     | SharedWalletKeyAlreadyExists
     | SharedWalletNoDelegationTemplate
     | SharedWalletNoSuchCosigner
-    | SharedWalletNotPending
-    | SharedWalletPending
+    | SharedWalletActive
+    | SharedWalletIncomplete
     | SharedWalletScriptTemplateInvalid
     | SoftDerivationRequired
     | StartTimeLaterThanEndTime

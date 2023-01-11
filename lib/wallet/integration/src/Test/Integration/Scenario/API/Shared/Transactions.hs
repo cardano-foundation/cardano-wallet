@@ -150,7 +150,7 @@ import Test.Integration.Framework.TestData
     , errMsg403InvalidConstructTx
     , errMsg403MinUTxOValue
     , errMsg403MissingWitsInTransaction
-    , errMsg403SharedWalletPending
+    , errMsg403SharedWalletIncomplete
     , errMsg404CannotFindTx
     , errMsg404NoWallet
     )
@@ -220,7 +220,7 @@ spec = describe "SHARED_TRANSACTIONS" $ do
             (Link.createUnsignedTransaction @'Shared wal) Default metadata
         verify rTx
             [ expectResponseCode HTTP.status403
-            , expectErrorMessage errMsg403SharedWalletPending
+            , expectErrorMessage errMsg403SharedWalletIncomplete
             ]
 
     it "SHARED_TRANSACTIONS_CREATE_01 - Can create tx for an active shared wallet,\

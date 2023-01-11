@@ -407,8 +407,8 @@ instance IsServerError ErrConstructTx where
             , "that is not a subinterval of an associated script's timelock"
             , "interval."
             ]
-        ErrConstructTxSharedWalletPending ->
-            apiError err403 SharedWalletPending $ mconcat
+        ErrConstructTxSharedWalletIncomplete ->
+            apiError err403 SharedWalletIncomplete $ mconcat
             [ "I cannot construct transaction for a shared wallet that is in 'incomplete' "
             , "state. Please update your wallet accordingly with "
             , "'PATCH /shared-wallets/{walletId}/payment-script-template' or "
@@ -773,14 +773,14 @@ instance IsServerError ErrAddCosignerKey where
             apiError err503 WalletMetadataNotFound $ T.unwords
                 [ "It was not possible to find any metadata for the given"
                 , "wallet within the database. This could be because the"
-                , "wallet has yet to become active after being in the pending"
+                , "wallet has yet to become active after being in the incomplete"
                 , "state."
                 ]
         ErrAddCosignerKey WalletAlreadyActive ->
-            apiError err403 SharedWalletNotPending $ mconcat
+            apiError err403 SharedWalletActive $ mconcat
                 [ "It looks like you've tried to add a cosigner key for a "
                 , "shared wallet that is active. This can be done only for "
-                , "pending shared wallet."
+                , "the incomplete shared wallet."
                 ]
         ErrAddCosignerKey NoDelegationTemplate ->
             apiError err403 SharedWalletNoDelegationTemplate $ mconcat
