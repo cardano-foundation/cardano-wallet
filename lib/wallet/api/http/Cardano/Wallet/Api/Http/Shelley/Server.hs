@@ -1131,7 +1131,8 @@ mkSharedWallet ctx wid cp meta delegation pending progress =
         , accountIndex = ApiT $ DerivationIndex $ getIndex accIx
         , addressPoolGap = ApiT $ Shared.poolGap st
         , paymentScriptTemplate = ApiScriptTemplate $ Shared.paymentTemplate st
-        , delegationScriptTemplate = ApiScriptTemplate <$> Shared.delegationTemplate st
+        , delegationScriptTemplate =
+            ApiScriptTemplate <$> Shared.delegationTemplate st
         }
     Shared.Active _ -> do
         reward <- withWorkerCtx @_ @s @k ctx wid liftE liftE $ \wrk -> do
@@ -1155,8 +1156,10 @@ mkSharedWallet ctx wid cp meta delegation pending progress =
             , addressPoolGap = ApiT $ Shared.poolGap st
             , passphrase = ApiWalletPassphraseInfo
                 <$> fmap (view #lastUpdatedAt) (meta ^. #passphraseInfo)
-            , paymentScriptTemplate = ApiScriptTemplate $ Shared.paymentTemplate st
-            , delegationScriptTemplate = ApiScriptTemplate <$> Shared.delegationTemplate st
+            , paymentScriptTemplate = ApiScriptTemplate
+                $ Shared.paymentTemplate st
+            , delegationScriptTemplate = ApiScriptTemplate
+                <$> Shared.delegationTemplate st
             , delegation = apiDelegation
             , balance = ApiWalletBalance
                 { available = Coin.toQuantity (available ^. #coin)
