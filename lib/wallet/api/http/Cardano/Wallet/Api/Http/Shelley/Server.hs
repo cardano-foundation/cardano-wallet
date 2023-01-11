@@ -1225,7 +1225,7 @@ patchSharedWallet ctx liftKey cred (ApiT wid) body = do
                             throwE ErrAddCosignerKeyNoMeta
                         pure (state, prvKeyM, fst $ fromJust metaM)
 
-        _ <- deleteWallet ctx (ApiT wid)
+        void $ deleteWallet ctx (ApiT wid)
         let wName = meta ^. #name
         void $ liftHandler $ createWalletWorker @_ @s @k ctx wid
             (\wrk ->
@@ -3187,7 +3187,7 @@ submitTransaction ctx apiw@(ApiT wid) apitx = do
         $ ErrSubmitTransactionPartiallySignedOrNoSignedTx
             witsRequiredForInputs totalNumberOfWits
 
-    _ <- withWorkerCtx ctx wid liftE liftE $ \wrk -> do
+    void $ withWorkerCtx ctx wid liftE liftE $ \wrk -> do
         (k, _) <- liftHandler $ W.readPolicyPublicKey @_ @s @k @n wrk wid
         let keyhash = KeyHash Policy (xpubToBytes k)
         let (tx,_,_,_,_,_) = decodeTx tl era (ShelleyWalletCtx keyhash) sealedTx
@@ -3295,7 +3295,7 @@ submitSharedTransaction ctx apiw@(ApiT wid) apitx = do
     let ourOuts = getOurOuts apiDecoded
     let ourInps = getOurInps apiDecoded
 
-    _ <- withWorkerCtx ctx wid liftE liftE $ \wrk -> do
+    void $ withWorkerCtx ctx wid liftE liftE $ \wrk -> do
 
         (cp, _, _) <- liftHandler $ withExceptT ErrSubmitTransactionNoSuchWallet $
             W.readWallet @_ @s @k wrk wid
