@@ -770,9 +770,11 @@ instance IsServerError ErrAddCosignerKey where
     toServerError = \case
         ErrAddCosignerKeyNoSuchWallet e -> toServerError e
         ErrAddCosignerKeyWalletMetadataNotFound ->
-            apiError err503 WalletMetadataNotFound $ mconcat
-                [ "No meta of wallet was found in database during migration"
-                , " from pending to active state. Could be database error."
+            apiError err503 WalletMetadataNotFound $ T.unwords
+                [ "It was not possible to find any metadata for the given"
+                , "wallet within the database. This could be because the"
+                , "wallet has yet to become active after being in the pending"
+                , "state."
                 ]
         ErrAddCosignerKey WalletAlreadyActive ->
             apiError err403 SharedWalletNotPending $ mconcat

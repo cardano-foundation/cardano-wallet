@@ -4171,7 +4171,12 @@ x-errWalletMetadataNotFound: &errWalletMetadataNotFound
   properties:
     message:
       type: string
-      description: May occur when a shared wallet is becoming active after being pending and suggest database problem.
+      description: |
+        Indicates that it was not possible to find any metadata for the given
+        wallet within the database.
+
+        May occur when a shared wallet has not yet become active after being in
+        the pending state.
     code:
       type: string
       enum: ['wallet_metadata_not_found']
