@@ -1029,7 +1029,7 @@ postSharedWalletFromRootXPrv ctx generateKey body = do
             (rootXPrv, pwdP) ix' g pTemplate dTemplateM
     let stateReadiness = state ^. #ready
     if stateReadiness == Shared.Pending
-    then void $ liftHandler $ createNonrestoringWalletWorker @_ @s @k ctx wid
+    then void $ liftHandler $ createNonRestoringWalletWorker @_ @s @k ctx wid
         (\wrk -> W.createWallet @(WorkerCtx ctx) @_ @s @k wrk wid wName state)
     else void $ liftHandler $ createWalletWorker @_ @s @k ctx wid
         (\wrk -> W.createWallet @(WorkerCtx ctx) @_ @s @k wrk wid wName state)
@@ -1087,7 +1087,7 @@ postSharedWalletFromAccountXPub ctx liftKey body = do
             (liftKey accXPub) acctIx g pTemplate dTemplateM
     let stateReadiness = state ^. #ready
     if stateReadiness == Shared.Pending
-    then void $ liftHandler $ createNonrestoringWalletWorker @_ @s @k ctx wid
+    then void $ liftHandler $ createNonRestoringWalletWorker @_ @s @k ctx wid
         (\wrk -> W.createWallet @(WorkerCtx ctx) @_ @s @k wrk wid wName state)
     else void $ liftHandler $ createWalletWorker @_ @s @k ctx wid
         (\wrk -> W.createWallet @(WorkerCtx ctx) @_ @s @k wrk wid wName state)
@@ -4616,7 +4616,7 @@ createWalletWorker ctx wid createWallet coworker =
     before ctx' _ = void $ unsafeRunExceptT $ createWallet ctx'
     re = ctx ^. workerRegistry @s @k
 
-createNonrestoringWalletWorker
+createNonRestoringWalletWorker
     :: forall ctx s k ktype.
         ( ctx ~ ApiLayer s k ktype
         )
@@ -4627,7 +4627,7 @@ createNonrestoringWalletWorker
     -> (WorkerCtx ctx -> ExceptT ErrWalletAlreadyExists IO WalletId)
         -- ^ Create action
     -> ExceptT ErrCreateWallet IO WalletId
-createNonrestoringWalletWorker ctx wid createWallet =
+createNonRestoringWalletWorker ctx wid createWallet =
     liftIO (Registry.lookup re wid) >>= \case
         Just _ ->
             throwE $ ErrCreateWalletAlreadyExists $ ErrWalletAlreadyExists wid
