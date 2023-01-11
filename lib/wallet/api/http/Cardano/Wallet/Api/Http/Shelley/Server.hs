@@ -1071,32 +1071,41 @@ postSharedWalletFromAccountXPub
     -> ApiSharedWalletPostDataFromAccountPubX
     -> Handler ApiSharedWallet
 postSharedWalletFromAccountXPub ctx liftKey body = do
-    case validateScriptTemplates (liftKey accXPub) scriptValidation pTemplate dTemplateM of
-        Left err ->
-            liftHandler $ throwE $ ErrConstructSharedWalletWrongScriptTemplate err
-        Right _ -> pure ()
+    validateScriptTemplates
+        (liftKey accXPub)
+        scriptValidation
+        pTemplate
+        dTemplateM
+        & \case
+            Left err -> liftHandler
+                $ throwE
+                $ ErrConstructSharedWalletWrongScriptTemplate err
+            Right _ -> pure ()
     acctIx <- liftHandler $ withExceptT ErrConstructSharedWalletInvalidIndex $
         W.guardHardIndex ix
-    let state = mkSharedStateFromAccountXPub (liftKey accXPub) acctIx g pTemplate dTemplateM
+    let state = mkSharedStateFromAccountXPub
+            (liftKey accXPub) acctIx g pTemplate dTemplateM
     let stateReadiness = state ^. #ready
-    if stateReadiness == Shared.Pending then
-        void $ liftHandler $ createNonrestoringWalletWorker @_ @s @k ctx wid
+    if stateReadiness == Shared.Pending
+    then void $ liftHandler $ createNonrestoringWalletWorker @_ @s @k ctx wid
         (\wrk -> W.createWallet @(WorkerCtx ctx) @_ @s @k wrk wid wName state)
-    else
-        void $ liftHandler $ createWalletWorker @_ @s @k ctx wid
-            (\wrk -> W.createWallet @(WorkerCtx ctx) @_ @s @k wrk wid wName state)
-            idleWorker
+    else void $ liftHandler $ createWalletWorker @_ @s @k ctx wid
+        (\wrk -> W.createWallet @(WorkerCtx ctx) @_ @s @k wrk wid wName state)
+        idleWorker
     fst <$> getWallet ctx (mkSharedWallet @_ @s @k) (ApiT wid)
   where
     g = defaultAddressPoolGap
     ix = getApiT (body ^. #accountIndex)
-    pTemplate = scriptTemplateFromSelf accXPub $ body ^. #paymentScriptTemplate
-    dTemplateM = scriptTemplateFromSelf accXPub <$> body ^. #delegationScriptTemplate
+    pTemplate = scriptTemplateFromSelf accXPub
+        $ body ^. #paymentScriptTemplate
+    dTemplateM = scriptTemplateFromSelf accXPub
+        <$> body ^. #delegationScriptTemplate
     wName = getApiT (body ^. #name)
     (ApiAccountSharedPublicKey accXPubApiT) =  body ^. #accountPublicKey
     accXPub = getApiT accXPubApiT
     wid = WalletId $ toSharedWalletId (liftKey accXPub) pTemplate dTemplateM
-    scriptValidation = maybe RecommendedValidation getApiT (body ^. #scriptValidation)
+    scriptValidation =
+        maybe RecommendedValidation getApiT (body ^. #scriptValidation)
 
 scriptTemplateFromSelf :: XPub -> ApiScriptTemplateEntry -> ScriptTemplate
 scriptTemplateFromSelf xpub (ApiScriptTemplateEntry cosigners' template') =
