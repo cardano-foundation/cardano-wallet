@@ -109,6 +109,7 @@ import Test.Integration.Framework.DSL
     , Headers (..)
     , MnemonicLength (..)
     , Payload (..)
+    , deleteSharedWallet
     , emptyWallet
     , eventually
     , expectErrorMessage
@@ -690,7 +691,7 @@ spec = describe "SHARED_TRANSACTIONS" $ do
 
     it "SHARED_TRANSACTIONS_CREATE_05b - Single Output Transaction with decode transaction - multi party" $ \ctx -> runResourceT $ do
 
-        (sharedWal1, sharedWal2) <- fixtureTwoPartySharedWalletPatched ctx
+        (sharedWal1, sharedWal2, _, _, _, _) <- fixtureTwoPartySharedWalletPatched ctx
         singleOutputTxTwoParty ctx sharedWal1 sharedWal2
 
     it "SHARED_TRANSACTIONS_CREATE_05c - Single Output Transaction with decode transaction - multi party" $ \ctx -> runResourceT $ do
@@ -836,6 +837,65 @@ spec = describe "SHARED_TRANSACTIONS" $ do
                         (#balance . #available . #getQuantity)
                         (`shouldBe` amt)
                 ]
+
+    it "SHARED_TRANSACTIONS_CREATE_06 - multi party wallet balance consistency \
+       \before and after the wallet delete" $ \ctx -> runResourceT $ do
+
+        (sharedWal1, sharedWal2, payload1, accXPubDerived1, payload2, accXPubDerived2) <-
+            fixtureTwoPartySharedWalletPatched ctx
+        singleOutputTxTwoParty ctx sharedWal1 sharedWal2
+
+        -- reading the balance and checking consistency among parties
+        (_, Right (ApiSharedWallet (Right wal1))) <-
+            getSharedWallet ctx (ApiSharedWallet (Right sharedWal1))
+        (_, Right (ApiSharedWallet (Right wal2))) <-
+            getSharedWallet ctx (ApiSharedWallet (Right sharedWal2))
+        let bal1 = wal1 ^. (#balance . #available)
+        let bal2 = wal2 ^. (#balance . #available)
+        bal1 `shouldBe` bal2
+
+        --each party deletes its shared wallet
+        rDel1 <- deleteSharedWallet ctx (ApiSharedWallet (Right wal1))
+        expectResponseCode HTTP.status204 rDel1
+        rDel2 <- deleteSharedWallet ctx (ApiSharedWallet (Right wal2))
+        expectResponseCode HTTP.status204 rDel2
+
+        -- creating wallets once again with patching
+        rPost1 <- postSharedWallet ctx Default payload1
+        verify (fmap (swapEither . view #wallet) <$> rPost1)
+            [ expectResponseCode HTTP.status201
+            ]
+        let walPending1 = getFromResponse Prelude.id rPost1
+        let payloadPatch1 = Json [json| {
+                "cosigner#1": #{accXPubDerived2}
+                } |]
+        rPatch1 <- patchSharedWallet ctx walPending1 Payment payloadPatch1
+        expectResponseCode HTTP.status200 rPatch1
+        let walShared1 = getFromResponse Prelude.id rPatch1
+
+        rPost2 <- postSharedWallet ctx Default payload2
+        verify (fmap (swapEither . view #wallet) <$> rPost2)
+            [ expectResponseCode HTTP.status201
+            ]
+        let walPending2 = getFromResponse Prelude.id rPost2
+        let payloadPatch2 = Json [json| {
+                "cosigner#0": #{accXPubDerived1}
+                } |]
+        rPatch2 <- patchSharedWallet ctx walPending2 Payment payloadPatch2
+        expectResponseCode HTTP.status200 rPatch2
+        let walShared2 = getFromResponse Prelude.id rPatch2
+
+        --checking that balances are the same as before deletion
+        eventually "balance is like before deletion" $ do
+            wal1a <- getSharedWallet ctx walShared1
+            wal2a <- getSharedWallet ctx walShared2
+            let balanceExp =
+                    [ expectResponseCode HTTP.status200
+                    , expectField (traverse . #balance . #available)
+                        (`shouldBe` bal1)
+                    ]
+            verify (fmap (view #wallet) <$> wal1a) balanceExp
+            verify (fmap (view #wallet) <$> wal2a) balanceExp
 
     it "SHARED_TRANSACTIONS_LIST_01 - Can list Incoming and Outgoing transactions" $
         \ctx -> runResourceT $ do
@@ -1728,7 +1788,7 @@ spec = describe "SHARED_TRANSACTIONS" $ do
 
         fundSharedWallet ctx faucetUtxoAmt (NE.fromList [walShared1, walShared2])
 
-        return (walA, walB)
+        return (walA, walB, payloadA, accXPubDerivedA, payloadB, accXPubDerivedB)
 
      fixtureThreePartySharedWallet ctx = do
 
