@@ -331,8 +331,10 @@ library
     Cardano.Wallet.Shelley.Network.Discriminant
     Cardano.Wallet.Shelley.Network.Node
     Cardano.Wallet.Shelley.Transaction
+    Cardano.Wallet.Submissions.Operations
     Cardano.Wallet.Submissions.Primitives
     Cardano.Wallet.Submissions.Properties.Common
+    Cardano.Wallet.Submissions.Properties.Operations
     Cardano.Wallet.Submissions.Properties.Primitives
     Cardano.Wallet.Submissions.Submissions
     Cardano.Wallet.Submissions.TxStatus
@@ -864,6 +866,7 @@ test-suite unit
     Cardano.Wallet.Shelley.NetworkSpec
     Cardano.Wallet.Shelley.TransactionSpec
     Cardano.Wallet.Submissions.Gen
+    Cardano.Wallet.Submissions.OperationsSpec
     Cardano.Wallet.Submissions.PrimitivesSpec
     Cardano.Wallet.TokenMetadataSpec
     Cardano.Wallet.Write.TxSpec
