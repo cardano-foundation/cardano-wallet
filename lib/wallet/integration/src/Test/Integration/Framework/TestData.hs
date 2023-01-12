@@ -581,17 +581,17 @@ errMsg403OutputTokenQuantityExceedsLimit
         ]
 
 errMsg403WalletAlreadyActive :: String
-errMsg403WalletAlreadyActive = mconcat
-    [ "It looks like you've tried to add a cosigner key for a "
-    , "shared wallet that is active. This can be done only for the "
-    , "incomplete shared wallet."
+errMsg403WalletAlreadyActive = unwords
+    [ "It looks like you've tried to add a cosigner key for a"
+    , "shared wallet that is active. This can be done only for"
+    , "an incomplete shared wallet."
     ]
 
 errMsg403NoDelegationTemplate :: String
-errMsg403NoDelegationTemplate = mconcat
-    [ "It looks like you've tried to add a cosigner key to "
-    , "a shared wallet's delegation template. This cannot be done for "
-    , "the wallet that does not define any delegation template."
+errMsg403NoDelegationTemplate = unwords
+    [ "It looks like you've tried to add a cosigner key to"
+    , "a shared wallet's delegation template. This cannot be done"
+    , "for a wallet that does not define any delegation template."
     ]
 
 errMsg403KeyAlreadyPresent :: Text -> String
@@ -602,16 +602,19 @@ errMsg403KeyAlreadyPresent cred = mconcat
     ]
 
 errMsg403NoSuchCosigner :: Text -> Int -> String
-errMsg403NoSuchCosigner cred cosigner = mconcat
-    [ "It looks like you've tried to add a cosigner key to a shared wallet's "
-    , unpack cred, " template to a non-existing cosigner index: "
-    , show cosigner, "."
+errMsg403NoSuchCosigner cred cosigner = unwords
+    [ "It looks like you've tried to add a cosigner key to a"
+    , "shared wallet's"
+    , unpack cred
+    , "template for a non-existing cosigner index:"
+    , show cosigner
     ]
 
 errMsg403CannotUpdateThisCosigner :: String
-errMsg403CannotUpdateThisCosigner = mconcat
-    [ "It looks like you've tried to update the key of a cosigner having "
-    , "the shared wallet's account key. Only other cosigner key(s) can be updated."
+errMsg403CannotUpdateThisCosigner = unwords
+    [ "It looks like you've tried to update the key of a cosigner"
+    , "having a shared wallet's account key. Only other cosigner"
+    , "key(s) can be updated."
     ]
 
 errMsg403CreateIllegal :: String
@@ -741,11 +744,13 @@ errMsg403ValidityIntervalNotInsideScriptTimelock = unwords
 
 errMsg403SharedWalletIncomplete :: String
 errMsg403SharedWalletIncomplete = unwords
-    [ "I cannot construct transaction for a shared wallet that is in 'incomplete'"
-    , "state. Please update your wallet accordingly with"
-    , "'PATCH /shared-wallets/{walletId}/payment-script-template' or"
-    , "'PATCH /shared-wallets/{walletId}/delegation-script-template' to make"
-    , "it applicable for constructing transaction."
+    [ "I cannot construct a transaction for a shared wallet that is"
+    , "in the 'incomplete' state. Please update your wallet accordingly"
+    , "with"
+    , "'PATCH /shared-wallets/{walletId}/payment-script-template'"
+    , "or"
+    , "'PATCH /shared-wallets/{walletId}/delegation-script-template'"
+    , "to make it suitable for constructing transactions."
     ]
 
 --------------------------------------------------------------------------------
