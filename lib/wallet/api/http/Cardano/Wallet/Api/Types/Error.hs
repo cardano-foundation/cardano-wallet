@@ -132,12 +132,12 @@ data ApiErrorInfo
     | RedeemerScriptFailure
     | RedeemerTargetNotFound
     | RejectedByCoreNode
+    | SharedWalletActive
     | SharedWalletCannotUpdateKey
+    | SharedWalletIncomplete
     | SharedWalletKeyAlreadyExists
     | SharedWalletNoDelegationTemplate
     | SharedWalletNoSuchCosigner
-    | SharedWalletActive
-    | SharedWalletIncomplete
     | SharedWalletScriptTemplateInvalid
     | SoftDerivationRequired
     | StartTimeLaterThanEndTime
