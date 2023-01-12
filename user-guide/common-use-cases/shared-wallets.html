@@ -5,15 +5,15 @@
   <meta charset='UTF-8' />
   <meta name='viewport' content='width=device-width, initial-scale=1' />
   <title>
-    Specification: Light mode for cardano-wallet – Cardano Wallet
+    Shared wallets – Cardano Wallet
   </title>
   
     
-      <meta property='og:description' content='11th Feb 2022' />
+      <meta property='og:description' content='This guide shows you how to create a shared wallet and make a shared transaction, providing witnesses from all required co-signers referenced in the payment_script_template and delegation_script_template fields. In this example, we’ll create two shared wallets using the same template for both payment and delegation operations. The template that we’ll use will indicate that we require signatures from all co-owners in order to make a transaction. In our case, the wallet will have two co-owners cosigner#0 and cosigner#1:' />
       <meta property='og:site_name' content='Cardano Wallet' />
       <meta property='og:image' content />
       <meta property='og:type' content='website' />
-      <meta property='og:title' content='Specification: Light mode for cardano-wallet' />
+      <meta property='og:title' content='Shared wallets' />
     
     
       <base href='/cardano-wallet/' />
@@ -25,28 +25,6 @@
 <link href='static/cardano-wallet.css' rel='stylesheet' />
 <script src='static/cardano-wallet.js'></script>
 
-<!-- mermaid.js --><script src='https://cdn.jsdelivr.net/npm/mermaid/dist/mermaid.min.js'></script>
-<script>
-  var myMermaidConfig = {
-    // lets mermaid work with emanote live-reloading
-    startOnLoad: false,
-    // permit clicks
-    securityLevel: "loose",
-    // set default theme with primary colour to tailwind blue
-    theme: "base",
-    themeVariables: {
-      primaryColor: "#e0e7ff",
-      secondaryColor: "#fffde0"
-    },
-    // d3js rounded lines in flowcharts
-    flowchart: {
-      curve: "basis",
-      htmlLabels: true
-    }
-  };
-  mermaid.initialize(myMermaidConfig);
-  mermaid.init(myMermaidConfig, document.querySelectorAll(".mermaid"));
-</script>
 
   
   <link href='tailwind.css?instanceId=33d1c8d6-3f48-4649-a15d-4affd19f5af3' rel='stylesheet' type='text/css' />
@@ -130,8 +108,8 @@
             </li>
           
             <li class='inline-flex items-center'>
-              <a class='px-1 font-bold' href='design'>
-                Design Notes
+              <a class='px-1 font-bold' href='user-guide'>
+                User Guide
               </a>
               <svg fill='currentColor' viewBox='0 0 20 20' class='w-auto h-5 text-gray-400'>
                 <path fill-rule='evenodd' d='M7.293 14.707a1 1 0 010-1.414L10.586 10 7.293 6.707a1 1 0 011.414-1.414l4 4a1 1 0 010 1.414l-4 4a1 1 0 01-1.414 0z' clip-rule='evenodd'></path>
@@ -139,8 +117,8 @@
             </li>
           
             <li class='inline-flex items-center'>
-              <a class='px-1 font-bold' href='design/specs'>
-                specs
+              <a class='px-1 font-bold' href='user-guide/common-use-cases'>
+                Common Use-Cases
               </a>
               <svg fill='currentColor' viewBox='0 0 20 20' class='w-auto h-5 text-gray-400'>
                 <path fill-rule='evenodd' d='M7.293 14.707a1 1 0 010-1.414L10.586 10 7.293 6.707a1 1 0 011.414-1.414l4 4a1 1 0 010 1.414l-4 4a1 1 0 01-1.414 0z' clip-rule='evenodd'></path>
@@ -901,11 +879,7 @@
     
       <!-- Variable bindings for this tree-->
   
-    
-      
-    
-    
-
+  
 
 
   
@@ -918,12 +892,12 @@
     
     
       <svg class='w-4 h-4 flex-shrink-0 inline' fill='none' stroke='currentColor' viewBox='0 0 24 24' xmlns='http://www.w3.org/2000/svg'>
-        <path stroke-linecap='round' stroke-linejoin='round' stroke-width='2' d='M7 21h10a2 2 0 002-2V9.414a1 1 0 00-.293-.707l-5.414-5.414A1 1 0 0012.586 3H7a2 2 0 00-2 2v14a2 2 0 002 2z'>
+        <path stroke-linecap='round' stroke-linejoin='round' stroke-width='2' d='M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z'>
         </path>
       </svg>
-    
+      
   
-    <a class='hover:underline truncate' title='Shared wallets' href='user-guide/common-use-cases/shared-wallets'>
+    <a class='font-bold text-blue-600 hover:underline truncate' title='Shared wallets' href='user-guide/common-use-cases/shared-wallets'>
       Shared wallets
     </a>
     
@@ -2110,7 +2084,11 @@
     
       <!-- Variable bindings for this tree-->
   
-  
+    
+      
+    
+    
+
 
 
   
@@ -2123,12 +2101,12 @@
     
     
       <svg class='w-4 h-4 flex-shrink-0 inline' fill='none' stroke='currentColor' viewBox='0 0 24 24' xmlns='http://www.w3.org/2000/svg'>
-        <path stroke-linecap='round' stroke-linejoin='round' stroke-width='2' d='M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z'>
+        <path stroke-linecap='round' stroke-linejoin='round' stroke-width='2' d='M7 21h10a2 2 0 002-2V9.414a1 1 0 00-.293-.707l-5.414-5.414A1 1 0 0012.586 3H7a2 2 0 00-2 2v14a2 2 0 002 2z'>
         </path>
       </svg>
-      
+    
   
-    <a class='font-bold text-blue-600 hover:underline truncate' title='Specification: Light mode for cardano-wallet' href='design/specs/light-mode'>
+    <a class='hover:underline truncate' title='Specification: Light mode for cardano-wallet' href='design/specs/light-mode'>
       Specification: Light mode for cardano-wallet
     </a>
     
@@ -2392,374 +2370,534 @@
           <main class='px-4 py-4'>
             <h1 class='flex items-end justify-center mb-4 p-3 bg-blue-100 text-5xl font-extrabold text-black rounded'>
   <a class='z-40 tracking-tighter '>
-    Specification: Light mode for cardano-wallet
+    Shared wallets
   </a>
 </h1>
             <article class='overflow-auto'>
   <!-- What goes in this file will appear on top of note body-->
-  
-    <p class='mb-3'>
-      11th Feb 2022
-    </p>
-  
-    <p class='mb-3'>
-      Status: DRAFT
-    </p>
-  <h1 id='synopsis' class='pb-2 mb-2 text-5xl font-bold text-center'>Synopsis</h1>
-    <p class='mb-3'>
-      This document specifies a light-mode for <code class='py-0.5 px-0.5 bg-gray-100'>cardano-wallet</code>. This mode aims to make synchronisation to the blockchain faster by trusting an off-chain source of aggregated blockchain data.
-    </p>
-  
-    <p class='mb-3'>
-      Light wallets often employ this strategy of using a less trusted data source; for example the <a href='https://namiwallet.io' class='text-blue-600 hover:underline' target='_blank' rel='noopener'>Nami</a> wallet uses <a href='http://blockfrost.io' class='text-blue-600 hover:underline' target='_blank' rel='noopener'>Blockfrost</a> as data source. The purpose of the light-mode of <code class='py-0.5 px-0.5 bg-gray-100'>cardano-wallet</code> is to make this “trust vs speed” trade-off readily available to downstream software such as <a href='https://daedaluswallet.io' class='text-blue-600 hover:underline' target='_blank' rel='noopener'>Daedalus</a> with <em>minimal</em> changes to its downstream API.
-    </p>
-  
-    <p class='mb-3'>
-      In addition, the “trust versus speed” trade-off will be partially obsoleted by <a href='https://iohk.io/en/research/library/papers/mithrilstake-based-threshold-multisignatures/' class='text-blue-600 hover:underline' target='_blank' rel='noopener'>Mithril</a> technology, which aims to give us “trust <em>and</em> speed” by providing verified ledger state data as opposed to block data. The act of implementing light-mode in <code class='py-0.5 px-0.5 bg-gray-100'>cardano-wallet</code> does not only offer immediate benefits, but will, in fact, partially prepare the codebase for Mithril technology.
-    </p>
-  <h1 id='motivation' class='pb-2 mb-2 text-5xl font-bold text-center'>Motivation</h1><h2 id='background' class='inline-block mt-6 mb-4 text-4xl font-bold text-gray-700 border-b-2'>Background</h2>
-    <p class='mb-3'>
-      As the Cardano blockchain grows in size, retrieving and verifying blocks from the consensus network becomes increasingly time consuming. By making a “trust versus speed” trade-off, we can significantly decrease synchronization times.
-    </p>
-  <h2 id='user-visible-benefits' class='inline-block mt-6 mb-4 text-4xl font-bold text-gray-700 border-b-2'>User-visible benefits</h2>
+  <h2 id='pre-requisites' class='inline-block mt-6 mb-4 text-4xl font-bold text-gray-700 border-b-2'>Pre-requisites</h2>
     <ul class='my-3 ml-6 space-y-1 list-disc'>
       
         <li>
-          Allow users to operate their wallet without needing to wait for the node to download and validate the entire blockchain.
+          <a href='user-guide/common-use-cases/how-to-start-wallet-server' class='text-blue-600 mavenLinkBold hover:underline' data-wikilink-type='WikiLinkNormal'>How to start wallet server</a>
         </li>
       
         <li>
-          Allow users to run cardano-wallet and Daedalus on systems with significantly less than 8GB of memory and less than 10GB of disk space.
-        </li>
-      
-        <li>
-          Allow users to control where they sit on the trust vs convenience spectrum, depending upon their current circumstances.
+          In order to be able to send transactions, our wallet must have funds. In case of <code class='py-0.5 px-0.5 bg-gray-100'>preview</code> and <code class='py-0.5 px-0.5 bg-gray-100'>preprod</code> <a href='https://testnets.cardano.org/en/testnets/cardano/overview/' class='text-blue-600 hover:underline' target='_blank' rel='noopener'>testnets</a> we can request tADA from the <a href='https://testnets.cardano.org/en/testnets/cardano/tools/faucet/' class='text-blue-600 hover:underline' target='_blank' rel='noopener'>faucet</a>.
         </li>
       
     </ul>
-  <h2 id='technical-benefits' class='inline-block mt-6 mb-4 text-4xl font-bold text-gray-700 border-b-2'>Technical benefits</h2>
-    <ul class='my-3 ml-6 space-y-1 list-disc'>
+  <h2 id='overview' class='inline-block mt-6 mb-4 text-4xl font-bold text-gray-700 border-b-2'>Overview</h2>
+    <p class='mb-3'>
+      This guide shows you how to create a shared wallet and make a shared transaction, providing witnesses from all required co-signers referenced in the <code class='py-0.5 px-0.5 bg-gray-100'>payment_script_template</code> and <code class='py-0.5 px-0.5 bg-gray-100'>delegation_script_template</code> fields. In this example, we’ll create two shared wallets using the same template for both payment and delegation operations. The template that we’ll use will indicate that we require signatures from all co-owners in order to make a transaction. In our case, the wallet will have two co-owners <code class='py-0.5 px-0.5 bg-gray-100'>cosigner#0</code> and <code class='py-0.5 px-0.5 bg-gray-100'>cosigner#1</code>:
+    </p>
+  <div class='py-0.5 mb-3 text-sm'><pre><code class='language-none'>"template":
+    { "all":
+       [ "cosigner#0", "cosigner#1"]
+    }</code></pre></div><h2 id='creating-wallets' class='inline-block mt-6 mb-4 text-4xl font-bold text-gray-700 border-b-2'>Creating wallets</h2>
+    <p class='mb-3'>
+      First let’s create two <code class='py-0.5 px-0.5 bg-gray-100'>incomplete</code> shared wallets using the <a href='https://input-output-hk.github.io/cardano-wallet/api/edge/#operation/postSharedWallet' class='text-blue-600 hover:underline' target='_blank' rel='noopener'><code class='py-0.5 px-0.5 bg-gray-100'>POST /shared-wallets</code></a> endpoint. The wallets are marked as “incomplete” because they do not yet have public keys from all cosigners.
+    </p>
+  
+    <ul class='my-3 ml-6 space-y-1 list-decimal list-inside'>
       
         <li>
-          <em>Speed</em>. With light-mode, we expect synchronisation times of &lt; 1 minute for a wallet with 1’000 transactions. In contrast, synchronisation of an empty wallet currently takes ~ 50 minutes by connecting to a node — assuming that the node has already synced to the chain tip and built its ledger state, which itself takes hours.
-        </li>
-      
-        <li>
-          <em>Compatibility</em>. Light-mode is intended to preserve the API presented to downstream software such as <a href='https://daedaluswallet.io' class='text-blue-600 hover:underline' target='_blank' rel='noopener'>Daedalus</a>, only <em>minimal</em> changes are expected.
-        </li>
-      
-        <li>
-          <em>Optionality</em>. A wallet that was started in light-mode can be restarted in full mode without resynchronization, and vice versa. (MVP: no support yet for changing the mode dynamically while the wallet is running.)
+          Cosigner<span class='font-bold bg-gray-100 py-0.5 px-2 rounded-lg emanote:inline-tag:0' title='Tag' data-tag='0'><a href='-/tags/0' title='Tag' class='text-blue-600 mavenLinkBold hover:underline'>#0</a></span> wallet
         </li>
       
     </ul>
-  <h2 id='limitations' class='inline-block mt-6 mb-4 text-4xl font-bold text-gray-700 border-b-2'>Limitations</h2>
-    <ul class='my-3 ml-6 space-y-1 list-disc'>
+  <div class='py-0.5 mb-3 text-sm'><pre><code class='language-none'>$ curl -X POST http://localhost:8090/v2/shared-wallets \
+-d '{
+   "mnemonic_sentence":[
+      "beach",
+      "want",
+      "fly",
+      "guess",
+      "cabbage",
+      "hybrid",
+      "profit",
+      "leaf",
+      "term",
+      "air",
+      "join",
+      "feel",
+      "sting",
+      "nurse",
+      "anchor",
+      "come",
+      "entire",
+      "oil",
+      "kidney",
+      "situate",
+      "fun",
+      "deal",
+      "palm",
+      "chimney"
+   ],
+   "passphrase":"Secure Passphrase",
+   "name":"Cosigner#0 wallet",
+   "account_index":"0H",
+   "payment_script_template":{
+      "cosigners":{
+         "cosigner#0":"self"
+      },
+      "template":{
+         "all":[
+            "cosigner#0",
+            "cosigner#1"
+         ]
+      }
+   },
+   "delegation_script_template":{
+      "cosigners":{
+         "cosigner#0":"self"
+      },
+      "template":{
+         "all":[
+            "cosigner#0",
+            "cosigner#1"
+         ]
+      }
+   }
+}' \
+-H "Content-Type: application/json"</code></pre></div>
+    <ul class='my-3 ml-6 space-y-1 list-decimal list-inside'>
       
         <li>
-          <em>Trust</em>. The external data source does <em>not</em> provide the same level of protection against <em>omission</em> of transactions as the Proof-of-Stake consensus protocol.
-        </li>
-      
-        <li>
-          <em>Privacy</em>. In addition to the reduction of trust in the blockchain data, we now also reveal private information about addresses belonging to a single wallet.
-        </li>
-      
-        <li>
-          <em>Address schemes</em>. Only <em>Shelley</em> wallets with <em>sequential address discovery</em> can be supported.
+          Cosigner<span class='font-bold bg-gray-100 py-0.5 px-2 rounded-lg emanote:inline-tag:1' title='Tag' data-tag='1'><a href='-/tags/1' title='Tag' class='text-blue-600 mavenLinkBold hover:underline'>#1</a></span> wallet
         </li>
       
     </ul>
+  <div class='py-0.5 mb-3 text-sm'><pre><code class='language-none'>$ curl -X POST http://localhost:8090/v2/shared-wallets \
+-d '{
+   "mnemonic_sentence":[
+      "slight",
+      "tool",
+      "pear",
+      "write",
+      "body",
+      "fruit",
+      "crucial",
+      "tomorrow",
+      "hunt",
+      "alley",
+      "object",
+      "tool",
+      "voyage",
+      "loud",
+      "loop",
+      "client",
+      "access",
+      "vocal",
+      "unable",
+      "brand",
+      "patch",
+      "remain",
+      "object",
+      "boat"
+   ],
+   "passphrase":"Secure Passphrase",
+   "name":"Cosigner#1 wallet",
+   "account_index":"0H",
+   "payment_script_template":{
+      "cosigners":{
+         "cosigner#1":"self"
+      },
+      "template":{
+         "all":[
+            "cosigner#0",
+            "cosigner#1"
+         ]
+      }
+   },
+   "delegation_script_template":{
+      "cosigners":{
+         "cosigner#1":"self"
+      },
+      "template":{
+         "all":[
+            "cosigner#0",
+            "cosigner#1"
+         ]
+      }
+   }
+}' \
+-H "Content-Type: application/json"</code></pre></div>
+    <p class='mb-3'>
+      Notice that the templates <code class='py-0.5 px-0.5 bg-gray-100'>payment_script_template</code> and <code class='py-0.5 px-0.5 bg-gray-100'>delegation_script_template</code> are partially the same for both wallets:
+    </p>
+  <div class='py-0.5 mb-3 text-sm'><pre><code class='language-none'>  "template":{
+      "all":[
+        "cosigner#0",
+        "cosigner#1"
+      ]
+  }</code></pre></div>
+    <p class='mb-3'>
+      However the <code class='py-0.5 px-0.5 bg-gray-100'>"cosigners":</code> part differs slightly. “Cosigner<span class='font-bold bg-gray-100 py-0.5 px-2 rounded-lg emanote:inline-tag:0' title='Tag' data-tag='0'><a href='-/tags/0' title='Tag' class='text-blue-600 mavenLinkBold hover:underline'>#0</a></span> wallet” has <code class='py-0.5 px-0.5 bg-gray-100'>"cosigner#0":"self"</code> and “Cosigner<span class='font-bold bg-gray-100 py-0.5 px-2 rounded-lg emanote:inline-tag:1' title='Tag' data-tag='1'><a href='-/tags/1' title='Tag' class='text-blue-600 mavenLinkBold hover:underline'>#1</a></span> wallet” - <code class='py-0.5 px-0.5 bg-gray-100'>"cosigner#1":"self"</code>. Each wallet has partial information about cosigners. “Cosigner<span class='font-bold bg-gray-100 py-0.5 px-2 rounded-lg emanote:inline-tag:0' title='Tag' data-tag='0'><a href='-/tags/0' title='Tag' class='text-blue-600 mavenLinkBold hover:underline'>#0</a></span> wallet” only knows about <code class='py-0.5 px-0.5 bg-gray-100'>cosigner#0</code> and “Cosigner<span class='font-bold bg-gray-100 py-0.5 px-2 rounded-lg emanote:inline-tag:1' title='Tag' data-tag='1'><a href='-/tags/1' title='Tag' class='text-blue-600 mavenLinkBold hover:underline'>#1</a></span> wallet” only knows about <code class='py-0.5 px-0.5 bg-gray-100'>cosigner#1</code>.
+    </p>
   
     <p class='mb-3'>
-      However, these limitations are shared by all existing light wallets. In fact, some light wallets only provide <em>single-address</em> wallets, which is an additional reduction of privacy.
+      Now we can look up the wallets we’ve just created using the <a href='https://input-output-hk.github.io/cardano-wallet/api/edge/#operation/getSharedWallet' class='text-blue-600 hover:underline' target='_blank' rel='noopener'><code class='py-0.5 px-0.5 bg-gray-100'>GET /shared-wallets/{walletId}</code></a> endpoint. From the response, we can tell that the wallet’s status is “incomplete”. For instance:
     </p>
-  <h1 id='specification' class='pb-2 mb-2 text-5xl font-bold text-center'>Specification</h1><h2 id='overview' class='inline-block mt-6 mb-4 text-4xl font-bold text-gray-700 border-b-2'>Overview</h2>
-    <p class='mb-3'>
-      The implementation of light-mode is based on an efficient query <code class='py-0.5 px-0.5 bg-gray-100'>Address -&gt; Transactions</code> which the blockchain data source provides. This query is useful to wallets that use <em>sequential address discovery</em> (Shelley wallets). These wallets work with a sequence of potential addresses <code class='py-0.5 px-0.5 bg-gray-100'>addr_0</code>, <code class='py-0.5 px-0.5 bg-gray-100'>addr_1</code>, <code class='py-0.5 px-0.5 bg-gray-100'>addr_2</code>, …. For each integer <code class='py-0.5 px-0.5 bg-gray-100'>n</code>, there is a deterministic procedure for generating the corresponding address <code class='py-0.5 px-0.5 bg-gray-100'>addr_n</code>. The wallet generates the first few addresses in this sequence and uses the above query to retrieve the corresponding transactions. When no transactions are found for <code class='py-0.5 px-0.5 bg-gray-100'>g</code> (“address gap”) many consecutive addresses, the procedure stops — as the wallet never puts addresses with higher indices on the chain. In other words, this iterative loop yields all transactions that belong to the wallet.
-    </p>
-  
-    <p class='mb-3'>
-      This procedure can be visualized in a flow chart:
-    </p>
-  <div class='mermaid-container'><div class='py-0.5 mb-3 text-sm'><pre><code class='mermaid language-mermaid'>flowchart TB
-  start([begin]) --&gt; init[j := 0\ng := 0\ngap := 20]
-  init --&gt; query[query addr_j]
-  query --&gt; tx{transactions?}
-  tx -- no --&gt; gapAdd[g := g+1] 
-  gapAdd --&gt; g{g &gt; gap?}
-  tx -- yes --&gt; gapReset[g := 0]
-  gapReset --&gt; add[j := j+1]
-  g -- yes ----&gt; e([end])
-  g -- no --&gt; add
-  add --&gt; query</code></pre></div></div>
-    <p class='mb-3'>
-      This procedure is implemented and demonstrated in the <code class='py-0.5 px-0.5 bg-gray-100'>light-mode-test</code> prototype.
-    </p>
-  <h2 id='functionality' class='inline-block mt-6 mb-4 text-4xl font-bold text-gray-700 border-b-2'>Functionality</h2><h3 id='network-topology' class='mt-6 mb-2 text-3xl font-bold text-gray-700'>Network topology</h3>
-    <p class='mb-3'>
-      In full-node mode, <code class='py-0.5 px-0.5 bg-gray-100'>cardano-wallet</code> connects to a local <code class='py-0.5 px-0.5 bg-gray-100'>cardano-node</code>:
-    </p>
-  <div class='mermaid-container'><div class='py-0.5 mb-3 text-sm'><pre><code class='mermaid language-mermaid'>flowchart TB
-  subgraph local system
-    cardano-launcher -. spawns .-&gt; cardano-wallet
-    cardano-launcher -. spawns .-&gt; cardano-node
-    cardano-wallet -- ChainSync --&gt; cardano-node
-    cardano-wallet -- LocalTxSubmission --&gt; cardano-node
-    cardano-wallet -- LocalStateQuery --&gt; cardano-node
-  end
-  cardano-node -- syncs --&gt; blockchain
-  subgraph internet
-    blockchain
-  end</code></pre></div></div>
-    <p class='mb-3'>
-      In light-mode, <code class='py-0.5 px-0.5 bg-gray-100'>cardano-wallet</code> instead connects to the data source (e.g. <code class='py-0.5 px-0.5 bg-gray-100'>cardano-graphql</code> or <a href='http://blockfrost.io' class='text-blue-600 hover:underline' target='_blank' rel='noopener'>Blockfrost</a>) and a transaction submission service through the internet
-    </p>
-  <div class='mermaid-container'><div class='py-0.5 mb-3 text-sm'><pre><code class='mermaid language-mermaid'>flowchart TB
-  cardano-launcher -. spawns .-&gt; cardano-wallet
-  cardano-wallet -- query\nAddressTransactions --&gt; cardano-graphql
-  cardano-wallet -- TxSubmission --&gt; cardano-submit-api
-  
-  subgraph local system
-    cardano-launcher
-    cardano-wallet
-  end
+  <div class='py-0.5 mb-3 text-sm'><pre><code class='language-none'>$ curl -X GET http://localhost:8090/v2/shared-wallets/5e46668c320bb4568dd25551e0c33b0539668aa8 | jq
 
-  subgraph internet
-    cardano-graphql --&gt; n1[cardano-node]
-    cardano-submit-api --&gt; n2[cardano-node]
-    n1 -- syncs --&gt; blockchain
-    n2 -- syncs --&gt; blockchain
-  end</code></pre></div></div><h3 id='command-line' class='mt-6 mb-2 text-3xl font-bold text-gray-700'>Command line</h3>
+{
+  "account_index": "0H",
+  "address_pool_gap": 20,
+  "delegation_script_template": {
+    "cosigners": {
+      "cosigner#1": "acct_shared_xvk1mqrjad6aklkpwvhhktrzeef5yunla9pjs0jt9csp3gjcynxvumfjpk99hqxkyknn30ya6l5yjgeegs5ltmmsy70gm500sacvllvwt6qjztknp"
+    },
+    "template": {
+      "all": [
+        "cosigner#0",
+        "cosigner#1"
+      ]
+    }
+  },
+  "id": "5e46668c320bb4568dd25551e0c33b0539668aa8",
+  "name": "Cosigner#1 wallet",
+  "payment_script_template": {
+    "cosigners": {
+      "cosigner#1": "acct_shared_xvk1mqrjad6aklkpwvhhktrzeef5yunla9pjs0jt9csp3gjcynxvumfjpk99hqxkyknn30ya6l5yjgeegs5ltmmsy70gm500sacvllvwt6qjztknp"
+    },
+    "template": {
+      "all": [
+        "cosigner#0",
+        "cosigner#1"
+      ]
+    }
+  },
+  "state": {
+    "status": "incomplete"
+  }
+}
+</code></pre></div><h3 id='patching-wallets' class='mt-6 mb-2 text-3xl font-bold text-gray-700'>Patching wallets</h3>
     <p class='mb-3'>
-      The <code class='py-0.5 px-0.5 bg-gray-100'>cardano-wallet</code> executable will feature a new flag <code class='py-0.5 px-0.5 bg-gray-100'>--light</code> which indicates that the executable is to be started in light-mode:
-    </p>
-  <div class='py-0.5 mb-3 text-sm'><pre><code class='language-none'>$ cardano-wallet serve --light CRED</code></pre></div>
-    <ul class='my-3 ml-6 space-y-1 list-disc'>
-      
-        <li>
-          <code class='py-0.5 px-0.5 bg-gray-100'>CRED</code> specifies how to connect to the less trusted blockchain data source. (MVP: Use <a href='http://blockfrost.io' class='text-blue-600 hover:underline' target='_blank' rel='noopener'>Blockfrost</a>; <code class='py-0.5 px-0.5 bg-gray-100'>CRED</code> is a filepath to the secret token.)
-        </li>
-      
-        <li>
-          The <code class='py-0.5 px-0.5 bg-gray-100'>--light</code> argument and the <code class='py-0.5 px-0.5 bg-gray-100'>--node-socket</code> arguments are mutually exclusive with each other.
-        </li>
-      
-    </ul>
-  <h3 id='rest-api' class='mt-6 mb-2 text-3xl font-bold text-gray-700'>REST API</h3>
-    <p class='mb-3'>
-      When the executable was started in light-mode:
-    </p>
-  
-    <ul class='my-3 ml-6 space-y-1 list-disc'>
-      
-        <li>
-          The endpoints in the hierarchy <code class='py-0.5 px-0.5 bg-gray-100'>/v2/byron-wallets/*</code> MUST return an error. Because byron wallets use random derivation indices to generate addresses, they are significantly more challenging to make a light wallet for.
-        </li>
-      
-        <li>
-          (MVP: The endpoints in the hierarchy <code class='py-0.5 px-0.5 bg-gray-100'>/v2/shared-wallets/*</code> MAY return an error.)
-        </li>
-      
-        <li>
-          The <code class='py-0.5 px-0.5 bg-gray-100'>GET /v2/network/information</code> endpoint MAY not return <code class='py-0.5 px-0.5 bg-gray-100'>sync_progress</code> as a percentage quantity from [0..100].
-        </li>
-      
-    </ul>
-  <h2 id='internal' class='inline-block mt-6 mb-4 text-4xl font-bold text-gray-700 border-b-2'>Internal</h2>
-    <p class='mb-3'>
-      See also the <code class='py-0.5 px-0.5 bg-gray-100'>light-mode-test</code> prototype!
+      In order to be able to spend from the wallets we need to <em>patch</em> their payment and delegation templates with missing cosigners. We already know that “Cosigner<span class='font-bold bg-gray-100 py-0.5 px-2 rounded-lg emanote:inline-tag:0' title='Tag' data-tag='0'><a href='-/tags/0' title='Tag' class='text-blue-600 mavenLinkBold hover:underline'>#0</a></span> wallet” is missing the <code class='py-0.5 px-0.5 bg-gray-100'>cosigner#1</code> key and “Cosigner<span class='font-bold bg-gray-100 py-0.5 px-2 rounded-lg emanote:inline-tag:1' title='Tag' data-tag='1'><a href='-/tags/1' title='Tag' class='text-blue-600 mavenLinkBold hover:underline'>#1</a></span> wallet” is missing the <code class='py-0.5 px-0.5 bg-gray-100'>cosigner#0</code> key.
     </p>
   
-    <ul class='my-3 ml-6 space-y-1 list-disc'>
-      
-        <li>
-          
     <p class='mb-3'>
-      Collect required queries on data source in a data type <code class='py-0.5 px-0.5 bg-gray-100'>LightLayer</code>. In this way, we can replace the data source with a mock data source and run property tests on the chain following logic. (MVP: Use <a href='http://blockfrost.io' class='text-blue-600 hover:underline' target='_blank' rel='noopener'>Blockfrost</a> for demonstration purposes.)
+      First, let’s get the <code class='py-0.5 px-0.5 bg-gray-100'>cosigner#1</code> key from the “Cosigner<span class='font-bold bg-gray-100 py-0.5 px-2 rounded-lg emanote:inline-tag:1' title='Tag' data-tag='1'><a href='-/tags/1' title='Tag' class='text-blue-600 mavenLinkBold hover:underline'>#1</a></span> wallet”. We can use the <a href='https://input-output-hk.github.io/cardano-wallet/api/edge/#operation/getAccountKeyShared' class='text-blue-600 hover:underline' target='_blank' rel='noopener'><code class='py-0.5 px-0.5 bg-gray-100'>GET /shared-wallets/{walletId}/keys</code></a> endpoint for this:
+    </p>
+  <div class='py-0.5 mb-3 text-sm'><pre><code class='language-none'>$ curl -X GET http://localhost:8090/v2/shared-wallets/5e46668c320bb4568dd25551e0c33b0539668aa8/keys?format=extended
+
+"acct_shared_xvk1mqrjad6aklkpwvhhktrzeef5yunla9pjs0jt9csp3gjcynxvumfjpk99hqxkyknn30ya6l5yjgeegs5ltmmsy70gm500sacvllvwt6qjztknp"
+</code></pre></div>
+    <p class='mb-3'>
+      Now we can <em>patch</em> the payment and delegation templates of the “Cosigner<span class='font-bold bg-gray-100 py-0.5 px-2 rounded-lg emanote:inline-tag:0' title='Tag' data-tag='0'><a href='-/tags/0' title='Tag' class='text-blue-600 mavenLinkBold hover:underline'>#0</a></span> wallet” with the <code class='py-0.5 px-0.5 bg-gray-100'>cosigner#1</code> key using the <a href='https://input-output-hk.github.io/cardano-wallet/api/edge/#operation/patchSharedWalletInPayment' class='text-blue-600 hover:underline' target='_blank' rel='noopener'><code class='py-0.5 px-0.5 bg-gray-100'>PATCH /shared-wallets/{walletId}/payment-script-template</code></a> and <a href='https://input-output-hk.github.io/cardano-wallet/api/edge/#operation/patchSharedWalletInDelegation' class='text-blue-600 hover:underline' target='_blank' rel='noopener'><code class='py-0.5 px-0.5 bg-gray-100'>PATCH /shared-wallets/{walletId}/delegation-script-template</code></a> endpoints, respectively.
+    </p>
+  <div class='py-0.5 mb-3 text-sm'><pre><code class='language-none'>$ curl -X PATCH http://localhost:8090/v2/shared-wallets/2a0ebd0cceab2161765badf2e389b26e0961de2f/payment-script-template \
+-d '{"cosigner#1":"acct_shared_xvk1mqrjad6aklkpwvhhktrzeef5yunla9pjs0jt9csp3gjcynxvumfjpk99hqxkyknn30ya6l5yjgeegs5ltmmsy70gm500sacvllvwt6qjztknp"}' \
+-H "Content-Type: application/json"
+
+$ curl -X PATCH http://localhost:8090/v2/shared-wallets/2a0ebd0cceab2161765badf2e389b26e0961de2f/delegation-script-template \
+-d '{"cosigner#1":"acct_shared_xvk1mqrjad6aklkpwvhhktrzeef5yunla9pjs0jt9csp3gjcynxvumfjpk99hqxkyknn30ya6l5yjgeegs5ltmmsy70gm500sacvllvwt6qjztknp"}' \
+-H "Content-Type: application/json"</code></pre></div>
+    <p class='mb-3'>
+      We’ll repeat the same faction or “Cosigner<span class='font-bold bg-gray-100 py-0.5 px-2 rounded-lg emanote:inline-tag:1' title='Tag' data-tag='1'><a href='-/tags/1' title='Tag' class='text-blue-600 mavenLinkBold hover:underline'>#1</a></span> wallet”, i.e. first get <code class='py-0.5 px-0.5 bg-gray-100'>cosigner#0</code> key from “Cosigner<span class='font-bold bg-gray-100 py-0.5 px-2 rounded-lg emanote:inline-tag:0' title='Tag' data-tag='0'><a href='-/tags/0' title='Tag' class='text-blue-600 mavenLinkBold hover:underline'>#0</a></span> wallet” and then patch the payment and delegation templates of “Cosigner<span class='font-bold bg-gray-100 py-0.5 px-2 rounded-lg emanote:inline-tag:1' title='Tag' data-tag='1'><a href='-/tags/1' title='Tag' class='text-blue-600 mavenLinkBold hover:underline'>#1</a></span> wallet” with it.
+    </p>
+  <div class='py-0.5 mb-3 text-sm'><pre><code class='language-none'>$ curl -X GET http://localhost:8090/v2/shared-wallets/2a0ebd0cceab2161765badf2e389b26e0961de2f/keys?format=extended
+
+"acct_shared_xvk1lk5eg5unj4fg48vamr9pc40euump5qs084a7cdgvs9u6yn82nh9lr3s62asfv45r4s0fqa239j3dc5e4f7z24heug43zpg6qdy5kawq63hhzl"
+
+$ curl -X PATCH http://localhost:8090/v2/shared-wallets/5e46668c320bb4568dd25551e0c33b0539668aa8/payment-script-template \
+-d '{"cosigner#0":"acct_shared_xvk1lk5eg5unj4fg48vamr9pc40euump5qs084a7cdgvs9u6yn82nh9lr3s62asfv45r4s0fqa239j3dc5e4f7z24heug43zpg6qdy5kawq63hhzl"}' \
+-H "Content-Type: application/json"
+
+$ curl -X PATCH http://localhost:8090/v2/shared-wallets/5e46668c320bb4568dd25551e0c33b0539668aa8/delegation-script-template \
+-d '{"cosigner#0":"acct_shared_xvk1lk5eg5unj4fg48vamr9pc40euump5qs084a7cdgvs9u6yn82nh9lr3s62asfv45r4s0fqa239j3dc5e4f7z24heug43zpg6qdy5kawq63hhzl"}' \
+-H "Content-Type: application/json"</code></pre></div>
+    <p class='mb-3'>
+      Now, if we look up the wallet again with <a href='https://input-output-hk.github.io/cardano-wallet/api/edge/#operation/getSharedWallet' class='text-blue-600 hover:underline' target='_blank' rel='noopener'><code class='py-0.5 px-0.5 bg-gray-100'>GET /shared-wallets/{walletId}</code></a>, we should notice that the wallet has started restoring, and after a while it is ready to use:
+    </p>
+  <div class='py-0.5 mb-3 text-sm'><pre><code class='language-none'>$ curl -X GET http://localhost:8090/v2/shared-wallets/2a0ebd0cceab2161765badf2e389b26e0961de2f | jq .state
+
+{
+  "status": "ready"
+}</code></pre></div>
+    <p class='mb-3'>
+      Furthermore, the wallets now have complete information about cosigners for delegation and payment templates:
+    </p>
+  <div class='py-0.5 mb-3 text-sm'><pre><code class='language-none'>$ curl -X GET http://localhost:8090/v2/shared-wallets/2a0ebd0cceab2161765badf2e389b26e0961de2f | jq .payment_script_template
+
+{
+  "cosigners": {
+    "cosigner#0": "acct_shared_xvk1lk5eg5unj4fg48vamr9pc40euump5qs084a7cdgvs9u6yn82nh9lr3s62asfv45r4s0fqa239j3dc5e4f7z24heug43zpg6qdy5kawq63hhzl",
+    "cosigner#1": "acct_shared_xvk1mqrjad6aklkpwvhhktrzeef5yunla9pjs0jt9csp3gjcynxvumfjpk99hqxkyknn30ya6l5yjgeegs5ltmmsy70gm500sacvllvwt6qjztknp"
+  },
+  "template": {
+    "all": [
+      "cosigner#0",
+      "cosigner#1"
+    ]
+  }
+}
+
+$ curl -X GET http://localhost:8090/v2/shared-wallets/2a0ebd0cceab2161765badf2e389b26e0961de2f | jq .delegation_script_template
+
+{
+  "cosigners": {
+    "cosigner#0": "acct_shared_xvk1lk5eg5unj4fg48vamr9pc40euump5qs084a7cdgvs9u6yn82nh9lr3s62asfv45r4s0fqa239j3dc5e4f7z24heug43zpg6qdy5kawq63hhzl",
+    "cosigner#1": "acct_shared_xvk1mqrjad6aklkpwvhhktrzeef5yunla9pjs0jt9csp3gjcynxvumfjpk99hqxkyknn30ya6l5yjgeegs5ltmmsy70gm500sacvllvwt6qjztknp"
+  },
+  "template": {
+    "all": [
+      "cosigner#0",
+      "cosigner#1"
+    ]
+  }
+}</code></pre></div><h3 id='spending-transactions' class='mt-6 mb-2 text-3xl font-bold text-gray-700'>Spending transactions</h3>
+    <p class='mb-3'>
+      Our shared wallets are now fully-operational. In particular, we can access the addresses of the wallets via the <a href='https://input-output-hk.github.io/cardano-wallet/api/edge/#operation/listSharedAddresses' class='text-blue-600 hover:underline' target='_blank' rel='noopener'><code class='py-0.5 px-0.5 bg-gray-100'>GET /shared-wallets/{walletId}/addresses</code></a> endpoint. We can get the address and fund it from the <a href='https://testnets.cardano.org/en/testnets/cardano/tools/faucet/' class='text-blue-600 hover:underline' target='_blank' rel='noopener'>faucet</a> so that we can spend from our wallet later on.
     </p>
   
-        </li>
-      
-        <li>
-          
     <p class='mb-3'>
-      Provide second implementation of <code class='py-0.5 px-0.5 bg-gray-100'>NetworkLayer</code> using a <code class='py-0.5 px-0.5 bg-gray-100'>LightLayer</code>.
+      After we have funded the “Cosigner<span class='font-bold bg-gray-100 py-0.5 px-2 rounded-lg emanote:inline-tag:0' title='Tag' data-tag='0'><a href='-/tags/0' title='Tag' class='text-blue-600 mavenLinkBold hover:underline'>#0</a></span> wallet”, we can see that the balance has changed on the “Cosigner<span class='font-bold bg-gray-100 py-0.5 px-2 rounded-lg emanote:inline-tag:1' title='Tag' data-tag='1'><a href='-/tags/1' title='Tag' class='text-blue-600 mavenLinkBold hover:underline'>#1</a></span> wallet” as well. Both wallets have the same balance:
+    </p>
+  <div class='py-0.5 mb-3 text-sm'><pre><code class='language-none'>$ curl -X GET http://localhost:8090/v2/shared-wallets/2a0ebd0cceab2161765badf2e389b26e0961de2f | jq .balance
+
+{
+  "available": {
+    "quantity": 10000000000,
+    "unit": "lovelace"
+  },
+  "reward": {
+    "quantity": 0,
+    "unit": "lovelace"
+  },
+  "total": {
+    "quantity": 10000000000,
+    "unit": "lovelace"
+  }
+}
+
+$ curl -X GET http://localhost:8090/v2/shared-wallets/5e46668c320bb4568dd25551e0c33b0539668aa8 | jq .balance
+
+{
+  "available": {
+    "quantity": 10000000000,
+    "unit": "lovelace"
+  },
+  "reward": {
+    "quantity": 0,
+    "unit": "lovelace"
+  },
+  "total": {
+    "quantity": 10000000000,
+    "unit": "lovelace"
+  }
+}</code></pre></div>
+    <p class='mb-3'>
+      Of course, this is expected. Both co-owners have full knowledge of the balance, however they cannot spend from the balance on their own. As required by the payment template, the wallet needs signatures from both co-owners before funds can be spent.
     </p>
   
-    <ul class='my-3 ml-6 space-y-1 list-disc'>
-      
-        <li>
-          See prototype for details! Important changes:
-        </li>
-      
-        <li>
-          <code class='py-0.5 px-0.5 bg-gray-100'>watchTip</code> requires polling (2 seconds interval)
-        </li>
-      
-        <li>
-          <code class='py-0.5 px-0.5 bg-gray-100'>currentNodeEra</code> may require hard-coding known eras.
-        </li>
-      
-        <li>
-          <code class='py-0.5 px-0.5 bg-gray-100'>performanceEstimate</code> requires copying from ledger code.
-        </li>
-      
-        <li>
-          <code class='py-0.5 px-0.5 bg-gray-100'>syncProgress</code> should be ignored for MVP.
-        </li>
-      
-        <li>
-          The node-mode <code class='py-0.5 px-0.5 bg-gray-100'>NetworkLayer</code> does a lot of caching, we should avoid that for now and instead add a more uniform caching system later through a function <code class='py-0.5 px-0.5 bg-gray-100'>addCaches :: NetworkLayer -&gt; IO NetworkLayer</code>.
-        </li>
-      
-        <li>
-          <code class='py-0.5 px-0.5 bg-gray-100'>postTx</code> submits a transaction to a web service instead of using the <code class='py-0.5 px-0.5 bg-gray-100'>LocalTxSubmission</code> protocol with cardano-node. This web service can be different from the blockchain data source. An example of such a service is <code class='py-0.5 px-0.5 bg-gray-100'>cardano-submit-api</code>.
-        </li>
-      
-    </ul>
-  
-        </li>
-      
-        <li>
-          
     <p class='mb-3'>
-      New data type
-    </p>
-  <div class='py-0.5 mb-3 text-sm'><pre><code class='haskell language-haskell'>data BlockSummary m = BlockSummary
-    { from  :: ChainPoint
-    , to    :: ChainPoint
-    , query :: Address -&gt; m [Transaction]
-    }</code></pre></div>
-    <ul class='my-3 ml-6 space-y-1 list-disc'>
-      
-        <li>
-          
-    <p class='mb-3'>
-      consumed by <code class='py-0.5 px-0.5 bg-gray-100'>applyBlocks</code>. Adapt <code class='py-0.5 px-0.5 bg-gray-100'>discoverTransactions</code> from the prototype.
+      Let’s make a simple transaction. The owner of “Cosigner<span class='font-bold bg-gray-100 py-0.5 px-2 rounded-lg emanote:inline-tag:0' title='Tag' data-tag='0'><a href='-/tags/0' title='Tag' class='text-blue-600 mavenLinkBold hover:underline'>#0</a></span> wallet” will construct and sign a transaction on their end, and then provide a CBOR blob of this transaction to the owner of “Cosigner<span class='font-bold bg-gray-100 py-0.5 px-2 rounded-lg emanote:inline-tag:1' title='Tag' data-tag='1'><a href='-/tags/1' title='Tag' class='text-blue-600 mavenLinkBold hover:underline'>#1</a></span> wallet”. Then Cosigner<span class='font-bold bg-gray-100 py-0.5 px-2 rounded-lg emanote:inline-tag:1' title='Tag' data-tag='1'><a href='-/tags/1' title='Tag' class='text-blue-600 mavenLinkBold hover:underline'>#1</a></span> can sign it on their own, and submit it to the network.
     </p>
   
-        </li>
-      
-        <li>
-          
     <p class='mb-3'>
-      produced by <code class='py-0.5 px-0.5 bg-gray-100'>NetworkLayer</code>. Adapt <code class='py-0.5 px-0.5 bg-gray-100'>lightSync</code> from the prototype.
-    </p>
-  
-        </li>
-      
-        <li>
-          
-    <p class='mb-3'>
-      Idea: Use an additional GADT wrapper to specialize <code class='py-0.5 px-0.5 bg-gray-100'>applyBlocks</code> to sequential address states:
-    </p>
-  <div class='py-0.5 mb-3 text-sm'><pre><code class='haskell language-haskell'>    data BlockData m s where
-        List
-            :: NonEmpty Block
-            -&gt; BlockData m s
-        Summary
-            :: BlockSummary m
-            -&gt; BlockData m (SeqState n k)</code></pre></div>
-    <p class='mb-3'>
-      By using this type as argument to <code class='py-0.5 px-0.5 bg-gray-100'>applyBlocks</code>, we are guaranteed that <code class='py-0.5 px-0.5 bg-gray-100'>BlockSummary</code> is only used in conjunction with sequential state. Caveat: It would be better if we could avoid parametrizing the <code class='py-0.5 px-0.5 bg-gray-100'>NetworkLayer</code> type with the address discovery state <code class='py-0.5 px-0.5 bg-gray-100'>s</code>.
-    </p>
-  
-        </li>
-      
-    </ul>
-  
-        </li>
-      
-    </ul>
-  <h2 id='quality-assurance' class='inline-block mt-6 mb-4 text-4xl font-bold text-gray-700 border-b-2'>Quality assurance</h2><h3 id='benchmarks' class='mt-6 mb-2 text-3xl font-bold text-gray-700'>Benchmarks</h3>
-    <ul class='my-3 ml-6 space-y-1 list-disc'>
-      
-        <li>
-          Compare restoration times for an empty wallet in node-mode and in light-mode. The existing nightly wallet restoration benchmark can be updated for this purpose.
-        </li>
-      
-        <li>
-          Number of requests that we make to the data source needs to be monitored / kept in check. The number of requests should scale linearly with the number of transactions and the number of addresses belonging to the wallet. If the data source supports aggregated queries, we can make a single request with a larger body.
-        </li>
-      
-    </ul>
-  <h3 id='testing' class='mt-6 mb-2 text-3xl font-bold text-gray-700'>Testing</h3>
-    <ul class='my-3 ml-6 space-y-1 list-disc'>
-      
-        <li>
-          Mock implementation of <code class='py-0.5 px-0.5 bg-gray-100'>LightLayer</code>.
-    <ul class='my-3 ml-6 space-y-1 list-disc'>
-      
-        <li>
-          We probably won’t get good value / work out of implementing a <code class='py-0.5 px-0.5 bg-gray-100'>LightLayer</code> that interacts with the local cluster. One could look into implementing the light-mode <code class='py-0.5 px-0.5 bg-gray-100'>NetworkLayer</code> in terms of the node-mode <code class='py-0.5 px-0.5 bg-gray-100'>NetworkLayer</code>, though.
-        </li>
-      
-    </ul>
-  
-        </li>
-      
-        <li>
-          Property tests for <code class='py-0.5 px-0.5 bg-gray-100'>applyBlocks</code> using <code class='py-0.5 px-0.5 bg-gray-100'>BlockSummary</code>
-    <ul class='my-3 ml-6 space-y-1 list-disc'>
-      
-        <li>
-          Implement a conversion function <code class='py-0.5 px-0.5 bg-gray-100'>summarize :: NonEmpty Block -&gt; BlockSummary Identity</code>
-        </li>
-      
-        <li>
-          Create a list of blocks, apply <code class='py-0.5 px-0.5 bg-gray-100'>applyBlocks</code> to both the list directly, and to the result of <code class='py-0.5 px-0.5 bg-gray-100'>summarize</code> — the results should be equal.
-        </li>
-      
-    </ul>
-  
-        </li>
-      
-    </ul>
-  <h2 id='external' class='inline-block mt-6 mb-4 text-4xl font-bold text-gray-700 border-b-2'>External</h2>
-    <ul class='my-3 ml-6 space-y-1 list-disc'>
-      
-        <li>
-          
-    <p class='mb-3'>
-      <a href='https://github.com/input-output-hk/cardano-launcher' class='text-blue-600 hover:underline' target='_blank' rel='noopener'>Cardano-launcher</a> will have to be modified to not launch the <code class='py-0.5 px-0.5 bg-gray-100'>cardano-node</code> process when the cardano-wallet is launched in light-mode.
-    </p>
-  
-        </li>
-      
-        <li>
-          
-    <p class='mb-3'>
-      Provision of the data source and of the transaction submission service is outside the scope of light-mode; we assume these services will be operated and paid for by someone. (Any light wallet assumes this.) In the MVP, we use <a href='http://blockfrost.io' class='text-blue-600 hover:underline' target='_blank' rel='noopener'>Blockfrost</a> for demonstration purposes.
-    </p>
-  
-        </li>
-      
-    </ul>
-  <h1 id='design-alternatives' class='pb-2 mb-2 text-5xl font-bold text-center'>Design alternatives</h1><h2 id='byron-wallets' class='inline-block mt-6 mb-4 text-4xl font-bold text-gray-700 border-b-2'>Byron wallets</h2>
-    <p class='mb-3'>
-      Byron wallets cannot be supported by the light-mode as described above, as it is based on an efficient query <code class='py-0.5 px-0.5 bg-gray-100'>Address -&gt; Transactions</code> which Byron wallets cannot take advantage of. For these wallets, alternative designs would have to be explored. Possibilities include:
+      We will be using the following shared wallet transaction endpoints:
     </p>
   
     <ul class='my-3 ml-6 space-y-1 list-disc'>
       
         <li>
-          A third-party byron <em>address discovery service</em> which takes a byron root XPub and sends back a list of addresses belonging to that wallet. However, that involve an additional reduction in trust.
+          <a href='https://input-output-hk.github.io/cardano-wallet/api/edge/#operation/constructSharedTransaction' class='text-blue-600 hover:underline' target='_blank' rel='noopener'><code class='py-0.5 px-0.5 bg-gray-100'>POST /shared-wallets/{walletId}/transactions-construct</code></a>
         </li>
       
         <li>
-          Existing Byron wallets can be <em>partially supported</em> in light-mode as long as the database of addresses generated/discovered so far is intact, as we can still retrieve the balance and all transactions. However, in light-mode, these wallets cannot be restored and cannot receive funds from newly generated addresses. Conversion to Shelly wallets is recommended.
+          <a href='https://input-output-hk.github.io/cardano-wallet/api/edge/#operation/signSharedTransaction' class='text-blue-600 hover:underline' target='_blank' rel='noopener'><code class='py-0.5 px-0.5 bg-gray-100'>POST /shared-wallets/{walletId}/transactions-sign</code></a>
+        </li>
+      
+        <li>
+          <a href='https://input-output-hk.github.io/cardano-wallet/api/edge/#operation/submitSharedTransaction' class='text-blue-600 hover:underline' target='_blank' rel='noopener'><code class='py-0.5 px-0.5 bg-gray-100'>POST /shared-wallets/{walletId}/transactions-submit</code></a>
         </li>
       
     </ul>
+  
+    <blockquote class='py-0.5 px-4 mb-3 italic border-l-4 bg-gray-50 text-gray-600 border-gray-400 quote'>
+      
+    <p class='mb-3'>
+      <span class='emoji' data-emoji='information_source' style='font-family: emoji'>ℹ️</span> Note that at any point during the process of constructing and signing a transaction, both “Cosigner<span class='font-bold bg-gray-100 py-0.5 px-2 rounded-lg emanote:inline-tag:0"' title='Tag' data-tag='0"'><a href='-/tags/0%22' title='Tag' class='text-blue-600 mavenLinkBold hover:underline'>#0"</a></span> and “Cosigner<span class='font-bold bg-gray-100 py-0.5 px-2 rounded-lg emanote:inline-tag:1"' title='Tag' data-tag='1"'><a href='-/tags/1%22' title='Tag' class='text-blue-600 mavenLinkBold hover:underline'>#1"</a></span> may decode the transaction from its CBOR representation using the <a href='https://input-output-hk.github.io/cardano-wallet/api/edge/#operation/decodeSharedTransaction' class='text-blue-600 hover:underline' target='_blank' rel='noopener'><code class='py-0.5 px-0.5 bg-gray-100'>POST /shared-wallets/{walletId}/transactions-decode</code></a> endpoint. Decoding the transaction makes it possible to see all details associated with the transaction, such as its <code class='py-0.5 px-0.5 bg-gray-100'>inputs</code>, <code class='py-0.5 px-0.5 bg-gray-100'>outputs</code>, <code class='py-0.5 px-0.5 bg-gray-100'>fees</code>, <code class='py-0.5 px-0.5 bg-gray-100'>deposits</code>, <code class='py-0.5 px-0.5 bg-gray-100'>metadata</code>, or <code class='py-0.5 px-0.5 bg-gray-100'>witness_count</code>.
+    </p>
+  
+    </blockquote>
+  <h4 id='cosigner0' class='mt-6 mb-2 text-2xl font-bold text-gray-700'>Cosigner<span class='font-bold bg-gray-100 py-0.5 px-2 rounded-lg emanote:inline-tag:0' title='Tag' data-tag='0'><a href='-/tags/0' title='Tag' class='text-blue-600 mavenLinkBold hover:underline'>#0</a></span></h4><h5 id='constructing' class='mt-6 mb-2 text-xl font-bold text-gray-700'>Constructing</h5>
+    <p class='mb-3'>
+      “Cosigner<span class='font-bold bg-gray-100 py-0.5 px-2 rounded-lg emanote:inline-tag:0"' title='Tag' data-tag='0"'><a href='-/tags/0%22' title='Tag' class='text-blue-600 mavenLinkBold hover:underline'>#0"</a></span> constructs a transaction sending 10₳ to an external address using the <a href='https://input-output-hk.github.io/cardano-wallet/api/edge/#operation/constructSharedTransaction' class='text-blue-600 hover:underline' target='_blank' rel='noopener'><code class='py-0.5 px-0.5 bg-gray-100'>POST /shared-wallets/{walletId}/transactions-construct</code></a> endpoint. In response, they receive a CBOR representation of the unsigned transaction.
+    </p>
+  <div class='py-0.5 mb-3 text-sm'><pre><code class='language-none'>$ curl -X POST http://localhost:8090/v2/shared-wallets/2a0ebd0cceab2161765badf2e389b26e0961de2f/transactions-construct \
+-d '{
+   "payments":[
+      {
+         "address":"addr_test1qq86pgrf7yyzp3gysxgqwt4ahegzslygvzh77eq2qwg66pedkztnw78s6gkt3eux35sllasu0x6grejewlrzaus8kekq7cp9ck",
+         "amount":{
+            "quantity":10000000,
+            "unit":"lovelace"
+         }
+      }
+   ]
+}' \
+-H "Content-Type: application/json" | jq .transaction
+
+"hKUAgYJYIP8Fwso5i5ovF8bJJuqZ4xOdvXC3mXJCN2O2vDIxQQOYAAGCogBYOQAPoKBp8QggxQSBkAcuvb5QKHyIYK/vZAoDka0HLbCXN3jw0iy454aNIf/2HHm0geZZd8Yu8ge2bAEaAJiWgKIAWDkwZ/CRYzhreLBgWdOZFReuuejo5RIhvNwLOk51lWQGg+0Ii6yF8VB/6jOUJdwEhwqE3Od9sHl14eQBGwAAAAJTcJsvAhoAArJRAxoBDHtNCAChAYGCAYKCAFgciTss5ZpPDifzTTlpVVbNSaZGERzre1z05XYVWYIAWBzHmpkAwWCRnUTfcTy0aZK2LLLM36Y/4gZMlJhm9fY="</code></pre></div><h5 id='signing' class='mt-6 mb-2 text-xl font-bold text-gray-700'>Signing</h5>
+    <p class='mb-3'>
+      “Cosigner<span class='font-bold bg-gray-100 py-0.5 px-2 rounded-lg emanote:inline-tag:0"' title='Tag' data-tag='0"'><a href='-/tags/0%22' title='Tag' class='text-blue-600 mavenLinkBold hover:underline'>#0"</a></span> signs the transaction with the <a href='https://input-output-hk.github.io/cardano-wallet/api/edge/#operation/signSharedTransaction' class='text-blue-600 hover:underline' target='_blank' rel='noopener'><code class='py-0.5 px-0.5 bg-gray-100'>POST /shared-wallets/{walletId}/transactions-sign</code></a> endpoint:
+    </p>
+  <div class='py-0.5 mb-3 text-sm'><pre><code class='language-none'>$ curl -X POST http://localhost:8090/v2/shared-wallets/2a0ebd0cceab2161765badf2e389b26e0961de2f/transactions-sign \
+-d '{
+   "passphrase":"Secure Passphrase",
+   "transaction":"hKUAgYJYIP8Fwso5i5ovF8bJJuqZ4xOdvXC3mXJCN2O2vDIxQQOYAAGCogBYOQAPoKBp8QggxQSBkAcuvb5QKHyIYK/vZAoDka0HLbCXN3jw0iy454aNIf/2HHm0geZZd8Yu8ge2bAEaAJiWgKIAWDkwZ/CRYzhreLBgWdOZFReuuejo5RIhvNwLOk51lWQGg+0Ii6yF8VB/6jOUJdwEhwqE3Od9sHl14eQBGwAAAAJTcJsvAhoAArJRAxoBDHzCCAChAYGCAYKCAFgciTss5ZpPDifzTTlpVVbNSaZGERzre1z05XYVWYIAWBzHmpkAwWCRnUTfcTy0aZK2LLLM36Y/4gZMlJhm9fY="
+}' \
+-H "Content-Type: application/json" | jq .transaction
+
+"hKUAgYJYIP8Fwso5i5ovF8bJJuqZ4xOdvXC3mXJCN2O2vDIxQQOYAAGCogBYOQAPoKBp8QggxQSBkAcuvb5QKHyIYK/vZAoDka0HLbCXN3jw0iy454aNIf/2HHm0geZZd8Yu8ge2bAEaAJiWgKIAWDkwZ/CRYzhreLBgWdOZFReuuejo5RIhvNwLOk51lWQGg+0Ii6yF8VB/6jOUJdwEhwqE3Od9sHl14eQBGwAAAAJTcJsvAhoAArJRAxoBDHzCCACiAIGCWCBOK9nJ9IxJt2gddyZ2fUHC4nre84+EbPQdL60OP0m4ZlhA11gVIBWSlDZl8NQyzV4v9U8AuX8n2UqJK9+Wt1sqnM7jAeYtbuyAN5weTaVV+NDVlpKVg3piowyC1eqZBeWWAQGBggGCggBYHIk7LOWaTw4n8005aVVWzUmmRhEc63tc9OV2FVmCAFgcx5qZAMFgkZ1E33E8tGmStiyyzN+mP+IGTJSYZvX2"</code></pre></div>
+    <p class='mb-3'>
+      and in response, receives a CBOR representation of the partially-signed transaction.
+    </p>
+  <h4 id='cosigner1' class='mt-6 mb-2 text-2xl font-bold text-gray-700'>Cosigner<span class='font-bold bg-gray-100 py-0.5 px-2 rounded-lg emanote:inline-tag:1' title='Tag' data-tag='1'><a href='-/tags/1' title='Tag' class='text-blue-600 mavenLinkBold hover:underline'>#1</a></span></h4>
+    <p class='mb-3'>
+      Now “Cosigner<span class='font-bold bg-gray-100 py-0.5 px-2 rounded-lg emanote:inline-tag:0"' title='Tag' data-tag='0"'><a href='-/tags/0%22' title='Tag' class='text-blue-600 mavenLinkBold hover:underline'>#0"</a></span> can hand over the CBOR of the partially-signed transaction to “Cosigner<span class='font-bold bg-gray-100 py-0.5 px-2 rounded-lg emanote:inline-tag:1"' title='Tag' data-tag='1"'><a href='-/tags/1%22' title='Tag' class='text-blue-600 mavenLinkBold hover:underline'>#1"</a></span>, who can then sign it on their own.
+    </p>
+  <h5 id='signing-1' class='mt-6 mb-2 text-xl font-bold text-gray-700'>Signing</h5>
+    <p class='mb-3'>
+      “Cosigner<span class='font-bold bg-gray-100 py-0.5 px-2 rounded-lg emanote:inline-tag:1"' title='Tag' data-tag='1"'><a href='-/tags/1%22' title='Tag' class='text-blue-600 mavenLinkBold hover:underline'>#1"</a></span> signs the transaction with <a href='https://input-output-hk.github.io/cardano-wallet/api/edge/#operation/signSharedTransaction' class='text-blue-600 hover:underline' target='_blank' rel='noopener'><code class='py-0.5 px-0.5 bg-gray-100'>POST /shared-wallets/{walletId}/transactions-sign</code></a> and gets a CBOR representation of the fully-signed transaction in response.
+    </p>
+  <div class='py-0.5 mb-3 text-sm'><pre><code class='language-none'>$ curl -X POST http://localhost:8090/v2/shared-wallets/5e46668c320bb4568dd25551e0c33b0539668aa8/transactions-sign \
+-d '{
+   "passphrase":"Secure Passphrase",
+   "transaction":"hKUAgYJYIP8Fwso5i5ovF8bJJuqZ4xOdvXC3mXJCN2O2vDIxQQOYAAGCogBYOQAPoKBp8QggxQSBkAcuvb5QKHyIYK/vZAoDka0HLbCXN3jw0iy454aNIf/2HHm0geZZd8Yu8ge2bAEaAJiWgKIAWDkwZ/CRYzhreLBgWdOZFReuuejo5RIhvNwLOk51lWQGg+0Ii6yF8VB/6jOUJdwEhwqE3Od9sHl14eQBGwAAAAJTcJsvAhoAArJRAxoBDHzCCACiAIGCWCBOK9nJ9IxJt2gddyZ2fUHC4nre84+EbPQdL60OP0m4ZlhA11gVIBWSlDZl8NQyzV4v9U8AuX8n2UqJK9+Wt1sqnM7jAeYtbuyAN5weTaVV+NDVlpKVg3piowyC1eqZBeWWAQGBggGCggBYHIk7LOWaTw4n8005aVVWzUmmRhEc63tc9OV2FVmCAFgcx5qZAMFgkZ1E33E8tGmStiyyzN+mP+IGTJSYZvX2"
+}' \
+-H "Content-Type: application/json" | jq .transaction
+
+"hKUAgYJYIP8Fwso5i5ovF8bJJuqZ4xOdvXC3mXJCN2O2vDIxQQOYAAGCogBYOQAPoKBp8QggxQSBkAcuvb5QKHyIYK/vZAoDka0HLbCXN3jw0iy454aNIf/2HHm0geZZd8Yu8ge2bAEaAJiWgKIAWDkwZ/CRYzhreLBgWdOZFReuuejo5RIhvNwLOk51lWQGg+0Ii6yF8VB/6jOUJdwEhwqE3Od9sHl14eQBGwAAAAJTcJsvAhoAArJRAxoBDHzCCACiAIKCWCBOK9nJ9IxJt2gddyZ2fUHC4nre84+EbPQdL60OP0m4ZlhA11gVIBWSlDZl8NQyzV4v9U8AuX8n2UqJK9+Wt1sqnM7jAeYtbuyAN5weTaVV+NDVlpKVg3piowyC1eqZBeWWAYJYIKRn9pUgwcx7GBoIBVJd+9Gh8I/YOwFFK7KyXUXSfrWnWEAqOkD9ljkgYwqwPpuxV+4iJw0hf4PPXA7o9XVxZ4wqT6vSnu1hvsyM4ezuCP/ahTMQ7RzZHTLa1BDx6YawGHQHAYGCAYKCAFgciTss5ZpPDifzTTlpVVbNSaZGERzre1z05XYVWYIAWBzHmpkAwWCRnUTfcTy0aZK2LLLM36Y/4gZMlJhm9fY="</code></pre></div><h5 id='submission' class='mt-6 mb-2 text-xl font-bold text-gray-700'>Submission</h5>
+    <p class='mb-3'>
+      The transaction is now fully-signed by both co-owners: “Cosigner<span class='font-bold bg-gray-100 py-0.5 px-2 rounded-lg emanote:inline-tag:0"' title='Tag' data-tag='0"'><a href='-/tags/0%22' title='Tag' class='text-blue-600 mavenLinkBold hover:underline'>#0"</a></span> and “Cosigner<span class='font-bold bg-gray-100 py-0.5 px-2 rounded-lg emanote:inline-tag:1"' title='Tag' data-tag='1"'><a href='-/tags/1%22' title='Tag' class='text-blue-600 mavenLinkBold hover:underline'>#1"</a></span>. At this point, either of them can submit it to the network using their respective wallets via the <a href='https://input-output-hk.github.io/cardano-wallet/api/edge/#operation/submitSharedTransaction' class='text-blue-600 hover:underline' target='_blank' rel='noopener'><code class='py-0.5 px-0.5 bg-gray-100'>POST /shared-wallets/{walletId}/transactions-submit</code></a> endpoint.
+    </p>
+  <div class='py-0.5 mb-3 text-sm'><pre><code class='language-none'>$ curl -X POST http://localhost:8090/v2/shared-wallets/5e46668c320bb4568dd25551e0c33b0539668aa8/transactions-submit \
+-d '{
+   "transaction":"hKUAgYJYIP8Fwso5i5ovF8bJJuqZ4xOdvXC3mXJCN2O2vDIxQQOYAAGCogBYOQAPoKBp8QggxQSBkAcuvb5QKHyIYK/vZAoDka0HLbCXN3jw0iy454aNIf/2HHm0geZZd8Yu8ge2bAEaAJiWgKIAWDkwZ/CRYzhreLBgWdOZFReuuejo5RIhvNwLOk51lWQGg+0Ii6yF8VB/6jOUJdwEhwqE3Od9sHl14eQBGwAAAAJTcJsvAhoAArJRAxoBDHzCCACiAIKCWCBOK9nJ9IxJt2gddyZ2fUHC4nre84+EbPQdL60OP0m4ZlhA11gVIBWSlDZl8NQyzV4v9U8AuX8n2UqJK9+Wt1sqnM7jAeYtbuyAN5weTaVV+NDVlpKVg3piowyC1eqZBeWWAYJYIKRn9pUgwcx7GBoIBVJd+9Gh8I/YOwFFK7KyXUXSfrWnWEAqOkD9ljkgYwqwPpuxV+4iJw0hf4PPXA7o9XVxZ4wqT6vSnu1hvsyM4ezuCP/ahTMQ7RzZHTLa1BDx6YawGHQHAYGCAYKCAFgciTss5ZpPDifzTTlpVVbNSaZGERzre1z05XYVWYIAWBzHmpkAwWCRnUTfcTy0aZK2LLLM36Y/4gZMlJhm9fY="
+}' \
+-H "Content-Type: application/json" | jq
+
+{
+  "id": "d443719bbd3e4301aa34791823b2b7821757e843509d29918006e5ca26ca368c"
+}</code></pre></div>
+    <p class='mb-3'>
+      The transaction has been submitted successfully. The <a href='https://input-output-hk.github.io/cardano-wallet/api/edge/#operation/submitSharedTransaction' class='text-blue-600 hover:underline' target='_blank' rel='noopener'><code class='py-0.5 px-0.5 bg-gray-100'>POST /shared-wallets/{walletId}/transactions-submit</code></a> endpoint provides a transaction identifier in its response.
+    </p>
+  
+    <p class='mb-3'>
+      We can use this transaction identifier to look up the transaction from either shared wallet using the <a href='https://input-output-hk.github.io/cardano-wallet/api/edge/#operation/listSharedTransactions' class='text-blue-600 hover:underline' target='_blank' rel='noopener'><code class='py-0.5 px-0.5 bg-gray-100'>GET /shared-wallets/{walletId}/transactions</code></a> or <a href='https://input-output-hk.github.io/cardano-wallet/api/edge/#operation/getSharedTransaction' class='text-blue-600 hover:underline' target='_blank' rel='noopener'><code class='py-0.5 px-0.5 bg-gray-100'>GET /shared-wallets/{walletId}/transactions/{transactionId}</code></a> endpoints.
+    </p>
+  
+    <p class='mb-3'>
+      “Cosigner<span class='font-bold bg-gray-100 py-0.5 px-2 rounded-lg emanote:inline-tag:0' title='Tag' data-tag='0'><a href='-/tags/0' title='Tag' class='text-blue-600 mavenLinkBold hover:underline'>#0</a></span> wallet”:
+    </p>
+  <div class='py-0.5 mb-3 text-sm'><pre><code class='language-none'>$ curl -X GET http://localhost:8090/v2/shared-wallets/2a0ebd0cceab2161765badf2e389b26e0961de2f/transactions/d443719bbd3e4301aa34791823b2b7821757e843509d29918006e5ca26ca368c | jq
+
+{
+  "amount": {
+    "quantity": 10176721,
+    "unit": "lovelace"
+  },
+  ...
+  "direction": "outgoing",
+  ...
+  "fee": {
+    "quantity": 176721,
+    "unit": "lovelace"
+  },
+...</code></pre></div>
+    <p class='mb-3'>
+      “Cosigner<span class='font-bold bg-gray-100 py-0.5 px-2 rounded-lg emanote:inline-tag:1' title='Tag' data-tag='1'><a href='-/tags/1' title='Tag' class='text-blue-600 mavenLinkBold hover:underline'>#1</a></span> wallet”:
+    </p>
+  <div class='py-0.5 mb-3 text-sm'><pre><code class='language-none'>$ curl -X GET http://localhost:8090/v2/shared-wallets/5e46668c320bb4568dd25551e0c33b0539668aa8/transactions/d443719bbd3e4301aa34791823b2b7821757e843509d29918006e5ca26ca368c | jq
+
+{
+  "amount": {
+    "quantity": 10176721,
+    "unit": "lovelace"
+  },
+  ...
+  "direction": "outgoing",
+  ...
+  "fee": {
+    "quantity": 176721,
+    "unit": "lovelace"
+  },
+...</code></pre></div><h3 id='delegation' class='mt-6 mb-2 text-3xl font-bold text-gray-700'>Delegation</h3>
+    <p class='mb-3'>
+      Delegation of shared wallets will be supported <em>soon</em>.
+    </p>
   
   <!-- What goes in this file will appear below the note body-->
 </article>
             <div class='flex flex-col lg:flex-row lg:space-x-2'>
               
               
+  <div class='flex-1 p-4 mt-8 bg-gray-100 rounded'>
+    <header class='mb-2 text-xl font-semibold text-gray-500'>Links to this page</header>
+    <ul class='space-y-1'>
+      
+        <li>
+          <a class='text-blue-600 mavenLinkBold hover:bg-blue-50' href='user-guide/common-use-cases/how-to-create-a-wallet'>
+            How to create a wallet
+          </a>
+          
+            <div class='mb-4 overflow-auto text-sm text-gray-500'>
+  
+    <div class='pl-2 mt-2 border-l-2 border-blue-200 hover:border-blue-500'>
+      <div><p>See more elaborate example on <a href='user-guide/common-use-cases/shared-wallets' class='text-gray-600 font-bold hover:bg-gray-50' data-wikilink-type='WikiLinkNormal'>Shared wallets</a>.</p></div>
+    </div>
+  
+</div>
+          
+        </li>
+      
+    </ul>
+  </div>
+
             </div>
             
   <section class='flex flex-wrap items-end justify-center my-4 space-x-2 space-y-2 font-mono text-sm'>
+    
+      <!-- FIXME: The use of -/tags is wrong, because we should use routeUrl using Ema's encoder 
+        Perhaps Emanote should inject tagMetas with urls.
+      -->
+      <a title='Tag' class='px-1 bg-gray-100 rounded hover:bg-gray-50 hover:text-blue-500' href='-/tags/0'>
+        <!-- DoNotFormat -->
+        #0
+        <!-- DoNotFormat -->
+      </a>
+    
+      <!-- FIXME: The use of -/tags is wrong, because we should use routeUrl using Ema's encoder 
+        Perhaps Emanote should inject tagMetas with urls.
+      -->
+      <a title='Tag' class='px-1 bg-gray-100 rounded hover:bg-gray-50 hover:text-blue-500' href='-/tags/1'>
+        <!-- DoNotFormat -->
+        #1
+        <!-- DoNotFormat -->
+      </a>
+    
+      <!-- FIXME: The use of -/tags is wrong, because we should use routeUrl using Ema's encoder 
+        Perhaps Emanote should inject tagMetas with urls.
+      -->
+      <a title='Tag' class='px-1 bg-gray-100 rounded hover:bg-gray-50 hover:text-blue-500' href='-/tags/0"'>
+        <!-- DoNotFormat -->
+        #0"
+        <!-- DoNotFormat -->
+      </a>
+    
+      <!-- FIXME: The use of -/tags is wrong, because we should use routeUrl using Ema's encoder 
+        Perhaps Emanote should inject tagMetas with urls.
+      -->
+      <a title='Tag' class='px-1 bg-gray-100 rounded hover:bg-gray-50 hover:text-blue-500' href='-/tags/1"'>
+        <!-- DoNotFormat -->
+        #1"
+        <!-- DoNotFormat -->
+      </a>
     
   </section>
 
