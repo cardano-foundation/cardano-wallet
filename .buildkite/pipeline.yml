@@ -34,7 +34,7 @@ steps:
 
   - label: 'Build bench and run unit tests (linux)'
     depends_on: nix
-    command: 
+    command:
       - 'nix build .#ci.tests.all'
       - 'nix build .#ci.benchmarks.all'
       - 'nix build -L .#ci.${linux}.tests.run.unit'
@@ -92,7 +92,7 @@ steps:
       system: ${linux}
 
   - label: 'Check HLS works'
-    depends_on: nix 
+    depends_on: nix
     command: |
         ln -sf hie-direnv.yaml hie.yaml
         nix develop --command bash -c "haskell-language-server lib/wallet/src/Cardano/Wallet.hs"
@@ -121,7 +121,7 @@ steps:
   - label: 'Run unit tests (macos)'
     depends_on: [macos-nix, trigger-macos]
     key: macos-build-tests
-    command: 'GC_DONT_GC=1 nix build --max-silent-time 0 -L .#ci.${macos}.tests.run.unit'
+    command: 'GC_DONT_GC=1 nix build --max-silent-time 0 --max-jobs 1 -L .#ci.${macos}.tests.run.unit'
     agents:
       system: ${macos}
 
@@ -130,7 +130,7 @@ steps:
     key: trigger-build-linux-package
     depends_on:
       - nix
-  
+
   - label: 'Build package (linux)'
     depends_on: [nix, trigger-build-linux-package]
     key: build-linux
@@ -138,7 +138,7 @@ steps:
     artifact_paths: [ "./result/linux/**" ]
     agents:
       system: ${linux}
- 
+
   - block: "Build windows artifacts"
     if: '(build.branch != "staging") && (build.branch != "trying")'
     key: trigger-build-windows-artifacts
@@ -160,17 +160,17 @@ steps:
     artifact_paths: [ "./result/windows-tests/**" ]
     agents:
       system: ${linux}
-  
+
   - block: 'Build package (macos)'
     if: '(build.branch != "staging") && (build.branch != "trying")'
     key: trigger-build-macos-artifacts
     depends_on:
       - macos-nix
-  
+
   - label: 'Build package (macos)'
     depends_on: [nix, trigger-build-macos-artifacts]
     key: build-macos
-    command: nix build --max-silent-time 0 -o result/macos-intel .#ci.artifacts.macos-intel.release
+    command: nix build --max-silent-time 0 --max-jobs 1 -o result/macos-intel .#ci.artifacts.macos-intel.release
     artifact_paths: [ "./result/macos-intel/**" ]
     agents:
       system: ${macos}
