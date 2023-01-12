@@ -161,7 +161,8 @@ import Cardano.Pool.Types
 import Cardano.Tx.Balance.Internal.CoinSelection
     ( SelectionOf (..), SelectionStrategy (..), selectionDelta )
 import Cardano.Wallet
-    ( ErrBalanceTx (..)
+    ( ErrAddCosignerKey (..)
+    , ErrBalanceTx (..)
     , ErrConstructSharedWallet (..)
     , ErrConstructTx (..)
     , ErrCreateMigrationPlan (..)
@@ -241,6 +242,7 @@ import Cardano.Wallet.Api.Types
     , ApiExternalInput (..)
     , ApiFee (..)
     , ApiForeignStakeKey (..)
+    , ApiIncompleteSharedWallet (..)
     , ApiMintBurnData (..)
     , ApiMintBurnOperation (..)
     , ApiMintData (..)
@@ -252,7 +254,6 @@ import Cardano.Wallet.Api.Types
     , ApiNullStakeKey (..)
     , ApiOurStakeKey (..)
     , ApiPaymentDestination (..)
-    , ApiPendingSharedWallet (..)
     , ApiPolicyId (..)
     , ApiPolicyKey (..)
     , ApiPoolSpecifier (..)
@@ -535,6 +536,8 @@ import Control.Monad.Error.Class
     ( throwError )
 import Control.Monad.IO.Class
     ( MonadIO, liftIO )
+import Control.Monad.Trans.Class
+    ( lift )
 import Control.Monad.Trans.Except
     ( ExceptT (..), except, mapExceptT, runExceptT, throwE, withExceptT )
 import Control.Monad.Trans.Maybe
@@ -548,7 +551,7 @@ import Data.ByteString
 import Data.Coerce
     ( coerce )
 import Data.Either
-    ( isLeft )
+    ( isLeft, isRight )
 import Data.Either.Extra
     ( eitherToMaybe )
 import Data.Function
@@ -982,7 +985,10 @@ postSharedWallet
         , HasWorkerRegistry s k ctx
         )
     => ctx
-    -> ((SomeMnemonic, Maybe SomeMnemonic) -> Passphrase "encryption" -> k 'RootK XPrv)
+    ->  ( (SomeMnemonic, Maybe SomeMnemonic)
+          -> Passphrase "encryption"
+          -> k 'RootK XPrv
+        )
     -> (XPub -> k 'AccountK XPub)
     -> ApiSharedWalletPostData
     -> Handler ApiSharedWallet
@@ -1004,18 +1010,28 @@ postSharedWalletFromRootXPrv
         , HasWorkerRegistry s k ctx
         )
     => ctx
-    -> ((SomeMnemonic, Maybe SomeMnemonic) -> Passphrase "encryption" -> k 'RootK XPrv)
+    ->  ( (SomeMnemonic, Maybe SomeMnemonic)
+          -> Passphrase "encryption"
+          -> k 'RootK XPrv
+        )
     -> ApiSharedWalletPostDataFromMnemonics
     -> Handler ApiSharedWallet
 postSharedWalletFromRootXPrv ctx generateKey body = do
-    case validateScriptTemplates accXPub scriptValidation pTemplate dTemplateM of
-        Left err ->
-            liftHandler $ throwE $ ErrConstructSharedWalletWrongScriptTemplate err
-        Right _ -> pure ()
+    validateScriptTemplates accXPub scriptValidation pTemplate dTemplateM
+        & \case
+            Left err -> liftHandler
+                $ throwE
+                $ ErrConstructSharedWalletWrongScriptTemplate err
+            Right _ -> pure ()
     ix' <- liftHandler $ withExceptT ErrConstructSharedWalletInvalidIndex $
         W.guardHardIndex ix
-    let state = mkSharedStateFromRootXPrv (rootXPrv, pwdP) ix' g pTemplate dTemplateM
-    void $ liftHandler $ createWalletWorker @_ @s @k ctx wid
+    let state = mkSharedStateFromRootXPrv
+            (rootXPrv, pwdP) ix' g pTemplate dTemplateM
+    let stateReadiness = state ^. #ready
+    if stateReadiness == Shared.Pending
+    then void $ liftHandler $ createNonRestoringWalletWorker @_ @s @k ctx wid
+        (\wrk -> W.createWallet @(WorkerCtx ctx) @_ @s @k wrk wid wName state)
+    else void $ liftHandler $ createWalletWorker @_ @s @k ctx wid
         (\wrk -> W.createWallet @(WorkerCtx ctx) @_ @s @k wrk wid wName state)
         idleWorker
     withWorkerCtx @_ @s @k ctx wid liftE liftE $ \wrk -> liftHandler $
@@ -1029,12 +1045,16 @@ postSharedWalletFromRootXPrv ctx generateKey body = do
     rootXPrv = generateKey (seed, secondFactor) pwdP
     g = defaultAddressPoolGap
     ix = getApiT (body ^. #accountIndex)
-    pTemplate = scriptTemplateFromSelf (getRawKey accXPub) $ body ^. #paymentScriptTemplate
-    dTemplateM = scriptTemplateFromSelf (getRawKey accXPub) <$> body ^. #delegationScriptTemplate
+    pTemplate = scriptTemplateFromSelf (getRawKey accXPub)
+        $ body ^. #paymentScriptTemplate
+    dTemplateM = scriptTemplateFromSelf (getRawKey accXPub)
+        <$> body ^. #delegationScriptTemplate
     wName = getApiT (body ^. #name)
-    accXPub = publicKey $ deriveAccountPrivateKey pwdP rootXPrv (Index $ getDerivationIndex ix)
+    accXPub = publicKey
+        $ deriveAccountPrivateKey pwdP rootXPrv (Index $ getDerivationIndex ix)
     wid = WalletId $ toSharedWalletId accXPub pTemplate dTemplateM
-    scriptValidation = maybe RecommendedValidation getApiT (body ^. #scriptValidation)
+    scriptValidation =
+        maybe RecommendedValidation getApiT (body ^. #scriptValidation)
 
 postSharedWalletFromAccountXPub
     :: forall ctx s k n.
@@ -1051,27 +1071,41 @@ postSharedWalletFromAccountXPub
     -> ApiSharedWalletPostDataFromAccountPubX
     -> Handler ApiSharedWallet
 postSharedWalletFromAccountXPub ctx liftKey body = do
-    case validateScriptTemplates (liftKey accXPub) scriptValidation pTemplate dTemplateM of
-        Left err ->
-            liftHandler $ throwE $ ErrConstructSharedWalletWrongScriptTemplate err
-        Right _ -> pure ()
+    validateScriptTemplates
+        (liftKey accXPub)
+        scriptValidation
+        pTemplate
+        dTemplateM
+        & \case
+            Left err -> liftHandler
+                $ throwE
+                $ ErrConstructSharedWalletWrongScriptTemplate err
+            Right _ -> pure ()
     acctIx <- liftHandler $ withExceptT ErrConstructSharedWalletInvalidIndex $
         W.guardHardIndex ix
-    let state = mkSharedStateFromAccountXPub (liftKey accXPub) acctIx g pTemplate dTemplateM
-    void $ liftHandler $ createWalletWorker @_ @s @k ctx wid
+    let state = mkSharedStateFromAccountXPub
+            (liftKey accXPub) acctIx g pTemplate dTemplateM
+    let stateReadiness = state ^. #ready
+    if stateReadiness == Shared.Pending
+    then void $ liftHandler $ createNonRestoringWalletWorker @_ @s @k ctx wid
+        (\wrk -> W.createWallet @(WorkerCtx ctx) @_ @s @k wrk wid wName state)
+    else void $ liftHandler $ createWalletWorker @_ @s @k ctx wid
         (\wrk -> W.createWallet @(WorkerCtx ctx) @_ @s @k wrk wid wName state)
         idleWorker
     fst <$> getWallet ctx (mkSharedWallet @_ @s @k) (ApiT wid)
   where
     g = defaultAddressPoolGap
     ix = getApiT (body ^. #accountIndex)
-    pTemplate = scriptTemplateFromSelf accXPub $ body ^. #paymentScriptTemplate
-    dTemplateM = scriptTemplateFromSelf accXPub <$> body ^. #delegationScriptTemplate
+    pTemplate = scriptTemplateFromSelf accXPub
+        $ body ^. #paymentScriptTemplate
+    dTemplateM = scriptTemplateFromSelf accXPub
+        <$> body ^. #delegationScriptTemplate
     wName = getApiT (body ^. #name)
     (ApiAccountSharedPublicKey accXPubApiT) =  body ^. #accountPublicKey
     accXPub = getApiT accXPubApiT
     wid = WalletId $ toSharedWalletId (liftKey accXPub) pTemplate dTemplateM
-    scriptValidation = maybe RecommendedValidation getApiT (body ^. #scriptValidation)
+    scriptValidation =
+        maybe RecommendedValidation getApiT (body ^. #scriptValidation)
 
 scriptTemplateFromSelf :: XPub -> ApiScriptTemplateEntry -> ScriptTemplate
 scriptTemplateFromSelf xpub (ApiScriptTemplateEntry cosigners' template') =
@@ -1091,13 +1125,14 @@ mkSharedWallet
     => MkApiWallet ctx s ApiSharedWallet
 mkSharedWallet ctx wid cp meta delegation pending progress =
     case Shared.ready st of
-    Shared.Pending -> pure $ ApiSharedWallet $ Left $ ApiPendingSharedWallet
+    Shared.Pending -> pure $ ApiSharedWallet $ Left $ ApiIncompleteSharedWallet
         { id = ApiT wid
         , name = ApiT $ meta ^. #name
         , accountIndex = ApiT $ DerivationIndex $ getIndex accIx
         , addressPoolGap = ApiT $ Shared.poolGap st
         , paymentScriptTemplate = ApiScriptTemplate $ Shared.paymentTemplate st
-        , delegationScriptTemplate = ApiScriptTemplate <$> Shared.delegationTemplate st
+        , delegationScriptTemplate =
+            ApiScriptTemplate <$> Shared.delegationTemplate st
         }
     Shared.Active _ -> do
         reward <- withWorkerCtx @_ @s @k ctx wid liftE liftE $ \wrk -> do
@@ -1121,8 +1156,10 @@ mkSharedWallet ctx wid cp meta delegation pending progress =
             , addressPoolGap = ApiT $ Shared.poolGap st
             , passphrase = ApiWalletPassphraseInfo
                 <$> fmap (view #lastUpdatedAt) (meta ^. #passphraseInfo)
-            , paymentScriptTemplate = ApiScriptTemplate $ Shared.paymentTemplate st
-            , delegationScriptTemplate = ApiScriptTemplate <$> Shared.delegationTemplate st
+            , paymentScriptTemplate = ApiScriptTemplate
+                $ Shared.paymentTemplate st
+            , delegationScriptTemplate = ApiScriptTemplate
+                <$> Shared.delegationTemplate st
             , delegation = apiDelegation
             , balance = ApiWalletBalance
                 { available = Coin.toQuantity (available ^. #coin)
@@ -1156,13 +1193,56 @@ patchSharedWallet
     -> ApiSharedWalletPatchData
     -> Handler ApiSharedWallet
 patchSharedWallet ctx liftKey cred (ApiT wid) body = do
+    wal <- fst <$> getWallet ctx (mkSharedWallet @_ @s @k) (ApiT wid)
     withWorkerCtx ctx wid liftE liftE $ \wrk -> do
         liftHandler $ W.updateCosigner wrk wid (liftKey accXPub) cosigner cred
+    wal' <- fst <$> getWallet ctx (mkSharedWallet @_ @s @k) (ApiT wid)
+    -- we switch on restoring only after incomplete -> active transition
+    -- active -> active when transition of updating cosigner keys takes place
+    -- should not trigger this
+
+    when (isRight (wal' ^. #wallet) && isLeft (wal ^. #wallet)) $ do
+        (state, prvKeyM, meta) <- withWorkerCtx ctx wid liftE liftE
+            $ \wrk -> liftHandler $ do
+                let db = wrk ^. W.dbLayer @IO @s @k
+                db & \W.DBLayer
+                    { atomically
+                    , readCheckpoint
+                    , readPrivateKey
+                    , readWalletMeta
+                    } -> do
+                        cp <- mapExceptT atomically
+                            $ withExceptT ErrAddCosignerKeyNoSuchWallet
+                            $ W.withNoSuchWallet wid
+                            $ readCheckpoint wid
+                        let state = getState cp
+                        --could be for account and root key wallets
+                        prvKeyM <-
+                            mapExceptT atomically $ lift $ readPrivateKey wid
+                        metaM <-
+                            mapExceptT atomically $ lift $ readWalletMeta wid
+                        when (isNothing metaM) $
+                            throwE ErrAddCosignerKeyWalletMetadataNotFound
+                        pure (state, prvKeyM, fst $ fromJust metaM)
+
+        void $ deleteWallet ctx (ApiT wid)
+        let wName = meta ^. #name
+        void $ liftHandler $ createWalletWorker @_ @s @k ctx wid
+            (\wrk ->
+                W.createWallet @(WorkerCtx ctx) @_ @s @k wrk wid wName state)
+            idleWorker
+        withWorkerCtx @_ @s @k ctx wid liftE liftE $ \wrk ->
+            liftHandler $ W.updateWallet wrk wid (const meta)
+        when (isJust prvKeyM)
+            $ withWorkerCtx @_ @s @k ctx wid liftE liftE $ \wrk -> liftHandler
+            $ W.attachPrivateKeyFromPwdHashShelley
+                @_ @s @k wrk wid (fromJust prvKeyM)
+
     fst <$> getWallet ctx (mkSharedWallet @_ @s @k) (ApiT wid)
   where
-      cosigner = getApiT (body ^. #cosigner)
-      (ApiAccountSharedPublicKey accXPubApiT) = (body ^. #accountPublicKey)
-      accXPub = getApiT accXPubApiT
+    cosigner = getApiT (body ^. #cosigner)
+    (ApiAccountSharedPublicKey accXPubApiT) = (body ^. #accountPublicKey)
+    accXPub = getApiT accXPubApiT
 
 --------------------- Legacy
 
@@ -1298,7 +1378,7 @@ postRandomWalletFromXPrv ctx body = do
         (\wrk -> W.createWallet @(WorkerCtx ctx) @_ @s @k wrk wid wName s)
         idleWorker
     withWorkerCtx ctx wid liftE liftE $ \wrk -> liftHandler $
-        W.attachPrivateKeyFromPwdHash wrk wid (byronKey, pwd)
+        W.attachPrivateKeyFromPwdHashByron wrk wid (byronKey, pwd)
     fst <$> getWallet ctx mkLegacyWallet (ApiT wid)
   where
     wName = getApiT (body ^. #name)
@@ -2735,7 +2815,7 @@ constructSharedTransaction
 
         case Shared.ready (getState cp) of
             Shared.Pending ->
-                liftHandler $ throwE ErrConstructTxSharedWalletPending
+                liftHandler $ throwE ErrConstructTxSharedWalletIncomplete
             Shared.Active _ -> do
                 pp <- liftIO $ NW.currentProtocolParameters (wrk ^. networkLayer)
                 era <- liftIO $ NW.currentNodeEra (wrk ^. networkLayer)
@@ -3107,7 +3187,7 @@ submitTransaction ctx apiw@(ApiT wid) apitx = do
         $ ErrSubmitTransactionPartiallySignedOrNoSignedTx
             witsRequiredForInputs totalNumberOfWits
 
-    _ <- withWorkerCtx ctx wid liftE liftE $ \wrk -> do
+    void $ withWorkerCtx ctx wid liftE liftE $ \wrk -> do
         (k, _) <- liftHandler $ W.readPolicyPublicKey @_ @s @k @n wrk wid
         let keyhash = KeyHash Policy (xpubToBytes k)
         let (tx,_,_,_,_,_) = decodeTx tl era (ShelleyWalletCtx keyhash) sealedTx
@@ -3215,7 +3295,7 @@ submitSharedTransaction ctx apiw@(ApiT wid) apitx = do
     let ourOuts = getOurOuts apiDecoded
     let ourInps = getOurInps apiDecoded
 
-    _ <- withWorkerCtx ctx wid liftE liftE $ \wrk -> do
+    void $ withWorkerCtx ctx wid liftE liftE $ \wrk -> do
 
         (cp, _, _) <- liftHandler $ withExceptT ErrSubmitTransactionNoSuchWallet $
             W.readWallet @_ @s @k wrk wid
@@ -4535,6 +4615,38 @@ createWalletWorker ctx wid createWallet coworker =
   where
     before ctx' _ = void $ unsafeRunExceptT $ createWallet ctx'
     re = ctx ^. workerRegistry @s @k
+
+createNonRestoringWalletWorker
+    :: forall ctx s k ktype.
+        ( ctx ~ ApiLayer s k ktype
+        )
+    => ctx
+        -- ^ Surrounding API context
+    -> WalletId
+        -- ^ Wallet Id
+    -> (WorkerCtx ctx -> ExceptT ErrWalletAlreadyExists IO WalletId)
+        -- ^ Create action
+    -> ExceptT ErrCreateWallet IO WalletId
+createNonRestoringWalletWorker ctx wid createWallet =
+    liftIO (Registry.lookup re wid) >>= \case
+        Just _ ->
+            throwE $ ErrCreateWalletAlreadyExists $ ErrWalletAlreadyExists wid
+        Nothing ->
+            liftIO registerIdleWorker >>= \case
+                Nothing -> throwE ErrCreateWalletFailedToCreateWorker
+                Just _ -> pure wid
+  where
+    before ctx' _ = void $ unsafeRunExceptT $ createWallet ctx'
+    re = ctx ^. workerRegistry @s @k
+    df = ctx ^. dbFactory
+    config = MkWorker
+        { workerAcquire = withDatabase df wid
+        , workerBefore = before
+        , workerAfter = defaultWorkerAfter
+        , workerMain = idleWorker
+        }
+    registerIdleWorker =
+        fmap (const ctx) <$> Registry.register @_ @ctx re ctx wid config
 
 -- | Create a worker for an existing wallet, register it, then start the worker
 -- thread. This is used by 'startWalletWorker' and 'createWalletWorker'.

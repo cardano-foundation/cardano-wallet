@@ -14,6 +14,7 @@ module Cardano.Wallet.Registry
     , lookup
     , register
     , unregister
+    , delete
 
       -- * Worker
     , Worker

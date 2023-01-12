@@ -1,827 +1,827 @@
 {
     "samples": [
         {
-            "code": "key_not_found_for_address",
-            "message": "\\V\u0002𱇌l􌸕Bcz}􀀒􂽩W􃥽􈕊𮘻􏂓"
-        },
-        {
-            "code": "cannot_cover_fee",
-            "message": "H:S􈛡𗫸󹮯\u001a𡫮90\u001dn"
-        },
-        {
-            "code": "redeemer_target_not_found",
-            "message": "N󽻜Su,\u001c󴚆\u001c𓇢.𮂿󵅥\"\u0014〷\u001b𐧀I􏅣z0󴍫᪗h􊐇^G"
-        },
-        {
-            "code": "hardened_derivation_required",
-            "message": "𠲔K5L7V"
-        },
-        {
-            "code": "soft_derivation_required",
-            "message": "JK7q琛\"7󱒰ꩫYc􄅌l𭙔\u001cJ駩B|󰍻⿵\r"
-        },
-        {
-            "code": "rejected_by_core_node",
-            "message": "<aUUK\u001c\u001d}$F4o\u0002螎"
-        },
-        {
-            "code": "wallet_already_exists",
-            "message": ";8𨁬􄖕"
-        },
-        {
-            "code": "rejected_by_core_node",
-            "message": "k\u0011?79#$J󾲯𤮉\u0016\u001b4\r􎏤A\tT\""
-        },
-        {
-            "code": "not_implemented",
-            "message": "%𨝿uIp􃧜\u001bS溛6]\u0011S󰸆"
-        },
-        {
-            "code": "asset_not_present",
-            "message": "󶎰T\u001a"
-        },
-        {
-            "code": "existing_key_witnesses",
-            "message": "𩐶\u0011\u0013􂤠l_"
-        },
-        {
-            "code": "no_such_pool",
-            "message": " 󰉣8kx\u00036𠗅"
-        },
-        {
-            "code": "wallet_already_exists",
-            "message": "s\nKm2􍳏􃳩󼟄7橃\u0004$XE𰫿\u000e]`@U-\u0003!䍐"
-        },
-        {
-            "code": "rejected_by_core_node",
-            "message": ""
-        },
-        {
-            "code": "hardened_derivation_required",
-            "message": ""
-        },
-        {
-            "code": "shared_wallet_not_pending",
-            "message": "B8􀶤𠌹]\u0001𭝕𠩰T-~\u000cN"
-        },
-        {
-            "code": "already_withdrawing",
-            "message": "𨉡𨭣|6𣆈`\u001dO\n􍓟.F\u001ah􃛫0\u001d\u000b\\Yq/\u001d+|\u000e𢶻󺐊"
-        },
-        {
-            "code": "not_delegating_to",
-            "message": "Dq9v"
-        },
-        {
-            "code": "not_synced",
-            "message": "󲧁y(􇪫\u001f𦧇T\u000b􋂢"
-        },
-        {
-            "code": "bad_request",
-            "message": "󾽡\u0019`\u0008M鹉\u00089z\t󼤊t󼾌x𬸞"
-        },
-        {
-            "code": "not_found",
-            "message": "Le\u0000^m󼰅󽏟9+W釄Hẩ􋰴p:8Cv$󰿟e"
-        },
-        {
-            "code": "not_implemented",
-            "message": "\u001a-𘢐6Q 1𰻋yC󱦇\u0003]\u0001Siq~󻩵\u000c󰧹2xv_``1"
-        },
-        {
-            "code": "balance_tx_internal_error",
-            "message": "\u000f𠘲q<󹵸K\u001e𧧒5^\u0005R\u0019絾"
-        },
-        {
-            "code": "unable_to_determine_current_epoch",
-            "message": "b\\"
-        },
-        {
-            "code": "balance_tx_era_not_supported",
-            "message": "𥤼IS\u000f􂗩\u0018\u0017𪵽W\u000e&󵃳]kc𭱒􉋅"
-        },
-        {
-            "code": "wrong_mnemonic",
-            "message": "\u0017𤴭󴽁D;\u001eS􅜄𡡿󴲬Mn\u0005z\tq\u0005\u000c􍾵󶙖F􇜎\n\u001f"
-        },
-        {
-            "code": "balance_tx_inline_scripts_not_supported_in_alonzo",
-            "message": "x\u0003􌣶\u0001%𝄿󷭷){𭕩􆪱Rgz$\u000fW􊒅2\u0000\u0002:󴳓P"
-        },
-        {
-            "code": "balance_tx_conflicting_networks",
-            "message": "r󽂟𓏆霐O8wp􇆺C`j􍠪𧲻\u0003pR㪅@"
-        },
-        {
-            "code": "network_query_failed",
-            "message": "㱷􁍤w_,𤇏\u001b_>O􌢾xf\u000c"
-        },
-        {
-            "code": "not_acceptable",
-            "message": "bRz3P\u0004A(v:f"
-        },
-        {
-            "code": "mint_or_burn_asset_quantity_out_of_bounds",
-            "message": "}󾥱I\u001cPHऍ_􊝅0\u001e"
-        },
-        {
-            "code": "balance_tx_existing_collateral",
-            "message": "\u0005􋝳\u000f\u000e%\u0011y3\u0013l꿂𑍠\u0008cW.+x୯!\u0004I\u001dU"
-        },
-        {
-            "code": "soft_derivation_required",
-            "message": "\u000f\u0001r\u001e>R`S"
-        },
-        {
-            "code": "bad_request",
-            "message": "DR4"
-        },
-        {
-            "code": "balance_tx_era_not_supported",
-            "message": "7aN\u0000I)SD\u001b5zXZ􃒂􋤍l󵊷9󷠋kB󱝻PW􉇸"
-        },
-        {
-            "code": "non_null_rewards",
-            "message": "JM􄩄H􇬼M⎺\u000eo;oI합q𦐇@\u0002sTaV\u001fy?n\u0018"
-        },
-        {
-            "code": "balance_tx_inline_scripts_not_supported_in_alonzo",
-            "message": "q俏􄲱\u0015T"
-        },
-        {
-            "code": "rejected_by_core_node",
-            "message": "𭱋\u000bZ𣿎A\u0019L𝣈\u0019𨷊𧤫u]𦘇\u0008􎳡Ir󻚫\u001a\r𣅒"
-        },
-        {
-            "code": "mempool_is_full",
-            "message": ",k\u0015Oy=7\u0004㬂uI+\ty\u0001RsVF\u001f{I(;󻫵j"
-        },
-        {
-            "code": "pool_already_joined",
-            "message": "22\t\u0010\u001dk\u0007󼅔R\u0010\u001eW/槚􊰻􆸚Q𢉀\u0016B􀁖("
-        },
-        {
-            "code": "inputs_depleted",
-            "message": "P逡jO'𥶞󰵫=7I'NKg\u0008"
-        },
-        {
-            "code": "no_such_transaction",
-            "message": "K\u001b2𭌉􃯌r\u0018k🁺_zE"
-        },
-        {
-            "code": "bad_request",
-            "message": "?躒̔ᶋ\\p#󳲿f*)\u000f"
-        },
-        {
-            "code": "unable_to_assign_input_output",
-            "message": "쨊Z_A\u0013@"
-        },
-        {
-            "code": "hardened_derivation_required",
-            "message": "𝀁"
-        },
-        {
-            "code": "inputs_depleted",
-            "message": "2k\u001a𑐾\u0017\u0015W쟉bf_\u000b$y"
-        },
-        {
-            "code": "not_delegating_to",
-            "message": "􇞫D`󽁎Q~􇇗7A\nᚂ󿜤i~󽃢4󺍦@9;𦨩\u0017󻐭􁃲A{"
-        },
-        {
-            "code": "balance_tx_internal_error",
-            "message": "Z/j3苆\u001e_􁢌x`<\u000533\u0017\u001b7_"
-        },
-        {
-            "code": "balance_tx_existing_total_collateral",
-            "message": "r\u0008󵔈󽫭7\u001f󳗿Y8<TZ3\u0015\u000ey󲤛\u000c\u0014J"
-        },
-        {
-            "code": "start_time_later_than_end_time",
-            "message": "AD𬧷ㆱ>\u000e󴽺𗇖󳿟𧯹Y1"
-        },
-        {
-            "code": "not_implemented",
-            "message": "\u0008~~u\u0014Wk\u0013\u0010\u0007__t󿀃Q􇴵\\󸤃\u0016矔"
-        },
-        {
-            "code": "key_not_found_for_address",
-            "message": "7m􉸪SQ󵔳mcᘏ1Lg􍇐-\u0018\u0015ꔢPB0\u001a\u0006\u0015UJ諫G"
-        },
-        {
-            "code": "balance_tx_existing_key_witnesses",
-            "message": "@E\u001c;􄊫傰"
-        },
-        {
-            "code": "not_implemented",
-            "message": "\u0019\tc+艅𰓫󶧹􈓲\u0015ZU"
-        },
-        {
-            "code": "no_such_transaction",
-            "message": "O\u0007뛆.b𰔌J󰫾=\u0014\r\u0010."
-        },
-        {
-            "code": "unsupported_media_type",
-            "message": "Nj\u001e"
-        },
-        {
-            "code": "output_token_bundle_size_exceeds_limit",
-            "message": "閡W􆜴羜󲻺jlq\u0001z"
-        },
-        {
-            "code": "past_horizon",
-            "message": "\u0006v"
-        },
-        {
-            "code": "not_enough_money",
-            "message": "􆛽𨲋\u0012^𞲔󰘤-!旒𘜱J\u0008MX󸟝>\u0017g\u001b㨻"
-        },
-        {
-            "code": "network_misconfigured",
-            "message": "𫘮;9󴤚B󾇕*挥􊓈6􊧴5􌻱\u001ea\u001f'𐡾)󲂚󸒊1􀵱R"
-        },
-        {
-            "code": "not_enough_money",
-            "message": "R#롶YJ󸿎\u0001\u00110rm%U⠒W:A􊿶ꡊ\r\u001c寣\u000e"
-        },
-        {
-            "code": "non_null_rewards",
-            "message": "i"
-        },
-        {
-            "code": "created_wrong_policy_script_template",
-            "message": "𰨟rfQ\u001b󳳟/o=􈁃\u0015𝔀7FG\u0019\u0019bX󸐹;\nS\u000c~'B"
-        },
-        {
-            "code": "network_query_failed",
-            "message": "󴁕@\u0018f [ᓴ􉠠7KY󲃁󿆑06as㎂"
-        },
-        {
-            "code": "translation_error",
-            "message": ",\u0008a'\u0006\nj􆝾鬅Q\u001e\nOXH"
-        },
-        {
-            "code": "shared_wallet_no_such_cosigner",
-            "message": "\u00058I@JN"
-        },
-        {
-            "code": "invalid_wallet_type",
-            "message": "N쌊3\u000f\u0018\u0008\u0004"
-        },
-        {
-            "code": "balance_tx_conflicting_networks",
-            "message": "?U󱏗𨵙㉪\\B\u0010|fj􉊚&􇌼𧂨\u000fN걣.𨲩V%y9gSl"
-        },
-        {
-            "code": "unresolved_inputs",
-            "message": "晰\u001a􊋘"
-        },
-        {
-            "code": "shared_wallet_key_already_exists",
-            "message": "\u0013𱂃􍄕\t\u000f\u0014𩐽\u0015\u000b5쑫[n𒉻\u00030k𗲤M3󾾭\u000cV巕\u001fB􍜴"
-        },
-        {
-            "code": "shared_wallet_script_template_invalid",
-            "message": "$𒐢e𭽪󺵹\u000e\u0016󰵞6\t𦒀ぜ\u0002O0𩾨𝢿a\u0008󶛑\u000eq\u00085WF󷻻"
-        },
-        {
-            "code": "soft_derivation_required",
-            "message": ";"
-        },
-        {
-            "code": "balance_tx_conflicting_networks",
-            "message": "출􉬂ᘩ'jQi󱁷2𬜣5n5\u0019k1󲊽\u0016􄡣󾎐"
-        },
-        {
-            "code": "utxo_too_small",
-            "info": {
-                "tx_output_index": 2567,
-                "tx_output_lovelace_required_minimum": {
-                    "quantity": 191,
-                    "unit": "lovelace"
-                },
-                "tx_output_lovelace_specified": {
-                    "quantity": 29,
-                    "unit": "lovelace"
-                }
-            },
-            "message": "k\u001d=0(i\u000f]zFÎ􁶊#x|g>,J-"
-        },
-        {
-            "code": "unresolved_inputs",
-            "message": "j𭎎\u0000\u001a_􈭹>􉫪Peb$􍂚&%\u0000q"
-        },
-        {
-            "code": "foreign_transaction",
-            "message": "?𦙅]\u001d|𨜖k󲩚l\rF&󸏾|\u0015󶒩"
-        },
-        {
-            "code": "network_misconfigured",
-            "message": "잞4~􃿶oD\u0015v\t\u001c󿽁𘁙C\u0007𭹬OW)"
-        },
-        {
-            "code": "created_multidelegation_transaction",
-            "message": "^􍀱􋹫\u0000\u0004󿠍_*\u001aO􏏰\u000f\u0006"
-        },
-        {
-            "code": "shared_wallet_not_pending",
-            "message": "Cn1\u0018Jq"
-        },
-        {
-            "code": "no_such_transaction",
-            "message": "3𪭟󿴽\u001b󶕀y⸄􎂔󼨖\u000e󱶪t{6]􉱁Y\u0007󵑥2\\润<􊯯"
-        },
-        {
-            "code": "invalid_wallet_type",
-            "message": "󴻤q\u0001Z(󾓫⓼𫥸𭾩"
-        },
-        {
-            "code": "transaction_is_too_big",
-            "message": "\u001c$󳤶_W1廓("
-        },
-        {
-            "code": "wrong_encryption_passphrase",
-            "message": "j|C\u0019\u0001\u0000𭣳Jt@𩔾\u001b]𑆖􀻌2\u000e󽰥"
-        },
-        {
-            "code": "unable_to_determine_current_epoch",
-            "message": "?􅔙󳭓,悉^\u0014E􈙞𠦶HMdIdz𗘍|𘕪쇆A"
-        },
-        {
-            "code": "balance_tx_internal_error",
-            "message": "K\u0010\u0014􏣽跌\u000bH"
-        },
-        {
-            "code": "unsupported_media_type",
-            "message": "𤝷j󴀻菘󼇉𥊨烻iBd𗭬𥿜'hF?"
-        },
-        {
-            "code": "soft_derivation_required",
-            "message": ")3Y\u0003L*湛\u00084\u0002𦡋R㷥􋀟"
-        },
-        {
-            "code": "unresolved_inputs",
-            "message": "\u000b\u0000\u001b\u000c𥅮c%􃻢\u0016䯢l!敖\"\u0016Vꩄ𠃟\u0007󶣋|𫄄8v"
-        },
-        {
-            "code": "pool_already_joined",
-            "message": "1􀟙XF\u001e6󷨁３D\u0015􌧨ir􍷞🛈y{\u0014請\u0004Y0\u000f+󳺽=I\n"
-        },
-        {
-            "code": "unable_to_assign_input_output",
-            "message": "IUh\u0007􃻄:"
-        },
-        {
-            "code": "shared_wallet_no_such_cosigner",
-            "message": "\u0002#EY\u000cG%\u000e\u0016A^D\u0017菡tX-I"
-        },
-        {
-            "code": "translation_error",
-            "message": "􆝇\u0017h$𬴔9\u0002Y"
-        },
-        {
-            "code": "malformed_tx_payload",
-            "message": "$i?󸖾 n\u001d&\u0011=Ὣ@)󳡎\u0001닚"
-        },
-        {
-            "code": "no_such_wallet",
-            "message": "\u0008"
-        },
-        {
-            "code": "invalid_coin_selection",
-            "message": ">WC(󾝵0张m\u0006f`q\u0005􇯑73A10Do󲙪z"
-        },
-        {
-            "code": "wrong_encryption_passphrase",
-            "message": "\u000e~\u0017f\u001b2"
-        },
-        {
-            "code": "balance_tx_inline_datums_not_supported_in_alonzo",
-            "message": "%;􇿉t"
-        },
-        {
-            "code": "invalid_coin_selection",
-            "message": "󲰗\u000cP\n󷵋-\u001aq\u00103\u0006𤪲o퍂\u0017\u0015Uz󾖲Yb#\u000e\u0001\n"
-        },
-        {
-            "code": "balance_tx_underestimated_fee",
-            "message": "5]6Q6W\u0003Qh󻻖읡W{\u001b􃆪󹻵#\u001cR;"
-        },
-        {
-            "code": "balance_tx_max_size_limit_exceeded",
-            "message": "j􆡥\n\u000cZ\u000e6𖭳閽N2\u0013\u0006𮕻M𥴞T󽔶PN䢟\u0005\u00111\u0005"
-        },
-        {
-            "code": "unresolved_inputs",
-            "message": "\u000f\u0004T􇥕󱀊󱮊􍒎󹈡􁷼󰸂\u000eRXW\u0019I/$\u001b_GH]\u000eH"
-        },
-        {
             "code": "balance_tx_existing_return_collateral",
-            "message": "(#z<{"
+            "message": "R훌􊼘􀁻,#\u0004"
         },
         {
-            "code": "mint_or_burn_asset_quantity_out_of_bounds",
-            "message": "\u0018n󺕔𫼯\u0004V愶6"
-        },
-        {
-            "code": "created_multidelegation_transaction",
-            "message": "7뭼0\u001e􎦁v>A}󺠉<q3N'w3@1"
-        },
-        {
-            "code": "redeemer_target_not_found",
-            "message": "V咽)!{ⰹ8P伛#9\u0019(P7B𮔆B1\u000c\u0011*"
-        },
-        {
-            "code": "created_multidelegation_transaction",
-            "message": ""
-        },
-        {
-            "code": "foreign_transaction",
-            "message": "4"
-        },
-        {
-            "code": "balance_tx_existing_collateral",
-            "message": "y\u0000NWc#󶒳]烣󾧕󶊿\u000f&𰣶$c󱔙k;(쟴𪺾㒍*󽓢"
+            "code": "unexpected_error",
+            "message": "fu\u001aKY7\u00030=󴞫㸚4󴫄𛲝𱀝c\u0003e"
         },
         {
             "code": "wallet_not_responding",
-            "message": "\u001e"
+            "message": "𧏉𰾉*\u0004􎎴􍐜h"
         },
         {
-            "code": "min_withdrawal_wrong",
-            "message": "\u0011i@.󹽈V󷑒?`澆􅔎2𭰽󿂨-𝕾 P*<𪹼󱄥􊛌팿_Z\u0015"
+            "code": "unexpected_error",
+            "message": "(me𧏱\u001bMH󹡾Z@\u001d\"PV(>w"
         },
         {
-            "code": "inputs_depleted",
-            "message": "s\u0003VsHVL󽗘\u0000󽌍!\t%_1\t$E狁U\\ᠡ\u001a\u000c"
+            "code": "pool_already_joined",
+            "message": "\u000fS\u001e0󽴬tCo(\u001b􏚦󷇅!\u001bx\u0006I\u001f+T\u000e;"
         },
         {
-            "code": "not_synced",
-            "message": "蒷,\u0006󳅓LL\u000b(-𨖗"
+            "code": "shared_wallet_script_template_invalid",
+            "message": "/"
         },
         {
-            "code": "input_resolution_conflicts",
-            "message": "Z\u000e#Z-𓃫Ku\u0006𭔱𝌨I<e.u劙nc"
-        },
-        {
-            "code": "no_root_key",
-            "message": ""
-        },
-        {
-            "code": "no_such_transaction",
-            "message": "Er+\u000b𪿏%E'w#.y\u000c\u001fY\u0002\u0012䷅𖤞"
+            "code": "redeemer_target_not_found",
+            "message": "\u0006!fa{𫋃'\u0010컃2#L=h//hUJ떑8𧂾~𩻅UJ"
         },
         {
             "code": "non_null_rewards",
-            "message": "|Y󷘊𢍅N."
-        },
-        {
-            "code": "invalid_validity_bounds",
-            "message": "x󸗣cp灋]"
-        },
-        {
-            "code": "foreign_transaction",
-            "message": "𭬴&𬇣㜜\u0016G"
-        },
-        {
-            "code": "created_wrong_policy_script_template",
-            "message": "7𦎭\u0013pJ81:\\\tM)𫁇z[째聗􅚷VX;\u000ba"
-        },
-        {
-            "code": "bad_request",
-            "message": "\u000b𬨇\u0004\u0010%𣍳&\u0015B]\"\u0013\u000f\u0006i􆚦&r=\u00176n&􄖡"
+            "message": "4@\"z,\u0004𰈄a!(MY"
         },
         {
             "code": "key_not_found_for_address",
-            "message": "cob\u0006R\u001c\u0004W􊇋<G큫!^𦖐r\u0017k\u0013󾰂\u0001N\u0013\"/"
+            "message": "巹cU\u0011𣈅𠔞BC3\u001d\u000e\u00173Wd_󳌁\\\u0007𮊶CVI;󻁦\u0016쟯Q"
         },
         {
-            "code": "unsupported_media_type",
-            "message": "􎲇."
-        },
-        {
-            "code": "redeemer_script_failure",
-            "message": "(9𘊢&b\\qJ𡙐bw9j󺔔t筚𗠟󹋑"
-        },
-        {
-            "code": "network_query_failed",
-            "message": ""
-        },
-        {
-            "code": "balance_tx_underestimated_fee",
-            "message": "e~❵4"
-        },
-        {
-            "code": "asset_name_too_long",
-            "message": "\u0017𭥯\u001b_F'󺴽P\u00038g`􍀬Ul󾏬𡋆󼡤"
-        },
-        {
-            "code": "balance_tx_underestimated_fee",
-            "message": "I?|I\u0001^\u001e\u000c䢃G􉪼𦬤*!Q󺣭𓋥\u0015􊡰F4W"
-        },
-        {
-            "code": "unresolved_inputs",
-            "message": "\u0015󿸂?H_𫷼\tᦛ}󸝿\u001c4\u0004eX\u000ejPXr"
-        },
-        {
-            "code": "query_param_missing",
-            "message": ""
-        },
-        {
-            "code": "invalid_validity_bounds",
-            "message": "\u0006󷸬\t1\u0007>L\u0004㎞Y\u0007,􆿊\u000b\u000c:􉫿\rw\u001a􌠸(RK\u0006\u001fc"
-        },
-        {
-            "code": "created_wrong_policy_script_template",
-            "message": "f:WC>*wI!!D𣌛𰎾鼏v􍱨X哹\u0014\u0017􏑝#|hjF󴈆'"
-        },
-        {
-            "code": "cannot_cover_fee",
-            "message": "\u0007@􌂧\u000e:\u0015wE\u0008D\u0010􋩚|DQ4Q􉟔"
-        },
-        {
-            "code": "soft_derivation_required",
-            "message": "'H\t쑚\u0016|@󷇃𪒤"
-        },
-        {
-            "code": "shared_wallet_cannot_update_key",
-            "message": "F\u0017CD:,𰬦\""
-        },
-        {
-            "code": "malformed_tx_payload",
-            "message": "Zg𦌥@𢧽 斩\u0008𧎮\u0000P"
-        },
-        {
-            "code": "no_root_key",
-            "message": "0\u0007+jJ\u0013\u0019CW1>/"
-        },
-        {
-            "code": "created_multidelegation_transaction",
-            "message": "t\u0015%4𤝶/𣇡𥃠\u0015s𬗣V%}hJiP\u001e,\u0014"
-        },
-        {
-            "code": "redeemer_invalid_data",
-            "message": "s􁐛󸷛\u001cq"
-        },
-        {
-            "code": "balance_tx_underestimated_fee",
-            "message": "4F{c\u0014"
-        },
-        {
-            "code": "not_implemented",
-            "message": "'/D͖𒀼􌕍2S4󶎴\u0001`Jl􄵯"
-        },
-        {
-            "code": "output_token_bundle_size_exceeds_limit",
-            "message": "𗗘󺘽Vd\\FB\n_h\u000fE~i5:𝆹z"
-        },
-        {
-            "code": "not_found",
-            "message": "𝠐\r?-\"n𞤙P􇳘6\u001a􏃢"
-        },
-        {
-            "code": "no_such_wallet",
-            "message": ""
-        },
-        {
-            "code": "wallet_already_exists",
-            "message": "莨\u0015O\u0015\u0002"
-        },
-        {
-            "code": "unsupported_media_type",
-            "message": "A~颶[􏱅4_8\u00036􉁏𥩣eJQ[\u000b􏨹l"
-        },
-        {
-            "code": "existing_key_witnesses",
-            "message": "𫸎\u0000Tc\u0002=n3;u𣄫cP\u0006T\u001f쑀1~"
-        },
-        {
-            "code": "missing_policy_public_key",
-            "message": "9g?DsH후'􅺫^j"
-        },
-        {
-            "code": "start_time_later_than_end_time",
-            "message": "C"
-        },
-        {
-            "code": "not_implemented",
-            "message": "􁃰󾀏"
-        },
-        {
-            "code": "method_not_allowed",
-            "message": "v"
-        },
-        {
-            "code": "already_withdrawing",
-            "message": "A\u001f\u000f4\u000f𩫘Y\u0003_\u0018e\r􂒲QG𑰀|*뢔I\u0008w_4-J^"
-        },
-        {
-            "code": "balance_tx_conflicting_networks",
-            "message": "f0]e\r)\u0019TZ􍞇AKXU\""
-        },
-        {
-            "code": "balance_tx_underestimated_fee",
-            "message": "􀦴$"
-        },
-        {
-            "code": "transaction_already_balanced",
-            "message": ""
-        },
-        {
-            "code": "not_synced",
-            "message": "󹄽*𠽴𬉩\ra"
-        },
-        {
-            "code": "method_not_allowed",
-            "message": "w󴡦\u0018HV8&'L\u001er\u000f!󾐡􋼗\u0001I``n􇓶'󽑤􀾫"
-        },
-        {
-            "code": "balance_tx_conflicting_networks",
-            "message": "n𫆺&\u001fY󸅛䚞F𡄁\u0019FN|JK^,𠤠泔󹟪]!\u0008\u000f􇗮"
+            "code": "asset_not_present",
+            "message": "YU\u0001QwHT\u0010Q\u0018T\u00056e𰞥4.礇/!w$e눖\u001bẼ𰶾"
         },
         {
             "code": "withdrawal_not_beneficial",
-            "message": "\u0006^\u00079𘕓U𮖫c\u000e㹐8"
+            "message": "\u001d􌩄?l)󹦿󻶠f頑\u001e08󾸃"
         },
         {
-            "code": "created_multidelegation_transaction",
-            "message": "쪰h\u0000Cm𫫵􅁵5ft1l󺇸"
+            "code": "no_such_transaction",
+            "message": "T󲌣󽧫0A\u0005\u000b\u001ePJj\u001d\u0001\n"
         },
         {
-            "code": "balance_tx_inline_datums_not_supported_in_alonzo",
-            "message": "g𗎬1\u000b𮅽􉲈\u0000눰F_W蕔𱀚𢢽\u0010\u0015h7<6j<h("
+            "code": "created_wrong_policy_script_template",
+            "message": "\u0014V􁟟󸓨􈡡IK\u0002V􀵌'*[!eN䎷𬉓qup"
         },
         {
-            "code": "invalid_wallet_type",
-            "message": "F#􌐕\u0002\u0011\" cZ'􀃤{ol"
+            "code": "unexpected_error",
+            "message": "S\u0019󿻁.W"
+        },
+        {
+            "code": "wallet_metadata_not_found",
+            "message": "B?[D ང􍧬?\u0019V"
+        },
+        {
+            "code": "no_such_transaction",
+            "message": "󸋤仞>毙b$l6.w􄚟{7\u0004/𠬢󹅎󷍫\u001f}\u0004\u0012𦵛Z𐳞u!"
+        },
+        {
+            "code": "transaction_already_in_ledger",
+            "message": "\u001aj\u0018K:&Vz'\u0014^4g0"
+        },
+        {
+            "code": "no_such_pool",
+            "message": "\u001c\u0005\u00014H\nD\u0017\u001bH{1B5洞kbH󵭂🙾𗤔vz5"
+        },
+        {
+            "code": "unexpected_error",
+            "message": "*?.}F,𦏡\u000b>VC\u0010($𣘒>m\u0011\u0008p\u000baw"
+        },
+        {
+            "code": "transaction_already_balanced",
+            "message": "i🛑然\u0017𘁵Q􅐠!G7D􀂐\u0004C󻁓0?𘡴&\u0018"
+        },
+        {
+            "code": "input_resolution_conflicts",
+            "message": "\u000f1󿅢I\u0012\u0003#&"
+        },
+        {
+            "code": "no_such_wallet",
+            "message": "W𥪁a\u001ek\u000b桤ﴏ"
+        },
+        {
+            "code": "asset_name_too_long",
+            "message": "𪅨喙>\u0003𦬍"
+        },
+        {
+            "code": "unsupported_media_type",
+            "message": "0lb;u\t`'􎖶\u0019^8~I5𑜀506C"
+        },
+        {
+            "code": "transaction_already_balanced",
+            "message": "𠊉?藸\u0001𘈑"
+        },
+        {
+            "code": "not_synced",
+            "message": "㉫{J'\u0016󼂤𬀮@7B\u000bh8,>p9o\\𦣭_2"
+        },
+        {
+            "code": "soft_derivation_required",
+            "message": "'\u00169\u000c"
+        },
+        {
+            "code": "balance_tx_existing_total_collateral",
+            "message": "$㊵^􌃁1G<𠛌\u0018𠵎5􀑼a𢰧\u000bO𢬞𢜊"
+        },
+        {
+            "code": "mempool_is_full",
+            "message": "v<-咻"
+        },
+        {
+            "code": "shared_wallet_cannot_update_key",
+            "message": "xd\u0005C\u000b\u0015-􀱖?󵞩H\u001a"
+        },
+        {
+            "code": "asset_name_too_long",
+            "message": "FE^𓌭x\u0019𪀠𑇞a􆚨\u001f𦍡E8󲨨e@$\u0007\u0018󵣞"
+        },
+        {
+            "code": "missing_witnesses_in_transaction",
+            "message": "[um􁹷Rd]TnO𭲼&쨤u\u000e𬤪𨓑a󲄠􉧀"
+        },
+        {
+            "code": "mempool_is_full",
+            "message": "\u0002Rg\u0003\nIq#O"
+        },
+        {
+            "code": "not_acceptable",
+            "message": "􃂍\u0012G{\u0015憼\u0008e 􈶬gC,q󸦞\u000e𡬋uB\u0001"
+        },
+        {
+            "code": "network_query_failed",
+            "message": "\u00049𣽳v"
         },
         {
             "code": "foreign_transaction",
-            "message": "\u0001"
+            "message": "%\u0012>}{𛂑ow𗊔㊽^w󷽚8}c"
         },
         {
-            "code": "shared_wallet_pending",
-            "message": "m\u0006󾐥x;=D🂨􅟑\u0002sj\u001aAJq𮈋\r5"
+            "code": "created_invalid_transaction",
+            "message": "]𣍖"
         },
         {
-            "code": "wrong_encryption_passphrase",
-            "message": "󴜕,󵔾\u001f:Tᬆq䆢lR\u0008"
+            "code": "balance_tx_existing_collateral",
+            "message": "虤𠝗\u000cZ⢱𐹯p\u0000𓍖9󼕐D%𮆴􏍾\u001c(\u0016\u000e{\u000e􊃊4~ErO"
         },
         {
-            "code": "query_param_missing",
-            "message": "$I\u001f \u001b$\t h\u0010\u000e4\u0008s\u0019󳀖ꥸg"
+            "code": "existing_key_witnesses",
+            "message": "󻑡\u0015k\u00100𰇩b岱>\u0002gs9E"
         },
         {
-            "code": "shared_wallet_pending",
-            "message": "T􁚘󺙞NDF\u000eZW\u0006𫱤Wv𥩂x`}f\u000e^\tr\u0017嚭\u001e"
+            "code": "unsupported_media_type",
+            "message": "鑧𩼬\u00035{Ec𩜴q󸬲d>\u000fg2)q𗬚/"
         },
         {
-            "code": "balance_tx_inline_scripts_not_supported_in_alonzo",
-            "message": "I\u0006PPrk6J畷\u0011\u0006f3󲂀𮐯\u0007쐊_\nO"
+            "code": "shared_wallet_incomplete",
+            "message": "󱱔C刯ỼQl`\u0007\u0007𢦏vd\u001a\u001d𱁠u󰯸:1"
+        },
+        {
+            "code": "unable_to_determine_current_epoch",
+            "message": ".`𘧍U1D(&4GX\u000c\r@_wfⅅM>Qi"
+        },
+        {
+            "code": "balance_tx_max_size_limit_exceeded",
+            "message": "/+ᮂ,X'_𪎁􊷧\u0004\u0002Hwe0ov!~X𫹧S\u001bH{\u000fL"
         },
         {
             "code": "utxo_too_small",
             "info": {
-                "tx_output_index": 2584,
+                "tx_output_index": 445,
                 "tx_output_lovelace_required_minimum": {
-                    "quantity": 239,
+                    "quantity": 68,
                     "unit": "lovelace"
                 },
                 "tx_output_lovelace_specified": {
-                    "quantity": 215,
+                    "quantity": 226,
                     "unit": "lovelace"
                 }
             },
-            "message": "\u0017\u001a\u001d撢hE𧯙e𰐷<󽋋6󶠏􌽆(TF\rꉮ󽤃K"
-        },
-        {
-            "code": "unexpected_error",
-            "message": "KQ;`\u000e𭻪z𬁻"
-        },
-        {
-            "code": "validity_interval_not_inside_script_timelock",
-            "message": "\u000e\u0010;0􇯫x~!\u000e\u001fW\r􂸙\u001a\\\u0017X>U\u001e\tQ"
-        },
-        {
-            "code": "created_invalid_transaction",
-            "message": "$X"
-        },
-        {
-            "code": "validity_interval_not_inside_script_timelock",
-            "message": "ohGu\t(󺲓6𫷣:8fJ𑿆ﾹG󳜠󿭩\tF#6\r\\"
-        },
-        {
-            "code": "shared_wallet_script_template_invalid",
-            "message": "z\u001c􊱹"
-        },
-        {
-            "code": "shared_wallet_cannot_update_key",
-            "message": "󺈯O\u0008􎥈𒋗􊡳\u0006*H5`V斮稘w"
-        },
-        {
-            "code": "shared_wallet_not_pending",
-            "message": "|󠆲\u00079𝐚\u00011(8\"\u0002 k󼫚rVi)B$^􁟊e-w"
-        },
-        {
-            "code": "foreign_transaction",
-            "message": "\u0006"
-        },
-        {
-            "code": "balance_tx_existing_key_witnesses",
-            "message": "\u0000󳾝􃸰O\rj!"
+            "message": "\\􌩐󲷽\u000f𝈜L8O𤫘x\u001f|\u001f􁤞W`\u0018g\u0017\u001al𞢅\u0001v\u001dd"
         },
         {
             "code": "translation_error",
-            "message": "𐛜o\u0002(K󽈟n"
+            "message": "#uz𬜻X\u0005行?𨴡=.􁫲ȱ;k"
         },
         {
-            "code": "no_such_wallet",
-            "message": "A捙x"
+            "code": "wrong_mnemonic",
+            "message": "􃬭X\u000bB󷒋.\u001d􏳽:x"
         },
         {
-            "code": "invalid_wallet_type",
-            "message": "(PGឤv\u001a.E𥷡􌾐󸴯􀩶Y󱼁\u001a\u0013?𥼘\u00182"
-        },
-        {
-            "code": "transaction_already_balanced",
-            "message": "\rI􃞀1\u000b􍹛"
-        },
-        {
-            "code": "not_delegating_to",
-            "message": "?wW\"5.\u000c𫤠G𬶏\u000fox𮠬$G\u0006v􁍆𗉹"
-        },
-        {
-            "code": "redeemer_script_failure",
-            "message": "󷄍P_ᆚ:􏵻6"
-        },
-        {
-            "code": "not_synced",
-            "message": "\u0012)*x>FW"
-        },
-        {
-            "code": "soft_derivation_required",
-            "message": "MvC🗈n\u001eJ:,􁚌ꎘ1\u000ex󴪧n"
-        },
-        {
-            "code": "invalid_validity_bounds",
-            "message": "n㪰􀸆䪳ퟙ^S󶹃\u0017ꦨ#c\n7LX5\u0012\u0018w\n\n&"
-        },
-        {
-            "code": "redeemer_invalid_data",
-            "message": ";\u0017D𢞧|昸\u001e2"
-        },
-        {
-            "code": "transaction_already_balanced",
-            "message": "􉜪\u0002z\u0007tC"
-        },
-        {
-            "code": "no_root_key",
-            "message": "/􄷱𬕃"
-        },
-        {
-            "code": "shared_wallet_script_template_invalid",
-            "message": "\u0012e\n󺻁b\u0016Lcy"
-        },
-        {
-            "code": "transaction_already_in_ledger",
-            "message": "J-𣑂x\t^\u001aଗ\u0012{\u0001􌆤-"
-        },
-        {
-            "code": "existing_key_witnesses",
-            "message": "S􂻿\u001b𐫴b:5IO=\u0007?h\u0019\u001d∶y􈕄ﻵ\u001d!d"
-        },
-        {
-            "code": "withdrawal_not_beneficial",
-            "message": "𩮼}CL\u0018𢩤ef\t|\u0004:z\u0005Q&ẏ􊰑\u0013c\u001bFH"
-        },
-        {
-            "code": "mint_or_burn_asset_quantity_out_of_bounds",
-            "message": "8󸟧~􏰪󲄦𧤮3𥼙\u0007y<󸓲𨛭Nba{\n󼩫BioU𧄬"
-        },
-        {
-            "code": "asset_name_too_long",
-            "message": "鏁󼒟􉌄\u0004wB?􁽖:\u0019􏞠\u0013􍷂"
-        },
-        {
-            "code": "redeemer_invalid_data",
-            "message": "'%\u0004(􏺼8NZD󾝗c;<m\u0017M🐪\u0008tR\u001a"
-        },
-        {
-            "code": "invalid_wallet_type",
-            "message": "pqm\u000c𣐟𫌀8픛_\u0018"
+            "code": "shared_wallet_incomplete",
+            "message": "\u001cO=󵆰󶼣/bPGC\u0016𩻚3[8h\u0017𧊾"
         },
         {
             "code": "unexpected_error",
-            "message": "𰵯\u0002)FX\u0005\u0007𭊔\u0006"
+            "message": "<Dᩪ3\u0018\u0014"
+        },
+        {
+            "code": "invalid_validity_bounds",
+            "message": "r𤲲􊁺:󲙌🬔rๆ􌩶?!V\\\u001c_k"
+        },
+        {
+            "code": "network_unreachable",
+            "message": "*􃻥aL\u0019\u0011\"\u0006i󸹇𘃠\u001aP^󸘺􍑖𮢢ອ\u0003h7t9M\u000e"
+        },
+        {
+            "code": "unsupported_media_type",
+            "message": "󳑺H%]X𫣣\u000f\u0018󶲐Z6􀞆^e𗀸\\𭉂V\u0004"
+        },
+        {
+            "code": "wallet_metadata_not_found",
+            "message": "󱝴𩗹󾼬x\u0008\u001ad"
+        },
+        {
+            "code": "unable_to_assign_input_output",
+            "message": "􈜠ᎅP_WU􁫌c𨛌l(𥽍%\u0002l,\u000f\\"
+        },
+        {
+            "code": "shared_wallet_script_template_invalid",
+            "message": "`p1\u001faNn?󹷲t}󼓈O\u0003\u0015"
+        },
+        {
+            "code": "utxo_too_small",
+            "info": {
+                "tx_output_index": 3042,
+                "tx_output_lovelace_required_minimum": {
+                    "quantity": 171,
+                    "unit": "lovelace"
+                },
+                "tx_output_lovelace_specified": {
+                    "quantity": 115,
+                    "unit": "lovelace"
+                }
+            },
+            "message": "P\u0000Ow25?ꇂ􆞒Oox\u0013\u001e"
+        },
+        {
+            "code": "shared_wallet_no_such_cosigner",
+            "message": "𨃽O$\u0013G[\u0010\u000f<󵎫B鈓x"
+        },
+        {
+            "code": "output_token_quantity_exceeds_limit",
+            "message": "g>뿘􉭦\n;C\u0010"
+        },
+        {
+            "code": "wallet_not_responding",
+            "message": "𘔪:𰛣A󺤖\u0005D/.𦧬𡑭\t(L<;!m\u0004𤺢~%g𤀅𣈤\u000c"
+        },
+        {
+            "code": "unable_to_determine_current_epoch",
+            "message": "_Z퓰H\u000c\u0017􃤤𝘂\u0008􏄁k&"
+        },
+        {
+            "code": "balance_tx_max_size_limit_exceeded",
+            "message": "~\u0011"
+        },
+        {
+            "code": "created_multiaccount_transaction",
+            "message": "N󸜅㢊󰵩/[x\u001e\tAZ"
+        },
+        {
+            "code": "wallet_already_exists",
+            "message": "󺊆%8\t\u000cL􂈄햤4A'^YN3[z\u0019"
+        },
+        {
+            "code": "wrong_mnemonic",
+            "message": "V+􅑻\u0000'􊇙􍪃93(c"
+        },
+        {
+            "code": "address_already_exists",
+            "message": "􉛏\u000bB춦\u0010\u0002\u000e\u001f\r_i\u0005\u001c"
+        },
+        {
+            "code": "not_synced",
+            "message": "kvKCn]^\u00163𠡏T"
         },
         {
             "code": "shared_wallet_key_already_exists",
-            "message": "b󱹓𢥢@%m"
+            "message": "󰍸k󸸪,IxMFm!]p7lH\rg"
+        },
+        {
+            "code": "bad_request",
+            "message": "􉉅𒄱FADF󲻥E_%󶟢}cy󼆐⢇󸓯󲗣O\u0007r"
+        },
+        {
+            "code": "not_found",
+            "message": "q\t9k|[f􏪤\u001a𭲥1󠆡MsF^\u0019x"
+        },
+        {
+            "code": "not_synced",
+            "message": "𗘥𰞊󻫗𥟇𐑫qCr\u0013^󱲗X;\u000c\u0000C'r>2\u001dX鈈b"
         },
         {
             "code": "existing_key_witnesses",
-            "message": "빖:vh"
+            "message": "c#𗴖\u0016𤟇] )E\u001b\u001bJ[􃨸5e󿒸7+v\u0008F\u0011|t"
+        },
+        {
+            "code": "min_withdrawal_wrong",
+            "message": "𦦯𠚜􄯔/WU\u001a\u0000\u0005#𭦘\u001fk$R溉$O􎖼R\u0015"
+        },
+        {
+            "code": "invalid_validity_bounds",
+            "message": "28R\u001d[􇁭U%⒠u󳿞VF#yF*󳪔dT"
+        },
+        {
+            "code": "insufficient_collateral",
+            "message": "?n\u001b󠁻\u0011}=IR\u001c􍗈\u000ek"
+        },
+        {
+            "code": "shared_wallet_incomplete",
+            "message": "eL~B[\u0001o𫫕6󵹸滊@\n𥶜\u0006\u0006W"
+        },
+        {
+            "code": "query_param_missing",
+            "message": "]􋺙􎏯p|M󰾎d{󱟻/󿁮렏DR\u000b=󴛂-`_* k;󽞉"
+        },
+        {
+            "code": "not_synced",
+            "message": "𠹰𣔕K\u000cz\"\u0014z_|d􎥅􇶚X[1\u0004O@㛺"
+        },
+        {
+            "code": "shared_wallet_cannot_update_key",
+            "message": "镅\u0013y\u0015_bg􄡐W\u0013\u0005僐\u001e󻶖e\u0005\\vTI"
+        },
+        {
+            "code": "created_wrong_policy_script_template",
+            "message": "M\u001fYFZ|s"
+        },
+        {
+            "code": "redeemer_invalid_data",
+            "message": "j,fM\u0001􎑌yK#\\@􊄱D"
+        },
+        {
+            "code": "rejected_by_core_node",
+            "message": "䨕oM𠧤\n}2oN"
+        },
+        {
+            "code": "created_multiaccount_transaction",
+            "message": "\u0007󠅶􂀈𨏉m^dh\u0007ey?ㆣG]\r넎v\u0016J,\nV^󼡘V䮔"
+        },
+        {
+            "code": "hardened_derivation_required",
+            "message": "􉴾\u001f2\u0001Q󺮢2;X <,RkL"
+        },
+        {
+            "code": "unable_to_assign_input_output",
+            "message": "\u000b\u000c\u000f@𪲾#u"
+        },
+        {
+            "code": "unresolved_inputs",
+            "message": "󰝧\\\u0000O𫩗,\u001aA󸰅K4󼝹"
+        },
+        {
+            "code": "bad_request",
+            "message": "LNYo_\u0011"
+        },
+        {
+            "code": "address_already_exists",
+            "message": "㥇\u0006^\u0012\u0019󻐿 ~7"
+        },
+        {
+            "code": "non_null_rewards",
+            "message": "\u0004{?𞠯89;=􎼭\u0006䜤󶠁5"
+        },
+        {
+            "code": "wallet_not_responding",
+            "message": "I\n~:A\u0005QF􁾋塠\u0010{z\u0000\u00126CEE"
+        },
+        {
+            "code": "created_wrong_policy_script_template",
+            "message": "\u0001󺠊_!N*၂d.8lq"
+        },
+        {
+            "code": "redeemer_invalid_data",
+            "message": "pVP{T𪽚5󹓅z<\u001di$"
+        },
+        {
+            "code": "balance_tx_existing_total_collateral",
+            "message": "\\b\u00122/a䭴*􂾚5\u001d\u0002b\u0004𩘊"
+        },
+        {
+            "code": "balance_tx_underestimated_fee",
+            "message": "9|c%𢏳󽸕iC^簯쿡E#󸖜C76fA7"
+        },
+        {
+            "code": "balance_tx_inline_scripts_not_supported_in_alonzo",
+            "message": "~􄕎\u000e"
+        },
+        {
+            "code": "balance_tx_existing_key_witnesses",
+            "message": "6O`󱡩p\tHLFOf󿨨:"
+        },
+        {
+            "code": "transaction_already_balanced",
+            "message": "䜝J󺘀Sx[4o󽼇􋫨󱐃M\u0013(\u0014𑊌𰏹\u0001D"
+        },
+        {
+            "code": "unable_to_determine_current_epoch",
+            "message": "􏕤\u0002&n"
+        },
+        {
+            "code": "unable_to_assign_input_output",
+            "message": "5k\"󴡇9\u0013^2󱞺]\u0000\\!Z\u000eL󻣋\u000f"
+        },
+        {
+            "code": "balance_tx_internal_error",
+            "message": "􍕞%L瑎MA#􄞃-\u0008\u0003𠣌먦sXUM󵎲𒒐􅒽􇗞𡯞둉Q@"
+        },
+        {
+            "code": "balance_tx_inline_datums_not_supported_in_alonzo",
+            "message": "\u001d7𣊾&\u0016􆴭􅣯\"a\n\ta𤪨XOW"
+        },
+        {
+            "code": "shared_wallet_active",
+            "message": " 󽝵]󾻯!$𐳝5yG\u001d?]\u0013㞕D"
+        },
+        {
+            "code": "shared_wallet_active",
+            "message": "&\u000f\u0018\u0016󶙺\u0010/\u0004e!r㚸_5*쟜\u0001K􅼽K!\u0004Jf𣹷"
+        },
+        {
+            "code": "created_wrong_policy_script_template",
+            "message": "\t𬈒󶕬~伳\u0017"
+        },
+        {
+            "code": "bad_request",
+            "message": "_\u001d\u0010"
+        },
+        {
+            "code": "unable_to_assign_input_output",
+            "message": "󻐑𭟚}\u0014~G\u001a􇶒\u000f𪬳\u0002𩯁8𪕷M\u0007㰣\u0016\u000b􅈃~i􋣐\u0012ᓛ}⺏5"
+        },
+        {
+            "code": "no_such_wallet",
+            "message": "x`%"
+        },
+        {
+            "code": "transaction_already_balanced",
+            "message": "\u0000R\u0001"
+        },
+        {
+            "code": "pool_already_joined",
+            "message": " 󱉙G\u0012\u001f'"
+        },
+        {
+            "code": "wrong_mnemonic",
+            "message": "-􀲵󱞥|,i𥿩"
+        },
+        {
+            "code": "cannot_cover_fee",
+            "message": "󷶘p08g\u0003\u0016a􎷂Y-<"
+        },
+        {
+            "code": "translation_error",
+            "message": "PO\u001f"
+        },
+        {
+            "code": "network_unreachable",
+            "message": "P\u0005\u00166🁦/𓂹VX9;󱠘_C\u001dRW\u0014싞\u0004\"_\u001c\u000c"
+        },
+        {
+            "code": "shared_wallet_cannot_update_key",
+            "message": "吥I\\v\"\u001d"
+        },
+        {
+            "code": "not_synced",
+            "message": "0𗹗\">󽙙<𧥌g𔑝To󽷉s\u0013H]3\u0010)-_󿣧𦨛t𦡷0d*"
+        },
+        {
+            "code": "malformed_tx_payload",
+            "message": "-琏"
+        },
+        {
+            "code": "shared_wallet_script_template_invalid",
+            "message": "Y(9Xf\u0010"
+        },
+        {
+            "code": "min_withdrawal_wrong",
+            "message": "q􀝊&􊝡q&%"
+        },
+        {
+            "code": "wrong_encryption_passphrase",
+            "message": "\u001a\r7󹲤2\u0017F\u0002mHD\u001d⸊u\"𧁛O􈑂"
+        },
+        {
+            "code": "mint_or_burn_asset_quantity_out_of_bounds",
+            "message": "􎋢􋋬\u0006:\u0000󽮏p&UG\u0004\u001c[\t\u000erm􀉕\u0008\u0000"
+        },
+        {
+            "code": "min_withdrawal_wrong",
+            "message": "\u0002TDꡦ𓉳ky"
+        },
+        {
+            "code": "transaction_is_too_big",
+            "message": "\u000e:vNI8O:"
+        },
+        {
+            "code": "hardened_derivation_required",
+            "message": "\u0018󷧌\u000c"
+        },
+        {
+            "code": "redeemer_invalid_data",
+            "message": " \u0016vB\u00113\rN𱊶zX_[-~󱑚𬩍P󸑒𭒱"
+        },
+        {
+            "code": "non_null_rewards",
+            "message": "\u001eBj浜F?Pl\u001c􌽫\u000cx\u0016"
+        },
+        {
+            "code": "translation_error",
+            "message": "􍪀\u000c9󼹒&b󺡺9\u0013䞠A󲰐#\u001bJ\u001e􎃻e㨋E󰙿㒗T"
+        },
+        {
+            "code": "non_null_rewards",
+            "message": "󽜂C\\kOGQ\u0007#\n@X\u001f󳨳"
+        },
+        {
+            "code": "wallet_not_responding",
+            "message": "􇈝\u0008\u0004J\u001c&(H\u001fY\u001e󲹒)󵁦\u0008.\t𤅇𖹙1󶾘=["
+        },
+        {
+            "code": "transaction_already_in_ledger",
+            "message": "\u000f3k\te<j􅌰Q@E/ZK\n􀕭\u0016ZP\u0016df"
+        },
+        {
+            "code": "shared_wallet_active",
+            "message": "fw搼ꊋ"
+        },
+        {
+            "code": "no_such_transaction",
+            "message": ".\u000cy6\"\u0007\u0014k󶥞Zy\\%r𨗯\u000b1\n\u0003S9𬦱2න\u001a\u0014T"
+        },
+        {
+            "code": "min_withdrawal_wrong",
+            "message": "0𨕋"
+        },
+        {
+            "code": "address_already_exists",
+            "message": "󽜖\u0012𤈭o󾔑y%"
+        },
+        {
+            "code": "hardened_derivation_required",
+            "message": "n𨈊\u0011􊵌=􅚒\u0012濍G􊢙궿\"6󸤂u#\u0015"
+        },
+        {
+            "code": "shared_wallet_no_such_cosigner",
+            "message": "^G󷐱6t"
+        },
+        {
+            "code": "not_enough_money",
+            "message": "\u0006~m\"ktN f캻/󷓂𦎿pk\u0006cn\u000fR4s􌊖"
+        },
+        {
+            "code": "no_such_pool",
+            "message": ";g󵴣'𡩫\"\u001c\u001bᩡ"
+        },
+        {
+            "code": "shared_wallet_active",
+            "message": "\u0008ON^hF+0𫴖bkZ\""
+        },
+        {
+            "code": "not_acceptable",
+            "message": "9\u0005🝠=?C"
+        },
+        {
+            "code": "balance_tx_inline_datums_not_supported_in_alonzo",
+            "message": "/\u0005\u0013􎋋%X􁷤\u0016wj\u0002􅣧\u0010\u0000]~["
+        },
+        {
+            "code": "invalid_wallet_type",
+            "message": "ni<B𦵒󸓷F􄕞8𨜉逝$T\u0005󿀁𤠗j𧞌"
+        },
+        {
+            "code": "transaction_already_balanced",
+            "message": "n蠮􃖸n珜\u0007!"
+        },
+        {
+            "code": "balance_tx_era_not_supported",
+            "message": "/Jt􋐏v\u00078\u0005􆰉􅝤\u000e"
+        },
+        {
+            "code": "shared_wallet_key_already_exists",
+            "message": "w[)^Z􈱑\tb\u0010"
+        },
+        {
+            "code": "balance_tx_underestimated_fee",
+            "message": "a<d>oc\\\u001d3;􍪟j"
+        },
+        {
+            "code": "output_token_bundle_size_exceeds_limit",
+            "message": "􇻫\u000bTk𥛎`"
+        },
+        {
+            "code": "created_multiaccount_transaction",
+            "message": "􈤢󵐺d倢%"
+        },
+        {
+            "code": "redeemer_target_not_found",
+            "message": ""
+        },
+        {
+            "code": "balance_tx_existing_collateral",
+            "message": "\u0011k{7W𭖮\t\r(jU󲩪"
+        },
+        {
+            "code": "balance_tx_underestimated_fee",
+            "message": "\u0018\u0013󼴎)%􎠴󾚴􏲲\u0011V䡇\u000e;H6𥽰"
+        },
+        {
+            "code": "balance_tx_max_size_limit_exceeded",
+            "message": "YRa\u0000k\u000bdCK媗􎐸"
+        },
+        {
+            "code": "not_delegating_to",
+            "message": "\u0006kRSU'Q$~0Z\u0008󼟱"
+        },
+        {
+            "code": "wrong_encryption_passphrase",
+            "message": "\u0004E"
+        },
+        {
+            "code": "balance_tx_existing_key_witnesses",
+            "message": "Bs\\A𣝪🦷𰻖𐺙}𪯱JF\u0001􏚽Ib󷓡!K^~A\u0019\u0011\u0000*"
+        },
+        {
+            "code": "transaction_is_too_big",
+            "message": "𝇊\u0002"
+        },
+        {
+            "code": "pool_already_joined",
+            "message": "􍣝'\r9!\u001dQUgah9𦘛q􈵺鮸t"
+        },
+        {
+            "code": "invalid_wallet_type",
+            "message": "\u0011༫sf^􅎑􂊫3𡴛"
+        },
+        {
+            "code": "key_not_found_for_address",
+            "message": "\u001c\u0007N𤞨犲𡽛J%t\u000ed\u0005"
+        },
+        {
+            "code": "network_misconfigured",
+            "message": "稄h󳹒iK[EJ\u0013<\r4C\u0011󱰢\u001c(Ey"
+        },
+        {
+            "code": "bad_request",
+            "message": "䢲OW􆣑TTuG\u000b􎅎,\u001d`󻡡\u0018Y\u001db,b\u0005"
+        },
+        {
+            "code": "min_withdrawal_wrong",
+            "message": "𭷠U7ag~cT\u0012T0睭󲪪}\u0013I"
+        },
+        {
+            "code": "already_withdrawing",
+            "message": "ዧ𪺣>𠫒w\\𘀋웮\\$󸚢2𡢝e횤U\u0010i"
+        },
+        {
+            "code": "shared_wallet_active",
+            "message": "󳚝'L"
+        },
+        {
+            "code": "asset_not_present",
+            "message": "3%o\u0011q\u0005^󲊙𰭁>-J\u0018"
+        },
+        {
+            "code": "address_already_exists",
+            "message": "􎒪"
+        },
+        {
+            "code": "translation_error",
+            "message": "4&M\u0019_𢆥;\tPD"
+        },
+        {
+            "code": "soft_derivation_required",
+            "message": "C8z\u0012b]s_F咸\u001f􋍨"
+        },
+        {
+            "code": "min_withdrawal_wrong",
+            "message": "'"
+        },
+        {
+            "code": "mint_or_burn_asset_quantity_out_of_bounds",
+            "message": "f𦺁\u0006v"
+        },
+        {
+            "code": "not_enough_money",
+            "message": "𫟙󽝠􄥂𥗕|𤸓X􋧅 "
+        },
+        {
+            "code": "balance_tx_existing_total_collateral",
+            "message": "x􄔢\u0002\nAV𭙽ET\u001f+F"
+        },
+        {
+            "code": "redeemer_script_failure",
+            "message": "gNz@󹤊Ys􈖯𱋞󺜹A􄱨􊫝5\u0019󸜌P08\u000e*lI󾅂{"
+        },
+        {
+            "code": "rejected_by_core_node",
+            "message": "\u0015/\u0001ARJby󷾼6Uv􆩧4$o󷠘:\u0015"
+        },
+        {
+            "code": "address_already_exists",
+            "message": "\u0004MmY󴄊A)"
+        },
+        {
+            "code": "wallet_metadata_not_found",
+            "message": "󿵷m"
+        },
+        {
+            "code": "not_synced",
+            "message": "\u000cS\u001aq󷆓\u001834"
+        },
+        {
+            "code": "tokens_minted_but_not_spent_or_burned",
+            "message": "U㵮T[\u0010\u0001?Up5󼘶"
+        },
+        {
+            "code": "cannot_cover_fee",
+            "message": "\r\u0013⤲sdRGay\u000c󻨏"
+        },
+        {
+            "code": "mempool_is_full",
+            "message": "󳘱16af􂇎w𥃏ec%*"
+        },
+        {
+            "code": "transaction_is_too_big",
+            "message": "\u000f󺚜^gS[􄊠\"𗻫GA\u00136n\u0010\u0015 "
+        },
+        {
+            "code": "start_time_later_than_end_time",
+            "message": ""
+        },
+        {
+            "code": "unresolved_inputs",
+            "message": "KF󲛾\u0005\u0001R􆶦\u0005nx<1zc󿅀"
+        },
+        {
+            "code": "hardened_derivation_required",
+            "message": "PSIꕼ_+f;U=􈇗9}5?i>\u0007𗫆~𬲈\tI"
+        },
+        {
+            "code": "balance_tx_conflicting_networks",
+            "message": "􅖜󰆛􉞔)'~F􉆗j⼗\u001a􄓲􄹄zK&8.%-󿰽􁷹b\u0017"
+        },
+        {
+            "code": "shared_wallet_cannot_update_key",
+            "message": "T6`󾋼L\u000e]\n7M_ъ𬌐k;貾\u001c㇢\u0019T"
+        },
+        {
+            "code": "shared_wallet_cannot_update_key",
+            "message": "p\u0015gfr𘓡ቓ$\u0010w.󾒤넱5\u000e\u00134􉷙A\u00157r=,["
+        },
+        {
+            "code": "not_found",
+            "message": "\u000fMPI\u001f )􋭼󸓍󾒛\u0006\u001c󼣬L"
+        },
+        {
+            "code": "shared_wallet_no_such_cosigner",
+            "message": "i\u0007&9󱜱\u000cO@;GR𨾯󼝛\u0015"
+        },
+        {
+            "code": "non_null_rewards",
+            "message": "􂗫􀽰𨉜WB𩚶q"
+        },
+        {
+            "code": "created_invalid_transaction",
+            "message": "D𮝮g\u0012ﲉKY纫P]\u000c켉3\u0015\u0013\u0013Q\u0017"
+        },
+        {
+            "code": "shared_wallet_active",
+            "message": "\u001f􌯁\u0005pA"
+        },
+        {
+            "code": "unresolved_inputs",
+            "message": "N"
+        },
+        {
+            "code": "balance_tx_internal_error",
+            "message": "$Z\u0010$>𧮖h􎬲/;f􏒚􌨾􇣴~?0e󹜁髣\u001b􌸮I𭄢󼯚"
+        },
+        {
+            "code": "balance_tx_inline_datums_not_supported_in_alonzo",
+            "message": "!D|Lj#􌕭eZ􊪪󵉒\u0002-r雱\u000czH􃢷\u001aZ𗡡\u0002\u0017}b𑄙R"
+        },
+        {
+            "code": "transaction_already_in_ledger",
+            "message": "Sa􌩼vi0@:𬄮𪨱M4ᑗ7𭨤=A{\u0008"
+        },
+        {
+            "code": "min_withdrawal_wrong",
+            "message": "\u001c&𐛒,ᐗ "
+        },
+        {
+            "code": "balance_tx_max_size_limit_exceeded",
+            "message": "󱾧n>geq"
+        },
+        {
+            "code": "address_already_exists",
+            "message": "~󼞕[o󸥨\u000f\\\u0003p+\u0014\u0012㱲\u0019"
+        },
+        {
+            "code": "existing_key_witnesses",
+            "message": "a.􌂿I0n`\u0002n\t\u0001ꓺ\n\u0008W\u0016\u0012𗶄Y$$􀊘\u0010-8)P["
+        },
+        {
+            "code": "no_such_wallet",
+            "message": "=Q𢌻C𐫙#Y\u0019d{ ;알\u0011N\u0003/;󰽦􏉡\u000e\u0008􏼼("
+        },
+        {
+            "code": "created_wrong_policy_script_template",
+            "message": "y\u001fy\u001b$R𱊪[$E$􄿑7&PR􀫾\u0016L󵾈𣄨쨟\u001a懻\u000f\u0018\u000b"
+        },
+        {
+            "code": "created_invalid_transaction",
+            "message": "礊\u0010\rQb𘨹:􅏕)Ki\u0019\u000c\u0012A󾓃\n\u001de7<"
         }
     ],
-    "seed": 1863652609
+    "seed": -596310080
 }

@@ -407,13 +407,15 @@ instance IsServerError ErrConstructTx where
             , "that is not a subinterval of an associated script's timelock"
             , "interval."
             ]
-        ErrConstructTxSharedWalletPending ->
-            apiError err403 SharedWalletPending $ mconcat
-            [ "I cannot construct transaction for a shared wallet that is in 'incomplete' "
-            , "state. Please update your wallet accordingly with "
-            , "'PATCH /shared-wallets/{walletId}/payment-script-template' or "
-            , "'PATCH /shared-wallets/{walletId}/delegation-script-template' to make "
-            , "it applicable for constructing transaction."
+        ErrConstructTxSharedWalletIncomplete ->
+            apiError err403 SharedWalletIncomplete $ T.unwords
+            [ "I cannot construct a transaction for a shared wallet that is"
+            , "in the 'incomplete' state. Please update your wallet accordingly"
+            , "with"
+            , "'PATCH /shared-wallets/{walletId}/payment-script-template'"
+            , "or"
+            , "'PATCH /shared-wallets/{walletId}/delegation-script-template'"
+            , "to make it suitable for constructing transactions."
             ]
 
 instance IsServerError ErrGetPolicyId where
@@ -769,35 +771,45 @@ instance IsServerError ErrDerivePublicKey where
 instance IsServerError ErrAddCosignerKey where
     toServerError = \case
         ErrAddCosignerKeyNoSuchWallet e -> toServerError e
+        ErrAddCosignerKeyWalletMetadataNotFound ->
+            apiError err503 WalletMetadataNotFound $ T.unwords
+                [ "It was not possible to find any metadata for the given"
+                , "wallet within the database. This could be because the"
+                , "wallet has yet to become active after being in the"
+                , "incomplete state."
+                ]
         ErrAddCosignerKey WalletAlreadyActive ->
-            apiError err403 SharedWalletNotPending $ mconcat
-                [ "It looks like you've tried to add a cosigner key for a "
-                , "shared wallet that is active. This can be done only for "
-                , "pending shared wallet."
+            apiError err403 SharedWalletActive $ T.unwords
+                [ "It looks like you've tried to add a cosigner key for a"
+                , "shared wallet that is active. This can be done only for"
+                , "an incomplete shared wallet."
                 ]
         ErrAddCosignerKey NoDelegationTemplate ->
-            apiError err403 SharedWalletNoDelegationTemplate $ mconcat
-                [ "It looks like you've tried to add a cosigner key to "
-                , "a shared wallet's delegation template. This cannot be done "
-                , "for the wallet that does not define any delegation template."
+            apiError err403 SharedWalletNoDelegationTemplate $ T.unwords
+                [ "It looks like you've tried to add a cosigner key to"
+                , "a shared wallet's delegation template. This cannot be done"
+                , "for a wallet that does not define any delegation template."
                 ]
         ErrAddCosignerKey (KeyAlreadyPresent cred) ->
-            apiError err403 SharedWalletKeyAlreadyExists $ mconcat
-                [ "It looks like you've tried to add a cosigner key to a "
-                , "shared wallet's ", toText cred, " template that is already "
-                , "ascribed to another cosigner. "
-                , "Please make sure to assign a different key to each cosigner."
+            apiError err403 SharedWalletKeyAlreadyExists $ T.unwords
+                [ "It looks like you've tried to add a cosigner key to a"
+                , "shared wallet's", toText cred, "template that is already"
+                , "ascribed to another cosigner. Please make sure to assign a"
+                , "different key to each cosigner."
                 ]
         ErrAddCosignerKey (NoSuchCosigner cred (Cosigner c)) ->
-            apiError err403 SharedWalletNoSuchCosigner $ mconcat
-                [ "It looks like you've tried to add a cosigner key to a "
-                , "shared wallet's ", toText cred, " template to a "
-                , "non-existing cosigner index: ", pretty c,"."
+            apiError err403 SharedWalletNoSuchCosigner $ T.unwords
+                [ "It looks like you've tried to add a cosigner key to a"
+                , "shared wallet's"
+                , toText cred
+                , "template for a non-existing cosigner index:"
+                , pretty c
                 ]
         ErrAddCosignerKey CannotUpdateSharedWalletKey ->
-            apiError err403 SharedWalletCannotUpdateKey $ mconcat
-                [ "It looks like you've tried to update the key of a cosigner having "
-                , "the shared wallet's account key. Only other cosigner key(s) can be updated."
+            apiError err403 SharedWalletCannotUpdateKey $ T.unwords
+                [ "It looks like you've tried to update the key of a cosigner"
+                , "having a shared wallet's account key. Only other cosigner"
+                , "key(s) can be updated."
                 ]
 
 instance IsServerError ErrConstructSharedWallet where

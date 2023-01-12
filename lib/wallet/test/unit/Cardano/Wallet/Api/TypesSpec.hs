@@ -110,6 +110,7 @@ import Cardano.Wallet.Api.Types
     , ApiFee (..)
     , ApiForeignStakeKey
     , ApiHealthCheck (..)
+    , ApiIncompleteSharedWallet (..)
     , ApiMaintenanceAction (..)
     , ApiMaintenanceActionPostData (..)
     , ApiMintBurnData (..)
@@ -124,7 +125,6 @@ import Cardano.Wallet.Api.Types
     , ApiNullStakeKey
     , ApiOurStakeKey
     , ApiPaymentDestination (..)
-    , ApiPendingSharedWallet (..)
     , ApiPolicyId (..)
     , ApiPolicyKey (..)
     , ApiPostAccountKeyData (..)
@@ -614,7 +614,7 @@ spec = parallel $ do
         jsonTest @ApiNetworkInformation
         jsonTest @ApiNetworkParameters
         jsonTest @ApiNullStakeKey
-        jsonTest @ApiPendingSharedWallet
+        jsonTest @ApiIncompleteSharedWallet
         jsonTest @ApiPolicyId
         jsonTest @ApiPolicyKey
         jsonTest @ApiPostAccountKeyData
@@ -1093,7 +1093,7 @@ instance Arbitrary Cosigner where
 instance Arbitrary ApiScriptTemplate where
     arbitrary = ApiScriptTemplate <$> arbitrary
 
-instance Arbitrary ApiPendingSharedWallet where
+instance Arbitrary ApiIncompleteSharedWallet where
     arbitrary = genericArbitrary -- fixme: seems to be slow
 
 instance Arbitrary ApiActiveSharedWallet where
@@ -2690,10 +2690,10 @@ instance ToSchema ApiActiveSharedWallet where
         addDefinition =<< declareSchemaForDefinition "ScriptTemplateValue"
         declareSchemaForDefinition "ApiActiveSharedWallet"
 
-instance ToSchema ApiPendingSharedWallet where
+instance ToSchema ApiIncompleteSharedWallet where
     declareNamedSchema _ = do
         addDefinition =<< declareSchemaForDefinition "ScriptTemplateValue"
-        declareSchemaForDefinition "ApiPendingSharedWallet"
+        declareSchemaForDefinition "ApiIncompleteSharedWallet"
 
 instance ToSchema ApiSharedWallet where
     declareNamedSchema _ = do

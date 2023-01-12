@@ -66,7 +66,8 @@ module Cardano.Wallet
     , createWallet
     , createIcarusWallet
     , attachPrivateKeyFromPwd
-    , attachPrivateKeyFromPwdHash
+    , attachPrivateKeyFromPwdHashByron
+    , attachPrivateKeyFromPwdHashShelley
     , getWalletUtxoSnapshot
     , listUtxoStatistics
     , readWallet
@@ -3245,7 +3246,7 @@ attachPrivateKeyFromPwd ctx wid (xprv, pwd) =
 -- - r = 8
 -- - p = 1
 -- - bytesNumber = 64
-attachPrivateKeyFromPwdHash
+attachPrivateKeyFromPwdHashByron
     :: forall ctx s k.
         ( HasDBLayer IO s k ctx
         )
@@ -3253,10 +3254,23 @@ attachPrivateKeyFromPwdHash
     -> WalletId
     -> (k 'RootK XPrv, PassphraseHash)
     -> ExceptT ErrNoSuchWallet IO ()
-attachPrivateKeyFromPwdHash ctx wid (xprv, hpwd) = db & \_ ->
+attachPrivateKeyFromPwdHashByron ctx wid (xprv, hpwd) = db & \_ ->
     -- NOTE Only legacy wallets are imported through this function, passphrase
     -- were encrypted with the legacy scheme (Scrypt).
     attachPrivateKey db wid (xprv, hpwd) EncryptWithScrypt
+  where
+    db = ctx ^. dbLayer @IO @s @k
+
+attachPrivateKeyFromPwdHashShelley
+    :: forall ctx s k.
+        ( HasDBLayer IO s k ctx
+        )
+    => ctx
+    -> WalletId
+    -> (k 'RootK XPrv, PassphraseHash)
+    -> ExceptT ErrNoSuchWallet IO ()
+attachPrivateKeyFromPwdHashShelley ctx wid (xprv, hpwd) = db & \_ ->
+    attachPrivateKey db wid (xprv, hpwd) currentPassphraseScheme
   where
     db = ctx ^. dbLayer @IO @s @k
 
@@ -3580,6 +3594,8 @@ data ErrAddCosignerKey
         -- ^ The shared wallet doesn't exist?
     | ErrAddCosignerKey ErrAddCosigner
         -- ^ Error adding this co-signer to the shared wallet.
+    | ErrAddCosignerKeyWalletMetadataNotFound
+        -- ^ No meta was found.
     deriving (Eq, Show)
 
 data ErrConstructSharedWallet
@@ -3660,7 +3676,7 @@ data ErrConstructTx
     | ErrConstructTxMintOrBurnAssetQuantityOutOfBounds
     | ErrConstructTxWrongValidityBounds
     | ErrConstructTxValidityIntervalNotWithinScriptTimelock
-    | ErrConstructTxSharedWalletPending
+    | ErrConstructTxSharedWalletIncomplete
     deriving (Show, Eq)
 
 -- | Errors that can occur when getting policy id.

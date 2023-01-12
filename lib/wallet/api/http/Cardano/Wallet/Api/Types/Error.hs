@@ -132,12 +132,12 @@ data ApiErrorInfo
     | RedeemerScriptFailure
     | RedeemerTargetNotFound
     | RejectedByCoreNode
+    | SharedWalletActive
     | SharedWalletCannotUpdateKey
+    | SharedWalletIncomplete
     | SharedWalletKeyAlreadyExists
     | SharedWalletNoDelegationTemplate
     | SharedWalletNoSuchCosigner
-    | SharedWalletNotPending
-    | SharedWalletPending
     | SharedWalletScriptTemplateInvalid
     | SoftDerivationRequired
     | StartTimeLaterThanEndTime
@@ -154,6 +154,7 @@ data ApiErrorInfo
     | UtxoTooSmall ApiErrorTxOutputLovelaceInsufficient
     | ValidityIntervalNotInsideScriptTimelock
     | WalletAlreadyExists
+    | WalletMetadataNotFound
     | WalletNotResponding
     | WithdrawalNotBeneficial
     | WrongEncryptionPassphrase

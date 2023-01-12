@@ -161,7 +161,7 @@ def patch_if_incomplete(wid, payment_patch, deleg_patch)
       expect(p_upd).to be_correct_and_respond 200
     when 403
       expect(p_upd).to be_correct_and_respond 403
-      expect(p_upd.parsed_response['code']).to eq 'shared_wallet_not_pending'
+      expect(p_upd.parsed_response['code']).to eq 'shared_wallet_active'
     end
   end
 
@@ -175,7 +175,7 @@ def patch_if_incomplete(wid, payment_patch, deleg_patch)
     expect(d_upd).to be_correct_and_respond 200
   when 403
     expect(d_upd).to be_correct_and_respond 403
-    expect(d_upd.parsed_response['code']).to eq 'shared_wallet_not_pending'
+    expect(d_upd.parsed_response['code']).to eq 'shared_wallet_active'
   end
 end
 

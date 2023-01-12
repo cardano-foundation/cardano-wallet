@@ -109,6 +109,7 @@ import Test.Integration.Framework.DSL
     , Headers (..)
     , MnemonicLength (..)
     , Payload (..)
+    , deleteSharedWallet
     , emptyWallet
     , eventually
     , expectErrorMessage
@@ -150,7 +151,7 @@ import Test.Integration.Framework.TestData
     , errMsg403InvalidConstructTx
     , errMsg403MinUTxOValue
     , errMsg403MissingWitsInTransaction
-    , errMsg403SharedWalletPending
+    , errMsg403SharedWalletIncomplete
     , errMsg404CannotFindTx
     , errMsg404NoWallet
     )
@@ -180,14 +181,19 @@ spec :: forall n.
     ) => SpecWith Context
 spec = describe "SHARED_TRANSACTIONS" $ do
 
-    it "SHARED_TRANSACTIONS_CREATE_01 - Cannot create tx for a pending shared wallet" $ \ctx -> runResourceT $ do
+    it "SHARED_TRANSACTIONS_CREATE_01 - \
+        \Cannot create tx for a pending shared wallet" $
+        \ctx -> runResourceT $ do
+
         m15txt <- liftIO $ genMnemonics M15
         m12txt <- liftIO $ genMnemonics M12
         let (Right m15) = mkSomeMnemonic @'[ 15 ] m15txt
         let (Right m12) = mkSomeMnemonic @'[ 12 ] m12txt
-        let passphrase = Passphrase $ BA.convert $ T.encodeUtf8 fixturePassphrase
+        let passphrase =
+                Passphrase $ BA.convert $ T.encodeUtf8 fixturePassphrase
         let index = 30
-        let accXPubDerived = sharedAccPubKeyFromMnemonics m15 (Just m12) index passphrase
+        let accXPubDerived =
+                sharedAccPubKeyFromMnemonics m15 (Just m12) index passphrase
         let payload = Json [json| {
                 "name": "Shared Wallet",
                 "mnemonic_sentence": #{m15txt},
@@ -214,17 +220,20 @@ spec = describe "SHARED_TRANSACTIONS" $ do
         let (ApiSharedWallet (Left wal)) =
                 getFromResponse Prelude.id rPost
 
-        let metadata = Json [json|{ "metadata": { "1": { "string": "hello" } } }|]
+        let metadata =
+                Json [json|{ "metadata": { "1": { "string": "hello" } } }|]
 
         rTx <- request @(ApiConstructTransaction n) ctx
             (Link.createUnsignedTransaction @'Shared wal) Default metadata
         verify rTx
             [ expectResponseCode HTTP.status403
-            , expectErrorMessage errMsg403SharedWalletPending
+            , expectErrorMessage errMsg403SharedWalletIncomplete
             ]
 
-    it "SHARED_TRANSACTIONS_CREATE_01 - Can create tx for an active shared wallet,\
-       \ typed metadata" $ \ctx -> runResourceT $ do
+    it "SHARED_TRANSACTIONS_CREATE_01 - \
+        \Can create tx for an active shared wallet, typed metadata" $
+        \ctx -> runResourceT $ do
+
         m15txt <- liftIO $ genMnemonics M15
         m12txt <- liftIO $ genMnemonics M12
         let payload = Json [json| {
@@ -250,7 +259,8 @@ spec = describe "SHARED_TRANSACTIONS" $ do
         let walShared@(ApiSharedWallet (Right wal)) =
                 getFromResponse Prelude.id rPost
 
-        let metadata = Json [json|{ "metadata": { "1": { "string": "hello" } } }|]
+        let metadata =
+                Json [json|{ "metadata": { "1": { "string": "hello" } } }|]
 
         rTx1 <- request @(ApiConstructTransaction n) ctx
             (Link.createUnsignedTransaction @'Shared wal) Default metadata
@@ -275,7 +285,8 @@ spec = describe "SHARED_TRANSACTIONS" $ do
         rDecodedTx1 <- request @(ApiDecodedTransaction n) ctx
             (Link.decodeTransaction @'Shared wal) Default decodePayload1
         let expectedFee = getFromResponse (#fee . #getQuantity) rTx2
-        let metadata' = ApiT (TxMetadata (Map.fromList [(1,TxMetaText "hello")]))
+        let metadata' =
+                ApiT (TxMetadata (Map.fromList [(1,TxMetaText "hello")]))
         let decodedExpectations =
                 [ expectResponseCode HTTP.status202
                 , expectField (#fee . #getQuantity) (`shouldBe` expectedFee)
@@ -283,7 +294,8 @@ spec = describe "SHARED_TRANSACTIONS" $ do
                 , expectField #collateral (`shouldBe` [])
                 , expectField #metadata
                   (`shouldBe` (ApiTxMetadata (Just metadata')))
-                , expectField #scriptValidity (`shouldBe` (Just $ ApiT TxScriptValid))
+                , expectField #scriptValidity
+                    (`shouldBe` (Just $ ApiT TxScriptValid))
                 ]
         verify rDecodedTx1 decodedExpectations
 
@@ -328,15 +340,18 @@ spec = describe "SHARED_TRANSACTIONS" $ do
                 , expectField (#status . #getApiT) (`shouldBe` InLedger)
                 ]
             let listTxEp = Link.listTransactions @'Shared wal
-            request @[ApiTransaction n] ctx listTxEp Default Empty >>= flip verify
+            request @[ApiTransaction n] ctx listTxEp Default Empty
+                >>= flip verify
                 [ expectListField 1
                     (#direction . #getApiT) (`shouldBe` Incoming)
                 , expectListField 1
                     (#status . #getApiT) (`shouldBe` InLedger)
                 ]
 
-    it "SHARED_TRANSACTIONS_CREATE_01 - Can create tx for an active shared wallet,\
-       \ untyped metadata" $ \ctx -> runResourceT $ do
+    it "SHARED_TRANSACTIONS_CREATE_01 - \
+        \Can create tx for an active shared wallet, untyped metadata" $
+        \ctx -> runResourceT $ do
+
         m15txt <- liftIO $ genMnemonics M15
         m12txt <- liftIO $ genMnemonics M12
         let payload = Json [json| {
@@ -381,19 +396,22 @@ spec = describe "SHARED_TRANSACTIONS" $ do
         rDecodedTx1 <- request @(ApiDecodedTransaction n) ctx
             (Link.decodeTransaction @'Shared wal) Default decodePayload1
         let expectedFee = getFromResponse (#fee . #getQuantity) rTx
-        let metadata' = ApiT (TxMetadata (Map.fromList [(1,TxMetaText "hello")]))
+        let metadata' =
+                ApiT (TxMetadata (Map.fromList [(1,TxMetaText "hello")]))
         let decodedExpectations =
                 [ expectResponseCode HTTP.status202
                 , expectField (#fee . #getQuantity) (`shouldBe` expectedFee)
                 , expectField #withdrawals (`shouldBe` [])
                 , expectField #collateral (`shouldBe` [])
                 , expectField #metadata
-                  (`shouldBe` (ApiTxMetadata (Just metadata')))
-                , expectField #scriptValidity (`shouldBe` (Just $ ApiT TxScriptValid))
+                    (`shouldBe` (ApiTxMetadata (Just metadata')))
+                , expectField #scriptValidity
+                    (`shouldBe` (Just $ ApiT TxScriptValid))
                 ]
         verify rDecodedTx1 decodedExpectations
 
-        -- checking metadata before signing via directly inspecting serialized tx
+        -- checking metadata before signing via directly inspecting serialized
+        -- tx
         let getMetadata (Cardano.InAnyCardanoEra _ tx) = Cardano.getTxBody tx &
                 \(Cardano.TxBody bodyContent) ->
                     Cardano.txMetadata bodyContent & \case
@@ -465,14 +483,18 @@ spec = describe "SHARED_TRANSACTIONS" $ do
                 , expectField (#status . #getApiT) (`shouldBe` InLedger)
                 ]
             let listTxEp = Link.listTransactions @'Shared wal
-            request @[ApiTransaction n] ctx listTxEp Default Empty >>= flip verify
+            request @[ApiTransaction n] ctx listTxEp Default Empty
+                >>= flip verify
                 [ expectListField 1
                     (#direction . #getApiT) (`shouldBe` Incoming)
                 , expectListField 1
                     (#status . #getApiT) (`shouldBe` InLedger)
                 ]
 
-    it "SHARED_TRANSACTIONS_CREATE_01a - Empty payload is not allowed" $ \ctx -> runResourceT $ do
+    it "SHARED_TRANSACTIONS_CREATE_01a -\
+        \Empty payload is not allowed" $
+        \ctx -> runResourceT $ do
+
         wa <- fixtureSharedWallet ctx
         let emptyPayload = Json [json|{}|]
 
@@ -502,13 +524,16 @@ spec = describe "SHARED_TRANSACTIONS" $ do
                 }|]
 
         rTx <- request @(ApiConstructTransaction n) ctx
-            (Link.createUnsignedTransaction @'Shared wa) Default validityInterval
+            (Link.createUnsignedTransaction @'Shared wa)
+            Default validityInterval
         verify rTx
             [ expectResponseCode HTTP.status403
             , expectErrorMessage errMsg403InvalidConstructTx
             ]
 
-    it "SHARED_TRANSACTIONS_CREATE_04a - Single Output Transaction with decode transaction - single party" $ \ctx -> runResourceT $ do
+    it "SHARED_TRANSACTIONS_CREATE_04a - \
+        \Single Output Transaction with decode transaction - single party" $
+        \ctx -> runResourceT $ do
 
         wa <- fixtureSharedWallet ctx
         wb <- emptyWallet ctx
@@ -521,10 +546,14 @@ spec = describe "SHARED_TRANSACTIONS" $ do
         verify rTx
             [ expectSuccess
             , expectResponseCode HTTP.status202
-            , expectField (#coinSelection . #inputs) (`shouldSatisfy` (not . null))
-            , expectField (#coinSelection . #outputs) (`shouldSatisfy` (not . null))
-            , expectField (#coinSelection . #change) (`shouldSatisfy` (not . null))
-            , expectField (#fee . #getQuantity) (`shouldSatisfy` (> 0))
+            , expectField (#coinSelection . #inputs)
+                (`shouldSatisfy` (not . null))
+            , expectField (#coinSelection . #outputs)
+                (`shouldSatisfy` (not . null))
+            , expectField (#coinSelection . #change)
+                (`shouldSatisfy` (not . null))
+            , expectField (#fee . #getQuantity)
+                (`shouldSatisfy` (> 0))
             ]
         let txCbor = getFromResponse #transaction rTx
         let decodePayload = Json (toJSON txCbor)
@@ -536,11 +565,16 @@ spec = describe "SHARED_TRANSACTIONS" $ do
         let expectedFee = getFromResponse (#fee . #getQuantity) rTx
         let sharedExpectationsBetweenWallets =
                 [ expectResponseCode HTTP.status202
-                , expectField (#fee . #getQuantity) (`shouldBe` expectedFee)
-                , expectField #withdrawals (`shouldBe` [])
-                , expectField #collateral (`shouldBe` [])
-                , expectField #metadata (`shouldBe` (ApiTxMetadata Nothing))
-                , expectField #scriptValidity (`shouldBe` (Just $ ApiT TxScriptValid))
+                , expectField (#fee . #getQuantity)
+                    (`shouldBe` expectedFee)
+                , expectField #withdrawals
+                    (`shouldBe` [])
+                , expectField #collateral
+                    (`shouldBe` [])
+                , expectField #metadata
+                    (`shouldBe` (ApiTxMetadata Nothing))
+                , expectField #scriptValidity
+                    (`shouldBe` (Just $ ApiT TxScriptValid))
                 ]
 
         verify rDecodedTxTarget sharedExpectationsBetweenWallets
@@ -570,13 +604,17 @@ spec = describe "SHARED_TRANSACTIONS" $ do
 
         verify rDecodedTxSource $
             sharedExpectationsBetweenWallets ++
-            [ expectField #inputs (`shouldSatisfy` areOurs)
-            , expectField #outputs (`shouldNotContain` [expectedTxOutTarget])
+            [ expectField #inputs
+                (`shouldSatisfy` areOurs)
+            , expectField #outputs
+                (`shouldNotContain` [expectedTxOutTarget])
             -- Check that the change output is there:
-            , expectField (#outputs) ((`shouldBe` 1) . length . filter isOutOurs)
+            , expectField (#outputs)
+                ((`shouldBe` 1) . length . filter isOutOurs)
             ]
 
-        let (ApiSerialisedTransaction apiTx _) = getFromResponse #transaction rTx
+        let (ApiSerialisedTransaction apiTx _) =
+                getFromResponse #transaction rTx
         signedTx <-
             signSharedTx ctx wa apiTx [ expectResponseCode HTTP.status202 ]
         let decodePayload1 = Json (toJSON signedTx)
@@ -587,10 +625,13 @@ spec = describe "SHARED_TRANSACTIONS" $ do
         verify rDecodedTxTarget1 sharedExpectationsBetweenWallets
         verify rDecodedTxSource1 $
             sharedExpectationsBetweenWallets ++
-            [ expectField #inputs (`shouldSatisfy` areOurs)
-            , expectField #outputs (`shouldNotContain` [expectedTxOutTarget])
+            [ expectField #inputs
+                (`shouldSatisfy` areOurs)
+            , expectField #outputs
+                (`shouldNotContain` [expectedTxOutTarget])
             -- Check that the change output is there:
-            , expectField (#outputs) ((`shouldBe` 1) . length . filter isOutOurs)
+            , expectField (#outputs)
+                ((`shouldBe` 1) . length . filter isOutOurs)
             ]
 
         -- Submit tx
@@ -621,7 +662,10 @@ spec = describe "SHARED_TRANSACTIONS" $ do
                         (`shouldBe` amt)
                 ]
 
-    it "SHARED_TRANSACTIONS_CREATE_04b - Cannot spend less than minUTxOValue" $ \ctx -> runResourceT $ do
+    it "SHARED_TRANSACTIONS_CREATE_04b - \
+        \Cannot spend less than minUTxOValue" $
+        \ctx -> runResourceT $ do
+
         wa <- fixtureSharedWallet ctx
         wb <- emptyWallet ctx
         let amt = minUTxOValue (_mainEra ctx) - 1
@@ -635,7 +679,10 @@ spec = describe "SHARED_TRANSACTIONS" $ do
             , expectErrorMessage errMsg403MinUTxOValue
             ]
 
-    it "SHARED_TRANSACTIONS_CREATE_04c - Can't cover fee" $ \ctx -> runResourceT $ do
+    it "SHARED_TRANSACTIONS_CREATE_04c - \
+        \Can't cover fee" $
+        \ctx -> runResourceT $ do
+
         wa <- fixtureSharedWallet ctx
         wb <- emptyWallet ctx
 
@@ -648,7 +695,10 @@ spec = describe "SHARED_TRANSACTIONS" $ do
             , expectErrorMessage errMsg403Fee
             ]
 
-    it "SHARED_TRANSACTIONS_CREATE_04e- Multiple Output Tx to single wallet" $ \ctx -> runResourceT $ do
+    it "SHARED_TRANSACTIONS_CREATE_04e - \
+        \Multiple Output Tx to single wallet"
+        $ \ctx -> runResourceT $ do
+
         wa <- fixtureSharedWallet ctx
         wb <- emptyWallet ctx
         addrs <- listAddresses @n ctx wb
@@ -677,25 +727,37 @@ spec = describe "SHARED_TRANSACTIONS" $ do
         verify rTx
             [ expectSuccess
             , expectResponseCode HTTP.status202
-            , expectField (#coinSelection . #inputs) (`shouldSatisfy` (not . null))
-            , expectField (#coinSelection . #outputs) (`shouldSatisfy` (not . null))
-            , expectField (#coinSelection . #change) (`shouldSatisfy` (not . null))
-            , expectField (#fee . #getQuantity) (`shouldSatisfy` (> 0))
+            , expectField (#coinSelection . #inputs)
+                (`shouldSatisfy` (not . null))
+            , expectField (#coinSelection . #outputs)
+                (`shouldSatisfy` (not . null))
+            , expectField (#coinSelection . #change)
+                (`shouldSatisfy` (not . null))
+            , expectField (#fee . #getQuantity)
+                (`shouldSatisfy` (> 0))
             ]
 
-    it "SHARED_TRANSACTIONS_CREATE_05a - Single Output Transaction with decode transaction - multi party" $ \ctx -> runResourceT $ do
+    it "SHARED_TRANSACTIONS_CREATE_05a - \
+        \Single Output Transaction with decode transaction - multi party" $
+        \ctx -> runResourceT $ do
 
         (sharedWal1, sharedWal2) <- fixtureTwoPartySharedWallet ctx
         singleOutputTxTwoParty ctx sharedWal1 sharedWal2
 
-    it "SHARED_TRANSACTIONS_CREATE_05b - Single Output Transaction with decode transaction - multi party" $ \ctx -> runResourceT $ do
+    it "SHARED_TRANSACTIONS_CREATE_05b - \
+        \Single Output Transaction with decode transaction - multi party" $
+        \ctx -> runResourceT $ do
 
-        (sharedWal1, sharedWal2) <- fixtureTwoPartySharedWalletPatched ctx
+        (sharedWal1, sharedWal2, _, _, _, _) <-
+            fixtureTwoPartySharedWalletPatched ctx
         singleOutputTxTwoParty ctx sharedWal1 sharedWal2
 
-    it "SHARED_TRANSACTIONS_CREATE_05c - Single Output Transaction with decode transaction - multi party" $ \ctx -> runResourceT $ do
+    it "SHARED_TRANSACTIONS_CREATE_05c - \
+        \Single Output Transaction with decode transaction - multi party" $
+        \ctx -> runResourceT $ do
 
-        (sharedWal1, sharedWal2, sharedWal3) <- fixtureThreePartySharedWallet ctx
+        (sharedWal1, sharedWal2, sharedWal3) <-
+            fixtureThreePartySharedWallet ctx
 
         -- check we see balance from two wallets
         rSharedWal1 <- getSharedWallet ctx (ApiSharedWallet (Right sharedWal1))
@@ -738,13 +800,15 @@ spec = describe "SHARED_TRANSACTIONS" $ do
                 sharedWal1 ^. #paymentScriptTemplate
         let paymentScript =
                 NativeScript $
-                replaceCosignersWithVerKeys CA.UTxOExternal scriptTemplate (Index 1)
+                replaceCosignersWithVerKeys
+                    CA.UTxOExternal scriptTemplate (Index 1)
         let noVerKeyWitness = mkApiWitnessCount WitnessCount
                 { verificationKey = 0
                 , scripts = [paymentScript]
                 , bootstrap = 0
                 }
-        let witsExp1 = [ expectField (#witnessCount) (`shouldBe` noVerKeyWitness) ]
+        let witsExp1 =
+                [ expectField (#witnessCount) (`shouldBe` noVerKeyWitness) ]
 
         verify rDecodedTx1Wal1 witsExp1
         verify rDecodedTx1Wal2 witsExp1
@@ -757,14 +821,16 @@ spec = describe "SHARED_TRANSACTIONS" $ do
                 , scripts = [changeRole CA.Unknown paymentScript]
                 , bootstrap = 0
                 }
-        let witsExp1hex = [ expectField (#witnessCount) (`shouldBe` noVerKeyWitnessHex) ]
+        let witsExp1hex =
+                [ expectField (#witnessCount) (`shouldBe` noVerKeyWitnessHex) ]
         verify rDecodedTx1Target witsExp1hex
 
         -- adding one witness
         let (ApiSerialisedTransaction apiTx1 _) =
                 getFromResponse #transaction rTx
         signedTx1 <-
-            signSharedTx ctx sharedWal1 apiTx1 [ expectResponseCode HTTP.status202 ]
+            signSharedTx ctx sharedWal1 apiTx1
+                [ expectResponseCode HTTP.status202 ]
         let decodePayload2 = Json (toJSON signedTx1)
         rDecodedTx2Wal1 <- request @(ApiDecodedTransaction n) ctx
             (Link.decodeTransaction @'Shared sharedWal1) Default decodePayload2
@@ -780,7 +846,8 @@ spec = describe "SHARED_TRANSACTIONS" $ do
                 , scripts = [paymentScript]
                 , bootstrap = 0
                 }
-        let witsExp2 = [ expectField (#witnessCount) (`shouldBe` oneVerKeyWitness) ]
+        let witsExp2 =
+                [ expectField (#witnessCount) (`shouldBe` oneVerKeyWitness) ]
 
         verify rDecodedTx2Wal1 witsExp2
         verify rDecodedTx2Wal2 witsExp2
@@ -792,7 +859,8 @@ spec = describe "SHARED_TRANSACTIONS" $ do
                 , scripts = [changeRole CA.Unknown paymentScript]
                 , bootstrap = 0
                 }
-        let witsExp2hex = [ expectField (#witnessCount) (`shouldBe` oneVerKeyWitnessHex) ]
+        let witsExp2hex =
+                [ expectField (#witnessCount) (`shouldBe` oneVerKeyWitnessHex) ]
         verify rDecodedTx2Target witsExp2hex
 
         submittedTx1 <- submitSharedTxWithWid ctx sharedWal1 signedTx1
@@ -801,10 +869,12 @@ spec = describe "SHARED_TRANSACTIONS" $ do
             , expectErrorMessage (errMsg403MissingWitsInTransaction 2 1)
             ]
 
-        --adding the witness by the second participant make tx valid for submission
+        -- adding the witness by the second participant make tx valid for
+        -- submission
         let (ApiSerialisedTransaction apiTx2 _) = signedTx1
         signedTx3 <-
-            signSharedTx ctx sharedWal2 apiTx2 [ expectResponseCode HTTP.status202 ]
+            signSharedTx ctx sharedWal2 apiTx2
+                [ expectResponseCode HTTP.status202 ]
 
         -- now submission works
         submittedTx3 <- submitSharedTxWithWid ctx sharedWal1 signedTx3
@@ -820,7 +890,9 @@ spec = describe "SHARED_TRANSACTIONS" $ do
             let balanceExp1 =
                     [ expectResponseCode HTTP.status200
                     , expectField (traverse . #balance . #available)
-                        (`shouldBe` Quantity (faucetUtxoAmt - expectedFee - amt))
+                        (`shouldBe` Quantity
+                            (faucetUtxoAmt - expectedFee - amt)
+                        )
                     ]
             verify (fmap (view #wallet) <$> wal1) balanceExp1
             verify (fmap (view #wallet) <$> wal2) balanceExp1
@@ -837,7 +909,74 @@ spec = describe "SHARED_TRANSACTIONS" $ do
                         (`shouldBe` amt)
                 ]
 
-    it "SHARED_TRANSACTIONS_LIST_01 - Can list Incoming and Outgoing transactions" $
+    it "SHARED_TRANSACTIONS_CREATE_06 - \
+        \multi party wallet balance consistency before and after wallet \
+        \delete" $
+        \ctx -> runResourceT $ do
+
+        ( sharedWal1
+            , sharedWal2
+            , payload1
+            , accXPubDerived1
+            , payload2
+            , accXPubDerived2
+            ) <- fixtureTwoPartySharedWalletPatched ctx
+        singleOutputTxTwoParty ctx sharedWal1 sharedWal2
+
+        -- reading the balance and checking consistency among parties
+        (_, Right (ApiSharedWallet (Right wal1))) <-
+            getSharedWallet ctx (ApiSharedWallet (Right sharedWal1))
+        (_, Right (ApiSharedWallet (Right wal2))) <-
+            getSharedWallet ctx (ApiSharedWallet (Right sharedWal2))
+        let bal1 = wal1 ^. (#balance . #available)
+        let bal2 = wal2 ^. (#balance . #available)
+        bal1 `shouldBe` bal2
+
+        --each party deletes its shared wallet
+        rDel1 <- deleteSharedWallet ctx (ApiSharedWallet (Right wal1))
+        expectResponseCode HTTP.status204 rDel1
+        rDel2 <- deleteSharedWallet ctx (ApiSharedWallet (Right wal2))
+        expectResponseCode HTTP.status204 rDel2
+
+        -- creating wallets once again with patching
+        rPost1 <- postSharedWallet ctx Default payload1
+        verify (fmap (swapEither . view #wallet) <$> rPost1)
+            [ expectResponseCode HTTP.status201
+            ]
+        let walPending1 = getFromResponse Prelude.id rPost1
+        let payloadPatch1 = Json [json| {
+                "cosigner#1": #{accXPubDerived2}
+                } |]
+        rPatch1 <- patchSharedWallet ctx walPending1 Payment payloadPatch1
+        expectResponseCode HTTP.status200 rPatch1
+        let walShared1 = getFromResponse Prelude.id rPatch1
+
+        rPost2 <- postSharedWallet ctx Default payload2
+        verify (fmap (swapEither . view #wallet) <$> rPost2)
+            [ expectResponseCode HTTP.status201
+            ]
+        let walPending2 = getFromResponse Prelude.id rPost2
+        let payloadPatch2 = Json [json| {
+                "cosigner#0": #{accXPubDerived1}
+                } |]
+        rPatch2 <- patchSharedWallet ctx walPending2 Payment payloadPatch2
+        expectResponseCode HTTP.status200 rPatch2
+        let walShared2 = getFromResponse Prelude.id rPatch2
+
+        --checking that balances are the same as before deletion
+        eventually "balance is like before deletion" $ do
+            wal1a <- getSharedWallet ctx walShared1
+            wal2a <- getSharedWallet ctx walShared2
+            let balanceExp =
+                    [ expectResponseCode HTTP.status200
+                    , expectField (traverse . #balance . #available)
+                        (`shouldBe` bal1)
+                    ]
+            verify (fmap (view #wallet) <$> wal1a) balanceExp
+            verify (fmap (view #wallet) <$> wal2a) balanceExp
+
+    it "SHARED_TRANSACTIONS_LIST_01 -\
+        \Can list Incoming and Outgoing transactions" $
         \ctx -> runResourceT $ do
 
         (wSrc, wDest) <- (,) <$> fixtureSharedWallet ctx <*> emptyWallet ctx
@@ -902,8 +1041,11 @@ spec = describe "SHARED_TRANSACTIONS" $ do
     --  17 | t1       | t1       | empty      | 1st one      |
     --  18 | t2       | t2       | descending | 2nd one      |
     -- +---+----------+----------+------------+--------------+
-    it "SHARED_TRANSACTIONS_LIST_02,03x - Can limit/order results with start, end and order"
+
+    it "SHARED_TRANSACTIONS_LIST_02,03x -\
+        \Can limit/order results with start, end and order"
         $ \ctx -> runResourceT $ do
+
         let amt1 = minUTxOValue (_mainEra ctx)
         let amt2 = 2 * amt1
         (wSrc, wDest@(ApiSharedWallet (Right walDest))) <-
@@ -1150,11 +1292,14 @@ spec = describe "SHARED_TRANSACTIONS" $ do
 
         liftIO $ forM_ matrix $ \tc -> do
             let link =
-                    withQuery (query tc) $ Link.listTransactions @'Shared walDest
+                    withQuery (query tc) $
+                    Link.listTransactions @'Shared walDest
             rf <- request @([ApiTransaction n]) ctx link Default Empty
             verify rf (assertions tc)
 
-    describe "SHARED_TRANSACTIONS_LIST_02,03 - Faulty start, end, order values" $ do
+    describe "SHARED_TRANSACTIONS_LIST_02,03 - \
+        \Faulty start, end, order values" $ do
+
         let orderErr = "Please specify one of the following values:\
             \ ascending, descending."
         let startEndErr = "Expecting ISO 8601 date-and-time format\
@@ -1164,61 +1309,56 @@ spec = describe "SHARED_TRANSACTIONS" $ do
                   TestCase
                     { query = toQueryString [ ("start", "2009") ]
                     , assertions =
-                             [ expectResponseCode HTTP.status400
-                             , expectErrorMessage startEndErr
-                             ]
-
+                         [ expectResponseCode HTTP.status400
+                         , expectErrorMessage startEndErr
+                         ]
                     }
                  , TestCase
                      { query = toQueryString
-                             [ ("start", "2012-09-25T10:15:00Z")
-                             , ("end", "2016-11-21")
-                             ]
+                         [ ("start", "2012-09-25T10:15:00Z")
+                         , ("end", "2016-11-21")
+                         ]
                      , assertions =
-                             [ expectResponseCode HTTP.status400
-                             , expectErrorMessage startEndErr
-                             ]
-
+                         [ expectResponseCode HTTP.status400
+                         , expectErrorMessage startEndErr
+                         ]
                      }
                  , TestCase
                      { query = toQueryString
-                             [ ("start", "2012-09-25")
-                             , ("end", "2016-11-21T10:15:00Z")
-                             ]
+                         [ ("start", "2012-09-25")
+                         , ("end", "2016-11-21T10:15:00Z")
+                         ]
                      , assertions =
-                             [ expectResponseCode HTTP.status400
-                             , expectErrorMessage startEndErr
-                             ]
-
+                         [ expectResponseCode HTTP.status400
+                         , expectErrorMessage startEndErr
+                         ]
                      }
                  , TestCase
                      { query = toQueryString
-                             [ ("end", "2012-09-25T10:15:00Z")
-                             , ("start", "2016-11-21")
-                             ]
+                         [ ("end", "2012-09-25T10:15:00Z")
+                         , ("start", "2016-11-21")
+                         ]
                      , assertions =
-                             [ expectResponseCode HTTP.status400
-                             , expectErrorMessage startEndErr
-                             ]
-
+                         [ expectResponseCode HTTP.status400
+                         , expectErrorMessage startEndErr
+                         ]
                      }
                  , TestCase
                      { query = toQueryString [ ("order", "scending") ]
                      , assertions =
-                            [ expectResponseCode HTTP.status400
-                            , expectErrorMessage orderErr
-                            ]
-
+                        [ expectResponseCode HTTP.status400
+                        , expectErrorMessage orderErr
+                        ]
                      }
                  , TestCase
                      { query = toQueryString
-                             [ ("start", "2012-09-25T10:15:00Z")
-                             , ("order", "asc")
-                             ]
+                         [ ("start", "2012-09-25T10:15:00Z")
+                         , ("order", "asc")
+                         ]
                      , assertions =
-                             [ expectResponseCode HTTP.status400
-                             , expectErrorMessage orderErr
-                             ]
+                         [ expectResponseCode HTTP.status400
+                         , expectErrorMessage orderErr
+                         ]
                      }
                 ]
 
@@ -1232,8 +1372,10 @@ spec = describe "SHARED_TRANSACTIONS" $ do
                 r <- request @([ApiTransaction n]) ctx link Default Empty
                 liftIO $ verify r (assertions tc)
 
-    it "SHARED_TRANSACTIONS_LIST_02 - Start time shouldn't be later than end time" $
+    it "SHARED_TRANSACTIONS_LIST_02 - \
+        \Start time shouldn't be later than end time" $
         \ctx -> runResourceT $ do
+
             (ApiSharedWallet (Right w)) <- emptySharedWallet ctx
             let startTime = "2009-09-09T09:09:09Z"
             let endTime = "2001-01-01T01:01:01Z"
@@ -1248,8 +1390,10 @@ spec = describe "SHARED_TRANSACTIONS" $ do
                 (errMsg400StartTimeLaterThanEndTime startTime endTime) r
             pure ()
 
-    it "SHARED_TRANSACTIONS_LIST_03 - Minimum withdrawal shouldn't be 0" $
+    it "SHARED_TRANSACTIONS_LIST_03 - \
+        \Minimum withdrawal shouldn't be 0" $
         \ctx -> runResourceT $ do
+
             (ApiSharedWallet (Right w)) <- emptySharedWallet ctx
             let link = Link.listTransactions' @'Shared w
                     (Just 0)
@@ -1264,6 +1408,7 @@ spec = describe "SHARED_TRANSACTIONS" $ do
     it "SHARED_TRANSACTIONS_LIST_03 - \
         \Minimum withdrawal can be 1, shows empty when no withdrawals" $
         \ctx -> runResourceT $ do
+
             (ApiSharedWallet (Right w)) <- emptySharedWallet ctx
             let link = Link.listTransactions' @'Shared w
                     (Just 1)
@@ -1275,7 +1420,10 @@ spec = describe "SHARED_TRANSACTIONS" $ do
             let txs = getFromResponse Prelude.id r
             txs `shouldBe` []
 
-    it "SHARED_TRANSACTIONS_LIST_04 - Deleted wallet" $ \ctx -> runResourceT $ do
+    it "SHARED_TRANSACTIONS_LIST_04 - \
+        \Deleted wallet" $
+        \ctx -> runResourceT $ do
+
         (ApiSharedWallet (Right w)) <- emptySharedWallet ctx
         _ <- request @ApiWallet ctx
             (Link.deleteWallet @'Shared w) Default Empty
@@ -1286,38 +1434,42 @@ spec = describe "SHARED_TRANSACTIONS" $ do
         expectErrorMessage (errMsg404NoWallet $ w ^. walletId) r
 
     it "SHARED_TRANSACTIONS_LIST_RANGE_01 - \
-       \Transaction at time t is SELECTED by small ranges that cover it" $
-          \ctx -> runResourceT $ do
-              w <- fixtureSharedWalletWith ctx (minUTxOValue (_mainEra ctx))
-              t <- unsafeGetTransactionTime =<< listAllSharedTransactions ctx w
-              let (te, tl) = (utcTimePred t, utcTimeSucc t)
-              txs1 <- listSharedTransactions ctx w (Just t ) (Just t ) Nothing
-              txs2 <- listSharedTransactions ctx w (Just te) (Just t ) Nothing
-              txs3 <- listSharedTransactions ctx w (Just t ) (Just tl) Nothing
-              txs4 <- listSharedTransactions ctx w (Just te) (Just tl) Nothing
-              length <$> [txs1, txs2, txs3, txs4] `shouldSatisfy` all (== 1)
+        \Transaction at time t is SELECTED by small ranges that cover it" $
+        \ctx -> runResourceT $ do
+
+            w <- fixtureSharedWalletWith ctx (minUTxOValue (_mainEra ctx))
+            t <- unsafeGetTransactionTime =<< listAllSharedTransactions ctx w
+            let (te, tl) = (utcTimePred t, utcTimeSucc t)
+            txs1 <- listSharedTransactions ctx w (Just t ) (Just t ) Nothing
+            txs2 <- listSharedTransactions ctx w (Just te) (Just t ) Nothing
+            txs3 <- listSharedTransactions ctx w (Just t ) (Just tl) Nothing
+            txs4 <- listSharedTransactions ctx w (Just te) (Just tl) Nothing
+            length <$> [txs1, txs2, txs3, txs4] `shouldSatisfy` all (== 1)
 
     it "SHARED_TRANSACTIONS_LIST_RANGE_02 - \
-       \Transaction at time t is NOT selected by range (t + 𝛿t, ...)" $
-          \ctx -> runResourceT $ do
-              w <- fixtureSharedWalletWith ctx (minUTxOValue (_mainEra ctx))
-              t <- unsafeGetTransactionTime =<< listAllSharedTransactions ctx w
-              let tl = utcTimeSucc t
-              txs1 <- listSharedTransactions ctx w (Just tl) (Nothing) Nothing
-              txs2 <- listSharedTransactions ctx w (Just tl) (Just tl) Nothing
-              length <$> [txs1, txs2] `shouldSatisfy` all (== 0)
+        \Transaction at time t is NOT selected by range (t + 𝛿t, ...)" $
+        \ctx -> runResourceT $ do
+
+            w <- fixtureSharedWalletWith ctx (minUTxOValue (_mainEra ctx))
+            t <- unsafeGetTransactionTime =<< listAllSharedTransactions ctx w
+            let tl = utcTimeSucc t
+            txs1 <- listSharedTransactions ctx w (Just tl) (Nothing) Nothing
+            txs2 <- listSharedTransactions ctx w (Just tl) (Just tl) Nothing
+            length <$> [txs1, txs2] `shouldSatisfy` all (== 0)
 
     it "SHARED_TRANSACTIONS_LIST_RANGE_03 - \
-       \Transaction at time t is NOT selected by range (..., t - 𝛿t)" $
-          \ctx -> runResourceT $ do
-              w <- fixtureSharedWalletWith ctx (minUTxOValue (_mainEra ctx))
-              t <- unsafeGetTransactionTime =<< listAllSharedTransactions ctx w
-              let te = utcTimePred t
-              txs1 <- listSharedTransactions ctx w (Nothing) (Just te) Nothing
-              txs2 <- listSharedTransactions ctx w (Just te) (Just te) Nothing
-              length <$> [txs1, txs2] `shouldSatisfy` all (== 0)
+        \Transaction at time t is NOT selected by range (..., t - 𝛿t)" $
+        \ctx -> runResourceT $ do
 
-    it "SHARED_TRANSACTIONS_GET_01 - Can get Incoming and Outgoing transaction" $
+            w <- fixtureSharedWalletWith ctx (minUTxOValue (_mainEra ctx))
+            t <- unsafeGetTransactionTime =<< listAllSharedTransactions ctx w
+            let te = utcTimePred t
+            txs1 <- listSharedTransactions ctx w (Nothing) (Just te) Nothing
+            txs2 <- listSharedTransactions ctx w (Just te) (Just te) Nothing
+            length <$> [txs1, txs2] `shouldSatisfy` all (== 0)
+
+    it "SHARED_TRANSACTIONS_GET_01 - \
+        \Can get Incoming and Outgoing transaction" $
         \ctx -> runResourceT $ do
 
         (wSrc, (ApiSharedWallet (Right walDest))) <-
@@ -1392,7 +1544,10 @@ spec = describe "SHARED_TRANSACTIONS" $ do
                 , expectField (#status . #getApiT) (`shouldBe` InLedger)
                 ]
 
-    it "SHARED_TRANSACTIONS_GET_02 - Deleted wallet" $ \ctx -> runResourceT $ do
+    it "SHARED_TRANSACTIONS_GET_02 - \
+        \Deleted wallet" $
+        \ctx -> runResourceT $ do
+
         (ApiSharedWallet (Right w)) <- emptySharedWallet ctx
         _ <- request @ApiWallet
             ctx (Link.deleteWallet @'Shared w) Default Empty
@@ -1402,7 +1557,10 @@ spec = describe "SHARED_TRANSACTIONS" $ do
         expectResponseCode HTTP.status404 r
         expectErrorMessage (errMsg404NoWallet $ w ^. walletId) r
 
-    it "SHARED_TRANSACTIONS_GET_03 - Using wrong transaction id" $ \ctx -> runResourceT $ do
+    it "SHARED_TRANSACTIONS_GET_03 - \
+        \Using wrong transaction id" $
+        \ctx -> runResourceT $ do
+
         (wSrc, (ApiSharedWallet (Right walDest))) <-
             (,) <$> fixtureSharedWallet ctx <*> emptySharedWallet ctx
         -- post tx
@@ -1521,7 +1679,8 @@ spec = describe "SHARED_TRANSACTIONS" $ do
      fundSharedWallet ctx amt sharedWals = do
         let wal = case NE.head sharedWals of
                 ApiSharedWallet (Right wal') -> wal'
-                _ -> error "funding of shared wallet make sense only for active one"
+                _ -> error
+                    "funding of shared wallet make sense only for active one"
 
         rAddr <- request @[ApiAddress n] ctx
             (Link.listAddresses @'Shared wal) Default Empty
@@ -1556,7 +1715,8 @@ spec = describe "SHARED_TRANSACTIONS" $ do
             rWal <- getSharedWallet ctx walShared
             verify (fmap (view #wallet) <$> rWal)
                 [ expectResponseCode HTTP.status200
-                , expectField (traverse . #balance . #available) (`shouldBe` Quantity amt)
+                , expectField (traverse . #balance . #available)
+                    (`shouldBe` Quantity amt)
                 ]
 
      emptySharedWallet ctx = do
@@ -1564,9 +1724,11 @@ spec = describe "SHARED_TRANSACTIONS" $ do
         m12txt <- liftIO $ genMnemonics M12
         let (Right m15) = mkSomeMnemonic @'[ 15 ] m15txt
         let (Right m12) = mkSomeMnemonic @'[ 12 ] m12txt
-        let passphrase = Passphrase $ BA.convert $ T.encodeUtf8 fixturePassphrase
+        let passphrase = Passphrase $
+                BA.convert $ T.encodeUtf8 fixturePassphrase
         let index = 30
-        let accXPubDerived = sharedAccPubKeyFromMnemonics m15 (Just m12) index passphrase
+        let accXPubDerived =
+                sharedAccPubKeyFromMnemonics m15 (Just m12) index passphrase
         let payload = Json [json| {
                 "name": "Shared Wallet",
                 "mnemonic_sentence": #{m15txt},
@@ -1596,21 +1758,24 @@ spec = describe "SHARED_TRANSACTIONS" $ do
      fixtureTwoPartySharedWallet ctx = do
 
         let index = 30
-        let passphrase = Passphrase $ BA.convert $ T.encodeUtf8 fixturePassphrase
+        let passphrase = Passphrase $
+                BA.convert $ T.encodeUtf8 fixturePassphrase
 
         -- first participant, cosigner 0
         m15txtA <- liftIO $ genMnemonics M15
         m12txtA <- liftIO $ genMnemonics M12
         let (Right m15A) = mkSomeMnemonic @'[ 15 ] m15txtA
         let (Right m12A) = mkSomeMnemonic @'[ 12 ] m12txtA
-        let accXPubDerivedA = sharedAccPubKeyFromMnemonics m15A (Just m12A) index passphrase
+        let accXPubDerivedA =
+                sharedAccPubKeyFromMnemonics m15A (Just m12A) index passphrase
 
         -- second participant, cosigner 1
         m15txtB <- liftIO $ genMnemonics M15
         m12txtB <- liftIO $ genMnemonics M12
         let (Right m15B) = mkSomeMnemonic @'[ 15 ] m15txtB
         let (Right m12B) = mkSomeMnemonic @'[ 12 ] m12txtB
-        let accXPubDerivedB = sharedAccPubKeyFromMnemonics m15B (Just m12B) index passphrase
+        let accXPubDerivedB =
+                sharedAccPubKeyFromMnemonics m15B (Just m12B) index passphrase
 
         -- payload
         let payload m15txt m12txt = Json [json| {
@@ -1621,7 +1786,9 @@ spec = describe "SHARED_TRANSACTIONS" $ do
                 "account_index": "30H",
                 "payment_script_template":
                     { "cosigners":
-                        { "cosigner#0": #{accXPubDerivedA}, "cosigner#1": #{accXPubDerivedB} },
+                        { "cosigner#0": #{accXPubDerivedA}
+                        , "cosigner#1": #{accXPubDerivedB}
+                        },
                       "template":
                           { "all":
                              [ "cosigner#0", "cosigner#1" ]
@@ -1643,28 +1810,32 @@ spec = describe "SHARED_TRANSACTIONS" $ do
         let walShared2@(ApiSharedWallet (Right walB)) =
                 getFromResponse Prelude.id rPostB
 
-        fundSharedWallet ctx faucetUtxoAmt (NE.fromList [walShared1, walShared2])
+        fundSharedWallet
+            ctx faucetUtxoAmt (NE.fromList [walShared1, walShared2])
 
         return (walA, walB)
 
      fixtureTwoPartySharedWalletPatched ctx = do
 
         let index = 30
-        let passphrase = Passphrase $ BA.convert $ T.encodeUtf8 fixturePassphrase
+        let passphrase = Passphrase $
+                BA.convert $ T.encodeUtf8 fixturePassphrase
 
         -- first participant, cosigner 0
         m15txtA <- liftIO $ genMnemonics M15
         m12txtA <- liftIO $ genMnemonics M12
         let (Right m15A) = mkSomeMnemonic @'[ 15 ] m15txtA
         let (Right m12A) = mkSomeMnemonic @'[ 12 ] m12txtA
-        let accXPubDerivedA = sharedAccPubKeyFromMnemonics m15A (Just m12A) index passphrase
+        let accXPubDerivedA =
+                sharedAccPubKeyFromMnemonics m15A (Just m12A) index passphrase
 
         -- second participant, cosigner 1
         m15txtB <- liftIO $ genMnemonics M15
         m12txtB <- liftIO $ genMnemonics M12
         let (Right m15B) = mkSomeMnemonic @'[ 15 ] m15txtB
         let (Right m12B) = mkSomeMnemonic @'[ 12 ] m12txtB
-        let accXPubDerivedB = sharedAccPubKeyFromMnemonics m15B (Just m12B) index passphrase
+        let accXPubDerivedB =
+                sharedAccPubKeyFromMnemonics m15B (Just m12B) index passphrase
 
         -- payload for A
         let payloadA = Json [json| {
@@ -1726,35 +1897,41 @@ spec = describe "SHARED_TRANSACTIONS" $ do
         let walShared2@(ApiSharedWallet (Right walB)) =
                 getFromResponse Prelude.id rPatchB
 
-        fundSharedWallet ctx faucetUtxoAmt (NE.fromList [walShared1, walShared2])
+        fundSharedWallet ctx faucetUtxoAmt
+            (NE.fromList [walShared1, walShared2])
 
-        return (walA, walB)
+        return
+            (walA, walB, payloadA, accXPubDerivedA, payloadB, accXPubDerivedB)
 
      fixtureThreePartySharedWallet ctx = do
 
         let index = 30
-        let passphrase = Passphrase $ BA.convert $ T.encodeUtf8 fixturePassphrase
+        let passphrase = Passphrase $
+                BA.convert $ T.encodeUtf8 fixturePassphrase
 
         -- first participant, cosigner 0
         m15txtA <- liftIO $ genMnemonics M15
         m12txtA <- liftIO $ genMnemonics M12
         let (Right m15A) = mkSomeMnemonic @'[ 15 ] m15txtA
         let (Right m12A) = mkSomeMnemonic @'[ 12 ] m12txtA
-        let accXPubDerivedA = sharedAccPubKeyFromMnemonics m15A (Just m12A) index passphrase
+        let accXPubDerivedA =
+                sharedAccPubKeyFromMnemonics m15A (Just m12A) index passphrase
 
         -- second participant, cosigner 1
         m15txtB <- liftIO $ genMnemonics M15
         m12txtB <- liftIO $ genMnemonics M12
         let (Right m15B) = mkSomeMnemonic @'[ 15 ] m15txtB
         let (Right m12B) = mkSomeMnemonic @'[ 12 ] m12txtB
-        let accXPubDerivedB = sharedAccPubKeyFromMnemonics m15B (Just m12B) index passphrase
+        let accXPubDerivedB =
+                sharedAccPubKeyFromMnemonics m15B (Just m12B) index passphrase
 
         -- third participant, cosigner 2
         m15txtC <- liftIO $ genMnemonics M15
         m12txtC <- liftIO $ genMnemonics M12
         let (Right m15C) = mkSomeMnemonic @'[ 15 ] m15txtC
         let (Right m12C) = mkSomeMnemonic @'[ 12 ] m12txtC
-        let accXPubDerivedC = sharedAccPubKeyFromMnemonics m15C (Just m12C) index passphrase
+        let accXPubDerivedC =
+                sharedAccPubKeyFromMnemonics m15C (Just m12C) index passphrase
 
         -- payload
         let payload m15txt m12txt = Json [json| {
@@ -1771,7 +1948,11 @@ spec = describe "SHARED_TRANSACTIONS" $ do
                       "template":
                           { "some":
                                { "at_least": 2
-                               , "from": [ "cosigner#0", "cosigner#1", "cosigner#2" ]
+                               , "from":
+                                  [ "cosigner#0"
+                                  , "cosigner#1"
+                                  , "cosigner#2"
+                                  ]
                                }
                           }
                     }
@@ -1798,7 +1979,8 @@ spec = describe "SHARED_TRANSACTIONS" $ do
         let walShared3@(ApiSharedWallet (Right walC)) =
                 getFromResponse Prelude.id rPostC
 
-        fundSharedWallet ctx faucetUtxoAmt (NE.fromList [walShared1, walShared2, walShared3])
+        fundSharedWallet ctx faucetUtxoAmt
+            (NE.fromList [walShared1, walShared2, walShared3])
 
         return (walA, walB, walC)
 
@@ -1845,10 +2027,14 @@ spec = describe "SHARED_TRANSACTIONS" $ do
         verify rTx
             [ expectSuccess
             , expectResponseCode HTTP.status202
-            , expectField (#coinSelection . #inputs) (`shouldSatisfy` (not . null))
-            , expectField (#coinSelection . #outputs) (`shouldSatisfy` (not . null))
-            , expectField (#coinSelection . #change) (`shouldSatisfy` (not . null))
-            , expectField (#fee . #getQuantity) (`shouldSatisfy` (> 0))
+            , expectField (#coinSelection . #inputs)
+                (`shouldSatisfy` (not . null))
+            , expectField (#coinSelection . #outputs)
+                (`shouldSatisfy` (not . null))
+            , expectField (#coinSelection . #change)
+                (`shouldSatisfy` (not . null))
+            , expectField (#fee . #getQuantity)
+                (`shouldSatisfy` (> 0))
             ]
         let txCbor = getFromResponse #transaction rTx
         let decodePayload1 = Json (toJSON txCbor)
@@ -1866,7 +2052,8 @@ spec = describe "SHARED_TRANSACTIONS" $ do
                 , expectField #withdrawals (`shouldBe` [])
                 , expectField #collateral (`shouldBe` [])
                 , expectField #metadata (`shouldBe` (ApiTxMetadata Nothing))
-                , expectField #scriptValidity (`shouldBe` (Just $ ApiT TxScriptValid))
+                , expectField #scriptValidity
+                    (`shouldBe` (Just $ ApiT TxScriptValid))
                 ]
 
         verify rDecodedTx1Target sharedExpectationsBetweenWallets
@@ -1898,7 +2085,8 @@ spec = describe "SHARED_TRANSACTIONS" $ do
                 sharedWal1 ^. #paymentScriptTemplate
         let paymentScript =
                 NativeScript $
-                replaceCosignersWithVerKeys CA.UTxOExternal scriptTemplate (Index 1)
+                replaceCosignersWithVerKeys CA.UTxOExternal scriptTemplate
+                (Index 1)
 
         let noVerKeyWitness = mkApiWitnessCount WitnessCount
                 { verificationKey = 0
@@ -1909,11 +2097,14 @@ spec = describe "SHARED_TRANSACTIONS" $ do
         let decodeConstructedTxSharedWal =
                 sharedExpectationsBetweenWallets ++
                 [ expectField #inputs (`shouldSatisfy` areOurs)
-                , expectField #outputs (`shouldNotContain` [expectedTxOutTarget])
+                , expectField #outputs
+                    (`shouldNotContain` [expectedTxOutTarget])
                 -- Check that the change output is there:
-                , expectField (#outputs) ((`shouldBe` 1) . length . filter isOutOurs)
+                , expectField (#outputs)
+                    ((`shouldBe` 1) . length . filter isOutOurs)
                 ]
-        let witsExp1 = [ expectField (#witnessCount) (`shouldBe` noVerKeyWitness) ]
+        let witsExp1 =
+                [ expectField (#witnessCount) (`shouldBe` noVerKeyWitness) ]
 
         verify rDecodedTx1Wal1 (decodeConstructedTxSharedWal ++ witsExp1)
         verify rDecodedTx1Wal2 (decodeConstructedTxSharedWal ++ witsExp1)
@@ -1922,7 +2113,8 @@ spec = describe "SHARED_TRANSACTIONS" $ do
         let (ApiSerialisedTransaction apiTx1 _) =
                 getFromResponse #transaction rTx
         signedTx1 <-
-            signSharedTx ctx sharedWal1 apiTx1 [ expectResponseCode HTTP.status202 ]
+            signSharedTx ctx sharedWal1 apiTx1
+                [ expectResponseCode HTTP.status202 ]
         let decodePayload2 = Json (toJSON signedTx1)
         rDecodedTx2Wal1 <- request @(ApiDecodedTransaction n) ctx
             (Link.decodeTransaction @'Shared sharedWal1) Default decodePayload2
@@ -1936,7 +2128,8 @@ spec = describe "SHARED_TRANSACTIONS" $ do
                 , scripts = [paymentScript]
                 , bootstrap = 0
                 }
-        let witsExp2 = [ expectField (#witnessCount) (`shouldBe` oneVerKeyWitness) ]
+        let witsExp2 =
+                [ expectField (#witnessCount) (`shouldBe` oneVerKeyWitness) ]
 
         verify rDecodedTx2Target sharedExpectationsBetweenWallets
         verify rDecodedTx2Wal1 (decodeConstructedTxSharedWal ++ witsExp2)
@@ -1948,10 +2141,12 @@ spec = describe "SHARED_TRANSACTIONS" $ do
             , expectErrorMessage (errMsg403MissingWitsInTransaction 2 1)
             ]
 
-        --adding the witness by the same participant does not change the situation
+        --adding the witness by the same participant does not change the
+        --situation
         let (ApiSerialisedTransaction apiTx2 _) = signedTx1
         signedTx2 <-
-            signSharedTx ctx sharedWal1 apiTx2 [ expectResponseCode HTTP.status202 ]
+            signSharedTx ctx sharedWal1 apiTx2
+                [ expectResponseCode HTTP.status202 ]
         let decodePayload3 = Json (toJSON signedTx2)
         rDecodedTx3Wal1 <- request @(ApiDecodedTransaction n) ctx
             (Link.decodeTransaction @'Shared sharedWal1) Default decodePayload3
@@ -1969,9 +2164,11 @@ spec = describe "SHARED_TRANSACTIONS" $ do
             , expectErrorMessage (errMsg403MissingWitsInTransaction 2 1)
             ]
 
-        --adding the witness by the second participant make tx valid for submission
+        --adding the witness by the second participant make tx valid for
+        --submission
         signedTx3 <-
-            signSharedTx ctx sharedWal2 apiTx2 [ expectResponseCode HTTP.status202 ]
+            signSharedTx ctx sharedWal2 apiTx2
+                [ expectResponseCode HTTP.status202 ]
 
         -- now submission works
         submittedTx3 <- submitSharedTxWithWid ctx sharedWal1 signedTx3
@@ -1986,7 +2183,9 @@ spec = describe "SHARED_TRANSACTIONS" $ do
             let balanceExp1 =
                     [ expectResponseCode HTTP.status200
                     , expectField (traverse . #balance . #available)
-                        (`shouldBe` Quantity (faucetUtxoAmt - expectedFee - amt))
+                        (`shouldBe` Quantity
+                            (faucetUtxoAmt - expectedFee - amt)
+                        )
                     ]
             verify (fmap (view #wallet) <$> wal1) balanceExp1
             verify (fmap (view #wallet) <$> wal2) balanceExp1
@@ -2006,11 +2205,17 @@ spec = describe "SHARED_TRANSACTIONS" $ do
      changeRole role = \case
          NativeScript script ->
              let changeRole' = \case
-                     RequireSignatureOf (KeyHash _ p) -> RequireSignatureOf $ KeyHash role p
-                     RequireAllOf xs      -> RequireAllOf (map changeRole' xs)
-                     RequireAnyOf xs      -> RequireAnyOf (map changeRole' xs)
-                     RequireSomeOf m xs   -> RequireSomeOf m (map changeRole' xs)
-                     ActiveFromSlot s     -> ActiveFromSlot s
-                     ActiveUntilSlot s    -> ActiveUntilSlot s
+                     RequireSignatureOf (KeyHash _ p) ->
+                        RequireSignatureOf $ KeyHash role p
+                     RequireAllOf xs ->
+                        RequireAllOf (map changeRole' xs)
+                     RequireAnyOf xs ->
+                        RequireAnyOf (map changeRole' xs)
+                     RequireSomeOf m xs ->
+                        RequireSomeOf m (map changeRole' xs)
+                     ActiveFromSlot s ->
+                        ActiveFromSlot s
+                     ActiveUntilSlot s ->
+                        ActiveUntilSlot s
              in NativeScript $ changeRole' script
          PlutusScript _ -> error "wrong usage"
