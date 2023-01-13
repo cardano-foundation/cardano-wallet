@@ -25,12 +25,6 @@ steps:
     agents:
       system: ${linux}
 
-  - label: 'Check nix (macos)'
-    key: macos-nix
-    commands:
-      - './nix/regenerate.sh'
-    agents:
-      system: ${macos}
 
   - label: 'Build bench and run unit tests (linux)'
     depends_on: nix
@@ -100,7 +94,7 @@ steps:
       system: ${linux}
 
   - block: 'Run integration tests (linux)'
-    if: '(build.branch != "staging") && (build.branch != "trying")'
+    if: '(build.branch != "staging") && (build.branch != "trying") && (build.branch != "master")'
     key: trigger-linux
     depends_on:
       - linux-nix
@@ -112,16 +106,30 @@ steps:
     agents:
       system: ${linux}
 
-  - block: "Run unit test (macos)"
+  - block: "macOS checks"
     if: 'build.branch != "master"'
     key: trigger-macos
-    depends_on:
-      - macos-nix
 
-  - label: 'Run unit tests (macos)'
-    depends_on: [macos-nix, trigger-macos]
+  - label: 'Check nix (macOS)'
+    key: macos-nix
+    depends_on: trigger-macos
+    commands:
+      - './nix/regenerate.sh'
+    agents:
+      system: ${macos}
+
+  - label: 'Run unit tests (macOS)'
+    depends_on: macos-nix
     key: macos-build-tests
     command: 'GC_DONT_GC=1 nix build --max-silent-time 0 --max-jobs 1 -L .#ci.${macos}.tests.run.unit'
+    agents:
+      system: ${macos}
+
+  - label: 'Build package (macOS)'
+    depends_on: macos-nix
+    key: build-macos
+    command: nix build --max-silent-time 0 --max-jobs 1 -o result/macos-intel .#ci.artifacts.macos-intel.release
+    artifact_paths: [ "./result/macos-intel/**" ]
     agents:
       system: ${macos}
 
@@ -161,16 +169,3 @@ steps:
     agents:
       system: ${linux}
 
-  - block: 'Build package (macos)'
-    if: 'build.branch != "master"'
-    key: trigger-build-macos-artifacts
-    depends_on:
-      - macos-nix
-
-  - label: 'Build package (macos)'
-    depends_on: [nix, trigger-build-macos-artifacts]
-    key: build-macos
-    command: nix build --max-silent-time 0 --max-jobs 1 -o result/macos-intel .#ci.artifacts.macos-intel.release
-    artifact_paths: [ "./result/macos-intel/**" ]
-    agents:
-      system: ${macos}
