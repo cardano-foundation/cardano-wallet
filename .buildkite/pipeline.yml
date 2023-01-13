@@ -94,7 +94,7 @@ steps:
       system: ${linux}
 
   - block: 'Run integration tests (linux)'
-    if: '(build.branch != "staging") && (build.branch != "trying")'
+    if: '(build.branch != "staging") && (build.branch != "trying") && (build.branch != "master")'
     key: trigger-linux
     depends_on:
       - linux-nix
