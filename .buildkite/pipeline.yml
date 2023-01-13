@@ -106,28 +106,30 @@ steps:
     agents:
       system: ${linux}
 
-  - block: "Check nix (macOS)"
+  - block: "macOS checks"
     if: 'build.branch != "master"'
-    key: trigger-macos-nix
+    key: trigger-macos
 
   - label: 'Check nix (macos)'
     key: macos-nix
-    depends_on: trigger-macos-nix
+    depends_on: trigger-macos
     commands:
       - './nix/regenerate.sh'
     agents:
       system: ${macos}
 
-  - block: "Run unit test (macos)"
-    if: 'build.branch != "master"'
-    key: trigger-macos-unit
-    depends_on:
-      - macos-nix
-
-  - label: 'Run unit tests (macos)'
-    depends_on: [macos-nix, trigger-macos-unit]
+  - label: 'Run unit tests (macOS)'
+    depends_on: macos-nix
     key: macos-build-tests
     command: 'GC_DONT_GC=1 nix build --max-silent-time 0 --max-jobs 1 -L .#ci.${macos}.tests.run.unit'
+    agents:
+      system: ${macos}
+
+  - label: 'Build package (macOS)'
+    depends_on: macos-nix
+    key: build-macos
+    command: nix build --max-silent-time 0 --max-jobs 1 -o result/macos-intel .#ci.artifacts.macos-intel.release
+    artifact_paths: [ "./result/macos-intel/**" ]
     agents:
       system: ${macos}
 
@@ -167,16 +169,3 @@ steps:
     agents:
       system: ${linux}
 
-  - block: 'Build package (macos)'
-    if: 'build.branch != "master"'
-    key: trigger-build-macos-artifacts
-    depends_on:
-      - macos-nix
-
-  - label: 'Build package (macos)'
-    depends_on: [nix, trigger-build-macos-artifacts]
-    key: build-macos
-    command: nix build --max-silent-time 0 --max-jobs 1 -o result/macos-intel .#ci.artifacts.macos-intel.release
-    artifact_paths: [ "./result/macos-intel/**" ]
-    agents:
-      system: ${macos}
