@@ -110,7 +110,7 @@ steps:
     if: 'build.branch != "master"'
     key: trigger-macos
 
-  - label: 'Check nix (macos)'
+  - label: 'Check nix (macOS)'
     key: macos-nix
     depends_on: trigger-macos
     commands:
