@@ -126,7 +126,7 @@ steps:
       system: ${macos}
 
   - block: "Build package (linux)"
-    if: '(build.branch != "staging") && (build.branch != "trying")'
+    if: '(build.branch != "staging") && (build.branch != "trying") && (build.branch != "master")'
     key: trigger-build-linux-package
     depends_on:
       - nix
@@ -140,7 +140,7 @@ steps:
       system: ${linux}
 
   - block: "Build windows artifacts"
-    if: '(build.branch != "staging") && (build.branch != "trying")'
+    if: '(build.branch != "staging") && (build.branch != "trying") && (build.branch != "master")'
     key: trigger-build-windows-artifacts
     depends_on:
       - nix
