@@ -25,12 +25,6 @@ steps:
     agents:
       system: ${linux}
 
-  - label: 'Check nix (macos)'
-    key: macos-nix
-    commands:
-      - './nix/regenerate.sh'
-    agents:
-      system: ${macos}
 
   - label: 'Build bench and run unit tests (linux)'
     depends_on: nix
@@ -112,14 +106,26 @@ steps:
     agents:
       system: ${linux}
 
+  - block: "Check nix (macOS)"
+    if: 'build.branch != "master"'
+    key: trigger-macos-nix
+
+  - label: 'Check nix (macos)'
+    key: macos-nix
+    depends_on: trigger-macos-nix
+    commands:
+      - './nix/regenerate.sh'
+    agents:
+      system: ${macos}
+
   - block: "Run unit test (macos)"
     if: 'build.branch != "master"'
-    key: trigger-macos
+    key: trigger-macos-unit
     depends_on:
       - macos-nix
 
   - label: 'Run unit tests (macos)'
-    depends_on: [macos-nix, trigger-macos]
+    depends_on: [macos-nix, trigger-macos-unit]
     key: macos-build-tests
     command: 'GC_DONT_GC=1 nix build --max-silent-time 0 --max-jobs 1 -L .#ci.${macos}.tests.run.unit'
     agents:
