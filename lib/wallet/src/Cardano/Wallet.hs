@@ -127,7 +127,6 @@ module Cardano.Wallet
     , readWalletUTxOIndex
     , assignChangeAddresses
     , assignChangeAddressesAndUpdateDb
-    , assignChangeAddressesWithoutDbUpdate
     , selectionToUnsignedTx
     , buildAndSignTransactionNew
     , buildAndSignTransaction
@@ -208,6 +207,7 @@ module Cardano.Wallet
     , WalletFollowLog (..)
     , WalletLog (..)
     , TxSubmitLog (..)
+    , writeChangeAddressStateToDb
     ) where
 
 import Prelude hiding
@@ -2201,6 +2201,8 @@ assignChangeAddresses argGenChange sel = runState $ do
         pure $ TxOut addr bundle
     pure $ sel { change = changeOuts }
 
+-- TODO [ADP-1489] Remove once all call-sites have been updated to use
+-- balanceTransaction and 'writeChangeAddressStateToDb'.
 assignChangeAddressesAndUpdateDb
     :: forall ctx s k.
         ( GenChange s
@@ -2226,25 +2228,21 @@ assignChangeAddressesAndUpdateDb ctx wid generateChange selection =
         (selectionUpdated, stateUpdated) =
             assignChangeAddresses generateChange selection s
 
-assignChangeAddressesWithoutDbUpdate
-    :: forall ctx s k.
-        ( GenChange s
-        , HasDBLayer IO s k ctx
-        )
-    => ctx
+-- | For use with the returned updated 's' of 'balanceTransaction'.
+writeChangeAddressStateToDb
+    :: AddressBookIso s
+    => DBLayer IO s k
     -> WalletId
-    -> ArgGenChange s
-    -> Selection
-    -> ExceptT ErrConstructTx IO (SelectionOf TxOut)
-assignChangeAddressesWithoutDbUpdate ctx wid generateChange selection =
-    db & \DBLayer{..} -> mapExceptT atomically $ do
-        cp <- withExceptT ErrConstructTxNoSuchWallet $
-            withNoSuchWallet wid $ readCheckpoint wid
-        let (selectionUpdated, _) =
-                assignChangeAddresses generateChange selection (getState cp)
-        pure selectionUpdated
+    -> s
+    -> IO ()
+writeChangeAddressStateToDb DBLayer{..} wid s = throwInIO $
+    atomically $ modifyDBMaybe walletsDB $
+        adjustNoSuchWallet wid id $ \_wallet ->
+            -- Newly generated change addresses only change the Prologue
+            Right ([ReplacePrologue $ getPrologue s], ())
   where
-    db = ctx ^. dbLayer @IO @s @k
+    throwInIO :: IO (Either ErrNoSuchWallet a) -> IO a
+    throwInIO act = act >>= either (throwIO . ExceptionNoSuchWallet) pure
 
 selectionToUnsignedTx
     :: forall s input output change withdrawal.
@@ -3972,6 +3970,7 @@ data WalletException
     | ExceptionCreateRandomAddress ErrCreateRandomAddress
     | ExceptionImportRandomAddress ErrImportRandomAddress
     | ExceptionNotASequentialWallet ErrNotASequentialWallet
+    | ExceptionNoSuchWallet ErrNoSuchWallet
     | ExceptionReadRewardAccount ErrReadRewardAccount
     | ExceptionWithdrawalNotBeneficial ErrWithdrawalNotBeneficial
     | ExceptionReadPolicyPublicKey ErrReadPolicyPublicKey

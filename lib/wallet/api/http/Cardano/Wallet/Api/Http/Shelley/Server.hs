@@ -3489,6 +3489,7 @@ quitStakePool
         , Typeable s
         , Typeable k
         , WalletKey k
+        , AddressBookIso s
         , BoundedAddressLength k
         , HasDelegation s
         , IsOurs (SeqState n k) RewardAccount
@@ -3508,7 +3509,7 @@ quitStakePool ctx@ApiLayer{..} genChange (ApiT walletId) body = do
                 Nothing ->
                     liftHandler $ throwE ErrReadRewardAccountNotAShelleyWallet
                 Just Refl -> liftIO $ WD.quitStakePool netLayer db ti walletId
-            (tx, txMeta, txTime, sealedTx, _s') <- liftIO $ do
+            (tx, txMeta, txTime, sealedTx, s') <- liftIO $ do
                 pureTimeInterpreter <- snapshot $ timeInterpreter netLayer
                 W.buildAndSignTransactionNew @k @'CredFromKeyK @s @n
                     (MsgWallet >$< wrk ^. W.logger)
@@ -3522,6 +3523,7 @@ quitStakePool ctx@ApiLayer{..} genChange (ApiT walletId) body = do
                     (coerce $ getApiT $ body ^. #passphrase)
                     (PreSelection [])
                     txCtx
+            liftIO $ W.writeChangeAddressStateToDb db walletId s'
             liftHandler $
                 W.submitTx @_ @s @k wrk walletId (tx, txMeta, sealedTx)
             txDeposit <- liftIO $

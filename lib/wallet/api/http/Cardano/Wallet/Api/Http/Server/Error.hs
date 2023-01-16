@@ -210,6 +210,7 @@ instance IsServerError WalletException where
         ExceptionWitnessTx e -> toServerError e
         ExceptionDecodeTx e -> toServerError e
         ExceptionSubmitTx e -> toServerError e
+        ExceptionNoSuchWallet e -> toServerError e
         ExceptionUpdatePassphrase e -> toServerError e
         ExceptionWithRootKey e -> toServerError e
         ExceptionListTransactions e -> toServerError e
