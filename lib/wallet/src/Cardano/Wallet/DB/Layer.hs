@@ -111,8 +111,10 @@ import Cardano.Wallet.DB.Store.Meta.Model
     )
 import Cardano.Wallet.DB.Store.Submissions.Model
     ( TxLocalSubmissionHistory (..) )
+import Cardano.Wallet.DB.Store.Transactions.Decoration
+    ( decorateTxIns )
 import Cardano.Wallet.DB.Store.Transactions.Model
-    ( TxSet (..), decorateTxIns )
+    ( TxSet (..) )
 import Cardano.Wallet.DB.Store.Wallets.Model
     ( DeltaWalletsMetaWithSubmissions (..)
     , TxWalletsHistory

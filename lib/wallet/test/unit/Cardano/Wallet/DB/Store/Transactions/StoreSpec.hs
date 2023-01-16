@@ -19,15 +19,14 @@ import Cardano.Wallet.DB.Fixtures
     ( StoreProperty, assertWith, logScale, withDBInMemory, withStoreProp )
 import Cardano.Wallet.DB.Sqlite.Types
     ( TxId (TxId) )
+import Cardano.Wallet.DB.Store.Transactions.Decoration
+    ( decorateTxIns, lookupTxOutForTxCollateral, lookupTxOutForTxIn )
 import Cardano.Wallet.DB.Store.Transactions.Model
     ( DeltaTxSet (..)
     , TxRelation (..)
     , TxSet (..)
     , collateralIns
-    , decorateTxIns
     , ins
-    , lookupTxOutForTxCollateral
-    , lookupTxOutForTxIn
     , mkTxSet
     )
 import Cardano.Wallet.DB.Store.Transactions.Store

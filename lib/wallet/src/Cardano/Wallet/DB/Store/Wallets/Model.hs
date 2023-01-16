@@ -32,14 +32,12 @@ import Cardano.Wallet.DB.Store.Meta.Model
     ( DeltaTxMetaHistory (..), TxMetaHistory (..), mkTxMetaHistory )
 import Cardano.Wallet.DB.Store.Submissions.Model
     ( DeltaTxLocalSubmission (..), TxLocalSubmissionHistory (..) )
+import Cardano.Wallet.DB.Store.Transactions.Decoration
 import Cardano.Wallet.DB.Store.Transactions.Model
-    ( DecoratedTxIns
-    , TxRelation (..)
+    ( TxRelation (..)
     , TxSet (..)
     , fromTxCollateralOut
     , fromTxOut
-    , lookupTxOutForTxCollateral
-    , lookupTxOutForTxIn
     , mkTxSet
     , txCBORPrism
     )
