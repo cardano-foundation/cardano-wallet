@@ -48,6 +48,8 @@ import Cardano.Wallet.Api.Types
     , fromApiEra
     , insertedAt
     )
+import Cardano.Wallet.Api.Types.Error
+    ( ApiErrorInfo (..) )
 import Cardano.Wallet.Api.Types.Transaction
     ( mkApiWitnessCount )
 import Cardano.Wallet.Primitive.AddressDerivation
@@ -109,6 +111,7 @@ import Test.Integration.Framework.DSL
     , Headers (..)
     , MnemonicLength (..)
     , Payload (..)
+    , decodeErrorInfo
     , deleteSharedWallet
     , emptyWallet
     , eventually
@@ -151,7 +154,6 @@ import Test.Integration.Framework.TestData
     , errMsg403InvalidConstructTx
     , errMsg403MinUTxOValue
     , errMsg403MissingWitsInTransaction
-    , errMsg403SharedWalletIncomplete
     , errMsg404CannotFindTx
     , errMsg404NoWallet
     )
@@ -227,8 +229,8 @@ spec = describe "SHARED_TRANSACTIONS" $ do
             (Link.createUnsignedTransaction @'Shared wal) Default metadata
         verify rTx
             [ expectResponseCode HTTP.status403
-            , expectErrorMessage errMsg403SharedWalletIncomplete
             ]
+        decodeErrorInfo rTx `shouldBe` SharedWalletIncomplete
 
     it "SHARED_TRANSACTIONS_CREATE_01 - \
         \Can create tx for an active shared wallet, typed metadata" $
