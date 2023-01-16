@@ -619,6 +619,7 @@ import qualified Cardano.Wallet.Primitive.Types.UTxOIndex as UTxOIndex
 import qualified Cardano.Wallet.Primitive.Types.UTxOSelection as UTxOSelection
 import qualified Cardano.Wallet.Primitive.Types.UTxOStatistics as UTxOStatistics
 import qualified Cardano.Wallet.Write.Tx as WriteTx
+import qualified Cardano.Wallet.Write.Tx as Write.Tx
 import qualified Data.ByteArray as BA
 import qualified Data.Foldable as F
 import qualified Data.List as L
@@ -2553,40 +2554,40 @@ buildAndSignTransaction ctx wid era mkRwdAcct pwd txCtx sel = db & \DBLayer{..} 
 
 -- | Construct an unsigned transaction from a given selection.
 constructTransaction
-    :: forall (n :: NetworkDiscriminant) ktype
-     . TransactionLayer ShelleyKey ktype SealedTx
+    :: forall (n :: NetworkDiscriminant) ktype era
+     . Write.Tx.IsRecentEra era
+    => TransactionLayer ShelleyKey ktype SealedTx
     -> NetworkLayer IO Block
     -> DBLayer IO (SeqState n ShelleyKey) ShelleyKey
     -> WalletId
-    -> Cardano.AnyCardanoEra
     -> TransactionCtx
     -> PreSelection
-    -> ExceptT ErrConstructTx IO SealedTx
-constructTransaction txLayer netLayer db wid era txCtx preSel = do
+    -> ExceptT ErrConstructTx IO (Cardano.TxBody era)
+constructTransaction txLayer netLayer db wid txCtx preSel = do
     (_, xpub, _) <- readRewardAccount db wid
         & withExceptT ErrConstructTxReadRewardAccount
     pp <- liftIO $ currentProtocolParameters netLayer
-    mkUnsignedTransaction txLayer era xpub pp txCtx (Left preSel)
+    mkUnsignedTransaction txLayer xpub pp txCtx (Left preSel)
         & withExceptT ErrConstructTxBody . except
 
 -- | Construct an unsigned transaction from a given selection
 -- for a shared wallet.
 constructSharedTransaction
-    :: forall ctx s k (n :: NetworkDiscriminant).
+    :: forall ctx s k (n :: NetworkDiscriminant) era.
         ( HasTransactionLayer k 'CredFromScriptK ctx
         , HasDBLayer IO s k ctx
         , HasNetworkLayer IO ctx
         , k ~ SharedKey
         , s ~ SharedState n k
         , Typeable n
+        , Write.Tx.IsRecentEra era
         )
     => ctx
     -> WalletId
-    -> Cardano.AnyCardanoEra
     -> TransactionCtx
     -> SelectionOf TxOut
-    -> ExceptT ErrConstructTx IO SealedTx
-constructSharedTransaction ctx wid era txCtx sel = db & \DBLayer{..} -> do
+    -> ExceptT ErrConstructTx IO (Cardano.TxBody era)
+constructSharedTransaction ctx wid txCtx sel = db & \DBLayer{..} -> do
     cp <- withExceptT ErrConstructTxNoSuchWallet
         $ mapExceptT atomically
         $ withNoSuchWallet wid
@@ -2616,8 +2617,8 @@ constructSharedTransaction ctx wid era txCtx sel = db & \DBLayer{..} -> do
     let txCtx' = txCtx {txNativeScriptInputs = scriptInps}
     mapExceptT atomically $ do
         pp <- liftIO $ currentProtocolParameters nl
-        withExceptT ErrConstructTxBody $ ExceptT $ pure $
-            mkUnsignedTransaction tl era xpub pp txCtx' (Right sel)
+        withExceptT ErrConstructTxBody $ ExceptT $ pure
+            $ mkUnsignedTransaction tl @era xpub pp txCtx' (Right sel)
   where
     db = ctx ^. dbLayer @IO @s @k
     tl = ctx ^. transactionLayer @k @'CredFromScriptK
