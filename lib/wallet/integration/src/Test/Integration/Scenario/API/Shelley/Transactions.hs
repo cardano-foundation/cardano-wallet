@@ -240,7 +240,7 @@ spec = describe "SHELLEY_TRANSACTIONS" $ do
             let lovelaceRequested = Quantity 1
             response <- mkRequest (mkPayload lovelaceRequested)
             expectResponseCode HTTP.status403 response
-            UtxoTooSmall e <- decodeErrorInfo response
+            let UtxoTooSmall e = decodeErrorInfo response
             e ^. #txOutputIndex
                 `shouldBe` 0
             e ^. #txOutputLovelaceSpecified

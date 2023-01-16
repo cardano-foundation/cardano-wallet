@@ -526,13 +526,13 @@ expectErrorMessage want = either expectation wantedErrorButSuccess . snd
 
 -- | Decodes the information about an error into an 'ApiErrorInfo' value.
 decodeErrorInfo
-    :: (HasCallStack, MonadIO m, Show a)
+    :: (HasCallStack, Show a)
     => (s, Either RequestException a)
-    -> m ApiErrorInfo
+    -> ApiErrorInfo
 decodeErrorInfo (_, response) =
     case response of
         Left (ClientError value) ->
-            maybe decodeFailure pure $ Aeson.decode $ Aeson.encode value
+            fromMaybe decodeFailure $ Aeson.decode $ Aeson.encode value
         somethingElse ->
             error $ unwords
                 [ "decodeErrorInfo:"
