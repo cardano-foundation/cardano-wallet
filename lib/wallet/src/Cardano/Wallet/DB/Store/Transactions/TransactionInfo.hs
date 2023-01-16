@@ -13,7 +13,7 @@ import Cardano.Wallet.DB.Sqlite.Schema
 import Cardano.Wallet.DB.Sqlite.Types
     ( TxId (..) )
 import Cardano.Wallet.DB.Store.Transactions.Decoration
-    ( DecoratedTxIns, lookupTxOutForTxCollateral, lookupTxOutForTxIn )
+    ( DecoratedTxIns, lookupTxOut, mkTxOutKey, mkTxOutKeyCollateral )
 import Cardano.Wallet.DB.Store.Transactions.Model
     ( TxRelation (..), fromTxCollateralOut, fromTxOut, txCBORPrism )
 import Cardano.Wallet.Primitive.Slotting
@@ -83,14 +83,14 @@ mkTransactionInfo ti tip TxRelation{..} decor DB.TxMeta{..} = do
           { inputId = getTxId (txInputSourceTxId tx)
           , inputIx = txInputSourceIndex tx
           }
-        , lookupTxOutForTxIn tx decor
+        , lookupTxOut (mkTxOutKey tx) decor
         )
     mkTxCollateral tx =
         ( WT.TxIn
           { inputId = getTxId (txCollateralSourceTxId tx)
           , inputIx = txCollateralSourceIndex tx
           }
-        , lookupTxOutForTxCollateral tx decor
+        , lookupTxOut (mkTxOutKeyCollateral tx) decor
         )
     mkTxWithdrawal w = (txWithdrawalAccount w, txWithdrawalAmount w)
 
