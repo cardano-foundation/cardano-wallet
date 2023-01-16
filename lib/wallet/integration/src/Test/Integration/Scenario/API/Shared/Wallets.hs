@@ -120,7 +120,6 @@ import Test.Integration.Framework.DSL
 import Test.Integration.Framework.TestData
     ( errMsg403CreateIllegal
     , errMsg403KeyAlreadyPresent
-    , errMsg403NoDelegationTemplate
     , errMsg403NoSuchCosigner
     , errMsg403TemplateInvalidDuplicateXPub
     , errMsg403TemplateInvalidNoCosignerInScript
@@ -1079,7 +1078,7 @@ spec = describe "SHARED_WALLETS" $ do
 
         rPatch <- patchSharedWallet ctx wal Delegation payloadPatch
         expectResponseCode HTTP.status403 rPatch
-        expectErrorMessage errMsg403NoDelegationTemplate rPatch
+        decodeErrorInfo rPatch `shouldBe` SharedWalletNoDelegationTemplate
 
     it "SHARED_WALLETS_PATCH_05 - \
         \Cannot create shared wallet when missing wallet's account public \

@@ -88,7 +88,6 @@ module Test.Integration.Framework.TestData
     , errMsg403WrongIndex
     , errMsg403OutputTokenBundleSizeExceedsLimit
     , errMsg403OutputTokenQuantityExceedsLimit
-    , errMsg403NoDelegationTemplate
     , errMsg403KeyAlreadyPresent
     , errMsg403NoSuchCosigner
     , errMsg403CreateIllegal
@@ -577,13 +576,6 @@ errMsg403OutputTokenQuantityExceedsLimit
         , pretty quantityMaxBound
         , "."
         ]
-
-errMsg403NoDelegationTemplate :: String
-errMsg403NoDelegationTemplate = unwords
-    [ "It looks like you've tried to add a cosigner key to"
-    , "a shared wallet's delegation template. This cannot be done"
-    , "for a wallet that does not define any delegation template."
-    ]
 
 errMsg403KeyAlreadyPresent :: Text -> String
 errMsg403KeyAlreadyPresent cred = mconcat
