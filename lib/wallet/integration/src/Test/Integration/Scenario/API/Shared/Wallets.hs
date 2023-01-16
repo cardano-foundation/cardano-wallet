@@ -118,8 +118,7 @@ import Test.Integration.Framework.DSL
     , walletId
     )
 import Test.Integration.Framework.TestData
-    ( errMsg403CannotUpdateThisCosigner
-    , errMsg403CreateIllegal
+    ( errMsg403CreateIllegal
     , errMsg403KeyAlreadyPresent
     , errMsg403NoDelegationTemplate
     , errMsg403NoSuchCosigner
@@ -1157,7 +1156,7 @@ spec = describe "SHARED_WALLETS" $ do
                 } |]
         rPatch2 <- patchSharedWallet ctx wal Payment payloadPatch2
         expectResponseCode HTTP.status403 rPatch2
-        expectErrorMessage errMsg403CannotUpdateThisCosigner rPatch2
+        decodeErrorInfo rPatch2 `shouldBe` SharedWalletCannotUpdateKey
 
         let payloadPatch3 = Json [json| {
                 "cosigner#1": #{accXPubTxt0}
@@ -1212,7 +1211,7 @@ spec = describe "SHARED_WALLETS" $ do
                 } |]
         rPatch <- patchSharedWallet ctx wal Payment payloadPatch
         expectResponseCode HTTP.status403 rPatch
-        expectErrorMessage errMsg403CannotUpdateThisCosigner rPatch
+        decodeErrorInfo rPatch `shouldBe` SharedWalletCannotUpdateKey
 
     it "SHARED_WALLETS_KEYS_01 - \
         \Getting verification keys works for active shared wallet" $

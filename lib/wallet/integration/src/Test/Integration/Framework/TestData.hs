@@ -91,7 +91,6 @@ module Test.Integration.Framework.TestData
     , errMsg403NoDelegationTemplate
     , errMsg403KeyAlreadyPresent
     , errMsg403NoSuchCosigner
-    , errMsg403CannotUpdateThisCosigner
     , errMsg403CreateIllegal
     , errMsg400ScriptWrongCoeffcient
     , errMsg400ScriptIllFormed
@@ -600,13 +599,6 @@ errMsg403NoSuchCosigner cred cosigner = unwords
     , unpack cred
     , "template for a non-existing cosigner index:"
     , show cosigner
-    ]
-
-errMsg403CannotUpdateThisCosigner :: String
-errMsg403CannotUpdateThisCosigner = unwords
-    [ "It looks like you've tried to update the key of a cosigner"
-    , "having a shared wallet's account key. Only other cosigner"
-    , "key(s) can be updated."
     ]
 
 errMsg403CreateIllegal :: String
