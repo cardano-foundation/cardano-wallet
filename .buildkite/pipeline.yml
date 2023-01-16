@@ -19,7 +19,8 @@ steps:
     if: 'build.branch == "staging"'
 
   - label: 'Check nix (linux)'
-    key: nix
+    # Check whether regenerate.sh was applied when it had to be applied.
+    key: linux-nix
     commands:
       - './nix/regenerate.sh'
     agents:
@@ -27,7 +28,7 @@ steps:
 
 
   - label: 'Build bench and run unit tests (linux)'
-    depends_on: nix
+    depends_on: linux-nix
     command:
       - 'nix build .#ci.tests.all'
       - 'nix build .#ci.benchmarks.all'
@@ -37,31 +38,31 @@ steps:
       system: ${linux}
 
   - label: 'Check Cabal Configure'
-    depends_on: nix
+    depends_on: linux-nix
     command: 'nix develop --command scripts/buildkite/check-haskell-nix-cabal.sh'
     agents:
       system: ${linux}
 
   - label: 'Check Stylish Haskell'
-    depends_on: nix
+    depends_on: linux-nix
     command: 'nix develop --command .buildkite/check-stylish.sh'
     agents:
       system: ${linux}
 
   - label: 'Check HLint'
-    depends_on: nix
+    depends_on: linux-nix
     command: 'nix develop --command bash -c "echo +++ HLint ; hlint lib"'
     agents:
       system: ${linux}
 
   - label: 'Validate OpenAPI Specification'
-    depends_on: nix
+    depends_on: linux-nix
     command: 'nix develop --command bash -c "echo +++ openapi-spec-validator ; openapi-spec-validator --schema 3.0.0 specifications/api/swagger.yaml"'
     agents:
       system: ${linux}
 
   - label: 'Build Docker Image'
-    depends_on: nix
+    depends_on: linux-nix
     command:
       - "mkdir -p config && echo '{  outputs = _: { dockerHubRepoName = \"inputoutput/cardano-wallet\"; }; }'  > config/flake.nix"
       - "nix build .#pushDockerImage --override-input hostNixpkgs \"path:$(nix eval --impure -I $NIX_PATH --expr '(import <nixpkgs> {}).path')\" --override-input customConfig path:./config -o docker-build-push"
@@ -72,13 +73,13 @@ steps:
       - exit_status: '*'
 
   - label: 'Print TODO list'
-    depends_on: nix
+    depends_on: linux-nix
     command: 'nix develop --command scripts/todo-list.sh'
     agents:
       system: ${linux}
 
   - label: 'Lint bash shell scripts'
-    depends_on: nix
+    depends_on: linux-nix
     commands:
       - 'echo +++ Shellcheck'
       - './scripts/shellcheck.sh'
@@ -86,7 +87,7 @@ steps:
       system: ${linux}
 
   - label: 'Check HLS works'
-    depends_on: nix
+    depends_on: linux-nix
     command: |
         ln -sf hie-direnv.yaml hie.yaml
         nix develop --command bash -c "haskell-language-server lib/wallet/src/Cardano/Wallet.hs"
@@ -134,13 +135,12 @@ steps:
       system: ${macos}
 
   - block: "Build package (linux)"
+    depends_on: linux-nix
     if: '(build.branch != "staging") && (build.branch != "trying") && (build.branch != "master")'
     key: trigger-build-linux-package
-    depends_on:
-      - nix
 
   - label: 'Build package (linux)'
-    depends_on: [nix, trigger-build-linux-package]
+    depends_on: [linux-nix, trigger-build-linux-package]
     key: build-linux
     command: nix build -o result/linux .#ci.artifacts.linux64.release
     artifact_paths: [ "./result/linux/**" ]
@@ -148,13 +148,12 @@ steps:
       system: ${linux}
 
   - block: "Build windows artifacts"
+    depends_on: linux-nix
     if: '(build.branch != "staging") && (build.branch != "trying") && (build.branch != "master")'
     key: trigger-build-windows-artifacts
-    depends_on:
-      - nix
 
   - label: 'Build package (windows)'
-    depends_on: [nix, trigger-build-windows-artifacts]
+    depends_on: [linux-nix, trigger-build-windows-artifacts]
     key: build-windows
     command: nix build -o result/windows .#ci.artifacts.win64.release
     artifact_paths: [ "./result/windows/**" ]
@@ -162,7 +161,7 @@ steps:
       system: ${linux}
 
   - label: 'Build testing bundle (windows)'
-    depends_on: [nix, trigger-build-windows-artifacts]
+    depends_on: [linux-nix, trigger-build-windows-artifacts]
     key: build-windows-tests
     command: nix build -o result/windows-tests .#ci.artifacts.win64.tests
     artifact_paths: [ "./result/windows-tests/**" ]
