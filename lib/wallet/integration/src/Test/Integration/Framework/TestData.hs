@@ -111,7 +111,6 @@ module Test.Integration.Framework.TestData
     , errMsg403MintOrBurnAssetQuantityOutOfBounds
     , errMsg403InvalidValidityBounds
     , errMsg403ValidityIntervalNotInsideScriptTimelock
-    , errMsg403SharedWalletIncomplete
     ) where
 
 import Prelude
@@ -716,17 +715,6 @@ errMsg403ValidityIntervalNotInsideScriptTimelock = unwords
     [ "Attempted to create a transaction with a validity interval"
     , "that is not a subinterval of an associated script's timelock"
     , "interval."
-    ]
-
-errMsg403SharedWalletIncomplete :: String
-errMsg403SharedWalletIncomplete = unwords
-    [ "I cannot construct a transaction for a shared wallet that is"
-    , "in the 'incomplete' state. Please update your wallet accordingly"
-    , "with"
-    , "'PATCH /shared-wallets/{walletId}/payment-script-template'"
-    , "or"
-    , "'PATCH /shared-wallets/{walletId}/delegation-script-template'"
-    , "to make it suitable for constructing transactions."
     ]
 
 --------------------------------------------------------------------------------
