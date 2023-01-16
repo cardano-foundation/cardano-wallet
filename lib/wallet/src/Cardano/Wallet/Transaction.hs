@@ -134,6 +134,7 @@ import GHC.Generics
 import qualified Cardano.Api as Cardano
 import qualified Cardano.Api.Shelley as Cardano
 import qualified Cardano.Wallet.Primitive.Types.TokenMap as TokenMap
+import qualified Cardano.Wallet.Write.Tx as Write.Tx
 import qualified Data.Map.Strict as Map
 
 data TransactionLayer k ktype tx = TransactionLayer
@@ -180,9 +181,9 @@ data TransactionLayer k ktype tx = TransactionLayer
         -- function cannot fail.
 
     , mkUnsignedTransaction
-        :: AnyCardanoEra
-            -- Era for which the transaction should be created.
-        -> XPub
+        :: forall era
+         . Write.Tx.IsRecentEra era
+        => XPub
             -- Reward account public key
         -> ProtocolParameters
             -- Current protocol parameters
@@ -191,7 +192,7 @@ data TransactionLayer k ktype tx = TransactionLayer
         -> Either PreSelection (SelectionOf TxOut)
             -- A balanced coin selection where all change addresses have been
             -- assigned.
-        -> Either ErrMkTransaction tx
+        -> Either ErrMkTransaction (Cardano.TxBody era)
         -- ^ Construct a standard unsigned transaction
         --
         -- " Standard " here refers to the fact that we do not deal with redemption,

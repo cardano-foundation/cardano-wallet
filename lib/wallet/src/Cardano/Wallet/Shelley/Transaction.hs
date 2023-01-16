@@ -89,7 +89,7 @@ import Cardano.Ledger.Alonzo.Tools
 import Cardano.Ledger.Crypto
     ( DSIGN )
 import Cardano.Ledger.Era
-    ( Crypto, Era, ValidateScript (..) )
+    ( Crypto, ValidateScript (..) )
 import Cardano.Ledger.Shelley.API
     ( StrictMaybe (..) )
 import Cardano.Slotting.EpochInfo
@@ -285,6 +285,7 @@ import qualified Cardano.Wallet.Primitive.Types.TokenBundle as TokenBundle
 import qualified Cardano.Wallet.Primitive.Types.TokenMap as TokenMap
 import qualified Cardano.Wallet.Primitive.Types.Tx.TxOut as TxOut
 import qualified Cardano.Wallet.Shelley.Compatibility as Compatibility
+import qualified Cardano.Wallet.Write.Tx as Write.Tx
 import qualified Codec.CBOR.Encoding as CBOR
 import qualified Codec.CBOR.Write as CBOR
 import qualified Data.ByteString as BS
@@ -330,7 +331,6 @@ data WalletStyle
 type EraConstraints era =
     ( IsShelleyBasedEra era
     , ToCBOR (Ledger.TxBody (Cardano.ShelleyLedgerEra era))
-    , Era (Cardano.ShelleyLedgerEra era)
     , DSIGN (Crypto (Cardano.ShelleyLedgerEra era)) ~ DSIGN.Ed25519DSIGN
     , (era == ByronEra) ~ 'False
     )
@@ -355,7 +355,7 @@ instance TxWitnessTagFor ByronKey where
 
 constructUnsignedTx
     :: forall era
-     . EraConstraints era
+     . IsShelleyBasedEra era
     => Cardano.NetworkId
     -> (Maybe Cardano.TxMetadata, [Cardano.Certificate])
     -> (Maybe SlotNo, SlotNo)
@@ -375,13 +375,14 @@ constructUnsignedTx
     -> Map TxIn (Script KeyHash)
     -- ^ scripts for inputs
     -> ShelleyBasedEra era
-    -> Either ErrMkTransaction SealedTx
+    -> Either ErrMkTransaction (Cardano.TxBody era)
 constructUnsignedTx
-    networkId (md, certs) ttl rewardAcnt wdrl cs fee toMint toBurn inpScripts era =
-        sealedTxFromCardanoBody <$> tx
+    networkId (md, certs) ttl rewardAcnt wdrl
+    cs fee toMint toBurn inpScripts era =
+        mkUnsignedTx
+            era ttl cs md wdrls certs (toCardanoLovelace fee)
+            (fst toMint) (fst toBurn) mintingScripts inpScripts
   where
-    tx = mkUnsignedTx era ttl cs md wdrls certs (toCardanoLovelace fee)
-        (fst toMint) (fst toBurn) mintingScripts inpScripts
     wdrls = mkWithdrawals networkId rewardAcnt wdrl
     mintingScripts = Map.union (snd toMint) (snd toBurn)
 
@@ -623,7 +624,7 @@ newTransactionLayer networkId = TransactionLayer
                     addressResolver inputResolver (body, wits)
                     & sealedTxFromCardano'
 
-    , mkUnsignedTransaction = \era stakeXPub _pp ctx selection -> do
+    , mkUnsignedTransaction = \stakeXPub _pp ctx selection -> do
         let ttl   = txValidityInterval ctx
         let wdrl  = withdrawalToCoin $ view #txWithdrawal ctx
         let delta = case selection of
@@ -636,17 +637,16 @@ newTransactionLayer networkId = TransactionLayer
 
         case view #txDelegationAction ctx of
             Nothing -> do
-                withShelleyBasedEra era $ do
-                    let md = view #txMetadata ctx
-                    constructUnsignedTx networkId (md, []) ttl rewardAcct wdrl
-                        selection delta assetsToBeMinted assetsToBeBurned inpsScripts
-
+                let md = view #txMetadata ctx
+                constructUnsignedTx networkId (md, []) ttl rewardAcct wdrl
+                    selection delta assetsToBeMinted assetsToBeBurned inpsScripts
+                    (Write.Tx.shelleyBasedEraFromRecentEra Write.Tx.recentEra)
             Just action -> do
-                withShelleyBasedEra era $ do
-                    let certs = mkDelegationCertificates action stakeXPub
-                    let payload = (view #txMetadata ctx, certs)
-                    constructUnsignedTx networkId payload ttl rewardAcct wdrl
-                        selection delta assetsToBeMinted assetsToBeBurned inpsScripts
+                let certs = mkDelegationCertificates action stakeXPub
+                let payload = (view #txMetadata ctx, certs)
+                constructUnsignedTx networkId payload ttl rewardAcct wdrl
+                    selection delta assetsToBeMinted assetsToBeBurned inpsScripts
+                    (Write.Tx.shelleyBasedEraFromRecentEra Write.Tx.recentEra)
 
     , estimateSignedTxSize = \pp (Cardano.Tx body _) -> do
         _estimateSignedTxSize pp body
