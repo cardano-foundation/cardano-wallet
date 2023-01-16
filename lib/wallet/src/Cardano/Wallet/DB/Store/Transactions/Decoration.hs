@@ -15,7 +15,7 @@ corrisponding (known) tx outputs
 
 module Cardano.Wallet.DB.Store.Transactions.Decoration
    ( DecoratedTxIns
-   , decorateTxIns
+   , decorateTxInsForRelation
    , lookupTxOutForTxIn
    , lookupTxOutForTxCollateral
    ) where
@@ -82,9 +82,9 @@ lookupTxOutForTxCollateral tx =
 
 -- | Decorate the Tx inputs of a given 'TxRelation'
 -- by searching the 'TxSet' for corresponding output values.
-decorateTxIns
+decorateTxInsForRelation
     :: TxSet -> TxRelation -> DecoratedTxIns
-decorateTxIns (TxSet relations) TxRelation{ins,collateralIns} =
+decorateTxInsForRelation (TxSet relations) TxRelation{ins,collateralIns} =
     DecoratedTxIns . Map.fromList . catMaybes $
         (lookupOutput . toKeyTxIn <$> ins)
         ++ (lookupOutput . toKeyTxCollateral <$> collateralIns)

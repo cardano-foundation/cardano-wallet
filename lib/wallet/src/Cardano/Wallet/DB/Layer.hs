@@ -112,7 +112,7 @@ import Cardano.Wallet.DB.Store.Meta.Model
 import Cardano.Wallet.DB.Store.Submissions.Model
     ( TxLocalSubmissionHistory (..) )
 import Cardano.Wallet.DB.Store.Transactions.Decoration
-    ( decorateTxIns )
+    ( decorateTxInsForRelation )
 import Cardano.Wallet.DB.Store.Transactions.Model
     ( TxSet (..) )
 import Cardano.Wallet.DB.Store.Wallets.Model
@@ -1057,7 +1057,7 @@ selectTransactionInfo ti tip txSet meta =
     let err = error $ "Transaction not found: " <> show meta
         transaction = fromMaybe err $
             Map.lookup (txMetaTxId meta) (view #relations txSet)
-        decoration = decorateTxIns txSet transaction
+        decoration = decorateTxInsForRelation txSet transaction
     in  mkTransactionInfo ti tip transaction decoration meta
 
 -- | Returns the initial submission slot and submission record for all pending
