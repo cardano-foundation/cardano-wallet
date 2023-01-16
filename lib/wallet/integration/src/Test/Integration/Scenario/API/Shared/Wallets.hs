@@ -40,6 +40,8 @@ import Cardano.Wallet.Api.Types
     , KeyFormat (..)
     , WalletStyle (..)
     )
+import Cardano.Wallet.Api.Types.Error
+    ( ApiErrorInfo (..) )
 import Cardano.Wallet.Compat
     ( (^?) )
 import Cardano.Wallet.Primitive.AddressDerivation
@@ -84,6 +86,7 @@ import Test.Integration.Framework.DSL
     , MnemonicLength (..)
     , Payload (..)
     , bech32Text
+    , decodeErrorInfo
     , deleteSharedWallet
     , eventually
     , expectErrorMessage
@@ -124,7 +127,6 @@ import Test.Integration.Framework.TestData
     , errMsg403TemplateInvalidNoCosignerInScript
     , errMsg403TemplateInvalidScript
     , errMsg403TemplateInvalidUnknownCosigner
-    , errMsg403WalletAlreadyActive
     , errMsg403WrongIndex
     )
 
@@ -1044,7 +1046,7 @@ spec = describe "SHARED_WALLETS" $ do
 
         rPatch <- patchSharedWallet ctx wal Payment payloadPatch
         expectResponseCode HTTP.status403 rPatch
-        expectErrorMessage errMsg403WalletAlreadyActive rPatch
+        decodeErrorInfo rPatch `shouldBe` SharedWalletActive
 
     it "SHARED_WALLETS_PATCH_04 - \
         \Cannot add cosigner key when delegation script missing and cannot \

@@ -88,7 +88,6 @@ module Test.Integration.Framework.TestData
     , errMsg403WrongIndex
     , errMsg403OutputTokenBundleSizeExceedsLimit
     , errMsg403OutputTokenQuantityExceedsLimit
-    , errMsg403WalletAlreadyActive
     , errMsg403NoDelegationTemplate
     , errMsg403KeyAlreadyPresent
     , errMsg403NoSuchCosigner
@@ -579,13 +578,6 @@ errMsg403OutputTokenQuantityExceedsLimit
         , pretty quantityMaxBound
         , "."
         ]
-
-errMsg403WalletAlreadyActive :: String
-errMsg403WalletAlreadyActive = unwords
-    [ "It looks like you've tried to add a cosigner key for a"
-    , "shared wallet that is active. This can be done only for"
-    , "an incomplete shared wallet."
-    ]
 
 errMsg403NoDelegationTemplate :: String
 errMsg403NoDelegationTemplate = unwords
