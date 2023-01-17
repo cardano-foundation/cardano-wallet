@@ -136,7 +136,7 @@ import GHC.Generics
 import qualified Cardano.Api as Cardano
 import qualified Cardano.Api.Shelley as Cardano
 import qualified Cardano.Wallet.Primitive.Types.TokenMap as TokenMap
-import qualified Cardano.Wallet.Write.Tx as Write.Tx
+import qualified Cardano.Wallet.Write.Tx as WriteTx
 import qualified Data.Map.Strict as Map
 
 data TransactionLayer k ktype tx = TransactionLayer
@@ -184,7 +184,7 @@ data TransactionLayer k ktype tx = TransactionLayer
 
     , mkUnsignedTransaction
         :: forall era
-         . Write.Tx.IsRecentEra era
+         . WriteTx.IsRecentEra era
         => XPub
             -- Reward account public key
         -> ProtocolParameters
