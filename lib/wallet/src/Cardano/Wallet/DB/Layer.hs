@@ -115,11 +115,10 @@ import Cardano.Wallet.DB.Store.Transactions.Decoration
     ( decorateTxInsForRelation )
 import Cardano.Wallet.DB.Store.Transactions.Model
     ( TxSet (..) )
+import Cardano.Wallet.DB.Store.Transactions.TransactionInfo
+    ( mkTransactionInfo )
 import Cardano.Wallet.DB.Store.Wallets.Model
-    ( DeltaWalletsMetaWithSubmissions (..)
-    , TxWalletsHistory
-    , mkTransactionInfo
-    )
+    ( DeltaWalletsMetaWithSubmissions (..), TxWalletsHistory )
 import Cardano.Wallet.DB.Store.Wallets.Store
     ( DeltaTxWalletsHistory (..), mkStoreTxWalletsHistory )
 import Cardano.Wallet.DB.WalletState
