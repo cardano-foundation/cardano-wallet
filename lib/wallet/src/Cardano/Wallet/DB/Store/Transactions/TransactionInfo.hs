@@ -4,6 +4,7 @@
 
 module Cardano.Wallet.DB.Store.Transactions.TransactionInfo
     ( mkTransactionInfoFromRelation
+    , mkTransactionInfoFromReadTx
     ) where
 
 import Prelude
@@ -12,6 +13,8 @@ import Cardano.Wallet.DB.Sqlite.Schema
     ( TxCollateral (..), TxIn (..), TxMeta (..), TxWithdrawal (..) )
 import Cardano.Wallet.DB.Sqlite.Types
     ( TxId (..) )
+import Cardano.Wallet.DB.Store.Submissions.New.Operations
+    ( SubmissionMeta )
 import Cardano.Wallet.DB.Store.Transactions.Decoration
     ( DecoratedTxIns, lookupTxOut, mkTxOutKey, mkTxOutKeyCollateral )
 import Cardano.Wallet.DB.Store.Transactions.Model
@@ -20,6 +23,8 @@ import Cardano.Wallet.Primitive.Slotting
     ( TimeInterpreter, interpretQuery, slotToUTCTime )
 import Cardano.Wallet.Primitive.Types.Tx
     ( TxCBOR, TxMeta (..) )
+import Cardano.Wallet.Read.Eras
+    ( EraFun, EraValue, K, applyEraFun, extractEraValue )
 import Data.Functor
     ( (<&>) )
 import Data.Generics.Internal.VL
@@ -32,6 +37,7 @@ import qualified Cardano.Wallet.Primitive.Types as W
 import qualified Cardano.Wallet.Primitive.Types.Coin as WC
 import qualified Cardano.Wallet.Primitive.Types.Tx as WT
 import qualified Cardano.Wallet.Primitive.Types.Tx.TxIn as WT
+import qualified Cardano.Wallet.Read.Tx as Read
 import qualified Data.Generics.Internal.VL as L
 import qualified Data.Map.Strict as Map
 
@@ -96,3 +102,45 @@ mkTransactionInfoFromRelation ti tip TxRelation{..} decor DB.TxMeta{..} = do
 
     mkTxCBOR :: DB.CBOR -> Maybe TxCBOR
     mkTxCBOR = either (const Nothing) (Just . snd) . L.match txCBORPrism
+
+-- | Compute a high level view of a transaction known as 'TransactionInfo'
+-- from a CBOR and a slimmed down version of TxMeta
+mkTransactionInfoFromReadTx :: Monad m
+    => TimeInterpreter m
+    -> W.BlockHeader
+    -> DecoratedTxIns
+    -> EraValue Read.Tx
+    -> SubmissionMeta
+    -> m WT.TransactionInfo
+mkTransactionInfoFromReadTx _ti tip _decor tx _meta = do
+    return
+        $ WT.TransactionInfo
+        { WT.txInfoId = undefined
+        , WT.txInfoCBOR = undefined
+        , WT.txInfoFee = undefined
+        , WT.txInfoInputs = undefined
+        , WT.txInfoCollateralInputs = undefined
+        , WT.txInfoOutputs = undefined
+        , WT.txInfoCollateralOutput = undefined
+        , WT.txInfoWithdrawals = undefined
+        , WT.txInfoMeta = WT.TxMeta
+              { WT.status = undefined
+              , WT.direction = undefined
+              , WT.slotNo = undefined
+              , WT.blockHeight = undefined
+              , amount = undefined
+              , WT.expiry = undefined
+              }
+        , WT.txInfoMetadata = undefined
+        , WT.txInfoDepth = Quantity
+              $ fromIntegral
+              $ if tipH > undefined
+                  then tipH - undefined
+                  else 0
+        , WT.txInfoTime = undefined
+        , WT.txInfoScriptValidity = undefined
+        }
+  where
+    tipH = getQuantity $ tip ^. #blockHeight
+    _value :: EraFun Read.Tx (K a) -> a
+    _value f = extractEraValue $ applyEraFun f tx
