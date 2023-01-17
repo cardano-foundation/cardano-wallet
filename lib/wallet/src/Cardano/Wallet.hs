@@ -557,7 +557,7 @@ import Data.List.NonEmpty
 import Data.Map.Strict
     ( Map )
 import Data.Maybe
-    ( fromJust, fromMaybe, isJust, mapMaybe )
+    ( fromMaybe, isJust, mapMaybe )
 import Data.Proxy
     ( Proxy (..) )
 import Data.Quantity
@@ -2632,7 +2632,13 @@ buildAndSignTransactionNew
     balanceTx protocolParams utxo unsignedTxBody = do
         let protocolParameters =
                 ( protocolParams
-                , fromJust $ currentNodeProtocolParameters protocolParams
+                , fromMaybe
+                    (error $ unwords
+                        [ "buildAndSignTransactionNew: no nodePParams."
+                        , "should only be possible in Byron, where"
+                        , "withRecentEra should prevent this to be reached."
+                        ])
+                    $ currentNodeProtocolParameters protocolParams
                 )
             partialTx = PartialTx
                 (Cardano.Tx unsignedTxBody [])(Cardano.UTxO mempty) mempty
