@@ -1,6 +1,7 @@
 {-# LANGUAGE DataKinds #-}
 {-# LANGUAGE DeriveAnyClass #-}
 {-# LANGUAGE FlexibleInstances #-}
+{-# LANGUAGE RecordWildCards #-}
 {-# LANGUAGE ScopedTypeVariables #-}
 {-# LANGUAGE TypeFamilies #-}
 
@@ -20,6 +21,7 @@ module Cardano.Wallet.DB.Store.Submissions.New.Operations
     , syncSubmissions
     , mkStoreSubmissions
     , DeltaTxSubmissions
+    , SubmissionMeta (..)
     ) where
 
 import Prelude
@@ -50,23 +52,33 @@ import Data.Delta
     ( Delta (..) )
 import Data.Map.Strict
     ( Map )
-import qualified Data.Map.Strict as Map
+import Data.Quantity
+import Data.Word
 import Database.Persist
     ( Entity (Entity), PersistStoreWrite (delete, repsert), selectList, (==.) )
 import Database.Persist.Sql
     ( SqlPersistT )
 
+import qualified Cardano.Wallet.Primitive.Types.Coin as W
 import qualified Cardano.Wallet.Primitive.Types.Tx as W
 import qualified Cardano.Wallet.Submissions.Operations as Sbm
 import qualified Cardano.Wallet.Submissions.Submissions as Sbm
 import qualified Cardano.Wallet.Submissions.TxStatus as Sbm
+import qualified Data.Map.Strict as Map
+
+data SubmissionMeta  = SubmissionMeta
+    { submissionMetaDirection :: W.Direction
+    , submissionMetaSlot :: SlotNo
+    , submissionMetaHeight :: Quantity "block" Word32
+    , submissionMetaAmount :: W.Coin
+    } deriving (Show, Eq)
 
 type TxSubmissions
-    = Sbm.Submissions () SlotNo (TxId, W.SealedTx)
+    = Sbm.Submissions SubmissionMeta SlotNo (TxId, W.SealedTx)
 type TxSubmissionsStatus
-    = Sbm.TxStatusMeta () SlotNo (TxId, W.SealedTx)
+    = Sbm.TxStatusMeta SubmissionMeta SlotNo (TxId, W.SealedTx)
 type DeltaTxSubmissions
-    = Sbm.Operation () SlotNo (TxId, W.SealedTx)
+    = Sbm.Operation SubmissionMeta SlotNo (TxId, W.SealedTx)
 
 
 syncSubmissions :: WalletId -> TxSubmissions -> TxSubmissions -> SqlPersistT IO ()
@@ -77,7 +89,7 @@ syncSubmissions wid old new = do
 
     let repserts = new ^. transactionsL
     forM_ (Map.assocs repserts) $
-        \(iden, TxStatusMeta status () ) -> do
+        \(iden, TxStatusMeta status SubmissionMeta{..} ) -> do
             let result = case status of
                     Sbm.Expired expiring (_, sealed)
                         -> Just (sealed, expiring, Nothing, ExpiredE)
@@ -91,6 +103,10 @@ syncSubmissions wid old new = do
                     (SubmissionsKey iden)
                     (Submissions iden sealed expiring
                         acceptance wid statusNumber
+                        submissionMetaDirection
+                        submissionMetaSlot
+                        submissionMetaHeight
+                        submissionMetaAmount
                     )
                 Nothing -> pure ()
     repsert
@@ -130,15 +146,18 @@ mkStoreAnySubmissions wid =
 mkTransactions :: [Entity Submissions] -> Map TxId TxSubmissionsStatus
 mkTransactions xs = Map.fromList $ do
     Entity _
-        (Submissions iden sealed expiration acceptance _ status)
+        (Submissions iden sealed expiration acceptance _ status
+            direction slot height amount)
             <- xs
     pure
         ( iden
-        , mkStatusMeta () iden sealed expiration acceptance status
+        , mkStatusMeta
+            (SubmissionMeta direction slot height amount)
+                iden sealed expiration acceptance status
         )
 
 mkStatusMeta
-    :: ()
+    :: SubmissionMeta
     -> TxId
     -> W.SealedTx
     -> SlotNo
