@@ -218,6 +218,7 @@ import Cardano.Wallet.Api.Types.Error
     ( ApiError (..)
     , ApiErrorInfo (..)
     , ApiErrorMessage (..)
+    , ApiErrorSharedWalletNoSuchCosigner (..)
     , ApiErrorTxOutputLovelaceInsufficient (..)
     )
 import Cardano.Wallet.Api.Types.SchemaMetadata
@@ -608,6 +609,7 @@ spec = parallel $ do
         jsonTest @ApiEra
         jsonTest @ApiEraInfo
         jsonTest @ApiError
+        jsonTest @ApiErrorSharedWalletNoSuchCosigner
         jsonTest @ApiErrorTxOutputLovelaceInsufficient
         jsonTest @ApiFee
         jsonTest @ApiHealthCheck
@@ -2194,6 +2196,10 @@ instance Arbitrary ApiErrorInfo where
     shrink = genericShrink
 
 instance Arbitrary ApiErrorMessage where
+    arbitrary = genericArbitrary
+    shrink = genericShrink
+
+instance Arbitrary ApiErrorSharedWalletNoSuchCosigner where
     arbitrary = genericArbitrary
     shrink = genericShrink
 
