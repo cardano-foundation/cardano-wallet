@@ -34,7 +34,13 @@ import Cardano.Pool.Types
 import Cardano.Slotting.Slot
     ( SlotNo )
 import Cardano.Wallet.DB.Sqlite.Types
-    ( BlockId, HDPassphrase, TxId, TxSubmissionStatusEnum (..), sqlSettings' )
+    ( BlockHeight
+    , BlockId
+    , HDPassphrase
+    , TxId
+    , TxSubmissionStatusEnum (..)
+    , sqlSettings'
+    )
 import Cardano.Wallet.Primitive.AddressDiscovery.Shared
     ( CredentialType )
 import Data.Quantity
@@ -492,12 +498,16 @@ CBOR
     deriving Show Generic Eq
 
 Submissions
-    submissionTxId TxId  sql=tx_id
-    submissionTx W.SealedTx sql=tx
-    submissionExpiration SlotNo sql=expiration
-    submissionAcceptance (Maybe SlotNo) sql=acceptance
-    submissionWallet W.WalletId sql=wallet_id
-    submissionStatus TxSubmissionStatusEnum sql=status
+    submissionTxId                  TxId                sql=tx_id
+    submissionTx                    W.SealedTx          sql=tx
+    submissionExpiration            SlotNo              sql=expiration
+    submissionAcceptance            (Maybe SlotNo)      sql=acceptance
+    submissionWallet                W.WalletId          sql=wallet_id
+    submissionStatus                TxSubmissionStatusEnum sql=status
+    submissionMetaSlot              SlotNo              sql=slot
+    submissionMetaBlockHeight       BlockHeight         sql=block_height
+    submissionMetaAmount            W.Coin              sql=amount
+    submissionMetaDirection         W.Direction         sql=direction
 
     Primary submissionTxId
     deriving Show Generic Eq
