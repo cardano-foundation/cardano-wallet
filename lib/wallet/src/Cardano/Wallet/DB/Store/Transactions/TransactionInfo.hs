@@ -25,6 +25,8 @@ import Cardano.Wallet.Primitive.Types.Tx
     ( TxCBOR, TxMeta (..) )
 import Cardano.Wallet.Read.Eras
     ( EraFun, EraValue, K, applyEraFun, extractEraValue )
+import Cardano.Wallet.Read.Tx.Hash
+    ( getEraTxHash )
 import Data.Functor
     ( (<&>) )
 import Data.Generics.Internal.VL
@@ -35,6 +37,7 @@ import Data.Quantity
 import qualified Cardano.Wallet.DB.Sqlite.Schema as DB
 import qualified Cardano.Wallet.Primitive.Types as W
 import qualified Cardano.Wallet.Primitive.Types.Coin as WC
+import qualified Cardano.Wallet.Primitive.Types.Hash as W
 import qualified Cardano.Wallet.Primitive.Types.Tx as WT
 import qualified Cardano.Wallet.Primitive.Types.Tx.TxIn as WT
 import qualified Cardano.Wallet.Read.Tx as Read
@@ -115,7 +118,7 @@ mkTransactionInfoFromReadTx :: Monad m
 mkTransactionInfoFromReadTx _ti tip _decor tx _meta = do
     return
         $ WT.TransactionInfo
-        { WT.txInfoId = undefined
+        { WT.txInfoId = W.Hash $ value getEraTxHash
         , WT.txInfoCBOR = undefined
         , WT.txInfoFee = undefined
         , WT.txInfoInputs = undefined
@@ -142,5 +145,6 @@ mkTransactionInfoFromReadTx _ti tip _decor tx _meta = do
         }
   where
     tipH = getQuantity $ tip ^. #blockHeight
-    _value :: EraFun Read.Tx (K a) -> a
-    _value f = extractEraValue $ applyEraFun f tx
+    
+    value :: EraFun Read.Tx (K a) -> a
+    value f = extractEraValue $ applyEraFun f tx
