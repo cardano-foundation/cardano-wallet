@@ -4495,6 +4495,21 @@ x-errSharedWalletNoSuchCosigner: &errSharedWalletNoSuchCosigner
     code:
       type: string
       enum: ['shared_wallet_no_such_cosigner']
+    info:
+      type: object
+      required:
+        - cosigner_index
+        - credential_type
+      properties:
+        cosigner_index:
+          type: integer
+          minimum: 0
+          maximum: 255
+        credential_type:
+          type: string
+          enum:
+            - delegation
+            - payment
 
 x-errSharedWalletCannotUpdateKey: &errSharedWalletCannotUpdateKey
   <<: *responsesErr

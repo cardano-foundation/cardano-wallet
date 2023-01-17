@@ -89,11 +89,12 @@ import Cardano.Wallet
     , WalletException (..)
     )
 import Cardano.Wallet.Api.Types
-    ( Iso8601Time (..) )
+    ( ApiCosignerIndex (..), ApiCredentialType (..), Iso8601Time (..) )
 import Cardano.Wallet.Api.Types.Error
     ( ApiError (..)
     , ApiErrorInfo (..)
     , ApiErrorMessage (..)
+    , ApiErrorSharedWalletNoSuchCosigner (..)
     , ApiErrorTxOutputLovelaceInsufficient (..)
     )
 import Cardano.Wallet.Primitive.AddressDerivation
@@ -797,14 +798,23 @@ instance IsServerError ErrAddCosignerKey where
                 , "ascribed to another cosigner. Please make sure to assign a"
                 , "different key to each cosigner."
                 ]
-        ErrAddCosignerKey (NoSuchCosigner cred (Cosigner c)) ->
-            apiError err403 SharedWalletNoSuchCosigner $ T.unwords
-                [ "It looks like you've tried to add a cosigner key to a"
-                , "shared wallet's"
-                , toText cred
-                , "template for a non-existing cosigner index:"
-                , pretty c
-                ]
+        ErrAddCosignerKey (NoSuchCosigner credType (Cosigner cosignerIndex)) ->
+            let errorInfo = SharedWalletNoSuchCosigner
+                    ApiErrorSharedWalletNoSuchCosigner
+                        { cosignerIndex =
+                            ApiCosignerIndex cosignerIndex
+                        , credentialType =
+                            ApiCredentialType credType
+                        }
+                errorMessage = T.unwords
+                    [ "It looks like you've tried to add a cosigner key to a"
+                    , "shared wallet's"
+                    , toText credType
+                    , "template for a non-existing cosigner index:"
+                    , pretty cosignerIndex
+                    ]
+            in
+            apiError err403 errorInfo errorMessage
         ErrAddCosignerKey CannotUpdateSharedWalletKey ->
             apiError err403 SharedWalletCannotUpdateKey $ T.unwords
                 [ "It looks like you've tried to update the key of a cosigner"
