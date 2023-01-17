@@ -3,7 +3,7 @@
 {-# LANGUAGE RecordWildCards #-}
 
 module Cardano.Wallet.DB.Store.Transactions.TransactionInfo
-    ( mkTransactionInfo
+    ( mkTransactionInfoFromRelation
     ) where
 
 import Prelude
@@ -38,14 +38,14 @@ import qualified Data.Map.Strict as Map
 -- | Compute a high level view of a transaction known as 'TransactionInfo'
 -- from a 'TxMeta' and a 'TxRelation'.
 -- Assumes that these data refer to the same 'TxId', does /not/ check this.
-mkTransactionInfo :: Monad m
+mkTransactionInfoFromRelation :: Monad m
     => TimeInterpreter m
     -> W.BlockHeader
     -> TxRelation
     -> DecoratedTxIns
     -> DB.TxMeta
     -> m WT.TransactionInfo
-mkTransactionInfo ti tip TxRelation{..} decor DB.TxMeta{..} = do
+mkTransactionInfoFromRelation ti tip TxRelation{..} decor DB.TxMeta{..} = do
     txTime <- interpretQuery ti . slotToUTCTime $ txMetaSlot
     return
         $ WT.TransactionInfo
