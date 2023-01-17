@@ -61,7 +61,7 @@ prop_SingleWalletStoreLawsOperations = withInitializedWalletProp
             runQ
             (mkStoreSubmissions wid)
             (pure $ Submissions mempty 0 0)
-            (logScale . genOperationsDelta)
+            (logScale . genOperationsDelta (pure ()))
 
 {-------------------------------------------------------------------------------
     Arbitrary instances

@@ -16,6 +16,8 @@ import Cardano.Wallet.Submissions.Properties.Primitives
     ( properties )
 import Cardano.Wallet.Submissions.Submissions
     ( Submissions )
+import Cardano.Wallet.Submissions.TxStatus
+    ( HasTxId (..) )
 import System.Random
     ( Random )
 import Test.Hspec
@@ -31,15 +33,16 @@ spec = do
                 $ prop_submissionHistory genPrimitiveSubmissionsHistory
 
 genPrimitiveDelta
-    :: (Arbitrary tx, Random slot, Num slot)
-    => Submissions slot tx
-    -> Gen (Primitive slot tx)
-genPrimitiveDelta s =
+    :: (Arbitrary tx, Random slot, Num slot, HasTxId tx)
+    => Gen meta
+    -> Submissions meta slot tx
+    -> Gen (Primitive meta slot tx)
+genPrimitiveDelta genMeta s =
     frequency
         [ (2 , do
             tx <- genTx 4 1 1 1 s
             expiration <- genSlot 1 1 4 s
-            pure $ AddSubmission expiration tx
+            AddSubmission expiration tx <$> genMeta
           )
         , (4, do
             tx <- genTx 1 6 1 1 s
@@ -63,6 +66,6 @@ genPrimitiveDelta s =
 genPrimitiveSubmissionsHistory :: GenSubmissionsHistory Primitive
 genPrimitiveSubmissionsHistory = GenSubmissionsHistory
     { stepProperties = properties
-    , genDelta = genPrimitiveDelta
+    , genDelta = genPrimitiveDelta (pure ())
     , applyDelta = applyPrimitive
     }
