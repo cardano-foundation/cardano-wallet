@@ -234,6 +234,7 @@ library
     Cardano.Wallet.DB.Store.Meta.Model
     Cardano.Wallet.DB.Store.Meta.Store
     Cardano.Wallet.DB.Store.Submissions.Model
+    Cardano.Wallet.DB.Store.Submissions.New.Operations
     Cardano.Wallet.DB.Store.Submissions.Store
     Cardano.Wallet.DB.Store.Transactions.Layer
     Cardano.Wallet.DB.Store.Transactions.Model
@@ -825,6 +826,7 @@ test-suite unit
     Cardano.Wallet.DB.Store.Meta.ModelSpec
     Cardano.Wallet.DB.Store.Meta.StoreSpec
     Cardano.Wallet.DB.Store.Submissions.ModelSpec
+    Cardano.Wallet.DB.Store.Submissions.New.StoreSpec
     Cardano.Wallet.DB.Store.Submissions.StoreSpec
     Cardano.Wallet.DB.Store.Transactions.StoreSpec
     Cardano.Wallet.DB.Store.Wallets.StoreSpec

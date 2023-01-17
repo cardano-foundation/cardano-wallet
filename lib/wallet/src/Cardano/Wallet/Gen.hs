@@ -28,6 +28,7 @@ module Cardano.Wallet.Gen
     , genScriptTemplate
     , genMockXPub
     , genNatural
+    , genWalletId
     ) where
 
 import Prelude
@@ -52,6 +53,7 @@ import Cardano.Wallet.Primitive.Types
     , ChainPoint (..)
     , Slot
     , SlotNo (..)
+    , WalletId (..)
     , WithOrigin (..)
     )
 import Cardano.Wallet.Primitive.Types.Address
@@ -62,6 +64,10 @@ import Cardano.Wallet.Primitive.Types.ProtocolMagic
     ( ProtocolMagic (..) )
 import Cardano.Wallet.Unsafe
     ( unsafeFromHex, unsafeMkEntropy, unsafeMkPercentage )
+import Control.Monad
+    ( replicateM )
+import Crypto.Hash
+    ( hash )
 import Data.Aeson
     ( ToJSON (..) )
 import Data.ByteArray.Encoding
@@ -349,3 +355,7 @@ genMockXPub = fromMaybe impossible . xpubFromBytes . BS.pack <$> genBytes
     genBytes = vectorOf 64 arbitrary
     impossible = error "incorrect length in genMockXPub"
 
+genWalletId :: Gen WalletId
+genWalletId = do
+    bytes <- BS.pack <$> replicateM 16 arbitrary
+    pure $ WalletId (hash bytes)

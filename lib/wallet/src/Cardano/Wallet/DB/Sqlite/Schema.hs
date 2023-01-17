@@ -34,7 +34,7 @@ import Cardano.Pool.Types
 import Cardano.Slotting.Slot
     ( SlotNo )
 import Cardano.Wallet.DB.Sqlite.Types
-    ( BlockId, HDPassphrase, TxId, sqlSettings' )
+    ( BlockId, HDPassphrase, TxId, TxSubmissionStatusEnum (..), sqlSettings' )
 import Cardano.Wallet.Primitive.AddressDiscovery.Shared
     ( CredentialType )
 import Data.Quantity
@@ -491,4 +491,22 @@ CBOR
     Primary cborTxId
     deriving Show Generic Eq
 
+Submissions
+    submissionTxId TxId  sql=tx_id
+    submissionTx W.SealedTx sql=tx
+    submissionExpiration SlotNo sql=expiration
+    submissionAcceptance (Maybe SlotNo) sql=acceptance
+    submissionWallet W.WalletId sql=wallet_id
+    submissionStatus TxSubmissionStatusEnum sql=status
+
+    Primary submissionTxId
+    deriving Show Generic Eq
+
+SubmissionsSlots
+    submissionsSlotsFinality SlotNo sql=finality
+    submissionsSlotsTip SlotNo sql=tip
+    submissionsSlotsWallet W.WalletId sql=wallet_id
+
+    Primary submissionsSlotsWallet
+    deriving Show Generic Eq
 |]
