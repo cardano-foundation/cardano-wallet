@@ -89,7 +89,6 @@ module Test.Integration.Framework.TestData
     , errMsg403OutputTokenBundleSizeExceedsLimit
     , errMsg403OutputTokenQuantityExceedsLimit
     , errMsg403KeyAlreadyPresent
-    , errMsg403NoSuchCosigner
     , errMsg403CreateIllegal
     , errMsg400ScriptWrongCoeffcient
     , errMsg400ScriptIllFormed
@@ -581,15 +580,6 @@ errMsg403KeyAlreadyPresent cred = mconcat
     [ "It looks like you've tried to add a cosigner key to a shared wallet's "
     ,  unpack cred," template that is already ascribed to another cosigner. "
     , "Please make sure to assign a different key to each cosigner."
-    ]
-
-errMsg403NoSuchCosigner :: Text -> Int -> String
-errMsg403NoSuchCosigner cred cosigner = unwords
-    [ "It looks like you've tried to add a cosigner key to a"
-    , "shared wallet's"
-    , unpack cred
-    , "template for a non-existing cosigner index:"
-    , show cosigner
     ]
 
 errMsg403CreateIllegal :: String
