@@ -607,6 +607,7 @@ spec = parallel $ do
         jsonTest @ApiErrorTxOutputLovelaceInsufficient
         jsonTest @ApiFee
         jsonTest @ApiHealthCheck
+        jsonTest @ApiIncompleteSharedWallet
         jsonTest @ApiMaintenanceAction
         jsonTest @ApiMaintenanceActionPostData
         jsonTest @ApiMultiDelegationAction
@@ -614,7 +615,6 @@ spec = parallel $ do
         jsonTest @ApiNetworkInformation
         jsonTest @ApiNetworkParameters
         jsonTest @ApiNullStakeKey
-        jsonTest @ApiIncompleteSharedWallet
         jsonTest @ApiPolicyId
         jsonTest @ApiPolicyKey
         jsonTest @ApiPostAccountKeyData
