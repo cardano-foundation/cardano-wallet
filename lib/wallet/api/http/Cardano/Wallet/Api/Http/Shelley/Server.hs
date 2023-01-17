@@ -2828,6 +2828,8 @@ constructSharedTransaction
                                 Just (ApiPaymentAddresses content) ->
                                     F.toList (addressAmountToTxOut <$> content)
                         }
+                unbalancedTx <- liftHandler
+                    $ W.constructUnbalancedSharedTransaction @_ @s @k @n wrk wid era txCtx preSel
                 undefined
   where
     ti :: TimeInterpreter (ExceptT PastHorizonException IO)
