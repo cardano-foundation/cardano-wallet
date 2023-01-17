@@ -21,13 +21,13 @@ import Prelude
 import Cardano.Wallet.Submissions.Properties.Common
     ( Step (..), newState )
 import Cardano.Wallet.Submissions.Submissions
-    ( Submissions (..), transactionsL )
+    ( Submissions (..), transactionsL, txStatus )
 import Cardano.Wallet.Submissions.TxStatus
     ( HasTxId (..), getTx, _Expired, _InLedger, _InSubmission )
 import Control.Arrow
     ( (&&&) )
 import Control.Lens
-    ( lastOf, (&), _2 )
+    ( lastOf, to, view, (&), _2 )
 import Control.Lens.Extras
     ( is )
 import Data.Foldable
@@ -52,7 +52,7 @@ newtype Slot = Slot Int
 newtype Tx = Tx Int
     deriving (Eq, Show, Ord, Arbitrary)
 
-type P x = x Slot Tx
+type P x = x () Slot Tx
 
 instance HasTxId Tx where
     type TxId Tx = Tx
@@ -64,7 +64,7 @@ genTx
     -> Int -- ^ in submissions share
     -> Int -- ^ in ledger share
     -> Int -- ^ expired share
-    -> Submissions slot tx -- ^ source
+    -> Submissions meta slot tx -- ^ source
     -> Gen tx  -- ^ choosen tx from source
 genTx new oldInS oldInL oldE (Submissions db _finality _tip) =
     frequency $
@@ -72,7 +72,8 @@ genTx new oldInS oldInL oldE (Submissions db _finality _tip) =
         <> include oldInS (is _InSubmission)
         <> include oldInL (is _InLedger)
         <> include oldE (is _Expired)
-    where include n l = onNonEmpty n (fmap (fromJust . getTx) $ toList $ Map.filter l db)
+    where include n l = onNonEmpty n (fmap (fromJust . getTx)
+            $ toList $ Map.filter l $ fmap (view txStatus) db)
 
 onNonEmpty :: Int -> [a] -> [(Int, Gen a)]
 onNonEmpty _ [] = []
@@ -82,7 +83,7 @@ genSlot
     :: (Random slot, Num slot) => Int -- ^ before the finality share
     -> Int -- ^ between finality and tip share
     -> Int -- ^ after the tip share
-    -> Submissions slot tx -- ^ source of tip and finality
+    -> Submissions meta slot tx -- ^ source of tip and finality
     -> Gen slot -- ^ selected slot
 genSlot bf bft at (Submissions _db finality' tip') =
     frequency
@@ -125,7 +126,7 @@ shrinkByInit xs = [init xs]
 
 
 prop_submissionHistory
-    :: Show (delta Slot Tx)
+    :: Show (delta () Slot Tx)
     => GenSubmissionsHistory delta
     -> Property
 prop_submissionHistory d = mapSize (*30)
@@ -134,7 +135,9 @@ prop_submissionHistory d = mapSize (*30)
         $ \xs ->
             let
                 result = lastOf
-                    (traverse . _2 . newState . transactionsL)
+                    (traverse . _2 . newState
+                        . transactionsL . to (fmap $ view txStatus)
+                    )
                     xs
                 distribution l = maybe 0 (length . Map.filter l) result
             in
@@ -148,5 +151,5 @@ prop_submissionHistory d = mapSize (*30)
                     & cover 10 (distribution (is _InSubmission) > 0)
                 $ conjoin . fmap fst $ xs
 
-noSubmissions :: Submissions Slot Tx
+noSubmissions :: Submissions () Slot Tx
 noSubmissions = Submissions mempty 0 0
