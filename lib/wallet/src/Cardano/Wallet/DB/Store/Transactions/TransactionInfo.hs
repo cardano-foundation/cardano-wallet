@@ -7,7 +7,8 @@ module Cardano.Wallet.DB.Store.Transactions.TransactionInfo
     , mkTransactionInfoFromReadTx
     ) where
 
-import Prelude
+import Prelude hiding
+    ( (.) )
 
 import Cardano.Wallet.DB.Sqlite.Schema
     ( TxCollateral (..), TxIn (..), TxMeta (..), TxWithdrawal (..) )
@@ -16,7 +17,7 @@ import Cardano.Wallet.DB.Sqlite.Types
 import Cardano.Wallet.DB.Store.Submissions.New.Operations
     ( SubmissionMeta )
 import Cardano.Wallet.DB.Store.Transactions.Decoration
-    ( DecoratedTxIns, lookupTxOut, mkTxOutKey, mkTxOutKeyCollateral )
+    ( DecoratedTxIns, TxOutKey, lookupTxOut, mkTxOutKey, mkTxOutKeyCollateral )
 import Cardano.Wallet.DB.Store.Transactions.Model
     ( TxRelation (..), fromTxCollateralOut, fromTxOut, txCBORPrism )
 import Cardano.Wallet.Primitive.Slotting
@@ -25,10 +26,16 @@ import Cardano.Wallet.Primitive.Types.Tx
     ( TxCBOR, TxMeta (..) )
 import Cardano.Wallet.Read.Eras
     ( EraFun, EraValue, K, applyEraFun, extractEraValue )
+import Cardano.Wallet.Read.Primitive.Tx.Features.Inputs
+    ( getInputs )
 import Cardano.Wallet.Read.Tx.CBOR
     ( renderTxToCBOR )
 import Cardano.Wallet.Read.Tx.Hash
     ( getEraTxHash )
+import Cardano.Wallet.Read.Tx.Inputs
+    ( getEraInputs )
+import Control.Category
+    ( (.) )
 import Data.Functor
     ( (<&>) )
 import Data.Generics.Internal.VL
@@ -42,6 +49,7 @@ import qualified Cardano.Wallet.Primitive.Types.Coin as WC
 import qualified Cardano.Wallet.Primitive.Types.Hash as W
 import qualified Cardano.Wallet.Primitive.Types.Tx as WT
 import qualified Cardano.Wallet.Primitive.Types.Tx.TxIn as WT
+import qualified Cardano.Wallet.Primitive.Types.Tx.TxOut as WT
 import qualified Cardano.Wallet.Read.Tx as Read
 import qualified Data.Generics.Internal.VL as L
 import qualified Data.Map.Strict as Map
@@ -117,13 +125,13 @@ mkTransactionInfoFromReadTx :: Monad m
     -> EraValue Read.Tx
     -> SubmissionMeta
     -> m WT.TransactionInfo
-mkTransactionInfoFromReadTx _ti tip _decor tx _meta = do
+mkTransactionInfoFromReadTx _ti tip decor tx _meta = do
     return
         $ WT.TransactionInfo
         { WT.txInfoId = W.Hash $ value getEraTxHash
         , WT.txInfoCBOR = Just $ renderTxToCBOR tx
         , WT.txInfoFee = undefined
-        , WT.txInfoInputs = undefined
+        , WT.txInfoInputs = mkTxIn <$> value (getInputs . getEraInputs)
         , WT.txInfoCollateralInputs = undefined
         , WT.txInfoOutputs = undefined
         , WT.txInfoCollateralOutput = undefined
@@ -150,3 +158,15 @@ mkTransactionInfoFromReadTx _ti tip _decor tx _meta = do
 
     value :: EraFun Read.Tx (K a) -> a
     value f = extractEraValue $ applyEraFun f tx
+
+    mkTxIn :: WT.TxIn -> (WT.TxIn, Maybe WT.TxOut)
+    mkTxIn txIn =
+        ( WT.TxIn
+          { inputId = WT.inputId txIn
+          , inputIx = WT.inputIx txIn
+          }
+        , lookupTxOut (mkTxOutPrimitive txIn) decor
+        )
+
+mkTxOutPrimitive :: WT.TxIn -> TxOutKey
+mkTxOutPrimitive (WT.TxIn transaction count) = (TxId transaction, count)
