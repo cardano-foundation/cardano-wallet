@@ -79,7 +79,9 @@ module Cardano.Wallet.Api.Types
     , ApiCoinSelectionWithdrawal (..)
     , ApiConstructTransaction (..)
     , ApiConstructTransactionData (..)
+    , ApiCosignerIndex (..)
     , ApiCredential (..)
+    , ApiCredentialType (..)
     , ApiDecodedTransaction (..)
     , ApiDelegationAction (..)
     , ApiDeregisterPool (..)
@@ -344,6 +346,8 @@ import Cardano.Wallet.Primitive.AddressDiscovery.Random
     ( RndState )
 import Cardano.Wallet.Primitive.AddressDiscovery.Sequential
     ( AddressPoolGap, SeqState, getAddressPoolGap )
+import Cardano.Wallet.Primitive.AddressDiscovery.Shared
+    ( CredentialType (..) )
 import Cardano.Wallet.Primitive.Passphrase.Types
     ( Passphrase (..), PassphraseHash (..) )
 import Cardano.Wallet.Primitive.SyncProgress
@@ -436,6 +440,8 @@ import Data.ByteString
     ( ByteString )
 import Data.Char
     ( toLower )
+import Data.Data
+    ( Data )
 import Data.Either.Combinators
     ( maybeToRight )
 import Data.Either.Extra
@@ -481,7 +487,7 @@ import Data.Traversable
 import Data.Typeable
     ( Typeable, typeRep )
 import Data.Word
-    ( Word16, Word32, Word64 )
+    ( Word16, Word32, Word64, Word8 )
 import Data.Word.Odd
     ( Word31 )
 import Fmt
@@ -685,6 +691,11 @@ data ApiAddress (n :: NetworkDiscriminant) = ApiAddress
     deriving (FromJSON, ToJSON) via DefaultRecord (ApiAddress n)
     deriving anyclass NFData
 
+newtype ApiCosignerIndex = ApiCosignerIndex Word8
+    deriving stock (Data, Eq, Generic, Show, Typeable)
+    deriving newtype (FromJSON, ToJSON)
+    deriving anyclass NFData
+
 data ApiCredential =
       CredentialExtendedPubKey ByteString
     | CredentialPubKey ByteString
@@ -692,6 +703,13 @@ data ApiCredential =
     | CredentialScript (Script KeyHash)
     | CredentialScriptHash ScriptHash
     deriving (Eq, Generic, Show)
+
+newtype ApiCredentialType = ApiCredentialType
+    { unApiCredentialType :: CredentialType
+    }
+    deriving (Data, Eq, Generic, Show, Typeable)
+    deriving (FromJSON, ToJSON) via DefaultSum CredentialType
+    deriving anyclass NFData
 
 data ApiAddressData = ApiAddressData
     { address :: !ApiAddressDataPayload

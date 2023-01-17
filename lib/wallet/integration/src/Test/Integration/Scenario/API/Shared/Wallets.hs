@@ -28,6 +28,8 @@ import Cardano.Wallet.Api.Types
     , ApiActiveSharedWallet
     , ApiAddress
     , ApiAddress
+    , ApiCosignerIndex (..)
+    , ApiCredentialType (..)
     , ApiFee (..)
     , ApiScriptTemplate (..)
     , ApiSharedWallet (..)
@@ -41,7 +43,7 @@ import Cardano.Wallet.Api.Types
     , WalletStyle (..)
     )
 import Cardano.Wallet.Api.Types.Error
-    ( ApiErrorInfo (..) )
+    ( ApiErrorInfo (..), ApiErrorSharedWalletNoSuchCosigner (..) )
 import Cardano.Wallet.Compat
     ( (^?) )
 import Cardano.Wallet.Primitive.AddressDerivation
@@ -120,7 +122,6 @@ import Test.Integration.Framework.DSL
 import Test.Integration.Framework.TestData
     ( errMsg403CreateIllegal
     , errMsg403KeyAlreadyPresent
-    , errMsg403NoSuchCosigner
     , errMsg403TemplateInvalidDuplicateXPub
     , errMsg403TemplateInvalidNoCosignerInScript
     , errMsg403TemplateInvalidScript
@@ -1177,7 +1178,11 @@ spec = describe "SHARED_WALLETS" $ do
                 } |]
         rPatch5 <- patchSharedWallet ctx wal Payment payloadPatch5
         expectResponseCode HTTP.status403 rPatch5
-        expectErrorMessage (errMsg403NoSuchCosigner (toText Payment) 7) rPatch5
+        decodeErrorInfo rPatch5 `shouldBe` SharedWalletNoSuchCosigner
+            ApiErrorSharedWalletNoSuchCosigner
+                { cosignerIndex = ApiCosignerIndex 7
+                , credentialType = ApiCredentialType Payment
+                }
 
     it "SHARED_WALLETS_PATCH_07 - \
         \Cannot update cosigner key in a pending shared wallet having the \

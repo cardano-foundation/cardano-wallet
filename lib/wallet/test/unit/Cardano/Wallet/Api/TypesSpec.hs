@@ -99,7 +99,9 @@ import Cardano.Wallet.Api.Types
     , ApiCoinSelectionWithdrawal (..)
     , ApiConstructTransaction (..)
     , ApiConstructTransactionData (..)
+    , ApiCosignerIndex (..)
     , ApiCredential (..)
+    , ApiCredentialType (..)
     , ApiDecodedTransaction (..)
     , ApiDelegationAction (..)
     , ApiDeregisterPool (..)
@@ -216,6 +218,7 @@ import Cardano.Wallet.Api.Types.Error
     ( ApiError (..)
     , ApiErrorInfo (..)
     , ApiErrorMessage (..)
+    , ApiErrorSharedWalletNoSuchCosigner (..)
     , ApiErrorTxOutputLovelaceInsufficient (..)
     )
 import Cardano.Wallet.Api.Types.SchemaMetadata
@@ -488,7 +491,7 @@ import Test.QuickCheck
 import Test.QuickCheck.Arbitrary.Generic
     ( genericArbitrary, genericShrink )
 import Test.QuickCheck.Extra
-    ( reasonablySized )
+    ( reasonablySized, shrinkBoundedEnum )
 import Test.QuickCheck.Gen
     ( sublistOf )
 import Test.QuickCheck.Instances
@@ -599,14 +602,18 @@ spec = parallel $ do
         jsonTest @ApiBlockReference
         jsonTest @ApiByronWallet
         jsonTest @ApiByronWalletBalance
+        jsonTest @ApiCosignerIndex
         jsonTest @ApiCredential
+        jsonTest @ApiCredentialType
         jsonTest @ApiDelegationAction
         jsonTest @ApiEra
         jsonTest @ApiEraInfo
         jsonTest @ApiError
+        jsonTest @ApiErrorSharedWalletNoSuchCosigner
         jsonTest @ApiErrorTxOutputLovelaceInsufficient
         jsonTest @ApiFee
         jsonTest @ApiHealthCheck
+        jsonTest @ApiIncompleteSharedWallet
         jsonTest @ApiMaintenanceAction
         jsonTest @ApiMaintenanceActionPostData
         jsonTest @ApiMultiDelegationAction
@@ -614,7 +621,6 @@ spec = parallel $ do
         jsonTest @ApiNetworkInformation
         jsonTest @ApiNetworkParameters
         jsonTest @ApiNullStakeKey
-        jsonTest @ApiIncompleteSharedWallet
         jsonTest @ApiPolicyId
         jsonTest @ApiPolicyKey
         jsonTest @ApiPostAccountKeyData
@@ -1040,6 +1046,8 @@ instance Arbitrary (Script Cosigner) where
 instance Arbitrary ScriptTemplate where
     arbitrary = genScriptTemplate
 
+deriving newtype instance Arbitrary ApiCosignerIndex
+
 instance Arbitrary ApiCredential where
     arbitrary = do
         pubKey <- BS.pack <$> replicateM 32 arbitrary
@@ -1051,6 +1059,10 @@ instance Arbitrary ApiCredential where
               , pure $ CredentialKeyHash keyHash
               , pure $ CredentialScriptHash scriptHash
               , CredentialScript <$> arbitrary ]
+
+instance Arbitrary ApiCredentialType where
+    arbitrary = ApiCredentialType <$> arbitraryBoundedEnum
+    shrink = shrinkMapBy ApiCredentialType unApiCredentialType shrinkBoundedEnum
 
 instance Arbitrary ValidationLevel where
     arbitrary =
@@ -2184,6 +2196,10 @@ instance Arbitrary ApiErrorInfo where
     shrink = genericShrink
 
 instance Arbitrary ApiErrorMessage where
+    arbitrary = genericArbitrary
+    shrink = genericShrink
+
+instance Arbitrary ApiErrorSharedWalletNoSuchCosigner where
     arbitrary = genericArbitrary
     shrink = genericShrink
 

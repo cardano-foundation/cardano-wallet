@@ -13,9 +13,14 @@
 -- API error types.
 --
 module Cardano.Wallet.Api.Types.Error
-    ( ApiError (..)
+    (
+    -- * General API error types
+      ApiError (..)
     , ApiErrorInfo (..)
     , ApiErrorMessage (..)
+
+    -- * Specific API error types
+    , ApiErrorSharedWalletNoSuchCosigner (..)
     , ApiErrorTxOutputLovelaceInsufficient (..)
     )
     where
@@ -24,6 +29,8 @@ import Prelude
 
 import Cardano.Wallet.Api.Lib.Options
     ( DefaultRecord (..), defaultSumTypeOptions )
+import Cardano.Wallet.Api.Types
+    ( ApiCosignerIndex (..), ApiCredentialType (..) )
 import Control.DeepSeq
     ( NFData (..) )
 import Data.Aeson
@@ -138,6 +145,7 @@ data ApiErrorInfo
     | SharedWalletKeyAlreadyExists
     | SharedWalletNoDelegationTemplate
     | SharedWalletNoSuchCosigner
+        !ApiErrorSharedWalletNoSuchCosigner
     | SharedWalletScriptTemplateInvalid
     | SoftDerivationRequired
     | StartTimeLaterThanEndTime
@@ -151,7 +159,8 @@ data ApiErrorInfo
     | UnexpectedError
     | UnresolvedInputs
     | UnsupportedMediaType
-    | UtxoTooSmall ApiErrorTxOutputLovelaceInsufficient
+    | UtxoTooSmall
+        !ApiErrorTxOutputLovelaceInsufficient
     | ValidityIntervalNotInsideScriptTimelock
     | WalletAlreadyExists
     | WalletMetadataNotFound
@@ -175,6 +184,17 @@ apiErrorInfoOptions = defaultSumTypeOptions
         , contentsFieldName = "info"
         }
     }
+
+data ApiErrorSharedWalletNoSuchCosigner = ApiErrorSharedWalletNoSuchCosigner
+    { cosignerIndex
+        :: !ApiCosignerIndex
+    , credentialType
+        :: !ApiCredentialType
+    }
+    deriving (Data, Eq, Generic, Show, Typeable)
+    deriving (FromJSON, ToJSON)
+        via DefaultRecord ApiErrorSharedWalletNoSuchCosigner
+    deriving anyclass NFData
 
 data ApiErrorTxOutputLovelaceInsufficient = ApiErrorTxOutputLovelaceInsufficient
     { txOutputIndex
