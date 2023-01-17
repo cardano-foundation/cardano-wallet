@@ -151,7 +151,8 @@ data ApiErrorInfo
     | UnexpectedError
     | UnresolvedInputs
     | UnsupportedMediaType
-    | UtxoTooSmall ApiErrorTxOutputLovelaceInsufficient
+    | UtxoTooSmall
+        !ApiErrorTxOutputLovelaceInsufficient
     | ValidityIntervalNotInsideScriptTimelock
     | WalletAlreadyExists
     | WalletMetadataNotFound
