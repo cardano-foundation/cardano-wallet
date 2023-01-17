@@ -2814,55 +2814,21 @@ constructSharedTransaction
                     , selectionDelta TokenBundle.getCoin sel
                     )
 
-            case Shared.ready (getState cp) of
-                Shared.Pending ->
-                    liftHandler $ throwE ErrConstructTxSharedWalletIncomplete
-                Shared.Active _ -> do
-                    pp <- liftIO $ NW.currentProtocolParameters (wrk ^. networkLayer)
+        case Shared.ready (getState cp) of
+            Shared.Pending ->
+                liftHandler $ throwE ErrConstructTxSharedWalletIncomplete
+            Shared.Active _ -> do
+                pp <- liftIO $ NW.currentProtocolParameters (wrk ^. networkLayer)
+                era <- liftIO $ NW.currentNodeEra (wrk ^. networkLayer)
 
-                    (utxoAvailable, wallet, pendingTxs) <-
-                        liftHandler $ W.readWalletUTxOIndex @_ @s @k wrk wid
-
-                    let runSelection outs = W.selectAssets @_ @_ @s @k @'CredFromScriptK
-                            wrk era pp selectAssetsParams transform
-                          where
-                            selectAssetsParams = W.SelectAssetsParams
-                                { outputs = outs
-                                , pendingTxs
-                                , randomSeed = Nothing
-                                , txContext = txCtx
-                                , utxoAvailableForInputs =
-                                    UTxOSelection.fromIndex utxoAvailable
-                                , utxoAvailableForCollateral =
-                                    UTxOIndex.toMap utxoAvailable
-                                , wallet
-                                , selectionStrategy = SelectionStrategyOptimal
-                                }
-                    (sel, sel', fee) <- do
-                        outs <- case body ^. #payments of
-                            Just (ApiPaymentAddresses content) ->
-                                pure $ F.toList (addressAmountToTxOut <$> content)
-                            _ ->
-                                pure []
-
-                        (sel', utx, fee') <- liftHandler $ runSelection outs
-                        sel <- liftHandler $
-                            W.assignChangeAddressesWithoutDbUpdate wrk wid genChange utx
-                        (FeeEstimation estMin _) <- liftHandler $ W.estimateFee (pure fee')
-                        pure (sel, sel', estMin)
-
-                    tx <- liftHandler
-                        $ sealedTxFromCardanoBody
-                        <$> W.constructSharedTransaction @_ @s @k @n @era
-                            wrk wid txCtx sel
-
-                    pure ApiConstructTransaction
-                        { transaction = case body ^. #encoding of
-                                Just HexEncoded -> ApiSerialisedTransaction (ApiT tx) HexEncoded
-                                _ -> ApiSerialisedTransaction (ApiT tx) Base64Encoded
-                        , coinSelection = mkApiCoinSelection [] [] Nothing md sel'
-                        , fee = Quantity $ fromIntegral fee
+                let preSel = PreSelection
+                        { outputs = case (body ^. #payments) of
+                                Nothing ->
+                                    []
+                                Just (ApiPaymentAddresses content) ->
+                                    F.toList (addressAmountToTxOut <$> content)
                         }
+                undefined
   where
     ti :: TimeInterpreter (ExceptT PastHorizonException IO)
     ti = timeInterpreter (ctx ^. networkLayer)
