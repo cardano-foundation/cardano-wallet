@@ -2,6 +2,7 @@
 {-# LANGUAGE ConstraintKinds #-}
 {-# LANGUAGE DataKinds #-}
 {-# LANGUAGE DeriveAnyClass #-}
+{-# LANGUAGE DeriveDataTypeable #-}
 {-# LANGUAGE DeriveGeneric #-}
 {-# LANGUAGE DerivingStrategies #-}
 {-# LANGUAGE FlexibleContexts #-}
@@ -129,6 +130,8 @@ import Control.Monad
     ( unless )
 import Crypto.Hash
     ( Blake2b_160, Digest, hash )
+import Data.Data
+    ( Data )
 import Data.Either
     ( isRight )
 import Data.Either.Combinators
@@ -678,7 +681,7 @@ instance GenChange (SharedState n k) where
 -------------------------------------------------------------------------------}
 
 data CredentialType = Payment | Delegation
-    deriving (Eq, Show, Generic)
+    deriving (Bounded, Data, Enum, Eq, Show, Generic)
     deriving anyclass NFData
 
 instance ToText CredentialType where

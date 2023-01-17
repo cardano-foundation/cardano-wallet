@@ -100,6 +100,7 @@ import Cardano.Wallet.Api.Types
     , ApiConstructTransaction (..)
     , ApiConstructTransactionData (..)
     , ApiCredential (..)
+    , ApiCredentialType (..)
     , ApiDecodedTransaction (..)
     , ApiDelegationAction (..)
     , ApiDeregisterPool (..)
@@ -488,7 +489,7 @@ import Test.QuickCheck
 import Test.QuickCheck.Arbitrary.Generic
     ( genericArbitrary, genericShrink )
 import Test.QuickCheck.Extra
-    ( reasonablySized )
+    ( reasonablySized, shrinkBoundedEnum )
 import Test.QuickCheck.Gen
     ( sublistOf )
 import Test.QuickCheck.Instances
@@ -600,6 +601,7 @@ spec = parallel $ do
         jsonTest @ApiByronWallet
         jsonTest @ApiByronWalletBalance
         jsonTest @ApiCredential
+        jsonTest @ApiCredentialType
         jsonTest @ApiDelegationAction
         jsonTest @ApiEra
         jsonTest @ApiEraInfo
@@ -1051,6 +1053,10 @@ instance Arbitrary ApiCredential where
               , pure $ CredentialKeyHash keyHash
               , pure $ CredentialScriptHash scriptHash
               , CredentialScript <$> arbitrary ]
+
+instance Arbitrary ApiCredentialType where
+    arbitrary = ApiCredentialType <$> arbitraryBoundedEnum
+    shrink = shrinkMapBy ApiCredentialType unApiCredentialType shrinkBoundedEnum
 
 instance Arbitrary ValidationLevel where
     arbitrary =

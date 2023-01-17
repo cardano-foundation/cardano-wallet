@@ -80,6 +80,7 @@ module Cardano.Wallet.Api.Types
     , ApiConstructTransaction (..)
     , ApiConstructTransactionData (..)
     , ApiCredential (..)
+    , ApiCredentialType (..)
     , ApiDecodedTransaction (..)
     , ApiDelegationAction (..)
     , ApiDeregisterPool (..)
@@ -344,6 +345,8 @@ import Cardano.Wallet.Primitive.AddressDiscovery.Random
     ( RndState )
 import Cardano.Wallet.Primitive.AddressDiscovery.Sequential
     ( AddressPoolGap, SeqState, getAddressPoolGap )
+import Cardano.Wallet.Primitive.AddressDiscovery.Shared
+    ( CredentialType (..) )
 import Cardano.Wallet.Primitive.Passphrase.Types
     ( Passphrase (..), PassphraseHash (..) )
 import Cardano.Wallet.Primitive.SyncProgress
@@ -692,6 +695,13 @@ data ApiCredential =
     | CredentialScript (Script KeyHash)
     | CredentialScriptHash ScriptHash
     deriving (Eq, Generic, Show)
+
+newtype ApiCredentialType = ApiCredentialType
+    { unApiCredentialType :: CredentialType
+    }
+    deriving (Data, Eq, Generic, Show, Typeable)
+    deriving (FromJSON, ToJSON) via DefaultSum CredentialType
+    deriving anyclass NFData
 
 data ApiAddressData = ApiAddressData
     { address :: !ApiAddressDataPayload
