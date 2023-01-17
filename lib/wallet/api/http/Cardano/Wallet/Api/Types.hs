@@ -79,6 +79,7 @@ module Cardano.Wallet.Api.Types
     , ApiCoinSelectionWithdrawal (..)
     , ApiConstructTransaction (..)
     , ApiConstructTransactionData (..)
+    , ApiCosignerIndex (..)
     , ApiCredential (..)
     , ApiCredentialType (..)
     , ApiDecodedTransaction (..)
@@ -439,6 +440,8 @@ import Data.ByteString
     ( ByteString )
 import Data.Char
     ( toLower )
+import Data.Data
+    ( Data )
 import Data.Either.Combinators
     ( maybeToRight )
 import Data.Either.Extra
@@ -484,7 +487,7 @@ import Data.Traversable
 import Data.Typeable
     ( Typeable, typeRep )
 import Data.Word
-    ( Word16, Word32, Word64 )
+    ( Word16, Word32, Word64, Word8 )
 import Data.Word.Odd
     ( Word31 )
 import Fmt
@@ -686,6 +689,11 @@ data ApiAddress (n :: NetworkDiscriminant) = ApiAddress
     }
     deriving (Eq, Generic, Show, Typeable)
     deriving (FromJSON, ToJSON) via DefaultRecord (ApiAddress n)
+    deriving anyclass NFData
+
+newtype ApiCosignerIndex = ApiCosignerIndex Word8
+    deriving stock (Data, Eq, Generic, Show, Typeable)
+    deriving newtype (FromJSON, ToJSON)
     deriving anyclass NFData
 
 data ApiCredential =

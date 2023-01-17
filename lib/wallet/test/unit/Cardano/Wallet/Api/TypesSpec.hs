@@ -99,6 +99,7 @@ import Cardano.Wallet.Api.Types
     , ApiCoinSelectionWithdrawal (..)
     , ApiConstructTransaction (..)
     , ApiConstructTransactionData (..)
+    , ApiCosignerIndex (..)
     , ApiCredential (..)
     , ApiCredentialType (..)
     , ApiDecodedTransaction (..)
@@ -600,6 +601,7 @@ spec = parallel $ do
         jsonTest @ApiBlockReference
         jsonTest @ApiByronWallet
         jsonTest @ApiByronWalletBalance
+        jsonTest @ApiCosignerIndex
         jsonTest @ApiCredential
         jsonTest @ApiCredentialType
         jsonTest @ApiDelegationAction
@@ -1041,6 +1043,8 @@ instance Arbitrary (Script Cosigner) where
 
 instance Arbitrary ScriptTemplate where
     arbitrary = genScriptTemplate
+
+deriving newtype instance Arbitrary ApiCosignerIndex
 
 instance Arbitrary ApiCredential where
     arbitrary = do
