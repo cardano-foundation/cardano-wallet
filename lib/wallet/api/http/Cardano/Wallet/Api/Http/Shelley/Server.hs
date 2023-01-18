@@ -2273,8 +2273,8 @@ mkApiTransactionFromInfo ti wrk wid deposit info metadataSchema = do
         MkApiTransactionParams
             { txId = info ^. #txInfoId
             , txFee = info ^. #txInfoFee
-            , txInputs = info ^. #txInfoInputs <&> drop2nd
-            , txCollateralInputs = info ^. #txInfoCollateralInputs <&> drop2nd
+            , txInputs = info ^. #txInfoInputs
+            , txCollateralInputs = info ^. #txInfoCollateralInputs
             , txOutputs = info ^. #txInfoOutputs
             , txCollateralOutput = info ^. #txInfoCollateralOutput
             , txWithdrawals = info ^. #txInfoWithdrawals
@@ -2291,7 +2291,6 @@ mkApiTransactionFromInfo ti wrk wid deposit info metadataSchema = do
         InLedger -> apiTx {depth = Just $ info ^. #txInfoDepth}
         Expired  -> apiTx
   where
-    drop2nd (a,_,c) = (a,c)
     status :: Lens' (ApiTransaction n) (Maybe ApiBlockReference)
     status = case info ^. #txInfoMeta . #status of
         Pending  -> #pendingSince

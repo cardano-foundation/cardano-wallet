@@ -586,15 +586,18 @@ mkTxHistory numTx numInputs numOutputs numAssets range =
   where
     sl i = SlotNo $ range !! (i `mod` length range)
 
-mkInputs :: Int -> Int -> [(TxIn, Coin)]
+mkInputs :: Int -> Int -> [(TxIn, Maybe TxOut)]
 mkInputs prefix n =
     [ force
         ( TxIn (Hash (label lbl i)) (fromIntegral i)
-        , Coin $ fromIntegral n
+        , Just $ mkTxOut n
         )
     | !i <- [1..n]]
   where
     lbl = show prefix <> "in"
+    mkTxOut i = TxOut
+        (mkAddress prefix i)
+        (TokenBundle.TokenBundle (Coin $ fromIntegral i) mempty)
 
 -- | Creates transaction outputs with multi-asset token bundles.
 mkOutputs :: Int -> Int -> Int -> [TxOut]

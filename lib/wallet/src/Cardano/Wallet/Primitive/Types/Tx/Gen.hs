@@ -73,8 +73,8 @@ shrinkTx = shrinkMapBy txWithoutIdToTx txToTxWithoutId shrinkTxWithoutId
 
 data TxWithoutId = TxWithoutId
     { fee :: !(Maybe Coin)
-    , resolvedInputs :: ![(TxIn, Coin)]
-    , resolvedCollateralInputs :: ![(TxIn, Coin)]
+    , resolvedInputs :: ![(TxIn, Maybe TxOut)]
+    , resolvedCollateralInputs :: ![(TxIn, Maybe TxOut)]
     , outputs :: ![TxOut]
     , collateralOutput :: !(Maybe TxOut)
     , metadata :: !(Maybe TxMetadata)
@@ -86,8 +86,8 @@ data TxWithoutId = TxWithoutId
 genTxWithoutId :: Gen TxWithoutId
 genTxWithoutId = TxWithoutId
     <$> liftArbitrary genCoinPositive
-    <*> listOf1 (liftArbitrary2 genTxIn genCoinPositive)
-    <*> listOf1 (liftArbitrary2 genTxIn genCoinPositive)
+    <*> listOf1 (liftArbitrary2 genTxIn (pure Nothing))
+    <*> listOf1 (liftArbitrary2 genTxIn (pure Nothing))
     <*> listOf genTxOut
     <*> liftArbitrary genTxOut
     <*> liftArbitrary genNestedTxMetadata
@@ -97,8 +97,8 @@ genTxWithoutId = TxWithoutId
 shrinkTxWithoutId :: TxWithoutId -> [TxWithoutId]
 shrinkTxWithoutId = genericRoundRobinShrink
     <@> liftShrink shrinkCoinPositive
-    <:> shrinkList (liftShrink2 shrinkTxIn shrinkCoinPositive)
-    <:> shrinkList (liftShrink2 shrinkTxIn shrinkCoinPositive)
+    <:> shrinkList (liftShrink2 shrinkTxIn (liftShrink shrinkTxOut))
+    <:> shrinkList (liftShrink2 shrinkTxIn (liftShrink shrinkTxOut))
     <:> shrinkList shrinkTxOut
     <:> liftShrink shrinkTxOut
     <:> liftShrink shrinkTxMetadata
