@@ -129,6 +129,7 @@ module Cardano.Wallet
     , assignChangeAddressesAndUpdateDb
     , assignChangeAddressesWithoutDbUpdate
     , selectionToUnsignedTx
+    , buildAndSignTransactionNew
     , buildAndSignTransaction
     , signTransaction
     , constructTransaction
@@ -220,6 +221,8 @@ import Cardano.Address.Style.Shared
     ( deriveDelegationPublicKey )
 import Cardano.Api
     ( AnyCardanoEra, serialiseToCBOR )
+import Cardano.Api.Extra
+    ( inAnyCardanoEra )
 import Cardano.BM.Data.Severity
     ( Severity (..) )
 import Cardano.BM.Data.Tracer
@@ -320,7 +323,7 @@ import Cardano.Wallet.Primitive.AddressDerivation.MintBurn
 import Cardano.Wallet.Primitive.AddressDerivation.SharedKey
     ( SharedKey (..), replaceCosignersWithVerKeys )
 import Cardano.Wallet.Primitive.AddressDerivation.Shelley
-    ( ShelleyKey, deriveAccountPrivateKeyShelley )
+    ( ShelleyKey (..), deriveAccountPrivateKeyShelley )
 import Cardano.Wallet.Primitive.AddressDiscovery
     ( CompareDiscovery (..)
     , GenChange (..)
@@ -334,7 +337,11 @@ import Cardano.Wallet.Primitive.AddressDiscovery
 import Cardano.Wallet.Primitive.AddressDiscovery.Random
     ( ErrImportAddress (..), RndStateLike )
 import Cardano.Wallet.Primitive.AddressDiscovery.Sequential
-    ( SeqState, defaultAddressPoolGap, mkSeqStateFromRootXPrv, purposeBIP44 )
+    ( SeqState (..)
+    , defaultAddressPoolGap
+    , mkSeqStateFromRootXPrv
+    , purposeBIP44
+    )
 import Cardano.Wallet.Primitive.AddressDiscovery.Shared
     ( CredentialType (..)
     , ErrAddCosigner (..)
@@ -351,6 +358,7 @@ import Cardano.Wallet.Primitive.Model
     ( BlockData (..)
     , Wallet
     , applyBlocks
+    , applyOurTxToUTxO
     , availableUTxO
     , currentTip
     , firstHeader
@@ -375,6 +383,7 @@ import Cardano.Wallet.Primitive.Slotting
     , addRelTime
     , ceilingSlotAt
     , currentRelativeTime
+    , hoistTimeInterpreter
     , interpretQuery
     , neverFails
     , slotRangeFromTimeRange
@@ -466,23 +475,26 @@ import Cardano.Wallet.Transaction
     , ErrMoreSurplusNeeded (ErrMoreSurplusNeeded)
     , ErrSignTx (..)
     , ErrUpdateSealedTx (..)
-    , PreSelection
+    , PreSelection (..)
     , TransactionCtx (..)
     , TransactionLayer (..)
     , TxFeeAndChange (TxFeeAndChange)
     , TxFeeUpdate (..)
     , TxUpdate (..)
+    , TxValidityInterval
     , Withdrawal (..)
     , WitnessCountCtx (..)
     , defaultTransactionCtx
     , withdrawalToCoin
     )
+import Cardano.Wallet.Write.Tx
+    ( AnyRecentEra )
 import Control.Arrow
     ( first, left )
 import Control.DeepSeq
     ( NFData )
 import Control.Monad
-    ( forM, forM_, replicateM, unless, when )
+    ( forM, forM_, replicateM, unless, when, (<=<) )
 import Control.Monad.Class.MonadTime
     ( DiffTime
     , MonadMonotonicTime (..)
@@ -545,7 +557,7 @@ import Data.List.NonEmpty
 import Data.Map.Strict
     ( Map )
 import Data.Maybe
-    ( fromMaybe, isJust, mapMaybe )
+    ( fromJust, fromMaybe, isJust, mapMaybe )
 import Data.Proxy
     ( Proxy (..) )
 import Data.Quantity
@@ -602,6 +614,7 @@ import qualified Cardano.Address.Style.Shelley as CAShelley
 import qualified Cardano.Api as Cardano
 import qualified Cardano.Api.Shelley as Cardano
 import qualified Cardano.Crypto.Wallet as CC
+import qualified Cardano.Slotting.Slot as Slot
 import qualified Cardano.Tx.Balance.Internal.CoinSelection as CS
 import qualified Cardano.Wallet.Checkpoints.Policy as CP
 import qualified Cardano.Wallet.DB.WalletState as WS
@@ -619,7 +632,6 @@ import qualified Cardano.Wallet.Primitive.Types.UTxOIndex as UTxOIndex
 import qualified Cardano.Wallet.Primitive.Types.UTxOSelection as UTxOSelection
 import qualified Cardano.Wallet.Primitive.Types.UTxOStatistics as UTxOStatistics
 import qualified Cardano.Wallet.Write.Tx as WriteTx
-import qualified Cardano.Wallet.Write.Tx as Write.Tx
 import qualified Data.ByteArray as BA
 import qualified Data.Foldable as F
 import qualified Data.List as L
@@ -2509,6 +2521,159 @@ signTransaction tl preferredLatestEra keyLookup (rootKey, rootPwd) utxo =
             policyKey
             keyLookup
             inputResolver
+
+type MakeRewardAccountBuilder k =
+    (k 'RootK XPrv, Passphrase "encryption") -> (XPrv, Passphrase "encryption")
+
+-- | Produce witnesses and construct a transaction from a given selection.
+--
+-- Requires the encryption passphrase in order to decrypt the root private key.
+-- Note that this doesn't broadcast the transaction to the network. In order to
+-- do so, use 'submitTx'.
+--
+buildAndSignTransactionNew
+    :: forall k ktype s (n :: NetworkDiscriminant)
+     . ( Typeable n
+       , Typeable s
+       , Typeable k
+       , WalletKey k
+       , HardDerivation k
+       , BoundedAddressLength k
+       , Bounded (Index (AddressIndexDerivationType k) (AddressCredential k))
+       , IsOwned s k ktype
+       , IsOurs s RewardAccount
+       , GenChange s
+       )
+    => Tracer IO WalletLog
+    -> TimeInterpreter (Either PastHorizonException)
+    -> DBLayer IO s k
+    -> NetworkLayer IO Block
+    -> TransactionLayer k ktype SealedTx
+    -> WalletId
+    -> ArgGenChange s
+    -> AnyRecentEra
+    -> Passphrase "user"
+    -> PreSelection
+    -> TransactionCtx
+    -> IO (Tx, TxMeta, UTCTime, SealedTx)
+buildAndSignTransactionNew
+    tr ti db netLayer txLayer walletId changeGen era pwd preSelection txCtx =
+    WriteTx.withRecentEra era $ \(_ :: WriteTx.RecentEra recentEra) -> do
+        utxo@(_utxoIndex, wallet, _history) <-
+            errorToException ErrConstructTxNoSuchWallet <=< runExceptT $
+                readWalletUTxOIndex @_ @_ @k db walletId
+
+        protocolParams <- currentProtocolParameters netLayer
+        unsignedTxBody <-
+            errorToException ErrConstructTxBody $
+                mkUnsignedTransaction txLayer @recentEra
+                    (unsafeShelleyOnlyGetRewardXPub wallet)
+                    protocolParams txCtx (Left preSelection)
+
+        unsignedBalancedTx <- balanceTx protocolParams utxo unsignedTxBody
+        signedSealedTx <- signBalancedTx wallet unsignedBalancedTx
+
+        let ( tx
+                , _tokenMapWithScripts1
+                , _tokenMapWithScripts2
+                , _certificates
+                , _validityIntervalExplicit
+                , _witnessCount
+                ) = decodeTx
+                        txLayer anyCardanoEra AnyWitnessCountCtx signedSealedTx
+
+        let meta = case applyOurTxToUTxO
+                            (Slot.at $ currentTip wallet ^. #slotNo)
+                            (currentTip wallet ^. #blockHeight)
+                            (getState wallet)
+                            tx
+                            (wallet ^. #utxo) of
+                Nothing -> error $ unwords
+                    [ "buildAndSignTransactionNew:"
+                    , "Can't apply constructed transaction."
+                    ]
+                Just ((_tx, appliedMeta), _deltaUtxo, _nextUtxo) ->
+                    appliedMeta
+                        { status = Pending
+                        , expiry = Just (snd (txValidityInterval txCtx))
+                        }
+        tipTime <- liftIO $ tipSlotStartTime $ currentTip wallet
+
+        -- tx coming from `decodeTx` doesn't contain previous tx outputs that
+        -- correspond to this tx inputs, so its inputs aren't "resolved".
+        -- We restore corresponding outputs by searching them in the UTxO again.
+        let resolveInputs :: [(TxIn, Maybe TxOut)] -> [(TxIn, Maybe TxOut)]
+            resolveInputs = fmap (\(txIn, _) ->
+                (txIn, UTxO.lookup txIn (wallet ^. #utxo)))
+            txResolved = tx
+                { resolvedInputs =
+                    resolveInputs  (resolvedInputs tx)
+                , resolvedCollateralInputs =
+                    resolveInputs  (resolvedCollateralInputs tx)
+                }
+
+        pure (txResolved, meta, tipTime, signedSealedTx)
+  where
+    errorToException f = either (throwIO . ExceptionConstructTx . f) pure
+    anyCardanoEra = WriteTx.fromAnyRecentEra era
+    tipSlotStartTime tipHeader = interpretQuery
+        (neverFails
+            "buildAndSignTransactionNew: slot is ahead of the node tip"
+            (hoistTimeInterpreter except ti)
+        )
+        (slotToUTCTime (tipHeader ^. #slotNo))
+
+    balanceTx
+        :: WriteTx.IsRecentEra era
+        => ProtocolParameters
+        -> (UTxOIndex WalletUTxO, Wallet s, Set Tx)
+        -> Cardano.TxBody era
+        -> IO (Cardano.Tx era)
+    balanceTx protocolParams utxo unsignedTxBody = do
+        let protocolParameters =
+                ( protocolParams
+                , fromJust $ currentNodeProtocolParameters protocolParams
+                )
+            partialTx = PartialTx
+                (Cardano.Tx unsignedTxBody [])(Cardano.UTxO mempty) mempty
+        either (throwIO . ExceptionBalanceTx) pure <=< runExceptT $
+            balanceTransaction @_ @_ @s @k @ktype
+                tr txLayer changeGen protocolParameters ti utxo partialTx
+
+    signBalancedTx
+        :: Cardano.IsCardanoEra era
+        => Wallet s -> Cardano.Tx era -> IO SealedTx
+    signBalancedTx wallet unsignedBalancedTx =
+        either (throwIO . ExceptionWitnessTx) pure <=< runExceptT $ do
+            let wrapError = ErrWitnessTxWithRootKey
+            withRootKey db walletId pwd wrapError $ \rootKey scheme -> do
+                let keyWithPassphrase = (rootKey, preparePassphrase scheme pwd)
+                pure $ signTransaction @k @ktype txLayer
+                    anyCardanoEra
+                    (isOwned (getState wallet) keyWithPassphrase)
+                    keyWithPassphrase
+                    (wallet ^. #utxo)
+                    (sealedTxFromCardano $ inAnyCardanoEra unsignedBalancedTx)
+
+    -- HACK: 'mkUnsignedTransaction' takes a reward account 'XPub' even when the
+    -- wallet is a Byron wallet, and doesn't actually have a reward account.
+    --
+    -- 'buildAndSignTransaction' achieves this by deriving the 'XPub' regardless
+    -- of wallet type, from the root key. To avoid requiring another
+    -- 'withRootKey' call, and to make the sketchy behaviour more explicit, we
+    -- make 'buildAndSignTransactionNew' partial instead.
+    unsafeShelleyOnlyGetRewardXPub :: Wallet s -> XPub
+    unsafeShelleyOnlyGetRewardXPub wallet = fromMaybe notShelleyWallet $ do
+        Refl <- isSeqState
+        Refl <- isShelleyKey
+        pure $ getRawKey $ Seq.rewardAccountKey $ getState wallet
+      where
+        isSeqState = testEquality (typeRep @s) (typeRep @(SeqState n k))
+        isShelleyKey = testEquality (typeRep @k) (typeRep @(ShelleyKey))
+        notShelleyWallet = error $ unwords
+            [ "buildAndSignTransactionNew:"
+            , "can't delegate using non-shelley wallet"
+            ]
 
 -- | Produce witnesses and construct a transaction from a given selection.
 --
