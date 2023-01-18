@@ -106,7 +106,6 @@ module Cardano.Wallet
     , ErrAddCosignerKey (..)
     , ErrConstructSharedWallet (..)
     , normalizeSharedAddress
-    , constructSharedTransaction
     , constructUnbalancedSharedTransaction
 
     -- ** Address
@@ -2784,7 +2783,7 @@ constructUnbalancedSharedTransaction
     -> Cardano.AnyCardanoEra
     -> TransactionCtx
     -> PreSelection
-    -> ExceptT ErrConstructTx IO SealedTx
+    -> ExceptT ErrConstructTx IO (SealedTx, Maybe ([(TxIn, TxOut)] -> Map TxIn (CA.Script KeyHash)) )
 constructUnbalancedSharedTransaction ctx wid era txCtx sel = db & \DBLayer{..} -> do
     cp <- withExceptT ErrConstructTxNoSuchWallet
         $ mapExceptT atomically
@@ -2846,12 +2845,12 @@ constructSharedTransaction ctx wid txCtx sel = db & \DBLayer{..} -> do
                 in replaceCosignersWithVerKeys role' template ix
     let scriptInps =
             foldr (\inp@(txin,_) -> Map.insert txin (getScript inp))
-            Map.empty allInps
-    let txCtx' = txCtx {txNativeScriptInputs = scriptInps}
-    mapExceptT atomically $ do
+            Map.empty
+    sealedTx <- mapExceptT atomically $ do
         pp <- liftIO $ currentProtocolParameters nl
-        withExceptT ErrConstructTxBody $ ExceptT $ pure
-            $ mkUnsignedTransaction tl @era xpub pp txCtx' (Right sel)
+        withExceptT ErrConstructTxBody $ ExceptT $ pure $
+            mkUnsignedTransaction tl era xpub pp txCtx (Left sel)
+    pure (sealedTx, Just scriptInps)
   where
     db = ctx ^. dbLayer @IO @s @k
     tl = ctx ^. transactionLayer @k @'CredFromScriptK
