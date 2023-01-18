@@ -35,6 +35,8 @@ import Cardano.Wallet.Read.Eras
     ( inject, shelley )
 import Cardano.Wallet.Read.Primitive.Tx.Features.Certificates
     ( anyEraCerts, fromStakeCredential )
+import Cardano.Wallet.Read.Primitive.Tx.Features.Fee
+    ( fromShelleyCoin )
 import Cardano.Wallet.Read.Primitive.Tx.Features.Validity
     ( shelleyValidityInterval )
 import Cardano.Wallet.Read.Tx
@@ -70,7 +72,6 @@ import qualified Cardano.Ledger.Shelley.API as SL
 import qualified Cardano.Ledger.Shelley.Tx as SL
 import qualified Cardano.Wallet.Primitive.Types as W
 import qualified Cardano.Wallet.Primitive.Types.Address as W
-import qualified Cardano.Wallet.Primitive.Types.Coin as Coin
 import qualified Cardano.Wallet.Primitive.Types.Coin as W
 import qualified Cardano.Wallet.Primitive.Types.Hash as W
 import qualified Cardano.Wallet.Primitive.Types.RewardAccount as W
@@ -114,8 +115,7 @@ fromShelleyTxOut (SL.TxOut addr amount) = W.TxOut
 fromShelleyAddress :: SL.Addr crypto -> W.Address
 fromShelleyAddress = W.Address . SL.serialiseAddr
 
-fromShelleyCoin :: SL.Coin -> W.Coin
-fromShelleyCoin (SL.Coin c) = Coin.unsafeFromIntegral c
+
 
 -- NOTE: For resolved inputs we have to pass in a dummy value of 0.
 fromShelleyTx

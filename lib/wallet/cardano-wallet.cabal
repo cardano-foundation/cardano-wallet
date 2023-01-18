@@ -309,6 +309,7 @@ library
     Cardano.Wallet.Read.Primitive.Tx.Features.Certificates
     Cardano.Wallet.Read.Primitive.Tx.Features.CollateralInputs
     Cardano.Wallet.Read.Primitive.Tx.Features.ExtraSigs
+    Cardano.Wallet.Read.Primitive.Tx.Features.Fee
     Cardano.Wallet.Read.Primitive.Tx.Features.Inputs
     Cardano.Wallet.Read.Primitive.Tx.Features.Integrity
     Cardano.Wallet.Read.Primitive.Tx.Features.Mint

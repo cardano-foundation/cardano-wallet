@@ -31,12 +31,14 @@ import Cardano.Wallet.Read.Eras
     ( allegra, inject )
 import Cardano.Wallet.Read.Primitive.Tx.Features.Certificates
     ( anyEraCerts )
+import Cardano.Wallet.Read.Primitive.Tx.Features.Fee
+    ( fromShelleyCoin )
 import Cardano.Wallet.Read.Primitive.Tx.Features.Inputs
     ( fromShelleyTxIn )
 import Cardano.Wallet.Read.Primitive.Tx.Features.Validity
     ( afterShelleyValidityInterval )
 import Cardano.Wallet.Read.Primitive.Tx.Shelley
-    ( fromShelleyCoin, fromShelleyMD, fromShelleyTxOut, fromShelleyWdrl )
+    ( fromShelleyMD, fromShelleyTxOut, fromShelleyWdrl )
 import Cardano.Wallet.Read.Tx
     ( Tx (..) )
 import Cardano.Wallet.Read.Tx.CBOR
