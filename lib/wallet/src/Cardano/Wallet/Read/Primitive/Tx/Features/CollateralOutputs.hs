@@ -9,10 +9,8 @@ import Prelude
 
 import Cardano.Wallet.Read.Eras
     ( EraFun (..), K (..) )
-import Cardano.Wallet.Read.Primitive.Tx.Mary
-    ( fromCardanoValue )
-import Cardano.Wallet.Read.Primitive.Tx.Shelley
-    ( fromShelleyAddress )
+import Cardano.Wallet.Read.Primitive.Tx.Features.Outputs
+    ( fromCardanoValue, fromShelleyAddress )
 import Cardano.Wallet.Read.Tx.CollateralOutputs
     ( CollateralOutputs (..) )
 import Data.Maybe.Strict

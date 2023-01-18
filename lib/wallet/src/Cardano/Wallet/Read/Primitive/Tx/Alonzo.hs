@@ -36,7 +36,10 @@ import Cardano.Wallet.Read.Primitive.Tx.Features.Outputs
     ( fromAlonzoTxOut )
 import Cardano.Wallet.Read.Primitive.Tx.Features.Validity
     ( afterShelleyValidityInterval )
+import Cardano.Wallet.Read.Primitive.Tx.Features.Withdrawals
+    ( fromShelleyWdrl )
 import Cardano.Wallet.Read.Primitive.Tx.Shelley
+    ( fromShelleyMD )
 import Cardano.Wallet.Read.Tx
     ( Tx (..) )
 import Cardano.Wallet.Read.Tx.CBOR

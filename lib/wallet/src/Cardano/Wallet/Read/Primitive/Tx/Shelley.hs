@@ -10,8 +10,7 @@
 --
 
 module Cardano.Wallet.Read.Primitive.Tx.Shelley
-    ( fromShelleyWdrl
-    , fromShelleyMD
+    ( fromShelleyMD
     , fromShelleyTx
     )
     where
