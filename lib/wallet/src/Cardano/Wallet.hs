@@ -1831,16 +1831,17 @@ balanceTransactionWithSelectionStrategyAndNoZeroAdaAdjustment
     -- padding in @selectAssets'@.
     TxFeeAndChange updatedFee updatedChange <- withExceptT
         (\(ErrMoreSurplusNeeded c) ->
-            ErrBalanceTxInternalError
-                $ ErrUnderestimatedFee c (toSealed candidateTx))
-        (ExceptT . pure $ distributeSurplus txLayer feePolicy surplus feeAndChange)
+            ErrBalanceTxInternalError $
+                ErrUnderestimatedFee c (toSealed candidateTx))
+        (ExceptT . pure $
+            distributeSurplus txLayer feePolicy surplus feeAndChange)
 
-    guardTxSize =<< guardTxBalanced =<< (assembleTransaction $ TxUpdate
+    guardTxSize =<< guardTxBalanced =<< assembleTransaction TxUpdate
         { extraInputs
         , extraCollateral
         , extraOutputs = updatedChange
         , feeUpdate = UseNewTxFee updatedFee
-        })
+        }
   where
     toSealed :: Cardano.Tx era -> SealedTx
     toSealed = sealedTxFromCardano . Cardano.InAnyCardanoEra Cardano.cardanoEra

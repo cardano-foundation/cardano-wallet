@@ -525,8 +525,8 @@ simpleTxIds = Hash . T.encodeUtf8 . T.pack . show <$> [0 :: Integer ..]
 
 canApplyTxToUTxO :: Tx -> UTxO -> Bool
 canApplyTxToUTxO tx u =  (&&)
-    (all inputRefIsValid (tx & Tx.resolvedInputs))
-    (all inputRefIsValid (tx & Tx.resolvedCollateralInputs))
+    (all inputRefIsValid (Tx.resolvedInputs tx))
+    (all inputRefIsValid (Tx.resolvedCollateralInputs tx))
   where
     inputRefIsValid :: (TxIn, Coin) -> Bool
     inputRefIsValid (ti, c) = case UTxO.lookup ti u of

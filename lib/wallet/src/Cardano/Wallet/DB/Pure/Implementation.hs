@@ -479,7 +479,8 @@ mReadTxHistory ti wid minWithdrawal order range mstatus db@(Database wallets txs
     mkTransactionInfo cp (tx, meta) = TransactionInfo
         { txInfoId =
             view #txId tx
-        , txInfoCBOR = view #txCBOR tx
+        , txInfoCBOR =
+            view #txCBOR tx
         , txInfoFee =
             fee tx
         , txInfoInputs =
@@ -536,7 +537,8 @@ mReadDelegationRewardBalance
 mReadDelegationRewardBalance wid db@(Database wallets _) =
     (Right (maybe (Coin 0) rewardAccountBalance $ Map.lookup wid wallets), db)
 
-mPutLocalTxSubmission :: Ord wid => wid -> Hash "Tx" -> SealedTx -> SlotNo -> ModelOp wid s xprv ()
+mPutLocalTxSubmission ::
+    Ord wid => wid -> Hash "Tx" -> SealedTx -> SlotNo -> ModelOp wid s xprv ()
 mPutLocalTxSubmission wid tid tx sl = alterModelErr wid $ \wal ->
     case Map.lookup tid (txHistory wal) of
         Nothing -> (Left (NoSuchTx wid tid), wal)
