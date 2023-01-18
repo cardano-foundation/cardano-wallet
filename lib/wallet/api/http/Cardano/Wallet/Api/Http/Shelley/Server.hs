@@ -1338,11 +1338,9 @@ mkLegacyWallet ctx wid cp meta _ pending progress = do
     ti :: TimeInterpreter (ExceptT PastHorizonException IO)
     ti = timeInterpreter $ ctx ^. networkLayer
 
-    matchEmptyPassphrase
-        :: WorkerCtx ctx
-        -> Handler (Either ErrWithRootKey ())
-    matchEmptyPassphrase wrk = liftIO $ runExceptT $
-        W.withRootKey @_ @s @k wrk wid mempty Prelude.id (\_ _ -> pure ())
+    matchEmptyPassphrase :: DBLayer IO s k -> Handler (Either ErrWithRootKey ())
+    matchEmptyPassphrase db = liftIO $ runExceptT $
+        W.withRootKey @s @k db wid mempty Prelude.id (\_ _ -> pure ())
 
 postRandomWallet
     :: forall ctx s k n.
@@ -2062,8 +2060,8 @@ signTransaction ctx (ApiT wid) body = do
             db = wrk ^. W.dbLayer @IO @s @k
             tl = wrk ^. W.transactionLayer @k @ktype
             nl = wrk ^. W.networkLayer
-        db & \W.DBLayer{atomically, readCheckpoint} -> do
-            W.withRootKey @_ @s wrk wid pwd ErrWitnessTxWithRootKey $ \rootK scheme -> do
+        db & \W.DBLayer{atomically, readCheckpoint} ->
+            W.withRootKey @s @k db wid pwd ErrWitnessTxWithRootKey $ \rootK scheme -> do
                 cp <- mapExceptT atomically
                     $ withExceptT ErrWitnessTxNoSuchWallet
                     $ W.withNoSuchWallet wid
@@ -3207,7 +3205,7 @@ submitTransaction ctx apiw@(ApiT wid) apitx = do
                   txValidityInterval = (Nothing, ttl)
                 , txWithdrawal = wdrl
                 }
-        txMeta <- liftHandler $ W.constructTxMeta @_ @s @k wrk wid txCtx ourInps ourOuts
+        txMeta <- liftHandler $ W.constructTxMeta db wid txCtx ourInps ourOuts
         liftHandler
             $ W.submitTx @_ @s @k wrk wid (tx, txMeta, sealedTx)
     return $ ApiTxId (apiDecoded ^. #id)
@@ -3321,10 +3319,10 @@ submitSharedTransaction ctx apiw@(ApiT wid) apitx = do
         let txCtx = defaultTransactionCtx
                 { txValidityInterval = (Nothing, ttl)
                 }
-        txMeta <- liftHandler $ W.constructTxMeta @_ @s @k wrk wid txCtx ourInps ourOuts
-        liftHandler
-            $ W.submitTx @_ @s @k wrk wid (tx, txMeta, sealedTx)
-    return $ ApiTxId (apiDecoded ^. #id)
+        let db = wrk ^. dbLayer
+        txMeta <- liftHandler $ W.constructTxMeta db wid txCtx ourInps ourOuts
+        liftHandler $ W.submitTx @_ @s @k wrk wid (tx, txMeta, sealedTx)
+    pure $ ApiTxId (apiDecoded ^. #id)
   where
     tl = ctx ^. W.transactionLayer @k @'CredFromScriptK
     ti :: TimeInterpreter (ExceptT PastHorizonException IO)
@@ -4099,8 +4097,8 @@ rndStateChange
     -> Handler (ArgGenChange s)
 rndStateChange ctx (ApiT wid) pwd =
     withWorkerCtx @_ @s @k ctx wid liftE liftE $ \wrk -> liftHandler $
-        W.withRootKey @_ @s @k wrk wid pwd ErrSignPaymentWithRootKey $ \xprv scheme ->
-            pure (xprv, preparePassphrase scheme pwd)
+        W.withRootKey (wrk ^. dbLayer) wid pwd ErrSignPaymentWithRootKey $
+            \xprv scheme -> pure (xprv, preparePassphrase scheme pwd)
 
 type RewardAccountBuilder k
         =  (k 'RootK XPrv, Passphrase "encryption")
