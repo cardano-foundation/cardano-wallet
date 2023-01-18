@@ -533,7 +533,7 @@ import Control.DeepSeq
 import Control.Error.Util
     ( failWith )
 import Control.Monad
-    ( forM, forever, join, void, when, (<=<), (>=>) )
+    ( forM, forever, join, void, when, (<=<) )
 import Control.Monad.Error.Class
     ( throwError )
 import Control.Monad.IO.Class
@@ -1309,11 +1309,11 @@ mkLegacyWallet ctx wid cp meta _ pending progress = do
             pure Nothing
         Just (WalletPassphraseInfo time EncryptWithPBKDF2) ->
             pure $ Just $ ApiWalletPassphraseInfo time
-        Just (WalletPassphraseInfo time EncryptWithScrypt) -> do
-            withWorkerCtx @_ @s @k ctx wid liftE liftE $
-                matchEmptyPassphrase >=> \case
-                    Right{} -> pure Nothing
-                    Left{} -> pure $ Just $ ApiWalletPassphraseInfo time
+        Just (WalletPassphraseInfo time EncryptWithScrypt) ->
+            withWorkerCtx @_ @s @k ctx wid liftE liftE $ \wrk ->
+                matchEmptyPassphrase (wrk ^. typed) <&> \case
+                    Right{} -> Nothing
+                    Left{} -> Just $ ApiWalletPassphraseInfo time
 
     tip' <- liftIO $ getWalletTip (expectAndThrowFailures ti) cp
     let available = availableBalance pending cp
