@@ -2947,9 +2947,7 @@ balanceTransaction
 balanceTransaction ctx@ApiLayer{..} genChange (ApiT wid) body = do
     -- NOTE: Ideally we'd read @pp@ and @era@ atomically.
     pp <- liftIO $ NW.currentProtocolParameters nl
-    -- TODO: This throws when still in the Byron era.
     era <- liftIO $ NW.currentNodeEra nl
-    let nodePParams = fromJust $ W.currentNodeProtocolParameters pp
     withWorkerCtx ctx wid liftE liftE $ \wrk -> do
         wallet <- liftHandler $ W.readWalletUTxOIndex @_ @s @k wrk wid
         ti <- liftIO $ snapshot $ timeInterpreter netLayer
@@ -3013,6 +3011,14 @@ balanceTransaction ctx@ApiLayer{..} genChange (ApiT wid) body = do
                     ti
                     wallet
                     partialTx
+              where
+                nodePParams = fromMaybe
+                    (error $ unwords
+                        [ "balanceTransaction: no nodePParams."
+                        , "Should only be possible in Byron, where"
+                        , "withRecentEra should prevent this being reached."
+                        ])
+                    $ W.currentNodeProtocolParameters pp
 
         anyRecentTx <- maybeToHandler (ErrOldEraNotSupported era)
             . WriteTx.asAnyRecentEra
