@@ -322,6 +322,7 @@ library
     Cardano.Wallet.Read.Tx.CBOR
     Cardano.Wallet.Read.Tx.Certificates
     Cardano.Wallet.Read.Tx.CollateralInputs
+    Cardano.Wallet.Read.Tx.CollateralOutputs
     Cardano.Wallet.Read.Tx.Eras
     Cardano.Wallet.Read.Tx.ExtraSigs
     Cardano.Wallet.Read.Tx.Fee
