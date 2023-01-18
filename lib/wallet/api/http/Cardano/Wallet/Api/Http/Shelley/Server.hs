@@ -3014,6 +3014,7 @@ balanceTransaction ctx@ApiLayer{..} genChange genInpScripts (ApiT wid) body = do
                     (MsgWallet >$< wrk ^. W.logger)
                     (ctx ^. typed)
                     genChange
+                    genInpScripts
                     (pp, nodePParams)
                     ti
                     wallet

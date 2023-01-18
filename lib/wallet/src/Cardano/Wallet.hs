@@ -1607,6 +1607,7 @@ balanceTransaction
     => Tracer m WalletLog
     -> TransactionLayer k ktype SealedTx
     -> ArgGenChange s
+    -> Maybe ([(TxIn, TxOut)] -> Map TxIn (CA.Script KeyHash))
     -> (W.ProtocolParameters, Cardano.ProtocolParameters)
     -- ^ 'Cardano.ProtocolParameters' can be retrieved via a Local State Query
     -- to a local node.
@@ -1631,7 +1632,7 @@ balanceTransaction
     -- @Wallet s@ for change address generation.
     -> PartialTx era
     -> ExceptT ErrBalanceTx m (Cardano.Tx era)
-balanceTransaction tr txLayer change pp ti wallet unadjustedPtx = do
+balanceTransaction tr txLayer change toInpScripts pp ti wallet unadjustedPtx = do
     -- TODO [ADP-1490] Take 'Ledger.PParams era' directly as argument, and avoid
     -- converting to/from Cardano.ProtocolParameters. This may affect
     -- performance. The addition of this one specific conversion seems to have
@@ -1644,7 +1645,7 @@ balanceTransaction tr txLayer change pp ti wallet unadjustedPtx = do
     let balanceWith strategy =
             balanceTransactionWithSelectionStrategyAndNoZeroAdaAdjustment
                 @era @m @s @k @ktype
-                tr txLayer change pp ti wallet strategy adjustedPtx
+                tr txLayer change toInpScripts pp ti wallet strategy adjustedPtx
     balanceWith SelectionStrategyOptimal
         `catchE` \e ->
             if minimalStrategyIsWorthTrying e
@@ -1729,6 +1730,7 @@ balanceTransactionWithSelectionStrategyAndNoZeroAdaAdjustment
     => Tracer m WalletLog
     -> TransactionLayer k ktype SealedTx
     -> ArgGenChange s
+    -> Maybe ([(TxIn, TxOut)] -> Map TxIn (CA.Script KeyHash))
     -> (W.ProtocolParameters, Cardano.ProtocolParameters)
     -> TimeInterpreter (Either PastHorizonException)
     -> (UTxOIndex WalletUTxO, Wallet s, Set Tx)
@@ -1739,6 +1741,7 @@ balanceTransactionWithSelectionStrategyAndNoZeroAdaAdjustment
     tr
     txLayer
     generateChange
+    toInpScripts
     (pp, nodePParams)
     ti
     (internalUtxoAvailable, wallet, _pendingTxs)
