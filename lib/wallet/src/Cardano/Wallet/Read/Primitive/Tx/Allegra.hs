@@ -35,10 +35,12 @@ import Cardano.Wallet.Read.Primitive.Tx.Features.Fee
     ( fromShelleyCoin )
 import Cardano.Wallet.Read.Primitive.Tx.Features.Inputs
     ( fromShelleyTxIn )
+import Cardano.Wallet.Read.Primitive.Tx.Features.Outputs
+    ( fromAllegraTxOut )
 import Cardano.Wallet.Read.Primitive.Tx.Features.Validity
     ( afterShelleyValidityInterval )
 import Cardano.Wallet.Read.Primitive.Tx.Shelley
-    ( fromShelleyMD, fromShelleyTxOut, fromShelleyWdrl )
+    ( fromShelleyMD, fromShelleyWdrl )
 import Cardano.Wallet.Read.Tx
     ( Tx (..) )
 import Cardano.Wallet.Read.Tx.CBOR
@@ -68,7 +70,6 @@ import qualified Cardano.Wallet.Primitive.Types.Hash as W
 import qualified Cardano.Wallet.Primitive.Types.Tx as W
 import qualified Data.Map.Strict as Map
 import qualified Data.Set as Set
-
 -- NOTE: For resolved inputs we have to pass in a dummy value of 0.
 
 fromAllegraTx
@@ -94,7 +95,7 @@ fromAllegraTx tx =
             -- TODO: (ADP-957)
             []
         , outputs =
-            map fromShelleyTxOut (toList outs)
+            map fromAllegraTxOut (toList outs)
         , collateralOutput =
             -- Collateral outputs are not supported in Allegra.
             Nothing

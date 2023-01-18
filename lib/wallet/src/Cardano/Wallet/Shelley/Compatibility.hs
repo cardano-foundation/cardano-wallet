@@ -237,10 +237,11 @@ import Cardano.Wallet.Read.Primitive.Tx.Features.Fee
     ( fromShelleyCoin )
 import Cardano.Wallet.Read.Primitive.Tx.Features.Inputs
     ( fromShelleyTxIn )
+import Cardano.Wallet.Read.Primitive.Tx.Features.Outputs
+    ( fromCardanoValue, fromShelleyAddress, fromShelleyTxOut )
 import Cardano.Wallet.Read.Primitive.Tx.Mary
-    ( fromCardanoValue, fromMaryTx )
+    ( fromMaryTx )
 import Cardano.Wallet.Read.Primitive.Tx.Shelley
-    ( fromShelleyAddress, fromShelleyTx, fromShelleyTxOut )
 import Cardano.Wallet.Read.Tx.Hash
     ( fromShelleyTxId )
 import Cardano.Wallet.Shelley.Network.Discriminant
