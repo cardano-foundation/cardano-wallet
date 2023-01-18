@@ -395,6 +395,5 @@ fromTxCBOR :: CBOR -> Either (CBOR, TxCBORRaw ) (TxId, TxCBOR)
 fromTxCBOR s@CBOR {..} = bimap (s ,) (cborTxId ,) $
     match eraValueSerialize $ (cborTxCBOR, cborTxEra) ^. fromIso i
 
-
 txCBORPrism :: Prism CBOR (CBOR, TxCBORRaw) (TxId, TxCBOR) (TxId, TxCBOR)
 txCBORPrism = prism toTxCBOR fromTxCBOR

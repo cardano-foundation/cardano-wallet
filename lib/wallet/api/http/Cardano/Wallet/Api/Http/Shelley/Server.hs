@@ -2085,9 +2085,10 @@ signTransaction ctx (ApiT wid) body = do
     -- TODO: The body+witnesses seem redundant with the sealedTx already. What's
     -- the use-case for having them provided separately? In the end, the client
     -- should be able to decouple them if they need to.
-    case body ^. #encoding of
-        Just HexEncoded -> pure $ ApiSerialisedTransaction (ApiT sealedTx') HexEncoded
-        _ -> pure $ ApiSerialisedTransaction (ApiT sealedTx') Base64Encoded
+    pure $ ApiSerialisedTransaction (ApiT sealedTx') $
+        case body ^. #encoding of
+            Just HexEncoded -> HexEncoded
+            _otherEncodings -> Base64Encoded
 
 postTransactionOld
     :: forall ctx s k n.

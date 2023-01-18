@@ -327,8 +327,7 @@ genTxFromUTxO genAddr u = do
             zipWith TxOut outputAddresses outputBundles
         , collateralOutput = listToMaybe $
             zipWith TxOut collateralOutputAddresses collateralOutputBundles
-        , metadata =
-            Nothing
+        , metadata = Nothing
         , withdrawals
         , scriptValidity
         }
