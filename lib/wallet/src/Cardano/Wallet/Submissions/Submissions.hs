@@ -19,21 +19,34 @@ module Cardano.Wallet.Submissions.Submissions
     , tipL
     , finalityL
     , transactionsL
-    , transactions)
+    , transactions
+    , TxStatusMeta (..)
+    , txStatus
+    , txStatusMeta
+    )
     where
 
 import Prelude
 
 import Cardano.Wallet.Submissions.TxStatus
+    ( HasTxId (TxId), TxStatus, TxStatuses )
 import Control.Lens
     ( makeLenses, view )
 import Data.Map.Strict
     ( Map )
 
+data TxStatusMeta meta slot tx = TxStatusMeta
+    { _txStatus :: TxStatus slot tx
+    , _txStatusMeta :: meta
+    }
+    deriving (Show, Eq)
+
+makeLenses ''TxStatusMeta
+
 -- | Data type for keeping track of transactions, both pending and in ledger.
-data Submissions slot tx = Submissions
+data Submissions meta slot tx = Submissions
     { -- | Tracked transactions with their status.
-        _transactionsL :: Map (TxId tx) (TxStatus slot tx),
+        _transactionsL :: Map (TxId tx) (TxStatusMeta meta slot tx),
         -- | Current finality slot.
         -- No transactions before this slot are in control.
         _finalityL :: slot,
@@ -43,22 +56,22 @@ data Submissions slot tx = Submissions
     }
 
 deriving instance
-    (Show slot, HasTxId tx, Show tx) =>
-    (Show (Submissions slot tx))
+    (Show slot, HasTxId tx, Show tx, Show meta) =>
+    (Show (Submissions meta slot tx))
 
 deriving instance
-    (Eq slot, HasTxId tx, Eq tx) =>
-    (Eq (Submissions slot tx))
+    (Eq slot, HasTxId tx, Eq tx, Eq meta) =>
+    (Eq (Submissions meta slot tx))
 
 makeLenses ''Submissions
 
 -- | Current slot tip.
-tip :: Submissions slot tx -> slot
+tip :: Submissions meta slot tx -> slot
 tip = view tipL
 
 -- | Current finality tip.
-finality :: Submissions slot tx -> slot
+finality :: Submissions meta slot tx -> slot
 finality = view finalityL
 
-transactions :: Submissions slot tx -> TxStatuses slot tx
-transactions = view transactionsL
+transactions :: Submissions meta slot tx -> TxStatuses slot tx
+transactions = fmap (view txStatus) . view transactionsL

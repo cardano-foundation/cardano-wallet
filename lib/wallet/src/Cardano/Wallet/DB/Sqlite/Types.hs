@@ -94,7 +94,7 @@ import Data.Maybe
 import Data.Proxy
     ( Proxy (..) )
 import Data.Quantity
-    ( Percentage )
+    ( Percentage, Quantity (..) )
 import Data.Text
     ( Text )
 import Data.Text.Class.Extended
@@ -731,9 +731,20 @@ instance MonadFail EitherText where
 data TxSubmissionStatusEnum = InSubmissionE | InLedgerE | ExpiredE
     deriving (Eq, Show, Enum, Generic)
 
+
+
 instance PersistField TxSubmissionStatusEnum where
     toPersistValue = toPersistValue . fromEnum
     fromPersistValue = fmap toEnum . fromPersistValue
 
 instance PersistFieldSql TxSubmissionStatusEnum where
     sqlType _ = sqlType (Proxy @Int)
+
+type BlockHeight = Quantity "block" Word32
+
+instance PersistField BlockHeight where
+    toPersistValue = toPersistValue . getQuantity
+    fromPersistValue = fmap Quantity . fromPersistValue
+
+instance PersistFieldSql BlockHeight where
+    sqlType _ = sqlType (Proxy @Word32)

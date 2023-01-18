@@ -21,7 +21,7 @@ import Data.Function
 import Test.QuickCheck
     ( Property, counterexample, property, (.&.) )
 
-status' :: Ord (TxId tx) => TxId tx -> Submissions slot tx -> TxStatus slot tx
+status' :: Ord (TxId tx) => TxId tx -> Submissions meta slot tx -> TxStatus slot tx
 status' x = status x . transactions
 
 -- | As described in the specification:
@@ -31,7 +31,7 @@ status' x = status x . transactions
 -- will partition the transaction statuses.
 properties
     :: (Ord (TxId tx), Ord slot, Show (TxId tx))
-    => Step Operation slot tx -> Property
+    => Step Operation () slot tx -> Property
 properties (Step _ xs' _)
     = counterexample "submissions invariants" $ verify $ do
         that "finality precedes tip"

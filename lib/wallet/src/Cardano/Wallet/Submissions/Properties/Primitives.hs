@@ -29,15 +29,15 @@ import Test.QuickCheck
 
 import qualified Data.Map.Strict as Map
 
-txIds :: Submissions slot tx -> Set (TxId tx)
+txIds :: Submissions meta slot tx -> Set (TxId tx)
 txIds = Map.keysSet . transactions
 
 -- | Translations of primitive properties from specifications.
 properties
     :: (Ord (TxId tx), Eq tx, HasTxId tx
         , Ord slot, Show slot, Show tx)
-    => Step Primitive slot tx -> Property
-properties (Step xs xs' (AddSubmission expiring x)) = do
+    => Step Primitive meta slot tx -> Property
+properties (Step xs xs' (AddSubmission expiring x _)) = do
     let world = txIds xs <> txIds xs' <> singleton (txId x)
     counterexample "on add-submission" $ verify $ do
         that "tip and finality are not changed"

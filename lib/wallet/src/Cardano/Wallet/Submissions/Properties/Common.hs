@@ -43,13 +43,19 @@ verify :: Testable t => Prop t a -> Property
 verify = conjoin . execWriter
 
 -- | Encode a change of the store, for inspection
-data Step delta slot tx = Step
-    { _oldState :: Submissions slot tx
-    , _newState :: Submissions slot tx
-    , _deltaState :: delta slot tx
+data Step delta meta slot tx = Step
+    { _oldState :: Submissions meta slot tx
+    , _newState :: Submissions meta slot tx
+    , _deltaState :: delta meta slot tx
     }
 
-deriving instance (Show slot, HasTxId tx, Show tx,  Show (delta slot tx))
-    => Show (Step delta slot tx)
+deriving instance
+    ( Show slot
+    , HasTxId tx
+    , Show tx
+    , Show (delta meta slot tx)
+    , Show meta
+    )
+    => Show (Step delta meta slot tx)
 
 makeLenses ''Step

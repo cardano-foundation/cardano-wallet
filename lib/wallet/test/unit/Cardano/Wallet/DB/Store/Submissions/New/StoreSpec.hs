@@ -18,17 +18,23 @@ import Cardano.Wallet.DB.Fixtures
 import Cardano.Wallet.DB.Sqlite.Types
     ( TxId (..) )
 import Cardano.Wallet.DB.Store.Submissions.New.Operations
-    ( DeltaTxSubmissions, mkStoreSubmissions )
+    ( DeltaTxSubmissions, SubmissionMeta (..), mkStoreSubmissions )
 import Cardano.Wallet.Primitive.Types
     ( SlotNo (..) )
+import Cardano.Wallet.Primitive.Types.Coin
+    ( Coin (Coin) )
 import Cardano.Wallet.Primitive.Types.Tx
     ( SealedTx (..), mockSealedTx )
+import Cardano.Wallet.Primitive.Types.Tx.TxMeta
+    ( Direction (Outgoing) )
 import Cardano.Wallet.Submissions.OperationsSpec
     ( genOperationsDelta )
 import Cardano.Wallet.Submissions.Submissions
     ( Submissions (..) )
 import Control.Monad
     ( replicateM, void )
+import Data.Quantity
+    ( Quantity (..) )
 import Fmt
     ( Buildable (..) )
 import System.Random
@@ -54,6 +60,9 @@ instance Buildable DeltaTxSubmissions where
 
 deriving instance Random SlotNo
 
+dummyMetadata :: SubmissionMeta
+dummyMetadata = SubmissionMeta 0 (Quantity 0) (Coin 0) Outgoing
+
 prop_SingleWalletStoreLawsOperations :: WalletProperty
 prop_SingleWalletStoreLawsOperations = withInitializedWalletProp
     $ \wid runQ -> do
@@ -61,7 +70,7 @@ prop_SingleWalletStoreLawsOperations = withInitializedWalletProp
             runQ
             (mkStoreSubmissions wid)
             (pure $ Submissions mempty 0 0)
-            (logScale . genOperationsDelta)
+            (logScale . genOperationsDelta (pure dummyMetadata))
 
 {-------------------------------------------------------------------------------
     Arbitrary instances
