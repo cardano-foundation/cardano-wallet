@@ -2526,10 +2526,7 @@ buildAndSignTransaction
     => ctx
     -> WalletId
     -> Cardano.AnyCardanoEra
-    -> ( (k 'RootK XPrv, Passphrase "encryption") ->
-         (         XPrv, Passphrase "encryption")
-       )
-       -- ^ Reward account derived from the root key (or somewhere else).
+    -> MakeRewardAccountBuilder k
     -> Passphrase "user"
     -> TransactionCtx
     -> SelectionOf TxOut
@@ -2546,19 +2543,40 @@ buildAndSignTransaction ctx wid era mkRwdAcct pwd txCtx sel = db & \DBLayer{..} 
             let rewardAcnt = mkRwdAcct (xprv, pwdP)
             (tx, sealedTx) <- withExceptT ErrSignPaymentMkTx $ ExceptT $ pure $
                 mkTransaction tl era rewardAcnt keyFrom pp txCtx sel
-            (time, meta) <- liftIO $
-                mkTxMeta ti (currentTip cp) (getState cp) txCtx sel
-            return (tx, meta, time, sealedTx)
+            let amountOut :: Coin =
+                    F.fold $
+                        fmap TxOut.coin (sel ^. #change) <>
+                        mapMaybe (`ourCoin` getState cp) (sel ^. #outputs)
+                amountIn :: Coin =
+                    F.fold (NE.toList (TxOut.coin . snd <$> sel ^. #inputs))
+                    -- NOTE: In case where rewards were pulled from an external
+                    -- source, they aren't added to the calculation because the
+                    -- money is considered to come from outside of the wallet; which
+                    -- changes the way we look at transactions (in such case, a
+                    -- transaction is considered 'Incoming' since it brings extra money
+                    -- to the wallet from elsewhere).
+                    & case txWithdrawal txCtx of
+                        w@WithdrawalSelf{} -> Coin.add (withdrawalToCoin w)
+                        WithdrawalExternal{} -> Prelude.id
+                        NoWithdrawal -> Prelude.id
+            time <- liftIO $ tipSlotStartTime $ currentTip cp
+            let meta = mkTxMeta
+                    (currentTip cp) (txValidityInterval txCtx)
+                    amountIn amountOut
+            pure (tx, meta, time, sealedTx)
   where
     db = ctx ^. dbLayer @IO @s @k
     tl = ctx ^. transactionLayer @k @'CredFromKeyK
     nl = ctx ^. networkLayer
     ti = timeInterpreter nl
+    tipSlotStartTime tipHeader = interpretQuery
+        (neverFails "buildAndSignTransaction slot is ahead of the node tip" ti)
+        (slotToUTCTime (tipHeader ^. #slotNo))
 
 -- | Construct an unsigned transaction from a given selection.
 constructTransaction
     :: forall (n :: NetworkDiscriminant) ktype era
-     . Write.Tx.IsRecentEra era
+     . WriteTx.IsRecentEra era
     => TransactionLayer ShelleyKey ktype SealedTx
     -> NetworkLayer IO Block
     -> DBLayer IO (SeqState n ShelleyKey) ShelleyKey
@@ -2583,7 +2601,7 @@ constructSharedTransaction
         , k ~ SharedKey
         , s ~ SharedState n k
         , Typeable n
-        , Write.Tx.IsRecentEra era
+        , WriteTx.IsRecentEra era
         )
     => ctx
     -> WalletId
@@ -2655,95 +2673,39 @@ constructTxMeta
     -> ExceptT ErrSubmitTransaction IO TxMeta
 constructTxMeta DBLayer{..} wid txCtx inps outs =
     mapExceptT atomically $ do
-        cp <- withExceptT ErrSubmitTransactionNoSuchWallet
+        checkpoint <- withExceptT ErrSubmitTransactionNoSuchWallet
               $ withNoSuchWallet wid
               $ readCheckpoint wid
-        liftIO $ mkTxMetaWithoutSel (currentTip cp) txCtx inps outs
+        let latestBlockHeader = currentTip checkpoint
+        let amountOut = F.fold $ map TxOut.coin outs
+            amountIn = F.fold (map snd inps)
+                & case txWithdrawal txCtx of
+                    w@WithdrawalSelf{} -> Coin.add (withdrawalToCoin w)
+                    WithdrawalExternal{} -> Prelude.id
+                    NoWithdrawal -> Prelude.id
+        let validity = txValidityInterval txCtx
+        pure $ mkTxMeta latestBlockHeader validity amountIn amountOut
 
-mkTxMetaWithoutSel
-    :: BlockHeader
-    -> TransactionCtx
-    -> [(TxIn, Coin)]
-    -> [TxOut]
-    -> IO TxMeta
-mkTxMetaWithoutSel blockHeader txCtx inps outs =
-    let
-        amtOuts = F.fold $ map TxOut.coin outs
-
-        amtInps
-            = F.fold (map snd inps)
-            & case txWithdrawal txCtx of
-                w@WithdrawalSelf{} -> Coin.add (withdrawalToCoin w)
-                WithdrawalExternal{} -> Prelude.id
-                NoWithdrawal -> Prelude.id
-    in return TxMeta
-       { status = Pending
-       , direction = if amtInps > amtOuts then Outgoing else Incoming
-       , slotNo = blockHeader ^. #slotNo
-       , blockHeight = blockHeader ^. #blockHeight
-       , amount = Coin.distance amtInps amtOuts
-       , expiry = Just (snd $ txValidityInterval txCtx)
-       }
-
-ourCoin
-    :: IsOurs s Address
-    => TxOut
-    -> s
-    -> Maybe Coin
+ourCoin :: IsOurs s Address => TxOut -> s -> Maybe Coin
 ourCoin (TxOut addr tokens) wState =
-    case fst (isOurs addr wState) of
-        Just{}  -> Just (TokenBundle.getCoin tokens)
-        Nothing -> Nothing
+    fst (isOurs addr wState) $> TokenBundle.getCoin tokens
 
--- | Construct transaction metadata for a pending transaction from the block
--- header of the current tip and a list of input and output.
---
--- FIXME: There's a logic duplication regarding the calculation of the transaction
--- amount between right here, and the Primitive.Model (see prefilterBlocks).
+-- | Construct transaction metadata for a pending transaction
 mkTxMeta
-    :: IsOurs s Address
-    => TimeInterpreter (ExceptT PastHorizonException IO)
-    -> BlockHeader
-    -> s
-    -> TransactionCtx
-    -> SelectionOf TxOut
-    -> IO (UTCTime, TxMeta)
-mkTxMeta ti' blockHeader wState txCtx sel =
-    let
-        amtOuts = F.fold $
-            (TxOut.coin <$> view #change sel)
-            ++
-            mapMaybe (`ourCoin` wState) (view #outputs sel)
-
-        amtInps
-            = F.fold (TxOut.coin . snd <$> view #inputs sel)
-            -- NOTE: In case where rewards were pulled from an external
-            -- source, they aren't added to the calculation because the
-            -- money is considered to come from outside of the wallet; which
-            -- changes the way we look at transactions (in such case, a
-            -- transaction is considered 'Incoming' since it brings extra money
-            -- to the wallet from elsewhere).
-            & case txWithdrawal txCtx of
-                w@WithdrawalSelf{} -> Coin.add (withdrawalToCoin w)
-                WithdrawalExternal{} -> Prelude.id
-                NoWithdrawal -> Prelude.id
-    in do
-        t <- slotStartTime' (blockHeader ^. #slotNo)
-        return
-            ( t
-            , TxMeta
-                { status = Pending
-                , direction = if amtInps > amtOuts then Outgoing else Incoming
-                , slotNo = blockHeader ^. #slotNo
-                , blockHeight = blockHeader ^. #blockHeight
-                , amount = Coin.distance amtInps amtOuts
-                , expiry = Just (snd $ txValidityInterval txCtx)
-                }
-            )
-  where
-    slotStartTime' = interpretQuery ti . slotToUTCTime
-      where
-        ti = neverFails "mkTxMeta slots should never be ahead of the node tip" ti'
+    :: BlockHeader
+    -> TxValidityInterval
+    -> Coin -- Our inputs amount
+    -> Coin -- Outputs amount
+    -> TxMeta
+mkTxMeta latestBlockHeader txValidity amountIn amountOut =
+    TxMeta
+        { status = Pending
+        , direction = if amountIn > amountOut then Outgoing else Incoming
+        , slotNo = latestBlockHeader ^. #slotNo
+        , blockHeight = latestBlockHeader ^. #blockHeight
+        , amount = Coin.distance amountIn amountOut
+        , expiry = Just (snd txValidity)
+        }
 
 -- | Broadcast a (signed) transaction to the network.
 submitTx
