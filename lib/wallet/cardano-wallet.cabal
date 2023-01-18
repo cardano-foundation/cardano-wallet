@@ -334,6 +334,7 @@ library
     Cardano.Wallet.Read.Tx.Outputs
     Cardano.Wallet.Read.Tx.Validity
     Cardano.Wallet.Read.Tx.Witnesses
+    Cardano.Wallet.Read.Tx.Withdrawals
     Cardano.Wallet.Registry
     Cardano.Wallet.Shelley.BlockchainSource
     Cardano.Wallet.Shelley.Compatibility
