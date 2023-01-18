@@ -2783,7 +2783,8 @@ constructUnbalancedSharedTransaction
     -> Cardano.AnyCardanoEra
     -> TransactionCtx
     -> PreSelection
-    -> ExceptT ErrConstructTx IO (SealedTx, Maybe ([(TxIn, TxOut)] -> Map TxIn (CA.Script KeyHash)) )
+    -> ExceptT ErrConstructTx IO
+    (SealedTx, Maybe ([(TxIn, TxOut)] -> Map TxIn (CA.Script KeyHash)) )
 constructUnbalancedSharedTransaction ctx wid era txCtx sel = db & \DBLayer{..} -> do
     cp <- withExceptT ErrConstructTxNoSuchWallet
         $ mapExceptT atomically
