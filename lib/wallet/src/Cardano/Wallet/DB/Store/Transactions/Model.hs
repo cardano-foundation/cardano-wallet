@@ -171,26 +171,26 @@ instance Delta DeltaTxSet where
     Type conversions
     From wallet types -> to database tables
 -------------------------------------------------------------------------------}
-mkTxIn :: TxId -> (Int, (W.TxIn, W.Coin)) -> TxIn
-mkTxIn tid (ix,(txIn,amt)) =
+mkTxIn :: TxId -> (Int, (W.TxIn, Maybe W.TxOut)) -> TxIn
+mkTxIn tid (ix, (txIn, txOut)) =
     TxIn
     { txInputTxId = tid
     , txInputOrder = ix
     , txInputSourceTxId = TxId (W.TxIn.inputId txIn)
     , txInputSourceIndex = W.TxIn.inputIx txIn
-    , txInputSourceAmount = amt
+    , txInputSourceAmount = maybe (W.Coin 0) W.TxOut.coin txOut
     }
 
 mkTxCollateral :: TxId
-    -> (Int, (W.TxIn, W.Coin))
+    -> (Int, (W.TxIn, Maybe W.TxOut))
     -> TxCollateral
-mkTxCollateral tid (ix,(txCollateral,amt)) =
+mkTxCollateral tid (ix, (txCollateral, txOut)) =
     TxCollateral
     { txCollateralTxId = tid
     , txCollateralOrder = ix
     , txCollateralSourceTxId = TxId $ W.TxIn.inputId txCollateral
     , txCollateralSourceIndex = W.TxIn.inputIx txCollateral
-    , txCollateralSourceAmount = amt
+    , txCollateralSourceAmount = maybe (W.Coin 0) W.TxOut.coin txOut
     }
 
 -- The key to sort TxCollateralOutToken

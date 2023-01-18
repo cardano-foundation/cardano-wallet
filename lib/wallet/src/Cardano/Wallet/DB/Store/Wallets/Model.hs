@@ -201,7 +201,6 @@ mkTransactionInfo ti tip TxRelation{..} decor DB.TxMeta{..} = do
           { inputId = getTxId (txInputSourceTxId tx)
           , inputIx = txInputSourceIndex tx
           }
-        , txInputSourceAmount tx
         , lookupTxOutForTxIn tx decor
         )
     mkTxCollateral tx =
@@ -209,7 +208,6 @@ mkTransactionInfo ti tip TxRelation{..} decor DB.TxMeta{..} = do
           { inputId = getTxId (txCollateralSourceTxId tx)
           , inputIx = txCollateralSourceIndex tx
           }
-        , txCollateralSourceAmount tx
         , lookupTxOutForTxCollateral tx decor
         )
     mkTxWithdrawal w = (txWithdrawalAccount w, txWithdrawalAmount w)

@@ -77,7 +77,6 @@ import qualified Cardano.Ledger.Core as SL.Core
 import qualified Cardano.Ledger.Mary.Value as SL
 import qualified Cardano.Ledger.Shelley.API as SL
 import qualified Cardano.Wallet.Primitive.Types as W
-import qualified Cardano.Wallet.Primitive.Types.Coin as W
 import qualified Cardano.Wallet.Primitive.Types.Hash as W
 import qualified Cardano.Wallet.Primitive.Types.Tx as W
 import qualified Cardano.Wallet.Primitive.Types.Tx.TxOut as W
@@ -104,9 +103,9 @@ fromAlonzoTx tx@(Alonzo.ValidatedTx bod wits (Alonzo.IsValid isValid) aux) witCt
         , fee =
             Just $ fromShelleyCoin fee
         , resolvedInputs =
-            map ((,W.Coin 0) . fromShelleyTxIn) (toList ins)
+            map ((,Nothing) . fromShelleyTxIn) (toList ins)
         , resolvedCollateralInputs =
-            map ((,W.Coin 0) . fromShelleyTxIn) (toList collateral)
+            map ((,Nothing) . fromShelleyTxIn) (toList collateral)
         , outputs =
             map fromAlonzoTxOut (toList outs)
         , collateralOutput =

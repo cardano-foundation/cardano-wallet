@@ -424,7 +424,7 @@ mkTx networkId payload ttl (rewardAcnt, pwdAcnt) addrResolver wdrl cs fees era =
             addrResolver inputResolver (unsigned, mkExtraWits unsigned)
 
     let withResolvedInputs (tx, _, _, _, _, _) = tx
-            { resolvedInputs = second TxOut.coin <$> F.toList (view #inputs cs)
+            { resolvedInputs = second Just <$> F.toList (view #inputs cs)
             }
     Right ( withResolvedInputs (fromCardanoTx AnyWitnessCountCtx signed)
           , sealedTxFromCardano' signed

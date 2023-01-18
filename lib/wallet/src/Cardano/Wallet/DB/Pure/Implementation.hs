@@ -73,7 +73,7 @@ import Prelude
 import Cardano.Pool.Types
     ( PoolId )
 import Cardano.Wallet.Primitive.Model
-    ( Wallet, currentTip, utxo )
+    ( Wallet, currentTip )
 import Cardano.Wallet.Primitive.Slotting
     ( TimeInterpreter, epochOf, interpretQuery, slotToUTCTime )
 import Cardano.Wallet.Primitive.Types
@@ -109,8 +109,6 @@ import Cardano.Wallet.Primitive.Types.Tx
     , TxMeta (..)
     , TxStatus (..)
     )
-import Cardano.Wallet.Primitive.Types.UTxO
-    ( UTxO (..) )
 import Control.DeepSeq
     ( NFData )
 import Control.Monad
@@ -484,11 +482,9 @@ mReadTxHistory ti wid minWithdrawal order range mstatus db@(Database wallets txs
         , txInfoFee =
             fee tx
         , txInfoInputs =
-            (\(inp, amt) -> (inp, amt, Map.lookup inp $ unUTxO $ utxo cp))
-                <$> resolvedInputs tx
+            resolvedInputs tx
         , txInfoCollateralInputs =
-            (\(inp, amt) -> (inp, amt, Map.lookup inp $ unUTxO $ utxo cp))
-                <$> resolvedCollateralInputs tx
+            resolvedCollateralInputs tx
         , txInfoOutputs =
             outputs tx
         , txInfoCollateralOutput =

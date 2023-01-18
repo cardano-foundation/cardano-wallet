@@ -51,7 +51,6 @@ import Test.QuickCheck
 import Test.QuickCheck.Monadic
     ( forAllM )
 
-import qualified Cardano.Wallet.Primitive.Types.Coin as W
 import qualified Cardano.Wallet.Primitive.Types.Tx as W
 import qualified Cardano.Wallet.Primitive.Types.Tx.TxIn as W
     ( TxIn (TxIn) )
@@ -96,7 +95,7 @@ prop_DecorateLinksTxInToTxOuts = do
                     [ (txin, txout)
                     | Tx{txId,outputs} <- transactions
                     , (txOutPos, txout) <- zip [0 ..] outputs
-                    , let txin = (W.TxIn txId txOutPos, W.Coin 0)
+                    , let txin = (W.TxIn txId txOutPos, Just txout)
                     ]
             let guinea' = set #resolvedInputs txins guinea
             pure (guineaId, mkTxSet (guinea' : transactions), txouts)
@@ -123,7 +122,7 @@ prop_DecorateLinksTxCollateralsToTxOuts = do
                     [ (txin, txout)
                     | Tx{txId,outputs} <- transactions
                     , (txOutPos, txout) <- zip [0 ..] outputs
-                    , let txin = (W.TxIn txId txOutPos, W.Coin 0)
+                    , let txin = (W.TxIn txId txOutPos, Just txout)
                     ]
             let guinea' = set #resolvedCollateralInputs txins guinea
             pure (guineaId, mkTxSet (guinea' : transactions), txouts)

@@ -435,9 +435,9 @@ availableUTxO pending (Wallet u _ _) = u `excluding` used
     -- UTxO which have been spent or committed as collateral in a pending
     -- transaction are not available to use in future transactions.
     getUsedTxIn :: Tx -> Set TxIn
-    getUsedTxIn tx = Set.fromList $ fst <$> mconcat
-        [ tx ^. #resolvedInputs
-        , tx ^. #resolvedCollateralInputs
+    getUsedTxIn tx = Set.fromList $ mconcat
+        [ fst <$> tx ^. #resolvedInputs
+        , fst <$> tx ^. #resolvedCollateralInputs
         ]
 
 -- | Computes the total 'UTxO' set of a wallet.

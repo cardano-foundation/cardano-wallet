@@ -35,7 +35,6 @@ import Control.Monad
 import qualified Cardano.Crypto.Hashing as CC
 import qualified Cardano.Wallet.Primitive.Types.Address as W
 import qualified Cardano.Wallet.Primitive.Types.Coin as Coin
-import qualified Cardano.Wallet.Primitive.Types.Coin as W
 import qualified Cardano.Wallet.Primitive.Types.Hash as W
 import qualified Cardano.Wallet.Primitive.Types.TokenBundle as TokenBundle
 import qualified Cardano.Wallet.Primitive.Types.Tx as W
@@ -58,7 +57,7 @@ fromTxAux txAux = case taTx txAux of
 
         -- TODO: Review 'W.Tx' to not require resolved inputs but only inputs
         , resolvedInputs =
-            (, W.Coin 0) . fromTxIn <$> NE.toList inputs
+            (, Nothing) . fromTxIn <$> NE.toList inputs
 
         , resolvedCollateralInputs = []
 

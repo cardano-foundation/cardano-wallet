@@ -137,8 +137,8 @@ dummyProtocolParameters = ProtocolParameters
 mkTx
     :: Maybe TxCBOR
     -> Maybe Coin
-    -> [(TxIn, Coin)]
-    -> [(TxIn, Coin)]
+    -> [(TxIn, Maybe TxOut)]
+    -> [(TxIn, Maybe TxOut)]
     -> [TxOut]
     -> Maybe TxOut
     -> Map RewardAccount Coin
@@ -161,7 +161,7 @@ mkTx cbor fees ins cins outs cout wdrls md validity =
 
 -- | txId calculation for testing purposes.
 mkTxId
-    :: [(TxIn, Coin)]
+    :: [(TxIn, Maybe TxOut)]
     -> [TxOut]
     -> Map RewardAccount Coin
     -> Maybe TxMetadata -> Hash "Tx"

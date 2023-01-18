@@ -60,10 +60,10 @@ data TransactionInfo = TransactionInfo
     -- ^ Serialization of this transaction
     , txInfoFee :: Maybe Coin
     -- ^ Explicit transaction fee
-    , txInfoInputs :: [(TxIn, Coin, Maybe TxOut)]
+    , txInfoInputs :: [(TxIn, Maybe TxOut)]
     -- ^ Transaction inputs and (maybe) corresponding outputs of the
     -- source. Source information can only be provided for outgoing payments.
-    , txInfoCollateralInputs :: [(TxIn, Coin, Maybe TxOut)]
+    , txInfoCollateralInputs :: [(TxIn, Maybe TxOut)]
     -- ^ Collateral inputs and (maybe) corresponding outputs.
     , txInfoOutputs :: [TxOut]
     -- ^ Payment destination.
@@ -87,26 +87,21 @@ data TransactionInfo = TransactionInfo
 
 instance NFData TransactionInfo
 
--- | Reconstruct a transaction info from a transaction.
+-- | Reconstruct a transaction from a transaction info.
 fromTransactionInfo :: TransactionInfo -> Tx
 fromTransactionInfo info = Tx
     { txId = txInfoId info
     , txCBOR = txInfoCBOR info
     , fee = txInfoFee info
-    , resolvedInputs = drop3rd <$> txInfoInputs info
-    , resolvedCollateralInputs = drop3rd <$> txInfoCollateralInputs info
+    , resolvedInputs = txInfoInputs info
+    , resolvedCollateralInputs = txInfoCollateralInputs info
     , outputs = txInfoOutputs info
     , collateralOutput = txInfoCollateralOutput info
     , withdrawals = txInfoWithdrawals info
     , metadata = txInfoMetadata info
     , scriptValidity = txInfoScriptValidity info
     }
-  where
-    drop3rd :: (a, b, c) -> (a, b)
-    drop3rd (a, b, _) = (a, b)
-
 
 -- | Drop time-specific information
 toTxHistory :: TransactionInfo -> (Tx, TxMeta)
-toTxHistory info =
-    (fromTransactionInfo info, txInfoMeta info)
+toTxHistory info = (fromTransactionInfo info, txInfoMeta info)

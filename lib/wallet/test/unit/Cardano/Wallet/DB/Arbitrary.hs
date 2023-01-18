@@ -18,6 +18,7 @@
 {-# LANGUAGE UndecidableInstances #-}
 
 {-# OPTIONS_GHC -fno-warn-orphans #-}
+{-# LANGUAGE TupleSections #-}
 
 module Cardano.Wallet.DB.Arbitrary
     ( GenTxHistory (..)
@@ -438,8 +439,8 @@ instance Arbitrary Tx where
         ]
 
     arbitrary = do
-        ins <- fmap (L.nub . L.take 5 . getNonEmpty) arbitrary
-        cins <- fmap (L.nub . L.take 5 . getNonEmpty) arbitrary
+        ins <- fmap (,Nothing) . L.nub . L.take 5 . getNonEmpty <$> arbitrary
+        cins <- fmap (,Nothing) . L.nub . L.take 5 . getNonEmpty <$> arbitrary
         outs <- fmap (L.take 5 . getNonEmpty) arbitrary
         cout <- arbitrary
         wdrls <- fmap (Map.fromList . L.take 5) arbitrary
