@@ -873,7 +873,7 @@ updateWalletPassphraseWithOldPassphrase
     -> (Passphrase "user", Passphrase "user")
     -> ExceptT ErrUpdatePassphrase IO ()
 updateWalletPassphraseWithOldPassphrase ctx wid (old, new) =
-    withRootKey @ctx @s @k ctx wid old ErrUpdatePassphraseWithRootKey
+    withRootKey @s @k db wid old ErrUpdatePassphraseWithRootKey
         $ \xprv scheme -> withExceptT ErrUpdatePassphraseNoSuchWallet $ do
             -- IMPORTANT NOTE:
             -- This use 'EncryptWithPBKDF2', regardless of the passphrase
@@ -882,6 +882,8 @@ updateWalletPassphraseWithOldPassphrase ctx wid (old, new) =
             let new' = (currentPassphraseScheme, new)
             let xprv' = changePassphrase (scheme, old) new' xprv
             attachPrivateKeyFromPwdScheme @ctx @s @k ctx wid (xprv', new')
+  where
+    db = ctx ^. typed
 
 updateWalletPassphraseWithMnemonic
     :: forall ctx s k.
@@ -1474,12 +1476,12 @@ createRandomAddress
     -> Maybe (Index 'Hardened 'CredFromKeyK)
     -> ExceptT ErrCreateRandomAddress IO (Address, NonEmpty DerivationIndex)
 createRandomAddress ctx wid pwd mIx = db & \DBLayer{..} ->
-    withRootKey @ctx @s @k ctx wid pwd ErrCreateAddrWithRootKey $ \xprv scheme -> do
+    withRootKey @s @k db wid pwd ErrCreateAddrWithRootKey $ \xprv scheme -> do
         ExceptT $ atomically $ modifyDBMaybe walletsDB $
             adjustNoSuchWallet wid ErrCreateAddrNoSuchWallet $
                 createRandomAddress' xprv scheme
   where
-    db = ctx ^. dbLayer @IO @s @k
+    db = ctx ^. typed
 
     createRandomAddress' xprv scheme wal = case mIx of
         Just addrIx | isKnownIndex addrIx s0 ->
@@ -2537,7 +2539,7 @@ buildAndSignTransaction
     -> SelectionOf TxOut
     -> ExceptT ErrSignPayment IO (Tx, TxMeta, UTCTime, SealedTx)
 buildAndSignTransaction ctx wid era mkRwdAcct pwd txCtx sel = db & \DBLayer{..} ->
-    withRootKey @_ @s ctx wid pwd ErrSignPaymentWithRootKey $ \xprv scheme -> do
+    withRootKey @s db wid pwd ErrSignPaymentWithRootKey $ \xprv scheme -> do
         let pwdP = preparePassphrase scheme pwd
         mapExceptT atomically $ do
             cp <- withExceptT ErrSignPaymentNoSuchWallet
@@ -2649,24 +2651,18 @@ transactionExpirySlot safeTimeInterpreter maybeTTL =
     defaultTTL :: NominalDiffTime = 7200  -- that's 2 hours
 
 constructTxMeta
-    :: forall ctx s k.
-        ( HasDBLayer IO s k ctx
-        )
-    => ctx
+    :: DBLayer IO s k
     -> WalletId
     -> TransactionCtx
     -> [(TxIn, Coin)]
     -> [TxOut]
     -> ExceptT ErrSubmitTransaction IO TxMeta
-constructTxMeta ctx wid txCtx inps outs = db & \DBLayer{..} -> do
+constructTxMeta DBLayer{..} wid txCtx inps outs =
     mapExceptT atomically $ do
         cp <- withExceptT ErrSubmitTransactionNoSuchWallet
               $ withNoSuchWallet wid
               $ readCheckpoint wid
-        liftIO $
-            mkTxMetaWithoutSel (currentTip cp) txCtx inps outs
-  where
-    db = ctx ^. dbLayer @IO @s @k
+        liftIO $ mkTxMetaWithoutSel (currentTip cp) txCtx inps outs
 
 mkTxMetaWithoutSel
     :: BlockHeader
@@ -3312,14 +3308,14 @@ attachPrivateKey db wid (xprv, hpwd) scheme = db & \DBLayer{..} -> do
 --         changePassphrase (preparePassphrase scheme pwd) newPwd xprv
 -- @@@
 withRootKey
-    :: forall ctx s k e a. HasDBLayer IO s k ctx
-    => ctx
+    :: forall s k e a
+     . DBLayer IO s k
     -> WalletId
     -> Passphrase "user"
     -> (ErrWithRootKey -> e)
     -> (k 'RootK XPrv -> PassphraseScheme -> ExceptT e IO a)
     -> ExceptT e IO a
-withRootKey ctx wid pwd embed action = db & \DBLayer{..} -> do
+withRootKey DBLayer{..} wid pwd embed action = do
     (xprv, scheme) <- withExceptT embed $ mapExceptT atomically $ do
         mScheme <- (>>= (fmap passphraseScheme . passphraseInfo)) <$>
             lift (fmap fst <$> readWalletMeta wid)
@@ -3329,11 +3325,8 @@ withRootKey ctx wid pwd embed action = db & \DBLayer{..} -> do
                 withExceptT (ErrWithRootKeyWrongPassphrase wid) $ ExceptT $
                     return $ checkPassphrase scheme pwd hpwd
                 return (xprv, scheme)
-            _ ->
-                throwE $ ErrWithRootKeyNoRootKey wid
+            _ -> throwE $ ErrWithRootKeyNoRootKey wid
     action xprv scheme
-  where
-    db = ctx ^. dbLayer @IO @s @k
 
 -- | Sign an arbitrary transaction metadata object with a private key belonging
 -- to the wallet's account.
@@ -3362,17 +3355,16 @@ signMetadataWith ctx wid pwd (role_, ix) metadata = db & \DBLayer{..} -> do
         $ withNoSuchWallet wid
         $ readCheckpoint wid
 
-    withRootKey @ctx @s @k ctx wid pwd ErrSignMetadataWithRootKey
-        $ \rootK scheme -> do
-            let encPwd = preparePassphrase scheme pwd
-            let DerivationPrefix (_, _, acctIx) = Seq.derivationPrefix (getState cp)
-            let acctK = deriveAccountPrivateKey encPwd rootK acctIx
-            let addrK = deriveAddressPrivateKey encPwd acctK role_ addrIx
-            pure $
-                Signature $ BA.convert $
-                CC.sign encPwd (getRawKey addrK) $
-                hash @ByteString @Blake2b_256 $
-                serialiseToCBOR metadata
+    withRootKey db wid pwd ErrSignMetadataWithRootKey $ \rootK scheme -> do
+        let encPwd = preparePassphrase scheme pwd
+        let DerivationPrefix (_, _, acctIx) = Seq.derivationPrefix (getState cp)
+        let acctK = deriveAccountPrivateKey encPwd rootK acctIx
+        let addrK = deriveAddressPrivateKey encPwd acctK role_ addrIx
+        pure $
+            Signature $ BA.convert $
+            CC.sign encPwd (getRawKey addrK) $
+            hash @ByteString @Blake2b_256 $
+            serialiseToCBOR metadata
   where
     db = ctx ^. dbLayer @IO @s @k
 
@@ -3437,8 +3429,8 @@ writePolicyPublicKey ctx wid pwd = db & \DBLayer{..} -> do
 
     let (SeqPrologue seqState) = getPrologue $ getState cp
 
-    policyXPub <- withRootKey
-        @ctx @s @ShelleyKey ctx wid pwd ErrWritePolicyPublicKeyWithRootKey $
+    policyXPub <- withRootKey @s @ShelleyKey
+        db wid pwd ErrWritePolicyPublicKeyWithRootKey $
         \rootK scheme -> do
             let encPwd = preparePassphrase scheme pwd
             let xprv = derivePolicyPrivateKey encPwd (getRawKey rootK) minBound
@@ -3478,7 +3470,7 @@ getAccountPublicKeyAtIndex ctx wid pwd ix purposeM = db & \DBLayer{..} -> do
         $ withNoSuchWallet wid
         $ readCheckpoint wid
 
-    withRootKey @ctx @s @k ctx wid pwd ErrReadAccountPublicKeyRootKey
+    withRootKey @s @k db wid pwd ErrReadAccountPublicKeyRootKey
         $ \rootK scheme -> do
             let encPwd = preparePassphrase scheme pwd
             let xprv = deriveAccountPrivateKeyShelley purpose encPwd (getRawKey rootK) acctIx
