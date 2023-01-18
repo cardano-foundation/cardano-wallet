@@ -5,6 +5,7 @@
 {-# LANGUAGE DerivingStrategies #-}
 {-# LANGUAGE DuplicateRecordFields #-}
 {-# LANGUAGE FlexibleContexts #-}
+{-# LANGUAGE GeneralizedNewtypeDeriving #-}
 {-# LANGUAGE LambdaCase #-}
 {-# LANGUAGE NamedFieldPuns #-}
 {-# LANGUAGE RankNTypes #-}
@@ -24,6 +25,7 @@ module Cardano.Wallet.Transaction
     -- * Interface
       TransactionLayer (..)
     , DelegationAction (..)
+    , TxValidityInterval
     , TransactionCtx (..)
     , PreSelection (..)
     , defaultTransactionCtx
@@ -368,6 +370,8 @@ data TxUpdate = TxUpdate
         -- ^ Set a new fee or use the old one.
     }
 
+type TxValidityInterval = (Maybe SlotNo, SlotNo)
+
 -- | Some additional context about a transaction. This typically contains
 -- details that are known upfront about the transaction and are used to
 -- construct it from inputs selected from the wallet's UTxO.
@@ -376,7 +380,7 @@ data TransactionCtx = TransactionCtx
     -- ^ Withdrawal amount from a reward account, can be zero.
     , txMetadata :: Maybe TxMetadata
     -- ^ User or application-defined metadata to embed in the transaction.
-    , txValidityInterval :: (Maybe SlotNo, SlotNo)
+    , txValidityInterval :: TxValidityInterval
     -- ^ Transaction optional starting slot and expiry (TTL) slot for which the
     -- transaction is valid.
     , txDelegationAction :: Maybe DelegationAction
@@ -402,7 +406,8 @@ data TransactionCtx = TransactionCtx
 
 -- | Represents a preliminary selection of tx outputs typically made by user.
 newtype PreSelection = PreSelection { outputs :: [TxOut] }
-    deriving (Generic, Eq, Show)
+    deriving stock (Generic, Show)
+    deriving newtype (Eq)
 
 data Withdrawal
     = WithdrawalSelf RewardAccount (NonEmpty DerivationIndex) Coin
