@@ -765,15 +765,15 @@ instance NFData SlottingParameters
 
 -- | In Byron, this stability window is equal to 2k slots, where _k_ is the
 --  'getSecurityParameter'
-stabilityWindowByron :: SlottingParameters -> Quantity "block" Word64
-stabilityWindowByron sp = Quantity (2 * k)
+stabilityWindowByron :: SlottingParameters -> SlotNo
+stabilityWindowByron sp = SlotNo (2 * k)
   where
     k = fromIntegral $ getQuantity $ getSecurityParameter sp
 
 -- | In Shelley, this stability window is equal to _3k/f_ slots where _k_ is the
 -- 'getSecurityParameter' and _f_ is the 'ActiveSlotCoefficient'.
-stabilityWindowShelley :: SlottingParameters -> Quantity "block" Word64
-stabilityWindowShelley sp = Quantity len
+stabilityWindowShelley :: SlottingParameters -> SlotNo
+stabilityWindowShelley sp = SlotNo len
   where
     len = ceiling (3 * k / f)
     k = fromIntegral $ getQuantity $ getSecurityParameter sp
@@ -792,8 +792,8 @@ instance Buildable SlottingParameters where
 
 newtype ActiveSlotCoefficient
     = ActiveSlotCoefficient { unActiveSlotCoefficient :: Double }
-    deriving stock (Generic, Eq, Show)
-    deriving newtype (Buildable, Num, Fractional)
+        deriving stock (Generic, Eq, Show)
+        deriving newtype (Buildable, Num, Fractional, Real, Ord, RealFrac)
 
 instance NFData ActiveSlotCoefficient
 

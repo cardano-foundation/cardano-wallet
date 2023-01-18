@@ -560,9 +560,9 @@ mReadLocalTxSubmissionPending wid = readWalletModel wid $ \wal ->
         | status == Pending = Just (txid, slotNo)
         | otherwise = Nothing
 
-    getSubmission wal (tid, sl0) = make <$> Map.lookup tid (submittedTxs wal)
+    getSubmission wal (tid, _sl0) = make <$> Map.lookup tid (submittedTxs wal)
       where
-        make (tx, sl1) = LocalTxSubmissionStatus tid tx sl0 sl1
+        make (tx, sl1) = LocalTxSubmissionStatus tid tx sl1
 
 {-------------------------------------------------------------------------------
                              Model function helpers

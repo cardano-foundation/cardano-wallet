@@ -351,11 +351,15 @@ data DBLayer m s k = forall stm. (MonadIO stm, MonadFail stm) => DBLayer
     , prune
         :: WalletId
         -> Quantity "block" Word32
+        -> SlotNo
         -> ExceptT ErrNoSuchWallet stm ()
         -- ^ Prune database entities and remove entities that can be discarded.
         --
         -- The second argument represents the stability window, or said
         -- length of the deepest rollback.
+        --
+        -- The third argument is the finality slot, or said
+        -- most recent stable slot
 
     , atomically
         :: forall a. stm a -> m a
@@ -406,6 +410,7 @@ data DBLayerCollection stm m s k = DBLayerCollection
     , prune_
         :: WalletId
         -> Quantity "block" Word32
+        -> SlotNo
         -> ExceptT ErrNoSuchWallet stm ()
     , atomically_
         :: forall a. stm a -> m a

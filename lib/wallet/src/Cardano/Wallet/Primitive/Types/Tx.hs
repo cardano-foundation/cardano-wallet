@@ -181,8 +181,6 @@ data UnsignedTx input output change withdrawal = UnsignedTx
 data LocalTxSubmissionStatus tx = LocalTxSubmissionStatus
     { txId :: Hash "Tx"
     , submittedTx :: tx
-    , firstSubmission :: SlotNo
-    -- ^ Time of first successful submission to the local node.
     , latestSubmission :: SlotNo
     -- ^ Time of most recent resubmission attempt.
     } deriving stock (Generic, Show, Eq, Functor)

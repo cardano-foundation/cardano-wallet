@@ -722,7 +722,7 @@ mkLocalTxSubmissionStatus = mapMaybe getStatus . getTxHistory
       where
         i = tx ^. #txId
         sl = txMeta ^. #slotNo
-        st = LocalTxSubmissionStatus i (fakeSealedTx (tx, [])) sl sl
+        st = LocalTxSubmissionStatus i (fakeSealedTx (tx, [])) sl
 
 instance Arbitrary SlottingParameters where
     arbitrary = mk <$> choose (0.5, 1)
@@ -778,7 +778,7 @@ prop_localTxSubmission tc = monadicIO $ do
         atomically $ do
             let txHistory = getTxHistory (retryTestTxHistory tc)
             unsafeRunExceptT $ putTxHistory wid txHistory
-            forM_ (retryTestPool tc) $ \(LocalTxSubmissionStatus i tx _ sl) ->
+            forM_ (retryTestPool tc) $ \(LocalTxSubmissionStatus i tx sl) ->
                 unsafeRunExceptT $ putLocalTxSubmission wid i tx sl
 
         -- Run test

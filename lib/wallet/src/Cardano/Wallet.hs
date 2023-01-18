@@ -405,6 +405,7 @@ import Cardano.Wallet.Primitive.Types
     , WalletName (..)
     , WithOrigin (..)
     , dlgCertPoolId
+    , stabilityWindowShelley
     , toSlot
     , wholeRange
     )
@@ -1071,7 +1072,7 @@ restoreBlocks
     -> ExceptT ErrNoSuchWallet IO ()
 restoreBlocks ctx tr wid blocks nodeTip = db & \DBLayer{..} ->
   mapExceptT atomically $ do
-    sp  <- liftIO $ currentSlottingParameters nl
+    slottingParams  <- liftIO $ currentSlottingParameters nl
     cp0 <- withNoSuchWallet wid (readCheckpoint wid)
     unless (cp0 `isParentOf` firstHeader blocks) $ fail $ T.unpack $ T.unwords
         [ "restoreBlocks: given chain isn't a valid continuation."
@@ -1097,8 +1098,11 @@ restoreBlocks ctx tr wid blocks nodeTip = db & \DBLayer{..} ->
         pseudoSlotNo Origin = 0
         pseudoSlotNo (At sl) = sl
     let txs = foldMap (view #transactions) filteredBlocks
-    let epochStability = (3*) <$> getSecurityParameter sp
+    let epochStability = (3*) <$> getSecurityParameter slottingParams
     let localTip = currentTip $ NE.last cps
+
+    let finalitySlot = nodeTip ^. #slotNo
+            - stabilityWindowShelley slottingParams
 
     -- FIXME LATER during ADP-1403
     -- We need to rethink checkpoint creation and consider the case
@@ -1157,10 +1161,11 @@ restoreBlocks ctx tr wid blocks nodeTip = db & \DBLayer{..} ->
         putDelegationCertificate wid cert slotNo
 
     liftIO $ mapM_ logCheckpoint cpsKeep
+
     ExceptT $ modifyDBMaybe walletsDB $
         adjustNoSuchWallet wid id $ \_ -> Right ( delta, () )
 
-    prune wid epochStability
+    prune wid epochStability finalitySlot
 
     liftIO $ do
         traceWith tr $ MsgDiscoveredTxs txs
