@@ -8,13 +8,86 @@ title: Shared wallets
   - In order to be able to send transactions, our wallet must have funds. In case of `preview` and `preprod` [testnets](https://testnets.cardano.org/en/testnets/cardano/overview/) we can request tADA from the [faucet](https://testnets.cardano.org/en/testnets/cardano/tools/faucet/).
 
 ## Overview
-This guide shows you how to create a shared wallet and make a shared transaction, providing witnesses from all required co-signers referenced in the `payment_script_template` and `delegation_script_template` fields. In this example, we'll create two shared wallets using the same template for both payment and delegation operations. The template that we'll use will indicate that we require signatures from all co-owners in order to make a transaction. In our case, the wallet will have two co-owners `cosigner#0` and `cosigner#1`:
+This guide shows you how to create a shared wallet and make a shared transaction, providing witnesses from all required co-signers referenced in the `payment_script_template` and `delegation_script_template` fields. In this example, we'll create two shared wallets using the same template for both payment and delegation operations. The template that we'll use will indicate that we require signatures from **all** co-owners in order to make a transaction. In our case, the wallet will have two co-owners `cosigner#0` and `cosigner#1`:
 ```
 "template":
     { "all":
        [ "cosigner#0", "cosigner#1"]
     }
 ```
+
+> :information_source: Note that the script templates use Cardano [simple scripts](https://github.com/input-output-hk/cardano-node/blob/master/doc/reference/simple-scripts.md) therefore one can build more sophisticated templates to guard their shared wallet spending or delegation operations. Below are some examples of possible templates. You can also explore [`POST /shared-wallets`](https://input-output-hk.github.io/cardano-wallet/api/edge/#operation/postSharedWallet) swagger specification for more details.
+
+### Template examples
+
+ - required signature from any cosigner from the list
+```
+"template":
+    { "any":
+       [ "cosigner#0", "cosigner#1", "cosigner#2"]
+    }
+```
+
+- required signature from at least 2 cosigners from the list
+```
+"template":
+    { "some":
+       { "at_least": 2,
+         "from": [ "cosigner#0", "cosigner#1", "cosigner#2"]
+       }
+    }
+```
+- required signature from at least 1 cosigners from the list but with additional nested constraints (at least `cosigner#0` or at least `cosigner#1` or at least both `cosigner#2` and `cosigner#3` and any of `cosigner#4` and `cosigner#5`)
+```
+"template":{
+  "some":{
+      "at_least":1,
+      "from":[
+        "cosigner#0",
+        "cosigner#1",
+        {
+            "all":[
+              "cosigner#2",
+              "cosigner#3",
+              {
+                  "any":[
+                    "cosigner#4",
+                    "cosigner#5"
+                  ]
+              }
+            ]
+        }
+      ]
+  }
+}
+```
+
+- required signature from any cosigner but with additional time locking constraints (either `cosigner#0` or `cosigner#1` but only until slot 18447928 or `cosigner#2` but only from slot 18447928)
+
+```
+"template":{
+  "any":[
+      "cosigner#0",
+      {
+        "all":[
+            "cosigner#1",
+            {
+              "active_until":18447928
+            }
+        ]
+      },
+      {
+        "all":[
+            "cosigner#2",
+            {
+              "active_from":18447928
+            }
+        ]
+      }
+  ]
+}
+```
+
 
 ## Creating wallets
 First let's create two `incomplete` shared wallets using the [`POST /shared-wallets`](https://input-output-hk.github.io/cardano-wallet/api/edge/#operation/postSharedWallet) endpoint. The wallets are marked as "incomplete" because they do not yet have public keys from all cosigners.
@@ -214,7 +287,7 @@ $ curl -X PATCH http://localhost:8090/v2/shared-wallets/2a0ebd0cceab2161765badf2
 -H "Content-Type: application/json"
 ```
 
-We'll repeat the same faction or "Cosigner#1 wallet", i.e. first get `cosigner#0` key from "Cosigner#0 wallet" and then patch the payment and delegation templates of "Cosigner#1 wallet" with it.
+We'll repeat the same action or "Cosigner#1 wallet", i.e. first get `cosigner#0` key from "Cosigner#0 wallet" and then patch the payment and delegation templates of "Cosigner#1 wallet" with it.
 
 ```
 $ curl -X GET http://localhost:8090/v2/shared-wallets/2a0ebd0cceab2161765badf2e389b26e0961de2f/keys?format=extended
