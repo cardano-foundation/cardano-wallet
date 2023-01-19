@@ -466,7 +466,8 @@ mkDBLayerFromParts ti DBLayerCollection{..} = DBLayer
         (getTx_ dbTxHistory) wid txid tip
     , putLocalTxSubmission = putLocalTxSubmission_ dbPendingTxs
     , readLocalTxSubmissionPending = readLocalTxSubmissionPending_ dbPendingTxs
-    , updatePendingTxForExpiry = updatePendingTxForExpiry_ dbPendingTxs
+    , updatePendingTxForExpiry = \wid tip -> wrapNoSuchWallet wid $
+        updatePendingTxForExpiry_ dbPendingTxs wid tip
     , removePendingOrExpiredTx = removePendingOrExpiredTx_ dbPendingTxs
     , putPrivateKey = \wid a -> wrapNoSuchWallet wid $
         putPrivateKey_ (dbPrivateKey wid) a
@@ -677,7 +678,7 @@ data DBPendingTxs stm = DBPendingTxs
     , updatePendingTxForExpiry_
         :: WalletId
         -> SlotNo
-        -> ExceptT ErrNoSuchWallet stm ()
+        -> stm ()
         -- ^ Removes any expired transactions from the pending set and marks
         -- their status as expired.
 
