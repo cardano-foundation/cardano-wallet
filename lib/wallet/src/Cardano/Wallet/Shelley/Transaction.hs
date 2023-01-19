@@ -792,22 +792,33 @@ updateSealedTx (Cardano.Tx body existingKeyWits) extraContent = do
     toLedgerScript
         :: Script KeyHash
         -> ShelleyBasedEra era
-        -> Ledger.Script Compatibility.StandardCrypto
-    toLedgerScript nodeScript = \case
+        -> Ledger.Script (Cardano.ShelleyLedgerEra era)
+    toLedgerScript walletScript = \case
         ShelleyBasedEraShelley ->
-            Cardano.toShelleyMultiSig $ toCardanoSimpleScriptV1 nodeScript
+            Cardano.toShelleyScript $ Cardano.ScriptInEra
+            Cardano.SimpleScriptV1InShelley
+            (Cardano.SimpleScript Cardano.SimpleScriptV1 $
+             toCardanoSimpleScriptV1 walletScript)
         ShelleyBasedEraAllegra ->
-            Alonzo.TimelockScript $ Cardano.toAllegraTimelock $
-            toCardanoSimpleScript nodeScript
+            Cardano.toShelleyScript $ Cardano.ScriptInEra
+            Cardano.SimpleScriptV2InAllegra
+            (Cardano.SimpleScript Cardano.SimpleScriptV2 $
+             toCardanoSimpleScript walletScript)
         ShelleyBasedEraMary ->
-            Alonzo.TimelockScript $ Cardano.toAllegraTimelock $
-            toCardanoSimpleScript nodeScript
+            Cardano.toShelleyScript $ Cardano.ScriptInEra
+            Cardano.SimpleScriptV2InMary
+            (Cardano.SimpleScript Cardano.SimpleScriptV2 $
+             toCardanoSimpleScript walletScript)
         ShelleyBasedEraAlonzo ->
-            Alonzo.TimelockScript $ Cardano.toAllegraTimelock $
-            toCardanoSimpleScript nodeScript
+            Cardano.toShelleyScript $ Cardano.ScriptInEra
+            Cardano.SimpleScriptV2InAlonzo
+            (Cardano.SimpleScript Cardano.SimpleScriptV2 $
+             toCardanoSimpleScript walletScript)
         ShelleyBasedEraBabbage ->
-            Alonzo.TimelockScript $ Cardano.toAllegraTimelock $
-            toCardanoSimpleScript nodeScript
+            Cardano.toShelleyScript $ Cardano.ScriptInEra
+            Cardano.SimpleScriptV2InBabbage
+            (Cardano.SimpleScript Cardano.SimpleScriptV2 $
+             toCardanoSimpleScript walletScript)
 
 -- NOTE: If the ShelleyMA MAClass were exposed, the Allegra and Mary
 -- cases could perhaps be joined. It is not however. And we still need
