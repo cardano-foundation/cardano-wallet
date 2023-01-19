@@ -63,8 +63,6 @@ import Cardano.Api.Gen
     )
 import Cardano.BM.Data.Tracer
     ( nullTracer )
-import Cardano.BM.Tracer
-    ( Tracer )
 import Cardano.Ledger.Alonzo.TxInfo
     ( TranslationError (..) )
 import Cardano.Ledger.Era
@@ -98,7 +96,6 @@ import Cardano.Wallet
     , ErrUpdateSealedTx (..)
     , FeeEstimation (..)
     , PartialTx (..)
-    , WalletWorkerLog
     , balanceTransaction
     , estimateFee
     , posAndNegFromCardanoValue
@@ -334,8 +331,6 @@ import Data.Word
     ( Word16, Word64, Word8 )
 import Fmt
     ( Buildable (..), blockListF', fmt, nameF, pretty, (+||), (||+) )
-import GHC.Generics
-    ( Generic )
 import Ouroboros.Consensus.BlockchainTime.WallClock.Types
     ( RelativeTime (..), mkSlotLength )
 import Ouroboros.Consensus.Config
@@ -2330,9 +2325,6 @@ instance Arbitrary KeyHash where
         cred <- oneof [pure Payment, pure Delegation]
         KeyHash cred . BS.pack <$> vectorOf 28 arbitrary
 
-data Ctx m = Ctx (Tracer m WalletWorkerLog) (TransactionLayer ShelleyKey 'CredFromKeyK SealedTx)
-    deriving Generic
-
 instance Arbitrary StdGenSeed  where
   arbitrary = StdGenSeed . fromIntegral @Int <$> arbitrary
 
@@ -2511,7 +2503,8 @@ balanceTransactionSpec = describe "balanceTransaction" $ do
         -> Either ErrBalanceTx (Cardano.Tx era)
     balanceTx tx = flip evalRand (stdGenFromSeed testStdGenSeed) $ runExceptT $
         balanceTransaction @_ @(Rand StdGen)
-            (Ctx @(Rand StdGen) nullTracer testTxLayer)
+            (nullTracer @(Rand StdGen))
+            testTxLayer
             (delegationAddress @'Mainnet)
             mockProtocolParametersForBalancing
             (dummyTimeInterpreterWithHorizon horizon)
@@ -3391,7 +3384,8 @@ balanceTransaction'
 balanceTransaction' (Wallet' utxo wal pending) seed tx  =
     flip evalRand (stdGenFromSeed seed) $ runExceptT $
         balanceTransaction @_ @(Rand StdGen)
-            (Ctx @(Rand StdGen) nullTracer testTxLayer)
+            (nullTracer @(Rand StdGen))
+            testTxLayer
             (delegationAddress @'Mainnet)
             mockProtocolParametersForBalancing
             dummyTimeInterpreter

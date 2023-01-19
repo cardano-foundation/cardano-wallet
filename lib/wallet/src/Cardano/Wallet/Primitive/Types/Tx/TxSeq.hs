@@ -111,7 +111,7 @@ import Prelude hiding
 import Cardano.Wallet.Primitive.Model
     ( applyTxToUTxO )
 import Cardano.Wallet.Primitive.Types.Coin
-    ( Coin )
+    ( Coin (..) )
 import Cardano.Wallet.Primitive.Types.Hash
     ( Hash (..) )
 import Cardano.Wallet.Primitive.Types.StateDeltaSeq
@@ -124,6 +124,8 @@ import Cardano.Wallet.Primitive.Types.Tx
     ( Tx (..), txAssetIds, txMapAssetIds, txMapTxIds, txRemoveAssetId )
 import Cardano.Wallet.Primitive.Types.Tx.TxIn
     ( TxIn )
+import Cardano.Wallet.Primitive.Types.Tx.TxOut
+    ( TxOut )
 import Cardano.Wallet.Primitive.Types.UTxO
     ( UTxO )
 import Data.Bifoldable
@@ -525,13 +527,14 @@ simpleTxIds = Hash . T.encodeUtf8 . T.pack . show <$> [0 :: Integer ..]
 
 canApplyTxToUTxO :: Tx -> UTxO -> Bool
 canApplyTxToUTxO tx u =  (&&)
-    (all inputRefIsValid (tx & Tx.resolvedInputs))
-    (all inputRefIsValid (tx & Tx.resolvedCollateralInputs))
+    (all inputRefIsValid (Tx.resolvedInputs tx))
+    (all inputRefIsValid (Tx.resolvedCollateralInputs tx))
   where
-    inputRefIsValid :: (TxIn, Coin) -> Bool
-    inputRefIsValid (ti, c) = case UTxO.lookup ti u of
-        Nothing -> False
-        Just to -> TxOut.coin to == c
+    inputRefIsValid :: (TxIn, Maybe TxOut) -> Bool
+    inputRefIsValid (ti, c) =
+        case UTxO.lookup ti u of
+            Nothing -> False
+            Just c' -> TxOut.coin c' == maybe (Coin 0) TxOut.coin c
 
 safeAppendTx :: MonadFail m => UTxO -> Tx -> m UTxO
 safeAppendTx = flip safeApplyTxToUTxO

@@ -514,9 +514,9 @@ allInputsOfTxs :: Set Tx -> Set TxIn
 allInputsOfTxs = F.foldMap allInputsOfTx
   where
     allInputsOfTx :: Tx -> Set TxIn
-    allInputsOfTx tx = Set.fromList $ fst <$> mconcat
-        [ tx & resolvedInputs
-        , tx & resolvedCollateralInputs
+    allInputsOfTx tx = Set.fromList $ mconcat
+        [ fst <$> resolvedInputs tx
+        , fst <$> resolvedCollateralInputs tx
         ]
 
 prop_availableUTxO_isSubmap :: Property
@@ -1229,7 +1229,7 @@ instance Arbitrary (WithPending WalletState) where
                         { txId = arbitraryHash
                         , txCBOR = Nothing
                         , fee = Nothing
-                        , resolvedInputs = [(inp, TxOut.coin out)]
+                        , resolvedInputs = [(inp, Just out)]
                         -- TODO: (ADP-957)
                         , resolvedCollateralInputs = []
                         -- TODO: [ADP-1670]
@@ -1307,11 +1307,11 @@ blockchain =
                     [ (TxIn
                         { inputId = Hash "\199D\198\229\227\196\204\231\178\166m\226\134\211\DC1}\243[\204\DC4\171\213\230\246\SOHy\229\t\167\184\235g"
                         , inputIx = 0
-                        }, Coin 0)
+                        }, Nothing)
                     , (TxIn
                         { inputId = Hash "\a\241.\180(\a\148\201u$\229\251\147\224\f\166\159\EOT\166m\US\178dN\242\227\b\254\227G\169\RS"
                         , inputIx = 0
-                        }, Coin 0)
+                        }, Nothing)
                     ]
                 , resolvedCollateralInputs = []
                 , outputs =
@@ -1348,7 +1348,7 @@ blockchain =
                     [ (TxIn
                         { inputId = Hash "+\253\232\DC3\132\"M\NULf\EM\228\bh)\STX\171W\215@#\198\a\228\229Z2]\156_fjg"
                         , inputIx = 0
-                        }, Coin 0)
+                        }, Nothing)
                     ]
                 , resolvedCollateralInputs = []
                 , outputs =
@@ -1374,7 +1374,7 @@ blockchain =
                     [ (TxIn
                         { inputId = Hash "\137\150\&8\141\164l\v\ACK\132\198\SI\GS7\201\&3Dd\177fM,\GS)\EM\DC4\242#\211'3\233\163"
                         , inputIx = 0
-                        }, Coin 0)
+                        }, Nothing)
                     ]
                 , resolvedCollateralInputs = []
                 , outputs =
@@ -1411,7 +1411,7 @@ blockchain =
                     [ (TxIn
                         { inputId = Hash "(\EM#\f\165\236\169=\227\163>MY\225ts\192\SYN\137=\145\155~\212.\252\130l\166v0\SOH"
                         , inputIx = 0
-                        }, Coin 0)
+                        }, Nothing)
                     ]
                 , resolvedCollateralInputs = []
                 , outputs =
@@ -1437,7 +1437,7 @@ blockchain =
                     [ ( TxIn
                         { inputId = Hash "\128\168muc\212\EMP\238\\\173w\203\159N\205T:\230V\134\164w\143>\192\134\153\SUB$cD"
                         , inputIx = 0
-                        }, Coin 0)
+                        }, Nothing)
                     ]
                 , resolvedCollateralInputs = []
                 , outputs =
@@ -1474,7 +1474,7 @@ blockchain =
                     [ (TxIn
                         { inputId = Hash "\164\254\137\218h\f\DLE\245\141u\SYN\248~\253n;\202\144\150\v\229\177\218\195\238\157\230\158\241O\153\215"
                         , inputIx = 0
-                        }, Coin 0)
+                        }, Nothing)
                     ]
                 , resolvedCollateralInputs = []
                 , outputs =
@@ -1521,7 +1521,7 @@ blockchain =
                     [ (TxIn
                         { inputId = Hash "\187\199\161\240\222$\bZ\196\138R\238o\137\209\129QE\132Z\135\DC2TsP\167\228\146\&8Yt\171"
                         , inputIx = 0
-                        }, Coin 0)
+                        }, Nothing)
                     ]
                 , resolvedCollateralInputs = []
                 , outputs =
@@ -1558,7 +1558,7 @@ blockchain =
                     [ (TxIn
                         { inputId = Hash "s\165\210\a@\213\DC1\224\DLE\144$\DEL\138\202\144\225\229PVBD\ETB25\161\164u\137\NUL{\158v"
                         , inputIx = 0
-                        }, Coin 0) ]
+                        }, Nothing) ]
                 , resolvedCollateralInputs = []
                 , outputs =
                     [ TxOut
@@ -1594,7 +1594,7 @@ blockchain =
                     [ (TxIn
                         { inputId = Hash "\177|\163\210\184\169\145\234F\128\209\235\217\148\n\ETXD\155\ESCba\251\230%\213\202\230Y\151&\234A"
                         , inputIx = 0
-                        }, Coin 0)
+                        }, Nothing)
                     ]
                 , resolvedCollateralInputs = []
                 , outputs =
@@ -1641,11 +1641,11 @@ blockchain =
                     [ ( TxIn
                         { inputId = Hash "\195\242\DEL-\232v(c\SI+\172\163\245\142\189\214aiB#4\139\172\166\237\167\ETB9\246\150\185\219"
                         , inputIx = 1
-                        }, Coin 0)
+                        }, Nothing)
                     , ( TxIn
                         { inputId = Hash "8O\137\193\224w\243\252s\198\250\201\&04\169\129E\155{\n\DC3H<\199\208\154\214\237\141\128<+"
                         , inputIx = 1
-                        }, Coin 0)
+                        }, Nothing)
                     ]
                 , resolvedCollateralInputs = []
                 , outputs =
@@ -1722,7 +1722,7 @@ blockchain =
                     [ ( TxIn
                         { inputId = Hash "\ETXX\189\235\195q81{D\DC3\DLE\228\237(\251\184`l\226\229\184\FSG\132\217\224\202\222\249\246J"
                         , inputIx = 1
-                        }, Coin 0)
+                        }, Nothing)
                     ]
                 , resolvedCollateralInputs = []
                 , outputs =
@@ -1748,7 +1748,7 @@ blockchain =
                     [ ( TxIn
                         { inputId = Hash "\151\146\133\SYN\187\ENQ\252\226\&4\210n\153\178+.h\200\CANAs\SI\181\189\GS\131[g7O\GS\232\215"
                         , inputIx = 1
-                        }, Coin 0)
+                        }, Nothing)
                     ]
                 , resolvedCollateralInputs = []
                 , outputs =
@@ -1785,7 +1785,7 @@ blockchain =
                     [ ( TxIn
                         { inputId = Hash "_>\240.\159\145\US\NUL1\158r\231\&8\214\241\134\&2\DC4\ETB\160\134\237z\143D\229d\DC4\245\208\DC3?"
                         , inputIx = 0
-                        }, Coin 0)
+                        }, Nothing)
                     ]
                 , resolvedCollateralInputs = []
                 , outputs =
@@ -1811,7 +1811,7 @@ blockchain =
                     [ ( TxIn
                         { inputId = Hash "\187\177J\189\132K\n\175\130\148\&3[\150\193zL\153\191Qjcl\n\162B\241G)>\151\DC4\225"
                         , inputIx = 0
-                        }, Coin 0)
+                        }, Nothing)
                     ]
                 , resolvedCollateralInputs = []
                 , outputs =
@@ -1908,7 +1908,7 @@ blockchain =
                     [ ( TxIn
                         { inputId = Hash "\150\225pI\SUB\251n\189W\159\213|v\198\132\242$6\248\204:\145#\151\221\177\201\197\ESC\134\251S"
                         , inputIx = 0
-                        }, Coin 0)
+                        }, Nothing)
                     ]
                 , resolvedCollateralInputs = []
                 , outputs =
@@ -1934,7 +1934,7 @@ blockchain =
                     [ ( TxIn
                         { inputId = Hash "\249\DC2\146\&0\GSK\177\182\224@\206\205\255@0\149\155I\201^}\174\bw\130\221U\139\235\182f\138"
                         , inputIx = 0
-                        }, Coin 0)
+                        }, Nothing)
                     ]
                 , resolvedCollateralInputs = []
                 , outputs =
@@ -1971,7 +1971,7 @@ blockchain =
                     [ (TxIn
                         { inputId = Hash "\194\157>\160\221\163\&4\218\149\215\178\161]p\185\246\208\198\ENQ \188\216\242\160\190\236\137\151\DC3\134\"\DC4"
                         , inputIx = 0
-                        }, Coin 0)
+                        }, Nothing)
                     ]
                 , resolvedCollateralInputs = []
                 , outputs =
@@ -2016,7 +2016,10 @@ blockchain =
                             { inputId = Hash "9c6fed8fef3b296d4dee6e62ca72b180bf0ed1c13eb5f0445099b2a146235e77"
                             , inputIx = 0
                             }
-                        , Coin 3823755953610
+                        , Just $ TxOut
+                            { address = Address "\130\216\CANXB\131X\FS\147\ACKn\246.n\DLE\233Y\166)\207c\v\248\183\235\212\EOTV\243h\192\190T\150'\196\161\SOHX\RSX\FS\202>U<\156c\197&\DC3S\235C\198\245\163\204=\214fa\201\t\205\248\204\226r%\NUL\SUB\174\187\&7\t"
+                            , tokens = coinToBundle 3823755953610
+                            }
                         )
                     ]
                 , resolvedCollateralInputs =
@@ -2024,7 +2027,7 @@ blockchain =
                             { inputId = Hash "9c6fed8fef3b296d4dee6e62ca72b180bf0ed1c13eb5f0445099b2a146235e77"
                             , inputIx = 1
                             }
-                        , Coin 19999800000
+                        , Nothing
                         )
                     ]
                 , outputs =
@@ -2068,7 +2071,10 @@ blockchain =
                             -- the collateral output:
                             , inputIx = 1
                             }
-                        , Coin (19999800000 - 1)
+                        , Just $ TxOut
+                            { address = Address "\130\216\CANXB\131X\FS\147\ACKn\246.n\DLE\233Y\166)\207c\v\248\183\235\212\EOTV\243h\192\190T\150'\196\161\SOHX\RSX\FS\202>U<\156c\197&\DC3S\235C\198\245\163\204=\214fa\201\t\205\248\204\226r%\NUL\SUB\174\187\&7\t"
+                            , tokens = coinToBundle (19999800000 - 1)
+                            }
                         )
                     ]
                 , resolvedCollateralInputs = []
@@ -2178,11 +2184,11 @@ prop_filterByAddress_balance_applyTxToUTxO f tx =
             then tokens output
             else mempty
 
-unit_applyTxToUTxO_spends_input :: Tx -> TxIn -> TxOut -> Coin -> Property
-unit_applyTxToUTxO_spends_input tx txin txout coin =
+unit_applyTxToUTxO_spends_input :: Tx -> TxIn -> TxOut -> Maybe TxOut -> Property
+unit_applyTxToUTxO_spends_input tx txin txout resolvedOut =
     let
         tx' = tx
-            { resolvedInputs = [(txin, coin)]
+            { resolvedInputs = [(txin, resolvedOut)]
             , scriptValidity = Nothing
             }
     in
@@ -2190,11 +2196,12 @@ unit_applyTxToUTxO_spends_input tx txin txout coin =
         === utxoFromTx tx' `excluding` Set.singleton txin
 
 unit_applyTxToUTxO_scriptValidity_Valid
-    :: Tx -> (TxIn, TxOut) -> (TxIn, TxOut) -> Coin -> Property
-unit_applyTxToUTxO_scriptValidity_Valid tx' (sIn, sOut) (cIn, cOut) coin =
+    :: Tx -> (TxIn, TxOut) -> (TxIn, TxOut) -> Property
+unit_applyTxToUTxO_scriptValidity_Valid tx'
+    (sIn, sOut) (cIn, cOut) =
     let tx = tx'
-            { resolvedCollateralInputs = [(cIn, coin)]
-            , resolvedInputs = [(sIn, coin)]
+            { resolvedCollateralInputs = [(cIn, Nothing)]
+            , resolvedInputs = [(sIn, Nothing)]
             , scriptValidity = Just TxScriptValid
             }
         utxo = UTxO $ Map.fromList [(sIn, sOut), (cIn, cOut)]
@@ -2204,11 +2211,11 @@ unit_applyTxToUTxO_scriptValidity_Valid tx' (sIn, sOut) (cIn, cOut) coin =
         (utxo `excluding` Set.singleton sIn) <> utxoFromTxOutputs tx
 
 unit_applyTxToUTxO_scriptValidity_Invalid
-    :: Tx -> (TxIn, TxOut) -> (TxIn, TxOut) -> Coin -> Property
-unit_applyTxToUTxO_scriptValidity_Invalid tx' (sIn, sOut) (cIn, cOut) coin =
+    :: Tx -> (TxIn, TxOut) -> (TxIn, TxOut) -> Property
+unit_applyTxToUTxO_scriptValidity_Invalid tx' (sIn, sOut) (cIn, cOut) =
     let tx = tx'
-            { resolvedCollateralInputs = [(cIn, coin)]
-            , resolvedInputs = [(sIn, coin)]
+            { resolvedCollateralInputs = [(cIn, Nothing)]
+            , resolvedInputs = [(sIn, Nothing)]
             , scriptValidity = Just TxScriptInvalid
             }
         utxo = UTxO $ Map.fromList [(sIn, sOut), (cIn, cOut)]
@@ -2218,11 +2225,11 @@ unit_applyTxToUTxO_scriptValidity_Invalid tx' (sIn, sOut) (cIn, cOut) coin =
         (utxo `excluding` Set.singleton cIn) <> utxoFromTxCollateralOutputs tx
 
 unit_applyTxToUTxO_scriptValidity_Unknown
-    :: Tx -> (TxIn, TxOut) -> (TxIn, TxOut) -> Coin -> Property
-unit_applyTxToUTxO_scriptValidity_Unknown tx' (sIn, sOut) (cIn, cOut) coin =
+    :: Tx -> (TxIn, TxOut) -> (TxIn, TxOut) -> Property
+unit_applyTxToUTxO_scriptValidity_Unknown tx' (sIn, sOut) (cIn, cOut) =
     let tx = tx'
-            { resolvedCollateralInputs = [(cIn, coin)]
-            , resolvedInputs = [(sIn, coin)]
+            { resolvedCollateralInputs = [(cIn, Nothing)]
+            , resolvedInputs = [(sIn, Nothing)]
             , scriptValidity = Nothing
             }
         utxo = UTxO $ Map.fromList [(sIn, sOut), (cIn, cOut)]

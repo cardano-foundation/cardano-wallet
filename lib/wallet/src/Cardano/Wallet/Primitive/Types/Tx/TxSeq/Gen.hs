@@ -317,18 +317,13 @@ genTxFromUTxO genAddr u = do
         , Just TxScriptInvalid
         ]
     pure $ txWithoutIdToTx TxWithoutId
-        { fee =
-            Just feeCoin
-        , resolvedInputs =
-            fmap (TokenBundle.getCoin . tokens) <$> inputs
-        , resolvedCollateralInputs =
-            fmap (TokenBundle.getCoin . tokens) <$> collateralInputs
-        , outputs =
-            zipWith TxOut outputAddresses outputBundles
+        { fee = Just feeCoin
+        , resolvedInputs = fmap Just <$> inputs
+        , resolvedCollateralInputs = fmap Just <$> collateralInputs
+        , outputs = zipWith TxOut outputAddresses outputBundles
         , collateralOutput = listToMaybe $
             zipWith TxOut collateralOutputAddresses collateralOutputBundles
-        , metadata =
-            Nothing
+        , metadata = Nothing
         , withdrawals
         , scriptValidity
         }

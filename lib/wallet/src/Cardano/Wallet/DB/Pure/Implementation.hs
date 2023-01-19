@@ -73,7 +73,7 @@ import Prelude
 import Cardano.Pool.Types
     ( PoolId )
 import Cardano.Wallet.Primitive.Model
-    ( Wallet, currentTip, utxo )
+    ( Wallet, currentTip )
 import Cardano.Wallet.Primitive.Slotting
     ( TimeInterpreter, epochOf, interpretQuery, slotToUTCTime )
 import Cardano.Wallet.Primitive.Types
@@ -109,8 +109,6 @@ import Cardano.Wallet.Primitive.Types.Tx
     , TxMeta (..)
     , TxStatus (..)
     )
-import Cardano.Wallet.Primitive.Types.UTxO
-    ( UTxO (..) )
 import Control.DeepSeq
     ( NFData )
 import Control.Monad
@@ -479,15 +477,14 @@ mReadTxHistory ti wid minWithdrawal order range mstatus db@(Database wallets txs
     mkTransactionInfo cp (tx, meta) = TransactionInfo
         { txInfoId =
             view #txId tx
-        , txInfoCBOR = view #txCBOR tx
+        , txInfoCBOR =
+            view #txCBOR tx
         , txInfoFee =
             fee tx
         , txInfoInputs =
-            (\(inp, amt) -> (inp, amt, Map.lookup inp $ unUTxO $ utxo cp))
-                <$> resolvedInputs tx
+            resolvedInputs tx
         , txInfoCollateralInputs =
-            (\(inp, amt) -> (inp, amt, Map.lookup inp $ unUTxO $ utxo cp))
-                <$> resolvedCollateralInputs tx
+            resolvedCollateralInputs tx
         , txInfoOutputs =
             outputs tx
         , txInfoCollateralOutput =
@@ -536,7 +533,8 @@ mReadDelegationRewardBalance
 mReadDelegationRewardBalance wid db@(Database wallets _) =
     (Right (maybe (Coin 0) rewardAccountBalance $ Map.lookup wid wallets), db)
 
-mPutLocalTxSubmission :: Ord wid => wid -> Hash "Tx" -> SealedTx -> SlotNo -> ModelOp wid s xprv ()
+mPutLocalTxSubmission ::
+    Ord wid => wid -> Hash "Tx" -> SealedTx -> SlotNo -> ModelOp wid s xprv ()
 mPutLocalTxSubmission wid tid tx sl = alterModelErr wid $ \wal ->
     case Map.lookup tid (txHistory wal) of
         Nothing -> (Left (NoSuchTx wid tid), wal)

@@ -211,6 +211,7 @@ import qualified Cardano.BM.Configuration.Model as CM
 import qualified Cardano.BM.Data.BackendKind as CM
 import qualified Cardano.Wallet.Address.Pool as AddressPool
 import qualified Cardano.Wallet.Primitive.AddressDerivation.Byron as Byron
+import qualified Cardano.Wallet.Primitive.Types.Coin as Coin
 import qualified Cardano.Wallet.Primitive.Types.TokenBundle as TokenBundle
 import qualified Cardano.Wallet.Primitive.Types.TokenMap as TokenMap
 import qualified Data.ByteArray as BA
@@ -586,15 +587,18 @@ mkTxHistory numTx numInputs numOutputs numAssets range =
   where
     sl i = SlotNo $ range !! (i `mod` length range)
 
-mkInputs :: Int -> Int -> [(TxIn, Coin)]
+mkInputs :: Int -> Int -> [(TxIn, Maybe TxOut)]
 mkInputs prefix n =
     [ force
         ( TxIn (Hash (label lbl i)) (fromIntegral i)
-        , Coin $ fromIntegral n
+        , Just $ mkTxOut n
         )
     | !i <- [1..n]]
   where
     lbl = show prefix <> "in"
+    mkTxOut i = TxOut
+        (mkAddress prefix i)
+        (TokenBundle.TokenBundle (Coin.unsafeFromIntegral i) mempty)
 
 -- | Creates transaction outputs with multi-asset token bundles.
 mkOutputs :: Int -> Int -> Int -> [TxOut]

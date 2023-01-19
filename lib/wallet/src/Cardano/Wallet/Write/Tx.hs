@@ -26,6 +26,7 @@ module Cardano.Wallet.Write.Tx
       RecentEra (..)
     , IsRecentEra (..)
     , toRecentEra
+    , fromRecentEra
     , LatestLedgerEra
     , LatestEra
 
@@ -40,6 +41,8 @@ module Cardano.Wallet.Write.Tx
     , AnyRecentEra (..)
     , InAnyRecentEra (..)
     , asAnyRecentEra
+    , fromAnyRecentEra
+    , withInAnyRecentEra
     , withRecentEra
 
     -- ** Misc
@@ -230,6 +233,11 @@ toRecentEra = \case
     Cardano.ShelleyEra -> Nothing
     Cardano.ByronEra   -> Nothing
 
+fromRecentEra :: RecentEra era -> Cardano.CardanoEra era
+fromRecentEra = \case
+  RecentEraBabbage -> Cardano.BabbageEra
+  RecentEraAlonzo -> Cardano.AlonzoEra
+
 instance IsRecentEra BabbageEra where
     recentEra = RecentEraBabbage
 
@@ -264,12 +272,11 @@ data InAnyRecentEra thing where
          -> thing era
          -> InAnyRecentEra thing
 
-withRecentEra
+withInAnyRecentEra
     :: InAnyRecentEra thing
     -> (forall era. IsRecentEra era => thing era -> a)
     -> a
-withRecentEra (InAnyRecentEra _era tx) f
-    = f tx
+withInAnyRecentEra (InAnyRecentEra _era tx) f = f tx
 
 -- | "Downcast" something existentially wrapped in 'Cardano.InAnyCardanoEra'.
 asAnyRecentEra
@@ -290,6 +297,13 @@ data AnyRecentEra where
 
 instance Show AnyRecentEra where
     show (AnyRecentEra era) = "AnyRecentEra " <> show era
+
+fromAnyRecentEra :: AnyRecentEra -> Cardano.AnyCardanoEra
+fromAnyRecentEra (AnyRecentEra era) = Cardano.AnyCardanoEra (fromRecentEra era)
+
+withRecentEra ::
+    AnyRecentEra -> (forall era. IsRecentEra era => RecentEra era -> a) -> a
+withRecentEra (AnyRecentEra era) f = f era
 
 --------------------------------------------------------------------------------
 -- TxIn

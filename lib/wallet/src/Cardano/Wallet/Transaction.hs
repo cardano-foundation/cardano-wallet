@@ -5,6 +5,7 @@
 {-# LANGUAGE DerivingStrategies #-}
 {-# LANGUAGE DuplicateRecordFields #-}
 {-# LANGUAGE FlexibleContexts #-}
+{-# LANGUAGE GeneralizedNewtypeDeriving #-}
 {-# LANGUAGE LambdaCase #-}
 {-# LANGUAGE NamedFieldPuns #-}
 {-# LANGUAGE RankNTypes #-}
@@ -24,6 +25,7 @@ module Cardano.Wallet.Transaction
     -- * Interface
       TransactionLayer (..)
     , DelegationAction (..)
+    , TxValidityInterval
     , TransactionCtx (..)
     , PreSelection (..)
     , defaultTransactionCtx
@@ -134,6 +136,7 @@ import GHC.Generics
 import qualified Cardano.Api as Cardano
 import qualified Cardano.Api.Shelley as Cardano
 import qualified Cardano.Wallet.Primitive.Types.TokenMap as TokenMap
+import qualified Cardano.Wallet.Write.Tx as WriteTx
 import qualified Data.Map.Strict as Map
 
 data TransactionLayer k ktype tx = TransactionLayer
@@ -180,9 +183,9 @@ data TransactionLayer k ktype tx = TransactionLayer
         -- function cannot fail.
 
     , mkUnsignedTransaction
-        :: AnyCardanoEra
-            -- Era for which the transaction should be created.
-        -> XPub
+        :: forall era
+         . WriteTx.IsRecentEra era
+        => XPub
             -- Reward account public key
         -> ProtocolParameters
             -- Current protocol parameters
@@ -191,7 +194,7 @@ data TransactionLayer k ktype tx = TransactionLayer
         -> Either PreSelection (SelectionOf TxOut)
             -- A balanced coin selection where all change addresses have been
             -- assigned.
-        -> Either ErrMkTransaction tx
+        -> Either ErrMkTransaction (Cardano.TxBody era)
         -- ^ Construct a standard unsigned transaction
         --
         -- " Standard " here refers to the fact that we do not deal with redemption,
@@ -367,6 +370,8 @@ data TxUpdate = TxUpdate
         -- ^ Set a new fee or use the old one.
     }
 
+type TxValidityInterval = (Maybe SlotNo, SlotNo)
+
 -- | Some additional context about a transaction. This typically contains
 -- details that are known upfront about the transaction and are used to
 -- construct it from inputs selected from the wallet's UTxO.
@@ -375,7 +380,7 @@ data TransactionCtx = TransactionCtx
     -- ^ Withdrawal amount from a reward account, can be zero.
     , txMetadata :: Maybe TxMetadata
     -- ^ User or application-defined metadata to embed in the transaction.
-    , txValidityInterval :: (Maybe SlotNo, SlotNo)
+    , txValidityInterval :: TxValidityInterval
     -- ^ Transaction optional starting slot and expiry (TTL) slot for which the
     -- transaction is valid.
     , txDelegationAction :: Maybe DelegationAction
@@ -401,7 +406,8 @@ data TransactionCtx = TransactionCtx
 
 -- | Represents a preliminary selection of tx outputs typically made by user.
 newtype PreSelection = PreSelection { outputs :: [TxOut] }
-    deriving (Generic, Eq, Show)
+    deriving stock (Generic, Show)
+    deriving newtype (Eq)
 
 data Withdrawal
     = WithdrawalSelf RewardAccount (NonEmpty DerivationIndex) Coin

@@ -137,7 +137,7 @@ fromShelleyTx tx =
         , fee =
             Just $ fromShelleyCoin fee
         , resolvedInputs =
-            map ((,W.Coin 0) . fromShelleyTxIn) (toList ins)
+            (,Nothing) . fromShelleyTxIn <$> toList ins
         , resolvedCollateralInputs =
             []
         , outputs =

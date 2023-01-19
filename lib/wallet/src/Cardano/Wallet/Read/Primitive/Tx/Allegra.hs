@@ -65,7 +65,6 @@ import qualified Cardano.Ledger.Shelley.Tx as SL
 import qualified Cardano.Ledger.ShelleyMA.AuxiliaryData as MA
 import qualified Cardano.Ledger.ShelleyMA.TxBody as MA
 import qualified Cardano.Wallet.Primitive.Types as W
-import qualified Cardano.Wallet.Primitive.Types.Coin as W
 import qualified Cardano.Wallet.Primitive.Types.Hash as W
 import qualified Cardano.Wallet.Primitive.Types.Tx as W
 import qualified Data.Map.Strict as Map
@@ -91,7 +90,7 @@ fromAllegraTx tx =
         , fee =
             Just $ fromShelleyCoin fee
         , resolvedInputs =
-            map ((,W.Coin 0) . fromShelleyTxIn) (toList ins)
+            map ((,Nothing) . fromShelleyTxIn) (toList ins)
         , resolvedCollateralInputs =
             -- TODO: (ADP-957)
             []

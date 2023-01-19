@@ -107,13 +107,13 @@ data Tx = Tx
         -- easily be re-computed from the delta between outputs and inputs.
 
     , resolvedInputs
-        :: ![(TxIn, Coin)]
+        :: ![(TxIn, Maybe TxOut)]
         -- ^ NOTE: Order of inputs matters in the transaction representation.
         -- The transaction id is computed from the binary representation of a
         -- tx, for which inputs are serialized in a specific order.
 
     , resolvedCollateralInputs
-        :: ![(TxIn, Coin)]
+        :: ![(TxIn, Maybe TxOut)]
         -- ^ NOTE: The order of collateral inputs matters in the transaction
         -- representation.  The transaction id is computed from the binary
         -- representation of a tx, for which collateral inputs are serialized

@@ -213,6 +213,8 @@ import Database.Persist.Sql
     ( EntityNameDB (..), FieldNameDB (..), PersistEntity (..), fieldDB )
 import Numeric.Natural
     ( Natural )
+import Safe
+    ( headMay )
 import System.Directory
     ( copyFile, doesFileExist, listDirectory, removeFile )
 import System.FilePath
@@ -516,8 +518,8 @@ fileModeSpec =  do
             testOpeningCleaning
                 f
                 (\db' -> readTxHistory' db' testWid Ascending wholeRange Nothing)
-                testTxs
-                mempty
+                testTxs -- expected after opening db
+                mempty -- expected after cleaning db
 
         it "put and read tx history (Descending)" $ \f -> do
             withShelleyFileDBLayer f $ \DBLayer{..} -> do
@@ -528,8 +530,8 @@ fileModeSpec =  do
             testOpeningCleaning
                 f
                 (\db' -> readTxHistory' db' testWid Descending wholeRange Nothing)
-                testTxs
-                mempty
+                (reverse testTxs) -- expected after opening db
+                mempty -- expected after cleaning db
 
         it "put and read checkpoint" $ \f -> do
             withShelleyFileDBLayer f $ \DBLayer{..} -> do
@@ -592,8 +594,16 @@ fileModeSpec =  do
                             , txCBOR = Nothing
                             , fee = Nothing
                             , resolvedInputs =
-                                [ (TxIn (dummyHash "faucet") 0, Coin 4)
-                                , (TxIn (dummyHash "faucet") 1, Coin 8)
+                                [ ( TxIn (dummyHash "faucet") 0
+                                  , Just $ TxOut
+                                        (dummyAddr "faucetOut1")
+                                        (coinToBundle 4)
+                                  )
+                                , ( TxIn (dummyHash "faucet") 1
+                                  , Just $ TxOut
+                                        (dummyAddr "faucetOut2")
+                                        (coinToBundle 8)
+                                  )
                                 ]
                             , resolvedCollateralInputs = []
                             , outputs =
@@ -626,9 +636,14 @@ fileModeSpec =  do
                             , txCBOR = Nothing
                             , fee = Nothing
                             , resolvedInputs =
-                                [(TxIn (dummyHash "tx1") 0, Coin 4)]
+                                [ ( TxIn (dummyHash "tx1") 0
+                                  , Just $ TxOut
+                                        (dummyAddr "faucetOut1")
+                                        (coinToBundle 4)
+                                  )
+                                ]
                             , resolvedCollateralInputs =
-                                [(TxIn (dummyHash "tx1") 1, Coin 8)]
+                                [(TxIn (dummyHash "tx1") 1, Nothing)]
                             , outputs =
                                 [ TxOut
                                     (dummyAddr "faucetAddr2") (coinToBundle 2)
@@ -676,7 +691,12 @@ fileModeSpec =  do
                                 -- is equal to the number of ordinary outputs
                                 -- in that transaction:
                                 --
-                                [(TxIn (dummyHash "tx2") 2, Coin 7)]
+                                [ ( TxIn (dummyHash "tx2") 2
+                                  , Just $ TxOut
+                                        (fst $ ourAddrs !! 1)
+                                        (coinToBundle 7)
+                                  )
+                                ]
                             , resolvedCollateralInputs =
                                 []
                             , outputs =
@@ -709,7 +729,12 @@ fileModeSpec =  do
                             , txCBOR = Nothing
                             , fee = Nothing
                             , resolvedInputs =
-                                [(TxIn (dummyHash "faucet") 0, Coin 4)]
+                                [ ( TxIn (dummyHash "faucet") 0
+                                  , Just $ TxOut
+                                        (dummyAddr "out_for_in")
+                                        (coinToBundle 4)
+                                  )
+                                ]
                             -- TODO: (ADP-957)
                             , resolvedCollateralInputs = []
                             , outputs =
@@ -731,7 +756,13 @@ fileModeSpec =  do
                         { txId = dummyHash "tx2a"
                         , txCBOR = Nothing
                         , fee = Nothing
-                        , resolvedInputs = [(TxIn (dummyHash "tx1") 0, Coin 4)]
+                        , resolvedInputs =
+                            [ ( TxIn (dummyHash "tx1") 0
+                                , Just $ TxOut
+                                    (dummyAddr "out_for_in")
+                                    (coinToBundle 4)
+                                )
+                            ]
                         -- TODO: (ADP-957)
                         , resolvedCollateralInputs = []
                         , outputs =
@@ -1385,28 +1416,57 @@ testWid :: WalletId
 testWid = WalletId (hash ("test" :: ByteString))
 
 testTxs :: [(Tx, TxMeta)]
-testTxs = [(tx, txMeta)]
+testTxs = [ (tx1, meta1), (tx2, meta2) ]
   where
-    tx = Tx
+    tx1 = Tx
         { txId = mockHash @String "tx2"
         , txCBOR = Nothing
         , fee = Nothing
-        , resolvedInputs = [(TxIn (mockHash @String "tx1") 0, Coin 1)]
-        , resolvedCollateralInputs =
-            -- TODO: (ADP-957)
-            []
-        , outputs = [TxOut (Address "addr") (coinToBundle 1)]
+        , resolvedInputs =
+            [ ( TxIn (mockHash @String "tx1") 0
+              , Nothing
+              )
+            ]
+        , resolvedCollateralInputs = []
+        , outputs = [TxOut (Address "addr1") (coinToBundle 10)]
         , collateralOutput = Nothing
         , withdrawals = mempty
         , metadata = Nothing
         , scriptValidity = Nothing
         }
-    txMeta = TxMeta
+    meta1 = TxMeta
         { status = InLedger
         , direction = Incoming
         , slotNo = SlotNo 140
         , blockHeight = Quantity 0
         , amount = Coin 1_337_144
+        , expiry = Nothing
+        }
+    tx2 = Tx
+        { txId = mockHash @String "tx3"
+        , txCBOR = Nothing
+        , fee = Nothing
+        , resolvedInputs =
+            [ ( TxIn (mockHash @String "tx2") 0
+              , headMay $ tx1 ^. #outputs
+              )
+            ]
+        , resolvedCollateralInputs = []
+        , outputs =
+            [ TxOut (Address "addr2") (coinToBundle 5)
+            , TxOut (Address "addr3") (coinToBundle 5)
+            ]
+        , collateralOutput = Nothing
+        , withdrawals = mempty
+        , metadata = Nothing
+        , scriptValidity = Nothing
+        }
+    meta2 = TxMeta
+        { status = InLedger
+        , direction = Incoming
+        , slotNo = SlotNo 150
+        , blockHeight = Quantity 0
+        , amount = Coin 10
         , expiry = Nothing
         }
 
