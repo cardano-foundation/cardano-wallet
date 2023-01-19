@@ -167,7 +167,6 @@ import Cardano.Wallet
     , ErrConstructTx (..)
     , ErrCreateMigrationPlan (..)
     , ErrGetPolicyId (..)
-    , ErrMkTransaction (..)
     , ErrNoSuchWallet (..)
     , ErrReadRewardAccount (..)
     , ErrSelectAssets (..)
@@ -4115,7 +4114,7 @@ withRecentEra
     -> (forall e. WriteTx.IsRecentEra e => WriteTx.RecentEra e -> Handler a)
     -> Handler a
 withRecentEra anyCardanoEra handleRecentEra = do
-    let invalidEra = ErrMkTransactionInvalidEra anyCardanoEra
+    let invalidEra = ErrOldEraNotSupported anyCardanoEra
     case anyCardanoEra of
         Cardano.AnyCardanoEra cardanoEra ->
             case cardanoEra of
