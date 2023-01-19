@@ -168,6 +168,7 @@ import Cardano.Wallet.Shelley.Compatibility
     , toCardanoLovelace
     , toCardanoPolicyId
     , toCardanoSimpleScript
+    , toCardanoSimpleScriptV1
     , toCardanoStakeCredential
     , toCardanoTxIn
     , toCardanoTxOut
@@ -779,12 +780,34 @@ updateSealedTx (Cardano.Tx body existingKeyWits) extraContent = do
         in
         Right $ Cardano.ShelleyTxBody shelleyEra
             (modifyShelleyTxBody ebc shelleyEra bod)
-            scripts
+            (scripts ++ (flip toLedgerScript shelleyEra <$> extraInputScripts))
             scriptData
             aux
             val
     modifyTxBody _ (Byron.ByronTxBody _) =
         case Cardano.shelleyBasedEra @era of {}
+
+    TxUpdate _ _ _ extraInputScripts _ = extraContent
+
+    toLedgerScript
+        :: Script KeyHash
+        -> ShelleyBasedEra era
+        -> Ledger.Script Compatibility.StandardCrypto
+    toLedgerScript nodeScript = \case
+        ShelleyBasedEraShelley ->
+            Cardano.toShelleyMultiSig $ toCardanoSimpleScriptV1 nodeScript
+        ShelleyBasedEraAllegra ->
+            Alonzo.TimelockScript $ Cardano.toAllegraTimelock $
+            toCardanoSimpleScript nodeScript
+        ShelleyBasedEraMary ->
+            Alonzo.TimelockScript $ Cardano.toAllegraTimelock $
+            toCardanoSimpleScript nodeScript
+        ShelleyBasedEraAlonzo ->
+            Alonzo.TimelockScript $ Cardano.toAllegraTimelock $
+            toCardanoSimpleScript nodeScript
+        ShelleyBasedEraBabbage ->
+            Alonzo.TimelockScript $ Cardano.toAllegraTimelock $
+            toCardanoSimpleScript nodeScript
 
 -- NOTE: If the ShelleyMA MAClass were exposed, the Allegra and Mary
 -- cases could perhaps be joined. It is not however. And we still need
@@ -883,7 +906,7 @@ modifyShelleyTxBody txUpdate era ledgerBody = case era of
             txUpdate'
             mdHash
   where
-    TxUpdate extraInputs extraCollateral extraOutputs extraInputScripts feeUpdate
+    TxUpdate extraInputs extraCollateral extraOutputs _ feeUpdate
         = txUpdate
 
     extraInputs' = toCardanoTxIn . fst <$> extraInputs

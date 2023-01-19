@@ -96,6 +96,7 @@ module Cardano.Wallet.Shelley.Compatibility
     , toCostModelsAsArray
     , toCardanoPolicyId
     , toCardanoSimpleScript
+    , toCardanoSimpleScriptV1
 
       -- * Address encoding
     , shelleyEncodeAddress
@@ -1490,6 +1491,24 @@ toCardanoSimpleScript = \case
     ActiveUntilSlot slot ->
         Cardano.RequireTimeBefore Cardano.TimeLocksInSimpleScriptV2
         (O.SlotNo $ fromIntegral slot)
+
+toCardanoSimpleScriptV1
+    :: Script KeyHash
+    -> Cardano.SimpleScript Cardano.SimpleScriptV1
+toCardanoSimpleScriptV1 = \case
+    RequireSignatureOf (KeyHash _ keyhash) ->
+        case Cardano.deserialiseFromRawBytes
+            (Cardano.AsHash Cardano.AsPaymentKey) keyhash of
+                Just payKeyHash -> Cardano.RequireSignature payKeyHash
+                Nothing -> error "Hash key not valid"
+    RequireAllOf contents ->
+        Cardano.RequireAllOf $ map toCardanoSimpleScriptV1 contents
+    RequireAnyOf contents ->
+        Cardano.RequireAnyOf $ map toCardanoSimpleScriptV1 contents
+    RequireSomeOf num contents ->
+        Cardano.RequireMOf (fromIntegral num) $
+            map toCardanoSimpleScriptV1 contents
+    _ -> error "timelocks not available in SimpleScriptV1"
 
 just :: Builder -> Builder -> [Maybe a] -> a
 just t1 t2 = tina (t1+|": unable to deserialise "+|t2)
