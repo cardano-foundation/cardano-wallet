@@ -29,6 +29,8 @@ import Cardano.Wallet.Read.Primitive.Tx.Features.Fee
     ( fromShelleyCoin )
 import Cardano.Wallet.Read.Primitive.Tx.Features.Inputs
     ( fromShelleyTxIn )
+import Cardano.Wallet.Read.Primitive.Tx.Features.Metadata
+    ( fromMaryMetadata )
 import Cardano.Wallet.Read.Primitive.Tx.Features.Mint
     ( maryMint )
 import Cardano.Wallet.Read.Primitive.Tx.Features.Outputs
@@ -37,8 +39,6 @@ import Cardano.Wallet.Read.Primitive.Tx.Features.Validity
     ( afterShelleyValidityInterval )
 import Cardano.Wallet.Read.Primitive.Tx.Features.Withdrawals
     ( fromShelleyWdrl )
-import Cardano.Wallet.Read.Primitive.Tx.Shelley
-    ( fromShelleyMD )
 import Cardano.Wallet.Read.Tx
     ( Tx (Tx) )
 import Cardano.Wallet.Read.Tx.CBOR
@@ -68,7 +68,6 @@ import qualified Cardano.Ledger.Mary.Value as SL
 import qualified Cardano.Ledger.Shelley.API as SL
 import qualified Cardano.Ledger.Shelley.Tx as Shelley
 import qualified Cardano.Ledger.ShelleyMA as MA
-import qualified Cardano.Ledger.ShelleyMA.AuxiliaryData as MA
 import qualified Cardano.Ledger.ShelleyMA.TxBody as MA
 import qualified Cardano.Wallet.Primitive.Types as W
 import qualified Cardano.Wallet.Primitive.Types.Hash as W
@@ -106,7 +105,7 @@ fromMaryTx tx witCtx =
         , withdrawals =
             fromShelleyWdrl wdrls
         , metadata =
-            fromShelleyMD . toSLMetadata <$> SL.strictMaybeToMaybe mad
+            fromMaryMetadata <$> SL.strictMaybeToMaybe mad
         , scriptValidity =
             Nothing
         }
@@ -126,10 +125,6 @@ fromMaryTx tx witCtx =
         (Map.elems scriptMap)
         (fromIntegral $ Set.size $ Shelley.bootWits wits)
 
-    -- fixme: [ADP-525] It is fine for now since we do not look at script
-    -- pre-images. But this is precisely what we want as part of the
-    -- multisig/script balance reporting.
-    toSLMetadata (MA.AuxiliaryData blob _scripts) = SL.Metadata blob
     fromMaryScriptMap
         :: Map
             (SL.ScriptHash (Crypto (MA.ShelleyMAEra 'MA.Mary Crypto.StandardCrypto)))

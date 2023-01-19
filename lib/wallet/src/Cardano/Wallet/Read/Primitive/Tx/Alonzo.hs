@@ -30,6 +30,8 @@ import Cardano.Wallet.Read.Primitive.Tx.Features.Fee
     ( fromShelleyCoin )
 import Cardano.Wallet.Read.Primitive.Tx.Features.Inputs
     ( fromShelleyTxIn )
+import Cardano.Wallet.Read.Primitive.Tx.Features.Metadata
+    ( fromAlonzoMetadata )
 import Cardano.Wallet.Read.Primitive.Tx.Features.Mint
     ( alonzoMint )
 import Cardano.Wallet.Read.Primitive.Tx.Features.Outputs
@@ -38,8 +40,6 @@ import Cardano.Wallet.Read.Primitive.Tx.Features.Validity
     ( afterShelleyValidityInterval )
 import Cardano.Wallet.Read.Primitive.Tx.Features.Withdrawals
     ( fromShelleyWdrl )
-import Cardano.Wallet.Read.Primitive.Tx.Shelley
-    ( fromShelleyMD )
 import Cardano.Wallet.Read.Tx
     ( Tx (..) )
 import Cardano.Wallet.Read.Tx.CBOR
@@ -66,7 +66,6 @@ import Ouroboros.Consensus.Cardano.Block
     ( StandardAlonzo )
 
 import qualified Cardano.Api.Shelley as Cardano
-import qualified Cardano.Ledger.Alonzo.Data as Alonzo
 import qualified Cardano.Ledger.Alonzo.Language as Alonzo
 import qualified Cardano.Ledger.Alonzo.Scripts as Alonzo
 import qualified Cardano.Ledger.Alonzo.Tx as Alonzo
@@ -111,7 +110,7 @@ fromAlonzoTx tx@(Alonzo.ValidatedTx bod wits (Alonzo.IsValid isValid) aux) witCt
         , withdrawals =
             fromShelleyWdrl wdrls
         , metadata =
-            fromShelleyMD . toSLMetadata <$> SL.strictMaybeToMaybe aux
+            fromAlonzoMetadata<$> SL.strictMaybeToMaybe aux
         , scriptValidity =
             validity
         }
@@ -163,7 +162,6 @@ fromAlonzoTx tx@(Alonzo.ValidatedTx bod wits (Alonzo.IsValid isValid) aux) witCt
         toPlutusVer Alonzo.PlutusV2 = PlutusVersionV2
 
 
-    toSLMetadata (Alonzo.AuxiliaryData blob _scripts) = SL.Metadata blob
 
     validity =
         if isValid

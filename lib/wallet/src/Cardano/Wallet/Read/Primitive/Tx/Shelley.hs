@@ -10,8 +10,7 @@
 --
 
 module Cardano.Wallet.Read.Primitive.Tx.Shelley
-    ( fromShelleyMD
-    , fromShelleyTx
+    ( fromShelleyTx
     )
     where
 
@@ -21,8 +20,6 @@ import Cardano.Address.Script
     ( KeyHash (..), KeyRole (..), Script (..) )
 import Cardano.Api
     ( ShelleyEra )
-import Cardano.Api.Shelley
-    ( fromShelleyMetadata )
 import Cardano.Crypto.Hash
     ( hashToBytes )
 import Cardano.Wallet.Read.Eras
@@ -31,6 +28,8 @@ import Cardano.Wallet.Read.Primitive.Tx.Features.Certificates
     ( anyEraCerts, fromStakeCredential )
 import Cardano.Wallet.Read.Primitive.Tx.Features.Fee
     ( fromShelleyCoin )
+import Cardano.Wallet.Read.Primitive.Tx.Features.Metadata
+    ( fromShelleyMetadata )
 import Cardano.Wallet.Read.Primitive.Tx.Features.Outputs
     ( fromShelleyTxOut )
 import Cardano.Wallet.Read.Primitive.Tx.Features.Validity
@@ -57,7 +56,6 @@ import Data.Map.Strict
 import Data.Word
     ( Word16, Word32, Word64 )
 
-import qualified Cardano.Api as Cardano
 import qualified Cardano.Api.Shelley as Cardano
 import qualified Cardano.Ledger.Address as SL
 import qualified Cardano.Ledger.BaseTypes as SL
@@ -123,7 +121,7 @@ fromShelleyTx tx =
         , withdrawals =
             fromShelleyWdrl wdrls
         , metadata =
-            fromShelleyMD <$> SL.strictMaybeToMaybe mmd
+            fromShelleyMetadata <$> SL.strictMaybeToMaybe mmd
         , scriptValidity =
             Nothing
         }
@@ -145,9 +143,6 @@ fromShelleyWdrl (SL.Wdrl wdrl) = Map.fromList $
     bimap (fromStakeCredential . SL.getRwdCred) fromShelleyCoin
         <$> Map.toList wdrl
 
-fromShelleyMD :: SL.Metadata c -> Cardano.TxMetadata
-fromShelleyMD (SL.Metadata m) =
-    Cardano.makeTransactionMetadata . fromShelleyMetadata $ m
 
 fromLedgerScript
     :: SL.Crypto crypto

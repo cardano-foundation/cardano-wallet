@@ -35,14 +35,14 @@ import Cardano.Wallet.Read.Primitive.Tx.Features.Fee
     ( fromShelleyCoin )
 import Cardano.Wallet.Read.Primitive.Tx.Features.Inputs
     ( fromShelleyTxIn )
+import Cardano.Wallet.Read.Primitive.Tx.Features.Metadata
+    ( fromAllegraMetadata )
 import Cardano.Wallet.Read.Primitive.Tx.Features.Outputs
     ( fromAllegraTxOut )
 import Cardano.Wallet.Read.Primitive.Tx.Features.Validity
     ( afterShelleyValidityInterval )
 import Cardano.Wallet.Read.Primitive.Tx.Features.Withdrawals
     ( fromShelleyWdrl )
-import Cardano.Wallet.Read.Primitive.Tx.Shelley
-    ( fromShelleyMD )
 import Cardano.Wallet.Read.Tx
     ( Tx (..) )
 import Cardano.Wallet.Read.Tx.CBOR
@@ -65,7 +65,6 @@ import qualified Cardano.Api.Shelley as Cardano
 import qualified Cardano.Ledger.BaseTypes as SL
 import qualified Cardano.Ledger.Shelley.API as SL
 import qualified Cardano.Ledger.Shelley.Tx as SL
-import qualified Cardano.Ledger.ShelleyMA.AuxiliaryData as MA
 import qualified Cardano.Ledger.ShelleyMA.TxBody as MA
 import qualified Cardano.Wallet.Primitive.Types as W
 import qualified Cardano.Wallet.Primitive.Types.Hash as W
@@ -104,7 +103,7 @@ fromAllegraTx tx =
         , withdrawals =
             fromShelleyWdrl wdrls
         , metadata =
-            fromShelleyMD . toSLMetadata <$> SL.strictMaybeToMaybe mmd
+            fromAllegraMetadata <$> SL.strictMaybeToMaybe mmd
         , scriptValidity =
             Nothing
         }
@@ -122,8 +121,3 @@ fromAllegraTx tx =
         (fromIntegral $ Set.size $ SL.addrWits wits)
         (Map.elems scriptMap)
         (fromIntegral $ Set.size $ SL.bootWits wits)
-
-    -- fixme: [ADP-525] It is fine for now since we do not look at script
-    -- pre-images. But this is precisely what we want as part of the
-    -- multisig/script balance reporting.
-    toSLMetadata (MA.AuxiliaryData blob _scripts) = SL.Metadata blob
