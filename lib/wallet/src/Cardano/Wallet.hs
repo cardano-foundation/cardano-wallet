@@ -1632,7 +1632,7 @@ balanceTransaction
     -- @Wallet s@ for change address generation.
     -> PartialTx era
     -> ExceptT ErrBalanceTx m (Cardano.Tx era)
-balanceTransaction tr txLayer change toInpScripts pp ti wallet unadjustedPtx = do
+balanceTransaction tr txLayer change toInpScriptsM pp ti wallet unadjustedPtx = do
     -- TODO [ADP-1490] Take 'Ledger.PParams era' directly as argument, and avoid
     -- converting to/from Cardano.ProtocolParameters. This may affect
     -- performance. The addition of this one specific conversion seems to have
@@ -1645,7 +1645,7 @@ balanceTransaction tr txLayer change toInpScripts pp ti wallet unadjustedPtx = d
     let balanceWith strategy =
             balanceTransactionWithSelectionStrategyAndNoZeroAdaAdjustment
                 @era @m @s @k @ktype
-                tr txLayer change toInpScripts pp ti wallet strategy adjustedPtx
+                tr txLayer change toInpScriptsM pp ti wallet strategy adjustedPtx
     balanceWith SelectionStrategyOptimal
         `catchE` \e ->
             if minimalStrategyIsWorthTrying e
@@ -1741,7 +1741,7 @@ balanceTransactionWithSelectionStrategyAndNoZeroAdaAdjustment
     tr
     txLayer
     generateChange
-    toInpScripts
+    toInpScriptsM
     (pp, nodePParams)
     ti
     (internalUtxoAvailable, wallet, _pendingTxs)
@@ -1758,7 +1758,7 @@ balanceTransactionWithSelectionStrategyAndNoZeroAdaAdjustment
 
     (balance0, minfee0) <- balanceAfterSettingMinFee partialTx
 
-    (extraInputs, extraCollateral, extraOutputs) <- do
+    (extraInputs, extraCollateral', extraOutputs) <- do
 
         -- NOTE: It is not possible to know the script execution cost in
         -- advance because it actually depends on the final transaction. Inputs
@@ -1771,12 +1771,14 @@ balanceTransactionWithSelectionStrategyAndNoZeroAdaAdjustment
 
         randomSeed <- stdGenSeed
         let
-            transform :: s -> Selection -> ([(TxIn, TxOut)], [TxIn], [TxOut])
+            transform
+                :: s
+                -> Selection -> ([(TxIn, TxOut)], [(TxIn, TxOut)], [TxOut])
             transform s sel =
                 let (sel', _) = assignChangeAddresses generateChange sel s
                     inputs = F.toList (sel' ^. #inputs)
                 in  ( inputs
-                    , fst <$> (sel' ^. #collateral)
+                    , sel' ^. #collateral
                     , sel' ^. #change
                     )
 
@@ -1814,6 +1816,8 @@ balanceTransactionWithSelectionStrategyAndNoZeroAdaAdjustment
     -- (b) Assign correct execution units to every redeemer
     -- (c) Correctly reference redeemed entities with redeemer pointers
     -- (d) Adjust fees and change output(s) to the new fees.
+    -- (e) If added inputs are native script originated coresponding scripts
+    --     need to be added as witnesses
     --
     -- There's a strong assumption that modifying the fee value AND increasing
     -- the coin values of change outputs does not modify transaction fees; or
@@ -1825,11 +1829,18 @@ balanceTransactionWithSelectionStrategyAndNoZeroAdaAdjustment
     -- doing such a thing is considered bonkers and this is not a behavior we
     -- ought to support.
 
+    let extraInputScripts = case toInpScriptsM of
+            Just toInpScripts ->
+                Map.elems . toInpScripts $ extraInputs <> extraCollateral'
+            Nothing ->
+                []
+    let extraCollateral = fst <$> extraCollateral'
     let unsafeFromLovelace (Cardano.Lovelace l) = Coin.unsafeFromIntegral l
     candidateTx <- assembleTransaction $ TxUpdate
         { extraInputs
         , extraCollateral
         , extraOutputs
+        , extraInputScripts
         , feeUpdate = UseNewTxFee $ unsafeFromLovelace minfee0
         }
 
@@ -1862,6 +1873,7 @@ balanceTransactionWithSelectionStrategyAndNoZeroAdaAdjustment
         { extraInputs
         , extraCollateral
         , extraOutputs = updatedChange
+        , extraInputScripts
         , feeUpdate = UseNewTxFee updatedFee
         }
   where
@@ -1939,7 +1951,7 @@ balanceTransactionWithSelectionStrategyAndNoZeroAdaAdjustment
         -- NOTE: evaluateMinimumFee relies on correctly estimating the required
         -- number of witnesses.
         let minfee = evaluateMinimumFee txLayer nodePParams tx
-        let update = TxUpdate [] [] [] (UseNewTxFee minfee)
+        let update = TxUpdate [] [] [] [] (UseNewTxFee minfee)
         tx' <- left ErrBalanceTxUpdateError $ updateTx txLayer tx update
         let balance = evaluateTransactionBalance txLayer tx' nodePParams combinedUTxO
         let minfee' = Cardano.Lovelace $ fromIntegral $ unCoin minfee

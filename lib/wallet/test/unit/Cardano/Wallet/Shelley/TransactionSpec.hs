@@ -3976,7 +3976,7 @@ prop_updateSealedTx
     (Cardano.InAnyShelleyBasedEra era tx)
     extraIns extraCol extraOuts newFee =
     do
-        let extra = TxUpdate extraIns extraCol extraOuts (UseNewTxFee newFee)
+        let extra = TxUpdate extraIns extraCol extraOuts [] (UseNewTxFee newFee)
         let tx' = either (error . show) id
                 $ updateSealedTx tx extra
         conjoin

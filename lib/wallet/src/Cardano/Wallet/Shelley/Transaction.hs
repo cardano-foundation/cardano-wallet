@@ -741,7 +741,7 @@ mkDelegationCertificates da accXPub =
 --      == Right tx or Left
 -- @
 noTxUpdate :: TxUpdate
-noTxUpdate = TxUpdate [] [] [] UseOldTxFee
+noTxUpdate = TxUpdate [] [] [] [] UseOldTxFee
 
 -- Used to add inputs and outputs when balancing a transaction.
 --
@@ -883,7 +883,7 @@ modifyShelleyTxBody txUpdate era ledgerBody = case era of
             txUpdate'
             mdHash
   where
-    TxUpdate extraInputs extraCollateral extraOutputs feeUpdate
+    TxUpdate extraInputs extraCollateral extraOutputs extraInputScripts feeUpdate
         = txUpdate
 
     extraInputs' = toCardanoTxIn . fst <$> extraInputs

@@ -366,6 +366,7 @@ data TxUpdate = TxUpdate
        -- ^ Only used in the Alonzo era and later. Will be silently ignored in
        -- previous eras.
     , extraOutputs :: [TxOut]
+    , extraInputScripts :: [Script KeyHash]
     , feeUpdate :: TxFeeUpdate
         -- ^ Set a new fee or use the old one.
     }
