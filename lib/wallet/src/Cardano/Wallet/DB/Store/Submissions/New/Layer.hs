@@ -1,3 +1,4 @@
+{-# LANGUAGE GADTs #-}
 {-# LANGUAGE RecordWildCards #-}
 -- |
 -- Copyright: © 2022 IOHK
@@ -15,9 +16,7 @@ import Prelude
 import Cardano.Wallet
     ( ErrNoSuchWallet (..) )
 import Cardano.Wallet.DB
-    ( DBPendingTxs (..)
-    , ErrPutLocalTxSubmission (ErrPutLocalTxSubmissionNoSuchWallet)
-    )
+    ( DBPendingTxs (..), ErrPutLocalTxSubmission (..) )
 import Cardano.Wallet.DB.Sqlite.Types
     ( TxId (..) )
 import Cardano.Wallet.DB.Store.Submissions.New.Operations
@@ -40,7 +39,7 @@ import Control.Lens
 import Control.Monad.Except
     ( ExceptT (ExceptT) )
 import Data.DBVar
-    ( DBVar, modifyDBMaybe, readDBVar )
+    ( DBVar, modifyDBMaybe, readDBVar, updateDBVar )
 import Data.DeltaMap
     ( DeltaMap (..) )
 import Database.Persist.Sql
@@ -74,8 +73,12 @@ mkDbPendingTxs dbvar = DBPendingTxs
                 Just sub -> do
                     (_k, x) <- Map.assocs $ sub ^. transactionsL
                     mkLocalTxSubmission x
-    , updatePendingTxForExpiry_ = \wid tip -> ExceptT $
-        error "updatePendingTxForExpiry_ not implemented"
+
+    , updatePendingTxForExpiry_ = \wid tip ->
+        updateDBVar dbvar
+            $ Adjust wid $ RollForward tip
+            $ error "needs transactions for rollforward"
+
     , removePendingOrExpiredTx_ = \wid txId ->
         error "removePendingOrExpiredTx_ not implemented"
     }
