@@ -9,7 +9,7 @@
 --
 
 module Cardano.Wallet.Read.Primitive.Tx.Features.Validity
-    ( validity
+    ( getValidity
     , afterShelleyValidityInterval
     , shelleyValidityInterval
     )
@@ -29,8 +29,8 @@ import Data.Quantity
 import qualified Cardano.Ledger.ShelleyMA.TxBody as MA
 import qualified Ouroboros.Network.Block as O
 
-validity :: EraFun Validity (K (Maybe ValidityIntervalExplicit))
-validity = EraFun
+getValidity :: EraFun Validity (K (Maybe ValidityIntervalExplicit))
+getValidity = EraFun
     { byronFun = noValidity
     , shelleyFun = yesShelleyValidity
     , allegraFun = yesMaryValidity
