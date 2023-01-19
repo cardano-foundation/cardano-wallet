@@ -8,7 +8,6 @@
 
 module Cardano.Wallet.Read.Primitive.Tx.Byron
     ( fromTxAux
-    , fromTxIn
     , fromTxOut
     )
     where
@@ -20,9 +19,11 @@ import Cardano.Binary
 import Cardano.Chain.Common
     ( unsafeGetLovelace )
 import Cardano.Chain.UTxO
-    ( ATxAux (..), Tx (..), TxIn (..), TxOut (..), taTx )
+    ( ATxAux (..), Tx (..), TxOut (..), taTx )
 import Cardano.Wallet.Read.Eras
     ( byron, inject )
+import Cardano.Wallet.Read.Primitive.Tx.Features.Inputs
+    ( fromByronTxIn )
 import Cardano.Wallet.Read.Tx
     ( Tx (..) )
 import Cardano.Wallet.Read.Tx.CBOR
@@ -32,15 +33,11 @@ import Cardano.Wallet.Read.Tx.Hash
 import Control.Monad
     ( void )
 
-import qualified Cardano.Crypto.Hashing as CC
 import qualified Cardano.Wallet.Primitive.Types.Address as W
 import qualified Cardano.Wallet.Primitive.Types.Coin as Coin
 import qualified Cardano.Wallet.Primitive.Types.Hash as W
 import qualified Cardano.Wallet.Primitive.Types.TokenBundle as TokenBundle
 import qualified Cardano.Wallet.Primitive.Types.Tx as W
-import qualified Cardano.Wallet.Primitive.Types.Tx.TxIn as W
-    ( TxIn (TxIn) )
-import qualified Cardano.Wallet.Primitive.Types.Tx.TxIn as W.TxIn
 import qualified Cardano.Wallet.Primitive.Types.Tx.TxOut as W
     ( TxOut (TxOut) )
 import qualified Cardano.Wallet.Primitive.Types.Tx.TxOut as W.TxOut
@@ -57,7 +54,7 @@ fromTxAux txAux = case taTx txAux of
 
         -- TODO: Review 'W.Tx' to not require resolved inputs but only inputs
         , resolvedInputs =
-            (, Nothing) . fromTxIn <$> NE.toList inputs
+            (, Nothing) . fromByronTxIn <$> NE.toList inputs
 
         , resolvedCollateralInputs = []
 
@@ -76,12 +73,6 @@ fromTxAux txAux = case taTx txAux of
         , scriptValidity =
             Nothing
         }
-
-fromTxIn :: TxIn -> W.TxIn
-fromTxIn (TxInUtxo id_ ix) = W.TxIn
-    { inputId = W.Hash $ CC.hashToBytes id_
-    , inputIx = fromIntegral ix
-    }
 
 fromTxOut :: TxOut -> W.TxOut
 fromTxOut (TxOut addr coin) = W.TxOut

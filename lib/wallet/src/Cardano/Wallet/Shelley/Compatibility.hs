@@ -233,15 +233,12 @@ import Cardano.Wallet.Read.Primitive.Tx.Alonzo
     ( fromAlonzoTx )
 import Cardano.Wallet.Read.Primitive.Tx.Babbage
     ( fromBabbageTx )
+import Cardano.Wallet.Read.Primitive.Tx.Features.Inputs
+    ( fromShelleyTxIn )
 import Cardano.Wallet.Read.Primitive.Tx.Mary
     ( fromCardanoValue, fromMaryTx )
 import Cardano.Wallet.Read.Primitive.Tx.Shelley
-    ( fromShelleyAddress
-    , fromShelleyCoin
-    , fromShelleyTx
-    , fromShelleyTxIn
-    , fromShelleyTxOut
-    )
+    ( fromShelleyAddress, fromShelleyCoin, fromShelleyTx, fromShelleyTxOut )
 import Cardano.Wallet.Read.Tx.Hash
     ( fromShelleyTxId )
 import Cardano.Wallet.Shelley.Network.Discriminant

@@ -29,18 +29,15 @@ import Cardano.Wallet.Read.Eras
     ( babbage, inject )
 import Cardano.Wallet.Read.Primitive.Tx.Features.Certificates
     ( anyEraCerts )
+import Cardano.Wallet.Read.Primitive.Tx.Features.Inputs
+    ( fromShelleyTxIn )
 import Cardano.Wallet.Read.Primitive.Tx.Features.Mint
     ( babbageMint )
 import Cardano.Wallet.Read.Primitive.Tx.Features.Validity
     ( afterShelleyValidityInterval )
 import Cardano.Wallet.Read.Primitive.Tx.Mary
 import Cardano.Wallet.Read.Primitive.Tx.Shelley
-    ( fromShelleyAddress
-    , fromShelleyCoin
-    , fromShelleyMD
-    , fromShelleyTxIn
-    , fromShelleyWdrl
-    )
+    ( fromShelleyAddress, fromShelleyCoin, fromShelleyMD, fromShelleyWdrl )
 import Cardano.Wallet.Read.Tx
     ( Tx (..) )
 import Cardano.Wallet.Read.Tx.CBOR

@@ -34,9 +34,8 @@ module Cardano.Wallet.Byron.Compatibility
     , byronCodecConfig
     , fromProtocolMagicId
     , fromTxAux
-    , fromTxIn
+    , fromByronTxIn
     , fromTxOut
-
     , protocolParametersFromUpdateState
     ) where
 
@@ -64,7 +63,9 @@ import Cardano.Crypto.ProtocolMagic
 import Cardano.Wallet.Primitive.Types.MinimumUTxO
     ( minimumUTxONone )
 import Cardano.Wallet.Read.Primitive.Tx.Byron
-    ( fromTxAux, fromTxIn, fromTxOut )
+    ( fromTxAux, fromTxOut )
+import Cardano.Wallet.Read.Primitive.Tx.Features.Inputs
+    ( fromByronTxIn )
 import Cardano.Wallet.Unsafe
     ( unsafeFromHex )
 import Crypto.Hash.Utils
