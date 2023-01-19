@@ -49,8 +49,11 @@ repository cardano-haskell-packages
     c00aae8461a256275598500ea0e187588c35a5d5d7454fb57eac18d9edb86a56
     d4a35cd3121aa00d18544bb0ac01c3e1691d618f462c46129271bccf39f7e8ee
 
+-- repeating the index-state for hackage to work around hackage.nix parsing limitation
 index-state: 2022-09-27T00:00:00Z
-index-state: cardano-haskell-packages 2022-10-25T20:00:00Z
+index-state:
+  , hackage.haskell.org 2022-09-27T00:00:00Z
+  , cardano-haskell-packages 2022-10-25T20:00:00Z
 
 with-compiler: ghc-8.10.7
 
