@@ -16,7 +16,11 @@ import Prelude
 import Cardano.Wallet
     ( ErrNoSuchWallet (..) )
 import Cardano.Wallet.DB
-    ( DBPendingTxs (..), ErrPutLocalTxSubmission (..) )
+    ( DBPendingTxs (..)
+    , ErrNoSuchTransaction (..)
+    , ErrPutLocalTxSubmission (..)
+    , ErrRemoveTx (..)
+    )
 import Cardano.Wallet.DB.Sqlite.Types
     ( TxId (..) )
 import Cardano.Wallet.DB.Store.Submissions.New.Operations
@@ -31,9 +35,9 @@ import Cardano.Wallet.Primitive.Types.Tx
 import Cardano.Wallet.Submissions.Operations
     ( Operation (..) )
 import Cardano.Wallet.Submissions.Submissions
-    ( TxStatusMeta (..), transactionsL )
+    ( TxStatusMeta (..), transactions, transactionsL )
 import Cardano.Wallet.Submissions.TxStatus
-    ( getTx )
+    ( TxStatus (..), getTx, status )
 import Control.Lens
     ( (^.) )
 import Control.Monad.Except
@@ -79,8 +83,20 @@ mkDbPendingTxs dbvar = DBPendingTxs
             $ Adjust wid $ RollForward tip
             $ error "needs transactions for rollforward"
 
-    , removePendingOrExpiredTx_ = \wid txId ->
-        error "removePendingOrExpiredTx_ not implemented"
+    , removePendingOrExpiredTx_ = \wid txId -> do
+        let errNoSuchWallet = ErrRemoveTxNoSuchWallet
+                $ ErrNoSuchWallet wid
+            errNoTx = ErrRemoveTxNoSuchTransaction
+                $ ErrNoSuchTransaction wid txId
+            errInLedger = ErrRemoveTxAlreadyInLedger txId
+        ExceptT $ modifyDBMaybe dbvar $ \ws -> do
+            case Map.lookup wid ws of
+                Nothing -> (Nothing, Left errNoSuchWallet)
+                Just sub ->
+                    case status (TxId txId) (transactions sub) of
+                        Unknown -> (Nothing, Left errNoTx)
+                        InLedger{} -> (Nothing, Left errInLedger)
+                        _ -> (Just $ Adjust wid $ Forget (TxId txId), Right ())
     }
 
 mkLocalTxSubmission
