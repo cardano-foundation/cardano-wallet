@@ -34,6 +34,8 @@ import Cardano.Wallet.Read.Primitive.Tx.Features.Fee
     ( getFee )
 import Cardano.Wallet.Read.Primitive.Tx.Features.Inputs
     ( getInputs )
+import Cardano.Wallet.Read.Primitive.Tx.Features.Metadata
+    ( getMetadata )
 import Cardano.Wallet.Read.Primitive.Tx.Features.Outputs
     ( getOutputs )
 import Cardano.Wallet.Read.Primitive.Tx.Features.Withdrawals
@@ -50,6 +52,8 @@ import Cardano.Wallet.Read.Tx.Hash
     ( getEraTxHash )
 import Cardano.Wallet.Read.Tx.Inputs
     ( getEraInputs )
+import Cardano.Wallet.Read.Tx.Metadata
+    ( getEraMetadata )
 import Cardano.Wallet.Read.Tx.Outputs
     ( getEraOutputs )
 import Cardano.Wallet.Read.Tx.Withdrawals
@@ -169,7 +173,7 @@ mkTransactionInfoFromReadTx _ti tip decor tx _meta = do
               , amount = undefined
               , WT.expiry = undefined
               }
-        , WT.txInfoMetadata = undefined
+        , WT.txInfoMetadata = value $ getMetadata . getEraMetadata
         , WT.txInfoDepth = Quantity
               $ fromIntegral
               $ if tipH > undefined
