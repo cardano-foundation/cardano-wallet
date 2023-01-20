@@ -1,6 +1,8 @@
 {-# LANGUAGE FlexibleContexts #-}
 {-# LANGUAGE GADTSyntax #-}
 {-# LANGUAGE ScopedTypeVariables #-}
+{-# LANGUAGE StandaloneDeriving #-}
+{-# LANGUAGE UndecidableInstances #-}
 
 {- |
 Copyright: © 2022 IOHK
@@ -62,9 +64,15 @@ data Primitive meta slot tx where
         Primitive meta slot tx
     -- | Remove a transaction from tracking in the submissions store.
     Forget ::
-        {_transaction :: tx} ->
+        {_transactionId :: TxId tx} ->
         Primitive meta slot tx
-    deriving (Show)
+
+deriving instance
+    ( Show (TxId tx)
+    , Show meta
+    , Show tx
+    , Show slot)
+    => Show (Primitive meta slot tx)
 
 -- | Apply a 'Primitive' to a submission, according to the specification.
 applyPrimitive
@@ -124,4 +132,4 @@ applyPrimitive (MoveFinality newFinality) s =
             | expiring <= fin = Nothing
             | otherwise = Just status
         f status = Just status
-applyPrimitive (Forget tx) s = s & transactionsL %~ Map.delete (txId tx)
+applyPrimitive (Forget txid) s = s & transactionsL %~ Map.delete txid

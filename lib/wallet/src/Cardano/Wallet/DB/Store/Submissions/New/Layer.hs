@@ -1,3 +1,5 @@
+{-# LANGUAGE GADTs #-}
+{-# LANGUAGE RecordWildCards #-}
 -- |
 -- Copyright: © 2022 IOHK
 -- License: Apache-2.0
@@ -11,31 +13,99 @@ module Cardano.Wallet.DB.Store.Submissions.New.Layer
 
 import Prelude
 
+import Cardano.Wallet
+    ( ErrNoSuchWallet (..) )
 import Cardano.Wallet.DB
-    ( DBPendingTxs (..) )
+    ( DBPendingTxs (..)
+    , ErrNoSuchTransaction (..)
+    , ErrPutLocalTxSubmission (..)
+    , ErrRemoveTx (..)
+    )
+import Cardano.Wallet.DB.Sqlite.Types
+    ( TxId (..) )
 import Cardano.Wallet.DB.Store.Submissions.New.Operations
-    ( DeltaTxSubmissions )
+    ( DeltaTxSubmissions
+    , SubmissionMeta (SubmissionMeta, submissionMetaResubmitted)
+    , TxSubmissionsStatus
+    )
 import Cardano.Wallet.Primitive.Types
     ( WalletId )
+import Cardano.Wallet.Primitive.Types.Tx
+    ( LocalTxSubmissionStatus (LocalTxSubmissionStatus), SealedTx )
+import Cardano.Wallet.Submissions.Operations
+    ( Operation (..) )
+import Cardano.Wallet.Submissions.Submissions
+    ( TxStatusMeta (..), transactions, transactionsL )
+import Cardano.Wallet.Submissions.TxStatus
+    ( TxStatus (..), getTx, status )
+import Control.Lens
+    ( (^.) )
 import Control.Monad.Except
     ( ExceptT (ExceptT) )
 import Data.DBVar
-    ( DBVar )
+    ( DBVar, modifyDBMaybe, readDBVar, updateDBVar )
 import Data.DeltaMap
-    ( DeltaMap )
+    ( DeltaMap (..) )
 import Database.Persist.Sql
     ( SqlPersistT )
 
+import qualified Data.Map.Strict as Map
+
+-- TODO: This implementation is not completed / fully tested yet.
 mkDbPendingTxs
     :: DBVar (SqlPersistT IO) (DeltaMap WalletId DeltaTxSubmissions)
-    -> DBPendingTxs stm
+    -> DBPendingTxs (SqlPersistT IO)
 mkDbPendingTxs dbvar = DBPendingTxs
-    { putLocalTxSubmission_ = \wid txid tx sl ->
-        error "putLocalTxSubmissions not implemented"
-    , readLocalTxSubmissionPending_
-        = error "readLocalTxSubmissionPending_ not implemented"
-    , updatePendingTxForExpiry_ = \wid tip -> ExceptT $
-        error "updatePendingTxForExpiry_ not implemented"
-    , removePendingOrExpiredTx_ = \wid txId ->
-        error "removePendingOrExpiredTx_ not implemented"
+    { putLocalTxSubmission_ = \wid txid tx sl -> do
+        let errNoSuchWallet = ErrPutLocalTxSubmissionNoSuchWallet $
+                ErrNoSuchWallet wid
+        ExceptT $ modifyDBMaybe dbvar $ \ws -> do
+            case Map.lookup wid ws of
+                Nothing -> (Nothing, Left errNoSuchWallet)
+                Just _  ->
+                    let
+                        delta = Just
+                            $ Adjust wid
+                            $ AddSubmission sl (TxId txid, tx)
+                            $ error "pls pass meta to putLocalTxSubmission!"
+                    in  (delta, Right ())
+
+    , readLocalTxSubmissionPending_ = \wid -> do
+            v <- readDBVar dbvar
+            pure $ case Map.lookup wid v of
+                Nothing -> [] -- shouldn't we be throwing an exception here ?
+                Just sub -> do
+                    (_k, x) <- Map.assocs $ sub ^. transactionsL
+                    mkLocalTxSubmission x
+
+    , updatePendingTxForExpiry_ = \wid tip ->
+        updateDBVar dbvar
+            $ Adjust wid $ RollForward tip
+            $ error "needs transactions for rollforward"
+
+    , removePendingOrExpiredTx_ = \wid txId -> do
+        let errNoSuchWallet = ErrRemoveTxNoSuchWallet
+                $ ErrNoSuchWallet wid
+            errNoTx = ErrRemoveTxNoSuchTransaction
+                $ ErrNoSuchTransaction wid txId
+            errInLedger = ErrRemoveTxAlreadyInLedger txId
+        ExceptT $ modifyDBMaybe dbvar $ \ws -> do
+            case Map.lookup wid ws of
+                Nothing -> (Nothing, Left errNoSuchWallet)
+                Just sub ->
+                    case status (TxId txId) (transactions sub) of
+                        Unknown -> (Nothing, Left errNoTx)
+                        InLedger{} -> (Nothing, Left errInLedger)
+                        _ -> (Just $ Adjust wid $ Forget (TxId txId), Right ())
     }
+
+mkLocalTxSubmission
+    :: TxSubmissionsStatus
+    -> [LocalTxSubmissionStatus SealedTx]
+mkLocalTxSubmission (TxStatusMeta status SubmissionMeta{..})
+    = maybe
+        []
+        (\(TxId txId, sealed) -> pure $
+            LocalTxSubmissionStatus (txId) sealed submissionMetaResubmitted
+        )
+        $ getTx status

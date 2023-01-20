@@ -757,9 +757,9 @@ newDBLayerWith _cacheBehavior _tr ti SqliteContext{runQuery} = do
             fmap (map localTxSubmissionFromEntity)
             . listPendingLocalTxSubmissionQuery
 
-        , updatePendingTxForExpiry_ = \wid tip -> ExceptT $
+        , updatePendingTxForExpiry_ = \wid tip ->
             selectWallet wid >>= \case
-                Nothing -> pure $ Left $ ErrNoSuchWallet wid
+                Nothing -> pure () -- non-existent wallet caught outside
                 Just _ -> modifyDBMaybe transactionsDBVar $ \_ ->
                     let
                         delta = Just
@@ -767,7 +767,7 @@ newDBLayerWith _cacheBehavior _tr ti SqliteContext{runQuery} = do
                             $ ChangeMeta
                             $ Manipulate
                             $ AgeTxMetaHistory tip
-                    in  (delta, Right ())
+                    in  (delta, ())
 
         , removePendingOrExpiredTx_ = \wid txId ->
             let noTx =

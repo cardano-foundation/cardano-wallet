@@ -61,7 +61,7 @@ instance Buildable DeltaTxSubmissions where
 deriving instance Random SlotNo
 
 dummyMetadata :: SubmissionMeta
-dummyMetadata = SubmissionMeta 0 (Quantity 0) (Coin 0) Outgoing
+dummyMetadata = SubmissionMeta 0 (Quantity 0) (Coin 0) Outgoing 0
 
 prop_SingleWalletStoreLawsOperations :: WalletProperty
 prop_SingleWalletStoreLawsOperations = withInitializedWalletProp

@@ -1,5 +1,7 @@
 {-# LANGUAGE FlexibleContexts #-}
 {-# LANGUAGE GADTSyntax #-}
+{-# LANGUAGE StandaloneDeriving #-}
+{-# LANGUAGE UndecidableInstances #-}
 
 {- |
 Copyright: © 2022 IOHK
@@ -49,8 +51,14 @@ data Operation meta slot tx where
     -- and max rollback time.
     Prune :: slot -> Operation meta slot tx
     -- | Remove a transaction from the tracked set.
-    Forget :: tx -> Operation meta slot tx
-    deriving (Show)
+    Forget :: TxId tx -> Operation meta slot tx
+
+deriving instance
+    ( Show (TxId tx)
+    , Show meta
+    , Show tx
+    , Show slot)
+    => Show (Operation meta slot tx)
 
 
 -- | Apply a high level operation to the submission store.
