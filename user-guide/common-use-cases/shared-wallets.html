@@ -27,7 +27,7 @@
 
 
   
-  <link href='tailwind.css?instanceId=8a2e368c-a7ca-42a4-935f-14c03156caab' rel='stylesheet' type='text/css' />
+  <link href='tailwind.css?instanceId=98b55681-1dfa-48e8-b332-05b8c7aa9978' rel='stylesheet' type='text/css' />
 
   <!-- Heist error element -->
   <style type='text/css'>
@@ -2389,12 +2389,100 @@
     </ul>
   <h2 id='overview' class='inline-block mt-6 mb-4 text-4xl font-bold text-gray-700 border-b-2'>Overview</h2>
     <p class='mb-3'>
-      This guide shows you how to create a shared wallet and make a shared transaction, providing witnesses from all required co-signers referenced in the <code class='py-0.5 px-0.5 bg-gray-100'>payment_script_template</code> and <code class='py-0.5 px-0.5 bg-gray-100'>delegation_script_template</code> fields. In this example, we’ll create two shared wallets using the same template for both payment and delegation operations. The template that we’ll use will indicate that we require signatures from all co-owners in order to make a transaction. In our case, the wallet will have two co-owners <code class='py-0.5 px-0.5 bg-gray-100'>cosigner#0</code> and <code class='py-0.5 px-0.5 bg-gray-100'>cosigner#1</code>:
+      This guide shows you how to create a shared wallet and make a shared transaction, providing witnesses from all required co-signers referenced in the <code class='py-0.5 px-0.5 bg-gray-100'>payment_script_template</code> and <code class='py-0.5 px-0.5 bg-gray-100'>delegation_script_template</code> fields. In this example, we’ll create two shared wallets using the same template for both payment and delegation operations. The template that we’ll use will indicate that we require signatures from <strong>all</strong> co-owners in order to make a transaction. In our case, the wallet will have two co-owners <code class='py-0.5 px-0.5 bg-gray-100'>cosigner#0</code> and <code class='py-0.5 px-0.5 bg-gray-100'>cosigner#1</code>:
     </p>
   <div class='py-0.5 mb-3 text-sm'><pre><code class='language-none'>"template":
     { "all":
        [ "cosigner#0", "cosigner#1"]
-    }</code></pre></div><h2 id='creating-wallets' class='inline-block mt-6 mb-4 text-4xl font-bold text-gray-700 border-b-2'>Creating wallets</h2>
+    }</code></pre></div>
+    <blockquote class='py-0.5 px-4 mb-3 italic border-l-4 bg-gray-50 text-gray-600 border-gray-400 quote'>
+      
+    <p class='mb-3'>
+      <span class='emoji' data-emoji='information_source' style='font-family: emoji'>ℹ️</span> Note that the script templates use Cardano <a href='https://github.com/input-output-hk/cardano-node/blob/master/doc/reference/simple-scripts.md' class='text-blue-600 hover:underline' target='_blank' rel='noopener'>simple scripts</a> therefore one can build more sophisticated templates to guard their shared wallet spending or delegation operations. Below are some examples of possible templates. You can also explore <a href='https://input-output-hk.github.io/cardano-wallet/api/edge/#operation/postSharedWallet' class='text-blue-600 hover:underline' target='_blank' rel='noopener'><code class='py-0.5 px-0.5 bg-gray-100'>POST /shared-wallets</code></a> swagger specification for more details.
+    </p>
+  
+    </blockquote>
+  <h3 id='template-examples' class='mt-6 mb-2 text-3xl font-bold text-gray-700'>Template examples</h3>
+    <ul class='my-3 ml-6 space-y-1 list-disc'>
+      
+        <li>
+          required signature from any cosigner from the list
+        </li>
+      
+    </ul>
+  <div class='py-0.5 mb-3 text-sm'><pre><code class='language-none'>"template":
+    { "any":
+       [ "cosigner#0", "cosigner#1", "cosigner#2"]
+    }</code></pre></div>
+    <ul class='my-3 ml-6 space-y-1 list-disc'>
+      
+        <li>
+          required signature from at least 2 cosigners from the list
+        </li>
+      
+    </ul>
+  <div class='py-0.5 mb-3 text-sm'><pre><code class='language-none'>"template":
+    { "some":
+       { "at_least": 2,
+         "from": [ "cosigner#0", "cosigner#1", "cosigner#2"]
+       }
+    }</code></pre></div>
+    <ul class='my-3 ml-6 space-y-1 list-disc'>
+      
+        <li>
+          required signature from at least 1 cosigners from the list but with additional nested constraints (at least <code class='py-0.5 px-0.5 bg-gray-100'>cosigner#0</code> or at least <code class='py-0.5 px-0.5 bg-gray-100'>cosigner#1</code> or at least both <code class='py-0.5 px-0.5 bg-gray-100'>cosigner#2</code> and <code class='py-0.5 px-0.5 bg-gray-100'>cosigner#3</code> and any of <code class='py-0.5 px-0.5 bg-gray-100'>cosigner#4</code> and <code class='py-0.5 px-0.5 bg-gray-100'>cosigner#5</code>)
+        </li>
+      
+    </ul>
+  <div class='py-0.5 mb-3 text-sm'><pre><code class='language-none'>"template":{
+  "some":{
+      "at_least":1,
+      "from":[
+        "cosigner#0",
+        "cosigner#1",
+        {
+            "all":[
+              "cosigner#2",
+              "cosigner#3",
+              {
+                  "any":[
+                    "cosigner#4",
+                    "cosigner#5"
+                  ]
+              }
+            ]
+        }
+      ]
+  }
+}</code></pre></div>
+    <ul class='my-3 ml-6 space-y-1 list-disc'>
+      
+        <li>
+          required signature from any cosigner but with additional time locking constraints (either <code class='py-0.5 px-0.5 bg-gray-100'>cosigner#0</code> or <code class='py-0.5 px-0.5 bg-gray-100'>cosigner#1</code> but only until slot 18447928 or <code class='py-0.5 px-0.5 bg-gray-100'>cosigner#2</code> but only from slot 18447928)
+        </li>
+      
+    </ul>
+  <div class='py-0.5 mb-3 text-sm'><pre><code class='language-none'>"template":{
+  "any":[
+      "cosigner#0",
+      {
+        "all":[
+            "cosigner#1",
+            {
+              "active_until":18447928
+            }
+        ]
+      },
+      {
+        "all":[
+            "cosigner#2",
+            {
+              "active_from":18447928
+            }
+        ]
+      }
+  ]
+}</code></pre></div><h2 id='creating-wallets' class='inline-block mt-6 mb-4 text-4xl font-bold text-gray-700 border-b-2'>Creating wallets</h2>
     <p class='mb-3'>
       First let’s create two <code class='py-0.5 px-0.5 bg-gray-100'>incomplete</code> shared wallets using the <a href='https://input-output-hk.github.io/cardano-wallet/api/edge/#operation/postSharedWallet' class='text-blue-600 hover:underline' target='_blank' rel='noopener'><code class='py-0.5 px-0.5 bg-gray-100'>POST /shared-wallets</code></a> endpoint. The wallets are marked as “incomplete” because they do not yet have public keys from all cosigners.
     </p>
@@ -2402,7 +2490,7 @@
     <ul class='my-3 ml-6 space-y-1 list-decimal list-inside'>
       
         <li>
-          Cosigner<span class='font-bold bg-gray-100 py-0.5 px-2 rounded-lg emanote:inline-tag:0' title='Tag' data-tag='0'><a href='-/tags/0' title='Tag' class='text-blue-600 mavenLinkBold hover:underline'>#0</a></span> wallet
+          <code class='py-0.5 px-0.5 bg-gray-100'>Cosigner#0</code> wallet
         </li>
       
     </ul>
@@ -2435,7 +2523,7 @@
       "chimney"
    ],
    "passphrase":"Secure Passphrase",
-   "name":"Cosigner#0 wallet",
+   "name":"`Cosigner#0` wallet",
    "account_index":"0H",
    "payment_script_template":{
       "cosigners":{
@@ -2464,7 +2552,7 @@
     <ul class='my-3 ml-6 space-y-1 list-decimal list-inside'>
       
         <li>
-          Cosigner<span class='font-bold bg-gray-100 py-0.5 px-2 rounded-lg emanote:inline-tag:1' title='Tag' data-tag='1'><a href='-/tags/1' title='Tag' class='text-blue-600 mavenLinkBold hover:underline'>#1</a></span> wallet
+          <code class='py-0.5 px-0.5 bg-gray-100'>Cosigner#1</code> wallet
         </li>
       
     </ul>
@@ -2497,7 +2585,7 @@
       "boat"
    ],
    "passphrase":"Secure Passphrase",
-   "name":"Cosigner#1 wallet",
+   "name":"`Cosigner#1` wallet",
    "account_index":"0H",
    "payment_script_template":{
       "cosigners":{
@@ -2533,7 +2621,7 @@
       ]
   }</code></pre></div>
     <p class='mb-3'>
-      However the <code class='py-0.5 px-0.5 bg-gray-100'>"cosigners":</code> part differs slightly. “Cosigner<span class='font-bold bg-gray-100 py-0.5 px-2 rounded-lg emanote:inline-tag:0' title='Tag' data-tag='0'><a href='-/tags/0' title='Tag' class='text-blue-600 mavenLinkBold hover:underline'>#0</a></span> wallet” has <code class='py-0.5 px-0.5 bg-gray-100'>"cosigner#0":"self"</code> and “Cosigner<span class='font-bold bg-gray-100 py-0.5 px-2 rounded-lg emanote:inline-tag:1' title='Tag' data-tag='1'><a href='-/tags/1' title='Tag' class='text-blue-600 mavenLinkBold hover:underline'>#1</a></span> wallet” - <code class='py-0.5 px-0.5 bg-gray-100'>"cosigner#1":"self"</code>. Each wallet has partial information about cosigners. “Cosigner<span class='font-bold bg-gray-100 py-0.5 px-2 rounded-lg emanote:inline-tag:0' title='Tag' data-tag='0'><a href='-/tags/0' title='Tag' class='text-blue-600 mavenLinkBold hover:underline'>#0</a></span> wallet” only knows about <code class='py-0.5 px-0.5 bg-gray-100'>cosigner#0</code> and “Cosigner<span class='font-bold bg-gray-100 py-0.5 px-2 rounded-lg emanote:inline-tag:1' title='Tag' data-tag='1'><a href='-/tags/1' title='Tag' class='text-blue-600 mavenLinkBold hover:underline'>#1</a></span> wallet” only knows about <code class='py-0.5 px-0.5 bg-gray-100'>cosigner#1</code>.
+      However the <code class='py-0.5 px-0.5 bg-gray-100'>"cosigners":</code> part differs slightly. “<code class='py-0.5 px-0.5 bg-gray-100'>Cosigner#0</code> wallet” has <code class='py-0.5 px-0.5 bg-gray-100'>"cosigner#0":"self"</code> and “<code class='py-0.5 px-0.5 bg-gray-100'>Cosigner#1</code> wallet” - <code class='py-0.5 px-0.5 bg-gray-100'>"cosigner#1":"self"</code>. Each wallet has partial information about cosigners. “<code class='py-0.5 px-0.5 bg-gray-100'>Cosigner#0</code> wallet” only knows about <code class='py-0.5 px-0.5 bg-gray-100'>cosigner#0</code> and “<code class='py-0.5 px-0.5 bg-gray-100'>Cosigner#1</code> wallet” only knows about <code class='py-0.5 px-0.5 bg-gray-100'>cosigner#1</code>.
     </p>
   
     <p class='mb-3'>
@@ -2556,7 +2644,7 @@
     }
   },
   "id": "5e46668c320bb4568dd25551e0c33b0539668aa8",
-  "name": "Cosigner#1 wallet",
+  "name": "`Cosigner#1` wallet",
   "payment_script_template": {
     "cosigners": {
       "cosigner#1": "acct_shared_xvk1mqrjad6aklkpwvhhktrzeef5yunla9pjs0jt9csp3gjcynxvumfjpk99hqxkyknn30ya6l5yjgeegs5ltmmsy70gm500sacvllvwt6qjztknp"
@@ -2574,18 +2662,18 @@
 }
 </code></pre></div><h3 id='patching-wallets' class='mt-6 mb-2 text-3xl font-bold text-gray-700'>Patching wallets</h3>
     <p class='mb-3'>
-      In order to be able to spend from the wallets we need to <em>patch</em> their payment and delegation templates with missing cosigners. We already know that “Cosigner<span class='font-bold bg-gray-100 py-0.5 px-2 rounded-lg emanote:inline-tag:0' title='Tag' data-tag='0'><a href='-/tags/0' title='Tag' class='text-blue-600 mavenLinkBold hover:underline'>#0</a></span> wallet” is missing the <code class='py-0.5 px-0.5 bg-gray-100'>cosigner#1</code> key and “Cosigner<span class='font-bold bg-gray-100 py-0.5 px-2 rounded-lg emanote:inline-tag:1' title='Tag' data-tag='1'><a href='-/tags/1' title='Tag' class='text-blue-600 mavenLinkBold hover:underline'>#1</a></span> wallet” is missing the <code class='py-0.5 px-0.5 bg-gray-100'>cosigner#0</code> key.
+      In order to be able to spend from the wallets we need to <em>patch</em> their payment and delegation templates with missing cosigners. We already know that “<code class='py-0.5 px-0.5 bg-gray-100'>Cosigner#0</code> wallet” is missing the <code class='py-0.5 px-0.5 bg-gray-100'>cosigner#1</code> key and “<code class='py-0.5 px-0.5 bg-gray-100'>Cosigner#1</code> wallet” is missing the <code class='py-0.5 px-0.5 bg-gray-100'>cosigner#0</code> key.
     </p>
   
     <p class='mb-3'>
-      First, let’s get the <code class='py-0.5 px-0.5 bg-gray-100'>cosigner#1</code> key from the “Cosigner<span class='font-bold bg-gray-100 py-0.5 px-2 rounded-lg emanote:inline-tag:1' title='Tag' data-tag='1'><a href='-/tags/1' title='Tag' class='text-blue-600 mavenLinkBold hover:underline'>#1</a></span> wallet”. We can use the <a href='https://input-output-hk.github.io/cardano-wallet/api/edge/#operation/getAccountKeyShared' class='text-blue-600 hover:underline' target='_blank' rel='noopener'><code class='py-0.5 px-0.5 bg-gray-100'>GET /shared-wallets/{walletId}/keys</code></a> endpoint for this:
+      First, let’s get the <code class='py-0.5 px-0.5 bg-gray-100'>cosigner#1</code> key from the “<code class='py-0.5 px-0.5 bg-gray-100'>Cosigner#1</code> wallet”. We can use the <a href='https://input-output-hk.github.io/cardano-wallet/api/edge/#operation/getAccountKeyShared' class='text-blue-600 hover:underline' target='_blank' rel='noopener'><code class='py-0.5 px-0.5 bg-gray-100'>GET /shared-wallets/{walletId}/keys</code></a> endpoint for this:
     </p>
   <div class='py-0.5 mb-3 text-sm'><pre><code class='language-none'>$ curl -X GET http://localhost:8090/v2/shared-wallets/5e46668c320bb4568dd25551e0c33b0539668aa8/keys?format=extended
 
 "acct_shared_xvk1mqrjad6aklkpwvhhktrzeef5yunla9pjs0jt9csp3gjcynxvumfjpk99hqxkyknn30ya6l5yjgeegs5ltmmsy70gm500sacvllvwt6qjztknp"
 </code></pre></div>
     <p class='mb-3'>
-      Now we can <em>patch</em> the payment and delegation templates of the “Cosigner<span class='font-bold bg-gray-100 py-0.5 px-2 rounded-lg emanote:inline-tag:0' title='Tag' data-tag='0'><a href='-/tags/0' title='Tag' class='text-blue-600 mavenLinkBold hover:underline'>#0</a></span> wallet” with the <code class='py-0.5 px-0.5 bg-gray-100'>cosigner#1</code> key using the <a href='https://input-output-hk.github.io/cardano-wallet/api/edge/#operation/patchSharedWalletInPayment' class='text-blue-600 hover:underline' target='_blank' rel='noopener'><code class='py-0.5 px-0.5 bg-gray-100'>PATCH /shared-wallets/{walletId}/payment-script-template</code></a> and <a href='https://input-output-hk.github.io/cardano-wallet/api/edge/#operation/patchSharedWalletInDelegation' class='text-blue-600 hover:underline' target='_blank' rel='noopener'><code class='py-0.5 px-0.5 bg-gray-100'>PATCH /shared-wallets/{walletId}/delegation-script-template</code></a> endpoints, respectively.
+      Now we can <em>patch</em> the payment and delegation templates of the “<code class='py-0.5 px-0.5 bg-gray-100'>Cosigner#0</code> wallet” with the <code class='py-0.5 px-0.5 bg-gray-100'>cosigner#1</code> key using the <a href='https://input-output-hk.github.io/cardano-wallet/api/edge/#operation/patchSharedWalletInPayment' class='text-blue-600 hover:underline' target='_blank' rel='noopener'><code class='py-0.5 px-0.5 bg-gray-100'>PATCH /shared-wallets/{walletId}/payment-script-template</code></a> and <a href='https://input-output-hk.github.io/cardano-wallet/api/edge/#operation/patchSharedWalletInDelegation' class='text-blue-600 hover:underline' target='_blank' rel='noopener'><code class='py-0.5 px-0.5 bg-gray-100'>PATCH /shared-wallets/{walletId}/delegation-script-template</code></a> endpoints, respectively.
     </p>
   <div class='py-0.5 mb-3 text-sm'><pre><code class='language-none'>$ curl -X PATCH http://localhost:8090/v2/shared-wallets/2a0ebd0cceab2161765badf2e389b26e0961de2f/payment-script-template \
 -d '{"cosigner#1":"acct_shared_xvk1mqrjad6aklkpwvhhktrzeef5yunla9pjs0jt9csp3gjcynxvumfjpk99hqxkyknn30ya6l5yjgeegs5ltmmsy70gm500sacvllvwt6qjztknp"}' \
@@ -2595,7 +2683,7 @@ $ curl -X PATCH http://localhost:8090/v2/shared-wallets/2a0ebd0cceab2161765badf2
 -d '{"cosigner#1":"acct_shared_xvk1mqrjad6aklkpwvhhktrzeef5yunla9pjs0jt9csp3gjcynxvumfjpk99hqxkyknn30ya6l5yjgeegs5ltmmsy70gm500sacvllvwt6qjztknp"}' \
 -H "Content-Type: application/json"</code></pre></div>
     <p class='mb-3'>
-      We’ll repeat the same faction or “Cosigner<span class='font-bold bg-gray-100 py-0.5 px-2 rounded-lg emanote:inline-tag:1' title='Tag' data-tag='1'><a href='-/tags/1' title='Tag' class='text-blue-600 mavenLinkBold hover:underline'>#1</a></span> wallet”, i.e. first get <code class='py-0.5 px-0.5 bg-gray-100'>cosigner#0</code> key from “Cosigner<span class='font-bold bg-gray-100 py-0.5 px-2 rounded-lg emanote:inline-tag:0' title='Tag' data-tag='0'><a href='-/tags/0' title='Tag' class='text-blue-600 mavenLinkBold hover:underline'>#0</a></span> wallet” and then patch the payment and delegation templates of “Cosigner<span class='font-bold bg-gray-100 py-0.5 px-2 rounded-lg emanote:inline-tag:1' title='Tag' data-tag='1'><a href='-/tags/1' title='Tag' class='text-blue-600 mavenLinkBold hover:underline'>#1</a></span> wallet” with it.
+      We’ll repeat the same action or “<code class='py-0.5 px-0.5 bg-gray-100'>Cosigner#1</code> wallet”, i.e. first get <code class='py-0.5 px-0.5 bg-gray-100'>cosigner#0</code> key from “<code class='py-0.5 px-0.5 bg-gray-100'>Cosigner#0</code> wallet” and then patch the payment and delegation templates of “<code class='py-0.5 px-0.5 bg-gray-100'>Cosigner#1</code> wallet” with it.
     </p>
   <div class='py-0.5 mb-3 text-sm'><pre><code class='language-none'>$ curl -X GET http://localhost:8090/v2/shared-wallets/2a0ebd0cceab2161765badf2e389b26e0961de2f/keys?format=extended
 
@@ -2653,7 +2741,7 @@ $ curl -X GET http://localhost:8090/v2/shared-wallets/2a0ebd0cceab2161765badf2e3
     </p>
   
     <p class='mb-3'>
-      After we have funded the “Cosigner<span class='font-bold bg-gray-100 py-0.5 px-2 rounded-lg emanote:inline-tag:0' title='Tag' data-tag='0'><a href='-/tags/0' title='Tag' class='text-blue-600 mavenLinkBold hover:underline'>#0</a></span> wallet”, we can see that the balance has changed on the “Cosigner<span class='font-bold bg-gray-100 py-0.5 px-2 rounded-lg emanote:inline-tag:1' title='Tag' data-tag='1'><a href='-/tags/1' title='Tag' class='text-blue-600 mavenLinkBold hover:underline'>#1</a></span> wallet” as well. Both wallets have the same balance:
+      After we have funded the “<code class='py-0.5 px-0.5 bg-gray-100'>Cosigner#0</code> wallet”, we can see that the balance has changed on the “<code class='py-0.5 px-0.5 bg-gray-100'>Cosigner#1</code> wallet” as well. Both wallets have the same balance:
     </p>
   <div class='py-0.5 mb-3 text-sm'><pre><code class='language-none'>$ curl -X GET http://localhost:8090/v2/shared-wallets/2a0ebd0cceab2161765badf2e389b26e0961de2f | jq .balance
 
@@ -2693,7 +2781,7 @@ $ curl -X GET http://localhost:8090/v2/shared-wallets/5e46668c320bb4568dd25551e0
     </p>
   
     <p class='mb-3'>
-      Let’s make a simple transaction. The owner of “Cosigner<span class='font-bold bg-gray-100 py-0.5 px-2 rounded-lg emanote:inline-tag:0' title='Tag' data-tag='0'><a href='-/tags/0' title='Tag' class='text-blue-600 mavenLinkBold hover:underline'>#0</a></span> wallet” will construct and sign a transaction on their end, and then provide a CBOR blob of this transaction to the owner of “Cosigner<span class='font-bold bg-gray-100 py-0.5 px-2 rounded-lg emanote:inline-tag:1' title='Tag' data-tag='1'><a href='-/tags/1' title='Tag' class='text-blue-600 mavenLinkBold hover:underline'>#1</a></span> wallet”. Then Cosigner<span class='font-bold bg-gray-100 py-0.5 px-2 rounded-lg emanote:inline-tag:1' title='Tag' data-tag='1'><a href='-/tags/1' title='Tag' class='text-blue-600 mavenLinkBold hover:underline'>#1</a></span> can sign it on their own, and submit it to the network.
+      Let’s make a simple transaction. The owner of “<code class='py-0.5 px-0.5 bg-gray-100'>Cosigner#0</code> wallet” will construct and sign a transaction on their end, and then provide a CBOR blob of this transaction to the owner of “<code class='py-0.5 px-0.5 bg-gray-100'>Cosigner#1</code> wallet”. Then <code class='py-0.5 px-0.5 bg-gray-100'>Cosigner#1</code> can sign it on their own, and submit it to the network.
     </p>
   
     <p class='mb-3'>
@@ -2719,13 +2807,13 @@ $ curl -X GET http://localhost:8090/v2/shared-wallets/5e46668c320bb4568dd25551e0
     <blockquote class='py-0.5 px-4 mb-3 italic border-l-4 bg-gray-50 text-gray-600 border-gray-400 quote'>
       
     <p class='mb-3'>
-      <span class='emoji' data-emoji='information_source' style='font-family: emoji'>ℹ️</span> Note that at any point during the process of constructing and signing a transaction, both “Cosigner<span class='font-bold bg-gray-100 py-0.5 px-2 rounded-lg emanote:inline-tag:0"' title='Tag' data-tag='0"'><a href='-/tags/0%22' title='Tag' class='text-blue-600 mavenLinkBold hover:underline'>#0"</a></span> and “Cosigner<span class='font-bold bg-gray-100 py-0.5 px-2 rounded-lg emanote:inline-tag:1"' title='Tag' data-tag='1"'><a href='-/tags/1%22' title='Tag' class='text-blue-600 mavenLinkBold hover:underline'>#1"</a></span> may decode the transaction from its CBOR representation using the <a href='https://input-output-hk.github.io/cardano-wallet/api/edge/#operation/decodeSharedTransaction' class='text-blue-600 hover:underline' target='_blank' rel='noopener'><code class='py-0.5 px-0.5 bg-gray-100'>POST /shared-wallets/{walletId}/transactions-decode</code></a> endpoint. Decoding the transaction makes it possible to see all details associated with the transaction, such as its <code class='py-0.5 px-0.5 bg-gray-100'>inputs</code>, <code class='py-0.5 px-0.5 bg-gray-100'>outputs</code>, <code class='py-0.5 px-0.5 bg-gray-100'>fees</code>, <code class='py-0.5 px-0.5 bg-gray-100'>deposits</code>, <code class='py-0.5 px-0.5 bg-gray-100'>metadata</code>, or <code class='py-0.5 px-0.5 bg-gray-100'>witness_count</code>.
+      <span class='emoji' data-emoji='information_source' style='font-family: emoji'>ℹ️</span> Note that at any point during the process of constructing and signing a transaction, both “<code class='py-0.5 px-0.5 bg-gray-100'>Cosigner#0</code>” and “<code class='py-0.5 px-0.5 bg-gray-100'>Cosigner#1</code>” may decode the transaction from its CBOR representation using the <a href='https://input-output-hk.github.io/cardano-wallet/api/edge/#operation/decodeSharedTransaction' class='text-blue-600 hover:underline' target='_blank' rel='noopener'><code class='py-0.5 px-0.5 bg-gray-100'>POST /shared-wallets/{walletId}/transactions-decode</code></a> endpoint. Decoding the transaction makes it possible to see all details associated with the transaction, such as its <code class='py-0.5 px-0.5 bg-gray-100'>inputs</code>, <code class='py-0.5 px-0.5 bg-gray-100'>outputs</code>, <code class='py-0.5 px-0.5 bg-gray-100'>fees</code>, <code class='py-0.5 px-0.5 bg-gray-100'>deposits</code>, <code class='py-0.5 px-0.5 bg-gray-100'>metadata</code>, or <code class='py-0.5 px-0.5 bg-gray-100'>witness_count</code>.
     </p>
   
     </blockquote>
-  <h4 id='cosigner0' class='mt-6 mb-2 text-2xl font-bold text-gray-700'>Cosigner<span class='font-bold bg-gray-100 py-0.5 px-2 rounded-lg emanote:inline-tag:0' title='Tag' data-tag='0'><a href='-/tags/0' title='Tag' class='text-blue-600 mavenLinkBold hover:underline'>#0</a></span></h4><h5 id='constructing' class='mt-6 mb-2 text-xl font-bold text-gray-700'>Constructing</h5>
+  <h4 id='cosigner0' class='mt-6 mb-2 text-2xl font-bold text-gray-700'><code class='py-0.5 px-0.5 bg-gray-100'>Cosigner#0</code></h4><h5 id='constructing' class='mt-6 mb-2 text-xl font-bold text-gray-700'>Constructing</h5>
     <p class='mb-3'>
-      “Cosigner<span class='font-bold bg-gray-100 py-0.5 px-2 rounded-lg emanote:inline-tag:0"' title='Tag' data-tag='0"'><a href='-/tags/0%22' title='Tag' class='text-blue-600 mavenLinkBold hover:underline'>#0"</a></span> constructs a transaction sending 10₳ to an external address using the <a href='https://input-output-hk.github.io/cardano-wallet/api/edge/#operation/constructSharedTransaction' class='text-blue-600 hover:underline' target='_blank' rel='noopener'><code class='py-0.5 px-0.5 bg-gray-100'>POST /shared-wallets/{walletId}/transactions-construct</code></a> endpoint. In response, they receive a CBOR representation of the unsigned transaction.
+      “<code class='py-0.5 px-0.5 bg-gray-100'>Cosigner#0</code>” constructs a transaction sending 10₳ to an external address using the <a href='https://input-output-hk.github.io/cardano-wallet/api/edge/#operation/constructSharedTransaction' class='text-blue-600 hover:underline' target='_blank' rel='noopener'><code class='py-0.5 px-0.5 bg-gray-100'>POST /shared-wallets/{walletId}/transactions-construct</code></a> endpoint. In response, they receive a CBOR representation of the unsigned transaction.
     </p>
   <div class='py-0.5 mb-3 text-sm'><pre><code class='language-none'>$ curl -X POST http://localhost:8090/v2/shared-wallets/2a0ebd0cceab2161765badf2e389b26e0961de2f/transactions-construct \
 -d '{
@@ -2743,7 +2831,7 @@ $ curl -X GET http://localhost:8090/v2/shared-wallets/5e46668c320bb4568dd25551e0
 
 "hKUAgYJYIP8Fwso5i5ovF8bJJuqZ4xOdvXC3mXJCN2O2vDIxQQOYAAGCogBYOQAPoKBp8QggxQSBkAcuvb5QKHyIYK/vZAoDka0HLbCXN3jw0iy454aNIf/2HHm0geZZd8Yu8ge2bAEaAJiWgKIAWDkwZ/CRYzhreLBgWdOZFReuuejo5RIhvNwLOk51lWQGg+0Ii6yF8VB/6jOUJdwEhwqE3Od9sHl14eQBGwAAAAJTcJsvAhoAArJRAxoBDHtNCAChAYGCAYKCAFgciTss5ZpPDifzTTlpVVbNSaZGERzre1z05XYVWYIAWBzHmpkAwWCRnUTfcTy0aZK2LLLM36Y/4gZMlJhm9fY="</code></pre></div><h5 id='signing' class='mt-6 mb-2 text-xl font-bold text-gray-700'>Signing</h5>
     <p class='mb-3'>
-      “Cosigner<span class='font-bold bg-gray-100 py-0.5 px-2 rounded-lg emanote:inline-tag:0"' title='Tag' data-tag='0"'><a href='-/tags/0%22' title='Tag' class='text-blue-600 mavenLinkBold hover:underline'>#0"</a></span> signs the transaction with the <a href='https://input-output-hk.github.io/cardano-wallet/api/edge/#operation/signSharedTransaction' class='text-blue-600 hover:underline' target='_blank' rel='noopener'><code class='py-0.5 px-0.5 bg-gray-100'>POST /shared-wallets/{walletId}/transactions-sign</code></a> endpoint:
+      “<code class='py-0.5 px-0.5 bg-gray-100'>Cosigner#0</code>” signs the transaction with the <a href='https://input-output-hk.github.io/cardano-wallet/api/edge/#operation/signSharedTransaction' class='text-blue-600 hover:underline' target='_blank' rel='noopener'><code class='py-0.5 px-0.5 bg-gray-100'>POST /shared-wallets/{walletId}/transactions-sign</code></a> endpoint:
     </p>
   <div class='py-0.5 mb-3 text-sm'><pre><code class='language-none'>$ curl -X POST http://localhost:8090/v2/shared-wallets/2a0ebd0cceab2161765badf2e389b26e0961de2f/transactions-sign \
 -d '{
@@ -2756,13 +2844,13 @@ $ curl -X GET http://localhost:8090/v2/shared-wallets/5e46668c320bb4568dd25551e0
     <p class='mb-3'>
       and in response, receives a CBOR representation of the partially-signed transaction.
     </p>
-  <h4 id='cosigner1' class='mt-6 mb-2 text-2xl font-bold text-gray-700'>Cosigner<span class='font-bold bg-gray-100 py-0.5 px-2 rounded-lg emanote:inline-tag:1' title='Tag' data-tag='1'><a href='-/tags/1' title='Tag' class='text-blue-600 mavenLinkBold hover:underline'>#1</a></span></h4>
+  <h4 id='cosigner1' class='mt-6 mb-2 text-2xl font-bold text-gray-700'><code class='py-0.5 px-0.5 bg-gray-100'>Cosigner#1</code></h4>
     <p class='mb-3'>
-      Now “Cosigner<span class='font-bold bg-gray-100 py-0.5 px-2 rounded-lg emanote:inline-tag:0"' title='Tag' data-tag='0"'><a href='-/tags/0%22' title='Tag' class='text-blue-600 mavenLinkBold hover:underline'>#0"</a></span> can hand over the CBOR of the partially-signed transaction to “Cosigner<span class='font-bold bg-gray-100 py-0.5 px-2 rounded-lg emanote:inline-tag:1"' title='Tag' data-tag='1"'><a href='-/tags/1%22' title='Tag' class='text-blue-600 mavenLinkBold hover:underline'>#1"</a></span>, who can then sign it on their own.
+      Now “<code class='py-0.5 px-0.5 bg-gray-100'>Cosigner#0</code>” can hand over the CBOR of the partially-signed transaction to “<code class='py-0.5 px-0.5 bg-gray-100'>Cosigner#1</code>”, who can then sign it on their own.
     </p>
   <h5 id='signing-1' class='mt-6 mb-2 text-xl font-bold text-gray-700'>Signing</h5>
     <p class='mb-3'>
-      “Cosigner<span class='font-bold bg-gray-100 py-0.5 px-2 rounded-lg emanote:inline-tag:1"' title='Tag' data-tag='1"'><a href='-/tags/1%22' title='Tag' class='text-blue-600 mavenLinkBold hover:underline'>#1"</a></span> signs the transaction with <a href='https://input-output-hk.github.io/cardano-wallet/api/edge/#operation/signSharedTransaction' class='text-blue-600 hover:underline' target='_blank' rel='noopener'><code class='py-0.5 px-0.5 bg-gray-100'>POST /shared-wallets/{walletId}/transactions-sign</code></a> and gets a CBOR representation of the fully-signed transaction in response.
+      “<code class='py-0.5 px-0.5 bg-gray-100'>Cosigner#1</code>” signs the transaction with <a href='https://input-output-hk.github.io/cardano-wallet/api/edge/#operation/signSharedTransaction' class='text-blue-600 hover:underline' target='_blank' rel='noopener'><code class='py-0.5 px-0.5 bg-gray-100'>POST /shared-wallets/{walletId}/transactions-sign</code></a> and gets a CBOR representation of the fully-signed transaction in response.
     </p>
   <div class='py-0.5 mb-3 text-sm'><pre><code class='language-none'>$ curl -X POST http://localhost:8090/v2/shared-wallets/5e46668c320bb4568dd25551e0c33b0539668aa8/transactions-sign \
 -d '{
@@ -2773,7 +2861,7 @@ $ curl -X GET http://localhost:8090/v2/shared-wallets/5e46668c320bb4568dd25551e0
 
 "hKUAgYJYIP8Fwso5i5ovF8bJJuqZ4xOdvXC3mXJCN2O2vDIxQQOYAAGCogBYOQAPoKBp8QggxQSBkAcuvb5QKHyIYK/vZAoDka0HLbCXN3jw0iy454aNIf/2HHm0geZZd8Yu8ge2bAEaAJiWgKIAWDkwZ/CRYzhreLBgWdOZFReuuejo5RIhvNwLOk51lWQGg+0Ii6yF8VB/6jOUJdwEhwqE3Od9sHl14eQBGwAAAAJTcJsvAhoAArJRAxoBDHzCCACiAIKCWCBOK9nJ9IxJt2gddyZ2fUHC4nre84+EbPQdL60OP0m4ZlhA11gVIBWSlDZl8NQyzV4v9U8AuX8n2UqJK9+Wt1sqnM7jAeYtbuyAN5weTaVV+NDVlpKVg3piowyC1eqZBeWWAYJYIKRn9pUgwcx7GBoIBVJd+9Gh8I/YOwFFK7KyXUXSfrWnWEAqOkD9ljkgYwqwPpuxV+4iJw0hf4PPXA7o9XVxZ4wqT6vSnu1hvsyM4ezuCP/ahTMQ7RzZHTLa1BDx6YawGHQHAYGCAYKCAFgciTss5ZpPDifzTTlpVVbNSaZGERzre1z05XYVWYIAWBzHmpkAwWCRnUTfcTy0aZK2LLLM36Y/4gZMlJhm9fY="</code></pre></div><h5 id='submission' class='mt-6 mb-2 text-xl font-bold text-gray-700'>Submission</h5>
     <p class='mb-3'>
-      The transaction is now fully-signed by both co-owners: “Cosigner<span class='font-bold bg-gray-100 py-0.5 px-2 rounded-lg emanote:inline-tag:0"' title='Tag' data-tag='0"'><a href='-/tags/0%22' title='Tag' class='text-blue-600 mavenLinkBold hover:underline'>#0"</a></span> and “Cosigner<span class='font-bold bg-gray-100 py-0.5 px-2 rounded-lg emanote:inline-tag:1"' title='Tag' data-tag='1"'><a href='-/tags/1%22' title='Tag' class='text-blue-600 mavenLinkBold hover:underline'>#1"</a></span>. At this point, either of them can submit it to the network using their respective wallets via the <a href='https://input-output-hk.github.io/cardano-wallet/api/edge/#operation/submitSharedTransaction' class='text-blue-600 hover:underline' target='_blank' rel='noopener'><code class='py-0.5 px-0.5 bg-gray-100'>POST /shared-wallets/{walletId}/transactions-submit</code></a> endpoint.
+      The transaction is now fully-signed by both co-owners: “<code class='py-0.5 px-0.5 bg-gray-100'>Cosigner#0</code>” and “<code class='py-0.5 px-0.5 bg-gray-100'>Cosigner#1</code>”. At this point, either of them can submit it to the network using their respective wallets via the <a href='https://input-output-hk.github.io/cardano-wallet/api/edge/#operation/submitSharedTransaction' class='text-blue-600 hover:underline' target='_blank' rel='noopener'><code class='py-0.5 px-0.5 bg-gray-100'>POST /shared-wallets/{walletId}/transactions-submit</code></a> endpoint.
     </p>
   <div class='py-0.5 mb-3 text-sm'><pre><code class='language-none'>$ curl -X POST http://localhost:8090/v2/shared-wallets/5e46668c320bb4568dd25551e0c33b0539668aa8/transactions-submit \
 -d '{
@@ -2793,7 +2881,7 @@ $ curl -X GET http://localhost:8090/v2/shared-wallets/5e46668c320bb4568dd25551e0
     </p>
   
     <p class='mb-3'>
-      “Cosigner<span class='font-bold bg-gray-100 py-0.5 px-2 rounded-lg emanote:inline-tag:0' title='Tag' data-tag='0'><a href='-/tags/0' title='Tag' class='text-blue-600 mavenLinkBold hover:underline'>#0</a></span> wallet”:
+      “<code class='py-0.5 px-0.5 bg-gray-100'>Cosigner#0</code> wallet”:
     </p>
   <div class='py-0.5 mb-3 text-sm'><pre><code class='language-none'>$ curl -X GET http://localhost:8090/v2/shared-wallets/2a0ebd0cceab2161765badf2e389b26e0961de2f/transactions/d443719bbd3e4301aa34791823b2b7821757e843509d29918006e5ca26ca368c | jq
 
@@ -2811,7 +2899,7 @@ $ curl -X GET http://localhost:8090/v2/shared-wallets/5e46668c320bb4568dd25551e0
   },
 ...</code></pre></div>
     <p class='mb-3'>
-      “Cosigner<span class='font-bold bg-gray-100 py-0.5 px-2 rounded-lg emanote:inline-tag:1' title='Tag' data-tag='1'><a href='-/tags/1' title='Tag' class='text-blue-600 mavenLinkBold hover:underline'>#1</a></span> wallet”:
+      “<code class='py-0.5 px-0.5 bg-gray-100'>Cosigner#1</code> wallet”:
     </p>
   <div class='py-0.5 mb-3 text-sm'><pre><code class='language-none'>$ curl -X GET http://localhost:8090/v2/shared-wallets/5e46668c320bb4568dd25551e0c33b0539668aa8/transactions/d443719bbd3e4301aa34791823b2b7821757e843509d29918006e5ca26ca368c | jq
 
@@ -2862,42 +2950,6 @@ $ curl -X GET http://localhost:8090/v2/shared-wallets/5e46668c320bb4568dd25551e0
             </div>
             
   <section class='flex flex-wrap items-end justify-center my-4 space-x-2 space-y-2 font-mono text-sm'>
-    
-      <!-- FIXME: The use of -/tags is wrong, because we should use routeUrl using Ema's encoder 
-        Perhaps Emanote should inject tagMetas with urls.
-      -->
-      <a title='Tag' class='px-1 bg-gray-100 rounded hover:bg-gray-50 hover:text-blue-500' href='-/tags/0'>
-        <!-- DoNotFormat -->
-        #0
-        <!-- DoNotFormat -->
-      </a>
-    
-      <!-- FIXME: The use of -/tags is wrong, because we should use routeUrl using Ema's encoder 
-        Perhaps Emanote should inject tagMetas with urls.
-      -->
-      <a title='Tag' class='px-1 bg-gray-100 rounded hover:bg-gray-50 hover:text-blue-500' href='-/tags/1'>
-        <!-- DoNotFormat -->
-        #1
-        <!-- DoNotFormat -->
-      </a>
-    
-      <!-- FIXME: The use of -/tags is wrong, because we should use routeUrl using Ema's encoder 
-        Perhaps Emanote should inject tagMetas with urls.
-      -->
-      <a title='Tag' class='px-1 bg-gray-100 rounded hover:bg-gray-50 hover:text-blue-500' href='-/tags/0"'>
-        <!-- DoNotFormat -->
-        #0"
-        <!-- DoNotFormat -->
-      </a>
-    
-      <!-- FIXME: The use of -/tags is wrong, because we should use routeUrl using Ema's encoder 
-        Perhaps Emanote should inject tagMetas with urls.
-      -->
-      <a title='Tag' class='px-1 bg-gray-100 rounded hover:bg-gray-50 hover:text-blue-500' href='-/tags/1"'>
-        <!-- DoNotFormat -->
-        #1"
-        <!-- DoNotFormat -->
-      </a>
     
   </section>
 
