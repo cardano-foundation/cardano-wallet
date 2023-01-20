@@ -335,6 +335,7 @@ library
     Cardano.Wallet.Read.Tx.Metadata
     Cardano.Wallet.Read.Tx.Mint
     Cardano.Wallet.Read.Tx.Outputs
+    Cardano.Wallet.Read.Tx.ScriptValidity
     Cardano.Wallet.Read.Tx.Validity
     Cardano.Wallet.Read.Tx.Witnesses
     Cardano.Wallet.Read.Tx.Withdrawals
