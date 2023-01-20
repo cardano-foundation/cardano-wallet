@@ -40,6 +40,8 @@ import Cardano.Wallet.Read.Primitive.Tx.Features.Metadata
     ( getMetadata )
 import Cardano.Wallet.Read.Primitive.Tx.Features.Outputs
     ( getOutputs )
+import Cardano.Wallet.Read.Primitive.Tx.Features.ScriptValidity
+    ( getScriptValidity )
 import Cardano.Wallet.Read.Primitive.Tx.Features.Validity
     ( getValidity )
 import Cardano.Wallet.Read.Primitive.Tx.Features.Withdrawals
@@ -60,6 +62,8 @@ import Cardano.Wallet.Read.Tx.Metadata
     ( getEraMetadata )
 import Cardano.Wallet.Read.Tx.Outputs
     ( getEraOutputs )
+import Cardano.Wallet.Read.Tx.ScriptValidity
+    ( getEraScriptValidity )
 import Cardano.Wallet.Read.Tx.Validity
     ( getEraValidity )
 import Cardano.Wallet.Read.Tx.Withdrawals
@@ -191,7 +195,8 @@ mkTransactionInfoFromReadTx ti tip decor tx SubmissionMeta{..} status = do
                   then tipH - height
                   else 0
         , WT.txInfoTime = txTime
-        , WT.txInfoScriptValidity = undefined
+        , WT.txInfoScriptValidity
+            = value $ getScriptValidity . getEraScriptValidity
         }
   where
     tipH = getQuantity $ tip ^. #blockHeight
