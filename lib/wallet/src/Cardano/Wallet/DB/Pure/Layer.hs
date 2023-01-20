@@ -198,9 +198,14 @@ newDBLayer timeInterpreter = do
         , readLocalTxSubmissionPending =
             readDB db . mReadLocalTxSubmissionPending
 
-        , updatePendingTxForExpiry = \pk tip -> ExceptT $
+        , rollForwardTxSubmissions = \pk tip _txs -> ExceptT $
             alterDB errNoSuchWallet db $
             mUpdatePendingTxForExpiry pk tip
+                -- FIXME ADP-2367 by DELETION:
+                -- These tests will become obsolete once
+                -- the new Submission storage has been integrated.
+                -- In order to keep them running, we ignore the first argument
+                -- here.
 
         , removePendingOrExpiredTx = \pk tid -> ExceptT $
             alterDB errCannotRemovePendingTx db $

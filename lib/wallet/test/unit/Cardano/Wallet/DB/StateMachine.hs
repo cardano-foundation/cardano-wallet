@@ -546,7 +546,10 @@ runIO db@DBLayer{..} = fmap Resp . go
             Right . LocalTxSubmission . map (fmap reMockTxId) <$>
             atomically (readLocalTxSubmissionPending wid)
         UpdatePendingTxForExpiry wid sl -> catchNoSuchWallet Unit $
-            mapExceptT atomically $ updatePendingTxForExpiry wid sl
+            mapExceptT atomically $ rollForwardTxSubmissions wid sl
+                []  -- FIXME ADP-2367 by DELETION:
+                    -- These tests will become obsolete. In order to run
+                    -- them on the old code, we use an empty list here.
         RemovePendingOrExpiredTx wid tid ->
             (catchCannotRemovePendingTx wid) Unit $
             mapExceptT atomically $

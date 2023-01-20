@@ -757,7 +757,7 @@ newDBLayerWith _cacheBehavior _tr ti SqliteContext{runQuery} = do
             fmap (map localTxSubmissionFromEntity)
             . listPendingLocalTxSubmissionQuery
 
-        , updatePendingTxForExpiry_ = \wid tip ->
+        , rollForwardTxSubmissions_ = \wid tip _txs ->
             selectWallet wid >>= \case
                 Nothing -> pure () -- non-existent wallet caught outside
                 Just _ -> modifyDBMaybe transactionsDBVar $ \_ ->
