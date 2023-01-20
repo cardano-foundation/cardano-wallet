@@ -161,7 +161,8 @@ mkTransactionInfoFromReadTx :: Monad m
     -> SubmissionMeta
     -> W.TxStatus
     -> m WT.TransactionInfo
-mkTransactionInfoFromReadTx _ti tip decor tx SubmissionMeta{..} status = do
+mkTransactionInfoFromReadTx ti tip decor tx SubmissionMeta{..} status = do
+    txTime <- interpretQuery ti . slotToUTCTime $ submissionMetaSlot
     return
         $ WT.TransactionInfo
         { WT.txInfoId = W.Hash $ value getEraTxHash
@@ -189,7 +190,7 @@ mkTransactionInfoFromReadTx _ti tip decor tx SubmissionMeta{..} status = do
             if tipH > height
                   then tipH - height
                   else 0
-        , WT.txInfoTime = undefined
+        , WT.txInfoTime = txTime
         , WT.txInfoScriptValidity = undefined
         }
   where
