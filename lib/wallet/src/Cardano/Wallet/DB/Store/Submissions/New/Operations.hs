@@ -1,6 +1,7 @@
 {-# LANGUAGE DataKinds #-}
 {-# LANGUAGE DeriveAnyClass #-}
 {-# LANGUAGE FlexibleInstances #-}
+{-# LANGUAGE NamedFieldPuns #-}
 {-# LANGUAGE OverloadedLabels #-}
 {-# LANGUAGE RecordWildCards #-}
 {-# LANGUAGE ScopedTypeVariables #-}
@@ -19,13 +20,13 @@ Implementation of a 'Store' for 'Submissions' based on
 -}
 module Cardano.Wallet.DB.Store.Submissions.New.Operations
     ( TxSubmissions
-    , mkTransactions
-    , syncSubmissions
-    , mkStoreSubmissions
-    , DeltaTxSubmissions
     , TxSubmissionsStatus
-    , SubmissionMeta (..)
+    , DeltaTxSubmissions
+    , mkStoreSubmissions
     , mkStoreWalletsSubmissions
+
+    , SubmissionMeta (..)
+    , submissionMetaFromTxMeta
     ) where
 
 import Prelude
@@ -40,6 +41,8 @@ import Cardano.Wallet.DB.Sqlite.Types
     ( TxId, TxSubmissionStatusEnum (..) )
 import Cardano.Wallet.Primitive.Types
     ( SlotNo (..), WalletId )
+import Cardano.Wallet.Primitive.Types.Tx
+    ( TxMeta (..) )
 import Cardano.Wallet.Submissions.Operations
     ( applyOperations )
 import Cardano.Wallet.Submissions.Submissions
@@ -85,6 +88,23 @@ import qualified Cardano.Wallet.Submissions.Submissions as Sbm
 import qualified Cardano.Wallet.Submissions.TxStatus as Sbm
 import qualified Data.Map.Strict as Map
 
+{-----------------------------------------------------------------------------
+    Data types
+------------------------------------------------------------------------------}
+type TxSubmissions
+    = Sbm.Submissions SubmissionMeta SlotNo (TxId, W.SealedTx)
+type TxSubmissionsStatus
+    = Sbm.TxStatusMeta SubmissionMeta SlotNo (TxId, W.SealedTx)
+type DeltaTxSubmissions
+    = Sbm.Operation SubmissionMeta SlotNo (TxId, W.SealedTx)
+
+instance Delta DeltaTxSubmissions where
+  type Base DeltaTxSubmissions = TxSubmissions
+  apply = applyOperations
+
+{-----------------------------------------------------------------------------
+    Data types
+------------------------------------------------------------------------------}
 data SubmissionMeta  = SubmissionMeta
     { submissionMetaSlot :: SlotNo
     , submissionMetaHeight :: Quantity "block" Word32
@@ -93,15 +113,21 @@ data SubmissionMeta  = SubmissionMeta
     , submissionMetaResubmitted :: SlotNo
     } deriving (Show, Eq)
 
-type TxSubmissions
-    = Sbm.Submissions SubmissionMeta SlotNo (TxId, W.SealedTx)
-type TxSubmissionsStatus
-    = Sbm.TxStatusMeta SubmissionMeta SlotNo (TxId, W.SealedTx)
-type DeltaTxSubmissions
-    = Sbm.Operation SubmissionMeta SlotNo (TxId, W.SealedTx)
+submissionMetaFromTxMeta :: TxMeta -> SlotNo -> SubmissionMeta
+submissionMetaFromTxMeta TxMeta{direction,blockHeight,slotNo,amount} resub =
+    SubmissionMeta
+        { submissionMetaSlot = slotNo
+        , submissionMetaHeight = blockHeight
+        , submissionMetaAmount = amount
+        , submissionMetaDirection = direction
+        , submissionMetaResubmitted = resub
+        }
 
-
-syncSubmissions :: WalletId -> TxSubmissions -> TxSubmissions -> SqlPersistT IO ()
+{-----------------------------------------------------------------------------
+    Store for a single wallet
+------------------------------------------------------------------------------}
+syncSubmissions
+    :: WalletId -> TxSubmissions -> TxSubmissions -> SqlPersistT IO ()
 syncSubmissions wid old new = do
 
     let deletes = transactions old `Map.difference` transactions new
@@ -199,13 +225,12 @@ mkStatus iden sealed expiring Nothing ExpiredE
 mkStatus _ _ _ _ _
     = Sbm.Unknown
 
-instance Delta DeltaTxSubmissions where
-  type Base DeltaTxSubmissions = TxSubmissions
-  apply = applyOperations
-
 mkStoreSubmissions :: WalletId -> Store (SqlPersistT IO) DeltaTxSubmissions
 mkStoreSubmissions = mkStoreAnySubmissions
 
+{-----------------------------------------------------------------------------
+    Store for multiple wallets
+------------------------------------------------------------------------------}
 type WalletsSubmissions = Map WalletId TxSubmissions
 
 -- | Store for 'TxSubmissions of multiple different wallets.

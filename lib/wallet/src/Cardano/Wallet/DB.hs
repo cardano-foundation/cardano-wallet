@@ -295,6 +295,14 @@ data DBLayer m s k = forall stm. (MonadIO stm, MonadFail stm) => DBLayer
         -- ^ Add or update a transaction in the local submission pool with the
         -- most recent submission slot.
 
+    , addTxSubmission
+        :: WalletId
+        -> (Tx, TxMeta, SealedTx)
+        -> SlotNo
+        -> ExceptT ErrNoSuchWallet stm ()
+        -- ^ Add a /new/ transaction to the local submission pool
+        -- with the most recent submission slot.
+
     , readLocalTxSubmissionPending
         :: WalletId
         -> stm [LocalTxSubmissionStatus SealedTx]
@@ -466,6 +474,8 @@ mkDBLayerFromParts ti DBLayerCollection{..} = DBLayer
         Just tip <- readCurrentTip wid -- wallet exists
         (getTx_ dbTxHistory) wid txid tip
     , putLocalTxSubmission = putLocalTxSubmission_ dbPendingTxs
+    , addTxSubmission = \wid a b -> wrapNoSuchWallet wid $
+        addTxSubmission_ dbPendingTxs wid a b
     , readLocalTxSubmissionPending = readLocalTxSubmissionPending_ dbPendingTxs
     , rollForwardTxSubmissions = \wid tip txs -> wrapNoSuchWallet wid $
         rollForwardTxSubmissions_ dbPendingTxs wid tip txs
@@ -667,6 +677,16 @@ data DBPendingTxs stm = DBPendingTxs
         -> ExceptT ErrPutLocalTxSubmission stm ()
         -- ^ Add or update a transaction in the local submission pool with the
         -- most recent submission slot.
+
+    , addTxSubmission_
+        :: WalletId
+        -> (Tx, TxMeta, SealedTx)
+        -> SlotNo
+        -> stm ()
+        -- ^ Add a /new/ transaction to the local submission pool
+        -- with the most recent submission slot.
+        --
+        -- Does nothing if the walletId does not exist.
 
     , readLocalTxSubmissionPending_
         :: WalletId

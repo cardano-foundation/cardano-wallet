@@ -6,6 +6,7 @@ env:
   CACHE_DIR: "/cache/cardano-wallet"
   macos: "x86_64-darwin"
   linux: "x86_64-linux"
+  TMPDIR: "/cache"
 
 
 steps:

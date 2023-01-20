@@ -1,4 +1,5 @@
 {-# LANGUAGE GADTs #-}
+{-# LANGUAGE OverloadedLabels #-}
 {-# LANGUAGE RecordWildCards #-}
 -- |
 -- Copyright: © 2022 IOHK
@@ -27,6 +28,7 @@ import Cardano.Wallet.DB.Store.Submissions.New.Operations
     ( DeltaTxSubmissions
     , SubmissionMeta (SubmissionMeta, submissionMetaResubmitted)
     , TxSubmissionsStatus
+    , submissionMetaFromTxMeta
     )
 import Cardano.Wallet.Primitive.Types
     ( WalletId )
@@ -48,6 +50,8 @@ import Data.DBVar
     ( DBVar, modifyDBMaybe, readDBVar, updateDBVar )
 import Data.DeltaMap
     ( DeltaMap (..) )
+import Data.Maybe
+    ( fromJust )
 import Database.Persist.Sql
     ( SqlPersistT )
 
@@ -71,6 +75,17 @@ mkDbPendingTxs dbvar = DBPendingTxs
                             $ AddSubmission sl (TxId txid, tx)
                             $ error "pls pass meta to putLocalTxSubmission!"
                     in  (delta, Right ())
+
+    , addTxSubmission_ =  \wid (tx,meta,sealedTx) resubmitted ->
+        let expiry = fromJust (meta ^. #expiry)
+            -- FIXME ADP-2367: The value 'meta' supplied here is
+            -- constructed by 'Cardano.Wallet.mkTxMeta', where this
+            -- field is always a 'Just'. In the future, we should
+            -- the expiration slot directly from a @tx :: Read.Tx@.
+        in  updateDBVar dbvar
+                $ Adjust wid
+                $ AddSubmission expiry (TxId $ tx ^. #txId, sealedTx)
+                $ submissionMetaFromTxMeta meta resubmitted
 
     , readLocalTxSubmissionPending_ = \wid -> do
             v <- readDBVar dbvar

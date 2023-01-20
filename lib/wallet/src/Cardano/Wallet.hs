@@ -266,7 +266,6 @@ import Cardano.Wallet.Checkpoints
 import Cardano.Wallet.DB
     ( DBLayer (..)
     , ErrNoSuchTransaction (..)
-    , ErrPutLocalTxSubmission (..)
     , ErrRemoveTx (..)
     , ErrWalletAlreadyExists (..)
     )
@@ -2899,21 +2898,15 @@ submitTx
 submitTx ctx wid (tx, meta, binary) = traceResult tr' $ db & \DBLayer{..} -> do
     withExceptT ErrSubmitTxNetwork $
         postTx nw binary
-    mapExceptT atomically $ do
-        withExceptT ErrSubmitTxNoSuchWallet $
-            putTxHistory wid [(tx, meta)]
-        withExceptT handleLocalTxSubmissionErr $
-            putLocalTxSubmission wid (tx ^. #txId) binary (meta ^. #slotNo)
+    withExceptT ErrSubmitTxNoSuchWallet $
+        mapExceptT atomically $
+            addTxSubmission wid (tx, meta, binary) (meta ^. #slotNo)
   where
     db = ctx ^. dbLayer @IO @s @k
     nw = ctx ^. networkLayer
 
     tr = ctx ^. logger
     tr' = contramap (MsgWallet . MsgTxSubmit . MsgSubmitTx tx meta binary) tr
-
-    handleLocalTxSubmissionErr = \case
-        ErrPutLocalTxSubmissionNoSuchWallet e -> ErrSubmitTxNoSuchWallet e
-        ErrPutLocalTxSubmissionNoSuchTransaction e -> ErrSubmitTxImpossible e
 
 -- | Broadcast an externally-signed transaction to the network.
 --
