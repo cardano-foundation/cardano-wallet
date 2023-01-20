@@ -34,9 +34,8 @@ module Cardano.Wallet.Byron.Compatibility
     , byronCodecConfig
     , fromProtocolMagicId
     , fromTxAux
-    , fromTxIn
-    , fromTxOut
-
+    , fromByronTxIn
+    , fromByronTxOut
     , protocolParametersFromUpdateState
     ) where
 
@@ -64,7 +63,11 @@ import Cardano.Crypto.ProtocolMagic
 import Cardano.Wallet.Primitive.Types.MinimumUTxO
     ( minimumUTxONone )
 import Cardano.Wallet.Read.Primitive.Tx.Byron
-    ( fromTxAux, fromTxIn, fromTxOut )
+    ( fromTxAux )
+import Cardano.Wallet.Read.Primitive.Tx.Features.Inputs
+    ( fromByronTxIn )
+import Cardano.Wallet.Read.Primitive.Tx.Features.Outputs
+    ( fromByronTxOut )
 import Cardano.Wallet.Unsafe
     ( unsafeFromHex )
 import Crypto.Hash.Utils
@@ -350,7 +353,7 @@ protocolParametersFromUpdateState b ppNode =
 -- | Convert non AVVM balances to genesis UTxO.
 fromNonAvvmBalances :: GenesisNonAvvmBalances -> [W.TxOut]
 fromNonAvvmBalances (GenesisNonAvvmBalances m) =
-    fromTxOut . uncurry TxOut <$> Map.toList m
+    fromByronTxOut . uncurry TxOut <$> Map.toList m
 
 -- | Convert genesis data into blockchain params and an initial set of UTxO
 fromGenesisData :: (GenesisData, GenesisHash) -> (W.NetworkParameters, [W.TxOut])

@@ -10,13 +10,7 @@
 --
 
 module Cardano.Wallet.Read.Primitive.Tx.Shelley
-    ( fromShelleyTxIn
-    , fromShelleyTxOut
-    , fromShelleyCoin
-    , fromShelleyWdrl
-    , fromShelleyMD
-    , fromShelleyTx
-    , fromShelleyAddress
+    ( fromShelleyTx
     )
     where
 
@@ -26,16 +20,18 @@ import Cardano.Address.Script
     ( KeyHash (..), KeyRole (..), Script (..) )
 import Cardano.Api
     ( ShelleyEra )
-import Cardano.Api.Shelley
-    ( fromShelleyMetadata )
 import Cardano.Crypto.Hash
     ( hashToBytes )
-import Cardano.Ledger.Era
-    ( Era (..) )
 import Cardano.Wallet.Read.Eras
     ( inject, shelley )
 import Cardano.Wallet.Read.Primitive.Tx.Features.Certificates
     ( anyEraCerts, fromStakeCredential )
+import Cardano.Wallet.Read.Primitive.Tx.Features.Fee
+    ( fromShelleyCoin )
+import Cardano.Wallet.Read.Primitive.Tx.Features.Metadata
+    ( fromShelleyMetadata )
+import Cardano.Wallet.Read.Primitive.Tx.Features.Outputs
+    ( fromShelleyTxOut )
 import Cardano.Wallet.Read.Primitive.Tx.Features.Validity
     ( shelleyValidityInterval )
 import Cardano.Wallet.Read.Tx
@@ -60,27 +56,20 @@ import Data.Map.Strict
 import Data.Word
     ( Word16, Word32, Word64 )
 
-import qualified Cardano.Api as Cardano
 import qualified Cardano.Api.Shelley as Cardano
 import qualified Cardano.Ledger.Address as SL
 import qualified Cardano.Ledger.BaseTypes as SL
-import qualified Cardano.Ledger.Core as SL.Core
 import qualified Cardano.Ledger.Crypto as SL
 import qualified Cardano.Ledger.Keys as SL
 import qualified Cardano.Ledger.Shelley.API as SL
 import qualified Cardano.Ledger.Shelley.Tx as SL
 import qualified Cardano.Wallet.Primitive.Types as W
-import qualified Cardano.Wallet.Primitive.Types.Address as W
-import qualified Cardano.Wallet.Primitive.Types.Coin as Coin
 import qualified Cardano.Wallet.Primitive.Types.Coin as W
 import qualified Cardano.Wallet.Primitive.Types.Hash as W
 import qualified Cardano.Wallet.Primitive.Types.RewardAccount as W
-import qualified Cardano.Wallet.Primitive.Types.TokenBundle as TokenBundle
 import qualified Cardano.Wallet.Primitive.Types.Tx as W
 import qualified Cardano.Wallet.Primitive.Types.Tx.TxIn as W
     ( TxIn (TxIn) )
-import qualified Cardano.Wallet.Primitive.Types.Tx.TxOut as W
-    ( TxOut (TxOut) )
 import qualified Data.Map.Strict as Map
 import qualified Data.Set as Set
 
@@ -101,22 +90,6 @@ fromShelleyTxIn (SL.TxIn txid (SL.TxIx ix)) =
         if txIx > fromIntegral (maxBound :: Word16)
         then error $ "Value for wallet TxIx is out of a valid range: " <> show txIx
         else fromIntegral txIx
-
-fromShelleyTxOut
-    :: ( Era era
-       , SL.Core.Value era ~ SL.Coin
-       )
-    => SL.TxOut era
-    -> W.TxOut
-fromShelleyTxOut (SL.TxOut addr amount) = W.TxOut
-    (fromShelleyAddress addr)
-    (TokenBundle.fromCoin $ fromShelleyCoin amount)
-
-fromShelleyAddress :: SL.Addr crypto -> W.Address
-fromShelleyAddress = W.Address . SL.serialiseAddr
-
-fromShelleyCoin :: SL.Coin -> W.Coin
-fromShelleyCoin (SL.Coin c) = Coin.unsafeFromIntegral c
 
 -- NOTE: For resolved inputs we have to pass in a dummy value of 0.
 fromShelleyTx
@@ -148,7 +121,7 @@ fromShelleyTx tx =
         , withdrawals =
             fromShelleyWdrl wdrls
         , metadata =
-            fromShelleyMD <$> SL.strictMaybeToMaybe mmd
+            fromShelleyMetadata <$> SL.strictMaybeToMaybe mmd
         , scriptValidity =
             Nothing
         }
@@ -170,9 +143,6 @@ fromShelleyWdrl (SL.Wdrl wdrl) = Map.fromList $
     bimap (fromStakeCredential . SL.getRwdCred) fromShelleyCoin
         <$> Map.toList wdrl
 
-fromShelleyMD :: SL.Metadata c -> Cardano.TxMetadata
-fromShelleyMD (SL.Metadata m) =
-    Cardano.makeTransactionMetadata . fromShelleyMetadata $ m
 
 fromLedgerScript
     :: SL.Crypto crypto

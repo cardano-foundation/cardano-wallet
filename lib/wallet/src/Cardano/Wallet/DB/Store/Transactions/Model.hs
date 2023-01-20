@@ -23,12 +23,6 @@ module Cardano.Wallet.DB.Store.Transactions.Model
     , tokenOutOrd
     , mkTxSet
 
-    -- * Decoration
-    , DecoratedTxIns
-    , lookupTxOutForTxIn
-    , lookupTxOutForTxCollateral
-    , decorateTxIns
-
     -- * Type conversion from wallet types
     , mkTxIn
     , mkTxCollateral
@@ -68,12 +62,8 @@ import Cardano.Wallet.Read.Eras.EraValue
     ( eraValueSerialize )
 import Cardano.Wallet.Read.Tx.CBOR
     ( TxCBOR )
-import Control.Applicative
-    ( (<|>) )
 import Control.Arrow
     ( (&&&), (***) )
-import Control.Monad
-    ( guard )
 import Data.Bifunctor
     ( bimap )
 import Data.ByteString
@@ -87,11 +77,9 @@ import Data.Foldable
 import Data.Generics.Internal.VL
     ( Iso', Prism, fromIso, iso, match, prism, view, (^.) )
 import Data.List
-    ( find, sortOn )
+    ( sortOn )
 import Data.Map.Strict
     ( Map )
-import Data.Maybe
-    ( catMaybes )
 import Data.Word
     ( Word16, Word32 )
 import Fmt
@@ -322,63 +310,7 @@ fromTxCollateralOut (out,tokens) =
         , txCollateralOutTokenQuantity token
         )
 
-{-------------------------------------------------------------------------------
-    Decorating Tx inputs with outputs
--------------------------------------------------------------------------------}
-type TxOutKey = (TxId, Word32)
 
-toKeyTxIn :: TxIn -> TxOutKey
-toKeyTxIn txin = (txInputSourceTxId txin, txInputSourceIndex txin)
-
-toKeyTxCollateral :: TxCollateral -> TxOutKey
-toKeyTxCollateral txcol =
-    (txCollateralSourceTxId txcol, txCollateralSourceIndex txcol)
-
--- | A collection of Tx inputs
--- (regular or collateral, refered to by input and order)
--- that are decorated with the values of their corresponding Tx outputs.
-newtype DecoratedTxIns = DecoratedTxIns
-    { unDecoratedTxIns
-        :: Map TxOutKey W.TxOut
-    }
-
-instance Semigroup DecoratedTxIns where
-    (DecoratedTxIns a) <> (DecoratedTxIns b) = DecoratedTxIns (a <> b)
-
-instance Monoid DecoratedTxIns where
-    mempty = DecoratedTxIns mempty
-
-lookupTxOutForTxIn
-    :: TxIn -> DecoratedTxIns -> Maybe W.TxOut
-lookupTxOutForTxIn tx = Map.lookup (toKeyTxIn tx) . unDecoratedTxIns
-
-lookupTxOutForTxCollateral
-    :: TxCollateral -> DecoratedTxIns -> Maybe W.TxOut
-lookupTxOutForTxCollateral tx =
-    Map.lookup (toKeyTxCollateral tx) . unDecoratedTxIns
-
--- | Decorate the Tx inputs of a given 'TxRelation'
--- by searching the 'TxSet' for corresponding output values.
-decorateTxIns
-    :: TxSet -> TxRelation -> DecoratedTxIns
-decorateTxIns (TxSet relations) TxRelation{ins,collateralIns} =
-    DecoratedTxIns . Map.fromList . catMaybes $
-        (lookupOutput . toKeyTxIn <$> ins)
-        ++ (lookupOutput . toKeyTxCollateral <$> collateralIns)
-  where
-    lookupOutput key@(txid, index) = do
-        tx <- Map.lookup txid relations
-        out <- lookupTxOut tx index <|> lookupTxCollateralOut tx index
-        pure (key, out)
-
-    lookupTxOut tx index = fromTxOut <$>
-        Data.List.find ((index ==) . txOutputIndex . fst) (outs tx)
-
-    lookupTxCollateralOut tx index = do
-        out <- collateralOuts tx
-        let collateralOutputIndex = toEnum $ length (outs tx)
-        guard $ index == collateralOutputIndex  -- Babbage leder spec
-        pure $ fromTxCollateralOut out
 
 
 type TxCBORRaw = (BL.ByteString, Int)

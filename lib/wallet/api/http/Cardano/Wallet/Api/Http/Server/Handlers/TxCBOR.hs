@@ -94,7 +94,7 @@ parser = fromEraFunK
     $ ParsedTxCBOR
         <$> EraFunK (Feature.certificates . getEraCertificates)
         <*> EraFunK (Feature.mint . (getEraMint *&&&* getEraWitnesses))
-        <*> EraFunK (Feature.validity . getEraValidity)
+        <*> EraFunK (Feature.getValidity . getEraValidity)
         <*> EraFunK (Feature.integrity . getEraIntegrity)
         <*> EraFunK (Feature.extraSigs . getEraExtraSigs)
 

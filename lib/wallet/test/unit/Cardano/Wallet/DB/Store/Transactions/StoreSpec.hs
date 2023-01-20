@@ -19,15 +19,14 @@ import Cardano.Wallet.DB.Fixtures
     ( StoreProperty, assertWith, logScale, withDBInMemory, withStoreProp )
 import Cardano.Wallet.DB.Sqlite.Types
     ( TxId (TxId) )
+import Cardano.Wallet.DB.Store.Transactions.Decoration
+    ( decorateTxInsForRelation, lookupTxOut, mkTxOutKey, mkTxOutKeyCollateral )
 import Cardano.Wallet.DB.Store.Transactions.Model
     ( DeltaTxSet (..)
     , TxRelation (..)
     , TxSet (..)
     , collateralIns
-    , decorateTxIns
     , ins
-    , lookupTxOutForTxCollateral
-    , lookupTxOutForTxIn
     , mkTxSet
     )
 import Cardano.Wallet.DB.Store.Transactions.Store
@@ -79,7 +78,7 @@ spec = do
 {-----------------------------------------------------------------------------
     Properties
 ------------------------------------------------------------------------------}
-{- | We check that `decorateTxIns` indeed decorates transaction inputs.
+{- | We check that `decorateTxInsForRelation` indeed decorates transaction inputs.
 We do this by generating a set of random transactions, as well as a
 "guinea pig" transaction, whose inputs point to all outputs
 of the other transactions. Then, we expect that decorating the history
@@ -102,11 +101,11 @@ prop_DecorateLinksTxInToTxOuts = do
 
     forAll transactionsGen $ \(txid, TxSet pile, txouts) ->
         let guinea = pile Map.! txid
-            deco   = decorateTxIns (TxSet pile) guinea
-        in  [ lookupTxOutForTxIn txin deco | txin <- ins guinea]
+            deco   = decorateTxInsForRelation (TxSet pile) guinea
+        in  [ lookupTxOut (mkTxOutKey txin) deco | txin <- ins guinea]
             === map Just txouts
 
-{- | We check that `decorateTxIns` indeed decorates transaction inputs.
+{- | We check that `decorateTxInsForRelation` indeed decorates transaction inputs.
 We do this by generating a set of random transactions, as well as a
 "guinea pig" transaction, whose collaterals point to all outputs
 of the other transactions. Then, we expect that decorating the history
@@ -129,8 +128,8 @@ prop_DecorateLinksTxCollateralsToTxOuts = do
 
     forAll transactionsGen $ \(txid, TxSet pile, txouts) ->
         let guinea = pile Map.! txid
-            deco   = decorateTxIns (TxSet pile) guinea
-        in  [ lookupTxOutForTxCollateral txcol deco
+            deco   = decorateTxInsForRelation (TxSet pile) guinea
+        in  [ lookupTxOut (mkTxOutKeyCollateral txcol) deco
             | txcol <- collateralIns guinea
             ]
             === map Just txouts

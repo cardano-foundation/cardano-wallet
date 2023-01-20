@@ -236,9 +236,11 @@ library
     Cardano.Wallet.DB.Store.Submissions.Model
     Cardano.Wallet.DB.Store.Submissions.New.Operations
     Cardano.Wallet.DB.Store.Submissions.Store
+    Cardano.Wallet.DB.Store.Transactions.Decoration
     Cardano.Wallet.DB.Store.Transactions.Layer
     Cardano.Wallet.DB.Store.Transactions.Model
     Cardano.Wallet.DB.Store.Transactions.Store
+    Cardano.Wallet.DB.Store.Transactions.TransactionInfo
     Cardano.Wallet.DB.Store.Wallets.Model
     Cardano.Wallet.DB.Store.Wallets.Store
     Cardano.Wallet.DB.WalletState
@@ -305,23 +307,39 @@ library
     Cardano.Wallet.Read.Primitive.Tx.Babbage
     Cardano.Wallet.Read.Primitive.Tx.Byron
     Cardano.Wallet.Read.Primitive.Tx.Features.Certificates
+    Cardano.Wallet.Read.Primitive.Tx.Features.CollateralInputs
+    Cardano.Wallet.Read.Primitive.Tx.Features.CollateralOutputs
     Cardano.Wallet.Read.Primitive.Tx.Features.ExtraSigs
+    Cardano.Wallet.Read.Primitive.Tx.Features.Fee
+    Cardano.Wallet.Read.Primitive.Tx.Features.Inputs
     Cardano.Wallet.Read.Primitive.Tx.Features.Integrity
+    Cardano.Wallet.Read.Primitive.Tx.Features.Metadata
     Cardano.Wallet.Read.Primitive.Tx.Features.Mint
+    Cardano.Wallet.Read.Primitive.Tx.Features.Outputs
+    Cardano.Wallet.Read.Primitive.Tx.Features.ScriptValidity
     Cardano.Wallet.Read.Primitive.Tx.Features.Validity
+    Cardano.Wallet.Read.Primitive.Tx.Features.Withdrawals
     Cardano.Wallet.Read.Primitive.Tx.Mary
     Cardano.Wallet.Read.Primitive.Tx.Shelley
     Cardano.Wallet.Read.Tx
     Cardano.Wallet.Read.Tx.Cardano
     Cardano.Wallet.Read.Tx.CBOR
     Cardano.Wallet.Read.Tx.Certificates
+    Cardano.Wallet.Read.Tx.CollateralInputs
+    Cardano.Wallet.Read.Tx.CollateralOutputs
     Cardano.Wallet.Read.Tx.Eras
     Cardano.Wallet.Read.Tx.ExtraSigs
+    Cardano.Wallet.Read.Tx.Fee
     Cardano.Wallet.Read.Tx.Hash
+    Cardano.Wallet.Read.Tx.Inputs
     Cardano.Wallet.Read.Tx.Integrity
+    Cardano.Wallet.Read.Tx.Metadata
     Cardano.Wallet.Read.Tx.Mint
+    Cardano.Wallet.Read.Tx.Outputs
+    Cardano.Wallet.Read.Tx.ScriptValidity
     Cardano.Wallet.Read.Tx.Validity
     Cardano.Wallet.Read.Tx.Witnesses
+    Cardano.Wallet.Read.Tx.Withdrawals
     Cardano.Wallet.Registry
     Cardano.Wallet.Shelley.BlockchainSource
     Cardano.Wallet.Shelley.Compatibility
