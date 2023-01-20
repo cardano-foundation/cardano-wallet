@@ -1,6 +1,7 @@
 {-# LANGUAGE DataKinds #-}
 {-# LANGUAGE DeriveAnyClass #-}
 {-# LANGUAGE FlexibleInstances #-}
+{-# LANGUAGE NamedFieldPuns #-}
 {-# LANGUAGE OverloadedLabels #-}
 {-# LANGUAGE RecordWildCards #-}
 {-# LANGUAGE ScopedTypeVariables #-}
@@ -25,6 +26,7 @@ module Cardano.Wallet.DB.Store.Submissions.New.Operations
     , mkStoreWalletsSubmissions
 
     , SubmissionMeta (..)
+    , submissionMetaFromTxMeta
     ) where
 
 import Prelude
@@ -39,6 +41,8 @@ import Cardano.Wallet.DB.Sqlite.Types
     ( TxId, TxSubmissionStatusEnum (..) )
 import Cardano.Wallet.Primitive.Types
     ( SlotNo (..), WalletId )
+import Cardano.Wallet.Primitive.Types.Tx
+    ( TxMeta (..) )
 import Cardano.Wallet.Submissions.Operations
     ( applyOperations )
 import Cardano.Wallet.Submissions.Submissions
@@ -108,6 +112,16 @@ data SubmissionMeta  = SubmissionMeta
     , submissionMetaDirection :: W.Direction
     , submissionMetaResubmitted :: SlotNo
     } deriving (Show, Eq)
+
+submissionMetaFromTxMeta :: TxMeta -> SlotNo -> SubmissionMeta
+submissionMetaFromTxMeta TxMeta{direction,blockHeight,slotNo,amount} resub =
+    SubmissionMeta
+        { submissionMetaSlot = slotNo
+        , submissionMetaHeight = blockHeight
+        , submissionMetaAmount = amount
+        , submissionMetaDirection = direction
+        , submissionMetaResubmitted = resub
+        }
 
 {-----------------------------------------------------------------------------
     Store for a single wallet
