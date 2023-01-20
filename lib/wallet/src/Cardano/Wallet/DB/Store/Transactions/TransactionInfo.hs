@@ -15,7 +15,7 @@ import Cardano.Wallet.DB.Sqlite.Schema
 import Cardano.Wallet.DB.Sqlite.Types
     ( TxId (..) )
 import Cardano.Wallet.DB.Store.Submissions.New.Operations
-    ( SubmissionMeta )
+    ( SubmissionMeta (..) )
 import Cardano.Wallet.DB.Store.Transactions.Decoration
     ( DecoratedTxIns, TxOutKey, lookupTxOut, mkTxOutKey, mkTxOutKeyCollateral )
 import Cardano.Wallet.DB.Store.Transactions.Model
@@ -151,7 +151,7 @@ mkTransactionInfoFromReadTx :: Monad m
     -> EraValue Read.Tx
     -> SubmissionMeta
     -> m WT.TransactionInfo
-mkTransactionInfoFromReadTx _ti tip decor tx _meta = do
+mkTransactionInfoFromReadTx _ti tip decor tx SubmissionMeta{..} = do
     return
         $ WT.TransactionInfo
         { WT.txInfoId = W.Hash $ value getEraTxHash
@@ -174,10 +174,9 @@ mkTransactionInfoFromReadTx _ti tip decor tx _meta = do
               , WT.expiry = undefined
               }
         , WT.txInfoMetadata = value $ getMetadata . getEraMetadata
-        , WT.txInfoDepth = Quantity
-              $ fromIntegral
-              $ if tipH > undefined
-                  then tipH - undefined
+        , WT.txInfoDepth = Quantity $ fromIntegral $
+            if tipH > submissionMetaHeight
+                  then tipH - submissionMetaHeight
                   else 0
         , WT.txInfoTime = undefined
         , WT.txInfoScriptValidity = undefined
