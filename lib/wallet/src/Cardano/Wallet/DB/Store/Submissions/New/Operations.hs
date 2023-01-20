@@ -19,13 +19,12 @@ Implementation of a 'Store' for 'Submissions' based on
 -}
 module Cardano.Wallet.DB.Store.Submissions.New.Operations
     ( TxSubmissions
-    , mkTransactions
-    , syncSubmissions
-    , mkStoreSubmissions
-    , DeltaTxSubmissions
     , TxSubmissionsStatus
-    , SubmissionMeta (..)
+    , DeltaTxSubmissions
+    , mkStoreSubmissions
     , mkStoreWalletsSubmissions
+
+    , SubmissionMeta (..)
     ) where
 
 import Prelude
@@ -85,6 +84,23 @@ import qualified Cardano.Wallet.Submissions.Submissions as Sbm
 import qualified Cardano.Wallet.Submissions.TxStatus as Sbm
 import qualified Data.Map.Strict as Map
 
+{-----------------------------------------------------------------------------
+    Data types
+------------------------------------------------------------------------------}
+type TxSubmissions
+    = Sbm.Submissions SubmissionMeta SlotNo (TxId, W.SealedTx)
+type TxSubmissionsStatus
+    = Sbm.TxStatusMeta SubmissionMeta SlotNo (TxId, W.SealedTx)
+type DeltaTxSubmissions
+    = Sbm.Operation SubmissionMeta SlotNo (TxId, W.SealedTx)
+
+instance Delta DeltaTxSubmissions where
+  type Base DeltaTxSubmissions = TxSubmissions
+  apply = applyOperations
+
+{-----------------------------------------------------------------------------
+    Data types
+------------------------------------------------------------------------------}
 data SubmissionMeta  = SubmissionMeta
     { submissionMetaSlot :: SlotNo
     , submissionMetaHeight :: Quantity "block" Word32
@@ -93,15 +109,11 @@ data SubmissionMeta  = SubmissionMeta
     , submissionMetaResubmitted :: SlotNo
     } deriving (Show, Eq)
 
-type TxSubmissions
-    = Sbm.Submissions SubmissionMeta SlotNo (TxId, W.SealedTx)
-type TxSubmissionsStatus
-    = Sbm.TxStatusMeta SubmissionMeta SlotNo (TxId, W.SealedTx)
-type DeltaTxSubmissions
-    = Sbm.Operation SubmissionMeta SlotNo (TxId, W.SealedTx)
-
-
-syncSubmissions :: WalletId -> TxSubmissions -> TxSubmissions -> SqlPersistT IO ()
+{-----------------------------------------------------------------------------
+    Store for a single wallet
+------------------------------------------------------------------------------}
+syncSubmissions
+    :: WalletId -> TxSubmissions -> TxSubmissions -> SqlPersistT IO ()
 syncSubmissions wid old new = do
 
     let deletes = transactions old `Map.difference` transactions new
@@ -199,13 +211,12 @@ mkStatus iden sealed expiring Nothing ExpiredE
 mkStatus _ _ _ _ _
     = Sbm.Unknown
 
-instance Delta DeltaTxSubmissions where
-  type Base DeltaTxSubmissions = TxSubmissions
-  apply = applyOperations
-
 mkStoreSubmissions :: WalletId -> Store (SqlPersistT IO) DeltaTxSubmissions
 mkStoreSubmissions = mkStoreAnySubmissions
 
+{-----------------------------------------------------------------------------
+    Store for multiple wallets
+------------------------------------------------------------------------------}
 type WalletsSubmissions = Map WalletId TxSubmissions
 
 -- | Store for 'TxSubmissions of multiple different wallets.
