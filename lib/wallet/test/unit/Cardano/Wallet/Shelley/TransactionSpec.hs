@@ -2507,6 +2507,7 @@ balanceTransactionSpec = describe "balanceTransaction" $ do
             testTxLayer
             (delegationAddress @'Mainnet)
             Nothing
+            Nothing
             mockProtocolParametersForBalancing
             (dummyTimeInterpreterWithHorizon horizon)
             (u, wal, pending)

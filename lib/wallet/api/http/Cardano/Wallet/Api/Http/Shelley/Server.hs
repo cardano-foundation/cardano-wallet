@@ -2485,14 +2485,14 @@ constructTransaction api genChange knownPools poolStatus apiWalletId body = do
                     Nothing -> []
 
             unbalancedTx <- liftHandler $
-                W.constructTransaction @n @'CredFromKeyK @era
-                    txLayer netLayer db walletId transactionCtx2
+                W.constructTransaction @n @'CredFromKeyK
+                    txLayer netLayer db walletId era transactionCtx2
                         PreSelection { outputs = outs <> mintingOuts }
 
             balancedTx <-
-                balanceTransaction api genChange apiWalletId
+                balanceTransaction apiLayer genChange Nothing Nothing apiWalletId
                     ApiBalanceTransactionPostData
-                    { transaction = ApiT (sealedTxFromCardanoBody unbalancedTx)
+                    { transaction = ApiT unbalancedTx
                     , inputs = []
                     , redeemers = []
                     , encoding = body ^. #encoding
@@ -2836,7 +2836,7 @@ constructSharedTransaction
                     era txCtx PreSelection {outputs = outs}
 
                 balancedTx <-
-                    balanceTransaction ctx genChange (snd unbalancedTx) (ApiT wid)
+                    balanceTransaction ctx genChange (snd unbalancedTx) (Just (Shared.paymentTemplate $ getState cp)) (ApiT wid)
                         ApiBalanceTransactionPostData
                         { transaction = ApiT $ fst unbalancedTx
                         , inputs = []
@@ -2948,10 +2948,11 @@ balanceTransaction
     => ApiLayer s k ktype
     -> ArgGenChange s
     -> Maybe ([(TxIn, TxOut)] -> Map TxIn (Script KeyHash))
+    -> Maybe ScriptTemplate
     -> ApiT WalletId
     -> ApiBalanceTransactionPostData n
     -> Handler ApiSerialisedTransaction
-balanceTransaction ctx@ApiLayer{..} genChange genInpScripts (ApiT wid) body = do
+balanceTransaction ctx@ApiLayer{..} genChange genInpScripts mScriptTemplate (ApiT wid) body = do
     -- NOTE: Ideally we'd read @pp@ and @era@ atomically.
     pp <- liftIO $ NW.currentProtocolParameters nl
     era <- liftIO $ NW.currentNodeEra nl
@@ -3015,6 +3016,7 @@ balanceTransaction ctx@ApiLayer{..} genChange genInpScripts (ApiT wid) body = do
                     (ctx ^. typed)
                     genChange
                     genInpScripts
+                    mScriptTemplate
                     (pp, nodePParams)
                     ti
                     wallet
