@@ -13,7 +13,9 @@ Here we are going to start `cardano-wallet` in full node mode, meaning that we n
 > :information_source: Alternatively one can use handy [docker-compose](https://github.com/input-output-hk/cardano-wallet#getting-started) to start wallet and the node on different networks:
 >
 > `$ NETWORK=mainnet docker-compose up`
+>
 > `$ NETWORK=preprod docker-compose up`
+>
 > `$ NETWORK=preview docker-compose up`
 
 #### Pre-requisites
