@@ -72,6 +72,8 @@ mkDbPendingTxs dbvar = DBPendingTxs
                             $ error "pls pass meta to putLocalTxSubmission!"
                     in  (delta, Right ())
 
+    , addTxSubmission_ = error "todo implement"
+
     , readLocalTxSubmissionPending_ = \wid -> do
             v <- readDBVar dbvar
             pure $ case Map.lookup wid v of

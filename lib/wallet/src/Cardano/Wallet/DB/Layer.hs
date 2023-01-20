@@ -146,7 +146,7 @@ import Control.Monad.IO.Class
 import Control.Monad.Trans
     ( lift )
 import Control.Monad.Trans.Except
-    ( ExceptT (..) )
+    ( ExceptT (..), runExceptT )
 import Control.Tracer
     ( Tracer, contramap, traceWith )
 import Data.Coerce
@@ -752,6 +752,11 @@ newDBLayerWith _cacheBehavior _tr ti SqliteContext{runQuery} = do
                                             ]
                                     in  (delta, Right ())
 
+        , addTxSubmission_ = \wid (tx, meta, binary) sl -> do
+            putTxHistory_ dbTxHistory
+                wid [(tx, meta)]
+            void $ runExceptT $ putLocalTxSubmission_ dbPendingTxs
+                wid (tx ^. #txId) binary sl
 
         , readLocalTxSubmissionPending_ =
             fmap (map localTxSubmissionFromEntity)
