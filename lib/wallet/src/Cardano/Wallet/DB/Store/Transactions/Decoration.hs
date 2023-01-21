@@ -21,6 +21,7 @@ module Cardano.Wallet.DB.Store.Transactions.Decoration
    , mkTxOutKey
    , mkTxOutKeyCollateral
    , TxOutKey
+   , TxInDecorator
    ) where
 
 import Prelude hiding
@@ -141,3 +142,6 @@ decorateTxInsForReadTx txSet tx
   where
     undoWTxIn :: W.TxIn -> (TxId, Word32)
     undoWTxIn (W.TxIn k n) = (TxId k,n)
+
+-- | A decorator that can handle the 'TxSet' inside 'm'. Just a stub for now
+type TxInDecorator a m = a -> m DecoratedTxIns
