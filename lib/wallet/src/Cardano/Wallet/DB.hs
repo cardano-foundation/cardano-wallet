@@ -47,6 +47,8 @@ import Cardano.Wallet.DB.Store.Submissions.New.Operations
     ( SubmissionMeta (..) )
 import Cardano.Wallet.DB.Store.Transactions.Decoration
     ( TxInDecorator )
+import Cardano.Wallet.DB.Store.Transactions.TransactionInfo
+    ( mkTransactionInfoFromReadTx )
 import Cardano.Wallet.DB.WalletState
     ( DeltaMap, DeltaWalletState, ErrNoSuchWallet (..) )
 import Cardano.Wallet.Primitive.AddressDerivation
@@ -56,7 +58,7 @@ import Cardano.Wallet.Primitive.Model
 import Cardano.Wallet.Primitive.Passphrase
     ( PassphraseHash )
 import Cardano.Wallet.Primitive.Slotting
-    ( TimeInterpreter, epochOf, interpretQuery )
+    ( TimeInterpreter, epochOf, hoistTimeInterpreter, interpretQuery )
 import Cardano.Wallet.Primitive.Types
     ( BlockHeader
     , ChainPoint
@@ -83,10 +85,14 @@ import Cardano.Wallet.Primitive.Types.Tx
     , TxMeta (..)
     , TxStatus
     )
+import Cardano.Wallet.Primitive.Types.Tx.TransactionInfo
+    ( hasStatus )
 import Cardano.Wallet.Read.Eras
     ( EraValue )
+import Cardano.Wallet.Read.Tx.Cardano
+    ( fromSealedTx )
 import Cardano.Wallet.Submissions.Submissions
-    ( TxStatusMeta )
+    ( TxStatusMeta (TxStatusMeta) )
 import Control.Monad.IO.Class
     ( MonadIO, liftIO )
 import Control.Monad.Trans.Except
@@ -99,17 +105,26 @@ import Data.Generics.Internal.VL
     ( (^.) )
 import Data.List
     ( sortOn )
+import Data.Maybe
+    ( catMaybes )
 import Data.Ord
     ( Down (..) )
 import Data.Quantity
     ( Quantity (..) )
+import Data.Traversable
+    ( for )
 import Data.Word
     ( Word32 )
 import UnliftIO.Exception
     ( Exception )
 
+import qualified Cardano.Wallet.Primitive.Types.Tx.SealedTx as WST
+import qualified Cardano.Wallet.Primitive.Types.Tx.TxMeta as WtxMeta
+import qualified Cardano.Wallet.Primitive.Types.Tx.TxMeta as WTxMeta
 import qualified Cardano.Wallet.Read.Tx as Read
+import qualified Cardano.Wallet.Submissions.TxStatus as Subm
 import qualified Data.Map.Strict as Map
+
 -- | Instantiate database layers at will
 data DBFactory m s k = DBFactory
     { withDatabase :: forall a. WalletId -> (DBLayer m s k -> IO a) -> IO a
@@ -471,11 +486,22 @@ mkDBLayerFromParts ti DBLayerCollection{..} = DBLayer
     , readTransactions = \wid minWithdrawal order range status ->
         readCurrentTip wid >>= \case
             Just tip -> do
-                tinfos <- (readTxHistory_ dbTxHistory) wid range status tip
+                inLedgers <- readTxHistory_ dbTxHistory wid range status tip
+                inSubmissionsRaw <-
+                    getInSubmissionTransactions_ dbPendingTxs wid
+                inSubmissions :: [TransactionInfo] <- fmap catMaybes
+                    $ for inSubmissionsRaw $
+                        mkTransactionInfo
+                        (hoistTimeInterpreter liftIO ti)
+                        (mkDecorator_ dbTxHistory) tip
                 pure
                     . sortTransactionsBySlot order
                     . filterMinWithdrawal minWithdrawal
-                    $ tinfos
+                    $ inLedgers <> filter (
+                            (||)
+                            <$> hasStatus WtxMeta.Pending
+                            <*> hasStatus WTxMeta.Expired
+                            ) inSubmissions
             Nothing ->
                 pure []
     , getTx = \wid txid -> wrapNoSuchWallet wid $ do
@@ -808,3 +834,25 @@ data ErrNoSuchTransaction
 newtype ErrWalletAlreadyExists
     = ErrWalletAlreadyExists WalletId -- Wallet already exists in db
     deriving (Eq, Show)
+
+mkTransactionInfo
+    :: Monad stm
+    => TimeInterpreter stm
+    -> TxInDecorator (EraValue Read.Tx) stm
+    -> BlockHeader
+    -> TxStatusMeta SubmissionMeta SlotNo WST.SealedTx
+    -> stm (Maybe TransactionInfo)
+mkTransactionInfo ti decorator tip = \case
+        ( TxStatusMeta ( Subm.InSubmission _slot tx) meta)
+            -> make WTxMeta.Pending tx meta
+        ( TxStatusMeta ( Subm.Expired _slot tx) meta)
+            -> make WTxMeta.Expired tx meta
+        ( TxStatusMeta ( Subm.InLedger _ _slot tx) meta)
+            -> make WTxMeta.InLedger tx meta
+        _ -> pure Nothing
+  where
+    make s tx meta = do
+        let readTx = fromSealedTx tx
+        decorate <- decorator readTx
+        Just <$> mkTransactionInfoFromReadTx
+            ti tip decorate readTx meta s
