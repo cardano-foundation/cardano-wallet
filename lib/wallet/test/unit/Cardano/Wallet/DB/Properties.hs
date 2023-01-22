@@ -281,7 +281,7 @@ properties = do
         it "Correctly re-construct tx history on rollbacks"
             (checkCoverage . prop_rollbackTxHistory)
 
--- | Wrap the result of 'readTxHistory' in an arbitrary identity Applicative
+-- | Wrap the result of 'readTransactions' in an arbitrary identity Applicative
 readTxHistory_
     :: Functor m
     => DBLayer m s ShelleyKey
@@ -289,7 +289,8 @@ readTxHistory_
     -> m (Identity GenTxHistory)
 readTxHistory_ DBLayer{..} wid =
     (Identity . GenTxHistory . fmap toTxHistory)
-        <$> atomically (readTxHistory wid Nothing Descending wholeRange Nothing)
+        <$> atomically
+            (readTransactions wid Nothing Descending wholeRange Nothing)
 
 putTxHistory_
     :: DBLayer m s ShelleyKey
@@ -320,7 +321,7 @@ unions =
     . foldl (\m (k, v) -> Map.unionWith (<>) (Map.fromList [(k, v)]) m) mempty
 
 -- | Keep the unions (right-biased) of all transactions, and sort them in the
--- default order for readTxHistory.
+-- default order for readTransactions.
 sortedUnions :: Ord k => [(k, GenTxHistory)] -> [Identity GenTxHistory]
 sortedUnions = map (Identity . sort' . runIdentity) . unions
   where
@@ -791,7 +792,7 @@ prop_rollbackTxHistory db@DBLayer{..} (InitialCheckpoint cp0) (GenTxHistory txs0
         point <- run $ unsafeRunExceptT $ mapExceptT atomically $
             rollbackTo wid (At requestedPoint)
         txs <- run $ atomically $ fmap toTxHistory
-            <$> readTxHistory wid Nothing Descending wholeRange Nothing
+            <$> readTransactions wid Nothing Descending wholeRange Nothing
 
         monitor $ counterexample $ "\n" <> "Actual Rollback Point:\n" <> (pretty point)
         monitor $ counterexample $ "\nOriginal tx history:\n" <> (txsF txs0)

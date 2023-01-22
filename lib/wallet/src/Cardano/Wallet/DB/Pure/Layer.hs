@@ -149,7 +149,7 @@ newDBLayer timeInterpreter = do
             alterDB errNoSuchWallet db $
             mPutTxHistory pk txh
 
-        , readTxHistory = \pk minWithdrawal order range mstatus ->
+        , readTransactions = \pk minWithdrawal order range mstatus ->
             readDB db $
                 mReadTxHistory
                     timeInterpreter
