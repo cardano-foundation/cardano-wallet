@@ -3500,17 +3500,11 @@ quitStakePool ctx@ApiLayer{..} genChange (ApiT walletId) body = do
     withRecentEra era $ \(recentEra :: WriteTx.RecentEra recentEra) ->
         withWorkerCtx ctx walletId liftE liftE $ \wrk -> do
             let db = wrk ^. typed @(DBLayer IO s k)
-                notShelleyWallet =
+                ti = timeInterpreter netLayer
+            txCtx <- case testEquality (typeRep @k) (typeRep @ShelleyKey) of
+                Nothing ->
                     liftHandler $ throwE ErrReadRewardAccountNotAShelleyWallet
-            pp <- liftIO $ NW.currentProtocolParameters netLayer
-            txCtx <-
-                case testEquality (typeRep @s) (typeRep @(SeqState n k)) of
-                    Nothing -> notShelleyWallet
-                    Just Refl -> case testEquality (typeRep @k)
-                                                (typeRep @ShelleyKey) of
-                        Nothing -> notShelleyWallet
-                        Just Refl ->
-                            liftIO $ WD.quitStakePool netLayer db ti walletId
+                Just Refl -> liftIO $ WD.quitStakePool netLayer db ti walletId
             (tx, txMeta, txTime, sealedTx) <- liftIO $ do
                 pureTimeInterpreter <- snapshot $ timeInterpreter netLayer
                 W.buildAndSignTransactionNew @k @'CredFromKeyK @s @n
@@ -3525,8 +3519,10 @@ quitStakePool ctx@ApiLayer{..} genChange (ApiT walletId) body = do
                     (coerce $ getApiT $ body ^. #passphrase)
                     (PreSelection [])
                     txCtx
-            liftHandler
-                $ W.submitTx @_ @s @k wrk walletId (tx, txMeta, sealedTx)
+            liftHandler $
+                W.submitTx @_ @s @k wrk walletId (tx, txMeta, sealedTx)
+            txDeposit <- liftIO $
+                W.stakeKeyDeposit <$> NW.currentProtocolParameters netLayer
             mkApiTransaction ti wrk walletId #pendingSince
                 MkApiTransactionParams
                     { txId = tx ^. #txId
@@ -3541,13 +3537,10 @@ quitStakePool ctx@ApiLayer{..} genChange (ApiT walletId) body = do
                     , txMetadata = Nothing
                     , txTime
                     , txScriptValidity = tx ^. #scriptValidity
-                    , txDeposit = W.stakeKeyDeposit pp
+                    , txDeposit
                     , txMetadataSchema = TxMetadataDetailedSchema
                     , txCBOR = tx ^. #txCBOR
                     }
-  where
-    ti :: TimeInterpreter (ExceptT PastHorizonException IO)
-    ti = timeInterpreter netLayer
 
 -- More testable helper for `listStakeKeys`.
 --
