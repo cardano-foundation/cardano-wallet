@@ -2848,8 +2848,11 @@ constructSharedTransaction
                                 pure []
 
                         (sel', utx, fee') <- liftHandler $ runSelection outs
-                        sel <- liftHandler $
-                            W.assignChangeAddressesWithoutDbUpdate wrk wid genChange utx
+                        let (sel, _s') =
+                                W.assignChangeAddresses
+                                    genChange
+                                    utx
+                                    (getState cp)
                         (FeeEstimation estMin _) <- liftHandler $ W.estimateFee (pure fee')
                         pure (sel, sel', estMin)
 
@@ -3004,7 +3007,7 @@ balanceTransaction ctx@ApiLayer{..} genChange (ApiT wid) body = do
                 => W.PartialTx era
                 -> Handler (Cardano.Tx era)
             balanceTx partialTx =
-                liftHandler $ W.balanceTransaction @_ @IO @s @k @ktype
+                fmap fst $ liftHandler $ W.balanceTransaction @_ @IO @s @k @ktype
                     (MsgWallet >$< wrk ^. W.logger)
                     (ctx ^. typed)
                     genChange
@@ -3486,6 +3489,7 @@ quitStakePool
         , Typeable s
         , Typeable k
         , WalletKey k
+        , AddressBookIso s
         , BoundedAddressLength k
         , HasDelegation s
         , IsOurs (SeqState n k) RewardAccount
@@ -3505,7 +3509,7 @@ quitStakePool ctx@ApiLayer{..} genChange (ApiT walletId) body = do
                 Nothing ->
                     liftHandler $ throwE ErrReadRewardAccountNotAShelleyWallet
                 Just Refl -> liftIO $ WD.quitStakePool netLayer db ti walletId
-            (tx, txMeta, txTime, sealedTx) <- liftIO $ do
+            (tx, txMeta, txTime, sealedTx, s') <- liftIO $ do
                 pureTimeInterpreter <- snapshot $ timeInterpreter netLayer
                 W.buildAndSignTransactionNew @k @'CredFromKeyK @s @n
                     (MsgWallet >$< wrk ^. W.logger)
@@ -3519,6 +3523,7 @@ quitStakePool ctx@ApiLayer{..} genChange (ApiT walletId) body = do
                     (coerce $ getApiT $ body ^. #passphrase)
                     (PreSelection [])
                     txCtx
+            liftIO $ W.writeChangeAddressStateToDb db walletId s'
             liftHandler $
                 W.submitTx @_ @s @k wrk walletId (tx, txMeta, sealedTx)
             txDeposit <- liftIO $

@@ -127,7 +127,6 @@ module Cardano.Wallet
     , readWalletUTxOIndex
     , assignChangeAddresses
     , assignChangeAddressesAndUpdateDb
-    , assignChangeAddressesWithoutDbUpdate
     , selectionToUnsignedTx
     , buildAndSignTransactionNew
     , buildAndSignTransaction
@@ -208,6 +207,7 @@ module Cardano.Wallet
     , WalletFollowLog (..)
     , WalletLog (..)
     , TxSubmitLog (..)
+    , writeChangeAddressStateToDb
     ) where
 
 import Prelude hiding
@@ -1629,7 +1629,7 @@ balanceTransaction
     -- ^ TODO [ADP-1789] Replace with @Cardano.UTxO@ and something simpler than
     -- @Wallet s@ for change address generation.
     -> PartialTx era
-    -> ExceptT ErrBalanceTx m (Cardano.Tx era)
+    -> ExceptT ErrBalanceTx m ((Cardano.Tx era, s))
 balanceTransaction tr txLayer change pp ti wallet unadjustedPtx = do
     -- TODO [ADP-1490] Take 'Ledger.PParams era' directly as argument, and avoid
     -- converting to/from Cardano.ProtocolParameters. This may affect
@@ -1717,6 +1717,7 @@ increaseZeroAdaOutputs era pp = WriteTx.modifyLedgerBody $
             then WriteTx.computeMinimumCoinForTxOut era pp out
             else c
 
+
 -- | Internal helper to 'balanceTransaction'
 balanceTransactionWithSelectionStrategyAndNoZeroAdaAdjustment
     :: forall era m s k ktype.
@@ -1733,7 +1734,7 @@ balanceTransactionWithSelectionStrategyAndNoZeroAdaAdjustment
     -> (UTxOIndex WalletUTxO, Wallet s, Set Tx)
     -> SelectionStrategy
     -> PartialTx era
-    -> ExceptT ErrBalanceTx m (Cardano.Tx era)
+    -> ExceptT ErrBalanceTx m (Cardano.Tx era, s)
 balanceTransactionWithSelectionStrategyAndNoZeroAdaAdjustment
     tr
     txLayer
@@ -1754,7 +1755,7 @@ balanceTransactionWithSelectionStrategyAndNoZeroAdaAdjustment
 
     (balance0, minfee0) <- balanceAfterSettingMinFee partialTx
 
-    (extraInputs, extraCollateral, extraOutputs) <- do
+    (extraInputs, extraCollateral, extraOutputs, s') <- do
 
         -- NOTE: It is not possible to know the script execution cost in
         -- advance because it actually depends on the final transaction. Inputs
@@ -1767,13 +1768,14 @@ balanceTransactionWithSelectionStrategyAndNoZeroAdaAdjustment
 
         randomSeed <- stdGenSeed
         let
-            transform :: s -> Selection -> ([(TxIn, TxOut)], [TxIn], [TxOut])
+            transform :: s -> Selection -> ([(TxIn, TxOut)], [TxIn], [TxOut], s)
             transform s sel =
-                let (sel', _) = assignChangeAddresses generateChange sel s
+                let (sel', s') = assignChangeAddresses generateChange sel s
                     inputs = F.toList (sel' ^. #inputs)
                 in  ( inputs
                     , fst <$> (sel' ^. #collateral)
                     , sel' ^. #change
+                    , s'
                     )
 
         lift $ traceWith tr $ MsgSelectionForBalancingStart
@@ -1854,12 +1856,13 @@ balanceTransactionWithSelectionStrategyAndNoZeroAdaAdjustment
         (ExceptT . pure $
             distributeSurplus txLayer feePolicy surplus feeAndChange)
 
-    guardTxSize =<< guardTxBalanced =<< assembleTransaction TxUpdate
-        { extraInputs
-        , extraCollateral
-        , extraOutputs = updatedChange
-        , feeUpdate = UseNewTxFee updatedFee
-        }
+    fmap (,s') . guardTxSize =<< guardTxBalanced =<< assembleTransaction
+        TxUpdate
+            { extraInputs
+            , extraCollateral
+            , extraOutputs = updatedChange
+            , feeUpdate = UseNewTxFee updatedFee
+            }
   where
     toSealed :: Cardano.Tx era -> SealedTx
     toSealed = sealedTxFromCardano . Cardano.InAnyCardanoEra Cardano.cardanoEra
@@ -2198,6 +2201,8 @@ assignChangeAddresses argGenChange sel = runState $ do
         pure $ TxOut addr bundle
     pure $ sel { change = changeOuts }
 
+-- TODO [ADP-1489] Remove once all call-sites have been updated to use
+-- balanceTransaction and 'writeChangeAddressStateToDb'.
 assignChangeAddressesAndUpdateDb
     :: forall ctx s k.
         ( GenChange s
@@ -2223,25 +2228,21 @@ assignChangeAddressesAndUpdateDb ctx wid generateChange selection =
         (selectionUpdated, stateUpdated) =
             assignChangeAddresses generateChange selection s
 
-assignChangeAddressesWithoutDbUpdate
-    :: forall ctx s k.
-        ( GenChange s
-        , HasDBLayer IO s k ctx
-        )
-    => ctx
+-- | For use with the returned updated 's' of 'balanceTransaction'.
+writeChangeAddressStateToDb
+    :: AddressBookIso s
+    => DBLayer IO s k
     -> WalletId
-    -> ArgGenChange s
-    -> Selection
-    -> ExceptT ErrConstructTx IO (SelectionOf TxOut)
-assignChangeAddressesWithoutDbUpdate ctx wid generateChange selection =
-    db & \DBLayer{..} -> mapExceptT atomically $ do
-        cp <- withExceptT ErrConstructTxNoSuchWallet $
-            withNoSuchWallet wid $ readCheckpoint wid
-        let (selectionUpdated, _) =
-                assignChangeAddresses generateChange selection (getState cp)
-        pure selectionUpdated
+    -> s
+    -> IO ()
+writeChangeAddressStateToDb DBLayer{..} wid s = throwInIO $
+    atomically $ modifyDBMaybe walletsDB $
+        adjustNoSuchWallet wid id $ \_wallet ->
+            -- Newly generated change addresses only change the Prologue
+            Right ([ReplacePrologue $ getPrologue s], ())
   where
-    db = ctx ^. dbLayer @IO @s @k
+    throwInIO :: IO (Either ErrNoSuchWallet a) -> IO a
+    throwInIO act = act >>= either (throwIO . ExceptionNoSuchWallet) pure
 
 selectionToUnsignedTx
     :: forall s input output change withdrawal.
@@ -2561,7 +2562,7 @@ buildAndSignTransactionNew
     -> Passphrase "user"
     -> PreSelection
     -> TransactionCtx
-    -> IO (Tx, TxMeta, UTCTime, SealedTx)
+    -> IO (Tx, TxMeta, UTCTime, SealedTx, s)
 buildAndSignTransactionNew
     tr ti db netLayer txLayer walletId changeGen era pwd preSelection txCtx =
     WriteTx.withRecentEra era $ \(_ :: WriteTx.RecentEra recentEra) -> do
@@ -2576,7 +2577,8 @@ buildAndSignTransactionNew
                     (unsafeShelleyOnlyGetRewardXPub wallet)
                     protocolParams txCtx (Left preSelection)
 
-        unsignedBalancedTx <- balanceTx protocolParams utxo unsignedTxBody
+        (unsignedBalancedTx, s')
+            <- balanceTx protocolParams utxo unsignedTxBody
         signedSealedTx <- signBalancedTx wallet unsignedBalancedTx
 
         let ( tx
@@ -2618,7 +2620,7 @@ buildAndSignTransactionNew
                     resolveInputs  (resolvedCollateralInputs tx)
                 }
 
-        pure (txResolved, meta, tipTime, signedSealedTx)
+        pure (txResolved, meta, tipTime, signedSealedTx, s')
   where
     errorToException f = either (throwIO . ExceptionConstructTx . f) pure
     anyCardanoEra = WriteTx.fromAnyRecentEra era
@@ -2634,7 +2636,7 @@ buildAndSignTransactionNew
         => ProtocolParameters
         -> (UTxOIndex WalletUTxO, Wallet s, Set Tx)
         -> Cardano.TxBody era
-        -> IO (Cardano.Tx era)
+        -> IO (Cardano.Tx era, s)
     balanceTx protocolParams utxo unsignedTxBody = do
         let protocolParameters =
                 ( protocolParams
@@ -3968,6 +3970,7 @@ data WalletException
     | ExceptionCreateRandomAddress ErrCreateRandomAddress
     | ExceptionImportRandomAddress ErrImportRandomAddress
     | ExceptionNotASequentialWallet ErrNotASequentialWallet
+    | ExceptionNoSuchWallet ErrNoSuchWallet
     | ExceptionReadRewardAccount ErrReadRewardAccount
     | ExceptionWithdrawalNotBeneficial ErrWithdrawalNotBeneficial
     | ExceptionReadPolicyPublicKey ErrReadPolicyPublicKey
