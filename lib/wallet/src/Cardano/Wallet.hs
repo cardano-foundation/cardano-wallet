@@ -2670,7 +2670,7 @@ buildAndSignTransactionNew
                 (Cardano.Tx unsignedTxBody [])(Cardano.UTxO mempty) mempty
         either (throwIO . ExceptionBalanceTx) pure <=< runExceptT $
             balanceTransaction @_ @_ @s @k @ktype
-                tr txLayer changeGen protocolParameters ti utxo partialTx
+                tr txLayer changeGen Nothing Nothing protocolParameters ti utxo partialTx
 
     signBalancedTx
         :: Cardano.IsCardanoEra era
@@ -2789,22 +2789,17 @@ constructTransaction txLayer netLayer db wid txCtx preSel = do
         & withExceptT ErrConstructTxBody . except
 
 constructUnbalancedSharedTransaction
-    :: forall ctx s k (n :: NetworkDiscriminant).
-        ( HasTransactionLayer k 'CredFromScriptK ctx
-        , HasDBLayer IO s k ctx
-        , HasNetworkLayer IO ctx
-        , k ~ SharedKey
-        , s ~ SharedState n k
-        , Typeable n
-        )
-    => ctx
+    :: forall (n :: NetworkDiscriminant) ktype era
+     . (WriteTx.IsRecentEra era, Typeable n)
+    => TransactionLayer SharedKey ktype SealedTx
+    -> NetworkLayer IO Block
+    -> DBLayer IO (SharedState n SharedKey) SharedKey
     -> WalletId
-    -> Cardano.AnyCardanoEra
     -> TransactionCtx
     -> PreSelection
     -> ExceptT ErrConstructTx IO
-    (SealedTx, Maybe ([(TxIn, TxOut)] -> Map TxIn (CA.Script KeyHash)) )
-constructUnbalancedSharedTransaction ctx wid era txCtx sel = db & \DBLayer{..} -> do
+    (Cardano.TxBody era, Maybe ([(TxIn, TxOut)] -> Map TxIn (CA.Script KeyHash)) )
+constructUnbalancedSharedTransaction txLayer netLayer db wid txCtx sel = db & \DBLayer{..} -> do
     cp <- withExceptT ErrConstructTxNoSuchWallet
         $ mapExceptT atomically
         $ withNoSuchWallet wid
@@ -2813,44 +2808,6 @@ constructUnbalancedSharedTransaction ctx wid era txCtx sel = db & \DBLayer{..} -
     let accXPub = getRawKey $ Shared.accountXPub s
     let xpub = CA.getKey $
             deriveDelegationPublicKey (CA.liftXPub accXPub) minBound
-    mapExceptT atomically $ do
-        pp <- liftIO $ currentProtocolParameters nl
-        withExceptT ErrConstructTxBody $ ExceptT $ pure $
-            mkUnsignedTransaction tl era xpub pp txCtx (Left sel)
-  where
-    db = ctx ^. dbLayer @IO @s @k
-    tl = ctx ^. transactionLayer @k @'CredFromScriptK
-    nl = ctx ^. networkLayer
-
--- | Construct an unsigned transaction from a given selection
--- for a shared wallet.
-constructSharedTransaction
-    :: forall ctx s k (n :: NetworkDiscriminant) era.
-        ( HasTransactionLayer k 'CredFromScriptK ctx
-        , HasDBLayer IO s k ctx
-        , HasNetworkLayer IO ctx
-        , k ~ SharedKey
-        , s ~ SharedState n k
-        , Typeable n
-        , WriteTx.IsRecentEra era
-        )
-    => ctx
-    -> WalletId
-    -> TransactionCtx
-    -> SelectionOf TxOut
-    -> ExceptT ErrConstructTx IO (Cardano.TxBody era)
-constructSharedTransaction ctx wid txCtx sel = db & \DBLayer{..} -> do
-    cp <- withExceptT ErrConstructTxNoSuchWallet
-        $ mapExceptT atomically
-        $ withNoSuchWallet wid
-        $ readCheckpoint wid
-    let s = getState cp
-    let accXPub = getRawKey $ Shared.accountXPub s
-    let xpub = CA.getKey $
-            deriveDelegationPublicKey (CA.liftXPub accXPub) minBound
-    let allInps =
-            (view #collateral sel) ++
-            NE.toList (view #inputs sel)
     let getScript (_, TxOut addr _) = case fst (isShared addr s) of
             Nothing ->
                 error $ "Some inputs selected by coin selection do not belong "
@@ -2867,14 +2824,10 @@ constructSharedTransaction ctx wid txCtx sel = db & \DBLayer{..} -> do
             foldr (\inp@(txin,_) -> Map.insert txin (getScript inp))
             Map.empty
     sealedTx <- mapExceptT atomically $ do
-        pp <- liftIO $ currentProtocolParameters nl
+        pp <- liftIO $ currentProtocolParameters netLayer
         withExceptT ErrConstructTxBody $ ExceptT $ pure $
-            mkUnsignedTransaction tl era xpub pp txCtx (Left sel)
+            mkUnsignedTransaction txLayer xpub pp txCtx (Left sel)
     pure (sealedTx, Just scriptInps)
-  where
-    db = ctx ^. dbLayer @IO @s @k
-    tl = ctx ^. transactionLayer @k @'CredFromScriptK
-    nl = ctx ^. networkLayer
 
 -- | Calculate the transaction expiry slot, given a 'TimeInterpreter', and an
 -- optional TTL in seconds.

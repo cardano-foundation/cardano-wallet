@@ -3390,6 +3390,7 @@ balanceTransaction' (Wallet' utxo wal pending) seed tx  =
             testTxLayer
             (delegationAddress @'Mainnet)
             Nothing
+            Nothing
             mockProtocolParametersForBalancing
             dummyTimeInterpreter
             (utxo, wal, pending)

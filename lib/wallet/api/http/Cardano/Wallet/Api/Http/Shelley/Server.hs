@@ -2390,7 +2390,7 @@ constructTransaction api genChange knownPools poolStatus apiWalletId body = do
         era <- liftIO $ NW.currentNodeEra netLayer
         epoch <- getCurrentEpoch api
 
-        withRecentEra era $ \(_recjentEra :: WriteTx.RecentEra era) -> do
+        withRecentEra era $ \(_recentEra :: WriteTx.RecentEra era) -> do
             withdrawal <- case body ^. #withdrawal of
                 Just SelfWithdraw -> liftIO $
                     W.shelleyOnlyMkSelfWithdrawal @_ @_ @_ @_ @n
@@ -2485,14 +2485,14 @@ constructTransaction api genChange knownPools poolStatus apiWalletId body = do
                     Nothing -> []
 
             unbalancedTx <- liftHandler $
-                W.constructTransaction @n @'CredFromKeyK
-                    txLayer netLayer db walletId era transactionCtx2
+                W.constructTransaction @n @'CredFromKeyK @era
+                    txLayer netLayer db walletId transactionCtx2
                         PreSelection { outputs = outs <> mintingOuts }
 
             balancedTx <-
-                balanceTransaction apiLayer genChange Nothing Nothing apiWalletId
+                balanceTransaction api genChange Nothing Nothing apiWalletId
                     ApiBalanceTransactionPostData
-                    { transaction = ApiT unbalancedTx
+                    { transaction = ApiT (sealedTxFromCardanoBody unbalancedTx)
                     , inputs = []
                     , redeemers = []
                     , encoding = body ^. #encoding
@@ -2799,11 +2799,14 @@ constructSharedTransaction
         parseValidityInterval ti (body ^. #validityInterval)
 
     withWorkerCtx ctx wid liftE liftE $ \wrk -> do
+        let db = wrk ^. dbLayer
+            netLayer = wrk ^. networkLayer
+            txLayer = wrk ^. transactionLayer @SharedKey @'CredFromScriptK
+
         era <- liftIO $ NW.currentNodeEra (wrk ^. networkLayer)
         withRecentEra era $ \(_recentEra :: WriteTx.RecentEra era) -> do
             (cp, _, _) <- liftHandler $ withExceptT ErrConstructTxNoSuchWallet $
                 W.readWallet @_ @s @k wrk wid
-
             let txCtx = defaultTransactionCtx
                     { txWithdrawal = NoWithdrawal
                     , txMetadata = md
@@ -2812,48 +2815,40 @@ constructSharedTransaction
                     , txPaymentCredentialScriptTemplate =
                             Just (Shared.paymentTemplate $ getState cp)
                     }
+            case Shared.ready (getState cp) of
+                Shared.Pending ->
+                    liftHandler $ throwE ErrConstructTxSharedWalletIncomplete
+                Shared.Active _ -> do
+                    let outs = case (body ^. #payments) of
+                            Nothing ->
+                                []
+                            Just (ApiPaymentAddresses content) ->
+                                F.toList (addressAmountToTxOut <$> content)
+                    unbalancedTx <- liftHandler $
+                        W.constructUnbalancedSharedTransaction @n @'CredFromScriptK @era
+                        txLayer netLayer db wid txCtx PreSelection {outputs = outs}
 
-            let transform s sel =
-                    ( W.assignChangeAddresses genChange sel s
-                        & uncurry (W.selectionToUnsignedTx (txWithdrawal txCtx))
-                    , sel
-                    , selectionDelta TokenBundle.getCoin sel
-                    )
+                    balancedTx <-
+                        balanceTransaction ctx genChange (snd unbalancedTx)
+                        (Just (Shared.paymentTemplate $ getState cp)) (ApiT wid)
+                            ApiBalanceTransactionPostData
+                            { transaction =
+                                ApiT $ sealedTxFromCardanoBody $ fst unbalancedTx
+                            , inputs = []
+                            , redeemers = []
+                            , encoding = body ^. #encoding
+                            }
 
-        case Shared.ready (getState cp) of
-            Shared.Pending ->
-                liftHandler $ throwE ErrConstructTxSharedWalletIncomplete
-            Shared.Active _ -> do
-                era <- liftIO $ NW.currentNodeEra (wrk ^. networkLayer)
+                    apiDecoded <-
+                        decodeSharedTransaction @_ @s @k ctx (ApiT wid) balancedTx
 
-                let outs = case (body ^. #payments) of
-                        Nothing ->
-                            []
-                        Just (ApiPaymentAddresses content) ->
-                            F.toList (addressAmountToTxOut <$> content)
-                unbalancedTx <- liftHandler $
-                    W.constructUnbalancedSharedTransaction @_ @s @k @n wrk wid
-                    era txCtx PreSelection {outputs = outs}
-
-                balancedTx <-
-                    balanceTransaction ctx genChange (snd unbalancedTx) (Just (Shared.paymentTemplate $ getState cp)) (ApiT wid)
-                        ApiBalanceTransactionPostData
-                        { transaction = ApiT $ fst unbalancedTx
-                        , inputs = []
-                        , redeemers = []
-                        , encoding = body ^. #encoding
+                    pure $ ApiConstructTransaction
+                        { transaction = balancedTx
+                        , coinSelection =
+                            mkApiCoinSelection [] [] Nothing md
+                            (unsignedTx outs apiDecoded)
+                        , fee = apiDecoded ^. #fee
                         }
-
-                apiDecoded <-
-                    decodeSharedTransaction @_ @s @k ctx (ApiT wid) balancedTx
-
-                pure $ ApiConstructTransaction
-                    { transaction = balancedTx
-                    , coinSelection =
-                        mkApiCoinSelection [] [] Nothing md
-                        (unsignedTx outs apiDecoded)
-                    , fee = apiDecoded ^. #fee
-                    }
   where
     ti :: TimeInterpreter (ExceptT PastHorizonException IO)
     ti = timeInterpreter (ctx ^. networkLayer)
