@@ -119,6 +119,8 @@ steps:
       - './nix/regenerate.sh'
     agents:
       system: ${macos}
+    env:
+      TMPDIR: "/tmp"
 
   - label: 'Run unit tests (macOS)'
     depends_on: macos-nix
@@ -126,6 +128,8 @@ steps:
     command: 'GC_DONT_GC=1 nix build --max-silent-time 0 --max-jobs 1 -L .#ci.${macos}.tests.run.unit'
     agents:
       system: ${macos}
+    env:
+      TMPDIR: "/tmp"
 
   - label: 'Build package (macOS)'
     depends_on: macos-nix
@@ -134,6 +138,8 @@ steps:
     artifact_paths: [ "./result/macos-intel/**" ]
     agents:
       system: ${macos}
+    env:
+      TMPDIR: "/tmp"
 
   - block: "Build package (linux)"
     depends_on: linux-nix
