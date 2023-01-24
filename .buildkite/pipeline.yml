@@ -6,7 +6,6 @@ env:
   CACHE_DIR: "/cache/cardano-wallet"
   macos: "x86_64-darwin"
   linux: "x86_64-linux"
-  TMPDIR: "/cache"
 
 
 steps:
@@ -26,6 +25,8 @@ steps:
       - './nix/regenerate.sh'
     agents:
       system: ${linux}
+    env:
+      TMPDIR: "/cache"
 
 
   - label: 'Build bench and run unit tests (linux)'
@@ -37,30 +38,40 @@ steps:
 
     agents:
       system: ${linux}
+    env:
+      TMPDIR: "/cache"
 
   - label: 'Check Cabal Configure'
     depends_on: linux-nix
     command: 'nix develop --command scripts/buildkite/check-haskell-nix-cabal.sh'
     agents:
       system: ${linux}
+    env:
+      TMPDIR: "/cache"
 
   - label: 'Check Stylish Haskell'
     depends_on: linux-nix
     command: 'nix develop --command .buildkite/check-stylish.sh'
     agents:
       system: ${linux}
+    env:
+      TMPDIR: "/cache"
 
   - label: 'Check HLint'
     depends_on: linux-nix
     command: 'nix develop --command bash -c "echo +++ HLint ; hlint lib"'
     agents:
       system: ${linux}
+    env:
+      TMPDIR: "/cache"
 
   - label: 'Validate OpenAPI Specification'
     depends_on: linux-nix
     command: 'nix develop --command bash -c "echo +++ openapi-spec-validator ; openapi-spec-validator --schema 3.0.0 specifications/api/swagger.yaml"'
     agents:
       system: ${linux}
+    env:
+      TMPDIR: "/cache"
 
   - label: 'Build Docker Image'
     depends_on: linux-nix
@@ -70,6 +81,8 @@ steps:
       - "./docker-build-push"
     agents:
       system: ${linux}
+    env:
+      TMPDIR: "/cache"
     soft_fail:
       - exit_status: '*'
 
@@ -78,6 +91,8 @@ steps:
     command: 'nix develop --command scripts/todo-list.sh'
     agents:
       system: ${linux}
+    env:
+      TMPDIR: "/cache"
 
   - label: 'Lint bash shell scripts'
     depends_on: linux-nix
@@ -86,6 +101,8 @@ steps:
       - './scripts/shellcheck.sh'
     agents:
       system: ${linux}
+    env:
+      TMPDIR: "/cache"
 
   - label: 'Check HLS works'
     depends_on: linux-nix
@@ -94,6 +111,8 @@ steps:
         nix develop --command bash -c "haskell-language-server lib/wallet/src/Cardano/Wallet.hs"
     agents:
       system: ${linux}
+    env:
+      TMPDIR: "/cache"
 
   - block: 'Run integration tests (linux)'
     if: '(build.branch != "staging") && (build.branch != "trying") && (build.branch != "master")'
@@ -107,6 +126,8 @@ steps:
       trigger-linux
     agents:
       system: ${linux}
+    env:
+      TMPDIR: "/cache"
 
   - block: "macOS test"
     if: 'build.branch != "master"'
@@ -119,8 +140,6 @@ steps:
       - './nix/regenerate.sh'
     agents:
       system: ${macos}
-    env:
-      TMPDIR: "/tmp"
 
   - label: 'Run unit tests (macOS)'
     depends_on: trigger-macos-test
@@ -128,8 +147,6 @@ steps:
     command: 'GC_DONT_GC=1 nix build --max-silent-time 0 --max-jobs 1 -L .#ci.${macos}.tests.run.unit'
     agents:
       system: ${macos}
-    env:
-      TMPDIR: "/tmp"
 
   - block: "macOS package"
     if: 'build.branch != "master"'
@@ -142,8 +159,6 @@ steps:
     artifact_paths: [ "./result/macos-intel/**" ]
     agents:
       system: ${macos}
-    env:
-      TMPDIR: "/tmp"
 
   - block: "Build package (linux)"
     depends_on: linux-nix
@@ -157,6 +172,8 @@ steps:
     artifact_paths: [ "./result/linux/**" ]
     agents:
       system: ${linux}
+    env:
+      TMPDIR: "/cache"
 
   - block: "Build windows artifacts"
     depends_on: linux-nix
@@ -170,6 +187,8 @@ steps:
     artifact_paths: [ "./result/windows/**" ]
     agents:
       system: ${linux}
+    env:
+      TMPDIR: "/cache"
 
   - label: 'Build testing bundle (windows)'
     depends_on: [linux-nix, trigger-build-windows-artifacts]
@@ -178,4 +197,6 @@ steps:
     artifact_paths: [ "./result/windows-tests/**" ]
     agents:
       system: ${linux}
+    env:
+      TMPDIR: "/cache"
 
