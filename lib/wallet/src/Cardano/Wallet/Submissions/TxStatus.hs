@@ -1,3 +1,4 @@
+{-# LANGUAGE DeriveFunctor #-}
 {-# LANGUAGE FlexibleContexts #-}
 {-# LANGUAGE GADTSyntax #-}
 {-# LANGUAGE LambdaCase #-}
@@ -61,7 +62,7 @@ data TxStatus slot tx where
       -> TxStatus slot tx
     -- | A transaction which is not tracked by the submissions store.
     Unknown :: TxStatus slot tx
-    deriving (Show, Eq)
+    deriving (Show, Eq, Functor)
 
 makePrisms ''TxStatus
 

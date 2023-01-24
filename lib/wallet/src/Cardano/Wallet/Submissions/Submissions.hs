@@ -1,3 +1,4 @@
+{-# LANGUAGE DeriveFunctor #-}
 {-# LANGUAGE FlexibleContexts #-}
 {-# LANGUAGE GADTSyntax #-}
 {-# LANGUAGE LambdaCase #-}
@@ -39,7 +40,7 @@ data TxStatusMeta meta slot tx = TxStatusMeta
     { _txStatus :: TxStatus slot tx
     , _txStatusMeta :: meta
     }
-    deriving (Show, Eq)
+    deriving (Show, Eq, Functor)
 
 makeLenses ''TxStatusMeta
 
