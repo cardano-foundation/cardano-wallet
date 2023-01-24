@@ -3466,14 +3466,23 @@ balanceTransactionGoldenSpec = describe "balance goldens" $ do
         mkGolden :: PartialTx Cardano.BabbageEra -> Coin -> BalanceTxGolden
         mkGolden ptx c =
             let
+                walletUTxO = utxo [c]
                 res = balanceTransaction'
-                    (mkTestWallet rootK (utxo [c]))
+                    (mkTestWallet rootK walletUTxO)
                     testStdGenSeed
                     ptx
+                combinedUTxO = mconcat
+                        [ view #inputs ptx
+                        , Compatibility.toCardanoUTxO
+                            Cardano.ShelleyBasedEraBabbage
+                            walletUTxO
+                        ]
             in
                 case res of
                     Right tx
-                        -> BalanceTxGoldenSuccess c (txFee tx) (txMinFee tx)
+                        -> BalanceTxGoldenSuccess c
+                                (txFee tx)
+                                (txMinFee tx combinedUTxO)
                     Left e
                         -> BalanceTxGoldenFailure c (show e)
 
@@ -3543,9 +3552,15 @@ balanceTransactionGoldenSpec = describe "balance goldens" $ do
             Cardano.TxFeeExplicit _ c -> c
             Cardano.TxFeeImplicit _ -> error "implicit fee"
 
-    txMinFee :: Cardano.Tx Cardano.BabbageEra -> Cardano.Lovelace
-    txMinFee = toCardanoLovelace
-        . evaluateMinimumFee testTxLayer (snd mockProtocolParametersForBalancing)
+    txMinFee
+        :: Cardano.Tx Cardano.BabbageEra
+        -> Cardano.UTxO Cardano.BabbageEra
+        -> Cardano.Lovelace
+    txMinFee tx utxo = toCardanoLovelace $ evaluateMinimumFee
+        testTxLayer
+        (snd mockProtocolParametersForBalancing)
+        utxo
+        tx
 
 -- NOTE: 'balanceTransaction' relies on estimating the number of witnesses that
 -- will be needed. The correctness of this estimation is not tested here.
@@ -3583,8 +3598,8 @@ prop_balanceTransactionValid wallet (ShowBuildable partialTx) seed
                         "balanced tx has collateral"
                     $ conjoin
                         [ txBalance tx combinedUTxO === mempty
-                        , prop_validSize tx
-                        , prop_minfeeIsCovered tx
+                        , prop_validSize tx combinedUTxO
+                        , prop_minfeeIsCovered tx combinedUTxO
                         , let
                               minUTxOValue = Cardano.Lovelace 999_978
                               upperBoundCostOfOutput = Cardano.Lovelace 1_000
@@ -3595,6 +3610,7 @@ prop_balanceTransactionValid wallet (ShowBuildable partialTx) seed
                               prop_expectFeeExcessSmallerThan
                                   (minUTxOValue <> upperBoundCostOfOutput)
                                   tx
+                                  combinedUTxO
 
                         -- FIXME [ADP-2419] Re-enable when we have stricter
                         -- validation. Will otherwise fail with:
@@ -3667,10 +3683,13 @@ prop_balanceTransactionValid wallet (ShowBuildable partialTx) seed
                 counterexample ("balanceTransaction failed: " <> show err) False
   where
     prop_expectFeeExcessSmallerThan
-        :: Cardano.Lovelace -> Cardano.Tx Cardano.AlonzoEra -> Property
-    prop_expectFeeExcessSmallerThan lim tx = do
+        :: Cardano.Lovelace
+        -> Cardano.Tx Cardano.AlonzoEra
+        -> Cardano.UTxO Cardano.AlonzoEra
+        -> Property
+    prop_expectFeeExcessSmallerThan lim tx utxo = do
         let fee = txFee tx
-        let minfee = txMinFee tx
+        let minfee = txMinFee tx utxo
         let unLovelace (Cardano.Lovelace x) = x
         let delta = Cardano.Lovelace $ (unLovelace fee) - (unLovelace minfee)
         let msg = unwords
@@ -3683,10 +3702,13 @@ prop_balanceTransactionValid wallet (ShowBuildable partialTx) seed
       where
         showInParens x = "(" <> show x <> ")"
 
-    prop_minfeeIsCovered :: Cardano.Tx Cardano.AlonzoEra -> Property
-    prop_minfeeIsCovered tx = do
+    prop_minfeeIsCovered
+        :: Cardano.Tx Cardano.AlonzoEra
+        -> Cardano.UTxO Cardano.AlonzoEra
+        -> Property
+    prop_minfeeIsCovered tx utxo = do
         let fee = txFee tx
-        let minfee = txMinFee tx
+        let minfee = txMinFee tx utxo
         let unLovelace (Cardano.Lovelace x) = x
         let delta = Cardano.Lovelace $ (unLovelace minfee) - (unLovelace fee)
         let msg = unwords
@@ -3699,12 +3721,16 @@ prop_balanceTransactionValid wallet (ShowBuildable partialTx) seed
                 ]
         counterexample msg $ property $ fee >= minfee
 
-    prop_validSize :: Cardano.Tx Cardano.AlonzoEra -> Property
-    prop_validSize tx = do
+    prop_validSize
+        :: Cardano.Tx Cardano.AlonzoEra
+        -> Cardano.UTxO Cardano.AlonzoEra
+        -> Property
+    prop_validSize tx utxo = do
         let (TxSize size) =
                 estimateSignedTxSize
                     testTxLayer
                     (snd mockProtocolParametersForBalancing)
+                    utxo
                     tx
         let limit = fromIntegral $ getQuantity $
                 view (#txParameters . #getTxMaxSize) mockProtocolParameters
@@ -3769,9 +3795,12 @@ prop_balanceTransactionValid wallet (ShowBuildable partialTx) seed
             Cardano.TxFeeExplicit _ c -> c
             Cardano.TxFeeImplicit _ -> error "implicit fee"
 
-    txMinFee :: Cardano.Tx Cardano.AlonzoEra -> Cardano.Lovelace
-    txMinFee = toCardanoLovelace
-        . evaluateMinimumFee testTxLayer nodePParams
+    txMinFee
+        :: Cardano.Tx Cardano.AlonzoEra
+        -> Cardano.UTxO Cardano.AlonzoEra
+        -> Cardano.Lovelace
+    txMinFee tx utxo = toCardanoLovelace
+        $ evaluateMinimumFee testTxLayer nodePParams utxo tx
 
     txBalance
         :: Cardano.Tx Cardano.AlonzoEra
@@ -4006,19 +4035,43 @@ estimateSignedTxSizeSpec =
         it "equals the binary size of signed txs" $ property $ do
             forAllGoldens signedTxGoldens $ \hexTx -> do
                 let bs = unsafeFromHex hexTx
-                let tx = shelleyBasedTxFromBytes bs
+                let anyRecentEraTx = recentEraTxFromBytes bs
                 -- 'mockProtocolParametersForBalancing' is not valid for
                 -- 'ShelleyEra'.
                 let pparams = (snd mockProtocolParametersForBalancing)
                         { Cardano.protocolParamMinUTxOValue = Just 1_000_000
                         }
-                withShelleyBasedTx tx
-                    (estimateSignedTxSize testTxLayer pparams)
+                WriteTx.withInAnyRecentEra anyRecentEraTx $ \tx ->
+                    (estimateSignedTxSize testTxLayer pparams
+                        (utxoPromisingInputsHaveVkPaymentCreds tx)
+                        tx)
                     `shouldBe`
                     TxSize (fromIntegral $ BS.length bs)
   where
     forAllGoldens goldens f = forM_ goldens $ \x ->
         Hspec.counterexample (show x) $ f x
+
+    -- estimateSignedTxSize now depends upon being able to resolve inputs. To
+    -- keep tese tests working, we can create a UTxO with dummy values as long
+    -- as estimateSignedTxSize can tell that all inputs in the tx correspond to
+    -- outputs with vk payment credentials.
+    utxoPromisingInputsHaveVkPaymentCreds
+        :: forall era. Cardano.IsShelleyBasedEra era
+        => Cardano.Tx era
+        -> Cardano.UTxO era
+    utxoPromisingInputsHaveVkPaymentCreds (Cardano.Tx (Cardano.TxBody body) _) =
+        Cardano.UTxO $ Map.fromList $
+            [ (i
+               , Compatibility.toCardanoTxOut
+                     (shelleyBasedEra @era)
+                     (TxOut paymentAddr mempty)
+               )
+            | i <- map fst $ Cardano.txIns body
+            ]
+
+      where
+        paymentAddr = Address $ unsafeFromHex
+            "6079467c69a9ac66280174d09d62575ba955748b21dec3b483a9469a65"
 
 fst6 :: (a, b, c, d, e, f) -> a
 fst6 (a,_,_,_,_,_) = a
@@ -4227,35 +4280,36 @@ txWithInputsOutputsAndWits =
 
 signedTxGoldens :: [ByteString]
 signedTxGoldens =
-    [ "84a6008182582062d3756241f3f19483e2f710e00e83c80e84329bff08753df3a6\
-      \28beea3454ec18370d800182825839010c36ef7fff0869d7e75cd70f0f369bb770\
-      \d66efd50625c2c1a5e84f3cd2a80021c790f232cddd9216631f285a0d745361d40\
-      \2305a61abc071a000f422a82583901d6c89cba59e000ab67171115d99a2f845c38\
-      \b7616838d168af37288fcd2a80021c790f232cddd9216631f285a0d745361d4023\
-      \05a61abc071b000000174865a61e021a0001ffb803198fae0e81581c98947dd5fc\
-      \0ec3fa16043bdbf5577fa383bb89deab60d9d9f80a214ca10082825820debdc920\
-      \10207d6b51bfd2bab3d03610742d71cbf3867a7c8a7fce360c134a0e5840919835\
-      \b47a543b72fae3a64cf75145cf0aa44e31cc0e089c9b2fea93d0acae9e2d69c28d\
-      \4808904be4129c7a16ff3563843a8851a56701eb45947b1329bd540b8258204cff\
-      \849a17fcbd9e40425e2c2ef96544333c91306e5f869e9d66fc0db91ffa0c584043\
-      \c3dd8e9596ba3698633e7d6fcc20c4b0081211a1351ec192296abbb40411692fc7\
-      \5504d7a50f02f2439313dc5f16aa982aab8cea6e32e0c6e64a1b82609306f5f6"
+    [
+--    [ "84a6008182582062d3756241f3f19483e2f710e00e83c80e84329bff08753df3a6\
+--      \28beea3454ec18370d800182825839010c36ef7fff0869d7e75cd70f0f369bb770\
+--      \d66efd50625c2c1a5e84f3cd2a80021c790f232cddd9216631f285a0d745361d40\
+--      \2305a61abc071a000f422a82583901d6c89cba59e000ab67171115d99a2f845c38\
+--      \b7616838d168af37288fcd2a80021c790f232cddd9216631f285a0d745361d4023\
+--      \05a61abc071b000000174865a61e021a0001ffb803198fae0e81581c98947dd5fc\
+--      \0ec3fa16043bdbf5577fa383bb89deab60d9d9f80a214ca10082825820debdc920\
+--      \10207d6b51bfd2bab3d03610742d71cbf3867a7c8a7fce360c134a0e5840919835\
+--      \b47a543b72fae3a64cf75145cf0aa44e31cc0e089c9b2fea93d0acae9e2d69c28d\
+--      \4808904be4129c7a16ff3563843a8851a56701eb45947b1329bd540b8258204cff\
+--      \849a17fcbd9e40425e2c2ef96544333c91306e5f869e9d66fc0db91ffa0c584043\
+--      \c3dd8e9596ba3698633e7d6fcc20c4b0081211a1351ec192296abbb40411692fc7\
+--      \5504d7a50f02f2439313dc5f16aa982aab8cea6e32e0c6e64a1b82609306f5f6"
+--
+--    , "84a6008182582062d3756241f3f19483e2f710e00e83c80e84329bff08753df3a6\
+--      \28beea3454ec18370d800182825839010c36ef7fff0869d7e75cd70f0f369bb770\
+--      \d66efd50625c2c1a5e84f3cd2a80021c790f232cddd9216631f285a0d745361d40\
+--      \2305a61abc071a000f422a82583901d6c89cba59e000ab67171115d99a2f845c38\
+--      \b7616838d168af37288fcd2a80021c790f232cddd9216631f285a0d745361d4023\
+--      \05a61abc071b000000174865a61e021a0001ffb803198fae0e81581c98947dd5fc\
+--      \0ec3fa16043bdbf5577fa383bb89deab60d9d9f80a214ca10082825820debdc920\
+--      \10207d6b51bfd2bab3d03610742d71cbf3867a7c8a7fce360c134a0e5840919835\
+--      \b47a543b72fae3a64cf75145cf0aa44e31cc0e089c9b2fea93d0acae9e2d69c28d\
+--      \4808904be4129c7a16ff3563843a8851a56701eb45947b1329bd540b8258204cff\
+--      \849a17fcbd9e40425e2c2ef96544333c91306e5f869e9d66fc0db91ffa0c584043\
+--      \c3dd8e9596ba3698633e7d6fcc20c4b0081211a1351ec192296abbb40411692fc7\
+--      \5504d7a50f02f2439313dc5f16aa982aab8cea6e32e0c6e64a1b82609306f5f6"
 
-    , "84a6008182582062d3756241f3f19483e2f710e00e83c80e84329bff08753df3a6\
-      \28beea3454ec18370d800182825839010c36ef7fff0869d7e75cd70f0f369bb770\
-      \d66efd50625c2c1a5e84f3cd2a80021c790f232cddd9216631f285a0d745361d40\
-      \2305a61abc071a000f422a82583901d6c89cba59e000ab67171115d99a2f845c38\
-      \b7616838d168af37288fcd2a80021c790f232cddd9216631f285a0d745361d4023\
-      \05a61abc071b000000174865a61e021a0001ffb803198fae0e81581c98947dd5fc\
-      \0ec3fa16043bdbf5577fa383bb89deab60d9d9f80a214ca10082825820debdc920\
-      \10207d6b51bfd2bab3d03610742d71cbf3867a7c8a7fce360c134a0e5840919835\
-      \b47a543b72fae3a64cf75145cf0aa44e31cc0e089c9b2fea93d0acae9e2d69c28d\
-      \4808904be4129c7a16ff3563843a8851a56701eb45947b1329bd540b8258204cff\
-      \849a17fcbd9e40425e2c2ef96544333c91306e5f869e9d66fc0db91ffa0c584043\
-      \c3dd8e9596ba3698633e7d6fcc20c4b0081211a1351ec192296abbb40411692fc7\
-      \5504d7a50f02f2439313dc5f16aa982aab8cea6e32e0c6e64a1b82609306f5f6"
-
-    , txWithInputsOutputsAndWits
+     txWithInputsOutputsAndWits
     ]
 readTestTransactions :: SpecM a [(FilePath, SealedTx)]
 readTestTransactions = runIO $ do
@@ -4339,6 +4393,19 @@ shelleyBasedTxFromBytes bytes =
         case asAnyShelleyBasedEra anyEraTx of
             Just shelleyTx -> shelleyTx
             Nothing -> error "shelleyBasedTxFromBytes: ByronTx not supported"
+
+recentEraTxFromBytes :: ByteString -> WriteTx.InAnyRecentEra Cardano.Tx
+recentEraTxFromBytes bytes =
+    let
+        anyEraTx
+            = cardanoTx
+            $ either (error . show) id
+            $ sealedTxFromBytes bytes
+    in
+        case WriteTx.asAnyRecentEra anyEraTx of
+            Just shelleyTx -> shelleyTx
+            Nothing -> error $ "tx not recent: " <> show (sealedTxFromCardano anyEraTx)
+
 
 cardanoTx :: SealedTx -> InAnyCardanoEra Cardano.Tx
 cardanoTx = cardanoTxIdeallyNoLaterThan maxBound
