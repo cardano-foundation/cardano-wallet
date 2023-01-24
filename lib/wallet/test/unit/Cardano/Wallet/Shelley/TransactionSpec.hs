@@ -3545,7 +3545,7 @@ balanceTransactionGoldenSpec = describe "balance goldens" $ do
 
     txMinFee :: Cardano.Tx Cardano.BabbageEra -> Cardano.Lovelace
     txMinFee = toCardanoLovelace
-        . evaluateMinimumFee testTxLayer (snd mockProtocolParametersForBalancing) mempty
+        . evaluateMinimumFee testTxLayer (snd mockProtocolParametersForBalancing)
 
 -- NOTE: 'balanceTransaction' relies on estimating the number of witnesses that
 -- will be needed. The correctness of this estimation is not tested here.
@@ -3583,8 +3583,8 @@ prop_balanceTransactionValid wallet (ShowBuildable partialTx) seed
                         "balanced tx has collateral"
                     $ conjoin
                         [ txBalance tx combinedUTxO === mempty
-                        , prop_validSize tx combinedUTxO
-                        , prop_minfeeIsCovered tx combinedUTxO
+                        , prop_validSize tx
+                        , prop_minfeeIsCovered tx
                         , let
                               minUTxOValue = Cardano.Lovelace 999_978
                               upperBoundCostOfOutput = Cardano.Lovelace 1_000
@@ -3595,7 +3595,6 @@ prop_balanceTransactionValid wallet (ShowBuildable partialTx) seed
                               prop_expectFeeExcessSmallerThan
                                   (minUTxOValue <> upperBoundCostOfOutput)
                                   tx
-                                  combinedUTxO
 
                         -- FIXME [ADP-2419] Re-enable when we have stricter
                         -- validation. Will otherwise fail with:
@@ -3668,13 +3667,10 @@ prop_balanceTransactionValid wallet (ShowBuildable partialTx) seed
                 counterexample ("balanceTransaction failed: " <> show err) False
   where
     prop_expectFeeExcessSmallerThan
-        :: Cardano.Lovelace
-        -> Cardano.Tx Cardano.AlonzoEra
-        -> Cardano.UTxO Cardano.AlonzoEra
-        -> Property
-    prop_expectFeeExcessSmallerThan lim tx utxo = do
+        :: Cardano.Lovelace -> Cardano.Tx Cardano.AlonzoEra -> Property
+    prop_expectFeeExcessSmallerThan lim tx = do
         let fee = txFee tx
-        let minfee = txMinFee utxo tx
+        let minfee = txMinFee tx
         let unLovelace (Cardano.Lovelace x) = x
         let delta = Cardano.Lovelace $ (unLovelace fee) - (unLovelace minfee)
         let msg = unwords
@@ -3687,13 +3683,10 @@ prop_balanceTransactionValid wallet (ShowBuildable partialTx) seed
       where
         showInParens x = "(" <> show x <> ")"
 
-    prop_minfeeIsCovered
-        :: Cardano.Tx Cardano.AlonzoEra
-        -> Cardano.UTxO Cardano.AlonzoEra
-        -> Property
-    prop_minfeeIsCovered tx utxo = do
+    prop_minfeeIsCovered :: Cardano.Tx Cardano.AlonzoEra -> Property
+    prop_minfeeIsCovered tx = do
         let fee = txFee tx
-        let minfee = txMinFee utxo tx
+        let minfee = txMinFee tx
         let unLovelace (Cardano.Lovelace x) = x
         let delta = Cardano.Lovelace $ (unLovelace minfee) - (unLovelace fee)
         let msg = unwords
@@ -3706,16 +3699,12 @@ prop_balanceTransactionValid wallet (ShowBuildable partialTx) seed
                 ]
         counterexample msg $ property $ fee >= minfee
 
-    prop_validSize
-        :: Cardano.Tx Cardano.AlonzoEra
-        -> Cardano.UTxO Cardano.AlonzoEra
-        -> Property
-    prop_validSize tx utxo = do
+    prop_validSize :: Cardano.Tx Cardano.AlonzoEra -> Property
+    prop_validSize tx = do
         let (TxSize size) =
                 estimateSignedTxSize
                     testTxLayer
                     (snd mockProtocolParametersForBalancing)
-                    utxo
                     tx
         let limit = fromIntegral $ getQuantity $
                 view (#txParameters . #getTxMaxSize) mockProtocolParameters
@@ -3780,12 +3769,9 @@ prop_balanceTransactionValid wallet (ShowBuildable partialTx) seed
             Cardano.TxFeeExplicit _ c -> c
             Cardano.TxFeeImplicit _ -> error "implicit fee"
 
-    txMinFee
-        :: Cardano.UTxO Cardano.AlonzoEra
-        -> Cardano.Tx Cardano.AlonzoEra
-        -> Cardano.Lovelace
-    txMinFee utxo tx = toCardanoLovelace
-        $ evaluateMinimumFee testTxLayer nodePParams utxo tx
+    txMinFee :: Cardano.Tx Cardano.AlonzoEra -> Cardano.Lovelace
+    txMinFee = toCardanoLovelace
+        . evaluateMinimumFee testTxLayer nodePParams
 
     txBalance
         :: Cardano.Tx Cardano.AlonzoEra
@@ -4014,7 +4000,7 @@ prop_updateSealedTx
     outputs = sealedOutputs . sealedTxFromCardano'
     collateralIns = sealedCollateralInputs . sealedTxFromCardano'
 
-estimateSignedTxSizeSpec :: forall era. WriteTx.IsRecentEra era => Spec
+estimateSignedTxSizeSpec :: Spec
 estimateSignedTxSizeSpec =
     describe "estimateSignedTxSize" $ do
         it "equals the binary size of signed txs" $ property $ do
@@ -4027,21 +4013,12 @@ estimateSignedTxSizeSpec =
                         { Cardano.protocolParamMinUTxOValue = Just 1_000_000
                         }
                 withShelleyBasedTx tx
-                    (estimateSignedTxSize' pparams mempty)
+                    (estimateSignedTxSize testTxLayer pparams)
                     `shouldBe`
                     TxSize (fromIntegral $ BS.length bs)
   where
     forAllGoldens goldens f = forM_ goldens $ \x ->
         Hspec.counterexample (show x) $ f x
-
-estimateSignedTxSize'
-    :: forall era. WriteTx.IsRecentEra era
-    => Cardano.ProtocolParameters
-    -> Cardano.UTxO era
-    -> Cardano.Tx era
-    -> TxSize
-estimateSignedTxSize' pparams utxo tx =
-    estimateSignedTxSize testTxLayer pparams utxo tx
 
 fst6 :: (a, b, c, d, e, f) -> a
 fst6 (a,_,_,_,_,_) = a
