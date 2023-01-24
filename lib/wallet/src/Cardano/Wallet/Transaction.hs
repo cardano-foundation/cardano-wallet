@@ -224,9 +224,10 @@ data TransactionLayer k ktype tx = TransactionLayer
         -- ^ Compute the maximum execution cost of scripts in a given transaction.
 
     , evaluateMinimumFee
-        :: forall era. Cardano.IsShelleyBasedEra era
+        :: forall era. WriteTx.IsRecentEra era
         => Cardano.ProtocolParameters
             -- Current protocol parameters
+        -> Cardano.UTxO era
         -> Cardano.Tx era
             -- The sealed transaction
         -> Coin
@@ -237,8 +238,9 @@ data TransactionLayer k ktype tx = TransactionLayer
         -- for unsigned transactions.
 
     , estimateSignedTxSize
-        :: forall era. Cardano.IsShelleyBasedEra era
+        :: forall era. WriteTx.IsRecentEra era
         => Cardano.ProtocolParameters
+        -> Cardano.UTxO era
         -> Cardano.Tx era
         -> TxSize
         -- ^ Estimate the size of the transaction when fully signed.

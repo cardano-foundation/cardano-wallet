@@ -1927,7 +1927,7 @@ balanceTransactionWithSelectionStrategyAndNoZeroAdaAdjustment
 
     guardTxSize :: Cardano.Tx era -> ExceptT ErrBalanceTx m (Cardano.Tx era)
     guardTxSize tx = do
-        let size = estimateSignedTxSize txLayer nodePParams tx
+        let size = estimateSignedTxSize txLayer nodePParams combinedUTxO tx
         let maxSize = TxSize
                 . intCast
                 . getQuantity
@@ -1953,7 +1953,7 @@ balanceTransactionWithSelectionStrategyAndNoZeroAdaAdjustment
     balanceAfterSettingMinFee tx = ExceptT . pure $ do
         -- NOTE: evaluateMinimumFee relies on correctly estimating the required
         -- number of witnesses.
-        let minfee = evaluateMinimumFee txLayer nodePParams tx
+        let minfee = evaluateMinimumFee txLayer nodePParams combinedUTxO tx
         let update = TxUpdate [] [] [] [] (UseNewTxFee minfee)
         tx' <- left ErrBalanceTxUpdateError $ updateTx txLayer tx update
         let balance = evaluateTransactionBalance txLayer tx' nodePParams combinedUTxO
