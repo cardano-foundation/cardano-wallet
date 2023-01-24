@@ -3,6 +3,7 @@
 {-# LANGUAGE DerivingVia #-}
 {-# LANGUAGE DuplicateRecordFields #-}
 {-# LANGUAGE FlexibleInstances #-}
+{-# LANGUAGE NamedFieldPuns #-}
 {-# LANGUAGE ScopedTypeVariables #-}
 {-# LANGUAGE StrictData #-}
 {-# LANGUAGE TypeFamilies #-}
@@ -17,6 +18,7 @@ module Cardano.Wallet.Primitive.Types.Tx.TransactionInfo
     ( TransactionInfo (..)
     , fromTransactionInfo
     , toTxHistory
+    , hasStatus
     )
     where
 
@@ -33,7 +35,7 @@ import Cardano.Wallet.Primitive.Types.Tx.Tx
 import Cardano.Wallet.Primitive.Types.Tx.TxIn
     ( TxIn )
 import Cardano.Wallet.Primitive.Types.Tx.TxMeta
-    ( TxMeta )
+    ( TxMeta, TxStatus, status )
 import Cardano.Wallet.Primitive.Types.Tx.TxOut
     ( TxOut )
 import Cardano.Wallet.Read.Tx.CBOR
@@ -105,3 +107,8 @@ fromTransactionInfo info = Tx
 -- | Drop time-specific information
 toTxHistory :: TransactionInfo -> (Tx, TxMeta)
 toTxHistory info = (fromTransactionInfo info, txInfoMeta info)
+
+hasStatus :: TxStatus -> TransactionInfo -> Bool
+hasStatus s TransactionInfo{txInfoMeta}
+    | status txInfoMeta == s = True
+    | otherwise = False

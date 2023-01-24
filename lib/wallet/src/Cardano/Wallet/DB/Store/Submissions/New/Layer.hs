@@ -41,7 +41,7 @@ import Cardano.Wallet.Submissions.Submissions
 import Cardano.Wallet.Submissions.TxStatus
     ( TxStatus (..), getTx, status )
 import Control.Lens
-    ( (^.) )
+    ( to, (^.), (^..) )
 import Control.Monad.Except
     ( ExceptT (ExceptT) )
 import Data.Bifunctor
@@ -59,7 +59,7 @@ import qualified Data.Map.Strict as Map
 
 -- TODO: This implementation is not completed / fully tested yet.
 mkDbPendingTxs
-    :: DBVar (SqlPersistT IO) (DeltaMap WalletId DeltaTxSubmissions)
+    :: DBVar (SqlPersistT IO) (DeltaMap WalletId DeltaTxSubmissions) -- ^
     -> DBPendingTxs (SqlPersistT IO)
 mkDbPendingTxs dbvar = DBPendingTxs
     { putLocalTxSubmission_ = \wid txid tx sl -> do
@@ -87,10 +87,16 @@ mkDbPendingTxs dbvar = DBPendingTxs
                 $ AddSubmission expiry (TxId $ tx ^. #txId, sealedTx)
                 $ submissionMetaFromTxMeta meta resubmitted
 
+    , getInSubmissionTransactions_ = \wid -> do
+            submissions <- readDBVar dbvar
+            pure $ case Map.lookup wid submissions of
+                Nothing  -> []
+                Just xs -> xs ^.. transactionsL . traverse . to (fmap snd)
+
     , readLocalTxSubmissionPending_ = \wid -> do
             v <- readDBVar dbvar
             pure $ case Map.lookup wid v of
-                Nothing -> [] -- shouldn't we be throwing an exception here ?
+                Nothing -> []
                 Just sub -> do
                     (_k, x) <- Map.assocs $ sub ^. transactionsL
                     mkLocalTxSubmission x
@@ -118,10 +124,10 @@ mkDbPendingTxs dbvar = DBPendingTxs
 mkLocalTxSubmission
     :: TxSubmissionsStatus
     -> [LocalTxSubmissionStatus SealedTx]
-mkLocalTxSubmission (TxStatusMeta status SubmissionMeta{..})
+mkLocalTxSubmission (TxStatusMeta status' SubmissionMeta{..})
     = maybe
         []
         (\(TxId txId, sealed) -> pure $
             LocalTxSubmissionStatus (txId) sealed submissionMetaResubmitted
         )
-        $ getTx status
+        $ getTx status'

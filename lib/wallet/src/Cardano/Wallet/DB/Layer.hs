@@ -112,7 +112,7 @@ import Cardano.Wallet.DB.Store.Meta.Model
 import Cardano.Wallet.DB.Store.Submissions.Model
     ( TxLocalSubmissionHistory (..) )
 import Cardano.Wallet.DB.Store.Transactions.Decoration
-    ( decorateTxInsForRelation )
+    ( TxInDecorator, decorateTxInsForReadTx, decorateTxInsForRelation )
 import Cardano.Wallet.DB.Store.Transactions.Model
     ( TxSet (..) )
 import Cardano.Wallet.DB.Store.Transactions.TransactionInfo
@@ -138,6 +138,8 @@ import Cardano.Wallet.Primitive.Passphrase
     ( PassphraseHash )
 import Cardano.Wallet.Primitive.Slotting
     ( TimeInterpreter, firstSlotInEpoch, interpretQuery )
+import Cardano.Wallet.Read.Eras
+    ( EraValue )
 import Control.Exception
     ( throw )
 import Control.Monad
@@ -153,7 +155,7 @@ import Control.Tracer
 import Data.Coerce
     ( coerce )
 import Data.DBVar
-    ( loadDBVar, modifyDBMaybe, readDBVar, updateDBVar )
+    ( DBVar, loadDBVar, modifyDBMaybe, readDBVar, updateDBVar )
 import Data.Either
     ( isRight )
 import Data.Foldable
@@ -218,6 +220,7 @@ import qualified Cardano.Wallet.Primitive.Types as W
 import qualified Cardano.Wallet.Primitive.Types.Coin as Coin
 import qualified Cardano.Wallet.Primitive.Types.Hash as W
 import qualified Cardano.Wallet.Primitive.Types.Tx as W
+import qualified Cardano.Wallet.Read.Tx as Read
 import qualified Data.Map.Strict as Map
 import qualified Data.Set as Set
 import qualified Data.Text as T
@@ -719,6 +722,7 @@ newDBLayerWith _cacheBehavior _tr ti SqliteContext{runQuery} = do
             txHistory@(txSet,_) <- readDBVar transactionsDBVar
             let transactions = lookupTxMeta wid (TxId txid) txHistory
             lift $ forM transactions $ selectTransactionInfo ti tip txSet
+        , mkDecorator_ = mkDecorator transactionsDBVar
         }
 
         {-----------------------------------------------------------------------
@@ -758,6 +762,8 @@ newDBLayerWith _cacheBehavior _tr ti SqliteContext{runQuery} = do
                 wid [(tx, meta)]
             void $ runExceptT $ putLocalTxSubmission_ dbPendingTxs
                 wid (tx ^. #txId) binary sl
+
+        , getInSubmissionTransactions_ = \_ -> pure []
 
         , readLocalTxSubmissionPending_ =
             fmap (map localTxSubmissionFromEntity)
@@ -816,6 +822,12 @@ newDBLayerWith _cacheBehavior _tr ti SqliteContext{runQuery} = do
 
     pure $ mkDBLayerFromParts ti DBLayerCollection{..}
 
+mkDecorator
+    :: DBVar (SqlPersistT IO) DeltaTxWalletsHistory
+    -> TxInDecorator (EraValue Read.Tx) (SqlPersistT IO)
+mkDecorator transactionsDBVar tx = do
+    (txSet,_) <- readDBVar transactionsDBVar
+    pure $ decorateTxInsForReadTx txSet tx
 
 readWalletMetadata
     :: W.WalletId
