@@ -2824,16 +2824,16 @@ constructSharedTransaction
                                 []
                             Just (ApiPaymentAddresses content) ->
                                 F.toList (addressAmountToTxOut <$> content)
-                    unbalancedTx <- liftHandler $
+                    (unbalancedTx, scriptLookup) <- liftHandler $
                         W.constructUnbalancedSharedTransaction @n @'CredFromScriptK @era
                         txLayer netLayer db wid txCtx PreSelection {outputs = outs}
 
                     balancedTx <-
-                        balanceTransaction ctx genChange (snd unbalancedTx)
+                        balanceTransaction ctx genChange scriptLookup
                         (Just (Shared.paymentTemplate $ getState cp)) (ApiT wid)
                             ApiBalanceTransactionPostData
                             { transaction =
-                                ApiT $ sealedTxFromCardanoBody $ fst unbalancedTx
+                                ApiT $ sealedTxFromCardanoBody unbalancedTx
                             , inputs = []
                             , redeemers = []
                             , encoding = body ^. #encoding
