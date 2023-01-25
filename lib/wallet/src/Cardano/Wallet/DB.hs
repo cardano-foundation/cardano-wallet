@@ -849,6 +849,10 @@ mkTransactionInfo ti decorator tip = \case
             -> make WTxMeta.Expired tx meta
         ( TxStatusMeta ( Subm.InLedger _ _slot tx) meta)
             -> make WTxMeta.InLedger tx meta
+            -- Note: `meta` will contain the slot and block height
+            -- when the transaction was submitted,
+            -- not the slot or block height when the transaction
+            -- was accepted into the ledger.
         _ -> pure Nothing
   where
     make s tx meta = do
