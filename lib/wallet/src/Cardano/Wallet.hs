@@ -1607,7 +1607,7 @@ balanceTransaction
     => Tracer m WalletLog
     -> TransactionLayer k ktype SealedTx
     -> ArgGenChange s
-    -> Maybe ([(TxIn, TxOut)] -> Map TxIn (CA.Script KeyHash))
+    -> Maybe ([(TxIn, TxOut)] -> [CA.Script KeyHash])
     -> Maybe ScriptTemplate
     -> (W.ProtocolParameters, Cardano.ProtocolParameters)
     -- ^ 'Cardano.ProtocolParameters' can be retrieved via a Local State Query
@@ -1731,7 +1731,7 @@ balanceTransactionWithSelectionStrategyAndNoZeroAdaAdjustment
     => Tracer m WalletLog
     -> TransactionLayer k ktype SealedTx
     -> ArgGenChange s
-    -> Maybe ([(TxIn, TxOut)] -> Map TxIn (CA.Script KeyHash))
+    -> Maybe ([(TxIn, TxOut)] -> [CA.Script KeyHash])
     -> Maybe ScriptTemplate
     -> (W.ProtocolParameters, Cardano.ProtocolParameters)
     -> TimeInterpreter (Either PastHorizonException)
@@ -1834,7 +1834,7 @@ balanceTransactionWithSelectionStrategyAndNoZeroAdaAdjustment
 
     let extraInputScripts = case toInpScriptsM of
             Just toInpScripts ->
-                Map.elems . toInpScripts $ extraInputs <> extraCollateral'
+                toInpScripts $ extraInputs <> extraCollateral'
             Nothing ->
                 []
     let extraCollateral = fst <$> extraCollateral'
@@ -2798,7 +2798,7 @@ constructUnbalancedSharedTransaction
     -> TransactionCtx
     -> PreSelection
     -> ExceptT ErrConstructTx IO
-    (Cardano.TxBody era, Maybe ([(TxIn, TxOut)] -> Map TxIn (CA.Script KeyHash)) )
+    (Cardano.TxBody era, Maybe ([(TxIn, TxOut)] -> [CA.Script KeyHash]) )
 constructUnbalancedSharedTransaction txLayer netLayer db wid txCtx sel = db & \DBLayer{..} -> do
     cp <- withExceptT ErrConstructTxNoSuchWallet
         $ mapExceptT atomically
@@ -2820,14 +2820,11 @@ constructUnbalancedSharedTransaction txLayer netLayer db wid txCtx sel = db & \D
                         MutableAccount ->
                             error "role is specified only for payment credential"
                 in replaceCosignersWithVerKeys role' template ix
-    let scriptInps =
-            foldr (\inp@(txin,_) -> Map.insert txin (getScript inp))
-            Map.empty
     sealedTx <- mapExceptT atomically $ do
         pp <- liftIO $ currentProtocolParameters netLayer
         withExceptT ErrConstructTxBody $ ExceptT $ pure $
             mkUnsignedTransaction txLayer xpub pp txCtx (Left sel)
-    pure (sealedTx, Just scriptInps)
+    pure (sealedTx, Just (map getScript))
 
 -- | Calculate the transaction expiry slot, given a 'TimeInterpreter', and an
 -- optional TTL in seconds.

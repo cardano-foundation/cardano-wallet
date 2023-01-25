@@ -2942,7 +2942,7 @@ balanceTransaction
      . (GenChange s, BoundedAddressLength k)
     => ApiLayer s k ktype
     -> ArgGenChange s
-    -> Maybe ([(TxIn, TxOut)] -> Map TxIn (Script KeyHash))
+    -> Maybe ([(TxIn, TxOut)] -> [Script KeyHash])
     -> Maybe ScriptTemplate
     -> ApiT WalletId
     -> ApiBalanceTransactionPostData n
