@@ -9,6 +9,7 @@
 module Cardano.Wallet.Read.Tx.Cardano
     ( fromCardanoApiTx
     , fromSealedTx
+    , anythingFromSealedTx
     ) where
 
 import Prelude
@@ -18,7 +19,20 @@ import Cardano.Api
 import Cardano.Wallet.Primitive.Types.Tx.SealedTx
     ( SealedTx (unsafeCardanoTx) )
 import Cardano.Wallet.Read.Eras
-    ( EraValue, allegra, alonzo, babbage, byron, inject, mary, shelley )
+    ( EraValue
+    , K (..)
+    , allegra
+    , alonzo
+    , babbage
+    , byron
+    , inject
+    , mary
+    , shelley
+    )
+import Cardano.Wallet.Read.Eras.EraFun
+    ( EraFun, applyEraFun )
+import Cardano.Wallet.Read.Eras.EraValue
+    ( extractEraValue )
 import Cardano.Wallet.Read.Tx
     ( Tx (..) )
 import Control.Monad
@@ -43,3 +57,6 @@ fromSealedTx:: W.SealedTx -> EraValue Tx
 fromSealedTx sealed =
     case unsafeCardanoTx sealed of
         InAnyCardanoEra _ce tx -> fromCardanoApiTx tx
+
+anythingFromSealedTx :: EraFun Tx (K a) -> SealedTx -> a
+anythingFromSealedTx f = extractEraValue . applyEraFun f . fromSealedTx
