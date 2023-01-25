@@ -130,6 +130,7 @@ module Cardano.Wallet
     , assignChangeAddressesWithoutDbUpdate
     , selectionToUnsignedTx
     , buildAndSignTransactionNew
+    , buildAndSignTransactionPure
     , buildAndSignTransaction
     , signTransaction
     , constructTransaction
@@ -387,6 +388,7 @@ import Cardano.Wallet.Primitive.Slotting
     , neverFails
     , slotRangeFromTimeRange
     , slotToUTCTime
+    , snapshot
     , unsafeExtendSafeZone
     )
 import Cardano.Wallet.Primitive.SyncProgress
@@ -2575,33 +2577,106 @@ buildAndSignTransactionNew
        , GenChange s
        )
     => Tracer IO WalletLog
-    -> TimeInterpreter (Either PastHorizonException)
+    -> TimeInterpreter (ExceptT PastHorizonException IO)
     -> DBLayer IO s k
     -> NetworkLayer IO Block
     -> TransactionLayer k ktype SealedTx
+    -> Passphrase "user"
     -> WalletId
     -> ArgGenChange s
     -> AnyRecentEra
-    -> Passphrase "user"
     -> PreSelection
     -> TransactionCtx
     -> IO (Tx, TxMeta, UTCTime, SealedTx)
-buildAndSignTransactionNew
-    tr ti db netLayer txLayer walletId changeGen era pwd preSelection txCtx =
+buildAndSignTransactionNew tr ti db netLayer txLayer pwd walletId
+    argGenChange era preSelection txCtx = do
+    --
+    utxo@(_, wallet, _) <- throwOnError $
+        withExceptT (ExceptionConstructTx . ErrConstructTxNoSuchWallet) $
+            readWalletUTxOIndex @_ @_ @k db walletId
+
+    pureTimeInterpreter <- snapshot ti
+    protocolParams <- currentProtocolParameters netLayer
+
+    (tx, meta, sealed) <- throwOnError $
+        let wrapError = ExceptionWitnessTx . ErrWitnessTxWithRootKey
+         in withRootKey db walletId pwd wrapError $ \rootKey scheme ->
+                withExceptT (either ExceptionBalanceTx ExceptionConstructTx) $
+                    buildAndSignTransactionPure @k @ktype @s @n
+                        tr
+                        pureTimeInterpreter
+                        utxo
+                        rootKey
+                        scheme
+                        pwd
+                        protocolParams
+                        txLayer
+                        argGenChange
+                        era
+                        preSelection
+                        txCtx
+
+    tipTime <- interpretQuery
+        (neverFails "buildAndSignTransactionNew: slot is ahead of the node tip"
+            (hoistTimeInterpreter except pureTimeInterpreter))
+        (slotToUTCTime (currentTip wallet ^. #slotNo))
+    pure (tx, meta, tipTime, sealed)
+  where
+    throwOnError = either throwIO pure <=< runExceptT
+
+buildAndSignTransactionPure
+    :: forall k ktype s (n :: NetworkDiscriminant) m
+     . ( Typeable n
+       , Typeable s
+       , Typeable k
+       , WalletKey k
+       , HardDerivation k
+       , BoundedAddressLength k
+       , Bounded (Index (AddressIndexDerivationType k) (AddressCredential k))
+       , IsOwned s k ktype
+       , IsOurs s RewardAccount
+       , GenChange s
+       , MonadRandom m
+       )
+    => Tracer m WalletLog
+    -> TimeInterpreter (Either PastHorizonException)
+    -> (UTxOIndex WalletUTxO, Wallet s, Set Tx)
+    -> k 'RootK XPrv
+    -> PassphraseScheme
+    -> Passphrase "user"
+    -> ProtocolParameters
+    -> TransactionLayer k ktype SealedTx
+    -> ArgGenChange s
+    -> AnyRecentEra
+    -> PreSelection
+    -> TransactionCtx
+    -> ExceptT (Either ErrBalanceTx ErrConstructTx) m (Tx, TxMeta, SealedTx)
+buildAndSignTransactionPure
+    tr ti utxo@(_, wallet, _) rootKey passphraseScheme userPassphrase
+    protocolParams txLayer changeGen era  preSelection txCtx =
     WriteTx.withRecentEra era $ \(_ :: WriteTx.RecentEra recentEra) -> do
-        utxo@(_utxoIndex, wallet, _history) <-
-            errorToException ErrConstructTxNoSuchWallet <=< runExceptT $
-                readWalletUTxOIndex @_ @_ @k db walletId
+        unsignedTxBody <- withExceptT (Right . ErrConstructTxBody) . except $
+            mkUnsignedTransaction txLayer @recentEra
+                unsafeShelleyOnlyGetRewardXPub protocolParams txCtx
+                (Left preSelection)
 
-        protocolParams <- currentProtocolParameters netLayer
-        unsignedTxBody <-
-            errorToException ErrConstructTxBody $
-                mkUnsignedTransaction txLayer @recentEra
-                    (unsafeShelleyOnlyGetRewardXPub wallet)
-                    protocolParams txCtx (Left preSelection)
+        unsignedBalancedTx <- withExceptT Left $
+            balanceTransaction @_ @_ @s @k @ktype
+                tr txLayer changeGen Nothing Nothing
+                nodeProtocolParameters ti utxo $
+                PartialTx
+                    { tx = Cardano.Tx unsignedTxBody []
+                    , inputs = Cardano.UTxO mempty
+                    , redeemers = []
+                    }
 
-        unsignedBalancedTx <- balanceTx protocolParams utxo unsignedTxBody
-        signedSealedTx <- signBalancedTx wallet unsignedBalancedTx
+        let passphrase = preparePassphrase passphraseScheme userPassphrase
+            signedTx = signTransaction @k @ktype txLayer
+                anyCardanoEra
+                (isOwned (getState wallet) (rootKey, passphrase))
+                (rootKey, passphrase)
+                (wallet ^. #utxo)
+                (sealedTxFromCardano $ inAnyCardanoEra unsignedBalancedTx)
 
         let ( tx
                 , _tokenMapWithScripts1
@@ -2609,17 +2684,17 @@ buildAndSignTransactionNew
                 , _certificates
                 , _validityIntervalExplicit
                 , _witnessCount
-                ) = decodeTx
-                        txLayer anyCardanoEra AnyWitnessCountCtx signedSealedTx
+                ) = decodeTx txLayer anyCardanoEra AnyWitnessCountCtx signedTx
 
-        let meta = case applyOurTxToUTxO
-                            (Slot.at $ currentTip wallet ^. #slotNo)
-                            (currentTip wallet ^. #blockHeight)
-                            (getState wallet)
-                            tx
-                            (wallet ^. #utxo) of
+        let utxo' = applyOurTxToUTxO
+                (Slot.at $ currentTip wallet ^. #slotNo)
+                (currentTip wallet ^. #blockHeight)
+                (getState wallet)
+                tx
+                (wallet ^. #utxo)
+            meta = case utxo' of
                 Nothing -> error $ unwords
-                    [ "buildAndSignTransactionNew:"
+                    [ "buildAndSignTransactionPure:"
                     , "Can't apply constructed transaction."
                     ]
                 Just ((_tx, appliedMeta), _deltaUtxo, _nextUtxo) ->
@@ -2627,69 +2702,32 @@ buildAndSignTransactionNew
                         { status = Pending
                         , expiry = Just (snd (txValidityInterval txCtx))
                         }
-        tipTime <- liftIO $ tipSlotStartTime $ currentTip wallet
 
         -- tx coming from `decodeTx` doesn't contain previous tx outputs that
         -- correspond to this tx inputs, so its inputs aren't "resolved".
         -- We restore corresponding outputs by searching them in the UTxO again.
-        let resolveInputs :: [(TxIn, Maybe TxOut)] -> [(TxIn, Maybe TxOut)]
-            resolveInputs = fmap (\(txIn, _) ->
-                (txIn, UTxO.lookup txIn (wallet ^. #utxo)))
-            txResolved = tx
+        let txResolved = tx
                 { resolvedInputs =
                     resolveInputs  (resolvedInputs tx)
                 , resolvedCollateralInputs =
                     resolveInputs  (resolvedCollateralInputs tx)
                 }
+            resolveInputs = fmap (\(txIn, _) ->
+                (txIn, UTxO.lookup txIn (wallet ^. #utxo)))
 
-        pure (txResolved, meta, tipTime, signedSealedTx)
+        pure (txResolved, meta, signedTx)
   where
-    errorToException f = either (throwIO . ExceptionConstructTx . f) pure
     anyCardanoEra = WriteTx.fromAnyRecentEra era
-    tipSlotStartTime tipHeader = interpretQuery
-        (neverFails
-            "buildAndSignTransactionNew: slot is ahead of the node tip"
-            (hoistTimeInterpreter except ti)
+    nodeProtocolParameters =
+        ( protocolParams
+        , fromMaybe
+            (error $ unwords
+                [ "buildAndSignTransactionPure: no nodePParams."
+                , "should only be possible in Byron, where"
+                , "withRecentEra should prevent this to be reached."
+                ])
+            $ currentNodeProtocolParameters protocolParams
         )
-        (slotToUTCTime (tipHeader ^. #slotNo))
-
-    balanceTx
-        :: WriteTx.IsRecentEra era
-        => ProtocolParameters
-        -> (UTxOIndex WalletUTxO, Wallet s, Set Tx)
-        -> Cardano.TxBody era
-        -> IO (Cardano.Tx era)
-    balanceTx protocolParams utxo unsignedTxBody = do
-        let protocolParameters =
-                ( protocolParams
-                , fromMaybe
-                    (error $ unwords
-                        [ "buildAndSignTransactionNew: no nodePParams."
-                        , "should only be possible in Byron, where"
-                        , "withRecentEra should prevent this to be reached."
-                        ])
-                    $ currentNodeProtocolParameters protocolParams
-                )
-            partialTx = PartialTx
-                (Cardano.Tx unsignedTxBody [])(Cardano.UTxO mempty) mempty
-        either (throwIO . ExceptionBalanceTx) pure <=< runExceptT $
-            balanceTransaction @_ @_ @s @k @ktype
-                tr txLayer changeGen Nothing Nothing protocolParameters ti utxo partialTx
-
-    signBalancedTx
-        :: Cardano.IsCardanoEra era
-        => Wallet s -> Cardano.Tx era -> IO SealedTx
-    signBalancedTx wallet unsignedBalancedTx =
-        either (throwIO . ExceptionWitnessTx) pure <=< runExceptT $ do
-            let wrapError = ErrWitnessTxWithRootKey
-            withRootKey db walletId pwd wrapError $ \rootKey scheme -> do
-                let keyWithPassphrase = (rootKey, preparePassphrase scheme pwd)
-                pure $ signTransaction @k @ktype txLayer
-                    anyCardanoEra
-                    (isOwned (getState wallet) keyWithPassphrase)
-                    keyWithPassphrase
-                    (wallet ^. #utxo)
-                    (sealedTxFromCardano $ inAnyCardanoEra unsignedBalancedTx)
 
     -- HACK: 'mkUnsignedTransaction' takes a reward account 'XPub' even when the
     -- wallet is a Byron wallet, and doesn't actually have a reward account.
@@ -2697,9 +2735,9 @@ buildAndSignTransactionNew
     -- 'buildAndSignTransaction' achieves this by deriving the 'XPub' regardless
     -- of wallet type, from the root key. To avoid requiring another
     -- 'withRootKey' call, and to make the sketchy behaviour more explicit, we
-    -- make 'buildAndSignTransactionNew' partial instead.
-    unsafeShelleyOnlyGetRewardXPub :: Wallet s -> XPub
-    unsafeShelleyOnlyGetRewardXPub wallet = fromMaybe notShelleyWallet $ do
+    -- make 'buildAndSignTransactionPure' partial instead.
+    unsafeShelleyOnlyGetRewardXPub :: XPub
+    unsafeShelleyOnlyGetRewardXPub = fromMaybe notShelleyWallet $ do
         Refl <- isSeqState
         Refl <- isShelleyKey
         pure $ getRawKey $ Seq.rewardAccountKey $ getState wallet
@@ -2707,7 +2745,7 @@ buildAndSignTransactionNew
         isSeqState = testEquality (typeRep @s) (typeRep @(SeqState n k))
         isShelleyKey = testEquality (typeRep @k) (typeRep @(ShelleyKey))
         notShelleyWallet = error $ unwords
-            [ "buildAndSignTransactionNew:"
+            [ "buildAndSignTransactionPure:"
             , "can't delegate using non-shelley wallet"
             ]
 
