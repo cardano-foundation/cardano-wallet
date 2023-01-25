@@ -17,11 +17,9 @@ module Cardano.Wallet.Read.Primitive.Tx.Shelley
 import Prelude
 
 import Cardano.Address.Script
-    ( KeyHash (..), KeyRole (..), Script (..) )
+    ( KeyRole (..) )
 import Cardano.Api
     ( ShelleyEra )
-import Cardano.Crypto.Hash
-    ( hashToBytes )
 import Cardano.Wallet.Read.Eras
     ( inject, shelley )
 import Cardano.Wallet.Read.Primitive.Tx.Features.Certificates
@@ -61,8 +59,6 @@ import Data.Word
 import qualified Cardano.Api.Shelley as Cardano
 import qualified Cardano.Ledger.Address as SL
 import qualified Cardano.Ledger.BaseTypes as SL
-import qualified Cardano.Ledger.Crypto as SL
-import qualified Cardano.Ledger.Keys as SL
 import qualified Cardano.Ledger.Shelley.API as SL
 import qualified Cardano.Ledger.Shelley.Tx as SL
 import qualified Cardano.Wallet.Primitive.Types as W
