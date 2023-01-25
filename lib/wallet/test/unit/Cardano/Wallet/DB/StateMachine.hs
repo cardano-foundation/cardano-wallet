@@ -534,7 +534,7 @@ runIO db@DBLayer{..} = fmap Resp . go
         ReadTxHistory wid minWith order range status ->
             fmap (Right . TxHistory) $
             atomically $
-            readTxHistory wid minWith order range status
+            readTransactions wid minWith order range status
         GetTx wid tid ->
             catchNoSuchWallet (TxHistory . maybe [] pure) $
             mapExceptT atomically $ getTx wid tid
@@ -1154,8 +1154,8 @@ tag = Foldl.fold $ catMaybes <$> sequenceA
     , createWalletTwice
     , removeWalletTwice
     , createThenList
-    , readTxHistory (not . null) SuccessfulReadTxHistory
-    , readTxHistory null UnsuccessfulReadTxHistory
+    , readTransactions (not . null) SuccessfulReadTxHistory
+    , readTransactions null UnsuccessfulReadTxHistory
     , txUnsorted inputs TxUnsortedInputs
     , txUnsorted outputs TxUnsortedOutputs
     , readCheckpoint isJust SuccessfulReadCheckpoint
@@ -1291,11 +1291,11 @@ tag = Foldl.fold $ catMaybes <$> sequenceA
             | or created = Just CreateThenList
             | otherwise = Nothing
 
-    readTxHistory
+    readTransactions
         :: ([TransactionInfo] -> Bool)
         -> Tag
         -> Fold (Event s Symbolic) (Maybe Tag)
-    readTxHistory check res = Fold update False (extractf res)
+    readTransactions check res = Fold update False (extractf res)
       where
         update :: Bool -> Event s Symbolic -> Bool
         update didRead ev = didRead || case (cmd ev, mockResp ev) of

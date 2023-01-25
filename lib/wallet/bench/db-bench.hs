@@ -540,7 +540,7 @@ benchReadTxHistory
     -> DBLayerBench
     -> IO [TransactionInfo]
 benchReadTxHistory sortOrder (inf, sup) mstatus DBLayer{..} =
-    atomically $ readTxHistory testWid Nothing sortOrder range mstatus
+    atomically $ readTransactions testWid Nothing sortOrder range mstatus
   where
     range = Range
         (SlotNo . fromIntegral <$> inf)

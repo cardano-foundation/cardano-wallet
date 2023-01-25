@@ -15,7 +15,7 @@
 --
 module Cardano.Wallet.Primitive.Types.Tx.SealedTx (
      -- * Types
-    SealedTx (serialisedTx)
+    SealedTx (serialisedTx, unsafeCardanoTx)
     , cardanoTxIdeallyNoLaterThan
     , sealedTxFromBytes
     , sealedTxFromBytes'

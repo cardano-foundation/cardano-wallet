@@ -842,7 +842,8 @@ readWallet
 readWallet ctx wid = db & \DBLayer{..} -> mapExceptT atomically $ do
     cp <- withNoSuchWallet wid $ readCheckpoint wid
     meta <- withNoSuchWallet wid $ readWalletMeta wid
-    pending <- lift $ readTxHistory wid Nothing Descending wholeRange (Just Pending)
+    pending <- lift
+        $ readTransactions wid Nothing Descending wholeRange (Just Pending)
     pure (cp, meta, Set.fromList (fromTransactionInfo <$> pending))
   where
     db = ctx ^. dbLayer @IO @s @k
@@ -3066,7 +3067,7 @@ listTransactions ctx wid mMinWithdrawal mStart mEnd order = db & \DBLayer{..} ->
     mapExceptT atomically $ do
         mapExceptT liftIO getSlotRange >>= maybe
             (pure [])
-            (\r -> lift (readTxHistory wid mMinWithdrawal order r Nothing))
+            (\r -> lift (readTransactions wid mMinWithdrawal order r Nothing))
   where
     ti :: TimeInterpreter (ExceptT PastHorizonException IO)
     ti = timeInterpreter (ctx ^. networkLayer)
@@ -3099,7 +3100,7 @@ listAssets ctx wid = db & \DBLayer{..} -> do
     txs <- lift . atomically $
         let noMinWithdrawal = Nothing
             allTxStatuses = Nothing
-        in readTxHistory wid noMinWithdrawal Ascending wholeRange allTxStatuses
+        in readTransactions wid noMinWithdrawal Ascending wholeRange allTxStatuses
     let txAssets :: TransactionInfo -> Set TokenMap.AssetId
         txAssets = Set.unions
             . map (TokenBundle.getAssets . view #tokens)

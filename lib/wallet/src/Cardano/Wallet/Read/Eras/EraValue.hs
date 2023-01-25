@@ -37,6 +37,7 @@ module Cardano.Wallet.Read.Eras.EraValue
   -- * Specials
   , sequenceEraValue
   , witnessEra
+  , hoistEraValue
 
   -- * Internals
   , cardanoEras
@@ -79,7 +80,7 @@ import Generics.SOP
     )
 import Generics.SOP.Classes
 import Generics.SOP.NP
-    ( cmap_NP, zipWith_NP )
+    ( cmap_NP, pure_NP, zipWith_NP )
 import Generics.SOP.NS
     ( ap_NS, collapse_NS, index_NS, sequence'_NS )
 
@@ -191,3 +192,7 @@ renderEraValue e = (extractEraValue e, indexEraValue e)
 -- era expressed as Int, starting from 0, see 'KnownEras'.
 eraValueSerialize :: Prism' (a, Int) (EraValue (K a))
 eraValueSerialize = prism renderEraValue parseEraValue
+
+-- | change unconditionally the functor
+hoistEraValue :: (forall a. f a -> g a)  -> EraValue f -> EraValue g
+hoistEraValue f (EraValue ns) = EraValue $ ap_NS (pure_NP $ Fn f) ns

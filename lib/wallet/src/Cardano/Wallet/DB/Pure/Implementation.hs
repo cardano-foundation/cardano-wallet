@@ -176,7 +176,7 @@ data WalletDatabase s xprv = WalletDatabase
 -- | Shorthand for the putTxHistory argument type.
 type TxHistoryMap = Map (Hash "Tx") (Tx, TxMeta)
 
--- | Shorthand for the readTxHistory result type.
+-- | Shorthand for the readTransactions result type.
 type TxHistory = [(Tx, TxMeta)]
 
 -- | Produces an empty model database.
