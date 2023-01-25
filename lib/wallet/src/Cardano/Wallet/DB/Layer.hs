@@ -763,6 +763,8 @@ newDBLayerWith _cacheBehavior _tr ti SqliteContext{runQuery} = do
             void $ runExceptT $ putLocalTxSubmission_ dbPendingTxs
                 wid (tx ^. #txId) binary sl
 
+        , resubmitTx_ = undefined
+
         , getInSubmissionTransactions_ = \_ -> pure []
 
         , readLocalTxSubmissionPending_ =

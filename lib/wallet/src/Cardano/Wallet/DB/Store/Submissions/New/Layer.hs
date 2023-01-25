@@ -87,6 +87,7 @@ mkDbPendingTxs dbvar = DBPendingTxs
                 $ AddSubmission expiry (TxId $ tx ^. #txId, sealedTx)
                 $ submissionMetaFromTxMeta meta resubmitted
 
+    , resubmitTx_ = undefined
     , getInSubmissionTransactions_ = \wid -> do
             submissions <- readDBVar dbvar
             pure $ case Map.lookup wid submissions of

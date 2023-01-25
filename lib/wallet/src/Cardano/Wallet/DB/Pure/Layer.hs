@@ -195,10 +195,12 @@ newDBLayer timeInterpreter = do
             alterDB (fmap ErrPutLocalTxSubmissionNoSuchWallet . errNoSuchWallet) db $
             mPutLocalTxSubmission pk txid tx sl
 
-        , addTxSubmission = error "Not implemented in old design"
+        , addTxSubmission = error "addTxSubmission not implemented in old design"
 
         , readLocalTxSubmissionPending =
             readDB db . mReadLocalTxSubmissionPending
+
+        , resubmitTx = error "resubmitTx not implemented in old design"
 
         , rollForwardTxSubmissions = \pk tip _txs -> ExceptT $
             alterDB errNoSuchWallet db $
