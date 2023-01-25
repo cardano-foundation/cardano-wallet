@@ -87,7 +87,6 @@ import Cardano.Wallet.Primitive.Passphrase.Current
     ( preparePassphrase )
 import Cardano.Wallet.Primitive.Types
     ( ActiveSlotCoefficient (..)
-    , Block
     , BlockHeader (BlockHeader)
     , NetworkParameters (..)
     , SlotNo (..)
@@ -274,6 +273,7 @@ import qualified Cardano.Wallet.Primitive.Migration as Migration
 import qualified Cardano.Wallet.Primitive.Types.Coin as Coin
 import qualified Cardano.Wallet.Primitive.Types.TokenBundle as TokenBundle
 import qualified Cardano.Wallet.Primitive.Types.TokenMap as TokenMap
+import qualified Cardano.Wallet.Read as Read
 import qualified Data.ByteArray as BA
 import qualified Data.ByteString as BS
 import qualified Data.ByteString.Char8 as B8
@@ -732,7 +732,7 @@ instance Arbitrary SlottingParameters where
 -- | 'WalletLayer' context.
 data TxRetryTestCtx = TxRetryTestCtx
     { ctxDbLayer :: DBLayer TxRetryTestM DummyState ShelleyKey
-    , ctxNetworkLayer :: NetworkLayer TxRetryTestM Block
+    , ctxNetworkLayer :: NetworkLayer TxRetryTestM Read.Block
     , ctxTracer :: Tracer IO W.WalletWorkerLog
     , ctxWalletId :: WalletId
     } deriving (Generic)
@@ -823,7 +823,7 @@ prop_localTxSubmission tc = monadicIO $ do
                 testAction ctx
         TxRetryTestResult msgs res <$> readMVar submittedVar
 
-    mockNetwork :: MVar [SealedTx] -> NetworkLayer TxRetryTestM Block
+    mockNetwork :: MVar [SealedTx] -> NetworkLayer TxRetryTestM Read.Block
     mockNetwork var = dummyNetworkLayer
         { currentSlottingParameters = pure (testSlottingParameters tc)
         , postTx = \tx -> ExceptT $ do

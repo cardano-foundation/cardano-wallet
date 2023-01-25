@@ -662,6 +662,7 @@ import qualified Cardano.Wallet.Primitive.Types.Tx.TxOut as TxOut
 import qualified Cardano.Wallet.Primitive.Types.UTxO as UTxO
 import qualified Cardano.Wallet.Primitive.Types.UTxOIndex.Internal as UTxOIndex
 import qualified Cardano.Wallet.Primitive.Types.UTxOSelection as UTxOSelection
+import qualified Cardano.Wallet.Read as Read
 import qualified Cardano.Wallet.Registry as Registry
 import qualified Cardano.Wallet.Write.Tx as WriteTx
 import qualified Control.Concurrent.Concierge as Concierge
@@ -843,7 +844,7 @@ postShelleyWallet ctx generateKey body = do
         (\wrk -> W.createWallet @(WorkerCtx ctx) @_ @s @k wrk wid wName state)
         (\workerCtx _ -> W.manageRewardBalance
             (workerCtx ^. typed)
-            (workerCtx ^. typed)
+            (workerCtx ^. networkLayer)
             (workerCtx ^. typed @(DBLayer IO (SeqState n ShelleyKey) k))
             wid
         )
@@ -3848,7 +3849,7 @@ getCurrentEpoch ctx = liftIO (runExceptT (currentEpoch ti)) >>= \case
 getNetworkInformation
     :: HasCallStack
     => NetworkId
-    -> NetworkLayer IO Block
+    -> NetworkLayer IO block
     -> ApiWalletMode
     -> Handler ApiNetworkInformation
 getNetworkInformation nid
@@ -3899,7 +3900,7 @@ getNetworkInformation nid
 
 getNetworkParameters
     :: (Block, NetworkParameters)
-    -> NetworkLayer IO Block
+    -> NetworkLayer IO block
     -> Handler ApiNetworkParameters
 getNetworkParameters (_block0, genesisNp) nl = do
     pp <- liftIO $ NW.currentProtocolParameters nl
@@ -3923,7 +3924,7 @@ getNetworkClock client force =
             then Ntp.ForceBlockingRequest
             else Ntp.CanUseCachedResults
 
-getBlocksLatestHeader :: NetworkLayer IO Block -> Handler ApiBlockHeader
+getBlocksLatestHeader :: NetworkLayer IO block -> Handler ApiBlockHeader
 getBlocksLatestHeader nl = liftIO $ mkApiBlockHeader <$> NW.currentNodeTip nl
 
 {-------------------------------------------------------------------------------
@@ -4132,8 +4133,8 @@ withRecentEra anyCardanoEra handleRecentEra = do
                 Cardano.ByronEra   -> liftE invalidEra
 
 mkWithdrawal
-    :: forall (n :: NetworkDiscriminant) ktype tx
-     . NetworkLayer IO Block
+    :: forall (n :: NetworkDiscriminant) ktype tx block
+     . NetworkLayer IO block
     -> TransactionLayer ShelleyKey ktype tx
     -> DBLayer IO (SeqState n ShelleyKey) ShelleyKey
     -> WalletId
@@ -4150,9 +4151,9 @@ mkWithdrawal netLayer txLayer db wallet era = \case
 -- | Unsafe version of `mkWithdrawal` that throws runtime error
 -- when applied to a non-shelley or non-sequential wallet state.
 shelleyOnlyMkWithdrawal
-    :: forall s k (n :: NetworkDiscriminant) ktype tx
+    :: forall s k (n :: NetworkDiscriminant) ktype tx block
      . (Typeable n, Typeable s, Typeable k)
-    => NetworkLayer IO Block
+    => NetworkLayer IO block
     -> TransactionLayer k ktype tx
     -> DBLayer IO s k
     -> WalletId
@@ -4580,7 +4581,7 @@ newApiLayer
         )
     => Tracer IO WalletEngineLog
     -> (Block, NetworkParameters)
-    -> NetworkLayer IO Block
+    -> NetworkLayer IO Read.Block
     -> TransactionLayer k ktype W.SealedTx
     -> DBFactory IO s k
     -> TokenMetadataClient IO

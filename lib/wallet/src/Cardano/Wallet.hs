@@ -465,7 +465,7 @@ import Cardano.Wallet.Primitive.Types.UTxOStatistics
 import Cardano.Wallet.Read.Tx.CBOR
     ( TxCBOR )
 import Cardano.Wallet.Shelley.Compatibility
-    ( fromCardanoTxIn, fromCardanoTxOut, toCardanoUTxO )
+    ( fromCardanoBlock, fromCardanoTxIn, fromCardanoTxOut, toCardanoUTxO )
 import Cardano.Wallet.Transaction
     ( DelegationAction (..)
     , ErrAssignRedeemers (..)
@@ -631,6 +631,7 @@ import qualified Cardano.Wallet.Primitive.Types.UTxO as UTxO
 import qualified Cardano.Wallet.Primitive.Types.UTxOIndex as UTxOIndex
 import qualified Cardano.Wallet.Primitive.Types.UTxOSelection as UTxOSelection
 import qualified Cardano.Wallet.Primitive.Types.UTxOStatistics as UTxOStatistics
+import qualified Cardano.Wallet.Read as Read
 import qualified Cardano.Wallet.Write.Tx as WriteTx
 import qualified Data.ByteArray as BA
 import qualified Data.Foldable as F
@@ -686,7 +687,7 @@ data WalletLayer m s (k :: Depth -> Type -> Type) ktype
     = WalletLayer
         (Tracer m WalletWorkerLog)
         (Block, NetworkParameters)
-        (NetworkLayer m Block)
+        (NetworkLayer m Read.Block)
         (TransactionLayer k ktype SealedTx)
         (DBLayer m s k)
     deriving (Generic)
@@ -729,7 +730,7 @@ type HasLogger m msg = HasType (Tracer m msg)
 
 -- | This module is only interested in one block-, and tx-type. This constraint
 -- hides that choice, for some ease of use.
-type HasNetworkLayer m = HasType (NetworkLayer m Block)
+type HasNetworkLayer m = HasType (NetworkLayer m Read.Block)
 
 type HasTransactionLayer k ktype = HasType (TransactionLayer k ktype SealedTx)
 
@@ -744,8 +745,8 @@ logger :: forall m msg ctx. HasLogger m msg ctx => Lens' ctx (Tracer m msg)
 logger = typed @(Tracer m msg)
 
 networkLayer ::
-    forall m ctx. (HasNetworkLayer m ctx) => Lens' ctx (NetworkLayer m Block)
-networkLayer = typed @(NetworkLayer m Block)
+    forall m ctx. (HasNetworkLayer m ctx) => Lens' ctx (NetworkLayer m Read.Block)
+networkLayer = typed @(NetworkLayer m Read.Block)
 
 transactionLayer ::
     forall k ktype ctx. (HasTransactionLayer k ktype ctx)
@@ -969,6 +970,7 @@ restoreWallet
         ( HasNetworkLayer IO ctx
         , HasDBLayer IO s k ctx
         , HasLogger IO WalletWorkerLog ctx
+        , HasGenesisData ctx
         , IsOurs s Address
         , IsOurs s RewardAccount
         , AddressBookIso s
@@ -998,13 +1000,15 @@ restoreWallet ctx wid = db & \DBLayer{..} ->
             chainSync nw (contramap MsgChainFollow tr) $ ChainFollower
                 { checkpointPolicy
                 , readChainPoints
-                , rollForward = rollForward' . List
+                , rollForward = \blocks tip ->
+                    rollForward' (List $ fromCardanoBlock gp <$> blocks) tip
                 , rollBackward
                 }
   where
     db = ctx ^. dbLayer @IO @s @k
     nw = ctx ^. networkLayer @IO
     tr = ctx ^. logger @_ @WalletWorkerLog
+    (_block0, NetworkParameters{genesisParameters=gp}) = ctx ^. genesisData
 
     -- See Note [CheckedExceptionsAndCallbacks]
     throwInIO :: ExceptT ErrNoSuchWallet IO a -> IO a
@@ -1221,8 +1225,8 @@ fetchRewardBalance :: forall s k. DBLayer IO s k -> WalletId -> IO Coin
 fetchRewardBalance DBLayer{..} = atomically . readDelegationRewardBalance
 
 mkExternalWithdrawal
-    :: forall k ktype tx
-     . NetworkLayer IO Block
+    :: forall k ktype tx block
+     . NetworkLayer IO block
     -> TransactionLayer k ktype tx
     -> AnyCardanoEra
     -> SomeMnemonic
@@ -1236,8 +1240,8 @@ mkExternalWithdrawal netLayer txLayer era mnemonic = do
         WithdrawalExternal rewardAccount derivationPath balance
 
 mkSelfWithdrawal
-    :: forall ktype tx (n :: NetworkDiscriminant)
-     . NetworkLayer IO Block
+    :: forall ktype tx (n :: NetworkDiscriminant) block
+     . NetworkLayer IO block
     -> TransactionLayer ShelleyKey ktype tx
     -> AnyCardanoEra
     -> DBLayer IO (SeqState n ShelleyKey) ShelleyKey
@@ -1256,9 +1260,9 @@ mkSelfWithdrawal netLayer txLayer era db wallet = do
 -- | Unsafe version of the `mkSelfWithdrawal` function that throws an exception
 -- when applied to a non-shelley or a non-sequential wallet.
 shelleyOnlyMkSelfWithdrawal
-    :: forall s k ktype tx (n :: NetworkDiscriminant)
+    :: forall s k ktype tx (n :: NetworkDiscriminant) block
      . (Typeable s, Typeable k, Typeable n)
-    => NetworkLayer IO Block
+    => NetworkLayer IO block
     -> TransactionLayer k ktype tx
     -> AnyCardanoEra
     -> DBLayer IO s k
@@ -1362,9 +1366,9 @@ readPolicyPublicKey ctx wid = db & \DBLayer{..} -> do
     db = ctx ^. dbLayer @IO @s @k
 
 manageRewardBalance
-    :: forall (n :: NetworkDiscriminant)
+    :: forall (n :: NetworkDiscriminant) block
      . Tracer IO WalletWorkerLog
-    -> NetworkLayer IO Block
+    -> NetworkLayer IO block
     -> DBLayer IO (SeqState n ShelleyKey) ShelleyKey
     -> WalletId
     -> IO ()
@@ -2772,10 +2776,10 @@ buildAndSignTransaction ctx wid era mkRwdAcct pwd txCtx sel = db & \DBLayer{..} 
 
 -- | Construct an unsigned transaction from a given selection.
 constructTransaction
-    :: forall (n :: NetworkDiscriminant) ktype era
+    :: forall (n :: NetworkDiscriminant) ktype era block
      . WriteTx.IsRecentEra era
     => TransactionLayer ShelleyKey ktype SealedTx
-    -> NetworkLayer IO Block
+    -> NetworkLayer IO block
     -> DBLayer IO (SeqState n ShelleyKey) ShelleyKey
     -> WalletId
     -> TransactionCtx
@@ -2789,10 +2793,10 @@ constructTransaction txLayer netLayer db wid txCtx preSel = do
         & withExceptT ErrConstructTxBody . except
 
 constructUnbalancedSharedTransaction
-    :: forall (n :: NetworkDiscriminant) ktype era
+    :: forall (n :: NetworkDiscriminant) ktype era block
      . (WriteTx.IsRecentEra era, Typeable n)
     => TransactionLayer SharedKey ktype SealedTx
-    -> NetworkLayer IO Block
+    -> NetworkLayer IO block
     -> DBLayer IO (SharedState n SharedKey) SharedKey
     -> WalletId
     -> TransactionCtx

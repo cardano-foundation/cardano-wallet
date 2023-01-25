@@ -297,6 +297,7 @@ library
     Cardano.Wallet.Primitive.Types.Tx.TxSeq.Gen
     Cardano.Wallet.Primitive.Types.UTxOStatistics
     Cardano.Wallet.Read
+    Cardano.Wallet.Read.Block
     Cardano.Wallet.Read.Eras
     Cardano.Wallet.Read.Eras.EraFun
     Cardano.Wallet.Read.Eras.EraValue

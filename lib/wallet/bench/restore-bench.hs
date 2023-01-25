@@ -774,9 +774,7 @@ bench_restoration
     let tl = newTransactionLayer @k networkId
     let gp = genesisParameters np
     withNetworkLayer (trMessageText wlTr) pipeliningStrat
-        np socket vData sTol $ \nw' -> do
-            let convert = fromCardanoBlock gp
-            let nw = convert <$> nw'
+        np socket vData sTol $ \nw -> do
             let ti = neverFails "bench db shouldn't forecast into future"
                     $ timeInterpreter nw
             withBenchDBLayer ti wlTr

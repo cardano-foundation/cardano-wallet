@@ -103,7 +103,7 @@ import Cardano.Wallet.Registry
 import Cardano.Wallet.Shelley.BlockchainSource
     ( BlockchainSource (..) )
 import Cardano.Wallet.Shelley.Compatibility
-    ( CardanoBlock, StandardCrypto, fromCardanoBlock )
+    ( CardanoBlock, StandardCrypto )
 import Cardano.Wallet.Shelley.Network
     ( withNetworkLayer )
 import Cardano.Wallet.Shelley.Network.Discriminant
@@ -216,7 +216,6 @@ serveWallet
   blockchainSource
   netParams@NetworkParameters
     { protocolParameters
-    , genesisParameters
     , slottingParameters
     }
   pipeliningStrategy
@@ -296,7 +295,7 @@ serveWallet
         lift $ apiLayer (newTransactionLayer netId) netLayer $
             Server.manageRewardBalance
                 <$> view typed
-                <*> view typed
+                <*> pure netLayer
                 <*> view typed
 
     withMultisigApi netLayer =
@@ -392,7 +391,7 @@ serveWallet
         Server.newApiLayer
             walletEngineTracer
             (block0, netParams)
-            (fromCardanoBlock genesisParameters <$> netLayer)
+            netLayer
             txLayer
             dbFactory
             tokenMetaClient
