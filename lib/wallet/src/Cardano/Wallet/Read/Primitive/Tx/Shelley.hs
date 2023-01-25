@@ -17,11 +17,9 @@ module Cardano.Wallet.Read.Primitive.Tx.Shelley
 import Prelude
 
 import Cardano.Address.Script
-    ( KeyHash (..), KeyRole (..), Script (..) )
+    ( KeyRole (..) )
 import Cardano.Api
     ( ShelleyEra )
-import Cardano.Crypto.Hash
-    ( hashToBytes )
 import Cardano.Wallet.Read.Eras
     ( inject, shelley )
 import Cardano.Wallet.Read.Primitive.Tx.Features.Certificates
@@ -40,6 +38,8 @@ import Cardano.Wallet.Read.Tx.CBOR
     ( renderTxToCBOR )
 import Cardano.Wallet.Read.Tx.Hash
     ( fromShelleyTxId, shelleyTxHash )
+import Cardano.Wallet.Shelley.Compatibility.Ledger
+    ( toWalletScriptFromShelley )
 import Cardano.Wallet.Transaction
     ( AnyScript (..)
     , TokenMapWithScripts (..)
@@ -59,8 +59,6 @@ import Data.Word
 import qualified Cardano.Api.Shelley as Cardano
 import qualified Cardano.Ledger.Address as SL
 import qualified Cardano.Ledger.BaseTypes as SL
-import qualified Cardano.Ledger.Crypto as SL
-import qualified Cardano.Ledger.Keys as SL
 import qualified Cardano.Ledger.Shelley.API as SL
 import qualified Cardano.Ledger.Shelley.Tx as SL
 import qualified Cardano.Wallet.Primitive.Types as W
@@ -135,27 +133,11 @@ fromShelleyTx tx =
     SL.Tx (SL.TxBody ins outs certs wdrls fee ttl _ _) wits mmd = tx
     countWits = WitnessCount
         (fromIntegral $ Set.size $ SL.addrWits wits)
-        (fmap (NativeScript . fromLedgerScript Payment) $ Map.elems $ SL.scriptWits wits)
+        (fmap (NativeScript . toWalletScriptFromShelley Payment)
+            $ Map.elems $ SL.scriptWits wits)
         (fromIntegral $ Set.size $ SL.bootWits wits)
 
 fromShelleyWdrl :: SL.Wdrl crypto -> Map W.RewardAccount W.Coin
 fromShelleyWdrl (SL.Wdrl wdrl) = Map.fromList $
     bimap (fromStakeCredential . SL.getRwdCred) fromShelleyCoin
         <$> Map.toList wdrl
-
-
-fromLedgerScript
-    :: SL.Crypto crypto
-    => KeyRole
-    -> SL.MultiSig crypto
-    -> Script KeyHash
-fromLedgerScript keyrole = fromLedgerScript'
-  where
-    fromLedgerScript' (SL.RequireSignature (SL.KeyHash h)) =
-        RequireSignatureOf (KeyHash keyrole (hashToBytes h))
-    fromLedgerScript' (SL.RequireAllOf contents) =
-        RequireAllOf $ map fromLedgerScript' $ toList contents
-    fromLedgerScript' (SL.RequireAnyOf contents) =
-        RequireAnyOf $ map fromLedgerScript' $ toList contents
-    fromLedgerScript' (SL.RequireMOf num contents) =
-        RequireSomeOf (fromIntegral num) $ fromLedgerScript' <$> toList contents

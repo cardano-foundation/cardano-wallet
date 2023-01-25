@@ -106,7 +106,7 @@ module Cardano.Wallet
     , ErrAddCosignerKey (..)
     , ErrConstructSharedWallet (..)
     , normalizeSharedAddress
-    , constructSharedTransaction
+    , constructUnbalancedSharedTransaction
 
     -- ** Address
     , createRandomAddress
@@ -216,7 +216,7 @@ import Prelude hiding
 import Cardano.Address.Derivation
     ( XPrv, XPub )
 import Cardano.Address.Script
-    ( Cosigner (..), KeyHash )
+    ( Cosigner (..), KeyHash, ScriptTemplate )
 import Cardano.Address.Style.Shared
     ( deriveDelegationPublicKey )
 import Cardano.Api
@@ -1607,6 +1607,8 @@ balanceTransaction
     => Tracer m WalletLog
     -> TransactionLayer k ktype SealedTx
     -> ArgGenChange s
+    -> Maybe ([(TxIn, TxOut)] -> [CA.Script KeyHash])
+    -> Maybe ScriptTemplate
     -> (W.ProtocolParameters, Cardano.ProtocolParameters)
     -- ^ 'Cardano.ProtocolParameters' can be retrieved via a Local State Query
     -- to a local node.
@@ -1631,7 +1633,7 @@ balanceTransaction
     -- @Wallet s@ for change address generation.
     -> PartialTx era
     -> ExceptT ErrBalanceTx m (Cardano.Tx era)
-balanceTransaction tr txLayer change pp ti wallet unadjustedPtx = do
+balanceTransaction tr txLayer change toInpScriptsM mScriptTemplate pp ti wallet unadjustedPtx = do
     -- TODO [ADP-1490] Take 'Ledger.PParams era' directly as argument, and avoid
     -- converting to/from Cardano.ProtocolParameters. This may affect
     -- performance. The addition of this one specific conversion seems to have
@@ -1644,7 +1646,7 @@ balanceTransaction tr txLayer change pp ti wallet unadjustedPtx = do
     let balanceWith strategy =
             balanceTransactionWithSelectionStrategyAndNoZeroAdaAdjustment
                 @era @m @s @k @ktype
-                tr txLayer change pp ti wallet strategy adjustedPtx
+                tr txLayer change toInpScriptsM mScriptTemplate pp ti wallet strategy adjustedPtx
     balanceWith SelectionStrategyOptimal
         `catchE` \e ->
             if minimalStrategyIsWorthTrying e
@@ -1729,6 +1731,8 @@ balanceTransactionWithSelectionStrategyAndNoZeroAdaAdjustment
     => Tracer m WalletLog
     -> TransactionLayer k ktype SealedTx
     -> ArgGenChange s
+    -> Maybe ([(TxIn, TxOut)] -> [CA.Script KeyHash])
+    -> Maybe ScriptTemplate
     -> (W.ProtocolParameters, Cardano.ProtocolParameters)
     -> TimeInterpreter (Either PastHorizonException)
     -> (UTxOIndex WalletUTxO, Wallet s, Set Tx)
@@ -1739,6 +1743,8 @@ balanceTransactionWithSelectionStrategyAndNoZeroAdaAdjustment
     tr
     txLayer
     generateChange
+    toInpScriptsM
+    mScriptTemplate
     (pp, nodePParams)
     ti
     (internalUtxoAvailable, wallet, _pendingTxs)
@@ -1755,7 +1761,7 @@ balanceTransactionWithSelectionStrategyAndNoZeroAdaAdjustment
 
     (balance0, minfee0) <- balanceAfterSettingMinFee partialTx
 
-    (extraInputs, extraCollateral, extraOutputs) <- do
+    (extraInputs, extraCollateral', extraOutputs) <- do
 
         -- NOTE: It is not possible to know the script execution cost in
         -- advance because it actually depends on the final transaction. Inputs
@@ -1768,12 +1774,14 @@ balanceTransactionWithSelectionStrategyAndNoZeroAdaAdjustment
 
         randomSeed <- stdGenSeed
         let
-            transform :: s -> Selection -> ([(TxIn, TxOut)], [TxIn], [TxOut])
+            transform
+                :: s
+                -> Selection -> ([(TxIn, TxOut)], [(TxIn, TxOut)], [TxOut])
             transform s sel =
                 let (sel', _) = assignChangeAddresses generateChange sel s
                     inputs = F.toList (sel' ^. #inputs)
                 in  ( inputs
-                    , fst <$> (sel' ^. #collateral)
+                    , sel' ^. #collateral
                     , sel' ^. #change
                     )
 
@@ -1811,6 +1819,8 @@ balanceTransactionWithSelectionStrategyAndNoZeroAdaAdjustment
     -- (b) Assign correct execution units to every redeemer
     -- (c) Correctly reference redeemed entities with redeemer pointers
     -- (d) Adjust fees and change output(s) to the new fees.
+    -- (e) If added inputs are native script originated coresponding scripts
+    --     need to be added as witnesses
     --
     -- There's a strong assumption that modifying the fee value AND increasing
     -- the coin values of change outputs does not modify transaction fees; or
@@ -1822,11 +1832,18 @@ balanceTransactionWithSelectionStrategyAndNoZeroAdaAdjustment
     -- doing such a thing is considered bonkers and this is not a behavior we
     -- ought to support.
 
+    let extraInputScripts = case toInpScriptsM of
+            Just toInpScripts ->
+                toInpScripts $ extraInputs <> extraCollateral'
+            Nothing ->
+                []
+    let extraCollateral = fst <$> extraCollateral'
     let unsafeFromLovelace (Cardano.Lovelace l) = Coin.unsafeFromIntegral l
     candidateTx <- assembleTransaction $ TxUpdate
         { extraInputs
         , extraCollateral
         , extraOutputs
+        , extraInputScripts
         , feeUpdate = UseNewTxFee $ unsafeFromLovelace minfee0
         }
 
@@ -1859,6 +1876,7 @@ balanceTransactionWithSelectionStrategyAndNoZeroAdaAdjustment
         { extraInputs
         , extraCollateral
         , extraOutputs = updatedChange
+        , extraInputScripts
         , feeUpdate = UseNewTxFee updatedFee
         }
   where
@@ -1909,7 +1927,7 @@ balanceTransactionWithSelectionStrategyAndNoZeroAdaAdjustment
 
     guardTxSize :: Cardano.Tx era -> ExceptT ErrBalanceTx m (Cardano.Tx era)
     guardTxSize tx = do
-        let size = estimateSignedTxSize txLayer nodePParams tx
+        let size = estimateSignedTxSize txLayer nodePParams combinedUTxO tx
         let maxSize = TxSize
                 . intCast
                 . getQuantity
@@ -1935,8 +1953,8 @@ balanceTransactionWithSelectionStrategyAndNoZeroAdaAdjustment
     balanceAfterSettingMinFee tx = ExceptT . pure $ do
         -- NOTE: evaluateMinimumFee relies on correctly estimating the required
         -- number of witnesses.
-        let minfee = evaluateMinimumFee txLayer nodePParams tx
-        let update = TxUpdate [] [] [] (UseNewTxFee minfee)
+        let minfee = evaluateMinimumFee txLayer nodePParams combinedUTxO tx
+        let update = TxUpdate [] [] [] [] (UseNewTxFee minfee)
         tx' <- left ErrBalanceTxUpdateError $ updateTx txLayer tx update
         let balance = evaluateTransactionBalance txLayer tx' nodePParams combinedUTxO
         let minfee' = Cardano.Lovelace $ fromIntegral $ unCoin minfee
@@ -2136,7 +2154,8 @@ balanceTransactionWithSelectionStrategyAndNoZeroAdaAdjustment
                     , fromCardanoLovelace fee0
                     , calcMinimumCost txLayer era pp
                         (defaultTransactionCtx
-                            { txPlutusScriptExecutionCost =
+                            { txPaymentCredentialScriptTemplate = mScriptTemplate
+                            , txPlutusScriptExecutionCost =
                                 txPlutusScriptExecutionCost })
                         skeleton
                     ] `Coin.difference` boringFee
@@ -2651,7 +2670,7 @@ buildAndSignTransactionNew
                 (Cardano.Tx unsignedTxBody [])(Cardano.UTxO mempty) mempty
         either (throwIO . ExceptionBalanceTx) pure <=< runExceptT $
             balanceTransaction @_ @_ @s @k @ktype
-                tr txLayer changeGen protocolParameters ti utxo partialTx
+                tr txLayer changeGen Nothing Nothing protocolParameters ti utxo partialTx
 
     signBalancedTx
         :: Cardano.IsCardanoEra era
@@ -2769,24 +2788,18 @@ constructTransaction txLayer netLayer db wid txCtx preSel = do
     mkUnsignedTransaction txLayer xpub pp txCtx (Left preSel)
         & withExceptT ErrConstructTxBody . except
 
--- | Construct an unsigned transaction from a given selection
--- for a shared wallet.
-constructSharedTransaction
-    :: forall ctx s k (n :: NetworkDiscriminant) era.
-        ( HasTransactionLayer k 'CredFromScriptK ctx
-        , HasDBLayer IO s k ctx
-        , HasNetworkLayer IO ctx
-        , k ~ SharedKey
-        , s ~ SharedState n k
-        , Typeable n
-        , WriteTx.IsRecentEra era
-        )
-    => ctx
+constructUnbalancedSharedTransaction
+    :: forall (n :: NetworkDiscriminant) ktype era
+     . (WriteTx.IsRecentEra era, Typeable n)
+    => TransactionLayer SharedKey ktype SealedTx
+    -> NetworkLayer IO Block
+    -> DBLayer IO (SharedState n SharedKey) SharedKey
     -> WalletId
     -> TransactionCtx
-    -> SelectionOf TxOut
-    -> ExceptT ErrConstructTx IO (Cardano.TxBody era)
-constructSharedTransaction ctx wid txCtx sel = db & \DBLayer{..} -> do
+    -> PreSelection
+    -> ExceptT ErrConstructTx IO
+    (Cardano.TxBody era, Maybe ([(TxIn, TxOut)] -> [CA.Script KeyHash]) )
+constructUnbalancedSharedTransaction txLayer netLayer db wid txCtx sel = db & \DBLayer{..} -> do
     cp <- withExceptT ErrConstructTxNoSuchWallet
         $ mapExceptT atomically
         $ withNoSuchWallet wid
@@ -2795,9 +2808,6 @@ constructSharedTransaction ctx wid txCtx sel = db & \DBLayer{..} -> do
     let accXPub = getRawKey $ Shared.accountXPub s
     let xpub = CA.getKey $
             deriveDelegationPublicKey (CA.liftXPub accXPub) minBound
-    let allInps =
-            (view #collateral sel) ++
-            NE.toList (view #inputs sel)
     let getScript (_, TxOut addr _) = case fst (isShared addr s) of
             Nothing ->
                 error $ "Some inputs selected by coin selection do not belong "
@@ -2810,18 +2820,11 @@ constructSharedTransaction ctx wid txCtx sel = db & \DBLayer{..} -> do
                         MutableAccount ->
                             error "role is specified only for payment credential"
                 in replaceCosignersWithVerKeys role' template ix
-    let scriptInps =
-            foldr (\inp@(txin,_) -> Map.insert txin (getScript inp))
-            Map.empty allInps
-    let txCtx' = txCtx {txNativeScriptInputs = scriptInps}
-    mapExceptT atomically $ do
-        pp <- liftIO $ currentProtocolParameters nl
-        withExceptT ErrConstructTxBody $ ExceptT $ pure
-            $ mkUnsignedTransaction tl @era xpub pp txCtx' (Right sel)
-  where
-    db = ctx ^. dbLayer @IO @s @k
-    tl = ctx ^. transactionLayer @k @'CredFromScriptK
-    nl = ctx ^. networkLayer
+    sealedTx <- mapExceptT atomically $ do
+        pp <- liftIO $ currentProtocolParameters netLayer
+        withExceptT ErrConstructTxBody $ ExceptT $ pure $
+            mkUnsignedTransaction txLayer xpub pp txCtx (Left sel)
+    pure (sealedTx, Just (map getScript))
 
 -- | Calculate the transaction expiry slot, given a 'TimeInterpreter', and an
 -- optional TTL in seconds.

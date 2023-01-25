@@ -2548,7 +2548,7 @@ unsafeCreateDigest s = fromMaybe
     (digestFromByteString $ B8.pack $ T.unpack s)
 
 wantedSuccessButError
-    :: (MonadIO m, Show e)
+    :: (MonadIO m, Show e, HasCallStack)
     => e
     -> m ()
 wantedSuccessButError = liftIO
@@ -2557,7 +2557,7 @@ wantedSuccessButError = liftIO
     . show
 
 wantedErrorButSuccess
-    :: (MonadIO m, Show a)
+    :: (MonadIO m, Show a, HasCallStack)
     => a
     -> m ()
 wantedErrorButSuccess = liftIO

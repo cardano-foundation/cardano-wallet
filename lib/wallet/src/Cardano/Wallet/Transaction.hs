@@ -227,6 +227,7 @@ data TransactionLayer k ktype tx = TransactionLayer
         :: forall era. Cardano.IsShelleyBasedEra era
         => Cardano.ProtocolParameters
             -- Current protocol parameters
+        -> Cardano.UTxO era
         -> Cardano.Tx era
             -- The sealed transaction
         -> Coin
@@ -239,6 +240,7 @@ data TransactionLayer k ktype tx = TransactionLayer
     , estimateSignedTxSize
         :: forall era. Cardano.IsShelleyBasedEra era
         => Cardano.ProtocolParameters
+        -> Cardano.UTxO era
         -> Cardano.Tx era
         -> TxSize
         -- ^ Estimate the size of the transaction when fully signed.
@@ -366,6 +368,7 @@ data TxUpdate = TxUpdate
        -- ^ Only used in the Alonzo era and later. Will be silently ignored in
        -- previous eras.
     , extraOutputs :: [TxOut]
+    , extraInputScripts :: [Script KeyHash]
     , feeUpdate :: TxFeeUpdate
         -- ^ Set a new fee or use the old one.
     }

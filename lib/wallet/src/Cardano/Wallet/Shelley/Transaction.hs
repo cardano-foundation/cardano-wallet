@@ -68,7 +68,13 @@ import Prelude
 import Cardano.Address.Derivation
     ( XPrv, toXPub )
 import Cardano.Address.Script
-    ( Cosigner, KeyHash, Script (..), ScriptTemplate (..), foldScript )
+    ( Cosigner
+    , KeyHash
+    , KeyRole (..)
+    , Script (..)
+    , ScriptTemplate (..)
+    , foldScript
+    )
 import Cardano.Api
     ( AnyCardanoEra (..)
     , ByronEra
@@ -168,6 +174,7 @@ import Cardano.Wallet.Shelley.Compatibility
     , toCardanoLovelace
     , toCardanoPolicyId
     , toCardanoSimpleScript
+    , toCardanoSimpleScriptV1
     , toCardanoStakeCredential
     , toCardanoTxIn
     , toCardanoTxOut
@@ -180,7 +187,7 @@ import Cardano.Wallet.Shelley.Compatibility
     , toStakePoolDlgCert
     )
 import Cardano.Wallet.Shelley.Compatibility.Ledger
-    ( toLedger )
+    ( toLedger, toWalletScript, toWalletScriptFromShelley )
 import Cardano.Wallet.Shelley.MinimumUTxO
     ( computeMinimumCoinForUTxO, isBelowMinimumCoinForUTxO )
 import Cardano.Wallet.Transaction
@@ -285,7 +292,7 @@ import qualified Cardano.Wallet.Primitive.Types.TokenBundle as TokenBundle
 import qualified Cardano.Wallet.Primitive.Types.TokenMap as TokenMap
 import qualified Cardano.Wallet.Primitive.Types.Tx.TxOut as TxOut
 import qualified Cardano.Wallet.Shelley.Compatibility as Compatibility
-import qualified Cardano.Wallet.Write.Tx as Write.Tx
+import qualified Cardano.Wallet.Write.Tx as WriteTx
 import qualified Codec.CBOR.Encoding as CBOR
 import qualified Codec.CBOR.Write as CBOR
 import qualified Data.ByteString as BS
@@ -640,16 +647,16 @@ newTransactionLayer networkId = TransactionLayer
                 let md = view #txMetadata ctx
                 constructUnsignedTx networkId (md, []) ttl rewardAcct wdrl
                     selection delta assetsToBeMinted assetsToBeBurned inpsScripts
-                    (Write.Tx.shelleyBasedEraFromRecentEra Write.Tx.recentEra)
+                    (WriteTx.shelleyBasedEraFromRecentEra WriteTx.recentEra)
             Just action -> do
                 let certs = mkDelegationCertificates action stakeXPub
                 let payload = (view #txMetadata ctx, certs)
                 constructUnsignedTx networkId payload ttl rewardAcct wdrl
                     selection delta assetsToBeMinted assetsToBeBurned inpsScripts
-                    (Write.Tx.shelleyBasedEraFromRecentEra Write.Tx.recentEra)
+                    (WriteTx.shelleyBasedEraFromRecentEra WriteTx.recentEra)
 
-    , estimateSignedTxSize = \pp (Cardano.Tx body _) -> do
-        _estimateSignedTxSize pp body
+    , estimateSignedTxSize = \pp utxo (Cardano.Tx body _) -> do
+        _estimateSignedTxSize pp utxo body
 
     , calcMinimumCost = \era pp ctx skeleton ->
         estimateTxCost era pp (mkTxSkeleton (txWitnessTagFor @k) ctx skeleton)
@@ -741,7 +748,7 @@ mkDelegationCertificates da accXPub =
 --      == Right tx or Left
 -- @
 noTxUpdate :: TxUpdate
-noTxUpdate = TxUpdate [] [] [] UseOldTxFee
+noTxUpdate = TxUpdate [] [] [] [] UseOldTxFee
 
 -- Used to add inputs and outputs when balancing a transaction.
 --
@@ -779,12 +786,45 @@ updateSealedTx (Cardano.Tx body existingKeyWits) extraContent = do
         in
         Right $ Cardano.ShelleyTxBody shelleyEra
             (modifyShelleyTxBody ebc shelleyEra bod)
-            scripts
+            (scripts ++ (flip toLedgerScript shelleyEra <$> extraInputScripts))
             scriptData
             aux
             val
     modifyTxBody _ (Byron.ByronTxBody _) =
         case Cardano.shelleyBasedEra @era of {}
+
+    TxUpdate _ _ _ extraInputScripts _ = extraContent
+
+    toLedgerScript
+        :: Script KeyHash
+        -> ShelleyBasedEra era
+        -> Ledger.Script (Cardano.ShelleyLedgerEra era)
+    toLedgerScript walletScript = \case
+        ShelleyBasedEraShelley ->
+            Cardano.toShelleyScript $ Cardano.ScriptInEra
+            Cardano.SimpleScriptV1InShelley
+            (Cardano.SimpleScript Cardano.SimpleScriptV1 $
+             toCardanoSimpleScriptV1 walletScript)
+        ShelleyBasedEraAllegra ->
+            Cardano.toShelleyScript $ Cardano.ScriptInEra
+            Cardano.SimpleScriptV2InAllegra
+            (Cardano.SimpleScript Cardano.SimpleScriptV2 $
+             toCardanoSimpleScript walletScript)
+        ShelleyBasedEraMary ->
+            Cardano.toShelleyScript $ Cardano.ScriptInEra
+            Cardano.SimpleScriptV2InMary
+            (Cardano.SimpleScript Cardano.SimpleScriptV2 $
+             toCardanoSimpleScript walletScript)
+        ShelleyBasedEraAlonzo ->
+            Cardano.toShelleyScript $ Cardano.ScriptInEra
+            Cardano.SimpleScriptV2InAlonzo
+            (Cardano.SimpleScript Cardano.SimpleScriptV2 $
+             toCardanoSimpleScript walletScript)
+        ShelleyBasedEraBabbage ->
+            Cardano.toShelleyScript $ Cardano.ScriptInEra
+            Cardano.SimpleScriptV2InBabbage
+            (Cardano.SimpleScript Cardano.SimpleScriptV2 $
+             toCardanoSimpleScript walletScript)
 
 -- NOTE: If the ShelleyMA MAClass were exposed, the Allegra and Mary
 -- cases could perhaps be joined. It is not however. And we still need
@@ -883,7 +923,7 @@ modifyShelleyTxBody txUpdate era ledgerBody = case era of
             txUpdate'
             mdHash
   where
-    TxUpdate extraInputs extraCollateral extraOutputs feeUpdate
+    TxUpdate extraInputs extraCollateral extraOutputs _ feeUpdate
         = txUpdate
 
     extraInputs' = toCardanoTxIn . fst <$> extraInputs
@@ -961,23 +1001,25 @@ dummySkeleton inputCount outputs = SelectionSkeleton
 _evaluateMinimumFee
     :: Cardano.IsShelleyBasedEra era
     => Cardano.ProtocolParameters
+    -> Cardano.UTxO era
     -> Cardano.Tx era
     -> Coin
-_evaluateMinimumFee pp (Cardano.Tx body _) = fromCardanoLovelace $
+_evaluateMinimumFee pp utxo (Cardano.Tx body _) = fromCardanoLovelace $
     Cardano.evaluateTransactionFee pp body nWits 0
   where
-    nWits = (estimateNumberOfWitnesses body)
+    nWits = (estimateNumberOfWitnesses utxo body)
 
 -- | Estimate the size of the transaction (body) when fully signed.
 _estimateSignedTxSize
     :: Cardano.IsShelleyBasedEra era
     => Cardano.ProtocolParameters
+    -> Cardano.UTxO era
     -> Cardano.TxBody era
     -> TxSize
-_estimateSignedTxSize pparams body =
+_estimateSignedTxSize pparams utxo body =
     let
         nWits :: Word
-        nWits = estimateNumberOfWitnesses body
+        nWits = estimateNumberOfWitnesses utxo body
 
         -- Hack which allows us to rely on the ledger to calculate the size of
         -- witnesses:
@@ -1035,16 +1077,19 @@ _estimateSignedTxSize pparams body =
 -- we cannot use because it requires a 'TxBodyContent BuildTx era'.
 estimateNumberOfWitnesses
     :: forall era. Cardano.IsShelleyBasedEra era
-    => Cardano.TxBody era
+    => Cardano.UTxO era
+    -- ^ Must contain all inputs from the 'TxBody' or
+    -- 'estimateNumberOfWitnesses' will 'error'.
+    -> Cardano.TxBody era
     -> Word
-estimateNumberOfWitnesses txbody@(Cardano.TxBody txbodycontent) =
-    let txIns = Cardano.txIns txbodycontent
-        txIns' = [ txin | (txin, Cardano.ViewTx) <- txIns ]
-        txInsCollateral = Cardano.txInsCollateral txbodycontent
-        txIns'' = case txInsCollateral of
-            Cardano.TxInsCollateral _ collaterals -> collaterals
-            _ -> []
-        txInsUnique = L.nub $ txIns' ++ txIns''
+estimateNumberOfWitnesses utxo txbody@(Cardano.TxBody txbodycontent) =
+    let txIns = map fst $ Cardano.txIns txbodycontent
+        txInsCollateral =
+            case Cardano.txInsCollateral txbodycontent of
+                Cardano.TxInsCollateral _ ins -> ins
+                Cardano.TxInsCollateralNone -> []
+        vkInsUnique = L.nub $ filter (hasVkPaymentCred utxo) $
+            txIns ++ txInsCollateral
         txExtraKeyWits = Cardano.txExtraKeyWits txbodycontent
         txExtraKeyWits' = case txExtraKeyWits of
             Cardano.TxExtraKeyWitnesses _ khs -> khs
@@ -1065,32 +1110,57 @@ estimateNumberOfWitnesses txbody@(Cardano.TxBody txbodycontent) =
             Cardano.TxCertificates _ certs _ -> length certs
             -- FIXME [ADP-1515] Not all certificates require witnesses. Will
             -- over-estimate unnecessarily.
-        txMintingScripts = length $ filter isScriptNative scripts
+        scriptVkWitsUpperBound =
+            fromIntegral
+            $ sumVia estimateMaxWitnessRequiredPerInput
+            $ mapMaybe toTimelockScript scripts
     in
     fromIntegral $
-        length txInsUnique +
+        length vkInsUnique +
         length txExtraKeyWits' +
         length txWithdrawals' +
         txUpdateProposal' +
         txCerts +
-        txMintingScripts
+        scriptVkWitsUpperBound
   where
     (Cardano.ShelleyTxBody _ _ scripts _ _ _) = txbody
-    isScriptNative script = case Cardano.shelleyBasedEra @era of
-        Cardano.ShelleyBasedEraShelley ->
-            False
-        Cardano.ShelleyBasedEraAllegra ->
-            False
-        Cardano.ShelleyBasedEraMary->
-            True --only native scripts allowed
-        Cardano.ShelleyBasedEraAlonzo ->
-            case script of
-                Alonzo.TimelockScript _ -> True
-                _ -> False
+
+    dummyKeyRole = Payment
+
+    toTimelockScript
+        :: Ledger.Script (Cardano.ShelleyLedgerEra era)
+        -> Maybe (Script KeyHash)
+    toTimelockScript anyScript = case Cardano.shelleyBasedEra @era of
         Cardano.ShelleyBasedEraBabbage ->
-            case script of
-                Alonzo.TimelockScript _ -> True
-                _ -> False
+            case anyScript of
+                (Alonzo.TimelockScript timelock)
+                    -> Just $ toWalletScript (const dummyKeyRole) timelock
+                (Alonzo.PlutusScript _ _)
+                    -> Nothing
+        Cardano.ShelleyBasedEraAlonzo ->
+            case anyScript of
+                (Alonzo.TimelockScript timelock)
+                    -> Just $ toWalletScript (const dummyKeyRole) timelock
+                (Alonzo.PlutusScript _ _)
+                    -> Nothing
+        Cardano.ShelleyBasedEraMary ->
+            Just $ toWalletScript (const dummyKeyRole) anyScript
+        Cardano.ShelleyBasedEraAllegra ->
+            Just $ toWalletScript (const dummyKeyRole) anyScript
+        Cardano.ShelleyBasedEraShelley ->
+            Just $ toWalletScriptFromShelley dummyKeyRole anyScript
+
+    hasVkPaymentCred
+        :: Cardano.UTxO era
+        -> Cardano.TxIn
+        -> Bool
+    hasVkPaymentCred (Cardano.UTxO u) inp = case Map.lookup inp u of
+        Just (Cardano.TxOut addrInEra _ _ _) -> Cardano.isKeyAddress addrInEra
+        Nothing ->
+            error $ unwords
+                [ "estimateMaxWitnessRequiredPerInput: input not in utxo."
+                , "Caller is expected to ensure this does not happen."
+                ]
 
 _maxScriptExecutionCost
     :: ProtocolParameters

@@ -136,6 +136,7 @@ import Cardano.Address.Script
     ( Cosigner (..)
     , KeyHash (..)
     , KeyRole (..)
+    , Script
     , ScriptTemplate (..)
     , ValidationLevel (..)
     , foldScript
@@ -2389,7 +2390,7 @@ constructTransaction api genChange knownPools poolStatus apiWalletId body = do
         era <- liftIO $ NW.currentNodeEra netLayer
         epoch <- getCurrentEpoch api
 
-        withRecentEra era $ \(_recjentEra :: WriteTx.RecentEra era) -> do
+        withRecentEra era $ \(_recentEra :: WriteTx.RecentEra era) -> do
             withdrawal <- case body ^. #withdrawal of
                 Just SelfWithdraw -> liftIO $
                     W.shelleyOnlyMkSelfWithdrawal @_ @_ @_ @_ @n
@@ -2489,7 +2490,7 @@ constructTransaction api genChange knownPools poolStatus apiWalletId body = do
                         PreSelection { outputs = outs <> mintingOuts }
 
             balancedTx <-
-                balanceTransaction api genChange apiWalletId
+                balanceTransaction api genChange Nothing Nothing apiWalletId
                     ApiBalanceTransactionPostData
                     { transaction = ApiT (sealedTxFromCardanoBody unbalancedTx)
                     , inputs = []
@@ -2613,50 +2614,10 @@ constructTransaction api genChange knownPools poolStatus apiWalletId body = do
         isValidKeyIdx (ApiStakeKeyIndex (ApiT derIndex)) =
             derIndex == DerivationIndex (getIndex @'Hardened minBound)
 
-    toUnsignedTxChange = \case
-        WalletOutput o ->
-            let address = getApiT (fst (o ^. #address))
-                derivationPath = fmap getApiT (o ^. #derivationPath)
-                coin = Coin.fromQuantity (o ^. #amount)
-                assets = getApiT (o ^. #assets)
-            in
-                TxChange address coin assets derivationPath
-        ExternalOutput _ ->
-            error "constructTx.toUnsignedTxChange: change should always be ours"
-
-    toUnsignedTxOut = \case
-        WalletOutput o ->
-            let address = getApiT (fst (o ^. #address))
-                coin = Coin.fromQuantity (o ^. #amount)
-                assets = getApiT (o ^. #assets)
-            in
-                TxOut address (TokenBundle coin assets)
-        ExternalOutput o ->
-            let address = getApiT (fst (o ^. #address))
-                coin = Coin.fromQuantity (o ^. #amount)
-                assets = getApiT (o ^. #assets)
-            in
-                TxOut address (TokenBundle coin assets)
-
     toUsignedTxWdrl p = \case
         ApiWithdrawalGeneral (ApiT rewardAcc, _) amount Our ->
             Just (rewardAcc, Coin.fromQuantity amount, p)
         ApiWithdrawalGeneral _ _ External ->
-            Nothing
-
-    toUnsignedTxInp = \case
-        WalletInput i ->
-            let txId = getApiT (i ^. #id)
-                index = i ^. #index
-                address = getApiT (fst (i ^. #address))
-                derivationPath = fmap getApiT (i ^. #derivationPath)
-                coin = Coin.fromQuantity (i ^. #amount)
-                assets = getApiT (i ^. #assets)
-                txIn = TxIn txId index
-                txOut = TxOut address (TokenBundle coin assets)
-            in
-            Just (txIn, txOut, derivationPath)
-        ExternalInput _ ->
             Nothing
 
     unsignedTx path initialOuts decodedTx = UnsignedTx
@@ -2702,6 +2663,53 @@ constructTransaction api genChange knownPools poolStatus apiWalletId body = do
         map toTxOut
             . Map.toList
             . foldr (uncurry (Map.insertWith (<>))) Map.empty
+
+toUnsignedTxOut :: ApiTxOutputGeneral n -> TxOut
+toUnsignedTxOut = \case
+    WalletOutput o ->
+        let address = getApiT (fst (o ^. #address))
+            coin = Coin.fromQuantity (o ^. #amount)
+            assets = getApiT (o ^. #assets)
+        in
+            TxOut address (TokenBundle coin assets)
+    ExternalOutput o ->
+        let address = getApiT (fst (o ^. #address))
+            coin = Coin.fromQuantity (o ^. #amount)
+            assets = getApiT (o ^. #assets)
+        in
+            TxOut address (TokenBundle coin assets)
+
+toUnsignedTxInp
+    :: ApiTxInputGeneral n
+    -> Maybe (TxIn, TxOut, NonEmpty DerivationIndex)
+toUnsignedTxInp = \case
+    WalletInput i ->
+        let txId = getApiT (i ^. #id)
+            index = i ^. #index
+            address = getApiT (fst (i ^. #address))
+            derivationPath = fmap getApiT (i ^. #derivationPath)
+            coin = Coin.fromQuantity (i ^. #amount)
+            assets = getApiT (i ^. #assets)
+            txIn = TxIn txId index
+            txOut = TxOut address (TokenBundle coin assets)
+        in
+        Just (txIn, txOut, derivationPath)
+    ExternalInput _ ->
+        Nothing
+
+toUnsignedTxChange
+    :: ApiTxOutputGeneral n
+    -> TxChange (NonEmpty DerivationIndex)
+toUnsignedTxChange = \case
+    WalletOutput o ->
+        let address = getApiT (fst (o ^. #address))
+            derivationPath = fmap getApiT (o ^. #derivationPath)
+            coin = Coin.fromQuantity (o ^. #amount)
+            assets = getApiT (o ^. #assets)
+        in
+            TxChange address coin assets derivationPath
+    ExternalOutput _ ->
+        error "constructTx.toUnsignedTxChange: change should always be ours"
 
 parseValidityInterval
     :: TimeInterpreter (ExceptT PastHorizonException IO)
@@ -2763,10 +2771,8 @@ constructSharedTransaction
         ( k ~ SharedKey
         , s ~ SharedState n k
         , ctx ~ ApiLayer s k 'CredFromScriptK
-        , GenChange s
         , HasNetworkLayer IO ctx
         , IsOurs s Address
-        , BoundedAddressLength k
         , Typeable n
         )
     => ctx
@@ -2793,11 +2799,14 @@ constructSharedTransaction
         parseValidityInterval ti (body ^. #validityInterval)
 
     withWorkerCtx ctx wid liftE liftE $ \wrk -> do
+        let db = wrk ^. dbLayer
+            netLayer = wrk ^. networkLayer
+            txLayer = wrk ^. transactionLayer @SharedKey @'CredFromScriptK
+
         era <- liftIO $ NW.currentNodeEra (wrk ^. networkLayer)
         withRecentEra era $ \(_recentEra :: WriteTx.RecentEra era) -> do
             (cp, _, _) <- liftHandler $ withExceptT ErrConstructTxNoSuchWallet $
                 W.readWallet @_ @s @k wrk wid
-
             let txCtx = defaultTransactionCtx
                     { txWithdrawal = NoWithdrawal
                     , txMetadata = md
@@ -2806,66 +2815,59 @@ constructSharedTransaction
                     , txPaymentCredentialScriptTemplate =
                             Just (Shared.paymentTemplate $ getState cp)
                     }
-
-            let transform s sel =
-                    ( W.assignChangeAddresses genChange sel s
-                        & uncurry (W.selectionToUnsignedTx (txWithdrawal txCtx))
-                    , sel
-                    , selectionDelta TokenBundle.getCoin sel
-                    )
-
             case Shared.ready (getState cp) of
                 Shared.Pending ->
                     liftHandler $ throwE ErrConstructTxSharedWalletIncomplete
                 Shared.Active _ -> do
-                    pp <- liftIO $ NW.currentProtocolParameters (wrk ^. networkLayer)
-
-                    (utxoAvailable, wallet, pendingTxs) <-
-                        liftHandler $ W.readWalletUTxOIndex @_ @s @k wrk wid
-
-                    let runSelection outs = W.selectAssets @_ @_ @s @k @'CredFromScriptK
-                            wrk era pp selectAssetsParams transform
-                          where
-                            selectAssetsParams = W.SelectAssetsParams
-                                { outputs = outs
-                                , pendingTxs
-                                , randomSeed = Nothing
-                                , txContext = txCtx
-                                , utxoAvailableForInputs =
-                                    UTxOSelection.fromIndex utxoAvailable
-                                , utxoAvailableForCollateral =
-                                    UTxOIndex.toMap utxoAvailable
-                                , wallet
-                                , selectionStrategy = SelectionStrategyOptimal
-                                }
-                    (sel, sel', fee) <- do
-                        outs <- case body ^. #payments of
+                    let outs = case (body ^. #payments) of
+                            Nothing ->
+                                []
                             Just (ApiPaymentAddresses content) ->
-                                pure $ F.toList (addressAmountToTxOut <$> content)
-                            _ ->
-                                pure []
+                                F.toList (addressAmountToTxOut <$> content)
+                    (unbalancedTx, scriptLookup) <- liftHandler $
+                        W.constructUnbalancedSharedTransaction @n @'CredFromScriptK @era
+                        txLayer netLayer db wid txCtx PreSelection {outputs = outs}
 
-                        (sel', utx, fee') <- liftHandler $ runSelection outs
-                        sel <- liftHandler $
-                            W.assignChangeAddressesWithoutDbUpdate wrk wid genChange utx
-                        (FeeEstimation estMin _) <- liftHandler $ W.estimateFee (pure fee')
-                        pure (sel, sel', estMin)
+                    balancedTx <-
+                        balanceTransaction ctx genChange scriptLookup
+                        (Just (Shared.paymentTemplate $ getState cp)) (ApiT wid)
+                            ApiBalanceTransactionPostData
+                            { transaction =
+                                ApiT $ sealedTxFromCardanoBody unbalancedTx
+                            , inputs = []
+                            , redeemers = []
+                            , encoding = body ^. #encoding
+                            }
 
-                    tx <- liftHandler
-                        $ sealedTxFromCardanoBody
-                        <$> W.constructSharedTransaction @_ @s @k @n @era
-                            wrk wid txCtx sel
+                    apiDecoded <-
+                        decodeSharedTransaction @_ @s @k ctx (ApiT wid) balancedTx
 
-                    pure ApiConstructTransaction
-                        { transaction = case body ^. #encoding of
-                                Just HexEncoded -> ApiSerialisedTransaction (ApiT tx) HexEncoded
-                                _ -> ApiSerialisedTransaction (ApiT tx) Base64Encoded
-                        , coinSelection = mkApiCoinSelection [] [] Nothing md sel'
-                        , fee = Quantity $ fromIntegral fee
+                    pure $ ApiConstructTransaction
+                        { transaction = balancedTx
+                        , coinSelection =
+                            mkApiCoinSelection [] [] Nothing md
+                            (unsignedTx outs apiDecoded)
+                        , fee = apiDecoded ^. #fee
                         }
   where
     ti :: TimeInterpreter (ExceptT PastHorizonException IO)
     ti = timeInterpreter (ctx ^. networkLayer)
+
+    unsignedTx initialOuts decodedTx = UnsignedTx
+        { unsignedCollateral =
+            mapMaybe toUnsignedTxInp (decodedTx ^. #collateral)
+        , unsignedInputs =
+            mapMaybe toUnsignedTxInp (decodedTx ^. #inputs)
+        , unsignedOutputs =
+            take (length initialOuts)
+                $ map toUnsignedTxOut (decodedTx ^. #outputs)
+        , unsignedChange =
+            drop (length initialOuts)
+                $ map toUnsignedTxChange (decodedTx ^. #outputs)
+        , unsignedWithdrawals =
+            []
+        }
+
 
 decodeSharedTransaction
     :: forall ctx s k (n :: NetworkDiscriminant).
@@ -2940,10 +2942,12 @@ balanceTransaction
      . (GenChange s, BoundedAddressLength k)
     => ApiLayer s k ktype
     -> ArgGenChange s
+    -> Maybe ([(TxIn, TxOut)] -> [Script KeyHash])
+    -> Maybe ScriptTemplate
     -> ApiT WalletId
     -> ApiBalanceTransactionPostData n
     -> Handler ApiSerialisedTransaction
-balanceTransaction ctx@ApiLayer{..} genChange (ApiT wid) body = do
+balanceTransaction ctx@ApiLayer{..} genChange genInpScripts mScriptTemplate (ApiT wid) body = do
     -- NOTE: Ideally we'd read @pp@ and @era@ atomically.
     pp <- liftIO $ NW.currentProtocolParameters nl
     era <- liftIO $ NW.currentNodeEra nl
@@ -3006,6 +3010,8 @@ balanceTransaction ctx@ApiLayer{..} genChange (ApiT wid) body = do
                     (MsgWallet >$< wrk ^. W.logger)
                     (ctx ^. typed)
                     genChange
+                    genInpScripts
+                    mScriptTemplate
                     (pp, nodePParams)
                     ti
                     wallet
