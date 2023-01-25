@@ -187,7 +187,7 @@ import Cardano.Wallet.Shelley.Compatibility
     , toStakePoolDlgCert
     )
 import Cardano.Wallet.Shelley.Compatibility.Ledger
-    ( toLedger, toWalletScript )
+    ( toLedger, toWalletScript, toWalletScriptFromShelley )
 import Cardano.Wallet.Shelley.MinimumUTxO
     ( computeMinimumCoinForUTxO, isBelowMinimumCoinForUTxO )
 import Cardano.Wallet.Transaction
@@ -999,7 +999,7 @@ dummySkeleton inputCount outputs = SelectionSkeleton
 -- Will estimate how many witnesses there /should be/, so it works even
 -- for unsigned transactions.
 _evaluateMinimumFee
-    :: WriteTx.IsRecentEra era
+    :: Cardano.IsShelleyBasedEra era
     => Cardano.ProtocolParameters
     -> Cardano.UTxO era
     -> Cardano.Tx era
@@ -1011,7 +1011,7 @@ _evaluateMinimumFee pp utxo (Cardano.Tx body _) = fromCardanoLovelace $
 
 -- | Estimate the size of the transaction (body) when fully signed.
 _estimateSignedTxSize
-    :: WriteTx.IsRecentEra era
+    :: Cardano.IsShelleyBasedEra era
     => Cardano.ProtocolParameters
     -> Cardano.UTxO era
     -> Cardano.TxBody era
@@ -1076,7 +1076,7 @@ _estimateSignedTxSize pparams utxo body =
 -- NOTE: Similar to 'estimateTransactionKeyWitnessCount' from cardano-api, which
 -- we cannot use because it requires a 'TxBodyContent BuildTx era'.
 estimateNumberOfWitnesses
-    :: forall era. WriteTx.IsRecentEra era
+    :: forall era. Cardano.IsShelleyBasedEra era
     => Cardano.UTxO era
     -- ^ Must contain all inputs from the 'TxBody' or
     -- 'estimateNumberOfWitnesses' will 'error'.
@@ -1130,19 +1130,25 @@ estimateNumberOfWitnesses utxo txbody@(Cardano.TxBody txbodycontent) =
     toTimelockScript
         :: Ledger.Script (Cardano.ShelleyLedgerEra era)
         -> Maybe (Script KeyHash)
-    toTimelockScript anyScript = case WriteTx.recentEra @era of
-        WriteTx.RecentEraBabbage ->
+    toTimelockScript anyScript = case Cardano.shelleyBasedEra @era of
+        Cardano.ShelleyBasedEraBabbage ->
             case anyScript of
                 (Alonzo.TimelockScript timelock)
                     -> Just $ toWalletScript (const dummyKeyRole) timelock
                 (Alonzo.PlutusScript _ _)
                     -> Nothing
-        WriteTx.RecentEraAlonzo ->
+        Cardano.ShelleyBasedEraAlonzo ->
             case anyScript of
                 (Alonzo.TimelockScript timelock)
                     -> Just $ toWalletScript (const dummyKeyRole) timelock
                 (Alonzo.PlutusScript _ _)
                     -> Nothing
+        Cardano.ShelleyBasedEraMary ->
+            Just $ toWalletScript (const dummyKeyRole) anyScript
+        Cardano.ShelleyBasedEraAllegra ->
+            Just $ toWalletScript (const dummyKeyRole) anyScript
+        Cardano.ShelleyBasedEraShelley ->
+            Just $ toWalletScriptFromShelley dummyKeyRole anyScript
 
     hasVkPaymentCred
         :: Cardano.UTxO era

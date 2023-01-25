@@ -29,6 +29,7 @@ module Cardano.Wallet.Shelley.Compatibility.Ledger
     , toWalletTokenName
     , toWalletTokenQuantity
     , toWalletScript
+    , toWalletScriptFromShelley
 
       -- * Roundtrip conversion between wallet types and ledger specification
       --   types
@@ -375,3 +376,19 @@ toWalletScript tokeyrole = fromLedgerScript
         ActiveUntilSlot $ fromIntegral slot
     fromLedgerScript (MA.RequireTimeStart (O.SlotNo slot)) =
         ActiveFromSlot $ fromIntegral slot
+
+toWalletScriptFromShelley
+    :: Ledger.Crypto crypto
+    => KeyRole
+    -> Ledger.MultiSig crypto
+    -> Script KeyHash
+toWalletScriptFromShelley keyrole = fromLedgerScript'
+  where
+    fromLedgerScript' (Ledger.RequireSignature (Ledger.KeyHash h)) =
+        RequireSignatureOf (KeyHash keyrole (hashToBytes h))
+    fromLedgerScript' (Ledger.RequireAllOf contents) =
+        RequireAllOf $ map fromLedgerScript' $ toList contents
+    fromLedgerScript' (Ledger.RequireAnyOf contents) =
+        RequireAnyOf $ map fromLedgerScript' $ toList contents
+    fromLedgerScript' (Ledger.RequireMOf num contents) =
+        RequireSomeOf (fromIntegral num) $ fromLedgerScript' <$> toList contents
