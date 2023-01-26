@@ -2953,7 +2953,8 @@ balanceTransaction ctx@ApiLayer{..} genChange genInpScripts mScriptTemplate (Api
     pp <- liftIO $ NW.currentProtocolParameters nl
     era <- liftIO $ NW.currentNodeEra nl
     withWorkerCtx ctx wid liftE liftE $ \wrk -> do
-        wallet <- liftHandler $ W.readWalletUTxOIndex @_ @s @k wrk wid
+        (utxoIndex, wallet, _txs) <-
+            liftHandler $ W.readWalletUTxOIndex @_ @s @k wrk wid
         ti <- liftIO $ snapshot $ timeInterpreter netLayer
 
         let mkPartialTx
@@ -3007,7 +3008,7 @@ balanceTransaction ctx@ApiLayer{..} genChange genInpScripts mScriptTemplate (Api
                 => W.PartialTx era
                 -> Handler (Cardano.Tx era)
             balanceTx partialTx =
-                liftHandler $ W.balanceTransaction @_ @IO @s @k @ktype
+                liftHandler $ fst <$> W.balanceTransaction @_ @IO @s @k @ktype
                     (MsgWallet >$< wrk ^. W.logger)
                     (ctx ^. typed)
                     genChange
@@ -3015,7 +3016,8 @@ balanceTransaction ctx@ApiLayer{..} genChange genInpScripts mScriptTemplate (Api
                     mScriptTemplate
                     (pp, nodePParams)
                     ti
-                    wallet
+                    utxoIndex
+                    (getState wallet)
                     partialTx
               where
                 nodePParams = fromMaybe
