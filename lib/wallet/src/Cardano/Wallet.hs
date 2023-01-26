@@ -2588,41 +2588,51 @@ buildAndSignTransactionNew
     -> PreSelection
     -> TransactionCtx
     -> IO (Tx, TxMeta, UTCTime, SealedTx)
-buildAndSignTransactionNew tr ti db netLayer txLayer pwd walletId
+buildAndSignTransactionNew tr ti db@DBLayer{..} netLayer txLayer pwd walletId
     argGenChange era preSelection txCtx = do
     --
-    utxo@(_, wallet, _) <- throwOnError $
-        withExceptT (ExceptionConstructTx . ErrConstructTxNoSuchWallet) $
-            readWalletUTxOIndex @_ @_ @k db walletId
-
     pureTimeInterpreter <- snapshot ti
     protocolParams <- currentProtocolParameters netLayer
+    let wrapError = ExceptionWitnessTx . ErrWitnessTxWithRootKey
+    throwOnError $ withRootKey db walletId pwd wrapError $ \rootKey scheme ->
+        lift $ atomically $ do
+            wallet <- readCheckpoint walletId >>=
+                maybe ( throwIO $ ExceptionConstructTx
+                                $ ErrConstructTxNoSuchWallet
+                                $ ErrNoSuchWallet walletId ) pure
 
-    (tx, meta, sealed) <- throwOnError $
-        let wrapError = ExceptionWitnessTx . ErrWitnessTxWithRootKey
-         in withRootKey db walletId pwd wrapError $ \rootKey scheme ->
-                withExceptT (either ExceptionBalanceTx ExceptionConstructTx) $
-                    buildAndSignTransactionPure @k @ktype @s @n
-                        tr
-                        pureTimeInterpreter
-                        utxo
-                        rootKey
-                        scheme
-                        pwd
-                        protocolParams
-                        txLayer
-                        argGenChange
-                        era
-                        preSelection
-                        txCtx
+            pendingTxs <- fmap fromTransactionInfo <$>
+                readTransactions
+                    walletId Nothing Descending wholeRange (Just Pending)
 
-    tipTime <- interpretQuery
-        (neverFails "buildAndSignTransactionNew: slot is ahead of the node tip"
-            (hoistTimeInterpreter except pureTimeInterpreter))
-        (slotToUTCTime (currentTip wallet ^. #slotNo))
-    pure (tx, meta, tipTime, sealed)
+            (tx, meta, sealed) <-
+                buildAndSignTransactionPure @k @ktype @s @n
+                    tr
+                    pureTimeInterpreter
+                    wallet
+                    (Set.fromList pendingTxs)
+                    rootKey
+                    scheme
+                    pwd
+                    protocolParams
+                    txLayer
+                    argGenChange
+                    era
+                    preSelection
+                    txCtx
+                & withExceptT (either ExceptionBalanceTx ExceptionConstructTx)
+                & throwOnError
+                & liftIO
+
+            tipTime <- liftIO $ interpretQuery
+                (neverFails
+                    "buildAndSignTransactionNew: slot is ahead of the node tip"
+                    (hoistTimeInterpreter except pureTimeInterpreter))
+                (slotToUTCTime (currentTip wallet ^. #slotNo))
+            pure (tx, meta, tipTime, sealed)
   where
-    throwOnError = either throwIO pure <=< runExceptT
+    throwOnError :: (MonadIO m, Exception e) => ExceptT e m a -> m a
+    throwOnError = either (liftIO . throwIO) pure <=< runExceptT
 
 buildAndSignTransactionPure
     :: forall k ktype s (n :: NetworkDiscriminant) m
@@ -2640,7 +2650,8 @@ buildAndSignTransactionPure
        )
     => Tracer m WalletLog
     -> TimeInterpreter (Either PastHorizonException)
-    -> (UTxOIndex WalletUTxO, Wallet s, Set Tx)
+    -> Wallet s
+    -> Set Tx -- pending transactions
     -> k 'RootK XPrv
     -> PassphraseScheme
     -> Passphrase "user"
@@ -2652,8 +2663,9 @@ buildAndSignTransactionPure
     -> TransactionCtx
     -> ExceptT (Either ErrBalanceTx ErrConstructTx) m (Tx, TxMeta, SealedTx)
 buildAndSignTransactionPure
-    tr ti utxo@(_, wallet, _) rootKey passphraseScheme userPassphrase
+    tr ti wallet pendingTxs rootKey passphraseScheme userPassphrase
     protocolParams txLayer changeGen era  preSelection txCtx =
+    --
     WriteTx.withRecentEra era $ \(_ :: WriteTx.RecentEra recentEra) -> do
         unsignedTxBody <- withExceptT (Right . ErrConstructTxBody) . except $
             mkUnsignedTransaction txLayer @recentEra
@@ -2662,13 +2674,19 @@ buildAndSignTransactionPure
 
         unsignedBalancedTx <- withExceptT Left $
             balanceTransaction @_ @_ @s @k @ktype
-                tr txLayer changeGen Nothing Nothing
-                nodeProtocolParameters ti utxo $
-                PartialTx
-                    { tx = Cardano.Tx unsignedTxBody []
-                    , inputs = Cardano.UTxO mempty
-                    , redeemers = []
-                    }
+                tr txLayer changeGen Nothing Nothing nodeProtocolParameters ti
+                    ( UTxOIndex.fromMap
+                        $ CS.toInternalUTxOMap
+                        $ availableUTxO @s pendingTxs wallet
+                    , wallet
+                    , pendingTxs
+                    )
+                    ( PartialTx
+                        { tx = Cardano.Tx unsignedTxBody []
+                        , inputs = Cardano.UTxO mempty
+                        , redeemers = []
+                        }
+                    )
 
         let passphrase = preparePassphrase passphraseScheme userPassphrase
             signedTx = signTransaction @k @ktype txLayer
