@@ -3014,7 +3014,7 @@ runLocalTxSubmissionPool cfg ctx wid = db & \DBLayer{..} -> do
         forM_ (filter (isScheduled sp sl) pending) $ \st -> do
             _ <- runExceptT $ traceResult (trRetry (st ^. #txId)) $
                 postTx nw (st ^. #submittedTx)
-            atomically $ runExceptT $ putLocalTxSubmission
+            atomically $ resubmitTx
                 wid
                 (st ^. #txId)
                 (st ^. #submittedTx)
