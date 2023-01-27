@@ -130,9 +130,10 @@ module Cardano.Wallet
     , assignChangeAddressesAndUpdateDb
     , assignChangeAddressesWithoutDbUpdate
     , selectionToUnsignedTx
-    , buildAndSignTransactionNew
+    , buildSignSubmitTransaction
     , buildAndSignTransactionPure
     , buildAndSignTransaction
+    , BuiltTx (..)
     , signTransaction
     , constructTransaction
     , constructTxMeta
@@ -544,6 +545,8 @@ import Data.Function
     ( (&) )
 import Data.Functor
     ( ($>) )
+import Data.Functor.Contravariant
+    ( (>$<) )
 import Data.Generics.Internal.VL.Lens
     ( Lens', over, view, (.~), (^.) )
 import Data.Generics.Labels
@@ -2566,13 +2569,10 @@ signTransaction tl preferredLatestEra keyLookup (rootKey, rootPwd) utxo =
 type MakeRewardAccountBuilder k =
     (k 'RootK XPrv, Passphrase "encryption") -> (XPrv, Passphrase "encryption")
 
--- | Produce witnesses and construct a transaction from a given selection.
+-- | Build, Sign, Submit transaction.
 --
 -- Requires the encryption passphrase in order to decrypt the root private key.
--- Note that this doesn't broadcast the transaction to the network. In order to
--- do so, use 'submitTx'.
---
-buildAndSignTransactionNew
+buildSignSubmitTransaction
     :: forall k ktype s (n :: NetworkDiscriminant)
      . ( Typeable n
        , Typeable s
@@ -2597,7 +2597,7 @@ buildAndSignTransactionNew
     -> PreSelection
     -> TransactionCtx
     -> IO (BuiltTx, UTCTime)
-buildAndSignTransactionNew ti db@DBLayer{..} netLayer txLayer pwd walletId
+buildSignSubmitTransaction ti db@DBLayer{..} netLayer txLayer pwd walletId
     argGenChange era preSelection txCtx = do
     --
     stdGen <- initStdGen
@@ -2651,6 +2651,7 @@ data BuiltTx = BuiltTx
     , builtTxMeta :: TxMeta
     , builtSealedTx :: SealedTx
     }
+    deriving (Show, Eq)
 
 buildAndSignTransactionPure
     :: forall k ktype s (n :: NetworkDiscriminant)
@@ -2985,27 +2986,20 @@ mkTxMeta latestBlockHeader txValidity amountIn amountOut =
 
 -- | Broadcast a (signed) transaction to the network.
 submitTx
-    :: forall ctx s k.
-        ( HasNetworkLayer IO ctx
-        , HasDBLayer IO s k ctx
-        , HasLogger IO WalletWorkerLog ctx
-        )
-    => ctx
+    :: Tracer IO WalletWorkerLog
+    -> DBLayer IO s k
+    -> NetworkLayer IO Read.Block
     -> WalletId
-    -> (Tx, TxMeta, SealedTx)
+    -> BuiltTx
     -> ExceptT ErrSubmitTx IO ()
-submitTx ctx wid (tx, meta, binary) = traceResult tr' $ db & \DBLayer{..} -> do
-    withExceptT ErrSubmitTxNetwork $
-        postTx nw binary
-    withExceptT ErrSubmitTxNoSuchWallet $
-        mapExceptT atomically $
-            addTxSubmission wid (tx, meta, binary) (meta ^. #slotNo)
-  where
-    db = ctx ^. dbLayer @IO @s @k
-    nw = ctx ^. networkLayer
-
-    tr = ctx ^. logger
-    tr' = contramap (MsgWallet . MsgTxSubmit . MsgSubmitTx tx meta binary) tr
+submitTx tr DBLayer{..} nw walletId tx@BuiltTx{..} =
+    traceResult (MsgWallet . MsgTxSubmit . MsgSubmitTx tx >$< tr) $ do
+        withExceptT ErrSubmitTxNetwork $ postTx nw builtSealedTx
+        withExceptT ErrSubmitTxNoSuchWallet $
+            mapExceptT atomically $
+                addTxSubmission walletId
+                    (builtTx, builtTxMeta, builtSealedTx)
+                    (builtTxMeta ^. #slotNo)
 
 -- | Broadcast an externally-signed transaction to the network.
 --
@@ -4268,7 +4262,7 @@ instance HasSeverityAnnotation WalletLog where
         MsgIsStakeKeyRegistered _ -> Info
 
 data TxSubmitLog
-    = MsgSubmitTx Tx TxMeta SealedTx (BracketLog' (Either ErrSubmitTx ()))
+    = MsgSubmitTx BuiltTx (BracketLog' (Either ErrSubmitTx ()))
     | MsgSubmitExternalTx (Hash "Tx") (BracketLog' (Either ErrPostTx Tx))
     | MsgRetryPostTx (Hash "Tx") (BracketLog' (Either ErrPostTx ()))
     | MsgProcessPendingPool BracketLog
@@ -4278,19 +4272,19 @@ instance ToText TxSubmitLog
 
 instance Buildable TxSubmitLog where
     build = \case
-        MsgSubmitTx tx meta sealed msg -> case msg of
+        MsgSubmitTx BuiltTx{..} msg -> case msg of
             BracketStart -> unlinesF
-                [ "Submitting transaction "+|tx ^. #txId|+" to local node"
+                [ "Submitting transaction "+|builtTx ^. #txId|+" to local node"
                 , blockMapF
-                    [ ("Tx" :: Text, build tx)
-                    , ("SealedTx", build sealed)
-                    , ("TxMeta", build meta) ]
+                    [ ("Tx" :: Text, build builtTx)
+                    , ("SealedTx", build builtSealedTx)
+                    , ("TxMeta", build builtTxMeta) ]
                 ]
             BracketFinish res ->
-                "Transaction "+|tx ^. #txId|+" "+|case res of
+                "Transaction "+|builtTx ^. #txId|+" "+|case res of
                     Right _ -> "accepted by local node"
                     Left err -> "failed: "+||err||+""
-            _ -> formatResultMsg "submitTx" [("txid", tx ^. #txId)] msg
+            _ -> formatResultMsg "submitTx" [("txid", builtTx ^. #txId)] msg
 
         MsgSubmitExternalTx txid msg -> case msg of
             BracketStart -> "Submitting external transaction "+|txid|+
@@ -4321,7 +4315,7 @@ instance Buildable TxSubmitLog where
 instance HasPrivacyAnnotation TxSubmitLog
 instance HasSeverityAnnotation TxSubmitLog where
     getSeverityAnnotation = \case
-        MsgSubmitTx _ _ _ b -> resultSeverity Info b
+        MsgSubmitTx _ b -> resultSeverity Info b
         MsgSubmitExternalTx _ b -> resultSeverity Info b
         MsgRetryPostTx _ b -> case b of
             BracketFinish (Right _) -> Info
