@@ -290,6 +290,7 @@ import qualified Data.Text.Encoding as T
 import qualified Database.Persist.Sql as Sql
 import qualified Database.Persist.Sqlite as Sqlite
 import qualified UnliftIO.STM as STM
+import Database.Persist (PersistValue(PersistText))
 
 spec :: Spec
 spec = parallel $ do

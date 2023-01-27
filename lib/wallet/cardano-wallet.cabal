@@ -125,6 +125,7 @@ library
     , lattices
     , lens
     , lifted-async
+    , list-transformer
     , math-functions
     , memory
     , monad-control
