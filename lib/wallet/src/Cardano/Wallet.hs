@@ -10,6 +10,7 @@
 {-# LANGUAGE MultiParamTypeClasses #-}
 {-# LANGUAGE NamedFieldPuns #-}
 {-# LANGUAGE OverloadedLabels #-}
+{-# LANGUAGE PartialTypeSignatures #-}
 {-# LANGUAGE PatternGuards #-}
 {-# LANGUAGE RankNTypes #-}
 {-# LANGUAGE RecordWildCards #-}
@@ -273,7 +274,6 @@ import Cardano.Wallet.DB
 import Cardano.Wallet.DB.WalletState
     ( DeltaWalletState1 (..)
     , ErrNoSuchWallet (..)
-    , WalletState (..)
     , adjustNoSuchWallet
     , fromWallet
     , getLatest
@@ -532,8 +532,6 @@ import Control.Tracer
     ( Tracer, contramap, traceWith )
 import Crypto.Hash
     ( Blake2b_256, hash )
-import Data.Bitraversable
-    ( Bitraversable (..) )
 import Data.ByteString
     ( ByteString )
 import Data.DBVar
@@ -1645,7 +1643,8 @@ balanceTransaction
     -- @Wallet s@ for change address generation.
     -> PartialTx era
     -> ExceptT ErrBalanceTx m (Cardano.Tx era, s)
-balanceTransaction tr txLayer change toInpScriptsM mScriptTemplate pp ti idx walletState unadjustedPtx = do
+balanceTransaction
+    tr txLayer change toInpScriptsM mScriptTemplate pp ti idx s unadjustedPtx = do
     -- TODO [ADP-1490] Take 'Ledger.PParams era' directly as argument, and avoid
     -- converting to/from Cardano.ProtocolParameters. This may affect
     -- performance. The addition of this one specific conversion seems to have
@@ -1657,7 +1656,8 @@ balanceTransaction tr txLayer change toInpScriptsM mScriptTemplate pp ti idx wal
     let balanceWith strategy =
             balanceTransactionWithSelectionStrategyAndNoZeroAdaAdjustment
                 @era @m @s @k @ktype
-                tr txLayer change toInpScriptsM mScriptTemplate pp ti idx walletState strategy adjustedPtx
+                tr txLayer change toInpScriptsM mScriptTemplate
+                pp ti idx s strategy adjustedPtx
     balanceWith SelectionStrategyOptimal
         `catchE` \e ->
             if minimalStrategyIsWorthTrying e
@@ -1892,7 +1892,7 @@ balanceTransactionWithSelectionStrategyAndNoZeroAdaAdjustment
             , extraCollateral
             , extraOutputs = updatedChange
             , extraInputScripts
-        , feeUpdate = UseNewTxFee updatedFee
+            , feeUpdate = UseNewTxFee updatedFee
             }
   where
     toSealed :: Cardano.Tx era -> SealedTx
@@ -2603,48 +2603,48 @@ buildAndSignTransactionNew ti db@DBLayer{..} netLayer txLayer pwd walletId
     stdGen <- initStdGen
     pureTimeInterpreter <- snapshot ti
     protocolParameters <- currentProtocolParameters netLayer
-    let wrapError = ExceptionWitnessTx . ErrWitnessTxWithRootKey
-    throwOnError <=< runExceptT $ withRootKey db walletId pwd wrapError $
+    throwOnError <=< runExceptT $ withRootKey db walletId pwd wrapRootKeyError $
         \rootKey scheme -> lift $ atomically $ do
             pendingTxs <- fmap fromTransactionInfo <$>
                 readTransactions
                     walletId Nothing Descending wholeRange (Just Pending)
             txBuiltForSlot <- modifyDBMaybe walletsDB $ do
-                let err = ExceptionConstructTx . ErrConstructTxNoSuchWallet
-                adjustNoSuchWallet walletId err $ \(s :: WalletState s) -> do
-                    let wallet = WalletState.getLatest s
-                    let (errorOrBuiltTx, wallet') =
-                            buildAndSignTransactionPure @k @ktype @s @n
-                                nullTracer
-                                pureTimeInterpreter
-                                (Set.fromList pendingTxs)
-                                rootKey
-                                scheme
-                                pwd
-                                protocolParameters
-                                txLayer
-                                argGenChange
-                                era
-                                preSelection
-                                txCtx
-                            & runExceptT . withExceptT
-                                (either ExceptionBalanceTx ExceptionConstructTx)
-                            & (`runStateT` wallet)
-                            & (`evalRand` stdGen)
-
-                    -- Newly generated change addresses only change the Prologue
-                    Right ( [ReplacePrologue $ getPrologue $ getState wallet']
-                          , (errorOrBuiltTx, currentTip wallet ^. #slotNo)
-                          )
+                adjustNoSuchWallet walletId wrapNoSuchWalletError $ \s ->
+                    buildAndSignTransactionPure @k @ktype @s @n
+                        pureTimeInterpreter
+                        (Set.fromList pendingTxs)
+                        rootKey
+                        scheme
+                        pwd
+                        protocolParameters
+                        txLayer
+                        argGenChange
+                        era
+                        preSelection
+                        txCtx
+                        & (`runStateT` WalletState.getLatest s)
+                        & runExceptT . withExceptT wrapBalanceConstructError
+                        & (`evalRand` stdGen)
+                        & fmap (\(builtTx, wallet) ->
+                            -- Newly generated change addresses
+                            -- only change the Prologue
+                            ( [ReplacePrologue $ getPrologue $ getState wallet]
+                            , (builtTx, currentTip wallet ^. #slotNo)
+                            )
+                        )
 
             let slotTime slot = liftIO $ interpretQuery
                     (neverFails "slot is ahead of the node tip" ti)
                     (slotToUTCTime slot)
 
-            bitraverse throwOnError slotTime =<< throwOnError txBuiltForSlot
+            throwOnError txBuiltForSlot >>= traverse slotTime
   where
     throwOnError :: (MonadIO m, Exception e) => Either e a -> m a
     throwOnError = either (liftIO . throwIO) pure
+
+    wrapRootKeyError = ExceptionWitnessTx . ErrWitnessTxWithRootKey
+    wrapNoSuchWalletError = ExceptionConstructTx . ErrConstructTxNoSuchWallet
+    wrapBalanceConstructError = either ExceptionBalanceTx ExceptionConstructTx
 
 data BuiltTx = BuiltTx
     { builtTx :: Tx
@@ -2653,7 +2653,7 @@ data BuiltTx = BuiltTx
     }
 
 buildAndSignTransactionPure
-    :: forall k ktype s (n :: NetworkDiscriminant) m
+    :: forall k ktype s (n :: NetworkDiscriminant)
      . ( Typeable n
        , Typeable s
        , Typeable k
@@ -2664,11 +2664,8 @@ buildAndSignTransactionPure
        , IsOwned s k ktype
        , IsOurs s RewardAccount
        , GenChange s
-       , MonadRandom m
-       , m ~ StateT (Wallet s) (Rand StdGen)
        )
-    => Tracer m WalletLog
-    -> TimeInterpreter (Either PastHorizonException)
+    => TimeInterpreter (Either PastHorizonException)
     -> Set Tx -- pending transactions
     -> k 'RootK XPrv
     -> PassphraseScheme
@@ -2679,39 +2676,50 @@ buildAndSignTransactionPure
     -> AnyRecentEra
     -> PreSelection
     -> TransactionCtx
-    -> ExceptT (Either ErrBalanceTx ErrConstructTx) m BuiltTx
+    -> StateT
+        (Wallet s)
+        (ExceptT (Either ErrBalanceTx ErrConstructTx) (Rand StdGen))
+        BuiltTx
 buildAndSignTransactionPure
-    tr ti pendingTxs rootKey passphraseScheme userPassphrase
+    ti pendingTxs rootKey passphraseScheme userPassphrase
     protocolParams txLayer changeGen era preSelection txCtx =
     --
     WriteTx.withRecentEra era $ \(_ :: WriteTx.RecentEra recentEra) -> do
         wallet <- get
 
-        unsignedTxBody <- withExceptT (Right . ErrConstructTxBody) . except $
-            mkUnsignedTransaction txLayer @recentEra
-                (unsafeShelleyOnlyGetRewardXPub (getState wallet))
-                protocolParams
-                txCtx
-                (Left preSelection)
+        unsignedTxBody <-
+            lift . withExceptT (Right . ErrConstructTxBody) . except $
+                mkUnsignedTransaction txLayer @recentEra
+                    (unsafeShelleyOnlyGetRewardXPub (getState wallet))
+                    protocolParams
+                    txCtx
+                    (Left preSelection)
 
-        (unsignedBalancedTx, updatedWalletState) <- withExceptT Left $
+        (unsignedBalancedTx, updatedWalletState) <- lift . withExceptT Left $
             balanceTransaction @_ @_ @s @k @ktype
-                tr txLayer changeGen Nothing Nothing nodeProtocolParameters ti
-                    (UTxOIndex.fromMap
-                        $ CS.toInternalUTxOMap
-                        $ availableUTxO @s pendingTxs wallet)
-                    (getState wallet)
-                    ( PartialTx
-                        { tx = Cardano.Tx unsignedTxBody []
-                        , inputs = Cardano.UTxO mempty
-                        , redeemers = []
-                        }
-                    )
+                nullTracer
+                txLayer
+                changeGen
+                Nothing -- "To input scripts" resolver
+                Nothing -- Script template
+                nodeProtocolParameters
+                ti
+                (UTxOIndex.fromMap
+                    $ CS.toInternalUTxOMap
+                    $ availableUTxO @s pendingTxs wallet)
+                (getState wallet)
+                ( PartialTx
+                    { tx = Cardano.Tx unsignedTxBody []
+                    , inputs = Cardano.UTxO mempty
+                    , redeemers = []
+                    }
+                )
 
         put wallet { getState = updatedWalletState }
 
         let passphrase = preparePassphrase passphraseScheme userPassphrase
-            signedTx = signTransaction @k @ktype txLayer
+            signedTx = signTransaction @k @ktype
+                txLayer
                 anyCardanoEra
                 (isOwned (getState wallet) (rootKey, passphrase))
                 (rootKey, passphrase)
