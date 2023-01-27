@@ -777,6 +777,12 @@ data DBPendingTxs stm = DBPendingTxs
         -> SlotNo
         -> stm ()
         -- ^ Rollback submissions store.
+
+    , pruneByFinality_
+        :: WalletId
+        -> SlotNo
+        -> stm ()
+        -- ^ Prune ths submissions store by moving the finality slot.
     }
 
 -- | A database layer for storing the private key.

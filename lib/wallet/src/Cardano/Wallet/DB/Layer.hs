@@ -741,7 +741,9 @@ newDBLayerWith _cacheBehavior _tr ti SqliteContext{runQuery} = do
                                         $ PruneTxMetaHistory $ TxId txId
                                 in  (delta, Right ())
 
-        ,  rollBackSubmissions_ = \_ _ -> pure ()
+        , rollBackSubmissions_ = \_ _ -> pure ()
+
+        , pruneByFinality_ = \ _ _ -> pure ()
         }
 
     let rollbackTo_ wid requestedPoint = do
@@ -790,7 +792,7 @@ newDBLayerWith _cacheBehavior _tr ti SqliteContext{runQuery} = do
                         $ W.chainPointFromBlockHeader
                         $ view #currentTip wcp
 
-    let prune_ wid epochStability _finalitySlot = do
+    let prune_ wid epochStability finalitySlot = do
             ExceptT $ do
                 readCheckpoint wid >>= \case
                     Nothing -> pure $ Left $ ErrNoSuchWallet wid
@@ -800,6 +802,7 @@ newDBLayerWith _cacheBehavior _tr ti SqliteContext{runQuery} = do
                         pruneLocalTxSubmission wid epochStability tip
             lift $ modifyDBMaybe transactionsDBVar $ \_ ->
                 (Just GarbageCollectTxWalletsHistory, ())
+            lift $ pruneByFinality_ dbPendingTxs wid finalitySlot
 
         {-----------------------------------------------------------------------
                                     Wallet Delegation
