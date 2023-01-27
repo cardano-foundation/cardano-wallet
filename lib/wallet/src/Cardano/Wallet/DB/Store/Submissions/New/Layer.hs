@@ -1,6 +1,6 @@
 {-# LANGUAGE GADTs #-}
-{-# LANGUAGE OverloadedLabels #-}
 {-# LANGUAGE RecordWildCards #-}
+{-# LANGUAGE ViewPatterns #-}
 -- |
 -- Copyright: © 2022 IOHK
 -- License: Apache-2.0
@@ -12,10 +12,9 @@ module Cardano.Wallet.DB.Store.Submissions.New.Layer
     )
     where
 
-import Prelude
+import Prelude hiding
+    ( (.) )
 
-import Cardano.Wallet
-    ( ErrNoSuchWallet (..) )
 import Cardano.Wallet.DB
     ( DBPendingTxs (..)
     , ErrNoSuchTransaction (..)
@@ -30,16 +29,36 @@ import Cardano.Wallet.DB.Store.Submissions.New.Operations
     , TxSubmissionsStatus
     , submissionMetaFromTxMeta
     )
+import Cardano.Wallet.DB.WalletState
+    ( ErrNoSuchWallet (..) )
 import Cardano.Wallet.Primitive.Types
-    ( WalletId )
+    ( SlotNo (SlotNo), WalletId )
+import Cardano.Wallet.Primitive.Types.Hash
+    ( Hash (..) )
 import Cardano.Wallet.Primitive.Types.Tx
     ( LocalTxSubmissionStatus (LocalTxSubmissionStatus), SealedTx )
+import Cardano.Wallet.Read.Eras
+    ( K (..) )
+import Cardano.Wallet.Read.Eras.EraFun
+    ( EraFun )
+import Cardano.Wallet.Read.Primitive.Tx.Features.Validity
+    ( getValidity )
+import Cardano.Wallet.Read.Tx.Cardano
+    ( anythingFromSealedTx )
+import Cardano.Wallet.Read.Tx.Hash
+    ( getEraTxHash )
+import Cardano.Wallet.Read.Tx.Validity
+    ( getEraValidity )
 import Cardano.Wallet.Submissions.Operations
     ( Operation (..) )
 import Cardano.Wallet.Submissions.Submissions
     ( TxStatusMeta (..), transactions, transactionsL )
 import Cardano.Wallet.Submissions.TxStatus
     ( TxStatus (..), getTx, status )
+import Cardano.Wallet.Transaction
+    ( ValidityIntervalExplicit (invalidHereafter) )
+import Control.Category
+    ( (.) )
 import Control.Lens
     ( to, (^.), (^..) )
 import Control.Monad.Except
@@ -50,11 +69,12 @@ import Data.DBVar
     ( DBVar, modifyDBMaybe, readDBVar, updateDBVar )
 import Data.DeltaMap
     ( DeltaMap (..) )
-import Data.Maybe
-    ( fromJust )
+import Data.Quantity
+    ( Quantity (..) )
 import Database.Persist.Sql
     ( SqlPersistT )
 
+import qualified Cardano.Wallet.Read.Tx as Read
 import qualified Data.Map.Strict as Map
 
 -- TODO: This implementation is not completed / fully tested yet.
@@ -76,16 +96,30 @@ mkDbPendingTxs dbvar = DBPendingTxs
                             $ error "pls pass meta to putLocalTxSubmission!"
                     in  (delta, Right ())
 
-    , addTxSubmission_ =  \wid (tx,meta,sealedTx) resubmitted ->
-        let expiry = fromJust (meta ^. #expiry)
-            -- FIXME ADP-2367: The value 'meta' supplied here is
-            -- constructed by 'Cardano.Wallet.mkTxMeta', where this
-            -- field is always a 'Just'. In the future, we should
-            -- the expiration slot directly from a @tx :: Read.Tx@.
-        in  updateDBVar dbvar
-                $ Adjust wid
-                $ AddSubmission expiry (TxId $ tx ^. #txId, sealedTx)
-                $ submissionMetaFromTxMeta meta resubmitted
+    , addTxSubmission_ =  \wid (_ , meta, sealed) resubmitted -> do
+        let (expiry, txId) = extractPendingData sealed
+        updateDBVar dbvar
+            $ Adjust wid
+            $ AddSubmission expiry (txId , sealed)
+            $ submissionMetaFromTxMeta meta resubmitted
+
+    , resubmitTx_ = \wid (TxId -> txId) _sealed resubmitted -> do
+        submissions <- readDBVar dbvar
+        sequence_ $ do
+            walletSubmissions <-
+                Map.lookup wid submissions
+            (TxStatusMeta datas meta) <-
+                Map.lookup txId $ walletSubmissions ^. transactionsL
+            (_, sealed) <- getTx datas
+            let (expiry,_) = extractPendingData sealed
+            pure $ do
+                updateDBVar dbvar
+                    $ Adjust wid
+                    $ Forget txId
+                updateDBVar dbvar
+                    $ Adjust wid
+                    $ AddSubmission expiry (txId, sealed)
+                    $ meta{submissionMetaResubmitted = resubmitted}
 
     , getInSubmissionTransactions_ = \wid -> do
             submissions <- readDBVar dbvar
@@ -131,3 +165,15 @@ mkLocalTxSubmission (TxStatusMeta status' SubmissionMeta{..})
             LocalTxSubmissionStatus (txId) sealed submissionMetaResubmitted
         )
         $ getTx status'
+
+extractPendingData :: SealedTx -> (SlotNo, TxId)
+extractPendingData sealed = let
+    value :: EraFun Read.Tx (K a) -> a
+    value f = anythingFromSealedTx f sealed
+
+    txId = TxId $ Hash $ value getEraTxHash
+    validity = value $ getValidity . getEraValidity
+
+    Quantity expiry = maybe (Quantity 0) invalidHereafter validity
+
+    in (SlotNo expiry, txId)

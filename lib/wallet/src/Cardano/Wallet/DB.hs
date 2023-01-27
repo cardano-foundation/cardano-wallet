@@ -326,6 +326,14 @@ data DBLayer m s k = forall stm. (MonadIO stm, MonadFail stm) => DBLayer
         -- ^ Add a /new/ transaction to the local submission pool
         -- with the most recent submission slot.
 
+    , resubmitTx
+        :: WalletId
+        -> Hash "Tx"
+        -> SealedTx -- TODO: ADP-2596 really not needed
+        -> SlotNo
+        -> stm ()
+        -- ^ Resubmit a transaction.
+
     , readLocalTxSubmissionPending
         :: WalletId
         -> stm [LocalTxSubmissionStatus SealedTx]
@@ -511,6 +519,7 @@ mkDBLayerFromParts ti DBLayerCollection{..} = DBLayer
     , addTxSubmission = \wid a b -> wrapNoSuchWallet wid $
         addTxSubmission_ dbPendingTxs wid a b
     , readLocalTxSubmissionPending = readLocalTxSubmissionPending_ dbPendingTxs
+    , resubmitTx = resubmitTx_ dbPendingTxs
     , rollForwardTxSubmissions = \wid tip txs -> wrapNoSuchWallet wid $
         rollForwardTxSubmissions_ dbPendingTxs wid tip txs
     , removePendingOrExpiredTx = removePendingOrExpiredTx_ dbPendingTxs
@@ -731,6 +740,13 @@ data DBPendingTxs stm = DBPendingTxs
         -- ^ Fetch the current pending transaction set for a known wallet.
         --
         -- Returns an empty list if the wallet isn't found.
+
+    , resubmitTx_ :: WalletId
+        -> Hash "Tx"
+        -> SealedTx -- TODO: ADP-2596 really not needed
+        -> SlotNo
+        -> stm ()
+        -- ^ Resubmit a transaction.
 
     , readLocalTxSubmissionPending_
         :: WalletId

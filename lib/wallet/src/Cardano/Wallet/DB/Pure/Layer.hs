@@ -69,6 +69,8 @@ import Cardano.Wallet.Primitive.Types
     ( SortOrder (..), WalletId, wholeRange )
 import Cardano.Wallet.Primitive.Types.Tx
     ( TransactionInfo (..) )
+import Control.Monad
+    ( void )
 import Control.Monad.IO.Unlift
     ( MonadUnliftIO (..) )
 import Control.Monad.Trans.Except
@@ -195,10 +197,13 @@ newDBLayer timeInterpreter = do
             alterDB (fmap ErrPutLocalTxSubmissionNoSuchWallet . errNoSuchWallet) db $
             mPutLocalTxSubmission pk txid tx sl
 
-        , addTxSubmission = error "Not implemented in old design"
+        , addTxSubmission = error "addTxSubmission not implemented in old design"
 
         , readLocalTxSubmissionPending =
             readDB db . mReadLocalTxSubmissionPending
+
+        , resubmitTx = \wid txId sealed tip -> void $
+            alterDB errNoSuchWallet db $ mPutLocalTxSubmission wid txId sealed tip
 
         , rollForwardTxSubmissions = \pk tip _txs -> ExceptT $
             alterDB errNoSuchWallet db $
