@@ -45,7 +45,7 @@ import Prelude
 
 import Cardano.Address.Derivation
     ( XPrv )
-import Cardano.Wallet.DB.Store.Submissions.New.Operations
+import Cardano.Wallet.DB.Store.Submissions.Operations
     ( SubmissionMeta (..) )
 import Cardano.Wallet.DB.Store.Transactions.Decoration
     ( TxInDecorator )

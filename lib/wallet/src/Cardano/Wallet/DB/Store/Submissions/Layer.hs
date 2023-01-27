@@ -7,7 +7,7 @@
 --
 -- An implementation of the DBPendingTxs which uses Persistent and SQLite.
 
-module Cardano.Wallet.DB.Store.Submissions.New.Layer
+module Cardano.Wallet.DB.Store.Submissions.Layer
     ( mkDbPendingTxs
     )
     where
@@ -23,7 +23,7 @@ import Cardano.Wallet.DB
     )
 import Cardano.Wallet.DB.Sqlite.Types
     ( TxId (..) )
-import Cardano.Wallet.DB.Store.Submissions.New.Operations
+import Cardano.Wallet.DB.Store.Submissions.Operations
     ( DeltaTxSubmissions
     , SubmissionMeta (SubmissionMeta, submissionMetaResubmitted)
     , TxSubmissionsStatus

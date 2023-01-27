@@ -18,7 +18,7 @@ Implementation of a 'Store' for 'Submissions' based on
     'DeltaSubmissions' delta.
 
 -}
-module Cardano.Wallet.DB.Store.Submissions.New.Operations
+module Cardano.Wallet.DB.Store.Submissions.Operations
     ( TxSubmissions
     , TxSubmissionsStatus
     , DeltaTxSubmissions

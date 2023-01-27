@@ -106,9 +106,9 @@ import Cardano.Wallet.DB.Store.Meta.Model
     , ManipulateTxMetaHistory (..)
     , TxMetaHistory (..)
     )
-import Cardano.Wallet.DB.Store.Submissions.New.Layer
+import Cardano.Wallet.DB.Store.Submissions.Layer
     ( mkDbPendingTxs )
-import Cardano.Wallet.DB.Store.Submissions.New.Operations
+import Cardano.Wallet.DB.Store.Submissions.Operations
     ( mkStoreWalletsSubmissions )
 import Cardano.Wallet.DB.Store.Transactions.Decoration
     ( TxInDecorator, decorateTxInsForReadTx, decorateTxInsForRelation )
