@@ -630,20 +630,26 @@ newDBLayerWith _cacheBehavior _tr ti SqliteContext{runQuery} = do
         }
 
     let rollbackTo_ wid requestedPoint = do
-            mNearestCheckpoint <-  ExceptT $ do
-                modifyDBMaybe walletsDB $ \ws ->
+            mNearestCheckpoint <-
+                ExceptT $ modifyDBMaybe walletsDB $ \ws ->
                     case Map.lookup wid ws of
-                        Nothing  -> (Nothing, pure Nothing)
+                        Nothing  ->
+                            ( Nothing
+                            , pure Nothing
+                            )
                         Just wal -> case findNearestPoint wal requestedPoint of
                             Nothing ->
                                 ( Nothing
-                                , throw $ ErrNoOlderCheckpoint wid requestedPoint
+                                , throw
+                                    $ ErrNoOlderCheckpoint wid requestedPoint
                                 )
                             Just nearestPoint ->
                                 ( Just $ Adjust wid
-                                    [ UpdateCheckpoints [ RollbackTo nearestPoint ] ]
-                                , pure $ Map.lookup nearestPoint $
-                                    wal ^. #checkpoints . #checkpoints
+                                    [ UpdateCheckpoints
+                                        [ RollbackTo nearestPoint ] ]
+                                , pure $
+                                    Map.lookup nearestPoint
+                                        (wal ^. #checkpoints . #checkpoints)
                                 )
 
             case mNearestCheckpoint of
