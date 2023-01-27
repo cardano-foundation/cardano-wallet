@@ -153,6 +153,11 @@ mkDbPendingTxs dbvar = DBPendingTxs
                         Unknown -> (Nothing, Left errNoTx)
                         InLedger{} -> (Nothing, Left errInLedger)
                         _ -> (Just $ Adjust wid $ Forget (TxId txId), Right ())
+
+    ,   rollBackSubmissions_ = \wid slot ->
+            updateDBVar dbvar
+                $ Adjust wid $ RollBack slot
+
     }
 
 mkLocalTxSubmission

@@ -629,77 +629,6 @@ newDBLayerWith _cacheBehavior _tr ti SqliteContext{runQuery} = do
                 [ Asc CheckpointSlot ]
         }
 
-    let rollbackTo_ wid requestedPoint = do
-            mNearestCheckpoint <-  ExceptT $ do
-                modifyDBMaybe walletsDB $ \ws ->
-                    case Map.lookup wid ws of
-                        Nothing  -> (Nothing, pure Nothing)
-                        Just wal -> case findNearestPoint wal requestedPoint of
-                            Nothing ->
-                                ( Nothing
-                                , throw $ ErrNoOlderCheckpoint wid requestedPoint
-                                )
-                            Just nearestPoint ->
-                                ( Just $ Adjust wid
-                                    [ UpdateCheckpoints [ RollbackTo nearestPoint ] ]
-                                , pure $ Map.lookup nearestPoint $
-                                    wal ^. #checkpoints . #checkpoints
-                                )
-
-            case mNearestCheckpoint of
-                Nothing  -> ExceptT $ pure $ Left $ ErrNoSuchWallet wid
-                Just wcp -> do
-                    let nearestPoint = wcp ^. #currentTip . #slotNo
-                    lift $ deleteDelegationCertificates wid
-                        [ CertSlot >. nearestPoint
-                        ]
-                    lift $ deleteStakeKeyCerts wid
-                        [ StakeKeyCertSlot >. nearestPoint
-                        ]
-                    ExceptT $ modifyDBMaybe transactionsDBVar $ \_ ->
-                        let
-                            delta = Just
-                                $ ChangeTxMetaWalletsHistory wid
-                                $ ChangeMeta
-                                $ Manipulate
-                                $ RollBackTxMetaHistory nearestPoint
-                        in  (delta, Right ())
-                    pure
-                        $ W.chainPointFromBlockHeader
-                        $ view #currentTip wcp
-
-    let prune_ wid epochStability _finalitySlot = do
-            ExceptT $ do
-                readCheckpoint wid >>= \case
-                    Nothing -> pure $ Left $ ErrNoSuchWallet wid
-                    Just cp -> Right <$> do
-                        let tip = cp ^. #currentTip
-                        pruneCheckpoints wid epochStability tip
-                        pruneLocalTxSubmission wid epochStability tip
-            lift $ modifyDBMaybe transactionsDBVar $ \_ ->
-                (Just GarbageCollectTxWalletsHistory, ())
-
-        {-----------------------------------------------------------------------
-                                    Wallet Delegation
-        -----------------------------------------------------------------------}
-    let dbDelegation = mkDBDelegation ti
-        {-----------------------------------------------------------------------
-                                   Wallet Metadata
-        -----------------------------------------------------------------------}
-    let
-      dbWalletMeta = DBWalletMeta
-        { putWalletMeta_ = \wid meta -> ExceptT $ do
-            selectWallet wid >>= \case
-                Nothing -> pure $ Left $ ErrNoSuchWallet wid
-                Just _ -> do
-                    updateWhere [WalId ==. wid]
-                        (mkWalletMetadataUpdate meta)
-                    pure $ Right ()
-
-        , readWalletMeta_ = readWalletMetadata
-        }
-
-
         {-----------------------------------------------------------------------
                                      Tx History
         -----------------------------------------------------------------------}
@@ -811,6 +740,85 @@ newDBLayerWith _cacheBehavior _tr ti SqliteContext{runQuery} = do
                                         $ Manipulate
                                         $ PruneTxMetaHistory $ TxId txId
                                 in  (delta, Right ())
+
+        ,  rollBackSubmissions_ = \_ _ -> pure ()
+        }
+
+    let rollbackTo_ wid requestedPoint = do
+            mNearestCheckpoint <-
+                ExceptT $ modifyDBMaybe walletsDB $ \ws ->
+                    case Map.lookup wid ws of
+                        Nothing  ->
+                            ( Nothing
+                            , pure Nothing
+                            )
+                        Just wal -> case findNearestPoint wal requestedPoint of
+                            Nothing ->
+                                ( Nothing
+                                , throw
+                                    $ ErrNoOlderCheckpoint wid requestedPoint
+                                )
+                            Just nearestPoint ->
+                                ( Just $ Adjust wid
+                                    [ UpdateCheckpoints
+                                        [ RollbackTo nearestPoint ] ]
+                                , pure $
+                                    Map.lookup nearestPoint
+                                        (wal ^. #checkpoints . #checkpoints)
+                                )
+
+            case mNearestCheckpoint of
+                Nothing  -> ExceptT $ pure $ Left $ ErrNoSuchWallet wid
+                Just wcp -> do
+                    let nearestPoint = wcp ^. #currentTip . #slotNo
+                    lift $ deleteDelegationCertificates wid
+                        [ CertSlot >. nearestPoint
+                        ]
+                    lift $ deleteStakeKeyCerts wid
+                        [ StakeKeyCertSlot >. nearestPoint
+                        ]
+                    ExceptT $ modifyDBMaybe transactionsDBVar $ \_ ->
+                        let
+                            delta = Just
+                                $ ChangeTxMetaWalletsHistory wid
+                                $ ChangeMeta
+                                $ Manipulate
+                                $ RollBackTxMetaHistory nearestPoint
+                        in  (delta, Right ())
+                    lift $ rollBackSubmissions_ dbPendingTxs wid nearestPoint
+                    pure
+                        $ W.chainPointFromBlockHeader
+                        $ view #currentTip wcp
+
+    let prune_ wid epochStability _finalitySlot = do
+            ExceptT $ do
+                readCheckpoint wid >>= \case
+                    Nothing -> pure $ Left $ ErrNoSuchWallet wid
+                    Just cp -> Right <$> do
+                        let tip = cp ^. #currentTip
+                        pruneCheckpoints wid epochStability tip
+                        pruneLocalTxSubmission wid epochStability tip
+            lift $ modifyDBMaybe transactionsDBVar $ \_ ->
+                (Just GarbageCollectTxWalletsHistory, ())
+
+        {-----------------------------------------------------------------------
+                                    Wallet Delegation
+        -----------------------------------------------------------------------}
+    let dbDelegation = mkDBDelegation ti
+        {-----------------------------------------------------------------------
+                                   Wallet Metadata
+        -----------------------------------------------------------------------}
+    let
+      dbWalletMeta = DBWalletMeta
+        { putWalletMeta_ = \wid meta -> ExceptT $ do
+            selectWallet wid >>= \case
+                Nothing -> pure $ Left $ ErrNoSuchWallet wid
+                Just _ -> do
+                    updateWhere [WalId ==. wid]
+                        (mkWalletMetadataUpdate meta)
+                    pure $ Right ()
+
+        , readWalletMeta_ = readWalletMetadata
         }
 
         {-----------------------------------------------------------------------
