@@ -1,6 +1,5 @@
 {-# LANGUAGE DataKinds #-}
 {-# LANGUAGE FlexibleContexts #-}
-{-# LANGUAGE OverloadedLabels #-}
 {-# LANGUAGE RankNTypes #-}
 {-# LANGUAGE ScopedTypeVariables #-}
 
@@ -19,11 +18,9 @@ import Cardano.Wallet.DB.Store.Meta.Model
 import Cardano.Wallet.DB.Store.Meta.ModelSpec
     ( genDeltasForManipulate )
 import Cardano.Wallet.DB.Store.Wallets.Model
-    ( DeltaTxWalletsHistory (..), DeltaWalletsMetaWithSubmissions (..) )
+    ( DeltaTxWalletsHistory (..) )
 import Cardano.Wallet.DB.Store.Wallets.Store
     ( mkStoreTxWalletsHistory )
-import Data.Generics.Internal.VL
-    ( view )
 import Test.DBVar
     ( GenDelta, prop_StoreUpdates )
 import Test.Hspec
@@ -31,7 +28,6 @@ import Test.Hspec
 import Test.QuickCheck
     ( NonEmptyList (getNonEmpty), arbitrary, frequency, property )
 
-import qualified Cardano.Wallet.DB.Store.Submissions.ModelSpec as Subs
 import qualified Cardano.Wallet.Primitive.Types as W
 import qualified Data.Map.Strict as Map
 
@@ -57,17 +53,10 @@ genDeltaTxWallets :: W.WalletId -> GenDelta DeltaTxWalletsHistory
 genDeltaTxWallets wid (_, metaMap) = do
   let metaGens = case Map.lookup wid metaMap of
         Nothing -> []
-        Just (metas, subs) ->
+        Just metas ->
           [ ( 10,
-              ChangeTxMetaWalletsHistory wid . ChangeMeta . Manipulate
+              ChangeTxMetaWalletsHistory wid . Manipulate
                 <$> frequency (genDeltasForManipulate metas)
-            ),
-            ( 7,
-              ChangeTxMetaWalletsHistory wid . ChangeSubmissions
-                <$> Subs.genDeltasConstrained
-                  wid
-                  subs
-                  (Just $ Map.keys $ view #relations metas)
             ),
             (5, pure GarbageCollectTxWalletsHistory),
             (1, pure $ RemoveWallet wid)

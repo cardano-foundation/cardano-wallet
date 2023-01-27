@@ -24,7 +24,6 @@ module Cardano.Wallet.DB.Store.Submissions.New.Operations
     , DeltaTxSubmissions
     , mkStoreSubmissions
     , mkStoreWalletsSubmissions
-
     , SubmissionMeta (..)
     , submissionMetaFromTxMeta
     ) where

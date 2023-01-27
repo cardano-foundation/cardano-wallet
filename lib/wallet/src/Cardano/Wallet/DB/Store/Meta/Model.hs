@@ -19,6 +19,7 @@ module Cardano.Wallet.DB.Store.Meta.Model
     , ManipulateTxMetaHistory(..)
     , TxMetaHistory(..)
     , mkTxMetaHistory
+    , WalletsMeta
     )
     where
 
@@ -149,4 +150,4 @@ mkTxMetaHistory wid txs = TxMetaHistory $
             | (tx, meta) <- txs
         ]
 
-
+type WalletsMeta = Map W.WalletId TxMetaHistory
