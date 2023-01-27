@@ -51,8 +51,7 @@ import Cardano.Wallet.Primitive.AddressDiscovery.Sequential
 import Cardano.Wallet.Primitive.Slotting
     ( PastHorizonException, TimeInterpreter )
 import Cardano.Wallet.Primitive.Types
-    ( Block (..)
-    , IsDelegatingTo (..)
+    ( IsDelegatingTo (..)
     , PoolLifeCycleStatus
     , WalletDelegation (..)
     , WalletId (..)
@@ -193,8 +192,8 @@ quitStakePoolDelegationAction db@DBLayer{..} walletId withdrawal = do
     pure Tx.Quit
 
 quitStakePool
-    :: forall (n :: NetworkDiscriminant)
-     . NetworkLayer IO Block
+    :: forall (n :: NetworkDiscriminant) block
+     . NetworkLayer IO block
     -> DBLayer IO (SeqState n ShelleyKey) ShelleyKey
     -> TimeInterpreter (ExceptT PastHorizonException IO)
     -> WalletId

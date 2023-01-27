@@ -312,6 +312,7 @@ import Servant.API.Verbs
     )
 
 import qualified Cardano.Wallet.Primitive.Types as W
+import qualified Cardano.Wallet.Read as Read
 
 type ApiV2 n = "v2" :> Api n
 
@@ -1190,7 +1191,7 @@ data ApiLayer s (k :: Depth -> Type -> Type) ktype
         { tracerTxSubmit :: Tracer IO TxSubmitLog
         , tracerWalletWorker :: Tracer IO (WorkerLog WalletId WalletWorkerLog)
         , netParams :: (Block, NetworkParameters)
-        , netLayer :: NetworkLayer IO Block
+        , netLayer :: NetworkLayer IO Read.Block
         , txLayer :: TransactionLayer k ktype SealedTx
         , _dbFactory :: DBFactory IO s k
         , _workerRegistry :: WorkerRegistry WalletId (DBLayer IO s k)
