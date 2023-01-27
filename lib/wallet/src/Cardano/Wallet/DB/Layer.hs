@@ -817,6 +817,8 @@ newDBLayerWith _cacheBehavior _tr ti SqliteContext{runQuery} = do
                                         $ Manipulate
                                         $ PruneTxMetaHistory $ TxId txId
                                 in  (delta, Right ())
+
+        ,  rollBackSubmissions_ = \_ _ -> pure ()
         }
 
         {-----------------------------------------------------------------------
