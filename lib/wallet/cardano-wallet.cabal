@@ -365,6 +365,7 @@ library
     Cardano.Wallet.Version.TH
     Cardano.Wallet.Write.Tx
     Cardano.Wallet.Write.Tx.Gen
+    Cardano.Wallet.Write.Tx.Balance
     Control.Concurrent.Concierge
     Control.Monad.Exception.Unchecked
     Control.Monad.Util
