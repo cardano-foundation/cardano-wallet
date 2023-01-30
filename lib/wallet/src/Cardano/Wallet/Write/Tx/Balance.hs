@@ -253,6 +253,7 @@ data ErrBalanceTxBalanceInsufficientInfo = ErrBalanceTxBalanceInsufficientInfo
 data ErrBalanceTx
     = ErrBalanceTxUpdateError ErrUpdateSealedTx
     | ErrBalanceTxSelectAssets ErrSelectAssets
+    | ErrBalanceTxBalanceInsufficient ErrBalanceTxBalanceInsufficientInfo
     | ErrBalanceTxMaxSizeLimitExceeded
     | ErrBalanceTxExistingCollateral
     | ErrBalanceTxExistingTotalCollateral
