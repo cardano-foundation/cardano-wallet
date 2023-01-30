@@ -3510,7 +3510,6 @@ quitStakePool
         , IsOwned s k 'CredFromKeyK
         , SoftDerivation k
         , Typeable n
-        , Typeable s
         , Typeable k
         , WalletKey k
         , AddressBookIso s
@@ -3525,17 +3524,11 @@ quitStakePool ctx@ApiLayer{..} (ApiT walletId) body =
     withWorkerCtx ctx walletId liftE liftE $ \wrk -> do
         let db = wrk ^. typed @(DBLayer IO s k)
             tr = wrk ^. logger
-            notShelleyWallet =
-                liftHandler $ throwE ErrReadRewardAccountNotAShelleyWallet
         pp <- liftIO $ NW.currentProtocolParameters netLayer
         txCtx <-
-            case testEquality (typeRep @s) (typeRep @(SeqState n k)) of
-                Nothing -> notShelleyWallet
-                Just Refl -> case testEquality (typeRep @k)
-                                               (typeRep @ShelleyKey) of
-                    Nothing -> notShelleyWallet
-                    Just Refl ->
-                        liftIO $ WD.quitStakePool netLayer db ti walletId
+            case testEquality (typeRep @k) (typeRep @ShelleyKey) of
+                Just Refl -> liftIO $ WD.quitStakePool netLayer db ti walletId
+                _ -> liftHandler $ throwE ErrReadRewardAccountNotAShelleyWallet
         (utxoAvailable, wallet, pendingTxs) <-
             liftHandler $ W.readWalletUTxOIndex @_ @s @k wrk walletId
         era <- liftIO $ NW.currentNodeEra netLayer
