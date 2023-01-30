@@ -275,14 +275,7 @@ import Control.Arrow
 import Control.Monad
     ( forM, forM_, replicateM )
 import Control.Monad.Random
-    ( MonadRandom (..)
-    , Rand
-    , Random (randomR, randomRs)
-    , StdGen
-    , evalRand
-    , random
-    , randoms
-    )
+    ( MonadRandom (..), Random (randomR, randomRs), evalRand, random, randoms )
 import Control.Monad.Trans.Except
     ( except, runExceptT )
 import Crypto.Hash.Utils
@@ -2502,18 +2495,19 @@ balanceTransactionSpec = describe "balanceTransaction" $ do
         => PartialTx era
         -> Either ErrBalanceTx (Cardano.Tx era)
     balanceTx tx = flip evalRand (stdGenFromSeed testStdGenSeed) $ runExceptT $
-        balanceTransaction @_ @(Rand StdGen)
-            (nullTracer @(Rand StdGen))
+       fst <$> balanceTransaction
+            nullTracer
             testTxLayer
             (delegationAddress @'Mainnet)
             Nothing
             Nothing
             mockProtocolParametersForBalancing
             (dummyTimeInterpreterWithHorizon horizon)
-            (u, wal, pending)
+            utxoIndex
+            (getState wal)
             tx
       where
-        Wallet' u wal pending
+        Wallet' utxoIndex wal _pending
             = mkTestWallet dummyRootK (utxo [Coin 5_000_000])
 
         utxo coins = UTxO $ Map.fromList $ zip ins outs
@@ -3383,17 +3377,18 @@ balanceTransaction'
     -> StdGenSeed
     -> PartialTx era
     -> Either ErrBalanceTx (Cardano.Tx era)
-balanceTransaction' (Wallet' utxo wal pending) seed tx  =
+balanceTransaction' (Wallet' utxoIndex wallet _pending) seed tx  =
     flip evalRand (stdGenFromSeed seed) $ runExceptT $
-        balanceTransaction @_ @(Rand StdGen)
-            (nullTracer @(Rand StdGen))
+        fst <$> balanceTransaction
+            nullTracer
             testTxLayer
             (delegationAddress @'Mainnet)
             Nothing
             Nothing
             mockProtocolParametersForBalancing
             dummyTimeInterpreter
-            (utxo, wal, pending)
+            utxoIndex
+            (getState wallet)
             tx
 
 prop_posAndNegFromCardanoValueRoundtrip :: Property
