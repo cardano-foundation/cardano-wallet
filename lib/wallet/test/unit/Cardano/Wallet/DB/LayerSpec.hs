@@ -1033,7 +1033,7 @@ manualMigrationsSpec = describe "Manual migrations" $ do
             )
 
     it "'migrate' db to add fees to transactions" $
-        testMigrationTxMetaFee @ShelleyKey
+        testMigrationTxMetaFee
             "metaFee-v2020-11-26.sqlite"
             129 -- number of transactions
 
@@ -1163,51 +1163,36 @@ withDBLayerFromCopiedFile dbName action = do
             withDBLayer tr defaultFieldValues path ti action
 
 testMigrationTxMetaFee
-    :: forall k s.
-        ( s ~ SeqState 'Mainnet k
-        , k ~ ShelleyKey
-        , WalletKey k
-        , PersistAddressBook s
-        , PersistPrivateKey (k 'RootK)
-        , PaymentAddress 'Mainnet k 'CredFromKeyK
-        )
-    => String
+    :: String
     -> Int
     -> [(Hash "Tx", Coin)]
     -> IO ()
 testMigrationTxMetaFee dbName expectedLength caseByCase = do
-    let orig = $(getTestData) </> dbName
-    withSystemTempDirectory "migration-db" $ \dir -> do
-        let path = dir </> "db.sqlite"
-        let ti = dummyTimeInterpreter
-        copyFile orig path
-        (logs, result) <- captureLogging $ \tr -> do
-            withDBLayer @s @k tr defaultFieldValues path ti
-                $ \DBLayer{..} -> atomically
-                $ do
-                    [wid] <- listWallets
-                    readTransactions wid Nothing Descending wholeRange Nothing
+    (logs, result) <- withDBLayerFromCopiedFile @ShelleyKey dbName
+        $ \DBLayer{..} -> atomically $ do
+            [wid] <- listWallets
+            readTransactions wid Nothing Descending wholeRange Nothing
 
-        -- Check that we've indeed logged a needed migration for 'fee'
-        length (filter isMsgManualMigration logs) `shouldBe` 1
+    -- Check that we've indeed logged a needed migration for 'fee'
+    length (filter isMsgManualMigration logs) `shouldBe` 1
 
-        -- Check that the migrated history has the correct length.
-        length result `shouldBe` expectedLength
+    -- Check that the migrated history has the correct length.
+    length result `shouldBe` expectedLength
 
-        -- Verify that all incoming transactions have no fees set, and that all
-        -- outgoing ones do.
-        forM_ result $ \TransactionInfo{txInfoFee,txInfoMeta} -> do
-            case txInfoMeta ^. #direction of
-                Incoming -> txInfoFee `shouldSatisfy` isNothing
-                Outgoing -> txInfoFee `shouldSatisfy` isJust
+    -- Verify that all incoming transactions have no fees set, and that all
+    -- outgoing ones do.
+    forM_ result $ \TransactionInfo{txInfoFee,txInfoMeta} -> do
+        case txInfoMeta ^. #direction of
+            Incoming -> txInfoFee `shouldSatisfy` isNothing
+            Outgoing -> txInfoFee `shouldSatisfy` isJust
 
-        -- Also verify a few hand-picked transactions
-        forM_ caseByCase $ \(txid, expectedFee) -> do
-            case L.find ((== txid) . txInfoId) result of
-                Nothing ->
-                    fail $ "tx not found: " <> T.unpack (toText txid)
-                Just TransactionInfo{txInfoFee} ->
-                    txInfoFee `shouldBe` Just expectedFee
+    -- Also verify a few hand-picked transactions
+    forM_ caseByCase $ \(txid, expectedFee) -> do
+        case L.find ((== txid) . txInfoId) result of
+            Nothing ->
+                fail $ "tx not found: " <> T.unpack (toText txid)
+            Just TransactionInfo{txInfoFee} ->
+                txInfoFee `shouldBe` Just expectedFee
   where
     isMsgManualMigration = matchMsgManualMigration $ \field ->
         let fieldInDB = fieldDB $ persistFieldDef DB.TxMetaFee
