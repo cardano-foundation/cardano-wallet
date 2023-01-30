@@ -1136,6 +1136,32 @@ manualMigrationsSpec = describe "Manual migrations" $ do
     it "'migrate' db never modifies database with newer version"
         testNewerDatabaseIsNeverModified
 
+-- | Copy a given @.sqlite@ file, load it into a `DBLayer`
+-- (possibly triggering migrations), and run an action on it.
+--
+-- Useful for testing the logs and results of migrations.
+withDBLayerFromCopiedFile
+    :: forall k s a.
+        ( PersistAddressBook s
+        , PersistPrivateKey (k 'RootK)
+        , WalletKey k
+        , s ~ SeqState 'Mainnet k
+        )
+    => FilePath
+        -- ^ Filename of the @.sqlite@ file to load.
+    -> (DBLayer IO s k -> IO a)
+        -- ^ Action to run.
+    -> IO ([WalletDBLog], a)
+        -- ^ (logs, result of the action)
+withDBLayerFromCopiedFile dbName action = do
+    let orig = $(getTestData) </> dbName
+    withSystemTempDirectory "migration-db" $ \dir -> do
+        let path = dir </> "db.sqlite"
+            ti = dummyTimeInterpreter
+        copyFile orig path
+        captureLogging $ \tr ->
+            withDBLayer tr defaultFieldValues path ti action
+
 testMigrationTxMetaFee
     :: forall k s.
         ( s ~ SeqState 'Mainnet k
