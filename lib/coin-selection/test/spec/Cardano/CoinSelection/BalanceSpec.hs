@@ -65,7 +65,6 @@ import Cardano.CoinSelection.Balance
     , addMintValuesToChangeMaps
     , assetSelectionLens
     , assignCoinsToChangeMaps
-    , balanceMissing
     , coinSelectionLens
     , collateNonUserSpecifiedAssetQuantities
     , computeDeficitInOut
@@ -994,7 +993,7 @@ prop_performSelection mockConstraints params coverage =
             "available balance" $
         report utxoBalanceRequired
             "required balance" $
-        report (balanceMissing e)
+        report errorBalanceShortfall
             "missing balance" $
         verify
             (not $ isUTxOBalanceSufficient params)
@@ -1006,14 +1005,16 @@ prop_performSelection mockConstraints params coverage =
             (utxoBalanceRequired == errorBalanceRequired)
             "utxoBalanceRequired == errorBalanceRequired" $
         verify
-            (balanceMissing e == view #difference utxoBalanceSufficiencyInfo)
-            "balanceMissing e == view #difference utxoBalanceSufficiencyInfo" $
+            (errorBalanceShortfall == balanceSufficiencyShortfall)
+            "errorBalanceShortfall == balanceSufficiencyShortfall" $
         property True
       where
+        balanceSufficiencyShortfall =
+            view #difference utxoBalanceSufficiencyInfo
         BalanceInsufficientError
             errorBalanceAvailable
             errorBalanceRequired
-            _errorBalanceShortfall = e
+            errorBalanceShortfall = e
 
     onSelectionLimitReached
         :: SelectionLimitReachedError TestSelectionContext -> Property
