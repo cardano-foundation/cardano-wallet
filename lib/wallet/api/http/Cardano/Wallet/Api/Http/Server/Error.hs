@@ -39,7 +39,6 @@ import Cardano.Tx.Balance.Internal.CoinSelection
     , SelectionOutputTokenQuantityExceedsLimitError (..)
     , UnableToConstructChangeError (..)
     , WalletSelectionContext
-    , balanceMissing
     )
 import Cardano.Wallet
     ( ErrAddCosignerKey (..)
@@ -951,7 +950,7 @@ instance IsServerError (SelectionBalanceError WalletSelectionContext) where
             apiError err403 NotEnoughMoney $ mconcat
                 [ "I can't process this payment as there are not "
                 , "enough funds available in the wallet. I am "
-                , "missing: ", pretty . Flat $ balanceMissing e
+                , "missing: ", pretty . Flat $ e ^. #utxoBalanceShortfall
                 ]
         SelectionLimitReached e ->
             apiError err403 TransactionIsTooBig $ mconcat
