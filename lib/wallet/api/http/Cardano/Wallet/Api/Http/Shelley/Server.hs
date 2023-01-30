@@ -527,6 +527,8 @@ import Cardano.Wallet.Unsafe
     ( unsafeRunExceptT )
 import Cardano.Wallet.Util
     ( invariant )
+import Cardano.Wallet.Write.Tx
+    ( AnyRecentEra (..) )
 import Control.Arrow
     ( second, (&&&) )
 import Control.DeepSeq
@@ -3505,7 +3507,6 @@ quitStakePool
     :: forall s n k.
         ( s ~ SeqState n k
         , AddressIndexDerivationType k ~ 'Soft
-        , DelegationAddress n k 'CredFromKeyK
         , GenChange s
         , IsOwned s k 'CredFromKeyK
         , SoftDerivation k
@@ -3515,70 +3516,54 @@ quitStakePool
         , AddressBookIso s
         , BoundedAddressLength k
         , HasDelegation s
+        , IsOurs (SeqState n k) RewardAccount
         )
     => ApiLayer s k 'CredFromKeyK
+    -> ArgGenChange s
     -> ApiT WalletId
     -> ApiWalletPassphrase
     -> Handler (ApiTransaction n)
-quitStakePool ctx@ApiLayer{..} (ApiT walletId) body =
-    withWorkerCtx ctx walletId liftE liftE $ \wrk -> do
-        let db = wrk ^. typed @(DBLayer IO s k)
-            tr = wrk ^. logger
-        pp <- liftIO $ NW.currentProtocolParameters netLayer
-        txCtx <-
-            case testEquality (typeRep @k) (typeRep @ShelleyKey) of
+quitStakePool ctx@ApiLayer{..} genChange (ApiT walletId) body = do
+    era <- liftIO $ NW.currentNodeEra netLayer
+    withRecentEra era $ \(recentEra :: WriteTx.RecentEra recentEra) ->
+        withWorkerCtx ctx walletId liftE liftE $ \wrk -> do
+            let db = wrk ^. typed @(DBLayer IO s k)
+                ti = timeInterpreter netLayer
+            txCtx <- case testEquality (typeRep @k) (typeRep @ShelleyKey) of
                 Just Refl -> liftIO $ WD.quitStakePool netLayer db ti walletId
                 _ -> liftHandler $ throwE ErrReadRewardAccountNotAShelleyWallet
-        (utxoAvailable, wallet, pendingTxs) <-
-            liftHandler $ W.readWalletUTxOIndex @_ @s @k wrk walletId
-        era <- liftIO $ NW.currentNodeEra netLayer
-        sel <- liftHandler
-            $ W.selectAssets @_ @_ @s @k @'CredFromKeyK wrk era pp
-                W.SelectAssetsParams
-                { outputs = []
-                , pendingTxs
-                , randomSeed = Nothing
-                , txContext = txCtx
-                , utxoAvailableForInputs = UTxOSelection.fromIndex utxoAvailable
-                , utxoAvailableForCollateral = UTxOIndex.toMap utxoAvailable
-                , wallet
-                , selectionStrategy = SelectionStrategyOptimal
-                }
-            $ const Prelude.id
-        sel' <- liftHandler
-            $ W.assignChangeAddressesAndUpdateDb @_ @s @k
-                wrk walletId (delegationAddress @n @k @'CredFromKeyK) sel
-        (tx, txMeta, txTime, sealedTx) <- do
-            let pwd = coerce $ getApiT $ body ^. #passphrase
-            liftHandler $ W.buildAndSignTransaction @_ @s @k
-                wrk walletId era selfRewardAccountBuilder pwd txCtx sel'
-        liftHandler $ W.submitTx tr db netLayer walletId
-            BuiltTx
-                { builtTx = tx
-                , builtTxMeta = txMeta
-                , builtSealedTx = sealedTx
-                }
-        mkApiTransaction ti wrk walletId #pendingSince
-            MkApiTransactionParams
-                { txId = tx ^. #txId
-                , txFee = tx ^. #fee
-                , txInputs = NE.toList $ second Just <$> sel ^. #inputs
-                -- Quitting a stake pool does not require collateral:
-                , txCollateralInputs = []
-                , txOutputs = tx ^. #outputs
-                , txCollateralOutput = tx ^. #collateralOutput
-                , txWithdrawals = tx ^. #withdrawals
-                , txMeta
-                , txMetadata = Nothing
-                , txTime
-                , txScriptValidity = tx ^. #scriptValidity
-                , txDeposit = W.stakeKeyDeposit pp
-                , txMetadataSchema = TxMetadataDetailedSchema
-                , txCBOR = tx ^. #txCBOR
-                }
-  where
-    ti :: TimeInterpreter (ExceptT PastHorizonException IO)
-    ti = timeInterpreter (ctx ^. networkLayer)
+            (BuiltTx{..}, txTime) <- liftIO $ do
+                W.buildSignSubmitTransaction @k @'CredFromKeyK @s @n
+                    ti
+                    db
+                    netLayer
+                    txLayer
+                    (coerce $ getApiT $ body ^. #passphrase)
+                    walletId
+                    genChange
+                    (AnyRecentEra recentEra)
+                    (PreSelection [])
+                    txCtx
+
+            pp <- liftIO $ NW.currentProtocolParameters netLayer
+            mkApiTransaction ti wrk walletId #pendingSince
+                MkApiTransactionParams
+                    { txId = builtTx ^. #txId
+                    , txFee = builtTx ^. #fee
+                    , txInputs = builtTx ^. #resolvedInputs
+                    -- Quitting a stake pool does not require collateral:
+                    , txCollateralInputs = []
+                    , txOutputs = builtTx ^. #outputs
+                    , txCollateralOutput = builtTx ^. #collateralOutput
+                    , txWithdrawals = builtTx ^. #withdrawals
+                    , txMeta = builtTxMeta
+                    , txMetadata = Nothing
+                    , txTime
+                    , txScriptValidity = builtTx ^. #scriptValidity
+                    , txDeposit = W.stakeKeyDeposit pp
+                    , txMetadataSchema = TxMetadataDetailedSchema
+                    , txCBOR = builtTx ^. #txCBOR
+                    }
 
 -- More testable helper for `listStakeKeys`.
 --
