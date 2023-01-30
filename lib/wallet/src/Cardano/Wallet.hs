@@ -2602,13 +2602,15 @@ buildSignSubmitTransaction ti db@DBLayer{..} netLayer txLayer pwd walletId
     stdGen <- initStdGen
     pureTimeInterpreter <- snapshot ti
     protocolParameters <- currentProtocolParameters netLayer
-    throwOnError <=< runExceptT $ withRootKey db walletId pwd wrapRootKeyError $
+
+    throwOnErr <=< runExceptT $ withRootKey db walletId pwd wrapRootKeyError $
         \rootKey scheme -> lift $ atomically $ do
             pendingTxs <- fmap fromTransactionInfo <$>
                 readTransactions
                     walletId Nothing Descending wholeRange (Just Pending)
-            txBuiltForSlot <- modifyDBMaybe walletsDB $ do
-                adjustNoSuchWallet walletId wrapNoSuchWalletError $ \s ->
+
+            (BuiltTx{..}, slot) <- throwOnErr <=< modifyDBMaybe walletsDB $ do
+                adjustNoSuchWallet walletId wrapNoWalletForConstruct $ \s ->
                     buildAndSignTransactionPure @k @ktype @s @n
                         pureTimeInterpreter
                         (Set.fromList pendingTxs)
@@ -2632,17 +2634,27 @@ buildSignSubmitTransaction ti db@DBLayer{..} netLayer txLayer pwd walletId
                             )
                         )
 
-            let slotTime slot = liftIO $ interpretQuery
-                    (neverFails "slot is ahead of the node tip" ti)
-                    (slotToUTCTime slot)
+            addTxSubmission walletId (builtTx, builtTxMeta, builtSealedTx) slot
+                & throwWrappedErr wrapNoWalletForSubmit
 
-            throwOnError txBuiltForSlot >>= traverse slotTime
+            postTx netLayer builtSealedTx
+                & throwWrappedErr wrapNetworkError
+                & liftIO
+
+            slotToUTCTime slot
+                & interpretQuery (neverFails "slot is ahead of the node tip" ti)
+                & fmap (BuiltTx{..},)
+                & liftIO
   where
-    throwOnError :: (MonadIO m, Exception e) => Either e a -> m a
-    throwOnError = either (liftIO . throwIO) pure
+    throwOnErr :: (MonadIO m, Exception e) => Either e a -> m a
+    throwOnErr = either (liftIO . throwIO) pure
+
+    throwWrappedErr f e = runExceptT (withExceptT f e) >>= throwOnErr
 
     wrapRootKeyError = ExceptionWitnessTx . ErrWitnessTxWithRootKey
-    wrapNoSuchWalletError = ExceptionConstructTx . ErrConstructTxNoSuchWallet
+    wrapNoWalletForConstruct = ExceptionConstructTx . ErrConstructTxNoSuchWallet
+    wrapNoWalletForSubmit = ExceptionSubmitTx . ErrSubmitTxNoSuchWallet
+    wrapNetworkError = ExceptionSubmitTx . ErrSubmitTxNetwork
     wrapBalanceConstructError = either ExceptionBalanceTx ExceptionConstructTx
 
 data BuiltTx = BuiltTx
