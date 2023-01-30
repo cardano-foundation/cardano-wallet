@@ -1261,20 +1261,14 @@ testMigrationSeqStateDerivationPrefix
        )
     -> IO ()
 testMigrationSeqStateDerivationPrefix dbName prefix = do
-    let orig = $(getTestData) </> dbName
-    withSystemTempDirectory "migration-db" $ \dir -> do
-        let path = dir </> "db.sqlite"
-        let ti = dummyTimeInterpreter
-        copyFile orig path
-        (logs, Just cp) <- captureLogging $ \tr -> do
-            withDBLayer @s @k tr defaultFieldValues path ti
-                $ \DBLayer{..} -> atomically
-                $ do
-                    [wid] <- listWallets
-                    readCheckpoint wid
-        let migrationMsg = filter isMsgManualMigration logs
-        length migrationMsg `shouldBe` 1
-        derivationPrefix (getState cp) `shouldBe` DerivationPrefix prefix
+    (logs, Just cp) <- withDBLayerFromCopiedFile @k @s
+        $ \DBLayer{..} -> atomically $ do
+            [wid] <- listWallets
+            readCheckpoint wid
+
+    let migrationMsg = filter isMsgManualMigration logs
+    length migrationMsg `shouldBe` 1
+    derivationPrefix (getState cp) `shouldBe` DerivationPrefix prefix
   where
     isMsgManualMigration = matchMsgManualMigration $ \field ->
         let fieldInDB = fieldDB $ persistFieldDef DB.SeqStateDerivationPrefix
