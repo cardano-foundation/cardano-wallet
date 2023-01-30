@@ -228,6 +228,27 @@ data ErrBalanceTxInternalError
     | ErrFailedBalancing Cardano.Value
     deriving (Show, Eq)
 
+-- | Indicates that the balance of one or more assets in the provided UTxO set
+--   is insufficient to make a balanced transaction.
+--
+data ErrBalanceTxBalanceInsufficientInfo = ErrBalanceTxBalanceInsufficientInfo
+    { utxoBalanceAvailable
+        :: !TokenBundle
+        -- ^ The /available/ balance of UTxOs provided to 'balanceTransaction'.
+    , utxoBalanceRequired
+        :: !TokenBundle
+        -- ^ The /minimum/ balance of UTxOs that would be required to make a
+        -- balanced transaction.
+    , utxoBalanceShortfall
+        :: !TokenBundle
+        -- ^ The /additional/ balance of UTxOs that would be required to make a
+        -- balanced transaction.
+        --
+        -- Equal to the /truncated subtraction/ of 'utxoBalanceAvailable' from
+        -- 'utxoBalanceRequired'.
+    }
+    deriving (Eq, Generic, Show)
+
 -- | Errors that can occur when balancing transaction.
 data ErrBalanceTx
     = ErrBalanceTxUpdateError ErrUpdateSealedTx
