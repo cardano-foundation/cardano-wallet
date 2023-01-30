@@ -1005,11 +1005,11 @@ manualMigrationsSpec = describe "Manual migrations" $ do
             )
 
     it "'migrate' db with old text serialization for 'Role'" $
-        testMigrationRole @ShelleyKey
+        testMigrationRole
             "shelleyRole-v2020-10-13.sqlite"
 
     it "'migrate' db with partially applied checkpoint migration" $
-        testMigrationRole @ShelleyKey
+        testMigrationRole
             "shelleyRole-corrupted-v2020-10-13.sqlite"
 
     it "'migrate' db with unused protocol parameters in checkpoints" $
@@ -1229,32 +1229,17 @@ testMigrationCleanupCheckpoints dbName genesisParameters tip = do
         fieldName field == unFieldNameDB fieldInDB
 
 testMigrationRole
-    :: forall k s.
-        ( s ~ SeqState 'Mainnet k
-        , WalletKey k
-        , PersistAddressBook s
-        , PersistPrivateKey (k 'RootK)
-        , PaymentAddress 'Mainnet k 'CredFromKeyK
-        , GetPurpose k
-        , Show s
-        )
-    => String
+    :: String
     -> IO ()
 testMigrationRole dbName = do
-    let orig = $(getTestData) </> dbName
-    withSystemTempDirectory "migration-db" $ \dir -> do
-        let path = dir </> "db.sqlite"
-        let ti = dummyTimeInterpreter
-        copyFile orig path
-        (logs, Just cp) <- captureLogging $ \tr -> do
-            withDBLayer @s @k tr defaultFieldValues path ti
-                $ \DBLayer{..} -> atomically
-                $ do
-                    [wid] <- listWallets
-                    readCheckpoint wid
-        let migrationMsg = filter isMsgManualMigration logs
-        length migrationMsg `shouldBe` 3
-        length (knownAddresses $ getState cp) `shouldBe` 71
+    (logs, Just cp) <- withDBLayerFromCopiedFile @ShelleyKey dbName
+        $ \DBLayer{..} -> atomically $ do
+            [wid] <- listWallets
+            readCheckpoint wid
+
+    let migrationMsg = filter isMsgManualMigration logs
+    length migrationMsg `shouldBe` 3
+    length (knownAddresses $ getState cp) `shouldBe` 71
   where
     isMsgManualMigration :: WalletDBLog -> Bool
     isMsgManualMigration = matchMsgManualMigration $ \field ->
