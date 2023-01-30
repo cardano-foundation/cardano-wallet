@@ -119,7 +119,6 @@ module Cardano.CoinSelection.Balance
     -- * Utility functions
     , distance
     , mapMaybe
-    , balanceMissing
     ) where
 
 import Prelude
@@ -747,11 +746,6 @@ mkBalanceInsufficientError utxoBalanceAvailable utxoBalanceRequired =
   where
     utxoBalanceShortfall =
         TokenBundle.difference utxoBalanceRequired utxoBalanceAvailable
-
--- | Calculate the missing balance from a @BalanceInsufficientError@.
-balanceMissing :: BalanceInsufficientError -> TokenBundle
-balanceMissing (BalanceInsufficientError {utxoBalanceShortfall}) =
-    utxoBalanceShortfall
 
 data UnableToConstructChangeError = UnableToConstructChangeError
     { requiredCost
