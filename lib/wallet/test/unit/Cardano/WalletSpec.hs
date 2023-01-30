@@ -610,7 +610,10 @@ prop_estimateFee (NonEmpty coins) =
         = W.ErrSelectAssetsSelectionError
         $ SelectionBalanceErrorOf
         $ BalanceInsufficient
-        $ BalanceInsufficientError TokenBundle.empty TokenBundle.empty
+        $ BalanceInsufficientError
+            TokenBundle.empty
+            TokenBundle.empty
+            TokenBundle.empty
 
     runSelection
         :: ExceptT W.ErrSelectAssets (State Int) Coin

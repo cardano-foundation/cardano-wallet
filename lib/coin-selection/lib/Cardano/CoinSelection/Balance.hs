@@ -730,12 +730,31 @@ data BalanceInsufficientError = BalanceInsufficientError
     , utxoBalanceRequired
         :: !TokenBundle
       -- ^ The balance of 'outputsToCover'.
+    , utxoBalanceShortfall
+        :: !TokenBundle
+        -- ^ The shortfall between 'utxoBalanceAvailable' and
+        -- 'utxoBalanceRequired'.
+        --
+        -- Equal to the /truncated subtraction/ of 'utxoBalanceAvailable' from
+        -- 'utxoBalanceRequired'.
     } deriving (Generic, Eq, Show)
+
+mkBalanceInsufficientError
+    :: TokenBundle -> TokenBundle -> BalanceInsufficientError
+mkBalanceInsufficientError utxoBalanceAvailable utxoBalanceRequired =
+    BalanceInsufficientError
+        { utxoBalanceAvailable
+        , utxoBalanceRequired
+        , utxoBalanceShortfall
+        }
+  where
+    utxoBalanceShortfall =
+        TokenBundle.difference utxoBalanceRequired utxoBalanceAvailable
 
 -- | Calculate the missing balance from a @BalanceInsufficientError@.
 balanceMissing :: BalanceInsufficientError -> TokenBundle
-balanceMissing (BalanceInsufficientError available required) =
-    TokenBundle.difference required available
+balanceMissing (BalanceInsufficientError {utxoBalanceShortfall}) =
+    utxoBalanceShortfall
 
 data UnableToConstructChangeError = UnableToConstructChangeError
     { requiredCost
@@ -857,8 +876,8 @@ performSelectionNonEmpty
 performSelectionNonEmpty constraints params
     -- Is the total available UTXO balance sufficient?
     | not utxoBalanceSufficient =
-        pure $ Left $ BalanceInsufficient $ BalanceInsufficientError
-            {utxoBalanceAvailable, utxoBalanceRequired}
+        pure $ Left $ BalanceInsufficient $ mkBalanceInsufficientError
+            utxoBalanceAvailable utxoBalanceRequired
 
     | otherwise = do
         maybeSelection <- runSelectionNonEmpty RunSelectionParams
