@@ -985,8 +985,9 @@ cutRandomly = iter []
 
 manualMigrationsSpec :: Spec
 manualMigrationsSpec = describe "Manual migrations" $ do
-    it "'migrate' db with no passphrase scheme set."
+    it "'migrate' db with no passphrase scheme set." $
         testMigrationPassphraseScheme
+            "passphraseScheme-v2020-03-16.sqlite"
 
     it "'migrate' db with no 'derivation_prefix' for seq state (Icarus)" $
         testMigrationSeqStateDerivationPrefix @IcarusKey
@@ -1261,7 +1262,7 @@ testMigrationSeqStateDerivationPrefix
        )
     -> IO ()
 testMigrationSeqStateDerivationPrefix dbName prefix = do
-    (logs, Just cp) <- withDBLayerFromCopiedFile @k @s
+    (logs, Just cp) <- withDBLayerFromCopiedFile @k @s dbName
         $ \DBLayer{..} -> atomically $ do
             [wid] <- listWallets
             readCheckpoint wid
@@ -1275,44 +1276,36 @@ testMigrationSeqStateDerivationPrefix dbName prefix = do
         in fieldName field == unFieldNameDB fieldInDB
 
 testMigrationPassphraseScheme
-    :: forall s k. (k ~ ShelleyKey, s ~ SeqState 'Mainnet k)
-    => IO ()
-testMigrationPassphraseScheme = do
-    let orig = $(getTestData) </> "passphraseScheme-v2020-03-16.sqlite"
-    withSystemTempDirectory "migration-db" $ \dir -> do
-        let path = dir </> "db.sqlite"
-        let ti = dummyTimeInterpreter
-        copyFile orig path
-        (logs, (a,b,c,d)) <- captureLogging $ \tr -> do
-            withDBLayer @s @k tr defaultFieldValues path ti
-                $ \DBLayer{..} -> atomically
-                $ do
-                    Just a <- readWalletMeta walNeedMigration
-                    Just b <- readWalletMeta walNewScheme
-                    Just c <- readWalletMeta walOldScheme
-                    Just d <- readWalletMeta walNoPassphrase
-                    pure (fst a, fst b, fst c, fst d)
+    :: FilePath -> IO ()
+testMigrationPassphraseScheme dbName = do
+    (logs, (a,b,c,d)) <- withDBLayerFromCopiedFile @ShelleyKey dbName
+        $ \DBLayer{..} -> atomically $ do
+            Just a <- readWalletMeta walNeedMigration
+            Just b <- readWalletMeta walNewScheme
+            Just c <- readWalletMeta walOldScheme
+            Just d <- readWalletMeta walNoPassphrase
+            pure (fst a, fst b, fst c, fst d)
 
-        -- Migration is visible from the logs
-        let migrationMsg = filter isMsgManualMigration logs
-        length migrationMsg `shouldBe` 1
+    -- Migration is visible from the logs
+    let migrationMsg = filter isMsgManualMigration logs
+    length migrationMsg `shouldBe` 1
 
-        -- The first wallet is stored in the database with only a
-        -- 'passphraseLastUpdatedAt' field, but no 'passphraseScheme'. So,
-        -- after the migration, both should now be `Just`.
-        (passphraseScheme <$> passphraseInfo a) `shouldBe` Just EncryptWithPBKDF2
+    -- The first wallet is stored in the database with only a
+    -- 'passphraseLastUpdatedAt' field, but no 'passphraseScheme'. So,
+    -- after the migration, both should now be `Just`.
+    (passphraseScheme <$> passphraseInfo a) `shouldBe` Just EncryptWithPBKDF2
 
-        -- The second wallet was just fine and already has a passphrase
-        -- scheme set to use PBKDF2. Nothing should have changed.
-        (passphraseScheme <$> passphraseInfo b) `shouldBe` Just EncryptWithPBKDF2
+    -- The second wallet was just fine and already has a passphrase
+    -- scheme set to use PBKDF2. Nothing should have changed.
+    (passphraseScheme <$> passphraseInfo b) `shouldBe` Just EncryptWithPBKDF2
 
-        -- The third wallet had a scheme too, but was using the legacy
-        -- scheme. Nothing should have changed.
-        (passphraseScheme <$> passphraseInfo c) `shouldBe` Just EncryptWithScrypt
+    -- The third wallet had a scheme too, but was using the legacy
+    -- scheme. Nothing should have changed.
+    (passphraseScheme <$> passphraseInfo c) `shouldBe` Just EncryptWithScrypt
 
-        -- The last wallet had no passphrase whatsoever (restored from
-        -- account public key), so it should still have NO scheme.
-        (passphraseScheme <$> passphraseInfo d) `shouldBe` Nothing
+    -- The last wallet had no passphrase whatsoever (restored from
+    -- account public key), so it should still have NO scheme.
+    (passphraseScheme <$> passphraseInfo d) `shouldBe` Nothing
   where
     isMsgManualMigration = matchMsgManualMigration $ \field ->
         let fieldInDB = fieldDB $ persistFieldDef DB.WalPassphraseScheme
