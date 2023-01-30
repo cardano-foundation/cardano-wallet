@@ -1010,7 +1010,10 @@ prop_performSelection mockConstraints params coverage =
             "balanceMissing e == view #difference utxoBalanceSufficiencyInfo" $
         property True
       where
-        BalanceInsufficientError errorBalanceAvailable errorBalanceRequired = e
+        BalanceInsufficientError
+            errorBalanceAvailable
+            errorBalanceRequired
+            _errorBalanceShortfall = e
 
     onSelectionLimitReached
         :: SelectionLimitReachedError TestSelectionContext -> Property
