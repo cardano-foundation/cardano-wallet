@@ -85,7 +85,6 @@ import Cardano.Tx.Balance.Internal.CoinSelection
     , SelectionOutputErrorInfo (..)
     , UnableToConstructChangeError (..)
     , WalletUTxO (..)
-    , balanceMissing
     , emptySkeleton
     , selectionDelta
     )
@@ -3622,7 +3621,7 @@ prop_balanceTransactionValid wallet (ShowBuildable partialTx) seed
                 (ErrBalanceTxSelectAssets
                 (ErrSelectAssetsSelectionError
                 (SelectionBalanceErrorOf (BalanceInsufficient err)))) -> do
-                    let missing = balanceMissing err
+                    let missing = view #utxoBalanceShortfall err
                     let missingCoin = view #coin missing == Coin 0
                     let missingTokens = view #tokens missing == mempty
                     case (missingCoin, missingTokens) of
