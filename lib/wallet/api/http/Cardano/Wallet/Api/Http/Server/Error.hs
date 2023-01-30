@@ -462,6 +462,12 @@ instance IsServerError ErrBalanceTx where
                 , "Please sign the transaction after it is balanced instead."
                 ]
         ErrBalanceTxSelectAssets err -> toServerError err
+        ErrBalanceTxBalanceInsufficient err ->
+            apiError err403 NotEnoughMoney $ mconcat
+                [ "I can't process this payment as there are not "
+                , "enough funds available in the wallet. I am "
+                , "missing: ", pretty . Flat $ err ^. #utxoBalanceShortfall
+                ]
         ErrBalanceTxAssignRedeemers err -> toServerError err
         ErrBalanceTxConflictingNetworks ->
             apiError err403 BalanceTxConflictingNetworks $ T.unwords
@@ -946,6 +952,14 @@ instance IsServerError ErrSelectAssets where
 
 instance IsServerError (SelectionBalanceError WalletSelectionContext) where
     toServerError = \case
+        -- NOTE: [ADP-2540]
+        --
+        -- This server handler is an exact copy of the handler for the newer
+        -- `ErrBalanceTxBalanceInsufficient` error.
+        --
+        -- We can't delete this handler just yet: it's still used for endpoints
+        -- that call into coin selection directly.
+        --
         BalanceInsufficient e ->
             apiError err403 NotEnoughMoney $ mconcat
                 [ "I can't process this payment as there are not "
