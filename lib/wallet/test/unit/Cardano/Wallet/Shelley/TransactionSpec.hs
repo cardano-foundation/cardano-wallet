@@ -3622,12 +3622,21 @@ prop_balanceTransactionValid wallet (ShowBuildable partialTx) seed
                 (ErrBalanceTxSelectAssets
                 (ErrSelectAssetsSelectionError
                 (SelectionBalanceErrorOf (BalanceInsufficient err)))) -> do
-                let missing = balanceMissing err
-                case (view #coin missing == Coin 0, view #tokens missing == mempty) of
-                    (False, False) -> label "missing coin and tokens" $ property True
-                    (False, True) -> label "missing coin" $ property True
-                    (True, False) -> label "missing tokens" $ property True
-                    (True, True) -> property False
+                    let missing = balanceMissing err
+                    let missingCoin = view #coin missing == Coin 0
+                    let missingTokens = view #tokens missing == mempty
+                    case (missingCoin, missingTokens) of
+                        (False, False) ->
+                            label "missing coin and tokens" $
+                            property True
+                        (False, True) ->
+                            label "missing coin" $
+                            property True
+                        (True, False) ->
+                            label "missing tokens" $
+                            property True
+                        (True, True) ->
+                            property False
             Left (ErrBalanceTxUpdateError (ErrExistingKeyWitnesses _)) ->
                 label "existing key wits" $ property True
             Left
