@@ -1013,7 +1013,7 @@ manualMigrationsSpec = describe "Manual migrations" $ do
             "shelleyRole-corrupted-v2020-10-13.sqlite"
 
     it "'migrate' db with unused protocol parameters in checkpoints" $
-        testMigrationCleanupCheckpoints @ShelleyKey
+        testMigrationCleanupCheckpoints
             "shelleyDerivationPrefix-v2020-10-07.sqlite"
             (GenesisParameters
                 { getGenesisBlockHash = Hash $ unsafeFromHex
@@ -1205,36 +1205,21 @@ matchMsgManualMigration p = \case
     _ -> False
 
 testMigrationCleanupCheckpoints
-    :: forall k s.
-        ( s ~ SeqState 'Mainnet k
-        , k ~ ShelleyKey
-        , WalletKey k
-        , PersistAddressBook s
-        , PersistPrivateKey (k 'RootK)
-        , PaymentAddress 'Mainnet k 'CredFromKeyK
-        )
-    => String
+    :: FilePath
     -> GenesisParameters
     -> BlockHeader
     -> IO ()
 testMigrationCleanupCheckpoints dbName genesisParameters tip = do
-    let orig = $(getTestData) </> dbName
-    withSystemTempDirectory "migration-db" $ \dir -> do
-        let path = dir </> "db.sqlite"
-        let ti = dummyTimeInterpreter
-        copyFile orig path
-        (logs, result) <- captureLogging $ \tr -> do
-            withDBLayer @s @k tr defaultFieldValues path ti
-                $ \DBLayer{..} -> atomically
-                $ do
-                    [wid] <- listWallets
-                    (,) <$> readGenesisParameters wid <*> readCheckpoint wid
+    (logs, result) <- withDBLayerFromCopiedFile @ShelleyKey dbName
+        $ \DBLayer{..} -> atomically $ do
+            [wid] <- listWallets
+            (,) <$> readGenesisParameters wid <*> readCheckpoint wid
 
-        length (filter (isMsgManualMigration fieldGenesisHash) logs) `shouldBe` 1
-        length (filter (isMsgManualMigration fieldGenesisStart) logs) `shouldBe` 1
+    length (filter (isMsgManualMigration fieldGenesisHash) logs) `shouldBe` 1
+    length (filter (isMsgManualMigration fieldGenesisStart) logs) `shouldBe` 1
 
-        (fst result) `shouldBe` Just genesisParameters
-        (currentTip <$> snd result) `shouldBe` Just tip
+    (fst result) `shouldBe` Just genesisParameters
+    (currentTip <$> snd result) `shouldBe` Just tip
   where
     fieldGenesisHash = fieldDB $ persistFieldDef DB.WalGenesisHash
     fieldGenesisStart = fieldDB $ persistFieldDef DB.WalGenesisStart
