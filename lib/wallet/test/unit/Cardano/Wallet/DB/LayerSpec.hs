@@ -985,8 +985,9 @@ cutRandomly = iter []
 
 manualMigrationsSpec :: Spec
 manualMigrationsSpec = describe "Manual migrations" $ do
-    it "'migrate' db with no passphrase scheme set."
+    it "'migrate' db with no passphrase scheme set." $
         testMigrationPassphraseScheme
+            "passphraseScheme-v2020-03-16.sqlite"
 
     it "'migrate' db with no 'derivation_prefix' for seq state (Icarus)" $
         testMigrationSeqStateDerivationPrefix @IcarusKey
@@ -1005,15 +1006,15 @@ manualMigrationsSpec = describe "Manual migrations" $ do
             )
 
     it "'migrate' db with old text serialization for 'Role'" $
-        testMigrationRole @ShelleyKey
+        testMigrationRole
             "shelleyRole-v2020-10-13.sqlite"
 
     it "'migrate' db with partially applied checkpoint migration" $
-        testMigrationRole @ShelleyKey
+        testMigrationRole
             "shelleyRole-corrupted-v2020-10-13.sqlite"
 
     it "'migrate' db with unused protocol parameters in checkpoints" $
-        testMigrationCleanupCheckpoints @ShelleyKey
+        testMigrationCleanupCheckpoints
             "shelleyDerivationPrefix-v2020-10-07.sqlite"
             (GenesisParameters
                 { getGenesisBlockHash = Hash $ unsafeFromHex
@@ -1033,7 +1034,7 @@ manualMigrationsSpec = describe "Manual migrations" $ do
             )
 
     it "'migrate' db to add fees to transactions" $
-        testMigrationTxMetaFee @ShelleyKey
+        testMigrationTxMetaFee
             "metaFee-v2020-11-26.sqlite"
             129 -- number of transactions
 
@@ -1136,52 +1137,63 @@ manualMigrationsSpec = describe "Manual migrations" $ do
     it "'migrate' db never modifies database with newer version"
         testNewerDatabaseIsNeverModified
 
-testMigrationTxMetaFee
-    :: forall k s.
-        ( s ~ SeqState 'Mainnet k
-        , k ~ ShelleyKey
-        , WalletKey k
-        , PersistAddressBook s
+-- | Copy a given @.sqlite@ file, load it into a `DBLayer`
+-- (possibly triggering migrations), and run an action on it.
+--
+-- Useful for testing the logs and results of migrations.
+withDBLayerFromCopiedFile
+    :: forall k s a.
+        ( PersistAddressBook s
         , PersistPrivateKey (k 'RootK)
-        , PaymentAddress 'Mainnet k 'CredFromKeyK
+        , WalletKey k
+        , s ~ SeqState 'Mainnet k
         )
-    => String
+    => FilePath
+        -- ^ Filename of the @.sqlite@ file to load.
+    -> (DBLayer IO s k -> IO a)
+        -- ^ Action to run.
+    -> IO ([WalletDBLog], a)
+        -- ^ (logs, result of the action)
+withDBLayerFromCopiedFile dbName action = do
+    let orig = $(getTestData) </> dbName
+    withSystemTempDirectory "migration-db" $ \dir -> do
+        let path = dir </> "db.sqlite"
+            ti = dummyTimeInterpreter
+        copyFile orig path
+        captureLogging $ \tr ->
+            withDBLayer tr defaultFieldValues path ti action
+
+testMigrationTxMetaFee
+    :: String
     -> Int
     -> [(Hash "Tx", Coin)]
     -> IO ()
 testMigrationTxMetaFee dbName expectedLength caseByCase = do
-    let orig = $(getTestData) </> dbName
-    withSystemTempDirectory "migration-db" $ \dir -> do
-        let path = dir </> "db.sqlite"
-        let ti = dummyTimeInterpreter
-        copyFile orig path
-        (logs, result) <- captureLogging $ \tr -> do
-            withDBLayer @s @k tr defaultFieldValues path ti
-                $ \DBLayer{..} -> atomically
-                $ do
-                    [wid] <- listWallets
-                    readTransactions wid Nothing Descending wholeRange Nothing
+    (logs, result) <- withDBLayerFromCopiedFile @ShelleyKey dbName
+        $ \DBLayer{..} -> atomically $ do
+            [wid] <- listWallets
+            readTransactions wid Nothing Descending wholeRange Nothing
 
-        -- Check that we've indeed logged a needed migration for 'fee'
-        length (filter isMsgManualMigration logs) `shouldBe` 1
+    -- Check that we've indeed logged a needed migration for 'fee'
+    length (filter isMsgManualMigration logs) `shouldBe` 1
 
-        -- Check that the migrated history has the correct length.
-        length result `shouldBe` expectedLength
+    -- Check that the migrated history has the correct length.
+    length result `shouldBe` expectedLength
 
-        -- Verify that all incoming transactions have no fees set, and that all
-        -- outgoing ones do.
-        forM_ result $ \TransactionInfo{txInfoFee,txInfoMeta} -> do
-            case txInfoMeta ^. #direction of
-                Incoming -> txInfoFee `shouldSatisfy` isNothing
-                Outgoing -> txInfoFee `shouldSatisfy` isJust
+    -- Verify that all incoming transactions have no fees set, and that all
+    -- outgoing ones do.
+    forM_ result $ \TransactionInfo{txInfoFee,txInfoMeta} -> do
+        case txInfoMeta ^. #direction of
+            Incoming -> txInfoFee `shouldSatisfy` isNothing
+            Outgoing -> txInfoFee `shouldSatisfy` isJust
 
-        -- Also verify a few hand-picked transactions
-        forM_ caseByCase $ \(txid, expectedFee) -> do
-            case L.find ((== txid) . txInfoId) result of
-                Nothing ->
-                    fail $ "tx not found: " <> T.unpack (toText txid)
-                Just TransactionInfo{txInfoFee} ->
-                    txInfoFee `shouldBe` Just expectedFee
+    -- Also verify a few hand-picked transactions
+    forM_ caseByCase $ \(txid, expectedFee) -> do
+        case L.find ((== txid) . txInfoId) result of
+            Nothing ->
+                fail $ "tx not found: " <> T.unpack (toText txid)
+            Just TransactionInfo{txInfoFee} ->
+                txInfoFee `shouldBe` Just expectedFee
   where
     isMsgManualMigration = matchMsgManualMigration $ \field ->
         let fieldInDB = fieldDB $ persistFieldDef DB.TxMetaFee
@@ -1194,36 +1206,21 @@ matchMsgManualMigration p = \case
     _ -> False
 
 testMigrationCleanupCheckpoints
-    :: forall k s.
-        ( s ~ SeqState 'Mainnet k
-        , k ~ ShelleyKey
-        , WalletKey k
-        , PersistAddressBook s
-        , PersistPrivateKey (k 'RootK)
-        , PaymentAddress 'Mainnet k 'CredFromKeyK
-        )
-    => String
+    :: FilePath
     -> GenesisParameters
     -> BlockHeader
     -> IO ()
 testMigrationCleanupCheckpoints dbName genesisParameters tip = do
-    let orig = $(getTestData) </> dbName
-    withSystemTempDirectory "migration-db" $ \dir -> do
-        let path = dir </> "db.sqlite"
-        let ti = dummyTimeInterpreter
-        copyFile orig path
-        (logs, result) <- captureLogging $ \tr -> do
-            withDBLayer @s @k tr defaultFieldValues path ti
-                $ \DBLayer{..} -> atomically
-                $ do
-                    [wid] <- listWallets
-                    (,) <$> readGenesisParameters wid <*> readCheckpoint wid
+    (logs, result) <- withDBLayerFromCopiedFile @ShelleyKey dbName
+        $ \DBLayer{..} -> atomically $ do
+            [wid] <- listWallets
+            (,) <$> readGenesisParameters wid <*> readCheckpoint wid
 
-        length (filter (isMsgManualMigration fieldGenesisHash) logs) `shouldBe` 1
-        length (filter (isMsgManualMigration fieldGenesisStart) logs) `shouldBe` 1
+    length (filter (isMsgManualMigration fieldGenesisHash) logs) `shouldBe` 1
+    length (filter (isMsgManualMigration fieldGenesisStart) logs) `shouldBe` 1
 
-        (fst result) `shouldBe` Just genesisParameters
-        (currentTip <$> snd result) `shouldBe` Just tip
+    (fst result) `shouldBe` Just genesisParameters
+    (currentTip <$> snd result) `shouldBe` Just tip
   where
     fieldGenesisHash = fieldDB $ persistFieldDef DB.WalGenesisHash
     fieldGenesisStart = fieldDB $ persistFieldDef DB.WalGenesisStart
@@ -1233,32 +1230,17 @@ testMigrationCleanupCheckpoints dbName genesisParameters tip = do
         fieldName field == unFieldNameDB fieldInDB
 
 testMigrationRole
-    :: forall k s.
-        ( s ~ SeqState 'Mainnet k
-        , WalletKey k
-        , PersistAddressBook s
-        , PersistPrivateKey (k 'RootK)
-        , PaymentAddress 'Mainnet k 'CredFromKeyK
-        , GetPurpose k
-        , Show s
-        )
-    => String
+    :: String
     -> IO ()
 testMigrationRole dbName = do
-    let orig = $(getTestData) </> dbName
-    withSystemTempDirectory "migration-db" $ \dir -> do
-        let path = dir </> "db.sqlite"
-        let ti = dummyTimeInterpreter
-        copyFile orig path
-        (logs, Just cp) <- captureLogging $ \tr -> do
-            withDBLayer @s @k tr defaultFieldValues path ti
-                $ \DBLayer{..} -> atomically
-                $ do
-                    [wid] <- listWallets
-                    readCheckpoint wid
-        let migrationMsg = filter isMsgManualMigration logs
-        length migrationMsg `shouldBe` 3
-        length (knownAddresses $ getState cp) `shouldBe` 71
+    (logs, Just cp) <- withDBLayerFromCopiedFile @ShelleyKey dbName
+        $ \DBLayer{..} -> atomically $ do
+            [wid] <- listWallets
+            readCheckpoint wid
+
+    let migrationMsg = filter isMsgManualMigration logs
+    length migrationMsg `shouldBe` 3
+    length (knownAddresses $ getState cp) `shouldBe` 71
   where
     isMsgManualMigration :: WalletDBLog -> Bool
     isMsgManualMigration = matchMsgManualMigration $ \field ->
@@ -1280,64 +1262,50 @@ testMigrationSeqStateDerivationPrefix
        )
     -> IO ()
 testMigrationSeqStateDerivationPrefix dbName prefix = do
-    let orig = $(getTestData) </> dbName
-    withSystemTempDirectory "migration-db" $ \dir -> do
-        let path = dir </> "db.sqlite"
-        let ti = dummyTimeInterpreter
-        copyFile orig path
-        (logs, Just cp) <- captureLogging $ \tr -> do
-            withDBLayer @s @k tr defaultFieldValues path ti
-                $ \DBLayer{..} -> atomically
-                $ do
-                    [wid] <- listWallets
-                    readCheckpoint wid
-        let migrationMsg = filter isMsgManualMigration logs
-        length migrationMsg `shouldBe` 1
-        derivationPrefix (getState cp) `shouldBe` DerivationPrefix prefix
+    (logs, Just cp) <- withDBLayerFromCopiedFile @k @s dbName
+        $ \DBLayer{..} -> atomically $ do
+            [wid] <- listWallets
+            readCheckpoint wid
+
+    let migrationMsg = filter isMsgManualMigration logs
+    length migrationMsg `shouldBe` 1
+    derivationPrefix (getState cp) `shouldBe` DerivationPrefix prefix
   where
     isMsgManualMigration = matchMsgManualMigration $ \field ->
         let fieldInDB = fieldDB $ persistFieldDef DB.SeqStateDerivationPrefix
         in fieldName field == unFieldNameDB fieldInDB
 
 testMigrationPassphraseScheme
-    :: forall s k. (k ~ ShelleyKey, s ~ SeqState 'Mainnet k)
-    => IO ()
-testMigrationPassphraseScheme = do
-    let orig = $(getTestData) </> "passphraseScheme-v2020-03-16.sqlite"
-    withSystemTempDirectory "migration-db" $ \dir -> do
-        let path = dir </> "db.sqlite"
-        let ti = dummyTimeInterpreter
-        copyFile orig path
-        (logs, (a,b,c,d)) <- captureLogging $ \tr -> do
-            withDBLayer @s @k tr defaultFieldValues path ti
-                $ \DBLayer{..} -> atomically
-                $ do
-                    Just a <- readWalletMeta walNeedMigration
-                    Just b <- readWalletMeta walNewScheme
-                    Just c <- readWalletMeta walOldScheme
-                    Just d <- readWalletMeta walNoPassphrase
-                    pure (fst a, fst b, fst c, fst d)
+    :: FilePath -> IO ()
+testMigrationPassphraseScheme dbName = do
+    (logs, (a,b,c,d)) <- withDBLayerFromCopiedFile @ShelleyKey dbName
+        $ \DBLayer{..} -> atomically $ do
+            Just a <- readWalletMeta walNeedMigration
+            Just b <- readWalletMeta walNewScheme
+            Just c <- readWalletMeta walOldScheme
+            Just d <- readWalletMeta walNoPassphrase
+            pure (fst a, fst b, fst c, fst d)
 
-        -- Migration is visible from the logs
-        let migrationMsg = filter isMsgManualMigration logs
-        length migrationMsg `shouldBe` 1
+    -- Migration is visible from the logs
+    let migrationMsg = filter isMsgManualMigration logs
+    length migrationMsg `shouldBe` 1
 
-        -- The first wallet is stored in the database with only a
-        -- 'passphraseLastUpdatedAt' field, but no 'passphraseScheme'. So,
-        -- after the migration, both should now be `Just`.
-        (passphraseScheme <$> passphraseInfo a) `shouldBe` Just EncryptWithPBKDF2
+    -- The first wallet is stored in the database with only a
+    -- 'passphraseLastUpdatedAt' field, but no 'passphraseScheme'. So,
+    -- after the migration, both should now be `Just`.
+    (passphraseScheme <$> passphraseInfo a) `shouldBe` Just EncryptWithPBKDF2
 
-        -- The second wallet was just fine and already has a passphrase
-        -- scheme set to use PBKDF2. Nothing should have changed.
-        (passphraseScheme <$> passphraseInfo b) `shouldBe` Just EncryptWithPBKDF2
+    -- The second wallet was just fine and already has a passphrase
+    -- scheme set to use PBKDF2. Nothing should have changed.
+    (passphraseScheme <$> passphraseInfo b) `shouldBe` Just EncryptWithPBKDF2
 
-        -- The third wallet had a scheme too, but was using the legacy
-        -- scheme. Nothing should have changed.
-        (passphraseScheme <$> passphraseInfo c) `shouldBe` Just EncryptWithScrypt
+    -- The third wallet had a scheme too, but was using the legacy
+    -- scheme. Nothing should have changed.
+    (passphraseScheme <$> passphraseInfo c) `shouldBe` Just EncryptWithScrypt
 
-        -- The last wallet had no passphrase whatsoever (restored from
-        -- account public key), so it should still have NO scheme.
-        (passphraseScheme <$> passphraseInfo d) `shouldBe` Nothing
+    -- The last wallet had no passphrase whatsoever (restored from
+    -- account public key), so it should still have NO scheme.
+    (passphraseScheme <$> passphraseInfo d) `shouldBe` Nothing
   where
     isMsgManualMigration = matchMsgManualMigration $ \field ->
         let fieldInDB = fieldDB $ persistFieldDef DB.WalPassphraseScheme
