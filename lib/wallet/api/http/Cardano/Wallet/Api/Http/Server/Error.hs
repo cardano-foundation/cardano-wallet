@@ -43,8 +43,6 @@ import Cardano.Tx.Balance.Internal.CoinSelection
     )
 import Cardano.Wallet
     ( ErrAddCosignerKey (..)
-    , ErrBalanceTx (..)
-    , ErrBalanceTxInternalError (..)
     , ErrCannotJoin (..)
     , ErrCannotQuit (..)
     , ErrConstructSharedWallet (..)
@@ -107,6 +105,8 @@ import Cardano.Wallet.Primitive.Types.TokenMap
     ( Flat (..) )
 import Cardano.Wallet.Transaction
     ( ErrAssignRedeemers (..), ErrSignTx (..) )
+import Cardano.Wallet.Write.Tx.Balance
+    ( ErrBalanceTx (..), ErrBalanceTxInternalError (..) )
 import Control.Monad.Except
     ( ExceptT, withExceptT )
 import Control.Monad.Trans.Except
@@ -195,6 +195,7 @@ showT = T.pack . show
 
 instance IsServerError WalletException where
     toServerError = \case
+        ExceptionNoSuchWallet e -> toServerError e
         ExceptionSignMetadataWith e -> toServerError e
         ExceptionDerivePublicKey e -> toServerError e
         ExceptionAddCosignerKey e -> toServerError e
@@ -927,7 +928,6 @@ instance IsServerError ErrCreateMigrationPlan where
 instance IsServerError ErrSelectAssets where
     toServerError = \case
         ErrSelectAssetsPrepareOutputsError e -> toServerError e
-        ErrSelectAssetsNoSuchWallet e -> toServerError e
         ErrSelectAssetsAlreadyWithdrawing tx ->
             apiError err403 AlreadyWithdrawing $ mconcat
                 [ "I already know of a pending transaction with withdrawals: "

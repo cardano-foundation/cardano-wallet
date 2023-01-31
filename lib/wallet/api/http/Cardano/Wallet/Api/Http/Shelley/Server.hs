@@ -164,14 +164,12 @@ import Cardano.Tx.Balance.Internal.CoinSelection
 import Cardano.Wallet
     ( BuiltTx (..)
     , ErrAddCosignerKey (..)
-    , ErrBalanceTx (..)
     , ErrConstructSharedWallet (..)
     , ErrConstructTx (..)
     , ErrCreateMigrationPlan (..)
     , ErrGetPolicyId (..)
     , ErrNoSuchWallet (..)
     , ErrReadRewardAccount (..)
-    , ErrSelectAssets (..)
     , ErrSignPayment (..)
     , ErrSubmitTransaction (..)
     , ErrUpdatePassphrase (..)
@@ -535,6 +533,8 @@ import Control.DeepSeq
     ( NFData )
 import Control.Error.Util
     ( failWith )
+import Control.Exception
+    ( throwIO )
 import Control.Monad
     ( forM, forever, join, void, when, (<=<) )
 import Control.Monad.Error.Class
@@ -668,6 +668,7 @@ import qualified Cardano.Wallet.Primitive.Types.UTxOSelection as UTxOSelection
 import qualified Cardano.Wallet.Read as Read
 import qualified Cardano.Wallet.Registry as Registry
 import qualified Cardano.Wallet.Write.Tx as WriteTx
+import qualified Cardano.Wallet.Write.Tx.Balance as W
 import qualified Control.Concurrent.Concierge as Concierge
 import qualified Data.ByteString as BS
 import qualified Data.Foldable as F
@@ -2998,7 +2999,7 @@ balanceTransaction ctx@ApiLayer{..} genChange genInpScripts mScriptTemplate (Api
                 mkRecentEra = case Cardano.cardanoEra @era of
                     Cardano.BabbageEra -> pure WriteTx.RecentEraBabbage
                     Cardano.AlonzoEra -> pure WriteTx.RecentEraAlonzo
-                    _ -> liftHandler $ throwE $ ErrOldEraNotSupported era
+                    _ -> liftHandler $ throwE $ W.ErrOldEraNotSupported era
 
                 mkLedgerUTxO
                     :: [ApiExternalInput n]
@@ -3018,7 +3019,7 @@ balanceTransaction ctx@ApiLayer{..} genChange genInpScripts mScriptTemplate (Api
                 -> Handler (Cardano.Tx era)
             balanceTx partialTx =
                 liftHandler $ fst <$> W.balanceTransaction @_ @IO @s @k @ktype
-                    (MsgWallet >$< wrk ^. W.logger)
+                    (MsgWallet . W.MsgBalanceTx >$< wrk ^. W.logger)
                     (ctx ^. typed)
                     genChange
                     genInpScripts
@@ -3037,7 +3038,7 @@ balanceTransaction ctx@ApiLayer{..} genChange genInpScripts mScriptTemplate (Api
                         ])
                     $ W.currentNodeProtocolParameters pp
 
-        anyRecentTx <- maybeToHandler (ErrOldEraNotSupported era)
+        anyRecentTx <- maybeToHandler (W.ErrOldEraNotSupported era)
             . WriteTx.asAnyRecentEra
             . cardanoTxIdeallyNoLaterThan era
             . getApiT $ body ^. #transaction
@@ -3479,16 +3480,21 @@ delegationFee
     -> Handler ApiFee
 delegationFee ctx (ApiT wid) = do
     withWorkerCtx ctx wid liftE liftE $ \wrk -> liftHandler $ do
-        w <- withExceptT ErrSelectAssetsNoSuchWallet $
+        w <- liftIO $ throwInIO $
             W.readWalletUTxOIndex @_ @s @k wrk wid
         pp <- liftIO $ NW.currentProtocolParameters (wrk ^. networkLayer)
         era <- liftIO $ NW.currentNodeEra (wrk ^. networkLayer)
-        deposit <- W.calcMinimumDeposit @_ @s @k wrk wid
+        deposit <- liftIO $ W.calcMinimumDeposit @_ @s @k wrk wid
         mkApiFee (Just deposit) [] <$>
             W.estimateFee (runSelection wrk era pp deposit w)
   where
     txCtx :: TransactionCtx
     txCtx = defaultTransactionCtx
+
+    throwInIO :: ExceptT ErrNoSuchWallet IO a -> IO a
+    throwInIO x = runExceptT x >>= \case
+        Right a -> pure a
+        Left e -> throwIO $ W.ExceptionNoSuchWallet e
 
     runSelection wrk era pp _deposit (utxoAvailable, wallet, pendingTxs) =
         W.selectAssets @_ @_ @s @k @'CredFromKeyK wrk era pp selectAssetsParams calcFee
@@ -4138,7 +4144,7 @@ guardIsRecentEra (Cardano.AnyCardanoEra era) = case era of
     Cardano.ShelleyEra -> liftE invalidEra
     Cardano.ByronEra   -> liftE invalidEra
   where
-    invalidEra = ErrOldEraNotSupported $ Cardano.AnyCardanoEra era
+    invalidEra = W.ErrOldEraNotSupported $ Cardano.AnyCardanoEra era
 
 mkWithdrawal
     :: forall (n :: NetworkDiscriminant) ktype tx block

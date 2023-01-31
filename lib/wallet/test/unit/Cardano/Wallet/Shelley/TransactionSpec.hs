@@ -90,15 +90,9 @@ import Cardano.Tx.Balance.Internal.CoinSelection
     , selectionDelta
     )
 import Cardano.Wallet
-    ( ErrBalanceTx (..)
-    , ErrBalanceTxInternalError (..)
-    , ErrSelectAssets (..)
-    , ErrUpdateSealedTx (..)
+    ( ErrUpdateSealedTx (..)
     , FeeEstimation (..)
-    , PartialTx (..)
-    , balanceTransaction
     , estimateFee
-    , posAndNegFromCardanoValue
     , signTransaction
     )
 import Cardano.Wallet.Byron.Compatibility
@@ -270,6 +264,14 @@ import Cardano.Wallet.Transaction
     )
 import Cardano.Wallet.Unsafe
     ( unsafeFromHex )
+import Cardano.Wallet.Write.Tx.Balance
+    ( ErrBalanceTx (..)
+    , ErrBalanceTxInternalError (..)
+    , ErrSelectAssets (..)
+    , PartialTx (..)
+    , balanceTransaction
+    , posAndNegFromCardanoValue
+    )
 import Control.Arrow
     ( first )
 import Control.Monad
