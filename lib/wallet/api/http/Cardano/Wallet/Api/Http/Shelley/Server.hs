@@ -3363,21 +3363,21 @@ submitSharedTransaction ctx apiw@(ApiT wid) apitx = do
     ti = timeInterpreter nl
 
 joinStakePool
-    :: forall ctx s n k.
-        ( ctx ~ ApiLayer s k 'CredFromKeyK
-        , s ~ SeqState n k
+    :: forall s n k.
+        ( s ~ SeqState n k
         , AddressIndexDerivationType k ~ 'Soft
-        , DelegationAddress n k 'CredFromKeyK
         , GenChange s
         , IsOwned s k 'CredFromKeyK
         , SoftDerivation k
-        , Typeable n
-        , Typeable s
         , WalletKey k
         , AddressBookIso s
         , BoundedAddressLength k
-        , HasDelegation s, Typeable k)
-    => ctx
+        , HasDelegation s
+        , Typeable n
+        , Typeable k
+        )
+    => ApiLayer s k 'CredFromKeyK
+    -> ArgGenChange s
     -> IO (Set PoolId)
        -- ^ Known pools
        -- We could maybe replace this with a @IO (PoolId -> Bool)@
@@ -3386,18 +3386,19 @@ joinStakePool
     -> ApiT WalletId
     -> ApiWalletPassphrase
     -> Handler (ApiTransaction n)
-joinStakePool ctx knownPools getPoolStatus apiPool (ApiT wid) body = do
+joinStakePool
+    ctx@ApiLayer{..} genChange knownPools
+    getPoolStatus apiPool (ApiT walletId) body = do
     poolId <- case apiPool of
         AllPools -> liftE ErrUnexpectedPoolIdPlaceholder
         SpecificPool pool -> pure pool
-
     poolStatus <- liftIO (getPoolStatus poolId)
     pools <- liftIO knownPools
     curEpoch <- getCurrentEpoch ctx
-    withWorkerCtx ctx wid liftE liftE $ \wrk -> do
-        let netLayer = wrk ^. networkLayer
-            tr = wrk ^. logger
+    withWorkerCtx ctx walletId liftE liftE $ \wrk -> do
+        let tr = wrk ^. logger
             db = wrk ^. dbLayer
+            ti = timeInterpreter netLayer
         pp <- liftIO $ NW.currentProtocolParameters netLayer
         action <- liftHandler
             $ WD.joinStakePoolDelegationAction @s @k
@@ -3407,7 +3408,7 @@ joinStakePool ctx knownPools getPoolStatus apiPool (ApiT wid) body = do
                 pools
                 poolId
                 poolStatus
-                wid
+                walletId
 
         ttl <- liftIO $ W.transactionExpirySlot ti Nothing
         let txCtx = defaultTransactionCtx
@@ -3416,7 +3417,7 @@ joinStakePool ctx knownPools getPoolStatus apiPool (ApiT wid) body = do
                 , txDelegationAction = Just action
                 }
         (utxoAvailable, wallet, pendingTxs) <-
-            liftHandler $ W.readWalletUTxOIndex @_ @s @k wrk wid
+            liftHandler $ W.readWalletUTxOIndex @_ @s @k wrk walletId
         -- FIXME [ADP-1489] pp and era are not guaranteed to be consistent,
         -- which could cause problems under exceptional circumstances.
         era <- liftIO $ NW.currentNodeEra netLayer
@@ -3434,18 +3435,18 @@ joinStakePool ctx knownPools getPoolStatus apiPool (ApiT wid) body = do
             $ W.selectAssets @_ @_ @s @k @'CredFromKeyK
                 wrk era pp selectAssetsParams (const Prelude.id)
         sel' <- liftHandler
-            $ W.assignChangeAddressesAndUpdateDb wrk wid genChange sel
+            $ W.assignChangeAddressesAndUpdateDb wrk walletId genChange sel
         (tx, txMeta, txTime, sealedTx) <- liftHandler $ do
             let pwd = coerce $ getApiT $ body ^. #passphrase
             W.buildAndSignTransaction @_ @s @k
-                wrk wid era selfRewardAccountBuilder pwd txCtx sel'
-        liftHandler $ W.submitTx tr db netLayer wid
+                wrk walletId era selfRewardAccountBuilder pwd txCtx sel'
+        liftHandler $ W.submitTx tr db netLayer walletId
             BuiltTx
                 { builtTx = tx
                 , builtTxMeta = txMeta
                 , builtSealedTx = sealedTx
                 }
-        mkApiTransaction ti wrk wid #pendingSince
+        mkApiTransaction ti wrk walletId #pendingSince
             MkApiTransactionParams
                 { txId = tx ^. #txId
                 , txFee = tx ^. #fee
@@ -3463,11 +3464,6 @@ joinStakePool ctx knownPools getPoolStatus apiPool (ApiT wid) body = do
                 , txMetadataSchema = TxMetadataDetailedSchema
                 , txCBOR = tx ^. #txCBOR
                 }
-  where
-    ti :: TimeInterpreter (ExceptT PastHorizonException IO)
-    ti = timeInterpreter (ctx ^. networkLayer)
-
-    genChange = delegationAddress @n
 
 delegationFee
     :: forall ctx s n k.
