@@ -793,6 +793,7 @@ test-suite unit
     , splitmix
     , strict-containers
     , strict-non-empty-containers
+    , string-interpolate
     , string-qq
     , temporary
     , text
@@ -924,6 +925,7 @@ test-suite integration
     , lobemo-backend-ekg
     , mock-token-metadata
     , network-uri
+    , string-interpolate
     , text
     , text-class
     , unliftio
@@ -953,6 +955,7 @@ benchmark restore
     , generic-lens
     , iohk-monitoring
     , say
+    , string-interpolate
     , text
     , text-class
     , time
