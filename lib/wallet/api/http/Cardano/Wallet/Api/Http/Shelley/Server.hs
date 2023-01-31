@@ -3368,6 +3368,7 @@ joinStakePool
         , AddressIndexDerivationType k ~ 'Soft
         , GenChange s
         , IsOwned s k 'CredFromKeyK
+        , IsOurs (SeqState n k) RewardAccount
         , SoftDerivation k
         , WalletKey k
         , AddressBookIso s
@@ -3395,75 +3396,62 @@ joinStakePool
     poolStatus <- liftIO (getPoolStatus poolId)
     pools <- liftIO knownPools
     curEpoch <- getCurrentEpoch ctx
-    withWorkerCtx ctx walletId liftE liftE $ \wrk -> do
-        let tr = wrk ^. logger
-            db = wrk ^. dbLayer
-            ti = timeInterpreter netLayer
-        pp <- liftIO $ NW.currentProtocolParameters netLayer
-        action <- liftHandler
-            $ WD.joinStakePoolDelegationAction @s @k
-                (MsgWallet >$< tr)
-                db
-                curEpoch
-                pools
-                poolId
-                poolStatus
-                walletId
+    -- FIXME [ADP-1489] pp and era are not guaranteed to be consistent,
+    -- which could cause problems under exceptional circumstances.
+    era <- liftIO $ NW.currentNodeEra netLayer
+    withRecentEra era $ \(recentEra :: WriteTx.RecentEra recentEra) ->
+        withWorkerCtx ctx walletId liftE liftE $ \wrk -> do
+            let tr = wrk ^. logger
+                db = wrk ^. typed @(DBLayer IO s k)
+                ti = timeInterpreter netLayer
+            action <- liftHandler
+                $ WD.joinStakePoolDelegationAction @s @k
+                    (MsgWallet >$< tr)
+                    db
+                    curEpoch
+                    pools
+                    poolId
+                    poolStatus
+                    walletId
+            ttl <- liftIO $ W.transactionExpirySlot ti Nothing
+            let txCtx =
+                    defaultTransactionCtx
+                        { txWithdrawal = NoWithdrawal
+                        , txValidityInterval = (Nothing, ttl)
+                        , txDelegationAction = Just action
+                        }
+            (BuiltTx{..}, txTime) <- liftIO $ do
+                W.buildSignSubmitTransaction @k @'CredFromKeyK @s @n
+                    ti
+                    db
+                    netLayer
+                    txLayer
+                    (coerce $ getApiT $ body ^. #passphrase)
+                    walletId
+                    genChange
+                    (AnyRecentEra recentEra)
+                    (PreSelection [])
+                    txCtx
 
-        ttl <- liftIO $ W.transactionExpirySlot ti Nothing
-        let txCtx = defaultTransactionCtx
-                { txWithdrawal = NoWithdrawal
-                , txValidityInterval = (Nothing, ttl)
-                , txDelegationAction = Just action
-                }
-        (utxoAvailable, wallet, pendingTxs) <-
-            liftHandler $ W.readWalletUTxOIndex @_ @s @k wrk walletId
-        -- FIXME [ADP-1489] pp and era are not guaranteed to be consistent,
-        -- which could cause problems under exceptional circumstances.
-        era <- liftIO $ NW.currentNodeEra netLayer
-        let selectAssetsParams = W.SelectAssetsParams
-                { outputs = []
-                , pendingTxs
-                , randomSeed = Nothing
-                , txContext = txCtx
-                , utxoAvailableForInputs = UTxOSelection.fromIndex utxoAvailable
-                , utxoAvailableForCollateral = UTxOIndex.toMap utxoAvailable
-                , wallet
-                , selectionStrategy = SelectionStrategyOptimal
-                }
-        sel <- liftHandler
-            $ W.selectAssets @_ @_ @s @k @'CredFromKeyK
-                wrk era pp selectAssetsParams (const Prelude.id)
-        sel' <- liftHandler
-            $ W.assignChangeAddressesAndUpdateDb wrk walletId genChange sel
-        (tx, txMeta, txTime, sealedTx) <- liftHandler $ do
-            let pwd = coerce $ getApiT $ body ^. #passphrase
-            W.buildAndSignTransaction @_ @s @k
-                wrk walletId era selfRewardAccountBuilder pwd txCtx sel'
-        liftHandler $ W.submitTx tr db netLayer walletId
-            BuiltTx
-                { builtTx = tx
-                , builtTxMeta = txMeta
-                , builtSealedTx = sealedTx
-                }
-        mkApiTransaction ti wrk walletId #pendingSince
-            MkApiTransactionParams
-                { txId = tx ^. #txId
-                , txFee = tx ^. #fee
-                , txInputs = NE.toList $ second Just <$> sel ^. #inputs
-                -- Joining a stake pool does not require collateral:
-                , txCollateralInputs = []
-                , txOutputs = tx ^. #outputs
-                , txCollateralOutput = tx ^. #collateralOutput
-                , txWithdrawals = tx ^. #withdrawals
-                , txMeta
-                , txMetadata = Nothing
-                , txTime
-                , txScriptValidity = tx ^. #scriptValidity
-                , txDeposit = W.stakeKeyDeposit pp
-                , txMetadataSchema = TxMetadataDetailedSchema
-                , txCBOR = tx ^. #txCBOR
-                }
+            pp <- liftIO $ NW.currentProtocolParameters netLayer
+            mkApiTransaction ti wrk walletId #pendingSince
+                MkApiTransactionParams
+                    { txId = builtTx ^. #txId
+                    , txFee = builtTx ^. #fee
+                    , txInputs = builtTx ^. #resolvedInputs
+                    -- Joining a stake pool does not require collateral:
+                    , txCollateralInputs = []
+                    , txOutputs = builtTx ^. #outputs
+                    , txCollateralOutput = builtTx ^. #collateralOutput
+                    , txWithdrawals = builtTx ^. #withdrawals
+                    , txMeta = builtTxMeta
+                    , txMetadata = Nothing
+                    , txTime
+                    , txScriptValidity = builtTx ^. #scriptValidity
+                    , txDeposit = W.stakeKeyDeposit pp
+                    , txMetadataSchema = TxMetadataDetailedSchema
+                    , txCBOR = builtTx ^. #txCBOR
+                    }
 
 delegationFee
     :: forall ctx s n k.
