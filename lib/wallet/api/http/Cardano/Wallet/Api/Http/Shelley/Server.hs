@@ -1794,15 +1794,14 @@ selectCoinsForJoin ctx knownPools getPoolStatus pid wid = do
         let db = wrk ^. typed @(DBLayer IO s k)
             netLayer = wrk ^. networkLayer
         pp <- liftIO $ NW.currentProtocolParameters netLayer
-        action <- liftHandler
-            $ WD.joinStakePoolDelegationAction @s @k
-                (contramap MsgWallet $ wrk ^. logger)
-                db
-                curEpoch
-                pools
-                pid
-                poolStatus
-                wid
+        action <- liftIO $ WD.joinStakePoolDelegationAction @s @k
+            (contramap MsgWallet $ wrk ^. logger)
+            db
+            curEpoch
+            pools
+            pid
+            poolStatus
+            wid
 
         let txCtx = defaultTransactionCtx
                 { txDelegationAction = Just action
@@ -3399,59 +3398,52 @@ joinStakePool
     -- FIXME [ADP-1489] pp and era are not guaranteed to be consistent,
     -- which could cause problems under exceptional circumstances.
     era <- liftIO $ NW.currentNodeEra netLayer
-    withRecentEra era $ \(recentEra :: WriteTx.RecentEra recentEra) ->
-        withWorkerCtx ctx walletId liftE liftE $ \wrk -> do
-            let tr = wrk ^. logger
-                db = wrk ^. typed @(DBLayer IO s k)
-                ti = timeInterpreter netLayer
-            action <- liftHandler
-                $ WD.joinStakePoolDelegationAction @s @k
+    AnyRecentEra (recentEra :: WriteTx.RecentEra era) <- guardIsRecentEra era
+    withWorkerCtx ctx walletId liftE liftE $ \wrk -> do
+        let tr = wrk ^. logger
+            db = wrk ^. typed @(DBLayer IO s k)
+            ti = timeInterpreter netLayer
+
+        (BuiltTx{..}, txTime) <- liftIO $
+            W.buildSignSubmitTransaction @k @'CredFromKeyK @s @n
+                ti
+                db
+                netLayer
+                txLayer
+                (coerce $ getApiT $ body ^. #passphrase)
+                walletId
+                genChange
+                (AnyRecentEra recentEra)
+                (PreSelection [])
+                =<< WD.joinStakePool
                     (MsgWallet >$< tr)
+                    ti
                     db
                     curEpoch
                     pools
                     poolId
                     poolStatus
                     walletId
-            ttl <- liftIO $ W.transactionExpirySlot ti Nothing
-            let txCtx =
-                    defaultTransactionCtx
-                        { txWithdrawal = NoWithdrawal
-                        , txValidityInterval = (Nothing, ttl)
-                        , txDelegationAction = Just action
-                        }
-            (BuiltTx{..}, txTime) <- liftIO $ do
-                W.buildSignSubmitTransaction @k @'CredFromKeyK @s @n
-                    ti
-                    db
-                    netLayer
-                    txLayer
-                    (coerce $ getApiT $ body ^. #passphrase)
-                    walletId
-                    genChange
-                    (AnyRecentEra recentEra)
-                    (PreSelection [])
-                    txCtx
 
-            pp <- liftIO $ NW.currentProtocolParameters netLayer
-            mkApiTransaction ti wrk walletId #pendingSince
-                MkApiTransactionParams
-                    { txId = builtTx ^. #txId
-                    , txFee = builtTx ^. #fee
-                    , txInputs = builtTx ^. #resolvedInputs
-                    -- Joining a stake pool does not require collateral:
-                    , txCollateralInputs = []
-                    , txOutputs = builtTx ^. #outputs
-                    , txCollateralOutput = builtTx ^. #collateralOutput
-                    , txWithdrawals = builtTx ^. #withdrawals
-                    , txMeta = builtTxMeta
-                    , txMetadata = Nothing
-                    , txTime
-                    , txScriptValidity = builtTx ^. #scriptValidity
-                    , txDeposit = W.stakeKeyDeposit pp
-                    , txMetadataSchema = TxMetadataDetailedSchema
-                    , txCBOR = builtTx ^. #txCBOR
-                    }
+        pp <- liftIO $ NW.currentProtocolParameters netLayer
+        mkApiTransaction ti wrk walletId #pendingSince
+            MkApiTransactionParams
+                { txId = builtTx ^. #txId
+                , txFee = builtTx ^. #fee
+                , txInputs = builtTx ^. #resolvedInputs
+                -- Joining a stake pool does not require collateral:
+                , txCollateralInputs = []
+                , txOutputs = builtTx ^. #outputs
+                , txCollateralOutput = builtTx ^. #collateralOutput
+                , txWithdrawals = builtTx ^. #withdrawals
+                , txMeta = builtTxMeta
+                , txMetadata = Nothing
+                , txTime
+                , txScriptValidity = builtTx ^. #scriptValidity
+                , txDeposit = W.stakeKeyDeposit pp
+                , txMetadataSchema = TxMetadataDetailedSchema
+                , txCBOR = builtTx ^. #txCBOR
+                }
 
 delegationFee
     :: forall ctx s n k.
@@ -4117,9 +4109,7 @@ type RewardAccountBuilder k
         -> (XPrv, Passphrase "encryption")
 
 
-guardIsRecentEra
-    :: AnyCardanoEra
-    -> Handler AnyRecentEra
+guardIsRecentEra :: AnyCardanoEra -> Handler AnyRecentEra
 guardIsRecentEra (Cardano.AnyCardanoEra era) = case era of
     Cardano.BabbageEra -> pure $ WriteTx.AnyRecentEra WriteTx.RecentEraBabbage
     Cardano.AlonzoEra  -> pure $ WriteTx.AnyRecentEra WriteTx.RecentEraAlonzo
