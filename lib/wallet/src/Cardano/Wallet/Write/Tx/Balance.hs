@@ -149,6 +149,7 @@ import Text.Pretty.Simple
 import qualified Cardano.Address.Script as CA
 import qualified Cardano.Api as Cardano
 import qualified Cardano.Api.Shelley as Cardano
+import qualified Cardano.Tx.Balance.Internal.CoinSelection as CS
 import qualified Cardano.Wallet.Primitive.Types as W
 import qualified Cardano.Wallet.Primitive.Types.Coin as Coin
 import qualified Cardano.Wallet.Primitive.Types.Coin as W
@@ -265,6 +266,44 @@ data ErrBalanceTx
     | ErrBalanceTxUnresolvedInputs (NonEmpty W.TxIn)
     | ErrOldEraNotSupported Cardano.AnyCardanoEra
     deriving (Show, Eq)
+
+-- | Converts nested 'ErrBalanceTx' errors to top-level errors.
+--
+-- This is a temporary function that will eventually go away, once we have
+-- converted all nested errors to top-level errors.
+--
+-- Since converting all nested errors at once would give rise to a very large
+-- change, this function allows us to convert them one at a time, allowing us
+-- to create a series of smaller PRs that take us toward the target in smaller
+-- steps, lowering the likelihood and/or difficulty of resolving conflicts.
+--
+-- TODO: [ADP-2540]
+--
+-- Remove this function once there are no more nested errors.
+--
+flattenErrBalanceTx :: ErrBalanceTx -> ErrBalanceTx
+flattenErrBalanceTx = \case
+    ErrBalanceTxSelectAssets
+        (ErrSelectAssetsSelectionError
+        (SelectionBalanceErrorOf
+        (BalanceInsufficient err))) ->
+            convertBalanceInsufficientError err
+    anythingElse ->
+        anythingElse
+  where
+    convertBalanceInsufficientError
+        CS.BalanceInsufficientError
+            { utxoBalanceAvailable
+            , utxoBalanceRequired
+            , utxoBalanceShortfall
+            }
+        =
+        ErrBalanceTxBalanceInsufficient
+        ErrBalanceTxBalanceInsufficientInfo
+            { utxoBalanceAvailable
+            , utxoBalanceRequired
+            , utxoBalanceShortfall
+            }
 
 -- | A 'PartialTx' is an an unbalanced 'SealedTx' along with the necessary
 -- information to balance it.
