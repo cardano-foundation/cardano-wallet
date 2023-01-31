@@ -2587,7 +2587,7 @@ buildSignSubmitTransaction
        )
     => TimeInterpreter (ExceptT PastHorizonException IO)
     -> DBLayer IO s k
-    -> NetworkLayer IO Block
+    -> NetworkLayer IO Read.Block
     -> TransactionLayer k ktype SealedTx
     -> Passphrase "user"
     -> WalletId
