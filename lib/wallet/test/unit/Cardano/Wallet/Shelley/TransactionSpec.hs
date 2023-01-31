@@ -3620,22 +3620,24 @@ prop_balanceTransactionValid wallet (ShowBuildable partialTx) seed
             Left
                 (ErrBalanceTxSelectAssets
                 (ErrSelectAssetsSelectionError
-                (SelectionBalanceErrorOf (BalanceInsufficient err)))) -> do
-                    let missing = view #utxoBalanceShortfall err
-                    let missingCoin = view #coin missing == Coin 0
-                    let missingTokens = view #tokens missing == mempty
-                    case (missingCoin, missingTokens) of
-                        (False, False) ->
-                            label "missing coin and tokens" $
-                            property True
-                        (False, True) ->
-                            label "missing coin" $
-                            property True
-                        (True, False) ->
-                            label "missing tokens" $
-                            property True
-                        (True, True) ->
-                            property False
+                (SelectionBalanceErrorOf (BalanceInsufficient _)))) ->
+                    error "Unexpected nested error: BalanceInsufficient"
+            Left (ErrBalanceTxBalanceInsufficient err) -> do
+                let missing = view #utxoBalanceShortfall err
+                let missingCoin = view #coin missing == Coin 0
+                let missingTokens = view #tokens missing == mempty
+                case (missingCoin, missingTokens) of
+                    (False, False) ->
+                        label "missing coin and tokens" $
+                        property True
+                    (False, True) ->
+                        label "missing coin" $
+                        property True
+                    (True, False) ->
+                        label "missing tokens" $
+                        property True
+                    (True, True) ->
+                        property False
             Left (ErrBalanceTxUpdateError (ErrExistingKeyWitnesses _)) ->
                 label "existing key wits" $ property True
             Left

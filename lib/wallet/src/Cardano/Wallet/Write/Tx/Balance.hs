@@ -496,7 +496,7 @@ balanceTransactionWithSelectionStrategyAndNoZeroAdaAdjustment
     walletState
     selectionStrategy
     ptx@(PartialTx partialTx inputUTxO redeemers)
-    = do
+    = withExceptT flattenErrBalanceTx $ do
     guardExistingCollateral partialTx
     guardExistingTotalCollateral partialTx
     guardExistingReturnCollateral partialTx
