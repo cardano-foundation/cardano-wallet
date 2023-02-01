@@ -1107,9 +1107,8 @@ estimateNumberOfWitnesses utxo txbody@(Cardano.TxBody txbodycontent) =
             _ -> 0
         txCerts = case Cardano.txCertificates txbodycontent of
             Cardano.TxCertificatesNone -> 0
-            Cardano.TxCertificates _ certs _ -> length certs
-            -- FIXME [ADP-1515] Not all certificates require witnesses. Will
-            -- over-estimate unnecessarily.
+            Cardano.TxCertificates _ certs _ ->
+                length $ filter (not . isStakeKeyRegCert) certs
         scriptVkWitsUpperBound =
             fromIntegral
             $ sumVia estimateMaxWitnessRequiredPerInput
@@ -1126,6 +1125,9 @@ estimateNumberOfWitnesses utxo txbody@(Cardano.TxBody txbodycontent) =
     (Cardano.ShelleyTxBody _ _ scripts _ _ _) = txbody
 
     dummyKeyRole = Payment
+
+    isStakeKeyRegCert (Cardano.StakeAddressRegistrationCertificate _) = True
+    isStakeKeyRegCert _ = False
 
     toTimelockScript
         :: Ledger.Script (Cardano.ShelleyLedgerEra era)
