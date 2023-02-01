@@ -807,6 +807,9 @@ balanceTransactionWithSelectionStrategyAndNoZeroAdaAdjustment
             feePadding =
                 let LinearFee LinearFunction {slope = perByte} =
                         view (#txParameters . #getFeePolicy) pp
+
+                    -- Could be made smarter by only padding for the script
+                    -- integrity hash when we intend to add one. [ADP-2621]
                     scriptIntegrityHashBytes = 32 + 2
 
                     -- Add padding to allow the fee value to increase.
