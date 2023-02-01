@@ -42,6 +42,8 @@ import Cardano.Wallet.Primitive.Types
     ( FeePolicy (..), LinearFunction (..), PoolMetadataSource (..) )
 import Cardano.Wallet.Primitive.Types.Coin
     ( Coin (..) )
+import Cardano.Wallet.Primitive.Types.Tx.Constraints
+    ( TxSize (..) )
 import Cardano.Wallet.Primitive.Types.Tx.TxMeta
     ( Direction (..), TxStatus (..) )
 import Cardano.Wallet.Shelley.Network.Discriminant
@@ -76,8 +78,6 @@ import Data.Text
     ( Text )
 import Data.Text.Class
     ( showT, toText )
-import Data.Tuple.Extra
-    ( both )
 import Numeric.Natural
     ( Natural )
 import Test.Hspec
@@ -1422,21 +1422,20 @@ spec = describe "SHELLEY_STAKE_POOLS" $ do
     costOfJoining :: Context -> Natural
     costOfJoining ctx =
         if _mainEra ctx >= ApiBabbage
-        then costOf (\coeff cst -> 454 * coeff + cst) ctx
-        else costOf (\coeff cst -> 450 * coeff + cst) ctx
+        then costOf (TxSize 454) ctx
+        else costOf (TxSize 450) ctx
 
     costOfQuitting :: Context -> Natural
     costOfQuitting ctx =
         if _mainEra ctx >= ApiBabbage
-        then costOf (\coeff cst -> 305 * coeff + cst) ctx
-        else costOf (\coeff cst -> 303 * coeff + cst) ctx
+        then costOf (TxSize 305) ctx
+        else costOf (TxSize 303) ctx
 
-    costOf :: (Natural -> Natural -> Natural) -> Context -> Natural
-    costOf withCoefficients ctx =
-        withCoefficients coeff cst
+    costOf :: TxSize -> Context -> Natural
+    costOf (TxSize txSizeInBytes) ctx =
+        txSizeInBytes * round slope + round intercept
       where
         pp = ctx ^. #_networkParameters . #protocolParameters
-        (cst, coeff) = both round (intercept, slope)
         LinearFee LinearFunction {..} = pp ^. #txParameters . #getFeePolicy
 
 -- The complete set of pool identifiers in the static test pool cluster.
