@@ -1732,7 +1732,7 @@ selectCoins
     -> ApiT WalletId
     -> ApiSelectCoinsPayments n
     -> Handler (ApiCoinSelection n)
-selectCoins ctx@ApiLayer {..} genChange (ApiT wid) body = do
+selectCoins ctx@ApiLayer {..} argGenChange (ApiT wid) body = do
     let md = body ^? #metadata . traverse . #getApiT
     withWorkerCtx ctx wid liftE liftE $ \wrk -> do
         let db = wrk ^. dbLayer
@@ -1747,6 +1747,7 @@ selectCoins ctx@ApiLayer {..} genChange (ApiT wid) body = do
                 { txWithdrawal = wdrl
                 , txMetadata = getApiT <$> body ^. #metadata
                 }
+        let genChange = W.defaultChangeAddressGen argGenChange
         let transform s sel =
                 W.assignChangeAddresses genChange sel s
                 & uncurry (W.selectionToUnsignedTx (txWithdrawal txCtx))
@@ -1808,8 +1809,9 @@ selectCoinsForJoin ctx knownPools getPoolStatus pid wid = do
                 { txDelegationAction = Just action
                 }
 
+        let genChange = W.defaultChangeAddressGen (delegationAddress @n)
         let transform s sel =
-                W.assignChangeAddresses (delegationAddress @n) sel s
+                W.assignChangeAddresses genChange sel s
                 & uncurry (W.selectionToUnsignedTx (txWithdrawal txCtx))
         (utxoAvailable, wallet, pendingTxs) <-
             liftHandler $ W.readWalletUTxOIndex @_ @s @k wrk wid
@@ -1864,8 +1866,9 @@ selectCoinsForQuit ctx@ApiLayer{..} (ApiT wid) =
                 , txWithdrawal = wdrl
                 }
 
+        let genChange = W.defaultChangeAddressGen (delegationAddress @n)
         let transform s sel =
-                W.assignChangeAddresses (delegationAddress @n) sel s
+                W.assignChangeAddresses genChange sel s
                 & uncurry (W.selectionToUnsignedTx (txWithdrawal txCtx))
         (utxoAvailable, wallet, pendingTxs) <-
             liftHandler $ W.readWalletUTxOIndex @_ @_ @k wrk wid
@@ -2364,7 +2367,7 @@ constructTransaction
     -> ApiT WalletId
     -> ApiConstructTransactionData n
     -> Handler (ApiConstructTransaction n)
-constructTransaction api genChange knownPools poolStatus apiWalletId body = do
+constructTransaction api argGenChange knownPools poolStatus apiWalletId body = do
     body & \(ApiConstructTransactionData _ _ _ _ _ _ _) ->
     -- Above is the way to get a compiler error when number of fields changes,
     -- in order not to forget to update the pattern below:
@@ -2500,7 +2503,7 @@ constructTransaction api genChange knownPools poolStatus apiWalletId body = do
                     PreSelection { outputs = outs <> mintingOuts }
 
         balancedTx <-
-            balanceTransaction api genChange Nothing Nothing apiWalletId
+            balanceTransaction api argGenChange Nothing Nothing apiWalletId
                 ApiBalanceTransactionPostData
                 { transaction = ApiT (sealedTxFromCardanoBody unbalancedTx)
                 , inputs = []
@@ -2958,7 +2961,13 @@ balanceTransaction
     -> ApiT WalletId
     -> ApiBalanceTransactionPostData n
     -> Handler ApiSerialisedTransaction
-balanceTransaction ctx@ApiLayer{..} genChange genInpScripts mScriptTemplate (ApiT wid) body = do
+balanceTransaction
+    ctx@ApiLayer{..}
+    argGenChange
+    genInpScripts
+    mScriptTemplate
+    (ApiT wid)
+    body = do
     -- NOTE: Ideally we'd read @pp@ and @era@ atomically.
     pp <- liftIO $ NW.currentProtocolParameters nl
     era <- liftIO $ NW.currentNodeEra nl
@@ -3021,12 +3030,12 @@ balanceTransaction ctx@ApiLayer{..} genChange genInpScripts mScriptTemplate (Api
                 liftHandler $ fst <$> W.balanceTransaction @_ @IO @s @k @ktype
                     (MsgWallet . W.MsgBalanceTx >$< wrk ^. W.logger)
                     (ctx ^. typed)
-                    genChange
                     genInpScripts
                     mScriptTemplate
                     (pp, nodePParams)
                     ti
                     utxoIndex
+                    (W.defaultChangeAddressGen argGenChange)
                     (getState wallet)
                     partialTx
               where
@@ -3531,7 +3540,7 @@ quitStakePool
     -> ApiT WalletId
     -> ApiWalletPassphrase
     -> Handler (ApiTransaction n)
-quitStakePool ctx@ApiLayer{..} genChange (ApiT walletId) body = do
+quitStakePool ctx@ApiLayer{..} argGenChange (ApiT walletId) body = do
     era <- liftIO $ NW.currentNodeEra netLayer
     AnyRecentEra (recentEra :: WriteTx.RecentEra era) <- guardIsRecentEra era
     withWorkerCtx ctx walletId liftE liftE $ \wrk -> do
@@ -3548,7 +3557,7 @@ quitStakePool ctx@ApiLayer{..} genChange (ApiT walletId) body = do
                 txLayer
                 (coerce $ getApiT $ body ^. #passphrase)
                 walletId
-                genChange
+                (W.defaultChangeAddressGen argGenChange)
                 (AnyRecentEra recentEra)
                 (PreSelection [])
                 txCtx

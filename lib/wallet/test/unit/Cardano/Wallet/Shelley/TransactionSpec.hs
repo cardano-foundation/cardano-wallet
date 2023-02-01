@@ -92,6 +92,7 @@ import Cardano.Tx.Balance.Internal.CoinSelection
 import Cardano.Wallet
     ( ErrUpdateSealedTx (..)
     , FeeEstimation (..)
+    , defaultChangeAddressGen
     , estimateFee
     , signTransaction
     )
@@ -2500,12 +2501,12 @@ balanceTransactionSpec = describe "balanceTransaction" $ do
        fst <$> balanceTransaction
             nullTracer
             testTxLayer
-            (delegationAddress @'Mainnet)
             Nothing
             Nothing
             mockProtocolParametersForBalancing
             (dummyTimeInterpreterWithHorizon horizon)
             utxoIndex
+            (defaultChangeAddressGen $ delegationAddress @'Mainnet)
             (getState wal)
             tx
       where
@@ -3384,12 +3385,12 @@ balanceTransaction' (Wallet' utxoIndex wallet _pending) seed tx  =
         fst <$> balanceTransaction
             nullTracer
             testTxLayer
-            (delegationAddress @'Mainnet)
             Nothing
             Nothing
             mockProtocolParametersForBalancing
             dummyTimeInterpreter
             utxoIndex
+            (defaultChangeAddressGen $ delegationAddress @'Mainnet)
             (getState wallet)
             tx
 
