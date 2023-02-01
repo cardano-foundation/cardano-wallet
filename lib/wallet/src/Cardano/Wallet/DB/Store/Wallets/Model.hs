@@ -17,6 +17,7 @@ module Cardano.Wallet.DB.Store.Wallets.Model
     , DeltaWalletsMetaWithSubmissions (..)
     , TxWalletsHistory
     , walletsLinkedTransactions
+    , MetasAndSubmissionsHistory
     ) where
 
 import Prelude
