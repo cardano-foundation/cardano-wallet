@@ -368,7 +368,8 @@ server byron icarus shelley multisig spl ntp blockchainSource =
     stakePools :: Server (StakePools n)
     stakePools =
              listStakePools_
-        :<|> joinStakePool shelley (knownPools spl) (getPoolLifeCycleStatus spl)
+        :<|> joinStakePool shelley
+            (delegationAddress @n) (knownPools spl) (getPoolLifeCycleStatus spl)
         :<|> quitStakePool shelley (delegationAddress @n)
         :<|> (postPoolMaintenance :<|> getPoolMaintenance)
         :<|> delegationFee shelley

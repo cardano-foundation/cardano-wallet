@@ -10,6 +10,7 @@
 
 module Cardano.Wallet.Delegation
     ( joinStakePoolDelegationAction
+    , joinStakePool
     , guardJoin
     , quitStakePool
     , guardQuit
@@ -72,9 +73,9 @@ import Control.Error
 import Control.Exception
     ( throwIO )
 import Control.Monad
-    ( forM_, unless, when )
+    ( forM_, unless, when, (>=>) )
 import Control.Monad.Except
-    ( ExceptT, mapExceptT, runExceptT, withExceptT )
+    ( ExceptT, runExceptT )
 import Control.Monad.IO.Class
     ( MonadIO (..) )
 import Control.Monad.Trans.Except
@@ -111,44 +112,74 @@ handleDelegationRequest
     -> ExceptT ErrStakePoolDelegation IO Tx.DelegationAction
 handleDelegationRequest
     tr db currEpoch getKnownPools getPoolStatus walletId withdrawal = \case
-    Join poolId -> do
-        poolStatus <- liftIO $ getPoolStatus poolId
-        pools <- liftIO getKnownPools
+    Join poolId -> liftIO $ do
+        poolStatus <- getPoolStatus poolId
+        pools <- getKnownPools
         joinStakePoolDelegationAction
             tr db currEpoch pools poolId poolStatus walletId
     Quit -> liftIO $ quitStakePoolDelegationAction db walletId withdrawal
 
 joinStakePoolDelegationAction
-    :: forall s k
-     . Tracer IO WalletLog
+    :: Tracer IO WalletLog
     -> DBLayer IO s k
     -> W.EpochNo
     -> Set PoolId
     -> PoolId
     -> PoolLifeCycleStatus
     -> WalletId
-    -> ExceptT ErrStakePoolDelegation IO Tx.DelegationAction
+    -> IO Tx.DelegationAction
 joinStakePoolDelegationAction
     tr DBLayer{..} currentEpoch knownPools poolId poolStatus wid = do
     (walletDelegation, stakeKeyIsRegistered) <-
-        mapExceptT atomically $
-            withExceptT ErrStakePoolDelegationNoSuchWallet $
-                (,) <$> withNoSuchWallet wid (fmap snd <$> readWalletMeta wid)
-                    <*> isStakeKeyRegistered wid
+        atomically . throwInIO ErrStakePoolDelegationNoSuchWallet $
+            (,) <$> withNoSuchWallet wid (fmap snd <$> readWalletMeta wid)
+                <*> isStakeKeyRegistered wid
 
     let retirementInfo =
             PoolRetirementEpochInfo currentEpoch . view #retirementEpoch <$>
                 W.getPoolRetirementCertificate poolStatus
 
-    withExceptT ErrStakePoolJoin $ except $
+    throwInIO ErrStakePoolJoin . except $
         guardJoin knownPools walletDelegation poolId retirementInfo
 
-    liftIO $ traceWith tr $ MsgIsStakeKeyRegistered stakeKeyIsRegistered
+    traceWith tr $ MsgIsStakeKeyRegistered stakeKeyIsRegistered
 
     pure $
         if stakeKeyIsRegistered
         then Tx.Join poolId
         else Tx.JoinRegisteringKey poolId
+
+  where
+    throwInIO ::
+        MonadIO m => (e -> ErrStakePoolDelegation) -> ExceptT e m a -> m a
+    throwInIO f = runExceptT >=>
+        either (liftIO . throwIO . ExceptionStakePoolDelegation . f) pure
+
+joinStakePool
+    :: Tracer IO WalletLog
+    -> TimeInterpreter (ExceptT PastHorizonException IO)
+    -> DBLayer IO s k
+    -> W.EpochNo
+    -> Set PoolId
+    -> PoolId
+    -> PoolLifeCycleStatus
+    -> WalletId
+    -> IO TransactionCtx
+joinStakePool tr ti db curEpoch pools poolId poolStatus walletId = do
+    action <- joinStakePoolDelegationAction
+        tr
+        db
+        curEpoch
+        pools
+        poolId
+        poolStatus
+        walletId
+    ttl <- transactionExpirySlot ti Nothing
+    pure defaultTransactionCtx
+        { txWithdrawal = NoWithdrawal
+        , txValidityInterval = (Nothing, ttl)
+        , txDelegationAction = Just action
+        }
 
 guardJoin
     :: Set PoolId

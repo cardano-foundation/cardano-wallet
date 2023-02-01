@@ -1794,15 +1794,14 @@ selectCoinsForJoin ctx knownPools getPoolStatus pid wid = do
         let db = wrk ^. typed @(DBLayer IO s k)
             netLayer = wrk ^. networkLayer
         pp <- liftIO $ NW.currentProtocolParameters netLayer
-        action <- liftHandler
-            $ WD.joinStakePoolDelegationAction @s @k
-                (contramap MsgWallet $ wrk ^. logger)
-                db
-                curEpoch
-                pools
-                pid
-                poolStatus
-                wid
+        action <- liftIO $ WD.joinStakePoolDelegationAction @s @k
+            (contramap MsgWallet $ wrk ^. logger)
+            db
+            curEpoch
+            pools
+            pid
+            poolStatus
+            wid
 
         let txCtx = defaultTransactionCtx
                 { txDelegationAction = Just action
@@ -3363,21 +3362,22 @@ submitSharedTransaction ctx apiw@(ApiT wid) apitx = do
     ti = timeInterpreter nl
 
 joinStakePool
-    :: forall ctx s n k.
-        ( ctx ~ ApiLayer s k 'CredFromKeyK
-        , s ~ SeqState n k
+    :: forall s n k.
+        ( s ~ SeqState n k
         , AddressIndexDerivationType k ~ 'Soft
-        , DelegationAddress n k 'CredFromKeyK
         , GenChange s
         , IsOwned s k 'CredFromKeyK
+        , IsOurs (SeqState n k) RewardAccount
         , SoftDerivation k
-        , Typeable n
-        , Typeable s
         , WalletKey k
         , AddressBookIso s
         , BoundedAddressLength k
-        , HasDelegation s, Typeable k)
-    => ctx
+        , HasDelegation s
+        , Typeable n
+        , Typeable k
+        )
+    => ApiLayer s k 'CredFromKeyK
+    -> ArgGenChange s
     -> IO (Set PoolId)
        -- ^ Known pools
        -- We could maybe replace this with a @IO (PoolId -> Bool)@
@@ -3386,88 +3386,64 @@ joinStakePool
     -> ApiT WalletId
     -> ApiWalletPassphrase
     -> Handler (ApiTransaction n)
-joinStakePool ctx knownPools getPoolStatus apiPool (ApiT wid) body = do
+joinStakePool
+    ctx@ApiLayer{..} genChange knownPools
+    getPoolStatus apiPool (ApiT walletId) body = do
     poolId <- case apiPool of
         AllPools -> liftE ErrUnexpectedPoolIdPlaceholder
         SpecificPool pool -> pure pool
-
     poolStatus <- liftIO (getPoolStatus poolId)
     pools <- liftIO knownPools
     curEpoch <- getCurrentEpoch ctx
-    withWorkerCtx ctx wid liftE liftE $ \wrk -> do
-        let netLayer = wrk ^. networkLayer
-            tr = wrk ^. logger
-            db = wrk ^. dbLayer
-        pp <- liftIO $ NW.currentProtocolParameters netLayer
-        action <- liftHandler
-            $ WD.joinStakePoolDelegationAction @s @k
-                (MsgWallet >$< tr)
-                db
-                curEpoch
-                pools
-                poolId
-                poolStatus
-                wid
+    -- FIXME [ADP-1489] pp and era are not guaranteed to be consistent,
+    -- which could cause problems under exceptional circumstances.
+    era <- liftIO $ NW.currentNodeEra netLayer
+    AnyRecentEra (recentEra :: WriteTx.RecentEra era) <- guardIsRecentEra era
+    withWorkerCtx ctx walletId liftE liftE $ \wrk -> do
+        let tr = wrk ^. logger
+            db = wrk ^. typed @(DBLayer IO s k)
+            ti = timeInterpreter netLayer
 
-        ttl <- liftIO $ W.transactionExpirySlot ti Nothing
-        let txCtx = defaultTransactionCtx
-                { txWithdrawal = NoWithdrawal
-                , txValidityInterval = (Nothing, ttl)
-                , txDelegationAction = Just action
-                }
-        (utxoAvailable, wallet, pendingTxs) <-
-            liftHandler $ W.readWalletUTxOIndex @_ @s @k wrk wid
-        -- FIXME [ADP-1489] pp and era are not guaranteed to be consistent,
-        -- which could cause problems under exceptional circumstances.
-        era <- liftIO $ NW.currentNodeEra netLayer
-        let selectAssetsParams = W.SelectAssetsParams
-                { outputs = []
-                , pendingTxs
-                , randomSeed = Nothing
-                , txContext = txCtx
-                , utxoAvailableForInputs = UTxOSelection.fromIndex utxoAvailable
-                , utxoAvailableForCollateral = UTxOIndex.toMap utxoAvailable
-                , wallet
-                , selectionStrategy = SelectionStrategyOptimal
-                }
-        sel <- liftHandler
-            $ W.selectAssets @_ @_ @s @k @'CredFromKeyK
-                wrk era pp selectAssetsParams (const Prelude.id)
-        sel' <- liftHandler
-            $ W.assignChangeAddressesAndUpdateDb wrk wid genChange sel
-        (tx, txMeta, txTime, sealedTx) <- liftHandler $ do
-            let pwd = coerce $ getApiT $ body ^. #passphrase
-            W.buildAndSignTransaction @_ @s @k
-                wrk wid era selfRewardAccountBuilder pwd txCtx sel'
-        liftHandler $ W.submitTx tr db netLayer wid
-            BuiltTx
-                { builtTx = tx
-                , builtTxMeta = txMeta
-                , builtSealedTx = sealedTx
-                }
-        mkApiTransaction ti wrk wid #pendingSince
+        (BuiltTx{..}, txTime) <- liftIO $
+            W.buildSignSubmitTransaction @k @'CredFromKeyK @s @n
+                ti
+                db
+                netLayer
+                txLayer
+                (coerce $ getApiT $ body ^. #passphrase)
+                walletId
+                genChange
+                (AnyRecentEra recentEra)
+                (PreSelection [])
+                =<< WD.joinStakePool
+                    (MsgWallet >$< tr)
+                    ti
+                    db
+                    curEpoch
+                    pools
+                    poolId
+                    poolStatus
+                    walletId
+
+        pp <- liftIO $ NW.currentProtocolParameters netLayer
+        mkApiTransaction ti wrk walletId #pendingSince
             MkApiTransactionParams
-                { txId = tx ^. #txId
-                , txFee = tx ^. #fee
-                , txInputs = NE.toList $ second Just <$> sel ^. #inputs
+                { txId = builtTx ^. #txId
+                , txFee = builtTx ^. #fee
+                , txInputs = builtTx ^. #resolvedInputs
                 -- Joining a stake pool does not require collateral:
                 , txCollateralInputs = []
-                , txOutputs = tx ^. #outputs
-                , txCollateralOutput = tx ^. #collateralOutput
-                , txWithdrawals = tx ^. #withdrawals
-                , txMeta
+                , txOutputs = builtTx ^. #outputs
+                , txCollateralOutput = builtTx ^. #collateralOutput
+                , txWithdrawals = builtTx ^. #withdrawals
+                , txMeta = builtTxMeta
                 , txMetadata = Nothing
                 , txTime
-                , txScriptValidity = tx ^. #scriptValidity
+                , txScriptValidity = builtTx ^. #scriptValidity
                 , txDeposit = W.stakeKeyDeposit pp
                 , txMetadataSchema = TxMetadataDetailedSchema
-                , txCBOR = tx ^. #txCBOR
+                , txCBOR = builtTx ^. #txCBOR
                 }
-  where
-    ti :: TimeInterpreter (ExceptT PastHorizonException IO)
-    ti = timeInterpreter (ctx ^. networkLayer)
-
-    genChange = delegationAddress @n
 
 delegationFee
     :: forall ctx s n k.
@@ -4133,9 +4109,7 @@ type RewardAccountBuilder k
         -> (XPrv, Passphrase "encryption")
 
 
-guardIsRecentEra
-    :: AnyCardanoEra
-    -> Handler AnyRecentEra
+guardIsRecentEra :: AnyCardanoEra -> Handler AnyRecentEra
 guardIsRecentEra (Cardano.AnyCardanoEra era) = case era of
     Cardano.BabbageEra -> pure $ WriteTx.AnyRecentEra WriteTx.RecentEraBabbage
     Cardano.AlonzoEra  -> pure $ WriteTx.AnyRecentEra WriteTx.RecentEraAlonzo
