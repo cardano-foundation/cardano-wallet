@@ -15,6 +15,7 @@ Data type 'Submissions' for storing a set of submitted transactions.
 -}
 module Cardano.Wallet.Submissions.Submissions
     ( Submissions (..)
+    , mkEmpty
     , tip
     , finality
     , tipL
@@ -35,6 +36,8 @@ import Control.Lens
     ( makeLenses, view )
 import Data.Map.Strict
     ( Map )
+
+import qualified Data.Map as Map
 
 data TxStatusMeta meta slot tx = TxStatusMeta
     { _txStatus :: TxStatus slot tx
@@ -65,6 +68,11 @@ deriving instance
     (Eq (Submissions meta slot tx))
 
 makeLenses ''Submissions
+
+-- | Create an empty 'Submissions' table with the same slot for
+-- tip and finality.
+mkEmpty :: slot -> Submissions meta slot tx
+mkEmpty slot = Submissions Map.empty slot slot
 
 -- | Current slot tip.
 tip :: Submissions meta slot tx -> slot

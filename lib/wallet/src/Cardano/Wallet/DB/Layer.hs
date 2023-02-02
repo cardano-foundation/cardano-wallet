@@ -6,6 +6,7 @@
 {-# LANGUAGE NamedFieldPuns #-}
 {-# LANGUAGE OverloadedLabels #-}
 {-# LANGUAGE RecordWildCards #-}
+{-# LANGUAGE RecursiveDo #-}
 {-# LANGUAGE ScopedTypeVariables #-}
 {-# LANGUAGE TypeApplications #-}
 
@@ -506,7 +507,7 @@ newDBLayerWith
     -> SqliteContext
        -- ^ A (thread-)safe wrapper for query execution.
     -> IO (DBLayer IO s k)
-newDBLayerWith _cacheBehavior _tr ti SqliteContext{runQuery} = do
+newDBLayerWith _cacheBehavior _tr ti SqliteContext{runQuery} = mdo
     -- FIXME LATER during ADP-1043:
     --   Remove the 'NoCache' behavior, we cannot get it back.
     --   This will affect read benchmarks, they will need to benchmark
@@ -575,6 +576,7 @@ newDBLayerWith _cacheBehavior _tr ti SqliteContext{runQuery} = do
                     void $ modifyDBMaybe transactionsDBVar $ \(_txsOld, _ws) ->
                         let delta = Just $ ExpandTxWalletsHistory wid txs
                         in  (delta, Right ())
+                    emptyTxSubmissions_ dbPendingTxs wid
                 pure res
 
         , readGenesisParameters_ = selectGenesisParameters
@@ -659,7 +661,8 @@ newDBLayerWith _cacheBehavior _tr ti SqliteContext{runQuery} = do
         -----------------------------------------------------------------------}
     let
       dbPendingTxs = DBPendingTxs
-        { putLocalTxSubmission_ = \wid txid tx sl -> do
+        { emptyTxSubmissions_ =  error "emptyTxSubmissions_ not implemented"
+        , putLocalTxSubmission_ = \wid txid tx sl -> do
             let errNoSuchWallet = ErrPutLocalTxSubmissionNoSuchWallet $
                     ErrNoSuchWallet wid
             let errNoSuchTx = ErrPutLocalTxSubmissionNoSuchTransaction $

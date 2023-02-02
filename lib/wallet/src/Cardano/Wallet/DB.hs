@@ -752,7 +752,12 @@ getInSubmissionTransaction_ DBPendingTxs{getInSubmissionTransactions_} wid txid
 
 -- | A database layer for storing in-submission transactions.
 data DBPendingTxs stm = DBPendingTxs
-    { putLocalTxSubmission_
+    { emptyTxSubmissions_
+        :: WalletId
+        -> stm ()
+        -- ^ Add overwrite an empty submisison pool to the given wallet.
+
+    , putLocalTxSubmission_
         :: WalletId
         -> Hash "Tx"
         -> SealedTx
