@@ -889,7 +889,8 @@ balanceTransactionWithSelectionStrategyAndNoZeroAdaAdjustment
                     $ runExceptT
                     $ performSelection selectionConstraints selectionParams
 
-newtype ChangeAddressGen s = ChangeAddressGen (s -> (W.Address, s))
+newtype ChangeAddressGen s =
+    ChangeAddressGen { getChangeAddressGen ::  (s -> (W.Address, s)) }
 
 -- | Augments the given outputs with new outputs. These new outputs correspond
 -- to change outputs to which new addresses have been assigned. This updates
