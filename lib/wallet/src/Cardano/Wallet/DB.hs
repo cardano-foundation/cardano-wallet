@@ -98,7 +98,7 @@ import Cardano.Wallet.Read.Tx.Hash
 import Cardano.Wallet.Submissions.Submissions
     ( TxStatusMeta (..) )
 import Control.Monad
-    ( guard )
+    ( guard, join )
 import Control.Monad.IO.Class
     ( MonadIO, liftIO )
 import Control.Monad.Trans.Except
@@ -522,8 +522,19 @@ mkDBLayerFromParts ti DBLayerCollection{..} = DBLayer
             Nothing ->
                 pure []
     , getTx = \wid txid -> wrapNoSuchWallet wid $ do
-        Just tip <- readCurrentTip wid -- wallet exists
-        (getTx_ dbTxHistory) wid txid tip
+        readCurrentTip wid >>= \case
+            Just tip -> do
+                historical <- getTx_ dbTxHistory wid txid tip
+                case historical of
+                    Just tx -> pure $ Just tx
+                    Nothing -> do
+                        inSubmission <-
+                            getInSubmissionTransaction_ dbPendingTxs wid txid
+                        fmap join $ for inSubmission $
+                            mkTransactionInfo
+                            (hoistTimeInterpreter liftIO ti)
+                            (mkDecorator_ dbTxHistory) tip
+            Nothing -> pure Nothing
     , putLocalTxSubmission = putLocalTxSubmission_ dbPendingTxs
     , addTxSubmission = \wid a b -> wrapNoSuchWallet wid $
         addTxSubmission_ dbPendingTxs wid a b
