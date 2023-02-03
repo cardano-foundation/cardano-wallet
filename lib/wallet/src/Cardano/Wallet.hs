@@ -2008,35 +2008,10 @@ buildAndSignTransactionPure
     --
     WriteTx.withRecentEra era $ \(_ :: WriteTx.RecentEra recentEra) -> do
         wallet <- get
-
-        unsignedTxBody <-
-            lift . withExceptT (Right . ErrConstructTxBody) . except $
-                mkUnsignedTransaction txLayer @recentEra
-                    (unsafeShelleyOnlyGetRewardXPub (getState wallet))
-                    protocolParams
-                    txCtx
-                    (Left preSelection)
-
-        (unsignedBalancedTx, updatedWalletState) <- lift . withExceptT Left $
-            balanceTransaction @_ @_ @s @k @ktype
-                nullTracer
-                txLayer
-                Nothing -- "To input scripts" resolver
-                Nothing -- Script template
-                nodeProtocolParameters
-                ti
-                (UTxOIndex.fromMap
-                    $ CS.toInternalUTxOMap
-                    $ availableUTxO @s pendingTxs wallet)
-                changeAddrGen
-                (getState wallet)
-                ( PartialTx
-                    { tx = Cardano.Tx unsignedTxBody []
-                    , inputs = Cardano.UTxO mempty
-                    , redeemers = []
-                    }
-                )
-
+        (unsignedBalancedTx, updatedWalletState) <- lift $
+            buildTransactionPure @s @k @ktype @n @recentEra
+                wallet ti pendingTxs txLayer changeAddrGen
+                protocolParams txCtx preSelection
         put wallet { getState = updatedWalletState }
 
         let passphrase = preparePassphrase passphraseScheme userPassphrase
@@ -2092,6 +2067,59 @@ buildAndSignTransactionPure
             }
   where
     anyCardanoEra = WriteTx.fromAnyRecentEra era
+
+buildTransactionPure ::
+    forall s k ktype (n :: NetworkDiscriminant) era
+    . ( Typeable n
+      , Typeable s
+      , Typeable k
+      , BoundedAddressLength k
+      , WriteTx.IsRecentEra era
+      )
+    => Wallet s
+    -> TimeInterpreter (Either PastHorizonException)
+    -> Set Tx -- pending transactions
+    -> TransactionLayer k ktype SealedTx
+    -> ChangeAddressGen s
+    -> ProtocolParameters
+    -> TransactionCtx
+    -> PreSelection
+    -> ExceptT
+        (Either ErrBalanceTx ErrConstructTx)
+        (Rand StdGen)
+        (Cardano.Tx era, s)
+buildTransactionPure
+    wallet ti pendingTxs txLayer changeAddrGen
+    protocolParams txCtx preSelection = do
+    --
+    unsignedTxBody <-
+        withExceptT (Right . ErrConstructTxBody) . except $
+            mkUnsignedTransaction txLayer @era
+                (unsafeShelleyOnlyGetRewardXPub (getState wallet))
+                protocolParams
+                txCtx
+                (Left preSelection)
+
+    withExceptT Left $
+        balanceTransaction @_ @_ @s @k @ktype
+            nullTracer
+            txLayer
+            Nothing -- "To input scripts" resolver
+            Nothing -- Script template
+            nodeProtocolParameters
+            ti
+            (UTxOIndex.fromMap
+                $ CS.toInternalUTxOMap
+                $ availableUTxO @s pendingTxs wallet)
+            changeAddrGen
+            (getState wallet)
+            PartialTx
+                { tx = Cardano.Tx unsignedTxBody []
+                , inputs = Cardano.UTxO mempty
+                , redeemers = []
+                }
+
+  where
     nodeProtocolParameters =
         ( protocolParams
         , fromMaybe
