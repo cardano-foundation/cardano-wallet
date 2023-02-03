@@ -1,6 +1,7 @@
 {-# LANGUAGE DataKinds #-}
 {-# LANGUAGE ExistentialQuantification #-}
 {-# LANGUAGE LambdaCase #-}
+{-# LANGUAGE NamedFieldPuns #-}
 {-# LANGUAGE OverloadedLabels #-}
 {-# LANGUAGE RankNTypes #-}
 {-# LANGUAGE RecordWildCards #-}
@@ -37,6 +38,7 @@ module Cardano.Wallet.DB
     , ErrNoSuchTransaction (..)
     , ErrRemoveTx (..)
     , ErrPutLocalTxSubmission (..)
+    , getInSubmissionTransaction_
     ) where
 
 import Prelude
@@ -90,15 +92,21 @@ import Cardano.Wallet.Primitive.Types.Tx.TransactionInfo
 import Cardano.Wallet.Read.Eras
     ( EraValue )
 import Cardano.Wallet.Read.Tx.Cardano
-    ( fromSealedTx )
+    ( anythingFromSealedTx, fromSealedTx )
+import Cardano.Wallet.Read.Tx.Hash
+    ( getEraTxHash )
 import Cardano.Wallet.Submissions.Submissions
-    ( TxStatusMeta (TxStatusMeta) )
+    ( TxStatusMeta (..) )
+import Control.Monad
+    ( guard, join )
 import Control.Monad.IO.Class
     ( MonadIO, liftIO )
 import Control.Monad.Trans.Except
     ( ExceptT (..), runExceptT )
 import Data.DBVar
     ( DBVar )
+import Data.Foldable
+    ( find )
 import Data.Functor
     ( (<&>) )
 import Data.Generics.Internal.VL
@@ -106,7 +114,7 @@ import Data.Generics.Internal.VL
 import Data.List
     ( sortOn )
 import Data.Maybe
-    ( catMaybes )
+    ( catMaybes, isJust )
 import Data.Ord
     ( Down (..) )
 import Data.Quantity
@@ -118,11 +126,12 @@ import Data.Word
 import UnliftIO.Exception
     ( Exception )
 
+import qualified Cardano.Wallet.Primitive.Types.Hash as W
 import qualified Cardano.Wallet.Primitive.Types.Tx.SealedTx as WST
-import qualified Cardano.Wallet.Primitive.Types.Tx.TxMeta as WtxMeta
 import qualified Cardano.Wallet.Primitive.Types.Tx.TxMeta as WTxMeta
 import qualified Cardano.Wallet.Read.Tx as Read
 import qualified Cardano.Wallet.Submissions.TxStatus as Subm
+import qualified Cardano.Wallet.Submissions.TxStatus as Sbm
 import qualified Data.Map.Strict as Map
 
 -- | Instantiate database layers at will
@@ -507,14 +516,25 @@ mkDBLayerFromParts ti DBLayerCollection{..} = DBLayer
                     . filterMinWithdrawal minWithdrawal
                     $ inLedgers <> filter (
                             (||)
-                            <$> hasStatus WtxMeta.Pending
+                            <$> hasStatus WTxMeta.Pending
                             <*> hasStatus WTxMeta.Expired
                             ) inSubmissions
             Nothing ->
                 pure []
     , getTx = \wid txid -> wrapNoSuchWallet wid $ do
-        Just tip <- readCurrentTip wid -- wallet exists
-        (getTx_ dbTxHistory) wid txid tip
+        readCurrentTip wid >>= \case
+            Just tip -> do
+                historical <- getTx_ dbTxHistory wid txid tip
+                case historical of
+                    Just tx -> pure $ Just tx
+                    Nothing -> do
+                        inSubmission <-
+                            getInSubmissionTransaction_ dbPendingTxs wid txid
+                        fmap join $ for inSubmission $
+                            mkTransactionInfo
+                            (hoistTimeInterpreter liftIO ti)
+                            (mkDecorator_ dbTxHistory) tip
+            Nothing -> pure Nothing
     , putLocalTxSubmission = putLocalTxSubmission_ dbPendingTxs
     , addTxSubmission = \wid a b -> wrapNoSuchWallet wid $
         addTxSubmission_ dbPendingTxs wid a b
@@ -713,7 +733,24 @@ data DBTxHistory stm = DBTxHistory
         -- ^ Resolve TxIn for a given Tx.
     }
 
--- | A database layer for storing pending transactions.
+-- | Fetch a specific in-submission transaction set for a known wallet.
+--
+-- Returns Nothing if the wallet isn't found or transactions isn't found.
+getInSubmissionTransaction_
+    :: Functor stm
+    => DBPendingTxs stm
+    -> WalletId
+    -> Hash "Tx"
+    -> stm (Maybe (TxStatusMeta SubmissionMeta SlotNo SealedTx))
+getInSubmissionTransaction_ DBPendingTxs{getInSubmissionTransactions_} wid txid
+    = find which <$> getInSubmissionTransactions_ wid
+  where
+    which :: TxStatusMeta SubmissionMeta SlotNo SealedTx -> Bool
+    which (TxStatusMeta txStatus' _) = isJust $ do
+        tx <- Sbm.getTx txStatus'
+        guard $ W.Hash (anythingFromSealedTx getEraTxHash tx) == txid
+
+-- | A database layer for storing in-submission transactions.
 data DBPendingTxs stm = DBPendingTxs
     { putLocalTxSubmission_
         :: WalletId
@@ -737,7 +774,7 @@ data DBPendingTxs stm = DBPendingTxs
     , getInSubmissionTransactions_
         :: WalletId
         -> stm [TxStatusMeta SubmissionMeta SlotNo SealedTx]
-        -- ^ Fetch the current pending transaction set for a known wallet.
+        -- ^ Fetch the current in-submission transactions set for a known wallet.
         --
         -- Returns an empty list if the wallet isn't found.
 
