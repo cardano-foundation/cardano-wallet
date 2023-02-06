@@ -77,6 +77,8 @@ import Data.Text
     ( Text )
 import Data.Text.Class
     ( ToText (..) )
+import Numeric.Natural
+    ( Natural )
 import Test.Hspec
     ( SpecWith, describe )
 import Test.Hspec.Expectations.Lifted
@@ -1463,6 +1465,50 @@ spec = describe "SHARED_WALLETS" $ do
                  (Link.getUTxOsStatistics @'Shared w) Default Empty
         expectResponseCode HTTP.status200 rStat
         expectWalletUTxO [] (snd rStat)
+
+    it "SHARED_WALLETS_UTXO_02 - Sending and receiving funds updates \
+       \wallet's utxo." $ \ctx -> runResourceT $ do
+        wSrc <- fixtureWallet ctx
+        (ApiSharedWallet (Right wDest)) <- emptySharedWallet ctx
+
+        --send funds
+        rAddr <- request @[ApiAddress n] ctx
+            (Link.listAddresses @'Shared wDest) Default Empty
+        expectResponseCode HTTP.status200 rAddr
+        let addrs = getFromResponse Prelude.id rAddr
+        let destination = (addrs !! 1) ^. #id
+        let coins :: [Natural]
+            coins =
+                [13_000_000, 43_000_000, 66_000_000, 101_000_000, 1339_000_000]
+        let payments = flip map coins $ \c -> [json|{
+                "address": #{destination},
+                "amount": {
+                    "quantity": #{c},
+                    "unit": "lovelace"
+                }}|]
+        let payload = [json|{
+                "payments": #{payments},
+                "passphrase": "cardano-wallet"
+                }|]
+
+        rTrans <- request @(ApiTransaction n) ctx
+            (Link.createTransactionOld @'Shelley wSrc) Default (Json payload)
+        expectResponseCode HTTP.status202 rTrans
+
+        eventually "Wallet balance is as expected" $ do
+            wal <- getSharedWallet ctx (ApiSharedWallet (Right wDest))
+            let balanceExp =
+                    [ expectResponseCode HTTP.status200
+                    , expectField (traverse . #balance . #available)
+                        (`shouldBe` Quantity (fromIntegral $ sum coins))
+                    ]
+            verify (fmap (view #wallet) <$> wal) balanceExp
+
+        --verify utxo
+        rStat1 <- request @ApiUtxoStatistics ctx
+            (Link.getUTxOsStatistics @'Shared wDest) Default Empty
+        expectResponseCode HTTP.status200 rStat1
+        expectWalletUTxO coins (snd rStat1)
 
   where
      acctHrp = [Bech32.humanReadablePart|acct_shared_xvk|]
