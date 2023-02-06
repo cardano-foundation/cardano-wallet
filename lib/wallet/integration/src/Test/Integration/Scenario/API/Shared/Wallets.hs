@@ -132,6 +132,8 @@ import Test.Integration.Framework.TestData
     , errMsg403TemplateInvalidScript
     , errMsg403TemplateInvalidUnknownCosigner
     , errMsg403WrongIndex
+    , errMsg404NoWallet
+    , errMsg406
     )
 
 import qualified Cardano.Wallet.Api.Link as Link
@@ -1509,6 +1511,46 @@ spec = describe "SHARED_WALLETS" $ do
             (Link.getUTxOsStatistics @'Shared wDest) Default Empty
         expectResponseCode HTTP.status200 rStat1
         expectWalletUTxO coins (snd rStat1)
+
+    it "SHARED_WALLETS_UTXO_03 - Deleted wallet is not available \
+       \for utxo" $ \ctx -> runResourceT $ do
+        (ApiSharedWallet (Right w)) <- emptySharedWallet ctx
+        _ <- request @ApiWallet ctx (Link.deleteWallet @'Shared w)
+            Default Empty
+        r <- request @ApiUtxoStatistics ctx (Link.getUTxOsStatistics @'Shared w)
+            Default Empty
+        expectResponseCode HTTP.status404 r
+        expectErrorMessage (errMsg404NoWallet $ w ^. walletId) r
+
+    describe "SHARED_WALLETS_UTXO_04 - HTTP headers" $ do
+        let matrix =
+                [ ( "No HTTP headers -> 200"
+                  , None
+                  , [ expectResponseCode HTTP.status200 ] )
+                , ( "Accept: text/plain -> 406"
+                  , Headers
+                        [ ("Content-Type", "application/json")
+                        , ("Accept", "text/plain") ]
+                  , [ expectResponseCode HTTP.status406
+                    , expectErrorMessage errMsg406 ]
+                  )
+                , ( "No Accept -> 200"
+                  , Headers [ ("Content-Type", "application/json") ]
+                  , [ expectResponseCode HTTP.status200 ]
+                  )
+                , ( "No Content-Type -> 200"
+                  , Headers [ ("Accept", "application/json") ]
+                  , [ expectResponseCode HTTP.status200 ]
+                  )
+                , ( "Content-Type: text/plain -> 200"
+                  , Headers [ ("Content-Type", "text/plain") ]
+                  , [ expectResponseCode HTTP.status200 ]
+                  )
+                ]
+        forM_ matrix $ \(title, headers, expectations) -> it title $ \ctx -> runResourceT $ do
+            (ApiSharedWallet (Right w)) <- emptySharedWallet ctx
+            r <- request @ApiUtxoStatistics ctx (Link.getUTxOsStatistics @'Shared w) headers Empty
+            verify r expectations
 
   where
      acctHrp = [Bech32.humanReadablePart|acct_shared_xvk|]
