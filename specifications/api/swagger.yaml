@@ -7544,6 +7544,34 @@ paths:
         - *parametersWalletId
       responses: *responsesDeleteWallet
 
+  /shared-wallets/{walletId}/statistics/utxos:
+    get:
+      operationId: getUTxOsStatisticsShared
+      tags: ["Shared Wallets"]
+      summary: UTxO Statistics
+      description: |
+        <p align="right">status: <strong>stable</strong></p>
+
+        Return the UTxOs distribution across the whole wallet, in the form of a histogram.
+
+        ```
+             │
+         100 ─
+             │
+             │                                 ┌───┐
+          10 ─                         ┌───┐   │   │                   ┌───┐
+             │                 ┌───┐   │   │   │   │                   │   │
+             │                 │   │   │   │   │   │   ┌───┐           │   │
+           1 ─ ┌───┐           │   │   │   │   │   │   │   │           │   │
+             │ │   │           │   │   │   │   │   │   │   │           │   │
+             │ │   │ │       │ │   │ │ │   │ ╷ │   │ ╷ │   │ ╷       ╷ │   │
+             └─┘   └─│───────│─┘   └─│─┘   └─│─┘   └─│─┘   └─│───────│─┘   └────
+                   10μ₳    100μ₳   1000μ₳   0.1₳    1₳      10₳     100₳
+        ```
+      parameters:
+        - *parametersWalletId
+      responses: *responsesGetUTxOsStatistics
+
   /shared-wallets/{walletId}/payment-script-template:
     patch:
       operationId: patchSharedWalletInPayment
