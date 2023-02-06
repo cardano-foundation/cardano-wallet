@@ -587,6 +587,7 @@ server byron icarus shelley multisig spl ntp blockchainSource =
         :<|> patchSharedWallet @_ @_ @SharedKey apilayer SharedKey Payment
         :<|> patchSharedWallet @_ @_ @SharedKey apilayer SharedKey Delegation
         :<|> deleteWallet apilayer
+        :<|> getUTxOsStatistics apilayer
 
     sharedWalletKeys
         :: ApiLayer (SharedState n SharedKey) SharedKey 'CredFromScriptK
