@@ -35,6 +35,7 @@ import Cardano.Wallet.Api.Types
     , ApiSharedWallet (..)
     , ApiT (..)
     , ApiTransaction
+    , ApiUtxoStatistics
     , ApiWallet
     , DecodeAddress
     , DecodeStakeAddress
@@ -90,12 +91,14 @@ import Test.Integration.Framework.DSL
     , bech32Text
     , decodeErrorInfo
     , deleteSharedWallet
+    , emptySharedWallet
     , eventually
     , expectErrorMessage
     , expectField
     , expectListField
     , expectListSize
     , expectResponseCode
+    , expectWalletUTxO
     , faucetAmt
     , fixturePassphrase
     , fixtureWallet
@@ -1452,6 +1455,15 @@ spec = describe "SHARED_WALLETS" $ do
             , expectField (traverse . #balance . #available)
                 (`shouldBe` Quantity amt)
             ]
+
+    it "SHARED_WALLETS_UTXO_01 - \
+       \Wallet's inactivity is reflected in utxo"$ \ctx -> runResourceT $ do
+        (ApiSharedWallet (Right w)) <- emptySharedWallet ctx
+        rStat <- request @ApiUtxoStatistics ctx
+                 (Link.getUTxOsStatistics @'Shared w) Default Empty
+        expectResponseCode HTTP.status200 rStat
+        expectWalletUTxO [] (snd rStat)
+
   where
      acctHrp = [Bech32.humanReadablePart|acct_shared_xvk|]
      getAccountWallet name = do

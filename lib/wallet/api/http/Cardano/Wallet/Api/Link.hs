@@ -234,8 +234,7 @@ getWallet w = discriminate @style
 
 getUTxOsStatistics
     :: forall (style :: WalletStyle) w.
-        ( HasCallStack
-        , Discriminate style
+        ( Discriminate style
         , HasType (ApiT WalletId) w
         )
     => w
@@ -243,7 +242,7 @@ getUTxOsStatistics
 getUTxOsStatistics w = discriminate @style
     (endpoint @Api.GetUTxOsStatistics (wid &))
     (endpoint @Api.GetByronUTxOsStatistics (wid &))
-    (notSupported "Shared")
+    (endpoint @Api.GetUTxOsStatisticsShared (wid &))
   where
     wid = w ^. typed @(ApiT WalletId)
 

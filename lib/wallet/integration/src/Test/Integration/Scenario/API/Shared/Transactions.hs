@@ -113,6 +113,7 @@ import Test.Integration.Framework.DSL
     , Payload (..)
     , decodeErrorInfo
     , deleteSharedWallet
+    , emptySharedWallet
     , emptyWallet
     , eventually
     , expectErrorMessage
@@ -1720,37 +1721,6 @@ spec = describe "SHARED_TRANSACTIONS" $ do
                 , expectField (traverse . #balance . #available)
                     (`shouldBe` Quantity amt)
                 ]
-
-     emptySharedWallet ctx = do
-        m15txt <- liftIO $ genMnemonics M15
-        m12txt <- liftIO $ genMnemonics M12
-        let (Right m15) = mkSomeMnemonic @'[ 15 ] m15txt
-        let (Right m12) = mkSomeMnemonic @'[ 12 ] m12txt
-        let passphrase = Passphrase $
-                BA.convert $ T.encodeUtf8 fixturePassphrase
-        let index = 30
-        let accXPubDerived =
-                sharedAccPubKeyFromMnemonics m15 (Just m12) index passphrase
-        let payload = Json [json| {
-                "name": "Shared Wallet",
-                "mnemonic_sentence": #{m15txt},
-                "mnemonic_second_factor": #{m12txt},
-                "passphrase": #{fixturePassphrase},
-                "account_index": "30H",
-                "payment_script_template":
-                    { "cosigners":
-                        { "cosigner#0": #{accXPubDerived} },
-                      "template":
-                          { "all":
-                             [ "cosigner#0" ]
-                          }
-                    }
-                } |]
-        rPost <- postSharedWallet ctx Default payload
-        verify (fmap (swapEither . view #wallet) <$> rPost)
-            [ expectResponseCode HTTP.status201
-            ]
-        pure $ getFromResponse Prelude.id rPost
 
      fixtureSharedWallet ctx = do
         walShared@(ApiSharedWallet (Right wal)) <- emptySharedWallet ctx
