@@ -73,7 +73,6 @@ module Cardano.Tx.Balance.Internal.CoinSelection
     , SelectionReportSummarized
 
     -- * Selection deltas
-    , balanceMissing
     , selectionDelta
     )
     where
@@ -95,7 +94,6 @@ import Cardano.CoinSelection.Balance
     , SelectionLimitOf (..)
     , SelectionStrategy (..)
     , UnableToConstructChangeError (..)
-    , balanceMissing
     )
 import Cardano.Wallet.Primitive.Collateral
     ( asCollateral )
