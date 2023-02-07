@@ -44,6 +44,8 @@ import Cardano.Wallet.Address.Book
     ( AddressBookIso (..), Discoveries, Prologue )
 import Cardano.Wallet.Checkpoints
     ( Checkpoints )
+import Cardano.Wallet.DB.Store.Submissions.Operations
+    ( TxSubmissions )
 import Cardano.Wallet.Primitive.Types
     ( BlockHeader, WalletId )
 import Cardano.Wallet.Primitive.Types.UTxO
@@ -68,6 +70,7 @@ import GHC.Generics
 import qualified Cardano.Wallet.Checkpoints as CPS
 import qualified Cardano.Wallet.Primitive.Model as W
 import qualified Cardano.Wallet.Primitive.Types as W
+import qualified Cardano.Wallet.Submissions.Submissions as Submissions
 import qualified Data.Map.Strict as Map
 
 {-------------------------------------------------------------------------------
@@ -117,6 +120,7 @@ fromWallet w = (pro, WalletCheckpoint (W.currentTip w) (W.utxo w) dis)
 data WalletState s = WalletState
     { prologue    :: !(Prologue s)
     , checkpoints :: !(Checkpoints (WalletCheckpoint s))
+    , submissions :: !TxSubmissions
     } deriving (Generic)
 
 deriving instance AddressBookIso s => Eq (WalletState s)
@@ -125,7 +129,10 @@ deriving instance AddressBookIso s => Eq (WalletState s)
 fromGenesis :: AddressBookIso s => W.Wallet s -> Maybe (WalletState s)
 fromGenesis cp
     | W.isGenesisBlockHeader header = Just $
-        WalletState{ prologue, checkpoints = CPS.fromGenesis checkpoint }
+        WalletState{ prologue
+            , checkpoints = CPS.fromGenesis checkpoint
+            , submissions = Submissions.mkEmpty 0
+            }
     | otherwise = Nothing
   where
     header = cp ^. #currentTip

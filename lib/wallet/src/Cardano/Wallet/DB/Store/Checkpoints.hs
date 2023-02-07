@@ -81,6 +81,8 @@ import Cardano.Wallet.DB.Sqlite.Types
     , hashOfNoParent
     , toMaybeHash
     )
+import Cardano.Wallet.DB.Store.Submissions.Operations
+    ( mkStoreSubmissions )
 import Cardano.Wallet.DB.WalletState
     ( DeltaMap (..)
     , DeltaWalletState
@@ -218,12 +220,14 @@ mkStoreWallet wid =
     Store{ loadS = load, writeS = write, updateS = \_ -> update }
   where
     storeCheckpoints = mkStoreCheckpoints wid
+    submissions = mkStoreSubmissions wid
 
     load = do
         eprologue <- maybe (Left $ toException ErrBadFormatAddressPrologue) Right
             <$> loadPrologue wid
         echeckpoints <- loadS storeCheckpoints
-        pure $ WalletState <$> eprologue <*> echeckpoints
+        esubmissions <- loadS submissions
+        pure $ WalletState <$> eprologue <*> echeckpoints <*> esubmissions
 
     write wallet = do
         insertPrologue wid (wallet ^. #prologue)
