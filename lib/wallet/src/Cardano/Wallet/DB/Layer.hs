@@ -106,6 +106,8 @@ import Cardano.Wallet.DB.Store.Meta.Model
     , ManipulateTxMetaHistory (..)
     , TxMetaHistory (..)
     )
+import Cardano.Wallet.DB.Store.QueryStore
+    ( QueryStore (..) )
 import Cardano.Wallet.DB.Store.Submissions.Layer
     ( mkDbPendingTxs )
 import Cardano.Wallet.DB.Store.Submissions.Operations
@@ -113,9 +115,11 @@ import Cardano.Wallet.DB.Store.Submissions.Operations
 import Cardano.Wallet.DB.Store.Transactions.Decoration
     ( TxInDecorator, decorateTxInsForReadTx, decorateTxInsForRelation )
 import Cardano.Wallet.DB.Store.Transactions.Model
-    ( TxSet (..) )
+    ( TxRelation (..) )
 import Cardano.Wallet.DB.Store.Transactions.TransactionInfo
     ( mkTransactionInfoFromRelation )
+import Cardano.Wallet.DB.Store.Wallets.Layer
+    ( QueryStoreTxWalletsHistory, QueryTxWalletsHistory (..) )
 import Cardano.Wallet.DB.Store.Wallets.Model
     ( TxWalletsHistory )
 import Cardano.Wallet.DB.Store.Wallets.Store
@@ -136,7 +140,7 @@ import Cardano.Wallet.Primitive.AddressDerivation
 import Cardano.Wallet.Primitive.Passphrase
     ( PassphraseHash )
 import Cardano.Wallet.Primitive.Slotting
-    ( TimeInterpreter, firstSlotInEpoch, interpretQuery )
+    ( TimeInterpreter, firstSlotInEpoch, hoistTimeInterpreter, interpretQuery )
 import Cardano.Wallet.Read.Eras
     ( EraValue )
 import Control.Exception
@@ -154,7 +158,7 @@ import Control.Tracer
 import Data.Coerce
     ( coerce )
 import Data.DBVar
-    ( DBVar, loadDBVar, modifyDBMaybe, readDBVar, updateDBVar )
+    ( loadDBVar, modifyDBMaybe, readDBVar, updateDBVar )
 import Data.Either
     ( isRight )
 import Data.Foldable
@@ -632,20 +636,22 @@ newDBLayerWith _cacheBehavior _tr ti SqliteContext{runQuery} = mdo
             updateDBVar transactionsDBVar . ExpandTxWalletsHistory wid
 
         , readTxHistory_ = \wid range status tip -> do
-            txHistory@(txSet,_) <- readDBVar transactionsDBVar
+            txHistory <- readDBVar transactionsDBVar
             let whichMeta DB.TxMeta{..} = and $ catMaybes
                     [ (txMetaSlot >=) <$> W.inclusiveLowerBound range
                     , (txMetaSlot <=) <$> W.inclusiveUpperBound range
                     , (txMetaStatus ==) <$> status
                     ]
             let transactions = filter whichMeta $ getTxMetas wid txHistory
-            lift $ forM transactions $ selectTransactionInfo ti tip txSet
+            lift $ forM transactions $ selectTransactionInfo ti tip
+                $ error "not implemented"
 
         , getTx_ = \wid txid tip -> do
-            txHistory@(txSet,_) <- readDBVar transactionsDBVar
+            txHistory <- readDBVar transactionsDBVar
             let transactions = lookupTxMeta wid (TxId txid) txHistory
-            lift $ forM transactions $ selectTransactionInfo ti tip txSet
-        , mkDecorator_ = mkDecorator transactionsDBVar
+            lift $ forM transactions $ selectTransactionInfo ti tip
+                $ error "not implemented"
+        , mkDecorator_ = mkDecorator $ error "not implemented"
         }
 
         {-----------------------------------------------------------------------
@@ -745,11 +751,13 @@ newDBLayerWith _cacheBehavior _tr ti SqliteContext{runQuery} = mdo
     pure $ mkDBLayerFromParts ti DBLayerCollection{..}
 
 mkDecorator
-    :: DBVar (SqlPersistT IO) DeltaTxWalletsHistory
+    :: QueryStoreTxWalletsHistory
     -> TxInDecorator (EraValue Read.Tx) (SqlPersistT IO)
-mkDecorator transactionsDBVar tx = do
-    (txSet,_) <- readDBVar transactionsDBVar
-    pure $ decorateTxInsForReadTx txSet tx
+mkDecorator transactionsQS =
+    decorateTxInsForReadTx lookupTx
+  where
+    lookupTx = queryS transactionsQS . GetByTxId
+
 
 readWalletMetadata
     :: W.WalletId
@@ -979,19 +987,20 @@ lookupTxMeta wid txid (_,wmetas) = do
 -- but the function will not attempt to look up all possible outputs.
 -- This approach typically provides enough information
 -- for /outgoing/ payments, but less so for /ingoing/ payments.
+
 selectTransactionInfo
-    :: Monad m
-    => TimeInterpreter m
+    :: (Monad m, MonadIO m)
+    => TimeInterpreter IO
     -> W.BlockHeader
-    -> TxSet
+    -> (TxId -> m (Maybe TxRelation))
     -> TxMeta
     -> m W.TransactionInfo
-selectTransactionInfo ti tip txSet meta =
+selectTransactionInfo ti tip lookupTx meta = do
     let err = error $ "Transaction not found: " <> show meta
-        transaction = fromMaybe err $
-            Map.lookup (txMetaTxId meta) (view #relations txSet)
-        decoration = decorateTxInsForRelation txSet transaction
-    in  mkTransactionInfoFromRelation ti tip transaction decoration meta
+    transaction <- fromMaybe err <$> lookupTx (txMetaTxId meta)
+    decoration <- decorateTxInsForRelation lookupTx transaction
+    mkTransactionInfoFromRelation
+        (hoistTimeInterpreter liftIO ti) tip transaction decoration meta
 
 selectPrivateKey
     :: (MonadIO m, PersistPrivateKey (k 'RootK))
