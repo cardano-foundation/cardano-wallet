@@ -387,6 +387,20 @@ RSpec.describe CardanoWallet::Shared, :all, :shared do
       end
     end
 
+    describe 'UTxOs' do
+      it 'Can see utxo' do
+        id = create_active_shared_wallet(CW.utils.mnemonic_sentence(24), '0H', 'self')
+        utxo = SHARED.wallets.utxo(id)
+        expect(utxo).to be_correct_and_respond 200
+      end
+
+      it 'Can see utxo snapshot' do
+        id = create_active_shared_wallet(CW.utils.mnemonic_sentence(24), '0H', 'self')
+        utxo = SHARED.wallets.utxo_snapshot(id)
+        expect(utxo).to be_correct_and_respond 200
+      end
+    end
+
     describe 'Addresses' do
       it 'Can list addresses on active shared wallet - from pub key' do
         m24 = CW.utils.mnemonic_sentence(24)

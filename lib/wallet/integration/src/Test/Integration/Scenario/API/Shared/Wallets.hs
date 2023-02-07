@@ -35,7 +35,9 @@ import Cardano.Wallet.Api.Types
     , ApiSharedWallet (..)
     , ApiT (..)
     , ApiTransaction
+    , ApiUtxoStatistics
     , ApiWallet
+    , ApiWalletUtxoSnapshot
     , DecodeAddress
     , DecodeStakeAddress
     , EncodeAddress (..)
@@ -76,6 +78,8 @@ import Data.Text
     ( Text )
 import Data.Text.Class
     ( ToText (..) )
+import Numeric.Natural
+    ( Natural )
 import Test.Hspec
     ( SpecWith, describe )
 import Test.Hspec.Expectations.Lifted
@@ -90,14 +94,17 @@ import Test.Integration.Framework.DSL
     , bech32Text
     , decodeErrorInfo
     , deleteSharedWallet
+    , emptySharedWallet
     , eventually
     , expectErrorMessage
     , expectField
     , expectListField
     , expectListSize
     , expectResponseCode
+    , expectWalletUTxO
     , faucetAmt
     , fixturePassphrase
+    , fixtureSharedWallet
     , fixtureWallet
     , genMnemonics
     , genXPubsBech32
@@ -127,6 +134,8 @@ import Test.Integration.Framework.TestData
     , errMsg403TemplateInvalidScript
     , errMsg403TemplateInvalidUnknownCosigner
     , errMsg403WrongIndex
+    , errMsg404NoWallet
+    , errMsg406
     )
 
 import qualified Cardano.Wallet.Api.Link as Link
@@ -1452,6 +1461,118 @@ spec = describe "SHARED_WALLETS" $ do
             , expectField (traverse . #balance . #available)
                 (`shouldBe` Quantity amt)
             ]
+
+    it "SHARED_WALLETS_UTXO_01 - \
+       \Wallet's inactivity is reflected in utxo"$ \ctx -> runResourceT $ do
+        (ApiSharedWallet (Right w)) <- emptySharedWallet ctx
+        rStat <- request @ApiUtxoStatistics ctx
+                 (Link.getUTxOsStatistics @'Shared w) Default Empty
+        expectResponseCode HTTP.status200 rStat
+        expectWalletUTxO [] (snd rStat)
+
+    it "SHARED_WALLETS_UTXO_02 - Sending and receiving funds updates \
+       \wallet's utxo." $ \ctx -> runResourceT $ do
+        wSrc <- fixtureWallet ctx
+        (ApiSharedWallet (Right wDest)) <- emptySharedWallet ctx
+
+        --send funds
+        rAddr <- request @[ApiAddress n] ctx
+            (Link.listAddresses @'Shared wDest) Default Empty
+        expectResponseCode HTTP.status200 rAddr
+        let addrs = getFromResponse Prelude.id rAddr
+        let destination = (addrs !! 1) ^. #id
+        let coins :: [Natural]
+            coins =
+                [13_000_000, 43_000_000, 66_000_000, 101_000_000, 1339_000_000]
+        let payments = flip map coins $ \c -> [json|{
+                "address": #{destination},
+                "amount": {
+                    "quantity": #{c},
+                    "unit": "lovelace"
+                }}|]
+        let payload = [json|{
+                "payments": #{payments},
+                "passphrase": "cardano-wallet"
+                }|]
+
+        rTrans <- request @(ApiTransaction n) ctx
+            (Link.createTransactionOld @'Shelley wSrc) Default (Json payload)
+        expectResponseCode HTTP.status202 rTrans
+
+        eventually "Wallet balance is as expected" $ do
+            wal <- getSharedWallet ctx (ApiSharedWallet (Right wDest))
+            let balanceExp =
+                    [ expectResponseCode HTTP.status200
+                    , expectField (traverse . #balance . #available)
+                        (`shouldBe` Quantity (fromIntegral $ sum coins))
+                    ]
+            verify (fmap (view #wallet) <$> wal) balanceExp
+
+        --verify utxo
+        rStat1 <- request @ApiUtxoStatistics ctx
+            (Link.getUTxOsStatistics @'Shared wDest) Default Empty
+        expectResponseCode HTTP.status200 rStat1
+        expectWalletUTxO coins (snd rStat1)
+
+    it "SHARED_WALLETS_UTXO_03 - Deleted wallet is not available \
+       \for utxo" $ \ctx -> runResourceT $ do
+        (ApiSharedWallet (Right w)) <- emptySharedWallet ctx
+        _ <- request @ApiWallet ctx (Link.deleteWallet @'Shared w)
+            Default Empty
+        r <- request @ApiUtxoStatistics ctx (Link.getUTxOsStatistics @'Shared w)
+            Default Empty
+        expectResponseCode HTTP.status404 r
+        expectErrorMessage (errMsg404NoWallet $ w ^. walletId) r
+
+    describe "SHARED_WALLETS_UTXO_04 - HTTP headers" $ do
+        let matrix =
+                [ ( "No HTTP headers -> 200"
+                  , None
+                  , [ expectResponseCode HTTP.status200 ] )
+                , ( "Accept: text/plain -> 406"
+                  , Headers
+                        [ ("Content-Type", "application/json")
+                        , ("Accept", "text/plain") ]
+                  , [ expectResponseCode HTTP.status406
+                    , expectErrorMessage errMsg406 ]
+                  )
+                , ( "No Accept -> 200"
+                  , Headers [ ("Content-Type", "application/json") ]
+                  , [ expectResponseCode HTTP.status200 ]
+                  )
+                , ( "No Content-Type -> 200"
+                  , Headers [ ("Accept", "application/json") ]
+                  , [ expectResponseCode HTTP.status200 ]
+                  )
+                , ( "Content-Type: text/plain -> 200"
+                  , Headers [ ("Content-Type", "text/plain") ]
+                  , [ expectResponseCode HTTP.status200 ]
+                  )
+                ]
+        forM_ matrix $ \(title, headers, expectations) -> it title $ \ctx -> runResourceT $ do
+            (ApiSharedWallet (Right w)) <- emptySharedWallet ctx
+            r <- request @ApiUtxoStatistics ctx (Link.getUTxOsStatistics @'Shared w) headers Empty
+            verify r expectations
+
+    it "SHARED_WALLETS_UTXO_SNAPSHOT_01 - \
+        \Can generate UTxO snapshot of empty wallet" $
+        \ctx -> runResourceT $ do
+            (ApiSharedWallet (Right w)) <- emptySharedWallet ctx
+            rSnap <- request @ApiWalletUtxoSnapshot ctx
+                (Link.getWalletUtxoSnapshot @'Shared w) Default Empty
+            expectResponseCode HTTP.status200 rSnap
+            expectField #entries (`shouldBe` []) rSnap
+
+    it "SHARED_WALLETS_UTXO_SNAPSHOT_02 - \
+        \Can generate UTxO snapshot of pure-ada wallet" $
+        \ctx -> runResourceT $ do
+            w <- fixtureSharedWallet @n ctx
+            rSnap <- request @ApiWalletUtxoSnapshot ctx
+                (Link.getWalletUtxoSnapshot @'Shared w) Default Empty
+            expectResponseCode HTTP.status200 rSnap
+            let entries = getFromResponse #entries rSnap
+            length entries `shouldBe` 1
+
   where
      acctHrp = [Bech32.humanReadablePart|acct_shared_xvk|]
      getAccountWallet name = do

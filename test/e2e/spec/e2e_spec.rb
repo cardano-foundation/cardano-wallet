@@ -10,10 +10,10 @@ RSpec.describe 'Cardano Wallet E2E tests', :all, :e2e do
     @wid_rnd = create_fixture_wallet(:random)
     @wid_ic = create_fixture_wallet(:icarus)
 
-    @nighly_byron_wallets = [@wid_rnd, @wid_ic]
+    @nightly_byron_wallets = [@wid_rnd, @wid_ic]
     @nightly_shelley_wallets = [@wid, @target_id]
     wait_for_all_shelley_wallets(@nightly_shelley_wallets)
-    wait_for_all_byron_wallets(@nighly_byron_wallets)
+    wait_for_all_byron_wallets(@nightly_byron_wallets)
   end
 
   after(:each) do
@@ -2200,6 +2200,17 @@ RSpec.describe 'Cardano Wallet E2E tests', :all, :e2e do
   end
 
   describe 'E2E Shelley' do
+    describe 'UTxOs' do
+      it 'Fixture shelley wallet has utxos' do
+        utxo_stats = SHELLEY.wallets.utxo(@wid)
+        expect(utxo_stats).to be_correct_and_respond 200
+
+        utxo_snap = SHELLEY.wallets.utxo_snapshot(@wid)
+        expect(utxo_snap).to be_correct_and_respond 200
+        expect(utxo_snap['entries'].size).to be > 0
+      end
+    end
+
     describe 'Native Assets' do
       it 'I can list native assets' do
         assets = SHELLEY.assets.get @wid
@@ -3027,6 +3038,18 @@ RSpec.describe 'Cardano Wallet E2E tests', :all, :e2e do
       tx_certificates(txt, present: false)
     end
 
+    describe 'UTxOs' do
+      it 'Fixture shared wallets have utxos' do
+        @nightly_byron_wallets.each do |wid|
+          utxo_stats = BYRON.wallets.utxo(wid)
+          expect(utxo_stats).to be_correct_and_respond 200
+
+          utxo_snap = BYRON.wallets.utxo_snapshot(wid)
+          expect(utxo_snap).to be_correct_and_respond 200
+          expect(utxo_snap['entries'].size).to be > 0
+        end
+      end
+    end
     describe 'Byron Transactions' do
       it 'I can estimate fees (min_utxo_value), random' do
         test_byron_fees(@wid_rnd)

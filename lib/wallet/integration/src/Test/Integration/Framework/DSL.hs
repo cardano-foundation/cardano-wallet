@@ -84,6 +84,9 @@ module Test.Integration.Framework.DSL
     , emptyWalletAndMnemonicWith
     , emptyByronWalletFromXPrvWith
     , rewardWallet
+    , emptySharedWallet
+    , fundSharedWallet
+    , fixtureSharedWallet
     , postSharedWallet
     , deleteSharedWallet
     , getSharedWallet
@@ -256,7 +259,7 @@ import Cardano.Wallet.Api.Types
     , ApiByronWallet
     , ApiCoinSelection
     , ApiEra (..)
-    , ApiFee
+    , ApiFee (..)
     , ApiMaintenanceAction (..)
     , ApiNetworkInformation
     , ApiNetworkParameters (..)
@@ -372,6 +375,8 @@ import Data.Aeson.QQ
     ( aesonQQ )
 import Data.ByteString
     ( ByteString )
+import Data.Either.Combinators
+    ( swapEither )
 import Data.Either.Extra
     ( eitherToMaybe )
 import Data.Foldable
@@ -1623,6 +1628,108 @@ fixtureMultiAssetIcarusWallet ctx = do
                 (`shouldNotBe` TokenMap.empty)
             ]
         return (getFromResponse id rb)
+
+emptySharedWallet
+    :: forall m. MonadUnliftIO m
+    => Context
+    -> ResourceT m ApiSharedWallet
+emptySharedWallet ctx = do
+   m15txt <- liftIO $ genMnemonics M15
+   m12txt <- liftIO $ genMnemonics M12
+   let (Right m15) = mkSomeMnemonic @'[ 15 ] m15txt
+   let (Right m12) = mkSomeMnemonic @'[ 12 ] m12txt
+   let passphrase = Passphrase $
+           BA.convert $ T.encodeUtf8 fixturePassphrase
+   let index = 30
+   let accXPubDerived =
+           sharedAccPubKeyFromMnemonics m15 (Just m12) index passphrase
+   let payload = Json [aesonQQ| {
+           "name": "Shared Wallet",
+           "mnemonic_sentence": #{m15txt},
+           "mnemonic_second_factor": #{m12txt},
+           "passphrase": #{fixturePassphrase},
+           "account_index": "30H",
+           "payment_script_template":
+               { "cosigners":
+                   { "cosigner#0": #{accXPubDerived} },
+                 "template":
+                     { "all":
+                        [ "cosigner#0" ]
+                     }
+               }
+           } |]
+   rPost <- postSharedWallet ctx Default payload
+   verify (fmap (swapEither . view #wallet) <$> rPost)
+       [ expectResponseCode HTTP.status201
+       ]
+   pure $ getFromResponse Prelude.id rPost
+
+fundSharedWallet
+    :: forall (n :: NetworkDiscriminant) m.
+    ( MonadUnliftIO m
+    , DecodeStakeAddress n
+    , DecodeAddress n
+    , EncodeAddress n )
+    => Context
+    -> Natural
+    -> NonEmpty ApiSharedWallet
+    -> ResourceT m ()
+fundSharedWallet ctx amt sharedWals = do
+   let wal = case NE.head sharedWals of
+           ApiSharedWallet (Right wal') -> wal'
+           _ -> error
+               "funding of shared wallet make sense only for active one"
+
+   rAddr <- request @[ApiAddress n] ctx
+       (Link.listAddresses @'Shared wal) Default Empty
+   expectResponseCode HTTP.status200 rAddr
+   let sharedAddrs = getFromResponse Prelude.id rAddr
+   let destination = (sharedAddrs !! 1) ^. #id
+
+   wShelley <- fixtureWallet ctx
+   let payloadTx = Json [aesonQQ|{
+           "payments": [{
+               "address": #{destination},
+               "amount": {
+                   "quantity": #{amt},
+                   "unit": "lovelace"
+               }
+           }],
+           "passphrase": #{fixturePassphrase}
+       }|]
+   (_, ApiFee (Quantity _) (Quantity feeMax) _ _) <- unsafeRequest ctx
+       (Link.getTransactionFeeOld @'Shelley wShelley) payloadTx
+   let ep = Link.createTransactionOld @'Shelley
+   rTx <- request @(ApiTransaction n) ctx (ep wShelley) Default payloadTx
+   expectResponseCode HTTP.status202 rTx
+   eventually "wShelley balance is decreased" $ do
+       ra <- request @ApiWallet ctx
+           (Link.getWallet @'Shelley wShelley) Default Empty
+       expectField
+           (#balance . #available)
+           (`shouldBe` Quantity (faucetAmt - feeMax - amt)) ra
+
+   forM_ sharedWals $ \walShared -> do
+       rWal <- getSharedWallet ctx walShared
+       verify (fmap (view #wallet) <$> rWal)
+           [ expectResponseCode HTTP.status200
+           , expectField (traverse . #balance . #available)
+               (`shouldBe` Quantity amt)
+           ]
+
+fixtureSharedWallet
+    :: forall (n :: NetworkDiscriminant) m.
+    ( MonadUnliftIO m
+    , MonadFail m
+    , DecodeStakeAddress n
+    , DecodeAddress n
+    , EncodeAddress n )
+    => Context
+    -> ResourceT m ApiActiveSharedWallet
+fixtureSharedWallet ctx = do
+   walShared@(ApiSharedWallet (Right wal)) <- emptySharedWallet ctx
+   fundSharedWallet @n ctx faucetUtxoAmt (NE.fromList [walShared])
+   return wal
 
 postSharedWallet
     :: MonadUnliftIO m
