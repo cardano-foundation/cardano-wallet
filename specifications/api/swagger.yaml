@@ -6264,7 +6264,7 @@ paths:
       description: |
         <p align="right">status: <strong>stable</strong></p>
 
-        Return the UTxOs distribution across the whole wallet, in the form of a histogram.
+        Return the UTxO distribution across the whole wallet, in the form of a histogram.
 
         ```
              │

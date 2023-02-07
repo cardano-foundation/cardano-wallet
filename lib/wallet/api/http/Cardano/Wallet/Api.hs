@@ -138,6 +138,7 @@ module Cardano.Wallet.Api
         , PatchSharedWalletInDelegation
         , DeleteSharedWallet
         , GetUTxOsStatisticsShared
+        , GetSharedWalletUtxoSnapshot
 
     , SharedWalletKeys
         , GetSharedWalletKey
@@ -1024,6 +1025,7 @@ type SharedWallets =
     :<|> PatchSharedWalletInDelegation
     :<|> DeleteSharedWallet
     :<|> GetUTxOsStatisticsShared
+    :<|> GetSharedWalletUtxoSnapshot
 
 -- | https://input-output-hk.github.io/cardano-wallet/api/#operation/postSharedWallet
 type PostSharedWallet = "shared-wallets"
@@ -1064,6 +1066,12 @@ type GetUTxOsStatisticsShared = "shared-wallets"
     :> "statistics"
     :> "utxos"
     :> Get '[JSON] ApiUtxoStatistics
+
+-- | https://input-output-hk.github.io/cardano-wallet/api/#operation/getSharedWalletUtxoSnapshot
+type GetSharedWalletUtxoSnapshot = "shared-wallets"
+    :> Capture "walletId" (ApiT WalletId)
+    :> "utxo"
+    :> Get '[JSON] ApiWalletUtxoSnapshot
 
 {-------------------------------------------------------------------------------
                                   Shared Wallet Keys
