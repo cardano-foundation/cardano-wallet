@@ -6264,7 +6264,7 @@ paths:
       description: |
         <p align="right">status: <strong>stable</strong></p>
 
-        Return the UTxOs distribution across the whole wallet, in the form of a histogram.
+        Return the UTxO distribution across the whole wallet, in the form of a histogram.
 
         ```
              │
@@ -6980,7 +6980,7 @@ paths:
       description: |
         <p align="right">status: <strong>stable</strong></p>
 
-        Return the UTxOs distribution across the whole wallet, in the form of a histogram.
+        Return the UTxO distribution across the whole wallet, in the form of a histogram.
 
         ```
              │
@@ -7543,6 +7543,47 @@ paths:
       parameters:
         - *parametersWalletId
       responses: *responsesDeleteWallet
+
+  /shared-wallets/{walletId}/statistics/utxos:
+    get:
+      operationId: getUTxOsStatisticsShared
+      tags: ["Shared Wallets"]
+      summary: UTxO Statistics
+      description: |
+        <p align="right">status: <strong>stable</strong></p>
+
+        Return the UTxO distribution across the whole wallet, in the form of a histogram.
+
+        ```
+             │
+         100 ─
+             │
+             │                                 ┌───┐
+          10 ─                         ┌───┐   │   │                   ┌───┐
+             │                 ┌───┐   │   │   │   │                   │   │
+             │                 │   │   │   │   │   │   ┌───┐           │   │
+           1 ─ ┌───┐           │   │   │   │   │   │   │   │           │   │
+             │ │   │           │   │   │   │   │   │   │   │           │   │
+             │ │   │ │       │ │   │ │ │   │ ╷ │   │ ╷ │   │ ╷       ╷ │   │
+             └─┘   └─│───────│─┘   └─│─┘   └─│─┘   └─│─┘   └─│───────│─┘   └────
+                   10μ₳    100μ₳   1000μ₳   0.1₳    1₳      10₳     100₳
+        ```
+      parameters:
+        - *parametersWalletId
+      responses: *responsesGetUTxOsStatistics
+
+  /shared-wallets/{walletId}/utxo:
+    get:
+      operationId: getSharedWalletUtxoSnapshot
+      tags: ["Shared Wallets"]
+      summary: A snapshot of the wallet's UTxO set
+      description: |
+        Generate a snapshot of the wallet's UTxO set.
+
+        This endpoint is intended for debugging purposes.
+      parameters:
+        - *parametersWalletId
+      responses: *responsesGetWalletUtxoSnapshot
 
   /shared-wallets/{walletId}/payment-script-template:
     patch:
