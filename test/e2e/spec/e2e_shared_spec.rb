@@ -32,6 +32,19 @@ RSpec.describe 'Cardano Wallet E2E tests - Shared wallets', :all, :e2e, :shared 
   end
 
   describe 'E2E Shared' do
+    describe 'UTxOs' do
+      it 'Fixture shared wallets have utxos' do
+        @nightly_shared_wallets.each do |wid|
+          utxo_stats = SHARED.wallets.utxo(wid)
+          expect(utxo_stats).to be_correct_and_respond 200
+
+          utxo_snap = SHARED.wallets.utxo_snapshot(wid)
+          expect(utxo_snap).to be_correct_and_respond 200
+          expect(utxo_snap['entries'].size).to be > 0
+        end
+      end
+    end
+
     describe 'E2E Construct -> Sign -> Submit - multi signers' do
       it 'Cannot submit if partially signed - one cosigner, all' do
         amt = MIN_UTXO_VALUE_PURE_ADA * 2
