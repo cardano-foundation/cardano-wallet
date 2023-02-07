@@ -102,10 +102,7 @@ import Cardano.Wallet.DB.Sqlite.Types
 import Cardano.Wallet.DB.Store.Checkpoints
     ( PersistAddressBook (..), blockHeaderFromEntity, mkStoreWallets )
 import Cardano.Wallet.DB.Store.Meta.Model
-    ( DeltaTxMetaHistory (..)
-    , ManipulateTxMetaHistory (..)
-    , TxMetaHistory (..)
-    )
+    ( DeltaTxMetaHistory (..), ManipulateTxMetaHistory (..) )
 import Cardano.Wallet.DB.Store.QueryStore
     ( QueryStore (..) )
 import Cardano.Wallet.DB.Store.Submissions.Layer
@@ -115,15 +112,16 @@ import Cardano.Wallet.DB.Store.Submissions.Operations
 import Cardano.Wallet.DB.Store.Transactions.Decoration
     ( TxInDecorator, decorateTxInsForReadTx, decorateTxInsForRelation )
 import Cardano.Wallet.DB.Store.Transactions.Model
-    ( TxRelation (..) )
+    ( TxRelation )
 import Cardano.Wallet.DB.Store.Transactions.TransactionInfo
     ( mkTransactionInfoFromRelation )
 import Cardano.Wallet.DB.Store.Wallets.Layer
-    ( QueryStoreTxWalletsHistory, QueryTxWalletsHistory (..) )
-import Cardano.Wallet.DB.Store.Wallets.Model
-    ( TxWalletsHistory )
+    ( QueryStoreTxWalletsHistory
+    , QueryTxWalletsHistory (..)
+    , newQueryStoreTxWalletsHistory
+    )
 import Cardano.Wallet.DB.Store.Wallets.Store
-    ( DeltaTxWalletsHistory (..), mkStoreTxWalletsHistory )
+    ( DeltaTxWalletsHistory (..) )
 import Cardano.Wallet.DB.WalletState
     ( DeltaMap (..)
     , DeltaWalletState1 (..)
@@ -146,7 +144,7 @@ import Cardano.Wallet.Read.Eras
 import Control.Exception
     ( throw )
 import Control.Monad
-    ( forM, unless, void, when, (<=<) )
+    ( forM, unless, when, (<=<) )
 import Control.Monad.IO.Class
     ( MonadIO (..) )
 import Control.Monad.Trans
@@ -158,15 +156,13 @@ import Control.Tracer
 import Data.Coerce
     ( coerce )
 import Data.DBVar
-    ( loadDBVar, modifyDBMaybe, readDBVar, updateDBVar )
+    ( Store (..), loadDBVar, modifyDBMaybe, readDBVar, updateDBVar )
 import Data.Either
     ( isRight )
-import Data.Foldable
-    ( toList )
 import Data.Generics.Internal.VL.Lens
     ( view, (^.) )
 import Data.Maybe
-    ( catMaybes, fromMaybe, isJust, maybeToList )
+    ( catMaybes, fromMaybe, isJust )
 import Data.Proxy
     ( Proxy (..) )
 import Data.Quantity
@@ -512,7 +508,7 @@ newDBLayerWith _cacheBehavior _tr ti SqliteContext{runQuery} = mdo
     -- FIXME LATER during ADP-1043:
     --   Handle the case where loading the database fails.
     walletsDB <- runQuery $ loadDBVar mkStoreWallets
-    transactionsDBVar <- runQuery $ loadDBVar mkStoreTxWalletsHistory
+    transactionsQS <- runQuery newQueryStoreTxWalletsHistory
 
     -- NOTE
     -- The cache will not work properly unless 'atomically' is protected by a
@@ -569,9 +565,8 @@ newDBLayerWith _cacheBehavior _tr ti SqliteContext{runQuery} = mdo
                     insert_ (mkWalletEntity wid meta gp)
                 when (isRight res) $ do
                     insertCheckpointGenesis wid cp
-                    void $ modifyDBMaybe transactionsDBVar $ \(_txsOld, _ws) ->
-                        let delta = Just $ ExpandTxWalletsHistory wid txs
-                        in  (delta, Right ())
+                    updateS (store transactionsQS) undefined $
+                        ExpandTxWalletsHistory wid txs
                     emptyTxSubmissions_ dbPendingTxs wid
                 pure res
 
@@ -584,14 +579,11 @@ newDBLayerWith _cacheBehavior _tr ti SqliteContext{runQuery} = mdo
                     Just _  -> Right <$> do
                         deleteWhere [WalId ==. wid]
                         deleteCheckpoints wid
-            ExceptT $ modifyDBMaybe transactionsDBVar $ \_ ->
-                        let
-                            delta = Just $ RemoveWallet wid
-                        in  (delta, Right ())
-            ExceptT $ modifyDBMaybe transactionsDBVar $ \_ ->
-                        let
-                            delta = Just GarbageCollectTxWalletsHistory
-                        in  (delta, Right ())
+
+                        updateS (store transactionsQS) undefined
+                            $ RemoveWallet wid
+                        updateS (store transactionsQS) undefined
+                            GarbageCollectTxWalletsHistory
 
         , listWallets_ = map unWalletKey <$> selectKeysList [] [Asc WalId]
 
@@ -633,25 +625,26 @@ newDBLayerWith _cacheBehavior _tr ti SqliteContext{runQuery} = mdo
     let
       dbTxHistory = DBTxHistory
         { putTxHistory_ = \wid ->
-            updateDBVar transactionsDBVar . ExpandTxWalletsHistory wid
+            updateS (store transactionsQS) undefined
+                . ExpandTxWalletsHistory wid
 
         , readTxHistory_ = \wid range status tip -> do
-            txHistory <- readDBVar transactionsDBVar
+            allTransactions <- queryS transactionsQS $ All wid
             let whichMeta DB.TxMeta{..} = and $ catMaybes
                     [ (txMetaSlot >=) <$> W.inclusiveLowerBound range
                     , (txMetaSlot <=) <$> W.inclusiveUpperBound range
                     , (txMetaStatus ==) <$> status
                     ]
-            let transactions = filter whichMeta $ getTxMetas wid txHistory
-            lift $ forM transactions $ selectTransactionInfo ti tip
-                $ error "not implemented"
+                transactions = filter whichMeta allTransactions
+                lookupTx = queryS transactionsQS . GetByTxId
+            forM transactions $ selectTransactionInfo ti tip lookupTx
 
         , getTx_ = \wid txid tip -> do
-            txHistory <- readDBVar transactionsDBVar
-            let transactions = lookupTxMeta wid (TxId txid) txHistory
-            lift $ forM transactions $ selectTransactionInfo ti tip
-                $ error "not implemented"
-        , mkDecorator_ = mkDecorator $ error "not implemented"
+            transactions <- queryS transactionsQS $ One wid (TxId txid)
+            let lookupTx = queryS transactionsQS . GetByTxId
+            forM transactions $ selectTransactionInfo ti tip lookupTx
+
+        , mkDecorator_ = mkDecorator transactionsQS
         }
 
         {-----------------------------------------------------------------------
@@ -694,13 +687,10 @@ newDBLayerWith _cacheBehavior _tr ti SqliteContext{runQuery} = mdo
                     lift $ deleteStakeKeyCerts wid
                         [ StakeKeyCertSlot >. nearestPoint
                         ]
-                    ExceptT $ modifyDBMaybe transactionsDBVar $ \_ ->
-                        let
-                            delta = Just
-                                $ ChangeTxMetaWalletsHistory wid
-                                $ Manipulate
-                                $ RollBackTxMetaHistory nearestPoint
-                        in  (delta, Right ())
+                    lift $ updateS (store transactionsQS) undefined
+                        $ ChangeTxMetaWalletsHistory wid
+                        $ Manipulate
+                        $ RollBackTxMetaHistory nearestPoint
                     lift $ rollBackSubmissions_ dbPendingTxs wid nearestPoint
                     pure
                         $ W.chainPointFromBlockHeader
@@ -713,8 +703,8 @@ newDBLayerWith _cacheBehavior _tr ti SqliteContext{runQuery} = mdo
                     Just cp -> Right <$> do
                         let tip = cp ^. #currentTip
                         pruneCheckpoints wid epochStability tip
-            lift $ modifyDBMaybe transactionsDBVar $ \_ ->
-                (Just GarbageCollectTxWalletsHistory, ())
+            lift $ updateS (store transactionsQS) undefined
+                GarbageCollectTxWalletsHistory
             lift $ pruneByFinality_ dbPendingTxs wid finalitySlot
 
         {-----------------------------------------------------------------------
@@ -757,7 +747,6 @@ mkDecorator transactionsQS =
     decorateTxInsForReadTx lookupTx
   where
     lookupTx = queryS transactionsQS . GetByTxId
-
 
 readWalletMetadata
     :: W.WalletId
@@ -953,31 +942,11 @@ deleteDelegationCertificates
 deleteDelegationCertificates wid filters = do
     deleteWhere ((CertWalletId ==. wid) : filters)
 
--- | Get all 'TxMeta' for a given wallet.
--- Returns empty list if the wallet does not exist.
-getTxMetas
-    :: W.WalletId
-    -> TxWalletsHistory
-    -> [DB.TxMeta]
-getTxMetas wid (_,wmetas) = do
-    TxMetaHistory metas <- maybeToList $ Map.lookup wid wmetas
-    toList metas
-
--- | Lookup 'TxMeta' for a given wallet and 'TxId'.
--- Returns 'Nothing' if the wallet or the transaction id do not exist.
-lookupTxMeta
-    :: W.WalletId
-    -> TxId
-    -> TxWalletsHistory
-    -> Maybe DB.TxMeta
-lookupTxMeta wid txid (_,wmetas) = do
-    TxMetaHistory metas <- Map.lookup wid wmetas
-    Map.lookup txid metas
-
 -- | For a given 'TxMeta', read all necessary data to construct
 -- the corresponding 'W.TransactionInfo'.
 --
--- Assumption: The 'TxMeta' is contained in the given 'TxSet'.
+-- Assumption: The 'TxMeta' has a result when applying the given
+-- lookup function.
 --
 -- Note: Transaction inputs are references to the outputs of
 -- previous transactions. Given any input, the Ada quantity and
