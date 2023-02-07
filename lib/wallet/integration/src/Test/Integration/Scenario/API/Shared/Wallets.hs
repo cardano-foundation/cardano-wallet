@@ -37,6 +37,7 @@ import Cardano.Wallet.Api.Types
     , ApiTransaction
     , ApiUtxoStatistics
     , ApiWallet
+    , ApiWalletUtxoSnapshot
     , DecodeAddress
     , DecodeStakeAddress
     , EncodeAddress (..)
@@ -103,6 +104,7 @@ import Test.Integration.Framework.DSL
     , expectWalletUTxO
     , faucetAmt
     , fixturePassphrase
+    , fixtureSharedWallet
     , fixtureWallet
     , genMnemonics
     , genXPubsBech32
@@ -1551,6 +1553,25 @@ spec = describe "SHARED_WALLETS" $ do
             (ApiSharedWallet (Right w)) <- emptySharedWallet ctx
             r <- request @ApiUtxoStatistics ctx (Link.getUTxOsStatistics @'Shared w) headers Empty
             verify r expectations
+
+    it "SHARED_WALLETS_UTXO_SNAPSHOT_01 - \
+        \Can generate UTxO snapshot of empty wallet" $
+        \ctx -> runResourceT $ do
+            (ApiSharedWallet (Right w)) <- emptySharedWallet ctx
+            rSnap <- request @ApiWalletUtxoSnapshot ctx
+                (Link.getWalletUtxoSnapshot @'Shared w) Default Empty
+            expectResponseCode HTTP.status200 rSnap
+            expectField #entries (`shouldBe` []) rSnap
+
+    it "SHARED_WALLETS_UTXO_SNAPSHOT_02 - \
+        \Can generate UTxO snapshot of pure-ada wallet" $
+        \ctx -> runResourceT $ do
+            w <- fixtureSharedWallet @n ctx
+            rSnap <- request @ApiWalletUtxoSnapshot ctx
+                (Link.getWalletUtxoSnapshot @'Shared w) Default Empty
+            expectResponseCode HTTP.status200 rSnap
+            let entries = getFromResponse #entries rSnap
+            length entries `shouldBe` 1
 
   where
      acctHrp = [Bech32.humanReadablePart|acct_shared_xvk|]

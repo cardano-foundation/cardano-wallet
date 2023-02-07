@@ -28,7 +28,6 @@ import Cardano.Wallet.Api.Types
     ( ApiAddress
     , ApiConstructTransaction (..)
     , ApiDecodedTransaction (..)
-    , ApiFee (..)
     , ApiScriptTemplate (..)
     , ApiSerialisedTransaction (..)
     , ApiSharedWallet (..)
@@ -122,10 +121,10 @@ import Test.Integration.Framework.DSL
     , expectListSize
     , expectResponseCode
     , expectSuccess
-    , faucetAmt
     , faucetUtxoAmt
     , fixturePassphrase
-    , fixtureWallet
+    , fixtureSharedWallet
+    , fundSharedWallet
     , genMnemonics
     , getFromResponse
     , getSharedWallet
@@ -140,7 +139,6 @@ import Test.Integration.Framework.DSL
     , submitSharedTxWithWid
     , toQueryString
     , unsafeGetTransactionTime
-    , unsafeRequest
     , utcIso8601ToText
     , verify
     , walletId
@@ -273,7 +271,7 @@ spec = describe "SHARED_TRANSACTIONS" $ do
             ]
 
         let amt = 10 * minUTxOValue (_mainEra ctx)
-        fundSharedWallet ctx amt (NE.fromList [walShared])
+        fundSharedWallet @n ctx amt (NE.fromList [walShared])
 
         rTx2 <- request @(ApiConstructTransaction n) ctx
             (Link.createUnsignedTransaction @'Shared wal) Default metadata
@@ -383,7 +381,7 @@ spec = describe "SHARED_TRANSACTIONS" $ do
         let metadata = Json [json|{ "metadata": { "1": "hello"  } }|]
 
         let amt = 10 * minUTxOValue (_mainEra ctx)
-        fundSharedWallet ctx amt (NE.fromList [walShared])
+        fundSharedWallet @n ctx amt (NE.fromList [walShared])
 
         rTx <- request @(ApiConstructTransaction n) ctx
             (Link.createUnsignedTransaction @'Shared wal) Default metadata
@@ -498,7 +496,7 @@ spec = describe "SHARED_TRANSACTIONS" $ do
         \Empty payload is not allowed" $
         \ctx -> runResourceT $ do
 
-        wa <- fixtureSharedWallet ctx
+        wa <- fixtureSharedWallet @n ctx
         let emptyPayload = Json [json|{}|]
 
         rTx <- request @(ApiConstructTransaction n) ctx
@@ -512,7 +510,7 @@ spec = describe "SHARED_TRANSACTIONS" $ do
         \Validity interval only is not allowed" $
         \ctx -> runResourceT $ do
 
-        wa <- fixtureSharedWallet ctx
+        wa <- fixtureSharedWallet @n ctx
         let validityInterval = Json [json|
                 { "validity_interval":
                     { "invalid_before":
@@ -538,7 +536,7 @@ spec = describe "SHARED_TRANSACTIONS" $ do
         \Single Output Transaction with decode transaction - single party" $
         \ctx -> runResourceT $ do
 
-        wa <- fixtureSharedWallet ctx
+        wa <- fixtureSharedWallet @n ctx
         wb <- emptyWallet ctx
         let amt = (minUTxOValue (_mainEra ctx) :: Natural)
 
@@ -669,7 +667,7 @@ spec = describe "SHARED_TRANSACTIONS" $ do
         \Cannot spend less than minUTxOValue" $
         \ctx -> runResourceT $ do
 
-        wa <- fixtureSharedWallet ctx
+        wa <- fixtureSharedWallet @n ctx
         wb <- emptyWallet ctx
         let amt = minUTxOValue (_mainEra ctx) - 1
 
@@ -686,7 +684,7 @@ spec = describe "SHARED_TRANSACTIONS" $ do
         \Can't cover fee" $
         \ctx -> runResourceT $ do
 
-        wa <- fixtureSharedWallet ctx
+        wa <- fixtureSharedWallet @n ctx
         wb <- emptyWallet ctx
 
         payload <- liftIO $ mkTxPayload ctx wb faucetUtxoAmt
@@ -702,7 +700,7 @@ spec = describe "SHARED_TRANSACTIONS" $ do
         \Multiple Output Tx to single wallet"
         $ \ctx -> runResourceT $ do
 
-        wa <- fixtureSharedWallet ctx
+        wa <- fixtureSharedWallet @n ctx
         wb <- emptyWallet ctx
         addrs <- listAddresses @n ctx wb
         let amt = minUTxOValue (_mainEra ctx) :: Natural
@@ -982,7 +980,7 @@ spec = describe "SHARED_TRANSACTIONS" $ do
         \Can list Incoming and Outgoing transactions" $
         \ctx -> runResourceT $ do
 
-        (wSrc, wDest) <- (,) <$> fixtureSharedWallet ctx <*> emptyWallet ctx
+        (wSrc, wDest) <- (,) <$> fixtureSharedWallet @n ctx <*> emptyWallet ctx
         addrs <- listAddresses @n ctx wDest
 
         let amt = minUTxOValue (_mainEra ctx) :: Natural
@@ -1052,7 +1050,7 @@ spec = describe "SHARED_TRANSACTIONS" $ do
         let amt1 = minUTxOValue (_mainEra ctx)
         let amt2 = 2 * amt1
         (wSrc, wDest@(ApiSharedWallet (Right walDest))) <-
-            (,) <$> fixtureSharedWallet ctx <*> emptySharedWallet ctx
+            (,) <$> fixtureSharedWallet @n ctx <*> emptySharedWallet ctx
 
         -- destination wallet
         rAddr <- request @[ApiAddress n] ctx
@@ -1476,7 +1474,7 @@ spec = describe "SHARED_TRANSACTIONS" $ do
         \ctx -> runResourceT $ do
 
         (wSrc, (ApiSharedWallet (Right walDest))) <-
-            (,) <$> fixtureSharedWallet ctx <*> emptySharedWallet ctx
+            (,) <$> fixtureSharedWallet @n ctx <*> emptySharedWallet ctx
         -- post tx
         let amt = minUTxOValue (_mainEra ctx) :: Natural
         rAddr <- request @[ApiAddress n] ctx
@@ -1565,7 +1563,7 @@ spec = describe "SHARED_TRANSACTIONS" $ do
         \ctx -> runResourceT $ do
 
         (wSrc, (ApiSharedWallet (Right walDest))) <-
-            (,) <$> fixtureSharedWallet ctx <*> emptySharedWallet ctx
+            (,) <$> fixtureSharedWallet @n ctx <*> emptySharedWallet ctx
         -- post tx
         let amt = minUTxOValue (_mainEra ctx) :: Natural
         rAddr <- request @[ApiAddress n] ctx
@@ -1632,7 +1630,7 @@ spec = describe "SHARED_TRANSACTIONS" $ do
 
      fixtureSharedWalletWith ctx amt = do
         (wSrc, wDest@(ApiSharedWallet (Right walDest))) <-
-            (,) <$> fixtureSharedWallet ctx <*> emptySharedWallet ctx
+            (,) <$> fixtureSharedWallet @n ctx <*> emptySharedWallet ctx
 
         -- destination wallet
         rAddr <- request @[ApiAddress n] ctx
@@ -1678,54 +1676,6 @@ spec = describe "SHARED_TRANSACTIONS" $ do
         verify submittedTx
             [ expectResponseCode HTTP.status202
             ]
-
-     fundSharedWallet ctx amt sharedWals = do
-        let wal = case NE.head sharedWals of
-                ApiSharedWallet (Right wal') -> wal'
-                _ -> error
-                    "funding of shared wallet make sense only for active one"
-
-        rAddr <- request @[ApiAddress n] ctx
-            (Link.listAddresses @'Shared wal) Default Empty
-        expectResponseCode HTTP.status200 rAddr
-        let sharedAddrs = getFromResponse Prelude.id rAddr
-        let destination = (sharedAddrs !! 1) ^. #id
-
-        wShelley <- fixtureWallet ctx
-        let payloadTx = Json [json|{
-                "payments": [{
-                    "address": #{destination},
-                    "amount": {
-                        "quantity": #{amt},
-                        "unit": "lovelace"
-                    }
-                }],
-                "passphrase": #{fixturePassphrase}
-            }|]
-        (_, ApiFee (Quantity _) (Quantity feeMax) _ _) <- unsafeRequest ctx
-            (Link.getTransactionFeeOld @'Shelley wShelley) payloadTx
-        let ep = Link.createTransactionOld @'Shelley
-        rTx <- request @(ApiTransaction n) ctx (ep wShelley) Default payloadTx
-        expectResponseCode HTTP.status202 rTx
-        eventually "wShelley balance is decreased" $ do
-            ra <- request @ApiWallet ctx
-                (Link.getWallet @'Shelley wShelley) Default Empty
-            expectField
-                (#balance . #available)
-                (`shouldBe` Quantity (faucetAmt - feeMax - amt)) ra
-
-        forM_ sharedWals $ \walShared -> do
-            rWal <- getSharedWallet ctx walShared
-            verify (fmap (view #wallet) <$> rWal)
-                [ expectResponseCode HTTP.status200
-                , expectField (traverse . #balance . #available)
-                    (`shouldBe` Quantity amt)
-                ]
-
-     fixtureSharedWallet ctx = do
-        walShared@(ApiSharedWallet (Right wal)) <- emptySharedWallet ctx
-        fundSharedWallet ctx faucetUtxoAmt (NE.fromList [walShared])
-        return wal
 
      fixtureTwoPartySharedWallet ctx = do
 
@@ -1782,7 +1732,7 @@ spec = describe "SHARED_TRANSACTIONS" $ do
         let walShared2@(ApiSharedWallet (Right walB)) =
                 getFromResponse Prelude.id rPostB
 
-        fundSharedWallet
+        fundSharedWallet @n
             ctx faucetUtxoAmt (NE.fromList [walShared1, walShared2])
 
         return (walA, walB)
@@ -1869,7 +1819,7 @@ spec = describe "SHARED_TRANSACTIONS" $ do
         let walShared2@(ApiSharedWallet (Right walB)) =
                 getFromResponse Prelude.id rPatchB
 
-        fundSharedWallet ctx faucetUtxoAmt
+        fundSharedWallet @n ctx faucetUtxoAmt
             (NE.fromList [walShared1, walShared2])
 
         return
@@ -1951,7 +1901,7 @@ spec = describe "SHARED_TRANSACTIONS" $ do
         let walShared3@(ApiSharedWallet (Right walC)) =
                 getFromResponse Prelude.id rPostC
 
-        fundSharedWallet ctx faucetUtxoAmt
+        fundSharedWallet @n ctx faucetUtxoAmt
             (NE.fromList [walShared1, walShared2, walShared3])
 
         return (walA, walB, walC)
