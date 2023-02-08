@@ -418,6 +418,11 @@ instance IsServerError ErrConstructTx where
             , "'PATCH /shared-wallets/{walletId}/delegation-script-template'"
             , "to make it suitable for constructing transactions."
             ]
+        ErrConstructTxStakingInvalid ->
+            apiError err403 StakingInvalid $ T.unwords
+            [ "I cannot construct a delegating transaction for a shared wallet "
+            , "that is lacking a delegation script template."
+            ]
 
 instance IsServerError ErrGetPolicyId where
     toServerError = \case
