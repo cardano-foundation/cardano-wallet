@@ -17,10 +17,12 @@ import Cardano.Wallet.DB.Sqlite.Schema
     ( TxMeta (..) )
 import Cardano.Wallet.DB.Store.Meta.Model
     ( TxMetaHistory (..) )
+import Cardano.Wallet.DB.Store.Transactions.Store
+    ( mkStoreTransactions )
 import Cardano.Wallet.DB.Store.Wallets.Model
     ( DeltaTxWalletsHistory (..) )
 import Cardano.Wallet.DB.Store.Wallets.Store
-    ( mkStoreTxWalletsHistory )
+    ( mkStoreWalletsMeta, mkStoreTxWalletsHistory )
 import Test.DBVar
     ( GenDelta, prop_StoreUpdates )
 import Test.Hspec
@@ -45,9 +47,12 @@ prop_StoreWalletsLaws =
   withInitializedWalletProp $ \wid runQ ->
     prop_StoreUpdates
       runQ
-      mkStoreTxWalletsHistory
+      storeTxWalletsHistory
       (pure mempty)
       (logScale . genDeltaTxWallets wid)
+  where
+    storeTxWalletsHistory =
+        mkStoreTxWalletsHistory mkStoreTransactions mkStoreWalletsMeta
 
 genDeltaTxWallets :: W.WalletId -> GenDelta DeltaTxWalletsHistory
 genDeltaTxWallets wid (_,metaMap) = do

@@ -23,27 +23,25 @@ import Cardano.Wallet.DB.Sqlite.Schema
 import Cardano.Wallet.DB.Sqlite.Types
     ( TxId (..) )
 import Cardano.Wallet.DB.Store.Meta.Model
-    ( TxMetaHistory (relations), mkTxMetaHistory )
+    ( TxMetaHistory (relations) )
 import Cardano.Wallet.DB.Store.QueryStore
     ( QueryStore (..) )
 import Cardano.Wallet.DB.Store.Transactions.Model
-    ( DeltaTxSet (..), TxRelation, mkTxSet )
+    ( TxRelation )
 import Cardano.Wallet.DB.Store.Wallets.Model
-    ( DeltaTxWalletsHistory (..), walletsLinkedTransactions )
+    ( DeltaTxWalletsHistory (..) )
 import Cardano.Wallet.DB.Store.Wallets.Store
     ( mkStoreTxWalletsHistory, mkStoreWalletsMeta )
 import Data.DBVar
-    ( Store (..), loadDBVar, modifyDBVar, readDBVar, updateDBVar )
-import Data.DeltaMap
-    ( DeltaMap (..) )
+    ( Store (..), loadDBVar, initDBVar, readDBVar, updateDBVar )
+import Data.Delta
+    ( Delta (..) )
 import Data.Foldable
     ( toList )
 import Database.Persist.Sql
     ( SqlPersistT )
 
-import qualified Cardano.Wallet.DB.Store.Meta.Model as TxMetaStore
 import qualified Cardano.Wallet.DB.Store.Transactions.Layer as TxSet
-import qualified Cardano.Wallet.DB.Store.Transactions.Model as TxSet
 import qualified Cardano.Wallet.Primitive.Types as W
 import qualified Data.Map.Strict as Map
 
@@ -66,11 +64,15 @@ newQueryStoreTxWalletsHistory
     => m QueryStoreTxWalletsHistory
 newQueryStoreTxWalletsHistory = do
     let txsQueryStore = TxSet.mkDBTxSet
-    transactionsDBVar <- loadDBVar mkStoreWalletsMeta
+
+    storeWalletsMeta <- pure mkStoreWalletsMeta
+    let storeTxWalletsHistory = mkStoreTxWalletsHistory
+            (store txsQueryStore)   -- on disk
+            storeWalletsMeta        -- on disk
 
     let readAllMetas :: W.WalletId -> m [TxMeta]
         readAllMetas wid = do
-            wmetas <- readDBVar transactionsDBVar
+            Right wmetas <- loadS storeWalletsMeta
             pure
                 . maybe [] (toList . relations)
                 $ Map.lookup wid wmetas
@@ -80,58 +82,26 @@ newQueryStoreTxWalletsHistory = do
             GetByTxId txid ->
                 queryS txsQueryStore $ TxSet.GetByTxId txid
             One wid txid -> do
-                wmetas <- readDBVar transactionsDBVar
+                Right wmetas <- loadS storeWalletsMeta
                 pure $ do
                     metas <- Map.lookup wid wmetas
                     Map.lookup txid . relations $ metas
             All wid ->
                 readAllMetas wid
 
-    let updateTxSet = updateS (store txsQueryStore) undefined
-        update = \case
-            RemoveWallet wid -> do
-                updateDBVar transactionsDBVar $ Delete wid
-                update $ GarbageCollectTxWalletsHistory
-            ExpandTxWalletsHistory wid cs -> do
-                updateTxSet
-                    . Append
-                    . mkTxSet
-                    $ fst <$> cs
-                modifyDBVar transactionsDBVar $ \mtxmh ->
-                    ( case Map.lookup wid mtxmh of
-                    Nothing -> Insert wid (mkTxMetaHistory wid cs)
-                    Just _ -> Adjust wid
-                        $ TxMetaStore.Expand
-                        $ mkTxMetaHistory wid cs
-                    , ()
-                    )
-            RollbackTxWalletsHistory wid slot -> do
-                updateDBVar transactionsDBVar
-                    $ Adjust wid
-                    $ TxMetaStore.Manipulate
-                    $ TxMetaStore.RollBackTxMetaHistory slot
-                update undefined GarbageCollectTxWalletsHistory
-
-            -- TODO as part of ADP-1043
-            -- Remove GarbageCollectTxWalletsHistory
-            -- in favor of `RollbackTo` + separate storage for Submissions
-            GarbageCollectTxWalletsHistory -> do
-                mtxmh <- readDBVar transactionsDBVar
-                -- BUG: The following operation is very expensive for large
-                -- wallets. Apply TODO above instead.
-                Right mtxh <- loadS (store txsQueryStore)
-                let txsToDelete
-                        = Map.keys
-                        . Map.withoutKeys (TxSet.relations mtxh)
-                            -- needs info about existing transactions
-                        $ walletsLinkedTransactions mtxmh
-                mapM_ (updateTxSet . DeleteTx) txsToDelete
-
     pure QueryStore
         { queryS = query
         , store = Store
-            { loadS = loadS mkStoreTxWalletsHistory
-            , writeS = writeS mkStoreTxWalletsHistory
-            , updateS = const update
+            { loadS = loadS storeTxWalletsHistory
+            , writeS = writeS storeTxWalletsHistory
+            , updateS = \_ da -> do
+                -- BUG: The following operations are very expensive for large
+                -- wallets.
+                -- Solution: Do not load `txSet`,
+                -- more `storeWalletsMeta` into memory.
+                -- This requires removing 'GarbageCollectTxWalletsHistory'
+                Right txSet <- loadS (store txsQueryStore)
+                Right wmetas <- loadS storeWalletsMeta
+                updateS storeTxWalletsHistory (txSet,wmetas) da
             }
         }
