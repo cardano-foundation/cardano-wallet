@@ -241,6 +241,9 @@ mkStoreWallet wid =
     update1 (UpdateCheckpoints delta) =
         -- FIXME LATER during ADP-1043: remove 'undefined'
         updateS storeCheckpoints undefined delta
+    update1 (UpdateSubmissions delta) =
+        -- FIXME LATER during ADP-1043: remove 'undefined'
+        updateS submissions undefined delta
 
 -- | Store for the 'Checkpoints' belonging to a 'WalletState'.
 mkStoreCheckpoints

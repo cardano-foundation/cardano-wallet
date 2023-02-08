@@ -18,7 +18,7 @@ import Cardano.Wallet.DB.Fixtures
 import Cardano.Wallet.DB.Sqlite.Types
     ( TxId (..) )
 import Cardano.Wallet.DB.Store.Submissions.Operations
-    ( DeltaTxSubmissions, SubmissionMeta (..), mkStoreSubmissions )
+    ( SubmissionMeta (..), mkStoreSubmissions )
 import Cardano.Wallet.Primitive.Types
     ( SlotNo (..) )
 import Cardano.Wallet.Primitive.Types.Coin
@@ -35,8 +35,6 @@ import Control.Monad
     ( replicateM, void )
 import Data.Quantity
     ( Quantity (..) )
-import Fmt
-    ( Buildable (..) )
 import System.Random
     ( Random )
 import Test.DBVar
@@ -54,9 +52,6 @@ spec = do
         describe "submissions via API for a single wallet store" $ do
             it "respects store laws"
                 $ property . prop_SingleWalletStoreLawsOperations
-
-instance Buildable DeltaTxSubmissions where
-    build = build . show
 
 deriving instance Random SlotNo
 

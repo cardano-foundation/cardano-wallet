@@ -45,7 +45,7 @@ import Cardano.Wallet.Address.Book
 import Cardano.Wallet.Checkpoints
     ( Checkpoints )
 import Cardano.Wallet.DB.Store.Submissions.Operations
-    ( TxSubmissions )
+    ( DeltaTxSubmissions, TxSubmissions )
 import Cardano.Wallet.Primitive.Types
     ( BlockHeader, WalletId )
 import Cardano.Wallet.Primitive.Types.UTxO
@@ -157,15 +157,18 @@ data DeltaWalletState1 s
     -- ^ Replace the prologue of the address discovery state
     | UpdateCheckpoints (CPS.DeltasCheckpoints (WalletCheckpoint s))
     -- ^ Update the wallet checkpoints.
+    | UpdateSubmissions DeltaTxSubmissions
 
 instance Delta (DeltaWalletState1 s) where
     type Base (DeltaWalletState1 s) = WalletState s
     apply (ReplacePrologue p) = over #prologue $ const p
     apply (UpdateCheckpoints d) = over #checkpoints $ apply d
+    apply (UpdateSubmissions d) = over #submissions $ apply d
 
 instance Buildable (DeltaWalletState1 s) where
     build (ReplacePrologue _) = "ReplacePrologue …"
     build (UpdateCheckpoints d) = "UpdateCheckpoints (" <> build d <> ")"
+    build (UpdateSubmissions d) = "UpdateSubmissions (" <> build d <> ")"
 
 instance Show (DeltaWalletState1 s) where
     show = pretty

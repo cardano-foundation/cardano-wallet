@@ -29,6 +29,8 @@ import Cardano.Wallet.Submissions.TxStatus
     ( HasTxId (..) )
 import Data.Foldable
     ( Foldable (..) )
+import Fmt
+    ( Buildable (..) )
 
 import qualified Cardano.Wallet.Submissions.Primitives as DP
 
@@ -61,6 +63,12 @@ deriving instance
     , Show slot)
     => Show (Operation meta slot tx)
 
+instance ( Show (TxId tx)
+    , Show meta
+    , Show tx
+    , Show slot)
+    => Buildable (Operation meta slot tx) where
+    build = build . show
 
 -- | Apply a high level operation to the submission store.
 applyOperations
