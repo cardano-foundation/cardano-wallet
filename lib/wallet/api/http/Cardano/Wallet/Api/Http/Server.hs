@@ -333,7 +333,7 @@ server byron icarus shelley multisig spl ntp blockchainSource =
                         (getApiT pid)
                         (getApiT wid)
                 Quit ->
-                    selectCoinsForQuit shelley wid
+                    selectCoinsForQuit shelley (delegationAddress @n) wid
         )
 
     shelleyTransactions :: Server (ShelleyTransactions n)
