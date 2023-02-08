@@ -2818,32 +2818,24 @@ constructSharedTransaction
             netLayer = wrk ^. networkLayer
             txLayer = wrk ^. transactionLayer @SharedKey @'CredFromScriptK
             trWorker = MsgWallet >$< wrk ^. logger
-        epoch <- getCurrentEpoch api
-
+        epoch <- getCurrentEpoch ctx
+        era <- liftIO $ NW.currentNodeEra (wrk ^. networkLayer)
+        AnyRecentEra (_recentEra :: WriteTx.RecentEra era)
+            <- guardIsRecentEra era
 
         optionalDelegationAction <- liftHandler $
             forM delegationRequest $
                 WD.handleDelegationRequest
                     trWorker db epoch knownPools
-                    poolStatus walletId withdrawal
+                    poolStatus wid NoWithdrawal
 
-        let transactionCtx1 =
-                case optionalDelegationAction of
-                    Nothing -> transactionCtx0
-                    Just action ->
-                        transactionCtx0 { txDelegationAction = Just action }
-
-
-        era <- liftIO $ NW.currentNodeEra (wrk ^. networkLayer)
-        AnyRecentEra (_recentEra :: WriteTx.RecentEra era)
-            <- guardIsRecentEra era
         (cp, _, _) <- liftHandler $ withExceptT ErrConstructTxNoSuchWallet $
             W.readWallet @_ @s @k wrk wid
         let txCtx = defaultTransactionCtx
                 { txWithdrawal = NoWithdrawal
                 , txMetadata = md
                 , txValidityInterval = (Just before, hereafter)
-                , txDelegationAction = Nothing
+                , txDelegationAction = optionalDelegationAction
                 , txPaymentCredentialScriptTemplate =
                         Just (Shared.paymentTemplate $ getState cp)
                 }
