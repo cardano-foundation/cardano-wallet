@@ -29,11 +29,7 @@ import Prelude
 import Cardano.Wallet.DB.Sqlite.Types
     ( TxId (..) )
 import Cardano.Wallet.DB.Store.Meta.Model
-    ( DeltaTxMetaHistory (..)
-    , TxMetaHistory (..)
-    , WalletsMeta
-    , mkTxMetaHistory
-    )
+    ( TxMetaHistory (..), WalletsMeta, mkTxMetaHistory )
 import Cardano.Wallet.DB.Store.Transactions.Model
     ( TxSet (..), mkTxSet )
 import Data.Delta
@@ -42,8 +38,6 @@ import Data.DeltaMap
     ( DeltaMap (Adjust, Insert) )
 import Data.Foldable
     ( toList )
-import Data.Function
-    ( (&) )
 import Data.Generics.Internal.VL
     ( view )
 import Data.Map.Strict
@@ -62,7 +56,6 @@ import qualified Data.Set as Set
 
 data DeltaTxWalletsHistory
     = ExpandTxWalletsHistory W.WalletId [(WT.Tx, WT.TxMeta)]
-    | ChangeTxMetaWalletsHistory W.WalletId DeltaTxMetaHistory
     | RollbackTxWalletsHistory W.WalletId W.SlotNo
         -- ^ Roll back a single wallet
     | GarbageCollectTxWalletsHistory
@@ -85,10 +78,6 @@ instance Delta DeltaTxWalletsHistory where
                   Adjust wid
                   $ TxMetaStore.Expand
                   $ mkTxMetaHistory wid cs)
-    apply (ChangeTxMetaWalletsHistory wid change) (txh, mtxmh) =
-        (txh, garbageCollectEmptyWallets
-            $ mtxmh & apply (Adjust wid change)
-            )
     apply (RollbackTxWalletsHistory wid slot) (x, mtxmh) =
         -- Roll back all wallets to a given slot (number)
         -- and garbage collect transactions that no longer
