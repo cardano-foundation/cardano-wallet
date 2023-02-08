@@ -101,10 +101,7 @@ import Cardano.Wallet.DB.Sqlite.Types
 import Cardano.Wallet.DB.Store.Checkpoints
     ( PersistAddressBook (..), blockHeaderFromEntity, mkStoreWallets )
 import Cardano.Wallet.DB.Store.Meta.Model
-    ( DeltaTxMetaHistory (..)
-    , ManipulateTxMetaHistory (..)
-    , TxMetaHistory (..)
-    )
+    ( TxMetaHistory (..) )
 import Cardano.Wallet.DB.Store.Submissions.Layer
     ( mkDbPendingTxs )
 import Cardano.Wallet.DB.Store.Submissions.Operations
@@ -677,24 +674,17 @@ newDBLayerWith _cacheBehavior _tr ti SqliteContext{runQuery} = mdo
 
             case mNearestCheckpoint of
                 Nothing  -> ExceptT $ pure $ Left $ ErrNoSuchWallet wid
-                Just wcp -> do
+                Just wcp -> lift $ do
                     let nearestPoint = wcp ^. #currentTip . #slotNo
-                    lift $ deleteDelegationCertificates wid
+                    deleteDelegationCertificates wid
                         [ CertSlot >. nearestPoint
                         ]
-                    lift $ deleteStakeKeyCerts wid
+                    deleteStakeKeyCerts wid
                         [ StakeKeyCertSlot >. nearestPoint
                         ]
-                    ExceptT $ modifyDBMaybe transactionsDBVar $ \_ ->
-                        let
-                            delta = Just
-                                $ ChangeTxMetaWalletsHistory wid
-                                $ Manipulate
-                                $ RollBackTxMetaHistory nearestPoint
-                        in  (delta, Right ())
-                    ExceptT $ modifyDBMaybe transactionsDBVar $ \_ ->
-                        (Just GarbageCollectTxWalletsHistory, Right ())
-                    lift $ rollBackSubmissions_ dbPendingTxs wid nearestPoint
+                    updateDBVar transactionsDBVar $
+                        RollbackTxWalletsHistory wid nearestPoint
+                    rollBackSubmissions_ dbPendingTxs wid nearestPoint
                     pure
                         $ W.chainPointFromBlockHeader
                         $ view #currentTip wcp
