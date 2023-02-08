@@ -686,11 +686,7 @@ newDBLayerWith _cacheBehavior _tr ti SqliteContext{runQuery} = mdo
                         [ StakeKeyCertSlot >. nearestPoint
                         ]
                     lift $ updateS (store transactionsQS) undefined
-                        $ ChangeTxMetaWalletsHistory wid
-                        $ Manipulate
-                        $ RollBackTxMetaHistory nearestPoint
-                    lift $ updateS (store transactionsQS) undefined
-                        GarbageCollectTxWalletsHistory
+                        $ RollbackTxWalletsHistory wid nearestPoint
                     lift $ rollBackSubmissions_ dbPendingTxs wid nearestPoint
                     pure
                         $ W.chainPointFromBlockHeader
