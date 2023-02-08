@@ -1,4 +1,5 @@
 {-# LANGUAGE GADTs #-}
+{-# LANGUAGE OverloadedLabels #-}
 {-# LANGUAGE RecordWildCards #-}
 {-# LANGUAGE ViewPatterns #-}
 -- |
@@ -33,30 +34,16 @@ import Cardano.Wallet.DB.WalletState
     ( ErrNoSuchWallet (..) )
 import Cardano.Wallet.Primitive.Types
     ( SlotNo (SlotNo), WalletId )
-import Cardano.Wallet.Primitive.Types.Hash
-    ( Hash (..) )
 import Cardano.Wallet.Primitive.Types.Tx
     ( LocalTxSubmissionStatus (LocalTxSubmissionStatus), SealedTx )
-import Cardano.Wallet.Read.Eras
-    ( K (..) )
-import Cardano.Wallet.Read.Eras.EraFun
-    ( EraFun )
-import Cardano.Wallet.Read.Primitive.Tx.Features.Validity
-    ( getValidity )
-import Cardano.Wallet.Read.Tx.Cardano
-    ( anythingFromSealedTx )
-import Cardano.Wallet.Read.Tx.Hash
-    ( getEraTxHash )
-import Cardano.Wallet.Read.Tx.Validity
-    ( getEraValidity )
 import Cardano.Wallet.Submissions.Operations
     ( Operation (..) )
 import Cardano.Wallet.Submissions.Submissions
     ( TxStatusMeta (..), mkEmpty, transactions, transactionsL )
 import Cardano.Wallet.Submissions.TxStatus
-    ( TxStatus (..), getTx, status )
-import Cardano.Wallet.Transaction
-    ( ValidityIntervalExplicit (invalidHereafter) )
+    ( TxStatus (..), expirySlot, getTx, status )
+import Cardano.Wallet.Transaction.Built
+    ( BuiltTx (..) )
 import Control.Category
     ( (.) )
 import Control.Lens
@@ -69,12 +56,9 @@ import Data.DBVar
     ( DBVar, modifyDBMaybe, readDBVar, updateDBVar )
 import Data.DeltaMap
     ( DeltaMap (..) )
-import Data.Quantity
-    ( Quantity (..) )
 import Database.Persist.Sql
     ( SqlPersistT )
 
-import qualified Cardano.Wallet.Read.Tx as Read
 import qualified Data.Map.Strict as Map
 
 mkDbPendingTxs
@@ -99,12 +83,15 @@ mkDbPendingTxs dbvar = DBPendingTxs
                             $ error "pls pass meta to putLocalTxSubmission!"
                     in  (delta, Right ())
 
-    , addTxSubmission_ =  \wid (_ , meta, sealed) resubmitted -> do
-        let (expiry, txId) = extractPendingData sealed
+    , addTxSubmission_ =  \wid BuiltTx{..} resubmitted -> do
+        let txId = TxId $ builtTx ^. #txId
+            expiry = case builtTxMeta ^. #expiry of
+                Nothing -> SlotNo maxBound
+                Just slot -> slot
         updateDBVar dbvar
             $ Adjust wid
-            $ AddSubmission expiry (txId , sealed)
-            $ submissionMetaFromTxMeta meta resubmitted
+            $ AddSubmission expiry (txId, builtSealedTx)
+            $ submissionMetaFromTxMeta builtTxMeta resubmitted
 
     , resubmitTx_ = \wid (TxId -> txId) _sealed resubmitted -> do
         submissions <- readDBVar dbvar
@@ -114,15 +101,16 @@ mkDbPendingTxs dbvar = DBPendingTxs
             (TxStatusMeta datas meta) <-
                 Map.lookup txId $ walletSubmissions ^. transactionsL
             (_, sealed) <- getTx datas
-            let (expiry,_) = extractPendingData sealed
-            pure $ do
-                updateDBVar dbvar
-                    $ Adjust wid
-                    $ Forget txId
-                updateDBVar dbvar
-                    $ Adjust wid
-                    $ AddSubmission expiry (txId, sealed)
-                    $ meta{submissionMetaResubmitted = resubmitted}
+            pure $ case expirySlot datas of
+                Nothing -> pure ()
+                Just expiry -> do
+                    updateDBVar dbvar
+                        $ Adjust wid
+                        $ Forget txId
+                    updateDBVar dbvar
+                        $ Adjust wid
+                        $ AddSubmission expiry (txId, sealed)
+                        $ meta{submissionMetaResubmitted = resubmitted}
 
     , getInSubmissionTransactions_ = \wid -> do
             submissions <- readDBVar dbvar
@@ -174,15 +162,3 @@ mkLocalTxSubmission (TxStatusMeta status' SubmissionMeta{..})
             LocalTxSubmissionStatus (txId) sealed submissionMetaResubmitted
         )
         $ getTx status'
-
-extractPendingData :: SealedTx -> (SlotNo, TxId)
-extractPendingData sealed = let
-    value :: EraFun Read.Tx (K a) -> a
-    value f = anythingFromSealedTx f sealed
-
-    txId = TxId $ Hash $ value getEraTxHash
-    validity = value $ getValidity . getEraValidity
-
-    Quantity expiry = maybe (Quantity 0) invalidHereafter validity
-
-    in (SlotNo expiry, txId)

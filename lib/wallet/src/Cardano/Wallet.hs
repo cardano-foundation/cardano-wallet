@@ -1915,8 +1915,8 @@ buildSignSubmitTransaction ti db@DBLayer{..} netLayer txLayer pwd walletId
                 readTransactions
                     walletId Nothing Descending wholeRange (Just Pending)
 
-            (BuiltTx{..}, slot) <- throwOnErr <=< modifyDBMaybe walletsDB $ do
-                adjustNoSuchWallet walletId wrapNoWalletForConstruct $ \s ->
+            (btx@(BuiltTx{..}), slot) <- throwOnErr <=< modifyDBMaybe walletsDB
+                $ adjustNoSuchWallet walletId wrapNoWalletForConstruct $ \s ->
                     buildAndSignTransactionPure @k @ktype @s @n
                         pureTimeInterpreter
                         (Set.fromList pendingTxs)
@@ -1940,7 +1940,7 @@ buildSignSubmitTransaction ti db@DBLayer{..} netLayer txLayer pwd walletId
                             )
                         )
 
-            addTxSubmission walletId (builtTx, builtTxMeta, builtSealedTx) slot
+            addTxSubmission walletId btx slot
                 & throwWrappedErr wrapNoWalletForSubmit
 
             postTx netLayer builtSealedTx
@@ -2307,9 +2307,7 @@ submitTx tr DBLayer{..} nw walletId tx@BuiltTx{..} =
         withExceptT ErrSubmitTxNetwork $ postTx nw builtSealedTx
         withExceptT ErrSubmitTxNoSuchWallet $
             mapExceptT atomically $
-                addTxSubmission walletId
-                    (builtTx, builtTxMeta, builtSealedTx)
-                    (builtTxMeta ^. #slotNo)
+                addTxSubmission walletId tx (builtTxMeta ^. #slotNo)
 
 -- | Broadcast an externally-signed transaction to the network.
 --

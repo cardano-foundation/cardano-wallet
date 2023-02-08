@@ -97,6 +97,8 @@ import Cardano.Wallet.Read.Tx.Hash
     ( getEraTxHash )
 import Cardano.Wallet.Submissions.Submissions
     ( TxStatusMeta (..) )
+import Cardano.Wallet.Transaction.Built
+    ( BuiltTx )
 import Control.Monad
     ( guard, join )
 import Control.Monad.IO.Class
@@ -329,7 +331,7 @@ data DBLayer m s k = forall stm. (MonadIO stm, MonadFail stm) => DBLayer
 
     , addTxSubmission
         :: WalletId
-        -> (Tx, TxMeta, SealedTx)
+        -> BuiltTx
         -> SlotNo
         -> ExceptT ErrNoSuchWallet stm ()
         -- ^ Add a /new/ transaction to the local submission pool
@@ -768,7 +770,7 @@ data DBPendingTxs stm = DBPendingTxs
 
     , addTxSubmission_
         :: WalletId
-        -> (Tx, TxMeta, SealedTx)
+        -> BuiltTx
         -> SlotNo
         -> stm ()
         -- ^ Add a /new/ transaction to the local submission pool

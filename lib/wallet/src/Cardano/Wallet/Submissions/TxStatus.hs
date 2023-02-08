@@ -24,6 +24,7 @@ module Cardano.Wallet.Submissions.TxStatus
     , slotObservation
     , TxStatuses
     , getTx
+    , expirySlot
     ) where
 
 import Prelude
@@ -86,5 +87,12 @@ slotObservation :: TxStatus slot tx -> Maybe slot
 slotObservation = \case
     InSubmission s _ -> Just s
     InLedger _ s _ -> Just s
+    Expired s _ -> Just s
+    Unknown -> Nothing
+
+expirySlot :: TxStatus a tx -> Maybe a
+expirySlot = \case
+    InSubmission s _ -> Just s
+    InLedger s _ _ -> Just s
     Expired s _ -> Just s
     Unknown -> Nothing
