@@ -107,8 +107,12 @@ newQueryStoreTxWalletsHistory = do
                         $ mkTxMetaHistory wid cs
                     , ()
                     )
-            RollbackTxWalletsHistory{} ->
-                error "RollbackTxWalletsHistory not implemented yet"
+            RollbackTxWalletsHistory wid slot -> do
+                updateDBVar transactionsDBVar
+                    $ Adjust wid
+                    $ TxMetaStore.Manipulate
+                    $ TxMetaStore.RollBackTxMetaHistory slot
+                update undefined GarbageCollectTxWalletsHistory
 
             -- TODO as part of ADP-1043
             -- Remove GarbageCollectTxWalletsHistory
