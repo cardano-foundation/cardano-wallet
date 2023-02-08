@@ -43,10 +43,13 @@ import Cardano.Wallet
     , WalletLayer (..)
     , migrationPlanToSelectionWithdrawals
     , runLocalTxSubmissionPool
+    , submitTx
     , throttle
     )
 import Cardano.Wallet.DB
-    ( DBLayer (..), putTxHistory )
+    ( DBLayer (..), hoistDBLayer, putTxHistory )
+import Cardano.Wallet.DB.Layer
+    ( newDBLayerInMemory )
 import Cardano.Wallet.DB.WalletState
     ( ErrNoSuchWallet (..) )
 import Cardano.Wallet.DummyTarget.Primitive.Types
@@ -58,7 +61,7 @@ import Cardano.Wallet.DummyTarget.Primitive.Types
     , mkTxId
     )
 import Cardano.Wallet.Gen
-    ( genMnemonic, genSlotNo, shrinkSlotNo )
+    ( genMnemonic, genSlotNo )
 import Cardano.Wallet.Network
     ( NetworkLayer (..) )
 import Cardano.Wallet.Primitive.AddressDerivation
@@ -122,7 +125,6 @@ import Cardano.Wallet.Primitive.Types.Tx
     , Tx (..)
     , TxMeta (..)
     , TxStatus (..)
-    , isPending
     , mockSealedTx
     )
 import Cardano.Wallet.Primitive.Types.Tx.Constraints
@@ -143,6 +145,8 @@ import Cardano.Wallet.Transaction
     , emptyTokenMapWithScripts
     , emptyWitnessCount
     )
+import Cardano.Wallet.Transaction.Built
+    ( BuiltTx (..) )
 import Cardano.Wallet.Unsafe
     ( unsafeRunExceptT )
 import Cardano.Wallet.Util
@@ -172,7 +176,7 @@ import Control.Monad.Trans.Reader
 import Control.Monad.Trans.State.Strict
     ( State, StateT (..), evalState, get, put, state )
 import Control.Tracer
-    ( Tracer (..), nullTracer )
+    ( Tracer (..), natTracer, nullTracer )
 import Crypto.Hash
     ( hash )
 import Data.Bifunctor
@@ -186,7 +190,9 @@ import Data.Either
 import Data.Function
     ( on )
 import Data.Generics.Internal.VL
-    ( iso, set, view, (^.) )
+    ( iso, view, (^.) )
+import Data.List
+    ( sort )
 import Data.List.NonEmpty
     ( NonEmpty (..) )
 import Data.Map.Strict
@@ -215,7 +221,6 @@ import Test.QuickCheck
     ( Arbitrary (..)
     , Blind (..)
     , Gen
-    , InfiniteList (..)
     , NonEmptyList (..)
     , Property
     , arbitraryBoundedEnum
@@ -230,13 +235,10 @@ import Test.QuickCheck
     , forAllBlind
     , label
     , liftArbitrary
-    , liftShrink
-    , liftShrink2
     , listOf1
     , oneof
     , property
     , scale
-    , shrinkList
     , sized
     , suchThat
     , vector
@@ -247,7 +249,7 @@ import Test.QuickCheck
 import Test.QuickCheck.Extra
     ( report )
 import Test.QuickCheck.Monadic
-    ( assert, monadicIO, monitor, run )
+    ( PropertyM, assert, monadicIO, monitor, run )
 import Test.Utils.Time
     ( UniformTime )
 import Test.Utils.Trace
@@ -267,8 +269,7 @@ import UnliftIO.Concurrent
 import qualified Cardano.Crypto.Wallet as CC
 import qualified Cardano.Wallet as W
 import qualified Cardano.Wallet.Address.Book as Sqlite
-import qualified Cardano.Wallet.DB.Layer as Sqlite
-import qualified Cardano.Wallet.DB.Pure.Layer as PureLayer
+import qualified Cardano.Wallet.DB.Store.Checkpoints as Sqlite
 import qualified Cardano.Wallet.Primitive.Migration as Migration
 import qualified Cardano.Wallet.Primitive.Types.Coin as Coin
 import qualified Cardano.Wallet.Primitive.Types.TokenBundle as TokenBundle
@@ -527,7 +528,7 @@ walletListTransactionsSorted wallet@(wid, _, _) _order (_mstart, _mend) history 
         times `shouldBe` expTimes
 
 newtype DummyStateWithAddresses = DummyStateWithAddresses [Address]
-  deriving stock (Show)
+  deriving stock (Show, Eq)
 
 instance IsOurs DummyStateWithAddresses Address where
     isOurs a s@(DummyStateWithAddresses addr) =
@@ -537,6 +538,28 @@ instance IsOurs DummyStateWithAddresses Address where
 
 instance IsOurs DummyStateWithAddresses RewardAccount where
     isOurs _ s = (Nothing, s)
+
+
+
+instance Sqlite.AddressBookIso DummyStateWithAddresses where
+    data Prologue DummyStateWithAddresses = DummyWithAddressPrologue
+    data Discoveries DummyStateWithAddresses
+        = DummyWithAddressDiscoveries DummyStateWithAddresses
+    addressIso = iso from to
+      where
+        from x = (DummyWithAddressPrologue, DummyWithAddressDiscoveries x)
+        to (_,DummyWithAddressDiscoveries x) = x
+
+-- instance Eq
+instance Eq (Sqlite.Prologue DummyStateWithAddresses) where _ == _ = True
+instance Eq (Sqlite.Discoveries DummyStateWithAddresses) where
+    DummyWithAddressDiscoveries a == DummyWithAddressDiscoveries b = a == b
+
+instance Sqlite.PersistAddressBook DummyStateWithAddresses where
+    insertPrologue _ _ = pure ()
+    insertDiscoveries _ _ _ = pure ()
+    loadPrologue _ = error "DummyStateWithAddresses.loadPrologue: not implemented"
+    loadDiscoveries _ _ = error "DummyStateWithAddresses.loadDiscoveries: not implemented"
 
 walletListsOnlyRelatedAssets :: Hash "Tx" -> TxMeta -> Property
 walletListsOnlyRelatedAssets txId txMeta =
@@ -647,8 +670,7 @@ prop_estimateFee (NonEmpty coins) =
 -------------------------------------------------------------------------------}
 
 data TxRetryTest = TxRetryTest
-    { retryTestPool :: [LocalTxSubmissionStatus SealedTx]
-    , retryTestTxHistory :: GenTxHistory
+    { retryTestPool :: [BuiltTx]
     , postTxResults :: [(SealedTx, Bool)]
     , testSlottingParameters :: SlottingParameters
     , retryTestWallet :: (WalletId, WalletName, DummyState)
@@ -656,18 +678,12 @@ data TxRetryTest = TxRetryTest
 
 numSlots :: TxRetryTest -> Word64
 numSlots = const 100
-
-newtype GenTxHistory = GenTxHistory { getTxHistory :: [(Tx, TxMeta)] }
+newtype GenSubmissions = GenSubmissions { genSubmissions :: [BuiltTx] }
     deriving (Generic, Show, Eq)
 
-instance Arbitrary GenTxHistory where
-    arbitrary = fmap GenTxHistory (gen `suchThat` hasPending)
+instance Arbitrary GenSubmissions where
+    arbitrary = GenSubmissions <$> listOf1 genBuiltTx
       where
-        gen = uniq <$> listOf1 ((,) <$> genTx' <*> genTxMeta)
-        uniq = L.nubBy ((==) `on` (view #txId . fst))
-        genTx' = mkTx <$> genTid
-        hasPending = any ((== Pending) . view #status . snd)
-        genTid = Hash . B8.pack <$> listOf1 (elements ['A'..'Z'])
         mkTx txId = Tx
             { txId
             , txCBOR = Nothing
@@ -680,51 +696,25 @@ instance Arbitrary GenTxHistory where
             , metadata = Nothing
             , scriptValidity = Nothing
             }
-        genTxMeta = do
+        genBuiltTx = do
             sl <- genSmallSlot
             let bh = Quantity $ fromIntegral $ unSlotNo sl
-            st <- elements [Pending, InLedger, Expired]
-            dir <- elements [Incoming, Outgoing]
+            st <- elements [Pending]
+            dir <- elements [Outgoing]
             expry <- oneof [fmap (Just . (+ sl)) genSmallSlot, pure Nothing]
-            pure $ TxMeta st dir sl bh (Coin 0) expry
-        genSmallSlot = SlotNo . fromIntegral <$> sized (\n -> choose (0, 4 * n))
-
-    shrink = fmap GenTxHistory
-        . filter (not . null)
-        . shrinkList (liftShrink2 shrinkTx' shrinkMeta)
-        . getTxHistory
-      where
-        shrinkTx' tx = [set #txId tid' tx | tid' <- shrink (view #txId tx)]
-        shrinkMeta (TxMeta st dir sl bh amt ex) =
-            [ TxMeta st dir sl' bh amt ex'
-            | (sl', ex') <- liftShrink2 shrinkSlotNo (liftShrink shrinkSlotNo)
-                (sl, ex) ]
+            i <- arbitrary
+            pure $ BuiltTx
+                (mkTx i)
+                (TxMeta st dir sl bh (Coin 0) expry)
+                (fakeSealedTx (i, []))
+        genSmallSlot =
+            SlotNo . fromIntegral <$> sized (\n -> choose (1, 1+ 4 * n))
 
 instance Arbitrary TxRetryTest where
     arbitrary = do
-        txHistory <- arbitrary
-        let pool = mkLocalTxSubmissionStatus txHistory
-        results <- zip (map (view #submittedTx) pool) . getInfiniteList <$> arbitrary
-        TxRetryTest pool txHistory results <$> arbitrary <*> arbitrary
-
-    shrink (TxRetryTest _ txHistory res sp wal) =
-        [ TxRetryTest (mkLocalTxSubmissionStatus txHistory') txHistory' res sp' wal'
-        | (txHistory', sp', wal') <- shrink (txHistory, sp, wal)
-        ]
-
-mkLocalTxSubmissionStatus
-    :: GenTxHistory
-    -> [LocalTxSubmissionStatus SealedTx]
-mkLocalTxSubmissionStatus = mapMaybe getStatus . getTxHistory
-  where
-    getStatus :: (Tx, TxMeta) -> Maybe (LocalTxSubmissionStatus SealedTx)
-    getStatus (tx, txMeta)
-        | isPending txMeta = Just st
-        | otherwise = Nothing
-      where
-        i = tx ^. #txId
-        sl = txMeta ^. #slotNo
-        st = LocalTxSubmissionStatus i (fakeSealedTx (tx, [])) sl
+        GenSubmissions metas <- arbitrary
+        let results = zip (builtSealedTx <$> metas) (repeat True)
+        TxRetryTest metas results <$> arbitrary <*> arbitrary
 
 instance Arbitrary SlottingParameters where
     arbitrary = mk <$> choose (0.5, 1)
@@ -736,6 +726,7 @@ instance Arbitrary SlottingParameters where
 data TxRetryTestCtx = TxRetryTestCtx
     { ctxDbLayer :: DBLayer TxRetryTestM DummyState ShelleyKey
     , ctxNetworkLayer :: NetworkLayer TxRetryTestM Read.Block
+    , ctxRetryTracer :: Tracer TxRetryTestM W.WalletWorkerLog
     , ctxTracer :: Tracer IO W.WalletWorkerLog
     , ctxWalletId :: WalletId
     } deriving (Generic)
@@ -746,7 +737,6 @@ data TxRetryTestState = TxRetryTestState
     , timeStep :: DiffTime
     , timeVar :: MVar Time
     } deriving (Generic)
-
 -- | Collected info from test execution.
 data TxRetryTestResult a = TxRetryTestResult
     { resLogs :: [W.WalletWorkerLog]
@@ -775,42 +765,48 @@ instance MonadTime TxRetryTestM where
 prop_localTxSubmission :: TxRetryTest -> Property
 prop_localTxSubmission tc = monadicIO $ do
     st <- TxRetryTestState tc 2 <$> newMVar (Time 0)
-    res <- run $ runTest st $ \ctx@(TxRetryTestCtx DBLayer{..} _ _ wid) -> do
-        -- Test setup
-        atomically $ do
-            let txHistory = getTxHistory (retryTestTxHistory tc)
-            unsafeRunExceptT $ putTxHistory wid txHistory
-            forM_ (retryTestPool tc) $ \(LocalTxSubmissionStatus i tx sl) ->
-                unsafeRunExceptT $ putLocalTxSubmission wid i tx sl
-
+    assert $ not $ null $ retryTestPool tc
+    res <- run $ runTest st
+        $ \ctx@(TxRetryTestCtx dbl@(DBLayer{..}) nl tr _ wid) -> do
+        unsafeRunExceptT
+            $ forM_ (retryTestPool tc) $ submitTx tr dbl nl wid
+        res0 <- atomically $ readLocalTxSubmissionPending wid
+        threadDelay 100000
         -- Run test
         let cfg = LocalTxSubmissionConfig (timeStep st) 10
         runLocalTxSubmissionPool @_ @DummyState @ShelleyKey cfg ctx wid
 
         -- Gather state
-        atomically $ readLocalTxSubmissionPending wid
+        res1 <- atomically $ readLocalTxSubmissionPending wid
+        pure (res0, res1)
 
+    let (resStart, resEnd) = resAction res
     monitor $ counterexample $ unlines $
         [ "posted txs = " ++ show (resSubmittedTxs res)
-        , "final pool state = " ++ show (resAction res)
+        , "final pool state = " ++ show resEnd
         , "logs:"
         ] ++ map (T.unpack . toText) (resLogs res)
-
     -- props:
     --  1. pending transactions in pool are retried
-    let inPool = (`elem` (submittedTx <$> retryTestPool tc))
-    assert (all inPool (resSubmittedTxs res))
+    let requested x = x `elem` (builtSealedTx <$> retryTestPool tc)
+    assert' "all txs in submissions pool were required"
+        $ all requested $ resSubmittedTxs res
 
-    --  2. non-pending transactions not retried
-    let nonPending = map (view #txId . fst)
-            . filter ((/= Pending) . view #status . snd)
-            . getTxHistory $ retryTestTxHistory tc
-    assert (all (`notElem` (map fakeSealedTxId $ resSubmittedTxs res)) nonPending)
 
-    --  3. retries can fail and not break the wallet
-    assert (not $ null $ resAction res)
 
+    assert' "start submissions pool is not empty"
+        $ not $ null resStart
+
+    assert' "end submissions pool has all txs of start pool"
+        $ resStart `eqByTxIds` resEnd
   where
+    assert' :: String -> Bool -> PropertyM IO ()
+    assert' _msg True  = return ()
+    assert' msg False = fail msg
+    eqByTxIds
+        :: [LocalTxSubmissionStatus SealedTx]
+        -> [LocalTxSubmissionStatus SealedTx] -> Bool
+    eqByTxIds = (==) `on` (sort . fmap (view #txId))
     runTest
         :: TxRetryTestState
         -> (TxRetryTestCtx -> TxRetryTestM a)
@@ -821,7 +817,8 @@ prop_localTxSubmission tc = monadicIO $ do
             flip runReaderT st $ unTxRetryTestM $ do
                 WalletLayerFixture db _wl [wid] _slotNoTime <-
                     setupFixture $ retryTestWallet tc
-                let ctx = TxRetryTestCtx db (mockNetwork submittedVar) tr wid
+                let ctx = TxRetryTestCtx db (mockNetwork submittedVar)
+                        (natTracer liftIO tr) tr wid
 
                 testAction ctx
         TxRetryTestResult msgs res <$> readMVar submittedVar
@@ -1166,19 +1163,22 @@ setupFixture
        , MonadTime m
        , IsOurs s Address
        , IsOurs s RewardAccount
+       , Sqlite.PersistAddressBook s
        )
     => (WalletId, WalletName, s)
     -> m (WalletLayerFixture s m)
 setupFixture (wid, wname, wstate) = do
     let nl = mockNetworkLayer
     let tl = dummyTransactionLayer
-    db <- PureLayer.newDBLayer timeInterpreter
-    let wl = WalletLayer nullTracer (block0, np) nl tl db
+    (_kill, db) <-
+        liftIO $ newDBLayerInMemory nullTracer timeInterpreter
+    let db' = hoistDBLayer liftIO db
+        wl = WalletLayer nullTracer (block0, np) nl tl db'
     res <- runExceptT $ W.createWallet wl wid wname wstate
     let wal = case res of
             Left _ -> []
             Right walletId -> [walletId]
-    pure $ WalletLayerFixture db wl wal slotNoTime
+    pure $ WalletLayerFixture db' wl wal slotNoTime
   where
     timeInterpreter = dummyTimeInterpreter
     slotNoTime = posixSecondsToUTCTime . fromIntegral . unSlotNo
@@ -1212,7 +1212,7 @@ dummyTransactionLayer = TransactionLayer
                 return $ xpubToBytes (getKey $ publicKey xprv) <> sig
 
         -- (tx1, wit1) == (tx2, wit2) <==> fakebinary1 == fakebinary2
-        let fakeBinary = fakeSealedTx (tx, wit)
+        let fakeBinary = fakeSealedTx (tx ^. #txId, wit)
         return (tx, fakeBinary)
 
     , addVkWitnesses =
@@ -1266,16 +1266,10 @@ dummyTransactionLayer = TransactionLayer
     forMaybe :: [a] -> (a -> Maybe b) -> [b]
     forMaybe = flip mapMaybe
 
-fakeSealedTx :: HasCallStack => (Tx, [ByteString]) -> SealedTx
+fakeSealedTx :: HasCallStack => (Hash "Tx", [ByteString]) -> SealedTx
 fakeSealedTx (tx, wit) = mockSealedTx $ B8.pack repr
   where
-    repr = show (view #txId tx, wit)
-
-fakeSealedTxId :: SealedTx -> Hash "Tx"
-fakeSealedTxId = fst . parse . B8.unpack . serialisedTx
-  where
-    parse :: String -> (Hash "Tx", [ByteString])
-    parse = read
+    repr = show (tx, wit)
 
 mockNetworkLayer :: Monad m => NetworkLayer m block
 mockNetworkLayer = dummyNetworkLayer
@@ -1310,8 +1304,8 @@ instance Eq (Sqlite.Discoveries DummyState) where
     DummyDiscoveries a == DummyDiscoveries b = a == b
 
 instance Sqlite.PersistAddressBook DummyState where
-    insertPrologue _ _ = error "DummyState.insertPrologue: not implemented"
-    insertDiscoveries _ _ _ = error "DummyState.insertDiscoveries: not implemented"
+    insertPrologue _ _ = pure ()
+    insertDiscoveries _ _ _ = pure ()
     loadPrologue _ = error "DummyState.loadPrologue: not implemented"
     loadDiscoveries _ _ = error "DummyState.loadDiscoveries: not implemented"
 

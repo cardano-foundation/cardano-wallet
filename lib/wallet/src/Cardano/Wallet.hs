@@ -2295,14 +2295,16 @@ mkTxMeta latestBlockHeader txValidity amountIn amountOut =
         }
 
 -- | Broadcast a (signed) transaction to the network.
-submitTx
-    :: Tracer IO WalletWorkerLog
-    -> DBLayer IO s k
-    -> NetworkLayer IO Read.Block
+
+submitTx :: MonadUnliftIO m =>
+    Tracer m WalletWorkerLog
+    -> DBLayer m s k
+    -> NetworkLayer m block
     -> WalletId
     -> BuiltTx
-    -> ExceptT ErrSubmitTx IO ()
-submitTx tr DBLayer{..} nw walletId tx@BuiltTx{..} =
+    -> ExceptT ErrSubmitTx m ()
+submitTx tr DBLayer{addTxSubmission, atomically}
+    nw walletId tx@BuiltTx{..} =
     traceResult (MsgWallet . MsgTxSubmit . MsgSubmitTx tx >$< tr) $ do
         withExceptT ErrSubmitTxNetwork $ postTx nw builtSealedTx
         withExceptT ErrSubmitTxNoSuchWallet $

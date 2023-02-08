@@ -39,6 +39,7 @@ module Cardano.Wallet.DB
     , ErrRemoveTx (..)
     , ErrPutLocalTxSubmission (..)
     , getInSubmissionTransaction_
+    , hoistDBLayer
     ) where
 
 import Prelude
@@ -416,6 +417,9 @@ data DBLayer m s k = forall stm. (MonadIO stm, MonadFail stm) => DBLayer
         :: forall a. stm a -> m a
         -- ^ Execute operations of the database in isolation and atomically.
     }
+
+hoistDBLayer :: (forall a . m a -> n a) -> DBLayer m s k -> DBLayer n s k
+hoistDBLayer f DBLayer{..} = DBLayer {atomically = f . atomically, ..}
 
 {-----------------------------------------------------------------------------
     Build DBLayer from smaller parts
