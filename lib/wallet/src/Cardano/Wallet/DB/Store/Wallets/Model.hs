@@ -16,6 +16,7 @@ module Cardano.Wallet.DB.Store.Wallets.Model
     ( DeltaTxWalletsHistory (..)
     , TxWalletsHistory
     , walletsLinkedTransactions
+    , inAnyWallet
     ) where
 
 import Prelude
@@ -23,8 +24,7 @@ import Prelude
 import Cardano.Wallet.DB.Sqlite.Types
     ( TxId (..) )
 import Cardano.Wallet.DB.Store.Meta.Model
-    ( DeltaTxMetaHistory (..)
-    , TxMetaHistory (..)
+    ( TxMetaHistory (..)
     , WalletsMeta
     , mkTxMetaHistory
     )
@@ -36,8 +36,6 @@ import Data.DeltaMap
     ( DeltaMap (Adjust, Insert) )
 import Data.Foldable
     ( toList )
-import Data.Function
-    ( (&) )
 import Data.Generics.Internal.VL
     ( view )
 import Data.Map.Strict
@@ -113,3 +111,12 @@ linkedTransactions (TxMetaHistory m) = Map.keysSet m
 walletsLinkedTransactions
     :: Map W.WalletId TxMetaHistory -> Set TxId
 walletsLinkedTransactions = Set.unions . toList . fmap linkedTransactions
+
+-- | Is a transaction present in any wallet?
+inAnyWallet
+    :: TxId
+    -> Map W.WalletId TxMetaHistory
+    -> Bool
+inAnyWallet txid = any inAnyTxMetaHistory
+  where
+    inAnyTxMetaHistory (TxMetaHistory m) = Map.member txid m
