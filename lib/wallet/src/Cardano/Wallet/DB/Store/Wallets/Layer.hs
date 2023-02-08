@@ -107,6 +107,8 @@ newQueryStoreTxWalletsHistory = do
                         $ mkTxMetaHistory wid cs
                     , ()
                     )
+            RollbackTxWalletsHistory{} ->
+                error "RollbackTxWalletsHistory not implemented yet"
 
             -- TODO as part of ADP-1043
             -- Remove GarbageCollectTxWalletsHistory

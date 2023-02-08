@@ -105,6 +105,8 @@ mkStoreTxWalletsHistory =
             ChangeTxMetaWalletsHistory wid change
                 -> updateS mkStoreWalletsMeta wmetas
                 $ Adjust wid change
+            RollbackTxWalletsHistory{} ->
+                error "RollbackTxWalletsHistory not implemented yet"
             GarbageCollectTxWalletsHistory ->
                 garbageCollectTxWalletsHistory txSet wmetas
             RemoveWallet wid -> do
