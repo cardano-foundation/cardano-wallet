@@ -2779,23 +2779,17 @@ parseDelegationRequest (action :| otherActions) = except $
 -- TO-DO withdrawals
 -- TO-DO minting/burning
 constructSharedTransaction
-    :: forall ctx s k n.
-        ( k ~ SharedKey
-        , s ~ SharedState n k
-        , ctx ~ ApiLayer s k 'CredFromScriptK
-        , HasNetworkLayer IO ctx
-        , IsOurs s Address
-        , Typeable n
-        )
-    => ctx
-    -> ArgGenChange s
+    :: forall (n :: NetworkDiscriminant)
+     . Typeable n
+    => ApiLayer (SharedState n SharedKey) SharedKey 'CredFromScriptK
+    -> ArgGenChange (SharedState n SharedKey)
     -> IO (Set PoolId)
     -> (PoolId -> IO PoolLifeCycleStatus)
     -> ApiT WalletId
     -> ApiConstructTransactionData n
     -> Handler (ApiConstructTransaction n)
 constructSharedTransaction
-    ctx genChange knownPools poolStatus (ApiT wid) body = do
+    api genChange knownPools poolStatus (ApiT wid) body = do
     let isNoPayload =
             isNothing (body ^. #payments) &&
             isNothing (body ^. #withdrawal) &&
@@ -2813,12 +2807,12 @@ constructSharedTransaction
     delegationRequest <-
         liftHandler $ traverse parseDelegationRequest $ body ^. #delegations
 
-    withWorkerCtx ctx wid liftE liftE $ \wrk -> do
+    withWorkerCtx api wid liftE liftE $ \wrk -> do
         let db = wrk ^. dbLayer
             netLayer = wrk ^. networkLayer
             txLayer = wrk ^. transactionLayer @SharedKey @'CredFromScriptK
             trWorker = MsgWallet >$< wrk ^. logger
-        epoch <- getCurrentEpoch ctx
+        epoch <- getCurrentEpoch api
         era <- liftIO $ NW.currentNodeEra (wrk ^. networkLayer)
         AnyRecentEra (_recentEra :: WriteTx.RecentEra era)
             <- guardIsRecentEra era
@@ -2830,7 +2824,7 @@ constructSharedTransaction
                     poolStatus wid NoWithdrawal
 
         (cp, _, _) <- liftHandler $ withExceptT ErrConstructTxNoSuchWallet $
-            W.readWallet @_ @s @k wrk wid
+            W.readWallet wrk wid
         let txCtx = defaultTransactionCtx
                 { txWithdrawal = NoWithdrawal
                 , txMetadata = md
@@ -2853,7 +2847,7 @@ constructSharedTransaction
                     txLayer netLayer db wid txCtx PreSelection {outputs = outs}
 
                 balancedTx <-
-                    balanceTransaction ctx genChange scriptLookup
+                    balanceTransaction api genChange scriptLookup
                     (Just (Shared.paymentTemplate $ getState cp)) (ApiT wid)
                         ApiBalanceTransactionPostData
                         { transaction =
@@ -2863,8 +2857,7 @@ constructSharedTransaction
                         , encoding = body ^. #encoding
                         }
 
-                apiDecoded <-
-                    decodeSharedTransaction @_ @s @k ctx (ApiT wid) balancedTx
+                apiDecoded <- decodeSharedTransaction api (ApiT wid) balancedTx
 
                 pure $ ApiConstructTransaction
                     { transaction = balancedTx
@@ -2875,7 +2868,7 @@ constructSharedTransaction
                     }
   where
     ti :: TimeInterpreter (ExceptT PastHorizonException IO)
-    ti = timeInterpreter (ctx ^. networkLayer)
+    ti = timeInterpreter (api ^. networkLayer)
 
     unsignedTx initialOuts decodedTx = UnsignedTx
         { unsignedCollateral =
@@ -2891,7 +2884,6 @@ constructSharedTransaction
         , unsignedWithdrawals =
             []
         }
-
 
 decodeSharedTransaction
     :: forall ctx s k (n :: NetworkDiscriminant).
