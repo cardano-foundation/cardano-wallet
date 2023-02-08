@@ -34,7 +34,10 @@ import Cardano.Wallet.DB.Store.Transactions.Model
 import Cardano.Wallet.DB.Store.Transactions.Store
     ( mkStoreTransactions )
 import Cardano.Wallet.DB.Store.Wallets.Model
-    ( DeltaTxWalletsHistory (..), walletsLinkedTransactions )
+    ( DeltaTxWalletsHistory (..)
+    , transactionsToDeleteOnRollback
+    , walletsLinkedTransactions
+    )
 import Control.Applicative
     ( liftA2 )
 import Control.Monad
@@ -104,8 +107,14 @@ mkStoreTxWalletsHistory =
             ChangeTxMetaWalletsHistory wid change
                 -> updateS mkStoreWalletsMeta wmetas
                 $ Adjust wid change
-            RollbackTxWalletsHistory{} ->
-                error "RollbackTxWalletsHistory not implemented yet"
+            RollbackTxWalletsHistory wid slot -> do
+                updateS mkStoreWalletsMeta wmetas
+                    $ Adjust wid
+                    $ TxMetaStore.Manipulate
+                    $ TxMetaStore.RollBackTxMetaHistory slot
+                let deletions = transactionsToDeleteOnRollback wid slot wmetas
+                forM_ deletions
+                    $ updateS mkStoreTransactions txSet . DeleteTx
             GarbageCollectTxWalletsHistory ->
                 garbageCollectTxWalletsHistory txSet wmetas
             RemoveWallet wid -> do
