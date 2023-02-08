@@ -51,6 +51,8 @@ import Cardano.Wallet.Api.Types.Error
     ( ApiErrorInfo (..) )
 import Cardano.Wallet.Api.Types.Transaction
     ( mkApiWitnessCount )
+import Cardano.Wallet.Pools
+    ( StakePool )
 import Cardano.Wallet.Primitive.AddressDerivation
     ( DerivationIndex (..), Index (..) )
 import Cardano.Wallet.Primitive.AddressDerivation.SharedKey
@@ -87,6 +89,8 @@ import Data.Function
     ( (&) )
 import Data.Generics.Internal.VL.Lens
     ( view, (^.) )
+import Data.Generics.Wrapped
+    ( _Unwrapped )
 import Data.Maybe
     ( isJust )
 import Data.Quantity
@@ -110,6 +114,7 @@ import Test.Integration.Framework.DSL
     , Headers (..)
     , MnemonicLength (..)
     , Payload (..)
+    , arbitraryStake
     , decodeErrorInfo
     , deleteSharedWallet
     , emptySharedWallet
@@ -139,6 +144,7 @@ import Test.Integration.Framework.DSL
     , submitSharedTxWithWid
     , toQueryString
     , unsafeGetTransactionTime
+    , unsafeRequest
     , utcIso8601ToText
     , verify
     , walletId
@@ -1608,6 +1614,30 @@ spec = describe "SHARED_TRANSACTIONS" $ do
         r <- request @(ApiTransaction n) ctx link Default Empty
         expectResponseCode HTTP.status404 r
         expectErrorMessage (errMsg404CannotFindTx $ toText txid2) r
+
+    it "SHARED_TRANSACTIONS_DELEGATION_01 - \
+        \Cannot delegate when wallet is missing a delegation script template" $
+        \ctx -> runResourceT $ do
+
+        (ApiSharedWallet (Right w)) <- emptySharedWallet ctx
+
+        pool1:_ <- map (view $ _Unwrapped . #id) . snd <$>
+            unsafeRequest @[ApiT StakePool]
+            ctx (Link.listStakePools arbitraryStake) Empty
+
+        let delegationJoin = Json [json|{
+                "delegations": [{
+                    "join": {
+                        "pool": #{ApiT pool1},
+                        "stake_key_index": "0H"
+                    }
+                }]
+            }|]
+        rTx <- request @(ApiConstructTransaction n) ctx
+            (Link.createUnsignedTransaction @'Shared w) Default delegationJoin
+        expectResponseCode HTTP.status403 rTx
+        decodeErrorInfo rTx `shouldBe` StakingInvalid
+
   where
      listSharedTransactions ctx w mStart mEnd mOrder = do
          let path = Link.listTransactions' @'Shared w
