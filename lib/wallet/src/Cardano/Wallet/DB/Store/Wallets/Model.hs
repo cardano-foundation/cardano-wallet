@@ -56,7 +56,6 @@ import qualified Data.Set as Set
 
 data DeltaTxWalletsHistory
     = ExpandTxWalletsHistory W.WalletId [(WT.Tx, WT.TxMeta)]
-    | ChangeTxMetaWalletsHistory W.WalletId DeltaTxMetaHistory
     | RollbackTxWalletsHistory W.WalletId W.SlotNo
         -- ^ Roll back a single wallet
     | GarbageCollectTxWalletsHistory
@@ -79,10 +78,6 @@ instance Delta DeltaTxWalletsHistory where
                   Adjust wid
                   $ TxMetaStore.Expand
                   $ mkTxMetaHistory wid cs)
-    apply (ChangeTxMetaWalletsHistory wid change) (txh, mtxmh) =
-        (txh, garbageCollectEmptyWallets
-            $ mtxmh & apply (Adjust wid change)
-            )
     apply (RollbackTxWalletsHistory wid slot) (x, mtxmh) =
         -- Roll back all wallets to a given slot (number)
         -- and garbage collect transactions that no longer

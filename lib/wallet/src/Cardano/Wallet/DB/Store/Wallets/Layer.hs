@@ -89,8 +89,6 @@ newQueryStoreTxWalletsHistory = do
 
     let updateTxSet = updateS (store txsQueryStore) undefined
         update = \case
-            ChangeTxMetaWalletsHistory wid change ->
-                updateDBVar transactionsDBVar $ Adjust wid change
             RemoveWallet wid -> do
                 updateDBVar transactionsDBVar $ Delete wid
                 update $ GarbageCollectTxWalletsHistory

@@ -102,9 +102,6 @@ mkStoreTxWalletsHistory =
           writeS mkStoreTransactions txSet
           writeS mkStoreWalletsMeta txMetaHistory
     , updateS = \(txSet,wmetas) -> \case
-            ChangeTxMetaWalletsHistory wid change
-                -> updateS mkStoreWalletsMeta wmetas
-                $ Adjust wid change
             RollbackTxWalletsHistory{} ->
                 error "RollbackTxWalletsHistory not implemented yet"
             GarbageCollectTxWalletsHistory ->
