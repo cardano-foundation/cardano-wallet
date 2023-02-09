@@ -1777,15 +1777,14 @@ selectCoins ctx@ApiLayer {..} argGenChange (ApiT wid) body = do
         pure $ mkApiCoinSelection [] [] Nothing md utx
 
 selectCoinsForJoin
-    :: forall ctx s n k.
+    :: forall s n k.
         ( s ~ SeqState n k
         , k ~ ShelleyKey
-        , ctx ~ ApiLayer s k 'CredFromKeyK
         , DelegationAddress n k 'CredFromKeyK
         , Seq.SupportsDiscovery n k
         , BoundedAddressLength k
         )
-    => ctx
+    => ApiLayer s k 'CredFromKeyK
     -> IO (Set PoolId)
        -- ^ Known pools
        -- We could maybe replace this with a @IO (PoolId -> Bool)@
@@ -1793,14 +1792,13 @@ selectCoinsForJoin
     -> PoolId
     -> WalletId
     -> Handler (Api.ApiCoinSelection n)
-selectCoinsForJoin ctx knownPools getPoolStatus pid wid = do
+selectCoinsForJoin ctx@ApiLayer{..} knownPools getPoolStatus pid walletId = do
     poolStatus <- liftIO (getPoolStatus pid)
     pools <- liftIO knownPools
     curEpoch <- getCurrentEpoch ctx
 
-    withWorkerCtx ctx wid liftE liftE $ \wrk -> do
+    withWorkerCtx ctx walletId liftE liftE $ \wrk -> do
         let db = wrk ^. typed @(DBLayer IO s k)
-            netLayer = wrk ^. networkLayer
         pp <- liftIO $ NW.currentProtocolParameters netLayer
         action <- liftIO $ WD.joinStakePoolDelegationAction @s @k
             (contramap MsgWallet $ wrk ^. logger)
@@ -1809,7 +1807,7 @@ selectCoinsForJoin ctx knownPools getPoolStatus pid wid = do
             pools
             pid
             poolStatus
-            wid
+            walletId
 
         let txCtx = defaultTransactionCtx
                 { txDelegationAction = Just action
@@ -1820,7 +1818,7 @@ selectCoinsForJoin ctx knownPools getPoolStatus pid wid = do
                 W.assignChangeAddresses genChange sel s
                 & uncurry (W.selectionToUnsignedTx (txWithdrawal txCtx))
         (utxoAvailable, wallet, pendingTxs) <-
-            liftHandler $ W.readWalletUTxOIndex @_ @s @k wrk wid
+            liftHandler $ W.readWalletUTxOIndex @_ @s @k wrk walletId
         let selectAssetsParams = W.SelectAssetsParams
                 { outputs = []
                 , pendingTxs
@@ -1836,7 +1834,7 @@ selectCoinsForJoin ctx knownPools getPoolStatus pid wid = do
             $ W.selectAssets @_ @_ @s @k @'CredFromKeyK
                 wrk era pp selectAssetsParams transform
         (_, _, path) <- liftHandler
-            $ W.readRewardAccount db wid
+            $ W.readRewardAccount db walletId
 
         let deposits = case action of
                 JoinRegisteringKey _poolId -> [W.stakeKeyDeposit pp]
