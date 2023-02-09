@@ -379,6 +379,8 @@ data TransactionCtx = TransactionCtx
     -- ^ The assets to burn.
     , txPaymentCredentialScriptTemplate :: Maybe ScriptTemplate
     -- ^ Script template regulating payment credentials
+    , txStakingCredentialScriptTemplate :: Maybe ScriptTemplate
+    -- ^ Script template regulating delegation credentials
     , txNativeScriptInputs :: Map TxIn (Script KeyHash)
     -- ^ A map of script hashes related to inputs. Only for multisig wallets
     , txCollateralRequirement :: SelectionCollateralRequirement
@@ -418,6 +420,7 @@ defaultTransactionCtx = TransactionCtx
     , txAssetsToMint = (TokenMap.empty, Map.empty)
     , txAssetsToBurn = (TokenMap.empty, Map.empty)
     , txPaymentCredentialScriptTemplate = Nothing
+    , txStakingCredentialScriptTemplate = Nothing
     , txNativeScriptInputs = Map.empty
     , txCollateralRequirement = SelectionCollateralNotRequired
     , txFeePadding = Coin 0

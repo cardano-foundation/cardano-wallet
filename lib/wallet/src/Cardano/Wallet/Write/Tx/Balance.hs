@@ -288,6 +288,7 @@ balanceTransaction
     -> TransactionLayer k ktype SealedTx
     -> Maybe ([(W.TxIn, W.TxOut)] -> [CA.Script KeyHash])
     -> Maybe ScriptTemplate
+    -> Maybe ScriptTemplate
     -> (W.ProtocolParameters, Cardano.ProtocolParameters)
     -- ^ 'Cardano.ProtocolParameters' can be retrieved via a Local State Query
     -- to a local node.
@@ -314,7 +315,7 @@ balanceTransaction
     -> PartialTx era
     -> ExceptT ErrBalanceTx m (Cardano.Tx era, s)
 balanceTransaction
-    tr txLayer toInpScriptsM mScriptTemplate pp ti idx genChange s unadjustedPtx = do
+    tr txLayer toInpScriptsM pScriptTemplateM dScriptTemplateM pp ti idx genChange s unadjustedPtx = do
     -- TODO [ADP-1490] Take 'Ledger.PParams era' directly as argument, and avoid
     -- converting to/from Cardano.ProtocolParameters. This may affect
     -- performance. The addition of this one specific conversion seems to have
@@ -327,7 +328,7 @@ balanceTransaction
     let balanceWith strategy =
             balanceTransactionWithSelectionStrategyAndNoZeroAdaAdjustment
                 @era @m @s @k @ktype
-                tr txLayer toInpScriptsM mScriptTemplate
+                tr txLayer toInpScriptsM pScriptTemplateM dScriptTemplateM
                 pp ti idx genChange s strategy adjustedPtx
     balanceWith SelectionStrategyOptimal
         `catchE` \e ->
@@ -412,6 +413,7 @@ balanceTransactionWithSelectionStrategyAndNoZeroAdaAdjustment
     -> TransactionLayer k ktype SealedTx
     -> Maybe ([(W.TxIn, W.TxOut)] -> [CA.Script KeyHash])
     -> Maybe ScriptTemplate
+    -> Maybe ScriptTemplate
     -> (W.ProtocolParameters, Cardano.ProtocolParameters)
     -> TimeInterpreter (Either PastHorizonException)
     -> UTxOIndex WalletUTxO
@@ -424,7 +426,8 @@ balanceTransactionWithSelectionStrategyAndNoZeroAdaAdjustment
     tr
     txLayer
     toInpScriptsM
-    mScriptTemplate
+    pScriptTemplateM
+    dScriptTemplateM
     (pp, nodePParams)
     ti
     internalUtxoAvailable
@@ -848,7 +851,8 @@ balanceTransactionWithSelectionStrategyAndNoZeroAdaAdjustment
                     , fromCardanoLovelace fee0
                     , calcMinimumCost txLayer era pp
                         (defaultTransactionCtx
-                            { txPaymentCredentialScriptTemplate = mScriptTemplate
+                            { txPaymentCredentialScriptTemplate = pScriptTemplateM
+                            , txStakingCredentialScriptTemplate = dScriptTemplateM
                             , txPlutusScriptExecutionCost =
                                 txPlutusScriptExecutionCost })
                         skeleton

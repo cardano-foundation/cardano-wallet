@@ -1538,7 +1538,12 @@ toStakeKeyDeregCert = \case
         . toShort
         . blake2b224
         $ xpubPublicKey xpub
-    Right script -> undefined
+    Right script ->
+        Cardano.makeStakeAddressDeregistrationCertificate
+        . Cardano.StakeCredentialByScript
+        . Cardano.hashScript
+        . Cardano.SimpleScript Cardano.SimpleScriptV2
+        $ toCardanoSimpleScript script
 
 toStakeKeyRegCert :: Either XPub (Script KeyHash) -> Cardano.Certificate
 toStakeKeyRegCert cred = case cred of
@@ -1551,7 +1556,12 @@ toStakeKeyRegCert cred = case cred of
         . toShort
         . blake2b224
         $ xpubPublicKey xpub
-    Right script -> undefined
+    Right script ->
+        Cardano.makeStakeAddressRegistrationCertificate
+        . Cardano.StakeCredentialByScript
+        . Cardano.hashScript
+        . Cardano.SimpleScript Cardano.SimpleScriptV2
+        $ toCardanoSimpleScript script
 
 toStakePoolDlgCert :: Either XPub (Script KeyHash) -> PoolId -> Cardano.Certificate
 toStakePoolDlgCert cred (PoolId pid) = case cred of
@@ -1559,7 +1569,13 @@ toStakePoolDlgCert cred (PoolId pid) = case cred of
         Cardano.makeStakeAddressDelegationCertificate
         (Cardano.StakeCredentialByKey $ Cardano.StakeKeyHash (toKeyHash xpub))
         (Cardano.StakePoolKeyHash pool)
-    Right script -> undefined
+    Right script ->
+        Cardano.makeStakeAddressDelegationCertificate
+        (Cardano.StakeCredentialByScript
+        . Cardano.hashScript
+        . Cardano.SimpleScript Cardano.SimpleScriptV2
+        $ toCardanoSimpleScript script)
+        (Cardano.StakePoolKeyHash pool)
   where
     toKeyHash = SL.KeyHash . UnsafeHash . toShort . blake2b224 . xpubPublicKey
     pool = SL.KeyHash $ UnsafeHash $ toShort pid

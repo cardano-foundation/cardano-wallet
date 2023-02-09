@@ -2502,7 +2502,7 @@ constructTransaction api argGenChange knownPools poolStatus apiWalletId body = d
                     PreSelection { outputs = outs <> mintingOuts }
 
         balancedTx <-
-            balanceTransaction api argGenChange Nothing Nothing apiWalletId
+            balanceTransaction api argGenChange Nothing Nothing Nothing apiWalletId
                 ApiBalanceTransactionPostData
                 { transaction = ApiT (sealedTxFromCardanoBody unbalancedTx)
                 , inputs = []
@@ -2851,9 +2851,14 @@ constructSharedTransaction
                     W.constructUnbalancedSharedTransaction @n @'CredFromScriptK @era
                     txLayer netLayer db wid txCtx PreSelection {outputs = outs}
 
+                let dScriptTemplate = case delegationRequest of
+                        Just _ -> Shared.delegationTemplate $ getState cp
+                        _ -> Nothing
+
                 balancedTx <-
                     balanceTransaction api genChange scriptLookup
-                    (Just (Shared.paymentTemplate $ getState cp)) (ApiT wid)
+                    (Just (Shared.paymentTemplate $ getState cp))
+                    dScriptTemplate (ApiT wid)
                         ApiBalanceTransactionPostData
                         { transaction =
                             ApiT $ sealedTxFromCardanoBody unbalancedTx
@@ -2965,6 +2970,7 @@ balanceTransaction
     -> ArgGenChange s
     -> Maybe ([(TxIn, TxOut)] -> [Script KeyHash])
     -> Maybe ScriptTemplate
+    -> Maybe ScriptTemplate
     -> ApiT WalletId
     -> ApiBalanceTransactionPostData n
     -> Handler ApiSerialisedTransaction
@@ -2972,7 +2978,8 @@ balanceTransaction
     ctx@ApiLayer{..}
     argGenChange
     genInpScripts
-    mScriptTemplate
+    pScriptTemplateM
+    dScriptTemplateM
     (ApiT wid)
     body = do
     -- NOTE: Ideally we'd read @pp@ and @era@ atomically.
@@ -3038,7 +3045,8 @@ balanceTransaction
                     (MsgWallet . W.MsgBalanceTx >$< wrk ^. W.logger)
                     (ctx ^. typed)
                     genInpScripts
-                    mScriptTemplate
+                    pScriptTemplateM
+                    dScriptTemplateM
                     (pp, nodePParams)
                     ti
                     utxoIndex

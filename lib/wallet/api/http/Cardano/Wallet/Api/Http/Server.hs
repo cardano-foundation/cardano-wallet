@@ -356,7 +356,7 @@ server byron icarus shelley multisig spl ntp blockchainSource =
         :<|> deleteTransaction shelley
         :<|> postTransactionOld shelley (delegationAddress @n)
         :<|> postTransactionFeeOld shelley
-        :<|> balanceTransaction shelley (delegationAddress @n) Nothing Nothing
+        :<|> balanceTransaction shelley (delegationAddress @n) Nothing Nothing Nothing
         :<|> decodeTransaction shelley
         :<|> submitTransaction @_ @_ @_ @n shelley
 

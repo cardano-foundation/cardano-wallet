@@ -709,7 +709,7 @@ mkDelegationCertificates
     :: DelegationAction
         -- Pool Id to which we're planning to delegate
     -> Either XPub (Script KeyHash)
-        -- Reward account public key
+        -- Staking credential
     -> [Cardano.Certificate]
 mkDelegationCertificates da cred =
     case da of
