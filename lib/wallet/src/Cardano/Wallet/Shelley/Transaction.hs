@@ -1550,6 +1550,7 @@ data TxSkeleton = TxSkeleton
     , txOutputs :: ![TxOut]
     , txChange :: ![Set AssetId]
     , txPaymentTemplate :: !(Maybe (Script Cosigner))
+    , txStakingTemplate :: !(Maybe (Script Cosigner))
     , txMintOrBurnScripts :: [Script KeyHash]
     , txAssetsToMintOrBurn :: Set AssetId
     -- ^ The set of assets to mint or burn.
@@ -1571,6 +1572,7 @@ emptyTxSkeleton txWitnessTag = TxSkeleton
     , txOutputs = []
     , txChange = []
     , txPaymentTemplate = Nothing
+    , txStakingTemplate = Nothing
     , txMintOrBurnScripts = []
     , txAssetsToMintOrBurn = Set.empty
     , txScriptExecutionCost = Coin 0
@@ -1597,6 +1599,9 @@ mkTxSkeleton witness context skeleton = TxSkeleton
     , txPaymentTemplate =
         template <$>
         view #txPaymentCredentialScriptTemplate context
+    , txStakingTemplate =
+        template <$>
+        view #txStakingCredentialScriptTemplate context
     , txMintOrBurnScripts = (<>)
         (Map.elems (snd $ view #txAssetsToMint context))
         (Map.elems (snd $ view #txAssetsToBurn context))
@@ -1809,6 +1814,7 @@ estimateTxSize era skeleton =
         , txOutputs
         , txChange
         , txPaymentTemplate
+        , txStakingTemplate
         , txMintOrBurnScripts
         , txAssetsToMintOrBurn
         } = skeleton
