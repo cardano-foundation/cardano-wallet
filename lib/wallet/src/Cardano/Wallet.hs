@@ -459,6 +459,8 @@ import Cardano.Wallet.Transaction
     , defaultTransactionCtx
     , withdrawalToCoin
     )
+import Cardano.Wallet.Transaction.Built
+    ( BuiltTx (..) )
 import Cardano.Wallet.Write.Tx
     ( AnyRecentEra )
 import Cardano.Wallet.Write.Tx.Balance
@@ -1960,13 +1962,6 @@ buildSignSubmitTransaction ti db@DBLayer{..} netLayer txLayer pwd walletId
     wrapNoWalletForSubmit = ExceptionSubmitTx . ErrSubmitTxNoSuchWallet
     wrapNetworkError = ExceptionSubmitTx . ErrSubmitTxNetwork
     wrapBalanceConstructError = either ExceptionBalanceTx ExceptionConstructTx
-
-data BuiltTx = BuiltTx
-    { builtTx :: Tx
-    , builtTxMeta :: TxMeta
-    , builtSealedTx :: SealedTx
-    }
-    deriving (Show, Eq)
 
 buildAndSignTransactionPure
     :: forall k ktype s (n :: NetworkDiscriminant)
