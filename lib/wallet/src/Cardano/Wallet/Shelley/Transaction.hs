@@ -590,7 +590,7 @@ newTransactionLayer networkId = TransactionLayer
 
             Just action -> withShelleyBasedEra era $ do
                 let stakeXPub = toXPub $ fst stakeCreds
-                let certs = mkDelegationCertificates action stakeXPub
+                let certs = mkDelegationCertificates action (Left stakeXPub)
                 let payload = TxPayload (view #txMetadata ctx) certs (const [])
                 mkTx networkId payload ttl stakeCreds keystore wdrl
                     selection delta
@@ -631,13 +631,15 @@ newTransactionLayer networkId = TransactionLayer
                     addressResolver inputResolver (body, wits)
                     & sealedTxFromCardano'
 
-    , mkUnsignedTransaction = \stakeXPub _pp ctx selection -> do
+    , mkUnsignedTransaction = \stakeCred _pp ctx selection -> do
         let ttl   = txValidityInterval ctx
         let wdrl  = withdrawalToCoin $ view #txWithdrawal ctx
         let delta = case selection of
                 Right selOf -> selectionDelta TxOut.coin selOf
                 Left _preSel -> Coin 0
-        let rewardAcct = toRewardAccountRaw stakeXPub
+        let rewardAcct = case stakeCred of
+                Left stakeXPub -> toRewardAccountRaw stakeXPub
+                Right _script -> error "TO_DO: ADP-2604 when withdrawals are tackled"
         let assetsToBeMinted = view #txAssetsToMint ctx
         let assetsToBeBurned = view #txAssetsToBurn ctx
         let inpsScripts = view #txNativeScriptInputs ctx
@@ -649,7 +651,7 @@ newTransactionLayer networkId = TransactionLayer
                     selection delta assetsToBeMinted assetsToBeBurned inpsScripts
                     (WriteTx.shelleyBasedEraFromRecentEra WriteTx.recentEra)
             Just action -> do
-                let certs = mkDelegationCertificates action stakeXPub
+                let certs = mkDelegationCertificates action stakeCred
                 let payload = (view #txMetadata ctx, certs)
                 constructUnsignedTx networkId payload ttl rewardAcct wdrl
                     selection delta assetsToBeMinted assetsToBeBurned inpsScripts
@@ -706,18 +708,18 @@ _decodeSealedTx preferredLatestEra witCtx (cardanoTxIdeallyNoLaterThan preferred
 mkDelegationCertificates
     :: DelegationAction
         -- Pool Id to which we're planning to delegate
-    -> XPub
+    -> Either XPub (Script KeyHash)
         -- Reward account public key
     -> [Cardano.Certificate]
-mkDelegationCertificates da accXPub =
+mkDelegationCertificates da cred =
     case da of
        Join poolId ->
-               [ toStakePoolDlgCert accXPub poolId ]
+               [ toStakePoolDlgCert cred poolId ]
        JoinRegisteringKey poolId ->
-            [ toStakeKeyRegCert accXPub
-            , toStakePoolDlgCert accXPub poolId
+            [ toStakeKeyRegCert cred
+            , toStakePoolDlgCert cred poolId
             ]
-       Quit -> [toStakeKeyDeregCert accXPub]
+       Quit -> [toStakeKeyDeregCert cred]
 
 
 -- | For testing that

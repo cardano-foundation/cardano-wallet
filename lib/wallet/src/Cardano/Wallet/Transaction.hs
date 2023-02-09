@@ -185,8 +185,8 @@ data TransactionLayer k ktype tx = TransactionLayer
     , mkUnsignedTransaction
         :: forall era
          . WriteTx.IsRecentEra era
-        => XPub
-            -- Reward account public key
+        => Either XPub (Script KeyHash)
+            -- Reward account public key or script hash
         -> ProtocolParameters
             -- Current protocol parameters
         -> TransactionCtx

@@ -521,6 +521,8 @@ import Data.DBVar
     ( modifyDBMaybe )
 import Data.Either
     ( partitionEithers )
+import Data.Either.Combinators
+    ( maybeToRight )
 import Data.Either.Extra
     ( eitherToMaybe )
 import Data.Function
@@ -2012,7 +2014,7 @@ buildAndSignTransactionPure
         unsignedTxBody <-
             lift . withExceptT (Right . ErrConstructTxBody) . except $
                 mkUnsignedTransaction txLayer @recentEra
-                    (unsafeShelleyOnlyGetRewardXPub (getState wallet))
+                    (Left $ unsafeShelleyOnlyGetRewardXPub (getState wallet))
                     protocolParams
                     txCtx
                     (Left preSelection)
@@ -2202,7 +2204,7 @@ constructTransaction txLayer netLayer db wid txCtx preSel = do
     (_, xpub, _) <- readRewardAccount db wid
         & withExceptT ErrConstructTxReadRewardAccount
     pp <- liftIO $ currentProtocolParameters netLayer
-    mkUnsignedTransaction txLayer xpub pp txCtx (Left preSel)
+    mkUnsignedTransaction txLayer (Left xpub) pp txCtx (Left preSel)
         & withExceptT ErrConstructTxBody . except
 
 constructUnbalancedSharedTransaction
@@ -2223,11 +2225,13 @@ constructUnbalancedSharedTransaction txLayer netLayer db wid txCtx sel = db & \D
         $ readCheckpoint wid
     let s = getState cp
     let delTemplateM = delegationTemplate s
-    let scriptHashM =
-            flip (replaceCosignersWithVerKeys CAShelley.Stake) minBound <$> delTemplateM
+    let scriptM =
+            flip (replaceCosignersWithVerKeys CAShelley.Stake) minBound <$>
+            delTemplateM
     let accXPub = getRawKey $ Shared.accountXPub s
     let xpub = CA.getKey $
             deriveDelegationPublicKey (CA.liftXPub accXPub) minBound
+    let delCred = maybeToRight xpub scriptM
     let getScript (_, TxOut addr _) = case fst (isShared addr s) of
             Nothing ->
                 error $ "Some inputs selected by coin selection do not belong "
@@ -2243,7 +2247,7 @@ constructUnbalancedSharedTransaction txLayer netLayer db wid txCtx sel = db & \D
     sealedTx <- mapExceptT atomically $ do
         pp <- liftIO $ currentProtocolParameters netLayer
         withExceptT ErrConstructTxBody $ ExceptT $ pure $
-            mkUnsignedTransaction txLayer xpub pp txCtx (Left sel)
+            mkUnsignedTransaction txLayer delCred pp txCtx (Left sel)
     pure (sealedTx, Just (map getScript))
 
 -- | Calculate the transaction expiry slot, given a 'TimeInterpreter', and an

@@ -3646,7 +3646,7 @@ balanceTransactionGoldenSpec = describe "balance goldens" $ do
             Nothing
             Cardano.TxScriptValidityNone
 
-        certs = mkDelegationCertificates delegationAction xpub
+        certs = mkDelegationCertificates delegationAction (Left xpub)
           where
             poolId = PoolId "\236(\243=\203\230\214@\n\RS^3\155\208d|\
                             \\ts\202l\f\249\194\187\230\131\141\198"
