@@ -2222,6 +2222,9 @@ constructUnbalancedSharedTransaction txLayer netLayer db wid txCtx sel = db & \D
         $ withNoSuchWallet wid
         $ readCheckpoint wid
     let s = getState cp
+    let delTemplateM = delegationTemplate s
+    let scriptHashM =
+            flip (replaceCosignersWithVerKeys CAShelley.Stake) minBound <$> delTemplateM
     let accXPub = getRawKey $ Shared.accountXPub s
     let xpub = CA.getKey $
             deriveDelegationPublicKey (CA.liftXPub accXPub) minBound
