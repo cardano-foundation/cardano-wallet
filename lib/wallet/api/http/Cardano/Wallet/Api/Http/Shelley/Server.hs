@@ -357,7 +357,6 @@ import Cardano.Wallet.Pools
     ( EpochInfo (..), toEpochInfo )
 import Cardano.Wallet.Primitive.AddressDerivation
     ( BoundedAddressLength (..)
-    , DelegationAddress (..)
     , Depth (..)
     , DerivationIndex (..)
     , DerivationType (..)
@@ -1778,12 +1777,13 @@ selectCoins ctx@ApiLayer {..} genChange (ApiT wid) body = do
 selectCoinsForJoin
     :: forall s n k.
         ( s ~ SeqState n k
-        , k ~ ShelleyKey
-        , DelegationAddress n k 'CredFromKeyK
+        , AddressBookIso s
         , Seq.SupportsDiscovery n k
         , BoundedAddressLength k
+        , Typeable k
         )
     => ApiLayer s k 'CredFromKeyK
+    -> ArgGenChange s
     -> IO (Set PoolId)
        -- ^ Known pools
        -- We could maybe replace this with a @IO (PoolId -> Bool)@
@@ -1791,55 +1791,51 @@ selectCoinsForJoin
     -> PoolId
     -> WalletId
     -> Handler (Api.ApiCoinSelection n)
-selectCoinsForJoin ctx@ApiLayer{..} knownPools getPoolStatus pid walletId = do
-    poolStatus <- liftIO (getPoolStatus pid)
+selectCoinsForJoin ctx@ApiLayer{..}
+    argGenChange knownPools getPoolStatus poolId walletId = do
+    era <- liftIO $ NW.currentNodeEra netLayer
+    poolStatus <- liftIO $ getPoolStatus poolId
     pools <- liftIO knownPools
     curEpoch <- getCurrentEpoch ctx
-
-    withWorkerCtx ctx walletId liftE liftE $ \wrk -> do
-        let db = wrk ^. typed @(DBLayer IO s k)
-        pp <- liftIO $ NW.currentProtocolParameters netLayer
+    recentEra@(AnyRecentEra (_ :: WriteTx.RecentEra e)) <- guardIsRecentEra era
+    withWorkerCtx ctx walletId liftE liftE $ \workerCtx -> liftIO $ do
+        let db = workerCtx ^. typed @(DBLayer IO s k)
+            ti = timeInterpreter netLayer
+        pp <- NW.currentProtocolParameters netLayer
         action <- liftIO $ WD.joinStakePoolDelegationAction @s @k
-            (contramap MsgWallet $ wrk ^. logger)
+            (contramap MsgWallet $ workerCtx ^. logger)
             db
             curEpoch
             pools
-            pid
+            poolId
             poolStatus
             walletId
 
-        let txCtx = defaultTransactionCtx
-                { txDelegationAction = Just action
-                }
+        let txCtx = defaultTransactionCtx { txDelegationAction = Just action }
 
-        let transform s sel =
-                W.assignChangeAddresses (delegationAddress @n) sel s
-                & uncurry (W.selectionToUnsignedTx (txWithdrawal txCtx))
-        (utxoAvailable, wallet, pendingTxs) <-
-            liftHandler $ W.readWalletUTxOIndex @_ @s @k wrk walletId
-        let selectAssetsParams = W.SelectAssetsParams
-                { outputs = []
-                , pendingTxs
-                , randomSeed = Nothing
-                , txContext = txCtx
-                , utxoAvailableForInputs = UTxOSelection.fromIndex utxoAvailable
-                , utxoAvailableForCollateral = UTxOIndex.toMap utxoAvailable
-                , wallet
-                , selectionStrategy = SelectionStrategyOptimal
-                }
-        era <- liftIO $ NW.currentNodeEra netLayer
-        utx <- liftHandler
-            $ W.selectAssets @_ @_ @s @k @'CredFromKeyK
-                wrk era pp selectAssetsParams transform
-        (_, _, path) <- liftHandler
-            $ W.readRewardAccount db walletId
+        (cardanoTx, walletState) <- W.buildTransaction @s @k @n @e
+            recentEra db txLayer ti walletId argGenChange pp txCtx
 
-        let deposits = case action of
-                JoinRegisteringKey _poolId -> [W.stakeKeyDeposit pp]
-                Join _poolId -> []
-                Quit -> []
+        let W.CoinSelection{..} =
+                W.buildCoinSelectionForTransaction @s @k @n
+                    walletState
+                    [] -- paymentOutputs
+                    (W.stakeKeyDeposit pp)
+                    (Just action)
+                    cardanoTx
 
-        pure $ mkApiCoinSelection deposits [] (Just (action, path)) Nothing utx
+        pure ApiCoinSelection
+            { inputs = mkApiCoinSelectionInput <$> inputs
+            , outputs = mkApiCoinSelectionOutput <$> outputs
+            , change = mkApiCoinSelectionChange <$> change
+            , collateral = mkApiCoinSelectionCollateral <$> collateral
+            , certificates = uncurry mkApiCoinSelectionCerts <$>
+                delegationAction
+            , withdrawals = mkApiCoinSelectionWithdrawal <$> withdrawals
+            , depositsTaken = maybeToList $ mkApiCoin <$> deposit
+            , depositsReturned = maybeToList $ mkApiCoin <$> refund
+            , metadata = Nothing
+            }
 
 selectCoinsForQuit
     :: forall s n k.
@@ -1877,7 +1873,7 @@ selectCoinsForQuit ctx@ApiLayer{..} argGenChange (ApiT walletId) = do
                     walletState
                     [] -- paymentOutputs
                     (W.stakeKeyDeposit pp)
-                    (txCtx ^. #txDelegationAction)
+                    (Just action)
                     cardanoTx
 
         pure ApiCoinSelection

@@ -320,14 +320,15 @@ server byron icarus shelley multisig spl ntp blockchainSource =
     --   https://github.com/quchen/articles/blob/master/fbut.md#f-x---is-not-f--x---
     {- HLINT ignore "Redundant lambda" -}
     coinSelections :: Server (CoinSelections n)
-    coinSelections = (\wid ascd -> case ascd of
-        (ApiSelectForPayment ascp) ->
+    coinSelections = (\wid -> \case
+        ApiSelectForPayment ascp ->
             selectCoins shelley (delegationAddress @n) wid ascp
-        (ApiSelectForDelegation (ApiSelectCoinsAction action)) ->
+        ApiSelectForDelegation (ApiSelectCoinsAction action) ->
             case action of
-                (Join pid) ->
+                Join pid ->
                     selectCoinsForJoin
                         shelley
+                        (delegationAddress @n)
                         (knownPools spl)
                         (getPoolLifeCycleStatus spl)
                         (getApiT pid)
