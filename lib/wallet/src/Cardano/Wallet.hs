@@ -545,7 +545,7 @@ import Data.List.NonEmpty
 import Data.Map.Strict
     ( Map )
 import Data.Maybe
-    ( fromMaybe, isJust, mapMaybe, maybeToList )
+    ( fromMaybe, isJust, isNothing, mapMaybe, maybeToList )
 import Data.Proxy
     ( Proxy (..) )
 import Data.Set
@@ -1729,17 +1729,24 @@ selectCoinsForTransaction era DBLayer{..} txLayer timeInterpreter walletId
 
         let depositRefund = W.stakeKeyDeposit protocolParameters
 
-        pure CoinSelection
-            { inputs = resolveInput . fromCardanoTxIn . fst =<< txIns
-            , outputs = fromCardanoTxOut <$> txOuts
-            , change = do
-                out <- fromCardanoTxOut <$> txOuts
-                derivationPath <- maybeToList . fst $
-                    isOurs (out ^. #address) (getState wallet)
+        let changeDerivationPath :: Address -> Maybe (NonEmpty DerivationIndex)
+            changeDerivationPath addr = do
+                derivationPath <- fst $ isOurs addr (getState wallet)
                 let role = derivationPath NE.!! 3
                 guard $ getIndex utxoInternal == getDerivationIndex role
+                pure derivationPath
+
+        pure CoinSelection
+            { inputs = resolveInput . fromCardanoTxIn . fst =<< txIns
+            , outputs =
+                filter (isNothing . changeDerivationPath . view #address)
+                    $ fromCardanoTxOut <$> txOuts
+            , change = do
+                out <- fromCardanoTxOut <$> txOuts
+                let address = out ^. #address
+                derivationPath <- maybeToList $ changeDerivationPath address
                 pure TxChange
-                    { address = out ^. #address
+                    { address
                     , amount = out ^. #tokens . #coin
                     , assets = out ^. #tokens . #tokens
                     , derivationPath
