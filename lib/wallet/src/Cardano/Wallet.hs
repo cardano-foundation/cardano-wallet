@@ -595,6 +595,8 @@ import qualified Cardano.Crypto.Wallet as CC
 import qualified Cardano.Slotting.Slot as Slot
 import qualified Cardano.Tx.Balance.Internal.CoinSelection as CS
 import qualified Cardano.Wallet.Checkpoints.Policy as CP
+import Cardano.Wallet.DB.Store.Submissions.Layer
+    ( mkLocalTxSubmission )
 import qualified Cardano.Wallet.DB.WalletState as WS
 import qualified Cardano.Wallet.DB.WalletState as WalletState
 import qualified Cardano.Wallet.Primitive.AddressDiscovery.Random as Rnd
@@ -2409,10 +2411,11 @@ runLocalTxSubmissionPool cfg ctx wid = db & \DBLayer{..} -> do
         sp <- currentSlottingParameters nw
         pending <- atomically $ readLocalTxSubmissionPending wid
         let sl = bh ^. #slotNo
+            pendingOldStyle = pending >>= mkLocalTxSubmission
         -- Re-submit transactions due, ignore errors
-        forM_ (filter (isScheduled sp sl) pending) $ \st -> do
+        forM_ (filter (isScheduled sp sl) pendingOldStyle) $ \st -> do
             _ <- runExceptT $ traceResult (trRetry (st ^. #txId)) $
-                postTx nw (st ^. #submittedTx)
+                postTx nw (st ^. #submittedTx )
             atomically $ resubmitTx
                 wid
                 (st ^. #txId)

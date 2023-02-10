@@ -10,7 +10,7 @@
 
 module Cardano.Wallet.DB.Store.Submissions.Layer
     ( mkDbPendingTxs
-    )
+    , mkLocalTxSubmission)
     where
 
 import Prelude hiding
@@ -43,7 +43,7 @@ import Cardano.Wallet.Transaction.Built
 import Control.Category
     ( (.) )
 import Control.Lens
-    ( to, (^.), (^..) )
+    ( (^.), (^..) )
 import Control.Monad.Except
     ( ExceptT (ExceptT) )
 import Data.Bifunctor
@@ -97,15 +97,7 @@ mkDbPendingTxs dbvar = DBPendingTxs
             submissions <- readDBVar dbvar
             pure $ case Map.lookup wid submissions of
                 Nothing  -> []
-                Just xs -> xs ^.. transactionsL . traverse . to (fmap snd)
-
-    , readLocalTxSubmissionPending_ = \wid -> do
-            v <- readDBVar dbvar
-            pure $ case Map.lookup wid v of
-                Nothing -> []
-                Just sub -> do
-                    (_k, x) <- Map.assocs $ sub ^. transactionsL
-                    mkLocalTxSubmission x
+                Just xs -> xs ^.. transactionsL . traverse
 
     , rollForwardTxSubmissions_ = \wid tip txs ->
         updateDBVar dbvar

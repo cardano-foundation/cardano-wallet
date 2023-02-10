@@ -50,6 +50,8 @@ import Cardano.Wallet.DB
     ( DBLayer (..), hoistDBLayer, putTxHistory )
 import Cardano.Wallet.DB.Layer
     ( newDBLayerInMemory )
+import Cardano.Wallet.DB.Store.Submissions.Operations
+    ( TxSubmissionsStatus )
 import Cardano.Wallet.DB.WalletState
     ( ErrNoSuchWallet (..) )
 import Cardano.Wallet.DummyTarget.Primitive.Types
@@ -119,7 +121,6 @@ import Cardano.Wallet.Primitive.Types.TokenQuantity.Gen
     ( genTokenQuantityPositive )
 import Cardano.Wallet.Primitive.Types.Tx
     ( Direction (..)
-    , LocalTxSubmissionStatus (..)
     , SealedTx (..)
     , TransactionInfo (..)
     , Tx (..)
@@ -275,6 +276,8 @@ import qualified Cardano.Wallet.Primitive.Types.Coin as Coin
 import qualified Cardano.Wallet.Primitive.Types.TokenBundle as TokenBundle
 import qualified Cardano.Wallet.Primitive.Types.TokenMap as TokenMap
 import qualified Cardano.Wallet.Read as Read
+import qualified Cardano.Wallet.Submissions.Submissions as Smbs
+import qualified Cardano.Wallet.Submissions.TxStatus as Sbms
 import qualified Data.ByteArray as BA
 import qualified Data.ByteString as BS
 import qualified Data.ByteString.Char8 as B8
@@ -804,9 +807,9 @@ prop_localTxSubmission tc = monadicIO $ do
     assert' _msg True  = return ()
     assert' msg False = fail msg
     eqByTxIds
-        :: [LocalTxSubmissionStatus SealedTx]
-        -> [LocalTxSubmissionStatus SealedTx] -> Bool
-    eqByTxIds = (==) `on` (sort . fmap (view #txId))
+        :: [TxSubmissionsStatus]
+        -> [TxSubmissionsStatus] -> Bool
+    eqByTxIds = (==) `on` (sort . fmap (fmap fst . Sbms.getTx . view Smbs.txStatus))
     runTest
         :: TxRetryTestState
         -> (TxRetryTestCtx -> TxRetryTestM a)
