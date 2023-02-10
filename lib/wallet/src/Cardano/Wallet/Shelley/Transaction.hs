@@ -247,7 +247,7 @@ import Data.Kind
 import Data.Map.Strict
     ( Map, (!) )
 import Data.Maybe
-    ( mapMaybe )
+    ( isJust, mapMaybe )
 import Data.Quantity
     ( Quantity (..) )
 import Data.Set
@@ -1832,23 +1832,32 @@ estimateTxSize era skeleton =
     numberOf_MintingWitnesses
         = intCast $ sumVia estimateMaxWitnessRequiredPerInput txMintOrBurnScripts
 
-    numberOf_ScriptVkeyWitnesses
+    numberOf_PaymentScriptVkeyWitnesses
         = intCast $ maybe 0 estimateMaxWitnessRequiredPerInput txPaymentTemplate
+
+    -- Total number of signatures the delegation script requires
+    -- It is needed only when it is isJust and there is delegation action
+    numberOf_StakingScriptVkeyWitnesses
+        = if isJust txDelegationAction then
+              intCast $ maybe 0 estimateMaxWitnessRequiredPerInput txStakingTemplate
+          else
+              0
 
     numberOf_VkeyWitnesses
         = case txWitnessTag of
             TxWitnessByronUTxO{} -> 0
             TxWitnessShelleyUTxO ->
-                if numberOf_ScriptVkeyWitnesses == 0 then
+                if numberOf_PaymentScriptVkeyWitnesses == 0 then
                     numberOf_Inputs
                     + numberOf_Withdrawals
                     + numberOf_CertificateSignatures
                     + numberOf_MintingWitnesses
                 else
-                    (numberOf_Inputs * numberOf_ScriptVkeyWitnesses)
+                    (numberOf_Inputs * numberOf_PaymentScriptVkeyWitnesses)
                     + numberOf_Withdrawals
                     + numberOf_CertificateSignatures
                     + numberOf_MintingWitnesses
+                    + numberOf_StakingScriptVkeyWitnesses
 
     numberOf_BootstrapWitnesses
         = case txWitnessTag of
@@ -2139,6 +2148,10 @@ estimateTxSize era skeleton =
     determinePaymentTemplateSize _ scriptCosigner
         = numberOf_Inputs * (sizeOf_NativeScript scriptCosigner)
 
+    -- there needs to be at least one payment script
+    determineStakingTemplateSize scriptCosigner
+        = sizeOf_NativeScript scriptCosigner
+
     -- transaction_witness_set =
     --   { ?0 => [* vkeywitness ]
     --   , ?1 => [* native_script ]
@@ -2149,6 +2162,7 @@ estimateTxSize era skeleton =
         + sizeOf_VKeyWitnesses
         + sizeOf_NativeScripts txMintOrBurnScripts
         + maybe 0 (determinePaymentTemplateSize txMintOrBurnScripts) txPaymentTemplate
+        + maybe 0 determineStakingTemplateSize txStakingTemplate
         + sizeOf_BootstrapWitnesses
       where
         -- ?0 => [* vkeywitness ]
