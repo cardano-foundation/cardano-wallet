@@ -1868,13 +1868,23 @@ selectCoinsForQuit ctx@ApiLayer{..} (ApiT walletId) = do
         withdrawal <- W.shelleyOnlyMkSelfWithdrawal @_ @_ @_ @_ @n
             netLayer txLayer era db walletId
         action <- WD.quitStakePoolDelegationAction db walletId withdrawal
-        let genChange = W.defaultChangeAddressGen (delegationAddress @n)
-        W.CoinSelection{..} <- W.selectCoinsForTransaction @s @k @n @e
-            recentEra db txLayer ti walletId genChange pp
-            defaultTransactionCtx
+        let changeAddrGen = W.defaultChangeAddressGen (delegationAddress @n)
+        let txCtx = defaultTransactionCtx
                 { txDelegationAction = Just action
                 , txWithdrawal = withdrawal
                 }
+
+        (cardanoTx, walletState) <- W.buildTransaction @s @k @n @e
+            recentEra db txLayer ti walletId changeAddrGen pp txCtx
+
+        let W.CoinSelection{..} =
+                W.buildCoinSelectionForTransaction @s @k @n
+                    walletState
+                    [] -- paymentOutputs
+                    (W.stakeKeyDeposit pp)
+                    (txCtx ^. #txDelegationAction)
+                    cardanoTx
+
         pure ApiCoinSelection
             { inputs = mkApiCoinSelectionInput <$> inputs
             , outputs = mkApiCoinSelectionOutput <$> outputs
