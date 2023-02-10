@@ -101,25 +101,31 @@ mkStoreTxWalletsHistory =
     , writeS = \(txSet,txMetaHistory) -> do
           writeS mkStoreTransactions txSet
           writeS mkStoreWalletsMeta txMetaHistory
-    , updateS = \(txh@(TxSet mtxh) ,mtxmh) -> \case
+    , updateS = \(txSet,wmetas) -> \case
             ChangeTxMetaWalletsHistory wid change
-                -> updateS mkStoreWalletsMeta mtxmh
+                -> updateS mkStoreWalletsMeta wmetas
                 $ Adjust wid change
-            GarbageCollectTxWalletsHistory -> mapM_
-                (updateS mkStoreTransactions txh . DeleteTx)
-                $ Map.keys
-                $ Map.withoutKeys mtxh
-                $ walletsLinkedTransactions mtxmh
-            RemoveWallet wid -> updateS mkStoreWalletsMeta mtxmh $ Delete wid
+            GarbageCollectTxWalletsHistory ->
+                garbageCollectTxWalletsHistory txSet wmetas
+            RemoveWallet wid -> do
+                updateS mkStoreWalletsMeta wmetas $ Delete wid
+                let wmetas2 = Map.delete wid wmetas
+                garbageCollectTxWalletsHistory txSet wmetas2
             ExpandTxWalletsHistory wid cs -> do
-                updateS mkStoreTransactions txh
+                updateS mkStoreTransactions txSet
                     $ Append
                     $ mkTxSet
                     $ fst <$> cs
-                updateS mkStoreWalletsMeta mtxmh
-                    $ case Map.lookup wid mtxmh of
+                updateS mkStoreWalletsMeta wmetas
+                    $ case Map.lookup wid wmetas of
                         Nothing -> Insert wid (mkTxMetaHistory wid cs)
                         Just _ -> Adjust wid
                             $ TxMetaStore.Expand
                             $ mkTxMetaHistory wid cs
     }
+  where
+    garbageCollectTxWalletsHistory txSet wmetas =
+        mapM_ (updateS mkStoreTransactions txSet . DeleteTx)
+            $ Map.keys
+            $ Map.withoutKeys (relations txSet)
+            $ walletsLinkedTransactions wmetas

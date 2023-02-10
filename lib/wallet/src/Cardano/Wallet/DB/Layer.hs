@@ -582,8 +582,6 @@ newDBLayerWith _cacheBehavior _tr ti SqliteContext{runQuery} = mdo
 
                         updateS (store transactionsQS) undefined
                             $ RemoveWallet wid
-                        updateS (store transactionsQS) undefined
-                            GarbageCollectTxWalletsHistory
 
         , listWallets_ = map unWalletKey <$> selectKeysList [] [Asc WalId]
 

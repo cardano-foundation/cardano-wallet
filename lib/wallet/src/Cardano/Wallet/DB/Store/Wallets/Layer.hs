@@ -88,11 +88,12 @@ newQueryStoreTxWalletsHistory = do
                 readAllMetas wid
 
     let updateTxSet = updateS (store txsQueryStore) undefined
-        update _ = \case
+        update = \case
             ChangeTxMetaWalletsHistory wid change ->
                 updateDBVar transactionsDBVar $ Adjust wid change
-            RemoveWallet wid ->
+            RemoveWallet wid -> do
                 updateDBVar transactionsDBVar $ Delete wid
+                update $ GarbageCollectTxWalletsHistory
             ExpandTxWalletsHistory wid cs -> do
                 updateTxSet
                     . Append
@@ -127,6 +128,6 @@ newQueryStoreTxWalletsHistory = do
         , store = Store
             { loadS = loadS mkStoreTxWalletsHistory
             , writeS = writeS mkStoreTxWalletsHistory
-            , updateS = update
+            , updateS = const update
             }
         }
