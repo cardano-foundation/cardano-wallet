@@ -85,8 +85,10 @@ module Test.Integration.Framework.DSL
     , emptyByronWalletFromXPrvWith
     , rewardWallet
     , emptySharedWallet
+    , emptySharedWalletDelegating
     , fundSharedWallet
     , fixtureSharedWallet
+    , fixtureSharedWalletDelegating
     , postSharedWallet
     , deleteSharedWallet
     , getSharedWallet
@@ -1664,6 +1666,94 @@ emptySharedWallet ctx = do
        ]
    pure $ getFromResponse Prelude.id rPost
 
+emptySharedWalletDelegating
+    :: forall m. MonadUnliftIO m
+    => Context
+    -> ResourceT m (ApiSharedWallet,ApiSharedWallet)
+emptySharedWalletDelegating ctx = do
+   --cosigner#0
+   m15txtA <- liftIO $ genMnemonics M15
+   m12txtA <- liftIO $ genMnemonics M12
+   let (Right m15A) = mkSomeMnemonic @'[ 15 ] m15txtA
+   let (Right m12A) = mkSomeMnemonic @'[ 12 ] m12txtA
+   let passphrase = Passphrase $
+           BA.convert $ T.encodeUtf8 fixturePassphrase
+   let indexA = 30
+   let accXPubDerivedA =
+           sharedAccPubKeyFromMnemonics m15A (Just m12A) indexA passphrase
+   --cosigner#1
+   m15txtB <- liftIO $ genMnemonics M15
+   m12txtB <- liftIO $ genMnemonics M12
+   let (Right m15B) = mkSomeMnemonic @'[ 15 ] m15txtB
+   let (Right m12B) = mkSomeMnemonic @'[ 12 ] m12txtB
+   let indexB = 40
+   let accXPubDerivedB =
+           sharedAccPubKeyFromMnemonics m15B (Just m12B) indexB passphrase
+
+   let payloadA = Json [aesonQQ| {
+           "name": "Shared Wallet",
+           "mnemonic_sentence": #{m15txtA},
+           "mnemonic_second_factor": #{m12txtA},
+           "passphrase": #{fixturePassphrase},
+           "account_index": "30H",
+           "payment_script_template":
+               { "cosigners":
+                   { "cosigner#0": #{accXPubDerivedA} },
+                 "template":
+                     { "all":
+                        [ "cosigner#0" ]
+                     }
+               },
+           "delegation_script_template":
+               { "cosigners":
+                   { "cosigner#0": #{accXPubDerivedA}
+                   , "cosigner#1": #{accXPubDerivedB}},
+                 "template":
+                     { "any":
+                        [ "cosigner#0",
+                          "cosigner#1"
+                        ]
+                     }
+               }
+           } |]
+   rPostA <- postSharedWallet ctx Default payloadA
+   verify (fmap (swapEither . view #wallet) <$> rPostA)
+       [ expectResponseCode HTTP.status201
+       ]
+
+   let payloadB = Json [aesonQQ| {
+           "name": "Shared Wallet",
+           "mnemonic_sentence": #{m15txtB},
+           "mnemonic_second_factor": #{m12txtB},
+           "passphrase": #{fixturePassphrase},
+           "account_index": "40H",
+           "payment_script_template":
+               { "cosigners":
+                   { "cosigner#0": #{accXPubDerivedA} },
+                 "template":
+                     { "all":
+                        [ "cosigner#0" ]
+                     }
+               },
+           "delegation_script_template":
+               { "cosigners":
+                   { "cosigner#0": #{accXPubDerivedA}
+                   , "cosigner#1": #{accXPubDerivedB}},
+                 "template":
+                     { "any":
+                        [ "cosigner#0",
+                          "cosigner#1"
+                        ]
+                     }
+               }
+           } |]
+   rPostB <- postSharedWallet ctx Default payloadB
+   verify (fmap (swapEither . view #wallet) <$> rPostB)
+       [ expectResponseCode HTTP.status201
+       ]
+
+   pure $ (getFromResponse Prelude.id rPostA, getFromResponse Prelude.id rPostB)
+
 fundSharedWallet
     :: forall (n :: NetworkDiscriminant) m.
     ( MonadUnliftIO m
@@ -1730,6 +1820,21 @@ fixtureSharedWallet ctx = do
    walShared@(ApiSharedWallet (Right wal)) <- emptySharedWallet ctx
    fundSharedWallet @n ctx faucetUtxoAmt (NE.fromList [walShared])
    return wal
+
+fixtureSharedWalletDelegating
+    :: forall (n :: NetworkDiscriminant) m.
+    ( MonadUnliftIO m
+    , MonadFail m
+    , DecodeStakeAddress n
+    , DecodeAddress n
+    , EncodeAddress n )
+    => Context
+    -> ResourceT m (ApiActiveSharedWallet, ApiActiveSharedWallet)
+fixtureSharedWalletDelegating ctx = do
+   (walSharedA@(ApiSharedWallet (Right walA)), ApiSharedWallet (Right walB)) <-
+       emptySharedWalletDelegating ctx
+   fundSharedWallet @n ctx faucetUtxoAmt (NE.fromList [walSharedA])
+   return (walA, walB)
 
 postSharedWallet
     :: MonadUnliftIO m

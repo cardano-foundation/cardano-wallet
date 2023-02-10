@@ -1638,6 +1638,32 @@ spec = describe "SHARED_TRANSACTIONS" $ do
         expectResponseCode HTTP.status403 rTx
         decodeErrorInfo rTx `shouldBe` StakingInvalid
 
+    it "SHARED_TRANSACTIONS_DELEGATION_01a - \
+       \Can join stakepool, rejoin another and quit" $ \ctx -> runResourceT $ do
+
+        src <- fixtureSharedWallet @n ctx
+        let depositAmt = Quantity 1_000_000
+
+        pool1:_ <- map (view $ _Unwrapped . #id) . snd <$>
+            unsafeRequest @[ApiT StakePool]
+            ctx (Link.listStakePools arbitraryStake) Empty
+
+        let delegationJoin = Json [json|{
+                "delegations": [{
+                    "join": {
+                        "pool": #{ApiT pool1},
+                        "stake_key_index": "0H"
+                    }
+                }]
+            }|]
+        rTx1 <- request @(ApiConstructTransaction n) ctx
+            (Link.createUnsignedTransaction @'Shared src) Default delegationJoin
+        verify rTx1
+            [ expectResponseCode HTTP.status202
+            , expectField (#coinSelection . #depositsTaken) (`shouldBe` [depositAmt])
+            , expectField (#coinSelection . #depositsReturned) (`shouldBe` [])
+            ]
+
   where
      listSharedTransactions ctx w mStart mEnd mOrder = do
          let path = Link.listTransactions' @'Shared w
