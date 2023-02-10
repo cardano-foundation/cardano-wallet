@@ -44,6 +44,10 @@ import Cardano.Tx.Balance.Internal.CoinSelection
     )
 import Cardano.Wallet.Primitive.AddressDerivation
     ( BoundedAddressLength (..) )
+import Cardano.Wallet.Primitive.AddressDerivation.SharedKey
+    ( replaceCosignersWithVerKeys )
+import Cardano.Wallet.Primitive.AddressDiscovery
+    ( GenChange (ArgGenChange), genChange )
 import Cardano.Wallet.Primitive.Slotting
     ( PastHorizonException, TimeInterpreter )
 import Cardano.Wallet.Primitive.Types
@@ -145,6 +149,7 @@ import Text.Pretty.Simple
     ( pShow )
 
 import qualified Cardano.Address.Script as CA
+import qualified Cardano.Address.Style.Shelley as CA
 import qualified Cardano.Api as Cardano
 import qualified Cardano.Api.Shelley as Cardano
 import qualified Cardano.Wallet.Primitive.Types as W
@@ -160,7 +165,7 @@ import qualified Cardano.Wallet.Primitive.Types.UTxO as UTxO
 import qualified Cardano.Wallet.Primitive.Types.UTxOIndex as UTxOIndex
 import qualified Cardano.Wallet.Primitive.Types.UTxOSelection as UTxOSelection
 import qualified Cardano.Wallet.Write.Tx as Write.Tx
-import qualified Data.Map as Map
+import qualified Data.Map.Strict as Map
 import qualified Data.Set as Set
 
 -- | Helper wrapper type for the sake of logging.
@@ -518,9 +523,20 @@ balanceTransactionWithSelectionStrategyAndNoZeroAdaAdjustment
     -- doing such a thing is considered bonkers and this is not a behavior we
     -- ought to support.
 
+    -- if iJust dScriptTemplateM == true then there is delegation action and script
+    -- needs to be inserted in witness set
+    -- singleton was ntroduced in Data.List from base-4.15
+    let singleton :: a -> [a]
+        singleton a = [a]
+    let extraStakingScript =
+            maybe []
+            (singleton . flip (replaceCosignersWithVerKeys CA.Stake) minBound)
+            dScriptTemplateM
+
     let extraInputScripts = case toInpScriptsM of
             Just toInpScripts ->
-                toInpScripts $ extraInputs <> extraCollateral'
+                toInpScripts (extraInputs <> extraCollateral') <>
+                extraStakingScript
             Nothing ->
                 []
     let extraCollateral = fst <$> extraCollateral'

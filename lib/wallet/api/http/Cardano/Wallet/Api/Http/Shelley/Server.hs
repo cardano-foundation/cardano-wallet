@@ -2855,10 +2855,16 @@ constructSharedTransaction
                         Just _ -> Shared.delegationTemplate $ getState cp
                         _ -> Nothing
 
+                --use staking script template only if there is delegation action
+                let dScriptTemplate' =
+                        if (isJust delegationRequest) then
+                            dScriptTemplate
+                        else Nothing
+
                 balancedTx <-
                     balanceTransaction api genChange scriptLookup
                     (Just (Shared.paymentTemplate $ getState cp))
-                    dScriptTemplate (ApiT wid)
+                    dScriptTemplate' (ApiT wid)
                         ApiBalanceTransactionPostData
                         { transaction =
                             ApiT $ sealedTxFromCardanoBody unbalancedTx
