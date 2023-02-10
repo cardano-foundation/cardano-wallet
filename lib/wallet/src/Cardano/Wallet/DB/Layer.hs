@@ -691,6 +691,8 @@ newDBLayerWith _cacheBehavior _tr ti SqliteContext{runQuery} = mdo
                         $ ChangeTxMetaWalletsHistory wid
                         $ Manipulate
                         $ RollBackTxMetaHistory nearestPoint
+                    lift $ updateS (store transactionsQS) undefined
+                        GarbageCollectTxWalletsHistory
                     lift $ rollBackSubmissions_ dbPendingTxs wid nearestPoint
                     pure
                         $ W.chainPointFromBlockHeader
@@ -703,8 +705,6 @@ newDBLayerWith _cacheBehavior _tr ti SqliteContext{runQuery} = mdo
                     Just cp -> Right <$> do
                         let tip = cp ^. #currentTip
                         pruneCheckpoints wid epochStability tip
-            lift $ updateS (store transactionsQS) undefined
-                GarbageCollectTxWalletsHistory
             lift $ pruneByFinality_ dbPendingTxs wid finalitySlot
 
         {-----------------------------------------------------------------------
