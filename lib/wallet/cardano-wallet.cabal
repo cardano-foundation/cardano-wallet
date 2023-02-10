@@ -125,6 +125,7 @@ library
     , lattices
     , lens
     , lifted-async
+    , list-transformer
     , math-functions
     , memory
     , monad-control
@@ -226,7 +227,6 @@ library
     Cardano.Wallet.DB.Pure.Implementation
     Cardano.Wallet.DB.Pure.Layer
     Cardano.Wallet.DB.Sqlite.Migration
-    Cardano.Wallet.DB.Sqlite.Migration.NewSubmissionStore
     Cardano.Wallet.DB.Sqlite.Schema
     Cardano.Wallet.DB.Sqlite.Stores
     Cardano.Wallet.DB.Sqlite.Types
@@ -234,10 +234,8 @@ library
     Cardano.Wallet.DB.Store.QueryStore
     Cardano.Wallet.DB.Store.Meta.Model
     Cardano.Wallet.DB.Store.Meta.Store
-    Cardano.Wallet.DB.Store.Submissions.Model
-    Cardano.Wallet.DB.Store.Submissions.New.Layer
-    Cardano.Wallet.DB.Store.Submissions.New.Operations
-    Cardano.Wallet.DB.Store.Submissions.Store
+    Cardano.Wallet.DB.Store.Submissions.Layer
+    Cardano.Wallet.DB.Store.Submissions.Operations
     Cardano.Wallet.DB.Store.Transactions.Decoration
     Cardano.Wallet.DB.Store.Transactions.Layer
     Cardano.Wallet.DB.Store.Transactions.Model
@@ -795,6 +793,7 @@ test-suite unit
     , splitmix
     , strict-containers
     , strict-non-empty-containers
+    , string-interpolate
     , string-qq
     , temporary
     , text
@@ -847,8 +846,6 @@ test-suite unit
     Cardano.Wallet.DB.StateMachine
     Cardano.Wallet.DB.Store.Meta.ModelSpec
     Cardano.Wallet.DB.Store.Meta.StoreSpec
-    Cardano.Wallet.DB.Store.Submissions.ModelSpec
-    Cardano.Wallet.DB.Store.Submissions.New.StoreSpec
     Cardano.Wallet.DB.Store.Submissions.StoreSpec
     Cardano.Wallet.DB.Store.Transactions.StoreSpec
     Cardano.Wallet.DB.Store.Wallets.StoreSpec
@@ -928,6 +925,7 @@ test-suite integration
     , lobemo-backend-ekg
     , mock-token-metadata
     , network-uri
+    , string-interpolate
     , text
     , text-class
     , unliftio
@@ -957,6 +955,7 @@ benchmark restore
     , generic-lens
     , iohk-monitoring
     , say
+    , string-interpolate
     , text
     , text-class
     , time

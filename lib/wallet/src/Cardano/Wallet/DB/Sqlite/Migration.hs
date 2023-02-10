@@ -41,7 +41,7 @@ import Cardano.Wallet.Primitive.AddressDerivation.Shelley
 import Cardano.Wallet.Primitive.Passphrase.Types
     ( PassphraseScheme (..) )
 import Control.Monad
-    ( forM_, void, when )
+    ( forM_, guard, void, when )
 import Control.Tracer
     ( Tracer, traceWith )
 import Data.Functor
@@ -60,6 +60,7 @@ import Database.Persist.Class
     ( toPersistValue )
 import Database.Persist.Types
     ( PersistValue (..), fromPersistValueText )
+import List.Transformer
 import Numeric.Natural
     ( Natural )
 import UnliftIO.Exception
@@ -110,7 +111,7 @@ data InvalidDatabaseSchemaVersion
     deriving (Show, Eq, Exception)
 
 currentSchemaVersion :: SchemaVersion
-currentSchemaVersion = SchemaVersion 1
+currentSchemaVersion = SchemaVersion 2
 
 -- | Executes any manual database migration steps that may be required on
 -- startup.
@@ -134,7 +135,6 @@ migrateManually tr proxy defaultFieldValues =
       -- really be removed as soon as we have a fix for the cardano-sl:wallet
       -- currently in production.
     , removeSoftRndAddresses
-
     , removeOldTxParametersTable
     , addAddressStateIfMissing
     , addSeqStateDerivationPrefixIfMissing
@@ -145,6 +145,8 @@ migrateManually tr proxy defaultFieldValues =
     , moveRndUnusedAddresses
     , cleanupSeqStateTable
     , addPolicyXPubIfMissing
+    , removeOldSubmissions
+    , removeMetasOfSubmissions
     ]
   where
     initializeSchemaVersionTable :: Sqlite.Connection -> IO ()
@@ -303,7 +305,7 @@ migrateManually tr proxy defaultFieldValues =
                 traceWith tr $ MsgManualMigrationNotNeeded field
 
             ColumnMissing -> do
-                [defaults] <- runSql conn $ select ["genesis_hash", "genesis_start"] orig
+                [defaults] <- runSql conn $ select' ["genesis_hash", "genesis_start"] orig
                 let [PersistText genesisHash, PersistText genesisStart] = defaults
                 addColumn_ conn True (DBField WalGenesisHash) (quotes genesisHash)
                 addColumn_ conn True (DBField WalGenesisStart) (quotes genesisStart)
@@ -325,7 +327,7 @@ migrateManually tr proxy defaultFieldValues =
             _ -> return ()
 
       where
-        select fields table = mconcat
+        select' fields table = mconcat
             [ "SELECT ", T.intercalate ", " fields
             , " FROM ", table
             , " ORDER BY slot ASC LIMIT 1;"
@@ -841,8 +843,52 @@ migrateManually tr proxy defaultFieldValues =
                     else MsgManualMigrationNotNeeded field
                 Sqlite.finalize query
 
-    quotes :: Text -> Text
-    quotes x = "\"" <> x <> "\""
+    -- | This table is replaced by Submissions talbles.
+    removeOldSubmissions :: Sqlite.Connection -> IO ()
+    removeOldSubmissions conn = do
+        dropTable' <-
+            Sqlite.prepare conn "DROP TABLE IF EXISTS local_tx_submission;"
+        void $ Sqlite.step dropTable'
+        Sqlite.finalize dropTable'
+
+    onFieldPresent :: Sqlite.Connection -> DBField -> IO () -> IO ()
+    onFieldPresent conn field action = do
+        isFieldPresent conn field >>= \case
+            TableMissing -> return ()
+            ColumnMissing -> return ()
+            ColumnPresent -> action
+
+    removeMetasOfSubmissions :: Sqlite.Connection -> IO ()
+    removeMetasOfSubmissions conn = do
+        onFieldPresent conn (DBField TxMetaStatus) $ do
+            metas <- runSql conn "select * from tx_meta;"
+            runListT $ do
+                (PersistText txId : _ :  PersistText txStatus : _)
+                    <- select metas
+                type' <- select ["pending", "expired"]
+                guard $ txStatus == type'
+                t <- select
+                    [ DBField TxMetaTxId
+                    , DBField TxInputTxId
+                    , DBField TxCollateralTxId
+                    , DBField TxOutputTxId
+                    , DBField TxOutTokenTxId
+                    , DBField TxWithdrawalTxId
+                    , DBField TxCollateralOutTxId
+                    , DBField TxCollateralOutTokenTxId
+                    , DBField CborTxId
+                    ]
+                lift $ do
+                    onFieldPresent conn t $ do
+                        query <- Sqlite.prepare conn $ T.unwords
+                            [ "DELETE FROM " <> tableName t
+                            , "WHERE tx_id = '" <> txId <> "';"
+                            ]
+                        _ <- Sqlite.step query
+                        Sqlite.finalize query
+
+quotes :: Text -> Text
+quotes x = "\"" <> x <> "\""
 
 -- | Unsafe, execute a raw SQLite query. Used only in migration when really
 -- needed.

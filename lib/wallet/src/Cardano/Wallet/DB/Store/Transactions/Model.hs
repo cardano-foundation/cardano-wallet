@@ -22,6 +22,7 @@ module Cardano.Wallet.DB.Store.Transactions.Model
     , tokenCollateralOrd
     , tokenOutOrd
     , mkTxSet
+    , WalletTransactions
 
     -- * Type conversion from wallet types
     , mkTxIn
@@ -87,6 +88,7 @@ import Fmt
 import GHC.Generics
     ( Generic )
 
+import qualified Cardano.Wallet.Primitive.Types as W
 import qualified Cardano.Wallet.Primitive.Types.Coin as W
 import qualified Cardano.Wallet.Primitive.Types.TokenBundle as TokenBundle
 import qualified Cardano.Wallet.Primitive.Types.Tx.Tx as W.Tx
@@ -329,3 +331,5 @@ fromTxCBOR s@CBOR {..} = bimap (s ,) (cborTxId ,) $
 
 txCBORPrism :: Prism CBOR (CBOR, TxCBORRaw) (TxId, TxCBOR) (TxId, TxCBOR)
 txCBORPrism = prism toTxCBOR fromTxCBOR
+
+type WalletTransactions = Map W.WalletId TxSet

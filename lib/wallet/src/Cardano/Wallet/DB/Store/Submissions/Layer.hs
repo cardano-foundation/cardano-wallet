@@ -7,7 +7,7 @@
 --
 -- An implementation of the DBPendingTxs which uses Persistent and SQLite.
 
-module Cardano.Wallet.DB.Store.Submissions.New.Layer
+module Cardano.Wallet.DB.Store.Submissions.Layer
     ( mkDbPendingTxs
     )
     where
@@ -23,7 +23,7 @@ import Cardano.Wallet.DB
     )
 import Cardano.Wallet.DB.Sqlite.Types
     ( TxId (..) )
-import Cardano.Wallet.DB.Store.Submissions.New.Operations
+import Cardano.Wallet.DB.Store.Submissions.Operations
     ( DeltaTxSubmissions
     , SubmissionMeta (SubmissionMeta, submissionMetaResubmitted)
     , TxSubmissionsStatus
@@ -52,7 +52,7 @@ import Cardano.Wallet.Read.Tx.Validity
 import Cardano.Wallet.Submissions.Operations
     ( Operation (..) )
 import Cardano.Wallet.Submissions.Submissions
-    ( TxStatusMeta (..), transactions, transactionsL )
+    ( TxStatusMeta (..), mkEmpty, transactions, transactionsL )
 import Cardano.Wallet.Submissions.TxStatus
     ( TxStatus (..), getTx, status )
 import Cardano.Wallet.Transaction
@@ -77,12 +77,15 @@ import Database.Persist.Sql
 import qualified Cardano.Wallet.Read.Tx as Read
 import qualified Data.Map.Strict as Map
 
--- TODO: This implementation is not completed / fully tested yet.
 mkDbPendingTxs
-    :: DBVar (SqlPersistT IO) (DeltaMap WalletId DeltaTxSubmissions) -- ^
+    :: DBVar (SqlPersistT IO) (DeltaMap WalletId DeltaTxSubmissions)
     -> DBPendingTxs (SqlPersistT IO)
 mkDbPendingTxs dbvar = DBPendingTxs
-    { putLocalTxSubmission_ = \wid txid tx sl -> do
+    { emptyTxSubmissions_ = \wid ->
+        updateDBVar dbvar
+            $ Insert wid $ mkEmpty 0
+
+    , putLocalTxSubmission_ = \wid txid tx sl -> do
         let errNoSuchWallet = ErrPutLocalTxSubmissionNoSuchWallet $
                 ErrNoSuchWallet wid
         ExceptT $ modifyDBMaybe dbvar $ \ws -> do

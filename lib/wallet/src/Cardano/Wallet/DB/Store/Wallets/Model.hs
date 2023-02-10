@@ -14,10 +14,8 @@ in a collection of wallets.
 -}
 module Cardano.Wallet.DB.Store.Wallets.Model
     ( DeltaTxWalletsHistory (..)
-    , DeltaWalletsMetaWithSubmissions (..)
     , TxWalletsHistory
     , walletsLinkedTransactions
-    , MetasAndSubmissionsHistory
     ) where
 
 import Prelude
@@ -25,9 +23,11 @@ import Prelude
 import Cardano.Wallet.DB.Sqlite.Types
     ( TxId (..) )
 import Cardano.Wallet.DB.Store.Meta.Model
-    ( DeltaTxMetaHistory (..), TxMetaHistory (..), mkTxMetaHistory )
-import Cardano.Wallet.DB.Store.Submissions.Model
-    ( DeltaTxLocalSubmission (..), TxLocalSubmissionHistory (..) )
+    ( DeltaTxMetaHistory (..)
+    , TxMetaHistory (..)
+    , WalletsMeta
+    , mkTxMetaHistory
+    )
 import Cardano.Wallet.DB.Store.Transactions.Model
     ( TxSet (..), mkTxSet )
 import Data.Delta
@@ -39,7 +39,7 @@ import Data.Foldable
 import Data.Function
     ( (&) )
 import Data.Generics.Internal.VL
-    ( over, view, (^.) )
+    ( view )
 import Data.Map.Strict
     ( Map )
 import Data.Set
@@ -56,7 +56,7 @@ import qualified Data.Set as Set
 
 data DeltaTxWalletsHistory
     = ExpandTxWalletsHistory W.WalletId [(WT.Tx, WT.TxMeta)]
-    | ChangeTxMetaWalletsHistory W.WalletId DeltaWalletsMetaWithSubmissions
+    | ChangeTxMetaWalletsHistory W.WalletId DeltaTxMetaHistory
     | GarbageCollectTxWalletsHistory
     | RemoveWallet W.WalletId
     deriving ( Show, Eq )
@@ -64,39 +64,17 @@ data DeltaTxWalletsHistory
 instance Buildable DeltaTxWalletsHistory where
     build = build . show
 
-data DeltaWalletsMetaWithSubmissions
-    = ChangeMeta DeltaTxMetaHistory
-    | ChangeSubmissions DeltaTxLocalSubmission
-    deriving ( Show, Eq )
-
-type MetasAndSubmissionsHistory = (TxMetaHistory, TxLocalSubmissionHistory)
-
-constraintSubmissions
-    :: MetasAndSubmissionsHistory -> MetasAndSubmissionsHistory
-constraintSubmissions (metas,submissions) =
-    ( metas
-    , over #relations (\m -> Map.restrictKeys m
-                       $ Map.keysSet (metas ^. #relations)) submissions)
-
-instance Delta DeltaWalletsMetaWithSubmissions where
-    type Base DeltaWalletsMetaWithSubmissions = MetasAndSubmissionsHistory
-    apply (ChangeMeta cm) (metas,submissions) =
-        constraintSubmissions (apply cm metas, submissions)
-    apply (ChangeSubmissions cs) (metas,submissions) =
-        constraintSubmissions (metas, apply cs submissions)
-
 type TxWalletsHistory =
-    (TxSet, Map W.WalletId MetasAndSubmissionsHistory)
+    (TxSet, WalletsMeta)
 
 instance Delta DeltaTxWalletsHistory where
     type Base DeltaTxWalletsHistory = TxWalletsHistory
     apply (ExpandTxWalletsHistory wid cs) (txh,mtxmh) =
         ( apply (TxStore.Append $ mkTxSet $ fst <$> cs) txh
         , flip apply mtxmh $ case Map.lookup wid mtxmh of
-              Nothing -> Insert wid (mkTxMetaHistory wid cs, mempty)
+              Nothing -> Insert wid (mkTxMetaHistory wid cs)
               Just _ ->
                   Adjust wid
-                  $ ChangeMeta
                   $ TxMetaStore.Expand
                   $ mkTxMetaHistory wid cs)
     apply (ChangeTxMetaWalletsHistory wid change) (txh, mtxmh) =
@@ -115,13 +93,13 @@ instance Delta DeltaTxWalletsHistory where
 -- necessary because database will not distinguish between
 -- a missing wallet in the map
 -- and a wallet that has no meta-transactions
-garbageCollectEmptyWallets :: Map k MetasAndSubmissionsHistory
-    -> Map k MetasAndSubmissionsHistory
-garbageCollectEmptyWallets = Map.filter (not . null . view #relations . fst)
+garbageCollectEmptyWallets :: Map k TxMetaHistory
+    -> Map k TxMetaHistory
+garbageCollectEmptyWallets = Map.filter (not . null . view #relations)
 
-linkedTransactions :: MetasAndSubmissionsHistory -> Set TxId
-linkedTransactions (TxMetaHistory m,_) = Map.keysSet m
+linkedTransactions :: TxMetaHistory -> Set TxId
+linkedTransactions (TxMetaHistory m) = Map.keysSet m
 
 walletsLinkedTransactions
-    :: Map W.WalletId MetasAndSubmissionsHistory -> Set TxId
+    :: Map W.WalletId TxMetaHistory -> Set TxId
 walletsLinkedTransactions = Set.unions . toList . fmap linkedTransactions

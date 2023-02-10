@@ -6,6 +6,7 @@
 {-# LANGUAGE NamedFieldPuns #-}
 {-# LANGUAGE OverloadedLabels #-}
 {-# LANGUAGE RecordWildCards #-}
+{-# LANGUAGE RecursiveDo #-}
 {-# LANGUAGE ScopedTypeVariables #-}
 {-# LANGUAGE TypeApplications #-}
 
@@ -79,9 +80,6 @@ import Cardano.Wallet.DB
     , DBTxHistory (..)
     , DBWalletMeta (..)
     , DBWallets (..)
-    , ErrNoSuchTransaction (..)
-    , ErrPutLocalTxSubmission (..)
-    , ErrRemoveTx (..)
     , ErrWalletAlreadyExists (..)
     , mkDBLayerFromParts
     )
@@ -92,7 +90,6 @@ import Cardano.Wallet.DB.Sqlite.Schema
     , DelegationReward (..)
     , EntityField (..)
     , Key (..)
-    , LocalTxSubmission (..)
     , PrivateKey (..)
     , StakeKeyCertificate (..)
     , TxMeta (..)
@@ -109,8 +106,10 @@ import Cardano.Wallet.DB.Store.Meta.Model
     , ManipulateTxMetaHistory (..)
     , TxMetaHistory (..)
     )
-import Cardano.Wallet.DB.Store.Submissions.Model
-    ( TxLocalSubmissionHistory (..) )
+import Cardano.Wallet.DB.Store.Submissions.Layer
+    ( mkDbPendingTxs )
+import Cardano.Wallet.DB.Store.Submissions.Operations
+    ( mkStoreWalletsSubmissions )
 import Cardano.Wallet.DB.Store.Transactions.Decoration
     ( TxInDecorator, decorateTxInsForReadTx, decorateTxInsForRelation )
 import Cardano.Wallet.DB.Store.Transactions.Model
@@ -118,7 +117,7 @@ import Cardano.Wallet.DB.Store.Transactions.Model
 import Cardano.Wallet.DB.Store.Transactions.TransactionInfo
     ( mkTransactionInfoFromRelation )
 import Cardano.Wallet.DB.Store.Wallets.Model
-    ( DeltaWalletsMetaWithSubmissions (..), TxWalletsHistory )
+    ( TxWalletsHistory )
 import Cardano.Wallet.DB.Store.Wallets.Store
     ( DeltaTxWalletsHistory (..), mkStoreTxWalletsHistory )
 import Cardano.Wallet.DB.WalletState
@@ -149,7 +148,7 @@ import Control.Monad.IO.Class
 import Control.Monad.Trans
     ( lift )
 import Control.Monad.Trans.Except
-    ( ExceptT (..), runExceptT )
+    ( ExceptT (..) )
 import Control.Tracer
     ( Tracer, contramap, traceWith )
 import Data.Coerce
@@ -174,18 +173,13 @@ import Data.Text.Class
     ( ToText (..), fromText )
 import Data.Word
     ( Word32 )
-import Database.Persist.Class
-    ( toPersistValue )
 import Database.Persist.Sql
     ( Entity (..)
     , Filter
     , SelectOpt (..)
-    , Single (..)
     , Update (..)
     , deleteWhere
     , insert_
-    , rawExecute
-    , rawSql
     , repsert
     , selectFirst
     , selectKeysList
@@ -213,7 +207,6 @@ import UnliftIO.MVar
     ( modifyMVar, modifyMVar_, newMVar, readMVar, withMVar )
 
 import qualified Cardano.Wallet.DB.Sqlite.Schema as DB
-import qualified Cardano.Wallet.DB.Store.Submissions.Model as TxSubmissions
 import qualified Cardano.Wallet.Primitive.Model as W
 import qualified Cardano.Wallet.Primitive.Passphrase as W
 import qualified Cardano.Wallet.Primitive.Types as W
@@ -506,7 +499,7 @@ newDBLayerWith
     -> SqliteContext
        -- ^ A (thread-)safe wrapper for query execution.
     -> IO (DBLayer IO s k)
-newDBLayerWith _cacheBehavior _tr ti SqliteContext{runQuery} = do
+newDBLayerWith _cacheBehavior _tr ti SqliteContext{runQuery} = mdo
     -- FIXME LATER during ADP-1043:
     --   Remove the 'NoCache' behavior, we cannot get it back.
     --   This will affect read benchmarks, they will need to benchmark
@@ -575,6 +568,7 @@ newDBLayerWith _cacheBehavior _tr ti SqliteContext{runQuery} = do
                     void $ modifyDBMaybe transactionsDBVar $ \(_txsOld, _ws) ->
                         let delta = Just $ ExpandTxWalletsHistory wid txs
                         in  (delta, Right ())
+                    emptyTxSubmissions_ dbPendingTxs wid
                 pure res
 
         , readGenesisParameters_ = selectGenesisParameters
@@ -657,94 +651,9 @@ newDBLayerWith _cacheBehavior _tr ti SqliteContext{runQuery} = do
         {-----------------------------------------------------------------------
                                     Pending Txs
         -----------------------------------------------------------------------}
-    let
-      dbPendingTxs = DBPendingTxs
-        { putLocalTxSubmission_ = \wid txid tx sl -> do
-            let errNoSuchWallet = ErrPutLocalTxSubmissionNoSuchWallet $
-                    ErrNoSuchWallet wid
-            let errNoSuchTx = ErrPutLocalTxSubmissionNoSuchTransaction $
-                    ErrNoSuchTransaction wid txid
-            ExceptT $ modifyDBMaybe transactionsDBVar
-                    $ \(_txsOld, ws) -> do
-                case Map.lookup wid ws of
-                        Nothing -> (Nothing, Left errNoSuchWallet)
-                        Just (TxMetaHistory metas, _)  -> case
-                            Map.lookup (TxId txid) metas of
-                                Nothing -> (Nothing, Left errNoSuchTx)
-                                Just _ ->
-                                    let
-                                        delta = Just
-                                            $ ChangeTxMetaWalletsHistory wid
-                                            $ ChangeSubmissions
-                                            $ TxSubmissions.Expand
-                                            $ TxLocalSubmissionHistory
-                                            $ Map.fromList [
-                                                ( TxId txid
-                                                , LocalTxSubmission (TxId txid)
-                                                    wid sl tx
-                                                )
-                                            ]
-                                    in  (delta, Right ())
+    submissionDBVar <- runQuery $ loadDBVar mkStoreWalletsSubmissions
 
-        , addTxSubmission_ = \wid (tx, meta, binary) sl -> do
-            putTxHistory_ dbTxHistory
-                wid [(tx, meta)]
-            void $ runExceptT $ putLocalTxSubmission_ dbPendingTxs
-                wid (tx ^. #txId) binary sl
-
-        , resubmitTx_ = \wid txId sealed tip ->
-            void $ runExceptT $ putLocalTxSubmission_ dbPendingTxs
-                wid txId sealed tip
-
-        , getInSubmissionTransactions_ = \_ -> pure []
-
-        , readLocalTxSubmissionPending_ =
-            fmap (map localTxSubmissionFromEntity)
-            . listPendingLocalTxSubmissionQuery
-
-        , rollForwardTxSubmissions_ = \wid tip _txs ->
-            selectWallet wid >>= \case
-                Nothing -> pure () -- non-existent wallet caught outside
-                Just _ -> modifyDBMaybe transactionsDBVar $ \_ ->
-                    let
-                        delta = Just
-                            $ ChangeTxMetaWalletsHistory wid
-                            $ ChangeMeta
-                            $ Manipulate
-                            $ AgeTxMetaHistory tip
-                    in  (delta, ())
-
-        , removePendingOrExpiredTx_ = \wid txId ->
-            let noTx =
-                    (   Nothing
-                        , Left
-                            $ ErrRemoveTxNoSuchTransaction
-                            $ ErrNoSuchTransaction wid txId
-                    )
-            in ExceptT $ selectWallet wid >>= \case
-                Nothing -> pure $ Left
-                    $ ErrRemoveTxNoSuchWallet
-                    $ ErrNoSuchWallet wid
-                Just _ -> modifyDBMaybe transactionsDBVar
-                    $ \(_ , ws) -> fromMaybe noTx $ do
-                        (TxMetaHistory metas, _) <- Map.lookup wid ws
-                        DB.TxMeta{..} <- Map.lookup (TxId txId) metas
-                        pure $
-                            if txMetaStatus == W.InLedger
-                            then (Nothing
-                                , Left $ ErrRemoveTxAlreadyInLedger txId)
-                            else
-                                let delta = Just
-                                        $ ChangeTxMetaWalletsHistory wid
-                                        $ ChangeMeta
-                                        $ Manipulate
-                                        $ PruneTxMetaHistory $ TxId txId
-                                in  (delta, Right ())
-
-        , rollBackSubmissions_ = \_ _ -> pure ()
-
-        , pruneByFinality_ = \ _ _ -> pure ()
-        }
+    let dbPendingTxs = mkDbPendingTxs submissionDBVar
 
     let rollbackTo_ wid requestedPoint = do
             mNearestCheckpoint <-
@@ -783,7 +692,6 @@ newDBLayerWith _cacheBehavior _tr ti SqliteContext{runQuery} = do
                         let
                             delta = Just
                                 $ ChangeTxMetaWalletsHistory wid
-                                $ ChangeMeta
                                 $ Manipulate
                                 $ RollBackTxMetaHistory nearestPoint
                         in  (delta, Right ())
@@ -799,7 +707,6 @@ newDBLayerWith _cacheBehavior _tr ti SqliteContext{runQuery} = do
                     Just cp -> Right <$> do
                         let tip = cp ^. #currentTip
                         pruneCheckpoints wid epochStability tip
-                        pruneLocalTxSubmission wid epochStability tip
             lift $ modifyDBMaybe transactionsDBVar $ \_ ->
                 (Just GarbageCollectTxWalletsHistory, ())
             lift $ pruneByFinality_ dbPendingTxs wid finalitySlot
@@ -1045,7 +952,7 @@ getTxMetas
     -> TxWalletsHistory
     -> [DB.TxMeta]
 getTxMetas wid (_,wmetas) = do
-    (TxMetaHistory metas, _) <- maybeToList $ Map.lookup wid wmetas
+    TxMetaHistory metas <- maybeToList $ Map.lookup wid wmetas
     toList metas
 
 -- | Lookup 'TxMeta' for a given wallet and 'TxId'.
@@ -1056,7 +963,7 @@ lookupTxMeta
     -> TxWalletsHistory
     -> Maybe DB.TxMeta
 lookupTxMeta wid txid (_,wmetas) = do
-    (TxMetaHistory metas, _) <- Map.lookup wid wmetas
+    TxMetaHistory metas <- Map.lookup wid wmetas
     Map.lookup txid metas
 
 -- | For a given 'TxMeta', read all necessary data to construct
@@ -1085,47 +992,6 @@ selectTransactionInfo ti tip txSet meta =
             Map.lookup (txMetaTxId meta) (view #relations txSet)
         decoration = decorateTxInsForRelation txSet transaction
     in  mkTransactionInfoFromRelation ti tip transaction decoration meta
-
--- | Returns the initial submission slot and submission record for all pending
--- transactions in the wallet.
-listPendingLocalTxSubmissionQuery
-    :: W.WalletId
-    -> SqlPersistT IO [(W.SlotNo, LocalTxSubmission)]
-listPendingLocalTxSubmissionQuery wid = fmap unRaw <$> rawSql query params
-  where
-    -- fixme: sort results
-    query =
-        "SELECT tx_meta.slot,?? " <>
-        "FROM tx_meta INNER JOIN local_tx_submission " <>
-        "ON tx_meta.wallet_id=local_tx_submission.wallet_id " <>
-        "    AND tx_meta.tx_id=local_tx_submission.tx_id " <>
-        "WHERE tx_meta.wallet_id=? AND tx_meta.status=? " <>
-        "ORDER BY local_tx_submission.wallet_id, local_tx_submission.tx_id"
-    params = [toPersistValue wid, toPersistValue W.Pending]
-    unRaw (Single sl, Entity _ tx) = (sl, tx)
-
-localTxSubmissionFromEntity
-    :: (W.SlotNo, LocalTxSubmission)
-    -> W.LocalTxSubmissionStatus W.SealedTx
-localTxSubmissionFromEntity (_sl0, LocalTxSubmission (TxId txid) _ sl tx) =
-    W.LocalTxSubmissionStatus txid tx sl
-
--- | Remove transactions from the local submission pool once they can no longer
--- be rolled back.
-pruneLocalTxSubmission
-    :: W.WalletId
-    -> Quantity "block" Word32
-    -> W.BlockHeader
-    -> SqlPersistT IO ()
-pruneLocalTxSubmission wid (Quantity epochStability) tip =
-    rawExecute query params
-  where
-    query =
-        "DELETE FROM local_tx_submission " <>
-        "WHERE wallet_id=? AND tx_id IN " <>
-        "( SELECT tx_id FROM tx_meta WHERE tx_meta.block_height < ? )"
-    params = [toPersistValue wid, toPersistValue stableHeight]
-    stableHeight = getQuantity (tip ^. #blockHeight) - epochStability
 
 selectPrivateKey
     :: (MonadIO m, PersistPrivateKey (k 'RootK))

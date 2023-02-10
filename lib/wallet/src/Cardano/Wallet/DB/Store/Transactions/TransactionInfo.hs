@@ -16,7 +16,7 @@ import Cardano.Wallet.DB.Sqlite.Schema
     ( TxCollateral (..), TxIn (..), TxMeta (..), TxWithdrawal (..) )
 import Cardano.Wallet.DB.Sqlite.Types
     ( TxId (..) )
-import Cardano.Wallet.DB.Store.Submissions.New.Operations
+import Cardano.Wallet.DB.Store.Submissions.Operations
     ( SubmissionMeta (..) )
 import Cardano.Wallet.DB.Store.Transactions.Decoration
     ( DecoratedTxIns, TxOutKey, lookupTxOut, mkTxOutKey, mkTxOutKeyCollateral )

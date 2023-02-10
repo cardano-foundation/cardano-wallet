@@ -9,6 +9,7 @@
 {-# LANGUAGE NamedFieldPuns #-}
 {-# LANGUAGE NumericUnderscores #-}
 {-# LANGUAGE OverloadedLabels #-}
+{-# LANGUAGE QuasiQuotes #-}
 {-# LANGUAGE RankNTypes #-}
 {-# LANGUAGE RecordWildCards #-}
 {-# LANGUAGE ScopedTypeVariables #-}
@@ -45,6 +46,8 @@ import Cardano.BM.Setup
     ( setupTrace )
 import Cardano.BM.Trace
     ( traceInTVarIO )
+import Cardano.Chain.ValidationMode
+    ( whenTxValidation )
 import Cardano.Crypto.Wallet
     ( XPrv )
 import Cardano.DB.Sqlite
@@ -179,6 +182,8 @@ import Control.Monad.IO.Class
     ( liftIO )
 import Control.Monad.Trans.Except
     ( ExceptT, mapExceptT )
+import Control.Tracer
+    ( Tracer )
 import Crypto.Hash
     ( hash )
 import Data.ByteString
@@ -193,6 +198,8 @@ import Data.Maybe
     ( fromMaybe, isJust, isNothing, mapMaybe )
 import Data.Quantity
     ( Quantity (..) )
+import Data.String.Interpolate
+    ( i )
 import Data.Text
     ( Text )
 import Data.Text.Class
@@ -211,6 +218,8 @@ import Database.Persist.Names
     ( EntityNameDB (..), unFieldNameDB )
 import Database.Persist.Sql
     ( EntityNameDB (..), FieldNameDB (..), PersistEntity (..), fieldDB )
+import Database.Persist.Sqlite
+    ( Single (..) )
 import Numeric.Natural
     ( Natural )
 import Safe
@@ -278,9 +287,11 @@ import UnliftIO.Temporary
     ( withSystemTempDirectory, withSystemTempFile )
 
 import qualified Cardano.Wallet.DB.Sqlite.Schema as DB
+import qualified Cardano.Wallet.DB.Sqlite.Types as DB
 import qualified Cardano.Wallet.Primitive.AddressDerivation.Shelley as Seq
 import qualified Cardano.Wallet.Primitive.Types.Coin as Coin
 import qualified Cardano.Wallet.Primitive.Types.TokenBundle as TokenBundle
+import qualified Cardano.Wallet.Primitive.Types.Tx.TxMeta as W
 import qualified Data.ByteArray as BA
 import qualified Data.ByteString as BS
 import qualified Data.List as L
@@ -1137,6 +1148,10 @@ manualMigrationsSpec = describe "Manual migrations" $ do
     it "'migrate' db never modifies database with newer version"
         testNewerDatabaseIsNeverModified
 
+    it "'migrate' db submissions encoding" $
+        testMigrationSubmissionsEncoding
+            "before_submission-v2022-12-14.sqlite"
+
 -- | Copy a given @.sqlite@ file, load it into a `DBLayer`
 -- (possibly triggering migrations), and run an action on it.
 --
@@ -1154,14 +1169,19 @@ withDBLayerFromCopiedFile
         -- ^ Action to run.
     -> IO ([WalletDBLog], a)
         -- ^ (logs, result of the action)
-withDBLayerFromCopiedFile dbName action = do
+withDBLayerFromCopiedFile dbName action = withinCopiedFile dbName
+    $ \path tr->
+        withDBLayer tr defaultFieldValues path dummyTimeInterpreter action
+
+withinCopiedFile
+    :: FilePath
+    -> (FilePath -> Tracer IO msg -> IO a) -> IO ([msg], a)
+withinCopiedFile dbName action = do
     let orig = $(getTestData) </> dbName
     withSystemTempDirectory "migration-db" $ \dir -> do
         let path = dir </> "db.sqlite"
-            ti = dummyTimeInterpreter
         copyFile orig path
-        captureLogging $ \tr ->
-            withDBLayer tr defaultFieldValues path ti action
+        captureLogging $ action path
 
 testMigrationTxMetaFee
     :: String
@@ -1344,7 +1364,6 @@ testNewerDatabaseIsNeverModified ::
     forall s k. (k ~ ShelleyKey, s ~ SeqState 'Mainnet k) => IO ()
 testNewerDatabaseIsNeverModified = withSystemTempFile "db.sql" $ \path _ -> do
     let newerVersion = SchemaVersion 100
-        currentVersion = SchemaVersion 1
     _ <- Sqlite.runSqlite (T.pack path) $ do
         Sqlite.rawExecute
             "CREATE TABLE database_schema_version (name, version)" []
@@ -1357,10 +1376,73 @@ testNewerDatabaseIsNeverModified = withSystemTempFile "db.sql" $ \path _ -> do
     withDBLayer @s @k tr defaultFieldValues path dummyTimeInterpreter noop
         `shouldThrow` \case
             InvalidDatabaseSchemaVersion {..}
-                | expectedVersion == currentVersion
+                | expectedVersion == currentSchemaVersion
                 && actualVersion == newerVersion -> True
             _ -> False
 
+localTxSubmissionTableExists :: Text
+localTxSubmissionTableExists = [i|
+    SELECT EXISTS (
+        SELECT
+            name
+        FROM
+            sqlite_schema
+        WHERE
+            type='table' AND
+            name='local_tx_submission'
+    );
+    |]
+
+testMigrationSubmissionsEncoding
+    :: FilePath -> IO ()
+testMigrationSubmissionsEncoding dbName = do
+    let performMigrations path =
+          withDBLayer @(SeqState 'Mainnet ShelleyKey) @ShelleyKey
+            nullTracer defaultFieldValues path dummyTimeInterpreter
+                $ \_ -> pure ()
+        testOnCopiedAndMigrated test = fmap snd
+            $ withinCopiedFile dbName $ \path _  -> do
+                performMigrations path
+                test path
+    testOnCopiedAndMigrated testAllPresentTxIdsAreInLedger
+    testOnCopiedAndMigrated allTransactionDataIsRepresentedInTxMeta
+    testOnCopiedAndMigrated testLocalTxSubmissionIsMissing
+
+    where
+
+        testLocalTxSubmissionIsMissing path = do
+            [Single (count :: Int)] <- Sqlite.runSqlite (T.pack path) $
+                    Sqlite.rawSql localTxSubmissionTableExists []
+            count `shouldBe` 0
+            pure ()
+
+        allTransactionDataIsRepresentedInTxMeta path = do
+            let idOf = unSingle @DB.TxId
+                selectIds t = fmap idOf
+                    <$> Sqlite.rawSql ("SELECT tx_id FROM " <> t) []
+                runQuery = Sqlite.runSqlite (T.pack path)
+                shouldBe' mtxs t   = do
+                    txs <- runQuery $ selectIds t
+                    liftIO $
+                        Set.fromList txs `shouldSatisfy`
+                            \x -> x `Set.isSubsetOf` (Set.fromList mtxs)
+            metaIds  <-  runQuery $ selectIds "tx_meta"
+            mapM_ (shouldBe' metaIds)
+                [ "tx_in"
+                , "tx_collateral"
+                , "tx_out"
+                , "tx_out_token"
+                , "tx_collateral_out"
+                , "tx_collateral_out_token"
+                , "tx_withdrawal"
+                , "c_b_o_r"
+                ]
+
+        testAllPresentTxIdsAreInLedger path = do
+            metas <- Sqlite.runSqlite (T.pack path)
+                $ Sqlite.rawSql "SELECT status FROM tx_meta" []
+            forM_ metas $ \(Single status) ->
+                status `shouldBe` ("in_ledger" :: Text)
 {-------------------------------------------------------------------------------
                                    Test data
 -------------------------------------------------------------------------------}
