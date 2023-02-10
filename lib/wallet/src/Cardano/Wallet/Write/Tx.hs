@@ -1,3 +1,4 @@
+{-# LANGUAGE EmptyCase #-}
 {-# LANGUAGE FlexibleContexts #-}
 {-# LANGUAGE FlexibleInstances #-}
 {-# LANGUAGE GADTs #-}
@@ -60,6 +61,7 @@ module Cardano.Wallet.Write.Tx
     , outputs
     , modifyTxOutputs
     , modifyLedgerBody
+    , fromCardanoTx
 
     -- * TxOut
     , Core.TxOut
@@ -172,6 +174,7 @@ import Test.Cardano.Ledger.Alonzo.Examples.Consensus
     ( StandardAlonzo )
 
 import qualified Cardano.Api as Cardano
+import qualified Cardano.Api.Byron as Cardano
 import qualified Cardano.Api.Extra as Cardano
 import qualified Cardano.Api.Shelley as Cardano
 import qualified Cardano.Binary as CBOR
@@ -751,6 +754,13 @@ fromCardanoUTxO = withStandardCryptoConstraint (recentEra @era) $
     . unCardanoUTxO
   where
     unCardanoUTxO (Cardano.UTxO m) = m
+
+fromCardanoTx
+    :: forall era. IsRecentEra era
+    => Cardano.Tx era
+    -> Core.Tx (Cardano.ShelleyLedgerEra era)
+fromCardanoTx (Cardano.ShelleyTx _ tx) = tx
+fromCardanoTx (Cardano.ByronTx _) = case recentEra @era of {}
 
 --------------------------------------------------------------------------------
 -- Module-internal helpers

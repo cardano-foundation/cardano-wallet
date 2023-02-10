@@ -284,6 +284,13 @@ import qualified Cardano.Ledger.Babbage.PParams as Babbage
 import qualified Cardano.Ledger.Babbage.Tx as Babbage
 import qualified Cardano.Ledger.Coin as Ledger
 import qualified Cardano.Ledger.Core as Ledger
+import Cardano.Ledger.Crypto
+    ( StandardCrypto )
+import Cardano.Ledger.Keys
+    ( GenDelegs (..) )
+import Cardano.Ledger.Keys
+    ( KeyRole (Witness) )
+import qualified Cardano.Ledger.Keys as Ledger
 import qualified Cardano.Ledger.Serialization as Ledger
 import qualified Cardano.Ledger.Shelley.Address.Bootstrap as SL
 import qualified Cardano.Ledger.Shelley.API as Shelley
@@ -1062,6 +1069,24 @@ _estimateSignedTxSize pparams utxo body =
     feePerByte = Coin.fromNatural $
         view #protocolParamTxFeePerByte pparams
 
+witsVKeyNeeded
+    :: forall era. Cardano.IsShelleyBasedEra era
+    => WriteTx.UTxO (Cardano.ShelleyLedgerEra era)
+    -> WriteTx.Tx (Cardano.ShelleyLedgerEra era)
+    -> GenDelegs StandardCrypto
+    -> Set (Ledger.KeyHash 'Witness StandardCrypto)
+witsVKeyNeeded utxo tx genDelegs = case Cardano.shelleyBasedEra @era of
+    Cardano.ShelleyBasedEraBabbage ->
+        Shelley.unWitHashes
+        $ Alonzo.witsVKeyNeeded
+            @(Cardano.ShelleyLedgerEra era)
+            utxo
+            tx
+            genDelegs
+
+    _ -> error "todo: witsVKeyNeeded"
+
+
 -- | Estimates the required number of Shelley-era witnesses.
 --
 -- Because we don't take into account whether two pieces of tx content will need
@@ -1077,25 +1102,39 @@ _estimateSignedTxSize pparams utxo body =
 -- NOTE: Similar to 'estimateTransactionKeyWitnessCount' from cardano-api, which
 -- we cannot use because it requires a 'TxBodyContent BuildTx era'.
 estimateNumberOfWitnesses
-    :: forall era. Cardano.IsShelleyBasedEra era
+    :: forall era. (Cardano.IsShelleyBasedEra era)
     => Cardano.UTxO era
     -- ^ Must contain all inputs from the 'TxBody' or
     -- 'estimateNumberOfWitnesses' will 'error'.
     -> Cardano.TxBody era
     -> Word
-estimateNumberOfWitnesses utxo txbody@(Cardano.TxBody txbodycontent) =
+estimateNumberOfWitnesses utxo txbody@(Cardano.TxBody txbodycontent) = tmpWithConstraints $
     let
-        vkeyWits = Alonzo.witsVKeyNeeded (toLedger utxo) tx assumeNoGenDelegs
+        vkeyWits = witsVKeyNeeded @era
+            (WriteTx.fromCardanoUTxO utxo)
+            (WriteTx.fromCardanoTx (Cardano.Tx txbody []))
+            assumeNoGenDelegs
         scriptVkWitsUpperBound =
             fromIntegral
             $ sumVia estimateMaxWitnessRequiredPerInput
             $ mapMaybe toTimelockScript scripts
     in
-        Set.size vkeyWits + scriptVkWitsUpperBound
+        fromIntegral (Set.size vkeyWits) + scriptVkWitsUpperBound
   where
     (Cardano.ShelleyTxBody _ _ scripts _ _ _) = txbody
 
     dummyKeyRole = Payment
+
+    assumeNoGenDelegs = GenDelegs mempty
+
+    -- FIXME: Replace IsShelleyBasedEra with IsRecentEra cascading upwards
+    tmpWithConstraints
+        :: (WriteTx.IsRecentEra era => a)
+        -> a
+    tmpWithConstraints a = case Cardano.shelleyBasedEra @era of
+        Cardano.ShelleyBasedEraBabbage -> a
+        _ -> error "todo: tmpWithConstraints"
+
 
     isStakeKeyRegCert (Cardano.StakeAddressRegistrationCertificate _) = True
     isStakeKeyRegCert _ = False
