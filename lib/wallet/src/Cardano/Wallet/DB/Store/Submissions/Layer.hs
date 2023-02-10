@@ -17,11 +17,7 @@ import Prelude hiding
     ( (.) )
 
 import Cardano.Wallet.DB
-    ( DBPendingTxs (..)
-    , ErrNoSuchTransaction (..)
-    , ErrPutLocalTxSubmission (..)
-    , ErrRemoveTx (..)
-    )
+    ( DBPendingTxs (..), ErrNoSuchTransaction (..), ErrRemoveTx (..) )
 import Cardano.Wallet.DB.Sqlite.Types
     ( TxId (..) )
 import Cardano.Wallet.DB.Store.Submissions.Operations
@@ -68,21 +64,6 @@ mkDbPendingTxs dbvar = DBPendingTxs
     { emptyTxSubmissions_ = \wid ->
         updateDBVar dbvar
             $ Insert wid $ mkEmpty 0
-
-    , putLocalTxSubmission_ = \wid txid tx sl -> do
-        let errNoSuchWallet = ErrPutLocalTxSubmissionNoSuchWallet $
-                ErrNoSuchWallet wid
-        ExceptT $ modifyDBMaybe dbvar $ \ws -> do
-            case Map.lookup wid ws of
-                Nothing -> (Nothing, Left errNoSuchWallet)
-                Just _  ->
-                    let
-                        delta = Just
-                            $ Adjust wid
-                            $ AddSubmission sl (TxId txid, tx)
-                            $ error "pls pass meta to putLocalTxSubmission!"
-                    in  (delta, Right ())
-
     , addTxSubmission_ =  \wid BuiltTx{..} resubmitted -> do
         let txId = TxId $ builtTx ^. #txId
             expiry = case builtTxMeta ^. #expiry of

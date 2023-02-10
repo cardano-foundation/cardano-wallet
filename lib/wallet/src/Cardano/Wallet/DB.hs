@@ -321,15 +321,6 @@ data DBLayer m s k = forall stm. (MonadIO stm, MonadFail stm) => DBLayer
         --
         -- If the wallet doesn't exist, this operation returns an error.
 
-    , putLocalTxSubmission
-        :: WalletId
-        -> Hash "Tx"
-        -> SealedTx
-        -> SlotNo
-        -> ExceptT ErrPutLocalTxSubmission stm ()
-        -- ^ Add or update a transaction in the local submission pool with the
-        -- most recent submission slot.
-
     , addTxSubmission
         :: WalletId
         -> BuiltTx
@@ -541,7 +532,6 @@ mkDBLayerFromParts ti DBLayerCollection{..} = DBLayer
                             (hoistTimeInterpreter liftIO ti)
                             (mkDecorator_ dbTxHistory) tip
             Nothing -> pure Nothing
-    , putLocalTxSubmission = putLocalTxSubmission_ dbPendingTxs
     , addTxSubmission = \wid a b -> wrapNoSuchWallet wid $
         addTxSubmission_ dbPendingTxs wid a b
     , readLocalTxSubmissionPending = readLocalTxSubmissionPending_ dbPendingTxs
@@ -762,15 +752,6 @@ data DBPendingTxs stm = DBPendingTxs
         :: WalletId
         -> stm ()
         -- ^ Add overwrite an empty submisison pool to the given wallet.
-
-    , putLocalTxSubmission_
-        :: WalletId
-        -> Hash "Tx"
-        -> SealedTx
-        -> SlotNo
-        -> ExceptT ErrPutLocalTxSubmission stm ()
-        -- ^ Add or update a transaction in the local submission pool with the
-        -- most recent submission slot.
 
     , addTxSubmission_
         :: WalletId

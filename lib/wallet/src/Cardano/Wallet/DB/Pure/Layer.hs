@@ -24,7 +24,6 @@ import Cardano.Address.Derivation
 import Cardano.Wallet.DB
     ( DBLayer (..)
     , ErrNoSuchTransaction (..)
-    , ErrPutLocalTxSubmission (..)
     , ErrRemoveTx (..)
     , ErrWalletAlreadyExists (..)
     )
@@ -192,10 +191,6 @@ newDBLayer timeInterpreter = do
         {-----------------------------------------------------------------------
                                        Pending Tx
         -----------------------------------------------------------------------}
-
-        , putLocalTxSubmission = \pk txid tx sl -> ExceptT $
-            alterDB (fmap ErrPutLocalTxSubmissionNoSuchWallet . errNoSuchWallet) db $
-            mPutLocalTxSubmission pk txid tx sl
 
         , addTxSubmission = error "addTxSubmission not implemented in old design"
 
