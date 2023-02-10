@@ -32,6 +32,15 @@ import Cardano.Wallet.DB.Store.Wallets.Model
     ( DeltaTxWalletsHistory (..) )
 import Cardano.Wallet.DB.Store.Wallets.Store
     ( mkStoreTxWalletsHistory, mkStoreWalletsMeta )
+import Control.Monad.Class.MonadSTM
+    ( MonadSTM
+    , atomically
+    , newTVarIO
+    , readTVar
+    , writeTVar
+    )
+import Control.Monad.Class.MonadThrow
+    ( MonadEvaluate, MonadMask, MonadThrow )
 import Data.DBVar
     ( Store (..), loadDBVar, initDBVar, readDBVar, updateDBVar )
 import Data.Delta
@@ -65,7 +74,7 @@ newQueryStoreTxWalletsHistory
 newQueryStoreTxWalletsHistory = do
     let txsQueryStore = TxSet.mkDBTxSet
 
-    storeWalletsMeta <- pure mkStoreWalletsMeta
+    storeWalletsMeta <- newCachedStore mkStoreWalletsMeta
     let storeTxWalletsHistory = mkStoreTxWalletsHistory
             (store txsQueryStore)   -- on disk
             storeWalletsMeta        -- on disk
@@ -104,4 +113,37 @@ newQueryStoreTxWalletsHistory = do
                 Right wmetas <- loadS storeWalletsMeta
                 updateS storeTxWalletsHistory (txSet,wmetas) da
             }
+        }
+
+
+-- | Create an identical 'Store',
+-- except that `loadS` is cached in memory through a 'DBVar'.
+--
+-- TODO: More attention to exceptions and thread safety.
+newCachedStore
+    ::  ( MonadSTM m, MonadThrow m, MonadEvaluate m, MonadMask m
+        , Delta da
+        )
+    => Store m da
+    -> m (Store m da)
+newCachedStore stor = do
+    varvar <- newTVarIO Nothing
+    let loadVar = do
+            mvar <- atomically $ readTVar varvar
+            case mvar of
+                Nothing -> do
+                    var <- loadDBVar stor
+                    atomically $ writeTVar varvar (Just var)
+                    pure var
+                Just var -> pure var
+    pure $ Store
+        { loadS = do
+            var <- loadVar
+            Right <$> readDBVar var
+        , writeS = \a -> do
+            var <- initDBVar stor a
+            atomically $ writeTVar varvar (Just var)
+        , updateS = \_ da -> do
+            var <- loadVar
+            updateDBVar var da
         }
