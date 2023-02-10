@@ -771,3 +771,4 @@ withCLIConstraint
 withCLIConstraint era a = case era of
     RecentEraBabbage -> a
     RecentEraAlonzo -> a
+

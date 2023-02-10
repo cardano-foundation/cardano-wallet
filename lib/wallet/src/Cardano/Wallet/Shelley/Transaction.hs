@@ -276,6 +276,7 @@ import qualified Cardano.Crypto.Wallet as Crypto.HD
 import qualified Cardano.Ledger.Alonzo.Data as Alonzo
 import qualified Cardano.Ledger.Alonzo.PlutusScriptApi as Alonzo
 import qualified Cardano.Ledger.Alonzo.PParams as Alonzo
+import qualified Cardano.Ledger.Alonzo.Rules.Utxow as Alonzo
 import qualified Cardano.Ledger.Alonzo.Scripts as Alonzo
 import qualified Cardano.Ledger.Alonzo.Tx as Alonzo
 import qualified Cardano.Ledger.Alonzo.TxWitness as Alonzo
@@ -1083,44 +1084,14 @@ estimateNumberOfWitnesses
     -> Cardano.TxBody era
     -> Word
 estimateNumberOfWitnesses utxo txbody@(Cardano.TxBody txbodycontent) =
-    let txIns = map fst $ Cardano.txIns txbodycontent
-        txInsCollateral =
-            case Cardano.txInsCollateral txbodycontent of
-                Cardano.TxInsCollateral _ ins -> ins
-                Cardano.TxInsCollateralNone -> []
-        vkInsUnique = L.nub $ filter (hasVkPaymentCred utxo) $
-            txIns ++ txInsCollateral
-        txExtraKeyWits = Cardano.txExtraKeyWits txbodycontent
-        txExtraKeyWits' = case txExtraKeyWits of
-            Cardano.TxExtraKeyWitnesses _ khs -> khs
-            _ -> []
-        txWithdrawals = Cardano.txWithdrawals txbodycontent
-        txWithdrawals' = case txWithdrawals of
-            Cardano.TxWithdrawals _ wdls ->
-                [ () | (_, _, Cardano.ViewTx) <- wdls ]
-            _ -> []
-        txUpdateProposal = Cardano.txUpdateProposal txbodycontent
-        txUpdateProposal' = case txUpdateProposal of
-            Cardano.TxUpdateProposal _
-                (Cardano.UpdateProposal updatePerGenesisKey _) ->
-                    Map.size updatePerGenesisKey
-            _ -> 0
-        txCerts = case Cardano.txCertificates txbodycontent of
-            Cardano.TxCertificatesNone -> 0
-            Cardano.TxCertificates _ certs _ ->
-                length $ filter (not . isStakeKeyRegCert) certs
+    let
+        vkeyWits = Alonzo.witsVKeyNeeded (toLedger utxo) tx assumeNoGenDelegs
         scriptVkWitsUpperBound =
             fromIntegral
             $ sumVia estimateMaxWitnessRequiredPerInput
             $ mapMaybe toTimelockScript scripts
     in
-    fromIntegral $
-        length vkInsUnique +
-        length txExtraKeyWits' +
-        length txWithdrawals' +
-        txUpdateProposal' +
-        txCerts +
-        scriptVkWitsUpperBound
+        Set.size vkeyWits + scriptVkWitsUpperBound
   where
     (Cardano.ShelleyTxBody _ _ scripts _ _ _) = txbody
 
