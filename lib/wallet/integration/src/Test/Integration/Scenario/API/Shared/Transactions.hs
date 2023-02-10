@@ -129,6 +129,7 @@ import Test.Integration.Framework.DSL
     , faucetUtxoAmt
     , fixturePassphrase
     , fixtureSharedWallet
+    , fixtureSharedWalletDelegating
     , fundSharedWallet
     , genMnemonics
     , getFromResponse
@@ -1641,7 +1642,7 @@ spec = describe "SHARED_TRANSACTIONS" $ do
     it "SHARED_TRANSACTIONS_DELEGATION_01a - \
        \Can join stakepool, rejoin another and quit" $ \ctx -> runResourceT $ do
 
-        src <- fixtureSharedWallet @n ctx
+        (party1,_) <- fixtureSharedWalletDelegating @n ctx
         let depositAmt = Quantity 1_000_000
 
         pool1:_ <- map (view $ _Unwrapped . #id) . snd <$>
@@ -1657,7 +1658,7 @@ spec = describe "SHARED_TRANSACTIONS" $ do
                 }]
             }|]
         rTx1 <- request @(ApiConstructTransaction n) ctx
-            (Link.createUnsignedTransaction @'Shared src) Default delegationJoin
+            (Link.createUnsignedTransaction @'Shared party1) Default delegationJoin
         verify rTx1
             [ expectResponseCode HTTP.status202
             , expectField (#coinSelection . #depositsTaken) (`shouldBe` [depositAmt])

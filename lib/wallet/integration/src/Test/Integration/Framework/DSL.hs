@@ -1698,10 +1698,11 @@ emptySharedWalletDelegating ctx = do
            "account_index": "30H",
            "payment_script_template":
                { "cosigners":
-                   { "cosigner#0": #{accXPubDerivedA} },
+                   { "cosigner#0": #{accXPubDerivedA}
+                   , "cosigner#1": #{accXPubDerivedB}},
                  "template":
-                     { "all":
-                        [ "cosigner#0" ]
+                     { "any":
+                        [ "cosigner#0", "cosigner#1" ]
                      }
                },
            "delegation_script_template":
@@ -1729,10 +1730,11 @@ emptySharedWalletDelegating ctx = do
            "account_index": "40H",
            "payment_script_template":
                { "cosigners":
-                   { "cosigner#0": #{accXPubDerivedA} },
+                   { "cosigner#0": #{accXPubDerivedA}
+                   , "cosigner#1": #{accXPubDerivedB}},
                  "template":
-                     { "all":
-                        [ "cosigner#0" ]
+                     { "any":
+                        [ "cosigner#0", "cosigner#1" ]
                      }
                },
            "delegation_script_template":
