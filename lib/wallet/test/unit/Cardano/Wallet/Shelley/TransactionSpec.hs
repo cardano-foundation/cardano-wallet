@@ -91,6 +91,7 @@ import Cardano.Tx.Balance.Internal.CoinSelection
 import Cardano.Wallet
     ( ErrUpdateSealedTx (..)
     , FeeEstimation (..)
+    , defaultChangeAddressGen
     , estimateFee
     , signTransaction
     )
@@ -102,7 +103,10 @@ import Cardano.Wallet.Primitive.AddressDerivation
     ( DelegationAddress (delegationAddress)
     , Depth (..)
     , DerivationIndex (..)
+    , DerivationType (Soft)
+    , Index
     , NetworkDiscriminant (..)
+    , Role (..)
     , deriveRewardAccount
     , getRawKey
     , hex
@@ -117,7 +121,12 @@ import Cardano.Wallet.Primitive.AddressDerivation.Icarus
 import Cardano.Wallet.Primitive.AddressDerivation.Shelley
     ( ShelleyKey, generateKeyFromSeed )
 import Cardano.Wallet.Primitive.AddressDiscovery.Sequential
-    ( SeqState, defaultAddressPoolGap, mkSeqStateFromRootXPrv, purposeCIP1852 )
+    ( SeqState
+    , defaultAddressPoolGap
+    , mkSeqStateFromRootXPrv
+    , purposeBIP44
+    , purposeCIP1852
+    )
 import Cardano.Wallet.Primitive.AddressDiscovery.Shared
     ( estimateMaxWitnessRequiredPerInput )
 import Cardano.Wallet.Primitive.Model
@@ -222,7 +231,7 @@ import Cardano.Wallet.Shelley.Compatibility
     , toCardanoValue
     )
 import Cardano.Wallet.Shelley.Compatibility.Ledger
-    ( toBabbageTxOut, toLedgerTokenBundle )
+    ( toBabbageTxOut, toLedgerTokenBundle, toWallet )
 import Cardano.Wallet.Shelley.Transaction
     ( EraConstraints
     , TxSkeleton (..)
@@ -264,7 +273,8 @@ import Cardano.Wallet.Transaction
 import Cardano.Wallet.Unsafe
     ( unsafeFromHex )
 import Cardano.Wallet.Write.Tx.Balance
-    ( ErrBalanceTx (..)
+    ( ChangeAddressGen (..)
+    , ErrBalanceTx (..)
     , ErrBalanceTxInternalError (..)
     , ErrSelectAssets (..)
     , PartialTx (..)
@@ -276,9 +286,19 @@ import Control.Arrow
 import Control.Monad
     ( forM, forM_, replicateM )
 import Control.Monad.Random
-    ( MonadRandom (..), Random (randomR, randomRs), evalRand, random, randoms )
+    ( MonadRandom (..)
+    , Rand
+    , Random (randomR, randomRs)
+    , evalRand
+    , random
+    , randoms
+    )
+import Control.Monad.Random.Strict
+    ( StdGen )
 import Control.Monad.Trans.Except
     ( except, runExceptT )
+import Control.Monad.Trans.State.Strict
+    ( evalState, state )
 import Crypto.Hash.Utils
     ( blake2b224 )
 import Data.ByteArray.Encoding
@@ -292,7 +312,7 @@ import Data.Either
 import Data.Function
     ( on, (&) )
 import Data.Functor.Identity
-    ( runIdentity )
+    ( Identity, runIdentity )
 import Data.Generics.Internal.VL.Lens
     ( over, view )
 import Data.List
@@ -419,6 +439,7 @@ import qualified Cardano.Ledger.Alonzo.TxBody as Alonzo
 import qualified Cardano.Ledger.Alonzo.TxWitness as Alonzo
 import qualified Cardano.Ledger.Babbage.PParams as Babbage
 import qualified Cardano.Ledger.Babbage.Tx as Babbage
+import qualified Cardano.Ledger.Babbage.TxBody as Babbage
 import qualified Cardano.Ledger.Coin as Ledger
 import qualified Cardano.Ledger.Core as Ledger
 import qualified Cardano.Ledger.Crypto as Crypto
@@ -2341,6 +2362,60 @@ balanceTransactionSpec = describe "balanceTransaction" $ do
         it "roundtrips with toCardanoValue" $
             property prop_posAndNegFromCardanoValueRoundtrip
 
+    describe "change address generation" $ do
+        let walletUTxO = UTxO $ Map.fromList $
+                [ ( TxIn (Hash $ B8.replicate 32 '1') ix
+                  , TxOut dummyAddr (TokenBundle.fromCoin $ Coin 1_000_000)
+                  )
+                | ix <- [0 .. 500]
+                ]
+        let balance =
+                balanceTransactionWithDummyChangeState
+                    walletUTxO
+                    testStdGenSeed
+
+        -- We could generate arbitrary tx bodies to test with, but by
+        -- limiting ourselves to 'paymentPartialTx' with a fixed number of
+        -- payments 1) ensures balancing always succeeds 2) makes it easy to
+        -- have separate 'it' statements for different expectations of the same
+        -- test case.
+        let nPayments = 10
+        let paymentOuts = replicate nPayments $
+                TxOut
+                    dummyAddr
+                    (TokenBundle.fromCoin (Coin 1_000_000))
+        let ptx = paymentPartialTx paymentOuts
+
+        -- True for values of nPayments small enough not to cause
+        -- 'ErrBalanceTxMaxSizeLimitExceeded' or ErrMakeChange
+        let nChange = max nPayments 1
+        let s0 = DummyChangeState 0
+        let expectedChange = flip evalState s0
+                $ replicateM nChange
+                $ state @Identity (getChangeAddressGen dummyChangeAddrGen)
+
+        let address :: Babbage.TxOut StandardBabbage -> Address
+            address (Babbage.TxOut addr _ _ _) = toWallet addr
+
+        let outputs
+                :: Cardano.Tx Cardano.BabbageEra
+                -> [Babbage.TxOut StandardBabbage]
+            outputs
+                (Cardano.Tx
+                    (Cardano.ShelleyTxBody _ body _ _ _ _ )
+                _) = WriteTx.outputs RecentEraBabbage body
+
+        let (tx, s') =
+                either (error . show) id $ balance ptx
+
+        it "assigns change addresses as expected" $
+            map address (outputs tx)
+                `shouldBe`
+                (map (view #address) paymentOuts ++ expectedChange)
+
+        it "returns s' corresponding to which addresses were used" $ do
+            s' `shouldBe` DummyChangeState { nextUnusedIndex = nChange }
+
     it "increases zero-ada outputs to minimum" $ do
         pendingWith "Needs correct mock PParams for Babbage"
         let era = WriteTx.RecentEraBabbage
@@ -2499,12 +2574,12 @@ balanceTransactionSpec = describe "balanceTransaction" $ do
        fst <$> balanceTransaction
             nullTracer
             testTxLayer
-            (delegationAddress @'Mainnet)
             Nothing
             Nothing
             mockProtocolParametersForBalancing
             (dummyTimeInterpreterWithHorizon horizon)
             utxoIndex
+            (defaultChangeAddressGen $ delegationAddress @'Mainnet)
             (getState wal)
             tx
       where
@@ -3383,14 +3458,72 @@ balanceTransaction' (Wallet' utxoIndex wallet _pending) seed tx  =
         fst <$> balanceTransaction
             nullTracer
             testTxLayer
-            (delegationAddress @'Mainnet)
             Nothing
             Nothing
             mockProtocolParametersForBalancing
             dummyTimeInterpreter
             utxoIndex
+            (defaultChangeAddressGen $ delegationAddress @'Mainnet)
             (getState wallet)
             tx
+
+newtype DummyChangeState = DummyChangeState { nextUnusedIndex :: Int }
+    deriving (Show, Eq)
+
+dummyChangeAddrGen :: ChangeAddressGen DummyChangeState
+dummyChangeAddrGen = ChangeAddressGen $ \(DummyChangeState i) ->
+        (addressAtIx $ toEnum i, DummyChangeState $ succ i)
+      where
+        addressAtIx
+            :: Index
+                'Cardano.Wallet.Primitive.AddressDerivation.Soft
+                'CredFromKeyK
+            -> Address
+        addressAtIx ix = paymentAddress @'Mainnet @ShelleyKey @'CredFromKeyK
+            $ publicKey
+            $ Shelley.ShelleyKey
+            $ Shelley.deriveAddressPrivateKeyShelley
+                pwd
+                acctK
+                Cardano.Wallet.Primitive.AddressDerivation.UtxoInternal
+                ix
+
+        mw = SomeMnemonic $ either (error . show) id
+            (entropyToMnemonic @12 <$> mkEntropy "0000000000000000")
+        pwd = Passphrase ""
+        rootK = Shelley.unsafeGenerateKeyFromSeed (mw, Nothing) mempty
+        acctK = Shelley.deriveAccountPrivateKeyShelley
+                    purposeBIP44
+                    pwd
+                    (getRawKey rootK)
+                    minBound
+
+balanceTransactionWithDummyChangeState
+    :: WriteTx.IsRecentEra era
+    => UTxO
+    -> StdGenSeed
+    -> PartialTx era
+    -> Either
+        ErrBalanceTx
+        (Cardano.Tx era, DummyChangeState)
+balanceTransactionWithDummyChangeState utxo seed ptx =
+    flip evalRand (stdGenFromSeed seed) $ runExceptT $
+        balanceTransaction @_ @(Rand StdGen)
+            (nullTracer @(Rand StdGen))
+            testTxLayer
+            Nothing
+            Nothing
+            mockProtocolParametersForBalancing
+            dummyTimeInterpreter
+            utxoIndex
+            dummyChangeAddrGen
+            (getState wal)
+            ptx
+  where
+    utxoIndex = UTxOIndex.fromMap $ CS.toInternalUTxOMap utxo
+    wal = unsafeInitWallet utxo (header block0) s
+      where
+        s = DummyChangeState { nextUnusedIndex = 0 }
 
 prop_posAndNegFromCardanoValueRoundtrip :: Property
 prop_posAndNegFromCardanoValueRoundtrip = forAll genSignedValue $ \v ->

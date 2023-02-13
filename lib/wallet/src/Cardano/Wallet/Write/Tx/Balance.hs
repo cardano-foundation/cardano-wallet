@@ -44,8 +44,6 @@ import Cardano.Tx.Balance.Internal.CoinSelection
     )
 import Cardano.Wallet.Primitive.AddressDerivation
     ( BoundedAddressLength (..) )
-import Cardano.Wallet.Primitive.AddressDiscovery
-    ( GenChange (ArgGenChange), genChange )
 import Cardano.Wallet.Primitive.Slotting
     ( PastHorizonException, TimeInterpreter )
 import Cardano.Wallet.Primitive.Types
@@ -150,6 +148,7 @@ import qualified Cardano.Address.Script as CA
 import qualified Cardano.Api as Cardano
 import qualified Cardano.Api.Shelley as Cardano
 import qualified Cardano.Wallet.Primitive.Types as W
+import qualified Cardano.Wallet.Primitive.Types.Address as W
 import qualified Cardano.Wallet.Primitive.Types.Coin as Coin
 import qualified Cardano.Wallet.Primitive.Types.Coin as W
 import qualified Cardano.Wallet.Primitive.Types.TokenBundle as TokenBundle
@@ -280,14 +279,12 @@ instance Buildable (PartialTx era) where
 
 balanceTransaction
     :: forall era m s k ktype.
-        ( GenChange s
-        , MonadRandom m
+        ( MonadRandom m
         , IsRecentEra era
         , BoundedAddressLength k
         )
     => Tracer m BalanceTxLog
     -> TransactionLayer k ktype SealedTx
-    -> ArgGenChange s
     -> Maybe ([(W.TxIn, W.TxOut)] -> [CA.Script KeyHash])
     -> Maybe ScriptTemplate
     -> (W.ProtocolParameters, Cardano.ProtocolParameters)
@@ -310,13 +307,13 @@ balanceTransaction
     -- forfeited. We should ideally investigate and clarify as part of ADP-1544
     -- or similar ticket. Relevant ledger code: https://github.com/input-output-hk/cardano-ledger/blob/fdec04e8c071060a003263cdcb37e7319fb4dbf3/eras/alonzo/impl/src/Cardano/Ledger/Alonzo/TxInfo.hs#L428-L440
     -> UTxOIndex WalletUTxO
+    -- ^ TODO [ADP-1789] Replace with @Cardano.UTxO@
+    -> ChangeAddressGen s
     -> s
-    -- ^ TODO [ADP-1789] Replace with @Cardano.UTxO@ and something simpler than
-    -- @Wallet s@ for change address generation.
     -> PartialTx era
     -> ExceptT ErrBalanceTx m (Cardano.Tx era, s)
 balanceTransaction
-    tr txLayer change toInpScriptsM mScriptTemplate pp ti idx s unadjustedPtx = do
+    tr txLayer toInpScriptsM mScriptTemplate pp ti idx genChange s unadjustedPtx = do
     -- TODO [ADP-1490] Take 'Ledger.PParams era' directly as argument, and avoid
     -- converting to/from Cardano.ProtocolParameters. This may affect
     -- performance. The addition of this one specific conversion seems to have
@@ -329,8 +326,8 @@ balanceTransaction
     let balanceWith strategy =
             balanceTransactionWithSelectionStrategyAndNoZeroAdaAdjustment
                 @era @m @s @k @ktype
-                tr txLayer change toInpScriptsM mScriptTemplate
-                pp ti idx s strategy adjustedPtx
+                tr txLayer toInpScriptsM mScriptTemplate
+                pp ti idx genChange s strategy adjustedPtx
     balanceWith SelectionStrategyOptimal
         `catchE` \e ->
             if minimalStrategyIsWorthTrying e
@@ -406,19 +403,18 @@ increaseZeroAdaOutputs era pp = modifyLedgerBody $
 -- | Internal helper to 'balanceTransaction'
 balanceTransactionWithSelectionStrategyAndNoZeroAdaAdjustment
     :: forall era m s k ktype.
-        ( GenChange s
-        , BoundedAddressLength k
+        ( BoundedAddressLength k
         , MonadRandom m
         , IsRecentEra era
         )
     => Tracer m BalanceTxLog
     -> TransactionLayer k ktype SealedTx
-    -> ArgGenChange s
     -> Maybe ([(W.TxIn, W.TxOut)] -> [CA.Script KeyHash])
     -> Maybe ScriptTemplate
     -> (W.ProtocolParameters, Cardano.ProtocolParameters)
     -> TimeInterpreter (Either PastHorizonException)
     -> UTxOIndex WalletUTxO
+    -> ChangeAddressGen s
     -> s
     -> SelectionStrategy
     -> PartialTx era
@@ -426,13 +422,13 @@ balanceTransactionWithSelectionStrategyAndNoZeroAdaAdjustment
 balanceTransactionWithSelectionStrategyAndNoZeroAdaAdjustment
     tr
     txLayer
-    generateChange
     toInpScriptsM
     mScriptTemplate
     (pp, nodePParams)
     ti
     internalUtxoAvailable
-    walletState
+    genChange
+    s
     selectionStrategy
     ptx@(PartialTx partialTx inputUTxO redeemers)
     = do
@@ -460,11 +456,10 @@ balanceTransactionWithSelectionStrategyAndNoZeroAdaAdjustment
         randomSeed <- stdGenSeed
         let
             transform
-                :: s
-                -> Selection
+                :: Selection
                 -> ([(W.TxIn, W.TxOut)], [(W.TxIn, W.TxOut)], [W.TxOut], s)
-            transform s sel =
-                let (sel', s') = assignChangeAddresses generateChange sel s
+            transform sel =
+                let (sel', s') = assignChangeAddresses genChange sel s
                     inputs = F.toList (sel' ^. #inputs)
                 in  ( inputs
                     , sel' ^. #collateral
@@ -497,7 +492,7 @@ balanceTransactionWithSelectionStrategyAndNoZeroAdaAdjustment
 
         withExceptT (ErrBalanceTxSelectAssets . ErrSelectAssetsSelectionError)
             . except
-            $ transform walletState <$> mSel
+            $ transform <$> mSel
 
     -- NOTE:
     -- Once the coin selection is done, we need to
@@ -894,18 +889,20 @@ balanceTransactionWithSelectionStrategyAndNoZeroAdaAdjustment
                     $ runExceptT
                     $ performSelection selectionConstraints selectionParams
 
+newtype ChangeAddressGen s =
+    ChangeAddressGen { getChangeAddressGen ::  (s -> (W.Address, s)) }
+
 -- | Augments the given outputs with new outputs. These new outputs correspond
 -- to change outputs to which new addresses have been assigned. This updates
 -- the wallet state as it needs to keep track of new pending change addresses.
 assignChangeAddresses
-    :: forall s. GenChange s
-    => ArgGenChange s
+    :: ChangeAddressGen s
     -> SelectionOf TokenBundle
     -> s
     -> (SelectionOf W.TxOut, s)
-assignChangeAddresses argGenChange sel = runState $ do
+assignChangeAddresses (ChangeAddressGen genChange) sel = runState $ do
     changeOuts <- forM (view #change sel) $ \bundle -> do
-        addr <- state (genChange argGenChange)
+        addr <- state genChange
         pure $ W.TxOut addr bundle
     pure $ (sel :: SelectionOf TokenBundle) { change = changeOuts }
 

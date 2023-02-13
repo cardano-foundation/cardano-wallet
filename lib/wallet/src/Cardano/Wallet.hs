@@ -123,6 +123,7 @@ module Cardano.Wallet
     , SelectAssetsParams (..)
     , selectAssets
     , readWalletUTxOIndex
+    , defaultChangeAddressGen
     , assignChangeAddressesAndUpdateDb
     , assignChangeAddressesWithoutDbUpdate
     , selectionToUnsignedTx
@@ -463,6 +464,7 @@ import Cardano.Wallet.Write.Tx
     ( AnyRecentEra )
 import Cardano.Wallet.Write.Tx.Balance
     ( BalanceTxLog (..)
+    , ChangeAddressGen (..)
     , ErrBalanceTx (..)
     , ErrBalanceTxInternalError (..)
     , ErrSelectAssets (..)
@@ -1550,7 +1552,7 @@ assignChangeAddressesAndUpdateDb
     -> ArgGenChange s
     -> Selection
     -> ExceptT ErrSignPayment IO (SelectionOf TxOut)
-assignChangeAddressesAndUpdateDb ctx wid generateChange selection =
+assignChangeAddressesAndUpdateDb ctx wid argGenChange selection =
     db & \DBLayer{..} -> ExceptT $ atomically $ modifyDBMaybe walletsDB $
         adjustNoSuchWallet wid ErrSignPaymentNoSuchWallet
             assignChangeAddressesAndUpdateDb'
@@ -1562,7 +1564,10 @@ assignChangeAddressesAndUpdateDb ctx wid generateChange selection =
       where
         s = getState $ getLatest wallet
         (selectionUpdated, stateUpdated) =
-            assignChangeAddresses generateChange selection s
+            assignChangeAddresses
+                (defaultChangeAddressGen argGenChange)
+                selection
+                s
 
 assignChangeAddressesWithoutDbUpdate
     :: forall ctx s k.
@@ -1574,12 +1579,15 @@ assignChangeAddressesWithoutDbUpdate
     -> ArgGenChange s
     -> Selection
     -> ExceptT ErrConstructTx IO (SelectionOf TxOut)
-assignChangeAddressesWithoutDbUpdate ctx wid generateChange selection =
+assignChangeAddressesWithoutDbUpdate ctx wid argGenChange selection =
     db & \DBLayer{..} -> mapExceptT atomically $ do
         cp <- withExceptT ErrConstructTxNoSuchWallet $
             withNoSuchWallet wid $ readCheckpoint wid
         let (selectionUpdated, _) =
-                assignChangeAddresses generateChange selection (getState cp)
+                assignChangeAddresses
+                    (defaultChangeAddressGen argGenChange)
+                    selection
+                    (getState cp)
         pure selectionUpdated
   where
     db = ctx ^. dbLayer @IO @s @k
@@ -1886,7 +1894,6 @@ buildSignSubmitTransaction
        , Bounded (Index (AddressIndexDerivationType k) (AddressCredential k))
        , IsOwned s k ktype
        , IsOurs s RewardAccount
-       , GenChange s
        , AddressBookIso s
        )
     => TimeInterpreter (ExceptT PastHorizonException IO)
@@ -1895,13 +1902,13 @@ buildSignSubmitTransaction
     -> TransactionLayer k ktype SealedTx
     -> Passphrase "user"
     -> WalletId
-    -> ArgGenChange s
+    -> ChangeAddressGen s
     -> AnyRecentEra
     -> PreSelection
     -> TransactionCtx
     -> IO (BuiltTx, UTCTime)
 buildSignSubmitTransaction ti db@DBLayer{..} netLayer txLayer pwd walletId
-    argGenChange era preSelection txCtx = do
+    changeAddrGen era preSelection txCtx = do
     --
     stdGen <- initStdGen
     pureTimeInterpreter <- snapshot ti
@@ -1923,7 +1930,7 @@ buildSignSubmitTransaction ti db@DBLayer{..} netLayer txLayer pwd walletId
                         pwd
                         protocolParameters
                         txLayer
-                        argGenChange
+                        changeAddrGen
                         era
                         preSelection
                         txCtx
@@ -1979,7 +1986,6 @@ buildAndSignTransactionPure
        , Bounded (Index (AddressIndexDerivationType k) (AddressCredential k))
        , IsOwned s k ktype
        , IsOurs s RewardAccount
-       , GenChange s
        )
     => TimeInterpreter (Either PastHorizonException)
     -> Set Tx -- pending transactions
@@ -1988,7 +1994,7 @@ buildAndSignTransactionPure
     -> Passphrase "user"
     -> ProtocolParameters
     -> TransactionLayer k ktype SealedTx
-    -> ArgGenChange s
+    -> ChangeAddressGen s
     -> AnyRecentEra
     -> PreSelection
     -> TransactionCtx
@@ -1998,7 +2004,7 @@ buildAndSignTransactionPure
         BuiltTx
 buildAndSignTransactionPure
     ti pendingTxs rootKey passphraseScheme userPassphrase
-    protocolParams txLayer changeGen era preSelection txCtx =
+    protocolParams txLayer changeAddrGen era preSelection txCtx =
     --
     WriteTx.withRecentEra era $ \(_ :: WriteTx.RecentEra recentEra) -> do
         wallet <- get
@@ -2015,7 +2021,6 @@ buildAndSignTransactionPure
             balanceTransaction @_ @_ @s @k @ktype
                 nullTracer
                 txLayer
-                changeGen
                 Nothing -- "To input scripts" resolver
                 Nothing -- Script template
                 nodeProtocolParameters
@@ -2023,6 +2028,7 @@ buildAndSignTransactionPure
                 (UTxOIndex.fromMap
                     $ CS.toInternalUTxOMap
                     $ availableUTxO @s pendingTxs wallet)
+                changeAddrGen
                 (getState wallet)
                 ( PartialTx
                     { tx = Cardano.Tx unsignedTxBody []
@@ -3575,3 +3581,9 @@ instance HasSeverityAnnotation TxSubmitLog where
             _ -> Debug
         MsgProcessPendingPool msg -> getSeverityAnnotation msg
 
+-- | Construct the default 'ChangeAddressGen s' for a given 's'.
+defaultChangeAddressGen
+    :: forall s. GenChange s
+    => ArgGenChange s
+    -> ChangeAddressGen s
+defaultChangeAddressGen arg = ChangeAddressGen $ \s -> genChange arg s
