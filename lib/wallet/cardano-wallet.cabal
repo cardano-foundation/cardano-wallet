@@ -360,6 +360,7 @@ library
     Cardano.Wallet.Submissions.TxStatus
     Cardano.Wallet.TokenMetadata
     Cardano.Wallet.Transaction
+    Cardano.Wallet.Transaction.Built
     Cardano.Wallet.Version
     Cardano.Wallet.Version.TH
     Cardano.Wallet.Write.Tx

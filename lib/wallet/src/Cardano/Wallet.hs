@@ -460,6 +460,8 @@ import Cardano.Wallet.Transaction
     , defaultTransactionCtx
     , withdrawalToCoin
     )
+import Cardano.Wallet.Transaction.Built
+    ( BuiltTx (..) )
 import Cardano.Wallet.Write.Tx
     ( AnyRecentEra )
 import Cardano.Wallet.Write.Tx.Balance
@@ -595,6 +597,8 @@ import qualified Cardano.Crypto.Wallet as CC
 import qualified Cardano.Slotting.Slot as Slot
 import qualified Cardano.Tx.Balance.Internal.CoinSelection as CS
 import qualified Cardano.Wallet.Checkpoints.Policy as CP
+import Cardano.Wallet.DB.Store.Submissions.Layer
+    ( mkLocalTxSubmission )
 import qualified Cardano.Wallet.DB.WalletState as WS
 import qualified Cardano.Wallet.DB.WalletState as WalletState
 import qualified Cardano.Wallet.Primitive.AddressDiscovery.Random as Rnd
@@ -1920,8 +1924,8 @@ buildSignSubmitTransaction ti db@DBLayer{..} netLayer txLayer pwd walletId
                 readTransactions
                     walletId Nothing Descending wholeRange (Just Pending)
 
-            (BuiltTx{..}, slot) <- throwOnErr <=< modifyDBMaybe walletsDB $ do
-                adjustNoSuchWallet walletId wrapNoWalletForConstruct $ \s ->
+            (btx@(BuiltTx{..}), slot) <- throwOnErr <=< modifyDBMaybe walletsDB
+                $ adjustNoSuchWallet walletId wrapNoWalletForConstruct $ \s ->
                     buildAndSignTransactionPure @k @ktype @s @n
                         pureTimeInterpreter
                         (Set.fromList pendingTxs)
@@ -1945,7 +1949,7 @@ buildSignSubmitTransaction ti db@DBLayer{..} netLayer txLayer pwd walletId
                             )
                         )
 
-            addTxSubmission walletId (builtTx, builtTxMeta, builtSealedTx) slot
+            addTxSubmission walletId btx slot
                 & throwWrappedErr wrapNoWalletForSubmit
 
             postTx netLayer builtSealedTx
@@ -1967,13 +1971,6 @@ buildSignSubmitTransaction ti db@DBLayer{..} netLayer txLayer pwd walletId
     wrapNoWalletForSubmit = ExceptionSubmitTx . ErrSubmitTxNoSuchWallet
     wrapNetworkError = ExceptionSubmitTx . ErrSubmitTxNetwork
     wrapBalanceConstructError = either ExceptionBalanceTx ExceptionConstructTx
-
-data BuiltTx = BuiltTx
-    { builtTx :: Tx
-    , builtTxMeta :: TxMeta
-    , builtSealedTx :: SealedTx
-    }
-    deriving (Show, Eq)
 
 buildAndSignTransactionPure
     :: forall k ktype s (n :: NetworkDiscriminant)
@@ -2306,21 +2303,21 @@ mkTxMeta latestBlockHeader txValidity amountIn amountOut =
         }
 
 -- | Broadcast a (signed) transaction to the network.
-submitTx
-    :: Tracer IO WalletWorkerLog
-    -> DBLayer IO s k
-    -> NetworkLayer IO Read.Block
+
+submitTx :: MonadUnliftIO m =>
+    Tracer m WalletWorkerLog
+    -> DBLayer m s k
+    -> NetworkLayer m block
     -> WalletId
     -> BuiltTx
-    -> ExceptT ErrSubmitTx IO ()
-submitTx tr DBLayer{..} nw walletId tx@BuiltTx{..} =
+    -> ExceptT ErrSubmitTx m ()
+submitTx tr DBLayer{addTxSubmission, atomically}
+    nw walletId tx@BuiltTx{..} =
     traceResult (MsgWallet . MsgTxSubmit . MsgSubmitTx tx >$< tr) $ do
         withExceptT ErrSubmitTxNetwork $ postTx nw builtSealedTx
         withExceptT ErrSubmitTxNoSuchWallet $
             mapExceptT atomically $
-                addTxSubmission walletId
-                    (builtTx, builtTxMeta, builtSealedTx)
-                    (builtTxMeta ^. #slotNo)
+                addTxSubmission walletId tx (builtTxMeta ^. #slotNo)
 
 -- | Broadcast an externally-signed transaction to the network.
 --
@@ -2420,10 +2417,11 @@ runLocalTxSubmissionPool cfg ctx wid = db & \DBLayer{..} -> do
         sp <- currentSlottingParameters nw
         pending <- atomically $ readLocalTxSubmissionPending wid
         let sl = bh ^. #slotNo
+            pendingOldStyle = pending >>= mkLocalTxSubmission
         -- Re-submit transactions due, ignore errors
-        forM_ (filter (isScheduled sp sl) pending) $ \st -> do
+        forM_ (filter (isScheduled sp sl) pendingOldStyle) $ \st -> do
             _ <- runExceptT $ traceResult (trRetry (st ^. #txId)) $
-                postTx nw (st ^. #submittedTx)
+                postTx nw (st ^. #submittedTx )
             atomically $ resubmitTx
                 wid
                 (st ^. #txId)

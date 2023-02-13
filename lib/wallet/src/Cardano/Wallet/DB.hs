@@ -39,14 +39,17 @@ module Cardano.Wallet.DB
     , ErrRemoveTx (..)
     , ErrPutLocalTxSubmission (..)
     , getInSubmissionTransaction_
+    , hoistDBLayer
     ) where
 
 import Prelude
 
 import Cardano.Address.Derivation
     ( XPrv )
+import Cardano.Wallet.DB.Sqlite.Types
+    ( TxId (TxId) )
 import Cardano.Wallet.DB.Store.Submissions.Operations
-    ( SubmissionMeta (..) )
+    ( SubmissionMeta (..), TxSubmissionsStatus )
 import Cardano.Wallet.DB.Store.Transactions.Decoration
     ( TxInDecorator )
 import Cardano.Wallet.DB.Store.Transactions.TransactionInfo
@@ -80,23 +83,21 @@ import Cardano.Wallet.Primitive.Types.Coin
 import Cardano.Wallet.Primitive.Types.Hash
     ( Hash )
 import Cardano.Wallet.Primitive.Types.Tx
-    ( LocalTxSubmissionStatus
-    , SealedTx
-    , TransactionInfo (..)
-    , Tx (..)
-    , TxMeta (..)
-    , TxStatus
-    )
+    ( SealedTx, TransactionInfo (..), Tx (..), TxMeta (..), TxStatus )
 import Cardano.Wallet.Primitive.Types.Tx.TransactionInfo
     ( hasStatus )
 import Cardano.Wallet.Read.Eras
     ( EraValue )
 import Cardano.Wallet.Read.Tx.Cardano
-    ( anythingFromSealedTx, fromSealedTx )
-import Cardano.Wallet.Read.Tx.Hash
-    ( getEraTxHash )
+    ( fromSealedTx )
 import Cardano.Wallet.Submissions.Submissions
-    ( TxStatusMeta (..) )
+    ( TxStatusMeta (..), txStatus )
+import Cardano.Wallet.Submissions.TxStatus
+    ( _InSubmission )
+import Cardano.Wallet.Transaction.Built
+    ( BuiltTx )
+import Control.Lens
+    ( has )
 import Control.Monad
     ( guard, join )
 import Control.Monad.IO.Class
@@ -126,7 +127,6 @@ import Data.Word
 import UnliftIO.Exception
     ( Exception )
 
-import qualified Cardano.Wallet.Primitive.Types.Hash as W
 import qualified Cardano.Wallet.Primitive.Types.Tx.SealedTx as WST
 import qualified Cardano.Wallet.Primitive.Types.Tx.TxMeta as WTxMeta
 import qualified Cardano.Wallet.Read.Tx as Read
@@ -318,18 +318,9 @@ data DBLayer m s k = forall stm. (MonadIO stm, MonadFail stm) => DBLayer
         --
         -- If the wallet doesn't exist, this operation returns an error.
 
-    , putLocalTxSubmission
-        :: WalletId
-        -> Hash "Tx"
-        -> SealedTx
-        -> SlotNo
-        -> ExceptT ErrPutLocalTxSubmission stm ()
-        -- ^ Add or update a transaction in the local submission pool with the
-        -- most recent submission slot.
-
     , addTxSubmission
         :: WalletId
-        -> (Tx, TxMeta, SealedTx)
+        -> BuiltTx
         -> SlotNo
         -> ExceptT ErrNoSuchWallet stm ()
         -- ^ Add a /new/ transaction to the local submission pool
@@ -345,7 +336,7 @@ data DBLayer m s k = forall stm. (MonadIO stm, MonadFail stm) => DBLayer
 
     , readLocalTxSubmissionPending
         :: WalletId
-        -> stm [LocalTxSubmissionStatus SealedTx]
+        -> stm [TxSubmissionsStatus]
         -- ^ List all transactions from the local submission pool which are
         -- still pending as of the latest checkpoint of the given wallet. The
         -- slot numbers for first submission and most recent submission are
@@ -414,6 +405,9 @@ data DBLayer m s k = forall stm. (MonadIO stm, MonadFail stm) => DBLayer
         :: forall a. stm a -> m a
         -- ^ Execute operations of the database in isolation and atomically.
     }
+
+hoistDBLayer :: (forall a . m a -> n a) -> DBLayer m s k -> DBLayer n s k
+hoistDBLayer f DBLayer{..} = DBLayer {atomically = f . atomically, ..}
 
 {-----------------------------------------------------------------------------
     Build DBLayer from smaller parts
@@ -509,8 +503,9 @@ mkDBLayerFromParts ti DBLayerCollection{..} = DBLayer
                 inSubmissions :: [TransactionInfo] <- fmap catMaybes
                     $ for inSubmissionsRaw $
                         mkTransactionInfo
-                        (hoistTimeInterpreter liftIO ti)
-                        (mkDecorator_ dbTxHistory) tip
+                            (hoistTimeInterpreter liftIO ti)
+                            (mkDecorator_ dbTxHistory) tip
+                        . fmap snd
                 pure
                     . sortTransactionsBySlot order
                     . filterMinWithdrawal minWithdrawal
@@ -534,11 +529,13 @@ mkDBLayerFromParts ti DBLayerCollection{..} = DBLayer
                             mkTransactionInfo
                             (hoistTimeInterpreter liftIO ti)
                             (mkDecorator_ dbTxHistory) tip
+                                . fmap snd
             Nothing -> pure Nothing
-    , putLocalTxSubmission = putLocalTxSubmission_ dbPendingTxs
     , addTxSubmission = \wid a b -> wrapNoSuchWallet wid $
         addTxSubmission_ dbPendingTxs wid a b
-    , readLocalTxSubmissionPending = readLocalTxSubmissionPending_ dbPendingTxs
+    , readLocalTxSubmissionPending = \wid -> do
+        txs <- getInSubmissionTransactions_ dbPendingTxs wid
+        pure $ filter (has $ txStatus . _InSubmission) txs
     , resubmitTx = resubmitTx_ dbPendingTxs
     , rollForwardTxSubmissions = \wid tip txs -> wrapNoSuchWallet wid $
         rollForwardTxSubmissions_ dbPendingTxs wid tip txs
@@ -741,14 +738,14 @@ getInSubmissionTransaction_
     => DBPendingTxs stm
     -> WalletId
     -> Hash "Tx"
-    -> stm (Maybe (TxStatusMeta SubmissionMeta SlotNo SealedTx))
+    -> stm (Maybe TxSubmissionsStatus)
 getInSubmissionTransaction_ DBPendingTxs{getInSubmissionTransactions_} wid txid
     = find which <$> getInSubmissionTransactions_ wid
   where
-    which :: TxStatusMeta SubmissionMeta SlotNo SealedTx -> Bool
+    which  :: TxSubmissionsStatus -> Bool
     which (TxStatusMeta txStatus' _) = isJust $ do
-        tx <- Sbm.getTx txStatus'
-        guard $ W.Hash (anythingFromSealedTx getEraTxHash tx) == txid
+        (txid', _)  <- Sbm.getTx txStatus'
+        guard $ txid' == TxId txid
 
 -- | A database layer for storing in-submission transactions.
 data DBPendingTxs stm = DBPendingTxs
@@ -757,18 +754,9 @@ data DBPendingTxs stm = DBPendingTxs
         -> stm ()
         -- ^ Add overwrite an empty submisison pool to the given wallet.
 
-    , putLocalTxSubmission_
-        :: WalletId
-        -> Hash "Tx"
-        -> SealedTx
-        -> SlotNo
-        -> ExceptT ErrPutLocalTxSubmission stm ()
-        -- ^ Add or update a transaction in the local submission pool with the
-        -- most recent submission slot.
-
     , addTxSubmission_
         :: WalletId
-        -> (Tx, TxMeta, SealedTx)
+        -> BuiltTx
         -> SlotNo
         -> stm ()
         -- ^ Add a /new/ transaction to the local submission pool
@@ -778,7 +766,7 @@ data DBPendingTxs stm = DBPendingTxs
 
     , getInSubmissionTransactions_
         :: WalletId
-        -> stm [TxStatusMeta SubmissionMeta SlotNo SealedTx]
+        -> stm [TxSubmissionsStatus]
         -- ^ Fetch the current in-submission transactions set for a known wallet.
         --
         -- Returns an empty list if the wallet isn't found.
@@ -789,14 +777,6 @@ data DBPendingTxs stm = DBPendingTxs
         -> SlotNo
         -> stm ()
         -- ^ Resubmit a transaction.
-
-    , readLocalTxSubmissionPending_
-        :: WalletId
-        -> stm [LocalTxSubmissionStatus SealedTx]
-        -- ^ List all transactions from the local submission pool which are
-        -- still pending as of the latest checkpoint of the given wallet. The
-        -- slot numbers for first submission and most recent submission are
-        -- included.
 
     , rollForwardTxSubmissions_
         :: WalletId

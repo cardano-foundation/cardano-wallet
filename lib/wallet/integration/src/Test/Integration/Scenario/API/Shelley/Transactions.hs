@@ -1897,6 +1897,31 @@ spec = describe "SHELLEY_TRANSACTIONS" $ do
         expectResponseCode HTTP.status404 r
         expectErrorMessage (errMsg404CannotFindTx $ toText txid) r
 
+    it "TRANS_GET_04 - Sumbitted transactions result in pending state" $
+        \ctx -> runResourceT $ do
+
+        (wSrc, wDest) <- (,) <$> fixtureWallet ctx <*> emptyWallet ctx
+        -- post tx
+        let amt = minUTxOValue (_mainEra ctx) :: Natural
+        rMkTx <- postTx @n ctx
+            (wSrc, Link.createTransactionOld @'Shelley, "cardano-wallet")
+            wDest
+            amt
+        let txid = getFromResponse #id rMkTx
+            oneTx = Link.getTransaction @'Shelley
+                    wSrc (ApiTxId txid)
+        r0 <- request @(ApiTransaction n) ctx oneTx Default Empty
+        verify r0
+                [ expectResponseCode HTTP.status200
+                , expectField (#status . #getApiT) (`shouldBe` Pending)
+                ]
+        let listTxs = Link.listTransactions @'Shelley wSrc
+        request @[ApiTransaction n] ctx listTxs Default Empty >>= flip verify
+            [ expectListField 0
+                (#direction . #getApiT) (`shouldBe` Outgoing)
+            , expectListField 0
+                (#status . #getApiT) (`shouldBe` Pending)
+            ]
 
     it "TRANS_DELETE_01 -\
         \ Shelley: Can forget pending transaction" $ \ctx -> runResourceT $ do

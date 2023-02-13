@@ -24,7 +24,6 @@ import Cardano.Address.Derivation
 import Cardano.Wallet.DB
     ( DBLayer (..)
     , ErrNoSuchTransaction (..)
-    , ErrPutLocalTxSubmission (..)
     , ErrRemoveTx (..)
     , ErrWalletAlreadyExists (..)
     )
@@ -48,7 +47,6 @@ import Cardano.Wallet.DB.Pure.Implementation
     , mReadCheckpoint
     , mReadDelegationRewardBalance
     , mReadGenesisParameters
-    , mReadLocalTxSubmissionPending
     , mReadPrivateKey
     , mReadTxHistory
     , mReadWalletMeta
@@ -193,14 +191,10 @@ newDBLayer timeInterpreter = do
                                        Pending Tx
         -----------------------------------------------------------------------}
 
-        , putLocalTxSubmission = \pk txid tx sl -> ExceptT $
-            alterDB (fmap ErrPutLocalTxSubmissionNoSuchWallet . errNoSuchWallet) db $
-            mPutLocalTxSubmission pk txid tx sl
-
         , addTxSubmission = error "addTxSubmission not implemented in old design"
 
         , readLocalTxSubmissionPending =
-            readDB db . mReadLocalTxSubmissionPending
+                error "readLocalTxSubmissionPending not implemented in old design"
 
         , resubmitTx = \wid txId sealed tip -> void $
             alterDB errNoSuchWallet db $ mPutLocalTxSubmission wid txId sealed tip
