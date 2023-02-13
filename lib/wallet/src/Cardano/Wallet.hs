@@ -1686,7 +1686,7 @@ buildCoinSelectionForTransaction
        , s ~ SeqState n k
        )
     => Wallet s
-    -> [TxOut] -- payment outputs to exclude from change outputs
+    -> [TxOut] -- ^ payment outputs to exclude from change outputs
     -> Coin
     -> Maybe DelegationAction
     -> Cardano.Tx era
@@ -1700,7 +1700,7 @@ buildCoinSelectionForTransaction
         out <-
             -- NOTE: We assume that the change outputs are always
             -- at the end of the list. This is true for the current
-            -- implementation of the transaction layer, but may not
+            -- 'balanceTransaction' implementation, but may not
             -- be true for other implementations.
             drop (length  paymentOutputs) $ fromCardanoTxOut <$> txOuts
         let address = out ^. #address
