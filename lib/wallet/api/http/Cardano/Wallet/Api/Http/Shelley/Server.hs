@@ -1728,8 +1728,9 @@ getWalletUtxoSnapshot ctx (ApiT wid) = do
 selectCoins
     :: forall s k n.
         ( IsOurs s Address
+        , s ~ SeqState n k
+        , AddressBookIso s
         , GenChange s
-        , Typeable s
         , Typeable k
         , Typeable n
         , BoundedAddressLength k
@@ -1739,42 +1740,48 @@ selectCoins
     -> ApiT WalletId
     -> ApiSelectCoinsPayments n
     -> Handler (ApiCoinSelection n)
-selectCoins ctx@ApiLayer {..} argGenChange (ApiT wid) body = do
-    let md = body ^? #metadata . traverse . #getApiT
-    withWorkerCtx ctx wid liftE liftE $ \wrk -> do
-        let db = wrk ^. dbLayer
-        era <- liftIO $ NW.currentNodeEra netLayer
-        wdrl <- case body ^. #withdrawal of
-            Nothing -> pure NoWithdrawal
-            Just apiWdrl ->
-                shelleyOnlyMkWithdrawal @s @k @n @'CredFromKeyK
-                    netLayer txLayer db wid era apiWdrl
-        let outs = addressAmountToTxOut <$> body ^. #payments
+selectCoins ctx@ApiLayer {..} argGenChange (ApiT walletId) body = do
+    era <- liftIO $ NW.currentNodeEra netLayer
+    recentEra@(AnyRecentEra (_ :: WriteTx.RecentEra e)) <- guardIsRecentEra era
+    withWorkerCtx ctx walletId liftE liftE $ \workerCtx -> do
+        let db = workerCtx ^. dbLayer
+            ti = timeInterpreter netLayer
+        pp <- liftIO $ NW.currentProtocolParameters (workerCtx ^. networkLayer)
+        withdrawal <-
+            body ^. #withdrawal
+                & maybe (pure NoWithdrawal)
+                    (shelleyOnlyMkWithdrawal @s @k @n
+                        netLayer txLayer db walletId era)
+        let genChange = W.defaultChangeAddressGen argGenChange
+        let paymentOuts = NE.toList $ addressAmountToTxOut <$> body ^. #payments
         let txCtx = defaultTransactionCtx
-                { txWithdrawal = wdrl
+                { txWithdrawal = withdrawal
                 , txMetadata = getApiT <$> body ^. #metadata
                 }
-        let genChange = W.defaultChangeAddressGen argGenChange
-        let transform s sel =
-                W.assignChangeAddresses genChange sel s
-                & uncurry (W.selectionToUnsignedTx (txWithdrawal txCtx))
-        (utxoAvailable, wallet, pendingTxs) <-
-            liftHandler $ W.readWalletUTxOIndex @_ @s @k wrk wid
-        pp <- liftIO $ NW.currentProtocolParameters (wrk ^. networkLayer)
-        let selectAssetsParams = W.SelectAssetsParams
-                { outputs = F.toList outs
-                , pendingTxs
-                , randomSeed = Nothing
-                , txContext = txCtx
-                , utxoAvailableForInputs = UTxOSelection.fromIndex utxoAvailable
-                , utxoAvailableForCollateral = UTxOIndex.toMap utxoAvailable
-                , wallet
-                , selectionStrategy = SelectionStrategyOptimal
-                }
-        utx <- liftHandler $
-            W.selectAssets @_ @_ @s @k @'CredFromKeyK
-                wrk era pp selectAssetsParams transform
-        pure $ mkApiCoinSelection [] [] Nothing md utx
+
+        (cardanoTx, walletState) <- liftIO $ W.buildTransaction @s @k @n @e
+            recentEra db txLayer ti walletId genChange pp txCtx paymentOuts
+
+        let W.CoinSelection{..} =
+                W.buildCoinSelectionForTransaction @s @k @n
+                    walletState
+                    paymentOuts
+                    (W.stakeKeyDeposit pp)
+                    Nothing -- delegation action
+                    cardanoTx
+
+        pure ApiCoinSelection
+            { inputs = mkApiCoinSelectionInput <$> inputs
+            , outputs = mkApiCoinSelectionOutput <$> outputs
+            , change = mkApiCoinSelectionChange <$> change
+            , collateral = mkApiCoinSelectionCollateral <$> collateral
+            , certificates = uncurry mkApiCoinSelectionCerts <$>
+                delegationAction
+            , withdrawals = mkApiCoinSelectionWithdrawal <$> withdrawals
+            , depositsTaken = maybeToList $ mkApiCoin <$> deposit
+            , depositsReturned = maybeToList $ mkApiCoin <$> refund
+            , metadata = Nothing
+            }
 
 selectCoinsForJoin
     :: forall s n k.
