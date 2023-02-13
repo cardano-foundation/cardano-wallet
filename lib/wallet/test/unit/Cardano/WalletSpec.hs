@@ -270,6 +270,7 @@ import UnliftIO.Concurrent
 import qualified Cardano.Crypto.Wallet as CC
 import qualified Cardano.Wallet as W
 import qualified Cardano.Wallet.Address.Book as Sqlite
+import qualified Cardano.Wallet.DB.Sqlite.Types as DB
 import qualified Cardano.Wallet.DB.Store.Checkpoints as Sqlite
 import qualified Cardano.Wallet.Primitive.Migration as Migration
 import qualified Cardano.Wallet.Primitive.Types.Coin as Coin
@@ -795,7 +796,11 @@ prop_localTxSubmission tc = monadicIO $ do
     assert' "all txs in submissions pool were required"
         $ all requested $ resSubmittedTxs res
 
+    let inPool BuiltTx{builtTx} = (Just . DB.TxId $ builtTx ^. #txId)  `elem`
+            fmap (fmap fst . Sbms.getTx . view Smbs.txStatus) resEnd
 
+    assert' "all required txs are in submissions pool"
+        $ all inPool $ retryTestPool tc
 
     assert' "start submissions pool is not empty"
         $ not $ null resStart
