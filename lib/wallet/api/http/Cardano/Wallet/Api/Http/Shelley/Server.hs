@@ -1817,13 +1817,15 @@ selectCoinsForJoin ctx@ApiLayer{..}
 
         let txCtx = defaultTransactionCtx { txDelegationAction = Just action }
 
+        let paymentOuts = []
+
         (cardanoTx, walletState) <- W.buildTransaction @s @k @n @e
-            recentEra db txLayer ti walletId changeAddrGen pp txCtx
+            recentEra db txLayer ti walletId changeAddrGen pp txCtx paymentOuts
 
         let W.CoinSelection{..} =
                 W.buildCoinSelectionForTransaction @s @k @n
                     walletState
-                    [] -- paymentOutputs
+                    paymentOuts
                     (W.stakeKeyDeposit pp)
                     (Just action)
                     cardanoTx
@@ -1870,13 +1872,15 @@ selectCoinsForQuit ctx@ApiLayer{..} (ApiT walletId) = do
                 , txWithdrawal = withdrawal
                 }
 
+        let paymentOuts = []
+
         (cardanoTx, walletState) <- W.buildTransaction @s @k @n @e
-            recentEra db txLayer ti walletId changeAddrGen pp txCtx
+            recentEra db txLayer ti walletId changeAddrGen pp txCtx paymentOuts
 
         let W.CoinSelection{..} =
                 W.buildCoinSelectionForTransaction @s @k @n
                     walletState
-                    [] -- paymentOutputs
+                    paymentOuts
                     (W.stakeKeyDeposit pp)
                     (Just action)
                     cardanoTx
