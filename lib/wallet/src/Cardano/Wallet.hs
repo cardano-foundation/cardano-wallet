@@ -2165,9 +2165,10 @@ buildTransaction
     -> ChangeAddressGen s
     -> ProtocolParameters
     -> TransactionCtx
+    -> [TxOut] -- ^ payment outputs
     -> IO (Cardano.Tx era, Wallet s)
 buildTransaction era DBLayer{..} txLayer timeInterpreter walletId
-    changeAddrGen protocolParameters txCtx = do
+    changeAddrGen protocolParameters txCtx paymentOuts = do
     stdGen <- initStdGen
     pureTimeInterpreter <- snapshot timeInterpreter
     WriteTx.withRecentEra era $ const . atomically $ do
@@ -2182,8 +2183,6 @@ buildTransaction era DBLayer{..} txLayer timeInterpreter walletId
             readTransactions
                 walletId Nothing Descending wholeRange (Just Pending)
 
-        let paymentOutputs = []
-
         fmap (\s' -> wallet { getState = s' }) <$>
             buildTransactionPure @s @_ @'CredFromKeyK @n @era
                 wallet
@@ -2192,7 +2191,7 @@ buildTransaction era DBLayer{..} txLayer timeInterpreter walletId
                 txLayer
                 changeAddrGen
                 protocolParameters
-                PreSelection { outputs = paymentOutputs }
+                PreSelection { outputs = paymentOuts }
                 txCtx
                 & runExceptT . withExceptT
                     (either ExceptionBalanceTx ExceptionConstructTx)
