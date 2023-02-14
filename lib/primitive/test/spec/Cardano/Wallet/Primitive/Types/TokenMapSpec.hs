@@ -384,7 +384,10 @@ prop_subtract_invariant :: TokenMap -> TokenMap -> Property
 prop_subtract_invariant m1 m2 = property $
     m2 `leq` m1 ==> invariantHolds result
   where
-    Just result = TokenMap.subtract m1 m2
+    result =
+      case TokenMap.subtract m1 m2 of
+        Nothing -> error "prop_subtract_invariant"
+        Just r -> r
 
 prop_difference_invariant :: TokenMap -> TokenMap -> Property
 prop_difference_invariant m1 m2 =

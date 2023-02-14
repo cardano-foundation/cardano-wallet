@@ -1070,7 +1070,7 @@ prop_performSelection mockConstraints params coverage =
         --
         -- We expect that the selection should succeed.
         --
-        let constraints' :: SelectionConstraints TestSelectionContext =
+        let constraints' =
                 constraints
                     { assessTokenBundleSize = unMockAssessTokenBundleSize
                         MockAssessTokenBundleSizeUnlimited
@@ -1078,7 +1078,7 @@ prop_performSelection mockConstraints params coverage =
                         const computeMinimumAdaQuantityZero
                     , computeMinimumCost = computeMinimumCostZero
                     , computeSelectionLimit = const NoLimit
-                    }
+                    }  :: SelectionConstraints TestSelectionContext
             performSelection' = performSelection constraints' params
         in
         monadicIO $ run performSelection' >>= \case
