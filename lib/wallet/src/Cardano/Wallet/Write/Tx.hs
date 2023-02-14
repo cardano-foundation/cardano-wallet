@@ -121,6 +121,8 @@ module Cardano.Wallet.Write.Tx
     , toCardanoUTxO
     , fromCardanoUTxO
 
+    -- * Balancing
+    , evaluateTransactionBalance
     )
     where
 
@@ -187,6 +189,7 @@ import qualified Cardano.Ledger.Alonzo.TxBody as Alonzo
 import qualified Cardano.Ledger.Babbage as Babbage
 import qualified Cardano.Ledger.Babbage.TxBody as Babbage
 import qualified Cardano.Ledger.Core as Core
+import qualified Cardano.Ledger.Shelley.API.Wallet as Shelley
 import qualified Cardano.Ledger.Shelley.UTxO as Shelley
 import qualified Cardano.Ledger.TxIn as Ledger
 import qualified Data.Aeson as Aeson
@@ -765,6 +768,38 @@ fromCardanoUTxO = withStandardCryptoConstraint (recentEra @era) $
     . unCardanoUTxO
   where
     unCardanoUTxO (Cardano.UTxO m) = m
+
+--------------------------------------------------------------------------------
+-- Balancing
+--------------------------------------------------------------------------------
+
+-- | Evaluate the /balance/ of a transaction using the ledger.
+--
+-- The balance is defined as:
+-- @
+-- (value consumed by transaction) - (value produced by transaction)
+-- @
+--
+-- For a transaction to be valid, it must have a balance of __zero__.
+--
+-- Note that the fee field of the transaction affects the balance, and
+-- is not automatically the minimum fee.
+--
+evaluateTransactionBalance
+    :: RecentEra era
+    -> Core.PParams (Cardano.ShelleyLedgerEra era)
+    -> Shelley.UTxO (Cardano.ShelleyLedgerEra era)
+    -> Core.TxBody (Cardano.ShelleyLedgerEra era)
+    -> Core.Value (Cardano.ShelleyLedgerEra era)
+evaluateTransactionBalance era pp utxo txBody' =
+    withCLIConstraint era $
+        Shelley.evaluateTransactionBalance pp utxo isNewPool txBody'
+  where
+    isNewPool =
+        -- TODO: ADP-2651
+        -- Pass this parameter in as a function instead of hard-coding the
+        -- value here:
+        const True
 
 --------------------------------------------------------------------------------
 -- Module-internal helpers
