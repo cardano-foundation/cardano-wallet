@@ -2155,8 +2155,7 @@ buildTransaction
       , BoundedAddressLength k
       , GenChange s
       )
-    => AnyRecentEra
-    -> DBLayer IO s k
+    => DBLayer IO s k
     -> TransactionLayer k 'CredFromKeyK SealedTx
     -> TimeInterpreter (ExceptT PastHorizonException IO)
     -> WalletId
@@ -2165,11 +2164,11 @@ buildTransaction
     -> TransactionCtx
     -> [TxOut] -- ^ payment outputs
     -> IO (Cardano.Tx era, Wallet s)
-buildTransaction era DBLayer{..} txLayer timeInterpreter walletId
+buildTransaction DBLayer{..} txLayer timeInterpreter walletId
     argGenChange protocolParameters txCtx paymentOuts = do
     stdGen <- initStdGen
     pureTimeInterpreter <- snapshot timeInterpreter
-    WriteTx.withRecentEra era $ const . atomically $ do
+    atomically $ do
         wallet <- readDBVar walletsDB >>= \wallets ->
             case Map.lookup walletId wallets of
                 Nothing -> liftIO . throwIO
