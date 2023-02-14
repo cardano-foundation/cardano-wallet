@@ -46,8 +46,6 @@ import Cardano.Wallet.Primitive.AddressDerivation
     ( BoundedAddressLength (..) )
 import Cardano.Wallet.Primitive.AddressDerivation.SharedKey
     ( replaceCosignersWithVerKeys )
-import Cardano.Wallet.Primitive.AddressDiscovery
-    ( GenChange (ArgGenChange), genChange )
 import Cardano.Wallet.Primitive.Slotting
     ( PastHorizonException, TimeInterpreter )
 import Cardano.Wallet.Primitive.Types

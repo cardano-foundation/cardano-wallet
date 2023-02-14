@@ -3515,6 +3515,7 @@ balanceTransactionWithDummyChangeState utxo seed ptx =
             testTxLayer
             Nothing
             Nothing
+            Nothing
             mockProtocolParametersForBalancing
             dummyTimeInterpreter
             utxoIndex
