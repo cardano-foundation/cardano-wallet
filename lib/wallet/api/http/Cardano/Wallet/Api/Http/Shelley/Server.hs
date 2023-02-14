@@ -1780,7 +1780,8 @@ selectCoins ctx@ApiLayer {..} argGenChange (ApiT walletId) body = do
             , withdrawals = mkApiCoinSelectionWithdrawal <$> withdrawals
             , depositsTaken = maybeToList $ mkApiCoin <$> deposit
             , depositsReturned = maybeToList $ mkApiCoin <$> refund
-            , metadata = Nothing
+            , metadata = ApiBytesT. serialiseToCBOR
+                <$> body ^? #metadata . traverse . #getApiT
             }
 
 selectCoinsForJoin
