@@ -2,7 +2,7 @@
 
 source 'https://rubygems.org'
 
-gem 'cardano_wallet', '~> 0.4.1'
+gem 'cardano_wallet', '~> 0.4.2'
 # gem 'cardano_wallet', path: "~/wb/cardano_wallet"
 gem 'blake2b', '0.10.0'
 gem 'buildkit', '1.5'
