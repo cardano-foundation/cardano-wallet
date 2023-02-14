@@ -116,6 +116,8 @@ import Cardano.Wallet.Primitive.AddressDerivation.Icarus
     ( IcarusKey )
 import Cardano.Wallet.Primitive.AddressDerivation.Shared
     ( SharedKey )
+import Cardano.Wallet.Primitive.AddressDerivation.SharedKey
+    ( replaceCosignersWithVerKeys )
 import Cardano.Wallet.Primitive.AddressDerivation.Shelley
     ( ShelleyKey, toRewardAccountRaw )
 import Cardano.Wallet.Primitive.AddressDiscovery.Shared
@@ -265,6 +267,7 @@ import Ouroboros.Consensus.Shelley.Eras
 import Ouroboros.Network.Block
     ( SlotNo )
 
+import qualified Cardano.Address.Style.Shelley as CA
 import qualified Cardano.Api as Cardano
 import qualified Cardano.Api.Byron as Byron
 import qualified Cardano.Api.Shelley as Cardano
@@ -381,14 +384,17 @@ constructUnsignedTx
     -- ^ Assets to be burned
     -> Map TxIn (Script KeyHash)
     -- ^ scripts for inputs
+    -> Maybe (Script KeyHash)
+    -- ^ Delegation script
     -> ShelleyBasedEra era
     -> Either ErrMkTransaction (Cardano.TxBody era)
 constructUnsignedTx
     networkId (md, certs) ttl rewardAcnt wdrl
-    cs fee toMint toBurn inpScripts era =
+    cs fee toMint toBurn inpScripts stakingScriptM era =
         mkUnsignedTx
             era ttl cs md wdrls certs (toCardanoLovelace fee)
             (fst toMint) (fst toBurn) mintingScripts inpScripts
+            stakingScriptM
   where
     wdrls = mkWithdrawals networkId rewardAcnt wdrl
     mintingScripts = Map.union (snd toMint) (snd toBurn)
@@ -426,7 +432,7 @@ mkTx networkId payload ttl (rewardAcnt, pwdAcnt) addrResolver wdrl cs fees era =
 
     unsigned <- mkUnsignedTx era ttl (Right cs) md wdrls certs
         (toCardanoLovelace fees)
-        TokenMap.empty TokenMap.empty Map.empty Map.empty
+        TokenMap.empty TokenMap.empty Map.empty Map.empty Nothing
     let signed = signTransaction networkId acctResolver (const Nothing)
             addrResolver inputResolver (unsigned, mkExtraWits unsigned)
 
@@ -643,18 +649,23 @@ newTransactionLayer networkId = TransactionLayer
         let assetsToBeMinted = view #txAssetsToMint ctx
         let assetsToBeBurned = view #txAssetsToBurn ctx
         let inpsScripts = view #txNativeScriptInputs ctx
+        let stakingScriptM =
+                flip (replaceCosignersWithVerKeys CA.Stake) minBound <$>
+                view #txStakingCredentialScriptTemplate ctx
 
         case view #txDelegationAction ctx of
             Nothing -> do
                 let md = view #txMetadata ctx
                 constructUnsignedTx networkId (md, []) ttl rewardAcct wdrl
                     selection delta assetsToBeMinted assetsToBeBurned inpsScripts
+                    Nothing
                     (WriteTx.shelleyBasedEraFromRecentEra WriteTx.recentEra)
             Just action -> do
                 let certs = mkDelegationCertificates action stakeCred
                 let payload = (view #txMetadata ctx, certs)
                 constructUnsignedTx networkId payload ttl rewardAcct wdrl
                     selection delta assetsToBeMinted assetsToBeBurned inpsScripts
+                    stakingScriptM
                     (WriteTx.shelleyBasedEraFromRecentEra WriteTx.recentEra)
 
     , estimateSignedTxSize = \pp utxo (Cardano.Tx body _) -> do
@@ -2328,11 +2339,22 @@ mkUnsignedTx
     -> TokenMap
     -> Map AssetId (Script KeyHash)
     -> Map TxIn (Script KeyHash)
+    -> Maybe (Script KeyHash)
     -> Either ErrMkTransaction (Cardano.TxBody era)
 mkUnsignedTx
-    era ttl cs md wdrls certs fees mintData burnData mintingScripts inpsScripts =
-    left toErrMkTx $ fmap removeDummyInput $ Cardano.makeTransactionBody
-    Cardano.TxBodyContent
+    era
+    ttl
+    cs
+    md
+    wdrls
+    certs
+    fees
+    mintData
+    burnData
+    mintingScripts
+    inpsScripts
+    stakingScriptM = left toErrMkTx $ fmap removeDummyInput $
+    Cardano.makeTransactionBody Cardano.TxBodyContent
     { Cardano.txIns = inputWits
 
     , txInsReference = Cardano.TxInsReferenceNone
