@@ -436,8 +436,8 @@ combineDbAndLsqData ti nOpt lsqData =
         = Coin
         $ average
         $ L.take nOpt
-        $ L.sort
-        $ map (Down . unCoin . view #nonMyopicMemberRewards)
+        $ L.sortOn Down
+        $ map (unCoin . view #nonMyopicMemberRewards)
         $ Map.elems lsqData
       where
         average [] = 0
