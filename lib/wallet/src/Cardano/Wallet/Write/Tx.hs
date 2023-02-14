@@ -1,3 +1,4 @@
+{-# LANGUAGE EmptyCase #-}
 {-# LANGUAGE FlexibleContexts #-}
 {-# LANGUAGE FlexibleInstances #-}
 {-# LANGUAGE GADTs #-}
@@ -116,6 +117,7 @@ module Cardano.Wallet.Write.Tx
     , utxoFromTxOutsInRecentEra
     , utxoFromTxOutsInLatestEra
     , utxoFromTxOuts
+    , fromCardanoTx
     , toCardanoUTxO
     , fromCardanoUTxO
 
@@ -172,6 +174,7 @@ import Test.Cardano.Ledger.Alonzo.Examples.Consensus
     ( StandardAlonzo )
 
 import qualified Cardano.Api as Cardano
+import qualified Cardano.Api.Byron as Cardano
 import qualified Cardano.Api.Extra as Cardano
 import qualified Cardano.Api.Shelley as Cardano
 import qualified Cardano.Binary as CBOR
@@ -713,6 +716,17 @@ modifyLedgerBody f (Cardano.Tx body keyWits) =
 --------------------------------------------------------------------------------
 -- Compatibility
 --------------------------------------------------------------------------------
+
+fromCardanoTx
+    :: forall era. IsRecentEra era
+    => Cardano.Tx era
+    -> Core.Tx (Cardano.ShelleyLedgerEra era)
+fromCardanoTx = \case
+    Cardano.ShelleyTx _era tx ->
+        tx
+    Cardano.ByronTx {} ->
+        case (recentEra @era) of
+            {}
 
 -- | NOTE: The roundtrip
 -- @
