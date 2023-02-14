@@ -44,6 +44,8 @@ import Cardano.Wallet.Address.Book
     ( AddressBookIso (..), Discoveries, Prologue )
 import Cardano.Wallet.Checkpoints
     ( Checkpoints )
+import Cardano.Wallet.DB.Errors
+    ( ErrNoSuchWallet (..) )
 import Cardano.Wallet.DB.Store.Submissions.Operations
     ( DeltaTxSubmissions, TxSubmissions )
 import Cardano.Wallet.Primitive.Types
@@ -188,10 +190,3 @@ adjustNoSuchWallet wid err update wallets = case Map.lookup wid wallets of
         Left e -> (Nothing, Left e)
         Right (dw, b) -> (Just $ Adjust wid dw, Right b)
 
-{-------------------------------------------------------------------------------
-    Errors
--------------------------------------------------------------------------------}
--- | Can't perform given operation because there's no wallet
-newtype ErrNoSuchWallet
-    = ErrNoSuchWallet WalletId -- Wallet is gone or doesn't exist yet
-    deriving (Eq, Show)

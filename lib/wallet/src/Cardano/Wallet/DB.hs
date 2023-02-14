@@ -32,20 +32,18 @@ module Cardano.Wallet.DB
     , DBPrivateKey (..)
     , mkDBLayerFromParts
 
-      -- * Errors
-    , ErrBadFormat(..)
-    , ErrWalletAlreadyExists(..)
-    , ErrNoSuchTransaction (..)
-    , ErrRemoveTx (..)
-    , ErrPutLocalTxSubmission (..)
     , getInSubmissionTransaction_
     , hoistDBLayer
+
+      -- * Errors
+    , module Cardano.Wallet.DB.Errors
     ) where
 
 import Prelude
 
 import Cardano.Address.Derivation
     ( XPrv )
+import Cardano.Wallet.DB.Errors
 import Cardano.Wallet.DB.Sqlite.Types
     ( TxId (TxId) )
 import Cardano.Wallet.DB.Store.Submissions.Operations
@@ -55,7 +53,7 @@ import Cardano.Wallet.DB.Store.Transactions.Decoration
 import Cardano.Wallet.DB.Store.Transactions.TransactionInfo
     ( mkTransactionInfoFromReadTx )
 import Cardano.Wallet.DB.WalletState
-    ( DeltaMap, DeltaWalletState, ErrNoSuchWallet (..) )
+    ( DeltaMap, DeltaWalletState )
 import Cardano.Wallet.Primitive.AddressDerivation
     ( Depth (..) )
 import Cardano.Wallet.Primitive.Model
@@ -124,8 +122,6 @@ import Data.Traversable
     ( for )
 import Data.Word
     ( Word32 )
-import UnliftIO.Exception
-    ( Exception )
 
 import qualified Cardano.Wallet.Primitive.Types.Tx.SealedTx as WST
 import qualified Cardano.Wallet.Primitive.Types.Tx.TxMeta as WTxMeta
@@ -848,42 +844,6 @@ filterMinWithdrawal Nothing = id
 filterMinWithdrawal (Just minWithdrawal) = filter p
   where
     p = any (>= minWithdrawal) . Map.elems . txInfoWithdrawals
-
-{-----------------------------------------------------------------------------
-    Errors
-------------------------------------------------------------------------------}
--- | Can't read the database file because it's in a bad format
--- (corrupted, too old, …)
-data ErrBadFormat
-    = ErrBadFormatAddressPrologue
-    | ErrBadFormatCheckpoints
-    deriving (Eq,Show)
-
-instance Exception ErrBadFormat
-
--- | Can't add a transaction to the local tx submission pool.
-data ErrPutLocalTxSubmission
-    = ErrPutLocalTxSubmissionNoSuchWallet ErrNoSuchWallet
-    | ErrPutLocalTxSubmissionNoSuchTransaction ErrNoSuchTransaction
-    deriving (Eq, Show)
-
--- | Can't remove pending or expired transaction.
-data ErrRemoveTx
-    = ErrRemoveTxNoSuchWallet ErrNoSuchWallet
-    | ErrRemoveTxNoSuchTransaction ErrNoSuchTransaction
-    | ErrRemoveTxAlreadyInLedger (Hash "Tx")
-    deriving (Eq, Show)
-
--- | Indicates that the specified transaction hash is not found in the
--- transaction history of the given wallet.
-data ErrNoSuchTransaction
-    = ErrNoSuchTransaction WalletId (Hash "Tx")
-    deriving (Eq, Show)
-
--- | Forbidden operation was executed on an already existing wallet
-newtype ErrWalletAlreadyExists
-    = ErrWalletAlreadyExists WalletId -- Wallet already exists in db
-    deriving (Eq, Show)
 
 mkTransactionInfo
     :: Monad stm
