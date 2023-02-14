@@ -70,4 +70,3 @@ test-suite unit
       Main.hs
   other-modules:
       Data.Map.Strict.NonEmptyMapSpec
-      Data.Map.Strict.NonEmptyMap.TypeErrorSpec
