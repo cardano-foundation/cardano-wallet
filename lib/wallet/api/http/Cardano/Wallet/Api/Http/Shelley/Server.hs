@@ -1742,7 +1742,7 @@ selectCoins
     -> Handler (ApiCoinSelection n)
 selectCoins ctx@ApiLayer {..} argGenChange (ApiT walletId) body = do
     era <- liftIO $ NW.currentNodeEra netLayer
-    recentEra@(AnyRecentEra (_ :: WriteTx.RecentEra e)) <- guardIsRecentEra era
+    AnyRecentEra (_ :: WriteTx.RecentEra e) <- guardIsRecentEra era
     withWorkerCtx ctx walletId liftE liftE $ \workerCtx -> do
         let db = workerCtx ^. dbLayer
             ti = timeInterpreter netLayer
@@ -1760,7 +1760,7 @@ selectCoins ctx@ApiLayer {..} argGenChange (ApiT walletId) body = do
                 }
 
         (cardanoTx, walletState) <- liftIO $ W.buildTransaction @s @k @n @e
-            recentEra db txLayer ti walletId genChange pp txCtx paymentOuts
+            db txLayer ti walletId genChange pp txCtx paymentOuts
 
         let W.CoinSelection{..} =
                 W.buildCoinSelectionForTransaction @s @k @n
@@ -1808,7 +1808,7 @@ selectCoinsForJoin ctx@ApiLayer{..}
     poolStatus <- liftIO $ getPoolStatus poolId
     pools <- liftIO knownPools
     curEpoch <- getCurrentEpoch ctx
-    recentEra@(AnyRecentEra (_ :: WriteTx.RecentEra e)) <- guardIsRecentEra era
+    AnyRecentEra (_ :: WriteTx.RecentEra e) <- guardIsRecentEra era
     withWorkerCtx ctx walletId liftE liftE $ \workerCtx -> liftIO $ do
         let db = workerCtx ^. typed @(DBLayer IO s k)
             ti = timeInterpreter netLayer
@@ -1828,7 +1828,7 @@ selectCoinsForJoin ctx@ApiLayer{..}
         let paymentOuts = []
 
         (cardanoTx, walletState) <- W.buildTransaction @s @k @n @e
-            recentEra db txLayer ti walletId changeAddrGen pp txCtx paymentOuts
+            db txLayer ti walletId changeAddrGen pp txCtx paymentOuts
 
         let W.CoinSelection{..} =
                 W.buildCoinSelectionForTransaction @s @k @n
@@ -1866,7 +1866,7 @@ selectCoinsForQuit
     -> Handler (ApiCoinSelection n)
 selectCoinsForQuit ctx@ApiLayer{..} (ApiT walletId) = do
     era <- liftIO $ NW.currentNodeEra netLayer
-    recentEra@(AnyRecentEra (_ :: WriteTx.RecentEra e)) <- guardIsRecentEra era
+    AnyRecentEra (_ :: WriteTx.RecentEra e) <- guardIsRecentEra era
     withWorkerCtx ctx walletId liftE liftE $ \workerCtx -> liftIO $ do
         let db = workerCtx ^. typed @(DBLayer IO s k)
             ti = timeInterpreter netLayer
@@ -1883,7 +1883,7 @@ selectCoinsForQuit ctx@ApiLayer{..} (ApiT walletId) = do
         let paymentOuts = []
 
         (cardanoTx, walletState) <- W.buildTransaction @s @k @n @e
-            recentEra db txLayer ti walletId changeAddrGen pp txCtx paymentOuts
+            db txLayer ti walletId changeAddrGen pp txCtx paymentOuts
 
         let W.CoinSelection{..} =
                 W.buildCoinSelectionForTransaction @s @k @n
