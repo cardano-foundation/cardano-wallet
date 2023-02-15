@@ -1505,9 +1505,12 @@ instance Arbitrary EpochNo where
 
 genCostModelCoverage :: CostModel -> Property
 genCostModelCoverage (CostModel costModel) = checkCoverage $ conjoin
-    [ Map.size costModel == Map.size (Ledger.getCostModelParams Plutus.testingCostModelV1)
-      & label "Generated cost model must have same size as default cost model"
-      & counterexample "Generated cost model did not have same size as default cost model"
+    [ Map.size costModel ==
+        Map.size (Ledger.getCostModelParams Plutus.testingCostModelV1)
+        & label
+            "Generated cost model must have same size as default cost model"
+        & counterexample
+            "Generated cost model did not have same size as default cost model"
     , checkCoverage
         $ cover 1 (elem 0 $ Map.elems costModel)
             "model param is zero"

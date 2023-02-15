@@ -71,5 +71,8 @@ getEraCollateralOutputs
             $ \(AL.AlonzoTx b _ _ _) -> getCollateralOutputs b
         }
 
-getCollateralOutputs :: BabbageTxBody (BA.BabbageEra StandardCrypto) -> CollateralOutputs BabbageEra
-getCollateralOutputs txBody = CollateralOutputs (txBody ^. collateralReturnTxBodyL)
+getCollateralOutputs
+    :: BabbageTxBody (BA.BabbageEra StandardCrypto)
+    -> CollateralOutputs BabbageEra
+getCollateralOutputs txBody =
+    CollateralOutputs (txBody ^. collateralReturnTxBodyL)

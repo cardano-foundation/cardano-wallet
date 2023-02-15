@@ -584,10 +584,12 @@ configurePool tr baseDir era metadataServer recipe = do
                   }
 
             let updateStaking sgs = sgs
-                    { Ledger.sgsPools = (ListMap.ListMap [(poolId, params)])
-                        <> (sgsPools sgs)
-                    , Ledger.sgsStake = (ListMap.fromList [(stakePubHash, poolId)])
-                        <> Ledger.sgsStake sgs
+                    { Ledger.sgsPools =
+                        (ListMap.ListMap [(poolId, params)])
+                            <> (sgsPools sgs)
+                    , Ledger.sgsStake =
+                        (ListMap.fromList [(stakePubHash, poolId)])
+                            <> Ledger.sgsStake sgs
                     }
             let poolSpecificFunds = ListMap.fromList
                     [(pledgeAddr, Ledger.Coin $ intCast pledgeAmt)]
@@ -985,10 +987,13 @@ generateGenesis dir systemStart initialFunds addPoolsToGenesis = do
         }
 
   where
-    extraInitialFunds :: ListMap (Ledger.Addr (Crypto StandardShelley)) Ledger.Coin
+    extraInitialFunds
+        :: ListMap (Ledger.Addr (Crypto StandardShelley)) Ledger.Coin
     extraInitialFunds = ListMap.fromList
-        [ (fromMaybe (error "extraFunds: invalid addr") $ Ledger.deserialiseAddr addrBytes
-         , Ledger.Coin $ intCast c)
+        [ ( fromMaybe (error "extraFunds: invalid addr")
+          $ Ledger.deserialiseAddr addrBytes
+          , Ledger.Coin $ intCast c
+          )
         | (Address addrBytes, Coin c) <- initialFunds
         ]
 

@@ -48,15 +48,20 @@ import qualified Cardano.Ledger.ShelleyMA as SMA
 type family OutputsType era where
     OutputsType ByronEra = NonEmpty BY.TxOut
     OutputsType ShelleyEra
-        = StrictSeq (SH.ShelleyTxOut (SH.ShelleyEra StandardCrypto))
+        = StrictSeq
+            (SH.ShelleyTxOut (SH.ShelleyEra StandardCrypto))
     OutputsType AllegraEra
-        = StrictSeq (SH.ShelleyTxOut (SMA.ShelleyMAEra 'SMA.Allegra StandardCrypto))
+        = StrictSeq
+            (SH.ShelleyTxOut (SMA.ShelleyMAEra 'SMA.Allegra StandardCrypto))
     OutputsType MaryEra
-        = StrictSeq (SH.ShelleyTxOut (SMA.ShelleyMAEra 'SMA.Mary StandardCrypto))
+        = StrictSeq
+            (SH.ShelleyTxOut (SMA.ShelleyMAEra 'SMA.Mary StandardCrypto))
     OutputsType AlonzoEra
-        = StrictSeq (AL.AlonzoTxOut (AL.AlonzoEra StandardCrypto))
+        = StrictSeq
+            (AL.AlonzoTxOut (AL.AlonzoEra StandardCrypto))
     OutputsType BabbageEra
-        = StrictSeq (BA.BabbageTxOut (BA.BabbageEra StandardCrypto))
+        = StrictSeq
+            (BA.BabbageTxOut (BA.BabbageEra StandardCrypto))
 
 newtype Outputs era = Outputs (OutputsType era)
 

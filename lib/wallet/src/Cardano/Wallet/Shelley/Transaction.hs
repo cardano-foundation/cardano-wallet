@@ -876,8 +876,9 @@ modifyShelleyTxBody txUpdate era ledgerBody = case era of
             mint
     ShelleyBasedEraShelley ->
         let
-            Shelley.ShelleyTxBody inputs outputs certs wdrls txfee ttl txUpdate' mdHash
-                = ledgerBody
+            Shelley.ShelleyTxBody
+                inputs outputs certs wdrls txfee ttl txUpdate' mdHash
+                    = ledgerBody
             toTxOut
                 = Cardano.toShelleyTxOut era
                 . Cardano.toCtxUTxOTxOut
