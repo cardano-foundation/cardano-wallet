@@ -845,11 +845,8 @@ migrateManually tr proxy defaultFieldValues =
 
     -- | This table is replaced by Submissions talbles.
     removeOldSubmissions :: Sqlite.Connection -> IO ()
-    removeOldSubmissions conn = do
-        dropTable' <-
-            Sqlite.prepare conn "DROP TABLE IF EXISTS local_tx_submission;"
-        void $ Sqlite.step dropTable'
-        Sqlite.finalize dropTable'
+    removeOldSubmissions conn = void $
+        runSql conn "DROP TABLE IF EXISTS local_tx_submission;"
 
     onFieldPresent :: Sqlite.Connection -> DBField -> IO () -> IO ()
     onFieldPresent conn field action = do
@@ -879,13 +876,11 @@ migrateManually tr proxy defaultFieldValues =
                     , DBField CborTxId
                     ]
                 lift $ do
-                    onFieldPresent conn t $ do
-                        query <- Sqlite.prepare conn $ T.unwords
+                    onFieldPresent conn t $
+                        void $ runSql conn $ T.unwords
                             [ "DELETE FROM " <> tableName t
                             , "WHERE tx_id = '" <> txId <> "';"
                             ]
-                        _ <- Sqlite.step query
-                        Sqlite.finalize query
 
 quotes :: Text -> Text
 quotes x = "\"" <> x <> "\""
