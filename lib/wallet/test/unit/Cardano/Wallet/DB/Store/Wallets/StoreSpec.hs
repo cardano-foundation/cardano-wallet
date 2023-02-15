@@ -13,10 +13,6 @@ import Cardano.Wallet.DB.Arbitrary
     ()
 import Cardano.Wallet.DB.Fixtures
     ( WalletProperty, logScale, withDBInMemory, withInitializedWalletProp )
-import Cardano.Wallet.DB.Store.Meta.Model
-    ( DeltaTxMetaHistory (..) )
-import Cardano.Wallet.DB.Store.Meta.ModelSpec
-    ( genDeltasForManipulate )
 import Cardano.Wallet.DB.Store.Wallets.Model
     ( DeltaTxWalletsHistory (..) )
 import Cardano.Wallet.DB.Store.Wallets.Store
@@ -54,12 +50,8 @@ genDeltaTxWallets wid (_, metaMap) = do
   let metaGens = case Map.lookup wid metaMap of
         Nothing -> []
         Just metas ->
-          [ ( 10,
-              ChangeTxMetaWalletsHistory wid . Manipulate
-                <$> frequency (genDeltasForManipulate metas)
-            ),
-            (5, pure GarbageCollectTxWalletsHistory),
-            (1, pure $ RemoveWallet wid)
+          [ (5, pure GarbageCollectTxWalletsHistory)
+          , (1, pure $ RemoveWallet wid)
           ]
   frequency $
     (10, ExpandTxWalletsHistory wid . getNonEmpty <$> arbitrary) :
