@@ -3,6 +3,7 @@
 {-# LANGUAGE DerivingStrategies #-}
 {-# LANGUAGE GeneralizedNewtypeDeriving #-}
 {-# LANGUAGE LambdaCase #-}
+{-# LANGUAGE QuasiQuotes #-}
 {-# LANGUAGE TypeApplications #-}
 
 -- |
@@ -42,14 +43,20 @@ import Cardano.Wallet.Primitive.Passphrase.Types
     ( PassphraseScheme (..) )
 import Control.Monad
     ( forM_, guard, void, when )
+import Control.Monad.Trans
+    ( lift )
 import Control.Tracer
     ( Tracer, traceWith )
+import Data.Foldable
+    ( for_ )
 import Data.Functor
     ( (<&>) )
 import Data.Maybe
     ( mapMaybe )
 import Data.Proxy
     ( Proxy (..) )
+import Data.String.Interpolate
+    ( i )
 import Data.Text
     ( Text )
 import Data.Text.Class
@@ -61,6 +68,7 @@ import Database.Persist.Class
 import Database.Persist.Types
     ( PersistValue (..), fromPersistValueText )
 import List.Transformer
+    ( runListT, select )
 import Numeric.Natural
     ( Natural )
 import UnliftIO.Exception
@@ -147,6 +155,7 @@ migrateManually tr proxy defaultFieldValues =
     , addPolicyXPubIfMissing
     , removeOldSubmissions
     , removeMetasOfSubmissions
+    , createAndPopulateSubmissionsSlotTable
     ]
   where
     initializeSchemaVersionTable :: Sqlite.Connection -> IO ()
@@ -191,7 +200,8 @@ migrateManually tr proxy defaultFieldValues =
     getSchemaVersion :: Sqlite.Connection -> IO SchemaVersion
     getSchemaVersion conn =
         runSql conn "SELECT version FROM database_schema_version" >>= \case
-            [[PersistInt64 i]] | i >= 0 -> pure $ SchemaVersion $ fromIntegral i
+            [[PersistInt64 int]] | int >= 0 -> pure $ SchemaVersion
+                $ fromIntegral int
             _ -> throwString "Database metadata table is corrupt"
 
     -- NOTE
@@ -881,6 +891,34 @@ migrateManually tr proxy defaultFieldValues =
                             [ "DELETE FROM " <> tableName t
                             , "WHERE tx_id = '" <> txId <> "';"
                             ]
+    createAndPopulateSubmissionsSlotTable :: Sqlite.Connection -> IO ()
+    createAndPopulateSubmissionsSlotTable conn = do
+
+        let action = do
+                void $ runSql conn
+                    [i|
+                        CREATE TABLE "submissions_slots"
+                            (   "finality" INTEGER NOT NULL
+                            ,   "tip" INTEGER NOT NULL
+                            ,   "wallet_id" VARCHAR NOT NULL
+                            ,   PRIMARY KEY ("wallet_id")
+                            )
+                    |]
+                xs <- runSql conn ("SELECT wallet_id FROM wallet")
+                for_ xs $ \case
+                    [PersistText wid] -> do
+                        void $ runSql conn $ T.unwords
+                            [ "INSERT INTO submissions_slots"
+                            , "(finality, tip, wallet_id)"
+                            , "VALUES (0, 0, '" <> wid <> "');"
+                            ]
+                    _ -> error "migration failed for submissions_slots table \
+                               \ when reading wallet_id from wallet table."
+
+        isFieldPresent conn (DBField SubmissionsSlotsWallet) >>= \case
+            TableMissing -> onFieldPresent conn (DBField WalletId) action
+            ColumnMissing -> pure ()
+            ColumnPresent -> pure ()
 
 quotes :: Text -> Text
 quotes x = "\"" <> x <> "\""
