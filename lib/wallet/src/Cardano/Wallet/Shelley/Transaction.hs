@@ -56,6 +56,8 @@ module Cardano.Wallet.Shelley.Transaction
     , mkTxSkeleton
     , mkUnsignedTx
     , txConstraints
+    , estimateNumberOfWitnesses
+    , KeyWitnessCount (..)
     , costOfIncreasingCoin
     , _distributeSurplus
     , distributeSurplusDelta
@@ -986,7 +988,11 @@ _evaluateMinimumFee
 _evaluateMinimumFee pp utxo (Cardano.Tx body _) = fromCardanoLovelace $
     Cardano.evaluateTransactionFee pp body nWits 0
   where
-    nWits = (estimateNumberOfWitnesses utxo body)
+    nWits = case estimateNumberOfWitnesses utxo body of
+        KeyWitnessCount n nBoot
+            | nBoot > 0 -> error
+                "evaluateMinimumFee: bootstrap wits not yet supported"
+            | otherwise -> n
 
 -- | Estimate the size of the transaction (body) when fully signed.
 _estimateSignedTxSize
@@ -998,7 +1004,12 @@ _estimateSignedTxSize
 _estimateSignedTxSize pparams utxo body =
     let
         nWits :: Word
-        nWits = estimateNumberOfWitnesses utxo body
+        nWits = case estimateNumberOfWitnesses utxo body of
+            KeyWitnessCount n nBoot
+                | nBoot > 0 -> error
+                    "estimateSignedTxSize: bootstrap wits not yet supported"
+                | otherwise -> n
+
 
         -- Hack which allows us to rely on the ledger to calculate the size of
         -- witnesses:
@@ -1040,6 +1051,22 @@ _estimateSignedTxSize pparams utxo body =
     feePerByte = Coin.fromNatural $
         view #protocolParamTxFeePerByte pparams
 
+
+data KeyWitnessCount = KeyWitnessCount
+    { nKeyWits :: Word
+    -- ^ "Normal" verification key witnesses introduced with the Shelley era.
+
+    , nBootstrapWits :: Word
+    -- ^ Bootstrap key witnesses, a.k.a Byron witnesses.
+    } deriving (Eq, Show)
+
+numberOfShelleyWitnesses :: Word -> KeyWitnessCount
+numberOfShelleyWitnesses n = KeyWitnessCount n 0
+
+instance Semigroup KeyWitnessCount where
+    (KeyWitnessCount s1 b1) <> (KeyWitnessCount s2 b2)
+        = KeyWitnessCount (s1 + s2) (b1 + b2)
+
 -- | Estimates the required number of Shelley-era witnesses.
 --
 -- Because we don't take into account whether two pieces of tx content will need
@@ -1060,7 +1087,7 @@ estimateNumberOfWitnesses
     -- ^ Must contain all inputs from the 'TxBody' or
     -- 'estimateNumberOfWitnesses' will 'error'.
     -> Cardano.TxBody era
-    -> Word
+    -> KeyWitnessCount
 estimateNumberOfWitnesses utxo txbody@(Cardano.TxBody txbodycontent) =
     let txIns = map fst $ Cardano.txIns txbodycontent
         txInsCollateral =
@@ -1093,7 +1120,7 @@ estimateNumberOfWitnesses utxo txbody@(Cardano.TxBody txbodycontent) =
             $ sumVia estimateMaxWitnessRequiredPerInput
             $ mapMaybe toTimelockScript scripts
     in
-    fromIntegral $
+    numberOfShelleyWitnesses $ fromIntegral $
         length vkInsUnique +
         length txExtraKeyWits' +
         length txWithdrawals' +
