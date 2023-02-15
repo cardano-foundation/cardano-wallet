@@ -202,8 +202,6 @@
               iohkNix.overlays.crypto
               iohkNix.overlays.haskell-nix-extra
               iohkNix.overlays.cardano-lib
-              # Haskell build tools
-              (import ./nix/overlays/build-tools.nix)
               # Cardano deployments
               (import ./nix/overlays/cardano-deployments.nix)
               # Other packages overlay
@@ -397,8 +395,6 @@
               inherit (config) dockerHubRepoName;
             };
             inherit (pkgs) checkCabalProject cabalProjectRegenerate;
-            buildToolsGenerateMaterialized = pkgs.haskell-build-tools.regenerateMaterialized;
-            iohkNixGenerateMaterialized = pkgs.iohk-nix-utils.regenerateMaterialized;
           } // (lib.optionalAttrs buildPlatform.isLinux {
             nixosTests = import ./nix/nixos/tests {
               inherit pkgs project;
