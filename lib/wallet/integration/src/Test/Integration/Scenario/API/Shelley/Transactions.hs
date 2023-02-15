@@ -106,7 +106,6 @@ import Test.Integration.Framework.DSL
     , Headers (..)
     , Payload (..)
     , between
-    , computeApiCoinSelectionFee
     , counterexample
     , decodeErrorInfo
     , emptyRandomWallet
@@ -2426,9 +2425,16 @@ spec = describe "SHELLEY_TRANSACTIONS" $ do
             , expectField #change
                 (`shouldSatisfy` (not . null))
             ]
-        let apiCoinSelection = getFromResponse Prelude.id coinSelectionResponse
-        let fee = computeApiCoinSelectionFee apiCoinSelection
-        Quantity (fromIntegral (unCoin (fee))) `shouldBe` expectedFee
+
+        -- The expectation below is disabled until the ADP-2268 is implemented,
+        -- (The fees aren't guaranteed to be the same between the two endpoints
+        -- because the 'selectCoins' endpoint has already been updated to
+        -- use the new coin selection functionality while the 'postTransaction'
+        -- endpoint still uses the old one, which gives a slightly different
+        -- estimation)
+        -- let apiCoinSelection = getFromResponse Prelude.id coinSelectionResponse
+        -- let fee = computeApiCoinSelectionFee apiCoinSelection
+        -- Quantity (fromIntegral (unCoin (fee))) `shouldBe` expectedFee
 
         -- Next, actually create a transaction and submit it to the network.
         -- This transaction should have a fee that is identical to the fee
