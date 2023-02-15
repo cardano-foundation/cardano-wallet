@@ -81,14 +81,17 @@ instance Delta DeltaTxWalletsHistory where
         (txh, garbageCollectEmptyWallets
             $ mtxmh & apply (Adjust wid change)
             )
-    apply GarbageCollectTxWalletsHistory
-        (TxSet txh  , mtxmh) =
-            let gc :: Map TxId x -> Map TxId x
-                gc x = Map.restrictKeys x
-                    $ walletsLinkedTransactions mtxmh
-            in ( (TxSet $ gc txh) , mtxmh)
-    apply (RemoveWallet wid) (x , mtxmh) = (x, Map.delete wid mtxmh)
+    apply (RemoveWallet wid) (x , mtxmh) =
+        garbageCollectTxWalletsHistory (x, Map.delete wid mtxmh)
+    apply GarbageCollectTxWalletsHistory x = garbageCollectTxWalletsHistory x
 
+-- | Garbage collect all transactions that are no longer referenced
+-- by any 'TxMeta'.
+garbageCollectTxWalletsHistory :: TxWalletsHistory -> TxWalletsHistory
+garbageCollectTxWalletsHistory (TxSet txh, mtxmh) = (TxSet (gc txh), mtxmh)
+  where
+    gc :: Map TxId x -> Map TxId x
+    gc x = Map.restrictKeys x $ walletsLinkedTransactions mtxmh
 
 -- necessary because database will not distinguish between
 -- a missing wallet in the map

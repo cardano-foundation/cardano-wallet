@@ -584,10 +584,6 @@ newDBLayerWith _cacheBehavior _tr ti SqliteContext{runQuery} = mdo
                         let
                             delta = Just $ RemoveWallet wid
                         in  (delta, Right ())
-            ExceptT $ modifyDBMaybe transactionsDBVar $ \_ ->
-                        let
-                            delta = Just GarbageCollectTxWalletsHistory
-                        in  (delta, Right ())
 
         , listWallets_ = map unWalletKey <$> selectKeysList [] [Asc WalId]
 
@@ -695,6 +691,8 @@ newDBLayerWith _cacheBehavior _tr ti SqliteContext{runQuery} = mdo
                                 $ Manipulate
                                 $ RollBackTxMetaHistory nearestPoint
                         in  (delta, Right ())
+                    ExceptT $ modifyDBMaybe transactionsDBVar $ \_ ->
+                        (Just GarbageCollectTxWalletsHistory, Right ())
                     lift $ rollBackSubmissions_ dbPendingTxs wid nearestPoint
                     pure
                         $ W.chainPointFromBlockHeader
@@ -707,8 +705,6 @@ newDBLayerWith _cacheBehavior _tr ti SqliteContext{runQuery} = mdo
                     Just cp -> Right <$> do
                         let tip = cp ^. #currentTip
                         pruneCheckpoints wid epochStability tip
-            lift $ modifyDBMaybe transactionsDBVar $ \_ ->
-                (Just GarbageCollectTxWalletsHistory, ())
             lift $ pruneByFinality_ dbPendingTxs wid finalitySlot
 
         {-----------------------------------------------------------------------
