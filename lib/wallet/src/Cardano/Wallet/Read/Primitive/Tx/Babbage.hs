@@ -92,7 +92,7 @@ import qualified Data.Map.Strict as Map
 import qualified Data.Set as Set
 
 fromBabbageTx
-    :: Alonzo.ValidatedTx (Cardano.ShelleyLedgerEra BabbageEra)
+    :: Alonzo.AlonzoTx (Cardano.ShelleyLedgerEra BabbageEra)
     -> WitnessCountCtx
     -> ( W.Tx
        , [W.Certificate]
@@ -101,7 +101,7 @@ fromBabbageTx
        , Maybe ValidityIntervalExplicit
        , WitnessCount
        )
-fromBabbageTx tx@(Alonzo.ValidatedTx bod wits (Alonzo.IsValid isValid) aux) witCtx =
+fromBabbageTx tx@(Alonzo.AlonzoTx bod wits (Alonzo.IsValid isValid) aux) witCtx =
     ( W.Tx
         { txId =
             transactionId
@@ -133,7 +133,7 @@ fromBabbageTx tx@(Alonzo.ValidatedTx bod wits (Alonzo.IsValid isValid) aux) witC
     , countWits
     )
   where
-    Babbage.TxBody
+    Babbage.BabbageTxBody
         inps
         collateralInps
         refInps

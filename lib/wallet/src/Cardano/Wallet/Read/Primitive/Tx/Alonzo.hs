@@ -84,7 +84,7 @@ import qualified Data.Map.Strict as Map
 import qualified Data.Set as Set
 
 fromAlonzoTx
-    :: Alonzo.ValidatedTx (Cardano.ShelleyLedgerEra AlonzoEra)
+    :: Alonzo.AlonzoTx (Cardano.ShelleyLedgerEra AlonzoEra)
     -> WitnessCountCtx
     -> ( W.Tx
        , [W.Certificate]
@@ -93,7 +93,7 @@ fromAlonzoTx
        , Maybe ValidityIntervalExplicit
        , WitnessCount
        )
-fromAlonzoTx tx@(Alonzo.ValidatedTx bod wits (Alonzo.IsValid isValid) aux) witCtx =
+fromAlonzoTx tx@(Alonzo.AlonzoTx bod wits (Alonzo.IsValid isValid) aux) witCtx =
     ( W.Tx
         { txId =
             W.Hash $ alonzoTxHash tx
@@ -124,7 +124,7 @@ fromAlonzoTx tx@(Alonzo.ValidatedTx bod wits (Alonzo.IsValid isValid) aux) witCt
     , countWits
     )
   where
-    Alonzo.TxBody
+    Alonzo.AlonzoTxBody
         ins
         collateral
         outs

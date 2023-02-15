@@ -106,7 +106,7 @@ module Cardano.Wallet.Write.Tx
     , datumHashToBytes
 
     -- ** Script
-    , Script (..)
+    , Script
     , scriptFromCardanoScriptInAnyLang
     , scriptToCardanoScriptInAnyLang
     , scriptToCardanoEnvelopeJSON
@@ -144,7 +144,7 @@ import Cardano.Crypto.Hash
 import Cardano.Ledger.Alonzo.Data
     ( BinaryData, Datum (..) )
 import Cardano.Ledger.Alonzo.Scripts
-    ( Script (..) )
+    ( AlonzoScript (..) )
 import Cardano.Ledger.Coin
     ( Coin (..) )
 import Cardano.Ledger.Crypto
@@ -152,7 +152,7 @@ import Cardano.Ledger.Crypto
 import Cardano.Ledger.Era
     ( Crypto )
 import Cardano.Ledger.Mary
-    ( Value )
+    ( MaryValue )
 import Cardano.Ledger.SafeHash
     ( SafeHash, extractHash, unsafeMakeSafeHash )
 import Cardano.Ledger.Serialization
@@ -177,6 +177,8 @@ import Data.Maybe
     ( fromMaybe )
 import Data.Maybe.Strict
     ( StrictMaybe (..) )
+import Data.Typeable
+    ( Typeable )
 import Ouroboros.Consensus.Shelley.Eras
     ( StandardBabbage )
 import Test.Cardano.Ledger.Alonzo.Examples.Consensus
@@ -233,7 +235,7 @@ data RecentEra era where
 deriving instance Eq (RecentEra era)
 deriving instance Show (RecentEra era)
 
-class Cardano.IsShelleyBasedEra era => IsRecentEra era where
+class (Cardano.IsShelleyBasedEra era, Typeable era) => IsRecentEra era where
     recentEra :: RecentEra era
 
 -- | Return a proof that the wallet can create txs in this era, or @Nothing@.
@@ -361,15 +363,15 @@ type TxOut era = Core.TxOut era
 
 modifyTxOutValue
     :: RecentEra era
-    -> (Value (ShelleyLedgerEra era) -> Value (ShelleyLedgerEra era))
+    -> (MaryValue StandardCrypto -> MaryValue StandardCrypto)
     -> TxOut (ShelleyLedgerEra era)
     -> TxOut (ShelleyLedgerEra era)
-modifyTxOutValue RecentEraBabbage f (Babbage.TxOut addr val dat script) =
+modifyTxOutValue RecentEraBabbage f (Babbage.BabbageTxOut addr val dat script) =
     withStandardCryptoConstraint RecentEraBabbage $
-        Babbage.TxOut addr (f val) dat script
-modifyTxOutValue RecentEraAlonzo f (Alonzo.TxOut addr val dat) =
+        Babbage.BabbageTxOut addr (f val) dat script
+modifyTxOutValue RecentEraAlonzo f (Alonzo.AlonzoTxOut addr val dat) =
     withStandardCryptoConstraint RecentEraAlonzo $
-        Alonzo.TxOut addr (f val) dat
+        Alonzo.AlonzoTxOut addr (f val) dat
 
 modifyTxOutCoin
     :: RecentEra era
@@ -382,13 +384,16 @@ modifyTxOutCoin era f = withStandardCryptoConstraint era $
 txOutValue
     :: RecentEra era
     -> TxOut (ShelleyLedgerEra era)
-    -> Value (ShelleyLedgerEra era)
-txOutValue RecentEraBabbage (Babbage.TxOut _ val _ _) = val
-txOutValue RecentEraAlonzo (Alonzo.TxOut _ val _) = val
+    -> MaryValue StandardCrypto
+txOutValue RecentEraBabbage (Babbage.BabbageTxOut _ val _ _) = val
+txOutValue RecentEraAlonzo (Alonzo.AlonzoTxOut _ val _) = val
 
-type TxOutInBabbage = Babbage.TxOut (Babbage.BabbageEra StandardCrypto)
+type TxOutInBabbage = Babbage.BabbageTxOut (Babbage.BabbageEra StandardCrypto)
 
 type Address = Ledger.Addr StandardCrypto
+
+type Script = AlonzoScript
+type Value = MaryValue
 
 unsafeAddressFromBytes :: ByteString -> Address
 unsafeAddressFromBytes bytes = case Ledger.deserialiseAddr bytes of
@@ -429,7 +434,7 @@ scriptToCardanoScriptInAnyLang =
 -- will convert 'SimpleScriptV1' to 'SimpleScriptV2'. Because 'SimpleScriptV1'
 -- is 'ShelleyEra'-specific, and 'ShelleyEra' is not a 'RecentEra', this should
 -- not be a problem.
-scriptToCardanoEnvelopeJSON :: Script LatestLedgerEra -> Aeson.Value
+scriptToCardanoEnvelopeJSON :: AlonzoScript LatestLedgerEra -> Aeson.Value
 scriptToCardanoEnvelopeJSON = scriptToJSON . scriptToCardanoScriptInAnyLang
   where
     scriptToJSON
@@ -451,7 +456,7 @@ scriptToCardanoEnvelopeJSON = scriptToJSON . scriptToCardanoScriptInAnyLang
 
 scriptFromCardanoEnvelopeJSON
     :: Aeson.Value
-    -> Aeson.Parser (Script LatestLedgerEra)
+    -> Aeson.Parser (AlonzoScript LatestLedgerEra)
 scriptFromCardanoEnvelopeJSON v = fmap scriptFromCardanoScriptInAnyLang $ do
     envelope <- Aeson.parseJSON v
     case textEnvelopeToScript envelope of
@@ -546,9 +551,9 @@ datumHashToBytes = Crypto.hashToBytes . extractHash
 data TxOutInRecentEra
     = TxOutInRecentEra
         Address
-        (Value LatestLedgerEra)
+        (MaryValue StandardCrypto)
         (Datum LatestLedgerEra)
-        (Maybe (Script LatestLedgerEra))
+        (Maybe (AlonzoScript LatestLedgerEra))
         -- Same contents as 'TxOut LatestLedgerEra'.
 
 data ErrInvalidTxOutInEra
@@ -567,7 +572,7 @@ castTxOut
     :: TxOutInRecentEra
     -> TxOut (ShelleyLedgerEra BabbageEra)
 castTxOut (TxOutInRecentEra addr val datum mscript) =
-    (Babbage.TxOut addr val datum (toStrict mscript))
+    (Babbage.BabbageTxOut addr val datum (toStrict mscript))
   where
     toStrict (Just a) = SJust a
     toStrict Nothing = SNothing
@@ -582,9 +587,9 @@ downcastTxOut (TxOutInRecentEra _addr _val _datum (Just _script))
 downcastTxOut (TxOutInRecentEra _addr _val (Alonzo.Datum _) _script)
     = Left ErrInlineDatumNotSupportedInAlonzo
 downcastTxOut (TxOutInRecentEra addr val Alonzo.NoDatum Nothing)
-    = Right $ Alonzo.TxOut addr val SNothing
+    = Right $ Alonzo.AlonzoTxOut addr val SNothing
 downcastTxOut (TxOutInRecentEra addr val (Alonzo.DatumHash dh) Nothing)
-    = Right $ Alonzo.TxOut addr val (SJust dh)
+    = Right $ Alonzo.AlonzoTxOut addr val (SJust dh)
 
 --
 -- MinimumUTxO
@@ -638,8 +643,8 @@ isBelowMinimumCoinForTxOut era pp out =
     actualCoin = getCoin era out
 
     getCoin :: RecentEra era -> TxOut (ShelleyLedgerEra era) -> Coin
-    getCoin RecentEraBabbage (Babbage.TxOut _ val _ _) = coin val
-    getCoin RecentEraAlonzo (Alonzo.TxOut _ val _) = coin val
+    getCoin RecentEraBabbage (Babbage.BabbageTxOut _ val _ _) = coin val
+    getCoin RecentEraAlonzo (Alonzo.AlonzoTxOut _ val _) = coin val
 
 --------------------------------------------------------------------------------
 -- UTxO

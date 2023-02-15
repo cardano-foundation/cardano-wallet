@@ -1,7 +1,6 @@
 {-# LANGUAGE DataKinds #-}
 {-# LANGUAGE FlexibleContexts #-}
 {-# LANGUAGE StandaloneDeriving #-}
-{-# LANGUAGE TypeApplications #-}
 {-# LANGUAGE TypeFamilies #-}
 {-# LANGUAGE UndecidableInstances #-}
 
@@ -23,6 +22,8 @@ import Prelude
 
 import Cardano.Api
     ( AllegraEra, AlonzoEra, BabbageEra, ByronEra, MaryEra, ShelleyEra )
+import Cardano.Ledger.Core
+    ( bodyTxL, inputsTxBodyL )
 import Cardano.Ledger.Crypto
     ( StandardCrypto )
 import Cardano.Wallet.Read.Eras
@@ -31,15 +32,14 @@ import Cardano.Wallet.Read.Tx
     ( Tx (..) )
 import Cardano.Wallet.Read.Tx.Eras
     ( onTx )
+import Control.Lens
+    ( (^.) )
 import Data.List.NonEmpty
     ( NonEmpty )
 import Data.Set
     ( Set )
-import GHC.Records
-    ( HasField (..) )
 
 import qualified Cardano.Chain.UTxO as BY
-import qualified Cardano.Ledger.Alonzo.Tx as AL
 import qualified Cardano.Ledger.Shelley.API as SH
 
 type family InputsType era where
@@ -59,14 +59,9 @@ getEraInputs :: EraFun Tx Inputs
 getEraInputs
     = EraFun
         { byronFun =  onTx $ \tx -> Inputs $ BY.txInputs $ BY.taTx tx
-        , shelleyFun = onTx $ \((SH.Tx b _ _)) -> getInputs b
-        , allegraFun = onTx $ \((SH.Tx b _ _)) -> getInputs b
-        , maryFun = onTx $ \(SH.Tx b _ _) -> getInputs b
-        , alonzoFun = onTx $ \(AL.ValidatedTx b _ _ _) -> getInputs b
-        , babbageFun = onTx $ \(AL.ValidatedTx b _ _ _) -> getInputs b
+        , shelleyFun = onTx $ \tx -> Inputs (tx ^. bodyTxL . inputsTxBodyL)
+        , allegraFun = onTx $ \tx -> Inputs (tx ^. bodyTxL . inputsTxBodyL)
+        , maryFun = onTx $ \tx -> Inputs (tx ^. bodyTxL . inputsTxBodyL)
+        , alonzoFun = onTx $ \tx -> Inputs (tx ^. bodyTxL . inputsTxBodyL)
+        , babbageFun = onTx $ \tx -> Inputs (tx ^. bodyTxL . inputsTxBodyL)
         }
-
-getInputs
-    :: ( HasField "inputs" a (InputsType b))
-    => a -> Inputs b
-getInputs =  Inputs . getField @"inputs"

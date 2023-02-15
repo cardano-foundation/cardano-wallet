@@ -1,7 +1,6 @@
 {-# LANGUAGE DataKinds #-}
 {-# LANGUAGE FlexibleContexts #-}
 {-# LANGUAGE StandaloneDeriving #-}
-{-# LANGUAGE TypeApplications #-}
 {-# LANGUAGE TypeFamilies #-}
 {-# LANGUAGE UndecidableInstances #-}
 
@@ -22,18 +21,21 @@ import Prelude
 
 import Cardano.Api
     ( AllegraEra, AlonzoEra, BabbageEra, ByronEra, MaryEra, ShelleyEra )
+import Cardano.Ledger.Core
+    ( bodyTxL )
 import Cardano.Ledger.Crypto
     ( StandardCrypto )
+import Cardano.Ledger.Shelley.TxBody
+    ( wdrlsTxBodyL )
 import Cardano.Wallet.Read.Eras
     ( EraFun (..) )
 import Cardano.Wallet.Read.Tx
     ( Tx (..) )
 import Cardano.Wallet.Read.Tx.Eras
     ( onTx )
-import GHC.Records
-    ( HasField (getField) )
+import Control.Lens
+    ( (^.) )
 
-import qualified Cardano.Ledger.Alonzo.Tx as AL
 import qualified Cardano.Ledger.Shelley.API as SH
 
 type family WithdrawalsType era where
@@ -52,14 +54,9 @@ deriving instance Eq (WithdrawalsType era) => Eq (Withdrawals era)
 getEraWithdrawals :: EraFun Tx Withdrawals
 getEraWithdrawals = EraFun
     { byronFun = \_ -> Withdrawals ()
-    , shelleyFun = onTx $ \(SH.Tx b _ _ )  -> getWithdrawals b
-    , allegraFun = onTx $ \(SH.Tx b _ _ )  -> getWithdrawals b
-    , maryFun = onTx $ \(SH.Tx b _ _ ) -> getWithdrawals b
-    , alonzoFun = onTx $ \(AL.ValidatedTx b _ _ _) ->  getWithdrawals b
-    , babbageFun = onTx $ \(AL.ValidatedTx b _ _ _) -> getWithdrawals b
+    , shelleyFun = onTx $ \tx -> Withdrawals (tx ^. bodyTxL . wdrlsTxBodyL)
+    , allegraFun = onTx $ \tx -> Withdrawals (tx ^. bodyTxL . wdrlsTxBodyL)
+    , maryFun = onTx $ \tx -> Withdrawals (tx ^. bodyTxL . wdrlsTxBodyL)
+    , alonzoFun = onTx $ \tx -> Withdrawals (tx ^. bodyTxL . wdrlsTxBodyL)
+    , babbageFun = onTx $ \tx -> Withdrawals (tx ^. bodyTxL . wdrlsTxBodyL)
     }
-
-getWithdrawals
-    :: ( HasField "wdrls" a (WithdrawalsType b))
-    => a -> Withdrawals b
-getWithdrawals =  Withdrawals . getField @"wdrls"

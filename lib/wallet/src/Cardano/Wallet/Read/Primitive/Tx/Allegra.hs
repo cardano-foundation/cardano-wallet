@@ -27,6 +27,10 @@ import Cardano.Address.Script
     ( KeyRole (..) )
 import Cardano.Api
     ( AllegraEra )
+import Cardano.Ledger.Core
+    ( auxDataTxL, bodyTxL, feeTxBodyL, inputsTxBodyL, outputsTxBodyL, witsTxL )
+import Cardano.Ledger.Shelley.TxBody
+    ( certsTxBodyL, wdrlsTxBodyL )
 import Cardano.Wallet.Read.Eras
     ( allegra, inject )
 import Cardano.Wallet.Read.Primitive.Tx.Features.Certificates
@@ -59,6 +63,8 @@ import Cardano.Wallet.Transaction
     , WitnessCount (..)
     , emptyTokenMapWithScripts
     )
+import Control.Lens
+    ( (^.) )
 import Data.Foldable
     ( toList )
 
@@ -75,7 +81,7 @@ import qualified Data.Set as Set
 -- NOTE: For resolved inputs we have to pass in a dummy value of 0.
 
 fromAllegraTx
-    :: SL.Tx (Cardano.ShelleyLedgerEra AllegraEra)
+    :: SL.ShelleyTx (Cardano.ShelleyLedgerEra AllegraEra)
     -> ( W.Tx
        , [W.Certificate]
        , TokenMapWithScripts
@@ -111,11 +117,19 @@ fromAllegraTx tx =
     , anyEraCerts certs
     , emptyTokenMapWithScripts
     , emptyTokenMapWithScripts
-    , Just $ afterShelleyValidityInterval ttl
+    , Just $ afterShelleyValidityInterval vldl
     , countWits
     )
   where
-    SL.Tx (MA.TxBody ins outs certs wdrls fee ttl _ _ _) wits mmd = tx
+    ins = tx ^. bodyTxL . inputsTxBodyL
+    outs = tx ^. bodyTxL . outputsTxBodyL
+    certs = tx ^. bodyTxL . certsTxBodyL
+    wdrls = tx ^. bodyTxL . wdrlsTxBodyL
+    fee = tx ^. bodyTxL . feeTxBodyL
+    vldl = tx ^. bodyTxL . MA.vldtTxBodyL
+    wits = tx ^. witsTxL
+    mmd = tx ^. auxDataTxL
+
     scriptMap =
         Map.map (flip NativeExplicitScript ViaSpending . toWalletScript (const Payment))
         $ SL.scriptWits wits

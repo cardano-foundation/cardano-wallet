@@ -72,25 +72,25 @@ getOutputs = EraFun
 fromShelleyAddress :: SL.Addr crypto -> W.Address
 fromShelleyAddress = W.Address . SL.serialiseAddr
 
-fromShelleyTxOut :: SL.TxOut StandardShelley -> W.TxOut
-fromShelleyTxOut (SL.TxOut addr amount) = W.TxOut
+fromShelleyTxOut :: SL.ShelleyTxOut StandardShelley -> W.TxOut
+fromShelleyTxOut (SL.ShelleyTxOut addr amount) = W.TxOut
     (fromShelleyAddress addr)
     (TokenBundle.fromCoin $ fromShelleyCoin amount)
 
-fromAllegraTxOut :: SL.TxOut StandardAllegra -> W.TxOut
-fromAllegraTxOut (SL.TxOut addr amount) = W.TxOut
+fromAllegraTxOut :: SL.ShelleyTxOut StandardAllegra -> W.TxOut
+fromAllegraTxOut (SL.ShelleyTxOut addr amount) = W.TxOut
     (fromShelleyAddress addr)
     (TokenBundle.fromCoin $ fromShelleyCoin amount)
 
-fromMaryTxOut :: SL.TxOut StandardMary -> W.TxOut
-fromMaryTxOut (SL.TxOut addr value) =
+fromMaryTxOut :: SL.ShelleyTxOut StandardMary -> W.TxOut
+fromMaryTxOut (SL.ShelleyTxOut addr value) =
     W.TxOut (fromShelleyAddress addr) $
     fromCardanoValue $ Cardano.fromMaryValue value
 
 fromAlonzoTxOut
-    :: Alonzo.TxOut StandardAlonzo
+    :: Alonzo.AlonzoTxOut StandardAlonzo
     -> W.TxOut
-fromAlonzoTxOut (Alonzo.TxOut addr value _) =
+fromAlonzoTxOut (Alonzo.AlonzoTxOut addr value _) =
     W.TxOut (fromShelleyAddress addr) $
     fromCardanoValue $ Cardano.fromMaryValue value
 

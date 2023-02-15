@@ -23,9 +23,11 @@ import Cardano.Api
     ( AllegraEra, AlonzoEra, BabbageEra, ByronEra, MaryEra, ShelleyEra )
 import Cardano.Wallet.Read.Eras
     ( EraFun (..) )
+import Control.Lens
+    ( (^.) )
 
 import Cardano.Ledger.Core
-    ( AuxiliaryData )
+    ( AuxiliaryData, auxDataTxL )
 import Cardano.Wallet.Read.Tx
     ( Tx (..) )
 import Cardano.Wallet.Read.Tx.Eras
@@ -39,9 +41,6 @@ import Ouroboros.Consensus.Shelley.Eras
     , StandardMary
     , StandardShelley
     )
-
-import qualified Cardano.Ledger.Alonzo.Tx as AL
-import qualified Cardano.Ledger.Shelley.API as SH
 
 type family MetadataType era where
   MetadataType ByronEra = ()
@@ -59,11 +58,11 @@ deriving instance Eq (MetadataType era) => Eq (Metadata era)
 getEraMetadata :: EraFun Tx Metadata
 getEraMetadata = EraFun
     { byronFun = \_ -> Metadata ()
-    , shelleyFun =  onTx $ \(SH.Tx _ _ b) -> Metadata b
-    , allegraFun = onTx $ \(SH.Tx _ _ b) -> Metadata b
-    , maryFun = onTx $ \(SH.Tx _ _ b ) -> Metadata b
-    , alonzoFun = onTx $ \(AL.ValidatedTx _ _ _ b) -> Metadata b
-    , babbageFun = onTx $ \(AL.ValidatedTx _ _ _ b) -> Metadata b
+    , shelleyFun =  onTx $ \tx -> Metadata (tx ^. auxDataTxL)
+    , allegraFun = onTx $ \tx -> Metadata (tx ^. auxDataTxL)
+    , maryFun = onTx $ \tx -> Metadata (tx ^. auxDataTxL)
+    , alonzoFun = onTx $ \tx -> Metadata (tx ^. auxDataTxL)
+    , babbageFun = onTx $ \tx -> Metadata (tx ^. auxDataTxL)
     }
 
 

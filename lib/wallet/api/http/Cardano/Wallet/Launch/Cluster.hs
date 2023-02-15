@@ -259,8 +259,12 @@ import qualified Data.ByteString as BS
 import qualified Data.ByteString.Char8 as B8
 import qualified Data.ByteString.Lazy as BL
 import qualified Data.ByteString.Lazy.Char8 as BL8
+<<<<<<< HEAD
 import qualified Data.List.NonEmpty as NE
 import qualified Data.Map.Strict as Map
+=======
+import qualified Data.ListMap as ListMap
+>>>>>>> c74a4ee662 (Update dependencies)
 import qualified Data.Set as Set
 import qualified Data.Text as T
 import qualified Data.Text.Encoding as T
@@ -580,16 +584,16 @@ configurePool tr baseDir era metadataServer recipe = do
                   }
 
             let updateStaking sgs = sgs
-                    { Ledger.sgsPools = (Map.singleton poolId params)
+                    { Ledger.sgsPools = (ListMap.ListMap [(poolId, params)])
                         <> (sgsPools sgs)
-                    , Ledger.sgsStake = (Map.singleton stakePubHash poolId)
+                    , Ledger.sgsStake = (ListMap.fromList [(stakePubHash, poolId)])
                         <> Ledger.sgsStake sgs
                     }
-            let poolSpecificFunds = Map.fromList
+            let poolSpecificFunds = ListMap.fromList
                     [(pledgeAddr, Ledger.Coin $ intCast pledgeAmt)]
 
             return $ \sg -> sg
-                { sgInitialFunds = poolSpecificFunds <> (sgInitialFunds sg)
+                { sgInitialFunds = poolSpecificFunds <> sgInitialFunds sg
                 , sgStaking = updateStaking (sgStaking sg)
                 }
 
@@ -905,7 +909,7 @@ generateGenesis dir systemStart initialFunds addPoolsToGenesis = do
     let startTime = round @_ @Int . utcTimeToPOSIXSeconds $ systemStart
     let systemStart' = posixSecondsToUTCTime . fromRational . toRational $ startTime
 
-    let pparams = Ledger.PParams
+    let pparams = Ledger.ShelleyPParams
             { _minfeeA = 100
             , _minfeeB = 100_000
             , _minUTxOValue = Ledger.Coin 1_000_000
@@ -981,8 +985,8 @@ generateGenesis dir systemStart initialFunds addPoolsToGenesis = do
         }
 
   where
-    extraInitialFunds :: Map (Ledger.Addr (Crypto StandardShelley)) Ledger.Coin
-    extraInitialFunds = Map.fromList
+    extraInitialFunds :: ListMap (Ledger.Addr (Crypto StandardShelley)) Ledger.Coin
+    extraInitialFunds = ListMap.fromList
         [ (fromMaybe (error "extraFunds: invalid addr") $ Ledger.deserialiseAddr addrBytes
          , Ledger.Coin $ intCast c)
         | (Address addrBytes, Coin c) <- initialFunds

@@ -276,6 +276,12 @@ import Cardano.Wallet.Transaction
     )
 import Cardano.Wallet.Unsafe
     ( unsafeFromHex )
+import Cardano.Wallet.Write.Tx
+    ( AnyRecentEra (..)
+    , RecentEra (..)
+    , cardanoEraFromRecentEra
+    , shelleyBasedEraFromRecentEra
+    )
 import Cardano.Wallet.Write.Tx.Balance
     ( ChangeAddressGen (..)
     , ErrBalanceTx (..)
@@ -419,10 +425,8 @@ import Test.QuickCheck
     , (===)
     , (==>)
     )
-import Test.QuickCheck.Arbitrary.Generic
-    ( genericArbitrary, genericShrink )
 import Test.QuickCheck.Extra
-    ( chooseNatural, report )
+    ( chooseNatural, genNonEmpty, report, shrinkNonEmpty )
 import Test.QuickCheck.Gen
     ( Gen (..), listOf1 )
 import Test.QuickCheck.Random
@@ -438,6 +442,7 @@ import qualified Cardano.Api.Shelley as Cardano
 import qualified Cardano.Crypto.Hash.Blake2b as Crypto
 import qualified Cardano.Crypto.Hash.Class as Crypto
 import qualified Cardano.Ledger.Alonzo.PParams as Alonzo
+import qualified Cardano.Ledger.Alonzo.Scripts as Alonzo
 import qualified Cardano.Ledger.Alonzo.Tx as Alonzo
 import qualified Cardano.Ledger.Alonzo.TxBody as Alonzo
 import qualified Cardano.Ledger.Alonzo.TxWitness as Alonzo
@@ -460,12 +465,6 @@ import qualified Cardano.Wallet.Primitive.Types.Tx.TxOut.Gen as TxOutGen
 import qualified Cardano.Wallet.Primitive.Types.UTxO as UTxO
 import qualified Cardano.Wallet.Primitive.Types.UTxOIndex as UTxOIndex
 import qualified Cardano.Wallet.Shelley.Compatibility as Compatibility
-import Cardano.Wallet.Write.Tx
-    ( AnyRecentEra (..)
-    , RecentEra (..)
-    , cardanoEraFromRecentEra
-    , shelleyBasedEraFromRecentEra
-    )
 import qualified Cardano.Wallet.Write.Tx as WriteTx
 import qualified Codec.CBOR.Encoding as CBOR
 import qualified Codec.CBOR.Write as CBOR
@@ -483,7 +482,7 @@ import qualified Data.Text.IO as T
 import qualified Ouroboros.Consensus.HardFork.History.EraParams as HF
 import qualified Ouroboros.Consensus.HardFork.History.Qry as HF
 import qualified Ouroboros.Consensus.HardFork.History.Summary as HF
-import qualified PlutusCore as Plutus
+import qualified Test.Cardano.Ledger.Alonzo.PlutusScripts as Plutus
 import qualified Test.Hspec.Extra as Hspec
 
 spec :: Spec
@@ -539,7 +538,7 @@ showTransactionBody
     => Cardano.TxBodyContent Cardano.BuildTx era
     -> String
 showTransactionBody =
-    either Cardano.displayError show . Cardano.makeTransactionBody
+    either Cardano.displayError show . Cardano.createAndValidateTransactionBody
 
 unsafeMakeTransactionBody
     :: forall era
@@ -547,7 +546,7 @@ unsafeMakeTransactionBody
     => Cardano.TxBodyContent Cardano.BuildTx era
     -> Cardano.TxBody era
 unsafeMakeTransactionBody =
-    either (error . Cardano.displayError) id . Cardano.makeTransactionBody
+    either (error . Cardano.displayError) id . Cardano.createAndValidateTransactionBody
 
 stakeAddressForKey
     :: SL.Network
@@ -733,8 +732,8 @@ prop_signTransaction_addsExtraKeyWitnesses
         expectedWits `checkSubsetOf` (getSealedTxWitnesses sealedTx')
 
 instance Arbitrary a => Arbitrary (NonEmpty a) where
-    arbitrary = genericArbitrary
-    shrink = genericShrink
+  arbitrary = genNonEmpty arbitrary
+  shrink = shrinkNonEmpty shrink
 
 keyToAddress :: (XPrv, Passphrase "encryption") -> Address
 keyToAddress (xprv, _pwd) =
@@ -2401,12 +2400,12 @@ balanceTransactionSpec = describe "balanceTransaction" $ do
                 $ replicateM nChange
                 $ state @Identity (getChangeAddressGen dummyChangeAddrGen)
 
-        let address :: Babbage.TxOut StandardBabbage -> Address
-            address (Babbage.TxOut addr _ _ _) = toWallet addr
+        let address :: Babbage.BabbageTxOut StandardBabbage -> Address
+            address (Babbage.BabbageTxOut addr _ _ _) = toWallet addr
 
         let outputs
                 :: Cardano.Tx Cardano.BabbageEra
-                -> [Babbage.TxOut StandardBabbage]
+                -> [Babbage.BabbageTxOut StandardBabbage]
             outputs
                 (Cardano.Tx
                     (Cardano.ShelleyTxBody _ body _ _ _ _ )
@@ -3662,7 +3661,7 @@ balanceTransactionGoldenSpec = describe "balance goldens" $ do
                 (entropyToMnemonic @12 <$> mkEntropy "0000000000000001")
             rootK = Shelley.unsafeGenerateKeyFromSeed (mw, Nothing) mempty
             delegationAction = JoinRegisteringKey poolId
-        ledgerBody = Babbage.TxBody
+        ledgerBody = Babbage.BabbageTxBody
           { Babbage.inputs = mempty
           , Babbage.collateral = mempty
           , Babbage.outputs = mempty
@@ -3922,7 +3921,7 @@ prop_balanceTransactionValid wallet (ShowBuildable partialTx) seed
     hasZeroAdaOutputs (Cardano.Tx (Cardano.ShelleyTxBody _ body _ _ _ _) _) =
         any hasZeroAda (Alonzo.outputs body)
       where
-        hasZeroAda (Alonzo.TxOut _ val _) = Value.coin val == Ledger.Coin 0
+        hasZeroAda (Alonzo.AlonzoTxOut _ val _) = Value.coin val == Ledger.Coin 0
 
     hasCollateral :: Cardano.Tx era -> Bool
     hasCollateral (Cardano.Tx (Cardano.TxBody content) _) =
@@ -4061,8 +4060,7 @@ mockProtocolParametersForBalancing = (mockProtocolParameters, nodePParams)
         , Cardano.protocolParamMaxCollateralInputs = Just 3
         }
     costModel = Cardano.CostModel
-        . fromMaybe (error "Plutus.defaultCostModelParams")
-        $ Plutus.defaultCostModelParams
+        $ Alonzo.getCostModelParams Plutus.testingCostModelV1
 
 
 block0 :: Block
@@ -4295,8 +4293,8 @@ paymentPartialTx txouts = PartialTx (Cardano.Tx body []) mempty []
     -- NOTE: We should write this as @emptyTxBody { outputs = ... }@.
     -- The next time we bump the ledger , this may already be availible to us
     -- with 'mkBabbageTxBody' and 'initialTxBodyRaw'.
-    -- https://github.com/input-output-hk/cardano-ledger/blob/17649bc09e4c47923f7ad103d337cc1b8e6d3078/eras/babbage/impl/src/Cardano/Ledger/Babbage/TxBody.hs#L940
-    babbageBody = Babbage.TxBody
+    -- https://github.com/input-output-hk/cardano-ledger/blob/17649bc09e4c47923f7ad103d337cc1b8e6d3078/eras/babbage/impl/src/Cardano/Ledger/Babbage.BabbageTxBody.hs#L940
+    babbageBody = Babbage.BabbageTxBody
         { Babbage.inputs = mempty
         , Babbage.collateral = mempty
         , Babbage.outputs = StrictSeq.fromList $
@@ -4383,7 +4381,7 @@ withValidityInterval vi ptx = ptx
 
 -- Ideally merge with 'updateSealedTx'
 modifyBabbageTxBody
-    :: (Babbage.TxBody StandardBabbage -> Babbage.TxBody StandardBabbage)
+    :: (Babbage.BabbageTxBody StandardBabbage -> Babbage.BabbageTxBody StandardBabbage)
     -> Cardano.Tx Cardano.BabbageEra -> Cardano.Tx Cardano.BabbageEra
 modifyBabbageTxBody
     f

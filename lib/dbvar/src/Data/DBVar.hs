@@ -52,6 +52,8 @@ import Control.Monad.Class.MonadSTM
     , retry
     , writeTVar
     )
+import Control.Exception
+    ( Exception, SomeException, toException )
 import Control.Monad.Class.MonadThrow
     ( MonadEvaluate
     , MonadMask

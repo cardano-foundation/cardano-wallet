@@ -35,8 +35,8 @@ getCollateralOutputs = EraFun
     }
 
 fromBabbageTxOut
-    :: Babbage.TxOut StandardBabbage
+    :: Babbage.BabbageTxOut StandardBabbage
     -> W.TxOut
-fromBabbageTxOut (Babbage.TxOut addr value _datum _refScript) =
+fromBabbageTxOut (Babbage.BabbageTxOut addr value _datum _refScript) =
     W.TxOut (fromShelleyAddress addr) $
     fromCardanoValue $ Cardano.fromMaryValue value

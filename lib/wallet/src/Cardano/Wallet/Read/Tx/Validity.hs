@@ -1,7 +1,6 @@
 {-# LANGUAGE DataKinds #-}
 {-# LANGUAGE FlexibleContexts #-}
 {-# LANGUAGE StandaloneDeriving #-}
-{-# LANGUAGE TypeApplications #-}
 {-# LANGUAGE TypeFamilies #-}
 {-# LANGUAGE UndecidableInstances #-}
 
@@ -23,8 +22,14 @@ import Prelude
 
 import Cardano.Api
     ( AllegraEra, AlonzoEra, BabbageEra, ByronEra, MaryEra, ShelleyEra )
+import Cardano.Ledger.Core
+    ( bodyTxL )
+import Cardano.Ledger.Shelley.TxBody
+    ( ttlTxBodyL )
 import Cardano.Ledger.ShelleyMA.Timelocks
     ( ValidityInterval )
+import Cardano.Ledger.ShelleyMA.TxBody
+    ( vldtTxBodyL )
 import Cardano.Ledger.Slot
     ( SlotNo )
 import Cardano.Wallet.Read.Eras
@@ -33,11 +38,8 @@ import Cardano.Wallet.Read.Tx
     ( Tx (..) )
 import Cardano.Wallet.Read.Tx.Eras
     ( onTx )
-import GHC.Records
-    ( HasField (..) )
-
-import qualified Cardano.Ledger.Alonzo.Tx as AL
-import qualified Cardano.Ledger.Shelley.API as SH
+import Control.Lens
+    ( (^.) )
 
 type family ValidityType era where
     ValidityType ByronEra = ()
@@ -56,12 +58,9 @@ getEraValidity :: EraFun Tx Validity
 getEraValidity
     = EraFun
         { byronFun = \_ -> Validity ()
-        , shelleyFun = onTx $ \(SH.Tx b _ _) -> Validity . getField @"ttl" $ b
-        , allegraFun = onTx $ \(SH.Tx b _ _) -> getValidity b
-        , maryFun = onTx $ \(SH.Tx b _ _) -> getValidity b
-        , alonzoFun = onTx $ \(AL.ValidatedTx b _ _ _) -> getValidity b
-        , babbageFun = onTx $ \(AL.ValidatedTx b _ _ _) -> getValidity b
+        , shelleyFun = onTx $ \tx -> Validity $ tx ^. bodyTxL . ttlTxBodyL
+        , allegraFun = onTx $ \tx -> Validity $ tx ^. bodyTxL . vldtTxBodyL
+        , maryFun = onTx $ \tx -> Validity $ tx ^. bodyTxL . vldtTxBodyL
+        , alonzoFun = onTx $ \tx -> Validity $ tx ^. bodyTxL . vldtTxBodyL
+        , babbageFun = onTx $ \tx -> Validity $ tx ^. bodyTxL . vldtTxBodyL
         }
-
-getValidity :: HasField "vldt" a (ValidityType era) => a -> Validity era
-getValidity = Validity . getField @"vldt"

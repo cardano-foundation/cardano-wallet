@@ -150,8 +150,6 @@ import Cardano.Api.Shelley
     )
 import Cardano.Chain.UTxO
     ( TxInWitness (..) )
-import qualified Cardano.Ledger.BaseTypes as Ledger
-    ( CertIx (..), TxIx (..) )
 import Cardano.Ledger.Credential.Safe
     ( Ptr, SlotNo32, safePtr, safeUnwrapPtr )
 import Cardano.Ledger.Shelley.API
@@ -168,8 +166,6 @@ import Data.List
     ( (\\) )
 import Data.Map.Strict
     ( Map )
-import Data.Maybe
-    ( fromJust )
 import Data.Ratio
     ( denominator, numerator )
 import Data.Word
@@ -194,10 +190,13 @@ import Test.QuickCheck
 import Test.QuickCheck.Instances.ByteString
     ()
 
+import qualified Cardano.Ledger.Alonzo.Scripts as Ledger
+import qualified Cardano.Ledger.BaseTypes as Ledger
+    ( CertIx (..), TxIx (..) )
 import qualified Data.ByteString as BS
 import qualified Data.ByteString.Char8 as B8
 import qualified Data.Map.Strict as Map
-import qualified PlutusCore as Plutus
+import qualified Test.Cardano.Ledger.Alonzo.PlutusScripts as Plutus
 
 spec :: Spec
 spec =
@@ -1506,7 +1505,7 @@ instance Arbitrary EpochNo where
 
 genCostModelCoverage :: CostModel -> Property
 genCostModelCoverage (CostModel costModel) = checkCoverage $ conjoin
-    [ Map.size costModel == Map.size (fromJust Plutus.defaultCostModelParams)
+    [ Map.size costModel == Map.size (Ledger.getCostModelParams Plutus.testingCostModelV1)
       & label "Generated cost model must have same size as default cost model"
       & counterexample "Generated cost model did not have same size as default cost model"
     , checkCoverage

@@ -1,7 +1,6 @@
 {-# LANGUAGE DataKinds #-}
 {-# LANGUAGE FlexibleContexts #-}
 {-# LANGUAGE StandaloneDeriving #-}
-{-# LANGUAGE TypeApplications #-}
 {-# LANGUAGE TypeFamilies #-}
 {-# LANGUAGE UndecidableInstances #-}
 
@@ -23,6 +22,10 @@ import Prelude
 
 import Cardano.Api
     ( AllegraEra, AlonzoEra, BabbageEra, ByronEra, MaryEra, ShelleyEra )
+import Cardano.Ledger.Babbage.TxBody
+    ( collateralInputsTxBodyL )
+import Cardano.Ledger.Core
+    ( TxBody )
 import Cardano.Ledger.Crypto
     ( StandardCrypto )
 import Cardano.Wallet.Read.Eras
@@ -31,12 +34,14 @@ import Cardano.Wallet.Read.Tx
     ( Tx (..) )
 import Cardano.Wallet.Read.Tx.Eras
     ( onTx )
+import Control.Lens
+    ( (^.) )
 import Data.Set
     ( Set )
-import GHC.Records
-    ( HasField (..) )
 
+import qualified Cardano.Ledger.Alonzo as AL
 import qualified Cardano.Ledger.Alonzo.Tx as AL
+import qualified Cardano.Ledger.Babbage as Bab
 import qualified Cardano.Ledger.Shelley.API as SH
 
 type family CollateralInputsType era where
@@ -59,11 +64,12 @@ getEraCollateralInputs
         , shelleyFun = \_ -> CollateralInputs ()
         , allegraFun = \_ -> CollateralInputs ()
         , maryFun = \_ -> CollateralInputs ()
-        , alonzoFun = onTx $ \(AL.ValidatedTx b _ _ _) -> getCollateralInputs b
-        , babbageFun = onTx $ \(AL.ValidatedTx b _ _ _) -> getCollateralInputs b
+        , alonzoFun = onTx $ \(AL.AlonzoTx b _ _ _) -> getAlonzoCollateralInputs b
+        , babbageFun = onTx $ \(AL.AlonzoTx b _ _ _) -> getBabbageCollateralInputs b
         }
 
-getCollateralInputs
-    :: ( HasField "collateral" a (CollateralInputsType b))
-    => a -> CollateralInputs b
-getCollateralInputs =  CollateralInputs . getField @"collateral"
+getAlonzoCollateralInputs :: TxBody (AL.AlonzoEra StandardCrypto) -> CollateralInputs AlonzoEra
+getAlonzoCollateralInputs txBody = CollateralInputs (txBody ^. collateralInputsTxBodyL)
+
+getBabbageCollateralInputs :: TxBody (Bab.BabbageEra StandardCrypto) -> CollateralInputs BabbageEra
+getBabbageCollateralInputs txBody = CollateralInputs (txBody ^. collateralInputsTxBodyL)

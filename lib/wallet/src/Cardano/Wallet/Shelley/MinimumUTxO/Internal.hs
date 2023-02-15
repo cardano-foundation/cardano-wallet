@@ -24,7 +24,7 @@ import Cardano.Wallet.Primitive.Types.MinimumUTxO
 import Cardano.Wallet.Primitive.Types.Tx.TxOut
     ( TxOut )
 import Cardano.Wallet.Shelley.Compatibility
-    ( toCardanoTxOut, unsafeLovelaceToWalletCoin, unsafeValueToLovelace )
+    ( toCardanoTxOut, unsafeLovelaceToWalletCoin )
 import Cardano.Wallet.Shelley.Compatibility.Ledger
     ( toAllegraTxOut
     , toAlonzoTxOut
@@ -60,7 +60,7 @@ computeMinimumCoinForUTxO_CardanoApi
                 (Cardano.fromLedgerPParams era pp)
   where
     unsafeCoinFromResult
-        :: Either Cardano.MinimumUTxOError Cardano.Value
+        :: Either Cardano.MinimumUTxOError Cardano.Lovelace
         -> Coin
     unsafeCoinFromResult = \case
         Right value ->
@@ -68,7 +68,6 @@ computeMinimumCoinForUTxO_CardanoApi
             -- with no other assets. If this assumption is violated, we have no
             -- way to continue, and must raise an error:
             value
-                & unsafeValueToLovelace
                 & unsafeLovelaceToWalletCoin
         Left e ->
             -- The 'Cardano.calculateMinimumUTxO' function should only return
