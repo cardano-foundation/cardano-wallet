@@ -1,7 +1,6 @@
 {-# LANGUAGE DataKinds #-}
 {-# LANGUAGE FlexibleContexts #-}
 {-# LANGUAGE StandaloneDeriving #-}
-{-# LANGUAGE TypeApplications #-}
 {-# LANGUAGE TypeFamilies #-}
 {-# LANGUAGE UndecidableInstances #-}
 
@@ -22,6 +21,10 @@ import Cardano.Api
     ( AllegraEra, AlonzoEra, BabbageEra, ByronEra, MaryEra, ShelleyEra )
 import Cardano.Ledger.Alonzo.Tx
     ( ScriptIntegrityHash )
+import Cardano.Ledger.Alonzo.TxBody
+    ( scriptIntegrityHashTxBodyL )
+import Cardano.Ledger.Core
+    ( bodyTxL )
 import Cardano.Ledger.Crypto
     ( StandardCrypto )
 import Cardano.Wallet.Read.Eras
@@ -30,12 +33,10 @@ import Cardano.Wallet.Read.Tx
     ( Tx (..) )
 import Cardano.Wallet.Read.Tx.Eras
     ( onTx )
+import Control.Lens
+    ( (^.) )
 import Data.Maybe.Strict
     ( StrictMaybe )
-import GHC.Records
-    ( HasField (..) )
-
-import qualified Cardano.Ledger.Alonzo.Tx as AL
 
 type family IntegrityType era where
     IntegrityType ByronEra = ()
@@ -57,8 +58,8 @@ getEraIntegrity
         , shelleyFun = \_ -> Integrity ()
         , allegraFun = \_ -> Integrity ()
         , maryFun = \_ -> Integrity ()
-        , alonzoFun = onTx $ \(AL.ValidatedTx b _ _ _)
-                -> Integrity $ getField @"scriptIntegrityHash" b
-        , babbageFun = onTx $ \(AL.ValidatedTx b _ _ _)
-                -> Integrity $ getField @"scriptIntegrityHash" b
+        , alonzoFun = onTx $ \tx -> Integrity
+            $ tx ^. bodyTxL . scriptIntegrityHashTxBodyL
+        , babbageFun = onTx $ \tx -> Integrity
+            $ tx ^. bodyTxL . scriptIntegrityHashTxBodyL
         }

@@ -49,7 +49,7 @@ import Data.Aeson.Types
     ( parseEither )
 import Data.Default
     ( Default (..) )
-import Plutus.V1.Ledger.Api
+import PlutusLedgerApi.V1
     ( Data (..) )
 import Test.Cardano.Ledger.Alonzo.Serialisation.Generators
     ()
@@ -198,7 +198,7 @@ instance {-# OVERLAPS #-} Arbitrary (BinaryData LatestLedgerEra) where
 instance Arbitrary Cardano.ScriptInAnyLang where
     arbitrary = genScriptInAnyLang
 
-instance Arbitrary (Script LatestLedgerEra) where
+instance {-# OVERLAPPING #-} Arbitrary (Script LatestLedgerEra) where
     arbitrary = scriptFromCardanoScriptInAnyLang <$> arbitrary
 
 instance Arbitrary (Cardano.UTxO LatestEra) where

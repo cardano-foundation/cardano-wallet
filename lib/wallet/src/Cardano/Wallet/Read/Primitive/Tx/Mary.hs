@@ -17,8 +17,14 @@ import Prelude
 
 import Cardano.Api
     ( MaryEra )
+import Cardano.Ledger.Core
+    ( auxDataTxL, bodyTxL, feeTxBodyL, inputsTxBodyL, outputsTxBodyL, witsTxL )
 import Cardano.Ledger.Era
     ( Era (..) )
+import Cardano.Ledger.Shelley.TxBody
+    ( certsTxBodyL, wdrlsTxBodyL )
+import Cardano.Ledger.ShelleyMA.TxBody
+    ( mintTxBodyL, vldtTxBodyL )
 import Cardano.Wallet.Primitive.Types.TokenPolicy
     ( TokenPolicyId )
 import Cardano.Wallet.Read.Eras
@@ -56,6 +62,8 @@ import Cardano.Wallet.Transaction
     , WitnessCountCtx
     , toKeyRole
     )
+import Control.Lens
+    ( (^.) )
 import Data.Foldable
     ( toList )
 import Data.Map.Strict
@@ -69,7 +77,6 @@ import qualified Cardano.Ledger.Mary.Value as SL
 import qualified Cardano.Ledger.Shelley.API as SL
 import qualified Cardano.Ledger.Shelley.Tx as Shelley
 import qualified Cardano.Ledger.ShelleyMA as MA
-import qualified Cardano.Ledger.ShelleyMA.TxBody as MA
 import qualified Cardano.Wallet.Primitive.Types as W
 import qualified Cardano.Wallet.Primitive.Types.Hash as W
 import qualified Cardano.Wallet.Primitive.Types.Tx as W
@@ -77,7 +84,7 @@ import qualified Data.Map.Strict as Map
 import qualified Data.Set as Set
 
 fromMaryTx
-    :: SL.Tx (Cardano.ShelleyLedgerEra MaryEra)
+    :: SL.ShelleyTx (Cardano.ShelleyLedgerEra MaryEra)
     -> WitnessCountCtx
     -> ( W.Tx
        , [W.Certificate]
@@ -113,12 +120,20 @@ fromMaryTx tx witCtx =
     , anyEraCerts certs
     , assetsToMint
     , assetsToBurn
-    , Just $ afterShelleyValidityInterval ttl
+    , Just $ afterShelleyValidityInterval vldt
     , countWits
     )
   where
-    SL.Tx bod wits mad = tx
-    MA.TxBody ins outs certs wdrls fee ttl _upd _adh mint = bod
+    bod = tx ^. bodyTxL
+    wits = tx ^. witsTxL
+    mad = tx ^. auxDataTxL
+    ins = bod ^. inputsTxBodyL
+    outs = bod ^. outputsTxBodyL
+    certs = bod ^. certsTxBodyL
+    wdrls = bod ^. wdrlsTxBodyL
+    fee = bod ^. feeTxBodyL
+    vldt = bod ^. vldtTxBodyL
+    mint = bod ^. mintTxBodyL
     (assetsToMint, assetsToBurn) = maryMint mint wits
     scriptMap = fromMaryScriptMap $ Shelley.scriptWits wits
     countWits = WitnessCount

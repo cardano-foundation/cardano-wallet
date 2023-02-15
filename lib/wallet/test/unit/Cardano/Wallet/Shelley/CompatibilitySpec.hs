@@ -224,7 +224,7 @@ spec = do
 
     describe "decentralizationLevelFromPParams" $ do
 
-        let mkDecentralizationParam :: SL.UnitInterval -> SLAPI.PParams (SL.ShelleyEra StandardCrypto)
+        let mkDecentralizationParam :: SL.UnitInterval -> SLAPI.ShelleyPParams (SL.ShelleyEra StandardCrypto)
             mkDecentralizationParam i = SL.emptyPParams { SL._d = i }
 
         let testCases :: [(Ratio Word64, Text)]

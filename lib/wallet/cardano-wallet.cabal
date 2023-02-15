@@ -77,6 +77,7 @@ library
     , cardano-crypto-class
     , cardano-crypto-test
     , cardano-crypto-wrapper
+    , cardano-data
     , cardano-ledger-alonzo
     , cardano-ledger-alonzo-test
     , cardano-ledger-babbage
@@ -177,7 +178,7 @@ library
     , statistics
     , stm
     , streaming-commons
-    , strict-containers
+    , cardano-strict-containers
     , strict-non-empty-containers
     , strict-stm
     , string-interpolate
@@ -412,6 +413,7 @@ library cardano-wallet-api-http
     , cardano-binary
     , cardano-cli
     , cardano-crypto
+    , cardano-data
     , cardano-ledger-alonzo
     , cardano-ledger-byron
     , cardano-ledger-core
@@ -739,6 +741,7 @@ test-suite unit
     , dbvar
     , deepseq
     , directory
+    , either
     , extra                        >=1.6.17
     , file-embed
     , filepath
@@ -799,7 +802,7 @@ test-suite unit
     , servant-server
     , should-not-typecheck
     , splitmix
-    , strict-containers
+    , cardano-strict-containers
     , strict-non-empty-containers
     , string-interpolate
     , string-qq

@@ -67,9 +67,9 @@ import Cardano.Wallet.Primitive.Types.RewardAccount
     ( RewardAccount (..) )
 import Cardano.Wallet.Primitive.Types.Tx.SealedTx
     ( SealedTx )
-import Control.Monad.Class.MonadSTM
+import Control.Concurrent.Class.MonadSTM
     ( atomically )
-import Control.Monad.Class.MonadSTM.Strict
+import Control.Concurrent.Class.MonadSTM.Strict
     ( StrictTMVar, newTMVarIO, putTMVar, takeTMVar )
 import Control.Monad.Trans.Except
     ( ExceptT (..) )

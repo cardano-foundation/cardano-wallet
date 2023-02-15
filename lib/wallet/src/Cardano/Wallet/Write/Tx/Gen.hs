@@ -54,7 +54,7 @@ import Test.QuickCheck
 import qualified Cardano.Api.Gen as Cardano
 import qualified Cardano.Api.Shelley as Cardano
 import qualified Data.ByteString as BS
-import qualified Plutus.V1.Ledger.Api as PV1
+import qualified PlutusLedgerApi.V1 as PV1
 
 genDatum :: (EraCrypto era ~ StandardCrypto) => Gen (Datum era)
 genDatum = oneof

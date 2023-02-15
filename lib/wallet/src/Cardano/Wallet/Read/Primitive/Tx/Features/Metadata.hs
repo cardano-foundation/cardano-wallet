@@ -62,18 +62,18 @@ fromShelleyMetadata (SL.Metadata m) =
 -- multisig/script balance reporting.
 fromAllegraMetadata :: AuxiliaryData (ShelleyMAEra 'Allegra StandardCrypto)
     -> W.TxMetadata
-fromAllegraMetadata (MA.AuxiliaryData blob _scripts)
+fromAllegraMetadata (MA.MAAuxiliaryData blob _scripts)
     = fromShelleyMetadata $ SL.Metadata blob
 
 fromMaryMetadata :: AuxiliaryData (ShelleyMAEra 'Mary StandardCrypto)
     -> W.TxMetadata
-fromMaryMetadata (MA.AuxiliaryData blob _scripts)
+fromMaryMetadata (MA.MAAuxiliaryData blob _scripts)
     = fromShelleyMetadata $ SL.Metadata blob
 
 fromAlonzoMetadata :: AuxiliaryData (AlonzoEra StandardCrypto) -> W.TxMetadata
-fromAlonzoMetadata (AL.AuxiliaryData blob _scripts)
+fromAlonzoMetadata (AL.AlonzoAuxiliaryData blob _scripts)
     = fromShelleyMetadata $ SL.Metadata blob
 
 fromBabbageMetadata :: AuxiliaryData (BabbageEra StandardCrypto) -> W.TxMetadata
-fromBabbageMetadata (AL.AuxiliaryData blob _scripts)
+fromBabbageMetadata (AL.AlonzoAuxiliaryData blob _scripts)
     = fromShelleyMetadata $ SL.Metadata blob

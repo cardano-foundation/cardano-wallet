@@ -98,13 +98,7 @@ import Cardano.Wallet.Shelley.Compatibility
     )
 import Control.Applicative
     ( liftA3 )
-import Control.Monad
-    ( forever, guard, unless, void, when )
-import Control.Monad.Class.MonadAsync
-    ( MonadAsync )
-import Control.Monad.Class.MonadST
-    ( MonadST )
-import Control.Monad.Class.MonadSTM
+import Control.Concurrent.Class.MonadSTM
     ( MonadSTM
     , STM
     , TMVar
@@ -126,6 +120,12 @@ import Control.Monad.Class.MonadSTM
     , tryReadTMVar
     , writeTVar
     )
+import Control.Monad
+    ( forever, guard, unless, void, when )
+import Control.Monad.Class.MonadAsync
+    ( MonadAsync )
+import Control.Monad.Class.MonadST
+    ( MonadST )
 import Control.Monad.Class.MonadThrow
     ( MonadThrow )
 import Control.Monad.Class.MonadTimer

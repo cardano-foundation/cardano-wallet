@@ -53,9 +53,7 @@ import Cardano.Slotting.Slot
     ( WithOrigin (..) )
 import Cardano.Wallet.Network
     ( ChainFollower (..), ChainSyncLog (..) )
-import Control.Monad
-    ( ap, liftM )
-import Control.Monad.Class.MonadSTM
+import Control.Concurrent.Class.MonadSTM
     ( MonadSTM
     , TQueue
     , atomically
@@ -67,6 +65,8 @@ import Control.Monad.Class.MonadSTM
     , tryReadTQueue
     , writeTQueue
     )
+import Control.Monad
+    ( ap, liftM )
 import Control.Monad.Class.MonadThrow
     ( Exception, MonadThrow, throwIO )
 import Control.Monad.IO.Class
