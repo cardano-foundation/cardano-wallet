@@ -21,7 +21,7 @@ module Cardano.Wallet.Read.Tx.CollateralOutputs
 import Prelude
 
 import Cardano.Api
-    ( AllegraEra, AlonzoEra, BabbageEra, ByronEra, MaryEra, ShelleyEra )
+    ( AllegraEra, AlonzoEra, BabbageEra, ByronEra, ConwayEra, MaryEra, ShelleyEra )
 import Cardano.Ledger.Babbage.Collateral
     ()
 import Cardano.Ledger.Babbage.Rules
@@ -45,6 +45,8 @@ import Data.Maybe.Strict
 
 import qualified Cardano.Ledger.Alonzo.Tx as AL
 import qualified Cardano.Ledger.Babbage as BA
+import qualified Cardano.Ledger.Conway as Conway
+
 type family CollateralOutputsType era where
     CollateralOutputsType ByronEra = ()
     CollateralOutputsType ShelleyEra = ()
@@ -53,6 +55,8 @@ type family CollateralOutputsType era where
     CollateralOutputsType AlonzoEra =  ()
     CollateralOutputsType BabbageEra
         = StrictMaybe (BabbageTxOut (BA.BabbageEra StandardCrypto))
+    CollateralOutputsType ConwayEra
+        = StrictMaybe (BabbageTxOut (Conway.ConwayEra StandardCrypto))
 
 newtype CollateralOutputs era = CollateralOutputs (CollateralOutputsType era)
 
@@ -68,11 +72,19 @@ getEraCollateralOutputs
         , maryFun = \_ -> CollateralOutputs ()
         , alonzoFun = \_ -> CollateralOutputs ()
         , babbageFun = onTx
-            $ \(AL.AlonzoTx b _ _ _) -> getCollateralOutputs b
+            $ \(AL.AlonzoTx b _ _ _) -> getBabbageCollateralOutputs b
+        , conwayFun = onTx
+            $ \(AL.AlonzoTx b _ _ _) -> getConwayCollateralOutputs b
         }
 
-getCollateralOutputs
+getBabbageCollateralOutputs
     :: BabbageTxBody (BA.BabbageEra StandardCrypto)
     -> CollateralOutputs BabbageEra
-getCollateralOutputs txBody =
+getBabbageCollateralOutputs txBody =
+    CollateralOutputs (txBody ^. collateralReturnTxBodyL)
+
+getConwayCollateralOutputs
+    :: BabbageTxBody (Conway.ConwayEra StandardCrypto)
+    -> CollateralOutputs ConwayEra
+getConwayCollateralOutputs txBody =
     CollateralOutputs (txBody ^. collateralReturnTxBodyL)

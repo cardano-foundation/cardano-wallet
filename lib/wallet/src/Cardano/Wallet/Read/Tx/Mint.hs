@@ -20,7 +20,7 @@ module Cardano.Wallet.Read.Tx.Mint
 import Prelude
 
 import Cardano.Api
-    ( AllegraEra, AlonzoEra, BabbageEra, ByronEra, MaryEra, ShelleyEra )
+    ( AllegraEra, AlonzoEra, BabbageEra, ByronEra, ConwayEra, MaryEra, ShelleyEra )
 import Cardano.Ledger.Alonzo.TxBody
     ( mintTxBodyL )
 import Cardano.Ledger.Core
@@ -46,6 +46,7 @@ type family MintType era where
   MintType MaryEra = Mary.MaryValue StandardCrypto
   MintType AlonzoEra = Mary.MaryValue StandardCrypto
   MintType BabbageEra = Mary.MaryValue StandardCrypto
+  MintType ConwayEra = Mary.MaryValue StandardCrypto
 
 newtype Mint era = Mint (MintType era)
 
@@ -60,4 +61,5 @@ getEraMint = EraFun
     , maryFun = onTx $ \tx -> Mint $ tx ^. bodyTxL . mintTxBodyL
     , alonzoFun = onTx $ \tx -> Mint $ tx ^. bodyTxL . mintTxBodyL
     , babbageFun = onTx $ \tx -> Mint $ tx ^. bodyTxL . mintTxBodyL
+    , conwayFun = onTx $ \tx -> Mint $ tx ^. bodyTxL . mintTxBodyL
     }

@@ -41,6 +41,7 @@ module Cardano.Wallet.Shelley.Compatibility.Ledger
     , toMaryTxOut
     , toAlonzoTxOut
     , toBabbageTxOut
+    , toConwayTxOut
 
     ) where
 
@@ -92,6 +93,7 @@ import Ouroboros.Consensus.Shelley.Eras
     ( StandardAllegra
     , StandardAlonzo
     , StandardBabbage
+    , StandardConway
     , StandardCrypto
     , StandardMary
     , StandardShelley
@@ -340,6 +342,27 @@ toBabbageTxOut
     -> Maybe (Hash "Datum")
     -> Babbage.BabbageTxOut StandardBabbage
 toBabbageTxOut (TxOut addr bundle) = \case
+    Nothing ->
+        Babbage.BabbageTxOut
+            (toLedger addr)
+            (toLedger bundle)
+            Babbage.NoDatum
+            Ledger.SNothing
+    Just (Hash bytes) ->
+        Babbage.BabbageTxOut
+            (toLedger addr)
+            (toLedger bundle)
+            (Babbage.DatumHash
+                $ unsafeMakeSafeHash
+                $ Crypto.UnsafeHash
+                $ toShort bytes)
+            Ledger.SNothing
+
+toConwayTxOut
+    :: TxOut
+    -> Maybe (Hash "Datum")
+    -> Babbage.BabbageTxOut StandardConway
+toConwayTxOut (TxOut addr bundle) = \case
     Nothing ->
         Babbage.BabbageTxOut
             (toLedger addr)

@@ -420,7 +420,7 @@ newConnectionPool tr fp = do
     let releaseConnection (backend, _) =
             destroySqliteBackend tr backend fp
 
-    createPool
+    newPool
         acquireConnection
         releaseConnection
         numberOfStripes

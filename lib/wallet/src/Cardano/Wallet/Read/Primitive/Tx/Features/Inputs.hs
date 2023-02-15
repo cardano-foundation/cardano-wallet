@@ -39,6 +39,7 @@ getInputs = EraFun
     , maryFun = mkShelleyTxInputsIns
     , alonzoFun = mkShelleyTxInputsIns
     , babbageFun = mkShelleyTxInputsIns
+    , conwayFun = mkShelleyTxInputsIns
     }
 
 fromShelleyTxIns :: Foldable t => (t (SH.TxIn crypto)) -> K [W.TxIn] b

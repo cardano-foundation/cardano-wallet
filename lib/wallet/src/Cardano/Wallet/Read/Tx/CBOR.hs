@@ -84,6 +84,7 @@ serializeTx = EraFun
     , maryFun = f
     , alonzoFun = f
     , babbageFun = f
+    , conwayFun = f
     }
   where
     f :: ToCBOR (TxT era) => Tx era -> K BL.ByteString  era
@@ -103,6 +104,7 @@ deserializeTx = EraFun
     , maryFun = deserialize runA
     , alonzoFun = deserialize runA
     , babbageFun = deserialize runA
+    , conwayFun = deserialize runA
     }
     where
     deserialize

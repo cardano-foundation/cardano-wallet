@@ -21,7 +21,7 @@ module Cardano.Wallet.Read.Tx.Certificates
 import Prelude
 
 import Cardano.Api
-    ( AllegraEra, AlonzoEra, BabbageEra, ByronEra, MaryEra, ShelleyEra )
+    ( AllegraEra, AlonzoEra, BabbageEra, ByronEra, ConwayEra, MaryEra, ShelleyEra )
 import Cardano.Ledger.Core
     ( bodyTxL )
 import Cardano.Ledger.Crypto
@@ -46,6 +46,7 @@ type family CertificatesType era where
     CertificatesType MaryEra = StrictSeq (DCert StandardCrypto)
     CertificatesType AlonzoEra = StrictSeq (DCert StandardCrypto)
     CertificatesType BabbageEra = StrictSeq (DCert StandardCrypto)
+    CertificatesType ConwayEra = StrictSeq (DCert StandardCrypto)
 
 newtype Certificates era = Certificates (CertificatesType era)
 
@@ -65,5 +66,7 @@ getEraCertificates = EraFun
     , alonzoFun =
         onTx $ \tx -> Certificates $ tx ^. bodyTxL . certsTxBodyL
     , babbageFun =
+        onTx $ \tx -> Certificates $ tx ^. bodyTxL . certsTxBodyL
+    , conwayFun =
         onTx $ \tx -> Certificates $ tx ^. bodyTxL . certsTxBodyL
     }

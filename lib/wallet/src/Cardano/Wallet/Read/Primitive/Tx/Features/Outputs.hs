@@ -7,6 +7,7 @@ module Cardano.Wallet.Read.Primitive.Tx.Features.Outputs
     , fromAllegraTxOut
     , fromAlonzoTxOut
     , fromBabbageTxOut
+    , fromConwayTxOut
     , fromCardanoValue
     , fromShelleyAddress
     , fromByronTxOut
@@ -19,6 +20,8 @@ import Cardano.Binary
     ( serialize' )
 import Cardano.Chain.Common
     ( unsafeGetLovelace )
+import Cardano.Ledger.Alonzo
+    ( AlonzoScript )
 import Cardano.Ledger.Shelley.API
     ( StrictMaybe (SJust, SNothing) )
 import Cardano.Wallet.Read.Eras
@@ -37,6 +40,7 @@ import Ouroboros.Consensus.Shelley.Eras
     ( StandardAllegra
     , StandardAlonzo
     , StandardBabbage
+    , StandardConway
     , StandardMary
     , StandardShelley
     )
@@ -48,6 +52,7 @@ import qualified Cardano.Ledger.Alonzo as Alonzo
 import qualified Cardano.Ledger.Alonzo.TxBody as Alonzo
 import qualified Cardano.Ledger.Babbage as Babbage
 import qualified Cardano.Ledger.Babbage.TxBody as Babbage
+import qualified Cardano.Ledger.Conway as Conway
 import qualified Cardano.Ledger.Crypto as SL
 import qualified Cardano.Ledger.Shelley.API as SL
 import qualified Cardano.Wallet.Primitive.Types.Address as W
@@ -67,6 +72,7 @@ getOutputs = EraFun
     , maryFun = \(Outputs os) -> K . fmap fromMaryTxOut $ toList os
     , alonzoFun = \(Outputs os) -> K . fmap fromAlonzoTxOut $ toList os
     , babbageFun = \(Outputs os) -> K . fmap (fst . fromBabbageTxOut) $ toList os
+    , conwayFun = \(Outputs os) -> K . fmap (fst . fromConwayTxOut) $ toList os
     }
 
 fromShelleyAddress :: SL.Addr crypto -> W.Address
@@ -95,9 +101,20 @@ fromAlonzoTxOut (Alonzo.AlonzoTxOut addr value _) =
     fromCardanoValue $ Cardano.fromMaryValue value
 
 fromBabbageTxOut
-    :: Babbage.TxOut StandardBabbage
-    -> (W.TxOut, Maybe (Babbage.Script (Babbage.BabbageEra SL.StandardCrypto)))
-fromBabbageTxOut (Babbage.TxOut addr value _datum refScript) =
+    :: Babbage.BabbageTxOut StandardBabbage
+    -> (W.TxOut, Maybe (AlonzoScript (Babbage.BabbageEra SL.StandardCrypto)))
+fromBabbageTxOut (Babbage.BabbageTxOut addr value _datum refScript) =
+    ( W.TxOut (fromShelleyAddress addr) $
+      fromCardanoValue $ Cardano.fromMaryValue value
+    , case refScript of
+          SJust s -> Just s
+          SNothing -> Nothing
+    )
+
+fromConwayTxOut
+    :: Babbage.BabbageTxOut StandardConway
+    -> (W.TxOut, Maybe (AlonzoScript (Conway.ConwayEra SL.StandardCrypto)))
+fromConwayTxOut (Babbage.BabbageTxOut addr value _datum refScript) =
     ( W.TxOut (fromShelleyAddress addr) $
       fromCardanoValue $ Cardano.fromMaryValue value
     , case refScript of

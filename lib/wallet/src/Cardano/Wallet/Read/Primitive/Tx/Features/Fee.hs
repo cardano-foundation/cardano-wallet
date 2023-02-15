@@ -27,6 +27,7 @@ getFee = EraFun
     , maryFun = mkShelleyTxFee
     , alonzoFun = mkShelleyTxFee
     , babbageFun = mkShelleyTxFee
+    , conwayFun = mkShelleyTxFee
     }
 
 mkShelleyTxFee :: (FeeType era ~ Coin)

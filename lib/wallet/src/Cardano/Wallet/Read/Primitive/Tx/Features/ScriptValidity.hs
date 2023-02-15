@@ -32,6 +32,7 @@ getScriptValidity = EraFun
     , maryFun = noScriptValidity
     , alonzoFun = yesScriptValidity
     , babbageFun = yesScriptValidity
+    , conwayFun = yesScriptValidity
     }
     where
         noScriptValidity _ = K Nothing

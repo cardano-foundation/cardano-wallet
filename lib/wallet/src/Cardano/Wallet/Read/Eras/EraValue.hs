@@ -26,6 +26,7 @@ module Cardano.Wallet.Read.Eras.EraValue
   -- * Era specific prisms
   , MkEraValue (..)
   , byron
+  , conway
   , shelley
   , allegra
   , mary
@@ -53,6 +54,7 @@ import Cardano.Api
     , BabbageEra
     , ByronEra
     , CardanoEra (..)
+    , ConwayEra
     , IsCardanoEra
     , MaryEra
     , ShelleyEra
@@ -104,6 +106,7 @@ cardanoEras =
         :* MaryEra
         :* AlonzoEra
         :* BabbageEra
+        :* ConwayEra
         :* Nil
 
 -- | Add an era witness to an era independent EraValue.
@@ -148,7 +151,10 @@ alonzo :: MkEraValue f AlonzoEra
 -- | Babbage era prism.
 babbage :: MkEraValue f BabbageEra
 
-byron :* shelley :* allegra :* mary :* alonzo :* babbage :* Nil
+-- | Conway era prism.
+conway :: MkEraValue f ConwayEra
+
+byron :* shelley :* allegra :* mary :* alonzo :* babbage :* conway :* Nil
   = zipWith_NP g injections ejections
       where
         g i e = MkEraValue $ prism (inject' i) (project' e)

@@ -29,6 +29,7 @@ import Cardano.Wallet.Shelley.Compatibility.Ledger
     ( toAllegraTxOut
     , toAlonzoTxOut
     , toBabbageTxOut
+    , toConwayTxOut
     , toMaryTxOut
     , toShelleyTxOut
     , toWalletCoin
@@ -117,3 +118,6 @@ computeMinimumCoinForUTxO_CardanoLedger
             Cardano.ShelleyBasedEraBabbage ->
                 evaluateMinLovelaceOutput pp
                     $ toBabbageTxOut txOut Nothing
+            Cardano.ShelleyBasedEraConway ->
+                evaluateMinLovelaceOutput pp
+                    $ toConwayTxOut txOut Nothing
