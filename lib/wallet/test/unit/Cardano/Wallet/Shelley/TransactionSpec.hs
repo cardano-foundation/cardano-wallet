@@ -546,7 +546,8 @@ unsafeMakeTransactionBody
     => Cardano.TxBodyContent Cardano.BuildTx era
     -> Cardano.TxBody era
 unsafeMakeTransactionBody =
-    either (error . Cardano.displayError) id . Cardano.createAndValidateTransactionBody
+    either (error . Cardano.displayError) id
+        . Cardano.createAndValidateTransactionBody
 
 stakeAddressForKey
     :: SL.Network
@@ -732,8 +733,8 @@ prop_signTransaction_addsExtraKeyWitnesses
         expectedWits `checkSubsetOf` (getSealedTxWitnesses sealedTx')
 
 instance Arbitrary a => Arbitrary (NonEmpty a) where
-  arbitrary = genNonEmpty arbitrary
-  shrink = shrinkNonEmpty shrink
+    arbitrary = genNonEmpty arbitrary
+    shrink = shrinkNonEmpty shrink
 
 keyToAddress :: (XPrv, Passphrase "encryption") -> Address
 keyToAddress (xprv, _pwd) =
@@ -3921,7 +3922,8 @@ prop_balanceTransactionValid wallet (ShowBuildable partialTx) seed
     hasZeroAdaOutputs (Cardano.Tx (Cardano.ShelleyTxBody _ body _ _ _ _) _) =
         any hasZeroAda (Alonzo.outputs body)
       where
-        hasZeroAda (Alonzo.AlonzoTxOut _ val _) = Value.coin val == Ledger.Coin 0
+        hasZeroAda (Alonzo.AlonzoTxOut _ val _) =
+            Value.coin val == Ledger.Coin 0
 
     hasCollateral :: Cardano.Tx era -> Bool
     hasCollateral (Cardano.Tx (Cardano.TxBody content) _) =
@@ -4381,7 +4383,9 @@ withValidityInterval vi ptx = ptx
 
 -- Ideally merge with 'updateSealedTx'
 modifyBabbageTxBody
-    :: (Babbage.BabbageTxBody StandardBabbage -> Babbage.BabbageTxBody StandardBabbage)
+    :: ( Babbage.BabbageTxBody StandardBabbage ->
+         Babbage.BabbageTxBody StandardBabbage
+       )
     -> Cardano.Tx Cardano.BabbageEra -> Cardano.Tx Cardano.BabbageEra
 modifyBabbageTxBody
     f

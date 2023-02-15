@@ -53,12 +53,17 @@ deriving instance Show (CertificatesType era) => Show (Certificates era)
 deriving instance Eq (CertificatesType era) => Eq (Certificates era)
 
 getEraCertificates :: EraFun Tx Certificates
-getEraCertificates
-    = EraFun
-        { byronFun =  \_ -> Certificates ()
-        , shelleyFun = onTx $ \tx -> Certificates $ tx ^. bodyTxL . certsTxBodyL
-        , allegraFun = onTx $ \tx -> Certificates $ tx ^. bodyTxL . certsTxBodyL
-        , maryFun = onTx $ \tx -> Certificates $ tx ^. bodyTxL . certsTxBodyL
-        , alonzoFun = onTx $ \tx -> Certificates $ tx ^. bodyTxL . certsTxBodyL
-        , babbageFun = onTx $ \tx -> Certificates $ tx ^. bodyTxL . certsTxBodyL
-        }
+getEraCertificates = EraFun
+    { byronFun =
+        \_ -> Certificates ()
+    , shelleyFun =
+        onTx $ \tx -> Certificates $ tx ^. bodyTxL . certsTxBodyL
+    , allegraFun =
+        onTx $ \tx -> Certificates $ tx ^. bodyTxL . certsTxBodyL
+    , maryFun =
+        onTx $ \tx -> Certificates $ tx ^. bodyTxL . certsTxBodyL
+    , alonzoFun =
+        onTx $ \tx -> Certificates $ tx ^. bodyTxL . certsTxBodyL
+    , babbageFun =
+        onTx $ \tx -> Certificates $ tx ^. bodyTxL . certsTxBodyL
+    }

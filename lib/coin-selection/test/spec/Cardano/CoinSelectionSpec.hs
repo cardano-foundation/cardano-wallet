@@ -458,10 +458,9 @@ prop_prepareOutputsWith_twice minCoinValueDef outs =
   where
     minCoinValueFor = unMockComputeMinimumAdaQuantity minCoinValueDef
     (once, twice) =
-      case iterate (prepareOutputsWith minCoinValueFor) outs of
-        (_:a:b:_) -> (a, b)
-        _else -> error "prop_prepareOutputsWith_twice"
-
+        case iterate (prepareOutputsWith minCoinValueFor) outs of
+            (_:a:b:_) -> (a, b)
+            _else -> error "prop_prepareOutputsWith_twice"
 
 prop_prepareOutputsWith_length
     :: MockComputeMinimumAdaQuantity

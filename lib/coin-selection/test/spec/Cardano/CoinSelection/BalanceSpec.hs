@@ -1078,7 +1078,7 @@ prop_performSelection mockConstraints params coverage =
                         const computeMinimumAdaQuantityZero
                     , computeMinimumCost = computeMinimumCostZero
                     , computeSelectionLimit = const NoLimit
-                    }  :: SelectionConstraints TestSelectionContext
+                    } :: SelectionConstraints TestSelectionContext
             performSelection' = performSelection constraints' params
         in
         monadicIO $ run performSelection' >>= \case
