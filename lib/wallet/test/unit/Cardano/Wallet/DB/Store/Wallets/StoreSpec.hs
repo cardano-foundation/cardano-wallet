@@ -54,8 +54,7 @@ genDeltaTxWallets wid (_,metaMap) = do
   let metaGens = case Map.lookup wid metaMap of
         Nothing -> []
         Just metas ->
-          [ (5, pure GarbageCollectTxWalletsHistory)
-          , (5, RollbackTxWalletsHistory wid . txMetaSlot
+          [ (5, RollbackTxWalletsHistory wid . txMetaSlot
                 <$> chooseFromMap (relations metas) )
           , (1, pure $ RemoveWallet wid)
           ]

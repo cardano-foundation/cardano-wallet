@@ -58,7 +58,6 @@ data DeltaTxWalletsHistory
     = ExpandTxWalletsHistory W.WalletId [(WT.Tx, WT.TxMeta)]
     | RollbackTxWalletsHistory W.WalletId W.SlotNo
         -- ^ Roll back a single wallet
-    | GarbageCollectTxWalletsHistory
     | RemoveWallet W.WalletId
     deriving ( Show, Eq )
 
@@ -90,7 +89,6 @@ instance Delta DeltaTxWalletsHistory where
             $ TxMetaStore.RollBackTxMetaHistory slot
     apply (RemoveWallet wid) (x , mtxmh) =
         garbageCollectTxWalletsHistory (x, Map.delete wid mtxmh)
-    apply GarbageCollectTxWalletsHistory x = garbageCollectTxWalletsHistory x
 
 -- | Garbage collect all transactions that are no longer referenced
 -- by any 'TxMeta'.

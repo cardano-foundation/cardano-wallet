@@ -112,8 +112,6 @@ mkStoreTxWalletsHistory =
                 let deletions = transactionsToDeleteOnRollback wid slot wmetas
                 forM_ deletions
                     $ updateS mkStoreTransactions txSet . DeleteTx
-            GarbageCollectTxWalletsHistory ->
-                garbageCollectTxWalletsHistory txSet wmetas
             RemoveWallet wid -> do
                 updateS mkStoreWalletsMeta wmetas $ Delete wid
                 let wmetas2 = Map.delete wid wmetas
