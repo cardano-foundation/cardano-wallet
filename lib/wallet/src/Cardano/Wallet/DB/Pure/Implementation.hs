@@ -101,8 +101,7 @@ import Cardano.Wallet.Primitive.Types.Coin
 import Cardano.Wallet.Primitive.Types.Hash
     ( Hash (..) )
 import Cardano.Wallet.Primitive.Types.Tx
-    ( Direction (..)
-    , LocalTxSubmissionStatus (..)
+    ( LocalTxSubmissionStatus (..)
     , SealedTx (..)
     , TransactionInfo (..)
     , Tx (..)
@@ -111,8 +110,6 @@ import Cardano.Wallet.Primitive.Types.Tx
     )
 import Control.DeepSeq
     ( NFData )
-import Control.Monad
-    ( when )
 import Data.Bifunctor
     ( first )
 import Data.Function
@@ -320,7 +317,7 @@ mRollbackTo wid requested db@(Database wallets txs) = case Map.lookup wid wallet
                         , certificates =
                             Map.filterWithKey (\k _ -> k <= point) (certificates wal)
                         , txHistory =
-                            Map.mapMaybe (rescheduleOrForget point) (txHistory wal)
+                            Map.mapMaybe (keepOrForget point) (txHistory wal)
                         }
                 in
                     ( Right
@@ -330,16 +327,13 @@ mRollbackTo wid requested db@(Database wallets txs) = case Map.lookup wid wallet
                     , Database (Map.insert wid wal' wallets) txs
                     )
   where
-    -- | Removes 'Incoming' transaction beyond the rollback point, and
-    -- reschedule as 'Pending' the 'Outgoing' one beyond the rollback point.
-    rescheduleOrForget :: SlotNo -> TxMeta -> Maybe TxMeta
-    rescheduleOrForget point meta = do
-        let isAfter = (slotNo :: TxMeta -> SlotNo) meta > point
-        let isIncoming = direction meta == Incoming
-        when (isIncoming && isAfter) Nothing
-        pure $ if isAfter
-            then meta { slotNo = point , status = Pending }
-            else meta
+    -- | Removes all transaction beyond the rollback point.
+    keepOrForget :: SlotNo -> TxMeta -> Maybe TxMeta
+    keepOrForget point meta
+        | isAfter = Nothing
+        | otherwise = Just meta
+      where
+        isAfter = (slotNo :: TxMeta -> SlotNo) meta > point
 
     -- | Find nearest checkpoint's slot before or equal to 'requested'.
     findNearestPoint :: [Wallet s] -> Maybe SlotNo
