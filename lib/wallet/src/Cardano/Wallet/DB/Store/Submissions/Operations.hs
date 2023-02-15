@@ -258,8 +258,8 @@ mkStoreWalletsSubmissions =
             Just old' ->
                 updateS (mkStoreAnySubmissions wid) old' xda
     load = runExceptT $ do
-        wids <- lift $ fmap (view #submissionWallet . entityVal)
-            <$> selectList @Submissions [] []
+        wids <- lift $ fmap (view #submissionsSlotsWallet . entityVal)
+            <$> selectList @SubmissionsSlots [] []
         fmap Map.fromList
             $ forM (nub wids) $ \wid -> (wid,)
                 <$> ExceptT
