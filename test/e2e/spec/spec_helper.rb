@@ -96,7 +96,9 @@ ASSETS = [{ 'policy_id' => 'ee1ce9d7560f48a4ba3867037dbec2d8fed776d94dd6b00a3530
 ##
 # Since alonzo min_utxo_value is calculated based on the particular output size
 # 1 ADA, however should be enough for sending pure Ada output to shelley address
-MIN_UTXO_VALUE_PURE_ADA = 1_000_000
+# setting it to 2 ADA temporarily because of: 
+# ADP-2298 - Deposit_returned is falsely reported on some incoming transactions (intermittently)
+MIN_UTXO_VALUE_PURE_ADA = 2_000_000
 
 def payment_payload(amt, addr = DEV_NULL_ADDR)
   [{ :address => addr,
