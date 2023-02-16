@@ -1,3 +1,4 @@
+{-# LANGUAGE AllowAmbiguousTypes #-}
 {-# LANGUAGE EmptyCase #-}
 {-# LANGUAGE FlexibleContexts #-}
 {-# LANGUAGE FlexibleInstances #-}
@@ -120,6 +121,7 @@ module Cardano.Wallet.Write.Tx
     , fromCardanoTx
     , toCardanoUTxO
     , fromCardanoUTxO
+    , cardanoValueFromCoreValue
 
     -- * Balancing
     , evaluateTransactionBalance
@@ -768,6 +770,14 @@ fromCardanoUTxO = withStandardCryptoConstraint (recentEra @era) $
     . unCardanoUTxO
   where
     unCardanoUTxO (Cardano.UTxO m) = m
+
+cardanoValueFromCoreValue
+    :: forall era. IsRecentEra era
+    => Core.Value (ShelleyLedgerEra era)
+    -> Cardano.Value
+cardanoValueFromCoreValue = case recentEra @era of
+    RecentEraBabbage -> Cardano.fromMaryValue
+    RecentEraAlonzo -> Cardano.fromMaryValue
 
 --------------------------------------------------------------------------------
 -- Balancing
