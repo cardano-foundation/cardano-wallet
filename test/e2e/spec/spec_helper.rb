@@ -510,6 +510,12 @@ def wait_for_tx_in_ledger(wid, tx_id, wallet_api = SHELLEY)
   end
 end
 
+def verify_tx_status(wid, tx_id, status, wallet_api = SHELLEY)
+  tx = wallet_api.transactions.get(wid, tx_id)
+  expect(tx.code).to eq(200)
+  expect(tx['status']).to eq(status)
+end
+
 ## Mint/burn helpers
 
 # Build mint payload for construct tx

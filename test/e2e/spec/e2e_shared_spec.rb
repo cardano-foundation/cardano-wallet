@@ -142,7 +142,9 @@ RSpec.describe 'Cardano Wallet E2E tests - Shared wallets', :all, :e2e, :shared 
         expect(tx_submitted).to be_correct_and_respond 202
 
         tx_id = tx_submitted['id']
+        verify_tx_status(src_wid, tx_id, 'pending', SHARED)
         wait_for_tx_in_ledger(src_wid, tx_id, SHARED)
+        verify_tx_status(src_wid, tx_id, 'in_ledger', SHARED)
 
         target_after = get_shelley_balances(target_wid)
         src_after = get_shared_balances(src_wid)
@@ -252,7 +254,9 @@ RSpec.describe 'Cardano Wallet E2E tests - Shared wallets', :all, :e2e, :shared 
         expect(tx_submitted).to be_correct_and_respond 202
 
         tx_id = tx_submitted['id']
+        verify_tx_status(cosigner_wid, tx_id, 'pending', SHARED)
         wait_for_tx_in_ledger(src_wid, tx_id, SHARED)
+        verify_tx_status(cosigner_wid, tx_id, 'in_ledger', SHARED)
 
         target_after = get_shelley_balances(target_wid)
         src_after = get_shared_balances(src_wid)
@@ -892,7 +896,7 @@ RSpec.describe 'Cardano Wallet E2E tests - Shared wallets', :all, :e2e, :shared 
 
       it 'Multi-assets transaction' do
         amt = 1
-        amt_ada = 1_600_000
+        amt_ada = MIN_UTXO_VALUE_PURE_ADA * 2
         address = SHELLEY.addresses.list(@target_id)[1]['id']
         target_before = get_shelley_balances(@target_id)
         src_before = get_shared_balances(@wid_sha)

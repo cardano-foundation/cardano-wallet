@@ -2280,7 +2280,9 @@ RSpec.describe 'Cardano Wallet E2E tests', :all, :e2e do
 
         expect(tx_sent).to be_correct_and_respond 202
         expect(tx_sent.to_s).to include 'pending'
+        verify_tx_status(@wid, tx_sent['id'], 'pending')
         wait_for_tx_in_ledger(@wid, tx_sent['id'])
+        verify_tx_status(@wid, tx_sent['id'], 'in_ledger')
 
         target_after = get_shelley_balances(@target_id)
 
@@ -2332,7 +2334,9 @@ RSpec.describe 'Cardano Wallet E2E tests', :all, :e2e do
         expect(tx_sent).to be_correct_and_respond 202
         expect(tx_sent.to_s).to include 'pending'
         tx_id = tx_sent['id']
+        verify_tx_status(@wid, tx_id, 'pending')
         wait_for_tx_in_ledger(@wid, tx_id)
+        verify_tx_status(@wid, tx_id, 'in_ledger')
 
         eventually "Funds are on target wallet: #{@target_id}" do
           available = SHELLEY.wallets.get(@target_id)['balance']['available']['quantity']
@@ -2397,7 +2401,9 @@ RSpec.describe 'Cardano Wallet E2E tests', :all, :e2e do
         expect(tx_sent).to be_correct_and_respond 202
         expect(tx_sent.to_s).to include 'pending'
         tx_id = tx_sent['id']
+        verify_tx_status(@wid, tx_id, 'pending')
         wait_for_tx_in_ledger(@wid, tx_id)
+        verify_tx_status(@wid, tx_id, 'in_ledger')
 
         target_after = get_shelley_balances(@target_id)
 
@@ -2484,7 +2490,9 @@ RSpec.describe 'Cardano Wallet E2E tests', :all, :e2e do
         expect(tx_sent).to be_correct_and_respond 202
         expect(tx_sent.to_s).to include 'pending'
         tx_id = tx_sent['id']
+        verify_tx_status(@wid, tx_id, 'pending')
         wait_for_tx_in_ledger(@wid, tx_id)
+        verify_tx_status(@wid, tx_id, 'in_ledger')
 
         fee = SHELLEY.transactions.get(@wid, tx_id)['fee']['quantity']
         target_after = get_shelley_balances(@target_id)
@@ -2551,7 +2559,9 @@ RSpec.describe 'Cardano Wallet E2E tests', :all, :e2e do
         expect(tx_sent).to be_correct_and_respond 202
         expect(tx_sent.to_s).to include 'pending'
         tx_id = tx_sent['id']
+        verify_tx_status(@wid, tx_id, 'pending')
         wait_for_tx_in_ledger(@wid, tx_id)
+        verify_tx_status(@wid, tx_id, 'in_ledger')
 
         target_after = get_shelley_balances(@target_id)
 
@@ -2677,7 +2687,9 @@ RSpec.describe 'Cardano Wallet E2E tests', :all, :e2e do
 
         expect(tx_sent).to be_correct_and_respond 202
         expect(tx_sent.to_s).to include 'pending'
+        verify_tx_status(@wid, tx_sent['id'], 'pending')
         wait_for_tx_in_ledger(@wid, tx_sent['id'])
+        verify_tx_status(@wid, tx_sent['id'], 'in_ledger')
 
         stake = get_shelley_balances(@target_id)['total']
 
@@ -2899,7 +2911,9 @@ RSpec.describe 'Cardano Wallet E2E tests', :all, :e2e do
       expect(tx_sent).to be_correct_and_respond 202
       expect(tx_sent.to_s).to include 'pending'
       tx_id = tx_sent['id']
+      verify_tx_status(source_wid, tx_id, 'pending', BYRON)
       wait_for_tx_in_ledger(target_wid, tx_id)
+      verify_tx_status(source_wid, tx_id, 'in_ledger', BYRON)
 
       target_after = get_shelley_balances(target_wid)
       src_after = get_byron_balances(source_wid)
@@ -2970,7 +2984,9 @@ RSpec.describe 'Cardano Wallet E2E tests', :all, :e2e do
       expect(tx_sent).to be_correct_and_respond 202
       expect(tx_sent.to_s).to include 'pending'
       tx_id = tx_sent['id']
+      verify_tx_status(source_id, tx_id, 'pending', BYRON)
       wait_for_tx_in_ledger(target_id, tx_id)
+      verify_tx_status(source_id, tx_id, 'in_ledger', BYRON)
 
       target_after = get_shelley_balances(target_id)
       src_after = get_byron_balances(source_id)
