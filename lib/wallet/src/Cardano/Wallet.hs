@@ -1919,12 +1919,13 @@ buildSignSubmitTransaction ti db@DBLayer{..} netLayer txLayer pwd walletId
     protocolParameters <- currentProtocolParameters netLayer
 
     throwOnErr <=< runExceptT $ withRootKey db walletId pwd wrapRootKeyError $
-        \rootKey scheme -> lift $ atomically $ do
+        \rootKey scheme -> lift $ do
+        (BuiltTx{..}, slot) <- atomically $ do
             pendingTxs <- fmap fromTransactionInfo <$>
                 readTransactions
                     walletId Nothing Descending wholeRange (Just Pending)
 
-            (btx@(BuiltTx{..}), slot) <- throwOnErr <=< modifyDBMaybe walletsDB
+            txWithSlot@(builtTx, slot) <- throwOnErr <=< modifyDBMaybe walletsDB
                 $ adjustNoSuchWallet walletId wrapNoWalletForConstruct $ \s ->
                     buildAndSignTransactionPure @k @ktype @s @n
                         pureTimeInterpreter
@@ -1949,17 +1950,19 @@ buildSignSubmitTransaction ti db@DBLayer{..} netLayer txLayer pwd walletId
                             )
                         )
 
-            addTxSubmission walletId btx slot
+            addTxSubmission walletId builtTx slot
                 & throwWrappedErr wrapNoWalletForSubmit
 
-            postTx netLayer builtSealedTx
-                & throwWrappedErr wrapNetworkError
-                & liftIO
+            pure txWithSlot
 
-            slotToUTCTime slot
-                & interpretQuery (neverFails "slot is ahead of the node tip" ti)
-                & fmap (BuiltTx{..},)
-                & liftIO
+        postTx netLayer builtSealedTx
+            & throwWrappedErr wrapNetworkError
+            & liftIO
+
+        slotToUTCTime slot
+            & interpretQuery (neverFails "slot is ahead of the node tip" ti)
+            & fmap (BuiltTx{..},)
+            & liftIO
   where
     throwOnErr :: (MonadIO m, Exception e) => Either e a -> m a
     throwOnErr = either (liftIO . throwIO) pure
