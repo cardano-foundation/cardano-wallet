@@ -16,6 +16,12 @@ module Cardano.Wallet.DB.Store.Wallets.Model
     ( DeltaTxWalletsHistory (..)
     , TxWalletsHistory
     , walletsLinkedTransactions
+    , transactionsToDeleteOnRollback
+    , inAnyWallet
+
+    -- * Testing
+    , garbageCollectEmptyWallets
+    , garbageCollectTxWalletsHistory
     ) where
 
 import Prelude
@@ -105,6 +111,24 @@ garbageCollectTxWalletsHistory (TxSet txh, mtxmh) = (TxSet (gc txh), mtxmh)
     gc :: Map TxId x -> Map TxId x
     gc x = Map.restrictKeys x $ walletsLinkedTransactions mtxmh
 
+-- | List of transactions that are to be deleted from the 'TxSet'
+-- when rolling back the collection of wallets.
+--
+-- These are precisely those transactions that have been rolled
+-- back, but are not referenced from any other wallet.
+transactionsToDeleteOnRollback
+    :: W.WalletId -> W.SlotNo -> WalletsMeta -> [TxId]
+transactionsToDeleteOnRollback wid slot wmetas =
+    case Map.lookup wid wmetas of
+        Nothing -> []
+        Just metas ->
+            filter (not . shouldKeepTx)
+            . snd
+            $ TxMetaStore.rollbackTxMetaHistory slot metas
+  where
+    otherWallets = Map.delete wid wmetas
+    shouldKeepTx txid = inAnyWallet txid otherWallets
+
 -- necessary because database will not distinguish between
 -- a missing wallet in the map
 -- and a wallet that has no meta-transactions
@@ -118,3 +142,12 @@ linkedTransactions (TxMetaHistory m) = Map.keysSet m
 walletsLinkedTransactions
     :: Map W.WalletId TxMetaHistory -> Set TxId
 walletsLinkedTransactions = Set.unions . toList . fmap linkedTransactions
+
+-- | Is a transaction present in any wallet?
+inAnyWallet
+    :: TxId
+    -> Map W.WalletId TxMetaHistory
+    -> Bool
+inAnyWallet txid = any inAnyTxMetaHistory
+  where
+    inAnyTxMetaHistory (TxMetaHistory m) = Map.member txid m
