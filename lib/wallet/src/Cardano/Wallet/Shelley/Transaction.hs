@@ -2387,13 +2387,26 @@ mkUnsignedTx
     , txScriptValidity = Cardano.TxScriptValidityNone
     , txExtraKeyWits = Cardano.TxExtraKeyWitnessesNone
 
-    , Cardano.txCertificates =
-        let
-            -- It seems that passing Map.empty here works just fine.
-            witMap = Map.empty
-            ctx = Cardano.BuildTxWith witMap
-        in
-        Cardano.TxCertificates certSupported certs ctx
+    , Cardano.txCertificates = case stakingScriptM of
+        Nothing ->
+            let
+                witMap = Map.empty
+                ctx = Cardano.BuildTxWith witMap
+            in
+                Cardano.TxCertificates certSupported certs ctx
+        Just stakingScript ->
+            let
+                buildKey =
+                    Cardano.StakeCredentialByScript
+                    . Cardano.hashScript
+                    . Cardano.SimpleScript Cardano.SimpleScriptV2
+                    $ toCardanoSimpleScript stakingScript
+                buildVal
+                    = Cardano.KeyWitness Cardano.KeyWitnessForStakeAddr
+                witMap = Map.fromList [(buildKey, buildVal)]
+                ctx = Cardano.BuildTxWith witMap
+            in
+                Cardano.TxCertificates certSupported certs ctx
 
     , Cardano.txFee = explicitFees era fees
 
