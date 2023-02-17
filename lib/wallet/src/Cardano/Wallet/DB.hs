@@ -100,6 +100,8 @@ import Control.Monad
     ( guard, join )
 import Control.Monad.IO.Class
     ( MonadIO, liftIO )
+import Control.Monad.Trans.Class
+    ( lift )
 import Control.Monad.Trans.Except
     ( ExceptT (..), runExceptT )
 import Data.DBVar
@@ -327,7 +329,7 @@ data DBLayer m s k = forall stm. (MonadIO stm, MonadFail stm) => DBLayer
         -> Hash "Tx"
         -> SealedTx -- TODO: ADP-2596 really not needed
         -> SlotNo
-        -> stm ()
+        -> ExceptT ErrNoSuchWallet stm ()
         -- ^ Resubmit a transaction.
 
     , readLocalTxSubmissionPending
@@ -532,7 +534,8 @@ mkDBLayerFromParts ti DBLayerCollection{..} = DBLayer
     , readLocalTxSubmissionPending = \wid -> do
         txs <- getInSubmissionTransactions_ dbPendingTxs wid
         pure $ filter (has $ txStatus . _InSubmission) txs
-    , resubmitTx = resubmitTx_ dbPendingTxs
+    , resubmitTx = \wid hash sealed slot -> lift 
+        $ resubmitTx_ dbPendingTxs wid hash sealed slot
     , rollForwardTxSubmissions = \wid tip txs -> wrapNoSuchWallet wid $
         rollForwardTxSubmissions_ dbPendingTxs wid tip txs
     , removePendingOrExpiredTx = removePendingOrExpiredTx_ dbPendingTxs
