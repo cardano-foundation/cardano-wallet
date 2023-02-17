@@ -2576,7 +2576,6 @@ balanceTransactionSpec = describe "balanceTransaction" $ do
             testTxLayer
             Nothing
             Nothing
-            Nothing
             mockProtocolParametersForBalancing
             (dummyTimeInterpreterWithHorizon horizon)
             utxoIndex
@@ -3461,7 +3460,6 @@ balanceTransaction' (Wallet' utxoIndex wallet _pending) seed tx  =
             testTxLayer
             Nothing
             Nothing
-            Nothing
             mockProtocolParametersForBalancing
             dummyTimeInterpreter
             utxoIndex
@@ -3513,7 +3511,6 @@ balanceTransactionWithDummyChangeState utxo seed ptx =
         balanceTransaction @_ @(Rand StdGen)
             (nullTracer @(Rand StdGen))
             testTxLayer
-            Nothing
             Nothing
             Nothing
             mockProtocolParametersForBalancing

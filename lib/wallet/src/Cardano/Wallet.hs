@@ -2025,7 +2025,6 @@ buildAndSignTransactionPure
                 txLayer
                 Nothing -- "To input scripts" resolver
                 Nothing -- Payment cript template
-                Nothing -- Delegation script template
                 nodeProtocolParameters
                 ti
                 (UTxOIndex.fromMap

@@ -44,8 +44,6 @@ import Cardano.Tx.Balance.Internal.CoinSelection
     )
 import Cardano.Wallet.Primitive.AddressDerivation
     ( BoundedAddressLength (..) )
-import Cardano.Wallet.Primitive.AddressDerivation.SharedKey
-    ( replaceCosignersWithVerKeys )
 import Cardano.Wallet.Primitive.Slotting
     ( PastHorizonException, TimeInterpreter )
 import Cardano.Wallet.Primitive.Types
@@ -147,7 +145,6 @@ import Text.Pretty.Simple
     ( pShow )
 
 import qualified Cardano.Address.Script as CA
-import qualified Cardano.Address.Style.Shelley as CA
 import qualified Cardano.Api as Cardano
 import qualified Cardano.Api.Shelley as Cardano
 import qualified Cardano.Wallet.Primitive.Types as W
@@ -291,7 +288,6 @@ balanceTransaction
     -> TransactionLayer k ktype SealedTx
     -> Maybe ([(W.TxIn, W.TxOut)] -> [CA.Script KeyHash])
     -> Maybe ScriptTemplate
-    -> Maybe ScriptTemplate
     -> (W.ProtocolParameters, Cardano.ProtocolParameters)
     -- ^ 'Cardano.ProtocolParameters' can be retrieved via a Local State Query
     -- to a local node.
@@ -318,7 +314,7 @@ balanceTransaction
     -> PartialTx era
     -> ExceptT ErrBalanceTx m (Cardano.Tx era, s)
 balanceTransaction
-    tr txLayer toInpScriptsM pScriptTemplateM dScriptTemplateM pp ti idx genChange s unadjustedPtx = do
+    tr txLayer toInpScriptsM pScriptTemplateM pp ti idx genChange s unadjustedPtx = do
     -- TODO [ADP-1490] Take 'Ledger.PParams era' directly as argument, and avoid
     -- converting to/from Cardano.ProtocolParameters. This may affect
     -- performance. The addition of this one specific conversion seems to have
@@ -331,7 +327,7 @@ balanceTransaction
     let balanceWith strategy =
             balanceTransactionWithSelectionStrategyAndNoZeroAdaAdjustment
                 @era @m @s @k @ktype
-                tr txLayer toInpScriptsM pScriptTemplateM dScriptTemplateM
+                tr txLayer toInpScriptsM pScriptTemplateM
                 pp ti idx genChange s strategy adjustedPtx
     balanceWith SelectionStrategyOptimal
         `catchE` \e ->
@@ -416,7 +412,6 @@ balanceTransactionWithSelectionStrategyAndNoZeroAdaAdjustment
     -> TransactionLayer k ktype SealedTx
     -> Maybe ([(W.TxIn, W.TxOut)] -> [CA.Script KeyHash])
     -> Maybe ScriptTemplate
-    -> Maybe ScriptTemplate
     -> (W.ProtocolParameters, Cardano.ProtocolParameters)
     -> TimeInterpreter (Either PastHorizonException)
     -> UTxOIndex WalletUTxO
@@ -430,7 +425,6 @@ balanceTransactionWithSelectionStrategyAndNoZeroAdaAdjustment
     txLayer
     toInpScriptsM
     pScriptTemplateM
-    dScriptTemplateM
     (pp, nodePParams)
     ti
     internalUtxoAvailable
@@ -521,20 +515,9 @@ balanceTransactionWithSelectionStrategyAndNoZeroAdaAdjustment
     -- doing such a thing is considered bonkers and this is not a behavior we
     -- ought to support.
 
-    -- if iJust dScriptTemplateM == true then there is delegation action and script
-    -- needs to be inserted in witness set
-    -- singleton was ntroduced in Data.List from base-4.15
-    let singleton :: a -> [a]
-        singleton a = [a]
-    let extraStakingScript =
-            maybe []
-            (singleton . flip (replaceCosignersWithVerKeys CA.Stake) minBound)
-            dScriptTemplateM
-
     let extraInputScripts = case toInpScriptsM of
             Just toInpScripts ->
-                toInpScripts (extraInputs <> extraCollateral') <>
-                extraStakingScript
+                toInpScripts (extraInputs <> extraCollateral')
             Nothing ->
                 []
     let extraCollateral = fst <$> extraCollateral'
@@ -866,7 +849,6 @@ balanceTransactionWithSelectionStrategyAndNoZeroAdaAdjustment
                     , calcMinimumCost txLayer era pp
                         (defaultTransactionCtx
                             { txPaymentCredentialScriptTemplate = pScriptTemplateM
-                            , txStakingCredentialScriptTemplate = dScriptTemplateM
                             , txPlutusScriptExecutionCost =
                                 txPlutusScriptExecutionCost })
                         skeleton
