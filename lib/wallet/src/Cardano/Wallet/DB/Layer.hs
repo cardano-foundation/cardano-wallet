@@ -2,7 +2,6 @@
 {-# LANGUAGE DataKinds #-}
 {-# LANGUAGE DeriveGeneric #-}
 {-# LANGUAGE LambdaCase #-}
-{-# LANGUAGE MultiWayIf #-}
 {-# LANGUAGE NamedFieldPuns #-}
 {-# LANGUAGE OverloadedLabels #-}
 {-# LANGUAGE RecordWildCards #-}
@@ -133,7 +132,7 @@ import Cardano.Wallet.DB.WalletState
     )
 import Cardano.Wallet.Primitive.AddressDerivation
     ( Depth (..), PersistPrivateKey (..), WalletKey (..) )
-import Cardano.Wallet.Primitive.Passphrase
+import Cardano.Wallet.Primitive.Passphrase.Types
     ( PassphraseHash )
 import Cardano.Wallet.Primitive.Slotting
     ( TimeInterpreter, firstSlotInEpoch, interpretQuery )
@@ -159,6 +158,8 @@ import Data.Either
     ( isRight )
 import Data.Foldable
     ( toList )
+import Data.Functor
+    ( (<&>) )
 import Data.Generics.Internal.VL.Lens
     ( view, (^.) )
 import Data.Maybe
@@ -757,70 +758,90 @@ readWalletMetadata wid =
 {-----------------------------------------------------------------------
                             Wallet Delegation
 -----------------------------------------------------------------------}
-{- HLINT ignore mkDBDelegation "Avoid lambda" -}
-mkDBDelegation
-    :: TimeInterpreter IO
-    -> W.WalletId
-    -> DBDelegation (SqlPersistT IO)
-mkDBDelegation ti wid = DBDelegation
-    { isStakeKeyRegistered_ = do
-        val <- fmap entityVal <$> selectFirst
-            [StakeKeyCertWalletId ==. wid]
-            [Desc StakeKeyCertSlot]
-        return $ case val of
-            Nothing -> False
-            Just (StakeKeyCertificate _ _ status) ->
-                status == W.StakeKeyRegistration
 
-    , putDelegationCertificate_ = \cert sl -> case cert of
-        W.CertDelegateNone _ -> do
-            repsert
-                (DelegationCertificateKey wid sl)
-                (DelegationCertificate wid sl Nothing)
-            repsert
-                (StakeKeyCertificateKey wid sl)
-                (StakeKeyCertificate wid sl W.StakeKeyDeregistration)
-        W.CertDelegateFull _ pool ->
-            repsert
-                (DelegationCertificateKey wid sl)
-                (DelegationCertificate wid sl (Just pool))
-        W.CertRegisterKey _ ->
-            repsert
-                (StakeKeyCertificateKey wid sl)
-                (StakeKeyCertificate wid sl W.StakeKeyRegistration)
+mkDBDelegation ::
+    TimeInterpreter IO -> W.WalletId -> DBDelegation (SqlPersistT IO)
+mkDBDelegation ti wid =
+    DBDelegation
+        { isStakeKeyRegistered_
+        , putDelegationCertificate_
+        , putDelegationRewardBalance_
+        , readDelegationRewardBalance_
+        , readDelegation_
+        }
+  where
+    isStakeKeyRegistered_ :: SqlPersistT IO Bool
+    isStakeKeyRegistered_ = do
+        val <- fmap entityVal <$>
+            selectFirst [StakeKeyCertWalletId ==. wid] [Desc StakeKeyCertSlot]
+        pure $
+            case val of
+                Nothing -> False
+                Just (StakeKeyCertificate _ _ status) ->
+                    status == W.StakeKeyRegistration
 
-    , putDelegationRewardBalance_ = \amt ->
+    putDelegationCertificate_ ::
+        W.DelegationCertificate -> W.SlotNo -> SqlPersistT IO ()
+    putDelegationCertificate_ cert sl =
+        case cert of
+            W.CertDelegateNone _ -> do
+                repsert
+                    (DelegationCertificateKey wid sl)
+                    (DelegationCertificate wid sl Nothing)
+                repsert
+                    (StakeKeyCertificateKey wid sl)
+                    (StakeKeyCertificate wid sl W.StakeKeyDeregistration)
+            W.CertDelegateFull _ pool ->
+                repsert
+                    (DelegationCertificateKey wid sl)
+                    (DelegationCertificate wid sl (Just pool))
+            W.CertRegisterKey _ ->
+                repsert
+                    (StakeKeyCertificateKey wid sl)
+                    (StakeKeyCertificate wid sl W.StakeKeyRegistration)
+
+    putDelegationRewardBalance_ :: Coin.Coin -> SqlPersistT IO ()
+    putDelegationRewardBalance_ amount =
         repsert
             (DelegationRewardKey wid)
-            (DelegationReward wid (Coin.unsafeToWord64 amt))
+            (DelegationReward wid (Coin.unsafeToWord64 amount))
 
-    , readDelegationRewardBalance_ =
+    readDelegationRewardBalance_ :: SqlPersistT IO Coin.Coin
+    readDelegationRewardBalance_ =
         Coin.fromWord64 . maybe 0 (rewardAccountBalance . entityVal) <$>
             selectFirst [RewardWalletId ==. wid] []
-    , readDelegation_ = \epoch -> if
-        | epoch == 0 -> pure $ W.WalletDelegation W.NotDelegating []
-        | otherwise -> do
-            (eMinus1, e) <- liftIO $ interpretQuery ti $
-                (,) <$> firstSlotInEpoch (epoch - 1) <*> firstSlotInEpoch epoch
-            active <- maybe W.NotDelegating toWalletDelegationStatus
-                <$> readDelegationCertificate wid
-                    [ CertSlot <. eMinus1
+
+    readDelegation_ :: W.EpochNo -> SqlPersistT IO W.WalletDelegation
+    readDelegation_ epoch = case epoch of
+        0 -> do
+            currEpochStartSlot <-
+                liftIO $ interpretQuery ti $ firstSlotInEpoch epoch
+            let nextDelegations =
+                    readDelegationStatus [CertSlot >=. currEpochStartSlot]
+                    <&> maybeToList . (<&> W.WalletDelegationNext (epoch + 2))
+            W.WalletDelegation W.NotDelegating <$> nextDelegations
+        _ -> do
+            (prevEpochStartSlot, currEpochStartSlot) <-
+                liftIO $ interpretQuery ti $
+                    (,) <$> firstSlotInEpoch (epoch - 1)
+                        <*> firstSlotInEpoch epoch
+            let currentDelegation =
+                    readDelegationStatus [CertSlot <. prevEpochStartSlot]
+                        <&> fromMaybe W.NotDelegating
+            let nextDelegations = catMaybes <$> sequence
+                    [ readDelegationStatus
+                        [ CertSlot >=. prevEpochStartSlot
+                        , CertSlot <. currEpochStartSlot
+                        ] <&> (<&> W.WalletDelegationNext (epoch + 1))
+                    , readDelegationStatus
+                        [CertSlot >=. currEpochStartSlot]
+                        <&> (<&> W.WalletDelegationNext (epoch + 2))
                     ]
-            next <- catMaybes <$> sequence
-                [ fmap (W.WalletDelegationNext (epoch + 1)
-                    . toWalletDelegationStatus)
-                    <$> readDelegationCertificate wid
-                        [ CertSlot >=. eMinus1
-                        , CertSlot <. e
-                        ]
-                , fmap (W.WalletDelegationNext (epoch + 2)
-                    . toWalletDelegationStatus)
-                    <$> readDelegationCertificate wid
-                        [ CertSlot >=. e
-                        ]
-                ]
-            pure $ W.WalletDelegation active next
-    }
+            W.WalletDelegation <$> currentDelegation <*> nextDelegations
+      where
+        readDelegationStatus =
+            (fmap . fmap) toWalletDelegationStatus
+                . readDelegationCertificate wid
 
 readDelegationCertificate
     :: W.WalletId
