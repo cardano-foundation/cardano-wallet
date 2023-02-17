@@ -46,6 +46,8 @@ import Cardano.Wallet.Checkpoints
     ( Checkpoints )
 import Cardano.Wallet.DB.Errors
     ( ErrNoSuchWallet (..) )
+import Cardano.Wallet.DB.Store.Submissions.Layer
+    ( emptyTxSubmissions )
 import Cardano.Wallet.DB.Store.Submissions.Operations
     ( DeltaTxSubmissions, TxSubmissions )
 import Cardano.Wallet.Primitive.Types
@@ -72,7 +74,6 @@ import GHC.Generics
 import qualified Cardano.Wallet.Checkpoints as CPS
 import qualified Cardano.Wallet.Primitive.Model as W
 import qualified Cardano.Wallet.Primitive.Types as W
-import qualified Cardano.Wallet.Submissions.Submissions as Submissions
 import qualified Data.Map.Strict as Map
 
 {-------------------------------------------------------------------------------
@@ -131,9 +132,10 @@ deriving instance AddressBookIso s => Eq (WalletState s)
 fromGenesis :: AddressBookIso s => W.Wallet s -> Maybe (WalletState s)
 fromGenesis cp
     | W.isGenesisBlockHeader header = Just $
-        WalletState{ prologue
+        WalletState
+            { prologue
             , checkpoints = CPS.fromGenesis checkpoint
-            , submissions = Submissions.mkEmpty 0
+            , submissions = emptyTxSubmissions
             }
     | otherwise = Nothing
   where
@@ -159,7 +161,7 @@ data DeltaWalletState1 s
     -- ^ Replace the prologue of the address discovery state
     | UpdateCheckpoints (CPS.DeltasCheckpoints (WalletCheckpoint s))
     -- ^ Update the wallet checkpoints.
-    | UpdateSubmissions DeltaTxSubmissions
+    | UpdateSubmissions [DeltaTxSubmissions]
 
 instance Delta (DeltaWalletState1 s) where
     type Base (DeltaWalletState1 s) = WalletState s
@@ -182,7 +184,7 @@ instance Show (DeltaWalletState1 s) where
 adjustNoSuchWallet
     :: WalletId
     -> (ErrNoSuchWallet -> e)
-    -> (w -> Either e (dw, b))
+    -> (w              -> Either e (dw, b))
     -> (Map WalletId w -> (Maybe (DeltaMap WalletId dw), Either e b))
 adjustNoSuchWallet wid err update wallets = case Map.lookup wid wallets of
     Nothing -> (Nothing, Left $ err $ ErrNoSuchWallet wid)

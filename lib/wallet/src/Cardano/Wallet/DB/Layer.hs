@@ -63,6 +63,8 @@ import Cardano.DB.Sqlite.Delete
     , waitForFree
     , withRef
     )
+import Cardano.Slotting.Slot
+    ( WithOrigin (..) )
 import Cardano.Wallet.Checkpoints
     ( DeltaCheckpoints (..)
     , defaultSparseCheckpointsConfig
@@ -74,11 +76,11 @@ import Cardano.Wallet.DB
     , DBFactory (..)
     , DBLayer
     , DBLayerCollection (..)
-    , DBPendingTxs (..)
     , DBPrivateKey (..)
     , DBTxHistory (..)
     , DBWalletMeta (..)
     , DBWallets (..)
+    , ErrNoSuchWallet (..)
     , ErrWalletAlreadyExists (..)
     , mkDBLayerFromParts
     )
@@ -103,9 +105,7 @@ import Cardano.Wallet.DB.Store.Checkpoints
 import Cardano.Wallet.DB.Store.Meta.Model
     ( TxMetaHistory (..) )
 import Cardano.Wallet.DB.Store.Submissions.Layer
-    ( mkDbPendingTxs )
-import Cardano.Wallet.DB.Store.Submissions.Operations
-    ( mkStoreWalletsSubmissions )
+    ( pruneByFinality, rollBackSubmissions )
 import Cardano.Wallet.DB.Store.Transactions.Decoration
     ( TxInDecorator, decorateTxInsForReadTx, decorateTxInsForRelation )
 import Cardano.Wallet.DB.Store.Transactions.Model
@@ -119,7 +119,6 @@ import Cardano.Wallet.DB.Store.Wallets.Store
 import Cardano.Wallet.DB.WalletState
     ( DeltaMap (..)
     , DeltaWalletState1 (..)
-    , ErrNoSuchWallet (..)
     , findNearestPoint
     , fromGenesis
     , fromWallet
@@ -566,7 +565,6 @@ newDBLayerWith _cacheBehavior _tr ti SqliteContext{runQuery} = mdo
                     void $ modifyDBMaybe transactionsDBVar $ \(_txsOld, _ws) ->
                         let delta = Just $ ExpandTxWalletsHistory wid txs
                         in  (delta, Right ())
-                    emptyTxSubmissions_ dbPendingTxs wid
                 pure res
 
         , readGenesisParameters_ = selectGenesisParameters
@@ -642,13 +640,6 @@ newDBLayerWith _cacheBehavior _tr ti SqliteContext{runQuery} = mdo
         , mkDecorator_ = mkDecorator transactionsDBVar
         }
 
-        {-----------------------------------------------------------------------
-                                    Pending Txs
-        -----------------------------------------------------------------------}
-    submissionDBVar <- runQuery $ loadDBVar mkStoreWalletsSubmissions
-
-    let dbPendingTxs = mkDbPendingTxs submissionDBVar
-
     let rollbackTo_ wid requestedPoint = do
             mNearestCheckpoint <-
                 ExceptT $ modifyDBMaybe walletsDB $ \ws ->
@@ -666,7 +657,13 @@ newDBLayerWith _cacheBehavior _tr ti SqliteContext{runQuery} = mdo
                             Just nearestPoint ->
                                 ( Just $ Adjust wid
                                     [ UpdateCheckpoints
-                                        [ RollbackTo nearestPoint ] ]
+                                        [ RollbackTo nearestPoint ]
+                                    , UpdateSubmissions
+                                        [ rollBackSubmissions $
+                                             case nearestPoint of
+                                                { At s -> s; Origin -> 0 }
+                                        ]
+                                    ]
                                 , pure $
                                     Map.lookup nearestPoint
                                         (wal ^. #checkpoints . #checkpoints)
@@ -684,7 +681,7 @@ newDBLayerWith _cacheBehavior _tr ti SqliteContext{runQuery} = mdo
                         ]
                     updateDBVar transactionsDBVar $
                         RollbackTxWalletsHistory wid nearestPoint
-                    rollBackSubmissions_ dbPendingTxs wid nearestPoint
+
                     pure
                         $ W.chainPointFromBlockHeader
                         $ view #currentTip wcp
@@ -696,7 +693,9 @@ newDBLayerWith _cacheBehavior _tr ti SqliteContext{runQuery} = mdo
                     Just cp -> Right <$> do
                         let tip = cp ^. #currentTip
                         pruneCheckpoints wid epochStability tip
-            lift $ pruneByFinality_ dbPendingTxs wid finalitySlot
+            lift $ updateDBVar walletsDB $ Adjust wid
+                [ UpdateSubmissions [pruneByFinality finalitySlot]
+                ]
 
         {-----------------------------------------------------------------------
                                     Wallet Delegation

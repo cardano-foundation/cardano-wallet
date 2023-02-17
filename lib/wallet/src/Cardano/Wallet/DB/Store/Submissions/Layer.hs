@@ -1,35 +1,50 @@
+{-# LANGUAGE DataKinds #-}
+{-# LANGUAGE FlexibleContexts #-}
 {-# LANGUAGE GADTs #-}
+{-# LANGUAGE NoMonomorphismRestriction #-}
 {-# LANGUAGE OverloadedLabels #-}
+{-# LANGUAGE RankNTypes #-}
 {-# LANGUAGE RecordWildCards #-}
 {-# LANGUAGE ViewPatterns #-}
+
 -- |
 -- Copyright: © 2022 IOHK
 -- License: Apache-2.0
 --
--- An implementation of the DBPendingTxs which uses Persistent and SQLite.
+-- Access to the submissions store.
 
 module Cardano.Wallet.DB.Store.Submissions.Layer
-    ( mkDbPendingTxs
-    , mkLocalTxSubmission)
+    ( mkLocalTxSubmission
+    , emptyTxSubmissions
+    , resubmitTx
+    , getInSubmissionTransactions
+    , rollForwardTxSubmissions
+    , removePendingOrExpiredTx
+    , rollBackSubmissions
+    , pruneByFinality
+    , addTxSubmission
+    , getInSubmissionTransaction
+    )
     where
 
 import Prelude hiding
     ( (.) )
 
-import Cardano.Wallet.DB
-    ( DBPendingTxs (..), ErrNoSuchTransaction (..), ErrRemoveTx (..) )
+import Cardano.Wallet.DB.Errors
+    ( ErrNoSuchTransaction (..), ErrRemoveTx (..) )
 import Cardano.Wallet.DB.Sqlite.Types
     ( TxId (..) )
 import Cardano.Wallet.DB.Store.Submissions.Operations
     ( DeltaTxSubmissions
     , SubmissionMeta (SubmissionMeta, submissionMetaResubmitted)
+    , TxSubmissions
     , TxSubmissionsStatus
     , submissionMetaFromTxMeta
     )
-import Cardano.Wallet.DB.WalletState
-    ( ErrNoSuchWallet (..) )
 import Cardano.Wallet.Primitive.Types
     ( SlotNo (SlotNo), WalletId )
+import Cardano.Wallet.Primitive.Types.Hash
+    ( Hash (..) )
 import Cardano.Wallet.Primitive.Types.Tx
     ( LocalTxSubmissionStatus (LocalTxSubmissionStatus), SealedTx )
 import Cardano.Wallet.Submissions.Operations
@@ -43,87 +58,76 @@ import Cardano.Wallet.Transaction.Built
 import Control.Category
     ( (.) )
 import Control.Lens
-    ( (^.), (^..) )
-import Control.Monad.Except
-    ( ExceptT (ExceptT) )
+    ( ix, (^.), (^..), (^?) )
 import Data.Bifunctor
     ( second )
-import Data.DBVar
-    ( DBVar, modifyDBMaybe, readDBVar, updateDBVar )
-import Data.DeltaMap
-    ( DeltaMap (..) )
-import Database.Persist.Sql
-    ( SqlPersistT )
+import Data.Maybe
+    ( fromMaybe )
 
 import qualified Data.Map.Strict as Map
 
-mkDbPendingTxs
-    :: DBVar (SqlPersistT IO) (DeltaMap WalletId DeltaTxSubmissions)
-    -> DBPendingTxs (SqlPersistT IO)
-mkDbPendingTxs dbvar = DBPendingTxs
-    { emptyTxSubmissions_ = \wid ->
-        updateDBVar dbvar
-            $ Insert wid $ mkEmpty 0
-    , addTxSubmission_ =  \wid BuiltTx{..} resubmitted -> do
-        let txId = TxId $ builtTx ^. #txId
-            expiry = case builtTxMeta ^. #expiry of
-                Nothing -> SlotNo maxBound
-                Just slot -> slot
-        updateDBVar dbvar
-            $ Adjust wid
-            $ AddSubmission expiry (txId, builtSealedTx)
-            $ submissionMetaFromTxMeta builtTxMeta resubmitted
+emptyTxSubmissions :: TxSubmissions
+emptyTxSubmissions = mkEmpty 0
 
-    , resubmitTx_ = \wid (TxId -> txId) _sealed resubmitted -> do
-        submissions <- readDBVar dbvar
-        sequence_ $ do
-            walletSubmissions <-
-                Map.lookup wid submissions
-            (TxStatusMeta datas meta) <-
-                Map.lookup txId $ walletSubmissions ^. transactionsL
-            (_, sealed) <- getTx datas
-            pure $ case expirySlot datas of
-                Nothing -> pure ()
-                Just expiry -> do
-                    updateDBVar dbvar
-                        $ Adjust wid
-                        $ Forget txId
-                    updateDBVar dbvar
-                        $ Adjust wid
-                        $ AddSubmission expiry (txId, sealed)
-                        $ meta{submissionMetaResubmitted = resubmitted}
+addTxSubmission
+    :: BuiltTx
+    -> SlotNo
+    -> DeltaTxSubmissions
+addTxSubmission BuiltTx{..} resubmitted =
+    let txId = TxId $ builtTx ^. #txId
+        expiry = case builtTxMeta ^. #expiry of
+            Nothing -> SlotNo maxBound
+            Just slot -> slot
+    in AddSubmission expiry (txId, builtSealedTx)
+        $ submissionMetaFromTxMeta builtTxMeta resubmitted
 
-    , getInSubmissionTransactions_ = \wid -> do
-            submissions <- readDBVar dbvar
-            pure $ case Map.lookup wid submissions of
-                Nothing  -> []
-                Just xs -> xs ^.. transactionsL . traverse
+resubmitTx
+    :: Hash "Tx"
+    -> SlotNo
+    -> TxSubmissions
+    -> [DeltaTxSubmissions]
+resubmitTx (TxId -> txId) resubmitted walletSubmissions
+    = fromMaybe [] $ do
+        (TxStatusMeta datas meta) <-
+            Map.lookup txId $ walletSubmissions ^. transactionsL
+        (_, sealed) <- getTx datas
+        pure $ case expirySlot datas of
+            Nothing -> []
+            Just expiry ->
+                [ AddSubmission expiry (txId, sealed)
+                    $ meta{submissionMetaResubmitted = resubmitted}
+                , Forget txId
+                ]
 
-    , rollForwardTxSubmissions_ = \wid tip txs ->
-        updateDBVar dbvar
-            $ Adjust wid $ RollForward tip (second TxId <$> txs)
 
-    , removePendingOrExpiredTx_ = \wid txId -> do
-        let errNoSuchWallet = ErrRemoveTxNoSuchWallet
-                $ ErrNoSuchWallet wid
-            errNoTx = ErrRemoveTxNoSuchTransaction
-                $ ErrNoSuchTransaction wid txId
-            errInLedger = ErrRemoveTxAlreadyInLedger txId
-        ExceptT $ modifyDBMaybe dbvar $ \ws -> do
-            case Map.lookup wid ws of
-                Nothing -> (Nothing, Left errNoSuchWallet)
-                Just sub ->
-                    case status (TxId txId) (transactions sub) of
-                        Unknown -> (Nothing, Left errNoTx)
-                        InLedger{} -> (Nothing, Left errInLedger)
-                        _ -> (Just $ Adjust wid $ Forget (TxId txId), Right ())
+getInSubmissionTransactions :: TxSubmissions -> [TxSubmissionsStatus]
+getInSubmissionTransactions submissions
+    = submissions ^.. transactionsL . traverse
 
-    ,   rollBackSubmissions_ = \wid slot ->
-            updateDBVar dbvar $ Adjust wid $ RollBack slot
+getInSubmissionTransaction :: Hash "Tx" -> TxSubmissions -> Maybe TxSubmissionsStatus
+getInSubmissionTransaction txId submissions
+    = submissions ^? transactionsL . ix (TxId txId)
 
-    ,   pruneByFinality_ = \wid slot ->
-            updateDBVar dbvar $ Adjust wid $ Prune slot
-    }
+rollForwardTxSubmissions
+    :: SlotNo -> [(SlotNo, Hash "Tx")] -> DeltaTxSubmissions
+rollForwardTxSubmissions tip txs = RollForward tip (second TxId <$> txs)
+
+removePendingOrExpiredTx :: TxSubmissions -> WalletId -> Hash "Tx"
+    -> Either ErrRemoveTx DeltaTxSubmissions
+removePendingOrExpiredTx walletSubmissions wid txId = do
+    let
+        errNoTx = ErrRemoveTxNoSuchTransaction $ ErrNoSuchTransaction wid txId
+        errInLedger = ErrRemoveTxAlreadyInLedger txId
+    case status (TxId txId) (transactions walletSubmissions) of
+        Unknown -> Left errNoTx
+        InLedger{} -> Left errInLedger
+        _ -> Right $ Forget (TxId txId)
+
+rollBackSubmissions :: SlotNo -> DeltaTxSubmissions
+rollBackSubmissions = RollBack
+
+pruneByFinality :: SlotNo -> DeltaTxSubmissions
+pruneByFinality = Prune
 
 mkLocalTxSubmission
     :: TxSubmissionsStatus

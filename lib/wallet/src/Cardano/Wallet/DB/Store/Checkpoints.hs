@@ -125,6 +125,8 @@ import Data.Bifunctor
     ( bimap, second )
 import Data.DBVar
     ( Store (..) )
+import Data.Foldable
+    ( for_ )
 import Data.Functor
     ( (<&>) )
 import Data.Generics.Internal.VL.Lens
@@ -232,6 +234,7 @@ mkStoreWallet wid =
     write wallet = do
         insertPrologue wid (wallet ^. #prologue)
         writeS storeCheckpoints (wallet ^. #checkpoints)
+        writeS submissions (wallet ^. #submissions)
 
     update =
          -- first update in list is last to be applied!
@@ -242,8 +245,7 @@ mkStoreWallet wid =
         -- FIXME LATER during ADP-1043: remove 'undefined'
         updateS storeCheckpoints undefined delta
     update1 (UpdateSubmissions delta) =
-        -- FIXME LATER during ADP-1043: remove 'undefined'
-        updateS submissions undefined delta
+        for_ (reverse delta) (updateS submissions Nothing)
 
 -- | Store for the 'Checkpoints' belonging to a 'WalletState'.
 mkStoreCheckpoints
