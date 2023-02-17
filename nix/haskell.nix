@@ -57,7 +57,7 @@ CHaP: haskell-nix: haskell-nix.cabalProject' [
       '';
 
       rewriteLibsPostInstall = lib.optionalString (pkgs.stdenv.hostPlatform.isDarwin) ''
-        export PATH=$PATH:${lib.makeBinPath (with pkgs.buildPackages; [ iohk-nix-utils binutils nix ])}
+        export PATH=$PATH:${lib.makeBinPath (with pkgs.buildPackages; [ haskellBuildUtils binutils nix ])}
         rewrite-libs $out/bin $out/bin/*
       '';
 

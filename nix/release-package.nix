@@ -35,7 +35,7 @@ in
 pkgs.stdenv.mkDerivation {
   inherit name;
   buildInputs = with pkgs.buildPackages; [
-    iohk-nix-utils
+    haskellBuildUtils
     nix
   ]
   ++ (if pkgs.stdenv.hostPlatform.isDarwin then [ darwin.binutils ] else [ binutils ])
