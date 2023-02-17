@@ -3,7 +3,10 @@
 {-# LANGUAGE RankNTypes #-}
 {-# LANGUAGE ScopedTypeVariables #-}
 
-module Cardano.Wallet.DB.Store.Wallets.StoreSpec (spec, genDeltaTxWallets) where
+module Cardano.Wallet.DB.Store.Wallets.StoreSpec
+    ( spec
+    , genDeltaTxWallets
+    ) where
 
 import Prelude
 
@@ -20,7 +23,9 @@ import Cardano.Wallet.DB.Store.Meta.Model
 import Cardano.Wallet.DB.Store.Wallets.Model
     ( DeltaTxWalletsHistory (..) )
 import Cardano.Wallet.DB.Store.Wallets.Store
-    ( mkStoreTxWalletsHistory )
+    ( mkStoreTxWalletsHistory, mkStoreWalletsMeta )
+import Data.DBVar
+    ( newStore )
 import Test.DBVar
     ( GenDelta, prop_StoreUpdates )
 import Test.Hspec
@@ -42,10 +47,17 @@ spec = do
 
 prop_StoreWalletsLaws :: WalletProperty
 prop_StoreWalletsLaws =
-  withInitializedWalletProp $ \wid runQ ->
+  withInitializedWalletProp $ \wid runQ -> do
+    -- Note: We have already tested `mkStoreTransactions`,
+    -- so we use `newStore` here for a faster test.
+    storeTransactions <- runQ newStore
+    let storeWalletsMeta = mkStoreWalletsMeta
+        storeTxWalletsHistory =
+            mkStoreTxWalletsHistory storeTransactions storeWalletsMeta
+
     prop_StoreUpdates
       runQ
-      mkStoreTxWalletsHistory
+      storeTxWalletsHistory
       (pure mempty)
       (logScale . genDeltaTxWallets wid)
 

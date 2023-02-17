@@ -110,12 +110,14 @@ import Cardano.Wallet.DB.Store.Transactions.Decoration
     ( TxInDecorator, decorateTxInsForReadTx, decorateTxInsForRelation )
 import Cardano.Wallet.DB.Store.Transactions.Model
     ( TxSet (..) )
+import Cardano.Wallet.DB.Store.Transactions.Store
+    ( mkStoreTransactions )
 import Cardano.Wallet.DB.Store.Transactions.TransactionInfo
     ( mkTransactionInfoFromRelation )
 import Cardano.Wallet.DB.Store.Wallets.Model
     ( TxWalletsHistory )
 import Cardano.Wallet.DB.Store.Wallets.Store
-    ( DeltaTxWalletsHistory (..), mkStoreTxWalletsHistory )
+    ( DeltaTxWalletsHistory (..), mkStoreTxWalletsHistory, mkStoreWalletsMeta )
 import Cardano.Wallet.DB.WalletState
     ( DeltaMap (..)
     , DeltaWalletState1 (..)
@@ -506,7 +508,8 @@ newDBLayerWith _cacheBehavior _tr ti SqliteContext{runQuery} = mdo
     -- FIXME LATER during ADP-1043:
     --   Handle the case where loading the database fails.
     walletsDB <- runQuery $ loadDBVar mkStoreWallets
-    transactionsDBVar <- runQuery $ loadDBVar mkStoreTxWalletsHistory
+    transactionsDBVar <- runQuery $ loadDBVar $
+        mkStoreTxWalletsHistory mkStoreTransactions mkStoreWalletsMeta
 
     -- NOTE
     -- The cache will not work properly unless 'atomically' is protected by a
