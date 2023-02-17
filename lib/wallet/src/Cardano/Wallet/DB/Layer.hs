@@ -821,16 +821,16 @@ mkDBDelegation ti wid =
                     <&> maybeToList . (<&> W.WalletDelegationNext (epoch + 2))
             W.WalletDelegation W.NotDelegating <$> nextDelegations
         _ -> do
-            (prevEpochSlot, currEpochStartSlot) <-
+            (prevEpochStartSlot, currEpochStartSlot) <-
                 liftIO $ interpretQuery ti $
                     (,) <$> firstSlotInEpoch (epoch - 1)
                         <*> firstSlotInEpoch epoch
             let currentDelegation =
-                    readDelegationStatus [CertSlot <. prevEpochSlot]
+                    readDelegationStatus [CertSlot <. prevEpochStartSlot]
                         <&> fromMaybe W.NotDelegating
             let nextDelegations = catMaybes <$> sequence
                     [ readDelegationStatus
-                        [ CertSlot >=. prevEpochSlot
+                        [ CertSlot >=. prevEpochStartSlot
                         , CertSlot <. currEpochStartSlot
                         ] <&> (<&> W.WalletDelegationNext (epoch + 1))
                     , readDelegationStatus
