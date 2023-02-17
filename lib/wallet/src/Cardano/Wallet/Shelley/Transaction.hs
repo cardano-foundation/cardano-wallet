@@ -308,6 +308,8 @@ import qualified Data.Sequence.Strict as StrictSeq
 import qualified Data.Set as Set
 import qualified Data.Text as T
 
+import qualified Debug.Trace as TR
+
 -- | Type encapsulating what we need to know to add things -- payloads,
 -- certificates -- to a transaction.
 --
@@ -1099,7 +1101,7 @@ estimateNumberOfWitnesses utxo txbody@(Cardano.TxBody txbodycontent) =
         txCerts = case Cardano.txCertificates txbodycontent of
             Cardano.TxCertificatesNone -> 0
             Cardano.TxCertificates _ certs _ ->
-                length $ filter (not . isStakeKeyRegCert) certs
+                sumVia estimateDelegSigningKeys certs
         scriptVkWitsUpperBound =
             fromIntegral
             $ sumVia estimateMaxWitnessRequiredPerInput
@@ -1110,15 +1112,38 @@ estimateNumberOfWitnesses utxo txbody@(Cardano.TxBody txbodycontent) =
         length txExtraKeyWits' +
         length txWithdrawals' +
         txUpdateProposal' +
-        txCerts +
+        fromIntegral txCerts +
         scriptVkWitsUpperBound
   where
     (Cardano.ShelleyTxBody _ _ scripts _ _ _) = txbody
 
     dummyKeyRole = Payment
 
-    isStakeKeyRegCert (Cardano.StakeAddressRegistrationCertificate _) = True
-    isStakeKeyRegCert _ = False
+    apiScriptHashes =
+        let walletScripts = mapMaybe toTimelockScript scripts
+            toScriptHash =
+                Cardano.hashScript
+                . Cardano.SimpleScript Cardano.SimpleScriptV2
+                . toCardanoSimpleScript
+            toPair s = (s, toScriptHash s)
+        in toPair <$> walletScripts
+
+    estimateWitNumForCred = \case
+        Cardano.StakeCredentialByKey _ -> 1
+        Cardano.StakeCredentialByScript scriptHash ->
+            let pair = filter (\(_,sh) -> sh == scriptHash) apiScriptHashes
+            in TR.trace ("scriptHash:"<>show scriptHash<>" apiScriptHashes:"<>show apiScriptHashes) $ case pair of
+                (delScript,_):[] ->
+                    estimateMaxWitnessRequiredPerInput delScript
+                _ -> error "there should be delegation script in the tx body"
+
+    estimateDelegSigningKeys = \case
+        Cardano.StakeAddressRegistrationCertificate _ -> 0
+        Cardano.StakeAddressDeregistrationCertificate cred ->
+            estimateWitNumForCred cred
+        Cardano.StakeAddressDelegationCertificate cred _ ->
+            estimateWitNumForCred cred
+        _ -> 1
 
     toTimelockScript
         :: Ledger.Script (Cardano.ShelleyLedgerEra era)
@@ -2401,12 +2426,12 @@ mkUnsignedTx
                     . Cardano.hashScript
                     . Cardano.SimpleScript Cardano.SimpleScriptV2
                     $ toCardanoSimpleScript stakingScript
-                buildVal
-                    = Cardano.KeyWitness Cardano.KeyWitnessForStakeAddr
+                buildVal = Cardano.ScriptWitness Cardano.ScriptWitnessForStakeAddr
+                    (toScriptWitness stakingScript)
                 witMap = Map.fromList [(buildKey, buildVal)]
                 ctx = Cardano.BuildTxWith witMap
             in
-                Cardano.TxCertificates certSupported certs ctx
+                TR.trace ("certs:"<>show certs) $ Cardano.TxCertificates certSupported certs ctx
 
     , Cardano.txFee = explicitFees era fees
 
