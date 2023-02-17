@@ -814,7 +814,13 @@ mkDBDelegation ti wid =
 
     readDelegation_ :: W.EpochNo -> SqlPersistT IO W.WalletDelegation
     readDelegation_ epoch = case epoch of
-        0 -> pure $ W.WalletDelegation W.NotDelegating []
+        0 -> do
+            currEpochStartSlot <-
+                liftIO $ interpretQuery ti $ firstSlotInEpoch epoch
+            let nextDelegations =
+                    readDelegationStatus [CertSlot >=. currEpochStartSlot]
+                    <&> maybeToList . (<&> W.WalletDelegationNext (epoch + 2))
+            W.WalletDelegation W.NotDelegating <$> nextDelegations
         _ -> do
             (prevEpochSlot, currEpochStartSlot) <-
                 liftIO $ interpretQuery ti $
