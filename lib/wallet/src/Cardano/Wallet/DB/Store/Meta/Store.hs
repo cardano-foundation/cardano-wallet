@@ -80,19 +80,11 @@ update wid _ change = case change of
         ]
         [TxMetaStatus =. W.Expired]
     Manipulate (RollBackTxMetaHistory point) -> do
-        let
-          isAfter = TxMetaSlot >. point
-          isIncoming = TxMetaDirection ==. W.Incoming
-          notIncoming = TxMetaDirection ==. W.Outgoing
+        let isAfter = TxMetaSlot >. point
         deleteWhere
             [ TxMetaWalletId ==. wid
-            , isAfter, isIncoming
+            , isAfter
             ]
-        updateWhere
-            [ TxMetaWalletId ==. wid
-            , isAfter, notIncoming
-            ]
-            [ TxMetaSlot =. point, TxMetaStatus =. W.Pending ]
 
 write :: WalletId -> TxMetaHistory -> SqlPersistT IO ()
 write wid txs = do

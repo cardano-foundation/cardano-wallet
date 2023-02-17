@@ -757,9 +757,7 @@ prop_rollbackCheckpoint db@DBLayer{..} (InitialCheckpoint cp0) (MockChain chain)
 -- (PoR = Point of Rollback)
 --
 -- - There's no transaction beyond the PoR
--- - Any incoming transaction after the PoR is forgotten
--- - Any outgoing transaction after the PoR is back in pending, and have a slot
---   equal to the PoR.
+-- - Any transaction after the PoR is forgotten
 --
 -- FIXME LATER: This function only tests slot numbers to roll back to,
 -- not Slot. See note [PointSlotNo] for the difference.
@@ -777,8 +775,8 @@ prop_rollbackTxHistory db@DBLayer{..} (InitialCheckpoint cp0) (GenTxHistory txs0
         ShowFmt wid <- namedPick "Wallet ID" arbitrary
         ShowFmt meta <- namedPick "Wallet Metadata" arbitrary
         ShowFmt slot <- namedPick "Requested Rollback slot" arbitrary
-        let ixs = rescheduled slot
-        monitor $ label ("Outgoing tx after point: " <> show (L.length ixs))
+        let ixs = forgotten slot
+        monitor $ label ("Forgotten tx after point: " <> show (L.length ixs))
         monitor $ cover 50 (not $ null ixs) "rolling back something"
         setup wid meta >> prop wid slot
   where
@@ -799,9 +797,7 @@ prop_rollbackTxHistory db@DBLayer{..} (InitialCheckpoint cp0) (GenTxHistory txs0
         monitor $ counterexample $ "\nNew tx history:\n" <> (txsF txs)
 
         let slot = pseudoSlotNo point
-        assertWith "Outgoing txs are reschuled" $
-            L.sort (rescheduled slot) == L.sort (filterTxs isPending txs)
-        assertWith "All other txs are still known" $
+        assertWith "All txs before are still known" $
             L.sort (knownAfterRollback slot) == L.sort (txId . fst <$> txs)
         assertWith "All txs are now before the point of rollback" $
             all (isBefore slot . snd) txs
@@ -824,15 +820,14 @@ prop_rollbackTxHistory db@DBLayer{..} (InitialCheckpoint cp0) (GenTxHistory txs0
     isBefore :: SlotNo -> TxMeta -> Bool
     isBefore slot meta = (slotNo :: TxMeta -> SlotNo) meta <= slot
 
-    rescheduled :: SlotNo -> [Hash "Tx"]
-    rescheduled slot =
-        let addedAfter meta =
-                direction meta == Outgoing && meta ^. #slotNo > slot
-        in filterTxs (\tx -> addedAfter tx || isPending tx) txs0
+    forgotten :: SlotNo -> [Hash "Tx"]
+    forgotten slot =
+        let isAfter meta = meta ^. #slotNo > slot
+        in filterTxs isAfter txs0
 
     knownAfterRollback :: SlotNo -> [Hash "Tx"]
     knownAfterRollback slot =
-        rescheduled slot ++ filterTxs (isBefore slot) txs0
+        filterTxs (isBefore slot) txs0
 
 gp :: GenesisParameters
 gp = dummyGenesisParameters
