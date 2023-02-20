@@ -121,7 +121,7 @@ module Cardano.Wallet.Write.Tx
     , fromCardanoTx
     , toCardanoUTxO
     , fromCardanoUTxO
-    , cardanoValueFromCoreValue
+    , toCardanoValue
 
     -- * Balancing
     , evaluateTransactionBalance
@@ -771,11 +771,11 @@ fromCardanoUTxO = withStandardCryptoConstraint (recentEra @era) $
   where
     unCardanoUTxO (Cardano.UTxO m) = m
 
-cardanoValueFromCoreValue
+toCardanoValue
     :: forall era. IsRecentEra era
     => Core.Value (ShelleyLedgerEra era)
     -> Cardano.Value
-cardanoValueFromCoreValue = case recentEra @era of
+toCardanoValue = case recentEra @era of
     RecentEraBabbage -> Cardano.fromMaryValue
     RecentEraAlonzo -> Cardano.fromMaryValue
 

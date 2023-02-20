@@ -629,7 +629,7 @@ balanceTransactionWithSelectionStrategyAndNoZeroAdaAdjustment
 
     txBalance :: Cardano.Tx era -> Cardano.Value
     txBalance
-        = Write.Tx.cardanoValueFromCoreValue @era
+        = Write.Tx.toCardanoValue @era
         . Write.Tx.evaluateTransactionBalance (recentEra @era) ledgerPP
             (Write.Tx.fromCardanoUTxO combinedUTxO)
         . Write.Tx.txBody (recentEra @era)
