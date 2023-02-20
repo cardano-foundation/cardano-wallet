@@ -2330,6 +2330,9 @@ mkUnsignedTx
     -> Map AssetId (Script KeyHash)
     -> Map TxIn (Script KeyHash)
     -> Either ErrMkTransaction (Cardano.TxBody era)
+-- mkUnsignedTx
+--    era ttl cs md wdrls certs fees mintData burnData mintingScripts inpsScripts =
+--    left toErrMkTx $ fmap removeDummyInput $ Cardano.createAndValidateTransactionBody
 mkUnsignedTx era ttl cs md wdrls certs fees mintData burnData mintingScripts inpsScripts = extractValidatedOutputs cs >>= \outs ->
     left toErrMkTx $ fmap removeDummyInput $ Cardano.makeTransactionBody
     Cardano.TxBodyContent
