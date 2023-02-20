@@ -159,6 +159,7 @@ import qualified Cardano.Wallet.Primitive.Types.UTxO as W
 import qualified Cardano.Wallet.Primitive.Types.UTxO as UTxO
 import qualified Cardano.Wallet.Primitive.Types.UTxOIndex as UTxOIndex
 import qualified Cardano.Wallet.Primitive.Types.UTxOSelection as UTxOSelection
+import qualified Cardano.Wallet.Write.Tx as Write.Tx
 import qualified Data.Map as Map
 import qualified Data.Set as Set
 
@@ -627,8 +628,15 @@ balanceTransactionWithSelectionStrategyAndNoZeroAdaAdjustment
             else throwE $ ErrBalanceTxInternalError $ ErrFailedBalancing bal
 
     txBalance :: Cardano.Tx era -> Cardano.Value
-    txBalance tx =
-        evaluateTransactionBalance txLayer tx nodePParams combinedUTxO
+    txBalance
+        = Write.Tx.toCardanoValue @era
+        . Write.Tx.evaluateTransactionBalance (recentEra @era) ledgerPP
+            (Write.Tx.fromCardanoUTxO combinedUTxO)
+        . Write.Tx.txBody (recentEra @era)
+        . Write.Tx.fromCardanoTx
+
+    ledgerPP =
+        Cardano.toLedgerPParams (Cardano.shelleyBasedEra @era) nodePParams
 
     balanceAfterSettingMinFee
         :: Cardano.Tx era
@@ -639,7 +647,7 @@ balanceTransactionWithSelectionStrategyAndNoZeroAdaAdjustment
         let minfee = evaluateMinimumFee txLayer nodePParams combinedUTxO tx
         let update = TxUpdate [] [] [] [] (UseNewTxFee minfee)
         tx' <- left ErrBalanceTxUpdateError $ updateTx txLayer tx update
-        let balance = evaluateTransactionBalance txLayer tx' nodePParams combinedUTxO
+        let balance = txBalance tx'
         let minfee' = Cardano.Lovelace $ fromIntegral $ W.unCoin minfee
         return (balance, minfee')
 

@@ -1240,8 +1240,6 @@ dummyTransactionLayer = TransactionLayer
     , estimateSignedTxSize =
         error "dummyTransactionLayer: \
               \estimateSignedTxSize not implemented"
-    , evaluateTransactionBalance =
-        error "dummyTransactionLayer: dummyTransactionLayer not implemented"
     , computeSelectionLimit =
         error "dummyTransactionLayer: computeSelectionLimit not implemented"
     , tokenBundleSizeAssessor =

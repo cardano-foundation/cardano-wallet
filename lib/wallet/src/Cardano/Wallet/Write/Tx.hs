@@ -1,3 +1,5 @@
+{-# LANGUAGE AllowAmbiguousTypes #-}
+{-# LANGUAGE EmptyCase #-}
 {-# LANGUAGE FlexibleContexts #-}
 {-# LANGUAGE FlexibleInstances #-}
 {-# LANGUAGE GADTs #-}
@@ -116,9 +118,13 @@ module Cardano.Wallet.Write.Tx
     , utxoFromTxOutsInRecentEra
     , utxoFromTxOutsInLatestEra
     , utxoFromTxOuts
+    , fromCardanoTx
     , toCardanoUTxO
     , fromCardanoUTxO
+    , toCardanoValue
 
+    -- * Balancing
+    , evaluateTransactionBalance
     )
     where
 
@@ -172,6 +178,7 @@ import Test.Cardano.Ledger.Alonzo.Examples.Consensus
     ( StandardAlonzo )
 
 import qualified Cardano.Api as Cardano
+import qualified Cardano.Api.Byron as Cardano
 import qualified Cardano.Api.Extra as Cardano
 import qualified Cardano.Api.Shelley as Cardano
 import qualified Cardano.Binary as CBOR
@@ -184,6 +191,7 @@ import qualified Cardano.Ledger.Alonzo.TxBody as Alonzo
 import qualified Cardano.Ledger.Babbage as Babbage
 import qualified Cardano.Ledger.Babbage.TxBody as Babbage
 import qualified Cardano.Ledger.Core as Core
+import qualified Cardano.Ledger.Shelley.API.Wallet as Shelley
 import qualified Cardano.Ledger.Shelley.UTxO as Shelley
 import qualified Cardano.Ledger.TxIn as Ledger
 import qualified Data.Aeson as Aeson
@@ -714,6 +722,17 @@ modifyLedgerBody f (Cardano.Tx body keyWits) =
 -- Compatibility
 --------------------------------------------------------------------------------
 
+fromCardanoTx
+    :: forall era. IsRecentEra era
+    => Cardano.Tx era
+    -> Core.Tx (Cardano.ShelleyLedgerEra era)
+fromCardanoTx = \case
+    Cardano.ShelleyTx _era tx ->
+        tx
+    Cardano.ByronTx {} ->
+        case (recentEra @era) of
+            {}
+
 -- | NOTE: The roundtrip
 -- @
 --     toCardanoUTxO . fromCardanoUTxO
@@ -751,6 +770,46 @@ fromCardanoUTxO = withStandardCryptoConstraint (recentEra @era) $
     . unCardanoUTxO
   where
     unCardanoUTxO (Cardano.UTxO m) = m
+
+toCardanoValue
+    :: forall era. IsRecentEra era
+    => Core.Value (ShelleyLedgerEra era)
+    -> Cardano.Value
+toCardanoValue = case recentEra @era of
+    RecentEraBabbage -> Cardano.fromMaryValue
+    RecentEraAlonzo -> Cardano.fromMaryValue
+
+--------------------------------------------------------------------------------
+-- Balancing
+--------------------------------------------------------------------------------
+
+-- | Evaluate the /balance/ of a transaction using the ledger.
+--
+-- The balance is defined as:
+-- @
+-- (value consumed by transaction) - (value produced by transaction)
+-- @
+--
+-- For a transaction to be valid, it must have a balance of __zero__.
+--
+-- Note that the fee field of the transaction affects the balance, and
+-- is not automatically the minimum fee.
+--
+evaluateTransactionBalance
+    :: RecentEra era
+    -> Core.PParams (Cardano.ShelleyLedgerEra era)
+    -> Shelley.UTxO (Cardano.ShelleyLedgerEra era)
+    -> Core.TxBody (Cardano.ShelleyLedgerEra era)
+    -> Core.Value (Cardano.ShelleyLedgerEra era)
+evaluateTransactionBalance era pp utxo txBody' =
+    withCLIConstraint era $
+        Shelley.evaluateTransactionBalance pp utxo isNewPool txBody'
+  where
+    isNewPool =
+        -- TODO: ADP-2651
+        -- Pass this parameter in as a function instead of hard-coding the
+        -- value here:
+        const True
 
 --------------------------------------------------------------------------------
 -- Module-internal helpers
