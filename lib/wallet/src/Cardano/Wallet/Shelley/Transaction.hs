@@ -674,8 +674,6 @@ newTransactionLayer networkId = TransactionLayer
     , evaluateMinimumFee =
         _evaluateMinimumFee
 
-    , evaluateTransactionBalance = _evaluateTransactionBalance
-
     , computeSelectionLimit = \era pp ctx outputsToCover ->
         let txMaxSize = getTxMaxSize $ txParameters pp in
         MaximumInputLimit $
@@ -704,26 +702,6 @@ _decodeSealedTx
         )
 _decodeSealedTx preferredLatestEra witCtx (cardanoTxIdeallyNoLaterThan preferredLatestEra -> Cardano.InAnyCardanoEra _ tx) =
     fromCardanoTx witCtx tx
-
-_evaluateTransactionBalance
-    :: forall era. IsShelleyBasedEra era
-    => Cardano.Tx era
-    -> Cardano.ProtocolParameters
-    -> Cardano.UTxO era
-    -> Cardano.Value
-_evaluateTransactionBalance (Cardano.Tx body _) pp utxo =
-    lovelaceFromCardanoTxOutValue
-        $ Cardano.evaluateTransactionBalance
-            pp
-            mempty
-            utxo
-            body
-  where
-    lovelaceFromCardanoTxOutValue
-        :: Cardano.TxOutValue era -> Cardano.Value
-    lovelaceFromCardanoTxOutValue = \case
-        Cardano.TxOutAdaOnly _ ada -> Cardano.lovelaceToValue ada
-        Cardano.TxOutValue _ val   -> val
 
 mkDelegationCertificates
     :: DelegationAction

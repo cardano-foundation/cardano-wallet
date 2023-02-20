@@ -245,24 +245,6 @@ data TransactionLayer k ktype tx = TransactionLayer
         -> TxSize
         -- ^ Estimate the size of the transaction when fully signed.
 
-    , evaluateTransactionBalance
-        :: forall era. Cardano.IsShelleyBasedEra era
-        => Cardano.Tx era
-        -> Cardano.ProtocolParameters
-        -> Cardano.UTxO era
-        -> Cardano.Value
-        -- ^ Evaluate the balance of a transaction using the ledger. The balance
-        -- is defined as @(value consumed by transaction) - (value produced by
-        -- transaction)@. For a transaction to be valid, it must have a balance
-        -- of zero.
-        --
-        -- Note that the fee-field of the transaction affects the balance, and
-        -- is not automatically the minimum fee.
-        --
-        -- The function takes two UTxOs of different types and merges them. The
-        -- reason is to workaround that wallet 'UTxO' type doesn't support
-        -- Datum hashes
-
     , distributeSurplus
         :: FeePolicy
         -> Coin
