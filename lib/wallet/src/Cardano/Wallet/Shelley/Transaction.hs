@@ -105,6 +105,7 @@ import Cardano.Slotting.EpochInfo.API
 import Cardano.Tx.Balance.Internal.CoinSelection
     ( SelectionLimitOf (..)
     , SelectionOf (..)
+    , SelectionOutputTokenQuantityExceedsLimitError (..)
     , SelectionSkeleton (..)
     , selectionDelta
     )
@@ -159,7 +160,7 @@ import Cardano.Wallet.Primitive.Types.Tx
     , withinEra
     )
 import Cardano.Wallet.Primitive.Types.Tx.Constraints
-    ( TxConstraints (..), TxSize (..), txSizeDistance )
+    ( TxConstraints (..), TxSize (..), txOutMaxTokenQuantity, txSizeDistance )
 import Cardano.Wallet.Primitive.Types.Tx.TxIn
     ( TxIn (..) )
 import Cardano.Wallet.Primitive.Types.Tx.TxOut
@@ -219,7 +220,7 @@ import Codec.Serialise
 import Control.Arrow
     ( left, second )
 import Control.Monad
-    ( forM, guard )
+    ( forM, forM_, guard, when )
 import Control.Monad.Trans.Class
     ( lift )
 import Control.Monad.Trans.Except
@@ -2329,22 +2330,14 @@ mkUnsignedTx
     -> Map AssetId (Script KeyHash)
     -> Map TxIn (Script KeyHash)
     -> Either ErrMkTransaction (Cardano.TxBody era)
-mkUnsignedTx
-    era ttl cs md wdrls certs fees mintData burnData mintingScripts inpsScripts =
+mkUnsignedTx era ttl cs md wdrls certs fees mintData burnData mintingScripts inpsScripts = extractValidatedOutputs cs >>= \outs ->
     left toErrMkTx $ fmap removeDummyInput $ Cardano.makeTransactionBody
     Cardano.TxBodyContent
     { Cardano.txIns = inputWits
 
     , txInsReference = Cardano.TxInsReferenceNone
 
-    , Cardano.txOuts = case cs of
-        Right selOf ->
-            toCardanoTxOut era <$>
-                view #outputs selOf ++ F.toList (view #change selOf)
-        Left preSel ->
-            toCardanoTxOut era <$>
-                view #outputs preSel
-
+    , Cardano.txOuts = map (toCardanoTxOut era) outs
     , Cardano.txWithdrawals =
         let wit = Cardano.BuildTxWith
                 $ Cardano.KeyWitness Cardano.KeyWitnessForStakeAddr
@@ -2417,6 +2410,46 @@ mkUnsignedTx
   where
     toErrMkTx :: Cardano.TxBodyError -> ErrMkTransaction
     toErrMkTx = ErrMkTransactionTxBodyError . T.pack . Cardano.displayError
+
+    -- Extra validation for HTTP API backward compatibility:
+    --
+    -- Previously validation of user-provided payment outputs was handled by
+    -- coin-selection, as coin-selection was run before assembling the
+    -- transaction as a real 'Cardano.Tx'. Now, with 'balanceTx' this is no
+    -- longer the case, meaning that validation from cardano-api would take
+    -- precedence without this extra preceeding validation.
+    --
+    -- We may concider to, after ADP-2268:
+    -- - Embrace cardano-api errors and remove this function
+    -- - Extract and re-use validation from coin-selection, rather than
+    --     duplicating.
+    -- - Remove validation from coin-selection itself
+    extractValidatedOutputs
+        :: Either PreSelection (SelectionOf TxOut)
+        -> Either ErrMkTransaction [TxOut]
+    extractValidatedOutputs sel =
+        mapM validateOut $ case sel of
+            Right selOf -> view #outputs selOf ++ F.toList (view #change selOf)
+            Left preSel -> view #outputs preSel
+      where
+        validateOut :: TxOut -> Either ErrMkTransaction TxOut
+        validateOut out = do
+            verifyOutputTokenQuantities out
+            return out
+          where
+            verifyOutputTokenQuantities :: TxOut -> Either ErrMkTransaction ()
+            verifyOutputTokenQuantities (TxOut addr (TokenBundle _ tokens)) = do
+                forM_ (TokenMap.toFlatList tokens) $ \(asset, quantity) -> do
+                    when (quantity > txOutMaxTokenQuantity) $
+                        Left (mkErr asset quantity)
+              where
+                mkErr aid q = ErrMkTransactionTokenQuantityExceedsLimit
+                    $ SelectionOutputTokenQuantityExceedsLimitError
+                        { address = addr
+                        , asset = aid
+                        , quantity = q
+                        , quantityMaxBound = txOutMaxTokenQuantity
+                        }
 
     metadataSupported :: Cardano.TxMetadataSupportedInEra era
     metadataSupported = case era of
