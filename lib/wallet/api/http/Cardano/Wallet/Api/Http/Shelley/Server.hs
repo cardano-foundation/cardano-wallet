@@ -397,7 +397,7 @@ import Cardano.Wallet.Primitive.AddressDerivation.MintBurn
     , withinSlotInterval
     )
 import Cardano.Wallet.Primitive.AddressDerivation.SharedKey
-    ( SharedKey (..) )
+    ( SharedKey (..), replaceCosignersWithVerKeys )
 import Cardano.Wallet.Primitive.AddressDerivation.Shelley
     ( ShelleyKey )
 import Cardano.Wallet.Primitive.AddressDiscovery
@@ -658,6 +658,7 @@ import UnliftIO.Concurrent
 import UnliftIO.Exception
     ( IOException, bracket, tryAnyDeep, tryJust )
 
+import qualified Cardano.Address.Style.Shelley as CA
 import qualified Cardano.Api as Cardano
 import qualified Cardano.Wallet as W
 import qualified Cardano.Wallet.Api.Types as Api
@@ -2958,18 +2959,15 @@ constructSharedTransaction
 
 
 decodeSharedTransaction
-    :: forall ctx s k (n :: NetworkDiscriminant).
-        ( ctx ~ ApiLayer s k 'CredFromScriptK
-        , IsOurs s Address
-        , HasNetworkLayer IO ctx
-        )
-    => ctx
+    :: forall (n :: NetworkDiscriminant)
+     . (NetworkDiscriminantBits n, Typeable n)
+    => ApiLayer (SharedState n SharedKey) SharedKey 'CredFromScriptK
     -> ApiT WalletId
     -> ApiSerialisedTransaction
     -> Handler (ApiDecodedTransaction n)
 decodeSharedTransaction ctx (ApiT wid) (ApiSerialisedTransaction (ApiT sealed) _) = do
     era <- liftIO $ NW.currentNodeEra nl
-    let (decodedTx, _toMint, _toBurn, _allCerts, interval, witsCount) =
+    let (decodedTx, _toMint, _toBurn, allCerts, interval, witsCount) =
             decodeTx tl era SharedWalletCtx sealed
     let (Tx { txId
             , fee
@@ -2979,20 +2977,34 @@ decodeSharedTransaction ctx (ApiT wid) (ApiSerialisedTransaction (ApiT sealed) _
             , metadata
             , scriptValidity
             }) = decodedTx
-    (txinsOutsPaths, collateralInsOutsPaths, outsPath)
+
+    (txinsOutsPaths, collateralInsOutsPaths, outsPath, pp, certs)
         <- withWorkerCtx ctx wid liftE liftE $ \wrk -> do
         inputPaths <-
-            liftHandler $ W.lookupTxIns @_ @s @k wrk wid $
+            liftHandler $ W.lookupTxIns @_ wrk wid $
             fst <$> resolvedInputs
         collateralInputPaths <-
-            liftHandler $ W.lookupTxIns @_ @s @k wrk wid $
+            liftHandler $ W.lookupTxIns @_ wrk wid $
             fst <$> resolvedCollateralInputs
         outputPaths <-
-            liftHandler $ W.lookupTxOuts @_ @s @k wrk wid outputs
+            liftHandler $ W.lookupTxOuts @_ wrk wid outputs
+        pp <- liftIO $ NW.currentProtocolParameters (wrk ^. networkLayer)
+        (cp, _, _) <- liftHandler $ withExceptT W.ErrDecodeTxNoSuchWallet $
+            W.readWallet wrk wid
+        let delegationTemplateM = Shared.delegationTemplate $ getState cp
+        let scriptM =
+                flip (replaceCosignersWithVerKeys CA.Stake) minBound <$>
+                delegationTemplateM
+
+        let rewardAcct = undefined
+        let rewardAcctPath = undefined
+        let certs = mkApiAnyCertificate rewardAcct rewardAcctPath <$> allCerts
         pure
             ( inputPaths
             , collateralInputPaths
             , outputPaths
+            , pp
+            , certs
             )
     pure $ ApiDecodedTransaction
         { id = ApiT txId
@@ -3008,16 +3020,27 @@ decodeSharedTransaction ctx (ApiT wid) (ApiSerialisedTransaction (ApiT sealed) _
         , burn = emptyApiAssetMntBurn
         -- TODO delegation/withdrawals multisig
         , certificates = []
-        , depositsTaken = []
-        , depositsReturned = []
+        , depositsTaken =
+            (Quantity . fromIntegral . unCoin . W.stakeKeyDeposit $ pp)
+                <$ filter ourRewardAccountRegistration certs
+        , depositsReturned =
+            (Quantity . fromIntegral . unCoin . W.stakeKeyDeposit $ pp)
+                <$ filter ourRewardAccountDeregistration certs
         , metadata = ApiTxMetadata $ ApiT <$> metadata
         , scriptValidity = ApiT <$> scriptValidity
         , validityInterval = ApiValidityIntervalExplicit <$> interval
         , witnessCount = mkApiWitnessCount witsCount
         }
   where
-    tl = ctx ^. W.transactionLayer @k @'CredFromScriptK
+    tl = ctx ^. W.transactionLayer @SharedKey @'CredFromScriptK
     nl = ctx ^. W.networkLayer @IO
+
+    ourRewardAccountRegistration = \case
+        WalletDelegationCertificate (RegisterRewardAccount _) -> True
+        _ -> False
+    ourRewardAccountDeregistration = \case
+        WalletDelegationCertificate (QuitPool _) -> True
+        _ -> False
 
     emptyApiAssetMntBurn = ApiAssetMintBurn
         { tokens = []
@@ -3392,13 +3415,9 @@ isForeign apiDecodedTx =
         all isWdrlForeign generalWdrls
 
 submitSharedTransaction
-    :: forall ctx s k (n :: NetworkDiscriminant).
-        ( ctx ~ ApiLayer s k 'CredFromScriptK
-        , s ~ SharedState n k
-        , HasNetworkLayer IO ctx
-        , IsOwned s k 'CredFromScriptK
-        )
-    => ctx
+    :: forall (n :: NetworkDiscriminant)
+     . (NetworkDiscriminantBits n, Typeable n)
+    => ApiLayer (SharedState n SharedKey) SharedKey 'CredFromScriptK
     -> ApiT WalletId
     -> ApiSerialisedTransaction
     -> Handler ApiTxId
@@ -3409,7 +3428,7 @@ submitSharedTransaction ctx apiw@(ApiT wid) apitx = do
     let sealedTx = getApiT . (view #serialisedTxSealed) $ apitx
     let (tx,_,_,_,_,_) = decodeTx tl era SharedWalletCtx sealedTx
 
-    apiDecoded <- decodeSharedTransaction @_ @s @k ctx apiw apitx
+    apiDecoded <- decodeSharedTransaction @n ctx apiw apitx
     when (isForeign apiDecoded) $
         liftHandler $ throwE ErrSubmitTransactionForeignWallet
     let ourOuts = getOurOuts apiDecoded
@@ -3418,7 +3437,7 @@ submitSharedTransaction ctx apiw@(ApiT wid) apitx = do
     void $ withWorkerCtx ctx wid liftE liftE $ \wrk -> do
 
         (cp, _, _) <- liftHandler $ withExceptT ErrSubmitTransactionNoSuchWallet $
-            W.readWallet @_ @s @k wrk wid
+            W.readWallet @_ wrk wid
         let (ScriptTemplate _ script) = (Shared.paymentTemplate $ getState cp)
         let witsPerInput = Shared.estimateMinWitnessRequiredPerInput script
 
@@ -3446,7 +3465,7 @@ submitSharedTransaction ctx apiw@(ApiT wid) apitx = do
     pure $ ApiTxId (apiDecoded ^. #id)
   where
     nl = ctx ^. networkLayer
-    tl = ctx ^. W.transactionLayer @k @'CredFromScriptK
+    tl = ctx ^. W.transactionLayer @SharedKey @'CredFromScriptK
     ti :: TimeInterpreter (ExceptT PastHorizonException IO)
     ti = timeInterpreter nl
 
