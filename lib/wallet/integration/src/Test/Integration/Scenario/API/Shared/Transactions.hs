@@ -1642,7 +1642,7 @@ spec = describe "SHARED_TRANSACTIONS" $ do
     it "SHARED_TRANSACTIONS_DELEGATION_01a - \
        \Can join stakepool, rejoin another and quit" $ \ctx -> runResourceT $ do
 
-        (party1,_) <- fixtureSharedWalletDelegating @n ctx
+        (party1,party2) <- fixtureSharedWalletDelegating @n ctx
         let depositAmt = Quantity 1_000_000
 
         pool1:_ <- map (view $ _Unwrapped . #id) . snd <$>
@@ -1664,6 +1664,26 @@ spec = describe "SHARED_TRANSACTIONS" $ do
             , expectField (#coinSelection . #depositsTaken) (`shouldBe` [depositAmt])
             , expectField (#coinSelection . #depositsReturned) (`shouldBe` [])
             ]
+
+        let txCbor1 = getFromResponse #transaction rTx1
+        let decodePayload1 = Json (toJSON txCbor1)
+        rDecodedTx1 <- request @(ApiDecodedTransaction n) ctx
+            (Link.decodeTransaction @'Shared party1) Default decodePayload1
+        rDecodedTx2 <- request @(ApiDecodedTransaction n) ctx
+            (Link.decodeTransaction @'Shared party2) Default decodePayload1
+        let expectedFee = getFromResponse (#fee . #getQuantity) rTx1
+        let decodedExpectations =
+                [ expectResponseCode HTTP.status202
+                , expectField (#fee . #getQuantity) (`shouldBe` expectedFee)
+                , expectField #withdrawals (`shouldBe` [])
+                , expectField #collateral (`shouldBe` [])
+                , expectField #scriptValidity
+                    (`shouldBe` (Just $ ApiT TxScriptValid))
+                , expectField #depositsReturned (`shouldBe` [])
+                , expectField #depositsTaken (`shouldBe` [depositAmt])
+                ]
+        verify rDecodedTx1 decodedExpectations
+        verify rDecodedTx2 decodedExpectations
 
   where
      listSharedTransactions ctx w mStart mEnd mOrder = do

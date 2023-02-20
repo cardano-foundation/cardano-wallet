@@ -615,7 +615,7 @@ server byron icarus shelley multisig spl ntp blockchainSource =
             (knownPools spl) (getPoolLifeCycleStatus spl)
         :<|> signTransaction @_ @_ @_ @'CredFromScriptK apilayer
         :<|> decodeSharedTransaction apilayer
-        :<|> submitSharedTransaction @_ @_ @_ apilayer
+        :<|> submitSharedTransaction @_ apilayer
         :<|>
             (\wid txId simpleMetadataFlag ->
                 getTransaction apilayer wid txId
