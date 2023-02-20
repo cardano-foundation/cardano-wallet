@@ -223,8 +223,6 @@ import Cardano.Address.Derivation
     ( XPrv, XPub )
 import Cardano.Address.Script
     ( Cosigner (..), KeyHash )
-import Cardano.Address.Style.Shared
-    ( deriveDelegationPublicKey )
 import Cardano.Api
     ( AnyCardanoEra, serialiseToCBOR )
 import Cardano.Api.Extra
@@ -613,7 +611,6 @@ import UnliftIO.MVar
     ( modifyMVar_, newMVar )
 
 import qualified Cardano.Address.Script as CA
-import qualified Cardano.Address.Style.Shared as CA
 import qualified Cardano.Address.Style.Shelley as CAShelley
 import qualified Cardano.Api as Cardano
 import qualified Cardano.Crypto.Wallet as CC
@@ -2405,11 +2402,9 @@ constructUnbalancedSharedTransaction txLayer netLayer db wid txCtx sel = db & \D
         $ withNoSuchWallet wid
         $ readCheckpoint wid
     let s = getState cp
-    let accXPub = getRawKey $ Shared.accountXPub s
-    let delTemplateM = delegationTemplate s
     let scriptM =
             flip (replaceCosignersWithVerKeys CAShelley.Stake) minBound <$>
-            delTemplateM
+            delegationTemplate s
     let getScript addr = case fst (isShared addr s) of
             Nothing ->
                 error $ "Some inputs selected by coin selection do not belong "
