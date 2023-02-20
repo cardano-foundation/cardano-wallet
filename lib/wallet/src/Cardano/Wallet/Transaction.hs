@@ -76,7 +76,9 @@ import Cardano.Tx.Balance.Internal.CoinSelection
     ( SelectionCollateralRequirement (..)
     , SelectionLimit
     , SelectionOf (..)
+    , SelectionOutputTokenQuantityExceedsLimitError
     , SelectionSkeleton
+    , WalletSelectionContext
     )
 import Cardano.Wallet.Primitive.AddressDerivation
     ( Depth (..), DerivationIndex )
@@ -521,6 +523,8 @@ data ErrMkTransaction
     = ErrMkTransactionNoSuchWallet WalletId
     | ErrMkTransactionTxBodyError Text
     -- ^ We failed to construct a transaction for some reasons.
+    | ErrMkTransactionTokenQuantityExceedsLimit
+        (SelectionOutputTokenQuantityExceedsLimitError WalletSelectionContext)
     | ErrMkTransactionInvalidEra AnyCardanoEra
     -- ^ Should never happen, means that that we have programmatically provided
     -- an invalid era.
