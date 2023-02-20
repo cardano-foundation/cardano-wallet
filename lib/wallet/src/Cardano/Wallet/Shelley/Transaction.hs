@@ -308,8 +308,6 @@ import qualified Data.Sequence.Strict as StrictSeq
 import qualified Data.Set as Set
 import qualified Data.Text as T
 
-import qualified Debug.Trace as TR
-
 -- | Type encapsulating what we need to know to add things -- payloads,
 -- certificates -- to a transaction.
 --
@@ -1132,7 +1130,7 @@ estimateNumberOfWitnesses utxo txbody@(Cardano.TxBody txbodycontent) =
         Cardano.StakeCredentialByKey _ -> 1
         Cardano.StakeCredentialByScript scriptHash ->
             let pair = filter (\(_,sh) -> sh == scriptHash) apiScriptHashes
-            in TR.trace ("scriptHash:"<>show scriptHash<>" apiScriptHashes:"<>show apiScriptHashes) $ case pair of
+            in case pair of
                 (delScript,_):[] ->
                     estimateMaxWitnessRequiredPerInput delScript
                 _ -> error "there should be delegation script in the tx body"
@@ -2431,7 +2429,7 @@ mkUnsignedTx
                 witMap = Map.fromList [(buildKey, buildVal)]
                 ctx = Cardano.BuildTxWith witMap
             in
-                TR.trace ("certs:"<>show certs) $ Cardano.TxCertificates certSupported certs ctx
+                Cardano.TxCertificates certSupported certs ctx
 
     , Cardano.txFee = explicitFees era fees
 

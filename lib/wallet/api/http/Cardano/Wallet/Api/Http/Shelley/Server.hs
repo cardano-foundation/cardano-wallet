@@ -2812,6 +2812,7 @@ constructSharedTransaction
             netLayer = wrk ^. networkLayer
             txLayer = wrk ^. transactionLayer @SharedKey @'CredFromScriptK
             trWorker = MsgWallet >$< wrk ^. logger
+        pp <- liftIO $ NW.currentProtocolParameters netLayer
         epoch <- getCurrentEpoch api
         era <- liftIO $ NW.currentNodeEra (wrk ^. networkLayer)
         AnyRecentEra (_recentEra :: WriteTx.RecentEra era)
@@ -2866,10 +2867,18 @@ constructSharedTransaction
 
                 apiDecoded <- decodeSharedTransaction api (ApiT wid) balancedTx
 
+                let deposits = case optionalDelegationAction of
+                        Just (JoinRegisteringKey _poolId) ->
+                            [W.stakeKeyDeposit pp]
+                        _ -> []
+                let refunds = case optionalDelegationAction of
+                        Just Quit -> [W.stakeKeyDeposit pp]
+                        _ -> []
+
                 pure $ ApiConstructTransaction
                     { transaction = balancedTx
                     , coinSelection =
-                        mkApiCoinSelection [] [] Nothing md
+                        mkApiCoinSelection deposits refunds Nothing md
                         (unsignedTx outs apiDecoded)
                     , fee = apiDecoded ^. #fee
                     }
