@@ -2418,6 +2418,7 @@ shelleyIntegrationTestFunds = mconcat
     preregKeyWalletFunds = map ((,defaultAmt) . Address . unsafeFromHex)
         [ "6199a7c32aaa55a628d936b539f01d5415318dec8bcb5e59ec71af695b"
         , "61386c7a86d8844f4085a50241556043c9842d72c315c897a42a8a0510"
+        , "614adf026163a9182cd4087acc966aef46e37474a2994a06a69de44d6f"
         ]
 
     mirWallets = (,defaultAmt) . head . genShelleyAddresses . SomeMnemonic
