@@ -61,6 +61,7 @@ module Cardano.Wallet.Primitive.AddressDerivation
     , NetworkDiscriminant (..)
     , NetworkDiscriminantVal
     , networkDiscriminantVal
+    , toCANetworkDistriminant
 
     -- * Backends Interoperability
     , PaymentAddress(..)
@@ -146,6 +147,8 @@ import Safe
 import Type.Reflection
     ( Typeable, typeRep )
 
+import qualified Cardano.Address as CA
+import qualified Cardano.Address.Style.Shelley as CA
 import qualified Data.Text as T
 
 {-------------------------------------------------------------------------------
@@ -595,6 +598,26 @@ instance KnownNat pm => NetworkDiscriminantVal ('Testnet pm) where
 instance KnownNat pm => NetworkDiscriminantVal ('Staging pm) where
     networkDiscriminantVal =
         "staging (" <> T.pack (show $ natVal $ Proxy @pm) <> ")"
+
+toCANetworkDistriminant
+    :: forall (n :: NetworkDiscriminant). Typeable n
+    => CA.NetworkDiscriminant CA.Shelley
+toCANetworkDistriminant =
+    fromMaybe (error $ "network discriminant: unmatched type" <> show (typeRep @n))
+       (tryMainnet <|> tryTestnet <|> tryStaging)
+  where
+    tryMainnet =
+        case testEquality (typeRep @n) (typeRep @'Mainnet) of
+            Just Refl  -> Just CA.shelleyMainnet
+            Nothing -> Nothing
+    tryTestnet =
+        case testEquality (typeRep @n) (typeRep @('Testnet 0)) of
+            Just Refl  -> Just CA.shelleyTestnet
+            Nothing -> Nothing
+    tryStaging =
+        case testEquality (typeRep @n) (typeRep @('Staging 0)) of
+            Just Refl  -> Just CA.shelleyTestnet
+            Nothing -> Nothing
 
 {-------------------------------------------------------------------------------
                      Interface over keys / address types

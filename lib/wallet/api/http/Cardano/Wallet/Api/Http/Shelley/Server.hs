@@ -371,6 +371,7 @@ import Cardano.Wallet.Primitive.AddressDerivation
     , WalletKey (..)
     , deriveRewardAccount
     , publicKey
+    , toCANetworkDistriminant
     )
 import Cardano.Wallet.Primitive.AddressDerivation.Byron
     ( ByronKey, mkByronKeyFromMasterKey )
@@ -641,6 +642,8 @@ import UnliftIO.Concurrent
 import UnliftIO.Exception
     ( IOException, bracket, tryAnyDeep, tryJust )
 
+import qualified Cardano.Address as CA hiding
+    ( stakeAddress )
 import qualified Cardano.Address.Style.Shelley as CA
 import qualified Cardano.Api as Cardano
 import qualified Cardano.Wallet as W
@@ -2939,10 +2942,15 @@ decodeSharedTransaction ctx (ApiT wid) (ApiSerialisedTransaction (ApiT sealed) _
         let scriptM =
                 flip (replaceCosignersWithVerKeys CA.Stake) minBound <$>
                 delegationTemplateM
-
-        let rewardAcct = undefined
+        let rewardAcctM = case scriptM of
+                Just script ->
+                    let (Right rewardAcct) =
+                            CA.stakeAddress (toCANetworkDistriminant @n)
+                            (CA.DelegationFromScript script)
+                    in Just $ RewardAccount $ CA.unAddress rewardAcct
+                Nothing -> Nothing
         let rewardAcctPath = undefined
-        let certs = mkApiAnyCertificate rewardAcct rewardAcctPath <$> allCerts
+        let certs = mkApiAnyCertificate rewardAcctM rewardAcctPath <$> allCerts
         pure
             ( inputPaths
             , collateralInputPaths
@@ -3151,7 +3159,7 @@ decodeTransaction
         pp <- liftIO $ NW.currentProtocolParameters (wrk ^. networkLayer)
         (minted, burned) <-
             convertApiAssetMintBurn @_ @s @k @n wrk wid (toMint, toBurn)
-        let certs = mkApiAnyCertificate acct acctPath <$> allCerts
+        let certs = mkApiAnyCertificate (Just acct) acctPath <$> allCerts
         pure $ ApiDecodedTransaction
             { id = ApiT txId
             , fee = maybe (Quantity 0) (Quantity . fromIntegral . unCoin) fee
@@ -4435,7 +4443,7 @@ mkApiTransaction timeInterpreter wrk wid timeRefLens tx = do
     getApiAnyCertificates db ParsedTxCBOR{certificates} = do
         (rewardAccount, _, derivPath) <- liftHandler
             $ W.shelleyOnlyReadRewardAccount @s @k @n db wid
-        pure $ mkApiAnyCertificate rewardAccount derivPath <$> certificates
+        pure $ mkApiAnyCertificate (Just rewardAccount) derivPath <$> certificates
 
     depositIfAny :: Natural
     depositIfAny
