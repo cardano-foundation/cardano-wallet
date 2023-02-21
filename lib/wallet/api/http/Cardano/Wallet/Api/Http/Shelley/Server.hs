@@ -2970,8 +2970,7 @@ decodeSharedTransaction ctx (ApiT wid) (ApiSerialisedTransaction (ApiT sealed) _
         -- TODO minting/burning multisig
         , mint = emptyApiAssetMntBurn
         , burn = emptyApiAssetMntBurn
-        -- TODO delegation/withdrawals multisig
-        , certificates = []
+        , certificates = certs
         , depositsTaken =
             (Quantity . fromIntegral . unCoin . W.stakeKeyDeposit $ pp)
                 <$ filter ourRewardAccountRegistration certs

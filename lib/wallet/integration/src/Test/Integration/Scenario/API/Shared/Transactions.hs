@@ -26,6 +26,8 @@ import Cardano.Mnemonic
     ( MkSomeMnemonic (..) )
 import Cardano.Wallet.Api.Types
     ( ApiAddress
+    , ApiAnyCertificate (..)
+    , ApiCertificate (..)
     , ApiConstructTransaction (..)
     , ApiDecodedTransaction (..)
     , ApiScriptTemplate (..)
@@ -1665,6 +1667,25 @@ spec = describe "SHARED_TRANSACTIONS" $ do
             , expectField (#coinSelection . #depositsReturned) (`shouldBe` [])
             ]
 
+        let stakeKeyDerPathParty1 = NE.fromList
+                [ ApiT (DerivationIndex 2_147_485_502) --1854H
+                , ApiT (DerivationIndex 2_147_485_463) --1815
+                , ApiT (DerivationIndex 2_147_483_678) --30H
+                , ApiT (DerivationIndex 2)
+                , ApiT (DerivationIndex 0)
+                ]
+        let stakeKeyDerPathParty2 = NE.fromList
+                [ ApiT (DerivationIndex 2_147_485_502) --1854H
+                , ApiT (DerivationIndex 2_147_485_463) --1815
+                , ApiT (DerivationIndex 2_147_483_688) --40H
+                , ApiT (DerivationIndex 2)
+                , ApiT (DerivationIndex 0)
+                ]
+        let registerStakeKeyCert path =
+                WalletDelegationCertificate $ RegisterRewardAccount path
+        let delegatingCert path =
+                WalletDelegationCertificate $ JoinPool path (ApiT pool1)
+
         let txCbor1 = getFromResponse #transaction rTx1
         let decodePayload1 = Json (toJSON txCbor1)
         rDecodedTx1 <- request @(ApiDecodedTransaction n) ctx
@@ -1682,8 +1703,16 @@ spec = describe "SHARED_TRANSACTIONS" $ do
                 , expectField #depositsReturned (`shouldBe` [])
                 , expectField #depositsTaken (`shouldBe` [depositAmt])
                 ]
-        verify rDecodedTx1 decodedExpectations
-        verify rDecodedTx2 decodedExpectations
+        let certExpectation1 =
+                [expectField #certificates
+                     (`shouldBe` [ registerStakeKeyCert stakeKeyDerPathParty1
+                                 , delegatingCert stakeKeyDerPathParty1])]
+        verify rDecodedTx1 (decodedExpectations ++ certExpectation1)
+        let certExpectation2 =
+                [expectField #certificates
+                     (`shouldBe` [ registerStakeKeyCert stakeKeyDerPathParty2
+                                 , delegatingCert stakeKeyDerPathParty2])]
+        verify rDecodedTx2 (decodedExpectations ++ certExpectation2)
 
   where
      listSharedTransactions ctx w mStart mEnd mOrder = do
