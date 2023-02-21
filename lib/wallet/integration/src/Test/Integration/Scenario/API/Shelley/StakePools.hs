@@ -671,11 +671,12 @@ spec = describe "SHELLEY_STAKE_POOLS" $ do
                 ctx (Link.listStakePools arbitraryStake) Empty
 
         eventually "wallet join a pool" $ do
-            joinStakePool @n ctx (SpecificPool pool) (w, fixturePassphrase) >>= flip verify
-                [ expectResponseCode HTTP.status202
-                , expectField (#status . #getApiT) (`shouldBe` Pending)
-                , expectField (#direction . #getApiT) (`shouldBe` Outgoing)
-                ]
+            joinStakePool @n ctx (SpecificPool pool) (w, fixturePassphrase)
+                >>= flip verify
+                    [ expectResponseCode HTTP.status202
+                    , expectField (#status . #getApiT) (`shouldBe` Pending)
+                    , expectField (#direction . #getApiT) (`shouldBe` Outgoing)
+                    ]
 
     describe "STAKE_POOLS_JOIN_UNSIGNED_01" $ do
         it "Can join a pool that's not retiring" $ \ctx -> runResourceT $ do
