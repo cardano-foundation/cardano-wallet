@@ -371,7 +371,7 @@ import Cardano.Wallet.Primitive.AddressDerivation
     , WalletKey (..)
     , deriveRewardAccount
     , publicKey
-    , toCANetworkDistriminant
+    , stakeDerivationPath
     )
 import Cardano.Wallet.Primitive.AddressDerivation.Byron
     ( ByronKey, mkByronKeyFromMasterKey )
@@ -642,8 +642,7 @@ import UnliftIO.Concurrent
 import UnliftIO.Exception
     ( IOException, bracket, tryAnyDeep, tryJust )
 
-import qualified Cardano.Address as CA hiding
-    ( stakeAddress )
+import qualified Cardano.Address.Script as CA
 import qualified Cardano.Address.Style.Shelley as CA
 import qualified Cardano.Api as Cardano
 import qualified Cardano.Wallet as W
@@ -2942,14 +2941,15 @@ decodeSharedTransaction ctx (ApiT wid) (ApiSerialisedTransaction (ApiT sealed) _
         let scriptM =
                 flip (replaceCosignersWithVerKeys CA.Stake) minBound <$>
                 delegationTemplateM
+        let rewardAcctPath =
+                stakeDerivationPath $ Shared.derivationPrefix $ getState cp
         let rewardAcctM = case scriptM of
                 Just script ->
-                    let (Right rewardAcct) =
-                            CA.stakeAddress (toCANetworkDistriminant @n)
-                            (CA.DelegationFromScript script)
-                    in Just $ RewardAccount $ CA.unAddress rewardAcct
+                    let scriptHash =
+                            CA.unScriptHash $
+                            CA.toScriptHash script
+                    in Just $ RewardAccount scriptHash
                 Nothing -> Nothing
-        let rewardAcctPath = undefined
         let certs = mkApiAnyCertificate rewardAcctM rewardAcctPath <$> allCerts
         pure
             ( inputPaths
