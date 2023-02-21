@@ -3021,13 +3021,6 @@ decodeSharedTransaction ctx (ApiT wid) (ApiSerialisedTransaction (ApiT sealed) _
     tl = ctx ^. W.transactionLayer @SharedKey @'CredFromScriptK
     nl = ctx ^. W.networkLayer @IO
 
-    ourRewardAccountRegistration = \case
-        WalletDelegationCertificate (RegisterRewardAccount _) -> True
-        _ -> False
-    ourRewardAccountDeregistration = \case
-        WalletDelegationCertificate (QuitPool _) -> True
-        _ -> False
-
     emptyApiAssetMntBurn = ApiAssetMintBurn
         { tokens = []
         , walletPolicyKeyHash = Nothing
@@ -3228,12 +3221,16 @@ decodeTransaction
            ApiWithdrawalGeneral (ApiT rewardKey, Proxy @n) (Quantity $ fromIntegral c) Our
         else
            ApiWithdrawalGeneral (ApiT rewardKey, Proxy @n) (Quantity $ fromIntegral c) External
-    ourRewardAccountRegistration = \case
-        WalletDelegationCertificate (RegisterRewardAccount _) -> True
-        _ -> False
-    ourRewardAccountDeregistration = \case
-        WalletDelegationCertificate (QuitPool _) -> True
-        _ -> False
+
+ourRewardAccountRegistration :: ApiAnyCertificate n -> Bool
+ourRewardAccountRegistration = \case
+    WalletDelegationCertificate (RegisterRewardAccount _) -> True
+    _ -> False
+
+ourRewardAccountDeregistration :: ApiAnyCertificate n -> Bool
+ourRewardAccountDeregistration = \case
+    WalletDelegationCertificate (QuitPool _) -> True
+    _ -> False
 
 toInp
     :: forall n. (TxIn, Maybe (TxOut, NonEmpty DerivationIndex))
