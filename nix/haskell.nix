@@ -51,9 +51,11 @@ CHaP: haskell-nix: haskell-nix.cabalProject' [
 
       # setGitRev is a postInstall script to stamp executables with
       # version info. It uses the "gitrev" option.
+      # use buildPackages here, we want set-git-rev on the build machine even under
+      # cross compilation (e.g. to windows)
       setGitRevPostInstall = setGitRevPostInstall' config.gitrev;
       setGitRevPostInstall' = gitrev: ''
-        ${pkgs.haskellBuildUtils}/bin/set-git-rev "${gitrev}" $out/bin/*
+        ${pkgs.buildPackages.haskellBuildUtils}/bin/set-git-rev "${gitrev}" $out/bin/*
       '';
 
       rewriteLibsPostInstall = lib.optionalString (pkgs.stdenv.hostPlatform.isDarwin) ''
