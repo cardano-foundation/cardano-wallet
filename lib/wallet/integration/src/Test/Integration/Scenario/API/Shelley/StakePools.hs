@@ -17,6 +17,8 @@ module Test.Integration.Scenario.API.Shelley.StakePools
 import Prelude hiding
     ( id )
 
+import Cardano.Mnemonic
+    ( mnemonicToText )
 import Cardano.Pool.Metadata
     ( HealthCheckSMASH (..) )
 import Cardano.Pool.Metadata.Types
@@ -74,8 +76,6 @@ import Data.Quantity
     ( Quantity (..) )
 import Data.Set
     ( Set )
-import Data.Text
-    ( Text )
 import Data.Text.Class
     ( showT, toText )
 import Numeric.Natural
@@ -86,6 +86,8 @@ import Test.Hspec.Expectations.Lifted
     ( expectationFailure, shouldBe, shouldSatisfy )
 import Test.Hspec.Extra
     ( it )
+import Test.Integration.Faucet
+    ( preregKeyWallet )
 import Test.Integration.Framework.Context
     ( Context (..), PoolGarbageCollectionEvent (..) )
 import Test.Integration.Framework.DSL
@@ -654,14 +656,9 @@ spec = describe "SHELLEY_STAKE_POOLS" $ do
 
     it "STAKE_POOLS_JOIN_05 - \
         \Can join when stake key already exists" $ \ctx -> runResourceT $ do
-        let walletWithPreRegKey =
-                [ "over", "decorate", "flock", "badge", "beauty"
-                , "stamp" , "chest", "owner", "excess", "omit"
-                , "bid", "raccoon", "spin" , "reduce", "rival"
-                ] :: [Text]
         let payload = Json [json| {
                 "name": "Wallet with pre-registered stake key",
-                "mnemonic_sentence": #{walletWithPreRegKey},
+                "mnemonic_sentence": #{mnemonicToText preregKeyWallet},
                 "passphrase": #{fixturePassphrase}
                 } |]
 
