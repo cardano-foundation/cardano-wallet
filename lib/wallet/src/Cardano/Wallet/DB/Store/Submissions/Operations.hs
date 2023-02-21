@@ -52,12 +52,14 @@ import Control.Lens
     ( view, (^.) )
 import Control.Monad
     ( forM, forM_ )
+import Control.Monad.Class.MonadThrow
+    ( throwIO )
 import Control.Monad.Except
     ( ExceptT (..), runExceptT )
 import Control.Monad.Trans
     ( lift )
 import Data.DBVar
-    ( Store (..) )
+    ( Store (..), updateLoad )
 import Data.Delta
     ( Delta (..) )
 import Data.DeltaMap
@@ -173,8 +175,9 @@ mkStoreAnySubmissions
     => WalletId
     -> Store (SqlPersistT IO) d
 mkStoreAnySubmissions wid =
-    Store
-    { loadS = do
+    Store { loadS = load, writeS = write, updateS = update }
+  where
+    load = do
         slots <- selectList [SubmissionsSlotsWallet ==. wid] []
         txs <- selectList [SubmissionWallet ==. wid ] []
         pure $ case slots of
@@ -185,9 +188,9 @@ mkStoreAnySubmissions wid =
                 -- contains messed-up data.
             _ -> Left $ SomeException
                     $ ErrMoreThanOneSubmissionsSlotsDefinedForWallet wid
-    , writeS = syncSubmissions wid (Sbm.Submissions mempty 0 0)
-    , updateS = \base delta -> syncSubmissions wid base $ apply delta base
-    }
+    write = syncSubmissions wid (Sbm.Submissions mempty 0 0)
+    update = updateLoad load throwIO $ \base delta ->
+                syncSubmissions wid base $ apply delta base
 
 mkTransactions :: [Entity Submissions] -> Map TxId TxSubmissionsStatus
 mkTransactions xs = Map.fromList $ do
@@ -245,18 +248,18 @@ mkStoreWalletsSubmissions =
   where
     write reset = forM_ (Map.assocs reset) $ \(wid, ms) ->
         writeS (mkStoreAnySubmissions @DeltaTxSubmissions wid) ms
-    update :: WalletsSubmissions
+    update :: Maybe WalletsSubmissions
         -> DeltaMap WalletId DeltaTxSubmissions
         -> SqlPersistT IO ()
     update _ (Insert wid ms) = do
         writeS (mkStoreAnySubmissions @DeltaTxSubmissions wid) ms
     update _ (Delete wid) = do
         deleteWhere [SubmissionWallet ==. wid]
-    update old (Adjust wid xda) =
-        case Map.lookup wid old of
+    update mold da@(Adjust wid xda) = updateLoad load throwIO f mold da
+      where
+        f old _ = case Map.lookup wid old of
             Nothing -> pure ()
-            Just old' ->
-                updateS (mkStoreAnySubmissions wid) old' xda
+            Just old' -> updateS (mkStoreAnySubmissions wid) (Just old') xda
     load = runExceptT $ do
         wids <- lift $ fmap (view #submissionsSlotsWallet . entityVal)
             <$> selectList @SubmissionsSlots [] []

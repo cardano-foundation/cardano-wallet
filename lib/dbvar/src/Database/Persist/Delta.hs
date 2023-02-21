@@ -24,7 +24,7 @@ import Control.Monad.IO.Class
 import Data.Bifunctor
     ( first )
 import Data.DBVar
-    ( Store (..) )
+    ( Store (..), updateLoad )
 import Data.Delta
     ( Delta (..) )
 import Data.Proxy
@@ -122,7 +122,8 @@ newEntityStore
     :: forall row m.
     ( PersistRecordBackend row SqlBackend
     , ToBackendKey SqlBackend row, Show row
-    , MonadIO m )
+    , MonadIO m
+    )
     => m (Store SqlPersistM [DeltaDB Int row])
 newEntityStore = newDatabaseStore persistDB
 
@@ -134,8 +135,7 @@ newDatabaseStore
 newDatabaseStore db = do
     ref <- liftIO $ newIORef Nothing
     let rememberSupply table = liftIO $ writeIORef ref $ Just $ uids table
-    pure $ Store
-        { loadS   = do
+        load = do
             debug $ do
                 say "\n** loadS"
                 liftIO . print =<< selectAll db
@@ -147,17 +147,27 @@ newDatabaseStore db = do
                 Nothing      -> do
                     rememberSupply table
                     pure $ Right table
-        , writeS  = \table -> void $ do
+        write = \table -> void $ do
             deleteAll db -- delete any old data in the table first
             repsertMany db $ getPile $ Table.toRows table
             rememberSupply table
-        , updateS = \table ds -> do
-            debug $ do
-                say "\n** updateS table deltas"
-                sayShow table
-                sayShow ds
-            mapM_ (update1 table) ds
-            rememberSupply (apply ds table) -- need to use updated supply
+        update = updateLoad load
+                (\err -> debug $ do
+                    say "Error in updateLoadEither"
+                    sayShow err
+                )
+                $ \table ds -> do
+                    debug $ do
+                        say "\n** updateS table deltas"
+                        sayShow table
+                        sayShow ds
+                    mapM_ (update1 table) ds
+                    rememberSupply (apply ds table) -- need to use updated supply
+
+    pure $ Store
+        { loadS = load
+        , writeS = write
+        , updateS = update
         }
   where
     debug = when False

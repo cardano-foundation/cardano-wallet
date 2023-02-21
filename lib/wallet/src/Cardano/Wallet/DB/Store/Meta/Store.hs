@@ -63,7 +63,10 @@ mkStoreMetaTransactions :: WalletId
 mkStoreMetaTransactions
     wid = Store { loadS = load wid, writeS = write wid, updateS = update wid }
 
-update :: WalletId -> TxMetaHistory -> DeltaTxMetaHistory -> SqlPersistT IO ()
+update :: WalletId
+    -> Maybe TxMetaHistory
+    -> DeltaTxMetaHistory
+    -> SqlPersistT IO ()
 update wid _ change = case change of
     Expand txs -> putMetas txs
     Manipulate (PruneTxMetaHistory tid) -> do

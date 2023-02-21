@@ -75,7 +75,7 @@ prop_StoreUpdates toPropertyM store gen0 more = do
         writeS store a0
         -- first update is applied last!
         let updates = reverse $ zip das (drop 1 as)
-        forM_ updates $ \(da,a) -> updateS store a da
+        forM_ updates $ \(da,a) -> updateS store (Just a) da
         loadS store
 
     -- check whether the last value is correct
