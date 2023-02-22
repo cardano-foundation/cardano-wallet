@@ -34,7 +34,10 @@ import Cardano.Wallet.DB.Store.Transactions.Model
 import Cardano.Wallet.DB.Store.Transactions.Store
     ( mkStoreTransactions )
 import Cardano.Wallet.DB.Store.Wallets.Model
-    ( DeltaTxWalletsHistory (..), walletsLinkedTransactions )
+    ( DeltaTxWalletsHistory (..)
+    , transactionsToDeleteOnRollback
+    , walletsLinkedTransactions
+    )
 import Control.Applicative
     ( liftA2 )
 import Control.Monad
@@ -101,11 +104,14 @@ mkStoreTxWalletsHistory =
           writeS mkStoreTransactions txSet
           writeS mkStoreWalletsMeta txMetaHistory
     , updateS = \(txSet,wmetas) -> \case
-            ChangeTxMetaWalletsHistory wid change
-                -> updateS mkStoreWalletsMeta wmetas
-                $ Adjust wid change
-            GarbageCollectTxWalletsHistory ->
-                garbageCollectTxWalletsHistory txSet wmetas
+            RollbackTxWalletsHistory wid slot -> do
+                updateS mkStoreWalletsMeta wmetas
+                    $ Adjust wid
+                    $ TxMetaStore.Manipulate
+                    $ TxMetaStore.RollBackTxMetaHistory slot
+                let deletions = transactionsToDeleteOnRollback wid slot wmetas
+                forM_ deletions
+                    $ updateS mkStoreTransactions txSet . DeleteTx
             RemoveWallet wid -> do
                 updateS mkStoreWalletsMeta wmetas $ Delete wid
                 let wmetas2 = Map.delete wid wmetas

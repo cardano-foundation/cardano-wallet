@@ -13,10 +13,10 @@ import Cardano.Wallet.DB.Arbitrary
     ()
 import Cardano.Wallet.DB.Fixtures
     ( WalletProperty, logScale, withDBInMemory, withInitializedWalletProp )
+import Cardano.Wallet.DB.Sqlite.Schema
+    ( TxMeta (..) )
 import Cardano.Wallet.DB.Store.Meta.Model
-    ( DeltaTxMetaHistory (..) )
-import Cardano.Wallet.DB.Store.Meta.ModelSpec
-    ( genDeltasForManipulate )
+    ( TxMetaHistory (..) )
 import Cardano.Wallet.DB.Store.Wallets.Model
     ( DeltaTxWalletsHistory (..) )
 import Cardano.Wallet.DB.Store.Wallets.Store
@@ -26,7 +26,7 @@ import Test.DBVar
 import Test.Hspec
     ( Spec, around, describe, it )
 import Test.QuickCheck
-    ( NonEmptyList (getNonEmpty), arbitrary, frequency, property )
+    ( Gen, NonEmptyList (..), arbitrary, choose, frequency, property )
 
 import qualified Cardano.Wallet.Primitive.Types as W
 import qualified Data.Map.Strict as Map
@@ -50,17 +50,17 @@ prop_StoreWalletsLaws =
       (logScale . genDeltaTxWallets wid)
 
 genDeltaTxWallets :: W.WalletId -> GenDelta DeltaTxWalletsHistory
-genDeltaTxWallets wid (_, metaMap) = do
+genDeltaTxWallets wid (_,metaMap) = do
   let metaGens = case Map.lookup wid metaMap of
         Nothing -> []
         Just metas ->
-          [ ( 10,
-              ChangeTxMetaWalletsHistory wid . Manipulate
-                <$> frequency (genDeltasForManipulate metas)
-            ),
-            (5, pure GarbageCollectTxWalletsHistory),
-            (1, pure $ RemoveWallet wid)
+          [ (5, RollbackTxWalletsHistory wid . txMetaSlot
+                <$> chooseFromMap (relations metas) )
+          , (1, pure $ RemoveWallet wid)
           ]
   frequency $
     (10, ExpandTxWalletsHistory wid . getNonEmpty <$> arbitrary) :
     metaGens
+
+chooseFromMap :: Map.Map k a -> Gen a
+chooseFromMap m = snd . (`Map.elemAt` m) <$> choose (0, Map.size m-1)
