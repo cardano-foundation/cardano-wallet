@@ -30,6 +30,7 @@ module Data.DBVar (
 
     -- * Testing
     , embedStore'
+    , updateLoad
     ) where
 
 import Prelude
@@ -113,7 +114,7 @@ initDBVar
     -> m (DBVar m da)
 initDBVar store v = do
     writeS store v
-    newWithCache (updateS store) v
+    newWithCache (updateS store . Just) v
 
 -- | Create a 'DBVar' by loading its value from an existing 'Store'
 -- Throws an exception if the value cannot be loaded.
@@ -126,7 +127,7 @@ loadDBVar
 loadDBVar store =
     loadS store >>= \case
         Left  e -> throwIO e
-        Right a -> newWithCache (updateS store) a
+        Right a -> newWithCache (updateS store . Just) a
 
 -- | Create 'DBVar' from an initial value and an update function
 -- using a 'TVar' as in-memory cache.
@@ -244,7 +245,7 @@ data Store m da = Store
     { loadS   :: m (Either SomeException (Base da))
     , writeS  :: Base da -> m ()
     , updateS
-        :: Base da -- old value
+        :: Maybe (Base da) -- old value, for performance
         -> da -- delta to new value
         -> m () -- write new value
     }
@@ -379,14 +380,14 @@ embedStore embed bstore = do
             mask $ \restore -> do
                 restore $ writeS bstore (state_ mab)
                 writeMachine mab
-        update a da = do
+        update = updateLoad load throwIO $ \a da -> do
             readMachine >>= \case
                 Nothing   -> do -- we were missing the initial write
                     write (apply da a)
                 Just mab1 -> do -- advance the machine by one step
                     let (db, mab2) = step_ mab1 (a,da)
                     mask $ \restore -> do
-                        restore $ updateS bstore (state_ mab2) db
+                        restore $ updateS bstore (Just $ state_ mab2) db
                         writeMachine mab2
     pure $ Store {loadS=load,writeS=write,updateS=update}
 
@@ -399,13 +400,23 @@ embedStore embed bstore = do
 embedStore'
     :: (Monad m, MonadThrow m)
     => Embedding' da db -> Store m db -> Store m da
-embedStore' Embedding'{load,write,update} Store{loadS,writeS,updateS} = Store
-    { loadS   = (load =<<) <$> loadS
-    , writeS  = writeS . write
-    , updateS = \a da -> loadS >>= \case
-            Left  _ -> pure ()
-            Right b -> updateS b (update a b da)
-    }
+embedStore' Embedding'{load,write,update} Store{loadS,writeS,updateS} =
+    let
+        loadL =  (load =<<) <$> loadS
+        updateL = \ma da -> case ma of
+            Just a -> loadS >>= \case
+                Left  _ -> pure ()
+                Right b -> updateS (Just b) (update a b da)
+            Nothing -> do
+                ea <- loadL
+                case ea of
+                    Left  e -> throwIO e
+                    Right a -> updateL (Just a) da
+    in Store
+        { loadS   = loadL
+        , writeS  = writeS . write
+        , updateS = updateL
+        }
 
 -- | Combine two 'Stores' into a store for pairs.
 --
@@ -419,5 +430,24 @@ pairStores :: Monad m => Store m da -> Store m db -> Store m (da, db)
 pairStores sa sb = Store
     { loadS = liftA2 (,) <$> loadS sa <*> loadS sb
     , writeS = \(a,b) -> writeS sa a >> writeS sb b
-    , updateS = \(a,b) (da,db) -> updateS sa a da >> updateS sb b db
+    , updateS = \mi (da,db) ->
+        case mi of
+            Nothing -> updateS sa Nothing da >> updateS sb Nothing db
+            Just (a,b) -> updateS sa (Just a) da >> updateS sb (Just b) db
     }
+
+-- | Helper for implementing `updateS`
+-- for the case where a value is not yet loaded.
+updateLoad :: (Exception e, Monad m)
+    => m (Either e t) -- ^ How to load the value.
+    -> (e -> m b) -- ^ What to do with the error when loading the value.
+    -> (t -> da -> m b) -- ^ What to do with the value.
+    -> Maybe t -- ^ Value, maybe loaded, maybe not.
+    -> da -- ^ Delta.
+    -> m b
+updateLoad load handle update' Nothing da = do
+    ea <- load
+    case ea of
+        Left e -> handle e
+        Right x -> update' x da
+updateLoad _load _  update' (Just x) da = update' x da

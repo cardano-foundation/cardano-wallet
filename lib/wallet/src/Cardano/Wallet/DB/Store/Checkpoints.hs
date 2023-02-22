@@ -198,11 +198,7 @@ mkStoreWallets = Store{loadS=load,writeS=write,updateS=update}
         --  to be explicit in our code.
         deleteWhere [CheckpointWalletId ==. wid]
     update _ (Adjust wid da) =
-        updateS (mkStoreWallet wid) undefined da
-        -- FIXME LATER during ADP-1043:
-        --   Remove 'undefined'.
-        --   Probably needs a change to 'Data.DBVar.updateS'
-        --   to take a 'Maybe a' as parameter instead of an 'a'.
+        updateS (mkStoreWallet wid) Nothing da
 
     load = do
         wids <- fmap (view #walId . entityVal) <$> selectAll
