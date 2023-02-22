@@ -137,6 +137,7 @@ import qualified Cardano.Api as Cardano
 import qualified Cardano.Api.Shelley as Cardano
 import qualified Cardano.Wallet.Primitive.Types.TokenMap as TokenMap
 import qualified Cardano.Wallet.Write.Tx as WriteTx
+import qualified Data.List as L
 import qualified Data.Map.Strict as Map
 
 data TransactionLayer k ktype tx = TransactionLayer
@@ -505,7 +506,7 @@ emptyWitnessCount = WitnessCount
 -- WitnessCount is needed only during or after signing, in other phases it is not used.
 data WitnessCountCtx =
       ShelleyWalletCtx KeyHash -- Policy
-    | SharedWalletCtx
+    | SharedWalletCtx [KeyHash] -- Delegation key hashes of all cosigners
     | AnyWitnessCountCtx
     deriving (Eq, Generic, Show)
     deriving anyclass NFData
@@ -517,7 +518,13 @@ toKeyRole witCtx (Hash key) = case witCtx of
             Policy
         else
             Unknown
-    SharedWalletCtx -> Payment
+    SharedWalletCtx stakingKeyHashes ->
+        let toStakeKey (KeyHash _ k) = k
+            isStakeKey = L.elem key (map toStakeKey stakingKeyHashes)
+        in if isStakeKey then
+               Delegation
+           else
+               Payment
     AnyWitnessCountCtx -> Unknown
 
 data ErrMkTransaction

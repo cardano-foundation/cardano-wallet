@@ -25,6 +25,7 @@ module Cardano.Wallet.Primitive.AddressDerivation.Shared
     -- * Generation and derivation
     , generateKeyFromSeed
     , unsafeGenerateKeyFromSeed
+    , allCosignerStakingKeys
 
     , purposeCIP1854
     ) where
@@ -33,6 +34,8 @@ import Prelude
 
 import Cardano.Address.Derivation
     ( xpubPublicKey )
+import Cardano.Address.Script
+    ( KeyHash, ScriptTemplate (..) )
 import Cardano.Crypto.Wallet
     ( XPrv, XPub, toXPub, unXPrv, unXPub, xprv, xpub )
 import Cardano.Mnemonic
@@ -47,9 +50,11 @@ import Cardano.Wallet.Primitive.AddressDerivation
     , NetworkDiscriminant (..)
     , PersistPrivateKey (..)
     , PersistPublicKey (..)
+    , Role (..)
     , SoftDerivation (..)
     , WalletKey (..)
     , fromHex
+    , hashVerificationKey
     , hex
     )
 import Cardano.Wallet.Primitive.AddressDerivation.SharedKey
@@ -81,7 +86,9 @@ import Data.ByteString
 import Data.Proxy
     ( Proxy (..) )
 
+import qualified Cardano.Address.Script as CA
 import qualified Data.ByteString as BS
+import qualified Data.Map.Strict as Map
 
 {-------------------------------------------------------------------------------
                             Sequential Derivation
@@ -121,6 +128,17 @@ instance HardDerivation SharedKey where
 instance SoftDerivation SharedKey where
     deriveAddressPublicKey (SharedKey accXPub) role ix =
         SharedKey $ deriveAddressPublicKeyShelley accXPub role ix
+
+allCosignerStakingKeys
+    :: ScriptTemplate
+    -> [KeyHash]
+allCosignerStakingKeys (ScriptTemplate xpubs _) =
+    map toKeyHash (Map.elems xpubs)
+  where
+    stakingKey accXPub =
+        deriveAddressPublicKey (SharedKey accXPub) MutableAccount minBound
+    toKeyHash =
+        hashVerificationKey CA.Delegation . stakingKey
 
 {-------------------------------------------------------------------------------
                             WalletKey implementation

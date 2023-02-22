@@ -1710,7 +1710,7 @@ emptySharedWalletDelegating ctx = do
                    { "cosigner#0": #{accXPubDerivedA}
                    , "cosigner#1": #{accXPubDerivedB}},
                  "template":
-                     { "any":
+                     { "all":
                         [ "cosigner#0",
                           "cosigner#1"
                         ]
@@ -1742,7 +1742,7 @@ emptySharedWalletDelegating ctx = do
                    { "cosigner#0": #{accXPubDerivedA}
                    , "cosigner#1": #{accXPubDerivedB}},
                  "template":
-                     { "any":
+                     { "all":
                         [ "cosigner#0",
                           "cosigner#1"
                         ]
