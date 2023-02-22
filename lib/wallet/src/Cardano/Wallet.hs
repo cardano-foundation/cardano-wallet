@@ -1251,8 +1251,9 @@ mkExternalWithdrawal netLayer txLayer era mnemonic = do
             someRewardAccount @ShelleyKey mnemonic
     balance <- getCachedRewardAccountBalance netLayer rewardAccount
     pp <- currentProtocolParameters netLayer
+    let (xprv, _acct , _path) = someRewardAccount @ShelleyKey mnemonic
     pure $ checkRewardIsWorthTxCost txLayer pp era balance $>
-        WithdrawalExternal rewardAccount derivationPath balance
+        WithdrawalExternal rewardAccount derivationPath balance xprv
 
 mkSelfWithdrawal
     :: forall ktype tx (n :: NetworkDiscriminant) block
@@ -1268,9 +1269,9 @@ mkSelfWithdrawal netLayer txLayer era db wallet = do
             >>= either (throwIO . ExceptionReadRewardAccount) pure
     balance <- getCachedRewardAccountBalance netLayer rewardAccount
     pp <- currentProtocolParameters netLayer
-    pure $ WithdrawalSelf rewardAccount derivationPath
-        $ either (\_notWorth -> Coin 0) (\_worth -> balance)
-        $ checkRewardIsWorthTxCost txLayer pp era balance
+    return $ case checkRewardIsWorthTxCost txLayer pp era balance of
+        Left ErrWithdrawalNotBeneficial -> NoWithdrawal
+        Right () -> WithdrawalSelf rewardAccount derivationPath balance
 
 -- | Unsafe version of the `mkSelfWithdrawal` function that throws an exception
 -- when applied to a non-shelley or a non-sequential wallet.
@@ -1693,7 +1694,7 @@ selectionToUnsignedTx wdrl sel s =
             []
         WithdrawalSelf acct path c ->
             [(acct, c, path)]
-        WithdrawalExternal acct path c ->
+        WithdrawalExternal acct path c _ ->
             [(acct, c, path)]
 
 data CoinSelection = CoinSelection
@@ -1950,6 +1951,8 @@ signTransaction
   -- ^ Preferred latest era
   -> (Address -> Maybe (k ktype XPrv, Passphrase "encryption"))
   -- ^ The wallets address-key lookup function
+  -> (Maybe (XPrv, Passphrase "encryption"))
+  -- ^ Optional external reward account
   -> (k 'RootK XPrv, Passphrase "encryption")
   -- ^ The root key of the wallet
   -> UTxO
@@ -1960,11 +1963,14 @@ signTransaction
   -> SealedTx
   -- ^ The original transaction, with additional signatures added where
   -- necessary
-signTransaction tl preferredLatestEra keyLookup (rootKey, rootPwd) utxo =
+signTransaction
+    tl preferredLatestEra keyLookup mextraRewardAcc (rootKey, rootPwd) utxo =
     let
-        rewardAcnt :: (XPrv, Passphrase "encryption")
-        rewardAcnt =
-            (getRawKey $ deriveRewardAccount @k rootPwd rootKey, rootPwd)
+        rewardAcnts :: [(XPrv, Passphrase "encryption")]
+        rewardAcnts = ourRewardAcc : maybeToList mextraRewardAcc
+          where
+            ourRewardAcc =
+                (getRawKey $ deriveRewardAccount @k rootPwd rootKey, rootPwd)
 
         policyKey :: (KeyHash, XPrv, Passphrase "encryption")
         policyKey =
@@ -1983,7 +1989,7 @@ signTransaction tl preferredLatestEra keyLookup (rootKey, rootPwd) utxo =
         addVkWitnesses
             tl
             preferredLatestEra
-            rewardAcnt
+            rewardAcnts
             policyKey
             keyLookup
             inputResolver
@@ -2126,11 +2132,18 @@ buildAndSignTransactionPure
                 (toBalanceTxPParams protocolParams) preSelection txCtx
         put wallet { getState = updatedWalletState }
 
+        let mExternalRewardAccount = case view #txWithdrawal txCtx of
+                WithdrawalExternal _ _ _ externalXPrv
+                    -> Just (externalXPrv, mempty) -- no passphrase
+                _
+                    -> Nothing
+
         let passphrase = preparePassphrase passphraseScheme userPassphrase
             signedTx = signTransaction @k @'CredFromKeyK
                 txLayer
                 anyCardanoEra
                 (isOwned (getState wallet) (rootKey, passphrase))
+                mExternalRewardAccount
                 (rootKey, passphrase)
                 (wallet ^. #utxo)
                 (sealedTxFromCardano $ inAnyCardanoEra unsignedBalancedTx)
