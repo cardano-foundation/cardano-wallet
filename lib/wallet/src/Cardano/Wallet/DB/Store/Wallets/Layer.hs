@@ -33,7 +33,7 @@ import Cardano.Wallet.DB.Store.Wallets.Model
 import Cardano.Wallet.DB.Store.Wallets.Store
     ( mkStoreTxWalletsHistory, mkStoreWalletsMeta )
 import Data.DBVar
-    ( Store (..) )
+    ( Store (..), newCachedStore )
 import Data.Foldable
     ( toList )
 import Database.Persist.Sql
@@ -63,10 +63,10 @@ newQueryStoreTxWalletsHistory
 newQueryStoreTxWalletsHistory = do
     let txsQueryStore = TxSet.mkDBTxSet
 
-    let storeWalletsMeta = mkStoreWalletsMeta
+    storeWalletsMeta <- newCachedStore mkStoreWalletsMeta
     let storeTxWalletsHistory = mkStoreTxWalletsHistory
             (store txsQueryStore)   -- on disk
-            storeWalletsMeta        -- on disk
+            storeWalletsMeta        -- in memory
 
     let readAllMetas :: W.WalletId -> m [TxMeta]
         readAllMetas wid = do
