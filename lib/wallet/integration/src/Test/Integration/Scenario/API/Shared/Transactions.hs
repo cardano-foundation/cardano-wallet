@@ -108,7 +108,7 @@ import Numeric.Natural
 import Test.Hspec
     ( SpecWith, describe )
 import Test.Hspec.Expectations.Lifted
-    ( shouldBe, shouldNotContain, shouldSatisfy )
+    ( shouldBe, shouldContain, shouldNotContain, shouldSatisfy )
 import Test.Hspec.Extra
     ( it )
 import Test.Integration.Framework.DSL
@@ -1825,16 +1825,40 @@ spec = describe "SHARED_TRANSACTIONS" $ do
                 , expectField #depositsReturned (`shouldBe` [])
                 , expectField #depositsTaken (`shouldBe` [depositAmt])
                 ]
+        let (ApiScriptTemplate pScriptTemplate) =
+                party1 ^. #paymentScriptTemplate
+        let paymentScript =
+                ApiT $ NativeExplicitScript
+                (replaceCosignersWithVerKeys
+                    CA.UTxOExternal pScriptTemplate (Index 1))
+                ViaSpending
+        let (Just (ApiScriptTemplate dScriptTemplate)) =
+                party1 ^. #delegationScriptTemplate
+        let delegationScript =
+                ApiT $ NativeExplicitScript
+                (replaceCosignersWithVerKeys
+                    CA.Stake dScriptTemplate (Index 0))
+                ViaSpending
+        let witsExp1 =
+                [ expectField (#witnessCount . #scripts)
+                      (`shouldContain` [delegationScript])
+                , expectField (#witnessCount . #scripts)
+                      (`shouldContain` [paymentScript])
+                , expectField (#witnessCount . #verificationKey)
+                      (`shouldBe` 0)
+                , expectField (#witnessCount . #bootstrap)
+                      (`shouldBe` 0)]
+
         let certExpectation1 =
                 [expectField #certificates
                      (`shouldBe` [ registerStakeKeyCert stakeKeyDerPathParty1
                                  , delegatingCert stakeKeyDerPathParty1])]
-        verify rDecodedTx1 (decodedExpectations ++ certExpectation1)
+        verify rDecodedTx1 (decodedExpectations ++ certExpectation1 ++ witsExp1)
         let certExpectation2 =
                 [expectField #certificates
                      (`shouldBe` [ registerStakeKeyCert stakeKeyDerPathParty2
                                  , delegatingCert stakeKeyDerPathParty2])]
-        verify rDecodedTx2 (decodedExpectations ++ certExpectation2)
+        verify rDecodedTx2 (decodedExpectations ++ certExpectation2 ++ witsExp1)
 
   where
      listSharedTransactions ctx w mStart mEnd mOrder mLimit = do
