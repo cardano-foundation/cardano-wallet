@@ -700,7 +700,7 @@ prop_signTransaction_addsRewardAccountKey
 
                 sealedTx = sealedTxFromCardano' $ Cardano.Tx txBody wits
                 sealedTx' = signTransaction tl (AnyCardanoEra era)
-                    (const Nothing) rootK utxo sealedTx
+                    (const Nothing) Nothing rootK utxo sealedTx
 
                 expectedWits :: [InAnyCardanoEra Cardano.KeyWitness]
                 expectedWits = InAnyCardanoEra era <$>
@@ -777,6 +777,7 @@ prop_signTransaction_addsExtraKeyWitnesses
             sealedTx' = signTransaction tl
                 (AnyCardanoEra era)
                 (lookupFnFromKeys extraKeys)
+                Nothing
                 (first liftRawKey rootK)
                 utxo
                 sealedTx
@@ -911,6 +912,7 @@ prop_signTransaction_addsTxInWitnesses
                 sealedTx' = signTransaction tl
                     (AnyCardanoEra era)
                     (lookupFnFromKeys extraKeys)
+                    Nothing
                     (first liftRawKey rootK)
                     utxo
                     sealedTx
@@ -964,6 +966,7 @@ prop_signTransaction_addsTxInCollateralWitnesses
                     sealedTx' = signTransaction tl
                         (AnyCardanoEra era)
                         (lookupFnFromKeys extraKeys)
+                        Nothing
                         (first liftRawKey rootK)
                         utxo
                         sealedTx
@@ -1000,6 +1003,7 @@ prop_signTransaction_neverRemovesWitnesses
             sealedTx' = signTransaction tl
                 (AnyCardanoEra era)
                 (lookupFnFromKeys extraKeys)
+                Nothing
                 (first liftRawKey rootK)
                 utxo
                 sealedTx
@@ -1032,6 +1036,7 @@ prop_signTransaction_neverChangesTxBody
             sealedTx' = signTransaction tl
                 (AnyCardanoEra era)
                 (lookupFnFromKeys extraKeys)
+                Nothing
                 (first liftRawKey rootK)
                 utxo
                 sealedTx
@@ -1069,6 +1074,7 @@ prop_signTransaction_preservesScriptIntegrity (AnyCardanoEra era) rootK utxo =
             sealedTx' = signTransaction tl
                 (AnyCardanoEra era)
                 (const Nothing)
+                Nothing
                 (first liftRawKey rootK)
                 utxo
                 sealedTx
