@@ -51,13 +51,15 @@ CHaP: haskell-nix: haskell-nix.cabalProject' [
 
       # setGitRev is a postInstall script to stamp executables with
       # version info. It uses the "gitrev" option.
+      # use buildPackages here, we want set-git-rev on the build machine even under
+      # cross compilation (e.g. to windows)
       setGitRevPostInstall = setGitRevPostInstall' config.gitrev;
       setGitRevPostInstall' = gitrev: ''
-        ${pkgs.buildPackages.iohk-nix-utils}/bin/set-git-rev "${gitrev}" $out/bin/*
+        ${pkgs.buildPackages.haskellBuildUtils}/bin/set-git-rev "${gitrev}" $out/bin/*
       '';
 
       rewriteLibsPostInstall = lib.optionalString (pkgs.stdenv.hostPlatform.isDarwin) ''
-        export PATH=$PATH:${lib.makeBinPath (with pkgs.buildPackages; [ iohk-nix-utils binutils nix ])}
+        export PATH=$PATH:${lib.makeBinPath (with pkgs.buildPackages; [ haskellBuildUtils binutils nix ])}
         rewrite-libs $out/bin $out/bin/*
       '';
 
@@ -103,18 +105,20 @@ CHaP: haskell-nix: haskell-nix.cabalProject' [
       shell = {
         name = "cardano-wallet-shell${lib.optionalString config.profiling "-profiled"}";
         packages = ps: builtins.attrValues (haskellLib.selectProjectPackages ps);
-
-        # Should prevents cabal from choosing alternate plans, so that
-        # *all* dependencies are provided by Nix....
-        # but: https://github.com/input-output-hk/haskell.nix/issues/231
-        # exactDeps = true;
-
-        # fixme: this is needed to prevent Haskell.nix double-evaluating hoogle
-        tools.hoogle = {
-          inherit (pkgs.haskell-build-tools.hoogle) version;
-          inherit (pkgs.haskell-build-tools.hoogle.project) index-state;
-          checkMaterialization = false;
-          materialized = ./materialized + "/hoogle";
+        tools = {
+          cabal-cache.version = "1.0.2.1";
+          haskell-language-server = {
+            version = "1.8.0.0";
+            modules = [{ reinstallableLibGhc = false; }];
+          };
+          hie-bios = {
+            modules = [{ reinstallableLibGhc = false; }];
+          };
+          hoogle.version = "5.0.18.1";
+          hlint.version = "3.3.1";
+          lentil.version = "1.5.2.0";
+          stylish-haskell.version = "0.11.0.3";
+          weeder.version = "2.1.3";
         };
         nativeBuildInputs = with buildProject.hsPkgs; [
           cardano-node.components.exes.cardano-node
@@ -134,9 +138,7 @@ CHaP: haskell-nix: haskell-nix.cabalProject' [
           yq
           nixWrapped
           cabalWrapped
-        ] ++ lib.filter
-          (drv: lib.isDerivation drv && drv.name != "regenerate-materialized-nix")
-          (lib.attrValues haskell-build-tools));
+        ]);
       };
 
       inputMap = { "https://input-output-hk.github.io/cardano-haskell-packages" = CHaP; };

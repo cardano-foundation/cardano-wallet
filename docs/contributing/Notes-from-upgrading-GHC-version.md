@@ -5,6 +5,7 @@ Here is a reference PR that upgrades to GHC 8.10.7: https://github.com/input-out
 **WARNING**: Updating haskell.nix and/or GHC changes a lot of the build environment. You should expect to spend time fixing breakages.
 
 ## Process
+
 - Update "with-compiler" in cabal.project:
 ```diff
 diff --git a/cabal.project b/cabal.project
@@ -22,63 +23,11 @@ index 1ba2edf625..109534719a 100644
      lib/wallet/
 ```
 
-- Update "compiler-nix-name" in nix/overlays/build-tools
-
-```diff
-diff --git a/nix/overlays/build-tools.nix b/nix/overlays/build-tools.nix
-index 28c46f2e4df..6b0778eb5d0 100644
---- a/nix/overlays/build-tools.nix
-+++ b/nix/overlays/build-tools.nix
-@@ -41,7 +41,7 @@ let
-     weeder.version                  = "2.1.3";
-   };
- 
--  compiler-nix-name = "ghc8105";  # TODO: get it from the project
-+  compiler-nix-name = "ghc8107";  # TODO: get it from the project
- in
- 
- pkgs: super: let
-```
-
-- Update haskell.nix `niv update haskell.nix -b master`.
-- Run nix/regenerate.sh.
+- Update haskell.nix `nix flake lock --update-input haskellNix`.
 
 ## Troubleshooting
 
 The following is a list of issues encountered so far while executing this process:
-
-### nix/regenerate.sh fails
-
-For example:
-
-```
-error: assertion ((final).buildPackages.haskell-nix.compiler."${compiler-nix-name'}".version == (final).buildPackages.haskell-nix.compiler."${(((plan-pkgs).pkgs  hackage)).compiler.nix-name}".version) failed at /nix/store/zs00ba6w5972g0sy95r89z4nzbm16kqi-haskell.nix-src/overlays/haskell.nix:152:15
-```
-
-This particular issue was caused by a mismatch in the GHC versions of the Nix expressions updated above, and the GHC version listed in the materialized (cached) files. Regenerate should change the cached files, but instead was failing with the above error.
-
-To fix this, I had to:
-
-- Navigate to overlays/build-tools.nix, and change the following lines:
-
-```diff
-diff --git a/nix/overlays/build-tools.nix b/nix/overlays/build-tools.nix
-index 28c46f2e4..3e80caad4 100644
---- a/nix/overlays/build-tools.nix
-+++ b/nix/overlays/build-tools.nix
-@@ -50,7 +50,7 @@ pkgs: super: let
-   mkTool = name: args: pkgs.haskell-nix.hackage-package ({
-     inherit name index-state compiler-nix-name;
-   } // pkgs.lib.optionalAttrs enableMaterialization {
--    checkMaterialization = false;
-+    checkMaterialization = true;
-     materialized = ../materialized + "/${name}";
-   } // builtins.removeAttrs args ["exe"]);
-```
-
-Re-run nix/regenerate.sh and it should fail with an error that contains an `updateMaterialized` script to run. Run that script, and return `checkMaterialization` to `false`.
-
-Alternatively, running `s/ghc8105/ghc8107/`, then re-running nix/regenerate.sh, would have done the trick.
 
 ### Compile-time error when building a package or dependency
 
