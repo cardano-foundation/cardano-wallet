@@ -167,8 +167,8 @@ data TransactionLayer k ktype tx = TransactionLayer
     , addVkWitnesses
         :: AnyCardanoEra
             -- Preferred latest era
-        -> (XPrv, Passphrase "encryption")
-            -- Reward account
+        -> [(XPrv, Passphrase "encryption")]
+            -- Reward accounts
         -> (KeyHash, XPrv, Passphrase "encryption")
             -- policy public and private key
         -> (Address -> Maybe (k ktype XPrv, Passphrase "encryption"))
@@ -281,7 +281,7 @@ data TransactionCtx = TransactionCtx
     -- ^ Extra fees. Some parts of a transaction are not representable using
     -- cardano-wallet types, which makes it useful to account for them like
     -- this. For instance: datums.
-    } deriving (Show, Generic, Eq)
+    } deriving Generic
 
 -- | Represents a preliminary selection of tx outputs typically made by user.
 newtype PreSelection = PreSelection { outputs :: [TxOut] }
@@ -290,14 +290,18 @@ newtype PreSelection = PreSelection { outputs :: [TxOut] }
 
 data Withdrawal
     = WithdrawalSelf RewardAccount (NonEmpty DerivationIndex) Coin
-    | WithdrawalExternal RewardAccount (NonEmpty DerivationIndex) Coin
+    | WithdrawalExternal
+        RewardAccount
+        (NonEmpty DerivationIndex)
+        Coin
+        XPrv
+        -- ^ The 'XPrv' to be used for signing. Must be unencrypted.
     | NoWithdrawal
-    deriving (Show, Eq)
 
 withdrawalToCoin :: Withdrawal -> Coin
 withdrawalToCoin = \case
     WithdrawalSelf _ _ c -> c
-    WithdrawalExternal _ _ c -> c
+    WithdrawalExternal _ _ c _ -> c
     NoWithdrawal -> Coin 0
 
 -- | A default context with sensible placeholder. Can be used to reduce

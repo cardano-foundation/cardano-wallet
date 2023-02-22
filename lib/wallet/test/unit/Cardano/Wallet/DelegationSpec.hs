@@ -1,5 +1,6 @@
 {-# LANGUAGE FlexibleContexts #-}
 {-# LANGUAGE FlexibleInstances #-}
+{-# LANGUAGE StandaloneDeriving #-}
 {-# LANGUAGE UndecidableInstances #-}
 
 {-# OPTIONS_GHC -Wno-orphans #-}
@@ -10,6 +11,8 @@ module Cardano.Wallet.DelegationSpec
 
 import Prelude
 
+import Cardano.Address.Derivation
+    ( XPrv, xprvFromBytes, xprvToBytes )
 import Cardano.Pool.Types
     ( PoolId (..) )
 import Cardano.Wallet.Primitive.AddressDerivation
@@ -28,10 +31,12 @@ import Cardano.Wallet.Primitive.Types.RewardAccount
     ( RewardAccount (..) )
 import Cardano.Wallet.Transaction
     ( Withdrawal (..) )
+import Data.Function
+    ( on )
 import Data.List.NonEmpty
     ( NonEmpty (..) )
 import Data.Maybe
-    ( isNothing )
+    ( fromJust, isNothing )
 import Data.Word
     ( Word64 )
 import Data.Word.Odd
@@ -55,6 +60,7 @@ import Test.QuickCheck
     , property
     , shrinkIntegral
     , vector
+    , vectorOf
     , (.&&.)
     , (===)
     )
@@ -221,9 +227,20 @@ instance Arbitrary EpochNo => Arbitrary WalletDelegationNext where
 instance Arbitrary Withdrawal where
     arbitrary = oneof
         [ WithdrawalSelf <$> arbitrary <*> arbitrary <*> arbitrary
-        , WithdrawalExternal <$> arbitrary <*> arbitrary <*> arbitrary
+        , applyArbitrary4 WithdrawalExternal
         , pure NoWithdrawal
         ]
+
+instance Arbitrary XPrv where
+    arbitrary = fromJust . xprvFromBytes . BS.pack <$> vectorOf 96 arbitrary
+
+instance Show XPrv where
+    show = show . xprvToBytes
+
+instance Eq XPrv where
+    (==) = (==) `on` xprvToBytes
+
+deriving instance Show Withdrawal
 
 instance Arbitrary RewardAccount where
     arbitrary = RewardAccount . BS.pack <$> vector 28
