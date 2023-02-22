@@ -397,6 +397,8 @@ import Cardano.Wallet.Primitive.AddressDerivation.MintBurn
     , toTokenPolicyId
     , withinSlotInterval
     )
+import Cardano.Wallet.Primitive.AddressDerivation.Shared
+    ( allCosignerStakingKeys )
 import Cardano.Wallet.Primitive.AddressDerivation.SharedKey
     ( SharedKey (..), replaceCosignersWithVerKeys )
 import Cardano.Wallet.Primitive.AddressDerivation.Shelley
@@ -2969,19 +2971,26 @@ decodeSharedTransaction
     -> Handler (ApiDecodedTransaction n)
 decodeSharedTransaction ctx (ApiT wid) (ApiSerialisedTransaction (ApiT sealed) _) = do
     era <- liftIO $ NW.currentNodeEra nl
-    let (decodedTx, _toMint, _toBurn, allCerts, interval, witsCount) =
-            decodeTx tl era SharedWalletCtx sealed
-    let (Tx { txId
-            , fee
-            , resolvedInputs
-            , resolvedCollateralInputs
-            , outputs
-            , metadata
-            , scriptValidity
-            }) = decodedTx
-
-    (txinsOutsPaths, collateralInsOutsPaths, outsPath, pp, certs)
+    (txinsOutsPaths, collateralInsOutsPaths, outsPath, pp, certs, txId, fee
+        , metadata, scriptValidity, interval, witsCount)
         <- withWorkerCtx ctx wid liftE liftE $ \wrk -> do
+        (cp, _, _) <- liftHandler $ withExceptT W.ErrDecodeTxNoSuchWallet $
+            W.readWallet wrk wid
+        let delegationTemplateM = Shared.delegationTemplate $ getState cp
+        let stakingKeyHashes = case delegationTemplateM of
+                Just delegationTemplate ->
+                    allCosignerStakingKeys delegationTemplate
+                Nothing -> []
+        let (decodedTx, _toMint, _toBurn, allCerts, interval, witsCount) =
+                decodeTx tl era (SharedWalletCtx stakingKeyHashes) sealed
+        let (Tx { txId
+                , fee
+                , resolvedInputs
+                , resolvedCollateralInputs
+                , outputs
+                , metadata
+                , scriptValidity
+                }) = decodedTx
         inputPaths <-
             liftHandler $ W.lookupTxIns @_ wrk wid $
             fst <$> resolvedInputs
@@ -2991,9 +3000,6 @@ decodeSharedTransaction ctx (ApiT wid) (ApiSerialisedTransaction (ApiT sealed) _
         outputPaths <-
             liftHandler $ W.lookupTxOuts @_ wrk wid outputs
         pp <- liftIO $ NW.currentProtocolParameters (wrk ^. networkLayer)
-        (cp, _, _) <- liftHandler $ withExceptT W.ErrDecodeTxNoSuchWallet $
-            W.readWallet wrk wid
-        let delegationTemplateM = (getState cp) ^. #delegationTemplate
         let scriptM =
                 flip (replaceCosignersWithVerKeys CA.Stake) minBound <$>
                 delegationTemplateM
@@ -3013,6 +3019,12 @@ decodeSharedTransaction ctx (ApiT wid) (ApiSerialisedTransaction (ApiT sealed) _
             , outputPaths
             , pp
             , certs
+            , txId
+            , fee
+            , metadata
+            , scriptValidity
+            , interval
+            , witsCount
             )
     pure $ ApiDecodedTransaction
         { id = ApiT txId
@@ -3430,7 +3442,7 @@ submitSharedTransaction ctx apiw@(ApiT wid) apitx = do
     era <- liftIO $ NW.currentNodeEra nl
 
     let sealedTx = getApiT . (view #serialisedTxSealed) $ apitx
-    let (tx,_,_,_,_,_) = decodeTx tl era SharedWalletCtx sealedTx
+    let (tx,_,_,_,_,_) = decodeTx tl era (SharedWalletCtx []) sealedTx
 
     apiDecoded <- decodeSharedTransaction @n ctx apiw apitx
     when (isForeign apiDecoded) $
