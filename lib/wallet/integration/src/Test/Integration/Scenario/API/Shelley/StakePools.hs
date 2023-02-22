@@ -17,6 +17,8 @@ module Test.Integration.Scenario.API.Shelley.StakePools
 import Prelude hiding
     ( id )
 
+import Cardano.Mnemonic
+    ( mnemonicToText )
 import Cardano.Pool.Metadata
     ( HealthCheckSMASH (..) )
 import Cardano.Pool.Metadata.Types
@@ -51,7 +53,7 @@ import Cardano.Wallet.Shelley.Network.Discriminant
 import Cardano.Wallet.Unsafe
     ( unsafeFromHex, unsafeMkPercentage )
 import Control.Monad
-    ( forM_, when )
+    ( forM_ )
 import Control.Monad.IO.Class
     ( liftIO )
 import Control.Monad.Trans.Resource
@@ -74,8 +76,6 @@ import Data.Quantity
     ( Quantity (..) )
 import Data.Set
     ( Set )
-import Data.Text
-    ( Text )
 import Data.Text.Class
     ( showT, toText )
 import Numeric.Natural
@@ -86,6 +86,8 @@ import Test.Hspec.Expectations.Lifted
     ( expectationFailure, shouldBe, shouldSatisfy )
 import Test.Hspec.Extra
     ( it )
+import Test.Integration.Faucet
+    ( preregKeyWallet )
 import Test.Integration.Framework.Context
     ( Context (..), PoolGarbageCollectionEvent (..) )
 import Test.Integration.Framework.DSL
@@ -651,17 +653,12 @@ spec = describe "SHELLEY_STAKE_POOLS" $ do
             , expectField (#withdrawals)
                 (\[ApiWithdrawal _ c] -> c .> Quantity 0)
             ]
-    -- TODO: ADP-2662
-    when False $ it "STAKE_POOLS_JOIN_05 - \
+
+    it "STAKE_POOLS_JOIN_05 - \
         \Can join when stake key already exists" $ \ctx -> runResourceT $ do
-        let walletWithPreRegKey =
-                [ "over", "decorate", "flock", "badge", "beauty"
-                , "stamp" , "chest", "owner", "excess", "omit"
-                , "bid", "raccoon", "spin" , "reduce", "rival"
-                ] :: [Text]
         let payload = Json [json| {
                 "name": "Wallet with pre-registered stake key",
-                "mnemonic_sentence": #{walletWithPreRegKey},
+                "mnemonic_sentence": #{mnemonicToText preregKeyWallet},
                 "passphrase": #{fixturePassphrase}
                 } |]
 
@@ -671,11 +668,12 @@ spec = describe "SHELLEY_STAKE_POOLS" $ do
                 ctx (Link.listStakePools arbitraryStake) Empty
 
         eventually "wallet join a pool" $ do
-            joinStakePool @n ctx (SpecificPool pool) (w, fixturePassphrase) >>= flip verify
-                [ expectResponseCode HTTP.status202
-                , expectField (#status . #getApiT) (`shouldBe` Pending)
-                , expectField (#direction . #getApiT) (`shouldBe` Outgoing)
-                ]
+            joinStakePool @n ctx (SpecificPool pool) (w, fixturePassphrase)
+                >>= flip verify
+                    [ expectResponseCode HTTP.status202
+                    , expectField (#status . #getApiT) (`shouldBe` Pending)
+                    , expectField (#direction . #getApiT) (`shouldBe` Outgoing)
+                    ]
 
     describe "STAKE_POOLS_JOIN_UNSIGNED_01" $ do
         it "Can join a pool that's not retiring" $ \ctx -> runResourceT $ do

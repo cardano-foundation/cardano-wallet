@@ -24,6 +24,9 @@ module Test.Integration.Faucet
     , bigDustWallet
     , onlyDustWallet
 
+    -- * Wallet with a pre-registered stake key
+    , preregKeyWallet
+
     -- * Sea horses
     , seaHorseTokenName
     , seaHorsePolicyId
@@ -82,7 +85,7 @@ import Cardano.Wallet.Primitive.Types.TokenPolicy
 import Cardano.Wallet.Primitive.Types.TokenQuantity
     ( TokenQuantity (..) )
 import Cardano.Wallet.Unsafe
-    ( unsafeFromHex, unsafeFromText, unsafeMkMnemonic )
+    ( unsafeFromText, unsafeMkMnemonic )
 import Control.Monad
     ( forM, forM_, replicateM )
 import Data.Bifunctor
@@ -2361,6 +2364,14 @@ bigDustWallet = unsafeMkMnemonic
     , "omit", "time", "tiger", "leave", "load"
     ]
 
+-- | A special Shelley Wallet with a pre-registered stake key.
+preregKeyWallet :: Mnemonic 15
+preregKeyWallet = unsafeMkMnemonic
+    ["over", "decorate", "flock", "badge", "beauty"
+    , "stamp", "chest", "owner", "excess", "omit"
+    , "bid", "raccoon", "spin", "reduce", "rival"
+    ]
+
 shelleyIntegrationTestFunds :: [(Address, Coin)]
 shelleyIntegrationTestFunds = mconcat
     [ seqMnemonics >>= take 10 . map (, defaultAmt) . addresses . SomeMnemonic
@@ -2385,8 +2396,7 @@ shelleyIntegrationTestFunds = mconcat
 
     , take 100 (map (, defaultAmt) $ addresses $ SomeMnemonic bigDustWallet)
     , take 100 . drop 100 $ map (,Coin 1_000_000) $ addresses $ SomeMnemonic bigDustWallet
-
-    , preregKeyWalletFunds
+    , take 100 (map (,defaultAmt) $ addresses $ SomeMnemonic preregKeyWallet)
 
     , mirWallets
     ]
@@ -2405,20 +2415,6 @@ shelleyIntegrationTestFunds = mconcat
     -- @sgInitialFunds :: !(Map (Addr (Crypto era)) Coin)@. Perhaps using random
     -- stake keys could be an option if this ever becomes a problem.
     addresses = genShelleyAddresses
-
-    -- Funds for wallet with a pre-registered stake key.
-    --
-    --  _preregKeyWallet :: Mnemonic 15
-    --  _preregKeyWallet = unsafeMkMnemonic
-    --      ["over", "decorate", "flock", "badge", "beauty"
-    --      , "stamp", "chest", "owner", "excess", "omit"
-    --      , "bid", "raccoon", "spin", "reduce", "rival"
-    --      ]
-    --
-    preregKeyWalletFunds = map ((,defaultAmt) . Address . unsafeFromHex)
-        [ "6199a7c32aaa55a628d936b539f01d5415318dec8bcb5e59ec71af695b"
-        , "61386c7a86d8844f4085a50241556043c9842d72c315c897a42a8a0510"
-        ]
 
     mirWallets = (,defaultAmt) . head . genShelleyAddresses . SomeMnemonic
         <$> mirMnemonics
