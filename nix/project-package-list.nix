@@ -1,1 +1,1 @@
-[ "cardano-balance-tx" "cardano-coin-selection" "cardano-numeric" "cardano-wallet" "cardano-wallet-launcher" "cardano-wallet-primitive" "cardano-wallet-test-utils" "dbvar" "strict-non-empty-containers" "text-class" "wai-middleware-logging" ]
+[ "cardano-balance-tx" "cardano-coin-selection" "cardano-numeric" "cardano-wallet" "cardano-wallet-launcher" "cardano-wallet-primitive" "cardano-wallet-test-utils" "dbvar" "delta-table" "strict-non-empty-containers" "text-class" "wai-middleware-logging" ]

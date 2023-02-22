@@ -1,10 +1,10 @@
-name:                dbvar
-version:             2023.2.22
-synopsis:            Mutable variables that are written to disk using delta encodings.
+name:                delta-table
+version:             0.1.0.0
+synopsis:            Work with database tables using delta encodings.
 homepage:            https://github.com/input-output-hk/cardano-wallet
 author:              IOHK Engineering Team
 maintainer:          operations@iohk.io
-copyright:           2021 IOHK
+copyright:           2023 IOHK
 license:             Apache-2.0
 category:            Web
 build-type:          Simple
@@ -30,12 +30,20 @@ library
       -Werror
   build-depends:
       base
+    , conduit
     , containers
+    , dbvar
     , exceptions
     , fmt
+    , generic-lens
     , io-classes
+    , monad-logger
+    , persistent
+    , persistent-sqlite
     , QuickCheck
+    , safe
     , safe-exceptions
+    , say
     , semigroupoids
     , stm
     , text
@@ -43,10 +51,12 @@ library
   hs-source-dirs:
       src
   exposed-modules:
-      Data.DBVar
-      Data.Delta
-      Data.DeltaMap
-      Test.DBVar
+      Data.Chain
+      Data.Table
+      Database.Persist.Delta
+      Database.Schema
+  other-modules:
+      Demo.Database
 
 test-suite unit
   default-language:
@@ -73,5 +83,3 @@ test-suite unit
       test/unit
   main-is:
       Main.hs
-  other-modules:
-      Data.DeltaSpec
