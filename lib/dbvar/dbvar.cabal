@@ -65,6 +65,8 @@ test-suite unit
     , io-sim
     , hspec
     , QuickCheck
+    , fmt
+    , dbvar
   build-tool-depends:
       hspec-discover:hspec-discover
   type:

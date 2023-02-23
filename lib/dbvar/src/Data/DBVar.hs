@@ -31,6 +31,7 @@ module Data.DBVar (
     -- * Testing
     , embedStore'
     , updateLoad
+    , newCachedStore
     ) where
 
 import Prelude
@@ -39,6 +40,8 @@ import Control.Applicative
     ( liftA2 )
 import Control.Exception
     ( Exception, SomeException, toException )
+import Control.Monad
+    ( join )
 import Control.Monad.Class.MonadSTM
     ( MonadSTM
     , atomically
@@ -50,7 +53,15 @@ import Control.Monad.Class.MonadSTM
     , writeTVar
     )
 import Control.Monad.Class.MonadThrow
-    ( MonadEvaluate, MonadMask, MonadThrow, bracket, evaluate, mask, throwIO )
+    ( MonadEvaluate
+    , MonadMask
+    , MonadThrow
+    , bracket
+    , evaluate
+    , finally
+    , mask
+    , throwIO
+    )
 import Data.Delta
     ( Delta (..), Embedding, Embedding' (..), Machine (..), inject, project )
 
@@ -303,17 +314,19 @@ the case of an empty list.
 data NotInitialized = NotInitialized deriving (Eq, Show)
 instance Exception NotInitialized
 
-{-
+
 -- | Add a caching layer to a 'Store'.
 --
 -- Access to the underlying 'Store' is enforced to be sequential,
 -- but the cache can be accessed in parallel.
---
--- FIXME: Safety with respect to asynchronous exceptions?
-cachedStore
-    :: forall m da. (MonadSTM m, Delta da)
+-- FIXME: There is still a small race condition where the cache
+-- could be written twice before it is filled.
+-- In general, think about restricting the monad `m`,
+-- as the `Store` operations do not compose very well. 🤔
+newCachedStore
+    :: forall m da. (MonadSTM m, Delta da, MonadThrow m)
     => Store m da -> m (Store m da)
-cachedStore Store{loadS,writeS,updateS} = do
+newCachedStore Store{loadS,writeS,updateS} = do
     -- Lock that puts loadS, writeS and updateS into sequence
     islocked <- newTVarIO False
     let withLock :: forall b. m b -> m b
@@ -321,42 +334,38 @@ cachedStore Store{loadS,writeS,updateS} = do
             atomically $ readTVar islocked >>= \case
                 True  -> retry
                 False -> writeTVar islocked True
-            a <- action
-            atomically $ writeTVar islocked False
-            pure a
+            action `finally` atomically (writeTVar islocked False)
 
     -- Cache that need not be filled in the beginning
-    iscached <- newTVarIO False
     cache    <- newTVarIO (Nothing :: Maybe (Base da))
-    let writeCache ma = writeTVar cache ma >> writeTVar iscached True
+    let writeCache ma = writeTVar cache ma
 
     -- Load the value from the Store only if it is not cached and
     -- nobody else is writing to the store.
-    let load :: m (Maybe (Base da))
-        load = do
-            action <- atomically $
-                readTVar iscached >>= \case
-                    True  -> do
-                        ma <- readTVar cache  -- read from cache
-                        pure $ pure ma
-                    False -> readTVar islocked >>= \case
-                        True  -> retry  -- somebody is writing
-                        False -> pure $ withLock $ do
-                            ma <- loadS
-                            atomically $ writeCache ma
-                            pure ma
-            action
+    let load :: m (Either SomeException (Base da))
+        load = join $ atomically $ do
+            ma <- readTVar cache
+            case ma of
+                Nothing -> readTVar islocked >>= \case
+                    True  -> retry  -- somebody is writing
+                    False -> pure $ withLock $ do
+                        ea <- loadS
+                        case ea of
+                            Left  e -> pure $ Left e
+                            Right a -> do
+                                atomically $ writeCache $ Just a
+                                pure $ Right a
+                Just a -> pure $ pure $ Right a
 
     pure $ Store
         { loadS = load
         , writeS = \a -> withLock $ do
             atomically $ writeCache (Just a)
             writeS a
-        , updateS = \old delta -> withLock $ do
+        , updateS = updateLoad load throwIO $ \old delta -> withLock $ do
             atomically $ writeCache $ Just $ apply delta old
-            updateS old delta
+            updateS (Just old) delta
         }
--}
 
 embedStore :: (MonadSTM m, MonadMask m, Delta da)
     => Embedding da db -> Store m db -> m (Store m da)
