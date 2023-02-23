@@ -428,8 +428,7 @@ instance DelegationAddress n ShelleyKey 'CredFromKeyK
   where
     maybeDiscover = Just $ DiscoverTxs discoverSeqWithRewards
 
-instance AccountIxForStaking (n:: NetworkDiscriminant) ShelleyKey where
-    type State n ShelleyKey = SeqState n ShelleyKey
+instance AccountIxForStaking (SeqState n ShelleyKey) where
     getAccountIx _ = Nothing
 
 {-------------------------------------------------------------------------------

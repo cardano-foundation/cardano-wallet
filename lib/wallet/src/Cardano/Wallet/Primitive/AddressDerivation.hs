@@ -576,9 +576,8 @@ hashVerificationKey keyRole =
 
 -- | This class is used to determine account index in the context of script
 -- staking. It is supposed to be not Nothing only for shared wallets
-class AccountIxForStaking n k where
-    type State n k
-    getAccountIx :: State n k -> Maybe (Index 'Hardened 'AccountK)
+class AccountIxForStaking s where
+    getAccountIx :: s -> Maybe (Index 'Hardened 'AccountK)
 
 {-------------------------------------------------------------------------------
                              Network Discrimination

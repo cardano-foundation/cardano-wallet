@@ -367,7 +367,8 @@ import Cardano.Wallet.Network
 import Cardano.Wallet.Pools
     ( EpochInfo (..), toEpochInfo )
 import Cardano.Wallet.Primitive.AddressDerivation
-    ( BoundedAddressLength (..)
+    ( AccountIxForStaking (..)
+    , BoundedAddressLength (..)
     , DelegationAddress (..)
     , Depth (..)
     , DerivationIndex (..)
@@ -2092,6 +2093,7 @@ signTransaction
         , WalletKey k
         , IsOwned s k ktype
         , HardDerivation k
+        , AccountIxForStaking s
         )
     => ctx
     -> ApiT WalletId
@@ -2123,9 +2125,13 @@ signTransaction ctx (ApiT wid) body = do
                         -> Maybe (k ktype XPrv, Passphrase "encryption")
                     keyLookup = isOwned (getState cp) (rootK, pwdP)
 
+                    accIxForStakingM :: Maybe (Index 'Hardened 'AccountK)
+                    accIxForStakingM = getAccountIx @s (getState cp)
+
                 era <- liftIO $ NW.currentNodeEra nl
                 let sealedTx = body ^. #transaction . #getApiT
-                pure $ W.signTransaction tl era keyLookup (rootK, pwdP) utxo sealedTx
+                pure $ W.signTransaction tl era keyLookup (rootK, pwdP) utxo
+                    accIxForStakingM sealedTx
 
     -- TODO: The body+witnesses seem redundant with the sealedTx already. What's
     -- the use-case for having them provided separately? In the end, the client
