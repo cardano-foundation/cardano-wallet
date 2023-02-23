@@ -172,6 +172,8 @@ data TransactionLayer k ktype tx = TransactionLayer
             -- Reward account
         -> (KeyHash, XPrv, Passphrase "encryption")
             -- policy key hash and private key
+        -> Maybe (KeyHash, XPrv, Passphrase "encryption")
+            -- optional staking key hash and private key
         -> (Address -> Maybe (k ktype XPrv, Passphrase "encryption"))
             -- Key store / address resolution
         -> (TxIn -> Maybe Address)
