@@ -51,6 +51,7 @@ module Cardano.Wallet.Primitive.AddressDerivation
     -- * Delegation
     , RewardAccount (..)
     , ToRewardAccount(..)
+    , AccountIxForStaking (..)
     , deriveRewardAccount
 
     -- * Helpers
@@ -561,6 +562,12 @@ hashVerificationKey
     -> KeyHash
 hashVerificationKey keyRole =
     KeyHash keyRole . blake2b224 . xpubPublicKey . getRawKey
+
+-- | This class is used to determine account index in the context of script
+-- staking. It is supposed to be not Nothing only for shared wallets
+class AccountIxForStaking n k where
+    type State n k
+    getAccountIx :: State n k -> Maybe (Index 'Hardened 'AccountK)
 
 {-------------------------------------------------------------------------------
                              Network Discrimination
