@@ -61,6 +61,7 @@ packages:
     lib/balance-tx/
   , lib/coin-selection/
   , lib/dbvar/
+  , lib/delta-table
   , lib/launcher/
   , lib/numeric/
   , lib/primitive/
