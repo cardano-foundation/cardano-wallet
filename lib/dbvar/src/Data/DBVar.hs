@@ -322,7 +322,7 @@ instance Exception NotInitialized
 -- FIXME: There is still a small race condition where the cache
 -- could be written twice before it is filled.
 -- In general, think about restricting the monad `m`,
--- as the `Store` operations do not compose very well. 🤔 
+-- as the `Store` operations do not compose very well. 🤔
 newCachedStore
     :: forall m da. (MonadSTM m, Delta da, MonadThrow m)
     => Store m da -> m (Store m da)
