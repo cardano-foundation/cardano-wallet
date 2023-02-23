@@ -2302,7 +2302,7 @@ genRewardAccounts mw =
         rootXPrv =
             Shelley.generateKeyFromSeed (seed, Nothing) pwd
         acctXPrv =
-            deriveRewardAccount pwd rootXPrv
+            deriveRewardAccount pwd rootXPrv minBound
     in
         [getRawKey $ publicKey acctXPrv]
 

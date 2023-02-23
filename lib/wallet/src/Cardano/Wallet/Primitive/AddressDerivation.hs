@@ -555,9 +555,10 @@ deriveRewardAccount
        , Bounded (Index (AddressIndexDerivationType k) (AddressCredential k)) )
     => Passphrase "encryption"
     -> k 'RootK XPrv
+    -> Index 'Hardened 'AccountK
     -> k (AddressCredential k) XPrv
-deriveRewardAccount pwd rootPrv =
-    let accPrv = deriveAccountPrivateKey pwd rootPrv minBound
+deriveRewardAccount pwd rootPrv accIx =
+    let accPrv = deriveAccountPrivateKey pwd rootPrv accIx
     in deriveAddressPrivateKey pwd accPrv MutableAccount minBound
 
 hashVerificationKey

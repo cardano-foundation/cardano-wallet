@@ -1958,7 +1958,7 @@ signTransaction
         rewardAcnts = ourRewardAcc : maybeToList mextraRewardAcc
           where
             ourRewardAcc =
-                (getRawKey $ deriveRewardAccount @k rootPwd rootKey, rootPwd)
+                (getRawKey $ deriveRewardAccount @k rootPwd rootKey minBound, rootPwd)
 
         policyKey :: (KeyHash, XPrv, Passphrase "encryption")
         policyKey =

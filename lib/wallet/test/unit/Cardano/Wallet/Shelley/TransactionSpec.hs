@@ -669,7 +669,7 @@ prop_signTransaction_addsRewardAccountKey
 
             rawRewardK :: (XPrv, Passphrase "encryption")
             rawRewardK =
-                ( getRawKey $ deriveRewardAccount (snd rootK) (fst rootK)
+                ( getRawKey $ deriveRewardAccount (snd rootK) (fst rootK) minBound
                 , snd rootK
                 )
 
