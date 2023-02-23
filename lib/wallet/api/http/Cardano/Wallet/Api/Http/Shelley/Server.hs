@@ -4277,7 +4277,7 @@ selfRewardAccountBuilder
        )
     => RewardAccountBuilder k
 selfRewardAccountBuilder (rootK, pwdP) =
-    (getRawKey (deriveRewardAccount @k pwdP rootK), pwdP)
+    (getRawKey (deriveRewardAccount @k pwdP rootK minBound), pwdP)
 
 -- | Makes an 'ApiCoinSelection' from the given 'UnsignedTx'.
 mkApiCoinSelection

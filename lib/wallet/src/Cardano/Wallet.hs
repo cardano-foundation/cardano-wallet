@@ -1954,7 +1954,7 @@ signTransaction tl preferredLatestEra keyLookup (rootKey, rootPwd) utxo =
     let
         rewardAcnt :: (XPrv, Passphrase "encryption")
         rewardAcnt =
-            (getRawKey $ deriveRewardAccount @k rootPwd rootKey, rootPwd)
+            (getRawKey $ deriveRewardAccount @k rootPwd rootKey minBound, rootPwd)
 
         policyKey :: (KeyHash, XPrv, Passphrase "encryption")
         policyKey =
