@@ -791,8 +791,7 @@ estimateMaxWitnessRequiredPerInput = \case
     ActiveFromSlot _     -> 0
     ActiveUntilSlot _    -> 0
 
-instance AccountIxForStaking (n:: NetworkDiscriminant) SharedKey where
-    type State n SharedKey = SharedState n SharedKey
+instance AccountIxForStaking (SharedState n SharedKey) where
     getAccountIx st =
         let DerivationPrefix (_, _, ix) = derivationPrefix st
         in Just ix

@@ -700,7 +700,7 @@ prop_signTransaction_addsRewardAccountKey
 
                 sealedTx = sealedTxFromCardano' $ Cardano.Tx txBody wits
                 sealedTx' = signTransaction tl (AnyCardanoEra era)
-                    (const Nothing) Nothing rootK utxo sealedTx
+                    (const Nothing) Nothing rootK utxo Nothing sealedTx
 
                 expectedWits :: [InAnyCardanoEra Cardano.KeyWitness]
                 expectedWits = InAnyCardanoEra era <$>
@@ -780,6 +780,7 @@ prop_signTransaction_addsExtraKeyWitnesses
                 Nothing
                 (first liftRawKey rootK)
                 utxo
+                Nothing
                 sealedTx
 
             expectedWits :: [InAnyCardanoEra Cardano.KeyWitness]
@@ -915,6 +916,7 @@ prop_signTransaction_addsTxInWitnesses
                     Nothing
                     (first liftRawKey rootK)
                     utxo
+                    Nothing
                     sealedTx
 
                 expectedWits :: [InAnyCardanoEra Cardano.KeyWitness]
@@ -969,6 +971,7 @@ prop_signTransaction_addsTxInCollateralWitnesses
                         Nothing
                         (first liftRawKey rootK)
                         utxo
+                        Nothing
                         sealedTx
 
                     expectedWits :: [InAnyCardanoEra Cardano.KeyWitness]
@@ -1006,6 +1009,7 @@ prop_signTransaction_neverRemovesWitnesses
                 Nothing
                 (first liftRawKey rootK)
                 utxo
+                Nothing
                 sealedTx
 
             witnessesBefore = getSealedTxWitnesses sealedTx
@@ -1039,6 +1043,7 @@ prop_signTransaction_neverChangesTxBody
                 Nothing
                 (first liftRawKey rootK)
                 utxo
+                Nothing
                 sealedTx
 
             txBodyContent
@@ -1077,6 +1082,7 @@ prop_signTransaction_preservesScriptIntegrity (AnyCardanoEra era) rootK utxo =
                 Nothing
                 (first liftRawKey rootK)
                 utxo
+                Nothing
                 sealedTx
 
             txIntegrityCardanoApi = txIntegrity . fromCardanoApiTx

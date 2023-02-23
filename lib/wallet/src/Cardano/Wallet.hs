@@ -1946,13 +1946,15 @@ signTransaction
   -> UTxO
   -- ^ The total UTxO set of the wallet (i.e. if pending transactions all
   -- applied).
+  -> Maybe (Index 'Hardened 'AccountK)
+  -- ^ account ix used only for delegation scripts
   -> SealedTx
   -- ^ The transaction to sign
   -> SealedTx
   -- ^ The original transaction, with additional signatures added where
   -- necessary
 signTransaction
-    tl preferredLatestEra keyLookup mextraRewardAcc (rootKey, rootPwd) utxo =
+    tl preferredLatestEra keyLookup mextraRewardAcc (rootKey, rootPwd) utxo accIxForStakingM =
     let
         rewardAcnts :: [(XPrv, Passphrase "encryption")]
         rewardAcnts = ourRewardAcc : maybeToList mextraRewardAcc
@@ -1969,14 +1971,17 @@ signTransaction
           where
             xprv = derivePolicyPrivateKey rootPwd (getRawKey rootKey) minBound
 
-        stakingKey :: (KeyHash, XPrv, Passphrase "encryption")
-        stakingKey =
-            ( hashVerificationKey @k CA.Delegation $ liftRawKey $ toXPub xprv
-            , xprv
-            , rootPwd
-            )
+        stakingKey :: Maybe (KeyHash, XPrv, Passphrase "encryption")
+        stakingKey = case xprvM of
+            Just xprv -> Just
+                ( hashVerificationKey @k CA.Delegation $ liftRawKey $ toXPub xprv
+                , xprv
+                , rootPwd
+                )
+            Nothing -> Nothing
           where
-            xprv = undefined
+            xprvM = getRawKey . deriveRewardAccount @k rootPwd rootKey <$>
+                accIxForStakingM
 
         inputResolver :: TxIn -> Maybe Address
         inputResolver i = do
@@ -2140,6 +2145,7 @@ buildAndSignTransactionPure
                 mExternalRewardAccount
                 (rootKey, passphrase)
                 (wallet ^. #utxo)
+                Nothing
                 (sealedTxFromCardano $ inAnyCardanoEra unsignedBalancedTx)
 
         let ( tx
