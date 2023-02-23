@@ -73,7 +73,8 @@ import Cardano.Address.Style.Shelley
 import Cardano.Crypto.Wallet
     ( XPrv, XPub, unXPub )
 import Cardano.Wallet.Primitive.AddressDerivation
-    ( AddressParts (..)
+    ( AccountIxForStaking (..)
+    , AddressParts (..)
     , Depth (..)
     , DerivationIndex (..)
     , DerivationPrefix (..)
@@ -789,3 +790,9 @@ estimateMaxWitnessRequiredPerInput = \case
         in sum $ take (fromIntegral m) largestReqFirst
     ActiveFromSlot _     -> 0
     ActiveUntilSlot _    -> 0
+
+instance AccountIxForStaking (n:: NetworkDiscriminant) SharedKey where
+    type State n SharedKey = SharedState n SharedKey
+    getAccountIx st =
+        let DerivationPrefix (_, _, ix) = derivationPrefix st
+        in Just ix
