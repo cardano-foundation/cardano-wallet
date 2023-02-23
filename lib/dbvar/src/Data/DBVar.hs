@@ -30,7 +30,7 @@ module Data.DBVar (
 
     -- * Testing
     , embedStore'
-    , updateLoad
+    , updateLoad, newCachedStore
     ) where
 
 import Prelude
@@ -357,6 +357,11 @@ cachedStore Store{loadS,writeS,updateS} = do
             updateS old delta
         }
 -}
+
+newCachedStore
+    :: forall m da. (MonadSTM m, Delta da)
+    => Store m da -> m (Store m da)
+newCachedStore _ = undefined
 
 embedStore :: (MonadSTM m, MonadMask m, Delta da)
     => Embedding da db -> Store m db -> m (Store m da)
