@@ -626,6 +626,7 @@ import qualified Data.Set as Set
 import qualified Data.Text as T
 import qualified Data.Vector as V
 
+import qualified Debug.Trace as TR
 -- $Development
 -- __Naming Conventions__
 --
@@ -1888,8 +1889,12 @@ signTransaction tl preferredLatestEra keyLookup (rootKey, rootPwd) utxo accIxFor
         inputResolver i = do
             TxOut addr _ <- UTxO.lookup i utxo
             pure addr
+
+        xxx = case stakingKeyM of
+            Just (x, _, _) -> Just x
+            Nothing -> Nothing
     in
-        addVkWitnesses
+        TR.trace ("stakingKeyM:"<> show xxx) $ addVkWitnesses
             tl
             preferredLatestEra
             rewardAcnt

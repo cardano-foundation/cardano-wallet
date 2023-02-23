@@ -308,6 +308,8 @@ import qualified Data.Sequence.Strict as StrictSeq
 import qualified Data.Set as Set
 import qualified Data.Text as T
 
+
+import qualified Debug.Trace as TR
 -- | Type encapsulating what we need to know to add things -- payloads,
 -- certificates -- to a transaction.
 --
@@ -493,7 +495,7 @@ signTransaction
     (body, wits) =
         Cardano.makeSignedTransaction wits' body
  where
-    wits' = mconcat
+    wits' = TR.trace ("stakingScriptsKeyHashes:"<>show stakingScriptsKeyHashes<> " xxx:"<>show xxx) $ mconcat
         [ wits
         , mapMaybe mkTxInWitness inputs
         , mapMaybe mkTxInWitness collaterals
@@ -550,6 +552,12 @@ signTransaction
                 filter isDelegationKeyHash $
                 L.nub $ concatMap retrieveAllKeyHashes $
                 filter isTimelock $nativeScripts
+
+        xxx =
+            let (_, _, _, _, _, (WitnessCount _ nativeScripts _)) =
+                    fromCardanoTx AnyWitnessCountCtx $
+                    Cardano.makeSignedTransaction wits body
+            in nativeScripts
 
     retrieveAllKeyHashes (NativeScript s) = foldScript (:) [] s
     retrieveAllKeyHashes _ = []

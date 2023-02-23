@@ -1736,6 +1736,29 @@ spec = describe "SHARED_TRANSACTIONS" $ do
                                  , delegatingCert stakeKeyDerPathParty2])]
         verify rDecodedTx2 (decodedExpectations ++ certExpectation2 ++ witsExp1)
 
+        let (ApiSerialisedTransaction apiTx1 _) =
+                getFromResponse #transaction rTx1
+        signedTx1 <-
+            signSharedTx ctx party1 apiTx1
+                [ expectResponseCode HTTP.status202 ]
+        let decodePayload2 = Json (toJSON signedTx1)
+        rDecodedTx3 <- request @(ApiDecodedTransaction n) ctx
+            (Link.decodeTransaction @'Shared party1) Default decodePayload2
+        rDecodedTx4 <- request @(ApiDecodedTransaction n) ctx
+            (Link.decodeTransaction @'Shared party2) Default decodePayload2
+
+        let witsExp2 =
+                [ expectField (#witnessCount . #scripts)
+                      (`shouldContain` [delegationScript])
+                , expectField (#witnessCount . #scripts)
+                      (`shouldContain` [paymentScript])
+                , expectField (#witnessCount . #verificationKey)
+                      (`shouldBe` 2)
+                , expectField (#witnessCount . #bootstrap)
+                      (`shouldBe` 0)]
+
+        verify rDecodedTx3 (decodedExpectations ++ certExpectation1 ++ witsExp2)
+        verify rDecodedTx4 (decodedExpectations ++ certExpectation2 ++ witsExp2)
   where
      listSharedTransactions ctx w mStart mEnd mOrder = do
          let path = Link.listTransactions' @'Shared w
