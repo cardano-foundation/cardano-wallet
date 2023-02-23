@@ -1,4 +1,5 @@
 
+{-# OPTIONS_GHC -Wno-redundant-constraints#-}
 {-# LANGUAGE DataKinds #-}
 {-# LANGUAGE LambdaCase #-}
 {-# LANGUAGE NoMonomorphismRestriction #-}
@@ -39,6 +40,8 @@ import Cardano.Wallet.DB.Store.Wallets.Model
     )
 import Control.Applicative
     ( liftA2 )
+import Control.Exception
+    ( SomeException (..) )
 import Control.Monad
     ( forM, forM_ )
 import Control.Monad.Class.MonadThrow
@@ -47,6 +50,8 @@ import Control.Monad.Except
     ( ExceptT (ExceptT), lift, runExceptT )
 import Data.DBVar
     ( Store (..), updateLoad )
+import Data.Delta
+    ( Base, Delta )
 import Data.DeltaMap
     ( DeltaMap (..) )
 import Data.Generics.Internal.VL
@@ -101,21 +106,27 @@ mkStoreTxWalletsHistory storeTransactions storeWalletsMeta =
         write = \(txSet,txMetaHistory) -> do
             writeS storeTransactions txSet
             writeS storeWalletsMeta txMetaHistory
-        update = updateLoad load throwIO $ \(txSet,wmetas) -> \case
+        update ma delta =
+            let (mTxSet,mWmetas) = (fst <$> ma, snd <$> ma)
+            in  case delta of
             RollbackTxWalletsHistory wid slot -> do
+                wmetas <- loadWhenNothing mWmetas storeWalletsMeta
                 updateS storeWalletsMeta (Just wmetas)
                     $ Adjust wid
                     $ TxMetaStore.Manipulate
                     $ TxMetaStore.RollBackTxMetaHistory slot
                 let deletions = transactionsToDeleteOnRollback wid slot wmetas
                 forM_ deletions
-                    $ updateS storeTransactions (Just txSet) . DeleteTx
+                    $ updateS storeTransactions mTxSet . DeleteTx
             RemoveWallet wid -> do
+                wmetas <- loadWhenNothing mWmetas storeWalletsMeta
+                txSet <- loadWhenNothing mTxSet storeTransactions
                 updateS storeWalletsMeta (Just wmetas) $ Delete wid
                 let wmetas2 = Map.delete wid wmetas
                 garbageCollectTxWalletsHistory txSet wmetas2
             ExpandTxWalletsHistory wid cs -> do
-                updateS storeTransactions (Just txSet)
+                wmetas <- loadWhenNothing mWmetas storeWalletsMeta
+                updateS storeTransactions mTxSet
                     $ Append
                     $ mkTxSet
                     $ fst <$> cs
@@ -132,3 +143,13 @@ mkStoreTxWalletsHistory storeTransactions storeWalletsMeta =
             $ Map.keys
             $ Map.withoutKeys (relations txSet)
             $ walletsLinkedTransactions wmetas
+
+-- | Call 'loadS' from a 'Store' if the value is not already in memory.
+loadWhenNothing
+    :: (Monad m, MonadThrow m, Delta da)
+    => Maybe (Base da) -> Store m da -> m (Base da)
+loadWhenNothing (Just a) _ = pure a
+loadWhenNothing Nothing store =
+    loadS store >>= \case
+        Left (SomeException e) -> throwIO e
+        Right a -> pure a

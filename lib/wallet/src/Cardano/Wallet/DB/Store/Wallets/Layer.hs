@@ -89,16 +89,5 @@ newQueryStoreTxWalletsHistory = do
 
     pure QueryStore
         { queryS = query
-        , store = Store
-            { loadS = loadS storeTxWalletsHistory
-            , writeS = writeS storeTxWalletsHistory
-            , updateS = \_ da -> do
-                -- BUG: The following operations are very expensive for large
-                -- wallets.
-                -- Solution: Do not load `txSet` or `storeWalletsMeta`
-                -- into memory.
-                Right txSet <- loadS (store txsQueryStore)
-                Right wmetas <- loadS storeWalletsMeta
-                updateS storeTxWalletsHistory (Just (txSet,wmetas)) da
-            }
+        , store = storeTxWalletsHistory
         }
