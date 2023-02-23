@@ -1872,8 +1872,8 @@ signTransaction tl preferredLatestEra keyLookup (rootKey, rootPwd) utxo accIxFor
           where
             xprv = derivePolicyPrivateKey rootPwd (getRawKey rootKey) minBound
 
-        stakingKey :: Maybe (KeyHash, XPrv, Passphrase "encryption")
-        stakingKey = case xprvM of
+        stakingKeyM :: Maybe (KeyHash, XPrv, Passphrase "encryption")
+        stakingKeyM = case xprvM of
             Just xprv -> Just
                 ( hashVerificationKey @k CA.Delegation $ liftRawKey $ toXPub xprv
                 , xprv
@@ -1894,6 +1894,7 @@ signTransaction tl preferredLatestEra keyLookup (rootKey, rootPwd) utxo accIxFor
             preferredLatestEra
             rewardAcnt
             policyKey
+            stakingKeyM
             keyLookup
             inputResolver
 

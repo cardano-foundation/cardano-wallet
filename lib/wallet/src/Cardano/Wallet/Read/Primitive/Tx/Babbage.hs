@@ -170,9 +170,7 @@ fromBabbageTx tx@(Alonzo.ValidatedTx bod wits (Alonzo.IsValid isValid) aux) witC
         toPlutusVer Alonzo.PlutusV1 = PlutusVersionV1
         toPlutusVer Alonzo.PlutusV2 = PlutusVersionV2
 
-
     validity =
         if isValid
         then Just W.TxScriptValid
         else Just W.TxScriptInvalid
-
