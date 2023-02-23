@@ -1965,6 +1965,15 @@ signTransaction tl preferredLatestEra keyLookup (rootKey, rootPwd) utxo =
           where
             xprv = derivePolicyPrivateKey rootPwd (getRawKey rootKey) minBound
 
+        stakingKey :: (KeyHash, XPrv, Passphrase "encryption")
+        stakingKey =
+            ( hashVerificationKey @k CA.Delegation $ liftRawKey $ toXPub xprv
+            , xprv
+            , rootPwd
+            )
+          where
+            xprv = undefined
+
         inputResolver :: TxIn -> Maybe Address
         inputResolver i = do
             TxOut addr _ <- UTxO.lookup i utxo
