@@ -637,7 +637,7 @@ prop_signTransaction_addsRewardAccountKey
 
                 sealedTx = sealedTxFromCardano' $ Cardano.Tx txBody wits
                 sealedTx' = signTransaction tl (AnyCardanoEra era)
-                    (const Nothing) rootK utxo sealedTx
+                    (const Nothing) rootK utxo Nothing sealedTx
 
                 expectedWits :: [InAnyCardanoEra Cardano.KeyWitness]
                 expectedWits = InAnyCardanoEra era <$>
@@ -715,6 +715,7 @@ prop_signTransaction_addsExtraKeyWitnesses
                 (lookupFnFromKeys extraKeys)
                 (first liftRawKey rootK)
                 utxo
+                Nothing
                 sealedTx
 
             expectedWits :: [InAnyCardanoEra Cardano.KeyWitness]
@@ -849,6 +850,7 @@ prop_signTransaction_addsTxInWitnesses
                     (lookupFnFromKeys extraKeys)
                     (first liftRawKey rootK)
                     utxo
+                    Nothing
                     sealedTx
 
                 expectedWits :: [InAnyCardanoEra Cardano.KeyWitness]
@@ -902,6 +904,7 @@ prop_signTransaction_addsTxInCollateralWitnesses
                         (lookupFnFromKeys extraKeys)
                         (first liftRawKey rootK)
                         utxo
+                        Nothing
                         sealedTx
 
                     expectedWits :: [InAnyCardanoEra Cardano.KeyWitness]
@@ -938,6 +941,7 @@ prop_signTransaction_neverRemovesWitnesses
                 (lookupFnFromKeys extraKeys)
                 (first liftRawKey rootK)
                 utxo
+                Nothing
                 sealedTx
 
             witnessesBefore = getSealedTxWitnesses sealedTx
@@ -970,6 +974,7 @@ prop_signTransaction_neverChangesTxBody
                 (lookupFnFromKeys extraKeys)
                 (first liftRawKey rootK)
                 utxo
+                Nothing
                 sealedTx
 
             txBodyContent
@@ -1007,6 +1012,7 @@ prop_signTransaction_preservesScriptIntegrity (AnyCardanoEra era) rootK utxo =
                 (const Nothing)
                 (first liftRawKey rootK)
                 utxo
+                Nothing
                 sealedTx
 
             txIntegrityCardanoApi = txIntegrity . fromCardanoApiTx
