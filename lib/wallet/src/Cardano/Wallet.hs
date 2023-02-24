@@ -626,7 +626,6 @@ import qualified Data.Set as Set
 import qualified Data.Text as T
 import qualified Data.Vector as V
 
-import qualified Debug.Trace as TR
 -- $Development
 -- __Naming Conventions__
 --
@@ -1843,6 +1842,7 @@ signTransaction
   => TransactionLayer k ktype SealedTx
   -- ^ The way to interact with the wallet backend
   -> Cardano.AnyCardanoEra
+  -> WitnessCountCtx
   -- ^ Preferred latest era
   -> (Address -> Maybe (k ktype XPrv, Passphrase "encryption"))
   -- ^ The wallets address-key lookup function
@@ -1858,7 +1858,8 @@ signTransaction
   -> SealedTx
   -- ^ The original transaction, with additional signatures added where
   -- necessary
-signTransaction tl preferredLatestEra keyLookup (rootKey, rootPwd) utxo accIxForStakingM =
+signTransaction tl preferredLatestEra witCountCtx keyLookup (rootKey, rootPwd)
+    utxo accIxForStakingM =
     let
         rewardAcnt :: (XPrv, Passphrase "encryption")
         rewardAcnt =
@@ -1889,14 +1890,11 @@ signTransaction tl preferredLatestEra keyLookup (rootKey, rootPwd) utxo accIxFor
         inputResolver i = do
             TxOut addr _ <- UTxO.lookup i utxo
             pure addr
-
-        xxx = case stakingKeyM of
-            Just (x, _, _) -> Just x
-            Nothing -> Nothing
     in
-        TR.trace ("stakingKeyM:"<> show xxx) $ addVkWitnesses
+        addVkWitnesses
             tl
             preferredLatestEra
+            witCountCtx
             rewardAcnt
             policyKey
             stakingKeyM
@@ -2065,6 +2063,7 @@ buildAndSignTransactionPure
             signedTx = signTransaction @k @ktype
                 txLayer
                 anyCardanoEra
+                AnyWitnessCountCtx
                 (isOwned (getState wallet) (rootKey, passphrase))
                 (rootKey, passphrase)
                 (wallet ^. #utxo)

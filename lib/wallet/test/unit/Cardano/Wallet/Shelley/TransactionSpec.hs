@@ -636,7 +636,7 @@ prop_signTransaction_addsRewardAccountKey
                 tl = testTxLayer
 
                 sealedTx = sealedTxFromCardano' $ Cardano.Tx txBody wits
-                sealedTx' = signTransaction tl (AnyCardanoEra era)
+                sealedTx' = signTransaction tl (AnyCardanoEra era) AnyWitnessCountCtx
                     (const Nothing) rootK utxo Nothing sealedTx
 
                 expectedWits :: [InAnyCardanoEra Cardano.KeyWitness]
@@ -712,6 +712,7 @@ prop_signTransaction_addsExtraKeyWitnesses
             sealedTx = sealedTxFromCardano' $ Cardano.Tx txBody wits
             sealedTx' = signTransaction tl
                 (AnyCardanoEra era)
+                AnyWitnessCountCtx
                 (lookupFnFromKeys extraKeys)
                 (first liftRawKey rootK)
                 utxo
@@ -847,6 +848,7 @@ prop_signTransaction_addsTxInWitnesses
                 sealedTx = sealedTxFromCardano' $ Cardano.Tx txBody wits
                 sealedTx' = signTransaction tl
                     (AnyCardanoEra era)
+                    AnyWitnessCountCtx
                     (lookupFnFromKeys extraKeys)
                     (first liftRawKey rootK)
                     utxo
@@ -901,6 +903,7 @@ prop_signTransaction_addsTxInCollateralWitnesses
                     sealedTx = sealedTxFromCardano' $ Cardano.Tx txBody wits
                     sealedTx' = signTransaction tl
                         (AnyCardanoEra era)
+                        AnyWitnessCountCtx
                         (lookupFnFromKeys extraKeys)
                         (first liftRawKey rootK)
                         utxo
@@ -938,6 +941,7 @@ prop_signTransaction_neverRemovesWitnesses
             sealedTx = sealedTxFromCardano' tx
             sealedTx' = signTransaction tl
                 (AnyCardanoEra era)
+                AnyWitnessCountCtx
                 (lookupFnFromKeys extraKeys)
                 (first liftRawKey rootK)
                 utxo
@@ -971,6 +975,7 @@ prop_signTransaction_neverChangesTxBody
             sealedTx = sealedTxFromCardano' tx
             sealedTx' = signTransaction tl
                 (AnyCardanoEra era)
+                AnyWitnessCountCtx
                 (lookupFnFromKeys extraKeys)
                 (first liftRawKey rootK)
                 utxo
@@ -1009,6 +1014,7 @@ prop_signTransaction_preservesScriptIntegrity (AnyCardanoEra era) rootK utxo =
             sealedTx = sealedTxFromCardano' tx
             sealedTx' = signTransaction tl
                 (AnyCardanoEra era)
+                AnyWitnessCountCtx
                 (const Nothing)
                 (first liftRawKey rootK)
                 utxo

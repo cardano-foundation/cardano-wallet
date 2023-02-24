@@ -2060,6 +2060,7 @@ signTransaction
         , IsOwned s k ktype
         , HardDerivation k
         , AccountIxForStaking s
+        , ToWitnessCountCtx s
         )
     => ctx
     -> ApiT WalletId
@@ -2094,10 +2095,12 @@ signTransaction ctx (ApiT wid) body = do
                     accIxForStakingM :: Maybe (Index 'Hardened 'AccountK)
                     accIxForStakingM = getAccountIx @s (getState cp)
 
+                    witCountCtx = toWitnessCountCtx @s (getState cp)
+
                 era <- liftIO $ NW.currentNodeEra nl
                 let sealedTx = body ^. #transaction . #getApiT
-                pure $ W.signTransaction tl era keyLookup (rootK, pwdP) utxo
-                    accIxForStakingM sealedTx
+                pure $ W.signTransaction tl era witCountCtx keyLookup
+                    (rootK, pwdP) utxo accIxForStakingM sealedTx
 
     -- TODO: The body+witnesses seem redundant with the sealedTx already. What's
     -- the use-case for having them provided separately? In the end, the client
