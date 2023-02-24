@@ -398,8 +398,6 @@ import Cardano.Wallet.Primitive.AddressDerivation.MintBurn
     , toTokenPolicyId
     , withinSlotInterval
     )
-import Cardano.Wallet.Primitive.AddressDerivation.Shared
-    ( allCosignerStakingKeys )
 import Cardano.Wallet.Primitive.AddressDerivation.SharedKey
     ( SharedKey (..), replaceCosignersWithVerKeys )
 import Cardano.Wallet.Primitive.AddressDerivation.Shelley
@@ -535,6 +533,7 @@ import Cardano.Wallet.TokenMetadata
 import Cardano.Wallet.Transaction
     ( DelegationAction (..)
     , PreSelection (..)
+    , ToWitnessCountCtx (..)
     , TransactionCtx (..)
     , TransactionLayer (..)
     , Withdrawal (..)
@@ -2092,6 +2091,7 @@ signTransaction
         , IsOwned s k ktype
         , HardDerivation k
         , AccountIxForStaking s
+        , ToWitnessCountCtx s
         )
     => ctx
     -> ApiT WalletId
@@ -2126,10 +2126,12 @@ signTransaction ctx (ApiT wid) body = do
                     accIxForStakingM :: Maybe (Index 'Hardened 'AccountK)
                     accIxForStakingM = getAccountIx @s (getState cp)
 
+                    witCountCtx = toWitnessCountCtx @s (getState cp)
+
                 era <- liftIO $ NW.currentNodeEra nl
                 let sealedTx = body ^. #transaction . #getApiT
-                pure $ W.signTransaction tl era keyLookup Nothing (rootK, pwdP)
-                    utxo accIxForStakingM sealedTx
+                pure $ W.signTransaction tl era witCountCtx keyLookup
+                    Nothing (rootK, pwdP) utxo accIxForStakingM sealedTx
 
     -- TODO: The body+witnesses seem redundant with the sealedTx already. What's
     -- the use-case for having them provided separately? In the end, the client
@@ -2982,13 +2984,9 @@ decodeSharedTransaction ctx (ApiT wid) (ApiSerialisedTransaction (ApiT sealed) _
         <- withWorkerCtx ctx wid liftE liftE $ \wrk -> do
         (cp, _, _) <- liftHandler $ withExceptT W.ErrDecodeTxNoSuchWallet $
             W.readWallet wrk wid
-        let delegationTemplateM = Shared.delegationTemplate $ getState cp
-        let stakingKeyHashes = case delegationTemplateM of
-                Just delegationTemplate ->
-                    allCosignerStakingKeys delegationTemplate
-                Nothing -> []
+        let witCountCtx = toWitnessCountCtx @(SharedState n SharedKey) (getState cp)
         let (decodedTx, _toMint, _toBurn, allCerts, interval, witsCount) =
-                decodeTx tl era (SharedWalletCtx stakingKeyHashes) sealed
+                decodeTx tl era witCountCtx sealed
         let (Tx { txId
                 , fee
                 , resolvedInputs
@@ -3006,6 +3004,7 @@ decodeSharedTransaction ctx (ApiT wid) (ApiSerialisedTransaction (ApiT sealed) _
         outputPaths <-
             liftHandler $ W.lookupTxOuts @_ wrk wid outputs
         pp <- liftIO $ NW.currentProtocolParameters (wrk ^. networkLayer)
+        let delegationTemplateM = (getState cp) ^. #delegationTemplate
         let scriptM =
                 flip (replaceCosignersWithVerKeys CA.Stake) minBound <$>
                 delegationTemplateM

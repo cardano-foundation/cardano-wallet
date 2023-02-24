@@ -444,8 +444,8 @@ mkTx networkId payload ttl (rewardAcnt, pwdAcnt) addrResolver wdrl cs fees era =
     unsigned <- mkUnsignedTx era ttl (Right cs) md wdrls certs
         (toCardanoLovelace fees)
         TokenMap.empty TokenMap.empty Map.empty Map.empty Nothing
-    let signed = signTransaction networkId acctResolver (const Nothing)
-            (const Nothing) addrResolver inputResolver
+    let signed = signTransaction networkId AnyWitnessCountCtx acctResolver
+            (const Nothing) (const Nothing) addrResolver inputResolver
             (unsigned, mkExtraWits unsigned)
 
     let withResolvedInputs (tx, _, _, _, _, _) = tx
@@ -480,6 +480,7 @@ signTransaction
         )
     => Cardano.NetworkId
     -- ^ Network identifier (e.g. mainnet, testnet)
+    -> WitnessCountCtx
     -> (RewardAccount -> Maybe (XPrv, Passphrase "encryption"))
     -- ^ Stake key store / reward account resolution
     -> (KeyHash -> Maybe (XPrv, Passphrase "encryption"))
@@ -495,6 +496,7 @@ signTransaction
     -> Cardano.Tx era
 signTransaction
     networkId
+    witCountCtx
     resolveRewardAcct
     resolvePolicyKey
     resolveStakingKeyInScript
@@ -542,7 +544,7 @@ signTransaction
         certs = cardanoCertKeysForWitnesses $ Cardano.txCertificates bodyContent
 
         mintBurnScriptsKeyHashes =
-            let (_, toMint, toBurn, _, _, _) = fromCardanoTx AnyWitnessCountCtx $
+            let (_, toMint, toBurn, _, _, _) = fromCardanoTx witCountCtx $
                     Cardano.makeSignedTransaction wits body
             in
             -- Note that we use 'nub' here because multiple scripts can share
@@ -552,7 +554,7 @@ signTransaction
 
         stakingScriptsKeyHashes =
             let (_, _, _, _, _, (WitnessCount _ nativeScripts _)) =
-                    fromCardanoTx AnyWitnessCountCtx $
+                    fromCardanoTx witCountCtx $
                     Cardano.makeSignedTransaction wits body
                 isDelegationKeyHash (KeyHash Delegation _) = True
                 isDelegationKeyHash (KeyHash _ _) = False
@@ -640,7 +642,7 @@ newTransactionLayer networkId = TransactionLayer
                     selection delta
 
     , addVkWitnesses =
-        \era stakeCreds policyCreds scriptStakingCredM addressResolver
+        \era witCountCtx stakeCreds policyCreds scriptStakingCredM addressResolver
         inputResolver sealedTx -> do
             let acctMap :: Map RewardAccount (XPrv, Passphrase "encryption")
                 acctMap = Map.fromList $ map
@@ -667,27 +669,27 @@ newTransactionLayer networkId = TransactionLayer
                 InAnyCardanoEra ByronEra _ ->
                     sealedTx
                 InAnyCardanoEra ShelleyEra (Cardano.Tx body wits) ->
-                    signTransaction networkId acctResolver (const Nothing)
+                    signTransaction networkId witCountCtx acctResolver (const Nothing)
                     (const Nothing) addressResolver inputResolver (body, wits)
                     & sealedTxFromCardano'
                 InAnyCardanoEra AllegraEra (Cardano.Tx body wits) ->
-                    signTransaction networkId acctResolver (const Nothing)
+                    signTransaction networkId witCountCtx acctResolver (const Nothing)
                     (const Nothing) addressResolver inputResolver (body, wits)
                     & sealedTxFromCardano'
                 InAnyCardanoEra MaryEra (Cardano.Tx body wits) ->
-                    signTransaction networkId acctResolver policyResolver
+                    signTransaction networkId witCountCtx acctResolver policyResolver
                     stakingScriptResolver addressResolver inputResolver (body, wits)
                     & sealedTxFromCardano'
                 InAnyCardanoEra AlonzoEra (Cardano.Tx body wits) ->
-                    signTransaction networkId acctResolver policyResolver
+                    signTransaction networkId witCountCtx acctResolver policyResolver
                     stakingScriptResolver addressResolver inputResolver (body, wits)
                     & sealedTxFromCardano'
                 InAnyCardanoEra BabbageEra (Cardano.Tx body wits) ->
-                    signTransaction networkId acctResolver policyResolver
+                    signTransaction networkId witCountCtx acctResolver policyResolver
                     stakingScriptResolver addressResolver inputResolver (body, wits)
                     & sealedTxFromCardano'
                 InAnyCardanoEra ConwayEra (Cardano.Tx body wits) ->
-                    signTransaction networkId acctResolver policyResolver
+                    signTransaction networkId witCountCtx acctResolver policyResolver
                     stakingScriptResolver addressResolver inputResolver (body, wits)
                     & sealedTxFromCardano'
 
