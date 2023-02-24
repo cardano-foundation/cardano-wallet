@@ -1938,6 +1938,7 @@ signTransaction
   -- ^ The way to interact with the wallet backend
   -> Cardano.AnyCardanoEra
   -- ^ Preferred latest era
+  -> WitnessCountCtx
   -> (Address -> Maybe (k ktype XPrv, Passphrase "encryption"))
   -- ^ The wallets address-key lookup function
   -> (k 'RootK XPrv, Passphrase "encryption")
@@ -1952,7 +1953,8 @@ signTransaction
   -> SealedTx
   -- ^ The original transaction, with additional signatures added where
   -- necessary
-signTransaction tl preferredLatestEra keyLookup (rootKey, rootPwd) utxo accIxForStakingM =
+signTransaction tl preferredLatestEra witCountCtx keyLookup (rootKey, rootPwd)
+    utxo accIxForStakingM =
     let
         rewardAcnt :: (XPrv, Passphrase "encryption")
         rewardAcnt =
@@ -1987,6 +1989,7 @@ signTransaction tl preferredLatestEra keyLookup (rootKey, rootPwd) utxo accIxFor
         addVkWitnesses
             tl
             preferredLatestEra
+            witCountCtx
             rewardAcnt
             policyKey
             stakingKeyM
@@ -2135,6 +2138,7 @@ buildAndSignTransactionPure
             signedTx = signTransaction @k @'CredFromKeyK
                 txLayer
                 anyCardanoEra
+                AnyWitnessCountCtx
                 (isOwned (getState wallet) (rootKey, passphrase))
                 (rootKey, passphrase)
                 (wallet ^. #utxo)
