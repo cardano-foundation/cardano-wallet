@@ -17,7 +17,8 @@ Implementation of a store for 'TxWalletsHistory'
 
 -}
 module Cardano.Wallet.DB.Store.Wallets.Store
-    ( mkStoreTxWalletsHistory
+    ( mkStoreWalletsMeta
+    , mkStoreTxWalletsHistory
     , DeltaTxWalletsHistory(..)
     ) where
 
@@ -31,8 +32,6 @@ import Cardano.Wallet.DB.Store.Meta.Store
     ( mkStoreMetaTransactions )
 import Cardano.Wallet.DB.Store.Transactions.Model
     ( DeltaTxSet (Append, DeleteTx), TxSet (..), mkTxSet )
-import Cardano.Wallet.DB.Store.Transactions.Store
-    ( mkStoreTransactions )
 import Cardano.Wallet.DB.Store.Wallets.Model
     ( DeltaTxWalletsHistory (..)
     , transactionsToDeleteOnRollback
@@ -43,7 +42,7 @@ import Control.Applicative
 import Control.Monad
     ( forM, forM_ )
 import Control.Monad.Class.MonadThrow
-    ( throwIO )
+    ( MonadThrow, throwIO )
 import Control.Monad.Except
     ( ExceptT (ExceptT), lift, runExceptT )
 import Data.DBVar
@@ -90,33 +89,37 @@ mkStoreWalletsMeta =
             $ forM (nub wids) $ \wid -> (wid,)
                 <$> ExceptT (loadS $ mkStoreMetaTransactions wid)
 
-mkStoreTxWalletsHistory :: Store (SqlPersistT IO) DeltaTxWalletsHistory
-mkStoreTxWalletsHistory =
+mkStoreTxWalletsHistory
+    :: (Monad m, MonadThrow m)
+    => Store m DeltaTxSet
+    -> Store m (DeltaMap W.WalletId DeltaTxMetaHistory)
+    -> Store m DeltaTxWalletsHistory
+mkStoreTxWalletsHistory storeTransactions storeWalletsMeta =
     let load = liftA2 (,)
-            <$> loadS mkStoreTransactions
-            <*> loadS mkStoreWalletsMeta
+            <$> loadS storeTransactions
+            <*> loadS storeWalletsMeta
         write = \(txSet,txMetaHistory) -> do
-            writeS mkStoreTransactions txSet
-            writeS mkStoreWalletsMeta txMetaHistory
-        update = updateLoad load throwIO $ \(txSet, wmetas) -> \case
+            writeS storeTransactions txSet
+            writeS storeWalletsMeta txMetaHistory
+        update = updateLoad load throwIO $ \(txSet,wmetas) -> \case
             RollbackTxWalletsHistory wid slot -> do
-                updateS mkStoreWalletsMeta (Just wmetas)
+                updateS storeWalletsMeta (Just wmetas)
                     $ Adjust wid
                     $ TxMetaStore.Manipulate
                     $ TxMetaStore.RollBackTxMetaHistory slot
                 let deletions = transactionsToDeleteOnRollback wid slot wmetas
                 forM_ deletions
-                    $ updateS mkStoreTransactions (Just txSet) . DeleteTx
+                    $ updateS storeTransactions (Just txSet) . DeleteTx
             RemoveWallet wid -> do
-                updateS mkStoreWalletsMeta (Just wmetas) $ Delete wid
+                updateS storeWalletsMeta (Just wmetas) $ Delete wid
                 let wmetas2 = Map.delete wid wmetas
                 garbageCollectTxWalletsHistory txSet wmetas2
             ExpandTxWalletsHistory wid cs -> do
-                updateS mkStoreTransactions (Just txSet)
+                updateS storeTransactions (Just txSet)
                     $ Append
                     $ mkTxSet
                     $ fst <$> cs
-                updateS mkStoreWalletsMeta (Just wmetas)
+                updateS storeWalletsMeta (Just wmetas)
                     $ case Map.lookup wid wmetas of
                         Nothing -> Insert wid (mkTxMetaHistory wid cs)
                         Just _ -> Adjust wid
@@ -125,7 +128,7 @@ mkStoreTxWalletsHistory =
     in Store { loadS = load, writeS = write, updateS = update }
   where
     garbageCollectTxWalletsHistory txSet wmetas =
-        mapM_ (updateS mkStoreTransactions (Just txSet) . DeleteTx)
+        mapM_ (updateS storeTransactions (Just txSet) . DeleteTx)
             $ Map.keys
             $ Map.withoutKeys (relations txSet)
             $ walletsLinkedTransactions wmetas
