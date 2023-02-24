@@ -1773,6 +1773,27 @@ spec = describe "SHARED_TRANSACTIONS" $ do
             signSharedTx ctx party2 apiTx2
                 [ expectResponseCode HTTP.status202 ]
 
+        let decodePayload3 = Json (toJSON signedTx2)
+        rDecodedTx5 <- request @(ApiDecodedTransaction n) ctx
+            (Link.decodeTransaction @'Shared party1) Default decodePayload3
+        rDecodedTx6 <- request @(ApiDecodedTransaction n) ctx
+            (Link.decodeTransaction @'Shared party2) Default decodePayload3
+
+        -- there is now 1 witness for staking and 1 witness for payment from party1
+        -- and 1 witness for staking and 1 witness for payment from party2.
+        let witsExp3 =
+                [ expectField (#witnessCount . #scripts)
+                      (`shouldContain` [delegationScript])
+                , expectField (#witnessCount . #scripts)
+                      (`shouldContain` [paymentScript])
+                , expectField (#witnessCount . #verificationKey)
+                      (`shouldBe` 4)
+                , expectField (#witnessCount . #bootstrap)
+                      (`shouldBe` 0)]
+
+        verify rDecodedTx5 (decodedExpectations ++ certExpectation1 ++ witsExp3)
+        verify rDecodedTx6 (decodedExpectations ++ certExpectation2 ++ witsExp3)
+
         submittedTx2 <- submitSharedTxWithWid ctx party1 signedTx2
         verify submittedTx2
             [ expectResponseCode HTTP.status202
