@@ -6,6 +6,8 @@ module Cardano.Wallet.Primitive.Types.RewardAccount.Gen
 
 import Prelude
 
+import Cardano.Wallet.Primitive.Types.Hash
+    ( Hash (..), mockHashRewardAccount )
 import Cardano.Wallet.Primitive.Types.RewardAccount
     ( RewardAccount (..) )
 import Test.QuickCheck
@@ -35,4 +37,6 @@ addresses = mkRewardAccount <$> ['0' ..]
 --------------------------------------------------------------------------------
 
 mkRewardAccount :: Char -> RewardAccount
-mkRewardAccount c = RewardAccount $ "Reward" `B8.snoc` c
+mkRewardAccount c
+    = RewardAccount . getHash
+    . mockHashRewardAccount $ "Reward" `B8.snoc` c
