@@ -331,7 +331,7 @@ specWithServer testDir (tr, tracers) = aroundAll withContext
     encodeAddresses = map (first (T.unpack . encodeAddress @'Mainnet))
 
     faucetFunds = FaucetFunds
-        { pureAdaFunds =
+        { pureAdaFunds =
             shelleyIntegrationTestFunds
              <> byronIntegrationTestFunds
              <> map (first unsafeDecodeAddr) hwWalletFunds

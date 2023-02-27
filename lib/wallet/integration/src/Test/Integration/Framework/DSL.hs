@@ -107,6 +107,7 @@ module Test.Integration.Framework.DSL
     , (!!)
     , computeApiCoinSelectionFee
     , isValidDerivationPath
+    , derivationPathValidationErrors
     , isValidRandomDerivationPath
     , genMnemonics
     , genMnemonics'
@@ -399,8 +400,10 @@ import Data.List
     ( isPrefixOf )
 import Data.List.NonEmpty
     ( NonEmpty )
+import Data.List.NonEmpty.Extra
+    ( (!?) )
 import Data.Maybe
-    ( fromJust, fromMaybe )
+    ( catMaybes, fromJust, fromMaybe )
 import Data.Monoid
     ( Sum (..) )
 import Data.Proxy
@@ -838,14 +841,36 @@ isValidDerivationPath
     :: Index 'Hardened 'PurposeK
     -> NonEmpty (ApiT DerivationIndex)
     -> Bool
-isValidDerivationPath purpose path =
-    ( length path == 5 )
-    &&
-    ( [ ApiT $ DerivationIndex $ getIndex purpose
-      , ApiT $ DerivationIndex $ getIndex coinTypeAda
-      , ApiT $ DerivationIndex $ getIndex @'Hardened minBound
-      ] `isPrefixOf` NE.toList path
-    )
+isValidDerivationPath = (null .) . derivationPathValidationErrors
+
+derivationPathValidationErrors
+    :: Index 'Hardened 'PurposeK
+    -> NonEmpty (ApiT DerivationIndex)
+    -> [String]
+derivationPathValidationErrors purpose path = catMaybes
+    [ let l = length path in if l /= 5
+        then Just ("Derivation path must have 5 elements but it has " <> show l)
+        else Nothing
+    , if purposeIdx /= Just (ApiT (DerivationIndex (getIndex purpose)))
+            then Just ("Derivation path must start with a purpose "
+                <> show purpose <> " but it has " <> show purposeIdx)
+            else Nothing
+    , if coinTypeIdx /= Just (ApiT (DerivationIndex (getIndex coinTypeAda)))
+        then Just $ "Derivation path must have " <> show coinTypeAda
+                <> " as second element (coin type) but it has "
+                <> show coinTypeIdx
+        else Nothing
+    , let minAccount = getIndex @'Hardened minBound in
+        if accountIdx /= Just (ApiT (DerivationIndex minAccount))
+        then Just $ "Derivation path must have " <> show minAccount
+                <> " as third element (account) but it has "
+                <> show accountIdx
+        else Nothing
+    ]
+  where
+    purposeIdx = path !? 0
+    coinTypeIdx = path !? 1
+    accountIdx = path !? 2
 
 isValidRandomDerivationPath :: NonEmpty (ApiT DerivationIndex) -> Bool
 isValidRandomDerivationPath path =
