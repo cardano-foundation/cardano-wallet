@@ -21,7 +21,8 @@ common language
     OverloadedStrings
 
 common opts-lib
-  ghc-options: -Wall -Wcompat -fwarn-redundant-constraints
+  ghc-options:
+    -Wall -Wcompat -fwarn-redundant-constraints
 
   if flag(release)
     ghc-options: -O2 -Werror
@@ -232,9 +233,9 @@ library
     Cardano.Wallet.DB.Sqlite.Stores
     Cardano.Wallet.DB.Sqlite.Types
     Cardano.Wallet.DB.Store.Checkpoints
-    Cardano.Wallet.DB.Store.QueryStore
     Cardano.Wallet.DB.Store.Meta.Model
     Cardano.Wallet.DB.Store.Meta.Store
+    Cardano.Wallet.DB.Store.QueryStore
     Cardano.Wallet.DB.Store.Submissions.Layer
     Cardano.Wallet.DB.Store.Submissions.Operations
     Cardano.Wallet.DB.Store.Transactions.Decoration
@@ -341,8 +342,8 @@ library
     Cardano.Wallet.Read.Tx.Outputs
     Cardano.Wallet.Read.Tx.ScriptValidity
     Cardano.Wallet.Read.Tx.Validity
-    Cardano.Wallet.Read.Tx.Witnesses
     Cardano.Wallet.Read.Tx.Withdrawals
+    Cardano.Wallet.Read.Tx.Witnesses
     Cardano.Wallet.Registry
     Cardano.Wallet.Shelley.BlockchainSource
     Cardano.Wallet.Shelley.Compatibility
@@ -366,8 +367,8 @@ library
     Cardano.Wallet.Version
     Cardano.Wallet.Version.TH
     Cardano.Wallet.Write.Tx
-    Cardano.Wallet.Write.Tx.Gen
     Cardano.Wallet.Write.Tx.Balance
+    Cardano.Wallet.Write.Tx.Gen
     Control.Concurrent.Concierge
     Control.Monad.Exception.Unchecked
     Control.Monad.Util
@@ -494,8 +495,8 @@ library cardano-wallet-api-http
     Cardano.Wallet.Api.Types.BlockHeader
     Cardano.Wallet.Api.Types.Certificate
     Cardano.Wallet.Api.Types.Error
-    Cardano.Wallet.Api.Types.MintBurn
     Cardano.Wallet.Api.Types.Key
+    Cardano.Wallet.Api.Types.MintBurn
     Cardano.Wallet.Api.Types.Primitive
     Cardano.Wallet.Api.Types.SchemaMetadata
     Cardano.Wallet.Api.Types.Transaction
@@ -882,7 +883,6 @@ test-suite unit
     Cardano.Wallet.Primitive.Types.Tx.TxSeqSpec
     Cardano.Wallet.Primitive.Types.TxSpec
     Cardano.Wallet.Primitive.TypesSpec
-    Cardano.Wallet.Read.Tx.CBORSpec
     Cardano.Wallet.Read.Tx.CBORSpec
     Cardano.Wallet.RegistrySpec
     Cardano.Wallet.Shelley.Compatibility.LedgerSpec
