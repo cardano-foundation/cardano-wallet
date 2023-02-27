@@ -25,6 +25,8 @@ import Cardano.Wallet.Read.Primitive.Tx.Features.Fee
     ( fromShelleyCoin )
 import Cardano.Wallet.Read.Tx.Outputs
     ( Outputs (..) )
+import Cardano.Wallet.Transaction
+    ( AnyScript (..) )
 import Cardano.Wallet.Util
     ( internalError )
 import Data.Foldable
@@ -63,7 +65,7 @@ getOutputs = EraFun
     , allegraFun = \(Outputs os) -> K . fmap fromAllegraTxOut $ toList os
     , maryFun = \(Outputs os) -> K . fmap fromMaryTxOut $ toList os
     , alonzoFun = \(Outputs os) -> K . fmap fromAlonzoTxOut $ toList os
-    , babbageFun = \(Outputs os) -> K . fmap fromBabbageTxOut $ toList os
+    , babbageFun = \(Outputs os) -> K . fmap (fst . fromBabbageTxOut) $ toList os
     }
 
 fromShelleyAddress :: SL.Addr crypto -> W.Address
@@ -93,10 +95,12 @@ fromAlonzoTxOut (Alonzo.TxOut addr value _) =
 
 fromBabbageTxOut
     :: Babbage.TxOut StandardBabbage
-    -> W.TxOut
+    -> (W.TxOut, Maybe AnyScript)
 fromBabbageTxOut (Babbage.TxOut addr value _datum _refScript) =
-    W.TxOut (fromShelleyAddress addr) $
-    fromCardanoValue $ Cardano.fromMaryValue value
+    ( W.TxOut (fromShelleyAddress addr) $
+      fromCardanoValue $ Cardano.fromMaryValue value
+    , Nothing
+    )
 
 -- Lovelace to coin. Quantities from ledger should always fit in Word64.
 fromCardanoLovelace :: HasCallStack => Cardano.Lovelace -> W.Coin

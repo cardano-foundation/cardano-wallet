@@ -108,9 +108,9 @@ fromBabbageTx tx@(Alonzo.ValidatedTx bod wits (Alonzo.IsValid isValid) aux) witC
         , resolvedCollateralInputs =
             map ((,Nothing) . fromShelleyTxIn) (toList collateralInps)
         , outputs =
-            map (fromBabbageTxOut . sizedValue) (toList outs)
+            map (fst . fromBabbageTxOut . sizedValue) (toList outs)
         , collateralOutput =
-            case fmap (fromBabbageTxOut . sizedValue) collateralReturn of
+            case fmap (fst . fromBabbageTxOut . sizedValue) collateralReturn of
                 SNothing -> Nothing
                 SJust txout -> Just txout
         , withdrawals =
@@ -170,9 +170,7 @@ fromBabbageTx tx@(Alonzo.ValidatedTx bod wits (Alonzo.IsValid isValid) aux) witC
         toPlutusVer Alonzo.PlutusV1 = PlutusVersionV1
         toPlutusVer Alonzo.PlutusV2 = PlutusVersionV2
 
-
     validity =
         if isValid
         then Just W.TxScriptValid
         else Just W.TxScriptInvalid
-
