@@ -31,7 +31,7 @@ import Cardano.Wallet.Api.Types
     , WalletStyle (..)
     )
 import Cardano.Wallet.Primitive.AddressDiscovery.Sequential
-    ( purposeBIP44, purposeCIP1852 )
+    ( purposeCIP1852 )
 import Cardano.Wallet.Primitive.Types.Hash
     ( Hash (..) )
 import Cardano.Wallet.Primitive.Types.TokenMap
@@ -63,6 +63,7 @@ import Test.Integration.Framework.DSL
     , Headers (..)
     , Payload (..)
     , addField
+    , derivationPathValidationErrors
     , emptyWallet
     , expectErrorMessage
     , expectField
@@ -78,6 +79,7 @@ import Test.Integration.Framework.DSL
     , selectCoins
     , selectCoinsWith
     , verify
+    , verifyMsg
     , walletId
     )
 import Test.Integration.Framework.TestData
@@ -276,7 +278,8 @@ spec = describe "SHELLEY_COIN_SELECTION" $ do
                     (isValidDerivationPath purposeCIP1852 . view #derivationPath))
             ]
 
-    it "WALLETS_COIN_SELECTION_06b - can redeem rewards from other" $ \ctx -> runResourceT $ do
+    it "WALLETS_COIN_SELECTION_06b - can redeem rewards from other" $
+        \ctx -> runResourceT $ do
         (_, mnemonic) <- rewardWallet ctx
         source <- fixtureWallet ctx
         addr:_ <- fmap (view #id) <$> listAddresses @n ctx source
@@ -285,13 +288,15 @@ spec = describe "SHELLEY_COIN_SELECTION" $ do
         let payment = AddressAmount addr amount mempty
         let transform = addField "withdrawal" (mnemonicToText mnemonic)
 
-        selectCoinsWith @_ @'Shelley ctx source (payment :| []) transform >>= flip verify
-            [ expectResponseCode HTTP.status200
-            , expectField #withdrawals
-                (`shouldSatisfy` ((== 1) . length))
-            , expectField #withdrawals
-                (`shouldSatisfy` all
-                    (isValidDerivationPath purposeBIP44 . view #derivationPath))
+        res <- selectCoinsWith @_ @'Shelley ctx source (payment :| []) transform
+        verifyMsg "HTTP status" res
+            [ expectResponseCode HTTP.status200 ]
+        verifyMsg "Number of withdrawals" res
+            [ expectField #withdrawals (`shouldSatisfy` ((== 1) . length)) ]
+        verifyMsg "Validity of a derivation path" res
+            [ expectField #withdrawals $ \[withdrawal] ->
+                derivationPathValidationErrors purposeCIP1852
+                    (withdrawal ^. #derivationPath) `shouldBe` []
             ]
 
     -- Attempt to create a coin selection with an output that has an

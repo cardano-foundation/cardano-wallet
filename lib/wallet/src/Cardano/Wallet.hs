@@ -122,12 +122,16 @@ module Cardano.Wallet
     , transactionExpirySlot
     , SelectAssetsParams (..)
     , selectAssets
+    , buildCoinSelectionForTransaction
+    , CoinSelection (..)
     , readWalletUTxOIndex
     , defaultChangeAddressGen
     , assignChangeAddressesAndUpdateDb
     , assignChangeAddressesWithoutDbUpdate
     , selectionToUnsignedTx
     , buildSignSubmitTransaction
+    , buildTransaction
+    , buildTransactionPure
     , buildAndSignTransactionPure
     , buildAndSignTransaction
     , BuiltTx (..)
@@ -426,7 +430,6 @@ import Cardano.Wallet.Primitive.Types.Tx
     , UnsignedTx (..)
     , fromTransactionInfo
     , sealedTxFromCardano
-    , withdrawals
     )
 import Cardano.Wallet.Primitive.Types.Tx.TxIn
     ( TxIn (..) )
@@ -443,7 +446,7 @@ import Cardano.Wallet.Primitive.Types.UTxOStatistics
 import Cardano.Wallet.Read.Tx.CBOR
     ( TxCBOR )
 import Cardano.Wallet.Shelley.Compatibility
-    ( fromCardanoBlock )
+    ( fromCardanoBlock, fromCardanoTxIn, fromCardanoTxOut, fromCardanoWdrls )
 import Cardano.Wallet.Transaction
     ( DelegationAction (..)
     , ErrCannotJoin (..)
@@ -518,7 +521,7 @@ import Crypto.Hash
 import Data.ByteString
     ( ByteString )
 import Data.DBVar
-    ( modifyDBMaybe )
+    ( modifyDBMaybe, readDBVar )
 import Data.Either
     ( partitionEithers )
 import Data.Either.Extra
@@ -526,7 +529,7 @@ import Data.Either.Extra
 import Data.Function
     ( (&) )
 import Data.Functor
-    ( ($>) )
+    ( ($>), (<&>) )
 import Data.Functor.Contravariant
     ( (>$<) )
 import Data.Generics.Internal.VL.Lens
@@ -546,7 +549,7 @@ import Data.List.NonEmpty
 import Data.Map.Strict
     ( Map )
 import Data.Maybe
-    ( fromMaybe, isJust, mapMaybe )
+    ( fromMaybe, isJust, mapMaybe, maybeToList )
 import Data.Proxy
     ( Proxy (..) )
 import Data.Set
@@ -609,6 +612,7 @@ import qualified Cardano.Wallet.Primitive.Types as W
 import qualified Cardano.Wallet.Primitive.Types.Coin as Coin
 import qualified Cardano.Wallet.Primitive.Types.TokenBundle as TokenBundle
 import qualified Cardano.Wallet.Primitive.Types.TokenMap as TokenMap
+import qualified Cardano.Wallet.Primitive.Types.Tx.Tx as Tx
 import qualified Cardano.Wallet.Primitive.Types.Tx.TxOut as TxOut
 import qualified Cardano.Wallet.Primitive.Types.UTxO as UTxO
 import qualified Cardano.Wallet.Primitive.Types.UTxOIndex as UTxOIndex
@@ -620,6 +624,7 @@ import qualified Data.ByteArray as BA
 import qualified Data.Foldable as F
 import qualified Data.List as L
 import qualified Data.List.NonEmpty as NE
+import qualified Data.Map as Map
 import qualified Data.Set as Set
 import qualified Data.Text as T
 import qualified Data.Vector as V
@@ -1402,11 +1407,15 @@ lookupTxIns ctx wid txins = db & \DBLayer{..} -> do
     pure $ map (\i -> (i, lookupTxIn cp i)) txins
   where
     db = ctx ^. dbLayer @IO @s @k
-    lookupTxIn :: Wallet s -> TxIn -> Maybe (TxOut, NonEmpty DerivationIndex)
-    lookupTxIn cp txIn = do
-        out@(TxOut addr _) <- UTxO.lookup txIn (totalUTxO mempty cp)
-        path <- fst $ isOurs addr (getState cp)
-        return (out, path)
+
+lookupTxIn
+    :: IsOurs s Address
+    => Wallet s
+    -> TxIn
+    -> Maybe (TxOut, NonEmpty DerivationIndex)
+lookupTxIn wallet txIn = do
+    out@(TxOut addr _) <- UTxO.lookup txIn (totalUTxO mempty wallet)
+    (out,) <$> fst (isOurs addr (getState wallet))
 
 lookupTxOuts
     :: forall ctx s k .
@@ -1657,6 +1666,80 @@ selectionToUnsignedTx wdrl sel s =
         WithdrawalExternal acct path c ->
             [(acct, c, path)]
 
+data CoinSelection = CoinSelection
+    { inputs :: [(TxIn, TxOut, NonEmpty DerivationIndex)]
+    , outputs :: [TxOut]
+    , change :: [TxChange (NonEmpty DerivationIndex)]
+    , collateral :: [(TxIn, TxOut, NonEmpty DerivationIndex)]
+    , withdrawals :: [(RewardAccount, Coin, NonEmpty DerivationIndex)]
+    , delegationAction :: Maybe (DelegationAction, NonEmpty DerivationIndex)
+    , deposit :: Maybe Coin
+    , refund :: Maybe Coin
+    }
+    deriving (Generic)
+
+
+buildCoinSelectionForTransaction
+    :: forall s k n era
+     . ( Cardano.IsCardanoEra era
+       , IsOurs s Address
+       , s ~ SeqState n k
+       )
+    => Wallet s
+    -> [TxOut] -- ^ payment outputs to exclude from change outputs
+    -> Coin -- ^ protocol parameter deposit amount
+    -> Maybe DelegationAction
+    -> Cardano.Tx era
+    -> CoinSelection
+buildCoinSelectionForTransaction
+    wallet paymentOutputs depositRefund delegationAction cardanoTx =
+    CoinSelection
+    { inputs = resolveInput . fromCardanoTxIn . fst =<< txIns
+    , outputs = paymentOutputs
+    , change = do
+        out <-
+            -- NOTE: We assume that the change outputs are always
+            -- at the end of the list. This is true for the current
+            -- 'balanceTransaction' implementation, but may not
+            -- be true for other implementations.
+            drop (length  paymentOutputs) $ fromCardanoTxOut <$> txOuts
+        let address = out ^. #address
+        derivationPath <-
+            maybeToList $ fst $ isOurs address (getState wallet)
+        pure TxChange
+            { address
+            , amount = out ^. #tokens . #coin
+            , assets = out ^. #tokens . #tokens
+            , derivationPath
+            }
+    , collateral = resolveInput . fromCardanoTxIn =<<
+        case txInsCollateral of
+            Cardano.TxInsCollateralNone -> []
+            Cardano.TxInsCollateral _supported is -> is
+    , withdrawals = fromCardanoWdrls txWithdrawals <&>
+        \(acct, coin) -> (acct, coin, rewardAcctPath)
+    , delegationAction = (,rewardAcctPath) <$> delegationAction
+    , deposit =
+        case delegationAction of
+            Just (JoinRegisteringKey _poolId) -> Just depositRefund
+            _ -> Nothing
+    , refund =
+        case delegationAction of
+            Just Quit -> Just depositRefund
+            _ -> Nothing
+    }
+  where
+    Cardano.TxBody Cardano.TxBodyContent
+        { txIns, txOuts, txInsCollateral, txWithdrawals } =
+            Cardano.getTxBody cardanoTx
+
+    resolveInput txIn = do
+        (txOut, derivationPath) <- maybeToList (lookupTxIn wallet txIn)
+        pure (txIn, txOut, derivationPath)
+
+    rewardAcctPath =
+        stakeDerivationPath (Seq.derivationPrefix (getState wallet))
+
 -- | Read a wallet checkpoint and index its UTxO, for 'selectAssets' and
 -- 'selectAssetsNoOutputs'.
 readWalletUTxOIndex
@@ -1826,7 +1909,7 @@ selectAssets ctx era pp params transform = do
                 pure ()
       where
         hasWithdrawal :: Tx -> Bool
-        hasWithdrawal = not . null . withdrawals
+        hasWithdrawal = not . null . Tx.withdrawals
 
         txWithdrawal :: Withdrawal
         txWithdrawal = params ^. (#txContext . #txWithdrawal)
@@ -2008,35 +2091,10 @@ buildAndSignTransactionPure
     --
     WriteTx.withRecentEra era $ \(_ :: WriteTx.RecentEra recentEra) -> do
         wallet <- get
-
-        unsignedTxBody <-
-            lift . withExceptT (Right . ErrConstructTxBody) . except $
-                mkUnsignedTransaction txLayer @recentEra
-                    (unsafeShelleyOnlyGetRewardXPub (getState wallet))
-                    protocolParams
-                    txCtx
-                    (Left preSelection)
-
-        (unsignedBalancedTx, updatedWalletState) <- lift . withExceptT Left $
-            balanceTransaction @_ @_ @s @k @ktype
-                nullTracer
-                txLayer
-                Nothing -- "To input scripts" resolver
-                Nothing -- Script template
-                nodeProtocolParameters
-                ti
-                (UTxOIndex.fromMap
-                    $ CS.toInternalUTxOMap
-                    $ availableUTxO @s pendingTxs wallet)
-                changeAddrGen
-                (getState wallet)
-                ( PartialTx
-                    { tx = Cardano.Tx unsignedTxBody []
-                    , inputs = Cardano.UTxO mempty
-                    , redeemers = []
-                    }
-                )
-
+        (unsignedBalancedTx, updatedWalletState) <- lift $
+            buildTransactionPure @s @k @ktype @n @recentEra
+                wallet ti pendingTxs txLayer changeAddrGen
+                protocolParams preSelection txCtx
         put wallet { getState = updatedWalletState }
 
         let passphrase = preparePassphrase passphraseScheme userPassphrase
@@ -2092,6 +2150,108 @@ buildAndSignTransactionPure
             }
   where
     anyCardanoEra = WriteTx.fromAnyRecentEra era
+
+buildTransaction
+    :: forall s k (n :: NetworkDiscriminant) era
+    . ( s ~ SeqState n k
+      , WriteTx.IsRecentEra era
+      , AddressBookIso s
+      , Typeable k
+      , Typeable n
+      , BoundedAddressLength k
+      )
+    => DBLayer IO s k
+    -> TransactionLayer k 'CredFromKeyK SealedTx
+    -> TimeInterpreter (ExceptT PastHorizonException IO)
+    -> WalletId
+    -> ChangeAddressGen s
+    -> ProtocolParameters
+    -> TransactionCtx
+    -> [TxOut] -- ^ payment outputs
+    -> IO (Cardano.Tx era, Wallet s)
+buildTransaction DBLayer{..} txLayer timeInterpreter walletId
+    changeAddrGen protocolParameters txCtx paymentOuts = do
+    stdGen <- initStdGen
+    pureTimeInterpreter <- snapshot timeInterpreter
+    atomically $ do
+        wallet <- readDBVar walletsDB >>= \wallets ->
+            case Map.lookup walletId wallets of
+                Nothing -> liftIO . throwIO
+                    $ ExceptionNoSuchWallet
+                    $ ErrNoSuchWallet walletId
+                Just ws -> pure $ WalletState.getLatest ws
+
+        pendingTxs <- Set.fromList . fmap fromTransactionInfo <$>
+            readTransactions
+                walletId Nothing Descending wholeRange (Just Pending)
+
+        fmap (\s' -> wallet { getState = s' }) <$>
+            buildTransactionPure @s @_ @'CredFromKeyK @n @era
+                wallet
+                pureTimeInterpreter
+                pendingTxs
+                txLayer
+                changeAddrGen
+                protocolParameters
+                PreSelection { outputs = paymentOuts }
+                txCtx
+                & runExceptT . withExceptT
+                    (either ExceptionBalanceTx ExceptionConstructTx)
+                & (`evalRand` stdGen)
+                & either (liftIO . throwIO) pure
+
+buildTransactionPure ::
+    forall s k ktype (n :: NetworkDiscriminant) era
+    . ( Typeable n
+      , Typeable s
+      , Typeable k
+      , BoundedAddressLength k
+      , WriteTx.IsRecentEra era
+      )
+    => Wallet s
+    -> TimeInterpreter (Either PastHorizonException)
+    -> Set Tx -- pending transactions
+    -> TransactionLayer k ktype SealedTx
+    -> ChangeAddressGen s
+    -> ProtocolParameters
+    -> PreSelection
+    -> TransactionCtx
+    -> ExceptT
+        (Either ErrBalanceTx ErrConstructTx)
+        (Rand StdGen)
+        (Cardano.Tx era, s)
+buildTransactionPure
+    wallet ti pendingTxs txLayer changeAddrGen
+    protocolParams preSelection txCtx = do
+    --
+    unsignedTxBody <-
+        withExceptT (Right . ErrConstructTxBody) . except $
+            mkUnsignedTransaction txLayer @era
+                (unsafeShelleyOnlyGetRewardXPub (getState wallet))
+                protocolParams
+                txCtx
+                (Left preSelection)
+
+    withExceptT Left $
+        balanceTransaction @_ @_ @s @k @ktype
+            nullTracer
+            txLayer
+            Nothing -- "To input scripts" resolver
+            Nothing -- Script template
+            nodeProtocolParameters
+            ti
+            (UTxOIndex.fromMap
+                $ CS.toInternalUTxOMap
+                $ availableUTxO @s pendingTxs wallet)
+            changeAddrGen
+            (getState wallet)
+            PartialTx
+                { tx = Cardano.Tx unsignedTxBody []
+                , inputs = Cardano.UTxO mempty
+                , redeemers = []
+                }
+
+  where
     nodeProtocolParameters =
         ( protocolParams
         , fromMaybe

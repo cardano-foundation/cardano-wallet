@@ -338,6 +338,24 @@ instance IsServerError ErrMkTransaction where
     toServerError = \case
         ErrMkTransactionTxBodyError hint ->
             apiError err500 CreatedInvalidTransaction hint
+        ErrMkTransactionTokenQuantityExceedsLimit e ->
+            apiError err403 OutputTokenQuantityExceedsLimit $ mconcat
+                [ "One of the token quantities you've specified is greater "
+                , "than the maximum quantity allowed in a single transaction "
+                , "output. "
+                , "Try splitting this quantity across two or more outputs. "
+                , "Destination address: "
+                , pretty (view #address e)
+                , ". Token policy identifier: "
+                , pretty (view #tokenPolicyId $ asset e)
+                , ". Asset name: "
+                , pretty (view #tokenName $ asset e)
+                , ". Token quantity specified: "
+                , pretty (view #quantity e)
+                , ". Maximum allowable token quantity: "
+                , pretty (view #quantityMaxBound e)
+                , "."
+                ]
         ErrMkTransactionInvalidEra _era ->
             apiError err500 CreatedInvalidTransaction $ mconcat
                 [ "Whoops, it seems like I just experienced a hard-fork in the "
