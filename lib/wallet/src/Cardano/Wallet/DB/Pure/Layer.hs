@@ -196,7 +196,7 @@ newDBLayer timeInterpreter = do
         , readLocalTxSubmissionPending =
                 error "readLocalTxSubmissionPending not implemented in old design"
 
-        , resubmitTx = \wid txId sealed tip -> void $
+        , resubmitTx = \wid txId sealed tip -> void $ ExceptT $
             alterDB errNoSuchWallet db $ mPutLocalTxSubmission wid txId sealed tip
 
         , rollForwardTxSubmissions = \pk tip _txs -> ExceptT $

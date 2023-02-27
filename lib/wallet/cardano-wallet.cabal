@@ -223,6 +223,7 @@ library
     Cardano.Wallet.Checkpoints.Policy
     Cardano.Wallet.Compat
     Cardano.Wallet.DB
+    Cardano.Wallet.DB.Errors
     Cardano.Wallet.DB.Layer
     Cardano.Wallet.DB.Pure.Implementation
     Cardano.Wallet.DB.Pure.Layer

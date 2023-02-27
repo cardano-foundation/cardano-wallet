@@ -1,7 +1,6 @@
 {-# LANGUAGE DataKinds #-}
 {-# LANGUAGE ExistentialQuantification #-}
 {-# LANGUAGE LambdaCase #-}
-{-# LANGUAGE NamedFieldPuns #-}
 {-# LANGUAGE OverloadedLabels #-}
 {-# LANGUAGE RankNTypes #-}
 {-# LANGUAGE RecordWildCards #-}
@@ -28,34 +27,38 @@ module Cardano.Wallet.DB
     , DBWalletMeta (..)
     , DBDelegation (..)
     , DBTxHistory (..)
-    , DBPendingTxs (..)
     , DBPrivateKey (..)
     , mkDBLayerFromParts
 
-      -- * Errors
-    , ErrBadFormat(..)
-    , ErrWalletAlreadyExists(..)
-    , ErrNoSuchTransaction (..)
-    , ErrRemoveTx (..)
-    , ErrPutLocalTxSubmission (..)
-    , getInSubmissionTransaction_
     , hoistDBLayer
+      -- * Errors
+    , module Cardano.Wallet.DB.Errors
     ) where
 
 import Prelude
 
 import Cardano.Address.Derivation
     ( XPrv )
-import Cardano.Wallet.DB.Sqlite.Types
-    ( TxId (TxId) )
+import Cardano.Wallet.DB.Errors
+import Cardano.Wallet.DB.Store.Submissions.Layer
+    ( getInSubmissionTransaction, getInSubmissionTransactions )
 import Cardano.Wallet.DB.Store.Submissions.Operations
-    ( SubmissionMeta (..), TxSubmissionsStatus )
+    ( DeltaTxSubmissions
+    , SubmissionMeta (..)
+    , TxSubmissions
+    , TxSubmissionsStatus
+    )
 import Cardano.Wallet.DB.Store.Transactions.Decoration
     ( TxInDecorator )
 import Cardano.Wallet.DB.Store.Transactions.TransactionInfo
     ( mkTransactionInfoFromReadTx )
 import Cardano.Wallet.DB.WalletState
-    ( DeltaMap, DeltaWalletState, ErrNoSuchWallet (..) )
+    ( DeltaMap
+    , DeltaWalletState
+    , DeltaWalletState1 (UpdateSubmissions)
+    , WalletState (submissions)
+    , adjustNoSuchWallet
+    )
 import Cardano.Wallet.Primitive.AddressDerivation
     ( Depth (..) )
 import Cardano.Wallet.Primitive.Model
@@ -99,15 +102,13 @@ import Cardano.Wallet.Transaction.Built
 import Control.Lens
     ( has )
 import Control.Monad
-    ( guard, join )
+    ( join )
 import Control.Monad.IO.Class
     ( MonadIO, liftIO )
 import Control.Monad.Trans.Except
     ( ExceptT (..), runExceptT )
 import Data.DBVar
-    ( DBVar )
-import Data.Foldable
-    ( find )
+    ( DBVar, modifyDBMaybe, readDBVar )
 import Data.Functor
     ( (<&>) )
 import Data.Generics.Internal.VL
@@ -115,7 +116,7 @@ import Data.Generics.Internal.VL
 import Data.List
     ( sortOn )
 import Data.Maybe
-    ( catMaybes, isJust )
+    ( catMaybes )
 import Data.Ord
     ( Down (..) )
 import Data.Quantity
@@ -124,14 +125,12 @@ import Data.Traversable
     ( for )
 import Data.Word
     ( Word32 )
-import UnliftIO.Exception
-    ( Exception )
 
+import qualified Cardano.Wallet.DB.Store.Submissions.Layer as Sbms
 import qualified Cardano.Wallet.Primitive.Types.Tx.SealedTx as WST
 import qualified Cardano.Wallet.Primitive.Types.Tx.TxMeta as WTxMeta
 import qualified Cardano.Wallet.Read.Tx as Read
 import qualified Cardano.Wallet.Submissions.TxStatus as Subm
-import qualified Cardano.Wallet.Submissions.TxStatus as Sbm
 import qualified Data.Map.Strict as Map
 
 -- | Instantiate database layers at will
@@ -331,7 +330,7 @@ data DBLayer m s k = forall stm. (MonadIO stm, MonadFail stm) => DBLayer
         -> Hash "Tx"
         -> SealedTx -- TODO: ADP-2596 really not needed
         -> SlotNo
-        -> stm ()
+        -> ExceptT ErrNoSuchWallet stm ()
         -- ^ Resubmit a transaction.
 
     , readLocalTxSubmissionPending
@@ -441,7 +440,6 @@ data DBLayerCollection stm m s k = DBLayerCollection
     , dbWalletMeta :: DBWalletMeta stm
     , dbDelegation :: WalletId -> DBDelegation stm
     , dbTxHistory :: DBTxHistory stm
-    , dbPendingTxs :: DBPendingTxs stm
     , dbPrivateKey :: WalletId -> DBPrivateKey stm k
 
     -- The following two functions will need to be split up
@@ -498,8 +496,8 @@ mkDBLayerFromParts ti DBLayerCollection{..} = DBLayer
         readCurrentTip wid >>= \case
             Just tip -> do
                 inLedgers <- readTxHistory_ dbTxHistory wid range status tip
-                inSubmissionsRaw <-
-                    getInSubmissionTransactions_ dbPendingTxs wid
+                inSubmissionsRaw <- withSubmissions wid [] $ \submissions -> do
+                        pure $ getInSubmissionTransactions submissions
                 inSubmissions :: [TransactionInfo] <- fmap catMaybes
                     $ for inSubmissionsRaw $
                         mkTransactionInfo
@@ -514,32 +512,34 @@ mkDBLayerFromParts ti DBLayerCollection{..} = DBLayer
                             <$> hasStatus WTxMeta.Pending
                             <*> hasStatus WTxMeta.Expired
                             ) inSubmissions
-            Nothing ->
-                pure []
+            Nothing -> pure []
     , getTx = \wid txid -> wrapNoSuchWallet wid $ do
         readCurrentTip wid >>= \case
             Just tip -> do
                 historical <- getTx_ dbTxHistory wid txid tip
                 case historical of
                     Just tx -> pure $ Just tx
-                    Nothing -> do
-                        inSubmission <-
-                            getInSubmissionTransaction_ dbPendingTxs wid txid
+                    Nothing ->  withSubmissions wid Nothing $ \submissions -> do
+                        let inSubmission =
+                                getInSubmissionTransaction txid submissions
                         fmap join $ for inSubmission $
                             mkTransactionInfo
                             (hoistTimeInterpreter liftIO ti)
                             (mkDecorator_ dbTxHistory) tip
                                 . fmap snd
             Nothing -> pure Nothing
-    , addTxSubmission = \wid a b -> wrapNoSuchWallet wid $
-        addTxSubmission_ dbPendingTxs wid a b
-    , readLocalTxSubmissionPending = \wid -> do
-        txs <- getInSubmissionTransactions_ dbPendingTxs wid
-        pure $ filter (has $ txStatus . _InSubmission) txs
-    , resubmitTx = resubmitTx_ dbPendingTxs
-    , rollForwardTxSubmissions = \wid tip txs -> wrapNoSuchWallet wid $
-        rollForwardTxSubmissions_ dbPendingTxs wid tip txs
-    , removePendingOrExpiredTx = removePendingOrExpiredTx_ dbPendingTxs
+    , addTxSubmission = \wid builtTx slotNo  -> updateSubmissions' wid id
+            $ \_ -> Right [Sbms.addTxSubmission builtTx slotNo]
+    , readLocalTxSubmissionPending = \wid -> withSubmissions wid [] $ \xs -> do
+        pure $ filter (has $ txStatus . _InSubmission) $
+            getInSubmissionTransactions xs
+    , resubmitTx = \wid hash _ slotNo -> updateSubmissions' wid id
+            $ Right . Sbms.resubmitTx hash slotNo
+    , rollForwardTxSubmissions = \wid tip txs -> updateSubmissions' wid id
+            $ \_ -> Right [Sbms.rollForwardTxSubmissions tip txs]
+    , removePendingOrExpiredTx = \wid txid ->
+            updateSubmissions' wid ErrRemoveTxNoSuchWallet $ \xs ->
+                pure <$> Sbms.removePendingOrExpiredTx xs wid txid
     , putPrivateKey = \wid a -> wrapNoSuchWallet wid $
         putPrivateKey_ (dbPrivateKey wid) a
     , readPrivateKey = \wid ->
@@ -550,6 +550,14 @@ mkDBLayerFromParts ti DBLayerCollection{..} = DBLayer
     , atomically = atomically_
     }
   where
+    withSubmissions wid def action = do
+        mstate <- fmap (Map.lookup wid)
+            $ readDBVar $ walletsDB_ dbCheckpoints
+        case mstate of
+            Nothing -> pure def
+            Just state -> action $ submissions state
+
+    updateSubmissions' = updateSubmissions dbCheckpoints
     readCheckpoint' = readCheckpoint_ dbCheckpoints
     wrapNoSuchWallet
         :: WalletId
@@ -563,6 +571,22 @@ mkDBLayerFromParts ti DBLayerCollection{..} = DBLayer
     readCurrentTip :: WalletId -> stm (Maybe BlockHeader)
     readCurrentTip =
         (fmap . fmap) currentTip . readCheckpoint_ dbCheckpoints
+
+-- | Update the transaction submission state of a wallet.
+updateSubmissions
+    :: Monad stm
+    => DBCheckpoints stm s
+    -> WalletId
+    -> (ErrNoSuchWallet -> e)
+    -> (TxSubmissions -> Either e [DeltaTxSubmissions])
+    -> ExceptT e stm ()
+updateSubmissions dbCheckpoints wid emap xs
+    = ExceptT
+        $ modifyDBMaybe (walletsDB_ dbCheckpoints)
+        $ adjustNoSuchWallet wid emap
+        $ \submissionsData ->
+            (\ys -> ([UpdateSubmissions ys], ()))
+                <$>  xs (submissions submissionsData)
 
 -- | A database layer for a collection of wallets
 data DBWallets stm s = DBWallets
@@ -730,82 +754,6 @@ data DBTxHistory stm = DBTxHistory
         -- ^ Resolve TxIn for a given Tx.
     }
 
--- | Fetch a specific in-submission transaction set for a known wallet.
---
--- Returns Nothing if the wallet isn't found or transactions isn't found.
-getInSubmissionTransaction_
-    :: Functor stm
-    => DBPendingTxs stm
-    -> WalletId
-    -> Hash "Tx"
-    -> stm (Maybe TxSubmissionsStatus)
-getInSubmissionTransaction_ DBPendingTxs{getInSubmissionTransactions_} wid txid
-    = find which <$> getInSubmissionTransactions_ wid
-  where
-    which  :: TxSubmissionsStatus -> Bool
-    which (TxStatusMeta txStatus' _) = isJust $ do
-        (txid', _)  <- Sbm.getTx txStatus'
-        guard $ txid' == TxId txid
-
--- | A database layer for storing in-submission transactions.
-data DBPendingTxs stm = DBPendingTxs
-    { emptyTxSubmissions_
-        :: WalletId
-        -> stm ()
-        -- ^ Add overwrite an empty submisison pool to the given wallet.
-
-    , addTxSubmission_
-        :: WalletId
-        -> BuiltTx
-        -> SlotNo
-        -> stm ()
-        -- ^ Add a /new/ transaction to the local submission pool
-        -- with the most recent submission slot.
-        --
-        -- Does nothing if the walletId does not exist.
-
-    , getInSubmissionTransactions_
-        :: WalletId
-        -> stm [TxSubmissionsStatus]
-        -- ^ Fetch the current in-submission transactions set for a known wallet.
-        --
-        -- Returns an empty list if the wallet isn't found.
-
-    , resubmitTx_ :: WalletId
-        -> Hash "Tx"
-        -> SealedTx -- TODO: ADP-2596 really not needed
-        -> SlotNo
-        -> stm ()
-        -- ^ Resubmit a transaction.
-
-    , rollForwardTxSubmissions_
-        :: WalletId
-        -> SlotNo
-        -> [(SlotNo, Hash "Tx")]
-        -> stm ()
-        -- ^ Roll forward the submitted transaction,
-        -- given the local tip and the list of transactions that have been
-        -- included in the ledger until the local tip.
-        -- Marks pending transaction as `InLedger` or `Expired` as appropriate.
-
-    , removePendingOrExpiredTx_
-        :: WalletId
-        -> Hash "Tx"
-        -> ExceptT ErrRemoveTx stm ()
-        -- ^ Manually remove a pending transaction.
-
-    , rollBackSubmissions_
-        :: WalletId
-        -> SlotNo
-        -> stm ()
-        -- ^ Rollback submissions store.
-
-    , pruneByFinality_
-        :: WalletId
-        -> SlotNo
-        -> stm ()
-        -- ^ Prune ths submissions store by moving the finality slot.
-    }
 
 -- | A database layer for storing the private key.
 data DBPrivateKey stm k = DBPrivateKey
@@ -848,42 +796,6 @@ filterMinWithdrawal Nothing = id
 filterMinWithdrawal (Just minWithdrawal) = filter p
   where
     p = any (>= minWithdrawal) . Map.elems . txInfoWithdrawals
-
-{-----------------------------------------------------------------------------
-    Errors
-------------------------------------------------------------------------------}
--- | Can't read the database file because it's in a bad format
--- (corrupted, too old, …)
-data ErrBadFormat
-    = ErrBadFormatAddressPrologue
-    | ErrBadFormatCheckpoints
-    deriving (Eq,Show)
-
-instance Exception ErrBadFormat
-
--- | Can't add a transaction to the local tx submission pool.
-data ErrPutLocalTxSubmission
-    = ErrPutLocalTxSubmissionNoSuchWallet ErrNoSuchWallet
-    | ErrPutLocalTxSubmissionNoSuchTransaction ErrNoSuchTransaction
-    deriving (Eq, Show)
-
--- | Can't remove pending or expired transaction.
-data ErrRemoveTx
-    = ErrRemoveTxNoSuchWallet ErrNoSuchWallet
-    | ErrRemoveTxNoSuchTransaction ErrNoSuchTransaction
-    | ErrRemoveTxAlreadyInLedger (Hash "Tx")
-    deriving (Eq, Show)
-
--- | Indicates that the specified transaction hash is not found in the
--- transaction history of the given wallet.
-data ErrNoSuchTransaction
-    = ErrNoSuchTransaction WalletId (Hash "Tx")
-    deriving (Eq, Show)
-
--- | Forbidden operation was executed on an already existing wallet
-newtype ErrWalletAlreadyExists
-    = ErrWalletAlreadyExists WalletId -- Wallet already exists in db
-    deriving (Eq, Show)
 
 mkTransactionInfo
     :: Monad stm

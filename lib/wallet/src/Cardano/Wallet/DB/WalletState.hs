@@ -44,6 +44,12 @@ import Cardano.Wallet.Address.Book
     ( AddressBookIso (..), Discoveries, Prologue )
 import Cardano.Wallet.Checkpoints
     ( Checkpoints )
+import Cardano.Wallet.DB.Errors
+    ( ErrNoSuchWallet (..) )
+import Cardano.Wallet.DB.Store.Submissions.Layer
+    ( emptyTxSubmissions )
+import Cardano.Wallet.DB.Store.Submissions.Operations
+    ( DeltaTxSubmissions, TxSubmissions )
 import Cardano.Wallet.Primitive.Types
     ( BlockHeader, WalletId )
 import Cardano.Wallet.Primitive.Types.UTxO
@@ -117,6 +123,7 @@ fromWallet w = (pro, WalletCheckpoint (W.currentTip w) (W.utxo w) dis)
 data WalletState s = WalletState
     { prologue    :: !(Prologue s)
     , checkpoints :: !(Checkpoints (WalletCheckpoint s))
+    , submissions :: !TxSubmissions
     } deriving (Generic)
 
 deriving instance AddressBookIso s => Eq (WalletState s)
@@ -125,7 +132,11 @@ deriving instance AddressBookIso s => Eq (WalletState s)
 fromGenesis :: AddressBookIso s => W.Wallet s -> Maybe (WalletState s)
 fromGenesis cp
     | W.isGenesisBlockHeader header = Just $
-        WalletState{ prologue, checkpoints = CPS.fromGenesis checkpoint }
+        WalletState
+            { prologue
+            , checkpoints = CPS.fromGenesis checkpoint
+            , submissions = emptyTxSubmissions
+            }
     | otherwise = Nothing
   where
     header = cp ^. #currentTip
@@ -150,15 +161,18 @@ data DeltaWalletState1 s
     -- ^ Replace the prologue of the address discovery state
     | UpdateCheckpoints (CPS.DeltasCheckpoints (WalletCheckpoint s))
     -- ^ Update the wallet checkpoints.
+    | UpdateSubmissions [DeltaTxSubmissions]
 
 instance Delta (DeltaWalletState1 s) where
     type Base (DeltaWalletState1 s) = WalletState s
     apply (ReplacePrologue p) = over #prologue $ const p
     apply (UpdateCheckpoints d) = over #checkpoints $ apply d
+    apply (UpdateSubmissions d) = over #submissions $ apply d
 
 instance Buildable (DeltaWalletState1 s) where
     build (ReplacePrologue _) = "ReplacePrologue …"
     build (UpdateCheckpoints d) = "UpdateCheckpoints (" <> build d <> ")"
+    build (UpdateSubmissions d) = "UpdateSubmissions (" <> build d <> ")"
 
 instance Show (DeltaWalletState1 s) where
     show = pretty
@@ -170,7 +184,7 @@ instance Show (DeltaWalletState1 s) where
 adjustNoSuchWallet
     :: WalletId
     -> (ErrNoSuchWallet -> e)
-    -> (w -> Either e (dw, b))
+    -> (w              -> Either e (dw, b))
     -> (Map WalletId w -> (Maybe (DeltaMap WalletId dw), Either e b))
 adjustNoSuchWallet wid err update wallets = case Map.lookup wid wallets of
     Nothing -> (Nothing, Left $ err $ ErrNoSuchWallet wid)
@@ -178,10 +192,3 @@ adjustNoSuchWallet wid err update wallets = case Map.lookup wid wallets of
         Left e -> (Nothing, Left e)
         Right (dw, b) -> (Just $ Adjust wid dw, Right b)
 
-{-------------------------------------------------------------------------------
-    Errors
--------------------------------------------------------------------------------}
--- | Can't perform given operation because there's no wallet
-newtype ErrNoSuchWallet
-    = ErrNoSuchWallet WalletId -- Wallet is gone or doesn't exist yet
-    deriving (Eq, Show)

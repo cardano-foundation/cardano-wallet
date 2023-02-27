@@ -81,6 +81,8 @@ import Cardano.Wallet.DB.Sqlite.Types
     , hashOfNoParent
     , toMaybeHash
     )
+import Cardano.Wallet.DB.Store.Submissions.Operations
+    ( mkStoreSubmissions )
 import Cardano.Wallet.DB.WalletState
     ( DeltaMap (..)
     , DeltaWalletState
@@ -123,6 +125,8 @@ import Data.Bifunctor
     ( bimap, second )
 import Data.DBVar
     ( Store (..) )
+import Data.Foldable
+    ( for_ )
 import Data.Functor
     ( (<&>) )
 import Data.Generics.Internal.VL.Lens
@@ -218,16 +222,19 @@ mkStoreWallet wid =
     Store{ loadS = load, writeS = write, updateS = \_ -> update }
   where
     storeCheckpoints = mkStoreCheckpoints wid
+    submissions = mkStoreSubmissions wid
 
     load = do
         eprologue <- maybe (Left $ toException ErrBadFormatAddressPrologue) Right
             <$> loadPrologue wid
         echeckpoints <- loadS storeCheckpoints
-        pure $ WalletState <$> eprologue <*> echeckpoints
+        esubmissions <- loadS submissions
+        pure $ WalletState <$> eprologue <*> echeckpoints <*> esubmissions
 
     write wallet = do
         insertPrologue wid (wallet ^. #prologue)
         writeS storeCheckpoints (wallet ^. #checkpoints)
+        writeS submissions (wallet ^. #submissions)
 
     update =
          -- first update in list is last to be applied!
@@ -237,6 +244,8 @@ mkStoreWallet wid =
     update1 (UpdateCheckpoints delta) =
         -- FIXME LATER during ADP-1043: remove 'undefined'
         updateS storeCheckpoints undefined delta
+    update1 (UpdateSubmissions delta) =
+        for_ (reverse delta) (updateS submissions Nothing)
 
 -- | Store for the 'Checkpoints' belonging to a 'WalletState'.
 mkStoreCheckpoints
