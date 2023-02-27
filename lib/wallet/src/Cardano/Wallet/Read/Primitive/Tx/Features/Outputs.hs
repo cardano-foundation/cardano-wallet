@@ -19,14 +19,18 @@ import Cardano.Binary
     ( serialize' )
 import Cardano.Chain.Common
     ( unsafeGetLovelace )
+import Cardano.Ledger.Shelley.API
+    ( StrictMaybe (SJust, SNothing) )
 import Cardano.Wallet.Read.Eras
     ( EraFun (..), K (..) )
 import Cardano.Wallet.Read.Primitive.Tx.Features.Fee
     ( fromShelleyCoin )
+import Cardano.Wallet.Read.Primitive.Tx.Features.Mint
+    ( fromLedgerScriptToAnyScript )
 import Cardano.Wallet.Read.Tx.Outputs
     ( Outputs (..) )
 import Cardano.Wallet.Transaction
-    ( AnyScript (..) )
+    ( AnyScript )
 import Cardano.Wallet.Util
     ( internalError )
 import Data.Foldable
@@ -96,10 +100,12 @@ fromAlonzoTxOut (Alonzo.TxOut addr value _) =
 fromBabbageTxOut
     :: Babbage.TxOut StandardBabbage
     -> (W.TxOut, Maybe AnyScript)
-fromBabbageTxOut (Babbage.TxOut addr value _datum _refScript) =
+fromBabbageTxOut (Babbage.TxOut addr value _datum refScript) =
     ( W.TxOut (fromShelleyAddress addr) $
       fromCardanoValue $ Cardano.fromMaryValue value
-    , Nothing
+    , case refScript of
+          SJust s -> Just $ fromLedgerScriptToAnyScript s
+          SNothing -> Nothing
     )
 
 -- Lovelace to coin. Quantities from ledger should always fit in Word64.

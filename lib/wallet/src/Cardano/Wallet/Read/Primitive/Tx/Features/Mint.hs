@@ -15,6 +15,7 @@ module Cardano.Wallet.Read.Primitive.Tx.Features.Mint
     , maryMint
     , alonzoMint
     , babbageMint
+    , fromLedgerScriptToAnyScript
     )
     where
 
@@ -192,19 +193,23 @@ fromAlonzoScriptMap =
     toPlutusVer Alonzo.PlutusV1 = PlutusVersionV1
     toPlutusVer Alonzo.PlutusV2 = PlutusVersionV2
 
+fromLedgerScriptToAnyScript
+    :: SL.Core.Script StandardBabbage
+    -> AnyScript
+fromLedgerScriptToAnyScript = toAnyScript
+    where
+    toAnyScript (Alonzo.TimelockScript script) =
+        NativeScript $ toWalletScript (const Policy) script
+    toAnyScript (Alonzo.PlutusScript ver _) =
+        PlutusScript (PlutusScriptInfo (toPlutusVer ver))
+    toPlutusVer Alonzo.PlutusV1 = PlutusVersionV1
+    toPlutusVer Alonzo.PlutusV2 = PlutusVersionV2
+
 fromBabbageScriptMap
     :: Map
         (SL.ScriptHash (Crypto StandardBabbage))
         (SL.Core.Script StandardBabbage)
     -> Map TokenPolicyId AnyScript
 fromBabbageScriptMap =
-    Map.map toAnyScript .
+    Map.map fromLedgerScriptToAnyScript .
     Map.mapKeys (toWalletTokenPolicyId . SL.PolicyID)
-    where
-    toAnyScript (Alonzo.TimelockScript script) =
-        NativeScript $ toWalletScript (const Policy) script
-    toAnyScript (Alonzo.PlutusScript ver _) =
-        PlutusScript (PlutusScriptInfo (toPlutusVer ver))
-
-    toPlutusVer Alonzo.PlutusV1 = PlutusVersionV1
-    toPlutusVer Alonzo.PlutusV2 = PlutusVersionV2
