@@ -1687,7 +1687,7 @@ buildCoinSelectionForTransaction
        )
     => Wallet s
     -> [TxOut] -- ^ payment outputs to exclude from change outputs
-    -> Coin
+    -> Coin -- ^ protocol parameter deposit amount
     -> Maybe DelegationAction
     -> Cardano.Tx era
     -> CoinSelection
