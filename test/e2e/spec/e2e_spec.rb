@@ -51,11 +51,6 @@ RSpec.describe 'Cardano Wallet E2E tests', :all, :e2e do
       tx = construct_sign_submit(@wid, payment_payload(init_amt, payment_address))
       wait_for_tx_in_ledger(@wid, tx.last['id'])
 
-      # payment_address = 'addr_test1vq7hs2ae8mstqfmmfvhrx34lac8cahegp05jruheanwctfgge7jcc'
-      # payment_keys = {:vkey=>"/home/piotr/wb/cardano-wallet/test/e2e/state/node_db/preprod/payment.vkey", 
-      #                 :skey=>"/home/piotr/wb/cardano-wallet/test/e2e/state/node_db/preprod/payment.skey"}
-
-
       # 2. [cardano-cli] Submit transaction to the address setting utxo for collateral and reference script utxo
       init_utxo = CARDANO_CLI.get_utxos(payment_address).first
       txbody = CARDANO_CLI.tx_build("--tx-in #{init_utxo[:utxo]}##{init_utxo[:ix]}",
@@ -72,33 +67,59 @@ RSpec.describe 'Cardano Wallet E2E tests', :all, :e2e do
       end
 
       # 3. [cardano-cli] Submit minting transaction using reference script sending minted tokens to wallet address
+      # payment_address = 'addr_test1vrvuxcuxlk65aalm5ssfsqw6yealvqs0wme8njcysdgd32srp4may'
+      # payment_keys = {:vkey=>"/home/piotr/wb/cardano-wallet/test/e2e/state/node_db/preprod/payment.vkey",
+      #                 :skey=>"/home/piotr/wb/cardano-wallet/test/e2e/state/node_db/preprod/payment.skey"}
+
+      wallet_id = 'fe6f0d79114982b73446212df4504f861f00f52c'
+      txs = SHELLEY.transactions.list(wallet_id)
+      expect(txs).to be_correct_and_respond 200
+
       src_utxos = CARDANO_CLI.get_utxos(payment_address)
-      address = SHELLEY.addresses.list('ae404222079c4a7f8c5c2ccde5a2cfd3186753d7').first['id']
-      
-      # --mint-tx-in-reference "ec78ceb4b1e58c078ddfc3fe0a4b5185d6c18a412175b02e4e66e12f34e480f4#0" \
-      # --mint-plutus-script-v2 \
-      # --mint-reference-tx-in-redeemer-file /home/piotr/wb/cardano-wallet/test/e2e/fixtures/plutus/42.redeemer \
-      # --policy-id 9c8e9da7f81e3ca90485f32ebefc98137c8ac260a072a00c4aaf142d \
-      # --tx-in-collateral "ec78ceb4b1e58c078ddfc3fe0a4b5185d6c18a412175b02e4e66e12f34e480f4#1" \
-      # --protocol-params-file protocol.json \
-      # --tx-in "ec78ceb4b1e58c078ddfc3fe0a4b5185d6c18a412175b02e4e66e12f34e480f4#2" \
-      # --tx-out "addr_test1qr4fvdyxgge7ktnl7f7mht40zml4ea357ucewl6tvadp8nz3csyr9hnm95jaqfn9lvx04spc6jsggrml6ql935xgfxzqden9rq+2000000+1 9c8e9da7f81e3ca90485f32ebefc98137c8ac260a072a00c4aaf142d.7161636f696e636f7062" \
-      # --mint "1 9c8e9da7f81e3ca90485f32ebefc98137c8ac260a072a00c4aaf142d.7161636f696e636f7062" \
-      # --change-address addr_test1vpvsu3x40a7cmqyul4z55e30rzh8r8pajtzkfqx0zsxfdrqlev9jf \
-      CARDANO_CLI.tx_build("--tx-in #{src_utxos[2][:utxo]}##{src_utxos[2][:ix]}",
-                           "--tx-in-collateral #{src_utxos[1][:utxo]}##{src_utxos[1][:ix]}",
-                           "--mint-tx-in-reference #{src_utxos[0][:utxo]}##{src_utxos[0][:ix]}",
-                           "--tx-out #{address}+2000000+1 9c8e9da7f81e3ca90485f32ebefc98137c8ac260a072a00c4aaf142d.7161636f696e636f7062",
-                           "--mint 1 9c8e9da7f81e3ca90485f32ebefc98137c8ac260a072a00c4aaf142d.7161636f696e636f7062",
-                           "--mint-plutus-script-v2",
-                           "--mint-reference-tx-in-redeemer-file #{get_plutus_file_path('42.redeemer')}",
-                           "--policy-id 9c8e9da7f81e3ca90485f32ebefc98137c8ac260a072a00c4aaf142d",
-                           "--change-address #{payment_address}",
-                           "--protocol-params-file #{CARDANO_CLI.get_protocol_params_to_file}")
+      address = SHELLEY.addresses.list(wallet_id).first['id']
+      policy_id = CARDANO_CLI.policy_id(get_plutus_file_path('anyone-can-mint.plutus'))
+      hex_asset_name = asset_name('ReferenceScriptAsset')
+      txbody2 = CARDANO_CLI.tx_build("--tx-in #{src_utxos[2][:utxo]}##{src_utxos[2][:ix]}",
+                                     "--tx-in-collateral #{src_utxos[1][:utxo]}##{src_utxos[1][:ix]}",
+                                     "--mint-tx-in-reference #{src_utxos[0][:utxo]}##{src_utxos[0][:ix]}",
+                                     "--tx-out \"#{address}+2000000+1 #{policy_id}.#{hex_asset_name}\"",
+                                     "--mint \"1 #{policy_id}.#{hex_asset_name}\"",
+                                     '--mint-plutus-script-v2',
+                                     "--mint-reference-tx-in-redeemer-file #{get_plutus_file_path('42.redeemer')}",
+                                     "--policy-id #{policy_id}",
+                                     "--change-address #{payment_address}",
+                                     "--protocol-params-file #{CARDANO_CLI.get_protocol_params_to_file}")
 
+      txsigned2 = CARDANO_CLI.tx_sign(txbody2, payment_keys)
+      txid2 = CARDANO_CLI.tx_submit(txsigned2)
 
+      eventually 'Minting Tx with reference script is in ledger' do
+        CARDANO_CLI.get_utxos(payment_address).to_s.include?(txid2)
+      end
+
+      # 4. [cardano-wallet] Check that tx history is available after receiving token from minting tx made using reference script
+      txs = SHELLEY.transactions.list(wallet_id)
+      expect(txs).to be_correct_and_respond 200
+
+      tx_details = SHELLEY.transactions.get(wallet_id, txid2)
+      tx_inputs(tx_details, present: true)
+      tx_outputs(tx_details, present: true)
+      tx_direction(tx_details, 'incoming')
+      tx_script_validity(tx_details, 'valid')
+      tx_status(tx_details, 'in_ledger')
+      tx_collateral(tx_details, present: true)
+      tx_collateral_outputs(tx_details, present: false)
+      tx_metadata(tx_details, nil)
+      tx_deposits(tx_details, deposit_taken: 0, deposit_returned: 0)
+      tx_withdrawals(tx_details, present: false)
+      tx_mint_burn(tx_details, mint: [], burn: [])
+      tx_extra_signatures(tx_details, present: true)
+      tx_script_integrity(tx_details, present: true)
+      tx_validity_interval_default(tx_details)
+      tx_certificates(tx_details, present: false)
+
+      # 5. [cardano-wallet] Send token back to the address
     end
-
   end
 
   describe 'Collateral return', :collateral do
