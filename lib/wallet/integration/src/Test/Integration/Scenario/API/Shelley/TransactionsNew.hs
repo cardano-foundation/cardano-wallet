@@ -1388,6 +1388,63 @@ spec = describe "NEW_SHELLEY_TRANSACTIONS" $ do
             , expectField #burn (`shouldBe` activeAssetsInfo)
             ]
 
+    it "TRANS_NEW_DECODE_02a / ADP-2666 - \
+        \transaction with minting asset with reference script" $
+        \ctx -> runResourceT $ do
+
+        -- tx should decode successfully even on empty wallet and even if tx doesn't target it
+        wa <- emptyWallet ctx
+
+        -- constructing minting tx using reference script in cardano-cli
+        --- $ POLICY_ID=$(cardano-cli transaction policyid --script-file ./test/e2e/fixtures/plutus/anyone-can-mint.plutus)
+        --- # POLICY_ID=9c8e9da7f81e3ca90485f32ebefc98137c8ac260a072a00c4aaf142d
+        ---
+        --- $ cardano-cli transaction build-raw \
+        --- > --fee 238931 \
+        --- > --mint-tx-in-reference "ec78ceb4b1e58c078ddfc3fe0a4b5185d6c18a412175b02e4e66e12f34e480f4#0" \
+        --- > --mint-plutus-script-v2 \
+        --- > --mint-reference-tx-in-redeemer-file ./test/e2e/fixtures/plutus/42.redeemer \
+        --- > --policy-id $POLICY_ID \
+        --- > --tx-in-collateral "ec78ceb4b1e58c078ddfc3fe0a4b5185d6c18a412175b02e4e66e12f34e480f4#1" \
+        --- > --protocol-params-file protocol.json \
+        --- > --tx-in "ec78ceb4b1e58c078ddfc3fe0a4b5185d6c18a412175b02e4e66e12f34e480f4#2" \
+        --- > --tx-out "addr1q8t3j053nvljc45znmx752mdd2tq2vhk24x4dc0xczjulen9yhe8j89vvhxas5fl6paf7tfwc8srg6q97re42z0876hqug8j87+2000000+1 $POLICY_ID.7161636f696e636f7062" \
+        --- > --mint "1 $POLICY_ID.7161636f696e636f7062" \
+        --- > --tx-out "addr1q8t3j053nvljc45znmx752mdd2tq2vhk24x4dc0xczjulen9yhe8j89vvhxas5fl6paf7tfwc8srg6q97re42z0876hqug8j87+17509856" \
+        --- > --out-file reference_script_tx.body \
+        --- > --babbage-era \
+        --- > --mint-reference-tx-in-execution-units "(5, 5)"
+        let cborHexWithMinting =
+                "84a70081825820ec78ceb4b1e58c078ddfc3fe0a4b5185d6c18a412175b02e4e6\
+                \6e12f34e480f4020d81825820ec78ceb4b1e58c078ddfc3fe0a4b5185d6c18a41\
+                \2175b02e4e66e12f34e480f4011281825820ec78ceb4b1e58c078ddfc3fe0a4b5\
+                \185d6c18a412175b02e4e66e12f34e480f4000182a200583901d7193e919b3f2c\
+                \56829ecdea2b6d6a960532f6554d56e1e6c0a5cfe66525f2791cac65cdd8513fd\
+                \07a9f2d2ec1e0346805f0f35509e7f6ae01821a001e8480a1581c9c8e9da7f81e\
+                \3ca90485f32ebefc98137c8ac260a072a00c4aaf142da14952656653637269707\
+                \401a200583901d7193e919b3f2c56829ecdea2b6d6a960532f6554d56e1e6c0a5\
+                \cfe66525f2791cac65cdd8513fd07a9f2d2ec1e0346805f0f35509e7f6ae011a0\
+                \10b2de0021a0003a55309a1581c9c8e9da7f81e3ca90485f32ebefc98137c8ac2\
+                \60a072a00c4aaf142da149526566536372697074010b582041b3986a363183ffd\
+                \965bb8978994709e4bed394055bf2aebfc0c5213d3f1779a10581840100182a82\
+                \0505f5f6" :: Text
+
+        -- let cborHexMint = fromTextEnvelope cborHexWithMinting
+        let decodeMintPayload = Json [json|{
+              "transaction": #{cborHexWithMinting}
+          }|]
+
+        -- let tokenName' = UnsafeTokenName "RefScript"
+
+        rTx <- request @(ApiDecodedTransaction n) ctx
+            (Link.decodeTransaction @'Shelley wa) Default decodeMintPayload
+        verify rTx
+            [ expectResponseCode HTTP.status202
+            , expectField (#fee . #getQuantity) (`shouldBe` 238_931)
+            -- more assertions can be added once it passes
+            ]
+
+
     it "TRANS_NEW_DECODE_03 - \
         \transaction with external delegation certificates" $
         \ctx -> runResourceT $ do
