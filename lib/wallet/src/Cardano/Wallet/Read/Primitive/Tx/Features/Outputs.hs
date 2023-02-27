@@ -25,12 +25,8 @@ import Cardano.Wallet.Read.Eras
     ( EraFun (..), K (..) )
 import Cardano.Wallet.Read.Primitive.Tx.Features.Fee
     ( fromShelleyCoin )
-import Cardano.Wallet.Read.Primitive.Tx.Features.Mint
-    ( fromLedgerScriptToAnyScript )
 import Cardano.Wallet.Read.Tx.Outputs
     ( Outputs (..) )
-import Cardano.Wallet.Transaction
-    ( AnyScript )
 import Cardano.Wallet.Util
     ( internalError )
 import Data.Foldable
@@ -52,6 +48,7 @@ import qualified Cardano.Ledger.Alonzo as Alonzo
 import qualified Cardano.Ledger.Alonzo.TxBody as Alonzo
 import qualified Cardano.Ledger.Babbage as Babbage
 import qualified Cardano.Ledger.Babbage.TxBody as Babbage
+import qualified Cardano.Ledger.Crypto as SL
 import qualified Cardano.Ledger.Shelley.API as SL
 import qualified Cardano.Wallet.Primitive.Types.Address as W
 import qualified Cardano.Wallet.Primitive.Types.Coin as W
@@ -99,12 +96,12 @@ fromAlonzoTxOut (Alonzo.TxOut addr value _) =
 
 fromBabbageTxOut
     :: Babbage.TxOut StandardBabbage
-    -> (W.TxOut, Maybe AnyScript)
+    -> (W.TxOut, Maybe (Babbage.Script (Babbage.BabbageEra SL.StandardCrypto)))
 fromBabbageTxOut (Babbage.TxOut addr value _datum refScript) =
     ( W.TxOut (fromShelleyAddress addr) $
       fromCardanoValue $ Cardano.fromMaryValue value
     , case refScript of
-          SJust s -> Just $ fromLedgerScriptToAnyScript s
+          SJust s -> Just s
           SNothing -> Nothing
     )
 

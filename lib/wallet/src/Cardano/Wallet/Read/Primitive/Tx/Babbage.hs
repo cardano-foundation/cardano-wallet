@@ -1,6 +1,7 @@
 {-# LANGUAGE DuplicateRecordFields #-}
 {-# LANGUAGE FlexibleContexts #-}
 {-# LANGUAGE TupleSections #-}
+{-# LANGUAGE TypeApplications #-}
 {-# LANGUAGE TypeFamilies #-}
 
 -- |
@@ -66,6 +67,8 @@ import Data.Foldable
     ( toList )
 import Data.Map.Strict
     ( Map )
+import Data.Maybe
+    ( mapMaybe )
 import Ouroboros.Consensus.Cardano.Block
     ( StandardBabbage )
 
@@ -77,6 +80,7 @@ import qualified Cardano.Ledger.Alonzo.TxWitness as Alonzo
 import qualified Cardano.Ledger.Babbage.TxBody as Babbage
 import qualified Cardano.Ledger.BaseTypes as SL
 import qualified Cardano.Ledger.Core as SL.Core
+import qualified Cardano.Ledger.Era as SL.Core
 import qualified Cardano.Ledger.Mary.Value as SL
 import qualified Cardano.Ledger.Shelley.API as SL
 import qualified Cardano.Wallet.Primitive.Types as W
@@ -146,7 +150,15 @@ fromBabbageTx tx@(Alonzo.ValidatedTx bod wits (Alonzo.IsValid isValid) aux) witC
         _network
         = bod
     (assetsToMint, assetsToBurn) = babbageMint mint wits
-    scriptMap = fromBabbageScriptMap $ Alonzo.txscripts' wits
+
+    toScriptWithHash s =
+        (SL.Core.hashScript @(Cardano.ShelleyLedgerEra BabbageEra) s, s)
+    scriptsFromTxOuts =
+        Map.fromList $
+        map toScriptWithHash $
+        mapMaybe (snd . fromBabbageTxOut . sizedValue) (toList outs)
+    scriptsFromWits = Alonzo.txscripts' wits
+    scriptMap = fromBabbageScriptMap $ Map.union scriptsFromWits scriptsFromTxOuts
 
     countWits = WitnessCount
         (fromIntegral $ Set.size $ Alonzo.txwitsVKey' wits)
