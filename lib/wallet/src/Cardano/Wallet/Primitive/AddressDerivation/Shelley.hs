@@ -84,7 +84,6 @@ import Cardano.Wallet.Primitive.AddressDiscovery.Sequential
     , SeqState (..)
     , coinTypeAda
     , discoverSeqWithRewards
-    , purposeBIP44
     , purposeCIP1852
     , rewardAccountKey
     )
@@ -384,10 +383,8 @@ instance ToRewardAccount ShelleyKey where
     toRewardAccount = toRewardAccountRaw . getKey
     someRewardAccount mw =
         let
-            -- NOTE: Accounts from mnemonics are considered to be ITN wallet-like,
-            -- therefore bound to purpose=44', 0th account.
             path = NE.fromList
-                [ DerivationIndex $ getIndex purposeBIP44
+                [ DerivationIndex $ getIndex purposeCIP1852
                 , DerivationIndex $ getIndex coinTypeAda
                 , DerivationIndex $ getIndex @'Hardened minBound
                 , DerivationIndex $ getIndex mutableAccount

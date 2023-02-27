@@ -31,7 +31,7 @@ import Cardano.Wallet.Api.Types
     , WalletStyle (..)
     )
 import Cardano.Wallet.Primitive.AddressDiscovery.Sequential
-    ( purposeBIP44, purposeCIP1852 )
+    ( purposeCIP1852 )
 import Cardano.Wallet.Primitive.Types.Hash
     ( Hash (..) )
 import Cardano.Wallet.Primitive.Types.TokenMap
@@ -295,7 +295,7 @@ spec = describe "SHELLEY_COIN_SELECTION" $ do
             [ expectField #withdrawals (`shouldSatisfy` ((== 1) . length)) ]
         verifyMsg "Validity of a derivation path" res
             [ expectField #withdrawals $ \[withdrawal] ->
-                derivationPathValidationErrors purposeBIP44
+                derivationPathValidationErrors purposeCIP1852
                     (withdrawal ^. #derivationPath) `shouldBe` []
             ]
 
