@@ -109,6 +109,16 @@ class CardanoCli
     txbody
   end
 
+  def tx_build(*options)
+    txbody = File.join(@node_state, 'txbody')
+    cmd(%(cardano-cli transaction build \
+          #{options.join(' ')} \
+          --babbage-era \
+          --testnet-magic #{@protocol_magic} \
+          --out-file #{txbody}))
+    txbody
+  end
+
   def tx_sign(txbody, keys)
     txsigned = File.join(@node_state, 'txsigned')
     cmd(%(cardano-cli transaction sign \
@@ -119,6 +129,7 @@ class CardanoCli
     txsigned
   end
 
+  # @return [String] - tx id
   def tx_submit(txsigned)
     # submit
     cmd(%(cardano-cli transaction submit \
@@ -128,4 +139,5 @@ class CardanoCli
     # return tx id
     cmd(%(cardano-cli transaction txid --tx-file #{txsigned})).gsub("\n", '')
   end
+
 end

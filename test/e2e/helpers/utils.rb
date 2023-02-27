@@ -86,7 +86,7 @@ module Helpers
 
       wallets = from_json(fixture)
       if linux?
-        wallets[:windows][kind][wallet_type][info_type]
+        wallets[:linux][kind][wallet_type][info_type]
       elsif mac?
         wallets[:macos][kind][wallet_type][info_type]
       elsif win?
