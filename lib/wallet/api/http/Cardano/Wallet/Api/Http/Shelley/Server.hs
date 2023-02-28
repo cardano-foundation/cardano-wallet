@@ -177,7 +177,8 @@ import Cardano.Wallet
     , ErrWalletNotResponding (..)
     , ErrWithRootKey (..)
     , ErrWitnessTx (..)
-    , FeeEstimation (..)
+    , Fee (..)
+    , FeeSpread (..)
     , HasNetworkLayer
     , TxSubmitLog
     , WalletWorkerLog (..)
@@ -2354,7 +2355,6 @@ postTransactionFeeOld ctx@ApiLayer{..} (ApiT wid) body =
             liftHandler $ W.readWalletUTxOIndex @_ @s @k wrk wid
         let outs = addressAmountToTxOut <$> body ^. #payments
         pp <- liftIO $ NW.currentProtocolParameters netLayer
-        let getFee = const (selectionDelta TokenBundle.getCoin)
         let selectAssetsParams = W.SelectAssetsParams
                 { outputs = F.toList outs
                 , pendingTxs
@@ -2367,11 +2367,13 @@ postTransactionFeeOld ctx@ApiLayer{..} (ApiT wid) body =
                 }
         let runSelection =
                 W.selectAssets @_ @_ @s @k @'CredFromKeyK
-                  wrk era pp selectAssetsParams getFee
+                    wrk era pp selectAssetsParams $ \_state ->
+                        Fee . selectionDelta TokenBundle.getCoin
         minCoins <- liftIO
             $ W.calcMinimumCoinValues @_ @k @'CredFromKeyK
                 wrk era (F.toList outs)
-        liftHandler $ mkApiFee Nothing minCoins <$> W.estimateFee runSelection
+        liftHandler $ mkApiFee Nothing minCoins <$>
+            W.calculateFeeSpread runSelection
 
 constructTransaction
     :: forall (n :: NetworkDiscriminant)
@@ -3473,12 +3475,11 @@ joinStakePool
                 }
 
 delegationFee
-    :: forall ctx s n k.
+    :: forall s n k.
         ( s ~ SeqState n k
-        , ctx ~ ApiLayer s k 'CredFromKeyK
         , BoundedAddressLength k
         )
-    => ctx
+    => ApiLayer s k 'CredFromKeyK
     -> ApiT WalletId
     -> Handler ApiFee
 delegationFee ctx (ApiT wid) = do
@@ -3489,30 +3490,13 @@ delegationFee ctx (ApiT wid) = do
         era <- liftIO $ NW.currentNodeEra (wrk ^. networkLayer)
         deposit <- liftIO $ W.calcMinimumDeposit @_ @s @k wrk wid
         mkApiFee (Just deposit) [] <$>
-            W.estimateFee (runSelection wrk era pp deposit w)
+            W.calculateFeeSpread
+                (W.estimateFee @_ @_ @s @k wrk era pp deposit w)
   where
-    txCtx :: TransactionCtx
-    txCtx = defaultTransactionCtx
-
     throwInIO :: ExceptT ErrNoSuchWallet IO a -> IO a
     throwInIO x = runExceptT x >>= \case
         Right a -> pure a
         Left e -> throwIO $ W.ExceptionNoSuchWallet e
-
-    runSelection wrk era pp _deposit (utxoAvailable, wallet, pendingTxs) =
-        W.selectAssets @_ @_ @s @k @'CredFromKeyK wrk era pp selectAssetsParams calcFee
-      where
-        calcFee _ = selectionDelta TokenBundle.getCoin
-        selectAssetsParams = W.SelectAssetsParams
-            { outputs = []
-            , pendingTxs
-            , randomSeed = Nothing
-            , txContext = txCtx
-            , utxoAvailableForInputs = UTxOSelection.fromIndex utxoAvailable
-            , utxoAvailableForCollateral = UTxOIndex.toMap utxoAvailable
-            , wallet
-            , selectionStrategy = SelectionStrategyOptimal
-            }
 
 quitStakePool
     :: forall s n k.
@@ -4481,15 +4465,13 @@ toAddressAmount (TxOut addr (TokenBundle.TokenBundle coin assets)) =
 mkApiCoin :: Coin -> Quantity "lovelace" Natural
 mkApiCoin (Coin c) = Quantity $ fromIntegral c
 
-mkApiFee :: Maybe Coin -> [Coin] -> FeeEstimation -> ApiFee
-mkApiFee mDeposit minCoins (FeeEstimation estMin estMax) = ApiFee
-    { estimatedMin = qty estMin
-    , estimatedMax = qty estMax
+mkApiFee :: Maybe Coin -> [Coin] -> FeeSpread -> ApiFee
+mkApiFee mDeposit minCoins (FeeSpread estMin estMax) = ApiFee
+    { estimatedMin = Quantity (Coin.toNatural (feeToCoin estMin))
+    , estimatedMax = Quantity (Coin.toNatural (feeToCoin estMax))
     , minimumCoins = Quantity . Coin.toNatural <$> minCoins
     , deposit = Quantity . Coin.toNatural $ fromMaybe (Coin 0) mDeposit
     }
-  where
-    qty = Quantity . fromIntegral
 
 mkApiWithdrawal
     :: forall (n :: NetworkDiscriminant). ()

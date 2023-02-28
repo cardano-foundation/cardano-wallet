@@ -2,10 +2,12 @@
 {-# LANGUAGE ConstraintKinds #-}
 {-# LANGUAGE DataKinds #-}
 {-# LANGUAGE DeriveGeneric #-}
+{-# LANGUAGE DerivingStrategies #-}
 {-# LANGUAGE DuplicateRecordFields #-}
 {-# LANGUAGE ExistentialQuantification #-}
 {-# LANGUAGE FlexibleContexts #-}
 {-# LANGUAGE FlexibleInstances #-}
+{-# LANGUAGE GeneralizedNewtypeDeriving #-}
 {-# LANGUAGE LambdaCase #-}
 {-# LANGUAGE MultiParamTypeClasses #-}
 {-# LANGUAGE NamedFieldPuns #-}
@@ -159,8 +161,10 @@ module Cardano.Wallet
     , ErrStakePoolDelegation (..)
 
     -- ** Fee Estimation
-    , FeeEstimation (..)
+    , Fee (..)
+    , FeeSpread (..)
     , estimateFee
+    , calculateFeeSpread
     , calcMinimumDeposit
     , calcMinimumCoinValues
 
@@ -1678,7 +1682,6 @@ data CoinSelection = CoinSelection
     }
     deriving (Generic)
 
-
 buildCoinSelectionForTransaction
     :: forall s k n era
      . ( Cardano.IsCardanoEra era
@@ -2806,15 +2809,19 @@ migrationPlanToSelectionWithdrawals plan rewardWithdrawal outputAddressesToCycle
                                  Fee Estimation
 -------------------------------------------------------------------------------}
 
+newtype Fee = Fee { feeToCoin :: Coin }
+    deriving stock (Show, Generic)
+    deriving newtype (Eq, Ord, NFData)
+
 -- | Result of a fee estimation process given a wallet and payment order.
-data FeeEstimation = FeeEstimation
-    { estMinFee :: Word64
+data FeeSpread = FeeSpread
+    { estMinFee :: Fee
     -- ^ Most coin selections will result in a fee higher than this.
-    , estMaxFee :: Word64
+    , estMaxFee :: Fee
     -- ^ Most coin selections will result in a fee lower than this.
     } deriving (Show, Eq, Generic)
 
-instance NFData FeeEstimation
+instance NFData FeeSpread
 
 -- | Calculate the minimum deposit necessary if a given wallet wanted to
 -- delegate to a pool. Said differently, this return either 0, or the value of
@@ -2843,32 +2850,65 @@ calcMinimumDeposit ctx wid = db & \DBLayer{..} -> throwInIO $ do
     db = ctx ^. dbLayer @IO @s @k
     nl = ctx ^. networkLayer
 
--- | Estimate the transaction fee for a given coin selection algorithm by
--- repeatedly running it (100 times) and collecting the results. In the returned
--- 'FeeEstimation', the minimum fee is that which 90% of the sampled fees are
--- greater than. The maximum fee is the highest fee observed in the samples.
-estimateFee
+estimateFee ::
+    forall ctx m s k .
+    ( BoundedAddressLength k
+    , HasTransactionLayer k 'CredFromKeyK ctx
+    , HasLogger m WalletWorkerLog ctx
+    , MonadRandom m
+    )
+    => ctx
+    -> Cardano.AnyCardanoEra
+    -> ProtocolParameters
+    -> Coin
+    -> (UTxOIndex WalletUTxO, Wallet s, Set Tx)
+    -> ExceptT ErrSelectAssets m Fee
+estimateFee wrk era pp _deposit (utxoAvailable, wallet, pendingTxs) =
+    selectAssets @ctx @m @s @k @'CredFromKeyK
+        wrk era pp selectAssetsParams $ \_s ->
+            Fee . CS.selectionDelta TokenBundle.getCoin
+  where
+    selectAssetsParams = SelectAssetsParams
+        { outputs = []
+        , pendingTxs
+        , randomSeed = Nothing
+        , txContext = defaultTransactionCtx
+        , utxoAvailableForInputs = UTxOSelection.fromIndex utxoAvailable
+        , utxoAvailableForCollateral = UTxOIndex.toMap utxoAvailable
+        , wallet
+        , selectionStrategy = SelectionStrategyOptimal
+        }
+
+-- | For a given transaction fee estimation calculation evaluates its fee spread
+-- by repeatedly running it (100 times) and recording the results.
+-- In the returned 'FeeSpread', the minimum fee is that which 90% of the sampled
+-- fees are greater than. The maximum fee is the highest fee observed in the
+-- samples.
+calculateFeeSpread
     :: forall m. Monad m
-    => ExceptT ErrSelectAssets m Coin
-    -> ExceptT ErrSelectAssets m FeeEstimation
-estimateFee
+    => ExceptT ErrSelectAssets m Fee
+    -> ExceptT ErrSelectAssets m FeeSpread
+calculateFeeSpread
     = fmap deciles
     . handleErrors
     . replicateM repeats
     . runExceptT
-    . fmap unCoin
+    . fmap (unCoin . feeToCoin)
     . (`catchE` handleCannotCover)
   where
     -- Use method R-8 from to get top 90%.
     -- https://en.wikipedia.org/wiki/Quantile#Estimating_quantiles_from_a_sample
-    deciles = mkFeeEstimation
+    deciles = mkFeeSpread
         . map round
         . V.toList
         . quantiles medianUnbiased (V.fromList [1, 10]) 10
         . V.fromList
         . map fromIntegral
-    mkFeeEstimation [a,b] = FeeEstimation a b
-    mkFeeEstimation _ = error "estimateFee: impossible"
+
+    mkFeeSpread [a,b] = FeeSpread (naturalFee a) (naturalFee b)
+    mkFeeSpread _ = error "calculateFeeSpread: impossible"
+
+    naturalFee = Fee . Coin.fromNatural
 
     -- Remove failed coin selections from samples. Unless they all failed, in
     -- which case pass on the error.
@@ -2876,30 +2916,26 @@ estimateFee
     handleErrors = ExceptT . fmap skipFailed
       where
         skipFailed samples = case partitionEithers samples of
-            ([], []) ->
-                error "estimateFee: impossible empty list"
-            ((e:_), []) ->
-                Left e
-            (_, samples') ->
-                Right samples'
+            ([], []) -> error "calculateFeeSpread: impossible empty list"
+            ((e:_), []) -> Left e
+            (_, samples') -> Right samples'
 
     repeats = 100 -- TODO: modify repeats based on data
 
-    -- | When estimating fee, it is rather cumbersome to return "cannot cover fee"
-    -- if clients are just asking for an estimation. Therefore, we convert
-    -- "cannot cover" errors into the necessary fee amount, even though there isn't
-    -- enough in the wallet to cover for these fees.
-    handleCannotCover :: ErrSelectAssets -> ExceptT ErrSelectAssets m Coin
+    -- | When estimating fee, it is rather cumbersome to return
+    -- "cannot cover fee" if clients are just asking for an estimation.
+    -- Therefore, we convert "cannot cover" errors into the necessary
+    -- fee amount, even though there isn't enough in the wallet
+    -- to cover for these fees.
+    handleCannotCover :: ErrSelectAssets -> ExceptT ErrSelectAssets m Fee
     handleCannotCover = \case
-        e@(ErrSelectAssetsSelectionError se) -> case se of
-            SelectionBalanceErrorOf (UnableToConstructChange ce) ->
-                case ce of
-                    UnableToConstructChangeError {requiredCost} ->
-                        pure requiredCost
-            _ ->
-                throwE  e
-        e ->
-            throwE e
+        ErrSelectAssetsSelectionError
+            ( SelectionBalanceErrorOf
+                ( UnableToConstructChange
+                    ( UnableToConstructChangeError {requiredCost})
+                )
+            ) -> pure $ Fee requiredCost
+        e -> throwE e
 
 {-------------------------------------------------------------------------------
                                   Key Store
