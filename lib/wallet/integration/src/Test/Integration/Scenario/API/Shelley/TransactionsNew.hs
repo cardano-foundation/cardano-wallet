@@ -72,7 +72,7 @@ import Cardano.Wallet.Api.Types
     , fromApiEra
     )
 import Cardano.Wallet.Api.Types.Transaction
-    ( ApiValidityIntervalExplicit (..) )
+    ( ApiValidityIntervalExplicit (..), mkApiWitnessCount )
 import Cardano.Wallet.Pools
     ( StakePool )
 import Cardano.Wallet.Primitive.AddressDerivation
@@ -112,7 +112,12 @@ import Cardano.Wallet.Primitive.Types.Tx
 import Cardano.Wallet.Primitive.Types.Tx.TxIn
     ( TxIn (..) )
 import Cardano.Wallet.Transaction
-    ( AnyScript (..), ValidityIntervalExplicit (..) )
+    ( AnyScript (..)
+    , PlutusScriptInfo (..)
+    , PlutusVersion (..)
+    , ValidityIntervalExplicit (..)
+    , WitnessCount (..)
+    )
 import Cardano.Wallet.Unsafe
     ( unsafeFromHex, unsafeMkMnemonic )
 import Control.Arrow
@@ -231,6 +236,8 @@ import qualified Data.Text as T
 import qualified Data.Text.Encoding as T
 import qualified Network.HTTP.Types.Status as HTTP
 import qualified Test.Integration.Plutus as PlutusScenario
+
+import qualified Debug.Trace as TR
 
 spec :: forall n.
     ( DecodeAddress n
@@ -1480,18 +1487,28 @@ spec = describe "NEW_SHELLEY_TRANSACTIONS" $ do
                 \723e337bac4e4d86ff696a50d3bd33c8b5a54a4bf07d09bc637c22a7e6f458409ff\
                 \3622d683d3c8bffddffe08caf0ba6f2b89f4e234eb7679c333f77cb79ae6a910a99\
                 \e3d2cfbbf4efa4a8220026691804fd5ba5100e5198c17f550262acc20ef5f6" :: Text
-        
+
         let decodeSetUpRefScriptPayload = Json [json|{
             "transaction": #{cborHexSettingUpReferenceScript}
         }|]
 
         rTx1 <- request @(ApiDecodedTransaction n) ctx
             (Link.decodeTransaction @'Shelley wa) Default decodeSetUpRefScriptPayload
-        verify rTx1
+
+        let plutusScript =
+                PlutusScript (PlutusScriptInfo PlutusVersionV2)
+        let witnessCountWithPlutusScript = mkApiWitnessCount WitnessCount
+                { verificationKey = 1
+                , scripts = [plutusScript]
+                , bootstrap = 0
+                }
+
+        TR.trace ("-------------------------------------------------------------")$ verify rTx1
             [ expectResponseCode HTTP.status202
+            , expectField (#witnessCount) (`shouldBe` witnessCountWithPlutusScript)
             -- more assertions can be added once it passes
-            ]    
-            
+            ]
+
         -- constructing minting tx using reference script in cardano-cli
         -- Build:
         -- $ cardano-cli transaction build \
@@ -1508,7 +1525,7 @@ spec = describe "NEW_SHELLEY_TRANSACTIONS" $ do
         -- --policy-id 9c8e9da7f81e3ca90485f32ebefc98137c8ac260a072a00c4aaf142d \
         -- --change-address addr_test1vr50d8fs9szn2kzmplusau806sjeznpgf0epg0zrd7423yq7y9u7y \
         -- --protocol-params-file /home/piotr/wb/cardano-wallet/test/e2e/state/node_db/preprod/pparams.json
-        
+
         -- Sign:
         -- $ cardano-cli transaction sign \
         -- --tx-body-file /home/piotr/wb/cardano-wallet/test/e2e/state/node_db/preprod/txbody \

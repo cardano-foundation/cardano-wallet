@@ -164,7 +164,7 @@ fromBabbageTx tx@(Alonzo.ValidatedTx bod wits (Alonzo.IsValid isValid) aux) witC
 
     (assetsToMint, assetsToBurn) = babbageMint' mint allScripts
 
-    countWits = TR.trace ("outs:"<> show outs<>"\ninps:"<>show inps<>"\nrefInps:"<>show refInps) $ WitnessCount
+    countWits = TR.trace ("outs:"<> show outs<>"\ninps:"<>show inps<>"\nrefInps:"<>show refInps<>"\nscriptMap:"<>show scriptMap) $ WitnessCount
         (fromIntegral $ Set.size $ Alonzo.txwitsVKey' wits)
         (Map.elems scriptMap)
         (fromIntegral $ Set.size $ Alonzo.txwitsBoot' wits)
