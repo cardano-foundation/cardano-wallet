@@ -3472,19 +3472,30 @@ joinStakePool
                 }
 
 delegationFee
-    :: forall n k
-    .  BoundedAddressLength k
-    => ApiLayer (SeqState n k) k 'CredFromKeyK
+    :: forall s n k
+     . ( BoundedAddressLength k
+       , GenChange s
+       , AddressBookIso s
+       , s ~ SeqState n k
+       , Typeable k
+       , Typeable n
+       , DelegationAddress n k 'CredFromKeyK
+       )
+    => ApiLayer s k 'CredFromKeyK
     -> ApiT WalletId
     -> Handler ApiFee
-delegationFee ctx (ApiT walletId) =
-    withWorkerCtx ctx walletId liftE liftE $ \wrk -> liftHandler $ do
+delegationFee ctx@ApiLayer{..} (ApiT walletId) = do
+    era <- liftIO $ NW.currentNodeEra netLayer
+    AnyRecentEra (recentEra :: WriteTx.RecentEra era) <- guardIsRecentEra era
+    withWorkerCtx ctx walletId liftE liftE $ \workerCtx -> liftHandler $ do
         W.DelegationFee {feeSpread, deposit} <-
             W.delegationFee
-                (MsgWallet . W.MsgBalanceTx >$< wrk ^. logger)
-                (wrk ^. dbLayer)
-                (ctx ^. networkLayer)
-                (ctx ^. typed)
+                (workerCtx ^. dbLayer)
+                netLayer
+                txLayer
+                (timeInterpreter netLayer)
+                (AnyRecentEra recentEra)
+                (W.defaultChangeAddressGen (delegationAddress @n))
                 walletId
         pure $ mkApiFee (Just deposit) [] feeSpread
 

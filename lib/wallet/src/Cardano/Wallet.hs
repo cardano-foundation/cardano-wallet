@@ -4,6 +4,7 @@
 {-# LANGUAGE DeriveGeneric #-}
 {-# LANGUAGE DerivingStrategies #-}
 {-# LANGUAGE DuplicateRecordFields #-}
+{-# LANGUAGE EmptyCase #-}
 {-# LANGUAGE ExistentialQuantification #-}
 {-# LANGUAGE FlexibleContexts #-}
 {-# LANGUAGE FlexibleInstances #-}
@@ -453,7 +454,12 @@ import Cardano.Wallet.Primitive.Types.UTxOStatistics
 import Cardano.Wallet.Read.Tx.CBOR
     ( TxCBOR )
 import Cardano.Wallet.Shelley.Compatibility
-    ( fromCardanoBlock, fromCardanoTxIn, fromCardanoTxOut, fromCardanoWdrls )
+    ( fromCardanoBlock
+    , fromCardanoLovelace
+    , fromCardanoTxIn
+    , fromCardanoTxOut
+    , fromCardanoWdrls
+    )
 import Cardano.Wallet.Transaction
     ( DelegationAction (..)
     , ErrCannotJoin (..)
@@ -2844,39 +2850,36 @@ data DelegationFee = DelegationFee
     }
 
 delegationFee
-    :: forall s k
-     . BoundedAddressLength k
-    => Tracer IO BalanceTxLog
-    -> DBLayer IO s k
+    :: forall s k (n :: NetworkDiscriminant)
+     . ( AddressBookIso s
+       , s ~ SeqState n k
+       , BoundedAddressLength k
+       , Typeable k
+       , Typeable n
+       )
+    => DBLayer IO s k
     -> NetworkLayer IO Read.Block
     -> TransactionLayer k 'CredFromKeyK SealedTx
+    -> TimeInterpreter (ExceptT PastHorizonException IO)
+    -> AnyRecentEra
+    -> ChangeAddressGen s
     -> WalletId
     -> ExceptT ErrSelectAssets IO DelegationFee
-delegationFee tr db netLayer txLayer walletId = do
-    w <- lift $ throwInIO $ readWalletUTxOIndex @_ @s @k db walletId
-    pp <- liftIO $ currentProtocolParameters netLayer
-    era <- liftIO $ currentNodeEra netLayer
-    deposit <- liftIO $ calcMinimumDeposit db netLayer walletId
-    let estimateDelegationFee = estimateFee era pp deposit w
-    feeSpread <- calculateFeeSpread estimateDelegationFee
-    pure DelegationFee {..}
-  where
-    throwInIO :: forall a. ExceptT ErrNoSuchWallet IO a -> IO a
-    throwInIO = runExceptT >=> either (throwIO . ExceptionNoSuchWallet) pure
+delegationFee db netLayer txLayer ti era changeAddressGen walletId = do
+    protocolParams <- liftIO $ currentProtocolParameters netLayer
+    WriteTx.withRecentEra era $ \(recentEra :: WriteTx.RecentEra recentEra) -> do
+        feeSpread <- calculateFeeSpread $ do
+            (Cardano.Tx (Cardano.TxBody bodyContent) _, _updatedWallet) <-
+                liftIO $ buildTransaction @s @k @n @recentEra
+                    db txLayer ti walletId changeAddressGen protocolParams
+                    defaultTransactionCtx []
+            pure $ case Cardano.txFee bodyContent of
+                Cardano.TxFeeExplicit _ coin -> Fee (fromCardanoLovelace coin)
+                Cardano.TxFeeImplicit Cardano.TxFeesImplicitInByronEra ->
+                    case recentEra of {}
 
-    estimateFee era pp _deposit (utxoAvailable, wallet, pendingTxs) =
-        selectAssets @_ @s @k @'CredFromKeyK
-            tr txLayer era pp SelectAssetsParams
-            { outputs = []
-            , pendingTxs
-            , randomSeed = Nothing
-            , txContext = defaultTransactionCtx
-            , utxoAvailableForInputs = UTxOSelection.fromIndex utxoAvailable
-            , utxoAvailableForCollateral = UTxOIndex.toMap utxoAvailable
-            , wallet
-            , selectionStrategy = SelectionStrategyOptimal
-            }
-            $ \_s -> Fee . CS.selectionDelta TokenBundle.getCoin
+        deposit <- liftIO $ calcMinimumDeposit db netLayer walletId
+        pure DelegationFee {..}
 
 -- | For a given transaction fee estimation calculation evaluates its fee spread
 -- by repeatedly running it (100 times) and recording the results.
