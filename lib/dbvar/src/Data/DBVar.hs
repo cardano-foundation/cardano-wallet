@@ -324,7 +324,7 @@ instance Exception NotInitialized
 -- In general, think about restricting the monad `m`,
 -- as the `Store` operations do not compose very well. 🤔
 newCachedStore
-    :: forall m da. (MonadSTM m, Delta da, MonadThrow m)
+    :: forall m da. (Delta da, MonadSTM m, MonadThrow m, MonadEvaluate m)
     => Store m da -> m (Store m da)
 newCachedStore Store{loadS,writeS,updateS} = do
     -- Lock that puts loadS, writeS and updateS into sequence
@@ -363,7 +363,8 @@ newCachedStore Store{loadS,writeS,updateS} = do
             atomically $ writeCache (Just a)
             writeS a
         , updateS = updateLoad load throwIO $ \old delta -> withLock $ do
-            atomically $ writeCache $ Just $ apply delta old
+            new <- evaluate $ apply delta old
+            atomically $ writeCache $ Just new
             updateS (Just old) delta
         }
 
