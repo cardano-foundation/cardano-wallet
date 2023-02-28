@@ -53,13 +53,23 @@ import Test.DBVar
 import Test.Hspec
     ( Spec, around, describe, it )
 import Test.QuickCheck
-    ( Gen, Property, arbitrary, elements, forAll, frequency, property, (===) )
+    ( Gen
+    , Property
+    , arbitrary
+    , elements
+    , forAll
+    , frequency
+    , property
+    , vectorOf
+    , (===)
+    )
 import Test.QuickCheck.Monadic
     ( forAllM )
 
 import qualified Cardano.Wallet.Primitive.Types.Tx as W
 import qualified Cardano.Wallet.Primitive.Types.Tx.TxIn as W
 import qualified Data.Map.Strict as Map
+import qualified Data.Set as Set
 
 spec :: Spec
 spec = do
@@ -164,13 +174,15 @@ genDeltas :: GenDelta DeltaTxSet
 genDeltas (TxSet pile) =
     frequency
         [ (8, Append . mkTxSet <$> (arbitrary >>= mapM addCBOR))
-        , (1, DeleteTx . TxId <$> arbitrary)
+        , (1, DeleteTxs . Set.singleton . TxId <$> arbitrary)
         ,
             ( 2
-            , DeleteTx
+            , DeleteTxs
                 <$> if null pile
-                    then TxId <$> arbitrary
-                    else elements (Map.keys pile)
+                    then Set.singleton. TxId <$> arbitrary
+                    else do
+                        k <- elements [1,3]
+                        fmap Set.fromList . vectorOf k . elements $ Map.keys pile
             )
         ]
 

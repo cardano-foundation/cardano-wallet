@@ -39,6 +39,8 @@ import Data.Map.Strict
     ( Map )
 import Data.Quantity
     ( Quantity (getQuantity) )
+import Data.Set
+    ( Set )
 import Fmt
     ( Buildable (build) )
 import GHC.Generics
@@ -119,9 +121,9 @@ instance Delta ManipulateTxMetaHistory where
 -- Returns the new 'TxMetaHistory' as well as the 'TxId's that
 -- have been /deleted/ due to the rollback.
 rollbackTxMetaHistory
-    :: W.SlotNo -> TxMetaHistory -> (TxMetaHistory, [TxId])
+    :: W.SlotNo -> TxMetaHistory -> (TxMetaHistory, Set TxId)
 rollbackTxMetaHistory point (TxMetaHistory txs) =
-    (TxMetaHistory new, Map.keys deleted)
+    (TxMetaHistory new, Map.keysSet deleted)
   where
     (deleted, new) = Map.mapEither keepOrForget txs
 

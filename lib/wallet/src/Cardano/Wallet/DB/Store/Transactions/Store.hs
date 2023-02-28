@@ -77,10 +77,12 @@ import Database.Persist.Sql
     , keyFromRecordM
     , repsertMany
     , selectList
+    , (<-.)
     , (==.)
     )
 
 import qualified Data.Map.Strict as Map
+import qualified Data.Set as Set
 
 mkStoreTransactions
     :: Store (SqlPersistT IO) DeltaTxSet
@@ -94,15 +96,16 @@ mkStoreTransactions =
 updateTxSet :: DeltaTxSet -> SqlPersistT IO ()
 updateTxSet change = case change of
     Append txs -> putTxSet txs
-    DeleteTx tid -> do
-        deleteWhere [TxInputTxId ==. tid ]
-        deleteWhere [TxCollateralTxId ==. tid ]
-        deleteWhere [TxOutTokenTxId ==. tid ]
-        deleteWhere [TxOutputTxId ==. tid ]
-        deleteWhere [TxCollateralOutTokenTxId ==. tid ]
-        deleteWhere [TxCollateralOutTxId ==. tid ]
-        deleteWhere [TxWithdrawalTxId ==. tid ]
-        deleteWhere [CborTxId ==. tid ]
+    DeleteTxs tidSet -> do
+        let tids = Set.toList tidSet
+        deleteWhere [TxInputTxId <-. tids ]
+        deleteWhere [TxCollateralTxId <-. tids ]
+        deleteWhere [TxOutTokenTxId <-. tids ]
+        deleteWhere [TxOutputTxId <-. tids ]
+        deleteWhere [TxCollateralOutTokenTxId <-. tids ]
+        deleteWhere [TxCollateralOutTxId <-. tids ]
+        deleteWhere [TxWithdrawalTxId <-. tids ]
+        deleteWhere [CborTxId <-. tids ]
 
 write :: TxSet -> SqlPersistT IO ()
 write txs = do
