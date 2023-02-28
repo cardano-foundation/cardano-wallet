@@ -37,7 +37,7 @@ import Cardano.Wallet.Read.Primitive.Tx.Features.Inputs
 import Cardano.Wallet.Read.Primitive.Tx.Features.Metadata
     ( fromBabbageMetadata )
 import Cardano.Wallet.Read.Primitive.Tx.Features.Mint
-    ( babbageMint )
+    ( babbageMint' )
 import Cardano.Wallet.Read.Primitive.Tx.Features.Outputs
     ( fromBabbageTxOut )
 import Cardano.Wallet.Read.Primitive.Tx.Features.Validity
@@ -89,6 +89,8 @@ import qualified Cardano.Wallet.Primitive.Types.Tx as W
 import qualified Data.Map.Strict as Map
 import qualified Data.Set as Set
 
+import qualified Debug.Trace as TR
+
 fromBabbageTx
     :: Alonzo.ValidatedTx (Cardano.ShelleyLedgerEra BabbageEra)
     -> WitnessCountCtx
@@ -134,7 +136,7 @@ fromBabbageTx tx@(Alonzo.ValidatedTx bod wits (Alonzo.IsValid isValid) aux) witC
     Babbage.TxBody
         inps
         collateralInps
-        _refInps
+        refInps
         outs
         collateralReturn
         _collateralTotal
@@ -149,7 +151,6 @@ fromBabbageTx tx@(Alonzo.ValidatedTx bod wits (Alonzo.IsValid isValid) aux) witC
         _adHash
         _network
         = bod
-    (assetsToMint, assetsToBurn) = babbageMint mint wits
 
     toScriptWithHash s =
         (SL.Core.hashScript @(Cardano.ShelleyLedgerEra BabbageEra) s, s)
@@ -158,9 +159,12 @@ fromBabbageTx tx@(Alonzo.ValidatedTx bod wits (Alonzo.IsValid isValid) aux) witC
         map toScriptWithHash $
         mapMaybe (snd . fromBabbageTxOut . sizedValue) (toList outs)
     scriptsFromWits = Alonzo.txscripts' wits
-    scriptMap = fromBabbageScriptMap $ Map.union scriptsFromWits scriptsFromTxOuts
+    allScripts = Map.union scriptsFromWits scriptsFromTxOuts
+    scriptMap = fromBabbageScriptMap allScripts
 
-    countWits = WitnessCount
+    (assetsToMint, assetsToBurn) = babbageMint' mint allScripts
+
+    countWits = TR.trace ("outs:"<> show outs<>"\ninps:"<>show inps<>"\nrefInps:"<>show refInps) $ WitnessCount
         (fromIntegral $ Set.size $ Alonzo.txwitsVKey' wits)
         (Map.elems scriptMap)
         (fromIntegral $ Set.size $ Alonzo.txwitsBoot' wits)

@@ -15,6 +15,7 @@ module Cardano.Wallet.Read.Primitive.Tx.Features.Mint
     , maryMint
     , alonzoMint
     , babbageMint
+    , babbageMint'
     , fromLedgerScriptToAnyScript
     )
     where
@@ -118,6 +119,14 @@ babbageMint ::
     -> AL.TxWitness era
     -> (TokenMapWithScripts, TokenMapWithScripts)
 babbageMint = yesMints $ fromBabbageScriptMap . AL.txscripts'
+
+babbageMint'
+    :: SL.Value StandardCrypto
+    -> Map
+        (SL.ScriptHash (Crypto StandardBabbage))
+        (SL.Core.Script StandardBabbage)
+    -> (TokenMapWithScripts, TokenMapWithScripts)
+babbageMint' = yesMints $ fromBabbageScriptMap
 
 yesMints :: (t -> Map TokenPolicyId AnyScript)
     -> SL.Value StandardCrypto
