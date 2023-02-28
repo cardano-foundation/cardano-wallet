@@ -33,7 +33,7 @@ RSpec.describe 'Cardano Wallet E2E tests', :all, :e2e do
       expect(l.to_s).not_to include 'null'
     end
 
-    it 'ADP-2666 - Make sure tx history is available after receiving token from minting tx made using reference script' do
+    it 'ADP-2666 - Make sure tx history is available after receiving token from minting tx made using reference script (Plutus script)' do
       ##
       # This test is to reproduce a bug where tx history was not available
       # after receiving token from minting tx made using reference script.
@@ -67,9 +67,6 @@ RSpec.describe 'Cardano Wallet E2E tests', :all, :e2e do
       end
 
       # 3. [cardano-cli] Submit minting transaction using reference script sending minted tokens to wallet address
-      # payment_address = 'addr_test1vrvuxcuxlk65aalm5ssfsqw6yealvqs0wme8njcysdgd32srp4may'
-      # payment_keys = {:vkey=>"/home/piotr/wb/cardano-wallet/test/e2e/state/node_db/preprod/payment.vkey",
-      #                 :skey=>"/home/piotr/wb/cardano-wallet/test/e2e/state/node_db/preprod/payment.skey"}
 
       wallet_id = 'fe6f0d79114982b73446212df4504f861f00f52c'
       txs = SHELLEY.transactions.list(wallet_id)
@@ -78,7 +75,7 @@ RSpec.describe 'Cardano Wallet E2E tests', :all, :e2e do
       src_utxos = CARDANO_CLI.get_utxos(payment_address)
       address = SHELLEY.addresses.list(wallet_id).first['id']
       policy_id = CARDANO_CLI.policy_id(get_plutus_file_path('anyone-can-mint.plutus'))
-      hex_asset_name = asset_name('ReferenceScriptAsset')
+      hex_asset_name = asset_name('ReferencePlutusScriptAsset')
       txbody2 = CARDANO_CLI.tx_build("--tx-in #{src_utxos[2][:utxo]}##{src_utxos[2][:ix]}",
                                      "--tx-in-collateral #{src_utxos[1][:utxo]}##{src_utxos[1][:ix]}",
                                      "--mint-tx-in-reference #{src_utxos[0][:utxo]}##{src_utxos[0][:ix]}",
@@ -93,6 +90,90 @@ RSpec.describe 'Cardano Wallet E2E tests', :all, :e2e do
       txsigned2 = CARDANO_CLI.tx_sign(txbody2, payment_keys)
       txid2 = CARDANO_CLI.tx_submit(txsigned2)
 
+      eventually 'Minting Tx with reference script is in ledger' do
+        CARDANO_CLI.get_utxos(payment_address).to_s.include?(txid2)
+      end
+
+      # 4. [cardano-wallet] Check that tx history is available after receiving token from minting tx made using reference script
+      txs = SHELLEY.transactions.list(wallet_id)
+      expect(txs).to be_correct_and_respond 200
+
+      tx_details = SHELLEY.transactions.get(wallet_id, txid2)
+      tx_inputs(tx_details, present: true)
+      tx_outputs(tx_details, present: true)
+      tx_direction(tx_details, 'incoming')
+      tx_script_validity(tx_details, 'valid')
+      tx_status(tx_details, 'in_ledger')
+      tx_collateral(tx_details, present: true)
+      tx_collateral_outputs(tx_details, present: false)
+      tx_metadata(tx_details, nil)
+      tx_deposits(tx_details, deposit_taken: 0, deposit_returned: 0)
+      tx_withdrawals(tx_details, present: false)
+      tx_mint_burn(tx_details, mint: [], burn: [])
+      tx_extra_signatures(tx_details, present: true)
+      tx_script_integrity(tx_details, present: true)
+      tx_validity_interval_default(tx_details)
+      tx_certificates(tx_details, present: false)
+
+      # 5. [cardano-wallet] Send token back to the address
+    end
+
+    it 'ADP-2666 - Make sure tx history is available after receiving token from minting tx made using reference script (Simple script)' do
+      ##
+      # This test is to reproduce a bug where tx history was not available
+      # after receiving token from minting tx made using reference script (using simple script a.k.a. native script).
+      # Reproduction steps:
+      # 1. [cardano-cli] Create an address and fund it with ada
+      # 2. [cardano-cli] Submit transaction to the address setting utxo for collateral and reference script utxo
+      # 3. [cardano-cli] Submit minting transaction using reference script sending minted tokens to wallet address
+      # 4. [cardano-wallet] Check that tx history is available after receiving token from minting tx made using reference script
+      # 5. [cardano-wallet] Send token back to the address
+
+      # 1. [cardano-cli] Create an address and fund it with ada
+      payment_keys = CARDANO_CLI.generate_payment_keys
+      payment_address = CARDANO_CLI.build_payment_address(payment_keys)
+      init_amt = 20_000_000
+      tx = construct_sign_submit(@wid, payment_payload(init_amt, payment_address))
+      wait_for_tx_in_ledger(@wid, tx.last['id'])
+
+      # 2. [cardano-cli] Submit transaction to the address setting utxo for collateral and reference script utxo
+      init_utxo = CARDANO_CLI.get_utxos(payment_address).first
+      txbody = CARDANO_CLI.tx_build("--tx-in #{init_utxo[:utxo]}##{init_utxo[:ix]}",
+                                    "--tx-out #{payment_address}+10000000", # will be a reference script utxo (#0)
+                                    "--tx-out-reference-script-file #{get_simple_scripts_file_path('policy.script')}",
+                                    "--tx-out #{payment_address}+3000000", # will be a collateral utxo (#1)
+                                    "--change-address #{payment_address}") # will be a regular utxo (#2)
+
+      txsigned = CARDANO_CLI.tx_sign(txbody, payment_keys)
+      txid = CARDANO_CLI.tx_submit(txsigned)
+
+      eventually 'Tx is in ledger' do
+        CARDANO_CLI.get_utxos(payment_address).to_s.include?(txid)
+      end
+
+      # 3. [cardano-cli] Submit minting transaction using reference script sending minted tokens to wallet address
+      wallet_id = 'ec93b84370e7325eebbbea1106efac1c64c7245e'
+      txs = SHELLEY.transactions.list(wallet_id)
+      expect(txs).to be_correct_and_respond 200
+
+      src_utxos = CARDANO_CLI.get_utxos(payment_address)
+      address = SHELLEY.addresses.list(wallet_id).first['id']
+      policy_id = CARDANO_CLI.policy_id(get_simple_scripts_file_path('policy.script'))
+      hex_asset_name = asset_name('ReferenceSimpleScriptAsset')
+      txbody2 = CARDANO_CLI.tx_build("--tx-in #{src_utxos[2][:utxo]}##{src_utxos[2][:ix]}",
+                                     "--tx-in-collateral #{src_utxos[1][:utxo]}##{src_utxos[1][:ix]}",
+                                     "--simple-minting-script-tx-in-reference #{src_utxos[0][:utxo]}##{src_utxos[0][:ix]}",
+                                     "--tx-out \"#{address}+2000000+1 #{policy_id}.#{hex_asset_name}\"",
+                                     "--mint \"1 #{policy_id}.#{hex_asset_name}\"",
+                                     "--policy-id #{policy_id}",
+                                     "--change-address #{payment_address}",
+                                     "--protocol-params-file #{CARDANO_CLI.get_protocol_params_to_file}")
+
+      payment_keys[:policy_skey] = get_simple_scripts_file_path('policy.skey')
+      txsigned2 = CARDANO_CLI.tx_sign(txbody2, payment_keys)
+      txid2 = CARDANO_CLI.tx_submit(txsigned2)
+      # puts File.read(txsigned)
+      # puts File.read(txsigned2)
       eventually 'Minting Tx with reference script is in ledger' do
         CARDANO_CLI.get_utxos(payment_address).to_s.include?(txid2)
       end

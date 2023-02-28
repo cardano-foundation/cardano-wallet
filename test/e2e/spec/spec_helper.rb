@@ -36,6 +36,7 @@ end
 ##
 # timeout in seconds for custom verifications
 TIMEOUT = 600
+FIXTURES_DIR = 'fixtures'
 
 ##
 # Intit cardano-wallet wrapper with timeout for getting the response back
@@ -549,41 +550,6 @@ def get_policy_id_from_decode(tx_decoded_mint_or_burn)
   tx_decoded_mint_or_burn['tokens'].first['policy_id']
 end
 
-## Plutus helpers
-PLUTUS_DIR = 'fixtures/plutus'
-
-##
-# Encode input index the way Plutus does in hex-encoded CBOR script
-# _probably_ should work fine for 0-127 index range
-# @param [Int] input idx
-# @return [Hex] hex encoded input idx imitating Plutus bit-wise, non-standard encoding
-#
-# @example
-#      > plutus_encode_idx(43)
-#      => "158c"
-#
-# @see lib/wallet/extra/Plutus/FlatInteger.hs
-#      reference Haskell impl of encoding Int into sequence of bits
-# @see lib/wallet/src/Test/Integration/Plutus.hs
-#      the way it's done in the integration tests
-#      ```
-#      idxEncoded = toHex $ BS.pack $ Bits.asBytes
-#                  $ toBits "00" <> Bits.bits (fromIntegral idx :: Integer) <> toBits "001100"
-#      ```
-def plutus_encode_idx(int)
-  raise 'Not supported index. (0-127) are supported.' if int > 127
-
-  # convert int to binary and add trailing bit
-  b = "#{int.to_s(2)}0"
-  # add additional leading bits so it is 8-bit long
-  b = ('0' * (8 - b.length)) + b
-  # add additional leading and trailing bits
-  b = "00#{b}001100"
-  # convert to hex and add leading 0's if needed (so it is 4 digit long)
-  h = binary_to_hex(b)
-  ('0' * (4 - h.length)) + h
-end
-
 ##
 # Balance -> Sign -> Submit
 def balance_sign_submit(wid, payload)
@@ -640,8 +606,45 @@ end
 
 ##
 # Plutus helpers
+
+##
+# Encode input index the way Plutus does in hex-encoded CBOR script
+# _probably_ should work fine for 0-127 index range
+# @param [Int] input idx
+# @return [Hex] hex encoded input idx imitating Plutus bit-wise, non-standard encoding
+#
+# @example
+#      > plutus_encode_idx(43)
+#      => "158c"
+#
+# @see lib/wallet/extra/Plutus/FlatInteger.hs
+#      reference Haskell impl of encoding Int into sequence of bits
+# @see lib/wallet/src/Test/Integration/Plutus.hs
+#      the way it's done in the integration tests
+#      ```
+#      idxEncoded = toHex $ BS.pack $ Bits.asBytes
+#                  $ toBits "00" <> Bits.bits (fromIntegral idx :: Integer) <> toBits "001100"
+#      ```
+def plutus_encode_idx(int)
+  raise 'Not supported index. (0-127) are supported.' if int > 127
+
+  # convert int to binary and add trailing bit
+  b = "#{int.to_s(2)}0"
+  # add additional leading bits so it is 8-bit long
+  b = ('0' * (8 - b.length)) + b
+  # add additional leading and trailing bits
+  b = "00#{b}001100"
+  # convert to hex and add leading 0's if needed (so it is 4 digit long)
+  h = binary_to_hex(b)
+  ('0' * (4 - h.length)) + h
+end
+
+def get_simple_scripts_file_path(file)
+  File.join(FIXTURES_DIR, 'simple', file)
+end
+
 def get_plutus_file_path(file)
-  File.join(PLUTUS_DIR, file)
+  File.join(FIXTURES_DIR, 'plutus', file)
 end
 
 def get_plutus_tx(file)

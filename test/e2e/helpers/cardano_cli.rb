@@ -22,7 +22,7 @@ class CardanoCli
   end
 
   def cli(*options)
-    cmd(%(cardano-cli #{options.join(' ')}))
+    cmd(%(cardano-cli #{options.join(' ')}), display_result: true)
   end
 
   def build_script_address(script_file_path)
@@ -31,17 +31,19 @@ class CardanoCli
 
   def generate_payment_keys
     keys = {
-      vkey: File.join(@node_state, 'payment.vkey'),
-      skey: File.join(@node_state, 'payment.skey')
+      payment_vkey: File.join(@node_state, 'payment.vkey'),
+      payment_skey: File.join(@node_state, 'payment.skey')
     }
     cli('address', 'key-gen',
-        '--verification-key-file', keys[:vkey],
-        '--signing-key-file', keys[:skey])
+        '--verification-key-file', keys[:payment_vkey],
+        '--signing-key-file', keys[:payment_skey])
     keys
   end
 
   def build_payment_address(keys)
-    cli('address', 'build', '--payment-verification-key-file', keys[:vkey], '--testnet-magic', @protocol_magic).strip
+    cli('address', 'build',
+        '--payment-verification-key-file', keys[:payment_vkey],
+        '--testnet-magic', @protocol_magic).strip
   end
 
   ##
@@ -121,10 +123,11 @@ class CardanoCli
 
   def tx_sign(txbody, keys)
     txsigned = File.join(@node_state, 'txsigned')
+    signing_keys = keys.filter { |k, _| k.to_s.end_with?('_skey') }.map { |_, v| "--signing-key-file #{v}" }
     cli('transaction', 'sign',
         '--tx-body-file', txbody,
         '--testnet-magic', @protocol_magic,
-        '--signing-key-file', keys[:skey],
+        signing_keys.join(' '), # --signing-key-file key1 --signing-key-file key2 ...
         '--out-file', txsigned)
     txsigned
   end
