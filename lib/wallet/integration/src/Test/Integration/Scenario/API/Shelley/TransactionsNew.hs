@@ -1389,58 +1389,160 @@ spec = describe "NEW_SHELLEY_TRANSACTIONS" $ do
             ]
 
     it "TRANS_NEW_DECODE_02a / ADP-2666 - \
-        \transaction with minting asset with reference script" $
+        \transaction with minting asset with reference script (Plutus script)" $
         \ctx -> runResourceT $ do
 
         -- tx should decode successfully even on empty wallet and even if tx doesn't target it
         wa <- emptyWallet ctx
 
+        -- transaction setting up reference script
+        -- Build:
+        -- $ cardano-cli transaction build \
+        -- --babbage-era \
+        -- --testnet-magic 1 \
+        -- --out-file /home/piotr/wb/cardano-wallet/test/e2e/state/node_db/preprod/txbody \
+        -- --tx-in 4e9261b17cd85f679dc6d68e4aee8c7791aac7d56e73b8e26a92b429e5bbb693#0 \
+        -- --tx-out addr_test1vr50d8fs9szn2kzmplusau806sjeznpgf0epg0zrd7423yq7y9u7y+10000000 \
+        -- --tx-out-reference-script-file fixtures/plutus/anyone-can-mint.plutus \
+        -- --tx-out addr_test1vr50d8fs9szn2kzmplusau806sjeznpgf0epg0zrd7423yq7y9u7y+3000000 \
+        -- --change-address addr_test1vr50d8fs9szn2kzmplusau806sjeznpgf0epg0zrd7423yq7y9u7y
+
+        -- Sign:
+        -- $ cardano-cli transaction sign \
+        -- --tx-body-file /home/piotr/wb/cardano-wallet/test/e2e/state/node_db/preprod/txbody \
+        -- --testnet-magic 1 \
+        -- --signing-key-file /home/piotr/wb/cardano-wallet/test/e2e/state/node_db/preprod/payment.skey \
+        -- --out-file /home/piotr/wb/cardano-wallet/test/e2e/state/node_db/preprod/txsigned
+
+        let cborHexSettingUpReferenceScript =
+                "84a300818258204e9261b17cd85f679dc6d68e4aee8c7791aac7d56e73b8e26a92b\
+                \429e5bbb693000183a300581d60e8f69d302c0535585b0ff90ef0efd425914c284b\
+                \f2143c436faaa890011a0098968003d81859076a820259076559076201000032323\
+                \23232323232323232323232332232323232322232325335320193333573466e1cd5\
+                \5cea80124000466442466002006004646464646464646464646464646666ae68cdc\
+                \39aab9d500c480008cccccccccccc88888888888848cccccccccccc00403403002c\
+                \02802402001c01801401000c008cd4050054d5d0a80619a80a00a9aba1500b33501\
+                \401635742a014666aa030eb9405cd5d0a804999aa80c3ae501735742a01066a0280\
+                \3e6ae85401cccd54060081d69aba150063232323333573466e1cd55cea801240004\
+                \664424660020060046464646666ae68cdc39aab9d5002480008cc8848cc00400c00\
+                \8cd40a9d69aba15002302b357426ae8940088c98c80b4cd5ce01701681589aab9e5\
+                \001137540026ae854008c8c8c8cccd5cd19b8735573aa0049000119910919800801\
+                \80119a8153ad35742a00460566ae84d5d1280111931901699ab9c02e02d02b13557\
+                \3ca00226ea8004d5d09aba2500223263202933573805405204e26aae7940044dd50\
+                \009aba1500533501475c6ae854010ccd540600708004d5d0a801999aa80c3ae2001\
+                \35742a004603c6ae84d5d1280111931901299ab9c026025023135744a00226ae894\
+                \0044d5d1280089aba25001135744a00226ae8940044d5d1280089aba25001135744\
+                \a00226ae8940044d55cf280089baa00135742a004601c6ae84d5d1280111931900b\
+                \99ab9c018017015101613263201633573892010350543500016135573ca00226ea8\
+                \00448c88c008dd6000990009aa80a911999aab9f0012500a2335009300435742004\
+                \60066ae880080508c8c8cccd5cd19b8735573aa0049000119910919800801801180\
+                \61aba150023005357426ae8940088c98c8050cd5ce00a80a00909aab9e500113754\
+                \0024646464646666ae68cdc39aab9d5004480008cccc888848cccc00401401000c0\
+                \08c8c8c8cccd5cd19b8735573aa0049000119910919800801801180a9aba1500233\
+                \500f014357426ae8940088c98c8064cd5ce00d00c80b89aab9e5001137540026ae8\
+                \54010ccd54021d728039aba150033232323333573466e1d40052004232122230020\
+                \04357426aae79400c8cccd5cd19b875002480088c84888c004010dd71aba135573c\
+                \a00846666ae68cdc3a801a400042444006464c6403666ae7007006c06406005c4d5\
+                \5cea80089baa00135742a00466a016eb8d5d09aba2500223263201533573802c02a\
+                \02626ae8940044d5d1280089aab9e500113754002266aa002eb9d6889119118011b\
+                \ab00132001355012223233335573e0044a010466a00e66442466002006004600c6a\
+                \ae754008c014d55cf280118021aba20030121357420022244004244244660020080\
+                \0624464646666ae68cdc3a800a40004642446004006600a6ae84d55cf280191999a\
+                \b9a3370ea0049001109100091931900819ab9c01101000e00d135573aa00226ea80\
+                \048c8c8cccd5cd19b875001480188c848888c010014c01cd5d09aab9e5003233335\
+                \73466e1d400920042321222230020053009357426aae7940108cccd5cd19b875003\
+                \480088c848888c004014c01cd5d09aab9e500523333573466e1d401120002321222\
+                \23003005375c6ae84d55cf280311931900819ab9c01101000e00d00c00b135573aa\
+                \00226ea80048c8c8cccd5cd19b8735573aa004900011991091980080180118029ab\
+                \a15002375a6ae84d5d1280111931900619ab9c00d00c00a135573ca00226ea80048\
+                \c8cccd5cd19b8735573aa002900011bae357426aae7940088c98c8028cd5ce00580\
+                \500409baa001232323232323333573466e1d4005200c21222222200323333573466\
+                \e1d4009200a21222222200423333573466e1d400d20082332212222222330010090\
+                \08375c6ae854014dd69aba135744a00a46666ae68cdc3a8022400c4664424444444\
+                \660040120106eb8d5d0a8039bae357426ae89401c8cccd5cd19b875005480108cc8\
+                \848888888cc018024020c030d5d0a8049bae357426ae8940248cccd5cd19b875006\
+                \480088c848888888c01c020c034d5d09aab9e500b23333573466e1d401d20002321\
+                \22222223005008300e357426aae7940308c98c804ccd5ce00a00980880800780700\
+                \680600589aab9d5004135573ca00626aae7940084d55cf280089baa001232323232\
+                \3333573466e1d400520022333222122333001005004003375a6ae854010dd69aba1\
+                \5003375a6ae84d5d1280191999ab9a3370ea0049000119091180100198041aba135\
+                \573ca00c464c6401866ae700340300280244d55cea80189aba25001135573ca0022\
+                \6ea80048c8c8cccd5cd19b875001480088c8488c00400cdd71aba135573ca006466\
+                \66ae68cdc3a8012400046424460040066eb8d5d09aab9e500423263200933573801\
+                \401200e00c26aae7540044dd500089119191999ab9a3370ea002900210911000919\
+                \99ab9a3370ea00490011190911180180218031aba135573ca00846666ae68cdc3a8\
+                \01a400042444004464c6401466ae7002c02802001c0184d55cea80089baa0012323\
+                \333573466e1d40052002200723333573466e1d40092000212200123263200633573\
+                \800e00c00800626aae74dd5000a4c24002920103505431001220021123230010012\
+                \23300330020020011a200581d60e8f69d302c0535585b0ff90ef0efd425914c284b\
+                \f2143c436faaa890011a002dc6c0a200581d60e8f69d302c0535585b0ff90ef0efd\
+                \425914c284bf2143c436faaa890011a0066fa73021a0003d54da100818258202f66\
+                \723e337bac4e4d86ff696a50d3bd33c8b5a54a4bf07d09bc637c22a7e6f458409ff\
+                \3622d683d3c8bffddffe08caf0ba6f2b89f4e234eb7679c333f77cb79ae6a910a99\
+                \e3d2cfbbf4efa4a8220026691804fd5ba5100e5198c17f550262acc20ef5f6" :: Text
+        
+        let decodeSetUpRefScriptPayload = Json [json|{
+            "transaction": #{cborHexSettingUpReferenceScript}
+        }|]
+
+        rTx1 <- request @(ApiDecodedTransaction n) ctx
+            (Link.decodeTransaction @'Shelley wa) Default decodeSetUpRefScriptPayload
+        verify rTx1
+            [ expectResponseCode HTTP.status202
+            -- more assertions can be added once it passes
+            ]    
+            
         -- constructing minting tx using reference script in cardano-cli
-        --- $ POLICY_ID=$(cardano-cli transaction policyid --script-file ./test/e2e/fixtures/plutus/anyone-can-mint.plutus)
-        --- # POLICY_ID=9c8e9da7f81e3ca90485f32ebefc98137c8ac260a072a00c4aaf142d
-        ---
-        --- $ cardano-cli transaction build-raw \
-        --- > --fee 238931 \
-        --- > --mint-tx-in-reference "ec78ceb4b1e58c078ddfc3fe0a4b5185d6c18a412175b02e4e66e12f34e480f4#0" \
-        --- > --mint-plutus-script-v2 \
-        --- > --mint-reference-tx-in-redeemer-file ./test/e2e/fixtures/plutus/42.redeemer \
-        --- > --policy-id $POLICY_ID \
-        --- > --tx-in-collateral "ec78ceb4b1e58c078ddfc3fe0a4b5185d6c18a412175b02e4e66e12f34e480f4#1" \
-        --- > --protocol-params-file protocol.json \
-        --- > --tx-in "ec78ceb4b1e58c078ddfc3fe0a4b5185d6c18a412175b02e4e66e12f34e480f4#2" \
-        --- > --tx-out "addr1q8t3j053nvljc45znmx752mdd2tq2vhk24x4dc0xczjulen9yhe8j89vvhxas5fl6paf7tfwc8srg6q97re42z0876hqug8j87+2000000+1 $POLICY_ID.7161636f696e636f7062" \
-        --- > --mint "1 $POLICY_ID.7161636f696e636f7062" \
-        --- > --tx-out "addr1q8t3j053nvljc45znmx752mdd2tq2vhk24x4dc0xczjulen9yhe8j89vvhxas5fl6paf7tfwc8srg6q97re42z0876hqug8j87+17509856" \
-        --- > --out-file reference_script_tx.body \
-        --- > --babbage-era \
-        --- > --mint-reference-tx-in-execution-units "(5, 5)"
+        -- Build:
+        -- $ cardano-cli transaction build \
+        -- --babbage-era \
+        -- --testnet-magic 1 \
+        -- --out-file /home/piotr/wb/cardano-wallet/test/e2e/state/node_db/preprod/txbody \
+        -- --tx-in c2d52067c3f6098017a354a7f40950b67983508e295569990fb21dd7cf754d48#2 \
+        -- --tx-in-collateral c2d52067c3f6098017a354a7f40950b67983508e295569990fb21dd7cf754d48#1 \
+        -- --mint-tx-in-reference c2d52067c3f6098017a354a7f40950b67983508e295569990fb21dd7cf754d48#0 \
+        -- --tx-out "addr_test1qzx25ek5ededs7u4up40x0937wtpehpdey5g4679stt92vxzlzjtg73nz5396yusulfy4rqtmfhj6wn4uk32r98sp67stjqfp8+2000000+1 9c8e9da7f81e3ca90485f32ebefc98137c8ac260a072a00c4aaf142d.5265666572656e63655363726970744173736574" \
+        -- --mint "1 9c8e9da7f81e3ca90485f32ebefc98137c8ac260a072a00c4aaf142d.5265666572656e63655363726970744173736574" \
+        -- --mint-plutus-script-v2 \
+        -- --mint-reference-tx-in-redeemer-file fixtures/plutus/42.redeemer \
+        -- --policy-id 9c8e9da7f81e3ca90485f32ebefc98137c8ac260a072a00c4aaf142d \
+        -- --change-address addr_test1vr50d8fs9szn2kzmplusau806sjeznpgf0epg0zrd7423yq7y9u7y \
+        -- --protocol-params-file /home/piotr/wb/cardano-wallet/test/e2e/state/node_db/preprod/pparams.json
+        
+        -- Sign:
+        -- $ cardano-cli transaction sign \
+        -- --tx-body-file /home/piotr/wb/cardano-wallet/test/e2e/state/node_db/preprod/txbody \
+        -- --testnet-magic 1 \
+        -- --signing-key-file /home/piotr/wb/cardano-wallet/test/e2e/state/node_db/preprod/payment.skey \
+        -- --out-file /home/piotr/wb/cardano-wallet/test/e2e/state/node_db/preprod/txsigned
         let cborHexWithMinting =
-                "84a70081825820ec78ceb4b1e58c078ddfc3fe0a4b5185d6c18a412175b02e4e6\
-                \6e12f34e480f4020d81825820ec78ceb4b1e58c078ddfc3fe0a4b5185d6c18a41\
-                \2175b02e4e66e12f34e480f4011281825820ec78ceb4b1e58c078ddfc3fe0a4b5\
-                \185d6c18a412175b02e4e66e12f34e480f4000182a200583901d7193e919b3f2c\
-                \56829ecdea2b6d6a960532f6554d56e1e6c0a5cfe66525f2791cac65cdd8513fd\
-                \07a9f2d2ec1e0346805f0f35509e7f6ae01821a001e8480a1581c9c8e9da7f81e\
-                \3ca90485f32ebefc98137c8ac260a072a00c4aaf142da14952656653637269707\
-                \401a200583901d7193e919b3f2c56829ecdea2b6d6a960532f6554d56e1e6c0a5\
-                \cfe66525f2791cac65cdd8513fd07a9f2d2ec1e0346805f0f35509e7f6ae011a0\
-                \10b2de0021a0003a55309a1581c9c8e9da7f81e3ca90485f32ebefc98137c8ac2\
-                \60a072a00c4aaf142da149526566536372697074010b582041b3986a363183ffd\
-                \965bb8978994709e4bed394055bf2aebfc0c5213d3f1779a10581840100182a82\
-                \0505f5f6" :: Text
+                "84a90081825820c2d52067c3f6098017a354a7f40950b67983508e295569990fb21d\
+                \d7cf754d48020d81825820c2d52067c3f6098017a354a7f40950b67983508e295569\
+                \990fb21dd7cf754d48011281825820c2d52067c3f6098017a354a7f40950b6798350\
+                \8e295569990fb21dd7cf754d48000182a2005839008caa66d4cb72d87b95e06af33c\
+                \b1f3961cdc2dc9288aebc582d65530c2f8a4b47a3315225d1390e7d24a8c0bda6f2d\
+                \3a75e5a2a194f00ebd01821a001e8480a1581c9c8e9da7f81e3ca90485f32ebefc98\
+                \137c8ac260a072a00c4aaf142da1545265666572656e636553637269707441737365\
+                \7401a200581d60e8f69d302c0535585b0ff90ef0efd425914c284bf2143c436faaa8\
+                \90011a0044db7a10a200581d60e8f69d302c0535585b0ff90ef0efd425914c284bf2\
+                \143c436faaa890011a00285f0a111a000567b6021a00039a7909a1581c9c8e9da7f8\
+                \1e3ca90485f32ebefc98137c8ac260a072a00c4aaf142da1545265666572656e6365\
+                \5363726970744173736574010b58203545ca3ee6e219ed247124a063c750b93a8d54\
+                \2332e9a9f0dbc7912c1aa11d66a200818258202f66723e337bac4e4d86ff696a50d3\
+                \bd33c8b5a54a4bf07d09bc637c22a7e6f45840b9421b24e923cb17a869f0ddf93943\
+                \b4605636e67cfd443e481c3a44606b0747b0f3a040cd224ffe4989566d3a23e49a58\
+                \284edc4bad475922ad88034c392b060581840100182a821a0009e4041a0c19eaf8f5f6" :: Text
+
 
         -- let cborHexMint = fromTextEnvelope cborHexWithMinting
         let decodeMintPayload = Json [json|{
               "transaction": #{cborHexWithMinting}
           }|]
 
-        -- let tokenName' = UnsafeTokenName "RefScript"
-
-        rTx <- request @(ApiDecodedTransaction n) ctx
+        rTx2 <- request @(ApiDecodedTransaction n) ctx
             (Link.decodeTransaction @'Shelley wa) Default decodeMintPayload
-        verify rTx
+        verify rTx2
             [ expectResponseCode HTTP.status202
-            , expectField (#fee . #getQuantity) (`shouldBe` 238_931)
             -- more assertions can be added once it passes
             ]
 
