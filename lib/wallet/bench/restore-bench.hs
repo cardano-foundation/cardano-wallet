@@ -55,7 +55,11 @@ import Cardano.Mnemonic
 import Cardano.Tx.Balance.Internal.CoinSelection
     ( SelectionStrategy (..), selectionDelta )
 import Cardano.Wallet
-    ( WalletLayer (..), WalletWorkerLog (..), networkLayer )
+    ( SelectAssetsParams (..)
+    , WalletLayer (..)
+    , WalletWorkerLog (..)
+    , networkLayer
+    )
 import Cardano.Wallet.Api.Types
     ( toApiUtxoStatistics )
 import Cardano.Wallet.BenchShared
@@ -178,9 +182,11 @@ import Crypto.Hash.Utils
 import Data.Aeson
     ( ToJSON (..), genericToJSON, (.=) )
 import Data.Functor.Contravariant
-    ( contramap )
+    ( contramap, (>$<) )
 import Data.Generics.Internal.VL.Lens
     ( (^.) )
+import Data.Generics.Product
+    ( typed )
 import Data.List
     ( foldl' )
 import Data.Proxy
@@ -510,12 +516,16 @@ benchmarksRnd _ w wid wname benchname restoreTime = do
     (_, estimateFeesTime) <- bench "estimate tx fee" $ do
         let out = TxOut (dummyAddress @n) (TokenBundle.fromCoin $ Coin 1)
         let txCtx = defaultTransactionCtx
-        let getFee = const (selectionDelta TokenBundle.getCoin)
         (utxoAvailable, wallet, pendingTxs) <-
             unsafeRunExceptT $ W.readWalletUTxOIndex @_ @s @k w wid
         pp <- liftIO $ currentProtocolParameters (w ^. networkLayer)
         era <- liftIO $ currentNodeEra (w ^. networkLayer)
-        let selectAssetsParams = W.SelectAssetsParams
+        let estimateFee = W.selectAssets @_ @s @k @'CredFromKeyK
+                (MsgWallet . W.MsgBalanceTx >$< w ^. W.logger)
+                (w ^. typed)
+                era
+                pp
+                W.SelectAssetsParams
                 { outputs = [out]
                 , pendingTxs
                 , randomSeed = Nothing
@@ -524,10 +534,8 @@ benchmarksRnd _ w wid wname benchname restoreTime = do
                 , utxoAvailableForCollateral = UTxOIndex.toMap utxoAvailable
                 , wallet
                 , selectionStrategy = SelectionStrategyOptimal
-                }
-        let runSelection =
-                W.selectAssets @_ @_ @s @k @'CredFromKeyK w era pp selectAssetsParams getFee
-        runExceptT $ withExceptT show $ W.estimateFee runSelection
+                } $ \_state -> W.Fee . selectionDelta TokenBundle.getCoin
+        runExceptT $ withExceptT show $ W.calculateFeeSpread estimateFee
 
     oneAddress <- genAddresses 1 cp
     (_, importOneAddressTime) <- bench "import one addresses" $ do
@@ -614,12 +622,16 @@ benchmarksSeq _ w wid _wname benchname restoreTime = do
     (_, estimateFeesTime) <- bench "estimate tx fee" $ do
         let out = TxOut (dummyAddress @n) (TokenBundle.fromCoin $ Coin 1)
         let txCtx = defaultTransactionCtx
-        let getFee = const (selectionDelta TokenBundle.getCoin)
         (utxoAvailable, wallet, pendingTxs) <-
             unsafeRunExceptT $ W.readWalletUTxOIndex w wid
         pp <- liftIO $ currentProtocolParameters (w ^. networkLayer)
         era <- liftIO $ currentNodeEra (w ^. networkLayer)
-        let selectAssetsParams = W.SelectAssetsParams
+        let estimateFee = W.selectAssets @_ @s @k @'CredFromKeyK
+                (MsgWallet . W.MsgBalanceTx >$< w ^. W.logger)
+                (w ^. typed)
+                era
+                pp
+                W.SelectAssetsParams
                 { outputs = [out]
                 , pendingTxs
                 , randomSeed = Nothing
@@ -628,10 +640,8 @@ benchmarksSeq _ w wid _wname benchname restoreTime = do
                 , utxoAvailableForCollateral = UTxOIndex.toMap utxoAvailable
                 , wallet
                 , selectionStrategy = SelectionStrategyOptimal
-                }
-        let runSelection =
-                W.selectAssets @_ @_ @s @k @'CredFromKeyK w era pp selectAssetsParams getFee
-        runExceptT $ withExceptT show $ W.estimateFee runSelection
+                } $ \_state -> W.Fee . selectionDelta TokenBundle.getCoin
+        runExceptT $ withExceptT show $ W.calculateFeeSpread estimateFee
 
     let walletOverview = WalletOverview{utxo,addresses,transactions}
 
