@@ -163,7 +163,8 @@ module Cardano.Wallet
     -- ** Fee Estimation
     , Fee (..)
     , FeeSpread (..)
-    , estimateFee
+    , DelegationFee (..)
+    , delegationFee
     , calculateFeeSpread
     , calcMinimumDeposit
     , calcMinimumCoinValues
@@ -265,6 +266,8 @@ import Cardano.Wallet.DB
     , ErrRemoveTx (..)
     , ErrWalletAlreadyExists (..)
     )
+import Cardano.Wallet.DB.Store.Submissions.Layer
+    ( mkLocalTxSubmission )
 import Cardano.Wallet.DB.WalletState
     ( DeltaWalletState1 (..)
     , ErrNoSuchWallet (..)
@@ -486,7 +489,7 @@ import Control.Arrow
 import Control.DeepSeq
     ( NFData )
 import Control.Monad
-    ( forM, forM_, replicateM, unless, when, (<=<) )
+    ( forM, forM_, replicateM, unless, when, (<=<), (>=>) )
 import Control.Monad.Class.MonadTime
     ( DiffTime
     , MonadMonotonicTime (..)
@@ -604,8 +607,6 @@ import qualified Cardano.Crypto.Wallet as CC
 import qualified Cardano.Slotting.Slot as Slot
 import qualified Cardano.Tx.Balance.Internal.CoinSelection as CS
 import qualified Cardano.Wallet.Checkpoints.Policy as CP
-import Cardano.Wallet.DB.Store.Submissions.Layer
-    ( mkLocalTxSubmission )
 import qualified Cardano.Wallet.DB.WalletState as WS
 import qualified Cardano.Wallet.DB.WalletState as WalletState
 import qualified Cardano.Wallet.Primitive.AddressDiscovery.Random as Rnd
@@ -1812,19 +1813,16 @@ data SelectAssetsParams s result = SelectAssetsParams
 -- selection.
 --
 selectAssets
-    :: forall ctx m s k ktype result.
-        ( BoundedAddressLength k
-        , HasTransactionLayer k ktype ctx
-        , HasLogger m WalletWorkerLog ctx
-        , MonadRandom m
-        )
-    => ctx
+    :: forall m s k ktype result
+     . (BoundedAddressLength k, MonadRandom m)
+    => Tracer m BalanceTxLog
+    -> TransactionLayer k ktype SealedTx
     -> Cardano.AnyCardanoEra
     -> ProtocolParameters
     -> SelectAssetsParams s result
     -> (s -> Selection -> result)
     -> ExceptT ErrSelectAssets m result
-selectAssets ctx era pp params transform = do
+selectAssets tr txLayer era pp params transform = do
     guardPendingWithdrawal
     lift $ traceWith tr $ MsgSelectionStart
         (UTxOSelection.availableSize $ params ^. #utxoAvailableForInputs)
@@ -1832,19 +1830,19 @@ selectAssets ctx era pp params transform = do
     let selectionConstraints = SelectionConstraints
             { assessTokenBundleSize =
                 view #assessTokenBundleSize $
-                tokenBundleSizeAssessor tl $
-                pp ^. (#txParameters . #getTokenBundleMaxSize)
+                tokenBundleSizeAssessor txLayer $
+                pp ^. #txParameters . #getTokenBundleMaxSize
             , certificateDepositAmount =
                 view #stakeKeyDeposit pp
             , computeMinimumAdaQuantity =
-                view #txOutputMinimumAdaQuantity (constraints tl era pp)
+                constraints txLayer era pp ^. #txOutputMinimumAdaQuantity
             , isBelowMinimumAdaQuantity =
-                view #txOutputBelowMinimumAdaQuantity (constraints tl era pp)
+                constraints txLayer era pp ^. #txOutputBelowMinimumAdaQuantity
             , computeMinimumCost =
-                calcMinimumCost tl era pp $ params ^. #txContext
+                calcMinimumCost txLayer era pp $ params ^. #txContext
             , computeSelectionLimit =
                 Cardano.Wallet.Transaction.computeSelectionLimit
-                    tl era pp $ params ^. #txContext
+                    txLayer era pp $ params ^. #txContext
             , maximumCollateralInputCount =
                 intCast @Word16 @Int $ view #maximumCollateralInputCount pp
             , minimumCollateralPercentage =
@@ -1894,8 +1892,6 @@ selectAssets ctx era pp params transform = do
     withExceptT ErrSelectAssetsSelectionError $ except $
         transform (getState $ params ^. #wallet) <$> mSel
   where
-    tl = ctx ^. transactionLayer @k @ktype
-    tr = contramap (MsgWallet . MsgBalanceTx) $ ctx ^. logger @m
 
     -- Ensure that there's no existing pending withdrawals. Indeed, a withdrawal
     -- is necessarily withdrawing rewards in their totality. So, after a first
@@ -2823,61 +2819,64 @@ data FeeSpread = FeeSpread
 
 instance NFData FeeSpread
 
+
 -- | Calculate the minimum deposit necessary if a given wallet wanted to
 -- delegate to a pool. Said differently, this return either 0, or the value of
 -- the key deposit protocol parameters if the wallet has no registered stake
 -- key.
 calcMinimumDeposit
-    :: forall ctx s k.
-        ( HasDBLayer IO s k ctx
-        , HasNetworkLayer IO ctx
-        )
-    => ctx
+    :: forall s k
+     . DBLayer IO s k
+    -> NetworkLayer IO Read.Block
     -> WalletId
     -> IO Coin
-calcMinimumDeposit ctx wid = db & \DBLayer{..} -> throwInIO $ do
-    mapExceptT atomically (isStakeKeyRegistered wid) >>= \case
-        True ->
-            pure $ Coin 0
-        False ->
-            liftIO $ stakeKeyDeposit <$> currentProtocolParameters nl
+calcMinimumDeposit DBLayer{..}  netLayer wid =
+    throwInIO $ mapExceptT atomically (isStakeKeyRegistered wid) >>= \case
+        True -> pure $ Coin 0
+        False -> liftIO $ stakeKeyDeposit <$> currentProtocolParameters netLayer
   where
-    throwInIO :: ExceptT ErrNoSuchWallet IO a -> IO a
-    throwInIO x = runExceptT x >>= \case
-        Right a -> pure a
-        Left e -> throwIO $ ExceptionNoSuchWallet e
+    throwInIO :: forall a. ExceptT ErrNoSuchWallet IO a -> IO a
+    throwInIO = runExceptT >=> either (throwIO . ExceptionNoSuchWallet) pure
 
-    db = ctx ^. dbLayer @IO @s @k
-    nl = ctx ^. networkLayer
+data DelegationFee = DelegationFee
+    { feeSpread :: FeeSpread
+    , deposit :: Coin
+    }
 
-estimateFee ::
-    forall ctx m s k .
-    ( BoundedAddressLength k
-    , HasTransactionLayer k 'CredFromKeyK ctx
-    , HasLogger m WalletWorkerLog ctx
-    , MonadRandom m
-    )
-    => ctx
-    -> Cardano.AnyCardanoEra
-    -> ProtocolParameters
-    -> Coin
-    -> (UTxOIndex WalletUTxO, Wallet s, Set Tx)
-    -> ExceptT ErrSelectAssets m Fee
-estimateFee wrk era pp _deposit (utxoAvailable, wallet, pendingTxs) =
-    selectAssets @ctx @m @s @k @'CredFromKeyK
-        wrk era pp selectAssetsParams $ \_s ->
-            Fee . CS.selectionDelta TokenBundle.getCoin
+delegationFee
+    :: forall s k
+     . BoundedAddressLength k
+    => Tracer IO BalanceTxLog
+    -> DBLayer IO s k
+    -> NetworkLayer IO Read.Block
+    -> TransactionLayer k 'CredFromKeyK SealedTx
+    -> WalletId
+    -> ExceptT ErrSelectAssets IO DelegationFee
+delegationFee tr db netLayer txLayer walletId = do
+    w <- lift $ throwInIO $ readWalletUTxOIndex @_ @s @k db walletId
+    pp <- liftIO $ currentProtocolParameters netLayer
+    era <- liftIO $ currentNodeEra netLayer
+    deposit <- liftIO $ calcMinimumDeposit db netLayer walletId
+    let estimateDelegationFee = estimateFee era pp deposit w
+    feeSpread <- calculateFeeSpread estimateDelegationFee
+    pure DelegationFee {..}
   where
-    selectAssetsParams = SelectAssetsParams
-        { outputs = []
-        , pendingTxs
-        , randomSeed = Nothing
-        , txContext = defaultTransactionCtx
-        , utxoAvailableForInputs = UTxOSelection.fromIndex utxoAvailable
-        , utxoAvailableForCollateral = UTxOIndex.toMap utxoAvailable
-        , wallet
-        , selectionStrategy = SelectionStrategyOptimal
-        }
+    throwInIO :: forall a. ExceptT ErrNoSuchWallet IO a -> IO a
+    throwInIO = runExceptT >=> either (throwIO . ExceptionNoSuchWallet) pure
+
+    estimateFee era pp _deposit (utxoAvailable, wallet, pendingTxs) =
+        selectAssets @_ @s @k @'CredFromKeyK
+            tr txLayer era pp SelectAssetsParams
+            { outputs = []
+            , pendingTxs
+            , randomSeed = Nothing
+            , txContext = defaultTransactionCtx
+            , utxoAvailableForInputs = UTxOSelection.fromIndex utxoAvailable
+            , utxoAvailableForCollateral = UTxOIndex.toMap utxoAvailable
+            , wallet
+            , selectionStrategy = SelectionStrategyOptimal
+            }
+            $ \_s -> Fee . CS.selectionDelta TokenBundle.getCoin
 
 -- | For a given transaction fee estimation calculation evaluates its fee spread
 -- by repeatedly running it (100 times) and recording the results.

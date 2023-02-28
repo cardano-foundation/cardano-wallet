@@ -534,8 +534,6 @@ import Control.DeepSeq
     ( NFData )
 import Control.Error.Util
     ( failWith )
-import Control.Exception
-    ( throwIO )
 import Control.Monad
     ( forM, forever, join, void, when, (<=<) )
 import Control.Monad.Error.Class
@@ -2175,9 +2173,9 @@ postTransactionOld ctx@ApiLayer{..} genChange (ApiT wid) body = do
                     , selectionStrategy = SelectionStrategyOptimal
                     }
             pp <- liftIO $ NW.currentProtocolParameters netLayer
-            sel <- liftHandler
-                $ W.selectAssets @_ @_ @s @k @'CredFromKeyK
-                    wrk era pp selectAssetsParams
+            sel <- liftHandler $ W.selectAssets @_ @s @k @'CredFromKeyK
+                    (MsgWallet . W.MsgBalanceTx >$< wrk ^. logger)
+                    txLayer era pp selectAssetsParams
                 $ const Prelude.id
             sel' <- liftHandler
                 $ W.assignChangeAddressesAndUpdateDb wrk wid genChange sel
@@ -2365,15 +2363,14 @@ postTransactionFeeOld ctx@ApiLayer{..} (ApiT wid) body =
                 , wallet
                 , selectionStrategy = SelectionStrategyOptimal
                 }
-        let runSelection =
-                W.selectAssets @_ @_ @s @k @'CredFromKeyK
-                    wrk era pp selectAssetsParams $ \_state ->
-                        Fee . selectionDelta TokenBundle.getCoin
-        minCoins <- liftIO
-            $ W.calcMinimumCoinValues @_ @k @'CredFromKeyK
-                wrk era (F.toList outs)
-        liftHandler $ mkApiFee Nothing minCoins <$>
-            W.calculateFeeSpread runSelection
+        let estimateFee = W.selectAssets @_ @s @k @'CredFromKeyK
+                (MsgWallet . W.MsgBalanceTx >$< wrk ^. logger)
+                txLayer era pp selectAssetsParams $ \_state ->
+                    Fee . selectionDelta TokenBundle.getCoin
+        feeSpread <- liftHandler $ W.calculateFeeSpread estimateFee
+        minCoins <- liftIO $
+            W.calcMinimumCoinValues @_ @k @'CredFromKeyK wrk era (F.toList outs)
+        pure $ mkApiFee Nothing minCoins feeSpread
 
 constructTransaction
     :: forall (n :: NetworkDiscriminant)
@@ -3475,28 +3472,21 @@ joinStakePool
                 }
 
 delegationFee
-    :: forall s n k.
-        ( s ~ SeqState n k
-        , BoundedAddressLength k
-        )
-    => ApiLayer s k 'CredFromKeyK
+    :: forall n k
+    .  BoundedAddressLength k
+    => ApiLayer (SeqState n k) k 'CredFromKeyK
     -> ApiT WalletId
     -> Handler ApiFee
-delegationFee ctx (ApiT wid) = do
-    withWorkerCtx ctx wid liftE liftE $ \wrk -> liftHandler $ do
-        w <- liftIO $ throwInIO $
-            W.readWalletUTxOIndex @_ @s @k wrk wid
-        pp <- liftIO $ NW.currentProtocolParameters (wrk ^. networkLayer)
-        era <- liftIO $ NW.currentNodeEra (wrk ^. networkLayer)
-        deposit <- liftIO $ W.calcMinimumDeposit @_ @s @k wrk wid
-        mkApiFee (Just deposit) [] <$>
-            W.calculateFeeSpread
-                (W.estimateFee @_ @_ @s @k wrk era pp deposit w)
-  where
-    throwInIO :: ExceptT ErrNoSuchWallet IO a -> IO a
-    throwInIO x = runExceptT x >>= \case
-        Right a -> pure a
-        Left e -> throwIO $ W.ExceptionNoSuchWallet e
+delegationFee ctx (ApiT walletId) =
+    withWorkerCtx ctx walletId liftE liftE $ \wrk -> liftHandler $ do
+        W.DelegationFee {feeSpread, deposit} <-
+            W.delegationFee
+                (MsgWallet . W.MsgBalanceTx >$< wrk ^. logger)
+                (wrk ^. dbLayer)
+                (ctx ^. networkLayer)
+                (ctx ^. typed)
+                walletId
+        pure $ mkApiFee (Just deposit) [] feeSpread
 
 quitStakePool
     :: forall s n k.
