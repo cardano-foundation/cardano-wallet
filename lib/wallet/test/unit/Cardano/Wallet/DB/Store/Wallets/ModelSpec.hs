@@ -43,6 +43,8 @@ spec = do
     describe "wallets-transactions" $ do
         it "rollback collects the right amount of garbage" $
             property prop_RollbackCollectsGarbage
+        it "remove wallet collect the right amount of garbage" $
+            property prop_RemoveWalletCollectsGarbage
 
 {-----------------------------------------------------------------------------
     Properties
@@ -69,6 +71,20 @@ prop_RollbackCollectsGarbage = \GenRollback{wid,slot,history} ->
         Txs.TxSet $ Map.withoutKeys x (Set.fromList deletions)
       where
         deletions = TxWallets.transactionsToDeleteOnRollback wid slot wmetas
+
+prop_RemoveWalletCollectsGarbage :: GenRollback -> Property
+prop_RemoveWalletCollectsGarbage = \GenRollback{wid,history} ->
+        removeWalletA wid history
+    === removeWalletB wid history
+  where
+    removeWalletA wid (x,wmetas) =
+        fst $ TxWallets.garbageCollectTxWalletsHistory
+            (x, Map.delete wid wmetas)
+
+    removeWalletB wid (Txs.TxSet x, wmetas) =
+        Txs.TxSet $ Map.withoutKeys x (Set.fromList deletions)
+      where
+        deletions = TxWallets.transactionsToDeleteOnRemoveWallet wid wmetas
 
 {-----------------------------------------------------------------------------
     Generators

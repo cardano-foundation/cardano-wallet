@@ -32,11 +32,11 @@ import Cardano.Wallet.DB.Store.Meta.Model
 import Cardano.Wallet.DB.Store.Meta.Store
     ( mkStoreMetaTransactions )
 import Cardano.Wallet.DB.Store.Transactions.Model
-    ( DeltaTxSet (Append, DeleteTx), TxSet (..), mkTxSet )
+    ( DeltaTxSet (Append, DeleteTx), mkTxSet )
 import Cardano.Wallet.DB.Store.Wallets.Model
     ( DeltaTxWalletsHistory (..)
+    , transactionsToDeleteOnRemoveWallet
     , transactionsToDeleteOnRollback
-    , walletsLinkedTransactions
     )
 import Control.Applicative
     ( liftA2 )
@@ -120,10 +120,10 @@ mkStoreTxWalletsHistory storeTransactions storeWalletsMeta =
                     $ updateS storeTransactions mTxSet . DeleteTx
             RemoveWallet wid -> do
                 wmetas <- loadWhenNothing mWmetas storeWalletsMeta
-                txSet <- loadWhenNothing mTxSet storeTransactions
                 updateS storeWalletsMeta (Just wmetas) $ Delete wid
-                let wmetas2 = Map.delete wid wmetas
-                garbageCollectTxWalletsHistory txSet wmetas2
+                let deletions = transactionsToDeleteOnRemoveWallet wid wmetas
+                forM_ deletions
+                    $ updateS storeTransactions mTxSet . DeleteTx
             ExpandTxWalletsHistory wid cs -> do
                 wmetas <- loadWhenNothing mWmetas storeWalletsMeta
                 updateS storeTransactions mTxSet
@@ -137,12 +137,6 @@ mkStoreTxWalletsHistory storeTransactions storeWalletsMeta =
                             $ TxMetaStore.Expand
                             $ mkTxMetaHistory wid cs
     in Store { loadS = load, writeS = write, updateS = update }
-  where
-    garbageCollectTxWalletsHistory txSet wmetas =
-        mapM_ (updateS storeTransactions (Just txSet) . DeleteTx)
-            $ Map.keys
-            $ Map.withoutKeys (relations txSet)
-            $ walletsLinkedTransactions wmetas
 
 -- | Call 'loadS' from a 'Store' if the value is not already in memory.
 loadWhenNothing
