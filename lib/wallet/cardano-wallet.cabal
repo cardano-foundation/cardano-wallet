@@ -220,6 +220,7 @@ library
     Cardano.Wallet.Address.Pool
     Cardano.Wallet.Byron.Compatibility
     Cardano.Wallet.Checkpoints
+    Cardano.Wallet.Checkpoints.Chain
     Cardano.Wallet.Checkpoints.Policy
     Cardano.Wallet.Compat
     Cardano.Wallet.DB
