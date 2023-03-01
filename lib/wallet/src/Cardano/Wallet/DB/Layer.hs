@@ -107,7 +107,10 @@ import Cardano.Wallet.DB.Store.QueryStore
 import Cardano.Wallet.DB.Store.Submissions.Layer
     ( pruneByFinality, rollBackSubmissions )
 import Cardano.Wallet.DB.Store.Transactions.Decoration
-    ( TxInDecorator, decorateTxInsForReadTx, decorateTxInsForRelation )
+    ( TxInDecorator
+    , decorateTxInsForReadTx
+    , decorateTxInsForRelationFromLookupTxOut
+    )
 import Cardano.Wallet.DB.Store.Transactions.Model
     ( TxRelation (..) )
 import Cardano.Wallet.DB.Store.Transactions.TransactionInfo
@@ -213,6 +216,7 @@ import qualified Cardano.Wallet.Primitive.Types as W
 import qualified Cardano.Wallet.Primitive.Types.Coin as Coin
 import qualified Cardano.Wallet.Primitive.Types.Hash as W
 import qualified Cardano.Wallet.Primitive.Types.Tx as W
+import qualified Cardano.Wallet.Primitive.Types.Tx.TxOut as W
 import qualified Cardano.Wallet.Read.Tx as Read
 import qualified Data.Map.Strict as Map
 import qualified Data.Set as Set
@@ -633,12 +637,16 @@ newDBLayerWith _cacheBehavior _tr ti SqliteContext{runQuery} = mdo
                     ]
                 transactions = filter whichMeta allTransactions
                 lookupTx = queryS transactionsQS . GetByTxId
-            forM transactions $ selectTransactionInfo ti tip lookupTx
+                lookupTxOut = queryS transactionsQS . GetTxOut
+            forM transactions $
+                selectTransactionInfo ti tip lookupTx lookupTxOut
 
         , getTx_ = \wid txid tip -> do
             transactions <- queryS transactionsQS $ One wid (TxId txid)
             let lookupTx = queryS transactionsQS . GetByTxId
-            forM transactions $ selectTransactionInfo ti tip lookupTx
+                lookupTxOut = queryS transactionsQS . GetTxOut
+            forM transactions $
+                selectTransactionInfo ti tip lookupTx lookupTxOut
 
         , mkDecorator_ = mkDecorator transactionsQS
         }
@@ -975,12 +983,14 @@ selectTransactionInfo
     => TimeInterpreter IO
     -> W.BlockHeader
     -> (TxId -> m (Maybe TxRelation))
+    -> ((TxId, Word32) -> m (Maybe W.TxOut))
     -> TxMeta
     -> m W.TransactionInfo
-selectTransactionInfo ti tip lookupTx meta = do
+selectTransactionInfo ti tip lookupTx lookupTxOut meta = do
     let err = error $ "Transaction not found: " <> show meta
     transaction <- fromMaybe err <$> lookupTx (txMetaTxId meta)
-    decoration <- decorateTxInsForRelation lookupTx transaction
+    decoration <-
+        decorateTxInsForRelationFromLookupTxOut lookupTxOut transaction
     liftIO . evaluate . force =<< mkTransactionInfoFromRelation
         (hoistTimeInterpreter liftIO ti) tip transaction decoration meta
 
