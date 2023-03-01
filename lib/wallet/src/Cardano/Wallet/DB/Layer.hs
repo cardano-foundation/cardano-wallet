@@ -137,8 +137,10 @@ import Cardano.Wallet.Primitive.Slotting
     ( TimeInterpreter, firstSlotInEpoch, hoistTimeInterpreter, interpretQuery )
 import Cardano.Wallet.Read.Eras
     ( EraValue )
+import Control.DeepSeq
+    ( force )
 import Control.Exception
-    ( throw )
+    ( evaluate, throw )
 import Control.Monad
     ( forM, unless, when, (<=<) )
 import Control.Monad.IO.Class
@@ -979,7 +981,7 @@ selectTransactionInfo ti tip lookupTx meta = do
     let err = error $ "Transaction not found: " <> show meta
     transaction <- fromMaybe err <$> lookupTx (txMetaTxId meta)
     decoration <- decorateTxInsForRelation lookupTx transaction
-    mkTransactionInfoFromRelation
+    liftIO . evaluate . force =<< mkTransactionInfoFromRelation
         (hoistTimeInterpreter liftIO ti) tip transaction decoration meta
 
 selectPrivateKey
