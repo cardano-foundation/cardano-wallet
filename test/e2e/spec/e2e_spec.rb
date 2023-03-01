@@ -24,8 +24,8 @@ RSpec.describe 'Cardano Wallet E2E tests', :all, :e2e do
     SHELLEY.stake_pools.quit(@target_id, PASS)
   end
 
-  describe 'Regressions and bugs' do
-    it 'ADP-2523 - Make sure there are no null values in the response' do
+  describe 'Regressions' do
+    it 'ADP-2523 - Make sure there are no null values in the response', :adp_2523 do
       pools = SHELLEY.stake_pools
       l = pools.list({ stake: 1000 })
       expect(l).to be_correct_and_respond 200
@@ -33,13 +33,13 @@ RSpec.describe 'Cardano Wallet E2E tests', :all, :e2e do
       expect(l.to_s).not_to include 'null'
     end
 
-    it 'ADP-2666 - Make sure tx history is available after receiving token from minting tx made using reference script (Plutus script)' do
+    it 'ADP-2666 - Tx history is available after receiving token from minting tx made using reference script (Plutus script)', :adp_2666 do
       ##
       # This test is to reproduce a bug where tx history was not available
       # after receiving token from minting tx made using reference script.
       # Reproduction steps:
       # 1. [cardano-cli] Create an address and fund it with ada
-      # 2. [cardano-cli] Submit transaction to the address setting utxo for collateral and reference script utxo
+      # 2. [cardano-cli] Submit transaction to the address setting utxo for collateral and reference script utxo (Plutus script)
       # 3. [cardano-cli] Submit minting transaction using reference script sending minted tokens to wallet address
       # 4. [cardano-wallet] Check that tx history is available after receiving token from minting tx made using reference script
       # 5. [cardano-wallet] Send token back to the address
@@ -90,7 +90,7 @@ RSpec.describe 'Cardano Wallet E2E tests', :all, :e2e do
       txsigned2 = CARDANO_CLI.tx_sign(txbody2, payment_keys)
       txid2 = CARDANO_CLI.tx_submit(txsigned2)
 
-      eventually 'Minting Tx with reference script is in ledger' do
+      eventually 'Minting Tx with reference Plutus script is in ledger' do
         CARDANO_CLI.get_utxos(payment_address).to_s.include?(txid2)
       end
 
@@ -118,7 +118,7 @@ RSpec.describe 'Cardano Wallet E2E tests', :all, :e2e do
       # 5. [cardano-wallet] Send token back to the address
     end
 
-    it 'ADP-2666 - Make sure tx history is available after receiving token from minting tx made using reference script (Simple script)' do
+    it 'ADP-2666 - Tx history is available after receiving token from minting tx made using reference script (Simple script)', :adp_2666 do
       ##
       # This test is to reproduce a bug where tx history was not available
       # after receiving token from minting tx made using reference script (using simple script a.k.a. native script).
@@ -132,17 +132,16 @@ RSpec.describe 'Cardano Wallet E2E tests', :all, :e2e do
       # 1. [cardano-cli] Create an address and fund it with ada
       payment_keys = CARDANO_CLI.generate_payment_keys
       payment_address = CARDANO_CLI.build_payment_address(payment_keys)
-      init_amt = 20_000_000
+      init_amt = 10_000_000
       tx = construct_sign_submit(@wid, payment_payload(init_amt, payment_address))
       wait_for_tx_in_ledger(@wid, tx.last['id'])
 
       # 2. [cardano-cli] Submit transaction to the address setting utxo for collateral and reference script utxo
       init_utxo = CARDANO_CLI.get_utxos(payment_address).first
       txbody = CARDANO_CLI.tx_build("--tx-in #{init_utxo[:utxo]}##{init_utxo[:ix]}",
-                                    "--tx-out #{payment_address}+10000000", # will be a reference script utxo (#0)
+                                    "--tx-out #{payment_address}+5000000", # will be a reference script utxo (#0)
                                     "--tx-out-reference-script-file #{get_simple_scripts_file_path('policy.script')}",
-                                    "--tx-out #{payment_address}+3000000", # will be a collateral utxo (#1)
-                                    "--change-address #{payment_address}") # will be a regular utxo (#2)
+                                    "--change-address #{payment_address}") # will be a regular utxo (#1)
 
       txsigned = CARDANO_CLI.tx_sign(txbody, payment_keys)
       txid = CARDANO_CLI.tx_submit(txsigned)
@@ -152,7 +151,7 @@ RSpec.describe 'Cardano Wallet E2E tests', :all, :e2e do
       end
 
       # 3. [cardano-cli] Submit minting transaction using reference script sending minted tokens to wallet address
-      wallet_id = 'ec93b84370e7325eebbbea1106efac1c64c7245e'
+      wallet_id = '2888d91f77633942e95fc6a248e1eedb6c63fa34'
       txs = SHELLEY.transactions.list(wallet_id)
       expect(txs).to be_correct_and_respond 200
 
@@ -160,8 +159,8 @@ RSpec.describe 'Cardano Wallet E2E tests', :all, :e2e do
       address = SHELLEY.addresses.list(wallet_id).first['id']
       policy_id = CARDANO_CLI.policy_id(get_simple_scripts_file_path('policy.script'))
       hex_asset_name = asset_name('ReferenceSimpleScriptAsset')
-      txbody2 = CARDANO_CLI.tx_build("--tx-in #{src_utxos[2][:utxo]}##{src_utxos[2][:ix]}",
-                                     "--tx-in-collateral #{src_utxos[1][:utxo]}##{src_utxos[1][:ix]}",
+      txbody2 = CARDANO_CLI.tx_build("--tx-in #{src_utxos[1][:utxo]}##{src_utxos[1][:ix]}",
+                                     '--witness-override 2',
                                      "--simple-minting-script-tx-in-reference #{src_utxos[0][:utxo]}##{src_utxos[0][:ix]}",
                                      "--tx-out \"#{address}+2000000+1 #{policy_id}.#{hex_asset_name}\"",
                                      "--mint \"1 #{policy_id}.#{hex_asset_name}\"",
@@ -172,9 +171,8 @@ RSpec.describe 'Cardano Wallet E2E tests', :all, :e2e do
       payment_keys[:policy_skey] = get_simple_scripts_file_path('policy.skey')
       txsigned2 = CARDANO_CLI.tx_sign(txbody2, payment_keys)
       txid2 = CARDANO_CLI.tx_submit(txsigned2)
-      # puts File.read(txsigned)
-      # puts File.read(txsigned2)
-      eventually 'Minting Tx with reference script is in ledger' do
+
+      eventually 'Minting Tx with reference Simple script is in ledger' do
         CARDANO_CLI.get_utxos(payment_address).to_s.include?(txid2)
       end
 
