@@ -68,7 +68,7 @@ RSpec.describe 'Cardano Wallet E2E tests', :all, :e2e do
 
       # 3. [cardano-cli] Submit minting transaction using reference script sending minted tokens to wallet address
 
-      wallet_id = 'fe6f0d79114982b73446212df4504f861f00f52c'
+      wallet_id = '80b24aa6361e1f62e7d252e614f7d649870ab542'
       txs = SHELLEY.transactions.list(wallet_id)
       expect(txs).to be_correct_and_respond 200
 
@@ -116,6 +116,13 @@ RSpec.describe 'Cardano Wallet E2E tests', :all, :e2e do
       tx_certificates(tx_details, present: false)
 
       # 5. [cardano-wallet] Send token back to the address
+      payment = [{ 'address' => payment_address,
+                   'amount' => { 'quantity' => 0, 'unit' => 'lovelace' },
+                   'assets' => [{ 'policy_id' => policy_id,
+                                  'asset_name' => hex_asset_name,
+                                  'quantity' => 1 }] }]
+      tx = construct_sign_submit(wallet_id, payment)
+      wait_for_tx_in_ledger(wallet_id, tx.last['id'])
     end
 
     it 'ADP-2666 - Tx history is available after receiving token from minting tx made using reference script (Simple script)', :adp_2666 do
@@ -151,7 +158,7 @@ RSpec.describe 'Cardano Wallet E2E tests', :all, :e2e do
       end
 
       # 3. [cardano-cli] Submit minting transaction using reference script sending minted tokens to wallet address
-      wallet_id = '2888d91f77633942e95fc6a248e1eedb6c63fa34'
+      wallet_id = '4cc8afc12c70b0f70e0de45670ea3744ffed1522'
       txs = SHELLEY.transactions.list(wallet_id)
       expect(txs).to be_correct_and_respond 200
 
@@ -198,6 +205,13 @@ RSpec.describe 'Cardano Wallet E2E tests', :all, :e2e do
       tx_certificates(tx_details, present: false)
 
       # 5. [cardano-wallet] Send token back to the address
+      payment = [{ 'address' => payment_address,
+                   'amount' => { 'quantity' => 0, 'unit' => 'lovelace' },
+                   'assets' => [{ 'policy_id' => policy_id,
+                                  'asset_name' => hex_asset_name,
+                                  'quantity' => 1 }] }]
+      tx = construct_sign_submit(wallet_id, payment)
+      wait_for_tx_in_ledger(wallet_id, tx.last['id'])
     end
   end
 
