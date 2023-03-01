@@ -839,6 +839,7 @@ test-suite unit
     Cardano.Wallet.Api.TypesSpec
     Cardano.Wallet.ApiSpec
     Cardano.Wallet.Checkpoints.PolicySpec
+    Cardano.Wallet.Checkpoints.ChainSpec
     Cardano.Wallet.CheckpointsSpec
     Cardano.Wallet.DB.Arbitrary
     Cardano.Wallet.DB.Fixtures
