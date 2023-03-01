@@ -331,7 +331,7 @@ spec = parallel $ describe "Cardano.WalletSpec" $ do
 
     describe "Tx fee estimation spread" $
         it "Estimated fee spreads are sound"
-            (property prop_calculateFeeSpread)
+            (property prop_calculateFeePercentiles)
 
     describe "LocalTxSubmission" $ do
         it "LocalTxSubmission pool retries pending transactions"
@@ -614,15 +614,15 @@ walletListsOnlyRelatedAssets txId txMeta =
 -- 1. There is no coin selection with a fee above the estimated maximum.
 -- 2. The minimum estimated fee is no greater than the maximum estimated fee.
 -- 3. Around 10% of fees are below the estimated minimum.
-prop_calculateFeeSpread :: NonEmptyList (Maybe Coin) -> Property
-prop_calculateFeeSpread (NonEmpty coins) =
-    case evalState (runExceptT $ W.calculateFeeSpread estimateFee) 0 of
+prop_calculateFeePercentiles :: NonEmptyList (Maybe Coin) -> Property
+prop_calculateFeePercentiles (NonEmpty coins) =
+    case evalState (runExceptT $ W.calculateFeePercentiles estimateFee) 0 of
         Left err ->
             label "errors: all" $ err === genericError
 
-        Right spread@(W.FeeSpread minFee maxFee) ->
+        Right percentiles@(W.Percentile minFee, W.Percentile maxFee) ->
             label ("errors: " <> if any isNothing coins then "some" else "none") $
-            counterexample (show spread) $ conjoin
+            counterexample (show percentiles) $ conjoin
                 [ property $ W.feeToCoin maxFee <= maximum (catMaybes coins)
                 , property $ minFee <= maxFee
                 , proportionBelow (W.feeToCoin minFee) coins

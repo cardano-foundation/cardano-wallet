@@ -535,7 +535,7 @@ benchmarksRnd _ w wid wname benchname restoreTime = do
                 , wallet
                 , selectionStrategy = SelectionStrategyOptimal
                 } $ \_state -> W.Fee . selectionDelta TokenBundle.getCoin
-        runExceptT $ withExceptT show $ W.calculateFeeSpread estimateFee
+        runExceptT $ withExceptT show $ W.calculateFeePercentiles estimateFee
 
     oneAddress <- genAddresses 1 cp
     (_, importOneAddressTime) <- bench "import one addresses" $ do
@@ -641,7 +641,7 @@ benchmarksSeq _ w wid _wname benchname restoreTime = do
                 , wallet
                 , selectionStrategy = SelectionStrategyOptimal
                 } $ \_state -> W.Fee . selectionDelta TokenBundle.getCoin
-        runExceptT $ withExceptT show $ W.calculateFeeSpread estimateFee
+        runExceptT $ withExceptT show $ W.calculateFeePercentiles estimateFee
 
     let walletOverview = WalletOverview{utxo,addresses,transactions}
 

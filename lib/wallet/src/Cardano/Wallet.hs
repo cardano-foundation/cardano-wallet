@@ -163,10 +163,10 @@ module Cardano.Wallet
 
     -- ** Fee Estimation
     , Fee (..)
-    , FeeSpread (..)
+    , Percentile (..)
     , DelegationFee (..)
     , delegationFee
-    , calculateFeeSpread
+    , calculateFeePercentiles
     , calcMinimumDeposit
     , calcMinimumCoinValues
 
@@ -594,6 +594,8 @@ import Fmt
     )
 import GHC.Generics
     ( Generic )
+import GHC.TypeNats
+    ( Nat )
 import Statistics.Quantile
     ( medianUnbiased, quantiles )
 import System.Random.StdGenSeed
@@ -2815,16 +2817,9 @@ newtype Fee = Fee { feeToCoin :: Coin }
     deriving stock (Show, Generic)
     deriving newtype (Eq, Ord, NFData)
 
--- | Result of a fee estimation process given a wallet and payment order.
-data FeeSpread = FeeSpread
-    { estMinFee :: Fee
-    -- ^ Most coin selections will result in a fee higher than this.
-    , estMaxFee :: Fee
-    -- ^ Most coin selections will result in a fee lower than this.
-    } deriving (Show, Eq, Generic)
-
-instance NFData FeeSpread
-
+newtype Percentile (n :: Nat) a = Percentile a
+    deriving stock (Show, Generic)
+    deriving newtype (Eq, Ord, NFData)
 
 -- | Calculate the minimum deposit necessary if a given wallet wanted to
 -- delegate to a pool. Said differently, this return either 0, or the value of
@@ -2845,7 +2840,7 @@ calcMinimumDeposit DBLayer{..}  netLayer wid =
     throwInIO = runExceptT >=> either (throwIO . ExceptionNoSuchWallet) pure
 
 data DelegationFee = DelegationFee
-    { feeSpread :: FeeSpread
+    { feePercentiles :: (Percentile 10 Fee, Percentile 90 Fee)
     , deposit :: Coin
     }
 
@@ -2867,10 +2862,10 @@ delegationFee
     -> ExceptT ErrSelectAssets IO DelegationFee
 delegationFee db netLayer txLayer ti era changeAddressGen walletId = do
     protocolParams <- liftIO $ currentProtocolParameters netLayer
-    WriteTx.withRecentEra era $ \(recentEra :: WriteTx.RecentEra recentEra) -> do
-        feeSpread <- calculateFeeSpread $ do
+    WriteTx.withRecentEra era $ \(recentEra :: WriteTx.RecentEra era) -> do
+        feePercentiles <- calculateFeePercentiles $ do
             (Cardano.Tx (Cardano.TxBody bodyContent) _, _updatedWallet) <-
-                liftIO $ buildTransaction @s @k @n @recentEra
+                liftIO $ buildTransaction @s @k @n @era
                     db txLayer ti walletId changeAddressGen protocolParams
                     defaultTransactionCtx []
             pure $ case Cardano.txFee bodyContent of
@@ -2879,18 +2874,17 @@ delegationFee db netLayer txLayer ti era changeAddressGen walletId = do
                     case recentEra of {}
 
         deposit <- liftIO $ calcMinimumDeposit db netLayer walletId
-        pure DelegationFee {..}
+        pure DelegationFee { feePercentiles, deposit }
 
--- | For a given transaction fee estimation calculation evaluates its fee spread
--- by repeatedly running it (100 times) and recording the results.
--- In the returned 'FeeSpread', the minimum fee is that which 90% of the sampled
--- fees are greater than. The maximum fee is the highest fee observed in the
--- samples.
-calculateFeeSpread
-    :: forall m. Monad m
+-- | Repeatedly (100 times) runs given transaction fee estimation calculation
+-- returning 1st and 9nth decile (10nth and 90nth percentile) values of a
+-- recoded distribution.
+calculateFeePercentiles
+    :: forall m
+     . Monad m
     => ExceptT ErrSelectAssets m Fee
-    -> ExceptT ErrSelectAssets m FeeSpread
-calculateFeeSpread
+    -> ExceptT ErrSelectAssets m (Percentile 10 Fee, Percentile 90 Fee)
+calculateFeePercentiles
     = fmap deciles
     . handleErrors
     . replicateM repeats
@@ -2900,17 +2894,17 @@ calculateFeeSpread
   where
     -- Use method R-8 from to get top 90%.
     -- https://en.wikipedia.org/wiki/Quantile#Estimating_quantiles_from_a_sample
-    deciles = mkFeeSpread
+    deciles
+        = mkFeePercentiles
         . map round
         . V.toList
         . quantiles medianUnbiased (V.fromList [1, 10]) 10
         . V.fromList
         . map fromIntegral
 
-    mkFeeSpread [a,b] = FeeSpread (naturalFee a) (naturalFee b)
-    mkFeeSpread _ = error "calculateFeeSpread: impossible"
-
-    naturalFee = Fee . Coin.fromNatural
+    mkFeePercentiles = \case
+        [a, b] -> let pf = Percentile . Fee . Coin.fromNatural in (pf a, pf b)
+        _ -> error "calculateFeePercentiles: impossible"
 
     -- Remove failed coin selections from samples. Unless they all failed, in
     -- which case pass on the error.
@@ -2918,7 +2912,7 @@ calculateFeeSpread
     handleErrors = ExceptT . fmap skipFailed
       where
         skipFailed samples = case partitionEithers samples of
-            ([], []) -> error "calculateFeeSpread: impossible empty list"
+            ([], []) -> error "calculateFeePercentiles: impossible empty list"
             ((e:_), []) -> Left e
             (_, samples') -> Right samples'
 

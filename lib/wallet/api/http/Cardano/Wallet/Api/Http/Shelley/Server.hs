@@ -178,8 +178,8 @@ import Cardano.Wallet
     , ErrWithRootKey (..)
     , ErrWitnessTx (..)
     , Fee (..)
-    , FeeSpread (..)
     , HasNetworkLayer
+    , Percentile (..)
     , TxSubmitLog
     , WalletWorkerLog (..)
     , dbLayer
@@ -2367,10 +2367,10 @@ postTransactionFeeOld ctx@ApiLayer{..} (ApiT wid) body =
                 (MsgWallet . W.MsgBalanceTx >$< wrk ^. logger)
                 txLayer era pp selectAssetsParams $ \_state ->
                     Fee . selectionDelta TokenBundle.getCoin
-        feeSpread <- liftHandler $ W.calculateFeeSpread estimateFee
+        feePercentiles <- liftHandler $ W.calculateFeePercentiles estimateFee
         minCoins <- liftIO $
             W.calcMinimumCoinValues @_ @k @'CredFromKeyK wrk era (F.toList outs)
-        pure $ mkApiFee Nothing minCoins feeSpread
+        pure $ mkApiFee Nothing minCoins feePercentiles
 
 constructTransaction
     :: forall (n :: NetworkDiscriminant)
@@ -3488,7 +3488,7 @@ delegationFee ctx@ApiLayer{..} (ApiT walletId) = do
     era <- liftIO $ NW.currentNodeEra netLayer
     AnyRecentEra (recentEra :: WriteTx.RecentEra era) <- guardIsRecentEra era
     withWorkerCtx ctx walletId liftE liftE $ \workerCtx -> liftHandler $ do
-        W.DelegationFee {feeSpread, deposit} <-
+        W.DelegationFee {feePercentiles, deposit} <-
             W.delegationFee
                 (workerCtx ^. dbLayer)
                 netLayer
@@ -3497,7 +3497,7 @@ delegationFee ctx@ApiLayer{..} (ApiT walletId) = do
                 (AnyRecentEra recentEra)
                 (W.defaultChangeAddressGen (delegationAddress @n))
                 walletId
-        pure $ mkApiFee (Just deposit) [] feeSpread
+        pure $ mkApiFee (Just deposit) [] feePercentiles
 
 quitStakePool
     :: forall s n k.
@@ -4466,8 +4466,12 @@ toAddressAmount (TxOut addr (TokenBundle.TokenBundle coin assets)) =
 mkApiCoin :: Coin -> Quantity "lovelace" Natural
 mkApiCoin (Coin c) = Quantity $ fromIntegral c
 
-mkApiFee :: Maybe Coin -> [Coin] -> FeeSpread -> ApiFee
-mkApiFee mDeposit minCoins (FeeSpread estMin estMax) = ApiFee
+mkApiFee
+    :: Maybe Coin
+    -> [Coin]
+    -> (Percentile 10 Fee, Percentile 90 Fee)
+    -> ApiFee
+mkApiFee mDeposit minCoins (Percentile estMin, Percentile estMax) = ApiFee
     { estimatedMin = Quantity (Coin.toNatural (feeToCoin estMin))
     , estimatedMax = Quantity (Coin.toNatural (feeToCoin estMax))
     , minimumCoins = Quantity . Coin.toNatural <$> minCoins
