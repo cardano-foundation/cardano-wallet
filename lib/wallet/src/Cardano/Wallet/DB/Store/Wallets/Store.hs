@@ -32,7 +32,7 @@ import Cardano.Wallet.DB.Store.Meta.Model
 import Cardano.Wallet.DB.Store.Meta.Store
     ( mkStoreMetaTransactions )
 import Cardano.Wallet.DB.Store.Transactions.Model
-    ( DeltaTxSet (Append, DeleteTx), mkTxSet )
+    ( DeltaTxSet (..), mkTxSet )
 import Cardano.Wallet.DB.Store.Wallets.Model
     ( DeltaTxWalletsHistory (..)
     , transactionsToDeleteOnRemoveWallet
@@ -116,14 +116,14 @@ mkStoreTxWalletsHistory storeTransactions storeWalletsMeta =
                     $ TxMetaStore.Manipulate
                     $ TxMetaStore.RollBackTxMetaHistory slot
                 let deletions = transactionsToDeleteOnRollback wid slot wmetas
-                forM_ deletions
-                    $ updateS storeTransactions mTxSet . DeleteTx
+                updateS storeTransactions mTxSet
+                    $ DeleteTxs deletions
             RemoveWallet wid -> do
                 wmetas <- loadWhenNothing mWmetas storeWalletsMeta
                 updateS storeWalletsMeta (Just wmetas) $ Delete wid
                 let deletions = transactionsToDeleteOnRemoveWallet wid wmetas
-                forM_ deletions
-                    $ updateS storeTransactions mTxSet . DeleteTx
+                updateS storeTransactions mTxSet
+                    $ DeleteTxs deletions
             ExpandTxWalletsHistory wid cs -> do
                 wmetas <- loadWhenNothing mWmetas storeWalletsMeta
                 updateS storeTransactions mTxSet

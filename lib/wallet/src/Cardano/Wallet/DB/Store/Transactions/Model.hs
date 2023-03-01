@@ -103,6 +103,7 @@ import qualified Cardano.Wallet.Primitive.Types.Tx.TxOut as W.TxOut
 import qualified Data.ByteString.Lazy as BL
 import qualified Data.Generics.Internal.VL as L
 import qualified Data.Map.Strict as Map
+import qualified Data.Set as Set
 
 {- | A low level definition of a transaction covering all transaction content
  by collecting all related-to-index database rows.
@@ -142,8 +143,8 @@ data DeltaTxSet
     = Append TxSet
     -- ^ Add new set of transactions.
     -- /Overwrites/ transactions whose id is already present in the 'TxSet'.
-    | DeleteTx TxId
-    -- ^ Try to remove the transaction at the given transaction id.
+    | DeleteTxs (Set.Set TxId)
+    -- ^ Try to remove the transactions with the given transaction ids.
     deriving ( Show, Eq, Generic )
 
 instance Buildable DeltaTxSet where
@@ -154,8 +155,8 @@ instance Delta DeltaTxSet where
     -- transactions are immutable so here there should happen no rewriting
     -- but we mimic the repsert in the store
     apply (Append txs) h = txs <> h
-    apply (DeleteTx tid) (TxSet txs) =
-        TxSet $ Map.delete tid txs
+    apply (DeleteTxs tids) (TxSet txs) =
+        TxSet $ Map.withoutKeys txs tids
 
 {-------------------------------------------------------------------------------
     Type conversions

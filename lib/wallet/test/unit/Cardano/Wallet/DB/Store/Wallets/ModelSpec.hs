@@ -35,7 +35,6 @@ import qualified Cardano.Wallet.DB.Store.Wallets.Model as TxWallets
 import qualified Cardano.Wallet.Primitive.Types as W
 import qualified Cardano.Wallet.Primitive.Types.Tx as W
 import qualified Data.Map.Strict as Map
-import qualified Data.Set as Set
 import qualified Test.QuickCheck as Q
 
 spec :: Spec
@@ -68,7 +67,7 @@ prop_RollbackCollectsGarbage = \GenRollback{wid,slot,history} ->
             )
 
     rollbackB wid slot (Txs.TxSet x, wmetas) =
-        Txs.TxSet $ Map.withoutKeys x (Set.fromList deletions)
+        Txs.TxSet $ Map.withoutKeys x deletions
       where
         deletions = TxWallets.transactionsToDeleteOnRollback wid slot wmetas
 
@@ -82,7 +81,7 @@ prop_RemoveWalletCollectsGarbage = \GenRollback{wid,history} ->
             (x, Map.delete wid wmetas)
 
     removeWalletB wid (Txs.TxSet x, wmetas) =
-        Txs.TxSet $ Map.withoutKeys x (Set.fromList deletions)
+        Txs.TxSet $ Map.withoutKeys x deletions
       where
         deletions = TxWallets.transactionsToDeleteOnRemoveWallet wid wmetas
 

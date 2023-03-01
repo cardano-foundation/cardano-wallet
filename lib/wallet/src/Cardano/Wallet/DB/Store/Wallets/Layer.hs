@@ -40,6 +40,7 @@ import Database.Persist.Sql
     ( SqlPersistT )
 
 import qualified Cardano.Wallet.DB.Store.Transactions.Layer as TxSet
+import qualified Cardano.Wallet.DB.Store.Transactions.Model as TxSet
 import qualified Cardano.Wallet.Primitive.Types as W
 import qualified Data.Map.Strict as Map
 
@@ -64,8 +65,9 @@ newQueryStoreTxWalletsHistory = do
     let txsQueryStore = TxSet.mkDBTxSet
 
     storeWalletsMeta <- newCachedStore mkStoreWalletsMeta
+    storeTransactions <- newCachedStore $ store txsQueryStore
     let storeTxWalletsHistory = mkStoreTxWalletsHistory
-            (store txsQueryStore)   -- on disk
+            storeTransactions       -- in memory
             storeWalletsMeta        -- in memory
 
     let readAllMetas :: W.WalletId -> m [TxMeta]
@@ -77,8 +79,11 @@ newQueryStoreTxWalletsHistory = do
 
         query :: forall a. QueryTxWalletsHistory a -> SqlPersistT IO a
         query = \case
-            GetByTxId txid ->
-                queryS txsQueryStore $ TxSet.GetByTxId txid
+            GetByTxId txid -> do
+                -- queryS txsQueryStore $ TxSet.GetByTxId txid
+                Right txSet <- loadS storeTransactions
+                pure $ Map.lookup txid (TxSet.relations txSet)
+
             One wid txid -> do
                 Right wmetas <- loadS storeWalletsMeta
                 pure $ do

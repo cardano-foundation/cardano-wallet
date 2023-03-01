@@ -105,10 +105,10 @@ garbageCollectTxWalletsHistory (TxSet txh, mtxmh) = (TxSet (gc txh), mtxmh)
 -- These are precisely those transactions that have been rolled
 -- back, but are not referenced from any other wallet.
 transactionsToDeleteOnRollback
-    :: W.WalletId -> W.SlotNo -> WalletsMeta -> [TxId]
+    :: W.WalletId -> W.SlotNo -> WalletsMeta -> Set TxId
 transactionsToDeleteOnRollback wid slot wmetas =
     case Map.lookup wid wmetas of
-        Nothing -> []
+        Nothing -> Set.empty
         Just metas ->
             keepNotInOtherWallets wid wmetas
             . snd
@@ -117,19 +117,19 @@ transactionsToDeleteOnRollback wid slot wmetas =
 -- | List of transactions that are to be deleted from the 'TxSet'
 -- when deleting a wallet.
 transactionsToDeleteOnRemoveWallet
-    :: W.WalletId -> WalletsMeta -> [TxId]
+    :: W.WalletId -> WalletsMeta -> Set TxId
 transactionsToDeleteOnRemoveWallet wid wmetas =
     case Map.lookup wid wmetas of
-        Nothing -> []
+        Nothing -> Set.empty
         Just metas ->
             keepNotInOtherWallets wid wmetas
-            $ Map.keys (TxMetaStore.relations metas)
+            $ Map.keysSet (TxMetaStore.relations metas)
 
 -- | Filter a list of transactions — keep only those transactions
 -- that are not in another wallet.
 keepNotInOtherWallets
-    :: W.WalletId -> WalletsMeta -> [TxId] -> [TxId]
-keepNotInOtherWallets thisWallet allWallets = filter keep
+    :: W.WalletId -> WalletsMeta -> Set TxId -> Set TxId
+keepNotInOtherWallets thisWallet allWallets = Set.filter keep
   where
     otherWallets = Map.delete thisWallet allWallets
     keep txid = not $ inAnyWallet txid otherWallets
