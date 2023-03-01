@@ -107,7 +107,7 @@ import Cardano.Wallet.DB.Store.QueryStore
 import Cardano.Wallet.DB.Store.Submissions.Layer
     ( pruneByFinality, rollBackSubmissions )
 import Cardano.Wallet.DB.Store.Transactions.Decoration
-    ( TxInDecorator, decorateTxInsForReadTx, decorateTxInsForRelation )
+    ( TxInDecorator, decorateTxInsForReadTx )
 import Cardano.Wallet.DB.Store.Transactions.Model
     ( TxRelation (..) )
 import Cardano.Wallet.DB.Store.Transactions.TransactionInfo
@@ -978,7 +978,8 @@ selectTransactionInfo
 selectTransactionInfo ti tip lookupTx meta = do
     let err = error $ "Transaction not found: " <> show meta
     transaction <- fromMaybe err <$> lookupTx (txMetaTxId meta)
-    decoration <- decorateTxInsForRelation lookupTx transaction
+    -- decoration <- decorateTxInsForRelation lookupTx transaction
+    let decoration = mempty
     mkTransactionInfoFromRelation
         (hoistTimeInterpreter liftIO ti) tip transaction decoration meta
 
