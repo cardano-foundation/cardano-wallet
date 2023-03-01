@@ -37,7 +37,7 @@ import Cardano.Wallet.Read.Primitive.Tx.Features.Inputs
 import Cardano.Wallet.Read.Primitive.Tx.Features.Metadata
     ( fromBabbageMetadata )
 import Cardano.Wallet.Read.Primitive.Tx.Features.Mint
-    ( babbageMint' )
+    ( babbageMint', fromLedgerScriptHash )
 import Cardano.Wallet.Read.Primitive.Tx.Features.Outputs
     ( fromBabbageTxOut )
 import Cardano.Wallet.Read.Primitive.Tx.Features.Validity
@@ -152,8 +152,7 @@ fromBabbageTx tx@(Alonzo.ValidatedTx bod wits (Alonzo.IsValid isValid) aux) witC
         _network
         = bod
 
-    toScriptWithHash s =
-        (SL.Core.hashScript @(Cardano.ShelleyLedgerEra BabbageEra) s, s)
+    toScriptWithHash s = (hashBabbageScript s, s)
     scriptsFromTxOuts =
         Map.fromList $
         map toScriptWithHash $
@@ -169,6 +168,8 @@ fromBabbageTx tx@(Alonzo.ValidatedTx bod wits (Alonzo.IsValid isValid) aux) witC
         (Map.elems scriptMap)
         (fromIntegral $ Set.size $ Alonzo.txwitsBoot' wits)
 
+    hashBabbageScript = SL.Core.hashScript @(Cardano.ShelleyLedgerEra BabbageEra)
+
     fromBabbageScriptMap
         :: Map
             (SL.ScriptHash (Crypto StandardBabbage))
@@ -180,8 +181,9 @@ fromBabbageTx tx@(Alonzo.ValidatedTx bod wits (Alonzo.IsValid isValid) aux) witC
       where
         toAnyScript (Alonzo.TimelockScript script) =
             NativeScript $ toWalletScript (toKeyRole witCtx) script
-        toAnyScript (Alonzo.PlutusScript ver _) =
-            PlutusScript (PlutusScriptInfo (toPlutusVer ver))
+        toAnyScript s@(Alonzo.PlutusScript ver _) =
+            PlutusScript (PlutusScriptInfo (toPlutusVer ver)
+                          (fromLedgerScriptHash $ hashBabbageScript s))
 
         toPlutusVer Alonzo.PlutusV1 = PlutusVersionV1
         toPlutusVer Alonzo.PlutusV2 = PlutusVersionV2

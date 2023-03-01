@@ -61,7 +61,7 @@ import Prelude
 import Cardano.Address.Derivation
     ( XPrv, XPub )
 import Cardano.Address.Script
-    ( KeyHash (..), KeyRole (..), Script, ScriptTemplate )
+    ( KeyHash (..), KeyRole (..), Script, ScriptHash, ScriptTemplate )
 import Cardano.Api
     ( AnyCardanoEra )
 import Cardano.Api.Extra
@@ -375,8 +375,9 @@ instance FromText PlutusVersion where
             , "I am expecting one of the words 'v1' or"
             , "'v2'."]
 
-newtype PlutusScriptInfo = PlutusScriptInfo
+data PlutusScriptInfo = PlutusScriptInfo
     { languageVersion :: PlutusVersion
+    , scriptHash :: ScriptHash
     }
     deriving (Eq, Generic, Show)
     deriving anyclass NFData

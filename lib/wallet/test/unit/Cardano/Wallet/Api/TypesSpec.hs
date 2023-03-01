@@ -1984,6 +1984,7 @@ instance Arbitrary ApiTokenAmountFingerprint where
 instance Arbitrary ApiTokens where
     arbitrary = do
         policyid <- arbitrary
+        scriptHash <- ScriptHash . BS.pack <$> vector 28
         let keyhash = KeyHash Policy $ getHash $ unTokenPolicyId policyid
         script <- elements
             [ ApiT $ NativeScript $ RequireSignatureOf keyhash
@@ -1996,8 +1997,8 @@ instance Arbitrary ApiTokens where
                 , ActiveFromSlot 100
                 , ActiveUntilSlot 150
                 ]
-            , ApiT $ PlutusScript $ PlutusScriptInfo PlutusVersionV1
-            , ApiT $ PlutusScript $ PlutusScriptInfo PlutusVersionV2
+            , ApiT $ PlutusScript (PlutusScriptInfo PlutusVersionV1 scriptHash)
+            , ApiT $ PlutusScript (PlutusScriptInfo PlutusVersionV2 scriptHash)
             ]
         assetNum <- choose (1,4)
         assets <- vectorOf assetNum arbitrary

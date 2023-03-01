@@ -35,6 +35,8 @@ import Cardano.Pool.Metadata.Types
     ( StakePoolMetadataHash (..), StakePoolMetadataUrl (..) )
 import Cardano.Pool.Types
     ( PoolId (..), PoolOwner (..), decodePoolIdBech32 )
+import Cardano.Wallet.Api.Hex
+    ( fromHexText )
 import Cardano.Wallet.Api.Types
     ( AddressAmount (..)
     , ApiAddress (..)
@@ -1413,7 +1415,7 @@ spec = describe "NEW_SHELLEY_TRANSACTIONS" $ do
         -- --tx-out-reference-script-file fixtures/plutus/anyone-can-mint.plutus \
         -- --tx-out addr1vx0s5hncxy7z93ljtcxj52yhvxkpwedrhvj2vfct7n2006gkgkc8x+3000000 \
         -- --change-address addr1vx0s5hncxy7z93ljtcxj52yhvxkpwedrhvj2vfct7n2006gkgkc8x
-        
+
         -- Sign:
         -- $ cardano-cli transaction sign \
         -- --tx-body-file /home/piotr/wb/cardano-wallet/test/e2e/state/node_db/preprod/txbody \
@@ -1485,15 +1487,18 @@ spec = describe "NEW_SHELLEY_TRANSACTIONS" $ do
         rTx1 <- request @(ApiDecodedTransaction n) ctx
             (Link.decodeTransaction @'Shelley wa) Default decodeSetUpRefScriptPayload
 
+        let (Right plutusScriptHash) =
+                fromHexText "9c8e9da7f81e3ca90485f32ebefc98137c8ac260a072a00c4aaf142d"
         let plutusScript =
-                PlutusScript (PlutusScriptInfo PlutusVersionV2)
+                PlutusScript (PlutusScriptInfo PlutusVersionV2
+                              (ScriptHash plutusScriptHash))
         let witnessCountWithPlutusScript = mkApiWitnessCount WitnessCount
                 { verificationKey = 1
                 , scripts = [plutusScript]
                 , bootstrap = 0
                 }
 
-        TR.trace ("-------------------------------------------------------------")$ verify rTx1
+        TR.trace ("-------------------------------------------------------------\nrTx1:"<>show rTx1)$ verify rTx1
             [ expectResponseCode HTTP.status202
             , expectField (#witnessCount) (`shouldBe` witnessCountWithPlutusScript)
             -- more assertions can be added once it passes
@@ -1515,14 +1520,14 @@ spec = describe "NEW_SHELLEY_TRANSACTIONS" $ do
         -- --policy-id 9c8e9da7f81e3ca90485f32ebefc98137c8ac260a072a00c4aaf142d \
         -- --change-address addr1vx0s5hncxy7z93ljtcxj52yhvxkpwedrhvj2vfct7n2006gkgkc8x \
         -- --protocol-params-file /home/piotr/wb/cardano-wallet/test/e2e/state/node_db/preprod/pparams.json
-        
+
         -- Sign:
         -- $ cardano-cli transaction sign \
         -- --tx-body-file /home/piotr/wb/cardano-wallet/test/e2e/state/node_db/preprod/txbody \
         -- --mainnet \
         -- --signing-key-file /home/piotr/wb/cardano-wallet/test/e2e/state/node_db/preprod/payment.skey \
         -- --out-file /home/piotr/wb/cardano-wallet/test/e2e/state/node_db/preprod/txsigned
-        
+
         let cborHexWithMinting =
                 "84a90081825820876935d6491e7d758f11efec78cb0fb0c0138879d4e62861ef33310e46f0afe302\
                 \0d81825820876935d6491e7d758f11efec78cb0fb0c0138879d4e62861ef33310e46f0afe3011281\
@@ -1570,7 +1575,7 @@ spec = describe "NEW_SHELLEY_TRANSACTIONS" $ do
         -- --tx-out-reference-script-file fixtures/simple/policy.script \
         -- --tx-out addr1v9ufmc7pdar7z2lm0xtvxz3w75quw74u3cm5erkwckany9gh7jmqt+3000000 \
         -- --change-address addr1v9ufmc7pdar7z2lm0xtvxz3w75quw74u3cm5erkwckany9gh7jmqt
-        
+
         -- Sign:
         -- $ cardano-cli transaction sign \
         -- --tx-body-file /home/piotr/wb/cardano-wallet/test/e2e/state/node_db/preprod/txbody \
@@ -1613,14 +1618,14 @@ spec = describe "NEW_SHELLEY_TRANSACTIONS" $ do
         -- --policy-id d4239034f4b97cd680877e9e7590d5772276935be7c96e326fe3839b \
         -- --change-address addr1v9ufmc7pdar7z2lm0xtvxz3w75quw74u3cm5erkwckany9gh7jmqt \
         -- --protocol-params-file /home/piotr/wb/cardano-wallet/test/e2e/state/node_db/preprod/pparams.json
-        
+
         -- Sign:
         -- $ cardano-cli transaction sign \
         -- --tx-body-file /home/piotr/wb/cardano-wallet/test/e2e/state/node_db/preprod/txbody \
         -- --mainnet --signing-key-file /home/piotr/wb/cardano-wallet/test/e2e/state/node_db/preprod/payment.skey \
         -- --signing-key-file fixtures/simple/policy.skey \
         -- --out-file /home/piotr/wb/cardano-wallet/test/e2e/state/node_db/preprod/txsigned
-        
+
         let cborHexWithMinting =
                 "84a80081825820464917d2bac71df96269c2d7c34dcb83183b8a3a3253c06e9d6a8bd0681422c902\
                 \0d81825820464917d2bac71df96269c2d7c34dcb83183b8a3a3253c06e9d6a8bd0681422c9011281\

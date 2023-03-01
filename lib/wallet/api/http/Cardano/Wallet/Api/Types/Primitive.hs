@@ -1,5 +1,6 @@
 {-# LANGUAGE DataKinds #-}
 {-# LANGUAGE FlexibleInstances #-}
+{-# LANGUAGE LambdaCase #-}
 {-# LANGUAGE QuasiQuotes #-}
 {-# LANGUAGE ScopedTypeVariables #-}
 {-# LANGUAGE TypeApplications #-}
@@ -15,6 +16,8 @@ module Cardano.Wallet.Api.Types.Primitive () where
 
 import Prelude
 
+import Cardano.Address.Script
+    ( ScriptHash (..) )
 import Cardano.Api
     ( TxMetadataJsonSchema (..)
     , displayError
@@ -98,7 +101,7 @@ import Data.Proxy
 import Data.Quantity
     ( Quantity (..) )
 import Data.Text.Class
-    ( FromText (..), ToText (..) )
+    ( FromText (..), TextDecodingError (..), ToText (..) )
 import Data.Word
     ( Word32, Word64 )
 import Data.Word.Odd
@@ -129,18 +132,31 @@ instance ToJSON (ApiT W.TokenPolicyId) where
     toJSON = toTextApiT
 
 instance FromJSON (ApiT PlutusScriptInfo) where
-    parseJSON = (fmap. fmap) ApiT $ parseJSON >=>
-        eitherToParser . bimap ShowFmt PlutusScriptInfo . fromText
+    parseJSON = (fmap. fmap) ApiT . withObject "PlutusScriptInfo" $ \obj ->
+        fromHexText <$> obj .: "script_hash"  >>= \case
+        Left str -> fail $ "PlutusScriptInfo: script_hash should be hex-encoded \
+                           \56-character string, but got " ++ str
+        Right hash -> do
+            ver <- obj .: "language_version"
+            case fromText ver of
+                Left (TextDecodingError err) ->
+                    fail $ "PlutusScriptInfo: language_version " ++ err
+                Right plutusVersion ->
+                    pure $ PlutusScriptInfo plutusVersion (ScriptHash hash)
 
 instance ToJSON (ApiT PlutusScriptInfo) where
-    toJSON (ApiT (PlutusScriptInfo v)) = toJSON $ toText v
+    toJSON (ApiT (PlutusScriptInfo v (ScriptHash h))) =
+        object
+            [ "script_hash" .= String (hexText h)
+            , "language_version" .= String (toText v)
+            ]
 
 instance FromJSON (ApiT AnyScript) where
     parseJSON = (fmap . fmap) ApiT . withObject "AnyScript" $ \obj -> do
         scriptType <- obj .:? "script_type"
         case (scriptType :: Maybe String) of
             Just t | t == "plutus" ->
-                PlutusScript . getApiT <$> obj .: "language_version"
+                PlutusScript . getApiT <$> obj .: "script_info"
             Just t | t == "native" ->
                 NativeScript <$> obj .: "script"
             _ -> fail
@@ -153,10 +169,10 @@ instance ToJSON (ApiT AnyScript) where
                 [ "script_type" .= String "native"
                 , "script" .= toJSON s
                 ]
-        PlutusScript v ->
+        PlutusScript s ->
             object
                 [ "script_type" .= String "plutus"
-                , "language_version" .= toJSON (ApiT v)
+                , "script_info" .= toJSON (ApiT s)
                 ]
 
 instance FromJSON (ApiT W.TokenName) where

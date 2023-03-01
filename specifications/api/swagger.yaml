@@ -2521,6 +2521,21 @@ components:
        quantity: *assetQuantity
        fingerprint: *assetFingerprint
 
+    PlutusScriptInfo: &PlutusScriptInfo
+      type: object
+      required:
+        - language_version
+        - script_hash
+      properties:
+       language_version:
+         type: string
+         enum: ["v1", "v2"]
+       script_hash:
+         type: string
+         format: hex
+         minLength: 56
+         maxLength: 56
+
     AnyScript: &AnyScript
       oneOf:
         - type: object
@@ -2535,14 +2550,12 @@ components:
         - type: object
           required:
             - script_type
-            - language_version
+            - script_info
           properties:
             script_type:
               type: string
               enum: ["plutus"]
-            language_version:
-              type: string
-              enum: ["v1", "v2"]
+            script_info: *PlutusScriptInfo
 
     ApiTokens: &ApiTokens
       type: object
