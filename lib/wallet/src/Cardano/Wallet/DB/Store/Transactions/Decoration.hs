@@ -25,6 +25,7 @@ module Cardano.Wallet.DB.Store.Transactions.Decoration
    , LookupFun
    , TxInDecorator
    , decorateTxInsForRelation
+   , decorateTxInsForRelationFromLookupTxOut
    , decorateTxInsForReadTx
    ) where
 
@@ -113,23 +114,27 @@ type LookupFun m k v = k -> m (Maybe v)
 -- transaction @tx@ by fetching transaction data in the monad @m@.
 type TxInDecorator tx m = tx -> m DecoratedTxIns
 
-decorateTxInsInternal
+decorateTxInsInternalLookupTxRelation
     :: forall m. Monad m
     => LookupFun m TxId TxRelation
     -> [(TxId, Word32)]
     -> [(TxId, Word32)]
     -> m DecoratedTxIns
-decorateTxInsInternal lookupTx ins collateralIns = do
-    mouts <- mapM lookupOutput (ins <> collateralIns)
-    pure . DecoratedTxIns . Map.fromList $ catMaybes mouts
+decorateTxInsInternalLookupTxRelation =
+    decorateTxInsInternal . lookupOutputFromLookupRelation
+
+lookupOutputFromLookupRelation
+    :: forall m. Monad m
+    => LookupFun m TxId TxRelation
+    -> LookupFun m (TxId, Word32) W.TxOut
+lookupOutputFromLookupRelation lookupTx = lookupOutput
   where
-    lookupOutput :: (TxId, Word32) -> m (Maybe ((TxId, Word32), W.TxOut))
-    lookupOutput key@(txid, index) = do
+    lookupOutput :: (TxId, Word32) -> m (Maybe W.TxOut)
+    lookupOutput (txid, index) = do
         mtx <- lookupTx txid
         pure $ do
             tx <- mtx
-            out <- lookupTxOut' tx index <|> lookupTxCollateralOut tx index
-            pure (key, out)
+            lookupTxOut' tx index <|> lookupTxCollateralOut tx index
 
     lookupTxOut' :: TxRelation -> Word32 -> Maybe W.TxOut
     lookupTxOut' tx index = fromTxOut <$>
@@ -142,6 +147,38 @@ decorateTxInsInternal lookupTx ins collateralIns = do
         guard $ index == collateralOutputIndex  -- Babbage leder spec
         pure $ fromTxCollateralOut out
 
+decorateTxInsInternal
+    :: forall m. Monad m
+    => LookupFun m (TxId,Word32) W.TxOut
+    -> [(TxId, Word32)]
+    -> [(TxId, Word32)]
+    -> m DecoratedTxIns
+decorateTxInsInternal lookupOut ins collateralIns = do
+    mouts <- mapM lookupOutput (ins <> collateralIns)
+    pure . DecoratedTxIns . Map.fromList $ catMaybes mouts
+  where
+    lookupOutput :: (TxId, Word32) -> m (Maybe ((TxId, Word32), W.TxOut))
+    lookupOutput key = do
+        mout <- lookupOut key
+        case mout of
+            Nothing -> pure Nothing
+            Just out -> pure $ Just (key,out)
+
+-- | Decorate the Tx inputs of a given 'TxRelation'
+-- by searching the 'TxSet' for corresponding output values.
+decorateTxInsForRelationFromLookupTxOut
+    :: Monad m
+    => LookupFun m (TxId, Word32) W.TxOut
+    -> TxRelation
+    -> m DecoratedTxIns
+decorateTxInsForRelationFromLookupTxOut
+    lookupOut
+    TxRelation{ins,collateralIns}
+  =
+    decorateTxInsInternal lookupOut
+        (mkTxOutKey <$> ins)
+        (mkTxOutKeyCollateral <$> collateralIns)
+
 -- | Decorate the Tx inputs of a given 'TxRelation'
 -- by searching the 'TxSet' for corresponding output values.
 decorateTxInsForRelation
@@ -150,7 +187,8 @@ decorateTxInsForRelation
     -> TxRelation
     -> m DecoratedTxIns
 decorateTxInsForRelation lookupTx TxRelation{ins,collateralIns} =
-    decorateTxInsInternal lookupTx (mkTxOutKey <$> ins)
+    decorateTxInsInternalLookupTxRelation lookupTx
+        (mkTxOutKey <$> ins)
         (mkTxOutKeyCollateral <$> collateralIns)
 
 -- | Decorate the Tx inputs of a given 'TxRelation'
@@ -161,7 +199,7 @@ decorateTxInsForReadTx
     -> EraValue Read.Tx
     -> m DecoratedTxIns
 decorateTxInsForReadTx lookupTx tx
-  = decorateTxInsInternal lookupTx
+  = decorateTxInsInternalLookupTxRelation lookupTx
         (fmap undoWTxIn
             $ extractEraValue $ applyEraFun (getInputs . getEraInputs) tx)
         (fmap undoWTxIn
