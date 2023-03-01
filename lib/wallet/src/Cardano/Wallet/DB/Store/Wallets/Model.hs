@@ -17,6 +17,7 @@ module Cardano.Wallet.DB.Store.Wallets.Model
     , TxWalletsHistory
     , walletsLinkedTransactions
     , transactionsToDeleteOnRollback
+    , transactionsToDeleteOnRemoveWallet
     , inAnyWallet
 
     -- * Testing
@@ -109,12 +110,29 @@ transactionsToDeleteOnRollback wid slot wmetas =
     case Map.lookup wid wmetas of
         Nothing -> []
         Just metas ->
-            filter (not . shouldKeepTx)
+            keepNotInOtherWallets wid wmetas
             . snd
             $ TxMetaStore.rollbackTxMetaHistory slot metas
+
+-- | List of transactions that are to be deleted from the 'TxSet'
+-- when deleting a wallet.
+transactionsToDeleteOnRemoveWallet
+    :: W.WalletId -> WalletsMeta -> [TxId]
+transactionsToDeleteOnRemoveWallet wid wmetas =
+    case Map.lookup wid wmetas of
+        Nothing -> []
+        Just metas ->
+            keepNotInOtherWallets wid wmetas
+            $ Map.keys (TxMetaStore.relations metas)
+
+-- | Filter a list of transactions — keep only those transactions
+-- that are not in another wallet.
+keepNotInOtherWallets
+    :: W.WalletId -> WalletsMeta -> [TxId] -> [TxId]
+keepNotInOtherWallets thisWallet allWallets = filter keep
   where
-    otherWallets = Map.delete wid wmetas
-    shouldKeepTx txid = inAnyWallet txid otherWallets
+    otherWallets = Map.delete thisWallet allWallets
+    keep txid = not $ inAnyWallet txid otherWallets
 
 -- necessary because database will not distinguish between
 -- a missing wallet in the map

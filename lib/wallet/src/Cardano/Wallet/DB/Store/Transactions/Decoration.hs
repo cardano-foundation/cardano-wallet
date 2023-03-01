@@ -15,13 +15,17 @@ corrisponding (known) tx outputs
 
 module Cardano.Wallet.DB.Store.Transactions.Decoration
    ( DecoratedTxIns
-   , decorateTxInsForRelation
-   , lookupTxOut
-   , decorateTxInsForReadTx
+   -- * Observation
    , mkTxOutKey
    , mkTxOutKeyCollateral
    , TxOutKey
+   , lookupTxOut
+
+   -- * Construction
+   , LookupFun
    , TxInDecorator
+   , decorateTxInsForRelation
+   , decorateTxInsForReadTx
    ) where
 
 import Prelude hiding
@@ -33,7 +37,6 @@ import Cardano.Wallet.DB.Sqlite.Types
     ( TxId (..) )
 import Cardano.Wallet.DB.Store.Transactions.Model
     ( TxRelation (TxRelation, collateralIns, collateralOuts, ins, outs)
-    , TxSet (TxSet)
     , fromTxCollateralOut
     , fromTxOut
     )
@@ -69,22 +72,26 @@ import qualified Cardano.Wallet.Primitive.Types.Tx.TxOut as W
 import qualified Cardano.Wallet.Read.Tx as Read
 import qualified Data.Map.Strict as Map
 
+{-----------------------------------------------------------------------------
+    Data type
+------------------------------------------------------------------------------}
 type TxOutKey = (TxId, Word32)
 
+-- | A collection of Tx inputs
+-- (regular or collateral, refered to by input and order)
+-- that are decorated with the values of their corresponding Tx outputs.
+newtype DecoratedTxIns = DecoratedTxIns
+    { unDecoratedTxIns :: Map TxOutKey W.TxOut }
+
+{-----------------------------------------------------------------------------
+    Observation
+------------------------------------------------------------------------------}
 mkTxOutKey :: TxIn -> TxOutKey
 mkTxOutKey txin = (txInputSourceTxId txin, txInputSourceIndex txin)
 
 mkTxOutKeyCollateral :: TxCollateral -> TxOutKey
 mkTxOutKeyCollateral txcol =
     (txCollateralSourceTxId txcol, txCollateralSourceIndex txcol)
-
--- | A collection of Tx inputs
--- (regular or collateral, refered to by input and order)
--- that are decorated with the values of their corresponding Tx outputs.
-newtype DecoratedTxIns = DecoratedTxIns
-    { unDecoratedTxIns
-        :: Map TxOutKey W.TxOut
-    }
 
 instance Semigroup DecoratedTxIns where
     (DecoratedTxIns a) <> (DecoratedTxIns b) = DecoratedTxIns (a <> b)
@@ -96,18 +103,33 @@ lookupTxOut
     :: TxOutKey -> DecoratedTxIns -> Maybe W.TxOut
 lookupTxOut tx = Map.lookup tx . unDecoratedTxIns
 
-decorateTxInsInternal :: TxSet -> [(TxId, Word32)]
-    -> [(TxId, Word32)] -> DecoratedTxIns
-decorateTxInsInternal (TxSet relations) ins collateralIns =
-    DecoratedTxIns . Map.fromList . catMaybes $
-        (lookupOutput <$> ins) <> (lookupOutput <$> collateralIns)
-  where
+{-----------------------------------------------------------------------------
+    Construction
+------------------------------------------------------------------------------}
+-- | A monadic function to look up a value @v@ from a key @k@.
+type LookupFun m k v = k -> m (Maybe v)
 
-    lookupOutput :: (TxId, Word32) -> Maybe ((TxId, Word32), W.TxOut)
+-- | A monadic function that can decorate the inputs of a given
+-- transaction @tx@ by fetching transaction data in the monad @m@.
+type TxInDecorator tx m = tx -> m DecoratedTxIns
+
+decorateTxInsInternal
+    :: forall m. Monad m
+    => LookupFun m TxId TxRelation
+    -> [(TxId, Word32)]
+    -> [(TxId, Word32)]
+    -> m DecoratedTxIns
+decorateTxInsInternal lookupTx ins collateralIns = do
+    mouts <- mapM lookupOutput (ins <> collateralIns)
+    pure . DecoratedTxIns . Map.fromList $ catMaybes mouts
+  where
+    lookupOutput :: (TxId, Word32) -> m (Maybe ((TxId, Word32), W.TxOut))
     lookupOutput key@(txid, index) = do
-        tx <- Map.lookup txid relations
-        out <- lookupTxOut' tx index <|> lookupTxCollateralOut tx index
-        pure (key, out)
+        mtx <- lookupTx txid
+        pure $ do
+            tx <- mtx
+            out <- lookupTxOut' tx index <|> lookupTxCollateralOut tx index
+            pure (key, out)
 
     lookupTxOut' :: TxRelation -> Word32 -> Maybe W.TxOut
     lookupTxOut' tx index = fromTxOut <$>
@@ -123,17 +145,23 @@ decorateTxInsInternal (TxSet relations) ins collateralIns =
 -- | Decorate the Tx inputs of a given 'TxRelation'
 -- by searching the 'TxSet' for corresponding output values.
 decorateTxInsForRelation
-    :: TxSet -> TxRelation -> DecoratedTxIns
-decorateTxInsForRelation txSet TxRelation{ins,collateralIns} =
-    decorateTxInsInternal txSet (mkTxOutKey <$> ins)
+    :: Monad m
+    => LookupFun m TxId TxRelation
+    -> TxRelation
+    -> m DecoratedTxIns
+decorateTxInsForRelation lookupTx TxRelation{ins,collateralIns} =
+    decorateTxInsInternal lookupTx (mkTxOutKey <$> ins)
         (mkTxOutKeyCollateral <$> collateralIns)
 
 -- | Decorate the Tx inputs of a given 'TxRelation'
 -- by searching the 'TxSet' for corresponding output values.
 decorateTxInsForReadTx
-    :: TxSet -> EraValue Read.Tx -> DecoratedTxIns
-decorateTxInsForReadTx txSet tx
-  = decorateTxInsInternal txSet
+    :: Monad m
+    => LookupFun m TxId TxRelation
+    -> EraValue Read.Tx
+    -> m DecoratedTxIns
+decorateTxInsForReadTx lookupTx tx
+  = decorateTxInsInternal lookupTx
         (fmap undoWTxIn
             $ extractEraValue $ applyEraFun (getInputs . getEraInputs) tx)
         (fmap undoWTxIn
@@ -142,6 +170,3 @@ decorateTxInsForReadTx txSet tx
   where
     undoWTxIn :: W.TxIn -> (TxId, Word32)
     undoWTxIn (W.TxIn k n) = (TxId k,n)
-
--- | A decorator that can handle the 'TxSet' inside 'm'. Just a stub for now
-type TxInDecorator a m = a -> m DecoratedTxIns

@@ -33,7 +33,7 @@ import Cardano.Wallet.DB.Store.Wallets.Model
 import Cardano.Wallet.DB.Store.Wallets.Store
     ( mkStoreTxWalletsHistory, mkStoreWalletsMeta )
 import Data.DBVar
-    ( Store (..) )
+    ( Store (..), newCachedStore )
 import Data.Foldable
     ( toList )
 import Database.Persist.Sql
@@ -63,10 +63,10 @@ newQueryStoreTxWalletsHistory
 newQueryStoreTxWalletsHistory = do
     let txsQueryStore = TxSet.mkDBTxSet
 
-    let storeWalletsMeta = mkStoreWalletsMeta
+    storeWalletsMeta <- newCachedStore mkStoreWalletsMeta
     let storeTxWalletsHistory = mkStoreTxWalletsHistory
             (store txsQueryStore)   -- on disk
-            storeWalletsMeta        -- on disk
+            storeWalletsMeta        -- in memory
 
     let readAllMetas :: W.WalletId -> m [TxMeta]
         readAllMetas wid = do
@@ -89,16 +89,5 @@ newQueryStoreTxWalletsHistory = do
 
     pure QueryStore
         { queryS = query
-        , store = Store
-            { loadS = loadS storeTxWalletsHistory
-            , writeS = writeS storeTxWalletsHistory
-            , updateS = \_ da -> do
-                -- BUG: The following operations are very expensive for large
-                -- wallets.
-                -- Solution: Do not load `txSet` or `storeWalletsMeta`
-                -- into memory.
-                Right txSet <- loadS (store txsQueryStore)
-                Right wmetas <- loadS storeWalletsMeta
-                updateS storeTxWalletsHistory (Just (txSet,wmetas)) da
-            }
+        , store = storeTxWalletsHistory
         }

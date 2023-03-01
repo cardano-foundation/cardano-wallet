@@ -20,7 +20,12 @@ import Cardano.Wallet.DB.Fixtures
 import Cardano.Wallet.DB.Sqlite.Types
     ( TxId (TxId) )
 import Cardano.Wallet.DB.Store.Transactions.Decoration
-    ( decorateTxInsForRelation, lookupTxOut, mkTxOutKey, mkTxOutKeyCollateral )
+    ( DecoratedTxIns
+    , decorateTxInsForRelation
+    , lookupTxOut
+    , mkTxOutKey
+    , mkTxOutKeyCollateral
+    )
 import Cardano.Wallet.DB.Store.Transactions.Model
     ( DeltaTxSet (..)
     , TxRelation (..)
@@ -39,6 +44,8 @@ import Data.DBVar
     ( Store (..) )
 import Data.Delta
     ( Delta (..) )
+import Data.Functor.Identity
+    ( Identity (..) )
 import Data.Generics.Internal.VL
     ( set )
 import Test.DBVar
@@ -52,7 +59,6 @@ import Test.QuickCheck.Monadic
 
 import qualified Cardano.Wallet.Primitive.Types.Tx as W
 import qualified Cardano.Wallet.Primitive.Types.Tx.TxIn as W
-    ( TxIn (TxIn) )
 import qualified Data.Map.Strict as Map
 
 spec :: Spec
@@ -101,9 +107,15 @@ prop_DecorateLinksTxInToTxOuts = do
 
     forAll transactionsGen $ \(txid, TxSet pile, txouts) ->
         let guinea = pile Map.! txid
-            deco   = decorateTxInsForRelation (TxSet pile) guinea
+            deco   = decorateTxInsForRelation' (TxSet pile) guinea
         in  [ lookupTxOut (mkTxOutKey txin) deco | txin <- ins guinea]
             === map Just txouts
+
+decorateTxInsForRelation' :: TxSet -> TxRelation -> DecoratedTxIns
+decorateTxInsForRelation' (TxSet relations) =
+    runIdentity . decorateTxInsForRelation lookupTx
+  where
+    lookupTx txid = Identity $ Map.lookup txid relations
 
 {- | We check that `decorateTxInsForRelation` indeed decorates transaction inputs.
 We do this by generating a set of random transactions, as well as a
@@ -128,7 +140,7 @@ prop_DecorateLinksTxCollateralsToTxOuts = do
 
     forAll transactionsGen $ \(txid, TxSet pile, txouts) ->
         let guinea = pile Map.! txid
-            deco   = decorateTxInsForRelation (TxSet pile) guinea
+            deco   = decorateTxInsForRelation' (TxSet pile) guinea
         in  [ lookupTxOut (mkTxOutKeyCollateral txcol) deco
             | txcol <- collateralIns guinea
             ]
