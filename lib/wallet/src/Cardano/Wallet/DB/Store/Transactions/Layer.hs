@@ -8,12 +8,12 @@
 Copyright: © 2022 IOHK
 License: Apache-2.0
 
-Implementation of a 'DB' for 'TxSet'.
+Implementation of a 'QueryStore' for 'TxSet'.
 
 -}
 module Cardano.Wallet.DB.Store.Transactions.Layer
     ( ReadTxSet (..)
-    , mkDBTxSet
+    , mkQueryStoreTxSet
     ) where
 
 import Prelude
@@ -35,9 +35,9 @@ import qualified Cardano.Wallet.DB.Store.Transactions.Store as TxSet
 data ReadTxSet b where
     GetByTxId :: TxId -> ReadTxSet (Maybe TxRelation)
 
--- | Implementation of a 'DB' for 'TxSet'.
-mkDBTxSet :: QueryStore (SqlPersistT IO) ReadTxSet DeltaTxSet
-mkDBTxSet = QueryStore
+-- | Implementation of a 'QueryStore' for 'TxSet'.
+mkQueryStoreTxSet :: QueryStore (SqlPersistT IO) ReadTxSet DeltaTxSet
+mkQueryStoreTxSet = QueryStore
     { queryS = \case
         GetByTxId txid -> TxSet.selectTx txid
     , store = TxSet.mkStoreTransactions

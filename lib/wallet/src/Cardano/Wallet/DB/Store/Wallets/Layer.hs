@@ -62,7 +62,7 @@ newQueryStoreTxWalletsHistory
     :: forall m. m ~ SqlPersistT IO
     => m QueryStoreTxWalletsHistory
 newQueryStoreTxWalletsHistory = do
-    let txsQueryStore = TxSet.mkDBTxSet
+    let txsQueryStore = TxSet.mkQueryStoreTxSet
 
     storeWalletsMeta <- newCachedStore mkStoreWalletsMeta
     storeTransactions <- newCachedStore $ store txsQueryStore
