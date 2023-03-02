@@ -4,8 +4,11 @@
 {-# LANGUAGE TypeFamilies #-}
 
 module Cardano.Wallet.DB.Store.QueryStore
-    (QueryStore (..), queryStoreProperty, untry)
-    where
+    ( QueryStore (..)
+    , Query (..)
+    , queryStoreProperty
+    , untry
+    ) where
 
 import Prelude
 
@@ -60,10 +63,10 @@ class Query qa where
 
 queryStoreProperty
     :: (Monad m, Eq b, Query qa, MonadFail m, Base da ~ World qa)
-    => qa b
-    -> QueryStore m qa da
+    => QueryStore m qa da
+    -> qa b
     -> m Bool
-queryStoreProperty r QueryStore{store, queryS} = do
+queryStoreProperty QueryStore{store, queryS} r = do
     Right z <- loadS store
     (query r z ==) <$> queryS r
 
