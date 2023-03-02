@@ -20,19 +20,24 @@ import Prelude
 
 import Cardano.Wallet.DB.Sqlite.Types
     ( TxId )
+import Cardano.Wallet.DB.Store.QueryStore
+    ( Query (..), QueryStore (..) )
 import Cardano.Wallet.DB.Store.Transactions.Model
-    ( DeltaTxSet, TxRelation, fromTxCollateralOut, fromTxOut )
+    ( DeltaTxSet, TxRelation (..), TxSet (..), fromTxCollateralOut, fromTxOut )
 import Control.Applicative
     ( (<|>) )
+import Data.Maybe
+    ( maybeToList )
 import Data.Word
     ( Word32 )
 import Database.Persist.Sql
     ( SqlPersistT )
+import Safe
+    ( atMay )
 
-import Cardano.Wallet.DB.Store.QueryStore
-    ( QueryStore (..) )
 import qualified Cardano.Wallet.DB.Store.Transactions.Store as TxSet
 import qualified Cardano.Wallet.Primitive.Types.Tx.TxOut as W
+import qualified Data.Map.Strict as Map
 
 {-----------------------------------------------------------------------------
     DB for 'TxSet'
@@ -54,3 +59,19 @@ mkQueryStoreTxSet = QueryStore
                 <|> (fromTxCollateralOut <$> mcollateralOut)
     , store = TxSet.mkStoreTransactions
     }
+
+instance Query QueryTxSet where
+    type World QueryTxSet = TxSet
+    query = flip runQuery
+
+runQuery :: TxSet -> QueryTxSet b -> b
+runQuery (TxSet txs) = \case
+    GetByTxId txid -> Map.lookup txid txs
+    GetTxOut (txid,index) -> do
+        tx <- Map.lookup txid txs
+        let outputs
+                = (fromTxOut <$> outs tx)
+                <> maybeToList (fromTxCollateralOut <$> collateralOuts tx)
+                -- Babbage spec:
+                -- The collateral output has index (length outs)
+        outputs `atMay` (fromEnum index)
