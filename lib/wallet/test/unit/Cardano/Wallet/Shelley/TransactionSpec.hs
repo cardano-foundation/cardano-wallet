@@ -90,9 +90,10 @@ import Cardano.Tx.Balance.Internal.CoinSelection
     )
 import Cardano.Wallet
     ( ErrUpdateSealedTx (..)
-    , FeeEstimation (..)
+    , Fee (..)
+    , Percentile (..)
+    , calculateFeePercentiles
     , defaultChangeAddressGen
-    , estimateFee
     , signTransaction
     )
 import Cardano.Wallet.Byron.Compatibility
@@ -1466,17 +1467,20 @@ feeCalculationSpec era = describe "fee calculations" $ do
 feeEstimationRegressionSpec :: Spec
 feeEstimationRegressionSpec = describe "Regression tests" $ do
     it "#1740 Fee estimation at the boundaries" $ do
-        let requiredCost = 166_029
-        let runSelection = except $ Left
+        let requiredCost = Fee (Coin.fromNatural 166_029)
+        let estimateFee = except $ Left
                 $ ErrSelectAssetsSelectionError
                 $ SelectionBalanceErrorOf
                 $ UnableToConstructChange
                 $ UnableToConstructChangeError
-                    { requiredCost = Coin.fromWord64 requiredCost
+                    { requiredCost = feeToCoin requiredCost
                     , shortfall = Coin 100_000
                     }
-        result <- runExceptT (estimateFee runSelection)
-        result `shouldBe` Right (FeeEstimation requiredCost requiredCost)
+        result <- runExceptT (calculateFeePercentiles estimateFee)
+        result `shouldBe` Right
+            ( Percentile requiredCost
+            , Percentile requiredCost
+            )
 
 binaryCalculationsSpec :: AnyRecentEra -> Spec
 binaryCalculationsSpec (AnyRecentEra era) =

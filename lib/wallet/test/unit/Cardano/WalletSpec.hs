@@ -273,7 +273,6 @@ import qualified Cardano.Wallet.Address.Book as Sqlite
 import qualified Cardano.Wallet.DB.Sqlite.Types as DB
 import qualified Cardano.Wallet.DB.Store.Checkpoints as Sqlite
 import qualified Cardano.Wallet.Primitive.Migration as Migration
-import qualified Cardano.Wallet.Primitive.Types.Coin as Coin
 import qualified Cardano.Wallet.Primitive.Types.TokenBundle as TokenBundle
 import qualified Cardano.Wallet.Primitive.Types.TokenMap as TokenMap
 import qualified Cardano.Wallet.Read as Read
@@ -330,9 +329,9 @@ spec = parallel $ describe "Cardano.WalletSpec" $ do
         it "Wallet won't list unrelated assets used in related transactions"
             (property walletListsOnlyRelatedAssets)
 
-    describe "Tx fee estimation" $
-        it "Fee estimates are sound"
-            (property prop_estimateFee)
+    describe "Tx fee estimation spread" $
+        it "Estimated fee spreads are sound"
+            (property prop_calculateFeePercentiles)
 
     describe "LocalTxSubmission" $ do
         it "LocalTxSubmission pool retries pending transactions"
@@ -615,20 +614,18 @@ walletListsOnlyRelatedAssets txId txMeta =
 -- 1. There is no coin selection with a fee above the estimated maximum.
 -- 2. The minimum estimated fee is no greater than the maximum estimated fee.
 -- 3. Around 10% of fees are below the estimated minimum.
-prop_estimateFee
-    :: NonEmptyList (Maybe Coin)
-    -> Property
-prop_estimateFee (NonEmpty coins) =
-    case evalState (runExceptT $ W.estimateFee runSelection) 0 of
+prop_calculateFeePercentiles :: NonEmptyList (Maybe Coin) -> Property
+prop_calculateFeePercentiles (NonEmpty coins) =
+    case evalState (runExceptT $ W.calculateFeePercentiles estimateFee) 0 of
         Left err ->
             label "errors: all" $ err === genericError
 
-        Right estimation@(W.FeeEstimation minFee maxFee) ->
+        Right percentiles@(W.Percentile minFee, W.Percentile maxFee) ->
             label ("errors: " <> if any isNothing coins then "some" else "none") $
-            counterexample (show estimation) $ conjoin
-                [ property $ Coin.fromWord64 maxFee <= maximum (catMaybes coins)
+            counterexample (show percentiles) $ conjoin
+                [ property $ W.feeToCoin maxFee <= maximum (catMaybes coins)
                 , property $ minFee <= maxFee
-                , proportionBelow (Coin.fromWord64 minFee) coins
+                , proportionBelow (W.feeToCoin minFee) coins
                     `closeTo` (1/10 :: Double)
                 ]
   where
@@ -642,14 +639,13 @@ prop_estimateFee (NonEmpty coins) =
             TokenBundle.empty
             TokenBundle.empty
 
-    runSelection
-        :: ExceptT W.ErrSelectAssets (State Int) Coin
-    runSelection = do
+    estimateFee :: ExceptT W.ErrSelectAssets (State Int) W.Fee
+    estimateFee = do
         i <- lift get
         lift $ put $ (i + 1) `mod` length coins
         case (coins !! i) of
             Nothing -> except $ Left genericError
-            Just c  -> except $ Right c
+            Just c  -> except $ Right $ W.Fee c
 
     proportionBelow :: Coin -> [Maybe Coin] -> Double
     proportionBelow minFee xs =

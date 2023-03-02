@@ -2,10 +2,13 @@
 {-# LANGUAGE ConstraintKinds #-}
 {-# LANGUAGE DataKinds #-}
 {-# LANGUAGE DeriveGeneric #-}
+{-# LANGUAGE DerivingStrategies #-}
 {-# LANGUAGE DuplicateRecordFields #-}
+{-# LANGUAGE EmptyCase #-}
 {-# LANGUAGE ExistentialQuantification #-}
 {-# LANGUAGE FlexibleContexts #-}
 {-# LANGUAGE FlexibleInstances #-}
+{-# LANGUAGE GeneralizedNewtypeDeriving #-}
 {-# LANGUAGE LambdaCase #-}
 {-# LANGUAGE MultiParamTypeClasses #-}
 {-# LANGUAGE NamedFieldPuns #-}
@@ -159,8 +162,11 @@ module Cardano.Wallet
     , ErrStakePoolDelegation (..)
 
     -- ** Fee Estimation
-    , FeeEstimation (..)
-    , estimateFee
+    , Fee (..)
+    , Percentile (..)
+    , DelegationFee (..)
+    , delegationFee
+    , calculateFeePercentiles
     , calcMinimumDeposit
     , calcMinimumCoinValues
 
@@ -261,6 +267,8 @@ import Cardano.Wallet.DB
     , ErrRemoveTx (..)
     , ErrWalletAlreadyExists (..)
     )
+import Cardano.Wallet.DB.Store.Submissions.Layer
+    ( mkLocalTxSubmission )
 import Cardano.Wallet.DB.WalletState
     ( DeltaWalletState1 (..)
     , ErrNoSuchWallet (..)
@@ -446,7 +454,12 @@ import Cardano.Wallet.Primitive.Types.UTxOStatistics
 import Cardano.Wallet.Read.Tx.CBOR
     ( TxCBOR )
 import Cardano.Wallet.Shelley.Compatibility
-    ( fromCardanoBlock, fromCardanoTxIn, fromCardanoTxOut, fromCardanoWdrls )
+    ( fromCardanoBlock
+    , fromCardanoLovelace
+    , fromCardanoTxIn
+    , fromCardanoTxOut
+    , fromCardanoWdrls
+    )
 import Cardano.Wallet.Transaction
     ( DelegationAction (..)
     , ErrCannotJoin (..)
@@ -482,7 +495,7 @@ import Control.Arrow
 import Control.DeepSeq
     ( NFData )
 import Control.Monad
-    ( forM, forM_, replicateM, unless, when, (<=<) )
+    ( forM, forM_, replicateM, unless, when, (<=<), (>=>) )
 import Control.Monad.Class.MonadTime
     ( DiffTime
     , MonadMonotonicTime (..)
@@ -581,6 +594,8 @@ import Fmt
     )
 import GHC.Generics
     ( Generic )
+import GHC.TypeNats
+    ( Nat )
 import Statistics.Quantile
     ( medianUnbiased, quantiles )
 import System.Random.StdGenSeed
@@ -600,8 +615,6 @@ import qualified Cardano.Crypto.Wallet as CC
 import qualified Cardano.Slotting.Slot as Slot
 import qualified Cardano.Tx.Balance.Internal.CoinSelection as CS
 import qualified Cardano.Wallet.Checkpoints.Policy as CP
-import Cardano.Wallet.DB.Store.Submissions.Layer
-    ( mkLocalTxSubmission )
 import qualified Cardano.Wallet.DB.WalletState as WS
 import qualified Cardano.Wallet.DB.WalletState as WalletState
 import qualified Cardano.Wallet.Primitive.AddressDiscovery.Random as Rnd
@@ -1678,7 +1691,6 @@ data CoinSelection = CoinSelection
     }
     deriving (Generic)
 
-
 buildCoinSelectionForTransaction
     :: forall s k n era
      . ( Cardano.IsCardanoEra era
@@ -1809,19 +1821,16 @@ data SelectAssetsParams s result = SelectAssetsParams
 -- selection.
 --
 selectAssets
-    :: forall ctx m s k ktype result.
-        ( BoundedAddressLength k
-        , HasTransactionLayer k ktype ctx
-        , HasLogger m WalletWorkerLog ctx
-        , MonadRandom m
-        )
-    => ctx
+    :: forall m s k ktype result
+     . (BoundedAddressLength k, MonadRandom m)
+    => Tracer m BalanceTxLog
+    -> TransactionLayer k ktype SealedTx
     -> Cardano.AnyCardanoEra
     -> ProtocolParameters
     -> SelectAssetsParams s result
     -> (s -> Selection -> result)
     -> ExceptT ErrSelectAssets m result
-selectAssets ctx era pp params transform = do
+selectAssets tr txLayer era pp params transform = do
     guardPendingWithdrawal
     lift $ traceWith tr $ MsgSelectionStart
         (UTxOSelection.availableSize $ params ^. #utxoAvailableForInputs)
@@ -1829,19 +1838,19 @@ selectAssets ctx era pp params transform = do
     let selectionConstraints = SelectionConstraints
             { assessTokenBundleSize =
                 view #assessTokenBundleSize $
-                tokenBundleSizeAssessor tl $
-                pp ^. (#txParameters . #getTokenBundleMaxSize)
+                tokenBundleSizeAssessor txLayer $
+                pp ^. #txParameters . #getTokenBundleMaxSize
             , certificateDepositAmount =
                 view #stakeKeyDeposit pp
             , computeMinimumAdaQuantity =
-                view #txOutputMinimumAdaQuantity (constraints tl era pp)
+                constraints txLayer era pp ^. #txOutputMinimumAdaQuantity
             , isBelowMinimumAdaQuantity =
-                view #txOutputBelowMinimumAdaQuantity (constraints tl era pp)
+                constraints txLayer era pp ^. #txOutputBelowMinimumAdaQuantity
             , computeMinimumCost =
-                calcMinimumCost tl era pp $ params ^. #txContext
+                calcMinimumCost txLayer era pp $ params ^. #txContext
             , computeSelectionLimit =
                 Cardano.Wallet.Transaction.computeSelectionLimit
-                    tl era pp $ params ^. #txContext
+                    txLayer era pp $ params ^. #txContext
             , maximumCollateralInputCount =
                 intCast @Word16 @Int $ view #maximumCollateralInputCount pp
             , minimumCollateralPercentage =
@@ -1891,8 +1900,6 @@ selectAssets ctx era pp params transform = do
     withExceptT ErrSelectAssetsSelectionError $ except $
         transform (getState $ params ^. #wallet) <$> mSel
   where
-    tl = ctx ^. transactionLayer @k @ktype
-    tr = contramap (MsgWallet . MsgBalanceTx) $ ctx ^. logger @m
 
     -- Ensure that there's no existing pending withdrawals. Indeed, a withdrawal
     -- is necessarily withdrawing rewards in their totality. So, after a first
@@ -2811,69 +2818,98 @@ migrationPlanToSelectionWithdrawals plan rewardWithdrawal outputAddressesToCycle
                                  Fee Estimation
 -------------------------------------------------------------------------------}
 
--- | Result of a fee estimation process given a wallet and payment order.
-data FeeEstimation = FeeEstimation
-    { estMinFee :: Word64
-    -- ^ Most coin selections will result in a fee higher than this.
-    , estMaxFee :: Word64
-    -- ^ Most coin selections will result in a fee lower than this.
-    } deriving (Show, Eq, Generic)
+newtype Fee = Fee { feeToCoin :: Coin }
+    deriving stock (Show, Generic)
+    deriving newtype (Eq, Ord, NFData)
 
-instance NFData FeeEstimation
+newtype Percentile (n :: Nat) a = Percentile a
+    deriving stock (Show, Generic)
+    deriving newtype (Eq, Ord, NFData)
 
 -- | Calculate the minimum deposit necessary if a given wallet wanted to
 -- delegate to a pool. Said differently, this return either 0, or the value of
 -- the key deposit protocol parameters if the wallet has no registered stake
 -- key.
 calcMinimumDeposit
-    :: forall ctx s k.
-        ( HasDBLayer IO s k ctx
-        , HasNetworkLayer IO ctx
-        )
-    => ctx
+    :: forall s k
+     . DBLayer IO s k
+    -> NetworkLayer IO Read.Block
     -> WalletId
     -> IO Coin
-calcMinimumDeposit ctx wid = db & \DBLayer{..} -> throwInIO $ do
-    mapExceptT atomically (isStakeKeyRegistered wid) >>= \case
-        True ->
-            pure $ Coin 0
-        False ->
-            liftIO $ stakeKeyDeposit <$> currentProtocolParameters nl
+calcMinimumDeposit DBLayer{..}  netLayer wid =
+    throwInIO $ mapExceptT atomically (isStakeKeyRegistered wid) >>= \case
+        True -> pure $ Coin 0
+        False -> liftIO $ stakeKeyDeposit <$> currentProtocolParameters netLayer
   where
-    throwInIO :: ExceptT ErrNoSuchWallet IO a -> IO a
-    throwInIO x = runExceptT x >>= \case
-        Right a -> pure a
-        Left e -> throwIO $ ExceptionNoSuchWallet e
+    throwInIO :: forall a. ExceptT ErrNoSuchWallet IO a -> IO a
+    throwInIO = runExceptT >=> either (throwIO . ExceptionNoSuchWallet) pure
 
-    db = ctx ^. dbLayer @IO @s @k
-    nl = ctx ^. networkLayer
+data DelegationFee = DelegationFee
+    { feePercentiles :: (Percentile 10 Fee, Percentile 90 Fee)
+    , deposit :: Coin
+    }
 
--- | Estimate the transaction fee for a given coin selection algorithm by
--- repeatedly running it (100 times) and collecting the results. In the returned
--- 'FeeEstimation', the minimum fee is that which 90% of the sampled fees are
--- greater than. The maximum fee is the highest fee observed in the samples.
-estimateFee
-    :: forall m. Monad m
-    => ExceptT ErrSelectAssets m Coin
-    -> ExceptT ErrSelectAssets m FeeEstimation
-estimateFee
+delegationFee
+    :: forall s k (n :: NetworkDiscriminant)
+     . ( AddressBookIso s
+       , s ~ SeqState n k
+       , BoundedAddressLength k
+       , Typeable k
+       , Typeable n
+       )
+    => DBLayer IO s k
+    -> NetworkLayer IO Read.Block
+    -> TransactionLayer k 'CredFromKeyK SealedTx
+    -> TimeInterpreter (ExceptT PastHorizonException IO)
+    -> AnyRecentEra
+    -> ChangeAddressGen s
+    -> WalletId
+    -> ExceptT ErrSelectAssets IO DelegationFee
+delegationFee db netLayer txLayer ti era changeAddressGen walletId = do
+    protocolParams <- liftIO $ currentProtocolParameters netLayer
+    WriteTx.withRecentEra era $ \(recentEra :: WriteTx.RecentEra era) -> do
+        feePercentiles <- calculateFeePercentiles $ do
+            (Cardano.Tx (Cardano.TxBody bodyContent) _, _updatedWallet) <-
+                liftIO $ buildTransaction @s @k @n @era
+                    db txLayer ti walletId changeAddressGen protocolParams
+                    defaultTransactionCtx []
+            pure $ case Cardano.txFee bodyContent of
+                Cardano.TxFeeExplicit _ coin -> Fee (fromCardanoLovelace coin)
+                Cardano.TxFeeImplicit Cardano.TxFeesImplicitInByronEra ->
+                    case recentEra of {}
+
+        deposit <- liftIO $ calcMinimumDeposit db netLayer walletId
+        pure DelegationFee { feePercentiles, deposit }
+
+-- | Repeatedly (100 times) runs given transaction fee estimation calculation
+-- returning 1st and 9nth decile (10nth and 90nth percentile) values of a
+-- recoded distribution.
+calculateFeePercentiles
+    :: forall m
+     . Monad m
+    => ExceptT ErrSelectAssets m Fee
+    -> ExceptT ErrSelectAssets m (Percentile 10 Fee, Percentile 90 Fee)
+calculateFeePercentiles
     = fmap deciles
     . handleErrors
     . replicateM repeats
     . runExceptT
-    . fmap unCoin
+    . fmap (unCoin . feeToCoin)
     . (`catchE` handleCannotCover)
   where
     -- Use method R-8 from to get top 90%.
     -- https://en.wikipedia.org/wiki/Quantile#Estimating_quantiles_from_a_sample
-    deciles = mkFeeEstimation
+    deciles
+        = mkFeePercentiles
         . map round
         . V.toList
         . quantiles medianUnbiased (V.fromList [1, 10]) 10
         . V.fromList
         . map fromIntegral
-    mkFeeEstimation [a,b] = FeeEstimation a b
-    mkFeeEstimation _ = error "estimateFee: impossible"
+
+    mkFeePercentiles = \case
+        [a, b] -> let pf = Percentile . Fee . Coin.fromNatural in (pf a, pf b)
+        _ -> error "calculateFeePercentiles: impossible"
 
     -- Remove failed coin selections from samples. Unless they all failed, in
     -- which case pass on the error.
@@ -2881,30 +2917,26 @@ estimateFee
     handleErrors = ExceptT . fmap skipFailed
       where
         skipFailed samples = case partitionEithers samples of
-            ([], []) ->
-                error "estimateFee: impossible empty list"
-            ((e:_), []) ->
-                Left e
-            (_, samples') ->
-                Right samples'
+            ([], []) -> error "calculateFeePercentiles: impossible empty list"
+            ((e:_), []) -> Left e
+            (_, samples') -> Right samples'
 
     repeats = 100 -- TODO: modify repeats based on data
 
-    -- | When estimating fee, it is rather cumbersome to return "cannot cover fee"
-    -- if clients are just asking for an estimation. Therefore, we convert
-    -- "cannot cover" errors into the necessary fee amount, even though there isn't
-    -- enough in the wallet to cover for these fees.
-    handleCannotCover :: ErrSelectAssets -> ExceptT ErrSelectAssets m Coin
+    -- | When estimating fee, it is rather cumbersome to return
+    -- "cannot cover fee" if clients are just asking for an estimation.
+    -- Therefore, we convert "cannot cover" errors into the necessary
+    -- fee amount, even though there isn't enough in the wallet
+    -- to cover for these fees.
+    handleCannotCover :: ErrSelectAssets -> ExceptT ErrSelectAssets m Fee
     handleCannotCover = \case
-        e@(ErrSelectAssetsSelectionError se) -> case se of
-            SelectionBalanceErrorOf (UnableToConstructChange ce) ->
-                case ce of
-                    UnableToConstructChangeError {requiredCost} ->
-                        pure requiredCost
-            _ ->
-                throwE  e
-        e ->
-            throwE e
+        ErrSelectAssetsSelectionError
+            ( SelectionBalanceErrorOf
+                ( UnableToConstructChange
+                    ( UnableToConstructChangeError {requiredCost})
+                )
+            ) -> pure $ Fee requiredCost
+        e -> throwE e
 
 {-------------------------------------------------------------------------------
                                   Key Store
