@@ -12,7 +12,7 @@ Implementation of a 'QueryStore' for 'TxSet'.
 
 -}
 module Cardano.Wallet.DB.Store.Transactions.Layer
-    ( ReadTxSet (..)
+    ( QueryTxSet (..)
     , mkQueryStoreTxSet
     ) where
 
@@ -32,11 +32,11 @@ import qualified Cardano.Wallet.DB.Store.Transactions.Store as TxSet
 {-----------------------------------------------------------------------------
     DB for 'TxSet'
 ------------------------------------------------------------------------------}
-data ReadTxSet b where
-    GetByTxId :: TxId -> ReadTxSet (Maybe TxRelation)
+data QueryTxSet b where
+    GetByTxId :: TxId -> QueryTxSet (Maybe TxRelation)
 
 -- | Implementation of a 'QueryStore' for 'TxSet'.
-mkQueryStoreTxSet :: QueryStore (SqlPersistT IO) ReadTxSet DeltaTxSet
+mkQueryStoreTxSet :: QueryStore (SqlPersistT IO) QueryTxSet DeltaTxSet
 mkQueryStoreTxSet = QueryStore
     { queryS = \case
         GetByTxId txid -> TxSet.selectTx txid
