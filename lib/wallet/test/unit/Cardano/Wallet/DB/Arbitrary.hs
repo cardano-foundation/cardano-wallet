@@ -136,7 +136,7 @@ import Cardano.Wallet.Primitive.Types.Tx.Tx
 import Cardano.Wallet.Primitive.Types.Tx.TxIn
     ( TxIn (..) )
 import Cardano.Wallet.Primitive.Types.Tx.TxMeta
-    ( Direction (..), TxMeta (..), TxStatus (..), isPending )
+    ( Direction (..), TxMeta (..), TxStatus (..), isInLedger )
 import Cardano.Wallet.Primitive.Types.Tx.TxOut
     ( TxOut (..) )
 import Cardano.Wallet.Primitive.Types.Tx.TxOut.Gen
@@ -294,10 +294,10 @@ instance Arbitrary GenTxHistory where
 
     arbitrary = GenTxHistory . sortTxHistory <$> do
         -- NOTE
-        -- We discard pending transaction from any 'GenTxHistory since,
-        -- inserting a pending transaction actually has an effect on the
-        -- checkpoint's pending transactions of the same wallet.
-        filter (not . isPending . snd) <$> scale (min 25) arbitrary
+        -- We only generate transactions that are `InLedger`
+        -- here, because the pending and expired transactions are
+        -- tracked as part of the WalletState.
+        filter (isInLedger . snd) <$> scale (min 25) arbitrary
       where
         sortTxHistory = filterTxHistory Nothing Descending wholeRange
 

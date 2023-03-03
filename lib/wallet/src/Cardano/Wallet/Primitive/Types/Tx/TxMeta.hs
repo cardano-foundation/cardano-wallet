@@ -18,6 +18,7 @@ module Cardano.Wallet.Primitive.Types.Tx.TxMeta
     , Direction (..)
     , WithDirection (..)
     , isPending
+    , isInLedger
     )
     where
 
@@ -124,3 +125,7 @@ instance Buildable a => Buildable (WithDirection a) where
 -- | True if the given metadata refers to a pending transaction
 isPending :: TxMeta -> Bool
 isPending = (== Pending) . (status :: TxMeta -> TxStatus)
+
+-- | True if the given metadata refers to an 'InLedger' transaction
+isInLedger :: TxMeta -> Bool
+isInLedger = (== InLedger) . (status :: TxMeta -> TxStatus)

@@ -634,12 +634,11 @@ newDBLayerWith _cacheBehavior _tr ti SqliteContext{runQuery} = mdo
             updateS (store transactionsQS) Nothing
                 . ExpandTxWalletsHistory wid
 
-        , readTxHistory_ = \wid range status tip mlimit order -> do
+        , readTxHistory_ = \wid range tip mlimit order -> do
             allTransactions <- queryS transactionsQS $ All wid
             let whichMeta DB.TxMeta{..} = and $ catMaybes
                     [ (txMetaSlot >=) <$> W.inclusiveLowerBound range
                     , (txMetaSlot <=) <$> W.inclusiveUpperBound range
-                    , (txMetaStatus ==) <$> status
                     ]
                 reorder = case order of
                   Ascending -> sortOn txMetaSlot

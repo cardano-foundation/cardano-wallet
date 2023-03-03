@@ -498,8 +498,9 @@ mkDBLayerFromParts ti DBLayerCollection{..} = DBLayer
     , readTransactions = \wid minWithdrawal order range status limit ->
         readCurrentTip wid >>= \case
             Just tip -> do
-                inLedgers <-
-                    readTxHistory_ dbTxHistory wid range status tip limit order
+                inLedgers <- if status `elem` [Nothing, Just WTxMeta.InLedger]
+                    then readTxHistory_ dbTxHistory wid range tip limit order
+                    else pure []
                 inSubmissionsRaw <- withSubmissions wid [] $ \submissions -> do
                         pure $ getInSubmissionTransactions submissions
                 inSubmissions :: [TransactionInfo] <- fmap catMaybes
@@ -737,7 +738,6 @@ data DBTxHistory stm = DBTxHistory
     , readTxHistory_
         :: WalletId
         -> Range SlotNo
-        -> Maybe TxStatus
         -> BlockHeader
         -> Maybe Natural
         -> SortOrder
