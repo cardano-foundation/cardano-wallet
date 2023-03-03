@@ -69,9 +69,7 @@ import Cardano.Wallet.Primitive.Types.UTxOSelection
 import Cardano.Wallet.Shelley.Compatibility
     ( fromCardanoTxIn, fromCardanoTxOut, toCardanoUTxO )
 import Cardano.Wallet.Shelley.Transaction
-    ( KeyWitnessCount (..), TxUpdate (..) )
-import Cardano.Wallet.Shelley.Transaction
-    ( estimateNumberOfWitnesses )
+    ( KeyWitnessCount (..), TxUpdate (..), estimateKeyWitnessCount )
 import Cardano.Wallet.Transaction
     ( ErrAssignRedeemers
     , ErrMoreSurplusNeeded (..)
@@ -653,7 +651,7 @@ balanceTransactionWithSelectionStrategyAndNoZeroAdaAdjustment
         let balance = txBalance tx'
         let minfee' = Cardano.Lovelace $ fromIntegral $ W.unCoin minfee
         let Cardano.Tx txBody' _ = tx'
-        let witCount = estimateNumberOfWitnesses combinedUTxO txBody'
+        let witCount = estimateKeyWitnessCount combinedUTxO txBody'
         return (balance, minfee', witCount)
 
     -- | Ensure the wallet UTxO is consistent with a provided @Cardano.UTxO@.

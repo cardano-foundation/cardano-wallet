@@ -56,7 +56,7 @@ module Cardano.Wallet.Shelley.Transaction
     , mkTxSkeleton
     , mkUnsignedTx
     , txConstraints
-    , estimateNumberOfWitnesses
+    , estimateKeyWitnessCount
     , KeyWitnessCount (..)
     , costOfIncreasingCoin
     , _distributeSurplus
@@ -988,7 +988,7 @@ _evaluateMinimumFee
 _evaluateMinimumFee pp utxo (Cardano.Tx body _) = fromCardanoLovelace $
     Cardano.evaluateTransactionFee pp body nWits 0
   where
-    nWits = case estimateNumberOfWitnesses utxo body of
+    nWits = case estimateKeyWitnessCount utxo body of
         KeyWitnessCount n nBoot
             | nBoot > 0 -> error
                 "evaluateMinimumFee: bootstrap wits not yet supported"
@@ -1004,12 +1004,11 @@ _estimateSignedTxSize
 _estimateSignedTxSize pparams utxo body =
     let
         nWits :: Word
-        nWits = case estimateNumberOfWitnesses utxo body of
+        nWits = case estimateKeyWitnessCount utxo body of
             KeyWitnessCount n nBoot
                 | nBoot > 0 -> error
                     "estimateSignedTxSize: bootstrap wits not yet supported"
                 | otherwise -> n
-
 
         -- Hack which allows us to rely on the ledger to calculate the size of
         -- witnesses:
@@ -1051,7 +1050,6 @@ _estimateSignedTxSize pparams utxo body =
     feePerByte = Coin.fromNatural $
         view #protocolParamTxFeePerByte pparams
 
-
 data KeyWitnessCount = KeyWitnessCount
     { nKeyWits :: Word
     -- ^ "Normal" verification key witnesses introduced with the Shelley era.
@@ -1081,14 +1079,14 @@ instance Semigroup KeyWitnessCount where
 --
 -- NOTE: Similar to 'estimateTransactionKeyWitnessCount' from cardano-api, which
 -- we cannot use because it requires a 'TxBodyContent BuildTx era'.
-estimateNumberOfWitnesses
+estimateKeyWitnessCount
     :: forall era. Cardano.IsShelleyBasedEra era
     => Cardano.UTxO era
     -- ^ Must contain all inputs from the 'TxBody' or
-    -- 'estimateNumberOfWitnesses' will 'error'.
+    -- 'estimateKeyWitnessCount will 'error'.
     -> Cardano.TxBody era
     -> KeyWitnessCount
-estimateNumberOfWitnesses utxo txbody@(Cardano.TxBody txbodycontent) =
+estimateKeyWitnessCount utxo txbody@(Cardano.TxBody txbodycontent) =
     let txIns = map fst $ Cardano.txIns txbodycontent
         txInsCollateral =
             case Cardano.txInsCollateral txbodycontent of
