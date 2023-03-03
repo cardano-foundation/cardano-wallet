@@ -44,6 +44,6 @@ extendAesonObject
     -> a
     -> Value
 extendAesonObject tobeadded apipool =
-    let Object obj = genericToJSON defaultRecordTypeOptions apipool
-        Object obj' = object tobeadded
-    in Object $ obj <> obj'
+    case (genericToJSON defaultRecordTypeOptions apipool, object tobeadded) of
+        (Object obj, Object obj') -> Object (obj <> obj')
+        _ -> error "extendAesonObject: impossible"

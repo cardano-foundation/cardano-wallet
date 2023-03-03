@@ -2297,7 +2297,9 @@ instance ToJSON AnyAddress where
     toJSON (AnyAddress p addrType net) =
         object [ "address" .= T.decodeUtf8 (encode (EBech32 hrp) p) ]
       where
-        Right hrp = Bech32.humanReadablePartFromText (prefix <> suffix)
+        hrp = case Bech32.humanReadablePartFromText (prefix <> suffix) of
+            Right hrp' -> hrp'
+            Left e -> error $ "Bech32.humanReadablePartFromText: " <> show e
         prefix = case addrType of
                 EnterpriseDelegating -> "addr"
                 RewardAccount -> "stake"
@@ -2557,8 +2559,11 @@ instance FromJSON ApiSlotReference where
         <*> o .: "time"
 instance ToJSON ApiSlotReference where
     toJSON (ApiSlotReference sln sli t) =
-        let Aeson.Object rest = toJSON sli
-        in Aeson.Object ("absolute_slot_number" .= sln <> "time" .= t <> rest)
+        case toJSON sli of
+            Aeson.Object rest ->
+                Aeson.Object $
+                    "absolute_slot_number" .= sln <> "time" .= t <> rest
+            _ -> error "ApiSlotId isn't an object."
 
 -- Note: These custom JSON instances are for compatibility with the existing API
 -- schema. At some point, we can switch to the generic instances.
@@ -2569,8 +2574,9 @@ instance FromJSON ApiBlockReference where
         ApiBlockReference sln sli t <$> parseJSON v
 instance ToJSON ApiBlockReference where
     toJSON (ApiBlockReference sln sli t (ApiBlockInfo bh)) =
-        let Aeson.Object rest = toJSON (ApiSlotReference sln sli t)
-        in Aeson.Object ("height" .= bh <> rest)
+        case toJSON (ApiSlotReference sln sli t) of
+            Aeson.Object rest -> Aeson.Object ("height" .= bh <> rest)
+            _ -> error "ApiSlotReference isn't an object."
 
 instance DecodeAddress n => FromJSON (ApiTxInput n) where
     parseJSON v = ApiTxInput <$> optional (parseJSON v) <*> parseJSON v
@@ -2781,9 +2787,11 @@ instance FromJSON ApiIncompleteSharedWallet where
 instance ToJSON ApiIncompleteSharedWallet where
     toJSON wal = Aeson.Object $ Aeson.insert
         (Aeson.fromText "state")
-        (object ["status" .= String "incomplete"]) obj
-      where
-        Aeson.Object obj = genericToJSON defaultRecordTypeOptions wal
+        (object ["status" .= String "incomplete"])
+        ( case genericToJSON defaultRecordTypeOptions wal of
+            Aeson.Object obj -> obj
+            _ -> error "ApiIncompleteSharedWallet should be object"
+        )
 
 instance FromJSON ApiSharedWallet where
     parseJSON obj = do

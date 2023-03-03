@@ -91,8 +91,6 @@ import Cardano.Wallet.Primitive.Passphrase
     ( Passphrase (..), PassphraseHash (..), changePassphraseXPrv )
 import Cardano.Wallet.Primitive.Types.Address
     ( Address (..) )
-import Cardano.Wallet.Util
-    ( invariant )
 import Control.DeepSeq
     ( NFData (..) )
 import Control.Monad
@@ -171,14 +169,18 @@ unsafeGenerateKeyFromSeedShelley
     -> Passphrase "encryption"
     -> XPrv
 unsafeGenerateKeyFromSeedShelley (root, m2nd) pwd =
-    generateNew seed' (maybe mempty mnemonicToBytes m2nd) (unPassphrase pwd)
+    generateNew validSeed (maybe mempty mnemonicToBytes m2nd) (unPassphrase pwd)
   where
     mnemonicToBytes (SomeMnemonic mw) = entropyToBytes $ mnemonicToEntropy mw
     seed  = mnemonicToBytes root
-    seed' = invariant
-        ("seed length : " <> show (BA.length seed) <> " in (Passphrase \"seed\") is not valid")
-        seed
-        (\s -> BA.length s >= minSeedLengthBytes && BA.length s <= 255)
+    validSeed =
+        if BA.length seed >= minSeedLengthBytes && BA.length seed <= 255
+            then seed
+            else error . unwords $
+                [ "seed length:"
+                , show (BA.length seed)
+                , "in (Passphrase \"seed\") is not valid"
+                ]
 
 deriveAccountPrivateKeyShelley
     :: Index 'Hardened 'PurposeK

@@ -57,8 +57,6 @@ import Cardano.Wallet.Primitive.Passphrase.Types
     ( Passphrase (..) )
 import Cardano.Wallet.Primitive.Types.Address
     ( Address (..), AddressState (..) )
-import Cardano.Wallet.Util
-    ( invariant )
 import Control.DeepSeq
     ( NFData )
 import Data.Kind
@@ -246,7 +244,9 @@ nextChangeIndex pool (PendingIxs pendingIndexes) =
                         else ( firstIndex
                              , PendingIxs (restIndexes <> [firstIndex])
                              )
-        errorMessage = concat
+    in if nextIndex >= firstUnused && nextIndex <= lastUnused
+        then (nextIndex, pendingIndexes')
+        else error $ concat
             [ "Next change index ("
             , show (getIndex nextIndex)
             , ") is NOT between the first unused ("
@@ -260,9 +260,6 @@ nextChangeIndex pool (PendingIxs pendingIndexes) =
             , ". The pending indexes are: "
             , L.intercalate ", " $ fmap (show . getIndex) pendingIndexes
             ]
-    in
-        invariant errorMessage (nextIndex, pendingIndexes') $ \(index, _) ->
-            index >= firstUnused && index <= lastUnused
 
 dropLowerPendingIxs :: Index 'Soft k -> PendingIxs k -> PendingIxs k
 dropLowerPendingIxs ix (PendingIxs ixs) = PendingIxs $ L.filter (> ix) ixs

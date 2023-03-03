@@ -524,8 +524,6 @@ import Cardano.Wallet.Transaction
     )
 import Cardano.Wallet.Unsafe
     ( unsafeRunExceptT )
-import Cardano.Wallet.Util
-    ( invariant )
 import Cardano.Wallet.Write.Tx
     ( AnyRecentEra (..) )
 import Control.Arrow
@@ -3272,10 +3270,14 @@ submitTransaction ctx apiw@(ApiT wid) apitx = do
             isWdrlOurs (ApiWithdrawalGeneral _ _ context) = context == Our
         in case filter isWdrlOurs generalWdrls of
             [ApiWithdrawalGeneral (ApiT acct, _) (Quantity amt) _] ->
-                let acct' = invariant "reward account should be the same" acct (rewardAcct ==)
-                in WithdrawalSelf acct' path (Coin amt)
-            _ ->
-                NoWithdrawal
+                WithdrawalSelf
+                    ( if rewardAcct == acct
+                        then acct
+                        else error "reward account should be the same"
+                    )
+                    path
+                    (Coin amt)
+            _ -> NoWithdrawal
 
     countJoinsQuits :: [ApiAnyCertificate n] -> Int
     countJoinsQuits = sum . fmap ( \case
@@ -4791,9 +4793,10 @@ instance IsServerError ErrCurrentEpoch where
 instance IsServerError ErrUnexpectedPoolIdPlaceholder where
     toServerError = \case
         ErrUnexpectedPoolIdPlaceholder ->
-            apiError err400 BadRequest (pretty msg)
-      where
-        Left msg = fromText @PoolId "INVALID"
+            apiError err400 BadRequest $
+                case fromText @PoolId "INVALID" of
+                    Left msg -> pretty msg
+                    Right _ -> "Invalid pool id placeholder"
 
 instance IsServerError ErrCreateWallet where
     toServerError = \case

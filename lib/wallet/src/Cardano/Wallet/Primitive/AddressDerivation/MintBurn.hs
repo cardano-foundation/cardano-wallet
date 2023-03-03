@@ -69,8 +69,6 @@ import Cardano.Wallet.Primitive.Types.TokenPolicy
     ( TokenName, TokenPolicyId (..) )
 import Cardano.Wallet.Primitive.Types.TokenQuantity
     ( TokenQuantity (..) )
-import Cardano.Wallet.Util
-    ( invariant )
 import Data.IntCast
     ( intCast )
 import Data.Interval
@@ -79,10 +77,10 @@ import Data.List.NonEmpty
     ( NonEmpty )
 import Data.Map.Strict
     ( Map )
-import Data.Maybe
-    ( isJust )
 import Data.Word
     ( Word64 )
+import GHC.Stack
+    ( HasCallStack )
 import Numeric.Natural
     ( Natural )
 
@@ -178,7 +176,9 @@ toTokenMapAndScript scriptTempl cosignerMap tName val =
     )
 
 replaceCosigner
-    :: forall key. WalletKey key
+    :: forall key
+     . HasCallStack
+    => WalletKey key
     => Map Cosigner XPub
     -> Script Cosigner
     -> Script KeyHash
@@ -196,13 +196,10 @@ replaceCosigner cosignerMap = \case
     ActiveUntilSlot s ->
         ActiveUntilSlot s
   where
-    toKeyHash :: Cosigner -> KeyHash
-    toKeyHash c =
-        let Just xpub =
-                invariant "we should have xpubs of all cosigners at this point"
-                (Map.lookup c cosignerMap)
-                isJust
-        in hashVerificationKey @key CA.Policy (liftRawKey xpub)
+    toKeyHash :: HasCallStack => Cosigner -> KeyHash
+    toKeyHash c = case Map.lookup c cosignerMap of
+        Just xpub -> hashVerificationKey @key CA.Policy (liftRawKey xpub)
+        Nothing -> error "Impossible: cosigner without xpub."
 
 scriptSlotIntervals
     :: Script a

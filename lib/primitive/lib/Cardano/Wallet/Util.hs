@@ -14,7 +14,6 @@ module Cardano.Wallet.Util
       HasCallStack
     , internalError
     , tina
-    , invariant
 
     -- ** Handling errors for "impossible" situations.
     , isInternalError
@@ -88,28 +87,6 @@ tina msg = fromMaybe (internalError msg) . asum
 -- | Effectfully modify the state of a state-monad transformer stack.
 modifyM  :: forall m s. (Monad m) => (s -> m s) -> StateT s m ()
 modifyM fn = get >>= lift . fn >>= put
-
--- | Checks whether or not an invariant holds, by applying the given predicate
---   to the given value.
---
--- If the invariant does not hold (indicated by the predicate function
--- returning 'False'), throws an error with the specified message.
---
--- >>> invariant "not empty" [1,2,3] (not . null)
--- [1, 2, 3]
---
--- >>> invariant "not empty" [] (not . null)
--- *** Exception: not empty
-invariant
-    :: HasCallStack
-    => String
-        -- ^ The message
-    -> a
-        -- ^ The value to test
-    -> (a -> Bool)
-        -- ^ The predicate
-    -> a
-invariant msg a predicate = if predicate a then a else error msg
 
 -- | Tests whether an 'Exception' was caused by 'internalError'.
 isInternalError :: ErrorCall -> Maybe String

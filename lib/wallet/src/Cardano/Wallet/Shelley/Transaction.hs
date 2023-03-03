@@ -761,18 +761,16 @@ updateSealedTx (Cardano.Tx body existingKeyWits) extraContent = do
         :: TxUpdate
         -> Cardano.TxBody era
         -> Either ErrUpdateSealedTx (Cardano.TxBody era)
-    modifyTxBody ebc txBody@(Cardano.ShelleyTxBody {}) =
-        let Cardano.ShelleyTxBody shelleyEra bod scripts scriptData aux val
-                = txBody
-        in
-        Right $ Cardano.ShelleyTxBody shelleyEra
-            (modifyShelleyTxBody ebc shelleyEra bod)
-            (scripts ++ (flip toLedgerScript shelleyEra <$> extraInputScripts))
-            scriptData
-            aux
-            val
-    modifyTxBody _ (Byron.ByronTxBody _) =
-        case Cardano.shelleyBasedEra @era of {}
+    modifyTxBody ebc = \case
+        Cardano.ShelleyTxBody shelleyEra bod scripts scriptData aux val ->
+            Right $ Cardano.ShelleyTxBody shelleyEra
+                (modifyShelleyTxBody ebc shelleyEra bod)
+                (scripts ++ (flip toLedgerScript shelleyEra
+                    <$> extraInputScripts))
+                scriptData
+                aux
+                val
+        Byron.ByronTxBody _ -> case Cardano.shelleyBasedEra @era of {}
 
     TxUpdate _ _ _ extraInputScripts _ = extraContent
 
@@ -1126,7 +1124,9 @@ estimateKeyWitnessCount utxo txbody@(Cardano.TxBody txbodycontent) =
         txCerts +
         scriptVkWitsUpperBound
   where
-    (Cardano.ShelleyTxBody _ _ scripts _ _ _) = txbody
+    scripts = case txbody of
+        Cardano.ShelleyTxBody _ _ shelleyBodyScripts _ _ _ -> shelleyBodyScripts
+        Byron.ByronTxBody {} -> error "estimateKeyWitnessCount: ByronTxBody"
 
     dummyKeyRole = Payment
 

@@ -116,7 +116,7 @@ import Cardano.Wallet.Primitive.Types.UTxO
 import Cardano.Wallet.Primitive.Types.UTxO.Gen
     ( genUTxO, shrinkUTxO )
 import Cardano.Wallet.Util
-    ( ShowFmt (..), invariant )
+    ( ShowFmt (..) )
 import Control.Applicative
     ( ZipList (..) )
 import Control.DeepSeq
@@ -1093,9 +1093,9 @@ instance NFData WalletState
 
 instance Semigroup WalletState where
     (WalletState ours a) <> (WalletState ours' b) =
-        invariant "Semigroup WalletState must be defined on same addresses"
-            (WalletState ours (a <> b))
-            (\_ -> ours == ours')
+        if ours == ours'
+            then WalletState ours (a <> b)
+            else error "Semigroup WalletState must be defined on same addresses"
 
 instance IsOurs WalletState Address where
     isOurs addr s@(WalletState ours discovered) =

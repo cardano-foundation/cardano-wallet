@@ -23,7 +23,6 @@ common language
 common opts-lib
   ghc-options:
     -Wall -Wcompat -fwarn-redundant-constraints
-    -Wincomplete-uni-patterns -Wincomplete-record-updates
 
   if flag(release)
     ghc-options: -O2 -Werror
@@ -46,6 +45,9 @@ flag scrypt
 library
   import:          language, opts-lib
   hs-source-dirs:  src
+
+  ghc-options:
+    -Wincomplete-uni-patterns -Wincomplete-record-updates
 
   if flag(scrypt)
     cpp-options:   -DHAVE_SCRYPT

@@ -1,6 +1,7 @@
 {-# LANGUAGE DataKinds #-}
 {-# LANGUAGE FlexibleContexts #-}
 {-# LANGUAGE NoMonomorphismRestriction #-}
+{-# LANGUAGE TupleSections #-}
 {-# LANGUAGE TypeFamilies #-}
 {-# LANGUAGE TypeOperators #-}
 
@@ -58,7 +59,7 @@ import Data.Function
 import Data.Map.Strict
     ( Map )
 import Data.Maybe
-    ( isJust )
+    ( mapMaybe )
 import Ouroboros.Consensus.Shelley.Eras
     ( StandardAlonzo, StandardBabbage, StandardCrypto )
 
@@ -170,11 +171,9 @@ getScriptMap
     -> TokenMap
     -> Map TokenPolicyId AnyScript
 getScriptMap scriptMap =
-    Map.fromList .
-    map (\(policyid, Just script) -> (policyid, script)) .
-    filter (isJust . snd) .
-    map (\(policyid, _) -> (policyid, Map.lookup policyid scriptMap) ) .
-    toNestedList
+    Map.fromList
+    . mapMaybe (\(policy, _) -> (policy,) <$> Map.lookup policy scriptMap)
+    . toNestedList
 
 fromAlonzoScriptMap
     :: Map

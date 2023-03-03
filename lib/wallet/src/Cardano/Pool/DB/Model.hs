@@ -369,10 +369,12 @@ mUnfetchedPoolMetadataRefs n = inner
                 Just fkey@(_, hash) -> (&&)
                     (hash `notElem` Map.keys metadata)
                     (fkey `notElem` Map.keys fetchAttempts)
-        toTuple PoolRegistrationCertificate{poolId,poolMetadata} =
-            (poolId, metadataUrl, metadataHash)
-          where
-            Just (metadataUrl, metadataHash) = poolMetadata
+        toTuple = \case
+            PoolRegistrationCertificate
+                { poolId
+                , poolMetadata = Just (metadataUrl, metadataHash)
+                } -> (poolId, metadataUrl, metadataHash)
+            _ -> error "mUnfetchedPoolMetadataRefs: poolMetadata is Nothing"
 
 mPutFetchAttempt
     :: (StakePoolMetadataUrl, StakePoolMetadataHash)

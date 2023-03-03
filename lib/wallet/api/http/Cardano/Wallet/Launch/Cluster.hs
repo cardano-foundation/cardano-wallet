@@ -199,6 +199,8 @@ import Data.IntCast
     ( intCast )
 import Data.List
     ( intercalate, nub, permutations, sort )
+import Data.List.NonEmpty
+    ( NonEmpty ((:|)) )
 import Data.Map
     ( Map )
 import Data.Maybe
@@ -257,6 +259,7 @@ import qualified Data.ByteString as BS
 import qualified Data.ByteString.Char8 as B8
 import qualified Data.ByteString.Lazy as BL
 import qualified Data.ByteString.Lazy.Char8 as BL8
+import qualified Data.List.NonEmpty as NE
 import qualified Data.Map.Strict as Map
 import qualified Data.Set as Set
 import qualified Data.Text as T
@@ -486,8 +489,8 @@ configurePools
     -> FilePath
     -> ClusterEra
     -> PoolMetadataServer
-    -> [PoolRecipe]
-    -> IO [ConfiguredPool]
+    -> NonEmpty PoolRecipe
+    -> IO (NonEmpty ConfiguredPool)
 configurePools tr dir era metadataServer =
     mapM (configurePool tr dir era metadataServer)
 
@@ -653,10 +656,10 @@ configurePool tr baseDir era metadataServer recipe = do
         , recipe = recipe
         }
 
-defaultPoolConfigs :: [PoolRecipe]
-defaultPoolConfigs = zipWith (\i p -> p {index = i}) [1..]
-    [ -- This pool should never retire:
-      PoolRecipe
+defaultPoolConfigs :: NonEmpty PoolRecipe
+defaultPoolConfigs = NE.zipWith (\i p -> p {index = i}) (1 :| [2..]) $
+     -- This pool should never retire:
+    PoolRecipe
         { pledgeAmt = 200 * millionAda
         , retirementEpoch = Nothing
         , poolMetadata = Aeson.object
@@ -690,9 +693,9 @@ defaultPoolConfigs = zipWith (\i p -> p {index = i}) [1..]
               )
 
         , index = undefined
-        }
+        } :|
     -- This pool should retire almost immediately:
-    , PoolRecipe
+    [ PoolRecipe
         { pledgeAmt = 100 * millionAda
         , retirementEpoch = Just 3
         , poolMetadata = Aeson.object
@@ -852,7 +855,7 @@ clusterEraToString = \case
     BabbageHardFork -> "babbage"
 
 data LocalClusterConfig = LocalClusterConfig
-    { cfgStakePools :: [PoolRecipe]
+    { cfgStakePools :: NonEmpty (PoolRecipe)
     -- ^ Stake pools to register.
     , cfgLastHardFork :: ClusterEra
     -- ^ Which era to use.
@@ -1058,7 +1061,7 @@ withCluster tr dir LocalClusterConfig{..} faucetFunds onClusterStart = bracketTr
         if postAlonzo
             then do
                 port0:ports <- rotate <$> randomUnusedTCPPorts nPools
-                let pool0:otherPools = configuredPools
+                let pool0 :| otherPools = configuredPools
 
                 let pool0Cfg = NodeParams
                         genesisFiles
@@ -1068,7 +1071,7 @@ withCluster tr dir LocalClusterConfig{..} faucetFunds onClusterStart = bracketTr
                 operatePool pool0 pool0Cfg $ \runningPool0 -> do
                     extraClusterSetupUsingNode configuredPools runningPool0
                     launchPools
-                        otherPools
+                        (NE.fromList otherPools)
                         genesisFiles
                         ports
                         runningPool0
@@ -1107,7 +1110,8 @@ withCluster tr dir LocalClusterConfig{..} faucetFunds onClusterStart = bracketTr
     FaucetFunds adaFunds maFunds mirFunds = faucetFunds
 
     -- Important cluster setup to run without rollbacks
-    extraClusterSetupUsingNode :: [ConfiguredPool] -> RunningNode -> IO ()
+    extraClusterSetupUsingNode ::
+        NonEmpty (ConfiguredPool) -> RunningNode -> IO ()
     extraClusterSetupUsingNode configuredPools runningNode = do
         let RunningNode conn _ _ _ = runningNode
 
@@ -1139,7 +1143,7 @@ withCluster tr dir LocalClusterConfig{..} faucetFunds onClusterStart = bracketTr
 
     -- | Actually spin up the pools.
     launchPools
-        :: [ConfiguredPool]
+        :: NonEmpty ConfiguredPool
         -> GenesisFiles
         -> [(Int, [Int])]
         -- @(port, peers)@ pairs availible for the nodes. Can be used to e.g.
@@ -1173,7 +1177,7 @@ withCluster tr dir LocalClusterConfig{..} faucetFunds onClusterStart = bracketTr
                 cfgLastHardFork
                 (port, peers)
                 cfgNodeLogging
-        asyncs <- forM (zip configuredPools ports) $
+        asyncs <- forM (zip (NE.toList configuredPools) ports) $
             \(configuredPool, (port, peers)) -> do
                 async $ handle onException $ do
                     let cfg = mkConfig (port, peers)
@@ -1211,7 +1215,11 @@ withCluster tr dir LocalClusterConfig{..} faucetFunds onClusterStart = bracketTr
     -- >>> rotate [1,2,3]
     -- [(1,[2,3]), (2, [1,3]), (3, [1,2])]
     rotate :: Ord a => [a] -> [(a, [a])]
-    rotate = nub . fmap (\(x:xs) -> (x, sort xs)) . permutations
+    rotate = nub . fmap f . permutations
+      where
+       f = \case
+        [] -> error "rotate: impossible"
+        x : xs -> (x, sort xs)
 
     encodeAddresses = map (first (T.unpack . encodeAddress @'W.Mainnet))
 
@@ -1387,7 +1395,7 @@ withSMASH tr parentDir action = do
     -- Write delisted pools
     let toSmashId (PoolId bytes) = SMASHPoolId . T.pack . B8.unpack . hex $ bytes
     let poolId (PoolRecipe _ _ _ _ (pid, _, _, _) _) = toSmashId pid
-    let delistedPoolIds = map poolId $ filter delisted defaultPoolConfigs
+    let delistedPoolIds = poolId <$> NE.filter delisted defaultPoolConfigs
     BL8.writeFile
         (baseDir </> "delisted")
         (Aeson.encode delistedPoolIds)
