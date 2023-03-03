@@ -36,12 +36,14 @@ import Data.DBVar
     ( Store (..), newCachedStore )
 import Data.Foldable
     ( toList )
+import Data.Word
+    ( Word32 )
 import Database.Persist.Sql
     ( SqlPersistT )
 
 import qualified Cardano.Wallet.DB.Store.Transactions.Layer as TxSet
-import qualified Cardano.Wallet.DB.Store.Transactions.Model as TxSet
 import qualified Cardano.Wallet.Primitive.Types as W
+import qualified Cardano.Wallet.Primitive.Types.Tx.TxOut as W
 import qualified Data.Map.Strict as Map
 
 {-----------------------------------------------------------------------------
@@ -49,6 +51,7 @@ import qualified Data.Map.Strict as Map
 ------------------------------------------------------------------------------}
 data QueryTxWalletsHistory b where
     GetByTxId :: TxId -> QueryTxWalletsHistory (Maybe TxRelation)
+    GetTxOut :: (TxId, Word32) -> QueryTxWalletsHistory (Maybe W.TxOut)
     One :: W.WalletId -> TxId -> QueryTxWalletsHistory (Maybe TxMeta)
     All :: W.WalletId -> QueryTxWalletsHistory [TxMeta]
 
@@ -62,12 +65,12 @@ newQueryStoreTxWalletsHistory
     :: forall m. m ~ SqlPersistT IO
     => m QueryStoreTxWalletsHistory
 newQueryStoreTxWalletsHistory = do
-    let txsQueryStore = TxSet.mkDBTxSet
+    let txsQueryStore = TxSet.mkQueryStoreTxSet
 
+    let storeTransactions = store txsQueryStore
     storeWalletsMeta <- newCachedStore mkStoreWalletsMeta
-    storeTransactions <- newCachedStore $ store txsQueryStore
     let storeTxWalletsHistory = mkStoreTxWalletsHistory
-            storeTransactions       -- in memory
+            storeTransactions       -- on disk
             storeWalletsMeta        -- in memory
 
     let readAllMetas :: W.WalletId -> m [TxMeta]
@@ -80,9 +83,9 @@ newQueryStoreTxWalletsHistory = do
         query :: forall a. QueryTxWalletsHistory a -> SqlPersistT IO a
         query = \case
             GetByTxId txid -> do
-                -- queryS txsQueryStore $ TxSet.GetByTxId txid
-                Right txSet <- loadS storeTransactions
-                pure $ Map.lookup txid (TxSet.relations txSet)
+                queryS txsQueryStore $ TxSet.GetByTxId txid
+            GetTxOut key -> do
+                queryS txsQueryStore $ TxSet.GetTxOut key
 
             One wid txid -> do
                 Right wmetas <- loadS storeWalletsMeta

@@ -20,6 +20,8 @@ module Cardano.Wallet.DB.Store.Transactions.Store
     , mkStoreTransactions
 
     , selectTx
+    , selectTxOut
+    , selectTxCollateralOut
     ) where
 
 import Prelude
@@ -66,16 +68,20 @@ import Data.Maybe
     ( listToMaybe, maybeToList )
 import Data.Monoid
     ( First (..), getFirst )
+import Data.Word
+    ( Word32 )
 import Database.Persist.Sql
     ( BaseBackend
     , Entity
     , PersistEntity (PersistEntityBackend)
     , PersistQueryRead
     , SqlPersistT
+    , count
     , deleteWhere
     , entityVal
     , keyFromRecordM
     , repsertMany
+    , selectFirst
     , selectList
     , (<-.)
     , (==.)
@@ -238,3 +244,35 @@ selectTx k = select
                 , withdrawals = sortOn txWithdrawalAccount withds
                 , cbor = listToMaybe mcbor
                 }
+
+-- | Select one regular output from the database.
+selectTxOut :: (TxId, Word32) -> SqlPersistT IO (Maybe (TxOut, [TxOutToken]))
+selectTxOut (txid, index) = do
+    moutput <- fmap entityVal <$> selectFirst
+        [TxOutputTxId ==. txid, TxOutputIndex ==. index] []
+    case moutput of
+        Nothing -> pure Nothing
+        Just output -> do
+            outTokens <- map entityVal <$> selectList
+                [TxOutTokenTxId ==. txid, TxOutTokenTxIndex ==. index] []
+            pure $ Just (output, outTokens)
+
+-- | Select the collateral output of a transaction from the database,
+-- if it has the correct index.
+selectTxCollateralOut
+    :: (TxId, Word32)
+    -> SqlPersistT IO (Maybe (TxCollateralOut, [TxCollateralOutToken]))
+selectTxCollateralOut (txid, index) = do
+    noutputs <- count [TxOutputTxId ==. txid]
+    let collateralOutputIndex = toEnum noutputs
+    if index /= collateralOutputIndex -- Babbage ledger spec
+    then pure Nothing
+    else do
+        mcollateralOutput <- fmap entityVal <$> selectFirst
+            [TxCollateralOutTxId ==. txid] []
+        case mcollateralOutput of
+            Nothing -> pure Nothing
+            Just collateralOutput -> do
+                collateralTokens <- fmap entityVal <$> selectList
+                    [TxCollateralOutTokenTxId ==. txid] []
+                pure $ Just (collateralOutput,collateralTokens)

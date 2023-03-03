@@ -1,9 +1,11 @@
 {-# LANGUAGE DataKinds #-}
 {-# LANGUAGE FlexibleContexts #-}
+{-# LANGUAGE GADTs #-}
 {-# LANGUAGE NamedFieldPuns #-}
 {-# LANGUAGE OverloadedLabels #-}
 {-# LANGUAGE RankNTypes #-}
 {-# LANGUAGE ScopedTypeVariables #-}
+{-# LANGUAGE TypeFamilies #-}
 
 module Cardano.Wallet.DB.Store.Transactions.StoreSpec
     ( spec
@@ -19,6 +21,8 @@ import Cardano.Wallet.DB.Fixtures
     ( StoreProperty, assertWith, logScale, withDBInMemory, withStoreProp )
 import Cardano.Wallet.DB.Sqlite.Types
     ( TxId (TxId) )
+import Cardano.Wallet.DB.Store.QueryStore
+    ( Query (..), QueryStore (..), World )
 import Cardano.Wallet.DB.Store.Transactions.Decoration
     ( DecoratedTxIns
     , decorateTxInsForRelation
@@ -56,6 +60,7 @@ import Test.QuickCheck
     ( Gen
     , Property
     , arbitrary
+    , choose
     , elements
     , forAll
     , frequency
@@ -64,8 +69,9 @@ import Test.QuickCheck
     , (===)
     )
 import Test.QuickCheck.Monadic
-    ( forAllM )
+    ( forAllM, pick )
 
+import qualified Cardano.Wallet.DB.Store.Transactions.Layer as TxSet
 import qualified Cardano.Wallet.Primitive.Types.Tx as W
 import qualified Cardano.Wallet.Primitive.Types.Tx.TxIn as W
 import qualified Data.Map.Strict as Map
@@ -80,6 +86,9 @@ spec = do
         describe "selectTx" $
             it "retrieves transaction that was written" $
                 property . prop_selectTx
+        describe "mkQueryStoreTxSet" $
+            it "respects query law" $
+                property . prop_QueryLaw
 
     describe "TxOut decoration" $ do
         it
@@ -164,6 +173,42 @@ prop_StoreLaws = withStoreProp $ \runQ ->
         (pure mempty)
         (logScale . genDeltas)
 
+prop_selectTx :: StoreProperty
+prop_selectTx =
+    withStoreProp $ \runQ ->
+        forAllM genTxSet $ \txs -> do
+            runQ $ writeS mkStoreTransactions txs
+            forM_ (Map.assocs $ relations txs) $ \(txId, tx) -> do
+                Just tx' <- runQ $ selectTx txId
+                assertWith "relation is consistent" $ tx == tx'
+
+prop_QueryLaw :: StoreProperty
+prop_QueryLaw =
+    withStoreProp $ \runQ ->
+        forAllM genTxSet $ \txs -> do
+            runQ $ writeS (store TxSet.mkQueryStoreTxSet) txs
+            forM_ (take 10 $ Map.keys $ relations txs) $ \txId -> do
+                assertWith "GetTxById correct"
+                    =<< runQ ( queryLaw TxSet.mkQueryStoreTxSet txs $
+                            TxSet.GetByTxId txId )
+                index <- pick $ choose (0,5)
+                assertWith "GetTxOut correct"
+                    =<< runQ ( queryLaw TxSet.mkQueryStoreTxSet txs $
+                            TxSet.GetTxOut (txId,index) )
+
+-- Note: We make a top-level definition here because we would like
+-- to write down a type signature, due to the (implied) `forall b.`
+queryLaw :: (Monad m, Eq b, Query qa, MonadFail m, Base da ~ World qa)
+    => QueryStore m qa da
+    -> World qa
+    -> qa b
+    -> m Bool
+queryLaw QueryStore{queryS} z r =
+    (query r z ==) <$> queryS r
+
+{-----------------------------------------------------------------------------
+    Generators
+------------------------------------------------------------------------------}
 addCBOR :: Tx -> Gen Tx
 addCBOR tx = do
     mcbor <- arbitrary
@@ -188,12 +233,3 @@ genDeltas (TxSet pile) =
 
 genTxSet :: Gen TxSet
 genTxSet = (`apply` mempty) <$> genDeltas mempty
-
-prop_selectTx :: StoreProperty
-prop_selectTx =
-    withStoreProp $ \runQ ->
-        forAllM genTxSet $ \txs -> do
-            runQ $ writeS mkStoreTransactions txs
-            forM_ (Map.assocs $ relations txs) $ \(txId, tx) -> do
-                Just tx' <- runQ $ selectTx txId
-                assertWith "relation is consistent" $ tx == tx'
