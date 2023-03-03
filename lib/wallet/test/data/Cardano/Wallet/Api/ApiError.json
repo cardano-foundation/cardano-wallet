@@ -616,6 +616,16 @@
         },
         {
             "code": "balance_tx_underestimated_fee",
+            "info": {
+                "candidate_tx_hex": "v\u0001]𒂱\\",
+                "candidate_tx_readable": "𡫰𭽮󳖾Z\"a!u\u0008V V",
+                "estimated_number_of_bootstrap_key_wits": 18,
+                "estimated_number_of_key_wits": 7,
+                "underestimation": {
+                    "quantity": 45,
+                    "unit": "lovelace"
+                }
+            },
             "message": " 0"
         },
         {

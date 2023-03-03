@@ -216,6 +216,7 @@ import Cardano.Wallet.Api.Types.BlockHeader
     ( ApiBlockHeader )
 import Cardano.Wallet.Api.Types.Error
     ( ApiError (..)
+    , ApiErrorBalanceTxUnderestimatedFee (..)
     , ApiErrorInfo (..)
     , ApiErrorMessage (..)
     , ApiErrorSharedWalletNoSuchCosigner (..)
@@ -2204,6 +2205,10 @@ instance Arbitrary ApiErrorSharedWalletNoSuchCosigner where
     shrink = genericShrink
 
 instance Arbitrary ApiErrorTxOutputLovelaceInsufficient where
+    arbitrary = genericArbitrary
+    shrink = genericShrink
+
+instance Arbitrary ApiErrorBalanceTxUnderestimatedFee where
     arbitrary = genericArbitrary
     shrink = genericShrink
 

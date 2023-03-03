@@ -85,10 +85,13 @@ import Cardano.Wallet
     , ErrWrongPassphrase (..)
     , WalletException (..)
     )
+import Cardano.Wallet.Api.Hex
+    ( hexText )
 import Cardano.Wallet.Api.Types
     ( ApiCosignerIndex (..), ApiCredentialType (..), Iso8601Time (..) )
 import Cardano.Wallet.Api.Types.Error
     ( ApiError (..)
+    , ApiErrorBalanceTxUnderestimatedFee (..)
     , ApiErrorInfo (..)
     , ApiErrorMessage (..)
     , ApiErrorSharedWalletNoSuchCosigner (..)
@@ -102,6 +105,10 @@ import Cardano.Wallet.Primitive.Slotting
     ( PastHorizonException )
 import Cardano.Wallet.Primitive.Types.TokenMap
     ( Flat (..) )
+import Cardano.Wallet.Primitive.Types.Tx.SealedTx
+    ( serialisedTx )
+import Cardano.Wallet.Shelley.Transaction
+    ( KeyWitnessCount (..) )
 import Cardano.Wallet.Transaction
     ( ErrAssignRedeemers (..), ErrSignTx (..) )
 import Cardano.Wallet.Write.Tx.Balance
@@ -113,11 +120,13 @@ import Control.Monad.Trans.Except
 import Data.Generics.Internal.VL
     ( view, (^.) )
 import Data.IntCast
-    ( intCastMaybe )
+    ( intCast, intCastMaybe )
 import Data.List
     ( isInfixOf, isPrefixOf, isSubsequenceOf )
 import Data.Maybe
     ( isJust )
+import Data.Quantity
+    ( Quantity (Quantity) )
 import Data.Text
     ( Text )
 import Data.Text.Class
@@ -526,12 +535,20 @@ instance IsServerError ErrBalanceTx where
 
 instance IsServerError ErrBalanceTxInternalError where
     toServerError = \case
-        ErrUnderestimatedFee coin _st ->
-            apiError err500 BalanceTxUnderestimatedFee $ T.unwords
+        ErrUnderestimatedFee coin candidateTx (KeyWitnessCount nWits nBootWits) ->
+            apiError err500 (BalanceTxUnderestimatedFee info) $ T.unwords
                 [ "I have somehow underestimated the fee of the transaction by"
-                , pretty coin
-                , "and cannot finish balancing."
+                , pretty coin, "and cannot finish balancing."
                 ]
+
+          where
+            info = ApiErrorBalanceTxUnderestimatedFee
+                { underestimation = Quantity $ Coin.toNatural coin
+                , candidateTxHex = hexText $ serialisedTx candidateTx
+                , candidateTxReadable = T.pack (show candidateTx)
+                , estimatedNumberOfKeyWits = intCast nWits
+                , estimatedNumberOfBootstrapKeyWits = intCast nBootWits
+                }
         ErrFailedBalancing v ->
             apiError err500 BalanceTxInternalError $ T.unwords
                 [ "I have somehow failed to balance the transaction."
