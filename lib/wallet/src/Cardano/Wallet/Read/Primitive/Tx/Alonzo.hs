@@ -53,6 +53,7 @@ import Cardano.Wallet.Transaction
     ( AnyScript (..)
     , PlutusScriptInfo (..)
     , PlutusVersion (..)
+    , ScriptReference (..)
     , TokenMapWithScripts (..)
     , ValidityIntervalExplicit (..)
     , WitnessCount (..)
@@ -160,10 +161,10 @@ fromAlonzoTx tx@(Alonzo.ValidatedTx bod wits (Alonzo.IsValid isValid) aux) witCt
         Map.mapKeys (toWalletTokenPolicyId . SL.PolicyID)
       where
         toAnyScript (Alonzo.TimelockScript script) =
-            NativeScript $ toWalletScript (toKeyRole witCtx) script
+            NativeScript (toWalletScript (toKeyRole witCtx) script) ViaSpending
         toAnyScript s@(Alonzo.PlutusScript ver _) =
             PlutusScript (PlutusScriptInfo (toPlutusVer ver)
-                          (hashAlonzoScript s))
+                          (hashAlonzoScript s)) ViaSpending
 
         toPlutusVer Alonzo.PlutusV1 = PlutusVersionV1
         toPlutusVer Alonzo.PlutusV2 = PlutusVersionV2

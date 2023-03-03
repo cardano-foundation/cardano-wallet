@@ -117,6 +117,8 @@ import Cardano.Wallet.Transaction
     ( AnyScript (..)
     , PlutusScriptInfo (..)
     , PlutusVersion (..)
+    , ReferenceInput (..)
+    , ScriptReference (..)
     , ValidityIntervalExplicit (..)
     , WitnessCount (..)
     )
@@ -1342,7 +1344,7 @@ spec = describe "NEW_SHELLEY_TRANSACTIONS" $ do
                 }
         let apiTokens = ApiTokens
                 { policyId = ApiT tokenPolicyId'
-                , policyScript = ApiT (NativeScript scriptUsed)
+                , policyScript = ApiT (NativeScript scriptUsed ViaSpending)
                 , assets = pure (apiTokenAmountFingerprint)
                 }
 
@@ -1489,9 +1491,13 @@ spec = describe "NEW_SHELLEY_TRANSACTIONS" $ do
 
         let (Right plutusScriptHash) =
                 fromHexText "9c8e9da7f81e3ca90485f32ebefc98137c8ac260a072a00c4aaf142d"
+        let (Right txId) =
+                fromHexText "876935d6491e7d758f11efec78cb0fb0c0138879d4e62861ef33310e46f0afe3"
+        let refInp = ViaReferenceInput $ ReferenceInput $ TxIn (Hash txId) 0
         let plutusScript =
                 PlutusScript (PlutusScriptInfo PlutusVersionV2
-                              (ScriptHash plutusScriptHash))
+                              (ScriptHash plutusScriptHash)) refInp
+
         let witnessCountWithPlutusScript = mkApiWitnessCount WitnessCount
                 { verificationKey = 1
                 , scripts = [plutusScript]
@@ -4471,7 +4477,7 @@ spec = describe "NEW_SHELLEY_TRANSACTIONS" $ do
                 }
         let apiTokens = ApiTokens
                 { policyId = ApiT tokenPolicyId'
-                , policyScript = ApiT (NativeScript scriptUsed)
+                , policyScript = ApiT (NativeScript scriptUsed ViaSpending)
                 , assets = pure (apiTokenAmountFingerprint)
                 }
 
@@ -4583,7 +4589,7 @@ spec = describe "NEW_SHELLEY_TRANSACTIONS" $ do
                 }
         let apiTokens = ApiTokens
                 { policyId = ApiT tokenPolicyId'
-                , policyScript = ApiT (NativeScript scriptUsed)
+                , policyScript = ApiT (NativeScript scriptUsed ViaSpending)
                 , assets = pure (apiTokenAmountFingerprint)
                 }
 

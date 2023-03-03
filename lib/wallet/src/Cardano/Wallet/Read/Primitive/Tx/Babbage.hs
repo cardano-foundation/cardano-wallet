@@ -26,6 +26,8 @@ import Cardano.Ledger.Shelley.API
     ( StrictMaybe (SJust, SNothing) )
 import Cardano.Wallet.Primitive.Types.TokenPolicy
     ( TokenPolicyId )
+import Cardano.Wallet.Primitive.Types.Tx.TxIn
+    ( TxIn (..) )
 import Cardano.Wallet.Read.Eras
     ( babbage, inject )
 import Cardano.Wallet.Read.Primitive.Tx.Features.Certificates
@@ -37,7 +39,7 @@ import Cardano.Wallet.Read.Primitive.Tx.Features.Inputs
 import Cardano.Wallet.Read.Primitive.Tx.Features.Metadata
     ( fromBabbageMetadata )
 import Cardano.Wallet.Read.Primitive.Tx.Features.Mint
-    ( babbageMint', fromLedgerScriptHash )
+    ( babbageMint, fromLedgerScriptHash )
 import Cardano.Wallet.Read.Primitive.Tx.Features.Outputs
     ( fromBabbageTxOut )
 import Cardano.Wallet.Read.Primitive.Tx.Features.Validity
@@ -56,6 +58,8 @@ import Cardano.Wallet.Transaction
     ( AnyScript (..)
     , PlutusScriptInfo (..)
     , PlutusVersion (..)
+    , ReferenceInput (..)
+    , ScriptReference (..)
     , TokenMapWithScripts (..)
     , TokenMapWithScripts (..)
     , ValidityIntervalExplicit (..)
@@ -65,10 +69,8 @@ import Cardano.Wallet.Transaction
     )
 import Data.Foldable
     ( toList )
-import Data.Map.Strict
-    ( Map )
 import Data.Maybe
-    ( mapMaybe )
+    ( catMaybes )
 import Ouroboros.Consensus.Cardano.Block
     ( StandardBabbage )
 
@@ -86,9 +88,13 @@ import qualified Cardano.Ledger.Shelley.API as SL
 import qualified Cardano.Wallet.Primitive.Types as W
 import qualified Cardano.Wallet.Primitive.Types.Hash as W
 import qualified Cardano.Wallet.Primitive.Types.Tx as W
+import qualified Data.List as L
 import qualified Data.Map.Strict as Map
 import qualified Data.Set as Set
 
+import Cardano.Wallet.Primitive.AddressDerivation
+    ( hex )
+import qualified Data.Text.Encoding as T
 import qualified Debug.Trace as TR
 
 fromBabbageTx
@@ -104,7 +110,7 @@ fromBabbageTx
 fromBabbageTx tx@(Alonzo.ValidatedTx bod wits (Alonzo.IsValid isValid) aux) witCtx =
     ( W.Tx
         { txId =
-            W.Hash $ alonzoTxHash tx
+            transactionId
         , txCBOR =
             Just $ renderTxToCBOR $ inject babbage $ Tx tx
         , fee =
@@ -152,38 +158,51 @@ fromBabbageTx tx@(Alonzo.ValidatedTx bod wits (Alonzo.IsValid isValid) aux) witC
         _network
         = bod
 
-    toScriptWithHash s = (hashBabbageScript s, s)
+    hexText = T.decodeLatin1 . hex
+    transactionId = W.Hash $ alonzoTxHash tx
+    scriptWithHashIx ix txout =
+        case (snd . fromBabbageTxOut $ txout) of
+            Just s -> Just ( ViaReferenceInput (ReferenceInput $ TxIn transactionId ix)
+                           , hashBabbageScript s
+                           , s)
+            Nothing -> Nothing
     scriptsFromTxOuts =
+        catMaybes $
+        L.zipWith scriptWithHashIx [0..] (map sizedValue $ toList outs)
+    anyScriptsFromTxOuts =
         Map.fromList $
-        map toScriptWithHash $
-        mapMaybe (snd . fromBabbageTxOut . sizedValue) (toList outs)
-    scriptsFromWits = Alonzo.txscripts' wits
-    allScripts = Map.union scriptsFromWits scriptsFromTxOuts
-    scriptMap = fromBabbageScriptMap allScripts
+        map fromLedgerToAnyScript scriptsFromTxOuts
+    scriptsFromWits =
+        map (\(scriptH,script) -> (ViaSpending, scriptH,script)) $
+        Map.toList $
+        Alonzo.txscripts' wits
+    anyScriptsFromWits =
+        Map.fromList $
+        map fromLedgerToAnyScript scriptsFromWits
+    allAnyScripts = Map.union anyScriptsFromWits anyScriptsFromTxOuts
 
-    (assetsToMint, assetsToBurn) = babbageMint' mint allScripts
+    (assetsToMint, assetsToBurn) = babbageMint mint wits
 
-    countWits = TR.trace ("outs:"<> show outs<>"\ninps:"<>show inps<>"\nrefInps:"<>show refInps<>"\nscriptMap:"<>show scriptMap) $ WitnessCount
+    countWits = TR.trace ("alonzoTxHash tx:"<>show (hexText $ alonzoTxHash tx)<>"outs:"<> show outs<>"\ninps:"<>show inps<>"\nrefInps:"<>show refInps<>"\nallAnyScripts:"<>show allAnyScripts) $ WitnessCount
         (fromIntegral $ Set.size $ Alonzo.txwitsVKey' wits)
-        (Map.elems scriptMap)
+        (Map.elems allAnyScripts)
         (fromIntegral $ Set.size $ Alonzo.txwitsBoot' wits)
 
     hashBabbageScript = SL.Core.hashScript @(Cardano.ShelleyLedgerEra BabbageEra)
 
-    fromBabbageScriptMap
-        :: Map
-            (SL.ScriptHash (Crypto StandardBabbage))
-            (SL.Core.Script StandardBabbage)
-        -> Map TokenPolicyId AnyScript
-    fromBabbageScriptMap =
-        Map.map toAnyScript .
-        Map.mapKeys (toWalletTokenPolicyId . SL.PolicyID)
+    fromLedgerToAnyScript
+        :: ( ScriptReference
+           , (SL.ScriptHash (Crypto StandardBabbage))
+           , (SL.Core.Script StandardBabbage) )
+        -> (TokenPolicyId, AnyScript)
+    fromLedgerToAnyScript (scriptRef, scriptH, script) =
+        (toWalletTokenPolicyId . SL.PolicyID $ scriptH, toAnyScript script)
       where
-        toAnyScript (Alonzo.TimelockScript script) =
-            NativeScript $ toWalletScript (toKeyRole witCtx) script
+        toAnyScript (Alonzo.TimelockScript script') =
+            NativeScript (toWalletScript (toKeyRole witCtx) script') scriptRef
         toAnyScript s@(Alonzo.PlutusScript ver _) =
             PlutusScript (PlutusScriptInfo (toPlutusVer ver)
-                          (fromLedgerScriptHash $ hashBabbageScript s))
+                          (fromLedgerScriptHash $ hashBabbageScript s)) scriptRef
 
         toPlutusVer Alonzo.PlutusV1 = PlutusVersionV1
         toPlutusVer Alonzo.PlutusV2 = PlutusVersionV2

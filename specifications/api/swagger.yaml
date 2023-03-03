@@ -1143,6 +1143,19 @@ x-transactionInputs: &transactionInputs
         type: integer
         minimum: 0
 
+x-referenceInput: &referenceInput
+  description: |
+    A reference input.
+  type: object
+  required:
+    - id
+    - index
+  properties:
+    id: *transactionId
+    index:
+      type: integer
+      minimum: 0
+
 x-transactionCollateral: &transactionCollateral
   description: |
     A list of transaction inputs used for collateral.
@@ -2547,6 +2560,7 @@ components:
               type: string
               enum: ["native"]
             script: *ScriptValue
+            reference: *referenceInput
         - type: object
           required:
             - script_type
@@ -2556,6 +2570,7 @@ components:
               type: string
               enum: ["plutus"]
             script_info: *PlutusScriptInfo
+            reference: *referenceInput
 
     ApiTokens: &ApiTokens
       type: object

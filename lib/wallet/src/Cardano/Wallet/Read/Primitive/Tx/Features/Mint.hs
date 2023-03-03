@@ -15,7 +15,6 @@ module Cardano.Wallet.Read.Primitive.Tx.Features.Mint
     , maryMint
     , alonzoMint
     , babbageMint
-    , babbageMint'
     , fromLedgerScriptToAnyScript
     , fromLedgerScriptHash
     )
@@ -55,7 +54,7 @@ import Cardano.Wallet.Transaction
     ( AnyScript (..)
     , PlutusScriptInfo (..)
     , PlutusVersion (..)
-    , TokenMapWithScripts (..)
+    , ScriptReference (..)
     , TokenMapWithScripts (..)
     , emptyTokenMapWithScripts
     )
@@ -127,14 +126,6 @@ babbageMint ::
     -> (TokenMapWithScripts, TokenMapWithScripts)
 babbageMint = yesMints $ fromBabbageScriptMap . AL.txscripts'
 
-babbageMint'
-    :: SL.Value StandardCrypto
-    -> Map
-        (SL.ScriptHash (Crypto StandardBabbage))
-        (SL.Core.Script StandardBabbage)
-    -> (TokenMapWithScripts, TokenMapWithScripts)
-babbageMint' = yesMints $ fromBabbageScriptMap
-
 yesMints :: (t -> Map TokenPolicyId AnyScript)
     -> SL.Value StandardCrypto
     -> t
@@ -180,7 +171,7 @@ fromMaryScriptMap
         (SL.Core.Script (MA.ShelleyMAEra 'MA.Mary StandardCrypto))
     -> Map TokenPolicyId AnyScript
 fromMaryScriptMap =
-        Map.map (NativeScript . toWalletScript (const Policy)) .
+        Map.map (flip NativeScript ViaSpending . toWalletScript (const Policy)) .
         Map.mapKeys (toWalletTokenPolicyId . SL.PolicyID)
 
 getScriptMap
@@ -202,10 +193,10 @@ fromAlonzoScriptMap =
     Map.mapKeys (toWalletTokenPolicyId . SL.PolicyID)
     where
     toAnyScript (Alonzo.TimelockScript script) =
-        NativeScript $ toWalletScript (const Policy) script
+        NativeScript (toWalletScript (const Policy) script) ViaSpending
     toAnyScript s@(Alonzo.PlutusScript ver _) =
         PlutusScript (PlutusScriptInfo (toPlutusVer ver)
-                      (hashAlonzoScript s))
+                      (hashAlonzoScript s)) ViaSpending
     hashAlonzoScript = fromLedgerScriptHash .
         SL.Core.hashScript @(Cardano.ShelleyLedgerEra Cardano.AlonzoEra)
     toPlutusVer Alonzo.PlutusV1 = PlutusVersionV1
@@ -217,10 +208,10 @@ fromLedgerScriptToAnyScript
 fromLedgerScriptToAnyScript = toAnyScript
     where
     toAnyScript (Alonzo.TimelockScript script) =
-        NativeScript $ toWalletScript (const Policy) script
+        NativeScript (toWalletScript (const Policy) script) ViaSpending
     toAnyScript s@(Alonzo.PlutusScript ver _) =
         PlutusScript (PlutusScriptInfo (toPlutusVer ver)
-                      (hashBabbageScript s))
+                      (hashBabbageScript s)) ViaSpending
     hashBabbageScript = fromLedgerScriptHash .
         SL.Core.hashScript @(Cardano.ShelleyLedgerEra Cardano.BabbageEra)
     toPlutusVer Alonzo.PlutusV1 = PlutusVersionV1

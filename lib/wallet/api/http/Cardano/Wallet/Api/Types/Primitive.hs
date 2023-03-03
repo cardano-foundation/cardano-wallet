@@ -66,7 +66,11 @@ import Cardano.Wallet.Shelley.Network.Discriminant
     , EncodeStakeAddress (..)
     )
 import Cardano.Wallet.Transaction
-    ( AnyScript (NativeScript, PlutusScript), PlutusScriptInfo (..) )
+    ( AnyScript (NativeScript, PlutusScript)
+    , PlutusScriptInfo (..)
+    , ReferenceInput (..)
+    , ScriptReference (..)
+    )
 import Cardano.Wallet.Util
     ( ShowFmt (..) )
 import Codec.Binary.Bech32
@@ -151,28 +155,63 @@ instance ToJSON (ApiT PlutusScriptInfo) where
             , "language_version" .= String (toText v)
             ]
 
+instance ToJSON ReferenceInput where
+    toJSON (ReferenceInput (TxIn txId ix)) =
+        object
+        [ "id" .=toJSON (ApiT txId)
+        , "index" .= toJSON ix
+        ]
+
+instance FromJSON ReferenceInput where
+    parseJSON = withObject "ReferenceInput" $ \v -> ReferenceInput <$>
+        (TxIn <$> fmap getApiT (v .: "id") <*> v .: "index")
+
 instance FromJSON (ApiT AnyScript) where
     parseJSON = (fmap . fmap) ApiT . withObject "AnyScript" $ \obj -> do
         scriptType <- obj .:? "script_type"
-        case (scriptType :: Maybe String) of
-            Just t | t == "plutus" ->
-                PlutusScript . getApiT <$> obj .: "script_info"
-            Just t | t == "native" ->
-                NativeScript <$> obj .: "script"
+        reference <- obj .:? "reference"
+        case (scriptType :: Maybe String, reference :: Maybe ReferenceInput) of
+            (Just t , Nothing) -> case t of
+                "plutus" ->
+                    flip PlutusScript ViaSpending . getApiT <$> obj .: "script_info"
+                "native" ->
+                    flip NativeScript ViaSpending <$> obj .: "script"
+                _ -> fail
+                    "AnyScript needs either 'native' or 'plutus' in 'script_type'"
+            (Just t , Just ref) -> case t of
+                "plutus" ->
+                    flip PlutusScript (ViaReferenceInput ref) . getApiT <$>
+                    obj .: "script_info"
+                "native" ->
+                    flip NativeScript (ViaReferenceInput ref) <$> obj .: "script"
+                _ -> fail
+                    "AnyScript needs either 'native' or 'plutus' in 'script_type'"
             _ -> fail
-                "AnyScript needs either 'native' or 'plutus' in 'script_type'"
+                "AnyScript needs to have 'script_type' field"
 
 instance ToJSON (ApiT AnyScript) where
     toJSON (ApiT anyScript) = case anyScript of
-        NativeScript s ->
+        NativeScript s ViaSpending ->
             object
                 [ "script_type" .= String "native"
                 , "script" .= toJSON s
                 ]
-        PlutusScript s ->
+        PlutusScript s ViaSpending ->
             object
                 [ "script_type" .= String "plutus"
                 , "script_info" .= toJSON (ApiT s)
+                ]
+        NativeScript s (ViaReferenceInput refInput) ->
+            object
+                [ "script_type" .= String "native"
+                , "script" .= toJSON s
+                , "reference" .= toJSON refInput
+                ]
+        PlutusScript s (ViaReferenceInput refInput) ->
+            object
+                [ "script_type" .= String "plutus"
+                , "script_info" .= toJSON (ApiT s)
+                , "reference" .= toJSON refInput
                 ]
 
 instance FromJSON (ApiT W.TokenName) where

@@ -38,6 +38,8 @@ module Cardano.Wallet.Transaction
     , AnyScript (..)
     , PlutusScriptInfo (..)
     , PlutusVersion (..)
+    , ScriptReference (..)
+    , ReferenceInput (..)
     , TxFeeAndChange (..)
     , mapTxFeeAndChange
     , ValidityIntervalExplicit (..)
@@ -382,9 +384,23 @@ data PlutusScriptInfo = PlutusScriptInfo
     deriving (Eq, Generic, Show)
     deriving anyclass NFData
 
+data ReferenceInput = ReferenceInput TxIn
+    deriving (Eq, Generic, Show)
+    deriving anyclass NFData
+
+-- | ScriptReference depicts whether the script is referenced via spending
+-- and is bound to be used in the same transaction or is referenced via
+-- reference inputs and is to be used in other transactions. The the latter
+-- case the script is referenced in other trasactions
+data ScriptReference =
+      ViaSpending
+    | ViaReferenceInput ReferenceInput
+    deriving (Eq, Generic, Show)
+    deriving anyclass NFData
+
 data AnyScript =
-      NativeScript !(Script KeyHash)
-    | PlutusScript !PlutusScriptInfo
+      NativeScript !(Script KeyHash) !ScriptReference
+    | PlutusScript !PlutusScriptInfo !ScriptReference
     deriving (Eq, Generic, Show)
     deriving anyclass NFData
 

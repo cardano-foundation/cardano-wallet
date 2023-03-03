@@ -539,9 +539,9 @@ signTransaction
 
     getScripts :: TokenMapWithScripts -> [KeyHash]
     getScripts scripts =
-        let retrieveAllKeyHashes (NativeScript s) = foldScript (:) [] s
+        let retrieveAllKeyHashes (NativeScript s _) = foldScript (:) [] s
             retrieveAllKeyHashes _ = []
-            isTimelock (NativeScript _) = True
+            isTimelock (NativeScript _ _) = True
             isTimelock _ = False
         in concatMap retrieveAllKeyHashes $
            filter isTimelock $
