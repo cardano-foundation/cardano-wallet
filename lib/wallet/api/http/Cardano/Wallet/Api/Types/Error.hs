@@ -22,6 +22,7 @@ module Cardano.Wallet.Api.Types.Error
     -- * Specific API error types
     , ApiErrorSharedWalletNoSuchCosigner (..)
     , ApiErrorTxOutputLovelaceInsufficient (..)
+    , ApiErrorBalanceTxUnderestimatedFee (..)
     )
     where
 
@@ -93,6 +94,7 @@ data ApiErrorInfo
     | BalanceTxInternalError
     | BalanceTxMaxSizeLimitExceeded
     | BalanceTxUnderestimatedFee
+        ApiErrorBalanceTxUnderestimatedFee
     | CannotCoverFee
     | CreatedInvalidTransaction
     | CreatedMultiaccountTransaction
@@ -207,4 +209,16 @@ data ApiErrorTxOutputLovelaceInsufficient = ApiErrorTxOutputLovelaceInsufficient
     deriving (Data, Eq, Generic, Show, Typeable)
     deriving (FromJSON, ToJSON)
         via DefaultRecord ApiErrorTxOutputLovelaceInsufficient
+    deriving anyclass NFData
+
+data ApiErrorBalanceTxUnderestimatedFee = ApiErrorBalanceTxUnderestimatedFee
+    { underestimation :: !(Quantity "lovelace" Natural)
+    , estimatedNumberOfKeyWits :: Natural
+    , estimatedNumberOfBootstrapKeyWits :: Natural
+    , candidateTxHex :: Text
+    , candidateTxReadable :: Text
+    }
+    deriving (Data, Eq, Generic, Show, Typeable)
+    deriving (FromJSON, ToJSON)
+        via DefaultRecord ApiErrorBalanceTxUnderestimatedFee
     deriving anyclass NFData
