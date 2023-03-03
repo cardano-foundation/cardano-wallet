@@ -71,9 +71,12 @@ import Cardano.Wallet.Shelley.Compatibility
 import Cardano.Wallet.Shelley.Transaction
     ( KeyWitnessCount (..)
     , TxUpdate (..)
+    , assignScriptRedeemers
+    , distributeSurplus
     , estimateKeyWitnessCount
     , estimateSignedTxSize
     , evaluateMinimumFee
+    , maxScriptExecutionCost
     )
 import Cardano.Wallet.Transaction
     ( ErrAssignRedeemers
@@ -559,7 +562,7 @@ balanceTransactionWithSelectionStrategyAndNoZeroAdaAdjustment
             ErrBalanceTxInternalError $
                 ErrUnderestimatedFee c (toSealed candidateTx) witCount)
         (ExceptT . pure $
-            distributeSurplus txLayer feePolicy surplus feeAndChange)
+            distributeSurplus feePolicy surplus feeAndChange)
 
     fmap (, s') . guardTxSize witCount =<< guardTxBalanced =<< assembleTransaction
         TxUpdate
@@ -713,7 +716,7 @@ balanceTransactionWithSelectionStrategyAndNoZeroAdaAdjustment
     assembleTransaction update = ExceptT . pure $ do
         tx' <- left ErrBalanceTxUpdateError $ updateTx txLayer partialTx update
         left ErrBalanceTxAssignRedeemers $ assignScriptRedeemers
-            txLayer nodePParams ti combinedUTxO redeemers tx'
+            nodePParams ti combinedUTxO redeemers tx'
 
     extractOutputsFromTx tx =
         let
@@ -784,7 +787,7 @@ balanceTransactionWithSelectionStrategyAndNoZeroAdaAdjustment
         -> Either (SelectionError WalletSelectionContext) Selection
     selectAssets' era outs utxoSelection balance fee0 seed =
         let
-            txPlutusScriptExecutionCost = maxScriptExecutionCost txLayer pp redeemers
+            txPlutusScriptExecutionCost = maxScriptExecutionCost pp redeemers
             colReq =
                 if txPlutusScriptExecutionCost > W.Coin 0 then
                     SelectionCollateralRequired

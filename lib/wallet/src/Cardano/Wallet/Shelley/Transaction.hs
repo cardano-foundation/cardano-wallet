@@ -38,6 +38,19 @@ module Cardano.Wallet.Shelley.Transaction
     , noTxUpdate
     , updateSealedTx
 
+    -- * For balancing (To be moved)
+    , maxScriptExecutionCost
+    , estimateKeyWitnessCount
+    , evaluateMinimumFee
+    , estimateSignedTxSize
+    , KeyWitnessCount (..)
+    , distributeSurplus
+    , distributeSurplusDelta
+    , sizeOfCoin
+    , maximumCostOfIncreasingCoin
+    , costOfIncreasingCoin
+    , assignScriptRedeemers
+
     -- * Internals
     , TxPayload (..)
     , TxSkeleton (..)
@@ -46,7 +59,6 @@ module Cardano.Wallet.Shelley.Transaction
     , EraConstraints
     , _decodeSealedTx
     , _estimateMaxNumberOfInputs
-    , _maxScriptExecutionCost
     , mkDelegationCertificates
     , estimateTxCost
     , estimateTxSize
@@ -56,15 +68,6 @@ module Cardano.Wallet.Shelley.Transaction
     , mkTxSkeleton
     , mkUnsignedTx
     , txConstraints
-    , estimateKeyWitnessCount
-    , evaluateMinimumFee
-    , estimateSignedTxSize
-    , KeyWitnessCount (..)
-    , costOfIncreasingCoin
-    , _distributeSurplus
-    , distributeSurplusDelta
-    , sizeOfCoin
-    , maximumCostOfIncreasingCoin
     ) where
 
 import Prelude
@@ -665,14 +668,6 @@ newTransactionLayer networkId = TransactionLayer
         <>
         txFeePadding ctx
 
-    , maxScriptExecutionCost =
-        _maxScriptExecutionCost
-
-    , distributeSurplus = _distributeSurplus
-
-    , assignScriptRedeemers =
-        _assignScriptRedeemers
-
     , computeSelectionLimit = \era pp ctx outputsToCover ->
         let txMaxSize = getTxMaxSize $ txParameters pp in
         MaximumInputLimit $
@@ -1158,11 +1153,13 @@ estimateKeyWitnessCount utxo txbody@(Cardano.TxBody txbodycontent) =
                 , "Caller is expected to ensure this does not happen."
                 ]
 
-_maxScriptExecutionCost
+maxScriptExecutionCost
     :: ProtocolParameters
+     -- ^ Current protocol parameters
     -> [Redeemer]
+    -- ^ Redeemers for this transaction
     -> Coin
-_maxScriptExecutionCost pp redeemers
+maxScriptExecutionCost pp redeemers
     | not (null redeemers) = case view #executionUnitPrices pp of
         Just prices -> executionCost prices maxExecutionUnits
         Nothing     -> Coin 0
@@ -1182,7 +1179,7 @@ type AlonzoTx =
 type BabbageTx =
     Ledger.Tx (Cardano.ShelleyLedgerEra Cardano.BabbageEra)
 
-_assignScriptRedeemers
+assignScriptRedeemers
     :: forall era. Cardano.IsShelleyBasedEra era
     => Cardano.ProtocolParameters
     -> TimeInterpreter (Either PastHorizonException)
@@ -1190,7 +1187,7 @@ _assignScriptRedeemers
     -> [Redeemer]
     -> Cardano.Tx era
     -> Either ErrAssignRedeemers (Cardano.Tx era )
-_assignScriptRedeemers pparams ti utxo redeemers tx =
+assignScriptRedeemers pparams ti utxo redeemers tx =
     case Cardano.shelleyBasedEra @era of
         Cardano.ShelleyBasedEraShelley ->
             pure tx
@@ -1673,12 +1670,36 @@ sizeOfCoin (Coin c)
     | c >=            24 = TxSize 2
     | otherwise          = TxSize 1
 
--- | Distributes a surplus transaction balance between the given change outputs
---   and the given fee.
+-- | Distributes a surplus transaction balance between the given change
+-- outputs and the given fee. This function is aware of the fact that
+-- any increase in a 'Coin' value could increase the size and fee
+-- requirement of a transaction.
 --
--- See documentation for 'TransactionLayer.distributeSurplus' for more details.
+-- When comparing the original fee and change outputs to the adjusted
+-- fee and change outputs, this function guarantees that:
 --
-_distributeSurplus
+--    - The number of the change outputs remains constant;
+--
+--    - The fee quantity either remains the same or increases.
+--
+--    - For each change output:
+--        - the ada quantity either remains constant or increases.
+--        - non-ada quantities remain the same.
+--
+--    - The surplus is conserved:
+--        The total increase in the fee and change ada quantities is
+--        exactly equal to the surplus.
+--
+--    - Any increase in cost is covered:
+--        If the total cost has increased by 𝛿c, then the fee value
+--        will have increased by at least 𝛿c.
+--
+-- If the cost of distributing the provided surplus is greater than the
+-- surplus itself, the function will return 'ErrMoreSurplusNeeded'. If
+-- the provided surplus is greater or equal to
+-- @maximumCostOfIncreasingCoin feePolicy@, the function will always
+-- return 'Right'.
+distributeSurplus
     :: FeePolicy
     -> Coin
     -- ^ Surplus transaction balance to distribute.
@@ -1686,7 +1707,7 @@ _distributeSurplus
     -- ^ Original fee and change outputs.
     -> Either ErrMoreSurplusNeeded (TxFeeAndChange [TxOut])
     -- ^ Adjusted fee and change outputs.
-_distributeSurplus feePolicy surplus fc@(TxFeeAndChange fee change) =
+distributeSurplus feePolicy surplus fc@(TxFeeAndChange fee change) =
     distributeSurplusDelta feePolicy surplus
         (mapTxFeeAndChange id (fmap TxOut.coin) fc)
     <&> mapTxFeeAndChange

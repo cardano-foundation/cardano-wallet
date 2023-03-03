@@ -240,12 +240,14 @@ import Cardano.Wallet.Shelley.Transaction
     , TxWitnessTag (..)
     , TxWitnessTagFor
     , costOfIncreasingCoin
+    , distributeSurplus
     , distributeSurplusDelta
     , estimateKeyWitnessCount
     , estimateSignedTxSize
     , estimateTxCost
     , estimateTxSize
     , evaluateMinimumFee
+    , maxScriptExecutionCost
     , maximumCostOfIncreasingCoin
     , mkByronWitness
     , mkDelegationCertificates
@@ -258,9 +260,7 @@ import Cardano.Wallet.Shelley.Transaction
     , txConstraints
     , updateSealedTx
     , _decodeSealedTx
-    , _distributeSurplus
     , _estimateMaxNumberOfInputs
-    , _maxScriptExecutionCost
     )
 import Cardano.Wallet.Transaction
     ( DelegationAction (..)
@@ -1293,11 +1293,11 @@ feeCalculationSpec era = describe "fee calculations" $ do
             let rdmrs = replicate (sealedNumberOfRedeemers tx) (error "Redeemer")
             if (null rdmrs) then do
                 it ("without redeemers: " <> filepath) $
-                    _maxScriptExecutionCost ppWithPrices rdmrs
+                    maxScriptExecutionCost ppWithPrices rdmrs
                         `shouldBe` (Coin 0)
             else do
                 it ("with redeemers: " <> filepath) $
-                    _maxScriptExecutionCost ppWithPrices rdmrs
+                    maxScriptExecutionCost ppWithPrices rdmrs
                         `shouldSatisfy` (> (Coin 0))
 
     describe "fee calculations" $ do
@@ -2920,7 +2920,7 @@ prop_distributeSurplus_onSuccess propertyToTest policy txSurplus fc =
     TxFeeAndChange feeOriginal changeOriginal = fc
 
     mResult :: Either ErrMoreSurplusNeeded (TxFeeAndChange [TxOut])
-    mResult = _distributeSurplus policy surplus fc
+    mResult = distributeSurplus policy surplus fc
 
 -- Verifies that the 'distributeSurplus' function conserves the surplus: the
 -- total increase in the fee and change ada quantities should be exactly equal

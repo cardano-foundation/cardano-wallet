@@ -85,10 +85,9 @@ import Cardano.Wallet.Primitive.AddressDerivation
 import Cardano.Wallet.Primitive.Passphrase.Types
     ( Passphrase )
 import Cardano.Wallet.Primitive.Slotting
-    ( PastHorizonException, TimeInterpreter )
+    ( PastHorizonException )
 import Cardano.Wallet.Primitive.Types
     ( Certificate
-    , FeePolicy
     , ProtocolParameters
     , SlotNo (..)
     , TokenBundleMaxSize (..)
@@ -136,7 +135,6 @@ import GHC.Generics
     ( Generic )
 
 import qualified Cardano.Api as Cardano
-import qualified Cardano.Api.Shelley as Cardano
 import qualified Cardano.Wallet.Primitive.Types.TokenMap as TokenMap
 import qualified Cardano.Wallet.Write.Tx as WriteTx
 import qualified Data.Map.Strict as Map
@@ -217,52 +215,6 @@ data TransactionLayer k ktype tx = TransactionLayer
         -- ^ Compute a minimal fee amount necessary to pay for a given selection
         -- This also includes necessary deposits.
 
-    , maxScriptExecutionCost
-        :: ProtocolParameters
-            -- Current protocol parameters
-        -> [Redeemer]
-            -- Redeemers for this transaction
-        -> Coin
-        -- ^ Compute the maximum execution cost of scripts in a given transaction.
-
-    , distributeSurplus
-        :: FeePolicy
-        -> Coin
-        -- Surplus transaction balance to distribute.
-        -> TxFeeAndChange [TxOut]
-        -- Original fee and change outputs.
-        -> Either ErrMoreSurplusNeeded (TxFeeAndChange [TxOut])
-        --
-        -- ^ Distributes a surplus transaction balance between the given change
-        -- outputs and the given fee. This function is aware of the fact that
-        -- any increase in a 'Coin' value could increase the size and fee
-        -- requirement of a transaction.
-        --
-        -- When comparing the original fee and change outputs to the adjusted
-        -- fee and change outputs, this function guarantees that:
-        --
-        --    - The number of the change outputs remains constant;
-        --
-        --    - The fee quantity either remains the same or increases.
-        --
-        --    - For each change output:
-        --        - the ada quantity either remains constant or increases.
-        --        - non-ada quantities remain the same.
-        --
-        --    - The surplus is conserved:
-        --        The total increase in the fee and change ada quantities is
-        --        exactly equal to the surplus.
-        --
-        --    - Any increase in cost is covered:
-        --        If the total cost has increased by 𝛿c, then the fee value
-        --        will have increased by at least 𝛿c.
-        --
-        -- If the cost of distributing the provided surplus is greater than the
-        -- surplus itself, the function will return 'ErrMoreSurplusNeeded'. If
-        -- the provided surplus is greater or equal to
-        -- @maximumCostOfIncreasingCoin feePolicy@, the function will always
-        -- return 'Right'.
-
     , computeSelectionLimit
         :: AnyCardanoEra
         -> ProtocolParameters
@@ -301,18 +253,6 @@ data TransactionLayer k ktype tx = TransactionLayer
         -> TxUpdate
         -> Either ErrUpdateSealedTx (Cardano.Tx era)
         -- ^ Update tx by adding additional inputs and outputs
-
-    , assignScriptRedeemers
-        :: forall era. Cardano.IsShelleyBasedEra era
-        => Cardano.ProtocolParameters
-            -- Current protocol parameters
-        -> TimeInterpreter (Either PastHorizonException)
-        -> Cardano.UTxO era
-        -> [Redeemer]
-            -- A list of redeemers to set on the transaction.
-        -> (Cardano.Tx era)
-            -- Transaction containing scripts
-        -> (Either ErrAssignRedeemers (Cardano.Tx era))
     }
 
 -- | Method to use when updating the fee of a transaction.

@@ -1225,12 +1225,6 @@ dummyTransactionLayer = TransactionLayer
         error "dummyTransactionLayer: mkUnsignedTransaction not implemented"
     , calcMinimumCost =
         error "dummyTransactionLayer: calcMinimumCost not implemented"
-    , maxScriptExecutionCost =
-        error "dummyTransactionLayer: maxScriptExecutionCost not implemented"
-    , assignScriptRedeemers =
-        error "dummyTransactionLayer: assignScriptRedeemers not implemented"
-    , distributeSurplus =
-        error "dummyTransactionLayer: distributeSurplus not implemented"
     , computeSelectionLimit =
         error "dummyTransactionLayer: computeSelectionLimit not implemented"
     , tokenBundleSizeAssessor =
