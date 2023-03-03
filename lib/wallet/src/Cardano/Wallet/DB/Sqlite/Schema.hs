@@ -67,6 +67,7 @@ import qualified Cardano.Wallet.Primitive.Types.Coin as W
 import qualified Cardano.Wallet.Primitive.Types.TokenPolicy as W
 import qualified Cardano.Wallet.Primitive.Types.TokenQuantity as W
 import qualified Cardano.Wallet.Primitive.Types.Tx as W
+import qualified Data.ByteString as B
 import qualified Data.ByteString.Char8 as B8
 
 share
@@ -506,4 +507,15 @@ SubmissionsSlots
 
     Primary submissionsSlotsWallet
     deriving Show Generic Eq
+
+DeltaUtxo
+    deltaUtxoWalletId W.WalletId sql=wallet_id
+    deltaUtxoSlot SlotNo sql=slot
+    deltaUtxoDelta B.ByteString sql=delta
+
+    Primary deltaUtxoWalletId deltaUtxoSlot
+    deriving Show Generic Eq
+
+
+
 |]
