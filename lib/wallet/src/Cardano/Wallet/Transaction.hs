@@ -109,7 +109,7 @@ import Cardano.Wallet.Primitive.Types.TokenMap
 import Cardano.Wallet.Primitive.Types.TokenPolicy
     ( TokenPolicyId )
 import Cardano.Wallet.Primitive.Types.Tx.Constraints
-    ( TokenBundleSizeAssessor, TxConstraints, TxSize )
+    ( TokenBundleSizeAssessor, TxConstraints )
 import Cardano.Wallet.Primitive.Types.Tx.Tx
     ( Tx (..), TxMetadata )
 import Cardano.Wallet.Primitive.Types.Tx.TxIn
@@ -224,28 +224,6 @@ data TransactionLayer k ktype tx = TransactionLayer
             -- Redeemers for this transaction
         -> Coin
         -- ^ Compute the maximum execution cost of scripts in a given transaction.
-
-    , evaluateMinimumFee
-        :: forall era. Cardano.IsShelleyBasedEra era
-        => Cardano.ProtocolParameters
-            -- Current protocol parameters
-        -> Cardano.UTxO era
-        -> Cardano.Tx era
-            -- The sealed transaction
-        -> Coin
-        -- ^ Evaluate a minimal fee amount necessary to pay for a given tx
-        -- using ledger's functionality
-        --
-        -- Will estimate how many witnesses there /should be/, so it works even
-        -- for unsigned transactions.
-
-    , estimateSignedTxSize
-        :: forall era. Cardano.IsShelleyBasedEra era
-        => Cardano.ProtocolParameters
-        -> Cardano.UTxO era
-        -> Cardano.Tx era
-        -> TxSize
-        -- ^ Estimate the size of the transaction when fully signed.
 
     , distributeSurplus
         :: FeePolicy

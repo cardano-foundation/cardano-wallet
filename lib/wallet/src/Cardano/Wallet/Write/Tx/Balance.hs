@@ -69,7 +69,12 @@ import Cardano.Wallet.Primitive.Types.UTxOSelection
 import Cardano.Wallet.Shelley.Compatibility
     ( fromCardanoTxIn, fromCardanoTxOut, toCardanoUTxO )
 import Cardano.Wallet.Shelley.Transaction
-    ( KeyWitnessCount (..), TxUpdate (..), estimateKeyWitnessCount )
+    ( KeyWitnessCount (..)
+    , TxUpdate (..)
+    , estimateKeyWitnessCount
+    , estimateSignedTxSize
+    , evaluateMinimumFee
+    )
 import Cardano.Wallet.Transaction
     ( ErrAssignRedeemers
     , ErrMoreSurplusNeeded (..)
@@ -556,7 +561,7 @@ balanceTransactionWithSelectionStrategyAndNoZeroAdaAdjustment
         (ExceptT . pure $
             distributeSurplus txLayer feePolicy surplus feeAndChange)
 
-    fmap (, s') . guardTxSize =<< guardTxBalanced =<< assembleTransaction
+    fmap (, s') . guardTxSize witCount =<< guardTxBalanced =<< assembleTransaction
         TxUpdate
             { extraInputs
             , extraCollateral
@@ -610,9 +615,12 @@ balanceTransactionWithSelectionStrategyAndNoZeroAdaAdjustment
         Cardano.Tx (Cardano.TxBody (Cardano.TxBodyContent { Cardano.txIns })) _
             = tx
 
-    guardTxSize :: Cardano.Tx era -> ExceptT ErrBalanceTx m (Cardano.Tx era)
-    guardTxSize tx = do
-        let size = estimateSignedTxSize txLayer nodePParams combinedUTxO tx
+    guardTxSize
+        :: KeyWitnessCount
+        -> Cardano.Tx era
+        -> ExceptT ErrBalanceTx m (Cardano.Tx era)
+    guardTxSize witCount tx@(Cardano.Tx body _noKeyWits) = do
+        let size = estimateSignedTxSize nodePParams witCount body
         let maxSize = TxSize
                 . intCast
                 . getQuantity
@@ -643,16 +651,15 @@ balanceTransactionWithSelectionStrategyAndNoZeroAdaAdjustment
         :: Cardano.Tx era
         -> ExceptT ErrBalanceTx m (Cardano.Value, Cardano.Lovelace, KeyWitnessCount)
     balanceAfterSettingMinFee tx = ExceptT . pure $ do
-        -- NOTE: evaluateMinimumFee relies on correctly estimating the required
-        -- number of witnesses.
-        let minfee = evaluateMinimumFee txLayer nodePParams combinedUTxO tx
+        let witCount = estimateKeyWitnessCount combinedUTxO (getBody tx)
+        let minfee = evaluateMinimumFee nodePParams witCount (getBody tx)
         let update = TxUpdate [] [] [] [] (UseNewTxFee minfee)
         tx' <- left ErrBalanceTxUpdateError $ updateTx txLayer tx update
         let balance = txBalance tx'
         let minfee' = Cardano.Lovelace $ fromIntegral $ W.unCoin minfee
-        let Cardano.Tx txBody' _ = tx'
-        let witCount = estimateKeyWitnessCount combinedUTxO txBody'
         return (balance, minfee', witCount)
+      where
+        getBody (Cardano.Tx body _) = body
 
     -- | Ensure the wallet UTxO is consistent with a provided @Cardano.UTxO@.
     --
