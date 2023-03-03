@@ -17,6 +17,7 @@ module Cardano.Wallet.Api.Http.Server.Error
     ( IsServerError (..)
     , liftHandler
     , liftE
+    , apiError
     , apiErrorOldDeprecated
     , err425
     , showT
@@ -238,6 +239,50 @@ liftE = liftHandler . throwE
 -- | Lift an IO action into servant 'Handler'
 handler :: IO a -> Handler a
 handler = Handler . liftIO
+
+-- | Current, blessed way of creating API errors, with rich error info objects.
+--
+-- Note that errors constructed with this function do /not/ include an error
+-- message, by design.
+--
+-- Instead, they include an optional error info object.
+--
+-- All information necessary to interpret every error should be available from:
+--
+--   - the swagger specification (which should include both a schema and
+--     human-readable description of the error).
+--
+--   - the serialised name of the error (which enables the caller to look up
+--     the error in the swagger specification).
+--
+--   - the optional rich error info object.
+--
+-- Usage example:
+--
+-- @
+-- apiError err403 $ UtxoTooSmall
+--     ApiErrorTxOutputLovelaceInsufficient
+--         { txOutputIndex = index
+--         , txOutputLovelaceSpecified =
+--             Coin.toQuantity $ TokenBundle.getCoin $ snd $ view #output e
+--         , txOutputLovelaceRequiredMinimum =
+--             Coin.toQuantity $ view #minimumExpectedCoin e
+--         }
+-- @
+--
+apiError :: ServerError -> ApiErrorInfo -> ServerError
+apiError err info = err
+    { errBody = Aeson.encode ApiError {info, message}
+    , errHeaders =
+        (hContentType, renderHeader $ contentType $ Proxy @JSON)
+        : errHeaders err
+    }
+  where
+    -- For backwards compatibility with our JSON roundtrip test suite, we have
+    -- to include a message string. We can remove this requirement later on,
+    -- once all errors have been converted to use 'apiError' instead of
+    -- 'apiErrorOldDeprecated'.
+    message = ApiErrorMessage ""
 
 apiErrorOldDeprecated :: ServerError -> ApiErrorInfo -> Text -> ServerError
 apiErrorOldDeprecated err info messageUnformatted = err
