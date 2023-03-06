@@ -308,17 +308,25 @@ migrateManually tr proxy defaultFieldValues =
         -- 1. Add genesis_hash and genesis_start to the 'wallet' table.
         let field = DBField WalGenesisHash
         isFieldPresent conn field >>= \case
-            TableMissing ->
-                traceWith tr $ MsgManualMigrationNotNeeded field
-
-            ColumnPresent -> do
-                traceWith tr $ MsgManualMigrationNotNeeded field
-
+            TableMissing -> traceWith tr $ MsgManualMigrationNotNeeded field
+            ColumnPresent -> traceWith tr $ MsgManualMigrationNotNeeded field
             ColumnMissing -> do
-                [defaults] <- runSql conn $ select' ["genesis_hash", "genesis_start"] orig
-                let [PersistText genesisHash, PersistText genesisStart] = defaults
-                addColumn_ conn True (DBField WalGenesisHash) (quotes genesisHash)
-                addColumn_ conn True (DBField WalGenesisStart) (quotes genesisStart)
+                let qry = select' ["genesis_hash", "genesis_start"] orig
+                runSql conn qry >>= \case
+                    [[PersistText genesisHash, PersistText genesisStart]] -> do
+                        addColumn_
+                            conn
+                            True
+                            (DBField WalGenesisHash)
+                            (quotes genesisHash)
+                        addColumn_
+                            conn
+                            True
+                            (DBField WalGenesisStart)
+                            (quotes genesisStart)
+                    _ ->
+                        error "cleanupCheckpointTable: genesis_hash and \
+                            \genesis_start not found"
 
         -- 2. Drop columns from the 'checkpoint' table
         isFieldPresentByName conn "checkpoint" "genesis_hash" >>= \case
@@ -641,7 +649,13 @@ migrateManually tr proxy defaultFieldValues =
             ColumnMissing -> do
                 traceWith tr $ MsgManualMigrationNeeded fieldFee "NULL"
 
-                rows <- fmap unwrapRows (mkQuery >>= runSql conn)
+                rows <-
+                    (mkQuery >>= runSql conn) <&> fmap (\case
+                        [ PersistText txid
+                            , PersistInt64 nOuts
+                            , PersistInt64 delta ] -> (txid, nOuts, delta)
+                        _ -> error "addFeeToTransaction: impossible"
+                    )
 
                 _ <- runSql conn $ T.unwords
                     [ "ALTER TABLE", tableName fieldFee
@@ -665,9 +679,6 @@ migrateManually tr proxy defaultFieldValues =
       where
         fieldFee  = DBField TxMetaFee
         fieldTxId = DBField TxMetaTxId
-
-        unwrapRows = fmap $ \[PersistText txid, PersistInt64 nOuts, PersistInt64 delta] ->
-            (txid, nOuts, delta)
 
         isKeyRegistration nOuts delta =
             nOuts <= 1 && delta > max keyDepositValue minUtxoValue
@@ -747,8 +758,13 @@ migrateManually tr proxy defaultFieldValues =
                                 , ";"
                                 ]
                             Sqlite.step query *> Sqlite.finalize query
-                            let (Right stakeKeyVal) = W.Coin . round <$> fromText @Double (T.dropEnd 1 c)
-                            addKeyDepositIfMissing conn (toText stakeKeyVal)
+                            case fromText @Double (T.dropEnd 1 c) of
+                                Right stakeKeyVal ->
+                                    addKeyDepositIfMissing conn
+                                        $ toText
+                                        $ W.Coin
+                                        $ round stakeKeyVal
+                                Left e -> error $ show e
                         _ ->
                             fail ("Unexpected row result when querying fee value: " <> T.unpack t)
                     _ ->

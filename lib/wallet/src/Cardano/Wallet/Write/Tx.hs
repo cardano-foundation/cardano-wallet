@@ -698,25 +698,26 @@ modifyLedgerBody
         -> Core.TxBody (ShelleyLedgerEra cardanoEra))
     -> Cardano.Tx cardanoEra
     -> Cardano.Tx cardanoEra
-modifyLedgerBody f (Cardano.Tx body keyWits) =
-    let
-        Cardano.ShelleyTxBody
-            shelleyEra
-            ledgerBody
-            scripts
-            scriptData
-            auxData
-            validity
-            = body
-        body' = Cardano.ShelleyTxBody
-            shelleyEra
-            (f ledgerBody)
-            scripts
-            scriptData
-            auxData
-            validity
-    in
-        Cardano.Tx body' keyWits
+modifyLedgerBody f (Cardano.Tx body keyWits) = Cardano.Tx body' keyWits
+  where
+    body' =
+        case body of
+            Cardano.ByronTxBody {} ->
+                error "Impossible: ByronTxBody in ShelleyLedgerEra"
+            Cardano.ShelleyTxBody
+                shelleyEra
+                ledgerBody
+                scripts
+                scriptData
+                auxData
+                validity ->
+                    Cardano.ShelleyTxBody
+                        shelleyEra
+                        (f ledgerBody)
+                        scripts
+                        scriptData
+                        auxData
+                        validity
 
 --------------------------------------------------------------------------------
 -- Compatibility

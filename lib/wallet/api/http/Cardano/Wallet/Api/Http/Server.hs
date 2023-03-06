@@ -642,10 +642,11 @@ postAnyAddress net addrData = do
                      CA.paymentAddress discriminant (spendingFrom spendingCred)
                  , EnterpriseDelegating )
         (ApiAddressData (AddrRewardAccount stakingCred) validation') -> do
-            let (Right stakeAddr) =
-                    CA.stakeAddress discriminant (stakingFrom stakingCred)
-            guardValidation validation' stakingCred
-            pure ( unAddress stakeAddr, RewardAccount )
+            case CA.stakeAddress discriminant (stakingFrom stakingCred) of
+                Right stakeAddr -> do
+                    guardValidation validation' stakingCred
+                    pure ( unAddress stakeAddr, RewardAccount )
+                Left e -> error $ show e
         (ApiAddressData (AddrBase spendingCred stakingCred) validation') -> do
             guardValidation validation' spendingCred
             guardValidation validation' stakingCred
@@ -695,4 +696,7 @@ postAnyAddress net addrData = do
                       Left err -> (True, TextDecodingError $ prettyErrValidateScript err)
                       Right _ -> (False, TextDecodingError "")
               _ -> (False, TextDecodingError "")
-      (Right discriminant) = CA.mkNetworkDiscriminant netTag
+      discriminant =
+        case CA.mkNetworkDiscriminant netTag of
+            Right d -> d
+            Left e -> error $ show e

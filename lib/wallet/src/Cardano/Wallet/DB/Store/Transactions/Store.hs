@@ -139,9 +139,11 @@ putTxSet (TxSet tx_map) = do
 
   where
     tx_list = toList tx_map
-    repsertMany' xs = let
-        Just f = keyFromRecordM
-        in chunked repsertMany [(f x, x) | x <- xs]
+    repsertMany' xs =
+        case keyFromRecordM of
+            Just f -> chunked repsertMany [(f x, x) | x <- xs]
+            Nothing -> error "keyFromRecordM is Nothing"
+
     -- needed to submit large number of elements
     chunked f xs = mapM_ f (chunksOf 1000 xs)
 

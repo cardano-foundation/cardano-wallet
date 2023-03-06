@@ -562,11 +562,11 @@ instance
         insertCosigner (cosigners pTemplate) Payment
         when (isJust dTemplateM) $
             insertCosigner (cosigners $ fromJust dTemplateM) Delegation
-        unless (Shared.Pending == readiness) $ do
-            let (Shared.Active (Shared.SharedAddressPools _ _ pendingIxs)) =
-                    readiness
-            deleteWhere [SharedStatePendingWalletId ==. wid]
-            dbChunked insertMany_ (mkSharedStatePendingIxs pendingIxs)
+        case readiness of
+            Shared.Pending {} -> pure ()
+            Shared.Active (Shared.SharedAddressPools _ _ pendingIxs) -> do
+                deleteWhere [SharedStatePendingWalletId ==. wid]
+                dbChunked insertMany_ (mkSharedStatePendingIxs pendingIxs)
       where
         insertSharedState prefix accXPub gap pTemplate dTemplateM = do
             deleteWhere [SharedStateWalletId ==. wid]

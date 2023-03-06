@@ -154,16 +154,16 @@ shrinkPercentage x = unsafeMkPercentage <$>
     p = numerator $ getPercentage x
     q = denominator $ getPercentage x
 
-genLegacyAddress
-    :: Maybe ProtocolMagic
-    -> Gen Address
+genLegacyAddress :: Maybe ProtocolMagic -> Gen Address
 genLegacyAddress pm = do
     bytes <- BS.pack <$> vector 64
-    let (Just key) = xpubFromBytes bytes
-    pure $ Address
-        $ CBOR.toStrictByteString
-        $ CBOR.encodeAddress key
-        $ maybe [] (pure . CBOR.encodeProtocolMagicAttr) pm
+    case xpubFromBytes bytes of
+        Nothing -> error "genLegacyAddress: xpubFromBytes failed"
+        Just key ->
+            pure $ Address
+                 $ CBOR.toStrictByteString
+                 $ CBOR.encodeAddress key
+                 $ maybe [] (pure . CBOR.encodeProtocolMagicAttr) pm
 
 --
 -- Slotting

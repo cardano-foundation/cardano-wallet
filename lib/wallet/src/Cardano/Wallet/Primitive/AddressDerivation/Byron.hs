@@ -83,8 +83,6 @@ import Cardano.Wallet.Primitive.Types.Address
     ( Address (..) )
 import Cardano.Wallet.Primitive.Types.ProtocolMagic
     ( ProtocolMagic (..), testnetMagic )
-import Cardano.Wallet.Util
-    ( invariant )
 import Control.DeepSeq
     ( NFData )
 import Crypto.Hash
@@ -230,19 +228,23 @@ unsafeGenerateKeyFromSeed
     -> SomeMnemonic
     -> Passphrase "encryption"
     -> ByronKey depth XPrv
-unsafeGenerateKeyFromSeed derivationPath (SomeMnemonic mw) (Passphrase pwd) = ByronKey
-    { getKey = masterKey
-    , derivationPath
-    , payloadPassphrase = hdPassphrase (toXPub masterKey)
-    }
+unsafeGenerateKeyFromSeed derivationPath (SomeMnemonic mw) (Passphrase pwd) =
+    ByronKey
+        { getKey = masterKey
+        , derivationPath
+        , payloadPassphrase = hdPassphrase (toXPub masterKey)
+        }
   where
-    masterKey = generate (hashSeed seed') pwd
-    seed  = entropyToBytes $ mnemonicToEntropy mw
-    seed' = invariant
-        ("seed length : " <> show (BA.length seed)
-            <> " in (Passphrase \"seed\") is not valid")
-        seed
-        (\s -> BA.length s >= minSeedLengthBytes && BA.length s <= 255)
+    masterKey = generate (hashSeed validSeed) pwd
+    seed = entropyToBytes $ mnemonicToEntropy mw
+    validSeed =
+        if BA.length seed >= minSeedLengthBytes && BA.length seed <= 255
+        then seed
+        else error . Prelude.unwords $
+            [ "seed length:"
+            , show (BA.length seed)
+            , "in (Passphrase \"seed\") is not valid"
+            ]
 
 -- | Hash the seed entropy (generated from mnemonic) used to initiate a HD
 -- wallet. This increases the key length to 34 bytes, selectKey is greater than the

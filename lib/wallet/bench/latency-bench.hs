@@ -144,6 +144,7 @@ import UnliftIO.STM
     ( TVar )
 
 import qualified Cardano.Wallet.Api.Link as Link
+import qualified Data.List.NonEmpty as NE
 import qualified Network.HTTP.Types.Status as HTTP
 
 main :: forall n. (n ~ 'Mainnet) => IO ()
@@ -425,10 +426,7 @@ walletApiBench capture ctx = do
         fmtResult "getNetworkInfo     " t
         pure ()
 
-withShelleyServer
-    :: Tracers IO
-    -> (Context -> IO ())
-    -> IO ()
+withShelleyServer :: Tracers IO -> (Context -> IO ()) -> IO ()
 withShelleyServer tracers action = do
     ctx <- newEmptyMVar
     let setupContext np baseUrl = do
@@ -460,19 +458,16 @@ withShelleyServer tracers action = do
             let db = dir </> "wallets"
             createDirectory db
             let logCfg = LogFileConfig Error Nothing Error
-            let clusterCfg = LocalClusterConfig
-                    [head defaultPoolConfigs]
-                    maxBound
-                    logCfg
+            let poolConfig = pure $ NE.head defaultPoolConfigs
             withCluster
                 nullTracer
                 dir
-                clusterCfg
+                (LocalClusterConfig poolConfig maxBound logCfg)
                 faucetFunds
                 (onClusterStart act db)
 
     faucetFunds = FaucetFunds
-        { pureAdaFunds =
+        { pureAdaFunds =
             shelleyIntegrationTestFunds
              <> byronIntegrationTestFunds
         , maFunds =

@@ -75,8 +75,6 @@ import Cardano.Wallet.Primitive.Types.Address
     ( Address (..) )
 import Cardano.Wallet.Primitive.Types.ProtocolMagic
     ( ProtocolMagic (..), testnetMagic )
-import Cardano.Wallet.Util
-    ( invariant )
 import Control.Arrow
     ( first, left )
 import Control.DeepSeq
@@ -279,16 +277,17 @@ unsafeGenerateKeyFromSeed
         -- ^ Master encryption passphrase
     -> IcarusKey depth XPrv
 unsafeGenerateKeyFromSeed (SomeMnemonic mw) (Passphrase pwd) =
-    let
-        seed  = entropyToBytes $ mnemonicToEntropy mw
-        seed' = invariant
-            ("seed length : "
-                <> show (BA.length seed)
-                <> " in (Passphrase \"seed\") is not valid"
-            )
-            seed
-            (\s -> BA.length s >= minSeedLengthBytes && BA.length s <= 255)
-    in IcarusKey $ generateNew seed' (mempty :: ByteString) pwd
+    IcarusKey $ generateNew validSeed (mempty :: ByteString) pwd
+  where
+    validSeed =
+        if BA.length seed >= minSeedLengthBytes && BA.length seed <= 255
+            then seed
+            else error . unwords $
+                [ "seed length:"
+                , show (BA.length seed)
+                , "in (Passphrase \"seed\") is not valid"
+                ]
+    seed  = entropyToBytes (mnemonicToEntropy mw)
 
 {-------------------------------------------------------------------------------
                           Hard / Soft Key Derivation

@@ -45,16 +45,16 @@ import Cardano.Wallet.Primitive.AddressDerivation
     )
 import Cardano.Wallet.Primitive.Types.Address
     ( Address (..) )
-import Cardano.Wallet.Util
-    ( invariant )
 import Control.DeepSeq
     ( NFData (..) )
 import Data.Maybe
-    ( fromJust, isJust )
+    ( fromJust )
 import Data.Type.Equality
     ( (:~:) (..), testEquality )
 import GHC.Generics
     ( Generic )
+import GHC.Stack
+    ( HasCallStack )
 import Type.Reflection
     ( Typeable, typeRep )
 
@@ -139,16 +139,19 @@ replaceCosignersWithVerKeys role' (ScriptTemplate xpubs scriptTemplate) ix =
         RequireSomeOf m xs   -> RequireSomeOf m (map replaceCosigner xs)
         ActiveFromSlot s     -> ActiveFromSlot s
         ActiveUntilSlot s    -> ActiveUntilSlot s
-    convertIndex :: Index 'Soft 'CredFromScriptK -> CA.Index 'CA.Soft 'CA.PaymentK
+
+    convertIndex ::
+        Index 'Soft 'CredFromScriptK -> CA.Index 'CA.Soft 'CA.PaymentK
     convertIndex = fromJust . CA.indexFromWord32 . fromIntegral . fromEnum
-    toKeyHash :: Cosigner -> KeyHash
+
+    toKeyHash :: HasCallStack => Cosigner -> KeyHash
     toKeyHash c =
-        let (Just accXPub) =
-                invariant "we should have accXPubs of all cosigners at this point"
-                (liftXPub <$> Map.lookup c xpubs)
-                isJust
-            verKey = deriveMultisigPublicKey accXPub (convertIndex ix)
-        in hashKey walletRole verKey
+        case Map.lookup c xpubs of
+            Nothing -> error "Impossible: cosigner without accXPpub."
+            Just accXPub ->
+                hashKey walletRole $
+                    deriveMultisigPublicKey (liftXPub accXPub) (convertIndex ix)
+
     walletRole = case role' of
         CA.UTxOExternal -> CA.Payment
         CA.UTxOInternal -> CA.Payment
