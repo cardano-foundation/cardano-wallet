@@ -2571,6 +2571,24 @@ components:
               enum: ["plutus"]
             script_info: *PlutusScriptInfo
             reference: *referenceInput
+        - type: object
+          required:
+            - script_type
+            - script_hash
+            - references
+          properties:
+            script_type:
+              type: string
+              enum: ["reference script"]
+            script_hash:
+              type: string
+              format: hex
+              minLength: 56
+              maxLength: 56
+            references:
+              type: array
+              minItems: 1
+              items: *referenceInput
 
     ApiTokens: &ApiTokens
       type: object

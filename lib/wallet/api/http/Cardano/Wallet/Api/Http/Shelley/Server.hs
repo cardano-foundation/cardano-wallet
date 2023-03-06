@@ -688,7 +688,6 @@ import qualified Network.Ntp as Ntp
 import qualified Network.Wai.Handler.Warp as Warp
 import qualified Network.Wai.Handler.WarpTLS as Warp
 
-import qualified Debug.Trace as TR
 
 -- | How the server should listen for incoming requests.
 data Listen
@@ -3118,7 +3117,7 @@ decodeTransaction
                , scriptValidity
                } = decodedTx
         let db = wrk ^. dbLayer
-        (acct, _, acctPath) <- TR.trace ("toMint:"<>show toMint<>" toBurn:"<>show toBurn) $
+        (acct, _, acctPath) <-
             liftHandler $ W.shelleyOnlyReadRewardAccount @s @k @n db wid
         inputPaths <-
             liftHandler $ W.lookupTxIns @_ @s @k wrk wid $

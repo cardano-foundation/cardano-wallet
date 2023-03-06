@@ -66,7 +66,7 @@ import Cardano.Wallet.Shelley.Network.Discriminant
     , EncodeStakeAddress (..)
     )
 import Cardano.Wallet.Transaction
-    ( AnyScript (NativeScript, PlutusScript)
+    ( AnyScript (..)
     , PlutusScriptInfo (..)
     , ReferenceInput (..)
     , ScriptReference (..)
@@ -176,8 +176,14 @@ instance FromJSON (ApiT AnyScript) where
                     flip PlutusScript ViaSpending . getApiT <$> obj .: "script_info"
                 "native" ->
                     flip NativeScript ViaSpending <$> obj .: "script"
+                "reference script" -> do
+                    scriptH <- fromHexText <$> obj .: "script_hash"  >>= \case
+                        Left str -> fail $ "AnyScript: script_hash should be hex-encoded \
+                                           \56-character string, but got " ++ str
+                        Right hash -> pure $ ScriptHash hash
+                    AnyScriptReference scriptH <$> obj .: "references"
                 _ -> fail
-                    "AnyScript needs either 'native' or 'plutus' in 'script_type'"
+                    "AnyScript needs either 'native', 'plutus' or 'reference script' in 'script_type'"
             (Just t , Just ref) -> case t of
                 "plutus" ->
                     flip PlutusScript (ViaReferenceInput ref) . getApiT <$>
@@ -212,6 +218,12 @@ instance ToJSON (ApiT AnyScript) where
                 [ "script_type" .= String "plutus"
                 , "script_info" .= toJSON (ApiT s)
                 , "reference" .= toJSON refInput
+                ]
+        AnyScriptReference (ScriptHash h) refs ->
+            object
+                [ "script_type" .= String "reference script"
+                , "script_hash" .= String (hexText h)
+                , "references" .= toJSON refs
                 ]
 
 instance FromJSON (ApiT W.TokenName) where

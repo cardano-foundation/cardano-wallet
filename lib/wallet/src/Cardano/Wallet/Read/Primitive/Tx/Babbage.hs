@@ -16,6 +16,8 @@ module Cardano.Wallet.Read.Primitive.Tx.Babbage
 
 import Prelude
 
+import Cardano.Address.Script
+    ( ScriptHash (..) )
 import Cardano.Api
     ( BabbageEra )
 import Cardano.Ledger.Era
@@ -24,8 +26,12 @@ import Cardano.Ledger.Serialization
     ( sizedValue )
 import Cardano.Ledger.Shelley.API
     ( StrictMaybe (SJust, SNothing) )
+import Cardano.Wallet.Primitive.Types.Hash
+    ( Hash (..) )
+import Cardano.Wallet.Primitive.Types.TokenMap
+    ( toNestedMap )
 import Cardano.Wallet.Primitive.Types.TokenPolicy
-    ( TokenPolicyId )
+    ( TokenPolicyId (..) )
 import Cardano.Wallet.Primitive.Types.Tx.TxIn
     ( TxIn (..) )
 import Cardano.Wallet.Read.Eras
@@ -92,11 +98,6 @@ import qualified Data.List as L
 import qualified Data.Map.Strict as Map
 import qualified Data.Set as Set
 
-import Cardano.Wallet.Primitive.AddressDerivation
-    ( hex )
-import qualified Data.Text.Encoding as T
-import qualified Debug.Trace as TR
-
 fromBabbageTx
     :: Alonzo.ValidatedTx (Cardano.ShelleyLedgerEra BabbageEra)
     -> WitnessCountCtx
@@ -133,8 +134,8 @@ fromBabbageTx tx@(Alonzo.ValidatedTx bod wits (Alonzo.IsValid isValid) aux) witC
             validity
         }
     , anyEraCerts certs
-    , assetsToMint
-    , assetsToBurn
+    , assetsToMint'
+    , assetsToBurn'
     , Just $ afterShelleyValidityInterval ttl
     , countWits
     )
@@ -158,7 +159,6 @@ fromBabbageTx tx@(Alonzo.ValidatedTx bod wits (Alonzo.IsValid isValid) aux) witC
         _network
         = bod
 
-    hexText = T.decodeLatin1 . hex
     transactionId = W.Hash $ alonzoTxHash tx
     scriptWithHashIx ix txout =
         case (snd . fromBabbageTxOut $ txout) of
@@ -183,7 +183,21 @@ fromBabbageTx tx@(Alonzo.ValidatedTx bod wits (Alonzo.IsValid isValid) aux) witC
 
     (assetsToMint, assetsToBurn) = babbageMint mint wits
 
-    countWits = TR.trace ("alonzoTxHash tx:"<>show (hexText $ alonzoTxHash tx)<>"outs:"<> show outs<>"\ninps:"<>show inps<>"\nrefInps:"<>show refInps<>"\nallAnyScripts:"<>show allAnyScripts) $ WitnessCount
+    useReferenceScriptIfNeeded (TokenMapWithScripts tokenMap tokenScripts) =
+        let allTokenPolicyIds = Map.keys $ toNestedMap tokenMap
+            refInps' = ReferenceInput . fromShelleyTxIn <$> toList refInps
+            toScriptHash = ScriptHash . getHash . unTokenPolicyId
+            findTokenPolicy s = case Map.lookup s tokenScripts of
+                Just script -> script
+                Nothing -> AnyScriptReference (toScriptHash s) refInps'
+            replaceScript policy = (policy, findTokenPolicy policy)
+            tokenScripts' = Map.fromList $ map replaceScript allTokenPolicyIds
+        in TokenMapWithScripts tokenMap tokenScripts'
+
+    assetsToMint' = useReferenceScriptIfNeeded assetsToMint
+    assetsToBurn' = useReferenceScriptIfNeeded assetsToBurn
+
+    countWits = WitnessCount
         (fromIntegral $ Set.size $ Alonzo.txwitsVKey' wits)
         (Map.elems allAnyScripts)
         (fromIntegral $ Set.size $ Alonzo.txwitsBoot' wits)

@@ -401,6 +401,7 @@ data ScriptReference =
 data AnyScript =
       NativeScript !(Script KeyHash) !ScriptReference
     | PlutusScript !PlutusScriptInfo !ScriptReference
+    | AnyScriptReference !ScriptHash ![ReferenceInput]
     deriving (Eq, Generic, Show)
     deriving anyclass NFData
 

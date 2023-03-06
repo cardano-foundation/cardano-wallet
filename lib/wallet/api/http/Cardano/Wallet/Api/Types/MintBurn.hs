@@ -133,7 +133,7 @@ askForScript policyId' scriptMap =
         case Map.lookup policyId' scriptMap of
             Just script -> script
             Nothing -> error "askForScript: no minting/burning without either\
-                             \ native or plutus script"
+                             \ native, plutus script or reference input"
 
 policyIx :: ApiT DerivationIndex
 policyIx = ApiT $ DerivationIndex $

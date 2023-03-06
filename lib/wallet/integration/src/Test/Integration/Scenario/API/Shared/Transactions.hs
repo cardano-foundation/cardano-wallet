@@ -2176,3 +2176,4 @@ spec = describe "SHARED_TRANSACTIONS" $ do
                         ActiveUntilSlot s
              in NativeScript (changeRole' script) scriptRole
          PlutusScript _ _  -> error "wrong usage"
+         AnyScriptReference _ _  -> error "wrong usage"
