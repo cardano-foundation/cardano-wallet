@@ -290,7 +290,7 @@ readTxHistory_
 readTxHistory_ DBLayer{..} wid =
     (Identity . GenTxHistory . fmap toTxHistory)
         <$> atomically
-            (readTransactions wid Nothing Descending wholeRange Nothing)
+            (readTransactions wid Nothing Descending wholeRange Nothing Nothing)
 
 putTxHistory_
     :: DBLayer m s ShelleyKey
@@ -791,6 +791,7 @@ prop_rollbackTxHistory db@DBLayer{..} (InitialCheckpoint cp0) (GenTxHistory txs0
             rollbackTo wid (At requestedPoint)
         txs <- run $ atomically $ fmap toTxHistory
             <$> readTransactions wid Nothing Descending wholeRange Nothing
+                    Nothing
 
         monitor $ counterexample $ "\n" <> "Actual Rollback Point:\n" <> (pretty point)
         monitor $ counterexample $ "\nOriginal tx history:\n" <> (txsF txs0)

@@ -138,6 +138,8 @@ import Cardano.Wallet.Primitive.Passphrase.Types
     ( PassphraseHash )
 import Cardano.Wallet.Primitive.Slotting
     ( TimeInterpreter, firstSlotInEpoch, hoistTimeInterpreter, interpretQuery )
+import Cardano.Wallet.Primitive.Types
+    ( SortOrder (..) )
 import Cardano.Wallet.Read.Eras
     ( EraValue )
 import Control.DeepSeq
@@ -164,8 +166,12 @@ import Data.Functor
     ( (<&>) )
 import Data.Generics.Internal.VL.Lens
     ( view, (^.) )
+import Data.List
+    ( sortOn )
 import Data.Maybe
     ( catMaybes, fromMaybe, isJust, maybeToList )
+import Data.Ord
+    ( Down (..) )
 import Data.Proxy
     ( Proxy (..) )
 import Data.Quantity
@@ -628,14 +634,21 @@ newDBLayerWith _cacheBehavior _tr ti SqliteContext{runQuery} = mdo
             updateS (store transactionsQS) Nothing
                 . ExpandTxWalletsHistory wid
 
-        , readTxHistory_ = \wid range status tip -> do
+        , readTxHistory_ = \wid range status tip mlimit order -> do
             allTransactions <- queryS transactionsQS $ All wid
             let whichMeta DB.TxMeta{..} = and $ catMaybes
                     [ (txMetaSlot >=) <$> W.inclusiveLowerBound range
                     , (txMetaSlot <=) <$> W.inclusiveUpperBound range
                     , (txMetaStatus ==) <$> status
                     ]
-                transactions = filter whichMeta allTransactions
+                reorder = case order of
+                  Ascending -> sortOn txMetaSlot
+                  Descending -> sortOn $  Down . txMetaSlot
+
+                transactions
+                    = maybe id (take . fromIntegral) mlimit
+                    $ reorder
+                    $ filter whichMeta allTransactions
                 lookupTx = queryS transactionsQS . GetByTxId
                 lookupTxOut = queryS transactionsQS . GetTxOut
             forM transactions $

@@ -503,7 +503,7 @@ runIO db@DBLayer{..} = fmap Resp . go
         ReadTxHistory wid minWith order range status ->
             fmap (Right . TxHistory) $
             atomically $
-            readTransactions wid minWith order range status
+            readTransactions wid minWith order range status Nothing
         GetTx wid tid ->
             catchNoSuchWallet (TxHistory . maybe [] pure) $
             mapExceptT atomically $ getTx wid tid

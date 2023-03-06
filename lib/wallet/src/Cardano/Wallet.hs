@@ -847,6 +847,7 @@ readWallet ctx wid = db & \DBLayer{..} -> mapExceptT atomically $ do
     meta <- withNoSuchWallet wid $ readWalletMeta wid
     pending <- lift
         $ readTransactions wid Nothing Descending wholeRange (Just Pending)
+            Nothing
     pure (cp, meta, Set.fromList (fromTransactionInfo <$> pending))
   where
     db = ctx ^. dbLayer @IO @s @k
@@ -2016,7 +2017,7 @@ buildSignSubmitTransaction ti db@DBLayer{..} netLayer txLayer pwd walletId
             pendingTxs <- fmap fromTransactionInfo <$>
                 readTransactions
                     walletId Nothing Descending wholeRange (Just Pending)
-
+                        Nothing
             txWithSlot@(builtTx, slot) <- throwOnErr <=< modifyDBMaybe walletsDB
                 $ adjustNoSuchWallet walletId wrapNoWalletForConstruct $ \s ->
                     buildAndSignTransactionPure @k @ktype @s @n
@@ -2192,7 +2193,7 @@ buildTransaction DBLayer{..} txLayer timeInterpreter walletId
 
         pendingTxs <- Set.fromList . fmap fromTransactionInfo <$>
             readTransactions
-                walletId Nothing Descending wholeRange (Just Pending)
+                walletId Nothing Descending wholeRange (Just Pending) Nothing
 
         fmap (\s' -> wallet { getState = s' }) <$>
             buildTransactionPure @s @_ @'CredFromKeyK @n @era
@@ -2651,7 +2652,7 @@ listTransactions
     -> Maybe Natural
         -- ^ Maximum number of transactions to return.
     -> ExceptT ErrListTransactions IO [TransactionInfo]
-listTransactions ctx wid mMinWithdrawal mStart mEnd order _mLimit
+listTransactions ctx wid mMinWithdrawal mStart mEnd order mLimit
     = db & \DBLayer{..} -> do
         when (Just True == ( (<(Coin 1)) <$> mMinWithdrawal )) $
             throwE ErrListTransactionsMinWithdrawalWrong
@@ -2659,7 +2660,7 @@ listTransactions ctx wid mMinWithdrawal mStart mEnd order _mLimit
             mapExceptT liftIO getSlotRange >>= maybe
                 (pure [])
                 (\r -> lift
-                    (readTransactions wid mMinWithdrawal order r Nothing))
+                $ readTransactions wid mMinWithdrawal order r Nothing mLimit)
   where
     ti :: TimeInterpreter (ExceptT PastHorizonException IO)
     ti = timeInterpreter (ctx ^. networkLayer)
@@ -2692,7 +2693,8 @@ listAssets ctx wid = db & \DBLayer{..} -> do
     txs <- lift . atomically $
         let noMinWithdrawal = Nothing
             allTxStatuses = Nothing
-        in readTransactions wid noMinWithdrawal Ascending wholeRange allTxStatuses
+        in readTransactions wid noMinWithdrawal Ascending wholeRange
+            allTxStatuses Nothing
     let txAssets :: TransactionInfo -> Set TokenMap.AssetId
         txAssets = Set.unions
             . map (TokenBundle.getAssets . view #tokens)

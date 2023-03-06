@@ -955,8 +955,9 @@ readTransactions'
     -> Range SlotNo
     -> Maybe TxStatus
     -> m [(Tx, TxMeta)]
-readTransactions' DBLayer{..} a0 a1 a2 =
-    atomically . fmap (fmap toTxHistory) . readTransactions a0 Nothing a1 a2
+readTransactions' DBLayer{..} a0 a1 a2 mstatus =
+    atomically . fmap (fmap toTxHistory)
+        $ readTransactions a0 Nothing a1 a2 mstatus Nothing
 
 readPrivateKey'
     :: DBLayer m s k
@@ -1192,7 +1193,7 @@ testMigrationTxMetaFee dbName expectedLength caseByCase = do
     (logs, result) <- withDBLayerFromCopiedFile @ShelleyKey dbName
         $ \DBLayer{..} -> atomically $ do
             [wid] <- listWallets
-            readTransactions wid Nothing Descending wholeRange Nothing
+            readTransactions wid Nothing Descending wholeRange Nothing Nothing
 
     -- Check that we've indeed logged a needed migration for 'fee'
     length (filter isMsgManualMigration logs) `shouldBe` 1
@@ -1536,14 +1537,16 @@ getAvailableBalance DBLayer{..} = do
     cp <- fmap (fromMaybe (error "nothing")) <$>
         atomically $ readCheckpoint testWid
     pend <- atomically $ fmap toTxHistory
-        <$> readTransactions testWid Nothing Descending wholeRange (Just Pending)
+        <$> readTransactions testWid Nothing Descending wholeRange
+                (Just Pending) Nothing
     return $ fromIntegral $ unCoin $ TokenBundle.getCoin $
         availableBalance (Set.fromList $ map fst pend) cp
 
 getTxsInLedger :: DBLayer IO s k -> IO ([(Direction, Natural)])
 getTxsInLedger DBLayer {..} = do
     pend <- atomically $ fmap toTxHistory
-        <$> readTransactions testWid Nothing Descending wholeRange (Just InLedger)
+        <$> readTransactions testWid Nothing Descending wholeRange
+                (Just InLedger) Nothing
     pure $ map (\(_, m) -> (direction m, fromIntegral $ unCoin $ amount m)) pend
 
 {-------------------------------------------------------------------------------
