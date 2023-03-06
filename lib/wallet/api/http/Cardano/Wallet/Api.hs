@@ -242,6 +242,8 @@ import Cardano.Wallet.Api.Types
     )
 import Cardano.Wallet.Api.Types.BlockHeader
     ( ApiBlockHeader )
+import Cardano.Wallet.Api.Types.Transaction
+    ( ApiLimit )
 import Cardano.Wallet.DB
     ( DBFactory, DBLayer )
 import Cardano.Wallet.Network
@@ -599,6 +601,7 @@ type ListTransactions n = "wallets"
     :> QueryParam "start" Iso8601Time
     :> QueryParam "end" Iso8601Time
     :> QueryParam "order" (ApiT SortOrder)
+    :> QueryParam "max_count" ApiLimit
     :> QueryFlag "simple-metadata"
     :> Get '[JSON] [ApiTransactionT n]
 
@@ -918,6 +921,7 @@ type ListByronTransactions n = "byron-wallets"
     :> QueryParam "start" Iso8601Time
     :> QueryParam "end" Iso8601Time
     :> QueryParam "order" (ApiT SortOrder)
+    :> QueryParam "max_count" ApiLimit
     :> Get '[JSON] [ApiTransactionT n]
 
 -- | https://input-output-hk.github.io/cardano-wallet/api/#operation/getByronTransaction
@@ -1181,6 +1185,7 @@ type ListSharedTransactions n = "shared-wallets"
     :> QueryParam "start" Iso8601Time
     :> QueryParam "end" Iso8601Time
     :> QueryParam "order" (ApiT SortOrder)
+    :> QueryParam "max_count" ApiLimit
     :> QueryFlag "simple-metadata"
     :> Get '[JSON] [ApiTransactionT n]
 

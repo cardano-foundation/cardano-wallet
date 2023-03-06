@@ -594,6 +594,8 @@ import Fmt
     )
 import GHC.Generics
     ( Generic )
+import GHC.Num
+    ( Natural )
 import GHC.TypeNats
     ( Nat )
 import Statistics.Quantile
@@ -2646,14 +2648,18 @@ listTransactions
     -> Maybe UTCTime
         -- Inclusive maximum time bound.
     -> SortOrder
+    -> Maybe Natural
+        -- ^ Maximum number of transactions to return.
     -> ExceptT ErrListTransactions IO [TransactionInfo]
-listTransactions ctx wid mMinWithdrawal mStart mEnd order = db & \DBLayer{..} -> do
-    when (Just True == ( (<(Coin 1)) <$> mMinWithdrawal )) $
-        throwE ErrListTransactionsMinWithdrawalWrong
-    mapExceptT atomically $ do
-        mapExceptT liftIO getSlotRange >>= maybe
-            (pure [])
-            (\r -> lift (readTransactions wid mMinWithdrawal order r Nothing))
+listTransactions ctx wid mMinWithdrawal mStart mEnd order _mLimit
+    = db & \DBLayer{..} -> do
+        when (Just True == ( (<(Coin 1)) <$> mMinWithdrawal )) $
+            throwE ErrListTransactionsMinWithdrawalWrong
+        mapExceptT atomically $ do
+            mapExceptT liftIO getSlotRange >>= maybe
+                (pure [])
+                (\r -> lift
+                    (readTransactions wid mMinWithdrawal order r Nothing))
   where
     ti :: TimeInterpreter (ExceptT PastHorizonException IO)
     ti = timeInterpreter (ctx ^. networkLayer)

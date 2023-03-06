@@ -280,6 +280,10 @@ import "optparse-applicative" Options.Applicative
 import "optparse-applicative" Options.Applicative.Help.Pretty
     ( string, vsep )
 -- See ADP-1910
+import Cardano.Wallet.Api.Types.Transaction
+    ( ApiLimit (..) )
+import GHC.Num
+    ( Natural )
 import "optparse-applicative" Options.Applicative.Types
     ( ReadM (..), readerAsk )
 import Servant.Client
@@ -916,6 +920,7 @@ data TransactionListArgs = TransactionListArgs
     , _timeRangeEnd :: Maybe Iso8601Time
     , _sortOrder :: Maybe SortOrder
     , _schema :: TxMetadataSchema
+    , _limit :: Maybe Natural
     }
 
 cmdTransactionList
@@ -932,15 +937,18 @@ cmdTransactionList mkTxClient =
         <*> optional timeRangeEndOption
         <*> optional sortOrderOption
         <*> metadataSchemaOption
+        <*> optional limitOption
     exec
         (TransactionListArgs
-            wPort wId mTimeRangeStart mTimeRangeEnd mOrder metadataSchema) =
+            wPort wId mTimeRangeStart mTimeRangeEnd mOrder metadataSchema
+            limit) =
         runClient wPort Aeson.encodePretty $ listTransactions
             mkTxClient
             (ApiT wId)
             mTimeRangeStart
             mTimeRangeEnd
             (ApiT <$> mOrder)
+            (ApiLimit <$> limit)
             (metadataSchema == TxMetadataNoSchema)
 
 -- | Arguments for 'transaction submit' command
@@ -1351,6 +1359,14 @@ sortOrderOption = optionT $ mempty
     <> long "order"
     <> metavar "ORDER"
     <> help "specifies a sort order, either 'ascending' or 'descending'."
+    <> showDefaultWith showT
+
+-- | [--order=ORDER]
+limitOption :: Parser Natural
+limitOption = optionT $ mempty
+    <> long "max_count"
+    <> metavar "MAX_COUNT"
+    <> help "specifies a limit to the number of transactions returned."
     <> showDefaultWith showT
 
 -- | [--force-ntp-check]

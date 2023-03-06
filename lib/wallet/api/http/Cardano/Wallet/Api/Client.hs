@@ -97,6 +97,8 @@ import Cardano.Wallet.Api.Types
     )
 import Cardano.Wallet.Api.Types.SchemaMetadata
     ( TxMetadataSchema, toSimpleMetadataFlag )
+import Cardano.Wallet.Api.Types.Transaction
+    ( ApiLimit )
 import Cardano.Wallet.Pools
     ( StakePool )
 import Cardano.Wallet.Primitive.Types
@@ -169,6 +171,7 @@ data TransactionClient = TransactionClient
         -> Maybe Iso8601Time
         -> Maybe Iso8601Time
         -> Maybe (ApiT SortOrder)
+        -> Maybe ApiLimit
         -> Bool
         -> ClientM [ApiTransactionT Aeson.Value]
     , signTransaction
@@ -363,8 +366,8 @@ byronTransactionClient =
             = client (Proxy @("v2" :> Proxy_))
 
     in TransactionClient
-        { listTransactions = \wid start end order _ ->
-            _listTransactions wid start end order
+        { listTransactions = \wid start end order limit _ ->
+            _listTransactions wid start end order limit
         , postTransaction = _postTransaction
         , postTransactionFee = _postTransactionFee
         , postExternalTransaction = _postExternalTransaction . fromSerialisedTx

@@ -575,6 +575,7 @@ spec = describe "BYRON_TRANSACTIONS" $ do
                     (either (const Nothing) Just $ fromText $ T.pack startTime)
                     (either (const Nothing) Just $ fromText $ T.pack endTime)
                     Nothing
+                    Nothing
             r <- request @([ApiTransaction n]) ctx link Default Empty
             expectResponseCode HTTP.status400 r
             expectErrorMessage

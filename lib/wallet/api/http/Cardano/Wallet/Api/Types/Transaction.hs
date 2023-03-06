@@ -29,6 +29,7 @@ module Cardano.Wallet.Api.Types.Transaction
     , ApiWitnessCount (..)
     , mkApiWitnessCount
     , ResourceContext (..)
+    , ApiLimit(..)
     )
     where
 
@@ -86,6 +87,8 @@ import Data.Quantity
     ( Quantity (..) )
 import Data.Text
     ( Text )
+import Data.Text.Class
+    ( toText )
 import Data.Typeable
     ( Proxy, Typeable )
 import Data.Word
@@ -96,6 +99,8 @@ import Numeric.Natural
     ( Natural )
 import Quiet
     ( Quiet (Quiet) )
+import Servant
+    ( FromHttpApiData (..), ToHttpApiData (..) )
 
 import qualified Cardano.Wallet.Primitive.Types.RewardAccount as W
 import qualified Cardano.Wallet.Primitive.Types.TokenMap as W
@@ -323,3 +328,11 @@ instance EncodeStakeAddress n => ToJSON (ApiWithdrawalGeneral n) where
         case ctx of
             External -> object obj
             Our -> object $ obj ++ ["context" .= String "ours"]
+
+newtype ApiLimit = ApiLimit {fromApiLimit :: Natural}
+
+instance ToHttpApiData ApiLimit where
+    toUrlPiece (ApiLimit n) = toText n
+
+instance FromHttpApiData ApiLimit where
+    parseUrlPiece n = ApiLimit <$> parseUrlPiece n

@@ -1097,6 +1097,7 @@ spec = describe "SHARED_TRANSACTIONS" $ do
                     Nothing
                     Nothing
                     Nothing
+                    Nothing
             rl <- request @([ApiTransaction n]) ctx linkList Default Empty
             verify rl [expectListSize 2]
             pure (getFromResponse Prelude.id rl)
@@ -1385,6 +1386,7 @@ spec = describe "SHARED_TRANSACTIONS" $ do
                     (either (const Nothing) Just $ fromText $ T.pack startTime)
                     (either (const Nothing) Just $ fromText $ T.pack endTime)
                     Nothing
+                    Nothing
             r <- request @([ApiTransaction n]) ctx link Default Empty
             expectResponseCode HTTP.status400 r
             expectErrorMessage
@@ -1401,6 +1403,7 @@ spec = describe "SHARED_TRANSACTIONS" $ do
                     Nothing
                     Nothing
                     Nothing
+                    Nothing
             r <- request @([ApiTransaction n]) ctx link Default Empty
             expectResponseCode HTTP.status400 r
             expectErrorMessage errMsg400MinWithdrawalWrong r
@@ -1413,6 +1416,7 @@ spec = describe "SHARED_TRANSACTIONS" $ do
             (ApiSharedWallet (Right w)) <- emptySharedWallet ctx
             let link = Link.listTransactions' @'Shared w
                     (Just 1)
+                    Nothing
                     Nothing
                     Nothing
                     Nothing
@@ -1442,9 +1446,13 @@ spec = describe "SHARED_TRANSACTIONS" $ do
             t <- unsafeGetTransactionTime =<< listAllSharedTransactions ctx w
             let (te, tl) = (utcTimePred t, utcTimeSucc t)
             txs1 <- listSharedTransactions ctx w (Just t ) (Just t ) Nothing
+                Nothing
             txs2 <- listSharedTransactions ctx w (Just te) (Just t ) Nothing
+                Nothing
             txs3 <- listSharedTransactions ctx w (Just t ) (Just tl) Nothing
+                Nothing
             txs4 <- listSharedTransactions ctx w (Just te) (Just tl) Nothing
+                Nothing
             length <$> [txs1, txs2, txs3, txs4] `shouldSatisfy` all (== 1)
 
     it "SHARED_TRANSACTIONS_LIST_RANGE_02 - \
@@ -1455,7 +1463,9 @@ spec = describe "SHARED_TRANSACTIONS" $ do
             t <- unsafeGetTransactionTime =<< listAllSharedTransactions ctx w
             let tl = utcTimeSucc t
             txs1 <- listSharedTransactions ctx w (Just tl) (Nothing) Nothing
+                Nothing
             txs2 <- listSharedTransactions ctx w (Just tl) (Just tl) Nothing
+                Nothing
             length <$> [txs1, txs2] `shouldSatisfy` all (== 0)
 
     it "SHARED_TRANSACTIONS_LIST_RANGE_03 - \
@@ -1466,7 +1476,9 @@ spec = describe "SHARED_TRANSACTIONS" $ do
             t <- unsafeGetTransactionTime =<< listAllSharedTransactions ctx w
             let te = utcTimePred t
             txs1 <- listSharedTransactions ctx w (Nothing) (Just te) Nothing
+                Nothing
             txs2 <- listSharedTransactions ctx w (Just te) (Just te) Nothing
+                Nothing
             length <$> [txs1, txs2] `shouldSatisfy` all (== 0)
 
     it "SHARED_TRANSACTIONS_GET_01 - \
@@ -1609,12 +1621,13 @@ spec = describe "SHARED_TRANSACTIONS" $ do
         expectResponseCode HTTP.status404 r
         expectErrorMessage (errMsg404CannotFindTx $ toText txid2) r
   where
-     listSharedTransactions ctx w mStart mEnd mOrder = do
+     listSharedTransactions ctx w mStart mEnd mOrder mLimit = do
          let path = Link.listTransactions' @'Shared w
                     Nothing
                     (Iso8601Time <$> mStart)
                     (Iso8601Time <$> mEnd)
                     mOrder
+                    mLimit
          r <- request @[ApiTransaction n] ctx path Default Empty
          expectResponseCode HTTP.status200 r
          let txs = getFromResponse Prelude.id r
@@ -1622,7 +1635,7 @@ spec = describe "SHARED_TRANSACTIONS" $ do
 
      listAllSharedTransactions ctx w = do
          let path = Link.listTransactions' @'Shared w
-                    Nothing Nothing Nothing (Just Descending)
+                    Nothing Nothing Nothing (Just Descending) Nothing
          r <- request @[ApiTransaction n] ctx path Default Empty
          expectResponseCode HTTP.status200 r
          let txs = getFromResponse Prelude.id r

@@ -274,6 +274,7 @@ spec = describe "SHELLEY_TRANSACTIONS" $ do
                     (either (const Nothing) Just
                         $ fromText endTimeAfterShelley)
                     Nothing
+                    Nothing
             r <- request @([ApiTransaction n]) ctx link Default Empty
             expectResponseCode HTTP.status200 r
             expectListSize 10 r
@@ -345,6 +346,7 @@ spec = describe "SHELLEY_TRANSACTIONS" $ do
                     Nothing
                     Nothing
                     (Just Descending)
+                    Nothing
             (_, txs) <- unsafeRequest @([ApiTransaction n]) ctx link Empty
             case filter ((== Pending) . view (#status . #getApiT)) txs of
                 [] ->
@@ -1457,6 +1459,7 @@ spec = describe "SHELLEY_TRANSACTIONS" $ do
                     Nothing
                     Nothing
                     Nothing
+                    Nothing
             rl <- request @([ApiTransaction n]) ctx linkList Default Empty
             verify rl [expectListSize 2]
             pure (getFromResponse Prelude.id rl)
@@ -1740,6 +1743,7 @@ spec = describe "SHELLEY_TRANSACTIONS" $ do
                     (either (const Nothing) Just $ fromText $ T.pack startTime)
                     (either (const Nothing) Just $ fromText $ T.pack endTime)
                     Nothing
+                    Nothing
             r <- request @([ApiTransaction n]) ctx link Default Empty
             expectResponseCode HTTP.status400 r
             expectErrorMessage
@@ -1754,6 +1758,7 @@ spec = describe "SHELLEY_TRANSACTIONS" $ do
                     Nothing
                     Nothing
                     Nothing
+                    Nothing
             r <- request @([ApiTransaction n]) ctx link Default Empty
             expectResponseCode HTTP.status400 r
             expectErrorMessage errMsg400MinWithdrawalWrong r
@@ -1765,6 +1770,7 @@ spec = describe "SHELLEY_TRANSACTIONS" $ do
             w <- emptyWallet ctx
             let link = Link.listTransactions' @'Shelley w
                     (Just 1)
+                    Nothing
                     Nothing
                     Nothing
                     Nothing
@@ -1790,9 +1796,13 @@ spec = describe "SHELLEY_TRANSACTIONS" $ do
               t <- unsafeGetTransactionTime =<< listAllTransactions @n ctx w
               let (te, tl) = (utcTimePred t, utcTimeSucc t)
               txs1 <- listTransactions @n ctx w (Just t ) (Just t ) Nothing
+                Nothing
               txs2 <- listTransactions @n ctx w (Just te) (Just t ) Nothing
+                Nothing
               txs3 <- listTransactions @n ctx w (Just t ) (Just tl) Nothing
+                Nothing
               txs4 <- listTransactions @n ctx w (Just te) (Just tl) Nothing
+                Nothing
               length <$> [txs1, txs2, txs3, txs4] `shouldSatisfy` all (== 1)
 
     it "TRANS_LIST_RANGE_02 - \
@@ -1802,7 +1812,9 @@ spec = describe "SHELLEY_TRANSACTIONS" $ do
               t <- unsafeGetTransactionTime =<< listAllTransactions @n ctx w
               let tl = utcTimeSucc t
               txs1 <- listTransactions @n ctx w (Just tl) (Nothing) Nothing
+                Nothing
               txs2 <- listTransactions @n ctx w (Just tl) (Just tl) Nothing
+                Nothing
               length <$> [txs1, txs2] `shouldSatisfy` all (== 0)
 
     it "TRANS_LIST_RANGE_03 - \
@@ -1812,7 +1824,9 @@ spec = describe "SHELLEY_TRANSACTIONS" $ do
               t <- unsafeGetTransactionTime =<< listAllTransactions @n ctx w
               let te = utcTimePred t
               txs1 <- listTransactions @n ctx w (Nothing) (Just te) Nothing
+                Nothing
               txs2 <- listTransactions @n ctx w (Just te) (Just te) Nothing
+                Nothing
               length <$> [txs1, txs2] `shouldSatisfy` all (== 0)
 
     it "TRANS_GET_01 - Can get Incoming and Outgoing transaction" $
