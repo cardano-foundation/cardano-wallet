@@ -241,8 +241,6 @@ import qualified Data.Text.Encoding as T
 import qualified Network.HTTP.Types.Status as HTTP
 import qualified Test.Integration.Plutus as PlutusScenario
 
-import qualified Debug.Trace as TR
-
 spec :: forall n.
     ( DecodeAddress n
     , DecodeStakeAddress n
@@ -1634,12 +1632,27 @@ spec = describe "NEW_SHELLEY_TRANSACTIONS" $ do
         let decodeSetUpRefScriptPayload = Json [json|{
             "transaction": #{cborHexSettingUpReferenceScript}
         }|]
+        let (Just externalPolicyKeyHash) = keyHashFromBytes
+               ( Unknown,
+                 "\131ÿÌ&©wë,·#\131\&4¹\RSÉMç/º.\139XÝ¤Ò¯êo"
+               )
+        let (Right txId) =
+                fromHexText "464917d2bac71df96269c2d7c34dcb83183b8a3a3253c06e9d6a8bd0681422c9"
+        let refInp = ReferenceInput $ TxIn (Hash txId) 0
+        let nativeScript =
+                RequireAllOf [RequireSignatureOf externalPolicyKeyHash]
+
+        let witnessCountWithNativeScript = mkApiWitnessCount WitnessCount
+                { verificationKey = 1
+                , scripts = [NativeScript nativeScript (ViaReferenceInput refInp)]
+                , bootstrap = 0
+                }
 
         rTx1 <- request @(ApiDecodedTransaction n) ctx
             (Link.decodeTransaction @'Shelley wa) Default decodeSetUpRefScriptPayload
         verify rTx1
             [ expectResponseCode HTTP.status202
-            -- more assertions can be added once it passes
+            , expectField (#witnessCount) (`shouldBe` witnessCountWithNativeScript)
             ]
 
         -- constructing minting tx using reference script in cardano-cli
@@ -1682,6 +1695,37 @@ spec = describe "NEW_SHELLEY_TRANSACTIONS" $ do
                 \544a09c9fce2e23a390dacc3f04aae6dd5a022b4c8cd07dbceb703f6bbf465b4e9f9fc5199524129\
                 \13d56c9f0ef5f6" :: Text
 
+        let policyWithHash = Link.getPolicyKey @'Shelley wa (Just True)
+        (_, policyKeyHashPayload) <-
+            unsafeRequest @ApiPolicyKey ctx policyWithHash Empty
+
+        let tokenName' = UnsafeTokenName "ReferenceSimpleScriptAsset"
+        let (ScriptHash nativeScriptHash) = toScriptHash nativeScript
+        let tokenPolicyId' = UnsafeTokenPolicyId $ Hash nativeScriptHash
+        let apiTokenAmountFingerprint = ApiTokenAmountFingerprint
+                { assetName = ApiT tokenName'
+                , quantity = 1
+                , fingerprint =
+                    ApiT $ mkTokenFingerprint tokenPolicyId' tokenName'
+                }
+        let refScript = AnyScriptReference (ScriptHash nativeScriptHash) [refInp]
+        let apiTokens = ApiTokens
+                { policyId = ApiT tokenPolicyId'
+                , policyScript = ApiT refScript
+                , assets = NE.fromList [apiTokenAmountFingerprint]
+                }
+
+        let activeAssetsInfo = ApiAssetMintBurn
+                { tokens = [apiTokens]
+                , walletPolicyKeyHash = Just policyKeyHashPayload
+                , walletPolicyKeyIndex =
+                    Just $ ApiT (DerivationIndex 2_147_483_648)
+                }
+        let witnessCount = mkApiWitnessCount WitnessCount
+                { verificationKey = 2
+                , scripts = []
+                , bootstrap = 0
+                }
 
         -- let cborHexMint = fromTextEnvelope cborHexWithMinting
         let decodeMintPayload = Json [json|{
@@ -1692,7 +1736,8 @@ spec = describe "NEW_SHELLEY_TRANSACTIONS" $ do
             (Link.decodeTransaction @'Shelley wa) Default decodeMintPayload
         verify rTx2
             [ expectResponseCode HTTP.status202
-            -- more assertions can be added once it passes
+            , expectField #mint (`shouldBe` activeAssetsInfo)
+            , expectField (#witnessCount) (`shouldBe` witnessCount)
             ]
 
     it "TRANS_NEW_DECODE_03 - \
