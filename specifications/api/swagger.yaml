@@ -3992,6 +3992,15 @@ x-parametersSortOrder: &parametersSortOrder
       - descending
     default: descending
 
+x-parametersMaxCount: &parametersMaxCount
+  in: query
+  name: max_count
+  description: |
+    An optional maximum count.
+  schema:
+    type: integer
+    minimum: 1
+
 x-parametersAddressState: &parametersAddressState
   in: query
   name: state
@@ -6417,6 +6426,7 @@ paths:
         - *parametersStartDate
         - *parametersEndDate
         - *parametersSortOrder
+        - *parametersMaxCount
         - *parametersMinWithdrawal
         - *parametersMetadataFormat
       responses: *responsesListTransactions
@@ -7189,6 +7199,7 @@ paths:
         - *parametersStartDate
         - *parametersEndDate
         - *parametersSortOrder
+        - *parametersMaxCount
       responses: *responsesListTransactions
 
   /byron-wallets/{walletId}/transactions/{transactionId}:
@@ -7727,6 +7738,7 @@ paths:
         - *parametersStartDate
         - *parametersEndDate
         - *parametersSortOrder
+        - *parametersMaxCount
         - *parametersMinWithdrawal
         - *parametersMetadataFormat
       responses: *responsesListTransactions
