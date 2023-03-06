@@ -384,7 +384,7 @@ data PlutusScriptInfo = PlutusScriptInfo
     deriving (Eq, Generic, Show)
     deriving anyclass NFData
 
-data ReferenceInput = ReferenceInput TxIn
+newtype ReferenceInput = ReferenceInput TxIn
     deriving (Eq, Generic, Show)
     deriving anyclass NFData
 

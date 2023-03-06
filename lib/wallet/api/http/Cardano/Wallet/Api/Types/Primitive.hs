@@ -137,16 +137,18 @@ instance ToJSON (ApiT W.TokenPolicyId) where
 
 instance FromJSON (ApiT PlutusScriptInfo) where
     parseJSON = (fmap. fmap) ApiT . withObject "PlutusScriptInfo" $ \obj ->
-        fromHexText <$> obj .: "script_hash"  >>= \case
-        Left str -> fail $ "PlutusScriptInfo: script_hash should be hex-encoded \
-                           \56-character string, but got " ++ str
-        Right hash -> do
-            ver <- obj .: "language_version"
-            case fromText ver of
-                Left (TextDecodingError err) ->
-                    fail $ "PlutusScriptInfo: language_version " ++ err
-                Right plutusVersion ->
-                    pure $ PlutusScriptInfo plutusVersion (ScriptHash hash)
+        (obj .: "script_hash") >>= (\case
+           Left str -> fail
+               $ "PlutusScriptInfo: script_hash should be hex-encoded \
+                 \56-character string, but got " ++ str
+           Right hash -> do
+               ver <- obj .: "language_version"
+               case fromText ver of
+                   Left (TextDecodingError err)
+                       -> fail $ "PlutusScriptInfo: language_version " ++ err
+                   Right plutusVersion
+                       -> pure $ PlutusScriptInfo plutusVersion (ScriptHash hash))
+        . fromHexText
 
 instance ToJSON (ApiT PlutusScriptInfo) where
     toJSON (ApiT (PlutusScriptInfo v (ScriptHash h))) =
@@ -177,10 +179,12 @@ instance FromJSON (ApiT AnyScript) where
                 "native" ->
                     flip NativeScript ViaSpending <$> obj .: "script"
                 "reference script" -> do
-                    scriptH <- fromHexText <$> obj .: "script_hash"  >>= \case
-                        Left str -> fail $ "AnyScript: script_hash should be hex-encoded \
-                                           \56-character string, but got " ++ str
-                        Right hash -> pure $ ScriptHash hash
+                    scriptH <- (obj .: "script_hash") >>= (\case
+                               Left str -> fail $
+                                   "AnyScript: script_hash should be hex-encoded \
+                                   \56-character string, but got " ++ str
+                               Right hash -> pure $ ScriptHash hash)
+                               . fromHexText
                     AnyScriptReference scriptH <$> obj .: "references"
                 _ -> fail
                     "AnyScript needs either 'native', 'plutus' or 'reference script' in 'script_type'"
