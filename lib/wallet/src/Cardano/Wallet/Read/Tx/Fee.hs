@@ -21,7 +21,7 @@ module Cardano.Wallet.Read.Tx.Fee
 import Prelude
 
 import Cardano.Api
-    ( AllegraEra, AlonzoEra, BabbageEra, ByronEra, MaryEra, ShelleyEra )
+    ( AllegraEra, AlonzoEra, BabbageEra, ByronEra, ConwayEra, MaryEra, ShelleyEra )
 import Cardano.Ledger.Coin
     ( Coin )
 import Cardano.Ledger.Core
@@ -42,6 +42,7 @@ type family FeeType era where
     FeeType MaryEra = Coin
     FeeType AlonzoEra = Coin
     FeeType BabbageEra = Coin
+    FeeType ConwayEra = Coin
 
 newtype Fee era = Fee (FeeType era)
 
@@ -57,4 +58,5 @@ getEraFee
         , maryFun = onTx $ \tx -> Fee $ tx ^. bodyTxL . feeTxBodyL
         , alonzoFun = onTx $ \tx -> Fee $ tx ^. bodyTxL . feeTxBodyL
         , babbageFun = onTx $ \tx -> Fee $ tx ^. bodyTxL . feeTxBodyL
+        , conwayFun = onTx $ \tx -> Fee $ tx ^. bodyTxL . feeTxBodyL
         }

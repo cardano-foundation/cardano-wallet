@@ -21,7 +21,7 @@ module Cardano.Wallet.Read.Tx.Outputs
 import Prelude
 
 import Cardano.Api
-    ( AllegraEra, AlonzoEra, BabbageEra, ByronEra, MaryEra, ShelleyEra )
+    ( AllegraEra, AlonzoEra, BabbageEra, ByronEra, ConwayEra, MaryEra, ShelleyEra )
 import Cardano.Ledger.Core
     ( bodyTxL, outputsTxBodyL )
 import Cardano.Ledger.Crypto
@@ -42,6 +42,7 @@ import Data.Sequence.Strict
 import qualified Cardano.Chain.UTxO as BY
 import qualified Cardano.Ledger.Alonzo as AL
 import qualified Cardano.Ledger.Babbage as BA
+import qualified Cardano.Ledger.Conway as Conway
 import qualified Cardano.Ledger.Shelley as SH
 import qualified Cardano.Ledger.ShelleyMA as SMA
 
@@ -62,6 +63,9 @@ type family OutputsType era where
     OutputsType BabbageEra
         = StrictSeq
             (BA.BabbageTxOut (BA.BabbageEra StandardCrypto))
+    OutputsType ConwayEra
+        = StrictSeq
+            (BA.BabbageTxOut (Conway.ConwayEra StandardCrypto))
 
 newtype Outputs era = Outputs (OutputsType era)
 
@@ -77,4 +81,5 @@ getEraOutputs
         , maryFun = onTx $ \tx -> Outputs (tx ^. bodyTxL . outputsTxBodyL)
         , alonzoFun = onTx $ \tx -> Outputs (tx ^. bodyTxL . outputsTxBodyL)
         , babbageFun = onTx $ \tx -> Outputs (tx ^. bodyTxL . outputsTxBodyL)
+        , conwayFun = onTx $ \tx -> Outputs (tx ^. bodyTxL . outputsTxBodyL)
         }

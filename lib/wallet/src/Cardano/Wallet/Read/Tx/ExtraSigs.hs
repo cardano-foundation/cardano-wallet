@@ -16,7 +16,7 @@ module Cardano.Wallet.Read.Tx.ExtraSigs where
 import Prelude
 
 import Cardano.Api
-    ( AllegraEra, AlonzoEra, BabbageEra, ByronEra, MaryEra, ShelleyEra )
+    ( AllegraEra, AlonzoEra, BabbageEra, ByronEra, ConwayEra, MaryEra, ShelleyEra )
 import Cardano.Ledger.Alonzo.TxBody
     ( reqSignerHashesTxBodyL )
 import Cardano.Ledger.Core
@@ -43,6 +43,7 @@ type family ExtraSigsType era where
     ExtraSigsType MaryEra = ()
     ExtraSigsType AlonzoEra = Set (KeyHash 'Witness StandardCrypto)
     ExtraSigsType BabbageEra = Set (KeyHash 'Witness StandardCrypto)
+    ExtraSigsType ConwayEra = Set (KeyHash 'Witness StandardCrypto)
 
 newtype ExtraSigs era = ExtraSigs (ExtraSigsType era)
 
@@ -59,5 +60,7 @@ getEraExtraSigs
         , alonzoFun = onTx $ \tx -> ExtraSigs
             $ tx ^. bodyTxL . reqSignerHashesTxBodyL
         , babbageFun = onTx $ \tx -> ExtraSigs
+            $ tx ^. bodyTxL . reqSignerHashesTxBodyL
+        , conwayFun = onTx $ \tx -> ExtraSigs
             $ tx ^. bodyTxL . reqSignerHashesTxBodyL
         }

@@ -55,6 +55,7 @@ getEraTxHash = EraFun
     , maryFun = onTx $ \tx -> K . fromShelleyTxId $ txid (tx ^. bodyTxL)
     , alonzoFun = onTx $ \tx -> K . fromShelleyTxId $ txid (tx ^. bodyTxL)
     , babbageFun = onTx $ \tx -> K . fromShelleyTxId $ txid (tx ^. bodyTxL)
+    , conwayFun = onTx $ \tx -> K . fromShelleyTxId $ txid (tx ^. bodyTxL)
     }
 
 byronTxHash :: ATxAux a -> Crypto.ByteString

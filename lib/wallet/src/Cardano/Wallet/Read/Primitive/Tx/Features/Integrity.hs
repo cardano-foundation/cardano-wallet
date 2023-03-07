@@ -44,6 +44,7 @@ integrity = EraFun
     , maryFun = noIntegrity
     , alonzoFun = yesIntegrity
     , babbageFun = yesIntegrity
+    , conwayFun = yesIntegrity
     }
   where
     noIntegrity = const $ K Nothing

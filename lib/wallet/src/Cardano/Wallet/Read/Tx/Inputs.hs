@@ -21,7 +21,7 @@ module Cardano.Wallet.Read.Tx.Inputs
 import Prelude
 
 import Cardano.Api
-    ( AllegraEra, AlonzoEra, BabbageEra, ByronEra, MaryEra, ShelleyEra )
+    ( AllegraEra, AlonzoEra, BabbageEra, ByronEra, ConwayEra, MaryEra, ShelleyEra )
 import Cardano.Ledger.Core
     ( bodyTxL, inputsTxBodyL )
 import Cardano.Ledger.Crypto
@@ -49,6 +49,7 @@ type family InputsType era where
     InputsType MaryEra = Set (SH.TxIn StandardCrypto)
     InputsType AlonzoEra = Set (SH.TxIn StandardCrypto)
     InputsType BabbageEra = Set (SH.TxIn StandardCrypto)
+    InputsType ConwayEra = Set (SH.TxIn StandardCrypto)
 
 newtype Inputs era = Inputs (InputsType era)
 
@@ -64,4 +65,5 @@ getEraInputs
         , maryFun = onTx $ \tx -> Inputs (tx ^. bodyTxL . inputsTxBodyL)
         , alonzoFun = onTx $ \tx -> Inputs (tx ^. bodyTxL . inputsTxBodyL)
         , babbageFun = onTx $ \tx -> Inputs (tx ^. bodyTxL . inputsTxBodyL)
+        , conwayFun = onTx $ \tx -> Inputs (tx ^. bodyTxL . inputsTxBodyL)
         }

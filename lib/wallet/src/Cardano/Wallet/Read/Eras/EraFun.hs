@@ -43,7 +43,7 @@ import Prelude hiding
     ( id, (.) )
 
 import Cardano.Api
-    ( AllegraEra, AlonzoEra, BabbageEra, ByronEra, MaryEra, ShelleyEra )
+    ( AllegraEra, AlonzoEra, BabbageEra, ByronEra, ConwayEra, MaryEra, ShelleyEra )
 import Cardano.Wallet.Read.Eras.EraValue
     ( EraValue (..) )
 import Cardano.Wallet.Read.Eras.KnownEras
@@ -80,6 +80,7 @@ data EraFun f g  = EraFun
   , maryFun :: f MaryEra -> g MaryEra
   , alonzoFun :: f AlonzoEra -> g AlonzoEra
   , babbageFun :: f BabbageEra -> g BabbageEra
+  , conwayFun :: f ConwayEra -> g ConwayEra
   }
 
 deriveGeneric ''EraFun
