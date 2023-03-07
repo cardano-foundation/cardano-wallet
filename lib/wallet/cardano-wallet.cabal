@@ -83,6 +83,7 @@ library
     , cardano-ledger-babbage
     , cardano-ledger-byron
     , cardano-ledger-byron-test
+    , cardano-ledger-conway
     , cardano-ledger-core
     , cardano-ledger-shelley
     , cardano-ledger-shelley-ma
@@ -150,6 +151,7 @@ library
     , ouroboros-consensus-protocol
     , ouroboros-consensus-shelley
     , ouroboros-network
+    , ouroboros-network-api
     , ouroboros-network-framework
     , path-pieces
     , persistent                    ^>=2.13
@@ -314,6 +316,7 @@ library
     Cardano.Wallet.Read.Primitive.Tx.Alonzo
     Cardano.Wallet.Read.Primitive.Tx.Babbage
     Cardano.Wallet.Read.Primitive.Tx.Byron
+    Cardano.Wallet.Read.Primitive.Tx.Conway
     Cardano.Wallet.Read.Primitive.Tx.Features.Certificates
     Cardano.Wallet.Read.Primitive.Tx.Features.CollateralInputs
     Cardano.Wallet.Read.Primitive.Tx.Features.CollateralOutputs

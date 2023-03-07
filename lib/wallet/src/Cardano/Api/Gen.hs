@@ -150,8 +150,6 @@ import Data.List
     ( nub )
 import Data.Map
     ( Map )
-import Data.Maybe
-    ( maybeToList )
 import Data.Maybe.Strict
     ( strictMaybeToMaybe )
 import Data.Ratio
@@ -445,8 +443,8 @@ genPlutusScriptOrReferenceInput lang =
     -- TODO add proper generator, perhaps as part of ADP-1655
     PScript <$> genPlutusScript lang
 
-genSimpleScript :: SimpleScriptVersion lang -> Gen (SimpleScript lang)
-genSimpleScript lang =
+genSimpleScript :: Gen SimpleScript
+genSimpleScript =
     sized genTerm
   where
     genTerm 0 = oneof nonRecursive
@@ -457,14 +455,10 @@ genSimpleScript lang =
 
     -- Non-recursive generators
     nonRecursive =
-        (RequireSignature . verificationKeyHash <$>
-            genVerificationKey AsPaymentKey)
-
-      : [ RequireTimeBefore supported <$> genSlotNo
-        | supported <- maybeToList (timeLocksSupported lang) ]
-
-     ++ [ RequireTimeAfter supported <$> genSlotNo
-        | supported <- maybeToList (timeLocksSupported lang) ]
+      [ RequireSignature . verificationKeyHash <$> genVerificationKey AsPaymentKey
+      , RequireTimeBefore <$> genSlotNo
+      , RequireTimeAfter <$> genSlotNo
+      ]
 
     -- Recursive generators
     recursive n =
@@ -485,19 +479,18 @@ genReferenceInput :: Gen TxIn
 genReferenceInput = genTxIn
 
 genSimpleScriptOrReferenceInput
-    :: SimpleScriptVersion lang
-    -> Gen (SimpleScriptOrReferenceInput lang)
-genSimpleScriptOrReferenceInput lang =
+    :: Gen (SimpleScriptOrReferenceInput lang)
+genSimpleScriptOrReferenceInput =
     oneof [ SScript
-            <$> genSimpleScript lang
+            <$> genSimpleScript
           , SReferenceScript
             <$> genReferenceInput
             <*> liftArbitrary genScriptHash
           ]
 
 genScript :: ScriptLanguage lang -> Gen (Script lang)
-genScript (SimpleScriptLanguage lang) =
-    SimpleScript lang <$> genSimpleScript lang
+genScript SimpleScriptLanguage =
+    SimpleScript <$> genSimpleScript
 genScript (PlutusScriptLanguage lang) =
     PlutusScript lang <$> genPlutusScript lang
 
@@ -645,10 +638,16 @@ genStakeCredential =
 genStakeAddress :: Gen StakeAddress
 genStakeAddress = makeStakeAddress <$> genNetworkId <*> genStakeCredential
 
+genHashableScriptData :: Gen HashableScriptData
+genHashableScriptData = do
+  sd <- genScriptData
+  case deserialiseFromCBOR AsHashableScriptData $ serialiseToCBOR sd of
+    Left e -> error $ "genHashableScriptData: " <> show e
+    Right r -> return r
+
 genScriptData :: Gen ScriptData
 genScriptData =
     sized genTerm
-
     where
         genTerm 0 = oneof nonRecursive
         genTerm n = frequency
@@ -767,13 +766,13 @@ genScriptWitnessMint
     -> Gen (ScriptWitness WitCtxMint era)
 genScriptWitnessMint langEra =
     case languageOfScriptLanguageInEra langEra of
-        (SimpleScriptLanguage ver) ->
-            SimpleScriptWitness langEra ver <$> genSimpleScriptOrReferenceInput ver
+        SimpleScriptLanguage ->
+            SimpleScriptWitness langEra <$> genSimpleScriptOrReferenceInput
         (PlutusScriptLanguage ver) ->
             PlutusScriptWitness langEra ver
             <$> genPlutusScriptOrReferenceInput ver
             <*> pure NoScriptDatumForMint
-            <*> genScriptData
+            <*> genHashableScriptData
             <*> genExecutionUnits
 
 genScriptWitnessStake
@@ -781,13 +780,13 @@ genScriptWitnessStake
     -> Gen (ScriptWitness WitCtxStake era)
 genScriptWitnessStake langEra =
     case languageOfScriptLanguageInEra langEra of
-        (SimpleScriptLanguage ver) ->
-            SimpleScriptWitness langEra ver <$> genSimpleScriptOrReferenceInput ver
+        SimpleScriptLanguage ->
+            SimpleScriptWitness langEra <$> genSimpleScriptOrReferenceInput
         (PlutusScriptLanguage ver) ->
             PlutusScriptWitness langEra ver
             <$> genPlutusScriptOrReferenceInput ver
             <*> pure NoScriptDatumForStake
-            <*> genScriptData
+            <*> genHashableScriptData
             <*> genExecutionUnits
 
 genScriptWitnessSpend
@@ -795,13 +794,13 @@ genScriptWitnessSpend
     -> Gen (ScriptWitness WitCtxTxIn era)
 genScriptWitnessSpend langEra =
     case languageOfScriptLanguageInEra langEra of
-        (SimpleScriptLanguage ver) ->
-            SimpleScriptWitness langEra ver <$> genSimpleScriptOrReferenceInput ver
+        SimpleScriptLanguage ->
+            SimpleScriptWitness langEra <$> genSimpleScriptOrReferenceInput
         (PlutusScriptLanguage ver) ->
             PlutusScriptWitness langEra ver
             <$> genPlutusScriptOrReferenceInput ver
-            <*> (ScriptDatumForTxIn <$> genScriptData)
-            <*> genScriptData
+            <*> (ScriptDatumForTxIn <$> genHashableScriptData)
+            <*> genHashableScriptData
             <*> genExecutionUnits
 
 genTxAuxScripts :: CardanoEra era -> Gen (TxAuxScripts era)

@@ -20,7 +20,7 @@ module Cardano.Wallet.Read.Tx.Withdrawals
 import Prelude
 
 import Cardano.Api
-    ( AllegraEra, AlonzoEra, BabbageEra, ByronEra, MaryEra, ShelleyEra )
+    ( AllegraEra, AlonzoEra, BabbageEra, ByronEra, ConwayEra, MaryEra, ShelleyEra )
 import Cardano.Ledger.Core
     ( bodyTxL )
 import Cardano.Ledger.Crypto
@@ -45,6 +45,7 @@ type family WithdrawalsType era where
   WithdrawalsType MaryEra = SH.Wdrl StandardCrypto
   WithdrawalsType AlonzoEra = SH.Wdrl StandardCrypto
   WithdrawalsType BabbageEra = SH.Wdrl StandardCrypto
+  WithdrawalsType ConwayEra = SH.Wdrl StandardCrypto
 
 newtype Withdrawals era = Withdrawals (WithdrawalsType era)
 
@@ -59,4 +60,5 @@ getEraWithdrawals = EraFun
     , maryFun = onTx $ \tx -> Withdrawals (tx ^. bodyTxL . wdrlsTxBodyL)
     , alonzoFun = onTx $ \tx -> Withdrawals (tx ^. bodyTxL . wdrlsTxBodyL)
     , babbageFun = onTx $ \tx -> Withdrawals (tx ^. bodyTxL . wdrlsTxBodyL)
+    , conwayFun = onTx $ \tx -> Withdrawals (tx ^. bodyTxL . wdrlsTxBodyL)
     }

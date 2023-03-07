@@ -21,7 +21,7 @@ module Cardano.Wallet.Read.Tx.CollateralInputs
 import Prelude
 
 import Cardano.Api
-    ( AllegraEra, AlonzoEra, BabbageEra, ByronEra, MaryEra, ShelleyEra )
+    ( AllegraEra, AlonzoEra, BabbageEra, ByronEra, ConwayEra, MaryEra, ShelleyEra )
 import Cardano.Ledger.Babbage.TxBody
     ( collateralInputsTxBodyL )
 import Cardano.Ledger.Core
@@ -42,6 +42,7 @@ import Data.Set
 import qualified Cardano.Ledger.Alonzo as AL
 import qualified Cardano.Ledger.Alonzo.Tx as AL
 import qualified Cardano.Ledger.Babbage as Bab
+import qualified Cardano.Ledger.Conway as Conway
 import qualified Cardano.Ledger.Shelley.API as SH
 
 type family CollateralInputsType era where
@@ -51,6 +52,7 @@ type family CollateralInputsType era where
     CollateralInputsType MaryEra = ()
     CollateralInputsType AlonzoEra = Set (SH.TxIn StandardCrypto)
     CollateralInputsType BabbageEra = Set (SH.TxIn StandardCrypto)
+    CollateralInputsType ConwayEra = Set (SH.TxIn StandardCrypto)
 
 newtype CollateralInputs era = CollateralInputs (CollateralInputsType era)
 
@@ -71,6 +73,8 @@ getEraCollateralInputs = EraFun
         onTx $ \(AL.AlonzoTx b _ _ _) -> getAlonzoCollateralInputs b
     , babbageFun =
         onTx $ \(AL.AlonzoTx b _ _ _) -> getBabbageCollateralInputs b
+    , conwayFun =
+        onTx $ \(AL.AlonzoTx b _ _ _) -> getConwayCollateralInputs b
     }
 
 getAlonzoCollateralInputs
@@ -83,4 +87,10 @@ getBabbageCollateralInputs
     :: TxBody (Bab.BabbageEra StandardCrypto)
     -> CollateralInputs BabbageEra
 getBabbageCollateralInputs txBody =
+    CollateralInputs (txBody ^. collateralInputsTxBodyL)
+
+getConwayCollateralInputs
+    :: TxBody (Conway.ConwayEra StandardCrypto)
+    -> CollateralInputs ConwayEra
+getConwayCollateralInputs txBody =
     CollateralInputs (txBody ^. collateralInputsTxBodyL)

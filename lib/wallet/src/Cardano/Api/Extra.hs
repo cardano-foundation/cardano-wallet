@@ -27,8 +27,6 @@ import Cardano.Api
     , ScriptInEra (..)
     , ScriptLanguageInEra (..)
     , ShelleyBasedEra (..)
-    , SimpleScriptVersion (..)
-    , TimeLocksSupported (TimeLocksInSimpleScriptV2)
     , Tx (..)
     )
 import Cardano.Api.Shelley
@@ -73,6 +71,8 @@ asAnyShelleyBasedEra = \case
         Just $ InAnyShelleyBasedEra ShelleyBasedEraAlonzo a
     InAnyCardanoEra BabbageEra a ->
         Just $ InAnyShelleyBasedEra ShelleyBasedEraBabbage a
+    InAnyCardanoEra ConwayEra a ->
+        Just $ InAnyShelleyBasedEra ShelleyBasedEraConway a
 
 -- Copied from cardano-api because it is not exported.
 fromShelleyBasedScript
@@ -81,23 +81,23 @@ fromShelleyBasedScript
     -> ScriptInEra era
 fromShelleyBasedScript era script = case era of
     ShelleyBasedEraShelley ->
-        ScriptInEra SimpleScriptV1InShelley $
-        SimpleScript SimpleScriptV1 $
+        ScriptInEra SimpleScriptInShelley $
+        SimpleScript $
         fromShelleyMultiSig script
     ShelleyBasedEraAllegra ->
-        ScriptInEra SimpleScriptV2InAllegra $
-        SimpleScript SimpleScriptV2 $
-        fromAllegraTimelock TimeLocksInSimpleScriptV2 script
+        ScriptInEra SimpleScriptInAllegra $
+        SimpleScript $
+        fromAllegraTimelock script
     ShelleyBasedEraMary ->
-        ScriptInEra SimpleScriptV2InMary $
-        SimpleScript SimpleScriptV2 $
-        fromAllegraTimelock TimeLocksInSimpleScriptV2 script
+        ScriptInEra SimpleScriptInMary $
+        SimpleScript $
+        fromAllegraTimelock script
     ShelleyBasedEraAlonzo ->
         case script of
             Alonzo.TimelockScript s ->
-                ScriptInEra SimpleScriptV2InAlonzo $
-                SimpleScript SimpleScriptV2 $
-                fromAllegraTimelock TimeLocksInSimpleScriptV2 s
+                ScriptInEra SimpleScriptInAlonzo $
+                SimpleScript $
+                fromAllegraTimelock s
             Alonzo.PlutusScript Alonzo.PlutusV1 s ->
                 ScriptInEra PlutusScriptV1InAlonzo $
                 PlutusScript PlutusScriptV1 $
@@ -109,14 +109,29 @@ fromShelleyBasedScript era script = case era of
     ShelleyBasedEraBabbage ->
         case script of
             Alonzo.TimelockScript s ->
-                ScriptInEra SimpleScriptV2InBabbage $
-                SimpleScript SimpleScriptV2 $
-                fromAllegraTimelock TimeLocksInSimpleScriptV2 s
+                ScriptInEra SimpleScriptInBabbage $
+                SimpleScript $
+                fromAllegraTimelock s
             Alonzo.PlutusScript Alonzo.PlutusV1 s ->
                 ScriptInEra PlutusScriptV1InBabbage $
                 PlutusScript PlutusScriptV1 $
                 PlutusScriptSerialised s
             Alonzo.PlutusScript Alonzo.PlutusV2 s ->
                 ScriptInEra PlutusScriptV2InBabbage $
+                PlutusScript PlutusScriptV2 $
+                PlutusScriptSerialised s
+
+    ShelleyBasedEraConway ->
+        case script of
+            Alonzo.TimelockScript s ->
+                ScriptInEra SimpleScriptInConway $
+                SimpleScript $
+                fromAllegraTimelock s
+            Alonzo.PlutusScript Alonzo.PlutusV1 s ->
+                ScriptInEra PlutusScriptV1InConway $
+                PlutusScript PlutusScriptV1 $
+                PlutusScriptSerialised s
+            Alonzo.PlutusScript Alonzo.PlutusV2 s ->
+                ScriptInEra PlutusScriptV2InConway $
                 PlutusScript PlutusScriptV2 $
                 PlutusScriptSerialised s

@@ -136,7 +136,7 @@ module Cardano.Wallet.Write.Tx
 import Prelude
 
 import Cardano.Api
-    ( AlonzoEra, BabbageEra )
+    ( AlonzoEra, BabbageEra, ConwayEra )
 import Cardano.Api.Shelley
     ( ShelleyLedgerEra )
 import Cardano.Crypto.Hash
@@ -145,6 +145,8 @@ import Cardano.Ledger.Alonzo.Data
     ( BinaryData, Datum (..) )
 import Cardano.Ledger.Alonzo.Scripts
     ( AlonzoScript (..) )
+import Cardano.Ledger.BaseTypes
+    ( maybeToStrictMaybe )
 import Cardano.Ledger.Coin
     ( Coin (..) )
 import Cardano.Ledger.Crypto
@@ -153,6 +155,7 @@ import Cardano.Ledger.Era
     ( Crypto )
 import Cardano.Ledger.Mary
     ( MaryValue )
+
 import Cardano.Ledger.SafeHash
     ( SafeHash, extractHash, unsafeMakeSafeHash )
 import Cardano.Ledger.Serialization
@@ -180,9 +183,7 @@ import Data.Maybe.Strict
 import Data.Typeable
     ( Typeable )
 import Ouroboros.Consensus.Shelley.Eras
-    ( StandardBabbage )
-import Test.Cardano.Ledger.Alonzo.Examples.Consensus
-    ( StandardAlonzo )
+    ( StandardAlonzo, StandardBabbage, StandardConway )
 
 import qualified Cardano.Api as Cardano
 import qualified Cardano.Api.Byron as Cardano
@@ -209,9 +210,9 @@ import qualified Data.Map as Map
 -- Eras
 --------------------------------------------------------------------------------
 
-type LatestEra = BabbageEra
+type LatestEra = ConwayEra
 
-type LatestLedgerEra = StandardBabbage
+type LatestLedgerEra = StandardConway
 
 --------------------------------------------------------------------------------
 -- RecentEra
@@ -229,8 +230,9 @@ type LatestLedgerEra = StandardBabbage
 -- NOTE: We /could/ let 'era' refer to eras from the ledger rather than from
 -- cardano-api.
 data RecentEra era where
-    RecentEraBabbage :: RecentEra BabbageEra
     RecentEraAlonzo :: RecentEra AlonzoEra
+    RecentEraBabbage :: RecentEra BabbageEra
+    RecentEraConway :: RecentEra ConwayEra
 
 deriving instance Eq (RecentEra era)
 deriving instance Show (RecentEra era)
@@ -241,6 +243,7 @@ class (Cardano.IsShelleyBasedEra era, Typeable era) => IsRecentEra era where
 -- | Return a proof that the wallet can create txs in this era, or @Nothing@.
 toRecentEra :: Cardano.CardanoEra era -> Maybe (RecentEra era)
 toRecentEra = \case
+    Cardano.ConwayEra  -> Just RecentEraConway
     Cardano.BabbageEra -> Just RecentEraBabbage
     Cardano.AlonzoEra  -> Just RecentEraAlonzo
     Cardano.MaryEra    -> Nothing
@@ -250,6 +253,7 @@ toRecentEra = \case
 
 fromRecentEra :: RecentEra era -> Cardano.CardanoEra era
 fromRecentEra = \case
+  RecentEraConway -> Cardano.ConwayEra
   RecentEraBabbage -> Cardano.BabbageEra
   RecentEraAlonzo -> Cardano.AlonzoEra
 
@@ -259,6 +263,9 @@ instance IsRecentEra BabbageEra where
 instance IsRecentEra AlonzoEra where
     recentEra = RecentEraAlonzo
 
+instance IsRecentEra ConwayEra where
+    recentEra = RecentEraConway
+
 cardanoEraFromRecentEra :: RecentEra era -> Cardano.CardanoEra era
 cardanoEraFromRecentEra =
     Cardano.shelleyBasedToCardanoEra
@@ -266,6 +273,7 @@ cardanoEraFromRecentEra =
 
 shelleyBasedEraFromRecentEra :: RecentEra era -> Cardano.ShelleyBasedEra era
 shelleyBasedEraFromRecentEra = \case
+    RecentEraConway -> Cardano.ShelleyBasedEraConway
     RecentEraBabbage -> Cardano.ShelleyBasedEraBabbage
     RecentEraAlonzo -> Cardano.ShelleyBasedEraAlonzo
 
@@ -366,6 +374,9 @@ modifyTxOutValue
     -> (MaryValue StandardCrypto -> MaryValue StandardCrypto)
     -> TxOut (ShelleyLedgerEra era)
     -> TxOut (ShelleyLedgerEra era)
+modifyTxOutValue RecentEraConway f (Babbage.BabbageTxOut addr val dat script) =
+    withStandardCryptoConstraint RecentEraConway $
+        Babbage.BabbageTxOut addr (f val) dat script
 modifyTxOutValue RecentEraBabbage f (Babbage.BabbageTxOut addr val dat script) =
     withStandardCryptoConstraint RecentEraBabbage $
         Babbage.BabbageTxOut addr (f val) dat script
@@ -385,6 +396,7 @@ txOutValue
     :: RecentEra era
     -> TxOut (ShelleyLedgerEra era)
     -> MaryValue StandardCrypto
+txOutValue RecentEraConway (Babbage.BabbageTxOut _ val _ _) = val
 txOutValue RecentEraBabbage (Babbage.BabbageTxOut _ val _ _) = val
 txOutValue RecentEraAlonzo (Alonzo.AlonzoTxOut _ val _) = val
 
@@ -408,13 +420,13 @@ scriptFromCardanoScriptInAnyLang
     . fromMaybe (error "all valid scripts should be valid in latest era")
     . Cardano.toScriptInEra latestEra
   where
-    latestEra = Cardano.BabbageEra
+    latestEra = Cardano.ConwayEra
 
 -- | NOTE: The roundtrip
 -- @
 --     scriptToCardanoScriptInAnyLang . scriptFromCardanoScriptInAnyLang
 -- @
--- will convert 'SimpleScriptV1' to 'SimpleScriptV2'. Because 'SimpleScriptV1'
+-- will convert 'SimpleScript' to 'SimpleScript'. Because 'SimpleScript'
 -- is 'ShelleyEra'-specific, and 'ShelleyEra' is not a 'RecentEra', this should
 -- not be a problem.
 scriptToCardanoScriptInAnyLang
@@ -425,13 +437,13 @@ scriptToCardanoScriptInAnyLang =
     . Cardano.fromShelleyBasedScript latestEra
   where
     rewrap (Cardano.ScriptInEra _ s) = Cardano.toScriptInAnyLang s
-    latestEra = Cardano.ShelleyBasedEraBabbage
+    latestEra = Cardano.ShelleyBasedEraConway
 
 -- | NOTE: The roundtrip
 -- @
 --     scriptToCardanoEnvelopeJSON . scriptFromCardanoEnvelopeJSON
 -- @
--- will convert 'SimpleScriptV1' to 'SimpleScriptV2'. Because 'SimpleScriptV1'
+-- will convert 'SimpleScript' to 'SimpleScript'. Because 'SimpleScript'
 -- is 'ShelleyEra'-specific, and 'ShelleyEra' is not a 'RecentEra', this should
 -- not be a problem.
 scriptToCardanoEnvelopeJSON :: AlonzoScript LatestLedgerEra -> Aeson.Value
@@ -449,8 +461,7 @@ scriptToCardanoEnvelopeJSON = scriptToJSON . scriptToCardanoScriptInAnyLang
             -> (Cardano.IsScriptLanguage lang => a)
             -> a
         obtainScriptLangConstraint lang f = case lang of
-            Cardano.SimpleScriptLanguage Cardano.SimpleScriptV1 -> f
-            Cardano.SimpleScriptLanguage Cardano.SimpleScriptV2 -> f
+            Cardano.SimpleScriptLanguage -> f
             Cardano.PlutusScriptLanguage Cardano.PlutusScriptV1 -> f
             Cardano.PlutusScriptLanguage Cardano.PlutusScriptV2 -> f
 
@@ -475,13 +486,11 @@ scriptFromCardanoEnvelopeJSON v = fmap scriptFromCardanoScriptInAnyLang $ do
       :: [Cardano.FromSomeType Cardano.HasTextEnvelope Cardano.ScriptInAnyLang]
     textEnvTypes =
         [ Cardano.FromSomeType
-            (Cardano.AsScript Cardano.AsSimpleScriptV1)
-            (Cardano.ScriptInAnyLang
-                (Cardano.SimpleScriptLanguage Cardano.SimpleScriptV1))
+            (Cardano.AsScript Cardano.AsSimpleScript)
+            (Cardano.ScriptInAnyLang Cardano.SimpleScriptLanguage)
         , Cardano.FromSomeType
-            (Cardano.AsScript Cardano.AsSimpleScriptV2)
-            (Cardano.ScriptInAnyLang
-                (Cardano.SimpleScriptLanguage Cardano.SimpleScriptV2))
+            (Cardano.AsScript Cardano.AsSimpleScript)
+            (Cardano.ScriptInAnyLang Cardano.SimpleScriptLanguage)
         , Cardano.FromSomeType
             (Cardano.AsScript Cardano.AsPlutusScriptV1)
             (Cardano.ScriptInAnyLang
@@ -515,7 +524,7 @@ binaryDataToBytes =
     . Alonzo.binaryDataToData
 
 datumFromCardanoScriptData
-    :: Cardano.ScriptData
+    :: Cardano.HashableScriptData
     -> BinaryData LatestLedgerEra
 datumFromCardanoScriptData =
     Alonzo.dataToBinaryData
@@ -523,7 +532,7 @@ datumFromCardanoScriptData =
 
 datumToCardanoScriptData
     :: BinaryData LatestLedgerEra
-    -> Cardano.ScriptData
+    -> Cardano.HashableScriptData
 datumToCardanoScriptData =
     Cardano.fromAlonzoData
     . Alonzo.binaryDataToData
@@ -565,17 +574,21 @@ unwrapTxOutInRecentEra
     -> TxOutInRecentEra
     -> Either ErrInvalidTxOutInEra (TxOut (ShelleyLedgerEra era))
 unwrapTxOutInRecentEra era recentEraTxOut = case era of
-    RecentEraBabbage -> pure $ castTxOut recentEraTxOut
+    RecentEraConway -> pure $ castConwayTxOut recentEraTxOut
+    RecentEraBabbage -> pure $ castBabbageTxOut recentEraTxOut
     RecentEraAlonzo -> downcastTxOut recentEraTxOut
 
-castTxOut
+castConwayTxOut
     :: TxOutInRecentEra
-    -> TxOut (ShelleyLedgerEra BabbageEra)
-castTxOut (TxOutInRecentEra addr val datum mscript) =
-    (Babbage.BabbageTxOut addr val datum (toStrict mscript))
-  where
-    toStrict (Just a) = SJust a
-    toStrict Nothing = SNothing
+    -> Babbage.BabbageTxOut LatestLedgerEra
+castConwayTxOut (TxOutInRecentEra addr val datum mscript) =
+    Babbage.BabbageTxOut addr val datum (maybeToStrictMaybe mscript)
+
+castBabbageTxOut
+    :: TxOutInRecentEra
+    -> Babbage.BabbageTxOut (Babbage.BabbageEra StandardCrypto)
+castBabbageTxOut (TxOutInRecentEra _addr _val _datum _mscript) = undefined -- TODO
+    -- Babbage.BabbageTxOut addr val datum (maybeToStrictMaybe mscript)
 
 downcastTxOut
     :: TxOutInRecentEra
@@ -643,6 +656,7 @@ isBelowMinimumCoinForTxOut era pp out =
     actualCoin = getCoin era out
 
     getCoin :: RecentEra era -> TxOut (ShelleyLedgerEra era) -> Coin
+    getCoin RecentEraConway (Babbage.BabbageTxOut _ val _ _) = coin val
     getCoin RecentEraBabbage (Babbage.BabbageTxOut _ val _ _) = coin val
     getCoin RecentEraAlonzo (Alonzo.AlonzoTxOut _ val _) = coin val
 
@@ -681,7 +695,7 @@ utxoFromTxOutsInLatestEra
     :: [(TxIn, TxOutInRecentEra)]
     -> Shelley.UTxO LatestLedgerEra
 utxoFromTxOutsInLatestEra = withStandardCryptoConstraint RecentEraBabbage $
-    Shelley.UTxO . Map.fromList . map (second castTxOut)
+    Shelley.UTxO . Map.fromList . map (second castConwayTxOut)
 
 --------------------------------------------------------------------------------
 -- Tx
@@ -693,6 +707,9 @@ modifyTxOutputs
     -> Core.TxBody (ShelleyLedgerEra era)
     -> Core.TxBody (ShelleyLedgerEra era)
 modifyTxOutputs era f body = case era of
+    RecentEraConway -> body
+        { Babbage.outputs = mapSized f <$> Babbage.outputs body
+        }
     RecentEraBabbage -> body
         { Babbage.outputs = mapSized f <$> Babbage.outputs body
         }
@@ -767,8 +784,8 @@ fromCardanoTx = \case
 -- @
 --     toCardanoUTxO . fromCardanoUTxO
 -- @
--- will mark any 'SimpleScriptV1' reference scripts as 'SimpleScriptV2'. Because
--- 'SimpleScriptV1' is 'ShelleyEra'-specific, and 'ShelleyEra' is not a
+-- will mark any 'SimpleScript' reference scripts as 'SimpleScript'. Because
+-- 'SimpleScript' is 'ShelleyEra'-specific, and 'ShelleyEra' is not a
 -- 'RecentEra', this should not be a problem.
 toCardanoUTxO
     :: forall era. IsRecentEra era
@@ -849,7 +866,8 @@ evaluateMinimumFee era pp tx kwc =
 -- is not automatically the minimum fee.
 --
 evaluateTransactionBalance
-    :: RecentEra era
+    :: Babbage.ShelleyEraTxBody (ShelleyLedgerEra era)
+    => RecentEra era
     -> Core.PParams (Cardano.ShelleyLedgerEra era)
     -> Shelley.UTxO (Cardano.ShelleyLedgerEra era)
     -> Core.TxBody (Cardano.ShelleyLedgerEra era)
@@ -881,5 +899,6 @@ withCLIConstraint
     -> (CLI (ShelleyLedgerEra era) => a)
     -> a
 withCLIConstraint era a = case era of
+    RecentEraConway -> a
     RecentEraBabbage -> a
     RecentEraAlonzo -> a

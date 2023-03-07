@@ -251,6 +251,7 @@ withinEra = (>=) `on` numberEra
         MaryEra    -> 4
         AlonzoEra  -> 5
         BabbageEra -> 6
+        ConwayEra  -> 7
 
 -- | Deserialise a transaction to construct a 'SealedTx'.
 sealedTxFromBytes :: ByteString -> Either DecoderError SealedTx

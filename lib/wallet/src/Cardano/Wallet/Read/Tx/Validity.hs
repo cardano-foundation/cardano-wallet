@@ -21,7 +21,7 @@ module Cardano.Wallet.Read.Tx.Validity
 import Prelude
 
 import Cardano.Api
-    ( AllegraEra, AlonzoEra, BabbageEra, ByronEra, MaryEra, ShelleyEra )
+    ( AllegraEra, AlonzoEra, BabbageEra, ByronEra, ConwayEra, MaryEra, ShelleyEra )
 import Cardano.Ledger.Core
     ( bodyTxL )
 import Cardano.Ledger.Shelley.TxBody
@@ -48,6 +48,7 @@ type family ValidityType era where
     ValidityType MaryEra = ValidityInterval
     ValidityType AlonzoEra = ValidityInterval
     ValidityType BabbageEra = ValidityInterval
+    ValidityType ConwayEra = ValidityInterval
 
 newtype Validity era = Validity (ValidityType era)
 
@@ -63,4 +64,5 @@ getEraValidity
         , maryFun = onTx $ \tx -> Validity $ tx ^. bodyTxL . vldtTxBodyL
         , alonzoFun = onTx $ \tx -> Validity $ tx ^. bodyTxL . vldtTxBodyL
         , babbageFun = onTx $ \tx -> Validity $ tx ^. bodyTxL . vldtTxBodyL
+        , conwayFun = onTx $ \tx -> Validity $ tx ^. bodyTxL . vldtTxBodyL
         }

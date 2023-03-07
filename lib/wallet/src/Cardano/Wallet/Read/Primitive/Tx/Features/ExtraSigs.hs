@@ -44,6 +44,7 @@ extraSigs = EraFun
     , maryFun = noExtraSigs
     , alonzoFun = yesExtraSigs
     , babbageFun = yesExtraSigs
+    , conwayFun = yesExtraSigs
     }
     where
         noExtraSigs = const $ K []

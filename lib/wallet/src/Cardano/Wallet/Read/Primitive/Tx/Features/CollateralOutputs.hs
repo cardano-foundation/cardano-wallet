@@ -16,7 +16,7 @@ import Cardano.Wallet.Read.Tx.CollateralOutputs
 import Data.Maybe.Strict
     ( strictMaybeToMaybe )
 import Ouroboros.Consensus.Shelley.Eras
-    ( StandardBabbage )
+    ( StandardBabbage, StandardConway )
 
 import qualified Cardano.Api.Shelley as Cardano
 import qualified Cardano.Ledger.Babbage as Babbage
@@ -32,11 +32,20 @@ getCollateralOutputs = EraFun
     , alonzoFun = \_ -> K Nothing
     , babbageFun = \(CollateralOutputs mo)
         -> K $ fromBabbageTxOut <$> strictMaybeToMaybe mo
+    , conwayFun = \(CollateralOutputs mo)
+        -> K $ fromConwayTxOut <$> strictMaybeToMaybe mo
     }
 
 fromBabbageTxOut
     :: Babbage.BabbageTxOut StandardBabbage
     -> W.TxOut
 fromBabbageTxOut (Babbage.BabbageTxOut addr value _datum _refScript) =
+    W.TxOut (fromShelleyAddress addr) $
+    fromCardanoValue $ Cardano.fromMaryValue value
+
+fromConwayTxOut
+    :: Babbage.BabbageTxOut StandardConway
+    -> W.TxOut
+fromConwayTxOut (Babbage.BabbageTxOut addr value _datum _refScript) =
     W.TxOut (fromShelleyAddress addr) $
     fromCardanoValue $ Cardano.fromMaryValue value
