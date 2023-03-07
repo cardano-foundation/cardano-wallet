@@ -227,6 +227,7 @@ module Test.Integration.Framework.DSL
      -- * Re-exports
     , runResourceT
     , ResourceT
+    , listLimitedTransactions
     ) where
 
 import Prelude
@@ -291,7 +292,7 @@ import Cardano.Wallet.Api.Types.Error
 import Cardano.Wallet.Api.Types.SchemaMetadata
     ( TxMetadataSchema, toSimpleMetadataFlag )
 import Cardano.Wallet.Api.Types.Transaction
-    ( ApiLimit )
+    ( ApiLimit (..) )
 import Cardano.Wallet.Compat
     ( (^?) )
 import Cardano.Wallet.Pools
@@ -2578,6 +2579,21 @@ listAllTransactions
     -> m [ApiTransaction n]
 listAllTransactions ctx w =
     listTransactions ctx w Nothing Nothing (Just Descending) Nothing
+
+listLimitedTransactions
+    :: forall n w m.
+        ( DecodeAddress n
+        , DecodeStakeAddress n
+        , HasType (ApiT WalletId) w
+        , MonadUnliftIO m
+        )
+    => Context
+    -> w
+    -> Natural
+    -> m [ApiTransaction n]
+listLimitedTransactions ctx w limit = do
+    listTransactions ctx w Nothing Nothing (Just Descending)
+        $ Just $ ApiLimit limit
 
 listTransactions
     :: forall n w m.

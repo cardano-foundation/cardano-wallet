@@ -130,6 +130,7 @@ import Test.Integration.Framework.DSL
     , json
     , listAddresses
     , listAllTransactions
+    , listLimitedTransactions
     , listTransactions
     , minUTxOValue
     , mkTxPayloadMA
@@ -1828,6 +1829,14 @@ spec = describe "SHELLEY_TRANSACTIONS" $ do
               txs2 <- listTransactions @n ctx w (Just te) (Just te) Nothing
                 Nothing
               length <$> [txs1, txs2] `shouldSatisfy` all (== 0)
+
+    it "TRANS_LIST_LIMIT_01 - \
+       \Transactions can be limited" $
+          \ctx -> runResourceT $ do
+              w <- fixtureWalletWith @n ctx
+                    (replicate 100 $ minUTxOValue (_mainEra ctx))
+              txs <- listLimitedTransactions @n ctx w 9
+              length txs `shouldBe` 9
 
     it "TRANS_GET_01 - Can get Incoming and Outgoing transaction" $
         \ctx -> runResourceT $ do
