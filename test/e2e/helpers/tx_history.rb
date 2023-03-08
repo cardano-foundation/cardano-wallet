@@ -94,6 +94,21 @@ module TxHistory
     expect(tx['burn']['tokens']).to eq burn if burn
   end
 
+  def tx_has_mint_or_burn(tx, mint: true, burn: true)
+    if mint
+      expect(tx['mint']['tokens']).not_to eq []
+    else
+      expect(tx['mint']['tokens']).to eq []
+    end
+
+    if burn
+      expect(tx['burn']['tokens']).not_to eq []
+    else
+      expect(tx['burn']['tokens']).to eq []
+    end
+  end
+
+
   def tx_validity_interval(tx, invalid_before: before, invalid_hereafter: hereafter)
     expect(tx['validity_interval']['invalid_before']).to eq({ 'quantity' => invalid_before, 'unit' => 'slot' })
     expect(tx['validity_interval']['invalid_hereafter']).to eq({ 'quantity' => invalid_hereafter, 'unit' => 'slot' })

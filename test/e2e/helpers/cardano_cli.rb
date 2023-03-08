@@ -22,7 +22,7 @@ class CardanoCli
   end
 
   def cli(*options)
-    cmd(%(cardano-cli #{options.join(' ')}), display_result: true)
+    cmd(%(cardano-cli #{options.join(' ')}))
   end
 
   def build_script_address(script_file_path)
