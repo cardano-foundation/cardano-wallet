@@ -276,8 +276,8 @@ babbageMainnetProtocolParameters = C.ProtocolParameters
         -- TODO: Include a Plutus cost model here.
     , C.protocolParamPrices =
         Just $ C.ExecutionUnitPrices
-            { C.priceExecutionSteps = toRational 7.21e-5
-            , C.priceExecutionMemory = toRational 0.0577
+            { C.priceExecutionSteps = 7.21e-5
+            , C.priceExecutionMemory = 0.0577
             }
     , C.protocolParamMaxTxExUnits =
         Just $ C.ExecutionUnits

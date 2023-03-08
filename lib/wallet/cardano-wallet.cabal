@@ -1039,3 +1039,40 @@ benchmark db
     , unliftio
 
   other-modules:  Cardano.Wallet.DummyTarget.Primitive.Types
+
+benchmark api
+  import:         language, opts-exe
+  type:           exitcode-stdio-1.0
+  hs-source-dirs: bench test-common
+  main-is:        api-bench.hs
+  build-depends:
+    , aeson
+    , base
+    , bytestring
+    , cardano-addresses
+    , cardano-balance-tx
+    , cardano-crypto
+    , cardano-api
+    , cardano-wallet
+    , cardano-wallet-launcher
+    , cardano-wallet-integration
+    , cardano-wallet-primitive
+    , cardano-wallet-test-utils
+    , containers
+    , contra-tracer
+    , criterion
+    , cryptonite
+    , deepseq
+    , directory
+    , filepath
+    , fmt
+    , iohk-monitoring
+    , memory
+    , random
+    , say
+    , text
+    , text-class
+    , time
+    , transformers
+    , unliftio
+  other-modules:  Cardano.Wallet.DummyTarget.Primitive.Types
