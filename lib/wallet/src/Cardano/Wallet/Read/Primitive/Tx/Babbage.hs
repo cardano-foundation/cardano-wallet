@@ -16,8 +16,6 @@ module Cardano.Wallet.Read.Primitive.Tx.Babbage
 
 import Prelude
 
-import Cardano.Address.Script
-    ( ScriptHash (..) )
 import Cardano.Api
     ( BabbageEra )
 import Cardano.Ledger.Era
@@ -26,10 +24,6 @@ import Cardano.Ledger.Serialization
     ( sizedValue )
 import Cardano.Ledger.Shelley.API
     ( StrictMaybe (SJust, SNothing) )
-import Cardano.Wallet.Primitive.Types.Hash
-    ( Hash (..) )
-import Cardano.Wallet.Primitive.Types.TokenMap
-    ( toNestedMap )
 import Cardano.Wallet.Primitive.Types.TokenPolicy
     ( TokenPolicyId (..) )
 import Cardano.Wallet.Primitive.Types.Tx.TxIn
@@ -66,7 +60,6 @@ import Cardano.Wallet.Transaction
     , PlutusVersion (..)
     , ReferenceInput (..)
     , ScriptReference (..)
-    , TokenMapWithScripts (..)
     , TokenMapWithScripts (..)
     , ValidityIntervalExplicit (..)
     , WitnessCount (..)
@@ -134,8 +127,8 @@ fromBabbageTx tx@(Alonzo.ValidatedTx bod wits (Alonzo.IsValid isValid) aux) witC
             validity
         }
     , anyEraCerts certs
-    , assetsToMint'
-    , assetsToBurn'
+    , assetsToMint
+    , assetsToBurn
     , Just $ afterShelleyValidityInterval ttl
     , countWits
     )
@@ -181,21 +174,7 @@ fromBabbageTx tx@(Alonzo.ValidatedTx bod wits (Alonzo.IsValid isValid) aux) witC
         map fromLedgerToAnyScript scriptsFromWits
     allAnyScripts = Map.union anyScriptsFromWits anyScriptsFromTxOuts
 
-    (assetsToMint, assetsToBurn) = babbageMint mint wits
-
-    useReferenceScriptIfNeeded (TokenMapWithScripts tokenMap tokenScripts) =
-        let allTokenPolicyIds = Map.keys $ toNestedMap tokenMap
-            refInps' = ReferenceInput . fromShelleyTxIn <$> toList refInps
-            toScriptHash = ScriptHash . getHash . unTokenPolicyId
-            findTokenPolicy s = case Map.lookup s tokenScripts of
-                Just script -> script
-                Nothing -> AnyScriptReference (toScriptHash s) refInps'
-            replaceScript policy = (policy, findTokenPolicy policy)
-            tokenScripts' = Map.fromList $ map replaceScript allTokenPolicyIds
-        in TokenMapWithScripts tokenMap tokenScripts'
-
-    assetsToMint' = useReferenceScriptIfNeeded assetsToMint
-    assetsToBurn' = useReferenceScriptIfNeeded assetsToBurn
+    (assetsToMint, assetsToBurn) = babbageMint refInps mint wits
 
     countWits = WitnessCount
         (fromIntegral $ Set.size $ Alonzo.txwitsVKey' wits)
