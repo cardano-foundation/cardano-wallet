@@ -774,7 +774,7 @@ RSpec.describe CardanoWallet::Shared, :all, :shared do
       id = create_active_shared_wallet(CW.utils.mnemonic_sentence(24), '0H', 'self')
       txs = SHARED.transactions
       expect(txs.list(id)).to be_correct_and_respond 200
-      expect(txs.list(id, {max_count: 1})).to be_correct_and_respond 200
+      expect(txs.list(id, { max_count: 1 })).to be_correct_and_respond 200
       expect(txs.list(id, { start: '2012-09-25T10:15:00Z',
                             end: '2016-11-21T10:15:00Z',
                             order: 'ascending',

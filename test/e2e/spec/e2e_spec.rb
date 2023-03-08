@@ -2628,6 +2628,36 @@ RSpec.describe 'Cardano Wallet E2E tests', :all, :e2e do
         fees = txs.payment_fees(@wid, payment_payload(amt), 'self', metadata)
         expect(fees).to be_correct_and_respond 202
       end
+
+      it 'I can list transactions and limit response with query parameters' do
+        wid = @wid
+
+        # get 3 txs
+        txs = SHELLEY.transactions.list(wid, { max_count: 3 })
+        expect(txs).to be_correct_and_respond 200
+        expect(txs.size).to be 3
+
+        last_tx_time =  txs.first['inserted_at']['time']
+        first_tx_time = txs.last['inserted_at']['time']
+
+        # get 2 txs
+        txs = SHELLEY.transactions.list(wid, { max_count: 2 })
+        expect(txs).to be_correct_and_respond 200
+        expect(txs.size).to eq 2
+        expect(txs.first['inserted_at']['time']).to eq last_tx_time
+
+        # get 2 txs in ascending order
+        txs = SHELLEY.transactions.list(wid, { max_count: 2, start: first_tx_time, order: 'ascending' })
+        expect(txs).to be_correct_and_respond 200
+        expect(txs.size).to eq 2
+        expect(txs.first['inserted_at']['time']).to eq first_tx_time
+
+        # get 2 txs in descending order with start and end time
+        txs = SHELLEY.transactions.list(wid, { max_count: 2, start: first_tx_time, end: last_tx_time, order: 'descending' })
+        expect(txs).to be_correct_and_respond 200
+        expect(txs.size).to eq 2
+        expect(txs.first['inserted_at']['time']).to eq last_tx_time
+      end
     end
 
     describe 'Stake Pools' do
@@ -3054,6 +3084,34 @@ RSpec.describe 'Cardano Wallet E2E tests', :all, :e2e do
       tx_certificates(txt, present: false)
     end
 
+    def test_byron_trans_list(wid)
+      # get 3 txs
+      txs = BYRON.transactions.list(wid, { max_count: 3 })
+      expect(txs).to be_correct_and_respond 200
+      expect(txs.size).to be 3
+
+      last_tx_time =  txs.first['inserted_at']['time']
+      first_tx_time = txs.last['inserted_at']['time']
+
+      # get 2 txs
+      txs = BYRON.transactions.list(wid, { max_count: 2 })
+      expect(txs).to be_correct_and_respond 200
+      expect(txs.size).to eq 2
+      expect(txs.first['inserted_at']['time']).to eq last_tx_time
+
+      # get 2 txs in ascending order
+      txs = BYRON.transactions.list(wid, { max_count: 2, start: first_tx_time, order: 'ascending' })
+      expect(txs).to be_correct_and_respond 200
+      expect(txs.size).to eq 2
+      expect(txs.first['inserted_at']['time']).to eq first_tx_time
+
+      # get 2 txs in descending order with start and end time
+      txs = BYRON.transactions.list(wid, { max_count: 2, start: first_tx_time, end: last_tx_time, order: 'descending' })
+      expect(txs).to be_correct_and_respond 200
+      expect(txs.size).to eq 2
+      expect(txs.first['inserted_at']['time']).to eq last_tx_time
+    end
+
     describe 'UTxOs' do
       it 'Fixture shared wallets have utxos' do
         @nightly_byron_wallets.each do |wid|
@@ -3089,6 +3147,14 @@ RSpec.describe 'Cardano Wallet E2E tests', :all, :e2e do
 
       it 'I can send native assets tx and they are received (icarus -> shelley)' do
         test_byron_assets_tx(@wid_ic, @target_id)
+      end
+
+      it 'I can list transactions and limit response with query parameters (byron)' do
+        test_byron_trans_list(@wid_rnd)
+      end
+
+      it 'I can list transactions and limit response with query parameters (icarus)' do
+        test_byron_trans_list(@wid_ic)
       end
     end
 

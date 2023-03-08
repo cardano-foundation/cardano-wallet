@@ -317,7 +317,7 @@ RSpec.describe CardanoWallet::Shelley, :all, :shelley do
       id = create_shelley_wallet
       txs = SHELLEY.transactions
       expect(txs.list(id)).to be_correct_and_respond 200
-      expect(txs.list(id, {max_count: 1})).to be_correct_and_respond 200
+      expect(txs.list(id, { max_count: 1 })).to be_correct_and_respond 200
       expect(txs.list(id, { start: '2012-09-25T10:15:00Z',
                             end: '2016-11-21T10:15:00Z',
                             order: 'ascending',
