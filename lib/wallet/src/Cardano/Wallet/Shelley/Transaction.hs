@@ -38,6 +38,19 @@ module Cardano.Wallet.Shelley.Transaction
     , noTxUpdate
     , updateSealedTx
 
+    -- * For balancing (To be moved)
+    , maxScriptExecutionCost
+    , estimateKeyWitnessCount
+    , evaluateMinimumFee
+    , estimateSignedTxSize
+    , KeyWitnessCount (..)
+    , distributeSurplus
+    , distributeSurplusDelta
+    , sizeOfCoin
+    , maximumCostOfIncreasingCoin
+    , costOfIncreasingCoin
+    , assignScriptRedeemers
+
     -- * Internals
     , TxPayload (..)
     , TxSkeleton (..)
@@ -46,7 +59,6 @@ module Cardano.Wallet.Shelley.Transaction
     , EraConstraints
     , _decodeSealedTx
     , _estimateMaxNumberOfInputs
-    , _maxScriptExecutionCost
     , mkDelegationCertificates
     , estimateTxCost
     , estimateTxSize
@@ -56,13 +68,6 @@ module Cardano.Wallet.Shelley.Transaction
     , mkTxSkeleton
     , mkUnsignedTx
     , txConstraints
-    , estimateKeyWitnessCount
-    , KeyWitnessCount (..)
-    , costOfIncreasingCoin
-    , _distributeSurplus
-    , distributeSurplusDelta
-    , sizeOfCoin
-    , maximumCostOfIncreasingCoin
     ) where
 
 import Prelude
@@ -658,24 +663,10 @@ newTransactionLayer networkId = TransactionLayer
                     selection delta assetsToBeMinted assetsToBeBurned inpsScripts
                     (WriteTx.shelleyBasedEraFromRecentEra WriteTx.recentEra)
 
-    , estimateSignedTxSize = \pp utxo (Cardano.Tx body _) -> do
-        _estimateSignedTxSize pp utxo body
-
     , calcMinimumCost = \era pp ctx skeleton ->
         estimateTxCost era pp (mkTxSkeleton (txWitnessTagFor @k) ctx skeleton)
         <>
         txFeePadding ctx
-
-    , maxScriptExecutionCost =
-        _maxScriptExecutionCost
-
-    , distributeSurplus = _distributeSurplus
-
-    , assignScriptRedeemers =
-        _assignScriptRedeemers
-
-    , evaluateMinimumFee =
-        _evaluateMinimumFee
 
     , computeSelectionLimit = \era pp ctx outputsToCover ->
         let txMaxSize = getTxMaxSize $ txParameters pp in
@@ -973,45 +964,37 @@ dummySkeleton inputCount outputs = SelectionSkeleton
     }
 
 -- ^ Evaluate a minimal fee amount necessary to pay for a given tx
--- using ledger's functionality
---
--- Will estimate how many witnesses there /should be/, so it works even
--- for unsigned transactions.
-_evaluateMinimumFee
+-- using ledger's functionality.
+evaluateMinimumFee
     :: Cardano.IsShelleyBasedEra era
     => Cardano.ProtocolParameters
-    -> Cardano.UTxO era
-    -> Cardano.Tx era
+    -> KeyWitnessCount
+    -> Cardano.TxBody era
     -> Coin
-_evaluateMinimumFee pp utxo (Cardano.Tx body _) = fromCardanoLovelace $
-    Cardano.evaluateTransactionFee pp body nWits 0
+evaluateMinimumFee pp (KeyWitnessCount nWits nBootWits) body =
+    fromCardanoLovelace (Cardano.evaluateTransactionFee pp body nWits 0)
+    <> bootWitFees
   where
-    nWits = case estimateKeyWitnessCount utxo body of
-        KeyWitnessCount n nBoot
-            | nBoot > 0 -> error
-                "evaluateMinimumFee: bootstrap wits not yet supported"
-            | otherwise -> n
+    -- NOTE: Cardano.evaluateTransactionFee will error if passed non-zero
+    -- nBootWits, so we need to account for it separately.
+    bootWitFees =
+        if nBootWits > 0
+        then error "evaluateMinimumFee: bootstrap wits not yet supported"
+        else mempty
 
 -- | Estimate the size of the transaction (body) when fully signed.
-_estimateSignedTxSize
+estimateSignedTxSize
     :: Cardano.IsShelleyBasedEra era
     => Cardano.ProtocolParameters
-    -> Cardano.UTxO era
+    -> KeyWitnessCount
     -> Cardano.TxBody era
     -> TxSize
-_estimateSignedTxSize pparams utxo body =
+estimateSignedTxSize pparams nWits body =
     let
-        nWits :: Word
-        nWits = case estimateKeyWitnessCount utxo body of
-            KeyWitnessCount n nBoot
-                | nBoot > 0 -> error
-                    "estimateSignedTxSize: bootstrap wits not yet supported"
-                | otherwise -> n
-
         -- Hack which allows us to rely on the ledger to calculate the size of
         -- witnesses:
         feeOfWits :: Coin
-        feeOfWits = minfee nWits `Coin.difference` minfee 0
+        feeOfWits = minfee nWits `Coin.difference` minfee mempty
 
         sizeOfWits :: TxSize
         sizeOfWits =
@@ -1040,9 +1023,8 @@ _estimateSignedTxSize pparams utxo body =
     coinQuotRem :: Coin -> Coin -> (Natural, Natural)
     coinQuotRem (Coin p) (Coin q) = quotRem p q
 
-    minfee :: Word -> Coin
-    minfee nWits = fromCardanoLovelace $
-        Cardano.evaluateTransactionFee pparams body nWits 0
+    minfee :: KeyWitnessCount -> Coin
+    minfee witCount = evaluateMinimumFee pparams witCount body
 
     feePerByte :: Coin
     feePerByte = Coin.fromNatural $
@@ -1062,6 +1044,9 @@ numberOfShelleyWitnesses n = KeyWitnessCount n 0
 instance Semigroup KeyWitnessCount where
     (KeyWitnessCount s1 b1) <> (KeyWitnessCount s2 b2)
         = KeyWitnessCount (s1 + s2) (b1 + b2)
+
+instance Monoid KeyWitnessCount where
+    mempty = KeyWitnessCount 0 0
 
 -- | Estimates the required number of Shelley-era witnesses.
 --
@@ -1168,11 +1153,13 @@ estimateKeyWitnessCount utxo txbody@(Cardano.TxBody txbodycontent) =
                 , "Caller is expected to ensure this does not happen."
                 ]
 
-_maxScriptExecutionCost
+maxScriptExecutionCost
     :: ProtocolParameters
+     -- ^ Current protocol parameters
     -> [Redeemer]
+    -- ^ Redeemers for this transaction
     -> Coin
-_maxScriptExecutionCost pp redeemers
+maxScriptExecutionCost pp redeemers
     | not (null redeemers) = case view #executionUnitPrices pp of
         Just prices -> executionCost prices maxExecutionUnits
         Nothing     -> Coin 0
@@ -1192,7 +1179,7 @@ type AlonzoTx =
 type BabbageTx =
     Ledger.Tx (Cardano.ShelleyLedgerEra Cardano.BabbageEra)
 
-_assignScriptRedeemers
+assignScriptRedeemers
     :: forall era. Cardano.IsShelleyBasedEra era
     => Cardano.ProtocolParameters
     -> TimeInterpreter (Either PastHorizonException)
@@ -1200,7 +1187,7 @@ _assignScriptRedeemers
     -> [Redeemer]
     -> Cardano.Tx era
     -> Either ErrAssignRedeemers (Cardano.Tx era )
-_assignScriptRedeemers pparams ti utxo redeemers tx =
+assignScriptRedeemers pparams ti utxo redeemers tx =
     case Cardano.shelleyBasedEra @era of
         Cardano.ShelleyBasedEraShelley ->
             pure tx
@@ -1683,12 +1670,36 @@ sizeOfCoin (Coin c)
     | c >=            24 = TxSize 2
     | otherwise          = TxSize 1
 
--- | Distributes a surplus transaction balance between the given change outputs
---   and the given fee.
+-- | Distributes a surplus transaction balance between the given change
+-- outputs and the given fee. This function is aware of the fact that
+-- any increase in a 'Coin' value could increase the size and fee
+-- requirement of a transaction.
 --
--- See documentation for 'TransactionLayer.distributeSurplus' for more details.
+-- When comparing the original fee and change outputs to the adjusted
+-- fee and change outputs, this function guarantees that:
 --
-_distributeSurplus
+--    - The number of the change outputs remains constant;
+--
+--    - The fee quantity either remains the same or increases.
+--
+--    - For each change output:
+--        - the ada quantity either remains constant or increases.
+--        - non-ada quantities remain the same.
+--
+--    - The surplus is conserved:
+--        The total increase in the fee and change ada quantities is
+--        exactly equal to the surplus.
+--
+--    - Any increase in cost is covered:
+--        If the total cost has increased by 𝛿c, then the fee value
+--        will have increased by at least 𝛿c.
+--
+-- If the cost of distributing the provided surplus is greater than the
+-- surplus itself, the function will return 'ErrMoreSurplusNeeded'. If
+-- the provided surplus is greater or equal to
+-- @maximumCostOfIncreasingCoin feePolicy@, the function will always
+-- return 'Right'.
+distributeSurplus
     :: FeePolicy
     -> Coin
     -- ^ Surplus transaction balance to distribute.
@@ -1696,7 +1707,7 @@ _distributeSurplus
     -- ^ Original fee and change outputs.
     -> Either ErrMoreSurplusNeeded (TxFeeAndChange [TxOut])
     -- ^ Adjusted fee and change outputs.
-_distributeSurplus feePolicy surplus fc@(TxFeeAndChange fee change) =
+distributeSurplus feePolicy surplus fc@(TxFeeAndChange fee change) =
     distributeSurplusDelta feePolicy surplus
         (mapTxFeeAndChange id (fmap TxOut.coin) fc)
     <&> mapTxFeeAndChange

@@ -240,9 +240,14 @@ import Cardano.Wallet.Shelley.Transaction
     , TxWitnessTag (..)
     , TxWitnessTagFor
     , costOfIncreasingCoin
+    , distributeSurplus
     , distributeSurplusDelta
+    , estimateKeyWitnessCount
+    , estimateSignedTxSize
     , estimateTxCost
     , estimateTxSize
+    , evaluateMinimumFee
+    , maxScriptExecutionCost
     , maximumCostOfIncreasingCoin
     , mkByronWitness
     , mkDelegationCertificates
@@ -255,9 +260,7 @@ import Cardano.Wallet.Shelley.Transaction
     , txConstraints
     , updateSealedTx
     , _decodeSealedTx
-    , _distributeSurplus
     , _estimateMaxNumberOfInputs
-    , _maxScriptExecutionCost
     )
 import Cardano.Wallet.Transaction
     ( DelegationAction (..)
@@ -1290,11 +1293,11 @@ feeCalculationSpec era = describe "fee calculations" $ do
             let rdmrs = replicate (sealedNumberOfRedeemers tx) (error "Redeemer")
             if (null rdmrs) then do
                 it ("without redeemers: " <> filepath) $
-                    _maxScriptExecutionCost ppWithPrices rdmrs
+                    maxScriptExecutionCost ppWithPrices rdmrs
                         `shouldBe` (Coin 0)
             else do
                 it ("with redeemers: " <> filepath) $
-                    _maxScriptExecutionCost ppWithPrices rdmrs
+                    maxScriptExecutionCost ppWithPrices rdmrs
                         `shouldSatisfy` (> (Coin 0))
 
     describe "fee calculations" $ do
@@ -2917,7 +2920,7 @@ prop_distributeSurplus_onSuccess propertyToTest policy txSurplus fc =
     TxFeeAndChange feeOriginal changeOriginal = fc
 
     mResult :: Either ErrMoreSurplusNeeded (TxFeeAndChange [TxOut])
-    mResult = _distributeSurplus policy surplus fc
+    mResult = distributeSurplus policy surplus fc
 
 -- Verifies that the 'distributeSurplus' function conserves the surplus: the
 -- total increase in the fee and change ada quantities should be exactly equal
@@ -3689,11 +3692,10 @@ balanceTransactionGoldenSpec = describe "balance goldens" $ do
         :: Cardano.Tx Cardano.BabbageEra
         -> Cardano.UTxO Cardano.BabbageEra
         -> Cardano.Lovelace
-    txMinFee tx utxo = toCardanoLovelace $ evaluateMinimumFee
-        testTxLayer
+    txMinFee (Cardano.Tx body _) utxo = toCardanoLovelace $ evaluateMinimumFee
         (snd mockProtocolParametersForBalancing)
-        utxo
-        tx
+        (estimateKeyWitnessCount utxo body)
+        body
 
 -- NOTE: 'balanceTransaction' relies on estimating the number of witnesses that
 -- will be needed. The correctness of this estimation is not tested here.
@@ -3866,13 +3868,12 @@ prop_balanceTransactionValid wallet (ShowBuildable partialTx) seed
         :: Cardano.Tx Cardano.AlonzoEra
         -> Cardano.UTxO Cardano.AlonzoEra
         -> Property
-    prop_validSize tx utxo = do
+    prop_validSize tx@(Cardano.Tx body _) utxo = do
         let (TxSize size) =
                 estimateSignedTxSize
-                    testTxLayer
                     (snd mockProtocolParametersForBalancing)
-                    utxo
-                    tx
+                    (estimateKeyWitnessCount utxo body)
+                    body
         let limit = fromIntegral $ getQuantity $
                 view (#txParameters . #getTxMaxSize) mockProtocolParameters
         let msg = unwords
@@ -3940,8 +3941,10 @@ prop_balanceTransactionValid wallet (ShowBuildable partialTx) seed
         :: Cardano.Tx Cardano.AlonzoEra
         -> Cardano.UTxO Cardano.AlonzoEra
         -> Cardano.Lovelace
-    txMinFee tx utxo = toCardanoLovelace
-        $ evaluateMinimumFee testTxLayer nodePParams utxo tx
+    txMinFee (Cardano.Tx body _) utxo = toCardanoLovelace
+        $ evaluateMinimumFee nodePParams
+            (estimateKeyWitnessCount utxo body)
+            body
 
     txBalance
         :: Cardano.Tx Cardano.AlonzoEra
@@ -4182,10 +4185,12 @@ estimateSignedTxSizeSpec =
                 let pparams = (snd mockProtocolParametersForBalancing)
                         { Cardano.protocolParamMinUTxOValue = Just 1_000_000
                         }
-                withShelleyBasedTx anyShelleyEraTx $ \tx ->
-                    (estimateSignedTxSize testTxLayer pparams
-                        (utxoPromisingInputsHaveVkPaymentCreds tx)
-                        tx)
+                withShelleyBasedTx anyShelleyEraTx $ \(Cardano.Tx body _) ->
+                    (estimateSignedTxSize
+                        pparams
+                        (estimateKeyWitnessCount
+                            (utxoPromisingInputsHaveVkPaymentCreds body) body)
+                        body)
                     `shouldBe`
                     TxSize (fromIntegral $ BS.length bs)
   where
@@ -4198,9 +4203,9 @@ estimateSignedTxSizeSpec =
     -- outputs with vk payment credentials.
     utxoPromisingInputsHaveVkPaymentCreds
         :: forall era. Cardano.IsShelleyBasedEra era
-        => Cardano.Tx era
+        => Cardano.TxBody era
         -> Cardano.UTxO era
-    utxoPromisingInputsHaveVkPaymentCreds (Cardano.Tx (Cardano.TxBody body) _) =
+    utxoPromisingInputsHaveVkPaymentCreds (Cardano.TxBody body) =
         Cardano.UTxO $ Map.fromList $
             [ (i
                , Compatibility.toCardanoTxOut
