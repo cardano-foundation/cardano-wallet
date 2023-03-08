@@ -760,4 +760,27 @@ RSpec.describe CardanoWallet::Shared, :all, :shared do
       end
     end
   end
+
+  describe CardanoWallet::Shared::Transactions do
+    it 'I could get a tx if I had proper id' do
+      wid = create_active_shared_wallet(CW.utils.mnemonic_sentence(24), '0H', 'self')
+      txs = SHARED.transactions
+      g = txs.get(wid, TXID)
+      expect(g).to be_correct_and_respond 404
+      expect(g.to_s).to include 'no_such_transaction'
+    end
+
+    it 'Can list transactions' do
+      id = create_active_shared_wallet(CW.utils.mnemonic_sentence(24), '0H', 'self')
+      txs = SHARED.transactions
+      expect(txs.list(id)).to be_correct_and_respond 200
+      expect(txs.list(id, {max_count: 1})).to be_correct_and_respond 200
+      expect(txs.list(id, { start: '2012-09-25T10:15:00Z',
+                            end: '2016-11-21T10:15:00Z',
+                            order: 'ascending',
+                            max_count: 10 })).to be_correct_and_respond 200
+      expect(txs.list(id, { order: 'bad_order' })).to be_correct_and_respond 400
+      expect(txs.list(id, { max_count: 'bad_count' })).to be_correct_and_respond 400
+    end
+  end
 end

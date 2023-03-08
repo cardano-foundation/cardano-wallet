@@ -316,14 +316,14 @@ RSpec.describe CardanoWallet::Shelley, :all, :shelley do
     it 'Can list transactions' do
       id = create_shelley_wallet
       txs = SHELLEY.transactions
-      l = txs.list(id)
-      l_ext = txs.list(id, { start: '2012-09-25T10:15:00Z',
-                             end: '2016-11-21T10:15:00Z',
-                             order: 'ascending' })
-      l_bad = txs.list(id, { order: 'bad_order' })
-      expect(l).to be_correct_and_respond 200
-      expect(l_ext).to be_correct_and_respond 200
-      expect(l_bad).to be_correct_and_respond 400
+      expect(txs.list(id)).to be_correct_and_respond 200
+      expect(txs.list(id, {max_count: 1})).to be_correct_and_respond 200
+      expect(txs.list(id, { start: '2012-09-25T10:15:00Z',
+                            end: '2016-11-21T10:15:00Z',
+                            order: 'ascending',
+                            max_count: 10 })).to be_correct_and_respond 200
+      expect(txs.list(id, { order: 'bad_order' })).to be_correct_and_respond 400
+      expect(txs.list(id, { max_count: 'bad_count' })).to be_correct_and_respond 400
     end
 
     it 'I could create transaction - if I had money' do
