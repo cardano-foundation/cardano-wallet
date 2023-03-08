@@ -68,7 +68,7 @@ RSpec.describe 'Cardano Wallet E2E tests', :all, :e2e do
 
       # 3. [cardano-cli] Submit minting transaction using reference script sending minted tokens to wallet address
 
-      wallet_id = '80b24aa6361e1f62e7d252e614f7d649870ab542'
+      wallet_id = '305f19e7a384f89e6f5e36025ff5e9a22d33cd6b'
       txs = SHELLEY.transactions.list(wallet_id)
       expect(txs).to be_correct_and_respond 200
 
@@ -105,11 +105,11 @@ RSpec.describe 'Cardano Wallet E2E tests', :all, :e2e do
       tx_script_validity(tx_details, 'valid')
       tx_status(tx_details, 'in_ledger')
       tx_collateral(tx_details, present: true)
-      tx_collateral_outputs(tx_details, present: false)
+      tx_collateral_outputs(tx_details, present: true)
       tx_metadata(tx_details, nil)
       tx_deposits(tx_details, deposit_taken: 0, deposit_returned: 0)
       tx_withdrawals(tx_details, present: false)
-      tx_mint_burn(tx_details, mint: [], burn: [])
+      tx_has_mint_or_burn(tx_details, mint: true, burn: false)
       tx_extra_signatures(tx_details, present: true)
       tx_script_integrity(tx_details, present: true)
       tx_validity_interval_default(tx_details)
@@ -158,7 +158,7 @@ RSpec.describe 'Cardano Wallet E2E tests', :all, :e2e do
       end
 
       # 3. [cardano-cli] Submit minting transaction using reference script sending minted tokens to wallet address
-      wallet_id = '4cc8afc12c70b0f70e0de45670ea3744ffed1522'
+      wallet_id = '305f19e7a384f89e6f5e36025ff5e9a22d33cd6b'
       txs = SHELLEY.transactions.list(wallet_id)
       expect(txs).to be_correct_and_respond 200
 
@@ -193,14 +193,14 @@ RSpec.describe 'Cardano Wallet E2E tests', :all, :e2e do
       tx_direction(tx_details, 'incoming')
       tx_script_validity(tx_details, 'valid')
       tx_status(tx_details, 'in_ledger')
-      tx_collateral(tx_details, present: true)
+      tx_collateral(tx_details, present: false)
       tx_collateral_outputs(tx_details, present: false)
       tx_metadata(tx_details, nil)
       tx_deposits(tx_details, deposit_taken: 0, deposit_returned: 0)
       tx_withdrawals(tx_details, present: false)
-      tx_mint_burn(tx_details, mint: [], burn: [])
-      tx_extra_signatures(tx_details, present: true)
-      tx_script_integrity(tx_details, present: true)
+      tx_has_mint_or_burn(tx_details, mint: true, burn: false)
+      tx_extra_signatures(tx_details, present: false)
+      tx_script_integrity(tx_details, present: false)
       tx_validity_interval_default(tx_details)
       tx_certificates(tx_details, present: false)
 
