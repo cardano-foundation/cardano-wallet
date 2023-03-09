@@ -2198,27 +2198,23 @@ postTransactionOld ctx@ApiLayer{..} genChange (ApiT wid) body = do
                     , builtSealedTx = sealedTx
                     }
             pure (sel, tx, txMeta, txTime, pp)
-        mkApiTransaction
-            (timeInterpreter netLayer)
-            wrk wid
-            #pendingSince
-            MkApiTransactionParams
-                { txId = tx ^. #txId
-                , txFee = tx ^. #fee
-                , txInputs = NE.toList $ second Just <$> sel ^. #inputs
-                -- TODO: ADP-957:
-                , txCollateralInputs = []
-                , txOutputs = tx ^. #outputs
-                , txCollateralOutput = tx ^. #collateralOutput
-                , txWithdrawals = tx ^. #withdrawals
-                , txMeta
-                , txMetadata = tx ^. #metadata
-                , txTime
-                , txScriptValidity = tx ^. #scriptValidity
-                , txDeposit = W.stakeKeyDeposit pp
-                , txMetadataSchema = TxMetadataDetailedSchema
-                , txCBOR = tx ^. #txCBOR
-                }
+        mkApiTransaction ti wrk wid #pendingSince MkApiTransactionParams
+            { txId = tx ^. #txId
+            , txFee = tx ^. #fee
+            , txInputs = NE.toList $ second Just <$> sel ^. #inputs
+            -- TODO: ADP-957:
+            , txCollateralInputs = []
+            , txOutputs = tx ^. #outputs
+            , txCollateralOutput = tx ^. #collateralOutput
+            , txWithdrawals = tx ^. #withdrawals
+            , txMeta
+            , txMetadata = tx ^. #metadata
+            , txTime
+            , txScriptValidity = tx ^. #scriptValidity
+            , txDeposit = W.stakeKeyDeposit pp
+            , txMetadataSchema = TxMetadataDetailedSchema
+            , txCBOR = tx ^. #txCBOR
+            }
   where
     ti :: TimeInterpreter (ExceptT PastHorizonException IO)
     ti = timeInterpreter (ctx ^. networkLayer)

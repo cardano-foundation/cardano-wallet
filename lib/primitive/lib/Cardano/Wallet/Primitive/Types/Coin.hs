@@ -92,9 +92,7 @@ import qualified Prelude
 -- The 'Coin' type has 'Semigroup' and 'Monoid' instances that correspond
 -- to ordinary addition and summation.
 --
-newtype Coin = Coin
-    { unCoin :: Natural
-    }
+newtype Coin = Coin { unCoin :: Natural }
     deriving stock (Ord, Eq, Generic)
     deriving (Read, Show) via (Quiet Coin)
 
