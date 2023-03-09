@@ -221,7 +221,7 @@ import Cardano.Wallet.Transaction
 import Cardano.Wallet.Util
     ( HasCallStack, internalError, modifyM )
 import Cardano.Wallet.Write.Tx
-    ( fromCardanoUTxO )
+    ( KeyWitnessCount (..), fromCardanoUTxO )
 import Codec.Serialise
     ( deserialiseOrFail )
 import Control.Arrow
@@ -1030,23 +1030,8 @@ estimateSignedTxSize pparams nWits body =
     feePerByte = Coin.fromNatural $
         view #protocolParamTxFeePerByte pparams
 
-data KeyWitnessCount = KeyWitnessCount
-    { nKeyWits :: Word
-    -- ^ "Normal" verification key witnesses introduced with the Shelley era.
-
-    , nBootstrapWits :: Word
-    -- ^ Bootstrap key witnesses, a.k.a Byron witnesses.
-    } deriving (Eq, Show)
-
 numberOfShelleyWitnesses :: Word -> KeyWitnessCount
 numberOfShelleyWitnesses n = KeyWitnessCount n 0
-
-instance Semigroup KeyWitnessCount where
-    (KeyWitnessCount s1 b1) <> (KeyWitnessCount s2 b2)
-        = KeyWitnessCount (s1 + s2) (b1 + b2)
-
-instance Monoid KeyWitnessCount where
-    mempty = KeyWitnessCount 0 0
 
 -- | Estimates the required number of Shelley-era witnesses.
 --

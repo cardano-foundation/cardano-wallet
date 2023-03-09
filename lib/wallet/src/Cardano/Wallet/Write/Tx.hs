@@ -32,6 +32,9 @@ module Cardano.Wallet.Write.Tx
     , LatestLedgerEra
     , LatestEra
 
+    -- ** Key witness counts
+    , KeyWitnessCount (..)
+
     -- ** Helpers for cardano-api compatibility
     , cardanoEra
     , shelleyBasedEra
@@ -312,6 +315,25 @@ fromAnyRecentEra (AnyRecentEra era) = Cardano.AnyCardanoEra (fromRecentEra era)
 withRecentEra ::
     AnyRecentEra -> (forall era. IsRecentEra era => RecentEra era -> a) -> a
 withRecentEra (AnyRecentEra era) f = f era
+
+--------------------------------------------------------------------------------
+-- Key witness counts
+--------------------------------------------------------------------------------
+
+data KeyWitnessCount = KeyWitnessCount
+    { nKeyWits :: Word
+    -- ^ "Normal" verification key witnesses introduced with the Shelley era.
+
+    , nBootstrapWits :: Word
+    -- ^ Bootstrap key witnesses, a.k.a Byron witnesses.
+    } deriving (Eq, Show)
+
+instance Semigroup KeyWitnessCount where
+    (KeyWitnessCount s1 b1) <> (KeyWitnessCount s2 b2)
+        = KeyWitnessCount (s1 + s2) (b1 + b2)
+
+instance Monoid KeyWitnessCount where
+    mempty = KeyWitnessCount 0 0
 
 --------------------------------------------------------------------------------
 -- TxIn
