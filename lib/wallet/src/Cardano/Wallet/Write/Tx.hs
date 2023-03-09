@@ -321,10 +321,10 @@ withRecentEra (AnyRecentEra era) f = f era
 --------------------------------------------------------------------------------
 
 data KeyWitnessCount = KeyWitnessCount
-    { nKeyWits :: Word
+    { nKeyWits :: !Word
     -- ^ "Normal" verification key witnesses introduced with the Shelley era.
 
-    , nBootstrapWits :: Word
+    , nBootstrapWits :: !Word
     -- ^ Bootstrap key witnesses, a.k.a Byron witnesses.
     } deriving (Eq, Show)
 
