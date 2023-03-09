@@ -68,6 +68,8 @@ import Cardano.Wallet.Primitive.Types.UTxOSelection
     ( UTxOSelection )
 import Cardano.Wallet.Shelley.Compatibility
     ( fromCardanoTxIn, fromCardanoTxOut, toCardanoUTxO )
+import Cardano.Wallet.Shelley.Compatibility.Ledger
+    ( toWalletCoin )
 import Cardano.Wallet.Shelley.Transaction
     ( KeyWitnessCount (..)
     , TxUpdate (..)
@@ -75,7 +77,6 @@ import Cardano.Wallet.Shelley.Transaction
     , distributeSurplus
     , estimateKeyWitnessCount
     , estimateSignedTxSize
-    , evaluateMinimumFee
     , maxScriptExecutionCost
     )
 import Cardano.Wallet.Transaction
@@ -655,7 +656,8 @@ balanceTransactionWithSelectionStrategyAndNoZeroAdaAdjustment
         -> ExceptT ErrBalanceTx m (Cardano.Value, Cardano.Lovelace, KeyWitnessCount)
     balanceAfterSettingMinFee tx = ExceptT . pure $ do
         let witCount = estimateKeyWitnessCount combinedUTxO (getBody tx)
-        let minfee = evaluateMinimumFee nodePParams witCount (getBody tx)
+        let minfee = toWalletCoin $ Write.Tx.evaluateMinimumFee
+                (recentEra @era) ledgerPP (Write.Tx.fromCardanoTx tx) witCount
         let update = TxUpdate [] [] [] [] (UseNewTxFee minfee)
         tx' <- left ErrBalanceTxUpdateError $ updateTx txLayer tx update
         let balance = txBalance tx'

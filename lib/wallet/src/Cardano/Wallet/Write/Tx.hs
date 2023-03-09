@@ -4,6 +4,7 @@
 {-# LANGUAGE FlexibleInstances #-}
 {-# LANGUAGE GADTs #-}
 {-# LANGUAGE LambdaCase #-}
+{-# LANGUAGE NamedFieldPuns #-}
 {-# LANGUAGE RankNTypes #-}
 {-# LANGUAGE ScopedTypeVariables #-}
 {-# LANGUAGE StandaloneDeriving #-}
@@ -31,6 +32,9 @@ module Cardano.Wallet.Write.Tx
     , fromRecentEra
     , LatestLedgerEra
     , LatestEra
+
+    -- ** Key witness counts
+    , KeyWitnessCount (..)
 
     -- ** Helpers for cardano-api compatibility
     , cardanoEra
@@ -124,6 +128,7 @@ module Cardano.Wallet.Write.Tx
     , toCardanoValue
 
     -- * Balancing
+    , evaluateMinimumFee
     , evaluateTransactionBalance
     )
     where
@@ -312,6 +317,25 @@ fromAnyRecentEra (AnyRecentEra era) = Cardano.AnyCardanoEra (fromRecentEra era)
 withRecentEra ::
     AnyRecentEra -> (forall era. IsRecentEra era => RecentEra era -> a) -> a
 withRecentEra (AnyRecentEra era) f = f era
+
+--------------------------------------------------------------------------------
+-- Key witness counts
+--------------------------------------------------------------------------------
+
+data KeyWitnessCount = KeyWitnessCount
+    { nKeyWits :: !Word
+    -- ^ "Normal" verification key witnesses introduced with the Shelley era.
+
+    , nBootstrapWits :: !Word
+    -- ^ Bootstrap key witnesses, a.k.a Byron witnesses.
+    } deriving (Eq, Show)
+
+instance Semigroup KeyWitnessCount where
+    (KeyWitnessCount s1 b1) <> (KeyWitnessCount s2 b2)
+        = KeyWitnessCount (s1 + s2) (b1 + b2)
+
+instance Monoid KeyWitnessCount where
+    mempty = KeyWitnessCount 0 0
 
 --------------------------------------------------------------------------------
 -- TxIn
@@ -783,6 +807,29 @@ toCardanoValue = case recentEra @era of
 --------------------------------------------------------------------------------
 -- Balancing
 --------------------------------------------------------------------------------
+
+-- | Computes the minimal fee amount necessary to pay for a given transaction.
+--
+evaluateMinimumFee
+    :: RecentEra era
+    -> Core.PParams (Cardano.ShelleyLedgerEra era)
+    -> Core.Tx (Cardano.ShelleyLedgerEra era)
+    -> KeyWitnessCount
+    -> Coin
+evaluateMinimumFee era pp tx kwc =
+    mainFee <> bootWitnessFee
+  where
+    KeyWitnessCount {nKeyWits, nBootstrapWits} = kwc
+
+    mainFee :: Coin
+    mainFee = withCLIConstraint era $
+        Shelley.evaluateTransactionFee pp tx nKeyWits
+
+    bootWitnessFee :: Coin
+    bootWitnessFee =
+        if nBootstrapWits > 0
+        then error "evaluateMinimumFee: bootstrap witnesses not yet supported"
+        else mempty
 
 -- | Evaluate the /balance/ of a transaction using the ledger.
 --
