@@ -192,6 +192,8 @@ import Data.Word
     ( Word64 )
 import Fmt
     ( build, padLeftF, padRightF, pretty, (+|), (|+) )
+import GHC.Num
+    ( Natural )
 import System.Directory
     ( doesFileExist, getFileSize )
 import System.FilePath
@@ -509,7 +511,7 @@ bgroupReadTxHistory db = bgroup "TxHistory (Read)"
     wholeRange = (Nothing, Nothing)
     pending = Just Pending
     bTxHistory n a r o st s =
-        bench lbl $ withTxHistory db n a r $ benchReadTxHistory o s st
+        bench lbl $ withTxHistory db n a r $ benchReadTxHistory o s st Nothing
       where
         lbl = unwords [show n, show a, range, ord, mstatus, search]
         range = let inf = head r in let sup = last r in "["+|inf|+".."+|sup|+"]"
@@ -537,10 +539,11 @@ benchReadTxHistory
     :: SortOrder
     -> (Maybe Word64, Maybe Word64)
     -> Maybe TxStatus
+    -> Maybe Natural
     -> DBLayerBench
     -> IO [TransactionInfo]
-benchReadTxHistory sortOrder (inf, sup) mstatus DBLayer{..} =
-    atomically $ readTransactions testWid Nothing sortOrder range mstatus
+benchReadTxHistory sortOrder (inf, sup) mstatus mlimit DBLayer{..} =
+    atomically $ readTransactions testWid Nothing sortOrder range mstatus mlimit
   where
     range = Range
         (SlotNo . fromIntegral <$> inf)

@@ -135,6 +135,8 @@ import Cardano.Wallet.Api.Types
     )
 import Cardano.Wallet.Api.Types.SchemaMetadata
     ( TxMetadataSchema (..), toSimpleMetadataFlag )
+import Cardano.Wallet.Api.Types.Transaction
+    ( ApiLimit )
 import Cardano.Wallet.Primitive.AddressDerivation
     ( DerivationIndex, NetworkDiscriminant (..), Role )
 import Cardano.Wallet.Primitive.AddressDiscovery.Shared
@@ -610,7 +612,7 @@ listTransactions
     => w
     -> (Method, Text)
 listTransactions w =
-    listTransactions' @style w Nothing Nothing Nothing Nothing
+    listTransactions' @style w Nothing Nothing Nothing Nothing Nothing
 
 listTransactions'
     :: forall (style :: WalletStyle) w.
@@ -622,8 +624,9 @@ listTransactions'
     -> Maybe Iso8601Time
     -> Maybe Iso8601Time
     -> Maybe SortOrder
+    -> Maybe ApiLimit
     -> (Method, Text)
-listTransactions' w minWithdrawal inf sup order = discriminate @style
+listTransactions' w minWithdrawal inf sup order limit = discriminate @style
     (endpoint @(Api.ListTransactions Net)
         (\mk -> mk
             wid
@@ -631,11 +634,12 @@ listTransactions' w minWithdrawal inf sup order = discriminate @style
             inf
             sup
             (ApiT <$> order)
+            limit
             (toSimpleMetadataFlag TxMetadataDetailedSchema)
         )
     )
     (endpoint @(Api.ListByronTransactions Net)
-        (\mk -> mk wid inf sup (ApiT <$> order)))
+        (\mk -> mk wid inf sup (ApiT <$> order) limit))
     (endpoint @(Api.ListSharedTransactions Net)
         (\mk -> mk
             wid
@@ -643,6 +647,7 @@ listTransactions' w minWithdrawal inf sup order = discriminate @style
             inf
             sup
             (ApiT <$> order)
+            limit
             (toSimpleMetadataFlag TxMetadataDetailedSchema)
         )
     )

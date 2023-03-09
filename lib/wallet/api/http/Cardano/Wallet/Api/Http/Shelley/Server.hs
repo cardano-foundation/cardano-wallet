@@ -347,7 +347,11 @@ import Cardano.Wallet.Api.Types.MintBurn
 import Cardano.Wallet.Api.Types.SchemaMetadata
     ( TxMetadataSchema (..), TxMetadataWithSchema (TxMetadataWithSchema) )
 import Cardano.Wallet.Api.Types.Transaction
-    ( ApiValidityIntervalExplicit (..), mkApiWitnessCount )
+    ( ApiLimit
+    , ApiValidityIntervalExplicit (..)
+    , fromApiLimit
+    , mkApiWitnessCount
+    )
 import Cardano.Wallet.Compat
     ( (^?) )
 import Cardano.Wallet.DB
@@ -2236,10 +2240,11 @@ listTransactions
     -> Maybe Iso8601Time
     -> Maybe Iso8601Time
     -> Maybe (ApiT SortOrder)
+    -> Maybe ApiLimit
     -> TxMetadataSchema
     -> Handler [ApiTransaction n]
 listTransactions
-    ctx (ApiT wid) mMinWithdrawal mStart mEnd mOrder metadataSchema =
+    ctx (ApiT wid) mMinWithdrawal mStart mEnd mOrder mLimit metadataSchema =
         withWorkerCtx ctx wid liftE liftE $ \wrk -> do
             txs <- liftHandler $
                 W.listTransactions @_ @_ @_ wrk wid
@@ -2247,6 +2252,7 @@ listTransactions
                 (getIso8601Time <$> mStart)
                 (getIso8601Time <$> mEnd)
                 (maybe defaultSortOrder getApiT mOrder)
+                (fromApiLimit <$> mLimit)
             depo <- liftIO $ W.stakeKeyDeposit <$>
                 NW.currentProtocolParameters (wrk ^. networkLayer)
             forM txs $ \tx ->

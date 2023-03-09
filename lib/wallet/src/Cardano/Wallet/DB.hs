@@ -125,6 +125,8 @@ import Data.Traversable
     ( for )
 import Data.Word
     ( Word32 )
+import GHC.Num
+    ( Natural )
 
 import qualified Cardano.Wallet.DB.Store.Submissions.Layer as Sbms
 import qualified Cardano.Wallet.Primitive.Types.Tx.SealedTx as WST
@@ -302,6 +304,7 @@ data DBLayer m s k = forall stm. (MonadIO stm, MonadFail stm) => DBLayer
         -> SortOrder
         -> Range SlotNo
         -> Maybe TxStatus
+        -> Maybe Natural
         -> stm [TransactionInfo]
         -- ^ Fetch the current transaction history of a known wallet, ordered by
         -- descending slot number.
@@ -492,10 +495,11 @@ mkDBLayerFromParts ti DBLayerCollection{..} = DBLayer
         readDelegationRewardBalance_ (dbDelegation wid)
     , putTxHistory = \wid a -> wrapNoSuchWallet wid $
         putTxHistory_ dbTxHistory wid a
-    , readTransactions = \wid minWithdrawal order range status ->
+    , readTransactions = \wid minWithdrawal order range status limit ->
         readCurrentTip wid >>= \case
             Just tip -> do
-                inLedgers <- readTxHistory_ dbTxHistory wid range status tip
+                inLedgers <-
+                    readTxHistory_ dbTxHistory wid range status tip limit order
                 inSubmissionsRaw <- withSubmissions wid [] $ \submissions -> do
                         pure $ getInSubmissionTransactions submissions
                 inSubmissions :: [TransactionInfo] <- fmap catMaybes
@@ -505,6 +509,7 @@ mkDBLayerFromParts ti DBLayerCollection{..} = DBLayer
                             (mkDecorator_ dbTxHistory) tip
                         . fmap snd
                 pure
+                    . maybe id (take . fromIntegral) limit
                     . sortTransactionsBySlot order
                     . filterMinWithdrawal minWithdrawal
                     $ inLedgers <> filter (
@@ -734,6 +739,8 @@ data DBTxHistory stm = DBTxHistory
         -> Range SlotNo
         -> Maybe TxStatus
         -> BlockHeader
+        -> Maybe Natural
+        -> SortOrder
         -> stm [TransactionInfo]
         -- ^ Fetch the current transaction history of a known wallet, ordered by
         -- descending slot number.

@@ -344,8 +344,8 @@ server byron icarus shelley multisig spl ntp blockchainSource =
                 (getPoolLifeCycleStatus spl)
         :<|> signTransaction @_ @_ @_ @'CredFromKeyK shelley
         :<|>
-            (\wid mMinWithdrawal mStart mEnd mOrder simpleMetadataFlag ->
-                listTransactions shelley wid mMinWithdrawal mStart mEnd mOrder
+            (\wid mMinWithdrawal mStart mEnd mOrder mLimit simpleMetadataFlag ->
+                listTransactions shelley wid mMinWithdrawal mStart mEnd mOrder mLimit
                     (parseSimpleMetadataFlag simpleMetadataFlag)
             )
         :<|>
@@ -487,14 +487,14 @@ server byron icarus shelley multisig spl ntp blockchainSource =
 
     byronTransactions :: Server (ByronTransactions n)
     byronTransactions =
-            (\wid r0 r1 s -> withLegacyLayer wid
+            (\wid r0 r1 s l -> withLegacyLayer wid
                 ( byron
                 , listTransactions
-                    byron wid Nothing r0 r1 s TxMetadataDetailedSchema
+                    byron wid Nothing r0 r1 s l TxMetadataDetailedSchema
                 )
                 ( icarus
                 , listTransactions
-                    icarus wid Nothing r0 r1 s TxMetadataDetailedSchema
+                    icarus wid Nothing r0 r1 s l TxMetadataDetailedSchema
                 )
              )
         :<|>
@@ -622,9 +622,9 @@ server byron icarus shelley multisig spl ntp blockchainSource =
                     (parseSimpleMetadataFlag simpleMetadataFlag)
             )
         :<|>
-            (\wid mMinWithdrawal mStart mEnd mOrder simpleMetadataFlag ->
+            (\wid mMinWithdrawal mStart mEnd mOrder mLimit simpleMetadataFlag ->
                 listTransactions apilayer wid mMinWithdrawal mStart mEnd mOrder
-                    (parseSimpleMetadataFlag simpleMetadataFlag)
+                    mLimit (parseSimpleMetadataFlag simpleMetadataFlag)
             )
 
     blocks :: Handler ApiBlockHeader

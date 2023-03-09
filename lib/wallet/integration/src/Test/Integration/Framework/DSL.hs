@@ -227,6 +227,7 @@ module Test.Integration.Framework.DSL
      -- * Re-exports
     , runResourceT
     , ResourceT
+    , listLimitedTransactions
     ) where
 
 import Prelude
@@ -290,6 +291,8 @@ import Cardano.Wallet.Api.Types.Error
     ( ApiErrorInfo (..) )
 import Cardano.Wallet.Api.Types.SchemaMetadata
     ( TxMetadataSchema, toSimpleMetadataFlag )
+import Cardano.Wallet.Api.Types.Transaction
+    ( ApiLimit (..) )
 import Cardano.Wallet.Compat
     ( (^?) )
 import Cardano.Wallet.Pools
@@ -2575,7 +2578,22 @@ listAllTransactions
     -> w
     -> m [ApiTransaction n]
 listAllTransactions ctx w =
+    listTransactions ctx w Nothing Nothing (Just Descending) Nothing
+
+listLimitedTransactions
+    :: forall n w m.
+        ( DecodeAddress n
+        , DecodeStakeAddress n
+        , HasType (ApiT WalletId) w
+        , MonadUnliftIO m
+        )
+    => Context
+    -> w
+    -> Natural
+    -> m [ApiTransaction n]
+listLimitedTransactions ctx w limit = do
     listTransactions ctx w Nothing Nothing (Just Descending)
+        $ Just $ ApiLimit limit
 
 listTransactions
     :: forall n w m.
@@ -2589,8 +2607,9 @@ listTransactions
     -> Maybe UTCTime
     -> Maybe UTCTime
     -> Maybe SortOrder
+    -> Maybe ApiLimit
     -> m [ApiTransaction n]
-listTransactions ctx w mStart mEnd mOrder = do
+listTransactions ctx w mStart mEnd mOrder mLimit = do
     r <- request @[ApiTransaction n] ctx path Default Empty
     expectResponseCode HTTP.status200 r
     let txs = getFromResponse id r
@@ -2601,6 +2620,7 @@ listTransactions ctx w mStart mEnd mOrder = do
         (Iso8601Time <$> mStart)
         (Iso8601Time <$> mEnd)
         mOrder
+        mLimit
 
 -- | Delete all wallets
 deleteAllWallets :: Context -> IO ()

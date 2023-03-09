@@ -130,6 +130,7 @@ import Test.Integration.Framework.DSL
     , json
     , listAddresses
     , listAllTransactions
+    , listLimitedTransactions
     , listTransactions
     , minUTxOValue
     , mkTxPayloadMA
@@ -274,6 +275,7 @@ spec = describe "SHELLEY_TRANSACTIONS" $ do
                     (either (const Nothing) Just
                         $ fromText endTimeAfterShelley)
                     Nothing
+                    Nothing
             r <- request @([ApiTransaction n]) ctx link Default Empty
             expectResponseCode HTTP.status200 r
             expectListSize 10 r
@@ -345,6 +347,7 @@ spec = describe "SHELLEY_TRANSACTIONS" $ do
                     Nothing
                     Nothing
                     (Just Descending)
+                    Nothing
             (_, txs) <- unsafeRequest @([ApiTransaction n]) ctx link Empty
             case filter ((== Pending) . view (#status . #getApiT)) txs of
                 [] ->
@@ -1414,28 +1417,30 @@ spec = describe "SHELLEY_TRANSACTIONS" $ do
 
     -- This scenario covers the following matrix of cases. Cases were generated
     -- using one of pairwise test cases generation tools available online.
-    -- +---+----------+----------+------------+--------------+
-    --     |  start   |   end    |   order    |    result    |
-    -- +---+----------+----------+------------+--------------+
-    --   1 | edge     | edge     | ascending  | 2 ascending  |
-    --   2 | edge     | edge + 1 | descending | 2 descending |
-    --   3 | edge     | edge - 1 | empty      | 1st one      |
-    --   4 | edge     | empty    | empty      | 2 descending |
-    --   5 | edge + 1 | edge + 1 | empty      | 2nd one      |
-    --   6 | edge + 1 | edge - 1 | empty      | none         |
-    --   7 | edge + 1 | empty    | ascending  | 2nd one      |
-    --   8 | edge + 1 | edge     | descending | 2nd one      |
-    --   9 | edge - 1 | edge - 1 | ascending  | 1st one      |
-    --  10 | edge - 1 | empty    | descending | 2 descending |
-    --  11 | edge - 1 | edge     | empty      | 2 descending |
-    --  12 | edge - 1 | edge + 1 | empty      | 2 descending |
-    --  13 | empty    | empty    | empty      | 2 descending |
-    --  14 | empty    | edge     | empty      | 2 descending |
-    --  15 | empty    | edge + 1 | ascending  | 2 ascending  |
-    --  16 | empty    | edge - 1 | descending | 1st one      |
-    --  17 | t1       | t1       | empty      | 1st one      |
-    --  18 | t2       | t2       | descending | 2nd one      |
-    -- +---+----------+----------+------------+--------------+
+    -- +---+----------+----------+------------+-----------+---------------+
+    --     |  start   |   end    |   order    | max_count |  result       |
+    -- +---+----------+----------+------------+-----------+---------------+
+    --   1 | edge     | edge     | ascending  |  empty    |  2 ascending  |
+    --   2 | edge     | edge + 1 | descending |  empty    |  2 descending |
+    --   3 | edge     | edge - 1 | empty      |  empty    |  1st one      |
+    --   4 | edge     | empty    | empty      |  empty    |  2 descending |
+    --   5 | edge + 1 | edge + 1 | empty      |  empty    |  2nd one      |
+    --   6 | edge + 1 | edge - 1 | empty      |  empty    |  none         |
+    --   7 | edge + 1 | empty    | ascending  |  empty    |  2nd one      |
+    --   8 | edge + 1 | edge     | descending |  empty    |  2nd one      |
+    --   9 | edge - 1 | edge - 1 | ascending  |  empty    |  1st one      |
+    --  10 | edge - 1 | empty    | descending |  empty    |  2 descending |
+    --  11 | edge - 1 | edge     | empty      |  empty    |  2 descending |
+    --  12 | edge - 1 | edge + 1 | empty      |  empty    |  2 descending |
+    --  13 | empty    | empty    | empty      |  empty    |  2 descending |
+    --  14 | empty    | edge     | empty      |  empty    |  2 descending |
+    --  15 | empty    | edge + 1 | ascending  |  empty    |  2 ascending  |
+    --  16 | empty    | edge - 1 | descending |  empty    |  1st one      |
+    --  17 | t1       | t1       | empty      |  empty    |  1st one      |
+    --  18 | t2       | t2       | descending |  empty    |  2nd one      |
+    --  19 | empty    | empty    | empty      |    1      |  2nd one      |
+    --  20 | empty    | empty    | ascending  |    1      |  1st one      |
+    -- +---+----------+----------+------------+-----------+---------------+
     it "TRANS_LIST_02,03x - Can limit/order results with start, end and order"
         $ \ctx -> runResourceT $ do
         let minUTxOValue' = minUTxOValue (_mainEra ctx)
@@ -1453,6 +1458,7 @@ spec = describe "SHELLEY_TRANSACTIONS" $ do
 
         txs <- eventually "I make sure there are exactly 2 transactions" $ do
             let linkList = Link.listTransactions' @'Shelley w
+                    Nothing
                     Nothing
                     Nothing
                     Nothing
@@ -1643,6 +1649,25 @@ spec = describe "SHELLEY_TRANSACTIONS" $ do
                         , expectListField 0 #amount (`shouldBe` a2)
                         ]
                     }
+                , TestCase -- 19
+                    { query = toQueryString
+                        [ ("max_count", "1")
+                        ]
+                    , assertions =
+                        [ expectListSize 1
+                        , expectListField 0 #amount (`shouldBe` a2)
+                        ]
+                    }
+                , TestCase -- 20
+                    { query = toQueryString
+                        [ ("max_count", "1")
+                        , ("order", "ascending")
+                        ]
+                    , assertions =
+                        [ expectListSize 1
+                        , expectListField 0 #amount (`shouldBe` a1)
+                        ]
+                    }
                 ]
 
         let withQuery q (method, link) = (method, link <> q)
@@ -1740,6 +1765,7 @@ spec = describe "SHELLEY_TRANSACTIONS" $ do
                     (either (const Nothing) Just $ fromText $ T.pack startTime)
                     (either (const Nothing) Just $ fromText $ T.pack endTime)
                     Nothing
+                    Nothing
             r <- request @([ApiTransaction n]) ctx link Default Empty
             expectResponseCode HTTP.status400 r
             expectErrorMessage
@@ -1754,6 +1780,7 @@ spec = describe "SHELLEY_TRANSACTIONS" $ do
                     Nothing
                     Nothing
                     Nothing
+                    Nothing
             r <- request @([ApiTransaction n]) ctx link Default Empty
             expectResponseCode HTTP.status400 r
             expectErrorMessage errMsg400MinWithdrawalWrong r
@@ -1765,6 +1792,7 @@ spec = describe "SHELLEY_TRANSACTIONS" $ do
             w <- emptyWallet ctx
             let link = Link.listTransactions' @'Shelley w
                     (Just 1)
+                    Nothing
                     Nothing
                     Nothing
                     Nothing
@@ -1790,9 +1818,13 @@ spec = describe "SHELLEY_TRANSACTIONS" $ do
               t <- unsafeGetTransactionTime =<< listAllTransactions @n ctx w
               let (te, tl) = (utcTimePred t, utcTimeSucc t)
               txs1 <- listTransactions @n ctx w (Just t ) (Just t ) Nothing
+                Nothing
               txs2 <- listTransactions @n ctx w (Just te) (Just t ) Nothing
+                Nothing
               txs3 <- listTransactions @n ctx w (Just t ) (Just tl) Nothing
+                Nothing
               txs4 <- listTransactions @n ctx w (Just te) (Just tl) Nothing
+                Nothing
               length <$> [txs1, txs2, txs3, txs4] `shouldSatisfy` all (== 1)
 
     it "TRANS_LIST_RANGE_02 - \
@@ -1802,7 +1834,9 @@ spec = describe "SHELLEY_TRANSACTIONS" $ do
               t <- unsafeGetTransactionTime =<< listAllTransactions @n ctx w
               let tl = utcTimeSucc t
               txs1 <- listTransactions @n ctx w (Just tl) (Nothing) Nothing
+                Nothing
               txs2 <- listTransactions @n ctx w (Just tl) (Just tl) Nothing
+                Nothing
               length <$> [txs1, txs2] `shouldSatisfy` all (== 0)
 
     it "TRANS_LIST_RANGE_03 - \
@@ -1812,8 +1846,17 @@ spec = describe "SHELLEY_TRANSACTIONS" $ do
               t <- unsafeGetTransactionTime =<< listAllTransactions @n ctx w
               let te = utcTimePred t
               txs1 <- listTransactions @n ctx w (Nothing) (Just te) Nothing
+                Nothing
               txs2 <- listTransactions @n ctx w (Just te) (Just te) Nothing
+                Nothing
               length <$> [txs1, txs2] `shouldSatisfy` all (== 0)
+
+    it "TRANS_LIST_LIMIT_01 - \
+       \Transactions can be limited" $
+          \ctx -> runResourceT $ do
+              w <- fixtureWallet ctx
+              txs <- listLimitedTransactions @n ctx w 9
+              length txs `shouldBe` 9
 
     it "TRANS_GET_01 - Can get Incoming and Outgoing transaction" $
         \ctx -> runResourceT $ do

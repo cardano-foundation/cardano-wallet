@@ -468,6 +468,7 @@ data BenchRndResults = BenchRndResults
     , readWalletTime :: Time
     , listAddressesTime :: Time
     , listTransactionsTime :: Time
+    , listTransactionsLimitedTime :: Time
     , importOneAddressTime :: Time
     , importManyAddressesTime :: Time
     , estimateFeesTime :: Time
@@ -512,6 +513,11 @@ benchmarksRnd _ w wid wname benchname restoreTime = do
         $ fmap (fromIntegral . length)
         $ unsafeRunExceptT
         $ W.listTransactions @_ @s @k w wid Nothing Nothing Nothing Descending
+            Nothing
+    (_, listTransactionsLimitedTime) <- bench "list transactions (max_count = 100)" $ do
+        unsafeRunExceptT
+        $ W.listTransactions @_ @s @k w wid Nothing Nothing Nothing Descending
+            (Just 100)
 
     (_, estimateFeesTime) <- bench "estimate tx fee" $ do
         let out = TxOut (dummyAddress @n) (TokenBundle.fromCoin $ Coin 1)
@@ -555,6 +561,7 @@ benchmarksRnd _ w wid wname benchname restoreTime = do
         , readWalletTime
         , listAddressesTime
         , listTransactionsTime
+        , listTransactionsLimitedTime
         , estimateFeesTime
         , importOneAddressTime
         , importManyAddressesTime
@@ -576,6 +583,7 @@ data BenchSeqResults = BenchSeqResults
     , readWalletTime :: Time
     , listAddressesTime :: Time
     , listTransactionsTime :: Time
+    , listTransactionsLimitedTime :: Time
     , estimateFeesTime :: Time
     , walletOverview :: WalletOverview
     } deriving (Show, Generic)
@@ -618,6 +626,11 @@ benchmarksSeq _ w wid _wname benchname restoreTime = do
         $ fmap (fromIntegral . length)
         $ unsafeRunExceptT
         $ W.listTransactions @_ @s @k w wid Nothing Nothing Nothing Descending
+            Nothing
+    (_, listTransactionsLimitedTime) <- bench "list transactions (max_count = 100)" $ do
+        unsafeRunExceptT
+        $ W.listTransactions @_ @s @k w wid Nothing Nothing Nothing Descending
+            (Just 100)
 
     (_, estimateFeesTime) <- bench "estimate tx fee" $ do
         let out = TxOut (dummyAddress @n) (TokenBundle.fromCoin $ Coin 1)
@@ -651,6 +664,7 @@ benchmarksSeq _ w wid _wname benchname restoreTime = do
         , readWalletTime
         , listAddressesTime
         , listTransactionsTime
+        , listTransactionsLimitedTime
         , estimateFeesTime
         , walletOverview
         }

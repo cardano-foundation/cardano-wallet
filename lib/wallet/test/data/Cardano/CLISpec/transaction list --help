@@ -1,6 +1,7 @@
 Usage:  transaction list [--port INT] WALLET_ID [--start TIME] 
                          [--end TIME] [--order ORDER] 
-                         [--simple-metadata]
+                         [--simple-metadata] 
+                         [--max_count MAX_COUNT]
 
   List the transactions associated with a wallet.
 
@@ -18,3 +19,5 @@ Available options:
                            'ascending' or 'descending'.
   --simple-metadata        output metadata json in no-schema
                            encoding
+  --max_count MAX_COUNT    specifies a limit to the number of
+                           transactions returned.

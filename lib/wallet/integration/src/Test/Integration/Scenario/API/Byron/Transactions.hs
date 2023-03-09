@@ -28,6 +28,8 @@ import Cardano.Wallet.Api.Types
     , EncodeAddress (..)
     , WalletStyle (..)
     )
+import Cardano.Wallet.Api.Types.Transaction
+    ( ApiLimit (..) )
 import Cardano.Wallet.Primitive.Types.Hash
     ( Hash (..) )
 import Cardano.Wallet.Primitive.Types.TokenPolicy
@@ -489,6 +491,22 @@ spec = describe "BYRON_TRANSACTIONS" $ do
             , expectListSize 10
             ]
 
+    describe "BYRON_TX_LIST_LIMIT - Transactions can be limited" $
+        forM_ [(fixtureRandomWallet, "Byron wallet"), (fixtureIcarusWallet, "Icarus wallet")] $
+            \(srcFixture,name) -> it name $ \ctx -> runResourceT $ do
+                w <- srcFixture ctx
+                let link = Link.listTransactions' @'Byron w
+                        Nothing
+                        Nothing
+                        Nothing
+                        Nothing
+                        (Just $ ApiLimit 9)
+                r <- request @([ApiTransaction n]) ctx link Default Empty
+                verify r
+                    [ expectResponseCode HTTP.status200
+                    , expectListSize 9
+                    ]
+
     describe "BYRON_TX_LIST_01 - Faulty start, end, order values" $ do
         let orderErr = "Please specify one of the following values:\
             \ ascending, descending."
@@ -574,6 +592,7 @@ spec = describe "BYRON_TRANSACTIONS" $ do
                     Nothing
                     (either (const Nothing) Just $ fromText $ T.pack startTime)
                     (either (const Nothing) Just $ fromText $ T.pack endTime)
+                    Nothing
                     Nothing
             r <- request @([ApiTransaction n]) ctx link Default Empty
             expectResponseCode HTTP.status400 r
