@@ -167,9 +167,9 @@ instance SC.SelectionContext WalletSelectionContext where
 --
 data WalletUTxO = WalletUTxO
     { txIn
-        :: TxIn
+        :: !TxIn
     , address
-        :: Address
+        :: !Address
     }
     deriving (Eq, Generic, Ord, Show)
 
