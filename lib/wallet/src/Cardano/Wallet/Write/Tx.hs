@@ -4,6 +4,7 @@
 {-# LANGUAGE FlexibleInstances #-}
 {-# LANGUAGE GADTs #-}
 {-# LANGUAGE LambdaCase #-}
+{-# LANGUAGE NamedFieldPuns #-}
 {-# LANGUAGE RankNTypes #-}
 {-# LANGUAGE ScopedTypeVariables #-}
 {-# LANGUAGE StandaloneDeriving #-}
@@ -127,6 +128,7 @@ module Cardano.Wallet.Write.Tx
     , toCardanoValue
 
     -- * Balancing
+    , evaluateMinimumFee
     , evaluateTransactionBalance
     )
     where
@@ -805,6 +807,29 @@ toCardanoValue = case recentEra @era of
 --------------------------------------------------------------------------------
 -- Balancing
 --------------------------------------------------------------------------------
+
+-- | Computes the minimal fee amount necessary to pay for a given transaction.
+--
+evaluateMinimumFee
+    :: RecentEra era
+    -> Core.PParams (Cardano.ShelleyLedgerEra era)
+    -> Core.Tx (Cardano.ShelleyLedgerEra era)
+    -> KeyWitnessCount
+    -> Coin
+evaluateMinimumFee era pp tx kwc =
+    mainFee <> bootWitnessFee
+  where
+    KeyWitnessCount {nKeyWits, nBootstrapWits} = kwc
+
+    mainFee :: Coin
+    mainFee = withCLIConstraint era $
+        Shelley.evaluateTransactionFee pp tx nKeyWits
+
+    bootWitnessFee :: Coin
+    bootWitnessFee =
+        if nBootstrapWits > 0
+        then error "evaluateMinimumFee: bootstrap witnesses not yet supported"
+        else mempty
 
 -- | Evaluate the /balance/ of a transaction using the ledger.
 --
