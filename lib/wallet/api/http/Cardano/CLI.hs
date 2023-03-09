@@ -1361,7 +1361,7 @@ sortOrderOption = optionT $ mempty
     <> help "specifies a sort order, either 'ascending' or 'descending'."
     <> showDefaultWith showT
 
--- | [--order=ORDER]
+-- | [--max_count=MAX_COUNT]
 limitOption :: Parser Natural
 limitOption = optionT $ mempty
     <> long "max_count"
