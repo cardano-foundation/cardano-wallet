@@ -40,8 +40,6 @@ import Cardano.Wallet.Primitive.Types.Hash
 import Cardano.Wallet.Primitive.Types.TokenMap
     ( TokenMap, toNestedList, toNestedMap )
 import Cardano.Wallet.Primitive.Types.TokenPolicy
-    ( TokenPolicyId )
-import Cardano.Wallet.Primitive.Types.TokenPolicy
     ( TokenPolicyId (..) )
 import Cardano.Wallet.Read.Eras
     ( (:*:) (..), EraFun (..), K (..) )
