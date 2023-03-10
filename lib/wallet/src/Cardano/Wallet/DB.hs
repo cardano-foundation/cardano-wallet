@@ -87,8 +87,6 @@ import Cardano.Wallet.Primitive.Types.Hash
     ( Hash )
 import Cardano.Wallet.Primitive.Types.Tx
     ( SealedTx, TransactionInfo (..), Tx (..), TxMeta (..), TxStatus )
-import Cardano.Wallet.Primitive.Types.Tx.TransactionInfo
-    ( hasStatus )
 import Cardano.Wallet.Read.Eras
     ( EraValue )
 import Cardano.Wallet.Read.Tx.Cardano
@@ -96,7 +94,7 @@ import Cardano.Wallet.Read.Tx.Cardano
 import Cardano.Wallet.Submissions.Submissions
     ( TxStatusMeta (..), txStatus )
 import Cardano.Wallet.Submissions.TxStatus
-    ( _InSubmission )
+    ( _Expired, _InSubmission )
 import Cardano.Wallet.Transaction.Built
     ( BuiltTx )
 import Control.Lens
@@ -498,10 +496,21 @@ mkDBLayerFromParts ti DBLayerCollection{..} = DBLayer
     , readTransactions = \wid minWithdrawal order range status limit ->
         readCurrentTip wid >>= \case
             Just tip -> do
-                inLedgers <-
-                    readTxHistory_ dbTxHistory wid range status tip limit order
-                inSubmissionsRaw <- withSubmissions wid [] $ \submissions -> do
-                        pure $ getInSubmissionTransactions submissions
+                inLedgers <- if status `elem` [Nothing, Just WTxMeta.InLedger]
+                    then readTxHistory_ dbTxHistory wid range tip limit order
+                    else pure []
+                let isInSubmission = has (txStatus . _InSubmission)
+                    isExpired = has (txStatus . _Expired)
+                    whichSubmission :: TxSubmissionsStatus -> Bool
+                    whichSubmission = case status of
+                        Nothing -> (||) <$> isInSubmission <*> isExpired
+                        Just WTxMeta.Pending -> isInSubmission
+                        Just WTxMeta.Expired -> isExpired
+                        Just WTxMeta.InLedger -> const False
+                inSubmissionsRaw <- withSubmissions wid [] $
+                        pure
+                            . filter whichSubmission
+                            . getInSubmissionTransactions
                 inSubmissions :: [TransactionInfo] <- fmap catMaybes
                     $ for inSubmissionsRaw $
                         mkTransactionInfo
@@ -512,11 +521,7 @@ mkDBLayerFromParts ti DBLayerCollection{..} = DBLayer
                     . maybe id (take . fromIntegral) limit
                     . sortTransactionsBySlot order
                     . filterMinWithdrawal minWithdrawal
-                    $ inLedgers <> filter (
-                            (||)
-                            <$> hasStatus WTxMeta.Pending
-                            <*> hasStatus WTxMeta.Expired
-                            ) inSubmissions
+                    $ inLedgers <> inSubmissions
             Nothing -> pure []
     , getTx = \wid txid -> wrapNoSuchWallet wid $ do
         readCurrentTip wid >>= \case
@@ -737,7 +742,6 @@ data DBTxHistory stm = DBTxHistory
     , readTxHistory_
         :: WalletId
         -> Range SlotNo
-        -> Maybe TxStatus
         -> BlockHeader
         -> Maybe Natural
         -> SortOrder
