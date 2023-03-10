@@ -855,7 +855,7 @@ clusterEraToString = \case
     BabbageHardFork -> "babbage"
 
 data LocalClusterConfig = LocalClusterConfig
-    { cfgStakePools :: NonEmpty (PoolRecipe)
+    { cfgStakePools :: NonEmpty PoolRecipe
     -- ^ Stake pools to register.
     , cfgLastHardFork :: ClusterEra
     -- ^ Which era to use.
@@ -1070,12 +1070,15 @@ withCluster tr dir LocalClusterConfig{..} faucetFunds onClusterStart = bracketTr
                         cfgNodeLogging
                 operatePool pool0 pool0Cfg $ \runningPool0 -> do
                     extraClusterSetupUsingNode configuredPools runningPool0
-                    launchPools
-                        (NE.fromList otherPools)
-                        genesisFiles
-                        ports
-                        runningPool0
-                        onClusterStart
+                    case NE.nonEmpty otherPools of
+                        Nothing -> onClusterStart runningPool0
+                        Just others ->
+                            launchPools
+                                others
+                                genesisFiles
+                                ports
+                                runningPool0
+                                onClusterStart
             else do
                 -- NOTE: We should soon be able to drop Alonzo support here
                 -- after the Vasil HF, which should enable some simplifications

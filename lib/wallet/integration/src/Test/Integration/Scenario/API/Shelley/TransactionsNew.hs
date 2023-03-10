@@ -1334,7 +1334,7 @@ spec = describe "NEW_SHELLEY_TRANSACTIONS" $ do
         let apiTokens = ApiTokens
                 { policyId = ApiT tokenPolicyId'
                 , policyScript = ApiT (NativeScript scriptUsed)
-                , assets = NE.fromList [apiTokenAmountFingerprint]
+                , assets = pure (apiTokenAmountFingerprint)
                 }
 
         let activeAssetsInfo = ApiAssetMintBurn
@@ -4203,7 +4203,7 @@ spec = describe "NEW_SHELLEY_TRANSACTIONS" $ do
         let apiTokens = ApiTokens
                 { policyId = ApiT tokenPolicyId'
                 , policyScript = ApiT (NativeScript scriptUsed)
-                , assets = NE.fromList [apiTokenAmountFingerprint]
+                , assets = pure (apiTokenAmountFingerprint)
                 }
 
         let activeAssetsInfo = ApiAssetMintBurn
@@ -4315,7 +4315,7 @@ spec = describe "NEW_SHELLEY_TRANSACTIONS" $ do
         let apiTokens = ApiTokens
                 { policyId = ApiT tokenPolicyId'
                 , policyScript = ApiT (NativeScript scriptUsed)
-                , assets = NE.fromList [apiTokenAmountFingerprint]
+                , assets = pure (apiTokenAmountFingerprint)
                 }
 
         let activeAssetsInfo = ApiAssetMintBurn

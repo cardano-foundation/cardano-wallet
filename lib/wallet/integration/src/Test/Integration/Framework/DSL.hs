@@ -1756,7 +1756,7 @@ fixtureSharedWallet
     -> ResourceT m ApiActiveSharedWallet
 fixtureSharedWallet ctx = do
    walShared@(ApiSharedWallet (Right wal)) <- emptySharedWallet ctx
-   fundSharedWallet @n ctx faucetUtxoAmt (NE.fromList [walShared])
+   fundSharedWallet @n ctx faucetUtxoAmt (pure walShared)
    return wal
 
 postSharedWallet

@@ -271,7 +271,7 @@ spec = describe "SHARED_TRANSACTIONS" $ do
             ]
 
         let amt = 10 * minUTxOValue (_mainEra ctx)
-        fundSharedWallet @n ctx amt (NE.fromList [walShared])
+        fundSharedWallet @n ctx amt (pure walShared)
 
         rTx2 <- request @(ApiConstructTransaction n) ctx
             (Link.createUnsignedTransaction @'Shared wal) Default metadata
@@ -381,7 +381,7 @@ spec = describe "SHARED_TRANSACTIONS" $ do
         let metadata = Json [json|{ "metadata": { "1": "hello"  } }|]
 
         let amt = 10 * minUTxOValue (_mainEra ctx)
-        fundSharedWallet @n ctx amt (NE.fromList [walShared])
+        fundSharedWallet @n ctx amt (pure walShared)
 
         rTx <- request @(ApiConstructTransaction n) ctx
             (Link.createUnsignedTransaction @'Shared wal) Default metadata

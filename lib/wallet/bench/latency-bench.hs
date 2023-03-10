@@ -12,8 +12,6 @@
 
 module Main where
 
-import Prelude
-
 import Cardano.BM.Data.LogItem
     ( LogObject )
 import Cardano.BM.Data.Severity
@@ -88,6 +86,8 @@ import Data.Bifunctor
     ( bimap )
 import Data.Generics.Internal.VL.Lens
     ( (^.) )
+import Data.List.NonEmpty
+    ( NonEmpty ((:|)) )
 import Data.Proxy
     ( Proxy (..) )
 import Network.HTTP.Client
@@ -102,6 +102,7 @@ import Numeric.Natural
     ( Natural )
 import Ouroboros.Network.Client.Wallet
     ( tunedForMainnetPipeliningStrategy )
+import Prelude
 import System.Directory
     ( createDirectory )
 import System.FilePath
@@ -458,7 +459,7 @@ withShelleyServer tracers action = do
             let db = dir </> "wallets"
             createDirectory db
             let logCfg = LogFileConfig Error Nothing Error
-            let poolConfig = pure $ NE.head defaultPoolConfigs
+            let poolConfig = NE.head defaultPoolConfigs :| []
             withCluster
                 nullTracer
                 dir

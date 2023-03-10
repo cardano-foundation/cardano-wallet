@@ -77,7 +77,7 @@ spec = describe "BYRON_COIN_SELECTION" $ do
         shW <- emptyWallet ctx
         (addr:_) <- fmap (view #id) <$> listAddresses @n ctx shW
         let amt = Quantity . minUTxOValue . _mainEra $ ctx
-        let payments = NE.fromList [ AddressAmount addr amt mempty ]
+        let payments = pure (AddressAmount addr amt mempty)
         selectCoins @_ @'Byron ctx rnW payments >>= flip verify
             [ expectResponseCode HTTP.status403
             , expectErrorMessage errMsg403NotAnIcarusWallet
@@ -137,7 +137,7 @@ spec = describe "BYRON_COIN_SELECTION" $ do
         shW <- emptyWallet ctx
         (addr:_) <- fmap (view #id) <$> listAddresses @n ctx shW
         let minUTxOValue' = Quantity . minUTxOValue $ _mainEra ctx
-        let payments = NE.fromList [ AddressAmount addr minUTxOValue' mempty ]
+        let payments = pure (AddressAmount addr minUTxOValue' mempty)
         _ <- request @ApiByronWallet ctx (Link.deleteWallet @'Byron icW) Default Empty
         selectCoins @_ @'Byron ctx icW payments >>= flip verify
             [ expectResponseCode HTTP.status404
