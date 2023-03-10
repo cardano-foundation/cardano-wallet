@@ -2552,6 +2552,7 @@ components:
     AnyScript: &AnyScript
       oneOf:
         - type: object
+          title: native script
           required:
             - script_type
             - script
@@ -2562,6 +2563,7 @@ components:
             script: *ScriptValue
             reference: *referenceInput
         - type: object
+          title: plutus script
           required:
             - script_type
             - script_info
@@ -2572,6 +2574,7 @@ components:
             script_info: *PlutusScriptInfo
             reference: *referenceInput
         - type: object
+          title: reference script
           required:
             - script_type
             - script_hash
