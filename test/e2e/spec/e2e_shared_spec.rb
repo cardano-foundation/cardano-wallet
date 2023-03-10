@@ -1315,6 +1315,36 @@ RSpec.describe 'Cardano Wallet E2E tests - Shared wallets', :all, :e2e, :shared 
                            target_after, target_before,
                            amt)
     end
+
+    it 'I can list transactions and limit response with query parameters' do
+      wid = @wid_sha
+
+      # get 3 txs
+      txs = SHARED.transactions.list(wid, { max_count: 3 })
+      expect(txs).to be_correct_and_respond 200
+      expect(txs.size).to be 3
+
+      last_tx_time =  txs.first['inserted_at']['time']
+      first_tx_time = txs.last['inserted_at']['time']
+
+      # get 2 txs
+      txs = SHARED.transactions.list(wid, { max_count: 2 })
+      expect(txs).to be_correct_and_respond 200
+      expect(txs.size).to eq 2
+      expect(txs.first['inserted_at']['time']).to eq last_tx_time
+
+      # get 2 txs in ascending order
+      txs = SHARED.transactions.list(wid, { max_count: 2, start: first_tx_time, order: 'ascending' })
+      expect(txs).to be_correct_and_respond 200
+      expect(txs.size).to eq 2
+      expect(txs.first['inserted_at']['time']).to eq first_tx_time
+
+      # get 2 txs in descending order with start and end time
+      txs = SHARED.transactions.list(wid, { max_count: 2, start: first_tx_time, end: last_tx_time, order: 'descending' })
+      expect(txs).to be_correct_and_respond 200
+      expect(txs.size).to eq 2
+      expect(txs.first['inserted_at']['time']).to eq last_tx_time
+    end
   end
 
   describe 'E2E Migration' do
