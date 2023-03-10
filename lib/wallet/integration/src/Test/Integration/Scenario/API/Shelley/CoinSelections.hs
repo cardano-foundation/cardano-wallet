@@ -166,7 +166,7 @@ spec = describe "SHELLEY_COIN_SELECTION" $ do
         w <- emptyWallet ctx
         (addr:_) <- fmap (view #id) <$> listAddresses @n ctx w
         let minUTxOValue' = Quantity . minUTxOValue $ _mainEra ctx
-        let payments = pure (AddressAmount addr minUTxOValue' mempty)
+        let payments = AddressAmount addr minUTxOValue' mempty :| []
         _ <- request @ApiWallet ctx (Link.deleteWallet @'Shelley w) Default Empty
         selectCoins @_ @'Shelley ctx w payments >>= flip verify
             [ expectResponseCode HTTP.status404
@@ -178,7 +178,7 @@ spec = describe "SHELLEY_COIN_SELECTION" $ do
         w <- fixtureWallet ctx
         (addr:_) <- fmap (view #id) <$> listAddresses @n ctx w
         let minUTxOValue' = Quantity . minUTxOValue $ _mainEra ctx
-        let payments = pure (AddressAmount addr minUTxOValue' mempty)
+        let payments = AddressAmount addr minUTxOValue' mempty :| []
         let payload = Json [json| { "payments": #{payments} } |]
         let wid = toText $ getApiT $ w ^. #id
         let endpoints = ("POST",) . mconcat <$>
@@ -227,7 +227,7 @@ spec = describe "SHELLEY_COIN_SELECTION" $ do
             w <- fixtureWallet ctx
             (addr:_) <- fmap (view #id) <$> listAddresses @n ctx w
             let amt = Quantity . minUTxOValue . _mainEra $ ctx
-            let payments = pure (AddressAmount addr amt mempty)
+            let payments = AddressAmount addr amt mempty :| []
             let payload = Json [json| { "payments": #{payments} } |]
             r <- request @(ApiCoinSelection n) ctx
                 (Link.selectCoins @'Shelley w) headers payload
