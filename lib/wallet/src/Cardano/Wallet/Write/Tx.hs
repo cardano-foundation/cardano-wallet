@@ -148,12 +148,9 @@ import Cardano.Ledger.Coin ( Coin (..) )
 import Cardano.Ledger.Crypto ( StandardCrypto )
 import Cardano.Ledger.Era ( Crypto )
 import Cardano.Ledger.Mary ( MaryValue )
-
-import Cardano.Ledger.Core ( EraTx (mkBasicTx) )
 import Cardano.Ledger.SafeHash ( SafeHash, extractHash, unsafeMakeSafeHash )
 import Cardano.Ledger.Serialization ( Sized (..), mkSized )
-import Cardano.Ledger.Shelley.API ( CLI (evaluateMinLovelaceOutput), Wdrl (..) )
-import Cardano.Ledger.ShelleyMA.TxBody ( ValidityInterval (ValidityInterval) )
+import Cardano.Ledger.Shelley.API ( CLI (evaluateMinLovelaceOutput) )
 import Cardano.Ledger.Val ( coin, modifyCoin )
 import Cardano.Wallet.Primitive.Types.Tx.Constraints ( txOutMaxCoin )
 import Cardano.Wallet.Shelley.Compatibility.Ledger ( toLedger )
@@ -814,8 +811,6 @@ toCardanoTx
     => Core.Tx (Cardano.ShelleyLedgerEra era)
     -> Cardano.Tx era
 toCardanoTx = Cardano.ShelleyTx (shelleyBasedEraFromRecentEra $ recentEra @era)
-
-
 -- | NOTE: The roundtrip
 -- @
 --     toCardanoUTxO . fromCardanoUTxO
@@ -879,10 +874,10 @@ evaluateMinimumFee era pp tx kwc =
 
     bootWitnessFee :: Coin
     bootWitnessFee = Coin $
-        intCast $ feePerByte * bytes
+        intCast $ feePerByte * byteCount
       where
-        bytes :: Natural
-        bytes = sizeOf_BootstrapWitnesses $ intCast nBootstrapWits
+        byteCount :: Natural
+        byteCount = sizeOf_BootstrapWitnesses $ intCast nBootstrapWits
 
         -- Matching implementation in "Cardano.Wallet.Shelley.Transaction".
         -- Equivalence is tested in property.

@@ -296,6 +296,7 @@ import Data.Either ( isLeft, isRight )
 import Data.Function ( on, (&) )
 import Data.Functor.Identity ( Identity, runIdentity )
 import Data.Generics.Internal.VL.Lens ( over, view )
+import Data.Generics.Product ( setField )
 import Data.IntCast ( intCast )
 import Data.List ( isSuffixOf, nub )
 import Data.List.NonEmpty ( NonEmpty (..) )
@@ -312,7 +313,6 @@ import Data.Time.Clock.POSIX ( posixSecondsToUTCTime )
 import Data.Typeable ( Typeable, typeRep )
 import Data.Word ( Word16, Word64, Word8 )
 import Fmt ( Buildable (..), blockListF', fmt, nameF, pretty, (+||), (||+) )
-import GHC.IO.Unsafe ( unsafePerformIO )
 import Numeric.Natural ( Natural )
 import Ouroboros.Consensus.BlockchainTime.WallClock.Types
     ( RelativeTime (..), mkSlotLength )
@@ -322,6 +322,7 @@ import Ouroboros.Consensus.Util.Counting ( exactlyOne )
 import Ouroboros.Network.Block ( SlotNo (..) )
 import System.Directory ( listDirectory )
 import System.FilePath ( takeExtension, (</>) )
+import System.IO.Unsafe ( unsafePerformIO )
 import System.Random.StdGenSeed ( StdGenSeed (..), stdGenFromSeed )
 import Test.Hspec
     ( Spec
@@ -377,7 +378,13 @@ import Test.QuickCheck
     , (==>)
     )
 import Test.QuickCheck.Extra
-    ( chooseNatural, report, shrinkBoundedEnum, shrinkNonEmpty )
+    ( chooseNatural
+    , genNonEmpty
+    , report
+    , shrinkBoundedEnum
+    , shrinkNonEmpty
+    , (.>=.)
+    )
 import Test.QuickCheck.Gen ( Gen (..), listOf1 )
 import Test.QuickCheck.Random ( QCGen, mkQCGen )
 import Test.Utils.Paths ( getTestData )
@@ -420,7 +427,6 @@ import qualified Data.ByteArray as BA
 import qualified Data.ByteString as BS
 import qualified Data.ByteString.Char8 as B8
 import qualified Data.Foldable as F
-import Data.Generics.Product ( setField )
 import qualified Data.List.NonEmpty as NE
 import qualified Data.Map.Strict as Map
 import qualified Data.Sequence.Strict as StrictSeq
@@ -2415,6 +2421,7 @@ balanceTransactionSpec = describe "balanceTransaction" $ do
                 -- Dummy PParams to ensure a Coin-delta corresponds to a
                 -- size-delta.
                 pp = case WriteTx.recentEra @era of
+                    RecentEraConway -> setField @"_minfeeA" 1 def
                     RecentEraBabbage -> setField @"_minfeeA" 1 def
                     RecentEraAlonzo  -> setField @"_minfeeA" 1 def
 
@@ -2445,7 +2452,7 @@ balanceTransactionSpec = describe "balanceTransaction" $ do
                         then [show overestimation <> " (but with no wits)"]
                         else [show $ overestimation `div` fromIntegral n]
 
-                estimated .>= measured
+                estimated .>=. measured
                     & tabulateOverestimation
 
     balanceTransactionGoldenSpec
@@ -4149,19 +4156,18 @@ prop_bootstrapWitnesses
     p n (AnyRecentEra (era :: RecentEra era)) net accIx addr0Ix =
     let
         -- Start incrementing the ixs upward, and if we reach 'maxBound', loop
-        -- around, to ensure we always have 'n' unique indicies.
+        -- around, to ensure we always have 'n' unique indices.
         addrIxs = take (fromIntegral n)
-                $ [addr0Ix .. maxBound] ++ [minBound .. addr0Ix]
+            $ [addr0Ix .. maxBound] ++ [minBound .. addr0Ix]
         body = emptyCardanoTxBody
         wits :: [Cardano.KeyWitness era]
         wits = map (dummyWitForIx body) addrIxs
     in
         p n (WriteTx.InAnyRecentEra era $ Cardano.Tx body wits)
   where
-    emptyCardanoTxBody =
-        let
-            Cardano.Tx body _ = WriteTx.toCardanoTx @era $ WriteTx.emptyTx era
-        in body
+    emptyCardanoTxBody = body
+      where
+        Cardano.Tx body _ = WriteTx.toCardanoTx @era $ WriteTx.emptyTx era
 
     mw = SomeMnemonic $ either (error . show) id
         (entropyToMnemonic @12 <$> mkEntropy "0000000000000000")
@@ -4189,21 +4195,18 @@ prop_bootstrapWitnesses
                     paymentAddress @('Testnet 0) $ publicKey addrK
         in
             case era of
+                RecentEraConway ->
+                    mkByronWitness body net addr (getRawKey addrK, pwd)
                 RecentEraBabbage ->
                     mkByronWitness body net addr (getRawKey addrK, pwd)
                 RecentEraAlonzo  ->
                     mkByronWitness body net addr (getRawKey addrK, pwd)
-
 
 serializedSize :: forall era. Cardano.IsCardanoEra era => Cardano.Tx era -> Int
 serializedSize = BS.length
     . serialisedTx
     . sealedTxFromCardano
     . Cardano.InAnyCardanoEra (Cardano.cardanoEra @era)
-
-(.>=) :: (Show a, Ord a) => a -> a -> Property
-a .>= b = counterexample (show a <> " < " <> show b)
-        $ property $ a >= b
 
 hasInsCollateral :: Cardano.Tx era -> Bool
 hasInsCollateral (Cardano.Tx (Cardano.TxBody content) _) =
