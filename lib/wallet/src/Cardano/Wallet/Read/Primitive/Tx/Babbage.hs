@@ -55,7 +55,7 @@ import Cardano.Wallet.Read.Tx.Hash
 import Cardano.Wallet.Shelley.Compatibility.Ledger
     ( toWalletScript, toWalletTokenPolicyId )
 import Cardano.Wallet.Transaction
-    ( AnyScript (..)
+    ( AnyExplicitScript (..)
     , PlutusScriptInfo (..)
     , PlutusVersion (..)
     , ReferenceInput (..)
@@ -187,14 +187,14 @@ fromBabbageTx tx@(Alonzo.ValidatedTx bod wits (Alonzo.IsValid isValid) aux) witC
         :: ( ScriptReference
            , (SL.ScriptHash (Crypto StandardBabbage))
            , (SL.Core.Script StandardBabbage) )
-        -> (TokenPolicyId, AnyScript)
+        -> (TokenPolicyId, AnyExplicitScript)
     fromLedgerToAnyScript (scriptRef, scriptH, script) =
         (toWalletTokenPolicyId . SL.PolicyID $ scriptH, toAnyScript script)
       where
         toAnyScript (Alonzo.TimelockScript script') =
-            NativeScript (toWalletScript (toKeyRole witCtx) script') scriptRef
+            NativeExplicitScript (toWalletScript (toKeyRole witCtx) script') scriptRef
         toAnyScript s@(Alonzo.PlutusScript ver _) =
-            PlutusScript (PlutusScriptInfo (toPlutusVer ver)
+            PlutusExplicitScript (PlutusScriptInfo (toPlutusVer ver)
                           (fromLedgerScriptHash $ hashBabbageScript s)) scriptRef
 
         toPlutusVer Alonzo.PlutusV1 = PlutusVersionV1

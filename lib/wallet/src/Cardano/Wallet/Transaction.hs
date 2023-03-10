@@ -35,6 +35,7 @@ module Cardano.Wallet.Transaction
     , TxFeeUpdate(..)
     , TokenMapWithScripts (..)
     , emptyTokenMapWithScripts
+    , AnyExplicitScript (..)
     , AnyScript (..)
     , PlutusScriptInfo (..)
     , PlutusVersion (..)
@@ -416,9 +417,15 @@ emptyTokenMapWithScripts = TokenMapWithScripts
     , txScripts = Map.empty
     }
 
+data AnyExplicitScript =
+      NativeExplicitScript !(Script KeyHash) !ScriptReference
+    | PlutusExplicitScript !PlutusScriptInfo !ScriptReference
+    deriving (Eq, Generic, Show)
+    deriving anyclass NFData
+
 data WitnessCount = WitnessCount
     { verificationKey :: Word8
-    , scripts :: [AnyScript]
+    , scripts :: [AnyExplicitScript]
     , bootstrap :: Word8
     }
     deriving (Eq, Generic, Show)

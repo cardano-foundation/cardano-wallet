@@ -66,7 +66,8 @@ import Cardano.Wallet.Shelley.Network.Discriminant
     , EncodeStakeAddress (..)
     )
 import Cardano.Wallet.Transaction
-    ( AnyScript (..)
+    ( AnyExplicitScript (..)
+    , AnyScript (..)
     , PlutusScriptInfo (..)
     , ReferenceInput (..)
     , ScriptReference (..)
@@ -228,6 +229,54 @@ instance ToJSON (ApiT AnyScript) where
                 [ "script_type" .= String "reference script"
                 , "script_hash" .= String (hexText h)
                 , "references" .= toJSON refs
+                ]
+
+instance FromJSON (ApiT AnyExplicitScript) where
+    parseJSON = (fmap . fmap) ApiT . withObject "AnyExplicitScript" $ \obj -> do
+        scriptType <- obj .:? "script_type"
+        reference <- obj .:? "reference"
+        case (scriptType :: Maybe String, reference :: Maybe ReferenceInput) of
+            (Just t , Nothing) -> case t of
+                "plutus" ->
+                    flip PlutusExplicitScript ViaSpending . getApiT <$> obj .: "script_info"
+                "native" ->
+                    flip NativeExplicitScript ViaSpending <$> obj .: "script"
+                _ -> fail
+                    "AnyExplicitScript needs either 'native' or 'plutus' in 'script_type'"
+            (Just t , Just ref) -> case t of
+                "plutus" ->
+                    flip PlutusExplicitScript (ViaReferenceInput ref) . getApiT <$>
+                    obj .: "script_info"
+                "native" ->
+                    flip NativeExplicitScript (ViaReferenceInput ref) <$> obj .: "script"
+                _ -> fail
+                    "AnyExplicitScript needs either 'native' or 'plutus' in 'script_type'"
+            _ -> fail
+                "AnyExplicitScript needs to have 'script_type' field"
+
+instance ToJSON (ApiT AnyExplicitScript) where
+    toJSON (ApiT anyScript) = case anyScript of
+        NativeExplicitScript s ViaSpending ->
+            object
+                [ "script_type" .= String "native"
+                , "script" .= toJSON s
+                ]
+        PlutusExplicitScript s ViaSpending ->
+            object
+                [ "script_type" .= String "plutus"
+                , "script_info" .= toJSON (ApiT s)
+                ]
+        NativeExplicitScript s (ViaReferenceInput refInput) ->
+            object
+                [ "script_type" .= String "native"
+                , "script" .= toJSON s
+                , "reference" .= toJSON refInput
+                ]
+        PlutusExplicitScript s (ViaReferenceInput refInput) ->
+            object
+                [ "script_type" .= String "plutus"
+                , "script_info" .= toJSON (ApiT s)
+                , "reference" .= toJSON refInput
                 ]
 
 instance FromJSON (ApiT W.TokenName) where

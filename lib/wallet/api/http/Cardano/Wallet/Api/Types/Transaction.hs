@@ -66,7 +66,10 @@ import Cardano.Wallet.Primitive.Types.Tx.TxIn
 import Cardano.Wallet.Shelley.Network.Discriminant
     ( DecodeAddress, DecodeStakeAddress, EncodeAddress, EncodeStakeAddress )
 import Cardano.Wallet.Transaction
-    ( AnyScript (..), ValidityIntervalExplicit (..), WitnessCount (..) )
+    ( AnyExplicitScript (..)
+    , ValidityIntervalExplicit (..)
+    , WitnessCount (..)
+    )
 import Control.DeepSeq
     ( NFData )
 import Data.Aeson.Types
@@ -165,7 +168,7 @@ data ApiWalletInput (n :: NetworkDiscriminant) = ApiWalletInput
 
 data ApiWitnessCount = ApiWitnessCount
     { verificationKey :: Word8
-    , scripts :: [ApiT AnyScript]
+    , scripts :: [ApiT AnyExplicitScript]
     , bootstrap :: Word8
     }
     deriving (Eq, Generic, Show)

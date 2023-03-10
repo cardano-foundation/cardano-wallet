@@ -358,7 +358,8 @@ import Cardano.Wallet.Shelley.Network.Discriminant
 import Cardano.Wallet.TokenMetadata
     ( TokenMetadataError (..) )
 import Cardano.Wallet.Transaction
-    ( AnyScript (..)
+    ( AnyExplicitScript (..)
+    , AnyScript (..)
     , PlutusScriptInfo (..)
     , PlutusVersion (..)
     , ReferenceInput (..)
@@ -1941,7 +1942,7 @@ instance Arbitrary ApiWitnessCount where
             elements [ViaSpending, ViaReferenceInput (ReferenceInput txId)]
         fmap mkApiWitnessCount $ WitnessCount
             <$> choose (0, 10)
-            <*> vectorOf numberOfScripts (flip NativeScript referenceInp  <$> arbitrary)
+            <*> vectorOf numberOfScripts (flip NativeExplicitScript referenceInp  <$> arbitrary)
             <*> choose (0, 2)
 
 instance Arbitrary (ApiDecodedTransaction n) where

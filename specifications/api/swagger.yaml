@@ -2593,6 +2593,31 @@ components:
               minItems: 1
               items: *referenceInput
 
+    AnyExplicitScript: &AnyExplicitScript
+      oneOf:
+        - type: object
+          title: native script
+          required:
+            - script_type
+            - script
+          properties:
+            script_type:
+              type: string
+              enum: ["native"]
+            script: *ScriptValue
+            reference: *referenceInput
+        - type: object
+          title: plutus script
+          required:
+            - script_type
+            - script_info
+          properties:
+            script_type:
+              type: string
+              enum: ["plutus"]
+            script_info: *PlutusScriptInfo
+            reference: *referenceInput
+
     ApiTokens: &ApiTokens
       type: object
       required:
@@ -2732,7 +2757,7 @@ components:
         scripts:
           type: array
           minItems: 0
-          items: *AnyScript
+          items: *AnyExplicitScript
         bootstrap: *witnessCount
 
     ApiDecodedTransaction: &ApiDecodedTransaction

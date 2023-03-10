@@ -48,7 +48,7 @@ import Cardano.Wallet.Read.Tx.Hash
 import Cardano.Wallet.Shelley.Compatibility.Ledger
     ( toWalletScript, toWalletTokenPolicyId )
 import Cardano.Wallet.Transaction
-    ( AnyScript (..)
+    ( AnyExplicitScript (..)
     , ScriptReference (..)
     , TokenMapWithScripts (..)
     , ValidityIntervalExplicit (..)
@@ -130,7 +130,7 @@ fromMaryTx tx witCtx =
         :: Map
             (SL.ScriptHash (Crypto (MA.ShelleyMAEra 'MA.Mary Crypto.StandardCrypto)))
             (SL.Core.Script (MA.ShelleyMAEra 'MA.Mary Crypto.StandardCrypto))
-        -> Map TokenPolicyId AnyScript
+        -> Map TokenPolicyId AnyExplicitScript
     fromMaryScriptMap =
-        Map.map (flip NativeScript ViaSpending . toWalletScript (toKeyRole witCtx)) .
+        Map.map (flip NativeExplicitScript ViaSpending . toWalletScript (toKeyRole witCtx)) .
         Map.mapKeys (toWalletTokenPolicyId . SL.PolicyID)

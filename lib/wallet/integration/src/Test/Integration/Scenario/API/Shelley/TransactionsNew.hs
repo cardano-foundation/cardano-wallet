@@ -114,7 +114,8 @@ import Cardano.Wallet.Primitive.Types.Tx
 import Cardano.Wallet.Primitive.Types.Tx.TxIn
     ( TxIn (..) )
 import Cardano.Wallet.Transaction
-    ( AnyScript (..)
+    ( AnyExplicitScript (..)
+    , AnyScript (..)
     , PlutusScriptInfo (..)
     , PlutusVersion (..)
     , ReferenceInput (..)
@@ -1494,9 +1495,9 @@ spec = describe "NEW_SHELLEY_TRANSACTIONS" $ do
 
         let refInp = ReferenceInput $ TxIn (Hash txId) 0
         let plutusScript =
-                PlutusScript (PlutusScriptInfo PlutusVersionV2
-                              (ScriptHash plutusScriptHash))
-                             (ViaReferenceInput refInp)
+                PlutusExplicitScript (PlutusScriptInfo PlutusVersionV2
+                                     (ScriptHash plutusScriptHash))
+                                     (ViaReferenceInput refInp)
 
         let witnessCountWithPlutusScript = mkApiWitnessCount WitnessCount
                 { verificationKey = 1
@@ -1644,7 +1645,7 @@ spec = describe "NEW_SHELLEY_TRANSACTIONS" $ do
 
         let witnessCountWithNativeScript = mkApiWitnessCount WitnessCount
                 { verificationKey = 1
-                , scripts = [NativeScript nativeScript (ViaReferenceInput refInp)]
+                , scripts = [NativeExplicitScript nativeScript (ViaReferenceInput refInp)]
                 , bootstrap = 0
                 }
 
