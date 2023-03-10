@@ -855,7 +855,7 @@ clusterEraToString = \case
     BabbageHardFork -> "babbage"
 
 data LocalClusterConfig = LocalClusterConfig
-    { cfgStakePools :: NonEmpty (PoolRecipe)
+    { cfgStakePools :: NonEmpty PoolRecipe
     -- ^ Stake pools to register.
     , cfgLastHardFork :: ClusterEra
     -- ^ Which era to use.
