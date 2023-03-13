@@ -499,7 +499,9 @@ bgroupReadTxHistory db = bgroup "TxHistory (Read)"
     [ bTxHistory    1000         0   [1..100]  Descending  Nothing  wholeRange
     , bTxHistory    1000         0   [1..100]   Ascending  Nothing  wholeRange
     , bTxHistory    1000         0  [1..1000]  Descending  Nothing  wholeRange
-    , bTxHistory    1000         0   [1..100]  Descending  pending  wholeRange
+    -- , bTxHistory    1000         0   [1..100]  Descending  (Just Pending)  wholeRange
+    -- TODO This is currently broken because the pending txs are not stored via
+    -- putTxHistory. We need to fix this. ADP-2830
     , bTxHistory    1000         0   [1..100]  Descending  Nothing  (Just 40, Just 60)
     , bTxHistory    1000        10   [1..100]  Descending  Nothing  (Just 40, Just 60)
     , bTxHistory    1000        20   [1..100]  Descending  Nothing  (Just 40, Just 60)
@@ -509,7 +511,7 @@ bgroupReadTxHistory db = bgroup "TxHistory (Read)"
     ]
   where
     wholeRange = (Nothing, Nothing)
-    pending = Just Pending
+    -- pending = Just Pending
     bTxHistory n a r o st s =
         bench lbl $ withTxHistory db n a r $ benchReadTxHistory o s st Nothing
       where
