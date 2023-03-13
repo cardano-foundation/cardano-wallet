@@ -108,7 +108,7 @@ import Cardano.Wallet.DB.Store.Submissions.Layer
     ( pruneByFinality, rollBackSubmissions )
 import Cardano.Wallet.DB.Store.Transactions.Decoration
     ( TxInDecorator
-    , decorateTxInsForReadTxFromLookupTxOut
+    , decorateTxInsForReadTx
     , decorateTxInsForRelationFromLookupTxOut
     )
 import Cardano.Wallet.DB.Store.Transactions.Model
@@ -757,9 +757,9 @@ mkDecorator
     :: QueryStoreTxWalletsHistory
     -> TxInDecorator (EraValue Read.Tx) (SqlPersistT IO)
 mkDecorator transactionsQS =
-    decorateTxInsForReadTxFromLookupTxOut lookupTxOut
+    decorateTxInsForReadTx lookupTx
   where
-    lookupTxOut = queryS transactionsQS . GetTxOut
+    lookupTx = queryS transactionsQS . GetByTxId
 
 readWalletMetadata
     :: W.WalletId
