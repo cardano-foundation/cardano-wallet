@@ -18,10 +18,7 @@ CLI commands allow you to make and track changes while maintaining the wallet AP
 
 ## Pre-Requisites
 
-- Install [cardano-wallet](https://github.com/input-output-hk/cardano-wallet/releases) by following instruction on the release notes.
-- Install [cardano-node](https://github.com/input-output-hk/cardano-node/releases) by following instruction on the release notes.
-
-- Download the `byronGenesis.json` initial configuration file from [Cardano configurations](https://hydra.iohk.io/job/Cardano/cardano-node/cardano-deployment/latest-finished/download/1/index.html).
+ - [[how-to-start-wallet-server]]
 
 ## How to Run
 
@@ -567,20 +564,21 @@ This estimates fees for a transaction that sends 22 lovelace to `Ae2tdPwUPEZ...n
 
 :::{.cli}
 ```
-cardano-wallet transaction list [--port INT] WALLET_ID [--start TIME] [--end TIME] [--order ORDER]
+cardano-wallet transaction list [--port INT] WALLET_ID [--start TIME] [--end TIME] [--order ORDER] [--simple-metadata] [--max_count MAX_COUNT]
 ```
 :::
 
-List all incoming and outgoing transactions for the wallet:
+List the transactions associated with a wallet.
 
 ```
 $ cardano-wallet transaction list 2512a00e9653fe49a44a5886202e24d77eeb998f \
     --start 2018-09-25T10:15:00Z \
     --end 2019-11-21T10:15:00Z \
-    --order ascending
+    --order ascending \
+    --max_count 10
 ```
 
-This lists all transactions between `2018-09-25T10:15:00Z` and `2019-11-21T10:15:00Z` in `ascending` order.
+This lists max 10 transactions between `2018-09-25T10:15:00Z` and `2019-11-21T10:15:00Z` in `ascending` order.
 
 {.divider}
 <a href="#">top :arrow_heading_up:</a>
