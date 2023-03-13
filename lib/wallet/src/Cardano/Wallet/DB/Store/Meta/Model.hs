@@ -70,9 +70,7 @@ instance Buildable TxMetaHistory where
 -- | Verbs for 'TxMeta' changes
 -- that can be issued independently from the transaction store.
 data ManipulateTxMetaHistory
-    = PruneTxMetaHistory TxId
-    -- ^ Remove a meta if it is /not/ in the ledger.
-    | AgeTxMetaHistory W.SlotNo
+    = AgeTxMetaHistory W.SlotNo
     -- ^ Change the state of any meta to 'Expired'
     -- if the given slot is equal or after its expiration slot.
     | RollBackTxMetaHistory W.SlotNo
@@ -97,14 +95,6 @@ instance Delta DeltaTxMetaHistory where
 
 instance Delta ManipulateTxMetaHistory where
     type Base ManipulateTxMetaHistory = TxMetaHistory
-    apply (PruneTxMetaHistory tid) (TxMetaHistory txs) =
-        TxMetaHistory $ Map.alter f tid txs
-      where
-        f (Just tx@(TxMeta {..})) =
-            if txMetaStatus == W.InLedger
-                then Just tx
-                else Nothing
-        f Nothing = Nothing
     apply (AgeTxMetaHistory tip) (TxMetaHistory txs) =
         TxMetaHistory
         $ txs <&> \meta@TxMeta {..} ->

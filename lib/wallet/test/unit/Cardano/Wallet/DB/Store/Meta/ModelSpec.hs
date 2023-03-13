@@ -19,12 +19,9 @@ import Cardano.Wallet.DB.Arbitrary
 import Cardano.Wallet.DB.Fixtures
     ( elementsOrArbitrary, frequencySuchThat, logScale )
 import Cardano.Wallet.DB.Sqlite.Schema
-    ( TxMeta (txMetaDirection, txMetaSlot, txMetaStatus)
-    , txMetaSlotExpires
-    , txMetaTxId
-    )
+    ( TxMeta (txMetaDirection, txMetaSlot, txMetaStatus), txMetaSlotExpires )
 import Cardano.Wallet.DB.Sqlite.Types
-    ( TxId (TxId) )
+    ( TxId )
 import Cardano.Wallet.DB.Store.Meta.Model
     ( DeltaTxMetaHistory (..)
     , ManipulateTxMetaHistory (..)
@@ -34,7 +31,7 @@ import Cardano.Wallet.DB.Store.Meta.Model
 import Cardano.Wallet.Primitive.Types
     ( WalletId )
 import Cardano.Wallet.Primitive.Types.Tx
-    ( Direction (Incoming, Outgoing), TxStatus (InLedger, Pending), status )
+    ( Direction (Incoming, Outgoing), TxStatus (Pending), status )
 import Control.Arrow
     ( (***) )
 import Data.Delta
@@ -53,15 +50,15 @@ import Test.QuickCheck
     ( Gen, Property, arbitrary, cover, elements, listOf1, property )
 
 import qualified Cardano.Wallet.Primitive.Types as W
-import qualified Cardano.Wallet.Primitive.Types.Tx as W
+import qualified Cardano.Wallet.Primitive.Types.Tx.Tx as W
+    ( Tx )
+import qualified Cardano.Wallet.Primitive.Types.Tx.TxMeta as W
 import qualified Data.Map.Strict as Map
 import qualified Data.Set as Set
 
 spec :: Spec
 spec = do
     describe "meta-transactions delta instance" $ do
-        it "can prune all not-in-ledger transaction"
-            $ property prop_PruneToAllInLedger
         it "can mark pending transactions as expired based on current slot"
             $ property prop_AgeAllPending2Expire
         it "can mark past pending transactions as expired based on current slot"
@@ -73,9 +70,7 @@ spec = do
 
 genDeltasForManipulate :: TxMetaHistory -> [(Int, Gen ManipulateTxMetaHistory)]
 genDeltasForManipulate history =
-    [(1, PruneTxMetaHistory . TxId <$> arbitrary)
-   , (4, genPrune history)
-   , (1, AgeTxMetaHistory <$> arbitrary)
+    [ (1, AgeTxMetaHistory <$> arbitrary)
    , (1, genAge history)
    , (3, genRollBack history)
     ]
@@ -86,13 +81,6 @@ genAge (TxMetaHistory history) =
     $ elementsOrArbitrary id
     $ mapMaybe txMetaSlotExpires
     $ toList history
-
-genPrune :: TxMetaHistory -> Gen ManipulateTxMetaHistory
-genPrune history =
-    fmap PruneTxMetaHistory
-    $ elementsOrArbitrary TxId
-    $ Map.keys
-    $ relations history
 
 genExpand :: WalletId -> Gen [(W.Tx, W.TxMeta)] -> Gen TxMetaHistory
 genExpand wid g = mkTxMetaHistory wid <$> g
@@ -243,19 +231,3 @@ pendingsPartitionedBySlot (TxMetaHistory txs) slotNo =
     $ Map.partition (<= slotNo)
     $ (fromJust . txMetaSlotExpires)
     <$> Map.filter ((==) Pending . txMetaStatus) txs
-
-allInLedger :: TxMetaHistory -> Bool
-allInLedger (TxMetaHistory txs) =
-    all ((==) InLedger . txMetaStatus) txs
-
-pruneAll :: TxMetaHistory -> [ManipulateTxMetaHistory]
-pruneAll (TxMetaHistory txs) = do
-    meta <- toList txs
-    pure $ PruneTxMetaHistory $ txMetaTxId meta
-
-prop_PruneToAllInLedger :: WithWalletProperty
-prop_PruneToAllInLedger wid = property $ do
-    expansion <- logScale $ genExpand wid arbitrary
-    let ba = apply `flip` mempty $ Expand expansion
-        result = foldl' (flip apply) ba (Manipulate <$> pruneAll ba)
-    pure $ allInLedger result

@@ -27,8 +27,6 @@ import Control.Arrow
     ( (&&&) )
 import Control.Exception
     ( SomeException )
-import Control.Monad
-    ( void )
 import Data.DBVar
     ( Store (Store, loadS, updateS, writeS) )
 import Data.Foldable
@@ -40,14 +38,11 @@ import Data.Maybe
 import Database.Persist.Sql
     ( Entity (entityVal)
     , PersistEntity (keyFromRecordM)
-    , PersistQueryRead (selectFirst)
     , SqlPersistT
     , deleteWhere
-    , deleteWhereCount
     , repsertMany
     , selectList
     , updateWhere
-    , (<-.)
     , (<=.)
     , (=.)
     , (==.)
@@ -69,13 +64,7 @@ update :: WalletId
     -> SqlPersistT IO ()
 update wid _ change = case change of
     Expand txs -> putMetas txs
-    Manipulate (PruneTxMetaHistory tid) -> do
-        let filt = [TxMetaWalletId ==. wid, TxMetaTxId ==. tid]
-        selectFirst ((TxMetaStatus ==. W.InLedger) : filt) [] >>= \case
-            Just _ -> pure () -- marked in ledger - refuse to delete
-            Nothing -> void
-                $ deleteWhereCount
-                $ (TxMetaStatus <-. [W.Pending, W.Expired]) : filt
+
     Manipulate (AgeTxMetaHistory tip) -> updateWhere
         [ TxMetaWalletId ==. wid
         , TxMetaStatus ==. W.Pending
