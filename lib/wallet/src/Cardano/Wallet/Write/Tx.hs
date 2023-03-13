@@ -138,35 +138,62 @@ module Cardano.Wallet.Write.Tx
 
 import Prelude
 
-import Cardano.Api ( AlonzoEra, BabbageEra, ConwayEra )
-import Cardano.Api.Shelley ( ShelleyLedgerEra )
-import Cardano.Crypto.Hash ( Hash (UnsafeHash) )
-import Cardano.Ledger.Alonzo.Data ( BinaryData, Datum (..) )
-import Cardano.Ledger.Alonzo.Scripts ( AlonzoScript (..) )
-import Cardano.Ledger.BaseTypes ( maybeToStrictMaybe )
-import Cardano.Ledger.Coin ( Coin (..) )
-import Cardano.Ledger.Crypto ( StandardCrypto )
-import Cardano.Ledger.Era ( Crypto )
-import Cardano.Ledger.Mary ( MaryValue )
-import Cardano.Ledger.SafeHash ( SafeHash, extractHash, unsafeMakeSafeHash )
-import Cardano.Ledger.Serialization ( Sized (..), mkSized )
-import Cardano.Ledger.Shelley.API ( CLI (evaluateMinLovelaceOutput) )
-import Cardano.Ledger.Val ( coin, modifyCoin )
-import Cardano.Wallet.Primitive.Types.Tx.Constraints ( txOutMaxCoin )
-import Cardano.Wallet.Shelley.Compatibility.Ledger ( toLedger )
-import Control.Monad ( forM )
-import Data.ByteString ( ByteString )
-import Data.ByteString.Short ( toShort )
-import Data.Coerce ( coerce )
-import Data.Foldable ( toList )
-import Data.Generics.Internal.VL.Lens ( (^.) )
+import Cardano.Api
+    ( AlonzoEra, BabbageEra, ConwayEra )
+import Cardano.Api.Shelley
+    ( ShelleyLedgerEra )
+import Cardano.Crypto.Hash
+    ( Hash (UnsafeHash) )
+import Cardano.Ledger.Alonzo.Data
+    ( BinaryData, Datum (..) )
+import Cardano.Ledger.Alonzo.Scripts
+    ( AlonzoScript (..) )
+import Cardano.Ledger.BaseTypes
+    ( maybeToStrictMaybe )
+import Cardano.Ledger.Coin
+    ( Coin (..) )
+import Cardano.Ledger.Crypto
+    ( StandardCrypto )
+import Cardano.Ledger.Era
+    ( Crypto )
+import Cardano.Ledger.Mary
+    ( MaryValue )
+import Cardano.Ledger.SafeHash
+    ( SafeHash, extractHash, unsafeMakeSafeHash )
+import Cardano.Ledger.Serialization
+    ( Sized (..), mkSized )
+import Cardano.Ledger.Shelley.API
+    ( CLI (evaluateMinLovelaceOutput) )
+import Cardano.Ledger.Val
+    ( coin, modifyCoin )
+import Cardano.Wallet.Primitive.Types.Tx.Constraints
+    ( txOutMaxCoin )
+import Cardano.Wallet.Shelley.Compatibility.Ledger
+    ( toLedger )
+import Control.Monad
+    ( forM )
+import Data.ByteString
+    ( ByteString )
+import Data.ByteString.Short
+    ( toShort )
+import Data.Coerce
+    ( coerce )
+import Data.Foldable
+    ( toList )
+import Data.Generics.Internal.VL.Lens
+    ( (^.) )
 import Data.Generics.Labels
     ()
-import Data.IntCast ( intCast )
-import Data.Maybe ( fromMaybe )
-import Data.Maybe.Strict ( StrictMaybe (..) )
-import Data.Typeable ( Typeable )
-import Numeric.Natural ( Natural )
+import Data.IntCast
+    ( intCast )
+import Data.Maybe
+    ( fromMaybe )
+import Data.Maybe.Strict
+    ( StrictMaybe (..) )
+import Data.Typeable
+    ( Typeable )
+import Numeric.Natural
+    ( Natural )
 import Ouroboros.Consensus.Shelley.Eras
     ( StandardAlonzo, StandardBabbage, StandardConway )
 
@@ -783,10 +810,7 @@ modifyLedgerBody f (Cardano.Tx body keyWits) = Cardano.Tx body' keyWits
                         auxData
                         validity
 
-
-emptyTx
-    :: RecentEra era
-    -> Core.Tx (ShelleyLedgerEra era)
+emptyTx :: RecentEra era -> Core.Tx (ShelleyLedgerEra era)
 emptyTx RecentEraConway = Core.mkBasicTx Core.mkBasicTxBody
 emptyTx RecentEraBabbage = Core.mkBasicTx Core.mkBasicTxBody
 emptyTx RecentEraAlonzo = Core.mkBasicTx Core.mkBasicTxBody
@@ -811,6 +835,7 @@ toCardanoTx
     => Core.Tx (Cardano.ShelleyLedgerEra era)
     -> Cardano.Tx era
 toCardanoTx = Cardano.ShelleyTx (shelleyBasedEraFromRecentEra $ recentEra @era)
+
 -- | NOTE: The roundtrip
 -- @
 --     toCardanoUTxO . fromCardanoUTxO

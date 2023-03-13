@@ -52,7 +52,8 @@ import Cardano.Api
     , ShelleyBasedEra (..)
     , TxOutValue (TxOutAdaOnly, TxOutValue)
     )
-import Cardano.Api.Extra ( asAnyShelleyBasedEra, withShelleyBasedTx )
+import Cardano.Api.Extra
+    ( asAnyShelleyBasedEra, withShelleyBasedTx )
 import Cardano.Api.Gen
     ( genAddressInEra
     , genEncodingBoundaryLovelace
@@ -66,18 +67,26 @@ import Cardano.Api.Gen
     , genValueForTxOut
     , genWitnesses
     )
-import Cardano.Binary ( FromCBOR, ToCBOR, serialize', unsafeDeserialize' )
-import Cardano.BM.Data.Tracer ( nullTracer )
-import Cardano.Ledger.Alonzo.Genesis ( AlonzoGenesis (costmdls) )
-import Cardano.Ledger.Alonzo.TxInfo ( TranslationError (..) )
-import Cardano.Ledger.Era ( Era )
-import Cardano.Ledger.Shelley.API ( StrictMaybe (SJust, SNothing), Wdrl (..) )
+import Cardano.Binary
+    ( FromCBOR, ToCBOR, serialize', unsafeDeserialize' )
+import Cardano.BM.Data.Tracer
+    ( nullTracer )
+import Cardano.Ledger.Alonzo.Genesis
+    ( AlonzoGenesis (costmdls) )
+import Cardano.Ledger.Alonzo.TxInfo
+    ( TranslationError (..) )
+import Cardano.Ledger.Era
+    ( Era )
+import Cardano.Ledger.Shelley.API
+    ( StrictMaybe (SJust, SNothing), Wdrl (..) )
 import Cardano.Ledger.ShelleyMA.Timelocks
     ( ValidityInterval (ValidityInterval) )
 import Cardano.Mnemonic
     ( SomeMnemonic (SomeMnemonic), entropyToMnemonic, mkEntropy )
-import Cardano.Numeric.Util ( power )
-import Cardano.Pool.Types ( PoolId (..) )
+import Cardano.Numeric.Util
+    ( power )
+import Cardano.Pool.Types
+    ( PoolId (..) )
 import Cardano.Tx.Balance.Internal.CoinSelection
     ( SelectionBalanceError (..)
     , SelectionError (..)
@@ -97,8 +106,10 @@ import Cardano.Wallet
     , defaultChangeAddressGen
     , signTransaction
     )
-import Cardano.Wallet.Byron.Compatibility ( maryTokenBundleMaxSize )
-import Cardano.Wallet.Gen ( genMnemonic, genScript )
+import Cardano.Wallet.Byron.Compatibility
+    ( maryTokenBundleMaxSize )
+import Cardano.Wallet.Gen
+    ( genMnemonic, genScript )
 import Cardano.Wallet.Primitive.AddressDerivation
     ( DelegationAddress (delegationAddress)
     , Depth (..)
@@ -114,8 +125,10 @@ import Cardano.Wallet.Primitive.AddressDerivation
     , paymentAddress
     , publicKey
     )
-import Cardano.Wallet.Primitive.AddressDerivation.Byron ( ByronKey )
-import Cardano.Wallet.Primitive.AddressDerivation.Icarus ( IcarusKey )
+import Cardano.Wallet.Primitive.AddressDerivation.Byron
+    ( ByronKey )
+import Cardano.Wallet.Primitive.AddressDerivation.Icarus
+    ( IcarusKey )
 import Cardano.Wallet.Primitive.AddressDerivation.Shelley
     ( ShelleyKey, generateKeyFromSeed )
 import Cardano.Wallet.Primitive.AddressDiscovery.Sequential
@@ -127,7 +140,8 @@ import Cardano.Wallet.Primitive.AddressDiscovery.Sequential
     )
 import Cardano.Wallet.Primitive.AddressDiscovery.Shared
     ( estimateMaxWitnessRequiredPerInput )
-import Cardano.Wallet.Primitive.Model ( Wallet (..), unsafeInitWallet )
+import Cardano.Wallet.Primitive.Model
+    ( Wallet (..), unsafeInitWallet )
 import Cardano.Wallet.Primitive.Passphrase
     ( Passphrase (..)
     , PassphraseMaxLength (..)
@@ -160,19 +174,24 @@ import Cardano.Wallet.Primitive.Types
     , TxParameters (..)
     , getGenesisBlockDate
     )
-import Cardano.Wallet.Primitive.Types.Address ( Address (..) )
-import Cardano.Wallet.Primitive.Types.Coin ( Coin (..) )
+import Cardano.Wallet.Primitive.Types.Address
+    ( Address (..) )
+import Cardano.Wallet.Primitive.Types.Coin
+    ( Coin (..) )
 import Cardano.Wallet.Primitive.Types.Coin.Gen
     ( genCoin, genCoinPositive, shrinkCoin, shrinkCoinPositive )
-import Cardano.Wallet.Primitive.Types.Hash ( Hash (..), mockHash )
+import Cardano.Wallet.Primitive.Types.Hash
+    ( Hash (..), mockHash )
 import Cardano.Wallet.Primitive.Types.MinimumUTxO
     ( minimumUTxOForShelleyBasedEra )
 import Cardano.Wallet.Primitive.Types.MinimumUTxO.Gen
     ( testParameter_coinsPerUTxOByte_Babbage
     , testParameter_coinsPerUTxOWord_Alonzo
     )
-import Cardano.Wallet.Primitive.Types.Redeemer ( Redeemer (..) )
-import Cardano.Wallet.Primitive.Types.RewardAccount ( RewardAccount (..) )
+import Cardano.Wallet.Primitive.Types.Redeemer
+    ( Redeemer (..) )
+import Cardano.Wallet.Primitive.Types.RewardAccount
+    ( RewardAccount (..) )
 import Cardano.Wallet.Primitive.Types.TokenBundle
     ( AssetId, TokenBundle, tokenName )
 import Cardano.Wallet.Primitive.Types.TokenBundle.Gen
@@ -198,14 +217,22 @@ import Cardano.Wallet.Primitive.Types.Tx
     )
 import Cardano.Wallet.Primitive.Types.Tx.Constraints
     ( TxConstraints (..), TxSize (..) )
-import Cardano.Wallet.Primitive.Types.Tx.TxIn ( TxIn (..) )
-import Cardano.Wallet.Primitive.Types.Tx.TxIn.Gen ( genTxIn )
-import Cardano.Wallet.Primitive.Types.Tx.TxOut ( TxOut (..) )
-import Cardano.Wallet.Primitive.Types.Tx.TxOut.Gen ( genTxOutTokenBundle )
-import Cardano.Wallet.Primitive.Types.UTxO ( UTxO (..) )
-import Cardano.Wallet.Primitive.Types.UTxOIndex ( UTxOIndex )
-import Cardano.Wallet.Read.Primitive.Tx.Features.Integrity ( txIntegrity )
-import Cardano.Wallet.Read.Tx.Cardano ( fromCardanoApiTx )
+import Cardano.Wallet.Primitive.Types.Tx.TxIn
+    ( TxIn (..) )
+import Cardano.Wallet.Primitive.Types.Tx.TxIn.Gen
+    ( genTxIn )
+import Cardano.Wallet.Primitive.Types.Tx.TxOut
+    ( TxOut (..) )
+import Cardano.Wallet.Primitive.Types.Tx.TxOut.Gen
+    ( genTxOutTokenBundle )
+import Cardano.Wallet.Primitive.Types.UTxO
+    ( UTxO (..) )
+import Cardano.Wallet.Primitive.Types.UTxOIndex
+    ( UTxOIndex )
+import Cardano.Wallet.Read.Primitive.Tx.Features.Integrity
+    ( txIntegrity )
+import Cardano.Wallet.Read.Tx.Cardano
+    ( fromCardanoApiTx )
 import Cardano.Wallet.Shelley.Compatibility
     ( computeTokenBundleSerializedLengthBytes
     , fromCardanoLovelace
@@ -223,8 +250,6 @@ import Cardano.Wallet.Shelley.Transaction
     , TxUpdate (..)
     , TxWitnessTag (..)
     , TxWitnessTagFor
-    , _decodeSealedTx
-    , _estimateMaxNumberOfInputs
     , costOfIncreasingCoin
     , distributeSurplus
     , distributeSurplusDelta
@@ -246,6 +271,8 @@ import Cardano.Wallet.Shelley.Transaction
     , sizeOf_BootstrapWitnesses
     , txConstraints
     , updateSealedTx
+    , _decodeSealedTx
+    , _estimateMaxNumberOfInputs
     )
 import Cardano.Wallet.Transaction
     ( DelegationAction (..)
@@ -259,7 +286,8 @@ import Cardano.Wallet.Transaction
     , WitnessCountCtx (..)
     , defaultTransactionCtx
     )
-import Cardano.Wallet.Unsafe ( unsafeFromHex )
+import Cardano.Wallet.Unsafe
+    ( unsafeFromHex )
 import Cardano.Wallet.Write.Tx
     ( AnyRecentEra (..)
     , RecentEra (..)
@@ -275,8 +303,10 @@ import Cardano.Wallet.Write.Tx.Balance
     , balanceTransaction
     , posAndNegFromCardanoValue
     )
-import Control.Arrow ( first )
-import Control.Monad ( forM, forM_, replicateM )
+import Control.Arrow
+    ( first )
+import Control.Monad
+    ( forM, forM_, replicateM )
 import Control.Monad.Random
     ( MonadRandom (..)
     , Rand
@@ -285,45 +315,82 @@ import Control.Monad.Random
     , random
     , randoms
     )
-import Control.Monad.Random.Strict ( StdGen )
-import Control.Monad.Trans.Except ( except, runExceptT )
-import Control.Monad.Trans.State.Strict ( evalState, state )
-import Crypto.Hash.Utils ( blake2b224 )
-import Data.ByteArray.Encoding ( Base (..), convertToBase )
-import Data.ByteString ( ByteString )
-import Data.Default ( Default (..) )
-import Data.Either ( isLeft, isRight )
-import Data.Function ( on, (&) )
-import Data.Functor.Identity ( Identity, runIdentity )
-import Data.Generics.Internal.VL.Lens ( over, view )
-import Data.Generics.Product ( setField )
-import Data.IntCast ( intCast )
-import Data.List ( isSuffixOf, nub )
-import Data.List.NonEmpty ( NonEmpty (..) )
-import Data.Map.Strict ( Map )
-import Data.Maybe ( fromJust, fromMaybe, isJust )
-import Data.Ord ( comparing )
-import Data.Proxy ( Proxy (..) )
-import Data.Quantity ( Quantity (..) )
-import Data.Ratio ( (%) )
-import Data.Semigroup ( Sum (Sum), getSum, mtimesDefault )
-import Data.Set ( Set )
-import Data.Text ( Text )
-import Data.Time.Clock.POSIX ( posixSecondsToUTCTime )
-import Data.Typeable ( Typeable, typeRep )
-import Data.Word ( Word16, Word64, Word8 )
-import Fmt ( Buildable (..), blockListF', fmt, nameF, pretty, (+||), (||+) )
-import Numeric.Natural ( Natural )
+import Control.Monad.Random.Strict
+    ( StdGen )
+import Control.Monad.Trans.Except
+    ( except, runExceptT )
+import Control.Monad.Trans.State.Strict
+    ( evalState, state )
+import Crypto.Hash.Utils
+    ( blake2b224 )
+import Data.ByteArray.Encoding
+    ( Base (..), convertToBase )
+import Data.ByteString
+    ( ByteString )
+import Data.Default
+    ( Default (..) )
+import Data.Either
+    ( isLeft, isRight )
+import Data.Function
+    ( on, (&) )
+import Data.Functor.Identity
+    ( Identity, runIdentity )
+import Data.Generics.Internal.VL.Lens
+    ( over, view )
+import Data.Generics.Product
+    ( setField )
+import Data.IntCast
+    ( intCast )
+import Data.List
+    ( isSuffixOf, nub )
+import Data.List.NonEmpty
+    ( NonEmpty (..) )
+import Data.Map.Strict
+    ( Map )
+import Data.Maybe
+    ( fromJust, fromMaybe, isJust )
+import Data.Ord
+    ( comparing )
+import Data.Proxy
+    ( Proxy (..) )
+import Data.Quantity
+    ( Quantity (..) )
+import Data.Ratio
+    ( (%) )
+import Data.Semigroup
+    ( Sum (Sum), getSum, mtimesDefault )
+import Data.Set
+    ( Set )
+import Data.Text
+    ( Text )
+import Data.Time.Clock.POSIX
+    ( posixSecondsToUTCTime )
+import Data.Typeable
+    ( Typeable, typeRep )
+import Data.Word
+    ( Word16, Word64, Word8 )
+import Fmt
+    ( Buildable (..), blockListF', fmt, nameF, pretty, (+||), (||+) )
+import Numeric.Natural
+    ( Natural )
 import Ouroboros.Consensus.BlockchainTime.WallClock.Types
     ( RelativeTime (..), mkSlotLength )
-import Ouroboros.Consensus.Config ( SecurityParam (..) )
-import Ouroboros.Consensus.Shelley.Eras ( StandardBabbage )
-import Ouroboros.Consensus.Util.Counting ( exactlyOne )
-import Ouroboros.Network.Block ( SlotNo (..) )
-import System.Directory ( listDirectory )
-import System.FilePath ( takeExtension, (</>) )
-import System.IO.Unsafe ( unsafePerformIO )
-import System.Random.StdGenSeed ( StdGenSeed (..), stdGenFromSeed )
+import Ouroboros.Consensus.Config
+    ( SecurityParam (..) )
+import Ouroboros.Consensus.Shelley.Eras
+    ( StandardBabbage )
+import Ouroboros.Consensus.Util.Counting
+    ( exactlyOne )
+import Ouroboros.Network.Block
+    ( SlotNo (..) )
+import System.Directory
+    ( listDirectory )
+import System.FilePath
+    ( takeExtension, (</>) )
+import System.IO.Unsafe
+    ( unsafePerformIO )
+import System.Random.StdGenSeed
+    ( StdGenSeed (..), stdGenFromSeed )
 import Test.Hspec
     ( Spec
     , SpecWith
@@ -335,9 +402,12 @@ import Test.Hspec
     , shouldBe
     , shouldSatisfy
     )
-import Test.Hspec.Core.Spec ( SpecM )
-import Test.Hspec.Golden ( Golden (..) )
-import Test.Hspec.QuickCheck ( prop )
+import Test.Hspec.Core.Spec
+    ( SpecM )
+import Test.Hspec.Golden
+    ( Golden (..) )
+import Test.Hspec.QuickCheck
+    ( prop )
 import Test.QuickCheck
     ( Arbitrary (..)
     , Blind (..)
@@ -385,10 +455,14 @@ import Test.QuickCheck.Extra
     , shrinkNonEmpty
     , (.>=.)
     )
-import Test.QuickCheck.Gen ( Gen (..), listOf1 )
-import Test.QuickCheck.Random ( QCGen, mkQCGen )
-import Test.Utils.Paths ( getTestData )
-import Test.Utils.Pretty ( Pretty (..), (====) )
+import Test.QuickCheck.Gen
+    ( Gen (..), listOf1 )
+import Test.QuickCheck.Random
+    ( QCGen, mkQCGen )
+import Test.Utils.Paths
+    ( getTestData )
+import Test.Utils.Pretty
+    ( Pretty (..), (====) )
 
 import qualified Cardano.Api as Cardano
 import qualified Cardano.Api.Gen as Cardano
@@ -2396,14 +2470,14 @@ balanceTransactionSpec = describe "balanceTransaction" $ do
         $ property prop_balanceTransactionValid
 
     describe "bootstrap witnesses" $ do
-        -- Used in 'estimateTxSize' in turn used by coin-selection
+        -- Used in 'estimateTxSize', and in turn used by coin-selection
         let coinSelectionEstimatedSize :: Natural -> Natural
             coinSelectionEstimatedSize
                 = fromIntegral . sizeOf_BootstrapWitnesses . fromIntegral
 
         let measuredWitSize :: IsCardanoEra era => Cardano.Tx era -> Natural
-            measuredWitSize (Cardano.Tx body wits) = fromIntegral $
-                  serializedSize (Cardano.Tx body wits)
+            measuredWitSize (Cardano.Tx body wits) = fromIntegral
+                $ serializedSize (Cardano.Tx body wits)
                 - serializedSize (Cardano.Tx body [])
 
         let evaluateMinimumFeeSize
@@ -2425,8 +2499,8 @@ balanceTransactionSpec = describe "balanceTransaction" $ do
                     RecentEraBabbage -> setField @"_minfeeA" 1 def
                     RecentEraAlonzo  -> setField @"_minfeeA" 1 def
 
-        let evaluateMinimumFeeDerivedWitSize (Cardano.Tx body wits) =
-                  evaluateMinimumFeeSize (Cardano.Tx body wits)
+        let evaluateMinimumFeeDerivedWitSize (Cardano.Tx body wits)
+                = evaluateMinimumFeeSize (Cardano.Tx body wits)
                 - evaluateMinimumFeeSize (Cardano.Tx body [])
 
         it "coin-selection's size estimation == balanceTx's size estimation"

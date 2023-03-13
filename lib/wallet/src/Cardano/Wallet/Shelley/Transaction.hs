@@ -1009,7 +1009,6 @@ evaluateMinimumFee pp (KeyWitnessCount nWits nBootWits) body =
         bytes :: Natural
         bytes = fromIntegral $ sizeOf_BootstrapWitnesses $ intCast nBootWits
 
-
 -- | Estimate the size of the transaction (body) when fully signed.
 estimateSignedTxSize
     :: Cardano.IsShelleyBasedEra era

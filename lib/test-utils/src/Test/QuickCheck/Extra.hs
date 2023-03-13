@@ -76,7 +76,6 @@ module Test.QuickCheck.Extra
     , ScaleDiv (..)
     , ScaleMod (..)
 
-
       -- * Utilities
     , interleaveRoundRobin
 
