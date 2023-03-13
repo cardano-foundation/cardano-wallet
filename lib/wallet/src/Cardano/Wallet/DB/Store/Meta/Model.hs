@@ -70,10 +70,7 @@ instance Buildable TxMetaHistory where
 -- | Verbs for 'TxMeta' changes
 -- that can be issued independently from the transaction store.
 data ManipulateTxMetaHistory
-    = AgeTxMetaHistory W.SlotNo
-    -- ^ Change the state of any meta to 'Expired'
-    -- if the given slot is equal or after its expiration slot.
-    | RollBackTxMetaHistory W.SlotNo
+    = RollBackTxMetaHistory W.SlotNo
     -- ^ Remove all incoming transactions created after the given slot and
     -- mark all outgoing transactions after the given slot as 'Pending'.
     deriving ( Eq, Show )
@@ -95,15 +92,6 @@ instance Delta DeltaTxMetaHistory where
 
 instance Delta ManipulateTxMetaHistory where
     type Base ManipulateTxMetaHistory = TxMetaHistory
-    apply (AgeTxMetaHistory tip) (TxMetaHistory txs) =
-        TxMetaHistory
-        $ txs <&> \meta@TxMeta {..} ->
-            if txMetaStatus == W.Pending && isExpired txMetaSlotExpires
-            then meta { txMetaStatus = W.Expired }
-            else meta
-      where
-        isExpired Nothing = False
-        isExpired (Just tip') = tip' <= tip
     apply (RollBackTxMetaHistory point) metas =
         fst $ rollbackTxMetaHistory point metas
 

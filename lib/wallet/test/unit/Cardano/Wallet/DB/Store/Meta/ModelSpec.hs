@@ -5,7 +5,6 @@
 {-# LANGUAGE ScopedTypeVariables #-}
 {-# LANGUAGE TupleSections #-}
 {-# LANGUAGE TypeFamilies #-}
-{-# LANGUAGE ViewPatterns #-}
 
 module Cardano.Wallet.DB.Store.Meta.ModelSpec
     ( spec
@@ -17,9 +16,9 @@ import Prelude
 import Cardano.Wallet.DB.Arbitrary
     ()
 import Cardano.Wallet.DB.Fixtures
-    ( elementsOrArbitrary, frequencySuchThat, logScale )
+    ( elementsOrArbitrary, logScale )
 import Cardano.Wallet.DB.Sqlite.Schema
-    ( TxMeta (txMetaDirection, txMetaSlot, txMetaStatus), txMetaSlotExpires )
+    ( TxMeta (..) )
 import Cardano.Wallet.DB.Sqlite.Types
     ( TxId )
 import Cardano.Wallet.DB.Store.Meta.Model
@@ -31,17 +30,15 @@ import Cardano.Wallet.DB.Store.Meta.Model
 import Cardano.Wallet.Primitive.Types
     ( WalletId )
 import Cardano.Wallet.Primitive.Types.Tx
-    ( Direction (Incoming, Outgoing), TxStatus (Pending), status )
+    ( Direction (Incoming, Outgoing) )
 import Control.Arrow
     ( (***) )
 import Data.Delta
     ( Delta (..) )
 import Data.Foldable
-    ( foldl', toList )
+    ( toList )
 import Data.Map.Strict
     ( Map )
-import Data.Maybe
-    ( fromJust, mapMaybe )
 import Data.Set
     ( Set )
 import Test.Hspec
@@ -59,10 +56,6 @@ import qualified Data.Set as Set
 spec :: Spec
 spec = do
     describe "meta-transactions delta instance" $ do
-        it "can mark pending transactions as expired based on current slot"
-            $ property prop_AgeAllPending2Expire
-        it "can mark past pending transactions as expired based on current slot"
-            $ property prop_AgeSomePending2Expire
         it "can roll back to a given slot, removing all transactions"
             $ property prop_RollBackRemoveAfterSlot
         it "can roll back to a given slot, leaving past untouched"
@@ -70,17 +63,8 @@ spec = do
 
 genDeltasForManipulate :: TxMetaHistory -> [(Int, Gen ManipulateTxMetaHistory)]
 genDeltasForManipulate history =
-    [ (1, AgeTxMetaHistory <$> arbitrary)
-   , (1, genAge history)
-   , (3, genRollBack history)
+    [ (3, genRollBack history)
     ]
-
-genAge :: TxMetaHistory -> Gen ManipulateTxMetaHistory
-genAge (TxMetaHistory history) =
-    fmap AgeTxMetaHistory
-    $ elementsOrArbitrary id
-    $ mapMaybe txMetaSlotExpires
-    $ toList history
 
 genExpand :: WalletId -> Gen [(W.Tx, W.TxMeta)] -> Gen TxMetaHistory
 genExpand wid g = mkTxMetaHistory wid <$> g
@@ -155,79 +139,3 @@ splitHistory :: W.SlotNo -> TxMetaHistory -> (TxMetaHistory, TxMetaHistory)
 splitHistory slotSplit (TxMetaHistory txs) =
     (TxMetaHistory *** TxMetaHistory)
     $ Map.partition ((> slotSplit) . txMetaSlot) txs
-
-prop_AgeAllPending2Expire :: WithWalletProperty
-prop_AgeAllPending2Expire wid = property $ do
-    bootHistory <- withExpanded
-        wid
-        (listOf1 generatePendings)
-    let result =
-            foldl' (flip apply) bootHistory
-            $ Manipulate <$> firstPendingSlot bootHistory
-    pure
-        $ cover
-            50
-            (not . null $ allPendings bootHistory)
-            "pending transactions size"
-        $ noPendingLeft result
-
-firstPendingSlot
-    :: TxMetaHistory
-    -> Maybe (ManipulateTxMetaHistory)
-firstPendingSlot
-    (TxMetaHistory (null -> True)) = Nothing
-firstPendingSlot (TxMetaHistory txs) =
-    fmap AgeTxMetaHistory $ maximum $ txMetaSlotExpires <$> toList txs
-
-prop_AgeSomePending2Expire :: WithWalletProperty
-prop_AgeSomePending2Expire wid = property $ do
-    bootHistory <- withExpanded
-        wid
-        (listOf1 generatePendings)
-    let pendings = allPendings bootHistory
-    if null pendings
-        then pure $ property True
-        else do
-            (splitSlot,(unchanged,changed)) <- splitPendingsG pendings
-            let newHistory =
-                    apply `flip` bootHistory
-                    $ Manipulate
-                    $ AgeTxMetaHistory splitSlot
-            pure
-                $ cover
-                    50
-                    (length unchanged + length changed > 0)
-                    "pending transactions size"
-                $ snd (pendingsPartitionedBySlot newHistory splitSlot)
-                == changed
-
-generatePendings :: Gen (W.Tx, W.TxMeta)
-generatePendings = frequencySuchThat arbitrary [(20, \(_,meta)
-    -> status meta == Pending), (1, const True) ]
-
-noPendingLeft :: TxMetaHistory -> Bool
-noPendingLeft
-    (TxMetaHistory txs) = flip all txs $ \meta -> txMetaStatus meta /= Pending
-
-allPendings :: TxMetaHistory -> Map W.SlotNo [TxId]
-allPendings (TxMetaHistory txs) =
-    Map.fromListWith (<>)
-    $ fmap (\(k,v) -> (v, [k ]))
-    $ Map.assocs
-    $ (fromJust . txMetaSlotExpires)
-    <$> Map.filter ((==) Pending . txMetaStatus) txs
-
-splitPendingsG :: Map W.SlotNo [TxId] -> Gen (W.SlotNo, (Set TxId, Set TxId))
-splitPendingsG m = do
-    k <- elements $ Map.keys m
-    pure
-        $ (k, )
-        $ (foldMap Set.fromList *** foldMap Set.fromList)
-        $ Map.split k m
-
-pendingsPartitionedBySlot :: TxMetaHistory -> W.SlotNo -> (Set TxId, Set TxId)
-pendingsPartitionedBySlot (TxMetaHistory txs) slotNo =
-    (Map.keysSet *** Map.keysSet)
-    $ Map.partition (<= slotNo)
-    $ (fromJust . txMetaSlotExpires)
-    <$> Map.filter ((==) Pending . txMetaStatus) txs

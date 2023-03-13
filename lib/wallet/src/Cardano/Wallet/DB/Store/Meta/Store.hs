@@ -42,14 +42,10 @@ import Database.Persist.Sql
     , deleteWhere
     , repsertMany
     , selectList
-    , updateWhere
-    , (<=.)
-    , (=.)
     , (==.)
     , (>.)
     )
 
-import qualified Cardano.Wallet.Primitive.Types.Tx as W
 import qualified Data.Map.Strict as Map
 
 -- | Create an SQL store to hold meta transactions for a wallet.
@@ -64,13 +60,6 @@ update :: WalletId
     -> SqlPersistT IO ()
 update wid _ change = case change of
     Expand txs -> putMetas txs
-
-    Manipulate (AgeTxMetaHistory tip) -> updateWhere
-        [ TxMetaWalletId ==. wid
-        , TxMetaStatus ==. W.Pending
-        , TxMetaSlotExpires <=. Just tip
-        ]
-        [TxMetaStatus =. W.Expired]
     Manipulate (RollBackTxMetaHistory point) -> do
         let isAfter = TxMetaSlot >. point
         deleteWhere
