@@ -4158,7 +4158,7 @@ prop_bootstrapWitnesses
         -- Start incrementing the ixs upward, and if we reach 'maxBound', loop
         -- around, to ensure we always have 'n' unique indices.
         addrIxs = take (fromIntegral n)
-            $ [addr0Ix .. maxBound] ++ [minBound .. addr0Ix]
+            $ [addr0Ix .. maxBound] ++ filter (< addr0Ix) [minBound .. addr0Ix]
         body = emptyCardanoTxBody
         wits :: [Cardano.KeyWitness era]
         wits = map (dummyWitForIx body) addrIxs
