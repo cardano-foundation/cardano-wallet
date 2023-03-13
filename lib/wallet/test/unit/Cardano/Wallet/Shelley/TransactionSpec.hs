@@ -2691,10 +2691,8 @@ balanceTransactionSpec = describe "balanceTransaction" $ do
             outs = map (TxOut dummyAddr . TokenBundle.fromCoin) coins
             dummyHash = Hash $ B8.replicate 32 '0'
 
-    dummyRootK = Shelley.unsafeGenerateKeyFromSeed (mw, Nothing) mempty
-      where
-        mw = SomeMnemonic $ either (error . show) id
-            (entropyToMnemonic @12 <$> mkEntropy "0000000000000000")
+    dummyRootK
+        = Shelley.unsafeGenerateKeyFromSeed (dummyMnemonic, Nothing) mempty
 
     dummyAddr = Address $ unsafeFromHex
         "60b1e5e0fb74c86c801f646841e07cdb42df8b82ef3ce4e57cb5412e77"
@@ -3596,10 +3594,8 @@ dummyChangeAddrGen = ChangeAddressGen $ \(DummyChangeState i) ->
                 Cardano.Wallet.Primitive.AddressDerivation.UtxoInternal
                 ix
 
-        mw = SomeMnemonic $ either (error . show) id
-            (entropyToMnemonic @12 <$> mkEntropy "0000000000000000")
         pwd = Passphrase ""
-        rootK = Shelley.unsafeGenerateKeyFromSeed (mw, Nothing) mempty
+        rootK = Shelley.unsafeGenerateKeyFromSeed (dummyMnemonic, Nothing) pwd
         acctK = Shelley.deriveAccountPrivateKeyShelley
                     purposeBIP44
                     pwd
@@ -3779,9 +3775,8 @@ balanceTransactionGoldenSpec = describe "balance goldens" $ do
         outs = map (TxOut addr . TokenBundle.fromCoin) coins
         dummyHash = Hash $ B8.replicate 32 '0'
 
-    mw = SomeMnemonic $ either (error . show) id
-        (entropyToMnemonic @12 <$> mkEntropy "0000000000000000")
-    rootK = Shelley.unsafeGenerateKeyFromSeed (mw, Nothing) mempty
+    rootK =
+        Shelley.unsafeGenerateKeyFromSeed (dummyMnemonic, Nothing) mempty
     addr = Address $ unsafeFromHex
         "60b1e5e0fb74c86c801f646841e07cdb42df8b82ef3ce4e57cb5412e77"
 
@@ -4169,9 +4164,7 @@ prop_bootstrapWitnesses
       where
         Cardano.Tx body _ = WriteTx.toCardanoTx @era $ WriteTx.emptyTx era
 
-    mw = SomeMnemonic $ either (error . show) id
-        (entropyToMnemonic @12 <$> mkEntropy "0000000000000000")
-    rootK = Byron.generateKeyFromSeed mw mempty
+    rootK = Byron.generateKeyFromSeed dummyMnemonic mempty
     pwd = mempty
 
     dummyWitForIx
@@ -4781,3 +4774,7 @@ cardanoTx = cardanoTxIdeallyNoLaterThan maxBound
 
 dummyPolicyK :: KeyHash
 dummyPolicyK = KeyHash Policy (BS.replicate 32 0)
+
+dummyMnemonic :: SomeMnemonic
+dummyMnemonic = SomeMnemonic $ either (error . show) id
+    (entropyToMnemonic @12 <$> mkEntropy "0000000000000000")
