@@ -27,6 +27,7 @@ module Cardano.Wallet.DB.Store.Transactions.Decoration
    , decorateTxInsForRelation
    , decorateTxInsForRelationFromLookupTxOut
    , decorateTxInsForReadTx
+   , decorateTxInsForReadTxFromLookupTxOut
    ) where
 
 import Prelude hiding
@@ -208,3 +209,21 @@ decorateTxInsForReadTx lookupTx tx
   where
     undoWTxIn :: W.TxIn -> (TxId, Word32)
     undoWTxIn (W.TxIn k n) = (TxId k,n)
+
+-- | Decorate the Tx inputs of a given 'TxRelation'
+-- by searching the 'TxSet' for corresponding output values.
+decorateTxInsForReadTxFromLookupTxOut
+    :: Monad m
+    => LookupFun m (TxId, Word32) W.TxOut
+    -> EraValue Read.Tx
+    -> m DecoratedTxIns
+decorateTxInsForReadTxFromLookupTxOut lookupTxOut' tx
+    = decorateTxInsInternal lookupTxOut'
+            (fmap undoWTxIn
+                $ extractEraValue $ applyEraFun (getInputs . getEraInputs) tx)
+            (fmap undoWTxIn
+                $ extractEraValue $ applyEraFun
+                    (getCollateralInputs . getEraCollateralInputs) tx)
+    where
+        undoWTxIn :: W.TxIn -> (TxId, Word32)
+        undoWTxIn (W.TxIn k n) = (TxId k,n)
