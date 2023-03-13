@@ -2747,6 +2747,15 @@ components:
         invalid_hereafter: *numberOfSlots
 
     ApiWitnessCount: &ApiWitnessCount
+      description: |
+        Specifies the number of verification key and bootstrap wintesses.
+        As scripts act as witnesses they are also included. Scripts can be specified
+        and spent in a given transaction or defined to be consumed later.
+        In the latter case they are defined in transaction outputs (feature possible from Babbage era)
+        in one transaction and referenced in other later transaction(s). The script referencing
+        is realized via including of reference in a reference input. If reference script
+        is present here it included the form of the script and reference to be used later,
+        ie. tx id and index of tx out where the script was included.
       type: object
       required:
         - verification_key
