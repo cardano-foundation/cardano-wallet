@@ -53,11 +53,7 @@ prop_RollbackCollectsGarbage = \GenRollback{wid,slot,history} ->
         rollbackA wid slot history
     === rollbackB wid slot history
   where
-    rollbackMetas wid slot = apply (Adjust wid change)
-      where
-        change
-            = TxMetas.Manipulate
-            $ TxMetas.RollBackTxMetaHistory slot
+    rollbackMetas wid slot = apply (Adjust wid  $ TxMetas.Rollback slot)
 
     rollbackA wid slot (x, wmetas) =
         fst $ TxWallets.garbageCollectTxWalletsHistory

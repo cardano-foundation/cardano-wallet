@@ -1,5 +1,4 @@
 
-{-# LANGUAGE LambdaCase #-}
 
 {- |
  Copyright: © 2018-2022 IOHK
@@ -17,10 +16,7 @@ import Prelude
 import Cardano.Wallet.DB.Sqlite.Schema
     ( EntityField (..), TxMeta (..) )
 import Cardano.Wallet.DB.Store.Meta.Model
-    ( DeltaTxMetaHistory (..)
-    , ManipulateTxMetaHistory (..)
-    , TxMetaHistory (..)
-    )
+    ( DeltaTxMetaHistory (..), TxMetaHistory (..) )
 import Cardano.Wallet.Primitive.Types
     ( WalletId )
 import Control.Arrow
@@ -60,7 +56,7 @@ update :: WalletId
     -> SqlPersistT IO ()
 update wid _ change = case change of
     Expand txs -> putMetas txs
-    Manipulate (RollBackTxMetaHistory point) -> do
+    Rollback point -> do
         let isAfter = TxMetaSlot >. point
         deleteWhere
             [ TxMetaWalletId ==. wid

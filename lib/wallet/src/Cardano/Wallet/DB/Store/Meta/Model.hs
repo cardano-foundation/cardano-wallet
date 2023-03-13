@@ -2,7 +2,6 @@
 {-# LANGUAGE GeneralizedNewtypeDeriving #-}
 {-# LANGUAGE LambdaCase #-}
 {-# LANGUAGE OverloadedLabels #-}
-{-# LANGUAGE RecordWildCards #-}
 {-# LANGUAGE TypeFamilies #-}
 
 {- |
@@ -16,7 +15,6 @@ Meta transactions are encoded "as" expressed in DB tables.
 -}
 module Cardano.Wallet.DB.Store.Meta.Model
     ( DeltaTxMetaHistory(..)
-    , ManipulateTxMetaHistory(..)
     , TxMetaHistory(..)
     , mkTxMetaHistory
     , rollbackTxMetaHistory
@@ -67,18 +65,12 @@ instance Buildable TxMetaHistory where
 {-----------------------------------------------------------------------------
     Operations
 ------------------------------------------------------------------------------}
--- | Verbs for 'TxMeta' changes
--- that can be issued independently from the transaction store.
-data ManipulateTxMetaHistory
-    = RollBackTxMetaHistory W.SlotNo
-    -- ^ Remove all incoming transactions created after the given slot and
-    -- mark all outgoing transactions after the given slot as 'Pending'.
-    deriving ( Eq, Show )
+
 
 -- | All meta-transactions changes, including the addition of new
 -- meta-transactions, which has to be done in sync with the transactions store.
 data DeltaTxMetaHistory
-    = Manipulate ManipulateTxMetaHistory
+    = Rollback W.SlotNo
     | Expand TxMetaHistory
     deriving (Show, Eq)
 
@@ -88,12 +80,7 @@ instance Buildable DeltaTxMetaHistory where
 instance Delta DeltaTxMetaHistory where
     type Base DeltaTxMetaHistory = TxMetaHistory
     apply (Expand txs) h = txs <> h
-    apply (Manipulate d) h = apply d h
-
-instance Delta ManipulateTxMetaHistory where
-    type Base ManipulateTxMetaHistory = TxMetaHistory
-    apply (RollBackTxMetaHistory point) metas =
-        fst $ rollbackTxMetaHistory point metas
+    apply (Rollback s) h = fst $ rollbackTxMetaHistory s h
 
 -- | Rollback a 'TxMetaHistory' to a given slot.
 -- Returns the new 'TxMetaHistory' as well as the 'TxId's that

@@ -3,12 +3,11 @@
 {-# LANGUAGE NoMonomorphismRestriction #-}
 {-# LANGUAGE RankNTypes #-}
 {-# LANGUAGE ScopedTypeVariables #-}
-{-# LANGUAGE TupleSections #-}
 {-# LANGUAGE TypeFamilies #-}
 
 module Cardano.Wallet.DB.Store.Meta.ModelSpec
     ( spec
-    , genDeltasForManipulate
+    , genRollback
     , genExpand ) where
 
 import Prelude
@@ -22,11 +21,7 @@ import Cardano.Wallet.DB.Sqlite.Schema
 import Cardano.Wallet.DB.Sqlite.Types
     ( TxId )
 import Cardano.Wallet.DB.Store.Meta.Model
-    ( DeltaTxMetaHistory (..)
-    , ManipulateTxMetaHistory (..)
-    , TxMetaHistory (..)
-    , mkTxMetaHistory
-    )
+    ( DeltaTxMetaHistory (..), TxMetaHistory (..), mkTxMetaHistory )
 import Cardano.Wallet.Primitive.Types
     ( WalletId )
 import Cardano.Wallet.Primitive.Types.Tx
@@ -61,17 +56,12 @@ spec = do
         it "can roll back to a given slot, leaving past untouched"
             $ property prop_RollBackDoNotTouchPast
 
-genDeltasForManipulate :: TxMetaHistory -> [(Int, Gen ManipulateTxMetaHistory)]
-genDeltasForManipulate history =
-    [ (3, genRollBack history)
-    ]
-
 genExpand :: WalletId -> Gen [(W.Tx, W.TxMeta)] -> Gen TxMetaHistory
 genExpand wid g = mkTxMetaHistory wid <$> g
 
-genRollBack :: TxMetaHistory -> Gen ManipulateTxMetaHistory
-genRollBack (TxMetaHistory history) =
-    fmap RollBackTxMetaHistory
+genRollback :: TxMetaHistory -> Gen DeltaTxMetaHistory
+genRollback (TxMetaHistory history) =
+    fmap Rollback
     $ elementsOrArbitrary id
     $ txMetaSlot <$> toList history
 
@@ -95,8 +85,7 @@ withPropRollBack f wid = property $ do
     slotNo <- internalSlotNoG bootHistory
     let newHistory =
             apply `flip` bootHistory
-            $ Manipulate
-            $ RollBackTxMetaHistory slotNo
+            $ Rollback slotNo
     pure
         $ cover
             40
