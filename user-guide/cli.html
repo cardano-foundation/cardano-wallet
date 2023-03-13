@@ -27,7 +27,7 @@
 
 
   
-  <link href='tailwind.css?instanceId=a4cd34fe-7b52-48e2-8727-36945a2e5afb' rel='stylesheet' type='text/css' />
+  <link href='tailwind.css?instanceId=b1cbed18-d176-48fc-b77f-fa06109d3f6b' rel='stylesheet' type='text/css' />
 
   <!-- Heist error element -->
   <style type='text/css'>
@@ -2386,27 +2386,7 @@
     <ul class='my-3 ml-6 space-y-1 list-disc'>
       
         <li>
-          
-    <p class='mb-3'>
-      Install <a href='https://github.com/input-output-hk/cardano-wallet/releases' class='text-blue-600 hover:underline' target='_blank' rel='noopener'>cardano-wallet</a> by following instruction on the release notes.
-    </p>
-  
-        </li>
-      
-        <li>
-          
-    <p class='mb-3'>
-      Install <a href='https://github.com/input-output-hk/cardano-node/releases' class='text-blue-600 hover:underline' target='_blank' rel='noopener'>cardano-node</a> by following instruction on the release notes.
-    </p>
-  
-        </li>
-      
-        <li>
-          
-    <p class='mb-3'>
-      Download the <code class='py-0.5 px-0.5 bg-gray-100'>byronGenesis.json</code> initial configuration file from <a href='https://hydra.iohk.io/job/Cardano/cardano-node/cardano-deployment/latest-finished/download/1/index.html' class='text-blue-600 hover:underline' target='_blank' rel='noopener'>Cardano configurations</a>.
-    </p>
-  
+          <a href='user-guide/common-use-cases/how-to-start-wallet-server' class='text-blue-600 mavenLinkBold hover:underline' data-wikilink-type='WikiLinkNormal'>How to start wallet server</a>
         </li>
       
     </ul>
@@ -2839,16 +2819,17 @@ Enter the passphrase a second time: **********</code></pre></div><div class='tex
     <p class='mb-3'>
       <span xmlhtmlRaw><a href="#"></span>top <span class='emoji' data-emoji='arrow_heading_up' style='font-family: emoji'>⤴️</span><span xmlhtmlRaw></a></span>
     </p>
-  </div><h3 id='transaction-list' class='mt-6 mb-2 text-3xl font-bold text-gray-700'>transaction list</h3><div class='bg-blue-50 text-sm p-2 rounded-md shadow mb-4 mx-2'><div class='py-0.5 mb-3 text-sm'><pre><code class='language-none'>cardano-wallet transaction list [--port INT] WALLET_ID [--start TIME] [--end TIME] [--order ORDER]</code></pre></div></div>
+  </div><h3 id='transaction-list' class='mt-6 mb-2 text-3xl font-bold text-gray-700'>transaction list</h3><div class='bg-blue-50 text-sm p-2 rounded-md shadow mb-4 mx-2'><div class='py-0.5 mb-3 text-sm'><pre><code class='language-none'>cardano-wallet transaction list [--port INT] WALLET_ID [--start TIME] [--end TIME] [--order ORDER] [--simple-metadata] [--max_count MAX_COUNT]</code></pre></div></div>
     <p class='mb-3'>
-      List all incoming and outgoing transactions for the wallet:
+      List the transactions associated with a wallet.
     </p>
   <div class='py-0.5 mb-3 text-sm'><pre><code class='language-none'>$ cardano-wallet transaction list 2512a00e9653fe49a44a5886202e24d77eeb998f \
     --start 2018-09-25T10:15:00Z \
     --end 2019-11-21T10:15:00Z \
-    --order ascending</code></pre></div>
+    --order ascending \
+    --max_count 10</code></pre></div>
     <p class='mb-3'>
-      This lists all transactions between <code class='py-0.5 px-0.5 bg-gray-100'>2018-09-25T10:15:00Z</code> and <code class='py-0.5 px-0.5 bg-gray-100'>2019-11-21T10:15:00Z</code> in <code class='py-0.5 px-0.5 bg-gray-100'>ascending</code> order.
+      This lists max 10 transactions between <code class='py-0.5 px-0.5 bg-gray-100'>2018-09-25T10:15:00Z</code> and <code class='py-0.5 px-0.5 bg-gray-100'>2019-11-21T10:15:00Z</code> in <code class='py-0.5 px-0.5 bg-gray-100'>ascending</code> order.
     </p>
   <div class='text-sm text-gray-600 text-center border-slate-500 border-b mt-6 mb-0 p-0'>
     <p class='mb-3'>
