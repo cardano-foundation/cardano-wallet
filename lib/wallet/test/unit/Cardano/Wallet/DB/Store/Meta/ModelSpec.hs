@@ -52,9 +52,9 @@ spec :: Spec
 spec = do
     describe "meta-transactions delta instance" $ do
         it "can roll back to a given slot, removing all transactions"
-            $ property prop_RollBackRemoveAfterSlot
+            $ property prop_RollbackRemoveAfterSlot
         it "can roll back to a given slot, leaving past untouched"
-            $ property prop_RollBackDoNotTouchPast
+            $ property prop_RollbackDoNotTouchPast
 
 genExpand :: WalletId -> Gen [(W.Tx, W.TxMeta)] -> Gen TxMetaHistory
 genExpand wid g = mkTxMetaHistory wid <$> g
@@ -72,13 +72,13 @@ withExpanded wid expandG = do
 
 type WithWalletProperty = WalletId -> Property
 
-withPropRollBack
+withPropRollback
     :: (( (TxMetaHistory, TxMetaHistory) -- bootHistory split
         , (TxMetaHistory, TxMetaHistory) -- newHistory split
         )
         -> WithWalletProperty)
     -> WithWalletProperty
-withPropRollBack f wid = property $ do
+withPropRollback f wid = property $ do
     bootHistory <- withExpanded
         wid
         (listOf1 arbitrary)
@@ -97,14 +97,14 @@ withPropRollBack f wid = property $ do
             "outgoing transactions"
         $ f (splitHistory slotNo bootHistory, splitHistory slotNo newHistory)
 
-prop_RollBackRemoveAfterSlot :: WithWalletProperty
-prop_RollBackRemoveAfterSlot =
-    withPropRollBack $ \((_afterBoot,_beforeBoot),(afterNew,_beforeNew)) _
+prop_RollbackRemoveAfterSlot :: WithWalletProperty
+prop_RollbackRemoveAfterSlot =
+    withPropRollback $ \((_afterBoot,_beforeBoot),(afterNew,_beforeNew)) _
     -> property $ null $ relations afterNew
 
-prop_RollBackDoNotTouchPast :: WithWalletProperty
-prop_RollBackDoNotTouchPast =
-    withPropRollBack $ \((afterBoot,beforeBoot),(_afterNew,beforeNew)) _ ->
+prop_RollbackDoNotTouchPast :: WithWalletProperty
+prop_RollbackDoNotTouchPast =
+    withPropRollback $ \((afterBoot,beforeBoot),(_afterNew,beforeNew)) _ ->
         let past = (relations beforeNew) `Map.difference` (relations afterBoot)
         in  property $ TxMetaHistory past == beforeBoot
 
