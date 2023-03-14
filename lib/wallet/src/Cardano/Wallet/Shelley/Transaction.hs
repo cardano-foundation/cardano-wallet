@@ -2507,7 +2507,7 @@ mkUnsignedTx era ttl cs md wdrls certs fees mintData burnData mintingScripts inp
         ShelleyBasedEraBabbage -> Just Cardano.MultiAssetInBabbageEra
 
     scriptWitsSupported
-        :: Cardano.ScriptLanguageInEra Cardano.SimpleScript era
+        :: Cardano.ScriptLanguageInEra Cardano.SimpleScript' era
     scriptWitsSupported = case era of
         ShelleyBasedEraShelley -> internalError
             "scriptWitsSupported: we should be at least in Mary"
@@ -2521,7 +2521,6 @@ mkUnsignedTx era ttl cs md wdrls certs fees mintData burnData mintingScripts inp
     toScriptWitness script =
         Cardano.SimpleScriptWitness
         scriptWitsSupported
-        Cardano.SimpleScript
         (Cardano.SScript $ toCardanoSimpleScript script)
 
     constructInpScriptWit inp =
