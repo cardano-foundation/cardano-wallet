@@ -174,6 +174,8 @@ import Data.ByteString
     ( ByteString )
 import Data.ByteString.Short
     ( toShort )
+import Data.Coerce
+    ( coerce )
 import Data.Foldable
     ( toList )
 import Data.Maybe
@@ -574,34 +576,49 @@ unwrapTxOutInRecentEra
     -> TxOutInRecentEra
     -> Either ErrInvalidTxOutInEra (TxOut (ShelleyLedgerEra era))
 unwrapTxOutInRecentEra era recentEraTxOut = case era of
-    RecentEraConway -> pure $ castConwayTxOut recentEraTxOut
-    RecentEraBabbage -> pure $ castBabbageTxOut recentEraTxOut
-    RecentEraAlonzo -> downcastTxOut recentEraTxOut
+    RecentEraConway -> pure $ recentEraToConwayTxOut recentEraTxOut
+    RecentEraBabbage -> pure $ recentEraToBabbageTxOut recentEraTxOut
+    RecentEraAlonzo -> recentEraToAlonzoTxOut recentEraTxOut
 
-castConwayTxOut
+recentEraToConwayTxOut
     :: TxOutInRecentEra
     -> Babbage.BabbageTxOut LatestLedgerEra
-castConwayTxOut (TxOutInRecentEra addr val datum mscript) =
+recentEraToConwayTxOut (TxOutInRecentEra addr val datum mscript) =
     Babbage.BabbageTxOut addr val datum (maybeToStrictMaybe mscript)
 
-castBabbageTxOut
+recentEraToBabbageTxOut
     :: TxOutInRecentEra
     -> Babbage.BabbageTxOut (Babbage.BabbageEra StandardCrypto)
-castBabbageTxOut (TxOutInRecentEra _addr _val _datum _mscript) = undefined -- TODO
-    -- Babbage.BabbageTxOut addr val datum (maybeToStrictMaybe mscript)
+recentEraToBabbageTxOut (TxOutInRecentEra addr val datum mscript) =
+    Babbage.BabbageTxOut addr val
+        (castDatum datum)
+        (maybeToStrictMaybe (castScript <$> mscript))
+  where
+    castDatum = \case
+        Alonzo.NoDatum ->
+            Alonzo.NoDatum
+        Alonzo.DatumHash h ->
+            Alonzo.DatumHash h
+        Alonzo.Datum binaryData ->
+            Alonzo.Datum (coerce binaryData)
+    castScript = \case
+        Alonzo.TimelockScript timelockEra ->
+            Alonzo.TimelockScript (coerce timelockEra)
+        Alonzo.PlutusScript l bs ->
+            Alonzo.PlutusScript l bs
 
-downcastTxOut
+recentEraToAlonzoTxOut
     :: TxOutInRecentEra
     -> Either
         ErrInvalidTxOutInEra
         (Core.TxOut (ShelleyLedgerEra AlonzoEra))
-downcastTxOut (TxOutInRecentEra _addr _val _datum (Just _script))
+recentEraToAlonzoTxOut (TxOutInRecentEra _addr _val _datum (Just _script))
     = Left ErrInlineScriptNotSupportedInAlonzo
-downcastTxOut (TxOutInRecentEra _addr _val (Alonzo.Datum _) _script)
+recentEraToAlonzoTxOut (TxOutInRecentEra _addr _val (Alonzo.Datum _) _script)
     = Left ErrInlineDatumNotSupportedInAlonzo
-downcastTxOut (TxOutInRecentEra addr val Alonzo.NoDatum Nothing)
+recentEraToAlonzoTxOut (TxOutInRecentEra addr val Alonzo.NoDatum Nothing)
     = Right $ Alonzo.AlonzoTxOut addr val SNothing
-downcastTxOut (TxOutInRecentEra addr val (Alonzo.DatumHash dh) Nothing)
+recentEraToAlonzoTxOut (TxOutInRecentEra addr val (Alonzo.DatumHash dh) Nothing)
     = Right $ Alonzo.AlonzoTxOut addr val (SJust dh)
 
 --
@@ -695,7 +712,7 @@ utxoFromTxOutsInLatestEra
     :: [(TxIn, TxOutInRecentEra)]
     -> Shelley.UTxO LatestLedgerEra
 utxoFromTxOutsInLatestEra = withStandardCryptoConstraint RecentEraBabbage $
-    Shelley.UTxO . Map.fromList . map (second castConwayTxOut)
+    Shelley.UTxO . Map.fromList . map (second recentEraToConwayTxOut)
 
 --------------------------------------------------------------------------------
 -- Tx
