@@ -11,36 +11,48 @@ import Prelude
 import Cardano.Wallet.DB.Sqlite.Schema
     ( DeltaUTxOSlots (..), DeltaUTxOValue (..), EntityField (..) )
 import Cardano.Wallet.DB.Sqlite.Types
-    ( getTxId )
+    ( TxId (..), getTxId )
 import Cardano.Wallet.DB.Store.UTxOHistory.Model
-    ( DeltaUTxOHistory (..), Spent (..) )
+    ( DeltaUTxOHistory (..), Spent (..), reverseMapOfSets )
 import Cardano.Wallet.DB.Store.UTxOHistory.Model.Internal
     ( UTxOHistory (..) )
 import Cardano.Wallet.DB.Store.UTxOHistory.TxOutCBOR
-    ( deserializeTxOut )
+    ( deserializeTxOut, serializeTxOut )
 import Cardano.Wallet.Primitive.Types
-    ( WalletId )
+    ( WalletId, WithOrigin (..) )
 import Cardano.Wallet.Primitive.Types.Tx.TxIn
-    ( TxIn (TxIn) )
+    ( TxIn (..) )
+import Cardano.Wallet.Primitive.Types.Tx.TxOut
+    ( TxOut )
 import Cardano.Wallet.Primitive.Types.UTxO
     ( UTxO (..) )
 import Control.Lens
-    ( lazy, view, (<&>) )
+    ( lazy, strict, view, (<&>) )
+import Data.ByteString
+    ( ByteString )
 import Data.Either.Extra
-    ( eitherToMaybe, maybeToEither )
 import Data.Foldable
     ( foldl' )
+import qualified Data.Map.Strict as Map
+import Data.Maybe
+    ( maybeToList )
+import qualified Data.Set as Set
 import Data.Store
     ( UpdateStore, mkUpdateStore )
 import Database.Persist.Sql
-    ( SqlPersistT, entityVal, selectFirst, selectList, (==.) )
+    ( PersistQueryWrite (deleteWhere)
+    , SqlPersistT
+    , entityVal
+    , insertMany_
+    , insert_
+    , selectFirst
+    , selectList
+    , (==.)
+    )
 import GHC.Exception
     ( Exception, SomeException )
 import GHC.Exception.Type
     ( toException )
-
-import qualified Data.Map.Strict as Map
-import qualified Data.Set as Set
 
 -- | Create a 'Store' for 'UTxOHistory' using the given 'WalletId' as a key.
 mkStoreUTxOHistory
@@ -146,7 +158,54 @@ patchByRow
         onNotBoot y f = if deltaUTxOValueBoot then y else f y
 
 write :: WalletId -> UTxOHistory -> SqlPersistT IO ()
-write _wid = undefined
+write
+    wid
+    ( UTxOHistory
+            { history
+            , creationSlots
+            , spentSlots
+            , tip
+            , finality
+            , boot
+            }
+        ) = do
+        deleteWhere [DeltaUTxOSlotsWallet ==. wid]
+        insert_ $ DeltaUTxOSlots wid finality tip
+        deleteWhere [DeltaUTxOValueWalletId ==. wid]
+        insertMany_ $ do
+            (txIn@TxIn {inputId, inputIx}, txOut) <-
+                Map.assocs $ unUTxO history
+            creation <-
+                maybeToList $
+                    Map.lookup txIn $
+                        reverseMapOfSets creationSlots
+            let
+                spent = Map.lookup txIn $ reverseMapOfSets spentSlots
+            pure $
+                DeltaUTxOValue
+                    wid
+                    creation
+                    (maybe Unspent Spent spent)
+                    (TxId inputId)
+                    inputIx
+                    (encodeTxOut txOut)
+                    False
+        insertMany_ $ do
+            (TxIn {inputId, inputIx}, txOut) <-
+                Map.assocs $
+                    unUTxO boot
+            pure $
+                DeltaUTxOValue
+                    wid
+                    Origin
+                    Unspent
+                    (TxId inputId)
+                    inputIx
+                    (encodeTxOut txOut)
+                    True
+
+encodeTxOut :: TxOut -> ByteString
+encodeTxOut = view strict . serializeTxOut
 
 update :: WalletId -> Maybe UTxOHistory -> DeltaUTxOHistory -> SqlPersistT IO ()
 update _wid = undefined
