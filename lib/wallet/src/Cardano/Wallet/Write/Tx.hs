@@ -883,13 +883,13 @@ evaluateMinimumFee era pp tx kwc =
 -- is not automatically the minimum fee.
 --
 evaluateTransactionBalance
-    :: Babbage.ShelleyEraTxBody (ShelleyLedgerEra era)
-    => RecentEra era
+    :: RecentEra era
     -> Core.PParams (Cardano.ShelleyLedgerEra era)
     -> Shelley.UTxO (Cardano.ShelleyLedgerEra era)
     -> Core.TxBody (Cardano.ShelleyLedgerEra era)
     -> Core.Value (Cardano.ShelleyLedgerEra era)
 evaluateTransactionBalance era pp utxo txBody' =
+    withShelleyEraTxBodyConstraint era $
     withCLIConstraint era $
         Shelley.evaluateTransactionBalance pp utxo isNewPool txBody'
   where
@@ -903,19 +903,29 @@ evaluateTransactionBalance era pp utxo txBody' =
 -- Module-internal helpers
 --------------------------------------------------------------------------------
 
+withShelleyEraTxBodyConstraint
+    :: RecentEra era
+    -> ((Babbage.ShelleyEraTxBody (ShelleyLedgerEra era)) => a)
+    -> a
+withShelleyEraTxBodyConstraint era a = case era of
+    RecentEraAlonzo -> a
+    RecentEraBabbage -> a
+    RecentEraConway -> a
+
 withStandardCryptoConstraint
     :: RecentEra era
     -> ((Crypto (Cardano.ShelleyLedgerEra era) ~ StandardCrypto) => a)
     -> a
 withStandardCryptoConstraint era a = case era of
-    RecentEraBabbage -> a
     RecentEraAlonzo -> a
+    RecentEraBabbage -> a
+    RecentEraConway -> a
 
 withCLIConstraint
     :: RecentEra era
     -> (CLI (ShelleyLedgerEra era) => a)
     -> a
 withCLIConstraint era a = case era of
-    RecentEraConway -> a
-    RecentEraBabbage -> a
     RecentEraAlonzo -> a
+    RecentEraBabbage -> a
+    RecentEraConway -> a
