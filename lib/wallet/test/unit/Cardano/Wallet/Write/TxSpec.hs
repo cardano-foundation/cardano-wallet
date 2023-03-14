@@ -139,7 +139,8 @@ spec = do
                 (NamedFun
                     scriptFromCardanoScriptInAnyLang
                     "scriptFromCardanoScriptInAnyLang")
-                normalizeCardanoScriptInAnyLang
+                id
+
 
         it "parseEither (scriptFromCardanoEnvelopeJSON . \
            \scriptToCardanoEnvelopeJSON) == Right" $ property $ \s -> do
@@ -183,7 +184,7 @@ spec = do
                 (NamedFun
                     (fromCardanoUTxO @Cardano.BabbageEra)
                     "fromCardanoUTxO")
-                normalizeCardanoUTxO
+                id
 
 instance Arbitrary Cardano.ScriptData where
      arbitrary = genScriptData
@@ -210,51 +211,6 @@ instance Arbitrary (Cardano.UTxO LatestEra) where
 
 instance Arbitrary TxOutInBabbage where
     arbitrary = genTxOut RecentEraBabbage
-
---------------------------------------------------------------------------------
--- Work around the distinction between SimpleScriptV1 and SimpleScriptV2 in
--- cardano-api which neither we nor the ledger care about.
---------------------------------------------------------------------------------
-
-normalizeCardanoUTxO
-    :: Cardano.UTxO era
-    -> Cardano.UTxO era
-normalizeCardanoUTxO (Cardano.UTxO m) =
-    Cardano.UTxO $ Map.map normalizeCardanoTxOutSimpleScriptVersion m
-
-normalizeCardanoTxOutSimpleScriptVersion
-    :: Cardano.TxOut ctx era
-    -> Cardano.TxOut ctx era
-normalizeCardanoTxOutSimpleScriptVersion (Cardano.TxOut addr val dat script) =
-    Cardano.TxOut addr val dat (normalizeReferenceScript script)
-
-normalizeReferenceScript
-    :: Cardano.ReferenceScript era
-    -> Cardano.ReferenceScript era
-normalizeReferenceScript
-    (Cardano.ReferenceScript support script)
-        = Cardano.ReferenceScript
-            support
-            (normalizeCardanoScriptInAnyLang script)
-normalizeReferenceScript
-    Cardano.ReferenceScriptNone
-        = Cardano.ReferenceScriptNone
-
-normalizeCardanoScriptInAnyLang
-    :: Cardano.ScriptInAnyLang
-    -> Cardano.ScriptInAnyLang
-normalizeCardanoScriptInAnyLang
-    s@(Cardano.ScriptInAnyLang
-        (Cardano.SimpleScriptLanguage
-            Cardano.SimpleScriptV1)
-            _) = coerceScript s
-  where
-    -- Convert from 'Cardano.SimpleScriptV1' to 'Cardano.SimpleScriptV2'. This
-    -- seems to be the easiest way to do that:
-    coerceScript =
-        scriptToCardanoScriptInAnyLang
-        . scriptFromCardanoScriptInAnyLang
-normalizeCardanoScriptInAnyLang other = other
 
 --------------------------------------------------------------------------------
 -- Helpers
