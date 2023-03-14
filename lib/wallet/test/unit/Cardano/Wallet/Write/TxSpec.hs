@@ -10,7 +10,7 @@ module Cardano.Wallet.Write.TxSpec where
 import Prelude
 
 import Cardano.Api.Gen
-    ( genScriptData, genScriptInAnyLang, genTxIn, shrinkScriptData )
+    ( genScriptInAnyLang, genTxIn, genHashableScriptData )
 import Cardano.Ledger.Alonzo.PParams
     ( _coinsPerUTxOWord )
 import Cardano.Ledger.Babbage.PParams
@@ -19,7 +19,6 @@ import Cardano.Wallet.Unsafe
     ( unsafeFromHex )
 import Cardano.Wallet.Write.Tx
     ( BinaryData
-    , LatestEra
     , LatestLedgerEra
     , RecentEra (..)
     , Script
@@ -39,7 +38,7 @@ import Cardano.Wallet.Write.Tx
     , scriptFromCardanoScriptInAnyLang
     , scriptToCardanoEnvelopeJSON
     , scriptToCardanoScriptInAnyLang
-    , toCardanoUTxO
+    , toCardanoUTxO, StandardBabbage
     )
 import Cardano.Wallet.Write.Tx.Gen
     ( genBinaryData, genTxOut, shrinkBinaryData )
@@ -134,10 +133,10 @@ spec = do
         it "is isomorphic to Cardano.ScriptInAnyLang (modulo SimpleScriptV1/2)"
             $ testIsomorphism
                 (NamedFun
-                    scriptToCardanoScriptInAnyLang
+                    (scriptToCardanoScriptInAnyLang @Cardano.BabbageEra)
                     "scriptToCardanoScriptInAnyLang")
                 (NamedFun
-                    scriptFromCardanoScriptInAnyLang
+                    (scriptFromCardanoScriptInAnyLang @Cardano.BabbageEra)
                     "scriptFromCardanoScriptInAnyLang")
                 id
 
@@ -186,23 +185,24 @@ spec = do
                     "fromCardanoUTxO")
                 id
 
-instance Arbitrary Cardano.ScriptData where
-     arbitrary = genScriptData
-     shrink = shrinkScriptData
+instance Arbitrary Cardano.HashableScriptData where
+     arbitrary = genHashableScriptData
+     shrink = const []
 
 -- | The OVERLAPS can be removed when we remove import of
 -- "Test.Cardano.Ledger.Alonzo.Serialisation.Generators"
-instance {-# OVERLAPS #-} Arbitrary (BinaryData LatestLedgerEra) where
+instance {-# INCOHERENT #-} Arbitrary (BinaryData StandardBabbage) where
     arbitrary = genBinaryData
     shrink = shrinkBinaryData
 
 instance Arbitrary Cardano.ScriptInAnyLang where
     arbitrary = genScriptInAnyLang
 
-instance {-# OVERLAPPING #-} Arbitrary (Script LatestLedgerEra) where
-    arbitrary = scriptFromCardanoScriptInAnyLang <$> arbitrary
+instance {-# OVERLAPPING #-} Arbitrary (Script StandardBabbage) where
+    arbitrary = scriptFromCardanoScriptInAnyLang @Cardano.BabbageEra
+        <$> arbitrary
 
-instance Arbitrary (Cardano.UTxO LatestEra) where
+instance Arbitrary (Cardano.UTxO Cardano.BabbageEra) where
     arbitrary = Cardano.UTxO . Map.fromList <$> liftArbitrary genTxInOutEntry
       where
         genTxInOutEntry = (,)

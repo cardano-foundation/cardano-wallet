@@ -42,6 +42,7 @@ module Cardano.Api.Gen
     , genRationalInt64
     , genScript
     , genScriptData
+    , genHashableScriptData
     , shrinkScriptData
     , genScriptHash
     , genScriptInAnyLang
