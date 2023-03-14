@@ -773,27 +773,27 @@ updateSealedTx (Cardano.Tx body existingKeyWits) extraContent = do
         ShelleyBasedEraShelley ->
             Cardano.toShelleyScript $ Cardano.ScriptInEra
             Cardano.SimpleScriptInShelley
-            (Cardano.SimpleScript Cardano.SimpleScript $
+            (Cardano.SimpleScript $
              toCardanoSimpleScriptV1 walletScript)
         ShelleyBasedEraAllegra ->
             Cardano.toShelleyScript $ Cardano.ScriptInEra
             Cardano.SimpleScriptInAllegra
-            (Cardano.SimpleScript Cardano.SimpleScript $
+            (Cardano.SimpleScript $
              toCardanoSimpleScript walletScript)
         ShelleyBasedEraMary ->
             Cardano.toShelleyScript $ Cardano.ScriptInEra
             Cardano.SimpleScriptInMary
-            (Cardano.SimpleScript Cardano.SimpleScript $
+            (Cardano.SimpleScript $
              toCardanoSimpleScript walletScript)
         ShelleyBasedEraAlonzo ->
             Cardano.toShelleyScript $ Cardano.ScriptInEra
             Cardano.SimpleScriptInAlonzo
-            (Cardano.SimpleScript Cardano.SimpleScript $
+            (Cardano.SimpleScript $
              toCardanoSimpleScript walletScript)
         ShelleyBasedEraBabbage ->
             Cardano.toShelleyScript $ Cardano.ScriptInEra
             Cardano.SimpleScriptInBabbage
-            (Cardano.SimpleScript Cardano.SimpleScript $
+            (Cardano.SimpleScript $
              toCardanoSimpleScript walletScript)
 
 -- NOTE: If the ShelleyMA MAClass were exposed, the Allegra and Mary
