@@ -787,6 +787,7 @@ test-suite unit
     , ouroboros-consensus
     , ouroboros-consensus-shelley
     , ouroboros-network
+    , ouroboros-network-api
     , persistent                   ^>=2.13
     , persistent-sqlite            ^>=2.13
     , plutus-core
