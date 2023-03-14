@@ -415,14 +415,15 @@ unsafeAddressFromBytes bytes = case Ledger.deserialiseAddr bytes of
     Nothing -> error "unsafeAddressFromBytes: failed to deserialise"
 
 scriptFromCardanoScriptInAnyLang
-    :: Cardano.ScriptInAnyLang
-    -> Script LatestLedgerEra
-scriptFromCardanoScriptInAnyLang
-    = Cardano.toShelleyScript
+    :: forall era. IsRecentEra era
+    => Cardano.ScriptInAnyLang
+    -> Script (Cardano.ShelleyLedgerEra era)
+scriptFromCardanoScriptInAnyLang = withAlonzoScriptConstraint (recentEra @era)
+    Cardano.toShelleyScript
     . fromMaybe (error "all valid scripts should be valid in latest era")
-    . Cardano.toScriptInEra latestEra
+    . Cardano.toScriptInEra era
   where
-    latestEra = Cardano.ConwayEra
+    era = cardanoEraFromRecentEra $ recentEra @era
 
 -- | NOTE: The roundtrip
 -- @
@@ -432,14 +433,15 @@ scriptFromCardanoScriptInAnyLang
 -- is 'ShelleyEra'-specific, and 'ShelleyEra' is not a 'RecentEra', this should
 -- not be a problem.
 scriptToCardanoScriptInAnyLang
-    :: Script LatestLedgerEra
+    :: forall era. IsRecentEra era
+    => Script (Cardano.ShelleyLedgerEra era)
     -> Cardano.ScriptInAnyLang
-scriptToCardanoScriptInAnyLang =
-    rewrap
-    . Cardano.fromShelleyBasedScript latestEra
+scriptToCardanoScriptInAnyLang = withAlonzoScriptConstraint (recentEra @era)
+    $ rewrap
+    . Cardano.fromShelleyBasedScript shelleyEra
   where
     rewrap (Cardano.ScriptInEra _ s) = Cardano.toScriptInAnyLang s
-    latestEra = Cardano.ShelleyBasedEraConway
+    shelleyEra = shelleyBasedEraFromRecentEra $ recentEra @era
 
 -- | NOTE: The roundtrip
 -- @
@@ -449,7 +451,8 @@ scriptToCardanoScriptInAnyLang =
 -- is 'ShelleyEra'-specific, and 'ShelleyEra' is not a 'RecentEra', this should
 -- not be a problem.
 scriptToCardanoEnvelopeJSON :: AlonzoScript LatestLedgerEra -> Aeson.Value
-scriptToCardanoEnvelopeJSON = scriptToJSON . scriptToCardanoScriptInAnyLang
+scriptToCardanoEnvelopeJSON =
+    scriptToJSON . scriptToCardanoScriptInAnyLang @LatestEra
   where
     scriptToJSON
         :: Cardano.ScriptInAnyLang
@@ -470,13 +473,14 @@ scriptToCardanoEnvelopeJSON = scriptToJSON . scriptToCardanoScriptInAnyLang
 scriptFromCardanoEnvelopeJSON
     :: Aeson.Value
     -> Aeson.Parser (AlonzoScript LatestLedgerEra)
-scriptFromCardanoEnvelopeJSON v = fmap scriptFromCardanoScriptInAnyLang $ do
-    envelope <- Aeson.parseJSON v
-    case textEnvelopeToScript envelope of
-        Left textEnvErr
-            -> fail $ Cardano.displayError textEnvErr
-        Right (Cardano.ScriptInAnyLang l s)
-            -> pure $ Cardano.ScriptInAnyLang l s
+scriptFromCardanoEnvelopeJSON v =
+    fmap (scriptFromCardanoScriptInAnyLang @LatestEra) $ do
+        envelope <- Aeson.parseJSON v
+        case textEnvelopeToScript envelope of
+            Left textEnvErr
+                -> fail $ Cardano.displayError textEnvErr
+            Right (Cardano.ScriptInAnyLang l s)
+                -> pure $ Cardano.ScriptInAnyLang l s
   where
     textEnvelopeToScript
         :: Cardano.TextEnvelope
@@ -527,13 +531,13 @@ binaryDataToBytes =
 
 datumFromCardanoScriptData
     :: Cardano.HashableScriptData
-    -> BinaryData LatestLedgerEra
+    -> BinaryData era
 datumFromCardanoScriptData =
     Alonzo.dataToBinaryData
     . Cardano.toAlonzoData
 
 datumToCardanoScriptData
-    :: BinaryData LatestLedgerEra
+    :: BinaryData era
     -> Cardano.HashableScriptData
 datumToCardanoScriptData =
     Cardano.fromAlonzoData
@@ -926,6 +930,18 @@ withCLIConstraint
     -> (CLI (ShelleyLedgerEra era) => a)
     -> a
 withCLIConstraint era a = case era of
+    RecentEraAlonzo -> a
+    RecentEraBabbage -> a
+    RecentEraConway -> a
+
+withAlonzoScriptConstraint
+    :: RecentEra era
+    -> ( Core.Script (Cardano.ShelleyLedgerEra era)
+         ~ Alonzo.Script (Cardano.ShelleyLedgerEra era
+        )
+        => a)
+    -> a
+withAlonzoScriptConstraint era a = case era of
     RecentEraAlonzo -> a
     RecentEraBabbage -> a
     RecentEraConway -> a

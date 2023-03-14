@@ -85,7 +85,7 @@ shrinkDatum (Datum x) = NoDatum : map Datum (shrinkBinaryData x)
 shrinkDatum (DatumHash _) = [NoDatum]
 shrinkDatum NoDatum = []
 
-shrinkBinaryData :: BinaryData LatestLedgerEra -> [BinaryData LatestLedgerEra]
+shrinkBinaryData :: BinaryData era -> [BinaryData era]
 shrinkBinaryData = shrinkMapBy
     datumFromCardanoScriptData
     datumToCardanoScriptData $
