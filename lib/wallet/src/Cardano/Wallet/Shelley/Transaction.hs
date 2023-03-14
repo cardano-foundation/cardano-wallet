@@ -772,28 +772,28 @@ updateSealedTx (Cardano.Tx body existingKeyWits) extraContent = do
     toLedgerScript walletScript = \case
         ShelleyBasedEraShelley ->
             Cardano.toShelleyScript $ Cardano.ScriptInEra
-            Cardano.SimpleScriptV1InShelley
-            (Cardano.SimpleScript Cardano.SimpleScriptV1 $
+            Cardano.SimpleScriptInShelley
+            (Cardano.SimpleScript Cardano.SimpleScript $
              toCardanoSimpleScriptV1 walletScript)
         ShelleyBasedEraAllegra ->
             Cardano.toShelleyScript $ Cardano.ScriptInEra
-            Cardano.SimpleScriptV2InAllegra
-            (Cardano.SimpleScript Cardano.SimpleScriptV2 $
+            Cardano.SimpleScriptInAllegra
+            (Cardano.SimpleScript Cardano.SimpleScript $
              toCardanoSimpleScript walletScript)
         ShelleyBasedEraMary ->
             Cardano.toShelleyScript $ Cardano.ScriptInEra
-            Cardano.SimpleScriptV2InMary
-            (Cardano.SimpleScript Cardano.SimpleScriptV2 $
+            Cardano.SimpleScriptInMary
+            (Cardano.SimpleScript Cardano.SimpleScript $
              toCardanoSimpleScript walletScript)
         ShelleyBasedEraAlonzo ->
             Cardano.toShelleyScript $ Cardano.ScriptInEra
-            Cardano.SimpleScriptV2InAlonzo
-            (Cardano.SimpleScript Cardano.SimpleScriptV2 $
+            Cardano.SimpleScriptInAlonzo
+            (Cardano.SimpleScript Cardano.SimpleScript $
              toCardanoSimpleScript walletScript)
         ShelleyBasedEraBabbage ->
             Cardano.toShelleyScript $ Cardano.ScriptInEra
-            Cardano.SimpleScriptV2InBabbage
-            (Cardano.SimpleScript Cardano.SimpleScriptV2 $
+            Cardano.SimpleScriptInBabbage
+            (Cardano.SimpleScript Cardano.SimpleScript $
              toCardanoSimpleScript walletScript)
 
 -- NOTE: If the ShelleyMA MAClass were exposed, the Allegra and Mary
@@ -2507,21 +2507,21 @@ mkUnsignedTx era ttl cs md wdrls certs fees mintData burnData mintingScripts inp
         ShelleyBasedEraBabbage -> Just Cardano.MultiAssetInBabbageEra
 
     scriptWitsSupported
-        :: Cardano.ScriptLanguageInEra Cardano.SimpleScriptV2 era
+        :: Cardano.ScriptLanguageInEra Cardano.SimpleScript era
     scriptWitsSupported = case era of
         ShelleyBasedEraShelley -> internalError
             "scriptWitsSupported: we should be at least in Mary"
         ShelleyBasedEraAllegra -> internalError
             "scriptWitsSupported: we should be at least in Mary"
-        ShelleyBasedEraMary -> Cardano.SimpleScriptV2InMary
-        ShelleyBasedEraAlonzo -> Cardano.SimpleScriptV2InAlonzo
-        ShelleyBasedEraBabbage -> Cardano.SimpleScriptV2InBabbage
+        ShelleyBasedEraMary -> Cardano.SimpleScriptInMary
+        ShelleyBasedEraAlonzo -> Cardano.SimpleScriptInAlonzo
+        ShelleyBasedEraBabbage -> Cardano.SimpleScriptInBabbage
 
     toScriptWitness :: Script KeyHash -> Cardano.ScriptWitness witctx era
     toScriptWitness script =
         Cardano.SimpleScriptWitness
         scriptWitsSupported
-        Cardano.SimpleScriptV2
+        Cardano.SimpleScript
         (Cardano.SScript $ toCardanoSimpleScript script)
 
     constructInpScriptWit inp =
