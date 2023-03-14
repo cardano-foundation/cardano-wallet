@@ -1696,7 +1696,7 @@ data CoinSelection = CoinSelection
 
 buildCoinSelectionForTransaction
     :: forall s k n era
-     . ( Cardano.IsCardanoEra era
+     . ( WriteTx.IsRecentEra era
        , IsOurs s Address
        , s ~ SeqState n k
        )
