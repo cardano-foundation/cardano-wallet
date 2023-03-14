@@ -368,11 +368,11 @@ spec = do
         forM_ matrix $ \(title, addr, predicate) ->
             it title $ inspectAddress addr `shouldSatisfy` predicate
 
-    describe "golden tests for script hashes for different versions" $ do
+    describe "golden tests for script hashes" $ do
         testScriptsAllLangs
         testScriptsTimelockLang
 
-    describe "golden tests for script preimages for different versions" $ do
+    describe "golden tests for script preimages" $ do
         testScriptPreimages
         testTimelockScriptImagesLang
 
@@ -555,55 +555,55 @@ checkScriptPreimage title adrestiaScript nodeScript = it title $
     BS.append "\00" (Cardano.serialiseToCBOR nodeScript)
 
 scriptMatrix
-    :: [(String, Script KeyHash, Cardano.Script lang)]
-scriptMatrix version =
-    [ ( show version <> " RequireSignatureOf"
+    :: [(String, Script KeyHash, Cardano.Script Cardano.SimpleScript')]
+scriptMatrix =
+    [ ( "RequireSignatureOf"
       , toKeyHash hashKeyTxt1
       , toSimpleScript $ toPaymentHash hashKeyTxt1
       )
-    , ( show version <> " RequireSignatureOf"
+    , ( "RequireSignatureOf"
       , toKeyHash hashKeyTxt2
       , toSimpleScript $ toPaymentHash hashKeyTxt2
       )
-    , ( show version <> " RequireSignatureOf"
+    , ( "RequireSignatureOf"
       , toKeyHash hashKeyTxt3
       , toSimpleScript $ toPaymentHash hashKeyTxt3
       )
-    , ( show version <> " RequireSignatureOf"
+    , ( "RequireSignatureOf"
       , toKeyHash hashKeyTxt4
       , toSimpleScript $ toPaymentHash hashKeyTxt4
       )
-    , ( show version <> " RequireAllOf"
+    , ( "RequireAllOf"
       , RequireAllOf [toKeyHash hashKeyTxt1, toKeyHash hashKeyTxt2]
       , toSimpleScript $
           Cardano.RequireAllOf [toPaymentHash hashKeyTxt1, toPaymentHash hashKeyTxt2]
       )
-    , ( show version <> " RequireAllOf"
+    , ( "RequireAllOf"
       , RequireAllOf [toKeyHash hashKeyTxt1, toKeyHash hashKeyTxt2, toKeyHash hashKeyTxt3]
       , toSimpleScript $
           Cardano.RequireAllOf [toPaymentHash hashKeyTxt1, toPaymentHash hashKeyTxt2, toPaymentHash hashKeyTxt3]
       )
-    , ( show version <> " RequireAnyOf"
+    , ( "RequireAnyOf"
       , RequireAnyOf [toKeyHash hashKeyTxt1, toKeyHash hashKeyTxt2]
       , toSimpleScript $
           Cardano.RequireAnyOf [toPaymentHash hashKeyTxt1, toPaymentHash hashKeyTxt2]
       )
-    , ( show version <> " RequireAnyOf"
+    , ( "RequireAnyOf"
       , RequireAnyOf [toKeyHash hashKeyTxt1, toKeyHash hashKeyTxt2, toKeyHash hashKeyTxt3]
       , toSimpleScript $
           Cardano.RequireAnyOf [toPaymentHash hashKeyTxt1, toPaymentHash hashKeyTxt2, toPaymentHash hashKeyTxt3]
       )
-    , ( show version <> " RequireSomeOf"
+    , ( "RequireSomeOf"
       , RequireSomeOf 2 [toKeyHash hashKeyTxt1, toKeyHash hashKeyTxt2, toKeyHash hashKeyTxt3]
       , toSimpleScript $
           Cardano.RequireMOf 2 [toPaymentHash hashKeyTxt1, toPaymentHash hashKeyTxt2, toPaymentHash hashKeyTxt3]
       )
-    , ( show version <> " RequireSomeOf"
+    , ( "RequireSomeOf"
       , RequireSomeOf 2 [toKeyHash hashKeyTxt1, toKeyHash hashKeyTxt2, toKeyHash hashKeyTxt3, toKeyHash hashKeyTxt4]
       , toSimpleScript $
           Cardano.RequireMOf 2 [toPaymentHash hashKeyTxt1, toPaymentHash hashKeyTxt2, toPaymentHash hashKeyTxt3, toPaymentHash hashKeyTxt4]
       )
-    , ( show version <> " nested 1"
+    , ( "nested 1"
       , RequireSomeOf 2 [ toKeyHash hashKeyTxt1, toKeyHash hashKeyTxt2
                         , RequireAllOf [toKeyHash hashKeyTxt3, toKeyHash hashKeyTxt4]
                         ]
@@ -612,7 +612,7 @@ scriptMatrix version =
                                , Cardano.RequireAllOf [toPaymentHash hashKeyTxt3, toPaymentHash hashKeyTxt4]
                                        ]
       )
-    , ( show version <> " nested 2"
+    , ( "nested 2"
       , RequireAllOf [ toKeyHash hashKeyTxt1
                      , RequireAnyOf [toKeyHash hashKeyTxt2, toKeyHash hashKeyTxt3, toKeyHash hashKeyTxt4]
                      ]
@@ -621,7 +621,7 @@ scriptMatrix version =
                                , Cardano.RequireAnyOf [toPaymentHash hashKeyTxt2, toPaymentHash hashKeyTxt3, toPaymentHash hashKeyTxt4]
                                ]
       )
-    , ( show version <> " nested 3"
+    , ( "nested 3"
       , RequireSomeOf 1 [ toKeyHash hashKeyTxt1
                         , RequireAllOf [ toKeyHash hashKeyTxt2
                                        , RequireAnyOf [toKeyHash hashKeyTxt3, toKeyHash hashKeyTxt4 ]
@@ -636,7 +636,7 @@ scriptMatrix version =
       )
     ]
   where
-    toSimpleScript = Cardano.SimpleScript version
+    toSimpleScript = Cardano.SimpleScript
     hashKeyTxt1 = "deeae4e895d8d57378125ed4fd540f9bf245d59f7936a504379cfc1e"
     hashKeyTxt2 = "60a3bf69aa748f9934b64357d9f1ca202f1a768aaf57263aedca8d5f"
     hashKeyTxt3 = "ffcbb72393215007d9a0aa02b7430080409cd8c053fd4f5b4d905053"
@@ -644,32 +644,32 @@ scriptMatrix version =
 
 testScriptsAllLangs
     :: Spec
-testScriptsAllLangs version = describe (show version) $ do
-    forM_ (scriptMatrix version) $ \(title, adrestiaScript, nodeScript) ->
+testScriptsAllLangs = do
+    forM_ scriptMatrix $ \(title, adrestiaScript, nodeScript) ->
         checkScriptHashes title adrestiaScript nodeScript
 
 testScriptPreimages
     :: Spec
-testScriptPreimages version = describe (show version) $ do
+testScriptPreimages = do
     forM_ scriptMatrix $ \(title, adrestiaScript, nodeScript) ->
         checkScriptPreimage title adrestiaScript nodeScript
 
 timelockScriptMatrix
-    :: [(String, Script KeyHash, Cardano.Script Cardano.SimpleScript)]
+    :: [(String, Script KeyHash, Cardano.Script Cardano.SimpleScript')]
 timelockScriptMatrix =
-    [ ( "SimpleScriptV2 ActiveFromSlot"
+    [ ( "SimpleScript ActiveFromSlot"
       , RequireAllOf [toKeyHash hashKeyTxt1, ActiveFromSlot 120]
       , toSimpleScript $
           Cardano.RequireAllOf
               [toPaymentHash hashKeyTxt1, Cardano.RequireTimeAfter (SlotNo 120)]
       )
-    , ( "SimpleScriptV2 ActiveUntilSlot"
+    , ( "SimpleScript ActiveUntilSlot"
       , RequireAllOf [toKeyHash hashKeyTxt1, ActiveUntilSlot 120]
       , toSimpleScript $
           Cardano.RequireAllOf
               [toPaymentHash hashKeyTxt1, Cardano.RequireTimeBefore (SlotNo 120)]
       )
-    , ( "SimpleScriptV2 ActiveFromSlot and ActiveUntilSlot"
+    , ( "SimpleScript ActiveFromSlot and ActiveUntilSlot"
       , RequireAllOf
           [ ActiveFromSlot 120
           , ActiveUntilSlot 150
