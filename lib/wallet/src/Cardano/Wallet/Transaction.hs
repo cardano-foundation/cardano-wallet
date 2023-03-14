@@ -9,6 +9,7 @@
 {-# LANGUAGE LambdaCase #-}
 {-# LANGUAGE NamedFieldPuns #-}
 {-# LANGUAGE RankNTypes #-}
+{-# LANGUAGE RecordWildCards #-}
 {-# LANGUAGE ScopedTypeVariables #-}
 {-# LANGUAGE TypeFamilies #-}
 
@@ -25,6 +26,9 @@ module Cardano.Wallet.Transaction
     -- * Interface
       TransactionLayer (..)
     , DelegationAction (..)
+    , DepositEvent (..)
+    , DepositEventParams (..)
+    , determineDepositEvent
     , TxValidityInterval
     , TransactionCtx (..)
     , PreSelection (..)
@@ -136,8 +140,11 @@ import Fmt
     ( Buildable (..), genericF )
 import GHC.Generics
     ( Generic )
+import Numeric.Natural
+    ( Natural )
 
 import qualified Cardano.Api as Cardano
+import qualified Cardano.Wallet.Primitive.Types.Coin as Coin
 import qualified Cardano.Wallet.Primitive.Types.TokenMap as TokenMap
 import qualified Cardano.Wallet.Write.Tx as WriteTx
 import qualified Data.Map.Strict as Map
@@ -359,6 +366,71 @@ data DelegationAction
 
 instance Buildable DelegationAction where
     build = genericF
+
+data DepositEvent = DepositTaken !Coin | DepositReturned !Coin
+    deriving (Eq, Generic, Show)
+
+data DepositEventParams = DepositEventParams
+    { protocolParameterDeposit :: !Coin
+    , txResolvedInputs :: ![Coin]
+    , txResolvedCollateralInputs :: ![Coin]
+    , txOutputs :: ![Coin]
+    , txCollateralOutputs :: ![Coin]
+    , txFee :: !Coin
+    , txWithdrawals :: ![Coin]
+    } deriving (Eq, Generic, Show)
+
+-- Given information about a particular transaction (represented by
+-- the 'DepositEventParams'), determine whether a deposit was taken or
+-- a refund was issued.
+--
+-- Caveat #1: it is possible (though unlikely) that transaction registers or
+-- unregisters a stake key associated with a wallet A, at the same time
+-- containing payments to the wallet B, thus also being associated with B.
+-- In this case, the deposit event might be incorrectly attributed to B.
+--
+-- Caveat #2: Ideally we only want to detect deposits/refunds if
+-- a key registration/un-registration certificate is present in the transaction.
+-- Its not possible to rely on this information yet, as it wasn't historically
+-- recorded in the database.
+--
+-- Caveat #3: The implementation is somewhat fragile, as it relies on the
+-- assumption that outside of the inputs/outputs, collateral inputs/outputs,
+-- fees and withdrawals there are no explanations other than deposits/redunds
+-- for a posible discrepancy between total input and total output amounts.
+-- Moreover, if such discrepancy is not equal to the deposit amount, then
+-- we assume that no deposit/refund event took place.
+--
+-- Caveat #4: There is a corner case: if a transaction contains
+-- a key de-registration certificate + refund only
+-- then its considered "Incoming" as it's increases the wallet balance.
+-- However, the wallet doesn't record fees for "incoming" transactions ¯\_(ツ)_/¯
+-- And in this case the fee is 0.
+determineDepositEvent :: DepositEventParams -> Maybe DepositEvent
+determineDepositEvent DepositEventParams {..} =
+    case totalIn `compare` totalOut of
+        EQ -> Nothing
+        LT ->
+            if protocolParameterDeposit == debit
+            then Just $ DepositReturned debit
+            else
+                if unCoin txFee == 0 && protocolParameterDeposit > debit
+                then Just $ DepositReturned protocolParameterDeposit
+                else Nothing
+          where
+            debit = Coin.fromNatural (totalOut - totalIn)
+        GT ->
+            if protocolParameterDeposit == credit
+                then Just $ DepositTaken credit
+                else Nothing
+          where
+            credit = Coin.fromNatural (totalIn - totalOut)
+  where
+    totalIn :: Natural = sum . fmap unCoin $
+        txWithdrawals <> txResolvedInputs <> txResolvedCollateralInputs
+
+    totalOut :: Natural = sum . fmap unCoin $
+        txFee : txOutputs <> txCollateralOutputs
 
 data PlutusVersion =
     PlutusVersionV1 | PlutusVersionV2

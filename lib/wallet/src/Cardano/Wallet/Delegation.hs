@@ -61,12 +61,11 @@ import Cardano.Wallet.Primitive.Types.Coin
     ( Coin (..) )
 import Cardano.Wallet.Transaction
     ( ErrCannotJoin (..)
-    , TransactionCtx
+    , TransactionCtx (..)
     , Withdrawal (..)
     , defaultTransactionCtx
     , txDelegationAction
     , txValidityInterval
-    , txWithdrawal
     )
 import Control.Error
     ( lastMay )
