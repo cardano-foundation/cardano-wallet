@@ -153,6 +153,7 @@ library
     , ouroboros-network
     , ouroboros-network-api
     , ouroboros-network-framework
+    , ouroboros-network-protocols
     , path-pieces
     , persistent                    ^>=2.13
     , persistent-sqlite             ^>=2.13
