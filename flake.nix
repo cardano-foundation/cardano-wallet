@@ -132,6 +132,11 @@
     haskellNix = {
       url = "github:input-output-hk/haskell.nix";
       inputs.nixpkgs.follows = "nixpkgs";
+      inputs.hackage.follows = "hackage";
+    };
+    hackage = {
+      url = "github:input-output-hk/hackage.nix";
+      flake = false;
     };
     flake-utils.url = "github:numtide/flake-utils";
     iohkNix = {
