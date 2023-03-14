@@ -278,6 +278,7 @@ library
     Cardano.Wallet.DB.Store.UTxOHistory.Model
     Cardano.Wallet.DB.Store.UTxOHistory.Model.Internal
     Cardano.Wallet.DB.Store.UTxOHistory.Store
+    Cardano.Wallet.DB.Store.UTxOHistory.TxOutCBOR
     Cardano.Wallet.DB.Store.Wallets.Layer
     Cardano.Wallet.DB.Store.Wallets.Model
     Cardano.Wallet.DB.Store.Wallets.Store
