@@ -1599,7 +1599,7 @@ toCardanoPolicyId (W.UnsafeTokenPolicyId (W.Hash pid)) =
 
 toCardanoSimpleScript
     :: Script KeyHash
-    -> Cardano.SimpleScript Cardano.SimpleScriptV2
+    -> Cardano.SimpleScript
 toCardanoSimpleScript = \case
     RequireSignatureOf (KeyHash _ keyhash) ->
         case eitherToMaybe $ Cardano.deserialiseFromRawBytes
@@ -1614,14 +1614,14 @@ toCardanoSimpleScript = \case
         Cardano.RequireMOf (fromIntegral num) $
             map toCardanoSimpleScript contents
     ActiveFromSlot slot ->
-        Cardano.RequireTimeAfter Cardano.TimeLocksInSimpleScriptV2
+        Cardano.RequireTimeAfter
         (O.SlotNo $ fromIntegral slot)
     ActiveUntilSlot slot ->
-        Cardano.RequireTimeBefore Cardano.TimeLocksInSimpleScriptV2
+        Cardano.RequireTimeBefore
         (O.SlotNo $ fromIntegral slot)
 
 fromCardanoSimpleScript
-    :: Cardano.SimpleScript Cardano.SimpleScriptV2
+    :: Cardano.SimpleScript
     -> Script KeyHash
 fromCardanoSimpleScript = \case
     Cardano.RequireSignature (Cardano.PaymentKeyHash (Ledger.KeyHash h)) ->
@@ -1634,14 +1634,14 @@ fromCardanoSimpleScript = \case
     Cardano.RequireMOf num contents ->
          RequireSomeOf (fromIntegral num) $
             map fromCardanoSimpleScript contents
-    Cardano.RequireTimeAfter Cardano.TimeLocksInSimpleScriptV2 (O.SlotNo s) ->
+    Cardano.RequireTimeAfter (O.SlotNo s) ->
          ActiveFromSlot $ fromIntegral s
-    Cardano.RequireTimeBefore Cardano.TimeLocksInSimpleScriptV2 (O.SlotNo s) ->
+    Cardano.RequireTimeBefore (O.SlotNo s) ->
         ActiveUntilSlot $ fromIntegral s
 
 toCardanoSimpleScriptV1
     :: Script KeyHash
-    -> Cardano.SimpleScript Cardano.SimpleScriptV1
+    -> Cardano.SimpleScript
 toCardanoSimpleScriptV1 = \case
     RequireSignatureOf (KeyHash _ keyhash) ->
         case eitherToMaybe $ Cardano.deserialiseFromRawBytes
