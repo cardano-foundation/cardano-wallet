@@ -1,5 +1,4 @@
 
-{-# LANGUAGE LambdaCase #-}
 
 {- |
  Copyright: © 2018-2022 IOHK
@@ -17,18 +16,13 @@ import Prelude
 import Cardano.Wallet.DB.Sqlite.Schema
     ( EntityField (..), TxMeta (..) )
 import Cardano.Wallet.DB.Store.Meta.Model
-    ( DeltaTxMetaHistory (..)
-    , ManipulateTxMetaHistory (..)
-    , TxMetaHistory (..)
-    )
+    ( DeltaTxMetaHistory (..), TxMetaHistory (..) )
 import Cardano.Wallet.Primitive.Types
     ( WalletId )
 import Control.Arrow
     ( (&&&) )
 import Control.Exception
     ( SomeException )
-import Control.Monad
-    ( void )
 import Data.DBVar
     ( Store (Store, loadS, updateS, writeS) )
 import Data.Foldable
@@ -40,21 +34,14 @@ import Data.Maybe
 import Database.Persist.Sql
     ( Entity (entityVal)
     , PersistEntity (keyFromRecordM)
-    , PersistQueryRead (selectFirst)
     , SqlPersistT
     , deleteWhere
-    , deleteWhereCount
     , repsertMany
     , selectList
-    , updateWhere
-    , (<-.)
-    , (<=.)
-    , (=.)
     , (==.)
     , (>.)
     )
 
-import qualified Cardano.Wallet.Primitive.Types.Tx as W
 import qualified Data.Map.Strict as Map
 
 -- | Create an SQL store to hold meta transactions for a wallet.
@@ -69,20 +56,7 @@ update :: WalletId
     -> SqlPersistT IO ()
 update wid _ change = case change of
     Expand txs -> putMetas txs
-    Manipulate (PruneTxMetaHistory tid) -> do
-        let filt = [TxMetaWalletId ==. wid, TxMetaTxId ==. tid]
-        selectFirst ((TxMetaStatus ==. W.InLedger) : filt) [] >>= \case
-            Just _ -> pure () -- marked in ledger - refuse to delete
-            Nothing -> void
-                $ deleteWhereCount
-                $ (TxMetaStatus <-. [W.Pending, W.Expired]) : filt
-    Manipulate (AgeTxMetaHistory tip) -> updateWhere
-        [ TxMetaWalletId ==. wid
-        , TxMetaStatus ==. W.Pending
-        , TxMetaSlotExpires <=. Just tip
-        ]
-        [TxMetaStatus =. W.Expired]
-    Manipulate (RollBackTxMetaHistory point) -> do
+    Rollback point -> do
         let isAfter = TxMetaSlot >. point
         deleteWhere
             [ TxMetaWalletId ==. wid

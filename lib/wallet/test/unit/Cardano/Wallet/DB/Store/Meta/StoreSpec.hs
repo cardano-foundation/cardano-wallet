@@ -4,7 +4,6 @@
 {-# LANGUAGE RankNTypes #-}
 {-# LANGUAGE ScopedTypeVariables #-}
 
-
 module Cardano.Wallet.DB.Store.Meta.StoreSpec
     ( spec )
     where
@@ -20,7 +19,7 @@ import Cardano.Wallet.DB.Fixtures
 import Cardano.Wallet.DB.Store.Meta.Model
     ( DeltaTxMetaHistory (..), TxMetaHistory (..) )
 import Cardano.Wallet.DB.Store.Meta.ModelSpec
-    ( genDeltasForManipulate, genExpand )
+    ( genExpand, genRollback )
 import Cardano.Wallet.DB.Store.Meta.Store
     ( mkStoreMetaTransactions )
 import Cardano.Wallet.Primitive.Types
@@ -40,10 +39,10 @@ spec = around (withDBInMemory ForeignKeysEnabled) $ do
 
 genDeltas :: WalletId -> TxMetaHistory -> Gen DeltaTxMetaHistory
 genDeltas wid history =
-    frequency $
-        (10, Expand <$> genExpand wid arbitrary)
-            : fmap (fmap (fmap Manipulate)) (genDeltasForManipulate history)
-
+    frequency
+        [ (10, Expand <$> genExpand wid arbitrary)
+        , (3, genRollback history)
+        ]
 
 prop_StoreMetaLaws :: WalletProperty
 prop_StoreMetaLaws = withInitializedWalletProp $ \wid runQ ->

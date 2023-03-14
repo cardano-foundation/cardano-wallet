@@ -113,8 +113,7 @@ mkStoreTxWalletsHistory storeTransactions storeWalletsMeta =
                 wmetas <- loadWhenNothing mWmetas storeWalletsMeta
                 updateS storeWalletsMeta (Just wmetas)
                     $ Adjust wid
-                    $ TxMetaStore.Manipulate
-                    $ TxMetaStore.RollBackTxMetaHistory slot
+                    $ TxMetaStore.Rollback slot
                 let deletions = transactionsToDeleteOnRollback wid slot wmetas
                 updateS storeTransactions mTxSet
                     $ DeleteTxs deletions

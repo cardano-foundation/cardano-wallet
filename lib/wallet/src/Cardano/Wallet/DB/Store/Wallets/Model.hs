@@ -86,8 +86,7 @@ instance Delta DeltaTxWalletsHistory where
             (x, garbageCollectEmptyWallets $ apply (Adjust wid change) mtxmh)
       where
         change
-            = TxMetaStore.Manipulate
-            $ TxMetaStore.RollBackTxMetaHistory slot
+            = TxMetaStore.Rollback slot
     apply (RemoveWallet wid) (x , mtxmh) =
         garbageCollectTxWalletsHistory (x, Map.delete wid mtxmh)
 
