@@ -201,6 +201,8 @@ import Data.List
     ( intercalate, nub, permutations, sort )
 import Data.List.NonEmpty
     ( NonEmpty ((:|)) )
+import Data.ListMap
+    ( ListMap (..) )
 import Data.Map
     ( Map )
 import Data.Maybe
@@ -259,12 +261,9 @@ import qualified Data.ByteString as BS
 import qualified Data.ByteString.Char8 as B8
 import qualified Data.ByteString.Lazy as BL
 import qualified Data.ByteString.Lazy.Char8 as BL8
-<<<<<<< HEAD
 import qualified Data.List.NonEmpty as NE
 import qualified Data.Map.Strict as Map
-=======
 import qualified Data.ListMap as ListMap
->>>>>>> c74a4ee662 (Update dependencies)
 import qualified Data.Set as Set
 import qualified Data.Text as T
 import qualified Data.Text.Encoding as T
