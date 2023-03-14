@@ -88,8 +88,11 @@ shrinkDatum NoDatum = []
 shrinkBinaryData :: BinaryData LatestLedgerEra -> [BinaryData LatestLedgerEra]
 shrinkBinaryData = shrinkMapBy
     datumFromCardanoScriptData
-    datumToCardanoScriptData
-    Cardano.shrinkScriptData
+    datumToCardanoScriptData $
+    shrinkMapBy
+        Cardano.unsafeHashableScriptData
+        Cardano.getScriptData
+        Cardano.shrinkScriptData
 
 genDatumHash :: Gen DatumHash
 genDatumHash =
