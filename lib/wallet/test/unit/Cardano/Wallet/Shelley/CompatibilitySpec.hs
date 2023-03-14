@@ -369,13 +369,11 @@ spec = do
             it title $ inspectAddress addr `shouldSatisfy` predicate
 
     describe "golden tests for script hashes for different versions" $ do
-        testScriptsAllLangs Cardano.SimpleScriptV1
-        testScriptsAllLangs Cardano.SimpleScriptV2
+        testScriptsAllLangs
         testScriptsTimelockLang
 
     describe "golden tests for script preimages for different versions" $ do
-        testScriptPreimages Cardano.SimpleScriptV1
-        testScriptPreimages Cardano.SimpleScriptV2
+        testScriptPreimages
         testTimelockScriptImagesLang
 
 --------------------------------------------------------------------------------
@@ -531,7 +529,7 @@ toKeyHash txt = case fromBase16 (T.encodeUtf8 txt) of
         Nothing -> error "Hash key not valid"
     Left _ -> error "Hash key not valid"
 
-toPaymentHash :: Text -> Cardano.SimpleScript lang
+toPaymentHash :: Text -> Cardano.SimpleScript
 toPaymentHash txt =
     case Cardano.deserialiseFromRawBytesHex (Cardano.AsHash Cardano.AsPaymentKey) (T.encodeUtf8 txt) of
         Right payKeyHash -> Cardano.RequireSignature payKeyHash
@@ -557,8 +555,7 @@ checkScriptPreimage title adrestiaScript nodeScript = it title $
     BS.append "\00" (Cardano.serialiseToCBOR nodeScript)
 
 scriptMatrix
-    :: Cardano.SimpleScriptVersion lang
-    -> [(String, Script KeyHash, Cardano.Script lang)]
+    :: [(String, Script KeyHash, Cardano.Script lang)]
 scriptMatrix version =
     [ ( show version <> " RequireSignatureOf"
       , toKeyHash hashKeyTxt1
@@ -646,47 +643,51 @@ scriptMatrix version =
     hashKeyTxt4 = "96834025cdca063ce9c32dfae6bc6a3e47f8da07ee4fb8e1a3901559"
 
 testScriptsAllLangs
-    :: forall lang . Cardano.SimpleScriptVersion lang
-    -> Spec
+    :: Spec
 testScriptsAllLangs version = describe (show version) $ do
     forM_ (scriptMatrix version) $ \(title, adrestiaScript, nodeScript) ->
         checkScriptHashes title adrestiaScript nodeScript
 
 testScriptPreimages
-    :: forall lang . Cardano.IsScriptLanguage lang
-    => Cardano.SimpleScriptVersion lang
-    -> Spec
+    :: Spec
 testScriptPreimages version = describe (show version) $ do
-    forM_ (scriptMatrix version) $ \(title, adrestiaScript, nodeScript) ->
+    forM_ scriptMatrix $ \(title, adrestiaScript, nodeScript) ->
         checkScriptPreimage title adrestiaScript nodeScript
 
 timelockScriptMatrix
-    :: [(String, Script KeyHash, Cardano.Script Cardano.SimpleScriptV2)]
+    :: [(String, Script KeyHash, Cardano.Script Cardano.SimpleScript)]
 timelockScriptMatrix =
     [ ( "SimpleScriptV2 ActiveFromSlot"
       , RequireAllOf [toKeyHash hashKeyTxt1, ActiveFromSlot 120]
       , toSimpleScript $
-          Cardano.RequireAllOf [toPaymentHash hashKeyTxt1, Cardano.RequireTimeAfter Cardano.TimeLocksInSimpleScriptV2 (SlotNo 120)]
+          Cardano.RequireAllOf
+              [toPaymentHash hashKeyTxt1, Cardano.RequireTimeAfter (SlotNo 120)]
       )
     , ( "SimpleScriptV2 ActiveUntilSlot"
       , RequireAllOf [toKeyHash hashKeyTxt1, ActiveUntilSlot 120]
       , toSimpleScript $
-          Cardano.RequireAllOf [toPaymentHash hashKeyTxt1, Cardano.RequireTimeBefore Cardano.TimeLocksInSimpleScriptV2 (SlotNo 120)]
+          Cardano.RequireAllOf
+              [toPaymentHash hashKeyTxt1, Cardano.RequireTimeBefore (SlotNo 120)]
       )
     , ( "SimpleScriptV2 ActiveFromSlot and ActiveUntilSlot"
-      , RequireAllOf [ActiveFromSlot 120, ActiveUntilSlot 150, RequireAnyOf [toKeyHash hashKeyTxt1, toKeyHash hashKeyTxt2]]
+      , RequireAllOf
+          [ ActiveFromSlot 120
+          , ActiveUntilSlot 150
+          , RequireAnyOf [toKeyHash hashKeyTxt1, toKeyHash hashKeyTxt2]
+          ]
       , toSimpleScript $
           Cardano.RequireAllOf
-          [ Cardano.RequireTimeAfter Cardano.TimeLocksInSimpleScriptV2 (SlotNo 120)
-          , Cardano.RequireTimeBefore Cardano.TimeLocksInSimpleScriptV2 (SlotNo 150)
-          , Cardano.RequireAnyOf [toPaymentHash hashKeyTxt1, toPaymentHash hashKeyTxt2 ]
+          [ Cardano.RequireTimeAfter (SlotNo 120)
+          , Cardano.RequireTimeBefore (SlotNo 150)
+          , Cardano.RequireAnyOf
+              [toPaymentHash hashKeyTxt1, toPaymentHash hashKeyTxt2 ]
           ]
       )
     ]
   where
     hashKeyTxt1 = "deeae4e895d8d57378125ed4fd540f9bf245d59f7936a504379cfc1e"
     hashKeyTxt2 = "60a3bf69aa748f9934b64357d9f1ca202f1a768aaf57263aedca8d5f"
-    toSimpleScript = Cardano.SimpleScript Cardano.SimpleScriptV2
+    toSimpleScript = Cardano.SimpleScript
 
 testScriptsTimelockLang :: Spec
 testScriptsTimelockLang =
