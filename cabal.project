@@ -196,6 +196,9 @@ constraints:
   , plutus-ghc-stub >= 8.6.5
   , word-array >= 0.1.0.0
 
+  -- Haddock is broken in this release. Waiting for the next release
+  , http2 < 4.0.0
+
 -- Related to: https://github.com/haskell/cabal/issues/8554
 if impl(ghc == 8.10.7)
   constraints: process == 1.6.13.2
