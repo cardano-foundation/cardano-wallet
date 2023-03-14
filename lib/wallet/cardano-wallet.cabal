@@ -148,6 +148,7 @@ library
     , ouroboros-consensus
     , ouroboros-consensus-byron
     , ouroboros-consensus-cardano
+    , ouroboros-consensus-diffusion
     , ouroboros-consensus-protocol
     , ouroboros-consensus-shelley
     , ouroboros-network
