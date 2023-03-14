@@ -207,6 +207,7 @@ import qualified Cardano.Ledger.TxIn as Ledger
 import qualified Data.Aeson as Aeson
 import qualified Data.Aeson.Types as Aeson
 import qualified Data.Map as Map
+import Control.Monad (forM)
 
 --------------------------------------------------------------------------------
 -- Eras
@@ -574,6 +575,7 @@ data TxOutInRecentEra
 data ErrInvalidTxOutInEra
     = ErrInlineDatumNotSupportedInAlonzo
     | ErrInlineScriptNotSupportedInAlonzo
+    deriving (Eq, Show)
 
 unwrapTxOutInRecentEra
     :: RecentEra era
@@ -713,10 +715,15 @@ utxoFromTxOutsInRecentEra era = withStandardCryptoConstraint era $
 
 -- | Useful for testing.
 utxoFromTxOutsInLatestEra
-    :: [(TxIn, TxOutInRecentEra)]
-    -> Shelley.UTxO LatestLedgerEra
-utxoFromTxOutsInLatestEra = withStandardCryptoConstraint RecentEraBabbage $
-    Shelley.UTxO . Map.fromList . map (second recentEraToConwayTxOut)
+    :: RecentEra era
+    -> [(TxIn, TxOutInRecentEra)]
+    -> Either ErrInvalidTxOutInEra (Shelley.UTxO (Cardano.ShelleyLedgerEra era))
+utxoFromTxOutsInLatestEra era entries = withStandardCryptoConstraint era $ do
+    entries' <- forM entries $ \(i,o) -> do
+        o' <- unwrapTxOutInRecentEra era o
+        return (i, o')
+    return $ Shelley.UTxO $ Map.fromList entries'
+
 
 --------------------------------------------------------------------------------
 -- Tx
