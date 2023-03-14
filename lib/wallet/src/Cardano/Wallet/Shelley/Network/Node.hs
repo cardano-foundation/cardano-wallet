@@ -941,6 +941,7 @@ codecConfig sp = CardanoCodecConfig
     ShelleyCodecConfig
     ShelleyCodecConfig
     ShelleyCodecConfig
+    ShelleyCodecConfig
 
 -- | A group of codecs which will deserialise block data.
 codecs
