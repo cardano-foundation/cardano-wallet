@@ -1460,19 +1460,12 @@ toCardanoTxOut era = case era of
         addrInEra = tina "toCardanoTxOut: malformed address"
             [ Cardano.AddressInEra
                 (Cardano.ShelleyAddressInEra Cardano.ShelleyBasedEraShelley)
-<<<<<<< HEAD
                 <$> eitherToMaybe
                     (Cardano.deserialiseFromRawBytes AsShelleyAddress addr)
 
             , Cardano.AddressInEra Cardano.ByronAddressInAnyEra
                 <$> eitherToMaybe
                     (Cardano.deserialiseFromRawBytes AsByronAddress addr)
-=======
-                <$> eitherToMaybe (Cardano.deserialiseFromRawBytes AsShelleyAddress addr)
-
-            , Cardano.AddressInEra Cardano.ByronAddressInAnyEra
-                <$> eitherToMaybe (Cardano.deserialiseFromRawBytes AsByronAddress addr)
->>>>>>> b97557afc6 (Update dependencies)
             ]
 
     toAllegraTxOut :: HasCallStack => W.TxOut -> Cardano.TxOut ctx AllegraEra
@@ -1487,19 +1480,12 @@ toCardanoTxOut era = case era of
         addrInEra = tina "toCardanoTxOut: malformed address"
             [ Cardano.AddressInEra
                 (Cardano.ShelleyAddressInEra Cardano.ShelleyBasedEraAllegra)
-<<<<<<< HEAD
                 <$> eitherToMaybe
                     (Cardano.deserialiseFromRawBytes AsShelleyAddress addr)
 
             , Cardano.AddressInEra Cardano.ByronAddressInAnyEra
                 <$> eitherToMaybe
                     (Cardano.deserialiseFromRawBytes AsByronAddress addr)
-=======
-                <$> eitherToMaybe (Cardano.deserialiseFromRawBytes AsShelleyAddress addr)
-
-            , Cardano.AddressInEra Cardano.ByronAddressInAnyEra
-                <$> eitherToMaybe (Cardano.deserialiseFromRawBytes AsByronAddress addr)
->>>>>>> b97557afc6 (Update dependencies)
             ]
 
     toMaryTxOut :: HasCallStack => W.TxOut -> Cardano.TxOut ctx MaryEra
@@ -1514,19 +1500,12 @@ toCardanoTxOut era = case era of
         addrInEra = tina "toCardanoTxOut: malformed address"
             [ Cardano.AddressInEra
                 (Cardano.ShelleyAddressInEra Cardano.ShelleyBasedEraMary)
-<<<<<<< HEAD
                     <$> eitherToMaybe
                         (Cardano.deserialiseFromRawBytes AsShelleyAddress addr)
 
             , Cardano.AddressInEra Cardano.ByronAddressInAnyEra
                 <$> eitherToMaybe
                     (Cardano.deserialiseFromRawBytes AsByronAddress addr)
-=======
-                    <$> eitherToMaybe (Cardano.deserialiseFromRawBytes AsShelleyAddress addr)
-
-            , Cardano.AddressInEra Cardano.ByronAddressInAnyEra
-                <$> eitherToMaybe (Cardano.deserialiseFromRawBytes AsByronAddress addr)
->>>>>>> b97557afc6 (Update dependencies)
             ]
 
     toAlonzoTxOut :: HasCallStack => W.TxOut -> Cardano.TxOut ctx AlonzoEra
@@ -1543,19 +1522,12 @@ toCardanoTxOut era = case era of
         addrInEra = tina "toCardanoTxOut: malformed address"
             [ Cardano.AddressInEra
                 (Cardano.ShelleyAddressInEra Cardano.ShelleyBasedEraAlonzo)
-<<<<<<< HEAD
                     <$> eitherToMaybe
                         (Cardano.deserialiseFromRawBytes AsShelleyAddress addr)
 
             , Cardano.AddressInEra Cardano.ByronAddressInAnyEra
                 <$> eitherToMaybe
                     (Cardano.deserialiseFromRawBytes AsByronAddress addr)
-=======
-                    <$> eitherToMaybe (Cardano.deserialiseFromRawBytes AsShelleyAddress addr)
-
-            , Cardano.AddressInEra Cardano.ByronAddressInAnyEra
-                <$> eitherToMaybe (Cardano.deserialiseFromRawBytes AsByronAddress addr)
->>>>>>> b97557afc6 (Update dependencies)
             ]
 
     toBabbageTxOut :: HasCallStack => W.TxOut -> Cardano.TxOut ctx BabbageEra
@@ -1572,19 +1544,12 @@ toCardanoTxOut era = case era of
         addrInEra = tina "toCardanoTxOut: malformed address"
             [ Cardano.AddressInEra
                 (Cardano.ShelleyAddressInEra Cardano.ShelleyBasedEraBabbage)
-<<<<<<< HEAD
                     <$> eitherToMaybe
                         (Cardano.deserialiseFromRawBytes AsShelleyAddress addr)
 
             , Cardano.AddressInEra Cardano.ByronAddressInAnyEra
                 <$> eitherToMaybe
                     (Cardano.deserialiseFromRawBytes AsByronAddress addr)
-=======
-                    <$> eitherToMaybe (Cardano.deserialiseFromRawBytes AsShelleyAddress addr)
-
-            , Cardano.AddressInEra Cardano.ByronAddressInAnyEra
-                <$> eitherToMaybe (Cardano.deserialiseFromRawBytes AsByronAddress addr)
->>>>>>> b97557afc6 (Update dependencies)
             ]
 
     toConwayTxOut :: HasCallStack => W.TxOut -> Cardano.TxOut ctx ConwayEra
@@ -1620,13 +1585,9 @@ toCardanoValue tb = Cardano.valueFromList $
 
     toCardanoAssetName (W.UnsafeTokenName name) =
         just "toCardanoValue" "TokenName"
-<<<<<<< HEAD
         [ eitherToMaybe
             $ Cardano.deserialiseFromRawBytes Cardano.AsAssetName name
         ]
-=======
-        [eitherToMaybe $ Cardano.deserialiseFromRawBytes Cardano.AsAssetName name]
->>>>>>> b97557afc6 (Update dependencies)
 
     coinToQuantity = fromIntegral . W.unCoin
     toQuantity = fromIntegral . W.unTokenQuantity
