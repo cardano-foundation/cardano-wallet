@@ -72,7 +72,7 @@ import Cardano.Wallet.Primitive.Types.Tx
     , cardanoTxIdeallyNoLaterThan
     )
 import Cardano.Wallet.Transaction
-    ( AnyScript (..), WitnessCount (..) )
+    ( AnyExplicitScript (..), ScriptReference (..), WitnessCount (..) )
 import Control.Monad
     ( forM_ )
 import Control.Monad.IO.Unlift
@@ -800,9 +800,10 @@ spec = describe "SHARED_TRANSACTIONS" $ do
         let (ApiScriptTemplate scriptTemplate) =
                 sharedWal1 ^. #paymentScriptTemplate
         let paymentScript =
-                NativeScript $
-                replaceCosignersWithVerKeys
-                    CA.UTxOExternal scriptTemplate (Index 1)
+                NativeExplicitScript
+                (replaceCosignersWithVerKeys
+                    CA.UTxOExternal scriptTemplate (Index 1))
+                ViaSpending
         let noVerKeyWitness = mkApiWitnessCount WitnessCount
                 { verificationKey = 0
                 , scripts = [paymentScript]
@@ -2040,9 +2041,9 @@ spec = describe "SHARED_TRANSACTIONS" $ do
         let (ApiScriptTemplate scriptTemplate) =
                 sharedWal1 ^. #paymentScriptTemplate
         let paymentScript =
-                NativeScript $
-                replaceCosignersWithVerKeys CA.UTxOExternal scriptTemplate
-                (Index 1)
+                NativeExplicitScript
+                (replaceCosignersWithVerKeys CA.UTxOExternal scriptTemplate
+                (Index 1)) ViaSpending
 
         let noVerKeyWitness = mkApiWitnessCount WitnessCount
                 { verificationKey = 0
@@ -2157,9 +2158,9 @@ spec = describe "SHARED_TRANSACTIONS" $ do
                         (`shouldBe` amt)
                 ]
 
-     changeRole :: CA.KeyRole -> AnyScript -> AnyScript
+     changeRole :: CA.KeyRole -> AnyExplicitScript -> AnyExplicitScript
      changeRole role = \case
-         NativeScript script ->
+         NativeExplicitScript script scriptRole ->
              let changeRole' = \case
                      RequireSignatureOf (KeyHash _ p) ->
                         RequireSignatureOf $ KeyHash role p
@@ -2173,5 +2174,5 @@ spec = describe "SHARED_TRANSACTIONS" $ do
                         ActiveFromSlot s
                      ActiveUntilSlot s ->
                         ActiveUntilSlot s
-             in NativeScript $ changeRole' script
-         PlutusScript _ -> error "wrong usage"
+             in NativeExplicitScript (changeRole' script) scriptRole
+         PlutusExplicitScript _ _  -> error "wrong usage"

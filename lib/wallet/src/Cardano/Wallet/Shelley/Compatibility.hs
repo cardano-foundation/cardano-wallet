@@ -97,6 +97,7 @@ module Cardano.Wallet.Shelley.Compatibility
     , toCardanoPolicyId
     , toCardanoSimpleScript
     , toCardanoSimpleScriptV1
+    , fromCardanoSimpleScript
 
       -- * Address encoding
     , shelleyEncodeAddress
@@ -160,7 +161,7 @@ import Cardano.Address
 import Cardano.Address.Derivation
     ( XPub, xpubPublicKey )
 import Cardano.Address.Script
-    ( KeyHash (..), Script (..) )
+    ( KeyHash (..), KeyRole (..), Script (..) )
 import Cardano.Api
     ( AllegraEra
     , AlonzoEra
@@ -372,6 +373,7 @@ import qualified Cardano.Ledger.BaseTypes as SL
 import qualified Cardano.Ledger.Credential as SL
 import qualified Cardano.Ledger.Crypto as SL
 import qualified Cardano.Ledger.Era as Ledger.Era
+import qualified Cardano.Ledger.Keys as Ledger
 import qualified Cardano.Ledger.Mary as Mary
 import qualified Cardano.Ledger.Mary.Value as SL
 import qualified Cardano.Ledger.SafeHash as SafeHash
@@ -1491,6 +1493,25 @@ toCardanoSimpleScript = \case
     ActiveUntilSlot slot ->
         Cardano.RequireTimeBefore Cardano.TimeLocksInSimpleScriptV2
         (O.SlotNo $ fromIntegral slot)
+
+fromCardanoSimpleScript
+    :: Cardano.SimpleScript Cardano.SimpleScriptV2
+    -> Script KeyHash
+fromCardanoSimpleScript = \case
+    Cardano.RequireSignature (Cardano.PaymentKeyHash (Ledger.KeyHash h)) ->
+        let payload = hashToBytes h
+        in RequireSignatureOf (KeyHash Policy payload)
+    Cardano.RequireAllOf contents ->
+        RequireAllOf $ map fromCardanoSimpleScript contents
+    Cardano.RequireAnyOf contents ->
+        RequireAnyOf $ map fromCardanoSimpleScript contents
+    Cardano.RequireMOf num contents ->
+         RequireSomeOf (fromIntegral num) $
+            map fromCardanoSimpleScript contents
+    Cardano.RequireTimeAfter Cardano.TimeLocksInSimpleScriptV2 (O.SlotNo s) ->
+         ActiveFromSlot $ fromIntegral s
+    Cardano.RequireTimeBefore Cardano.TimeLocksInSimpleScriptV2 (O.SlotNo s) ->
+        ActiveUntilSlot $ fromIntegral s
 
 toCardanoSimpleScriptV1
     :: Script KeyHash

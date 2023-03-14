@@ -47,6 +47,8 @@ import Cardano.Wallet.Read.Tx.Integrity
     ( getEraIntegrity )
 import Cardano.Wallet.Read.Tx.Mint
     ( getEraMint )
+import Cardano.Wallet.Read.Tx.ReferenceInputs
+    ( getEraReferenceInputs )
 import Cardano.Wallet.Read.Tx.Validity
     ( getEraValidity )
 import Cardano.Wallet.Read.Tx.Witnesses
@@ -93,7 +95,7 @@ parser :: EraFun Tx (K ParsedTxCBOR)
 parser = fromEraFunK
     $ ParsedTxCBOR
         <$> EraFunK (Feature.certificates . getEraCertificates)
-        <*> EraFunK (Feature.mint . (getEraMint *&&&* getEraWitnesses))
+        <*> EraFunK (Feature.mint . (getEraMint *&&&* getEraWitnesses *&&&* getEraReferenceInputs))
         <*> EraFunK (Feature.getValidity . getEraValidity)
         <*> EraFunK (Feature.integrity . getEraIntegrity)
         <*> EraFunK (Feature.extraSigs . getEraExtraSigs)

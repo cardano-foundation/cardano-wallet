@@ -1143,6 +1143,19 @@ x-transactionInputs: &transactionInputs
         type: integer
         minimum: 0
 
+x-referenceInput: &referenceInput
+  description: |
+    A reference input.
+  type: object
+  required:
+    - id
+    - index
+  properties:
+    id: *transactionId
+    index:
+      type: integer
+      minimum: 0
+
 x-transactionCollateral: &transactionCollateral
   description: |
     A list of transaction inputs used for collateral.
@@ -2521,9 +2534,25 @@ components:
        quantity: *assetQuantity
        fingerprint: *assetFingerprint
 
+    PlutusScriptInfo: &PlutusScriptInfo
+      type: object
+      required:
+        - language_version
+        - script_hash
+      properties:
+       language_version:
+         type: string
+         enum: ["v1", "v2"]
+       script_hash:
+         type: string
+         format: hex
+         minLength: 56
+         maxLength: 56
+
     AnyScript: &AnyScript
       oneOf:
         - type: object
+          title: native script
           required:
             - script_type
             - script
@@ -2532,17 +2561,62 @@ components:
               type: string
               enum: ["native"]
             script: *ScriptValue
+            reference: *referenceInput
         - type: object
+          title: plutus script
           required:
             - script_type
-            - language_version
+            - script_info
           properties:
             script_type:
               type: string
               enum: ["plutus"]
-            language_version:
+            script_info: *PlutusScriptInfo
+            reference: *referenceInput
+        - type: object
+          title: reference script
+          required:
+            - script_type
+            - script_hash
+            - references
+          properties:
+            script_type:
               type: string
-              enum: ["v1", "v2"]
+              enum: ["reference script"]
+            script_hash:
+              type: string
+              format: hex
+              minLength: 56
+              maxLength: 56
+            references:
+              type: array
+              minItems: 1
+              items: *referenceInput
+
+    AnyExplicitScript: &AnyExplicitScript
+      oneOf:
+        - type: object
+          title: native script
+          required:
+            - script_type
+            - script
+          properties:
+            script_type:
+              type: string
+              enum: ["native"]
+            script: *ScriptValue
+            reference: *referenceInput
+        - type: object
+          title: plutus script
+          required:
+            - script_type
+            - script_info
+          properties:
+            script_type:
+              type: string
+              enum: ["plutus"]
+            script_info: *PlutusScriptInfo
+            reference: *referenceInput
 
     ApiTokens: &ApiTokens
       type: object
@@ -2673,6 +2747,15 @@ components:
         invalid_hereafter: *numberOfSlots
 
     ApiWitnessCount: &ApiWitnessCount
+      description: |
+        Specifies the number of verification key and bootstrap wintesses.
+        As scripts act as witnesses they are also included. Scripts can be specified
+        and spent in a given transaction or defined to be consumed later.
+        In the latter case they are defined in transaction outputs (feature possible from Babbage era)
+        in one transaction and referenced in other later transaction(s). The script referencing
+        is realized via including of reference in a reference input. If reference script
+        is present here it included the form of the script and reference to be used later,
+        ie. tx id and index of tx out where the script was included.
       type: object
       required:
         - verification_key
@@ -2683,7 +2766,7 @@ components:
         scripts:
           type: array
           minItems: 0
-          items: *AnyScript
+          items: *AnyExplicitScript
         bootstrap: *witnessCount
 
     ApiDecodedTransaction: &ApiDecodedTransaction

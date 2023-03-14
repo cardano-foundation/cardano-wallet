@@ -1,5 +1,6 @@
 {-# LANGUAGE DataKinds #-}
 {-# LANGUAGE FlexibleInstances #-}
+{-# LANGUAGE LambdaCase #-}
 {-# LANGUAGE QuasiQuotes #-}
 {-# LANGUAGE ScopedTypeVariables #-}
 {-# LANGUAGE TypeApplications #-}
@@ -15,6 +16,8 @@ module Cardano.Wallet.Api.Types.Primitive () where
 
 import Prelude
 
+import Cardano.Address.Script
+    ( ScriptHash (..) )
 import Cardano.Api
     ( TxMetadataJsonSchema (..)
     , displayError
@@ -63,7 +66,12 @@ import Cardano.Wallet.Shelley.Network.Discriminant
     , EncodeStakeAddress (..)
     )
 import Cardano.Wallet.Transaction
-    ( AnyScript (NativeScript, PlutusScript), PlutusScriptInfo (..) )
+    ( AnyExplicitScript (..)
+    , AnyScript (..)
+    , PlutusScriptInfo (..)
+    , ReferenceInput (..)
+    , ScriptReference (..)
+    )
 import Cardano.Wallet.Util
     ( ShowFmt (..) )
 import Codec.Binary.Bech32
@@ -98,7 +106,7 @@ import Data.Proxy
 import Data.Quantity
     ( Quantity (..) )
 import Data.Text.Class
-    ( FromText (..), ToText (..) )
+    ( FromText (..), TextDecodingError (..), ToText (..) )
 import Data.Word
     ( Word32, Word64 )
 import Data.Word.Odd
@@ -129,34 +137,146 @@ instance ToJSON (ApiT W.TokenPolicyId) where
     toJSON = toTextApiT
 
 instance FromJSON (ApiT PlutusScriptInfo) where
-    parseJSON = (fmap. fmap) ApiT $ parseJSON >=>
-        eitherToParser . bimap ShowFmt PlutusScriptInfo . fromText
+    parseJSON = (fmap. fmap) ApiT . withObject "PlutusScriptInfo" $ \obj ->
+        (obj .: "script_hash") >>= (\case
+           Left str -> fail
+               $ "PlutusScriptInfo: script_hash should be hex-encoded \
+                 \56-character string, but got " ++ str
+           Right hash -> do
+               ver <- obj .: "language_version"
+               case fromText ver of
+                   Left (TextDecodingError err)
+                       -> fail $ "PlutusScriptInfo: language_version " ++ err
+                   Right plutusVersion
+                       -> pure $ PlutusScriptInfo plutusVersion (ScriptHash hash))
+        . fromHexText
 
 instance ToJSON (ApiT PlutusScriptInfo) where
-    toJSON (ApiT (PlutusScriptInfo v)) = toJSON $ toText v
+    toJSON (ApiT (PlutusScriptInfo v (ScriptHash h))) =
+        object
+            [ "script_hash" .= String (hexText h)
+            , "language_version" .= String (toText v)
+            ]
+
+instance ToJSON ReferenceInput where
+    toJSON (ReferenceInput (TxIn txId ix)) =
+        object
+        [ "id" .=toJSON (ApiT txId)
+        , "index" .= toJSON ix
+        ]
+
+instance FromJSON ReferenceInput where
+    parseJSON = withObject "ReferenceInput" $ \v -> ReferenceInput <$>
+        (TxIn <$> fmap getApiT (v .: "id") <*> v .: "index")
 
 instance FromJSON (ApiT AnyScript) where
     parseJSON = (fmap . fmap) ApiT . withObject "AnyScript" $ \obj -> do
         scriptType <- obj .:? "script_type"
-        case (scriptType :: Maybe String) of
-            Just t | t == "plutus" ->
-                PlutusScript . getApiT <$> obj .: "language_version"
-            Just t | t == "native" ->
-                NativeScript <$> obj .: "script"
+        reference <- obj .:? "reference"
+        case (scriptType :: Maybe String, reference :: Maybe ReferenceInput) of
+            (Just t , Nothing) -> case t of
+                "plutus" ->
+                    flip PlutusScript ViaSpending . getApiT <$> obj .: "script_info"
+                "native" ->
+                    flip NativeScript ViaSpending <$> obj .: "script"
+                "reference script" -> do
+                    scriptH <- (obj .: "script_hash") >>= (\case
+                               Left str -> fail $
+                                   "AnyScript: script_hash should be hex-encoded \
+                                   \56-character string, but got " ++ str
+                               Right hash -> pure $ ScriptHash hash)
+                               . fromHexText
+                    AnyScriptReference scriptH <$> obj .: "references"
+                _ -> fail
+                    "AnyScript needs either 'native', 'plutus' or 'reference script' in 'script_type'"
+            (Just t , Just ref) -> case t of
+                "plutus" ->
+                    flip PlutusScript (ViaReferenceInput ref) . getApiT <$>
+                    obj .: "script_info"
+                "native" ->
+                    flip NativeScript (ViaReferenceInput ref) <$> obj .: "script"
+                _ -> fail
+                    "AnyScript needs either 'native' or 'plutus' in 'script_type'"
             _ -> fail
-                "AnyScript needs either 'native' or 'plutus' in 'script_type'"
+                "AnyScript needs to have 'script_type' field"
 
 instance ToJSON (ApiT AnyScript) where
     toJSON (ApiT anyScript) = case anyScript of
-        NativeScript s ->
+        NativeScript s ViaSpending ->
             object
                 [ "script_type" .= String "native"
                 , "script" .= toJSON s
                 ]
-        PlutusScript v ->
+        PlutusScript s ViaSpending ->
             object
                 [ "script_type" .= String "plutus"
-                , "language_version" .= toJSON (ApiT v)
+                , "script_info" .= toJSON (ApiT s)
+                ]
+        NativeScript s (ViaReferenceInput refInput) ->
+            object
+                [ "script_type" .= String "native"
+                , "script" .= toJSON s
+                , "reference" .= toJSON refInput
+                ]
+        PlutusScript s (ViaReferenceInput refInput) ->
+            object
+                [ "script_type" .= String "plutus"
+                , "script_info" .= toJSON (ApiT s)
+                , "reference" .= toJSON refInput
+                ]
+        AnyScriptReference (ScriptHash h) refs ->
+            object
+                [ "script_type" .= String "reference script"
+                , "script_hash" .= String (hexText h)
+                , "references" .= toJSON refs
+                ]
+
+instance FromJSON (ApiT AnyExplicitScript) where
+    parseJSON = (fmap . fmap) ApiT . withObject "AnyExplicitScript" $ \obj -> do
+        scriptType <- obj .:? "script_type"
+        reference <- obj .:? "reference"
+        case (scriptType :: Maybe String, reference :: Maybe ReferenceInput) of
+            (Just t , Nothing) -> case t of
+                "plutus" ->
+                    flip PlutusExplicitScript ViaSpending . getApiT <$> obj .: "script_info"
+                "native" ->
+                    flip NativeExplicitScript ViaSpending <$> obj .: "script"
+                _ -> fail
+                    "AnyExplicitScript needs either 'native' or 'plutus' in 'script_type'"
+            (Just t , Just ref) -> case t of
+                "plutus" ->
+                    flip PlutusExplicitScript (ViaReferenceInput ref) . getApiT <$>
+                    obj .: "script_info"
+                "native" ->
+                    flip NativeExplicitScript (ViaReferenceInput ref) <$> obj .: "script"
+                _ -> fail
+                    "AnyExplicitScript needs either 'native' or 'plutus' in 'script_type'"
+            _ -> fail
+                "AnyExplicitScript needs to have 'script_type' field"
+
+instance ToJSON (ApiT AnyExplicitScript) where
+    toJSON (ApiT anyScript) = case anyScript of
+        NativeExplicitScript s ViaSpending ->
+            object
+                [ "script_type" .= String "native"
+                , "script" .= toJSON s
+                ]
+        PlutusExplicitScript s ViaSpending ->
+            object
+                [ "script_type" .= String "plutus"
+                , "script_info" .= toJSON (ApiT s)
+                ]
+        NativeExplicitScript s (ViaReferenceInput refInput) ->
+            object
+                [ "script_type" .= String "native"
+                , "script" .= toJSON s
+                , "reference" .= toJSON refInput
+                ]
+        PlutusExplicitScript s (ViaReferenceInput refInput) ->
+            object
+                [ "script_type" .= String "plutus"
+                , "script_info" .= toJSON (ApiT s)
+                , "reference" .= toJSON refInput
                 ]
 
 instance FromJSON (ApiT W.TokenName) where

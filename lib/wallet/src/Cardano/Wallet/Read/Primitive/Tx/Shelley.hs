@@ -41,7 +41,8 @@ import Cardano.Wallet.Read.Tx.Hash
 import Cardano.Wallet.Shelley.Compatibility.Ledger
     ( toWalletScriptFromShelley )
 import Cardano.Wallet.Transaction
-    ( AnyScript (..)
+    ( AnyExplicitScript (..)
+    , ScriptReference (..)
     , TokenMapWithScripts (..)
     , ValidityIntervalExplicit (..)
     , WitnessCount (..)
@@ -133,7 +134,7 @@ fromShelleyTx tx =
     SL.Tx (SL.TxBody ins outs certs wdrls fee ttl _ _) wits mmd = tx
     countWits = WitnessCount
         (fromIntegral $ Set.size $ SL.addrWits wits)
-        (fmap (NativeScript . toWalletScriptFromShelley Payment)
+        (fmap (flip NativeExplicitScript ViaSpending . toWalletScriptFromShelley Payment)
             $ Map.elems $ SL.scriptWits wits)
         (fromIntegral $ Set.size $ SL.bootWits wits)
 

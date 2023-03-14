@@ -2,6 +2,7 @@
 {-# LANGUAGE DuplicateRecordFields #-}
 {-# LANGUAGE FlexibleContexts #-}
 {-# LANGUAGE TupleSections #-}
+{-# LANGUAGE TypeApplications #-}
 {-# LANGUAGE TypeFamilies #-}
 
 -- |
@@ -33,7 +34,7 @@ import Cardano.Wallet.Read.Primitive.Tx.Features.Inputs
 import Cardano.Wallet.Read.Primitive.Tx.Features.Metadata
     ( fromAlonzoMetadata )
 import Cardano.Wallet.Read.Primitive.Tx.Features.Mint
-    ( alonzoMint )
+    ( alonzoMint, fromLedgerScriptHash )
 import Cardano.Wallet.Read.Primitive.Tx.Features.Outputs
     ( fromAlonzoTxOut )
 import Cardano.Wallet.Read.Primitive.Tx.Features.Validity
@@ -49,9 +50,10 @@ import Cardano.Wallet.Read.Tx.Hash
 import Cardano.Wallet.Shelley.Compatibility.Ledger
     ( toWalletScript, toWalletTokenPolicyId )
 import Cardano.Wallet.Transaction
-    ( AnyScript (..)
+    ( AnyExplicitScript (..)
     , PlutusScriptInfo (..)
     , PlutusVersion (..)
+    , ScriptReference (..)
     , TokenMapWithScripts (..)
     , ValidityIntervalExplicit (..)
     , WitnessCount (..)
@@ -72,6 +74,7 @@ import qualified Cardano.Ledger.Alonzo.Tx as Alonzo
 import qualified Cardano.Ledger.Alonzo.TxWitness as Alonzo
 import qualified Cardano.Ledger.BaseTypes as SL
 import qualified Cardano.Ledger.Core as SL.Core
+import qualified Cardano.Ledger.Era as SL.Core
 import qualified Cardano.Ledger.Mary.Value as SL
 import qualified Cardano.Ledger.Shelley.API as SL
 import qualified Cardano.Wallet.Primitive.Types as W
@@ -144,27 +147,29 @@ fromAlonzoTx tx@(Alonzo.ValidatedTx bod wits (Alonzo.IsValid isValid) aux) witCt
         (Map.elems scriptMap)
         (fromIntegral $ Set.size $ Alonzo.txwitsBoot' wits)
 
+    hashAlonzoScript =
+        fromLedgerScriptHash .
+        SL.Core.hashScript @(Cardano.ShelleyLedgerEra AlonzoEra)
+
     fromAlonzoScriptMap
         :: Map
             (SL.ScriptHash (Crypto StandardAlonzo))
             (SL.Core.Script StandardAlonzo)
-        -> Map TokenPolicyId AnyScript
+        -> Map TokenPolicyId AnyExplicitScript
     fromAlonzoScriptMap =
         Map.map toAnyScript .
         Map.mapKeys (toWalletTokenPolicyId . SL.PolicyID)
       where
         toAnyScript (Alonzo.TimelockScript script) =
-            NativeScript $ toWalletScript (toKeyRole witCtx) script
-        toAnyScript (Alonzo.PlutusScript ver _) =
-            PlutusScript (PlutusScriptInfo (toPlutusVer ver))
+            NativeExplicitScript (toWalletScript (toKeyRole witCtx) script) ViaSpending
+        toAnyScript s@(Alonzo.PlutusScript ver _) =
+            PlutusExplicitScript (PlutusScriptInfo (toPlutusVer ver)
+                          (hashAlonzoScript s)) ViaSpending
 
         toPlutusVer Alonzo.PlutusV1 = PlutusVersionV1
         toPlutusVer Alonzo.PlutusV2 = PlutusVersionV2
-
-
 
     validity =
         if isValid
         then Just W.TxScriptValid
         else Just W.TxScriptInvalid
-

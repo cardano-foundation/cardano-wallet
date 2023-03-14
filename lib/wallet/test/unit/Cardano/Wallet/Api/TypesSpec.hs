@@ -358,9 +358,12 @@ import Cardano.Wallet.Shelley.Network.Discriminant
 import Cardano.Wallet.TokenMetadata
     ( TokenMetadataError (..) )
 import Cardano.Wallet.Transaction
-    ( AnyScript (..)
+    ( AnyExplicitScript (..)
+    , AnyScript (..)
     , PlutusScriptInfo (..)
     , PlutusVersion (..)
+    , ReferenceInput (..)
+    , ScriptReference (..)
     , ValidityIntervalExplicit (..)
     , WitnessCount (..)
     )
@@ -1934,9 +1937,12 @@ instance Arbitrary ValidityIntervalExplicit where
 instance Arbitrary ApiWitnessCount where
     arbitrary = do
         numberOfScripts <- choose (0, 1)
+        txId <- arbitrary
+        referenceInp <-
+            elements [ViaSpending, ViaReferenceInput (ReferenceInput txId)]
         fmap mkApiWitnessCount $ WitnessCount
             <$> choose (0, 10)
-            <*> vectorOf numberOfScripts (NativeScript <$> arbitrary)
+            <*> vectorOf numberOfScripts (flip NativeExplicitScript referenceInp  <$> arbitrary)
             <*> choose (0, 2)
 
 instance Arbitrary (ApiDecodedTransaction n) where
@@ -1984,20 +1990,23 @@ instance Arbitrary ApiTokenAmountFingerprint where
 instance Arbitrary ApiTokens where
     arbitrary = do
         policyid <- arbitrary
+        scriptHash <- ScriptHash . BS.pack <$> vector 28
         let keyhash = KeyHash Policy $ getHash $ unTokenPolicyId policyid
         script <- elements
-            [ ApiT $ NativeScript $ RequireSignatureOf keyhash
-            , ApiT $ NativeScript $ RequireAllOf
+            [ ApiT $ NativeScript (RequireSignatureOf keyhash) ViaSpending
+            , ApiT $ NativeScript (RequireAllOf
                 [ RequireSignatureOf keyhash
                 , ActiveFromSlot 100
-                ]
-            , ApiT $ NativeScript $ RequireAllOf
+                ]) ViaSpending
+            , ApiT $ NativeScript (RequireAllOf
                 [ RequireSignatureOf keyhash
                 , ActiveFromSlot 100
                 , ActiveUntilSlot 150
-                ]
-            , ApiT $ PlutusScript $ PlutusScriptInfo PlutusVersionV1
-            , ApiT $ PlutusScript $ PlutusScriptInfo PlutusVersionV2
+                ]) ViaSpending
+            , ApiT $ PlutusScript (PlutusScriptInfo PlutusVersionV1 scriptHash)
+                ViaSpending
+            , ApiT $ PlutusScript (PlutusScriptInfo PlutusVersionV2 scriptHash)
+                ViaSpending
             ]
         assetNum <- choose (1,4)
         assets <- vectorOf assetNum arbitrary

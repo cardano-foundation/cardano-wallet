@@ -2,6 +2,7 @@
 {-# LANGUAGE FlexibleContexts #-}
 {-# LANGUAGE NoMonomorphismRestriction #-}
 {-# LANGUAGE TupleSections #-}
+{-# LANGUAGE TypeApplications #-}
 {-# LANGUAGE TypeFamilies #-}
 {-# LANGUAGE TypeOperators #-}
 
@@ -15,13 +16,17 @@ module Cardano.Wallet.Read.Primitive.Tx.Features.Mint
     , maryMint
     , alonzoMint
     , babbageMint
+    , fromLedgerScriptToAnyScript
+    , fromLedgerScriptHash
     )
     where
 
 import Prelude
 
 import Cardano.Address.Script
-    ( KeyRole (..) )
+    ( KeyRole (..), ScriptHash (..) )
+import Cardano.Crypto.Hash
+    ( hashToBytes )
 import Cardano.Ledger.Alonzo
     ( AlonzoEra )
 import Cardano.Ledger.Babbage
@@ -30,14 +35,20 @@ import Cardano.Ledger.Era
     ( Era (..) )
 import Cardano.Ledger.Shelley.Tx
     ( WitnessSetHKD (scriptWits) )
+import Cardano.Wallet.Primitive.Types.Hash
+    ( Hash (..) )
 import Cardano.Wallet.Primitive.Types.TokenMap
-    ( TokenMap, toNestedList )
+    ( TokenMap, toNestedList, toNestedMap )
 import Cardano.Wallet.Primitive.Types.TokenPolicy
-    ( TokenPolicyId )
+    ( TokenPolicyId (..) )
 import Cardano.Wallet.Read.Eras
     ( (:*:) (..), EraFun (..), K (..) )
+import Cardano.Wallet.Read.Primitive.Tx.Features.Inputs
+    ( fromShelleyTxIn )
 import Cardano.Wallet.Read.Tx.Mint
     ( Mint (..) )
+import Cardano.Wallet.Read.Tx.ReferenceInputs
+    ( ReferenceInputs (..) )
 import Cardano.Wallet.Read.Tx.Witnesses
     ( Witnesses (..) )
 import Cardano.Wallet.Shelley.Compatibility.Ledger
@@ -50,23 +61,31 @@ import Cardano.Wallet.Transaction
     ( AnyScript (..)
     , PlutusScriptInfo (..)
     , PlutusVersion (..)
-    , TokenMapWithScripts (..)
+    , ReferenceInput (..)
+    , ScriptReference (..)
     , TokenMapWithScripts (..)
     , emptyTokenMapWithScripts
     )
+import Data.Foldable
+    ( toList )
 import Data.Function
     ( (&) )
 import Data.Map.Strict
     ( Map )
 import Data.Maybe
     ( mapMaybe )
+import Data.Set
+    ( Set )
 import Ouroboros.Consensus.Shelley.Eras
     ( StandardAlonzo, StandardBabbage, StandardCrypto )
 
+import qualified Cardano.Api as Cardano
+import qualified Cardano.Api.Shelley as Cardano
 import qualified Cardano.Ledger.Alonzo.Language as Alonzo
 import qualified Cardano.Ledger.Alonzo.Scripts as Alonzo
 import qualified Cardano.Ledger.Alonzo.TxWitness as AL
 import qualified Cardano.Ledger.Core as SL.Core
+import qualified Cardano.Ledger.Era as SL.Core
 import qualified Cardano.Ledger.Mary.Value as SL
 import qualified Cardano.Ledger.Shelley.API as SL
 import qualified Cardano.Ledger.ShelleyMA as MA
@@ -75,16 +94,20 @@ import qualified Cardano.Wallet.Primitive.Types.TokenMap as TokenMap
 import qualified Data.Map.Strict as Map
 import qualified Data.Map.Strict.NonEmptyMap as NonEmptyMap
 
+
 mint :: EraFun
-    (Mint :*: Witnesses)
+    (Mint :*: Witnesses :*: ReferenceInputs)
     (K (TokenMapWithScripts, TokenMapWithScripts))
 mint = EraFun
     { byronFun = noMints
     , shelleyFun = noMints
     , allegraFun = noMints
-    , maryFun = \(Mint mint' :*: Witnesses wits) -> K $ maryMint mint' wits
-    , alonzoFun = \(Mint mint' :*: Witnesses wits) -> K $ alonzoMint mint' wits
-    , babbageFun = \(Mint mint' :*: Witnesses wits) -> K $ babbageMint mint' wits
+    , maryFun = \(Mint mint' :*: Witnesses wits :*: ReferenceInputs _refInps)
+        -> K $ maryMint mint' wits
+    , alonzoFun = \(Mint mint' :*: Witnesses wits :*: ReferenceInputs _refInps)
+        -> K $ alonzoMint mint' wits
+    , babbageFun = \(Mint mint' :*: Witnesses wits :*: ReferenceInputs refInps)
+        -> K $ babbageMint refInps mint' wits
     }
     where
         noMints = const $ K (emptyTokenMapWithScripts, emptyTokenMapWithScripts)
@@ -113,10 +136,14 @@ babbageMint ::
         ~ Alonzo.Script (BabbageEra StandardCrypto)
     , Crypto era ~ StandardCrypto
     )
-    => SL.Value StandardCrypto
+    => Set (SL.TxIn StandardCrypto)
+    -> SL.Value StandardCrypto
     -> AL.TxWitness era
     -> (TokenMapWithScripts, TokenMapWithScripts)
-babbageMint = yesMints $ fromBabbageScriptMap . AL.txscripts'
+babbageMint refInps val wits =
+    let (map1, map2) = yesMints (fromBabbageScriptMap . AL.txscripts') val wits
+    in ( useReferenceScriptIfNeeded refInps map1
+       , useReferenceScriptIfNeeded refInps map2 )
 
 yesMints :: (t -> Map TokenPolicyId AnyScript)
     -> SL.Value StandardCrypto
@@ -132,6 +159,21 @@ yesMints scriptMapOf mint' wits =
     ( TokenMapWithScripts assetsToMint mintScriptMap
     , TokenMapWithScripts assetsToBurn burnScriptMap
     )
+
+useReferenceScriptIfNeeded
+    :: Set (SL.TxIn StandardCrypto)
+    -> TokenMapWithScripts
+    -> TokenMapWithScripts
+useReferenceScriptIfNeeded refInps (TokenMapWithScripts tokenMap tokenScripts) =
+    let allTokenPolicyIds = Map.keys $ toNestedMap tokenMap
+        refInps' = ReferenceInput . fromShelleyTxIn <$> toList refInps
+        toScriptHash = ScriptHash . getHash . unTokenPolicyId
+        findTokenPolicy s = case Map.lookup s tokenScripts of
+            Just script -> script
+            Nothing -> AnyScriptReference (toScriptHash s) refInps'
+        replaceScript policy = (policy, findTokenPolicy policy)
+        tokenScripts' = Map.fromList $ map replaceScript allTokenPolicyIds
+    in TokenMapWithScripts tokenMap tokenScripts'
 
 fromLedgerMintValue
     :: SL.Value StandardCrypto
@@ -163,7 +205,7 @@ fromMaryScriptMap
         (SL.Core.Script (MA.ShelleyMAEra 'MA.Mary StandardCrypto))
     -> Map TokenPolicyId AnyScript
 fromMaryScriptMap =
-        Map.map (NativeScript . toWalletScript (const Policy)) .
+        Map.map (flip NativeScript ViaSpending . toWalletScript (const Policy)) .
         Map.mapKeys (toWalletTokenPolicyId . SL.PolicyID)
 
 getScriptMap
@@ -185,10 +227,27 @@ fromAlonzoScriptMap =
     Map.mapKeys (toWalletTokenPolicyId . SL.PolicyID)
     where
     toAnyScript (Alonzo.TimelockScript script) =
-        NativeScript $ toWalletScript (const Policy) script
-    toAnyScript (Alonzo.PlutusScript ver _) =
-        PlutusScript (PlutusScriptInfo (toPlutusVer ver))
+        NativeScript (toWalletScript (const Policy) script) ViaSpending
+    toAnyScript s@(Alonzo.PlutusScript ver _) =
+        PlutusScript (PlutusScriptInfo (toPlutusVer ver)
+                      (hashAlonzoScript s)) ViaSpending
+    hashAlonzoScript = fromLedgerScriptHash .
+        SL.Core.hashScript @(Cardano.ShelleyLedgerEra Cardano.AlonzoEra)
+    toPlutusVer Alonzo.PlutusV1 = PlutusVersionV1
+    toPlutusVer Alonzo.PlutusV2 = PlutusVersionV2
 
+fromLedgerScriptToAnyScript
+    :: SL.Core.Script StandardBabbage
+    -> AnyScript
+fromLedgerScriptToAnyScript = toAnyScript
+    where
+    toAnyScript (Alonzo.TimelockScript script) =
+        NativeScript (toWalletScript (const Policy) script) ViaSpending
+    toAnyScript s@(Alonzo.PlutusScript ver _) =
+        PlutusScript (PlutusScriptInfo (toPlutusVer ver)
+                      (hashBabbageScript s)) ViaSpending
+    hashBabbageScript = fromLedgerScriptHash .
+        SL.Core.hashScript @(Cardano.ShelleyLedgerEra Cardano.BabbageEra)
     toPlutusVer Alonzo.PlutusV1 = PlutusVersionV1
     toPlutusVer Alonzo.PlutusV2 = PlutusVersionV2
 
@@ -198,13 +257,11 @@ fromBabbageScriptMap
         (SL.Core.Script StandardBabbage)
     -> Map TokenPolicyId AnyScript
 fromBabbageScriptMap =
-    Map.map toAnyScript .
+    Map.map fromLedgerScriptToAnyScript .
     Map.mapKeys (toWalletTokenPolicyId . SL.PolicyID)
-    where
-    toAnyScript (Alonzo.TimelockScript script) =
-        NativeScript $ toWalletScript (const Policy) script
-    toAnyScript (Alonzo.PlutusScript ver _) =
-        PlutusScript (PlutusScriptInfo (toPlutusVer ver))
 
-    toPlutusVer Alonzo.PlutusV1 = PlutusVersionV1
-    toPlutusVer Alonzo.PlutusV2 = PlutusVersionV2
+fromLedgerScriptHash
+    :: (SL.ScriptHash era)
+    -> ScriptHash
+fromLedgerScriptHash (SL.ScriptHash h) =
+    ScriptHash (hashToBytes h)

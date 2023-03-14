@@ -19,6 +19,8 @@ import Cardano.Binary
     ( serialize' )
 import Cardano.Chain.Common
     ( unsafeGetLovelace )
+import Cardano.Ledger.Shelley.API
+    ( StrictMaybe (SJust, SNothing) )
 import Cardano.Wallet.Read.Eras
     ( EraFun (..), K (..) )
 import Cardano.Wallet.Read.Primitive.Tx.Features.Fee
@@ -46,6 +48,7 @@ import qualified Cardano.Ledger.Alonzo as Alonzo
 import qualified Cardano.Ledger.Alonzo.TxBody as Alonzo
 import qualified Cardano.Ledger.Babbage as Babbage
 import qualified Cardano.Ledger.Babbage.TxBody as Babbage
+import qualified Cardano.Ledger.Crypto as SL
 import qualified Cardano.Ledger.Shelley.API as SL
 import qualified Cardano.Wallet.Primitive.Types.Address as W
 import qualified Cardano.Wallet.Primitive.Types.Coin as W
@@ -63,7 +66,7 @@ getOutputs = EraFun
     , allegraFun = \(Outputs os) -> K . fmap fromAllegraTxOut $ toList os
     , maryFun = \(Outputs os) -> K . fmap fromMaryTxOut $ toList os
     , alonzoFun = \(Outputs os) -> K . fmap fromAlonzoTxOut $ toList os
-    , babbageFun = \(Outputs os) -> K . fmap fromBabbageTxOut $ toList os
+    , babbageFun = \(Outputs os) -> K . fmap (fst . fromBabbageTxOut) $ toList os
     }
 
 fromShelleyAddress :: SL.Addr crypto -> W.Address
@@ -93,10 +96,14 @@ fromAlonzoTxOut (Alonzo.TxOut addr value _) =
 
 fromBabbageTxOut
     :: Babbage.TxOut StandardBabbage
-    -> W.TxOut
-fromBabbageTxOut (Babbage.TxOut addr value _datum _refScript) =
-    W.TxOut (fromShelleyAddress addr) $
-    fromCardanoValue $ Cardano.fromMaryValue value
+    -> (W.TxOut, Maybe (Babbage.Script (Babbage.BabbageEra SL.StandardCrypto)))
+fromBabbageTxOut (Babbage.TxOut addr value _datum refScript) =
+    ( W.TxOut (fromShelleyAddress addr) $
+      fromCardanoValue $ Cardano.fromMaryValue value
+    , case refScript of
+          SJust s -> Just s
+          SNothing -> Nothing
+    )
 
 -- Lovelace to coin. Quantities from ledger should always fit in Word64.
 fromCardanoLovelace :: HasCallStack => Cardano.Lovelace -> W.Coin

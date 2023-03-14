@@ -35,9 +35,12 @@ module Cardano.Wallet.Transaction
     , TxFeeUpdate(..)
     , TokenMapWithScripts (..)
     , emptyTokenMapWithScripts
+    , AnyExplicitScript (..)
     , AnyScript (..)
     , PlutusScriptInfo (..)
     , PlutusVersion (..)
+    , ScriptReference (..)
+    , ReferenceInput (..)
     , TxFeeAndChange (..)
     , mapTxFeeAndChange
     , ValidityIntervalExplicit (..)
@@ -61,7 +64,7 @@ import Prelude
 import Cardano.Address.Derivation
     ( XPrv, XPub )
 import Cardano.Address.Script
-    ( KeyHash (..), KeyRole (..), Script, ScriptTemplate )
+    ( KeyHash (..), KeyRole (..), Script, ScriptHash, ScriptTemplate )
 import Cardano.Api
     ( AnyCardanoEra )
 import Cardano.Api.Extra
@@ -375,15 +378,31 @@ instance FromText PlutusVersion where
             , "I am expecting one of the words 'v1' or"
             , "'v2'."]
 
-newtype PlutusScriptInfo = PlutusScriptInfo
+data PlutusScriptInfo = PlutusScriptInfo
     { languageVersion :: PlutusVersion
+    , scriptHash :: ScriptHash
     }
     deriving (Eq, Generic, Show)
     deriving anyclass NFData
 
+newtype ReferenceInput = ReferenceInput TxIn
+    deriving (Eq, Generic, Show)
+    deriving anyclass NFData
+
+-- | ScriptReference depicts whether the script is referenced via spending
+-- and is bound to be used in the same transaction or is referenced via
+-- reference inputs and is to be used in other transactions. The the latter
+-- case the script is referenced in other trasactions
+data ScriptReference =
+      ViaSpending
+    | ViaReferenceInput ReferenceInput
+    deriving (Eq, Generic, Show)
+    deriving anyclass NFData
+
 data AnyScript =
-      NativeScript !(Script KeyHash)
-    | PlutusScript !PlutusScriptInfo
+      NativeScript !(Script KeyHash) !ScriptReference
+    | PlutusScript !PlutusScriptInfo !ScriptReference
+    | AnyScriptReference !ScriptHash ![ReferenceInput]
     deriving (Eq, Generic, Show)
     deriving anyclass NFData
 
@@ -398,9 +417,15 @@ emptyTokenMapWithScripts = TokenMapWithScripts
     , txScripts = Map.empty
     }
 
+data AnyExplicitScript =
+      NativeExplicitScript !(Script KeyHash) !ScriptReference
+    | PlutusExplicitScript !PlutusScriptInfo !ScriptReference
+    deriving (Eq, Generic, Show)
+    deriving anyclass NFData
+
 data WitnessCount = WitnessCount
     { verificationKey :: Word8
-    , scripts :: [AnyScript]
+    , scripts :: [AnyExplicitScript]
     , bootstrap :: Word8
     }
     deriving (Eq, Generic, Show)
