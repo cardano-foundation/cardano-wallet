@@ -959,7 +959,7 @@ spec = describe "SHELLEY_CLI_TRANSACTIONS" $ do
             c `shouldBe` ExitFailure 1
   where
       postTxViaCLI
-          :: (MonadIO m, MonadUnliftIO m)
+          :: MonadUnliftIO m
           => Context
           -> ApiWallet
           -> ApiWallet
@@ -977,7 +977,7 @@ spec = describe "SHELLEY_CLI_TRANSACTIONS" $ do
           expectValidJSON (Proxy @(ApiTransaction n)) out
 
       postTxArgs
-        :: (MonadIO m, MonadUnliftIO m)
+        :: MonadUnliftIO m
         => Context
         -> ApiWallet
         -> ApiWallet
