@@ -944,8 +944,7 @@ withCLIConstraint era a = case era of
 withAlonzoScriptConstraint
     :: RecentEra era
     -> ( Core.Script (Cardano.ShelleyLedgerEra era)
-         ~ Alonzo.Script (Cardano.ShelleyLedgerEra era
-        )
+         ~ AlonzoScript (Cardano.ShelleyLedgerEra era)
         => a)
     -> a
 withAlonzoScriptConstraint era a = case era of
