@@ -168,8 +168,6 @@ import Cardano.Wallet.Primitive.Types.Tx.Constraints
     ( txOutMaxCoin )
 import Cardano.Wallet.Shelley.Compatibility.Ledger
     ( toLedger )
-import Control.Arrow
-    ( second )
 import Data.ByteString
     ( ByteString )
 import Data.ByteString.Short
