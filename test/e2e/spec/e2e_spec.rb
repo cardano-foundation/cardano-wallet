@@ -68,7 +68,7 @@ RSpec.describe 'Cardano Wallet E2E tests', :all, :e2e do
 
       # 3. [cardano-cli] Submit minting transaction using reference script sending minted tokens to wallet address
 
-      wallet_id = '305f19e7a384f89e6f5e36025ff5e9a22d33cd6b'
+      wallet_id = @target_id
       txs = SHELLEY.transactions.list(wallet_id)
       expect(txs).to be_correct_and_respond 200
 
@@ -110,6 +110,7 @@ RSpec.describe 'Cardano Wallet E2E tests', :all, :e2e do
       tx_deposits(tx_details, deposit_taken: 0, deposit_returned: 0)
       tx_withdrawals(tx_details, present: false)
       tx_has_mint_or_burn(tx_details, mint: true, burn: false)
+      expect(tx_details['mint']['tokens'].first['policy_script']['script_type']).to eq 'reference script'
       tx_extra_signatures(tx_details, present: true)
       tx_script_integrity(tx_details, present: true)
       tx_validity_interval_default(tx_details)
@@ -158,7 +159,7 @@ RSpec.describe 'Cardano Wallet E2E tests', :all, :e2e do
       end
 
       # 3. [cardano-cli] Submit minting transaction using reference script sending minted tokens to wallet address
-      wallet_id = '305f19e7a384f89e6f5e36025ff5e9a22d33cd6b'
+      wallet_id = @target_id
       txs = SHELLEY.transactions.list(wallet_id)
       expect(txs).to be_correct_and_respond 200
 
@@ -199,6 +200,7 @@ RSpec.describe 'Cardano Wallet E2E tests', :all, :e2e do
       tx_deposits(tx_details, deposit_taken: 0, deposit_returned: 0)
       tx_withdrawals(tx_details, present: false)
       tx_has_mint_or_burn(tx_details, mint: true, burn: false)
+      expect(tx_details['mint']['tokens'].first['policy_script']['script_type']).to eq 'reference script'
       tx_extra_signatures(tx_details, present: false)
       tx_script_integrity(tx_details, present: false)
       tx_validity_interval_default(tx_details)
@@ -478,6 +480,7 @@ RSpec.describe 'Cardano Wallet E2E tests', :all, :e2e do
           'asset1arj5nz8zxjuxvut5wqt5q0xw7905hllugahvu7'
         end
       end
+
       def script_hash
         if linux?
           'c22560ac64be051102d6d1cfe5b9b82eb6af4f00dd3806e5cd82e837'
@@ -489,9 +492,9 @@ RSpec.describe 'Cardano Wallet E2E tests', :all, :e2e do
       end
       mint_script = 'mintBurn_1.json'
       burn_script = 'mintBurn_2.json'
-      assets = [{ 'policy_script' => {'script_info' => { 'language_version' => 'v1', 
-                                                         'script_hash' => script_hash }, 
-                                      'script_type' => 'plutus'},
+      assets = [{ 'policy_script' => { 'script_info' => { 'language_version' => 'v1',
+                                                          'script_hash' => script_hash },
+                                       'script_type' => 'plutus' },
                   'policy_id' => policy_id,
                   'assets' => [{ 'fingerprint' => fingerprint,
                                  'quantity' => 1,
