@@ -15,9 +15,6 @@
 
 {-# OPTIONS_GHC -fno-warn-orphans #-}
 
--- TODO: https://input-output.atlassian.net/browse/ADP-2841
-{-# OPTIONS_GHC -fno-warn-star-is-type #-}
-
 module Cardano.Wallet.Primitive.AddressDiscovery.SequentialSpec
     ( spec
     ) where
@@ -92,6 +89,8 @@ import Data.List.NonEmpty
     ( NonEmpty )
 import Data.Maybe
     ( isJust, isNothing )
+import Data.Kind
+    ( Type )
 import Data.Proxy
     ( Proxy (..) )
 import Data.Text.Class
@@ -535,7 +534,7 @@ instance Arbitrary (SeqState 'Mainnet ShelleyKey) where
             Nothing rewardAccount defaultPrefix
 
 -- | Wrapper to encapsulate keys.
-data Key = forall (k :: Depth -> * -> *).
+data Key = forall (k :: Depth -> Type -> Type).
     ( Typeable k
     , Eq (k 'AccountK XPub)
     , Show (k 'AccountK XPub)

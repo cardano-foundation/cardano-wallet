@@ -28,9 +28,6 @@
 -- API servant type. These tests enforces that the API behaves as expected when
 -- present with malformed data, and do so consistently across each endpoint.
 
--- TODO: https://input-output.atlassian.net/browse/ADP-2841
-{-# OPTIONS_GHC -fno-warn-star-is-type #-}
-
 -- TODO: Temporary until all 'integration' scenarios have been move here.
 {-# OPTIONS_GHC -fno-warn-unused-top-binds #-}
 
@@ -103,6 +100,8 @@ import Data.Aeson.QQ
     ( aesonQQ )
 import Data.ByteString.Lazy
     ( ByteString )
+import Data.Kind
+    ( Type )
 import Data.Proxy
     ( Proxy (..) )
 import Data.String
@@ -127,13 +126,13 @@ import qualified Data.Text as T
 newtype ExpectedError = ExpectedError String
     deriving newtype (IsString)
 
-newtype PathParam (t :: *) = PathParam Text
+newtype PathParam (t :: Type) = PathParam Text
     deriving (Typeable)
 
-newtype BodyParam (t :: *) = BodyParam ByteString
+newtype BodyParam (t :: Type) = BodyParam ByteString
     deriving (Typeable)
 
-newtype Header (headerName :: Symbol) (contentType :: *) =
+newtype Header (headerName :: Symbol) (contentType :: Type) =
     Header BS.ByteString
     deriving (Typeable)
 
