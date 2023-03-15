@@ -19,7 +19,6 @@ import Cardano.Wallet.Unsafe
     ( unsafeFromHex )
 import Cardano.Wallet.Write.Tx
     ( BinaryData
-    , LatestLedgerEra
     , RecentEra (..)
     , Script
     , TxOutInBabbage
@@ -66,7 +65,6 @@ import Test.QuickCheck
 
 import qualified Cardano.Api as Cardano
 import qualified Cardano.Api.Gen as Cardano
-import qualified Cardano.Api.Shelley as Cardano
 import qualified Cardano.Ledger.Alonzo.Data as Alonzo
 import qualified Data.Aeson as Aeson
 import qualified Data.Aeson.Types as Aeson
