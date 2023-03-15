@@ -73,6 +73,7 @@ spec = describe "SHELLEY_NETWORK" $ do
                     ApiMary -> expectField (#eras . #mary) toBe
                     ApiAlonzo -> expectField (#eras . #alonzo) toBe
                     ApiBabbage -> expectField (#eras . #babbage) toBe
+                    ApiConway -> const $ pure () -- TODO https://input-output.atlassian.net/browse/ADP-2841
 
         let knownEras = [minBound .. _mainEra ctx]
         let unknownEras = [minBound .. maxBound] \\ knownEras

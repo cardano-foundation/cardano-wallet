@@ -758,6 +758,7 @@ maximumCollateralInputCountByEra = \case
     -- value from alonzo-genesis.yaml:
     ApiAlonzo  -> 3
     ApiBabbage -> 3
+    ApiConway  -> 3
 
 minimumCollateralPercentageByEra :: ApiEra -> Natural
 minimumCollateralPercentageByEra = \case
@@ -768,6 +769,7 @@ minimumCollateralPercentageByEra = \case
     -- value from alonzo-genesis.yaml:
     ApiAlonzo  -> 150
     ApiBabbage -> 150
+    ApiConway  -> 150
 
 --
 -- Helpers
