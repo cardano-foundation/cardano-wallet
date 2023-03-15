@@ -100,7 +100,7 @@ class CardanoCli
         '--tx-in-datum-value', 1914,
         '--tx-in-redeemer-value', 123,
         '--tx-in-collateral', collateral_utxo,
-        '--tx-in-execution-units', '(10, 10)',
+        '--tx-in-execution-units', '"(10, 10)"',
         '--protocol-params-file', get_protocol_params_to_file,
         '--fee', fee,
         '--tx-out-return-collateral', "#{collateral_ret_addr}+#{collateral_utxo_amt - (fee * 1.5).to_i}",
