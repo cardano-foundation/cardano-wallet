@@ -168,6 +168,8 @@ import Cardano.Wallet.Primitive.Types.Tx.Constraints
     ( txOutMaxCoin )
 import Cardano.Wallet.Shelley.Compatibility.Ledger
     ( toLedger )
+import Control.Monad
+    ( forM )
 import Data.ByteString
     ( ByteString )
 import Data.ByteString.Short
@@ -198,6 +200,7 @@ import qualified Cardano.Ledger.Alonzo.Tx as Alonzo
 import qualified Cardano.Ledger.Alonzo.TxBody as Alonzo
 import qualified Cardano.Ledger.Babbage as Babbage
 import qualified Cardano.Ledger.Babbage.TxBody as Babbage
+import qualified Cardano.Ledger.Conway.TxBody as Conway
 import qualified Cardano.Ledger.Core as Core
 import qualified Cardano.Ledger.Shelley.API.Wallet as Shelley
 import qualified Cardano.Ledger.Shelley.UTxO as Shelley
@@ -205,7 +208,6 @@ import qualified Cardano.Ledger.TxIn as Ledger
 import qualified Data.Aeson as Aeson
 import qualified Data.Aeson.Types as Aeson
 import qualified Data.Map as Map
-import Control.Monad (forM)
 
 --------------------------------------------------------------------------------
 -- Eras
@@ -753,7 +755,7 @@ txBody
     :: RecentEra era
     -> Core.Tx (ShelleyLedgerEra era)
     -> Core.TxBody (ShelleyLedgerEra era)
-txBody RecentEraConway = Alonzo.body
+txBody RecentEraConway = Alonzo.body -- same type for conway
 txBody RecentEraBabbage = Alonzo.body -- same type for babbage
 txBody RecentEraAlonzo = Alonzo.body
 
@@ -762,7 +764,7 @@ outputs
     :: RecentEra era
     -> Core.TxBody (ShelleyLedgerEra era)
     -> [TxOut (ShelleyLedgerEra era)]
-outputs RecentEraConway = map sizedValue . toList . Babbage.outputs
+outputs RecentEraConway = map sizedValue . toList . Conway.outputs
 outputs RecentEraBabbage = map sizedValue . toList . Babbage.outputs
 outputs RecentEraAlonzo = toList . Alonzo.outputs
 
