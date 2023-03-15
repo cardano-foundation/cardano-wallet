@@ -108,7 +108,6 @@ module TxHistory
     end
   end
 
-
   def tx_validity_interval(tx, invalid_before: before, invalid_hereafter: hereafter)
     expect(tx['validity_interval']['invalid_before']).to eq({ 'quantity' => invalid_before, 'unit' => 'slot' })
     expect(tx['validity_interval']['invalid_hereafter']).to eq({ 'quantity' => invalid_hereafter, 'unit' => 'slot' })
