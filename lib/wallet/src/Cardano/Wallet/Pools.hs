@@ -109,11 +109,14 @@ import Cardano.Wallet.Shelley.Compatibility
     , fromAllegraBlock
     , fromAlonzoBlock
     , fromBabbageBlock
+    , fromConwayBlock
     , fromMaryBlock
     , fromShelleyBlock
     , getBabbageProducer
+    , getConwayProducer
     , getProducer
     , toBabbageBlockHeader
+    , toConwayBlockHeader
     , toShelleyBlockHeader
     )
 import Cardano.Wallet.Unsafe
@@ -654,6 +657,9 @@ monitorStakePools tr (NetworkParameters gp sp _pp) genesisPools nl DBLayer{..} =
             BlockBabbage blk ->
                 forEachShelleyBlock
                     (fromBabbageBlock gp blk) (getBabbageProducer blk)
+            BlockConway blk ->
+                forEachShelleyBlock
+                    (fromConwayBlock gp blk) (getConwayProducer blk)
 
         forLastBlock = \case
             BlockByron blk ->
@@ -668,6 +674,8 @@ monitorStakePools tr (NetworkParameters gp sp _pp) genesisPools nl DBLayer{..} =
                 putHeader (toShelleyBlockHeader getGenesisBlockHash blk)
             BlockBabbage blk ->
                 putHeader (toBabbageBlockHeader getGenesisBlockHash blk)
+            BlockConway blk ->
+                putHeader (toConwayBlockHeader getGenesisBlockHash blk)
 
         forEachShelleyBlock (blk, certificates) poolId = do
             let header = view #header blk
