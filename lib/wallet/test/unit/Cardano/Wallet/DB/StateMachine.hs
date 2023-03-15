@@ -305,7 +305,7 @@ newtype MWid = MWid String
 unMockWid :: MWid -> WalletId
 unMockWid (MWid wid) = WalletId m
   where
-    Just m = digestFromByteString spliced
+    m = fromJust $ digestFromByteString spliced
     spliced = wid' <> B8.drop (B8.length wid') hashed
     hashed = BA.convert (hash wid' :: Digest Blake2b_160)
     wid' = B8.pack wid

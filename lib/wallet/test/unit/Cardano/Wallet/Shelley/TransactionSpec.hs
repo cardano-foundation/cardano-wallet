@@ -1496,6 +1496,7 @@ feeEstimationRegressionSpec = describe "Regression tests" $ do
 binaryCalculationsSpec :: AnyRecentEra -> Spec
 binaryCalculationsSpec (AnyRecentEra era) =
     case era of
+        RecentEraConway -> binaryCalculationsSpec' @Cardano.ConwayEra era
         RecentEraAlonzo -> binaryCalculationsSpec' @Cardano.AlonzoEra era
         RecentEraBabbage -> binaryCalculationsSpec' @Cardano.BabbageEra era
 
@@ -1543,6 +1544,21 @@ binaryCalculationsSpec' era = describe ("calculateBinary - "+||era||+"") $ do
                     [ TxOut (dummyAddress 2) (coinToBundle amtChange)
                     ]
             let binary = case era of
+                    RecentEraConway -> mconcat
+                      [ "84a400818258200000000000000000000000000000000000000000"
+                      , "000000000000000000000000000182a20058390101010101010101"
+                      , "010101010101010101010101010101010101010101010101010101"
+                      , "01010101010101010101010101010101010101010101011a001e84"
+                      , "80a200583901020202020202020202020202020202020202020202"
+                      , "020202020202020202020202020202020202020202020202020202"
+                      , "0202020202020202011a0078175c021a0001faa403191e46a10281"
+                      , "845820010000000000000000000000000000000000000000000000"
+                      , "000000000000000058407154db81463825f150bb3b9b0824caf151"
+                      , "3716f73498afe61d917a5621912a2b3df252bea14683a9ee56710d"
+                      , "483a53a5aa35247e0d2b80e6300f7bdec763a20458200000000000"
+                      , "000000000000000000000000000000000000000000000000000000"
+                      , "41a0f5f6"
+                      ]
                     RecentEraBabbage -> mconcat
                       [ "84a400818258200000000000000000000000000000000000000000"
                       , "000000000000000000000000000182a20058390101010101010101"
@@ -1597,6 +1613,30 @@ binaryCalculationsSpec' era = describe ("calculateBinary - "+||era||+"") $ do
                     [ TxOut (dummyAddress 4) (coinToBundle amtChange)
                     ]
             let binary = case era of
+                    RecentEraConway -> mconcat
+                      [ "84a400828258200000000000000000000000000000000000000000"
+                      , "000000000000000000000000008258200000000000000000000000"
+                      , "000000000000000000000000000000000000000000010183a20058"
+                      , "390102020202020202020202020202020202020202020202020202"
+                      , "020202020202020202020202020202020202020202020202020202"
+                      , "02020202011a005b8d80a200583901030303030303030303030303"
+                      , "030303030303030303030303030303030303030303030303030303"
+                      , "0303030303030303030303030303030303011a005b8d80a2005839"
+                      , "010404040404040404040404040404040404040404040404040404"
+                      , "040404040404040404040404040404040404040404040404040404"
+                      , "040404011a007801e0021a0002102003191e46a102828458200100"
+                      , "000000000000000000000000000000000000000000000000000000"
+                      , "00000058401a8667d2d0af4e24d4d385443002f1e9036063bdb7c6"
+                      , "2d45447a2e176ded81a11683bd944c6d7db6e5fd886840025f6319"
+                      , "2a382e526f4150e2b336ee9ed80808582000000000000000000000"
+                      , "0000000000000000000000000000000000000000000041a0845820"
+                      , "130ae82201d7072e6fbfc0a1884fb54636554d14945b799125cf7c"
+                      , "e38d477f515840320ed7d1513b0f1b61381f7942a07b627b246c85"
+                      , "a13b2623e4868ea82488c778a7760124f3a17f924c08d425c0717d"
+                      , "f6cd898eb4ab8439a16e08befdc415120e58200101010101010101"
+                      , "01010101010101010101010101010101010101010101010141a0f5"
+                      , "f6"
+                      ]
                     RecentEraBabbage -> mconcat
                       [ "84a400828258200000000000000000000000000000000000000000"
                       , "000000000000000000000000008258200000000000000000000000"
@@ -1666,6 +1706,21 @@ binaryCalculationsSpec' era = describe ("calculateBinary - "+||era||+"") $ do
                     [ TxOut (dummyAddress 2) (coinToBundle amtChange)
                     ]
             let binary = case era of
+                    RecentEraConway -> mconcat
+                      [ "84a400818258200000000000000000000000000000000000000000"
+                      , "000000000000000000000000000182a20058390101010101010101"
+                      , "010101010101010101010101010101010101010101010101010101"
+                      , "01010101010101010101010101010101010101010101011a001e84"
+                      , "80a200583901020202020202020202020202020202020202020202"
+                      , "020202020202020202020202020202020202020202020202020202"
+                      , "0202020202020202011a0078175c021a0001faa403191e46a10281"
+                      , "845820010000000000000000000000000000000000000000000000"
+                      , "000000000000000058407154db81463825f150bb3b9b0824caf151"
+                      , "3716f73498afe61d917a5621912a2b3df252bea14683a9ee56710d"
+                      , "483a53a5aa35247e0d2b80e6300f7bdec763a20458200000000000"
+                      , "000000000000000000000000000000000000000000000000000000"
+                      , "44a1024100f5f6"
+                      ]
                     RecentEraBabbage -> mconcat
                       [ "84a400818258200000000000000000000000000000000000000000"
                       , "000000000000000000000000000182a20058390101010101010101"
@@ -1721,30 +1776,6 @@ binaryCalculationsSpec' era = describe ("calculateBinary - "+||era||+"") $ do
                     [ TxOut (dummyAddress 4) (coinToBundle amtChange)
                     ]
             let binary = case era of
-                    RecentEraBabbage -> mconcat
-                      [ "84a400828258200000000000000000000000000000000000000000"
-                      , "000000000000000000000000008258200000000000000000000000"
-                      , "000000000000000000000000000000000000000000010183a20058"
-                      , "390102020202020202020202020202020202020202020202020202"
-                      , "020202020202020202020202020202020202020202020202020202"
-                      , "02020202011a005b8d80a200583901030303030303030303030303"
-                      , "030303030303030303030303030303030303030303030303030303"
-                      , "0303030303030303030303030303030303011a005b8d80a2005839"
-                      , "010404040404040404040404040404040404040404040404040404"
-                      , "040404040404040404040404040404040404040404040404040404"
-                      , "040404011a007801e0021a0002102003191e46a10282845820130a"
-                      , "e82201d7072e6fbfc0a1884fb54636554d14945b799125cf7ce38d"
-                      , "477f515840320ed7d1513b0f1b61381f7942a07b627b246c85a13b"
-                      , "2623e4868ea82488c778a7760124f3a17f924c08d425c0717df6cd"
-                      , "898eb4ab8439a16e08befdc415120e582001010101010101010101"
-                      , "0101010101010101010101010101010101010101010144a1024100"
-                      , "845820010000000000000000000000000000000000000000000000"
-                      , "000000000000000058401a8667d2d0af4e24d4d385443002f1e903"
-                      , "6063bdb7c62d45447a2e176ded81a11683bd944c6d7db6e5fd8868"
-                      , "40025f63192a382e526f4150e2b336ee9ed8080858200000000000"
-                      , "000000000000000000000000000000000000000000000000000000"
-                      , "44a1024100f5f6"
-                      ]
                     RecentEraAlonzo -> mconcat
                       [ "84a400828258200000000000000000000000000000000000000000"
                       , "000000000000000000000000008258200000000000000000000000"
@@ -1769,6 +1800,30 @@ binaryCalculationsSpec' era = describe ("calculateBinary - "+||era||+"") $ do
                       , "00000000000000000000000000000000000000000044a1024100f5"
                       , "f6"
                       ]
+                    _ -> mconcat
+                      [ "84a400828258200000000000000000000000000000000000000000"
+                      , "000000000000000000000000008258200000000000000000000000"
+                      , "000000000000000000000000000000000000000000010183a20058"
+                      , "390102020202020202020202020202020202020202020202020202"
+                      , "020202020202020202020202020202020202020202020202020202"
+                      , "02020202011a005b8d80a200583901030303030303030303030303"
+                      , "030303030303030303030303030303030303030303030303030303"
+                      , "0303030303030303030303030303030303011a005b8d80a2005839"
+                      , "010404040404040404040404040404040404040404040404040404"
+                      , "040404040404040404040404040404040404040404040404040404"
+                      , "040404011a007801e0021a0002102003191e46a10282845820130a"
+                      , "e82201d7072e6fbfc0a1884fb54636554d14945b799125cf7ce38d"
+                      , "477f515840320ed7d1513b0f1b61381f7942a07b627b246c85a13b"
+                      , "2623e4868ea82488c778a7760124f3a17f924c08d425c0717df6cd"
+                      , "898eb4ab8439a16e08befdc415120e582001010101010101010101"
+                      , "0101010101010101010101010101010101010101010144a1024100"
+                      , "845820010000000000000000000000000000000000000000000000"
+                      , "000000000000000058401a8667d2d0af4e24d4d385443002f1e903"
+                      , "6063bdb7c62d45447a2e176ded81a11683bd944c6d7db6e5fd8868"
+                      , "40025f63192a382e526f4150e2b336ee9ed8080858200000000000"
+                      , "000000000000000000000000000000000000000000000000000000"
+                      , "44a1024100f5f6"
+                      ]
             calculateBinary net utxo outs chgs pairs `shouldBe` binary
 
   where
@@ -1782,7 +1837,7 @@ binaryCalculationsSpec' era = describe ("calculateBinary - "+||era||+"") $ do
               mkByronWitness @era unsignedTx net addr
           addrWits = zipWith (mkByronWitness' unsigned) inps pairs
           fee = toCardanoLovelace $ selectionDelta TxOut.coin cs
-          Right unsigned =
+          unsigned = either (error . show) id $
               mkUnsignedTx (shelleyBasedEraFromRecentEra era)
                 (Nothing, slotNo) (Right cs) md mempty [] fee
               TokenMap.empty TokenMap.empty Map.empty Map.empty
@@ -1873,7 +1928,7 @@ makeShelleyTx era testCase = Cardano.makeSignedTransaction addrWits unsigned
     DecodeSetup utxo outs md slotNo pairs _netwk = testCase
     inps = Map.toList $ unUTxO utxo
     fee = toCardanoLovelace $ selectionDelta TxOut.coin cs
-    Right unsigned =
+    unsigned = either (error . show) id $
         mkUnsignedTx era (Nothing, slotNo) (Right cs) md mempty [] fee
         TokenMap.empty TokenMap.empty Map.empty Map.empty
     addrWits = map (mkShelleyWitness unsigned) pairs
@@ -3073,8 +3128,10 @@ prop_distributeSurplus_onSuccess_increasesValuesByDelta =
     prop_distributeSurplus_onSuccess $ \policy surplus
         (TxFeeAndChange feeOriginal changeOriginal)
         (TxFeeAndChange feeModified changeModified) ->
-            let Right (TxFeeAndChange feeDelta changeDeltas) =
-                    distributeSurplusDelta policy surplus $ TxFeeAndChange
+            let (TxFeeAndChange feeDelta changeDeltas) =
+                    either (error . show) id
+                    $ distributeSurplusDelta policy surplus
+                    $ TxFeeAndChange
                         (feeOriginal)
                         (TxOut.coin <$> changeOriginal)
             in

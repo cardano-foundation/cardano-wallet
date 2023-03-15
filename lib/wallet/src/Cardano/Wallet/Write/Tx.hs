@@ -753,6 +753,7 @@ txBody
     :: RecentEra era
     -> Core.Tx (ShelleyLedgerEra era)
     -> Core.TxBody (ShelleyLedgerEra era)
+txBody RecentEraConway = Alonzo.body
 txBody RecentEraBabbage = Alonzo.body -- same type for babbage
 txBody RecentEraAlonzo = Alonzo.body
 
@@ -761,6 +762,7 @@ outputs
     :: RecentEra era
     -> Core.TxBody (ShelleyLedgerEra era)
     -> [TxOut (ShelleyLedgerEra era)]
+outputs RecentEraConway = map sizedValue . toList . Babbage.outputs
 outputs RecentEraBabbage = map sizedValue . toList . Babbage.outputs
 outputs RecentEraAlonzo = toList . Alonzo.outputs
 
@@ -821,20 +823,13 @@ toCardanoUTxO
     :: forall era. IsRecentEra era
     => Shelley.UTxO (ShelleyLedgerEra era)
     -> Cardano.UTxO era
-toCardanoUTxO = withConstraints $
+toCardanoUTxO = withStandardCryptoConstraint (recentEra @era) $
     Cardano.UTxO
     . Map.mapKeys Cardano.fromShelleyTxIn
     . Map.map (Cardano.fromShelleyTxOut (shelleyBasedEra @era))
     . unUTxO
   where
     unUTxO (Shelley.UTxO m) = m
-
-    withConstraints
-        :: ((Crypto (Cardano.ShelleyLedgerEra era) ~ StandardCrypto) => a)
-        -> a
-    withConstraints a = case recentEra @era of
-        RecentEraBabbage -> a
-        RecentEraAlonzo -> a
 
 fromCardanoUTxO
     :: forall era. IsRecentEra era
@@ -853,6 +848,7 @@ toCardanoValue
     => Core.Value (ShelleyLedgerEra era)
     -> Cardano.Value
 toCardanoValue = case recentEra @era of
+    RecentEraConway -> Cardano.fromMaryValue
     RecentEraBabbage -> Cardano.fromMaryValue
     RecentEraAlonzo -> Cardano.fromMaryValue
 
