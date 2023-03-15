@@ -1,4 +1,5 @@
 {-# LANGUAGE AllowAmbiguousTypes #-}
+{-# LANGUAGE BinaryLiterals #-}
 {-# LANGUAGE DataKinds #-}
 {-# LANGUAGE DeriveGeneric #-}
 {-# LANGUAGE DerivingVia #-}
@@ -8,6 +9,7 @@
 {-# LANGUAGE LambdaCase #-}
 {-# LANGUAGE MultiParamTypeClasses #-}
 {-# LANGUAGE PolyKinds #-}
+{-# LANGUAGE RecordWildCards #-}
 {-# LANGUAGE RoleAnnotations #-}
 {-# LANGUAGE ScopedTypeVariables #-}
 {-# LANGUAGE TypeApplications #-}
@@ -73,6 +75,8 @@ module Cardano.Wallet.Primitive.AddressDerivation
     , ErrMkKeyFingerprint(..)
     , KeyFingerprint(..)
     , unsafePaymentKeyFingerprint
+    , AddressParts (..)
+    , toAddressParts
     ) where
 
 import Prelude
@@ -99,6 +103,10 @@ import Crypto.Hash
     ( Digest, HashAlgorithm )
 import Crypto.Hash.Utils
     ( blake2b224 )
+import Data.Bifunctor
+    ( first )
+import Data.Bits
+    ( (.&.) )
 import Data.ByteArray
     ( ByteArray, ByteArrayAccess )
 import Data.ByteArray.Encoding
@@ -130,7 +138,7 @@ import Data.Text.Class
 import Data.Type.Equality
     ( (:~:) (..), testEquality )
 import Data.Word
-    ( Word32 )
+    ( Word32, Word8 )
 import Fmt
     ( Buildable (..) )
 import GHC.Generics
@@ -146,6 +154,7 @@ import Safe
 import Type.Reflection
     ( Typeable, typeRep )
 
+import qualified Data.ByteString as BS
 import qualified Data.Text as T
 
 {-------------------------------------------------------------------------------
@@ -770,6 +779,19 @@ class Show from => MkKeyFingerprint (key :: Depth -> Type -> Type) from where
 
 data ErrMkKeyFingerprint key from
     = ErrInvalidAddress from (Proxy key) deriving (Show, Eq)
+
+data AddressParts = AddressParts
+    { addrType :: Word8
+    , addrNetwork :: Word8
+    , credentials :: ByteString
+    } deriving (Show,Eq)
+
+toAddressParts :: Address -> AddressParts
+toAddressParts (Address bytes) = AddressParts {..}
+  where
+    (fstByte, credentials) = first BS.head $ BS.splitAt 1 bytes
+    addrType = fstByte .&. 0b11110000
+    addrNetwork = fstByte .&. 0b00001111
 
 -- Extract the fingerprint from an 'Address', we expect the caller to
 -- provide addresses that are compatible with the key scheme being used.
