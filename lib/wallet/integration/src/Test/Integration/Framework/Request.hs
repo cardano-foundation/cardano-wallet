@@ -21,7 +21,7 @@ module Test.Integration.Framework.Request
 import Prelude
 
 import Control.Monad.IO.Class
-    ( MonadIO, liftIO )
+    ( liftIO )
 import Control.Monad.IO.Unlift
     ( MonadUnliftIO (..) )
 import Data.Aeson
@@ -154,8 +154,7 @@ rawRequest = baseRequest mempty handleResponse
 
 baseRequest
     :: forall a m s.
-        ( MonadIO m
-        , MonadUnliftIO m
+        ( MonadUnliftIO m
         , HasType (URI, Manager) s
         )
     => RequestHeaders
@@ -197,7 +196,6 @@ baseRequest defaultHeaders handleResponse ctx (verb, path) headers payload = do
 unsafeRequest
     :: forall a m.
         ( FromJSON a
-        , MonadIO m
         , MonadUnliftIO m
         )
     => Context

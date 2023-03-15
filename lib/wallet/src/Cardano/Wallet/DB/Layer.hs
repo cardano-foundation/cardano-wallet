@@ -991,7 +991,7 @@ deleteDelegationCertificates wid filters = do
 -- for /outgoing/ payments, but less so for /ingoing/ payments.
 
 selectTransactionInfo
-    :: (Monad m, MonadIO m)
+    :: MonadIO m
     => TimeInterpreter IO
     -> W.BlockHeader
     -> (TxId -> m (Maybe TxRelation))
