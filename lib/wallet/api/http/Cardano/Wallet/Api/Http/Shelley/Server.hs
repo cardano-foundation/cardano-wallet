@@ -4139,6 +4139,7 @@ type RewardAccountBuilder k
 
 guardIsRecentEra :: AnyCardanoEra -> Handler AnyRecentEra
 guardIsRecentEra (Cardano.AnyCardanoEra era) = case era of
+    Cardano.ConwayEra -> pure $ WriteTx.AnyRecentEra WriteTx.RecentEraConway
     Cardano.BabbageEra -> pure $ WriteTx.AnyRecentEra WriteTx.RecentEraBabbage
     Cardano.AlonzoEra  -> pure $ WriteTx.AnyRecentEra WriteTx.RecentEraAlonzo
     Cardano.MaryEra    -> liftE invalidEra
@@ -4786,7 +4787,7 @@ data ErrUnexpectedPoolIdPlaceholder = ErrUnexpectedPoolIdPlaceholder
     deriving (Eq, Show)
 
 data ErrCreateWallet
-    = ErrCreateWalletAlreadyExists ErrWalletAlreadyExists
+    = ErrCreateWalletAlreadyExists !ErrWalletAlreadyExists
         -- ^ Wallet already exists
     | ErrCreateWalletFailedToCreateWorker
         -- ^ Somehow, we couldn't create a worker or open a db connection
@@ -4842,8 +4843,8 @@ instance IsServerError ErrGetAsset where
 -- | The type of log messages coming from the server 'ApiLayer', which may or
 -- may not be associated with a particular worker thread.
 data WalletEngineLog
-    = MsgWalletWorker (WorkerLog WalletId W.WalletWorkerLog)
-    | MsgSubmitSealedTx TxSubmitLog
+    = MsgWalletWorker !(WorkerLog WalletId W.WalletWorkerLog)
+    | MsgSubmitSealedTx !TxSubmitLog
     deriving (Show, Eq)
 
 instance ToText WalletEngineLog where

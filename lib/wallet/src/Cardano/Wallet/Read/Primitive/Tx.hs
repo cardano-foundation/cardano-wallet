@@ -21,6 +21,8 @@ import Cardano.Wallet.Read.Primitive.Tx.Babbage
     ( fromBabbageTx )
 import Cardano.Wallet.Read.Primitive.Tx.Byron
     ( fromTxAux )
+import Cardano.Wallet.Read.Primitive.Tx.Conway
+    ( fromConwayTx )
 import Cardano.Wallet.Read.Primitive.Tx.Mary
     ( fromMaryTx )
 import Cardano.Wallet.Read.Primitive.Tx.Shelley
@@ -63,6 +65,8 @@ fromCardanoTx witCtx = \case
             extract $ fromAlonzoTx tx witCtx
         Cardano.ShelleyBasedEraBabbage ->
             extract $ fromBabbageTx tx witCtx
+        Cardano.ShelleyBasedEraConway ->
+            extract $ fromConwayTx tx witCtx
     Cardano.ByronTx tx ->
         ( fromTxAux tx
         , emptyTokenMapWithScripts

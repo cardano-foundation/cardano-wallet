@@ -87,6 +87,7 @@ module Cardano.Wallet.Shelley.Compatibility
     , fromMaryPParams
     , fromAlonzoPParams
     , fromBabbagePParams
+    , fromConwayPParams
     , fromLedgerExUnits
     , toLedgerExUnits
     , fromCardanoAddress
@@ -141,7 +142,9 @@ module Cardano.Wallet.Shelley.Compatibility
     , fromMaryBlock
     , fromAlonzoBlock
     , fromBabbageBlock
+    , fromConwayBlock
     , getBabbageProducer
+    , getConwayProducer
 
       -- * Internal Conversions
     , decentralizationLevelFromPParams
@@ -169,11 +172,11 @@ import Cardano.Api
     , AnyCardanoEra (..)
     , AsType (..)
     , BabbageEra
-    , ConwayEra
     , CardanoEra (..)
     , CardanoEraStyle (..)
     , CardanoMode
     , ConsensusModeParams (CardanoModeParams)
+    , ConwayEra
     , EraInMode (..)
     , InAnyCardanoEra (..)
     , IsCardanoEra (..)
@@ -330,6 +333,7 @@ import Ouroboros.Consensus.Cardano.Block
     , StandardAllegra
     , StandardAlonzo
     , StandardBabbage
+    , StandardConway
     , StandardMary
     , StandardShelley
     )
@@ -377,6 +381,7 @@ import qualified Cardano.Ledger.Babbage.Tx as Babbage hiding
 import qualified Cardano.Ledger.Babbage.TxBody as Babbage
 import qualified Cardano.Ledger.BaseTypes as SL
 import qualified Cardano.Ledger.Conway as Conway
+import qualified Cardano.Ledger.Conway.PParams as Conway
 import qualified Cardano.Ledger.Credential as SL
 import qualified Cardano.Ledger.Crypto as SL
 import qualified Cardano.Ledger.Era as Ledger.Era
@@ -531,20 +536,15 @@ toBabbageBlockHeader
     -> ShelleyBlock (Consensus.Praos StandardCrypto) era
     -> W.BlockHeader
 toBabbageBlockHeader genesisHash blk =
-    let
-        ShelleyBlock (SL.Block header _txSeq) _headerHash = blk
-    in
-        W.BlockHeader
-            { slotNo =
-                Consensus.pHeaderSlot header
-            , blockHeight =
-                fromBlockNo $ Consensus.pHeaderBlock header
-            , headerHash =
-                fromShelleyHash $ Consensus.pHeaderHash header
-            , parentHeaderHash = Just $
-                fromPrevHash (coerce genesisHash) $
-                    Consensus.pHeaderPrevHash header
-            }
+    W.BlockHeader
+        { slotNo = Consensus.pHeaderSlot header
+        , blockHeight = fromBlockNo $ Consensus.pHeaderBlock header
+        , headerHash = fromShelleyHash $ Consensus.pHeaderHash header
+        , parentHeaderHash = Just $ fromPrevHash (coerce genesisHash) $
+            Consensus.pHeaderPrevHash header
+        }
+  where
+    ShelleyBlock (SL.Block header _txSeq) _headerHash = blk
 
 toConwayBlockHeader
     :: (ShelleyCompatible (Consensus.Praos StandardCrypto) era)
@@ -552,20 +552,15 @@ toConwayBlockHeader
     -> ShelleyBlock (Consensus.Praos StandardCrypto) era
     -> W.BlockHeader
 toConwayBlockHeader genesisHash blk =
-    let
-        ShelleyBlock (SL.Block header _txSeq) _headerHash = blk
-    in
-        W.BlockHeader
-            { slotNo =
-                Consensus.pHeaderSlot header
-            , blockHeight =
-                fromBlockNo $ Consensus.pHeaderBlock header
-            , headerHash =
-                fromShelleyHash $ Consensus.pHeaderHash header
-            , parentHeaderHash = Just $
-                fromPrevHash (coerce genesisHash) $
-                    Consensus.pHeaderPrevHash header
-            }
+    W.BlockHeader
+        { slotNo = Consensus.pHeaderSlot header
+        , blockHeight = fromBlockNo $ Consensus.pHeaderBlock header
+        , headerHash = fromShelleyHash $ Consensus.pHeaderHash header
+        , parentHeaderHash = Just $ fromPrevHash (coerce genesisHash) $
+            Consensus.pHeaderPrevHash header
+        }
+  where
+    ShelleyBlock (SL.Block header _txSeq) _headerHash = blk
 
 getProducer
     :: (Era era, ToCBORGroup (Ledger.Era.TxSeq era))
@@ -577,6 +572,12 @@ getBabbageProducer
     :: (Era era, ToCBORGroup (Ledger.Era.TxSeq era))
     => ShelleyBlock (Consensus.Praos StandardCrypto) era -> PoolId
 getBabbageProducer (ShelleyBlock (SL.Block (Consensus.Header header _) _) _) =
+    fromPoolKeyHash $ SL.hashKey (Consensus.hbVk header)
+
+getConwayProducer
+    :: (Era era, ToCBORGroup (Ledger.Era.TxSeq era))
+    => ShelleyBlock (Consensus.Praos StandardCrypto) era -> PoolId
+getConwayProducer (ShelleyBlock (SL.Block (Consensus.Header header _) _) _) =
     fromPoolKeyHash $ SL.hashKey (Consensus.hbVk header)
 
 fromCardanoBlock
@@ -1004,6 +1005,30 @@ fromBabbagePParams eraInfo currentNodeProtocolParameters pp =
             Babbage._collateralPercentage pp
         , executionUnitPrices =
             Just $ executionUnitPricesFromPParams pp
+        , currentNodeProtocolParameters
+        }
+
+fromConwayPParams
+    :: HasCallStack
+    => W.EraInfo Bound
+    -> Maybe Cardano.ProtocolParameters
+    -> Babbage.BabbagePParams StandardConway
+    -> W.ProtocolParameters
+fromConwayPParams eraInfo currentNodeProtocolParameters pp =
+    W.ProtocolParameters
+        { decentralizationLevel = decentralizationLevelFromPParams pp
+        , txParameters = txParametersFromPParams
+            (W.TokenBundleMaxSize $ W.TxSize $ Conway._maxValSize pp)
+            (fromLedgerExUnits (getField @"_maxTxExUnits" pp))
+            pp
+        , desiredNumberOfStakePools = desiredNumberOfStakePoolsFromPParams pp
+        , minimumUTxO = minimumUTxOForShelleyBasedEra ShelleyBasedEraConway pp
+        , stakeKeyDeposit = stakeKeyDepositFromPParams pp
+        , eras = fromBoundToEpochNo <$> eraInfo
+        , maximumCollateralInputCount =
+            unsafeIntToWord $ Conway._maxCollateralInputs pp
+        , minimumCollateralPercentage = Conway._collateralPercentage pp
+        , executionUnitPrices = Just $ executionUnitPricesFromPParams pp
         , currentNodeProtocolParameters
         }
 
