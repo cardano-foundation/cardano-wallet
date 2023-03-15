@@ -607,23 +607,15 @@ instance KnownNat pm => NetworkDiscriminantVal ('Staging pm) where
         "staging (" <> T.pack (show $ natVal $ Proxy @pm) <> ")"
 
 networkVal
-    :: forall (n :: NetworkDiscriminant) pm. (Typeable n, KnownNat pm)
+    :: forall (n :: NetworkDiscriminant). Typeable n
     => Word8
 networkVal = fromMaybe (error $ "network: unmatched type" <> show (typeRep @n))
-       (tryMainnet <|> tryTestnet <|> tryStaging)
+       tryMainnet
   where
     tryMainnet =
         case testEquality (typeRep @n) (typeRep @'Mainnet) of
             Just Refl  -> Just 0b00000001
-            Nothing -> Nothing
-    tryTestnet =
-        case testEquality (typeRep @n) (typeRep @('Testnet pm)) of
-            Just Refl  -> Just 0b00000000
-            Nothing -> Nothing
-    tryStaging =
-        case testEquality (typeRep @n) (typeRep @('Staging pm)) of
-            Just Refl  -> Just 0b00000000
-            Nothing -> Nothing
+            Nothing -> Just 0b00000000
 
 {-------------------------------------------------------------------------------
                      Interface over keys / address types
@@ -803,13 +795,13 @@ data ErrMkKeyFingerprint key from
 data AddressParts = AddressParts
     { addrType :: Word8
     , addrNetwork :: Word8
-    , credentials :: ByteString
+    , rest :: ByteString
     } deriving (Show,Eq)
 
 toAddressParts :: Address -> AddressParts
 toAddressParts (Address bytes) = AddressParts {..}
   where
-    (fstByte, credentials) = first BS.head $ BS.splitAt 1 bytes
+    (fstByte, rest) = first BS.head $ BS.splitAt 1 bytes
     addrType = fstByte .&. 0b11110000
     addrNetwork = fstByte .&. 0b00001111
 

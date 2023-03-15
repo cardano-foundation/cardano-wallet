@@ -361,7 +361,7 @@ instance MkKeyFingerprint ShelleyKey Address where
             enterpriseAddr = 0b01100000 -- keyhash
             rewardAcct = 0b11100000     -- keyhash
         in if addrType `elem` [baseAddr, enterpriseAddr, rewardAcct] then
-            Right $ KeyFingerprint $ BS.take hashSize credentials
+            Right $ KeyFingerprint $ BS.take hashSize rest
            else
             Left $ ErrInvalidAddress addr (Proxy @ShelleyKey)
 
