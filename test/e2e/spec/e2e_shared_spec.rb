@@ -196,7 +196,7 @@ RSpec.describe 'Cardano Wallet E2E tests - Shared wallets', :all, :e2e, :shared 
         # on target wallet
         txt = SHELLEY.transactions.get(target_wid, tx_id)
         tx_amount(txt, amt)
-        tx_fee(txt, 0)
+        tx_fee(tx, expected_fee)
         tx_inputs(txt, present: true)
         tx_outputs(txt, present: true)
         tx_direction(txt, 'incoming')
@@ -308,7 +308,7 @@ RSpec.describe 'Cardano Wallet E2E tests - Shared wallets', :all, :e2e, :shared 
         # on target wallet
         txt = SHELLEY.transactions.get(target_wid, tx_id)
         tx_amount(txt, amt * 2)
-        tx_fee(txt, 0)
+        tx_fee(tx, expected_fee)
         tx_inputs(txt, present: true)
         tx_outputs(txt, present: true)
         tx_direction(txt, 'incoming')
@@ -421,7 +421,7 @@ RSpec.describe 'Cardano Wallet E2E tests - Shared wallets', :all, :e2e, :shared 
         # on target wallet
         txt = SHELLEY.transactions.get(target_wid, tx_id)
         tx_amount(txt, amt_ada)
-        tx_fee(txt, 0)
+        tx_fee(tx, expected_fee)
         tx_inputs(txt, present: true)
         tx_outputs(txt, present: true)
         tx_direction(txt, 'incoming')
@@ -534,7 +534,7 @@ RSpec.describe 'Cardano Wallet E2E tests - Shared wallets', :all, :e2e, :shared 
         # on target wallet
         txt = SHELLEY.transactions.get(target_wid, tx_id)
         tx_amount(txt, amt)
-        tx_fee(txt, 0)
+        tx_fee(tx, expected_fee)
         tx_inputs(txt, present: true)
         tx_outputs(txt, present: true)
         tx_direction(txt, 'incoming')
@@ -676,7 +676,7 @@ RSpec.describe 'Cardano Wallet E2E tests - Shared wallets', :all, :e2e, :shared 
         # on target wallet
         txt = SHELLEY.transactions.get(target_wid, tx_id)
         tx_amount(txt, amt)
-        tx_fee(txt, 0)
+        tx_fee(tx, expected_fee)
         tx_inputs(txt, present: true)
         tx_outputs(txt, present: true)
         tx_direction(txt, 'incoming')
@@ -779,7 +779,7 @@ RSpec.describe 'Cardano Wallet E2E tests - Shared wallets', :all, :e2e, :shared 
         # on target wallet
         txt = SHELLEY.transactions.get(@target_id, tx_id)
         tx_amount(txt, amt)
-        tx_fee(txt, 0)
+        tx_fee(tx, expected_fee)
         tx_inputs(txt, present: true)
         tx_outputs(txt, present: true)
         tx_direction(txt, 'incoming')
@@ -876,7 +876,7 @@ RSpec.describe 'Cardano Wallet E2E tests - Shared wallets', :all, :e2e, :shared 
         # on target wallet
         txt = SHELLEY.transactions.get(@target_id, tx_id)
         tx_amount(txt, amt * 2)
-        tx_fee(txt, 0)
+        tx_fee(tx, expected_fee)
         tx_inputs(txt, present: true)
         tx_outputs(txt, present: true)
         tx_direction(txt, 'incoming')
@@ -980,7 +980,7 @@ RSpec.describe 'Cardano Wallet E2E tests - Shared wallets', :all, :e2e, :shared 
         # on target wallet
         txt = SHELLEY.transactions.get(@target_id, tx_id)
         tx_amount(txt, amt_ada)
-        tx_fee(txt, 0)
+        tx_fee(tx, expected_fee)
         tx_inputs(txt, present: true)
         tx_outputs(txt, present: true)
         tx_direction(txt, 'incoming')
@@ -1080,7 +1080,7 @@ RSpec.describe 'Cardano Wallet E2E tests - Shared wallets', :all, :e2e, :shared 
         # on target wallet
         txt = SHELLEY.transactions.get(@target_id, tx_id)
         tx_amount(txt, amt)
-        tx_fee(txt, 0)
+        tx_fee(tx, expected_fee)
         tx_inputs(txt, present: true)
         tx_outputs(txt, present: true)
         tx_direction(txt, 'incoming')
@@ -1396,7 +1396,7 @@ RSpec.describe 'Cardano Wallet E2E tests - Shared wallets', :all, :e2e, :shared 
 
         # on target wallet
         txt = SHARED.transactions.get(@wid_sha, tx_id)
-        tx_fee(txt, 0)
+        expect(tx['fee']['quantity'].to_i).to be > 0
         tx_inputs(txt, present: true)
         tx_outputs(txt, present: true)
         tx_direction(txt, 'incoming')

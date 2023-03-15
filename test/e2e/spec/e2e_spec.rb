@@ -825,7 +825,7 @@ RSpec.describe 'Cardano Wallet E2E tests', :all, :e2e do
       # on target wallet
       txt = SHELLEY.transactions.get(@target_id, tx_id)
       tx_amount(txt, amt)
-      tx_fee(txt, 0)
+      tx_fee(tx, expected_fee)
       tx_inputs(txt, present: true)
       tx_outputs(txt, present: true)
       tx_direction(txt, 'incoming')
@@ -924,7 +924,7 @@ RSpec.describe 'Cardano Wallet E2E tests', :all, :e2e do
       # on target wallet
       txt = SHELLEY.transactions.get(@target_id, tx_id)
       tx_amount(txt, amt * 2)
-      tx_fee(txt, 0)
+      tx_fee(tx, expected_fee)
       tx_inputs(txt, present: true)
       tx_outputs(txt, present: true)
       tx_direction(txt, 'incoming')
@@ -1027,7 +1027,7 @@ RSpec.describe 'Cardano Wallet E2E tests', :all, :e2e do
       # on target wallet
       txt = SHELLEY.transactions.get(@target_id, tx_id)
       tx_amount(txt, amt_ada)
-      tx_fee(txt, 0)
+      tx_fee(tx, expected_fee)
       tx_inputs(txt, present: true)
       tx_outputs(txt, present: true)
       tx_direction(txt, 'incoming')
@@ -1287,7 +1287,7 @@ RSpec.describe 'Cardano Wallet E2E tests', :all, :e2e do
       # on target wallet
       txt = SHELLEY.transactions.get(@target_id, tx_id)
       tx_amount(txt, amt)
-      tx_fee(txt, 0)
+      tx_fee(tx, expected_fee)
       tx_inputs(txt, present: true)
       tx_outputs(txt, present: true)
       tx_direction(txt, 'incoming')
@@ -1449,7 +1449,7 @@ RSpec.describe 'Cardano Wallet E2E tests', :all, :e2e do
       tx = SHELLEY.transactions.get(@target_id, tx_id)
       expect(tx['amount']['quantity']).to be > 0
       expect(tx['amount']['quantity']).to be < deposit_returned
-      tx_fee(tx, 0)
+      tx_fee(tx, expected_fee)
       tx_inputs(tx, present: true)
       tx_outputs(tx, present: true)
       tx_direction(tx, 'incoming')
@@ -2572,7 +2572,8 @@ RSpec.describe 'Cardano Wallet E2E tests', :all, :e2e do
         # on target wallet
         txt = SHELLEY.transactions.get(@target_id, tx_id)
         tx_amount(txt, amt)
-        tx_fee(txt, 0)
+        # in old tx workflow, only expecting fee to be present because fee calculation is not reliable enough for strong assertions
+        expect(tx['fee']['quantity'].to_i).to be > 0
         tx_inputs(txt, present: true)
         tx_outputs(txt, present: true)
         tx_direction(txt, 'incoming')
@@ -2639,7 +2640,7 @@ RSpec.describe 'Cardano Wallet E2E tests', :all, :e2e do
         # on target wallet
         txt = SHELLEY.transactions.get(@target_id, tx_id)
         tx_amount(txt, amt)
-        tx_fee(txt, 0)
+        expect(tx['fee']['quantity'].to_i).to be > 0
         tx_inputs(txt, present: true)
         tx_outputs(txt, present: true)
         tx_direction(txt, 'incoming')
@@ -2730,7 +2731,7 @@ RSpec.describe 'Cardano Wallet E2E tests', :all, :e2e do
         # on target wallet
         txt = SHELLEY.transactions.get(@target_id, tx_id)
         tx_amount(txt, amt)
-        tx_fee(txt, 0)
+        expect(tx['fee']['quantity'].to_i).to be > 0
         tx_inputs(txt, present: true)
         tx_outputs(txt, present: true)
         tx_direction(txt, 'incoming')
@@ -2797,7 +2798,7 @@ RSpec.describe 'Cardano Wallet E2E tests', :all, :e2e do
         # on target wallet
         txt = SHELLEY.transactions.get(@target_id, tx_id)
         tx_amount(txt, amt)
-        tx_fee(txt, 0)
+        expect(tx['fee']['quantity'].to_i).to be > 0
         tx_inputs(txt, present: true)
         tx_outputs(txt, present: true)
         tx_direction(txt, 'incoming')
@@ -3014,7 +3015,7 @@ RSpec.describe 'Cardano Wallet E2E tests', :all, :e2e do
         tx = SHELLEY.transactions.get(@target_id, quit_tx_id)
         expect(tx['amount']['quantity']).to be > 0
         expect(tx['amount']['quantity']).to be < deposit
-        tx_fee(tx, 0)
+        expect(tx['fee']['quantity'].to_i).to be > 0
         tx_inputs(tx, present: true)
         tx_outputs(tx, present: true)
         tx_direction(tx, 'incoming')
@@ -3174,7 +3175,7 @@ RSpec.describe 'Cardano Wallet E2E tests', :all, :e2e do
       # on target wallet
       txt = SHELLEY.transactions.get(target_wid, tx_id)
       tx_amount(txt, amt)
-      tx_fee(txt, 0)
+      tx_fee(tx, fee)
       tx_inputs(txt, present: true)
       tx_outputs(txt, present: true)
       tx_direction(txt, 'incoming')
@@ -3263,7 +3264,7 @@ RSpec.describe 'Cardano Wallet E2E tests', :all, :e2e do
       # on target wallet
       txt = SHELLEY.transactions.get(target_id, tx_id)
       tx_amount(txt, amt_ada)
-      tx_fee(txt, 0)
+      tx_fee(tx, fee)
       tx_inputs(txt, present: true)
       tx_outputs(txt, present: true)
       tx_direction(txt, 'incoming')
@@ -3529,7 +3530,7 @@ RSpec.describe 'Cardano Wallet E2E tests', :all, :e2e do
 
         # on target wallet
         txt = SHELLEY.transactions.get(@wid, tx_id)
-        tx_fee(txt, 0)
+        expect(tx['fee']['quantity'].to_i).to be > 0
         tx_inputs(txt, present: true)
         tx_outputs(txt, present: true)
         tx_direction(txt, 'incoming')
