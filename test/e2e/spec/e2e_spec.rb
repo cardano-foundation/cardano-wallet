@@ -478,9 +478,20 @@ RSpec.describe 'Cardano Wallet E2E tests', :all, :e2e do
           'asset1arj5nz8zxjuxvut5wqt5q0xw7905hllugahvu7'
         end
       end
+      def script_hash
+        if linux?
+          'c22560ac64be051102d6d1cfe5b9b82eb6af4f00dd3806e5cd82e837'
+        elsif mac?
+          '87c822cd8fb44f2e3bffc3eaf41c63c2301a0ac2325ee3db634bd435'
+        elsif win?
+          'c8a35944deea4a336faaeb88c35fee23ca88316eb698646e58a9298c'
+        end
+      end
       mint_script = 'mintBurn_1.json'
       burn_script = 'mintBurn_2.json'
-      assets = [{ 'policy_script' => { 'language_version' => 'v1', 'script_type' => 'plutus' },
+      assets = [{ 'policy_script' => {'script_info' => { 'language_version' => 'v1', 
+                                                         'script_hash' => script_hash }, 
+                                      'script_type' => 'plutus'},
                   'policy_id' => policy_id,
                   'assets' => [{ 'fingerprint' => fingerprint,
                                  'quantity' => 1,
