@@ -24,6 +24,9 @@
 
 {-# OPTIONS_GHC -fno-warn-orphans #-}
 
+-- TODO: https://input-output.atlassian.net/browse/ADP-2841
+{-# OPTIONS_GHC -fno-warn-ambiguous-fields #-}
+
 module Cardano.Wallet.Shelley.TransactionSpec (spec) where
 
 import Prelude

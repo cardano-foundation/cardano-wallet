@@ -15,6 +15,9 @@
 {-# OPTIONS_GHC -fno-warn-orphans #-}
 {- HLINT ignore "Use camelCase" -}
 
+-- TODO: https://input-output.atlassian.net/browse/ADP-2841
+{-# OPTIONS_GHC -fno-warn-ambiguous-fields #-}
+
 module Cardano.CoinSelection.BalanceSpec
     ( spec
     , MockAssessTokenBundleSize
