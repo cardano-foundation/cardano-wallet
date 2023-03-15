@@ -24,6 +24,9 @@
 {-# LANGUAGE ViewPatterns #-}
 {- HLINT ignore "Use <$>" -}
 
+-- TODO: https://input-output.atlassian.net/browse/ADP-2841
+{-# OPTIONS_GHC -fno-warn-deprecations #-}
+
 -- |
 -- Copyright: © 2020 IOHK
 -- License: Apache-2.0
