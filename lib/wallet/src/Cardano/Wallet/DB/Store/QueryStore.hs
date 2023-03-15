@@ -62,7 +62,7 @@ class Query qa where
     query :: qa b -> World qa -> b
 
 queryStoreProperty
-    :: (Monad m, Eq b, Query qa, MonadFail m, Base da ~ World qa)
+    :: (Eq b, Query qa, MonadFail m, Base da ~ World qa)
     => QueryStore m qa da
     -> qa b
     -> m Bool

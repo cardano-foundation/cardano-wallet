@@ -1306,7 +1306,6 @@ restoreWalletFromPubKey
         , Show w
         , FromJSON w
         , MonadIO m
-        , MonadUnliftIO m
         )
     => Context
     -> Text
@@ -1576,7 +1575,6 @@ fixtureMultiAssetRandomWallet
         ( DecodeAddress n
         , DecodeStakeAddress n
         , EncodeAddress n
-        , MonadIO m
         , MonadUnliftIO m
         )
     => Context
@@ -1622,7 +1620,6 @@ fixtureMultiAssetIcarusWallet
         ( DecodeAddress n
         , DecodeStakeAddress n
         , EncodeAddress n
-        , MonadIO m
         , MonadUnliftIO m
         )
     => Context
@@ -1964,7 +1961,6 @@ fixtureRandomWallet = fmap fst . fixtureRandomWalletMws
 fixtureRandomWalletAddrs
     :: forall (n :: NetworkDiscriminant) m.
         ( PaymentAddress n ByronKey 'CredFromKeyK
-        , MonadIO m
         , MonadUnliftIO m
         )
     => Context
@@ -1986,7 +1982,6 @@ fixtureRandomWalletWith
         , DecodeAddress n
         , DecodeStakeAddress n
         , PaymentAddress n ByronKey 'CredFromKeyK
-        , MonadIO m
         , MonadUnliftIO m
         )
     => Context
@@ -2024,7 +2019,6 @@ fixtureIcarusWallet = fmap fst . fixtureIcarusWalletMws
 fixtureIcarusWalletAddrs
     :: forall (n :: NetworkDiscriminant) m.
         ( PaymentAddress n IcarusKey 'CredFromKeyK
-        , MonadIO m
         , MonadUnliftIO m
         )
     => Context
@@ -2046,7 +2040,6 @@ fixtureIcarusWalletWith
         , DecodeAddress n
         , DecodeStakeAddress n
         , PaymentAddress n IcarusKey 'CredFromKeyK
-        , MonadIO m
         , MonadUnliftIO m
         )
     => Context
@@ -2115,7 +2108,6 @@ fixtureWalletWith
         ( EncodeAddress n
         , DecodeAddress n
         , DecodeStakeAddress n
-        , MonadIO m
         , MonadUnliftIO m
         )
     => Context

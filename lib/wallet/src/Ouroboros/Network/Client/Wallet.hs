@@ -312,7 +312,7 @@ data LocalRollbackResult block
 --      *------*
 --
 chainSyncWithBlocks
-    :: forall m block. (Monad m, MonadSTM m, MonadThrow m, HasHeader block)
+    :: forall m block. (MonadThrow m, HasHeader block)
     => Tracer m (ChainSyncLog block (Point block))
     -> PipeliningStrategy block
     -> ChainFollower m (Point block) (Tip block) (NonEmpty block)

@@ -46,8 +46,6 @@ import Codec.Serialise
     ( serialise )
 import Control.Arrow
     ( left )
-import Control.Monad.IO.Unlift
-    ( MonadUnliftIO (..) )
 import Crypto.Hash.Utils
     ( blake2b224 )
 import Data.Aeson
@@ -114,7 +112,7 @@ pingPong_1 = [aesonQQ|{
     "inputs": []
 }|]
 
-pingPong_2 :: (MonadUnliftIO m, MonadFail m) => Aeson.Value -> m Aeson.Value
+pingPong_2 :: MonadFail m => Aeson.Value -> m Aeson.Value
 pingPong_2 =
     renderMustacheThrow template
   where
@@ -156,7 +154,7 @@ game_1 = [aesonQQ|{
     "redeemers": []
 }|]
 
-game_2 :: (MonadUnliftIO m, MonadFail m) => Aeson.Value -> m Aeson.Value
+game_2 :: MonadFail m => Aeson.Value -> m Aeson.Value
 game_2 =
     renderMustacheThrow template
   where
@@ -192,7 +190,7 @@ game_2 =
         ]
     }|]
 
-game_3 :: (MonadUnliftIO m, MonadFail m) => Aeson.Value -> m Aeson.Value
+game_3 :: MonadFail m => Aeson.Value -> m Aeson.Value
 game_3 =
     renderMustacheThrow template
   where
@@ -238,7 +236,7 @@ game_3 =
 -- - policy: A base16 corresponding policy (see 'mkSignerPolicy')
 -- - vkHash: The verification key hash (base16) which was used to generate the policy.
 --
-mintBurn_1 :: (MonadUnliftIO m, MonadFail m) => Aeson.Value -> m Aeson.Value
+mintBurn_1 :: MonadFail m => Aeson.Value -> m Aeson.Value
 mintBurn_1 =
     renderMustacheThrow template
   where
@@ -260,7 +258,7 @@ mintBurn_1 =
 --
 -- The template has the same three parameters as 'mintBurn_1'
 --
-mintBurn_2 :: (MonadUnliftIO m, MonadFail m) => Aeson.Value -> m Aeson.Value
+mintBurn_2 :: MonadFail m => Aeson.Value -> m Aeson.Value
 mintBurn_2 =
     renderMustacheThrow template
   where
@@ -288,7 +286,7 @@ mintBurn_2 =
 -- This however requires to pass a `Rewarding` type of redeemer, which is quite
 -- exotic :)
 --
-withdrawScript_1 :: (MonadUnliftIO m, MonadFail m) => m Aeson.Value
+withdrawScript_1 :: MonadFail m => m Aeson.Value
 withdrawScript_1 =
     renderMustacheThrow template $ Aeson.object
         [ "script" .= script
@@ -425,7 +423,7 @@ mkCurrencyPolicy input = (script, hashScript script)
 ------------------------------------------------------------------------------}
 
 renderMustacheThrow
-    :: forall m. (MonadUnliftIO m, MonadFail m)
+    :: forall m. MonadFail m
     => Mustache.Template
     -> Aeson.Value
     -> m Aeson.Value
