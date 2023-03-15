@@ -1,4 +1,5 @@
 {-# LANGUAGE AllowAmbiguousTypes #-}
+{-# LANGUAGE BinaryLiterals #-}
 {-# LANGUAGE DataKinds #-}
 {-# LANGUAGE DeriveGeneric #-}
 {-# LANGUAGE DerivingStrategies #-}
@@ -6,6 +7,7 @@
 {-# LANGUAGE FlexibleInstances #-}
 {-# LANGUAGE MultiParamTypeClasses #-}
 {-# LANGUAGE NamedFieldPuns #-}
+{-# LANGUAGE RecordWildCards #-}
 {-# LANGUAGE RoleAnnotations #-}
 {-# LANGUAGE ScopedTypeVariables #-}
 {-# LANGUAGE TypeApplications #-}
@@ -55,11 +57,13 @@ import Cardano.Crypto.Wallet
 import Cardano.Mnemonic
     ( SomeMnemonic (..), entropyToBytes, mnemonicToEntropy )
 import Cardano.Wallet.Primitive.AddressDerivation
-    ( BoundedAddressLength (..)
+    ( AddressParts (..)
+    , BoundedAddressLength (..)
     , DelegationAddress (..)
     , Depth (..)
     , DerivationIndex (..)
     , DerivationType (..)
+    , ErrMkKeyFingerprint (..)
     , HardDerivation (..)
     , Index (..)
     , KeyFingerprint (..)
@@ -76,6 +80,7 @@ import Cardano.Wallet.Primitive.AddressDerivation
     , fromHex
     , hex
     , mutableAccount
+    , toAddressParts
     )
 import Cardano.Wallet.Primitive.AddressDiscovery
     ( DiscoverTxs (..), GetPurpose (..), IsOurs (..), MaybeLight (..) )
@@ -350,8 +355,15 @@ instance DelegationAddress ('Testnet pm) ShelleyKey 'CredFromKeyK where
         networkId = 0
 
 instance MkKeyFingerprint ShelleyKey Address where
-    paymentKeyFingerprint (Address bytes) =
-        Right $ KeyFingerprint $ BS.take hashSize $ BS.drop 1 bytes
+    paymentKeyFingerprint addr =
+        let AddressParts{..} = toAddressParts addr
+            baseAddr = 0b00000000       -- keyhash; keyhash
+            enterpriseAddr = 0b01100000 -- keyhash
+            rewardAcct = 0b11100000     -- keyhash
+        in if addrType `elem` [baseAddr, enterpriseAddr, rewardAcct] then
+            Right $ KeyFingerprint $ BS.take hashSize credentials
+           else
+            Left $ ErrInvalidAddress addr (Proxy @ShelleyKey)
 
 instance MkKeyFingerprint ShelleyKey (Proxy (n :: NetworkDiscriminant), ShelleyKey 'CredFromKeyK XPub) where
     paymentKeyFingerprint (_, paymentK) =
