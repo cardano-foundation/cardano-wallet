@@ -442,16 +442,18 @@ scriptToCardanoScriptInAnyLang = withAlonzoScriptConstraint (recentEra @era)
     rewrap (Cardano.ScriptInEra _ s) = Cardano.toScriptInAnyLang s
     shelleyEra = shelleyBasedEraFromRecentEra $ recentEra @era
 
--- | NOTE: The roundtrip
--- @
---     scriptToCardanoEnvelopeJSON . scriptFromCardanoEnvelopeJSON
--- @
--- will convert 'SimpleScript' to 'SimpleScript'. Because 'SimpleScript'
--- is 'ShelleyEra'-specific, and 'ShelleyEra' is not a 'RecentEra', this should
--- not be a problem.
-scriptToCardanoEnvelopeJSON :: AlonzoScript LatestLedgerEra -> Aeson.Value
+-- | NOTE: Specializing to 'LatestLedgerEra' would make more sense than
+-- 'StandardBabbage', as this function is useful together with
+-- 'TxOutInRecentEra'. With conway this is prevented by
+-- https://github.com/input-output-hk/cardano-node/issues/4989
+-- but it shouldn't matter in practice. We may want to
+-- 1. Switch back to 'LatestLedgerEra' when possible
+-- 2. Create a clearer and more uniform approach to the 'TxOutInRecentEra' style
+-- of relying on the types from the latest era being a superset of the types of
+-- the previous era.
+scriptToCardanoEnvelopeJSON :: AlonzoScript StandardBabbage -> Aeson.Value
 scriptToCardanoEnvelopeJSON =
-    scriptToJSON . scriptToCardanoScriptInAnyLang @LatestEra
+    scriptToJSON . scriptToCardanoScriptInAnyLang @Cardano.BabbageEra
   where
     scriptToJSON
         :: Cardano.ScriptInAnyLang
@@ -469,11 +471,13 @@ scriptToCardanoEnvelopeJSON =
             Cardano.PlutusScriptLanguage Cardano.PlutusScriptV1 -> f
             Cardano.PlutusScriptLanguage Cardano.PlutusScriptV2 -> f
 
+-- NOTE: Should use 'LatestLedgerEra' instead of 'StandardBabbage'. C.f. comment
+-- in 'scriptToCardanoEnvelopeJSON'.
 scriptFromCardanoEnvelopeJSON
     :: Aeson.Value
-    -> Aeson.Parser (AlonzoScript LatestLedgerEra)
+    -> Aeson.Parser (AlonzoScript StandardBabbage)
 scriptFromCardanoEnvelopeJSON v =
-    fmap (scriptFromCardanoScriptInAnyLang @LatestEra) $ do
+    fmap (scriptFromCardanoScriptInAnyLang @Cardano.BabbageEra) $ do
         envelope <- Aeson.parseJSON v
         case textEnvelopeToScript envelope of
             Left textEnvErr
