@@ -203,8 +203,6 @@ import Data.List.NonEmpty
     ( NonEmpty ((:|)) )
 import Data.ListMap
     ( ListMap (..) )
-import Data.Map
-    ( Map )
 import Data.Maybe
     ( catMaybes, fromMaybe )
 import Data.Text
@@ -262,7 +260,6 @@ import qualified Data.ByteString.Char8 as B8
 import qualified Data.ByteString.Lazy as BL
 import qualified Data.ByteString.Lazy.Char8 as BL8
 import qualified Data.List.NonEmpty as NE
-import qualified Data.Map.Strict as Map
 import qualified Data.ListMap as ListMap
 import qualified Data.Set as Set
 import qualified Data.Text as T
