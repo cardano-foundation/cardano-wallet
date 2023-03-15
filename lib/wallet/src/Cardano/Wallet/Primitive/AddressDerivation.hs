@@ -63,6 +63,7 @@ module Cardano.Wallet.Primitive.AddressDerivation
     , NetworkDiscriminant (..)
     , NetworkDiscriminantVal
     , networkDiscriminantVal
+    , networkVal
 
     -- * Backends Interoperability
     , PaymentAddress(..)
@@ -604,6 +605,25 @@ instance KnownNat pm => NetworkDiscriminantVal ('Testnet pm) where
 instance KnownNat pm => NetworkDiscriminantVal ('Staging pm) where
     networkDiscriminantVal =
         "staging (" <> T.pack (show $ natVal $ Proxy @pm) <> ")"
+
+networkVal
+    :: forall (n :: NetworkDiscriminant) pm. (Typeable n, KnownNat pm)
+    => Word8
+networkVal = fromMaybe (error $ "network: unmatched type" <> show (typeRep @n))
+       (tryMainnet <|> tryTestnet <|> tryStaging)
+  where
+    tryMainnet =
+        case testEquality (typeRep @n) (typeRep @'Mainnet) of
+            Just Refl  -> Just 0b00000001
+            Nothing -> Nothing
+    tryTestnet =
+        case testEquality (typeRep @n) (typeRep @('Testnet pm)) of
+            Just Refl  -> Just 0b00000000
+            Nothing -> Nothing
+    tryStaging =
+        case testEquality (typeRep @n) (typeRep @('Staging pm)) of
+            Just Refl  -> Just 0b00000000
+            Nothing -> Nothing
 
 {-------------------------------------------------------------------------------
                      Interface over keys / address types
