@@ -2018,11 +2018,18 @@ buildSignSubmitTransaction ti db@DBLayer{..} netLayer txLayer pwd walletId
                 readTransactions
                     walletId Nothing Descending wholeRange (Just Pending)
                         Nothing
-            txWithSlot@(builtTx, slot) <- throwOnErr <=< modifyDBMaybe walletsDB
-                $ adjustNoSuchWallet walletId wrapNoWalletForConstruct $ \s ->
+
+            txWithSlot@(builtTx, slot) <-
+                throwOnErr <=< modifyDBMaybe walletsDB $
+                adjustNoSuchWallet walletId wrapNoWalletForConstruct $ \s -> do
+                    let wallet = WalletState.getLatest s
+                    let utxoIndex = UTxOIndex.fromMap
+                            $ CS.toInternalUTxOMap
+                            $ availableUTxO @s (Set.fromList pendingTxs) wallet
+
                     buildAndSignTransactionPure @k @ktype @s @n
                         pureTimeInterpreter
-                        (Set.fromList pendingTxs)
+                        utxoIndex
                         rootKey
                         scheme
                         pwd
@@ -2032,14 +2039,14 @@ buildSignSubmitTransaction ti db@DBLayer{..} netLayer txLayer pwd walletId
                         era
                         preSelection
                         txCtx
-                        & (`runStateT` WalletState.getLatest s)
+                        & (`runStateT` wallet)
                         & runExceptT . withExceptT wrapBalanceConstructError
                         & (`evalRand` stdGen)
-                        & fmap (\(builtTx, wallet) ->
+                        & fmap (\(builtTx, wallet') ->
                             -- Newly generated change addresses
                             -- only change the Prologue
-                            ( [ReplacePrologue $ getPrologue $ getState wallet]
-                            , (builtTx, currentTip wallet ^. #slotNo)
+                            ( [ReplacePrologue $ getPrologue $ getState wallet']
+                            , (builtTx, currentTip wallet' ^. #slotNo)
                             )
                         )
 
@@ -2081,7 +2088,7 @@ buildAndSignTransactionPure
        , IsOurs s RewardAccount
        )
     => TimeInterpreter (Either PastHorizonException)
-    -> Set Tx -- pending transactions
+    -> UTxOIndex WalletUTxO
     -> k 'RootK XPrv
     -> PassphraseScheme
     -> Passphrase "user"
@@ -2096,14 +2103,14 @@ buildAndSignTransactionPure
         (ExceptT (Either ErrBalanceTx ErrConstructTx) (Rand StdGen))
         BuiltTx
 buildAndSignTransactionPure
-    ti pendingTxs rootKey passphraseScheme userPassphrase
+    ti utxoIndex rootKey passphraseScheme userPassphrase
     protocolParams txLayer changeAddrGen era preSelection txCtx =
     --
     WriteTx.withRecentEra era $ \(_ :: WriteTx.RecentEra recentEra) -> do
         wallet <- get
         (unsignedBalancedTx, updatedWalletState) <- lift $
             buildTransactionPure @s @k @ktype @n @recentEra
-                wallet ti pendingTxs txLayer changeAddrGen
+                wallet ti utxoIndex txLayer changeAddrGen
                 protocolParams preSelection txCtx
         put wallet { getState = updatedWalletState }
 
@@ -2195,11 +2202,14 @@ buildTransaction DBLayer{..} txLayer timeInterpreter walletId
             readTransactions
                 walletId Nothing Descending wholeRange (Just Pending) Nothing
 
+        let utxoIndex = UTxOIndex.fromMap . CS.toInternalUTxOMap $
+                availableUTxO @s pendingTxs wallet
+
         fmap (\s' -> wallet { getState = s' }) <$>
             buildTransactionPure @s @_ @'CredFromKeyK @n @era
                 wallet
                 pureTimeInterpreter
-                pendingTxs
+                utxoIndex
                 txLayer
                 changeAddrGen
                 protocolParameters
@@ -2220,7 +2230,7 @@ buildTransactionPure ::
       )
     => Wallet s
     -> TimeInterpreter (Either PastHorizonException)
-    -> Set Tx -- pending transactions
+    -> UTxOIndex WalletUTxO
     -> TransactionLayer k ktype SealedTx
     -> ChangeAddressGen s
     -> ProtocolParameters
@@ -2231,7 +2241,7 @@ buildTransactionPure ::
         (Rand StdGen)
         (Cardano.Tx era, s)
 buildTransactionPure
-    wallet ti pendingTxs txLayer changeAddrGen
+    wallet ti utxoIndex txLayer changeAddrGen
     protocolParams preSelection txCtx = do
     --
     unsignedTxBody <-
@@ -2250,9 +2260,7 @@ buildTransactionPure
             Nothing -- Script template
             nodeProtocolParameters
             ti
-            (UTxOIndex.fromMap
-                $ CS.toInternalUTxOMap
-                $ availableUTxO @s pendingTxs wallet)
+            utxoIndex
             changeAddrGen
             (getState wallet)
             PartialTx
@@ -2873,19 +2881,34 @@ delegationFee
     -> ChangeAddressGen s
     -> WalletId
     -> ExceptT ErrSelectAssets IO DelegationFee
-delegationFee db netLayer txLayer ti era changeAddressGen walletId = do
+delegationFee db@DBLayer{atomically, walletsDB} netLayer
+    txLayer ti era changeAddressGen walletId = do
     protocolParams <- liftIO $ currentProtocolParameters netLayer
     WriteTx.withRecentEra era $ \(recentEra :: WriteTx.RecentEra era) -> do
+        wallet <- lift . atomically $ readDBVar walletsDB >>= \wallets ->
+            case Map.lookup walletId wallets of
+                Nothing -> liftIO . throwIO
+                    $ ExceptionNoSuchWallet
+                    $ ErrNoSuchWallet walletId
+                Just ws -> pure $ WalletState.getLatest ws
+        let utxoIndex = UTxOIndex.fromMap . CS.toInternalUTxOMap $
+                availableUTxO @s mempty wallet
+        pureTimeInterpreter <- lift $ snapshot ti
+        stdGen <- initStdGen
         feePercentiles <- calculateFeePercentiles $ do
             (Cardano.Tx (Cardano.TxBody bodyContent) _, _updatedWallet) <-
-                liftIO $ buildTransaction @s @k @n @era
-                    db txLayer ti walletId changeAddressGen protocolParams
-                    defaultTransactionCtx []
+                buildTransactionPure @s @k @_ @n @era
+                    wallet pureTimeInterpreter utxoIndex txLayer
+                    changeAddressGen protocolParams (PreSelection [])
+                    defaultTransactionCtx
+                        & runExceptT . withExceptT
+                            (either ExceptionBalanceTx ExceptionConstructTx)
+                        & (`evalRand` stdGen)
+                        & either (liftIO . throwIO) pure
             pure $ case Cardano.txFee bodyContent of
                 Cardano.TxFeeExplicit _ coin -> Fee (fromCardanoLovelace coin)
                 Cardano.TxFeeImplicit Cardano.TxFeesImplicitInByronEra ->
                     case recentEra of {}
-
         deposit <- liftIO $ calcMinimumDeposit db netLayer walletId
         pure DelegationFee { feePercentiles, deposit }
 
