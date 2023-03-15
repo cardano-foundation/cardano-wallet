@@ -6,6 +6,10 @@
 {-# LANGUAGE ScopedTypeVariables #-}
 {-# LANGUAGE TypeOperators #-}
 {-# LANGUAGE UndecidableInstances #-}
+
+-- TODO: https://input-output.atlassian.net/browse/ADP-2841
+{-# OPTIONS_GHC -fno-warn-redundant-constraints #-}
+
 module Database.Schema (
     -- * Synopsis
     -- | Typed database tables and rows.
