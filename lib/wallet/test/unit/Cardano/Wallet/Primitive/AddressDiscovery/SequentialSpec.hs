@@ -15,6 +15,9 @@
 
 {-# OPTIONS_GHC -fno-warn-orphans #-}
 
+-- TODO: https://input-output.atlassian.net/browse/ADP-2841
+{-# OPTIONS_GHC -fno-warn-star-is-type #-}
+
 module Cardano.Wallet.Primitive.AddressDiscovery.SequentialSpec
     ( spec
     ) where
