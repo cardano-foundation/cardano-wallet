@@ -20,6 +20,9 @@
 
 {-# HLINT ignore "Use record patterns" #-}
 
+-- TODO: https://input-output.atlassian.net/browse/ADP-2841
+{-# OPTIONS_GHC -fno-warn-ambiguous-fields #-}
+
 -- |
 -- Copyright: © 2018-2020 IOHK
 -- License: Apache-2.0

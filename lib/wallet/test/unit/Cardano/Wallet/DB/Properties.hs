@@ -16,6 +16,9 @@
 
 {-# OPTIONS_GHC -fno-warn-unused-imports #-}
 
+-- TODO: https://input-output.atlassian.net/browse/ADP-2841
+{-# OPTIONS_GHC -fno-warn-ambiguous-fields #-}
+
 module Cardano.Wallet.DB.Properties
     ( properties
     ) where
