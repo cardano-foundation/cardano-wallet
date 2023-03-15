@@ -1,9 +1,11 @@
 {-# LANGUAGE AllowAmbiguousTypes #-}
+{-# LANGUAGE BinaryLiterals #-}
 {-# LANGUAGE DataKinds #-}
 {-# LANGUAGE DerivingStrategies #-}
 {-# LANGUAGE FlexibleContexts #-}
 {-# LANGUAGE FlexibleInstances #-}
 {-# LANGUAGE MultiParamTypeClasses #-}
+{-# LANGUAGE RecordWildCards #-}
 {-# LANGUAGE RoleAnnotations #-}
 {-# LANGUAGE ScopedTypeVariables #-}
 {-# LANGUAGE TypeApplications #-}
@@ -38,9 +40,11 @@ import Cardano.Crypto.Wallet
 import Cardano.Mnemonic
     ( SomeMnemonic )
 import Cardano.Wallet.Primitive.AddressDerivation
-    ( BoundedAddressLength (..)
+    ( AddressParts (..)
+    , BoundedAddressLength (..)
     , Depth (..)
     , DerivationType (..)
+    , ErrMkKeyFingerprint (..)
     , HardDerivation (..)
     , KeyFingerprint (..)
     , MkKeyFingerprint (..)
@@ -51,6 +55,7 @@ import Cardano.Wallet.Primitive.AddressDerivation
     , WalletKey (..)
     , fromHex
     , hex
+    , toAddressParts
     )
 import Cardano.Wallet.Primitive.AddressDerivation.SharedKey
     ( SharedKey (..), purposeCIP1854 )
@@ -179,8 +184,15 @@ instance PersistPublicKey (SharedKey depth) where
         err _ = error "unsafeDeserializeXPub: unable to deserialize SharedKey"
 
 instance MkKeyFingerprint SharedKey Address where
-    paymentKeyFingerprint (Address bytes) =
-        Right $ KeyFingerprint $ BS.take hashSize $ BS.drop 1 bytes
+    paymentKeyFingerprint addr =
+        let AddressParts{..} = toAddressParts addr
+            baseAddr = 0b00110000       -- scripthash; scripthash
+            enterpriseAddr = 0b01110000 -- scripthash
+            rewardAcct = 0b11110000     -- scripthash
+        in if addrType `elem` [baseAddr, enterpriseAddr, rewardAcct] then
+            Right $ KeyFingerprint $ BS.take hashSize credentials
+           else
+            Left $ ErrInvalidAddress addr (Proxy @SharedKey)
 
 instance MkKeyFingerprint SharedKey (Proxy (n :: NetworkDiscriminant), SharedKey 'CredFromScriptK XPub) where
     paymentKeyFingerprint (_, paymentK) =
