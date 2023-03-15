@@ -130,7 +130,7 @@ import Data.Generics.Internal.VL.Lens
 import Data.List.NonEmpty
     ( NonEmpty (..) )
 import Data.Maybe
-    ( isJust )
+    ( fromMaybe, isJust )
 import Data.Quantity
     ( Quantity )
 import Data.Set
@@ -730,7 +730,7 @@ applyOurTxToUTxO
     -> Maybe ((Tx, TxMeta), DeltaUTxO, UTxO)
 applyOurTxToUTxO !slot !blockHeight !s !tx !u0 =
     if hasKnownWithdrawal || not isUnchangedUTxO
-        then Just ((tx {fee = actualFee dir}, txmeta), du, u)
+        then Just ((tx {fee = Just (actualFee dir)}, txmeta), du, u)
         else Nothing
   where
     -- The next UTxO state (apply a state transition) (e.g. remove
@@ -791,18 +791,15 @@ applyOurTxToUTxO !slot !blockHeight !s !tx !u0 =
     -- NOTE 2: We do not have in practice the actual input amounts, yet we
     -- do make the assumption that if one input is ours, then all inputs are
     -- necessarily ours and therefore, known as part of our current UTxO.
-    actualFee direction = case (tx ^. #fee, direction) of
-        (Just x, Outgoing) ->
-            -- Shelley and beyond:
-            Just x
-        (Nothing, Outgoing) ->
-            -- Byron:
-            let totalOut = F.fold (TxOut.coin <$> outputs tx)
-                totalIn = TB.getCoin spent
-            in
-            Just $ distance totalIn totalOut
-        (_, Incoming) ->
-            Nothing
+    actualFee direction = fromMaybe byronFee (tx ^. #fee)
+      where
+        byronFee :: Coin
+        byronFee =
+            case direction of
+                Incoming -> distance totalOut totalIn
+                Outgoing -> distance totalIn totalOut
+        totalOut = F.fold (TxOut.coin <$> outputs tx)
+        totalIn = TB.getCoin spent
 
 ourWithdrawalSumFromTx
     :: IsOurs s RewardAccount
