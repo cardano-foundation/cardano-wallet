@@ -2684,9 +2684,10 @@ constructTransaction api argGenChange knownPools poolStatus apiWalletId body = d
                     assets = fromFlatList [(assetId, tokenQuantity)]
                 in
                 (addr, assets)
-    toMintTxOut _ _ = error
-        "toMintTxOut can only be used in the minting context with addr \
-        \specified"
+    toMintTxOut _ _ = error $ unwords
+        [ "toMintTxOut can only be used in the minting context with addr"
+        , "specified"
+        ]
 
     coalesceTokensPerAddr =
         let toTxOut (addr, assets) =
