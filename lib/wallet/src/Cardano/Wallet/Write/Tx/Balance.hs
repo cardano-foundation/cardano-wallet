@@ -12,7 +12,10 @@
 {- HLINT ignore "Use ||" -}
 
 -- TODO: https://input-output.atlassian.net/browse/ADP-2841
+{-# LANGUAGE CPP #-}
+#if __GLASGOW_HASKELL__ >= 902
 {-# OPTIONS_GHC -fno-warn-ambiguous-fields #-}
+#endif
 
 module Cardano.Wallet.Write.Tx.Balance where
 
