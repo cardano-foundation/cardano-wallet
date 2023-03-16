@@ -904,6 +904,9 @@ generateGenesis dir systemStart initialFunds addPoolsToGenesis = do
     Yaml.decodeFileThrow @_ @Aeson.Value (source </> "alonzo-genesis.yaml")
         >>= Aeson.encodeFile (dir </> "genesis.alonzo.json")
 
+    Yaml.decodeFileThrow @_ @Aeson.Value (source </> "conway-genesis.yaml")
+        >>= Aeson.encodeFile (dir </> "genesis.conway.json")
+
     let startTime = round @_ @Int . utcTimeToPOSIXSeconds $ systemStart
     let systemStart' = posixSecondsToUTCTime . fromRational . toRational $ startTime
 
@@ -980,6 +983,7 @@ generateGenesis dir systemStart initialFunds addPoolsToGenesis = do
         { byronGenesis = byronGenesisFile
         , shelleyGenesis = dir </> "genesis.json"
         , alonzoGenesis = dir </> "genesis.alonzo.json"
+        , conwayGenesis = dir </> "genesis.conway.json"
         }
 
   where
@@ -1434,6 +1438,7 @@ data GenesisFiles = GenesisFiles
     { byronGenesis :: FilePath
     , shelleyGenesis :: FilePath
     , alonzoGenesis :: FilePath
+    , conwayGenesis :: FilePath
     } deriving (Show, Eq)
 
 genNodeConfig
@@ -1449,7 +1454,8 @@ genNodeConfig
     -> IO (FilePath, Block, NetworkParameters, NodeToClientVersionData, [PoolCertificate])
 genNodeConfig dir name genesisFiles clusterEra logCfg = do
     let LogFileConfig severity mExtraLogFile extraSev = logCfg
-    let GenesisFiles{byronGenesis,shelleyGenesis,alonzoGenesis} = genesisFiles
+    let GenesisFiles{byronGenesis,shelleyGenesis,alonzoGenesis,conwayGenesis}
+            = genesisFiles
 
     source <- getShelleyTestDataPath
 
@@ -1474,6 +1480,7 @@ genNodeConfig dir name genesisFiles clusterEra logCfg = do
         >>= withAddedKey "ShelleyGenesisFile" shelleyGenesis
         >>= withAddedKey "ByronGenesisFile" byronGenesis
         >>= withAddedKey "AlonzoGenesisFile" alonzoGenesis
+        >>= withAddedKey "ConwayGenesisFile" conwayGenesis
         >>= withHardForks clusterEra
         >>= withAddedKey "minSeverity" Debug
         >>= withScribes scribes
