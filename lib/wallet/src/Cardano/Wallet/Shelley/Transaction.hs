@@ -24,9 +24,6 @@
 {-# LANGUAGE ViewPatterns #-}
 {- HLINT ignore "Use <$>" -}
 
--- TODO: https://input-output.atlassian.net/browse/ADP-2841
-{-# OPTIONS_GHC -fno-warn-deprecations #-}
-
 -- |
 -- Copyright: © 2020 IOHK
 -- License: Apache-2.0
@@ -2427,14 +2424,8 @@ mkUnsignedTx
     -> Map AssetId (Script KeyHash)
     -> Map TxIn (Script KeyHash)
     -> Either ErrMkTransaction (Cardano.TxBody era)
--- mkUnsignedTx
---    era ttl cs md wdrls certs fees mintData burnData mintingScripts inpsScripts =
---    left toErrMkTx $ fmap removeDummyInput $ Cardano.createAndValidateTransactionBody
 mkUnsignedTx era ttl cs md wdrls certs fees mintData burnData mintingScripts inpsScripts = extractValidatedOutputs cs >>= \outs ->
-    left toErrMkTx $ fmap removeDummyInput $ Cardano.makeTransactionBody
--- mkUnsignedTx
---    era ttl cs md wdrls certs fees mintData burnData mintingScripts inpsScripts =
---    left toErrMkTx $ fmap removeDummyInput $ Cardano.createAndValidateTransactionBody
+    left toErrMkTx $ fmap removeDummyInput $ Cardano.createAndValidateTransactionBody
     Cardano.TxBodyContent
     { Cardano.txIns = inputWits
 
