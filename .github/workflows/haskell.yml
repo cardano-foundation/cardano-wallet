@@ -1,0 +1,42 @@
+name: CI
+
+# Trigger the workflow on push or pull request, but only for the master branch
+on:
+  pull_request:
+  push:
+    branches: [master]
+
+jobs:
+  build:
+    name: ghc ${{ matrix.ghc }}
+    runs-on: ubuntu-latest
+    strategy:
+      matrix:
+        ghc: [ "8.10.7", "9.2.4" ]
+
+    steps:
+    - uses: actions/checkout@v2
+      if: github.event.action == 'opened' || github.event.action == 'synchronize' || github.event.ref == 'refs/heads/master'
+
+    - uses: haskell/actions/setup@v1
+      name: Setup Haskell
+      with:
+        ghc-version: ${{ matrix.ghc }}
+
+    - uses: actions/cache@v2
+      name: Cache ~/.cabal/store
+      with:
+        path: |
+          ${{ steps.setup-haskell.outputs.cabal-store }}
+          dist-newstyle
+        key: ${{ runner.os }}-${{ hashFiles('cabal.project.freeze') }}
+        restore-keys: |
+          ${{ runner.os }}-
+
+    - name: Build
+      run: |
+        cabal build all --enable-tests --enable-benchmarks
+
+    - name: Test
+      run: |
+        cabal test all -j
