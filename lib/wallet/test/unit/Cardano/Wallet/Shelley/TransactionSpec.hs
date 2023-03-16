@@ -67,8 +67,12 @@ import Cardano.Api.Gen
     , genValueForTxOut
     , genWitnesses
     )
+import Cardano.Binary
+    ( FromCBOR, ToCBOR, serialize', unsafeDeserialize' )
 import Cardano.BM.Data.Tracer
     ( nullTracer )
+import Cardano.Ledger.Alonzo.Genesis
+    ( AlonzoGenesis (costmdls) )
 import Cardano.Ledger.Alonzo.TxInfo
     ( TranslationError (..) )
 import Cardano.Ledger.Era
@@ -361,6 +365,8 @@ import Data.Word
     ( Word16, Word64, Word8 )
 import Fmt
     ( Buildable (..), blockListF', fmt, nameF, pretty, (+||), (||+) )
+import GHC.IO.Unsafe
+    ( unsafePerformIO )
 import Ouroboros.Consensus.BlockchainTime.WallClock.Types
     ( RelativeTime (..), mkSlotLength )
 import Ouroboros.Consensus.Config
@@ -485,10 +491,10 @@ import qualified Data.Set as Set
 import qualified Data.Text as T
 import qualified Data.Text.Encoding as T
 import qualified Data.Text.IO as T
+import qualified Data.Yaml as Yaml
 import qualified Ouroboros.Consensus.HardFork.History.EraParams as HF
 import qualified Ouroboros.Consensus.HardFork.History.Qry as HF
 import qualified Ouroboros.Consensus.HardFork.History.Summary as HF
-import qualified Test.Cardano.Ledger.Alonzo.PlutusScripts as Plutus
 import qualified Test.Hspec.Extra as Hspec
 
 spec :: Spec
@@ -3660,12 +3666,62 @@ testStdGenSeed = StdGenSeed 0
 balanceTransactionGoldenSpec
     :: Spec
 balanceTransactionGoldenSpec = describe "balance goldens" $ do
+    it "testPParams" $ do
+        let name = "testPParams"
+        let dir = $(getTestData) </> "balanceTx" </> "binary"
+
+        let pp = Cardano.toLedgerPParams Cardano.ShelleyBasedEraBabbage
+                $ snd mockProtocolParametersForBalancing
+        Golden
+            { output = pp
+            , encodePretty = show
+            , writeToFile = \fp x ->
+                T.writeFile fp $ T.pack . toCBORHex $ x
+            , readFromFile = fmap fromCBORHex . readFile
+            , goldenFile = dir </> name </> "golden"
+            , actualFile = Just (dir </> name </> "actual")
+            , failFirstTime = False
+            }
+
+    describe "balanced binaries" $ do
+        let dir = $(getTestData) </> "balanceTx" </> "binary" </> "balanced"
+        let walletUTxO = utxo [Coin 5_000_000]
+        it "pingPong_2" $ do
+            let ptx = pingPong_2
+            let tx = either (error . show) id $ balanceTransaction'
+                    (mkTestWallet rootK walletUTxO)
+                    testStdGenSeed
+                    ptx
+            let serializeTx = serialisedTx
+                    . sealedTxFromCardano
+                    . InAnyCardanoEra Cardano.BabbageEra
+
+            let name = "pingPong_2"
+            Golden
+                { output = tx
+                , encodePretty = show
+                , writeToFile = \fp x ->
+                    T.writeFile fp $ T.pack . B8.unpack . hex $ serializeTx x
+                , readFromFile =
+                    fmap (deserializeBabbageTx . unsafeFromHex . B8.pack)
+                    . readFile
+                , goldenFile = dir </> name </> "golden"
+                , actualFile = Just (dir </> name </> "actual")
+                , failFirstTime = False
+                }
+
     describe "results when varying wallet balance (1 UTxO)" $ do
         test "pingPong_1" pingPong_1
         test "pingPong_2" pingPong_2
         test "delegate" delegate
         test "1ada-payment" payment
   where
+    fromCBORHex :: FromCBOR a => String -> a
+    fromCBORHex = unsafeDeserialize' . unsafeFromHex . B8.pack
+
+    toCBORHex :: ToCBOR a => a -> String
+    toCBORHex = B8.unpack . hex . serialize'
+
     test :: String -> PartialTx Cardano.BabbageEra -> Spec
     test name partialTx = it name $ do
         goldenText name
@@ -3710,25 +3766,22 @@ balanceTransactionGoldenSpec = describe "balance goldens" $ do
                     Left e
                         -> BalanceTxGoldenFailure c (show e)
 
-        utxo coins = UTxO $ Map.fromList $ zip ins outs
-          where
-            ins = map (TxIn dummyHash) [0..]
-            outs = map (TxOut addr . TokenBundle.fromCoin) coins
-            dummyHash = Hash $ B8.replicate 32 '0'
+    utxo coins = UTxO $ Map.fromList $ zip ins outs
+      where
+        ins = map (TxIn dummyHash) [0..]
+        outs = map (TxOut addr . TokenBundle.fromCoin) coins
+        dummyHash = Hash $ B8.replicate 32 '0'
 
-        mw = SomeMnemonic $ either (error . show) id
-            (entropyToMnemonic @12 <$> mkEntropy "0000000000000000")
-        rootK = Shelley.unsafeGenerateKeyFromSeed (mw, Nothing) mempty
-        addr = Address $ unsafeFromHex
-            "60b1e5e0fb74c86c801f646841e07cdb42df8b82ef3ce4e57cb5412e77"
+    mw = SomeMnemonic $ either (error . show) id
+        (entropyToMnemonic @12 <$> mkEntropy "0000000000000000")
+    rootK = Shelley.unsafeGenerateKeyFromSeed (mw, Nothing) mempty
+    addr = Address $ unsafeFromHex
+        "60b1e5e0fb74c86c801f646841e07cdb42df8b82ef3ce4e57cb5412e77"
 
     payment :: PartialTx Cardano.BabbageEra
     payment = paymentPartialTx
         [ TxOut addr (TokenBundle.fromCoin (Coin 1_000_000))
         ]
-      where
-        addr = Address $ unsafeFromHex
-            "60b1e5e0fb74c86c801f646841e07cdb42df8b82ef3ce4e57cb5412e77"
 
     delegate :: PartialTx Cardano.BabbageEra
     delegate = PartialTx (Cardano.Tx body []) mempty []
@@ -3746,9 +3799,6 @@ balanceTransactionGoldenSpec = describe "balance goldens" $ do
             poolId = PoolId "\236(\243=\203\230\214@\n\RS^3\155\208d|\
                             \\ts\202l\f\249\194\187\230\131\141\198"
             xpub = getRawKey $ publicKey rootK
-            mw = SomeMnemonic $ either (error . show) id
-                (entropyToMnemonic @12 <$> mkEntropy "0000000000000001")
-            rootK = Shelley.unsafeGenerateKeyFromSeed (mw, Nothing) mempty
             delegationAction = JoinRegisteringKey poolId
         ledgerBody = Babbage.BabbageTxBody
           { Babbage.inputs = mempty
@@ -3780,9 +3830,9 @@ balanceTransactionGoldenSpec = describe "balance goldens" $ do
         :: Cardano.Tx Cardano.BabbageEra
         -> Cardano.UTxO Cardano.BabbageEra
         -> Cardano.Lovelace
-    txMinFee (Cardano.Tx body _) utxo = toCardanoLovelace $ evaluateMinimumFee
+    txMinFee (Cardano.Tx body _) u = toCardanoLovelace $ evaluateMinimumFee
         (snd mockProtocolParametersForBalancing)
-        (estimateKeyWitnessCount utxo body)
+        (estimateKeyWitnessCount u body)
         body
 
 -- NOTE: 'balanceTransaction' relies on estimating the number of witnesses that
@@ -4136,10 +4186,8 @@ mockProtocolParametersForBalancing = (mockProtocolParameters, nodePParams)
             Just $ fromIntegral $ SL.unCoin testParameter_coinsPerUTxOWord_Alonzo
         , Cardano.protocolParamUTxOCostPerByte =
             Just $ fromIntegral $ SL.unCoin testParameter_coinsPerUTxOByte_Babbage
-        , Cardano.protocolParamCostModels =
-            Map.singleton
-                (Cardano.AnyPlutusScriptVersion Cardano.PlutusScriptV1)
-                costModel
+        , Cardano.protocolParamCostModels = Cardano.fromAlonzoCostModels
+            costModelsForTesting
         , Cardano.protocolParamPrices =
             Just $ Cardano.ExecutionUnitPrices
                 (721 % 10_000_000)
@@ -4149,9 +4197,13 @@ mockProtocolParametersForBalancing = (mockProtocolParameters, nodePParams)
         , Cardano.protocolParamCollateralPercent = Just 1
         , Cardano.protocolParamMaxCollateralInputs = Just 3
         }
-    costModel = Cardano.CostModel
-        $ Alonzo.getCostModelParams Plutus.testingCostModelV1
 
+{-# NOINLINE costModelsForTesting #-}
+costModelsForTesting :: Alonzo.CostModels
+costModelsForTesting = unsafePerformIO $ do
+    let fp = $(getTestData) </> "cardano-node-shelley" </> "alonzo-genesis.yaml"
+    (alonzoGenesis :: AlonzoGenesis) <- Yaml.decodeFileThrow fp
+    return $ costmdls alonzoGenesis
 
 block0 :: Block
 block0 = Block
