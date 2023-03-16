@@ -4417,16 +4417,19 @@ pingPong_2 = PartialTx
     , inputs = WriteTx.toCardanoUTxO $ either (error . show) id $ WriteTx.utxoFromTxOutsInLatestEra RecentEraBabbage
         [ ( WriteTx.unsafeMkTxIn tid 0
           , WriteTx.TxOutInRecentEra
-                (WriteTx.unsafeAddressFromBytes $ unsafeFromHex
-                    "714d72cf569a339a18a7d93023139\
-                    \83f56e0d96cd45bdcb1d6512dca6a")
+                (WriteTx.unsafeAddressFromBytes $ unsafeFromHex $ mconcat
+                    [ "714d72cf569a339a18a7d93023139"
+                    , "83f56e0d96cd45bdcb1d6512dca6a"
+                    ])
                 (toLedgerTokenBundle $ TokenBundle.fromCoin $ Coin 2_000_000)
                 (WriteTx.DatumHash
                     $ fromJust
                     $ WriteTx.datumHashFromBytes
                     $ unsafeFromHex
-                        "923918e403bf43c34b4ef6b48eb2ee04\
-                        \babed17320d8d1b9ff9ad086e86f44ec")
+                    $ mconcat $
+                        [ "923918e403bf43c34b4ef6b48eb2ee04"
+                        , "babed17320d8d1b9ff9ad086e86f44ec"
+                        ])
                 Nothing
           )
         ]
