@@ -504,27 +504,41 @@ spec = do
     distributeSurplusSpec
     estimateSignedTxSizeSpec
     describe "Sign transaction" $ do
-        spec_forAllEras
+        -- TODO [ADP-2849] The implementation must be restricted to work only in
+        -- 'RecentEra's, not just the tests.
+        spec_forAllRecentEras
             "signTransaction adds reward account witness when necessary"
             prop_signTransaction_addsRewardAccountKey
-        spec_forAllEras
+        spec_forAllRecentEras
             "signTransaction adds extra key witnesses when necessary"
             prop_signTransaction_addsExtraKeyWitnesses
-        spec_forAllEras
+        spec_forAllRecentEras
             "signTransaction adds tx in witnesses when necessary"
             prop_signTransaction_addsTxInWitnesses
-        spec_forAllEras
+        spec_forAllRecentEras
             "signTransaction adds collateral witnesses when necessary"
             prop_signTransaction_addsTxInCollateralWitnesses
-        spec_forAllEras
+        spec_forAllRecentEras
             "signTransaction never removes witnesses"
             prop_signTransaction_neverRemovesWitnesses
-        spec_forAllEras
+        spec_forAllRecentEras
             "signTransaction never changes tx body"
             prop_signTransaction_neverChangesTxBody
-        spec_forAllEras
+        spec_forAllRecentEras
             "signTransaction preserves script integrity"
             prop_signTransaction_preservesScriptIntegrity
+
+spec_forAllRecentEras
+    :: Testable prop => String -> (AnyCardanoEra -> prop) -> Spec
+spec_forAllRecentEras description p =
+    describe description $
+    forAllRecentEras'
+        $ \(AnyCardanoEra era) -> it (show era)
+        $ property
+        $ p (AnyCardanoEra era)
+  where
+    forAllRecentEras' f = forAllRecentEras $ \(AnyRecentEra recentEra) ->
+        f $ AnyCardanoEra $ WriteTx.cardanoEraFromRecentEra recentEra
 
 spec_forAllEras
     :: Testable prop => String -> (AnyCardanoEra -> prop) -> Spec
