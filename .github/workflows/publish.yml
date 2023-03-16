@@ -5,7 +5,7 @@ on:
     branches:
       - master
     tags:
-      - 'v*'
+      - "v*"
   pull_request:
 
 jobs:
@@ -15,25 +15,25 @@ jobs:
       PUBLISH_DIR: _build
       PR_NUMBER: ${{ github.event.pull_request.number }}
     steps:
-      - name: '📥 Checkout repository'
+      - name: "📥 Checkout repository"
         uses: actions/checkout@v3.2.0
 
-      - name: '❄ Install Nix'
-        uses: cachix/install-nix-action@v17
+      - name: "❄ Install Nix"
+        uses: cachix/install-nix-action@v20
         with:
-          install_url: https://releases.nixos.org/nix/nix-2.7.0/install
-          nix_path: nixpkgs=channel:nixos-21.11
+          install_url: https://releases.nixos.org/nix/nix-2.13.3/install
+          nix_path: nixpkgs=channel:nixos-22.11
           extra_nix_config: |
             access-tokens = github.com=${{ secrets.GITHUB_TOKEN }}
             substituters = https://hydra.iohk.io https://cache.nixos.org/
             trusted-public-keys = hydra.iohk.io:f/Ea+s+dFdN+3Y/G+FDgSq+a5NEWhJGzdjvKNGv0/EQ= cache.nixos.org-1:6NCHdD59X431o0gWypbMrAURkbJ16ZPMQFGspcDShjY=
 
-      - uses: cachix/cachix-action@v10
+      - uses: cachix/cachix-action@v12
         with:
           name: adp
-          authToken: '${{ secrets.CACHIX_AUTH_TOKEN }}'
+          authToken: "${{ secrets.CACHIX_AUTH_TOKEN }}"
 
-      - name: '🔧 Set versions'
+      - name: "🔧 Set versions"
         id: versions
         run: |
           if [[ $GITHUB_REF =~ ^refs/tags/v ]]; then
@@ -54,10 +54,10 @@ jobs:
 
             Source commit: ${{ github.sha }}
 
-      - name: '❄ Install dependencies'
-        run: 'nix develop .#docs --command emanote --version'
+      - name: "❄ Install dependencies"
+        run: "nix develop .#docs --command emanote --version"
 
-      - name: '📸 Build Documentation'
+      - name: "📸 Build Documentation"
         run: |
           build_dir="$PUBLISH_DIR"
           if [ -n "$PR_NUMBER" ]; then
@@ -69,7 +69,7 @@ jobs:
           nix develop .#docs -c emanote --layers "docs;docs/.deploy/github" gen "$build_dir"
           ./scripts/gh/update-docs.sh "$build_dir" ${{ steps.versions.outputs.tag }}
 
-      - name: '📘 Publish'
+      - name: "📘 Publish"
         if: ${{ github.ref == 'refs/heads/master' || startsWith(github.ref, 'refs/tags/v') }}
         uses: peaceiris/actions-gh-pages@v3
         with:
@@ -77,6 +77,6 @@ jobs:
           enable_jekyll: false
           publish_dir: ${{ env.PUBLISH_DIR }}
           keep_files: true
-          user_name: 'William King Noel Bot'
-          user_email: 'adrestia@iohk.io'
+          user_name: "William King Noel Bot"
+          user_email: "adrestia@iohk.io"
           full_commit_message: ${{ steps.versions.outputs.commit_message }}
