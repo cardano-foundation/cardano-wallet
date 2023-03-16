@@ -8,9 +8,6 @@
 
 {-# OPTIONS_GHC -fno-warn-orphans #-}
 
--- TODO: https://input-output.atlassian.net/browse/ADP-2841
-{-# OPTIONS_GHC -fno-warn-deprecations #-}
-
 -- |
 -- Copyright: © 2018-2020 IOHK
 -- License: Apache-2.0
@@ -112,7 +109,7 @@ import Data.Text.Encoding
 import Data.Time.Clock.POSIX
     ( POSIXTime, posixSecondsToUTCTime, utcTimeToPOSIXSeconds )
 import Data.Time.Format
-    ( defaultTimeLocale, formatTime, iso8601DateFormat, parseTimeM )
+    ( defaultTimeLocale, formatTime, parseTimeM )
 import Data.Word
     ( Word32, Word64 )
 import Data.Word.Odd
@@ -710,12 +707,12 @@ instance PersistFieldSql TxScriptValidity where
 instance PersistField POSIXTime where
     toPersistValue = PersistText
         . T.pack
-        . formatTime defaultTimeLocale (iso8601DateFormat (Just "%H:%M:%S"))
+        . formatTime defaultTimeLocale iso8601DateFormatHMS
         . posixSecondsToUTCTime
     fromPersistValue (PersistText time) =
         utcTimeToPOSIXSeconds <$>
             getEitherText (parseTimeM True defaultTimeLocale
-                (iso8601DateFormat (Just "%H:%M:%S")) (T.unpack time))
+                iso8601DateFormatHMS (T.unpack time))
     fromPersistValue _ = Left
         "Could not parse POSIX time value"
 
@@ -751,3 +748,8 @@ instance PersistField BlockHeight where
 
 instance PersistFieldSql BlockHeight where
     sqlType _ = sqlType (Proxy @Word32)
+
+iso8601DateFormatHMS :: String
+-- Equivalent to `iso8601DateFormatHMS (Just "%H:%M:%S")`
+-- The function `iso8601DateFormatHMS` has been deprecated from the `time` library.
+iso8601DateFormatHMS = "%Y-%m-%d %H:%M:%S"
