@@ -4402,10 +4402,11 @@ paymentPartialTx txouts = PartialTx (Cardano.Tx body []) mempty []
 pingPong_1 :: PartialTx Cardano.BabbageEra
 pingPong_1 = PartialTx tx mempty []
   where
-    tx = deserializeBabbageTx $ unsafeFromHex
-        "84a500800d80018183581d714d72cf569a339a18a7d9302313983f56e0d96cd4\
-        \5bdcb1d6512dca6a1a001e84805820923918e403bf43c34b4ef6b48eb2ee04ba\
-        \bed17320d8d1b9ff9ad086e86f44ec02000e80a10481d87980f5f6"
+    tx = deserializeBabbageTx $ unsafeFromHex $ mconcat
+        [ "84a500800d80018183581d714d72cf569a339a18a7d9302313983f56e0d96cd4"
+        , "5bdcb1d6512dca6a1a001e84805820923918e403bf43c34b4ef6b48eb2ee04ba"
+        , "bed17320d8d1b9ff9ad086e86f44ec02000e80a10481d87980f5f6"
+        ]
 
 pingPong_2 :: PartialTx Cardano.BabbageEra
 pingPong_2 = PartialTx
