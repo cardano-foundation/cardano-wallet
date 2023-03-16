@@ -7,57 +7,55 @@ env:
   macos: "x86_64-darwin"
   linux: "x86_64-linux"
 
-
 steps:
-  - label: 'Merge from staging only'
+  - label: "Merge from staging only"
     if: 'build.branch == "staging"'
-    command: './.buildkite/check-bors.sh'
+    command: "./.buildkite/check-bors.sh"
     agents:
       system: ${linux}
 
   - wait: ~
     if: 'build.branch == "staging"'
 
-  - label: 'Check nix (linux)'
+  - label: "Check nix (linux)"
     # Check whether regenerate.sh was applied when it had to be applied.
     key: linux-nix
     commands:
-      - './nix/regenerate.sh'
+      - "./nix/regenerate.sh"
     agents:
       system: ${linux}
     env:
       TMPDIR: "/cache"
 
-
-  - label: 'Build bench and run unit tests (linux)'
+  - label: "Build bench and run unit tests (linux)"
     depends_on: linux-nix
     command:
-      - 'nix build .#ci.tests.all'
-      - 'nix build .#ci.benchmarks.all'
-      - 'nix build -L .#ci.${linux}.tests.run.unit'
+      - "nix build .#ci.tests.all"
+      - "nix build .#ci.benchmarks.all"
+      - "nix build -L .#ci.${linux}.tests.run.unit"
 
     agents:
       system: ${linux}
     env:
       TMPDIR: "/cache"
 
-  - label: 'Check Cabal Configure'
+  - label: "Check Cabal Configure"
     depends_on: linux-nix
-    command: 'nix develop --command scripts/buildkite/check-haskell-nix-cabal.sh'
+    command: "nix develop --command scripts/buildkite/check-haskell-nix-cabal.sh"
     agents:
       system: ${linux}
     env:
       TMPDIR: "/cache"
 
-  - label: 'Check Stylish Haskell'
+  - label: "Check Stylish Haskell"
     depends_on: linux-nix
-    command: 'nix develop --command .buildkite/check-stylish.sh'
+    command: "nix develop --command .buildkite/check-stylish.sh"
     agents:
       system: ${linux}
     env:
       TMPDIR: "/cache"
 
-  - label: 'Check HLint'
+  - label: "Check HLint"
     depends_on: linux-nix
     command: 'nix develop --command bash -c "echo +++ HLint ; hlint lib"'
     agents:
@@ -65,65 +63,64 @@ steps:
     env:
       TMPDIR: "/cache"
 
-  - label: 'Validate OpenAPI Specification'
+  - label: "Validate OpenAPI Specification"
     depends_on: linux-nix
-    command: 'nix develop --command bash -c "echo +++ openapi-spec-validator ; openapi-spec-validator --schema 3.0.0 specifications/api/swagger.yaml"'
+    command: 'nix develop --command bash -c "echo +++ openapi-spec-validator ; openapi-spec-validator --schema 3.1.0 specifications/api/swagger.yaml"'
     agents:
       system: ${linux}
     env:
       TMPDIR: "/cache"
 
-  - label: 'Build Docker Image'
+  - label: "Build Docker Image"
     depends_on: linux-nix
     command:
-      - "mkdir -p config && echo '{  outputs = _: { dockerHubRepoName = \"inputoutput/cardano-wallet\"; }; }'  > config/flake.nix"
-      - "nix build .#pushDockerImage --override-input hostNixpkgs \"path:$(nix eval --impure -I $NIX_PATH --expr '(import <nixpkgs> {}).path')\" --override-input customConfig path:./config -o docker-build-push"
+      - 'mkdir -p config && echo ''{  outputs = _: { dockerHubRepoName = "inputoutput/cardano-wallet"; }; }''  > config/flake.nix'
+      - 'nix build .#pushDockerImage --override-input hostNixpkgs "path:$(nix eval --impure -I $NIX_PATH --expr ''(import <nixpkgs> {}).path'')" --override-input customConfig path:./config -o docker-build-push'
       - "./docker-build-push"
     agents:
       system: ${linux}
     env:
       TMPDIR: "/cache"
     soft_fail:
-      - exit_status: '*'
+      - exit_status: "*"
 
-  - label: 'Print TODO list'
+  - label: "Print TODO list"
     depends_on: linux-nix
-    command: 'nix develop --command scripts/todo-list.sh'
+    command: "nix develop --command scripts/todo-list.sh"
     agents:
       system: ${linux}
     env:
       TMPDIR: "/cache"
 
-  - label: 'Lint bash shell scripts'
+  - label: "Lint bash shell scripts"
     depends_on: linux-nix
     commands:
-      - 'echo +++ Shellcheck'
-      - './scripts/shellcheck.sh'
+      - "echo +++ Shellcheck"
+      - "./scripts/shellcheck.sh"
     agents:
       system: ${linux}
     env:
       TMPDIR: "/cache"
 
-  - label: 'Check HLS works'
+  - label: "Check HLS works"
     depends_on: linux-nix
     command: |
-        ln -sf hie-direnv.yaml hie.yaml
-        nix develop --command bash -c "haskell-language-server lib/wallet/src/Cardano/Wallet.hs"
+      ln -sf hie-direnv.yaml hie.yaml
+      nix develop --command bash -c "haskell-language-server lib/wallet/src/Cardano/Wallet.hs"
     agents:
       system: ${linux}
     env:
       TMPDIR: "/cache"
 
-  - block: 'Run integration tests (linux)'
+  - block: "Run integration tests (linux)"
     if: '(build.branch != "staging") && (build.branch != "trying") && (build.branch != "master")'
     key: trigger-linux
     depends_on:
       - linux-nix
 
-  - label: 'Run integration tests (linux)'
-    command: 'nix build -L .#ci.${linux}.tests.run.integration'
-    depends_on:
-      trigger-linux
+  - label: "Run integration tests (linux)"
+    command: "nix build -L .#ci.${linux}.tests.run.integration"
+    depends_on: trigger-linux
     agents:
       system: ${linux}
     env:
@@ -133,18 +130,18 @@ steps:
     if: 'build.branch != "master"'
     key: trigger-macos-test
 
-  - label: 'Check nix (macOS)'
+  - label: "Check nix (macOS)"
     key: macos-nix
     depends_on: trigger-macos-test
     commands:
-      - './nix/regenerate.sh'
+      - "./nix/regenerate.sh"
     agents:
       system: ${macos}
 
-  - label: 'Run unit tests (macOS)'
+  - label: "Run unit tests (macOS)"
     depends_on: trigger-macos-test
     key: macos-build-tests
-    command: 'GC_DONT_GC=1 nix build --max-silent-time 0 --max-jobs 1 -L .#ci.${macos}.tests.run.unit'
+    command: "GC_DONT_GC=1 nix build --max-silent-time 0 --max-jobs 1 -L .#ci.${macos}.tests.run.unit"
     agents:
       system: ${macos}
 
@@ -152,11 +149,11 @@ steps:
     if: 'build.branch != "master"'
     key: trigger-macos-package
 
-  - label: 'Build package (macOS)'
+  - label: "Build package (macOS)"
     depends_on: trigger-macos-package
     key: build-macos
     command: nix build --max-silent-time 0 --max-jobs 1 -o result/macos-intel .#ci.artifacts.macos-intel.release
-    artifact_paths: [ "./result/macos-intel/**" ]
+    artifact_paths: ["./result/macos-intel/**"]
     agents:
       system: ${macos}
 
@@ -165,11 +162,11 @@ steps:
     if: '(build.branch != "staging") && (build.branch != "trying") && (build.branch != "master")'
     key: trigger-build-linux-package
 
-  - label: 'Build package (linux)'
+  - label: "Build package (linux)"
     depends_on: [linux-nix, trigger-build-linux-package]
     key: build-linux
     command: nix build -o result/linux .#ci.artifacts.linux64.release
-    artifact_paths: [ "./result/linux/**" ]
+    artifact_paths: ["./result/linux/**"]
     agents:
       system: ${linux}
     env:
@@ -180,23 +177,22 @@ steps:
     if: '(build.branch != "staging") && (build.branch != "trying") && (build.branch != "master")'
     key: trigger-build-windows-artifacts
 
-  - label: 'Build package (windows)'
+  - label: "Build package (windows)"
     depends_on: [linux-nix, trigger-build-windows-artifacts]
     key: build-windows
     command: nix build -o result/windows .#ci.artifacts.win64.release
-    artifact_paths: [ "./result/windows/**" ]
+    artifact_paths: ["./result/windows/**"]
     agents:
       system: ${linux}
     env:
       TMPDIR: "/cache"
 
-  - label: 'Build testing bundle (windows)'
+  - label: "Build testing bundle (windows)"
     depends_on: [linux-nix, trigger-build-windows-artifacts]
     key: build-windows-tests
     command: nix build -o result/windows-tests .#ci.artifacts.win64.tests
-    artifact_paths: [ "./result/windows-tests/**" ]
+    artifact_paths: ["./result/windows-tests/**"]
     agents:
       system: ${linux}
     env:
       TMPDIR: "/cache"
-
