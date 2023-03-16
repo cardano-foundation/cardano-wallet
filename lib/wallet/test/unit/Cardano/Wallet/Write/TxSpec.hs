@@ -10,7 +10,7 @@ module Cardano.Wallet.Write.TxSpec where
 import Prelude
 
 import Cardano.Api.Gen
-    ( genScriptInAnyLang, genTxIn, genHashableScriptData )
+    ( genHashableScriptData, genScriptInAnyLang, genTxIn )
 import Cardano.Ledger.Alonzo.PParams
     ( _coinsPerUTxOWord )
 import Cardano.Ledger.Babbage.PParams
@@ -21,6 +21,7 @@ import Cardano.Wallet.Write.Tx
     ( BinaryData
     , RecentEra (..)
     , Script
+    , StandardBabbage
     , TxOutInBabbage
     , binaryDataFromBytes
     , binaryDataToBytes
@@ -37,7 +38,7 @@ import Cardano.Wallet.Write.Tx
     , scriptFromCardanoScriptInAnyLang
     , scriptToCardanoEnvelopeJSON
     , scriptToCardanoScriptInAnyLang
-    , toCardanoUTxO, StandardBabbage
+    , toCardanoUTxO
     )
 import Cardano.Wallet.Write.Tx.Gen
     ( genBinaryData, genTxOut, shrinkBinaryData )

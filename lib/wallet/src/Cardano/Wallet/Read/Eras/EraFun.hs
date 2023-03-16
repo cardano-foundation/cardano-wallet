@@ -43,7 +43,14 @@ import Prelude hiding
     ( id, (.) )
 
 import Cardano.Api
-    ( AllegraEra, AlonzoEra, BabbageEra, ByronEra, ConwayEra, MaryEra, ShelleyEra )
+    ( AllegraEra
+    , AlonzoEra
+    , BabbageEra
+    , ByronEra
+    , ConwayEra
+    , MaryEra
+    , ShelleyEra
+    )
 import Cardano.Wallet.Read.Eras.EraValue
     ( EraValue (..) )
 import Cardano.Wallet.Read.Eras.KnownEras

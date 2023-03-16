@@ -21,7 +21,14 @@ module Cardano.Wallet.Read.Tx.Validity
 import Prelude
 
 import Cardano.Api
-    ( AllegraEra, AlonzoEra, BabbageEra, ByronEra, ConwayEra, MaryEra, ShelleyEra )
+    ( AllegraEra
+    , AlonzoEra
+    , BabbageEra
+    , ByronEra
+    , ConwayEra
+    , MaryEra
+    , ShelleyEra
+    )
 import Cardano.Ledger.Core
     ( bodyTxL )
 import Cardano.Ledger.Shelley.TxBody

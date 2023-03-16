@@ -20,7 +20,14 @@ module Cardano.Wallet.Read.Tx.Metadata
 import Prelude
 
 import Cardano.Api
-    ( AllegraEra, AlonzoEra, BabbageEra, ByronEra, ConwayEra, MaryEra, ShelleyEra )
+    ( AllegraEra
+    , AlonzoEra
+    , BabbageEra
+    , ByronEra
+    , ConwayEra
+    , MaryEra
+    , ShelleyEra
+    )
 import Cardano.Wallet.Read.Eras
     ( EraFun (..) )
 import Control.Lens
