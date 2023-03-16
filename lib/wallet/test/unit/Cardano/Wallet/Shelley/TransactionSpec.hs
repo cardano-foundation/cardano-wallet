@@ -4427,7 +4427,7 @@ pingPong_2 = PartialTx
                     $ fromJust
                     $ WriteTx.datumHashFromBytes
                     $ unsafeFromHex
-                    $ mconcat $
+                    $ mconcat
                         [ "923918e403bf43c34b4ef6b48eb2ee04"
                         , "babed17320d8d1b9ff9ad086e86f44ec"
                         ])
