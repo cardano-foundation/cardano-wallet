@@ -1,4 +1,5 @@
 {-# LANGUAGE DeriveAnyClass #-}
+{-# LANGUAGE LambdaCase #-}
 {-# LANGUAGE NamedFieldPuns #-}
 {-# LANGUAGE ScopedTypeVariables #-}
 
@@ -9,11 +10,19 @@ module Cardano.Wallet.DB.Store.UTxOHistory.Store
 import Prelude
 
 import Cardano.Wallet.DB.Sqlite.Schema
-    ( DeltaUTxOSlots (..), DeltaUTxOValue (..), EntityField (..) )
+    ( DeltaUTxOSlots (..), DeltaUTxOValue (..), EntityField (..), Key (..) )
 import Cardano.Wallet.DB.Sqlite.Types
     ( TxId (..), getTxId )
 import Cardano.Wallet.DB.Store.UTxOHistory.Model
-    ( DeltaUTxOHistory (..), Spent (..), reverseMapOfSets )
+    ( DeltaUTxOHistory (..)
+    , Pruned (..)
+    , Spent (..)
+    , constrainingAppendBlock
+    , constrainingPrune
+    , constrainingRollback
+    , empty
+    , reverseMapOfSets
+    )
 import Cardano.Wallet.DB.Store.UTxOHistory.Model.Internal
     ( UTxOHistory (..) )
 import Cardano.Wallet.DB.Store.UTxOHistory.TxOutCBOR
@@ -25,20 +34,20 @@ import Cardano.Wallet.Primitive.Types.Tx.TxIn
 import Cardano.Wallet.Primitive.Types.Tx.TxOut
     ( TxOut )
 import Cardano.Wallet.Primitive.Types.UTxO
-    ( UTxO (..) )
+    ( DeltaUTxO (..), UTxO (..) )
 import Control.Lens
     ( lazy, strict, view, (<&>) )
+import Control.Monad.Class.MonadThrow
+    ( throwIO )
 import Data.ByteString
     ( ByteString )
 import Data.Either.Extra
 import Data.Foldable
-    ( foldl' )
-import qualified Data.Map.Strict as Map
+    ( foldl', forM_ )
 import Data.Maybe
     ( maybeToList )
-import qualified Data.Set as Set
 import Data.Store
-    ( UpdateStore, mkUpdateStore )
+    ( UpdateStore, mkUpdateStore, updateLoad )
 import Database.Persist.Sql
     ( PersistQueryWrite (deleteWhere)
     , SqlPersistT
@@ -47,12 +56,21 @@ import Database.Persist.Sql
     , insert_
     , selectFirst
     , selectList
+    , updateWhere
+    , (!=.)
+    , (<=.)
+    , (=.)
     , (==.)
+    , (>.)
     )
 import GHC.Exception
     ( Exception, SomeException )
 import GHC.Exception.Type
     ( toException )
+
+import qualified Data.Map.Strict as Map
+import qualified Data.Set as Set
+import qualified Database.Persist as Sql
 
 -- | Create a 'Store' for 'UTxOHistory' using the given 'WalletId' as a key.
 mkStoreUTxOHistory
@@ -208,4 +226,71 @@ encodeTxOut :: TxOut -> ByteString
 encodeTxOut = view strict . serializeTxOut
 
 update :: WalletId -> Maybe UTxOHistory -> DeltaUTxOHistory -> SqlPersistT IO ()
-update _wid = undefined
+update wid = updateLoad (load wid) throwIO updateJust
+  where
+    updateJust :: UTxOHistory -> DeltaUTxOHistory -> SqlPersistT IO ()
+    updateJust old =
+        \case
+            AppendBlock newTip delta ->
+                constrainingAppendBlock (pure ()) old newTip $ do
+                    let
+                        new = received delta
+                        spent = excluded delta
+                    insertMany_ $ do
+                        (TxIn {inputId, inputIx}, txOut) <-
+                            Map.assocs $
+                                unUTxO new
+                        pure $
+                            DeltaUTxOValue
+                                wid
+                                (At newTip)
+                                Unspent
+                                (TxId inputId)
+                                inputIx
+                                (encodeTxOut txOut)
+                                False
+                    forM_ spent $ \(TxIn txId txIx) ->
+                        Sql.update
+                            (DeltaUTxOValueKey wid (TxId txId) txIx False)
+                            [DeltaUTxOValueSpent =. Spent newTip]
+                    updateWhere
+                        [DeltaUTxOSlotsWallet ==. wid]
+                        [DeltaUTxOSlotsTip =. At newTip]
+
+            Rollback slot -> constrainingRollback (pure ()) old slot $ \case
+                Just newTip -> do
+                    deleteWhere
+                        [ DeltaUTxOValueWalletId ==. wid
+                        , DeltaUTxOValueCreation >. newTip
+                        , DeltaUTxOValueBoot ==. False
+                        ]
+                    -- TODO: Add indices to the database schema for slots.
+                    let
+                        spentFilter = case slot of
+                            Origin -> [] -- remove everything
+                            At slotNo ->
+                                [ DeltaUTxOValueSpent >. Spent slotNo
+                                , DeltaUTxOValueSpent !=. Unspent
+                                ]
+                    updateWhere
+                        ( [DeltaUTxOValueBoot ==. False]
+                            <> spentFilter
+                        )
+                        [DeltaUTxOValueSpent =. Unspent]
+                    updateWhere
+                        [DeltaUTxOSlotsWallet ==. wid]
+                        [DeltaUTxOSlotsTip =. newTip]
+                Nothing -> do
+                    write wid $ empty $ boot old
+            Prune slot -> constrainingPrune (pure ()) old slot $ \newFinality ->
+                do
+                    -- TODO: Add indices to the database schema for slots.
+                    deleteWhere
+                        [ DeltaUTxOValueWalletId ==. wid
+                        , DeltaUTxOValueSpent <=. Spent newFinality
+                        , -- , DeltaUTxOValueSpent !=. Unspent
+                          DeltaUTxOValueBoot ==. False
+                        ]
+                    updateWhere
+                        [DeltaUTxOSlotsWallet ==. wid]
+                        [DeltaUTxOSlotsFinality =. PrunedUpTo newFinality]
