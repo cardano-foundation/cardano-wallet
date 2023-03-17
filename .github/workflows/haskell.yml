@@ -1,0 +1,59 @@
+name: CI
+
+# Trigger the workflow on push or pull request, but only for the master branch
+on:
+  pull_request:
+  push:
+    branches: [master]
+
+jobs:
+  build:
+    name: ghc ${{ matrix.ghc }}
+    runs-on: ubuntu-latest
+    strategy:
+      matrix:
+        ghc: [ "8.10.7"]
+
+    steps:
+    - uses: actions/checkout@v2
+      if: github.event.action == 'opened' || github.event.action == 'synchronize' || github.event.ref == 'refs/heads/master'
+
+    - name: Other Packages
+      run: |
+        sudo apt update
+        sudo apt purge aspnetcore* dotnet* firefox powershell
+        sudo apt upgrade
+        sudo apt install -y pkg-config libsodium-dev libsecp256k1-dev libsystemd-dev
+
+    - uses: haskell/actions/setup@v1
+      name: Setup Haskell
+      with:
+        ghc-version: ${{ matrix.ghc }}
+
+    - name: Copy cabal.project.local
+      shell: bash
+      run: |
+        cp .github/workflows/cabal.project.local.ci cabal.project.local
+        echo "# cabal.project.local"
+        cat cabal.project.local
+
+    - uses: actions/cache@v2
+      name: Cache ~/.cabal/store
+      with:
+        path: |
+          ${{ steps.setup-haskell.outputs.cabal-store }}
+          dist-newstyle
+        key: ${{ runner.os }}-${{ matrix.ghc }}-${{ hashFiles('cabal.project.freeze') }}
+        restore-keys: |
+          ${{ runner.os }}-${{ matrix.ghc }}-
+
+    - name: Build
+      run: |
+        cabal build all --enable-tests --enable-benchmarks -j
+
+    # - name: Test  # Run all the tests other than the integration tests which require Nix.
+    #   run: |
+    #     cabal test --enable-tests -j1 cardano-wallet-primitive:test delta-table:unit dbvar:unit
+    #     cabal test --enable-tests -j1 wai-middleware-logging:unit strict-non-empty-containers:unit
+    #     cabal test --enable-tests -j1 cardano-wallet-test-utils:unit cardano-numeric:unit cardano-coin-selection:test
+    #     cabal test --enable-tests -j1 text-class:unit cardano-balance-tx:test cardano-wallet-launcher:unit
