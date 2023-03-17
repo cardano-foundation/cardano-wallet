@@ -25,7 +25,7 @@ ENV['TESTS_WALLET_DB'] ||= File.join(ENV.fetch('TESTS_E2E_STATEDIR', nil), 'wall
 ENV['TESTS_E2E_BINDIR'] ||= './bins'
 
 ENV['TESTS_E2E_TOKEN_METADATA'] ||= 'https://metadata.cardano-testnet.iohkdev.io/'
-ENV['TESTS_E2E_SMASH'] ||= 'https://smash.cardano-testnet.iohkdev.io'
+ENV['TESTS_E2E_SMASH'] ||= 'https://smash.shelley-qa.dev.cardano.org/'
 ENV['WALLET_PORT'] ||= '8090'
 ENV['NETWORK'] ||= 'preprod'
 
