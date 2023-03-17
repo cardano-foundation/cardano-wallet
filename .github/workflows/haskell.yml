@@ -47,10 +47,14 @@ jobs:
         restore-keys: |
           ${{ runner.os }}-${{ matrix.ghc }}-
 
+    - name: Build dependencies
+      run: |
+        cabal build all --enable-tests --enable-benchmarks -j1 --only-dependencies
+
     - name: Build
       run: |
-        cabal build all --enable-tests --enable-benchmarks -j
+        cabal build all --enable-tests --enable-benchmarks -j1
 
     - name: Test
       run: |
-        cabal test all -j
+        cabal test all -j1
