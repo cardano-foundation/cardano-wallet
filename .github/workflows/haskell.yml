@@ -49,7 +49,7 @@ jobs:
 
     - name: Build
       run: |
-        cabal build all --enable-tests --enable-benchmarks
+        cabal build all --enable-tests --enable-benchmarks -j
 
     - name: Test
       run: |
