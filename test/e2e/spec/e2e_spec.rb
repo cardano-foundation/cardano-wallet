@@ -1057,10 +1057,8 @@ RSpec.describe 'Cardano Wallet E2E tests', :all, :e2e do
       expect(assets).to be_correct_and_respond 200
       expect(assets.to_s).to include ASSETS[0]['policy_id']
       expect(assets.to_s).to include ASSETS[0]['asset_name']
-      expect(assets.to_s).to include ASSETS[0]['metadata']['name']
       expect(assets.to_s).to include ASSETS[1]['policy_id']
       expect(assets.to_s).to include ASSETS[1]['asset_name']
-      expect(assets.to_s).to include ASSETS[1]['metadata']['name']
     end
 
     it 'Only withdrawal' do
@@ -2440,6 +2438,8 @@ RSpec.describe 'Cardano Wallet E2E tests', :all, :e2e do
       end
 
       it 'I can list native assets and get offchain metadata', :offchain do
+        pending 'offchain metadata server temporarily down'
+
         assets = SHELLEY.assets.get @wid
         expect(assets).to be_correct_and_respond 200
         expect(assets.to_s).to include ASSETS[0]['policy_id']
@@ -3235,10 +3235,8 @@ RSpec.describe 'Cardano Wallet E2E tests', :all, :e2e do
       expect(assets).to be_correct_and_respond 200
       expect(assets.to_s).to include ASSETS[0]['policy_id']
       expect(assets.to_s).to include ASSETS[0]['asset_name']
-      expect(assets.to_s).to include ASSETS[0]['metadata']['name']
       expect(assets.to_s).to include ASSETS[1]['policy_id']
       expect(assets.to_s).to include ASSETS[1]['asset_name']
-      expect(assets.to_s).to include ASSETS[1]['metadata']['name']
 
       # examine the tx in history
       # on src wallet
@@ -3386,10 +3384,20 @@ RSpec.describe 'Cardano Wallet E2E tests', :all, :e2e do
         expect(assets).to be_correct_and_respond 200
         expect(assets.to_s).to include ASSETS[0]['policy_id']
         expect(assets.to_s).to include ASSETS[0]['asset_name']
-        expect(assets.to_s).to include ASSETS[0]['metadata']['name']
         expect(assets.to_s).to include ASSETS[1]['policy_id']
         expect(assets.to_s).to include ASSETS[1]['asset_name']
-        expect(assets.to_s).to include ASSETS[1]['metadata']['name']
+
+        assets = BYRON.assets.get(@wid_rnd, ASSETS[0]['policy_id'])
+        expect(assets).to be_correct_and_respond 200
+        expect(assets['policy_id']).to eq ASSETS[0]['policy_id']
+        expect(assets['asset_name']).to eq ASSETS[0]['asset_name']
+        expect(assets['asset_name']).not_to eq ASSETS[1]['asset_name']
+
+        assets = BYRON.assets.get(@wid_rnd, ASSETS[1]['policy_id'], ASSETS[1]['asset_name'])
+        expect(assets).to be_correct_and_respond 200
+        expect(assets['policy_id']).to eq ASSETS[1]['policy_id']
+        expect(assets['asset_name']).to eq ASSETS[1]['asset_name']
+        expect(assets['asset_name']).not_to eq ASSETS[0]['asset_name']
       end
 
       it 'I can list assets -> icarus' do
@@ -3397,13 +3405,25 @@ RSpec.describe 'Cardano Wallet E2E tests', :all, :e2e do
         expect(assets).to be_correct_and_respond 200
         expect(assets.to_s).to include ASSETS[0]['policy_id']
         expect(assets.to_s).to include ASSETS[0]['asset_name']
-        expect(assets.to_s).to include ASSETS[0]['metadata']['name']
         expect(assets.to_s).to include ASSETS[1]['policy_id']
         expect(assets.to_s).to include ASSETS[1]['asset_name']
-        expect(assets.to_s).to include ASSETS[1]['metadata']['name']
+
+        assets = BYRON.assets.get(@wid_ic, ASSETS[0]['policy_id'])
+        expect(assets).to be_correct_and_respond 200
+        expect(assets['policy_id']).to eq ASSETS[0]['policy_id']
+        expect(assets['asset_name']).to eq ASSETS[0]['asset_name']
+        expect(assets['asset_name']).not_to eq ASSETS[1]['asset_name']
+
+        assets = BYRON.assets.get(@wid_ic, ASSETS[1]['policy_id'], ASSETS[1]['asset_name'])
+        expect(assets).to be_correct_and_respond 200
+        expect(assets['policy_id']).to eq ASSETS[1]['policy_id']
+        expect(assets['asset_name']).to eq ASSETS[1]['asset_name']
+        expect(assets['asset_name']).not_to eq ASSETS[0]['asset_name']
       end
 
-      it 'I can get native assets by policy_id -> random' do
+      it 'I can list assets with offchain metadata -> random', :offchain do
+        pending 'offchain metadata server temporarily down'
+
         assets = BYRON.assets.get(@wid_rnd, ASSETS[0]['policy_id'])
         expect(assets).to be_correct_and_respond 200
         expect(assets['policy_id']).to eq ASSETS[0]['policy_id']
@@ -3411,10 +3431,28 @@ RSpec.describe 'Cardano Wallet E2E tests', :all, :e2e do
         expect(assets['metadata']).to eq ASSETS[0]['metadata']
         expect(assets['asset_name']).not_to eq ASSETS[1]['asset_name']
         expect(assets['metadata']).not_to eq ASSETS[1]['metadata']
+
+        assets = BYRON.assets.get(@wid_rnd, ASSETS[1]['policy_id'], ASSETS[1]['asset_name'])
+        expect(assets).to be_correct_and_respond 200
+        expect(assets['policy_id']).to eq ASSETS[1]['policy_id']
+        expect(assets['asset_name']).to eq ASSETS[1]['asset_name']
+        expect(assets['metadata']).to eq ASSETS[1]['metadata']
+        expect(assets['asset_name']).not_to eq ASSETS[0]['asset_name']
+        expect(assets['metadata']).not_to eq ASSETS[0]['metadata']['name']
       end
 
-      it 'I can get native assets by policy_id and asset_name -> random' do
-        assets = BYRON.assets.get(@wid_rnd, ASSETS[1]['policy_id'], ASSETS[1]['asset_name'])
+      it 'I can list assets with offchain metadata -> icarus', :offchain do
+        pending 'offchain metadata server temporarily down'
+
+        assets = BYRON.assets.get(@wid_ic, ASSETS[0]['policy_id'])
+        expect(assets).to be_correct_and_respond 200
+        expect(assets['policy_id']).to eq ASSETS[0]['policy_id']
+        expect(assets['asset_name']).to eq ASSETS[0]['asset_name']
+        expect(assets['metadata']).to eq ASSETS[0]['metadata']
+        expect(assets['asset_name']).not_to eq ASSETS[1]['asset_name']
+        expect(assets['metadata']).not_to eq ASSETS[1]['metadata']
+
+        assets = BYRON.assets.get(@wid_ic, ASSETS[1]['policy_id'], ASSETS[1]['asset_name'])
         expect(assets).to be_correct_and_respond 200
         expect(assets['policy_id']).to eq ASSETS[1]['policy_id']
         expect(assets['asset_name']).to eq ASSETS[1]['asset_name']
