@@ -186,6 +186,7 @@ parseEraValue (x, era) = case era  of
     3 -> r mary
     4 -> r alonzo
     5 -> r babbage
+    6 -> r conway
     _ -> Left (x, era)
     where
       r :: MkEraValue (K a) era  -> Either (a, n) (EraValue (K a))
