@@ -2438,8 +2438,6 @@ RSpec.describe 'Cardano Wallet E2E tests', :all, :e2e do
       end
 
       it 'I can list native assets and get offchain metadata', :offchain do
-        pending 'offchain metadata server temporarily down'
-
         assets = SHELLEY.assets.get @wid
         expect(assets).to be_correct_and_respond 200
         expect(assets.to_s).to include ASSETS[0]['policy_id']
@@ -3422,8 +3420,6 @@ RSpec.describe 'Cardano Wallet E2E tests', :all, :e2e do
       end
 
       it 'I can list assets with offchain metadata -> random', :offchain do
-        pending 'offchain metadata server temporarily down'
-
         assets = BYRON.assets.get(@wid_rnd, ASSETS[0]['policy_id'])
         expect(assets).to be_correct_and_respond 200
         expect(assets['policy_id']).to eq ASSETS[0]['policy_id']
@@ -3442,8 +3438,6 @@ RSpec.describe 'Cardano Wallet E2E tests', :all, :e2e do
       end
 
       it 'I can list assets with offchain metadata -> icarus', :offchain do
-        pending 'offchain metadata server temporarily down'
-
         assets = BYRON.assets.get(@wid_ic, ASSETS[0]['policy_id'])
         expect(assets).to be_correct_and_respond 200
         expect(assets['policy_id']).to eq ASSETS[0]['policy_id']
