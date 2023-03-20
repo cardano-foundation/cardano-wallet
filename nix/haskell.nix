@@ -137,7 +137,6 @@ CHaP: haskell-nix: haskell-nix.cabalProject' [
           jq
           yq
           nixWrapped
-          cabalWrapped
         ]);
       };
 
