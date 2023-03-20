@@ -123,6 +123,7 @@
   ############################################################################
 
   inputs = {
+    nixpkgs-unstable.url = "nixpkgs/nixos-unstable";
     nixpkgs.follows = "haskellNix/nixpkgs-unstable";
     hostNixpkgs.follows = "nixpkgs";
     CHaP = {
@@ -156,7 +157,7 @@
     };
   };
 
-  outputs = { self, nixpkgs, hostNixpkgs, flake-utils, haskellNix, iohkNix, CHaP, customConfig, emanote, ... }:
+  outputs = { self, nixpkgs, nixpkgs-unstable, hostNixpkgs, flake-utils, haskellNix, iohkNix, CHaP, customConfig, emanote, ... }:
     let
       inherit (nixpkgs) lib;
       config = import ./nix/config.nix lib customConfig;
@@ -225,7 +226,11 @@
             collectChecks
             check;
 
-          project = (import ./nix/haskell.nix CHaP pkgs.haskell-nix).appendModule [{
+          project = (import ./nix/haskell.nix
+              CHaP
+              pkgs.haskell-nix
+              nixpkgs-unstable.legacyPackages.${system}
+            ).appendModule [{
             gitrev =
               if config.gitrev != null
               then config.gitrev
@@ -456,7 +461,7 @@
                   (keepIntegrationChecks packages.checks);
             };
         };
-      
+
       systems = eachSystem supportedSystems mkOutputs;
     in
       lib.recursiveUpdate systems {
