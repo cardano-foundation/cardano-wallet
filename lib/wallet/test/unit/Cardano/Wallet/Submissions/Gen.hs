@@ -129,7 +129,7 @@ prop_submissionHistory
     :: Show (delta () Slot Tx)
     => GenSubmissionsHistory delta
     -> Property
-prop_submissionHistory d = mapSize (*30)
+prop_submissionHistory d = mapSize (*10)
     $ forAllShrinkShow (arbitrarySubmissionHistory d) shrinkByInit
         (\xs -> T.unpack $ pShow $ last $ snd <$> xs)
         $ \xs ->

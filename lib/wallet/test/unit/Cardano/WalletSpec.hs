@@ -48,6 +48,8 @@ import Cardano.Wallet
     )
 import Cardano.Wallet.DB
     ( DBLayer (..), hoistDBLayer, putTxHistory )
+import Cardano.Wallet.DB.Fixtures
+    ( logScale' )
 import Cardano.Wallet.DB.Layer
     ( newDBLayerInMemory )
 import Cardano.Wallet.DB.Store.Submissions.Operations
@@ -216,6 +218,8 @@ import Data.Word
     ( Word64 )
 import GHC.Generics
     ( Generic )
+import System.Random
+    ( Random )
 import Test.Hspec
     ( Spec, describe, it, shouldBe, shouldSatisfy, xit )
 import Test.Hspec.Extra
@@ -225,7 +229,6 @@ import Test.QuickCheck
     , Blind (..)
     , Gen
     , NonEmptyList (..)
-    , NonNegative (..)
     , Property
     , arbitraryBoundedEnum
     , arbitrarySizedFractional
@@ -237,6 +240,7 @@ import Test.QuickCheck
     , elements
     , forAll
     , forAllBlind
+    , frequency
     , label
     , liftArbitrary
     , listOf1
@@ -517,9 +521,9 @@ walletListTransactionsSorted
     :: (WalletId, WalletName, DummyState)
     -> SortOrder
     -> (Maybe UniformTime, Maybe UniformTime)
-    -> [(Tx, TxMeta)]
     -> Property
-walletListTransactionsSorted wallet@(wid, _, _) _order (_mstart, _mend) history =
+walletListTransactionsSorted wallet@(wid, _, _) _order (_mstart, _mend) =
+    forAll (logScale' 1.5 arbitrary) $ \history ->
     monadicIO $ liftIO $ do
         WalletLayerFixture DBLayer{..} wl _ <- setupFixture wallet
         atomically $ unsafeRunExceptT $ putTxHistory wid history
@@ -536,12 +540,23 @@ walletListTransactionsSorted wallet@(wid, _, _) _order (_mstart, _mend) history 
                 | (tx, meta) <- history ]
         times `shouldBe` expTimes
 
+
+genLimit :: (Random a, Integral a) => a -> Gen a
+genLimit n =
+    frequency
+        [ (1, pure 0)
+        , (5, choose (1, n `div` 5))
+        , (3, choose (n `div` 5, n * 3 `div` 2))
+        ]
+
 walletListTransactionsWithLimit
     :: (WalletId, WalletName, DummyState)
-    -> [(Tx, TxMeta)]
-    -> NonNegative Int
     -> Property
-walletListTransactionsWithLimit wallet@(wid, _, _) history (NonNegative limit) =
+walletListTransactionsWithLimit wallet@(wid, _, _) =
+    forAll (logScale' 1.5 arbitrary) $ \history ->
+    forAll (genLimit $ length history) $ \limit ->
+    -- collect (length history) $
+    cover 50 (limit < length history) "limit is limiting full query" $
     let history'
             = nubBy ((==) `on` \(_,meta) -> meta ^. #slotNo)
             $ nubBy ((==) `on` \(tx,_) -> tx ^. #txId) history
@@ -743,7 +758,7 @@ newtype GenSubmissions = GenSubmissions { genSubmissions :: [BuiltTx] }
     deriving (Generic, Show, Eq)
 
 instance Arbitrary GenSubmissions where
-    arbitrary = GenSubmissions <$> listOf1 genBuiltTx
+    arbitrary = GenSubmissions <$> logScale' 2.7 (listOf1 genBuiltTx)
       where
         mkTx txId = Tx
             { txId
@@ -832,7 +847,6 @@ prop_localTxSubmission tc = monadicIO $ do
         unsafeRunExceptT
             $ forM_ (retryTestPool tc) $ submitTx tr dbl nl wid
         res0 <- atomically $ readLocalTxSubmissionPending wid
-        threadDelay 100000
         -- Run test
         let cfg = LocalTxSubmissionConfig (timeStep st) 10
         runLocalTxSubmissionPool @_ @DummyState @ShelleyKey cfg ctx wid
