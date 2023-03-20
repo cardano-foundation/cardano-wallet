@@ -1,5 +1,6 @@
 {-# LANGUAGE DataKinds #-}
 {-# LANGUAGE FlexibleContexts #-}
+{-# LANGUAGE NoMonomorphismRestriction #-}
 {-# LANGUAGE StandaloneDeriving #-}
 {-# LANGUAGE TypeFamilies #-}
 {-# LANGUAGE UndecidableInstances #-}
@@ -59,17 +60,19 @@ newtype Integrity era = Integrity (IntegrityType era)
 deriving instance Show (IntegrityType era) => Show (Integrity era)
 deriving instance Eq (IntegrityType era) => Eq (Integrity era)
 
+-- | Extract the script integrity data from a transaction in any available era.
 getEraIntegrity :: EraFun Tx Integrity
-getEraIntegrity
-    = EraFun
+getEraIntegrity =
+    EraFun
         { byronFun = \_ -> Integrity ()
         , shelleyFun = \_ -> Integrity ()
         , allegraFun = \_ -> Integrity ()
         , maryFun = \_ -> Integrity ()
-        , alonzoFun = onTx $ \tx -> Integrity
-            $ tx ^. bodyTxL . scriptIntegrityHashTxBodyL
-        , babbageFun = onTx $ \tx -> Integrity
-            $ tx ^. bodyTxL . scriptIntegrityHashTxBodyL
-        , conwayFun = onTx $ \tx -> Integrity
-            $ tx ^. bodyTxL . scriptIntegrityHashTxBodyL
+        , alonzoFun = alonzoIntegrity
+        , babbageFun = alonzoIntegrity
+        , conwayFun = alonzoIntegrity
         }
+  where
+    alonzoIntegrity = onTx $ \tx ->
+        Integrity $
+            tx ^. bodyTxL . scriptIntegrityHashTxBodyL
