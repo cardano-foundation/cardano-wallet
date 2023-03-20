@@ -2199,6 +2199,7 @@ components:
         - mary
         - alonzo
         - babbage
+        - conway
 
     NetworkInfo: &NetworkInfo
       type: object
@@ -2253,6 +2254,7 @@ components:
         mary: *nullableEpochInfo
         alonzo: *nullableEpochInfo
         babbage: *nullableEpochInfo
+        conway: *nullableEpochInfo
       description: |
 
         If and when each era started or will start.
