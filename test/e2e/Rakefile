@@ -149,23 +149,24 @@ task :start_node_and_wallet, [:env] do |_task, args|
   mk_dir(log_dir)
   network = args[:env] == 'mainnet' ? '--mainnet' : "--testnet #{config_dir}/byron-genesis.json"
 
-  if win?
-    # Turn off p2p for Windows
-    # TODO: remove after https://github.com/input-output-hk/ouroboros-network/issues/3968 released
-    config_win = JSON.parse(File.read("#{config_dir}/config.json"))
-    config_win['EnableP2P'] = false
-    File.write("#{config_dir}/config.json", JSON.pretty_generate(config_win))
-    topology = %({
-          "Producers": [
-            {
-              "addr": "#{ENV.fetch('NETWORK', nil)}-node.world.dev.cardano.org",
-              "port": 30000,
-              "valency": 2
-            }
-          ]
-        })
-    File.write("#{config_dir}/topology.json", topology)
+  # Turn off p2p
+  # topology from https://book.world.dev.cardano.org/environments.html is no longer compatible with cardano-node 1.35.4
+  # so we need to turn off p2p for now
+  config_win = JSON.parse(File.read("#{config_dir}/config.json"))
+  config_win['EnableP2P'] = false
+  File.write("#{config_dir}/config.json", JSON.pretty_generate(config_win))
+  topology = %({
+        "Producers": [
+          {
+            "addr": "#{ENV.fetch('NETWORK', nil)}-node.world.dev.cardano.org",
+            "port": 30000,
+            "valency": 2
+          }
+        ]
+      })
+  File.write("#{config_dir}/topology.json", topology)
 
+  if win?
     # create cardano-node.bat file
     node_cmd = "#{bin_dir}cardano-node.exe run --config #{config_dir}/config.json --topology #{config_dir}/topology.json --database-path #{node_db_dir} --socket-path \\\\.\\pipe\\cardano-node-testnet"
     File.write('cardano-node.bat', node_cmd)
