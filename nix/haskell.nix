@@ -106,6 +106,7 @@ CHaP: haskell-nix: haskell-nix.cabalProject' [
         name = "cardano-wallet-shell${lib.optionalString config.profiling "-profiled"}";
         packages = ps: builtins.attrValues (haskellLib.selectProjectPackages ps);
         tools = {
+          cabal = "latest";
           cabal-cache.version = "1.0.2.1";
           haskell-language-server = {
             version = "1.8.0.0";
