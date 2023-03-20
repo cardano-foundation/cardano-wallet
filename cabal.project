@@ -207,9 +207,9 @@ if impl(ghc == 8.10.7)
 -- Flags for dependencies
 
 package cardano-config
-  flags: +systemd
+  flags: -systemd
 package cardano-node
-  flags: +systemd
+  flags: -systemd
 
 -- -------------------------------------------------------------------------
 -- Enable specific tests in this repo
