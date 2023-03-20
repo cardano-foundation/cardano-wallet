@@ -1,5 +1,6 @@
 {-# LANGUAGE DataKinds #-}
 {-# LANGUAGE FlexibleContexts #-}
+{-# LANGUAGE NoMonomorphismRestriction #-}
 {-# LANGUAGE StandaloneDeriving #-}
 {-# LANGUAGE TypeFamilies #-}
 {-# LANGUAGE UndecidableInstances #-}
@@ -8,7 +9,7 @@
 -- Copyright: © 2020-2022 IOHK
 -- License: Apache-2.0
 --
--- Raw certificate data extraction from 'Tx'
+-- Raw collateral inputs data extraction from 'Tx'
 --
 
 module Cardano.Wallet.Read.Tx.CollateralInputs
@@ -32,7 +33,7 @@ import Cardano.Api
 import Cardano.Ledger.Babbage.TxBody
     ( collateralInputsTxBodyL )
 import Cardano.Ledger.Core
-    ( TxBody )
+    ( bodyTxL )
 import Cardano.Ledger.Crypto
     ( StandardCrypto )
 import Cardano.Wallet.Read.Eras
@@ -46,10 +47,6 @@ import Control.Lens
 import Data.Set
     ( Set )
 
-import qualified Cardano.Ledger.Alonzo as AL
-import qualified Cardano.Ledger.Alonzo.Tx as AL
-import qualified Cardano.Ledger.Babbage as Bab
-import qualified Cardano.Ledger.Conway as Conway
 import qualified Cardano.Ledger.Shelley.API as SH
 
 type family CollateralInputsType era where
@@ -68,36 +65,13 @@ deriving instance Eq (CollateralInputsType era) => Eq (CollateralInputs era)
 
 getEraCollateralInputs :: EraFun Tx CollateralInputs
 getEraCollateralInputs = EraFun
-    { byronFun =
-        \_ -> CollateralInputs ()
-    , shelleyFun =
-        \_ -> CollateralInputs ()
-    , allegraFun =
-        \_ -> CollateralInputs ()
-    , maryFun =
-        \_ -> CollateralInputs ()
-    , alonzoFun =
-        onTx $ \(AL.AlonzoTx b _ _ _) -> getAlonzoCollateralInputs b
-    , babbageFun =
-        onTx $ \(AL.AlonzoTx b _ _ _) -> getBabbageCollateralInputs b
-    , conwayFun =
-        onTx $ \(AL.AlonzoTx b _ _ _) -> getConwayCollateralInputs b
+    { byronFun = \_ -> CollateralInputs ()
+    , shelleyFun = \_ -> CollateralInputs ()
+    , allegraFun = \_ -> CollateralInputs ()
+    , maryFun = \_ -> CollateralInputs ()
+    , alonzoFun = mkCollateralInputs
+    , babbageFun = mkCollateralInputs
+    , conwayFun = mkCollateralInputs
     }
-
-getAlonzoCollateralInputs
-    :: TxBody (AL.AlonzoEra StandardCrypto)
-    -> CollateralInputs AlonzoEra
-getAlonzoCollateralInputs txBody =
-    CollateralInputs (txBody ^. collateralInputsTxBodyL)
-
-getBabbageCollateralInputs
-    :: TxBody (Bab.BabbageEra StandardCrypto)
-    -> CollateralInputs BabbageEra
-getBabbageCollateralInputs txBody =
-    CollateralInputs (txBody ^. collateralInputsTxBodyL)
-
-getConwayCollateralInputs
-    :: TxBody (Conway.ConwayEra StandardCrypto)
-    -> CollateralInputs ConwayEra
-getConwayCollateralInputs txBody =
-    CollateralInputs (txBody ^. collateralInputsTxBodyL)
+    where mkCollateralInputs = onTx $ \tx -> CollateralInputs
+            $ tx ^. bodyTxL. collateralInputsTxBodyL
