@@ -20,12 +20,21 @@ module Cardano.Wallet.Read.Tx.Metadata
 import Prelude
 
 import Cardano.Api
-    ( AllegraEra, AlonzoEra, BabbageEra, ByronEra, MaryEra, ShelleyEra )
+    ( AllegraEra
+    , AlonzoEra
+    , BabbageEra
+    , ByronEra
+    , ConwayEra
+    , MaryEra
+    , ShelleyEra
+    )
 import Cardano.Wallet.Read.Eras
     ( EraFun (..) )
+import Control.Lens
+    ( (^.) )
 
 import Cardano.Ledger.Core
-    ( AuxiliaryData )
+    ( AuxiliaryData, auxDataTxL )
 import Cardano.Wallet.Read.Tx
     ( Tx (..) )
 import Cardano.Wallet.Read.Tx.Eras
@@ -36,12 +45,10 @@ import Ouroboros.Consensus.Shelley.Eras
     ( StandardAllegra
     , StandardAlonzo
     , StandardBabbage
+    , StandardConway
     , StandardMary
     , StandardShelley
     )
-
-import qualified Cardano.Ledger.Alonzo.Tx as AL
-import qualified Cardano.Ledger.Shelley.API as SH
 
 type family MetadataType era where
   MetadataType ByronEra = ()
@@ -50,6 +57,7 @@ type family MetadataType era where
   MetadataType MaryEra = StrictMaybe (AuxiliaryData StandardMary)
   MetadataType AlonzoEra = StrictMaybe (AuxiliaryData StandardAlonzo)
   MetadataType BabbageEra = StrictMaybe (AuxiliaryData StandardBabbage)
+  MetadataType ConwayEra = StrictMaybe (AuxiliaryData StandardConway)
 
 newtype Metadata era = Metadata (MetadataType era)
 
@@ -59,11 +67,12 @@ deriving instance Eq (MetadataType era) => Eq (Metadata era)
 getEraMetadata :: EraFun Tx Metadata
 getEraMetadata = EraFun
     { byronFun = \_ -> Metadata ()
-    , shelleyFun =  onTx $ \(SH.Tx _ _ b) -> Metadata b
-    , allegraFun = onTx $ \(SH.Tx _ _ b) -> Metadata b
-    , maryFun = onTx $ \(SH.Tx _ _ b ) -> Metadata b
-    , alonzoFun = onTx $ \(AL.ValidatedTx _ _ _ b) -> Metadata b
-    , babbageFun = onTx $ \(AL.ValidatedTx _ _ _ b) -> Metadata b
+    , shelleyFun =  onTx $ \tx -> Metadata (tx ^. auxDataTxL)
+    , allegraFun = onTx $ \tx -> Metadata (tx ^. auxDataTxL)
+    , maryFun = onTx $ \tx -> Metadata (tx ^. auxDataTxL)
+    , alonzoFun = onTx $ \tx -> Metadata (tx ^. auxDataTxL)
+    , babbageFun = onTx $ \tx -> Metadata (tx ^. auxDataTxL)
+    , conwayFun = onTx $ \tx -> Metadata (tx ^. auxDataTxL)
     }
 
 

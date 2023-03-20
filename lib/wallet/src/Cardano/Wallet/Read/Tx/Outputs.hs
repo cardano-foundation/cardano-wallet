@@ -1,7 +1,6 @@
 {-# LANGUAGE DataKinds #-}
 {-# LANGUAGE FlexibleContexts #-}
 {-# LANGUAGE StandaloneDeriving #-}
-{-# LANGUAGE TypeApplications #-}
 {-# LANGUAGE TypeFamilies #-}
 {-# LANGUAGE UndecidableInstances #-}
 
@@ -22,7 +21,16 @@ module Cardano.Wallet.Read.Tx.Outputs
 import Prelude
 
 import Cardano.Api
-    ( AllegraEra, AlonzoEra, BabbageEra, ByronEra, MaryEra, ShelleyEra )
+    ( AllegraEra
+    , AlonzoEra
+    , BabbageEra
+    , ByronEra
+    , ConwayEra
+    , MaryEra
+    , ShelleyEra
+    )
+import Cardano.Ledger.Core
+    ( bodyTxL, outputsTxBodyL )
 import Cardano.Ledger.Crypto
     ( StandardCrypto )
 import Cardano.Wallet.Read.Eras
@@ -31,33 +39,40 @@ import Cardano.Wallet.Read.Tx
     ( Tx (..) )
 import Cardano.Wallet.Read.Tx.Eras
     ( onTx )
+import Control.Lens
+    ( (^.) )
 import Data.List.NonEmpty
     ( NonEmpty )
 import Data.Sequence.Strict
     ( StrictSeq )
-import GHC.Records
-    ( HasField (..) )
 
 import qualified Cardano.Chain.UTxO as BY
 import qualified Cardano.Ledger.Alonzo as AL
-import qualified Cardano.Ledger.Alonzo.Tx as AL
 import qualified Cardano.Ledger.Babbage as BA
+import qualified Cardano.Ledger.Conway as Conway
 import qualified Cardano.Ledger.Shelley as SH
-import qualified Cardano.Ledger.Shelley.Tx as SHTx
 import qualified Cardano.Ledger.ShelleyMA as SMA
 
 type family OutputsType era where
     OutputsType ByronEra = NonEmpty BY.TxOut
     OutputsType ShelleyEra
-        = StrictSeq (SH.TxOut (SH.ShelleyEra StandardCrypto))
+        = StrictSeq
+            (SH.ShelleyTxOut (SH.ShelleyEra StandardCrypto))
     OutputsType AllegraEra
-        = StrictSeq (SH.TxOut (SMA.ShelleyMAEra 'SMA.Allegra StandardCrypto))
+        = StrictSeq
+            (SH.ShelleyTxOut (SMA.ShelleyMAEra 'SMA.Allegra StandardCrypto))
     OutputsType MaryEra
-        = StrictSeq (SH.TxOut (SMA.ShelleyMAEra 'SMA.Mary StandardCrypto))
+        = StrictSeq
+            (SH.ShelleyTxOut (SMA.ShelleyMAEra 'SMA.Mary StandardCrypto))
     OutputsType AlonzoEra
-        = StrictSeq (AL.TxOut (AL.AlonzoEra StandardCrypto))
+        = StrictSeq
+            (AL.AlonzoTxOut (AL.AlonzoEra StandardCrypto))
     OutputsType BabbageEra
-        = StrictSeq (BA.TxOut (BA.BabbageEra StandardCrypto))
+        = StrictSeq
+            (BA.BabbageTxOut (BA.BabbageEra StandardCrypto))
+    OutputsType ConwayEra
+        = StrictSeq
+            (BA.BabbageTxOut (Conway.ConwayEra StandardCrypto))
 
 newtype Outputs era = Outputs (OutputsType era)
 
@@ -67,15 +82,11 @@ deriving instance Eq (OutputsType era) => Eq (Outputs era)
 getEraOutputs :: EraFun Tx Outputs
 getEraOutputs
     = EraFun
-        { byronFun =  onTx $ \tx -> Outputs $ BY.txOutputs $ BY.taTx tx
-        , shelleyFun = onTx $ \((SHTx.Tx b _ _)) -> getOutputs b
-        , allegraFun = onTx $ \((SHTx.Tx b _ _)) -> getOutputs b
-        , maryFun = onTx $ \(SHTx.Tx b _ _) -> getOutputs b
-        , alonzoFun = onTx $ \(AL.ValidatedTx b _ _ _) -> getOutputs b
-        , babbageFun = onTx $ \(AL.ValidatedTx b _ _ _) -> getOutputs b
+        { byronFun =  onTx $ \tx -> Outputs $ BY.txOutputs (BY.taTx tx)
+        , shelleyFun = onTx $ \tx -> Outputs (tx ^. bodyTxL . outputsTxBodyL)
+        , allegraFun = onTx $ \tx -> Outputs (tx ^. bodyTxL . outputsTxBodyL)
+        , maryFun = onTx $ \tx -> Outputs (tx ^. bodyTxL . outputsTxBodyL)
+        , alonzoFun = onTx $ \tx -> Outputs (tx ^. bodyTxL . outputsTxBodyL)
+        , babbageFun = onTx $ \tx -> Outputs (tx ^. bodyTxL . outputsTxBodyL)
+        , conwayFun = onTx $ \tx -> Outputs (tx ^. bodyTxL . outputsTxBodyL)
         }
-
-getOutputs
-    :: ( HasField "outputs" a (OutputsType b))
-    => a -> Outputs b
-getOutputs =  Outputs . getField @"outputs"

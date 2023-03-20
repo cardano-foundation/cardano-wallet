@@ -24,6 +24,12 @@
 
 {-# OPTIONS_GHC -fno-warn-orphans #-}
 
+-- TODO: https://input-output.atlassian.net/browse/ADP-2841
+{-# LANGUAGE CPP #-}
+#if __GLASGOW_HASKELL__ >= 902
+{-# OPTIONS_GHC -fno-warn-ambiguous-fields #-}
+#endif
+
 module Cardano.Wallet.Shelley.TransactionSpec (spec) where
 
 import Prelude
@@ -61,8 +67,12 @@ import Cardano.Api.Gen
     , genValueForTxOut
     , genWitnesses
     )
+import Cardano.Binary
+    ( FromCBOR, ToCBOR, serialize', unsafeDeserialize' )
 import Cardano.BM.Data.Tracer
     ( nullTracer )
+import Cardano.Ledger.Alonzo.Genesis
+    ( AlonzoGenesis (costmdls) )
 import Cardano.Ledger.Alonzo.TxInfo
     ( TranslationError (..) )
 import Cardano.Ledger.Era
@@ -276,6 +286,12 @@ import Cardano.Wallet.Transaction
     )
 import Cardano.Wallet.Unsafe
     ( unsafeFromHex )
+import Cardano.Wallet.Write.Tx
+    ( AnyRecentEra (..)
+    , RecentEra (..)
+    , cardanoEraFromRecentEra
+    , shelleyBasedEraFromRecentEra
+    )
 import Cardano.Wallet.Write.Tx.Balance
     ( ChangeAddressGen (..)
     , ErrBalanceTx (..)
@@ -349,6 +365,8 @@ import Data.Word
     ( Word16, Word64, Word8 )
 import Fmt
     ( Buildable (..), blockListF', fmt, nameF, pretty, (+||), (||+) )
+import GHC.IO.Unsafe
+    ( unsafePerformIO )
 import Ouroboros.Consensus.BlockchainTime.WallClock.Types
     ( RelativeTime (..), mkSlotLength )
 import Ouroboros.Consensus.Config
@@ -419,10 +437,8 @@ import Test.QuickCheck
     , (===)
     , (==>)
     )
-import Test.QuickCheck.Arbitrary.Generic
-    ( genericArbitrary, genericShrink )
 import Test.QuickCheck.Extra
-    ( chooseNatural, report )
+    ( chooseNatural, genNonEmpty, report, shrinkNonEmpty )
 import Test.QuickCheck.Gen
     ( Gen (..), listOf1 )
 import Test.QuickCheck.Random
@@ -438,6 +454,7 @@ import qualified Cardano.Api.Shelley as Cardano
 import qualified Cardano.Crypto.Hash.Blake2b as Crypto
 import qualified Cardano.Crypto.Hash.Class as Crypto
 import qualified Cardano.Ledger.Alonzo.PParams as Alonzo
+import qualified Cardano.Ledger.Alonzo.Scripts as Alonzo
 import qualified Cardano.Ledger.Alonzo.Tx as Alonzo
 import qualified Cardano.Ledger.Alonzo.TxBody as Alonzo
 import qualified Cardano.Ledger.Alonzo.TxWitness as Alonzo
@@ -460,12 +477,6 @@ import qualified Cardano.Wallet.Primitive.Types.Tx.TxOut.Gen as TxOutGen
 import qualified Cardano.Wallet.Primitive.Types.UTxO as UTxO
 import qualified Cardano.Wallet.Primitive.Types.UTxOIndex as UTxOIndex
 import qualified Cardano.Wallet.Shelley.Compatibility as Compatibility
-import Cardano.Wallet.Write.Tx
-    ( AnyRecentEra (..)
-    , RecentEra (..)
-    , cardanoEraFromRecentEra
-    , shelleyBasedEraFromRecentEra
-    )
 import qualified Cardano.Wallet.Write.Tx as WriteTx
 import qualified Codec.CBOR.Encoding as CBOR
 import qualified Codec.CBOR.Write as CBOR
@@ -480,10 +491,10 @@ import qualified Data.Set as Set
 import qualified Data.Text as T
 import qualified Data.Text.Encoding as T
 import qualified Data.Text.IO as T
+import qualified Data.Yaml as Yaml
 import qualified Ouroboros.Consensus.HardFork.History.EraParams as HF
 import qualified Ouroboros.Consensus.HardFork.History.Qry as HF
 import qualified Ouroboros.Consensus.HardFork.History.Summary as HF
-import qualified PlutusCore as Plutus
 import qualified Test.Hspec.Extra as Hspec
 
 spec :: Spec
@@ -499,27 +510,41 @@ spec = do
     distributeSurplusSpec
     estimateSignedTxSizeSpec
     describe "Sign transaction" $ do
-        spec_forAllEras
+        -- TODO [ADP-2849] The implementation must be restricted to work only in
+        -- 'RecentEra's, not just the tests.
+        spec_forAllRecentEras
             "signTransaction adds reward account witness when necessary"
             prop_signTransaction_addsRewardAccountKey
-        spec_forAllEras
+        spec_forAllRecentEras
             "signTransaction adds extra key witnesses when necessary"
             prop_signTransaction_addsExtraKeyWitnesses
-        spec_forAllEras
+        spec_forAllRecentEras
             "signTransaction adds tx in witnesses when necessary"
             prop_signTransaction_addsTxInWitnesses
-        spec_forAllEras
+        spec_forAllRecentEras
             "signTransaction adds collateral witnesses when necessary"
             prop_signTransaction_addsTxInCollateralWitnesses
-        spec_forAllEras
+        spec_forAllRecentEras
             "signTransaction never removes witnesses"
             prop_signTransaction_neverRemovesWitnesses
-        spec_forAllEras
+        spec_forAllRecentEras
             "signTransaction never changes tx body"
             prop_signTransaction_neverChangesTxBody
-        spec_forAllEras
+        spec_forAllRecentEras
             "signTransaction preserves script integrity"
             prop_signTransaction_preservesScriptIntegrity
+
+spec_forAllRecentEras
+    :: Testable prop => String -> (AnyCardanoEra -> prop) -> Spec
+spec_forAllRecentEras description p =
+    describe description $
+    forAllRecentEras'
+        $ \(AnyCardanoEra era) -> it (show era)
+        $ property
+        $ p (AnyCardanoEra era)
+  where
+    forAllRecentEras' f = forAllRecentEras $ \(AnyRecentEra recentEra) ->
+        f $ AnyCardanoEra $ WriteTx.cardanoEraFromRecentEra recentEra
 
 spec_forAllEras
     :: Testable prop => String -> (AnyCardanoEra -> prop) -> Spec
@@ -539,7 +564,7 @@ showTransactionBody
     => Cardano.TxBodyContent Cardano.BuildTx era
     -> String
 showTransactionBody =
-    either Cardano.displayError show . Cardano.makeTransactionBody
+    either Cardano.displayError show . Cardano.createAndValidateTransactionBody
 
 unsafeMakeTransactionBody
     :: forall era
@@ -547,7 +572,8 @@ unsafeMakeTransactionBody
     => Cardano.TxBodyContent Cardano.BuildTx era
     -> Cardano.TxBody era
 unsafeMakeTransactionBody =
-    either (error . Cardano.displayError) id . Cardano.makeTransactionBody
+    either (error . Cardano.displayError) id
+        . Cardano.createAndValidateTransactionBody
 
 stakeAddressForKey
     :: SL.Network
@@ -646,9 +672,10 @@ prop_signTransaction_addsRewardAccountKey
                 expectedWits :: [InAnyCardanoEra Cardano.KeyWitness]
                 expectedWits = InAnyCardanoEra era <$>
                     case Cardano.cardanoEraStyle era of
-                        LegacyByronEra -> error
-                            "Withdrawal witnesses are not supported in the \
-                            \Byron era."
+                        LegacyByronEra -> error $ unwords
+                            [ "Withdrawal witnesses are not supported in the"
+                            , "Byron era."
+                            ]
                         ShelleyBasedEra _ ->
                             [mkShelleyWitness txBody rawRewardK]
 
@@ -733,8 +760,8 @@ prop_signTransaction_addsExtraKeyWitnesses
         expectedWits `checkSubsetOf` (getSealedTxWitnesses sealedTx')
 
 instance Arbitrary a => Arbitrary (NonEmpty a) where
-    arbitrary = genericArbitrary
-    shrink = genericShrink
+    arbitrary = genNonEmpty arbitrary
+    shrink = shrinkNonEmpty shrink
 
 keyToAddress :: (XPrv, Passphrase "encryption") -> Address
 keyToAddress (xprv, _pwd) =
@@ -1096,12 +1123,13 @@ decodeSealedTxSpec = describe "SealedTx serialisation/deserialisation" $ do
 
     prop "roundtrip for Shelley witnesses" prop_sealedTxRecentEraRoundtrip
   where
-    byteString =
-        "84a70081825820410a9cd4af08b3abe25c2d3b87af4c23d0bb2fb7577b639d5cfbdf\
-        \e13a4a696c0c0d80018182583901059f0c7b9899793d2c9afaeff4fd09bedd9df3b8\
-        \cb1b9c301ab8e0f7fb3c13a29d3798f1b77b47f2ddb31c19326b87ed6f71fb9a2713\
-        \3ad51b000001001d19d714021a000220ec03198d0f05a1581de1fb3c13a29d3798f1\
-        \b77b47f2ddb31c19326b87ed6f71fb9a27133ad51b000000e8d4a510000e80a0f5f6"
+    byteString = mconcat
+        [ "84a70081825820410a9cd4af08b3abe25c2d3b87af4c23d0bb2fb7577b639d5cfbdf"
+        , "e13a4a696c0c0d80018182583901059f0c7b9899793d2c9afaeff4fd09bedd9df3b8"
+        , "cb1b9c301ab8e0f7fb3c13a29d3798f1b77b47f2ddb31c19326b87ed6f71fb9a2713"
+        , "3ad51b000001001d19d714021a000220ec03198d0f05a1581de1fb3c13a29d3798f1"
+        , "b77b47f2ddb31c19326b87ed6f71fb9a27133ad51b000000e8d4a510000e80a0f5f6"
+        ]
 
 -- Note:
 --
@@ -1488,6 +1516,7 @@ feeEstimationRegressionSpec = describe "Regression tests" $ do
 binaryCalculationsSpec :: AnyRecentEra -> Spec
 binaryCalculationsSpec (AnyRecentEra era) =
     case era of
+        RecentEraConway -> binaryCalculationsSpec' @Cardano.ConwayEra era
         RecentEraAlonzo -> binaryCalculationsSpec' @Cardano.AlonzoEra era
         RecentEraBabbage -> binaryCalculationsSpec' @Cardano.BabbageEra era
 
@@ -1535,33 +1564,50 @@ binaryCalculationsSpec' era = describe ("calculateBinary - "+||era||+"") $ do
                     [ TxOut (dummyAddress 2) (coinToBundle amtChange)
                     ]
             let binary = case era of
-                    RecentEraBabbage ->
-                        "84a400818258200000000000000000000000000000000000000000\
-                        \000000000000000000000000000182a20058390101010101010101\
-                        \010101010101010101010101010101010101010101010101010101\
-                        \01010101010101010101010101010101010101010101011a001e84\
-                        \80a200583901020202020202020202020202020202020202020202\
-                        \020202020202020202020202020202020202020202020202020202\
-                        \0202020202020202011a0078175c021a0001faa403191e46a10281\
-                        \845820010000000000000000000000000000000000000000000000\
-                        \000000000000000058407154db81463825f150bb3b9b0824caf151\
-                        \3716f73498afe61d917a5621912a2b3df252bea14683a9ee56710d\
-                        \483a53a5aa35247e0d2b80e6300f7bdec763a20458200000000000\
-                        \000000000000000000000000000000000000000000000000000000\
-                        \41a0f5f6"
-                    RecentEraAlonzo ->
-                        "84a400818258200000000000000000000000000000000000000000\
-                        \000000000000000000000000000182825839010101010101010101\
-                        \010101010101010101010101010101010101010101010101010101\
-                        \0101010101010101010101010101010101010101011a001e848082\
-                        \583901020202020202020202020202020202020202020202020202\
-                        \020202020202020202020202020202020202020202020202020202\
-                        \02020202021a0078175c021a0001faa403191e46a1028184582001\
-                        \000000000000000000000000000000000000000000000000000000\
-                        \000000005840d7af60ae33d2af351411c1445c79590526990bfa73\
-                        \cbb3732b54ef322daa142e6884023410f8be3c16e9bd52076f2bb3\
-                        \6bf38dfe034a9f04658e9f56197ab80f5820000000000000000000\
-                        \000000000000000000000000000000000000000000000041a0f5f6"
+                    RecentEraConway -> mconcat
+                      [ "84a400818258200000000000000000000000000000000000000000"
+                      , "000000000000000000000000000182a20058390101010101010101"
+                      , "010101010101010101010101010101010101010101010101010101"
+                      , "01010101010101010101010101010101010101010101011a001e84"
+                      , "80a200583901020202020202020202020202020202020202020202"
+                      , "020202020202020202020202020202020202020202020202020202"
+                      , "0202020202020202011a0078175c021a0001faa403191e46a10281"
+                      , "845820010000000000000000000000000000000000000000000000"
+                      , "000000000000000058407154db81463825f150bb3b9b0824caf151"
+                      , "3716f73498afe61d917a5621912a2b3df252bea14683a9ee56710d"
+                      , "483a53a5aa35247e0d2b80e6300f7bdec763a20458200000000000"
+                      , "000000000000000000000000000000000000000000000000000000"
+                      , "41a0f5f6"
+                      ]
+                    RecentEraBabbage -> mconcat
+                      [ "84a400818258200000000000000000000000000000000000000000"
+                      , "000000000000000000000000000182a20058390101010101010101"
+                      , "010101010101010101010101010101010101010101010101010101"
+                      , "01010101010101010101010101010101010101010101011a001e84"
+                      , "80a200583901020202020202020202020202020202020202020202"
+                      , "020202020202020202020202020202020202020202020202020202"
+                      , "0202020202020202011a0078175c021a0001faa403191e46a10281"
+                      , "845820010000000000000000000000000000000000000000000000"
+                      , "000000000000000058407154db81463825f150bb3b9b0824caf151"
+                      , "3716f73498afe61d917a5621912a2b3df252bea14683a9ee56710d"
+                      , "483a53a5aa35247e0d2b80e6300f7bdec763a20458200000000000"
+                      , "000000000000000000000000000000000000000000000000000000"
+                      , "41a0f5f6"
+                      ]
+                    RecentEraAlonzo -> mconcat
+                      [ "84a400818258200000000000000000000000000000000000000000"
+                      , "000000000000000000000000000182825839010101010101010101"
+                      , "010101010101010101010101010101010101010101010101010101"
+                      , "0101010101010101010101010101010101010101011a001e848082"
+                      , "583901020202020202020202020202020202020202020202020202"
+                      , "020202020202020202020202020202020202020202020202020202"
+                      , "02020202021a0078175c021a0001faa403191e46a1028184582001"
+                      , "000000000000000000000000000000000000000000000000000000"
+                      , "000000005840d7af60ae33d2af351411c1445c79590526990bfa73"
+                      , "cbb3732b54ef322daa142e6884023410f8be3c16e9bd52076f2bb3"
+                      , "6bf38dfe034a9f04658e9f56197ab80f5820000000000000000000"
+                      , "000000000000000000000000000000000000000000000041a0f5f6"
+                      ]
 
             calculateBinary net utxo outs chgs pairs `shouldBe` binary
 
@@ -1587,52 +1633,77 @@ binaryCalculationsSpec' era = describe ("calculateBinary - "+||era||+"") $ do
                     [ TxOut (dummyAddress 4) (coinToBundle amtChange)
                     ]
             let binary = case era of
-                    RecentEraBabbage ->
-                        "84a400828258200000000000000000000000000000000000000000\
-                        \000000000000000000000000008258200000000000000000000000\
-                        \000000000000000000000000000000000000000000010183a20058\
-                        \390102020202020202020202020202020202020202020202020202\
-                        \020202020202020202020202020202020202020202020202020202\
-                        \02020202011a005b8d80a200583901030303030303030303030303\
-                        \030303030303030303030303030303030303030303030303030303\
-                        \0303030303030303030303030303030303011a005b8d80a2005839\
-                        \010404040404040404040404040404040404040404040404040404\
-                        \040404040404040404040404040404040404040404040404040404\
-                        \040404011a007801e0021a0002102003191e46a102828458200100\
-                        \000000000000000000000000000000000000000000000000000000\
-                        \00000058401a8667d2d0af4e24d4d385443002f1e9036063bdb7c6\
-                        \2d45447a2e176ded81a11683bd944c6d7db6e5fd886840025f6319\
-                        \2a382e526f4150e2b336ee9ed80808582000000000000000000000\
-                        \0000000000000000000000000000000000000000000041a0845820\
-                        \130ae82201d7072e6fbfc0a1884fb54636554d14945b799125cf7c\
-                        \e38d477f515840320ed7d1513b0f1b61381f7942a07b627b246c85\
-                        \a13b2623e4868ea82488c778a7760124f3a17f924c08d425c0717d\
-                        \f6cd898eb4ab8439a16e08befdc415120e58200101010101010101\
-                        \01010101010101010101010101010101010101010101010141a0f5\
-                        \f6"
-                    RecentEraAlonzo ->
-                        "84a400828258200000000000000000000000000000000000000000\
-                        \000000000000000000000000008258200000000000000000000000\
-                        \000000000000000000000000000000000000000000010183825839\
-                        \010202020202020202020202020202020202020202020202020202\
-                        \020202020202020202020202020202020202020202020202020202\
-                        \0202021a005b8d8082583901030303030303030303030303030303\
-                        \030303030303030303030303030303030303030303030303030303\
-                        \03030303030303030303030303031a005b8d808258390104040404\
-                        \040404040404040404040404040404040404040404040404040404\
-                        \040404040404040404040404040404040404040404040404041a00\
-                        \7801e0021a0002102003191e46a102828458200100000000000000\
-                        \0000000000000000000000000000000000000000000000005840e8\
-                        \e769ecd0f3c538f0a5a574a1c881775f086d6f4c845b81be9b7895\
-                        \5728bffa7efa54297c6a5d73337bd6280205b1759c13f79d4c93f2\
-                        \9871fc51b78aeba80e582000000000000000000000000000000000\
-                        \0000000000000000000000000000000041a0845820130ae82201d7\
-                        \072e6fbfc0a1884fb54636554d14945b799125cf7ce38d477f5158\
-                        \405835ff78c6fc5e4466a179ca659fa85c99b8a3fba083f3f3f42b\
-                        \a360d479c64ef169914b52ade49b19a7208fd63a6e67a19c406b48\
-                        \26608fdc5307025506c30758200101010101010101010101010101\
-                        \01010101010101010101010101010101010141a0f5f6"
-
+                    RecentEraConway -> mconcat
+                      [ "84a400828258200000000000000000000000000000000000000000"
+                      , "000000000000000000000000008258200000000000000000000000"
+                      , "000000000000000000000000000000000000000000010183a20058"
+                      , "390102020202020202020202020202020202020202020202020202"
+                      , "020202020202020202020202020202020202020202020202020202"
+                      , "02020202011a005b8d80a200583901030303030303030303030303"
+                      , "030303030303030303030303030303030303030303030303030303"
+                      , "0303030303030303030303030303030303011a005b8d80a2005839"
+                      , "010404040404040404040404040404040404040404040404040404"
+                      , "040404040404040404040404040404040404040404040404040404"
+                      , "040404011a007801e0021a0002102003191e46a102828458200100"
+                      , "000000000000000000000000000000000000000000000000000000"
+                      , "00000058401a8667d2d0af4e24d4d385443002f1e9036063bdb7c6"
+                      , "2d45447a2e176ded81a11683bd944c6d7db6e5fd886840025f6319"
+                      , "2a382e526f4150e2b336ee9ed80808582000000000000000000000"
+                      , "0000000000000000000000000000000000000000000041a0845820"
+                      , "130ae82201d7072e6fbfc0a1884fb54636554d14945b799125cf7c"
+                      , "e38d477f515840320ed7d1513b0f1b61381f7942a07b627b246c85"
+                      , "a13b2623e4868ea82488c778a7760124f3a17f924c08d425c0717d"
+                      , "f6cd898eb4ab8439a16e08befdc415120e58200101010101010101"
+                      , "01010101010101010101010101010101010101010101010141a0f5"
+                      , "f6"
+                      ]
+                    RecentEraBabbage -> mconcat
+                      [ "84a400828258200000000000000000000000000000000000000000"
+                      , "000000000000000000000000008258200000000000000000000000"
+                      , "000000000000000000000000000000000000000000010183a20058"
+                      , "390102020202020202020202020202020202020202020202020202"
+                      , "020202020202020202020202020202020202020202020202020202"
+                      , "02020202011a005b8d80a200583901030303030303030303030303"
+                      , "030303030303030303030303030303030303030303030303030303"
+                      , "0303030303030303030303030303030303011a005b8d80a2005839"
+                      , "010404040404040404040404040404040404040404040404040404"
+                      , "040404040404040404040404040404040404040404040404040404"
+                      , "040404011a007801e0021a0002102003191e46a102828458200100"
+                      , "000000000000000000000000000000000000000000000000000000"
+                      , "00000058401a8667d2d0af4e24d4d385443002f1e9036063bdb7c6"
+                      , "2d45447a2e176ded81a11683bd944c6d7db6e5fd886840025f6319"
+                      , "2a382e526f4150e2b336ee9ed80808582000000000000000000000"
+                      , "0000000000000000000000000000000000000000000041a0845820"
+                      , "130ae82201d7072e6fbfc0a1884fb54636554d14945b799125cf7c"
+                      , "e38d477f515840320ed7d1513b0f1b61381f7942a07b627b246c85"
+                      , "a13b2623e4868ea82488c778a7760124f3a17f924c08d425c0717d"
+                      , "f6cd898eb4ab8439a16e08befdc415120e58200101010101010101"
+                      , "01010101010101010101010101010101010101010101010141a0f5"
+                      , "f6"
+                      ]
+                    RecentEraAlonzo -> mconcat
+                      [ "84a400828258200000000000000000000000000000000000000000"
+                      , "000000000000000000000000008258200000000000000000000000"
+                      , "000000000000000000000000000000000000000000010183825839"
+                      , "010202020202020202020202020202020202020202020202020202"
+                      , "020202020202020202020202020202020202020202020202020202"
+                      , "0202021a005b8d8082583901030303030303030303030303030303"
+                      , "030303030303030303030303030303030303030303030303030303"
+                      , "03030303030303030303030303031a005b8d808258390104040404"
+                      , "040404040404040404040404040404040404040404040404040404"
+                      , "040404040404040404040404040404040404040404040404041a00"
+                      , "7801e0021a0002102003191e46a102828458200100000000000000"
+                      , "0000000000000000000000000000000000000000000000005840e8"
+                      , "e769ecd0f3c538f0a5a574a1c881775f086d6f4c845b81be9b7895"
+                      , "5728bffa7efa54297c6a5d73337bd6280205b1759c13f79d4c93f2"
+                      , "9871fc51b78aeba80e582000000000000000000000000000000000"
+                      , "0000000000000000000000000000000041a0845820130ae82201d7"
+                      , "072e6fbfc0a1884fb54636554d14945b799125cf7ce38d477f5158"
+                      , "405835ff78c6fc5e4466a179ca659fa85c99b8a3fba083f3f3f42b"
+                      , "a360d479c64ef169914b52ade49b19a7208fd63a6e67a19c406b48"
+                      , "26608fdc5307025506c30758200101010101010101010101010101"
+                      , "01010101010101010101010101010101010141a0f5f6"
+                      ]
             calculateBinary net utxo outs chgs pairs `shouldBe` binary
 
     describe "Byron witnesses - testnet" $ do
@@ -1655,34 +1726,51 @@ binaryCalculationsSpec' era = describe ("calculateBinary - "+||era||+"") $ do
                     [ TxOut (dummyAddress 2) (coinToBundle amtChange)
                     ]
             let binary = case era of
-                    RecentEraBabbage ->
-                        "84a400818258200000000000000000000000000000000000000000\
-                        \000000000000000000000000000182a20058390101010101010101\
-                        \010101010101010101010101010101010101010101010101010101\
-                        \01010101010101010101010101010101010101010101011a001e84\
-                        \80a200583901020202020202020202020202020202020202020202\
-                        \020202020202020202020202020202020202020202020202020202\
-                        \0202020202020202011a0078175c021a0001faa403191e46a10281\
-                        \845820010000000000000000000000000000000000000000000000\
-                        \000000000000000058407154db81463825f150bb3b9b0824caf151\
-                        \3716f73498afe61d917a5621912a2b3df252bea14683a9ee56710d\
-                        \483a53a5aa35247e0d2b80e6300f7bdec763a20458200000000000\
-                        \000000000000000000000000000000000000000000000000000000\
-                        \44a1024100f5f6"
-                    RecentEraAlonzo ->
-                        "84a400818258200000000000000000000000000000000000000000\
-                        \000000000000000000000000000182825839010101010101010101\
-                        \010101010101010101010101010101010101010101010101010101\
-                        \0101010101010101010101010101010101010101011a001e848082\
-                        \583901020202020202020202020202020202020202020202020202\
-                        \020202020202020202020202020202020202020202020202020202\
-                        \02020202021a0078175c021a0001faa403191e46a1028184582001\
-                        \000000000000000000000000000000000000000000000000000000\
-                        \000000005840d7af60ae33d2af351411c1445c79590526990bfa73\
-                        \cbb3732b54ef322daa142e6884023410f8be3c16e9bd52076f2bb3\
-                        \6bf38dfe034a9f04658e9f56197ab80f5820000000000000000000\
-                        \000000000000000000000000000000000000000000000044a10241\
-                        \00f5f6"
+                    RecentEraConway -> mconcat
+                      [ "84a400818258200000000000000000000000000000000000000000"
+                      , "000000000000000000000000000182a20058390101010101010101"
+                      , "010101010101010101010101010101010101010101010101010101"
+                      , "01010101010101010101010101010101010101010101011a001e84"
+                      , "80a200583901020202020202020202020202020202020202020202"
+                      , "020202020202020202020202020202020202020202020202020202"
+                      , "0202020202020202011a0078175c021a0001faa403191e46a10281"
+                      , "845820010000000000000000000000000000000000000000000000"
+                      , "000000000000000058407154db81463825f150bb3b9b0824caf151"
+                      , "3716f73498afe61d917a5621912a2b3df252bea14683a9ee56710d"
+                      , "483a53a5aa35247e0d2b80e6300f7bdec763a20458200000000000"
+                      , "000000000000000000000000000000000000000000000000000000"
+                      , "44a1024100f5f6"
+                      ]
+                    RecentEraBabbage -> mconcat
+                      [ "84a400818258200000000000000000000000000000000000000000"
+                      , "000000000000000000000000000182a20058390101010101010101"
+                      , "010101010101010101010101010101010101010101010101010101"
+                      , "01010101010101010101010101010101010101010101011a001e84"
+                      , "80a200583901020202020202020202020202020202020202020202"
+                      , "020202020202020202020202020202020202020202020202020202"
+                      , "0202020202020202011a0078175c021a0001faa403191e46a10281"
+                      , "845820010000000000000000000000000000000000000000000000"
+                      , "000000000000000058407154db81463825f150bb3b9b0824caf151"
+                      , "3716f73498afe61d917a5621912a2b3df252bea14683a9ee56710d"
+                      , "483a53a5aa35247e0d2b80e6300f7bdec763a20458200000000000"
+                      , "000000000000000000000000000000000000000000000000000000"
+                      , "44a1024100f5f6"
+                      ]
+                    RecentEraAlonzo -> mconcat
+                      [ "84a400818258200000000000000000000000000000000000000000"
+                      , "000000000000000000000000000182825839010101010101010101"
+                      , "010101010101010101010101010101010101010101010101010101"
+                      , "0101010101010101010101010101010101010101011a001e848082"
+                      , "583901020202020202020202020202020202020202020202020202"
+                      , "020202020202020202020202020202020202020202020202020202"
+                      , "02020202021a0078175c021a0001faa403191e46a1028184582001"
+                      , "000000000000000000000000000000000000000000000000000000"
+                      , "000000005840d7af60ae33d2af351411c1445c79590526990bfa73"
+                      , "cbb3732b54ef322daa142e6884023410f8be3c16e9bd52076f2bb3"
+                      , "6bf38dfe034a9f04658e9f56197ab80f5820000000000000000000"
+                      , "000000000000000000000000000000000000000000000044a10241"
+                      , "00f5f6"
+                      ]
 
             calculateBinary net utxo outs chgs pairs `shouldBe` binary
 
@@ -1708,53 +1796,54 @@ binaryCalculationsSpec' era = describe ("calculateBinary - "+||era||+"") $ do
                     [ TxOut (dummyAddress 4) (coinToBundle amtChange)
                     ]
             let binary = case era of
-                    RecentEraBabbage ->
-                        "84a400828258200000000000000000000000000000000000000000\
-                        \000000000000000000000000008258200000000000000000000000\
-                        \000000000000000000000000000000000000000000010183a20058\
-                        \390102020202020202020202020202020202020202020202020202\
-                        \020202020202020202020202020202020202020202020202020202\
-                        \02020202011a005b8d80a200583901030303030303030303030303\
-                        \030303030303030303030303030303030303030303030303030303\
-                        \0303030303030303030303030303030303011a005b8d80a2005839\
-                        \010404040404040404040404040404040404040404040404040404\
-                        \040404040404040404040404040404040404040404040404040404\
-                        \040404011a007801e0021a0002102003191e46a10282845820130a\
-                        \e82201d7072e6fbfc0a1884fb54636554d14945b799125cf7ce38d\
-                        \477f515840320ed7d1513b0f1b61381f7942a07b627b246c85a13b\
-                        \2623e4868ea82488c778a7760124f3a17f924c08d425c0717df6cd\
-                        \898eb4ab8439a16e08befdc415120e582001010101010101010101\
-                        \0101010101010101010101010101010101010101010144a1024100\
-                        \845820010000000000000000000000000000000000000000000000\
-                        \000000000000000058401a8667d2d0af4e24d4d385443002f1e903\
-                        \6063bdb7c62d45447a2e176ded81a11683bd944c6d7db6e5fd8868\
-                        \40025f63192a382e526f4150e2b336ee9ed8080858200000000000\
-                        \000000000000000000000000000000000000000000000000000000\
-                        \44a1024100f5f6"
-                    RecentEraAlonzo ->
-                        "84a400828258200000000000000000000000000000000000000000\
-                        \000000000000000000000000008258200000000000000000000000\
-                        \000000000000000000000000000000000000000000010183825839\
-                        \010202020202020202020202020202020202020202020202020202\
-                        \020202020202020202020202020202020202020202020202020202\
-                        \0202021a005b8d8082583901030303030303030303030303030303\
-                        \030303030303030303030303030303030303030303030303030303\
-                        \03030303030303030303030303031a005b8d808258390104040404\
-                        \040404040404040404040404040404040404040404040404040404\
-                        \040404040404040404040404040404040404040404040404041a00\
-                        \7801e0021a0002102003191e46a10282845820130ae82201d7072e\
-                        \6fbfc0a1884fb54636554d14945b799125cf7ce38d477f51584058\
-                        \35ff78c6fc5e4466a179ca659fa85c99b8a3fba083f3f3f42ba360\
-                        \d479c64ef169914b52ade49b19a7208fd63a6e67a19c406b482660\
-                        \8fdc5307025506c307582001010101010101010101010101010101\
-                        \0101010101010101010101010101010144a1024100845820010000\
-                        \000000000000000000000000000000000000000000000000000000\
-                        \00005840e8e769ecd0f3c538f0a5a574a1c881775f086d6f4c845b\
-                        \81be9b78955728bffa7efa54297c6a5d73337bd6280205b1759c13\
-                        \f79d4c93f29871fc51b78aeba80e58200000000000000000000000\
-                        \00000000000000000000000000000000000000000044a1024100f5\
-                        \f6"
-
+                    RecentEraAlonzo -> mconcat
+                      [ "84a400828258200000000000000000000000000000000000000000"
+                      , "000000000000000000000000008258200000000000000000000000"
+                      , "000000000000000000000000000000000000000000010183825839"
+                      , "010202020202020202020202020202020202020202020202020202"
+                      , "020202020202020202020202020202020202020202020202020202"
+                      , "0202021a005b8d8082583901030303030303030303030303030303"
+                      , "030303030303030303030303030303030303030303030303030303"
+                      , "03030303030303030303030303031a005b8d808258390104040404"
+                      , "040404040404040404040404040404040404040404040404040404"
+                      , "040404040404040404040404040404040404040404040404041a00"
+                      , "7801e0021a0002102003191e46a10282845820130ae82201d7072e"
+                      , "6fbfc0a1884fb54636554d14945b799125cf7ce38d477f51584058"
+                      , "35ff78c6fc5e4466a179ca659fa85c99b8a3fba083f3f3f42ba360"
+                      , "d479c64ef169914b52ade49b19a7208fd63a6e67a19c406b482660"
+                      , "8fdc5307025506c307582001010101010101010101010101010101"
+                      , "0101010101010101010101010101010144a1024100845820010000"
+                      , "000000000000000000000000000000000000000000000000000000"
+                      , "00005840e8e769ecd0f3c538f0a5a574a1c881775f086d6f4c845b"
+                      , "81be9b78955728bffa7efa54297c6a5d73337bd6280205b1759c13"
+                      , "f79d4c93f29871fc51b78aeba80e58200000000000000000000000"
+                      , "00000000000000000000000000000000000000000044a1024100f5"
+                      , "f6"
+                      ]
+                    _ -> mconcat
+                      [ "84a400828258200000000000000000000000000000000000000000"
+                      , "000000000000000000000000008258200000000000000000000000"
+                      , "000000000000000000000000000000000000000000010183a20058"
+                      , "390102020202020202020202020202020202020202020202020202"
+                      , "020202020202020202020202020202020202020202020202020202"
+                      , "02020202011a005b8d80a200583901030303030303030303030303"
+                      , "030303030303030303030303030303030303030303030303030303"
+                      , "0303030303030303030303030303030303011a005b8d80a2005839"
+                      , "010404040404040404040404040404040404040404040404040404"
+                      , "040404040404040404040404040404040404040404040404040404"
+                      , "040404011a007801e0021a0002102003191e46a10282845820130a"
+                      , "e82201d7072e6fbfc0a1884fb54636554d14945b799125cf7ce38d"
+                      , "477f515840320ed7d1513b0f1b61381f7942a07b627b246c85a13b"
+                      , "2623e4868ea82488c778a7760124f3a17f924c08d425c0717df6cd"
+                      , "898eb4ab8439a16e08befdc415120e582001010101010101010101"
+                      , "0101010101010101010101010101010101010101010144a1024100"
+                      , "845820010000000000000000000000000000000000000000000000"
+                      , "000000000000000058401a8667d2d0af4e24d4d385443002f1e903"
+                      , "6063bdb7c62d45447a2e176ded81a11683bd944c6d7db6e5fd8868"
+                      , "40025f63192a382e526f4150e2b336ee9ed8080858200000000000"
+                      , "000000000000000000000000000000000000000000000000000000"
+                      , "44a1024100f5f6"
+                      ]
             calculateBinary net utxo outs chgs pairs `shouldBe` binary
 
   where
@@ -1768,7 +1857,7 @@ binaryCalculationsSpec' era = describe ("calculateBinary - "+||era||+"") $ do
               mkByronWitness @era unsignedTx net addr
           addrWits = zipWith (mkByronWitness' unsigned) inps pairs
           fee = toCardanoLovelace $ selectionDelta TxOut.coin cs
-          Right unsigned =
+          unsigned = either (error . show) id $
               mkUnsignedTx (shelleyBasedEraFromRecentEra era)
                 (Nothing, slotNo) (Right cs) md mempty [] fee
               TokenMap.empty TokenMap.empty Map.empty Map.empty
@@ -1859,7 +1948,7 @@ makeShelleyTx era testCase = Cardano.makeSignedTransaction addrWits unsigned
     DecodeSetup utxo outs md slotNo pairs _netwk = testCase
     inps = Map.toList $ unUTxO utxo
     fee = toCardanoLovelace $ selectionDelta TxOut.coin cs
-    Right unsigned =
+    unsigned = either (error . show) id $
         mkUnsignedTx era (Nothing, slotNo) (Right cs) md mempty [] fee
         TokenMap.empty TokenMap.empty Map.empty Map.empty
     addrWits = map (mkShelleyWitness unsigned) pairs
@@ -2401,12 +2490,12 @@ balanceTransactionSpec = describe "balanceTransaction" $ do
                 $ replicateM nChange
                 $ state @Identity (getChangeAddressGen dummyChangeAddrGen)
 
-        let address :: Babbage.TxOut StandardBabbage -> Address
-            address (Babbage.TxOut addr _ _ _) = toWallet addr
+        let address :: Babbage.BabbageTxOut StandardBabbage -> Address
+            address (Babbage.BabbageTxOut addr _ _ _) = toWallet addr
 
         let outputs
                 :: Cardano.Tx Cardano.BabbageEra
-                -> [Babbage.TxOut StandardBabbage]
+                -> [Babbage.BabbageTxOut StandardBabbage]
             outputs
                 (Cardano.Tx
                     (Cardano.ShelleyTxBody _ body _ _ _ _ )
@@ -2727,8 +2816,11 @@ distributeSurplusSpec = do
                     `shouldBe`
                     Right (TxFeeAndChange (Coin 2) [Coin 98])
 
-        describe "when increasing the change costs more in fees than the \
-                 \increase itself" $ do
+        describe
+            (unwords
+                [ "when increasing the change costs more in fees than the"
+                , "increase itself"
+                ]) $ do
             it "will try burning the surplus as fees" $ do
                 distributeSurplusDelta
                     mainnetFeePolicy
@@ -3056,8 +3148,10 @@ prop_distributeSurplus_onSuccess_increasesValuesByDelta =
     prop_distributeSurplus_onSuccess $ \policy surplus
         (TxFeeAndChange feeOriginal changeOriginal)
         (TxFeeAndChange feeModified changeModified) ->
-            let Right (TxFeeAndChange feeDelta changeDeltas) =
-                    distributeSurplusDelta policy surplus $ TxFeeAndChange
+            let (TxFeeAndChange feeDelta changeDeltas) =
+                    either (error . show) id
+                    $ distributeSurplusDelta policy surplus
+                    $ TxFeeAndChange
                         (feeOriginal)
                         (TxOut.coin <$> changeOriginal)
             in
@@ -3572,12 +3666,62 @@ testStdGenSeed = StdGenSeed 0
 balanceTransactionGoldenSpec
     :: Spec
 balanceTransactionGoldenSpec = describe "balance goldens" $ do
+    it "testPParams" $ do
+        let name = "testPParams"
+        let dir = $(getTestData) </> "balanceTx" </> "binary"
+
+        let pp = Cardano.toLedgerPParams Cardano.ShelleyBasedEraBabbage
+                $ snd mockProtocolParametersForBalancing
+        Golden
+            { output = pp
+            , encodePretty = show
+            , writeToFile = \fp x ->
+                T.writeFile fp $ T.pack . toCBORHex $ x
+            , readFromFile = fmap fromCBORHex . readFile
+            , goldenFile = dir </> name </> "golden"
+            , actualFile = Just (dir </> name </> "actual")
+            , failFirstTime = False
+            }
+
+    describe "balanced binaries" $ do
+        let dir = $(getTestData) </> "balanceTx" </> "binary" </> "balanced"
+        let walletUTxO = utxo [Coin 5_000_000]
+        it "pingPong_2" $ do
+            let ptx = pingPong_2
+            let tx = either (error . show) id $ balanceTransaction'
+                    (mkTestWallet rootK walletUTxO)
+                    testStdGenSeed
+                    ptx
+            let serializeTx = serialisedTx
+                    . sealedTxFromCardano
+                    . InAnyCardanoEra Cardano.BabbageEra
+
+            let name = "pingPong_2"
+            Golden
+                { output = tx
+                , encodePretty = show
+                , writeToFile = \fp x ->
+                    T.writeFile fp $ T.pack . B8.unpack . hex $ serializeTx x
+                , readFromFile =
+                    fmap (deserializeBabbageTx . unsafeFromHex . B8.pack)
+                    . readFile
+                , goldenFile = dir </> name </> "golden"
+                , actualFile = Just (dir </> name </> "actual")
+                , failFirstTime = False
+                }
+
     describe "results when varying wallet balance (1 UTxO)" $ do
         test "pingPong_1" pingPong_1
         test "pingPong_2" pingPong_2
         test "delegate" delegate
         test "1ada-payment" payment
   where
+    fromCBORHex :: FromCBOR a => String -> a
+    fromCBORHex = unsafeDeserialize' . unsafeFromHex . B8.pack
+
+    toCBORHex :: ToCBOR a => a -> String
+    toCBORHex = B8.unpack . hex . serialize'
+
     test :: String -> PartialTx Cardano.BabbageEra -> Spec
     test name partialTx = it name $ do
         goldenText name
@@ -3622,25 +3766,22 @@ balanceTransactionGoldenSpec = describe "balance goldens" $ do
                     Left e
                         -> BalanceTxGoldenFailure c (show e)
 
-        utxo coins = UTxO $ Map.fromList $ zip ins outs
-          where
-            ins = map (TxIn dummyHash) [0..]
-            outs = map (TxOut addr . TokenBundle.fromCoin) coins
-            dummyHash = Hash $ B8.replicate 32 '0'
+    utxo coins = UTxO $ Map.fromList $ zip ins outs
+      where
+        ins = map (TxIn dummyHash) [0..]
+        outs = map (TxOut addr . TokenBundle.fromCoin) coins
+        dummyHash = Hash $ B8.replicate 32 '0'
 
-        mw = SomeMnemonic $ either (error . show) id
-            (entropyToMnemonic @12 <$> mkEntropy "0000000000000000")
-        rootK = Shelley.unsafeGenerateKeyFromSeed (mw, Nothing) mempty
-        addr = Address $ unsafeFromHex
-            "60b1e5e0fb74c86c801f646841e07cdb42df8b82ef3ce4e57cb5412e77"
+    mw = SomeMnemonic $ either (error . show) id
+        (entropyToMnemonic @12 <$> mkEntropy "0000000000000000")
+    rootK = Shelley.unsafeGenerateKeyFromSeed (mw, Nothing) mempty
+    addr = Address $ unsafeFromHex
+        "60b1e5e0fb74c86c801f646841e07cdb42df8b82ef3ce4e57cb5412e77"
 
     payment :: PartialTx Cardano.BabbageEra
     payment = paymentPartialTx
         [ TxOut addr (TokenBundle.fromCoin (Coin 1_000_000))
         ]
-      where
-        addr = Address $ unsafeFromHex
-            "60b1e5e0fb74c86c801f646841e07cdb42df8b82ef3ce4e57cb5412e77"
 
     delegate :: PartialTx Cardano.BabbageEra
     delegate = PartialTx (Cardano.Tx body []) mempty []
@@ -3658,11 +3799,8 @@ balanceTransactionGoldenSpec = describe "balance goldens" $ do
             poolId = PoolId "\236(\243=\203\230\214@\n\RS^3\155\208d|\
                             \\ts\202l\f\249\194\187\230\131\141\198"
             xpub = getRawKey $ publicKey rootK
-            mw = SomeMnemonic $ either (error . show) id
-                (entropyToMnemonic @12 <$> mkEntropy "0000000000000001")
-            rootK = Shelley.unsafeGenerateKeyFromSeed (mw, Nothing) mempty
             delegationAction = JoinRegisteringKey poolId
-        ledgerBody = Babbage.TxBody
+        ledgerBody = Babbage.BabbageTxBody
           { Babbage.inputs = mempty
           , Babbage.collateral = mempty
           , Babbage.outputs = mempty
@@ -3692,9 +3830,9 @@ balanceTransactionGoldenSpec = describe "balance goldens" $ do
         :: Cardano.Tx Cardano.BabbageEra
         -> Cardano.UTxO Cardano.BabbageEra
         -> Cardano.Lovelace
-    txMinFee (Cardano.Tx body _) utxo = toCardanoLovelace $ evaluateMinimumFee
+    txMinFee (Cardano.Tx body _) u = toCardanoLovelace $ evaluateMinimumFee
         (snd mockProtocolParametersForBalancing)
-        (estimateKeyWitnessCount utxo body)
+        (estimateKeyWitnessCount u body)
         body
 
 -- NOTE: 'balanceTransaction' relies on estimating the number of witnesses that
@@ -3922,7 +4060,8 @@ prop_balanceTransactionValid wallet (ShowBuildable partialTx) seed
     hasZeroAdaOutputs (Cardano.Tx (Cardano.ShelleyTxBody _ body _ _ _ _) _) =
         any hasZeroAda (Alonzo.outputs body)
       where
-        hasZeroAda (Alonzo.TxOut _ val _) = Value.coin val == Ledger.Coin 0
+        hasZeroAda (Alonzo.AlonzoTxOut _ val _) =
+            Value.coin val == Ledger.Coin 0
 
     hasCollateral :: Cardano.Tx era -> Bool
     hasCollateral (Cardano.Tx (Cardano.TxBody content) _) =
@@ -4047,10 +4186,8 @@ mockProtocolParametersForBalancing = (mockProtocolParameters, nodePParams)
             Just $ fromIntegral $ SL.unCoin testParameter_coinsPerUTxOWord_Alonzo
         , Cardano.protocolParamUTxOCostPerByte =
             Just $ fromIntegral $ SL.unCoin testParameter_coinsPerUTxOByte_Babbage
-        , Cardano.protocolParamCostModels =
-            Map.singleton
-                (Cardano.AnyPlutusScriptVersion Cardano.PlutusScriptV1)
-                costModel
+        , Cardano.protocolParamCostModels = Cardano.fromAlonzoCostModels
+            costModelsForTesting
         , Cardano.protocolParamPrices =
             Just $ Cardano.ExecutionUnitPrices
                 (721 % 10_000_000)
@@ -4060,10 +4197,13 @@ mockProtocolParametersForBalancing = (mockProtocolParameters, nodePParams)
         , Cardano.protocolParamCollateralPercent = Just 1
         , Cardano.protocolParamMaxCollateralInputs = Just 3
         }
-    costModel = Cardano.CostModel
-        . fromMaybe (error "Plutus.defaultCostModelParams")
-        $ Plutus.defaultCostModelParams
 
+{-# NOINLINE costModelsForTesting #-}
+costModelsForTesting :: Alonzo.CostModels
+costModelsForTesting = unsafePerformIO $ do
+    let fp = $(getTestData) </> "cardano-node-shelley" </> "alonzo-genesis.yaml"
+    (alonzoGenesis :: AlonzoGenesis) <- Yaml.decodeFileThrow fp
+    return $ costmdls alonzoGenesis
 
 block0 :: Block
 block0 = Block
@@ -4272,6 +4412,15 @@ sealedNumberOfRedeemers sealedTx =
                         0
                     Cardano.TxBodyScriptData _ _ (Alonzo.Redeemers rdmrs) ->
                         Map.size rdmrs
+        InAnyCardanoEra ConwayEra (Cardano.Tx body _) ->
+            let dats =
+                    case body of
+                        Cardano.ShelleyTxBody _ _ _ d _ _ -> d
+            in case dats of
+                    Cardano.TxBodyNoScriptData ->
+                        0
+                    Cardano.TxBodyScriptData _ _ (Alonzo.Redeemers rdmrs) ->
+                        Map.size rdmrs
 
 sealedFee
     :: forall era. Cardano.IsCardanoEra era => Cardano.Tx era -> Maybe Coin
@@ -4295,8 +4444,8 @@ paymentPartialTx txouts = PartialTx (Cardano.Tx body []) mempty []
     -- NOTE: We should write this as @emptyTxBody { outputs = ... }@.
     -- The next time we bump the ledger , this may already be availible to us
     -- with 'mkBabbageTxBody' and 'initialTxBodyRaw'.
-    -- https://github.com/input-output-hk/cardano-ledger/blob/17649bc09e4c47923f7ad103d337cc1b8e6d3078/eras/babbage/impl/src/Cardano/Ledger/Babbage/TxBody.hs#L940
-    babbageBody = Babbage.TxBody
+    -- https://github.com/input-output-hk/cardano-ledger/blob/17649bc09e4c47923f7ad103d337cc1b8e6d3078/eras/babbage/impl/src/Cardano/Ledger/Babbage.BabbageTxBody.hs#L940
+    babbageBody = Babbage.BabbageTxBody
         { Babbage.inputs = mempty
         , Babbage.collateral = mempty
         , Babbage.outputs = StrictSeq.fromList $
@@ -4319,10 +4468,11 @@ paymentPartialTx txouts = PartialTx (Cardano.Tx body []) mempty []
 pingPong_1 :: PartialTx Cardano.BabbageEra
 pingPong_1 = PartialTx tx mempty []
   where
-    tx = deserializeBabbageTx $ unsafeFromHex
-        "84a500800d80018183581d714d72cf569a339a18a7d9302313983f56e0d96cd4\
-        \5bdcb1d6512dca6a1a001e84805820923918e403bf43c34b4ef6b48eb2ee04ba\
-        \bed17320d8d1b9ff9ad086e86f44ec02000e80a10481d87980f5f6"
+    tx = deserializeBabbageTx $ unsafeFromHex $ mconcat
+        [ "84a500800d80018183581d714d72cf569a339a18a7d9302313983f56e0d96cd4"
+        , "5bdcb1d6512dca6a1a001e84805820923918e403bf43c34b4ef6b48eb2ee04ba"
+        , "bed17320d8d1b9ff9ad086e86f44ec02000e80a10481d87980f5f6"
+        ]
 
 pingPong_2 :: PartialTx Cardano.BabbageEra
 pingPong_2 = PartialTx
@@ -4331,19 +4481,22 @@ pingPong_2 = PartialTx
         , tid
         , unsafeFromHex "000d80018183581d714d72cf569a339a18a7d9302313983f56e0d96cd45bdcb1d6512dca6a1a001e848058208392f0c940435c06888f9bdb8c74a95dc69f156367d6a089cf008ae05caae01e02000e80a20381591b72591b6f01000033233332222333322223322332232323332223233322232333333332222222232333222323333222232323322323332223233322232323322332232323333322222332233223322332233223322223223223232533530333330083333573466e1d40192004204f23333573466e1d401d2002205123333573466e1d40212000205323504b35304c3357389201035054310004d49926499263333573466e1d40112004205323333573466e1d40152002205523333573466e1d40192000205723504b35304c3357389201035054310004d49926499263333573466e1cd55cea8012400046601664646464646464646464646666ae68cdc39aab9d500a480008cccccccccc064cd409c8c8c8cccd5cd19b8735573aa004900011980f981d1aba15002302c357426ae8940088d4164d4c168cd5ce2481035054310005b49926135573ca00226ea8004d5d0a80519a8138141aba150093335502e75ca05a6ae854020ccd540b9d728169aba1500733502704335742a00c66a04e66aa0a8098eb4d5d0a8029919191999ab9a3370e6aae754009200023350213232323333573466e1cd55cea80124000466a05266a084eb4d5d0a80118239aba135744a00446a0ba6a60bc66ae712401035054310005f49926135573ca00226ea8004d5d0a8011919191999ab9a3370e6aae7540092000233502733504275a6ae854008c11cd5d09aba2500223505d35305e3357389201035054310005f49926135573ca00226ea8004d5d09aba2500223505935305a3357389201035054310005b49926135573ca00226ea8004d5d0a80219a813bae35742a00666a04e66aa0a8eb88004d5d0a801181c9aba135744a00446a0aa6a60ac66ae71241035054310005749926135744a00226ae8940044d5d1280089aba25001135744a00226ae8940044d5d1280089aba25001135573ca00226ea8004d5d0a8011919191999ab9a3370ea00290031180f181d9aba135573ca00646666ae68cdc3a801240084603a608a6ae84d55cf280211999ab9a3370ea00690011180e98181aba135573ca00a46666ae68cdc3a80224000460406eb8d5d09aab9e50062350503530513357389201035054310005249926499264984d55cea80089baa001357426ae8940088d4124d4c128cd5ce249035054310004b49926104a1350483530493357389201035054350004a4984d55cf280089baa001135573a6ea80044d55ce9baa0012212330010030022001222222222212333333333300100b00a00900800700600500400300220012212330010030022001122123300100300212001122123300100300212001122123300100300212001212222300400521222230030052122223002005212222300100520011232230023758002640026aa078446666aae7c004940388cd4034c010d5d080118019aba200203323232323333573466e1cd55cea801a4000466600e6464646666ae68cdc39aab9d5002480008cc034c0c4d5d0a80119a8098169aba135744a00446a06c6a606e66ae71241035054310003849926135573ca00226ea8004d5d0a801999aa805bae500a35742a00466a01eeb8d5d09aba25002235032353033335738921035054310003449926135744a00226aae7940044dd50009110919980080200180110009109198008018011000899aa800bae75a224464460046eac004c8004d540d888c8cccd55cf80112804919a80419aa81898031aab9d5002300535573ca00460086ae8800c0b84d5d08008891001091091198008020018900089119191999ab9a3370ea002900011a80418029aba135573ca00646666ae68cdc3a801240044a01046a0526a605466ae712401035054310002b499264984d55cea80089baa001121223002003112200112001232323333573466e1cd55cea8012400046600c600e6ae854008dd69aba135744a00446a0466a604866ae71241035054310002549926135573ca00226ea80048848cc00400c00880048c8cccd5cd19b8735573aa002900011bae357426aae7940088d407cd4c080cd5ce24810350543100021499261375400224464646666ae68cdc3a800a40084a00e46666ae68cdc3a8012400446a014600c6ae84d55cf280211999ab9a3370ea00690001280511a8111a981199ab9c490103505431000244992649926135573aa00226ea8004484888c00c0104488800844888004480048c8cccd5cd19b8750014800880188cccd5cd19b8750024800080188d4068d4c06ccd5ce249035054310001c499264984d55ce9baa0011220021220012001232323232323333573466e1d4005200c200b23333573466e1d4009200a200d23333573466e1d400d200823300b375c6ae854014dd69aba135744a00a46666ae68cdc3a8022400c46601a6eb8d5d0a8039bae357426ae89401c8cccd5cd19b875005480108cc048c050d5d0a8049bae357426ae8940248cccd5cd19b875006480088c050c054d5d09aab9e500b23333573466e1d401d2000230133016357426aae7940308d407cd4c080cd5ce2481035054310002149926499264992649926135573aa00826aae79400c4d55cf280109aab9e500113754002424444444600e01044244444446600c012010424444444600a010244444440082444444400644244444446600401201044244444446600201201040024646464646666ae68cdc3a800a400446660106eb4d5d0a8021bad35742a0066eb4d5d09aba2500323333573466e1d400920002300a300b357426aae7940188d4040d4c044cd5ce2490350543100012499264984d55cea80189aba25001135573ca00226ea80048488c00800c888488ccc00401401000c80048c8c8cccd5cd19b875001480088c018dd71aba135573ca00646666ae68cdc3a80124000460106eb8d5d09aab9e500423500a35300b3357389201035054310000c499264984d55cea80089baa001212230020032122300100320011122232323333573466e1cd55cea80124000466aa016600c6ae854008c014d5d09aba25002235007353008335738921035054310000949926135573ca00226ea8004498480048004448848cc00400c008448004488800c488800848880048004488800c488800848880048004448c8c00400488cc00cc008008004c8c8cc88cc88c8ccc888c8c8c8c8c8ccc888ccc888ccc888c8cccc8888c8cc88c8cccc8888c8cc88c8cc88c8ccc888c8c8cc88c8c8cc88c8c8c8cccc8888c8c8c8c8c8cc88c8cc88cc88ccccccccccccc8888888888888c8c8c8c8c8cccccccc88888888cc88cc88cc88cc88c8ccccc88888c8cc88cc88cc88c8cc88cc88cc88c8cc88c8c8c8cccc8888cccc8888c8888d4d540400108888c8c8c94cd4c24004ccc0140280240205400454cd4c24004cd5ce249025331000910115001109101153353508101003215335309001333573466e1cccc109400cd4c07800488004c0580212002092010910115002153353090013357389201025332000910115002109101150011533535080013300533501b00833303e03f5001323355306012001235355096010012233550990100233553063120012353550990100122335509c0100233704900080080080099a809801180a003003909a9aa84a8080091911a9a80f00091299a984a0098050010a99a984a00999aa9837090009a835283491a9aa84d8080091199aa9838890009a836a83611a9aa84f0080091199ab9a3370e900000084e0084d808008008a8020a99a984a0099ab9c49102533300095011500410950113535501e00522253353097013333355027253335301400113374a90001bb14984cdd2a40046ec52613374a90021bb149800c008c8cd400541d141d4488cc008cd40ac01cccc124128018cd4078034c07c04400403c4264044cd5ce249025335000980113535501a0012225335309301333335502325301d00100300200100b109501133573892010253340009401133573892010253360008f0113530220052235302d002222222222253353508b013303000a00b2135303a0012235303e0012220021350a10135309d0133573892010253300009e01498cccd5403488d4d404c008894ccd4c02400c54ccd4c01400854ccd4c02400c541f04d41f4cd542400554034cd405801c004541f054ccd4c02400c4d41f4cd542400554034cd4058020004541f0541f0541f054ccd4c01400854ccd4c02400c541f04d41f4cd542400554034cd405801c004541f054ccd4c02400c4d41f4cd542400554034cd4058020004541f0541f0541f04d41f4cd542400554034cd4058019419894ccd4c008004421c04421c044220048882280541e0488800c488800848880048004488800c48880084888004800444ccd5401d416541654164494cd4d41b8004848cd4168cd5421404d4c03000888004cd4168cd54214040052002505b505b12505a235355081013530100012235301b00222222222225335350793301e00a00b213530280012235302c00122235303100322335308701002230930116253353508201004213355098010020011309301161308a01162200211222212333300100500400300211200120011122212333001004003002112001122123300100300212001221233001003002200111222225335307533355304f120013504b504a235300b002223301500200300415335307533355304f120013504b504a235300b002223530160022222222222353501500d22533530840133355305e120013505450562353025001223304b00200400c10860113357389201024c30000850100315335307533355304f120013504b504a235300b002223530160022222222222353501300d22533530840133355305e12001350545056235302700122253353507a00121533530890133305108501003006153353507b330623019007009213308501001002108a01108a011089015335350763301b00c00d2135302500122353029001222333553055120012235302e00222235303300822353035005225335309301333308401004003002001133506f0090081008506701113508c01353088013357389201024c6600089014984218044cd5ce2481024c3100085010021077150741507415074122123300100300212001122123300100300212001221233001003002200122533335300300121505f21505f21505f2133355304612001504a235300d001225335306f3303300200413506300315062003212222300400521222230030052122223002005212222300100520013200135506c22233333333333353019001235300500322222222225335307153353506333355304b12001504f253353072333573466e3c0300041d01cc4d41980045419400c841d041c841cc4cd5ce249024c340007222353006004222222222253353506453353506433355304c1200150502353550790012253353075333573466e3c00803c1dc1d84d41a400c541a000884d419cd4d541e40048800454194854cd4c1ccccd5cd19baf00100c0750741075150701506f235300500322222222225335307133355304b120013504150432333573466ebc0300041d01cccd54c108480048d4d541e00048800400841cc4cd5ce249024c320007222225335306a333573466e1cd4c0200188888888888ccc09801c0380300041b01ac41b04cd5ce2481024c390006b22235300700522222222225335307333355304d1200135043504523530160012225335350690012153353078333040074003010153353506a35301601422222222223305b01b0022153353079333573466e3c0040081ec1e84d4c07401488cccc1b0008004c1d005541b841e841e441e441e002441d44cd5ce249024c6200074225335306833303002f0013335530331200150175045353006004222222222233355303d120012235301600222235301b00322335307100225335307a333573466e3c0500041f01ec4cd415801401c401c801d413c02441a84cd5ce2481024c610006925335306733302f02e001353005003222222222233355304b12001501f235301400122200200910691335738921024c36000682533530673335530411200135037503923300500400100110691335738921024c640006825335306733302f02e001353005003222222222233355304b12001501f23530120012235301600122200200a106913357389201024c35000682353005003222222222253353506333355304b12001504f235301200122533530743303800200e1350680031506700a213530120012235301600122253353506900121507610791506f22353006004222222222253353506433355304c120015050235301300122533530753303900200f1350690031506800a2107513357389201024c380007323530050032222222222353503100b22353503500222353503500822353503900222533530793333333222222253335306d33350640070060031533530800100215335308001005133350610070010041081011333506100700100410810113335061007001004333333335064075225335307b333573466e1c0080041f41f041ac54cd4c1ecccd5cd19b8900200107d07c1069106a22333573466e200080041f41f010088ccd5cd19b8900200107c07d22333573466e200080041f01f4894cd4c1ecccd5cd19b8900200107d07c10011002225335307b333573466e240080041f41f04008400401801401c00800400c41ec4cd5ce249024c330007a222222222212333333333300100b00a009008007006005004003002200122123300100300220012221233300100400300220012212330010030022001212222222300700822122222223300600900821222222230050081222222200412222222003221222222233002009008221222222233001009008200113350325001502f13001002222335530241200123535505a00122335505d002335530271200123535505d001223355060002333535502500123300a4800000488cc02c0080048cc02800520000013301c00200122337000040024446464600200a640026aa0b64466a6a05e0029000111a9aa82e00111299a982c199ab9a3371e0040120b40b22600e0022600c006640026aa0b44466a6a05c0029000111a9aa82d80111299a982b999ab9a3371e00400e0b20b020022600c00642444444444444601801a4424444444444446601601c01a42444444444444601401a44442444444444444666601202001e01c01a444244444444444466601001e01c01a4424444444444446600e01c01a42444444444444600c01a42444444444444600a01a42444444444444600801a42444444444444600601a4424444444444446600401c01a42444444444444600201a400224424660020060042400224424660020060042400244a66a607c666ae68cdc79a9801801110011a98018009100102001f8999ab9a3370e6a6006004440026a60060024400208007e207e442466002006004400244666ae68cdc480100081e81e111199aa980a890009a808a80811a9aa82100091199aa980c090009a80a280991a9aa82280091199a9aa8068009198052400000244660160040024660140029000000998020010009119aa98050900091a9aa8200009119aa821801199a9aa804000919aa98070900091a9aa8220009119aa8238011aa80780080091199aaa80401c801000919aa98070900091a9aa8220009119aa8238011aa806800800999aaa80181a001000888911199aa980209000a80a99aa98050900091a9aa8200009119aa8218011aa805800999aa980209000911a9aa82080111299a981e999aa980b890009a806a80791a9aa82200091198050010028030801899a80c802001a80b00099aa98050900091a9aa820000911919aa8220019800802990009aa82291299a9a80c80089aa8058019109a9aa82300111299a982119806001004099aa80800380089803001801190009aa81f1108911299a9a80a800880111099802801199aa980389000802802000889091118018020891091119801002802089091118008020890008919a80891199a9a803001910010010009a9a80200091000990009aa81c110891299a9a8070008a80811099a808980200119aa980309000802000899a80111299a981800108190800817891091980080180109000899a80191299a9816801080088170168919a80591199a9a802001910010010009a9a8010009100089109198008018010900091299a9a80d999aa980189000a80391a9aa81800091299a9816199ab9a3375e00200a05c05a26a0400062a03e002426a03c6a6aa060002440042a038640026aa05e4422444a66a6a00c00226a6a01400644002442666a6a01800a440046008004666aa600e2400200a00800222440042442446600200800624002266a00444a66a6a02c004420062002a02a24424660020060042400224446a6a008004446a6a00c00644a666a6026666a01400e0080042a66a604c00620022050204e2050244246600200600424002244464646464a666a6a01000c42a666a6a01200c42a666a6a0140104260082c260062c2a666a6a01400e4260082c260062c202a20262a666a6a01200e4260082c260062c2a666a6a01200c4260082c260062c20282a666a6a01000a42024202620222a666a6a01000a42a666a6a01200e42600a2c260082c2a666a6a01200c42600a2c260082c202820242a666a6a01000c42600a2c260082c2a666a6a01000a42600a2c260082c20264a666a6a01000a42a666a6a01200e42a666a6a01400e42666a01e014004002260222c260222c260202c20262a666a6a01000c42a666a6a01200c42666a01c012004002260202c260202c2601e2c202420224a666a6a00e00842a666a6a01000c42a666a6a01200c42666a01c012004002260202c260202c2601e2c20242a666a6a00e00a42a666a6a01000a42666a01a0100040022601e2c2601e2c2601c2c202220204a666a6a00c00642a666a6a00e00a42a666a6a01000a42666a01a0100040022601e2c2601e2c2601c2c20222a666a6a00c00842a666a6a00e00842666a01800e0040022601c2c2601c2c2601a2c2020201e4a666a6a00a00442a666a6a00c00842a666a6a00e00842666a01800e0040022601c2c2601c2c2601a2c20202a666a6a00a00642a666a6a00c00642666a01600c0040022601a2c2601a2c260182c201e201c2424446006008224440042244400224002246a6a0040024444444400e244444444246666666600201201000e00c00a008006004240024c244400624440042444002400244446466a601800a466a601a0084a66a602c666ae68cdc780100080c00b8a801880b900b919a9806802100b9299a980b199ab9a3371e00400203002e2a006202e2a66a6a00a00642a66a6a00c0044266a6014004466a6016004466a601e004466a60200044660280040024034466a6020004403446602800400244403444466a601a0084034444a66a6036666ae68cdc380300180e80e0a99a980d999ab9a3370e00a00403a03826602e00800220382038202a2a66a6a00a0024202a202a2424460040062244002240024244600400644424466600200a00800640024244600400642446002006400244666ae68cdc780100080480411199ab9a3370e00400201000e266ae712401024c630000413357389201024c370000313357389201024c64000021220021220012001235006353002335738921024c6700003498480048004448848cc00400c008448004498448c8c00400488cc00cc0080080050482d87a80d87980f5f6"
         ]
-    , inputs = WriteTx.toCardanoUTxO $ WriteTx.utxoFromTxOutsInLatestEra
+    , inputs = WriteTx.toCardanoUTxO $ either (error . show) id $ WriteTx.utxoFromTxOutsInLatestEra RecentEraBabbage
         [ ( WriteTx.unsafeMkTxIn tid 0
           , WriteTx.TxOutInRecentEra
-                (WriteTx.unsafeAddressFromBytes $ unsafeFromHex
-                    "714d72cf569a339a18a7d93023139\
-                    \83f56e0d96cd45bdcb1d6512dca6a")
+                (WriteTx.unsafeAddressFromBytes $ unsafeFromHex $ mconcat
+                    [ "714d72cf569a339a18a7d93023139"
+                    , "83f56e0d96cd45bdcb1d6512dca6a"
+                    ])
                 (toLedgerTokenBundle $ TokenBundle.fromCoin $ Coin 2_000_000)
                 (WriteTx.DatumHash
                     $ fromJust
                     $ WriteTx.datumHashFromBytes
                     $ unsafeFromHex
-                        "923918e403bf43c34b4ef6b48eb2ee04\
-                        \babed17320d8d1b9ff9ad086e86f44ec")
+                    $ mconcat
+                        [ "923918e403bf43c34b4ef6b48eb2ee04"
+                        , "babed17320d8d1b9ff9ad086e86f44ec"
+                        ])
                 Nothing
           )
         ]
@@ -4383,7 +4536,9 @@ withValidityInterval vi ptx = ptx
 
 -- Ideally merge with 'updateSealedTx'
 modifyBabbageTxBody
-    :: (Babbage.TxBody StandardBabbage -> Babbage.TxBody StandardBabbage)
+    :: ( Babbage.BabbageTxBody StandardBabbage ->
+         Babbage.BabbageTxBody StandardBabbage
+       )
     -> Cardano.Tx Cardano.BabbageEra -> Cardano.Tx Cardano.BabbageEra
 modifyBabbageTxBody
     f
@@ -4407,52 +4562,57 @@ modifyBabbageTxBody
         keyWits
 
 txWithInputsOutputsAndWits :: ByteString
-txWithInputsOutputsAndWits =
-    "83a400828258200000000000000000000000000000000000000000000000000000\
-    \000000000000008258200000000000000000000000000000000000000000000000\
-    \000000000000000000010183825839010202020202020202020202020202020202\
-    \020202020202020202020202020202020202020202020202020202020202020202\
-    \0202020202021a005b8d8082583901030303030303030303030303030303030303\
-    \030303030303030303030303030303030303030303030303030303030303030303\
-    \03030303031a005b8d808258390104040404040404040404040404040404040404\
-    \040404040404040404040404040404040404040404040404040404040404040404\
-    \040404041a007801e0021a0002102003191e46a10082825820130ae82201d7072e\
-    \6fbfc0a1884fb54636554d14945b799125cf7ce38d477f5158405835ff78c6fc5e\
-    \4466a179ca659fa85c99b8a3fba083f3f3f42ba360d479c64ef169914b52ade49b\
-    \19a7208fd63a6e67a19c406b4826608fdc5307025506c307825820010000000000\
-    \00000000000000000000000000000000000000000000000000005840e8e769ecd0\
-    \f3c538f0a5a574a1c881775f086d6f4c845b81be9b78955728bffa7efa54297c6a\
-    \5d73337bd6280205b1759c13f79d4c93f29871fc51b78aeba80ef6"
+txWithInputsOutputsAndWits = mconcat
+    [ "83a400828258200000000000000000000000000000000000000000000000000000"
+    , "000000000000008258200000000000000000000000000000000000000000000000"
+    , "000000000000000000010183825839010202020202020202020202020202020202"
+    , "020202020202020202020202020202020202020202020202020202020202020202"
+    , "0202020202021a005b8d8082583901030303030303030303030303030303030303"
+    , "030303030303030303030303030303030303030303030303030303030303030303"
+    , "03030303031a005b8d808258390104040404040404040404040404040404040404"
+    , "040404040404040404040404040404040404040404040404040404040404040404"
+    , "040404041a007801e0021a0002102003191e46a10082825820130ae82201d7072e"
+    , "6fbfc0a1884fb54636554d14945b799125cf7ce38d477f5158405835ff78c6fc5e"
+    , "4466a179ca659fa85c99b8a3fba083f3f3f42ba360d479c64ef169914b52ade49b"
+    , "19a7208fd63a6e67a19c406b4826608fdc5307025506c307825820010000000000"
+    , "00000000000000000000000000000000000000000000000000005840e8e769ecd0"
+    , "f3c538f0a5a574a1c881775f086d6f4c845b81be9b78955728bffa7efa54297c6a"
+    , "5d73337bd6280205b1759c13f79d4c93f29871fc51b78aeba80ef6"
+    ]
 
 signedTxGoldens :: [ByteString]
 signedTxGoldens =
-    [ "84a6008182582062d3756241f3f19483e2f710e00e83c80e84329bff08753df3a6\
-      \28beea3454ec18370d800182825839010c36ef7fff0869d7e75cd70f0f369bb770\
-      \d66efd50625c2c1a5e84f3cd2a80021c790f232cddd9216631f285a0d745361d40\
-      \2305a61abc071a000f422a82583901d6c89cba59e000ab67171115d99a2f845c38\
-      \b7616838d168af37288fcd2a80021c790f232cddd9216631f285a0d745361d4023\
-      \05a61abc071b000000174865a61e021a0001ffb803198fae0e81581c98947dd5fc\
-      \0ec3fa16043bdbf5577fa383bb89deab60d9d9f80a214ca10082825820debdc920\
-      \10207d6b51bfd2bab3d03610742d71cbf3867a7c8a7fce360c134a0e5840919835\
-      \b47a543b72fae3a64cf75145cf0aa44e31cc0e089c9b2fea93d0acae9e2d69c28d\
-      \4808904be4129c7a16ff3563843a8851a56701eb45947b1329bd540b8258204cff\
-      \849a17fcbd9e40425e2c2ef96544333c91306e5f869e9d66fc0db91ffa0c584043\
-      \c3dd8e9596ba3698633e7d6fcc20c4b0081211a1351ec192296abbb40411692fc7\
-      \5504d7a50f02f2439313dc5f16aa982aab8cea6e32e0c6e64a1b82609306f5f6"
+    [ mconcat
+      [ "84a6008182582062d3756241f3f19483e2f710e00e83c80e84329bff08753df3a6"
+      , "28beea3454ec18370d800182825839010c36ef7fff0869d7e75cd70f0f369bb770"
+      , "d66efd50625c2c1a5e84f3cd2a80021c790f232cddd9216631f285a0d745361d40"
+      , "2305a61abc071a000f422a82583901d6c89cba59e000ab67171115d99a2f845c38"
+      , "b7616838d168af37288fcd2a80021c790f232cddd9216631f285a0d745361d4023"
+      , "05a61abc071b000000174865a61e021a0001ffb803198fae0e81581c98947dd5fc"
+      , "0ec3fa16043bdbf5577fa383bb89deab60d9d9f80a214ca10082825820debdc920"
+      , "10207d6b51bfd2bab3d03610742d71cbf3867a7c8a7fce360c134a0e5840919835"
+      , "b47a543b72fae3a64cf75145cf0aa44e31cc0e089c9b2fea93d0acae9e2d69c28d"
+      , "4808904be4129c7a16ff3563843a8851a56701eb45947b1329bd540b8258204cff"
+      , "849a17fcbd9e40425e2c2ef96544333c91306e5f869e9d66fc0db91ffa0c584043"
+      , "c3dd8e9596ba3698633e7d6fcc20c4b0081211a1351ec192296abbb40411692fc7"
+      , "5504d7a50f02f2439313dc5f16aa982aab8cea6e32e0c6e64a1b82609306f5f6"
+      ]
 
-    , "84a6008182582062d3756241f3f19483e2f710e00e83c80e84329bff08753df3a6\
-      \28beea3454ec18370d800182825839010c36ef7fff0869d7e75cd70f0f369bb770\
-      \d66efd50625c2c1a5e84f3cd2a80021c790f232cddd9216631f285a0d745361d40\
-      \2305a61abc071a000f422a82583901d6c89cba59e000ab67171115d99a2f845c38\
-      \b7616838d168af37288fcd2a80021c790f232cddd9216631f285a0d745361d4023\
-      \05a61abc071b000000174865a61e021a0001ffb803198fae0e81581c98947dd5fc\
-      \0ec3fa16043bdbf5577fa383bb89deab60d9d9f80a214ca10082825820debdc920\
-      \10207d6b51bfd2bab3d03610742d71cbf3867a7c8a7fce360c134a0e5840919835\
-      \b47a543b72fae3a64cf75145cf0aa44e31cc0e089c9b2fea93d0acae9e2d69c28d\
-      \4808904be4129c7a16ff3563843a8851a56701eb45947b1329bd540b8258204cff\
-      \849a17fcbd9e40425e2c2ef96544333c91306e5f869e9d66fc0db91ffa0c584043\
-      \c3dd8e9596ba3698633e7d6fcc20c4b0081211a1351ec192296abbb40411692fc7\
-      \5504d7a50f02f2439313dc5f16aa982aab8cea6e32e0c6e64a1b82609306f5f6"
+    , mconcat
+      [ "84a6008182582062d3756241f3f19483e2f710e00e83c80e84329bff08753df3a6"
+      , "28beea3454ec18370d800182825839010c36ef7fff0869d7e75cd70f0f369bb770"
+      , "d66efd50625c2c1a5e84f3cd2a80021c790f232cddd9216631f285a0d745361d40"
+      , "2305a61abc071a000f422a82583901d6c89cba59e000ab67171115d99a2f845c38"
+      , "b7616838d168af37288fcd2a80021c790f232cddd9216631f285a0d745361d4023"
+      , "05a61abc071b000000174865a61e021a0001ffb803198fae0e81581c98947dd5fc"
+      , "0ec3fa16043bdbf5577fa383bb89deab60d9d9f80a214ca10082825820debdc920"
+      , "10207d6b51bfd2bab3d03610742d71cbf3867a7c8a7fce360c134a0e5840919835"
+      , "b47a543b72fae3a64cf75145cf0aa44e31cc0e089c9b2fea93d0acae9e2d69c28d"
+      , "4808904be4129c7a16ff3563843a8851a56701eb45947b1329bd540b8258204cff"
+      , "849a17fcbd9e40425e2c2ef96544333c91306e5f869e9d66fc0db91ffa0c584043"
+      , "c3dd8e9596ba3698633e7d6fcc20c4b0081211a1351ec192296abbb40411692fc7"
+      , "5504d7a50f02f2439313dc5f16aa982aab8cea6e32e0c6e64a1b82609306f5f6"
+      ]
 
     , txWithInputsOutputsAndWits
     ]

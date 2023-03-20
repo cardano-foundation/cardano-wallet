@@ -1,7 +1,6 @@
 {-# LANGUAGE DataKinds #-}
 {-# LANGUAGE FlexibleContexts #-}
 {-# LANGUAGE StandaloneDeriving #-}
-{-# LANGUAGE TypeApplications #-}
 {-# LANGUAGE TypeFamilies #-}
 {-# LANGUAGE UndecidableInstances #-}
 
@@ -21,20 +20,29 @@ module Cardano.Wallet.Read.Tx.Mint
 import Prelude
 
 import Cardano.Api
-    ( AllegraEra, AlonzoEra, BabbageEra, ByronEra, MaryEra, ShelleyEra )
+    ( AllegraEra
+    , AlonzoEra
+    , BabbageEra
+    , ByronEra
+    , ConwayEra
+    , MaryEra
+    , ShelleyEra
+    )
+import Cardano.Ledger.Alonzo.TxBody
+    ( mintTxBodyL )
+import Cardano.Ledger.Core
+    ( bodyTxL )
 import Cardano.Ledger.Crypto
     ( StandardCrypto )
 import Cardano.Wallet.Read.Eras
     ( EraFun (..) )
-
 import Cardano.Wallet.Read.Tx
     ( Tx (..) )
 import Cardano.Wallet.Read.Tx.Eras
     ( onTx )
-import GHC.Records
-    ( HasField (..) )
+import Control.Lens
+    ( (^.) )
 
-import qualified Cardano.Ledger.Alonzo.Tx as AL
 import qualified Cardano.Ledger.Mary.Value as Mary
 import qualified Cardano.Ledger.Shelley.API as SH
 
@@ -42,9 +50,10 @@ type family MintType era where
   MintType ByronEra = ()
   MintType ShelleyEra = ()
   MintType AllegraEra = SH.Coin
-  MintType MaryEra = Mary.Value StandardCrypto
-  MintType AlonzoEra = Mary.Value StandardCrypto
-  MintType BabbageEra = Mary.Value StandardCrypto
+  MintType MaryEra = Mary.MaryValue StandardCrypto
+  MintType AlonzoEra = Mary.MaryValue StandardCrypto
+  MintType BabbageEra = Mary.MaryValue StandardCrypto
+  MintType ConwayEra = Mary.MaryValue StandardCrypto
 
 newtype Mint era = Mint (MintType era)
 
@@ -55,11 +64,9 @@ getEraMint :: EraFun Tx Mint
 getEraMint = EraFun
     { byronFun = \_ -> Mint ()
     , shelleyFun = \_ -> Mint ()
-    , allegraFun = onTx $ \(SH.Tx b _ _ ) -> getMint b
-    , maryFun = onTx $ \(SH.Tx b _ _ ) -> getMint b
-    , alonzoFun = onTx $ \(AL.ValidatedTx b _ _ _) -> getMint b
-    , babbageFun = onTx $ \(AL.ValidatedTx b _ _ _) -> getMint b
+    , allegraFun = onTx $ \tx -> Mint $ tx ^. bodyTxL . mintTxBodyL
+    , maryFun = onTx $ \tx -> Mint $ tx ^. bodyTxL . mintTxBodyL
+    , alonzoFun = onTx $ \tx -> Mint $ tx ^. bodyTxL . mintTxBodyL
+    , babbageFun = onTx $ \tx -> Mint $ tx ^. bodyTxL . mintTxBodyL
+    , conwayFun = onTx $ \tx -> Mint $ tx ^. bodyTxL . mintTxBodyL
     }
-
-getMint :: HasField "mint" a (MintType b) => a -> Mint b
-getMint =  Mint . getField @"mint"

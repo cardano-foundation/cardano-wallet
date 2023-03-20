@@ -1,7 +1,6 @@
 {-# LANGUAGE DataKinds #-}
 {-# LANGUAGE FlexibleContexts #-}
 {-# LANGUAGE StandaloneDeriving #-}
-{-# LANGUAGE TypeApplications #-}
 {-# LANGUAGE TypeFamilies #-}
 {-# LANGUAGE UndecidableInstances #-}
 
@@ -22,7 +21,22 @@ module Cardano.Wallet.Read.Tx.CollateralOutputs
 import Prelude
 
 import Cardano.Api
-    ( AllegraEra, AlonzoEra, BabbageEra, ByronEra, MaryEra, ShelleyEra )
+    ( AllegraEra
+    , AlonzoEra
+    , BabbageEra
+    , ByronEra
+    , ConwayEra
+    , MaryEra
+    , ShelleyEra
+    )
+import Cardano.Ledger.Babbage.Collateral
+    ()
+import Cardano.Ledger.Babbage.Rules
+    ()
+import Cardano.Ledger.Babbage.Tx
+    ()
+import Cardano.Ledger.Babbage.TxBody
+    ( BabbageTxBody, BabbageTxOut (..), collateralReturnTxBodyL )
 import Cardano.Ledger.Crypto
     ( StandardCrypto )
 import Cardano.Wallet.Read.Eras
@@ -31,13 +45,14 @@ import Cardano.Wallet.Read.Tx
     ( Tx (..) )
 import Cardano.Wallet.Read.Tx.Eras
     ( onTx )
+import Control.Lens
+    ( (^.) )
 import Data.Maybe.Strict
     ( StrictMaybe )
-import GHC.Records
-    ( HasField (..) )
 
 import qualified Cardano.Ledger.Alonzo.Tx as AL
 import qualified Cardano.Ledger.Babbage as BA
+import qualified Cardano.Ledger.Conway as Conway
 
 type family CollateralOutputsType era where
     CollateralOutputsType ByronEra = ()
@@ -46,7 +61,9 @@ type family CollateralOutputsType era where
     CollateralOutputsType MaryEra = ()
     CollateralOutputsType AlonzoEra =  ()
     CollateralOutputsType BabbageEra
-        = StrictMaybe (BA.TxOut (BA.BabbageEra StandardCrypto))
+        = StrictMaybe (BabbageTxOut (BA.BabbageEra StandardCrypto))
+    CollateralOutputsType ConwayEra
+        = StrictMaybe (BabbageTxOut (Conway.ConwayEra StandardCrypto))
 
 newtype CollateralOutputs era = CollateralOutputs (CollateralOutputsType era)
 
@@ -62,10 +79,19 @@ getEraCollateralOutputs
         , maryFun = \_ -> CollateralOutputs ()
         , alonzoFun = \_ -> CollateralOutputs ()
         , babbageFun = onTx
-            $ \(AL.ValidatedTx b _ _ _) -> getCollateralOutputs b
+            $ \(AL.AlonzoTx b _ _ _) -> getBabbageCollateralOutputs b
+        , conwayFun = onTx
+            $ \(AL.AlonzoTx b _ _ _) -> getConwayCollateralOutputs b
         }
 
-getCollateralOutputs
-    :: ( HasField "collateralReturn" a (CollateralOutputsType b))
-    => a -> CollateralOutputs b
-getCollateralOutputs =  CollateralOutputs . getField @"collateralReturn"
+getBabbageCollateralOutputs
+    :: BabbageTxBody (BA.BabbageEra StandardCrypto)
+    -> CollateralOutputs BabbageEra
+getBabbageCollateralOutputs txBody =
+    CollateralOutputs (txBody ^. collateralReturnTxBodyL)
+
+getConwayCollateralOutputs
+    :: BabbageTxBody (Conway.ConwayEra StandardCrypto)
+    -> CollateralOutputs ConwayEra
+getConwayCollateralOutputs txBody =
+    CollateralOutputs (txBody ^. collateralReturnTxBodyL)

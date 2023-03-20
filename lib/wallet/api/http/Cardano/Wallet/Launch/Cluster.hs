@@ -201,8 +201,8 @@ import Data.List
     ( intercalate, nub, permutations, sort )
 import Data.List.NonEmpty
     ( NonEmpty ((:|)) )
-import Data.Map
-    ( Map )
+import Data.ListMap
+    ( ListMap (..) )
 import Data.Maybe
     ( catMaybes, fromMaybe )
 import Data.Text
@@ -260,7 +260,7 @@ import qualified Data.ByteString.Char8 as B8
 import qualified Data.ByteString.Lazy as BL
 import qualified Data.ByteString.Lazy.Char8 as BL8
 import qualified Data.List.NonEmpty as NE
-import qualified Data.Map.Strict as Map
+import qualified Data.ListMap as ListMap
 import qualified Data.Set as Set
 import qualified Data.Text as T
 import qualified Data.Text.Encoding as T
@@ -580,16 +580,18 @@ configurePool tr baseDir era metadataServer recipe = do
                   }
 
             let updateStaking sgs = sgs
-                    { Ledger.sgsPools = (Map.singleton poolId params)
-                        <> (sgsPools sgs)
-                    , Ledger.sgsStake = (Map.singleton stakePubHash poolId)
-                        <> Ledger.sgsStake sgs
+                    { Ledger.sgsPools =
+                        (ListMap.ListMap [(poolId, params)])
+                            <> (sgsPools sgs)
+                    , Ledger.sgsStake =
+                        (ListMap.fromList [(stakePubHash, poolId)])
+                            <> Ledger.sgsStake sgs
                     }
-            let poolSpecificFunds = Map.fromList
+            let poolSpecificFunds = ListMap.fromList
                     [(pledgeAddr, Ledger.Coin $ intCast pledgeAmt)]
 
             return $ \sg -> sg
-                { sgInitialFunds = poolSpecificFunds <> (sgInitialFunds sg)
+                { sgInitialFunds = poolSpecificFunds <> sgInitialFunds sg
                 , sgStaking = updateStaking (sgStaking sg)
                 }
 
@@ -902,10 +904,13 @@ generateGenesis dir systemStart initialFunds addPoolsToGenesis = do
     Yaml.decodeFileThrow @_ @Aeson.Value (source </> "alonzo-genesis.yaml")
         >>= Aeson.encodeFile (dir </> "genesis.alonzo.json")
 
+    Yaml.decodeFileThrow @_ @Aeson.Value (source </> "conway-genesis.yaml")
+        >>= Aeson.encodeFile (dir </> "genesis.conway.json")
+
     let startTime = round @_ @Int . utcTimeToPOSIXSeconds $ systemStart
     let systemStart' = posixSecondsToUTCTime . fromRational . toRational $ startTime
 
-    let pparams = Ledger.PParams
+    let pparams = Ledger.ShelleyPParams
             { _minfeeA = 100
             , _minfeeB = 100_000
             , _minUTxOValue = Ledger.Coin 1_000_000
@@ -978,13 +983,17 @@ generateGenesis dir systemStart initialFunds addPoolsToGenesis = do
         { byronGenesis = byronGenesisFile
         , shelleyGenesis = dir </> "genesis.json"
         , alonzoGenesis = dir </> "genesis.alonzo.json"
+        , conwayGenesis = dir </> "genesis.conway.json"
         }
 
   where
-    extraInitialFunds :: Map (Ledger.Addr (Crypto StandardShelley)) Ledger.Coin
-    extraInitialFunds = Map.fromList
-        [ (fromMaybe (error "extraFunds: invalid addr") $ Ledger.deserialiseAddr addrBytes
-         , Ledger.Coin $ intCast c)
+    extraInitialFunds
+        :: ListMap (Ledger.Addr (Crypto StandardShelley)) Ledger.Coin
+    extraInitialFunds = ListMap.fromList
+        [ ( fromMaybe (error "extraFunds: invalid addr")
+          $ Ledger.deserialiseAddr addrBytes
+          , Ledger.Coin $ intCast c
+          )
         | (Address addrBytes, Coin c) <- initialFunds
         ]
 
@@ -1429,6 +1438,7 @@ data GenesisFiles = GenesisFiles
     { byronGenesis :: FilePath
     , shelleyGenesis :: FilePath
     , alonzoGenesis :: FilePath
+    , conwayGenesis :: FilePath
     } deriving (Show, Eq)
 
 genNodeConfig
@@ -1444,7 +1454,8 @@ genNodeConfig
     -> IO (FilePath, Block, NetworkParameters, NodeToClientVersionData, [PoolCertificate])
 genNodeConfig dir name genesisFiles clusterEra logCfg = do
     let LogFileConfig severity mExtraLogFile extraSev = logCfg
-    let GenesisFiles{byronGenesis,shelleyGenesis,alonzoGenesis} = genesisFiles
+    let GenesisFiles{byronGenesis,shelleyGenesis,alonzoGenesis,conwayGenesis}
+            = genesisFiles
 
     source <- getShelleyTestDataPath
 
@@ -1469,6 +1480,7 @@ genNodeConfig dir name genesisFiles clusterEra logCfg = do
         >>= withAddedKey "ShelleyGenesisFile" shelleyGenesis
         >>= withAddedKey "ByronGenesisFile" byronGenesis
         >>= withAddedKey "AlonzoGenesisFile" alonzoGenesis
+        >>= withAddedKey "ConwayGenesisFile" conwayGenesis
         >>= withHardForks clusterEra
         >>= withAddedKey "minSeverity" Debug
         >>= withScribes scribes

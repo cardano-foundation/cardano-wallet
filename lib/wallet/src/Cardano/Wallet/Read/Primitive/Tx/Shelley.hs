@@ -20,6 +20,10 @@ import Cardano.Address.Script
     ( KeyRole (..) )
 import Cardano.Api
     ( ShelleyEra )
+import Cardano.Ledger.Core
+    ( auxDataTxL, bodyTxL, feeTxBodyL, inputsTxBodyL, outputsTxBodyL, witsTxL )
+import Cardano.Ledger.Shelley.TxBody
+    ( certsTxBodyL, ttlTxBodyL, wdrlsTxBodyL )
 import Cardano.Wallet.Read.Eras
     ( inject, shelley )
 import Cardano.Wallet.Read.Primitive.Tx.Features.Certificates
@@ -48,6 +52,8 @@ import Cardano.Wallet.Transaction
     , WitnessCount (..)
     , emptyTokenMapWithScripts
     )
+import Control.Lens
+    ( (^.) )
 import Data.Bifunctor
     ( bimap )
 import Data.Foldable
@@ -92,7 +98,7 @@ fromShelleyTxIn (SL.TxIn txid (SL.TxIx ix)) =
 
 -- NOTE: For resolved inputs we have to pass in a dummy value of 0.
 fromShelleyTx
-    :: SL.Tx (Cardano.ShelleyLedgerEra ShelleyEra)
+    :: SL.ShelleyTx (Cardano.ShelleyLedgerEra ShelleyEra)
     -> ( W.Tx
        , [W.Certificate]
        , TokenMapWithScripts
@@ -131,7 +137,15 @@ fromShelleyTx tx =
     , countWits
     )
   where
-    SL.Tx (SL.TxBody ins outs certs wdrls fee ttl _ _) wits mmd = tx
+    ins = tx ^. bodyTxL . inputsTxBodyL
+    outs = tx ^. bodyTxL . outputsTxBodyL
+    certs = tx ^. bodyTxL . certsTxBodyL
+    wdrls = tx ^. bodyTxL . wdrlsTxBodyL
+    fee = tx ^. bodyTxL . feeTxBodyL
+    ttl = tx ^. bodyTxL . ttlTxBodyL
+    wits = tx ^. witsTxL
+    mmd = tx ^. auxDataTxL
+    -- SL.Tx (SL.TxBody _ins _outs _certs _wdrls _fee _ttl _ _) _wits _mmd = tx
     countWits = WitnessCount
         (fromIntegral $ Set.size $ SL.addrWits wits)
         (fmap (flip NativeExplicitScript ViaSpending . toWalletScriptFromShelley Payment)

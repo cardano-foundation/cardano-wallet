@@ -20,6 +20,12 @@
 
 {-# HLINT ignore "Use record patterns" #-}
 
+-- TODO: https://input-output.atlassian.net/browse/ADP-2841
+{-# LANGUAGE CPP #-}
+#if __GLASGOW_HASKELL__ >= 902
+{-# OPTIONS_GHC -fno-warn-ambiguous-fields #-}
+#endif
+
 -- |
 -- Copyright: © 2018-2020 IOHK
 -- License: Apache-2.0
@@ -2684,9 +2690,10 @@ constructTransaction api argGenChange knownPools poolStatus apiWalletId body = d
                     assets = fromFlatList [(assetId, tokenQuantity)]
                 in
                 (addr, assets)
-    toMintTxOut _ _ = error
-        "toMintTxOut can only be used in the minting context with addr \
-        \specified"
+    toMintTxOut _ _ = error $ unwords
+        [ "toMintTxOut can only be used in the minting context with addr"
+        , "specified"
+        ]
 
     coalesceTokensPerAddr =
         let toTxOut (addr, assets) =
@@ -4132,6 +4139,7 @@ type RewardAccountBuilder k
 
 guardIsRecentEra :: AnyCardanoEra -> Handler AnyRecentEra
 guardIsRecentEra (Cardano.AnyCardanoEra era) = case era of
+    Cardano.ConwayEra -> pure $ WriteTx.AnyRecentEra WriteTx.RecentEraConway
     Cardano.BabbageEra -> pure $ WriteTx.AnyRecentEra WriteTx.RecentEraBabbage
     Cardano.AlonzoEra  -> pure $ WriteTx.AnyRecentEra WriteTx.RecentEraAlonzo
     Cardano.MaryEra    -> liftE invalidEra
@@ -4779,7 +4787,7 @@ data ErrUnexpectedPoolIdPlaceholder = ErrUnexpectedPoolIdPlaceholder
     deriving (Eq, Show)
 
 data ErrCreateWallet
-    = ErrCreateWalletAlreadyExists ErrWalletAlreadyExists
+    = ErrCreateWalletAlreadyExists !ErrWalletAlreadyExists
         -- ^ Wallet already exists
     | ErrCreateWalletFailedToCreateWorker
         -- ^ Somehow, we couldn't create a worker or open a db connection
@@ -4835,8 +4843,8 @@ instance IsServerError ErrGetAsset where
 -- | The type of log messages coming from the server 'ApiLayer', which may or
 -- may not be associated with a particular worker thread.
 data WalletEngineLog
-    = MsgWalletWorker (WorkerLog WalletId W.WalletWorkerLog)
-    | MsgSubmitSealedTx TxSubmitLog
+    = MsgWalletWorker !(WorkerLog WalletId W.WalletWorkerLog)
+    | MsgSubmitSealedTx !TxSubmitLog
     deriving (Show, Eq)
 
 instance ToText WalletEngineLog where

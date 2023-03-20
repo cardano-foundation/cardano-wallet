@@ -1,7 +1,6 @@
 {-# LANGUAGE DataKinds #-}
 {-# LANGUAGE FlexibleContexts #-}
 {-# LANGUAGE StandaloneDeriving #-}
-{-# LANGUAGE TypeApplications #-}
 {-# LANGUAGE TypeFamilies #-}
 {-# LANGUAGE UndecidableInstances #-}
 
@@ -22,7 +21,16 @@ module Cardano.Wallet.Read.Tx.ReferenceInputs
 import Prelude
 
 import Cardano.Api
-    ( AllegraEra, AlonzoEra, BabbageEra, ByronEra, MaryEra, ShelleyEra )
+    ( AllegraEra
+    , AlonzoEra
+    , BabbageEra
+    , ByronEra
+    , ConwayEra
+    , MaryEra
+    , ShelleyEra
+    )
+import Cardano.Ledger.Babbage.TxBody
+    ( referenceInputsTxBodyL )
 import Cardano.Ledger.Crypto
     ( StandardCrypto )
 import Cardano.Wallet.Read.Eras
@@ -31,10 +39,10 @@ import Cardano.Wallet.Read.Tx
     ( Tx (..) )
 import Cardano.Wallet.Read.Tx.Eras
     ( onTx )
+import Control.Lens
+    ( (^.) )
 import Data.Set
     ( Set )
-import GHC.Records
-    ( HasField (..) )
 
 import qualified Cardano.Ledger.Alonzo.Tx as AL
 import qualified Cardano.Ledger.Shelley.API as SH
@@ -46,6 +54,7 @@ type family ReferenceInputsType era where
     ReferenceInputsType MaryEra = ()
     ReferenceInputsType AlonzoEra = ()
     ReferenceInputsType BabbageEra = Set (SH.TxIn StandardCrypto)
+    ReferenceInputsType ConwayEra = Set (SH.TxIn StandardCrypto)
 
 newtype ReferenceInputs era = ReferenceInputs (ReferenceInputsType era)
 
@@ -60,10 +69,8 @@ getEraReferenceInputs
         , allegraFun = \_ -> ReferenceInputs ()
         , maryFun = \_ -> ReferenceInputs ()
         , alonzoFun = \_ -> ReferenceInputs ()
-        , babbageFun = onTx $ \(AL.ValidatedTx b _ _ _) -> getReferenceInputs b
+        , babbageFun = onTx $ \(AL.AlonzoTx txBody _ _ _) ->
+            ReferenceInputs (txBody ^. referenceInputsTxBodyL)
+        , conwayFun = onTx $ \(AL.AlonzoTx txBody _ _ _) ->
+            ReferenceInputs (txBody ^. referenceInputsTxBodyL)
         }
-
-getReferenceInputs
-    :: ( HasField "referenceInputs" a (ReferenceInputsType b))
-    => a -> ReferenceInputs b
-getReferenceInputs =  ReferenceInputs . getField @"referenceInputs"

@@ -41,6 +41,7 @@ module Cardano.Wallet.Shelley.Compatibility.Ledger
     , toMaryTxOut
     , toAlonzoTxOut
     , toBabbageTxOut
+    , toConwayTxOut
 
     ) where
 
@@ -92,6 +93,7 @@ import Ouroboros.Consensus.Shelley.Eras
     ( StandardAllegra
     , StandardAlonzo
     , StandardBabbage
+    , StandardConway
     , StandardCrypto
     , StandardMary
     , StandardShelley
@@ -160,13 +162,13 @@ toWalletCoin (Ledger.Coin c) = Coin.unsafeFromIntegral c
 -- that is similar to the wallet's 'TokenBundle' type. The ada quantity is
 -- stored as a separate value, and asset quantities are stored in a nested map.
 
-instance Convert TokenBundle (Ledger.Value StandardCrypto) where
+instance Convert TokenBundle (Ledger.MaryValue StandardCrypto) where
     toLedger = toLedgerTokenBundle
     toWallet = toWalletTokenBundle
 
-toLedgerTokenBundle :: TokenBundle -> Ledger.Value StandardCrypto
+toLedgerTokenBundle :: TokenBundle -> Ledger.MaryValue StandardCrypto
 toLedgerTokenBundle bundle =
-    Ledger.Value ledgerAda ledgerTokens
+    Ledger.MaryValue ledgerAda ledgerTokens
   where
     (Ledger.Coin ledgerAda) = toLedgerCoin $ TokenBundle.getCoin bundle
     ledgerTokens = bundle
@@ -179,8 +181,8 @@ toLedgerTokenBundle bundle =
         & Map.mapKeys toLedgerTokenName
         & Map.map toLedgerTokenQuantity
 
-toWalletTokenBundle :: Ledger.Value StandardCrypto -> TokenBundle
-toWalletTokenBundle (Ledger.Value ledgerAda ledgerTokens) =
+toWalletTokenBundle :: Ledger.MaryValue StandardCrypto -> TokenBundle
+toWalletTokenBundle (Ledger.MaryValue ledgerAda ledgerTokens) =
     TokenBundle.fromNestedMap (walletAda, walletTokens)
   where
     walletAda = toWalletCoin $ Ledger.Coin ledgerAda
@@ -300,34 +302,34 @@ instance Convert Address (Ledger.Addr StandardCrypto) where
 
 toShelleyTxOut
     :: TxOut
-    -> Shelley.TxOut StandardShelley
+    -> Shelley.ShelleyTxOut StandardShelley
 toShelleyTxOut (TxOut addr bundle) =
-    Shelley.TxOut (toLedger addr) (toLedger (TokenBundle.coin bundle))
+    Shelley.ShelleyTxOut (toLedger addr) (toLedger (TokenBundle.coin bundle))
 
 toAllegraTxOut
     :: TxOut
-    -> Shelley.TxOut StandardAllegra
+    -> Shelley.ShelleyTxOut StandardAllegra
 toAllegraTxOut (TxOut addr bundle) =
-    Shelley.TxOut (toLedger addr) (toLedger (TokenBundle.coin bundle))
+    Shelley.ShelleyTxOut (toLedger addr) (toLedger (TokenBundle.coin bundle))
 
 toMaryTxOut
     :: TxOut
-    -> Shelley.TxOut StandardMary
+    -> Shelley.ShelleyTxOut StandardMary
 toMaryTxOut (TxOut addr bundle) =
-    Shelley.TxOut (toLedger addr) (toLedger bundle)
+    Shelley.ShelleyTxOut (toLedger addr) (toLedger bundle)
 
 toAlonzoTxOut
     :: TxOut
     -> Maybe (Hash "Datum")
-    -> Alonzo.TxOut StandardAlonzo
+    -> Alonzo.AlonzoTxOut StandardAlonzo
 toAlonzoTxOut (TxOut addr bundle) = \case
     Nothing ->
-        Alonzo.TxOut
+        Alonzo.AlonzoTxOut
             (toLedger addr)
             (toLedger bundle)
             Ledger.SNothing
     Just (Hash bytes) ->
-        Alonzo.TxOut
+        Alonzo.AlonzoTxOut
             (toLedger addr)
             (toLedger bundle)
             (Ledger.SJust
@@ -338,16 +340,37 @@ toAlonzoTxOut (TxOut addr bundle) = \case
 toBabbageTxOut
     :: TxOut
     -> Maybe (Hash "Datum")
-    -> Babbage.TxOut StandardBabbage
+    -> Babbage.BabbageTxOut StandardBabbage
 toBabbageTxOut (TxOut addr bundle) = \case
     Nothing ->
-        Babbage.TxOut
+        Babbage.BabbageTxOut
             (toLedger addr)
             (toLedger bundle)
             Babbage.NoDatum
             Ledger.SNothing
     Just (Hash bytes) ->
-        Babbage.TxOut
+        Babbage.BabbageTxOut
+            (toLedger addr)
+            (toLedger bundle)
+            (Babbage.DatumHash
+                $ unsafeMakeSafeHash
+                $ Crypto.UnsafeHash
+                $ toShort bytes)
+            Ledger.SNothing
+
+toConwayTxOut
+    :: TxOut
+    -> Maybe (Hash "Datum")
+    -> Babbage.BabbageTxOut StandardConway
+toConwayTxOut (TxOut addr bundle) = \case
+    Nothing ->
+        Babbage.BabbageTxOut
+            (toLedger addr)
+            (toLedger bundle)
+            Babbage.NoDatum
+            Ledger.SNothing
+    Just (Hash bytes) ->
+        Babbage.BabbageTxOut
             (toLedger addr)
             (toLedger bundle)
             (Babbage.DatumHash

@@ -9,15 +9,15 @@
 -- License: Apache-2.0
 --
 
-module Cardano.Wallet.Read.Primitive.Tx.Babbage
-    ( fromBabbageTx
+module Cardano.Wallet.Read.Primitive.Tx.Conway
+    ( fromConwayTx
     )
     where
 
 import Prelude
 
 import Cardano.Api
-    ( BabbageEra )
+    ( ConwayEra )
 import Cardano.Ledger.Era
     ( Era (..) )
 import Cardano.Ledger.Serialization
@@ -29,7 +29,7 @@ import Cardano.Wallet.Primitive.Types.TokenPolicy
 import Cardano.Wallet.Primitive.Types.Tx.TxIn
     ( TxIn (..) )
 import Cardano.Wallet.Read.Eras
-    ( babbage, inject )
+    ( conway, inject )
 import Cardano.Wallet.Read.Primitive.Tx.Features.Certificates
     ( anyEraCerts )
 import Cardano.Wallet.Read.Primitive.Tx.Features.Fee
@@ -37,11 +37,11 @@ import Cardano.Wallet.Read.Primitive.Tx.Features.Fee
 import Cardano.Wallet.Read.Primitive.Tx.Features.Inputs
     ( fromShelleyTxIn )
 import Cardano.Wallet.Read.Primitive.Tx.Features.Metadata
-    ( fromBabbageMetadata )
+    ( fromConwayMetadata )
 import Cardano.Wallet.Read.Primitive.Tx.Features.Mint
-    ( babbageMint, fromLedgerScriptHash )
+    ( conwayMint, fromLedgerScriptHash )
 import Cardano.Wallet.Read.Primitive.Tx.Features.Outputs
-    ( fromBabbageTxOut )
+    ( fromConwayTxOut )
 import Cardano.Wallet.Read.Primitive.Tx.Features.Validity
     ( afterShelleyValidityInterval )
 import Cardano.Wallet.Read.Primitive.Tx.Features.Withdrawals
@@ -71,7 +71,7 @@ import Data.Foldable
 import Data.Maybe
     ( catMaybes )
 import Ouroboros.Consensus.Cardano.Block
-    ( StandardBabbage )
+    ( StandardConway )
 
 import qualified Cardano.Api.Shelley as Cardano
 import qualified Cardano.Ledger.Alonzo.Language as Alonzo
@@ -90,8 +90,8 @@ import qualified Data.List as L
 import qualified Data.Map.Strict as Map
 import qualified Data.Set as Set
 
-fromBabbageTx
-    :: Alonzo.AlonzoTx (Cardano.ShelleyLedgerEra BabbageEra)
+fromConwayTx
+    :: Alonzo.AlonzoTx (Cardano.ShelleyLedgerEra ConwayEra)
     -> WitnessCountCtx
     -> ( W.Tx
        , [W.Certificate]
@@ -100,12 +100,12 @@ fromBabbageTx
        , Maybe ValidityIntervalExplicit
        , WitnessCount
        )
-fromBabbageTx tx@(Alonzo.AlonzoTx bod wits (Alonzo.IsValid isValid) aux) witCtx =
+fromConwayTx tx@(Alonzo.AlonzoTx bod wits (Alonzo.IsValid isValid) aux) witCtx =
     ( W.Tx
         { txId =
             transactionId
         , txCBOR =
-            Just $ renderTxToCBOR $ inject babbage $ Tx tx
+            Just $ renderTxToCBOR $ inject conway $ Tx tx
         , fee =
             Just $ fromShelleyCoin fee
         , resolvedInputs =
@@ -113,15 +113,15 @@ fromBabbageTx tx@(Alonzo.AlonzoTx bod wits (Alonzo.IsValid isValid) aux) witCtx 
         , resolvedCollateralInputs =
             map ((,Nothing) . fromShelleyTxIn) (toList collateralInps)
         , outputs =
-            map (fst . fromBabbageTxOut . sizedValue) (toList outs)
+            map (fst . fromConwayTxOut . sizedValue) (toList outs)
         , collateralOutput =
-            case fmap (fst . fromBabbageTxOut . sizedValue) collateralReturn of
+            case fmap (fst . fromConwayTxOut . sizedValue) collateralReturn of
                 SNothing -> Nothing
                 SJust txout -> Just txout
         , withdrawals =
             fromShelleyWdrl wdrls
         , metadata =
-            fromBabbageMetadata <$> SL.strictMaybeToMaybe aux
+            fromConwayMetadata <$> SL.strictMaybeToMaybe aux
         , scriptValidity =
             validity
         }
@@ -153,9 +153,9 @@ fromBabbageTx tx@(Alonzo.AlonzoTx bod wits (Alonzo.IsValid isValid) aux) witCtx 
 
     transactionId = W.Hash $ alonzoTxHash tx
     scriptWithHashIx ix txout =
-        case (snd . fromBabbageTxOut $ txout) of
+        case (snd . fromConwayTxOut $ txout) of
             Just s -> Just ( ViaReferenceInput (ReferenceInput $ TxIn transactionId ix)
-                           , hashBabbageScript s
+                           , hashConwayScript s
                            , s)
             Nothing -> Nothing
     scriptsFromTxOuts =
@@ -173,19 +173,19 @@ fromBabbageTx tx@(Alonzo.AlonzoTx bod wits (Alonzo.IsValid isValid) aux) witCtx 
         map fromLedgerToAnyScript scriptsFromWits
     allAnyScripts = Map.union anyScriptsFromWits anyScriptsFromTxOuts
 
-    (assetsToMint, assetsToBurn) = babbageMint refInps mint wits
+    (assetsToMint, assetsToBurn) = conwayMint refInps mint wits
 
     countWits = WitnessCount
         (fromIntegral $ Set.size $ Alonzo.txwitsVKey' wits)
         (Map.elems allAnyScripts)
         (fromIntegral $ Set.size $ Alonzo.txwitsBoot' wits)
 
-    hashBabbageScript = SL.Core.hashScript @(Cardano.ShelleyLedgerEra BabbageEra)
+    hashConwayScript = SL.Core.hashScript @(Cardano.ShelleyLedgerEra ConwayEra)
 
     fromLedgerToAnyScript
         :: ( ScriptReference
-           , (SL.ScriptHash (Crypto StandardBabbage))
-           , (SL.Core.Script StandardBabbage) )
+           , (SL.ScriptHash (Crypto StandardConway))
+           , (SL.Core.Script StandardConway) )
         -> (TokenPolicyId, AnyExplicitScript)
     fromLedgerToAnyScript (scriptRef, scriptH, script) =
         (toWalletTokenPolicyId . SL.PolicyID $ scriptH, toAnyScript script)
@@ -194,7 +194,7 @@ fromBabbageTx tx@(Alonzo.AlonzoTx bod wits (Alonzo.IsValid isValid) aux) witCtx 
             NativeExplicitScript (toWalletScript (toKeyRole witCtx) script') scriptRef
         toAnyScript s@(Alonzo.PlutusScript ver _) =
             PlutusExplicitScript (PlutusScriptInfo (toPlutusVer ver)
-                          (fromLedgerScriptHash $ hashBabbageScript s)) scriptRef
+                          (fromLedgerScriptHash $ hashConwayScript s)) scriptRef
 
         toPlutusVer Alonzo.PlutusV1 = PlutusVersionV1
         toPlutusVer Alonzo.PlutusV2 = PlutusVersionV2

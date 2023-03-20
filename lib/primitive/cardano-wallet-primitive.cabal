@@ -158,13 +158,10 @@ test-suite test
     Cardano.Wallet.Primitive.Types.HashSpec
     Cardano.Wallet.Primitive.Types.TokenBundleSpec
     Cardano.Wallet.Primitive.Types.TokenMapSpec
-    Cardano.Wallet.Primitive.Types.TokenMapSpec.TypeErrorSpec
     Cardano.Wallet.Primitive.Types.TokenPolicySpec
     Cardano.Wallet.Primitive.Types.TokenQuantitySpec
-    Cardano.Wallet.Primitive.Types.UTxOIndex.TypeErrorSpec
     Cardano.Wallet.Primitive.Types.UTxOIndexSpec
     Cardano.Wallet.Primitive.Types.UTxOSelectionSpec
-    Cardano.Wallet.Primitive.Types.UTxOSelectionSpec.TypeErrorSpec
     Cardano.Wallet.Primitive.Types.UTxOSpec
     Data.QuantitySpec
     Spec

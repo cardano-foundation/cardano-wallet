@@ -74,7 +74,6 @@ import qualified Cardano.Ledger.Alonzo.Tx as Alonzo
 import qualified Cardano.Ledger.Alonzo.TxWitness as Alonzo
 import qualified Cardano.Ledger.BaseTypes as SL
 import qualified Cardano.Ledger.Core as SL.Core
-import qualified Cardano.Ledger.Era as SL.Core
 import qualified Cardano.Ledger.Mary.Value as SL
 import qualified Cardano.Ledger.Shelley.API as SL
 import qualified Cardano.Wallet.Primitive.Types as W
@@ -84,7 +83,7 @@ import qualified Data.Map.Strict as Map
 import qualified Data.Set as Set
 
 fromAlonzoTx
-    :: Alonzo.ValidatedTx (Cardano.ShelleyLedgerEra AlonzoEra)
+    :: Alonzo.AlonzoTx (Cardano.ShelleyLedgerEra AlonzoEra)
     -> WitnessCountCtx
     -> ( W.Tx
        , [W.Certificate]
@@ -93,7 +92,7 @@ fromAlonzoTx
        , Maybe ValidityIntervalExplicit
        , WitnessCount
        )
-fromAlonzoTx tx@(Alonzo.ValidatedTx bod wits (Alonzo.IsValid isValid) aux) witCtx =
+fromAlonzoTx tx@(Alonzo.AlonzoTx bod wits (Alonzo.IsValid isValid) aux) witCtx =
     ( W.Tx
         { txId =
             W.Hash $ alonzoTxHash tx
@@ -124,7 +123,7 @@ fromAlonzoTx tx@(Alonzo.ValidatedTx bod wits (Alonzo.IsValid isValid) aux) witCt
     , countWits
     )
   where
-    Alonzo.TxBody
+    Alonzo.AlonzoTxBody
         ins
         collateral
         outs

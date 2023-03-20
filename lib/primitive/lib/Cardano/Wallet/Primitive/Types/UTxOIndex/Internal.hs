@@ -631,7 +631,7 @@ data InvariantStatus
 --
 checkInvariant :: Ord u => UTxOIndex u -> InvariantStatus
 checkInvariant i
-    | balanceStatus /= BalanceCorrect =
+    | BalanceIncorrect balanceError <- checkBalance i =
         InvariantBalanceError balanceError
     | not (indexIsComplete i) =
         InvariantIndexIncomplete
@@ -643,9 +643,6 @@ checkInvariant i
         InvariantAssetsInconsistent
     | otherwise =
         InvariantHolds
-  where
-    balanceStatus = checkBalance i
-    BalanceIncorrect balanceError = balanceStatus
 
 -- | Indicates whether on not the stored 'balance' value is correct.
 --

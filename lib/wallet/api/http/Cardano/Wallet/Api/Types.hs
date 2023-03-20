@@ -1429,6 +1429,7 @@ data ApiEra
     | ApiMary
     | ApiAlonzo
     | ApiBabbage
+    | ApiConway
     deriving (Show, Eq, Generic, Enum, Ord, Bounded)
     deriving anyclass NFData
 
@@ -1439,6 +1440,7 @@ toApiEra (AnyCardanoEra AllegraEra) = ApiAllegra
 toApiEra (AnyCardanoEra MaryEra) = ApiMary
 toApiEra (AnyCardanoEra AlonzoEra) = ApiAlonzo
 toApiEra (AnyCardanoEra BabbageEra) = ApiBabbage
+toApiEra (AnyCardanoEra ConwayEra) = ApiConway
 
 fromApiEra :: ApiEra -> AnyCardanoEra
 fromApiEra ApiByron = AnyCardanoEra ByronEra
@@ -1447,6 +1449,7 @@ fromApiEra ApiAllegra = AnyCardanoEra AllegraEra
 fromApiEra ApiMary = AnyCardanoEra MaryEra
 fromApiEra ApiAlonzo = AnyCardanoEra AlonzoEra
 fromApiEra ApiBabbage = AnyCardanoEra BabbageEra
+fromApiEra ApiConway = AnyCardanoEra ConwayEra
 
 instance FromJSON ApiEra where
     parseJSON = genericParseJSON $ Aeson.defaultOptions

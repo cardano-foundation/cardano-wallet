@@ -1,7 +1,7 @@
 ############################################################################
 # Builds Haskell packages with Haskell.nix
 ############################################################################
-CHaP: haskell-nix: haskell-nix.cabalProject' [
+CHaP: haskell-nix: nixpkgs-recent: haskell-nix.cabalProject' [
   ({ lib, pkgs, buildProject, ... }: {
     options = {
       gitrev = lib.mkOption {
@@ -106,6 +106,7 @@ CHaP: haskell-nix: haskell-nix.cabalProject' [
         name = "cardano-wallet-shell${lib.optionalString config.profiling "-profiled"}";
         packages = ps: builtins.attrValues (haskellLib.selectProjectPackages ps);
         tools = {
+          cabal = "latest";
           cabal-cache.version = "1.0.2.1";
           haskell-language-server = {
             version = "1.8.0.0";
@@ -130,14 +131,13 @@ CHaP: haskell-nix: haskell-nix.cabalProject' [
           go-jira
           haskellPackages.ghcid
           pkgconfig
-          python3Packages.openapi-spec-validator
+          nixpkgs-recent.python3Packages.openapi-spec-validator
           (ruby_3_1.withPackages (ps: [ ps.rake ps.thor ]))
           sqlite-interactive
           curlFull
           jq
           yq
           nixWrapped
-          cabalWrapped
         ]);
       };
 

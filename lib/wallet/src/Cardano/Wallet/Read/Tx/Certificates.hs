@@ -1,7 +1,6 @@
 {-# LANGUAGE DataKinds #-}
 {-# LANGUAGE FlexibleContexts #-}
 {-# LANGUAGE StandaloneDeriving #-}
-{-# LANGUAGE TypeApplications #-}
 {-# LANGUAGE TypeFamilies #-}
 {-# LANGUAGE UndecidableInstances #-}
 
@@ -22,24 +21,30 @@ module Cardano.Wallet.Read.Tx.Certificates
 import Prelude
 
 import Cardano.Api
-    ( AllegraEra, AlonzoEra, BabbageEra, ByronEra, MaryEra, ShelleyEra )
+    ( AllegraEra
+    , AlonzoEra
+    , BabbageEra
+    , ByronEra
+    , ConwayEra
+    , MaryEra
+    , ShelleyEra
+    )
+import Cardano.Ledger.Core
+    ( bodyTxL )
 import Cardano.Ledger.Crypto
     ( StandardCrypto )
 import Cardano.Ledger.Shelley.TxBody
-    ( DCert )
+    ( DCert, certsTxBodyL )
 import Cardano.Wallet.Read.Eras
     ( EraFun (..) )
 import Cardano.Wallet.Read.Tx
     ( Tx (..) )
 import Cardano.Wallet.Read.Tx.Eras
     ( onTx )
+import Control.Lens
+    ( (^.) )
 import Data.Sequence.Strict
     ( StrictSeq )
-import GHC.Records
-    ( HasField (..) )
-
-import qualified Cardano.Ledger.Alonzo.Tx as AL
-import qualified Cardano.Ledger.Shelley.API as SH
 
 type family CertificatesType era where
     CertificatesType ByronEra = ()
@@ -48,6 +53,7 @@ type family CertificatesType era where
     CertificatesType MaryEra = StrictSeq (DCert StandardCrypto)
     CertificatesType AlonzoEra = StrictSeq (DCert StandardCrypto)
     CertificatesType BabbageEra = StrictSeq (DCert StandardCrypto)
+    CertificatesType ConwayEra = StrictSeq (DCert StandardCrypto)
 
 newtype Certificates era = Certificates (CertificatesType era)
 
@@ -55,17 +61,19 @@ deriving instance Show (CertificatesType era) => Show (Certificates era)
 deriving instance Eq (CertificatesType era) => Eq (Certificates era)
 
 getEraCertificates :: EraFun Tx Certificates
-getEraCertificates
-    = EraFun
-        { byronFun =  \_ -> Certificates ()
-        , shelleyFun = onTx $ \((SH.Tx b _ _)) -> getCertificates b
-        , allegraFun = onTx $ \((SH.Tx b _ _)) -> getCertificates b
-        , maryFun = onTx $ \(SH.Tx b _ _) -> getCertificates b
-        , alonzoFun = onTx $ \(AL.ValidatedTx b _ _ _) -> getCertificates b
-        , babbageFun = onTx $ \(AL.ValidatedTx b _ _ _) -> getCertificates b
-        }
-
-getCertificates
-    :: HasField "certs" a (CertificatesType b)
-    => a -> Certificates b
-getCertificates =  Certificates . getField @"certs"
+getEraCertificates = EraFun
+    { byronFun =
+        \_ -> Certificates ()
+    , shelleyFun =
+        onTx $ \tx -> Certificates $ tx ^. bodyTxL . certsTxBodyL
+    , allegraFun =
+        onTx $ \tx -> Certificates $ tx ^. bodyTxL . certsTxBodyL
+    , maryFun =
+        onTx $ \tx -> Certificates $ tx ^. bodyTxL . certsTxBodyL
+    , alonzoFun =
+        onTx $ \tx -> Certificates $ tx ^. bodyTxL . certsTxBodyL
+    , babbageFun =
+        onTx $ \tx -> Certificates $ tx ^. bodyTxL . certsTxBodyL
+    , conwayFun =
+        onTx $ \tx -> Certificates $ tx ^. bodyTxL . certsTxBodyL
+    }

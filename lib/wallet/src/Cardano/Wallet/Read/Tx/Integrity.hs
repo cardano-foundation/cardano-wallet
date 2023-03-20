@@ -1,7 +1,6 @@
 {-# LANGUAGE DataKinds #-}
 {-# LANGUAGE FlexibleContexts #-}
 {-# LANGUAGE StandaloneDeriving #-}
-{-# LANGUAGE TypeApplications #-}
 {-# LANGUAGE TypeFamilies #-}
 {-# LANGUAGE UndecidableInstances #-}
 
@@ -19,9 +18,20 @@ module Cardano.Wallet.Read.Tx.Integrity
 import Prelude
 
 import Cardano.Api
-    ( AllegraEra, AlonzoEra, BabbageEra, ByronEra, MaryEra, ShelleyEra )
+    ( AllegraEra
+    , AlonzoEra
+    , BabbageEra
+    , ByronEra
+    , ConwayEra
+    , MaryEra
+    , ShelleyEra
+    )
 import Cardano.Ledger.Alonzo.Tx
     ( ScriptIntegrityHash )
+import Cardano.Ledger.Alonzo.TxBody
+    ( scriptIntegrityHashTxBodyL )
+import Cardano.Ledger.Core
+    ( bodyTxL )
 import Cardano.Ledger.Crypto
     ( StandardCrypto )
 import Cardano.Wallet.Read.Eras
@@ -30,12 +40,10 @@ import Cardano.Wallet.Read.Tx
     ( Tx (..) )
 import Cardano.Wallet.Read.Tx.Eras
     ( onTx )
+import Control.Lens
+    ( (^.) )
 import Data.Maybe.Strict
     ( StrictMaybe )
-import GHC.Records
-    ( HasField (..) )
-
-import qualified Cardano.Ledger.Alonzo.Tx as AL
 
 type family IntegrityType era where
     IntegrityType ByronEra = ()
@@ -44,6 +52,7 @@ type family IntegrityType era where
     IntegrityType MaryEra = ()
     IntegrityType AlonzoEra = StrictMaybe (ScriptIntegrityHash StandardCrypto)
     IntegrityType BabbageEra = StrictMaybe (ScriptIntegrityHash StandardCrypto)
+    IntegrityType ConwayEra = StrictMaybe (ScriptIntegrityHash StandardCrypto)
 
 newtype Integrity era = Integrity (IntegrityType era)
 
@@ -57,8 +66,10 @@ getEraIntegrity
         , shelleyFun = \_ -> Integrity ()
         , allegraFun = \_ -> Integrity ()
         , maryFun = \_ -> Integrity ()
-        , alonzoFun = onTx $ \(AL.ValidatedTx b _ _ _)
-                -> Integrity $ getField @"scriptIntegrityHash" b
-        , babbageFun = onTx $ \(AL.ValidatedTx b _ _ _)
-                -> Integrity $ getField @"scriptIntegrityHash" b
+        , alonzoFun = onTx $ \tx -> Integrity
+            $ tx ^. bodyTxL . scriptIntegrityHashTxBodyL
+        , babbageFun = onTx $ \tx -> Integrity
+            $ tx ^. bodyTxL . scriptIntegrityHashTxBodyL
+        , conwayFun = onTx $ \tx -> Integrity
+            $ tx ^. bodyTxL . scriptIntegrityHashTxBodyL
         }

@@ -87,6 +87,7 @@ module Cardano.Wallet.Shelley.Compatibility
     , fromMaryPParams
     , fromAlonzoPParams
     , fromBabbagePParams
+    , fromConwayPParams
     , fromLedgerExUnits
     , toLedgerExUnits
     , fromCardanoAddress
@@ -125,6 +126,7 @@ module Cardano.Wallet.Shelley.Compatibility
     , toCardanoBlockHeader
     , toShelleyBlockHeader
     , toBabbageBlockHeader
+    , toConwayBlockHeader
     , fromShelleyHash
     , fromShelleyTxOut
     , fromCardanoHash
@@ -140,7 +142,9 @@ module Cardano.Wallet.Shelley.Compatibility
     , fromMaryBlock
     , fromAlonzoBlock
     , fromBabbageBlock
+    , fromConwayBlock
     , getBabbageProducer
+    , getConwayProducer
 
       -- * Internal Conversions
     , decentralizationLevelFromPParams
@@ -172,6 +176,7 @@ import Cardano.Api
     , CardanoEraStyle (..)
     , CardanoMode
     , ConsensusModeParams (CardanoModeParams)
+    , ConwayEra
     , EraInMode (..)
     , InAnyCardanoEra (..)
     , IsCardanoEra (..)
@@ -181,7 +186,6 @@ import Cardano.Api
     , ShelleyEra
     , TxInMode (..)
     , cardanoEraStyle
-    , deserialiseFromRawBytes
     )
 import Cardano.Api.Shelley
     ( InAnyShelleyBasedEra (..)
@@ -235,6 +239,8 @@ import Cardano.Wallet.Read.Primitive.Tx.Alonzo
     ( fromAlonzoTx )
 import Cardano.Wallet.Read.Primitive.Tx.Babbage
     ( fromBabbageTx )
+import Cardano.Wallet.Read.Primitive.Tx.Conway
+    ( fromConwayTx )
 import Cardano.Wallet.Read.Primitive.Tx.Features.Fee
     ( fromShelleyCoin )
 import Cardano.Wallet.Read.Primitive.Tx.Features.Inputs
@@ -286,6 +292,8 @@ import Data.ByteString.Short
     ( fromShort, toShort )
 import Data.Coerce
     ( coerce )
+import Data.Either.Extra
+    ( eitherToMaybe )
 import Data.Foldable
     ( toList )
 import Data.IntCast
@@ -304,6 +312,8 @@ import Data.Text.Class
     ( TextDecodingError (..) )
 import Data.Type.Equality
     ( (:~:) (..), testEquality )
+import Data.Typeable
+    ( Typeable )
 import Data.Word
     ( Word16, Word32, Word8 )
 import Fmt
@@ -323,6 +333,7 @@ import Ouroboros.Consensus.Cardano.Block
     , StandardAllegra
     , StandardAlonzo
     , StandardBabbage
+    , StandardConway
     , StandardMary
     , StandardShelley
     )
@@ -357,7 +368,6 @@ import qualified Cardano.Byron.Codec.Cbor as CBOR
 import qualified Cardano.Chain.Common as Byron
 import qualified Cardano.Crypto.Hash as Crypto
 import qualified Cardano.Ledger.Address as SL
-import qualified Cardano.Ledger.Allegra as Allegra
 import qualified Cardano.Ledger.Alonzo as Alonzo
 import qualified Cardano.Ledger.Alonzo.Language as Alonzo
 import qualified Cardano.Ledger.Alonzo.PParams as Alonzo
@@ -367,9 +377,11 @@ import qualified Cardano.Ledger.Alonzo.TxSeq as Alonzo
 import qualified Cardano.Ledger.Babbage as Babbage
 import qualified Cardano.Ledger.Babbage.PParams as Babbage
 import qualified Cardano.Ledger.Babbage.Tx as Babbage hiding
-    ( ScriptIntegrityHash, TxBody )
+    ( ScriptIntegrityHash )
 import qualified Cardano.Ledger.Babbage.TxBody as Babbage
 import qualified Cardano.Ledger.BaseTypes as SL
+import qualified Cardano.Ledger.Conway as Conway
+import qualified Cardano.Ledger.Conway.PParams as Conway
 import qualified Cardano.Ledger.Credential as SL
 import qualified Cardano.Ledger.Crypto as SL
 import qualified Cardano.Ledger.Era as Ledger.Era
@@ -413,6 +425,7 @@ import qualified Data.Array as Array
 import qualified Data.ByteString as BS
 import qualified Data.ByteString.Lazy as BL
 import qualified Data.ByteString.Short as SBS
+import qualified Data.ListMap as ListMap
 import qualified Data.Map.Strict as Map
 import qualified Data.Set as Set
 import qualified Data.Text.Encoding as T
@@ -493,6 +506,8 @@ toCardanoBlockHeader gp = \case
         toShelleyBlockHeader (W.getGenesisBlockHash gp) blk
     BlockBabbage blk ->
         toBabbageBlockHeader (W.getGenesisBlockHash gp) blk
+    BlockConway blk ->
+        toBabbageBlockHeader (W.getGenesisBlockHash gp) blk
 
 toShelleyBlockHeader
     :: (ShelleyCompatible (Consensus.TPraos StandardCrypto) era)
@@ -521,20 +536,31 @@ toBabbageBlockHeader
     -> ShelleyBlock (Consensus.Praos StandardCrypto) era
     -> W.BlockHeader
 toBabbageBlockHeader genesisHash blk =
-    let
-        ShelleyBlock (SL.Block header _txSeq) _headerHash = blk
-    in
-        W.BlockHeader
-            { slotNo =
-                Consensus.pHeaderSlot header
-            , blockHeight =
-                fromBlockNo $ Consensus.pHeaderBlock header
-            , headerHash =
-                fromShelleyHash $ Consensus.pHeaderHash header
-            , parentHeaderHash = Just $
-                fromPrevHash (coerce genesisHash) $
-                    Consensus.pHeaderPrevHash header
-            }
+    W.BlockHeader
+        { slotNo = Consensus.pHeaderSlot header
+        , blockHeight = fromBlockNo $ Consensus.pHeaderBlock header
+        , headerHash = fromShelleyHash $ Consensus.pHeaderHash header
+        , parentHeaderHash = Just $ fromPrevHash (coerce genesisHash) $
+            Consensus.pHeaderPrevHash header
+        }
+  where
+    ShelleyBlock (SL.Block header _txSeq) _headerHash = blk
+
+toConwayBlockHeader
+    :: (ShelleyCompatible (Consensus.Praos StandardCrypto) era)
+    => W.Hash "Genesis"
+    -> ShelleyBlock (Consensus.Praos StandardCrypto) era
+    -> W.BlockHeader
+toConwayBlockHeader genesisHash blk =
+    W.BlockHeader
+        { slotNo = Consensus.pHeaderSlot header
+        , blockHeight = fromBlockNo $ Consensus.pHeaderBlock header
+        , headerHash = fromShelleyHash $ Consensus.pHeaderHash header
+        , parentHeaderHash = Just $ fromPrevHash (coerce genesisHash) $
+            Consensus.pHeaderPrevHash header
+        }
+  where
+    ShelleyBlock (SL.Block header _txSeq) _headerHash = blk
 
 getProducer
     :: (Era era, ToCBORGroup (Ledger.Era.TxSeq era))
@@ -546,6 +572,12 @@ getBabbageProducer
     :: (Era era, ToCBORGroup (Ledger.Era.TxSeq era))
     => ShelleyBlock (Consensus.Praos StandardCrypto) era -> PoolId
 getBabbageProducer (ShelleyBlock (SL.Block (Consensus.Header header _) _) _) =
+    fromPoolKeyHash $ SL.hashKey (Consensus.hbVk header)
+
+getConwayProducer
+    :: (Era era, ToCBORGroup (Ledger.Era.TxSeq era))
+    => ShelleyBlock (Consensus.Praos StandardCrypto) era -> PoolId
+getConwayProducer (ShelleyBlock (SL.Block (Consensus.Header header _) _) _) =
     fromPoolKeyHash $ SL.hashKey (Consensus.hbVk header)
 
 fromCardanoBlock
@@ -565,6 +597,8 @@ fromCardanoBlock gp = \case
         fst $ fromAlonzoBlock gp blk
     BlockBabbage blk ->
         fst $ fromBabbageBlock gp blk
+    BlockConway blk ->
+        fst $ fromConwayBlock gp blk
 
 numberOfTransactionsInBlock
     :: CardanoBlock StandardCrypto -> (Int, (Quantity "block" Word32, O.SlotNo))
@@ -575,14 +609,21 @@ numberOfTransactionsInBlock = \case
     BlockMary shb -> transactions shb
     BlockAlonzo shb -> transactionsAlonzo shb
     BlockBabbage shb -> transactionsBabbage shb
+    BlockConway shb -> transactionsConway shb
   where
     transactions
-        (ShelleyBlock (SL.Block (SL.BHeader header _) (SL.TxSeq txs')) _) =
+        (ShelleyBlock
+            (SL.Block (SL.BHeader header _) (SL.ShelleyTxSeq txs'))
+            _
+        ) =
             ( length txs'
             , (fromBlockNo $ SL.bheaderBlockNo header, SL.bheaderSlotNo header)
             )
     transactionsAlonzo
-        (ShelleyBlock (SL.Block (SL.BHeader header _) (Alonzo.TxSeq txs')) _) =
+        (ShelleyBlock
+            (SL.Block (SL.BHeader header _) (Alonzo.AlonzoTxSeq txs'))
+            _
+        ) =
             ( length txs'
             , (fromBlockNo $ SL.bheaderBlockNo header, SL.bheaderSlotNo header)
             )
@@ -594,7 +635,7 @@ numberOfTransactionsInBlock = \case
     transactionsBabbage
         (ShelleyBlock
             (SL.Block (Consensus.Header header _)
-            (Alonzo.TxSeq txs')) _) =
+            (Alonzo.AlonzoTxSeq txs')) _) =
                 ( length txs'
                 , ( fromBlockNo $ Consensus.hbBlockNo header
                   , Consensus.hbSlotNo header
@@ -608,6 +649,21 @@ numberOfTransactionsInBlock = \case
             ABOBBoundary _ ->
                 0
 
+    transactionsConway
+        :: ShelleyBlock
+            (Consensus.Praos StandardCrypto)
+            (Conway.ConwayEra StandardCrypto)
+        -> (Int, (Quantity "block" Word32, O.SlotNo))
+    transactionsConway
+        (ShelleyBlock
+            (SL.Block (Consensus.Header header _)
+            (Alonzo.AlonzoTxSeq txs')) _) =
+                ( length txs'
+                , ( fromBlockNo $ Consensus.hbBlockNo header
+                  , Consensus.hbSlotNo header
+                  )
+                )
+
 toCardanoEra :: CardanoBlock c -> AnyCardanoEra
 toCardanoEra = \case
     BlockByron{}   -> AnyCardanoEra ByronEra
@@ -616,6 +672,7 @@ toCardanoEra = \case
     BlockMary{}    -> AnyCardanoEra MaryEra
     BlockAlonzo{}  -> AnyCardanoEra AlonzoEra
     BlockBabbage{} -> AnyCardanoEra BabbageEra
+    BlockConway{}  -> AnyCardanoEra ConwayEra
 
 fromShelleyBlock
     :: W.GenesisParameters
@@ -623,7 +680,7 @@ fromShelleyBlock
         (Consensus.TPraos StandardCrypto)
         (SL.ShelleyEra StandardCrypto)
     -> (W.Block, [PoolCertificate])
-fromShelleyBlock gp blk@(ShelleyBlock (SL.Block _ (SL.TxSeq txs')) _) =
+fromShelleyBlock gp blk@(ShelleyBlock (SL.Block _ (SL.ShelleyTxSeq txs')) _) =
     let
        (txs, certs, _, _, _, _) = unzip6 $ map fromShelleyTx $ toList txs'
        certs' = mconcat certs
@@ -642,7 +699,7 @@ fromAllegraBlock
         (Consensus.TPraos StandardCrypto)
         (MA.ShelleyMAEra 'MA.Allegra StandardCrypto)
     -> (W.Block, [PoolCertificate])
-fromAllegraBlock gp blk@(ShelleyBlock (SL.Block _ (SL.TxSeq txs')) _) =
+fromAllegraBlock gp blk@(ShelleyBlock (SL.Block _ (SL.ShelleyTxSeq txs')) _) =
     let
        (txs, certs, _, _, _, _) = unzip6 $ map fromAllegraTx $ toList txs'
        certs' = mconcat certs
@@ -661,7 +718,7 @@ fromMaryBlock
         (Consensus.TPraos StandardCrypto)
         (MA.ShelleyMAEra 'MA.Mary StandardCrypto)
     -> (W.Block, [PoolCertificate])
-fromMaryBlock gp blk@(ShelleyBlock (SL.Block _ (SL.TxSeq txs')) _) =
+fromMaryBlock gp blk@(ShelleyBlock (SL.Block _ (SL.ShelleyTxSeq txs')) _) =
     let
        (txs, certs, _, _, _, _) = unzip6 $
            map (`fromMaryTx` AnyWitnessCountCtx) $ toList txs'
@@ -693,7 +750,7 @@ fromAlonzoBlock
     -> (W.Block, [PoolCertificate])
 fromAlonzoBlock gp blk@(ShelleyBlock (SL.Block _ txSeq) _) =
     let
-        Alonzo.TxSeq txs' = txSeq
+        Alonzo.AlonzoTxSeq txs' = txSeq
         (txs, certs, _, _, _, _) = unzip6 $
             map (`fromAlonzoTx` AnyWitnessCountCtx) $ toList txs'
         certs' = mconcat certs
@@ -714,13 +771,34 @@ fromBabbageBlock
     -> (W.Block, [PoolCertificate])
 fromBabbageBlock gp blk@(ShelleyBlock (SL.Block _ txSeq) _) =
     let
-        Alonzo.TxSeq txs' = txSeq
+        Alonzo.AlonzoTxSeq txs' = txSeq
         (txs, certs, _, _, _, _) = unzip6 $
             map (`fromBabbageTx` AnyWitnessCountCtx) $ toList txs'
         certs' = mconcat certs
     in
         ( W.Block
             { header = toBabbageBlockHeader (W.getGenesisBlockHash gp) blk
+            , transactions = txs
+            , delegations  = toDelegationCertificates certs'
+            }
+        , toPoolCertificates certs'
+        )
+
+fromConwayBlock
+    :: W.GenesisParameters
+    -> ShelleyBlock
+        (Consensus.Praos StandardCrypto)
+        (Conway.ConwayEra StandardCrypto)
+    -> (W.Block, [PoolCertificate])
+fromConwayBlock gp blk@(ShelleyBlock (SL.Block _ txSeq) _) =
+    let
+        Alonzo.AlonzoTxSeq txs' = txSeq
+        (txs, certs, _, _, _, _) = unzip6 $
+            map (`fromConwayTx` AnyWitnessCountCtx) $ toList txs'
+        certs' = mconcat certs
+    in
+        ( W.Block
+            { header = toConwayBlockHeader (W.getGenesisBlockHash gp) blk
             , transactions = txs
             , delegations  = toDelegationCertificates certs'
             }
@@ -796,7 +874,7 @@ fromMaxSize = Quantity . fromIntegral
 fromShelleyPParams
     :: W.EraInfo Bound
     -> Maybe Cardano.ProtocolParameters
-    -> Shelley.PParams StandardShelley
+    -> Shelley.ShelleyPParams StandardShelley
     -> W.ProtocolParameters
 fromShelleyPParams eraInfo currentNodeProtocolParameters pp =
     W.ProtocolParameters
@@ -821,7 +899,7 @@ fromShelleyPParams eraInfo currentNodeProtocolParameters pp =
 fromAllegraPParams
     :: W.EraInfo Bound
     -> Maybe Cardano.ProtocolParameters
-    -> Allegra.PParams StandardAllegra
+    -> Shelley.ShelleyPParams StandardAllegra
     -> W.ProtocolParameters
 fromAllegraPParams eraInfo currentNodeProtocolParameters pp =
     W.ProtocolParameters
@@ -846,7 +924,7 @@ fromAllegraPParams eraInfo currentNodeProtocolParameters pp =
 fromMaryPParams
     :: W.EraInfo Bound
     -> Maybe Cardano.ProtocolParameters
-    -> Mary.PParams StandardMary
+    -> Mary.ShelleyPParams StandardMary
     -> W.ProtocolParameters
 fromMaryPParams eraInfo currentNodeProtocolParameters pp =
     W.ProtocolParameters
@@ -876,7 +954,7 @@ fromAlonzoPParams
     :: HasCallStack
     => W.EraInfo Bound
     -> Maybe Cardano.ProtocolParameters
-    -> Alonzo.PParams StandardAlonzo
+    -> Alonzo.AlonzoPParams StandardAlonzo
     -> W.ProtocolParameters
 fromAlonzoPParams eraInfo currentNodeProtocolParameters pp =
     W.ProtocolParameters
@@ -905,7 +983,7 @@ fromBabbagePParams
     :: HasCallStack
     => W.EraInfo Bound
     -> Maybe Cardano.ProtocolParameters
-    -> Babbage.PParams StandardBabbage
+    -> Babbage.BabbagePParams StandardBabbage
     -> W.ProtocolParameters
 fromBabbagePParams eraInfo currentNodeProtocolParameters pp =
     W.ProtocolParameters
@@ -927,6 +1005,30 @@ fromBabbagePParams eraInfo currentNodeProtocolParameters pp =
             Babbage._collateralPercentage pp
         , executionUnitPrices =
             Just $ executionUnitPricesFromPParams pp
+        , currentNodeProtocolParameters
+        }
+
+fromConwayPParams
+    :: HasCallStack
+    => W.EraInfo Bound
+    -> Maybe Cardano.ProtocolParameters
+    -> Babbage.BabbagePParams StandardConway
+    -> W.ProtocolParameters
+fromConwayPParams eraInfo currentNodeProtocolParameters pp =
+    W.ProtocolParameters
+        { decentralizationLevel = decentralizationLevelFromPParams pp
+        , txParameters = txParametersFromPParams
+            (W.TokenBundleMaxSize $ W.TxSize $ Conway._maxValSize pp)
+            (fromLedgerExUnits (getField @"_maxTxExUnits" pp))
+            pp
+        , desiredNumberOfStakePools = desiredNumberOfStakePoolsFromPParams pp
+        , minimumUTxO = minimumUTxOForShelleyBasedEra ShelleyBasedEraConway pp
+        , stakeKeyDeposit = stakeKeyDepositFromPParams pp
+        , eras = fromBoundToEpochNo <$> eraInfo
+        , maximumCollateralInputCount =
+            unsafeIntToWord $ Conway._maxCollateralInputs pp
+        , minimumCollateralPercentage = Conway._collateralPercentage pp
+        , executionUnitPrices = Just $ executionUnitPricesFromPParams pp
         , currentNodeProtocolParameters
         }
 
@@ -1055,7 +1157,7 @@ fromGenesisData g =
         , protocolParameters =
             fromShelleyPParams W.emptyEraInfo Nothing $ sgProtocolParams g
         }
-    , genesisBlockFromTxOuts (Map.toList $ sgInitialFunds g)
+    , genesisBlockFromTxOuts (ListMap.toList $ sgInitialFunds g)
     , poolCerts $ sgStaking g
     )
   where
@@ -1067,7 +1169,7 @@ fromGenesisData g =
 
     poolCerts :: SLAPI.ShelleyGenesisStaking (Crypto e) -> [PoolCertificate]
     poolCerts (SLAPI.ShelleyGenesisStaking pools _stake) = do
-        (_, pp) <- Map.toList pools
+        (_, pp) <- ListMap.toList pools
         pure $ W.Registration $ PoolRegistrationCertificate
             { W.poolId = fromPoolKeyHash $ SL._poolId pp
             , W.poolOwners = fromOwnerKeyHash <$> Set.toList (SL._poolOwners pp)
@@ -1168,7 +1270,11 @@ fromCardanoTxIn (Cardano.TxIn txid (Cardano.TxIx ix)) =
         (fromIntegral ix)
 
 -- | WARNING: Datum hashes are lost in the conversion!
-fromCardanoTxOut :: IsCardanoEra era => Cardano.TxOut ctx era -> W.TxOut
+fromCardanoTxOut
+    :: Typeable era
+    => IsCardanoEra era
+    => Cardano.TxOut ctx era
+    -> W.TxOut
 fromCardanoTxOut (Cardano.TxOut addr out _datumHash _) =
     W.TxOut
         (W.Address $ Cardano.serialiseToRawBytes addr)
@@ -1221,22 +1327,32 @@ getScriptIntegrityHash = \case
             SafeHash.originalBytes <$> scriptIntegrityHashOfAlonzoTx tx
         Cardano.ShelleyBasedEraBabbage ->
             SafeHash.originalBytes <$> scriptIntegrityHashOfBabbageTx tx
+        Cardano.ShelleyBasedEraConway ->
+            SafeHash.originalBytes <$> scriptIntegrityHashOfConwayTx tx
     Cardano.ByronTx _                  -> Nothing
 
     where
       scriptIntegrityHashOfAlonzoTx
-          :: Alonzo.ValidatedTx (Alonzo.AlonzoEra StandardCrypto)
+          :: Alonzo.AlonzoTx (Alonzo.AlonzoEra StandardCrypto)
           -> Maybe (Alonzo.ScriptIntegrityHash StandardCrypto)
       scriptIntegrityHashOfAlonzoTx
-          (Alonzo.ValidatedTx body _wits _isValid _auxData)
+          (Alonzo.AlonzoTx body _wits _isValid _auxData)
               = strictMaybeToMaybe . Alonzo.scriptIntegrityHash $ body
 
       scriptIntegrityHashOfBabbageTx
-          :: Babbage.ValidatedTx (Babbage.BabbageEra StandardCrypto)
+          :: Alonzo.AlonzoTx (Babbage.BabbageEra StandardCrypto)
           -> Maybe (Babbage.ScriptIntegrityHash StandardCrypto)
       scriptIntegrityHashOfBabbageTx
-          (Babbage.ValidatedTx body _wits _isValid _auxData)
+          (Alonzo.AlonzoTx body _wits _isValid _auxData)
               = strictMaybeToMaybe . Babbage.scriptIntegrityHash $ body
+
+      scriptIntegrityHashOfConwayTx
+          :: Alonzo.AlonzoTx (Conway.ConwayEra StandardCrypto)
+          -> Maybe (Babbage.ScriptIntegrityHash StandardCrypto)
+      scriptIntegrityHashOfConwayTx
+          (Alonzo.AlonzoTx body _wits _isValid _auxData)
+              = strictMaybeToMaybe . Babbage.scriptIntegrityHash $ body
+
 -- Lovelace to coin. Quantities from ledger should always fit in Word64.
 fromCardanoLovelace :: HasCallStack => Cardano.Lovelace -> W.Coin
 fromCardanoLovelace =
@@ -1355,6 +1471,7 @@ toCardanoTxOut era = case era of
     ShelleyBasedEraMary    -> toMaryTxOut
     ShelleyBasedEraAlonzo  -> toAlonzoTxOut
     ShelleyBasedEraBabbage -> toBabbageTxOut
+    ShelleyBasedEraConway  -> toConwayTxOut
   where
     toShelleyTxOut :: HasCallStack => W.TxOut -> Cardano.TxOut ctx ShelleyEra
     toShelleyTxOut (W.TxOut (W.Address addr) tokens) =
@@ -1368,10 +1485,12 @@ toCardanoTxOut era = case era of
         addrInEra = tina "toCardanoTxOut: malformed address"
             [ Cardano.AddressInEra
                 (Cardano.ShelleyAddressInEra Cardano.ShelleyBasedEraShelley)
-                <$> deserialiseFromRawBytes AsShelleyAddress addr
+                <$> eitherToMaybe
+                    (Cardano.deserialiseFromRawBytes AsShelleyAddress addr)
 
             , Cardano.AddressInEra Cardano.ByronAddressInAnyEra
-                <$> deserialiseFromRawBytes AsByronAddress addr
+                <$> eitherToMaybe
+                    (Cardano.deserialiseFromRawBytes AsByronAddress addr)
             ]
 
     toAllegraTxOut :: HasCallStack => W.TxOut -> Cardano.TxOut ctx AllegraEra
@@ -1386,10 +1505,12 @@ toCardanoTxOut era = case era of
         addrInEra = tina "toCardanoTxOut: malformed address"
             [ Cardano.AddressInEra
                 (Cardano.ShelleyAddressInEra Cardano.ShelleyBasedEraAllegra)
-                <$> deserialiseFromRawBytes AsShelleyAddress addr
+                <$> eitherToMaybe
+                    (Cardano.deserialiseFromRawBytes AsShelleyAddress addr)
 
             , Cardano.AddressInEra Cardano.ByronAddressInAnyEra
-                <$> deserialiseFromRawBytes AsByronAddress addr
+                <$> eitherToMaybe
+                    (Cardano.deserialiseFromRawBytes AsByronAddress addr)
             ]
 
     toMaryTxOut :: HasCallStack => W.TxOut -> Cardano.TxOut ctx MaryEra
@@ -1404,10 +1525,12 @@ toCardanoTxOut era = case era of
         addrInEra = tina "toCardanoTxOut: malformed address"
             [ Cardano.AddressInEra
                 (Cardano.ShelleyAddressInEra Cardano.ShelleyBasedEraMary)
-                    <$> deserialiseFromRawBytes AsShelleyAddress addr
+                    <$> eitherToMaybe
+                        (Cardano.deserialiseFromRawBytes AsShelleyAddress addr)
 
             , Cardano.AddressInEra Cardano.ByronAddressInAnyEra
-                <$> deserialiseFromRawBytes AsByronAddress addr
+                <$> eitherToMaybe
+                    (Cardano.deserialiseFromRawBytes AsByronAddress addr)
             ]
 
     toAlonzoTxOut :: HasCallStack => W.TxOut -> Cardano.TxOut ctx AlonzoEra
@@ -1424,10 +1547,12 @@ toCardanoTxOut era = case era of
         addrInEra = tina "toCardanoTxOut: malformed address"
             [ Cardano.AddressInEra
                 (Cardano.ShelleyAddressInEra Cardano.ShelleyBasedEraAlonzo)
-                    <$> deserialiseFromRawBytes AsShelleyAddress addr
+                    <$> eitherToMaybe
+                        (Cardano.deserialiseFromRawBytes AsShelleyAddress addr)
 
             , Cardano.AddressInEra Cardano.ByronAddressInAnyEra
-                <$> deserialiseFromRawBytes AsByronAddress addr
+                <$> eitherToMaybe
+                    (Cardano.deserialiseFromRawBytes AsByronAddress addr)
             ]
 
     toBabbageTxOut :: HasCallStack => W.TxOut -> Cardano.TxOut ctx BabbageEra
@@ -1444,10 +1569,34 @@ toCardanoTxOut era = case era of
         addrInEra = tina "toCardanoTxOut: malformed address"
             [ Cardano.AddressInEra
                 (Cardano.ShelleyAddressInEra Cardano.ShelleyBasedEraBabbage)
-                    <$> deserialiseFromRawBytes AsShelleyAddress addr
+                    <$> eitherToMaybe
+                        (Cardano.deserialiseFromRawBytes AsShelleyAddress addr)
 
             , Cardano.AddressInEra Cardano.ByronAddressInAnyEra
-                <$> deserialiseFromRawBytes AsByronAddress addr
+                <$> eitherToMaybe
+                    (Cardano.deserialiseFromRawBytes AsByronAddress addr)
+            ]
+
+    toConwayTxOut :: HasCallStack => W.TxOut -> Cardano.TxOut ctx ConwayEra
+    toConwayTxOut (W.TxOut (W.Address addr) tokens) =
+        Cardano.TxOut
+            addrInEra
+            (Cardano.TxOutValue Cardano.MultiAssetInConwayEra
+                $ toCardanoValue tokens)
+            datumHash
+            refScript
+      where
+        refScript = Cardano.ReferenceScriptNone
+        datumHash = Cardano.TxOutDatumNone
+        addrInEra = tina "toCardanoTxOut: malformed address"
+            [ Cardano.AddressInEra
+                (Cardano.ShelleyAddressInEra Cardano.ShelleyBasedEraConway)
+                    <$> eitherToMaybe
+                        (Cardano.deserialiseFromRawBytes AsShelleyAddress addr)
+
+            , Cardano.AddressInEra Cardano.ByronAddressInAnyEra
+                <$> eitherToMaybe
+                    (Cardano.deserialiseFromRawBytes AsByronAddress addr)
             ]
 
 toCardanoValue :: TokenBundle.TokenBundle -> Cardano.Value
@@ -1461,7 +1610,9 @@ toCardanoValue tb = Cardano.valueFromList $
 
     toCardanoAssetName (W.UnsafeTokenName name) =
         just "toCardanoValue" "TokenName"
-        [Cardano.deserialiseFromRawBytes Cardano.AsAssetName name]
+        [ eitherToMaybe
+            $ Cardano.deserialiseFromRawBytes Cardano.AsAssetName name
+        ]
 
     coinToQuantity = fromIntegral . W.unCoin
     toQuantity = fromIntegral . W.unTokenQuantity
@@ -1469,14 +1620,14 @@ toCardanoValue tb = Cardano.valueFromList $
 toCardanoPolicyId :: W.TokenPolicyId -> Cardano.PolicyId
 toCardanoPolicyId (W.UnsafeTokenPolicyId (W.Hash pid)) =
     just "toCardanoPolicyId" "PolicyId"
-    [Cardano.deserialiseFromRawBytes Cardano.AsPolicyId pid]
+    [eitherToMaybe $ Cardano.deserialiseFromRawBytes Cardano.AsPolicyId pid]
 
 toCardanoSimpleScript
     :: Script KeyHash
-    -> Cardano.SimpleScript Cardano.SimpleScriptV2
+    -> Cardano.SimpleScript
 toCardanoSimpleScript = \case
     RequireSignatureOf (KeyHash _ keyhash) ->
-        case Cardano.deserialiseFromRawBytes
+        case eitherToMaybe $ Cardano.deserialiseFromRawBytes
             (Cardano.AsHash Cardano.AsPaymentKey) keyhash of
                 Just payKeyHash -> Cardano.RequireSignature payKeyHash
                 Nothing -> error "Hash key not valid"
@@ -1488,14 +1639,14 @@ toCardanoSimpleScript = \case
         Cardano.RequireMOf (fromIntegral num) $
             map toCardanoSimpleScript contents
     ActiveFromSlot slot ->
-        Cardano.RequireTimeAfter Cardano.TimeLocksInSimpleScriptV2
+        Cardano.RequireTimeAfter
         (O.SlotNo $ fromIntegral slot)
     ActiveUntilSlot slot ->
-        Cardano.RequireTimeBefore Cardano.TimeLocksInSimpleScriptV2
+        Cardano.RequireTimeBefore
         (O.SlotNo $ fromIntegral slot)
 
 fromCardanoSimpleScript
-    :: Cardano.SimpleScript Cardano.SimpleScriptV2
+    :: Cardano.SimpleScript
     -> Script KeyHash
 fromCardanoSimpleScript = \case
     Cardano.RequireSignature (Cardano.PaymentKeyHash (Ledger.KeyHash h)) ->
@@ -1508,17 +1659,17 @@ fromCardanoSimpleScript = \case
     Cardano.RequireMOf num contents ->
          RequireSomeOf (fromIntegral num) $
             map fromCardanoSimpleScript contents
-    Cardano.RequireTimeAfter Cardano.TimeLocksInSimpleScriptV2 (O.SlotNo s) ->
+    Cardano.RequireTimeAfter (O.SlotNo s) ->
          ActiveFromSlot $ fromIntegral s
-    Cardano.RequireTimeBefore Cardano.TimeLocksInSimpleScriptV2 (O.SlotNo s) ->
+    Cardano.RequireTimeBefore (O.SlotNo s) ->
         ActiveUntilSlot $ fromIntegral s
 
 toCardanoSimpleScriptV1
     :: Script KeyHash
-    -> Cardano.SimpleScript Cardano.SimpleScriptV1
+    -> Cardano.SimpleScript
 toCardanoSimpleScriptV1 = \case
     RequireSignatureOf (KeyHash _ keyhash) ->
-        case Cardano.deserialiseFromRawBytes
+        case eitherToMaybe $ Cardano.deserialiseFromRawBytes
             (Cardano.AsHash Cardano.AsPaymentKey) keyhash of
                 Just payKeyHash -> Cardano.RequireSignature payKeyHash
                 Nothing -> error "Hash key not valid"
@@ -1586,7 +1737,7 @@ rewardAccountFromAddress :: W.Address -> Maybe W.RewardAccount
 rewardAccountFromAddress (W.Address bytes) = refToAccount . ref =<< parseAddr bytes
   where
     parseAddr :: ByteString -> Maybe (Cardano.Address Cardano.ShelleyAddr)
-    parseAddr = Cardano.deserialiseFromRawBytes AsShelleyAddress
+    parseAddr = eitherToMaybe . Cardano.deserialiseFromRawBytes AsShelleyAddress
 
     ref :: Cardano.Address Cardano.ShelleyAddr -> SL.StakeReference StandardCrypto
     ref (Cardano.ShelleyAddress _n _paymentKey stakeRef) = stakeRef
@@ -1616,6 +1767,8 @@ unsealShelleyTx era wtx = case W.cardanoTxIdeallyNoLaterThan era wtx of
         TxInMode tx AlonzoEraInCardanoMode
     Cardano.InAnyCardanoEra BabbageEra tx ->
         TxInMode tx BabbageEraInCardanoMode
+    Cardano.InAnyCardanoEra ConwayEra tx ->
+        TxInMode tx ConwayEraInCardanoMode
 
 -- | Converts a 'ShelleyBasedEra' to the broader 'CardanoEra'.
 shelleyBasedToCardanoEra :: ShelleyBasedEra era -> CardanoEra era
@@ -1625,6 +1778,7 @@ shelleyBasedToCardanoEra = \case
     Cardano.ShelleyBasedEraMary    -> MaryEra
     Cardano.ShelleyBasedEraAlonzo  -> AlonzoEra
     Cardano.ShelleyBasedEraBabbage -> BabbageEra
+    Cardano.ShelleyBasedEraConway  -> ConwayEra
 
 -- | An existential type like 'AnyCardanoEra', but for 'ShelleyBasedEra'.
 data AnyShelleyBasedEra where

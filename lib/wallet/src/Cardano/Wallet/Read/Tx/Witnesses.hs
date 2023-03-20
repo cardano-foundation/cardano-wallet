@@ -1,4 +1,5 @@
 {-# LANGUAGE DataKinds #-}
+{-# LANGUAGE FlexibleContexts #-}
 {-# LANGUAGE StandaloneDeriving #-}
 {-# LANGUAGE TypeFamilies #-}
 {-# LANGUAGE UndecidableInstances #-}
@@ -19,7 +20,16 @@ module Cardano.Wallet.Read.Tx.Witnesses
 import Prelude
 
 import Cardano.Api
-    ( AllegraEra, AlonzoEra, BabbageEra, ByronEra, MaryEra, ShelleyEra )
+    ( AllegraEra
+    , AlonzoEra
+    , BabbageEra
+    , ByronEra
+    , ConwayEra
+    , MaryEra
+    , ShelleyEra
+    )
+import Cardano.Ledger.Core
+    ( witsTxL )
 import Cardano.Ledger.Crypto
     ( StandardCrypto )
 import Cardano.Ledger.Shelley.Tx
@@ -32,14 +42,14 @@ import Cardano.Wallet.Read.Tx
     ( Tx (..) )
 import Cardano.Wallet.Read.Tx.Eras
     ( onTx )
+import Control.Lens
+    ( (^.) )
 import Data.Functor.Identity
     ( Identity )
 import Ouroboros.Consensus.Shelley.Eras
-    ( StandardAlonzo, StandardBabbage )
+    ( StandardAlonzo, StandardBabbage, StandardConway )
 
-import qualified Cardano.Ledger.Alonzo.Tx as AL
 import qualified Cardano.Ledger.Alonzo.TxWitness as AL
-import qualified Cardano.Ledger.Shelley.API as SH
 
 type family WitnessesType era where
   WitnessesType ByronEra = ()
@@ -49,6 +59,7 @@ type family WitnessesType era where
     (ShelleyMAEra 'Mary StandardCrypto)
   WitnessesType AlonzoEra = AL.TxWitness StandardAlonzo
   WitnessesType BabbageEra = AL.TxWitness StandardBabbage
+  WitnessesType ConwayEra = AL.TxWitness StandardConway
 
 newtype Witnesses era = Witnesses (WitnessesType era)
 
@@ -60,8 +71,9 @@ getEraWitnesses = EraFun
     { byronFun = \_ -> Witnesses ()
     , shelleyFun = \_ -> Witnesses ()
     , allegraFun = \_  -> Witnesses ()
-    , maryFun = onTx $ \(SH.Tx _ wits _ ) -> Witnesses wits
-    , alonzoFun = onTx $ \(AL.ValidatedTx _ wits _ _) -> Witnesses wits
-    , babbageFun = onTx $ \(AL.ValidatedTx _ wits _ _) -> Witnesses wits
+    , maryFun = onTx $ \tx -> Witnesses (tx ^. witsTxL)
+    , alonzoFun = onTx $ \tx -> Witnesses (tx ^. witsTxL)
+    , babbageFun = onTx $ \tx -> Witnesses (tx ^. witsTxL)
+    , conwayFun = onTx $ \tx -> Witnesses (tx ^. witsTxL)
     }
 

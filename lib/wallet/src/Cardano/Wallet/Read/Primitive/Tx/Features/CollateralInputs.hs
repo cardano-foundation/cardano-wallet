@@ -25,6 +25,7 @@ getCollateralInputs = EraFun
     , maryFun = \_ -> K []
     , alonzoFun = mkShelleyTxCollateralInputsIns
     , babbageFun = mkShelleyTxCollateralInputsIns
+    , conwayFun = mkShelleyTxCollateralInputsIns
     }
 
 mkShelleyTxCollateralInputsIns

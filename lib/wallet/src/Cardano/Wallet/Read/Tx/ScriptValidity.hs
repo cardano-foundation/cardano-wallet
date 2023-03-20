@@ -20,17 +20,24 @@ module Cardano.Wallet.Read.Tx.ScriptValidity
 import Prelude
 
 import Cardano.Api
-    ( AllegraEra, AlonzoEra, BabbageEra, ByronEra, MaryEra, ShelleyEra )
+    ( AllegraEra
+    , AlonzoEra
+    , BabbageEra
+    , ByronEra
+    , ConwayEra
+    , MaryEra
+    , ShelleyEra
+    )
 import Cardano.Ledger.Alonzo.Tx
-    ( IsValid )
+    ( IsValid, isValidTxL )
 import Cardano.Wallet.Read.Eras
     ( EraFun (..) )
 import Cardano.Wallet.Read.Tx
     ( Tx (..) )
 import Cardano.Wallet.Read.Tx.Eras
     ( onTx )
-
-import qualified Cardano.Ledger.Alonzo.Tx as AL
+import Control.Lens
+    ( (^.) )
 
 type family ScriptValidityType era where
   ScriptValidityType ByronEra = ()
@@ -39,6 +46,7 @@ type family ScriptValidityType era where
   ScriptValidityType MaryEra = ()
   ScriptValidityType AlonzoEra = IsValid
   ScriptValidityType BabbageEra = IsValid
+  ScriptValidityType ConwayEra = IsValid
 
 newtype ScriptValidity era = ScriptValidity (ScriptValidityType era)
 
@@ -51,8 +59,7 @@ getEraScriptValidity = EraFun
     , shelleyFun =  \_ -> ScriptValidity ()
     , allegraFun = \_ -> ScriptValidity ()
     , maryFun = \_ -> ScriptValidity ()
-    , alonzoFun = onTx $ \(AL.ValidatedTx _ _ b _) -> ScriptValidity b
-    , babbageFun = onTx $ \(AL.ValidatedTx _ _ b _) -> ScriptValidity b
+    , alonzoFun = onTx $ \tx -> ScriptValidity (tx ^. isValidTxL)
+    , babbageFun = onTx $ \tx -> ScriptValidity (tx ^. isValidTxL)
+    , conwayFun = onTx $ \tx -> ScriptValidity (tx ^. isValidTxL)
     }
-
-

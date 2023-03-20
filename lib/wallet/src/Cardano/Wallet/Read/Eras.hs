@@ -22,6 +22,7 @@ module Cardano.Wallet.Read.Eras
   , mary
   , alonzo
   , babbage
+  , conway
   -- * Era specific prism shortcuts.
   , inject
   , project
@@ -53,6 +54,7 @@ import Cardano.Wallet.Read.Eras.EraValue
     , alonzo
     , babbage
     , byron
+    , conway
     , eraValueSerialize
     , extractEraValue
     , inject

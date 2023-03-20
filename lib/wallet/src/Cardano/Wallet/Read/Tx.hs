@@ -22,7 +22,14 @@ module Cardano.Wallet.Read.Tx
 import Prelude
 
 import Cardano.Api
-    ( AllegraEra, AlonzoEra, BabbageEra, ByronEra, MaryEra, ShelleyEra )
+    ( AllegraEra
+    , AlonzoEra
+    , BabbageEra
+    , ByronEra
+    , ConwayEra
+    , MaryEra
+    , ShelleyEra
+    )
 
 import qualified Cardano.Api.Shelley as Api
 import qualified Cardano.Chain.UTxO as Byron
@@ -32,11 +39,12 @@ import qualified Cardano.Ledger.Shelley.API as Shelley
 -- | Closed type family returning the ledger 'Tx' type for each known @era@.
 type family TxT era where
     TxT ByronEra = Byron.ATxAux ()
-    TxT ShelleyEra = Shelley.Tx (Api.ShelleyLedgerEra ShelleyEra)
-    TxT AllegraEra = Shelley.Tx (Api.ShelleyLedgerEra AllegraEra)
-    TxT MaryEra = Shelley.Tx (Api.ShelleyLedgerEra MaryEra)
-    TxT AlonzoEra = Alonzo.ValidatedTx (Api.ShelleyLedgerEra AlonzoEra)
-    TxT BabbageEra = Alonzo.ValidatedTx (Api.ShelleyLedgerEra BabbageEra)
+    TxT ShelleyEra = Shelley.ShelleyTx (Api.ShelleyLedgerEra ShelleyEra)
+    TxT AllegraEra = Shelley.ShelleyTx (Api.ShelleyLedgerEra AllegraEra)
+    TxT MaryEra = Shelley.ShelleyTx (Api.ShelleyLedgerEra MaryEra)
+    TxT AlonzoEra = Alonzo.AlonzoTx (Api.ShelleyLedgerEra AlonzoEra)
+    TxT BabbageEra = Alonzo.AlonzoTx (Api.ShelleyLedgerEra BabbageEra)
+    TxT ConwayEra = Alonzo.AlonzoTx (Api.ShelleyLedgerEra ConwayEra)
 
 -- | A tx in any era
 newtype Tx era = Tx {unTx :: TxT era}

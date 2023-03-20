@@ -1,7 +1,6 @@
 {-# LANGUAGE DataKinds #-}
 {-# LANGUAGE FlexibleContexts #-}
 {-# LANGUAGE StandaloneDeriving #-}
-{-# LANGUAGE TypeApplications #-}
 {-# LANGUAGE TypeFamilies #-}
 {-# LANGUAGE UndecidableInstances #-}
 
@@ -17,7 +16,18 @@ module Cardano.Wallet.Read.Tx.ExtraSigs where
 import Prelude
 
 import Cardano.Api
-    ( AllegraEra, AlonzoEra, BabbageEra, ByronEra, MaryEra, ShelleyEra )
+    ( AllegraEra
+    , AlonzoEra
+    , BabbageEra
+    , ByronEra
+    , ConwayEra
+    , MaryEra
+    , ShelleyEra
+    )
+import Cardano.Ledger.Alonzo.TxBody
+    ( reqSignerHashesTxBodyL )
+import Cardano.Ledger.Core
+    ( bodyTxL )
 import Cardano.Ledger.Crypto
     ( StandardCrypto )
 import Cardano.Ledger.Keys
@@ -28,12 +38,10 @@ import Cardano.Wallet.Read.Tx
     ( Tx (..) )
 import Cardano.Wallet.Read.Tx.Eras
     ( onTx )
+import Control.Lens
+    ( (^.) )
 import Data.Set
     ( Set )
-import GHC.Records
-    ( HasField (..) )
-
-import qualified Cardano.Ledger.Alonzo.Tx as AL
 
 type family ExtraSigsType era where
     ExtraSigsType ByronEra = ()
@@ -42,6 +50,7 @@ type family ExtraSigsType era where
     ExtraSigsType MaryEra = ()
     ExtraSigsType AlonzoEra = Set (KeyHash 'Witness StandardCrypto)
     ExtraSigsType BabbageEra = Set (KeyHash 'Witness StandardCrypto)
+    ExtraSigsType ConwayEra = Set (KeyHash 'Witness StandardCrypto)
 
 newtype ExtraSigs era = ExtraSigs (ExtraSigsType era)
 
@@ -55,8 +64,10 @@ getEraExtraSigs
         , shelleyFun = \_ -> ExtraSigs ()
         , allegraFun = \_ -> ExtraSigs ()
         , maryFun = \_ -> ExtraSigs ()
-        , alonzoFun = onTx $ \(AL.ValidatedTx b _ _ _)
-                    -> ExtraSigs $ getField @"reqSignerHashes" b
-        , babbageFun = onTx $ \(AL.ValidatedTx b _ _ _)
-                    -> ExtraSigs $ getField @"reqSignerHashes" b
+        , alonzoFun = onTx $ \tx -> ExtraSigs
+            $ tx ^. bodyTxL . reqSignerHashesTxBodyL
+        , babbageFun = onTx $ \tx -> ExtraSigs
+            $ tx ^. bodyTxL . reqSignerHashesTxBodyL
+        , conwayFun = onTx $ \tx -> ExtraSigs
+            $ tx ^. bodyTxL . reqSignerHashesTxBodyL
         }

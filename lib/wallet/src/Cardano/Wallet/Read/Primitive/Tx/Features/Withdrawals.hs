@@ -47,6 +47,7 @@ getWithdrawals = EraFun
     , maryFun = yesWithdrawals
     , alonzoFun = yesWithdrawals
     , babbageFun = yesWithdrawals
+    , conwayFun = yesWithdrawals
     }
     where
         noWithdrawals = const $ K Nothing

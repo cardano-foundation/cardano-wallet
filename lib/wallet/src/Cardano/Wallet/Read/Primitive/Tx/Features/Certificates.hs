@@ -66,6 +66,7 @@ certificates = EraFun
     , maryFun = mkCertsK
     , alonzoFun = mkCertsK
     , babbageFun = mkCertsK
+    , conwayFun = mkCertsK
     }
 
 mkCertsK :: (Foldable t, CertificatesType era ~ t (DCert crypto))

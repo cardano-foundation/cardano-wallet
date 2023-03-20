@@ -37,6 +37,7 @@ getValidity = EraFun
     , maryFun = yesMaryValidity
     , alonzoFun = yesMaryValidity
     , babbageFun = yesMaryValidity
+    , conwayFun = yesMaryValidity
     }
     where
         noValidity = const $ K Nothing

@@ -1,7 +1,6 @@
 {-# LANGUAGE DataKinds #-}
 {-# LANGUAGE FlexibleContexts #-}
 {-# LANGUAGE StandaloneDeriving #-}
-{-# LANGUAGE TypeApplications #-}
 {-# LANGUAGE TypeFamilies #-}
 {-# LANGUAGE UndecidableInstances #-}
 
@@ -22,20 +21,26 @@ module Cardano.Wallet.Read.Tx.Fee
 import Prelude
 
 import Cardano.Api
-    ( AllegraEra, AlonzoEra, BabbageEra, ByronEra, MaryEra, ShelleyEra )
+    ( AllegraEra
+    , AlonzoEra
+    , BabbageEra
+    , ByronEra
+    , ConwayEra
+    , MaryEra
+    , ShelleyEra
+    )
 import Cardano.Ledger.Coin
     ( Coin )
+import Cardano.Ledger.Core
+    ( bodyTxL, feeTxBodyL )
 import Cardano.Wallet.Read.Eras
     ( EraFun (..) )
 import Cardano.Wallet.Read.Tx
     ( Tx (..) )
 import Cardano.Wallet.Read.Tx.Eras
     ( onTx )
-import GHC.Records
-    ( HasField (..) )
-
-import qualified Cardano.Ledger.Alonzo.Tx as AL
-import qualified Cardano.Ledger.Shelley.API as SH
+import Control.Lens
+    ( (^.) )
 
 type family FeeType era where
     FeeType ByronEra = ()
@@ -44,6 +49,7 @@ type family FeeType era where
     FeeType MaryEra = Coin
     FeeType AlonzoEra = Coin
     FeeType BabbageEra = Coin
+    FeeType ConwayEra = Coin
 
 newtype Fee era = Fee (FeeType era)
 
@@ -54,14 +60,10 @@ getEraFee :: EraFun Tx Fee
 getEraFee
     = EraFun
         { byronFun =  onTx $ \_ -> Fee ()
-        , shelleyFun = onTx $ \((SH.Tx b _ _)) -> getFee b
-        , allegraFun = onTx $ \((SH.Tx b _ _)) -> getFee b
-        , maryFun = onTx $ \(SH.Tx b _ _) -> getFee b
-        , alonzoFun = onTx $ \(AL.ValidatedTx b _ _ _) -> getFee b
-        , babbageFun = onTx $ \(AL.ValidatedTx b _ _ _) -> getFee b
+        , shelleyFun = onTx $ \tx -> Fee $ tx ^. bodyTxL . feeTxBodyL
+        , allegraFun = onTx $ \tx -> Fee $ tx ^. bodyTxL . feeTxBodyL
+        , maryFun = onTx $ \tx -> Fee $ tx ^. bodyTxL . feeTxBodyL
+        , alonzoFun = onTx $ \tx -> Fee $ tx ^. bodyTxL . feeTxBodyL
+        , babbageFun = onTx $ \tx -> Fee $ tx ^. bodyTxL . feeTxBodyL
+        , conwayFun = onTx $ \tx -> Fee $ tx ^. bodyTxL . feeTxBodyL
         }
-
-getFee
-    :: ( HasField "txfee" a (FeeType b))
-    => a -> Fee b
-getFee =  Fee . getField @"txfee"

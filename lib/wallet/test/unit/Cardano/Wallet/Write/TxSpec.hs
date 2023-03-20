@@ -10,7 +10,7 @@ module Cardano.Wallet.Write.TxSpec where
 import Prelude
 
 import Cardano.Api.Gen
-    ( genScriptData, genScriptInAnyLang, genTxIn, shrinkScriptData )
+    ( genHashableScriptData, genScriptInAnyLang, genTxIn )
 import Cardano.Ledger.Alonzo.PParams
     ( _coinsPerUTxOWord )
 import Cardano.Ledger.Babbage.PParams
@@ -19,10 +19,9 @@ import Cardano.Wallet.Unsafe
     ( unsafeFromHex )
 import Cardano.Wallet.Write.Tx
     ( BinaryData
-    , LatestEra
-    , LatestLedgerEra
     , RecentEra (..)
     , Script
+    , StandardBabbage
     , TxOutInBabbage
     , binaryDataFromBytes
     , binaryDataToBytes
@@ -49,7 +48,7 @@ import Data.Aeson.Types
     ( parseEither )
 import Data.Default
     ( Default (..) )
-import Plutus.V1.Ledger.Api
+import PlutusLedgerApi.V1
     ( Data (..) )
 import Test.Cardano.Ledger.Alonzo.Serialisation.Generators
     ()
@@ -67,7 +66,6 @@ import Test.QuickCheck
 
 import qualified Cardano.Api as Cardano
 import qualified Cardano.Api.Gen as Cardano
-import qualified Cardano.Api.Shelley as Cardano
 import qualified Cardano.Ledger.Alonzo.Data as Alonzo
 import qualified Data.Aeson as Aeson
 import qualified Data.Aeson.Types as Aeson
@@ -134,12 +132,13 @@ spec = do
         it "is isomorphic to Cardano.ScriptInAnyLang (modulo SimpleScriptV1/2)"
             $ testIsomorphism
                 (NamedFun
-                    scriptToCardanoScriptInAnyLang
+                    (scriptToCardanoScriptInAnyLang @Cardano.BabbageEra)
                     "scriptToCardanoScriptInAnyLang")
                 (NamedFun
-                    scriptFromCardanoScriptInAnyLang
+                    (scriptFromCardanoScriptInAnyLang @Cardano.BabbageEra)
                     "scriptFromCardanoScriptInAnyLang")
-                normalizeCardanoScriptInAnyLang
+                id
+
 
         it "parseEither (scriptFromCardanoEnvelopeJSON . \
            \scriptToCardanoEnvelopeJSON) == Right" $ property $ \s -> do
@@ -183,25 +182,26 @@ spec = do
                 (NamedFun
                     (fromCardanoUTxO @Cardano.BabbageEra)
                     "fromCardanoUTxO")
-                normalizeCardanoUTxO
+                id
 
-instance Arbitrary Cardano.ScriptData where
-     arbitrary = genScriptData
-     shrink = shrinkScriptData
+instance Arbitrary Cardano.HashableScriptData where
+     arbitrary = genHashableScriptData
+     shrink = const []
 
 -- | The OVERLAPS can be removed when we remove import of
 -- "Test.Cardano.Ledger.Alonzo.Serialisation.Generators"
-instance {-# OVERLAPS #-} Arbitrary (BinaryData LatestLedgerEra) where
+instance {-# INCOHERENT #-} Arbitrary (BinaryData StandardBabbage) where
     arbitrary = genBinaryData
     shrink = shrinkBinaryData
 
 instance Arbitrary Cardano.ScriptInAnyLang where
     arbitrary = genScriptInAnyLang
 
-instance Arbitrary (Script LatestLedgerEra) where
-    arbitrary = scriptFromCardanoScriptInAnyLang <$> arbitrary
+instance {-# OVERLAPPING #-} Arbitrary (Script StandardBabbage) where
+    arbitrary = scriptFromCardanoScriptInAnyLang @Cardano.BabbageEra
+        <$> arbitrary
 
-instance Arbitrary (Cardano.UTxO LatestEra) where
+instance Arbitrary (Cardano.UTxO Cardano.BabbageEra) where
     arbitrary = Cardano.UTxO . Map.fromList <$> liftArbitrary genTxInOutEntry
       where
         genTxInOutEntry = (,)
@@ -210,51 +210,6 @@ instance Arbitrary (Cardano.UTxO LatestEra) where
 
 instance Arbitrary TxOutInBabbage where
     arbitrary = genTxOut RecentEraBabbage
-
---------------------------------------------------------------------------------
--- Work around the distinction between SimpleScriptV1 and SimpleScriptV2 in
--- cardano-api which neither we nor the ledger care about.
---------------------------------------------------------------------------------
-
-normalizeCardanoUTxO
-    :: Cardano.UTxO era
-    -> Cardano.UTxO era
-normalizeCardanoUTxO (Cardano.UTxO m) =
-    Cardano.UTxO $ Map.map normalizeCardanoTxOutSimpleScriptVersion m
-
-normalizeCardanoTxOutSimpleScriptVersion
-    :: Cardano.TxOut ctx era
-    -> Cardano.TxOut ctx era
-normalizeCardanoTxOutSimpleScriptVersion (Cardano.TxOut addr val dat script) =
-    Cardano.TxOut addr val dat (normalizeReferenceScript script)
-
-normalizeReferenceScript
-    :: Cardano.ReferenceScript era
-    -> Cardano.ReferenceScript era
-normalizeReferenceScript
-    (Cardano.ReferenceScript support script)
-        = Cardano.ReferenceScript
-            support
-            (normalizeCardanoScriptInAnyLang script)
-normalizeReferenceScript
-    Cardano.ReferenceScriptNone
-        = Cardano.ReferenceScriptNone
-
-normalizeCardanoScriptInAnyLang
-    :: Cardano.ScriptInAnyLang
-    -> Cardano.ScriptInAnyLang
-normalizeCardanoScriptInAnyLang
-    s@(Cardano.ScriptInAnyLang
-        (Cardano.SimpleScriptLanguage
-            Cardano.SimpleScriptV1)
-            _) = coerceScript s
-  where
-    -- Convert from 'Cardano.SimpleScriptV1' to 'Cardano.SimpleScriptV2'. This
-    -- seems to be the easiest way to do that:
-    coerceScript =
-        scriptToCardanoScriptInAnyLang
-        . scriptFromCardanoScriptInAnyLang
-normalizeCardanoScriptInAnyLang other = other
 
 --------------------------------------------------------------------------------
 -- Helpers

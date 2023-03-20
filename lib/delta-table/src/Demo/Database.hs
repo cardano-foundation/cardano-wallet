@@ -31,7 +31,7 @@ import Control.Applicative
     ( Alternative )
 import Control.Monad
     ( MonadPlus )
-import Control.Monad.Class.MonadSTM
+import Control.Monad.Class.MonadSTM.Internal
     ( MonadSTM (..) )
 import Control.Monad.Class.MonadThrow
     ( ExitCase (..)
@@ -46,6 +46,8 @@ import Control.Monad.Logger
     ( NoLoggingT )
 import Data.Chain
     ( DeltaChain (..), Edge (..), chainIntoTable )
+import Data.Function
+    ( on )
 import Data.Generics.Internal.VL
     ( Iso', iso, withIso )
 import Data.Proxy
@@ -75,7 +77,6 @@ import GHC.Generics
 import Say
     ( sayShow )
 
-import qualified Control.Concurrent.STM.TVar as STM
 import qualified Control.Monad.Catch as ResourceT
 import qualified Control.Monad.STM as STM
 import qualified Data.Chain as Chain
@@ -158,11 +159,78 @@ newStoreAddress = embedStore addressChainIntoTable =<< newEntityStore
 instance MonadSTM (NoLoggingT (ResourceT IO)) where
     type STM (NoLoggingT (ResourceT IO)) = WrapSTM
     type TVar (NoLoggingT (ResourceT IO)) = TVar IO
-    atomically = liftIO . STM.atomically . unWrapSTM
-    newTVar = WrapSTM . STM.newTVar
-    readTVar = WrapSTM . STM.readTVar
-    writeTVar v = WrapSTM . STM.writeTVar v
-    modifyTVar' v = WrapSTM . STM.modifyTVar' v
+    newTVar        = WrapSTM .  newTVar
+    readTVar       = WrapSTM .  readTVar
+    writeTVar      = WrapSTM .: writeTVar
+    retry          = WrapSTM    retry
+    orElse         = WrapSTM .: on orElse unWrapSTM
+
+    modifyTVar     = WrapSTM .: modifyTVar
+    modifyTVar'    = WrapSTM .: modifyTVar'
+    stateTVar      = WrapSTM .: stateTVar
+    swapTVar       = WrapSTM .: swapTVar
+    check          = WrapSTM  . check
+
+    type TMVar (NoLoggingT (ResourceT IO)) = TMVar IO
+    newTMVar       = WrapSTM .  newTMVar
+    newEmptyTMVar  = WrapSTM    newEmptyTMVar
+    takeTMVar      = WrapSTM .  takeTMVar
+    tryTakeTMVar   = WrapSTM .  tryTakeTMVar
+    putTMVar       = WrapSTM .: putTMVar
+    tryPutTMVar    = WrapSTM .: tryPutTMVar
+    readTMVar      = WrapSTM .  readTMVar
+    tryReadTMVar   = WrapSTM .  tryReadTMVar
+    swapTMVar      = WrapSTM .: swapTMVar
+    isEmptyTMVar   = WrapSTM .  isEmptyTMVar
+
+    type TQueue (NoLoggingT (ResourceT IO)) = TQueue IO
+    newTQueue      = WrapSTM newTQueue
+    readTQueue     = WrapSTM .  readTQueue
+    tryReadTQueue  = WrapSTM .  tryReadTQueue
+    peekTQueue     = WrapSTM .  peekTQueue
+    tryPeekTQueue  = WrapSTM .  tryPeekTQueue
+    flushTQueue    = WrapSTM .  flushTQueue
+    writeTQueue v  = WrapSTM .  writeTQueue v
+    isEmptyTQueue  = WrapSTM .  isEmptyTQueue
+    unGetTQueue    = WrapSTM .: unGetTQueue
+
+    type TBQueue (NoLoggingT (ResourceT IO)) = TBQueue IO
+    newTBQueue     = WrapSTM .  newTBQueue
+    readTBQueue    = WrapSTM .  readTBQueue
+    tryReadTBQueue = WrapSTM .  tryReadTBQueue
+    peekTBQueue    = WrapSTM .  peekTBQueue
+    tryPeekTBQueue = WrapSTM .  tryPeekTBQueue
+    flushTBQueue   = WrapSTM .  flushTBQueue
+    writeTBQueue   = WrapSTM .: writeTBQueue
+    lengthTBQueue  = WrapSTM .  lengthTBQueue
+    isEmptyTBQueue = WrapSTM .  isEmptyTBQueue
+    isFullTBQueue  = WrapSTM .  isFullTBQueue
+    unGetTBQueue   = WrapSTM .: unGetTBQueue
+
+    type TArray (NoLoggingT (ResourceT IO)) = TArray IO
+
+    type TSem (NoLoggingT (ResourceT IO)) = TSem IO
+    newTSem        = WrapSTM .  newTSem
+    waitTSem       = WrapSTM .  waitTSem
+    signalTSem     = WrapSTM .  signalTSem
+    signalTSemN    = WrapSTM .: signalTSemN
+
+    type TChan (NoLoggingT (ResourceT IO)) = TChan IO
+    newTChan          = WrapSTM    newTChan
+    newBroadcastTChan = WrapSTM    newBroadcastTChan
+    dupTChan          = WrapSTM .  dupTChan
+    cloneTChan        = WrapSTM .  cloneTChan
+    readTChan         = WrapSTM .  readTChan
+    tryReadTChan      = WrapSTM .  tryReadTChan
+    peekTChan         = WrapSTM .  peekTChan
+    tryPeekTChan      = WrapSTM .  tryPeekTChan
+    writeTChan        = WrapSTM .: writeTChan
+    unGetTChan        = WrapSTM .: unGetTChan
+    isEmptyTChan      = WrapSTM .  isEmptyTChan
+
+
+(.:) :: (c -> d) -> (a -> b -> c) -> (a -> b -> d)
+(f .: g) x y = f (g x y)
 
 -- | Helper type for the above instance.
 newtype WrapSTM a = WrapSTM { unWrapSTM :: STM.STM a }

@@ -25,6 +25,7 @@ import Cardano.Wallet.Read.Eras
     , alonzo
     , babbage
     , byron
+    , conway
     , inject
     , mary
     , shelley
@@ -51,6 +52,7 @@ fromCardanoApiTx = \case
         Cardano.ShelleyBasedEraMary -> inject mary $ Tx tx
         Cardano.ShelleyBasedEraAlonzo -> inject alonzo $ Tx tx
         Cardano.ShelleyBasedEraBabbage -> inject babbage $ Tx tx
+        Cardano.ShelleyBasedEraConway -> inject conway $ Tx tx
     Cardano.ByronTx tx -> inject byron $ Tx $ void tx
 
 fromSealedTx:: W.SealedTx -> EraValue Tx

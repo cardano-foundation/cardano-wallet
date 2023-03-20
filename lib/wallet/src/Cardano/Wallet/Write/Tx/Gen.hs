@@ -54,7 +54,7 @@ import Test.QuickCheck
 import qualified Cardano.Api.Gen as Cardano
 import qualified Cardano.Api.Shelley as Cardano
 import qualified Data.ByteString as BS
-import qualified Plutus.V1.Ledger.Api as PV1
+import qualified PlutusLedgerApi.V1 as PV1
 
 genDatum :: (EraCrypto era ~ StandardCrypto) => Gen (Datum era)
 genDatum = oneof
@@ -85,11 +85,14 @@ shrinkDatum (Datum x) = NoDatum : map Datum (shrinkBinaryData x)
 shrinkDatum (DatumHash _) = [NoDatum]
 shrinkDatum NoDatum = []
 
-shrinkBinaryData :: BinaryData LatestLedgerEra -> [BinaryData LatestLedgerEra]
+shrinkBinaryData :: BinaryData era -> [BinaryData era]
 shrinkBinaryData = shrinkMapBy
     datumFromCardanoScriptData
-    datumToCardanoScriptData
-    Cardano.shrinkScriptData
+    datumToCardanoScriptData $
+    shrinkMapBy
+        Cardano.unsafeHashableScriptData
+        Cardano.getScriptData
+        Cardano.shrinkScriptData
 
 genDatumHash :: Gen DatumHash
 genDatumHash =

@@ -42,6 +42,7 @@ module Cardano.Api.Gen
     , genRationalInt64
     , genScript
     , genScriptData
+    , genHashableScriptData
     , shrinkScriptData
     , genScriptHash
     , genScriptInAnyLang
@@ -128,6 +129,8 @@ import Cardano.Api.Shelley
     , StakePoolRelay (..)
     , refInsScriptsAndInlineDatsSupportedInEra
     )
+import Cardano.Ledger.Alonzo.Language
+    ( Language (..) )
 import Cardano.Ledger.Credential.Safe
     ( Ptr, SlotNo32 (..), safePtr )
 import Cardano.Ledger.SafeHash
@@ -148,8 +151,6 @@ import Data.List
     ( nub )
 import Data.Map
     ( Map )
-import Data.Maybe
-    ( maybeToList )
 import Data.Maybe.Strict
     ( strictMaybeToMaybe )
 import Data.Ratio
@@ -206,6 +207,7 @@ import qualified Cardano.Api as Api
 import qualified Cardano.Binary as CBOR
 import qualified Cardano.Crypto.Hash as Crypto
 import qualified Cardano.Crypto.Seed as Crypto
+import qualified Cardano.Ledger.Alonzo.Scripts as Alonzo
 import qualified Cardano.Ledger.BaseTypes as Ledger
 import qualified Cardano.Ledger.Shelley.API as Ledger
 import qualified Cardano.Ledger.Shelley.TxBody as Ledger
@@ -217,7 +219,7 @@ import qualified Data.Map as Map
 import qualified Data.Set as Set
 import qualified Data.Text as T
 import qualified Data.Text.Encoding as T
-import qualified PlutusCore as Plutus
+import qualified Test.Cardano.Ledger.Alonzo.PlutusScripts as Plutus
 import qualified Test.Cardano.Ledger.Shelley.Serialisation.Generators.Genesis as Ledger
 
 --------------------------------------------------------------------------------
@@ -442,8 +444,8 @@ genPlutusScriptOrReferenceInput lang =
     -- TODO add proper generator, perhaps as part of ADP-1655
     PScript <$> genPlutusScript lang
 
-genSimpleScript :: SimpleScriptVersion lang -> Gen (SimpleScript lang)
-genSimpleScript lang =
+genSimpleScript :: Gen SimpleScript
+genSimpleScript =
     sized genTerm
   where
     genTerm 0 = oneof nonRecursive
@@ -454,14 +456,10 @@ genSimpleScript lang =
 
     -- Non-recursive generators
     nonRecursive =
-        (RequireSignature . verificationKeyHash <$>
-            genVerificationKey AsPaymentKey)
-
-      : [ RequireTimeBefore supported <$> genSlotNo
-        | supported <- maybeToList (timeLocksSupported lang) ]
-
-     ++ [ RequireTimeAfter supported <$> genSlotNo
-        | supported <- maybeToList (timeLocksSupported lang) ]
+      [ RequireSignature . verificationKeyHash <$> genVerificationKey AsPaymentKey
+      , RequireTimeBefore <$> genSlotNo
+      , RequireTimeAfter <$> genSlotNo
+      ]
 
     -- Recursive generators
     recursive n =
@@ -482,19 +480,18 @@ genReferenceInput :: Gen TxIn
 genReferenceInput = genTxIn
 
 genSimpleScriptOrReferenceInput
-    :: SimpleScriptVersion lang
-    -> Gen (SimpleScriptOrReferenceInput lang)
-genSimpleScriptOrReferenceInput lang =
+    :: Gen (SimpleScriptOrReferenceInput lang)
+genSimpleScriptOrReferenceInput =
     oneof [ SScript
-            <$> genSimpleScript lang
+            <$> genSimpleScript
           , SReferenceScript
             <$> genReferenceInput
             <*> liftArbitrary genScriptHash
           ]
 
 genScript :: ScriptLanguage lang -> Gen (Script lang)
-genScript (SimpleScriptLanguage lang) =
-    SimpleScript lang <$> genSimpleScript lang
+genScript SimpleScriptLanguage =
+    SimpleScript <$> genSimpleScript
 genScript (PlutusScriptLanguage lang) =
     PlutusScript lang <$> genPlutusScript lang
 
@@ -642,10 +639,16 @@ genStakeCredential =
 genStakeAddress :: Gen StakeAddress
 genStakeAddress = makeStakeAddress <$> genNetworkId <*> genStakeCredential
 
+genHashableScriptData :: Gen HashableScriptData
+genHashableScriptData = do
+  sd <- genScriptData
+  case deserialiseFromCBOR AsHashableScriptData $ serialiseToCBOR sd of
+    Left e -> error $ "genHashableScriptData: " <> show e
+    Right r -> return r
+
 genScriptData :: Gen ScriptData
 genScriptData =
     sized genTerm
-
     where
         genTerm 0 = oneof nonRecursive
         genTerm n = frequency
@@ -764,13 +767,13 @@ genScriptWitnessMint
     -> Gen (ScriptWitness WitCtxMint era)
 genScriptWitnessMint langEra =
     case languageOfScriptLanguageInEra langEra of
-        (SimpleScriptLanguage ver) ->
-            SimpleScriptWitness langEra ver <$> genSimpleScriptOrReferenceInput ver
+        SimpleScriptLanguage ->
+            SimpleScriptWitness langEra <$> genSimpleScriptOrReferenceInput
         (PlutusScriptLanguage ver) ->
             PlutusScriptWitness langEra ver
             <$> genPlutusScriptOrReferenceInput ver
             <*> pure NoScriptDatumForMint
-            <*> genScriptData
+            <*> genHashableScriptData
             <*> genExecutionUnits
 
 genScriptWitnessStake
@@ -778,13 +781,13 @@ genScriptWitnessStake
     -> Gen (ScriptWitness WitCtxStake era)
 genScriptWitnessStake langEra =
     case languageOfScriptLanguageInEra langEra of
-        (SimpleScriptLanguage ver) ->
-            SimpleScriptWitness langEra ver <$> genSimpleScriptOrReferenceInput ver
+        SimpleScriptLanguage ->
+            SimpleScriptWitness langEra <$> genSimpleScriptOrReferenceInput
         (PlutusScriptLanguage ver) ->
             PlutusScriptWitness langEra ver
             <$> genPlutusScriptOrReferenceInput ver
             <*> pure NoScriptDatumForStake
-            <*> genScriptData
+            <*> genHashableScriptData
             <*> genExecutionUnits
 
 genScriptWitnessSpend
@@ -792,13 +795,13 @@ genScriptWitnessSpend
     -> Gen (ScriptWitness WitCtxTxIn era)
 genScriptWitnessSpend langEra =
     case languageOfScriptLanguageInEra langEra of
-        (SimpleScriptLanguage ver) ->
-            SimpleScriptWitness langEra ver <$> genSimpleScriptOrReferenceInput ver
+        SimpleScriptLanguage ->
+            SimpleScriptWitness langEra <$> genSimpleScriptOrReferenceInput
         (PlutusScriptLanguage ver) ->
             PlutusScriptWitness langEra ver
             <$> genPlutusScriptOrReferenceInput ver
-            <*> (ScriptDatumForTxIn <$> genScriptData)
-            <*> genScriptData
+            <*> (ScriptDatumForTxIn <$> genHashableScriptData)
+            <*> genHashableScriptData
             <*> genExecutionUnits
 
 genTxAuxScripts :: CardanoEra era -> Gen (TxAuxScripts era)
@@ -1013,13 +1016,17 @@ genEpochNo :: Gen EpochNo
 genEpochNo = EpochNo <$> arbitrary
 
 genCostModel :: Gen CostModel
-genCostModel = case Plutus.defaultCostModelParams of
-  Nothing -> error "Plutus defaultCostModelParams is broken."
-  Just dcm ->
-      CostModel
-    -- TODO This needs to be the cost model struct for whichever
-    -- Plutus version we're using, once we support multiple Plutus versions.
-    <$> mapM (const $ chooseInteger (0, 5_000)) dcm
+genCostModel = do
+    let costModelParams = Alonzo.getCostModelParams Plutus.testingCostModelV1
+    eCostModel <- Alonzo.mkCostModel
+        <$> genPlutusLanguage
+        <*> mapM (const $ chooseInteger (0, 5_000)) costModelParams
+    case eCostModel of
+        Left err -> error $ "genCostModel: " ++ show err
+        Right cModel -> return . CostModel $ Alonzo.getCostModelParams cModel
+
+genPlutusLanguage :: Gen Language
+genPlutusLanguage = elements [PlutusV1, PlutusV2]
 
 genCostModels :: Gen (Map AnyPlutusScriptVersion CostModel)
 genCostModels = do
@@ -1472,7 +1479,7 @@ genTxBodyContent era = do
 
 genTxBody :: IsCardanoEra era => CardanoEra era -> Gen (TxBody era)
 genTxBody era = do
-  res <- makeTransactionBody <$> genTxBodyContent era
+  res <- createAndValidateTransactionBody <$> genTxBodyContent era
   case res of
     Left err -> error (displayError err)
     Right txBody -> pure txBody
@@ -1481,7 +1488,7 @@ genTxBody era = do
 -- balancing.
 genTxBodyForBalancing :: IsCardanoEra era => CardanoEra era -> Gen (TxBody era)
 genTxBodyForBalancing era = do
-    res <- makeTransactionBody <$> genStrippedContent
+    res <- createAndValidateTransactionBody <$> genStrippedContent
     case res of
       Left err -> error (displayError err)
       Right txBody -> pure txBody

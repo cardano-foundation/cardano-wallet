@@ -15,6 +15,12 @@
 {-# OPTIONS_GHC -fno-warn-orphans #-}
 {- HLINT ignore "Use camelCase" -}
 
+-- TODO: https://input-output.atlassian.net/browse/ADP-2841
+{-# LANGUAGE CPP #-}
+#if __GLASGOW_HASKELL__ >= 902
+{-# OPTIONS_GHC -fno-warn-ambiguous-fields #-}
+#endif
+
 module Cardano.CoinSelection.BalanceSpec
     ( spec
     , MockAssessTokenBundleSize
@@ -1070,7 +1076,7 @@ prop_performSelection mockConstraints params coverage =
         --
         -- We expect that the selection should succeed.
         --
-        let constraints' :: SelectionConstraints TestSelectionContext =
+        let constraints' =
                 constraints
                     { assessTokenBundleSize = unMockAssessTokenBundleSize
                         MockAssessTokenBundleSizeUnlimited
@@ -1078,7 +1084,7 @@ prop_performSelection mockConstraints params coverage =
                         const computeMinimumAdaQuantityZero
                     , computeMinimumCost = computeMinimumCostZero
                     , computeSelectionLimit = const NoLimit
-                    }
+                    } :: SelectionConstraints TestSelectionContext
             performSelection' = performSelection constraints' params
         in
         monadicIO $ run performSelection' >>= \case

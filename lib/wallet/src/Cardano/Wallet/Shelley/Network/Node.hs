@@ -46,6 +46,8 @@ import Cardano.BM.Data.Tracer
     ( HasPrivacyAnnotation (..), HasSeverityAnnotation (..) )
 import Cardano.Launcher.Node
     ( CardanoNodeConn, nodeSocketFile )
+import Cardano.Pool.Types
+    ( PoolId, StakePoolsSummary (..) )
 import Cardano.Wallet.Byron.Compatibility
     ( byronCodecConfig, protocolParametersFromUpdateState )
 import Cardano.Wallet.Logging
@@ -77,6 +79,7 @@ import Cardano.Wallet.Shelley.Compatibility
     , fromAllegraPParams
     , fromAlonzoPParams
     , fromBabbagePParams
+    , fromConwayPParams
     , fromMaryPParams
     , fromNonMyopicMemberRewards
     , fromPoint
@@ -98,13 +101,7 @@ import Cardano.Wallet.Shelley.Compatibility
     )
 import Control.Applicative
     ( liftA3 )
-import Control.Monad
-    ( forever, guard, unless, void, when )
-import Control.Monad.Class.MonadAsync
-    ( MonadAsync )
-import Control.Monad.Class.MonadST
-    ( MonadST )
-import Control.Monad.Class.MonadSTM
+import Control.Concurrent.Class.MonadSTM
     ( MonadSTM
     , STM
     , TMVar
@@ -126,6 +123,12 @@ import Control.Monad.Class.MonadSTM
     , tryReadTMVar
     , writeTVar
     )
+import Control.Monad
+    ( forever, guard, unless, void, when )
+import Control.Monad.Class.MonadAsync
+    ( MonadAsync )
+import Control.Monad.Class.MonadST
+    ( MonadST )
 import Control.Monad.Class.MonadThrow
     ( MonadThrow )
 import Control.Monad.Class.MonadTimer
@@ -214,6 +217,8 @@ import Ouroboros.Consensus.Protocol.Praos
     ( Praos )
 import Ouroboros.Consensus.Protocol.TPraos
     ( TPraos )
+import Ouroboros.Consensus.Shelley.Eras
+    ( StandardConway )
 import Ouroboros.Consensus.Shelley.Ledger.Config
     ( CodecConfig (..), getCompactGenesis )
 import Ouroboros.Network.Block
@@ -278,11 +283,10 @@ import qualified Cardano.Api as Cardano
 import qualified Cardano.Crypto.Hash as Crypto
 import qualified Cardano.Ledger.Alonzo.PParams as Alonzo
 import qualified Cardano.Ledger.Babbage.PParams as Babbage
+import qualified Cardano.Ledger.Conway.PParams as Conway
 import qualified Cardano.Ledger.Crypto as SL
 import qualified Cardano.Ledger.Shelley.API as SL
 import qualified Cardano.Ledger.Shelley.LedgerState as SL
-import Cardano.Pool.Types
-    ( PoolId, StakePoolsSummary (..) )
 import qualified Cardano.Wallet.Primitive.SyncProgress as SP
 import qualified Cardano.Wallet.Primitive.Types as W
 import qualified Cardano.Wallet.Primitive.Types.Coin as W
@@ -501,6 +505,8 @@ withNodeNetworkLayerBase
                 <$> LSQry Shelley.GetCurrentPParams)
             (Just . fromIntegral . Babbage._nOpt
                 <$> LSQry Shelley.GetCurrentPParams)
+            (Just . fromIntegral . Conway._nOpt
+                <$> LSQry Shelley.GetCurrentPParams)
 
         queryNonMyopicMemberRewards
             :: LSQ (CardanoBlock StandardCrypto) IO
@@ -713,6 +719,8 @@ mkWalletToNodeProtocols
                     <$> LSQry Shelley.GetCurrentPParams)
                 (Just . Cardano.fromLedgerPParams Cardano.ShelleyBasedEraBabbage
                     <$> LSQry Shelley.GetCurrentPParams)
+                (Just . Cardano.fromLedgerPParams Cardano.ShelleyBasedEraConway
+                    <$> LSQry Shelley.GetCurrentPParams)
 
             pp <- onAnyEra
                 (protocolParametersFromUpdateState eraBounds ppNode
@@ -726,6 +734,8 @@ mkWalletToNodeProtocols
                 (fromAlonzoPParams eraBounds ppNode
                     <$> LSQry Shelley.GetCurrentPParams)
                 (fromBabbagePParams eraBounds ppNode
+                    <$> LSQry Shelley.GetCurrentPParams)
+                (fromConwayPParams eraBounds ppNode
                     <$> LSQry Shelley.GetCurrentPParams)
 
             return (pp, sp)
@@ -813,6 +823,7 @@ fetchRewardAccounts tr queryRewardQ accounts = do
 
         let qry = onAnyEra
                 (pure (byronValue, []))
+                shelleyQry
                 shelleyQry
                 shelleyQry
                 shelleyQry
@@ -936,6 +947,7 @@ codecVersion version = verMap ! version
 codecConfig :: W.SlottingParameters -> CodecConfig (CardanoBlock c)
 codecConfig sp = CardanoCodecConfig
     (byronCodecConfig sp)
+    ShelleyCodecConfig
     ShelleyCodecConfig
     ShelleyCodecConfig
     ShelleyCodecConfig
@@ -1372,6 +1384,7 @@ byronOrShelleyBased onByron onShelleyBased = onAnyEra
     onShelleyBased
     onShelleyBased
     onShelleyBased
+    onShelleyBased
 
 -- | Create a local state query specific to the each era.
 --
@@ -1389,8 +1402,9 @@ onAnyEra
     -> LSQ (Shelley.ShelleyBlock (TPraos StandardCrypto) StandardMary) m a
     -> LSQ (Shelley.ShelleyBlock (TPraos StandardCrypto) StandardAlonzo) m a
     -> LSQ (Shelley.ShelleyBlock (Praos StandardCrypto) StandardBabbage) m a
+    -> LSQ (Shelley.ShelleyBlock (Praos StandardCrypto) StandardConway) m a
     -> LSQ (CardanoBlock StandardCrypto) m a
-onAnyEra onByron onShelley onAllegra onMary onAlonzo onBabbage =
+onAnyEra onByron onShelley onAllegra onMary onAlonzo onBabbage onConway =
     currentEra >>= \case
         AnyCardanoEra ByronEra -> mapQuery QueryIfCurrentByron onByron
         AnyCardanoEra ShelleyEra -> mapQuery QueryIfCurrentShelley onShelley
@@ -1398,6 +1412,7 @@ onAnyEra onByron onShelley onAllegra onMary onAlonzo onBabbage =
         AnyCardanoEra MaryEra -> mapQuery QueryIfCurrentMary onMary
         AnyCardanoEra AlonzoEra -> mapQuery QueryIfCurrentAlonzo onAlonzo
         AnyCardanoEra BabbageEra -> mapQuery QueryIfCurrentBabbage onBabbage
+        AnyCardanoEra ConwayEra -> mapQuery QueryIfCurrentConway onConway
   where
     mapQuery
         :: (forall r. BlockQuery block1 r

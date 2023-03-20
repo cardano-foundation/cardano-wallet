@@ -25,6 +25,7 @@ import Cardano.Wallet.Read.Eras.EraValue
     , alonzo
     , babbage
     , byron
+    , conway
     , eraValueSerialize
     , mary
     , shelley
@@ -53,6 +54,7 @@ toInAnyCardanoEra (EraValue f) =
             :* MaryEra
             :* AlonzoEra
             :* BabbageEra
+            :* ConwayEra
             :* Nil
 
     mkExistential
@@ -71,6 +73,7 @@ fromInAnyCardanoEra (InAnyCardanoEra era x) = case era of
   MaryEra -> inject mary x
   AlonzoEra -> inject alonzo x
   BabbageEra -> inject babbage x
+  ConwayEra -> inject conway x
   where
     inject :: MkEraValue f era -> f era -> EraValue f
     inject (MkEraValue p) = build p

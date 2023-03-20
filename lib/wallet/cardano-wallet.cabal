@@ -77,11 +77,13 @@ library
     , cardano-crypto-class
     , cardano-crypto-test
     , cardano-crypto-wrapper
+    , cardano-data
     , cardano-ledger-alonzo
     , cardano-ledger-alonzo-test
     , cardano-ledger-babbage
     , cardano-ledger-byron
     , cardano-ledger-byron-test
+    , cardano-ledger-conway
     , cardano-ledger-core
     , cardano-ledger-shelley
     , cardano-ledger-shelley-ma
@@ -146,10 +148,13 @@ library
     , ouroboros-consensus
     , ouroboros-consensus-byron
     , ouroboros-consensus-cardano
+    , ouroboros-consensus-diffusion
     , ouroboros-consensus-protocol
     , ouroboros-consensus-shelley
     , ouroboros-network
+    , ouroboros-network-api
     , ouroboros-network-framework
+    , ouroboros-network-protocols
     , path-pieces
     , persistent                    ^>=2.13
     , persistent-sqlite             ^>=2.13
@@ -177,7 +182,7 @@ library
     , statistics
     , stm
     , streaming-commons
-    , strict-containers
+    , cardano-strict-containers
     , strict-non-empty-containers
     , strict-stm
     , string-interpolate
@@ -313,6 +318,7 @@ library
     Cardano.Wallet.Read.Primitive.Tx.Alonzo
     Cardano.Wallet.Read.Primitive.Tx.Babbage
     Cardano.Wallet.Read.Primitive.Tx.Byron
+    Cardano.Wallet.Read.Primitive.Tx.Conway
     Cardano.Wallet.Read.Primitive.Tx.Features.Certificates
     Cardano.Wallet.Read.Primitive.Tx.Features.CollateralInputs
     Cardano.Wallet.Read.Primitive.Tx.Features.CollateralOutputs
@@ -412,6 +418,7 @@ library cardano-wallet-api-http
     , cardano-binary
     , cardano-cli
     , cardano-crypto
+    , cardano-data
     , cardano-ledger-alonzo
     , cardano-ledger-byron
     , cardano-ledger-core
@@ -739,6 +746,7 @@ test-suite unit
     , dbvar
     , deepseq
     , directory
+    , either
     , extra                        >=1.6.17
     , file-embed
     , filepath
@@ -779,6 +787,7 @@ test-suite unit
     , ouroboros-consensus
     , ouroboros-consensus-shelley
     , ouroboros-network
+    , ouroboros-network-api
     , persistent                   ^>=2.13
     , persistent-sqlite            ^>=2.13
     , plutus-core
@@ -799,7 +808,7 @@ test-suite unit
     , servant-server
     , should-not-typecheck
     , splitmix
-    , strict-containers
+    , cardano-strict-containers
     , strict-non-empty-containers
     , string-interpolate
     , string-qq

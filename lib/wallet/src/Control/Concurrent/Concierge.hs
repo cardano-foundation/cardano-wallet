@@ -19,9 +19,7 @@ module Control.Concurrent.Concierge
 
 import Prelude
 
-import Control.Monad.Class.MonadFork
-    ( MonadThread, ThreadId, myThreadId )
-import Control.Monad.Class.MonadSTM
+import Control.Concurrent.Class.MonadSTM
     ( MonadSTM
     , TVar
     , atomically
@@ -31,6 +29,8 @@ import Control.Monad.Class.MonadSTM
     , retry
     , writeTVar
     )
+import Control.Monad.Class.MonadFork
+    ( MonadThread, ThreadId, myThreadId )
 import Control.Monad.Class.MonadThrow
     ( MonadThrow, bracket )
 import Control.Monad.IO.Class
