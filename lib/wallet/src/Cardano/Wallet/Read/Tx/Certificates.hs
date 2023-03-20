@@ -1,6 +1,9 @@
 {-# LANGUAGE DataKinds #-}
 {-# LANGUAGE FlexibleContexts #-}
+{-# LANGUAGE NoMonomorphismRestriction #-}
+{-# LANGUAGE ScopedTypeVariables #-}
 {-# LANGUAGE StandaloneDeriving #-}
+{-# LANGUAGE TypeApplications #-}
 {-# LANGUAGE TypeFamilies #-}
 {-# LANGUAGE UndecidableInstances #-}
 
@@ -60,20 +63,17 @@ newtype Certificates era = Certificates (CertificatesType era)
 deriving instance Show (CertificatesType era) => Show (Certificates era)
 deriving instance Eq (CertificatesType era) => Eq (Certificates era)
 
+-- | Extract certificates from a 'Tx' in any era.
 getEraCertificates :: EraFun Tx Certificates
 getEraCertificates = EraFun
-    { byronFun =
-        \_ -> Certificates ()
-    , shelleyFun =
-        onTx $ \tx -> Certificates $ tx ^. bodyTxL . certsTxBodyL
-    , allegraFun =
-        onTx $ \tx -> Certificates $ tx ^. bodyTxL . certsTxBodyL
-    , maryFun =
-        onTx $ \tx -> Certificates $ tx ^. bodyTxL . certsTxBodyL
-    , alonzoFun =
-        onTx $ \tx -> Certificates $ tx ^. bodyTxL . certsTxBodyL
-    , babbageFun =
-        onTx $ \tx -> Certificates $ tx ^. bodyTxL . certsTxBodyL
-    , conwayFun =
-        onTx $ \tx -> Certificates $ tx ^. bodyTxL . certsTxBodyL
+    { byronFun = \_ -> Certificates ()
+    , shelleyFun = shellyCertificates
+    , allegraFun = shellyCertificates
+    , maryFun = shellyCertificates
+    , alonzoFun = shellyCertificates
+    , babbageFun = shellyCertificates
+    , conwayFun = shellyCertificates
     }
+    where
+    shellyCertificates = onTx
+        $ \tx -> Certificates $ tx ^. bodyTxL . certsTxBodyL
