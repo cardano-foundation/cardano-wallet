@@ -5,6 +5,7 @@
 {-# LANGUAGE FlexibleContexts #-}
 {-# LANGUAGE FlexibleInstances #-}
 {-# LANGUAGE GADTs #-}
+{-# LANGUAGE NoMonomorphismRestriction #-}
 {-# LANGUAGE QuantifiedConstraints #-}
 {-# LANGUAGE RankNTypes #-}
 {-# LANGUAGE ScopedTypeVariables #-}
@@ -13,7 +14,6 @@
 
 module Cardano.Wallet.Read.Tx.Hash
     ( byronTxHash
-    , alonzoTxHash
     , shelleyTxHash
     , fromShelleyTxId
     , getEraTxHash
@@ -46,32 +46,26 @@ import qualified Cardano.Crypto.Hash as Crypto
 import qualified Cardano.Ledger.Core as SL.Core
 import qualified Cardano.Ledger.SafeHash as SafeHash
 
-
+-- | Extract the hash of a transaction in any era.
 getEraTxHash :: EraFun Tx (K Crypto.ByteString)
-getEraTxHash = EraFun
-    { byronFun = onTx $ K . byronTxHash
-    , shelleyFun = onTx $ \tx -> K . fromShelleyTxId $ txid (tx ^. bodyTxL)
-    , allegraFun = onTx $ \tx -> K . fromShelleyTxId $ txid (tx ^. bodyTxL)
-    , maryFun = onTx $ \tx -> K . fromShelleyTxId $ txid (tx ^. bodyTxL)
-    , alonzoFun = onTx $ \tx -> K . fromShelleyTxId $ txid (tx ^. bodyTxL)
-    , babbageFun = onTx $ \tx -> K . fromShelleyTxId $ txid (tx ^. bodyTxL)
-    , conwayFun = onTx $ \tx -> K . fromShelleyTxId $ txid (tx ^. bodyTxL)
-    }
+getEraTxHash =
+    EraFun
+        { byronFun = onTx $ K . byronTxHash
+        , shelleyFun = mkShelleyHash
+        , allegraFun = mkShelleyHash
+        , maryFun = mkShelleyHash
+        , alonzoFun = mkShelleyHash
+        , babbageFun = mkShelleyHash
+        , conwayFun = mkShelleyHash
+        }
+  where
+    mkShelleyHash = onTx $ \tx -> K $ shelleyTxHash tx
+
+shelleyTxHash :: SL.Core.EraTx era => SL.Core.Tx era -> Crypto.ByteString
+shelleyTxHash tx = fromShelleyTxId $ txid (tx ^. bodyTxL)
 
 byronTxHash :: ATxAux a -> Crypto.ByteString
 byronTxHash = CryptoC.hashToBytes . serializeCborHash . taTx
-
-alonzoTxHash
-    :: SL.Core.EraTx era
-    => SL.Core.Tx era
-    -> Crypto.ByteString
-alonzoTxHash tx = fromShelleyTxId $ txid (tx ^. bodyTxL)
-
-shelleyTxHash
-    :: SL.Core.EraTx era
-    => SL.Core.Tx era
-    -> Crypto.ByteString
-shelleyTxHash tx = fromShelleyTxId $ txid (tx ^. bodyTxL)
 
 fromShelleyTxId :: TxId crypto -> Crypto.ByteString
 fromShelleyTxId (TxId h) =

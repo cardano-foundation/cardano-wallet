@@ -51,7 +51,7 @@ import Cardano.Wallet.Read.Tx
 import Cardano.Wallet.Read.Tx.CBOR
     ( renderTxToCBOR )
 import Cardano.Wallet.Read.Tx.Hash
-    ( alonzoTxHash )
+    ( shelleyTxHash )
 import Cardano.Wallet.Shelley.Compatibility.Ledger
     ( toWalletScript, toWalletTokenPolicyId )
 import Cardano.Wallet.Transaction
@@ -151,7 +151,7 @@ fromConwayTx tx@(Alonzo.AlonzoTx bod wits (Alonzo.IsValid isValid) aux) witCtx =
         _network
         = bod
 
-    transactionId = W.Hash $ alonzoTxHash tx
+    transactionId = W.Hash $ shelleyTxHash tx
     scriptWithHashIx ix txout =
         case (snd . fromConwayTxOut $ txout) of
             Just s -> Just ( ViaReferenceInput (ReferenceInput $ TxIn transactionId ix)
