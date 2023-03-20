@@ -1,5 +1,6 @@
 {-# LANGUAGE DataKinds #-}
 {-# LANGUAGE FlexibleContexts #-}
+{-# LANGUAGE NoMonomorphismRestriction #-}
 {-# LANGUAGE StandaloneDeriving #-}
 {-# LANGUAGE TypeFamilies #-}
 {-# LANGUAGE UndecidableInstances #-}
@@ -8,7 +9,7 @@
 -- Copyright: © 2020-2022 IOHK
 -- License: Apache-2.0
 --
--- Raw certificate data extraction from 'Tx'
+-- Raw collateral output data extraction from 'Tx'
 --
 
 module Cardano.Wallet.Read.Tx.CollateralOutputs
@@ -36,7 +37,9 @@ import Cardano.Ledger.Babbage.Rules
 import Cardano.Ledger.Babbage.Tx
     ()
 import Cardano.Ledger.Babbage.TxBody
-    ( BabbageTxBody, BabbageTxOut (..), collateralReturnTxBodyL )
+    ( BabbageTxOut (..), collateralReturnTxBodyL )
+import Cardano.Ledger.Core
+    ( bodyTxL )
 import Cardano.Ledger.Crypto
     ( StandardCrypto )
 import Cardano.Wallet.Read.Eras
@@ -50,7 +53,6 @@ import Control.Lens
 import Data.Maybe.Strict
     ( StrictMaybe )
 
-import qualified Cardano.Ledger.Alonzo.Tx as AL
 import qualified Cardano.Ledger.Babbage as BA
 import qualified Cardano.Ledger.Conway as Conway
 
@@ -67,9 +69,11 @@ type family CollateralOutputsType era where
 
 newtype CollateralOutputs era = CollateralOutputs (CollateralOutputsType era)
 
-deriving instance Show (CollateralOutputsType era) => Show (CollateralOutputs era)
+deriving instance Show (CollateralOutputsType era)
+    => Show (CollateralOutputs era)
 deriving instance Eq (CollateralOutputsType era) => Eq (CollateralOutputs era)
 
+-- | Get the 'CollateralOutputs' for a given 'Tx' in any era.
 getEraCollateralOutputs :: EraFun Tx CollateralOutputs
 getEraCollateralOutputs
     = EraFun
@@ -78,20 +82,9 @@ getEraCollateralOutputs
         , allegraFun = \_ -> CollateralOutputs ()
         , maryFun = \_ -> CollateralOutputs ()
         , alonzoFun = \_ -> CollateralOutputs ()
-        , babbageFun = onTx
-            $ \(AL.AlonzoTx b _ _ _) -> getBabbageCollateralOutputs b
-        , conwayFun = onTx
-            $ \(AL.AlonzoTx b _ _ _) -> getConwayCollateralOutputs b
+        , babbageFun = mkCollateralOutputs
+        , conwayFun = mkCollateralOutputs
         }
-
-getBabbageCollateralOutputs
-    :: BabbageTxBody (BA.BabbageEra StandardCrypto)
-    -> CollateralOutputs BabbageEra
-getBabbageCollateralOutputs txBody =
-    CollateralOutputs (txBody ^. collateralReturnTxBodyL)
-
-getConwayCollateralOutputs
-    :: BabbageTxBody (Conway.ConwayEra StandardCrypto)
-    -> CollateralOutputs ConwayEra
-getConwayCollateralOutputs txBody =
-    CollateralOutputs (txBody ^. collateralReturnTxBodyL)
+    where
+          mkCollateralOutputs  = onTx $ \tx -> CollateralOutputs
+            $ tx ^. bodyTxL . collateralReturnTxBodyL

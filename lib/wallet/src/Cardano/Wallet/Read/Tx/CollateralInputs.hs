@@ -63,6 +63,7 @@ newtype CollateralInputs era = CollateralInputs (CollateralInputsType era)
 deriving instance Show (CollateralInputsType era) => Show (CollateralInputs era)
 deriving instance Eq (CollateralInputsType era) => Eq (CollateralInputs era)
 
+-- | Extract the collateral inputs from a 'Tx' in any era.
 getEraCollateralInputs :: EraFun Tx CollateralInputs
 getEraCollateralInputs = EraFun
     { byronFun = \_ -> CollateralInputs ()
