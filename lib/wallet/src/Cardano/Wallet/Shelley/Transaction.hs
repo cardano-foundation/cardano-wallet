@@ -37,7 +37,8 @@ module Cardano.Wallet.Shelley.Transaction
     -- * Updating SealedTx
     , TxUpdate (..)
     , noTxUpdate
-    , updateSealedTx
+    , updateTx
+    , TxFeeUpdate (..)
 
     -- * For balancing (To be moved)
     , maxScriptExecutionCost
@@ -212,8 +213,6 @@ import Cardano.Wallet.Transaction
     , TransactionCtx (..)
     , TransactionLayer (..)
     , TxFeeAndChange (..)
-    , TxFeeUpdate (..)
-    , TxUpdate (..)
     , ValidityIntervalExplicit
     , WitnessCount
     , WitnessCountCtx (..)
@@ -690,8 +689,6 @@ newTransactionLayer networkId = TransactionLayer
     , constraints = \era pp -> txConstraints era pp (txWitnessTagFor @k)
 
     , decodeTx = _decodeSealedTx
-
-    , updateTx = updateSealedTx
     }
 
 _decodeSealedTx
@@ -725,13 +722,34 @@ mkDelegationCertificates da accXPub =
        Quit -> [toStakeKeyDeregCert accXPub]
 
 
+-- | Describes modifications that can be made to a `Tx` using `updateTx`.
+data TxUpdate = TxUpdate
+    { extraInputs :: [(TxIn, TxOut)]
+    , extraCollateral :: [TxIn]
+       -- ^ Only used in the Alonzo era and later. Will be silently ignored in
+       -- previous eras.
+    , extraOutputs :: [TxOut]
+    , extraInputScripts :: [Script KeyHash]
+    , feeUpdate :: TxFeeUpdate
+        -- ^ Set a new fee or use the old one.
+    }
+
 -- | For testing that
 -- @
---   forall tx. updateSealedTx noTxUpdate tx
+--   forall tx. updateTx noTxUpdate tx
 --      == Right tx or Left
 -- @
 noTxUpdate :: TxUpdate
 noTxUpdate = TxUpdate [] [] [] [] UseOldTxFee
+
+-- | Method to use when updating the fee of a transaction.
+data TxFeeUpdate = UseOldTxFee
+                 -- ^ Instead of updating the fee, just use the old fee of the
+                 -- Tx (no-op for fee update).
+                 | UseNewTxFee Coin
+                 -- ^ Specify a new fee to use instead.
+    deriving (Eq, Show)
+
 
 -- Used to add inputs and outputs when balancing a transaction.
 --
@@ -745,12 +763,12 @@ noTxUpdate = TxUpdate [] [] [] [] UseOldTxFee
 --
 -- To avoid the need for `ledger -> wallet` conversions, this function can only
 -- be used to *add* tx body content.
-updateSealedTx
+updateTx
     :: forall era. Cardano.IsShelleyBasedEra era
     => Cardano.Tx era
     -> TxUpdate
     -> Either ErrUpdateSealedTx (Cardano.Tx era)
-updateSealedTx (Cardano.Tx body existingKeyWits) extraContent = do
+updateTx (Cardano.Tx body existingKeyWits) extraContent = do
     -- NOTE: The script witnesses are carried along with the cardano-api
     -- `anyEraBody`.
     body' <- modifyTxBody extraContent body

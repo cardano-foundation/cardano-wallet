@@ -31,8 +31,6 @@ module Cardano.Wallet.Transaction
     , defaultTransactionCtx
     , Withdrawal (..)
     , withdrawalToCoin
-    , TxUpdate (..)
-    , TxFeeUpdate(..)
     , TokenMapWithScripts (..)
     , emptyTokenMapWithScripts
     , AnyExplicitScript (..)
@@ -249,33 +247,6 @@ data TransactionLayer k ktype tx = TransactionLayer
             , WitnessCount
             )
     -- ^ Decode an externally-created transaction.
-
-    , updateTx
-        :: forall era. Cardano.IsShelleyBasedEra era
-        => Cardano.Tx era
-        -> TxUpdate
-        -> Either ErrUpdateSealedTx (Cardano.Tx era)
-        -- ^ Update tx by adding additional inputs and outputs
-    }
-
--- | Method to use when updating the fee of a transaction.
-data TxFeeUpdate = UseOldTxFee
-                 -- ^ Instead of updating the fee, just use the old fee of the
-                 -- Tx (no-op for fee update).
-                 | UseNewTxFee Coin
-                 -- ^ Specify a new fee to use instead.
-    deriving (Eq, Show)
-
--- | Describes modifications that can be made to a `Tx` using `updateTx`.
-data TxUpdate = TxUpdate
-    { extraInputs :: [(TxIn, TxOut)]
-    , extraCollateral :: [TxIn]
-       -- ^ Only used in the Alonzo era and later. Will be silently ignored in
-       -- previous eras.
-    , extraOutputs :: [TxOut]
-    , extraInputScripts :: [Script KeyHash]
-    , feeUpdate :: TxFeeUpdate
-        -- ^ Set a new fee or use the old one.
     }
 
 type TxValidityInterval = (Maybe SlotNo, SlotNo)

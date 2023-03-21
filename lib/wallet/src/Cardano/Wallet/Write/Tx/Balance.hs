@@ -78,12 +78,14 @@ import Cardano.Wallet.Shelley.Compatibility.Ledger
     ( toWalletCoin )
 import Cardano.Wallet.Shelley.Transaction
     ( KeyWitnessCount (..)
+    , TxFeeUpdate (..)
     , TxUpdate (..)
     , assignScriptRedeemers
     , distributeSurplus
     , estimateKeyWitnessCount
     , estimateSignedTxSize
     , maxScriptExecutionCost
+    , updateTx
     )
 import Cardano.Wallet.Transaction
     ( ErrAssignRedeemers
@@ -92,7 +94,6 @@ import Cardano.Wallet.Transaction
     , TransactionCtx (..)
     , TransactionLayer (..)
     , TxFeeAndChange (..)
-    , TxFeeUpdate (UseNewTxFee)
     , WitnessCountCtx (..)
     , defaultTransactionCtx
     )
@@ -665,7 +666,7 @@ balanceTransactionWithSelectionStrategyAndNoZeroAdaAdjustment
         let minfee = toWalletCoin $ Write.Tx.evaluateMinimumFee
                 (recentEra @era) ledgerPP (Write.Tx.fromCardanoTx tx) witCount
         let update = TxUpdate [] [] [] [] (UseNewTxFee minfee)
-        tx' <- left ErrBalanceTxUpdateError $ updateTx txLayer tx update
+        tx' <- left ErrBalanceTxUpdateError $ updateTx tx update
         let balance = txBalance tx'
         let minfee' = Cardano.Lovelace $ fromIntegral $ W.unCoin minfee
         return (balance, minfee', witCount)
@@ -722,7 +723,7 @@ balanceTransactionWithSelectionStrategyAndNoZeroAdaAdjustment
         :: TxUpdate
         -> ExceptT ErrBalanceTx m (Cardano.Tx era)
     assembleTransaction update = ExceptT . pure $ do
-        tx' <- left ErrBalanceTxUpdateError $ updateTx txLayer partialTx update
+        tx' <- left ErrBalanceTxUpdateError $ updateTx partialTx update
         left ErrBalanceTxAssignRedeemers $ assignScriptRedeemers
             nodePParams ti combinedUTxO redeemers tx'
 
