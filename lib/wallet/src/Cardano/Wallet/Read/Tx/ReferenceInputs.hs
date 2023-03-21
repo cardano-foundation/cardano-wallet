@@ -1,5 +1,6 @@
 {-# LANGUAGE DataKinds #-}
 {-# LANGUAGE FlexibleContexts #-}
+{-# LANGUAGE NoMonomorphismRestriction #-}
 {-# LANGUAGE StandaloneDeriving #-}
 {-# LANGUAGE TypeFamilies #-}
 {-# LANGUAGE UndecidableInstances #-}
@@ -31,6 +32,8 @@ import Cardano.Api
     )
 import Cardano.Ledger.Babbage.TxBody
     ( referenceInputsTxBodyL )
+import Cardano.Ledger.Core
+    ( bodyTxL )
 import Cardano.Ledger.Crypto
     ( StandardCrypto )
 import Cardano.Wallet.Read.Eras
@@ -44,7 +47,6 @@ import Control.Lens
 import Data.Set
     ( Set )
 
-import qualified Cardano.Ledger.Alonzo.Tx as AL
 import qualified Cardano.Ledger.Shelley.API as SH
 
 type family ReferenceInputsType era where
@@ -62,15 +64,16 @@ deriving instance Show (ReferenceInputsType era) => Show (ReferenceInputs era)
 deriving instance Eq (ReferenceInputsType era) => Eq (ReferenceInputs era)
 
 getEraReferenceInputs :: EraFun Tx ReferenceInputs
-getEraReferenceInputs
-    = EraFun
+getEraReferenceInputs =
+    EraFun
         { byronFun = \_ -> ReferenceInputs ()
         , shelleyFun = \_ -> ReferenceInputs ()
         , allegraFun = \_ -> ReferenceInputs ()
         , maryFun = \_ -> ReferenceInputs ()
         , alonzoFun = \_ -> ReferenceInputs ()
-        , babbageFun = onTx $ \(AL.AlonzoTx txBody _ _ _) ->
-            ReferenceInputs (txBody ^. referenceInputsTxBodyL)
-        , conwayFun = onTx $ \(AL.AlonzoTx txBody _ _ _) ->
-            ReferenceInputs (txBody ^. referenceInputsTxBodyL)
+        , babbageFun = referenceInputsBabbage
+        , conwayFun = referenceInputsBabbage
         }
+  where
+    referenceInputsBabbage = onTx $ \tx ->
+        ReferenceInputs $ tx ^. bodyTxL . referenceInputsTxBodyL
