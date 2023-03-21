@@ -1,5 +1,6 @@
 {-# LANGUAGE DataKinds #-}
 {-# LANGUAGE FlexibleContexts #-}
+{-# LANGUAGE NoMonomorphismRestriction #-}
 {-# LANGUAGE StandaloneDeriving #-}
 {-# LANGUAGE TypeFamilies #-}
 {-# LANGUAGE UndecidableInstances #-}
@@ -56,14 +57,17 @@ newtype Fee era = Fee (FeeType era)
 deriving instance Show (FeeType era) => Show (Fee era)
 deriving instance Eq (FeeType era) => Eq (Fee era)
 
+-- | Extract fee from 'Tx' in all available eras.
 getEraFee :: EraFun Tx Fee
-getEraFee
-    = EraFun
-        { byronFun =  onTx $ \_ -> Fee ()
-        , shelleyFun = onTx $ \tx -> Fee $ tx ^. bodyTxL . feeTxBodyL
-        , allegraFun = onTx $ \tx -> Fee $ tx ^. bodyTxL . feeTxBodyL
-        , maryFun = onTx $ \tx -> Fee $ tx ^. bodyTxL . feeTxBodyL
-        , alonzoFun = onTx $ \tx -> Fee $ tx ^. bodyTxL . feeTxBodyL
-        , babbageFun = onTx $ \tx -> Fee $ tx ^. bodyTxL . feeTxBodyL
-        , conwayFun = onTx $ \tx -> Fee $ tx ^. bodyTxL . feeTxBodyL
+getEraFee =
+    EraFun
+        { byronFun = onTx $ \_ -> Fee ()
+        , shelleyFun = mkFee
+        , allegraFun = mkFee
+        , maryFun = mkFee
+        , alonzoFun = mkFee
+        , babbageFun = mkFee
+        , conwayFun = mkFee
         }
+  where
+    mkFee = onTx $ \tx -> Fee $ tx ^. bodyTxL . feeTxBodyL

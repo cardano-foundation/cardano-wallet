@@ -1,5 +1,6 @@
 {-# LANGUAGE DataKinds #-}
 {-# LANGUAGE FlexibleContexts #-}
+{-# LANGUAGE NoMonomorphismRestriction #-}
 {-# LANGUAGE StandaloneDeriving #-}
 {-# LANGUAGE TypeFamilies #-}
 {-# LANGUAGE UndecidableInstances #-}
@@ -62,14 +63,18 @@ newtype Validity era = Validity (ValidityType era)
 deriving instance Show (ValidityType era) => Show (Validity era)
 deriving instance Eq (ValidityType era) => Eq (Validity era)
 
+-- | Extract validity data from tx for any available era.
 getEraValidity :: EraFun Tx Validity
-getEraValidity
-    = EraFun
+getEraValidity =
+    EraFun
         { byronFun = \_ -> Validity ()
-        , shelleyFun = onTx $ \tx -> Validity $ tx ^. bodyTxL . ttlTxBodyL
-        , allegraFun = onTx $ \tx -> Validity $ tx ^. bodyTxL . vldtTxBodyL
-        , maryFun = onTx $ \tx -> Validity $ tx ^. bodyTxL . vldtTxBodyL
-        , alonzoFun = onTx $ \tx -> Validity $ tx ^. bodyTxL . vldtTxBodyL
-        , babbageFun = onTx $ \tx -> Validity $ tx ^. bodyTxL . vldtTxBodyL
-        , conwayFun = onTx $ \tx -> Validity $ tx ^. bodyTxL . vldtTxBodyL
+        , shelleyFun = anyValidity ttlTxBodyL
+        , allegraFun = allegraValidity
+        , maryFun = allegraValidity
+        , alonzoFun = allegraValidity
+        , babbageFun = allegraValidity
+        , conwayFun = allegraValidity
         }
+  where
+    anyValidity l = onTx $ \tx -> Validity $ tx ^. bodyTxL . l
+    allegraValidity = anyValidity vldtTxBodyL

@@ -1,5 +1,6 @@
 {-# LANGUAGE DataKinds #-}
 {-# LANGUAGE FlexibleContexts #-}
+{-# LANGUAGE NoMonomorphismRestriction #-}
 {-# LANGUAGE StandaloneDeriving #-}
 {-# LANGUAGE TypeFamilies #-}
 {-# LANGUAGE UndecidableInstances #-}
@@ -80,13 +81,16 @@ deriving instance Show (OutputsType era) => Show (Outputs era)
 deriving instance Eq (OutputsType era) => Eq (Outputs era)
 
 getEraOutputs :: EraFun Tx Outputs
-getEraOutputs
-    = EraFun
-        { byronFun =  onTx $ \tx -> Outputs $ BY.txOutputs (BY.taTx tx)
-        , shelleyFun = onTx $ \tx -> Outputs (tx ^. bodyTxL . outputsTxBodyL)
-        , allegraFun = onTx $ \tx -> Outputs (tx ^. bodyTxL . outputsTxBodyL)
-        , maryFun = onTx $ \tx -> Outputs (tx ^. bodyTxL . outputsTxBodyL)
-        , alonzoFun = onTx $ \tx -> Outputs (tx ^. bodyTxL . outputsTxBodyL)
-        , babbageFun = onTx $ \tx -> Outputs (tx ^. bodyTxL . outputsTxBodyL)
-        , conwayFun = onTx $ \tx -> Outputs (tx ^. bodyTxL . outputsTxBodyL)
+getEraOutputs =
+    EraFun
+        { byronFun = onTx $ \tx -> Outputs $ BY.txOutputs (BY.taTx tx)
+        , shelleyFun = shelleyOutputs
+        , allegraFun = shelleyOutputs
+        , maryFun = shelleyOutputs
+        , alonzoFun = shelleyOutputs
+        , babbageFun = shelleyOutputs
+        , conwayFun = shelleyOutputs
         }
+  where
+    shelleyOutputs =
+        onTx $ \tx -> Outputs $ tx ^. bodyTxL . outputsTxBodyL

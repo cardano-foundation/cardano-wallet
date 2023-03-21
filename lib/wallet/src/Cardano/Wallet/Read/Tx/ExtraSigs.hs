@@ -1,5 +1,6 @@
 {-# LANGUAGE DataKinds #-}
 {-# LANGUAGE FlexibleContexts #-}
+{-# LANGUAGE NoMonomorphismRestriction #-}
 {-# LANGUAGE StandaloneDeriving #-}
 {-# LANGUAGE TypeFamilies #-}
 {-# LANGUAGE UndecidableInstances #-}
@@ -57,6 +58,7 @@ newtype ExtraSigs era = ExtraSigs (ExtraSigsType era)
 deriving instance Show (ExtraSigsType era) => Show (ExtraSigs era)
 deriving instance Eq (ExtraSigsType era) => Eq (ExtraSigs era)
 
+-- | Get extra signatures required for a transaction in any era.
 getEraExtraSigs :: EraFun Tx ExtraSigs
 getEraExtraSigs
     = EraFun
@@ -64,10 +66,9 @@ getEraExtraSigs
         , shelleyFun = \_ -> ExtraSigs ()
         , allegraFun = \_ -> ExtraSigs ()
         , maryFun = \_ -> ExtraSigs ()
-        , alonzoFun = onTx $ \tx -> ExtraSigs
-            $ tx ^. bodyTxL . reqSignerHashesTxBodyL
-        , babbageFun = onTx $ \tx -> ExtraSigs
-            $ tx ^. bodyTxL . reqSignerHashesTxBodyL
-        , conwayFun = onTx $ \tx -> ExtraSigs
-            $ tx ^. bodyTxL . reqSignerHashesTxBodyL
+        , alonzoFun = mkExtraSignatures
+        , babbageFun = mkExtraSignatures
+        , conwayFun = mkExtraSignatures
         }
+        where mkExtraSignatures =  onTx $ \tx -> ExtraSigs
+                $ tx ^. bodyTxL . reqSignerHashesTxBodyL

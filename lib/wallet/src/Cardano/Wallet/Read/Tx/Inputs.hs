@@ -1,5 +1,6 @@
 {-# LANGUAGE DataKinds #-}
 {-# LANGUAGE FlexibleContexts #-}
+{-# LANGUAGE NoMonomorphismRestriction #-}
 {-# LANGUAGE StandaloneDeriving #-}
 {-# LANGUAGE TypeFamilies #-}
 {-# LANGUAGE UndecidableInstances #-}
@@ -8,7 +9,7 @@
 -- Copyright: © 2020-2022 IOHK
 -- License: Apache-2.0
 --
--- Raw certificate data extraction from 'Tx'
+-- Raw inputs data extraction from 'Tx'
 --
 
 module Cardano.Wallet.Read.Tx.Inputs
@@ -63,14 +64,17 @@ newtype Inputs era = Inputs (InputsType era)
 deriving instance Show (InputsType era) => Show (Inputs era)
 deriving instance Eq (InputsType era) => Eq (Inputs era)
 
+-- | Extract the inputs from a transaction in any era.
 getEraInputs :: EraFun Tx Inputs
-getEraInputs
-    = EraFun
-        { byronFun =  onTx $ \tx -> Inputs $ BY.txInputs $ BY.taTx tx
-        , shelleyFun = onTx $ \tx -> Inputs (tx ^. bodyTxL . inputsTxBodyL)
-        , allegraFun = onTx $ \tx -> Inputs (tx ^. bodyTxL . inputsTxBodyL)
-        , maryFun = onTx $ \tx -> Inputs (tx ^. bodyTxL . inputsTxBodyL)
-        , alonzoFun = onTx $ \tx -> Inputs (tx ^. bodyTxL . inputsTxBodyL)
-        , babbageFun = onTx $ \tx -> Inputs (tx ^. bodyTxL . inputsTxBodyL)
-        , conwayFun = onTx $ \tx -> Inputs (tx ^. bodyTxL . inputsTxBodyL)
+getEraInputs =
+    EraFun
+        { byronFun = onTx $ \tx -> Inputs $ BY.txInputs $ BY.taTx tx
+        , shelleyFun = shelleyInputs
+        , allegraFun = shelleyInputs
+        , maryFun = shelleyInputs
+        , alonzoFun = shelleyInputs
+        , babbageFun = shelleyInputs
+        , conwayFun = shelleyInputs
         }
+  where
+    shelleyInputs = onTx $ \tx -> Inputs (tx ^. bodyTxL . inputsTxBodyL)

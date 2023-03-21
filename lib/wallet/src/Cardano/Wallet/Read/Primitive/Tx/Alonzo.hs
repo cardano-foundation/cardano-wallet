@@ -46,7 +46,7 @@ import Cardano.Wallet.Read.Tx
 import Cardano.Wallet.Read.Tx.CBOR
     ( renderTxToCBOR )
 import Cardano.Wallet.Read.Tx.Hash
-    ( alonzoTxHash )
+    ( shelleyTxHash )
 import Cardano.Wallet.Shelley.Compatibility.Ledger
     ( toWalletScript, toWalletTokenPolicyId )
 import Cardano.Wallet.Transaction
@@ -95,7 +95,7 @@ fromAlonzoTx
 fromAlonzoTx tx@(Alonzo.AlonzoTx bod wits (Alonzo.IsValid isValid) aux) witCtx =
     ( W.Tx
         { txId =
-            W.Hash $ alonzoTxHash tx
+            W.Hash $ shelleyTxHash tx
         , txCBOR =
             Just $ renderTxToCBOR $ inject alonzo $ Tx tx
         , fee =

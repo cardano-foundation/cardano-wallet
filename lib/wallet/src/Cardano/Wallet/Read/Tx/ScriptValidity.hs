@@ -1,5 +1,6 @@
 {-# LANGUAGE DataKinds #-}
 {-# LANGUAGE FlexibleContexts #-}
+{-# LANGUAGE NoMonomorphismRestriction #-}
 {-# LANGUAGE StandaloneDeriving #-}
 {-# LANGUAGE TypeFamilies #-}
 {-# LANGUAGE UndecidableInstances #-}
@@ -54,12 +55,16 @@ deriving instance Show (ScriptValidityType era) => Show (ScriptValidity era)
 deriving instance Eq (ScriptValidityType era) => Eq (ScriptValidity era)
 
 getEraScriptValidity :: EraFun Tx ScriptValidity
-getEraScriptValidity = EraFun
-    { byronFun = \_ -> ScriptValidity ()
-    , shelleyFun =  \_ -> ScriptValidity ()
-    , allegraFun = \_ -> ScriptValidity ()
-    , maryFun = \_ -> ScriptValidity ()
-    , alonzoFun = onTx $ \tx -> ScriptValidity (tx ^. isValidTxL)
-    , babbageFun = onTx $ \tx -> ScriptValidity (tx ^. isValidTxL)
-    , conwayFun = onTx $ \tx -> ScriptValidity (tx ^. isValidTxL)
-    }
+getEraScriptValidity =
+    EraFun
+        { byronFun = \_ -> ScriptValidity ()
+        , shelleyFun = \_ -> ScriptValidity ()
+        , allegraFun = \_ -> ScriptValidity ()
+        , maryFun = \_ -> ScriptValidity ()
+        , alonzoFun = alonzoScriptValidity
+        , babbageFun = alonzoScriptValidity
+        , conwayFun = alonzoScriptValidity
+        }
+  where
+    alonzoScriptValidity = onTx $
+        \tx -> ScriptValidity $ tx ^. isValidTxL
