@@ -1,5 +1,6 @@
 {-# LANGUAGE DataKinds #-}
 {-# LANGUAGE FlexibleContexts #-}
+{-# LANGUAGE NoMonomorphismRestriction #-}
 {-# LANGUAGE StandaloneDeriving #-}
 {-# LANGUAGE TypeFamilies #-}
 {-# LANGUAGE UndecidableInstances #-}
@@ -61,12 +62,15 @@ deriving instance Show (MintType era) => Show (Mint era)
 deriving instance Eq (MintType era) => Eq (Mint era)
 
 getEraMint :: EraFun Tx Mint
-getEraMint = EraFun
-    { byronFun = \_ -> Mint ()
-    , shelleyFun = \_ -> Mint ()
-    , allegraFun = onTx $ \tx -> Mint $ tx ^. bodyTxL . mintTxBodyL
-    , maryFun = onTx $ \tx -> Mint $ tx ^. bodyTxL . mintTxBodyL
-    , alonzoFun = onTx $ \tx -> Mint $ tx ^. bodyTxL . mintTxBodyL
-    , babbageFun = onTx $ \tx -> Mint $ tx ^. bodyTxL . mintTxBodyL
-    , conwayFun = onTx $ \tx -> Mint $ tx ^. bodyTxL . mintTxBodyL
-    }
+getEraMint =
+    EraFun
+        { byronFun = \_ -> Mint ()
+        , shelleyFun = \_ -> Mint ()
+        , allegraFun = allegraMint
+        , maryFun = allegraMint
+        , alonzoFun = allegraMint
+        , babbageFun = allegraMint
+        , conwayFun = allegraMint
+        }
+  where
+    allegraMint = onTx $ \tx -> Mint $ tx ^. bodyTxL . mintTxBodyL
