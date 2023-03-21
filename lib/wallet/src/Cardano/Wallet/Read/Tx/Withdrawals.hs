@@ -1,5 +1,6 @@
 {-# LANGUAGE DataKinds #-}
 {-# LANGUAGE FlexibleContexts #-}
+{-# LANGUAGE NoMonomorphismRestriction #-}
 {-# LANGUAGE StandaloneDeriving #-}
 {-# LANGUAGE TypeFamilies #-}
 {-# LANGUAGE UndecidableInstances #-}
@@ -8,7 +9,7 @@
 -- Copyright: © 2020-2022 IOHK
 -- License: Apache-2.0
 --
--- Raw witnesses data extraction from 'Tx'
+-- Raw withdrawals data extraction from 'Tx'
 --
 
 module Cardano.Wallet.Read.Tx.Withdrawals
@@ -59,13 +60,18 @@ newtype Withdrawals era = Withdrawals (WithdrawalsType era)
 deriving instance Show (WithdrawalsType era) => Show (Withdrawals era)
 deriving instance Eq (WithdrawalsType era) => Eq (Withdrawals era)
 
+-- | Extract withdrawals from tx for any available era.
 getEraWithdrawals :: EraFun Tx Withdrawals
-getEraWithdrawals = EraFun
-    { byronFun = \_ -> Withdrawals ()
-    , shelleyFun = onTx $ \tx -> Withdrawals (tx ^. bodyTxL . wdrlsTxBodyL)
-    , allegraFun = onTx $ \tx -> Withdrawals (tx ^. bodyTxL . wdrlsTxBodyL)
-    , maryFun = onTx $ \tx -> Withdrawals (tx ^. bodyTxL . wdrlsTxBodyL)
-    , alonzoFun = onTx $ \tx -> Withdrawals (tx ^. bodyTxL . wdrlsTxBodyL)
-    , babbageFun = onTx $ \tx -> Withdrawals (tx ^. bodyTxL . wdrlsTxBodyL)
-    , conwayFun = onTx $ \tx -> Withdrawals (tx ^. bodyTxL . wdrlsTxBodyL)
-    }
+getEraWithdrawals =
+    EraFun
+        { byronFun = \_ -> Withdrawals ()
+        , shelleyFun = shelleyWithdrawals
+        , allegraFun = shelleyWithdrawals
+        , maryFun = shelleyWithdrawals
+        , alonzoFun = shelleyWithdrawals
+        , babbageFun = shelleyWithdrawals
+        , conwayFun = shelleyWithdrawals
+        }
+  where
+    shelleyWithdrawals = onTx $
+        \tx -> Withdrawals $ tx ^. bodyTxL . wdrlsTxBodyL
