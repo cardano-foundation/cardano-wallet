@@ -1,5 +1,6 @@
 {-# LANGUAGE DataKinds #-}
 {-# LANGUAGE FlexibleContexts #-}
+{-# LANGUAGE NoMonomorphismRestriction #-}
 {-# LANGUAGE StandaloneDeriving #-}
 {-# LANGUAGE TypeFamilies #-}
 {-# LANGUAGE UndecidableInstances #-}
@@ -65,14 +66,15 @@ deriving instance Show (MetadataType era) => Show (Metadata era)
 deriving instance Eq (MetadataType era) => Eq (Metadata era)
 
 getEraMetadata :: EraFun Tx Metadata
-getEraMetadata = EraFun
-    { byronFun = \_ -> Metadata ()
-    , shelleyFun =  onTx $ \tx -> Metadata (tx ^. auxDataTxL)
-    , allegraFun = onTx $ \tx -> Metadata (tx ^. auxDataTxL)
-    , maryFun = onTx $ \tx -> Metadata (tx ^. auxDataTxL)
-    , alonzoFun = onTx $ \tx -> Metadata (tx ^. auxDataTxL)
-    , babbageFun = onTx $ \tx -> Metadata (tx ^. auxDataTxL)
-    , conwayFun = onTx $ \tx -> Metadata (tx ^. auxDataTxL)
-    }
-
-
+getEraMetadata =
+    EraFun
+        { byronFun = \_ -> Metadata ()
+        , shelleyFun = shelleyMetadata
+        , allegraFun = shelleyMetadata
+        , maryFun = shelleyMetadata
+        , alonzoFun = shelleyMetadata
+        , babbageFun = shelleyMetadata
+        , conwayFun = shelleyMetadata
+        }
+  where
+    shelleyMetadata = onTx $ \tx -> Metadata (tx ^. auxDataTxL)
