@@ -1,5 +1,6 @@
 {-# LANGUAGE DataKinds #-}
 {-# LANGUAGE FlexibleContexts #-}
+{-# LANGUAGE NoMonomorphismRestriction #-}
 {-# LANGUAGE StandaloneDeriving #-}
 {-# LANGUAGE TypeFamilies #-}
 {-# LANGUAGE UndecidableInstances #-}
@@ -67,13 +68,15 @@ deriving instance Show (WitnessesType era) => Show (Witnesses era)
 deriving instance Eq (WitnessesType era) => Eq (Witnesses era)
 
 getEraWitnesses :: EraFun Tx Witnesses
-getEraWitnesses = EraFun
-    { byronFun = \_ -> Witnesses ()
-    , shelleyFun = \_ -> Witnesses ()
-    , allegraFun = \_  -> Witnesses ()
-    , maryFun = onTx $ \tx -> Witnesses (tx ^. witsTxL)
-    , alonzoFun = onTx $ \tx -> Witnesses (tx ^. witsTxL)
-    , babbageFun = onTx $ \tx -> Witnesses (tx ^. witsTxL)
-    , conwayFun = onTx $ \tx -> Witnesses (tx ^. witsTxL)
-    }
-
+getEraWitnesses =
+    EraFun
+        { byronFun = \_ -> Witnesses ()
+        , shelleyFun = \_ -> Witnesses ()
+        , allegraFun = \_ -> Witnesses ()
+        , maryFun = maryWitnesses
+        , alonzoFun = maryWitnesses
+        , babbageFun = maryWitnesses
+        , conwayFun = maryWitnesses
+        }
+  where
+    maryWitnesses = onTx $ \tx -> Witnesses $ tx ^. witsTxL
