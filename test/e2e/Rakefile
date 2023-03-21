@@ -278,13 +278,15 @@ task :get_latest_configs, [:env] do |_task, args|
     config_edited = config.gsub(/#{env}-/, '')
     File.open(config_file, 'w') { |file| file.puts config_edited }
 
-    # Turn off p2p
-    # topology from https://book.world.dev.cardano.org/environments.html is no longer compatible with cardano-node 1.35.4
-    # so we need to turn off p2p for now
+    # Temporary/ad-hoc config changes for cardano-node:
+    #  - disable P2P
+    #  - use conway-genesis.json
     config_dir = File.join(CONFIGS, args[:env])
     config_json = JSON.parse(File.read("#{config_dir}/config.json"))
     config_json['EnableP2P'] = false
+    config_json['ConwayGenesisFile'] = 'conway-genesis.json'
     File.write("#{config_dir}/config.json", JSON.pretty_generate(config_json))
+
     topology = %({
           "Producers": [
             {
@@ -295,6 +297,10 @@ task :get_latest_configs, [:env] do |_task, args|
           ]
         })
     File.write("#{config_dir}/topology.json", topology)
+
+    # Add conway-genesis.json
+    File.write("#{config_dir}/conway-genesis.json", ' { "genDelegs": {} }')
+
   end
 end
 
