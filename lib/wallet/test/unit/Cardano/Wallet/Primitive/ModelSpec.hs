@@ -2659,10 +2659,7 @@ prop_applyBlocks_filteredTxs_someOurs
     -> Pretty BlockSeq
     -> Property
 prop_applyBlocks_filteredTxs_someOurs (Pretty someOurs) (Pretty blockSeq)
-    -- TODO: we currently ignore transaction fees, as under some circumstances
-    -- the 'applyBlocks' function can modify fee values:
-    = fmap (set #fee Nothing) ourTxsReturned ====
-      fmap (set #fee Nothing) ourTxsExpected
+    = ourTxsReturned ==== ourTxsExpected
     & labelInterval 10
         "length allTxsProvided"
         (length allTxsProvided)
