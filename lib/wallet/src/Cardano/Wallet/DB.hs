@@ -832,4 +832,4 @@ mkTransactionInfo ti decorator tip = \case
         let readTx = fromSealedTx tx
         decorate <- decorator readTx
         Just <$> mkTransactionInfoFromReadTx
-            ti tip decorate readTx meta s
+            ti tip readTx decorate meta s

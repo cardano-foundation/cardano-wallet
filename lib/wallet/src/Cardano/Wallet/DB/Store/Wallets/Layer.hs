@@ -19,7 +19,7 @@ module Cardano.Wallet.DB.Store.Wallets.Layer
 import Prelude
 
 import Cardano.Wallet.DB.Sqlite.Schema
-    ( TxMeta (..) )
+    ( CBOR, TxMeta (..) )
 import Cardano.Wallet.DB.Sqlite.Types
     ( TxId (..) )
 import Cardano.Wallet.DB.Store.Meta.Model
@@ -50,7 +50,7 @@ import qualified Data.Map.Strict as Map
     Query type
 ------------------------------------------------------------------------------}
 data QueryTxWalletsHistory b where
-    GetByTxId :: TxId -> QueryTxWalletsHistory (Maybe TxRelation)
+    GetByTxId :: TxId -> QueryTxWalletsHistory (Maybe (Either TxRelation CBOR))
     GetTxOut :: (TxId, Word32) -> QueryTxWalletsHistory (Maybe W.TxOut)
     One :: W.WalletId -> TxId -> QueryTxWalletsHistory (Maybe TxMeta)
     All :: W.WalletId -> QueryTxWalletsHistory [TxMeta]

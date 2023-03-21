@@ -87,7 +87,8 @@ import Cardano.Wallet.DB
 import Cardano.Wallet.DB.Sqlite.Migration
     ( DefaultFieldValues (..), migrateManually )
 import Cardano.Wallet.DB.Sqlite.Schema
-    ( DelegationCertificate (..)
+    ( CBOR (..)
+    , DelegationCertificate (..)
     , DelegationReward (..)
     , EntityField (..)
     , Key (..)
@@ -102,19 +103,23 @@ import Cardano.Wallet.DB.Sqlite.Types
     ( BlockId (..), TxId (..) )
 import Cardano.Wallet.DB.Store.Checkpoints
     ( PersistAddressBook (..), blockHeaderFromEntity, mkStoreWallets )
+import Cardano.Wallet.DB.Store.Meta.Model
+    ( mkTxMetaFromEntity )
 import Cardano.Wallet.DB.Store.QueryStore
     ( QueryStore (..) )
 import Cardano.Wallet.DB.Store.Submissions.Layer
     ( pruneByFinality, rollBackSubmissions )
+import Cardano.Wallet.DB.Store.Submissions.Operations
+    ( submissionMetaFromTxMeta )
 import Cardano.Wallet.DB.Store.Transactions.Decoration
     ( TxInDecorator
     , decorateTxInsForReadTxFromLookupTxOut
     , decorateTxInsForRelationFromLookupTxOut
     )
 import Cardano.Wallet.DB.Store.Transactions.Model
-    ( TxRelation (..) )
+    ( TxRelation (..), txCBORPrism )
 import Cardano.Wallet.DB.Store.Transactions.TransactionInfo
-    ( mkTransactionInfoFromRelation )
+    ( mkTransactionInfoFromReadTx, mkTransactionInfoFromRelation )
 import Cardano.Wallet.DB.Store.Wallets.Layer
     ( QueryStoreTxWalletsHistory
     , QueryTxWalletsHistory (..)
@@ -142,6 +147,8 @@ import Cardano.Wallet.Primitive.Types
     ( SortOrder (..) )
 import Cardano.Wallet.Read.Eras
     ( EraValue )
+import Cardano.Wallet.Read.Tx.CBOR
+    ( parseTxFromCBOR )
 import Control.DeepSeq
     ( force )
 import Control.Exception
@@ -224,6 +231,7 @@ import qualified Cardano.Wallet.Primitive.Types.Hash as W
 import qualified Cardano.Wallet.Primitive.Types.Tx as W
 import qualified Cardano.Wallet.Primitive.Types.Tx.TxOut as W
 import qualified Cardano.Wallet.Read.Tx as Read
+import qualified Data.Generics.Internal.VL as L
 import qualified Data.Map.Strict as Map
 import qualified Data.Set as Set
 import qualified Data.Text as T
@@ -989,22 +997,49 @@ deleteDelegationCertificates wid filters = do
 -- but the function will not attempt to look up all possible outputs.
 -- This approach typically provides enough information
 -- for /outgoing/ payments, but less so for /ingoing/ payments.
+-- This function will simply decode the cbor, when present.
 
 selectTransactionInfo
     :: MonadIO m
     => TimeInterpreter IO
     -> W.BlockHeader
-    -> (TxId -> m (Maybe TxRelation))
+    -> (TxId -> m (Maybe (Either TxRelation CBOR)))
     -> ((TxId, Word32) -> m (Maybe W.TxOut))
     -> TxMeta
     -> m W.TransactionInfo
 selectTransactionInfo ti tip lookupTx lookupTxOut meta = do
-    let err = error $ "Transaction not found: " <> show meta
+    let
+        err = error $ "Transaction not found: " <> show meta
+        wmeta = mkTxMetaFromEntity meta
     transaction <- fromMaybe err <$> lookupTx (txMetaTxId meta)
-    decoration <-
-        decorateTxInsForRelationFromLookupTxOut lookupTxOut transaction
-    liftIO . evaluate . force =<< mkTransactionInfoFromRelation
-        (hoistTimeInterpreter liftIO ti) tip transaction decoration meta
+    result <- case transaction of
+        Left relation -> do
+            decoration <-
+                decorateTxInsForRelationFromLookupTxOut lookupTxOut relation
+            mkTransactionInfoFromRelation
+                (hoistTimeInterpreter liftIO ti)
+                tip
+                relation
+                decoration
+                meta
+        Right cbor -> do
+            case L.match txCBORPrism cbor of
+                Right (_, txCBOR) -> case parseTxFromCBOR txCBOR of
+                    Right cbor' -> do
+                        decoration <-
+                            decorateTxInsForReadTxFromLookupTxOut
+                                lookupTxOut
+                                cbor'
+                        mkTransactionInfoFromReadTx
+                            (hoistTimeInterpreter liftIO ti)
+                            tip
+                            cbor'
+                            decoration
+                            (submissionMetaFromTxMeta wmeta (error "no resub"))
+                            (wmeta ^. #status)
+                    Left _ -> error "failed to parse cbor"
+                Left _ -> error "failed to extract cbor for era"
+    liftIO . evaluate $ force result
 
 selectPrivateKey
     :: (MonadIO m, PersistPrivateKey (k 'RootK))

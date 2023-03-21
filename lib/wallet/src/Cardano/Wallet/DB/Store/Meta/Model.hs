@@ -2,6 +2,7 @@
 {-# LANGUAGE GeneralizedNewtypeDeriving #-}
 {-# LANGUAGE LambdaCase #-}
 {-# LANGUAGE OverloadedLabels #-}
+{-# LANGUAGE RecordWildCards #-}
 {-# LANGUAGE TypeFamilies #-}
 
 {- |
@@ -19,6 +20,7 @@ module Cardano.Wallet.DB.Store.Meta.Model
     , mkTxMetaHistory
     , rollbackTxMetaHistory
     , WalletsMeta
+    , mkTxMetaFromEntity
     ) where
 
 import Prelude
@@ -36,7 +38,7 @@ import Data.Generics.Internal.VL
 import Data.Map.Strict
     ( Map )
 import Data.Quantity
-    ( Quantity (getQuantity) )
+    ( Quantity (..) )
 import Data.Set
     ( Set )
 import Fmt
@@ -128,3 +130,13 @@ mkTxMetaHistory wid txs = TxMetaHistory $
         ]
 
 type WalletsMeta = Map W.WalletId TxMetaHistory
+
+mkTxMetaFromEntity :: TxMeta -> W.TxMeta
+mkTxMetaFromEntity TxMeta{..} = W.TxMeta
+    { W.status = txMetaStatus
+    , W.direction = txMetaDirection
+    , W.slotNo = txMetaSlot
+    , W.blockHeight = Quantity (txMetaBlockHeight)
+    , amount = txMetaAmount
+    , W.expiry = txMetaSlotExpires
+    }

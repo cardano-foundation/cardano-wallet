@@ -210,7 +210,7 @@ mkMap k v =
     <$> v
 
 -- | Select one transaction from the database.
-selectTx :: TxId -> SqlPersistT IO (Maybe TxRelation)
+selectTx :: TxId -> SqlPersistT IO (Maybe (Either TxRelation CBOR))
 selectTx k = select
   where
     selectK
@@ -219,33 +219,36 @@ selectTx k = select
         => EntityField record TxId
         -> ReaderT backend m [record]
     selectK f = fmap entityVal <$> selectList [f ==. k] []
-    select :: SqlPersistT IO (Maybe TxRelation)
+    select :: SqlPersistT IO (Maybe (Either TxRelation CBOR))
     select = do
-        inputs <- selectK TxInputTxId
-        collaterals <- selectK TxCollateralTxId
-        outputs <- selectK TxOutputTxId
-        collateralOutputs <-  selectK TxCollateralOutTxId
-        withds <- selectK TxWithdrawalTxId
-        outTokens <- selectK TxOutTokenTxId
-        collateralTokens <- selectK TxCollateralOutTokenTxId
         mcbor <- selectK CborTxId
-        let
-            selectOutTokens :: TxOut -> [TxOutToken]
-            selectOutTokens txOut = filter
-                (\token -> txOutTokenTxIndex token == txOutputIndex txOut)
-                outTokens
-        pure $ Just $ TxRelation
-                { ins = sortOn txInputOrder inputs
-                , collateralIns = sortOn txCollateralOrder collaterals
-                , outs = fmap (fmap $ sortOn tokenOutOrd)
-                    $ sortOn (txOutputIndex . fst)
-                    $ (id &&& selectOutTokens)
-                    <$> outputs
-                , collateralOuts = listToMaybe collateralOutputs
-                    <&> (, sortOn tokenCollateralOrd collateralTokens)
-                , withdrawals = sortOn txWithdrawalAccount withds
-                , cbor = listToMaybe mcbor
-                }
+        case mcbor of
+            [] -> fmap (fmap Left) $ do
+                inputs <- selectK TxInputTxId
+                collaterals <- selectK TxCollateralTxId
+                outputs <- selectK TxOutputTxId
+                collateralOutputs <-  selectK TxCollateralOutTxId
+                withds <- selectK TxWithdrawalTxId
+                outTokens <- selectK TxOutTokenTxId
+                collateralTokens <- selectK TxCollateralOutTokenTxId
+                let
+                    selectOutTokens :: TxOut -> [TxOutToken]
+                    selectOutTokens txOut = filter
+                        (\token -> txOutTokenTxIndex token == txOutputIndex txOut)
+                        outTokens
+                pure $ Just $ TxRelation
+                        { ins = sortOn txInputOrder inputs
+                        , collateralIns = sortOn txCollateralOrder collaterals
+                        , outs = fmap (fmap $ sortOn tokenOutOrd)
+                            $ sortOn (txOutputIndex . fst)
+                            $ (id &&& selectOutTokens)
+                            <$> outputs
+                        , collateralOuts = listToMaybe collateralOutputs
+                            <&> (, sortOn tokenCollateralOrd collateralTokens)
+                        , withdrawals = sortOn txWithdrawalAccount withds
+                        , cbor = listToMaybe mcbor
+                        }
+            cbor' : _ -> pure $ Just $ Right cbor'
 
 -- | Select one regular output from the database.
 selectTxOut :: (TxId, Word32) -> SqlPersistT IO (Maybe (TxOut, [TxOutToken]))

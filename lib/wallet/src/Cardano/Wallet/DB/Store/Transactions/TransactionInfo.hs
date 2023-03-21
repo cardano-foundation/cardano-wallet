@@ -16,6 +16,8 @@ import Cardano.Wallet.DB.Sqlite.Schema
     ( TxCollateral (..), TxIn (..), TxMeta (..), TxWithdrawal (..) )
 import Cardano.Wallet.DB.Sqlite.Types
     ( TxId (..) )
+import Cardano.Wallet.DB.Store.Meta.Model
+    ( mkTxMetaFromEntity )
 import Cardano.Wallet.DB.Store.Submissions.Operations
     ( SubmissionMeta (..) )
 import Cardano.Wallet.DB.Store.Transactions.Decoration
@@ -103,7 +105,8 @@ mkTransactionInfoFromRelation :: Monad m
     -> DecoratedTxIns
     -> DB.TxMeta
     -> m WT.TransactionInfo
-mkTransactionInfoFromRelation ti tip TxRelation{..} decor DB.TxMeta{..} = do
+mkTransactionInfoFromRelation ti tip TxRelation{..}
+        decor meta@DB.TxMeta{..} = do
     txTime <- interpretQuery ti . slotToUTCTime $ txMetaSlot
     return
         $ WT.TransactionInfo
@@ -113,16 +116,11 @@ mkTransactionInfoFromRelation ti tip TxRelation{..} decor DB.TxMeta{..} = do
         , WT.txInfoInputs = mkTxIn <$> ins
         , WT.txInfoCollateralInputs = mkTxCollateral <$> collateralIns
         , WT.txInfoOutputs = fromTxOut <$> outs
-        , WT.txInfoCollateralOutput = fromTxCollateralOut <$> collateralOuts
-        , WT.txInfoWithdrawals = Map.fromList $ map mkTxWithdrawal withdrawals
-        , WT.txInfoMeta = WT.TxMeta
-              { WT.status = txMetaStatus
-              , WT.direction = txMetaDirection
-              , WT.slotNo = txMetaSlot
-              , WT.blockHeight = Quantity (txMetaBlockHeight)
-              , amount = txMetaAmount
-              , WT.expiry = txMetaSlotExpires
-              }
+        , WT.txInfoCollateralOutput
+            = fromTxCollateralOut <$> collateralOuts
+        , WT.txInfoWithdrawals
+            = Map.fromList $ map mkTxWithdrawal withdrawals
+        , WT.txInfoMeta = mkTxMetaFromEntity meta
         , WT.txInfoMetadata = txMetadata
         , WT.txInfoDepth = Quantity
               $ fromIntegral
@@ -160,12 +158,12 @@ mkTransactionInfoFromRelation ti tip TxRelation{..} decor DB.TxMeta{..} = do
 mkTransactionInfoFromReadTx :: Monad m
     => TimeInterpreter m
     -> W.BlockHeader
-    -> DecoratedTxIns
     -> EraValue Read.Tx
+    -> DecoratedTxIns
     -> SubmissionMeta
     -> W.TxStatus
     -> m WT.TransactionInfo
-mkTransactionInfoFromReadTx ti tip decor tx SubmissionMeta{..} status = do
+mkTransactionInfoFromReadTx ti tip tx decor SubmissionMeta{..} status = do
     txTime <- interpretQuery ti . slotToUTCTime $ submissionMetaSlot
     return
         $ WT.TransactionInfo

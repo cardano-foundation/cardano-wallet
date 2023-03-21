@@ -18,6 +18,8 @@ module Cardano.Wallet.DB.Store.Transactions.Layer
 
 import Prelude
 
+import Cardano.Wallet.DB.Sqlite.Schema
+    ( CBOR )
 import Cardano.Wallet.DB.Sqlite.Types
     ( TxId )
 import Cardano.Wallet.DB.Store.QueryStore
@@ -43,7 +45,7 @@ import qualified Data.Map.Strict as Map
     DB for 'TxSet'
 ------------------------------------------------------------------------------}
 data QueryTxSet b where
-    GetByTxId :: TxId -> QueryTxSet (Maybe TxRelation)
+    GetByTxId :: TxId -> QueryTxSet (Maybe (Either TxRelation CBOR))
     GetTxOut :: (TxId, Word32) -> QueryTxSet (Maybe W.TxOut)
 
 -- | Implementation of a 'QueryStore' for 'TxSet'.
@@ -66,7 +68,7 @@ instance Query QueryTxSet where
 
 runQuery :: TxSet -> QueryTxSet b -> b
 runQuery (TxSet txs) = \case
-    GetByTxId txid -> Map.lookup txid txs
+    GetByTxId txid -> Left <$> Map.lookup txid txs
     GetTxOut (txid,index) -> do
         tx <- Map.lookup txid txs
         let outputs
