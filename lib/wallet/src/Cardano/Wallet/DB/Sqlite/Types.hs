@@ -752,4 +752,4 @@ instance PersistFieldSql BlockHeight where
 iso8601DateFormatHMS :: String
 -- Equivalent to `iso8601DateFormatHMS (Just "%H:%M:%S")`
 -- The function `iso8601DateFormatHMS` has been deprecated from the `time` library.
-iso8601DateFormatHMS = "%Y-%m-%d %H:%M:%S"
+iso8601DateFormatHMS = "%Y-%m-%dT%H:%M:%S"
