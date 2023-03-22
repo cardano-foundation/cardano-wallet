@@ -231,10 +231,11 @@ end
 task :get_latest_bins, [:branch, :state] do |_task, args|
   log ">> Getting latest node and wallet binaries from Buildkite into #{BINS}"
   branch = args[:branch] || 'master'
-  state = args[:state] || 'passed'
+  state = args[:state] || 'any'
+  filter = state == 'any' ? { branch: branch } : { branch: branch, state: state }
   bk = Buildkite.new
-  last_build = bk.last_build_number(branch: branch, state: state)
-  log "Latest passing buildkite '#{bk.pipeline}' pipeline for branch '#{branch}' is #{last_build}"
+  last_build = bk.last_build_number(filter)
+  log "Latest #{filter} buildkite '#{bk.pipeline}' pipeline build is #{last_build}"
   jobs = bk.jobs(last_build)
   mk_dir(BINS)
 
