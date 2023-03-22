@@ -113,6 +113,8 @@ import Cardano.Wallet.Primitive.Types.Tx.TxIn
     ( TxIn (..) )
 import Cardano.Wallet.Primitive.Types.UTxO
     ( DeltaUTxO, UTxO (..), balance, excluding, excludingD, receiveD )
+import Control.Applicative
+    ( (<|>) )
 import Control.DeepSeq
     ( NFData (..), deepseq )
 import Control.Monad.Trans.State.Strict
@@ -791,13 +793,13 @@ applyOurTxToUTxO !slot !blockHeight !s !tx !u0 =
     -- NOTE 2: We do not have in practice the actual input amounts, yet we
     -- do make the assumption that if one input is ours, then all inputs are
     -- necessarily ours and therefore, known as part of our current UTxO.
-    actualFee direction = fromMaybe byronFee (tx ^. #fee)
+    actualFee direction = fromMaybe (Coin 0) (tx ^. #fee <|> byronFee)
       where
-        byronFee :: Coin
+        byronFee :: Maybe Coin
         byronFee =
             case direction of
-                Incoming -> distance totalOut totalIn
-                Outgoing -> distance totalIn totalOut
+                Incoming -> Nothing
+                Outgoing -> Just $ distance totalIn totalOut
         totalOut = F.fold (TxOut.coin <$> outputs tx)
         totalIn = TB.getCoin spent
 
