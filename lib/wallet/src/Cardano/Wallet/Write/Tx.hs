@@ -5,6 +5,7 @@
 {-# LANGUAGE GADTs #-}
 {-# LANGUAGE LambdaCase #-}
 {-# LANGUAGE NamedFieldPuns #-}
+{-# LANGUAGE OverloadedLabels #-}
 {-# LANGUAGE RankNTypes #-}
 {-# LANGUAGE ScopedTypeVariables #-}
 {-# LANGUAGE StandaloneDeriving #-}
@@ -42,6 +43,11 @@ module Cardano.Wallet.Write.Tx
     , ShelleyLedgerEra
     , cardanoEraFromRecentEra
     , shelleyBasedEraFromRecentEra
+    , fromCardanoTx
+    , toCardanoUTxO
+    , fromCardanoUTxO
+    , toCardanoValue
+    , toCardanoTx
 
     -- ** Existential wrapper
     , AnyRecentEra (..)
@@ -66,6 +72,7 @@ module Cardano.Wallet.Write.Tx
     , outputs
     , modifyTxOutputs
     , modifyLedgerBody
+    , emptyTx
 
     -- * TxOut
     , Core.TxOut
@@ -122,10 +129,6 @@ module Cardano.Wallet.Write.Tx
     , utxoFromTxOutsInRecentEra
     , utxoFromTxOutsInLatestEra
     , utxoFromTxOuts
-    , fromCardanoTx
-    , toCardanoUTxO
-    , fromCardanoUTxO
-    , toCardanoValue
 
     -- * Balancing
     , evaluateMinimumFee
@@ -155,7 +158,6 @@ import Cardano.Ledger.Era
     ( Crypto )
 import Cardano.Ledger.Mary
     ( MaryValue )
-
 import Cardano.Ledger.SafeHash
     ( SafeHash, extractHash, unsafeMakeSafeHash )
 import Cardano.Ledger.Serialization
@@ -178,12 +180,20 @@ import Data.Coerce
     ( coerce )
 import Data.Foldable
     ( toList )
+import Data.Generics.Internal.VL.Lens
+    ( (^.) )
+import Data.Generics.Labels
+    ()
+import Data.IntCast
+    ( intCast )
 import Data.Maybe
     ( fromMaybe )
 import Data.Maybe.Strict
     ( StrictMaybe (..) )
 import Data.Typeable
     ( Typeable )
+import Numeric.Natural
+    ( Natural )
 import Ouroboros.Consensus.Shelley.Eras
     ( StandardAlonzo, StandardBabbage, StandardConway )
 
@@ -199,6 +209,7 @@ import qualified Cardano.Ledger.Alonzo.Scripts as Alonzo
 import qualified Cardano.Ledger.Alonzo.Tx as Alonzo
 import qualified Cardano.Ledger.Alonzo.TxBody as Alonzo
 import qualified Cardano.Ledger.Babbage as Babbage
+import qualified Cardano.Ledger.Babbage.Tx as Babbage
 import qualified Cardano.Ledger.Babbage.TxBody as Babbage
 import qualified Cardano.Ledger.Conway.TxBody as Conway
 import qualified Cardano.Ledger.Core as Core
@@ -799,6 +810,11 @@ modifyLedgerBody f (Cardano.Tx body keyWits) = Cardano.Tx body' keyWits
                         auxData
                         validity
 
+emptyTx :: RecentEra era -> Core.Tx (ShelleyLedgerEra era)
+emptyTx RecentEraConway = Core.mkBasicTx Core.mkBasicTxBody
+emptyTx RecentEraBabbage = Core.mkBasicTx Core.mkBasicTxBody
+emptyTx RecentEraAlonzo = Core.mkBasicTx Core.mkBasicTxBody
+
 --------------------------------------------------------------------------------
 -- Compatibility
 --------------------------------------------------------------------------------
@@ -813,6 +829,12 @@ fromCardanoTx = \case
     Cardano.ByronTx {} ->
         case (recentEra @era) of
             {}
+
+toCardanoTx
+    :: forall era. IsRecentEra era
+    => Core.Tx (Cardano.ShelleyLedgerEra era)
+    -> Cardano.Tx era
+toCardanoTx = Cardano.ShelleyTx (shelleyBasedEraFromRecentEra $ recentEra @era)
 
 -- | NOTE: The roundtrip
 -- @
@@ -876,10 +898,23 @@ evaluateMinimumFee era pp tx kwc =
         Shelley.evaluateTransactionFee pp tx nKeyWits
 
     bootWitnessFee :: Coin
-    bootWitnessFee =
-        if nBootstrapWits > 0
-        then error "evaluateMinimumFee: bootstrap witnesses not yet supported"
-        else mempty
+    bootWitnessFee = Coin $
+        intCast $ feePerByte * byteCount
+      where
+        byteCount :: Natural
+        byteCount = sizeOf_BootstrapWitnesses $ intCast nBootstrapWits
+
+        -- Matching implementation in "Cardano.Wallet.Shelley.Transaction".
+        -- Equivalence is tested in property.
+        sizeOf_BootstrapWitnesses :: Natural -> Natural
+        sizeOf_BootstrapWitnesses 0 = 0
+        sizeOf_BootstrapWitnesses n = 4 + 180 * n
+
+        feePerByte :: Natural
+        feePerByte = case era of
+            RecentEraConway -> pp ^. #_minfeeA
+            RecentEraBabbage -> pp ^. #_minfeeA
+            RecentEraAlonzo -> pp ^. #_minfeeA
 
 -- | Evaluate the /balance/ of a transaction using the ledger.
 --

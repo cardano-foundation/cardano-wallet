@@ -23,6 +23,7 @@
 {-# LANGUAGE UndecidableInstances #-}
 {-# LANGUAGE ViewPatterns #-}
 {- HLINT ignore "Use <$>" -}
+{- HLINT ignore "Use camelCase" -}
 
 -- |
 -- Copyright: © 2020 IOHK
@@ -68,6 +69,7 @@ module Cardano.Wallet.Shelley.Transaction
     , mkTxSkeleton
     , mkUnsignedTx
     , txConstraints
+    , sizeOf_BootstrapWitnesses
     ) where
 
 import Prelude
@@ -997,14 +999,15 @@ evaluateMinimumFee
     -> Coin
 evaluateMinimumFee pp (KeyWitnessCount nWits nBootWits) body =
     fromCardanoLovelace (Cardano.evaluateTransactionFee pp body nWits 0)
-    <> bootWitFees
-  where
+        <> bootWitFees
     -- NOTE: Cardano.evaluateTransactionFee will error if passed non-zero
     -- nBootWits, so we need to account for it separately.
-    bootWitFees =
-        if nBootWits > 0
-        then error "evaluateMinimumFee: bootstrap wits not yet supported"
-        else mempty
+  where
+    bootWitFees = Coin.fromNatural $
+        Cardano.protocolParamTxFeePerByte pp * bytes
+      where
+        bytes :: Natural
+        bytes = fromIntegral $ sizeOf_BootstrapWitnesses $ intCast nBootWits
 
 -- | Estimate the size of the transaction (body) when fully signed.
 estimateSignedTxSize
@@ -2257,7 +2260,7 @@ estimateTxSize era skeleton =
         + sizeOf_VKeyWitnesses
         + sizeOf_NativeScripts txMintOrBurnScripts
         + maybe 0 (determinePaymentTemplateSize txMintOrBurnScripts) txPaymentTemplate
-        + sizeOf_BootstrapWitnesses
+        + sizeOf_BootstrapWitnesses numberOf_BootstrapWitnesses
       where
         -- ?0 => [* vkeywitness ]
         sizeOf_VKeyWitnesses
@@ -2268,117 +2271,134 @@ estimateTxSize era skeleton =
         -- ?1 => [* native_script ]
 
         -- ?2 => [* bootstrap_witness ]
-        sizeOf_BootstrapWitnesses
-            = (if numberOf_BootstrapWitnesses > 0
-                then sizeOf_Array + sizeOf_SmallUInt
-                else 0)
-            + sizeOf_BootstrapWitness * numberOf_BootstrapWitnesses
+sizeOf_BootstrapWitnesses :: Integer -> Integer
+sizeOf_BootstrapWitnesses n
+    = (if n > 0
+        then sizeOf_Array + sizeOf_SmallUInt
+        else 0)
+    + sizeOf_BootstrapWitness * n
 
-    -- vkeywitness =
-    --  [ $vkey
-    --  , $signature
-    --  ]
-    sizeOf_VKeyWitness
-        = sizeOf_SmallArray
-        + sizeOf_VKey
-        + sizeOf_Signature
+-- vkeywitness =
+--  [ $vkey
+--  , $signature
+--  ]
+sizeOf_VKeyWitness :: Integer
+sizeOf_VKeyWitness
+    = sizeOf_SmallArray
+    + sizeOf_VKey
+    + sizeOf_Signature
 
-    -- bootstrap_witness =
-    --  [ public_key : $vkey
-    --  , signature  : $signature
-    --  , chain_code : bytes .size 32
-    --  , attributes : bytes
-    --  ]
-    sizeOf_BootstrapWitness
-        = sizeOf_SmallArray
-        + sizeOf_VKey
-        + sizeOf_Signature
-        + sizeOf_ChainCode
-        + sizeOf_Attributes
-      where
-        sizeOf_ChainCode  = 34
-        sizeOf_Attributes = 45 -- NOTE: could be smaller by ~34 for Icarus
+-- bootstrap_witness =
+--  [ public_key : $vkey
+--  , signature  : $signature
+--  , chain_code : bytes .size 32
+--  , attributes : bytes
+--  ]
+sizeOf_BootstrapWitness :: Integer
+sizeOf_BootstrapWitness
+    = sizeOf_SmallArray
+    + sizeOf_VKey
+    + sizeOf_Signature
+    + sizeOf_ChainCode
+    + sizeOf_Attributes
+  where
+    sizeOf_ChainCode  = 34
+    sizeOf_Attributes = 45 -- NOTE: could be smaller by ~34 for Icarus
 
-    -- native_script =
-    --   [ script_pubkey      = (0, addr_keyhash)
-    --   // script_all        = (1, [ * native_script ])
-    --   // script_any        = (2, [ * native_script ])
-    --   // script_n_of_k     = (3, n: uint, [ * native_script ])
-    --   // invalid_before    = (4, uint)
-    --      ; Timelock validity intervals are half-open intervals [a, b).
-    --      ; This field specifies the left (included) endpoint a.
-    --   // invalid_hereafter = (5, uint)
-    --      ; Timelock validity intervals are half-open intervals [a, b).
-    --      ; This field specifies the right (excluded) endpoint b.
-    --   ]
-    sizeOf_NativeScript :: Script object -> Integer
-    sizeOf_NativeScript = \case
-        RequireSignatureOf _ ->
-            sizeOf_SmallUInt + sizeOf_Hash28
-        RequireAllOf ss ->
-            sizeOf_SmallUInt + sizeOf_Array + sumVia sizeOf_NativeScript ss
-        RequireAnyOf ss ->
-            sizeOf_SmallUInt + sizeOf_Array + sumVia sizeOf_NativeScript ss
-        RequireSomeOf _ ss ->
-            sizeOf_SmallUInt
-                + sizeOf_UInt
-                + sizeOf_Array
-                + sumVia sizeOf_NativeScript ss
-        ActiveFromSlot _ ->
-            sizeOf_SmallUInt + sizeOf_UInt
-        ActiveUntilSlot _ ->
-            sizeOf_SmallUInt + sizeOf_UInt
+-- native_script =
+--   [ script_pubkey      = (0, addr_keyhash)
+--   // script_all        = (1, [ * native_script ])
+--   // script_any        = (2, [ * native_script ])
+--   // script_n_of_k     = (3, n: uint, [ * native_script ])
+--   // invalid_before    = (4, uint)
+--      ; Timelock validity intervals are half-open intervals [a, b).
+--      ; This field specifies the left (included) endpoint a.
+--   // invalid_hereafter = (5, uint)
+--      ; Timelock validity intervals are half-open intervals [a, b).
+--      ; This field specifies the right (excluded) endpoint b.
+--   ]
+sizeOf_NativeScript :: Script object -> Integer
+sizeOf_NativeScript = \case
+    RequireSignatureOf _ ->
+        sizeOf_SmallUInt + sizeOf_Hash28
+    RequireAllOf ss ->
+        sizeOf_SmallUInt + sizeOf_Array + sumVia sizeOf_NativeScript ss
+    RequireAnyOf ss ->
+        sizeOf_SmallUInt + sizeOf_Array + sumVia sizeOf_NativeScript ss
+    RequireSomeOf _ ss ->
+        sizeOf_SmallUInt
+            + sizeOf_UInt
+            + sizeOf_Array
+            + sumVia sizeOf_NativeScript ss
+    ActiveFromSlot _ ->
+        sizeOf_SmallUInt + sizeOf_UInt
+    ActiveUntilSlot _ ->
+        sizeOf_SmallUInt + sizeOf_UInt
 
-    -- A Blake2b-224 hash, resulting in a 28-byte digest wrapped in CBOR, so
-    -- with 2 bytes overhead (length <255, but length > 23)
-    sizeOf_Hash28
-        = 30
+-- A Blake2b-224 hash, resulting in a 28-byte digest wrapped in CBOR, so
+-- with 2 bytes overhead (length <255, but length > 23)
+sizeOf_Hash28 :: Integer
+sizeOf_Hash28
+    = 30
 
-    -- A Blake2b-256 hash, resulting in a 32-byte digest wrapped in CBOR, so
-    -- with 2 bytes overhead (length <255, but length > 23)
-    sizeOf_Hash32
-        = 34
+-- A Blake2b-256 hash, resulting in a 32-byte digest wrapped in CBOR, so
+-- with 2 bytes overhead (length <255, but length > 23)
+sizeOf_Hash32 :: Integer
+sizeOf_Hash32
+    = 34
 
-    -- A 32-byte Ed25519 public key, encoded as a CBOR-bytestring so with 2
-    -- bytes overhead (length < 255, but length > 23)
-    sizeOf_VKey
-        = 34
+-- A 32-byte Ed25519 public key, encoded as a CBOR-bytestring so with 2
+-- bytes overhead (length < 255, but length > 23)
+sizeOf_VKey :: Integer
+sizeOf_VKey
+    = 34
 
-    -- A 64-byte Ed25519 signature, encoded as a CBOR-bytestring so with 2
-    -- bytes overhead (length < 255, but length > 23)
-    sizeOf_Signature
-        = 66
+-- A 64-byte Ed25519 signature, encoded as a CBOR-bytestring so with 2
+-- bytes overhead (length < 255, but length > 23)
+sizeOf_Signature :: Integer
+sizeOf_Signature
+    = 66
 
-    -- A CBOR UInt which is less than 23 in value fits on a single byte. Beyond,
-    -- the first byte is used to encode the number of bytes necessary to encode
-    -- the number itself, followed by the number itself.
-    --
-    -- When considering a 'UInt', we consider the worst case scenario only where
-    -- the uint is encoded over 4 bytes, so up to 2^32 which is fine for most
-    -- cases but coin values.
-    sizeOf_SmallUInt = 1
-    sizeOf_UInt = 5
-    sizeOf_LargeUInt = 9
+-- A CBOR UInt which is less than 23 in value fits on a single byte. Beyond,
+-- the first byte is used to encode the number of bytes necessary to encode
+-- the number itself, followed by the number itself.
+--
+-- When considering a 'UInt', we consider the worst case scenario only where
+-- the uint is encoded over 4 bytes, so up to 2^32 which is fine for most
+-- cases but coin values.
+sizeOf_SmallUInt :: Integer
+sizeOf_SmallUInt = 1
 
-    -- A CBOR Int which is less than 23 in value fits on a single byte. Beyond,
-    -- the first byte is used to encode the number of bytes necessary to encode
-    -- the number, followed by the number itself. In this case, 8 bytes are used
-    -- to encode an int64, plus one byte to encode the number of bytes
-    -- necessary.
-    sizeOf_Int64 = 9
+sizeOf_UInt :: Integer
+sizeOf_UInt = 5
 
-    -- A CBOR array with less than 23 elements, fits on a single byte, followed
-    -- by each key-value pair (encoded as two concatenated CBOR elements).
-    sizeOf_SmallMap = 1
+sizeOf_LargeUInt :: Integer
+sizeOf_LargeUInt = 9
 
-    -- A CBOR array with less than 23 elements, fits on a single byte, followed
-    -- by each elements. Otherwise, the length of the array is encoded first,
-    -- very much like for UInt.
-    --
-    -- When considering an 'Array', we consider large scenarios where arrays can
-    -- have up to 65536 elements.
-    sizeOf_SmallArray = 1
-    sizeOf_Array = 3
+-- A CBOR Int which is less than 23 in value fits on a single byte. Beyond,
+-- the first byte is used to encode the number of bytes necessary to encode
+-- the number, followed by the number itself. In this case, 8 bytes are used
+-- to encode an int64, plus one byte to encode the number of bytes
+-- necessary.
+sizeOf_Int64 :: Integer
+sizeOf_Int64 = 9
+
+-- A CBOR array with less than 23 elements, fits on a single byte, followed
+-- by each key-value pair (encoded as two concatenated CBOR elements).
+sizeOf_SmallMap :: Integer
+sizeOf_SmallMap = 1
+
+-- A CBOR array with less than 23 elements, fits on a single byte, followed
+-- by each elements. Otherwise, the length of the array is encoded first,
+-- very much like for UInt.
+--
+-- When considering an 'Array', we consider large scenarios where arrays can
+-- have up to 65536 elements.
+sizeOf_SmallArray :: Integer
+sizeOf_SmallArray = 1
+
+sizeOf_Array :: Integer
+sizeOf_Array = 3
 
 -- Small helper function for summing values. Given a list of values, get the sum
 -- of the values, after the given function has been applied to each value.

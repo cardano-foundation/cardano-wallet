@@ -65,6 +65,9 @@ module Test.QuickCheck.Extra
     , report
     , verify
 
+      -- * Expectations
+    , (.>=.)
+
       -- * Pretty-printing
     , Pretty (..)
 
@@ -641,6 +644,14 @@ verify condition conditionTitle =
     (.&&.) (counterexample counterexampleText $ property condition)
   where
     counterexampleText = "Condition violated: " <> conditionTitle
+
+--------------------------------------------------------------------------------
+-- Expectations
+--------------------------------------------------------------------------------
+
+(.>=.) :: (Show a, Ord a) => a -> a -> Property
+a .>=. b = counterexample (show a <> " < " <> show b)
+    $ property $ a >= b
 
 --------------------------------------------------------------------------------
 -- Pretty-printing
