@@ -635,6 +635,7 @@ import qualified Cardano.Wallet.Primitive.Types.UTxOSelection as UTxOSelection
 import qualified Cardano.Wallet.Primitive.Types.UTxOStatistics as UTxOStatistics
 import qualified Cardano.Wallet.Read as Read
 import qualified Cardano.Wallet.Write.Tx as WriteTx
+import qualified Cardano.Wallet.Write.Tx.Balance as Write
 import qualified Data.ByteArray as BA
 import qualified Data.Foldable as F
 import qualified Data.List as L
@@ -1983,21 +1984,21 @@ type MakeRewardAccountBuilder k =
 --
 -- Requires the encryption passphrase in order to decrypt the root private key.
 buildSignSubmitTransaction
-    :: forall k ktype s (n :: NetworkDiscriminant)
+    :: forall k s (n :: NetworkDiscriminant)
      . ( Typeable n
        , Typeable s
        , Typeable k
        , WalletKey k
        , HardDerivation k
        , Bounded (Index (AddressIndexDerivationType k) (AddressCredential k))
-       , IsOwned s k ktype
+       , IsOwned s k 'CredFromKeyK
        , IsOurs s RewardAccount
        , AddressBookIso s
        )
     => TimeInterpreter (ExceptT PastHorizonException IO)
     -> DBLayer IO s k
     -> NetworkLayer IO Read.Block
-    -> TransactionLayer k ktype SealedTx
+    -> TransactionLayer k 'CredFromKeyK SealedTx
     -> Passphrase "user"
     -> WalletId
     -> ChangeAddressGen s
@@ -2028,7 +2029,7 @@ buildSignSubmitTransaction ti db@DBLayer{..} netLayer txLayer pwd walletId
                             $ CS.toInternalUTxOMap
                             $ availableUTxO @s (Set.fromList pendingTxs) wallet
 
-                    buildAndSignTransactionPure @k @ktype @s @n
+                    buildAndSignTransactionPure @k @s @n
                         pureTimeInterpreter
                         utxoIndex
                         rootKey
@@ -2077,14 +2078,14 @@ buildSignSubmitTransaction ti db@DBLayer{..} netLayer txLayer pwd walletId
     wrapBalanceConstructError = either ExceptionBalanceTx ExceptionConstructTx
 
 buildAndSignTransactionPure
-    :: forall k ktype s (n :: NetworkDiscriminant)
+    :: forall k s (n :: NetworkDiscriminant)
      . ( Typeable n
        , Typeable s
        , Typeable k
        , WalletKey k
        , HardDerivation k
        , Bounded (Index (AddressIndexDerivationType k) (AddressCredential k))
-       , IsOwned s k ktype
+       , IsOwned s k 'CredFromKeyK
        , IsOurs s RewardAccount
        )
     => TimeInterpreter (Either PastHorizonException)
@@ -2093,7 +2094,7 @@ buildAndSignTransactionPure
     -> PassphraseScheme
     -> Passphrase "user"
     -> ProtocolParameters
-    -> TransactionLayer k ktype SealedTx
+    -> TransactionLayer k 'CredFromKeyK SealedTx
     -> ChangeAddressGen s
     -> AnyRecentEra
     -> PreSelection
@@ -2109,13 +2110,13 @@ buildAndSignTransactionPure
     WriteTx.withRecentEra era $ \(_ :: WriteTx.RecentEra recentEra) -> do
         wallet <- get
         (unsignedBalancedTx, updatedWalletState) <- lift $
-            buildTransactionPure @s @k @ktype @n @recentEra
+            buildTransactionPure @s @k @n @recentEra
                 wallet ti utxoIndex txLayer changeAddrGen
                 protocolParams preSelection txCtx
         put wallet { getState = updatedWalletState }
 
         let passphrase = preparePassphrase passphraseScheme userPassphrase
-            signedTx = signTransaction @k @ktype
+            signedTx = signTransaction @k @'CredFromKeyK
                 txLayer
                 anyCardanoEra
                 (isOwned (getState wallet) (rootKey, passphrase))
@@ -2205,7 +2206,7 @@ buildTransaction DBLayer{..} txLayer timeInterpreter walletId
                 availableUTxO @s pendingTxs wallet
 
         fmap (\s' -> wallet { getState = s' }) <$>
-            buildTransactionPure @s @_ @'CredFromKeyK @n @era
+            buildTransactionPure @s @_ @n @era
                 wallet
                 pureTimeInterpreter
                 utxoIndex
@@ -2220,7 +2221,7 @@ buildTransaction DBLayer{..} txLayer timeInterpreter walletId
                 & either (liftIO . throwIO) pure
 
 buildTransactionPure ::
-    forall s k ktype (n :: NetworkDiscriminant) era
+    forall s k (n :: NetworkDiscriminant) era
     . ( Typeable n
       , Typeable s
       , Typeable k
@@ -2229,7 +2230,7 @@ buildTransactionPure ::
     => Wallet s
     -> TimeInterpreter (Either PastHorizonException)
     -> UTxOIndex WalletUTxO
-    -> TransactionLayer k ktype SealedTx
+    -> TransactionLayer k 'CredFromKeyK SealedTx
     -> ChangeAddressGen s
     -> ProtocolParameters
     -> PreSelection
@@ -2251,11 +2252,9 @@ buildTransactionPure
                 (Left preSelection)
 
     withExceptT Left $
-        balanceTransaction @_ @_ @s @k @ktype
+        balanceTransaction @_ @_ @s
             nullTracer
-            txLayer
-            Nothing -- "To input scripts" resolver
-            Nothing -- Script template
+            (Write.allKeyPaymentCredentials txLayer)
             nodeProtocolParameters
             ti
             utxoIndex
@@ -2894,7 +2893,7 @@ delegationFee db@DBLayer{atomically, walletsDB} netLayer
         stdGen <- initStdGen
         feePercentiles <- calculateFeePercentiles $ do
             (Cardano.Tx (Cardano.TxBody bodyContent) _, _updatedWallet) <-
-                buildTransactionPure @s @k @_ @n @era
+                buildTransactionPure @s @k @n @era
                     wallet pureTimeInterpreter utxoIndex txLayer
                     changeAddressGen protocolParams (PreSelection [])
                     defaultTransactionCtx
@@ -3809,7 +3808,10 @@ instance HasSeverityAnnotation TxSubmitLog where
 
 -- | Construct the default 'ChangeAddressGen s' for a given 's'.
 defaultChangeAddressGen
-    :: forall s (k :: Depth -> * -> *). (GenChange s, BoundedAddressLength k)
+    :: forall s (k :: Depth -> Type -> Type).
+        ( GenChange s
+        , BoundedAddressLength k
+        )
     => ArgGenChange s
     -> Proxy k
     -> ChangeAddressGen s

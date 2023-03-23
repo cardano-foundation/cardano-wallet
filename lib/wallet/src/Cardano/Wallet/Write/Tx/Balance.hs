@@ -1,3 +1,4 @@
+{-# LANGUAGE DataKinds #-}
 {-# LANGUAGE DeriveGeneric #-}
 {-# LANGUAGE DuplicateRecordFields #-}
 {-# LANGUAGE ExistentialQuantification #-}
@@ -5,6 +6,7 @@
 {-# LANGUAGE LambdaCase #-}
 {-# LANGUAGE NamedFieldPuns #-}
 {-# LANGUAGE OverloadedLabels #-}
+{-# LANGUAGE Rank2Types #-}
 {-# LANGUAGE ScopedTypeVariables #-}
 {-# LANGUAGE TupleSections #-}
 {-# LANGUAGE TypeApplications #-}
@@ -48,6 +50,10 @@ import Cardano.Tx.Balance.Internal.CoinSelection
     , performSelection
     , toExternalUTxOMap
     )
+import Cardano.Wallet.Primitive.AddressDerivation
+    ( Depth (..) )
+import Cardano.Wallet.Primitive.AddressDerivation.Shared
+    ( SharedKey (..) )
 import Cardano.Wallet.Primitive.Slotting
     ( PastHorizonException, TimeInterpreter )
 import Cardano.Wallet.Primitive.Types
@@ -290,15 +296,64 @@ instance Buildable (PartialTx era) where
         cardanoTxF :: Cardano.Tx era -> Builder
         cardanoTxF tx' = pretty $ pShow tx'
 
+-- | Assumptions about the UTxO which are needed for coin-selection.
+--
+-- In practice turns out to be
+--
+-- @
+--  data UTxOAssumptions
+--      = AllKeyPaymentCredentials
+--      | AllByronKeyPaymentCredentials
+--      | AllScriptPaymentCredentialsFrom ScriptTemplate scriptLookup
+-- @
+--
+-- however representing it as such is inconvenient at the moment.
+data UTxOAssumptions = forall k ktype. UTxOAssumptions
+    { txLayer
+        :: TransactionLayer k ktype SealedTx
+        -- TODO: Replace with smaller and smaller parts of 'TransactionLayer'
+    , inputScriptLookup
+        :: Maybe ([(W.TxIn, W.TxOut)] -> [CA.Script KeyHash])
+    , inputScriptTemplate
+        :: Maybe ScriptTemplate
+    , description :: String
+    }
+
+-- | Assumes all 'UTxO' entries have addresses with key payment credentials;
+-- either normal, post-Shelley credentials, or boostrap/byron credentials
+-- depending on the 'k' of the supplied 'TransactionLayer'.
+allKeyPaymentCredentials
+    :: forall k. TransactionLayer k 'CredFromKeyK SealedTx
+    -> UTxOAssumptions
+allKeyPaymentCredentials tl = UTxOAssumptions
+    { txLayer = tl
+    , inputScriptLookup = Nothing
+    , inputScriptTemplate = Nothing
+    , description = "allKeyPaymentCredentials"
+    }
+
+-- | Assumes all 'UTxO' entries have addresses with script payment credentials,
+-- where the scripts are both derived from the 'ScriptTemplate' and can be
+-- looked up using the given function.
+allScriptPaymentCredentials
+    :: ([(W.TxIn, W.TxOut)] -> [CA.Script KeyHash])
+    -> ScriptTemplate
+    -> TransactionLayer SharedKey 'CredFromScriptK SealedTx
+    -> UTxOAssumptions
+allScriptPaymentCredentials scriptLookup template tl = UTxOAssumptions
+    { txLayer = tl
+    , inputScriptLookup = Just scriptLookup
+    , inputScriptTemplate = Just template
+    , description = "allScriptPaymentCredentials"
+    }
+
 balanceTransaction
-    :: forall era m changeState k ktype.
+    :: forall era m changeState.
         ( MonadRandom m
         , IsRecentEra era
         )
     => Tracer m BalanceTxLog
-    -> TransactionLayer k ktype SealedTx
-    -> Maybe ([(W.TxIn, W.TxOut)] -> [CA.Script KeyHash])
-    -> Maybe ScriptTemplate
+    -> UTxOAssumptions
     -> (W.ProtocolParameters, Cardano.ProtocolParameters)
     -- ^ 'Cardano.ProtocolParameters' can be retrieved via a Local State Query
     -- to a local node.
@@ -324,8 +379,7 @@ balanceTransaction
     -> changeState
     -> PartialTx era
     -> ExceptT ErrBalanceTx m (Cardano.Tx era, changeState)
-balanceTransaction
-    tr txLayer toInpScriptsM mScriptTemplate pp ti idx genChange s unadjustedPtx = do
+balanceTransaction tr utxoAssumptions pp ti utxo genChange s unadjustedPtx = do
     -- TODO [ADP-1490] Take 'Ledger.PParams era' directly as argument, and avoid
     -- converting to/from Cardano.ProtocolParameters. This may affect
     -- performance. The addition of this one specific conversion seems to have
@@ -337,9 +391,8 @@ balanceTransaction
 
     let balanceWith strategy =
             balanceTransactionWithSelectionStrategyAndNoZeroAdaAdjustment
-                @era @m @changeState @k @ktype
-                tr txLayer toInpScriptsM mScriptTemplate
-                pp ti idx genChange s strategy adjustedPtx
+                @era @m @changeState
+                tr utxoAssumptions pp ti utxo genChange s strategy adjustedPtx
     balanceWith SelectionStrategyOptimal
         `catchE` \e ->
             if minimalStrategyIsWorthTrying e
@@ -414,14 +467,12 @@ increaseZeroAdaOutputs era pp = modifyLedgerBody $
 
 -- | Internal helper to 'balanceTransaction'
 balanceTransactionWithSelectionStrategyAndNoZeroAdaAdjustment
-    :: forall era m changeState k ktype.
+    :: forall era m changeState.
         ( MonadRandom m
         , IsRecentEra era
         )
     => Tracer m BalanceTxLog
-    -> TransactionLayer k ktype SealedTx
-    -> Maybe ([(W.TxIn, W.TxOut)] -> [CA.Script KeyHash])
-    -> Maybe ScriptTemplate
+    -> UTxOAssumptions
     -> (W.ProtocolParameters, Cardano.ProtocolParameters)
     -> TimeInterpreter (Either PastHorizonException)
     -> UTxOIndex WalletUTxO
@@ -432,9 +483,11 @@ balanceTransactionWithSelectionStrategyAndNoZeroAdaAdjustment
     -> ExceptT ErrBalanceTx m (Cardano.Tx era, changeState)
 balanceTransactionWithSelectionStrategyAndNoZeroAdaAdjustment
     tr
-    txLayer
-    toInpScriptsM
-    mScriptTemplate
+    (UTxOAssumptions
+        txLayer
+        toInpScriptsM
+        mScriptTemplate
+        _desc)
     (pp, nodePParams)
     ti
     internalUtxoAvailable

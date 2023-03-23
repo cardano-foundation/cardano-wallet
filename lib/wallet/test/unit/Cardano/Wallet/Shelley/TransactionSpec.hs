@@ -300,6 +300,8 @@ import Cardano.Wallet.Write.Tx.Balance
     , ErrBalanceTxInternalError (..)
     , ErrSelectAssets (..)
     , PartialTx (..)
+    , UTxOAssumptions (..)
+    , allKeyPaymentCredentials
     , balanceTransaction
     , posAndNegFromCardanoValue
     )
@@ -2544,6 +2546,7 @@ balanceTransactionSpec = describe "balanceTransaction" $ do
                 ]
         let balance =
                 balanceTransactionWithDummyChangeState
+                    (allKeyPaymentCredentials testTxLayer)
                     walletUTxO
                     testStdGenSeed
 
@@ -2746,9 +2749,7 @@ balanceTransactionSpec = describe "balanceTransaction" $ do
     balanceTx tx = flip evalRand (stdGenFromSeed testStdGenSeed) $ runExceptT $
        fst <$> balanceTransaction
             nullTracer
-            testTxLayer
-            Nothing
-            Nothing
+            (allKeyPaymentCredentials testTxLayer)
             mockProtocolParametersForBalancing
             (dummyTimeInterpreterWithHorizon horizon)
             utxoIndex
@@ -3639,9 +3640,7 @@ balanceTransaction' (Wallet' utxoIndex wallet _pending) seed tx  =
     flip evalRand (stdGenFromSeed seed) $ runExceptT $
         fst <$> balanceTransaction
             nullTracer
-            testTxLayer
-            Nothing
-            Nothing
+            (allKeyPaymentCredentials testTxLayer)
             mockProtocolParametersForBalancing
             dummyTimeInterpreter
             utxoIndex
@@ -3685,19 +3684,18 @@ dummyChangeAddrGen = ChangeAddressGen
 
 balanceTransactionWithDummyChangeState
     :: WriteTx.IsRecentEra era
-    => UTxO
+    => UTxOAssumptions
+    -> UTxO
     -> StdGenSeed
     -> PartialTx era
     -> Either
         ErrBalanceTx
         (Cardano.Tx era, DummyChangeState)
-balanceTransactionWithDummyChangeState utxo seed ptx =
+balanceTransactionWithDummyChangeState cs utxo seed ptx =
     flip evalRand (stdGenFromSeed seed) $ runExceptT $
         balanceTransaction @_ @(Rand StdGen)
             (nullTracer @(Rand StdGen))
-            testTxLayer
-            Nothing
-            Nothing
+            cs
             mockProtocolParametersForBalancing
             dummyTimeInterpreter
             utxoIndex

@@ -743,14 +743,13 @@ noTxUpdate :: TxUpdate
 noTxUpdate = TxUpdate [] [] [] [] UseOldTxFee
 
 -- | Method to use when updating the fee of a transaction.
-data TxFeeUpdate = UseOldTxFee
-                 -- ^ Instead of updating the fee, just use the old fee of the
-                 -- Tx (no-op for fee update).
-                 | UseNewTxFee Coin
-                 -- ^ Specify a new fee to use instead.
+data TxFeeUpdate
+    = UseOldTxFee
+        -- ^ Instead of updating the fee, just use the old fee of the
+        -- Tx (no-op for fee update).
+    | UseNewTxFee Coin
+        -- ^ Specify a new fee to use instead.
     deriving (Eq, Show)
-
-
 -- Used to add inputs and outputs when balancing a transaction.
 --
 -- If the transaction contains existing key witnesses, it will return `Left`,

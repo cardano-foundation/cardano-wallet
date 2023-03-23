@@ -3058,11 +3058,13 @@ balanceTransaction
                 => Write.PartialTx era
                 -> Handler (Cardano.Tx era)
             balanceTx partialTx =
-                liftHandler $ fst <$> Write.balanceTransaction @_ @IO @s @k @ktype
+                liftHandler $ fst <$> Write.balanceTransaction @_ @IO @s
                     (MsgWallet . W.MsgBalanceTx >$< wrk ^. W.logger)
-                    (ctx ^. typed)
-                    genInpScripts
-                    mScriptTemplate
+                    (Write.UTxOAssumptions
+                        txLayer
+                        genInpScripts
+                        mScriptTemplate
+                        "<either script or key payment credentials>")
                     (pp, nodePParams)
                     ti
                     utxoIndex
@@ -3450,7 +3452,7 @@ joinStakePool
             ti = timeInterpreter netLayer
 
         (BuiltTx{..}, txTime) <- liftIO $
-            W.buildSignSubmitTransaction @k @'CredFromKeyK @s @n
+            W.buildSignSubmitTransaction @k @s @n
                 ti
                 db
                 netLayer
@@ -3548,7 +3550,7 @@ quitStakePool ctx@ApiLayer{..} argGenChange (ApiT walletId) body = do
             Just Refl -> liftIO $ WD.quitStakePool netLayer db ti walletId
             _ -> liftHandler $ throwE ErrReadRewardAccountNotAShelleyWallet
         (BuiltTx{..}, txTime) <- liftIO $ do
-            W.buildSignSubmitTransaction @k @'CredFromKeyK @s @n
+            W.buildSignSubmitTransaction @k @s @n
                 ti
                 db
                 netLayer
