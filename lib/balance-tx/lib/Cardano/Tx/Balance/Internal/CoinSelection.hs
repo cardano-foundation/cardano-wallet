@@ -117,6 +117,8 @@ import Cardano.Wallet.Primitive.Types.UTxOSelection
     ( UTxOSelection )
 import Control.Arrow
     ( (&&&) )
+import Control.DeepSeq
+    ( NFData )
 import Control.Monad.Random.Class
     ( MonadRandom (..) )
 import Control.Monad.Trans.Except
@@ -413,6 +415,8 @@ data SelectionOf change = Selection
         -- ^ An extra sink for ada.
     }
     deriving (Generic, Eq, Show)
+
+instance NFData change => NFData (SelectionOf change)
 
 -- | The default type of selection.
 --

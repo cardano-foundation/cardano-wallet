@@ -34,6 +34,8 @@ import Cardano.Wallet.Primitive.Types.Tx.TxOut
     ( TxOut )
 import Cardano.Wallet.Primitive.Types.UTxO
     ( UTxO )
+import Control.DeepSeq
+    ( NFData )
 import Data.Generics.Internal.VL.Lens
     ( view )
 import Data.Generics.Labels
@@ -58,6 +60,8 @@ data MigrationPlan = MigrationPlan
       -- individual selections.
     }
     deriving (Eq, Generic, Show)
+
+instance NFData MigrationPlan
 
 -- | Creates a migration plan for the given UTxO set and reward withdrawal
 --   amount.
