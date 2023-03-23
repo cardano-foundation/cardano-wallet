@@ -291,7 +291,7 @@ instance Buildable (PartialTx era) where
         cardanoTxF tx' = pretty $ pShow tx'
 
 balanceTransaction
-    :: forall era m s k ktype.
+    :: forall era m changeState k ktype.
         ( MonadRandom m
         , IsRecentEra era
         )
@@ -320,10 +320,10 @@ balanceTransaction
     -- or similar ticket. Relevant ledger code: https://github.com/input-output-hk/cardano-ledger/blob/fdec04e8c071060a003263cdcb37e7319fb4dbf3/eras/alonzo/impl/src/Cardano/Ledger/Alonzo/TxInfo.hs#L428-L440
     -> UTxOIndex WalletUTxO
     -- ^ TODO [ADP-1789] Replace with @Cardano.UTxO@
-    -> ChangeAddressGen s
-    -> s
+    -> ChangeAddressGen changeState
+    -> changeState
     -> PartialTx era
-    -> ExceptT ErrBalanceTx m (Cardano.Tx era, s)
+    -> ExceptT ErrBalanceTx m (Cardano.Tx era, changeState)
 balanceTransaction
     tr txLayer toInpScriptsM mScriptTemplate pp ti idx genChange s unadjustedPtx = do
     -- TODO [ADP-1490] Take 'Ledger.PParams era' directly as argument, and avoid
@@ -337,7 +337,7 @@ balanceTransaction
 
     let balanceWith strategy =
             balanceTransactionWithSelectionStrategyAndNoZeroAdaAdjustment
-                @era @m @s @k @ktype
+                @era @m @changeState @k @ktype
                 tr txLayer toInpScriptsM mScriptTemplate
                 pp ti idx genChange s strategy adjustedPtx
     balanceWith SelectionStrategyOptimal
@@ -414,7 +414,7 @@ increaseZeroAdaOutputs era pp = modifyLedgerBody $
 
 -- | Internal helper to 'balanceTransaction'
 balanceTransactionWithSelectionStrategyAndNoZeroAdaAdjustment
-    :: forall era m s k ktype.
+    :: forall era m changeState k ktype.
         ( MonadRandom m
         , IsRecentEra era
         )
@@ -425,11 +425,11 @@ balanceTransactionWithSelectionStrategyAndNoZeroAdaAdjustment
     -> (W.ProtocolParameters, Cardano.ProtocolParameters)
     -> TimeInterpreter (Either PastHorizonException)
     -> UTxOIndex WalletUTxO
-    -> ChangeAddressGen s
-    -> s
+    -> ChangeAddressGen changeState
+    -> changeState
     -> SelectionStrategy
     -> PartialTx era
-    -> ExceptT ErrBalanceTx m (Cardano.Tx era, s)
+    -> ExceptT ErrBalanceTx m (Cardano.Tx era, changeState)
 balanceTransactionWithSelectionStrategyAndNoZeroAdaAdjustment
     tr
     txLayer
@@ -468,7 +468,11 @@ balanceTransactionWithSelectionStrategyAndNoZeroAdaAdjustment
         let
             transform
                 :: Selection
-                -> ([(W.TxIn, W.TxOut)], [(W.TxIn, W.TxOut)], [W.TxOut], s)
+                -> ( [(W.TxIn, W.TxOut)]
+                   , [(W.TxIn, W.TxOut)]
+                   , [W.TxOut]
+                   , changeState
+                   )
             transform sel =
                 let (sel', s') = assignChangeAddresses genChange sel s
                     inputs = F.toList (sel' ^. #inputs)
