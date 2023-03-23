@@ -682,7 +682,7 @@ import qualified Cardano.Wallet.Primitive.Types.UTxOSelection as UTxOSelection
 import qualified Cardano.Wallet.Read as Read
 import qualified Cardano.Wallet.Registry as Registry
 import qualified Cardano.Wallet.Write.Tx as WriteTx
-import qualified Cardano.Wallet.Write.Tx.Balance as W
+import qualified Cardano.Wallet.Write.Tx.Balance as Write
 import qualified Control.Concurrent.Concierge as Concierge
 import qualified Data.ByteString as BS
 import qualified Data.Foldable as F
@@ -3009,10 +3009,10 @@ balanceTransaction
 
         let mkPartialTx
                 :: forall era. WriteTx.IsRecentEra era => Cardano.Tx era
-                -> Handler (W.PartialTx era)
+                -> Handler (Write.PartialTx era)
             mkPartialTx tx = do
                 utxo <- fmap WriteTx.toCardanoUTxO $ mkLedgerUTxO $ body ^. #inputs
-                pure $ W.PartialTx
+                pure $ Write.PartialTx
                     tx
                     utxo
                     (fromApiRedeemer <$> body ^. #redeemers)
@@ -3039,7 +3039,7 @@ balanceTransaction
                 mkRecentEra = case Cardano.cardanoEra @era of
                     Cardano.BabbageEra -> pure WriteTx.RecentEraBabbage
                     Cardano.AlonzoEra -> pure WriteTx.RecentEraAlonzo
-                    _ -> liftHandler $ throwE $ W.ErrOldEraNotSupported era
+                    _ -> liftHandler $ throwE $ Write.ErrOldEraNotSupported era
 
                 mkLedgerUTxO
                     :: [ApiExternalInput n]
@@ -3055,10 +3055,10 @@ balanceTransaction
 
         let balanceTx
                 :: forall era. WriteTx.IsRecentEra era
-                => W.PartialTx era
+                => Write.PartialTx era
                 -> Handler (Cardano.Tx era)
             balanceTx partialTx =
-                liftHandler $ fst <$> W.balanceTransaction @_ @IO @s @k @ktype
+                liftHandler $ fst <$> Write.balanceTransaction @_ @IO @s @k @ktype
                     (MsgWallet . W.MsgBalanceTx >$< wrk ^. W.logger)
                     (ctx ^. typed)
                     genInpScripts
@@ -3078,7 +3078,7 @@ balanceTransaction
                         ])
                     $ W.currentNodeProtocolParameters pp
 
-        anyRecentTx <- maybeToHandler (W.ErrOldEraNotSupported era)
+        anyRecentTx <- maybeToHandler (Write.ErrOldEraNotSupported era)
             . WriteTx.asAnyRecentEra
             . cardanoTxIdeallyNoLaterThan era
             . getApiT $ body ^. #transaction
@@ -4150,7 +4150,7 @@ guardIsRecentEra (Cardano.AnyCardanoEra era) = case era of
     Cardano.ShelleyEra -> liftE invalidEra
     Cardano.ByronEra   -> liftE invalidEra
   where
-    invalidEra = W.ErrOldEraNotSupported $ Cardano.AnyCardanoEra era
+    invalidEra = Write.ErrOldEraNotSupported $ Cardano.AnyCardanoEra era
 
 mkWithdrawal
     :: forall (n :: NetworkDiscriminant) ktype tx block
