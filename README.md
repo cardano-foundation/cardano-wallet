@@ -70,7 +70,7 @@ See **Installation Instructions** for each available [release](https://github.co
 >
 > | cardano-wallet | cardano-node (compatible versions) |
 > | --- | --- |
-> | `master` branch | [1.35.4](https://github.com/input-output-hk/cardano-node/releases/tag/1.35.4) |
+> | `master` branch | [84a871ed86fc1b86018231b9cb24ba7b83493c0d](https://github.com/input-output-hk/cardano-node/commit/84a871ed86fc1b86018231b9cb24ba7b83493c0d) |
 > | [v2022-12-14](https://github.com/input-output-hk/cardano-wallet/releases/tag/v2022-12-14) | [1.35.4](https://github.com/input-output-hk/cardano-node/releases/tag/1.35.4) |
 > | [v2022-10-06](https://github.com/input-output-hk/cardano-wallet/releases/tag/v2022-10-06) | [1.35.3](https://github.com/input-output-hk/cardano-node/releases/tag/1.35.3) |
 > | [v2022-08-16](https://github.com/input-output-hk/cardano-wallet/releases/tag/v2022-08-16) | [1.35.3](https://github.com/input-output-hk/cardano-node/releases/tag/1.35.3) |
