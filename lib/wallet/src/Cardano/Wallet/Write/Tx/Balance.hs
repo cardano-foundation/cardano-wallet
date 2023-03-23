@@ -48,8 +48,6 @@ import Cardano.Tx.Balance.Internal.CoinSelection
     , performSelection
     , toExternalUTxOMap
     )
-import Cardano.Wallet.Primitive.AddressDerivation
-    ( BoundedAddressLength (..) )
 import Cardano.Wallet.Primitive.Slotting
     ( PastHorizonException, TimeInterpreter )
 import Cardano.Wallet.Primitive.Types
@@ -129,8 +127,6 @@ import Data.IntCast
     ( intCast, intCastMaybe )
 import Data.List.NonEmpty
     ( NonEmpty (..) )
-import Data.Proxy
-    ( Proxy (..) )
 import Data.Quantity
     ( Quantity (..) )
 import Data.Text.Class
@@ -298,7 +294,6 @@ balanceTransaction
     :: forall era m s k ktype.
         ( MonadRandom m
         , IsRecentEra era
-        , BoundedAddressLength k
         )
     => Tracer m BalanceTxLog
     -> TransactionLayer k ktype SealedTx
@@ -420,8 +415,7 @@ increaseZeroAdaOutputs era pp = modifyLedgerBody $
 -- | Internal helper to 'balanceTransaction'
 balanceTransactionWithSelectionStrategyAndNoZeroAdaAdjustment
     :: forall era m s k ktype.
-        ( BoundedAddressLength k
-        , MonadRandom m
+        ( MonadRandom m
         , IsRecentEra era
         )
     => Tracer m BalanceTxLog
@@ -881,7 +875,7 @@ balanceTransactionWithSelectionStrategyAndNoZeroAdaAdjustment
                 , minimumCollateralPercentage =
                     view #minimumCollateralPercentage pp
                 , maximumLengthChangeAddress =
-                    maxLengthAddressFor $ Proxy @k
+                    maxLengthChangeAddress genChange
                 }
 
             selectionParams = SelectionParams
@@ -919,8 +913,23 @@ balanceTransactionWithSelectionStrategyAndNoZeroAdaAdjustment
                     $ runExceptT
                     $ performSelection selectionConstraints selectionParams
 
-newtype ChangeAddressGen s =
-    ChangeAddressGen { getChangeAddressGen ::  (s -> (W.Address, s)) }
+data ChangeAddressGen s = ChangeAddressGen
+    { getChangeAddressGen ::  (s -> (W.Address, s))
+
+    -- | Returns the longest address that the wallet can generate for a given
+    --   key.
+    --
+    -- This is useful in situations where we want to compute some function of
+    -- an output under construction (such as a minimum UTxO value), but don't
+    -- yet have convenient access to a real address.
+    --
+    -- Please note that this address should:
+    --
+    --  - never be used for anything besides its length and validity properties.
+    --  - never be used as a payment target within a real transaction.
+    --
+    , maxLengthChangeAddress :: W.Address
+    }
 
 -- | Augments the given outputs with new outputs. These new outputs correspond
 -- to change outputs to which new addresses have been assigned. This updates
@@ -930,7 +939,7 @@ assignChangeAddresses
     -> SelectionOf TokenBundle
     -> s
     -> (SelectionOf W.TxOut, s)
-assignChangeAddresses (ChangeAddressGen genChange) sel = runState $ do
+assignChangeAddresses (ChangeAddressGen genChange _) sel = runState $ do
     changeOuts <- forM (view #change sel) $ \bundle -> do
         addr <- state genChange
         pure $ W.TxOut addr bundle

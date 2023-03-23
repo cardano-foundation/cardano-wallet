@@ -2752,7 +2752,9 @@ balanceTransactionSpec = describe "balanceTransaction" $ do
             mockProtocolParametersForBalancing
             (dummyTimeInterpreterWithHorizon horizon)
             utxoIndex
-            (defaultChangeAddressGen $ delegationAddress @'Mainnet)
+            (defaultChangeAddressGen
+                (delegationAddress @'Mainnet)
+                (Proxy @ShelleyKey))
             (getState wal)
             tx
       where
@@ -3643,7 +3645,9 @@ balanceTransaction' (Wallet' utxoIndex wallet _pending) seed tx  =
             mockProtocolParametersForBalancing
             dummyTimeInterpreter
             utxoIndex
-            (defaultChangeAddressGen $ delegationAddress @'Mainnet)
+            (defaultChangeAddressGen
+                (delegationAddress @'Mainnet)
+                (Proxy @ShelleyKey))
             (getState wallet)
             tx
 
@@ -3651,8 +3655,11 @@ newtype DummyChangeState = DummyChangeState { nextUnusedIndex :: Int }
     deriving (Show, Eq)
 
 dummyChangeAddrGen :: ChangeAddressGen DummyChangeState
-dummyChangeAddrGen = ChangeAddressGen $ \(DummyChangeState i) ->
+dummyChangeAddrGen = ChangeAddressGen
+    { getChangeAddressGen = \(DummyChangeState i) ->
         (addressAtIx $ toEnum i, DummyChangeState $ succ i)
+    , maxLengthChangeAddress = addressAtIx minBound
+    }
       where
         addressAtIx
             :: Index

@@ -1760,7 +1760,7 @@ selectCoins ctx@ApiLayer {..} argGenChange (ApiT walletId) body = do
                 & maybe (pure NoWithdrawal)
                     (shelleyOnlyMkWithdrawal @s @k @n
                         netLayer txLayer db walletId era)
-        let genChange = W.defaultChangeAddressGen argGenChange
+        let genChange = W.defaultChangeAddressGen argGenChange (Proxy @k)
         let paymentOuts = NE.toList $ addressAmountToTxOut <$> body ^. #payments
         let txCtx = defaultTransactionCtx
                 { txWithdrawal = withdrawal
@@ -1829,7 +1829,9 @@ selectCoinsForJoin ctx@ApiLayer{..}
             poolId
             poolStatus
             walletId
-        let changeAddrGen = W.defaultChangeAddressGen (delegationAddress @n)
+        let changeAddrGen = W.defaultChangeAddressGen
+                (delegationAddress @n)
+                (Proxy @k)
 
         let txCtx = defaultTransactionCtx { txDelegationAction = Just action }
 
@@ -1882,7 +1884,9 @@ selectCoinsForQuit ctx@ApiLayer{..} (ApiT walletId) = do
         withdrawal <- W.shelleyOnlyMkSelfWithdrawal @_ @_ @_ @_ @n
             netLayer txLayer era db walletId
         action <- WD.quitStakePoolDelegationAction db walletId withdrawal
-        let changeAddrGen = W.defaultChangeAddressGen (delegationAddress @n)
+        let changeAddrGen = W.defaultChangeAddressGen
+                (delegationAddress @n)
+                (Proxy @k)
         let txCtx = defaultTransactionCtx
                 { txDelegationAction = Just action
                 , txWithdrawal = withdrawal
@@ -2823,7 +2827,7 @@ constructSharedTransaction
     -> ApiConstructTransactionData n
     -> Handler (ApiConstructTransaction n)
 constructSharedTransaction
-    ctx genChange _knownPools _getPoolStatus (ApiT wid) body = do
+    ctx argGenChange _knownPools _getPoolStatus (ApiT wid) body = do
     let isNoPayload =
             isNothing (body ^. #payments) &&
             isNothing (body ^. #withdrawal) &&
@@ -2870,7 +2874,7 @@ constructSharedTransaction
                     txLayer netLayer db wid txCtx PreSelection {outputs = outs}
 
                 balancedTx <-
-                    balanceTransaction ctx genChange scriptLookup
+                    balanceTransaction ctx argGenChange scriptLookup
                     (Just (Shared.paymentTemplate $ getState cp)) (ApiT wid)
                         ApiBalanceTransactionPostData
                         { transaction =
@@ -3062,7 +3066,7 @@ balanceTransaction
                     (pp, nodePParams)
                     ti
                     utxoIndex
-                    (W.defaultChangeAddressGen argGenChange)
+                    (W.defaultChangeAddressGen argGenChange (Proxy @k))
                     (getState wallet)
                     partialTx
               where
@@ -3444,7 +3448,6 @@ joinStakePool
         let tr = wrk ^. logger
             db = wrk ^. typed @(DBLayer IO s k)
             ti = timeInterpreter netLayer
-            genChange = W.defaultChangeAddressGen argGenChange
 
         (BuiltTx{..}, txTime) <- liftIO $
             W.buildSignSubmitTransaction @k @'CredFromKeyK @s @n
@@ -3454,7 +3457,7 @@ joinStakePool
                 txLayer
                 (coerce $ getApiT $ body ^. #passphrase)
                 walletId
-                genChange
+                (W.defaultChangeAddressGen argGenChange (Proxy @k))
                 (AnyRecentEra recentEra)
                 (PreSelection [])
                 =<< WD.joinStakePool
@@ -3511,7 +3514,7 @@ delegationFee ctx@ApiLayer{..} (ApiT walletId) = do
                 txLayer
                 (timeInterpreter netLayer)
                 (AnyRecentEra recentEra)
-                (W.defaultChangeAddressGen (delegationAddress @n))
+                (W.defaultChangeAddressGen (delegationAddress @n) (Proxy @k))
                 walletId
         pure $ mkApiFee (Just deposit) [] feePercentiles
 
@@ -3552,7 +3555,7 @@ quitStakePool ctx@ApiLayer{..} argGenChange (ApiT walletId) body = do
                 txLayer
                 (coerce $ getApiT $ body ^. #passphrase)
                 walletId
-                (W.defaultChangeAddressGen argGenChange)
+                (W.defaultChangeAddressGen argGenChange (Proxy @k))
                 (AnyRecentEra recentEra)
                 (PreSelection [])
                 txCtx

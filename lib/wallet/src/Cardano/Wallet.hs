@@ -1573,6 +1573,7 @@ normalizeDelegationAddress s addr = do
 assignChangeAddressesAndUpdateDb
     :: forall ctx s k.
         ( GenChange s
+        , BoundedAddressLength k
         , HasDBLayer IO s k ctx
         , AddressBookIso s
         )
@@ -1594,7 +1595,7 @@ assignChangeAddressesAndUpdateDb ctx wid argGenChange selection =
         s = getState $ getLatest wallet
         (selectionUpdated, stateUpdated) =
             assignChangeAddresses
-                (defaultChangeAddressGen argGenChange)
+                (defaultChangeAddressGen argGenChange (Proxy @k))
                 selection
                 s
 
@@ -1602,6 +1603,7 @@ assignChangeAddressesWithoutDbUpdate
     :: forall ctx s k.
         ( GenChange s
         , HasDBLayer IO s k ctx
+        , BoundedAddressLength k
         )
     => ctx
     -> WalletId
@@ -1614,7 +1616,7 @@ assignChangeAddressesWithoutDbUpdate ctx wid argGenChange selection =
             withNoSuchWallet wid $ readCheckpoint wid
         let (selectionUpdated, _) =
                 assignChangeAddresses
-                    (defaultChangeAddressGen argGenChange)
+                    (defaultChangeAddressGen argGenChange (Proxy @k))
                     selection
                     (getState cp)
         pure selectionUpdated
@@ -1987,7 +1989,6 @@ buildSignSubmitTransaction
        , Typeable k
        , WalletKey k
        , HardDerivation k
-       , BoundedAddressLength k
        , Bounded (Index (AddressIndexDerivationType k) (AddressCredential k))
        , IsOwned s k ktype
        , IsOurs s RewardAccount
@@ -2082,7 +2083,6 @@ buildAndSignTransactionPure
        , Typeable k
        , WalletKey k
        , HardDerivation k
-       , BoundedAddressLength k
        , Bounded (Index (AddressIndexDerivationType k) (AddressCredential k))
        , IsOwned s k ktype
        , IsOurs s RewardAccount
@@ -2175,7 +2175,6 @@ buildTransaction
       , AddressBookIso s
       , Typeable k
       , Typeable n
-      , BoundedAddressLength k
       )
     => DBLayer IO s k
     -> TransactionLayer k 'CredFromKeyK SealedTx
@@ -2225,7 +2224,6 @@ buildTransactionPure ::
     . ( Typeable n
       , Typeable s
       , Typeable k
-      , BoundedAddressLength k
       , WriteTx.IsRecentEra era
       )
     => Wallet s
@@ -2869,7 +2867,6 @@ delegationFee
     :: forall s k (n :: NetworkDiscriminant)
      . ( AddressBookIso s
        , s ~ SeqState n k
-       , BoundedAddressLength k
        , Typeable k
        , Typeable n
        )
@@ -3812,7 +3809,11 @@ instance HasSeverityAnnotation TxSubmitLog where
 
 -- | Construct the default 'ChangeAddressGen s' for a given 's'.
 defaultChangeAddressGen
-    :: forall s. GenChange s
+    :: forall s (k :: Depth -> * -> *). (GenChange s, BoundedAddressLength k)
     => ArgGenChange s
+    -> Proxy k
     -> ChangeAddressGen s
-defaultChangeAddressGen arg = ChangeAddressGen $ \s -> genChange arg s
+defaultChangeAddressGen arg proxy =
+    ChangeAddressGen
+        (genChange arg)
+        (maxLengthAddressFor proxy)
