@@ -66,6 +66,7 @@ module Cardano.Wallet.Primitive.AddressDerivation
     , NetworkDiscriminantBits
     , networkDiscriminantBits
     , NetworkDiscriminantCheck (..)
+    , networkDescription
 
     -- * Backends Interoperability
     , PaymentAddress(..)
@@ -622,6 +623,11 @@ instance NetworkDiscriminantBits ('Staging pm) where
 
 class NetworkDiscriminantCheck (n :: NetworkDiscriminant) k where
     networkDiscriminantCheck :: Word8 -> Bool
+
+-- | Helper function that can be called without @AllowAmbiguousTypes@.
+networkDescription
+    :: forall n. NetworkDiscriminantVal n => Proxy n -> Text
+networkDescription _ = networkDiscriminantVal @n
 
 {-------------------------------------------------------------------------------
                      Interface over keys / address types
