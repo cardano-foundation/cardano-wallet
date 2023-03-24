@@ -3066,12 +3066,14 @@ balanceTransaction
                     (getState wallet)
                     partialTx
               where
-                nodePParams = fromMaybe
+                nodePParams = maybe
                     (error $ unwords
                         [ "balanceTransaction: no nodePParams."
                         , "Should only be possible in Byron, where"
                         , "withRecentEra should prevent this being reached."
                         ])
+                    (Cardano.bundleProtocolParams
+                        (WriteTx.fromRecentEra (WriteTx.recentEra @era)))
                     $ W.currentNodeProtocolParameters pp
 
         anyRecentTx <- maybeToHandler (W.ErrOldEraNotSupported era)
