@@ -664,6 +664,94 @@ spec = describe "SHARED_TRANSACTIONS" $ do
                 ]
 
     it "SHARED_TRANSACTIONS_CREATE_04b - \
+        \Single Output Transaction Shared -> Shared" $
+        \ctx -> runResourceT $ do
+
+        wa <- fixtureSharedWallet @n ctx
+        let srcWallet = ApiSharedWallet (Right wa)
+        destWallet@(ApiSharedWallet (Right wb)) <- emptySharedWallet ctx
+
+        -- prepare payload
+        let amt = (minUTxOValue (_mainEra ctx) :: Natural)
+        rAddr <- request @[ApiAddress n] ctx
+            (Link.listAddresses @'Shared wb) Default Empty
+        let addrs = getFromResponse Prelude.id rAddr
+        let destination = (addrs !! 1) ^. #id
+        let payload = Json [json|{
+            "payments": [{
+                "address": #{destination},
+                "amount": {
+                    "quantity": #{amt},
+                    "unit": "lovelace"
+                }
+            }]
+        }|]
+
+        -- Construct tx
+        rTx <- request @(ApiConstructTransaction n) ctx
+            (Link.createUnsignedTransaction @'Shared wa) Default payload
+        verify rTx
+            [ expectSuccess
+            , expectResponseCode HTTP.status202
+            , expectField (#fee . #getQuantity)
+                (`shouldSatisfy` (> 0))
+            ]
+
+        let (ApiSerialisedTransaction apiTx _) =
+                getFromResponse #transaction rTx
+
+        -- Sign tx
+        signedTx <-
+            signSharedTx ctx wa apiTx [ expectResponseCode HTTP.status202 ]
+
+        -- Submit tx
+        submittedTx <- submitSharedTxWithWid ctx wa signedTx
+        verify submittedTx
+            [ expectSuccess
+            , expectResponseCode HTTP.status202
+            ]
+
+        let expectedFee = getFromResponse (#fee . #getQuantity) rTx
+        let txid = getFromResponse #id submittedTx
+        let linkSrc = Link.getTransaction @'Shared wa (ApiTxId txid)
+        eventually "Source wallet balance is decreased by amt + fee" $ do
+            rWal <- getSharedWallet ctx srcWallet
+            verify (fmap (view #wallet) <$> rWal)
+                [ expectResponseCode HTTP.status200
+                , expectField
+                    (traverse . #balance . #available . #getQuantity)
+                    (`shouldBe` (faucetUtxoAmt - expectedFee - amt))
+                ]
+            -- check outgoing tx in source wallet
+            rSrc <- request @(ApiTransaction n) ctx linkSrc Default Empty
+            verify rSrc
+                [ expectResponseCode HTTP.status200
+                , expectField (#amount . #getQuantity) (`shouldBe` amt + expectedFee)
+                , expectField (#direction . #getApiT) (`shouldBe` Outgoing)
+                , expectField (#status . #getApiT) (`shouldBe` InLedger)
+                , expectField (#fee . #getQuantity) (`shouldBe` expectedFee)
+                ]
+
+        let linkDest = Link.getTransaction @'Shared wb (ApiTxId txid)
+        eventually "Target wallet balance is increased by amt" $ do
+            rWal <- getSharedWallet ctx destWallet
+            verify (fmap (view #wallet) <$> rWal)
+                [ expectResponseCode HTTP.status200
+                , expectField
+                    (traverse . #balance . #available . #getQuantity)
+                    (`shouldBe` amt)
+                ]
+            -- check incoming tx in destination wallet
+            rDst <- request @(ApiTransaction n) ctx linkDest Default Empty
+            verify rDst
+                [ expectResponseCode HTTP.status200
+                , expectField (#amount . #getQuantity) (`shouldBe` amt)
+                , expectField (#direction . #getApiT) (`shouldBe` Incoming)
+                , expectField (#status . #getApiT) (`shouldBe` InLedger)
+                , expectField (#fee . #getQuantity) (`shouldBe` expectedFee)
+                ]
+
+    it "SHARED_TRANSACTIONS_CREATE_04c - \
         \Cannot spend less than minUTxOValue" $
         \ctx -> runResourceT $ do
 
@@ -680,7 +768,7 @@ spec = describe "SHARED_TRANSACTIONS" $ do
             , expectErrorMessage errMsg403MinUTxOValue
             ]
 
-    it "SHARED_TRANSACTIONS_CREATE_04c - \
+    it "SHARED_TRANSACTIONS_CREATE_04d - \
         \Can't cover fee" $
         \ctx -> runResourceT $ do
 
