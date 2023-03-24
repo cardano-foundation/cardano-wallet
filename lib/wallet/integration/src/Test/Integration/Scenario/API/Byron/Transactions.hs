@@ -16,13 +16,15 @@ module Test.Integration.Scenario.API.Byron.Transactions
 import Prelude
 
 import Cardano.Wallet.Api.Types
-    ( ApiAsset (..)
+    ( ApiAddress
+    , ApiAsset (..)
     , ApiByronWallet
     , ApiFee (..)
     , ApiT (..)
     , ApiTransaction
     , ApiTxId (..)
     , ApiWallet
+    , ApiWalletDiscovery (..)
     , DecodeAddress
     , DecodeStakeAddress
     , EncodeAddress (..)
@@ -83,7 +85,6 @@ import Test.Integration.Framework.DSL
     , fixtureMultiAssetRandomWallet
     , fixturePassphrase
     , fixtureRandomWallet
-    , fixtureWallet
     , getFromResponse
     , json
     , listAddresses
@@ -299,11 +300,11 @@ spec = describe "BYRON_TRANSACTIONS" $ do
         expectResponseCode HTTP.status404 r
         expectErrorMessage errMsg404NoAsset r
 
-    describe "BYRON_TRANS_CREATE_01 - Single Output Transaction with non-Shelley witnesses" $
+    describe "BYRON_TRANS_CREATE_01 - Single Output Transaction Byron -> Shelley" $
         forM_ [(fixtureRandomWallet, "Byron wallet"), (fixtureIcarusWallet, "Icarus wallet")] $
         \(srcFixture,name) -> it name $ \ctx -> runResourceT $ do
 
-        (wByron, wShelley) <- (,) <$> srcFixture ctx <*> fixtureWallet ctx
+        (wByron, wShelley) <- (,) <$> srcFixture ctx <*> emptyWallet ctx
         addrs <- listAddresses @n ctx wShelley
 
         let amt = minUTxOValue (_mainEra ctx) :: Natural
@@ -353,18 +354,142 @@ spec = describe "BYRON_TRANSACTIONS" $ do
                     (.>= Quantity (faucetAmt - faucetUtxoAmt))
             ]
 
-        eventually "wa and wb balances are as expected" $ do
-            rb <- request @ApiWallet ctx
-                (Link.getWallet @'Shelley wShelley) Default Empty
-            expectField
-                (#balance . #available)
-                (`shouldBe` Quantity (faucetAmt + amt)) rb
-
-            ra2 <- request @ApiByronWallet ctx
+        let txId = getFromResponse (#id) r
+        eventually "wa and wb balances are as expected as well as fees on txs" $ do
+            -- check that tx and balance on source Byron wallet is as expected
+            rTxSrc <- request @(ApiTransaction n) ctx
+                (Link.getTransaction @'Byron wByron (ApiTxId txId)) Default Empty
+            verify rTxSrc
+                [ expectSuccess
+                , expectField (#amount . #getQuantity) (`shouldBe` amt + feeEstMax)
+                , expectField (#fee . #getQuantity) (`shouldBe` feeEstMax)
+                , expectField (#direction . #getApiT) (`shouldBe` Outgoing)
+                ]
+            rSrc <- request @ApiByronWallet ctx
                 (Link.getWallet @'Byron wByron) Default Empty
-            expectField
-                (#balance . #available)
-                (`shouldBe` Quantity (faucetAmt - feeEstMax - amt)) ra2
+            verify rSrc
+                [ expectSuccess
+                , expectField
+                        (#balance . #available)
+                        (`shouldBe` Quantity (faucetAmt - feeEstMax - amt))
+                ]
+
+            -- check that tx and balance on destination Shelley wallet is as expected
+            rTxDest <- request @(ApiTransaction n) ctx
+                (Link.getTransaction @'Shelley wShelley (ApiTxId txId)) Default Empty
+            verify rTxDest
+                [ expectSuccess
+                , expectField (#amount . #getQuantity) (`shouldBe` amt)
+                , expectField (#fee . #getQuantity) (`shouldBe` feeEstMax)
+                , expectField (#direction . #getApiT) (`shouldBe` Incoming)
+                ]
+            rTx <- request @ApiWallet ctx
+                (Link.getWallet @'Shelley wShelley) Default Empty
+            verify rTx
+                [ expectSuccess
+                , expectField
+                        (#balance . #available)
+                        (`shouldBe` Quantity amt)
+                ]
+
+    describe "BYRON_TRANS_CREATE_01a - Single Output Transaction Byron -> Byron" $
+        forM_ [(emptyRandomWallet, "Byron wallet"), (emptyIcarusWallet, "Icarus wallet")] $
+        \(emptyByronWallet,name) -> it name $ \ctx -> runResourceT $ do
+
+        (wByron, wDestByron) <- (,) <$> fixtureRandomWallet ctx <*> emptyByronWallet ctx
+        ra <- request @ApiByronWallet ctx (Link.getWallet @'Byron wDestByron) Default Empty
+        let walType = getFromResponse #discovery ra
+
+        destination <- case walType of
+            DiscoveryRandom -> do
+                let payloadAddr = Json [json| { "passphrase": #{fixturePassphrase} }|]
+                rA <- request @(ApiAddress n) ctx (Link.postRandomAddress wDestByron) Default payloadAddr
+                pure $ getFromResponse #id rA
+            DiscoverySequential -> do
+                let link = Link.listAddresses @'Byron wDestByron
+                rA2 <- request @[ApiAddress n] ctx link Default Empty
+                let addrs = getFromResponse Prelude.id rA2
+                pure $ (addrs !! 1) ^. #id
+
+        let amt = 2 * minUTxOValue (_mainEra ctx) :: Natural
+        let payload = Json [json|{
+                "payments": [{
+                    "address": #{destination},
+                    "amount": {
+                        "quantity": #{amt},
+                        "unit": "lovelace"
+                    }
+                }]
+            }|]
+
+        rFeeEst <- request @ApiFee ctx
+            (Link.getTransactionFeeOld @'Byron wByron) Default payload
+        verify rFeeEst
+            [ expectSuccess
+            , expectResponseCode HTTP.status202
+            ]
+        let (Quantity feeEstMin) = getFromResponse #estimatedMin rFeeEst
+        let (Quantity feeEstMax) = getFromResponse #estimatedMax rFeeEst
+
+        -- make transaction from Byron wallet to Byron wallet
+        let payloadTx = Json [json|{
+                "payments": [{
+                    "address": #{destination},
+                    "amount": {
+                        "quantity": #{amt},
+                        "unit": "lovelace"
+                    }
+                }],
+                "passphrase": #{fixturePassphrase}
+            }|]
+        rTx <- request @(ApiTransaction n) ctx
+            (Link.createTransactionOld @'Byron wByron) Default payloadTx
+        verify rTx
+            [ expectSuccess
+            , expectResponseCode HTTP.status202
+            , expectField (#amount . #getQuantity) $
+                between (feeEstMin + amt, feeEstMax + amt)
+            , expectField (#direction . #getApiT) (`shouldBe` Outgoing)
+            , expectField (#fee . #getQuantity) (`shouldBe` feeEstMax)
+            ]
+        let txId = getFromResponse (#id) rTx
+
+        eventually "wa and wb balances and fees are as expected" $ do
+            -- check that tx and balance on destination Byron wallet is as expected
+            rTxDest <- request @(ApiTransaction n) ctx
+                (Link.getTransaction @'Byron wDestByron (ApiTxId txId)) Default Empty
+            verify rTxDest
+                [ expectSuccess
+                , expectField (#amount . #getQuantity) (`shouldBe` amt)
+                , expectField (#fee . #getQuantity) (`shouldBe` feeEstMax)
+                , expectField (#direction . #getApiT) (`shouldBe` Incoming)
+                ]
+            rDest <- request @ApiByronWallet ctx
+                (Link.getWallet @'Byron wDestByron) Default Empty
+            verify rDest
+                [ expectSuccess
+                , expectField
+                        (#balance . #available)
+                        (`shouldBe` Quantity amt)
+                ]
+
+            -- check that tx and balance on Byron source wallet is as expected
+            rTxSrc <- request @(ApiTransaction n) ctx
+                (Link.getTransaction @'Byron wByron (ApiTxId txId)) Default Empty
+            verify rTxSrc
+                [ expectSuccess
+                , expectField (#amount . #getQuantity) (`shouldBe` amt + feeEstMax)
+                , expectField (#fee . #getQuantity) (`shouldBe` feeEstMax)
+                , expectField (#direction . #getApiT) (`shouldBe` Outgoing)
+                ]
+            rSrc <- request @ApiByronWallet ctx
+                (Link.getWallet @'Byron wByron) Default Empty
+            verify rSrc
+                [ expectSuccess
+                , expectField
+                        (#balance . #available)
+                        (`shouldBe` Quantity (faucetAmt - feeEstMax - amt))
+                ]
 
     it "BYRON_TRANS_CREATE_02 -\
         \ Cannot create tx on Byron wallet using shelley ep" $ \ctx -> runResourceT $ do
