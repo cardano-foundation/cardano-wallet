@@ -2253,12 +2253,14 @@ buildTransactionPure
   where
     nodeProtocolParameters =
         ( protocolParams
-        , fromMaybe
+        , maybe
             (error $ unwords
                 [ "buildAndSignTransactionPure: no nodePParams."
                 , "should only be possible in Byron, where"
                 , "withRecentEra should prevent this to be reached."
                 ])
+            (Cardano.bundleProtocolParams
+                (WriteTx.fromRecentEra (WriteTx.recentEra @era)))
             $ currentNodeProtocolParameters protocolParams
         )
 

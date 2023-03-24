@@ -351,7 +351,7 @@ balanceTransaction
         )
     => Tracer m BalanceTxLog
     -> UTxOAssumptions
-    -> (W.ProtocolParameters, Cardano.ProtocolParameters)
+    -> (W.ProtocolParameters, Cardano.BundledProtocolParameters era)
     -- ^ 'Cardano.ProtocolParameters' can be retrieved via a Local State Query
     -- to a local node.
     --
@@ -381,7 +381,8 @@ balanceTransaction tr utxoAssumptions pp ti utxo genChange s unadjustedPtx = do
     -- converting to/from Cardano.ProtocolParameters. This may affect
     -- performance. The addition of this one specific conversion seems to have
     -- made the --match "balanceTransaction" unit tests 11% slower in CPU time.
-    let ledgerPP = Cardano.toLedgerPParams shelleyEra $ snd pp
+    let ledgerPP = Cardano.toLedgerPParams shelleyEra
+            (Cardano.unbundleProtocolParams (snd pp))
     let adjustedPtx = over (#tx)
             (increaseZeroAdaOutputs (recentEra @era) ledgerPP)
             unadjustedPtx
@@ -470,7 +471,7 @@ balanceTransactionWithSelectionStrategyAndNoZeroAdaAdjustment
         )
     => Tracer m BalanceTxLog
     -> UTxOAssumptions
-    -> (W.ProtocolParameters, Cardano.ProtocolParameters)
+    -> (W.ProtocolParameters, Cardano.BundledProtocolParameters era)
     -> TimeInterpreter (Either PastHorizonException)
     -> UTxOIndex WalletUTxO
     -> ChangeAddressGen changeState
@@ -704,7 +705,9 @@ balanceTransactionWithSelectionStrategyAndNoZeroAdaAdjustment
         . Write.Tx.fromCardanoTx
 
     ledgerPP =
-        Cardano.toLedgerPParams (Cardano.shelleyBasedEra @era) nodePParams
+        Cardano.toLedgerPParams
+            (Cardano.shelleyBasedEra @era)
+            (Cardano.unbundleProtocolParams nodePParams)
 
     balanceAfterSettingMinFee
         :: Cardano.Tx era

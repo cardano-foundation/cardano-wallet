@@ -118,8 +118,8 @@ source-repository-package
 source-repository-package
    type: git
    location: https://github.com/input-output-hk/cardano-node
-   tag: 84a871ed86fc1b86018231b9cb24ba7b83493c0d
-   --sha256: 0qnr847z4fvxvbjsa0x0vfhmdwwmr99d6m3j4sh6jxdyph099b2n
+   tag: c02b0ab3786dce24bcd9899509be767057286f53
+   --sha256: 1igxway613vzgkjypk4vbn9dkws7faygbdd72x90h0n14p47i2js
    subdir:
      cardano-api
      cardano-git-rev
@@ -161,8 +161,8 @@ constraints:
   , Cabal >= 3.4.0.0
   , async-timer >= 0.2.0.0
   , unliftio-core >= 0.2.0.1
-  , cardano-api >= 1.35.4
-  , cardano-node >= 1.35.4
+  , cardano-api >= 1.35.6
+  , cardano-node >= 1.35.6
   , generic-arbitrary >= 0.2.2
   , iohk-monitoring >= 0.1.11
 
