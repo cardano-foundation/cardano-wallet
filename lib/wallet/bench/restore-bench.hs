@@ -170,7 +170,7 @@ import Control.Arrow
 import Control.DeepSeq
     ( NFData )
 import Control.Monad
-    ( forM, forM_, void )
+    ( unless, void )
 import Control.Monad.IO.Class
     ( MonadIO (..) )
 import Control.Monad.Trans.Except
@@ -290,25 +290,6 @@ cardanoRestoreBench tr c socketFile = do
     sayErr $ "Network: " <> network
     prepareNode (trMessageText tr) networkProxy socketFile np vData
 
-    let benchRestoreMultipleWallets nWallets target pipelinings = do
-            let targetStr = T.pack $ showFFloat Nothing
-                    (fromRational @Double $ getPercentage target) ""
-            bench_restoration @_ @ShelleyKey
-                pipelinings
-                networkProxy
-                (trMessageText tr)
-                walletTr
-                socketFile
-                np
-                vData
-                (""+|nWallets|+"-wallets-to-"+|targetStr|+"")
-                (map (\i -> walletSeq
-                    ("w"+|i|+"") $ mkSeqAnyState' (Proxy @0) networkProxy)
-                    [1..nWallets :: Int])
-                False -- Don't write progress to .timelog file(s)
-                target
-                benchmarksSeq
-
     let benchRestoreRndWithOwnership p pipelinings = do
             let benchname = showPercentFromPermyriad p <> "-percent-rnd"
             bench_restoration
@@ -320,12 +301,10 @@ cardanoRestoreBench tr c socketFile = do
                 np
                 vData
                 benchname
-                [walletRnd benchname
-                    $ mkRndAnyState' p networkProxy]
+                (walletRnd benchname $ mkRndAnyState' p networkProxy)
                 True -- Write progress to .timelog file
                 (unsafeMkPercentage 1)
                 benchmarksRnd
-
     let benchRestoreSeqWithOwnership p pipelinings = do
             let benchname = showPercentFromPermyriad p <> "-percent-seq"
             bench_restoration
@@ -337,8 +316,7 @@ cardanoRestoreBench tr c socketFile = do
                 np
                 vData
                 benchname
-                [walletSeq benchname
-                    $ mkSeqAnyState' p networkProxy]
+                (walletSeq benchname $ mkSeqAnyState' p networkProxy)
                 True -- Write progress to .timelog file
                 (unsafeMkPercentage 1)
                 benchmarksSeq
@@ -366,12 +344,6 @@ cardanoRestoreBench tr c socketFile = do
         , benchRestoreSeqWithOwnership (Proxy @1)
             tunedForMainnetPipeliningStrategy
         , benchRestoreRndWithOwnership (Proxy @1)
-            tunedForMainnetPipeliningStrategy
-        , benchRestoreMultipleWallets 1 (unsafeMkPercentage 0.1)
-            tunedForMainnetPipeliningStrategy
-        , benchRestoreMultipleWallets 10 (unsafeMkPercentage 0.01)
-            tunedForMainnetPipeliningStrategy
-        , benchRestoreMultipleWallets 100 (unsafeMkPercentage 0.01)
             tunedForMainnetPipeliningStrategy
         ]
   where
@@ -779,7 +751,7 @@ bench_restoration
     -> NetworkParameters
     -> NodeToClientVersionData
     -> Text -- ^ Benchmark name (used for naming resulting files)
-    -> [(WalletId, WalletName, s)]
+    -> (WalletId, WalletName, s)
     -> Bool -- ^ If @True@, will trace detailed progress to a .timelog file.
     -> Percentage -- ^ Target sync progress
     -> (Proxy n
@@ -791,7 +763,7 @@ bench_restoration
         -> IO results)
     -> IO SomeBenchmarkResults
 bench_restoration
-    pipeliningStrat proxy tr wlTr socket np vData benchname wallets traceToDisk
+    pipeliningStrat proxy tr wlTr socket np vData benchname (wid, wname, s) traceToDisk
         targetSync benchmarks = do
     putStrLn $ "*** " ++ T.unpack benchname
     let networkId = networkIdVal proxy
@@ -809,31 +781,27 @@ bench_restoration
                             trMessageText wlTr <>
                             contramap walletWorkerLogToBlockHeight progressTrace
                     let w = WalletLayer tracer (emptyGenesis gp, np) nw tl db
-                    forM_ wallets $ \(wid, wname, s) -> do
-                        _ <- unsafeRunExceptT $ W.createWallet w wid wname s
-                        void
-                            $ forkIO
-                            $ unsafeRunExceptT
-                            $ W.restoreWallet @_ @s @k w wid
+                    _ <- unsafeRunExceptT $ W.createWallet w wid wname s
+                    void
+                        $ forkIO
+                        $ unsafeRunExceptT
+                        $ W.restoreWallet @_ @s @k w wid
 
                     -- NOTE: This is now the time to restore /all/ wallets.
                     (_, restorationTime) <- bench "restoration" $ do
-                        waitForWalletsSyncTo
+                        waitForWalletSyncTo
                             targetSync
                             tr
                             proxy
                             w
-                            (map fst' wallets)
+                            wid
                             gp
                             vData
 
-                    let (wid0, wname0, _) = head wallets
                     results <-
-                        benchmarks proxy w wid0 wname0 benchname restorationTime
+                        benchmarks proxy w wid wname benchname restorationTime
                     saveBenchmarkPoints benchname results
                     pure $ SomeBenchmarkResults results
-  where
-    fst' (x,_,_) = x
 
 walletWorkerLogToBlockHeight
     :: WalletWorkerLog
@@ -953,27 +921,25 @@ prepareNode tr proxy socketPath np vData = do
 
 -- | Regularly poll the wallets to monitor syncing progress. Block until all
 -- wallets reach the given percentage.
-waitForWalletsSyncTo
+waitForWalletSyncTo
     :: forall s k n. (NetworkDiscriminantVal n)
     => Percentage
     -> Tracer IO (BenchmarkLog n)
     -> Proxy n
     -> WalletLayer IO s k 'CredFromKeyK
-    -> [WalletId]
+    -> WalletId
     -> GenesisParameters
     -> NodeToClientVersionData
     -> IO ()
-waitForWalletsSyncTo targetSync tr proxy walletLayer wids gp vData = do
+waitForWalletSyncTo targetSync tr proxy walletLayer wid gp vData = do
     posixNow <- utcTimeToPOSIXSeconds <$> getCurrentTime
-    progress <- forM wids $ \wid -> do
+    progress <-  do
         w <- fmap fst' <$> unsafeRunExceptT $ W.readWallet walletLayer wid
         syncProgress nl (slotNo $ currentTip w)
     traceWith tr $ MsgRestorationTick posixNow progress
     threadDelay 1000000
-
-    if all (> Syncing (Quantity targetSync)) progress
-    then return ()
-    else waitForWalletsSyncTo targetSync tr proxy walletLayer wids gp vData
+    unless (progress > Syncing (Quantity targetSync))
+        $ waitForWalletSyncTo targetSync tr proxy walletLayer wid gp vData
   where
     WalletLayer _ _ nl _ _ = walletLayer
     fst' (x,_,_) = x
@@ -987,7 +953,7 @@ reportProgress
 reportProgress nw tr targetSync readSlot =  do
     posixNow <- utcTimeToPOSIXSeconds <$> getCurrentTime
     progress <- readSlot >>= syncProgress nw
-    traceWith tr $ MsgRestorationTick posixNow [progress]
+    traceWith tr $ MsgRestorationTick posixNow progress
     threadDelay 1000000
     if progress > Syncing (Quantity targetSync)
         then return ()
@@ -1024,7 +990,7 @@ waitForNodeSync tr nw = loop 960 -- allow 240 minutes for first tip
 
 data BenchmarkLog (n :: NetworkDiscriminant)
     = MsgNodeTipTick BlockHeader SyncProgress
-    | MsgRestorationTick POSIXTime [SyncProgress]
+    | MsgRestorationTick POSIXTime SyncProgress
     | MsgSyncStart (Proxy n)
     | MsgSyncCompleted (Proxy n) SlotNo
     | MsgRetryShortly Int
