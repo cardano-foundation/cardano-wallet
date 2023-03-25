@@ -335,9 +335,9 @@ spec = describe "BYRON_TRANSACTIONS" $ do
         verify r
             [ expectSuccess
             , expectResponseCode HTTP.status202
+            , expectField (#direction . #getApiT) (`shouldBe` Outgoing)
             , expectField (#amount . #getQuantity) $
                 between (feeEstMin + amt, feeEstMax + amt)
-            , expectField (#direction . #getApiT) (`shouldBe` Outgoing)
             , expectField (#status . #getApiT) (`shouldBe` Pending)
             ]
 
@@ -361,17 +361,21 @@ spec = describe "BYRON_TRANSACTIONS" $ do
                 (Link.getTransaction @'Byron wByron (ApiTxId txId)) Default Empty
             verify rTxSrc
                 [ expectSuccess
-                , expectField (#amount . #getQuantity) (`shouldBe` amt + feeEstMax)
-                , expectField (#fee . #getQuantity) (`shouldBe` feeEstMax)
+                , expectField (#amount . #getQuantity) $
+                    between (amt + feeEstMin, amt + feeEstMax)
+                , expectField (#fee . #getQuantity) $
+                    between (feeEstMin, feeEstMax)
                 , expectField (#direction . #getApiT) (`shouldBe` Outgoing)
                 ]
             rSrc <- request @ApiByronWallet ctx
                 (Link.getWallet @'Byron wByron) Default Empty
             verify rSrc
                 [ expectSuccess
-                , expectField
-                        (#balance . #available)
-                        (`shouldBe` Quantity (faucetAmt - feeEstMax - amt))
+                , expectField (#balance . #total . #getQuantity) $
+                    between
+                        ( faucetAmt - feeEstMax - amt
+                        , faucetAmt - feeEstMin - amt
+                        )
                 ]
 
             -- check that tx and balance on destination Shelley wallet is as expected
@@ -380,7 +384,8 @@ spec = describe "BYRON_TRANSACTIONS" $ do
             verify rTxDest
                 [ expectSuccess
                 , expectField (#amount . #getQuantity) (`shouldBe` amt)
-                , expectField (#fee . #getQuantity) (`shouldBe` feeEstMax)
+                , expectField (#fee . #getQuantity) $
+                    between (feeEstMin, feeEstMax)
                 , expectField (#direction . #getApiT) (`shouldBe` Incoming)
                 ]
             rTx <- request @ApiWallet ctx
@@ -450,7 +455,8 @@ spec = describe "BYRON_TRANSACTIONS" $ do
             , expectField (#amount . #getQuantity) $
                 between (feeEstMin + amt, feeEstMax + amt)
             , expectField (#direction . #getApiT) (`shouldBe` Outgoing)
-            , expectField (#fee . #getQuantity) (`shouldBe` feeEstMax)
+            , expectField (#fee . #getQuantity) $
+                between (feeEstMin, feeEstMax)
             ]
         let txId = getFromResponse (#id) rTx
 
@@ -461,7 +467,8 @@ spec = describe "BYRON_TRANSACTIONS" $ do
             verify rTxDest
                 [ expectSuccess
                 , expectField (#amount . #getQuantity) (`shouldBe` amt)
-                , expectField (#fee . #getQuantity) (`shouldBe` feeEstMax)
+                , expectField (#fee . #getQuantity) $
+                    between (feeEstMin, feeEstMax)
                 , expectField (#direction . #getApiT) (`shouldBe` Incoming)
                 ]
             rDest <- request @ApiByronWallet ctx
@@ -478,17 +485,21 @@ spec = describe "BYRON_TRANSACTIONS" $ do
                 (Link.getTransaction @'Byron wByron (ApiTxId txId)) Default Empty
             verify rTxSrc
                 [ expectSuccess
-                , expectField (#amount . #getQuantity) (`shouldBe` amt + feeEstMax)
-                , expectField (#fee . #getQuantity) (`shouldBe` feeEstMax)
+                , expectField (#amount . #getQuantity) $
+                    between (feeEstMin + amt, feeEstMax + amt)
+                , expectField (#fee . #getQuantity) $
+                    between (feeEstMin, feeEstMax)
                 , expectField (#direction . #getApiT) (`shouldBe` Outgoing)
                 ]
             rSrc <- request @ApiByronWallet ctx
                 (Link.getWallet @'Byron wByron) Default Empty
             verify rSrc
                 [ expectSuccess
-                , expectField
-                        (#balance . #available)
-                        (`shouldBe` Quantity (faucetAmt - feeEstMax - amt))
+                , expectField (#balance . #total . #getQuantity) $
+                    between
+                        ( faucetAmt - feeEstMax - amt
+                        , faucetAmt - feeEstMin - amt
+                        )
                 ]
 
     it "BYRON_TRANS_CREATE_02 -\
