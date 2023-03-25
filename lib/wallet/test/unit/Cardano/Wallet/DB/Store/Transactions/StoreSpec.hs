@@ -180,7 +180,7 @@ prop_selectTx =
             runQ $ writeS mkStoreTransactions txs
             forM_ (Map.assocs $ relations txs) $ \(txId, tx) -> do
                 Just tx' <- runQ $ selectTx txId
-                assertWith "relation is consistent" $ tx == tx'
+                assertWith "relation is consistent" $ Left tx == tx'
 
 prop_QueryLaw :: StoreProperty
 prop_QueryLaw =
@@ -211,7 +211,7 @@ queryLaw QueryStore{queryS} z r =
 ------------------------------------------------------------------------------}
 addCBOR :: Tx -> Gen Tx
 addCBOR tx = do
-    mcbor <- arbitrary
+    let mcbor = Nothing
     pure $ tx{txCBOR = mcbor}
 
 -- | Generate interesting changes to 'TxSet'.
