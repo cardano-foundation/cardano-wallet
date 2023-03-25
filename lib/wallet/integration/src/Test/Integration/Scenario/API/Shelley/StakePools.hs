@@ -217,6 +217,7 @@ spec = describe "SHELLEY_STAKE_POOLS" $ do
         -- Setup
         src <- fixtureWallet ctx
         dest <- emptyWallet ctx
+        let deposit = depositAmt ctx
 
         -- Join Pool
         pool:_ <- map (view #id . getApiT) . snd <$>
@@ -226,7 +227,7 @@ spec = describe "SHELLEY_STAKE_POOLS" $ do
             [ expectResponseCode HTTP.status202
             , expectField (#status . #getApiT) (`shouldBe` Pending)
             , expectField (#direction . #getApiT) (`shouldBe` Outgoing)
-            , expectField #depositTaken (`shouldBe` Quantity 1_000_000)
+            , expectField #depositTaken (`shouldBe` Quantity deposit)
             , expectField #inputs $ \inputs' -> do
                 inputs' `shouldSatisfy` all (isJust . source)
             ]
@@ -239,7 +240,7 @@ spec = describe "SHELLEY_STAKE_POOLS" $ do
                 [ expectResponseCode HTTP.status200
                 , expectField (#status . #getApiT) (`shouldBe` InLedger)
                 , expectField (#direction . #getApiT) (`shouldBe` Outgoing)
-                , expectField #depositTaken (`shouldBe` Quantity 1_000_000)
+                , expectField #depositTaken (`shouldBe` Quantity deposit)
                 , expectField #depositReturned (`shouldBe` Quantity 0)
                 ]
 
@@ -252,6 +253,9 @@ spec = describe "SHELLEY_STAKE_POOLS" $ do
                 , expectField (#direction . #getApiT) (`shouldBe` Outgoing)
                 , expectField (#status . #getApiT) (`shouldBe` InLedger)
                 , expectField #metadata (`shouldBe` Nothing)
+                , expectField #depositTaken (`shouldBe` Quantity deposit)
+                , expectField #depositReturned (`shouldBe` Quantity 0)
+                , expectField (#fee . #getQuantity) (`shouldSatisfy` (> 0))
                 , expectField #inputs $ \inputs' -> do
                     inputs' `shouldSatisfy` all (isJust . source)
                 ]
@@ -402,7 +406,8 @@ spec = describe "SHELLEY_STAKE_POOLS" $ do
             , expectField (#status . #getApiT) (`shouldBe` Pending)
             , expectField (#direction . #getApiT) (`shouldBe` Incoming)
             , expectField #depositTaken (`shouldBe` Quantity 0)
-            , expectField #depositReturned (`shouldBe` Quantity 1_000_000)
+            , expectField #depositReturned (`shouldBe` Quantity deposit)
+            , expectField (#fee . #getQuantity) (`shouldSatisfy` (> 0))
             ]
         let txid = getFromResponse Prelude.id rq
         let quitFeeAmt = getFromResponse #amount rq
@@ -418,7 +423,8 @@ spec = describe "SHELLEY_STAKE_POOLS" $ do
                 , expectField
                     (#status . #getApiT) (`shouldBe` InLedger)
                 , expectField #depositTaken (`shouldBe` Quantity 0)
-                , expectField #depositReturned (`shouldBe` Quantity 1_000_000)
+                , expectField #depositReturned (`shouldBe` Quantity deposit)
+                , expectField (#fee . #getQuantity) (`shouldSatisfy` (> 0))
                 ]
 
             let epl = Link.listTransactions @'Shelley src

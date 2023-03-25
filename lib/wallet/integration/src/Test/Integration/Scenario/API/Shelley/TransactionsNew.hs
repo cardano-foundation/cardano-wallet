@@ -657,16 +657,29 @@ spec = describe "NEW_SHELLEY_TRANSACTIONS" $ do
             , expectResponseCode HTTP.status202
             ]
 
+
+        let txid = getFromResponse #id submittedTx
+        let linkDest = Link.getTransaction @'Shelley wb (ApiTxId txid)
         eventually "Target wallet balance is decreased by amt + fee" $ do
-            rWa <- request @ApiWallet ctx
+            rWb <- request @ApiWallet ctx
                 (Link.getWallet @'Shelley wb) Default Empty
-            verify rWa
+            verify rWb
                 [ expectSuccess
                 , expectField
                         (#balance . #available . #getQuantity)
                         (`shouldBe` amt)
                 ]
+            -- check incoming tx in destination wallet
+            rDst <- request @(ApiTransaction n) ctx linkDest Default Empty
+            verify rDst
+                [ expectResponseCode HTTP.status200
+                , expectField (#amount . #getQuantity) (`shouldBe` amt)
+                , expectField (#direction . #getApiT) (`shouldBe` Incoming)
+                , expectField (#status . #getApiT) (`shouldBe` InLedger)
+                , expectField (#fee . #getQuantity) (`shouldBe` expectedFee)
+                ]
 
+        let linkSrc = Link.getTransaction @'Shelley wa (ApiTxId txid)
         eventually "Source wallet balance is decreased by (amt + expectedFee)" $ do
             rWa <- request @ApiWallet ctx
                 (Link.getWallet @'Shelley wa) Default Empty
@@ -675,6 +688,15 @@ spec = describe "NEW_SHELLEY_TRANSACTIONS" $ do
                 , expectField
                         (#balance . #available . #getQuantity)
                         (`shouldBe` (initialAmt - amt - expectedFee))
+                ]
+            -- check outgoing tx in source wallet
+            rSrc <- request @(ApiTransaction n) ctx linkSrc Default Empty
+            verify rSrc
+                [ expectResponseCode HTTP.status200
+                , expectField (#amount . #getQuantity) (`shouldBe` amt + expectedFee)
+                , expectField (#direction . #getApiT) (`shouldBe` Outgoing)
+                , expectField (#status . #getApiT) (`shouldBe` InLedger)
+                , expectField (#fee . #getQuantity) (`shouldBe` expectedFee)
                 ]
 
         -- After signing tx the cbor is as before modulo added wtinesses,

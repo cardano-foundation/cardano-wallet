@@ -428,6 +428,8 @@ spec = describe "SHELLEY_TRANSACTIONS" $ do
                 , expectField (#direction . #getApiT) (`shouldBe` Outgoing)
                 , expectField (#status . #getApiT) (`shouldBe` InLedger)
                 , expectField (#metadata) (`shouldBe` Nothing)
+                , expectField (#fee . #getQuantity) $
+                    between (feeMin, feeMax)
                 ]
 
         let linkDest = Link.getTransaction @'Shelley wb (ApiTxId txid)
@@ -441,6 +443,8 @@ spec = describe "SHELLEY_TRANSACTIONS" $ do
                 , expectField (#direction . #getApiT) (`shouldBe` Incoming)
                 , expectField (#status . #getApiT) (`shouldBe` InLedger)
                 , expectField (#metadata) (`shouldBe` Nothing)
+                , expectField (#fee . #getQuantity) $
+                    between (feeMin, feeMax)
                 ]
 
         eventually "wa and wb balances are as expected" $ do
