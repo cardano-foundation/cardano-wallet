@@ -317,6 +317,7 @@
           };
 
           mkDevShells = project: rec {
+            default = project.shell;
             profiled = (project.appendModule { profiling = true; }).shell;
 
             docs = pkgs.mkShell {

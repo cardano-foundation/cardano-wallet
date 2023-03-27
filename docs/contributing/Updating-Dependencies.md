@@ -13,12 +13,7 @@ in a nix cache -- in which case the build result will be downloaded instead.
 
 The default `nix develop` contains build tools, utilities and GHC
 configured with a global package-db which matches `cabal.project`. This
-is defined in the `devShell` attribute of `flake.nix`.
-
-## Buildkite
-
-On Buildkite, the project will be built with `cabal build` in a particular Nix shell. The Nix shell provisioned is defined by [`nix/cabal-shell.nix`](https://github.com/input-output-hk/cardano-wallet/blob/master/nix/cabal-shell.nix). If there is a program that is needed by the
-build or tests, make sure that it is present there.
+is defined in the `devShells.default` attribute of `flake.nix`.
 
 ## nix flake lock
 
