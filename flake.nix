@@ -317,11 +317,9 @@
           };
 
           mkDevShells = project: rec {
+            default = project.shell;
             profiled = (project.appendModule { profiling = true; }).shell;
-            cabal = import ./nix/cabal-shell.nix {
-              haskellProject = project;
-              inherit (config) withCabalCache ghcVersion;
-            };
+
             docs = pkgs.mkShell {
               name = "cardano-wallet-docs";
               nativeBuildInputs = [ emanote.packages.${system}.default pkgs.yq ];
@@ -439,8 +437,6 @@
               program = pkg.exePath or "${pkg}/bin/${pkg.name or name}";
             };
           apps = lib.mapAttrs mkApp packages;
-
-          devShell = project.shell;
 
           devShells = mkDevShells project;
 
