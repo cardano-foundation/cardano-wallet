@@ -90,13 +90,13 @@ import Cardano.Wallet.Primitive.AddressDerivation
     , MkKeyFingerprint (..)
     , NetworkDiscriminant (..)
     , NetworkDiscriminantBits
+    , NetworkDiscriminantCheck (..)
     , PaymentAddress (..)
     , PersistPublicKey (..)
     , Role (..)
     , SoftDerivation (..)
     , ToRewardAccount (..)
     , WalletKey (..)
-    , networkDiscriminantBits
     , roleVal
     , toAddressParts
     , unsafePaymentKeyFingerprint
@@ -178,6 +178,7 @@ type SupportsDiscovery n k =
     , MkKeyFingerprint k Address
     , AddressCredential k ~ 'CredFromKeyK
     , SoftDerivation k
+    , NetworkDiscriminantCheck n k
     , NetworkDiscriminantBits n
     , Typeable n
     )
@@ -493,7 +494,7 @@ decoratePath st r ix = NE.fromList
 -- addresses on the internal chain anywhere in the available range.
 instance SupportsDiscovery n k => IsOurs (SeqState n k) Address where
     isOurs addrRaw st =
-        if networkTag == networkDiscriminantBits @n then
+        if networkDiscriminantCheck @n @k networkTag then
             case paymentKeyFingerprint addrRaw of
                 Left _ -> (Nothing, st)
                 Right addr ->

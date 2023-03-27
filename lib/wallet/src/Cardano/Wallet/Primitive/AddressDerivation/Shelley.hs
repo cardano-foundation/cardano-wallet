@@ -69,6 +69,8 @@ import Cardano.Wallet.Primitive.AddressDerivation
     , KeyFingerprint (..)
     , MkKeyFingerprint (..)
     , NetworkDiscriminant (..)
+    , NetworkDiscriminantBits
+    , NetworkDiscriminantCheck (..)
     , PaymentAddress (..)
     , PersistPrivateKey (..)
     , PersistPublicKey (..)
@@ -80,6 +82,7 @@ import Cardano.Wallet.Primitive.AddressDerivation
     , fromHex
     , hex
     , mutableAccount
+    , networkDiscriminantBits
     , toAddressParts
     )
 import Cardano.Wallet.Primitive.AddressDiscovery
@@ -371,6 +374,11 @@ instance MkKeyFingerprint ShelleyKey (Proxy (n :: NetworkDiscriminant), ShelleyK
 
 instance BoundedAddressLength ShelleyKey where
     maxLengthAddressFor _ = Address $ BS.replicate 57 0
+
+instance NetworkDiscriminantBits n =>
+    NetworkDiscriminantCheck (n :: NetworkDiscriminant) ShelleyKey where
+    networkDiscriminantCheck networkTag =
+        networkTag == networkDiscriminantBits @n
 
 {-------------------------------------------------------------------------------
                           Dealing with Rewards

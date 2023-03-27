@@ -65,6 +65,7 @@ module Cardano.Wallet.Primitive.AddressDerivation
     , networkDiscriminantVal
     , NetworkDiscriminantBits
     , networkDiscriminantBits
+    , NetworkDiscriminantCheck (..)
 
     -- * Backends Interoperability
     , PaymentAddress(..)
@@ -618,6 +619,9 @@ instance NetworkDiscriminantBits ('Testnet pm) where
 
 instance NetworkDiscriminantBits ('Staging pm) where
     networkDiscriminantBits = 0b00000001
+
+class NetworkDiscriminantCheck (n :: NetworkDiscriminant) k where
+    networkDiscriminantCheck :: Word8 -> Bool
 
 {-------------------------------------------------------------------------------
                      Interface over keys / address types

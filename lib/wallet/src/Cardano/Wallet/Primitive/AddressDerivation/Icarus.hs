@@ -56,6 +56,7 @@ import Cardano.Wallet.Primitive.AddressDerivation
     , KeyFingerprint (..)
     , MkKeyFingerprint (..)
     , NetworkDiscriminant (..)
+    , NetworkDiscriminantCheck (..)
     , PaymentAddress (..)
     , PersistPrivateKey (..)
     , PersistPublicKey (..)
@@ -446,3 +447,6 @@ instance PersistPublicKey (IcarusKey depth) where
       where
         xpubFromText = CC.xpub <=< fromHex @ByteString
         err _ = error "unsafeDeserializeXPub: unable to deserialize IcarusKey"
+
+instance NetworkDiscriminantCheck (n :: NetworkDiscriminant) IcarusKey where
+    networkDiscriminantCheck _ = True
