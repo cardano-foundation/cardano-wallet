@@ -1015,6 +1015,7 @@ benchmark db
     , base
     , bytestring
     , cardano-addresses
+    , cardano-api
     , cardano-crypto
     , cardano-wallet
     , cardano-wallet-launcher
