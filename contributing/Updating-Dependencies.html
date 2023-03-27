@@ -27,7 +27,7 @@
 
 
   
-  <link href='tailwind.css?instanceId=e03352bb-676f-438a-a9fc-3ddcf89449d4' rel='stylesheet' type='text/css' />
+  <link href='tailwind.css?instanceId=f148b33b-8e13-4da0-ad1d-98beddb19ee0' rel='stylesheet' type='text/css' />
 
   <!-- Heist error element -->
   <style type='text/css'>
@@ -2376,11 +2376,7 @@
     </p>
   <h2 id='nix-develop' class='inline-block mt-6 mb-4 text-4xl font-bold text-gray-700 border-b-2'>nix develop</h2>
     <p class='mb-3'>
-      The default <code class='py-0.5 px-0.5 bg-gray-100'>nix develop</code> contains build tools, utilities and GHC configured with a global package-db which matches <code class='py-0.5 px-0.5 bg-gray-100'>cabal.project</code>. This is defined in the <code class='py-0.5 px-0.5 bg-gray-100'>devShell</code> attribute of <code class='py-0.5 px-0.5 bg-gray-100'>flake.nix</code>.
-    </p>
-  <h2 id='buildkite' class='inline-block mt-6 mb-4 text-4xl font-bold text-gray-700 border-b-2'>Buildkite</h2>
-    <p class='mb-3'>
-      On Buildkite, the project will be built with <code class='py-0.5 px-0.5 bg-gray-100'>cabal build</code> in a particular Nix shell. The Nix shell provisioned is defined by <a href='https://github.com/input-output-hk/cardano-wallet/blob/master/nix/cabal-shell.nix' class='text-blue-600 hover:underline' target='_blank' rel='noopener'><code class='py-0.5 px-0.5 bg-gray-100'>nix/cabal-shell.nix</code></a>. If there is a program that is needed by the build or tests, make sure that it is present there.
+      The default <code class='py-0.5 px-0.5 bg-gray-100'>nix develop</code> contains build tools, utilities and GHC configured with a global package-db which matches <code class='py-0.5 px-0.5 bg-gray-100'>cabal.project</code>. This is defined in the <code class='py-0.5 px-0.5 bg-gray-100'>devShells.default</code> attribute of <code class='py-0.5 px-0.5 bg-gray-100'>flake.nix</code>.
     </p>
   <h2 id='nix-flake-lock' class='inline-block mt-6 mb-4 text-4xl font-bold text-gray-700 border-b-2'>nix flake lock</h2>
     <p class='mb-3'>
