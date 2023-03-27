@@ -88,6 +88,7 @@ import Cardano.Wallet.Network
 import Cardano.Wallet.Primitive.AddressDerivation
     ( Depth (..)
     , NetworkDiscriminant (..)
+    , NetworkDiscriminantBits
     , NetworkDiscriminantVal (..)
     , PaymentAddress
     , PersistPrivateKey
@@ -378,7 +379,7 @@ cardanoRestoreBench tr c socketFile = do
             (wid, WalletName wname, s)
 
     mkSeqAnyState'
-        :: forall (p :: Nat) (n :: NetworkDiscriminant). Typeable n
+        :: forall (p :: Nat) (n :: NetworkDiscriminant). (NetworkDiscriminantBits n, Typeable n)
         => Proxy p
         -> Proxy n
         -> (ShelleyKey 'RootK XPrv, Passphrase "encryption")
@@ -459,6 +460,7 @@ benchmarksRnd
         , k ~ ByronKey
         , PaymentAddress n k 'CredFromKeyK
         , NetworkDiscriminantVal n
+        , NetworkDiscriminantBits n
         , KnownNat p
         )
     => Proxy n
@@ -573,6 +575,7 @@ benchmarksSeq
         , Typeable n
         , PaymentAddress n k 'CredFromKeyK
         , NetworkDiscriminantVal n
+        , NetworkDiscriminantBits n
         , KnownNat p
         )
     => Proxy n

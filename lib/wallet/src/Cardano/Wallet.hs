@@ -302,6 +302,7 @@ import Cardano.Wallet.Primitive.AddressDerivation
     , Index (..)
     , MkKeyFingerprint (..)
     , NetworkDiscriminant (..)
+    , NetworkDiscriminantBits
     , PaymentAddress (..)
     , Role (..)
     , SoftDerivation (..)
@@ -801,6 +802,7 @@ createIcarusWallet
         , PaymentAddress n k 'CredFromKeyK
         , k ~ IcarusKey
         , s ~ SeqState n k
+        , NetworkDiscriminantBits n
         , Typeable n
         )
     => ctx
@@ -2368,7 +2370,9 @@ constructTransaction txLayer netLayer db wid txCtx preSel = do
 
 constructUnbalancedSharedTransaction
     :: forall (n :: NetworkDiscriminant) ktype era block
-     . (WriteTx.IsRecentEra era, Typeable n)
+     . ( WriteTx.IsRecentEra era
+       , NetworkDiscriminantBits n
+       , Typeable n)
     => TransactionLayer SharedKey ktype SealedTx
     -> NetworkLayer IO block
     -> DBLayer IO (SharedState n SharedKey) SharedKey

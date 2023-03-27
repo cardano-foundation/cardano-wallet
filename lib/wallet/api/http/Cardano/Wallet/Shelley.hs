@@ -55,6 +55,7 @@ import Cardano.Wallet.Pools
 import Cardano.Wallet.Primitive.AddressDerivation
     ( DelegationAddress (..)
     , Depth (..)
+    , NetworkDiscriminantBits
     , NetworkDiscriminantVal
     , PaymentAddress
     , PersistPrivateKey
@@ -310,6 +311,7 @@ serveWallet
             , EncodeAddress n
             , EncodeStakeAddress n
             , DecodeStakeAddress n
+            , NetworkDiscriminantBits n
             , Typeable n
             , HasNetworkId n
             )

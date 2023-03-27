@@ -83,11 +83,12 @@ import Cardano.Wallet.Primitive.AddressDerivation
     , KeyFingerprint (..)
     , MkKeyFingerprint (..)
     , NetworkDiscriminant (..)
+    , NetworkDiscriminantBits
     , PersistPublicKey (..)
     , Role (..)
     , SoftDerivation
     , WalletKey (..)
-    , networkVal
+    , networkDiscriminantBits
     , roleVal
     , toAddressParts
     , unsafePaymentKeyFingerprint
@@ -173,6 +174,7 @@ type SupportsDiscovery (n :: NetworkDiscriminant) k =
     , AddressIndexDerivationType SharedKey ~ 'Soft
     , AddressCredential k ~ 'CredFromScriptK
     , SoftDerivation k
+    , NetworkDiscriminantBits n
     , Typeable n
     )
 
@@ -555,7 +557,7 @@ isShared
 isShared addrRaw st = case ready st of
     Pending -> nop
     Active (SharedAddressPools extPool intPool pending) ->
-        if networkTag == networkVal @n then
+        if networkTag == networkDiscriminantBits @n then
             case paymentKeyFingerprint addrRaw of
                 Left _ -> nop
                 Right addr -> case ( AddressPool.lookup addr (getPool extPool)
