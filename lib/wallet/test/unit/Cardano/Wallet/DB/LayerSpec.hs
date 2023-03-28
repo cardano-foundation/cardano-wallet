@@ -75,7 +75,7 @@ import Cardano.Wallet.DB.Sqlite.Migration
     , currentSchemaVersion
     )
 import Cardano.Wallet.DB.StateMachine
-    ( TestConstraints, prop_parallel, prop_sequential, validateGenerators )
+    ( TestConstraints, prop_sequential, validateGenerators )
 import Cardano.Wallet.DB.WalletState
     ( ErrNoSuchWallet (..) )
 import Cardano.Wallet.DummyTarget.Primitive.Types
@@ -329,7 +329,6 @@ stateMachineSpec = describe ("State machine test (" ++ showState @s ++ ")") $ do
     validateGenerators @s
     let newDB = newDBLayerInMemory @s @k nullTracer dummyTimeInterpreter
     it "Sequential" $ prop_sequential newDB
-    xit "Parallel" $ prop_parallel newDB
 
 stateMachineSpecSeq, stateMachineSpecRnd, stateMachineSpecShared :: Spec
 stateMachineSpecSeq = stateMachineSpec @ShelleyKey @(SeqState 'Mainnet ShelleyKey) @'CredFromKeyK
