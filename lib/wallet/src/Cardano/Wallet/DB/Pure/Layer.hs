@@ -29,10 +29,10 @@ import Cardano.Wallet.DB.Pure.Implementation
     , ModelOp
     , emptyDatabase
     , mCheckWallet
+    , mGetWalletId
     , mInitializeWallet
     , mIsStakeKeyRegistered
     , mListCheckpoints
-    , mListWallets
     , mPutCheckpoint
     , mPutDelegationCertificate
     , mPutDelegationRewardBalance
@@ -91,24 +91,24 @@ newDBLayer timeInterpreter = do
                 alterDB errWalletAlreadyExists db $
                 mInitializeWallet pk cp meta txs gp
 
-        , listWallets = readDB db mListWallets
+        , listWallets = pure <$> readDB db mGetWalletId
 
         {-----------------------------------------------------------------------
                                     Checkpoints
         -----------------------------------------------------------------------}
         , walletsDB = error "MVar.walletsDB: not implemented"
 
-        , putCheckpoint = \pk cp -> ExceptT $
+        , putCheckpoint = \_pk cp -> ExceptT $
             alterDB errNoSuchWallet db $
-            mPutCheckpoint pk cp
+            mPutCheckpoint cp
 
-        , readCheckpoint = readDB db . mReadCheckpoint
+        , readCheckpoint = const $ readDB db mReadCheckpoint
 
-        , listCheckpoints = readDB db . mListCheckpoints
+        , listCheckpoints = const $ readDB db mListCheckpoints
 
-        , rollbackTo = \pk pt -> ExceptT $
+        , rollbackTo = \_pk pt -> ExceptT $
             alterDB errNoSuchWallet db $
-            mRollbackTo pk pt
+            mRollbackTo pt
 
         , prune = \_ _ -> error "MVar.prune: not implemented"
 
@@ -116,46 +116,44 @@ newDBLayer timeInterpreter = do
                                    Wallet Metadata
         -----------------------------------------------------------------------}
 
-        , putWalletMeta = \pk meta -> ExceptT $
+        , putWalletMeta = \_pk meta -> ExceptT $
             alterDB errNoSuchWallet db $
-            mPutWalletMeta pk meta
+            mPutWalletMeta meta
 
-        , readWalletMeta = readDB db . mReadWalletMeta timeInterpreter
+        , readWalletMeta = const $ readDB db $ mReadWalletMeta timeInterpreter
 
-        , putDelegationCertificate = \pk cert sl -> ExceptT $
+        , putDelegationCertificate = \_pk cert sl -> ExceptT $
             alterDB errNoSuchWallet db $
-            mPutDelegationCertificate pk cert sl
+            mPutDelegationCertificate cert sl
 
         , isStakeKeyRegistered =
-            ExceptT . alterDB errNoSuchWallet db . mIsStakeKeyRegistered
+            const $ ExceptT . alterDB errNoSuchWallet db $ mIsStakeKeyRegistered
 
         {-----------------------------------------------------------------------
                                      Tx History
         -----------------------------------------------------------------------}
 
-        , putTxHistory = \pk txh -> ExceptT $
+        , putTxHistory = \_pk txh -> ExceptT $
             alterDB errNoSuchWallet db $
-            mPutTxHistory pk txh
+            mPutTxHistory txh
 
-        , readTransactions = \pk minWithdrawal order range mstatus _mlimit ->
+        , readTransactions = \_pk minWithdrawal order range mstatus _mlimit ->
             readDB db $
                 mReadTxHistory
                     timeInterpreter
-                    pk
                     minWithdrawal
                     order
                     range
                     mstatus
 
         -- TODO: shift implementation to mGetTx
-        , getTx = \pk tid -> ExceptT $
-            alterDB errNoSuchWallet db (mCheckWallet pk) >>= \case
+        , getTx = \_pk tid -> ExceptT $
+            alterDB errNoSuchWallet db (mCheckWallet) >>= \case
                 Left err -> pure $ Left err
                 Right _ -> do
                     txInfos <- readDB db
                         $ mReadTxHistory
                             timeInterpreter
-                            pk
                             Nothing
                             Descending
                             wholeRange
@@ -169,11 +167,11 @@ newDBLayer timeInterpreter = do
                                        Keystore
         -----------------------------------------------------------------------}
 
-        , putPrivateKey = \pk prv -> ExceptT $
+        , putPrivateKey = \_pk prv -> ExceptT $
             alterDB errNoSuchWallet db $
-            mPutPrivateKey pk prv
+            mPutPrivateKey prv
 
-        , readPrivateKey = readDB db . mReadPrivateKey
+        , readPrivateKey = const $ readDB db mReadPrivateKey
 
         {-----------------------------------------------------------------------
                                        Pending Tx
@@ -198,17 +196,17 @@ newDBLayer timeInterpreter = do
                                  Protocol Parameters
         -----------------------------------------------------------------------}
 
-        , readGenesisParameters = readDB db . mReadGenesisParameters
+        , readGenesisParameters = const $ readDB db mReadGenesisParameters
 
         {-----------------------------------------------------------------------
                                  Delegation Rewards
         -----------------------------------------------------------------------}
 
-        , putDelegationRewardBalance = \pk amt -> ExceptT $
-            alterDB errNoSuchWallet db (mPutDelegationRewardBalance pk amt)
+        , putDelegationRewardBalance = \_pk amt -> ExceptT $
+            alterDB errNoSuchWallet db (mPutDelegationRewardBalance amt)
 
         , readDelegationRewardBalance =
-            readDB db . mReadDelegationRewardBalance
+            const $ readDB db mReadDelegationRewardBalance
 
         {-----------------------------------------------------------------------
                                       Execution
@@ -220,7 +218,7 @@ newDBLayer timeInterpreter = do
 -- | Apply an operation to the model database, then update the mutable variable.
 alterDB
     :: MonadUnliftIO m
-    => (Err WalletId -> Maybe err)
+    => (Err -> Maybe err)
     -- ^ Error type converter
     -> MVar (Database WalletId s xprv)
     -- ^ The database variable
@@ -245,19 +243,22 @@ readDB
     -> m a
 readDB db op = alterDB Just db op >>= either (throwIO . MVarDBError) pure
 
-errNoSuchWallet :: Err WalletId -> Maybe ErrNoSuchWallet
-errNoSuchWallet (NoSuchWallet wid) = Just (ErrNoSuchWallet wid)
+noWallet :: a
+noWallet = error "wallet not initialized"
+
+errNoSuchWallet :: Err -> Maybe ErrNoSuchWallet
+errNoSuchWallet WalletNotInitialized = Just (ErrNoSuchWallet noWallet)
 errNoSuchWallet _ = Nothing
 
 errWalletAlreadyExists
-    :: Err WalletId
+    :: Err
     -> Maybe ErrWalletAlreadyExists
-errWalletAlreadyExists (WalletAlreadyExists wid) =
-    Just (ErrWalletAlreadyExists wid)
+errWalletAlreadyExists WalletAlreadyInitialized  =
+    Just (ErrWalletAlreadyExists noWallet)
 errWalletAlreadyExists _ = Nothing
 
 -- | Error which happens when model returns an unexpected value.
-newtype MVarDBError = MVarDBError (Err WalletId)
+newtype MVarDBError = MVarDBError Err
     deriving (Show)
 
 instance Exception MVarDBError
