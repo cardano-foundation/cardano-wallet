@@ -2874,7 +2874,7 @@ constructSharedTransaction
                     txLayer netLayer db wid txCtx PreSelection {outputs = outs}
 
                 balancedTx <-
-                    balanceTransaction ctx argGenChange scriptLookup
+                    balanceTransaction ctx argGenChange (Just scriptLookup)
                     (Just (Shared.paymentTemplate $ getState cp)) (ApiT wid)
                         ApiBalanceTransactionPostData
                         { transaction =
@@ -2987,7 +2987,7 @@ balanceTransaction
      . (GenChange s, BoundedAddressLength k)
     => ApiLayer s k ktype
     -> ArgGenChange s
-    -> Maybe ([(TxIn, TxOut)] -> [Script KeyHash])
+    -> Maybe (Address -> Script KeyHash)
     -> Maybe ScriptTemplate
     -> ApiT WalletId
     -> ApiBalanceTransactionPostData n

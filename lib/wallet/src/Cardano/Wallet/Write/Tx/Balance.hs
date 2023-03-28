@@ -313,7 +313,7 @@ data UTxOAssumptions = forall k ktype. UTxOAssumptions
         :: TransactionLayer k ktype SealedTx
         -- TODO: Replace with smaller and smaller parts of 'TransactionLayer'
     , inputScriptLookup
-        :: Maybe ([(W.TxIn, W.TxOut)] -> [CA.Script KeyHash])
+        :: Maybe (W.Address -> (CA.Script KeyHash))
     , inputScriptTemplate
         :: Maybe ScriptTemplate
     , description :: String
@@ -336,7 +336,7 @@ allKeyPaymentCredentials tl = UTxOAssumptions
 -- where the scripts are both derived from the 'ScriptTemplate' and can be
 -- looked up using the given function.
 allScriptPaymentCredentials
-    :: ([(W.TxIn, W.TxOut)] -> [CA.Script KeyHash])
+    :: (W.Address -> (CA.Script KeyHash))
     -> ScriptTemplate
     -> TransactionLayer SharedKey 'CredFromScriptK SealedTx
     -> UTxOAssumptions
@@ -584,7 +584,8 @@ balanceTransactionWithSelectionStrategyAndNoZeroAdaAdjustment
 
     let extraInputScripts = case toInpScriptsM of
             Just toInpScripts ->
-                toInpScripts $ extraInputs <> extraCollateral'
+                map (toInpScripts . (view #address) . snd)
+                $ extraInputs <> extraCollateral'
             Nothing ->
                 []
     let extraCollateral = fst <$> extraCollateral'

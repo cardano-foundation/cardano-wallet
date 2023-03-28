@@ -2390,7 +2390,7 @@ constructUnbalancedSharedTransaction
     -> TransactionCtx
     -> PreSelection
     -> ExceptT ErrConstructTx IO
-    (Cardano.TxBody era, Maybe ([(TxIn, TxOut)] -> [CA.Script KeyHash]) )
+        (Cardano.TxBody era, (Address -> CA.Script KeyHash))
 constructUnbalancedSharedTransaction txLayer netLayer db wid txCtx sel = db & \DBLayer{..} -> do
     cp <- withExceptT ErrConstructTxNoSuchWallet
         $ mapExceptT atomically
@@ -2400,7 +2400,7 @@ constructUnbalancedSharedTransaction txLayer netLayer db wid txCtx sel = db & \D
     let accXPub = getRawKey $ Shared.accountXPub s
     let xpub = CA.getKey $
             deriveDelegationPublicKey (CA.liftXPub accXPub) minBound
-    let getScript (_, TxOut addr _) = case fst (isShared addr s) of
+    let getScript addr = case fst (isShared addr s) of
             Nothing ->
                 error $ "Some inputs selected by coin selection do not belong "
                 <> "to multi-signature wallet"
@@ -2416,7 +2416,7 @@ constructUnbalancedSharedTransaction txLayer netLayer db wid txCtx sel = db & \D
         pp <- liftIO $ currentProtocolParameters netLayer
         withExceptT ErrConstructTxBody $ ExceptT $ pure $
             mkUnsignedTransaction txLayer xpub pp txCtx (Left sel)
-    pure (sealedTx, Just (map getScript))
+    pure (sealedTx, getScript)
 
 -- | Calculate the transaction expiry slot, given a 'TimeInterpreter', and an
 -- optional TTL in seconds.
