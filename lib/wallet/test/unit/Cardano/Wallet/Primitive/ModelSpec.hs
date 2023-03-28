@@ -134,7 +134,7 @@ import Data.Functor
 import Data.Functor.Identity
     ( Identity (..) )
 import Data.Generics.Internal.VL.Lens
-    ( over, set, view, (^.) )
+    ( over, view, (^.) )
 import Data.Generics.Labels
     ()
 import Data.List
@@ -2659,10 +2659,7 @@ prop_applyBlocks_filteredTxs_someOurs
     -> Pretty BlockSeq
     -> Property
 prop_applyBlocks_filteredTxs_someOurs (Pretty someOurs) (Pretty blockSeq)
-    -- TODO: we currently ignore transaction fees, as under some circumstances
-    -- the 'applyBlocks' function can modify fee values:
-    = fmap (set #fee Nothing) ourTxsReturned ====
-      fmap (set #fee Nothing) ourTxsExpected
+    = ourTxsReturned ==== ourTxsExpected
     & labelInterval 10
         "length allTxsProvided"
         (length allTxsProvided)
@@ -2686,10 +2683,7 @@ prop_applyBlocks_filteredTxs_someOurs (Pretty someOurs) (Pretty blockSeq)
 --
 prop_applyBlocks_filteredTxs_allOurs :: Pretty BlockSeq -> Property
 prop_applyBlocks_filteredTxs_allOurs (Pretty blockSeq) =
-    -- TODO: we currently ignore transaction fees, as under some circumstances
-    -- the 'applyBlocks' function can modify fee values:
-    fmap (set #fee Nothing) ourTxsReturned ====
-    fmap (set #fee Nothing) ourTxsExpected
+    ourTxsReturned ==== ourTxsExpected
   where
     ourHeadUTxOProvided = blockSeqHeadUTxO blockSeq
     ourTxsExpected = blockSeqOurTxs AllOurs blockSeq
