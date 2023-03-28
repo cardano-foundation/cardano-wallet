@@ -10,6 +10,7 @@
 {-# LANGUAGE GADTs #-}
 {-# LANGUAGE KindSignatures #-}
 {-# LANGUAGE LambdaCase #-}
+{-# LANGUAGE NoMonomorphismRestriction #-}
 {-# LANGUAGE RankNTypes #-}
 {-# LANGUAGE RecordWildCards #-}
 {-# LANGUAGE ScopedTypeVariables #-}
@@ -56,6 +57,8 @@ import Cardano.Address.Script
     ( ScriptTemplate (..) )
 import Cardano.Pool.Types
     ( PoolId (..) )
+import Cardano.Wallet
+    ( mkNoSuchWalletError )
 import Cardano.Wallet.DB
     ( DBLayer (..), ErrWalletAlreadyExists (..) )
 import Cardano.Wallet.DB.Arbitrary
@@ -457,6 +460,8 @@ runIO
     -> m (Resp s WalletId)
 runIO DBLayer{..} = fmap Resp . go
   where
+
+    runDB wid atomically' = mapExceptT atomically' . mkNoSuchWalletError wid
     go
         :: Cmd s WalletId
         -> m (Either Err (Success s WalletId))
@@ -468,42 +473,42 @@ runIO DBLayer{..} = fmap Resp . go
         ListWallets -> Right . WalletId' . head <$>
             atomically listWallets
         PutCheckpoint wid wal -> catchNoSuchWallet Unit $
-            mapExceptT atomically $ putCheckpoint wid wal
+            runDB wid atomically $ putCheckpoint wid wal
         ReadCheckpoint wid -> Right . Checkpoint <$>
             atomically (readCheckpoint wid)
         ListCheckpoints wid -> Right . ChainPoints <$>
             atomically (listCheckpoints wid)
         PutWalletMeta wid meta -> catchNoSuchWallet Unit $
-            mapExceptT atomically $ putWalletMeta wid meta
+            runDB wid atomically$ putWalletMeta wid meta
         ReadWalletMeta wid -> fmap (Right . (Metadata . fmap fst)) $
             atomically $ readWalletMeta wid
         PutDelegationCertificate wid pool sl -> catchNoSuchWallet Unit $
-            mapExceptT atomically $ putDelegationCertificate wid pool sl
+            runDB wid atomically $ putDelegationCertificate wid pool sl
         IsStakeKeyRegistered wid -> catchNoSuchWallet StakeKeyStatus $
-            mapExceptT atomically $ isStakeKeyRegistered wid
+            runDB wid atomically $ isStakeKeyRegistered wid
         PutTxHistory wid txs -> catchNoSuchWallet Unit $
-            mapExceptT atomically $ putTxHistory wid txs
+            runDB wid atomically $ putTxHistory wid txs
         ReadTxHistory wid minWith order range status ->
             fmap (Right . TxHistory) $
             atomically $
             readTransactions wid minWith order range status Nothing
         GetTx wid tid ->
             catchNoSuchWallet (TxHistory . maybe [] pure) $
-            mapExceptT atomically $ getTx wid tid
+            runDB wid atomically $ getTx wid tid
         PutPrivateKey wid pk -> catchNoSuchWallet Unit $
-            mapExceptT atomically $
+            runDB wid atomically $
             putPrivateKey wid (fromMockPrivKey pk)
         ReadPrivateKey wid -> Right . PrivateKey . fmap toMockPrivKey <$>
             atomically (readPrivateKey wid)
         ReadGenesisParameters wid -> Right . GenesisParams <$>
             atomically (readGenesisParameters wid)
         PutDelegationRewardBalance wid amt -> catchNoSuchWallet Unit $
-            mapExceptT atomically $
+            runDB wid atomically $
             putDelegationRewardBalance wid amt
         ReadDelegationRewardBalance wid -> Right . DelegationRewardBalance <$>
             atomically (readDelegationRewardBalance wid)
         RollbackTo wid sl -> catchNoSuchWallet Point $
-            mapExceptT atomically $ rollbackTo wid sl
+            runDB wid atomically $ rollbackTo wid sl
 
     catchWalletAlreadyExists f =
         fmap (bimap errWalletAlreadyExists f) . runExceptT

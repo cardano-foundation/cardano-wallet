@@ -22,7 +22,7 @@ import Prelude
 import Cardano.Address.Derivation
     ( XPrv )
 import Cardano.Wallet.DB
-    ( DBLayer (..), ErrWalletAlreadyExists (..) )
+    ( DBLayer (..), ErrWalletAlreadyExists (..), ErrWalletNotInitialized (..) )
 import Cardano.Wallet.DB.Pure.Implementation
     ( Database
     , Err (..)
@@ -47,8 +47,6 @@ import Cardano.Wallet.DB.Pure.Implementation
     , mReadWalletMeta
     , mRollbackTo
     )
-import Cardano.Wallet.DB.WalletState
-    ( ErrNoSuchWallet (..) )
 import Cardano.Wallet.Primitive.AddressDerivation
     ( Depth (..) )
 import Cardano.Wallet.Primitive.Passphrase
@@ -99,7 +97,7 @@ newDBLayer timeInterpreter = do
         , walletsDB = error "MVar.walletsDB: not implemented"
 
         , putCheckpoint = \_pk cp -> ExceptT $
-            alterDB errNoSuchWallet db $
+            alterDB errWalletNotInitialized db $
             mPutCheckpoint cp
 
         , readCheckpoint = const $ readDB db mReadCheckpoint
@@ -107,7 +105,7 @@ newDBLayer timeInterpreter = do
         , listCheckpoints = const $ readDB db mListCheckpoints
 
         , rollbackTo = \_pk pt -> ExceptT $
-            alterDB errNoSuchWallet db $
+            alterDB errWalletNotInitialized db $
             mRollbackTo pt
 
         , prune = \_ _ -> error "MVar.prune: not implemented"
@@ -117,24 +115,24 @@ newDBLayer timeInterpreter = do
         -----------------------------------------------------------------------}
 
         , putWalletMeta = \_pk meta -> ExceptT $
-            alterDB errNoSuchWallet db $
+            alterDB errWalletNotInitialized db $
             mPutWalletMeta meta
 
         , readWalletMeta = const $ readDB db $ mReadWalletMeta timeInterpreter
 
         , putDelegationCertificate = \_pk cert sl -> ExceptT $
-            alterDB errNoSuchWallet db $
+            alterDB errWalletNotInitialized db $
             mPutDelegationCertificate cert sl
 
         , isStakeKeyRegistered =
-            const $ ExceptT . alterDB errNoSuchWallet db $ mIsStakeKeyRegistered
+            const $ ExceptT . alterDB errWalletNotInitialized db $ mIsStakeKeyRegistered
 
         {-----------------------------------------------------------------------
                                      Tx History
         -----------------------------------------------------------------------}
 
         , putTxHistory = \_pk txh -> ExceptT $
-            alterDB errNoSuchWallet db $
+            alterDB errWalletNotInitialized db $
             mPutTxHistory txh
 
         , readTransactions = \_pk minWithdrawal order range mstatus _mlimit ->
@@ -148,7 +146,7 @@ newDBLayer timeInterpreter = do
 
         -- TODO: shift implementation to mGetTx
         , getTx = \_pk tid -> ExceptT $
-            alterDB errNoSuchWallet db (mCheckWallet) >>= \case
+            alterDB errWalletNotInitialized db (mCheckWallet) >>= \case
                 Left err -> pure $ Left err
                 Right _ -> do
                     txInfos <- readDB db
@@ -168,7 +166,7 @@ newDBLayer timeInterpreter = do
         -----------------------------------------------------------------------}
 
         , putPrivateKey = \_pk prv -> ExceptT $
-            alterDB errNoSuchWallet db $
+            alterDB errWalletNotInitialized db $
             mPutPrivateKey prv
 
         , readPrivateKey = const $ readDB db mReadPrivateKey
@@ -203,7 +201,7 @@ newDBLayer timeInterpreter = do
         -----------------------------------------------------------------------}
 
         , putDelegationRewardBalance = \_pk amt -> ExceptT $
-            alterDB errNoSuchWallet db (mPutDelegationRewardBalance amt)
+            alterDB errWalletNotInitialized db (mPutDelegationRewardBalance amt)
 
         , readDelegationRewardBalance =
             const $ readDB db mReadDelegationRewardBalance
@@ -246,9 +244,9 @@ readDB db op = alterDB Just db op >>= either (throwIO . MVarDBError) pure
 noWallet :: a
 noWallet = error "wallet not initialized"
 
-errNoSuchWallet :: Err -> Maybe ErrNoSuchWallet
-errNoSuchWallet WalletNotInitialized = Just (ErrNoSuchWallet noWallet)
-errNoSuchWallet _ = Nothing
+errWalletNotInitialized :: Err -> Maybe ErrWalletNotInitialized
+errWalletNotInitialized WalletNotInitialized = Just ErrWalletNotInitialized
+errWalletNotInitialized _ = Nothing
 
 errWalletAlreadyExists
     :: Err

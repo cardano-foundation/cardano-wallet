@@ -54,6 +54,8 @@ import Cardano.DB.Sqlite
     ( DBField, DBLog (..), SqliteContext, fieldName, newInMemorySqliteContext )
 import Cardano.Mnemonic
     ( SomeMnemonic (..) )
+import Cardano.Wallet
+    ( mkNoSuchWalletError )
 import Cardano.Wallet.DB
     ( DBFactory (..), DBLayer (..) )
 import Cardano.Wallet.DB.Arbitrary
@@ -968,7 +970,7 @@ attachPrivateKey DBLayer{..} wid = do
     seed <- liftIO $ generate $ SomeMnemonic <$> genMnemonic @15
     (scheme, h) <- liftIO $ encryptPassphrase pwd
     let k = generateKeyFromSeed (seed, Nothing) (preparePassphrase scheme pwd)
-    mapExceptT atomically $ putPrivateKey wid (k, h)
+    mkNoSuchWalletError wid $ mapExceptT atomically $ putPrivateKey wid (k, h)
     return (k, h)
 
 cutRandomly :: [a] -> IO [[a]]

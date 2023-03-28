@@ -35,6 +35,7 @@ import Cardano.Wallet
     , WalletException (..)
     , WalletLog (..)
     , fetchRewardBalance
+    , mkNoSuchWalletError
     , readRewardAccount
     , transactionExpirySlot
     , withNoSuchWallet
@@ -133,7 +134,7 @@ joinStakePoolDelegationAction
     (walletDelegation, stakeKeyIsRegistered) <-
         atomically . throwInIO ErrStakePoolDelegationNoSuchWallet $
             (,) <$> withNoSuchWallet wid (fmap snd <$> readWalletMeta wid)
-                <*> isStakeKeyRegistered wid
+                <*> mkNoSuchWalletError wid (isStakeKeyRegistered wid)
 
     let retirementInfo =
             PoolRetirementEpochInfo currentEpoch . view #retirementEpoch <$>

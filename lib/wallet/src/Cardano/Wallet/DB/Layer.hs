@@ -80,8 +80,8 @@ import Cardano.Wallet.DB
     , DBTxHistory (..)
     , DBWalletMeta (..)
     , DBWallets (..)
-    , ErrNoSuchWallet (..)
     , ErrWalletAlreadyExists (..)
+    , ErrWalletNotInitialized (..)
     , mkDBLayerFromParts
     )
 import Cardano.Wallet.DB.Sqlite.Migration
@@ -600,7 +600,7 @@ newDBLayerWith _cacheBehavior _tr ti SqliteContext{runQuery} = mdo
         , putCheckpoint_ = \wid cp -> ExceptT $ do
             modifyDBMaybe walletsDB $ \ws ->
                 case Map.lookup wid ws of
-                    Nothing -> (Nothing, Left $ ErrNoSuchWallet wid)
+                    Nothing -> (Nothing, Left ErrWalletNotInitialized)
                     Just _  ->
                         let (prologue, wcp) = fromWallet cp
                             slot = getSlot wcp
@@ -687,7 +687,7 @@ newDBLayerWith _cacheBehavior _tr ti SqliteContext{runQuery} = mdo
                                 )
 
             case mNearestCheckpoint of
-                Nothing  -> ExceptT $ pure $ Left $ ErrNoSuchWallet wid
+                Nothing  -> ExceptT $ pure $ Left ErrWalletNotInitialized
                 Just wcp -> lift $ do
                     let nearestPoint = wcp ^. #currentTip . #slotNo
                     deleteDelegationCertificates wid
@@ -706,7 +706,7 @@ newDBLayerWith _cacheBehavior _tr ti SqliteContext{runQuery} = mdo
     let prune_ wid epochStability finalitySlot = do
             ExceptT $ do
                 readCheckpoint wid >>= \case
-                    Nothing -> pure $ Left $ ErrNoSuchWallet wid
+                    Nothing -> pure $ Left ErrWalletNotInitialized
                     Just cp -> Right <$> do
                         let tip = cp ^. #currentTip
                         pruneCheckpoints wid epochStability tip
@@ -725,7 +725,7 @@ newDBLayerWith _cacheBehavior _tr ti SqliteContext{runQuery} = mdo
       dbWalletMeta = DBWalletMeta
         { putWalletMeta_ = \wid meta -> ExceptT $ do
             selectWallet wid >>= \case
-                Nothing -> pure $ Left $ ErrNoSuchWallet wid
+                Nothing -> pure $ Left ErrWalletNotInitialized
                 Just _ -> do
                     updateWhere [WalId ==. wid]
                         (mkWalletMetadataUpdate meta)

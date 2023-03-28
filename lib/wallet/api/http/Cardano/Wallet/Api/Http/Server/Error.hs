@@ -77,6 +77,7 @@ import Cardano.Wallet
     , ErrUpdatePassphrase (..)
     , ErrUpdateSealedTx (..)
     , ErrWalletAlreadyExists (..)
+    , ErrWalletNotInitialized (..)
     , ErrWalletNotResponding (..)
     , ErrWithRootKey (..)
     , ErrWithdrawalNotBeneficial (..)
@@ -245,6 +246,13 @@ instance IsServerError ErrNoSuchWallet where
             apiError err404 NoSuchWallet $ mconcat
                 [ "I couldn't find a wallet with the given id: "
                 , toText wid
+                ]
+
+instance IsServerError ErrWalletNotInitialized where
+    toServerError = \case
+        ErrWalletNotInitialized ->
+            apiError err404 NoSuchWallet $ mconcat
+                [ "The database for the requested wallet is not initialized. "
                 ]
 
 instance IsServerError ErrWalletNotResponding where
