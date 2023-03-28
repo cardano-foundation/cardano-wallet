@@ -51,7 +51,6 @@ import Cardano.DB.Sqlite
     ( DBLog (..)
     , ForeignKeysSetting (ForeignKeysEnabled)
     , SqliteContext (..)
-    , handleConstraint
     , newInMemorySqliteContext
     , newSqliteContext
     , withConnectionPool
@@ -154,21 +153,19 @@ import Control.DeepSeq
 import Control.Exception
     ( evaluate, throw )
 import Control.Monad
-    ( forM, unless, when, (<=<) )
+    ( forM, unless, (<=<) )
 import Control.Monad.IO.Class
     ( MonadIO (..) )
 import Control.Monad.Trans
     ( lift )
 import Control.Monad.Trans.Except
-    ( ExceptT (..), throwE )
+    ( ExceptT (..), runExceptT, throwE )
 import Control.Tracer
     ( Tracer, contramap, traceWith )
 import Data.Coerce
     ( coerce )
 import Data.DBVar
     ( Store (..), loadDBVar, modifyDBMaybe, readDBVar, updateDBVar )
-import Data.Either
-    ( isRight )
 import Data.Functor
     ( (<&>) )
 import Data.Generics.Internal.VL.Lens
@@ -574,14 +571,14 @@ newDBLayerWith _cacheBehavior _tr ti SqliteContext{runQuery} = mdo
     let
       dbWallets = DBWallets
         { initializeWallet_ = \wid cp meta txs gp -> do
-            ExceptT $ do
-                res <- handleConstraint (ErrWalletAlreadyExists wid) $
-                    insert_ (mkWalletEntity wid meta gp)
-                when (isRight res) $ do
+            res <- lift $ runExceptT $ getWalletId_ dbWallets
+            case res of
+                Left ErrWalletNotInitialized -> lift $ do
+                    insert_ $ mkWalletEntity wid meta gp
                     insertCheckpointGenesis wid cp
                     updateS (store transactionsQS) Nothing $
-                        ExpandTxWalletsHistory wid txs
-                pure res
+                                ExpandTxWalletsHistory wid txs
+                Right _ -> throwE $ ErrWalletAlreadyExists wid
 
         , readGenesisParameters_ = selectGenesisParameters
 
