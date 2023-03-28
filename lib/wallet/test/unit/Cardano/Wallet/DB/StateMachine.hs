@@ -57,7 +57,7 @@ import Cardano.Address.Script
 import Cardano.Pool.Types
     ( PoolId (..) )
 import Cardano.Wallet.DB
-    ( DBLayer (..), ErrWalletAlreadyExists (..), cleanDB )
+    ( DBLayer (..), ErrWalletAlreadyExists (..) )
 import Cardano.Wallet.DB.Arbitrary
     ( GenState, GenTxHistory (..), InitialCheckpoint (..) )
 import Cardano.Wallet.DB.Pure.Implementation
@@ -341,8 +341,7 @@ unMockPrivKeyHash = PassphraseHash .  BA.convert . B8.pack
 -------------------------------------------------------------------------------}
 
 data Cmd s wid
-    = CleanDB
-    | CreateWallet MWid (Wallet s) WalletMetadata TxHistory GenesisParameters
+    = CreateWallet MWid (Wallet s) WalletMetadata TxHistory GenesisParameters
     | RemoveWallet wid
     | ListWallets
     | PutCheckpoint wid (Wallet s)
@@ -404,8 +403,6 @@ instance Traversable (Resp s) where
 
 runMock :: HasCallStack => Cmd s MWid -> Mock s -> (Resp s MWid, Mock s)
 runMock = \case
-    CleanDB ->
-        first (Resp . fmap Unit) . mCleanDB
     CreateWallet wid wal meta txs gp ->
         first (Resp . fmap (const (NewWallet wid)))
             . mInitializeWallet wid wal meta txs gp
@@ -463,14 +460,12 @@ runIO
     => DBLayer m s k
     -> Cmd s WalletId
     -> m (Resp s WalletId)
-runIO db@DBLayer{..} = fmap Resp . go
+runIO DBLayer{..} = fmap Resp . go
   where
     go
         :: Cmd s WalletId
         -> m (Either (Err WalletId) (Success s WalletId))
     go = \case
-        CleanDB -> do
-            Right . Unit <$> cleanDB db
         CreateWallet wid wal meta txs gp ->
             catchWalletAlreadyExists (const (NewWallet (unMockWid wid))) $
             mapExceptT atomically $
