@@ -1,7 +1,7 @@
 ############################################################################
 # Builds Haskell packages with Haskell.nix
 ############################################################################
-CHaP: haskell-nix: nixpkgs-recent: haskell-nix.cabalProject' [
+CHaP: haskell-nix: nixpkgs-recent: nodePkgs: haskell-nix.cabalProject' [
   ({ lib, pkgs, buildProject, ... }: {
     options = {
       gitrev = lib.mkOption {
@@ -122,8 +122,8 @@ CHaP: haskell-nix: nixpkgs-recent: haskell-nix.cabalProject' [
           weeder.version = "2.1.3";
         };
         nativeBuildInputs = with buildProject.hsPkgs; [
-          cardano-node.components.exes.cardano-node
-          cardano-cli.components.exes.cardano-cli
+          nodePkgs.cardano-cli
+          nodePkgs.cardano-node
           cardano-addresses-cli.components.exes.cardano-address
           bech32.components.exes.bech32
           pretty-simple.components.exes.pretty-simple
@@ -166,9 +166,8 @@ CHaP: haskell-nix: nixpkgs-recent: haskell-nix.cabalProject' [
           ({ config, pkgs, ... }:
             let
               cardanoNodeExes = with config.hsPkgs;
-                [
-                  cardano-node.components.exes.cardano-node
-                  cardano-cli.components.exes.cardano-cli
+                [ nodePkgs.cardano-cli
+                  nodePkgs.cardano-node
                 ];
             in
             {
