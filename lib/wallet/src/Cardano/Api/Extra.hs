@@ -12,12 +12,14 @@ module Cardano.Api.Extra
     , inAnyCardanoEra
     , asAnyShelleyBasedEra
     , fromShelleyBasedScript
+    , unbundleLedgerShelleyBasedProtocolParams
     ) where
 
 import Prelude
 
 import Cardano.Api
-    ( CardanoEra (..)
+    ( BundledProtocolParameters (..)
+    , CardanoEra (..)
     , InAnyCardanoEra (..)
     , InAnyShelleyBasedEra (..)
     , IsCardanoEra (cardanoEra)
@@ -135,3 +137,16 @@ fromShelleyBasedScript era script = case era of
                 ScriptInEra PlutusScriptV2InConway $
                 PlutusScript PlutusScriptV2 $
                 PlutusScriptSerialised s
+
+-- Not exposed by cardano-api
+unbundleLedgerShelleyBasedProtocolParams
+  :: ShelleyBasedEra era
+  -> BundledProtocolParameters era
+  -> Ledger.PParams (ShelleyLedgerEra era)
+unbundleLedgerShelleyBasedProtocolParams = \case
+  ShelleyBasedEraShelley -> \(BundleAsShelleyBasedProtocolParameters _ _ lpp) -> lpp
+  ShelleyBasedEraAllegra -> \(BundleAsShelleyBasedProtocolParameters _ _ lpp) -> lpp
+  ShelleyBasedEraMary -> \(BundleAsShelleyBasedProtocolParameters _ _ lpp) -> lpp
+  ShelleyBasedEraAlonzo -> \(BundleAsShelleyBasedProtocolParameters _ _ lpp) -> lpp
+  ShelleyBasedEraBabbage -> \(BundleAsShelleyBasedProtocolParameters _ _ lpp) -> lpp
+  ShelleyBasedEraConway -> \(BundleAsShelleyBasedProtocolParameters _ _ lpp) -> lpp

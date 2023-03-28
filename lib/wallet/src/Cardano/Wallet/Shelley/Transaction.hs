@@ -276,6 +276,7 @@ import Ouroboros.Network.Block
 
 import qualified Cardano.Api as Cardano
 import qualified Cardano.Api.Byron as Byron
+import qualified Cardano.Api.Extra as Cardano
 import qualified Cardano.Api.Shelley as Cardano
 import qualified Cardano.Chain.Common as Byron
 import qualified Cardano.Crypto as CC
@@ -1273,6 +1274,10 @@ assignScriptRedeemers pparams ti utxo redeemers tx =
 
     systemStart = getSystemStart ti
 
+    pparams' = Cardano.unbundleLedgerShelleyBasedProtocolParams
+        (shelleyBasedEra @era)
+        pparams
+
     -- | Assign redeemers with null execution units to the input transaction.
     --
     -- Redeemers are determined from the context given to the caller via the
@@ -1353,9 +1358,6 @@ assignScriptRedeemers pparams ti utxo redeemers tx =
         -> Either ErrAssignRedeemers
             (Map Alonzo.RdmrPtr (Either ErrAssignRedeemers Alonzo.ExUnits))
     evaluateExecutionUnitsAlonzo indexedRedeemers alonzoTx = do
-        let pparams' = Cardano.toLedgerPParams
-                Cardano.ShelleyBasedEraAlonzo
-                    (Cardano.unbundleProtocolParams pparams)
         let costs = toCostModelsAsArray
                 (Alonzo.unCostModels $ Alonzo._costmdls pparams')
         let res = evaluateTransactionExecutionUnits
@@ -1378,9 +1380,6 @@ assignScriptRedeemers pparams ti utxo redeemers tx =
         -> Either ErrAssignRedeemers
             (Map Alonzo.RdmrPtr (Either ErrAssignRedeemers Alonzo.ExUnits))
     evaluateExecutionUnitsBabbage indexedRedeemers babbageTx = do
-        let pparams' = Cardano.toLedgerPParams
-                Cardano.ShelleyBasedEraBabbage
-                    (Cardano.unbundleProtocolParams pparams)
         let costs = toCostModelsAsArray
                 (Alonzo.unCostModels $ Babbage._costmdls pparams')
 
@@ -1404,9 +1403,6 @@ assignScriptRedeemers pparams ti utxo redeemers tx =
         -> Either ErrAssignRedeemers
             (Map Alonzo.RdmrPtr (Either ErrAssignRedeemers Alonzo.ExUnits))
     evaluateExecutionUnitsConway indexedRedeemers conwayTx = do
-        let pparams' = Cardano.toLedgerPParams
-                Cardano.ShelleyBasedEraConway
-                    (Cardano.unbundleProtocolParams pparams)
         let costs = toCostModelsAsArray
                 (Alonzo.unCostModels $ Conway._costmdls pparams')
 
@@ -1489,7 +1485,9 @@ assignScriptRedeemers pparams ti utxo redeemers tx =
 
     -- | Finally, calculate and add the script integrity hash with the new
     -- final redeemers, if any.
-    addScriptIntegrityHashAlonzo :: AlonzoTx -> AlonzoTx
+    addScriptIntegrityHashAlonzo
+        :: era ~ Cardano.AlonzoEra
+        => AlonzoTx -> AlonzoTx
     addScriptIntegrityHashAlonzo alonzoTx =
         let wits  = Alonzo.wits alonzoTx
             langs =
@@ -1501,17 +1499,15 @@ assignScriptRedeemers pparams ti utxo redeemers tx =
         in alonzoTx
             { Alonzo.body = (Alonzo.body alonzoTx)
                 { Alonzo.scriptIntegrityHash = Alonzo.hashScriptIntegrity
-                    (Set.fromList $ Alonzo.getLanguageView
-                        (Cardano.toLedgerPParams
-                            Cardano.ShelleyBasedEraAlonzo
-                                (Cardano.unbundleProtocolParams pparams))
-                        <$> langs)
+                    (Set.fromList $ Alonzo.getLanguageView pparams' <$> langs)
                     (Alonzo.txrdmrs wits)
                     (Alonzo.txdats wits)
                 }
             }
 
-    addScriptIntegrityHashBabbage :: BabbageTx -> BabbageTx
+    addScriptIntegrityHashBabbage
+        :: era ~ Cardano.BabbageEra
+        => BabbageTx -> BabbageTx
     addScriptIntegrityHashBabbage babbageTx =
         let wits  = Alonzo.wits babbageTx
             langs =
@@ -1523,17 +1519,16 @@ assignScriptRedeemers pparams ti utxo redeemers tx =
         in babbageTx
             { Babbage.body = (Babbage.body babbageTx)
                 { Babbage.scriptIntegrityHash = Alonzo.hashScriptIntegrity
-                    (Set.fromList $ Alonzo.getLanguageView
-                        (Cardano.toLedgerPParams
-                            Cardano.ShelleyBasedEraBabbage
-                                (Cardano.unbundleProtocolParams pparams))
+                    (Set.fromList $ Alonzo.getLanguageView pparams'
                         <$> langs)
                     (Alonzo.txrdmrs wits)
                     (Alonzo.txdats wits)
                 }
             }
 
-    addScriptIntegrityHashConway :: ConwayTx -> ConwayTx
+    addScriptIntegrityHashConway
+        :: era ~ Cardano.ConwayEra
+        => ConwayTx -> ConwayTx
     addScriptIntegrityHashConway conwayTx =
         let wits  = Alonzo.wits conwayTx
             langs =
@@ -1545,10 +1540,7 @@ assignScriptRedeemers pparams ti utxo redeemers tx =
         in conwayTx
             { Conway.body = (Conway.body conwayTx)
                 { Conway.scriptIntegrityHash = Alonzo.hashScriptIntegrity
-                    (Set.fromList $ Alonzo.getLanguageView
-                        (Cardano.toLedgerPParams
-                            Cardano.ShelleyBasedEraConway
-                                (Cardano.unbundleProtocolParams pparams))
+                    (Set.fromList $ Alonzo.getLanguageView pparams'
                         <$> langs)
                     (Alonzo.txrdmrs wits)
                     (Alonzo.txdats wits)
