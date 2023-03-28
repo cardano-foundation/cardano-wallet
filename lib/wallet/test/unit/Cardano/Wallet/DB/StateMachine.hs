@@ -66,7 +66,6 @@ import Cardano.Wallet.DB.Pure.Implementation
     , TxHistory
     , WalletDatabase (..)
     , emptyDatabase
-    , mCleanDB
     , mInitializeWallet
     , mIsStakeKeyRegistered
     , mListCheckpoints
