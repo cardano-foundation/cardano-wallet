@@ -55,7 +55,7 @@ import Cardano.DB.Sqlite
 import Cardano.Mnemonic
     ( SomeMnemonic (..) )
 import Cardano.Wallet.DB
-    ( DBFactory (..), DBLayer (..), cleanDB )
+    ( DBFactory (..), DBLayer (..) )
 import Cardano.Wallet.DB.Arbitrary
     ( GenState, KeyValPairs (..) )
 import Cardano.Wallet.DB.Layer
@@ -303,14 +303,17 @@ import qualified Database.Persist.Sqlite as Sqlite
 import qualified UnliftIO.STM as STM
 
 spec :: Spec
-spec = parallel $ do
-    stateMachineSpecSeq
-    stateMachineSpecRnd
-    stateMachineSpecShared
-    propertiesSpecSeq
-    loggingSpec
-    fileModeSpec
-    manualMigrationsSpec
+spec =
+    describe "LayerSpec"
+        $ parallel
+        $ do
+            stateMachineSpecSeq
+            stateMachineSpecRnd
+            stateMachineSpecShared
+            propertiesSpecSeq
+            loggingSpec
+            fileModeSpec
+            manualMigrationsSpec
 
 stateMachineSpec
     :: forall k s ktype.
@@ -384,7 +387,6 @@ withLoggingDB = around f . beforeWith clean
             dummyTimeInterpreter
             (\db -> act (logVar, db))
     clean (logs, db) = do
-        cleanDB db
         STM.atomically $ writeTVar logs []
         pure (mapMaybe getMsgDB <$> readTVarIO logs, db)
 
@@ -501,7 +503,7 @@ fileModeSpec =  do
             withShelleyFileDBLayer f $ \DBLayer{..} -> do
                 atomically $ unsafeRunExceptT $
                     initializeWallet testWid testCp testMetadata mempty gp
-            testOpeningCleaning f listWallets' [testWid] []
+            testReopening f listWallets' [testWid]
 
         it "create and get meta works" $ \f -> do
             meta <- withShelleyFileDBLayer f $ \DBLayer{..} -> do
@@ -511,14 +513,14 @@ fileModeSpec =  do
                 atomically $ unsafeRunExceptT $
                     initializeWallet testWid testCp meta mempty gp
                 return (meta, WalletDelegation NotDelegating [])
-            testOpeningCleaning f (`readWalletMeta'` testWid) (Just meta) Nothing
+            testReopening f (`readWalletMeta'` testWid) (Just meta)
 
         it "create and get private key" $ \f -> do
             (k, h) <- withShelleyFileDBLayer f $ \db@DBLayer{..} -> do
                 atomically $ unsafeRunExceptT $
                     initializeWallet testWid testCp testMetadata mempty gp
                 unsafeRunExceptT $ attachPrivateKey db testWid
-            testOpeningCleaning f (`readPrivateKey'` testWid) (Just (k, h)) Nothing
+            testReopening f (`readPrivateKey'` testWid) (Just (k, h))
 
         it "put and read tx history (Ascending)" $ \f -> do
             withShelleyFileDBLayer f $ \DBLayer{..} -> do
@@ -526,13 +528,12 @@ fileModeSpec =  do
                     unsafeRunExceptT $
                         initializeWallet testWid testCp testMetadata mempty gp
                     unsafeRunExceptT $ putTxHistory testWid testTxs
-            testOpeningCleaning
+            testReopening
                 f
                 (\db' ->
                     readTransactions' db' testWid Ascending wholeRange Nothing
                     )
                 testTxs -- expected after opening db
-                mempty -- expected after cleaning db
 
         it "put and read tx history (Descending)" $ \f -> do
             withShelleyFileDBLayer f $ \DBLayer{..} -> do
@@ -540,13 +541,12 @@ fileModeSpec =  do
                     unsafeRunExceptT $
                         initializeWallet testWid testCp testMetadata mempty gp
                     unsafeRunExceptT $ putTxHistory testWid testTxs
-            testOpeningCleaning
+            testReopening
                 f
                 (\db' ->
                     readTransactions' db' testWid Descending wholeRange Nothing
                     )
                 (reverse testTxs) -- expected after opening db
-                mempty -- expected after cleaning db
 
         it "put and read checkpoint" $ \f -> do
             withShelleyFileDBLayer f $ \DBLayer{..} -> do
@@ -554,7 +554,7 @@ fileModeSpec =  do
                     unsafeRunExceptT $
                         initializeWallet testWid testCp testMetadata mempty gp
                     unsafeRunExceptT $ putCheckpoint testWid testCp
-            testOpeningCleaning f (`readCheckpoint'` testWid) (Just testCp) Nothing
+            testReopening f (`readCheckpoint'` testWid) (Just testCp)
 
         describe "Golden rollback scenarios" $ do
             let dummyHash x = Hash $
@@ -820,9 +820,7 @@ prop_randomOpChunks (KeyValPairs pairs) =
     prop = do
         filepath <- temporaryDBFile
         withShelleyFileDBLayer filepath $ \dbF -> do
-            cleanDB dbF
             withShelleyDBLayer $ \dbM -> do
-                cleanDB dbM
                 forM_ pairs (insertPair dbM)
                 cutRandomly pairs >>= mapM_ (mapM (insertPair dbF))
                 dbF `shouldBeConsistentWith` dbM
@@ -862,22 +860,17 @@ prop_randomOpChunks (KeyValPairs pairs) =
             meta2 <- readWalletMeta' db2 walId
             meta1 `shouldBe` meta2
 
--- | Test that data is preserved between open / close of the same database and
--- that cleaning up happens as expected.
-testOpeningCleaning
+-- | Test that data is preserved when closing the database and opening
+-- it again.
+testReopening
     :: (Show s, Eq s)
     => FilePath
     -> (DBLayer IO (SeqState 'Mainnet ShelleyKey) ShelleyKey -> IO s)
     -> s
-    -> s
     -> Expectation
-testOpeningCleaning filepath call expectedAfterOpen expectedAfterClean = do
+testReopening filepath call expectedAfterOpen = do
     withShelleyFileDBLayer filepath $ \db -> do
         call db `shouldReturn` expectedAfterOpen
-        _ <- cleanDB db
-        call db `shouldReturn` expectedAfterClean
-    withShelleyFileDBLayer filepath $ \db -> do
-        call db `shouldReturn` expectedAfterClean
 
 -- | Run a test action inside withDBLayer, then check assertions.
 withTestDBFile
