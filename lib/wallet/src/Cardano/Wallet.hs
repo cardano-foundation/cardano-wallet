@@ -72,7 +72,6 @@ module Cardano.Wallet
     , getWalletUtxoSnapshot
     , listUtxoStatistics
     , readWallet
-    , deleteWallet
     , restoreWallet
     , updateWallet
     , updateWalletPassphraseWithOldPassphrase
@@ -1207,21 +1206,6 @@ restoreBlocks ctx tr wid blocks nodeTip = db & \DBLayer{..} ->
     isParentOf :: Wallet s -> BlockHeader -> Bool
     isParentOf cp = (== Just parent) . parentHeaderHash
       where parent = headerHash $ currentTip cp
-
--- | Remove an existing wallet. Note that there's no particular work to
--- be done regarding the restoration worker as it will simply terminate
--- on the next tick when noticing that the corresponding wallet is gone.
-deleteWallet
-    :: forall ctx s k.
-        ( HasDBLayer IO s k ctx
-        )
-    => ctx
-    -> WalletId
-    -> ExceptT ErrNoSuchWallet IO ()
-deleteWallet ctx _wid = db & \DBLayer{..} -> do
-    mapExceptT atomically $ error "removeWallet deprecated"
-  where
-    db = ctx ^. dbLayer @IO @s @k
 
 -- | Fetch the cached reward balance of a given wallet from the database.
 fetchRewardBalance :: forall s k. DBLayer IO s k -> WalletId -> IO Coin
