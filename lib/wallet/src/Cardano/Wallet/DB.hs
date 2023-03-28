@@ -190,8 +190,8 @@ data DBLayer m s k = forall stm. (MonadIO stm, MonadFail stm) => DBLayer
         -- 'putWalletMeta', 'putTxHistory' or 'putProtocolParameters' will
         -- actually all fail if they are called _first_ on a wallet.
 
-    , listWallets
-        :: stm [WalletId]
+    , getWalletId
+        :: ExceptT ErrWalletNotInitialized stm WalletId
         -- ^ Get the list of all known wallets in the DB, possibly empty.
 
     , walletsDB
@@ -460,7 +460,7 @@ mkDBLayerFromParts
     -> DBLayer m s k
 mkDBLayerFromParts ti DBLayerCollection{..} = DBLayer
     { initializeWallet = initializeWallet_ dbWallets
-    , listWallets = listWallets_ dbWallets
+    , getWalletId = getWalletId_ dbWallets
     , walletsDB = walletsDB_ dbCheckpoints
     , putCheckpoint = putCheckpoint_ dbCheckpoints
     , readCheckpoint = readCheckpoint'
@@ -611,9 +611,9 @@ data DBWallets stm s = DBWallets
         -> stm (Maybe GenesisParameters)
         -- ^ Read the *Byron* genesis parameters.
 
-    , listWallets_
-        :: stm [WalletId]
-        -- ^ Get the list of all known wallets in the DB, possibly empty.
+    , getWalletId_
+        :: ExceptT ErrWalletNotInitialized stm WalletId
+        -- ^ Get the 'WalletId' of the wallet stored in the DB.
 
     , hasWallet_
         :: WalletId

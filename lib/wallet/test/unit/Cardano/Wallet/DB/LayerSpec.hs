@@ -183,7 +183,7 @@ import Control.Monad
 import Control.Monad.IO.Class
     ( liftIO )
 import Control.Monad.Trans.Except
-    ( ExceptT, mapExceptT )
+    ( ExceptT, mapExceptT, runExceptT )
 import Control.Tracer
     ( Tracer )
 import Crypto.Hash
@@ -262,6 +262,7 @@ import Test.Hspec.Extra
     ( parallel )
 import Test.QuickCheck
     ( Arbitrary (..)
+    , NonEmptyList (..)
     , Property
     , choose
     , generate
@@ -371,7 +372,7 @@ loggingSpec = withLoggingDB @(SeqState 'Mainnet ShelleyKey) $ do
     describe "Sqlite observables" $ do
         it "should measure query timings" $ \(getLogs, DBLayer{..}) -> do
             let count = 5
-            replicateM_ count (atomically listWallets)
+            replicateM_ count (atomically $ runExceptT getWalletId)
             msgs <- findObserveDiffs <$> getLogs
             length msgs `shouldBe` count * 2
 
@@ -485,7 +486,8 @@ fileModeSpec =  do
         let writeSomething DBLayer{..} = do
                 atomically $ unsafeRunExceptT $
                     initializeWallet testWid testCpSeq testMetadata mempty gp
-                atomically listWallets `shouldReturn` [testWid]
+                atomically (runExceptT getWalletId) `shouldReturn`
+                    (Right testWid)
             tempFilesAbsent fp = do
                 doesFileExist fp `shouldReturn` True
                 doesFileExist (fp <> "-wal") `shouldReturn` False
@@ -504,7 +506,7 @@ fileModeSpec =  do
             withShelleyFileDBLayer f $ \DBLayer{..} -> do
                 atomically $ unsafeRunExceptT $
                     initializeWallet testWid testCp testMetadata mempty gp
-            testReopening f listWallets' [testWid]
+            testReopening f getWalletId' testWid
 
         it "create and get meta works" $ \f -> do
             meta <- withShelleyFileDBLayer f $ \DBLayer{..} -> do
@@ -813,33 +815,33 @@ fileModeSpec =  do
 -- multiple sessions.
 prop_randomOpChunks
     :: (Eq s, PersistAddressBook s, Show s)
-    => KeyValPairs WalletId (Wallet s, WalletMetadata)
+    => WalletId
+    -> NonEmptyList (Wallet s, WalletMetadata)
     -> Property
-prop_randomOpChunks (KeyValPairs pairs) =
+prop_randomOpChunks _k (NonEmpty []) = error "arbitrary generated an empty list"
+prop_randomOpChunks k (NonEmpty (p : pairs)) =
     not (null pairs) ==> monadicIO (liftIO prop)
   where
     prop = do
         filepath <- temporaryDBFile
         withShelleyFileDBLayer filepath $ \dbF -> do
             withShelleyDBLayer $ \dbM -> do
+                boot dbM p
+                boot dbF p
                 forM_ pairs (insertPair dbM)
                 cutRandomly pairs >>= mapM_ (mapM (insertPair dbF))
                 dbF `shouldBeConsistentWith` dbM
+    boot DBLayer{..} (cp, meta) = do
+        let cp0 = imposeGenesisState cp
+        atomically $ unsafeRunExceptT $ initializeWallet k cp0 meta mempty gp
 
     insertPair
         :: DBLayer IO s k
-        -> (WalletId, (Wallet s, WalletMetadata))
+        -> (Wallet s, WalletMetadata)
         -> IO ()
-    insertPair DBLayer{..} (k, (cp, meta)) = do
-        keys <- atomically listWallets
-        if k `elem` keys then atomically $ do
+    insertPair DBLayer{..} (cp, meta) = atomically $ do
             unsafeRunExceptT $ putCheckpoint k cp
             unsafeRunExceptT $ putWalletMeta k meta
-        else do
-            let cp0 = imposeGenesisState cp
-            atomically $ unsafeRunExceptT $ initializeWallet k cp0 meta mempty gp
-            Set.fromList <$> atomically listWallets
-                `shouldReturn` Set.fromList (k:keys)
 
     imposeGenesisState :: Wallet s -> Wallet s
     imposeGenesisState = over #currentTip $ \(BlockHeader _ _ h _) ->
@@ -847,19 +849,17 @@ prop_randomOpChunks (KeyValPairs pairs) =
 
     shouldBeConsistentWith :: (Eq s, Show s) => DBLayer IO s k -> DBLayer IO s k -> IO ()
     shouldBeConsistentWith db1 db2 = do
-        wids1 <- Set.fromList <$> listWallets' db1
-        wids2 <- Set.fromList <$> listWallets' db2
-        wids1 `shouldBe` wids2
+        walId1 <-  getWalletId' db1
+        walId2 <-  getWalletId' db2
+        walId1 `shouldBe` walId2
 
-        forM_ wids1 $ \walId -> do
-            cps1 <- readCheckpoint' db1 walId
-            cps2 <- readCheckpoint' db2 walId
-            cps1 `shouldBe` cps2
+        cps1 <- readCheckpoint' db1 walId1
+        cps2 <- readCheckpoint' db2 walId1
+        cps1 `shouldBe` cps2
 
-        forM_ wids1 $ \walId -> do
-            meta1 <- readWalletMeta' db1 walId
-            meta2 <- readWalletMeta' db2 walId
-            meta1 `shouldBe` meta2
+        meta1 <- readWalletMeta' db1 walId1
+        meta2 <- readWalletMeta' db2 walId1
+        meta1 `shouldBe` meta2
 
 -- | Test that data is preserved when closing the database and opening
 -- it again.
@@ -922,11 +922,11 @@ withShelleyFileDBLayer fp = withDBLayer
     fp
     dummyTimeInterpreter
 
-listWallets'
+getWalletId'
     :: DBLayer m s k
-    -> m [WalletId]
-listWallets' DBLayer{..} =
-    atomically listWallets
+    -> m WalletId
+getWalletId' DBLayer{..} =
+    atomically $ unsafeRunExceptT getWalletId
 
 readCheckpoint'
     :: DBLayer m s k
@@ -1186,7 +1186,7 @@ testMigrationTxMetaFee
 testMigrationTxMetaFee dbName expectedLength caseByCase = do
     (logs, result) <- withDBLayerFromCopiedFile @ShelleyKey dbName
         $ \DBLayer{..} -> atomically $ do
-            [wid] <- listWallets
+            wid <- unsafeRunExceptT getWalletId
             readTransactions wid Nothing Descending wholeRange Nothing Nothing
 
     -- Check that we've indeed logged a needed migration for 'fee'
@@ -1228,7 +1228,7 @@ testMigrationCleanupCheckpoints
 testMigrationCleanupCheckpoints dbName genesisParameters tip = do
     (logs, result) <- withDBLayerFromCopiedFile @ShelleyKey dbName
         $ \DBLayer{..} -> atomically $ do
-            [wid] <- listWallets
+            wid <- unsafeRunExceptT getWalletId
             (,) <$> readGenesisParameters wid <*> readCheckpoint wid
 
     length (filter (isMsgManualMigration fieldGenesisHash) logs) `shouldBe` 1
@@ -1250,7 +1250,7 @@ testMigrationRole
 testMigrationRole dbName = do
     (logs, Just cp) <- withDBLayerFromCopiedFile @ShelleyKey dbName
         $ \DBLayer{..} -> atomically $ do
-            [wid] <- listWallets
+            wid <- unsafeRunExceptT getWalletId
             readCheckpoint wid
 
     let migrationMsg = filter isMsgManualMigration logs
@@ -1279,7 +1279,7 @@ testMigrationSeqStateDerivationPrefix
 testMigrationSeqStateDerivationPrefix dbName prefix = do
     (logs, Just cp) <- withDBLayerFromCopiedFile @k @s dbName
         $ \DBLayer{..} -> atomically $ do
-            [wid] <- listWallets
+            wid <- unsafeRunExceptT getWalletId
             readCheckpoint wid
 
     let migrationMsg = filter isMsgManualMigration logs

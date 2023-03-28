@@ -160,7 +160,7 @@ import Control.Monad.IO.Class
 import Control.Monad.Trans
     ( lift )
 import Control.Monad.Trans.Except
-    ( ExceptT (..) )
+    ( ExceptT (..), throwE )
 import Control.Tracer
     ( Tracer, contramap, traceWith )
 import Data.Coerce
@@ -585,7 +585,11 @@ newDBLayerWith _cacheBehavior _tr ti SqliteContext{runQuery} = mdo
 
         , readGenesisParameters_ = selectGenesisParameters
 
-        , listWallets_ = map unWalletKey <$> selectKeysList [] [Asc WalId]
+        , getWalletId_ = do
+            ws <- lift $ map unWalletKey <$> selectKeysList [] [Asc WalId]
+            case ws of
+                [w] -> pure w
+                _ -> throwE ErrWalletNotInitialized
 
         , hasWallet_ = fmap isJust . selectWallet
         }

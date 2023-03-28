@@ -160,21 +160,21 @@ properties = describe "DB.Properties" $ do
         it "Checkpoint"
             $ property
                 . prop_readAfterPut
-                    ( \DBLayer {..} wid ->
+                    ( \DBLayer{..} wid ->
                         mkNoSuchWalletError wid
                             . mapExceptT atomically
                             . putCheckpoint wid
                     )
-                    (\DBLayer {..} -> atomically . readCheckpoint)
+                    (\DBLayer{..} -> atomically . readCheckpoint)
         it "Wallet Metadata"
             $ property
                 . prop_readAfterPut
-                    ( \DBLayer {..} wid ->
+                    ( \DBLayer{..} wid ->
                         mkNoSuchWalletError wid
                             . mapExceptT atomically
                             . putWalletMeta wid
                     )
-                    ( \DBLayer {..} ->
+                    ( \DBLayer{..} ->
                         atomically
                             . fmap (fmap fst)
                             . readWalletMeta
@@ -187,12 +187,12 @@ properties = describe "DB.Properties" $ do
         it "Private Key"
             $ property
                 . prop_readAfterPut
-                    ( \DBLayer {..} wid ->
+                    ( \DBLayer{..} wid ->
                         mkNoSuchWalletError wid
                             . mapExceptT atomically
                             . putPrivateKey wid
                     )
-                    (\DBLayer {..} -> atomically . readPrivateKey)
+                    (\DBLayer{..} -> atomically . readPrivateKey)
 
     describe "getTx properties" $ do
         it "can read after putting tx history for valid tx id"
@@ -206,22 +206,22 @@ properties = describe "DB.Properties" $ do
         it "Checkpoint"
             $ property
                 . prop_putBeforeInit
-                    ( \DBLayer {..} wid ->
+                    ( \DBLayer{..} wid ->
                         mkNoSuchWalletError wid
                             . mapExceptT atomically
                             . putCheckpoint wid
                     )
-                    (\DBLayer {..} -> atomically . readCheckpoint)
+                    (\DBLayer{..} -> atomically . readCheckpoint)
                     Nothing
         it "Wallet Metadata"
             $ property
                 . prop_putBeforeInit
-                    ( \DBLayer {..} wid ->
+                    ( \DBLayer{..} wid ->
                         mkNoSuchWalletError wid
                             . mapExceptT atomically
                             . putWalletMeta wid
                     )
-                    ( \DBLayer {..} ->
+                    ( \DBLayer{..} ->
                         atomically
                             . fmap (fmap fst)
                             . readWalletMeta
@@ -236,57 +236,57 @@ properties = describe "DB.Properties" $ do
         it "Private Key"
             $ property
                 . prop_putBeforeInit
-                    ( \DBLayer {..} wid ->
+                    ( \DBLayer{..} wid ->
                         mkNoSuchWalletError wid
                             . mapExceptT atomically
                             . putPrivateKey wid
                     )
-                    (\DBLayer {..} -> atomically . readPrivateKey)
+                    (\DBLayer{..} -> atomically . readPrivateKey)
                     Nothing
 
     describe "put doesn't affect other resources" $ do
         it "Checkpoint vs Wallet Metadata & Tx History & Private Key"
             $ property
                 . prop_isolation
-                    ( \DBLayer {..} wid ->
+                    ( \DBLayer{..} wid ->
                         mkNoSuchWalletError wid
                             . mapExceptT atomically
                             . putCheckpoint wid
                     )
-                    (\DBLayer {..} -> atomically . readWalletMeta)
+                    (\DBLayer{..} -> atomically . readWalletMeta)
                     readTxHistory_
-                    (\DBLayer {..} -> atomically . readPrivateKey)
+                    (\DBLayer{..} -> atomically . readPrivateKey)
         it "Wallet Metadata vs Tx History & Checkpoint & Private Key"
             $ property
                 . prop_isolation
-                    ( \DBLayer {..} wid ->
+                    ( \DBLayer{..} wid ->
                         mkNoSuchWalletError wid
                             . mapExceptT atomically
                             . putWalletMeta wid
                     )
                     readTxHistory_
-                    (\DBLayer {..} -> atomically . readCheckpoint)
-                    (\DBLayer {..} -> atomically . readPrivateKey)
+                    (\DBLayer{..} -> atomically . readCheckpoint)
+                    (\DBLayer{..} -> atomically . readPrivateKey)
         it "Tx History vs Checkpoint & Wallet Metadata & Private Key"
             $ property
                 . prop_isolation
                     putTxHistory_
-                    (\DBLayer {..} -> atomically . readCheckpoint)
-                    (\DBLayer {..} -> atomically . readWalletMeta)
-                    (\DBLayer {..} -> atomically . readPrivateKey)
+                    (\DBLayer{..} -> atomically . readCheckpoint)
+                    (\DBLayer{..} -> atomically . readWalletMeta)
+                    (\DBLayer{..} -> atomically . readPrivateKey)
 
     describe "sequential puts replace values in order" $ do
         it "Checkpoint"
             $ checkCoverage
                 . prop_sequentialPut
-                    (\DBLayer {..} wid -> mkNoSuchWalletError wid . mapExceptT atomically . putCheckpoint wid)
-                    (\DBLayer {..} -> atomically . readCheckpoint)
+                    (\DBLayer{..} wid -> mkNoSuchWalletError wid . mapExceptT atomically . putCheckpoint wid)
+                    (\DBLayer{..} -> atomically . readCheckpoint)
                     lrp
         it "Wallet Metadata"
             $ checkCoverage
                 . prop_sequentialPut
-                    (\DBLayer {..} wid -> mkNoSuchWalletError wid . mapExceptT atomically . putWalletMeta wid)
-                    (\DBLayer {..} -> atomically . fmap (fmap fst) . readWalletMeta)
+                    (\DBLayer{..} wid -> mkNoSuchWalletError wid . mapExceptT atomically . putWalletMeta wid)
+                    (\DBLayer{..} -> atomically . fmap (fmap fst) . readWalletMeta)
                     lrp
         it "Tx History"
             $ checkCoverage
@@ -297,22 +297,22 @@ properties = describe "DB.Properties" $ do
         it "Private Key"
             $ checkCoverage
                 . prop_sequentialPut
-                    (\DBLayer {..} wid -> mkNoSuchWalletError wid . mapExceptT atomically . putPrivateKey wid)
-                    (\DBLayer {..} -> atomically . readPrivateKey)
+                    (\DBLayer{..} wid -> mkNoSuchWalletError wid . mapExceptT atomically . putPrivateKey wid)
+                    (\DBLayer{..} -> atomically . readPrivateKey)
                     lrp
 
     describe "parallel puts replace values in _any_ order" $ do
         it "Checkpoint"
             $ checkCoverage
                 . prop_parallelPut
-                    (\DBLayer {..} wid -> mkNoSuchWalletError wid . mapExceptT atomically . putCheckpoint wid)
-                    (\DBLayer {..} -> atomically . readCheckpoint)
+                    (\DBLayer{..} wid -> mkNoSuchWalletError wid . mapExceptT atomically . putCheckpoint wid)
+                    (\DBLayer{..} -> atomically . readCheckpoint)
                     (length . lrp @Maybe)
         it "Wallet Metadata"
             $ checkCoverage
                 . prop_parallelPut
-                    (\DBLayer {..} wid -> mkNoSuchWalletError wid . mapExceptT atomically . putWalletMeta wid)
-                    (\DBLayer {..} -> atomically . fmap (fmap fst) . readWalletMeta)
+                    (\DBLayer{..} wid -> mkNoSuchWalletError wid . mapExceptT atomically . putWalletMeta wid)
+                    (\DBLayer{..} -> atomically . fmap (fmap fst) . readWalletMeta)
                     (length . lrp @Maybe)
         it "Tx History"
             $ checkCoverage
@@ -323,8 +323,8 @@ properties = describe "DB.Properties" $ do
         it "Private Key"
             $ checkCoverage
                 . prop_parallelPut
-                    (\DBLayer {..} wid -> mkNoSuchWalletError wid . mapExceptT atomically . putPrivateKey wid)
-                    (\DBLayer {..} -> atomically . readPrivateKey)
+                    (\DBLayer{..} wid -> mkNoSuchWalletError wid . mapExceptT atomically . putPrivateKey wid)
+                    (\DBLayer{..} -> atomically . readPrivateKey)
                     (length . lrp @Maybe)
 
     describe "rollback" $ do
@@ -440,16 +440,16 @@ assertWith lbl condition = do
 -- | Can list created wallets
 prop_createListWallet
     :: DBLayer IO s ShelleyKey
-    -> KeyValPairs WalletId (InitialCheckpoint s, WalletMetadata)
+    -> WalletId
+    -> (InitialCheckpoint s, WalletMetadata)
     -> Property
-prop_createListWallet DBLayer{..} (KeyValPairs pairs) =
+prop_createListWallet DBLayer{..} wid (InitialCheckpoint cp0, meta) =
     monadicIO prop
   where
     prop = liftIO $ do
-        res <- once pairs $ \(k, (InitialCheckpoint cp0, meta)) ->
-            atomically $ unsafeRunExceptT $
-            initializeWallet k cp0 meta mempty gp
-        (length <$> atomically listWallets) `shouldReturn` length res
+        atomically $ unsafeRunExceptT $
+            initializeWallet wid cp0 meta mempty gp
+        atomically (unsafeRunExceptT getWalletId) `shouldReturn` wid
 
 -- | Trying to create a same wallet twice should yield an error
 prop_createWalletTwice
