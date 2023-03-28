@@ -3063,8 +3063,7 @@ balanceTransaction
                     (Write.UTxOAssumptions
                         txLayer
                         genInpScripts
-                        mScriptTemplate
-                        "<either script or key payment credentials>")
+                        mScriptTemplate)
                     (pp, nodePParams)
                     ti
                     utxoIndex

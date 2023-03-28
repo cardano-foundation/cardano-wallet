@@ -316,7 +316,6 @@ data UTxOAssumptions = forall k ktype. UTxOAssumptions
         :: Maybe (W.Address -> (CA.Script KeyHash))
     , inputScriptTemplate
         :: Maybe ScriptTemplate
-    , description :: String
     }
 
 -- | Assumes all 'UTxO' entries have addresses with key payment credentials;
@@ -329,7 +328,6 @@ allKeyPaymentCredentials tl = UTxOAssumptions
     { txLayer = tl
     , inputScriptLookup = Nothing
     , inputScriptTemplate = Nothing
-    , description = "allKeyPaymentCredentials"
     }
 
 -- | Assumes all 'UTxO' entries have addresses with script payment credentials,
@@ -344,7 +342,6 @@ allScriptPaymentCredentials scriptLookup template tl = UTxOAssumptions
     { txLayer = tl
     , inputScriptLookup = Just scriptLookup
     , inputScriptTemplate = Just template
-    , description = "allScriptPaymentCredentials"
     }
 
 balanceTransaction
@@ -486,8 +483,7 @@ balanceTransactionWithSelectionStrategyAndNoZeroAdaAdjustment
     (UTxOAssumptions
         txLayer
         toInpScriptsM
-        mScriptTemplate
-        _desc)
+        mScriptTemplate)
     (pp, nodePParams)
     ti
     internalUtxoAvailable
