@@ -82,7 +82,6 @@ import Cardano.Wallet.DB.Pure.Implementation
     , mReadPrivateKey
     , mReadTxHistory
     , mReadWalletMeta
-    , mRemoveWallet
     , mRollbackTo
     )
 import Cardano.Wallet.DB.WalletState
@@ -341,7 +340,6 @@ unMockPrivKeyHash = PassphraseHash .  BA.convert . B8.pack
 
 data Cmd s wid
     = CreateWallet MWid (Wallet s) WalletMetadata TxHistory GenesisParameters
-    | RemoveWallet wid
     | ListWallets
     | PutCheckpoint wid (Wallet s)
     | ReadCheckpoint wid
@@ -405,8 +403,6 @@ runMock = \case
     CreateWallet wid wal meta txs gp ->
         first (Resp . fmap (const (NewWallet wid)))
             . mInitializeWallet wid wal meta txs gp
-    RemoveWallet wid ->
-        first (Resp . fmap Unit) . mRemoveWallet wid
     ListWallets ->
         first (Resp . fmap WalletIds) . mListWallets
     PutCheckpoint wid wal ->
@@ -469,8 +465,6 @@ runIO DBLayer{..} = fmap Resp . go
             catchWalletAlreadyExists (const (NewWallet (unMockWid wid))) $
             mapExceptT atomically $
             initializeWallet (unMockWid wid) wal meta txs gp
-        RemoveWallet wid -> catchNoSuchWallet Unit $
-            mapExceptT atomically $ removeWallet wid
         ListWallets -> Right . WalletIds <$>
             atomically listWallets
         PutCheckpoint wid wal -> catchNoSuchWallet Unit $
@@ -639,9 +633,7 @@ generatorWithWid
     => [Reference WalletId r]
     -> [(String, (Int, Gen (Cmd s (Reference WalletId r))))]
 generatorWithWid wids =
-    [ declareGenerator "RemoveWallet" 3
-        $ RemoveWallet <$> genId
-    , declareGenerator "ListWallets" 5
+    [ declareGenerator "ListWallets" 5
         $ pure ListWallets
     , declareGenerator "PutCheckpoints" 5
         $ PutCheckpoint <$> genId <*> arbitrary
@@ -1039,7 +1031,6 @@ tag :: forall s. [Event s Symbolic] -> [Tag]
 tag = Foldl.fold $ catMaybes <$> sequenceA
     [ createThreeWallets
     , createWalletTwice
-    , removeWalletTwice
     , createThenList
     , readTransactions (not . null) SuccessfulReadTxHistory
     , readTransactions null UnsuccessfulReadTxHistory
@@ -1047,7 +1038,6 @@ tag = Foldl.fold $ catMaybes <$> sequenceA
     , txUnsorted outputs TxUnsortedOutputs
     , readCheckpoint isJust SuccessfulReadCheckpoint
     , readCheckpoint isNothing UnsuccessfulReadCheckpoint
-    , readAfterDelete
     , countAction SuccessfulReadPrivateKey (>= 1) isReadPrivateKeySuccess
     , countAction PutCheckpointTwice (>= 2) isPutCheckpointSuccess
     , countAction RolledBackOnce (>= 1) isRollbackSuccess
@@ -1060,33 +1050,6 @@ tag = Foldl.fold $ catMaybes <$> sequenceA
             Just (wids ! wid)
         _otherwise ->
             Nothing
-
-    readAfterDelete :: Fold (Event s Symbolic) (Maybe Tag)
-    readAfterDelete = Fold update mempty extract
-      where
-        update :: Map MWid Int -> Event s Symbolic -> Map MWid Int
-        update created ev =
-            case (isReadTxHistory ev, cmd ev, mockResp ev, before ev) of
-                (Just wid, _, _, _) ->
-                    Map.alter (fmap (+1)) wid created
-                (Nothing
-                    , At (RemoveWallet wid)
-                    , Resp (Right _)
-                    , Model _ wids) ->
-                        Map.insert (wids ! wid) 0 created
-                _otherwise ->
-                    created
-
-        extract :: Map MWid Int -> Maybe Tag
-        extract created | any (> 0) created = Just ReadTxHistoryAfterDelete
-                        | otherwise = Nothing
-
-    isReadTxHistory :: Event s Symbolic -> Maybe MWid
-    isReadTxHistory ev = case (cmd ev, mockResp ev, before ev) of
-        (At (ReadTxHistory wid _ _ _ _), Resp (Right (TxHistory _)), Model _ wids)
-            -> Just (wids ! wid)
-        _otherwise
-            -> Nothing
 
     createThreeWallets :: Fold (Event s Symbolic) (Maybe Tag)
     createThreeWallets = Fold update Set.empty extract
@@ -1111,15 +1074,6 @@ tag = Foldl.fold $ catMaybes <$> sequenceA
         match ev = case (cmd ev, mockResp ev) of
             (At (CreateWallet wid _ _ _ _), Resp _) -> Just wid
             _otherwise -> Nothing
-
-    removeWalletTwice :: Fold (Event s Symbolic) (Maybe Tag)
-    removeWalletTwice = countAction RemoveWalletTwice (>= 2) match
-      where
-        match ev = case (cmd ev, mockResp ev) of
-            (At (RemoveWallet wid), Resp _) ->
-                Just wid
-            _otherwise ->
-                Nothing
 
     countAction
         :: forall k. Ord k => Tag -> (Int -> Bool)

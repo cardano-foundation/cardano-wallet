@@ -51,7 +51,6 @@ import Cardano.Wallet.DB.Pure.Implementation
     , mReadTxHistory
     , mReadWalletMeta
     , mRemovePendingOrExpiredTx
-    , mRemoveWallet
     , mRollbackTo
     , mUpdatePendingTxForExpiry
     )
@@ -100,8 +99,6 @@ newDBLayer timeInterpreter = do
         { initializeWallet = \pk cp meta txs gp -> ExceptT $
                 alterDB errWalletAlreadyExists db $
                 mInitializeWallet pk cp meta txs gp
-
-        , removeWallet = ExceptT . alterDB errNoSuchWallet db . mRemoveWallet
 
         , listWallets = readDB db mListWallets
 

@@ -50,7 +50,6 @@ module Cardano.Wallet.DB.Pure.Implementation
     -- * Model database functions
     , mCleanDB
     , mInitializeWallet
-    , mRemoveWallet
     , mListWallets
     , mPutCheckpoint
     , mReadCheckpoint
@@ -240,12 +239,6 @@ mInitializeWallet wid cp meta txs0 gp db@Database{wallets,txs}
             history = Map.fromList $ first (view #txId) <$> txs0
         in
             (Right (), Database (Map.insert wid wal wallets) (txs <> txs'))
-
-mRemoveWallet :: Ord wid => wid -> ModelOp wid s xprv ()
-mRemoveWallet wid db@Database{wallets,txs}
-    | wid `Map.member` wallets =
-        (Right (), Database (Map.delete wid wallets) txs)
-    | otherwise = (Left (NoSuchWallet wid), db)
 
 mCheckWallet :: Ord wid => wid -> ModelOp wid s xprv ()
 mCheckWallet wid db@Database{wallets}

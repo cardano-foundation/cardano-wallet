@@ -1218,8 +1218,8 @@ deleteWallet
     => ctx
     -> WalletId
     -> ExceptT ErrNoSuchWallet IO ()
-deleteWallet ctx wid = db & \DBLayer{..} -> do
-    mapExceptT atomically $ removeWallet wid
+deleteWallet ctx _wid = db & \DBLayer{..} -> do
+    mapExceptT atomically $ error "removeWallet deprecated"
   where
     db = ctx ^. dbLayer @IO @s @k
 

@@ -568,10 +568,6 @@ newDBLayerWith _cacheBehavior _tr ti SqliteContext{runQuery} = mdo
                                 [ UpdateCheckpoints [ RestrictTo $ Map.keys slots ] ]
                         in  (Just delta, ())
 
-    -- Delete the a wallet from the checkpoint DBVar
-    let deleteCheckpoints :: W.WalletId -> SqlPersistT IO ()
-        deleteCheckpoints wid = updateDBVar walletsDB $ Delete wid
-
         {-----------------------------------------------------------------------
                                       Wallets
         -----------------------------------------------------------------------}
@@ -588,16 +584,6 @@ newDBLayerWith _cacheBehavior _tr ti SqliteContext{runQuery} = mdo
                 pure res
 
         , readGenesisParameters_ = selectGenesisParameters
-
-        , removeWallet_ = \wid -> do
-            ExceptT $ do
-                selectWallet wid >>= \case
-                    Nothing -> pure $ Left $ ErrNoSuchWallet wid
-                    Just _  -> Right <$> do
-                        deleteWhere [WalId ==. wid]
-                        deleteCheckpoints wid
-                        updateS (store transactionsQS) Nothing
-                            $ RemoveWallet wid
 
         , listWallets_ = map unWalletKey <$> selectKeysList [] [Asc WalId]
 
