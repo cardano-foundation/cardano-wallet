@@ -79,7 +79,7 @@ import Cardano.Wallet.DB
     , DBTxHistory (..)
     , DBWalletMeta (..)
     , DBWallets (..)
-    , ErrWalletAlreadyExists (..)
+    , ErrWalletAlreadyInitialized (ErrWalletAlreadyInitialized)
     , ErrWalletNotInitialized (..)
     , mkDBLayerFromParts
     )
@@ -578,7 +578,7 @@ newDBLayerWith _cacheBehavior _tr ti SqliteContext{runQuery} = mdo
                     insertCheckpointGenesis wid cp
                     updateS (store transactionsQS) Nothing $
                                 ExpandTxWalletsHistory wid txs
-                Right _ -> throwE $ ErrWalletAlreadyExists wid
+                Right _ -> throwE ErrWalletAlreadyInitialized
 
         , readGenesisParameters_ = selectGenesisParameters
 

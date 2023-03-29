@@ -32,7 +32,7 @@ import Cardano.Wallet
     ( mkNoSuchWalletError )
 import Cardano.Wallet.DB
     ( DBLayer (..)
-    , ErrWalletAlreadyExists (..)
+    , ErrWalletAlreadyInitialized (ErrWalletAlreadyInitialized)
     , ErrWalletNotInitialized (ErrWalletNotInitialized)
     )
 import Cardano.Wallet.DB.Arbitrary
@@ -463,7 +463,7 @@ prop_createWalletTwice DBLayer{..} (wid, InitialCheckpoint cp0, meta) =
     monadicIO prop
   where
     prop = liftIO $ do
-        let err = ErrWalletAlreadyExists wid
+        let err = ErrWalletAlreadyInitialized
         atomically (runExceptT $ initializeWallet wid cp0 meta mempty gp)
             `shouldReturn` Right ()
         atomically (runExceptT $ initializeWallet wid cp0 meta mempty gp)

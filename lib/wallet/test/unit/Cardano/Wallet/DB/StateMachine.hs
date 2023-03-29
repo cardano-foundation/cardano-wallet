@@ -60,7 +60,7 @@ import Cardano.Pool.Types
 import Cardano.Wallet
     ( mkNoSuchWalletError )
 import Cardano.Wallet.DB
-    ( DBLayer (..), ErrWalletAlreadyExists (..) )
+    ( DBLayer (..), ErrWalletAlreadyInitialized (ErrWalletAlreadyInitialized) )
 import Cardano.Wallet.DB.Arbitrary
     ( GenState, GenTxHistory (..), InitialCheckpoint (..) )
 import Cardano.Wallet.DB.Pure.Implementation
@@ -518,8 +518,8 @@ runIO DBLayer{..} = fmap Resp . go
     errNoSuchWallet :: ErrNoSuchWallet -> Err
     errNoSuchWallet (ErrNoSuchWallet _wid) = WalletAlreadyInitialized
 
-    errWalletAlreadyExists :: ErrWalletAlreadyExists -> Err
-    errWalletAlreadyExists (ErrWalletAlreadyExists _wid) = WalletAlreadyInitialized
+    errWalletAlreadyExists :: ErrWalletAlreadyInitialized -> Err
+    errWalletAlreadyExists ErrWalletAlreadyInitialized = WalletAlreadyInitialized
 
 {-------------------------------------------------------------------------------
   Working with references

@@ -22,7 +22,10 @@ import Prelude
 import Cardano.Address.Derivation
     ( XPrv )
 import Cardano.Wallet.DB
-    ( DBLayer (..), ErrWalletAlreadyExists (..), ErrWalletNotInitialized (..) )
+    ( DBLayer (..)
+    , ErrWalletAlreadyInitialized (..)
+    , ErrWalletNotInitialized (..)
+    )
 import Cardano.Wallet.DB.Pure.Implementation
     ( Database
     , Err (..)
@@ -89,7 +92,7 @@ newDBLayer timeInterpreter = do
                 alterDB errWalletAlreadyExists db $
                 mInitializeWallet pk cp meta txs gp
 
-        , getWalletId = ExceptT 
+        , getWalletId = ExceptT
             $ alterDB errWalletNotInitialized db mGetWalletId
 
         {-----------------------------------------------------------------------
@@ -242,18 +245,13 @@ readDB
     -> m a
 readDB db op = alterDB Just db op >>= either (throwIO . MVarDBError) pure
 
-noWallet :: a
-noWallet = error "wallet not initialized"
-
 errWalletNotInitialized :: Err -> Maybe ErrWalletNotInitialized
 errWalletNotInitialized WalletNotInitialized = Just ErrWalletNotInitialized
 errWalletNotInitialized _ = Nothing
 
-errWalletAlreadyExists
-    :: Err
-    -> Maybe ErrWalletAlreadyExists
-errWalletAlreadyExists WalletAlreadyInitialized  =
-    Just (ErrWalletAlreadyExists noWallet)
+errWalletAlreadyExists :: Err -> Maybe ErrWalletAlreadyInitialized
+errWalletAlreadyExists WalletAlreadyInitialized
+    = Just ErrWalletAlreadyInitialized
 errWalletAlreadyExists _ = Nothing
 
 -- | Error which happens when model returns an unexpected value.

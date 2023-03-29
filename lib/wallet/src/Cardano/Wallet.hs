@@ -765,29 +765,32 @@ transactionLayer = typed @(TransactionLayer k ktype SealedTx)
 
 -- | Initialise and store a new wallet, returning its ID.
 createWallet
-    :: forall ctx m s k.
-        ( MonadUnliftIO m
-        , MonadTime m
-        , HasGenesisData ctx
-        , HasDBLayer m s k ctx
-        , IsOurs s Address
-        , IsOurs s RewardAccount
-        )
+    :: forall ctx m s k
+     . ( MonadUnliftIO m
+       , MonadTime m
+       , HasGenesisData ctx
+       , HasDBLayer m s k ctx
+       , IsOurs s Address
+       , IsOurs s RewardAccount
+       )
     => ctx
     -> WalletId
     -> WalletName
     -> s
     -> ExceptT ErrWalletAlreadyExists m WalletId
-createWallet ctx wid wname s = db & \DBLayer{..} -> do
-    let (hist, cp) = initWallet block0 s
-    now <- lift getCurrentTime
-    let meta = WalletMetadata
-            { name = wname
-            , creationTime = now
-            , passphraseInfo = Nothing
-            }
-    mapExceptT atomically $
-        initializeWallet wid cp meta hist gp $> wid
+createWallet ctx wid wname s =
+    db & \DBLayer {..} -> do
+        let (hist, cp) = initWallet block0 s
+        now <- lift getCurrentTime
+        let meta =
+                WalletMetadata
+                    { name = wname
+                    , creationTime = now
+                    , passphraseInfo = Nothing
+                    }
+        withExceptT (const $ ErrWalletAlreadyExists wid)
+            $ mapExceptT atomically
+            $ initializeWallet wid cp meta hist gp $> wid
   where
     db = ctx ^. dbLayer @m @s @k
     (block0, NetworkParameters gp _sp _pp) = ctx ^. genesisData
@@ -813,18 +816,21 @@ createIcarusWallet
     -> WalletName
     -> (k 'RootK XPrv, Passphrase "encryption")
     -> ExceptT ErrWalletAlreadyExists IO WalletId
-createIcarusWallet ctx wid wname credentials = db & \DBLayer{..} -> do
-    let g  = defaultAddressPoolGap
-    let s = mkSeqStateFromRootXPrv @n credentials purposeBIP44 g
-    let (hist, cp) = initWallet block0 s
-    now <- lift getCurrentTime
-    let meta = WalletMetadata
-            { name = wname
-            , creationTime = now
-            , passphraseInfo = Nothing
-            }
-    mapExceptT atomically $
-        initializeWallet wid cp meta hist gp $> wid
+createIcarusWallet ctx wid wname credentials =
+    db & \DBLayer {..} -> do
+        let g = defaultAddressPoolGap
+        let s = mkSeqStateFromRootXPrv @n credentials purposeBIP44 g
+        let (hist, cp) = initWallet block0 s
+        now <- lift getCurrentTime
+        let meta =
+                WalletMetadata
+                    { name = wname
+                    , creationTime = now
+                    , passphraseInfo = Nothing
+                    }
+        withExceptT (const $ ErrWalletAlreadyExists wid)
+            $ mapExceptT atomically
+            $ initializeWallet wid cp meta hist gp $> wid
   where
     db = ctx ^. dbLayer @IO @s @k
     (block0, NetworkParameters gp _sp _pp) = ctx ^. genesisData

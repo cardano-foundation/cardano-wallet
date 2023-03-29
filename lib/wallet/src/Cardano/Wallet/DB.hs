@@ -185,7 +185,7 @@ data DBLayer m s k = forall stm. (MonadIO stm, MonadFail stm) => DBLayer
         -> WalletMetadata
         -> [(Tx, TxMeta)]
         -> GenesisParameters
-        -> ExceptT ErrWalletAlreadyExists stm ()
+        -> ExceptT ErrWalletAlreadyInitialized stm ()
         -- ^ Initialize a database entry for a given wallet. 'putCheckpoint',
         -- 'putWalletMeta', 'putTxHistory' or 'putProtocolParameters' will
         -- actually all fail if they are called _first_ on a wallet.
@@ -601,7 +601,7 @@ data DBWallets stm s = DBWallets
         -> WalletMetadata
         -> [(Tx, TxMeta)]
         -> GenesisParameters
-        -> ExceptT ErrWalletAlreadyExists stm ()
+        -> ExceptT ErrWalletAlreadyInitialized stm ()
         -- ^ Initialize a database entry for a given wallet. 'putCheckpoint',
         -- 'putWalletMeta', 'putTxHistory' or 'putProtocolParameters' will
         -- actually all fail if they are called _first_ on a wallet.
