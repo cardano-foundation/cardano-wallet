@@ -148,8 +148,6 @@ properties = describe "DB.Properties" $ do
             (property . prop_createListWallet)
         it "creating same wallet twice yields an error"
             (property . prop_createWalletTwice)
-        it "removing the same wallet twice yields an error"
-            (property . prop_removeWalletTwice)
 
     describe "put . read yields a result" $ do
         it "Checkpoint" $
@@ -218,24 +216,6 @@ properties = describe "DB.Properties" $ do
                 (\DBLayer{..} -> atomically . readCheckpoint)
                 (\DBLayer{..} -> atomically . readWalletMeta)
                 (\DBLayer{..} -> atomically . readPrivateKey)
-
-    describe "can't read after delete" $ do
-        it "Checkpoint" $
-            property . prop_readAfterDelete
-                (\DBLayer{..} -> atomically . readCheckpoint)
-                Nothing
-        it "Wallet Metadata" $
-            property . prop_readAfterDelete
-                (\DBLayer{..} -> atomically . readWalletMeta)
-                Nothing
-        it "Tx History" $
-            property . prop_readAfterDelete
-                readTxHistory_
-                (pure mempty)
-        it "Private Key" $
-            property . prop_readAfterDelete
-                (\DBLayer{..} -> atomically . readPrivateKey)
-                Nothing
 
     describe "sequential puts replace values in order" $ do
         it "Checkpoint" $
@@ -417,24 +397,6 @@ prop_createWalletTwice DBLayer{..} (wid, InitialCheckpoint cp0, meta) =
         atomically (runExceptT $ initializeWallet wid cp0 meta mempty gp)
             `shouldReturn` Left err
 
--- | Trying to remove a same wallet twice should yield an error
-prop_removeWalletTwice
-    :: DBLayer IO s ShelleyKey
-    -> ( WalletId
-       , InitialCheckpoint s
-       , WalletMetadata
-       )
-    -> Property
-prop_removeWalletTwice DBLayer{..} (wid, InitialCheckpoint cp0, meta) =
-    monadicIO (setup >> prop)
-  where
-    setup = liftIO $ do
-        atomically $ unsafeRunExceptT $ initializeWallet wid cp0 meta mempty gp
-    prop = liftIO $ do
-        let err = ErrNoSuchWallet wid
-        atomically (runExceptT $ removeWallet wid) `shouldReturn` Right ()
-        atomically (runExceptT $ removeWallet wid) `shouldReturn` Left err
-
 -- | Checks that a given resource can be read after having been inserted in DB.
 prop_readAfterPut
     :: ( Buildable (f a), Eq (f a), Applicative f, GenState s )
@@ -612,29 +574,6 @@ prop_isolation putA readB readC readD db@DBLayer{..} (ShowFmt wid, ShowFmt a) =
         (ShowFmt <$> readB db wid) `shouldReturn` ShowFmt b
         (ShowFmt <$> readC db wid) `shouldReturn` ShowFmt c
         (ShowFmt <$> readD db wid) `shouldReturn` ShowFmt d
-
--- | Can't read back data after delete
-prop_readAfterDelete
-    :: (Buildable (f a), Eq (f a), GenState s)
-    => (  DBLayer IO s ShelleyKey
-       -> WalletId
-       -> IO (f a)
-       ) -- ^ Read Operation
-    -> f a
-        -- ^ An 'empty' value for the 'Applicative' f
-    -> DBLayer IO s ShelleyKey
-    -> ShowFmt WalletId
-    -> Property
-prop_readAfterDelete readOp empty db@DBLayer{..} (ShowFmt wid) =
-    monadicIO (setup >> prop)
-  where
-    setup = do
-        (InitialCheckpoint cp0, meta) <- pick arbitrary
-        run $ atomically $ unsafeRunExceptT $
-            initializeWallet wid cp0 meta mempty gp
-    prop = liftIO $ do
-        atomically $ unsafeRunExceptT $ removeWallet wid
-        (ShowFmt <$> readOp db wid) `shouldReturn` ShowFmt empty
 
 -- | Check that the DB supports multiple sequential puts for a given resource
 prop_sequentialPut

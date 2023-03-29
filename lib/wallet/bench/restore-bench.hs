@@ -831,8 +831,6 @@ bench_restoration
                     results <-
                         benchmarks proxy w wid0 wname0 benchname restorationTime
                     saveBenchmarkPoints benchname results
-                    forM_ wallets $ \(wid, _, _) ->
-                        unsafeRunExceptT (W.deleteWallet w wid)
                     pure $ SomeBenchmarkResults results
   where
     fst' (x,_,_) = x
