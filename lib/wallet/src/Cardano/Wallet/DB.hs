@@ -18,7 +18,6 @@ module Cardano.Wallet.DB
     ( -- * Interface
       DBLayer (..)
     , DBFactory (..)
-    , cleanDB
 
     -- * DBLayer building blocks
     , DBLayerCollection (..)
@@ -104,7 +103,7 @@ import Control.Monad
 import Control.Monad.IO.Class
     ( MonadIO, liftIO )
 import Control.Monad.Trans.Except
-    ( ExceptT (..), runExceptT )
+    ( ExceptT (..) )
 import Data.DBVar
     ( DBVar, modifyDBMaybe, readDBVar )
 import Data.Functor
@@ -785,10 +784,6 @@ data DBPrivateKey stm k = DBPrivateKey
 {-----------------------------------------------------------------------------
     Helper functions
 ------------------------------------------------------------------------------}
--- | Clean a database by removing all wallets.
-cleanDB :: DBLayer m s k -> m ()
-cleanDB DBLayer{..} = atomically $
-    listWallets >>= mapM_ (runExceptT . removeWallet)
 
 -- | Sort transactions by slot number.
 sortTransactionsBySlot

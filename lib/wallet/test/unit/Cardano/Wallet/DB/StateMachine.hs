@@ -43,7 +43,6 @@
 
 module Cardano.Wallet.DB.StateMachine
     ( prop_sequential
-    , prop_parallel
     , validateGenerators
     , showLabelledExamples
     , TestConstraints
@@ -58,7 +57,7 @@ import Cardano.Address.Script
 import Cardano.Pool.Types
     ( PoolId (..) )
 import Cardano.Wallet.DB
-    ( DBLayer (..), ErrWalletAlreadyExists (..), cleanDB )
+    ( DBLayer (..), ErrWalletAlreadyExists (..) )
 import Cardano.Wallet.DB.Arbitrary
     ( GenState, GenTxHistory (..), InitialCheckpoint (..) )
 import Cardano.Wallet.DB.Pure.Implementation
@@ -67,7 +66,6 @@ import Cardano.Wallet.DB.Pure.Implementation
     , TxHistory
     , WalletDatabase (..)
     , emptyDatabase
-    , mCleanDB
     , mInitializeWallet
     , mIsStakeKeyRegistered
     , mListCheckpoints
@@ -258,15 +256,11 @@ import Test.StateMachine
     , forall
     , member
     , prettyCommands
-    , prettyParallelCommands
     , runCommands
-    , runParallelCommands
     , (.==)
     )
-import Test.StateMachine.Parallel
-    ( forAllParallelCommands )
 import Test.StateMachine.Types
-    ( Command (..), Commands (..), ParallelCommands, ParallelCommandsF (..) )
+    ( Commands (..) )
 import UnliftIO.Async
     ( race_ )
 import UnliftIO.Concurrent
@@ -346,8 +340,7 @@ unMockPrivKeyHash = PassphraseHash .  BA.convert . B8.pack
 -------------------------------------------------------------------------------}
 
 data Cmd s wid
-    = CleanDB
-    | CreateWallet MWid (Wallet s) WalletMetadata TxHistory GenesisParameters
+    = CreateWallet MWid (Wallet s) WalletMetadata TxHistory GenesisParameters
     | RemoveWallet wid
     | ListWallets
     | PutCheckpoint wid (Wallet s)
@@ -409,8 +402,6 @@ instance Traversable (Resp s) where
 
 runMock :: HasCallStack => Cmd s MWid -> Mock s -> (Resp s MWid, Mock s)
 runMock = \case
-    CleanDB ->
-        first (Resp . fmap Unit) . mCleanDB
     CreateWallet wid wal meta txs gp ->
         first (Resp . fmap (const (NewWallet wid)))
             . mInitializeWallet wid wal meta txs gp
@@ -468,14 +459,12 @@ runIO
     => DBLayer m s k
     -> Cmd s WalletId
     -> m (Resp s WalletId)
-runIO db@DBLayer{..} = fmap Resp . go
+runIO DBLayer{..} = fmap Resp . go
   where
     go
         :: Cmd s WalletId
         -> m (Either (Err WalletId) (Success s WalletId))
     go = \case
-        CleanDB -> do
-            Right . Unit <$> cleanDB db
         CreateWallet wid wal meta txs gp ->
             catchWalletAlreadyExists (const (NewWallet (unMockWid wid))) $
             mapExceptT atomically $
@@ -1329,22 +1318,6 @@ prop_sequential newDB =
         matchedTags :: Set Tag
         matchedTags = Set.fromList $ tag $ execCmds cmds
 
-prop_parallel
-    :: forall s k. TestConstraints s k
-    => (IO (IO (), DBLayer IO s k))
-    -> Property
-prop_parallel newDB =
-    forAllParallelCommands (sm @IO @s @k dbLayerUnused) nThreads $ \cmds ->
-    monadicIO $ do
-        (destroyDB, db) <- run newDB
-        let sm' = sm db
-            cmds' = addCleanDB cmds
-        res <- runParallelCommands sm' cmds'
-        prettyParallelCommands cmds res
-        run destroyDB
-  where
-    nThreads = Just 4
-
 -- Controls that generators and shrinkers can run within a reasonable amount of
 -- time. We have been bitten several times already by generators which took much
 -- longer than what they should, causing timeouts in the test suite.
@@ -1400,18 +1373,6 @@ validateGenerators = describe "Validate generators & shrinkers" $ do
         []  -> pure ()
         [x] -> sanityCheckShrink (concatMap shrinker [x])
         xs  -> sanityCheckShrink (concatMap shrinker [head xs, last xs])
-
--- | The commands for parallel tests are run multiple times to detect
--- concurrency problems. We need to clean the database before every run. The
--- easiest way is to add a CleanDB command at the beginning of the prefix.
-addCleanDB
-    :: ParallelCommands (At (Cmd s)) (At (Resp s))
-    -> ParallelCommands (At (Cmd s)) (At (Resp s))
-addCleanDB (ParallelCommands p s) = ParallelCommands (clean <> p) s
-  where
-    clean = Commands [cmd resp mempty]
-    cmd = Command (At CleanDB)
-    resp = At (Resp (Right (Unit ())))
 
 dbLayerUnused :: DBLayer m s k
 dbLayerUnused = error "DBLayer not used during command generation"
