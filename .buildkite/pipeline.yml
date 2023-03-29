@@ -28,7 +28,6 @@ steps:
     env:
       TMPDIR: "/cache"
 
-
   - label: 'Build bench and run unit tests (linux)'
     depends_on: linux-nix
     command:
@@ -122,24 +121,24 @@ steps:
 
   - label: 'Run integration tests (linux)'
     command: 'nix build -L .#ci.${linux}.tests.run.integration'
-    depends_on:
-      trigger-linux
+    depends_on: trigger-linux
     agents:
       system: ${linux}
     env:
       TMPDIR: "/cache"
 
-  - block: "macOS test"
-    if: 'build.branch != "master"'
-    key: trigger-macos-test
-
   - label: 'Check nix (macOS)'
     key: macos-nix
-    depends_on: trigger-macos-test
+    depends_on: linux-nix
     commands:
       - './nix/regenerate.sh'
     agents:
       system: ${macos}
+
+  - block: "macOS test"
+    depends_on: macos-nix
+    if: 'build.branch != "master"'
+    key: trigger-macos-test
 
   - label: 'Run unit tests (macOS)'
     depends_on: trigger-macos-test
@@ -149,6 +148,7 @@ steps:
       system: ${macos}
 
   - block: "macOS package"
+    depends_on: macos-nix
     if: 'build.branch != "master"'
     key: trigger-macos-package
 
