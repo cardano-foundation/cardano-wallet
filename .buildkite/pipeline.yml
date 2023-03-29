@@ -127,6 +127,24 @@ steps:
     env:
       TMPDIR: "/cache"
 
+  - block: 'Run benchmark (api)'
+    depends_on: linux-nix
+    key: trigger-benchmark-api
+
+  - label: 'Run benchmark (api)'
+    command: "./.buildkite/bench-api.sh"
+    depends_on: trigger-benchmark-api
+    timeout_in_minutes: 20
+    agents:
+      system: x86_64-linux
+    # We do not use the  benchmark  queue here, as we don't want
+    # to use system resources that are intended for long-running processes
+    # to perform quick-and-dirty benchmark runs.
+    # queue: benchmark
+    if: 'build.env("step") == null || build.env("step") =~ /bench-api/'
+    env:
+      TMPDIR: "/cache"
+
   - label: 'Check nix (macOS)'
     key: macos-nix
     depends_on: linux-nix
