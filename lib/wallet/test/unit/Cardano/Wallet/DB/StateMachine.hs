@@ -207,7 +207,7 @@ import Data.Map
 import Data.Map.Strict.NonEmptyMap
     ( NonEmptyMap )
 import Data.Maybe
-    ( catMaybes, fromJust, isJust, isNothing )
+    ( catMaybes, fromJust, isJust )
 import Data.Quantity
     ( Percentage (..), Quantity (..) )
 import Data.Set
@@ -999,8 +999,6 @@ data Tag
       -- ^ Three different wallets created.
     | CreateWalletTwice
       -- ^ The same wallet id is used twice.
-    | RemoveWalletTwice
-      -- ^ The same wallet is removed twice.
     | CreateThenList
     | SuccessfulReadTxHistory
     | UnsuccessfulReadTxHistory
@@ -1009,12 +1007,8 @@ data Tag
     | TxUnsortedOutputs
     | SuccessfulReadCheckpoint
       -- ^ Read the checkpoint of a wallet that's been created.
-    | UnsuccessfulReadCheckpoint
-      -- ^ No such wallet error.
     | SuccessfulReadPrivateKey
       -- ^ Private key was written then read.
-    | ReadTxHistoryAfterDelete
-      -- ^ wallet deleted, then tx history read.
     | PutCheckpointTwice
       -- ^ Multiple checkpoints are successfully saved to a wallet.
     | RolledBackOnce
@@ -1037,7 +1031,6 @@ tag = Foldl.fold $ catMaybes <$> sequenceA
     , txUnsorted inputs TxUnsortedInputs
     , txUnsorted outputs TxUnsortedOutputs
     , readCheckpoint isJust SuccessfulReadCheckpoint
-    , readCheckpoint isNothing UnsuccessfulReadCheckpoint
     , countAction SuccessfulReadPrivateKey (>= 1) isReadPrivateKeySuccess
     , countAction PutCheckpointTwice (>= 2) isPutCheckpointSuccess
     , countAction RolledBackOnce (>= 1) isRollbackSuccess
