@@ -71,9 +71,7 @@ import Data.Maybe
 import Data.Proxy
     ( Proxy (..) )
 import Data.Word
-    ( Word8 )
-import Data.Word
-    ( Word32 )
+    ( Word32, Word8 )
 import Test.Hspec
     ( Spec, describe, it )
 import Test.Hspec.Extra
