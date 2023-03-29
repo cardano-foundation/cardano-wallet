@@ -66,7 +66,7 @@ import Cardano.Mnemonic
 import Cardano.Startup
     ( withUtf8Encoding )
 import Cardano.Wallet.DB
-    ( DBLayer (..), cleanDB )
+    ( DBLayer (..) )
 import Cardano.Wallet.DB.Layer
     ( CacheBehavior (..)
     , PersistAddressBook
@@ -159,8 +159,7 @@ import Criterion.Main
     , bench
     , bgroup
     , defaultMain
-    , envWithCleanup
-    , perRunEnv
+    , perRunEnvWithCleanup
     )
 import Crypto.Hash
     ( hash )
@@ -227,12 +226,12 @@ main :: IO ()
 main = withUtf8Encoding $ withLogging $ \trace -> do
     let tr = filterSeverity (pure . const Error) $ trMessageText trace
     defaultMain
-        [ withDB tr bgroupWriteUTxO
-        , withDB tr bgroupReadUTxO
-        , withDB tr bgroupWriteSeqState
-        , withDB tr bgroupWriteRndState
-        , withDB tr bgroupWriteTxHistory
-        , withDB tr bgroupReadTxHistory
+        [ bgroupWriteUTxO tr
+        , bgroupReadUTxO tr
+        , bgroupWriteSeqState tr
+        , bgroupWriteRndState tr
+        , bgroupWriteTxHistory tr
+        , bgroupReadTxHistory tr
         ]
     putStrLn "\n--"
     utxoDiskSpaceTests tr
@@ -247,9 +246,9 @@ main = withUtf8Encoding $ withLogging $ \trace -> do
 -- Currently the DBLayer will only store a single checkpoint (no rollback), so
 -- the #Checkpoints axis is a bit meaningless.
 bgroupWriteUTxO
-    :: DBLayerBench
+    :: Tracer IO WalletDBLog
     -> Benchmark
-bgroupWriteUTxO db = bgroup "UTxO (Write)"
+bgroupWriteUTxO tr = bgroup "UTxO (Write)"
     -- A fragmented wallet will have a large number of UTxO. The coin
     -- selection algorithm tries to prevent fragmentation.
     --
@@ -266,15 +265,14 @@ bgroupWriteUTxO db = bgroup "UTxO (Write)"
     , bUTxO          100        1000          0
     ]
   where
-    bUTxO n s a = bench lbl $ withCleanDB db walletFixture $
+    bUTxO n s a = bench lbl $ withCleanDB tr walletFixture $
         benchPutUTxO n s a . fst
       where lbl | a == 0    = n|+" CP (ada-only) x "+|s|+" UTxO"
                 | otherwise = n|+" CP ("+|a|+" assets per output) x "+|s|+" UTxO"
 
-bgroupReadUTxO
-    :: DBLayerBench
-    -> Benchmark
-bgroupReadUTxO db = bgroup "UTxO (Read)"
+
+bgroupReadUTxO :: Tracer IO WalletDBLog -> Benchmark
+bgroupReadUTxO tr = bgroup "UTxO (Read)"
     --      #Checkpoints   UTxO Size   #NAssets
     [ bUTxO            1           0          0
     , bUTxO            1          10          0
@@ -286,7 +284,8 @@ bgroupReadUTxO db = bgroup "UTxO (Read)"
     , bUTxO            1      100000          0
     ]
   where
-    bUTxO n s a = bench lbl $ withUTxO db n s a benchReadUTxO
+    bUTxO n s a = bench lbl $ withCleanDB tr (utxoFixture n s a)
+        $ benchReadUTxO . fst
         where lbl | a == 0    = n|+" CP (ada-only) x "+|s|+" UTxO"
                   | otherwise = n|+" CP ("+|a|+" assets per output) x "+|s|+" UTxO"
 
@@ -316,28 +315,17 @@ mkCheckpoints numCheckpoints utxoSize numAssets =
 benchReadUTxO :: DBLayerBench -> IO (Maybe WalletBench)
 benchReadUTxO DBLayer{..} = atomically $ readCheckpoint testWid
 
--- Set up a database with some UTxO in checkpoints.
-withUTxO
-    :: NFData b
-    => DBLayerBench
-    -> Int
-    -> Int
-    -> Int
-    -> (DBLayerBench -> IO b)
-    -> Benchmarkable
-withUTxO  db n s a = perRunEnv (utxoFixture db n s a $> db)
-
-utxoFixture :: DBLayerBench -> Int -> Int -> Int -> IO ()
-utxoFixture db@DBLayer{..} numCheckpoints utxoSize numAssets = do
+utxoFixture ::  Int -> Int -> Int -> DBLayerBench -> IO ()
+utxoFixture  numCheckpoints utxoSize numAssets db@DBLayer{..}= do
     walletFixture db
     let cps = mkCheckpoints numCheckpoints utxoSize numAssets
     unsafeRunExceptT $ mapM_ (mapExceptT atomically . putCheckpoint testWid) cps
 
 ----------------------------------------------------------------------------
 -- Wallet State (Sequential Scheme) Benchmarks
---
-bgroupWriteSeqState :: DBLayerBench -> Benchmark
-bgroupWriteSeqState db = bgroup "SeqState"
+
+bgroupWriteSeqState :: Tracer IO WalletDBLog -> Benchmark
+bgroupWriteSeqState tr = bgroup "SeqState"
     --      #Checkpoints  #Addresses
     [ bSeqState        1          10
     , bSeqState        1         100
@@ -348,7 +336,7 @@ bgroupWriteSeqState db = bgroup "SeqState"
     , bSeqState      100        1000
     ]
   where
-    bSeqState n a = bench lbl $ withCleanDB db fixture (uncurry benchPutSeqState)
+    bSeqState n a = bench lbl $ withCleanDB tr fixture (uncurry benchPutSeqState)
       where
         lbl = n|+" CP x "+|a|+" addr"
         fixture db_ = do
@@ -381,8 +369,8 @@ mkSeqState numAddrs _ = s
 -- Wallet State (Random Scheme) Benchmarks
 --
 
-bgroupWriteRndState :: DBLayerBenchByron -> Benchmark
-bgroupWriteRndState db = bgroup "RndState"
+bgroupWriteRndState :: Tracer IO WalletDBLog -> Benchmark
+bgroupWriteRndState tr = bgroup "RndState"
     --      #Checkpoints  #Addresses  #Pending
     [ bRndState        1          10        10
     , bRndState        1         100       100
@@ -394,7 +382,7 @@ bgroupWriteRndState db = bgroup "RndState"
     ]
   where
     bRndState checkpoints numAddrs numPending =
-        bench lbl $ withCleanDB db fixture (uncurry benchPutRndState)
+        bench lbl $ withCleanDB tr fixture (uncurry benchPutRndState)
       where
         lbl = checkpoints|+" CP x "+|numAddrs|+" addr x "+|numPending|+" pending"
         fixture db_ = walletFixtureByron db_ $> cps
@@ -465,10 +453,9 @@ benchPutRndState DBLayer{..} cps =
 --
 -- - 50 inputs
 -- - 100 outputs
-bgroupWriteTxHistory
-    :: DBLayerBench
-    -> Benchmark
-bgroupWriteTxHistory db = bgroup "TxHistory (Write)"
+
+bgroupWriteTxHistory :: Tracer IO WalletDBLog -> Benchmark
+bgroupWriteTxHistory tr = bgroup "TxHistory (Write)"
     --                   #NTxs #NInputs #NOutputs #NAssets  #SlotRange
     [ bTxHistory             1        1        1         0     [1..10]
     , bTxHistory            10        1        1         0     [1..10]
@@ -484,17 +471,16 @@ bgroupWriteTxHistory db = bgroup "TxHistory (Write)"
     ]
   where
     bTxHistory n i o a r =
-        bench lbl $ withCleanDB db walletFixture $
+        bench lbl $ withCleanDB tr walletFixture $
             benchPutTxHistory n i o a r . fst
       where
         lbl = n|+" w/ "+|i|+"i + "+|o|+"o ["+|inf|+".."+|sup|+"]"
         inf = head r
         sup = last r
 
-bgroupReadTxHistory
-    :: DBLayerBench
-    -> Benchmark
-bgroupReadTxHistory db = bgroup "TxHistory (Read)"
+
+bgroupReadTxHistory :: Tracer IO WalletDBLog -> Benchmark
+bgroupReadTxHistory tr = bgroup "TxHistory (Read)"
     --             #NTxs  #NAssets #SlotRange  #SortOrder  #Status  #SearchRange
     [ bTxHistory    1000         0   [1..100]  Descending  Nothing  wholeRange
     , bTxHistory    1000         0   [1..100]   Ascending  Nothing  wholeRange
@@ -513,7 +499,8 @@ bgroupReadTxHistory db = bgroup "TxHistory (Read)"
     wholeRange = (Nothing, Nothing)
     -- pending = Just Pending
     bTxHistory n a r o st s =
-        bench lbl $ withTxHistory db n a r $ benchReadTxHistory o s st Nothing
+        bench lbl $ withCleanDB tr (txHistoryFixture n a r) $
+            benchReadTxHistory o s st Nothing . fst
       where
         lbl = unwords [show n, show a, range, ord, mstatus, search]
         range = let inf = head r in let sup = last r in "["+|inf|+".."+|sup|+"]"
@@ -632,103 +619,20 @@ mkOutputs prefix nOuts nAssets =
         . show
     tokenPolicyIdHexStringLength = 56
 
-withTxHistory
-    :: NFData b
-    => DBLayerBench
-    -> Int
-    -> Int
-    -> [Word64]
-    -> (DBLayerBench -> IO b)
-    -> Benchmarkable
-withTxHistory db s a r =
-    perRunEnv (txHistoryFixture db s a r $> db)
-
 txHistoryFixture
-    :: DBLayerBench
-    -> Int
+    :: Int
     -> Int
     -> [Word64]
+    -> DBLayerBench
     -> IO ()
-txHistoryFixture db@DBLayer{..} bSize nAssets range = do
+txHistoryFixture  bSize nAssets range db@DBLayer{..}= do
     walletFixture db
     let (nInps, nOuts) = (20, 20)
     let txs = mkTxHistory bSize nInps nOuts nAssets range
     atomically $ unsafeRunExceptT $ putTxHistory testWid txs
 
-----------------------------------------------------------------------------
--- Criterion env functions for database setup
-
--- | Sets up a benchmark environment with the SQLite DBLayer using a file
--- database in a temporary location.
-withDB
-    :: forall s k.
-        ( PersistAddressBook s
-        , PersistPrivateKey (k 'RootK)
-        , WalletKey k
-        )
-    => Tracer IO WalletDBLog
-    -> (DBLayer IO s k -> Benchmark)
-    -> Benchmark
-withDB tr bm = envWithCleanup (setupDB tr) cleanupDB $
-    \benchEnv -> bm (dbLayer benchEnv)
-
-data BenchEnv s k = BenchEnv
-    { cleanupDB :: IO ()
-    , dbFile :: FilePath
-    , dbLayer :: DBLayer IO s k
-    }
-
-instance NFData (BenchEnv s k) where
-    rnf env = deepseq (rnf $ dbFile env) $ deepseq (rnf $ dbLayer env) ()
-
-withTempSqliteFile :: (FilePath -> IO a) -> IO a
-withTempSqliteFile action = withSystemTempFile "bench.db" $ \fp _ -> action fp
-
-setupDB
-    :: forall s k.
-        ( PersistAddressBook s
-        , PersistPrivateKey (k 'RootK)
-        , WalletKey k
-        )
-    => Tracer IO WalletDBLog
-    -> IO (BenchEnv s k)
-setupDB tr = do
-    (createPool, destroyPool) <- unBracket withSetup
-    uncurry (BenchEnv destroyPool) <$> createPool
-  where
-    withSetup action = withTempSqliteFile $ \fp -> do
-        let trDB = contramap MsgDB tr
-        withConnectionPool trDB fp $ \pool -> do
-            ctx <- either throwIO pure =<< newSqliteContext trDB pool [] migrateAll
-            db <- newDBLayerWith NoCache tr singleEraInterpreter ctx
-            action (fp, db)
-
-singleEraInterpreter :: TimeInterpreter IO
-singleEraInterpreter = hoistTimeInterpreter (pure . runIdentity) $
-    mkSingleEraInterpreter
-        (StartTime $ posixSecondsToUTCTime 0)
-        (SlottingParameters
-        { getSlotLength = SlotLength 1
-        , getEpochLength = EpochLength 21600
-        , getActiveSlotCoefficient = ActiveSlotCoefficient 1
-        , getSecurityParameter = Quantity 2160
-        })
-
--- | Cleans the database before running the benchmark.
--- It also cleans the database after running the benchmark. That is just to
--- exercise the delete functions.
-withCleanDB
-    :: NFData fixture
-    => DBLayer IO s k
-    -> (DBLayer IO s k -> IO fixture)
-    -> ((DBLayer IO s k, fixture) -> IO ())
-    -> Benchmarkable
-withCleanDB db fixture =
-    perRunEnv $ (db,) <$> fixture db
-
 walletFixture :: DBLayerBench -> IO ()
-walletFixture db@DBLayer{..} = do
-    cleanDB db
+walletFixture DBLayer{initializeWallet, atomically} = do
     atomically $ unsafeRunExceptT $ initializeWallet
         testWid
         testCp
@@ -737,8 +641,7 @@ walletFixture db@DBLayer{..} = do
         dummyGenesisParameters
 
 walletFixtureByron :: DBLayerBenchByron -> IO ()
-walletFixtureByron db@DBLayer{..} = do
-    cleanDB db
+walletFixtureByron DBLayer{initializeWallet, atomically} = do
     atomically $ unsafeRunExceptT $ initializeWallet
         testWid
         testCpByron
@@ -791,7 +694,7 @@ txHistoryDiskSpaceTests tr = do
         benchPutTxHistory n i o 0 [1..100] db
 
 benchDiskSize :: Tracer IO WalletDBLog -> (DBLayerBench -> IO ()) -> IO ()
-benchDiskSize tr action = bracket (setupDB tr) cleanupDB
+benchDiskSize tr action = bracket (setupDB tr) dbDown
     $ \(BenchEnv destroyPool f db) -> do
         action db
         mapM_ (printFileSize "") [f, f <> "-shm", f <> "-wal"]
@@ -816,6 +719,74 @@ benchDiskSize tr action = bracket (setupDB tr) cleanupDB
         kb = 1024
         mb = 1024*kb
         gb = 1024*mb
+
+----------------------------------------------------------------------------
+-- Criterion env functions for database setup
+
+data BenchEnv s k = BenchEnv
+    { dbDown :: IO ()
+    , dbFile :: FilePath
+    , dbLayer :: DBLayer IO s k
+    }
+
+instance NFData (BenchEnv s k) where
+    rnf env = deepseq (rnf $ dbFile env) $ deepseq (rnf $ dbLayer env) ()
+
+withTempSqliteFile :: (FilePath -> IO a) -> IO a
+withTempSqliteFile action = withSystemTempFile "bench.db" $ \fp _ -> action fp
+
+setupDB
+    :: forall s k.
+        ( PersistAddressBook s
+        , PersistPrivateKey (k 'RootK)
+        , WalletKey k
+        )
+    => Tracer IO WalletDBLog
+    -> IO (BenchEnv s k)
+setupDB tr = do
+    (createPool, destroyPool) <- unBracket withSetup
+    uncurry (BenchEnv destroyPool) <$> createPool
+  where
+    withSetup action = withTempSqliteFile $ \fp -> do
+        let trDB = contramap MsgDB tr
+        withConnectionPool trDB fp $ \pool -> do
+            ctx <- either throwIO pure =<< newSqliteContext trDB pool [] migrateAll
+            db <- newDBLayerWith NoCache tr singleEraInterpreter ctx
+            action (fp, db)
+
+singleEraInterpreter :: TimeInterpreter IO
+singleEraInterpreter = hoistTimeInterpreter (pure . runIdentity) $
+    mkSingleEraInterpreter
+        (StartTime $ posixSecondsToUTCTime 0)
+        (SlottingParameters
+        { getSlotLength = SlotLength 1
+        , getEpochLength = EpochLength 21600
+        , getActiveSlotCoefficient = ActiveSlotCoefficient 1
+        , getSecurityParameter = Quantity 2160
+        })
+
+-- | Runs a benchmark on (a series of) freshly created 'DBLayer's.
+withCleanDB
+    :: ( NFData c
+       , PersistAddressBook s
+       , PersistPrivateKey (k 'RootK)
+       , WalletKey k
+       , NFData b
+       )
+    => Tracer IO WalletDBLog
+    -- ^ db messages tracer
+    -> (DBLayer IO s k -> IO b)
+    -- ^ fixture setup, always run before the action
+    -> ((DBLayer IO s k, b) -> IO c)
+    -- ^ action to run
+    -> Benchmarkable
+withCleanDB tr f g = perRunEnvWithCleanup setup (dbDown . fst) $
+    \(b, x) -> g (dbLayer b, x)
+  where
+    setup = do
+        be@BenchEnv {..} <- setupDB tr
+        x <- f dbLayer
+        pure (be, x)
 
 ----------------------------------------------------------------------------
 -- Mock data to use for benchmarks
@@ -950,3 +921,4 @@ withLogging action = bracket before after between
 
     between =
         action . snd
+
