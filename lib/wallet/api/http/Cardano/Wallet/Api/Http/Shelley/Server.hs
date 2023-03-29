@@ -682,7 +682,7 @@ import qualified Cardano.Wallet.Primitive.Types.UTxOSelection as UTxOSelection
 import qualified Cardano.Wallet.Read as Read
 import qualified Cardano.Wallet.Registry as Registry
 import qualified Cardano.Wallet.Write.Tx as WriteTx
-import qualified Cardano.Wallet.Write.Tx.Balance as W
+import qualified Cardano.Wallet.Write.Tx.Balance as Write
 import qualified Control.Concurrent.Concierge as Concierge
 import qualified Data.ByteString as BS
 import qualified Data.Foldable as F
@@ -1760,7 +1760,7 @@ selectCoins ctx@ApiLayer {..} argGenChange (ApiT walletId) body = do
                 & maybe (pure NoWithdrawal)
                     (shelleyOnlyMkWithdrawal @s @k @n
                         netLayer txLayer db walletId era)
-        let genChange = W.defaultChangeAddressGen argGenChange
+        let genChange = W.defaultChangeAddressGen argGenChange (Proxy @k)
         let paymentOuts = NE.toList $ addressAmountToTxOut <$> body ^. #payments
         let txCtx = defaultTransactionCtx
                 { txWithdrawal = withdrawal
@@ -1829,7 +1829,9 @@ selectCoinsForJoin ctx@ApiLayer{..}
             poolId
             poolStatus
             walletId
-        let changeAddrGen = W.defaultChangeAddressGen (delegationAddress @n)
+        let changeAddrGen = W.defaultChangeAddressGen
+                (delegationAddress @n)
+                (Proxy @k)
 
         let txCtx = defaultTransactionCtx { txDelegationAction = Just action }
 
@@ -1882,7 +1884,9 @@ selectCoinsForQuit ctx@ApiLayer{..} (ApiT walletId) = do
         withdrawal <- W.shelleyOnlyMkSelfWithdrawal @_ @_ @_ @_ @n
             netLayer txLayer era db walletId
         action <- WD.quitStakePoolDelegationAction db walletId withdrawal
-        let changeAddrGen = W.defaultChangeAddressGen (delegationAddress @n)
+        let changeAddrGen = W.defaultChangeAddressGen
+                (delegationAddress @n)
+                (Proxy @k)
         let txCtx = defaultTransactionCtx
                 { txDelegationAction = Just action
                 , txWithdrawal = withdrawal
@@ -2823,7 +2827,7 @@ constructSharedTransaction
     -> ApiConstructTransactionData n
     -> Handler (ApiConstructTransaction n)
 constructSharedTransaction
-    ctx genChange _knownPools _getPoolStatus (ApiT wid) body = do
+    ctx argGenChange _knownPools _getPoolStatus (ApiT wid) body = do
     let isNoPayload =
             isNothing (body ^. #payments) &&
             isNothing (body ^. #withdrawal) &&
@@ -2870,7 +2874,7 @@ constructSharedTransaction
                     txLayer netLayer db wid txCtx PreSelection {outputs = outs}
 
                 balancedTx <-
-                    balanceTransaction ctx genChange scriptLookup
+                    balanceTransaction ctx argGenChange (Just scriptLookup)
                     (Just (Shared.paymentTemplate $ getState cp)) (ApiT wid)
                         ApiBalanceTransactionPostData
                         { transaction =
@@ -2983,7 +2987,7 @@ balanceTransaction
      . (GenChange s, BoundedAddressLength k)
     => ApiLayer s k ktype
     -> ArgGenChange s
-    -> Maybe ([(TxIn, TxOut)] -> [Script KeyHash])
+    -> Maybe (Address -> Script KeyHash)
     -> Maybe ScriptTemplate
     -> ApiT WalletId
     -> ApiBalanceTransactionPostData n
@@ -3005,10 +3009,10 @@ balanceTransaction
 
         let mkPartialTx
                 :: forall era. WriteTx.IsRecentEra era => Cardano.Tx era
-                -> Handler (W.PartialTx era)
+                -> Handler (Write.PartialTx era)
             mkPartialTx tx = do
                 utxo <- fmap WriteTx.toCardanoUTxO $ mkLedgerUTxO $ body ^. #inputs
-                pure $ W.PartialTx
+                pure $ Write.PartialTx
                     tx
                     utxo
                     (fromApiRedeemer <$> body ^. #redeemers)
@@ -3035,7 +3039,7 @@ balanceTransaction
                 mkRecentEra = case Cardano.cardanoEra @era of
                     Cardano.BabbageEra -> pure WriteTx.RecentEraBabbage
                     Cardano.AlonzoEra -> pure WriteTx.RecentEraAlonzo
-                    _ -> liftHandler $ throwE $ W.ErrOldEraNotSupported era
+                    _ -> liftHandler $ throwE $ Write.ErrOldEraNotSupported era
 
                 mkLedgerUTxO
                     :: [ApiExternalInput n]
@@ -3051,18 +3055,19 @@ balanceTransaction
 
         let balanceTx
                 :: forall era. WriteTx.IsRecentEra era
-                => W.PartialTx era
+                => Write.PartialTx era
                 -> Handler (Cardano.Tx era)
             balanceTx partialTx =
-                liftHandler $ fst <$> W.balanceTransaction @_ @IO @s @k @ktype
+                liftHandler $ fst <$> Write.balanceTransaction @_ @IO @s
                     (MsgWallet . W.MsgBalanceTx >$< wrk ^. W.logger)
-                    (ctx ^. typed)
-                    genInpScripts
-                    mScriptTemplate
+                    (Write.UTxOAssumptions
+                        txLayer
+                        genInpScripts
+                        mScriptTemplate)
                     (pp, nodePParams)
                     ti
                     utxoIndex
-                    (W.defaultChangeAddressGen argGenChange)
+                    (W.defaultChangeAddressGen argGenChange (Proxy @k))
                     (getState wallet)
                     partialTx
               where
@@ -3074,7 +3079,7 @@ balanceTransaction
                         ])
                     $ W.currentNodeProtocolParameters pp
 
-        anyRecentTx <- maybeToHandler (W.ErrOldEraNotSupported era)
+        anyRecentTx <- maybeToHandler (Write.ErrOldEraNotSupported era)
             . WriteTx.asAnyRecentEra
             . cardanoTxIdeallyNoLaterThan era
             . getApiT $ body ^. #transaction
@@ -3444,17 +3449,16 @@ joinStakePool
         let tr = wrk ^. logger
             db = wrk ^. typed @(DBLayer IO s k)
             ti = timeInterpreter netLayer
-            genChange = W.defaultChangeAddressGen argGenChange
 
         (BuiltTx{..}, txTime) <- liftIO $
-            W.buildSignSubmitTransaction @k @'CredFromKeyK @s @n
+            W.buildSignSubmitTransaction @k @s @n
                 ti
                 db
                 netLayer
                 txLayer
                 (coerce $ getApiT $ body ^. #passphrase)
                 walletId
-                genChange
+                (W.defaultChangeAddressGen argGenChange (Proxy @k))
                 (AnyRecentEra recentEra)
                 (PreSelection [])
                 =<< WD.joinStakePool
@@ -3511,7 +3515,7 @@ delegationFee ctx@ApiLayer{..} (ApiT walletId) = do
                 txLayer
                 (timeInterpreter netLayer)
                 (AnyRecentEra recentEra)
-                (W.defaultChangeAddressGen (delegationAddress @n))
+                (W.defaultChangeAddressGen (delegationAddress @n) (Proxy @k))
                 walletId
         pure $ mkApiFee (Just deposit) [] feePercentiles
 
@@ -3545,14 +3549,14 @@ quitStakePool ctx@ApiLayer{..} argGenChange (ApiT walletId) body = do
             Just Refl -> liftIO $ WD.quitStakePool netLayer db ti walletId
             _ -> liftHandler $ throwE ErrReadRewardAccountNotAShelleyWallet
         (BuiltTx{..}, txTime) <- liftIO $ do
-            W.buildSignSubmitTransaction @k @'CredFromKeyK @s @n
+            W.buildSignSubmitTransaction @k @s @n
                 ti
                 db
                 netLayer
                 txLayer
                 (coerce $ getApiT $ body ^. #passphrase)
                 walletId
-                (W.defaultChangeAddressGen argGenChange)
+                (W.defaultChangeAddressGen argGenChange (Proxy @k))
                 (AnyRecentEra recentEra)
                 (PreSelection [])
                 txCtx
@@ -4147,7 +4151,7 @@ guardIsRecentEra (Cardano.AnyCardanoEra era) = case era of
     Cardano.ShelleyEra -> liftE invalidEra
     Cardano.ByronEra   -> liftE invalidEra
   where
-    invalidEra = W.ErrOldEraNotSupported $ Cardano.AnyCardanoEra era
+    invalidEra = Write.ErrOldEraNotSupported $ Cardano.AnyCardanoEra era
 
 mkWithdrawal
     :: forall (n :: NetworkDiscriminant) ktype tx block

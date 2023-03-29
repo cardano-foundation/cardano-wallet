@@ -1,3 +1,4 @@
+{-# LANGUAGE DataKinds #-}
 {-# LANGUAGE DeriveGeneric #-}
 {-# LANGUAGE DuplicateRecordFields #-}
 {-# LANGUAGE ExistentialQuantification #-}
@@ -5,6 +6,7 @@
 {-# LANGUAGE LambdaCase #-}
 {-# LANGUAGE NamedFieldPuns #-}
 {-# LANGUAGE OverloadedLabels #-}
+{-# LANGUAGE Rank2Types #-}
 {-# LANGUAGE ScopedTypeVariables #-}
 {-# LANGUAGE TupleSections #-}
 {-# LANGUAGE TypeApplications #-}
@@ -49,7 +51,9 @@ import Cardano.Tx.Balance.Internal.CoinSelection
     , toExternalUTxOMap
     )
 import Cardano.Wallet.Primitive.AddressDerivation
-    ( BoundedAddressLength (..) )
+    ( Depth (..) )
+import Cardano.Wallet.Primitive.AddressDerivation.Shared
+    ( SharedKey (..) )
 import Cardano.Wallet.Primitive.Slotting
     ( PastHorizonException, TimeInterpreter )
 import Cardano.Wallet.Primitive.Types
@@ -78,12 +82,14 @@ import Cardano.Wallet.Shelley.Compatibility.Ledger
     ( toWalletCoin )
 import Cardano.Wallet.Shelley.Transaction
     ( KeyWitnessCount (..)
+    , TxFeeUpdate (..)
     , TxUpdate (..)
     , assignScriptRedeemers
     , distributeSurplus
     , estimateKeyWitnessCount
     , estimateSignedTxSize
     , maxScriptExecutionCost
+    , updateTx
     )
 import Cardano.Wallet.Transaction
     ( ErrAssignRedeemers
@@ -92,7 +98,6 @@ import Cardano.Wallet.Transaction
     , TransactionCtx (..)
     , TransactionLayer (..)
     , TxFeeAndChange (..)
-    , TxFeeUpdate (UseNewTxFee)
     , WitnessCountCtx (..)
     , defaultTransactionCtx
     )
@@ -128,8 +133,6 @@ import Data.IntCast
     ( intCast, intCastMaybe )
 import Data.List.NonEmpty
     ( NonEmpty (..) )
-import Data.Proxy
-    ( Proxy (..) )
 import Data.Quantity
     ( Quantity (..) )
 import Data.Text.Class
@@ -293,16 +296,61 @@ instance Buildable (PartialTx era) where
         cardanoTxF :: Cardano.Tx era -> Builder
         cardanoTxF tx' = pretty $ pShow tx'
 
+-- | Assumptions about the UTxO which are needed for coin-selection.
+--
+-- In practice turns out to be
+--
+-- @
+--  data UTxOAssumptions
+--      = AllKeyPaymentCredentials
+--      | AllByronKeyPaymentCredentials
+--      | AllScriptPaymentCredentialsFrom ScriptTemplate scriptLookup
+-- @
+--
+-- however representing it as such is inconvenient at the moment.
+data UTxOAssumptions = forall k ktype. UTxOAssumptions
+    { txLayer
+        :: TransactionLayer k ktype SealedTx
+        -- TODO: Replace with smaller and smaller parts of 'TransactionLayer'
+    , inputScriptLookup
+        :: Maybe (W.Address -> (CA.Script KeyHash))
+    , inputScriptTemplate
+        :: Maybe ScriptTemplate
+    }
+
+-- | Assumes all 'UTxO' entries have addresses with key payment credentials;
+-- either normal, post-Shelley credentials, or boostrap/byron credentials
+-- depending on the 'k' of the supplied 'TransactionLayer'.
+allKeyPaymentCredentials
+    :: forall k. TransactionLayer k 'CredFromKeyK SealedTx
+    -> UTxOAssumptions
+allKeyPaymentCredentials tl = UTxOAssumptions
+    { txLayer = tl
+    , inputScriptLookup = Nothing
+    , inputScriptTemplate = Nothing
+    }
+
+-- | Assumes all 'UTxO' entries have addresses with script payment credentials,
+-- where the scripts are both derived from the 'ScriptTemplate' and can be
+-- looked up using the given function.
+allScriptPaymentCredentials
+    :: (W.Address -> (CA.Script KeyHash))
+    -> ScriptTemplate
+    -> TransactionLayer SharedKey 'CredFromScriptK SealedTx
+    -> UTxOAssumptions
+allScriptPaymentCredentials scriptLookup template tl = UTxOAssumptions
+    { txLayer = tl
+    , inputScriptLookup = Just scriptLookup
+    , inputScriptTemplate = Just template
+    }
+
 balanceTransaction
-    :: forall era m s k ktype.
+    :: forall era m changeState.
         ( MonadRandom m
         , IsRecentEra era
-        , BoundedAddressLength k
         )
     => Tracer m BalanceTxLog
-    -> TransactionLayer k ktype SealedTx
-    -> Maybe ([(W.TxIn, W.TxOut)] -> [CA.Script KeyHash])
-    -> Maybe ScriptTemplate
+    -> UTxOAssumptions
     -> (W.ProtocolParameters, Cardano.ProtocolParameters)
     -- ^ 'Cardano.ProtocolParameters' can be retrieved via a Local State Query
     -- to a local node.
@@ -324,12 +372,11 @@ balanceTransaction
     -- or similar ticket. Relevant ledger code: https://github.com/input-output-hk/cardano-ledger/blob/fdec04e8c071060a003263cdcb37e7319fb4dbf3/eras/alonzo/impl/src/Cardano/Ledger/Alonzo/TxInfo.hs#L428-L440
     -> UTxOIndex WalletUTxO
     -- ^ TODO [ADP-1789] Replace with @Cardano.UTxO@
-    -> ChangeAddressGen s
-    -> s
+    -> ChangeAddressGen changeState
+    -> changeState
     -> PartialTx era
-    -> ExceptT ErrBalanceTx m (Cardano.Tx era, s)
-balanceTransaction
-    tr txLayer toInpScriptsM mScriptTemplate pp ti idx genChange s unadjustedPtx = do
+    -> ExceptT ErrBalanceTx m (Cardano.Tx era, changeState)
+balanceTransaction tr utxoAssumptions pp ti utxo genChange s unadjustedPtx = do
     -- TODO [ADP-1490] Take 'Ledger.PParams era' directly as argument, and avoid
     -- converting to/from Cardano.ProtocolParameters. This may affect
     -- performance. The addition of this one specific conversion seems to have
@@ -341,9 +388,8 @@ balanceTransaction
 
     let balanceWith strategy =
             balanceTransactionWithSelectionStrategyAndNoZeroAdaAdjustment
-                @era @m @s @k @ktype
-                tr txLayer toInpScriptsM mScriptTemplate
-                pp ti idx genChange s strategy adjustedPtx
+                @era @m @changeState
+                tr utxoAssumptions pp ti utxo genChange s strategy adjustedPtx
     balanceWith SelectionStrategyOptimal
         `catchE` \e ->
             if minimalStrategyIsWorthTrying e
@@ -418,28 +464,26 @@ increaseZeroAdaOutputs era pp = modifyLedgerBody $
 
 -- | Internal helper to 'balanceTransaction'
 balanceTransactionWithSelectionStrategyAndNoZeroAdaAdjustment
-    :: forall era m s k ktype.
-        ( BoundedAddressLength k
-        , MonadRandom m
+    :: forall era m changeState.
+        ( MonadRandom m
         , IsRecentEra era
         )
     => Tracer m BalanceTxLog
-    -> TransactionLayer k ktype SealedTx
-    -> Maybe ([(W.TxIn, W.TxOut)] -> [CA.Script KeyHash])
-    -> Maybe ScriptTemplate
+    -> UTxOAssumptions
     -> (W.ProtocolParameters, Cardano.ProtocolParameters)
     -> TimeInterpreter (Either PastHorizonException)
     -> UTxOIndex WalletUTxO
-    -> ChangeAddressGen s
-    -> s
+    -> ChangeAddressGen changeState
+    -> changeState
     -> SelectionStrategy
     -> PartialTx era
-    -> ExceptT ErrBalanceTx m (Cardano.Tx era, s)
+    -> ExceptT ErrBalanceTx m (Cardano.Tx era, changeState)
 balanceTransactionWithSelectionStrategyAndNoZeroAdaAdjustment
     tr
-    txLayer
-    toInpScriptsM
-    mScriptTemplate
+    (UTxOAssumptions
+        txLayer
+        toInpScriptsM
+        mScriptTemplate)
     (pp, nodePParams)
     ti
     internalUtxoAvailable
@@ -473,7 +517,11 @@ balanceTransactionWithSelectionStrategyAndNoZeroAdaAdjustment
         let
             transform
                 :: Selection
-                -> ([(W.TxIn, W.TxOut)], [(W.TxIn, W.TxOut)], [W.TxOut], s)
+                -> ( [(W.TxIn, W.TxOut)]
+                   , [(W.TxIn, W.TxOut)]
+                   , [W.TxOut]
+                   , changeState
+                   )
             transform sel =
                 let (sel', s') = assignChangeAddresses genChange sel s
                     inputs = F.toList (sel' ^. #inputs)
@@ -532,7 +580,8 @@ balanceTransactionWithSelectionStrategyAndNoZeroAdaAdjustment
 
     let extraInputScripts = case toInpScriptsM of
             Just toInpScripts ->
-                toInpScripts $ extraInputs <> extraCollateral'
+                map (toInpScripts . (view #address) . snd)
+                $ extraInputs <> extraCollateral'
             Nothing ->
                 []
     let extraCollateral = fst <$> extraCollateral'
@@ -665,7 +714,7 @@ balanceTransactionWithSelectionStrategyAndNoZeroAdaAdjustment
         let minfee = toWalletCoin $ Write.Tx.evaluateMinimumFee
                 (recentEra @era) ledgerPP (Write.Tx.fromCardanoTx tx) witCount
         let update = TxUpdate [] [] [] [] (UseNewTxFee minfee)
-        tx' <- left ErrBalanceTxUpdateError $ updateTx txLayer tx update
+        tx' <- left ErrBalanceTxUpdateError $ updateTx tx update
         let balance = txBalance tx'
         let minfee' = Cardano.Lovelace $ fromIntegral $ W.unCoin minfee
         return (balance, minfee', witCount)
@@ -722,7 +771,7 @@ balanceTransactionWithSelectionStrategyAndNoZeroAdaAdjustment
         :: TxUpdate
         -> ExceptT ErrBalanceTx m (Cardano.Tx era)
     assembleTransaction update = ExceptT . pure $ do
-        tx' <- left ErrBalanceTxUpdateError $ updateTx txLayer partialTx update
+        tx' <- left ErrBalanceTxUpdateError $ updateTx partialTx update
         left ErrBalanceTxAssignRedeemers $ assignScriptRedeemers
             nodePParams ti combinedUTxO redeemers tx'
 
@@ -880,7 +929,7 @@ balanceTransactionWithSelectionStrategyAndNoZeroAdaAdjustment
                 , minimumCollateralPercentage =
                     view #minimumCollateralPercentage pp
                 , maximumLengthChangeAddress =
-                    maxLengthAddressFor $ Proxy @k
+                    maxLengthChangeAddress genChange
                 }
 
             selectionParams = SelectionParams
@@ -918,8 +967,23 @@ balanceTransactionWithSelectionStrategyAndNoZeroAdaAdjustment
                     $ runExceptT
                     $ performSelection selectionConstraints selectionParams
 
-newtype ChangeAddressGen s =
-    ChangeAddressGen { getChangeAddressGen ::  (s -> (W.Address, s)) }
+data ChangeAddressGen s = ChangeAddressGen
+    { getChangeAddressGen ::  (s -> (W.Address, s))
+
+    -- | Returns the longest address that the wallet can generate for a given
+    --   key.
+    --
+    -- This is useful in situations where we want to compute some function of
+    -- an output under construction (such as a minimum UTxO value), but don't
+    -- yet have convenient access to a real address.
+    --
+    -- Please note that this address should:
+    --
+    --  - never be used for anything besides its length and validity properties.
+    --  - never be used as a payment target within a real transaction.
+    --
+    , maxLengthChangeAddress :: W.Address
+    }
 
 -- | Augments the given outputs with new outputs. These new outputs correspond
 -- to change outputs to which new addresses have been assigned. This updates
@@ -929,7 +993,7 @@ assignChangeAddresses
     -> SelectionOf TokenBundle
     -> s
     -> (SelectionOf W.TxOut, s)
-assignChangeAddresses (ChangeAddressGen genChange) sel = runState $ do
+assignChangeAddresses (ChangeAddressGen genChange _) sel = runState $ do
     changeOuts <- forM (view #change sel) $ \bundle -> do
         addr <- state genChange
         pure $ W.TxOut addr bundle

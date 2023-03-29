@@ -1326,8 +1326,6 @@ dummyTransactionLayer = TransactionLayer
         , Nothing
         , emptyWitnessCount
         )
-    , updateTx = \sealed _update ->
-        pure sealed
     }
   where
     forMaybe :: [a] -> (a -> Maybe b) -> [b]

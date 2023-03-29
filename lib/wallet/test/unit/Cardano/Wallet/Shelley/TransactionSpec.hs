@@ -246,6 +246,7 @@ import Cardano.Wallet.Shelley.Compatibility.Ledger
 import Cardano.Wallet.Shelley.Transaction
     ( EraConstraints
     , KeyWitnessCount (KeyWitnessCount)
+    , TxFeeUpdate (..)
     , TxSkeleton (..)
     , TxUpdate (..)
     , TxWitnessTag (..)
@@ -270,7 +271,7 @@ import Cardano.Wallet.Shelley.Transaction
     , sizeOfCoin
     , sizeOf_BootstrapWitnesses
     , txConstraints
-    , updateSealedTx
+    , updateTx
     , _decodeSealedTx
     , _estimateMaxNumberOfInputs
     )
@@ -281,7 +282,6 @@ import Cardano.Wallet.Transaction
     , TransactionCtx (..)
     , TransactionLayer (..)
     , TxFeeAndChange (TxFeeAndChange)
-    , TxFeeUpdate (..)
     , Withdrawal (..)
     , WitnessCountCtx (..)
     , defaultTransactionCtx
@@ -300,6 +300,8 @@ import Cardano.Wallet.Write.Tx.Balance
     , ErrBalanceTxInternalError (..)
     , ErrSelectAssets (..)
     , PartialTx (..)
+    , UTxOAssumptions (..)
+    , allKeyPaymentCredentials
     , balanceTransaction
     , posAndNegFromCardanoValue
     )
@@ -522,7 +524,7 @@ spec = do
     feeEstimationRegressionSpec
     forAllRecentEras binaryCalculationsSpec
     transactionConstraintsSpec
-    updateSealedTxSpec
+    updateTxSpec
     balanceTransactionSpec
     distributeSurplusSpec
     estimateSignedTxSizeSpec
@@ -2544,6 +2546,7 @@ balanceTransactionSpec = describe "balanceTransaction" $ do
                 ]
         let balance =
                 balanceTransactionWithDummyChangeState
+                    (allKeyPaymentCredentials testTxLayer)
                     walletUTxO
                     testStdGenSeed
 
@@ -2746,13 +2749,13 @@ balanceTransactionSpec = describe "balanceTransaction" $ do
     balanceTx tx = flip evalRand (stdGenFromSeed testStdGenSeed) $ runExceptT $
        fst <$> balanceTransaction
             nullTracer
-            testTxLayer
-            Nothing
-            Nothing
+            (allKeyPaymentCredentials testTxLayer)
             mockProtocolParametersForBalancing
             (dummyTimeInterpreterWithHorizon horizon)
             utxoIndex
-            (defaultChangeAddressGen $ delegationAddress @'Mainnet)
+            (defaultChangeAddressGen
+                (delegationAddress @'Mainnet)
+                (Proxy @ShelleyKey))
             (getState wal)
             tx
       where
@@ -3637,13 +3640,13 @@ balanceTransaction' (Wallet' utxoIndex wallet _pending) seed tx  =
     flip evalRand (stdGenFromSeed seed) $ runExceptT $
         fst <$> balanceTransaction
             nullTracer
-            testTxLayer
-            Nothing
-            Nothing
+            (allKeyPaymentCredentials testTxLayer)
             mockProtocolParametersForBalancing
             dummyTimeInterpreter
             utxoIndex
-            (defaultChangeAddressGen $ delegationAddress @'Mainnet)
+            (defaultChangeAddressGen
+                (delegationAddress @'Mainnet)
+                (Proxy @ShelleyKey))
             (getState wallet)
             tx
 
@@ -3651,8 +3654,11 @@ newtype DummyChangeState = DummyChangeState { nextUnusedIndex :: Int }
     deriving (Show, Eq)
 
 dummyChangeAddrGen :: ChangeAddressGen DummyChangeState
-dummyChangeAddrGen = ChangeAddressGen $ \(DummyChangeState i) ->
+dummyChangeAddrGen = ChangeAddressGen
+    { getChangeAddressGen = \(DummyChangeState i) ->
         (addressAtIx $ toEnum i, DummyChangeState $ succ i)
+    , maxLengthChangeAddress = addressAtIx minBound
+    }
       where
         addressAtIx
             :: Index
@@ -3678,19 +3684,18 @@ dummyChangeAddrGen = ChangeAddressGen $ \(DummyChangeState i) ->
 
 balanceTransactionWithDummyChangeState
     :: WriteTx.IsRecentEra era
-    => UTxO
+    => UTxOAssumptions
+    -> UTxO
     -> StdGenSeed
     -> PartialTx era
     -> Either
         ErrBalanceTx
         (Cardano.Tx era, DummyChangeState)
-balanceTransactionWithDummyChangeState utxo seed ptx =
+balanceTransactionWithDummyChangeState cs utxo seed ptx =
     flip evalRand (stdGenFromSeed seed) $ runExceptT $
         balanceTransaction @_ @(Rand StdGen)
             (nullTracer @(Rand StdGen))
-            testTxLayer
-            Nothing
-            Nothing
+            cs
             mockProtocolParametersForBalancing
             dummyTimeInterpreter
             utxoIndex
@@ -4361,9 +4366,9 @@ block0 = Block
     , delegations = []
     }
 
-updateSealedTxSpec :: Spec
-updateSealedTxSpec = do
-    describe "updateSealedTx" $ do
+updateTxSpec :: Spec
+updateTxSpec = do
+    describe "updateTx" $ do
         describe "no existing key witnesses" $ do
             txs <- readTestTransactions
             forM_ txs $ \(filepath, sealedTx) -> do
@@ -4371,7 +4376,7 @@ updateSealedTxSpec = do
                         = fromJust $ asAnyShelleyBasedEra $ cardanoTx sealedTx
                 it ("without TxUpdate: " <> filepath) $ do
                     withShelleyBasedTx anyShelleyEraTx $ \tx ->
-                        case updateSealedTx tx noTxUpdate of
+                        case updateTx tx noTxUpdate of
                             Left e ->
                                 expectationFailure $
                                 "expected update to succeed but failed: "
@@ -4401,7 +4406,7 @@ updateSealedTxSpec = do
                                       `shouldBe` Cardano.serialiseToCBOR tx'
 
                 prop ("with TxUpdate: " <> filepath) $
-                    prop_updateSealedTx anyShelleyEraTx
+                    prop_updateTx anyShelleyEraTx
 
         describe "existing key witnesses" $ do
             it "returns `Left err` with noTxUpdate" $ do
@@ -4409,7 +4414,7 @@ updateSealedTxSpec = do
                 let anyShelleyTx = shelleyBasedTxFromBytes
                         $ unsafeFromHex txWithInputsOutputsAndWits
                 withShelleyBasedTx anyShelleyTx $ \tx ->
-                        updateSealedTx tx noTxUpdate
+                        updateTx tx noTxUpdate
                             `shouldBe` Left (ErrExistingKeyWitnesses 2)
 
             it "returns `Left err` when extra body content is non-empty" $ do
@@ -4424,20 +4429,20 @@ unsafeSealedTxFromHex =
   where
     isNewlineChar c = c `elem` [10,13]
 
-prop_updateSealedTx
+prop_updateTx
     :: Cardano.InAnyShelleyBasedEra Cardano.Tx
     -> [(TxIn, TxOut)]
     -> [TxIn]
     -> [TxOut]
     -> Coin
     -> Property
-prop_updateSealedTx
+prop_updateTx
     (Cardano.InAnyShelleyBasedEra era tx)
     extraIns extraCol extraOuts newFee =
     do
         let extra = TxUpdate extraIns extraCol extraOuts [] (UseNewTxFee newFee)
         let tx' = either (error . show) id
-                $ updateSealedTx tx extra
+                $ updateTx tx extra
         conjoin
             [ inputs tx' === inputs tx <> Set.fromList (fst <$> extraIns)
             , outputs tx' === outputs tx <> Set.fromList extraOuts
@@ -4655,7 +4660,7 @@ deserializeBabbageTx :: ByteString -> Cardano.Tx Cardano.BabbageEra
 deserializeBabbageTx = either (error . show) id
     . Cardano.deserialiseFromCBOR (Cardano.AsTx Cardano.AsBabbageEra)
 
--- Ideally merge with 'updateSealedTx'
+-- Ideally merge with 'updateTx'
 addExtraTxIns
     :: [TxIn]
     -> Cardano.Tx Cardano.BabbageEra
@@ -4678,7 +4683,7 @@ withValidityInterval vi ptx = ptx
             }
     }
 
--- Ideally merge with 'updateSealedTx'
+-- Ideally merge with 'updateTx'
 modifyBabbageTxBody
     :: ( Babbage.BabbageTxBody StandardBabbage ->
          Babbage.BabbageTxBody StandardBabbage
