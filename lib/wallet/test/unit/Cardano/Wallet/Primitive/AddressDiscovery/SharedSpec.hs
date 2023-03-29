@@ -1,4 +1,5 @@
 {-# LANGUAGE AllowAmbiguousTypes #-}
+{-# LANGUAGE BinaryLiterals #-}
 {-# LANGUAGE DataKinds #-}
 {-# LANGUAGE DuplicateRecordFields #-}
 {-# LANGUAGE FlexibleContexts #-}
@@ -25,7 +26,7 @@ import Cardano.Address.Script
     , validateScriptTemplate
     )
 import Cardano.Wallet.Gen
-    ( genNatural, genScript )
+    ( genNatural, genScript, genScriptTemplate )
 import Cardano.Wallet.Primitive.AddressDerivation
     ( Depth (..)
     , DerivationType (..)
@@ -41,8 +42,10 @@ import Cardano.Wallet.Primitive.AddressDerivation.Shared
     ( unsafeGenerateKeyFromSeed )
 import Cardano.Wallet.Primitive.AddressDerivation.SharedKey
     ( SharedKey (..), constructAddressFromIx )
+import Cardano.Wallet.Primitive.AddressDiscovery
+    ( IsOurs (..), KnownAddresses (..) )
 import Cardano.Wallet.Primitive.AddressDiscovery.Sequential
-    ( AddressPoolGap (..), mkUnboundedAddressPoolGap )
+    ( AddressPoolGap (..), defaultAddressPoolGap, mkUnboundedAddressPoolGap )
 import Cardano.Wallet.Primitive.AddressDiscovery.Shared
     ( Readiness (..)
     , SharedAddressPool (..)
@@ -51,11 +54,16 @@ import Cardano.Wallet.Primitive.AddressDiscovery.Shared
     , isShared
     , liftPaymentAddress
     , mkSharedStateFromAccountXPub
+    , mkSharedStateFromRootXPrv
     )
+import Cardano.Wallet.Primitive.Passphrase.Gen
+    ( genEncryptionPassphrase )
 import Cardano.Wallet.Primitive.Types.Address
-    ( AddressState (..) )
+    ( Address (..), AddressState (..) )
 import Cardano.Wallet.Unsafe
     ( someDummyMnemonic )
+import Control.Arrow
+    ( first )
 import Data.Either
     ( isRight )
 import Data.Maybe
@@ -63,9 +71,13 @@ import Data.Maybe
 import Data.Proxy
     ( Proxy (..) )
 import Data.Word
+    ( Word8 )
+import Data.Word
     ( Word32 )
 import Test.Hspec
     ( Spec, describe, it )
+import Test.Hspec.Extra
+    ( parallel )
 import Test.QuickCheck
     ( Arbitrary (..)
     , Gen
@@ -83,8 +95,10 @@ import Type.Reflection
     ( Typeable )
 
 import qualified Cardano.Wallet.Address.Pool as AddressPool
+import qualified Data.ByteString as BS
 import qualified Data.List as L
 import qualified Data.Map.Strict as Map
+
 
 spec :: Spec
 spec = do
@@ -105,6 +119,10 @@ spec = do
             (property (prop_addressDiscoveryImpossibleWithinAccountButDifferentScript @'Mainnet))
         it "upon address discovery there is exact and consecutive number of Unused indices that amounts to the address pool gap number"
             (property (prop_addressDiscoveryDoesNotChangeGapInvariance @'Mainnet))
+
+    parallel $ describe "KnownAddresses" $ do
+        it "addresses with wrong prefixes and our credentials are discovered via isOurs" $ do
+            (property prop_oursUnexpectedPrefix)
 
 prop_addressWithScriptFromOurVerKeyIxIn
     :: forall (n :: NetworkDiscriminant). (NetworkDiscriminantBits n, Typeable n)
@@ -265,6 +283,16 @@ data CatalystSharedState = CatalystSharedState
     , addrPoolGap :: AddressPoolGap
     } deriving (Eq, Show)
 
+prop_oursUnexpectedPrefix
+    :: SharedState 'Mainnet SharedKey
+    -> UnexpectedPrefix
+    -> Property
+prop_oursUnexpectedPrefix s prefix =
+    let
+        (Address addr, _, _) = head $ knownAddresses s
+        addr' = BS.cons (unWord8 prefix) (BS.tail addr)
+    in
+        first isJust (isOurs (Address addr') s) === (False, s)
 
 {-------------------------------------------------------------------------------
                                 Arbitrary Instances
@@ -325,3 +353,23 @@ instance Arbitrary (Index 'Hardened depth) where
 instance Arbitrary (Index 'Soft depth) where
     shrink _ = []
     arbitrary = toEnum <$> choose (0, 100)
+
+newtype UnexpectedPrefix = UnexpectedPrefix {unWord8 :: Word8}
+    deriving (Eq, Show)
+
+instance Arbitrary UnexpectedPrefix where
+    arbitrary = do
+        let baseAddr = 0b00110001       -- scripthash; scripthash, mainnet
+            enterpriseAddr = 0b01110001 -- scripthash, mainnet
+            rewardAcct = 0b11110001     -- scripthash, mainnet
+            validPrefixesMainnet = [baseAddr, enterpriseAddr, rewardAcct]
+        UnexpectedPrefix <$> arbitrary `suchThat` (`notElem` validPrefixesMainnet)
+
+instance Arbitrary (SharedState 'Mainnet SharedKey) where
+    arbitrary = do
+        rootXPrv <- arbitrary
+        pwd <- genEncryptionPassphrase
+        accIx' <- arbitrary
+        scriptTemplate <- genScriptTemplate
+        pure $ mkSharedStateFromRootXPrv (rootXPrv, pwd) accIx'
+            defaultAddressPoolGap scriptTemplate Nothing
