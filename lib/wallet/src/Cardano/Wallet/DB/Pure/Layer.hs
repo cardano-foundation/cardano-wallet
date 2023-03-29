@@ -22,11 +22,7 @@ import Prelude
 import Cardano.Address.Derivation
     ( XPrv )
 import Cardano.Wallet.DB
-    ( DBLayer (..)
-    , ErrNoSuchTransaction (..)
-    , ErrRemoveTx (..)
-    , ErrWalletAlreadyExists (..)
-    )
+    ( DBLayer (..), ErrWalletAlreadyExists (..) )
 import Cardano.Wallet.DB.Pure.Implementation
     ( Database
     , Err (..)
@@ -40,7 +36,6 @@ import Cardano.Wallet.DB.Pure.Implementation
     , mPutCheckpoint
     , mPutDelegationCertificate
     , mPutDelegationRewardBalance
-    , mPutLocalTxSubmission
     , mPutPrivateKey
     , mPutTxHistory
     , mPutWalletMeta
@@ -50,9 +45,7 @@ import Cardano.Wallet.DB.Pure.Implementation
     , mReadPrivateKey
     , mReadTxHistory
     , mReadWalletMeta
-    , mRemovePendingOrExpiredTx
     , mRollbackTo
-    , mUpdatePendingTxForExpiry
     )
 import Cardano.Wallet.DB.WalletState
     ( ErrNoSuchWallet (..) )
@@ -66,8 +59,6 @@ import Cardano.Wallet.Primitive.Types
     ( SortOrder (..), WalletId, wholeRange )
 import Cardano.Wallet.Primitive.Types.Tx
     ( TransactionInfo (..) )
-import Control.Monad
-    ( void )
 import Control.Monad.IO.Unlift
     ( MonadUnliftIO (..) )
 import Control.Monad.Trans.Except
@@ -188,26 +179,20 @@ newDBLayer timeInterpreter = do
                                        Pending Tx
         -----------------------------------------------------------------------}
 
-        , addTxSubmission = error "addTxSubmission not implemented in old design"
+        , addTxSubmission =
+            error "addTxSubmission not tested in State Machine tests"
 
         , readLocalTxSubmissionPending =
-                error "readLocalTxSubmissionPending not implemented in old design"
+            error "readLocalTxSubmissionPending not tested in State Machine tests"
 
-        , resubmitTx = \wid txId sealed tip -> void $ ExceptT $
-            alterDB errNoSuchWallet db $ mPutLocalTxSubmission wid txId sealed tip
+        , resubmitTx =
+            error "resubmitTx not tested in State Machine tests"
 
-        , rollForwardTxSubmissions = \pk tip _txs -> ExceptT $
-            alterDB errNoSuchWallet db $
-            mUpdatePendingTxForExpiry pk tip
-                -- FIXME ADP-2367 by DELETION:
-                -- These tests will become obsolete once
-                -- the new Submission storage has been integrated.
-                -- In order to keep them running, we ignore the first argument
-                -- here.
+        , rollForwardTxSubmissions =
+            error "rollForwardTxSubmissions not tested in State Machine tests"
 
-        , removePendingOrExpiredTx = \pk tid -> ExceptT $
-            alterDB errCannotRemovePendingTx db $
-            mRemovePendingOrExpiredTx pk tid
+        , removePendingOrExpiredTx = error
+            "removePendingOrExpiredTx not implemented in State Machine tests"
 
         {-----------------------------------------------------------------------
                                  Protocol Parameters
@@ -263,15 +248,6 @@ readDB db op = alterDB Just db op >>= either (throwIO . MVarDBError) pure
 errNoSuchWallet :: Err WalletId -> Maybe ErrNoSuchWallet
 errNoSuchWallet (NoSuchWallet wid) = Just (ErrNoSuchWallet wid)
 errNoSuchWallet _ = Nothing
-
-errCannotRemovePendingTx :: Err WalletId -> Maybe ErrRemoveTx
-errCannotRemovePendingTx (NoSuchWallet wid) =
-    Just (ErrRemoveTxNoSuchWallet (ErrNoSuchWallet wid))
-errCannotRemovePendingTx (NoSuchTx wid tid) =
-    Just (ErrRemoveTxNoSuchTransaction (ErrNoSuchTransaction wid tid))
-errCannotRemovePendingTx (CantRemoveTxInLedger _ tid) =
-    Just (ErrRemoveTxAlreadyInLedger tid)
-errCannotRemovePendingTx _ = Nothing
 
 errWalletAlreadyExists
     :: Err WalletId
