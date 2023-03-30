@@ -4308,8 +4308,8 @@ hasReturnCollateral (Cardano.Tx (Cardano.TxBody content) _) =
 --
 -- NOTE: We don't have a 'Cardano.ProtocolParameters -> ProtocolParameters'
 -- function, so we need to manually ensure the hard-coded values are consistent.
-mockProtocolParametersForBalancing ::
-    (ProtocolParameters, Cardano.ProtocolParameters)
+mockProtocolParametersForBalancing
+    :: (ProtocolParameters, Cardano.ProtocolParameters)
 mockProtocolParametersForBalancing =
     ( mockProtocolParameters
     , Cardano.ProtocolParameters
