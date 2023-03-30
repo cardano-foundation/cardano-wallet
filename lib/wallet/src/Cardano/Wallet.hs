@@ -2116,7 +2116,7 @@ buildAndSignTransactionPure
         (unsignedBalancedTx, updatedWalletState) <- lift $
             buildTransactionPure @s @k @n @recentEra
                 wallet ti utxoIndex txLayer changeAddrGen
-                protocolParams preSelection txCtx
+                (toBalanceTxPParams protocolParams) preSelection txCtx
         put wallet { getState = updatedWalletState }
 
         let passphrase = preparePassphrase passphraseScheme userPassphrase
@@ -2216,7 +2216,7 @@ buildTransaction DBLayer{..} txLayer timeInterpreter walletId
                 utxoIndex
                 txLayer
                 changeAddrGen
-                protocolParameters
+                (toBalanceTxPParams protocolParameters)
                 PreSelection { outputs = paymentOuts }
                 txCtx
                 & runExceptT . withExceptT
@@ -2236,7 +2236,7 @@ buildTransactionPure ::
     -> UTxOIndex WalletUTxO
     -> TransactionLayer k 'CredFromKeyK SealedTx
     -> ChangeAddressGen s
-    -> ProtocolParameters
+    -> (ProtocolParameters, Cardano.BundledProtocolParameters era)
     -> PreSelection
     -> TransactionCtx
     -> ExceptT
@@ -2245,13 +2245,13 @@ buildTransactionPure ::
         (Cardano.Tx era, s)
 buildTransactionPure
     wallet ti utxoIndex txLayer changeAddrGen
-    protocolParams preSelection txCtx = do
+    pparams preSelection txCtx = do
     --
     unsignedTxBody <-
         withExceptT (Right . ErrConstructTxBody) . except $
             mkUnsignedTransaction txLayer @era
                 (unsafeShelleyOnlyGetRewardXPub (getState wallet))
-                protocolParams
+                (fst pparams)
                 txCtx
                 (Left preSelection)
 
@@ -2259,7 +2259,7 @@ buildTransactionPure
         balanceTransaction @_ @_ @s
             nullTracer
             (Write.allKeyPaymentCredentials txLayer)
-            nodeProtocolParameters
+            pparams
             ti
             utxoIndex
             changeAddrGen
@@ -2271,19 +2271,6 @@ buildTransactionPure
                 }
 
   where
-    nodeProtocolParameters =
-        ( protocolParams
-        , maybe
-            (error $ unwords
-                [ "buildAndSignTransactionPure: no nodePParams."
-                , "should only be possible in Byron, where"
-                , "withRecentEra should prevent this to be reached."
-                ])
-            (Cardano.bundleProtocolParams
-                (WriteTx.fromRecentEra (WriteTx.recentEra @era)))
-            $ currentNodeProtocolParameters protocolParams
-        )
-
     -- HACK: 'mkUnsignedTransaction' takes a reward account 'XPub' even when the
     -- wallet is a Byron wallet, and doesn't actually have a reward account.
     --
@@ -2901,8 +2888,9 @@ delegationFee
     -> ExceptT ErrSelectAssets IO DelegationFee
 delegationFee db@DBLayer{atomically, walletsDB} netLayer
     txLayer ti era changeAddressGen walletId = do
-    protocolParams <- liftIO $ currentProtocolParameters netLayer
     WriteTx.withRecentEra era $ \(recentEra :: WriteTx.RecentEra era) -> do
+        protocolParams <- toBalanceTxPParams
+            <$> liftIO (currentProtocolParameters netLayer)
         wallet <- lift . atomically $ readDBVar walletsDB >>= \wallets ->
             case Map.lookup walletId wallets of
                 Nothing -> liftIO . throwIO
@@ -3841,3 +3829,21 @@ defaultChangeAddressGen arg proxy =
     ChangeAddressGen
         (genChange arg)
         (maxLengthAddressFor proxy)
+
+-- | TODO: ADP-2459
+toBalanceTxPParams
+    :: forall era. WriteTx.IsRecentEra era
+    => ProtocolParameters
+    -> (ProtocolParameters, Cardano.BundledProtocolParameters era)
+toBalanceTxPParams pp =
+    ( pp
+    , maybe
+        (error $ unwords
+            [ "toBalanceTxPParams: no nodePParams."
+            , "should only be possible in Byron, where"
+            , "withRecentEra should prevent this to be reached."
+            ])
+        (Cardano.bundleProtocolParams
+            (WriteTx.fromRecentEra (WriteTx.recentEra @era)))
+        $ currentNodeProtocolParameters pp
+    )
