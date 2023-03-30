@@ -58,7 +58,9 @@ computeMinimumCoinForUTxO_CardanoApi
         unsafeCoinFromResult $
             Cardano.calculateMinimumUTxO era
                 (toCardanoTxOut era txOut)
-                (Cardano.fromLedgerPParams era pp)
+                (Cardano.bundleProtocolParams
+                    (Cardano.shelleyBasedToCardanoEra era)
+                    (Cardano.fromLedgerPParams era pp))
   where
     unsafeCoinFromResult
         :: Either Cardano.MinimumUTxOError Cardano.Lovelace

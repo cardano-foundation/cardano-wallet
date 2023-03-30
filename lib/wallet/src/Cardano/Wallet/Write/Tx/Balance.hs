@@ -164,6 +164,7 @@ import Text.Pretty.Simple
 
 import qualified Cardano.Address.Script as CA
 import qualified Cardano.Api as Cardano
+import qualified Cardano.Api.Extra as Cardano
 import qualified Cardano.Api.Shelley as Cardano
 import qualified Cardano.Wallet.Primitive.Types as W
 import qualified Cardano.Wallet.Primitive.Types.Address as W
@@ -351,7 +352,7 @@ balanceTransaction
         )
     => Tracer m BalanceTxLog
     -> UTxOAssumptions
-    -> (W.ProtocolParameters, Cardano.ProtocolParameters)
+    -> (W.ProtocolParameters, Cardano.BundledProtocolParameters era)
     -- ^ 'Cardano.ProtocolParameters' can be retrieved via a Local State Query
     -- to a local node.
     --
@@ -377,11 +378,9 @@ balanceTransaction
     -> PartialTx era
     -> ExceptT ErrBalanceTx m (Cardano.Tx era, changeState)
 balanceTransaction tr utxoAssumptions pp ti utxo genChange s unadjustedPtx = do
-    -- TODO [ADP-1490] Take 'Ledger.PParams era' directly as argument, and avoid
-    -- converting to/from Cardano.ProtocolParameters. This may affect
-    -- performance. The addition of this one specific conversion seems to have
-    -- made the --match "balanceTransaction" unit tests 11% slower in CPU time.
-    let ledgerPP = Cardano.toLedgerPParams shelleyEra $ snd pp
+    let ledgerPP = Cardano.unbundleLedgerShelleyBasedProtocolParams
+            shelleyEra
+            (snd pp)
     let adjustedPtx = over (#tx)
             (increaseZeroAdaOutputs (recentEra @era) ledgerPP)
             unadjustedPtx
@@ -470,7 +469,7 @@ balanceTransactionWithSelectionStrategyAndNoZeroAdaAdjustment
         )
     => Tracer m BalanceTxLog
     -> UTxOAssumptions
-    -> (W.ProtocolParameters, Cardano.ProtocolParameters)
+    -> (W.ProtocolParameters, Cardano.BundledProtocolParameters era)
     -> TimeInterpreter (Either PastHorizonException)
     -> UTxOIndex WalletUTxO
     -> ChangeAddressGen changeState
@@ -704,7 +703,9 @@ balanceTransactionWithSelectionStrategyAndNoZeroAdaAdjustment
         . Write.Tx.fromCardanoTx
 
     ledgerPP =
-        Cardano.toLedgerPParams (Cardano.shelleyBasedEra @era) nodePParams
+        Cardano.unbundleLedgerShelleyBasedProtocolParams
+            (Cardano.shelleyBasedEra @era)
+            nodePParams
 
     balanceAfterSettingMinFee
         :: Cardano.Tx era
