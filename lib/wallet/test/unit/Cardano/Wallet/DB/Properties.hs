@@ -1,4 +1,5 @@
 {-# LANGUAGE AllowAmbiguousTypes #-}
+{-# LANGUAGE CPP #-}
 {-# LANGUAGE ConstraintKinds #-}
 {-# LANGUAGE DataKinds #-}
 {-# LANGUAGE DuplicateRecordFields #-}
@@ -11,13 +12,9 @@
 {-# LANGUAGE RankNTypes #-}
 {-# LANGUAGE RecordWildCards #-}
 {-# LANGUAGE ScopedTypeVariables #-}
-{-# LANGUAGE TypeApplications #-}
 {-# LANGUAGE TypeFamilies #-}
 
-{-# OPTIONS_GHC -fno-warn-unused-imports #-}
-
 -- TODO: https://input-output.atlassian.net/browse/ADP-2841
-{-# LANGUAGE CPP #-}
 #if __GLASGOW_HASKELL__ >= 902
 {-# OPTIONS_GHC -fno-warn-ambiguous-fields #-}
 #endif
@@ -28,37 +25,26 @@ module Cardano.Wallet.DB.Properties
 
 import Prelude
 
-import Cardano.Wallet
-    ( mkNoSuchWalletError )
 import Cardano.Wallet.DB
     ( DBLayer (..)
     , ErrWalletAlreadyInitialized (ErrWalletAlreadyInitialized)
     , ErrWalletNotInitialized (ErrWalletNotInitialized)
     )
 import Cardano.Wallet.DB.Arbitrary
-    ( GenState
-    , GenTxHistory (..)
-    , InitialCheckpoint (..)
-    , KeyValPairs (..)
-    , MockChain (..)
-    )
+    ( GenState, GenTxHistory (..), InitialCheckpoint (..), MockChain (..) )
+import Cardano.Wallet.DB.Layer
+    ( PersistAddressBook )
 import Cardano.Wallet.DB.Pure.Implementation
     ( filterTxHistory )
-import Cardano.Wallet.DB.WalletState
-    ( ErrNoSuchWallet (..) )
 import Cardano.Wallet.DummyTarget.Primitive.Types
     ( dummyGenesisParameters )
 import Cardano.Wallet.Primitive.AddressDerivation.Shelley
     ( ShelleyKey (..) )
 import Cardano.Wallet.Primitive.Model
-    ( Wallet, applyBlock, currentTip )
+    ( Wallet (currentTip), applyBlock, currentTip )
 import Cardano.Wallet.Primitive.Types
-    ( BlockHeader (..)
-    , ChainPoint (..)
+    ( ChainPoint (..)
     , GenesisParameters
-    , ProtocolParameters
-    , Slot
-    , SlotId (..)
     , SlotNo (..)
     , SortOrder (..)
     , WalletId (..)
@@ -71,50 +57,31 @@ import Cardano.Wallet.Primitive.Types
 import Cardano.Wallet.Primitive.Types.Hash
     ( Hash (..) )
 import Cardano.Wallet.Primitive.Types.Tx
-    ( Direction (..)
-    , TransactionInfo (..)
-    , Tx (..)
-    , TxMeta (..)
-    , TxStatus (..)
-    , isPending
-    , toTxHistory
-    )
+    ( TransactionInfo (..), Tx (..), TxMeta (..), toTxHistory )
 import Cardano.Wallet.Unsafe
     ( unsafeRunExceptT )
 import Cardano.Wallet.Util
     ( ShowFmt (..) )
 import Control.Monad
-    ( forM, forM_, void )
+    ( forM_, when )
 import Control.Monad.IO.Class
     ( liftIO )
-import Control.Monad.Trans.Class
-    ( lift )
 import Control.Monad.Trans.Except
-    ( ExceptT, mapExceptT, runExceptT )
-import Control.Monad.Trans.State.Strict
-    ( evalStateT, get, modify' )
-import Data.Bifunctor
-    ( bimap )
-import Data.Function
-    ( (&) )
+    ( ExceptT, mapExceptT, runExceptT, withExceptT )
+import Data.Foldable
+    ( fold )
 import Data.Functor.Identity
     ( Identity (..) )
 import Data.Generics.Internal.VL.Lens
-    ( view, (^.) )
+    ( (^.) )
 import Data.Generics.Labels
     ()
 import Data.List
-    ( unfoldr )
+    ( sortOn, unfoldr )
 import Data.Maybe
-    ( catMaybes, isNothing, mapMaybe )
-import Data.Quantity
-    ( Quantity (..) )
-import Data.Set
-    ( Set )
-import Data.Word
-    ( Word32, Word64 )
+    ( isNothing, mapMaybe )
 import Fmt
-    ( Buildable, blockListF, pretty )
+    ( Buildable, pretty )
 import Test.Hspec
     ( SpecWith, describe, it, shouldBe, shouldReturn )
 import Test.QuickCheck
@@ -122,218 +89,193 @@ import Test.QuickCheck
     , Gen
     , Property
     , checkCoverage
-    , choose
-    , conjoin
     , counterexample
     , cover
     , elements
-    , forAll
     , label
     , property
-    , suchThat
-    , (.&&.)
-    , (===)
-    , (==>)
     )
 import Test.QuickCheck.Monadic
     ( PropertyM, assert, monadicIO, monitor, pick, run )
-import UnliftIO.Async
-    ( forConcurrently_ )
 
 import qualified Data.List as L
-import qualified Data.Map.Strict as Map
-import qualified Data.Set as Set
 
+-- | How to boot a fresh database.
+type WithFreshDB s =
+    (DBLayer IO s ShelleyKey -> PropertyM IO ())
+    -> PropertyM IO ()
+
+withFreshWallet
+    :: GenState s
+    => WithFreshDB s
+    -> (DBLayer IO s ShelleyKey -> WalletId -> PropertyM IO ())
+    -> PropertyM IO ()
+withFreshWallet withFreshDB f = withFreshDB $ \db@DBLayer {..} -> do
+    (InitialCheckpoint cp0, meta, wid) <- pick arbitrary
+    run
+        $ atomically
+        $ unsafeRunExceptT
+        $ initializeWallet wid cp0 meta mempty gp
+    f db wid
+
+type TestOnLayer s =
+    ( DBLayer IO s ShelleyKey
+      -> WalletId
+      -> PropertyM IO ()
+    )
+    -> Property
+
+-- | Wallet properties.
 properties
-    :: (GenState s, Eq s)
-    => SpecWith (DBLayer IO s ShelleyKey)
-properties = describe "DB.Properties" $ do
+    :: (GenState s, PersistAddressBook s)
+    => WithFreshDB s
+    -> SpecWith ()
+properties withFreshDB = describe "DB.Properties" $ do
+    let testOnLayer = monadicIO . withFreshWallet withFreshDB
+
     describe "Extra Properties about DB initialization" $ do
-        it
-            "createWallet . listWallets yields expected results"
-            (property . prop_createListWallet)
-        it
-            "creating same wallet twice yields an error"
-            (property . prop_createWalletTwice)
+        it "creating same wallet twice yields an error"
+            $ property
+            $ prop_createWalletTwice withFreshDB
 
     describe "put . read yields a result" $ do
         it "Checkpoint"
             $ property
-                . prop_readAfterPut
-                    ( \DBLayer{..} wid ->
-                        mkNoSuchWalletError wid
-                            . mapExceptT atomically
-                            . putCheckpoint wid
-                    )
-                    (\DBLayer{..} -> atomically . readCheckpoint)
+            $ prop_readAfterPut
+                testOnLayer
+                (\DBLayer{..} wid -> mapExceptT atomically . putCheckpoint wid)
+                (\DBLayer{..} -> atomically . readCheckpoint)
         it "Wallet Metadata"
             $ property
-                . prop_readAfterPut
-                    ( \DBLayer{..} wid ->
-                        mkNoSuchWalletError wid
-                            . mapExceptT atomically
-                            . putWalletMeta wid
-                    )
-                    ( \DBLayer{..} ->
-                        atomically
-                            . fmap (fmap fst)
-                            . readWalletMeta
-                    )
+            $ prop_readAfterPut
+                testOnLayer
+                (\DBLayer{..} wid -> mapExceptT atomically . putWalletMeta wid)
+                (\DBLayer{..} -> atomically . fmap (fmap fst) . readWalletMeta)
         it "Tx History"
             $ property
-                . prop_readAfterPut
-                    putTxHistory_
-                    readTxHistory_
+            $ prop_readAfterPut
+                testOnLayer
+                putTxHistory_
+                readTxHistory_
         it "Private Key"
             $ property
-                . prop_readAfterPut
-                    ( \DBLayer{..} wid ->
-                        mkNoSuchWalletError wid
-                            . mapExceptT atomically
-                            . putPrivateKey wid
-                    )
-                    (\DBLayer{..} -> atomically . readPrivateKey)
+            $ prop_readAfterPut
+                testOnLayer
+                (\DBLayer{..} wid -> mapExceptT atomically . putPrivateKey wid)
+                (\DBLayer{..} -> atomically . readPrivateKey)
 
     describe "getTx properties" $ do
         it "can read after putting tx history for valid tx id"
-            $ property . prop_getTxAfterPutValidTxId
+            $ property
+            $ prop_getTxAfterPutValidTxId testOnLayer
         it "cannot read after putting tx history for invalid tx id"
-            $ property . prop_getTxAfterPutInvalidTxId
+            $ property
+            $ prop_getTxAfterPutInvalidTxId testOnLayer
         it "cannot read after putting tx history for invalid wallet id"
-            $ property . prop_getTxAfterPutInvalidWalletId
+            $ property
+            $ prop_getTxAfterPutInvalidWalletId testOnLayer
 
     describe "can't put before wallet exists" $ do
         it "Checkpoint"
             $ property
-                . prop_putBeforeInit
-                    ( \DBLayer{..} wid ->
-                        mkNoSuchWalletError wid
-                            . mapExceptT atomically
-                            . putCheckpoint wid
-                    )
-                    (\DBLayer{..} -> atomically . readCheckpoint)
-                    Nothing
+            $ prop_putBeforeInit
+                withFreshDB
+                (\DBLayer{..} wid -> mapExceptT atomically . putCheckpoint wid)
+                (\DBLayer{..} -> atomically . readCheckpoint)
+                Nothing
         it "Wallet Metadata"
             $ property
-                . prop_putBeforeInit
-                    ( \DBLayer{..} wid ->
-                        mkNoSuchWalletError wid
-                            . mapExceptT atomically
-                            . putWalletMeta wid
-                    )
-                    ( \DBLayer{..} ->
-                        atomically
-                            . fmap (fmap fst)
-                            . readWalletMeta
-                    )
-                    Nothing
+            $ prop_putBeforeInit
+                withFreshDB
+                (\DBLayer{..} wid -> mapExceptT atomically . putWalletMeta wid)
+                (\DBLayer{..} -> atomically . fmap (fmap fst) . readWalletMeta)
+                Nothing
         it "Tx History"
             $ property
-                . prop_putBeforeInit
-                    putTxHistory_
-                    readTxHistory_
-                    (pure mempty)
+            $ prop_putBeforeInit
+                withFreshDB
+                putTxHistory_
+                readTxHistory_
+                (pure mempty)
         it "Private Key"
             $ property
-                . prop_putBeforeInit
-                    ( \DBLayer{..} wid ->
-                        mkNoSuchWalletError wid
-                            . mapExceptT atomically
-                            . putPrivateKey wid
-                    )
-                    (\DBLayer{..} -> atomically . readPrivateKey)
-                    Nothing
+            $ prop_putBeforeInit
+                withFreshDB
+                (\DBLayer{..} wid -> mapExceptT atomically . putPrivateKey wid)
+                (\DBLayer{..} -> atomically . readPrivateKey)
+                Nothing
 
     describe "put doesn't affect other resources" $ do
         it "Checkpoint vs Wallet Metadata & Tx History & Private Key"
             $ property
-                . prop_isolation
-                    ( \DBLayer{..} wid ->
-                        mkNoSuchWalletError wid
-                            . mapExceptT atomically
-                            . putCheckpoint wid
-                    )
-                    (\DBLayer{..} -> atomically . readWalletMeta)
-                    readTxHistory_
-                    (\DBLayer{..} -> atomically . readPrivateKey)
+            $ prop_isolation
+                testOnLayer
+                (\DBLayer{..} wid -> mapExceptT atomically . putCheckpoint wid)
+                (\DBLayer{..} -> atomically . readWalletMeta)
+                readTxHistory_
+                (\DBLayer{..} -> atomically . readPrivateKey)
         it "Wallet Metadata vs Tx History & Checkpoint & Private Key"
             $ property
-                . prop_isolation
-                    ( \DBLayer{..} wid ->
-                        mkNoSuchWalletError wid
-                            . mapExceptT atomically
-                            . putWalletMeta wid
-                    )
-                    readTxHistory_
-                    (\DBLayer{..} -> atomically . readCheckpoint)
-                    (\DBLayer{..} -> atomically . readPrivateKey)
+            $ prop_isolation
+                testOnLayer
+                (\DBLayer{..} wid -> mapExceptT atomically . putWalletMeta wid)
+                readTxHistory_
+                (\DBLayer{..} -> atomically . readCheckpoint)
+                (\DBLayer{..} -> atomically . readPrivateKey)
         it "Tx History vs Checkpoint & Wallet Metadata & Private Key"
             $ property
-                . prop_isolation
-                    putTxHistory_
-                    (\DBLayer{..} -> atomically . readCheckpoint)
-                    (\DBLayer{..} -> atomically . readWalletMeta)
-                    (\DBLayer{..} -> atomically . readPrivateKey)
+            $ prop_isolation
+                testOnLayer
+                putTxHistory_
+                (\DBLayer{..} -> atomically . readCheckpoint)
+                (\DBLayer{..} -> atomically . readWalletMeta)
+                (\DBLayer{..} -> atomically . readPrivateKey)
 
+    let lastMay [] = Nothing
+        lastMay xs = Just (last xs)
     describe "sequential puts replace values in order" $ do
         it "Checkpoint"
             $ checkCoverage
-                . prop_sequentialPut
-                    (\DBLayer{..} wid -> mkNoSuchWalletError wid . mapExceptT atomically . putCheckpoint wid)
-                    (\DBLayer{..} -> atomically . readCheckpoint)
-                    lrp
+            $ prop_sequentialPut
+                testOnLayer
+                (\DBLayer{..} wid -> mapExceptT atomically . putCheckpoint wid)
+                (\DBLayer{..} -> atomically . readCheckpoint)
+                lastMay
+                . sortOn (currentTip . unShowFmt)
         it "Wallet Metadata"
             $ checkCoverage
-                . prop_sequentialPut
-                    (\DBLayer{..} wid -> mkNoSuchWalletError wid . mapExceptT atomically . putWalletMeta wid)
-                    (\DBLayer{..} -> atomically . fmap (fmap fst) . readWalletMeta)
-                    lrp
+            $ prop_sequentialPut
+                testOnLayer
+                (\DBLayer{..} wid -> mapExceptT atomically . putWalletMeta wid)
+                (\DBLayer{..} -> atomically . fmap (fmap fst) . readWalletMeta)
+                lastMay
         it "Tx History"
             $ checkCoverage
-                . prop_sequentialPut
-                    putTxHistory_
-                    readTxHistory_
-                    sortedUnions
+            $ prop_sequentialPut
+                testOnLayer
+                putTxHistory_
+                readTxHistory_
+                ( let sort' =
+                        GenTxHistory
+                            . filterTxHistory Nothing Descending wholeRange
+                            . unGenTxHistory
+                  in  Identity . sort' . fold
+                )
         it "Private Key"
             $ checkCoverage
-                . prop_sequentialPut
-                    (\DBLayer{..} wid -> mkNoSuchWalletError wid . mapExceptT atomically . putPrivateKey wid)
-                    (\DBLayer{..} -> atomically . readPrivateKey)
-                    lrp
-
-    describe "parallel puts replace values in _any_ order" $ do
-        it "Checkpoint"
-            $ checkCoverage
-                . prop_parallelPut
-                    (\DBLayer{..} wid -> mkNoSuchWalletError wid . mapExceptT atomically . putCheckpoint wid)
-                    (\DBLayer{..} -> atomically . readCheckpoint)
-                    (length . lrp @Maybe)
-        it "Wallet Metadata"
-            $ checkCoverage
-                . prop_parallelPut
-                    (\DBLayer{..} wid -> mkNoSuchWalletError wid . mapExceptT atomically . putWalletMeta wid)
-                    (\DBLayer{..} -> atomically . fmap (fmap fst) . readWalletMeta)
-                    (length . lrp @Maybe)
-        it "Tx History"
-            $ checkCoverage
-                . prop_parallelPut
-                    putTxHistory_
-                    readTxHistory_
-                    (length . sortedUnions)
-        it "Private Key"
-            $ checkCoverage
-                . prop_parallelPut
-                    (\DBLayer{..} wid -> mkNoSuchWalletError wid . mapExceptT atomically . putPrivateKey wid)
-                    (\DBLayer{..} -> atomically . readPrivateKey)
-                    (length . lrp @Maybe)
+            $ prop_sequentialPut
+                testOnLayer
+                (\DBLayer{..} wid -> mapExceptT atomically . putPrivateKey wid)
+                (\DBLayer{..} -> atomically . readPrivateKey)
+                lastMay
 
     describe "rollback" $ do
         it
             "Can rollback to any arbitrary known checkpoint"
-            (property . prop_rollbackCheckpoint)
+            (property $ prop_rollbackCheckpoint withFreshDB)
         it
             "Correctly re-construct tx history on rollbacks"
-            (checkCoverage . prop_rollbackTxHistory)
+            (checkCoverage $ prop_rollbackTxHistory withFreshDB)
 
 -- | Wrap the result of 'readTransactions' in an arbitrary identity Applicative
 readTxHistory_
@@ -341,7 +283,7 @@ readTxHistory_
     => DBLayer m s ShelleyKey
     -> WalletId
     -> m (Identity GenTxHistory)
-readTxHistory_ DBLayer{..} wid =
+readTxHistory_ DBLayer {..} wid =
     (Identity . GenTxHistory . fmap toTxHistory)
         <$> atomically
             (readTransactions wid Nothing Descending wholeRange Nothing Nothing)
@@ -351,9 +293,9 @@ putTxHistory_
     => DBLayer m s ShelleyKey
     -> WalletId
     -> GenTxHistory
-    -> ExceptT ErrNoSuchWallet m ()
+    -> ExceptT ErrWalletNotInitialized m ()
 putTxHistory_ DBLayer {..} wid =
-    mkNoSuchWalletError wid
+    withExceptT (const ErrWalletNotInitialized)
         . mapExceptT atomically
         . putTxHistory wid
         . unGenTxHistory
@@ -361,45 +303,6 @@ putTxHistory_ DBLayer {..} wid =
 {-------------------------------------------------------------------------------
                                        Utils
 -------------------------------------------------------------------------------}
-
--- | Keep only the
--- (L)ast (R)ecently (P)ut entry
-lrp :: (Applicative f, Ord k) => [(k, v)] -> [f v]
-lrp =
-    fmap snd
-    . L.sortOn fst
-    . Map.toList
-    . foldl (\m (k, v) -> Map.insert k (pure v) m) mempty
-
--- | Keep the unions (right-biaised) of all entry
-unions :: (Monoid v, Ord k) => [(k, v)] -> [Identity v]
-unions =
-    fmap Identity
-    . Map.elems
-    . foldl (\m (k, v) -> Map.unionWith (<>) (Map.fromList [(k, v)]) m) mempty
-
--- | Keep the unions (right-biased) of all transactions, and sort them in the
--- default order for readTransactions.
-sortedUnions :: Ord k => [(k, GenTxHistory)] -> [Identity GenTxHistory]
-sortedUnions = map (Identity . sort' . runIdentity) . unions
-  where
-    sort' = GenTxHistory
-      . filterTxHistory Nothing Descending wholeRange
-      . unGenTxHistory
-
--- | Execute an action once per key @k@ present in the given list
-once :: (Ord k, Monad m) => [(k,v)] -> ((k,v) -> m a) -> m [a]
-once xs action = fmap catMaybes $ flip evalStateT mempty $
-    forM xs $ \(k, v) -> do
-        s <- get
-        modify' (Set.insert k)
-        if Set.member k s
-            then pure Nothing
-            else Just <$> lift (action (k, v))
-
--- | Like 'once', but discards the result
-once_ :: (Ord k, Monad m) => [(k,v)] -> ((k,v) -> m a) -> m ()
-once_ xs = void . once xs
 
 -- | Filter a transaction list according to the given predicate, returns their
 -- ids.
@@ -437,319 +340,248 @@ assertWith lbl condition = do
                                     Properties
 -------------------------------------------------------------------------------}
 
--- | Can list created wallets
-prop_createListWallet
-    :: DBLayer IO s ShelleyKey
-    -> WalletId
-    -> (InitialCheckpoint s, WalletMetadata)
-    -> Property
-prop_createListWallet DBLayer{..} wid (InitialCheckpoint cp0, meta) =
-    monadicIO prop
-  where
-    prop = liftIO $ do
-        atomically $ unsafeRunExceptT $
-            initializeWallet wid cp0 meta mempty gp
-        atomically (unsafeRunExceptT getWalletId) `shouldReturn` wid
-
 -- | Trying to create a same wallet twice should yield an error
 prop_createWalletTwice
-    :: DBLayer IO s ShelleyKey
+    :: WithFreshDB s
     -> ( WalletId
        , InitialCheckpoint s
        , WalletMetadata
        )
     -> Property
-prop_createWalletTwice DBLayer{..} (wid, InitialCheckpoint cp0, meta) =
-    monadicIO prop
-  where
-    prop = liftIO $ do
-        let err = ErrWalletAlreadyInitialized
-        atomically (runExceptT $ initializeWallet wid cp0 meta mempty gp)
-            `shouldReturn` Right ()
-        atomically (runExceptT $ initializeWallet wid cp0 meta mempty gp)
-            `shouldReturn` Left err
+prop_createWalletTwice test (wid, InitialCheckpoint cp0, meta) = monadicIO
+    $ test
+    $ \DBLayer {..} -> do
+        liftIO $ do
+            let err = ErrWalletAlreadyInitialized
+            atomically (runExceptT $ initializeWallet wid cp0 meta mempty gp)
+                `shouldReturn` Right ()
+            atomically (runExceptT $ initializeWallet wid cp0 meta mempty gp)
+                `shouldReturn` Left err
 
 -- | Checks that a given resource can be read after having been inserted in DB.
 prop_readAfterPut
-    :: ( Buildable (f a), Eq (f a), Applicative f, GenState s )
-    => (  DBLayer IO s ShelleyKey
-       -> WalletId
-       -> a
-       -> ExceptT ErrNoSuchWallet IO ()
-       ) -- ^ Put Operation
-    -> (  DBLayer IO s ShelleyKey
-       -> WalletId
-       -> IO (f a)
-       ) -- ^ Read Operation
-    -> DBLayer IO s ShelleyKey
-    -> (WalletId, a)
-        -- ^ Property arguments
+    :: (Buildable (f a), Eq (f a), Applicative f, GenState s)
+    => TestOnLayer s
+    -> ( DBLayer IO s ShelleyKey
+         -> WalletId
+         -> a
+         -> ExceptT ErrWalletNotInitialized IO ()
+       )
+    -- ^ Put Operation
+    -> ( DBLayer IO s ShelleyKey
+         -> WalletId
+         -> IO (f a)
+       )
+    -- ^ Read Operation
+    -> a
+    -- ^ Property arguments
     -> Property
-prop_readAfterPut putOp readOp db@DBLayer{..} (wid, a) =
-    monadicIO (setup >> prop)
-  where
-    setup = do
-        (InitialCheckpoint cp0, meta) <- pick arbitrary
-        run $ atomically $ unsafeRunExceptT $
-            initializeWallet wid cp0 meta mempty gp
-    prop = do
-        run $ unsafeRunExceptT $ putOp db wid a
-        res <- run $ readOp db wid
-        let fa = pure a
-        monitor $ counterexample $ "\nInserted\n" <> pretty fa
-        monitor $ counterexample $ "\nRead\n" <> pretty res
-        assertWith "Inserted == Read" (res == fa)
+prop_readAfterPut test putOp readOp a = test $ \db wid -> do
+    run $ unsafeRunExceptT $ putOp db wid a
+    res <- run $ readOp db wid
+    let fa = pure a
+    monitor $ counterexample $ "\nInserted\n" <> pretty fa
+    monitor $ counterexample $ "\nRead\n" <> pretty res
+    assertWith "Inserted == Read" (res == fa)
 
 prop_getTxAfterPutValidTxId
     :: GenState s
-    => DBLayer IO s ShelleyKey
-    -> WalletId
+    => TestOnLayer s
     -> GenTxHistory
     -> Property
-prop_getTxAfterPutValidTxId DBLayer{..} wid txGen =
-    monadicIO (setup >> prop)
-  where
-    setup = do
-        (InitialCheckpoint cp0, meta) <- pick arbitrary
-        run $ atomically $ unsafeRunExceptT $
-            initializeWallet wid cp0 meta mempty gp
-    prop = do
-        let txs = unGenTxHistory txGen
-        run $ unsafeRunExceptT $ mapExceptT atomically $ putTxHistory wid txs
-        forM_ txs $ \(Tx {txId}, txMeta) -> do
-            (Just (TransactionInfo {txInfoId, txInfoMeta})) <-
-                run $ atomically $ unsafeRunExceptT $ getTx wid txId
-            monitor $ counterexample $ "\nInserted\n"
-                <> pretty txMeta <> " for txId: " <> pretty txId
-            monitor $ counterexample $ "\nRead\n"
-                <> pretty txInfoMeta <> " for txId: " <> pretty txInfoId
-            assertWith "Inserted is included in Read"
-                (txMeta == txInfoMeta && txId == txInfoId)
+prop_getTxAfterPutValidTxId test txGen = test $ \DBLayer {..} wid -> do
+    let txs = unGenTxHistory txGen
+    run $ unsafeRunExceptT $ mapExceptT atomically $ putTxHistory wid txs
+    forM_ txs $ \(Tx {txId}, txMeta) -> do
+        (Just (TransactionInfo {txInfoId, txInfoMeta})) <-
+            run $ atomically $ unsafeRunExceptT $ getTx wid txId
+        monitor
+            $ counterexample
+            $ "\nInserted\n"
+                <> pretty txMeta
+                <> " for txId: "
+                <> pretty txId
+        monitor
+            $ counterexample
+            $ "\nRead\n"
+                <> pretty txInfoMeta
+                <> " for txId: "
+                <> pretty txInfoId
+        assertWith
+            "Inserted is included in Read"
+            (txMeta == txInfoMeta && txId == txInfoId)
 
 prop_getTxAfterPutInvalidTxId
     :: GenState s
-    => DBLayer IO s ShelleyKey
-    -> WalletId
+    => TestOnLayer s
     -> GenTxHistory
     -> (Hash "Tx")
     -> Property
-prop_getTxAfterPutInvalidTxId DBLayer{..} wid txGen txId' =
-    monadicIO (setup >> prop)
-  where
-    setup = do
-        (InitialCheckpoint cp0, meta) <- pick arbitrary
-        run $ atomically $ unsafeRunExceptT $
-            initializeWallet wid cp0 meta mempty gp
-    prop = do
-        let txs = unGenTxHistory txGen
-        run $ unsafeRunExceptT $ mapExceptT atomically $ putTxHistory wid txs
-        res <- run $ atomically $ unsafeRunExceptT $ getTx wid txId'
-        assertWith "Irrespective of Inserted, Read is Nothing for invalid tx id"
-            (isNothing res)
+prop_getTxAfterPutInvalidTxId test txGen txId' = test $ \DBLayer {..} wid -> do
+    let txs = unGenTxHistory txGen
+    run $ unsafeRunExceptT $ mapExceptT atomically $ putTxHistory wid txs
+    res <- run $ atomically $ unsafeRunExceptT $ getTx wid txId'
+    assertWith
+        "Irrespective of Inserted, Read is Nothing for invalid tx id"
+        (isNothing res)
 
 prop_getTxAfterPutInvalidWalletId
-    :: DBLayer IO s ShelleyKey
-    -> ( WalletId
-       , InitialCheckpoint s
-       , WalletMetadata
-       )
-    -> GenTxHistory
+    :: TestOnLayer s
     -> WalletId
+    -> GenTxHistory
     -> Property
-prop_getTxAfterPutInvalidWalletId DBLayer{..}
-    (wid, InitialCheckpoint cp0, meta) txGen wid'
-  = wid /= wid' ==> monadicIO (setup >> prop)
-  where
-    setup = liftIO $ do
-        atomically $ unsafeRunExceptT $ initializeWallet wid cp0 meta mempty gp
-    prop = liftIO $ do
+prop_getTxAfterPutInvalidWalletId test wid txGen =
+    test $ \DBLayer {..} wid' -> liftIO $ do
         let txs = unGenTxHistory txGen
-        atomically (runExceptT $ putTxHistory wid txs) `shouldReturn` Right ()
+        atomically (runExceptT $ putTxHistory wid' txs) `shouldReturn` Right ()
         forM_ txs $ \(Tx {txId}, _) -> do
             let err = ErrWalletNotInitialized
-            atomically (runExceptT $ getTx wid' txId) `shouldReturn` Left err
+            when (wid /= wid')
+                $ atomically (runExceptT $ getTx wid txId)
+                `shouldReturn` Left err
 
 -- | Can't put resource before a wallet has been initialized
 prop_putBeforeInit
     :: (Buildable (f a), Eq (f a), GenState s)
-    => (  DBLayer IO s ShelleyKey
-       -> WalletId
-       -> a
-       -> ExceptT ErrNoSuchWallet IO ()
-       ) -- ^ Put Operation
-    -> (  DBLayer IO s ShelleyKey
-       -> WalletId
-       -> IO (f a)
-       ) -- ^ Read Operation
+    => WithFreshDB s
+    -> ( DBLayer IO s ShelleyKey
+         -> WalletId
+         -> a
+         -> ExceptT ErrWalletNotInitialized IO ()
+       )
+    -- ^ Put Operation
+    -> ( DBLayer IO s ShelleyKey
+         -> WalletId
+         -> IO (f a)
+       )
+    -- ^ Read Operation
     -> f a
-        -- ^ An 'empty' value for the 'Applicative' f
-    -> DBLayer IO s ShelleyKey
+    -- ^ An 'empty' value for the 'Applicative' f
     -> (WalletId, a)
-        -- ^ Property arguments
+    -- ^ Property arguments
     -> Property
-prop_putBeforeInit putOp readOp empty db (wid, a) =
-    monadicIO prop
-  where
-    prop = liftIO $ do
+prop_putBeforeInit test putOp readOp empty (wid, a) = monadicIO $ test $ \db ->
+    liftIO $ do
         runExceptT (putOp db wid a) >>= \case
             Right _ ->
                 fail "expected put operation to fail but it succeeded!"
             Left err ->
-                err `shouldBe` ErrNoSuchWallet wid
+                err `shouldBe` ErrWalletNotInitialized
         (ShowFmt <$> readOp db wid) `shouldReturn` (ShowFmt empty)
 
 -- | Modifying one resource leaves the other untouched
 prop_isolation
-    :: ( Buildable (f b), Eq (f b)
-       , Buildable (g c), Eq (g c)
-       , Buildable (h d), Eq (h d)
+    :: ( Buildable (f b)
+       , Eq (f b)
+       , Buildable (g c)
+       , Eq (g c)
+       , Buildable (h d)
+       , Eq (h d)
        , GenState s
        , Show s
+       , PersistAddressBook s
        )
-    => (  DBLayer IO s ShelleyKey
-       -> WalletId
-       -> a
-       -> ExceptT ErrNoSuchWallet IO ()
-       ) -- ^ Put Operation
-    -> (  DBLayer IO s ShelleyKey
-       -> WalletId
-       -> IO (f b)
-       ) -- ^ Read Operation for another resource
-    -> (  DBLayer IO s ShelleyKey
-       -> WalletId
-       -> IO (g c)
-       ) -- ^ Read Operation for another resource
-    -> (  DBLayer IO s ShelleyKey
-       -> WalletId
-       -> IO (h d)
-       ) -- ^ Read Operation for another resource
-    -> DBLayer IO s ShelleyKey
-    -> (ShowFmt WalletId, ShowFmt a)
-        -- ^ Properties arguments
+    => TestOnLayer s
+    -> ( DBLayer IO s ShelleyKey
+         -> WalletId
+         -> a
+         -> ExceptT ErrWalletNotInitialized IO ()
+       )
+    -- ^ Put Operation
+    -> ( DBLayer IO s ShelleyKey
+         -> WalletId
+         -> IO (f b)
+       )
+    -- ^ Read Operation for another resource
+    -> ( DBLayer IO s ShelleyKey
+         -> WalletId
+         -> IO (g c)
+       )
+    -- ^ Read Operation for another resource
+    -> ( DBLayer IO s ShelleyKey
+         -> WalletId
+         -> IO (h d)
+       )
+    -- ^ Read Operation for another resource
+    -> ShowFmt a
+    -- ^ Properties arguments
     -> Property
-prop_isolation putA readB readC readD db@DBLayer{..} (ShowFmt wid, ShowFmt a) =
-    monadicIO (setup >>= prop)
-  where
-    setup = do
-        (InitialCheckpoint cp0, meta) <- pick arbitrary
+prop_isolation test putA readB readC readD (ShowFmt a) =
+    test $ \db@DBLayer {..} wid -> do
         (GenTxHistory txs) <- pick arbitrary
         run $ atomically $ do
-            unsafeRunExceptT $ initializeWallet wid cp0 meta mempty gp
             unsafeRunExceptT $ putTxHistory wid txs
-        run $ (,,)
-            <$> readB db wid
-            <*> readC db wid
-            <*> readD db wid
-
-    prop (b, c, d) = liftIO $ do
-        unsafeRunExceptT $ putA db wid a
-        (ShowFmt <$> readB db wid) `shouldReturn` ShowFmt b
-        (ShowFmt <$> readC db wid) `shouldReturn` ShowFmt c
-        (ShowFmt <$> readD db wid) `shouldReturn` ShowFmt d
+        (b, c, d) <-
+            run
+                $ (,,)
+                    <$> readB db wid
+                    <*> readC db wid
+                    <*> readD db wid
+        liftIO $ do
+            unsafeRunExceptT $ putA db wid a
+            (ShowFmt <$> readB db wid) `shouldReturn` ShowFmt b
+            (ShowFmt <$> readC db wid) `shouldReturn` ShowFmt c
+            (ShowFmt <$> readD db wid) `shouldReturn` ShowFmt d
 
 -- | Check that the DB supports multiple sequential puts for a given resource
 prop_sequentialPut
-    :: (Buildable (f a), Eq (f a), GenState s)
-    => (  DBLayer IO s ShelleyKey
-       -> WalletId
-       -> a
-       -> ExceptT ErrNoSuchWallet IO ()
-       ) -- ^ Put Operation
-    -> (  DBLayer IO s ShelleyKey
-       -> WalletId
-       -> IO (f a)
-       ) -- ^ Read Operation
-    -> (forall k. Ord k => [(k, a)] -> [f a])
-        -- ^ How do we expect operations to resolve
-    -> DBLayer IO s ShelleyKey
-    -> KeyValPairs (ShowFmt WalletId) (ShowFmt a)
-        -- ^ Property arguments
+    :: (Buildable (f a), Eq (f a), GenState s, PersistAddressBook s)
+    => TestOnLayer s
+    -> ( DBLayer IO s ShelleyKey
+         -> WalletId
+         -> a
+         -> ExceptT ErrWalletNotInitialized IO ()
+       )
+    -- ^ Put Operation
+    -> ( DBLayer IO s ShelleyKey
+         -> WalletId
+         -> IO (f a)
+       )
+    -- ^ Read Operation
+    -> ([a] -> f a)
+    -- ^ How do we expect operations to resolve
+    -> [ShowFmt a]
+    -- ^ Property arguments
     -> Property
-prop_sequentialPut putOp readOp resolve db@DBLayer{..} kv =
-    cover 25 cond "conflicting db entries" $ monadicIO (setup >> prop)
-  where
-    pairs = (\(KeyValPairs xs) -> bimap unShowFmt unShowFmt <$> xs) kv
-    -- Make sure that we have some conflicting insertion to actually test the
-    -- semantic of the DB Layer.
-    cond = L.length (L.nub ids) /= L.length ids
-      where
-        ids = map fst pairs
-    setup = do
-        (InitialCheckpoint cp0, meta) <- pick arbitrary
-        run $ atomically $ unsafeRunExceptT $ once_ pairs $ \(k, _) ->
-            initializeWallet k cp0 meta mempty gp
-    prop = do
-        run $ unsafeRunExceptT $ forM_ pairs $ uncurry (putOp db)
-        res <- run $ once pairs (readOp db . fst)
-        let resolved = resolve pairs
+prop_sequentialPut _ _ _ _ [] = property True
+prop_sequentialPut test putOp readOp resolve as =
+    test $ \db wid -> do
+        let ops = unShowFmt <$> as
+        run $ unsafeRunExceptT $ forM_ ops $ putOp db wid
+        res <- run $ readOp db wid
+        let resolved = resolve ops
         monitor $ counterexample $ "\nResolved\n" <> pretty resolved
         monitor $ counterexample $ "\nRead\n" <> pretty res
         assertWith "Resolved == Read" (res == resolved)
 
--- | Check that the DB supports multiple sequential puts for a given resource
-prop_parallelPut
-    :: (GenState s)
-    => (  DBLayer IO s ShelleyKey
-       -> WalletId
-       -> a
-       -> ExceptT ErrNoSuchWallet IO ()
-       ) -- ^ Put Operation
-    -> (  DBLayer IO s ShelleyKey
-       -> WalletId
-       -> IO (f a)
-       ) -- ^ Read Operation
-    -> (forall k. Ord k => [(k, a)] -> Int)
-        -- ^ How many entries to we expect in the end
-    -> DBLayer IO s ShelleyKey
-    -> KeyValPairs WalletId a
-        -- ^ Property arguments
-    -> Property
-prop_parallelPut putOp readOp resolve db@DBLayer{..} (KeyValPairs pairs) =
-    cover 25 cond "conflicting db entries" $ monadicIO (setup >> prop)
-  where
-    -- Make sure that we have some conflicting insertion to actually test the
-    -- semantic of the DB Layer.
-    cond = L.length (L.nub ids) /= L.length ids
-      where
-        ids = map fst pairs
-    setup = do
-        (InitialCheckpoint cp0, meta) <- pick arbitrary
-        run $ atomically $ unsafeRunExceptT $ once_ pairs $ \(k, _) ->
-            initializeWallet k cp0 meta mempty gp
-    prop = liftIO $ do
-        forConcurrently_ pairs $ unsafeRunExceptT . uncurry (putOp db)
-        res <- once pairs (readOp db . fst)
-        length res `shouldBe` resolve pairs
-
-
 -- | Can rollback to any particular checkpoint previously stored
 prop_rollbackCheckpoint
-    :: forall s k. (GenState s, Eq s)
-    => DBLayer IO s k
+    :: forall s
+     . (GenState s, Eq s)
+    => WithFreshDB s
     -> InitialCheckpoint s
     -> MockChain
     -> Property
-prop_rollbackCheckpoint DBLayer{..} (InitialCheckpoint cp0) (MockChain chain) = do
-    monadicIO $ do
+prop_rollbackCheckpoint test (InitialCheckpoint cp0) (MockChain chain) = monadicIO
+    $ test
+    $ \DBLayer {..} -> do
+        let cps :: [Wallet s]
+            cps = flip unfoldr (chain, cp0) $ \case
+                ([], _) -> Nothing
+                (b : q, cp) ->
+                    let cp' = snd . snd $ applyBlock b cp in Just (cp', (q, cp'))
         ShowFmt wid <- namedPick "Wallet ID" arbitrary
         ShowFmt meta <- namedPick "Wallet Metadata" arbitrary
         ShowFmt point <- namedPick "Rollback target" (elements $ ShowFmt <$> cps)
-        setup wid meta >> prop wid point
-  where
-    cps :: [Wallet s]
-    cps = flip unfoldr (chain, cp0) $ \case
-        ([], _) -> Nothing
-        (b:q, cp) -> let cp' = snd . snd $ applyBlock b cp in Just (cp', (q, cp'))
-
-    setup wid meta = run $ do
-        atomically $ do
+        run $ atomically $ do
             unsafeRunExceptT $ initializeWallet wid cp0 meta mempty gp
             unsafeRunExceptT $ forM_ cps (putCheckpoint wid)
-
-    prop wid point = do
         let tip = currentTip point
-        point' <- run $ atomically $ unsafeRunExceptT $
-            rollbackTo wid (toSlot $ chainPointFromBlockHeader tip)
+        point' <-
+            run
+                $ atomically
+                $ unsafeRunExceptT
+                $ rollbackTo wid (toSlot $ chainPointFromBlockHeader tip)
         cp <- run $ atomically $ readCheckpoint wid
         let str = maybe "∅" pretty cp
         monitor $ counterexample ("Checkpoint after rollback: \n" <> str)
@@ -769,54 +601,63 @@ prop_rollbackCheckpoint DBLayer{..} (InitialCheckpoint cp0) (MockChain chain) = 
 -- from the DBLayer currently does not roll the TxHistory back correctly
 -- if there is a rollback to genesis.
 prop_rollbackTxHistory
-    :: forall s k. ()
-    => DBLayer IO s k
+    :: forall s
+     . WithFreshDB s
     -> InitialCheckpoint s
     -> GenTxHistory
     -> Property
-prop_rollbackTxHistory DBLayer{..} (InitialCheckpoint cp0) (GenTxHistory txs0) = do
-    monadicIO $ do
+prop_rollbackTxHistory test (InitialCheckpoint cp0) (GenTxHistory txs0) = do
+    monadicIO $ test $ \DBLayer {..} -> do
         ShowFmt wid <- namedPick "Wallet ID" arbitrary
         ShowFmt meta <- namedPick "Wallet Metadata" arbitrary
-        ShowFmt slot <- namedPick "Requested Rollback slot" arbitrary
-        let ixs = forgotten slot
+        ShowFmt requestedPoint <- namedPick "Requested Rollback slot" arbitrary
+        let ixs = forgotten requestedPoint
         monitor $ label ("Forgotten tx after point: " <> show (L.length ixs))
         monitor $ cover 50 (not $ null ixs) "rolling back something"
-        setup wid meta >> prop wid slot
-  where
-    setup wid meta = run $ do
-        atomically $ do
+        run $ atomically $ do
             unsafeRunExceptT $ initializeWallet wid cp0 meta mempty gp
             unsafeRunExceptT $ putTxHistory wid txs0
-
-    prop wid requestedPoint = do
-        point <- run $ unsafeRunExceptT $ mapExceptT atomically $
-            rollbackTo wid (At requestedPoint)
-        txs <- run $ atomically $ fmap toTxHistory
-            <$> readTransactions wid Nothing Descending wholeRange Nothing
-                    Nothing
+        point <-
+            run
+                $ unsafeRunExceptT
+                $ mapExceptT atomically
+                $ rollbackTo wid (At requestedPoint)
+        txs <-
+            run
+                $ atomically
+                $ fmap toTxHistory
+                    <$> readTransactions
+                        wid
+                        Nothing
+                        Descending
+                        wholeRange
+                        Nothing
+                        Nothing
 
         monitor $ counterexample $ "\n" <> "Actual Rollback Point:\n" <> (pretty point)
         monitor $ counterexample $ "\nOriginal tx history:\n" <> (txsF txs0)
         monitor $ counterexample $ "\nNew tx history:\n" <> (txsF txs)
 
         let slot = pseudoSlotNo point
-        assertWith "All txs before are still known" $
-            L.sort (knownAfterRollback slot) == L.sort (txId . fst <$> txs)
-        assertWith "All txs are now before the point of rollback" $
-            all (isBefore slot . snd) txs
-      where
-        txsF :: [(Tx, TxMeta)] -> String
-        txsF =
-            L.intercalate "\n"
-            . map (\(tx, meta) -> unwords
-                [ "- "
-                , pretty (txId tx)
-                , pretty (meta ^. #slotNo)
-                , pretty (meta ^. #status)
-                , pretty (meta ^. #direction)
-                , pretty (meta ^. #amount)
-                ])
+        assertWith "All txs before are still known"
+            $ L.sort (knownAfterRollback slot) == L.sort (txId . fst <$> txs)
+        assertWith "All txs are now before the point of rollback"
+            $ all (isBefore slot . snd) txs
+  where
+    txsF :: [(Tx, TxMeta)] -> String
+    txsF =
+        L.intercalate "\n"
+            . map
+                ( \(tx, meta) ->
+                    unwords
+                        [ "- "
+                        , pretty (txId tx)
+                        , pretty (meta ^. #slotNo)
+                        , pretty (meta ^. #status)
+                        , pretty (meta ^. #direction)
+                        , pretty (meta ^. #amount)
+                        ]
+                )
 
     pseudoSlotNo ChainPointAtGenesis = SlotNo 0
     pseudoSlotNo (ChainPoint slot _) = slot
@@ -827,7 +668,7 @@ prop_rollbackTxHistory DBLayer{..} (InitialCheckpoint cp0) (GenTxHistory txs0) =
     forgotten :: SlotNo -> [Hash "Tx"]
     forgotten slot =
         let isAfter meta = meta ^. #slotNo > slot
-        in filterTxs isAfter txs0
+        in  filterTxs isAfter txs0
 
     knownAfterRollback :: SlotNo -> [Hash "Tx"]
     knownAfterRollback slot =

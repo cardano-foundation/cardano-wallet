@@ -18,7 +18,6 @@
 {-# LANGUAGE TypeApplications #-}
 
 {-# OPTIONS_GHC -fno-warn-orphans #-}
-{-# OPTIONS_GHC -Wno-unused-imports #-}
 
 -- |
 -- Copyright: © 2018-2020 IOHK
@@ -46,20 +45,16 @@ import Cardano.BM.Setup
     ( setupTrace )
 import Cardano.BM.Trace
     ( traceInTVarIO )
-import Cardano.Chain.ValidationMode
-    ( whenTxValidation )
 import Cardano.Crypto.Wallet
     ( XPrv )
 import Cardano.DB.Sqlite
-    ( DBField, DBLog (..), SqliteContext, fieldName, newInMemorySqliteContext )
+    ( DBField, DBLog (..), fieldName )
 import Cardano.Mnemonic
     ( SomeMnemonic (..) )
 import Cardano.Wallet
     ( mkNoSuchWalletError )
 import Cardano.Wallet.DB
     ( DBFactory (..), DBLayer (..) )
-import Cardano.Wallet.DB.Arbitrary
-    ( GenState, KeyValPairs (..) )
 import Cardano.Wallet.DB.Layer
     ( DefaultFieldValues (..)
     , PersistAddressBook
@@ -106,7 +101,7 @@ import Cardano.Wallet.Primitive.AddressDerivation.SharedKey
 import Cardano.Wallet.Primitive.AddressDerivation.Shelley
     ( ShelleyKey (..), generateKeyFromSeed )
 import Cardano.Wallet.Primitive.AddressDiscovery
-    ( GetPurpose, KnownAddresses (..) )
+    ( KnownAddresses (..) )
 import Cardano.Wallet.Primitive.AddressDiscovery.Random
     ( RndState (..) )
 import Cardano.Wallet.Primitive.AddressDiscovery.Sequential
@@ -128,7 +123,6 @@ import Cardano.Wallet.Primitive.Model
     , currentTip
     , getState
     , initWallet
-    , utxo
     )
 import Cardano.Wallet.Primitive.Passphrase
     ( encryptPassphrase, preparePassphrase )
@@ -181,7 +175,7 @@ import Cardano.Wallet.Unsafe
 import Control.Monad
     ( forM_, forever, replicateM_, unless, void )
 import Control.Monad.IO.Class
-    ( liftIO )
+    ( MonadIO, liftIO )
 import Control.Monad.Trans.Except
     ( ExceptT, mapExceptT, runExceptT )
 import Control.Tracer
@@ -214,12 +208,8 @@ import Data.Typeable
     ( Typeable, typeOf )
 import Data.Word
     ( Word64 )
-import Database.Persist.EntityDef
-    ( getEntityDBName, getEntityFields )
-import Database.Persist.Names
-    ( EntityNameDB (..), unFieldNameDB )
 import Database.Persist.Sql
-    ( EntityNameDB (..), FieldNameDB (..), PersistEntity (..), fieldDB )
+    ( FieldNameDB (..), PersistEntity (..), fieldDB )
 import Database.Persist.Sqlite
     ( Single (..) )
 import Numeric.Natural
@@ -244,7 +234,6 @@ import Test.Hspec
     ( Expectation
     , Spec
     , SpecWith
-    , anyIOException
     , around
     , before
     , beforeWith
@@ -256,22 +245,13 @@ import Test.Hspec
     , shouldReturn
     , shouldSatisfy
     , shouldThrow
-    , xit
     )
 import Test.Hspec.Extra
     ( parallel )
 import Test.QuickCheck
-    ( Arbitrary (..)
-    , NonEmptyList (..)
-    , Property
-    , choose
-    , generate
-    , noShrinking
-    , property
-    , (==>)
-    )
+    ( NonEmptyList (..), Property, generate, property, (==>) )
 import Test.QuickCheck.Monadic
-    ( assert, monadicIO, run )
+    ( monadicIO )
 import Test.Utils.Paths
     ( getTestData )
 import Test.Utils.Trace
@@ -285,7 +265,7 @@ import UnliftIO.Exception
 import UnliftIO.MVar
     ( isEmptyMVar, newEmptyMVar, putMVar, takeMVar )
 import UnliftIO.STM
-    ( TVar, newTVarIO, readTVarIO, writeTVar )
+    ( newTVarIO, readTVarIO, writeTVar )
 import UnliftIO.Temporary
     ( withSystemTempDirectory, withSystemTempFile )
 
@@ -294,14 +274,12 @@ import qualified Cardano.Wallet.DB.Sqlite.Types as DB
 import qualified Cardano.Wallet.Primitive.AddressDerivation.Shelley as Seq
 import qualified Cardano.Wallet.Primitive.Types.Coin as Coin
 import qualified Cardano.Wallet.Primitive.Types.TokenBundle as TokenBundle
-import qualified Cardano.Wallet.Primitive.Types.Tx.TxMeta as W
 import qualified Data.ByteArray as BA
 import qualified Data.ByteString as BS
 import qualified Data.List as L
 import qualified Data.Set as Set
 import qualified Data.Text as T
 import qualified Data.Text.Encoding as T
-import qualified Database.Persist.Sql as Sql
 import qualified Database.Persist.Sqlite as Sqlite
 import qualified UnliftIO.STM as STM
 
@@ -345,9 +323,17 @@ instance PaymentAddress 'Mainnet SharedKey 'CredFromScriptK where
 showState :: forall s. Typeable s => String
 showState = show (typeOf @s undefined)
 
-propertiesSpecSeq :: Spec
-propertiesSpecSeq = around withShelleyDBLayer $ describe "Properties"
-    (properties :: SpecWith TestDBSeq)
+withFreshDB
+    :: (MonadIO m )
+    => (DBLayer IO (SeqState 'Mainnet ShelleyKey) ShelleyKey -> m ())
+    -> m ()
+withFreshDB f = do
+    (kill, db) <- liftIO $ newDBLayerInMemory nullTracer dummyTimeInterpreter
+    f db
+    liftIO kill
+
+propertiesSpecSeq :: SpecWith ()
+propertiesSpecSeq = describe "Properties" $ properties withFreshDB
 
 {-------------------------------------------------------------------------------
                                 Logging Spec

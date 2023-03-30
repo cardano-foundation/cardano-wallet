@@ -102,8 +102,7 @@ newDBLayer timeInterpreter = do
                 alterDB errWalletAlreadyExists db $
                 mInitializeWallet pk cp meta txs gp
 
-        , getWalletId = ExceptT
-            $ alterDB errWalletNotInitialized db mGetWalletId
+        , getWalletId = getWalletId'
 
         {-----------------------------------------------------------------------
                                     Checkpoints

@@ -153,8 +153,6 @@ import Cardano.Wallet.Unsafe
     ( someDummyMnemonic, unsafeMkPercentage )
 import Cardano.Wallet.Util
     ( ShowFmt (..) )
-import Control.Arrow
-    ( second )
 import Control.DeepSeq
     ( NFData )
 import Crypto.Hash
@@ -168,7 +166,7 @@ import Data.Functor.Identity
 import Data.Generics.Internal.VL
     ( match )
 import Data.Generics.Internal.VL.Lens
-    ( view, (^.) )
+    ( (^.) )
 import Data.Generics.Labels
     ()
 import Data.List
@@ -278,14 +276,6 @@ instance (Arbitrary k, Ord k, Arbitrary v) => Arbitrary (KeyValPairs k v) where
         pairs <- choose (1, 10) >>= vector
         pure $ KeyValPairs $ L.sortOn fst pairs
 
--- | For checkpoints, we make sure to generate them in order.
-instance {-# OVERLAPS #-} (Arbitrary k, Ord k, GenState s)
-    => Arbitrary (KeyValPairs k (ShowFmt (Wallet s))) where
-    shrink = genericShrink
-    arbitrary = do
-        pairs <- choose (1, 10) >>= vector
-        pure $ KeyValPairs $ second ShowFmt
-           <$> L.sortOn (\(k,cp) -> (k, view #slotNo (currentTip cp))) pairs
 
 instance Arbitrary GenTxHistory where
     shrink (GenTxHistory txs) = GenTxHistory <$> shrinkList shrinkOne txs
