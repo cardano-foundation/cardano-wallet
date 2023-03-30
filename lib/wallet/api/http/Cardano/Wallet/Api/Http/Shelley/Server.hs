@@ -2877,6 +2877,10 @@ constructSharedTransaction
         (cp, _, _) <- liftHandler $ withExceptT ErrConstructTxNoSuchWallet $
             W.readWallet wrk wid
 
+        let delegationTemplateM = Shared.delegationTemplate $ getState cp
+        when (isNothing delegationTemplateM && isJust delegationRequest) $
+            liftHandler $ throwE ErrConstructTxStakingInvalid
+
         optionalDelegationAction <- liftHandler $
             forM delegationRequest $
                 WD.handleDelegationRequest

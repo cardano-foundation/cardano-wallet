@@ -149,6 +149,7 @@ data ApiErrorInfo
         !ApiErrorSharedWalletNoSuchCosigner
     | SharedWalletScriptTemplateInvalid
     | SoftDerivationRequired
+    | StakingInvalid
     | StartTimeLaterThanEndTime
     | TokensMintedButNotSpentOrBurned
     | TransactionAlreadyBalanced
