@@ -149,7 +149,7 @@ steps:
 
   - block: "macOS package"
     depends_on: macos-nix
-    if: 'build.branch != "master"'
+    if: '(build.branch != "staging") && (build.branch != "trying") && (build.branch != "master")'
     key: trigger-macos-package
 
   - label: 'Build package (macOS)'
