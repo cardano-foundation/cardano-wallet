@@ -149,15 +149,14 @@
       flake = false;
     };
     customConfig.url = "github:input-output-hk/empty-flake";
-    emanote = {
-      url = "github:srid/emanote";
-    };
-    ema = {
-      url = "github:srid/ema";
-    };
+    cardano-node-1_35_4.url = "github:input-output-hk/cardano-node?ref=1.35.4";
+    emanote.url = "github:srid/emanote";
+    ema.url = "github:srid/ema";
   };
 
-  outputs = { self, nixpkgs, nixpkgs-unstable, hostNixpkgs, flake-utils, haskellNix, iohkNix, CHaP, customConfig, emanote, ... }:
+  outputs = { self, nixpkgs, nixpkgs-unstable, hostNixpkgs, flake-utils,
+              haskellNix, iohkNix, CHaP, customConfig, emanote, cardano-node-1_35_4,
+              ... }:
     let
       inherit (nixpkgs) lib;
       config = import ./nix/config.nix lib customConfig;
@@ -175,14 +174,6 @@
         services.cardano-node.package = lib.mkDefault self.defaultPackage.${pkgs.system};
       };
       nixosModules.cardano-wallet = nixosModule;
-      # Which exes should be put in the release archives.
-      releaseContents = jobs: map (exe: jobs.${exe}) [
-        "cardano-wallet"
-        "bech32"
-        "cardano-address"
-        "cardano-cli"
-        "cardano-node"
-      ];
 
       # Helper functions for separating unit and integration tests
       setEmptyAttrsWithCondition = cond:
@@ -226,10 +217,13 @@
             collectChecks
             check;
 
+          nodePkgs = cardano-node-1_35_4.packages.${system};
+
           project = (import ./nix/haskell.nix
               CHaP
               pkgs.haskell-nix
               nixpkgs-unstable.legacyPackages.${system}
+              nodePkgs
             ).appendModule [{
             gitrev =
               if config.gitrev != null
@@ -330,16 +324,29 @@
           };
 
           # One ${system} can cross-compile artifacts for other platforms.
-          mkReleaseArtifacts = project:
-            lib.optionalAttrs buildPlatform.isLinux {
+          mkReleaseArtifacts =
+            let # compiling with musl gives us a statically linked executable
+                linuxPackages = mkPackages project.projectCross.musl64;
+                linuxReleaseExes = [
+                  linuxPackages.cardano-wallet
+                  linuxPackages.bech32
+                  linuxPackages.cardano-address
+                  cardano-node-1_35_4.hydraJobs.linux.musl.cardano-cli
+                  cardano-node-1_35_4.hydraJobs.linux.musl.cardano-node
+                ];
+                # Which exes should be put in the release archives.
+                checkReleaseContents = jobs: map (exe: jobs.${exe}) [
+                  "cardano-wallet"
+                  "bech32"
+                  "cardano-address"
+                  "cardano-cli"
+                  "cardano-node"
+                ];
+            in project: lib.optionalAttrs buildPlatform.isLinux {
               linux64.release =
-                let
-                  # compiling with musl gives us a statically linked executable
-                  linuxPackages = mkPackages project.projectCross.musl64;
-                in
                 import ./nix/release-package.nix {
                   inherit pkgs;
-                  exes = releaseContents linuxPackages;
+                  exes = linuxReleaseExes;
                   platform = "linux64";
                   format = "tar.gz";
                 };
@@ -350,7 +357,13 @@
                 in {
                   release = import ./nix/release-package.nix {
                     inherit pkgs;
-                    exes = releaseContents windowsPackages;
+                    exes = [
+                      windowsPackages.cardano-wallet
+                      windowsPackages.bech32
+                      windowsPackages.cardano-address
+                      cardano-node-1_35_4.hydraJobs.linux.windows.cardano-cli
+                      cardano-node-1_35_4.hydraJobs.linux.windows.cardano-node
+                    ];
                     platform = "win64";
                     format = "zip";
                   };
@@ -358,8 +371,8 @@
                   tests = import ./nix/windows-testing-bundle.nix {
                     inherit pkgs;
                     cardano-wallet = windowsPackages.cardano-wallet;
-                    cardano-node = windowsPackages.cardano-node;
-                    cardano-cli = windowsPackages.cardano-cli;
+                    cardano-node = cardano-node-1_35_4.hydraJobs.linux.windows.cardano-node;
+                    cardano-cli = cardano-node-1_35_4.hydraJobs.linux.windows.cardano-cli;
                     tests = lib.collect lib.isDerivation windowsPackages.tests;
                     benchmarks = lib.collect lib.isDerivation windowsPackages.benchmarks;
                   };
@@ -370,7 +383,13 @@
               macos-intel = lib.optionalAttrs buildPlatform.isx86_64 {
                 release = import ./nix/release-package.nix {
                   inherit pkgs;
-                  exes = releaseContents (mkPackages project);
+                  exes = let macOsPkgs = mkPackages project; in [
+                    macOsPkgs.cardano-wallet
+                    macOsPkgs.bech32
+                    macOsPkgs.cardano-address
+                    cardano-node-1_35_4.hydraJobs.macos.cardano-cli
+                    cardano-node-1_35_4.hydraJobs.macos.cardano-node
+                  ];
                   platform = "macos-intel";
                   format = "tar.gz";
                 };
@@ -378,7 +397,13 @@
               macos-silicon = lib.optionalAttrs buildPlatform.isAarch64 {
                 release = import ./nix/release-package.nix {
                   inherit pkgs;
-                  exes = releaseContents (mkPackages project);
+                  exes = let macOsPkgs = mkPackages project; in [
+                    macOsPkgs.cardano-wallet
+                    macOsPkgs.bech32
+                    macOsPkgs.cardano-address
+                    cardano-node-1_35_4.hydraJobs.macos.cardano-cli
+                    cardano-node-1_35_4.hydraJobs.macos.cardano-node
+                  ];
                   platform = "macos-silicon";
                   format = "tar.gz";
                 };
