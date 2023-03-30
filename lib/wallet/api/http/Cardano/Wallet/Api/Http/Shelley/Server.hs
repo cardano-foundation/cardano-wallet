@@ -2663,26 +2663,6 @@ constructTransaction api argGenChange knownPools poolStatus apiWalletId body = d
                 not $ withinSlotInterval before hereafter $
                     scriptSlotIntervals script
 
-    parseDelegationRequest
-        :: NonEmpty ApiMultiDelegationAction
-        -> ExceptT ErrConstructTx IO WD.DelegationRequest
-    parseDelegationRequest (action :| otherActions) = except $
-        case otherActions of
-            [] -> case action of
-               Joining (ApiT pool) stakeKeyIdx | isValidKeyIdx stakeKeyIdx ->
-                    Right $ WD.Join pool
-               Leaving stakeKeyIdx | isValidKeyIdx stakeKeyIdx ->
-                    Right WD.Quit
-               _ -> Left ErrConstructTxMultiaccountNotSupported
-            -- Current limitation:
-            -- at this moment we are handling just one delegation action:
-            -- either joining pool, or rejoining or quitting
-            -- When we support multi-account this should be lifted
-            _ -> Left ErrConstructTxMultidelegationNotSupported
-      where
-        isValidKeyIdx (ApiStakeKeyIndex (ApiT derIndex)) =
-            derIndex == DerivationIndex (getIndex @'Hardened minBound)
-
     toUsignedTxWdrl p = \case
         ApiWithdrawalGeneral (ApiT rewardAcc, _) amount Our ->
             Just (rewardAcc, Coin.fromQuantity amount, p)
@@ -2781,6 +2761,26 @@ toUnsignedTxChange = \case
     ExternalOutput _ ->
         error "constructTx.toUnsignedTxChange: change should always be ours"
 
+parseDelegationRequest
+    :: NonEmpty ApiMultiDelegationAction
+    -> ExceptT ErrConstructTx IO WD.DelegationRequest
+parseDelegationRequest (action :| otherActions) = except $
+    case otherActions of
+        [] -> case action of
+           Joining (ApiT pool) stakeKeyIdx | isValidKeyIdx stakeKeyIdx ->
+                Right $ WD.Join pool
+           Leaving stakeKeyIdx | isValidKeyIdx stakeKeyIdx ->
+                Right WD.Quit
+           _ -> Left ErrConstructTxMultiaccountNotSupported
+        -- Current limitation:
+        -- at this moment we are handling just one delegation action:
+        -- either joining pool, or rejoining or quitting
+        -- When we support multi-account this should be lifted
+        _ -> Left ErrConstructTxMultidelegationNotSupported
+  where
+    isValidKeyIdx (ApiStakeKeyIndex (ApiT derIndex)) =
+        derIndex == DerivationIndex (getIndex @'Hardened minBound)
+
 parseValidityInterval
     :: TimeInterpreter (ExceptT PastHorizonException IO)
     -> Maybe ApiValidityInterval
@@ -2834,7 +2834,7 @@ parseValidityInterval ti validityInterval = do
 
     pure (before, hereafter)
 
--- TO-DO delegations/withdrawals
+-- TO-DO withdrawals
 -- TO-DO minting/burning
 constructSharedTransaction
     :: forall ctx s k n.
@@ -2853,7 +2853,7 @@ constructSharedTransaction
     -> ApiConstructTransactionData n
     -> Handler (ApiConstructTransaction n)
 constructSharedTransaction
-    ctx argGenChange _knownPools _getPoolStatus (ApiT wid) body = do
+    ctx argGenChange knownPools getPoolStatus (ApiT wid) body = do
     let isNoPayload =
             isNothing (body ^. #payments) &&
             isNothing (body ^. #withdrawal) &&
@@ -2868,21 +2868,33 @@ constructSharedTransaction
     (before, hereafter) <- liftHandler $
         parseValidityInterval ti (body ^. #validityInterval)
 
+    delegationRequest <-
+        liftHandler $ traverse parseDelegationRequest $ body ^. #delegations
+
     withWorkerCtx ctx wid liftE liftE $ \wrk -> do
         let db = wrk ^. dbLayer
             netLayer = wrk ^. networkLayer
             txLayer = wrk ^. transactionLayer @SharedKey @'CredFromScriptK
+            trWorker = MsgWallet >$< wrk ^. logger
 
+        epoch <- getCurrentEpoch ctx
         era <- liftIO $ NW.currentNodeEra (wrk ^. networkLayer)
         AnyRecentEra (_recentEra :: WriteTx.RecentEra era)
             <- guardIsRecentEra era
         (cp, _, _) <- liftHandler $ withExceptT ErrConstructTxNoSuchWallet $
             W.readWallet @_ @s @k wrk wid
+
+        optionalDelegationAction <- liftHandler $
+            forM delegationRequest $
+                WD.handleDelegationRequest
+                    trWorker db epoch knownPools
+                    getPoolStatus wid NoWithdrawal
+
         let txCtx = defaultTransactionCtx
                 { txWithdrawal = NoWithdrawal
                 , txMetadata = md
                 , txValidityInterval = (Just before, hereafter)
-                , txDelegationAction = Nothing
+                , txDelegationAction = optionalDelegationAction
                 , txPaymentCredentialScriptTemplate =
                         Just (Shared.paymentTemplate $ getState cp)
                 }
