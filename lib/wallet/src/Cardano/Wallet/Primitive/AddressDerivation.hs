@@ -804,6 +804,9 @@ data AddressParts = AddressParts
     , rest :: ByteString
     } deriving (Show,Eq)
 
+-- this is supposed to be used only for Shelley and Shared style
+-- as only for the furst byte in any address contains information
+-- about network tag and address type
 toAddressParts :: Address -> AddressParts
 toAddressParts (Address bytes) = AddressParts {..}
   where
