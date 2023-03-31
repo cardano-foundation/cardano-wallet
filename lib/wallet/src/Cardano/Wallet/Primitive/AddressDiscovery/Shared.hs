@@ -73,7 +73,8 @@ import Cardano.Address.Style.Shelley
 import Cardano.Crypto.Wallet
     ( XPrv, XPub, unXPub )
 import Cardano.Wallet.Primitive.AddressDerivation
-    ( Depth (..)
+    ( AddressParts (..)
+    , Depth (..)
     , DerivationIndex (..)
     , DerivationPrefix (..)
     , DerivationType (..)
@@ -82,11 +83,14 @@ import Cardano.Wallet.Primitive.AddressDerivation
     , KeyFingerprint (..)
     , MkKeyFingerprint (..)
     , NetworkDiscriminant (..)
+    , NetworkDiscriminantBits
     , PersistPublicKey (..)
     , Role (..)
     , SoftDerivation
     , WalletKey (..)
+    , networkDiscriminantBits
     , roleVal
+    , toAddressParts
     , unsafePaymentKeyFingerprint
     , utxoExternal
     , utxoInternal
@@ -170,6 +174,7 @@ type SupportsDiscovery (n :: NetworkDiscriminant) k =
     , AddressIndexDerivationType SharedKey ~ 'Soft
     , AddressCredential k ~ 'CredFromScriptK
     , SoftDerivation k
+    , NetworkDiscriminantBits n
     , Typeable n
     )
 
@@ -545,40 +550,42 @@ templatesComplete accXPub pTemplate dTemplate =
 -------------------------------------------------------------------------------}
 
 isShared
-    :: SupportsDiscovery n k
+    :: forall (n :: NetworkDiscriminant) k. SupportsDiscovery n k
     => Address
     -> SharedState n k
     -> (Maybe (Index 'Soft 'CredFromScriptK, Role), SharedState n k)
 isShared addrRaw st = case ready st of
     Pending -> nop
     Active (SharedAddressPools extPool intPool pending) ->
-        case paymentKeyFingerprint addrRaw of
-            Left _ -> nop
-            Right addr -> case ( AddressPool.lookup addr (getPool extPool)
-                               , AddressPool.lookup addr (getPool intPool)) of
-                (Just ix, Nothing) ->
-                    let pool' = AddressPool.update addr (getPool extPool) in
-                    ( Just (ix, UtxoExternal)
-                    , st { ready = Active
-                             ( SharedAddressPools
-                                 (SharedAddressPool pool')
-                                 intPool
-                                 pending )
-                         } )
-                (Nothing, Just ix) ->
-                    let pool' = AddressPool.update addr (getPool intPool) in
-                    ( Just (ix, UtxoInternal)
-                    , st { ready = Active
-                             ( SharedAddressPools
-                                 extPool
-                                 (SharedAddressPool pool')
-                                 pending )
-                         } )
-                _ -> nop
+        if networkTag == networkDiscriminantBits @n then
+            case paymentKeyFingerprint addrRaw of
+                Left _ -> nop
+                Right addr -> case ( AddressPool.lookup addr (getPool extPool)
+                                   , AddressPool.lookup addr (getPool intPool)) of
+                    (Just ix, Nothing) ->
+                        let pool' = AddressPool.update addr (getPool extPool) in
+                        ( Just (ix, UtxoExternal)
+                        , st { ready = Active
+                                 ( SharedAddressPools
+                                     (SharedAddressPool pool')
+                                     intPool
+                                     pending )
+                             } )
+                    (Nothing, Just ix) ->
+                        let pool' = AddressPool.update addr (getPool intPool) in
+                        ( Just (ix, UtxoInternal)
+                        , st { ready = Active
+                                 ( SharedAddressPools
+                                     extPool
+                                     (SharedAddressPool pool')
+                                     pending )
+                             } )
+                    _ -> nop
+        else
+            (Nothing, st)
   where
     nop = (Nothing, st)
-    -- FIXME: Check that the network discrimant of the type
-    -- is compatible with the discriminant of the Address!
+    AddressParts _ networkTag _ = toAddressParts addrRaw
 
 instance SupportsDiscovery n k => IsOurs (SharedState n k) Address
   where

@@ -56,6 +56,7 @@ import Cardano.Wallet.Primitive.AddressDerivation
     , KeyFingerprint (..)
     , MkKeyFingerprint (..)
     , NetworkDiscriminant (..)
+    , NetworkDiscriminantCheck (..)
     , PaymentAddress (..)
     , PersistPrivateKey (..)
     , PersistPublicKey (..)
@@ -446,3 +447,11 @@ instance PersistPublicKey (IcarusKey depth) where
       where
         xpubFromText = CC.xpub <=< fromHex @ByteString
         err _ = error "unsafeDeserializeXPub: unable to deserialize IcarusKey"
+
+-- Network tag (and address type) is encoded in the first byte of any address
+-- for shelley style (which uses key hashes as credentials) and shared style
+-- (which uses script hashes as credentials). Icarus and Byron addresses are
+-- differently constructed hence we ignore this check. Still for Icarus style we
+-- need this abstraction as it uses sequential discovery.
+instance NetworkDiscriminantCheck (n :: NetworkDiscriminant) IcarusKey where
+    networkDiscriminantCheck _ = True

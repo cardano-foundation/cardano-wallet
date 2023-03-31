@@ -29,6 +29,7 @@ import Cardano.Wallet.Primitive.AddressDerivation
     ( DelegationAddress
     , Depth (..)
     , NetworkDiscriminant (..)
+    , NetworkDiscriminantBits
     , NetworkDiscriminantVal
     , PaymentAddress
     )
@@ -72,6 +73,7 @@ data SomeNetworkDiscriminant where
             , DecodeStakeAddress n
             , DelegationAddress n ShelleyKey 'CredFromKeyK
             , HasNetworkId n
+            , NetworkDiscriminantBits n
             , Typeable n
             )
         => Proxy n

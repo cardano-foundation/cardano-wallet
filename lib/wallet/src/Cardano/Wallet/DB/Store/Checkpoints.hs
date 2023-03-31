@@ -95,6 +95,8 @@ import Cardano.Wallet.Primitive.AddressDerivation
     ( Depth (..)
     , HardDerivation (..)
     , MkKeyFingerprint (..)
+    , NetworkDiscriminantBits
+    , NetworkDiscriminantCheck
     , PaymentAddress (..)
     , PersistPublicKey (..)
     , Role (..)
@@ -457,6 +459,8 @@ instance
     , PaymentAddress n key 'CredFromKeyK
     , AddressCredential key ~ 'CredFromKeyK
     , SoftDerivation key
+    , NetworkDiscriminantBits n
+    , NetworkDiscriminantCheck n key
     , Typeable n
     , (key == SharedKey) ~ 'False
     , Eq (Seq.SeqState n key)

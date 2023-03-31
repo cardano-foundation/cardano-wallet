@@ -78,7 +78,8 @@ import Cardano.Address.Script
 import Cardano.Crypto.Wallet
     ( XPrv, XPub )
 import Cardano.Wallet.Primitive.AddressDerivation
-    ( DelegationAddress (..)
+    ( AddressParts (..)
+    , DelegationAddress (..)
     , Depth (..)
     , DerivationIndex (..)
     , DerivationPrefix (..)
@@ -88,6 +89,8 @@ import Cardano.Wallet.Primitive.AddressDerivation
     , KeyFingerprint (..)
     , MkKeyFingerprint (..)
     , NetworkDiscriminant (..)
+    , NetworkDiscriminantBits
+    , NetworkDiscriminantCheck (..)
     , PaymentAddress (..)
     , PersistPublicKey (..)
     , Role (..)
@@ -95,6 +98,7 @@ import Cardano.Wallet.Primitive.AddressDerivation
     , ToRewardAccount (..)
     , WalletKey (..)
     , roleVal
+    , toAddressParts
     , unsafePaymentKeyFingerprint
     )
 import Cardano.Wallet.Primitive.AddressDerivation.MintBurn
@@ -174,6 +178,8 @@ type SupportsDiscovery n k =
     , MkKeyFingerprint k Address
     , AddressCredential k ~ 'CredFromKeyK
     , SoftDerivation k
+    , NetworkDiscriminantCheck n k
+    , NetworkDiscriminantBits n
     , Typeable n
     )
 
@@ -488,33 +494,35 @@ decoratePath st r ix = NE.fromList
 -- addresses on the internal chain anywhere in the available range.
 instance SupportsDiscovery n k => IsOurs (SeqState n k) Address where
     isOurs addrRaw st =
-        -- FIXME LATER: Check that the network discrimant of the type
-        -- is compatible with the discriminant of the Address!
-        case paymentKeyFingerprint addrRaw of
-            Left _ -> (Nothing, st)
-            Right addr ->
-                let (internalIndex, !internalPool') =
-                        lookupAddress addr (internalPool st)
-                    (externalIndex, !externalPool') =
-                        lookupAddress addr (externalPool st)
+        if networkDiscriminantCheck @n @k networkTag then
+            case paymentKeyFingerprint addrRaw of
+                Left _ -> (Nothing, st)
+                Right addr ->
+                    let (internalIndex, !internalPool') =
+                            lookupAddress addr (internalPool st)
+                        (externalIndex, !externalPool') =
+                            lookupAddress addr (externalPool st)
 
-                    ours = (decoratePath st UtxoExternal <$> externalIndex)
-                       <|> (decoratePath st UtxoInternal <$> internalIndex)
+                        ours = (decoratePath st UtxoExternal <$> externalIndex)
+                           <|> (decoratePath st UtxoInternal <$> internalIndex)
 
-                    pendingChangeIxs' =
-                        case internalIndex of
-                            Nothing -> pendingChangeIxs st
-                            Just ix ->
-                                dropLowerPendingIxs ix (pendingChangeIxs st)
-                in
-                    ( ours `deepseq` ours
-                    , st { internalPool = internalPool'
-                         , externalPool = externalPool'
-                         , pendingChangeIxs =
-                               pendingChangeIxs' `deepseq` pendingChangeIxs'
-                         }
-                    )
+                        pendingChangeIxs' =
+                            case internalIndex of
+                                Nothing -> pendingChangeIxs st
+                                Just ix ->
+                                    dropLowerPendingIxs ix (pendingChangeIxs st)
+                    in
+                        ( ours `deepseq` ours
+                        , st { internalPool = internalPool'
+                             , externalPool = externalPool'
+                             , pendingChangeIxs =
+                                   pendingChangeIxs' `deepseq` pendingChangeIxs'
+                             }
+                        )
+        else
+            (Nothing, st)
       where
+        AddressParts _ networkTag _ = toAddressParts addrRaw
         lookupAddress addr (SeqAddressPool pool) =
             case AddressPool.lookup addr pool of
                 Nothing ->

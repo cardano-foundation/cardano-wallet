@@ -1,4 +1,5 @@
 {-# LANGUAGE AllowAmbiguousTypes #-}
+{-# LANGUAGE BinaryLiterals #-}
 {-# LANGUAGE DataKinds #-}
 {-# LANGUAGE DeriveGeneric #-}
 {-# LANGUAGE DerivingVia #-}
@@ -8,6 +9,7 @@
 {-# LANGUAGE LambdaCase #-}
 {-# LANGUAGE MultiParamTypeClasses #-}
 {-# LANGUAGE PolyKinds #-}
+{-# LANGUAGE RecordWildCards #-}
 {-# LANGUAGE RoleAnnotations #-}
 {-# LANGUAGE ScopedTypeVariables #-}
 {-# LANGUAGE TypeApplications #-}
@@ -61,6 +63,9 @@ module Cardano.Wallet.Primitive.AddressDerivation
     , NetworkDiscriminant (..)
     , NetworkDiscriminantVal
     , networkDiscriminantVal
+    , NetworkDiscriminantBits
+    , networkDiscriminantBits
+    , NetworkDiscriminantCheck (..)
 
     -- * Backends Interoperability
     , PaymentAddress(..)
@@ -73,6 +78,8 @@ module Cardano.Wallet.Primitive.AddressDerivation
     , ErrMkKeyFingerprint(..)
     , KeyFingerprint(..)
     , unsafePaymentKeyFingerprint
+    , AddressParts (..)
+    , toAddressParts
     ) where
 
 import Prelude
@@ -99,6 +106,10 @@ import Crypto.Hash
     ( Digest, HashAlgorithm )
 import Crypto.Hash.Utils
     ( blake2b224 )
+import Data.Bifunctor
+    ( first )
+import Data.Bits
+    ( (.&.) )
 import Data.ByteArray
     ( ByteArray, ByteArrayAccess )
 import Data.ByteArray.Encoding
@@ -130,7 +141,7 @@ import Data.Text.Class
 import Data.Type.Equality
     ( (:~:) (..), testEquality )
 import Data.Word
-    ( Word32 )
+    ( Word32, Word8 )
 import Fmt
     ( Buildable (..) )
 import GHC.Generics
@@ -146,6 +157,7 @@ import Safe
 import Type.Reflection
     ( Typeable, typeRep )
 
+import qualified Data.ByteString as BS
 import qualified Data.Text as T
 
 {-------------------------------------------------------------------------------
@@ -596,6 +608,21 @@ instance KnownNat pm => NetworkDiscriminantVal ('Staging pm) where
     networkDiscriminantVal =
         "staging (" <> T.pack (show $ natVal $ Proxy @pm) <> ")"
 
+class NetworkDiscriminantBits (n :: NetworkDiscriminant) where
+    networkDiscriminantBits :: Word8
+
+instance NetworkDiscriminantBits 'Mainnet where
+    networkDiscriminantBits = 0b00000001
+
+instance NetworkDiscriminantBits ('Testnet pm) where
+    networkDiscriminantBits = 0b00000000
+
+instance NetworkDiscriminantBits ('Staging pm) where
+    networkDiscriminantBits = 0b00000001
+
+class NetworkDiscriminantCheck (n :: NetworkDiscriminant) k where
+    networkDiscriminantCheck :: Word8 -> Bool
+
 {-------------------------------------------------------------------------------
                      Interface over keys / address types
 -------------------------------------------------------------------------------}
@@ -770,6 +797,22 @@ class Show from => MkKeyFingerprint (key :: Depth -> Type -> Type) from where
 
 data ErrMkKeyFingerprint key from
     = ErrInvalidAddress from (Proxy key) deriving (Show, Eq)
+
+data AddressParts = AddressParts
+    { addrType :: Word8
+    , addrNetwork :: Word8
+    , rest :: ByteString
+    } deriving (Show,Eq)
+
+-- this is supposed to be used only for Shelley and Shared style
+-- as only for the furst byte in any address contains information
+-- about network tag and address type
+toAddressParts :: Address -> AddressParts
+toAddressParts (Address bytes) = AddressParts {..}
+  where
+    (fstByte, rest) = first BS.head $ BS.splitAt 1 bytes
+    addrType = fstByte .&. 0b11110000
+    addrNetwork = fstByte .&. 0b00001111
 
 -- Extract the fingerprint from an 'Address', we expect the caller to
 -- provide addresses that are compatible with the key scheme being used.

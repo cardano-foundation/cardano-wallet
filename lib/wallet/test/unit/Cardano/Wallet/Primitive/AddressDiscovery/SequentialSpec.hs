@@ -1,4 +1,5 @@
 {-# LANGUAGE AllowAmbiguousTypes #-}
+{-# LANGUAGE BinaryLiterals #-}
 {-# LANGUAGE DataKinds #-}
 {-# LANGUAGE ExistentialQuantification #-}
 {-# LANGUAGE FlexibleContexts #-}
@@ -120,6 +121,7 @@ import Test.QuickCheck
     , frequency
     , label
     , property
+    , suchThat
     , (.&&.)
     , (=/=)
     , (===)
@@ -135,6 +137,7 @@ import Test.Text.Roundtrip
 import qualified Cardano.Wallet.Address.Pool as AddressPool
 import qualified Cardano.Wallet.Primitive.AddressDerivation.Icarus as Icarus
 import qualified Cardano.Wallet.Primitive.AddressDerivation.Shelley as Shelley
+import qualified Data.ByteString as BS
 
 spec :: Spec
 spec = do
@@ -202,6 +205,8 @@ spec = do
             (property prop_changeIsOnlyKnownAfterGeneration)
         it "address that are discovered via isOurs are marked as 'Used'" $ do
             (property prop_oursAreUsed)
+        it "addresses with wrong prefixes and our credentials are discovered via isOurs" $ do
+            (property prop_oursUnexpectedPrefix)
 
 {-------------------------------------------------------------------------------
                         Properties for AddressPoolGap
@@ -242,7 +247,6 @@ prop_roundtripEnumGap
     -> Property
 prop_roundtripEnumGap g =
     (toEnum . fromEnum) g === g
-
 
 {-------------------------------------------------------------------------------
                     Properties for AddressScheme & PendingIxs
@@ -303,7 +307,6 @@ prop_lookupDiscovered (s0, addr) =
     prop s = monadicIO $ liftIO $ do
         unless (isJust $ isOwned @_ @_ @'CredFromKeyK s (key, mempty) addr) $ do
             expectationFailure "couldn't find private key corresponding to addr"
-
 
 {-------------------------------------------------------------------------------
                         Properties for CompareDiscovery
@@ -406,6 +409,17 @@ prop_oursAreUsed s =
         (status' == Used .&&. addr === addr')
         & label (show status)
         & counterexample (show (ShowFmt addr') <> ": " <> show status')
+
+prop_oursUnexpectedPrefix
+    :: SeqState 'Mainnet ShelleyKey
+    -> UnexpectedPrefix
+    -> Property
+prop_oursUnexpectedPrefix s prefix =
+    let
+        (Address addr, _, _) = head $ knownAddresses s
+        addr' = BS.cons (unWord8 prefix) (BS.tail addr)
+    in
+        first isJust (isOurs (Address addr') s) === (False, s)
 
 {-------------------------------------------------------------------------------
                                  Helpers
@@ -546,3 +560,14 @@ data Key = forall (k :: Depth -> * -> *).
     , GetPurpose k
     ) => Key (Proxy k)
 instance Show Key where show (Key proxy) = show (typeRep proxy)
+
+newtype UnexpectedPrefix = UnexpectedPrefix {unWord8 :: Word8}
+    deriving (Eq, Show)
+
+instance Arbitrary UnexpectedPrefix where
+    arbitrary = do
+        let baseAddr = 0b00000001       -- keyhash; keyhash, mainnet
+            enterpriseAddr = 0b01100001 -- keyhash, mainnet
+            rewardAcct = 0b11100001     -- keyhash, mainnet
+            validPrefixesMainnet = [baseAddr, enterpriseAddr, rewardAcct]
+        UnexpectedPrefix <$> arbitrary `suchThat` (`notElem` validPrefixesMainnet)

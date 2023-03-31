@@ -172,7 +172,12 @@ import Cardano.Wallet.Api.Types.SchemaMetadata
 import Cardano.Wallet.Pools
     ( StakePoolLayer (..) )
 import Cardano.Wallet.Primitive.AddressDerivation
-    ( DelegationAddress (..), Depth (..), PaymentAddress (..), Role (..) )
+    ( DelegationAddress (..)
+    , Depth (..)
+    , NetworkDiscriminantBits
+    , PaymentAddress (..)
+    , Role (..)
+    )
 import Cardano.Wallet.Primitive.AddressDerivation.Byron
     ( ByronKey )
 import Cardano.Wallet.Primitive.AddressDerivation.Icarus
@@ -242,6 +247,7 @@ server
         ( PaymentAddress n IcarusKey 'CredFromKeyK
         , PaymentAddress n ByronKey 'CredFromKeyK
         , DelegationAddress n ShelleyKey 'CredFromKeyK
+        , NetworkDiscriminantBits n
         , Typeable n
         , HasNetworkId n
         )
