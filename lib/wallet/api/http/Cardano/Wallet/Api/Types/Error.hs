@@ -92,7 +92,6 @@ data ApiErrorInfo
     | BalanceTxInlineDatumsNotSupportedInAlonzo
     | BalanceTxInlineScriptsNotSupportedInAlonzo
     | BalanceTxInternalError
-    | BalanceTxMaxSizeLimitExceeded
     | BalanceTxUnderestimatedFee
         ApiErrorBalanceTxUnderestimatedFee
     | CannotCoverFee
