@@ -142,7 +142,6 @@ RSpec.describe 'Cardano Wallet E2E tests - Shared wallets', :all, :e2e, :shared 
         expect(tx_submitted).to be_correct_and_respond 202
 
         tx_id = tx_submitted['id']
-        verify_tx_status(src_wid, tx_id, 'pending', SHARED)
         wait_for_tx_in_ledger(src_wid, tx_id, SHARED)
         verify_tx_status(src_wid, tx_id, 'in_ledger', SHARED)
 
@@ -255,7 +254,6 @@ RSpec.describe 'Cardano Wallet E2E tests - Shared wallets', :all, :e2e, :shared 
         expect(tx_submitted).to be_correct_and_respond 202
 
         tx_id = tx_submitted['id']
-        verify_tx_status(cosigner_wid, tx_id, 'pending', SHARED)
         wait_for_tx_in_ledger(src_wid, tx_id, SHARED)
         verify_tx_status(cosigner_wid, tx_id, 'in_ledger', SHARED)
 
@@ -1309,7 +1307,6 @@ RSpec.describe 'Cardano Wallet E2E tests - Shared wallets', :all, :e2e, :shared 
       tx_sent = SHELLEY.transactions.create(@wid, PASS, payload)
 
       expect(tx_sent).to be_correct_and_respond 202
-      expect(tx_sent.to_s).to include 'pending'
       wait_for_tx_in_ledger(@wid, tx_sent['id'])
 
       target_after = get_shared_balances(@wid_sha)

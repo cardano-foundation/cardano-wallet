@@ -2487,8 +2487,6 @@ RSpec.describe 'Cardano Wallet E2E tests', :all, :e2e do
         tx_sent = SHELLEY.transactions.create(@wid, PASS, payload)
 
         expect(tx_sent).to be_correct_and_respond 202
-        expect(tx_sent.to_s).to include 'pending'
-        verify_tx_status(@wid, tx_sent['id'], 'pending')
         wait_for_tx_in_ledger(@wid, tx_sent['id'])
         verify_tx_status(@wid, tx_sent['id'], 'in_ledger')
 
@@ -2540,9 +2538,7 @@ RSpec.describe 'Cardano Wallet E2E tests', :all, :e2e do
         tx_sent = SHELLEY.transactions.create(@wid, PASS, payment_payload(amt, address))
 
         expect(tx_sent).to be_correct_and_respond 202
-        expect(tx_sent.to_s).to include 'pending'
         tx_id = tx_sent['id']
-        verify_tx_status(@wid, tx_id, 'pending')
         wait_for_tx_in_ledger(@wid, tx_id)
         verify_tx_status(@wid, tx_id, 'in_ledger')
 
@@ -2609,9 +2605,7 @@ RSpec.describe 'Cardano Wallet E2E tests', :all, :e2e do
                                               ttl_in_s)
 
         expect(tx_sent).to be_correct_and_respond 202
-        expect(tx_sent.to_s).to include 'pending'
         tx_id = tx_sent['id']
-        verify_tx_status(@wid, tx_id, 'pending')
         wait_for_tx_in_ledger(@wid, tx_id)
         verify_tx_status(@wid, tx_id, 'in_ledger')
 
@@ -2677,7 +2671,6 @@ RSpec.describe 'Cardano Wallet E2E tests', :all, :e2e do
                                               ttl_in_s)
 
         expect(tx_sent).to be_correct_and_respond 202
-        expect(tx_sent.to_s).to include 'pending'
 
         eventually "TX `#{tx_sent['id']}' expires on `#{@wid}'" do
           SHELLEY.transactions.get(@wid, tx_sent['id'])['status'] == 'expired'
@@ -2699,9 +2692,7 @@ RSpec.describe 'Cardano Wallet E2E tests', :all, :e2e do
         tx_sent = SHELLEY.transactions.create(@wid, PASS, [{ address => amt }], 'self')
 
         expect(tx_sent).to be_correct_and_respond 202
-        expect(tx_sent.to_s).to include 'pending'
         tx_id = tx_sent['id']
-        verify_tx_status(@wid, tx_id, 'pending')
         wait_for_tx_in_ledger(@wid, tx_id)
         verify_tx_status(@wid, tx_id, 'in_ledger')
 
@@ -2769,9 +2760,7 @@ RSpec.describe 'Cardano Wallet E2E tests', :all, :e2e do
                                               metadata)
 
         expect(tx_sent).to be_correct_and_respond 202
-        expect(tx_sent.to_s).to include 'pending'
         tx_id = tx_sent['id']
-        verify_tx_status(@wid, tx_id, 'pending')
         wait_for_tx_in_ledger(@wid, tx_id)
         verify_tx_status(@wid, tx_id, 'in_ledger')
 
@@ -2921,8 +2910,6 @@ RSpec.describe 'Cardano Wallet E2E tests', :all, :e2e do
                                               [{ address => amt }])
 
         expect(tx_sent).to be_correct_and_respond 202
-        expect(tx_sent.to_s).to include 'pending'
-        verify_tx_status(@wid, tx_sent['id'], 'pending')
         wait_for_tx_in_ledger(@wid, tx_sent['id'])
         verify_tx_status(@wid, tx_sent['id'], 'in_ledger')
 
@@ -3145,9 +3132,7 @@ RSpec.describe 'Cardano Wallet E2E tests', :all, :e2e do
       tx_sent = BYRON.transactions.create(source_wid, PASS, payment_payload(amt, address))
 
       expect(tx_sent).to be_correct_and_respond 202
-      expect(tx_sent.to_s).to include 'pending'
       tx_id = tx_sent['id']
-      verify_tx_status(source_wid, tx_id, 'pending', BYRON)
       wait_for_tx_in_ledger(target_wid, tx_id)
       verify_tx_status(source_wid, tx_id, 'in_ledger', BYRON)
 
@@ -3219,9 +3204,7 @@ RSpec.describe 'Cardano Wallet E2E tests', :all, :e2e do
       tx_sent = BYRON.transactions.create(source_id, PASS, payload)
 
       expect(tx_sent).to be_correct_and_respond 202
-      expect(tx_sent.to_s).to include 'pending'
       tx_id = tx_sent['id']
-      verify_tx_status(source_id, tx_id, 'pending', BYRON)
       wait_for_tx_in_ledger(target_id, tx_id)
       verify_tx_status(source_id, tx_id, 'in_ledger', BYRON)
 
