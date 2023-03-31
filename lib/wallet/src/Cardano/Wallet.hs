@@ -2887,7 +2887,7 @@ instance NFData DelegationFee
 delegationFee
     :: forall s k (n :: NetworkDiscriminant)
      . ( AddressBookIso s
-       , s ~ SeqState n k
+       , Typeable s
        , Typeable k
        , Typeable n
        )
@@ -2899,7 +2899,28 @@ delegationFee
     -> ChangeAddressGen s
     -> WalletId
     -> ExceptT ErrSelectAssets IO DelegationFee
-delegationFee db@DBLayer{atomically, walletsDB} netLayer
+delegationFee db netLayer txLayer ti era changeAddressGen walletId = do
+    feePercentiles <- transactionFee @s @k @n
+        db netLayer txLayer ti era changeAddressGen walletId
+    deposit <- liftIO $ calcMinimumDeposit db netLayer walletId
+    pure DelegationFee { feePercentiles, deposit }
+
+transactionFee
+    :: forall s k (n :: NetworkDiscriminant)
+     . ( AddressBookIso s
+       , Typeable s
+       , Typeable k
+       , Typeable n
+       )
+    => DBLayer IO s k
+    -> NetworkLayer IO Read.Block
+    -> TransactionLayer k 'CredFromKeyK SealedTx
+    -> TimeInterpreter (ExceptT PastHorizonException IO)
+    -> AnyRecentEra
+    -> ChangeAddressGen s
+    -> WalletId
+    -> ExceptT ErrSelectAssets IO (Percentile 10 Fee, Percentile 90 Fee)
+transactionFee DBLayer{atomically, walletsDB} netLayer
     txLayer ti era changeAddressGen walletId = do
     protocolParams <- liftIO $ currentProtocolParameters netLayer
     WriteTx.withRecentEra era $ \(recentEra :: WriteTx.RecentEra era) -> do
@@ -2913,7 +2934,7 @@ delegationFee db@DBLayer{atomically, walletsDB} netLayer
                 availableUTxO @s mempty wallet
         pureTimeInterpreter <- lift $ snapshot ti
         stdGen <- initStdGen
-        feePercentiles <- calculateFeePercentiles $ do
+        calculateFeePercentiles $ do
             (Cardano.Tx (Cardano.TxBody bodyContent) _, _updatedWallet) <-
                 buildTransactionPure @s @k @n @era
                     wallet pureTimeInterpreter utxoIndex txLayer
@@ -2927,8 +2948,6 @@ delegationFee db@DBLayer{atomically, walletsDB} netLayer
                 Cardano.TxFeeExplicit _ coin -> Fee (fromCardanoLovelace coin)
                 Cardano.TxFeeImplicit Cardano.TxFeesImplicitInByronEra ->
                     case recentEra of {}
-        deposit <- liftIO $ calcMinimumDeposit db netLayer walletId
-        pure DelegationFee { feePercentiles, deposit }
 
 -- | Repeatedly (100 times) runs given transaction fee estimation calculation
 -- returning 1st and 9nth decile (10nth and 90nth percentile) values of a
