@@ -2254,7 +2254,7 @@ buildTransactionPure
     unsignedTxBody <-
         withExceptT (Right . ErrConstructTxBody) . except $
             mkUnsignedTransaction txLayer @era
-                (unsafeShelleyOnlyGetRewardXPub @s @k @n (getState wallet))
+                (Left $ unsafeShelleyOnlyGetRewardXPub @s @k @n (getState wallet))
                 (Write.pparamsWallet pparams)
                 txCtx
                 (Left preSelection)
@@ -2392,7 +2392,7 @@ constructTransaction txLayer netLayer db wid txCtx preSel = do
     (_, xpub, _) <- readRewardAccount db wid
         & withExceptT ErrConstructTxReadRewardAccount
     pp <- liftIO $ currentProtocolParameters netLayer
-    mkUnsignedTransaction txLayer xpub pp txCtx (Left preSel)
+    mkUnsignedTransaction txLayer (Left xpub) pp txCtx (Left preSel)
         & withExceptT ErrConstructTxBody . except
 
 constructUnbalancedSharedTransaction
@@ -2414,8 +2414,10 @@ constructUnbalancedSharedTransaction txLayer netLayer db wid txCtx sel = db & \D
         $ readCheckpoint wid
     let s = getState cp
     let accXPub = getRawKey $ Shared.accountXPub s
-    let xpub = CA.getKey $
-            deriveDelegationPublicKey (CA.liftXPub accXPub) minBound
+    let delTemplateM = delegationTemplate s
+    let scriptM =
+            flip (replaceCosignersWithVerKeys CAShelley.Stake) minBound <$>
+            delTemplateM
     let getScript addr = case fst (isShared addr s) of
             Nothing ->
                 error $ "Some inputs selected by coin selection do not belong "
@@ -2431,7 +2433,7 @@ constructUnbalancedSharedTransaction txLayer netLayer db wid txCtx sel = db & \D
     sealedTx <- mapExceptT atomically $ do
         pp <- liftIO $ currentProtocolParameters netLayer
         withExceptT ErrConstructTxBody $ ExceptT $ pure $
-            mkUnsignedTransaction txLayer xpub pp txCtx (Left sel)
+            mkUnsignedTransaction txLayer (Right scriptM) pp txCtx (Left sel)
     pure (sealedTx, getScript)
 
 -- | Calculate the transaction expiry slot, given a 'TimeInterpreter', and an
