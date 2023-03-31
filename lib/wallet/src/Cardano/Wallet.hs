@@ -129,6 +129,7 @@ module Cardano.Wallet
     , CoinSelection (..)
     , readWalletUTxOIndex
     , defaultChangeAddressGen
+    , dummyChangeAddressGen
     , assignChangeAddressesAndUpdateDb
     , assignChangeAddressesWithoutDbUpdate
     , selectionToUnsignedTx
@@ -166,8 +167,9 @@ module Cardano.Wallet
     , Percentile (..)
     , DelegationFee (..)
     , delegationFee
+    , transactionFee
     , calculateFeePercentiles
-    , calcMinimumDeposit
+    , padFeePercentiles
     , calcMinimumCoinValues
 
     -- ** Transaction
@@ -208,6 +210,7 @@ module Cardano.Wallet
     , guardHardIndex
     , withNoSuchWallet
     , mkNoSuchWalletError
+    , toBalanceTxPParams
 
     -- * Logging
     , WalletWorkerLog (..)
@@ -398,7 +401,9 @@ import Cardano.Wallet.Primitive.Types
     , BlockHeader (..)
     , ChainPoint (..)
     , DelegationCertificate (..)
+    , FeePolicy (..)
     , GenesisParameters (..)
+    , LinearFunction (..)
     , NetworkParameters (..)
     , ProtocolParameters (..)
     , Range (..)
@@ -568,6 +573,8 @@ import Data.Maybe
     ( fromMaybe, isJust, mapMaybe, maybeToList )
 import Data.Proxy
     ( Proxy (..) )
+import Data.Quantity
+    ( Quantity (..) )
 import Data.Set
     ( Set )
 import Data.Text
@@ -2250,7 +2257,7 @@ buildTransactionPure
     unsignedTxBody <-
         withExceptT (Right . ErrConstructTxBody) . except $
             mkUnsignedTransaction txLayer @era
-                (unsafeShelleyOnlyGetRewardXPub (getState wallet))
+                (unsafeShelleyOnlyGetRewardXPub @s @k @n (getState wallet))
                 (fst pparams)
                 txCtx
                 (Left preSelection)
@@ -2270,29 +2277,47 @@ buildTransactionPure
                 , redeemers = []
                 }
 
+-- HACK: 'mkUnsignedTransaction' takes a reward account 'XPub' even when the
+-- wallet is a Byron wallet, and doesn't actually have a reward account.
+--
+-- 'buildAndSignTransaction' achieves this by deriving the 'XPub' regardless
+-- of wallet type, from the root key. To avoid requiring another
+-- 'withRootKey' call, and to make the sketchy behaviour more explicit, we
+-- make 'buildAndSignTransactionPure' partial instead.
+unsafeShelleyOnlyGetRewardXPub
+    :: forall s (k :: Depth -> Type -> Type) (n :: NetworkDiscriminant)
+     . (Typeable s, Typeable k, Typeable n)
+    => s -> XPub
+unsafeShelleyOnlyGetRewardXPub walletState =
+    fromMaybe notShelleyWallet $ do
+        Refl <- isSeqState
+        Refl <- isShelleyKey
+        pure $ getRawKey $ Seq.rewardAccountKey @n @k walletState
   where
-    -- HACK: 'mkUnsignedTransaction' takes a reward account 'XPub' even when the
-    -- wallet is a Byron wallet, and doesn't actually have a reward account.
-    --
-    -- 'buildAndSignTransaction' achieves this by deriving the 'XPub' regardless
-    -- of wallet type, from the root key. To avoid requiring another
-    -- 'withRootKey' call, and to make the sketchy behaviour more explicit, we
-    -- make 'buildAndSignTransactionPure' partial instead.
-    --
-    -- https://input-output.atlassian.net/browse/ADP-2933
-    unsafeShelleyOnlyGetRewardXPub :: s -> XPub
-    unsafeShelleyOnlyGetRewardXPub walletState =
-        fromMaybe notShelleyWallet $ do
-            Refl <- isSeqState
-            Refl <- isShelleyKey
-            pure $ getRawKey $ Seq.rewardAccountKey walletState
-      where
-        isSeqState = testEquality (typeRep @s) (typeRep @(SeqState n k))
-        isShelleyKey = testEquality (typeRep @k) (typeRep @(ShelleyKey))
-        notShelleyWallet = error $ unwords
-            [ "buildAndSignTransactionPure:"
-            , "can't delegate using non-shelley wallet"
-            ]
+    isSeqState = testEquality (typeRep @s) (typeRep @(SeqState n k))
+    isShelleyKey = testEquality (typeRep @k) (typeRep @(ShelleyKey))
+    notShelleyWallet = error $ unwords
+        [ "buildAndSignTransactionPure:"
+        , "can't delegate using non-shelley wallet"
+        ]
+
+-- TODO: ADP-2459 - replace with something nicer.
+toBalanceTxPParams
+    :: forall era. WriteTx.IsRecentEra era
+    => ProtocolParameters
+    -> (ProtocolParameters, Cardano.BundledProtocolParameters era)
+toBalanceTxPParams pp =
+    ( pp
+    , maybe
+        (error $ unwords
+            [ "toBalanceTxPParams: no nodePParams."
+            , "This should only be possible in Byron, where withRecentEra"
+            , "should prevent this from being reached."
+            ])
+        (Cardano.bundleProtocolParams
+            (WriteTx.fromRecentEra (WriteTx.recentEra @era)))
+        $ currentNodeProtocolParameters pp
+    )
 
 -- | Produce witnesses and construct a transaction from a given selection.
 --
@@ -2843,29 +2868,6 @@ newtype Percentile (n :: Nat) a = Percentile a
     deriving stock (Show, Generic)
     deriving newtype (Eq, Ord, NFData)
 
--- | Calculate the minimum deposit necessary if a given wallet wanted to
--- delegate to a pool. Said differently, this return either 0, or the value of
--- the key deposit protocol parameters if the wallet has no registered stake
--- key.
-calcMinimumDeposit
-    :: forall s k
-     . DBLayer IO s k
-    -> NetworkLayer IO Read.Block
-    -> WalletId
-    -> IO Coin
-calcMinimumDeposit DBLayer {..} netLayer wid =
-    throwInIO
-        $ mkNoSuchWalletError wid
-        $ mapExceptT atomically (isStakeKeyRegistered wid) >>= \case
-            True -> pure $ Coin 0
-            False ->
-                liftIO
-                    $ stakeKeyDeposit
-                        <$> currentProtocolParameters netLayer
-  where
-    throwInIO :: forall a. ExceptT ErrNoSuchWallet IO a -> IO a
-    throwInIO = runExceptT >=> either (throwIO . ExceptionNoSuchWallet) pure
-
 data DelegationFee = DelegationFee
     { feePercentiles :: (Percentile 10 Fee, Percentile 90 Fee)
     , deposit :: Coin
@@ -2876,7 +2878,7 @@ instance NFData DelegationFee
 delegationFee
     :: forall s k (n :: NetworkDiscriminant)
      . ( AddressBookIso s
-       , s ~ SeqState n k
+       , Typeable s
        , Typeable k
        , Typeable n
        )
@@ -2888,11 +2890,52 @@ delegationFee
     -> ChangeAddressGen s
     -> WalletId
     -> IO DelegationFee
-delegationFee db@DBLayer{atomically, walletsDB} netLayer
-    txLayer ti era changeAddressGen walletId = do
-    WriteTx.withRecentEra era $ \(recentEra :: WriteTx.RecentEra era) -> do
+delegationFee db@DBLayer {..} netLayer txLayer ti era changeAddressGen walletId
+    = WriteTx.withRecentEra era $ \(recentEra :: WriteTx.RecentEra era) -> do
         protocolParams <- toBalanceTxPParams
             <$> liftIO (currentProtocolParameters netLayer)
+        feePercentiles <- transactionFee @s @k @n
+            db protocolParams txLayer ti recentEra changeAddressGen walletId
+            defaultTransactionCtx
+            -- It would seem that we should add a delegation action
+            -- to the partial tx we construct, this was not done
+            -- previously, and the difference should be negligible.
+            (PreSelection [])
+        deposit <-
+        -- Calculate the minimum deposit necessary if a given wallet wanted to
+        -- delegate to a pool. Said differently, this return either 0, or the
+        -- value of the key deposit protocol parameters if the wallet has no
+        -- registered stake key.
+            liftIO
+                $ throwInIO . mkNoSuchWalletError walletId
+                $ mapExceptT atomically (isStakeKeyRegistered walletId) <&>
+                    \case
+                        False -> stakeKeyDeposit (fst protocolParams)
+                        True -> Coin 0
+        pure DelegationFee { feePercentiles, deposit }
+  where
+    throwInIO = runExceptT >=> either (throwIO . ExceptionNoSuchWallet) pure
+
+transactionFee
+    :: forall s k (n :: NetworkDiscriminant) era
+     . ( AddressBookIso s
+       , Typeable s
+       , Typeable k
+       , Typeable n
+       , WriteTx.IsRecentEra era
+       )
+    => DBLayer IO s k
+    -> (ProtocolParameters, Cardano.BundledProtocolParameters era)
+    -> TransactionLayer k 'CredFromKeyK SealedTx
+    -> TimeInterpreter (ExceptT PastHorizonException IO)
+    -> WriteTx.RecentEra era
+    -> ChangeAddressGen s
+    -> WalletId
+    -> TransactionCtx
+    -> PreSelection
+    -> IO (Percentile 10 Fee, Percentile 90 Fee)
+transactionFee DBLayer{atomically, walletsDB} protocolParams txLayer ti
+    recentEra changeAddressGen walletId txCtx preSelection = do
         wallet <- liftIO . atomically $ readDBVar walletsDB >>= \wallets ->
             case Map.lookup walletId wallets of
                 Nothing -> liftIO . throwIO
@@ -2904,20 +2947,17 @@ delegationFee db@DBLayer{atomically, walletsDB} netLayer
         pureTimeInterpreter <- liftIO $ snapshot ti
         unsignedTxBody <- wrapErrMkTransaction $
             mkUnsignedTransaction txLayer @era
-                (unsafeShelleyOnlyGetRewardXPub (getState wallet))
+                (unsafeShelleyOnlyGetRewardXPub @s @k @n (getState wallet))
                 (fst protocolParams)
-                defaultTransactionCtx
-                -- It would seem that we should add a delegation action
-                -- to the partial tx we construct, this was not done
-                -- previously, and the difference should be negligible.
-                (Left $ PreSelection [])
+                txCtx
+                (Left preSelection)
 
         let ptx = PartialTx
                 { tx = Cardano.Tx unsignedTxBody []
                 , inputs = Cardano.UTxO mempty
                 , redeemers = []
                 }
-        feePercentiles <- wrapErrSelectAssets $ calculateFeePercentiles $ do
+        wrapErrSelectAssets $ calculateFeePercentiles $ do
             res <- runExceptT $
                     balanceTransaction @_ @_ @s
                         nullTracer
@@ -2938,9 +2978,6 @@ delegationFee db@DBLayer{atomically, walletsDB} netLayer
                 Left (ErrBalanceTxSelectAssets errSelectAssets)
                     -> throwE errSelectAssets
                 Left otherErr -> throwIO $ ExceptionBalanceTx otherErr
-
-        deposit <- liftIO $ calcMinimumDeposit db netLayer walletId
-        pure DelegationFee { feePercentiles, deposit }
   where
     wrapErrSelectAssets
         = throwWrappedErr ExceptionSelectAssets
@@ -2956,29 +2993,6 @@ delegationFee db@DBLayer{atomically, walletsDB} netLayer
         -> ExceptT e' m a ->
         m a
     throwWrappedErr f a = either (throwIO . f) pure =<< runExceptT a
-
-    -- HACK: 'mkUnsignedTransaction' takes a reward account 'XPub' even when the
-    -- wallet is a Byron wallet, and doesn't actually have a reward account.
-    --
-    -- 'buildAndSignTransaction' achieves this by deriving the 'XPub' regardless
-    -- of wallet type, from the root key. To avoid requiring another
-    -- 'withRootKey' call, and to make the sketchy behaviour more explicit, we
-    -- make 'buildAndSignTransactionPure' partial instead.
-    --
-    -- https://input-output.atlassian.net/browse/ADP-2933
-    unsafeShelleyOnlyGetRewardXPub :: s -> XPub
-    unsafeShelleyOnlyGetRewardXPub walletState =
-        fromMaybe notShelleyWallet $ do
-            Refl <- isSeqState
-            Refl <- isShelleyKey
-            pure $ getRawKey $ Seq.rewardAccountKey walletState
-      where
-        isSeqState = testEquality (typeRep @s) (typeRep @(SeqState n k))
-        isShelleyKey = testEquality (typeRep @k) (typeRep @(ShelleyKey))
-        notShelleyWallet = error $ unwords
-            [ "buildAndSignTransactionPure:"
-            , "can't delegate using non-shelley wallet"
-            ]
 
 -- | Repeatedly (100 times) runs given transaction fee estimation calculation
 -- returning 1st and 9nth decile (10nth and 90nth percentile) values of a
@@ -3032,10 +3046,35 @@ calculateFeePercentiles
         ErrSelectAssetsSelectionError
             ( SelectionBalanceErrorOf
                 ( UnableToConstructChange
-                    ( UnableToConstructChangeError {requiredCost})
+                    UnableToConstructChangeError{requiredCost}
                 )
             ) -> pure $ Fee requiredCost
         e -> throwE e
+
+-- | Make a pair of fee estimation percentiles more imprecise.
+--
+-- For a given number of bytes `n` and interval `(p, q)`, this function
+-- computes the superinterval `(p - x, q + x)`, where `x` is the cost of
+-- encoding `n` bytes according to the given protocol parameters.
+padFeePercentiles
+    :: ProtocolParameters
+    -> Quantity "byte" Word
+    -- ^ Number of bytes by which to extend the interval in both directions.
+    -> (Percentile 10 Fee, Percentile 90 Fee)
+    -> (Percentile 10 Fee, Percentile 90 Fee)
+padFeePercentiles
+    pp
+    (Quantity byteDelta)
+    (Percentile (Fee a), Percentile (Fee b)) =
+        ( Percentile $ Fee $ a `Coin.difference` coinDelta
+        , Percentile $ Fee $ b `Coin.add` coinDelta
+        )
+  where
+    coinDelta :: Coin
+    coinDelta =
+        Coin.fromNatural . ceiling $ fromIntegral byteDelta * slope feeFunction
+
+    LinearFee feeFunction = pp ^. #txParameters . #getFeePolicy
 
 {-------------------------------------------------------------------------------
                                   Key Store
@@ -3892,20 +3931,13 @@ defaultChangeAddressGen arg proxy =
         (genChange arg)
         (maxLengthAddressFor proxy)
 
--- TODO: ADP-2459 - replace with something nicer.
-toBalanceTxPParams
-    :: forall era. WriteTx.IsRecentEra era
-    => ProtocolParameters
-    -> (ProtocolParameters, Cardano.BundledProtocolParameters era)
-toBalanceTxPParams pp =
-    ( pp
-    , maybe
-        (error $ unwords
-            [ "toBalanceTxPParams: no nodePParams."
-            , "This should only be possible in Byron, where withRecentEra"
-            , "should prevent this from being reached."
-            ])
-        (Cardano.bundleProtocolParams
-            (WriteTx.fromRecentEra (WriteTx.recentEra @era)))
-        $ currentNodeProtocolParameters pp
-    )
+-- WARNING: Must never be used to create real transactions for submission to the
+-- blockchain as funds sent to a dummy change address would be irrecoverable.
+dummyChangeAddressGen
+    :: forall (k :: Depth -> Type -> Type) s
+     . BoundedAddressLength k
+    => ChangeAddressGen s
+dummyChangeAddressGen =
+    ChangeAddressGen
+        (maxLengthAddressFor (Proxy @k),)
+        (maxLengthAddressFor (Proxy @k))

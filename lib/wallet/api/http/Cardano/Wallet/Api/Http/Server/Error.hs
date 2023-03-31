@@ -520,7 +520,7 @@ instance IsServerError ErrBalanceTx where
                 ]
         ErrBalanceTxInternalError e -> toServerError e
         ErrBalanceTxMaxSizeLimitExceeded ->
-            apiError err403 BalanceTxMaxSizeLimitExceeded $ T.unwords
+            apiError err403 TransactionIsTooBig $ T.unwords
                 [ "I was not able to balance the transaction without exceeding"
                 , "the maximum transaction size."
                 ]

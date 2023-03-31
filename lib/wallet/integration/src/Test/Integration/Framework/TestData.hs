@@ -371,9 +371,8 @@ errMsg403EmptyUTxO =
 
 errMsg403TxTooBig :: String
 errMsg403TxTooBig =
-    "I am not able to finalize the transaction because I need to select \
-    \additional inputs and doing so will make the transaction too big. \
-    \Try sending a smaller amount."
+    "I was not able to balance the transaction \
+    \without exceeding the maximum transaction size."
 
 errMsg400MalformedTxPayload :: String
 errMsg400MalformedTxPayload =
