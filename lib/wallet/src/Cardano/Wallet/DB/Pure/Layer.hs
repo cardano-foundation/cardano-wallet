@@ -58,14 +58,20 @@ import Cardano.Wallet.Primitive.Slotting
     ( TimeInterpreter )
 import Cardano.Wallet.Primitive.Types
     ( SortOrder (..), WalletId, wholeRange )
+import Cardano.Wallet.Primitive.Types.Coin
+    ( Coin (..) )
 import Cardano.Wallet.Primitive.Types.Tx
     ( TransactionInfo (..) )
+import Control.Monad
+    ( join, when )
 import Control.Monad.IO.Unlift
     ( MonadUnliftIO (..) )
 import Control.Monad.Trans.Except
-    ( ExceptT (..) )
+    ( ExceptT (..), throwE )
 import Data.Functor.Identity
     ( Identity (..) )
+import Data.Maybe
+    ( fromMaybe )
 import UnliftIO.Exception
     ( Exception, throwIO )
 import UnliftIO.MVar
@@ -82,7 +88,11 @@ newDBLayer
 newDBLayer timeInterpreter = do
     lock <- newMVar ()
     db <- newMVar (emptyDatabase :: Database WalletId s (k 'RootK XPrv, PassphraseHash))
-    return $ DBLayer
+    let getWalletId' = ExceptT
+            $ alterDB errWalletNotInitialized db mGetWalletId
+    let
+      dbl = DBLayer
+
 
         {-----------------------------------------------------------------------
                                       Wallets
@@ -101,12 +111,17 @@ newDBLayer timeInterpreter = do
         , walletsDB = error "MVar.walletsDB: not implemented"
 
         , putCheckpoint = \_pk cp -> ExceptT $
-            alterDB errWalletNotInitialized db $
-            mPutCheckpoint cp
+            alterDB errWalletNotInitialized db (mCheckWallet) >>= \case
+                Left err -> pure $ Left err
+                Right _ -> do
+                    alterDB errWalletNotInitialized db $
+                        mPutCheckpoint cp
 
-        , readCheckpoint = const $ readDB db mReadCheckpoint
+        , readCheckpoint = const $ join <$> readDBMaybe db mReadCheckpoint
 
-        , listCheckpoints = const $ readDB db mListCheckpoints
+        , listCheckpoints = const
+            $ fromMaybe []
+            <$> readDBMaybe db mListCheckpoints
 
         , rollbackTo = \_pk pt -> ExceptT $
             alterDB errWalletNotInitialized db $
@@ -122,7 +137,10 @@ newDBLayer timeInterpreter = do
             alterDB errWalletNotInitialized db $
             mPutWalletMeta meta
 
-        , readWalletMeta = const $ readDB db $ mReadWalletMeta timeInterpreter
+        , readWalletMeta = const
+            $ fmap join
+            $ readDBMaybe db
+            $ mReadWalletMeta timeInterpreter
 
         , putDelegationCertificate = \_pk cert sl -> ExceptT $
             alterDB errWalletNotInitialized db $
@@ -140,7 +158,8 @@ newDBLayer timeInterpreter = do
             mPutTxHistory txh
 
         , readTransactions = \_pk minWithdrawal order range mstatus _mlimit ->
-            readDB db $
+            fmap (fromMaybe []) $
+            readDBMaybe db $
                 mReadTxHistory
                     timeInterpreter
                     minWithdrawal
@@ -149,21 +168,25 @@ newDBLayer timeInterpreter = do
                     mstatus
 
         -- TODO: shift implementation to mGetTx
-        , getTx = \_pk tid -> ExceptT $
-            alterDB errWalletNotInitialized db (mCheckWallet) >>= \case
-                Left err -> pure $ Left err
-                Right _ -> do
-                    txInfos <- readDB db
-                        $ mReadTxHistory
-                            timeInterpreter
-                            Nothing
-                            Descending
-                            wholeRange
-                            Nothing
-                    let txPresent (TransactionInfo{..}) = txInfoId == tid
-                    case filter txPresent txInfos of
-                        [] -> pure $ Right Nothing
-                        t:_ -> pure $ Right $ Just t
+        , getTx = \pk tid -> do
+            pk' <- getWalletId'
+            when ( pk /= pk') $ throwE ErrWalletNotInitialized
+            ExceptT $ do
+                alterDB errWalletNotInitialized db (mCheckWallet) >>= \case
+                    Left err -> pure $ Left err
+                    Right _ -> do
+                        txInfos <- fmap (fromMaybe [])
+                            $ readDBMaybe db
+                            $ mReadTxHistory
+                                timeInterpreter
+                                Nothing
+                                Descending
+                                wholeRange
+                                Nothing
+                        let txPresent (TransactionInfo{..}) = txInfoId == tid
+                        case filter txPresent txInfos of
+                            [] -> pure $ Right Nothing
+                            t:_ -> pure $ Right $ Just t
 
         {-----------------------------------------------------------------------
                                        Keystore
@@ -173,7 +196,7 @@ newDBLayer timeInterpreter = do
             alterDB errWalletNotInitialized db $
             mPutPrivateKey prv
 
-        , readPrivateKey = const $ readDB db mReadPrivateKey
+        , readPrivateKey = const $ join <$> readDBMaybe db mReadPrivateKey
 
         {-----------------------------------------------------------------------
                                        Pending Tx
@@ -198,7 +221,9 @@ newDBLayer timeInterpreter = do
                                  Protocol Parameters
         -----------------------------------------------------------------------}
 
-        , readGenesisParameters = const $ readDB db mReadGenesisParameters
+        , readGenesisParameters = const
+            $ join
+            <$> readDBMaybe db mReadGenesisParameters
 
         {-----------------------------------------------------------------------
                                  Delegation Rewards
@@ -208,7 +233,8 @@ newDBLayer timeInterpreter = do
             alterDB errWalletNotInitialized db (mPutDelegationRewardBalance amt)
 
         , readDelegationRewardBalance =
-            const $ readDB db mReadDelegationRewardBalance
+            const $ fromMaybe (Coin 0)
+                <$> readDBMaybe db mReadDelegationRewardBalance
 
         {-----------------------------------------------------------------------
                                       Execution
@@ -216,8 +242,18 @@ newDBLayer timeInterpreter = do
 
         , atomically = \action -> withMVar lock $ \() -> action
         }
+    pure dbl
+
+-- | Read the database, but return 'Nothing' if the operation fails.
+readDBMaybe :: MonadUnliftIO f
+    => MVar (Database WalletId s xprv)
+    -> ModelOp WalletId s xprv a
+    -> f (Maybe a)
+readDBMaybe db = fmap (either (const Nothing) Just) . readDB db
 
 -- | Apply an operation to the model database, then update the mutable variable.
+-- Failures are converted to 'Err' using the provided function.
+-- Failures that cannot be converted are rethrown as 'MVarDBError'.
 alterDB
     :: MonadUnliftIO m
     => (Err -> Maybe err)
@@ -234,16 +270,15 @@ alterDB convertErr db op = modifyMVar db (bubble . op)
         Nothing -> throwIO $ MVarDBError e
     bubble (Right a, !db') = pure (db', Right a)
 
--- | Run a query operation on the model database. Any error results are turned
--- into a runtime exception.
+-- | Run a query operation on the model database.
 readDB
     :: MonadUnliftIO m
     => MVar (Database WalletId s xprv)
     -- ^ The database variable
     -> ModelOp WalletId s xprv a
     -- ^ Operation to run on the database
-    -> m a
-readDB db op = alterDB Just db op >>= either (throwIO . MVarDBError) pure
+    -> m (Either Err a)
+readDB = alterDB Just -- >>= either (throwIO . MVarDBError) pure
 
 errWalletNotInitialized :: Err -> Maybe ErrWalletNotInitialized
 errWalletNotInitialized WalletNotInitialized = Just ErrWalletNotInitialized
