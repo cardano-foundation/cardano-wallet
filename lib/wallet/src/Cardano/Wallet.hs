@@ -2871,6 +2871,7 @@ data DelegationFee = DelegationFee
 
 instance NFData DelegationFee
 
+
 delegationFee
     :: forall s k (n :: NetworkDiscriminant)
      . ( AddressBookIso s
@@ -2900,23 +2901,60 @@ delegationFee db@DBLayer{atomically, walletsDB} netLayer
         let utxoIndex = UTxOIndex.fromMap . CS.toInternalUTxOMap $
                 availableUTxO @s mempty wallet
         pureTimeInterpreter <- lift $ snapshot ti
-        stdGen <- initStdGen
-        feePercentiles <- calculateFeePercentiles $ do
-            (Cardano.Tx (Cardano.TxBody bodyContent) _, _updatedWallet) <-
-                buildTransactionPure @s @k @n @era
-                    wallet pureTimeInterpreter utxoIndex txLayer
-                    changeAddressGen protocolParams (PreSelection [])
+        let unsignedTxBody = either (error .show) id $
+                mkUnsignedTransaction txLayer @era
+                    (unsafeShelleyOnlyGetRewardXPub (getState wallet))
+                    (fst protocolParams)
                     defaultTransactionCtx
-                        & runExceptT . withExceptT
-                            (either ExceptionBalanceTx ExceptionConstructTx)
-                        & (`evalRand` stdGen)
-                        & either (liftIO . throwIO) pure
+                    -- FIXME: Shouldn't there be a delegation action added here?
+                    -- 😅
+                    (Left $ PreSelection [])
+
+        let ptx = PartialTx
+                            { tx = Cardano.Tx unsignedTxBody []
+                            , inputs = Cardano.UTxO mempty
+                            , redeemers = []
+                            }
+        feePercentiles <- calculateFeePercentiles $ do
+            Right (Cardano.Tx (Cardano.TxBody bodyContent) _, _updatedWallet) <-
+                runExceptT $
+                    balanceTransaction @_ @_ @s
+                        nullTracer
+                        (Write.allKeyPaymentCredentials txLayer)
+                        protocolParams
+                        pureTimeInterpreter
+                        utxoIndex
+                        changeAddressGen
+                        (getState wallet)
+                        ptx
             pure $ case Cardano.txFee bodyContent of
                 Cardano.TxFeeExplicit _ coin -> Fee (fromCardanoLovelace coin)
                 Cardano.TxFeeImplicit Cardano.TxFeesImplicitInByronEra ->
                     case recentEra of {}
         deposit <- liftIO $ calcMinimumDeposit db netLayer walletId
         pure DelegationFee { feePercentiles, deposit }
+  where
+    -- HACK: 'mkUnsignedTransaction' takes a reward account 'XPub' even when the
+    -- wallet is a Byron wallet, and doesn't actually have a reward account.
+    --
+    -- 'buildAndSignTransaction' achieves this by deriving the 'XPub' regardless
+    -- of wallet type, from the root key. To avoid requiring another
+    -- 'withRootKey' call, and to make the sketchy behaviour more explicit, we
+    -- make 'buildAndSignTransactionPure' partial instead.
+    unsafeShelleyOnlyGetRewardXPub :: s -> XPub
+    unsafeShelleyOnlyGetRewardXPub walletState =
+        fromMaybe notShelleyWallet $ do
+            Refl <- isSeqState
+            Refl <- isShelleyKey
+            pure $ getRawKey $ Seq.rewardAccountKey walletState
+      where
+        isSeqState = testEquality (typeRep @s) (typeRep @(SeqState n k))
+        isShelleyKey = testEquality (typeRep @k) (typeRep @(ShelleyKey))
+        notShelleyWallet = error $ unwords
+            [ "buildAndSignTransactionPure:"
+            , "can't delegate using non-shelley wallet"
+            ]
+
 
 -- | Repeatedly (100 times) runs given transaction fee estimation calculation
 -- returning 1st and 9nth decile (10nth and 90nth percentile) values of a
