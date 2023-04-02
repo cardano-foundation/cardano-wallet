@@ -43,6 +43,7 @@ library
     , cardano-wallet-primitive
     , cardano-wallet-test-utils
     , containers
+    , deepseq
     , fmt
     , generic-lens
     , generics-sop

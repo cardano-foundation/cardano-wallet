@@ -36,6 +36,14 @@ steps:
       queue: benchmark
     if: 'build.env("step") == null || build.env("step") =~ /restore-mainnet/'
 
+  - label: 'API benchmark'
+    command: "./.buildkite/bench-api.sh"
+    timeout_in_minutes: 210
+    agents:
+      system: x86_64-linux
+      queue: benchmark
+    if: 'build.env("step") == null || build.env("step") =~ /bench-api/'
+
   - label: 'Database benchmark'
     command: "./.buildkite/bench-db.sh"
     timeout_in_minutes: 210

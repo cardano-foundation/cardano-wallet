@@ -72,6 +72,8 @@ import Cardano.Wallet.Primitive.Types.Tx.Constraints
     , txOutputHasValidSize
     , txOutputHasValidTokenQuantities
     )
+import Control.DeepSeq
+    ( NFData )
 import Control.Monad
     ( (>=>) )
 import Data.Bifunctor
@@ -124,6 +126,8 @@ data Selection input = Selection
       -- ^ The reward withdrawal amount, if any.
     }
     deriving (Eq, Generic, Show)
+
+instance NFData input => NFData (Selection input)
 
 newtype RewardWithdrawal = RewardWithdrawal
     { unRewardWithdrawal :: Coin }

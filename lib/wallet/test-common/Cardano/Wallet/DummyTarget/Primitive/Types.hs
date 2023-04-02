@@ -1,12 +1,15 @@
 {-# LANGUAGE DataKinds #-}
 {-# LANGUAGE FlexibleInstances #-}
 {-# LANGUAGE MultiParamTypeClasses #-}
+{-# LANGUAGE NumericUnderscores #-}
 
 module Cardano.Wallet.DummyTarget.Primitive.Types
     ( -- * Dummy values
       block0
     , dummyNetworkParameters
     , dummyGenesisParameters
+    , dummyNodeProtocolParameters
+    , dummyProtocolParameters
     , dummySlottingParameters
     , dummyTimeInterpreter
     , dummyGenesisHash
@@ -15,6 +18,9 @@ module Cardano.Wallet.DummyTarget.Primitive.Types
 
       -- * Mocks
     , dummyNetworkLayer
+
+      -- * Realistic values
+    , babbageMainnetProtocolParameters
     ) where
 
 import Prelude
@@ -28,6 +34,7 @@ import Cardano.Wallet.Primitive.Types
     , Block (..)
     , BlockHeader (..)
     , EpochLength (..)
+    , ExecutionUnitPrices (..)
     , ExecutionUnits (..)
     , FeePolicy (..)
     , GenesisParameters (..)
@@ -67,8 +74,12 @@ import Data.Quantity
 import Data.Time.Clock.POSIX
     ( posixSecondsToUTCTime )
 
+import qualified Cardano.Api.Shelley as C
 import qualified Data.ByteString.Char8 as B8
 
+{-----------------------------------------------------------------------------
+    Dummy values
+------------------------------------------------------------------------------}
 dummyGenesisHash :: Hash "Genesis"
 dummyGenesisHash = Hash (B8.replicate 32 '1')
 
@@ -108,8 +119,8 @@ dummyTxParameters :: TxParameters
 dummyTxParameters = TxParameters
     { getFeePolicy = LinearFee $ LinearFunction { intercept = 14, slope = 42 }
     , getTxMaxSize = Quantity 8192
-    , getTokenBundleMaxSize = TokenBundleMaxSize (TxSize 4000)
-    , getMaxExecutionUnits = ExecutionUnits 0 0
+    , getTokenBundleMaxSize = TokenBundleMaxSize (TxSize 2_000)
+    , getMaxExecutionUnits = ExecutionUnits 10 14
     }
 
 dummyNetworkParameters :: NetworkParameters
@@ -128,11 +139,78 @@ dummyProtocolParameters = ProtocolParameters
     , stakeKeyDeposit = Coin 0
     , eras = emptyEraInfo
     , maximumCollateralInputCount = 3
-    , minimumCollateralPercentage = 100
-    , executionUnitPrices = Nothing
-    , currentNodeProtocolParameters = Nothing
+    , minimumCollateralPercentage = 150
+    , executionUnitPrices =
+        Just $ ExecutionUnitPrices
+            { pricePerStep = 7.21e-5
+            , pricePerMemoryUnit = 0.0577
+            }
+    , currentNodeProtocolParameters = Just dummyNodeProtocolParameters
     }
 
+-- | Dummy parameters that are consistent with the @dummy*@ parameters.
+dummyNodeProtocolParameters :: C.ProtocolParameters
+dummyNodeProtocolParameters = C.ProtocolParameters
+    { C.protocolParamProtocolVersion = (8,0)
+    , C.protocolParamDecentralization = Just 1
+    , C.protocolParamExtraPraosEntropy = Nothing
+    , C.protocolParamMaxBlockHeaderSize = 1100
+    , C.protocolParamMaxBlockBodySize = 90112
+    , C.protocolParamMaxTxSize = 8192
+    , C.protocolParamTxFeeFixed = 14 -- B
+    , C.protocolParamTxFeePerByte = 42 -- A
+    , C.protocolParamMinUTxOValue = Nothing
+    , C.protocolParamStakeAddressDeposit = C.Lovelace 0
+    , C.protocolParamStakePoolDeposit = C.Lovelace 500_000_000
+    , C.protocolParamMinPoolCost = C.Lovelace 340_000_000
+    , C.protocolParamPoolRetireMaxEpoch = C.EpochNo 18
+    , C.protocolParamStakePoolTargetNum = 100
+    , C.protocolParamPoolPledgeInfluence = 0.3 -- a0
+    , C.protocolParamMonetaryExpansion = 0.003 -- rho
+    , C.protocolParamTreasuryCut = 0.20 -- tau
+    , C.protocolParamUTxOCostPerWord = Just $ C.Lovelace 34482
+    , C.protocolParamUTxOCostPerByte = Just $ C.Lovelace 4310
+    , C.protocolParamCostModels = mempty
+    , C.protocolParamPrices =
+        Just $ C.ExecutionUnitPrices
+            { C.priceExecutionSteps = 7.21e-5
+            , C.priceExecutionMemory = 0.0577
+            }
+    , C.protocolParamMaxTxExUnits =
+        Just $ C.ExecutionUnits
+            { C.executionSteps = 10
+            , C.executionMemory = 14
+            }
+    , C.protocolParamMaxBlockExUnits =
+        Just $ C.ExecutionUnits
+            { C.executionSteps = 20
+            , C.executionMemory = 62
+            }
+    , C.protocolParamMaxValueSize = Just 2_000
+    , C.protocolParamCollateralPercent = Just 150
+    , C.protocolParamMaxCollateralInputs = Just 3
+    }
+
+dummyNetworkLayer :: NetworkLayer m a
+dummyNetworkLayer = NetworkLayer
+    { chainSync = error "chainSync: not implemented"
+    , lightSync = Nothing
+    , currentNodeEra = error "currentNodeEra: not implemented"
+    , currentNodeTip = error "currentNodeTip: not implemented"
+    , watchNodeTip = error "watchNodeTip: not implemented"
+    , currentProtocolParameters = error "currentProtocolParameters: not implemented"
+    , currentSlottingParameters = error "currentSlottingParameters: not implemented"
+    , postTx = error "postTx: not implemented"
+    , stakeDistribution = error "stakeDistribution: not implemented"
+    , getCachedRewardAccountBalance = error "getRewardCachedAccountBalance: not implemented"
+    , fetchRewardAccountBalances = error "fetchRewardAccountBalances: not implemented"
+    , timeInterpreter = error "timeInterpreter: not implemented"
+    , syncProgress = error "syncProgress: not implemented"
+    }
+
+{-----------------------------------------------------------------------------
+    Convenience functions
+------------------------------------------------------------------------------}
 -- | Construct a @Tx@, computing its hash using the dummy @mkTxId@.
 mkTx
     :: Maybe TxCBOR
@@ -167,19 +245,51 @@ mkTxId
     -> Maybe TxMetadata -> Hash "Tx"
 mkTxId ins outs wdrls md = mockHash (ins, outs, wdrls, md)
 
-dummyNetworkLayer :: NetworkLayer m a
-dummyNetworkLayer = NetworkLayer
-    { chainSync = error "chainSync: not implemented"
-    , lightSync = Nothing
-    , currentNodeEra = error "currentNodeEra: not implemented"
-    , currentNodeTip = error "currentNodeTip: not implemented"
-    , watchNodeTip = error "watchNodeTip: not implemented"
-    , currentProtocolParameters = error "currentProtocolParameters: not implemented"
-    , currentSlottingParameters = error "currentSlottingParameters: not implemented"
-    , postTx = error "postTx: not implemented"
-    , stakeDistribution = error "stakeDistribution: not implemented"
-    , getCachedRewardAccountBalance = error "getRewardCachedAccountBalance: not implemented"
-    , fetchRewardAccountBalances = error "fetchRewardAccountBalances: not implemented"
-    , timeInterpreter = error "timeInterpreter: not implemented"
-    , syncProgress = error "syncProgress: not implemented"
+{-----------------------------------------------------------------------------
+    Realistic values
+------------------------------------------------------------------------------}
+-- | Data from mainnet on 2023-03-17.
+-- NOTE: Does not include Plutus cost model (todo).
+babbageMainnetProtocolParameters :: C.ProtocolParameters
+babbageMainnetProtocolParameters = C.ProtocolParameters
+    { C.protocolParamProtocolVersion = (8,0)
+    , C.protocolParamDecentralization = Just 0
+    , C.protocolParamExtraPraosEntropy = Nothing
+    , C.protocolParamMaxBlockHeaderSize = 1100
+    , C.protocolParamMaxBlockBodySize = 90112
+    , C.protocolParamMaxTxSize = 16384
+    , C.protocolParamTxFeeFixed = 155381 -- B
+    , C.protocolParamTxFeePerByte = 44 -- A
+    , C.protocolParamMinUTxOValue = Just $ C.Lovelace 1_000_000
+    , C.protocolParamStakeAddressDeposit = C.Lovelace 2_000_000
+    , C.protocolParamStakePoolDeposit = C.Lovelace 500_000_000
+    , C.protocolParamMinPoolCost = C.Lovelace 340_000_000
+    , C.protocolParamPoolRetireMaxEpoch = C.EpochNo 18
+    , C.protocolParamStakePoolTargetNum = 500
+    , C.protocolParamPoolPledgeInfluence = 0.3 -- a0
+    , C.protocolParamMonetaryExpansion = 0.003 -- rho
+    , C.protocolParamTreasuryCut = 0.20 -- tau
+    , C.protocolParamUTxOCostPerWord = Just $ C.Lovelace 34482
+    , C.protocolParamUTxOCostPerByte = Just $ C.Lovelace 4310
+    , C.protocolParamCostModels =
+        mempty
+        -- TODO: Include a Plutus cost model here.
+    , C.protocolParamPrices =
+        Just $ C.ExecutionUnitPrices
+            { C.priceExecutionSteps = 7.21e-5
+            , C.priceExecutionMemory = 0.0577
+            }
+    , C.protocolParamMaxTxExUnits =
+        Just $ C.ExecutionUnits
+            { C.executionSteps = 10_000_000_000
+            , C.executionMemory = 14_000_000
+            }
+    , C.protocolParamMaxBlockExUnits =
+        Just $ C.ExecutionUnits
+            { C.executionSteps = 20_000_000_000
+            , C.executionMemory = 62_000_000
+            }
+    , C.protocolParamMaxValueSize = Just 5_000
+    , C.protocolParamCollateralPercent = Just 150
+    , C.protocolParamMaxCollateralInputs = Just 3
     }

@@ -542,7 +542,6 @@ library cardano-wallet-integration
     , cborg
     , command
     , containers
-    , criterion-measurement
     , cryptonite
     , deepseq
     , directory
@@ -578,11 +577,8 @@ library cardano-wallet-integration
     , unliftio
     , unliftio-core
     , unordered-containers
-    , wai-middleware-logging
 
   exposed-modules:
-    Cardano.Wallet.BenchShared
-    Cardano.Wallet.LatencyBenchShared
     Test.Integration.Faucet
     Test.Integration.Framework.Context
     Test.Integration.Framework.DSL
@@ -620,6 +616,31 @@ library cardano-wallet-integration
     Test.Integration.Scenario.CLI.Shelley.HWWallets
     Test.Integration.Scenario.CLI.Shelley.Transactions
     Test.Integration.Scenario.CLI.Shelley.Wallets
+
+library cardano-wallet-bench
+  import:          language, opts-lib
+  hs-source-dirs:  bench/src
+  build-depends:
+    , aeson
+    , base
+    , cardano-wallet
+    , cardano-wallet-launcher
+    , cardano-wallet-test-utils
+    , containers
+    , criterion-measurement
+    , deepseq
+    , fmt
+    , filepath
+    , directory
+    , iohk-monitoring
+    , optparse-applicative
+    , say
+    , text
+    , text-class
+    , transformers
+    , unliftio
+  exposed-modules:
+    Cardano.Wallet.BenchShared
 
 library mock-token-metadata
   import:          language, opts-lib
@@ -964,6 +985,7 @@ benchmark restore
     , cardano-balance-tx
     , cardano-wallet
     , cardano-wallet-api-http
+    , cardano-wallet-bench
     , cardano-wallet-integration
     , cardano-wallet-primitive
     , contra-tracer
@@ -983,7 +1005,7 @@ benchmark restore
 benchmark latency
   import:         language, opts-exe
   type:           exitcode-stdio-1.0
-  hs-source-dirs: bench test/integration
+  hs-source-dirs: bench bench/src test/integration
   main-is:        latency-bench.hs
   build-depends:
     , aeson
@@ -995,16 +1017,20 @@ benchmark latency
     , cardano-wallet-primitive
     , directory
     , filepath
+    , fmt
     , generic-lens
     , hspec
     , http-client
     , http-types
     , iohk-monitoring
     , text
+    , time
     , unliftio
     , wai-middleware-logging
 
-  other-modules:  Cardano.Wallet.Shelley.Faucet
+  other-modules:
+    Cardano.Wallet.LatencyBenchShared
+    Cardano.Wallet.Shelley.Faucet
 
 benchmark db
   import:         language, opts-exe
@@ -1015,6 +1041,7 @@ benchmark db
     , base
     , bytestring
     , cardano-addresses
+    , cardano-api
     , cardano-crypto
     , cardano-wallet
     , cardano-wallet-launcher
@@ -1037,4 +1064,32 @@ benchmark db
     , transformers
     , unliftio
 
+  other-modules:  Cardano.Wallet.DummyTarget.Primitive.Types
+
+benchmark api
+  import:         language, opts-exe
+  type:           exitcode-stdio-1.0
+  hs-source-dirs: bench test-common
+  main-is:        api-bench.hs
+  build-depends:
+    , aeson
+    , base
+    , bytestring
+    , cardano-balance-tx
+    , cardano-api
+    , cardano-wallet
+    , cardano-wallet-bench
+    , cardano-wallet-primitive
+    , containers
+    , deepseq
+    , directory
+    , filepath
+    , fmt
+    , iohk-monitoring
+    , say
+    , text
+    , text-class
+    , time
+    , transformers
+    , unliftio
   other-modules:  Cardano.Wallet.DummyTarget.Primitive.Types

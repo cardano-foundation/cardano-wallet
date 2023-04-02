@@ -2880,7 +2880,9 @@ calcMinimumDeposit DBLayer {..} netLayer wid =
 data DelegationFee = DelegationFee
     { feePercentiles :: (Percentile 10 Fee, Percentile 90 Fee)
     , deposit :: Coin
-    }
+    } deriving (Generic)
+
+instance NFData DelegationFee
 
 delegationFee
     :: forall s k (n :: NetworkDiscriminant)
