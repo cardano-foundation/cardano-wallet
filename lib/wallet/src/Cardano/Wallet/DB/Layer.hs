@@ -51,7 +51,6 @@ import Cardano.DB.Sqlite
     ( DBLog (..)
     , ForeignKeysSetting (ForeignKeysEnabled)
     , SqliteContext (..)
-    , handleConstraint
     , newInMemorySqliteContext
     , newSqliteContext
     , withConnectionPool
@@ -80,8 +79,8 @@ import Cardano.Wallet.DB
     , DBTxHistory (..)
     , DBWalletMeta (..)
     , DBWallets (..)
-    , ErrNoSuchWallet (..)
-    , ErrWalletAlreadyExists (..)
+    , ErrWalletAlreadyInitialized (ErrWalletAlreadyInitialized)
+    , ErrWalletNotInitialized (..)
     , mkDBLayerFromParts
     )
 import Cardano.Wallet.DB.Sqlite.Migration
@@ -154,21 +153,19 @@ import Control.DeepSeq
 import Control.Exception
     ( evaluate, throw )
 import Control.Monad
-    ( forM, unless, when, (<=<) )
+    ( forM, unless, (<=<) )
 import Control.Monad.IO.Class
     ( MonadIO (..) )
 import Control.Monad.Trans
     ( lift )
 import Control.Monad.Trans.Except
-    ( ExceptT (..) )
+    ( ExceptT (..), runExceptT, throwE )
 import Control.Tracer
     ( Tracer, contramap, traceWith )
 import Data.Coerce
     ( coerce )
 import Data.DBVar
     ( Store (..), loadDBVar, modifyDBMaybe, readDBVar, updateDBVar )
-import Data.Either
-    ( isRight )
 import Data.Functor
     ( (<&>) )
 import Data.Generics.Internal.VL.Lens
@@ -574,18 +571,22 @@ newDBLayerWith _cacheBehavior _tr ti SqliteContext{runQuery} = mdo
     let
       dbWallets = DBWallets
         { initializeWallet_ = \wid cp meta txs gp -> do
-            ExceptT $ do
-                res <- handleConstraint (ErrWalletAlreadyExists wid) $
-                    insert_ (mkWalletEntity wid meta gp)
-                when (isRight res) $ do
+            res <- lift $ runExceptT $ getWalletId_ dbWallets
+            case res of
+                Left ErrWalletNotInitialized -> lift $ do
+                    insert_ $ mkWalletEntity wid meta gp
                     insertCheckpointGenesis wid cp
                     updateS (store transactionsQS) Nothing $
-                        ExpandTxWalletsHistory wid txs
-                pure res
+                                ExpandTxWalletsHistory wid txs
+                Right _ -> throwE ErrWalletAlreadyInitialized
 
         , readGenesisParameters_ = selectGenesisParameters
 
-        , listWallets_ = map unWalletKey <$> selectKeysList [] [Asc WalId]
+        , getWalletId_ = do
+            ws <- lift $ map unWalletKey <$> selectKeysList [] [Asc WalId]
+            case ws of
+                [w] -> pure w
+                _ -> throwE ErrWalletNotInitialized
 
         , hasWallet_ = fmap isJust . selectWallet
         }
@@ -600,7 +601,7 @@ newDBLayerWith _cacheBehavior _tr ti SqliteContext{runQuery} = mdo
         , putCheckpoint_ = \wid cp -> ExceptT $ do
             modifyDBMaybe walletsDB $ \ws ->
                 case Map.lookup wid ws of
-                    Nothing -> (Nothing, Left $ ErrNoSuchWallet wid)
+                    Nothing -> (Nothing, Left ErrWalletNotInitialized)
                     Just _  ->
                         let (prologue, wcp) = fromWallet cp
                             slot = getSlot wcp
@@ -687,7 +688,7 @@ newDBLayerWith _cacheBehavior _tr ti SqliteContext{runQuery} = mdo
                                 )
 
             case mNearestCheckpoint of
-                Nothing  -> ExceptT $ pure $ Left $ ErrNoSuchWallet wid
+                Nothing  -> ExceptT $ pure $ Left ErrWalletNotInitialized
                 Just wcp -> lift $ do
                     let nearestPoint = wcp ^. #currentTip . #slotNo
                     deleteDelegationCertificates wid
@@ -706,7 +707,7 @@ newDBLayerWith _cacheBehavior _tr ti SqliteContext{runQuery} = mdo
     let prune_ wid epochStability finalitySlot = do
             ExceptT $ do
                 readCheckpoint wid >>= \case
-                    Nothing -> pure $ Left $ ErrNoSuchWallet wid
+                    Nothing -> pure $ Left ErrWalletNotInitialized
                     Just cp -> Right <$> do
                         let tip = cp ^. #currentTip
                         pruneCheckpoints wid epochStability tip
@@ -725,7 +726,7 @@ newDBLayerWith _cacheBehavior _tr ti SqliteContext{runQuery} = mdo
       dbWalletMeta = DBWalletMeta
         { putWalletMeta_ = \wid meta -> ExceptT $ do
             selectWallet wid >>= \case
-                Nothing -> pure $ Left $ ErrNoSuchWallet wid
+                Nothing -> pure $ Left ErrWalletNotInitialized
                 Just _ -> do
                     updateWhere [WalId ==. wid]
                         (mkWalletMetadataUpdate meta)

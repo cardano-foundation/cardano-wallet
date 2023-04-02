@@ -22,13 +22,13 @@ instance Exception ErrBadFormat
 
 -- | Can't add a transaction to the local tx submission pool.
 data ErrPutLocalTxSubmission
-    = ErrPutLocalTxSubmissionNoSuchWallet ErrNoSuchWallet
+    = ErrPutLocalTxSubmissionNoSuchWallet ErrWalletNotInitialized
     | ErrPutLocalTxSubmissionNoSuchTransaction ErrNoSuchTransaction
     deriving (Eq, Show)
 
 -- | Can't remove pending or expired transaction.
 data ErrRemoveTx
-    = ErrRemoveTxNoSuchWallet ErrNoSuchWallet
+    = ErrRemoveTxNoSuchWallet ErrWalletNotInitialized
     | ErrRemoveTxNoSuchTransaction ErrNoSuchTransaction
     | ErrRemoveTxAlreadyInLedger (Hash "Tx")
     deriving (Eq, Show)
@@ -47,4 +47,12 @@ newtype ErrWalletAlreadyExists
 -- | Can't perform given operation because there's no wallet
 newtype ErrNoSuchWallet
     = ErrNoSuchWallet WalletId -- Wallet is gone or doesn't exist yet
+    deriving (Eq, Show)
+
+-- | Can't perform given operation because there's no wallet in the db
+data ErrWalletNotInitialized = ErrWalletNotInitialized
+    deriving (Eq, Show)
+
+-- | Can't perform given operation because there's already a wallet in the db
+data ErrWalletAlreadyInitialized = ErrWalletAlreadyInitialized
     deriving (Eq, Show)

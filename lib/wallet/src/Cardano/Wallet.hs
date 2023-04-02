@@ -91,6 +91,7 @@ module Cardano.Wallet
     , writePolicyPublicKey
     , ErrWalletAlreadyExists (..)
     , ErrNoSuchWallet (..)
+    , ErrWalletNotInitialized (..)
     , ErrListUTxOStatistics (..)
     , ErrUpdatePassphrase (..)
     , ErrFetchRewards (..)
@@ -206,6 +207,7 @@ module Cardano.Wallet
     , throttle
     , guardHardIndex
     , withNoSuchWallet
+    , mkNoSuchWalletError
 
     -- * Logging
     , WalletWorkerLog (..)
@@ -265,6 +267,7 @@ import Cardano.Wallet.DB
     , ErrNoSuchTransaction (..)
     , ErrRemoveTx (..)
     , ErrWalletAlreadyExists (..)
+    , ErrWalletNotInitialized (..)
     )
 import Cardano.Wallet.DB.Store.Submissions.Layer
     ( mkLocalTxSubmission )
@@ -762,29 +765,32 @@ transactionLayer = typed @(TransactionLayer k ktype SealedTx)
 
 -- | Initialise and store a new wallet, returning its ID.
 createWallet
-    :: forall ctx m s k.
-        ( MonadUnliftIO m
-        , MonadTime m
-        , HasGenesisData ctx
-        , HasDBLayer m s k ctx
-        , IsOurs s Address
-        , IsOurs s RewardAccount
-        )
+    :: forall ctx m s k
+     . ( MonadUnliftIO m
+       , MonadTime m
+       , HasGenesisData ctx
+       , HasDBLayer m s k ctx
+       , IsOurs s Address
+       , IsOurs s RewardAccount
+       )
     => ctx
     -> WalletId
     -> WalletName
     -> s
     -> ExceptT ErrWalletAlreadyExists m WalletId
-createWallet ctx wid wname s = db & \DBLayer{..} -> do
-    let (hist, cp) = initWallet block0 s
-    now <- lift getCurrentTime
-    let meta = WalletMetadata
-            { name = wname
-            , creationTime = now
-            , passphraseInfo = Nothing
-            }
-    mapExceptT atomically $
-        initializeWallet wid cp meta hist gp $> wid
+createWallet ctx wid wname s =
+    db & \DBLayer {..} -> do
+        let (hist, cp) = initWallet block0 s
+        now <- lift getCurrentTime
+        let meta =
+                WalletMetadata
+                    { name = wname
+                    , creationTime = now
+                    , passphraseInfo = Nothing
+                    }
+        withExceptT (const $ ErrWalletAlreadyExists wid)
+            $ mapExceptT atomically
+            $ initializeWallet wid cp meta hist gp $> wid
   where
     db = ctx ^. dbLayer @m @s @k
     (block0, NetworkParameters gp _sp _pp) = ctx ^. genesisData
@@ -810,18 +816,21 @@ createIcarusWallet
     -> WalletName
     -> (k 'RootK XPrv, Passphrase "encryption")
     -> ExceptT ErrWalletAlreadyExists IO WalletId
-createIcarusWallet ctx wid wname credentials = db & \DBLayer{..} -> do
-    let g  = defaultAddressPoolGap
-    let s = mkSeqStateFromRootXPrv @n credentials purposeBIP44 g
-    let (hist, cp) = initWallet block0 s
-    now <- lift getCurrentTime
-    let meta = WalletMetadata
-            { name = wname
-            , creationTime = now
-            , passphraseInfo = Nothing
-            }
-    mapExceptT atomically $
-        initializeWallet wid cp meta hist gp $> wid
+createIcarusWallet ctx wid wname credentials =
+    db & \DBLayer {..} -> do
+        let g = defaultAddressPoolGap
+        let s = mkSeqStateFromRootXPrv @n credentials purposeBIP44 g
+        let (hist, cp) = initWallet block0 s
+        now <- lift getCurrentTime
+        let meta =
+                WalletMetadata
+                    { name = wname
+                    , creationTime = now
+                    , passphraseInfo = Nothing
+                    }
+        withExceptT (const $ ErrWalletAlreadyExists wid)
+            $ mapExceptT atomically
+            $ initializeWallet wid cp meta hist gp $> wid
   where
     db = ctx ^. dbLayer @IO @s @k
     (block0, NetworkParameters gp _sp _pp) = ctx ^. genesisData
@@ -865,6 +874,13 @@ walletSyncProgress ctx w = do
   where
     nl = ctx ^. networkLayer
 
+mkNoSuchWalletError
+    :: Functor m
+    => WalletId
+    -> ExceptT e m a
+    -> ExceptT ErrNoSuchWallet m a
+mkNoSuchWalletError wid = withExceptT (\_ -> ErrNoSuchWallet wid)
+
 -- | Update a wallet's metadata with the given update function.
 updateWallet
     :: forall ctx s k.
@@ -876,7 +892,7 @@ updateWallet
     -> ExceptT ErrNoSuchWallet IO ()
 updateWallet ctx wid modify = db & \DBLayer{..} -> mapExceptT atomically $ do
     meta <- fmap fst . withNoSuchWallet wid $ readWalletMeta wid
-    putWalletMeta wid (modify meta)
+    mkNoSuchWalletError wid $ putWalletMeta wid (modify meta)
   where
     db = ctx ^. dbLayer @IO @s @k
 
@@ -1069,7 +1085,7 @@ rollbackBlocks
     -> WalletId
     -> Slot
     -> ExceptT ErrNoSuchWallet IO ChainPoint
-rollbackBlocks ctx wid point = db & \DBLayer{..} -> do
+rollbackBlocks ctx wid point = db & \DBLayer{..} -> mkNoSuchWalletError wid $ do
     mapExceptT atomically $ rollbackTo wid point
   where
     db = ctx ^. dbLayer @IO @s @k
@@ -1177,21 +1193,23 @@ restoreBlocks ctx tr wid blocks nodeTip = db & \DBLayer{..} ->
         forM_ mcbor $ \cbor -> do
             traceWith tr $ MsgStoringCBOR cbor
 
-    putTxHistory wid txs
+    mkNoSuchWalletError wid $ putTxHistory wid txs
 
-    rollForwardTxSubmissions wid (localTip ^. #slotNo)
+    mkNoSuchWalletError wid
+        $ rollForwardTxSubmissions wid (localTip ^. #slotNo)
         $ fmap (\(tx,meta) -> (meta ^. #slotNo, txId tx)) txs
 
-    forM_ slotPoolDelegations $ \delegation@(slotNo, cert) -> do
-        liftIO $ logDelegation delegation
-        putDelegationCertificate wid cert slotNo
+    mkNoSuchWalletError wid
+        $ forM_ slotPoolDelegations $ \delegation@(slotNo, cert) -> do
+            liftIO $ logDelegation delegation
+            putDelegationCertificate wid cert slotNo
 
     liftIO $ mapM_ logCheckpoint cpsKeep
 
     ExceptT $ modifyDBMaybe walletsDB $
         adjustNoSuchWallet wid id $ \_ -> Right ( delta, () )
 
-    prune wid epochStability finalitySlot
+    mkNoSuchWalletError wid $ prune wid epochStability finalitySlot
 
     liftIO $ do
         traceWith tr $ MsgDiscoveredTxs txs
@@ -1372,7 +1390,7 @@ manageRewardBalance tr' netLayer db@DBLayer{..} wid = do
          traceWith tr $ MsgRewardBalanceResult query
          case query of
             Right amt -> do
-                res <- atomically $ runExceptT $
+                res <- atomically $ runExceptT $ mkNoSuchWalletError wid $
                     putDelegationRewardBalance wid amt
                 -- It can happen that the wallet doesn't exist _yet_, whereas we
                 -- already have a reward balance. If that's the case, we log and
@@ -2038,7 +2056,7 @@ buildSignSubmitTransaction ti db@DBLayer{..} netLayer txLayer pwd walletId
                             )
                         )
 
-            addTxSubmission walletId builtTx slot
+            mkNoSuchWalletError walletId (addTxSubmission walletId builtTx slot)
                 & throwWrappedErr wrapNoWalletForSubmit
 
             pure txWithSlot
@@ -2484,7 +2502,7 @@ submitTx tr DBLayer{addTxSubmission, atomically}
     traceResult (MsgWallet . MsgTxSubmit . MsgSubmitTx tx >$< tr) $ do
         withExceptT ErrSubmitTxNetwork $ postTx nw builtSealedTx
         withExceptT ErrSubmitTxNoSuchWallet $
-            mapExceptT atomically $
+            mapExceptT atomically $ mkNoSuchWalletError walletId $
                 addTxSubmission walletId tx (builtTxMeta ^. #slotNo)
 
 -- | Broadcast an externally-signed transaction to the network.
@@ -2703,21 +2721,28 @@ listAssets ctx wid = db & \DBLayer{..} -> do
 
 -- | Get transaction and metadata from history for a given wallet.
 getTransaction
-    :: forall ctx s k. HasDBLayer IO s k ctx
+    :: forall ctx s k
+     . HasDBLayer IO s k ctx
     => ctx
     -> WalletId
     -> Hash "Tx"
     -> ExceptT ErrGetTransaction IO TransactionInfo
-getTransaction ctx wid tid = db & \DBLayer{..} -> do
-    res <- lift $ atomically $ runExceptT $ getTx wid tid
-    case res of
-        Left err -> do
-            throwE (ErrGetTransactionNoSuchWallet err)
-        Right Nothing -> do
-            let err' = ErrNoSuchTransaction wid tid
-            throwE (ErrGetTransactionNoSuchTransaction err')
-        Right (Just tx) ->
-            pure tx
+getTransaction ctx wid tid =
+    db & \DBLayer {..} -> do
+        res <-
+            lift
+                $ atomically
+                $ runExceptT
+                $ mkNoSuchWalletError wid
+                $ getTx wid tid
+        case res of
+            Left err -> do
+                throwE (ErrGetTransactionNoSuchWallet err)
+            Right Nothing -> do
+                let err' = ErrNoSuchTransaction wid tid
+                throwE (ErrGetTransactionNoSuchTransaction err')
+            Right (Just tx) ->
+                pure tx
   where
     db = ctx ^. dbLayer @IO @s @k
 
@@ -2839,10 +2864,15 @@ calcMinimumDeposit
     -> NetworkLayer IO Read.Block
     -> WalletId
     -> IO Coin
-calcMinimumDeposit DBLayer{..}  netLayer wid =
-    throwInIO $ mapExceptT atomically (isStakeKeyRegistered wid) >>= \case
-        True -> pure $ Coin 0
-        False -> liftIO $ stakeKeyDeposit <$> currentProtocolParameters netLayer
+calcMinimumDeposit DBLayer {..} netLayer wid =
+    throwInIO
+        $ mkNoSuchWalletError wid
+        $ mapExceptT atomically (isStakeKeyRegistered wid) >>= \case
+            True -> pure $ Coin 0
+            False ->
+                liftIO
+                    $ stakeKeyDeposit
+                        <$> currentProtocolParameters netLayer
   where
     throwInIO :: forall a. ExceptT ErrNoSuchWallet IO a -> IO a
     throwInIO = runExceptT >=> either (throwIO . ExceptionNoSuchWallet) pure
@@ -3043,7 +3073,7 @@ attachPrivateKey
 attachPrivateKey db wid (xprv, hpwd) scheme = db & \DBLayer{..} -> do
     now <- liftIO getCurrentTime
     mapExceptT atomically $ do
-        putPrivateKey wid (xprv, hpwd)
+        mkNoSuchWalletError wid $ putPrivateKey wid (xprv, hpwd)
         meta <- withNoSuchWallet wid $ readWalletMeta wid
         let modify x = x
                 { passphraseInfo = Just $ WalletPassphraseInfo
@@ -3051,7 +3081,7 @@ attachPrivateKey db wid (xprv, hpwd) scheme = db & \DBLayer{..} -> do
                     , passphraseScheme = scheme
                     }
                 }
-        putWalletMeta wid (modify $ fst meta)
+        mkNoSuchWalletError wid $ putWalletMeta wid (modify $ fst meta)
 
 -- | Execute an action which requires holding a root XPrv.
 --

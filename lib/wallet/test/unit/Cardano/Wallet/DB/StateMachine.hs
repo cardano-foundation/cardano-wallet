@@ -10,6 +10,7 @@
 {-# LANGUAGE GADTs #-}
 {-# LANGUAGE KindSignatures #-}
 {-# LANGUAGE LambdaCase #-}
+{-# LANGUAGE NoMonomorphismRestriction #-}
 {-# LANGUAGE RankNTypes #-}
 {-# LANGUAGE RecordWildCards #-}
 {-# LANGUAGE ScopedTypeVariables #-}
@@ -56,8 +57,10 @@ import Cardano.Address.Script
     ( ScriptTemplate (..) )
 import Cardano.Pool.Types
     ( PoolId (..) )
+import Cardano.Wallet
+    ( mkNoSuchWalletError )
 import Cardano.Wallet.DB
-    ( DBLayer (..), ErrWalletAlreadyExists (..) )
+    ( DBLayer (..), ErrWalletAlreadyInitialized (ErrWalletAlreadyInitialized) )
 import Cardano.Wallet.DB.Arbitrary
     ( GenState, GenTxHistory (..), InitialCheckpoint (..) )
 import Cardano.Wallet.DB.Pure.Implementation
@@ -66,10 +69,10 @@ import Cardano.Wallet.DB.Pure.Implementation
     , TxHistory
     , WalletDatabase (..)
     , emptyDatabase
+    , mGetWalletId
     , mInitializeWallet
     , mIsStakeKeyRegistered
     , mListCheckpoints
-    , mListWallets
     , mPutCheckpoint
     , mPutDelegationCertificate
     , mPutDelegationRewardBalance
@@ -340,7 +343,7 @@ unMockPrivKeyHash = PassphraseHash .  BA.convert . B8.pack
 
 data Cmd s wid
     = CreateWallet MWid (Wallet s) WalletMetadata TxHistory GenesisParameters
-    | ListWallets
+    | GetWalletId
     | PutCheckpoint wid (Wallet s)
     | ReadCheckpoint wid
     | ListCheckpoints wid
@@ -367,7 +370,7 @@ data Cmd s wid
 data Success s wid
     = Unit ()
     | NewWallet wid
-    | WalletIds [wid]
+    | WalletId' wid
     | Checkpoint (Maybe (Wallet s))
     | Metadata (Maybe WalletMetadata)
     | TxHistory [TransactionInfo]
@@ -381,18 +384,18 @@ data Success s wid
     deriving stock (Show, Generic1, Eq, Functor, Foldable, Traversable)
 
 newtype Resp s wid
-    = Resp (Either (Err wid) (Success s wid))
+    = Resp (Either Err (Success s wid))
     deriving (Show, Eq)
 
 instance Functor (Resp s) where
-    fmap f (Resp r) = Resp (bimap (fmap f) (fmap f) r)
+    fmap f (Resp r) = Resp (fmap (fmap f) r)
 
 instance Foldable (Resp s) where
-    foldMap f (Resp r) = either (foldMap f) (foldMap f) r
+    foldMap f (Resp r) = either mempty (foldMap f) r
 
 instance Traversable (Resp s) where
     traverse f (Resp (Right r)) = Resp . Right <$> traverse f r
-    traverse f (Resp (Left e)) = Resp . Left <$> traverse f e
+    traverse _f (Resp (Left e)) = pure $ Resp . Left $ e
 
 {-------------------------------------------------------------------------------
   Interpreter: mock implementation
@@ -403,46 +406,46 @@ runMock = \case
     CreateWallet wid wal meta txs gp ->
         first (Resp . fmap (const (NewWallet wid)))
             . mInitializeWallet wid wal meta txs gp
-    ListWallets ->
-        first (Resp . fmap WalletIds) . mListWallets
-    PutCheckpoint wid wal ->
-        first (Resp . fmap Unit) . mPutCheckpoint wid wal
-    ListCheckpoints wid ->
-        first (Resp . fmap ChainPoints) . mListCheckpoints wid
-    ReadCheckpoint wid ->
-        first (Resp . fmap Checkpoint) . mReadCheckpoint wid
-    PutWalletMeta wid meta ->
-        first (Resp . fmap Unit) . mPutWalletMeta wid meta
-    ReadWalletMeta wid ->
+    GetWalletId ->
+        first (Resp . fmap WalletId') . mGetWalletId
+    PutCheckpoint _wid wal ->
+        first (Resp . fmap Unit) . mPutCheckpoint wal
+    ListCheckpoints _wid ->
+        first (Resp . fmap ChainPoints) . mListCheckpoints
+    ReadCheckpoint _wid ->
+        first (Resp . fmap Checkpoint) . mReadCheckpoint
+    PutWalletMeta _wid meta ->
+        first (Resp . fmap Unit) . mPutWalletMeta meta
+    ReadWalletMeta _wid ->
         first (Resp . fmap (Metadata . fmap fst) )
-            . mReadWalletMeta timeInterpreter wid
-    PutDelegationCertificate wid cert sl ->
-        first (Resp . fmap Unit) . mPutDelegationCertificate wid cert sl
-    IsStakeKeyRegistered wid ->
-        first (Resp . fmap StakeKeyStatus) . mIsStakeKeyRegistered wid
-    PutTxHistory wid txs ->
-        first (Resp . fmap Unit) . mPutTxHistory wid txs
-    ReadTxHistory wid minW order range status ->
+            . mReadWalletMeta timeInterpreter
+    PutDelegationCertificate _wid cert sl ->
+        first (Resp . fmap Unit) . mPutDelegationCertificate cert sl
+    IsStakeKeyRegistered _wid ->
+        first (Resp . fmap StakeKeyStatus) . mIsStakeKeyRegistered
+    PutTxHistory _wid txs ->
+        first (Resp . fmap Unit) . mPutTxHistory txs
+    ReadTxHistory _wid minW order range status ->
         first (Resp . fmap TxHistory)
-        . mReadTxHistory timeInterpreter wid minW order range status
+        . mReadTxHistory timeInterpreter minW order range status
     GetTx _wid _tid ->
         first (Resp . fmap (TxHistory . maybe [] pure))
         -- TODO: Implement mGetTx
         -- . mGetTx wid tid
         . (Right Nothing,)
-    PutPrivateKey wid pk ->
-        first (Resp . fmap Unit) . mPutPrivateKey wid pk
-    ReadPrivateKey wid ->
-        first (Resp . fmap PrivateKey) . mReadPrivateKey wid
-    ReadGenesisParameters wid ->
-        first (Resp . fmap GenesisParams) . mReadGenesisParameters wid
-    PutDelegationRewardBalance wid amt ->
-        first (Resp . fmap Unit) . mPutDelegationRewardBalance wid amt
-    ReadDelegationRewardBalance wid ->
+    PutPrivateKey _wid pk ->
+        first (Resp . fmap Unit) . mPutPrivateKey pk
+    ReadPrivateKey _wid ->
+        first (Resp . fmap PrivateKey) . mReadPrivateKey
+    ReadGenesisParameters _wid ->
+        first (Resp . fmap GenesisParams) . mReadGenesisParameters
+    PutDelegationRewardBalance _wid amt ->
+        first (Resp . fmap Unit) . mPutDelegationRewardBalance amt
+    ReadDelegationRewardBalance _wid ->
         first (Resp . fmap DelegationRewardBalance)
-        . mReadDelegationRewardBalance wid
-    RollbackTo wid point ->
-        first (Resp . fmap Point) . mRollbackTo wid point
+        . mReadDelegationRewardBalance
+    RollbackTo _wid point ->
+        first (Resp . fmap Point) . mRollbackTo point
   where
     timeInterpreter = dummyTimeInterpreter
 
@@ -457,64 +460,66 @@ runIO
     -> m (Resp s WalletId)
 runIO DBLayer{..} = fmap Resp . go
   where
+
+    runDB wid atomically' = mapExceptT atomically' . mkNoSuchWalletError wid
     go
         :: Cmd s WalletId
-        -> m (Either (Err WalletId) (Success s WalletId))
+        -> m (Either Err (Success s WalletId))
     go = \case
         CreateWallet wid wal meta txs gp ->
             catchWalletAlreadyExists (const (NewWallet (unMockWid wid))) $
             mapExceptT atomically $
             initializeWallet (unMockWid wid) wal meta txs gp
-        ListWallets -> Right . WalletIds <$>
-            atomically listWallets
+        GetWalletId -> bimap (const WalletNotInitialized) WalletId'
+            <$> atomically (runExceptT getWalletId)
         PutCheckpoint wid wal -> catchNoSuchWallet Unit $
-            mapExceptT atomically $ putCheckpoint wid wal
+            runDB wid atomically $ putCheckpoint wid wal
         ReadCheckpoint wid -> Right . Checkpoint <$>
             atomically (readCheckpoint wid)
         ListCheckpoints wid -> Right . ChainPoints <$>
             atomically (listCheckpoints wid)
         PutWalletMeta wid meta -> catchNoSuchWallet Unit $
-            mapExceptT atomically $ putWalletMeta wid meta
+            runDB wid atomically$ putWalletMeta wid meta
         ReadWalletMeta wid -> fmap (Right . (Metadata . fmap fst)) $
             atomically $ readWalletMeta wid
         PutDelegationCertificate wid pool sl -> catchNoSuchWallet Unit $
-            mapExceptT atomically $ putDelegationCertificate wid pool sl
+            runDB wid atomically $ putDelegationCertificate wid pool sl
         IsStakeKeyRegistered wid -> catchNoSuchWallet StakeKeyStatus $
-            mapExceptT atomically $ isStakeKeyRegistered wid
+            runDB wid atomically $ isStakeKeyRegistered wid
         PutTxHistory wid txs -> catchNoSuchWallet Unit $
-            mapExceptT atomically $ putTxHistory wid txs
+            runDB wid atomically $ putTxHistory wid txs
         ReadTxHistory wid minWith order range status ->
             fmap (Right . TxHistory) $
             atomically $
             readTransactions wid minWith order range status Nothing
         GetTx wid tid ->
             catchNoSuchWallet (TxHistory . maybe [] pure) $
-            mapExceptT atomically $ getTx wid tid
+            runDB wid atomically $ getTx wid tid
         PutPrivateKey wid pk -> catchNoSuchWallet Unit $
-            mapExceptT atomically $
+            runDB wid atomically $
             putPrivateKey wid (fromMockPrivKey pk)
         ReadPrivateKey wid -> Right . PrivateKey . fmap toMockPrivKey <$>
             atomically (readPrivateKey wid)
         ReadGenesisParameters wid -> Right . GenesisParams <$>
             atomically (readGenesisParameters wid)
         PutDelegationRewardBalance wid amt -> catchNoSuchWallet Unit $
-            mapExceptT atomically $
+            runDB wid atomically $
             putDelegationRewardBalance wid amt
         ReadDelegationRewardBalance wid -> Right . DelegationRewardBalance <$>
             atomically (readDelegationRewardBalance wid)
         RollbackTo wid sl -> catchNoSuchWallet Point $
-            mapExceptT atomically $ rollbackTo wid sl
+            runDB wid atomically $ rollbackTo wid sl
 
     catchWalletAlreadyExists f =
         fmap (bimap errWalletAlreadyExists f) . runExceptT
     catchNoSuchWallet f =
         fmap (bimap errNoSuchWallet f) . runExceptT
 
-    errNoSuchWallet :: ErrNoSuchWallet -> Err WalletId
-    errNoSuchWallet (ErrNoSuchWallet wid) = NoSuchWallet wid
+    errNoSuchWallet :: ErrNoSuchWallet -> Err
+    errNoSuchWallet (ErrNoSuchWallet _wid) = WalletAlreadyInitialized
 
-    errWalletAlreadyExists :: ErrWalletAlreadyExists -> Err WalletId
-    errWalletAlreadyExists (ErrWalletAlreadyExists wid) = WalletAlreadyExists wid
+    errWalletAlreadyExists :: ErrWalletAlreadyInitialized -> Err
+    errWalletAlreadyExists ErrWalletAlreadyInitialized = WalletAlreadyInitialized
 
 {-------------------------------------------------------------------------------
   Working with references
@@ -634,7 +639,7 @@ generatorWithWid
     -> [(String, (Int, Gen (Cmd s (Reference WalletId r))))]
 generatorWithWid wids =
     [ declareGenerator "ListWallets" 5
-        $ pure ListWallets
+        $ pure GetWalletId
     , declareGenerator "PutCheckpoints" 5
         $ PutCheckpoint <$> genId <*> arbitrary
     , declareGenerator "ReadCheckpoint" 5
@@ -995,9 +1000,7 @@ instance ToExpr RewardAccount where
 
 -- | Interesting combinations of commands.
 data Tag
-    = CreateThreeWallets
-      -- ^ Three different wallets created.
-    | CreateWalletTwice
+    = CreateWalletTwice
       -- ^ The same wallet id is used twice.
     | CreateThenList
     | SuccessfulReadTxHistory
@@ -1023,8 +1026,7 @@ allTags = enumerate
 
 tag :: forall s. [Event s Symbolic] -> [Tag]
 tag = Foldl.fold $ catMaybes <$> sequenceA
-    [ createThreeWallets
-    , createWalletTwice
+    [ createWalletTwice
     , createThenList
     , readTransactions (not . null) SuccessfulReadTxHistory
     , readTransactions null UnsuccessfulReadTxHistory
@@ -1043,22 +1045,6 @@ tag = Foldl.fold $ catMaybes <$> sequenceA
             Just (wids ! wid)
         _otherwise ->
             Nothing
-
-    createThreeWallets :: Fold (Event s Symbolic) (Maybe Tag)
-    createThreeWallets = Fold update Set.empty extract
-      where
-        update :: Set MWid -> Event s Symbolic -> Set MWid
-        update created ev =
-            case (cmd ev, mockResp ev) of
-                (At (CreateWallet wid _ _ _ _), Resp (Right _)) ->
-                    Set.insert wid created
-                _otherwise ->
-                    created
-
-        extract :: Set MWid -> Maybe Tag
-        extract created
-            | Set.size created >= 3 = Just CreateThreeWallets
-            | otherwise = Nothing
 
     createWalletTwice :: Fold (Event s Symbolic) (Maybe Tag)
     createWalletTwice = countAction CreateWalletTwice (>= 2) match
@@ -1105,8 +1091,8 @@ tag = Foldl.fold $ catMaybes <$> sequenceA
             case (cmd ev, mockResp ev) of
                 (At (CreateWallet wid _ _ _ _), Resp (Right _)) ->
                     Map.insert wid False created
-                (At ListWallets, Resp (Right (WalletIds wids))) ->
-                    foldr (Map.adjust (const True)) created wids
+                (At GetWalletId, Resp (Right (WalletId' wid))) ->
+                    foldr (Map.adjust (const True)) created [wid]
                 _otherwise ->
                     created
 

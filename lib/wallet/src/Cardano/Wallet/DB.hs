@@ -185,13 +185,13 @@ data DBLayer m s k = forall stm. (MonadIO stm, MonadFail stm) => DBLayer
         -> WalletMetadata
         -> [(Tx, TxMeta)]
         -> GenesisParameters
-        -> ExceptT ErrWalletAlreadyExists stm ()
+        -> ExceptT ErrWalletAlreadyInitialized stm ()
         -- ^ Initialize a database entry for a given wallet. 'putCheckpoint',
         -- 'putWalletMeta', 'putTxHistory' or 'putProtocolParameters' will
         -- actually all fail if they are called _first_ on a wallet.
 
-    , listWallets
-        :: stm [WalletId]
+    , getWalletId
+        :: ExceptT ErrWalletNotInitialized stm WalletId
         -- ^ Get the list of all known wallets in the DB, possibly empty.
 
     , walletsDB
@@ -206,7 +206,7 @@ data DBLayer m s k = forall stm. (MonadIO stm, MonadFail stm) => DBLayer
     , putCheckpoint
         :: WalletId
         -> Wallet s
-        -> ExceptT ErrNoSuchWallet stm ()
+        -> ExceptT ErrWalletNotInitialized stm ()
         -- ^ Replace the current checkpoint for a given wallet. We do not handle
         -- rollbacks yet, and therefore only stores the latest available
         -- checkpoint.
@@ -229,7 +229,7 @@ data DBLayer m s k = forall stm. (MonadIO stm, MonadFail stm) => DBLayer
     , putWalletMeta
         :: WalletId
         -> WalletMetadata
-        -> ExceptT ErrNoSuchWallet stm ()
+        -> ExceptT ErrWalletNotInitialized stm ()
         -- ^ Replace an existing wallet metadata with the given one.
         --
         -- If the wallet doesn't exist, this operation returns an error
@@ -243,13 +243,13 @@ data DBLayer m s k = forall stm. (MonadIO stm, MonadFail stm) => DBLayer
 
     , isStakeKeyRegistered
         :: WalletId
-        -> ExceptT ErrNoSuchWallet stm Bool
+        -> ExceptT ErrWalletNotInitialized stm Bool
 
     , putDelegationCertificate
         :: WalletId
         -> DelegationCertificate
         -> SlotNo
-        -> ExceptT ErrNoSuchWallet stm ()
+        -> ExceptT ErrWalletNotInitialized stm ()
         -- ^ Binds a stake pool id to a wallet. This will have an influence on
         -- the wallet metadata: the last known certificate will indicate to
         -- which pool a wallet is currently delegating.
@@ -263,7 +263,7 @@ data DBLayer m s k = forall stm. (MonadIO stm, MonadFail stm) => DBLayer
     , putDelegationRewardBalance
         :: WalletId
         -> Coin
-        -> ExceptT ErrNoSuchWallet stm ()
+        -> ExceptT ErrWalletNotInitialized stm ()
         -- ^ Store the latest known reward account balance.
         --
         -- This is separate from checkpoints because the data corresponds to the
@@ -281,7 +281,7 @@ data DBLayer m s k = forall stm. (MonadIO stm, MonadFail stm) => DBLayer
     , putTxHistory
         :: WalletId
         -> [(Tx, TxMeta)]
-        -> ExceptT ErrNoSuchWallet stm ()
+        -> ExceptT ErrWalletNotInitialized stm ()
         -- ^ Augments the transaction history for a known wallet.
         --
         -- If an entry for a particular transaction already exists it is not
@@ -305,7 +305,7 @@ data DBLayer m s k = forall stm. (MonadIO stm, MonadFail stm) => DBLayer
     , getTx
         :: WalletId
         -> Hash "Tx"
-        -> ExceptT ErrNoSuchWallet stm (Maybe TransactionInfo)
+        -> ExceptT ErrWalletNotInitialized stm (Maybe TransactionInfo)
         -- ^ Fetch the latest transaction by id, returns Nothing when the
         -- transaction isn't found.
         --
@@ -315,7 +315,7 @@ data DBLayer m s k = forall stm. (MonadIO stm, MonadFail stm) => DBLayer
         :: WalletId
         -> BuiltTx
         -> SlotNo
-        -> ExceptT ErrNoSuchWallet stm ()
+        -> ExceptT ErrWalletNotInitialized stm ()
         -- ^ Add a /new/ transaction to the local submission pool
         -- with the most recent submission slot.
 
@@ -324,7 +324,7 @@ data DBLayer m s k = forall stm. (MonadIO stm, MonadFail stm) => DBLayer
         -> Hash "Tx"
         -> SealedTx -- TODO: ADP-2596 really not needed
         -> SlotNo
-        -> ExceptT ErrNoSuchWallet stm ()
+        -> ExceptT ErrWalletNotInitialized stm ()
         -- ^ Resubmit a transaction.
 
     , readLocalTxSubmissionPending
@@ -339,7 +339,7 @@ data DBLayer m s k = forall stm. (MonadIO stm, MonadFail stm) => DBLayer
         :: WalletId
         -> SlotNo
         -> [(SlotNo, Hash "Tx")]
-        -> ExceptT ErrNoSuchWallet stm ()
+        -> ExceptT ErrWalletNotInitialized stm ()
         -- ^ Removes any expired transactions from the pending set and marks
         -- their status as expired.
 
@@ -352,7 +352,7 @@ data DBLayer m s k = forall stm. (MonadIO stm, MonadFail stm) => DBLayer
     , putPrivateKey
         :: WalletId
         -> (k 'RootK XPrv, PassphraseHash)
-        -> ExceptT ErrNoSuchWallet stm ()
+        -> ExceptT ErrWalletNotInitialized stm ()
         -- ^ Store or replace a private key for a given wallet. Note that wallet
         -- _could_ be stored and manipulated without any private key associated
         -- to it. A private key is only seldomly required for very specific
@@ -372,7 +372,7 @@ data DBLayer m s k = forall stm. (MonadIO stm, MonadFail stm) => DBLayer
     , rollbackTo
         :: WalletId
         -> Slot
-        -> ExceptT ErrNoSuchWallet stm ChainPoint
+        -> ExceptT ErrWalletNotInitialized stm ChainPoint
         -- ^ Drops all checkpoints and transaction data which
         -- have appeared after the given 'ChainPoint'.
         --
@@ -385,7 +385,7 @@ data DBLayer m s k = forall stm. (MonadIO stm, MonadFail stm) => DBLayer
         :: WalletId
         -> Quantity "block" Word32
         -> SlotNo
-        -> ExceptT ErrNoSuchWallet stm ()
+        -> ExceptT ErrWalletNotInitialized stm ()
         -- ^ Prune database entities and remove entities that can be discarded.
         --
         -- The second argument represents the stability window, or said
@@ -441,12 +441,12 @@ data DBLayerCollection stm m s k = DBLayerCollection
     , rollbackTo_
         :: WalletId
         -> Slot
-        -> ExceptT ErrNoSuchWallet stm ChainPoint
+        -> ExceptT ErrWalletNotInitialized stm ChainPoint
     , prune_
         :: WalletId
         -> Quantity "block" Word32
         -> SlotNo
-        -> ExceptT ErrNoSuchWallet stm ()
+        -> ExceptT ErrWalletNotInitialized stm ()
     , atomically_
         :: forall a. stm a -> m a
     }
@@ -460,7 +460,7 @@ mkDBLayerFromParts
     -> DBLayer m s k
 mkDBLayerFromParts ti DBLayerCollection{..} = DBLayer
     { initializeWallet = initializeWallet_ dbWallets
-    , listWallets = listWallets_ dbWallets
+    , getWalletId = getWalletId_ dbWallets
     , walletsDB = walletsDB_ dbCheckpoints
     , putCheckpoint = putCheckpoint_ dbCheckpoints
     , readCheckpoint = readCheckpoint'
@@ -530,17 +530,20 @@ mkDBLayerFromParts ti DBLayerCollection{..} = DBLayer
                             (mkDecorator_ dbTxHistory) tip
                                 . fmap snd
             Nothing -> pure Nothing
-    , addTxSubmission = \wid builtTx slotNo  -> updateSubmissions' wid id
+    , addTxSubmission = \wid builtTx slotNo  -> updateSubmissions' wid
+            mapNoSuchWallet
             $ \_ -> Right [Sbms.addTxSubmission builtTx slotNo]
     , readLocalTxSubmissionPending = \wid -> withSubmissions wid [] $ \xs -> do
         pure $ filter (has $ txStatus . _InSubmission) $
             getInSubmissionTransactions xs
-    , resubmitTx = \wid hash _ slotNo -> updateSubmissions' wid id
+    , resubmitTx = \wid hash _ slotNo -> updateSubmissions' wid mapNoSuchWallet
             $ Right . Sbms.resubmitTx hash slotNo
-    , rollForwardTxSubmissions = \wid tip txs -> updateSubmissions' wid id
+    , rollForwardTxSubmissions = \wid tip txs -> updateSubmissions' wid
+            mapNoSuchWallet
             $ \_ -> Right [Sbms.rollForwardTxSubmissions tip txs]
     , removePendingOrExpiredTx = \wid txid ->
-            updateSubmissions' wid ErrRemoveTxNoSuchWallet $ \xs ->
+            updateSubmissions' wid (ErrRemoveTxNoSuchWallet . mapNoSuchWallet)
+                $ \xs ->
                 pure <$> Sbms.removePendingOrExpiredTx xs wid txid
     , putPrivateKey = \wid a -> wrapNoSuchWallet wid $
         putPrivateKey_ (dbPrivateKey wid) a
@@ -558,16 +561,16 @@ mkDBLayerFromParts ti DBLayerCollection{..} = DBLayer
         case mstate of
             Nothing -> pure def
             Just state -> action $ submissions state
-
+    mapNoSuchWallet _ = ErrWalletNotInitialized
     updateSubmissions' = updateSubmissions dbCheckpoints
     readCheckpoint' = readCheckpoint_ dbCheckpoints
     wrapNoSuchWallet
         :: WalletId
         -> stm a
-        -> ExceptT ErrNoSuchWallet stm a
+        -> ExceptT ErrWalletNotInitialized stm a
     wrapNoSuchWallet wid action = ExceptT $
         hasWallet_ dbWallets wid >>= \case
-            False -> pure $ Left $ ErrNoSuchWallet wid
+            False -> pure $ Left ErrWalletNotInitialized
             True  -> Right <$> action
 
     readCurrentTip :: WalletId -> stm (Maybe BlockHeader)
@@ -598,7 +601,7 @@ data DBWallets stm s = DBWallets
         -> WalletMetadata
         -> [(Tx, TxMeta)]
         -> GenesisParameters
-        -> ExceptT ErrWalletAlreadyExists stm ()
+        -> ExceptT ErrWalletAlreadyInitialized stm ()
         -- ^ Initialize a database entry for a given wallet. 'putCheckpoint',
         -- 'putWalletMeta', 'putTxHistory' or 'putProtocolParameters' will
         -- actually all fail if they are called _first_ on a wallet.
@@ -608,9 +611,9 @@ data DBWallets stm s = DBWallets
         -> stm (Maybe GenesisParameters)
         -- ^ Read the *Byron* genesis parameters.
 
-    , listWallets_
-        :: stm [WalletId]
-        -- ^ Get the list of all known wallets in the DB, possibly empty.
+    , getWalletId_
+        :: ExceptT ErrWalletNotInitialized stm WalletId
+        -- ^ Get the 'WalletId' of the wallet stored in the DB.
 
     , hasWallet_
         :: WalletId
@@ -633,7 +636,7 @@ data DBCheckpoints stm s = DBCheckpoints
     , putCheckpoint_
         :: WalletId
         -> Wallet s
-        -> ExceptT ErrNoSuchWallet stm ()
+        -> ExceptT ErrWalletNotInitialized stm ()
         -- ^ Replace the current checkpoint for a given wallet. We do not handle
         -- rollbacks yet, and therefore only stores the latest available
         -- checkpoint.
@@ -659,7 +662,7 @@ data DBWalletMeta stm = DBWalletMeta
     { putWalletMeta_
         :: WalletId
         -> WalletMetadata
-        -> ExceptT ErrNoSuchWallet stm ()
+        -> ExceptT ErrWalletNotInitialized stm ()
         -- ^ Replace an existing wallet metadata with the given one.
         --
         -- If the wallet doesn't exist, this operation returns an error
