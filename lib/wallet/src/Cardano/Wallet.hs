@@ -2891,7 +2891,7 @@ delegationFee
     --
     feePercentiles <- transactionFee @s @k @n
         db protocolParams txLayer ti era changeAddressGen
-        walletId defaultTransactionCtx
+        walletId defaultTransactionCtx (PreSelection [])
     deposit <-
     -- Calculate the minimum deposit necessary if a given wallet wanted to
     -- delegate to a pool. Said differently, this return either 0, or the value
@@ -2921,9 +2921,10 @@ transactionFee
     -> ChangeAddressGen s
     -> WalletId
     -> TransactionCtx
+    -> PreSelection
     -> ExceptT ErrSelectAssets IO (Percentile 10 Fee, Percentile 90 Fee)
 transactionFee DBLayer{atomically, walletsDB} protocolParams
-    txLayer ti era changeAddressGen walletId txCtx = do
+    txLayer ti era changeAddressGen walletId txCtx preSelection = do
     WriteTx.withRecentEra era $ \(recentEra :: WriteTx.RecentEra era) -> do
         wallet <- lift . atomically $ readDBVar walletsDB >>= \wallets ->
             case Map.lookup walletId wallets of
@@ -2940,7 +2941,7 @@ transactionFee DBLayer{atomically, walletsDB} protocolParams
                     (unsafeShelleyOnlyGetRewardXPub @s @k @n (getState wallet))
                     protocolParams
                     txCtx
-                    (Left (PreSelection []))
+                    (Left preSelection)
 
         -- The 'calculateFeePercentiles' function evaluates its argument
         -- many times (today it is 100) so its performance is sensitive.
