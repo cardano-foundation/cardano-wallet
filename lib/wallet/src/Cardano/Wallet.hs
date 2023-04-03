@@ -2250,7 +2250,7 @@ buildTransactionPure
     unsignedTxBody <-
         withExceptT (Right . ErrConstructTxBody) . except $
             mkUnsignedTransaction txLayer @era
-                (unsafeShelleyOnlyGetRewardXPub (getState wallet))
+                (unsafeShelleyOnlyGetRewardXPub @s @k @n (getState wallet))
                 protocolParams
                 txCtx
                 (Left preSelection)
@@ -2259,7 +2259,7 @@ buildTransactionPure
         balanceTransaction @_ @_ @s
             nullTracer
             (Write.allKeyPaymentCredentials txLayer)
-            nodeProtocolParameters
+            (toBalanceTxPParams protocolParams)
             ti
             utxoIndex
             changeAddrGen
@@ -2270,40 +2270,47 @@ buildTransactionPure
                 , redeemers = []
                 }
 
-  where
-    nodeProtocolParameters =
-        ( protocolParams
-        , maybe
-            (error $ unwords
-                [ "buildAndSignTransactionPure: no nodePParams."
-                , "should only be possible in Byron, where"
-                , "withRecentEra should prevent this to be reached."
-                ])
-            (Cardano.bundleProtocolParams
-                (WriteTx.fromRecentEra (WriteTx.recentEra @era)))
-            $ currentNodeProtocolParameters protocolParams
-        )
+-- HACK: 'mkUnsignedTransaction' takes a reward account 'XPub' even when the
+-- wallet is a Byron wallet, and doesn't actually have a reward account.
+--
+-- 'buildAndSignTransaction' achieves this by deriving the 'XPub' regardless
+-- of wallet type, from the root key. To avoid requiring another
+-- 'withRootKey' call, and to make the sketchy behaviour more explicit, we
+-- make 'buildAndSignTransactionPure' partial instead.
+unsafeShelleyOnlyGetRewardXPub
+    :: forall s (k :: Depth -> Type -> Type) (n :: NetworkDiscriminant)
+     . (Typeable s, Typeable k, Typeable n)
+    => s -> XPub
+unsafeShelleyOnlyGetRewardXPub walletState =
+    fromMaybe notShelleyWallet $ do
+        Refl <- isSeqState
+        Refl <- isShelleyKey
+        pure $ getRawKey $ Seq.rewardAccountKey @n @k walletState
+    where
+    isSeqState = testEquality (typeRep @s) (typeRep @(SeqState n k))
+    isShelleyKey = testEquality (typeRep @k) (typeRep @(ShelleyKey))
+    notShelleyWallet = error $ unwords
+        [ "buildAndSignTransactionPure:"
+        , "can't delegate using non-shelley wallet"
+        ]
 
-    -- HACK: 'mkUnsignedTransaction' takes a reward account 'XPub' even when the
-    -- wallet is a Byron wallet, and doesn't actually have a reward account.
-    --
-    -- 'buildAndSignTransaction' achieves this by deriving the 'XPub' regardless
-    -- of wallet type, from the root key. To avoid requiring another
-    -- 'withRootKey' call, and to make the sketchy behaviour more explicit, we
-    -- make 'buildAndSignTransactionPure' partial instead.
-    unsafeShelleyOnlyGetRewardXPub :: s -> XPub
-    unsafeShelleyOnlyGetRewardXPub walletState =
-        fromMaybe notShelleyWallet $ do
-            Refl <- isSeqState
-            Refl <- isShelleyKey
-            pure $ getRawKey $ Seq.rewardAccountKey walletState
-      where
-        isSeqState = testEquality (typeRep @s) (typeRep @(SeqState n k))
-        isShelleyKey = testEquality (typeRep @k) (typeRep @(ShelleyKey))
-        notShelleyWallet = error $ unwords
-            [ "buildAndSignTransactionPure:"
-            , "can't delegate using non-shelley wallet"
-            ]
+-- | TODO: ADP-2459
+toBalanceTxPParams
+    :: forall era. WriteTx.IsRecentEra era
+    => ProtocolParameters
+    -> (ProtocolParameters, Cardano.BundledProtocolParameters era)
+toBalanceTxPParams pp =
+    ( pp
+    , maybe
+        (error $ unwords
+            [ "toBalanceTxPParams: no nodePParams."
+            , "should only be possible in Byron, where"
+            , "withRecentEra should prevent this to be reached."
+            ])
+        (Cardano.bundleProtocolParams
+            (WriteTx.fromRecentEra (WriteTx.recentEra @era)))
+        $ currentNodeProtocolParameters pp
+    )
 
 -- | Produce witnesses and construct a transaction from a given selection.
 --
@@ -2933,17 +2940,33 @@ transactionFee DBLayer{atomically, walletsDB} netLayer
         let utxoIndex = UTxOIndex.fromMap . CS.toInternalUTxOMap $
                 availableUTxO @s mempty wallet
         pureTimeInterpreter <- lift $ snapshot ti
-        stdGen <- initStdGen
-        calculateFeePercentiles $ do
-            (Cardano.Tx (Cardano.TxBody bodyContent) _, _updatedWallet) <-
-                buildTransactionPure @s @k @n @era
-                    wallet pureTimeInterpreter utxoIndex txLayer
-                    changeAddressGen protocolParams (PreSelection [])
+        unsignedTxBody <- liftIO $
+            either (throwIO . ExceptionConstructTx . ErrConstructTxBody) pure $
+                mkUnsignedTransaction txLayer @era
+                    (unsafeShelleyOnlyGetRewardXPub @s @k @n (getState wallet))
+                    protocolParams
                     defaultTransactionCtx
-                        & runExceptT . withExceptT
-                            (either ExceptionBalanceTx ExceptionConstructTx)
-                        & (`evalRand` stdGen)
-                        & either (liftIO . throwIO) pure
+                    (Left (PreSelection []))
+
+        -- The 'calculateFeePercentiles' function evaluates its argument
+        -- many times (today it is 100) so its performance is sensitive.
+        -- Therefore, we aim to do all the heavy lifting outside of it:
+        calculateFeePercentiles $ do
+            (Cardano.Tx (Cardano.TxBody bodyContent) _, _wallet) <- liftIO $
+                either (throwIO . ExceptionBalanceTx) pure <=< runExceptT $
+                    balanceTransaction @_ @_ @s
+                        nullTracer
+                        (Write.allKeyPaymentCredentials txLayer)
+                        (toBalanceTxPParams protocolParams)
+                        pureTimeInterpreter
+                        utxoIndex
+                        changeAddressGen
+                        (getState wallet)
+                        PartialTx
+                            { tx = Cardano.Tx unsignedTxBody []
+                            , inputs = Cardano.UTxO mempty
+                            , redeemers = []
+                            }
             pure $ case Cardano.txFee bodyContent of
                 Cardano.TxFeeExplicit _ coin -> Fee (fromCardanoLovelace coin)
                 Cardano.TxFeeImplicit Cardano.TxFeesImplicitInByronEra ->
