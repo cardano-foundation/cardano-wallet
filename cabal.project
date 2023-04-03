@@ -146,6 +146,7 @@ allow-newer:
   , ekg:*
   , ntp-client:*
   , libsystemd-journal:base
+  , *:Win32
 
 constraints:
     bimap >= 0.4.0
