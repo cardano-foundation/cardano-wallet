@@ -166,9 +166,10 @@ import Cardano.Mnemonic
 import Cardano.Pool.Types
     ( PoolId )
 import Cardano.Tx.Balance.Internal.CoinSelection
-    ( SelectionOf (..), SelectionStrategy (..), selectionDelta )
+    ( SelectionOf (..), SelectionStrategy (..) )
 import Cardano.Wallet
     ( BuiltTx (..)
+    , DelegationFee (feePercentiles)
     , ErrAddCosignerKey (..)
     , ErrConstructSharedWallet (..)
     , ErrConstructTx (..)
@@ -189,6 +190,7 @@ import Cardano.Wallet
     , TxSubmitLog
     , WalletWorkerLog (..)
     , dbLayer
+    , dummyChangeAddressGen
     , genesisData
     , logger
     , manageRewardBalance
@@ -2344,51 +2346,44 @@ mkApiTransactionFromInfo ti wrk wid deposit info metadataSchema = do
         Expired  -> #pendingSince
 
 postTransactionFeeOld
-    :: forall s k n
+    :: forall s k (n :: NetworkDiscriminant)
      . ( Typeable n
        , Typeable k
        , Typeable s
+       , AddressBookIso s
        , BoundedAddressLength k
        )
     => ApiLayer s k 'CredFromKeyK
     -> ApiT WalletId
     -> PostTransactionFeeOldData n
     -> Handler ApiFee
-postTransactionFeeOld ctx@ApiLayer{..} (ApiT wid) body =
-    withWorkerCtx ctx wid liftE liftE $ \wrk -> do
-        let db = wrk ^. dbLayer
-        era <- liftIO $ NW.currentNodeEra netLayer
+postTransactionFeeOld ctx@ApiLayer{..} (ApiT walletId) body = do
+    protocolParameters <- liftIO $ currentProtocolParameters netLayer
+    era <- liftIO $ NW.currentNodeEra netLayer
+    AnyRecentEra (recentEra :: WriteTx.RecentEra era) <- guardIsRecentEra era
+    withWorkerCtx ctx walletId liftE liftE $ \workerCtx -> do
+        let db = workerCtx ^. dbLayer
         wdrl <- case body ^. #withdrawal of
             Nothing -> pure NoWithdrawal
             Just apiWdrl ->
-                shelleyOnlyMkWithdrawal @s @k @n @'CredFromKeyK
-                    netLayer txLayer db wid era apiWdrl
-        let txCtx = defaultTransactionCtx
+                shelleyOnlyMkWithdrawal @s @k @n
+                    netLayer txLayer db walletId era apiWdrl
+        let outputs = F.toList $ addressAmountToTxOut <$> body ^. #payments
+        minCoins <- liftIO $ W.calcMinimumCoinValues @_ @k @'CredFromKeyK
+            workerCtx era outputs
+        feePercentiles <- liftHandler $ W.transactionFee @s @k @n
+            db
+            protocolParameters
+            txLayer
+            (timeInterpreter netLayer)
+            (AnyRecentEra recentEra)
+            (dummyChangeAddressGen @k)
+            walletId
+            defaultTransactionCtx
                 { txWithdrawal = wdrl
                 , txMetadata = body
                     ^? #metadata . traverse . #txMetadataWithSchema_metadata
                 }
-        (utxoAvailable, wallet, pendingTxs) <-
-            liftHandler $ W.readWalletUTxOIndex @_ @s @k wrk wid
-        let outs = addressAmountToTxOut <$> body ^. #payments
-        pp <- liftIO $ NW.currentProtocolParameters netLayer
-        let selectAssetsParams = W.SelectAssetsParams
-                { outputs = F.toList outs
-                , pendingTxs
-                , randomSeed = Nothing
-                , txContext = txCtx
-                , utxoAvailableForInputs = UTxOSelection.fromIndex utxoAvailable
-                , utxoAvailableForCollateral = UTxOIndex.toMap utxoAvailable
-                , wallet
-                , selectionStrategy = SelectionStrategyOptimal
-                }
-        let estimateFee = W.selectAssets @_ @s @k @'CredFromKeyK
-                (MsgWallet . W.MsgBalanceTx >$< wrk ^. logger)
-                txLayer era pp selectAssetsParams $ \_state ->
-                    Fee . selectionDelta TokenBundle.getCoin
-        feePercentiles <- liftHandler $ W.calculateFeePercentiles estimateFee
-        minCoins <- liftIO $
-            W.calcMinimumCoinValues @_ @k @'CredFromKeyK wrk era (F.toList outs)
         pure $ mkApiFee Nothing minCoins feePercentiles
 
 constructTransaction
@@ -3512,13 +3507,14 @@ delegationFee
     -> ApiT WalletId
     -> Handler ApiFee
 delegationFee ctx@ApiLayer{..} (ApiT walletId) = do
+    protocolParams <- liftIO $ NW.currentProtocolParameters netLayer
     era <- liftIO $ NW.currentNodeEra netLayer
     AnyRecentEra (recentEra :: WriteTx.RecentEra era) <- guardIsRecentEra era
     withWorkerCtx ctx walletId liftE liftE $ \workerCtx -> liftHandler $ do
         W.DelegationFee {feePercentiles, deposit} <-
             W.delegationFee @s @k @n
                 (workerCtx ^. dbLayer)
-                netLayer
+                protocolParams
                 txLayer
                 (timeInterpreter netLayer)
                 (AnyRecentEra recentEra)

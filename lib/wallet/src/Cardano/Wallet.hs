@@ -129,6 +129,7 @@ module Cardano.Wallet
     , CoinSelection (..)
     , readWalletUTxOIndex
     , defaultChangeAddressGen
+    , dummyChangeAddressGen
     , assignChangeAddressesAndUpdateDb
     , assignChangeAddressesWithoutDbUpdate
     , selectionToUnsignedTx
@@ -166,8 +167,8 @@ module Cardano.Wallet
     , Percentile (..)
     , DelegationFee (..)
     , delegationFee
+    , transactionFee
     , calculateFeePercentiles
-    , calcMinimumDeposit
     , calcMinimumCoinValues
 
     -- ** Transaction
@@ -2861,28 +2862,7 @@ newtype Percentile (n :: Nat) a = Percentile a
     deriving stock (Show, Generic)
     deriving newtype (Eq, Ord, NFData)
 
--- | Calculate the minimum deposit necessary if a given wallet wanted to
--- delegate to a pool. Said differently, this return either 0, or the value of
--- the key deposit protocol parameters if the wallet has no registered stake
--- key.
-calcMinimumDeposit
-    :: forall s k
-     . DBLayer IO s k
-    -> NetworkLayer IO Read.Block
-    -> WalletId
-    -> IO Coin
-calcMinimumDeposit DBLayer {..} netLayer wid =
-    throwInIO
-        $ mkNoSuchWalletError wid
-        $ mapExceptT atomically (isStakeKeyRegistered wid) >>= \case
-            True -> pure $ Coin 0
-            False ->
-                liftIO
-                    $ stakeKeyDeposit
-                        <$> currentProtocolParameters netLayer
-  where
-    throwInIO :: forall a. ExceptT ErrNoSuchWallet IO a -> IO a
-    throwInIO = runExceptT >=> either (throwIO . ExceptionNoSuchWallet) pure
+
 
 data DelegationFee = DelegationFee
     { feePercentiles :: (Percentile 10 Fee, Percentile 90 Fee)
@@ -2899,18 +2879,32 @@ delegationFee
        , Typeable n
        )
     => DBLayer IO s k
-    -> NetworkLayer IO Read.Block
+    -> ProtocolParameters
     -> TransactionLayer k 'CredFromKeyK SealedTx
     -> TimeInterpreter (ExceptT PastHorizonException IO)
     -> AnyRecentEra
     -> ChangeAddressGen s
     -> WalletId
     -> ExceptT ErrSelectAssets IO DelegationFee
-delegationFee db netLayer txLayer ti era changeAddressGen walletId = do
+delegationFee
+    db@DBLayer {..} protocolParams txLayer ti era changeAddressGen walletId = do
+    --
     feePercentiles <- transactionFee @s @k @n
-        db netLayer txLayer ti era changeAddressGen walletId
-    deposit <- liftIO $ calcMinimumDeposit db netLayer walletId
+        db protocolParams txLayer ti era changeAddressGen
+        walletId defaultTransactionCtx
+    deposit <-
+    -- Calculate the minimum deposit necessary if a given wallet wanted to
+    -- delegate to a pool. Said differently, this return either 0, or the value
+    -- of the key deposit protocol parameters if the wallet has no registered
+    -- stake key.
+        liftIO
+            $ throwInIO . mkNoSuchWalletError walletId
+            $ mapExceptT atomically (isStakeKeyRegistered walletId) <&> \case
+                True -> Coin 0
+                False -> stakeKeyDeposit protocolParams
     pure DelegationFee { feePercentiles, deposit }
+  where
+    throwInIO = runExceptT >=> either (throwIO . ExceptionNoSuchWallet) pure
 
 transactionFee
     :: forall s k (n :: NetworkDiscriminant)
@@ -2920,16 +2914,16 @@ transactionFee
        , Typeable n
        )
     => DBLayer IO s k
-    -> NetworkLayer IO Read.Block
+    -> ProtocolParameters
     -> TransactionLayer k 'CredFromKeyK SealedTx
     -> TimeInterpreter (ExceptT PastHorizonException IO)
     -> AnyRecentEra
     -> ChangeAddressGen s
     -> WalletId
+    -> TransactionCtx
     -> ExceptT ErrSelectAssets IO (Percentile 10 Fee, Percentile 90 Fee)
-transactionFee DBLayer{atomically, walletsDB} netLayer
-    txLayer ti era changeAddressGen walletId = do
-    protocolParams <- liftIO $ currentProtocolParameters netLayer
+transactionFee DBLayer{atomically, walletsDB} protocolParams
+    txLayer ti era changeAddressGen walletId txCtx = do
     WriteTx.withRecentEra era $ \(recentEra :: WriteTx.RecentEra era) -> do
         wallet <- lift . atomically $ readDBVar walletsDB >>= \wallets ->
             case Map.lookup walletId wallets of
@@ -2945,7 +2939,7 @@ transactionFee DBLayer{atomically, walletsDB} netLayer
                 mkUnsignedTransaction txLayer @era
                     (unsafeShelleyOnlyGetRewardXPub @s @k @n (getState wallet))
                     protocolParams
-                    defaultTransactionCtx
+                    txCtx
                     (Left (PreSelection []))
 
         -- The 'calculateFeePercentiles' function evaluates its argument
@@ -3883,3 +3877,12 @@ defaultChangeAddressGen arg proxy =
     ChangeAddressGen
         (genChange arg)
         (maxLengthAddressFor proxy)
+
+dummyChangeAddressGen
+    :: forall (k :: Depth -> Type -> Type) s
+     . BoundedAddressLength k
+    => ChangeAddressGen s
+dummyChangeAddressGen =
+    ChangeAddressGen
+        (maxLengthAddressFor (Proxy @k),)
+        (maxLengthAddressFor (Proxy @k))
