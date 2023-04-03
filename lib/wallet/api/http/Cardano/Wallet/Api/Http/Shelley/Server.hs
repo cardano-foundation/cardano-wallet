@@ -2873,6 +2873,8 @@ constructSharedTransaction
                 , txDelegationAction = optionalDelegationAction
                 , txPaymentCredentialScriptTemplate =
                         Just (Shared.paymentTemplate $ getState cp)
+                , txStakingCredentialScriptTemplate =
+                        Shared.delegationTemplate $ getState cp
                 }
         case Shared.ready (getState cp) of
             Shared.Pending ->
