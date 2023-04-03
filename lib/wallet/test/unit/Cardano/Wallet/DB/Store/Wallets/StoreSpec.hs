@@ -18,10 +18,10 @@ import Cardano.Wallet.DB.Fixtures
     ( WalletProperty, logScale, withDBInMemory, withInitializedWalletProp )
 import Cardano.Wallet.DB.Sqlite.Schema
     ( TxMeta (..) )
+import Cardano.Wallet.DB.Store.Meta.Layer
+    ( mkQueryStoreTxMeta )
 import Cardano.Wallet.DB.Store.Meta.Model
     ( TxMetaHistory (..) )
-import Cardano.Wallet.DB.Store.Meta.Store
-    ( mkStoreMetaTransactions )
 import Cardano.Wallet.DB.Store.Wallets.Model
     ( DeltaTxWalletsHistory (..) )
 import Cardano.Wallet.DB.Store.Wallets.Store
@@ -53,7 +53,7 @@ prop_StoreWalletsLaws =
     -- Note: We have already tested `mkStoreTransactions`,
     -- so we use `newStore` here for a faster test.
     storeTransactions <- runQ newStore
-    let storeWalletsMeta = mkStoreMetaTransactions
+    let storeWalletsMeta = mkQueryStoreTxMeta
         storeTxWalletsHistory =
             mkStoreTxWalletsHistory storeTransactions storeWalletsMeta
 

@@ -35,7 +35,7 @@ spec = do
 prop_StoreWalletsLaws :: WalletProperty
 prop_StoreWalletsLaws =
   withInitializedWalletProp $ \wid runQ -> do
-    qs <- runQ newQueryStoreTxWalletsHistory
+    let qs = newQueryStoreTxWalletsHistory
     prop_StoreUpdates
       runQ
       (store qs)
