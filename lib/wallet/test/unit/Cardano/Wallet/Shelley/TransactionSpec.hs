@@ -1899,7 +1899,7 @@ binaryCalculationsSpec' era = describe ("calculateBinary - "+||era||+"") $ do
           unsigned = either (error . show) id $
               mkUnsignedTx (shelleyBasedEraFromRecentEra era)
                 (Nothing, slotNo) (Right cs) md mempty [] fee
-              TokenMap.empty TokenMap.empty Map.empty Map.empty
+              TokenMap.empty TokenMap.empty Map.empty Map.empty Nothing
           cs = Selection
             { inputs = NE.fromList inps
             , collateral = []
@@ -1989,7 +1989,7 @@ makeShelleyTx era testCase = Cardano.makeSignedTransaction addrWits unsigned
     fee = toCardanoLovelace $ selectionDelta TxOut.coin cs
     unsigned = either (error . show) id $
         mkUnsignedTx era (Nothing, slotNo) (Right cs) md mempty [] fee
-        TokenMap.empty TokenMap.empty Map.empty Map.empty
+        TokenMap.empty TokenMap.empty Map.empty Map.empty Nothing
     addrWits = map (mkShelleyWitness unsigned) pairs
     cs = Selection
         { inputs = NE.fromList inps
