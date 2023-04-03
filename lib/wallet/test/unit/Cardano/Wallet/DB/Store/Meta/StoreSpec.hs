@@ -48,6 +48,6 @@ prop_StoreMetaLaws :: WalletProperty
 prop_StoreMetaLaws = withInitializedWalletProp $ \wid runQ ->
     prop_StoreUpdates
         runQ
-        (mkStoreMetaTransactions  wid)
+        mkStoreMetaTransactions
         (pure mempty)
         (logScale . genDeltas wid)

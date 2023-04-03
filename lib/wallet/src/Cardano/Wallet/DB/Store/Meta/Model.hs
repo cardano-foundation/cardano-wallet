@@ -19,7 +19,6 @@ module Cardano.Wallet.DB.Store.Meta.Model
     , TxMetaHistory(..)
     , mkTxMetaHistory
     , rollbackTxMetaHistory
-    , WalletsMeta
     , mkTxMetaFromEntity
     ) where
 
@@ -128,8 +127,6 @@ mkTxMetaHistory wid txs = TxMetaHistory $
         [ (TxId $ tx ^. #txId, mkTxMetaEntity wid tx meta)
             | (tx, meta) <- txs
         ]
-
-type WalletsMeta = Map W.WalletId TxMetaHistory
 
 mkTxMetaFromEntity :: TxMeta -> W.TxMeta
 mkTxMetaFromEntity TxMeta{..} = W.TxMeta

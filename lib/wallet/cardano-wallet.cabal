@@ -887,7 +887,6 @@ test-suite unit
     Cardano.Wallet.DB.Store.Submissions.StoreSpec
     Cardano.Wallet.DB.Store.Transactions.StoreSpec
     Cardano.Wallet.DB.Store.Wallets.LayerSpec
-    Cardano.Wallet.DB.Store.Wallets.ModelSpec
     Cardano.Wallet.DB.Store.Wallets.StoreSpec
     Cardano.Wallet.DelegationSpec
     Cardano.Wallet.DummyTarget.Primitive.Types

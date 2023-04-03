@@ -1,4 +1,5 @@
 
+{-# LANGUAGE TypeApplications #-}
 
 {- |
  Copyright: © 2018-2022 IOHK
@@ -17,8 +18,6 @@ import Cardano.Wallet.DB.Sqlite.Schema
     ( EntityField (..), TxMeta (..) )
 import Cardano.Wallet.DB.Store.Meta.Model
     ( DeltaTxMetaHistory (..), TxMetaHistory (..) )
-import Cardano.Wallet.Primitive.Types
-    ( WalletId )
 import Control.Arrow
     ( (&&&) )
 import Control.Exception
@@ -38,44 +37,40 @@ import Database.Persist.Sql
     , deleteWhere
     , repsertMany
     , selectList
-    , (==.)
     , (>.)
     )
 
 import qualified Data.Map.Strict as Map
 
 -- | Create an SQL store to hold meta transactions for a wallet.
-mkStoreMetaTransactions :: WalletId
-    -> Store (SqlPersistT IO) DeltaTxMetaHistory
+mkStoreMetaTransactions :: Store (SqlPersistT IO) DeltaTxMetaHistory
 mkStoreMetaTransactions
-    wid = Store { loadS = load wid, writeS = write wid, updateS = update wid }
+    = Store { loadS = load, writeS = write, updateS = update}
 
-update :: WalletId
-    -> Maybe TxMetaHistory
+update
+    :: Maybe TxMetaHistory
     -> DeltaTxMetaHistory
     -> SqlPersistT IO ()
-update wid _ change = case change of
+update _ change = case change of
     Expand txs -> putMetas txs
     Rollback point -> do
         let isAfter = TxMetaSlot >. point
         deleteWhere
-            [ TxMetaWalletId ==. wid
-            , isAfter
+            [ isAfter
             ]
 
-write :: WalletId -> TxMetaHistory -> SqlPersistT IO ()
-write wid txs = do
-    deleteWhere [TxMetaWalletId ==. wid]
+write :: TxMetaHistory -> SqlPersistT IO ()
+write txs = do
+    deleteWhere @_ @_ @TxMeta []
     putMetas txs
 
-load :: WalletId
-    -> SqlPersistT IO (Either SomeException TxMetaHistory)
-load wid =
+load ::SqlPersistT IO (Either SomeException TxMetaHistory)
+load =
     Right
     . TxMetaHistory
     . Map.fromList
     . fmap ((txMetaTxId &&& id) . entityVal)
-    <$> selectList [TxMetaWalletId ==. wid] []
+    <$> selectList [] []
 
 -- | Insert multiple meta-transactions, overwriting the previous version in
 -- case of the same transaction index.

@@ -629,8 +629,8 @@ newDBLayerWith _cacheBehavior _tr ti SqliteContext{runQuery} = mdo
             updateS (store transactionsQS) Nothing
                 . ExpandTxWalletsHistory wid
 
-        , readTxHistory_ = \wid range tip mlimit order -> do
-            allTransactions <- queryS transactionsQS $ All wid
+        , readTxHistory_ = \range tip mlimit order -> do
+            allTransactions <- queryS transactionsQS All
             let whichMeta DB.TxMeta{..} = and $ catMaybes
                     [ (txMetaSlot >=) <$> W.inclusiveLowerBound range
                     , (txMetaSlot <=) <$> W.inclusiveUpperBound range
@@ -648,8 +648,8 @@ newDBLayerWith _cacheBehavior _tr ti SqliteContext{runQuery} = mdo
             forM transactions $
                 selectTransactionInfo ti tip lookupTx lookupTxOut
 
-        , getTx_ = \wid txid tip -> do
-            transactions <- queryS transactionsQS $ One wid (TxId txid)
+        , getTx_ = \txid tip -> do
+            transactions <- queryS transactionsQS $ One $ TxId txid
             let lookupTx = queryS transactionsQS . GetByTxId
                 lookupTxOut = queryS transactionsQS . GetTxOut
             forM transactions $
@@ -698,7 +698,7 @@ newDBLayerWith _cacheBehavior _tr ti SqliteContext{runQuery} = mdo
                         [ StakeKeyCertSlot >. nearestPoint
                         ]
                     updateS (store transactionsQS) Nothing $
-                        RollbackTxWalletsHistory wid nearestPoint
+                        RollbackTxWalletsHistory nearestPoint
 
                     pure
                         $ W.chainPointFromBlockHeader

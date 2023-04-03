@@ -3,11 +3,8 @@
 {-# LANGUAGE DataKinds #-}
 {-# LANGUAGE LambdaCase #-}
 {-# LANGUAGE NoMonomorphismRestriction #-}
-{-# LANGUAGE OverloadedLabels #-}
 {-# LANGUAGE RankNTypes #-}
 {-# LANGUAGE ScopedTypeVariables #-}
-{-# LANGUAGE TupleSections #-}
-{-# LANGUAGE TypeApplications #-}
 {-# LANGUAGE TypeFamilies #-}
 
 {- |
@@ -18,123 +15,64 @@ Implementation of a store for 'TxWalletsHistory'
 
 -}
 module Cardano.Wallet.DB.Store.Wallets.Store
-    ( mkStoreWalletsMeta
-    , mkStoreTxWalletsHistory
+    ( mkStoreTxWalletsHistory
     , DeltaTxWalletsHistory(..)
     ) where
 
 import Prelude
 
-import Cardano.Wallet.DB.Sqlite.Schema
-    ( EntityField (..), TxMeta )
 import Cardano.Wallet.DB.Store.Meta.Model
     ( DeltaTxMetaHistory, mkTxMetaHistory )
-import Cardano.Wallet.DB.Store.Meta.Store
-    ( mkStoreMetaTransactions )
 import Cardano.Wallet.DB.Store.Transactions.Model
     ( DeltaTxSet (..), mkTxSet )
 import Cardano.Wallet.DB.Store.Wallets.Model
-    ( DeltaTxWalletsHistory (..)
-    , transactionsToDeleteOnRemoveWallet
-    , transactionsToDeleteOnRollback
-    )
+    ( DeltaTxWalletsHistory (..) )
 import Control.Applicative
     ( liftA2 )
 import Control.Exception
     ( SomeException (..) )
-import Control.Monad
-    ( forM, forM_ )
 import Control.Monad.Class.MonadThrow
     ( MonadThrow, throwIO )
-import Control.Monad.Except
-    ( ExceptT (ExceptT), lift, runExceptT )
 import Data.DBVar
-    ( Store (..), updateLoad )
+    ( Store (..) )
 import Data.Delta
     ( Base, Delta )
-import Data.DeltaMap
-    ( DeltaMap (..) )
-import Data.Generics.Internal.VL
-    ( view )
-import Data.List
-    ( nub )
-import Database.Persist.Sql
-    ( SqlPersistT, deleteWhere, entityVal, selectList, (==.) )
 
 import qualified Cardano.Wallet.DB.Store.Meta.Model as TxMetaStore
-import qualified Cardano.Wallet.Primitive.Types as W
-import qualified Data.Map.Strict as Map
-
--- | Store for 'WalletsMeta' of multiple different wallets.
-mkStoreWalletsMeta :: Store
-        (SqlPersistT IO)
-        (DeltaMap W.WalletId DeltaTxMetaHistory)
-mkStoreWalletsMeta =
-    Store
-    { loadS = load
-    , writeS = write
-    , updateS = update
-    }
-  where
-    write reset = forM_ (Map.assocs reset) $ \(wid, ms) ->
-        writeS (mkStoreMetaTransactions wid) ms
-    update _ (Insert wid ms) = do
-        writeS (mkStoreMetaTransactions wid) ms
-    update _ (Delete wid) = do
-        deleteWhere [TxMetaWalletId ==. wid ]
-    update mold da@(Adjust wid xda) = updateLoad load throwIO f mold da
-      where
-        f old _ = case Map.lookup wid old of
-            Nothing -> pure ()
-            Just old' -> updateS (mkStoreMetaTransactions wid) (Just old') xda
-    load = runExceptT $ do
-        wids <- lift $ fmap (view #txMetaWalletId . entityVal)
-            <$> selectList @TxMeta [] []
-        fmap Map.fromList
-            $ forM (nub wids) $ \wid -> (wid,)
-                <$> ExceptT (loadS $ mkStoreMetaTransactions wid)
 
 mkStoreTxWalletsHistory
     :: (Monad m, MonadThrow m)
     => Store m DeltaTxSet
-    -> Store m (DeltaMap W.WalletId DeltaTxMetaHistory)
+    -> Store m DeltaTxMetaHistory
     -> Store m DeltaTxWalletsHistory
-mkStoreTxWalletsHistory storeTransactions storeWalletsMeta =
+mkStoreTxWalletsHistory storeTransactions storeMeta =
     let load = liftA2 (,)
             <$> loadS storeTransactions
-            <*> loadS storeWalletsMeta
+            <*> loadS storeMeta
         write = \(txSet,txMetaHistory) -> do
             writeS storeTransactions txSet
-            writeS storeWalletsMeta txMetaHistory
+            writeS storeMeta txMetaHistory
         update ma delta =
             let (mTxSet,mWmetas) = (fst <$> ma, snd <$> ma)
             in  case delta of
-            RollbackTxWalletsHistory wid slot -> do
-                wmetas <- loadWhenNothing mWmetas storeWalletsMeta
-                updateS storeWalletsMeta (Just wmetas)
-                    $ Adjust wid
+            RollbackTxWalletsHistory slot -> do
+                wmetas <- loadWhenNothing mWmetas storeMeta
+                updateS storeMeta (Just wmetas)
                     $ TxMetaStore.Rollback slot
-                let deletions = transactionsToDeleteOnRollback wid slot wmetas
+                let ( _metas', toBeDeletedTxSet)
+                        = TxMetaStore.rollbackTxMetaHistory slot wmetas
                 updateS storeTransactions mTxSet
-                    $ DeleteTxs deletions
-            RemoveWallet wid -> do
-                wmetas <- loadWhenNothing mWmetas storeWalletsMeta
-                updateS storeWalletsMeta (Just wmetas) $ Delete wid
-                let deletions = transactionsToDeleteOnRemoveWallet wid wmetas
-                updateS storeTransactions mTxSet
-                    $ DeleteTxs deletions
+                    $ DeleteTxs toBeDeletedTxSet
+
             ExpandTxWalletsHistory wid cs -> do
-                wmetas <- loadWhenNothing mWmetas storeWalletsMeta
+                wmetas <- loadWhenNothing mWmetas storeMeta
                 updateS storeTransactions mTxSet
                     $ Append
                     $ mkTxSet
                     $ fst <$> cs
-                updateS storeWalletsMeta (Just wmetas)
-                    $ case Map.lookup wid wmetas of
-                        Nothing -> Insert wid (mkTxMetaHistory wid cs)
-                        Just _ -> Adjust wid
-                            $ TxMetaStore.Expand
-                            $ mkTxMetaHistory wid cs
+                updateS storeMeta (Just wmetas)
+                    $ TxMetaStore.Expand
+                    $ mkTxMetaHistory wid cs
     in Store { loadS = load, writeS = write, updateS = update }
 
 -- | Call 'loadS' from a 'Store' if the value is not already in memory.

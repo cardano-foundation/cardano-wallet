@@ -489,7 +489,7 @@ mkDBLayerFromParts ti DBLayerCollection{..} = DBLayer
         readCurrentTip wid >>= \case
             Just tip -> do
                 inLedgers <- if status `elem` [Nothing, Just WTxMeta.InLedger]
-                    then readTxHistory_ dbTxHistory wid range tip limit order
+                    then readTxHistory_ dbTxHistory range tip limit order
                     else pure []
                 let isInSubmission = has (txStatus . _InSubmission)
                     isExpired = has (txStatus . _Expired)
@@ -518,7 +518,7 @@ mkDBLayerFromParts ti DBLayerCollection{..} = DBLayer
     , getTx = \wid txid -> wrapNoSuchWallet wid $ do
         readCurrentTip wid >>= \case
             Just tip -> do
-                historical <- getTx_ dbTxHistory wid txid tip
+                historical <- getTx_ dbTxHistory txid tip
                 case historical of
                     Just tx -> pure $ Just tx
                     Nothing ->  withSubmissions wid Nothing $ \submissions -> do
@@ -729,8 +729,7 @@ data DBTxHistory stm = DBTxHistory
         -- an error, but need not.
 
     , readTxHistory_
-        :: WalletId
-        -> Range SlotNo
+        :: Range SlotNo
         -> BlockHeader
         -> Maybe Natural
         -> SortOrder
@@ -741,8 +740,7 @@ data DBTxHistory stm = DBTxHistory
         -- Returns an empty list if the wallet isn't found.
 
     , getTx_
-        :: WalletId
-        -> Hash "Tx"
+        :: Hash "Tx"
         -> BlockHeader
         -> stm (Maybe TransactionInfo)
         -- ^ Fetch the latest transaction by id, returns Nothing when the

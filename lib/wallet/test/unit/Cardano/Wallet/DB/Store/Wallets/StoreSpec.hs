@@ -20,10 +20,12 @@ import Cardano.Wallet.DB.Sqlite.Schema
     ( TxMeta (..) )
 import Cardano.Wallet.DB.Store.Meta.Model
     ( TxMetaHistory (..) )
+import Cardano.Wallet.DB.Store.Meta.Store
+    ( mkStoreMetaTransactions )
 import Cardano.Wallet.DB.Store.Wallets.Model
     ( DeltaTxWalletsHistory (..) )
 import Cardano.Wallet.DB.Store.Wallets.Store
-    ( mkStoreTxWalletsHistory, mkStoreWalletsMeta )
+    ( mkStoreTxWalletsHistory )
 import Data.DBVar
     ( newStore )
 import Test.DBVar
@@ -51,7 +53,7 @@ prop_StoreWalletsLaws =
     -- Note: We have already tested `mkStoreTransactions`,
     -- so we use `newStore` here for a faster test.
     storeTransactions <- runQ newStore
-    let storeWalletsMeta = mkStoreWalletsMeta
+    let storeWalletsMeta = mkStoreMetaTransactions
         storeTxWalletsHistory =
             mkStoreTxWalletsHistory storeTransactions storeWalletsMeta
 
@@ -62,17 +64,19 @@ prop_StoreWalletsLaws =
       (logScale . genDeltaTxWallets wid)
 
 genDeltaTxWallets :: W.WalletId -> GenDelta DeltaTxWalletsHistory
-genDeltaTxWallets wid (_,metaMap) = do
-  let metaGens = case Map.lookup wid metaMap of
-        Nothing -> []
-        Just metas ->
-          [ (5, RollbackTxWalletsHistory wid . txMetaSlot
-                <$> chooseFromMap (relations metas) )
-          , (1, pure $ RemoveWallet wid)
-          ]
-  frequency $
-    (10, ExpandTxWalletsHistory wid . getNonEmpty <$> arbitrary) :
-    metaGens
+genDeltaTxWallets wid (_, metas) = do
+    let metaGens
+            | null (relations metas) = []
+            | otherwise =
+                [
+                    ( 5
+                    , RollbackTxWalletsHistory . txMetaSlot
+                        <$> chooseFromMap (relations metas)
+                    )
+                ]
+    frequency
+        $ (10, ExpandTxWalletsHistory wid . getNonEmpty <$> arbitrary)
+            : metaGens
 
 chooseFromMap :: Map.Map k a -> Gen a
 chooseFromMap m = snd . (`Map.elemAt` m) <$> choose (0, Map.size m-1)
