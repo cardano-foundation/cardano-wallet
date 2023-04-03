@@ -288,10 +288,11 @@ benchmarksSeq BenchmarkConfig{benchmarkName,ctx,wid} = do
         $ unsafeRunExceptT
         $ W.createMigrationPlan @_ @k @s ctx era wid Tx.NoWithdrawal
 
+    pp <- currentProtocolParameters (networkLayer ctx)
     (_, delegationFeeTime) <- bench "delegationFee"
         $ unsafeRunExceptT
         $ W.delegationFee @_ @k @n
-            (dbLayer ctx) (networkLayer ctx) (transactionLayer ctx)
+            (dbLayer ctx) pp (transactionLayer ctx)
             (timeInterpreter (networkLayer ctx))
             (Write.AnyRecentEra Write.RecentEraBabbage)
             (W.defaultChangeAddressGen (delegationAddress @n) (Proxy @k))
