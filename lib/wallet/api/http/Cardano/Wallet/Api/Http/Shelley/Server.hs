@@ -2384,6 +2384,7 @@ postTransactionFeeOld ctx@ApiLayer{..} (ApiT walletId) body = do
                 , txMetadata = body
                     ^? #metadata . traverse . #txMetadataWithSchema_metadata
                 }
+            PreSelection{outputs}
         pure $ mkApiFee Nothing minCoins feePercentiles
 
 constructTransaction
