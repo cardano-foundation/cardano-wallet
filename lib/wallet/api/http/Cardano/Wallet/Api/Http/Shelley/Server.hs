@@ -531,12 +531,14 @@ import Cardano.Wallet.Shelley.Compatibility.Ledger
 import Cardano.Wallet.TokenMetadata
     ( TokenMetadataClient, fillMetadata )
 import Cardano.Wallet.Transaction
-    ( DelegationAction (..)
+    ( AnyExplicitScript (..)
+    , DelegationAction (..)
     , PreSelection (..)
     , ToWitnessCountCtx (..)
     , TransactionCtx (..)
     , TransactionLayer (..)
     , Withdrawal (..)
+    , WitnessCount (..)
     , WitnessCountCtx (..)
     , defaultTransactionCtx
     )
@@ -3447,7 +3449,6 @@ submitSharedTransaction ctx apiw@(ApiT wid) apitx = do
     era <- liftIO $ NW.currentNodeEra nl
 
     let sealedTx = getApiT . (view #serialisedTxSealed) $ apitx
-    let (tx,_,_,_,_,_) = decodeTx tl era (SharedWalletCtx []) sealedTx
 
     apiDecoded <- decodeSharedTransaction @n ctx apiw apitx
     when (isForeign apiDecoded) $
@@ -3459,18 +3460,38 @@ submitSharedTransaction ctx apiw@(ApiT wid) apitx = do
 
         (cp, _, _) <- liftHandler $ withExceptT ErrSubmitTransactionNoSuchWallet $
             W.readWallet @_ wrk wid
-        let (ScriptTemplate _ script) = (Shared.paymentTemplate $ getState cp)
-        let witsPerInput = Shared.estimateMinWitnessRequiredPerInput script
+        let witCountCtx = toWitnessCountCtx @(SharedState n SharedKey) (getState cp)
+        let (tx,_,_,_,_, (WitnessCount _ nativeScripts _)) =
+                decodeTx tl era witCountCtx sealedTx
 
+        let numberStakingNativeScripts =
+                length $ filter hasDelegationKeyHash nativeScripts
+        let delegationScriptTemplateM = Shared.delegationTemplate $ getState cp
+        let delegationWitsRequired = case delegationScriptTemplateM of
+                Nothing -> 0
+                Just (ScriptTemplate _ scriptD) ->
+                    if numberStakingNativeScripts == 0 then
+                        0
+                    else if numberStakingNativeScripts == 1 then
+                        Shared.estimateMinWitnessRequiredPerInput scriptD
+                    else
+                        error "wallet supports transactions with 0 or 1 staking script"
+
+        let (ScriptTemplate _ scriptP) = Shared.paymentTemplate $ getState cp
+        let pWitsPerInput = Shared.estimateMinWitnessRequiredPerInput scriptP
         let witsRequiredForInputs =
                 length $ L.nubBy samePaymentKey $
                 filter isInpOurs $
                 (apiDecoded ^. #inputs) ++ (apiDecoded ^. #collateral)
         let totalNumberOfWits = length $ getSealedTxWitnesses sealedTx
-        let allWitsRequired = fromIntegral witsPerInput * witsRequiredForInputs
+        let paymentWitsRequired =
+                fromIntegral pWitsPerInput * witsRequiredForInputs
+        let allWitsRequired =
+                paymentWitsRequired + fromIntegral delegationWitsRequired
         when (allWitsRequired > totalNumberOfWits) $
             liftHandler $ throwE $
-            ErrSubmitTransactionPartiallySignedOrNoSignedTx allWitsRequired totalNumberOfWits
+            ErrSubmitTransactionPartiallySignedOrNoSignedTx
+            allWitsRequired totalNumberOfWits
 
         let txCtx = defaultTransactionCtx
                 { txValidityInterval = (Nothing, ttl)
@@ -3489,6 +3510,21 @@ submitSharedTransaction ctx apiw@(ApiT wid) apitx = do
     tl = ctx ^. W.transactionLayer @SharedKey @'CredFromScriptK
     ti :: TimeInterpreter (ExceptT PastHorizonException IO)
     ti = timeInterpreter nl
+
+    retrieveAllKeyHashes (NativeExplicitScript s _) = foldScript (:) [] s
+    retrieveAllKeyHashes _ = []
+
+    isTimelock (NativeExplicitScript _ _) = True
+    isTimelock _ = False
+
+    isDelegationKeyHash (KeyHash CA.Delegation _) = True
+    isDelegationKeyHash (KeyHash _ _) = False
+
+    hasDelegationKeyHash s =
+        if isTimelock s then
+            all isDelegationKeyHash (retrieveAllKeyHashes s)
+        else
+          False
 
 joinStakePool
     :: forall s n k.
