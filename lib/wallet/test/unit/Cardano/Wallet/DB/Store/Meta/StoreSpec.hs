@@ -4,38 +4,68 @@
 {-# LANGUAGE RankNTypes #-}
 {-# LANGUAGE ScopedTypeVariables #-}
 
-module Cardano.Wallet.DB.Store.Meta.StoreSpec
-    ( spec )
-    where
+module Cardano.Wallet.DB.Store.Meta.StoreSpec (spec)
+where
 
 import Prelude
 
 import Cardano.DB.Sqlite
     ( ForeignKeysSetting (..) )
+import Cardano.Slotting.Slot
+    ( SlotNo )
 import Cardano.Wallet.DB.Arbitrary
     ()
 import Cardano.Wallet.DB.Fixtures
-    ( WalletProperty, logScale, withDBInMemory, withInitializedWalletProp )
+    ( WalletProperty
+    , assertWith
+    , logScale
+    , queryLaw
+    , withDBInMemory
+    , withInitializedWalletProp
+    )
+import Cardano.Wallet.DB.Sqlite.Schema
+    ( TxMeta (..) )
+import Cardano.Wallet.DB.Sqlite.Types
+    ( TxId (TxId) )
+import Cardano.Wallet.DB.Store.Meta.Layer
+    ( QueryTxMeta (..), mkQueryStoreTxMeta )
 import Cardano.Wallet.DB.Store.Meta.Model
     ( DeltaTxMetaHistory (..), TxMetaHistory (..) )
 import Cardano.Wallet.DB.Store.Meta.ModelSpec
     ( genExpand, genRollback )
 import Cardano.Wallet.DB.Store.Meta.Store
     ( mkStoreMetaTransactions )
+import Cardano.Wallet.DB.Store.QueryStore
+    ( QueryStore (..) )
 import Cardano.Wallet.Primitive.Types
-    ( WalletId )
+    ( Range (..), SortOrder (Ascending, Descending), WalletId )
+import Control.Monad
+    ( forM_, (<=<) )
+import Data.DBVar
+    ( Store (..) )
+import Data.Foldable
+    ( toList )
+import GHC.Natural
+    ( Natural )
 import Test.DBVar
     ( prop_StoreUpdates )
 import Test.Hspec
     ( Spec, around, describe, it )
 import Test.QuickCheck
-    ( Gen, arbitrary, frequency, property )
+    ( Gen, arbitrary, elements, frequency, property )
+import Test.QuickCheck.Monadic
+    ( forAllM, pick )
+
+import qualified Data.Map.Strict as Map
 
 spec :: Spec
 spec = around (withDBInMemory ForeignKeysEnabled) $ do
     describe "meta-transactions store" $ do
         it "respects store laws"
             $ property . prop_StoreMetaLaws
+    describe "mkQueryStoreTxMeta"
+        $ it "respects query law"
+        $ property . prop_QueryLaw
 
 genDeltas :: WalletId -> TxMetaHistory -> Gen DeltaTxMetaHistory
 genDeltas wid history =
@@ -51,3 +81,48 @@ prop_StoreMetaLaws = withInitializedWalletProp $ \wid runQ ->
         mkStoreMetaTransactions
         (pure mempty)
         (logScale . genDeltas wid)
+
+prop_QueryLaw :: WalletProperty
+prop_QueryLaw =
+    withInitializedWalletProp $ \wid runQ ->
+        forAllM (genExpand wid arbitrary) $ \history -> do
+            runQ $ writeS (store mkQueryStoreTxMeta) history
+            unknownTxId <- TxId <$> pick arbitrary
+            let txIds = unknownTxId : Map.keys (relations history)
+            forM_ txIds $ \txId -> do
+                assertWith "GetOne"
+                    <=< runQ
+                    $ queryLaw mkQueryStoreTxMeta history
+                    $ GetOne txId
+            range <- pick $ genRange history
+            limit <- pick $ genLimit history
+            order <- pick genSortOrder
+            assertWith "GetSome"
+                <=< runQ
+                $ queryLaw mkQueryStoreTxMeta history
+                $ GetSome range limit order
+            slot <- pick $ genSlot history
+            assertWith "GetAfterSlot"
+                <=< runQ
+                $ queryLaw mkQueryStoreTxMeta history
+                $ GetAfterSlot slot
+
+genSortOrder :: Gen SortOrder
+genSortOrder = elements [Ascending, Descending]
+
+genRange :: TxMetaHistory -> Gen (Range SlotNo)
+genRange (TxMetaHistory history) =
+    Range
+        <$> elements slots
+        <*> elements slots
+  where
+    slots = Nothing : map (Just . txMetaSlot) (toList history)
+
+genLimit :: TxMetaHistory -> Gen (Maybe Natural)
+genLimit (TxMetaHistory history) =
+    elements $ Nothing : (Just <$> [1 .. fromIntegral (length history)])
+
+genSlot :: TxMetaHistory -> Gen SlotNo
+genSlot (TxMetaHistory history) = do
+    unknownSlot <- arbitrary
+    elements $ unknownSlot : (txMetaSlot <$> toList history)
