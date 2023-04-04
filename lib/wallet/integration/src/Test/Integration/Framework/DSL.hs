@@ -1805,7 +1805,7 @@ emptySharedWalletDelegating ctx = do
        [ expectResponseCode HTTP.status201
        ]
 
-   pure $ (getFromResponse Prelude.id rPostA, getFromResponse Prelude.id rPostB)
+   pure (getFromResponse Prelude.id rPostA, getFromResponse Prelude.id rPostB)
 
 fundSharedWallet
     :: forall (n :: NetworkDiscriminant) m.
