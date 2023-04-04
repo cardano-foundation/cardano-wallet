@@ -1226,7 +1226,7 @@ estimateKeyWitnessCount utxo txbody@(Cardano.TxBody txbodycontent) =
         Cardano.StakeCredentialByScript scriptHash ->
             let pair = filter (\(_,sh) -> sh == scriptHash) apiScriptHashes
             in case pair of
-                (delScript,_):[] ->
+                [(delScript,_)] ->
                     estimateMaxWitnessRequiredPerInput delScript
                 _ -> error "there should be delegation script in the tx body"
 

@@ -805,8 +805,6 @@ instance AccountIxForStaking (SharedState n SharedKey) where
 instance ToWitnessCountCtx (SharedState n SharedKey) where
     toWitnessCountCtx s =
         let delegationTemplateM = delegationTemplate s
-            stakingKeyHashes = case delegationTemplateM of
-                Just delegationTemplate ->
-                    allCosignerStakingKeys delegationTemplate
-                Nothing -> []
+            stakingKeyHashes =
+                maybe [] allCosignerStakingKeys delegationTemplateM
         in SharedWalletCtx stakingKeyHashes

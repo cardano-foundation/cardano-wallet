@@ -3502,10 +3502,7 @@ submitSharedTransaction ctx apiw@(ApiT wid) apitx = do
     isDelegationKeyHash (KeyHash _ _) = False
 
     hasDelegationKeyHash s =
-        if isTimelock s then
-            all isDelegationKeyHash (retrieveAllKeyHashes s)
-        else
-          False
+        isTimelock s && all isDelegationKeyHash (retrieveAllKeyHashes s)
 
 joinStakePool
     :: forall s n k.
