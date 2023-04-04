@@ -383,6 +383,7 @@ import Cardano.Wallet.Primitive.AddressDerivation
     , WalletKey (..)
     , deriveRewardAccount
     , publicKey
+    , stakeDerivationPath
     )
 import Cardano.Wallet.Primitive.AddressDerivation.Byron
     ( ByronKey, mkByronKeyFromMasterKey )
@@ -656,6 +657,7 @@ import UnliftIO.Concurrent
 import UnliftIO.Exception
     ( IOException, bracket, tryAnyDeep, tryJust )
 
+import qualified Cardano.Address.Script as CA
 import qualified Cardano.Address.Style.Shelley as CA
 import qualified Cardano.Api as Cardano
 import qualified Cardano.Wallet as W
@@ -2970,14 +2972,20 @@ decodeSharedTransaction ctx (ApiT wid) (ApiSerialisedTransaction (ApiT sealed) _
         pp <- liftIO $ NW.currentProtocolParameters (wrk ^. networkLayer)
         (cp, _, _) <- liftHandler $ withExceptT W.ErrDecodeTxNoSuchWallet $
             W.readWallet wrk wid
-        let delegationTemplateM = Shared.delegationTemplate $ getState cp
+        let delegationTemplateM = (getState cp) ^. #delegationTemplate
         let scriptM =
                 flip (replaceCosignersWithVerKeys CA.Stake) minBound <$>
                 delegationTemplateM
-
-        let rewardAcct = undefined
-        let rewardAcctPath = undefined
-        let certs = mkApiAnyCertificate rewardAcct rewardAcctPath <$> allCerts
+        let rewardAcctPath =
+                stakeDerivationPath $ Shared.derivationPrefix $ getState cp
+        let rewardAcctM = case scriptM of
+                Just script ->
+                    let scriptHash =
+                            CA.unScriptHash $
+                            CA.toScriptHash script
+                    in Just $ RewardAccount scriptHash
+                Nothing -> Nothing
+        let certs = mkApiAnyCertificate rewardAcctM rewardAcctPath <$> allCerts
         pure
             ( inputPaths
             , collateralInputPaths
@@ -2997,8 +3005,7 @@ decodeSharedTransaction ctx (ApiT wid) (ApiSerialisedTransaction (ApiT sealed) _
         -- TODO minting/burning multisig
         , mint = emptyApiAssetMntBurn
         , burn = emptyApiAssetMntBurn
-        -- TODO delegation/withdrawals multisig
-        , certificates = []
+        , certificates = certs
         , depositsTaken =
             (Quantity . fromIntegral . unCoin . W.stakeKeyDeposit $ pp)
                 <$ filter ourRewardAccountRegistration certs
@@ -3189,7 +3196,7 @@ decodeTransaction
         pp <- liftIO $ NW.currentProtocolParameters (wrk ^. networkLayer)
         (minted, burned) <-
             convertApiAssetMintBurn @_ @s @k @n wrk wid (toMint, toBurn)
-        let certs = mkApiAnyCertificate acct acctPath <$> allCerts
+        let certs = mkApiAnyCertificate (Just acct) acctPath <$> allCerts
         pure $ ApiDecodedTransaction
             { id = ApiT txId
             , fee = maybe (Quantity 0) (Quantity . fromIntegral . unCoin) fee
@@ -4468,7 +4475,7 @@ mkApiTransaction timeInterpreter wrk wid timeRefLens tx = do
     getApiAnyCertificates db ParsedTxCBOR{certificates} = do
         (rewardAccount, _, derivPath) <- liftHandler
             $ W.shelleyOnlyReadRewardAccount @s @k @n db wid
-        pure $ mkApiAnyCertificate rewardAccount derivPath <$> certificates
+        pure $ mkApiAnyCertificate (Just rewardAccount) derivPath <$> certificates
 
     depositIfAny :: Natural
     depositIfAny

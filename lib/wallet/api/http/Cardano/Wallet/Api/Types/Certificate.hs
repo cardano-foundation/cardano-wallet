@@ -187,7 +187,7 @@ instance ToJSON ApiCertificate where
     toJSON = genericToJSON apiCertificateOptions
 
 mkApiAnyCertificate
-    :: forall n . W.RewardAccount
+    :: forall n . Maybe W.RewardAccount
     -> NonEmpty DerivationIndex
     -> W.Certificate
     -> ApiAnyCertificate n
@@ -217,20 +217,20 @@ mkApiAnyCertificate acct' acctPath' = \case
         (ApiT poolId')
         (ApiT retirementEpoch')
 
-    toApiDelCert acct acctPath (W.CertDelegateNone rewardKey) =
-        if rewardKey == acct then
+    toApiDelCert acctM acctPath (W.CertDelegateNone rewardKey) =
+        if Just rewardKey == acctM then
             WalletDelegationCertificate $ QuitPool $ NE.map ApiT acctPath
         else
             DelegationCertificate $ QuitPoolExternal (ApiT rewardKey, Proxy @n)
-    toApiDelCert acct acctPath (W.CertRegisterKey rewardKey) =
-        if rewardKey == acct then
+    toApiDelCert acctM acctPath (W.CertRegisterKey rewardKey) =
+        if Just rewardKey == acctM then
             WalletDelegationCertificate $
             RegisterRewardAccount $ NE.map ApiT acctPath
         else
             DelegationCertificate $
             RegisterRewardAccountExternal (ApiT rewardKey, Proxy @n)
-    toApiDelCert acct acctPath (W.CertDelegateFull rewardKey poolId') =
-        if rewardKey == acct then
+    toApiDelCert acctM acctPath (W.CertDelegateFull rewardKey poolId') =
+        if Just rewardKey == acctM then
             WalletDelegationCertificate $
             JoinPool (NE.map ApiT acctPath) (ApiT poolId')
         else
