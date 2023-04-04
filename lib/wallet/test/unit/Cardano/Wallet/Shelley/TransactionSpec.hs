@@ -2511,10 +2511,7 @@ dummyShelleyChangeAddressGen = AnyChangeAddressGenWithState
 
 instance Show AnyChangeAddressGenWithState where
     show (AnyChangeAddressGenWithState (ChangeAddressGen gen _) s) =
-        let
-            firstChangeAddr = fst $ gen s
-        in
-            show $ toLedger firstChangeAddr
+            show $ toLedger $ fst $ gen s
 
 balanceTransactionSpec :: Spec
 balanceTransactionSpec = describe "balanceTransaction" $ do
