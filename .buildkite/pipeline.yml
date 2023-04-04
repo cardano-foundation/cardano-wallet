@@ -145,33 +145,28 @@ steps:
     env:
       TMPDIR: "/cache"
 
-  - label: 'Check nix (macOS)'
-    key: macos-nix
+  - block: "macOS steps"
     depends_on: linux-nix
+    key: trigger-macos
+    if: 'build.branch != "master"'
+
+  - label: 'Check nix (macOS)'
+    depends_on: trigger-macos
+    key: macos-nix
     commands:
       - './nix/regenerate.sh'
     agents:
       system: ${macos}
 
-  - block: "macOS test"
-    depends_on: macos-nix
-    if: 'build.branch != "master"'
-    key: trigger-macos-test
-
   - label: 'Run unit tests (macOS)'
-    depends_on: trigger-macos-test
+    depends_on: macos-nix
     key: macos-build-tests
     command: 'GC_DONT_GC=1 nix build --max-silent-time 0 --max-jobs 1 -L .#ci.${macos}.tests.run.unit'
     agents:
       system: ${macos}
 
-  - block: "macOS package"
-    depends_on: macos-nix
-    if: '(build.branch != "staging") && (build.branch != "trying") && (build.branch != "master")'
-    key: trigger-macos-package
-
   - label: 'Build package (macOS)'
-    depends_on: trigger-macos-package
+    depends_on: macos-nix
     key: build-macos
     command: nix build --max-silent-time 0 --max-jobs 1 -o result/macos-intel .#ci.artifacts.macos-intel.release
     artifact_paths: [ "./result/macos-intel/**" ]
