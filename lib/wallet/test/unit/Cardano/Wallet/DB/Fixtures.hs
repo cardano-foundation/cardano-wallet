@@ -1,5 +1,7 @@
 {-# LANGUAGE DataKinds #-}
 {-# LANGUAGE FlexibleContexts #-}
+{-# LANGUAGE GADTs #-}
+{-# LANGUAGE NamedFieldPuns #-}
 {-# LANGUAGE RankNTypes #-}
 {-# LANGUAGE ScopedTypeVariables #-}
 {-# LANGUAGE TypeApplications #-}
@@ -20,6 +22,7 @@ module Cardano.Wallet.DB.Fixtures
     , withStoreProp
     , StoreProperty
     , elementsOrArbitrary
+    , queryLaw
     ) where
 
 import Prelude
@@ -30,6 +33,8 @@ import Cardano.Wallet.DB.Sqlite.Schema
     ( Wallet (..), migrateAll )
 import Cardano.Wallet.DB.Sqlite.Types
     ( BlockId (..) )
+import Cardano.Wallet.DB.Store.QueryStore
+    ( Query (..), QueryStore (..), World )
 import Cardano.Wallet.Primitive.Types
     ( WalletId (..) )
 import Cardano.Wallet.Primitive.Types.Hash
@@ -72,7 +77,9 @@ import Test.QuickCheck.Monadic
 import UnliftIO.Exception
     ( bracket )
 
+
 import qualified Cardano.Wallet.DB.Sqlite.Schema as TH
+
 
 {-------------------------------------------------------------------------------
     DB setup
@@ -168,7 +175,8 @@ withInitializedWalletProp
     => (WalletId -> RunQuery -> PropertyM IO a)
     -> WalletProperty
 withInitializedWalletProp prop db wid = monadicIO $ do
-    let runQ = run .runQuery db
+    let runQ :: SqlPersistT IO a -> PropertyM IO a
+        runQ = run . runQuery db
     runQ $ initializeWallet wid
     prop wid runQ
 
@@ -182,3 +190,12 @@ unsafeLoadS s = fromRight (error "store law is broken") <$> loadS s
 -- Natural for use with 'foldM'.
 unsafeUpdateS :: Applicative m => Store m da -> Base da -> da -> m (Base da)
 unsafeUpdateS store ba da = updateS store (Just ba) da *> unsafeLoadS store
+
+-- | Property that a pure query returns the same result as the store one.
+queryLaw :: (Monad m, Eq b, Query qa, MonadFail m, Base da ~ World qa, Show b)
+    => QueryStore m qa da -- ^ the store to test
+  -> World qa -- ^ the world to query
+  -> qa b -- ^ the query to run
+  -> m Bool -- ^ if the pure query returns the same result as the store one
+queryLaw QueryStore{queryS} z r =
+    (query r z ==) <$> queryS r

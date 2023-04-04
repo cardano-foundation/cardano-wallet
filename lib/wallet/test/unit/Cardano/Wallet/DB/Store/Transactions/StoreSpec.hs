@@ -18,11 +18,17 @@ import Cardano.DB.Sqlite
 import Cardano.Wallet.DB.Arbitrary
     ()
 import Cardano.Wallet.DB.Fixtures
-    ( StoreProperty, assertWith, logScale, withDBInMemory, withStoreProp )
+    ( StoreProperty
+    , assertWith
+    , logScale
+    , queryLaw
+    , withDBInMemory
+    , withStoreProp
+    )
 import Cardano.Wallet.DB.Sqlite.Types
     ( TxId (TxId) )
 import Cardano.Wallet.DB.Store.QueryStore
-    ( Query (..), QueryStore (..), World )
+    ( QueryStore (..) )
 import Cardano.Wallet.DB.Store.Transactions.Decoration
     ( DecoratedTxIns
     , decorateTxInsForRelation
@@ -43,7 +49,7 @@ import Cardano.Wallet.DB.Store.Transactions.Store
 import Cardano.Wallet.Primitive.Types.Tx
     ( Tx (..) )
 import Control.Monad
-    ( forM_ )
+    ( forM_, (<=<) )
 import Data.DBVar
     ( Store (..) )
 import Data.Delta
@@ -188,23 +194,14 @@ prop_QueryLaw =
         forAllM genTxSet $ \txs -> do
             runQ $ writeS (store TxSet.mkQueryStoreTxSet) txs
             forM_ (take 10 $ Map.keys $ relations txs) $ \txId -> do
-                assertWith "GetTxById correct"
-                    =<< runQ ( queryLaw TxSet.mkQueryStoreTxSet txs $
-                            TxSet.GetByTxId txId )
+                assertWith "GetTxById" <=< runQ
+                    $ queryLaw TxSet.mkQueryStoreTxSet txs
+                    $ TxSet.GetByTxId txId
                 index <- pick $ choose (0,5)
-                assertWith "GetTxOut correct"
-                    =<< runQ ( queryLaw TxSet.mkQueryStoreTxSet txs $
-                            TxSet.GetTxOut (txId,index) )
+                assertWith "GetTxOut" <=< runQ
+                    $ queryLaw TxSet.mkQueryStoreTxSet txs
+                    $ TxSet.GetTxOut (txId,index)
 
--- Note: We make a top-level definition here because we would like
--- to write down a type signature, due to the (implied) `forall b.`
-queryLaw :: (Monad m, Eq b, Query qa, MonadFail m, Base da ~ World qa)
-    => QueryStore m qa da
-    -> World qa
-    -> qa b
-    -> m Bool
-queryLaw QueryStore{queryS} z r =
-    (query r z ==) <$> queryS r
 
 {-----------------------------------------------------------------------------
     Generators
