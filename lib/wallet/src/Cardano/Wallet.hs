@@ -2943,12 +2943,9 @@ transactionFee DBLayer{atomically, walletsDB} protocolParams
                     txCtx
                     (Left preSelection)
 
-        -- The 'calculateFeePercentiles' function evaluates its argument
-        -- many times (today it is 100) so its performance is sensitive.
-        -- Therefore, we aim to do all the heavy lifting outside of it:
-        calculateFeePercentiles $ do
-            (Cardano.Tx (Cardano.TxBody bodyContent) _, _wallet) <- liftIO $
-                either (throwIO . ExceptionBalanceTx) pure <=< runExceptT $
+        let estimateFee :: ExceptT ErrSelectAssets IO Fee
+            estimateFee = do
+                (Cardano.Tx (Cardano.TxBody bodyContent) _, _wallet) <-
                     balanceTransaction @_ @_ @s
                         nullTracer
                         (Write.allKeyPaymentCredentials txLayer)
@@ -2962,10 +2959,20 @@ transactionFee DBLayer{atomically, walletsDB} protocolParams
                             , inputs = Cardano.UTxO mempty
                             , redeemers = []
                             }
-            pure $ case Cardano.txFee bodyContent of
-                Cardano.TxFeeExplicit _ coin -> Fee (fromCardanoLovelace coin)
-                Cardano.TxFeeImplicit Cardano.TxFeesImplicitInByronEra ->
-                    case recentEra of {}
+                pure $ case Cardano.txFee bodyContent of
+                    Cardano.TxFeeExplicit _ coin ->
+                        Fee (fromCardanoLovelace coin)
+                    Cardano.TxFeeImplicit Cardano.TxFeesImplicitInByronEra ->
+                        case recentEra of {}
+                & flip catchE (\case
+                    ErrBalanceTxSelectAssets esa -> throwE esa
+                    otherErr -> throwIO $ ExceptionBalanceTx otherErr
+                )
+
+        -- The 'calculateFeePercentiles' function evaluates its argument
+        -- many times (today it is 100) so its performance is sensitive.
+        -- Therefore, we aim to do all the heavy lifting outside of it:
+        calculateFeePercentiles estimateFee
 
 -- | Repeatedly (100 times) runs given transaction fee estimation calculation
 -- returning 1st and 9nth decile (10nth and 90nth percentile) values of a
