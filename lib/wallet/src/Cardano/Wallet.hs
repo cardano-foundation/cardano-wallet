@@ -169,6 +169,7 @@ module Cardano.Wallet
     , delegationFee
     , transactionFee
     , calculateFeePercentiles
+    , padFeePercentiles
     , calcMinimumCoinValues
 
     -- ** Transaction
@@ -401,7 +402,9 @@ import Cardano.Wallet.Primitive.Types
     , BlockHeader (..)
     , ChainPoint (..)
     , DelegationCertificate (..)
+    , FeePolicy (..)
     , GenesisParameters (..)
+    , LinearFunction (..)
     , NetworkParameters (..)
     , ProtocolParameters (..)
     , Range (..)
@@ -569,6 +572,8 @@ import Data.Maybe
     ( fromMaybe, isJust, mapMaybe, maybeToList )
 import Data.Proxy
     ( Proxy (..) )
+import Data.Quantity
+    ( Quantity (..) )
 import Data.Set
     ( Set )
 import Data.Text
@@ -3030,6 +3035,30 @@ calculateFeePercentiles
                 )
             ) -> pure $ Fee requiredCost
         e -> throwE e
+
+-- | Make a pair of fee estimation percentiles more imprecise. Useful for hiding
+-- small differences between the estimation and actual tx construction when
+-- integration tests expect them to coincide.
+padFeePercentiles
+    :: ProtocolParameters
+    -> (Quantity "byte" Word)
+    -- ^ Number of bytes by which to extend the interval in both directions.
+    -> (Percentile 10 Fee, Percentile 90 Fee)
+    -> (Percentile 10 Fee, Percentile 90 Fee)
+padFeePercentiles
+    pp
+    (Quantity byteDelta)
+    (Percentile (Fee a), Percentile (Fee b)) =
+        ( Percentile $ Fee $ a `Coin.difference` coinDelta
+        , Percentile $ Fee $ b `Coin.add` coinDelta
+        )
+  where
+    coinDelta :: Coin
+    coinDelta = Coin.fromNatural
+        . ceiling
+        $ fromIntegral byteDelta * slope feeFunction
+
+    LinearFee feeFunction = pp ^. (#txParameters . #getFeePolicy)
 
 {-------------------------------------------------------------------------------
                                   Key Store

@@ -2385,7 +2385,12 @@ postTransactionFeeOld ctx@ApiLayer{..} (ApiT walletId) body = do
                     ^? #metadata . traverse . #txMetadataWithSchema_metadata
                 }
             PreSelection{outputs}
-        pure $ mkApiFee Nothing minCoins feePercentiles
+        pure
+            $ mkApiFee Nothing minCoins
+            $ W.padFeePercentiles protocolParameters padding feePercentiles
+  where
+    padding :: Quantity "byte" Word
+    padding = Quantity 20
 
 constructTransaction
     :: forall (n :: NetworkDiscriminant)
