@@ -1131,14 +1131,22 @@ estimateKeyWitnessCount utxo txbody@(Cardano.TxBody txbodycontent) =
             fromIntegral
             $ sumVia estimateMaxWitnessRequiredPerInput
             $ mapMaybe toTimelockScript scripts
-    in
-    numberOfShelleyWitnesses $ fromIntegral $
-        length vkInsUnique +
-        length txExtraKeyWits' +
-        length txWithdrawals' +
-        txUpdateProposal' +
-        txCerts +
-        scriptVkWitsUpperBound
+        nonInputWits = numberOfShelleyWitnesses $ fromIntegral $
+            length txExtraKeyWits' +
+            length txWithdrawals' +
+            txUpdateProposal' +
+            txCerts +
+            scriptVkWitsUpperBound
+        inputWits = KeyWitnessCount
+            { nKeyWits = fromIntegral
+                . length
+                $ filter (not . hasBootstrapAddr utxo) vkInsUnique
+            , nBootstrapWits = fromIntegral
+                . length
+                $ filter (hasBootstrapAddr utxo) vkInsUnique
+            }
+        in
+            nonInputWits <> inputWits
   where
     scripts = case txbody of
         Cardano.ShelleyTxBody _ _ shelleyBodyScripts _ _ _ -> shelleyBodyScripts
@@ -1181,6 +1189,21 @@ estimateKeyWitnessCount utxo txbody@(Cardano.TxBody txbodycontent) =
         -> Bool
     hasVkPaymentCred (Cardano.UTxO u) inp = case Map.lookup inp u of
         Just (Cardano.TxOut addrInEra _ _ _) -> Cardano.isKeyAddress addrInEra
+        Nothing ->
+            error $ unwords
+                [ "estimateMaxWitnessRequiredPerInput: input not in utxo."
+                , "Caller is expected to ensure this does not happen."
+                ]
+
+    hasBootstrapAddr
+        :: Cardano.UTxO era
+        -> Cardano.TxIn
+        -> Bool
+    hasBootstrapAddr (Cardano.UTxO u) inp = case Map.lookup inp u of
+        Just (Cardano.TxOut addrInEra _ _ _) ->
+            case addrInEra of
+                Cardano.AddressInEra Cardano.ByronAddressInAnyEra _ -> True
+                _ -> False
         Nothing ->
             error $ unwords
                 [ "estimateMaxWitnessRequiredPerInput: input not in utxo."
