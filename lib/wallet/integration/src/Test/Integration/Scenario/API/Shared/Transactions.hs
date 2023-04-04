@@ -1859,7 +1859,68 @@ spec = describe "SHARED_TRANSACTIONS" $ do
                      (`shouldBe` [ registerStakeKeyCert stakeKeyDerPathParty2
                                  , delegatingCert stakeKeyDerPathParty2])]
         verify rDecodedTx2 (decodedExpectations ++ certExpectation2 ++ witsExp1)
+        let (ApiSerialisedTransaction apiTx1 _) =
+                getFromResponse #transaction rTx1
+        signedTx1 <-
+            signSharedTx ctx party1 apiTx1
+                [ expectResponseCode HTTP.status202 ]
+        let decodePayload2 = Json (toJSON signedTx1)
+        rDecodedTx3 <- request @(ApiDecodedTransaction n) ctx
+            (Link.decodeTransaction @'Shared party1) Default decodePayload2
+        rDecodedTx4 <- request @(ApiDecodedTransaction n) ctx
+            (Link.decodeTransaction @'Shared party2) Default decodePayload2
 
+        -- there is now 1 witness for staking and 1 witness for payment from party1
+        let witsExp2 =
+                [ expectField (#witnessCount . #scripts)
+                      (`shouldContain` [delegationScript])
+                , expectField (#witnessCount . #scripts)
+                      (`shouldContain` [paymentScript])
+                , expectField (#witnessCount . #verificationKey)
+                      (`shouldBe` 2)
+                , expectField (#witnessCount . #bootstrap)
+                      (`shouldBe` 0)]
+
+        verify rDecodedTx3 (decodedExpectations ++ certExpectation1 ++ witsExp2)
+        verify rDecodedTx4 (decodedExpectations ++ certExpectation2 ++ witsExp2)
+
+        --missing party2' witness for script staking
+        submittedTx1 <- submitSharedTxWithWid ctx party1 signedTx1
+        verify submittedTx1
+            [ expectResponseCode HTTP.status403
+            , expectErrorMessage (errMsg403MissingWitsInTransaction 3 2)
+            ]
+
+        let (ApiSerialisedTransaction apiTx2 _) = signedTx1
+        signedTx2 <-
+            signSharedTx ctx party2 apiTx2
+                [ expectResponseCode HTTP.status202 ]
+
+        let decodePayload3 = Json (toJSON signedTx2)
+        rDecodedTx5 <- request @(ApiDecodedTransaction n) ctx
+            (Link.decodeTransaction @'Shared party1) Default decodePayload3
+        rDecodedTx6 <- request @(ApiDecodedTransaction n) ctx
+            (Link.decodeTransaction @'Shared party2) Default decodePayload3
+
+        -- there is now 1 witness for staking and 1 witness for payment from party1
+        -- and 1 witness for staking and 1 witness for payment from party2.
+        let witsExp3 =
+                [ expectField (#witnessCount . #scripts)
+                      (`shouldContain` [delegationScript])
+                , expectField (#witnessCount . #scripts)
+                      (`shouldContain` [paymentScript])
+                , expectField (#witnessCount . #verificationKey)
+                      (`shouldBe` 4)
+                , expectField (#witnessCount . #bootstrap)
+                      (`shouldBe` 0)]
+
+        verify rDecodedTx5 (decodedExpectations ++ certExpectation1 ++ witsExp3)
+        verify rDecodedTx6 (decodedExpectations ++ certExpectation2 ++ witsExp3)
+
+        submittedTx2 <- submitSharedTxWithWid ctx party1 signedTx2
+        verify submittedTx2
+            [ expectResponseCode HTTP.status202
+            ]
   where
      listSharedTransactions ctx w mStart mEnd mOrder mLimit = do
          let path = Link.listTransactions' @'Shared w
