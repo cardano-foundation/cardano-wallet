@@ -2389,6 +2389,25 @@ postTransactionFeeOld ctx@ApiLayer{..} (ApiT walletId) body = do
             $ mkApiFee Nothing minCoins
             $ W.padFeePercentiles protocolParameters padding feePercentiles
   where
+    -- Padding to make the fee percentiles more imprecise, for the following
+    -- reasons:
+    --
+    -- 1. dummyChangeAddressGen uses the longest possbile addresses. For byron
+    -- wallets they are 83 bytes long, which is longer than what we'd
+    -- expect in reality, and longer than the shortest Byron address we'd expect
+    -- of 66 bytes. I.e. we could be off by up to 17 bytes.
+    --
+    -- 2. Our integration are making assumptions that the fees of transactions
+    -- alyways lie within the estimated interval. These are faulty - the
+    -- estimation is a pair of 10- and 90-th percentiles, not any absolute
+    -- bounds. But they are also useful for the moment. During the risky
+    -- transition to balanceTx they will temporarily compare a rewritten
+    -- postTransactionFee with an old postTransaction. They may also act as
+    -- golden tests in lieu of better/more ones on the unit level. A small
+    -- amount of padding is a cheap way to keep these checks.
+    --
+    -- In the context of a mainnet `minfeeA` value of 44 lovelace/byte the
+    -- padding is negligible - less than 1/1000 ada.
     padding :: Quantity "byte" Word
     padding = Quantity 20
 

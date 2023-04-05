@@ -3036,9 +3036,7 @@ calculateFeePercentiles
             ) -> pure $ Fee requiredCost
         e -> throwE e
 
--- | Make a pair of fee estimation percentiles more imprecise. Useful for hiding
--- small differences between the estimation and actual tx construction when
--- integration tests expect them to coincide.
+-- | Make a pair of fee estimation percentiles more imprecise.
 padFeePercentiles
     :: ProtocolParameters
     -> (Quantity "byte" Word)
