@@ -3911,7 +3911,7 @@ defaultChangeAddressGen arg proxy =
     ChangeAddressGen
         (genChange arg)
         (maxLengthAddressFor proxy)
-
+-- | WARNING: Must never be used to create real transactions for submission to the blockchain as funds sent to a dummy change address would be irrecoverable.
 dummyChangeAddressGen
     :: forall (k :: Depth -> Type -> Type) s
      . BoundedAddressLength k
