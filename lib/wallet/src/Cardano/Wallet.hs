@@ -2928,7 +2928,7 @@ transactionFee
     -> TransactionCtx
     -> PreSelection
     -> ExceptT ErrSelectAssets IO (Percentile 10 Fee, Percentile 90 Fee)
-transactionFee DBLayer{atomically, walletsDB} protocolParams'
+transactionFee DBLayer{atomically, walletsDB} protocolParams
     txLayer ti era changeAddressGen walletId txCtx preSelection = do
     WriteTx.withRecentEra era $ \(recentEra :: WriteTx.RecentEra era) -> do
         wallet <- lift . atomically $ readDBVar walletsDB >>= \wallets ->
@@ -2939,13 +2939,13 @@ transactionFee DBLayer{atomically, walletsDB} protocolParams'
                 Just ws -> pure $ WalletState.getLatest ws
         let utxoIndex = UTxOIndex.fromMap . CS.toInternalUTxOMap $
                 availableUTxO @s mempty wallet
-        let protocolParams = toBalanceTxPParams protocolParams'
+        let protocolParamsForBalancing = toBalanceTxPParams protocolParams
         pureTimeInterpreter <- lift $ snapshot ti
         unsignedTxBody <- liftIO $
             either (throwIO . ExceptionConstructTx . ErrConstructTxBody) pure $
                 mkUnsignedTransaction txLayer @era
                     (unsafeShelleyOnlyGetRewardXPub @s @k @n (getState wallet))
-                    protocolParams'
+                    protocolParamsForBalancing
                     txCtx
                     (Left preSelection)
 
