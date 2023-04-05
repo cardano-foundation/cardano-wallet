@@ -2906,8 +2906,9 @@ delegationFee db@DBLayer{atomically, walletsDB} netLayer
                     (unsafeShelleyOnlyGetRewardXPub (getState wallet))
                     (fst protocolParams)
                     defaultTransactionCtx
-                    -- FIXME: Shouldn't there be a delegation action added here?
-                    -- 😅
+                    -- It would seem that we should add a delegation action
+                    -- to the partial tx we construct, this was not done
+                    -- previously, and the difference should be negligible.
                     (Left $ PreSelection [])
 
         let ptx = PartialTx
@@ -3868,7 +3869,7 @@ defaultChangeAddressGen arg proxy =
         (genChange arg)
         (maxLengthAddressFor proxy)
 
--- | TODO: ADP-2459
+-- TODO: ADP-2459 - replace with something nicer.
 toBalanceTxPParams
     :: forall era. WriteTx.IsRecentEra era
     => ProtocolParameters
