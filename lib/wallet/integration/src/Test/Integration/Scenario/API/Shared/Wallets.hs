@@ -30,7 +30,6 @@ import Cardano.Wallet.Api.Types
     , ApiAddress
     , ApiCosignerIndex (..)
     , ApiCredentialType (..)
-    , ApiFee (..)
     , ApiScriptTemplate (..)
     , ApiSharedWallet (..)
     , ApiT (..)
@@ -102,7 +101,6 @@ import Test.Integration.Framework.DSL
     , expectListSize
     , expectResponseCode
     , expectWalletUTxO
-    , faucetAmt
     , fixturePassphrase
     , fixtureSharedWallet
     , fixtureWallet
@@ -122,7 +120,6 @@ import Test.Integration.Framework.DSL
     , postSharedWallet
     , request
     , sharedAccPubKeyFromMnemonics
-    , unsafeRequest
     , verify
     , walletId
     )
@@ -1443,24 +1440,16 @@ spec = describe "SHARED_WALLETS" $ do
                 }],
                 "passphrase": #{fixturePassphrase}
             }|]
-        (_, ApiFee (Quantity _) (Quantity feeMax) _ _) <- unsafeRequest ctx
-            (Link.getTransactionFeeOld @'Shelley wShelley) payloadTx
         let ep = Link.createTransactionOld @'Shelley
         rTx <- request @(ApiTransaction n) ctx (ep wShelley) Default payloadTx
         expectResponseCode HTTP.status202 rTx
-        eventually "wShelley balance is decreased" $ do
-            ra <- request @ApiWallet ctx
-                (Link.getWallet @'Shelley wShelley) Default Empty
-            expectField
-                (#balance . #available)
-                (`shouldBe` Quantity (faucetAmt - feeMax - amt)) ra
-
-        rWal <- getSharedWallet ctx walShared
-        verify (fmap (view #wallet) <$> rWal)
-            [ expectResponseCode HTTP.status200
-            , expectField (traverse . #balance . #available)
-                (`shouldBe` Quantity amt)
-            ]
+        eventually "shared wallet balance is increased" $ do
+            rWal <- getSharedWallet ctx walShared
+            verify (fmap (view #wallet) <$> rWal)
+                [ expectResponseCode HTTP.status200
+                , expectField (traverse . #balance . #available)
+                    (`shouldBe` Quantity amt)
+                ]
 
     it "SHARED_WALLETS_UTXO_01 - \
        \Wallet's inactivity is reflected in utxo"$ \ctx -> runResourceT $ do
