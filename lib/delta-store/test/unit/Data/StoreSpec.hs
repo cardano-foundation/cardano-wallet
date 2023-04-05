@@ -2,7 +2,7 @@
 {-# LANGUAGE TypeApplications #-}
 {-# LANGUAGE TypeFamilies #-}
 
-module Data.DeltaSpec
+module Data.StoreSpec
     ( spec
     ) where
 

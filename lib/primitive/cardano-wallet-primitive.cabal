@@ -52,7 +52,7 @@ library
     , cborg
     , containers
     , cryptonite
-    , dbvar
+    , delta-types
     , deepseq
     , errors
     , extra
@@ -132,7 +132,8 @@ test-suite test
     , cardano-wallet-primitive
     , cardano-wallet-test-utils
     , containers
-    , dbvar
+    , delta-store
+    , delta-types
     , filepath
     , fmt
     , generic-lens

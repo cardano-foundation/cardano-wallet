@@ -100,8 +100,9 @@ library
     , cryptonite
     , data-default
     , data-interval
-    , dbvar
     , deepseq
+    , delta-store
+    , delta-types
     , digest
     , directory
     , either
@@ -764,7 +765,8 @@ test-suite unit
     , cryptonite
     , data-default
     , data-interval
-    , dbvar
+    , delta-store
+    , delta-types
     , deepseq
     , directory
     , either

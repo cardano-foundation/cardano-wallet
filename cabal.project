@@ -59,8 +59,9 @@ index-state:
 packages:
     lib/balance-tx/
   , lib/coin-selection/
-  , lib/dbvar/
+  , lib/delta-store/
   , lib/delta-table
+  , lib/delta-types/
   , lib/launcher/
   , lib/numeric/
   , lib/primitive/
@@ -216,7 +217,11 @@ package cardano-node
 
 test-show-details: direct
 
-package dbvar
+package delta-store
+  tests: True
+  ghc-options: -fwrite-ide-info
+
+package delta-types
   tests: True
   ghc-options: -fwrite-ide-info
 
