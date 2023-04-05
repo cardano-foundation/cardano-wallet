@@ -37,7 +37,6 @@ import Cardano.Wallet.Primitive.AddressDerivation
     , HardDerivation (..)
     , Index
     , MkKeyFingerprint (..)
-    , NetworkDiscriminant (..)
     , PaymentAddress (..)
     , Role (..)
     , SoftDerivation (..)
@@ -77,6 +76,8 @@ import Cardano.Wallet.Primitive.AddressDiscovery.Sequential
     )
 import Cardano.Wallet.Primitive.Types.Address
     ( Address (..), AddressState (..) )
+import Cardano.Wallet.Read.NetworkId
+    ( NetworkDiscriminant (..) )
 import Cardano.Wallet.Unsafe
     ( someDummyMnemonic )
 import Cardano.Wallet.Util

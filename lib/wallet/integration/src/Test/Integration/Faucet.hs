@@ -67,7 +67,6 @@ import Cardano.Mnemonic
 import Cardano.Wallet.Primitive.AddressDerivation
     ( DerivationType (..)
     , HardDerivation (..)
-    , NetworkDiscriminant (..)
     , PaymentAddress (..)
     , Role (..)
     , WalletKey (..)
@@ -84,6 +83,8 @@ import Cardano.Wallet.Primitive.Types.TokenPolicy
     ( TokenName (..), TokenPolicyId, nullTokenName )
 import Cardano.Wallet.Primitive.Types.TokenQuantity
     ( TokenQuantity (..) )
+import Cardano.Wallet.Read.NetworkId
+    ( NetworkDiscriminant (..) )
 import Cardano.Wallet.Unsafe
     ( unsafeFromText, unsafeMkMnemonic )
 import Control.Monad

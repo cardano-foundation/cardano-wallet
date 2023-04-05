@@ -138,7 +138,7 @@ import Cardano.Wallet.Api.Types.SchemaMetadata
 import Cardano.Wallet.Api.Types.Transaction
     ( ApiLimit )
 import Cardano.Wallet.Primitive.AddressDerivation
-    ( DerivationIndex, NetworkDiscriminant (..), Role )
+    ( DerivationIndex, Role )
 import Cardano.Wallet.Primitive.AddressDiscovery.Shared
     ( CredentialType (..) )
 import Cardano.Wallet.Primitive.Types
@@ -151,6 +151,8 @@ import Cardano.Wallet.Primitive.Types.Hash
     ( Hash )
 import Cardano.Wallet.Primitive.Types.TokenPolicy
     ( TokenName, TokenPolicyId, nullTokenName )
+import Cardano.Wallet.Read.NetworkId
+    ( NetworkDiscriminant (..) )
 import Data.Function
     ( (&) )
 import Data.Generics.Internal.VL.Lens

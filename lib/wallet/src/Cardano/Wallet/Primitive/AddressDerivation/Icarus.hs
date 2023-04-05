@@ -55,8 +55,6 @@ import Cardano.Wallet.Primitive.AddressDerivation
     , Index (..)
     , KeyFingerprint (..)
     , MkKeyFingerprint (..)
-    , NetworkDiscriminant (..)
-    , NetworkDiscriminantCheck (..)
     , PaymentAddress (..)
     , PersistPrivateKey (..)
     , PersistPublicKey (..)
@@ -76,6 +74,8 @@ import Cardano.Wallet.Primitive.Types.Address
     ( Address (..) )
 import Cardano.Wallet.Primitive.Types.ProtocolMagic
     ( ProtocolMagic (..), testnetMagic )
+import Cardano.Wallet.Read.NetworkId
+    ( NetworkDiscriminant (..), NetworkDiscriminantCheck (..) )
 import Control.Arrow
     ( first, left )
 import Control.DeepSeq

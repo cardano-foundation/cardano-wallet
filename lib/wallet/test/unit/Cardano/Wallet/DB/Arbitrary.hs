@@ -52,7 +52,6 @@ import Cardano.Wallet.Primitive.AddressDerivation
     ( Depth (..)
     , DerivationType (..)
     , Index (..)
-    , NetworkDiscriminant (..)
     , Role (..)
     , WalletKey (..)
     , publicKey
@@ -147,6 +146,8 @@ import Cardano.Wallet.Read.Eras.EraValue
     ( eraValueSerialize )
 import Cardano.Wallet.Read.Eras.KnownEras
     ( knownEraIndices )
+import Cardano.Wallet.Read.NetworkId
+    ( NetworkDiscriminant (..) )
 import Cardano.Wallet.Read.Tx.CBOR
     ( TxCBOR )
 import Cardano.Wallet.Unsafe

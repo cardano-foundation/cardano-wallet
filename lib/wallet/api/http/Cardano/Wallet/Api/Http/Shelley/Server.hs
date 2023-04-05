@@ -374,8 +374,6 @@ import Cardano.Wallet.Primitive.AddressDerivation
     , DerivationType (..)
     , HardDerivation (..)
     , Index (..)
-    , NetworkDiscriminant (..)
-    , NetworkDiscriminantBits
     , PaymentAddress (..)
     , RewardAccount (..)
     , Role
@@ -513,6 +511,8 @@ import Cardano.Wallet.Primitive.Types.Tx.TxIn
     ( TxIn (..) )
 import Cardano.Wallet.Primitive.Types.Tx.TxOut
     ( TxOut (..) )
+import Cardano.Wallet.Read.NetworkId
+    ( NetworkDiscriminant, NetworkDiscriminantBits )
 import Cardano.Wallet.Registry
     ( HasWorkerCtx (..)
     , MkWorker (..)

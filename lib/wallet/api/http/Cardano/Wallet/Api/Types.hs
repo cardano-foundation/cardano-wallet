@@ -341,7 +341,7 @@ import Cardano.Wallet.Api.Types.Transaction
 import Cardano.Wallet.Pools
     ( EpochInfo, StakePool (..), StakePoolFlag, StakePoolMetrics )
 import Cardano.Wallet.Primitive.AddressDerivation
-    ( Depth (..), DerivationIndex (..), Index (..), NetworkDiscriminant (..) )
+    ( Depth (..), DerivationIndex (..), Index (..) )
 import Cardano.Wallet.Primitive.AddressDiscovery.Random
     ( RndState )
 import Cardano.Wallet.Primitive.AddressDiscovery.Sequential
@@ -389,6 +389,8 @@ import Cardano.Wallet.Primitive.Types.Tx.TxIn
     ( TxIn (..) )
 import Cardano.Wallet.Primitive.Types.UTxOStatistics
     ( BoundType, HistogramBar (..), UTxOStatistics (..) )
+import Cardano.Wallet.Read.NetworkId
+    ( NetworkDiscriminant )
 import Cardano.Wallet.Shelley.Network.Discriminant
     ( DecodeAddress (..)
     , DecodeStakeAddress (..)

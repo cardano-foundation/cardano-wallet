@@ -88,7 +88,7 @@ import Cardano.Wallet.Api.Types
     , WalletPutPassphraseData
     )
 import Cardano.Wallet.Primitive.AddressDerivation
-    ( DerivationIndex (..), NetworkDiscriminant (..), Role (..) )
+    ( DerivationIndex (..), Role (..) )
 import Cardano.Wallet.Primitive.Types
     ( WalletId, walletNameMaxLength )
 import Cardano.Wallet.Primitive.Types.Address
@@ -97,6 +97,8 @@ import Cardano.Wallet.Primitive.Types.TokenPolicy
     ( TokenName, TokenPolicyId )
 import Cardano.Wallet.Primitive.Types.Tx
     ( SealedTx, SerialisedTx )
+import Cardano.Wallet.Read.NetworkId
+    ( NetworkDiscriminant (..) )
 import Control.Arrow
     ( first )
 import Data.Aeson.QQ

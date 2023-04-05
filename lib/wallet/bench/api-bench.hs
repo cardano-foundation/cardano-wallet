@@ -64,12 +64,8 @@ import Cardano.Wallet.Primitive.AddressDerivation
     ( BoundedAddressLength (..)
     , DelegationAddress (..)
     , Depth (..)
-    , NetworkDiscriminant (..)
-    , NetworkDiscriminantBits (..)
-    , NetworkDiscriminantVal (..)
     , PersistPrivateKey
     , WalletKey
-    , networkDescription
     )
 import Cardano.Wallet.Primitive.AddressDerivation.Byron
     ( ByronKey )
@@ -99,6 +95,12 @@ import Cardano.Wallet.Primitive.Types.Tx.TxOut
     ( TxOut (..) )
 import Cardano.Wallet.Primitive.Types.UTxOStatistics
     ( HistogramBar (..), UTxOStatistics (..) )
+import Cardano.Wallet.Read.NetworkId
+    ( NetworkDiscriminant (..)
+    , NetworkDiscriminantBits
+    , NetworkDiscriminantVal
+    , networkDescription
+    )
 import Cardano.Wallet.Shelley.Network.Discriminant
     ( HasNetworkId, networkIdVal )
 import Cardano.Wallet.Shelley.Transaction

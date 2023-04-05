@@ -48,7 +48,6 @@ import Cardano.Wallet.Primitive.AddressDerivation
     , HardDerivation (..)
     , KeyFingerprint (..)
     , MkKeyFingerprint (..)
-    , NetworkDiscriminant (..)
     , PersistPrivateKey (..)
     , PersistPublicKey (..)
     , SoftDerivation (..)
@@ -71,6 +70,8 @@ import Cardano.Wallet.Primitive.Passphrase
     ( Passphrase (..), PassphraseHash (..), changePassphraseXPrv )
 import Cardano.Wallet.Primitive.Types.Address
     ( Address (..) )
+import Cardano.Wallet.Read.NetworkId
+    ( NetworkDiscriminant )
 import Control.Monad
     ( (<=<) )
 import Crypto.Hash

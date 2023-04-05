@@ -52,12 +52,12 @@ import Cardano.Wallet.Api.Malformed
     , malformed
     , wellformed
     )
-import Cardano.Wallet.Primitive.AddressDerivation
-    ( NetworkDiscriminant (..) )
 import Cardano.Wallet.Primitive.Types.Address
     ( Address (..) )
 import Cardano.Wallet.Primitive.Types.RewardAccount
     ( RewardAccount (..) )
+import Cardano.Wallet.Read.NetworkId
+    ( NetworkDiscriminant (..) )
 import Cardano.Wallet.Shelley.Network.Discriminant
     ( DecodeAddress (..)
     , DecodeStakeAddress (..)

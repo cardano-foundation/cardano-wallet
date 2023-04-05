@@ -22,7 +22,6 @@ import Cardano.Wallet.Primitive.AddressDerivation
     , HardDerivation (..)
     , KeyFingerprint (..)
     , MkKeyFingerprint (..)
-    , NetworkDiscriminant (..)
     , PaymentAddress (..)
     , RewardAccount (..)
     , SoftDerivation (..)
@@ -53,6 +52,8 @@ import Cardano.Wallet.Primitive.Types.Tx.TxIn
     ( TxIn (..) )
 import Cardano.Wallet.Primitive.Types.Tx.TxOut
     ( TxOut (..) )
+import Cardano.Wallet.Read.NetworkId
+    ( NetworkDiscriminant (..) )
 import Control.Arrow
     ( first )
 import Crypto.Hash.Utils

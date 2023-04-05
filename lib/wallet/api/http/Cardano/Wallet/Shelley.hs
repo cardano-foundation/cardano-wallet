@@ -55,12 +55,9 @@ import Cardano.Wallet.Pools
 import Cardano.Wallet.Primitive.AddressDerivation
     ( DelegationAddress (..)
     , Depth (..)
-    , NetworkDiscriminantBits
-    , NetworkDiscriminantVal
     , PaymentAddress
     , PersistPrivateKey
     , WalletKey
-    , networkDiscriminantVal
     )
 import Cardano.Wallet.Primitive.AddressDerivation.Byron
     ( ByronKey )
@@ -99,6 +96,8 @@ import Cardano.Wallet.Primitive.Types.RewardAccount
     ( RewardAccount )
 import Cardano.Wallet.Primitive.Types.Tx.SealedTx
     ( SealedTx )
+import Cardano.Wallet.Read.NetworkId
+    ( NetworkDiscriminantBits, NetworkDiscriminantVal (..) )
 import Cardano.Wallet.Registry
     ( HasWorkerCtx (..) )
 import Cardano.Wallet.Shelley.BlockchainSource

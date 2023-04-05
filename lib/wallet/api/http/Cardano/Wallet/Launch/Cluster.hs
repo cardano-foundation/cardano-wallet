@@ -244,9 +244,9 @@ import UnliftIO.MVar
 
 import qualified Cardano.Ledger.Address as Ledger
 import qualified Cardano.Ledger.Shelley.API as Ledger
-import qualified Cardano.Wallet.Primitive.AddressDerivation as W
 import qualified Cardano.Wallet.Primitive.Types.TokenBundle as TokenBundle
 import qualified Cardano.Wallet.Primitive.Types.TokenMap as TokenMap
+import qualified Cardano.Wallet.Read.NetworkId as Nid
 import qualified Codec.Binary.Bech32 as Bech32
 import qualified Codec.CBOR.Encoding as CBOR
 import qualified Codec.CBOR.Read as CBOR
@@ -1233,7 +1233,7 @@ withCluster tr dir LocalClusterConfig{..} faucetFunds onClusterStart = bracketTr
         [] -> error "rotate: impossible"
         x : xs -> (x, sort xs)
 
-    encodeAddresses = map (first (T.unpack . encodeAddress @'W.Mainnet))
+    encodeAddresses = map (first (T.unpack . encodeAddress @'Nid.Mainnet))
 
 data LogFileConfig = LogFileConfig
     { minSeverityTerminal :: Severity
@@ -2367,7 +2367,7 @@ internalFaucetFunds = map
   , "Ae2tdPwUPEZEAQJxUj5Xkcukd5mvCwrMuicspyAiDuPkxA598NJGrpRdnG2"
   ]
   where
-    unsafeDecodeAddr = either (error . show) id . decodeAddress @'W.Mainnet
+    unsafeDecodeAddr = either (error . show) id . decodeAddress @'Nid.Mainnet
 
 
 -- | Allow running the test cluster a second time in the same process.

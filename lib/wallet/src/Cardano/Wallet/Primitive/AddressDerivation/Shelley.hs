@@ -68,9 +68,6 @@ import Cardano.Wallet.Primitive.AddressDerivation
     , Index (..)
     , KeyFingerprint (..)
     , MkKeyFingerprint (..)
-    , NetworkDiscriminant (..)
-    , NetworkDiscriminantBits
-    , NetworkDiscriminantCheck (..)
     , PaymentAddress (..)
     , PersistPrivateKey (..)
     , PersistPublicKey (..)
@@ -82,7 +79,6 @@ import Cardano.Wallet.Primitive.AddressDerivation
     , fromHex
     , hex
     , mutableAccount
-    , networkDiscriminantBits
     , toAddressParts
     )
 import Cardano.Wallet.Primitive.AddressDiscovery
@@ -99,6 +95,11 @@ import Cardano.Wallet.Primitive.Passphrase
     ( Passphrase (..), PassphraseHash (..), changePassphraseXPrv )
 import Cardano.Wallet.Primitive.Types.Address
     ( Address (..) )
+import Cardano.Wallet.Read.NetworkId
+    ( NetworkDiscriminant (..)
+    , NetworkDiscriminantBits (..)
+    , NetworkDiscriminantCheck (..)
+    )
 import Control.DeepSeq
     ( NFData (..) )
 import Control.Monad

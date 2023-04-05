@@ -54,7 +54,6 @@ import Cardano.Wallet.Primitive.AddressDerivation
     , DerivationIndex (..)
     , DerivationType (..)
     , Index (..)
-    , NetworkDiscriminant
     , PaymentAddress (..)
     , liftIndex
     , publicKey
@@ -75,6 +74,8 @@ import Cardano.Wallet.Primitive.Types.Address
     ( Address (..), AddressState (..) )
 import Cardano.Wallet.Primitive.Types.RewardAccount
     ( RewardAccount )
+import Cardano.Wallet.Read.NetworkId
+    ( NetworkDiscriminant )
 import Control.Arrow
     ( second )
 import Control.DeepSeq

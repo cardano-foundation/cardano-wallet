@@ -172,12 +172,7 @@ import Cardano.Wallet.Api.Types.SchemaMetadata
 import Cardano.Wallet.Pools
     ( StakePoolLayer (..) )
 import Cardano.Wallet.Primitive.AddressDerivation
-    ( DelegationAddress (..)
-    , Depth (..)
-    , NetworkDiscriminantBits
-    , PaymentAddress (..)
-    , Role (..)
-    )
+    ( DelegationAddress (..), Depth (..), PaymentAddress (..), Role (..) )
 import Cardano.Wallet.Primitive.AddressDerivation.Byron
     ( ByronKey )
 import Cardano.Wallet.Primitive.AddressDerivation.Icarus
@@ -196,6 +191,8 @@ import Cardano.Wallet.Primitive.AddressDiscovery.Shared
     ( CredentialType (..), SharedState )
 import Cardano.Wallet.Primitive.Types
     ( PoolMetadataSource (..), SmashServer (..), poolMetadataSource )
+import Cardano.Wallet.Read.NetworkId
+    ( NetworkDiscriminantBits )
 import Cardano.Wallet.Shelley.BlockchainSource
     ( BlockchainSource (..) )
 import Cardano.Wallet.Shelley.Compatibility

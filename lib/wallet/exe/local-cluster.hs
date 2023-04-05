@@ -46,12 +46,12 @@ import Cardano.Wallet.Launch.Cluster
     )
 import Cardano.Wallet.Logging
     ( stdoutTextTracer, trMessageText )
-import Cardano.Wallet.Primitive.AddressDerivation
-    ( NetworkDiscriminant (..) )
 import Cardano.Wallet.Primitive.SyncProgress
     ( SyncTolerance (..) )
 import Cardano.Wallet.Primitive.Types.Coin
     ( Coin (..) )
+import Cardano.Wallet.Read.NetworkId
+    ( NetworkDiscriminant (..) )
 import Cardano.Wallet.Shelley
     ( SomeNetworkDiscriminant (..)
     , serveWallet
