@@ -2124,11 +2124,13 @@ spec = describe "SHELLEY_TRANSACTIONS" $ do
                 }],
                 "passphrase": #{fixturePassphrase}
             }|]
-        (_, ApiFee (Quantity _) (Quantity fee) _ _) <- unsafeRequest ctx
-            (Link.getTransactionFeeOld @'Shelley wSelf) payload
+        (_, ApiFee (Quantity estimatedFeeMin) (Quantity estimatedFeeMax) _ _)
+            <- unsafeRequest ctx
+                (Link.getTransactionFeeOld @'Shelley wSelf) payload
 
         rTx <- request @(ApiTransaction n) ctx
             (Link.createTransactionOld @'Shelley wSelf) Default payload
+        let Quantity fee = getFromResponse #fee rTx
         verify rTx
             [ expectResponseCode HTTP.status202
             , expectField #withdrawals
@@ -2137,6 +2139,10 @@ spec = describe "SHELLEY_TRANSACTIONS" $ do
                 (`shouldBe` Incoming)
             , expectField (#amount . #getQuantity)
                 (`shouldBe` (oneMillionAda - fee))
+
+            -- TODO: Drop https://input-output.atlassian.net/browse/ADP-2935
+            , expectField (#fee . #getQuantity)
+                (between (estimatedFeeMin, estimatedFeeMax))
             ]
         let tid = getFromResponse Prelude.id rTx
 
