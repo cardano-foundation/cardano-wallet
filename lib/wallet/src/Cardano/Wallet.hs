@@ -3031,7 +3031,7 @@ calculateFeePercentiles
         ErrSelectAssetsSelectionError
             ( SelectionBalanceErrorOf
                 ( UnableToConstructChange
-                    ( UnableToConstructChangeError {requiredCost})
+                    UnableToConstructChangeError{requiredCost}
                 )
             ) -> pure $ Fee requiredCost
         e -> throwE e
@@ -3039,7 +3039,7 @@ calculateFeePercentiles
 -- | Make a pair of fee estimation percentiles more imprecise.
 padFeePercentiles
     :: ProtocolParameters
-    -> (Quantity "byte" Word)
+    -> Quantity "byte" Word
     -- ^ Number of bytes by which to extend the interval in both directions.
     -> (Percentile 10 Fee, Percentile 90 Fee)
     -> (Percentile 10 Fee, Percentile 90 Fee)
@@ -3052,11 +3052,10 @@ padFeePercentiles
         )
   where
     coinDelta :: Coin
-    coinDelta = Coin.fromNatural
-        . ceiling
-        $ fromIntegral byteDelta * slope feeFunction
+    coinDelta =
+        Coin.fromNatural . ceiling $ fromIntegral byteDelta * slope feeFunction
 
-    LinearFee feeFunction = pp ^. (#txParameters . #getFeePolicy)
+    LinearFee feeFunction = pp ^. #txParameters . #getFeePolicy
 
 {-------------------------------------------------------------------------------
                                   Key Store
