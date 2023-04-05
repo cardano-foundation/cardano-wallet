@@ -1729,7 +1729,7 @@ fundSharedWallet ctx amt sharedWals = do
    let ep = Link.createTransactionOld @'Shelley
    rTx <- request @(ApiTransaction n) ctx (ep wShelley) Default payloadTx
    expectResponseCode HTTP.status202 rTx
-   let fee = (unsafeResponse rTx) ^. (#fee . #getQuantity)
+   let fee = unsafeResponse rTx ^. #fee . #getQuantity
    eventually "wShelley balance is decreased" $ do
        ra <- request @ApiWallet ctx
            (Link.getWallet @'Shelley wShelley) Default Empty
