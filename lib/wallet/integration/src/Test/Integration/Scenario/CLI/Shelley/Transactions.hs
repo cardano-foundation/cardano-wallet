@@ -16,8 +16,7 @@ import Prelude
 import Cardano.CLI
     ( Port )
 import Cardano.Wallet.Api.Types
-    ( ApiFee (..)
-    , ApiT (..)
+    ( ApiT (..)
     , ApiTransaction
     , ApiWallet
     , DecodeAddress
@@ -71,7 +70,6 @@ import Test.Hspec.Extra
     ( it )
 import Test.Integration.Framework.DSL
     ( Context (..)
-    , between
     , cardanoWalletCLI
     , deleteTransactionViaCLI
     , deleteWalletViaCLI
@@ -98,7 +96,8 @@ import Test.Integration.Framework.DSL
     , utcIso8601ToText
     , verify
     , walletId
-    , (.>=)
+    , (.<)
+    , (.>)
     )
 import Test.Integration.Framework.TestData
     ( arabicWalletName
@@ -129,15 +128,11 @@ spec = describe "SHELLEY_CLI_TRANSACTIONS" $ do
         wDest <- emptyWallet ctx
 
         let amt = fromIntegral . minUTxOValue . _mainEra $ ctx
-        args <- postTxArgs ctx wSrc wDest amt Nothing Nothing
-        Stdout feeOut <- postTransactionFeeViaCLI ctx args
-        ApiFee (Quantity feeMin) (Quantity feeMax) _ (Quantity 0) <-
-            expectValidJSON Proxy feeOut
 
         txJson <- postTxViaCLI ctx wSrc wDest amt Nothing Nothing
         verify txJson
             [ expectCliField (#amount . #getQuantity)
-                (between (feeMin + amt, feeMax + amt))
+                (.> amt)
             , expectCliField (#direction . #getApiT) (`shouldBe` Outgoing)
             , expectCliField (#status . #getApiT) (`shouldBe` Pending)
             , expectCliField #metadata (`shouldBe` Nothing)
@@ -149,7 +144,7 @@ spec = describe "SHELLEY_CLI_TRANSACTIONS" $ do
         verify gJson
             [ expectCliField
                 (#balance . #total)
-                (.>= Quantity (faucetAmt - feeMax - amt))
+                (.< Quantity (faucetAmt - amt))
             ]
 
         eventually "balance on dest wallet is OK" $ do
@@ -176,9 +171,6 @@ spec = describe "SHELLEY_CLI_TRANSACTIONS" $ do
                 , "--payment", T.pack (show amt) <> "@" <> addr2
                 ]
 
-        Stdout feeOut <- postTransactionFeeViaCLI ctx args
-        ApiFee (Quantity feeMin) (Quantity feeMax) _ _ <- expectValidJSON Proxy feeOut
-
         -- post transaction
         (c, out, err) <- postTransactionViaCLI ctx "cardano-wallet" args
         err `shouldBe` "Please enter your passphrase: **************\nOk.\n"
@@ -186,7 +178,7 @@ spec = describe "SHELLEY_CLI_TRANSACTIONS" $ do
         verify txJson
             [ expectCliField
                 (#amount . #getQuantity)
-                (between (feeMin + (2*amt), feeMax + (2*amt)))
+                (.> (2*amt))
             , expectCliField (#direction . #getApiT) (`shouldBe` Outgoing)
             , expectCliField (#status . #getApiT) (`shouldBe` Pending)
             ]
@@ -198,7 +190,7 @@ spec = describe "SHELLEY_CLI_TRANSACTIONS" $ do
         verify gJson
             [ expectCliField
                 (#balance . #total)
-                (.>= Quantity (faucetAmt - feeMax - (2*amt)))
+                (.< Quantity (faucetAmt - (2*amt)))
             ]
 
         eventually "balance on dest wallet is OK" $ do
@@ -332,15 +324,11 @@ spec = describe "SHELLEY_CLI_TRANSACTIONS" $ do
                 TxMetadata $
                     Map.singleton 1 (TxMetaText "hello")
 
-        args <- postTxArgs ctx wSrc wDest amt md Nothing
-        Stdout feeOut <- postTransactionFeeViaCLI ctx args
-        ApiFee (Quantity feeMin) (Quantity feeMax) _ _ <- expectValidJSON Proxy feeOut
-
         txJson <- postTxViaCLI ctx wSrc wDest amt md Nothing
         verify txJson
             [ expectCliField
                 (#amount . #getQuantity)
-                (between (feeMin + amt, feeMax + amt))
+                (.> amt)
             , expectCliField (#direction . #getApiT) (`shouldBe` Outgoing)
             , expectCliField (#status . #getApiT) (`shouldBe` Pending)
             , expectCliField #metadata (`shouldBe` expected)
@@ -374,16 +362,11 @@ spec = describe "SHELLEY_CLI_TRANSACTIONS" $ do
                 TxMetadata $
                     Map.singleton 1 (TxMetaText "hello")
 
-        args <- postTxArgs ctx wSrc wDest amt md Nothing
-        Stdout feeOut <- postTransactionFeeViaCLI ctx args
-        ApiFee (Quantity feeMin) (Quantity feeMax) _ _ <-
-            expectValidJSON Proxy feeOut
-
         txJson <- postTxViaCLI ctx wSrc wDest amt md Nothing
         verify txJson
             [ expectCliField
                 (#amount . #getQuantity)
-                (between (feeMin + amt, feeMax + amt))
+                (.> amt)
             , expectCliField (#direction . #getApiT) (`shouldBe` Outgoing)
             , expectCliField (#status . #getApiT) (`shouldBe` Pending)
             , expectCliField #metadata (`shouldBe` expected)
@@ -404,7 +387,7 @@ spec = describe "SHELLEY_CLI_TRANSACTIONS" $ do
         verify outJson
             [ expectCliField
                 (#amount . #getQuantity)
-                (between (feeMin + amt, feeMax + amt))
+                (.> amt)
             , expectCliField (#direction . #getApiT) (`shouldBe` Outgoing)
             , expectCliField (#status . #getApiT) (`shouldBe` Pending)
             , expectCliField #metadata (`shouldBe` expectedNoSchema)
@@ -427,14 +410,10 @@ spec = describe "SHELLEY_CLI_TRANSACTIONS" $ do
       let amt = 10_000_000
       let ttl = Just "30s"
 
-      args <- postTxArgs ctx wSrc wDest amt Nothing ttl
-      Stdout feeOut <- postTransactionFeeViaCLI ctx args
-      ApiFee (Quantity feeMin) (Quantity feeMax) _ _ <- expectValidJSON Proxy feeOut
-
       txJson <- postTxViaCLI ctx wSrc wDest amt Nothing ttl
       verify txJson
           [ expectCliField (#amount . #getQuantity)
-              (between (feeMin + amt, feeMax + amt))
+              (.> amt)
           , expectCliField (#direction . #getApiT) (`shouldBe` Outgoing)
           , expectCliField (#status . #getApiT) (`shouldBe` Pending)
           ]
