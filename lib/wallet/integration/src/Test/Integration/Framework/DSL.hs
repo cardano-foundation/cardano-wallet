@@ -1187,7 +1187,7 @@ waitForTxImmutability _ctx = liftIO $ do
 
     threadDelay $ stabilityDelay + txInsertionDelay
 
-between :: (Ord a, Show a) => (a, a) -> a -> Expectation
+between :: (Ord a, Show a, HasCallStack) => (a, a) -> a -> Expectation
 between (min', max') x
     | min' <= x && x <= max'
         = return ()
@@ -1200,7 +1200,7 @@ between (min', max') x
             , show max'
             ]
 
-(.>) :: (Ord a, Show a) => a -> a -> Expectation
+(.>) :: (Ord a, Show a, HasCallStack) => a -> a -> Expectation
 x .> bound
     | x > bound
         = return ()
@@ -1212,7 +1212,7 @@ x .> bound
             , ")"
             ]
 
-(.<) :: (Ord a, Show a) => a -> a -> Expectation
+(.<) :: (Ord a, Show a, HasCallStack) => a -> a -> Expectation
 x .< bound
     | x < bound
         = return ()
@@ -1225,7 +1225,7 @@ x .< bound
             ]
 
 
-(.>=) :: (Ord a, Show a) => a -> a -> Expectation
+(.>=) :: (Ord a, Show a, HasCallStack) => a -> a -> Expectation
 a .>= b
     | a >= b
         = return ()
@@ -1237,7 +1237,7 @@ a .>= b
             , ")"
             ]
 
-(.<=) :: (Ord a, Show a) => a -> a -> Expectation
+(.<=) :: (Ord a, Show a, HasCallStack) => a -> a -> Expectation
 a .<= b
     | a <= b
         = return ()
