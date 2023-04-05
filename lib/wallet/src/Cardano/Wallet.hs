@@ -2939,6 +2939,7 @@ transactionFee DBLayer{atomically, walletsDB} protocolParams
                 Just ws -> pure $ WalletState.getLatest ws
         let utxoIndex = UTxOIndex.fromMap . CS.toInternalUTxOMap $
                 availableUTxO @s mempty wallet
+        let protocolParamsForBalancing = toBalanceTxPParams protocolParams
         pureTimeInterpreter <- lift $ snapshot ti
         unsignedTxBody <- liftIO $
             either (throwIO . ExceptionConstructTx . ErrConstructTxBody) pure $
@@ -2954,7 +2955,7 @@ transactionFee DBLayer{atomically, walletsDB} protocolParams
                     balanceTransaction @_ @_ @s
                         nullTracer
                         (Write.allKeyPaymentCredentials txLayer)
-                        (toBalanceTxPParams protocolParams)
+                        protocolParamsForBalancing
                         pureTimeInterpreter
                         utxoIndex
                         changeAddressGen
