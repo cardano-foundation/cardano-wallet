@@ -325,8 +325,19 @@ spec = describe "BYRON_TRANSACTIONS" $ do
             [ expectSuccess
             , expectResponseCode HTTP.status202
             ]
-        let (Quantity feeEstMin) = getFromResponse #estimatedMin rFeeEst
-        let (Quantity feeEstMax) = getFromResponse #estimatedMax rFeeEst
+
+        -- TODO [ADP-2268] This padding should be droppable once postTransaction
+        -- also relies on balanceTx.
+        --
+        -- We need it in the meantime as the new implementation is using a lower
+        -- upper bound for the length of Icarus change addresses.
+        let tmpIcarusPadding =
+                if name == "Icarus wallet"
+                then 3_500 -- 35 bytes * 100 lovelace/byte
+                else 0
+        let feeEstMin = getFromResponse (#estimatedMin . #getQuantity) rFeeEst
+        let feeEstMax = getFromResponse (#estimatedMax . #getQuantity) rFeeEst
+                + tmpIcarusPadding
 
         r <- postTx @n ctx
             (wByron, Link.createTransactionOld @'Byron, fixturePassphrase)
