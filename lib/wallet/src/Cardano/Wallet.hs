@@ -2871,7 +2871,6 @@ data DelegationFee = DelegationFee
 
 instance NFData DelegationFee
 
-
 delegationFee
     :: forall s k (n :: NetworkDiscriminant)
      . ( AddressBookIso s
@@ -2912,10 +2911,10 @@ delegationFee db@DBLayer{atomically, walletsDB} netLayer
                     (Left $ PreSelection [])
 
         let ptx = PartialTx
-                            { tx = Cardano.Tx unsignedTxBody []
-                            , inputs = Cardano.UTxO mempty
-                            , redeemers = []
-                            }
+                { tx = Cardano.Tx unsignedTxBody []
+                , inputs = Cardano.UTxO mempty
+                , redeemers = []
+                }
         feePercentiles <- calculateFeePercentiles $ do
             Right (Cardano.Tx (Cardano.TxBody bodyContent) _, _updatedWallet) <-
                 runExceptT $
@@ -3879,8 +3878,8 @@ toBalanceTxPParams pp =
     , maybe
         (error $ unwords
             [ "toBalanceTxPParams: no nodePParams."
-            , "should only be possible in Byron, where"
-            , "withRecentEra should prevent this to be reached."
+            , "This should only be possible in Byron, where withRecentEra"
+            , "should prevent this from being reached."
             ])
         (Cardano.bundleProtocolParams
             (WriteTx.fromRecentEra (WriteTx.recentEra @era)))
