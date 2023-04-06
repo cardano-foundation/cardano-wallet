@@ -2362,8 +2362,10 @@ postTransactionFeeOld ctx@ApiLayer{..} (ApiT walletId) body = do
     AnyRecentEra (recentEra :: WriteTx.RecentEra era) <- guardIsRecentEra era
     protocolParams@(protocolParameters, _bundledProtocolParameters) <- liftIO $
         W.toBalanceTxPParams @era <$> currentProtocolParameters netLayer
+    let mTTL = body ^? #timeToLive . traverse . #getQuantity
     withWorkerCtx ctx walletId liftE liftE $ \workerCtx -> do
         let db = workerCtx ^. dbLayer
+        ttl <- liftIO $ W.transactionExpirySlot (timeInterpreter netLayer) mTTL
         wdrl <- case body ^. #withdrawal of
             Nothing -> pure NoWithdrawal
             Just apiWdrl ->
@@ -2384,6 +2386,7 @@ postTransactionFeeOld ctx@ApiLayer{..} (ApiT walletId) body = do
                 { txWithdrawal = wdrl
                 , txMetadata = body
                     ^? #metadata . traverse . #txMetadataWithSchema_metadata
+                , txValidityInterval = (Nothing, ttl)
                 }
             PreSelection{outputs}
         pure
