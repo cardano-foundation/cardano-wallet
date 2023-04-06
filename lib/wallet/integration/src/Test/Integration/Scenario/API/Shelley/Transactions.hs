@@ -418,6 +418,7 @@ spec = describe "SHELLEY_TRANSACTIONS" $ do
 
         let txid = getFromResponse #id rTx
         let linkSrc = Link.getTransaction @'Shelley wa (ApiTxId txid)
+        let Quantity fee = getFromResponse #fee rTx
         eventually "transaction is no longer pending on source wallet" $ do
             rSrc <- request @(ApiTransaction n) ctx linkSrc Default Empty
             verify rSrc
@@ -459,7 +460,7 @@ spec = describe "SHELLEY_TRANSACTIONS" $ do
                 (Link.getWallet @'Shelley wa) Default Empty
             expectField
                 (#balance . #available)
-                (`shouldBe` Quantity (initialAmt - feeMax - amt)) ra2
+                (`shouldBe` Quantity (initialAmt - fee - amt)) ra2
 
     it "TRANS_CREATE_02x - Multiple Output Tx to single wallet" $
         \ctx -> runResourceT $ do
