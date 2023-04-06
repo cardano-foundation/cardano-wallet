@@ -142,8 +142,6 @@ import Cardano.Wallet.Primitive.Passphrase.Types
     ( PassphraseHash )
 import Cardano.Wallet.Primitive.Slotting
     ( TimeInterpreter, firstSlotInEpoch, hoistTimeInterpreter, interpretQuery )
-import Cardano.Wallet.Primitive.Types
-    ( SortOrder (..) )
 import Cardano.Wallet.Read.Eras
     ( EraValue )
 import Cardano.Wallet.Read.Tx.CBOR
@@ -170,12 +168,8 @@ import Data.Functor
     ( (<&>) )
 import Data.Generics.Internal.VL.Lens
     ( view, (^.) )
-import Data.List
-    ( sortOn )
 import Data.Maybe
     ( catMaybes, fromMaybe, isJust, maybeToList )
-import Data.Ord
-    ( Down (..) )
 import Data.Proxy
     ( Proxy (..) )
 import Data.Quantity
@@ -219,7 +213,6 @@ import UnliftIO.Exception
 import UnliftIO.MVar
     ( modifyMVar, modifyMVar_, newMVar, readMVar, withMVar )
 
-import qualified Cardano.Wallet.DB.Sqlite.Schema as DB
 import qualified Cardano.Wallet.Primitive.Model as W
 import qualified Cardano.Wallet.Primitive.Passphrase as W
 import qualified Cardano.Wallet.Primitive.Types as W
@@ -523,7 +516,7 @@ newDBLayerWith _cacheBehavior _tr ti SqliteContext{runQuery} = mdo
     -- FIXME LATER during ADP-1043:
     --   Handle the case where loading the database fails.
     walletsDB <- runQuery $ loadDBVar mkStoreWallets
-    transactionsQS <- runQuery newQueryStoreTxWalletsHistory
+    let transactionsQS = newQueryStoreTxWalletsHistory
 
     -- NOTE
     -- The cache will not work properly unless 'atomically' is protected by a
@@ -624,35 +617,21 @@ newDBLayerWith _cacheBehavior _tr ti SqliteContext{runQuery} = mdo
                                      Tx History
         -----------------------------------------------------------------------}
     let
+      lookupTx = queryS transactionsQS . GetByTxId
+      lookupTxOut = queryS transactionsQS . GetTxOut
       dbTxHistory = DBTxHistory
         { putTxHistory_ = \wid ->
             updateS (store transactionsQS) Nothing
                 . ExpandTxWalletsHistory wid
 
         , readTxHistory_ = \range tip mlimit order -> do
-            allTransactions <- queryS transactionsQS All
-            let whichMeta DB.TxMeta{..} = and $ catMaybes
-                    [ (txMetaSlot >=) <$> W.inclusiveLowerBound range
-                    , (txMetaSlot <=) <$> W.inclusiveUpperBound range
-                    ]
-                reorder = case order of
-                  Ascending -> sortOn txMetaSlot
-                  Descending -> sortOn $  Down . txMetaSlot
-
-                transactions
-                    = maybe id (take . fromIntegral) mlimit
-                    $ reorder
-                    $ filter whichMeta allTransactions
-                lookupTx = queryS transactionsQS . GetByTxId
-                lookupTxOut = queryS transactionsQS . GetTxOut
-            forM transactions $
+            txs <- queryS transactionsQS $ SomeMetas range mlimit order
+            forM txs $
                 selectTransactionInfo ti tip lookupTx lookupTxOut
 
         , getTx_ = \txid tip -> do
-            transactions <- queryS transactionsQS $ One $ TxId txid
-            let lookupTx = queryS transactionsQS . GetByTxId
-                lookupTxOut = queryS transactionsQS . GetTxOut
-            forM transactions $
+            txm <- queryS transactionsQS $ OneMeta $ TxId txid
+            forM txm $
                 selectTransactionInfo ti tip lookupTx lookupTxOut
 
         , mkDecorator_ = mkDecorator transactionsQS
