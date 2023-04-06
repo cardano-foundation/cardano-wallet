@@ -36,6 +36,7 @@ import Cardano.Wallet.Api.Types
     , ApiT (..)
     , ApiTransaction
     , ApiTxId (..)
+    , ApiTxInput (..)
     , ApiTxInputGeneral (..)
     , ApiTxMetadata (..)
     , ApiTxOutputGeneral (..)
@@ -1921,6 +1922,55 @@ spec = describe "SHARED_TRANSACTIONS" $ do
         verify submittedTx2
             [ expectResponseCode HTTP.status202
             ]
+
+        eventually "Party1's wallet has joined pool and deposit info persists" $ do
+            rJoin' <- request @(ApiTransaction n) ctx
+                (Link.getTransaction @'Shared party1
+                    (getFromResponse Prelude.id submittedTx2))
+                Default Empty
+            verify rJoin'
+                [ expectResponseCode HTTP.status200
+                , expectField (#status . #getApiT) (`shouldBe` InLedger)
+                , expectField (#direction . #getApiT) (`shouldBe` Outgoing)
+                , expectField #depositTaken (`shouldBe` depositAmt)
+                , expectField #depositReturned (`shouldBe` Quantity 0)
+                ]
+        eventually "Party2's wallet has joined pool and deposit info persists" $ do
+            rJoin' <- request @(ApiTransaction n) ctx
+                (Link.getTransaction @'Shared party2
+                    (getFromResponse Prelude.id submittedTx2))
+                Default Empty
+            verify rJoin'
+                [ expectResponseCode HTTP.status200
+                , expectField (#status . #getApiT) (`shouldBe` InLedger)
+                , expectField (#direction . #getApiT) (`shouldBe` Outgoing)
+                , expectField #depositTaken (`shouldBe` depositAmt)
+                , expectField #depositReturned (`shouldBe` Quantity 0)
+                ]
+
+        let txId2 = getFromResponse #id submittedTx2
+        let link party = Link.getTransaction @'Shared party (ApiTxId txId2)
+        eventually "party1: delegation transaction is in ledger" $ do
+            rSrc <- request @(ApiTransaction n) ctx (link party1) Default Empty
+            verify rSrc
+                [ expectResponseCode HTTP.status200
+                , expectField (#direction . #getApiT) (`shouldBe` Outgoing)
+                , expectField (#status . #getApiT) (`shouldBe` InLedger)
+                , expectField #metadata  (`shouldBe` Nothing)
+                , expectField #inputs $ \inputs' -> do
+                    inputs' `shouldSatisfy` all (isJust . source)
+                ]
+        eventually "party2: delegation transaction is in ledger" $ do
+            rSrc <- request @(ApiTransaction n) ctx (link party2) Default Empty
+            verify rSrc
+                [ expectResponseCode HTTP.status200
+                , expectField (#direction . #getApiT) (`shouldBe` Outgoing)
+                , expectField (#status . #getApiT) (`shouldBe` InLedger)
+                , expectField #metadata  (`shouldBe` Nothing)
+                , expectField #inputs $ \inputs' -> do
+                    inputs' `shouldSatisfy` all (isJust . source)
+                ]
+
   where
      listSharedTransactions ctx w mStart mEnd mOrder mLimit = do
          let path = Link.listTransactions' @'Shared w
