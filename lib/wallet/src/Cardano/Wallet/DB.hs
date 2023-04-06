@@ -1,5 +1,7 @@
 {-# LANGUAGE DataKinds #-}
+{-# LANGUAGE DuplicateRecordFields #-}
 {-# LANGUAGE ExistentialQuantification #-}
+{-# LANGUAGE KindSignatures #-}
 {-# LANGUAGE LambdaCase #-}
 {-# LANGUAGE OverloadedLabels #-}
 {-# LANGUAGE RankNTypes #-}
@@ -17,6 +19,7 @@
 module Cardano.Wallet.DB
     ( -- * Interface
       DBLayer (..)
+    , DBOpen (..)
     , DBFactory (..)
 
     -- * DBLayer building blocks
@@ -110,6 +113,8 @@ import Data.Functor
     ( (<&>) )
 import Data.Generics.Internal.VL
     ( (^.) )
+import Data.Kind
+    ( Type )
 import Data.List
     ( sortOn )
 import Data.Maybe
@@ -132,7 +137,14 @@ import qualified Cardano.Wallet.Read.Tx as Read
 import qualified Cardano.Wallet.Submissions.TxStatus as Subm
 import qualified Data.Map.Strict as Map
 
--- | Instantiate database layers at will
+{-----------------------------------------------------------------------------
+    DBFactory
+------------------------------------------------------------------------------}
+-- | A facility for managing a mapping between 'WalletId's and
+-- databases of wallet states.
+--
+-- In our use case, this will typically be a directory of database files,
+-- or a 'Map' of in-memory SQLite databases.
 data DBFactory m s k = DBFactory
     { withDatabase :: forall a. WalletId -> (DBLayer m s k -> IO a) -> IO a
         -- ^ Creates a new or use an existing database, maintaining an open
@@ -145,39 +157,36 @@ data DBFactory m s k = DBFactory
         -- ^ List existing wallet database found on disk.
     }
 
--- | A Database interface for storing various things in a DB. In practice,
--- we'll need some extra constraints on the wallet state that allows us to
--- serialize and unserialize it (e.g. @forall s. (Serialize s) => ...@)
+{-----------------------------------------------------------------------------
+    DBOpen
+------------------------------------------------------------------------------}
+-- | An open database which can store the state of a single wallet,
+-- where all tables exist and have been migrated if necessary.
 --
--- NOTE:
+-- However, the database does not necessarily contain a valid wallet state yet.
 --
--- We can't use record accessors on the DBLayer as it carries an existential
--- within its constructor. We are forced to pattern-match on the `DBLayer`
--- record type in order to be able to use its methods in any context. With
--- NamedFieldPuns, or RecordWildCards, this can be quite easy:
+-- In our use case, this will be typically be an open SQLite database
+-- (file or in-memory).
+newtype DBOpen stm m s (k :: Depth -> Type -> Type) = DBOpen
+    { atomically :: forall a. stm a -> m a
+        -- ^ Execute a sequence of database operations atomically.
+    }
+
+{-----------------------------------------------------------------------------
+    DBLayer
+------------------------------------------------------------------------------}
+-- | An open database which can store the state of one wallet with a specific
+-- 'WalletId'.
 --
--- @
--- myFunction DBLayer{..} = do
---     ...
+-- Even though this database is fixed to a specific 'WalletId',
+-- the database does not necessarily contain a valid wallet state yet.
 --
--- myOtherFunction DBLayer{atomically,initializeWallet} = do
---     ...
--- @
+-- Caveat: When using this type, you have to pattern match, e.g. use it like this
+-- @db & \DBLayer{..} -> …@. See Note [DBLayerRecordFields].
 --
--- Alternatively, in some other context where the database may not be a function
--- argument but come from a different source, it is possible to simply rely on
--- 'Data.Function.(&)' to easily pattern match on it:
---
--- @
--- myFunction arg0 arg1 = db & \DBLayer{..} -> do
---     ...
---   where
---     db = ...
--- @
---
--- Note that it isn't possible to simply use a @where@ clause or a @let@ binding
--- here as the semantic for those are slightly different: we really need a
--- pattern match here!
+-- This type is polymorphic in the state type @s@,
+-- but we often need additional constraints on the wallet state that allows us
+-- to serialize and unserialize it (e.g. @forall s. (Serialize s) => ...@).
 data DBLayer m s k = forall stm. (MonadIO stm, MonadFail stm) => DBLayer
     { initializeWallet
         :: WalletId
@@ -398,6 +407,37 @@ data DBLayer m s k = forall stm. (MonadIO stm, MonadFail stm) => DBLayer
         :: forall a. stm a -> m a
         -- ^ Execute operations of the database in isolation and atomically.
     }
+
+{- Note [DBLayerRecordFields]
+
+We can't use record accessors on the DBLayer as it carries an /existential/
+within its constructor. We are forced to pattern-match on the `DBLayer`
+record type in order to be able to use its methods in any context. With
+NamedFieldPuns, or RecordWildCards, this can be quite easy:
+
+@
+myFunction DBLayer{..} = do
+    ...
+
+myOtherFunction DBLayer{atomically,initializeWallet} = do
+    ...
+@
+
+Alternatively, in some other context where the database may not be a function
+argument but come from a different source, it is possible to simply rely on
+'Data.Function.(&)' to easily pattern match on it:
+
+@
+myFunction arg0 arg1 = db & \DBLayer{..} -> do
+    ...
+  where
+    db = ...
+@
+
+Note that it isn't possible to simply use a @where@ clause or a @let@ binding
+here as the semantic for those are slightly different: we really need a
+pattern match here!
+-}
 
 hoistDBLayer :: (forall a . m a -> n a) -> DBLayer m s k -> DBLayer n s k
 hoistDBLayer f DBLayer{..} = DBLayer {atomically = f . atomically, ..}
