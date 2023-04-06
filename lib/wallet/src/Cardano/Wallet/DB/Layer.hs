@@ -413,19 +413,6 @@ withDBLayer tr defaultFieldValues dbFile ti action = do
         res <- newSqliteContext trDB pool manualMigrations autoMigrations
         either throwIO (action <=< newDBLayerWith CacheLatestCheckpoint tr ti) res
 
-newtype WalletDBLog
-    = MsgDB DBLog
-    deriving (Generic, Show, Eq)
-
-instance HasPrivacyAnnotation WalletDBLog
-instance HasSeverityAnnotation WalletDBLog where
-    getSeverityAnnotation = \case
-        MsgDB msg -> getSeverityAnnotation msg
-
-instance ToText WalletDBLog where
-    toText = \case
-        MsgDB msg -> toText msg
-
 -- | Runs an IO action with a new 'DBLayer' backed by a sqlite in-memory
 -- database.
 withDBLayerInMemory
@@ -1024,6 +1011,22 @@ selectGenesisParameters
 selectGenesisParameters wid = do
     gp <- selectFirst [WalId ==. wid] []
     pure $ (genesisParametersFromEntity . entityVal) <$> gp
+
+{-------------------------------------------------------------------------------
+    Logging
+-------------------------------------------------------------------------------}
+newtype WalletDBLog
+    = MsgDB DBLog
+    deriving (Generic, Show, Eq)
+
+instance HasPrivacyAnnotation WalletDBLog
+instance HasSeverityAnnotation WalletDBLog where
+    getSeverityAnnotation = \case
+        MsgDB msg -> getSeverityAnnotation msg
+
+instance ToText WalletDBLog where
+    toText = \case
+        MsgDB msg -> toText msg
 
 {-------------------------------------------------------------------------------
     Internal errors
