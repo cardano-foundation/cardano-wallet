@@ -150,7 +150,9 @@ import Test.Integration.Framework.DSL
     , unsafeRequest
     , utcIso8601ToText
     , verify
+    , waitForNextEpoch
     , walletId
+    , (.>)
     )
 import Test.Integration.Framework.Request
     ( RequestException )
@@ -1967,6 +1969,23 @@ spec = describe "SHARED_TRANSACTIONS" $ do
                 , expectField #metadata  (`shouldBe` Nothing)
                 , expectField #inputs $ \inputs' -> do
                     inputs' `shouldSatisfy` all (isJust . source)
+                ]
+
+        waitForNextEpoch ctx
+        waitForNextEpoch ctx
+        eventually "party1: Wallet gets rewards from pool1" $ do
+            r <- request @ApiWallet ctx (Link.getWallet @'Shared party1) Default Empty
+            verify r
+                [ expectField
+                      (#balance . #reward)
+                      (.> (Quantity 0))
+                ]
+        eventually "party2: Wallet gets rewards from pool1" $ do
+            r <- request @ApiWallet ctx (Link.getWallet @'Shared party2) Default Empty
+            verify r
+                [ expectField
+                      (#balance . #reward)
+                      (.> (Quantity 0))
                 ]
 
   where
