@@ -657,6 +657,7 @@ instance Arbitrary (SharedState 'Mainnet SharedKey) where
             arbitrarySharedAccount
             pt
             Nothing
+            Nothing
             defaultAddressPoolGap
             (Shared.Active $ SharedAddressPools
                 (Shared.newSharedAddressPool @'Mainnet defaultAddressPoolGap pt Nothing)

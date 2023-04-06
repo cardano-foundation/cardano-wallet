@@ -2818,6 +2818,7 @@ parseValidityInterval ti validityInterval = do
 
 -- TO-DO withdrawals
 -- TO-DO minting/burning
+-- TO-DO reference scripts
 constructSharedTransaction
     :: forall n . HasSNetworkId n
     => ApiLayer (SharedState n SharedKey) SharedKey 'CredFromScriptK
@@ -2937,7 +2938,6 @@ constructSharedTransaction
         , unsignedWithdrawals =
             []
         }
-
 
 decodeSharedTransaction
     :: forall n . HasSNetworkId n
