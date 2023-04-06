@@ -22,6 +22,7 @@ module Cardano.Wallet.DB.Layer
     , DBFactoryLog (..)
 
     -- * Internal implementation
+    , withDBOpenFromFile
     , withDBLayer
     , withDBLayerInMemory
     , WalletDBLog (..)
@@ -36,6 +37,7 @@ module Cardano.Wallet.DB.Layer
 
     -- * Migration Support
     , DefaultFieldValues (..)
+    , newDBOpenInMemory
 
     ) where
 
@@ -75,6 +77,7 @@ import Cardano.Wallet.DB
     , DBFactory (..)
     , DBLayer
     , DBLayerCollection (..)
+    , DBOpen (..)
     , DBPrivateKey (..)
     , DBTxHistory (..)
     , DBWalletMeta (..)
@@ -379,7 +382,64 @@ instance ToText DBFactoryLog where
         MsgWalletDB _file msg -> toText msg
 
 {-------------------------------------------------------------------------------
-                                 Database layer
+    DBOpen
+-------------------------------------------------------------------------------}
+-- | Open an SQLite database file and run an action on it.
+--
+-- Database migrations are run to create tables if necessary.
+--
+-- If the given file path does not exist, it will be created.
+withDBOpenFromFile
+    :: forall s k a
+     . WalletKey k
+    => Tracer IO WalletDBLog
+       -- ^ Logging object
+    -> DefaultFieldValues
+       -- ^ Default database field values, used during migration.
+    -> FilePath
+       -- ^ Path to database file
+    -> (DBOpen (SqlPersistT IO) IO s k -> IO a)
+       -- ^ Action to run.
+    -> IO a
+withDBOpenFromFile tr defaultFieldValues dbFile action = do
+    let trDB = contramap MsgDB tr
+    let manualMigrations = migrateManually trDB (Proxy @k) defaultFieldValues
+    let autoMigrations   = migrateAll
+    withConnectionPool trDB dbFile $ \pool -> do
+        res <- newSqliteContext trDB pool manualMigrations autoMigrations
+        case res of
+            Left err -> throwIO err
+            Right sqliteContext -> action =<< newQueryLock sqliteContext
+
+-- | Open an SQLite database in-memory.
+--
+-- Returns a cleanup function which you should always use exactly once when
+-- finished with the 'DBOpen'.
+newDBOpenInMemory
+    :: forall s k
+     . Tracer IO WalletDBLog
+       -- ^ Logging object
+    -> IO (IO (), DBOpen (SqlPersistT IO) IO s k)
+newDBOpenInMemory tr = do
+    let tr' = contramap MsgDB tr
+    (destroy, sqliteContext) <-
+        newInMemorySqliteContext tr' [] migrateAll ForeignKeysEnabled
+    db <- newQueryLock sqliteContext
+    pure (destroy, db)
+
+newQueryLock
+    :: SqliteContext
+    -> IO (DBOpen (SqlPersistT IO) IO s k)
+newQueryLock SqliteContext{runQuery} = do
+    -- NOTE
+    -- The cache will not work properly unless 'atomically' is protected by a
+    -- mutex (queryLock), which means no concurrent queries.
+    queryLock <- newMVar () -- fixme: ADP-586
+    pure $ DBOpen
+        { atomically = withMVar queryLock . const . runQuery }
+
+{-------------------------------------------------------------------------------
+    DBLayer
 -------------------------------------------------------------------------------}
 
 -- | Runs an action with a connection to the SQLite database.

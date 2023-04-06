@@ -1126,8 +1126,8 @@ manualMigrationsSpec = describe "Manual migrations" $ do
     it "'migrate' db to create metadata table when it doesn't exist"
         testCreateMetadataTable
 
-    it "'migrate' db never modifies database with newer version"
-        testNewerDatabaseIsNeverModified
+    it "'migrate' db never modifies database with newer version" $
+        testNewerDatabaseIsNeverModified @(SeqState 'Mainnet ShelleyKey)
 
     it "'migrate' db submissions encoding" $
         testMigrationSubmissionsEncoding
@@ -1341,7 +1341,7 @@ testCreateMetadataTable = withSystemTempFile "db.sql" $ \path _ -> do
     actualVersion `shouldBe` currentSchemaVersion
 
 testNewerDatabaseIsNeverModified ::
-    forall s k. (k ~ ShelleyKey, s ~ SeqState 'Mainnet k) => IO ()
+    forall s k. (k ~ ShelleyKey, PersistAddressBook s) => IO ()
 testNewerDatabaseIsNeverModified = withSystemTempFile "db.sql" $ \path _ -> do
     let newerVersion = SchemaVersion 100
     _ <- Sqlite.runSqlite (T.pack path) $ do
