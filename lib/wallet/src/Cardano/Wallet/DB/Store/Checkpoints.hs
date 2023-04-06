@@ -561,8 +561,9 @@ instance
     ) => PersistAddressBook (Shared.SharedState n key) where
 
     insertPrologue wid (SharedPrologue st) = do
-        let Shared.SharedState prefix accXPub pTemplate dTemplateM gap readiness = st
-        insertSharedState prefix accXPub gap pTemplate dTemplateM
+        let Shared.SharedState prefix accXPub pTemplate dTemplateM rewardAcctM
+                gap readiness = st
+        insertSharedState prefix accXPub gap pTemplate dTemplateM rewardAcctM
         insertCosigner (cosigners pTemplate) Payment
         when (isJust dTemplateM) $
             insertCosigner (cosigners $ fromJust dTemplateM) Delegation
@@ -572,7 +573,7 @@ instance
                 deleteWhere [SharedStatePendingWalletId ==. wid]
                 dbChunked insertMany_ (mkSharedStatePendingIxs pendingIxs)
       where
-        insertSharedState prefix accXPub gap pTemplate dTemplateM = do
+        insertSharedState prefix accXPub gap pTemplate dTemplateM rewardAcctM = do
             deleteWhere [SharedStateWalletId ==. wid]
             insert_ $ SharedState
                 { sharedStateWalletId = wid
@@ -580,6 +581,7 @@ instance
                 , sharedStateScriptGap = gap
                 , sharedStatePaymentScript = template pTemplate
                 , sharedStateDelegationScript = template <$> dTemplateM
+                , sharedStateRewardAccount = rewardAcctM
                 , sharedStateDerivationPrefix = prefix
                 }
 
@@ -611,15 +613,20 @@ instance
 
     loadPrologue wid = runMaybeT $ do
         st <- MaybeT $ selectFirst [SharedStateWalletId ==. wid] []
-        let SharedState _ accountBytes gap pScript dScriptM prefix = entityVal st
+        let SharedState _ accountBytes gap pScript dScriptM rewardAcctM prefix =
+                entityVal st
         let accXPub = unsafeDeserializeXPub accountBytes
         pCosigners <- lift $ selectCosigners @key wid Payment
         dCosigners <- lift $ selectCosigners @key wid Delegation
 
         let prepareKeys = map (second getRawKey)
-            pTemplate = ScriptTemplate (Map.fromList $ prepareKeys pCosigners) pScript
-            dTemplateM = ScriptTemplate (Map.fromList $ prepareKeys dCosigners) <$> dScriptM
-            mkSharedState = Shared.SharedState prefix accXPub pTemplate dTemplateM gap
+            pTemplate =
+                ScriptTemplate (Map.fromList $ prepareKeys pCosigners) pScript
+            dTemplateM =
+                ScriptTemplate (Map.fromList $ prepareKeys dCosigners)
+                <$> dScriptM
+            mkSharedState =
+                Shared.SharedState prefix accXPub pTemplate dTemplateM rewardAcctM gap
         pendingIxs <- lift selectSharedStatePendingIxs
         prologue <- lift $ multisigPoolAbsent wid <&> \case
             True ->  mkSharedState Shared.Pending

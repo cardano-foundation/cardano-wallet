@@ -2829,6 +2829,7 @@ parseValidityInterval ti validityInterval = do
 
 -- TO-DO withdrawals
 -- TO-DO minting/burning
+-- TO-DO reference scripts
 constructSharedTransaction
     :: forall (n :: NetworkDiscriminant)
      . (NetworkDiscriminantBits n, Typeable n)
@@ -2949,7 +2950,6 @@ constructSharedTransaction
         , unsignedWithdrawals =
             []
         }
-
 
 decodeSharedTransaction
     :: forall (n :: NetworkDiscriminant)
