@@ -2278,6 +2278,8 @@ buildTransactionPure
     -- of wallet type, from the root key. To avoid requiring another
     -- 'withRootKey' call, and to make the sketchy behaviour more explicit, we
     -- make 'buildAndSignTransactionPure' partial instead.
+    --
+    -- https://input-output.atlassian.net/browse/ADP-2933
     unsafeShelleyOnlyGetRewardXPub :: s -> XPub
     unsafeShelleyOnlyGetRewardXPub walletState =
         fromMaybe notShelleyWallet $ do
@@ -2941,6 +2943,8 @@ delegationFee db@DBLayer{atomically, walletsDB} netLayer
     -- of wallet type, from the root key. To avoid requiring another
     -- 'withRootKey' call, and to make the sketchy behaviour more explicit, we
     -- make 'buildAndSignTransactionPure' partial instead.
+    --
+    -- https://input-output.atlassian.net/browse/ADP-2933
     unsafeShelleyOnlyGetRewardXPub :: s -> XPub
     unsafeShelleyOnlyGetRewardXPub walletState =
         fromMaybe notShelleyWallet $ do
