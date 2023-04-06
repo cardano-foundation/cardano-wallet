@@ -2407,7 +2407,11 @@ postTransactionFeeOld ctx@ApiLayer{..} (ApiT walletId) body = do
     -- In the context of a mainnet `minfeeA` value of 44 lovelace/byte the
     -- padding is negligible - less than 1/1000 ada.
     padding :: Quantity "byte" Word
-    padding = Quantity 20
+    padding = Quantity $ 20 + tmpExtraPadding
+      where
+        -- TODO [ADP-2268] This padding should be droppable once postTransaction
+        -- also relies on balanceTx.
+        tmpExtraPadding = 5
 
 constructTransaction
     :: forall (n :: NetworkDiscriminant)
