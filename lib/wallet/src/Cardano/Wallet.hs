@@ -1307,8 +1307,24 @@ readRewardAccount db wid = do
     let path = stakeDerivationPath $ Seq.derivationPrefix walletState
     pure (toRewardAccount xpub, getRawKey xpub, path)
   where
-    readWalletCheckpoint ::
-        DBLayer IO s k -> WalletId -> ExceptT ErrNoSuchWallet IO (Wallet s)
+    readWalletCheckpoint
+        :: DBLayer IO s k -> WalletId -> ExceptT ErrNoSuchWallet IO (Wallet s)
+    readWalletCheckpoint DBLayer{..} wallet =
+        liftIO (atomically (readCheckpoint wallet)) >>=
+            maybe (throwE (ErrNoSuchWallet wallet)) pure
+
+readSharedRewardAccount
+    :: forall (n :: NetworkDiscriminant)
+     . DBLayer IO (SharedState n SharedKey) SharedKey
+    -> WalletId
+    -> ExceptT ErrReadRewardAccount IO (Maybe RewardAccount)
+readSharedRewardAccount db wid = do
+    Shared.rewardAccountKey . getState <$>
+        withExceptT ErrReadRewardAccountNoSuchWallet
+            (readWalletCheckpoint db wid)
+  where
+    readWalletCheckpoint
+        :: DBLayer IO s k -> WalletId -> ExceptT ErrNoSuchWallet IO (Wallet s)
     readWalletCheckpoint DBLayer{..} wallet =
         liftIO (atomically readCheckpoint)  >>=
             maybe (throwE (ErrNoSuchWallet wallet)) pure
