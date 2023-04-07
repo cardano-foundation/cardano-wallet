@@ -79,6 +79,7 @@ module Cardano.Wallet
     , walletSyncProgress
     , fetchRewardBalance
     , manageRewardBalance
+    , manageSharedRewardBalance
     , rollbackBlocks
     , checkWalletIntegrity
     , mkExternalWithdrawal
@@ -563,7 +564,7 @@ import Data.List.NonEmpty
 import Data.Map.Strict
     ( Map )
 import Data.Maybe
-    ( fromMaybe, isJust, mapMaybe, maybeToList )
+    ( fromJust, fromMaybe, isJust, isNothing, mapMaybe, maybeToList )
 import Data.Proxy
     ( Proxy (..) )
 import Data.Set
@@ -1417,7 +1418,41 @@ manageRewardBalance tr' netLayer db@DBLayer{..} wid = do
                 -- just update the balance next time the tip changes.
                 pure ()
     traceWith tr MsgRewardBalanceExited
+  where
+    tr = contramap MsgWallet tr'
 
+manageSharedRewardBalance
+    :: forall (n :: NetworkDiscriminant) block
+     . Tracer IO WalletWorkerLog
+    -> NetworkLayer IO block
+    -> DBLayer IO (SharedState n SharedKey) SharedKey
+    -> WalletId
+    -> IO ()
+manageSharedRewardBalance tr' netLayer db@DBLayer{..} wid = do
+    watchNodeTip netLayer $ \bh -> do
+         traceWith tr $ MsgRewardBalanceQuery bh
+         query <- runExceptT $ do
+            acctM <- withExceptT ErrFetchRewardsReadRewardAccount
+                $ readSharedRewardAccount db wid
+            when (isNothing acctM) $
+                throwE ErrFetchRewardsMissingRewardAccount
+            liftIO $ getCachedRewardAccountBalance netLayer (fromJust acctM)
+         traceWith tr $ MsgRewardBalanceResult query
+         case query of
+            Right amt -> do
+                res <- atomically $ runExceptT $ mkNoSuchWalletError wid $
+                    putDelegationRewardBalance wid amt
+                -- It can happen that the wallet doesn't exist _yet_, whereas we
+                -- already have a reward balance. If that's the case, we log and
+                -- move on.
+                case res of
+                    Left err -> traceWith tr $ MsgRewardBalanceNoSuchWallet err
+                    Right () -> pure ()
+            Left _err ->
+                -- Occasionally failing to query is generally not fatal. It will
+                -- just update the balance next time the tip changes.
+                pure ()
+    traceWith tr MsgRewardBalanceExited
   where
     tr = contramap MsgWallet tr'
 
@@ -3554,8 +3589,9 @@ data ErrStakePoolDelegation
     deriving (Show)
 
 -- | Errors that can occur when fetching the reward balance of a wallet
-newtype ErrFetchRewards
+data ErrFetchRewards
     = ErrFetchRewardsReadRewardAccount ErrReadRewardAccount
+    | ErrFetchRewardsMissingRewardAccount
     deriving (Generic, Eq, Show)
 
 data ErrCheckWalletIntegrity
