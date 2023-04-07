@@ -94,9 +94,10 @@ import Cardano.Wallet.Shelley.Compatibility
     , slottingParametersFromGenesis
     , toCardanoBlockHeader
     , toCardanoEra
+    , toKeyHashStakeCredential
     , toPoint
+    , toScriptHashStakeCredential
     , toShelleyCoin
-    , toStakeCredential
     , unsealShelleyTx
     )
 import Control.Applicative
@@ -284,6 +285,7 @@ import qualified Cardano.Crypto.Hash as Crypto
 import qualified Cardano.Ledger.Alonzo.PParams as Alonzo
 import qualified Cardano.Ledger.Babbage.PParams as Babbage
 import qualified Cardano.Ledger.Conway.PParams as Conway
+import qualified Cardano.Ledger.Credential as SL
 import qualified Cardano.Ledger.Crypto as SL
 import qualified Cardano.Ledger.Shelley.API as SL
 import qualified Cardano.Ledger.Shelley.LedgerState as SL
@@ -325,6 +327,11 @@ withNetworkLayer tr pipeliningStrategy np conn ver tol action = do
     withNodeNetworkLayerBase
         (tr <> trTimings) pipeliningStrategy np conn ver tol action
 
+data RewardAccountSource
+    = RewardAccountFromKeyHash
+    | RewardAccountFromScriptHash
+    deriving (Eq, Show)
+
 withNodeNetworkLayerBase
     :: HasCallStack
     => Tracer IO Log
@@ -354,7 +361,13 @@ withNodeNetworkLayerBase
     queryRewardQ <- connectDelegationRewardsClient
         (handlers ClientDelegationRewards)
 
-    rewardsObserver <- newRewardBalanceFetcher tr readNodeTip queryRewardQ
+    rewardsObserverFromKeyHash <-
+        newRewardBalanceFetcher
+            tr readNodeTip queryRewardQ RewardAccountFromKeyHash
+    rewardsObserverFromScriptHash <-
+        newRewardBalanceFetcher
+            tr readNodeTip queryRewardQ RewardAccountFromScriptHash
+
     let readCurrentNodeEra = atomically $ readTMVar eraVar
 
     action NetworkLayer
@@ -391,10 +404,15 @@ withNodeNetworkLayerBase
             _postTx txSubmissionQ readCurrentNodeEra
         , stakeDistribution =
             _stakeDistribution queryRewardQ
-        , getCachedRewardAccountBalance =
-            _getCachedRewardAccountBalance rewardsObserver
+        , getCachedRewardAccountBalance = \rewardAcctE -> case rewardAcctE of
+                Left rewardAcct ->
+                    _getCachedRewardAccountBalance
+                        rewardsObserverFromKeyHash rewardAcct
+                Right rewardAcct ->
+                    _getCachedRewardAccountBalance
+                        rewardsObserverFromScriptHash rewardAcct
         , fetchRewardAccountBalances =
-            fetchRewardAccounts tr queryRewardQ
+            fetchRewardAccounts tr queryRewardQ RewardAccountFromKeyHash
         , timeInterpreter =
             _timeInterpreter (contramap MsgInterpreterLog tr) interpreterVar
         , syncProgress = _syncProgress interpreterVar
@@ -796,8 +814,9 @@ newRewardBalanceFetcher
     -> STM IO (Tip (CardanoBlock StandardCrypto))
     -- ^ STM action for observing the current tip
     -> TQueue IO (LocalStateQueryCmd (CardanoBlock StandardCrypto) IO)
+    -> RewardAccountSource
     -> IO (Observer IO W.RewardAccount W.Coin)
-newRewardBalanceFetcher tr readNodeTip queryRewardQ = do
+newRewardBalanceFetcher tr readNodeTip queryRewardQ rewardAccountSource = do
     (ob, refresh) <- newObserver (contramap MsgObserverLog tr) fetch
     link =<< async (observeForever readNodeTip refresh)
     return ob
@@ -810,14 +829,15 @@ newRewardBalanceFetcher tr readNodeTip queryRewardQ = do
     fetch _tip accounts = do
         -- NOTE: We no longer need the tip to run LSQ queries. The local state
         -- query client will automatically acquire the latest tip.
-        Just <$> fetchRewardAccounts tr queryRewardQ accounts
+        Just <$> fetchRewardAccounts tr queryRewardQ rewardAccountSource accounts
 
 fetchRewardAccounts
     :: Tracer IO Log
     -> TQueue IO (LocalStateQueryCmd (CardanoBlock StandardCrypto) IO)
+    -> RewardAccountSource
     -> Set W.RewardAccount
     -> IO (Map W.RewardAccount W.Coin)
-fetchRewardAccounts tr queryRewardQ accounts = do
+fetchRewardAccounts tr queryRewardQ rewardAccountSource accounts = do
         liftIO $ traceWith tr $
             MsgFetchRewardAccountBalance accounts
 
@@ -843,11 +863,17 @@ fetchRewardAccounts tr queryRewardQ accounts = do
             (Shelley.ShelleyBlock protocol shelleyEra)
             IO
             (Map W.RewardAccount W.Coin, [Log])
-    shelleyQry =
-       fmap fromBalanceResult
-        . LSQry
-        . Shelley.GetFilteredDelegationsAndRewardAccounts
-        $ Set.map toStakeCredential accounts
+    shelleyQry = case rewardAccountSource of
+        RewardAccountFromKeyHash ->
+            fmap fromBalanceResult
+            . LSQry
+            . Shelley.GetFilteredDelegationsAndRewardAccounts
+            $ Set.map toKeyHashStakeCredential accounts
+        RewardAccountFromScriptHash ->
+            fmap fromBalanceResult
+            . LSQry
+            . Shelley.GetFilteredDelegationsAndRewardAccounts
+            $ Set.map toScriptHashStakeCredential accounts
 
     fromBalanceResult
         :: ( Map (SL.Credential 'SL.Staking crypto)
