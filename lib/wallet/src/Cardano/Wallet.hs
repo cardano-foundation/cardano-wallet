@@ -1326,6 +1326,23 @@ readRewardAccount db wid = do
         liftIO (atomically (readCheckpoint wallet)) >>=
             maybe (throwE (ErrNoSuchWallet wallet)) pure
 
+readSharedRewardAccount
+    :: forall (n :: NetworkDiscriminant)
+     . DBLayer IO (SharedState n SharedKey) SharedKey
+    -> WalletId
+    -> ExceptT ErrReadRewardAccount IO (Maybe RewardAccount)
+readSharedRewardAccount db wid = do
+    walletState <- getState <$>
+        withExceptT ErrReadRewardAccountNoSuchWallet
+            (readWalletCheckpoint db wid)
+    pure $ Shared.rewardAccountKey walletState
+  where
+    readWalletCheckpoint ::
+        DBLayer IO s k -> WalletId -> ExceptT ErrNoSuchWallet IO (Wallet s)
+    readWalletCheckpoint DBLayer{..} wallet =
+        liftIO (atomically (readCheckpoint wallet)) >>=
+            maybe (throwE (ErrNoSuchWallet wallet)) pure
+
 -- | Unsafe version of the `readRewardAccount` function
 -- that throws error when applied to a non-sequential
 -- or a non-shelley wallet state.
