@@ -72,7 +72,8 @@ module Cardano.Wallet.Shelley.Compatibility
     , toStakeKeyRegCert
     , toStakeKeyDeregCert
     , toStakePoolDlgCert
-    , toStakeCredential
+    , toKeyHashStakeCredential
+    , toScriptHashStakeCredential
     , fromStakeCredential
     , toShelleyCoin
     , fromShelleyCoin
@@ -1687,12 +1688,21 @@ just t1 t2 = tina (t1+|": unable to deserialise "+|t2)
 
 -- | Convert from reward account address (which is a hash of a public key)
 -- to a shelley ledger stake credential.
-toStakeCredential
+toKeyHashStakeCredential
     :: (Crypto.HashAlgorithm (SL.ADDRHASH crypto))
     => W.RewardAccount
     -> SL.StakeCredential crypto
-toStakeCredential = SL.KeyHashObj
+toKeyHashStakeCredential = SL.KeyHashObj
     . SL.KeyHash . unsafeHashFromBytes . W.unRewardAccount
+
+-- | Convert from reward account address (which is a hash of a script)
+-- to a shelley ledger stake credential.
+toScriptHashStakeCredential
+    :: (Crypto.HashAlgorithm (SL.ADDRHASH crypto))
+    => W.RewardAccount
+    -> SL.StakeCredential crypto
+toScriptHashStakeCredential = SL.ScriptHashObj
+    . SL.ScriptHash . unsafeHashFromBytes . W.unRewardAccount
 
 unsafeHashFromBytes :: Crypto.HashAlgorithm h => ByteString -> Hash h a
 unsafeHashFromBytes =
