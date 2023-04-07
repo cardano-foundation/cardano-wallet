@@ -17,6 +17,12 @@ Metrics/ClassLength:
 Layout/LineLength:
   Enabled: false
 
+Layout/TrailingWhitespace:
+  Enabled: false
+
+Style/RedundantLineContinuation:
+  Enabled: false
+  
 Metrics/MethodLength:
   Enabled: false
 
