@@ -2943,11 +2943,20 @@ constructSharedTransaction
                 let refunds = case optionalDelegationAction of
                         Just Quit -> [W.stakeKeyDeposit pp]
                         _ -> []
+                delCerts <- case optionalDelegationAction of
+                    Nothing -> pure $ Nothing
+                    Just action -> do
+                        res <- liftHandler $ W.readSharedRewardAccount @n db wid
+                        when (isNothing res)$
+                            liftHandler $ throwE ErrConstructTxStakingInvalid
+                        let path = snd $ fromJust res
+                        pure $ Just (action, path)
+
                 pure $ ApiConstructTransaction
                     { transaction = balancedTx
                     , coinSelection =
-                        mkApiCoinSelection deposits refunds Nothing md
-                        (unsignedTx outs apiDecoded)
+                        mkApiCoinSelection deposits refunds
+                        delCerts md (unsignedTx outs apiDecoded)
                     , fee = apiDecoded ^. #fee
                     }
   where
