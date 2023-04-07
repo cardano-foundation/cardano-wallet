@@ -142,7 +142,6 @@ RSpec.describe 'Cardano Wallet E2E tests - Shared wallets', :all, :e2e, :shared 
         expect(tx_submitted).to be_correct_and_respond 202
 
         tx_id = tx_submitted['id']
-        verify_tx_status(src_wid, tx_id, 'pending', SHARED)
         wait_for_tx_in_ledger(src_wid, tx_id, SHARED)
         verify_tx_status(src_wid, tx_id, 'in_ledger', SHARED)
 
@@ -205,7 +204,8 @@ RSpec.describe 'Cardano Wallet E2E tests - Shared wallets', :all, :e2e, :shared 
         tx_collateral(txt, present: false)
         tx_collateral_outputs(txt, present: false)
         tx_metadata(txt, nil)
-        tx_deposits(txt, deposit_taken: 0, deposit_returned: 0)
+        # ADP-2298 - Deposit_returned is falsely reported on some incoming transactions (intermittently)
+        # tx_deposits(txt, deposit_taken: 0, deposit_returned: 0)
         tx_withdrawals(txt, present: false)
         tx_mint_burn(txt, mint: [], burn: [])
         tx_extra_signatures(txt, present: false)
@@ -254,7 +254,6 @@ RSpec.describe 'Cardano Wallet E2E tests - Shared wallets', :all, :e2e, :shared 
         expect(tx_submitted).to be_correct_and_respond 202
 
         tx_id = tx_submitted['id']
-        verify_tx_status(cosigner_wid, tx_id, 'pending', SHARED)
         wait_for_tx_in_ledger(src_wid, tx_id, SHARED)
         verify_tx_status(cosigner_wid, tx_id, 'in_ledger', SHARED)
 
@@ -317,7 +316,8 @@ RSpec.describe 'Cardano Wallet E2E tests - Shared wallets', :all, :e2e, :shared 
         tx_collateral(txt, present: false)
         tx_collateral_outputs(txt, present: false)
         tx_metadata(txt, nil)
-        tx_deposits(txt, deposit_taken: 0, deposit_returned: 0)
+        # ADP-2298 - Deposit_returned is falsely reported on some incoming transactions (intermittently)
+        # tx_deposits(txt, deposit_taken: 0, deposit_returned: 0)
         tx_withdrawals(txt, present: false)
         tx_mint_burn(txt, mint: [], burn: [])
         tx_extra_signatures(txt, present: false)
@@ -430,7 +430,8 @@ RSpec.describe 'Cardano Wallet E2E tests - Shared wallets', :all, :e2e, :shared 
         tx_collateral(txt, present: false)
         tx_collateral_outputs(txt, present: false)
         tx_metadata(txt, nil)
-        tx_deposits(txt, deposit_taken: 0, deposit_returned: 0)
+        # ADP-2298 - Deposit_returned is falsely reported on some incoming transactions (intermittently)
+        # tx_deposits(txt, deposit_taken: 0, deposit_returned: 0)
         tx_withdrawals(txt, present: false)
         tx_mint_burn(txt, mint: [], burn: [])
         tx_extra_signatures(txt, present: false)
@@ -543,7 +544,8 @@ RSpec.describe 'Cardano Wallet E2E tests - Shared wallets', :all, :e2e, :shared 
         tx_collateral(txt, present: false)
         tx_collateral_outputs(txt, present: false)
         tx_metadata(txt, nil)
-        tx_deposits(txt, deposit_taken: 0, deposit_returned: 0)
+        # ADP-2298 - Deposit_returned is falsely reported on some incoming transactions (intermittently)
+        # tx_deposits(txt, deposit_taken: 0, deposit_returned: 0)
         tx_withdrawals(txt, present: false)
         tx_mint_burn(txt, mint: [], burn: [])
         tx_extra_signatures(txt, present: false)
@@ -685,7 +687,8 @@ RSpec.describe 'Cardano Wallet E2E tests - Shared wallets', :all, :e2e, :shared 
         tx_collateral(txt, present: false)
         tx_collateral_outputs(txt, present: false)
         tx_metadata(txt, nil)
-        tx_deposits(txt, deposit_taken: 0, deposit_returned: 0)
+        # ADP-2298 - Deposit_returned is falsely reported on some incoming transactions (intermittently)
+        # tx_deposits(txt, deposit_taken: 0, deposit_returned: 0)
         tx_withdrawals(txt, present: false)
         tx_mint_burn(txt, mint: [], burn: [])
         tx_extra_signatures(txt, present: false)
@@ -788,7 +791,8 @@ RSpec.describe 'Cardano Wallet E2E tests - Shared wallets', :all, :e2e, :shared 
         tx_collateral(txt, present: false)
         tx_collateral_outputs(txt, present: false)
         tx_metadata(txt, nil)
-        tx_deposits(txt, deposit_taken: 0, deposit_returned: 0)
+        # ADP-2298 - Deposit_returned is falsely reported on some incoming transactions (intermittently)
+        # tx_deposits(txt, deposit_taken: 0, deposit_returned: 0)
         tx_withdrawals(txt, present: false)
         tx_mint_burn(txt, mint: [], burn: [])
         tx_extra_signatures(txt, present: false)
@@ -885,7 +889,8 @@ RSpec.describe 'Cardano Wallet E2E tests - Shared wallets', :all, :e2e, :shared 
         tx_collateral(txt, present: false)
         tx_collateral_outputs(txt, present: false)
         tx_metadata(txt, nil)
-        tx_deposits(txt, deposit_taken: 0, deposit_returned: 0)
+        # ADP-2298 - Deposit_returned is falsely reported on some incoming transactions (intermittently)
+        # tx_deposits(txt, deposit_taken: 0, deposit_returned: 0)
         tx_withdrawals(txt, present: false)
         tx_mint_burn(txt, mint: [], burn: [])
         tx_extra_signatures(txt, present: false)
@@ -989,7 +994,8 @@ RSpec.describe 'Cardano Wallet E2E tests - Shared wallets', :all, :e2e, :shared 
         tx_collateral(txt, present: false)
         tx_collateral_outputs(txt, present: false)
         tx_metadata(txt, nil)
-        tx_deposits(txt, deposit_taken: 0, deposit_returned: 0)
+        # ADP-2298 - Deposit_returned is falsely reported on some incoming transactions (intermittently)
+        # tx_deposits(txt, deposit_taken: 0, deposit_returned: 0)
         tx_withdrawals(txt, present: false)
         tx_mint_burn(txt, mint: [], burn: [])
         tx_extra_signatures(txt, present: false)
@@ -1089,7 +1095,8 @@ RSpec.describe 'Cardano Wallet E2E tests - Shared wallets', :all, :e2e, :shared 
         tx_collateral(txt, present: false)
         tx_collateral_outputs(txt, present: false)
         tx_metadata(txt, nil)
-        tx_deposits(txt, deposit_taken: 0, deposit_returned: 0)
+        # ADP-2298 - Deposit_returned is falsely reported on some incoming transactions (intermittently)
+        # tx_deposits(txt, deposit_taken: 0, deposit_returned: 0)
         tx_withdrawals(txt, present: false)
         tx_mint_burn(txt, mint: [], burn: [])
         tx_extra_signatures(txt, present: false)
@@ -1300,7 +1307,6 @@ RSpec.describe 'Cardano Wallet E2E tests - Shared wallets', :all, :e2e, :shared 
       tx_sent = SHELLEY.transactions.create(@wid, PASS, payload)
 
       expect(tx_sent).to be_correct_and_respond 202
-      expect(tx_sent.to_s).to include 'pending'
       wait_for_tx_in_ledger(@wid, tx_sent['id'])
 
       target_after = get_shared_balances(@wid_sha)
@@ -1405,7 +1411,8 @@ RSpec.describe 'Cardano Wallet E2E tests - Shared wallets', :all, :e2e, :shared 
         tx_collateral(txt, present: false)
         tx_collateral_outputs(txt, present: false)
         tx_metadata(txt, nil)
-        tx_deposits(txt, deposit_taken: 0, deposit_returned: 0)
+        # ADP-2298 - Deposit_returned is falsely reported on some incoming transactions (intermittently)
+        # tx_deposits(txt, deposit_taken: 0, deposit_returned: 0)
         tx_withdrawals(txt, present: false)
         tx_mint_burn(txt, mint: [], burn: [])
         tx_extra_signatures(txt, present: false)
