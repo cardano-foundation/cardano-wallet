@@ -114,6 +114,7 @@ data ApiErrorInfo
     | MinWithdrawalWrong
     | MintOrBurnAssetQuantityOutOfBounds
     | MissingPolicyPublicKey
+    | MissingRewardAccount
     | MissingWitnessesInTransaction
     | NetworkMisconfigured
     | NetworkQueryFailed
