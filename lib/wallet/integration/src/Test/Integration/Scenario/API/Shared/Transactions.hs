@@ -118,6 +118,7 @@ import Test.Integration.Framework.DSL
     , Payload (..)
     , arbitraryStake
     , decodeErrorInfo
+    , delegating
     , deleteSharedWallet
     , emptySharedWallet
     , emptyWallet
@@ -1973,6 +1974,7 @@ spec = describe "SHARED_TRANSACTIONS" $ do
 
         waitForNextEpoch ctx
         waitForNextEpoch ctx
+
         eventually "party1: Wallet gets rewards from pool1" $ do
             r <- request @ApiWallet ctx (Link.getWallet @'Shared party1) Default Empty
             verify r
@@ -1988,6 +1990,16 @@ spec = describe "SHARED_TRANSACTIONS" $ do
                       (.> (Quantity 0))
                 ]
 
+        eventually "party1: Wallet is delegating to pool1" $ do
+            request @ApiWallet ctx (Link.getWallet @'Shared party1) Default Empty
+                >>= flip verify
+                    [ expectField #delegation (`shouldBe` delegating (ApiT pool1) [])
+                    ]
+        eventually "party2: Wallet is delegating to pool1" $ do
+            request @ApiWallet ctx (Link.getWallet @'Shared party1) Default Empty
+                >>= flip verify
+                    [ expectField #delegation (`shouldBe` delegating (ApiT pool1) [])
+                    ]
   where
      listSharedTransactions ctx w mStart mEnd mOrder mLimit = do
          let path = Link.listTransactions' @'Shared w

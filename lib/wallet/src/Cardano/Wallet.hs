@@ -80,6 +80,7 @@ module Cardano.Wallet
     , fetchRewardBalance
     , manageRewardBalance
     , manageSharedRewardBalance
+    , readSharedRewardAccount
     , rollbackBlocks
     , checkWalletIntegrity
     , mkExternalWithdrawal
@@ -1318,11 +1319,16 @@ readSharedRewardAccount
     :: forall (n :: NetworkDiscriminant)
      . DBLayer IO (SharedState n SharedKey) SharedKey
     -> WalletId
-    -> ExceptT ErrReadRewardAccount IO (Maybe RewardAccount)
+    -> ExceptT ErrReadRewardAccount IO
+         (Maybe (RewardAccount, NonEmpty DerivationIndex))
 readSharedRewardAccount db wid = do
-    Shared.rewardAccountKey . getState <$>
+    walletState <- getState <$>
         withExceptT ErrReadRewardAccountNoSuchWallet
             (readWalletCheckpoint db wid)
+    let path = stakeDerivationPath $ Shared.derivationPrefix walletState
+    case Shared.rewardAccountKey walletState of
+        Just rewardAcct -> pure $ Just (rewardAcct, path)
+        Nothing -> pure Nothing
   where
     readWalletCheckpoint
         :: DBLayer IO s k -> WalletId -> ExceptT ErrNoSuchWallet IO (Wallet s)
@@ -1416,7 +1422,7 @@ manageSharedRewardBalance tr' netLayer db@DBLayer{..} wid = do
                 $ readSharedRewardAccount db wid
             when (isNothing acctM) $
                 throwE ErrFetchRewardsMissingRewardAccount
-            liftIO $ getCachedRewardAccountBalance netLayer (Right $ fromJust acctM)
+            liftIO $ getCachedRewardAccountBalance netLayer (Right $ fst $ fromJust acctM)
          traceWith tr $ MsgRewardBalanceResult query
          case query of
             Right amt -> do
