@@ -1063,9 +1063,18 @@ postSharedWalletFromRootXPrv ctx generateKey body = do
     if stateReadiness == Shared.Pending
     then void $ liftHandler $ createNonRestoringWalletWorker @_ @s @k ctx wid
         (\wrk -> W.createWallet @(WorkerCtx ctx) @_ @s @k wrk wid wName state)
-    else void $ liftHandler $ createWalletWorker @_ @s @k ctx wid
+    else if isNothing dTemplateM then
+        void $ liftHandler $ createWalletWorker @_ @s @k ctx wid
         (\wrk -> W.createWallet @(WorkerCtx ctx) @_ @s @k wrk wid wName state)
         idleWorker
+    else void $ liftHandler $ createWalletWorker @_ @s @k ctx wid
+        (\wrk -> W.createWallet @(WorkerCtx ctx) @_ @s @k wrk wid wName state)
+        (\workerCtx _ -> W.manageSharedRewardBalance
+            (workerCtx ^. typed)
+            (workerCtx ^. networkLayer)
+            (workerCtx ^. typed @(DBLayer IO (SharedState n SharedKey) k))
+            wid
+        )
     withWorkerCtx @_ @s @k ctx wid liftE liftE $ \wrk -> liftHandler $
         W.attachPrivateKeyFromPwd @_ @s @k wrk wid (rootXPrv, pwd)
     fst <$> getWallet ctx (mkSharedWallet @_ @s @k) (ApiT wid)
@@ -1121,9 +1130,18 @@ postSharedWalletFromAccountXPub ctx liftKey body = do
     if stateReadiness == Shared.Pending
     then void $ liftHandler $ createNonRestoringWalletWorker @_ @s @k ctx wid
         (\wrk -> W.createWallet @(WorkerCtx ctx) @_ @s @k wrk wid wName state)
-    else void $ liftHandler $ createWalletWorker @_ @s @k ctx wid
+    else if isNothing dTemplateM then
+        void $ liftHandler $ createWalletWorker @_ @s @k ctx wid
         (\wrk -> W.createWallet @(WorkerCtx ctx) @_ @s @k wrk wid wName state)
         idleWorker
+    else void $ liftHandler $ createWalletWorker @_ @s @k ctx wid
+        (\wrk -> W.createWallet @(WorkerCtx ctx) @_ @s @k wrk wid wName state)
+        (\workerCtx _ -> W.manageSharedRewardBalance
+            (workerCtx ^. typed)
+            (workerCtx ^. networkLayer)
+            (workerCtx ^. typed @(DBLayer IO (SharedState n SharedKey) k))
+            wid
+        )
     fst <$> getWallet ctx (mkSharedWallet @_ @s @k) (ApiT wid)
   where
     g = defaultAddressPoolGap
