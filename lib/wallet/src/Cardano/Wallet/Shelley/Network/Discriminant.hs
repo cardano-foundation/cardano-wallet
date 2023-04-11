@@ -85,28 +85,16 @@ deriving instance Show SomeNetworkDiscriminant
 class EncodeAddress (n :: NetworkDiscriminant) where
     encodeAddress :: Address -> Text
 
-instance EncodeAddress 'Mainnet => EncodeAddress ('Staging pm) where
-    encodeAddress = encodeAddress @'Mainnet
-
 -- | An abstract class to allow decoding of addresses depending on the target
 -- backend used.
 class DecodeAddress (n :: NetworkDiscriminant) where
     decodeAddress :: Text -> Either TextDecodingError Address
 
-instance DecodeAddress 'Mainnet => DecodeAddress ('Staging pm) where
-    decodeAddress = decodeAddress @'Mainnet
-
 class EncodeStakeAddress (n :: NetworkDiscriminant) where
     encodeStakeAddress :: W.RewardAccount -> Text
 
-instance EncodeStakeAddress 'Mainnet => EncodeStakeAddress ('Staging pm) where
-    encodeStakeAddress = encodeStakeAddress @'Mainnet
-
 class DecodeStakeAddress (n :: NetworkDiscriminant) where
     decodeStakeAddress :: Text -> Either TextDecodingError W.RewardAccount
-
-instance DecodeStakeAddress 'Mainnet => DecodeStakeAddress ('Staging pm) where
-    decodeStakeAddress = decodeStakeAddress @'Mainnet
 
 networkDiscriminantToId :: SomeNetworkDiscriminant -> NetworkId
 networkDiscriminantToId (SomeNetworkDiscriminant proxy) = networkIdVal proxy
@@ -128,6 +116,3 @@ instance KnownNat protocolMagic => HasNetworkId ('Testnet protocolMagic) where
       where
         networkMagic =
             Cardano.NetworkMagic . fromIntegral . natVal $ Proxy @protocolMagic
-
-instance HasNetworkId ('Staging protocolMagic) where
-    networkIdVal _ = Cardano.Mainnet

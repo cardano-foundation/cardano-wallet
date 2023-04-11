@@ -567,7 +567,6 @@ hashVerificationKey
 hashVerificationKey keyRole =
     KeyHash keyRole . blake2b224 . xpubPublicKey . getRawKey
 
-
 {-------------------------------------------------------------------------------
                      Interface over keys / address types
 -------------------------------------------------------------------------------}
@@ -649,10 +648,6 @@ class MkKeyFingerprint key Address
             -- ^ Payment fingerprint
         -> Address
 
-instance PaymentAddress 'Mainnet k ktype => PaymentAddress ('Staging pm) k ktype where
-    paymentAddress = paymentAddress @'Mainnet @k @ktype
-    liftPaymentAddress = liftPaymentAddress @'Mainnet @k @ktype
-
 class PaymentAddress network key ktype
     => DelegationAddress (network :: NetworkDiscriminant) key ktype where
     -- | Convert a public key and a staking key to a delegation 'Address' valid
@@ -676,10 +671,6 @@ class PaymentAddress network key ktype
         -> key ktype XPub
             -- ^ Staking key / Reward account
         -> Address
-
-instance DelegationAddress 'Mainnet k ktype => DelegationAddress ('Staging pm) k ktype where
-    delegationAddress = delegationAddress @'Mainnet
-    liftDelegationAddress = liftDelegationAddress @'Mainnet
 
 -- | Operations for saving a private key into a database, and restoring it from
 -- a database. The keys should be encoded in hexadecimal strings.

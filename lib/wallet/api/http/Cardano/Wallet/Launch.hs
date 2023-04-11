@@ -120,12 +120,6 @@ data NetworkConfiguration where
         :: FilePath
         -- ^ Genesis data in JSON format, for byron era.
         -> NetworkConfiguration
-
-    -- | Staging does not have network discrimination.
-    StagingConfig
-        :: FilePath
-        -- ^ Genesis data in JSON format, for byron era.
-        -> NetworkConfiguration
   deriving (Show, Eq)
 
 -- | --node-socket=FILE
@@ -145,13 +139,11 @@ nodeSocketOption = option (eitherReader (addHelp . cardanoNodeConn)) $ mempty
 
 -- | --mainnet --shelley-genesis=FILE
 -- --testnet --byron-genesis=FILE --shelley-genesis=FILE
--- --staging --byron-genesis=FILE --shelley-genesis=FILE
 networkConfigurationOption :: Parser NetworkConfiguration
-networkConfigurationOption = mainnet <|> testnet <|> staging
+networkConfigurationOption = mainnet <|> testnet
   where
     mainnet = mainnetFlag
     testnet = TestnetConfig <$> genesisFileOption "byron" "testnet"
-    staging = StagingConfig <$> genesisFileOption "byron" "staging"
 
     mainnetFlag = flag' MainnetConfig $ mempty
         <> long "mainnet"
@@ -206,28 +198,6 @@ parseGenesisData = \case
                 -> SomeNetworkDiscriminant
             mkSomeNetwork _ = SomeNetworkDiscriminant $ Proxy @('Testnet pm)
 
-
-        let pm = Byron.fromProtocolMagicId $ gdProtocolMagicId genesisData
-        let (discriminant, vData) = someCustomDiscriminant mkSomeNetwork pm
-        let (np, outs) = Byron.fromGenesisData (genesisData, genesisHash)
-        let block0 = Byron.genesisBlockFromTxOuts (genesisParameters np) outs
-
-        pure
-            ( discriminant
-            , np
-            , vData
-            , block0
-            )
-
-    StagingConfig byronGenesisFile -> do
-        (genesisData, genesisHash) <-
-            withExceptT show $ readGenesisData byronGenesisFile
-
-        let mkSomeNetwork
-                :: forall (pm :: Nat). KnownNat pm
-                => Proxy pm
-                -> SomeNetworkDiscriminant
-            mkSomeNetwork _ = SomeNetworkDiscriminant $ Proxy @('Staging pm)
 
         let pm = Byron.fromProtocolMagicId $ gdProtocolMagicId genesisData
         let (discriminant, vData) = someCustomDiscriminant mkSomeNetwork pm
