@@ -2901,6 +2901,10 @@ delegationFee db@DBLayer{atomically, walletsDB} netLayer
                 Just ws -> pure $ WalletState.getLatest ws
         let utxoIndex = UTxOIndex.fromMap . CS.toInternalUTxOMap $
                 availableUTxO @s mempty wallet
+        when (UTxOIndex.null utxoIndex)
+            $ throwE
+            $ ErrSelectAssetsSelectionError
+            $ SelectionBalanceErrorOf EmptyUTxO
         pureTimeInterpreter <- lift $ snapshot ti
         unsignedTxBody <- either
             (liftIO . throwIO . ExceptionConstructTx . ErrConstructTxBody)
