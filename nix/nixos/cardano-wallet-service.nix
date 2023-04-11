@@ -89,9 +89,9 @@ in
     };
 
     walletMode = mkOption {
-      type = types.enum [ "mainnet" "staging" "testnet" ];
+      type = types.enum [ "mainnet" "testnet" ];
       default = "mainnet";
-      description = "Which mode to start wallet in: --mainnet, --staging or --testnet";
+      description = "Which mode to start wallet in: --mainnet or --testnet";
     };
 
     database = mkOption {

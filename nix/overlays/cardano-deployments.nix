@@ -5,7 +5,6 @@ pkgs: _: {
     environments = {
       inherit (pkgs.cardanoLib.environments)
         mainnet
-        staging
         shelley_qa
         preview
         preprod
