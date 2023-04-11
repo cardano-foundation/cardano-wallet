@@ -1996,7 +1996,7 @@ spec = describe "SHARED_TRANSACTIONS" $ do
                     [ expectField #delegation (`shouldBe` delegating (ApiT pool1) [])
                     ]
         eventually "party2: Wallet is delegating to pool1" $ do
-            request @ApiWallet ctx (Link.getWallet @'Shared party1) Default Empty
+            request @ApiWallet ctx (Link.getWallet @'Shared party2) Default Empty
                 >>= flip verify
                     [ expectField #delegation (`shouldBe` delegating (ApiT pool1) [])
                     ]
@@ -2047,9 +2047,17 @@ spec = describe "SHARED_TRANSACTIONS" $ do
                 , expectField #depositsTaken (`shouldBe` [])
                 ]
         let decodePayload4 = Json (toJSON signedTx4)
+        --after first tx all funds are in change address of ix=0
+        let paymentScript1 =
+                ApiT $ NativeExplicitScript
+                (replaceCosignersWithVerKeys
+                    CA.UTxOInternal pScriptTemplate (Index 0))
+                ViaSpending
         let witsExp4 =
                 [ expectField (#witnessCount . #scripts)
                       (`shouldContain` [delegationScript])
+                , expectField (#witnessCount . #scripts)
+                      (`shouldContain` [paymentScript1])
                 , expectField (#witnessCount . #verificationKey)
                       (`shouldBe` 4)
                 , expectField (#witnessCount . #bootstrap)
@@ -2066,6 +2074,20 @@ spec = describe "SHARED_TRANSACTIONS" $ do
                 [expectField #certificates
                      (`shouldBe` [ delegatingCert2 stakeKeyDerPathParty2])]
         verify rDecodedTx8 (decodedExpectations2 ++ certExpectation4 ++ witsExp4)
+
+        waitForNextEpoch ctx
+        waitForNextEpoch ctx
+
+        eventually "party1: Wallet is delegating to pool2" $ do
+            request @ApiWallet ctx (Link.getWallet @'Shared party1) Default Empty
+                >>= flip verify
+                    [ expectField #delegation (`shouldBe` delegating (ApiT pool2) [])
+                    ]
+        eventually "party2: Wallet is delegating to pool2" $ do
+            request @ApiWallet ctx (Link.getWallet @'Shared party2) Default Empty
+                >>= flip verify
+                    [ expectField #delegation (`shouldBe` delegating (ApiT pool2) [])
+                    ]
 
   where
      listSharedTransactions ctx w mStart mEnd mOrder mLimit = do
