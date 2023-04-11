@@ -1728,7 +1728,7 @@ toStakeKeyDeregCert = \case
         $ toCardanoSimpleScript script
 
 toStakeKeyRegCert :: Either XPub (Script KeyHash) -> Cardano.Certificate
-toStakeKeyRegCert cred = case cred of
+toStakeKeyRegCert = \case
     Left xpub ->
         Cardano.makeStakeAddressRegistrationCertificate
         . Cardano.StakeCredentialByKey

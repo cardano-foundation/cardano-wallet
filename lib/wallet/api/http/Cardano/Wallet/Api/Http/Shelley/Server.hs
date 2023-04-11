@@ -7,6 +7,7 @@
 {-# LANGUAGE FlexibleInstances #-}
 {-# LANGUAGE LambdaCase #-}
 {-# LANGUAGE MultiParamTypeClasses #-}
+{-# LANGUAGE MultiWayIf #-}
 {-# LANGUAGE NamedFieldPuns #-}
 {-# LANGUAGE OverloadedLabels #-}
 {-# LANGUAGE RankNTypes #-}
@@ -3018,13 +3019,8 @@ decodeSharedTransaction ctx (ApiT wid) (ApiSerialisedTransaction (ApiT sealed) _
                 delegationTemplateM
         let rewardAcctPath =
                 stakeDerivationPath $ Shared.derivationPrefix $ getState cp
-        let rewardAcctM = case scriptM of
-                Just script ->
-                    let scriptHash =
-                            CA.unScriptHash $
-                            CA.toScriptHash script
-                    in Just $ RewardAccount scriptHash
-                Nothing -> Nothing
+        let rewardAcctM =
+                RewardAccount . CA.unScriptHash . CA.toScriptHash <$> scriptM
         let certs = mkApiAnyCertificate rewardAcctM rewardAcctPath <$> allCerts
         pure
             ( inputPaths
@@ -3053,10 +3049,10 @@ decodeSharedTransaction ctx (ApiT wid) (ApiSerialisedTransaction (ApiT sealed) _
         , burn = emptyApiAssetMntBurn
         , certificates = certs
         , depositsTaken =
-            (Quantity . fromIntegral . unCoin . W.stakeKeyDeposit $ pp)
+            (Coin.toQuantity . W.stakeKeyDeposit $ pp)
                 <$ filter ourRewardAccountRegistration certs
         , depositsReturned =
-            (Quantity . fromIntegral . unCoin . W.stakeKeyDeposit $ pp)
+            (Coin.toQuantity . W.stakeKeyDeposit $ pp)
                 <$ filter ourRewardAccountDeregistration certs
         , metadata = ApiTxMetadata $ ApiT <$> metadata
         , scriptValidity = ApiT <$> scriptValidity
@@ -3477,14 +3473,13 @@ submitSharedTransaction ctx apiw@(ApiT wid) apitx = do
         let delegationScriptTemplateM = Shared.delegationTemplate $ getState cp
         let delegationWitsRequired = case delegationScriptTemplateM of
                 Nothing -> 0
-                Just (ScriptTemplate _ scriptD) ->
-                    if numberStakingNativeScripts == 0 then
-                        0
-                    else if numberStakingNativeScripts == 1 then
-                        Shared.estimateMinWitnessRequiredPerInput scriptD
-                    else
-                        error "wallet supports transactions with 0 or 1 staking script"
-
+                Just (ScriptTemplate _ scriptD)->
+                    if | numberStakingNativeScripts == 0 ->
+                           0
+                       | numberStakingNativeScripts == 1 ->
+                           Shared.estimateMinWitnessRequiredPerInput scriptD
+                       | otherwise ->
+                           error "wallet supports transactions with 0 or 1 staking script"
         let (ScriptTemplate _ scriptP) = Shared.paymentTemplate $ getState cp
         let pWitsPerInput = Shared.estimateMinWitnessRequiredPerInput scriptP
         let witsRequiredForInputs =

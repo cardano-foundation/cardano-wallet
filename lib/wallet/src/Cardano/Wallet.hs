@@ -1322,8 +1322,8 @@ readRewardAccount db wid = do
     let path = stakeDerivationPath $ Seq.derivationPrefix walletState
     pure (toRewardAccount xpub, getRawKey xpub, path)
   where
-    readWalletCheckpoint ::
-        DBLayer IO s k -> WalletId -> ExceptT ErrNoSuchWallet IO (Wallet s)
+    readWalletCheckpoint
+        :: DBLayer IO s k -> WalletId -> ExceptT ErrNoSuchWallet IO (Wallet s)
     readWalletCheckpoint DBLayer{..} wallet =
         liftIO (atomically (readCheckpoint wallet)) >>=
             maybe (throwE (ErrNoSuchWallet wallet)) pure
@@ -1343,8 +1343,8 @@ readSharedRewardAccount db wid = do
         Just rewardAcct -> pure $ Just (rewardAcct, path)
         Nothing -> pure Nothing
   where
-    readWalletCheckpoint ::
-        DBLayer IO s k -> WalletId -> ExceptT ErrNoSuchWallet IO (Wallet s)
+    readWalletCheckpoint
+        :: DBLayer IO s k -> WalletId -> ExceptT ErrNoSuchWallet IO (Wallet s)
     readWalletCheckpoint DBLayer{..} wallet =
         liftIO (atomically (readCheckpoint wallet)) >>=
             maybe (throwE (ErrNoSuchWallet wallet)) pure
@@ -2027,13 +2027,11 @@ signTransaction tl preferredLatestEra witCountCtx keyLookup (rootKey, rootPwd)
             xprv = derivePolicyPrivateKey rootPwd (getRawKey rootKey) minBound
 
         stakingKeyM :: Maybe (KeyHash, XPrv, Passphrase "encryption")
-        stakingKeyM = case xprvM of
-            Just xprv -> Just
-                ( hashVerificationKey @k CA.Delegation $ liftRawKey $ toXPub xprv
-                , xprv
-                , rootPwd
-                )
-            Nothing -> Nothing
+        stakingKeyM = xprvM <&> \xprv ->
+            ( hashVerificationKey @k CA.Delegation $ liftRawKey $ toXPub xprv
+            , xprv
+            , rootPwd
+            )
           where
             xprvM = getRawKey . deriveRewardAccount @k rootPwd rootKey <$>
                 accIxForStakingM

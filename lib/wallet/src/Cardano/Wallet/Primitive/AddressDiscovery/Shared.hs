@@ -323,7 +323,15 @@ deriving instance ( Show (k 'AccountK XPub) ) => Show (SharedState n k)
 -- (we cannot test the generators for equality).
 instance Eq (k 'AccountK XPub) => Eq (SharedState n k) where
     SharedState a1 a2 a3 a4 a5 a6 ap == SharedState b1 b2 b3 b4 b5 b6 bp
-        = and [a1 == b1, a2 == b2, a3 == b3, a4 == b4, a5 == b5, a6== b6, ap `match` bp]
+        = and
+            [ a1 == b1
+            , a2 == b2
+            , a3 == b3
+            , a4 == b4
+            , a5 == b5
+            , a6 == b6
+            , ap `match` bp
+            ]
       where
         match Pending Pending = True
         match (Active sharedAddressPools1) (Active sharedAddressPools2)

@@ -455,7 +455,7 @@ instance IsServerError ErrConstructTx where
             ]
         ErrConstructTxStakingInvalid ->
             apiError err403 StakingInvalid $ T.unwords
-            [ "I cannot construct a delegating transaction for a shared wallet "
+            [ "I cannot construct a delegating transaction for a shared wallet"
             , "that is lacking a delegation script template."
             ]
 

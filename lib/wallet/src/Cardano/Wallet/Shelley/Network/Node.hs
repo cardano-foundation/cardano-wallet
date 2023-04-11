@@ -327,8 +327,9 @@ withNetworkLayer tr pipeliningStrategy np conn ver tol action = do
     withNodeNetworkLayerBase
         (tr <> trTimings) pipeliningStrategy np conn ver tol action
 
-data RewardAccountSource =
-    RewardAccountFromKeyHash | RewardAccountFromScriptHash
+data RewardAccountSource
+    = RewardAccountFromKeyHash
+    | RewardAccountFromScriptHash
     deriving (Eq, Show)
 
 withNodeNetworkLayerBase
@@ -360,10 +361,10 @@ withNodeNetworkLayerBase
     queryRewardQ <- connectDelegationRewardsClient
         (handlers ClientDelegationRewards)
 
-    rewardsObserverFromKeyHash <-
-        newRewardBalanceFetcher tr readNodeTip queryRewardQ RewardAccountFromKeyHash
-    rewardsObserverFromScriptHash <-
-        newRewardBalanceFetcher tr readNodeTip queryRewardQ RewardAccountFromScriptHash
+    rewardsObserverFromKeyHash <- newRewardBalanceFetcher
+        tr readNodeTip queryRewardQ RewardAccountFromKeyHash
+    rewardsObserverFromScriptHash <- newRewardBalanceFetcher
+        tr readNodeTip queryRewardQ RewardAccountFromScriptHash
 
     let readCurrentNodeEra = atomically $ readTMVar eraVar
 
@@ -402,10 +403,10 @@ withNodeNetworkLayerBase
         , stakeDistribution =
             _stakeDistribution queryRewardQ
         , getCachedRewardAccountBalance = \rewardAcctE -> case rewardAcctE of
-                Left rewardAcct ->
-                    _getCachedRewardAccountBalance rewardsObserverFromKeyHash rewardAcct
-                Right rewardAcct ->
-                    _getCachedRewardAccountBalance rewardsObserverFromScriptHash rewardAcct
+                Left rewardAcct -> _getCachedRewardAccountBalance
+                    rewardsObserverFromKeyHash rewardAcct
+                Right rewardAcct -> _getCachedRewardAccountBalance
+                    rewardsObserverFromScriptHash rewardAcct
         , fetchRewardAccountBalances =
             fetchRewardAccounts tr queryRewardQ RewardAccountFromKeyHash
         , timeInterpreter =
