@@ -118,7 +118,7 @@ data SNetworkId (n :: NetworkDiscriminant) where
     STestnet :: SNat i -> SNetworkId ('Testnet i)
 
 -- | A class for extracting the singleton for 'NetworkDiscriminant'.
-class HasSNetworkId n where
+class Typeable n => HasSNetworkId n where
     sNetworkId :: SNetworkId n
 
 instance HasSNetworkId 'Mainnet where

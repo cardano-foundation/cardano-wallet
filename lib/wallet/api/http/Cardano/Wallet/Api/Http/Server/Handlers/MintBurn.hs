@@ -33,7 +33,7 @@ import Cardano.Wallet.Api.Types.MintBurn
 import Cardano.Wallet.Primitive.Types
     ( WalletId )
 import Cardano.Wallet.Read.NetworkId
-    ( NetworkDiscriminant )
+    ( HasSNetworkId, NetworkDiscriminant )
 import Cardano.Wallet.Transaction
     ( TokenMapWithScripts (..) )
 import Control.Category
@@ -54,7 +54,7 @@ convertApiAssetMintBurn
     ::
       forall ctx s k (n :: NetworkDiscriminant).
         ( HasDBLayer IO s k ctx
-        , Typeable n
+        , HasSNetworkId n
         , Typeable s
         )
     => ctx
@@ -78,7 +78,7 @@ getTxApiAssetMintBurn
     ::
       forall ctx s k (n :: NetworkDiscriminant).
         ( HasDBLayer IO s k ctx
-        , Typeable n
+        , HasSNetworkId n
         , Typeable s
         )
     => ctx

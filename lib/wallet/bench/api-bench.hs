@@ -96,7 +96,8 @@ import Cardano.Wallet.Primitive.Types.Tx.TxOut
 import Cardano.Wallet.Primitive.Types.UTxOStatistics
     ( HistogramBar (..), UTxOStatistics (..) )
 import Cardano.Wallet.Read.NetworkId
-    ( NetworkDiscriminant (..)
+    ( HasSNetworkId
+    , NetworkDiscriminant (..)
     , NetworkDiscriminantBits
     , NetworkDiscriminantVal
     , networkDescription
@@ -135,8 +136,6 @@ import Numeric.Natural
     ( Natural )
 import Say
     ( sayErr )
-import Type.Reflection
-    ( Typeable )
 
 import qualified Cardano.Api as Cardano
 import qualified Cardano.Tx.Balance.Internal.CoinSelection as CoinSelection
@@ -244,7 +243,7 @@ benchmarksSeq
         ( s ~ SeqState n k
         , k ~ ShelleyKey
         , ktype ~ 'CredFromKeyK
-        , Typeable n
+        , HasSNetworkId n
         , NetworkDiscriminantVal n
         , NetworkDiscriminantBits n
         , DelegationAddress n k ktype
@@ -343,7 +342,7 @@ benchmarksShared
         ( s ~ SharedState n k
         , k ~ SharedKey
         , ktype ~ 'CredFromScriptK
-        , Typeable n
+        , HasSNetworkId n
         , NetworkDiscriminantVal n
         , NetworkDiscriminantBits n
         )
@@ -426,7 +425,7 @@ benchmarksRnd
         ( s ~ RndState n
         , k ~ ByronKey
         , ktype ~ 'CredFromKeyK
-        , Typeable n
+        , HasSNetworkId n
         , NetworkDiscriminantVal n
         )
     => BenchmarkConfig n s k ktype
@@ -494,7 +493,7 @@ selectAssets
     .   ( WalletKey k
         , NFData s
         , Show s
-        , Typeable n
+        , HasSNetworkId n
         , NetworkDiscriminantVal n
         , BoundedAddressLength k
         )

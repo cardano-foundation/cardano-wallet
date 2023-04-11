@@ -122,7 +122,7 @@ import Cardano.Wallet.Primitive.Types.Address
 import Cardano.Wallet.Primitive.Types.RewardAccount
     ( RewardAccount )
 import Cardano.Wallet.Read.NetworkId
-    ( NetworkDiscriminant, NetworkDiscriminantBits (..) )
+    ( HasSNetworkId, NetworkDiscriminant, NetworkDiscriminantBits (..) )
 import Control.Applicative
     ( (<|>) )
 import Control.Arrow
@@ -174,7 +174,7 @@ type SupportsDiscovery (n :: NetworkDiscriminant) k =
     , AddressCredential k ~ 'CredFromScriptK
     , SoftDerivation k
     , NetworkDiscriminantBits n
-    , Typeable n
+    , HasSNetworkId n
     )
 
 {-------------------------------------------------------------------------------
@@ -632,7 +632,7 @@ instance SupportsDiscovery n k => CompareDiscovery (SharedState n k) where
                     AddressPool.lookup addr (getPool extPool) <|>
                     AddressPool.lookup addr (getPool intPool)
 
-instance Typeable n => KnownAddresses (SharedState n k) where
+instance HasSNetworkId n => KnownAddresses (SharedState n k) where
     knownAddresses st = case ready st of
         Pending -> []
         Active (SharedAddressPools extPool intPool ixs) ->
@@ -705,7 +705,7 @@ instance FromText CredentialType where
 
 liftPaymentAddress
     :: forall (n :: NetworkDiscriminant) (k :: Depth -> Type -> Type).
-       Typeable n
+       HasSNetworkId n
     => KeyFingerprint "payment" k
     -> Address
 liftPaymentAddress (KeyFingerprint fingerprint) =
@@ -715,7 +715,7 @@ liftPaymentAddress (KeyFingerprint fingerprint) =
 
 liftDelegationAddress
     :: forall (n :: NetworkDiscriminant) (k :: Depth -> Type -> Type).
-       Typeable n
+       HasSNetworkId n
     => Index 'Soft 'CredFromScriptK
     -> ScriptTemplate
     -> KeyFingerprint "payment" k

@@ -178,7 +178,7 @@ type SupportsDiscovery n k =
     , SoftDerivation k
     , NetworkDiscriminantCheck n k
     , NetworkDiscriminantBits n
-    , Typeable n
+    , HasSNetworkId n
     )
 
 {-------------------------------------------------------------------------------
