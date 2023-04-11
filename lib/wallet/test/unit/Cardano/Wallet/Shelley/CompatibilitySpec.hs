@@ -44,7 +44,6 @@ import Cardano.Wallet.Byron.Compatibility
 import Cardano.Wallet.Primitive.AddressDerivation
     ( Depth (..)
     , Index (getIndex)
-    , NetworkDiscriminant (..)
     , PaymentAddress (..)
     , WalletKey
     , delegationAddress
@@ -77,6 +76,8 @@ import Cardano.Wallet.Primitive.Types.Tx.Constraints
     )
 import Cardano.Wallet.Primitive.Types.Tx.TxOut.Gen
     ( genTxOutTokenBundle )
+import Cardano.Wallet.Read.NetworkId
+    ( NetworkDiscriminant (..) )
 import Cardano.Wallet.Shelley.Compatibility
     ( CardanoBlock
     , StandardCrypto

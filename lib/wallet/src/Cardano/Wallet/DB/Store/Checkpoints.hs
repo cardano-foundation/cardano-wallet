@@ -95,8 +95,6 @@ import Cardano.Wallet.Primitive.AddressDerivation
     ( Depth (..)
     , HardDerivation (..)
     , MkKeyFingerprint (..)
-    , NetworkDiscriminantBits
-    , NetworkDiscriminantCheck
     , PaymentAddress (..)
     , PersistPublicKey (..)
     , Role (..)
@@ -115,6 +113,8 @@ import Cardano.Wallet.Primitive.Types.TokenBundle
     ( TokenBundle )
 import Cardano.Wallet.Primitive.Types.TokenMap
     ( AssetId (..) )
+import Cardano.Wallet.Read.NetworkId
+    ( NetworkDiscriminantBits, NetworkDiscriminantCheck )
 import Control.Monad
     ( forM, forM_, unless, void, when )
 import Control.Monad.Trans.Class

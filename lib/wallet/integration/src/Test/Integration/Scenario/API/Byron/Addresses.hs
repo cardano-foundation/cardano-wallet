@@ -27,7 +27,7 @@ import Cardano.Wallet.Api.Types
     , WalletStyle (..)
     )
 import Cardano.Wallet.Primitive.AddressDerivation
-    ( Depth (..), NetworkDiscriminant, PaymentAddress )
+    ( Depth (..), PaymentAddress )
 import Cardano.Wallet.Primitive.AddressDerivation.Byron
     ( ByronKey )
 import Cardano.Wallet.Primitive.AddressDerivation.Icarus
@@ -36,6 +36,8 @@ import Cardano.Wallet.Primitive.AddressDiscovery.Sequential
     ( purposeBIP44 )
 import Cardano.Wallet.Primitive.Types.Address
     ( AddressState (..) )
+import Cardano.Wallet.Read.NetworkId
+    ( NetworkDiscriminant )
 import Control.Monad
     ( forM_ )
 import Control.Monad.Trans.Resource

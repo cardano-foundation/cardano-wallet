@@ -37,11 +37,13 @@ import Cardano.Wallet.Api.Lib.ExtendedObject
 import Cardano.Wallet.Api.Types.Primitive
     ()
 import Cardano.Wallet.Primitive.AddressDerivation
-    ( DerivationIndex (..), NetworkDiscriminant )
+    ( DerivationIndex (..) )
 import Cardano.Wallet.Primitive.Types
     ( NonWalletCertificate )
 import Cardano.Wallet.Primitive.Types.Coin
     ( unCoin )
+import Cardano.Wallet.Read.NetworkId
+    ( NetworkDiscriminant )
 import Cardano.Wallet.Shelley.Network.Discriminant
     ( DecodeStakeAddress, EncodeStakeAddress )
 import Control.DeepSeq

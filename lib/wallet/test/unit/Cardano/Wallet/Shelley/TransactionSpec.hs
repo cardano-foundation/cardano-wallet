@@ -120,7 +120,6 @@ import Cardano.Wallet.Primitive.AddressDerivation
     , DerivationIndex (..)
     , DerivationType (..)
     , Index
-    , NetworkDiscriminant (..)
     , Role (..)
     , deriveRewardAccount
     , getRawKey
@@ -234,6 +233,8 @@ import Cardano.Wallet.Primitive.Types.UTxO
     ( UTxO (..) )
 import Cardano.Wallet.Primitive.Types.UTxO.Gen
     ( shrinkUTxO )
+import Cardano.Wallet.Read.NetworkId
+    ( NetworkDiscriminant (..) )
 import Cardano.Wallet.Read.Primitive.Tx.Features.Integrity
     ( txIntegrity )
 import Cardano.Wallet.Read.Tx.Cardano

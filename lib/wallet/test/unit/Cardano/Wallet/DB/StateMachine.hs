@@ -96,7 +96,6 @@ import Cardano.Wallet.Primitive.AddressDerivation
     , DerivationPrefix
     , Index
     , KeyFingerprint
-    , NetworkDiscriminant (..)
     , PersistPrivateKey (..)
     , Role (..)
     )
@@ -183,6 +182,8 @@ import Cardano.Wallet.Primitive.Types.UTxO
     ( UTxO (..) )
 import Cardano.Wallet.Read.Eras.EraValue
     ( eraValueSerialize )
+import Cardano.Wallet.Read.NetworkId
+    ( NetworkDiscriminant (..) )
 import Control.Foldl
     ( Fold (..) )
 import Control.Monad

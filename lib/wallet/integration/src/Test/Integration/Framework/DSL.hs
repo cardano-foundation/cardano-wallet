@@ -303,7 +303,6 @@ import Cardano.Wallet.Primitive.AddressDerivation
     , DerivationType (..)
     , HardDerivation (..)
     , Index (..)
-    , NetworkDiscriminant (..)
     , PaymentAddress (..)
     , PersistPublicKey (..)
     , Role (..)
@@ -357,6 +356,8 @@ import Cardano.Wallet.Primitive.Types.UTxO
     ( UTxO (..) )
 import Cardano.Wallet.Primitive.Types.UTxOStatistics
     ( HistogramBar (..), UTxOStatistics (..) )
+import Cardano.Wallet.Read.NetworkId
+    ( NetworkDiscriminant )
 import "cardano-addresses" Codec.Binary.Encoding
     ( AbstractEncoding (..), encode )
 import Control.Arrow

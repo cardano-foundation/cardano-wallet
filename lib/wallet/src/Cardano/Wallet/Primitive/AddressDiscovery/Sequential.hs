@@ -88,9 +88,6 @@ import Cardano.Wallet.Primitive.AddressDerivation
     , Index (..)
     , KeyFingerprint (..)
     , MkKeyFingerprint (..)
-    , NetworkDiscriminant (..)
-    , NetworkDiscriminantBits
-    , NetworkDiscriminantCheck (..)
     , PaymentAddress (..)
     , PersistPublicKey (..)
     , Role (..)
@@ -128,6 +125,7 @@ import Cardano.Wallet.Primitive.Types.Address
     ( Address (..), AddressState (..) )
 import Cardano.Wallet.Primitive.Types.RewardAccount
     ( RewardAccount )
+import Cardano.Wallet.Read.NetworkId
 import Codec.Binary.Encoding
     ( AbstractEncoding (..), encode )
 import Control.Applicative

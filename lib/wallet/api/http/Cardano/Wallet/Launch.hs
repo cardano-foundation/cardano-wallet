@@ -55,8 +55,6 @@ import Cardano.Launcher.Node
     ( CardanoNodeConn, cardanoNodeConn, isWindows )
 import Cardano.Wallet.Logging
     ( BracketLog, BracketLog' (..), bracketTracer )
-import Cardano.Wallet.Primitive.AddressDerivation
-    ( NetworkDiscriminant (..) )
 import Cardano.Wallet.Primitive.SyncProgress
     ( SyncTolerance )
 import Cardano.Wallet.Primitive.Types
@@ -86,6 +84,8 @@ import Data.Text.Class
 import GHC.TypeLits
     ( KnownNat, Nat, SomeNat (..), someNatVal )
 -- See ADP-1910
+import Cardano.Wallet.Read.NetworkId
+    ( NetworkDiscriminant (..) )
 import "optparse-applicative" Options.Applicative
     ( Parser, eitherReader, flag', help, long, metavar, option, (<|>) )
 import Ouroboros.Network.Magic

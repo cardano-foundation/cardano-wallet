@@ -23,7 +23,6 @@ import Cardano.Wallet.Primitive.AddressDerivation
     ( Depth (AccountK, CredFromKeyK, RootK)
     , DerivationType (..)
     , Index
-    , NetworkDiscriminant (..)
     , PaymentAddress (..)
     , publicKey
     )
@@ -40,6 +39,8 @@ import Cardano.Wallet.Primitive.Passphrase
     , passphraseMinLength
     , preparePassphrase
     )
+import Cardano.Wallet.Read.NetworkId
+    ( NetworkDiscriminant (..) )
 import Control.Monad
     ( replicateM )
 import Data.Maybe

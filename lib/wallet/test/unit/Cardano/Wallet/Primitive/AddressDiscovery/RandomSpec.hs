@@ -25,7 +25,6 @@ import Cardano.Wallet.Primitive.AddressDerivation
     ( Depth (..)
     , DerivationType (..)
     , Index (..)
-    , NetworkDiscriminant (..)
     , PaymentAddress (..)
     , WalletKey (..)
     , liftIndex
@@ -46,6 +45,8 @@ import Cardano.Wallet.Primitive.Passphrase
     ( Passphrase (..) )
 import Cardano.Wallet.Primitive.Types.Address
     ( Address (..), AddressState (..) )
+import Cardano.Wallet.Read.NetworkId
+    ( NetworkDiscriminant (..) )
 import Control.Monad
     ( forM_ )
 import Data.ByteArray.Encoding

@@ -87,9 +87,6 @@ import Cardano.Wallet.Network
     )
 import Cardano.Wallet.Primitive.AddressDerivation
     ( Depth (..)
-    , NetworkDiscriminant (..)
-    , NetworkDiscriminantBits
-    , NetworkDiscriminantVal (..)
     , PaymentAddress
     , PersistPrivateKey
     , WalletKey
@@ -146,6 +143,11 @@ import Cardano.Wallet.Primitive.Types.Tx.TxOut
     ( TxOut (..) )
 import Cardano.Wallet.Primitive.Types.UTxOStatistics
     ( UTxOStatistics (..) )
+import Cardano.Wallet.Read.NetworkId
+    ( NetworkDiscriminant (..)
+    , NetworkDiscriminantBits
+    , NetworkDiscriminantVal (..)
+    )
 import Cardano.Wallet.Shelley
     ( SomeNetworkDiscriminant (..) )
 import Cardano.Wallet.Shelley.Compatibility

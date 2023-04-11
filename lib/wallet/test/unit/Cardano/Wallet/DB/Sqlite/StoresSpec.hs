@@ -30,8 +30,6 @@ import Cardano.Wallet.DB.WalletState
     , getLatest
     , getSlot
     )
-import Cardano.Wallet.Primitive.AddressDerivation
-    ( NetworkDiscriminant (Mainnet) )
 import Cardano.Wallet.Primitive.AddressDerivation.Shared
     ( SharedKey )
 import Cardano.Wallet.Primitive.AddressDerivation.Shelley
@@ -44,6 +42,8 @@ import Cardano.Wallet.Primitive.AddressDiscovery.Shared
     ( Readiness (Pending), SharedState (..) )
 import Cardano.Wallet.Primitive.Types
     ( SlotNo (..), WalletId (..), WithOrigin (..) )
+import Cardano.Wallet.Read.NetworkId
+    ( NetworkDiscriminant (..) )
 import Control.Monad
     ( forM_ )
 import Data.Bifunctor

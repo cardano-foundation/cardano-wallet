@@ -37,14 +37,11 @@ import Cardano.Address.Style.Shared
 import Cardano.Address.Style.Shelley
     ( Credential (..), delegationAddress, paymentAddress )
 import Cardano.Wallet.Primitive.AddressDerivation
-    ( Depth (..)
-    , DerivationType (..)
-    , Index (..)
-    , NetworkDiscriminant (..)
-    , Role (..)
-    )
+    ( Depth (..), DerivationType (..), Index (..), Role (..) )
 import Cardano.Wallet.Primitive.Types.Address
     ( Address (..) )
+import Cardano.Wallet.Read.NetworkId
+    ( NetworkDiscriminant (..) )
 import Control.DeepSeq
     ( NFData (..) )
 import Data.Maybe

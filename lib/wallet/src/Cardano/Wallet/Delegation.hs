@@ -44,8 +44,6 @@ import Cardano.Wallet.DB
     ( DBLayer (..) )
 import Cardano.Wallet.Network
     ( NetworkLayer (..) )
-import Cardano.Wallet.Primitive.AddressDerivation
-    ( NetworkDiscriminant )
 import Cardano.Wallet.Primitive.AddressDerivation.Shelley
     ( ShelleyKey (..) )
 import Cardano.Wallet.Primitive.AddressDiscovery.Sequential
@@ -60,6 +58,8 @@ import Cardano.Wallet.Primitive.Types
     )
 import Cardano.Wallet.Primitive.Types.Coin
     ( Coin (..) )
+import Cardano.Wallet.Read.NetworkId
+    ( NetworkDiscriminant )
 import Cardano.Wallet.Transaction
     ( ErrCannotJoin (..)
     , TransactionCtx

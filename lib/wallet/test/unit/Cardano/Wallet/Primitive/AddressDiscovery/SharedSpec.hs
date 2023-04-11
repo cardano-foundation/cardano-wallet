@@ -33,8 +33,6 @@ import Cardano.Wallet.Primitive.AddressDerivation
     , HardDerivation (..)
     , Index (..)
     , KeyFingerprint
-    , NetworkDiscriminant (..)
-    , NetworkDiscriminantBits
     , Role (..)
     , WalletKey (..)
     )
@@ -60,6 +58,8 @@ import Cardano.Wallet.Primitive.Passphrase.Gen
     ( genEncryptionPassphrase )
 import Cardano.Wallet.Primitive.Types.Address
     ( Address (..), AddressState (..) )
+import Cardano.Wallet.Read.NetworkId
+    ( NetworkDiscriminant (..), NetworkDiscriminantBits )
 import Cardano.Wallet.Unsafe
     ( someDummyMnemonic )
 import Control.Arrow

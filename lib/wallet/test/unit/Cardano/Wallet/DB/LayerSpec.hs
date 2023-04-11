@@ -85,7 +85,6 @@ import Cardano.Wallet.Primitive.AddressDerivation
     ( Depth (..)
     , DerivationType (..)
     , Index
-    , NetworkDiscriminant (..)
     , PaymentAddress (..)
     , PersistPrivateKey
     , WalletKey
@@ -170,6 +169,8 @@ import Cardano.Wallet.Primitive.Types.Tx.TxIn
     ( TxIn (..) )
 import Cardano.Wallet.Primitive.Types.Tx.TxOut
     ( TxOut (..) )
+import Cardano.Wallet.Read.NetworkId
+    ( NetworkDiscriminant (..) )
 import Cardano.Wallet.Unsafe
     ( unsafeFromHex, unsafeRunExceptT )
 import Control.Monad

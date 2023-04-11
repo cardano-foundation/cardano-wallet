@@ -304,8 +304,6 @@ import Cardano.Wallet.Primitive.AddressDerivation
     , HardDerivation (..)
     , Index (..)
     , MkKeyFingerprint (..)
-    , NetworkDiscriminant (..)
-    , NetworkDiscriminantBits
     , PaymentAddress (..)
     , Role (..)
     , SoftDerivation (..)
@@ -454,6 +452,8 @@ import Cardano.Wallet.Primitive.Types.UTxOSelection
     ( UTxOSelection )
 import Cardano.Wallet.Primitive.Types.UTxOStatistics
     ( UTxOStatistics )
+import Cardano.Wallet.Read.NetworkId
+    ( NetworkDiscriminant, NetworkDiscriminantBits )
 import Cardano.Wallet.Read.Tx.CBOR
     ( TxCBOR )
 import Cardano.Wallet.Shelley.Compatibility

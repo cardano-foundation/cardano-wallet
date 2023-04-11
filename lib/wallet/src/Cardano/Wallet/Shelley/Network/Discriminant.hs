@@ -26,13 +26,7 @@ import Prelude
 import Cardano.Api.Shelley
     ( NetworkId )
 import Cardano.Wallet.Primitive.AddressDerivation
-    ( DelegationAddress
-    , Depth (..)
-    , NetworkDiscriminant (..)
-    , NetworkDiscriminantBits
-    , NetworkDiscriminantVal
-    , PaymentAddress
-    )
+    ( DelegationAddress, Depth (..), PaymentAddress )
 import Cardano.Wallet.Primitive.AddressDerivation.Byron
     ( ByronKey )
 import Cardano.Wallet.Primitive.AddressDerivation.Icarus
@@ -41,6 +35,11 @@ import Cardano.Wallet.Primitive.AddressDerivation.Shelley
     ( ShelleyKey )
 import Cardano.Wallet.Primitive.Types.Address
     ( Address (..) )
+import Cardano.Wallet.Read.NetworkId
+    ( NetworkDiscriminant (..)
+    , NetworkDiscriminantBits
+    , NetworkDiscriminantVal
+    )
 import Control.Arrow
     ( (>>>) )
 import Data.Proxy

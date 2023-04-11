@@ -30,10 +30,10 @@ import Cardano.Wallet.Api.Types.Key
     ( ApiPolicyKey (ApiPolicyKey), computeKeyPayload )
 import Cardano.Wallet.Api.Types.MintBurn
     ( ApiAssetMintBurn (..), includePolicyKeyInfo, policyIx, toApiTokens )
-import Cardano.Wallet.Primitive.AddressDerivation
-    ( NetworkDiscriminant )
 import Cardano.Wallet.Primitive.Types
     ( WalletId )
+import Cardano.Wallet.Read.NetworkId
+    ( NetworkDiscriminant )
 import Cardano.Wallet.Transaction
     ( TokenMapWithScripts (..) )
 import Control.Category

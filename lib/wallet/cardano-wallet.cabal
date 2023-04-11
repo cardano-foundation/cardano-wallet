@@ -314,6 +314,7 @@ library
     Cardano.Wallet.Read.Eras.EraValue
     Cardano.Wallet.Read.Eras.InAnyCardanoEra
     Cardano.Wallet.Read.Eras.KnownEras
+    Cardano.Wallet.Read.NetworkId
     Cardano.Wallet.Read.Primitive.Tx
     Cardano.Wallet.Read.Primitive.Tx.Allegra
     Cardano.Wallet.Read.Primitive.Tx.Alonzo

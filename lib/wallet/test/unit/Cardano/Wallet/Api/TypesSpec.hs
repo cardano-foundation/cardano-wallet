@@ -253,7 +253,6 @@ import Cardano.Wallet.Primitive.AddressDerivation
     , DerivationType (..)
     , HardDerivation (..)
     , Index (..)
-    , NetworkDiscriminant (..)
     , Role (..)
     , WalletKey (..)
     , fromHex
@@ -350,6 +349,8 @@ import Cardano.Wallet.Primitive.Types.UTxO
     ( UTxO (..) )
 import Cardano.Wallet.Primitive.Types.UTxOStatistics
     ( HistogramBar (..), UTxOStatistics (..) )
+import Cardano.Wallet.Read.NetworkId
+    ( NetworkDiscriminant (..) )
 import Cardano.Wallet.Shelley.Network.Discriminant
     ( DecodeAddress (..)
     , DecodeStakeAddress (..)
