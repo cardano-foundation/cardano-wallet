@@ -2902,16 +2902,16 @@ delegationFee db@DBLayer{atomically, walletsDB} netLayer
         let utxoIndex = UTxOIndex.fromMap . CS.toInternalUTxOMap $
                 availableUTxO @s mempty wallet
         pureTimeInterpreter <- lift $ snapshot ti
-        let unsignedTxBody = either (error .show) id $
-                mkUnsignedTransaction txLayer @era
-                    (unsafeShelleyOnlyGetRewardXPub (getState wallet))
-                    (fst protocolParams)
-                    defaultTransactionCtx
-                    -- It would seem that we should add a delegation action
-                    -- to the partial tx we construct, this was not done
-                    -- previously, and the difference should be negligible.
-                    (Left $ PreSelection [])
-
+        unsignedTxBody <- either
+            (liftIO . throwIO . ExceptionConstructTx . ErrConstructTxBody)
+            pure $ mkUnsignedTransaction txLayer @era
+                (unsafeShelleyOnlyGetRewardXPub (getState wallet))
+                (fst protocolParams)
+                defaultTransactionCtx
+                -- It would seem that we should add a delegation action
+                -- to the partial tx we construct, this was not done
+                -- previously, and the difference should be negligible.
+                (Left $ PreSelection [])
         let ptx = PartialTx
                 { tx = Cardano.Tx unsignedTxBody []
                 , inputs = Cardano.UTxO mempty
