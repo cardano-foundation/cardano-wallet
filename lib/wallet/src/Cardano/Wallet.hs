@@ -2905,7 +2905,6 @@ delegationFee db@DBLayer{atomically, walletsDB} netLayer
             $ throwE
             $ ErrSelectAssetsSelectionError
             $ SelectionBalanceErrorOf EmptyUTxO
-        pureTimeInterpreter <- lift $ snapshot ti
         unsignedTxBody <- either
             (liftIO . throwIO . ExceptionConstructTx . ErrConstructTxBody)
             pure $ mkUnsignedTransaction txLayer @era
@@ -2921,6 +2920,7 @@ delegationFee db@DBLayer{atomically, walletsDB} netLayer
                 , inputs = Cardano.UTxO mempty
                 , redeemers = []
                 }
+        pureTimeInterpreter <- lift $ snapshot ti
         feePercentiles <- calculateFeePercentiles $ do
             Right (Cardano.Tx (Cardano.TxBody bodyContent) _, _updatedWallet) <-
                 runExceptT $
