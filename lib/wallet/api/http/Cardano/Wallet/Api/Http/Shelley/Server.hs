@@ -3514,7 +3514,7 @@ delegationFee
 delegationFee ctx@ApiLayer{..} (ApiT walletId) = do
     era <- liftIO $ NW.currentNodeEra netLayer
     AnyRecentEra (recentEra :: WriteTx.RecentEra era) <- guardIsRecentEra era
-    withWorkerCtx ctx walletId liftE liftE $ \workerCtx -> liftHandler $ do
+    withWorkerCtx ctx walletId liftE liftE $ \workerCtx -> liftIO $ do
         W.DelegationFee {feePercentiles, deposit} <-
             W.delegationFee
                 (workerCtx ^. dbLayer)

@@ -291,7 +291,6 @@ benchmarksSeq BenchmarkConfig{benchmarkName,ctx,wid} = do
         $ W.createMigrationPlan @_ @k @s ctx era wid Tx.NoWithdrawal
 
     (_, delegationFeeTime) <- bench "delegationFee"
-        $ unsafeRunExceptT
         $ W.delegationFee @_ @k @n
             (dbLayer ctx) (networkLayer ctx) (transactionLayer ctx)
             (timeInterpreter (networkLayer ctx))
