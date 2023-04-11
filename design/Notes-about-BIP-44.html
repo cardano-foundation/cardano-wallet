@@ -27,7 +27,7 @@
 
 
   
-  <link href='tailwind.css?instanceId=dd65a394-06d4-4e48-9ba4-56709a405632' rel='stylesheet' type='text/css' />
+  <link href='tailwind.css?instanceId=89abbfaa-0cb7-4f27-bd33-7bccc3e26b20' rel='stylesheet' type='text/css' />
 
   <!-- Heist error element -->
   <style type='text/css'>
@@ -2554,82 +2554,6 @@
       
         <li>
           Another wallet scheme that would be better suited for exchanges should probably be considered.
-        </li>
-      
-    </ul>
-  <h3 id='limit-2---error-prone-with-staging-networks' class='mt-6 mb-2 text-3xl font-bold text-gray-700'>Limit 2 - Error prone with staging networks</h3>
-    <p class='mb-3'>
-      A subtle issue with BIP-44 wallets would be to use a software to generate addresses on a given network, and use such generated addresses on a different albeit compatible network. This has been the case between the Cardano Mainnet and Staging networks recently. Let’s run through the following example:
-    </p>
-  
-    <ul class='my-3 ml-6 space-y-1 list-decimal list-inside'>
-      
-        <li>
-          
-    <p class='mb-3'>
-      A user creates a brand new wallet on the staging network. Following the default recommended gap limit, 20 unused addresses are generated for this wallet.
-    </p>
-  
-        </li>
-      
-        <li>
-          
-    <p class='mb-3'>
-      The user also creates a wallet on the main network, using the same recovery phrase. Because both networks share the same address discimination policy, there’s no difference between addresses of both networks. Addresses from the staging network are valid addresses on the main network.
-    </p>
-  
-        </li>
-      
-        <li>
-          
-    <p class='mb-3'>
-      This user gives her 10th address to someone in order to receive some funds on the <strong>staging network</strong>. Eventually, she receives funds on her addresses which causes the <strong>staging</strong> wallet to generate 10 new addresses (as seen before).
-    </p>
-  
-        </li>
-      
-        <li>
-          
-    <p class='mb-3'>
-      Then, she also needs to receive funds on her wallet from the <strong>main network</strong> but mistakenly takes an address from the <strong>staging network</strong>. Above all, she happens to take the 24th addresses of her staging wallet.
-    </p>
-  
-        </li>
-      
-        <li>
-          
-    <p class='mb-3'>
-      Because addresses are valid on both networks, the transaction is successfully processed but never show up in her main wallet.
-    </p>
-  
-        </li>
-      
-    </ul>
-  
-    <p class='mb-3'>
-      What has happened? The <strong>main</strong> wallet only looks for addresses with indexes between 0 and 19 (incl.) and a transaction is made on an address with index <code class='py-0.5 px-0.5 bg-gray-100'>i=23</code>; it is therefore outside of what’s currently observable by the main wallet. This is because, from the main wallet’s perspective, one of the two BIP-44 invariants has been violated. It shouldn’t have been possible to generate an address beyond the 20th index on the main network because no previous address had been used on this network.
-    </p>
-  
-    <p class='mb-3'>
-      Possible mitigations:
-    </p>
-  
-    <ul class='my-3 ml-6 space-y-1 list-decimal list-inside'>
-      
-        <li>
-          
-    <p class='mb-3'>
-      Having a different discrimination between staging and main networks would prevent addresses from one to be mistakenly used on another. In practice, we typically want such two networks to be as close as possible. Thus enforcing this discrimination simply in <em>client softwares</em> could already be a sufficient for most users. More advanced users who would be crafting addresses themselves would still be able to by-pass this kind of safety net, but it comes with the “advanced” powers.
-    </p>
-  
-        </li>
-      
-        <li>
-          
-    <p class='mb-3'>
-      Wallet could allow arbitrarily longer gaps to allow transactions to be discovered even if made outside of the default gap limit. In most cases, this would be sufficient with a slightly larger gap (e.g. 40 or 50) because typical users don’t use large indexes anyway. We’ve used this technique with gap as high as 10.000 (with a following shrinking) during the ITN on Cardano to cope with the lack of blockchain history caused by the ITN snapshot.
-    </p>
-  
         </li>
       
     </ul>

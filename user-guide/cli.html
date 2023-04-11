@@ -27,7 +27,7 @@
 
 
   
-  <link href='tailwind.css?instanceId=dd65a394-06d4-4e48-9ba4-56709a405632' rel='stylesheet' type='text/css' />
+  <link href='tailwind.css?instanceId=89abbfaa-0cb7-4f27-bd33-7bccc3e26b20' rel='stylesheet' type='text/css' />
 
   <!-- Heist error element -->
   <style type='text/css'>
@@ -2485,7 +2485,7 @@ Available COMMANDS:
                             [--random-port | --port INT] 
                             [--tls-ca-cert FILE --tls-sv-cert FILE
                               --tls-sv-key FILE] 
-                            (--mainnet | --testnet FILE | --staging FILE) 
+                            (--mainnet | --testnet FILE ) 
                             [--database DIR] [--shutdown-handler] 
                             [--pool-metadata-fetching ( none | direct | SMASH-URL )]
                             [--token-metadata-server URL] 
@@ -2516,7 +2516,6 @@ Available options:
                            certificate.
   --mainnet                Use Cardano mainnet protocol
   --testnet FILE           Path to the byron genesis data in JSON format.
-  --staging FILE           Path to the byron genesis data in JSON format.
   --database DIR           use this directory for storing wallets. Run in-memory
                            otherwise.
   --shutdown-handler       Enable the clean shutdown handler (exits when stdin
@@ -3132,7 +3131,7 @@ complete -o filenames -F _cardano-wallet cardano-wallet</code></pre></div>
             <div class='mb-4 overflow-auto text-sm text-gray-500'>
   
     <div class='pl-2 mt-2 border-l-2 border-blue-200 hover:border-blue-500'>
-      <div><p>For <em>mainnet</em>, we have hardcoded the genesis hash. It will never change. For <em>staging</em> and <em>testnet</em>, users must supply a genesis config to the <a href='user-guide/cli' class='text-gray-600 font-bold hover:bg-gray-50' data-wikilink-type='WikiLinkNormal'>Command-Line Interface</a>, so that its hash may be used when connecting to the local node.</p></div>
+      <div><p>For <em>mainnet</em>, we have hardcoded the genesis hash. It will never change. For <em>testnet</em>, users must supply a genesis config to the <a href='user-guide/cli' class='text-gray-600 font-bold hover:bg-gray-50' data-wikilink-type='WikiLinkNormal'>Command-Line Interface</a>, so that its hash may be used when connecting to the local node.</p></div>
     </div>
   
 </div>
