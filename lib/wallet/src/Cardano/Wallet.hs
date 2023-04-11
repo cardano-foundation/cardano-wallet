@@ -2887,13 +2887,13 @@ delegationFee
     -> AnyRecentEra
     -> ChangeAddressGen s
     -> WalletId
-    -> ExceptT ErrSelectAssets IO DelegationFee
+    -> IO DelegationFee
 delegationFee db@DBLayer{atomically, walletsDB} netLayer
     txLayer ti era changeAddressGen walletId = do
     WriteTx.withRecentEra era $ \(recentEra :: WriteTx.RecentEra era) -> do
         protocolParams <- toBalanceTxPParams
             <$> liftIO (currentProtocolParameters netLayer)
-        wallet <- lift . atomically $ readDBVar walletsDB >>= \wallets ->
+        wallet <- liftIO . atomically $ readDBVar walletsDB >>= \wallets ->
             case Map.lookup walletId wallets of
                 Nothing -> liftIO . throwIO
                     $ ExceptionNoSuchWallet
@@ -2901,25 +2901,24 @@ delegationFee db@DBLayer{atomically, walletsDB} netLayer
                 Just ws -> pure $ WalletState.getLatest ws
         let utxoIndex = UTxOIndex.fromMap . CS.toInternalUTxOMap $
                 availableUTxO @s mempty wallet
-        pureTimeInterpreter <- lift $ snapshot ti
-        let unsignedTxBody = either (error .show) id $
-                mkUnsignedTransaction txLayer @era
-                    (unsafeShelleyOnlyGetRewardXPub (getState wallet))
-                    (fst protocolParams)
-                    defaultTransactionCtx
-                    -- It would seem that we should add a delegation action
-                    -- to the partial tx we construct, this was not done
-                    -- previously, and the difference should be negligible.
-                    (Left $ PreSelection [])
+        pureTimeInterpreter <- liftIO $ snapshot ti
+        unsignedTxBody <- wrapErrMkTransaction $
+            mkUnsignedTransaction txLayer @era
+                (unsafeShelleyOnlyGetRewardXPub (getState wallet))
+                (fst protocolParams)
+                defaultTransactionCtx
+                -- It would seem that we should add a delegation action
+                -- to the partial tx we construct, this was not done
+                -- previously, and the difference should be negligible.
+                (Left $ PreSelection [])
 
         let ptx = PartialTx
                 { tx = Cardano.Tx unsignedTxBody []
                 , inputs = Cardano.UTxO mempty
                 , redeemers = []
                 }
-        feePercentiles <- calculateFeePercentiles $ do
-            Right (Cardano.Tx (Cardano.TxBody bodyContent) _, _updatedWallet) <-
-                runExceptT $
+        feePercentiles <- wrapErrSelectAssets $ calculateFeePercentiles $ do
+            res <- runExceptT $
                     balanceTransaction @_ @_ @s
                         nullTracer
                         (Write.allKeyPaymentCredentials txLayer)
@@ -2929,13 +2928,35 @@ delegationFee db@DBLayer{atomically, walletsDB} netLayer
                         changeAddressGen
                         (getState wallet)
                         ptx
-            pure $ case Cardano.txFee bodyContent of
-                Cardano.TxFeeExplicit _ coin -> Fee (fromCardanoLovelace coin)
-                Cardano.TxFeeImplicit Cardano.TxFeesImplicitInByronEra ->
-                    case recentEra of {}
+            case res of
+                Right (Cardano.Tx (Cardano.TxBody bodyContent) _, _updatedWallet)
+                    -> pure $ case Cardano.txFee bodyContent of
+                        Cardano.TxFeeExplicit _ coin
+                            -> Fee (fromCardanoLovelace coin)
+                        Cardano.TxFeeImplicit Cardano.TxFeesImplicitInByronEra
+                            -> case recentEra of {}
+                Left (ErrBalanceTxSelectAssets errSelectAssets)
+                    -> throwE errSelectAssets
+                Left otherErr -> throwIO $ ExceptionBalanceTx otherErr
+
         deposit <- liftIO $ calcMinimumDeposit db netLayer walletId
         pure DelegationFee { feePercentiles, deposit }
   where
+    wrapErrSelectAssets
+        = throwWrappedErr ExceptionSelectAssets
+
+    wrapErrMkTransaction
+        = throwWrappedErr (ExceptionConstructTx . ErrConstructTxBody)
+        . ExceptT
+        . pure
+
+    throwWrappedErr
+        :: (Exception e, MonadIO m)
+        => (e' -> e)
+        -> ExceptT e' m a ->
+        m a
+    throwWrappedErr f a = either (throwIO . f) pure =<< runExceptT a
+
     -- HACK: 'mkUnsignedTransaction' takes a reward account 'XPub' even when the
     -- wallet is a Byron wallet, and doesn't actually have a reward account.
     --
@@ -2958,7 +2979,6 @@ delegationFee db@DBLayer{atomically, walletsDB} netLayer
             [ "buildAndSignTransactionPure:"
             , "can't delegate using non-shelley wallet"
             ]
-
 
 -- | Repeatedly (100 times) runs given transaction fee estimation calculation
 -- returning 1st and 9nth decile (10nth and 90nth percentile) values of a
