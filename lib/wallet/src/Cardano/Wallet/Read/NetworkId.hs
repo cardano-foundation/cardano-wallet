@@ -46,10 +46,7 @@ import qualified Data.Text as T
 --              addresses. Genesis file needs to be passed explicitly when
 --              starting the application.
 --
--- - @Staging@: very much like testnet, but like mainnet, assumes to no address
---              discrimination. Genesis file needs to be passed explicitly when
---              starting the application.
-data NetworkDiscriminant = Mainnet | Testnet Nat | Staging Nat
+data NetworkDiscriminant = Mainnet | Testnet Nat
     deriving (Typeable)
 
 class NetworkDiscriminantVal (n :: NetworkDiscriminant) where
@@ -63,10 +60,6 @@ instance KnownNat pm => NetworkDiscriminantVal ('Testnet pm) where
     networkDiscriminantVal =
         "testnet (" <> T.pack (show $ natVal $ Proxy @pm) <> ")"
 
-instance KnownNat pm => NetworkDiscriminantVal ('Staging pm) where
-    networkDiscriminantVal =
-        "staging (" <> T.pack (show $ natVal $ Proxy @pm) <> ")"
-
 class NetworkDiscriminantBits (n :: NetworkDiscriminant) where
     networkDiscriminantBits :: Word8
 
@@ -75,9 +68,6 @@ instance NetworkDiscriminantBits 'Mainnet where
 
 instance NetworkDiscriminantBits ('Testnet pm) where
     networkDiscriminantBits = 0b00000000
-
-instance NetworkDiscriminantBits ('Staging pm) where
-    networkDiscriminantBits = 0b00000001
 
 class NetworkDiscriminantCheck (n :: NetworkDiscriminant) k where
     networkDiscriminantCheck :: Word8 -> Bool

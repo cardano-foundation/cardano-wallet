@@ -107,27 +107,3 @@ Possible mitigations:
 
 1. Exchanges could make use of a larger gap limit, violating the classic BIP-44 default but, still following the same principle otherwise. Despite being inefficient, it could work for exchanges with a limited number of users.
 2. Another wallet scheme that would be better suited for exchanges should probably be considered.
-
-
-### Limit 2 - Error prone with staging networks
-
-A subtle issue with BIP-44 wallets would be to use a software to generate addresses on a given network, and use such generated addresses on a different albeit compatible network. This has been the case between the Cardano Mainnet and Staging networks recently. Let's run through the following example:
-
-1. A user creates a brand new wallet on the staging network. Following the default recommended gap limit, 20 unused addresses are generated for this wallet.
-
-2. The user also creates a wallet on the main network, using the same recovery phrase. Because both networks share the same address discimination policy, there's no difference between addresses of both networks. Addresses from the staging network are valid addresses on the main network.
-
-3. This user gives her 10th address to someone in order to receive some funds on the **staging network**. Eventually, she receives funds on her addresses which causes the **staging** wallet to generate 10 new addresses (as seen before).
-
-4. Then, she also needs to receive funds on her wallet from the **main network** but mistakenly takes an address from the **staging network**. Above all, she happens to take the 24th addresses of her staging wallet.
-
-5. Because addresses are valid on both networks, the transaction is successfully processed but never show up in her main wallet.
-
-
-What has happened? The **main** wallet only looks for addresses with indexes between 0 and 19 (incl.) and a transaction is made on an address with index `i=23`; it is therefore outside of what's currently observable by the main wallet. This is because, from the main wallet's perspective, one of the two BIP-44 invariants has been violated. It shouldn't have been possible to generate an address beyond the 20th index on the main network because no previous address had been used on this network.
-
-Possible mitigations:
-
-1. Having a different discrimination between staging and main networks would prevent addresses from one to be mistakenly used on another. In practice, we typically want such two networks to be as close as possible. Thus enforcing this discrimination simply in _client softwares_ could already be a sufficient for most users. More advanced users who would be crafting addresses themselves would still be able to by-pass this kind of safety net, but it comes with the "advanced" powers.
-
-2. Wallet could allow arbitrarily longer gaps to allow transactions to be discovered even if made outside of the default gap limit. In most cases, this would be sufficient with a slightly larger gap (e.g. 40 or 50) because typical users don't use large indexes anyway. We've used this technique with gap as high as 10.000 (with a following shrinking) during the ITN on Cardano to cope with the lack of blockchain history caused by the ITN snapshot.

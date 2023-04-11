@@ -39,7 +39,7 @@ Only the hash of a genesis config is stored on-chain. For mainnet, the genesis h
 
 When `cardano-wallet` connects to its local `cardano-node`, it must provide the Byron genesis config hash. Hashes for subsequent genesis configs are contained on-chain within the voting system update proposals.
 
-For _mainnet_, we have hardcoded the genesis hash. It will never change. For _staging_ and _testnet_, users must supply a genesis config to the [[cli]], so that its hash may be used when connecting to the local node.
+For _mainnet_, we have hardcoded the genesis hash. It will never change. For _testnet_, users must supply a genesis config to the [[cli]], so that its hash may be used when connecting to the local node.
 
 ::: {.gotcha}
 #### Epoch Boundary Blocks
