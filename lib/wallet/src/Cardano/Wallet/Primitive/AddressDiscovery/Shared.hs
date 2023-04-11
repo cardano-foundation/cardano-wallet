@@ -89,6 +89,7 @@ import Cardano.Wallet.Primitive.AddressDerivation
     , Role (..)
     , SoftDerivation
     , WalletKey (..)
+    , mutableAccount
     , networkDiscriminantBits
     , roleVal
     , toAddressParts
@@ -136,7 +137,7 @@ import Control.Arrow
 import Control.DeepSeq
     ( NFData )
 import Control.Monad
-    ( unless )
+    ( guard, unless )
 import Crypto.Hash
     ( Blake2b_160, Digest, hash )
 import Data.Data
@@ -619,7 +620,22 @@ decoratePath st role' ix = NE.fromList
     DerivationPrefix (purpose, coinType, accIx) = derivationPrefix st
 
 instance IsOurs (SharedState n k) RewardAccount where
-    isOurs _account st = (Nothing, st)
+    isOurs account state@SharedState{derivationPrefix, rewardAccountKey} =
+        let
+            DerivationPrefix (purpose, coinType, accountIx) = derivationPrefix
+            path = NE.fromList
+                [ DerivationIndex $ getIndex purpose
+                , DerivationIndex $ getIndex coinType
+                , DerivationIndex $ getIndex accountIx
+                , DerivationIndex $ getIndex mutableAccount
+                , DerivationIndex $ getIndex @'Soft minBound
+                ]
+        in
+            case rewardAccountKey of
+                Just rewardAcct ->
+                    (guard (account == rewardAcct) *> Just path, state)
+                Nothing ->
+                    (Nothing, state)
 
 instance GetAccount (SharedState n k) k where
     getAccount = accountXPub
