@@ -110,7 +110,7 @@ Usage: cardano-wallet serve [--listen-address HOST]
                             [--random-port | --port INT] 
                             [--tls-ca-cert FILE --tls-sv-cert FILE
                               --tls-sv-key FILE] 
-                            (--mainnet | --testnet FILE | --staging FILE) 
+                            (--mainnet | --testnet FILE ) 
                             [--database DIR] [--shutdown-handler] 
                             [--pool-metadata-fetching ( none | direct | SMASH-URL )]
                             [--token-metadata-server URL] 
@@ -141,7 +141,6 @@ Available options:
                            certificate.
   --mainnet                Use Cardano mainnet protocol
   --testnet FILE           Path to the byron genesis data in JSON format.
-  --staging FILE           Path to the byron genesis data in JSON format.
   --database DIR           use this directory for storing wallets. Run in-memory
                            otherwise.
   --shutdown-handler       Enable the clean shutdown handler (exits when stdin
