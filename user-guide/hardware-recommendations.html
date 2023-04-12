@@ -5,15 +5,15 @@
   <meta charset='UTF-8' />
   <meta name='viewport' content='width=device-width, initial-scale=1' />
   <title>
-    Swagger – Cardano Wallet
+    hardware-recommendations – Cardano Wallet
   </title>
   
     
-      <meta property='og:description' content='The OpenAPI 3.0 (Swagger) specification of cardano-wallet is located at specifications/api/swagger.yaml.' />
+      <meta property='og:description' content='As cardano-wallet runs side by side with cardano-node, the hardware requirements for cardano-wallet would largely depend on the hardware requirements for cardano-node. Current hardware requirements for cardano-node are published on cardano-node’s release page. For most cases cardano-node’s hardware requirements are good enough to cover requirements of running cardano-wallet as well.' />
       <meta property='og:site_name' content='Cardano Wallet' />
       <meta property='og:image' content />
       <meta property='og:type' content='website' />
-      <meta property='og:title' content='Swagger' />
+      <meta property='og:title' content='hardware-recommendations' />
     
     
       <base href='/cardano-wallet/' />
@@ -108,8 +108,8 @@
             </li>
           
             <li class='inline-flex items-center'>
-              <a class='px-1 font-bold' href='contributing'>
-                Contributors' Guide
+              <a class='px-1 font-bold' href='user-guide'>
+                User Guide
               </a>
               <svg fill='currentColor' viewBox='0 0 20 20' class='w-auto h-5 text-gray-400'>
                 <path fill-rule='evenodd' d='M7.293 14.707a1 1 0 010-1.414L10.586 10 7.293 6.707a1 1 0 011.414-1.414l4 4a1 1 0 010 1.414l-4 4a1 1 0 01-1.414 0z' clip-rule='evenodd'></path>
@@ -249,11 +249,7 @@
     
       <!-- Variable bindings for this tree-->
   
-    
-      
-    
-    
-
+  
 
 
   
@@ -266,12 +262,12 @@
     
     
       <svg class='w-4 h-4 flex-shrink-0 inline' fill='none' stroke='currentColor' viewBox='0 0 24 24' xmlns='http://www.w3.org/2000/svg'>
-        <path stroke-linecap='round' stroke-linejoin='round' stroke-width='2' d='M7 21h10a2 2 0 002-2V9.414a1 1 0 00-.293-.707l-5.414-5.414A1 1 0 0012.586 3H7a2 2 0 00-2 2v14a2 2 0 002 2z'>
+        <path stroke-linecap='round' stroke-linejoin='round' stroke-width='2' d='M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z'>
         </path>
       </svg>
-    
+      
   
-    <a class='hover:underline truncate' title='hardware-recommendations' href='user-guide/hardware-recommendations'>
+    <a class='font-bold text-blue-600 hover:underline truncate' title='hardware-recommendations' href='user-guide/hardware-recommendations'>
       hardware-recommendations
     </a>
     
@@ -1731,7 +1727,11 @@
     
       <!-- Variable bindings for this tree-->
   
-  
+    
+      
+    
+    
+
 
 
   
@@ -1744,12 +1744,12 @@
     
     
       <svg class='w-4 h-4 flex-shrink-0 inline' fill='none' stroke='currentColor' viewBox='0 0 24 24' xmlns='http://www.w3.org/2000/svg'>
-        <path stroke-linecap='round' stroke-linejoin='round' stroke-width='2' d='M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z'>
+        <path stroke-linecap='round' stroke-linejoin='round' stroke-width='2' d='M7 21h10a2 2 0 002-2V9.414a1 1 0 00-.293-.707l-5.414-5.414A1 1 0 0012.586 3H7a2 2 0 00-2 2v14a2 2 0 002 2z'>
         </path>
       </svg>
-      
+    
   
-    <a class='font-bold text-blue-600 hover:underline truncate' title='Swagger' href='contributing/Swagger-Development'>
+    <a class='hover:underline truncate' title='Swagger' href='contributing/Swagger-Development'>
       Swagger
     </a>
     
@@ -2400,107 +2400,49 @@
           <main class='px-4 py-4'>
             <h1 class='flex items-end justify-center mb-4 p-3 bg-blue-100 text-5xl font-extrabold text-black rounded'>
   <a class='z-40 tracking-tighter '>
-    Swagger
+    hardware-recommendations
   </a>
 </h1>
             <article class='overflow-auto'>
   <!-- What goes in this file will appear on top of note body-->
+  <h2 id='hardware-recommendations' class='inline-block mt-6 mb-4 text-4xl font-bold text-gray-700 border-b-2'>Hardware recommendations</h2>
+    <p class='mb-3'>
+      As cardano-wallet runs side by side with cardano-node, the hardware requirements for cardano-wallet would largely depend on the hardware requirements for cardano-node. Current hardware requirements for cardano-node are published on cardano-node’s <a href='https://github.com/input-output-hk/cardano-node/releases' class='text-blue-600 hover:underline' target='_blank' rel='noopener'>release page</a>. For most cases cardano-node’s hardware requirements are good enough to cover requirements of running cardano-wallet as well.
+    </p>
   
     <p class='mb-3'>
-      The OpenAPI 3.0 (Swagger) specification of cardano-wallet is located at <a href='https://github.com/input-output-hk/cardano-wallet/blob/master/specifications/api/swagger.yaml' class='text-blue-600 hover:underline' target='_blank' rel='noopener'>specifications/api/swagger.yaml</a>.
-    </p>
-  <h2 id='viewing-online' class='inline-block mt-6 mb-4 text-4xl font-bold text-gray-700 border-b-2'>Viewing online</h2>
-    <p class='mb-3'>
-      To view the file online, use:
+      Here are some general hardware recommendations for running cardano-wallet:
     </p>
   
     <ul class='my-3 ml-6 space-y-1 list-disc'>
       
         <li>
-          
-    <p class='mb-3'>
-      <a href='user-guide/http-api' class='text-blue-600 mavenLinkBold hover:underline' data-wikilink-type='WikiLinkNormal'>API Documentation</a> for the latest released version.
-    </p>
-  
+          <strong>Processor:</strong> A multicore processor with a clock speed of at least 1.6 GHz or faster is recommended, but a faster processor is better for optimal performance.
         </li>
       
         <li>
-          
-    <p class='mb-3'>
-      <a href='https://redocly.github.io/redoc/?url=https://raw.githubusercontent.com/input-output-hk/cardano-wallet/master/specifications/api/swagger.yaml' class='text-blue-600 hover:underline' target='_blank' rel='noopener'>ReDoc viewer</a> for the <code class='py-0.5 px-0.5 bg-gray-100'>master</code> branch version.
-    </p>
-  
+          <strong>Memory:</strong> A minimum of 4 GB of RAM is recommended, although more is better.
+        </li>
+      
+        <li>
+          <strong>Storage:</strong> A minimum of 5 GB of free storage for wallet data is recommended.
+        </li>
+      
+        <li>
+          <strong>Network:</strong> A stable internet connection with at least 5 Mbps upload and download speeds is recommended for syncing the blockchain data and performing transactions.
         </li>
       
     </ul>
-  <h2 id='validating-locally' class='inline-block mt-6 mb-4 text-4xl font-bold text-gray-700 border-b-2'>Validating locally</h2>
-    <p class='mb-3'>
-      To validate from your local git working tree, use this command. It is the same as what <a href='https://github.com/input-output-hk/cardano-wallet/blob/master/.buildkite/pipeline.yml' class='text-blue-600 hover:underline' target='_blank' rel='noopener'>Buildkite</a> runs.
-    </p>
-  <div class='py-0.5 mb-3 text-sm'><pre><code class='language-none'>openapi-spec-validator --schema 3.0.0 specifications/api/swagger.yaml</code></pre></div>
-    <p class='mb-3'>
-      If you don’t have the validator tool installed, it is available within <code class='py-0.5 px-0.5 bg-gray-100'>nix-shell</code>.
-    </p>
   
     <p class='mb-3'>
-      It may also be convenient to edit the YAML while validating under the <a href='https://github.com/schell/steeloverseer#readme' class='text-blue-600 hover:underline' target='_blank' rel='noopener'>Steel Overseer</a> file watching tool:
+      Again, these are general recommendations and the actual hardware requirements may vary depending on factors such as the number and size of wallets being managed and the specific usage patterns of the software. In particular the above requirements are good enough to handle fairly large wallet having <strong>15k addresses</strong> and <strong>15k transactions</strong> in history. Smaller wallets would not require as much resources but larger would require more.
     </p>
-  <div class='py-0.5 mb-3 text-sm'><pre><code class='language-none'>sos specifications/api/swagger.yaml -c 'openapi-spec-validator --schema 3.0.0 \0'</code></pre></div><h2 id='references' class='inline-block mt-6 mb-4 text-4xl font-bold text-gray-700 border-b-2'>References</h2>
-    <ul class='my-3 ml-6 space-y-1 list-disc'>
-      
-        <li>
-          
-    <p class='mb-3'>
-      <a href='https://swagger.io/docs/' class='text-blue-600 hover:underline' target='_blank' rel='noopener'>Swagger Docs</a>
-    </p>
-  
-        </li>
-      
-        <li>
-          
-    <p class='mb-3'>
-      <a href='http://json-schema.org/understanding-json-schema/index.html' class='text-blue-600 hover:underline' target='_blank' rel='noopener'>Understanding JSON Schema</a>
-    </p>
-  
-        </li>
-      
-        <li>
-          
-    <p class='mb-3'>
-      <a href='https://yaml.org/spec/1.2/spec.html' class='text-blue-600 hover:underline' target='_blank' rel='noopener'>YAML spec</a>
-    </p>
-  
-        </li>
-      
-    </ul>
   
   <!-- What goes in this file will appear below the note body-->
 </article>
             <div class='flex flex-col lg:flex-row lg:space-x-2'>
               
               
-  <div class='flex-1 p-4 mt-8 bg-gray-100 rounded'>
-    <header class='mb-2 text-xl font-semibold text-gray-500'>Links to this page</header>
-    <ul class='space-y-1'>
-      
-        <li>
-          <a class='text-blue-600 mavenLinkBold hover:bg-blue-50' href='developers'>
-            Developer Information
-          </a>
-          
-            <div class='mb-4 overflow-auto text-sm text-gray-500'>
-  
-    <div class='pl-2 mt-2 border-l-2 border-blue-200 hover:border-blue-500'>
-      <div><a href='contributing/Swagger-Development' class='text-gray-600 font-bold hover:bg-gray-50' data-wikilink-type='WikiLinkNormal'>Swagger</a></div>
-    </div>
-  
-</div>
-          
-        </li>
-      
-    </ul>
-  </div>
-
             </div>
             
   <section class='flex flex-wrap items-end justify-center my-4 space-x-2 space-y-2 font-mono text-sm'>
