@@ -54,6 +54,7 @@ import Test.QuickCheck
     , arbitrarySizedBoundedIntegral
     , checkCoverage
     , cover
+    , applyArbitrary4
     , elements
     , label
     , oneof

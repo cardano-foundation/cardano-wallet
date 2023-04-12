@@ -164,7 +164,6 @@ import Test.Integration.Framework.TestData
     , errMsg403MinUTxOValue
     , errMsg403NotAShelleyWallet
     , errMsg403NotEnoughMoney
-    , errMsg403TxTooBig
     , errMsg403WithdrawalNotBeneficial
     , errMsg403WrongPass
     , errMsg404CannotFindTx
