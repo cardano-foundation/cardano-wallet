@@ -31,7 +31,7 @@ import Cardano.Wallet.Primitive.Types.Tx.TxIn
 import Cardano.Wallet.Primitive.Types.Tx.TxOut
     ( TxOut (..) )
 import Cardano.Wallet.Primitive.Types.UTxO
-    ( DeltaUTxO (..), UTxO (..), dom, excluding, excludingD, receiveD, size )
+    ( DeltaUTxO (..), UTxO (..), dom, excludingD, receiveD, size )
 import Data.Delta
     ( Delta (apply) )
 import Test.Hspec
@@ -119,8 +119,7 @@ prop_new_utxo = setupHistory $ \history delta -> slotNoProp history (1, 1, 4) $
                     then
                         counterexample (show (history, history', delta)) $
                             getUTxO history'
-                                === (getUTxO history <> received delta)
-                                `excluding` excluded delta
+                                === apply delta (getUTxO history)
                     else counterexample "noop" $ noop history' history
 
 -- prop> prop_rollback_tip
