@@ -97,7 +97,7 @@ import Cardano.Wallet.Primitive.Types.RewardAccount
 import Cardano.Wallet.Primitive.Types.Tx.SealedTx
     ( SealedTx )
 import Cardano.Wallet.Read.NetworkId
-    ( NetworkDiscriminantBits, NetworkDiscriminantVal (..) )
+    ( HasSNetworkId, NetworkDiscriminantBits, NetworkDiscriminantVal (..) )
 import Cardano.Wallet.Registry
     ( HasWorkerCtx (..) )
 import Cardano.Wallet.Shelley.BlockchainSource
@@ -167,8 +167,6 @@ import System.Exit
     ( ExitCode (..) )
 import System.IOManager
     ( withIOManager )
-import Type.Reflection
-    ( Typeable )
 
 import qualified Cardano.Pool.DB.Sqlite as Pool
 import qualified Cardano.Wallet.Api.Http.Shelley.Server as Server
@@ -311,7 +309,7 @@ serveWallet
             , EncodeStakeAddress n
             , DecodeStakeAddress n
             , NetworkDiscriminantBits n
-            , Typeable n
+            , HasSNetworkId n
             , HasNetworkId n
             )
         => Proxy n

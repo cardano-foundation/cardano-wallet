@@ -192,7 +192,7 @@ import Cardano.Wallet.Primitive.AddressDiscovery.Shared
 import Cardano.Wallet.Primitive.Types
     ( PoolMetadataSource (..), SmashServer (..), poolMetadataSource )
 import Cardano.Wallet.Read.NetworkId
-    ( NetworkDiscriminantBits )
+    ( HasSNetworkId, NetworkDiscriminantBits )
 import Cardano.Wallet.Shelley.BlockchainSource
     ( BlockchainSource (..) )
 import Cardano.Wallet.Shelley.Compatibility
@@ -227,8 +227,6 @@ import Servant
     ( (:<|>) (..), Handler (..), NoContent (..), Server, err400 )
 import Servant.Server
     ( ServerError (..) )
-import Type.Reflection
-    ( Typeable )
 
 import qualified Cardano.Address.Derivation as CA
 import qualified Cardano.Address.Script as CA
@@ -245,7 +243,7 @@ server
         , PaymentAddress n ByronKey 'CredFromKeyK
         , DelegationAddress n ShelleyKey 'CredFromKeyK
         , NetworkDiscriminantBits n
-        , Typeable n
+        , HasSNetworkId n
         , HasNetworkId n
         )
     => ApiLayer (RndState n) ByronKey 'CredFromKeyK

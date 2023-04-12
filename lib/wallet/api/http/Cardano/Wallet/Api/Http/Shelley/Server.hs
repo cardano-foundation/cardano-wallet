@@ -512,7 +512,7 @@ import Cardano.Wallet.Primitive.Types.Tx.TxIn
 import Cardano.Wallet.Primitive.Types.Tx.TxOut
     ( TxOut (..) )
 import Cardano.Wallet.Read.NetworkId
-    ( NetworkDiscriminant, NetworkDiscriminantBits )
+    ( HasSNetworkId, NetworkDiscriminant, NetworkDiscriminantBits )
 import Cardano.Wallet.Registry
     ( HasWorkerCtx (..)
     , MkWorker (..)
@@ -1416,7 +1416,7 @@ postIcarusWallet
         , HasWorkerRegistry s k ctx
         , PaymentAddress n IcarusKey 'CredFromKeyK
         , NetworkDiscriminantBits n
-        , Typeable n
+        , HasSNetworkId n
         )
     => ctx
     -> ByronWalletPostData '[12,15,18,21,24]
@@ -1440,7 +1440,7 @@ postTrezorWallet
         , HasWorkerRegistry s k ctx
         , PaymentAddress n IcarusKey 'CredFromKeyK
         , NetworkDiscriminantBits n
-        , Typeable n
+        , HasSNetworkId n
         )
     => ctx
     -> ByronWalletPostData '[12,15,18,21,24]
@@ -1464,7 +1464,7 @@ postLedgerWallet
         , HasWorkerRegistry s k ctx
         , PaymentAddress n IcarusKey 'CredFromKeyK
         , NetworkDiscriminantBits n
-        , Typeable n
+        , HasSNetworkId n
         )
     => ctx
     -> ByronWalletPostData '[12,15,18,21,24]
@@ -1744,7 +1744,7 @@ selectCoins
         , AddressBookIso s
         , GenChange s
         , Typeable k
-        , Typeable n
+        , HasSNetworkId n
         , BoundedAddressLength k
         )
     => ApiLayer s k 'CredFromKeyK
@@ -2138,7 +2138,7 @@ postTransactionOld
         , HasNetworkLayer IO ctx
         , IsOwned s k 'CredFromKeyK
         , Bounded (Index (AddressIndexDerivationType k) (AddressCredential k))
-        , Typeable n
+        , HasSNetworkId n
         , Typeable s
         , Typeable k
         , WalletKey k
@@ -2245,7 +2245,7 @@ deleteTransaction ctx (ApiT wid) (ApiTxId (ApiT (tid))) = do
 listTransactions
     :: forall s k ktype n.
         ( Typeable s
-        , Typeable n
+        , HasSNetworkId n
         , HasDelegation s
         , Typeable k
         )
@@ -2284,7 +2284,7 @@ listTransactions
 getTransaction
     :: forall s k ktype n.
         ( Typeable s
-        , Typeable n
+        , HasSNetworkId n
         , Typeable k
         , HasDelegation s
         )
@@ -2305,7 +2305,7 @@ getTransaction ctx (ApiT wid) (ApiTxId (ApiT (tid))) metadataSchema =
 -- Populate an API transaction record with 'TransactionInfo' from the wallet
 -- layer.
 mkApiTransactionFromInfo
-    :: (Typeable s, Typeable n, HasDelegation s, Typeable k)
+    :: (Typeable s, HasSNetworkId n, HasDelegation s, Typeable k)
     => TimeInterpreter (ExceptT PastHorizonException IO)
     -> W.WalletLayer IO s k ktype
     -> WalletId
@@ -2345,7 +2345,7 @@ mkApiTransactionFromInfo ti wrk wid deposit info metadataSchema = do
 
 postTransactionFeeOld
     :: forall s k n
-     . ( Typeable n
+     . ( HasSNetworkId n
        , Typeable k
        , Typeable s
        , BoundedAddressLength k
@@ -2393,7 +2393,7 @@ postTransactionFeeOld ctx@ApiLayer{..} (ApiT wid) body =
 
 constructTransaction
     :: forall (n :: NetworkDiscriminant)
-     . (NetworkDiscriminantBits n, Typeable n)
+     . (NetworkDiscriminantBits n, HasSNetworkId n)
     => ApiLayer (SeqState n ShelleyKey) ShelleyKey 'CredFromKeyK
     -> ArgGenChange (SeqState n ShelleyKey)
     -> IO (Set PoolId)
@@ -2822,7 +2822,7 @@ constructSharedTransaction
         , HasNetworkLayer IO ctx
         , IsOurs s Address
         , NetworkDiscriminantBits n
-        , Typeable n
+        , HasSNetworkId n
         )
     => ctx
     -> ArgGenChange s
@@ -3111,7 +3111,7 @@ decodeTransaction
     :: forall s k n.
         ( IsOurs s Address
         , Typeable s
-        , Typeable n
+        , HasSNetworkId n
         , Typeable k
         )
     => ApiLayer s k 'CredFromKeyK
@@ -3225,7 +3225,7 @@ submitTransaction
         , HasNetworkLayer IO ctx
         , IsOwned s k 'CredFromKeyK
         , Typeable s
-        , Typeable n, Typeable k)
+        , HasSNetworkId n, Typeable k)
     => ctx
     -> ApiT WalletId
     -> ApiSerialisedTransaction
@@ -3426,7 +3426,7 @@ joinStakePool
         , AddressBookIso s
         , BoundedAddressLength k
         , HasDelegation s
-        , Typeable n
+        , HasSNetworkId n
         , Typeable k
         )
     => ApiLayer s k 'CredFromKeyK
@@ -3505,7 +3505,7 @@ delegationFee
        , AddressBookIso s
        , s ~ SeqState n k
        , Typeable k
-       , Typeable n
+       , HasSNetworkId n
        , DelegationAddress n k 'CredFromKeyK
        )
     => ApiLayer s k 'CredFromKeyK
@@ -3533,7 +3533,7 @@ quitStakePool
         , GenChange s
         , IsOwned s k 'CredFromKeyK
         , SoftDerivation k
-        , Typeable n
+        , HasSNetworkId n
         , Typeable k
         , WalletKey k
         , AddressBookIso s
@@ -3684,7 +3684,7 @@ listStakeKeys lookupStakeRef ctx@ApiLayer{..} (ApiT wid) =
 
 createMigrationPlan
     :: forall n s k
-     . (IsOwned s k 'CredFromKeyK, Typeable n, Typeable k, Typeable s)
+     . (IsOwned s k 'CredFromKeyK, HasSNetworkId n, Typeable k, Typeable s)
     => ApiLayer s k 'CredFromKeyK
     -> Maybe ApiWithdrawalPostData
         -- ^ What type of reward withdrawal to attempt
@@ -3778,7 +3778,7 @@ migrateWallet
         ( Bounded (Index (AddressIndexDerivationType k) (AddressCredential k))
         , HardDerivation k
         , IsOwned s k 'CredFromKeyK
-        , Typeable n
+        , HasSNetworkId n
         , Typeable s
         , Typeable k
         , WalletKey k
@@ -4067,7 +4067,7 @@ getPolicyKey
     :: forall ctx s k (n :: NetworkDiscriminant).
         ( ctx ~ ApiLayer s k 'CredFromKeyK
         , Typeable s
-        , Typeable n
+        , HasSNetworkId n
         )
     => ctx
     -> ApiT WalletId
@@ -4100,7 +4100,7 @@ postPolicyId
         ( ctx ~ ApiLayer s k 'CredFromKeyK
         , WalletKey k
         , Typeable s
-        , Typeable n
+        , HasSNetworkId n
         )
     => ctx
     -> ApiT WalletId
@@ -4180,7 +4180,7 @@ mkWithdrawal netLayer txLayer db wallet era = \case
 -- when applied to a non-shelley or non-sequential wallet state.
 shelleyOnlyMkWithdrawal
     :: forall s k (n :: NetworkDiscriminant) ktype tx block
-     . (Typeable n, Typeable s, Typeable k)
+     . (HasSNetworkId n, Typeable s, Typeable k)
     => NetworkLayer IO block
     -> TransactionLayer k ktype tx
     -> DBLayer IO s k
@@ -4204,7 +4204,7 @@ shelleyOnlyRewardAccountBuilder
        , Bounded (Index (AddressIndexDerivationType k) (AddressCredential k))
        , WalletKey k
        , Typeable s
-       , Typeable n
+       , HasSNetworkId n
        )
     => ApiWithdrawalPostData
     -> Either ErrReadRewardAccount (RewardAccountBuilder k)
@@ -4357,7 +4357,7 @@ data MkApiTransactionParams = MkApiTransactionParams
 mkApiTransaction
     :: forall n s k ktype.
     ( Typeable s
-    , Typeable n
+    , HasSNetworkId n
     , Typeable k
     , HasDelegation s)
     => TimeInterpreter (ExceptT PastHorizonException IO)

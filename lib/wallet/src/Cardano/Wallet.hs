@@ -453,7 +453,7 @@ import Cardano.Wallet.Primitive.Types.UTxOSelection
 import Cardano.Wallet.Primitive.Types.UTxOStatistics
     ( UTxOStatistics )
 import Cardano.Wallet.Read.NetworkId
-    ( NetworkDiscriminant, NetworkDiscriminantBits )
+    ( HasSNetworkId, NetworkDiscriminant, NetworkDiscriminantBits )
 import Cardano.Wallet.Read.Tx.CBOR
     ( TxCBOR )
 import Cardano.Wallet.Shelley.Compatibility
@@ -809,7 +809,7 @@ createIcarusWallet
         , k ~ IcarusKey
         , s ~ SeqState n k
         , NetworkDiscriminantBits n
-        , Typeable n
+        , HasSNetworkId n
         )
     => ctx
     -> WalletId
@@ -1269,7 +1269,7 @@ mkSelfWithdrawal netLayer txLayer era db wallet = do
 -- when applied to a non-shelley or a non-sequential wallet.
 shelleyOnlyMkSelfWithdrawal
     :: forall s k ktype tx (n :: NetworkDiscriminant) block
-     . (Typeable s, Typeable k, Typeable n)
+     . (Typeable s, Typeable k, HasSNetworkId n)
     => NetworkLayer IO block
     -> TransactionLayer k ktype tx
     -> AnyCardanoEra
@@ -1989,7 +1989,7 @@ type MakeRewardAccountBuilder k =
 -- Requires the encryption passphrase in order to decrypt the root private key.
 buildSignSubmitTransaction
     :: forall k s (n :: NetworkDiscriminant)
-     . ( Typeable n
+     . ( HasSNetworkId n
        , Typeable s
        , Typeable k
        , WalletKey k
@@ -2083,7 +2083,7 @@ buildSignSubmitTransaction ti db@DBLayer{..} netLayer txLayer pwd walletId
 
 buildAndSignTransactionPure
     :: forall k s (n :: NetworkDiscriminant)
-     . ( Typeable n
+     . ( HasSNetworkId n
        , Typeable s
        , Typeable k
        , WalletKey k
@@ -2179,7 +2179,7 @@ buildTransaction
       , WriteTx.IsRecentEra era
       , AddressBookIso s
       , Typeable k
-      , Typeable n
+      , HasSNetworkId n
       )
     => DBLayer IO s k
     -> TransactionLayer k 'CredFromKeyK SealedTx
@@ -2226,9 +2226,9 @@ buildTransaction DBLayer{..} txLayer timeInterpreter walletId
 
 buildTransactionPure ::
     forall s k (n :: NetworkDiscriminant) era
-    . ( Typeable n
-      , Typeable s
+    . ( HasSNetworkId n
       , Typeable k
+      , Typeable s
       , WriteTx.IsRecentEra era
       )
     => Wallet s
@@ -2379,7 +2379,7 @@ constructUnbalancedSharedTransaction
     :: forall (n :: NetworkDiscriminant) ktype era block
      . ( WriteTx.IsRecentEra era
        , NetworkDiscriminantBits n
-       , Typeable n)
+       , HasSNetworkId n)
     => TransactionLayer SharedKey ktype SealedTx
     -> NetworkLayer IO block
     -> DBLayer IO (SharedState n SharedKey) SharedKey
@@ -2878,7 +2878,7 @@ delegationFee
      . ( AddressBookIso s
        , s ~ SeqState n k
        , Typeable k
-       , Typeable n
+       , HasSNetworkId n
        )
     => DBLayer IO s k
     -> NetworkLayer IO Read.Block

@@ -144,7 +144,8 @@ import Cardano.Wallet.Primitive.Types.Tx.TxOut
 import Cardano.Wallet.Primitive.Types.UTxOStatistics
     ( UTxOStatistics (..) )
 import Cardano.Wallet.Read.NetworkId
-    ( NetworkDiscriminant (..)
+    ( HasSNetworkId
+    , NetworkDiscriminant (..)
     , NetworkDiscriminantBits
     , NetworkDiscriminantVal (..)
     )
@@ -236,8 +237,6 @@ import System.FilePath
     ( (</>) )
 import System.IO
     ( IOMode (..), hFlush, withFile )
-import Type.Reflection
-    ( Typeable )
 import UnliftIO
     ( async, atomically, cancel, newTVarIO, readTVar, readTVarIO, writeTVar )
 import UnliftIO.Concurrent
@@ -381,7 +380,7 @@ cardanoRestoreBench tr c socketFile = do
             (wid, WalletName wname, s)
 
     mkSeqAnyState'
-        :: forall (p :: Nat) (n :: NetworkDiscriminant). (NetworkDiscriminantBits n, Typeable n)
+        :: forall (p :: Nat) (n :: NetworkDiscriminant). (NetworkDiscriminantBits n, HasSNetworkId n)
         => Proxy p
         -> Proxy n
         -> (ShelleyKey 'RootK XPrv, Passphrase "encryption")
@@ -574,7 +573,7 @@ benchmarksSeq
     :: forall (n :: NetworkDiscriminant) s k p.
         ( s ~ SeqAnyState n k p
         , k ~ ShelleyKey
-        , Typeable n
+        , HasSNetworkId n
         , PaymentAddress n k 'CredFromKeyK
         , NetworkDiscriminantVal n
         , NetworkDiscriminantBits n
