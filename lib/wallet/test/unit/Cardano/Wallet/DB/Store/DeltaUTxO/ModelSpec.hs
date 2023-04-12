@@ -1,3 +1,6 @@
+-- |
+-- Copyright: © 2023 IOHK
+-- License: Apache-2.0
 module Cardano.Wallet.DB.Store.DeltaUTxO.ModelSpec
     ( spec
     , genSlotNo
@@ -91,6 +94,9 @@ setupHistory
 setupHistory f = historyProp $ \_delta history ->
     deltaProp history $ \delta' -> nonTrivialDelta delta' $ f history delta'
 
+{-----------------------------------------------------------------------------
+    Properties
+------------------------------------------------------------------------------}
 -- prop> prop_new_tip
 -- +++ OK, passed 100 tests:
 -- 93% non-trivial received
@@ -129,7 +135,8 @@ prop_rollback_tip =
         \slot ->
             -- label (show $ (slot, getFinality history)) $
             cover 50 (slot < getTip history) "non-trivial tip" $
-            cover 20 (not $ tipIsAfterFinality slot (getFinality history)) "catastrophe" $
+            cover 20 (not $ tipIsAfterFinality slot (getFinality history))
+                    "catastrophic rollback, back to Origin" $
                 let history' = Rollback slot `apply` history
                  in if slot < getTip history
                         then
@@ -163,7 +170,6 @@ prop_rollback_revert_append_block =
                         counterexample ("rb " <> show (history, history', delta)) $
                             noop history' history
 
--- prop> prop_rollback_behind_finality
 prop_rollback_reset_history :: Property
 prop_rollback_reset_history =
     setupPrune $ \_ history _ -> slotProp history (3, 1, 1) $
@@ -175,7 +181,7 @@ prop_rollback_reset_history =
                 cover
                     50
                     (not $ tipIsAfterFinality slot $ getFinality history)
-                    "catastrophe"
+                    "catastrophic rollback, back to Origin"
                     $ counterexample ("rb " <> show (history, history'))
                     $ if (not $ tipIsAfterFinality slot $ getFinality history')
                         then history' === empty mempty
@@ -238,6 +244,9 @@ prop_prune_spent_utxo = setupPrune $ \history history' newFinality ->
                 any (<= newFinality) $
                     getSpent history'
 
+{-----------------------------------------------------------------------------
+    Generators
+------------------------------------------------------------------------------}
 -- Convert a Slot to an Int.
 slotInt :: Slot -> Int
 slotInt Origin = -1

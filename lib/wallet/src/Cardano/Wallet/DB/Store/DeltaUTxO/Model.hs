@@ -3,6 +3,12 @@
 {-# LANGUAGE StrictData #-}
 {-# LANGUAGE TypeFamilies #-}
 
+-- |
+-- Copyright: © 2023 IOHK
+-- License: Apache-2.0
+--
+-- 'UTxOHistory' represents a history of a UTxO set that can be rolled
+-- back (up to the 'finality' point).
 module Cardano.Wallet.DB.Store.DeltaUTxO.Model
     ( -- * Types
       UTxOHistory

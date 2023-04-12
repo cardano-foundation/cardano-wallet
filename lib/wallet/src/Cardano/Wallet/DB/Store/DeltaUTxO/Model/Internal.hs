@@ -1,3 +1,8 @@
+-- |
+-- Copyright: © 2023 IOHK
+-- License: Apache-2.0
+--
+-- Internals of 'UTxOHistory'.
 module Cardano.Wallet.DB.Store.DeltaUTxO.Model.Internal
     ( UTxOHistory (..)
     , Pruned (..)
