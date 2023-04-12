@@ -123,18 +123,12 @@ appendBlock newTip delta
         , creationSlots =
             insertNonEmpty (At newTip) receivedTxIns creationSlots
         , creationTxIns =
-            foldl'
-                (\m txIn -> Map.insert txIn (At newTip) m)
-                creationTxIns
-                $ dom
-                $ received delta
+            insertNonEmptyReversedMap
+                (At newTip) receivedTxIns creationTxIns
         , spentSlots =
             insertNonEmpty newTip excludedTxIns spentSlots
         , spentTxIns =
-            foldl'
-                (\m txIn -> Map.insert txIn newTip m)
-                spentTxIns
-                (excluded delta)
+            insertNonEmptyReversedMap newTip excludedTxIns spentTxIns
         , tip = At newTip
         , finality = finality
         , boot = boot
@@ -290,3 +284,10 @@ reverseMapOfSets m = Map.fromList $ do
     (k, vs) <- Map.toList m
     v <- Set.toList vs
     pure (v, k)
+
+-- | Insert a 'Set' of items into a 'Map' that is
+-- the result of 'reverseMapOfSets'.
+insertNonEmptyReversedMap
+    :: Ord v => key -> Set v -> Map v key -> Map v key
+insertNonEmptyReversedMap key vs m0 =
+    foldl' (\m v -> Map.insert v key m) m0 vs
