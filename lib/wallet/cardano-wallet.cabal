@@ -257,6 +257,7 @@ library
     Cardano.Wallet.DB.Store.Wallets.Store
     Cardano.Wallet.DB.WalletState
     Cardano.Wallet.Delegation
+    Cardano.Wallet.Flavor
     Cardano.Wallet.Gen
     Cardano.Wallet.Logging
     Cardano.Wallet.Network
