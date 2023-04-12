@@ -2893,18 +2893,11 @@ delegationFee db@DBLayer{..} netLayer txLayer ti era changeAddressGen walletId =
             -- to the partial tx we construct, this was not done
             -- previously, and the difference should be negligible.
             (PreSelection [])
-        deposit <-
-        -- Calculate the minimum deposit necessary if a given wallet wanted to
-        -- delegate to a pool. Said differently, this return either 0, or the
-        -- value of the key deposit protocol parameters if the wallet has no
-        -- registered stake key.
-            liftIO
-                $ throwInIO . mkNoSuchWalletError walletId
-                $ mapExceptT atomically (isStakeKeyRegistered walletId) <&>
-                    \case
-                        False ->
-                            stakeKeyDeposit (Write.pparamsWallet protocolParams)
-                        True -> Coin 0
+        deposit <- liftIO
+            $ throwInIO . mkNoSuchWalletError walletId
+            $ mapExceptT atomically (isStakeKeyRegistered walletId) <&> \case
+                False -> stakeKeyDeposit (Write.pparamsWallet protocolParams)
+                True -> Coin 0
         pure DelegationFee { feePercentiles, deposit }
   where
     throwInIO = runExceptT >=> either (throwIO . ExceptionNoSuchWallet) pure
