@@ -98,13 +98,7 @@ import Cardano.Wallet.Primitive.AddressDerivation.Byron
 import Cardano.Wallet.Primitive.AddressDerivation.Shelley
     ( ShelleyKey )
 import Cardano.Wallet.Primitive.AddressDiscovery
-    ( CompareDiscovery
-    , GenChange (..)
-    , IsOurs
-    , IsOwned
-    , KnownAddresses
-    , MaybeLight
-    )
+    ( GenChange (..), IsOurs, IsOwned, MaybeLight )
 import Cardano.Wallet.Primitive.AddressDiscovery.Random
     ( RndAnyState, mkRndAnyState )
 import Cardano.Wallet.Primitive.AddressDiscovery.Sequential
@@ -172,8 +166,6 @@ import Cardano.Wallet.Unsafe
     ( unsafeMkEntropy, unsafeMkPercentage, unsafeRunExceptT )
 import Control.Arrow
     ( first )
-import Control.DeepSeq
-    ( NFData )
 import Control.Monad
     ( unless, void )
 import Control.Monad.IO.Class
@@ -725,16 +717,11 @@ bench_baseline_restoration
 {- HLINT ignore bench_restoration "Use camelCase" -}
 bench_restoration
     :: forall (n :: NetworkDiscriminant) (k :: Depth -> * -> *) s results.
-        ( IsOurs s Address
-        , IsOurs s RewardAccount
+        ( IsOurs s RewardAccount
         , MaybeLight s
         , IsOwned s k 'CredFromKeyK
         , WalletKey k
-        , NFData s
-        , Show s
         , PersistAddressBook s
-        , CompareDiscovery s
-        , KnownAddresses s
         , PersistPrivateKey (k 'RootK)
         , HasSNetworkId n
         , TxWitnessTagFor k
@@ -873,12 +860,7 @@ traceBlockHeadersProgressForPlotting t0  tr = Tracer $ \bs -> do
 
 withBenchDBLayer
     :: forall s k a.
-        ( IsOwned s k 'CredFromKeyK
-        , NFData s
-        , Show s
-        , PersistAddressBook s
-        , IsOurs s RewardAccount
-        , IsOurs s Address
+        ( PersistAddressBook s
         , PersistPrivateKey (k 'RootK)
         , WalletKey k
         )
@@ -962,8 +944,7 @@ reportProgress nw tr targetSync readSlot =  do
 -- | Poll the network tip until it reaches the slot corresponding to the current
 -- time.
 waitForNodeSync
-    :: forall n
-    . Tracer IO (BenchmarkLog n)
+    :: forall n. Tracer IO (BenchmarkLog n)
     -> NetworkLayer IO Block
     -> IO SlotNo
 waitForNodeSync tr nw = loop 960 -- allow 240 minutes for first tip

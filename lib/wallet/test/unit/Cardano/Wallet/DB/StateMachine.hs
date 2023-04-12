@@ -225,7 +225,7 @@ import GHC.Generics
 import System.Random
     ( getStdRandom, randomR )
 import Test.Hspec
-    ( HasCallStack, SpecWith, describe, expectationFailure, it )
+    ( SpecWith, describe, expectationFailure, it )
 import Test.QuickCheck
     ( Arbitrary (..)
     , Args (..)
@@ -402,7 +402,7 @@ instance Traversable (Resp s) where
   Interpreter: mock implementation
 -------------------------------------------------------------------------------}
 
-runMock :: HasCallStack => Cmd s MWid -> Mock s -> (Resp s MWid, Mock s)
+runMock :: Cmd s MWid -> Mock s -> (Resp s MWid, Mock s)
 runMock = \case
     CreateWallet wid wal meta txs gp ->
         first (Resp . fmap (const (NewWallet wid)))
@@ -619,7 +619,7 @@ declareGenerator
 declareGenerator name f gen = (name, (f, gen))
 
 generatorWithoutId
-    :: forall s r. (Arbitrary (Wallet s), GenState s)
+    :: forall s r. GenState s
     => [(String, (Int, Gen (Cmd s (Reference WalletId r))))]
 generatorWithoutId =
     [ declareGenerator "CreateWallet" 5
@@ -635,7 +635,7 @@ generatorWithoutId =
     genId = MWid <$> elements ["a", "b", "c"]
 
 generatorWithWid
-    :: forall s r. (Arbitrary (Wallet s), GenState s)
+    :: forall s r. Arbitrary (Wallet s)
     => [Reference WalletId r]
     -> [(String, (Int, Gen (Cmd s (Reference WalletId r))))]
 generatorWithWid wids =

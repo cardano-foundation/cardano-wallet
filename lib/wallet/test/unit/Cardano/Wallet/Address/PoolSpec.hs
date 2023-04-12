@@ -178,7 +178,7 @@ genPool pool = fromUsage pool <$> genUsageForGap (AddressPool.gap pool)
 -- | Generate a sequence of addresses as they may appear on the blockchain.
 -- This sequence may contain duplicates,
 -- but respects the address gap of the given pool.
-genAddresses :: (Ord addr, Enum ix) => Pool addr ix -> Gen [addr]
+genAddresses :: Enum ix => Pool addr ix -> Gen [addr]
 genAddresses pool = sized $ go 0
   where
     gap = AddressPool.gap pool

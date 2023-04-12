@@ -104,7 +104,6 @@ prop_prologue_load_write
     :: forall s.
     ( PersistAddressBook s
     , Buildable (Prologue s)
-    , Eq (Prologue s)
     )
     => (s -> s) -> SqliteContext -> (WalletId, s) -> Property
 prop_prologue_load_write preprocess db (wid, s) =
@@ -157,7 +156,7 @@ prop_StoreWallet db (wid, InitialCheckpoint cp0) =
         prop_StoreUpdates toIO (mkStoreWallet wid) (pure w0) genDeltaWalletState
 
 genDeltaWalletState
-    :: (GenState s, AddressBookIso s)
+    :: GenState s
     => GenDelta (DeltaWalletState s)
 genDeltaWalletState wallet = frequency . map (second updateCheckpoints) $
     [ (8, genPutCheckpoint)

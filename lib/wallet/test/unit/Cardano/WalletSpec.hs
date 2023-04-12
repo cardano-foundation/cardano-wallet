@@ -1237,7 +1237,6 @@ data WalletLayerFixture s m = WalletLayerFixture
 setupFixture
     :: forall s m
      . ( MonadUnliftIO m
-       , MonadFail m
        , MonadTime m
        , IsOurs s Address
        , IsOurs s RewardAccount

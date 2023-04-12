@@ -192,7 +192,7 @@ unsafeUpdateS :: Applicative m => Store m da -> Base da -> da -> m (Base da)
 unsafeUpdateS store ba da = updateS store (Just ba) da *> unsafeLoadS store
 
 -- | Property that a pure query returns the same result as the store one.
-queryLaw :: (Monad m, Eq b, Query qa, MonadFail m, Base da ~ World qa, Show b)
+queryLaw :: (Monad m, Eq b, Query qa)
     => QueryStore m qa da -- ^ the store to test
   -> World qa -- ^ the world to query
   -> qa b -- ^ the query to run

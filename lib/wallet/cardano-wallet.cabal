@@ -22,13 +22,13 @@ common language
 
 common opts-lib
   ghc-options:
-    -Wall -Wcompat -fwarn-redundant-constraints
+    -Wall -Wcompat -Wredundant-constraints
 
   if flag(release)
     ghc-options: -O2 -Werror
 
 common opts-exe
-  ghc-options: -threaded -rtsopts -Wall
+  ghc-options: -threaded -rtsopts -Wall -Wredundant-constraints
 
   if flag(release)
     ghc-options: -O2 -Werror

@@ -298,11 +298,8 @@ spec =
             manualMigrationsSpec
 
 stateMachineSpec
-    :: forall k s ktype.
-        ( WalletKey k
-        , PersistPrivateKey (k 'RootK)
-        , PaymentAddress 'Mainnet k ktype
-        , PersistAddressBook s
+    :: forall k s .
+        ( PersistAddressBook s
         , TestConstraints s k
         , Typeable s
         )
@@ -313,9 +310,9 @@ stateMachineSpec = describe ("State machine test (" ++ showState @s ++ ")") $ do
     it "Sequential" $ prop_sequential newDB
 
 stateMachineSpecSeq, stateMachineSpecRnd, stateMachineSpecShared :: Spec
-stateMachineSpecSeq = stateMachineSpec @ShelleyKey @(SeqState 'Mainnet ShelleyKey) @'CredFromKeyK
-stateMachineSpecRnd = stateMachineSpec @ByronKey @(RndState 'Mainnet) @'CredFromKeyK
-stateMachineSpecShared = stateMachineSpec @SharedKey @(SharedState 'Mainnet SharedKey) @'CredFromScriptK
+stateMachineSpecSeq = stateMachineSpec @ShelleyKey @(SeqState 'Mainnet ShelleyKey)
+stateMachineSpecRnd = stateMachineSpec @ByronKey @(RndState 'Mainnet)
+stateMachineSpecShared = stateMachineSpec @SharedKey @(SharedState 'Mainnet SharedKey)
 
 instance PaymentAddress 'Mainnet SharedKey 'CredFromScriptK where
     paymentAddress _ = error "does not make sense for SharedKey but want to use stateMachineSpec"
@@ -364,7 +361,7 @@ loggingSpec = withLoggingDB @(SeqState 'Mainnet ShelleyKey) $ do
             length msgs `shouldBe` count * 2
 
 withLoggingDB
-    :: (Show s, PersistAddressBook s)
+    :: PersistAddressBook s
     => SpecWith (IO [DBLog], DBLayer IO s ShelleyKey)
     -> Spec
 withLoggingDB = around f . beforeWith clean
@@ -1255,7 +1252,6 @@ testMigrationSeqStateDerivationPrefix
         , WalletKey k
         , PersistAddressBook s
         , PersistPrivateKey (k 'RootK)
-        , Show s
         )
     => String
     -> ( Index 'Hardened 'PurposeK

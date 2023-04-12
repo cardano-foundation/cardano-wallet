@@ -3495,8 +3495,7 @@ instance Arbitrary (PartialTx Cardano.BabbageEra) where
 
 shrinkInputResolution
     :: forall era.
-        ( Cardano.IsCardanoEra era
-        , Arbitrary (Cardano.TxOut Cardano.CtxUTxO era)
+        ( Arbitrary (Cardano.TxOut Cardano.CtxUTxO era)
         )
     => Cardano.UTxO era
     -> [Cardano.UTxO era]

@@ -105,8 +105,6 @@ import Cardano.Wallet.Transaction
     ( TransactionLayer (..) )
 import Cardano.Wallet.Unsafe
     ( unsafeRunExceptT )
-import Control.DeepSeq
-    ( NFData )
 import Control.Monad
     ( forM )
 import Control.Monad.IO.Class
@@ -479,10 +477,7 @@ benchmarksRnd BenchmarkConfig{benchmarkName,ctx,wid} = do
 -------------------------------------------------------------------------------}
 selectAssets
     :: forall (n :: NetworkDiscriminant) s (k :: Depth -> * -> *) ktype
-    .   ( WalletKey k
-        , NFData s
-        , Show s
-        , HasSNetworkId n
+    .   ( HasSNetworkId n
         , BoundedAddressLength k
         )
     => Proxy n
@@ -542,9 +537,7 @@ data BenchmarkConfig (n :: NetworkDiscriminant) s k ktype =
 -- | Run benchmarks on all wallet databases in a given directory.
 benchmarkWallets
     :: forall (n :: NetworkDiscriminant) (k :: Depth -> * -> *) ktype s results
-     . ( NFData s
-       , Show s
-       , PersistAddressBook s
+     . ( PersistAddressBook s
        , WalletKey k
        , PersistPrivateKey (k 'RootK)
        , TxWitnessTagFor k

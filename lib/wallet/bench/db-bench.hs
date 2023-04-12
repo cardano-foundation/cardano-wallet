@@ -740,7 +740,6 @@ setupDB
     :: forall s k.
         ( PersistAddressBook s
         , PersistPrivateKey (k 'RootK)
-        , WalletKey k
         )
     => Tracer IO WalletDBLog
     -> IO (BenchEnv s k)
@@ -771,7 +770,6 @@ withCleanDB
     :: ( NFData c
        , PersistAddressBook s
        , PersistPrivateKey (k 'RootK)
-       , WalletKey k
        , NFData b
        )
     => Tracer IO WalletDBLog
