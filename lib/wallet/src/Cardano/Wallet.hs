@@ -578,8 +578,6 @@ import Data.Text.Class
     ( ToText (..) )
 import Data.Time.Clock
     ( NominalDiffTime, UTCTime )
-import Data.Type.Equality
-    ( (:~:) (..), testEquality )
 import Data.Void
     ( Void )
 import Data.Word
@@ -607,8 +605,6 @@ import Statistics.Quantile
     ( medianUnbiased, quantiles )
 import System.Random.StdGenSeed
     ( StdGenSeed (..), stdGenFromSeed, stdGenSeed )
-import Type.Reflection
-    ( Typeable, typeRep )
 import UnliftIO.Exception
     ( Exception, catch, throwIO )
 import UnliftIO.MVar
@@ -1271,7 +1267,7 @@ mkSelfWithdrawal netLayer txLayer era db wallet = do
 -- when applied to a non-shelley or a non-sequential wallet.
 shelleyOnlyMkSelfWithdrawal
     :: forall s k ktype tx (n :: NetworkDiscriminant) block
-     . (WalletFlavor s n k, Typeable k)
+     . WalletFlavor s n k
     => NetworkLayer IO block
     -> TransactionLayer k ktype tx
     -> AnyCardanoEra
@@ -1280,9 +1276,7 @@ shelleyOnlyMkSelfWithdrawal
     -> IO Withdrawal
 shelleyOnlyMkSelfWithdrawal netLayer txLayer era db wallet =
     case walletFlavor @s @n @k of
-        ShelleyWallet -> case testEquality (typeRep @k) (typeRep @ShelleyKey) of
-            Nothing -> notShelleyWallet
-            Just Refl -> mkSelfWithdrawal netLayer txLayer era db wallet
+        ShelleyWallet -> mkSelfWithdrawal netLayer txLayer era db wallet
         _ -> notShelleyWallet
   where
     notShelleyWallet = throwIO
@@ -1336,24 +1330,20 @@ readRewardAccount db wid = do
 -- or a non-shelley wallet state.
 shelleyOnlyReadRewardAccount
     :: forall s k (n :: NetworkDiscriminant)
-     . (Typeable k, WalletFlavor s n k)
+     . WalletFlavor s n k
     => DBLayer IO s k
     -> WalletId
     -> ExceptT ErrReadRewardAccount IO
         (RewardAccount, XPub, NonEmpty DerivationIndex)
 shelleyOnlyReadRewardAccount db wid = do
     case walletFlavor @s @n @k of
-        ShelleyWallet ->
-            case testEquality (typeRep @k) (typeRep @ShelleyKey) of
-                Nothing -> throwE ErrReadRewardAccountNotAShelleyWallet
-                Just Refl -> readRewardAccount db wid
+        ShelleyWallet -> readRewardAccount db wid
         _ -> throwE ErrReadRewardAccountNotAShelleyWallet
 
 readPolicyPublicKey
     :: forall ctx s k (n :: NetworkDiscriminant)
      . ( HasDBLayer IO s k ctx
        , WalletFlavor s n k
-       , WalletKey k
        )
     => ctx
     -> WalletId
@@ -1990,8 +1980,7 @@ type MakeRewardAccountBuilder k =
 -- Requires the encryption passphrase in order to decrypt the root private key.
 buildSignSubmitTransaction
     :: forall k s (n :: NetworkDiscriminant)
-     . ( Typeable k
-       , WalletKey k
+     . ( WalletKey k
        , HardDerivation k
        , Bounded (Index (AddressIndexDerivationType k) (AddressCredential k))
        , IsOwned s k 'CredFromKeyK
@@ -2083,8 +2072,7 @@ buildSignSubmitTransaction ti db@DBLayer{..} netLayer txLayer pwd walletId
 
 buildAndSignTransactionPure
     :: forall k s (n :: NetworkDiscriminant)
-     . ( Typeable k
-       , WalletKey k
+     . ( WalletKey k
        , HardDerivation k
        , Bounded (Index (AddressIndexDerivationType k) (AddressCredential k))
        , IsOwned s k 'CredFromKeyK
@@ -2174,10 +2162,9 @@ buildAndSignTransactionPure
 
 buildTransaction
     :: forall s k (n :: NetworkDiscriminant) era
-    . ( s ~ SeqState n k
+    . ( WalletFlavor s n k
       , WriteTx.IsRecentEra era
       , AddressBookIso s
-      , Typeable k
       )
     => DBLayer IO s k
     -> TransactionLayer k 'CredFromKeyK SealedTx
@@ -2224,8 +2211,7 @@ buildTransaction DBLayer{..} txLayer timeInterpreter walletId
 
 buildTransactionPure
     :: forall s k (n :: NetworkDiscriminant) era
-     . ( Typeable k
-       , WriteTx.IsRecentEra era
+     . ( WriteTx.IsRecentEra era
        , WalletFlavor s n k
        )
     => Wallet s
@@ -2280,18 +2266,11 @@ buildTransactionPure
     unsafeShelleyOnlyGetRewardXPub :: s -> XPub
     unsafeShelleyOnlyGetRewardXPub walletState =
         case walletFlavor @s @n @k of
-            ShelleyWallet -> case isShelleyKey of
-                Just Refl -> getRawKey $ Seq.rewardAccountKey walletState
-                Nothing -> error $ unwords
-                    [ "buildAndSignTransactionPure:"
-                    , "can't delegate using non-shelley key"
-                    ]
+            ShelleyWallet -> getRawKey $ Seq.rewardAccountKey walletState
             _  -> error $ unwords
                 [ "buildAndSignTransactionPure:"
                 , "can't delegate using non-shelley wallet"
                 ]
-            where
-                isShelleyKey = testEquality (typeRep @k) (typeRep @(ShelleyKey))
 
 -- | Produce witnesses and construct a transaction from a given selection.
 --
@@ -2875,8 +2854,8 @@ instance NFData DelegationFee
 delegationFee
     :: forall s k (n :: NetworkDiscriminant)
      . ( AddressBookIso s
+       , k ~ ShelleyKey
        , s ~ SeqState n k
-       , Typeable k
        )
     => DBLayer IO s k
     -> NetworkLayer IO Read.Block
@@ -2955,26 +2934,8 @@ delegationFee db@DBLayer{atomically, walletsDB} netLayer
         m a
     throwWrappedErr f a = either (throwIO . f) pure =<< runExceptT a
 
-    -- HACK: 'mkUnsignedTransaction' takes a reward account 'XPub' even when the
-    -- wallet is a Byron wallet, and doesn't actually have a reward account.
-    --
-    -- 'buildAndSignTransaction' achieves this by deriving the 'XPub' regardless
-    -- of wallet type, from the root key. To avoid requiring another
-    -- 'withRootKey' call, and to make the sketchy behaviour more explicit, we
-    -- make 'buildAndSignTransactionPure' partial instead.
-    --
-    -- https://input-output.atlassian.net/browse/ADP-2933
     unsafeShelleyOnlyGetRewardXPub :: s -> XPub
-    unsafeShelleyOnlyGetRewardXPub walletState =
-        case walletFlavor @s @n @k of
-            ShelleyWallet -> case isShelleyKey of
-                Just Refl -> getRawKey $ Seq.rewardAccountKey walletState
-                Nothing -> error $ unwords
-                    [ "buildAndSignTransactionPure:"
-                    , "can't delegate using non-shelley key"
-                    ]
-            where
-                isShelleyKey = testEquality (typeRep @k) (typeRep @(ShelleyKey))
+    unsafeShelleyOnlyGetRewardXPub walletState = getRawKey $ Seq.rewardAccountKey walletState
 
 -- | Repeatedly (100 times) runs given transaction fee estimation calculation
 -- returning 1st and 9nth decile (10nth and 90nth percentile) values of a

@@ -1,20 +1,18 @@
-{-# LANGUAGE AllowAmbiguousTypes #-}
-{-# LANGUAGE ConstraintKinds #-}
-{-# LANGUAGE DataKinds #-}
-{-# LANGUAGE DerivingStrategies #-}
-{-# LANGUAGE DuplicateRecordFields #-}
-{-# LANGUAGE ExistentialQuantification #-}
-{-# LANGUAGE FlexibleContexts #-}
 {-# LANGUAGE FlexibleInstances #-}
 {-# LANGUAGE GADTs #-}
 {-# LANGUAGE MultiParamTypeClasses #-}
-{-# LANGUAGE RankNTypes #-}
-{-# LANGUAGE ScopedTypeVariables #-}
-{-# LANGUAGE TypeFamilies #-}
 
 module Cardano.Wallet.Flavor (WalletFlavorS (..), WalletFlavor (..))
     where
 
+import Cardano.Wallet.Primitive.AddressDerivation.Byron
+    ( ByronKey )
+import Cardano.Wallet.Primitive.AddressDerivation.Icarus
+    ( IcarusKey (..) )
+import Cardano.Wallet.Primitive.AddressDerivation.SharedKey
+    ( SharedKey )
+import Cardano.Wallet.Primitive.AddressDerivation.Shelley
+    ( ShelleyKey )
 import Cardano.Wallet.Primitive.AddressDiscovery.Random
     ( RndState (..) )
 import Cardano.Wallet.Primitive.AddressDiscovery.Sequential
@@ -23,18 +21,22 @@ import Cardano.Wallet.Primitive.AddressDiscovery.Shared
     ( SharedState (..) )
 
 data WalletFlavorS s n k  where
-    ShelleyWallet :: WalletFlavorS (SeqState n k) n k
-    ByronWallet :: WalletFlavorS (RndState n) n k
-    SharedWallet :: WalletFlavorS (SharedState n k) n k
+    ShelleyWallet :: WalletFlavorS (SeqState n ShelleyKey) n ShelleyKey
+    IcarusWallet :: WalletFlavorS (SeqState n IcarusKey) n IcarusKey
+    ByronWallet :: WalletFlavorS (RndState n) n ByronKey
+    SharedWallet :: WalletFlavorS (SharedState n k) n SharedKey
 
 class WalletFlavor s n k where
     walletFlavor :: WalletFlavorS s n k
 
-instance WalletFlavor (SeqState n k) n k where
+instance WalletFlavor (SeqState n IcarusKey) n IcarusKey where
+    walletFlavor = IcarusWallet
+
+instance WalletFlavor (SeqState n ShelleyKey) n ShelleyKey where
     walletFlavor = ShelleyWallet
 
-instance WalletFlavor (RndState n) n k where
+instance WalletFlavor (RndState n) n ByronKey where
     walletFlavor = ByronWallet
 
-instance WalletFlavor (SharedState n k) n k where
+instance WalletFlavor (SharedState n SharedKey) n SharedKey where
     walletFlavor = SharedWallet
