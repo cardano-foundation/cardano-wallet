@@ -30,10 +30,14 @@ import Cardano.Wallet.Api.Types.Key
     ( ApiPolicyKey (ApiPolicyKey), computeKeyPayload )
 import Cardano.Wallet.Api.Types.MintBurn
     ( ApiAssetMintBurn (..), includePolicyKeyInfo, policyIx, toApiTokens )
+import Cardano.Wallet.Flavor
+    ( WalletFlavor )
+import Cardano.Wallet.Primitive.AddressDerivation
+    ( WalletKey )
 import Cardano.Wallet.Primitive.Types
     ( WalletId )
 import Cardano.Wallet.Read.NetworkId
-    ( HasSNetworkId, NetworkDiscriminant )
+    ( NetworkDiscriminant )
 import Cardano.Wallet.Transaction
     ( TokenMapWithScripts (..) )
 import Control.Category
@@ -44,22 +48,19 @@ import Control.Monad.Trans.Except
     ( runExceptT )
 import Data.Either.Extra
     ( eitherToMaybe )
-import Data.Typeable
-    ( Typeable )
 import Servant
     ( Handler )
 
 -- | Promote mint and burn to their API type.
 convertApiAssetMintBurn
-    ::
-      forall ctx s k (n :: NetworkDiscriminant).
-        ( HasDBLayer IO s k ctx
-        , HasSNetworkId n
-        , Typeable s
-        )
+    :: forall ctx s k (n :: NetworkDiscriminant)
+     . ( HasDBLayer IO s k ctx
+       , WalletFlavor s n k
+       , WalletKey k
+       )
     => ctx
     -> WalletId
-    -> (TokenMapWithScripts , TokenMapWithScripts)
+    -> (TokenMapWithScripts, TokenMapWithScripts)
     -> Handler (ApiAssetMintBurn, ApiAssetMintBurn)
 convertApiAssetMintBurn ctx wid (mint, burn) = do
     xpubM <- fmap (fmap fst . eitherToMaybe)
@@ -75,12 +76,11 @@ convertApiAssetMintBurn ctx wid (mint, burn) = do
     pure (convert mint, convert burn)
 
 getTxApiAssetMintBurn
-    ::
-      forall ctx s k (n :: NetworkDiscriminant).
-        ( HasDBLayer IO s k ctx
-        , HasSNetworkId n
-        , Typeable s
-        )
+    :: forall ctx s k (n :: NetworkDiscriminant)
+     . ( HasDBLayer IO s k ctx
+       , WalletFlavor s n k
+       , WalletKey k
+       )
     => ctx
     -> WalletId
     -> ParsedTxCBOR

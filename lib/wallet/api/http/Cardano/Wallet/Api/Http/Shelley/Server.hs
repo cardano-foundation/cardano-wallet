@@ -362,6 +362,8 @@ import Cardano.Wallet.Compat
     ( (^?) )
 import Cardano.Wallet.DB
     ( DBFactory (..), DBLayer )
+import Cardano.Wallet.Flavor
+    ( WalletFlavor (..), WalletFlavorS (ShelleyWallet) )
 import Cardano.Wallet.Network
     ( NetworkLayer (..), fetchRewardAccountBalances, timeInterpreter )
 import Cardano.Wallet.Pools
@@ -1744,7 +1746,6 @@ selectCoins
         , AddressBookIso s
         , GenChange s
         , Typeable k
-        , HasSNetworkId n
         , BoundedAddressLength k
         )
     => ApiLayer s k 'CredFromKeyK
@@ -1872,7 +1873,6 @@ selectCoinsForQuit
         , Seq.SupportsDiscovery n k
         , BoundedAddressLength k
         , DelegationAddress n k 'CredFromKeyK
-        , Typeable s
         , Typeable k
         )
     => ApiLayer (SeqState n k) k 'CredFromKeyK
@@ -2138,13 +2138,12 @@ postTransactionOld
         , HasNetworkLayer IO ctx
         , IsOwned s k 'CredFromKeyK
         , Bounded (Index (AddressIndexDerivationType k) (AddressCredential k))
-        , HasSNetworkId n
-        , Typeable s
         , Typeable k
         , WalletKey k
         , AddressBookIso s
         , BoundedAddressLength k
         , HasDelegation s
+        , WalletFlavor s n k
         )
     => ctx
     -> ArgGenChange s
@@ -2243,12 +2242,12 @@ deleteTransaction ctx (ApiT wid) (ApiTxId (ApiT (tid))) = do
     return NoContent
 
 listTransactions
-    :: forall s k ktype n.
-        ( Typeable s
-        , HasSNetworkId n
-        , HasDelegation s
-        , Typeable k
-        )
+    :: forall s k ktype n
+     . ( HasDelegation s
+       , Typeable k
+       , WalletFlavor s n k
+       , WalletKey k
+       )
     => ApiLayer s k ktype
     -> ApiT WalletId
     -> Maybe MinWithdrawal
@@ -2282,12 +2281,12 @@ listTransactions
     defaultSortOrder = Descending
 
 getTransaction
-    :: forall s k ktype n.
-        ( Typeable s
-        , HasSNetworkId n
-        , Typeable k
-        , HasDelegation s
-        )
+    :: forall s k ktype n
+     . ( Typeable k
+       , HasDelegation s
+       , WalletFlavor s n k
+       , WalletKey k
+       )
     => ApiLayer s k ktype
     -> ApiT WalletId
     -> ApiTxId
@@ -2305,7 +2304,11 @@ getTransaction ctx (ApiT wid) (ApiTxId (ApiT (tid))) metadataSchema =
 -- Populate an API transaction record with 'TransactionInfo' from the wallet
 -- layer.
 mkApiTransactionFromInfo
-    :: (Typeable s, HasSNetworkId n, HasDelegation s, Typeable k)
+    :: ( HasDelegation s
+       , Typeable k
+       , WalletFlavor s n k
+       , WalletKey k
+       )
     => TimeInterpreter (ExceptT PastHorizonException IO)
     -> W.WalletLayer IO s k ktype
     -> WalletId
@@ -2345,9 +2348,8 @@ mkApiTransactionFromInfo ti wrk wid deposit info metadataSchema = do
 
 postTransactionFeeOld
     :: forall s k n
-     . ( HasSNetworkId n
-       , Typeable k
-       , Typeable s
+     . ( Typeable k
+       , WalletFlavor s n k
        , BoundedAddressLength k
        )
     => ApiLayer s k 'CredFromKeyK
@@ -3108,12 +3110,12 @@ balanceTransaction
     maybeToHandler e Nothing  = liftHandler $ throwE e
 
 decodeTransaction
-    :: forall s k n.
-        ( IsOurs s Address
-        , Typeable s
-        , HasSNetworkId n
-        , Typeable k
-        )
+    :: forall s k n
+     . ( IsOurs s Address
+       , Typeable k
+       , WalletFlavor s n k
+       , WalletKey k
+       )
     => ApiLayer s k 'CredFromKeyK
     -> ApiT WalletId
     -> ApiSerialisedTransaction
@@ -3224,8 +3226,9 @@ submitTransaction
         , s ~ SeqState n k
         , HasNetworkLayer IO ctx
         , IsOwned s k 'CredFromKeyK
-        , Typeable s
-        , HasSNetworkId n, Typeable k)
+        , Typeable k
+        , WalletKey k
+        )
     => ctx
     -> ApiT WalletId
     -> ApiSerialisedTransaction
@@ -3426,7 +3429,6 @@ joinStakePool
         , AddressBookIso s
         , BoundedAddressLength k
         , HasDelegation s
-        , HasSNetworkId n
         , Typeable k
         )
     => ApiLayer s k 'CredFromKeyK
@@ -3505,7 +3507,6 @@ delegationFee
        , AddressBookIso s
        , s ~ SeqState n k
        , Typeable k
-       , HasSNetworkId n
        , DelegationAddress n k 'CredFromKeyK
        )
     => ApiLayer s k 'CredFromKeyK
@@ -3533,7 +3534,6 @@ quitStakePool
         , GenChange s
         , IsOwned s k 'CredFromKeyK
         , SoftDerivation k
-        , HasSNetworkId n
         , Typeable k
         , WalletKey k
         , AddressBookIso s
@@ -3684,14 +3684,17 @@ listStakeKeys lookupStakeRef ctx@ApiLayer{..} (ApiT wid) =
 
 createMigrationPlan
     :: forall n s k
-     . (IsOwned s k 'CredFromKeyK, HasSNetworkId n, Typeable k, Typeable s)
+     . ( IsOwned s k 'CredFromKeyK
+       , Typeable k
+       , WalletFlavor s n k
+       )
     => ApiLayer s k 'CredFromKeyK
     -> Maybe ApiWithdrawalPostData
-        -- ^ What type of reward withdrawal to attempt
+    -- ^ What type of reward withdrawal to attempt
     -> ApiT WalletId
-        -- ^ Source wallet
+    -- ^ Source wallet
     -> ApiWalletMigrationPlanPostData n
-        -- ^ Target addresses
+    -- ^ Target addresses
     -> Handler (ApiWalletMigrationPlan n)
 createMigrationPlan ctx@ApiLayer{..} withdrawalType (ApiT wid) postData =
     withWorkerCtx ctx wid liftE liftE $ \wrk -> do
@@ -3778,10 +3781,9 @@ migrateWallet
         ( Bounded (Index (AddressIndexDerivationType k) (AddressCredential k))
         , HardDerivation k
         , IsOwned s k 'CredFromKeyK
-        , HasSNetworkId n
-        , Typeable s
         , Typeable k
         , WalletKey k
+        , WalletFlavor s n k
         , HasDelegation s
         )
     => ApiLayer s k 'CredFromKeyK
@@ -4064,11 +4066,11 @@ getAccountPublicKey ctx mkAccount (ApiT wid) extended = do
           _ -> NonExtended
 
 getPolicyKey
-    :: forall ctx s k (n :: NetworkDiscriminant).
-        ( ctx ~ ApiLayer s k 'CredFromKeyK
-        , Typeable s
-        , HasSNetworkId n
-        )
+    :: forall ctx s k (n :: NetworkDiscriminant)
+     . ( ctx ~ ApiLayer s k 'CredFromKeyK
+       , WalletFlavor s n k
+       , WalletKey k
+       )
     => ctx
     -> ApiT WalletId
     -> Maybe Bool
@@ -4096,12 +4098,11 @@ postPolicyKey ctx (ApiT wid) hashed apiPassphrase =
     pwd = getApiT (apiPassphrase ^. #passphrase)
 
 postPolicyId
-    :: forall ctx s k (n :: NetworkDiscriminant).
-        ( ctx ~ ApiLayer s k 'CredFromKeyK
-        , WalletKey k
-        , Typeable s
-        , HasSNetworkId n
-        )
+    :: forall ctx s k (n :: NetworkDiscriminant)
+     . ( ctx ~ ApiLayer s k 'CredFromKeyK
+       , WalletKey k
+       , WalletFlavor s n k
+       )
     => ctx
     -> ApiT WalletId
     -> ApiPostPolicyIdData
@@ -4180,7 +4181,7 @@ mkWithdrawal netLayer txLayer db wallet era = \case
 -- when applied to a non-shelley or non-sequential wallet state.
 shelleyOnlyMkWithdrawal
     :: forall s k (n :: NetworkDiscriminant) ktype tx block
-     . (HasSNetworkId n, Typeable s, Typeable k)
+     . (Typeable k, WalletFlavor s n k)
     => NetworkLayer IO block
     -> TransactionLayer k ktype tx
     -> DBLayer IO s k
@@ -4189,11 +4190,11 @@ shelleyOnlyMkWithdrawal
     -> ApiWithdrawalPostData
     -> Handler Withdrawal
 shelleyOnlyMkWithdrawal netLayer txLayer db wallet era postData =
-    case testEquality (typeRep @s) (typeRep @(SeqState n k)) of
-        Nothing -> notShelleyWallet
-        Just Refl -> case testEquality (typeRep @k) (typeRep @ShelleyKey) of
+    case walletFlavor @s @n @k of
+        ShelleyWallet -> case testEquality (typeRep @k) (typeRep @ShelleyKey) of
             Nothing -> notShelleyWallet
             Just Refl -> mkWithdrawal netLayer txLayer db wallet era postData
+        _ -> notShelleyWallet
   where
     notShelleyWallet =
         liftHandler $ throwE ErrReadRewardAccountNotAShelleyWallet
@@ -4203,19 +4204,18 @@ shelleyOnlyRewardAccountBuilder
      . ( HardDerivation k
        , Bounded (Index (AddressIndexDerivationType k) (AddressCredential k))
        , WalletKey k
-       , Typeable s
-       , HasSNetworkId n
+       , WalletFlavor s n k
        )
     => ApiWithdrawalPostData
     -> Either ErrReadRewardAccount (RewardAccountBuilder k)
 shelleyOnlyRewardAccountBuilder w =
-    case testEquality (typeRep @s) (typeRep @(SeqState n ShelleyKey)) of
-        Nothing -> throwError ErrReadRewardAccountNotAShelleyWallet
-        Just Refl -> case w of
+    case walletFlavor @s @n @k of
+        ShelleyWallet -> case w of
             SelfWithdrawal -> pure selfRewardAccountBuilder
             ExternalWithdrawal (ApiMnemonicT m) -> do
                 let (xprv, _acct, _path) = W.someRewardAccount @ShelleyKey m
                 pure (const (xprv, mempty))
+        _ -> throwError ErrReadRewardAccountNotAShelleyWallet
 
 selfRewardAccountBuilder
     :: forall k
@@ -4355,11 +4355,12 @@ data MkApiTransactionParams = MkApiTransactionParams
     deriving (Eq, Generic, Show)
 
 mkApiTransaction
-    :: forall n s k ktype.
-    ( Typeable s
-    , HasSNetworkId n
-    , Typeable k
-    , HasDelegation s)
+    :: forall n s k ktype
+     . ( Typeable k
+       , HasDelegation s
+       , WalletFlavor s n k
+       , WalletKey k
+       )
     => TimeInterpreter (ExceptT PastHorizonException IO)
     -> W.WalletLayer IO s k ktype
     -> WalletId
