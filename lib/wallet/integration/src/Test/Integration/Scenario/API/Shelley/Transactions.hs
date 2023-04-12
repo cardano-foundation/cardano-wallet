@@ -1150,7 +1150,7 @@ spec = describe "SHELLEY_TRANSACTIONS" $ do
             (Link.createTransactionOld @'Shelley wa) Default payload
 
         expectResponseCode HTTP.status403 r
-        expectErrorMessage errMsg403TxTooBig r
+        expectErrorCode "transaction_is_too_big" r
 
     it "TRANSMETA_ESTIMATE_01a - \
         \fee estimation includes metadata" $
