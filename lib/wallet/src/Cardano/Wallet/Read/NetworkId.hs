@@ -30,10 +30,12 @@ where
 
 import Prelude
 
+import Data.Proxy
+    ( Proxy (..) )
 import Data.Text
     ( Text )
 import Data.Typeable
-    ( Proxy (..), Typeable )
+    ( Typeable )
 import Data.Word
     ( Word8 )
 import GHC.Natural
@@ -118,7 +120,7 @@ data SNetworkId (n :: NetworkDiscriminant) where
     STestnet :: SNat i -> SNetworkId ('Testnet i)
 
 -- | A class for extracting the singleton for 'NetworkDiscriminant'.
-class Typeable n => HasSNetworkId n where
+class HasSNetworkId n where
     sNetworkId :: SNetworkId n
 
 instance HasSNetworkId 'Mainnet where

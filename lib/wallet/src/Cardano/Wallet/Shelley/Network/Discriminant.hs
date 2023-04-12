@@ -49,6 +49,8 @@ import Data.Text
     ( Text )
 import Data.Text.Class
     ( TextDecodingError )
+import Data.Typeable
+    ( Typeable )
 import GHC.TypeLits
     ( KnownNat, natVal )
 
@@ -73,6 +75,7 @@ data SomeNetworkDiscriminant where
             , HasNetworkId n
             , NetworkDiscriminantBits n
             , HasSNetworkId n
+            , Typeable n
             )
         => Proxy n
         -> SomeNetworkDiscriminant
