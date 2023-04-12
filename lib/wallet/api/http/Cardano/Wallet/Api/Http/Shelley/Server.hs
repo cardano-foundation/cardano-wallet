@@ -2974,7 +2974,7 @@ constructSharedTransaction
 
 decodeSharedTransaction
     :: forall (n :: NetworkDiscriminant)
-     . (HasSNetworkId n, NetworkDiscriminantBits n, Typeable n)
+     . (HasSNetworkId n, NetworkDiscriminantBits n)
     => ApiLayer (SharedState n SharedKey) SharedKey 'CredFromScriptK
     -> ApiT WalletId
     -> ApiSerialisedTransaction
@@ -3439,7 +3439,7 @@ isForeign apiDecodedTx =
 
 submitSharedTransaction
     :: forall (n :: NetworkDiscriminant)
-     . (HasSNetworkId n, NetworkDiscriminantBits n, Typeable n)
+     . (HasSNetworkId n, NetworkDiscriminantBits n)
     => ApiLayer (SharedState n SharedKey) SharedKey 'CredFromScriptK
     -> ApiT WalletId
     -> ApiSerialisedTransaction
