@@ -1210,24 +1210,8 @@ estimateKeyWitnessCount utxo txbody@(Cardano.TxBody txbodycontent) =
 
     dummyKeyRole = Payment
 
-    apiScriptHashes =
-        let walletScripts = mapMaybe toTimelockScript scripts
-            toScriptHash =
-                Cardano.hashScript
-                . Cardano.SimpleScript
-                . toCardanoSimpleScript
-            toPair s = (s, toScriptHash s)
-        in toPair <$> walletScripts
 
-    estimateWitNumForCred = \case
-        Cardano.StakeCredentialByKey _ -> 1
-        Cardano.StakeCredentialByScript scriptHash ->
-            let pair = filter (\(_,sh) -> sh == scriptHash) apiScriptHashes
-            in case pair of
-                [(delScript,_)] ->
-                    estimateMaxWitnessRequiredPerInput delScript
-                _ -> error "there should be delegation script in the tx body"
-
+    estimateDelegSigningKeys :: Cardano.Certificate -> Integer
     estimateDelegSigningKeys = \case
         Cardano.StakeAddressRegistrationCertificate _ -> 0
         Cardano.StakeAddressDeregistrationCertificate cred ->
@@ -1235,6 +1219,13 @@ estimateKeyWitnessCount utxo txbody@(Cardano.TxBody txbodycontent) =
         Cardano.StakeAddressDelegationCertificate cred _ ->
             estimateWitNumForCred cred
         _ -> 1
+      where
+        -- Does not include the key witness needed for script credentials.
+        -- They are accounted for separately in @scriptVkWitsUpperBound@.
+        estimateWitNumForCred = \case
+            Cardano.StakeCredentialByKey _ -> 1
+            Cardano.StakeCredentialByScript _ -> 0
+
 
     toTimelockScript
         :: Ledger.Script (Cardano.ShelleyLedgerEra era)
