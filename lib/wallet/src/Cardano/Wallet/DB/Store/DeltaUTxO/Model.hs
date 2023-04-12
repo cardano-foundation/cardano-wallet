@@ -120,25 +120,16 @@ appendBlock newTip delta
   = constrainingAppendBlock noop noop newTip $
     UTxOHistory
         { history = history <> received delta
-        , creationSlots = onNotNull
-            (dom $ received delta)
-            creationSlots
-            $ \received' ->
-                Map.insert
-                    (At newTip)
-                    (received' `Set.difference` dom history)
+        , creationSlots =
+            insertNonEmpty (At newTip) receivedTxIns creationSlots
         , creationTxIns =
             foldl'
                 (\m txIn -> Map.insert txIn (At newTip) m)
                 creationTxIns
                 $ dom
                 $ received delta
-        , spentSlots = onNotNull
-            ( (excluded delta `Set.intersection` dom history)
-                `Set.difference` fold spentSlots
-            )
-            spentSlots
-            $ \excluded' -> Map.insert newTip excluded'
+        , spentSlots =
+            insertNonEmpty newTip excludedTxIns spentSlots
         , spentTxIns =
             foldl'
                 (\m txIn -> Map.insert txIn newTip m)
@@ -148,6 +139,12 @@ appendBlock newTip delta
         , finality = finality
         , boot = boot
         }
+  where
+    receivedTxIns =
+        dom (received delta) `Set.difference` dom history
+    excludedTxIns =
+        (excluded delta `Set.intersection` dom history)
+        `Set.difference` fold spentSlots
 
 rollback :: Slot -> UTxOHistory -> UTxOHistory
 rollback newTip
@@ -283,11 +280,10 @@ data Spent = Spent SlotNo | Unspent
 {-----------------------------------------------------------------------------
     Helper functions
 ------------------------------------------------------------------------------}
-onNotNull :: Foldable t => t a -> b -> (t a -> b -> b) -> b
-onNotNull x d f =
-    if null x
-        then d
-        else f x d
+-- | Insert a 'Set' into a 'Map' of 'Set' — but only if the 'Set' is nonempty.
+insertNonEmpty
+    :: Ord key => key -> Set v -> Map key (Set v) -> Map key (Set v)
+insertNonEmpty key x = if null x then id else Map.insert key x
 
 reverseMapOfSets :: Ord v => Map k (Set v) -> Map v k
 reverseMapOfSets m = Map.fromList $ do
