@@ -350,7 +350,7 @@ import Cardano.Wallet.Primitive.Types.UTxO
 import Cardano.Wallet.Primitive.Types.UTxOStatistics
     ( HistogramBar (..), UTxOStatistics (..) )
 import Cardano.Wallet.Read.NetworkId
-    ( HasSNetworkId, NetworkDiscriminant (..) )
+    ( NetworkDiscriminant (..) )
 import Cardano.Wallet.Shelley.Network.Discriminant
     ( DecodeAddress (..)
     , DecodeStakeAddress (..)
@@ -2529,16 +2529,16 @@ specification =
         either (error . (msg <>) . show) Prelude.id . Yaml.decodeEither'
     msg = "Whoops! Failed to parse or find the api specification document: "
 
-instance HasSNetworkId n => ToSchema (ApiAddress n) where
+instance Typeable n => ToSchema (ApiAddress n) where
     declareNamedSchema _ = declareSchemaForDefinition "ApiAddress"
 
 instance ToSchema ApiAddressInspect where
     declareNamedSchema _ = declareSchemaForDefinition "ApiAddressInspect"
 
-instance HasSNetworkId n => ToSchema (ApiPutAddressesData n) where
+instance Typeable n => ToSchema (ApiPutAddressesData n) where
     declareNamedSchema _ = declareSchemaForDefinition "ApiPutAddressesData"
 
-instance HasSNetworkId n => ToSchema (ApiSelectCoinsData n) where
+instance Typeable n => ToSchema (ApiSelectCoinsData n) where
     declareNamedSchema _ = do
         addDefinition =<< declareSchemaForDefinition "TransactionMetadataValue"
         addDefinition =<< declareSchemaForDefinition "TransactionMetadataValueNoSchema"
@@ -2550,7 +2550,7 @@ instance ToSchema (ApiT SmashServer) where
 instance ToSchema ApiHealthCheck where
     declareNamedSchema _ = declareSchemaForDefinition "ApiHealthCheck"
 
-instance HasSNetworkId n => ToSchema (ApiCoinSelection n) where
+instance Typeable n => ToSchema (ApiCoinSelection n) where
     declareNamedSchema _ = declareSchemaForDefinition "ApiCoinSelection"
 
 instance ToSchema ApiWallet where
@@ -2563,19 +2563,19 @@ instance ToSchema ApiWalletMigrationBalance where
     declareNamedSchema _ =
         declareSchemaForDefinition "ApiWalletMigrationBalance"
 
-instance HasSNetworkId n => ToSchema (ApiWalletMigrationPlan n) where
+instance Typeable n => ToSchema (ApiWalletMigrationPlan n) where
     declareNamedSchema _ =
         declareSchemaForDefinition "ApiWalletMigrationPlan"
 
-instance HasSNetworkId n => ToSchema (ApiWalletMigrationPlanPostData n) where
+instance Typeable n => ToSchema (ApiWalletMigrationPlanPostData n) where
     declareNamedSchema _ =
         declareSchemaForDefinition "ApiWalletMigrationPlanPostData"
 
-instance HasSNetworkId n => ToSchema (ApiWalletMigrationPostData n "lenient") where
+instance Typeable n => ToSchema (ApiWalletMigrationPostData n "lenient") where
     declareNamedSchema _ =
         declareSchemaForDefinition "ApiByronWalletMigrationPostData"
 
-instance HasSNetworkId n => ToSchema (ApiWalletMigrationPostData n "user") where
+instance Typeable n => ToSchema (ApiWalletMigrationPostData n "user") where
     declareNamedSchema _ =
         declareSchemaForDefinition "ApiShelleyWalletMigrationPostData"
 
@@ -2657,25 +2657,25 @@ instance ToSchema ApiSerialisedTransaction where
 instance ToSchema (ApiBytesT 'Base64 SerialisedTx) where
     declareNamedSchema _ = declareSchemaForDefinition "ApiSerialisedTx"
 
-instance HasSNetworkId n => ToSchema (PostTransactionOldData n) where
+instance Typeable n => ToSchema (PostTransactionOldData n) where
     declareNamedSchema _ = do
         addDefinition =<< declareSchemaForDefinition "TransactionMetadataValue"
         addDefinition =<< declareSchemaForDefinition "TransactionMetadataValueNoSchema"
         declareSchemaForDefinition "ApiPostTransactionData"
 
-instance HasSNetworkId n => ToSchema (PostTransactionFeeOldData n) where
+instance Typeable n => ToSchema (PostTransactionFeeOldData n) where
     declareNamedSchema _ = do
         addDefinition =<< declareSchemaForDefinition "TransactionMetadataValue"
         addDefinition =<< declareSchemaForDefinition "TransactionMetadataValueNoSchema"
         declareSchemaForDefinition "ApiPostTransactionFeeData"
 
-instance HasSNetworkId n => ToSchema (ApiExternalInput n) where
+instance Typeable n => ToSchema (ApiExternalInput n) where
     declareNamedSchema _ = declareSchemaForDefinition "ApiExternalInput"
 
-instance HasSNetworkId n => ToSchema (ApiBalanceTransactionPostData n) where
+instance Typeable n => ToSchema (ApiBalanceTransactionPostData n) where
     declareNamedSchema _ = declareSchemaForDefinition "ApiBalanceTransactionPostData"
 
-instance HasSNetworkId n => ToSchema (ApiTransaction n) where
+instance Typeable n => ToSchema (ApiTransaction n) where
     declareNamedSchema _ = do
         addDefinition =<< declareSchemaForDefinition "TransactionMetadataValue"
         addDefinition =<< declareSchemaForDefinition "TransactionMetadataValueNoSchema"
@@ -2796,13 +2796,13 @@ instance ToSchema ApiPostPolicyKeyData where
 instance ToSchema ApiAccountKeyShared where
     declareNamedSchema _ = declareSchemaForDefinition "ApiAccountKeyShared"
 
-instance HasSNetworkId n => ToSchema (ApiStakeKeys n) where
+instance Typeable n => ToSchema (ApiStakeKeys n) where
     declareNamedSchema _ = declareSchemaForDefinition "ApiStakeKeys"
 
-instance HasSNetworkId n => ToSchema (ApiOurStakeKey n) where
+instance Typeable n => ToSchema (ApiOurStakeKey n) where
     declareNamedSchema _ = declareSchemaForDefinition "ApiOurStakeKey"
 
-instance HasSNetworkId n => ToSchema (ApiForeignStakeKey n) where
+instance Typeable n => ToSchema (ApiForeignStakeKey n) where
     declareNamedSchema _ = declareSchemaForDefinition "ApiForeignStakeKey"
 
 instance ToSchema ApiNullStakeKey where
@@ -2822,14 +2822,14 @@ instance ToSchema ApiAssetMintBurn  where
         addDefinition =<< declareSchemaForDefinition "ScriptValue"
         declareSchemaForDefinition "ApiAssetMintBurn"
 
-instance HasSNetworkId n => ToSchema (ApiConstructTransactionData n) where
+instance Typeable n => ToSchema (ApiConstructTransactionData n) where
     declareNamedSchema _ = do
         addDefinition =<< declareSchemaForDefinition "TransactionMetadataValue"
         addDefinition =<< declareSchemaForDefinition "TransactionMetadataValueNoSchema"
         addDefinition =<< declareSchemaForDefinition "ScriptTemplateValue"
         declareSchemaForDefinition "ApiConstructTransactionData"
 
-instance HasSNetworkId n => ToSchema (ApiConstructTransaction n) where
+instance Typeable n => ToSchema (ApiConstructTransaction n) where
     declareNamedSchema _ = declareSchemaForDefinition "ApiConstructTransaction"
 
 instance ToSchema ApiMultiDelegationAction where
@@ -2841,16 +2841,16 @@ type ApiTxOutputsGeneral (n :: NetworkDiscriminant) = [ApiTxOutputGeneral n]
 
 type ApiWithdrawalsGeneral (n :: NetworkDiscriminant) = [ApiWithdrawalGeneral n]
 
-instance HasSNetworkId n => ToSchema (ApiTxInputsGeneral n) where
+instance Typeable n => ToSchema (ApiTxInputsGeneral n) where
     declareNamedSchema _ = declareSchemaForDefinition "ApiInputsGeneral"
 
-instance HasSNetworkId n => ToSchema (ApiTxOutputsGeneral n) where
+instance Typeable n => ToSchema (ApiTxOutputsGeneral n) where
     declareNamedSchema _ = declareSchemaForDefinition "ApiOutputsGeneral"
 
-instance HasSNetworkId n => ToSchema (ApiWithdrawalsGeneral n) where
+instance Typeable n => ToSchema (ApiWithdrawalsGeneral n) where
     declareNamedSchema _ = declareSchemaForDefinition "ApiWithdrawalsGeneral"
 
-instance HasSNetworkId n => ToSchema (ApiDecodedTransaction n) where
+instance Typeable n => ToSchema (ApiDecodedTransaction n) where
     declareNamedSchema _ = do
         addDefinition =<< declareSchemaForDefinition "TransactionMetadataValue"
         addDefinition =<< declareSchemaForDefinition "TransactionMetadataValueNoSchema"

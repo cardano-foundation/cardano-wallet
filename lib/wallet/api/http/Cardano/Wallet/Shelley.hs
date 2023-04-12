@@ -171,6 +171,8 @@ import System.IOManager
 import qualified Cardano.Pool.DB.Sqlite as Pool
 import qualified Cardano.Wallet.Api.Http.Shelley.Server as Server
 import qualified Cardano.Wallet.DB.Layer as Sqlite
+import Data.Typeable
+    ( Typeable )
 import qualified Network.Wai.Handler.Warp as Warp
 import qualified Servant.Server as Servant
 
@@ -311,6 +313,7 @@ serveWallet
             , NetworkDiscriminantBits n
             , HasSNetworkId n
             , HasNetworkId n
+            , Typeable n
             )
         => Proxy n
         -> Socket
