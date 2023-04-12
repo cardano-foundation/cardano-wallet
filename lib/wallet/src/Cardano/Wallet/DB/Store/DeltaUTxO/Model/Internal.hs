@@ -28,9 +28,9 @@ data UTxOHistory = UTxOHistory
     { history :: UTxO
     -- ^ All UTxO , spent and unspent.
     , creationSlots :: Map Slot (Set TxIn)
-    -- ^ Reverse map of the `creationSlots` map
-    , creationTxIns :: Map TxIn Slot
     -- ^ All TxIn, indexed by creation slot.
+    , creationTxIns :: Map TxIn Slot
+    -- ^ Reverse map of the `creationSlots` map
     , spentSlots :: Map SlotNo (Set TxIn)
     -- ^ All spent TxIn, indexed by spent slot.
     , spentTxIns :: Map TxIn SlotNo
