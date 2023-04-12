@@ -681,6 +681,7 @@ import qualified Cardano.Wallet.Primitive.Types.UTxO as UTxO
 import qualified Cardano.Wallet.Primitive.Types.UTxOIndex.Internal as UTxOIndex
 import qualified Cardano.Wallet.Primitive.Types.UTxOSelection as UTxOSelection
 import qualified Cardano.Wallet.Read as Read
+import qualified Cardano.Wallet.Read.ProtocolParameters as Read
 import qualified Cardano.Wallet.Registry as Registry
 import qualified Cardano.Wallet.Write.Tx as WriteTx
 import qualified Cardano.Wallet.Write.Tx.Balance as Write
@@ -3061,7 +3062,7 @@ balanceTransaction
                         txLayer
                         genInpScripts
                         mScriptTemplate)
-                    (pp, nodePParams)
+                    (Read.ProtocolParameters pp nodePParams)
                     ti
                     utxoIndex
                     (W.defaultChangeAddressGen argGenChange (Proxy @k))

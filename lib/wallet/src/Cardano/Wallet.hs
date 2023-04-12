@@ -635,6 +635,7 @@ import qualified Cardano.Wallet.Primitive.Types.UTxOIndex as UTxOIndex
 import qualified Cardano.Wallet.Primitive.Types.UTxOSelection as UTxOSelection
 import qualified Cardano.Wallet.Primitive.Types.UTxOStatistics as UTxOStatistics
 import qualified Cardano.Wallet.Read as Read
+import qualified Cardano.Wallet.Read.ProtocolParameters as Read
 import qualified Cardano.Wallet.Write.Tx as WriteTx
 import qualified Cardano.Wallet.Write.Tx.Balance as Write
 import qualified Data.ByteArray as BA
@@ -2219,7 +2220,7 @@ buildTransactionPure
     -> UTxOIndex WalletUTxO
     -> TransactionLayer k 'CredFromKeyK SealedTx
     -> ChangeAddressGen s
-    -> (ProtocolParameters, Cardano.BundledProtocolParameters era)
+    -> Read.ProtocolParameters era
     -> PreSelection
     -> TransactionCtx
     -> ExceptT
@@ -2234,7 +2235,7 @@ buildTransactionPure
         withExceptT (Right . ErrConstructTxBody) . except $
             mkUnsignedTransaction txLayer @era
                 (unsafeShelleyOnlyGetRewardXPub (getState wallet))
-                (fst pparams)
+                (Read.pparamsWallet pparams)
                 txCtx
                 (Left preSelection)
 
@@ -2882,7 +2883,7 @@ delegationFee db@DBLayer{atomically, walletsDB} netLayer
         unsignedTxBody <- wrapErrMkTransaction $
             mkUnsignedTransaction txLayer @era
                 (unsafeShelleyOnlyGetRewardXPub (getState wallet))
-                (fst protocolParams)
+                (Read.pparamsWallet protocolParams)
                 defaultTransactionCtx
                 -- It would seem that we should add a delegation action
                 -- to the partial tx we construct, this was not done
@@ -3853,10 +3854,10 @@ defaultChangeAddressGen arg proxy =
 toBalanceTxPParams
     :: forall era. WriteTx.IsRecentEra era
     => ProtocolParameters
-    -> (ProtocolParameters, Cardano.BundledProtocolParameters era)
-toBalanceTxPParams pp =
-    ( pp
-    , maybe
+    -> Read.ProtocolParameters era
+toBalanceTxPParams pp = Read.ProtocolParameters
+    { pparamsWallet = pp
+    , pparamsNode = maybe
         (error $ unwords
             [ "toBalanceTxPParams: no nodePParams."
             , "This should only be possible in Byron, where withRecentEra"
@@ -3865,4 +3866,4 @@ toBalanceTxPParams pp =
         (Cardano.bundleProtocolParams
             (WriteTx.fromRecentEra (WriteTx.recentEra @era)))
         $ currentNodeProtocolParameters pp
-    )
+    }
