@@ -2947,7 +2947,7 @@ transactionFee DBLayer{atomically, walletsDB} protocolParams txLayer ti
         pureTimeInterpreter <- liftIO $ snapshot ti
         unsignedTxBody <- wrapErrMkTransaction $
             mkUnsignedTransaction txLayer @era
-                (unsafeShelleyOnlyGetRewardXPub @s @k @n (getState wallet))
+                (Left $ unsafeShelleyOnlyGetRewardXPub @s @k @n (getState wallet))
                 (Write.pparamsWallet protocolParams)
                 txCtx
                 (Left preSelection)
