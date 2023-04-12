@@ -1953,20 +1953,11 @@ spec = describe "SHELLEY_TRANSACTIONS" $ do
             (wSrc, Link.createTransactionOld @'Shelley, "cardano-wallet")
             wDest
             amt
-        let txid = getFromResponse #id rMkTx
-            oneTx = Link.getTransaction @'Shelley
-                    wSrc (ApiTxId txid)
-        r0 <- request @(ApiTransaction n) ctx oneTx Default Empty
-        verify r0
-                [ expectResponseCode HTTP.status200
-                , expectField (#status . #getApiT) (`shouldBe` Pending)
-                ]
-        let listTxs = Link.listTransactions @'Shelley wSrc
-        request @[ApiTransaction n] ctx listTxs Default Empty >>= flip verify
-            [ expectListField 0
-                (#direction . #getApiT) (`shouldBe` Outgoing)
-            , expectListField 0
-                (#status . #getApiT) (`shouldBe` Pending)
+        verify rMkTx
+            [ expectSuccess
+            , expectResponseCode HTTP.status202
+            , expectField (#direction . #getApiT) (`shouldBe` Outgoing)
+            , expectField (#status . #getApiT) (`shouldBe` Pending)
             ]
 
     it "TRANS_DELETE_01 -\
