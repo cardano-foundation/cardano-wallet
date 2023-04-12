@@ -205,26 +205,12 @@ prune newFinality
                 (<= newFinality')
                 spentSlots
         prunedTxIns = fold prunedSpentSlots
-        fixCreationSlot
-            (txIn, slotNo) = Map.alter f slotNo
-                where
-                f Nothing = Nothing
-                f (Just txIns) =
-                    let
-                        txIns' = Set.delete txIn txIns
-                    in
-                        if null txIns'
-                            then Nothing
-                            else Just txIns'
     in
         UTxOHistory
             { history = history `excluding` prunedTxIns
             , creationSlots =
-                foldl'
-                    (flip fixCreationSlot)
-                    creationSlots
-                    $ Map.assocs
-                    $ Map.restrictKeys creationTxIns prunedTxIns
+                creationSlots `differenceReversedMap`
+                    (Map.restrictKeys creationTxIns prunedTxIns)
             , creationTxIns =
                 Map.withoutKeys
                     creationTxIns
@@ -279,6 +265,7 @@ insertNonEmpty
     :: Ord key => key -> Set v -> Map key (Set v) -> Map key (Set v)
 insertNonEmpty key x = if null x then id else Map.insert key x
 
+-- | Reverse the roles of key and values for a 'Map' of 'Set's.
 reverseMapOfSets :: Ord v => Map k (Set v) -> Map v k
 reverseMapOfSets m = Map.fromList $ do
     (k, vs) <- Map.toList m
@@ -291,3 +278,17 @@ insertNonEmptyReversedMap
     :: Ord v => key -> Set v -> Map v key -> Map v key
 insertNonEmptyReversedMap key vs m0 =
     foldl' (\m v -> Map.insert v key m) m0 vs
+
+-- | Take the difference between a 'Map' and another 'Map'
+-- that was created by using 'reverseMapOfSets'.
+differenceReversedMap
+    :: (Ord v, Ord key)
+    => Map key (Set v) -> Map v key -> Map key (Set v)
+differenceReversedMap whole part =
+    foldl' (flip delete) whole $ Map.assocs part
+  where
+    delete (v,key) = Map.update deleteFromSet key
+      where
+        deleteFromSet vs =
+            let vs' = Set.delete v vs
+            in  if null vs' then Nothing else Just vs'
