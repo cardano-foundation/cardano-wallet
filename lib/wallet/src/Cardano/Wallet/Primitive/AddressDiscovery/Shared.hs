@@ -787,11 +787,28 @@ estimateMaxWitnessRequiredPerInput = \case
     RequireAllOf xs      ->
         sum $ map estimateMaxWitnessRequiredPerInput xs
     RequireAnyOf xs      ->
-        optimumIfNotEmpty maximum $ map estimateMaxWitnessRequiredPerInput xs
-    RequireSomeOf m xs   ->
-        let largestReqFirst =
-                reverse $ L.sort $ map estimateMaxWitnessRequiredPerInput xs
-        in sum $ take (fromIntegral m) largestReqFirst
+        sum $ map estimateMaxWitnessRequiredPerInput xs
+    -- Estimate (and tx fees) could be lowered with:
+    --
+    -- optimumIfNotEmpty maximum $ map estimateMaxWitnessRequiredPerInput xs
+    -- however signTransaction
+    --
+    -- however we'd then need to adjust signTx accordingly such that it still
+    -- doesn't add more witnesses than we plan for.
+    --
+    -- Partially related task: https://input-output.atlassian.net/browse/ADP-2676
+    RequireSomeOf _m xs   ->
+        sum $ map estimateMaxWitnessRequiredPerInput xs
+    -- Estimate (and tx fees) could be lowered with:
+    --
+    -- let largestReqFirst =
+    --      reverse $ L.sort $ map estimateMaxWitnessRequiredPerInput xs
+    -- in sum $ take (fromIntegral m) largestReqFirst
+    --
+    -- however we'd then need to adjust signTx accordingly such that it still
+    -- doesn't add more witnesses than we plan for.
+    --
+    -- Partially related task: https://input-output.atlassian.net/browse/ADP-2676
     ActiveFromSlot _     -> 0
     ActiveUntilSlot _    -> 0
 
