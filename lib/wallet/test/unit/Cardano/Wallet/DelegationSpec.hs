@@ -51,10 +51,10 @@ import Test.QuickCheck
     ( Arbitrary (..)
     , NonEmptyList (..)
     , Property
+    , applyArbitrary4
     , arbitrarySizedBoundedIntegral
     , checkCoverage
     , cover
-    , applyArbitrary4
     , elements
     , label
     , oneof
