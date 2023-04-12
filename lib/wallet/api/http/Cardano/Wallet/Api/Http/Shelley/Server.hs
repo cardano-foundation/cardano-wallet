@@ -615,7 +615,7 @@ import Data.Time
 import Data.Traversable
     ( for )
 import Data.Type.Equality
-    ( (:~:) (..), type (==), testEquality )
+    ( type (==) )
 import Data.Word
     ( Word32 )
 import Fmt
@@ -649,8 +649,6 @@ import System.IO.Error
     )
 import System.Random
     ( getStdRandom, random )
-import Type.Reflection
-    ( Typeable, typeRep )
 import UnliftIO.Async
     ( race_ )
 import UnliftIO.Concurrent
@@ -1742,10 +1740,10 @@ getWalletUtxoSnapshot ctx (ApiT wid) = do
 selectCoins
     :: forall s k n.
         ( IsOurs s Address
+        , WalletFlavor s n k
         , s ~ SeqState n k
         , AddressBookIso s
         , GenChange s
-        , Typeable k
         , BoundedAddressLength k
         )
     => ApiLayer s k 'CredFromKeyK
@@ -1800,11 +1798,11 @@ selectCoins ctx@ApiLayer {..} argGenChange (ApiT walletId) body = do
 selectCoinsForJoin
     :: forall s n k.
         ( s ~ SeqState n k
+        , WalletFlavor s n k
         , AddressBookIso s
         , Seq.SupportsDiscovery n k
         , BoundedAddressLength k
         , DelegationAddress n k 'CredFromKeyK
-        , Typeable k
         )
     => ApiLayer s k 'CredFromKeyK
     -> IO (Set PoolId)
@@ -1869,11 +1867,11 @@ selectCoinsForJoin ctx@ApiLayer{..}
 selectCoinsForQuit
     :: forall s n k.
         ( s ~ SeqState n k
+        , WalletFlavor s n k
         , AddressBookIso s
         , Seq.SupportsDiscovery n k
         , BoundedAddressLength k
         , DelegationAddress n k 'CredFromKeyK
-        , Typeable k
         )
     => ApiLayer (SeqState n k) k 'CredFromKeyK
     -> ApiT WalletId
@@ -2138,7 +2136,6 @@ postTransactionOld
         , HasNetworkLayer IO ctx
         , IsOwned s k 'CredFromKeyK
         , Bounded (Index (AddressIndexDerivationType k) (AddressCredential k))
-        , Typeable k
         , WalletKey k
         , AddressBookIso s
         , BoundedAddressLength k
@@ -2244,9 +2241,7 @@ deleteTransaction ctx (ApiT wid) (ApiTxId (ApiT (tid))) = do
 listTransactions
     :: forall s k ktype n
      . ( HasDelegation s
-       , Typeable k
        , WalletFlavor s n k
-       , WalletKey k
        )
     => ApiLayer s k ktype
     -> ApiT WalletId
@@ -2282,10 +2277,8 @@ listTransactions
 
 getTransaction
     :: forall s k ktype n
-     . ( Typeable k
-       , HasDelegation s
+     . ( HasDelegation s
        , WalletFlavor s n k
-       , WalletKey k
        )
     => ApiLayer s k ktype
     -> ApiT WalletId
@@ -2305,9 +2298,7 @@ getTransaction ctx (ApiT wid) (ApiTxId (ApiT (tid))) metadataSchema =
 -- layer.
 mkApiTransactionFromInfo
     :: ( HasDelegation s
-       , Typeable k
        , WalletFlavor s n k
-       , WalletKey k
        )
     => TimeInterpreter (ExceptT PastHorizonException IO)
     -> W.WalletLayer IO s k ktype
@@ -2348,8 +2339,7 @@ mkApiTransactionFromInfo ti wrk wid deposit info metadataSchema = do
 
 postTransactionFeeOld
     :: forall s k n
-     . ( Typeable k
-       , WalletFlavor s n k
+     . ( WalletFlavor s n k
        , BoundedAddressLength k
        )
     => ApiLayer s k 'CredFromKeyK
@@ -3112,9 +3102,7 @@ balanceTransaction
 decodeTransaction
     :: forall s k n
      . ( IsOurs s Address
-       , Typeable k
        , WalletFlavor s n k
-       , WalletKey k
        )
     => ApiLayer s k 'CredFromKeyK
     -> ApiT WalletId
@@ -3224,10 +3212,9 @@ submitTransaction
     :: forall ctx s k (n :: NetworkDiscriminant).
         ( ctx ~ ApiLayer s k 'CredFromKeyK
         , s ~ SeqState n k
+        , WalletFlavor s n k
         , HasNetworkLayer IO ctx
         , IsOwned s k 'CredFromKeyK
-        , Typeable k
-        , WalletKey k
         )
     => ctx
     -> ApiT WalletId
@@ -3420,6 +3407,7 @@ submitSharedTransaction ctx apiw@(ApiT wid) apitx = do
 joinStakePool
     :: forall s n k.
         ( s ~ SeqState n k
+        , WalletFlavor s n k
         , AddressIndexDerivationType k ~ 'Soft
         , GenChange s
         , IsOwned s k 'CredFromKeyK
@@ -3429,7 +3417,6 @@ joinStakePool
         , AddressBookIso s
         , BoundedAddressLength k
         , HasDelegation s
-        , Typeable k
         )
     => ApiLayer s k 'CredFromKeyK
     -> ArgGenChange s
@@ -3504,9 +3491,9 @@ delegationFee
     :: forall s n k
      . ( BoundedAddressLength k
        , GenChange s
+       , k ~ ShelleyKey
        , AddressBookIso s
        , s ~ SeqState n k
-       , Typeable k
        , DelegationAddress n k 'CredFromKeyK
        )
     => ApiLayer s k 'CredFromKeyK
@@ -3530,15 +3517,12 @@ delegationFee ctx@ApiLayer{..} (ApiT walletId) = do
 quitStakePool
     :: forall s n k.
         ( s ~ SeqState n k
-        , AddressIndexDerivationType k ~ 'Soft
+        , k ~ ShelleyKey
         , GenChange s
         , IsOwned s k 'CredFromKeyK
         , SoftDerivation k
-        , Typeable k
-        , WalletKey k
         , AddressBookIso s
         , BoundedAddressLength k
-        , HasDelegation s
         , IsOurs (SeqState n k) RewardAccount
         )
     => ApiLayer s k 'CredFromKeyK
@@ -3552,9 +3536,7 @@ quitStakePool ctx@ApiLayer{..} argGenChange (ApiT walletId) body = do
     withWorkerCtx ctx walletId liftE liftE $ \wrk -> do
         let db = wrk ^. typed @(DBLayer IO s k)
             ti = timeInterpreter netLayer
-        txCtx <- case testEquality (typeRep @k) (typeRep @ShelleyKey) of
-            Just Refl -> liftIO $ WD.quitStakePool netLayer db ti walletId
-            _ -> liftHandler $ throwE ErrReadRewardAccountNotAShelleyWallet
+        txCtx <- liftIO $ WD.quitStakePool netLayer db ti walletId
         (BuiltTx{..}, txTime) <- liftIO $ do
             W.buildSignSubmitTransaction @k @s @n
                 ti
@@ -3685,7 +3667,6 @@ listStakeKeys lookupStakeRef ctx@ApiLayer{..} (ApiT wid) =
 createMigrationPlan
     :: forall n s k
      . ( IsOwned s k 'CredFromKeyK
-       , Typeable k
        , WalletFlavor s n k
        )
     => ApiLayer s k 'CredFromKeyK
@@ -3781,7 +3762,6 @@ migrateWallet
         ( Bounded (Index (AddressIndexDerivationType k) (AddressCredential k))
         , HardDerivation k
         , IsOwned s k 'CredFromKeyK
-        , Typeable k
         , WalletKey k
         , WalletFlavor s n k
         , HasDelegation s
@@ -4069,7 +4049,6 @@ getPolicyKey
     :: forall ctx s k (n :: NetworkDiscriminant)
      . ( ctx ~ ApiLayer s k 'CredFromKeyK
        , WalletFlavor s n k
-       , WalletKey k
        )
     => ctx
     -> ApiT WalletId
@@ -4181,7 +4160,7 @@ mkWithdrawal netLayer txLayer db wallet era = \case
 -- when applied to a non-shelley or non-sequential wallet state.
 shelleyOnlyMkWithdrawal
     :: forall s k (n :: NetworkDiscriminant) ktype tx block
-     . (Typeable k, WalletFlavor s n k)
+     . WalletFlavor s n k
     => NetworkLayer IO block
     -> TransactionLayer k ktype tx
     -> DBLayer IO s k
@@ -4191,9 +4170,7 @@ shelleyOnlyMkWithdrawal
     -> Handler Withdrawal
 shelleyOnlyMkWithdrawal netLayer txLayer db wallet era postData =
     case walletFlavor @s @n @k of
-        ShelleyWallet -> case testEquality (typeRep @k) (typeRep @ShelleyKey) of
-            Nothing -> notShelleyWallet
-            Just Refl -> mkWithdrawal netLayer txLayer db wallet era postData
+        ShelleyWallet -> mkWithdrawal netLayer txLayer db wallet era postData
         _ -> notShelleyWallet
   where
     notShelleyWallet =
@@ -4356,10 +4333,8 @@ data MkApiTransactionParams = MkApiTransactionParams
 
 mkApiTransaction
     :: forall n s k ktype
-     . ( Typeable k
-       , HasDelegation s
+     . ( HasDelegation s
        , WalletFlavor s n k
-       , WalletKey k
        )
     => TimeInterpreter (ExceptT PastHorizonException IO)
     -> W.WalletLayer IO s k ktype

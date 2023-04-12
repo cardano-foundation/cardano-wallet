@@ -32,8 +32,6 @@ import Cardano.Wallet.Api.Types.MintBurn
     ( ApiAssetMintBurn (..), includePolicyKeyInfo, policyIx, toApiTokens )
 import Cardano.Wallet.Flavor
     ( WalletFlavor )
-import Cardano.Wallet.Primitive.AddressDerivation
-    ( WalletKey )
 import Cardano.Wallet.Primitive.Types
     ( WalletId )
 import Cardano.Wallet.Read.NetworkId
@@ -56,7 +54,6 @@ convertApiAssetMintBurn
     :: forall ctx s k (n :: NetworkDiscriminant)
      . ( HasDBLayer IO s k ctx
        , WalletFlavor s n k
-       , WalletKey k
        )
     => ctx
     -> WalletId
@@ -79,7 +76,6 @@ getTxApiAssetMintBurn
     :: forall ctx s k (n :: NetworkDiscriminant)
      . ( HasDBLayer IO s k ctx
        , WalletFlavor s n k
-       , WalletKey k
        )
     => ctx
     -> WalletId
