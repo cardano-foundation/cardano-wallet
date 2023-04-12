@@ -3050,7 +3050,8 @@ padFeePercentiles
   where
     coinDelta :: Coin
     coinDelta =
-        Coin.fromNatural . ceiling $ fromIntegral byteDelta * slope feeFunction
+        Coin.fromNatural . ceiling @Double @Natural $
+            fromIntegral @Word @Double byteDelta * slope feeFunction
 
     LinearFee feeFunction = pp ^. #txParameters . #getFeePolicy
 
