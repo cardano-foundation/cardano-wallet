@@ -222,6 +222,8 @@ import Data.TreeDiff
     ( ToExpr (..), defaultExprViaShow, genericToExpr )
 import GHC.Generics
     ( Generic, Generic1 )
+import GHC.Stack
+    ( HasCallStack, callStack )
 import System.Random
     ( getStdRandom, randomR )
 import Test.Hspec
@@ -402,7 +404,7 @@ instance Traversable (Resp s) where
   Interpreter: mock implementation
 -------------------------------------------------------------------------------}
 
-runMock :: Cmd s MWid -> Mock s -> (Resp s MWid, Mock s)
+runMock :: HasCallStack => Cmd s MWid -> Mock s -> (Resp s MWid, Mock s)
 runMock = \case
     CreateWallet wid wal meta txs gp ->
         first (Resp . fmap (const (NewWallet wid)))
@@ -448,6 +450,7 @@ runMock = \case
     RollbackTo _wid point ->
         first (Resp . fmap Point) . mRollbackTo point
   where
+    _requireCallStack = callStack
     timeInterpreter = dummyTimeInterpreter
 
 {-------------------------------------------------------------------------------
