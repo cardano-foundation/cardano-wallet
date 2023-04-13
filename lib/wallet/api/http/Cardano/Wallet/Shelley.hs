@@ -97,7 +97,10 @@ import Cardano.Wallet.Primitive.Types.RewardAccount
 import Cardano.Wallet.Primitive.Types.Tx.SealedTx
     ( SealedTx )
 import Cardano.Wallet.Read.NetworkId
-    ( HasSNetworkId, NetworkDiscriminantBits, NetworkDiscriminantVal (..) )
+    ( HasSNetworkId (sNetworkId)
+    , NetworkDiscriminantBits
+    , networkDiscriminantVal
+    )
 import Cardano.Wallet.Registry
     ( HasWorkerCtx (..) )
 import Cardano.Wallet.Shelley.BlockchainSource
@@ -151,8 +154,8 @@ import Data.Maybe
     ( fromJust )
 import Data.Proxy
     ( Proxy (..) )
-import Data.Text
-    ( Text )
+import Data.Typeable
+    ( Typeable )
 import Network.Ntp
     ( NtpClient (..), NtpTrace, withWalletNtpClient )
 import Network.Socket
@@ -171,8 +174,6 @@ import System.IOManager
 import qualified Cardano.Pool.DB.Sqlite as Pool
 import qualified Cardano.Wallet.Api.Http.Shelley.Server as Server
 import qualified Cardano.Wallet.DB.Layer as Sqlite
-import Data.Typeable
-    ( Typeable )
 import qualified Network.Wai.Handler.Warp as Warp
 import qualified Servant.Server as Servant
 
@@ -219,7 +220,7 @@ serveWallet
     , slottingParameters
     }
   pipeliningStrategy
-  network@(SomeNetworkDiscriminant proxyNetwork)
+  network@(SomeNetworkDiscriminant (proxyNetwork :: Proxy network))
   shelleyGenesisPools
   Tracers{..}
   databaseDir
@@ -233,7 +234,10 @@ serveWallet
   beforeMainLoop = evalContT $ do
     lift $ case blockchainSource of
         NodeSource nodeConn _ _ -> trace $ MsgStartingNode nodeConn
-    lift . trace $ MsgNetworkName $ networkName proxyNetwork
+    lift . trace
+        $ MsgNetworkName
+        $ networkDiscriminantVal
+        $ sNetworkId @network
     netLayer <- withNetworkLayer
         networkTracer
         pipeliningStrategy
@@ -410,9 +414,6 @@ withNtpClient :: Tracer IO NtpTrace -> ContT r IO NtpClient
 withNtpClient tr = do
     iom <- ContT withIOManager
     ContT $ withWalletNtpClient iom tr
-
-networkName :: forall n. NetworkDiscriminantVal n => Proxy n -> Text
-networkName _ = networkDiscriminantVal @n
 
 -- | Failure status codes for HTTP API server errors.
 exitCodeApiServer :: ListenError -> Int

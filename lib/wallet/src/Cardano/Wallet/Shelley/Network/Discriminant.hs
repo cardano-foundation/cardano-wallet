@@ -19,6 +19,7 @@ module Cardano.Wallet.Shelley.Network.Discriminant
     , DecodeAddress (..)
     , DecodeStakeAddress (..)
     , HasNetworkId (..)
+    , withSNetworkId
     ) where
 
 import Prelude
@@ -36,10 +37,10 @@ import Cardano.Wallet.Primitive.AddressDerivation.Shelley
 import Cardano.Wallet.Primitive.Types.Address
     ( Address (..) )
 import Cardano.Wallet.Read.NetworkId
-    ( HasSNetworkId
+    ( HasSNetworkId (sNetworkId)
     , NetworkDiscriminant (..)
     , NetworkDiscriminantBits
-    , NetworkDiscriminantVal
+    , SNetworkId
     )
 import Control.Arrow
     ( (>>>) )
@@ -63,8 +64,7 @@ import qualified Cardano.Wallet.Primitive.Types.RewardAccount as W
 data SomeNetworkDiscriminant where
     SomeNetworkDiscriminant
         :: forall (n :: NetworkDiscriminant).
-            ( NetworkDiscriminantVal n
-            , PaymentAddress n IcarusKey 'CredFromKeyK
+            ( PaymentAddress n IcarusKey 'CredFromKeyK
             , PaymentAddress n ByronKey 'CredFromKeyK
             , PaymentAddress n ShelleyKey 'CredFromKeyK
             , EncodeAddress n
@@ -118,3 +118,9 @@ instance KnownNat protocolMagic => HasNetworkId ('Testnet protocolMagic) where
       where
         networkMagic =
             Cardano.NetworkMagic . fromIntegral . natVal $ Proxy @protocolMagic
+
+withSNetworkId
+    :: SomeNetworkDiscriminant
+    -> (forall (n :: NetworkDiscriminant). HasSNetworkId n => SNetworkId n -> r)
+    -> r
+withSNetworkId (SomeNetworkDiscriminant (_proxy :: Proxy n)) f = f $ sNetworkId @n

@@ -96,11 +96,10 @@ import Cardano.Wallet.Primitive.Types.Tx.TxOut
 import Cardano.Wallet.Primitive.Types.UTxOStatistics
     ( HistogramBar (..), UTxOStatistics (..) )
 import Cardano.Wallet.Read.NetworkId
-    ( HasSNetworkId
+    ( HasSNetworkId (..)
     , NetworkDiscriminant (..)
     , NetworkDiscriminantBits
-    , NetworkDiscriminantVal
-    , networkDescription
+    , SNetworkId (..)
     )
 import Cardano.Wallet.Shelley.Network.Discriminant
     ( HasNetworkId, networkIdVal )
@@ -244,7 +243,6 @@ benchmarksSeq
         , k ~ ShelleyKey
         , ktype ~ 'CredFromKeyK
         , HasSNetworkId n
-        , NetworkDiscriminantVal n
         , NetworkDiscriminantBits n
         , DelegationAddress n k ktype
         )
@@ -342,7 +340,6 @@ benchmarksShared
         , k ~ SharedKey
         , ktype ~ 'CredFromScriptK
         , HasSNetworkId n
-        , NetworkDiscriminantVal n
         , NetworkDiscriminantBits n
         )
     => BenchmarkConfig n s k ktype
@@ -425,7 +422,6 @@ benchmarksRnd
         , k ~ ByronKey
         , ktype ~ 'CredFromKeyK
         , HasSNetworkId n
-        , NetworkDiscriminantVal n
         )
     => BenchmarkConfig n s k ktype
     -> IO BenchRndResults
@@ -493,7 +489,6 @@ selectAssets
         , NFData s
         , Show s
         , HasSNetworkId n
-        , NetworkDiscriminantVal n
         , BoundedAddressLength k
         )
     => Proxy n
@@ -524,15 +519,15 @@ selectAssets networkId ctx wid = do
         } $ \_state -> id
 
 dummyAddress
-    :: forall (n :: NetworkDiscriminant). NetworkDiscriminantVal n
-    => Proxy n -> Address
-dummyAddress proxy
-    | networkDescription proxy == mainnet =
+    :: forall (n :: NetworkDiscriminant)
+     . HasSNetworkId n
+    => Proxy n
+    -> Address
+dummyAddress _proxy = case sNetworkId @n of
+    SMainnet ->
         Address $ BS.pack $ 0 : replicate 56 0
-    | otherwise =
+    _ ->
         Address $ BS.pack $ 1 : replicate 56 0
-  where
-    mainnet = networkDescription (Proxy @'Mainnet)
 
 {-------------------------------------------------------------------------------
     Benchmark Harness
@@ -559,7 +554,6 @@ benchmarkWallets
         , WalletKey k
         , PersistPrivateKey (k 'RootK)
         , TxWitnessTagFor k
-        , NetworkDiscriminantVal n
         , HasNetworkId n
         , Buildable results
         , ToJSON results
