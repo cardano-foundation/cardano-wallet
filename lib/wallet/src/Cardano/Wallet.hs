@@ -2104,7 +2104,7 @@ buildAndSignTransactionPure
         (unsignedBalancedTx, updatedWalletState) <- lift $
             buildTransactionPure @s @k @n @recentEra
                 wallet ti utxoIndex txLayer changeAddrGen
-                (unsafeFromWalletProtocolParameters protocolParams)
+                (Read.unsafeFromWalletProtocolParameters protocolParams)
                 preSelection txCtx
         put wallet { getState = updatedWalletState }
 
@@ -2203,7 +2203,7 @@ buildTransaction DBLayer{..} txLayer timeInterpreter walletId
                 utxoIndex
                 txLayer
                 changeAddrGen
-                (unsafeFromWalletProtocolParameters protocolParameters)
+                (Read.unsafeFromWalletProtocolParameters protocolParameters)
                 PreSelection { outputs = paymentOuts }
                 txCtx
                 & runExceptT . withExceptT
@@ -2870,7 +2870,7 @@ delegationFee
 delegationFee db@DBLayer{atomically, walletsDB} netLayer
     txLayer ti era changeAddressGen walletId = do
     WriteTx.withRecentEra era $ \(recentEra :: WriteTx.RecentEra era) -> do
-        protocolParams <- unsafeFromWalletProtocolParameters
+        protocolParams <- Read.unsafeFromWalletProtocolParameters
             <$> liftIO (currentProtocolParameters netLayer)
         wallet <- liftIO . atomically $ readDBVar walletsDB >>= \wallets ->
             case Map.lookup walletId wallets of
@@ -3850,20 +3850,3 @@ defaultChangeAddressGen arg proxy =
     ChangeAddressGen
         (genChange arg)
         (maxLengthAddressFor proxy)
-
--- TODO: ADP-2459 - replace with something nicer.
-unsafeFromWalletProtocolParameters
-    :: forall era. Cardano.IsShelleyBasedEra era
-    => ProtocolParameters
-    -> Read.ProtocolParameters era
-unsafeFromWalletProtocolParameters pp = Read.ProtocolParameters
-    { pparamsWallet = pp
-    , pparamsNode = maybe
-        (error $ unwords
-            [ "unsafeFromWalletProtocolParameters: no nodePParams."
-            , "This should only be possible in Byron, where IsShelleyBasedEra"
-            , "should prevent this from being reached."
-            ])
-        (Cardano.bundleProtocolParams (Cardano.cardanoEra @era))
-        (currentNodeProtocolParameters pp)
-    }
