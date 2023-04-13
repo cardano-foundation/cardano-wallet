@@ -12,7 +12,7 @@ module Test.Integration.Scenario.CLI.Shelley.Addresses
 import Prelude
 
 import Cardano.Wallet.Api.Types
-    ( ApiAddress, ApiWallet, DecodeAddress (..), getApiT )
+    ( ApiAddress, ApiWallet, getApiT )
 import Cardano.Wallet.Primitive.AddressDiscovery.Sequential
     ( defaultAddressPoolGap, getAddressPoolGap )
 import Cardano.Wallet.Primitive.Types.Address
@@ -65,10 +65,11 @@ import Test.Integration.Framework.TestData
 
 import qualified Data.Text as T
 
-spec :: forall n.
-    ( DecodeAddress n
-    , HasSNetworkId n
-    ) => SpecWith Context
+spec
+    :: forall n
+     . ( HasSNetworkId n
+       )
+    => SpecWith Context
 spec = describe "SHELLEY_CLI_ADDRESSES" $ do
 
     it "ADDRESS_LIST_01 - Can list addresses - default poolGap" $ \ctx -> runResourceT $ do

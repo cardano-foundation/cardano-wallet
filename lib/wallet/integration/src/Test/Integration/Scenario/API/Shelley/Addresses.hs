@@ -22,7 +22,6 @@ import Cardano.Wallet.Api.Types
     , ApiTransaction
     , ApiVerificationKeyShelley
     , ApiWallet
-    , DecodeAddress
     , DecodeStakeAddress
     , WalletStyle (..)
     )
@@ -98,11 +97,12 @@ import qualified Data.Aeson.Lens as Aeson
 import qualified Data.Text as T
 import qualified Network.HTTP.Types.Status as HTTP
 
-spec :: forall n.
-    ( DecodeAddress n
-    , DecodeStakeAddress n
-    , HasSNetworkId n
-    ) => SpecWith Context
+spec
+    :: forall n
+     . ( HasSNetworkId n
+       , DecodeStakeAddress n
+       )
+    => SpecWith Context
 spec = describe "SHELLEY_ADDRESSES" $ do
     it "BYRON_ADDRESS_LIST - Byron wallet on Shelley ep" $ \ctx -> runResourceT $ do
         w <- emptyRandomWallet ctx

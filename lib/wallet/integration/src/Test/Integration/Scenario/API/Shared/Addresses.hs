@@ -20,13 +20,15 @@ module Test.Integration.Scenario.API.Shared.Addresses
 import Prelude
 
 import Cardano.Wallet.Api.Types
-    ( ApiAddress, ApiSharedWallet (..), DecodeAddress, WalletStyle (..) )
+    ( ApiAddress, ApiSharedWallet (..), WalletStyle (..) )
 import Cardano.Wallet.Primitive.AddressDerivation.SharedKey
     ( purposeCIP1854 )
 import Cardano.Wallet.Primitive.AddressDiscovery.Sequential
     ( defaultAddressPoolGap, getAddressPoolGap )
 import Cardano.Wallet.Primitive.Types.Address
     ( AddressState (..) )
+import Cardano.Wallet.Read.NetworkId
+    ( HasSNetworkId )
 import Control.Monad
     ( forM_ )
 import Control.Monad.IO.Class
@@ -58,7 +60,7 @@ import Test.Integration.Framework.DSL
 import qualified Cardano.Wallet.Api.Link as Link
 import qualified Network.HTTP.Types as HTTP
 
-spec :: forall n. DecodeAddress n => SpecWith Context
+spec :: forall n. HasSNetworkId n => SpecWith Context
 spec = describe "SHARED_ADDRESSES" $ do
     it "SHARED_ADDRESSES_LIST_01 - Can list known addresses on a default wallet" $ \ctx -> runResourceT $ do
         let walName = "Shared Wallet" :: Text

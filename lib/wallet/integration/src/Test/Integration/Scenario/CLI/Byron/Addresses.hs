@@ -14,7 +14,7 @@ module Test.Integration.Scenario.CLI.Byron.Addresses
 import Prelude
 
 import Cardano.Wallet.Api.Types
-    ( ApiAddress, ApiByronWallet, ApiT (..), DecodeAddress )
+    ( ApiAddress, ApiByronWallet, ApiT (..) )
 import Cardano.Wallet.Primitive.AddressDerivation
     ( Depth (..), PaymentAddress )
 import Cardano.Wallet.Primitive.AddressDerivation.Byron
@@ -69,12 +69,13 @@ import Test.Integration.Framework.TestData
 
 import qualified Data.Text as T
 
-spec :: forall n.
-    ( DecodeAddress n
-    , HasSNetworkId n
-    , PaymentAddress n ByronKey 'CredFromKeyK
-    , PaymentAddress n IcarusKey 'CredFromKeyK
-    ) => SpecWith Context
+spec
+    :: forall n
+     . ( HasSNetworkId n
+       , PaymentAddress n ByronKey 'CredFromKeyK
+       , PaymentAddress n IcarusKey 'CredFromKeyK
+       )
+    => SpecWith Context
 spec = do
     describe "BYRON_CLI_ADDRESSES" $ do
         scenario_ADDRESS_LIST_01 @n "random" emptyRandomWallet
@@ -116,7 +117,7 @@ spec = do
 
 scenario_ADDRESS_LIST_01
     :: forall (n :: NetworkDiscriminant)
-     . DecodeAddress n
+     . HasSNetworkId n
     => String
     -> (Context -> ResourceT IO ApiByronWallet)
     -> SpecWith Context
@@ -137,7 +138,7 @@ scenario_ADDRESS_LIST_01 walType fixture = it title $ \ctx -> runResourceT $ do
 
 scenario_ADDRESS_LIST_02
     :: forall (n :: NetworkDiscriminant)
-     . DecodeAddress n
+     . HasSNetworkId n
     => String
     -> (Context -> ResourceT IO ApiByronWallet)
     -> SpecWith Context
@@ -185,7 +186,7 @@ scenario_ADDRESS_LIST_04 walType fixture = it title $ \ctx -> runResourceT $ do
     title = "CLI_ADDRESS_LIST_04 - " ++ walType ++ " deleted wallet"
 
 scenario_ADDRESS_CREATE_01
-    :: forall (n :: NetworkDiscriminant). DecodeAddress n => SpecWith Context
+    :: forall (n :: NetworkDiscriminant). HasSNetworkId n => SpecWith Context
 scenario_ADDRESS_CREATE_01 = it title $ \ctx -> runResourceT @IO $ do
     w <- emptyRandomWallet ctx
     let wid = T.unpack (w ^. walletId)
@@ -220,7 +221,7 @@ scenario_ADDRESS_CREATE_03 = it title $ \ctx -> runResourceT @IO $ do
     title = "ADDRESS_CREATE_03 - Cannot create a random address with wrong passphrase"
 
 scenario_ADDRESS_CREATE_04
-    :: forall (n :: NetworkDiscriminant). DecodeAddress n => SpecWith Context
+    :: forall (n :: NetworkDiscriminant). HasSNetworkId n => SpecWith Context
 scenario_ADDRESS_CREATE_04 = it title $ \ctx -> runResourceT @IO $ do
     w <- emptyRandomWallet ctx
     let wid = T.unpack (w ^. walletId)
@@ -238,7 +239,7 @@ scenario_ADDRESS_CREATE_04 = it title $ \ctx -> runResourceT @IO $ do
     title = "CLI_ADDRESS_CREATE_04 - Can list address after creating it"
 
 scenario_ADDRESS_CREATE_05
-    :: forall (n :: NetworkDiscriminant). DecodeAddress n => SpecWith Context
+    :: forall (n :: NetworkDiscriminant). HasSNetworkId n => SpecWith Context
 scenario_ADDRESS_CREATE_05 = it title $ \ctx -> runResourceT @IO $ do
     w <- emptyRandomWallet ctx
     let wid = T.unpack (w ^. walletId)

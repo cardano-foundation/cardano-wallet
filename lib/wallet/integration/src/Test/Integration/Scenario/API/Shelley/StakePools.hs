@@ -51,7 +51,7 @@ import Cardano.Wallet.Primitive.Types.Tx.TxMeta
 import Cardano.Wallet.Read.NetworkId
     ( HasSNetworkId )
 import Cardano.Wallet.Shelley.Network.Discriminant
-    ( DecodeAddress (..), DecodeStakeAddress (..) )
+    ( DecodeStakeAddress (..) )
 import Cardano.Wallet.Unsafe
     ( unsafeFromHex, unsafeMkPercentage )
 import Control.Monad
@@ -156,11 +156,12 @@ import qualified Data.Text as T
 import qualified Network.HTTP.Types.Status as HTTP
 import qualified Prelude
 
-spec :: forall n.
-    ( DecodeAddress n
-    , DecodeStakeAddress n
-    , HasSNetworkId n
-    ) => SpecWith Context
+spec
+    :: forall n
+     . ( HasSNetworkId n
+       , DecodeStakeAddress n
+       )
+    => SpecWith Context
 spec = describe "SHELLEY_STAKE_POOLS" $ do
     let listPools ctx stake =
             request @[ApiT StakePool] ctx (Link.listStakePools stake) Default Empty

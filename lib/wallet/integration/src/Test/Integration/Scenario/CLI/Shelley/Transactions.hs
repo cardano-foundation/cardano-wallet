@@ -20,7 +20,6 @@ import Cardano.Wallet.Api.Types
     , ApiT (..)
     , ApiTransaction
     , ApiWallet
-    , DecodeAddress
     , DecodeStakeAddress
     , getApiT
     )
@@ -121,11 +120,12 @@ import UnliftIO.Exception
 import qualified Data.Map as Map
 import qualified Data.Text as T
 
-spec :: forall n.
-    ( DecodeAddress n
-    , DecodeStakeAddress n
-    , HasSNetworkId n
-    ) => SpecWith Context
+spec
+    :: forall n
+     . ( HasSNetworkId n
+       , DecodeStakeAddress n
+       )
+    => SpecWith Context
 spec = describe "SHELLEY_CLI_TRANSACTIONS" $ do
     it "TRANS_CREATE_01 - Can create transaction via CLI" $ \ctx -> runResourceT $ do
         wSrc <- fixtureWallet ctx

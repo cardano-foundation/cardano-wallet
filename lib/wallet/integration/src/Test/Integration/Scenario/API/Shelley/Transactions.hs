@@ -34,7 +34,6 @@ import Cardano.Wallet.Api.Types
     , ApiTxId (..)
     , ApiTxInput (..)
     , ApiWallet
-    , DecodeAddress
     , DecodeStakeAddress
     , WalletStyle (..)
     , insertedAt
@@ -196,12 +195,13 @@ data TestCase a = TestCase
     , assertions :: [(HTTP.Status, Either RequestException a) -> IO ()]
     }
 
-spec :: forall n.
-    ( DecodeAddress n
-    , DecodeStakeAddress n
-    , HasSNetworkId n
-    , PaymentAddress n IcarusKey 'CredFromKeyK
-    ) => SpecWith Context
+spec
+    :: forall n
+     . ( HasSNetworkId n
+       , DecodeStakeAddress n
+       , PaymentAddress n IcarusKey 'CredFromKeyK
+       )
+    => SpecWith Context
 spec = describe "SHELLEY_TRANSACTIONS" $ do
 
     it "TRANS_MIN_UTXO_01: \

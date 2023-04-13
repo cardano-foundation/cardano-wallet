@@ -38,7 +38,6 @@ import Cardano.Wallet.Api.Types
     , ApiUtxoStatistics
     , ApiWallet
     , ApiWalletUtxoSnapshot
-    , DecodeAddress
     , DecodeStakeAddress
     , KeyFormat (..)
     , WalletStyle (..)
@@ -149,11 +148,12 @@ import qualified Data.Text as T
 import qualified Data.Text.Encoding as T
 import qualified Network.HTTP.Types as HTTP
 
-spec :: forall n.
-    ( DecodeAddress n
-    , DecodeStakeAddress n
-    , HasSNetworkId n
-    ) => SpecWith Context
+spec
+    :: forall n
+     . ( HasSNetworkId n
+       , DecodeStakeAddress n
+       )
+    => SpecWith Context
 spec = describe "SHARED_WALLETS" $ do
 
     it "SHARED_WALLETS_CREATE_01 - \

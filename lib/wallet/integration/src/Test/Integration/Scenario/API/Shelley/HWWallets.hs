@@ -22,7 +22,6 @@ import Cardano.Wallet.Api.Types
     , ApiTransaction
     , ApiUtxoStatistics
     , ApiWallet
-    , DecodeAddress
     , DecodeStakeAddress
     , WalletStyle (..)
     )
@@ -85,11 +84,12 @@ import Test.Integration.Framework.TestData
 import qualified Cardano.Wallet.Api.Link as Link
 import qualified Network.HTTP.Types.Status as HTTP
 
-spec :: forall n.
-    ( DecodeAddress n
-    , DecodeStakeAddress n
-    , HasSNetworkId n
-    ) => SpecWith Context
+spec
+    :: forall n
+     . ( HasSNetworkId n
+       , DecodeStakeAddress n
+       )
+    => SpecWith Context
 spec = describe "SHELLEY_HW_WALLETS" $ do
     it "HW_WALLETS_01 - Restoration from account public key preserves funds" $ \ctx -> runResourceT $ do
         wSrc <- fixtureWallet ctx

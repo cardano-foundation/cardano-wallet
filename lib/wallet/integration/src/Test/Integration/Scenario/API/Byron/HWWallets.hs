@@ -30,7 +30,6 @@ import Cardano.Wallet.Api.Types
     , ApiT (..)
     , ApiTransaction
     , ApiUtxoStatistics
-    , DecodeAddress
     , DecodeStakeAddress
     , WalletStyle (..)
     )
@@ -104,12 +103,13 @@ import qualified Data.List.NonEmpty as NE
 import qualified Data.Text.Encoding as T
 import qualified Network.HTTP.Types.Status as HTTP
 
-spec :: forall n.
-    ( DecodeAddress n
-    , DecodeStakeAddress n
-    , HasSNetworkId n
-    , PaymentAddress n IcarusKey 'CredFromKeyK
-    ) => SpecWith Context
+spec
+    :: forall n
+     . ( HasSNetworkId n
+       , DecodeStakeAddress n
+       , PaymentAddress n IcarusKey 'CredFromKeyK
+       )
+    => SpecWith Context
 spec = describe "BYRON_HW_WALLETS" $ do
     it "HW_WALLETS_01 - Restoration from account public key preserves funds" $ \ctx -> runResourceT $ do
         wSrc <- fixtureIcarusWallet ctx

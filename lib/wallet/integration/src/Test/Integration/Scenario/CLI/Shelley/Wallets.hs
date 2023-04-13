@@ -21,7 +21,6 @@ import Cardano.Wallet.Api.Types
     , ApiUtxoStatistics
     , ApiWallet
     , ApiWalletUtxoSnapshot
-    , DecodeAddress (..)
     , DecodeStakeAddress (..)
     , getApiT
     )
@@ -110,11 +109,12 @@ import Test.Integration.Framework.TestData
 
 import qualified Data.Text as T
 
-spec :: forall n.
-    ( DecodeAddress n
-    , DecodeStakeAddress n
-    , HasSNetworkId n
-    ) => SpecWith Context
+spec
+    :: forall n
+     . ( HasSNetworkId n
+       , DecodeStakeAddress n
+       )
+    => SpecWith Context
 spec = describe "SHELLEY_CLI_WALLETS" $ do
     it "BYRON_GET_03 - Shelley CLI does not show Byron wallet" $ \ctx -> runResourceT $ do
         wid <- emptyRandomWallet' ctx

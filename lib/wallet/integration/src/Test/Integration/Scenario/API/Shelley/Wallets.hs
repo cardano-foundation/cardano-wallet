@@ -27,7 +27,6 @@ import Cardano.Wallet.Api.Types
     , ApiVerificationKeyShelley (..)
     , ApiWallet
     , ApiWalletUtxoSnapshot
-    , DecodeAddress
     , DecodeStakeAddress
     , WalletStyle (..)
     )
@@ -148,11 +147,12 @@ import qualified Data.Set as Set
 import qualified Data.Text as T
 import qualified Network.HTTP.Types as HTTP
 
-spec :: forall n.
-    ( DecodeAddress n
-    , DecodeStakeAddress n
-    , HasSNetworkId n
-    ) => SpecWith Context
+spec
+    :: forall n
+     . ( HasSNetworkId n
+       , DecodeStakeAddress n
+       )
+    => SpecWith Context
 spec = describe "SHELLEY_WALLETS" $ do
     it "WALLETS_CREATE_01 - Create a wallet" $ \ctx -> runResourceT $ do
         m15 <- liftIO $ genMnemonics M15

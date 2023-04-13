@@ -25,7 +25,6 @@ import Cardano.Wallet.Api.Types
     , ApiUtxoStatistics
     , ApiWallet
     , ApiWalletMigrationPlan (..)
-    , DecodeAddress
     , DecodeStakeAddress
     , WalletStyle (..)
     )
@@ -119,13 +118,14 @@ import qualified Data.Map.Strict as Map
 import qualified Network.HTTP.Types.Status as HTTP
 import qualified Test.Hspec as Hspec
 
-spec :: forall n.
-    ( DecodeAddress n
-    , DecodeStakeAddress n
-    , HasSNetworkId n
-    , PaymentAddress n IcarusKey 'CredFromKeyK
-    , PaymentAddress n ByronKey 'CredFromKeyK
-    ) => SpecWith Context
+spec
+    :: forall n
+     . ( HasSNetworkId n
+       , DecodeStakeAddress n
+       , PaymentAddress n IcarusKey 'CredFromKeyK
+       , PaymentAddress n ByronKey 'CredFromKeyK
+       )
+    => SpecWith Context
 spec = describe "SHELLEY_MIGRATIONS" $ do
 
     it "SHELLEY_CREATE_MIGRATION_PLAN_01 - \

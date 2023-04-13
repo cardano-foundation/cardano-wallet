@@ -17,7 +17,6 @@ import Cardano.Wallet.Api.Types
     , ApiTransaction
     , ApiUtxoStatistics
     , ApiWallet
-    , DecodeAddress (..)
     , DecodeStakeAddress (..)
     , getApiT
     )
@@ -92,11 +91,12 @@ import Test.Integration.Scenario.CLI.Shelley.Wallets
 
 import qualified Data.Text as T
 
-spec :: forall n.
-    ( DecodeAddress n
-    , DecodeStakeAddress n
-    , HasSNetworkId n
-    ) => SpecWith Context
+spec
+    :: forall n
+     . ( HasSNetworkId n
+       , DecodeStakeAddress n
+       )
+    => SpecWith Context
 spec = describe "SHELLEY_CLI_HW_WALLETS" $ do
 
     it "HW_WALLETS_01x - Restoration from account public key preserves funds" $ \ctx -> runResourceT $ do

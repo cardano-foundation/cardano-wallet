@@ -38,7 +38,7 @@ import Cardano.Mnemonic
     , entropyToMnemonic
     )
 import Cardano.Wallet.Api.Types
-    ( DecodeAddress (..), DecodeStakeAddress (..), EncodeStakeAddress (..) )
+    ( DecodeStakeAddress (..), EncodeStakeAddress (..) )
 import Cardano.Wallet.Byron.Compatibility
     ( maryTokenBundleMaxSize )
 import Cardano.Wallet.Primitive.AddressDerivation
@@ -77,12 +77,13 @@ import Cardano.Wallet.Primitive.Types.Tx.Constraints
 import Cardano.Wallet.Primitive.Types.Tx.TxOut.Gen
     ( genTxOutTokenBundle )
 import Cardano.Wallet.Read.NetworkId
-    ( NetworkDiscriminant (..) )
+    ( NetworkDiscriminant (..), NetworkId (..), SNetworkId (..), toSNetworkId )
 import Cardano.Wallet.Shelley.Compatibility
     ( CardanoBlock
     , StandardCrypto
     , computeTokenBundleSerializedLengthBytes
     , decentralizationLevelFromPParams
+    , decodeAddress
     , fromCardanoValue
     , fromTip
     , inspectAddress
@@ -205,22 +206,22 @@ spec = do
 
         prop "Shelley addresses from bech32" $ \k ->
             let addr@(Address bytes) = paymentAddress @'Mainnet @ShelleyKey @'CredFromKeyK k
-            in  decodeAddress @'Mainnet (bech32 bytes) === Right addr
+            in  decodeAddress SMainnet (bech32 bytes) === Right addr
                     & counterexample (show $ bech32 bytes)
 
         prop "Shelley addresses with delegation from bech32" $ \k1 k2 ->
             let addr@(Address bytes) = delegationAddress @'Mainnet @ShelleyKey @'CredFromKeyK k1 k2
-            in  decodeAddress @'Mainnet (bech32 bytes) === Right addr
+            in  decodeAddress SMainnet (bech32 bytes) === Right addr
                     & counterexample (show $ bech32 bytes)
 
         prop "Shelley addresses from bech32 - testnet" $ \k ->
             let addr@(Address raw) = paymentAddress @('Testnet 0) @ShelleyKey @'CredFromKeyK k
-            in  decodeAddress @('Testnet 0) (bech32testnet raw) === Right addr
+            in  toSNetworkId (NTestnet 0) $ \n -> decodeAddress n (bech32testnet raw) === Right addr
                    & counterexample (show $ bech32testnet raw)
 
         prop "Byron addresses from base58" $ \k ->
             let addr@(Address bytes) = paymentAddress @'Mainnet @ByronKey @'CredFromKeyK k
-            in  decodeAddress @'Mainnet (base58 bytes) === Right addr
+            in  decodeAddress SMainnet (base58 bytes) === Right addr
                     & counterexample (show $ base58 bytes)
 
     describe "decentralizationLevelFromPParams" $ do

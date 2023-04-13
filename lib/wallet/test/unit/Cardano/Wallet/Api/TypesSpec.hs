@@ -352,7 +352,7 @@ import Cardano.Wallet.Primitive.Types.UTxOStatistics
 import Cardano.Wallet.Read.NetworkId
     ( NetworkDiscriminant (..) )
 import Cardano.Wallet.Shelley.Network.Discriminant
-    ( DecodeAddress (..), DecodeStakeAddress (..), EncodeStakeAddress (..) )
+    ( DecodeStakeAddress (..), EncodeStakeAddress (..) )
 import Cardano.Wallet.TokenMetadata
     ( TokenMetadataError (..) )
 import Cardano.Wallet.Transaction
@@ -1001,11 +1001,6 @@ instance FromJSON SchemaApiErrorInfo where
 {-------------------------------------------------------------------------------
                               Address Encoding
 -------------------------------------------------------------------------------}
-
-
-instance {-# OVERLAPPING #-} DecodeAddress ('Testnet 0) where
-    decodeAddress "<addr>" = Right $ Address "<addr>"
-    decodeAddress _ = Left $ TextDecodingError "invalid address"
 
 instance {-# OVERLAPPING #-} EncodeStakeAddress ('Testnet 0) where
     encodeStakeAddress = const "<stake-addr>"

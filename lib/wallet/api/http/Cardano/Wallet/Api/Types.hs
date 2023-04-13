@@ -203,7 +203,7 @@ module Cardano.Wallet.Api.Types
     , WalletOrAccountPostData (..)
 
     -- * User-Facing Address Encoding/Decoding
-    , DecodeAddress (..)
+
     , EncodeStakeAddress (..)
     , DecodeStakeAddress (..)
 
@@ -391,9 +391,9 @@ import Cardano.Wallet.Primitive.Types.UTxOStatistics
 import Cardano.Wallet.Read.NetworkId
     ( HasSNetworkId (..), NetworkDiscriminant )
 import Cardano.Wallet.Shelley.Compatibility
-    ( encodeAddress )
+    ( decodeAddress, encodeAddress )
 import Cardano.Wallet.Shelley.Network.Discriminant
-    ( DecodeAddress (..), DecodeStakeAddress (..), EncodeStakeAddress (..) )
+    ( DecodeStakeAddress (..), EncodeStakeAddress (..) )
 import Cardano.Wallet.TokenMetadata
     ( TokenMetadataError (..) )
 import Cardano.Wallet.Util
@@ -1820,10 +1820,10 @@ instance FromText (ApiT PassphraseHash)  where
             , "expecting a hex-encoded value."
             ]
 
-instance DecodeAddress n => FromHttpApiData (ApiT Address, Proxy n) where
+instance HasSNetworkId n => FromHttpApiData (ApiT Address, Proxy n) where
     parseUrlPiece txt = do
         let proxy = Proxy @n
-        addr <- bimap (T.pack . getTextDecodingError) ApiT (decodeAddress @n txt)
+        addr <- bimap (T.pack . getTextDecodingError) ApiT (decodeAddress (sNetworkId @n) txt)
         return (addr, proxy)
 
 instance HasSNetworkId n => ToHttpApiData (ApiT Address, Proxy n) where
@@ -1970,7 +1970,7 @@ instance FromJSON (ApiT W.AssetDecimals) where
 instance ToJSON (ApiT W.AssetDecimals) where
     toJSON = toJSON . W.unAssetDecimals . getApiT
 
-instance DecodeAddress n => FromJSON (ApiSelectCoinsData n) where
+instance HasSNetworkId n => FromJSON (ApiSelectCoinsData n) where
     parseJSON = withObject "DelegationAction" $ \o -> do
         p <- o .:? "payments"
         a <- o .:? "delegation_action"
@@ -2448,7 +2448,7 @@ instance FromJSON ApiSignTransactionPostData where
 instance ToJSON ApiSignTransactionPostData where
     toJSON = genericToJSON strictRecordTypeOptions
 
-instance DecodeAddress t => FromJSON (ApiPaymentDestination t) where
+instance HasSNetworkId t => FromJSON (ApiPaymentDestination t) where
     parseJSON obj = parseAddrs
       where
         parseAddrs = ApiPaymentAddresses <$> parseJSON obj
@@ -2511,7 +2511,7 @@ instance FromJSON ApiValidityBound where
                     _ -> fail "ApiValidityBound string must have either 'second' or 'slot' unit."
                 _ -> fail "ApiValidityBound string must have 'unit' field."
 
-instance (DecodeAddress t, DecodeStakeAddress t) => FromJSON (ApiConstructTransaction t) where
+instance (HasSNetworkId t, DecodeStakeAddress t) => FromJSON (ApiConstructTransaction t) where
     parseJSON = withObject "ApiConstructTransaction object" $ \o -> do
         txTxt <- o .: "transaction"
         (tx, enc) <- (,HexEncoded) <$> parseSealedTxBytes @'Base16 txTxt <|>
@@ -2580,7 +2580,7 @@ instance ToJSON ApiBlockReference where
             Aeson.Object rest -> Aeson.Object ("height" .= bh <> rest)
             _ -> error "ApiSlotReference isn't an object."
 
-instance DecodeAddress n => FromJSON (ApiTxInput n) where
+instance HasSNetworkId n => FromJSON (ApiTxInput n) where
     parseJSON v = ApiTxInput <$> optional (parseJSON v) <*> parseJSON v
 
 instance HasSNetworkId n => ToJSON (ApiTxInput n) where
@@ -2590,7 +2590,7 @@ instance HasSNetworkId n => ToJSON (ApiTxInput n) where
         fromValue (Object o) = o
         fromValue _ = mempty
 
-instance DecodeAddress n => FromJSON (ApiTxCollateral n) where
+instance HasSNetworkId n => FromJSON (ApiTxCollateral n) where
     parseJSON v = ApiTxCollateral <$> optional (parseJSON v) <*> parseJSON v
 
 instance HasSNetworkId n => ToJSON (ApiTxCollateral n) where
@@ -3143,7 +3143,7 @@ instance HasSNetworkId n => ToJSON (ApiMintBurnOperation n) where
         ApiMint mint -> "mint" .= mint
         ApiBurn burn -> "burn" .= burn
 
-instance DecodeAddress n => FromJSON (ApiMintBurnOperation n) where
+instance HasSNetworkId n => FromJSON (ApiMintBurnOperation n) where
     parseJSON = Aeson.withObject "ApiMintBurnOperation" $ \o ->
         case Aeson.keys o of
             ["mint"] -> ApiMint <$> o .: "mint"

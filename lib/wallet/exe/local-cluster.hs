@@ -27,8 +27,6 @@ import Cardano.CLI
     )
 import Cardano.Startup
     ( installSignalHandlers, setDefaultFilePermissions, withUtf8Encoding )
-import Cardano.Wallet.Api.Types
-    ( decodeAddress )
 import Cardano.Wallet.Launch
     ( withSystemTempDir )
 import Cardano.Wallet.Launch.Cluster
@@ -51,7 +49,7 @@ import Cardano.Wallet.Primitive.SyncProgress
 import Cardano.Wallet.Primitive.Types.Coin
     ( Coin (..) )
 import Cardano.Wallet.Read.NetworkId
-    ( NetworkDiscriminant (..) )
+    ( NetworkDiscriminant (..), SNetworkId (..) )
 import Cardano.Wallet.Shelley
     ( SomeNetworkDiscriminant (..)
     , serveWallet
@@ -60,6 +58,8 @@ import Cardano.Wallet.Shelley
     )
 import Cardano.Wallet.Shelley.BlockchainSource
     ( BlockchainSource (..) )
+import Cardano.Wallet.Shelley.Compatibility
+    ( decodeAddress )
 import Control.Arrow
     ( first )
 import Control.Monad
@@ -215,7 +215,7 @@ main = withLocalClusterSetup $ \dir clusterLogs walletLogs ->
         withCluster tr' dir clusterCfg faucetFunds
             (whenReady dir (trMessageText trCluster) walletLogs)
   where
-    unsafeDecodeAddr = either (error . show) id . decodeAddress @'Mainnet
+    unsafeDecodeAddr = either (error . show) id . decodeAddress SMainnet
 
     faucetFunds = FaucetFunds
         { pureAdaFunds =

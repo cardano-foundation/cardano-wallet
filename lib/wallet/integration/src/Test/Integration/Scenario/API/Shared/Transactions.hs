@@ -42,7 +42,6 @@ import Cardano.Wallet.Api.Types
     , ApiTxOutputGeneral (..)
     , ApiWallet
     , ApiWalletOutput (..)
-    , DecodeAddress
     , DecodeStakeAddress
     , Iso8601Time (..)
     , WalletStyle (..)
@@ -186,11 +185,12 @@ data TestCase a = TestCase
     , assertions :: [(HTTP.Status, Either RequestException a) -> IO ()]
     }
 
-spec :: forall n.
-    ( DecodeAddress n
-    , DecodeStakeAddress n
-    , HasSNetworkId n
-    ) => SpecWith Context
+spec
+    :: forall n
+     . ( HasSNetworkId n
+       , DecodeStakeAddress n
+       )
+    => SpecWith Context
 spec = describe "SHARED_TRANSACTIONS" $ do
 
     it "SHARED_TRANSACTIONS_CREATE_01 - \

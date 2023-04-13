@@ -22,7 +22,6 @@ import Cardano.Wallet.Api.Types
     , ApiByronWallet
     , ApiPutAddressesData
     , ApiT (..)
-    , DecodeAddress
     , WalletStyle (..)
     )
 import Cardano.Wallet.Primitive.AddressDerivation
@@ -90,12 +89,13 @@ import Web.HttpApiData
 import qualified Cardano.Wallet.Api.Link as Link
 import qualified Network.HTTP.Types.Status as HTTP
 
-spec :: forall n.
-    ( DecodeAddress n
-    , HasSNetworkId n
-    , PaymentAddress n ByronKey 'CredFromKeyK
-    , PaymentAddress n IcarusKey 'CredFromKeyK
-    ) => SpecWith Context
+spec
+    :: forall n
+     . ( HasSNetworkId n
+       , PaymentAddress n ByronKey 'CredFromKeyK
+       , PaymentAddress n IcarusKey 'CredFromKeyK
+       )
+    => SpecWith Context
 spec = do
     describe "BYRON_ADDRESSES" $ do
         scenario_ADDRESS_LIST_01 @n emptyRandomWallet 2
@@ -123,7 +123,7 @@ spec = do
 
 scenario_ADDRESS_LIST_01
     :: forall (n :: NetworkDiscriminant)
-     . DecodeAddress n
+     . HasSNetworkId n
     => (Context -> ResourceT IO ApiByronWallet)
     -> Int
     -> SpecWith Context
@@ -144,7 +144,7 @@ scenario_ADDRESS_LIST_01 fixture derPathSize = it title $ \ctx -> runResourceT $
 
 scenario_ADDRESS_LIST_02
     :: forall (n :: NetworkDiscriminant)
-     . DecodeAddress n
+     . HasSNetworkId n
     => (Context -> ResourceT IO ApiByronWallet)
     -> SpecWith Context
 scenario_ADDRESS_LIST_02 fixture = it title $ \ctx -> runResourceT $ do
@@ -172,7 +172,7 @@ scenario_ADDRESS_LIST_02 fixture = it title $ \ctx -> runResourceT $ do
 
 scenario_ADDRESS_LIST_04
     :: forall (n :: NetworkDiscriminant)
-     . DecodeAddress n
+     . HasSNetworkId n
     => (Context -> ResourceT IO ApiByronWallet)
     -> SpecWith Context
 scenario_ADDRESS_LIST_04 fixture = it title $ \ctx -> runResourceT $ do
@@ -187,7 +187,7 @@ scenario_ADDRESS_LIST_04 fixture = it title $ \ctx -> runResourceT $ do
     title = "ADDRESS_LIST_04 - Delete wallet"
 
 scenario_ADDRESS_CREATE_01
-    :: forall (n :: NetworkDiscriminant). DecodeAddress n => SpecWith Context
+    :: forall (n :: NetworkDiscriminant). HasSNetworkId n => SpecWith Context
 scenario_ADDRESS_CREATE_01 = it title $ \ctx -> runResourceT $ do
     w <- emptyRandomWallet ctx
     let payload = Json [json| { "passphrase": #{fixturePassphrase} }|]
@@ -200,7 +200,7 @@ scenario_ADDRESS_CREATE_01 = it title $ \ctx -> runResourceT $ do
     title = "ADDRESS_CREATE_01 - Can create a random address without index"
 
 scenario_ADDRESS_CREATE_02
-    :: forall (n :: NetworkDiscriminant). DecodeAddress n => SpecWith Context
+    :: forall (n :: NetworkDiscriminant). HasSNetworkId n => SpecWith Context
 scenario_ADDRESS_CREATE_02 = it title $ \ctx -> runResourceT $ do
     w <- emptyIcarusWallet ctx
     let payload = Json [json| { "passphrase": #{fixturePassphrase} }|]
@@ -213,7 +213,7 @@ scenario_ADDRESS_CREATE_02 = it title $ \ctx -> runResourceT $ do
     title = "ADDRESS_CREATE_02 - Creation is forbidden on Icarus wallets"
 
 scenario_ADDRESS_CREATE_03
-    :: forall (n :: NetworkDiscriminant). DecodeAddress n => SpecWith Context
+    :: forall (n :: NetworkDiscriminant). HasSNetworkId n => SpecWith Context
 scenario_ADDRESS_CREATE_03 = it title $ \ctx -> runResourceT $ do
     w <- emptyRandomWallet ctx
     let payload = Json [json| { "passphrase": "Give me all your money." }|]
@@ -226,7 +226,7 @@ scenario_ADDRESS_CREATE_03 = it title $ \ctx -> runResourceT $ do
     title = "ADDRESS_CREATE_03 - Cannot create a random address with wrong passphrase"
 
 scenario_ADDRESS_CREATE_04
-    :: forall (n :: NetworkDiscriminant). DecodeAddress n => SpecWith Context
+    :: forall (n :: NetworkDiscriminant). HasSNetworkId n => SpecWith Context
 scenario_ADDRESS_CREATE_04 = it title $ \ctx -> runResourceT $ do
     w <- emptyRandomWallet ctx
 
@@ -244,7 +244,7 @@ scenario_ADDRESS_CREATE_04 = it title $ \ctx -> runResourceT $ do
     title = "ADDRESS_CREATE_04 - Can list address after creating it"
 
 scenario_ADDRESS_CREATE_05
-    :: forall (n :: NetworkDiscriminant). DecodeAddress n => SpecWith Context
+    :: forall (n :: NetworkDiscriminant). HasSNetworkId n => SpecWith Context
 scenario_ADDRESS_CREATE_05 = it title $ \ctx -> runResourceT $ do
     w <- emptyRandomWallet ctx
     let payload = Json [json|
@@ -260,7 +260,7 @@ scenario_ADDRESS_CREATE_05 = it title $ \ctx -> runResourceT $ do
     title = "ADDRESS_CREATE_05 - Can create an address and specify the index"
 
 scenario_ADDRESS_CREATE_06
-    :: forall (n :: NetworkDiscriminant). DecodeAddress n => SpecWith Context
+    :: forall (n :: NetworkDiscriminant). HasSNetworkId n => SpecWith Context
 scenario_ADDRESS_CREATE_06 = it title $ \ctx -> runResourceT $ do
     w <- emptyRandomWallet ctx
     let payload = Json [json|
@@ -279,8 +279,7 @@ scenario_ADDRESS_CREATE_06 = it title $ \ctx -> runResourceT $ do
 
 scenario_ADDRESS_IMPORT_01
     :: forall (n :: NetworkDiscriminant).
-        ( DecodeAddress n
-        , HasSNetworkId n
+        ( HasSNetworkId n
         , PaymentAddress n ByronKey 'CredFromKeyK
         )
     => (Context -> ResourceT IO (ApiByronWallet, Mnemonic 12))
@@ -352,8 +351,7 @@ scenario_ADDRESS_IMPORT_03 fixture = it title $ \ctx -> runResourceT $ do
 
 scenario_ADDRESS_IMPORT_04
     :: forall (n :: NetworkDiscriminant).
-        ( DecodeAddress n
-        , HasSNetworkId n
+        ( HasSNetworkId n
         )
     => (Context -> ResourceT IO ApiByronWallet)
     -> SpecWith Context
@@ -380,8 +378,7 @@ scenario_ADDRESS_IMPORT_04 fixture = it title $ \ctx -> runResourceT $ do
 
 scenario_ADDRESS_IMPORT_05
     :: forall (n :: NetworkDiscriminant).
-        ( DecodeAddress n
-        , HasSNetworkId n
+        ( HasSNetworkId n
         , PaymentAddress n ByronKey 'CredFromKeyK
         )
     => Int

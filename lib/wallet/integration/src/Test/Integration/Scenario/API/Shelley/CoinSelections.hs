@@ -25,7 +25,6 @@ import Cardano.Wallet.Api.Types
     , ApiCoinSelectionOutput (..)
     , ApiT (..)
     , ApiWallet
-    , DecodeAddress
     , DecodeStakeAddress
     , WalletStyle (..)
     )
@@ -101,11 +100,12 @@ import qualified Data.Text as T
 import qualified Data.Text.Encoding as T
 import qualified Network.HTTP.Types as HTTP
 
-spec :: forall n.
-    ( DecodeAddress n
-    , DecodeStakeAddress n
-    , HasSNetworkId n
-    ) => SpecWith Context
+spec
+    :: forall n
+     . ( HasSNetworkId n
+       , DecodeStakeAddress n
+       )
+    => SpecWith Context
 spec = describe "SHELLEY_COIN_SELECTION" $ do
 
     it "WALLETS_COIN_SELECTION_01 - \

@@ -25,7 +25,6 @@ import Cardano.Wallet.Api.Types
     , ApiTxId (..)
     , ApiWallet
     , ApiWalletDiscovery (..)
-    , DecodeAddress
     , DecodeStakeAddress
     , WalletStyle (..)
     )
@@ -123,11 +122,12 @@ data TestCase a = TestCase
     , assertions :: [(HTTP.Status, Either RequestException a) -> IO ()]
     }
 
-spec :: forall n.
-    ( DecodeAddress n
-    , DecodeStakeAddress n
-    , HasSNetworkId n
-    ) => SpecWith Context
+spec
+    :: forall n
+     . ( HasSNetworkId n
+       , DecodeStakeAddress n
+       )
+    => SpecWith Context
 spec = describe "BYRON_TRANSACTIONS" $ do
 
     describe "BYRON_TRANS_ASSETS_CREATE_01 - Multi-asset transaction with ADA" $

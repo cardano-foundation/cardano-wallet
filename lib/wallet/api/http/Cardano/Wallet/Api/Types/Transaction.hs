@@ -66,7 +66,7 @@ import Cardano.Wallet.Primitive.Types.Tx.TxIn
 import Cardano.Wallet.Read.NetworkId
     ( HasSNetworkId, NetworkDiscriminant )
 import Cardano.Wallet.Shelley.Network.Discriminant
-    ( DecodeAddress, DecodeStakeAddress, EncodeStakeAddress )
+    ( DecodeStakeAddress, EncodeStakeAddress )
 import Cardano.Wallet.Transaction
     ( AnyExplicitScript (..)
     , ValidityIntervalExplicit (..)
@@ -192,7 +192,7 @@ data ApiTxInputGeneral (n :: NetworkDiscriminant) =
     deriving anyclass NFData
 
 instance
-    ( DecodeAddress n
+    ( HasSNetworkId n
     , DecodeStakeAddress n
     ) => FromJSON (ApiTxInputGeneral n)
   where
@@ -272,7 +272,7 @@ data ApiTxOutputGeneral (n :: NetworkDiscriminant) =
     deriving anyclass NFData
 
 instance
-    ( DecodeAddress n
+    ( HasSNetworkId n
     , DecodeStakeAddress n
     ) => FromJSON (ApiTxOutputGeneral n)
   where

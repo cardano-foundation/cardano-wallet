@@ -66,7 +66,6 @@ import Cardano.Wallet.Api.Types
     , ApiWallet
     , ApiWalletInput (..)
     , ApiWalletOutput (..)
-    , DecodeAddress
     , DecodeStakeAddress
     , ResourceContext (..)
     , WalletStyle (..)
@@ -243,11 +242,12 @@ import qualified Data.Text.Encoding as T
 import qualified Network.HTTP.Types.Status as HTTP
 import qualified Test.Integration.Plutus as PlutusScenario
 
-spec :: forall n.
-    ( DecodeAddress n
-    , DecodeStakeAddress n
-    , HasSNetworkId n
-    ) => SpecWith Context
+spec
+    :: forall n
+     . ( HasSNetworkId n
+       , DecodeStakeAddress n
+       )
+    => SpecWith Context
 spec = describe "NEW_SHELLEY_TRANSACTIONS" $ do
     it "TRANS_NEW_CREATE_01a - Empty payload is not allowed" $ \ctx -> runResourceT $ do
         wa <- fixtureWallet ctx
