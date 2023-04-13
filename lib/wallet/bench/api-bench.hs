@@ -98,7 +98,7 @@ import Cardano.Wallet.Primitive.Types.UTxOStatistics
 import Cardano.Wallet.Read.NetworkId
     ( HasSNetworkId (..), NetworkDiscriminant (..), SNetworkId (..) )
 import Cardano.Wallet.Shelley.Network.Discriminant
-    ( HasNetworkId, networkIdVal )
+    ( networkIdVal )
 import Cardano.Wallet.Shelley.Transaction
     ( TxWitnessTagFor (..), newTransactionLayer )
 import Cardano.Wallet.Transaction
@@ -542,16 +542,16 @@ data BenchmarkConfig (n :: NetworkDiscriminant) s k ktype =
 -- | Run benchmarks on all wallet databases in a given directory.
 benchmarkWallets
     :: forall (n :: NetworkDiscriminant) (k :: Depth -> * -> *) ktype s results
-    .   ( NFData s
-        , Show s
-        , PersistAddressBook s
-        , WalletKey k
-        , PersistPrivateKey (k 'RootK)
-        , TxWitnessTagFor k
-        , HasNetworkId n
-        , Buildable results
-        , ToJSON results
-        )
+     . ( NFData s
+       , Show s
+       , PersistAddressBook s
+       , WalletKey k
+       , PersistPrivateKey (k 'RootK)
+       , TxWitnessTagFor k
+       , Buildable results
+       , ToJSON results
+       , HasSNetworkId n
+       )
     => Text
         -- ^ Benchmark name (used for naming resulting files)
     -> FilePath
@@ -602,20 +602,20 @@ mockTimeInterpreter :: TimeInterpreter IO
 mockTimeInterpreter = dummyTimeInterpreter
 
 withWalletsFromDirectory
-    :: forall (n :: NetworkDiscriminant) s k ktype a.
-        ( PersistAddressBook s
-        , PersistPrivateKey (k 'RootK)
-        , WalletKey k
-        , HasNetworkId n
-        , TxWitnessTagFor k
-        )
+    :: forall (n :: NetworkDiscriminant) s k ktype a
+     . ( PersistAddressBook s
+       , PersistPrivateKey (k 'RootK)
+       , WalletKey k
+       , TxWitnessTagFor k
+       , HasSNetworkId n
+       )
     => FilePath
         -- ^ Directory of database files
     -> Trace IO Text
     -> Proxy n
     -> (MockWalletLayer IO s k ktype -> WalletId -> IO a)
     -> IO [a]
-withWalletsFromDirectory dir tr proxy action = do
+withWalletsFromDirectory dir tr _proxy action = do
     DB.DBFactory{listDatabases,withDatabase}
         <- DB.newDBFactory tr' migrationDefaultValues ti (Just dir)
     wids <- listDatabases
@@ -625,7 +625,7 @@ withWalletsFromDirectory dir tr proxy action = do
     mkMockWalletLayer db =
         MockWalletLayer mockNetworkLayer tl db tr
     ti = mockTimeInterpreter
-    tl = newTransactionLayer @k (networkIdVal proxy)
+    tl = newTransactionLayer @k (networkIdVal (sNetworkId @n))
     tr' = trMessageText tr
     migrationDefaultValues = Sqlite.DefaultFieldValues
         { Sqlite.defaultActiveSlotCoefficient = 1

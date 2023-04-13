@@ -161,7 +161,7 @@ import Cardano.Wallet.Shelley.Compatibility
     , numberOfTransactionsInBlock
     )
 import Cardano.Wallet.Shelley.Network.Discriminant
-    ( HasNetworkId (networkIdVal) )
+    ( networkIdVal )
 import Cardano.Wallet.Shelley.Network.Node
     ( withNetworkLayer )
 import Cardano.Wallet.Shelley.Transaction
@@ -655,7 +655,7 @@ instance ToJSON BenchBaselineResults where
 {- HLINT ignore bench_baseline_restoration "Use camelCase" -}
 bench_baseline_restoration
     :: forall (n :: NetworkDiscriminant) .
-        ( HasNetworkId n
+        ( HasSNetworkId n
         )
     => PipeliningStrategy (CardanoBlock StandardCrypto)
     -> Proxy n
@@ -674,7 +674,7 @@ bench_baseline_restoration
     -- ^ Target sync progress
     -> IO SomeBenchmarkResults
 bench_baseline_restoration
-    pipeliningStrat proxy tr wlTr socket np vData benchName
+    pipeliningStrat _proxy tr wlTr socket np vData benchName
         traceToDisk targetSync = do
             putStrLn $ "*** " ++ T.unpack benchName
             withRestoreEnvironment doRestore
@@ -685,7 +685,7 @@ bench_baseline_restoration
                 networkTrace pipeliningStrat np socket vData sTol $ \nw ->
                     action progressTrace nw
       where
-        networkId = networkIdVal proxy
+        networkId = networkIdVal (sNetworkId @n)
         networkTrace = trMessageText wlTr
     doRestore
         :: Tracer IO (Maybe (Quantity "block" Word32))
@@ -736,7 +736,7 @@ bench_restoration
         , CompareDiscovery s
         , KnownAddresses s
         , PersistPrivateKey (k 'RootK)
-        , HasNetworkId n
+        , HasSNetworkId n
         , TxWitnessTagFor k
         , Buildable results
         , ToJSON results
@@ -764,7 +764,7 @@ bench_restoration
     pipeliningStrat proxy tr wlTr socket np vData benchname (wid, wname, s) traceToDisk
         targetSync benchmarks = do
     putStrLn $ "*** " ++ T.unpack benchname
-    let networkId = networkIdVal proxy
+    let networkId = networkIdVal (sNetworkId @n)
     let tl = newTransactionLayer @k networkId
     let gp = genesisParameters np
     withNetworkLayer (trMessageText wlTr) pipeliningStrat
@@ -900,7 +900,7 @@ withBenchDBLayer ti tr action =
     tr' = trMessageText tr
 
 prepareNode
-    :: forall n. HasNetworkId n
+    :: forall n. HasSNetworkId n
     => Tracer IO (BenchmarkLog n)
     -> Proxy n
     -> CardanoNodeConn
@@ -909,7 +909,7 @@ prepareNode
     -> IO ()
 prepareNode tr proxy socketPath np vData = do
     traceWith tr $ MsgSyncStart proxy
-    let networkId = networkIdVal proxy
+    let networkId = networkIdVal (sNetworkId @n)
     sl <- withNetworkLayer nullTracer
             tunedForMainnetPipeliningStrategy
             np socketPath vData sTol $ \nw' -> do

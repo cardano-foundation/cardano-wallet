@@ -111,7 +111,6 @@ import Cardano.Wallet.Shelley.Network.Discriminant
     , DecodeStakeAddress
     , EncodeAddress
     , EncodeStakeAddress
-    , HasNetworkId
     , SomeNetworkDiscriminant (..)
     , networkDiscriminantToId
     )
@@ -312,7 +311,6 @@ serveWallet
             , EncodeStakeAddress n
             , DecodeStakeAddress n
             , HasSNetworkId n
-            , HasNetworkId n
             , Typeable n
             )
         => Proxy n
