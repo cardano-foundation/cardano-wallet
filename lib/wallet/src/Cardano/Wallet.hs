@@ -2104,7 +2104,8 @@ buildAndSignTransactionPure
         (unsignedBalancedTx, updatedWalletState) <- lift $
             buildTransactionPure @s @k @n @recentEra
                 wallet ti utxoIndex txLayer changeAddrGen
-                (toBalanceTxPParams protocolParams) preSelection txCtx
+                (unsafeFromWalletProtocolParameters protocolParams)
+                preSelection txCtx
         put wallet { getState = updatedWalletState }
 
         let passphrase = preparePassphrase passphraseScheme userPassphrase
@@ -2202,7 +2203,7 @@ buildTransaction DBLayer{..} txLayer timeInterpreter walletId
                 utxoIndex
                 txLayer
                 changeAddrGen
-                (toBalanceTxPParams protocolParameters)
+                (unsafeFromWalletProtocolParameters protocolParameters)
                 PreSelection { outputs = paymentOuts }
                 txCtx
                 & runExceptT . withExceptT
@@ -2869,7 +2870,7 @@ delegationFee
 delegationFee db@DBLayer{atomically, walletsDB} netLayer
     txLayer ti era changeAddressGen walletId = do
     WriteTx.withRecentEra era $ \(recentEra :: WriteTx.RecentEra era) -> do
-        protocolParams <- toBalanceTxPParams
+        protocolParams <- unsafeFromWalletProtocolParameters
             <$> liftIO (currentProtocolParameters netLayer)
         wallet <- liftIO . atomically $ readDBVar walletsDB >>= \wallets ->
             case Map.lookup walletId wallets of
@@ -3851,15 +3852,15 @@ defaultChangeAddressGen arg proxy =
         (maxLengthAddressFor proxy)
 
 -- TODO: ADP-2459 - replace with something nicer.
-toBalanceTxPParams
+unsafeFromWalletProtocolParameters
     :: forall era. Cardano.IsShelleyBasedEra era
     => ProtocolParameters
     -> Read.ProtocolParameters era
-toBalanceTxPParams pp = Read.ProtocolParameters
+unsafeFromWalletProtocolParameters pp = Read.ProtocolParameters
     { pparamsWallet = pp
     , pparamsNode = maybe
         (error $ unwords
-            [ "toBalanceTxPParams: no nodePParams."
+            [ "unsafeFromWalletProtocolParameters: no nodePParams."
             , "This should only be possible in Byron, where IsShelleyBasedEra"
             , "should prevent this from being reached."
             ])
