@@ -85,6 +85,7 @@ import qualified Database.Schema as Sql
 
 import Data.DBVar
 import Data.Delta
+import Data.Store
 
 {-------------------------------------------------------------------------------
     (Mock) address type

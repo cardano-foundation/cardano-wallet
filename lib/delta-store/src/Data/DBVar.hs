@@ -19,18 +19,6 @@ module Data.DBVar (
       DBVar
     , readDBVar, updateDBVar, modifyDBVar, modifyDBMaybe
     , initDBVar, loadDBVar
-
-    -- * Store re-exports
-    , Store (..)
-    , newStore
-    , NotInitialized (..)
-    -- $EitherSomeException
-    , embedStore, pairStores
-
-    -- * Testing
-    , embedStore'
-    , updateLoad
-    , newCachedStore
     ) where
 
 import Prelude
@@ -42,15 +30,7 @@ import Control.Monad.Class.MonadThrow
 import Data.Delta
     ( Delta (..) )
 import Data.Store
-    ( NotInitialized (..)
-    , Store (..)
-    , embedStore
-    , embedStore'
-    , newCachedStore
-    , newStore
-    , pairStores
-    , updateLoad
-    )
+    ( Store (..) )
 
 {-------------------------------------------------------------------------------
     DBVar

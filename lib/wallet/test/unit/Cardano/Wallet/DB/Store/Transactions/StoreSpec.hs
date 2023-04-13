@@ -50,14 +50,14 @@ import Cardano.Wallet.Primitive.Types.Tx
     ( Tx (..) )
 import Control.Monad
     ( forM_, (<=<) )
-import Data.DBVar
-    ( Store (..) )
 import Data.Delta
     ( Delta (..) )
 import Data.Functor.Identity
     ( Identity (..) )
 import Data.Generics.Internal.VL
     ( set )
+import Data.Store
+    ( Store (..) )
 import Test.DBVar
     ( GenDelta, prop_StoreUpdates )
 import Test.Hspec

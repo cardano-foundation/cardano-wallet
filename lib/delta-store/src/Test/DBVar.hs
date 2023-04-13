@@ -13,10 +13,10 @@ import Control.Exception.Safe
     ( impureThrow )
 import Control.Monad
     ( forM_ )
-import Data.DBVar
-    ( Store (loadS, updateS, writeS) )
 import Data.Delta
     ( Delta (..) )
+import Data.Store
+    ( Store (loadS, updateS, writeS) )
 import Fmt
     ( Buildable, listF, pretty )
 import Test.QuickCheck

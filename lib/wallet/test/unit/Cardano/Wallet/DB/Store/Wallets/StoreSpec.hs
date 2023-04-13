@@ -26,7 +26,7 @@ import Cardano.Wallet.DB.Store.Wallets.Model
     ( DeltaTxWalletsHistory (..) )
 import Cardano.Wallet.DB.Store.Wallets.Store
     ( mkStoreTxWalletsHistory )
-import Data.DBVar
+import Data.Store
     ( newStore )
 import Test.DBVar
     ( GenDelta, prop_StoreUpdates )

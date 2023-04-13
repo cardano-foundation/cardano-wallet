@@ -14,15 +14,19 @@ module Data.Store (
 
     -- * Store
       Store (..)
-    , newStore
-    , NotInitialized (..)
     -- $EitherSomeException
-    , embedStore, pairStores
+
+    -- * Helpers
+    , updateLoad
+
+    -- * Combinators
+    , embedStore
+    , pairStores
+    , newCachedStore
 
     -- * Testing
     , embedStore'
-    , updateLoad
-    , newCachedStore
+    , newStore, NotInitialized (..)
     ) where
 
 import Prelude

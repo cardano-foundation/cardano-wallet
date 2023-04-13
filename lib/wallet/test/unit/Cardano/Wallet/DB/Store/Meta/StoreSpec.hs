@@ -41,10 +41,10 @@ import Cardano.Wallet.Primitive.Types
     ( Range (..), SortOrder (Ascending, Descending), WalletId )
 import Control.Monad
     ( forM_, (<=<) )
-import Data.DBVar
-    ( Store (..) )
 import Data.Foldable
     ( toList )
+import Data.Store
+    ( Store (..) )
 import GHC.Natural
     ( Natural )
 import Test.DBVar

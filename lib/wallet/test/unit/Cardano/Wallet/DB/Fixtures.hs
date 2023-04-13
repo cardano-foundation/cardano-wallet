@@ -45,12 +45,12 @@ import Control.Tracer
     ( nullTracer )
 import Data.Bifunctor
     ( second )
-import Data.DBVar
-    ( Store (loadS, updateS) )
 import Data.Delta
     ( Delta (Base) )
 import Data.Either
     ( fromRight )
+import Data.Store
+    ( Store (loadS, updateS) )
 import Data.Time.Clock
     ( UTCTime )
 import Data.Time.Clock.POSIX

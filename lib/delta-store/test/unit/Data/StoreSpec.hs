@@ -8,10 +8,10 @@ module Data.StoreSpec
 
 import Prelude
 
-import Data.DBVar
-    ( Store (..), newCachedStore, newStore )
 import Data.Delta
     ( Delta (..) )
+import Data.Store
+    ( Store (..), newCachedStore, newStore )
 import Fmt
     ( Buildable (..) )
 import Test.DBVar
