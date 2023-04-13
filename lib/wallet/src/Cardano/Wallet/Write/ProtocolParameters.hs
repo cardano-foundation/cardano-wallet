@@ -18,7 +18,9 @@ import Prelude
 import qualified Cardano.Api as CardanoApi
 import qualified Cardano.Wallet.Primitive.Types as Wallet
 
--- TODO: Make this data type abstract: don't export the constructor.
+-- TODO:
+--  - Make this data type abstract: don't export the constructor.
+--  - Replace this type with a re-exported 'Ledger.PParams era'.
 data ProtocolParameters era = ProtocolParameters
     { pparamsWallet
         :: !Wallet.ProtocolParameters
