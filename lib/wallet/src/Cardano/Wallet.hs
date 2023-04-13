@@ -3852,7 +3852,7 @@ defaultChangeAddressGen arg proxy =
 
 -- TODO: ADP-2459 - replace with something nicer.
 toBalanceTxPParams
-    :: forall era. WriteTx.IsRecentEra era
+    :: forall era. Cardano.IsShelleyBasedEra era
     => ProtocolParameters
     -> Read.ProtocolParameters era
 toBalanceTxPParams pp = Read.ProtocolParameters
@@ -3860,10 +3860,9 @@ toBalanceTxPParams pp = Read.ProtocolParameters
     , pparamsNode = maybe
         (error $ unwords
             [ "toBalanceTxPParams: no nodePParams."
-            , "This should only be possible in Byron, where withRecentEra"
+            , "This should only be possible in Byron, where IsShelleyBasedEra"
             , "should prevent this from being reached."
             ])
-        (Cardano.bundleProtocolParams
-            (WriteTx.fromRecentEra (WriteTx.recentEra @era)))
-        $ currentNodeProtocolParameters pp
+        (Cardano.bundleProtocolParams (Cardano.cardanoEra @era))
+        (currentNodeProtocolParameters pp)
     }
