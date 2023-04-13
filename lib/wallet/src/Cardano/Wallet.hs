@@ -455,7 +455,7 @@ import Cardano.Wallet.Primitive.Types.UTxOSelection
 import Cardano.Wallet.Primitive.Types.UTxOStatistics
     ( UTxOStatistics )
 import Cardano.Wallet.Read.NetworkId
-    ( HasSNetworkId, NetworkDiscriminant, NetworkDiscriminantBits )
+    ( HasSNetworkId, NetworkDiscriminant )
 import Cardano.Wallet.Read.Tx.CBOR
     ( TxCBOR )
 import Cardano.Wallet.Shelley.Compatibility
@@ -807,7 +807,6 @@ createIcarusWallet
         , PaymentAddress n k 'CredFromKeyK
         , k ~ IcarusKey
         , s ~ SeqState n k
-        , NetworkDiscriminantBits n
         , HasSNetworkId n
         )
     => ctx
@@ -2358,7 +2357,6 @@ constructTransaction txLayer netLayer db wid txCtx preSel = do
 constructUnbalancedSharedTransaction
     :: forall (n :: NetworkDiscriminant) ktype era block
      . ( WriteTx.IsRecentEra era
-       , NetworkDiscriminantBits n
        , HasSNetworkId n)
     => TransactionLayer SharedKey ktype SealedTx
     -> NetworkLayer IO block

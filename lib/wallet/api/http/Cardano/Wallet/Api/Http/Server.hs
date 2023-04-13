@@ -192,13 +192,13 @@ import Cardano.Wallet.Primitive.AddressDiscovery.Shared
 import Cardano.Wallet.Primitive.Types
     ( PoolMetadataSource (..), SmashServer (..), poolMetadataSource )
 import Cardano.Wallet.Read.NetworkId
-    ( HasSNetworkId, NetworkDiscriminantBits )
+    ( HasSNetworkId (..) )
 import Cardano.Wallet.Shelley.BlockchainSource
     ( BlockchainSource (..) )
 import Cardano.Wallet.Shelley.Compatibility
     ( inspectAddress, rewardAccountFromAddress )
 import Cardano.Wallet.Shelley.Network.Discriminant
-    ( HasNetworkId (networkIdVal) )
+    ( networkIdVal )
 import Control.Applicative
     ( liftA2 )
 import Control.Monad
@@ -217,8 +217,6 @@ import Data.List
     ( sortOn )
 import Data.Maybe
     ( fromJust )
-import Data.Proxy
-    ( Proxy (..) )
 import Data.Text.Class
     ( TextDecodingError (..) )
 import Network.Ntp
@@ -242,9 +240,7 @@ server
         ( PaymentAddress n IcarusKey 'CredFromKeyK
         , PaymentAddress n ByronKey 'CredFromKeyK
         , DelegationAddress n ShelleyKey 'CredFromKeyK
-        , NetworkDiscriminantBits n
         , HasSNetworkId n
-        , HasNetworkId n
         )
     => ApiLayer (RndState n) ByronKey 'CredFromKeyK
     -> ApiLayer (SeqState n IcarusKey) IcarusKey 'CredFromKeyK
@@ -269,7 +265,7 @@ server byron icarus shelley multisig spl ntp blockchainSource =
     :<|> byronCoinSelections
     :<|> byronTransactions
     :<|> byronMigrations
-    :<|> network' (networkIdVal (Proxy @n))
+    :<|> network' (networkIdVal (sNetworkId @n))
     :<|> proxy
     :<|> settingS
     :<|> smash
@@ -308,7 +304,7 @@ server byron icarus shelley multisig spl ntp blockchainSource =
     addresses :: Server (Addresses n)
     addresses = listAddresses shelley (normalizeDelegationAddress @_ @ShelleyKey @n)
         :<|> (handler ApiAddressInspect . inspectAddress . unApiAddressInspectData)
-        :<|> (handler id . postAnyAddress (networkIdVal (Proxy @n)))
+        :<|> (handler id . postAnyAddress (networkIdVal (sNetworkId @n)))
       where
         toServerError :: TextDecodingError -> ServerError
         toServerError = apiError err400 BadRequest . T.pack . getTextDecodingError

@@ -18,7 +18,8 @@ module Cardano.Wallet.Shelley.Network.Discriminant
     , EncodeStakeAddress (..)
     , DecodeAddress (..)
     , DecodeStakeAddress (..)
-    , HasNetworkId (..)
+    , withSNetworkId
+    , networkIdVal
     ) where
 
 import Prelude
@@ -36,10 +37,10 @@ import Cardano.Wallet.Primitive.AddressDerivation.Shelley
 import Cardano.Wallet.Primitive.Types.Address
     ( Address (..) )
 import Cardano.Wallet.Read.NetworkId
-    ( HasSNetworkId
+    ( HasSNetworkId (sNetworkId)
     , NetworkDiscriminant (..)
-    , NetworkDiscriminantBits
-    , NetworkDiscriminantVal
+    , SNetworkId (..)
+    , fromSNat
     )
 import Control.Arrow
     ( (>>>) )
@@ -51,8 +52,6 @@ import Data.Text.Class
     ( TextDecodingError )
 import Data.Typeable
     ( Typeable )
-import GHC.TypeLits
-    ( KnownNat, natVal )
 
 import qualified Cardano.Api as Cardano
 import qualified Cardano.Ledger.BaseTypes as Ledger
@@ -63,8 +62,7 @@ import qualified Cardano.Wallet.Primitive.Types.RewardAccount as W
 data SomeNetworkDiscriminant where
     SomeNetworkDiscriminant
         :: forall (n :: NetworkDiscriminant).
-            ( NetworkDiscriminantVal n
-            , PaymentAddress n IcarusKey 'CredFromKeyK
+            ( PaymentAddress n IcarusKey 'CredFromKeyK
             , PaymentAddress n ByronKey 'CredFromKeyK
             , PaymentAddress n ShelleyKey 'CredFromKeyK
             , EncodeAddress n
@@ -72,8 +70,6 @@ data SomeNetworkDiscriminant where
             , EncodeStakeAddress n
             , DecodeStakeAddress n
             , DelegationAddress n ShelleyKey 'CredFromKeyK
-            , HasNetworkId n
-            , NetworkDiscriminantBits n
             , HasSNetworkId n
             , Typeable n
             )
@@ -99,7 +95,7 @@ class DecodeStakeAddress (n :: NetworkDiscriminant) where
     decodeStakeAddress :: Text -> Either TextDecodingError W.RewardAccount
 
 networkDiscriminantToId :: SomeNetworkDiscriminant -> NetworkId
-networkDiscriminantToId (SomeNetworkDiscriminant proxy) = networkIdVal proxy
+networkDiscriminantToId some = withSNetworkId some networkIdVal
 
 discriminantNetwork :: SomeNetworkDiscriminant -> Ledger.Network
 discriminantNetwork = networkDiscriminantToId >>> \case
@@ -107,14 +103,15 @@ discriminantNetwork = networkDiscriminantToId >>> \case
     Cardano.Testnet _magic -> Ledger.Testnet
 
 -- | Class to extract a @NetworkId@ from @NetworkDiscriminant@.
-class HasNetworkId (n :: NetworkDiscriminant) where
-    networkIdVal :: Proxy n -> NetworkId
-
-instance HasNetworkId 'Mainnet where
-    networkIdVal _ = Cardano.Mainnet
-
-instance KnownNat protocolMagic => HasNetworkId ('Testnet protocolMagic) where
-    networkIdVal _ = Cardano.Testnet networkMagic
+networkIdVal :: SNetworkId n -> NetworkId
+networkIdVal SMainnet = Cardano.Mainnet
+networkIdVal (STestnet snat) = Cardano.Testnet networkMagic
       where
         networkMagic =
-            Cardano.NetworkMagic . fromIntegral . natVal $ Proxy @protocolMagic
+            Cardano.NetworkMagic . fromIntegral $ fromSNat snat
+
+withSNetworkId
+    :: SomeNetworkDiscriminant
+    -> (forall (n :: NetworkDiscriminant). HasSNetworkId n => SNetworkId n -> r)
+    -> r
+withSNetworkId (SomeNetworkDiscriminant (_proxy :: Proxy n)) f = f $ sNetworkId @n

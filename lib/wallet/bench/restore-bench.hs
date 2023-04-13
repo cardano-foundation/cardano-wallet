@@ -144,10 +144,11 @@ import Cardano.Wallet.Primitive.Types.Tx.TxOut
 import Cardano.Wallet.Primitive.Types.UTxOStatistics
     ( UTxOStatistics (..) )
 import Cardano.Wallet.Read.NetworkId
-    ( HasSNetworkId
+    ( HasSNetworkId (sNetworkId)
     , NetworkDiscriminant (..)
-    , NetworkDiscriminantBits
-    , NetworkDiscriminantVal (..)
+    , SNetworkId (..)
+    , networkDiscriminantVal
+    , sNetworkIdOfProxy
     )
 import Cardano.Wallet.Shelley
     ( SomeNetworkDiscriminant (..) )
@@ -160,7 +161,7 @@ import Cardano.Wallet.Shelley.Compatibility
     , numberOfTransactionsInBlock
     )
 import Cardano.Wallet.Shelley.Network.Discriminant
-    ( HasNetworkId (networkIdVal) )
+    ( networkIdVal )
 import Cardano.Wallet.Shelley.Network.Node
     ( withNetworkLayer )
 import Cardano.Wallet.Shelley.Transaction
@@ -288,7 +289,8 @@ cardanoRestoreBench tr c socketFile = do
 
     (_, walletTr) <- initBenchmarkLogging "wallet" Notice
 
-    let network = networkDescription networkProxy
+    let network = networkDiscriminantVal $ sNetworkIdOfProxy networkProxy
+
     sayErr $ "Network: " <> network
     prepareNode (trMessageText tr) networkProxy socketFile np vData
 
@@ -380,7 +382,7 @@ cardanoRestoreBench tr c socketFile = do
             (wid, WalletName wname, s)
 
     mkSeqAnyState'
-        :: forall (p :: Nat) (n :: NetworkDiscriminant). (NetworkDiscriminantBits n, HasSNetworkId n)
+        :: forall (p :: Nat) (n :: NetworkDiscriminant). HasSNetworkId n
         => Proxy p
         -> Proxy n
         -> (ShelleyKey 'RootK XPrv, Passphrase "encryption")
@@ -398,9 +400,6 @@ cardanoRestoreBench tr c socketFile = do
         -> Int
         -> RndAnyState n p
     mkRndAnyState' _ _ = mkRndAnyState
-
-    networkDescription :: forall n. (NetworkDiscriminantVal n) => Proxy n -> Text
-    networkDescription _ = networkDiscriminantVal @n
 
 {-------------------------------------------------------------------------------
                                   Benchmarks
@@ -460,8 +459,7 @@ benchmarksRnd
         ( s ~ RndAnyState n p
         , k ~ ByronKey
         , PaymentAddress n k 'CredFromKeyK
-        , NetworkDiscriminantVal n
-        , NetworkDiscriminantBits n
+        , HasSNetworkId n
         , KnownNat p
         )
     => Proxy n
@@ -471,7 +469,7 @@ benchmarksRnd
     -> Text
     -> Time
     -> IO BenchRndResults
-benchmarksRnd _ w wid wname benchname restoreTime = do
+benchmarksRnd network w wid wname benchname restoreTime = do
     ((cp, pending), readWalletTime) <- bench "read wallet" $ do
         (cp, _, pending) <- unsafeRunExceptT $ W.readWallet w wid
         pure (cp, pending)
@@ -495,7 +493,7 @@ benchmarksRnd _ w wid wname benchname restoreTime = do
             (Just 100)
 
     (_, estimateFeesTime) <- bench "estimate tx fee" $ do
-        let out = TxOut (dummyAddress @n) (TokenBundle.fromCoin $ Coin 1)
+        let out = TxOut (dummyAddress network) (TokenBundle.fromCoin $ Coin 1)
         let txCtx = defaultTransactionCtx
         (utxoAvailable, wallet, pendingTxs) <-
             unsafeRunExceptT $ W.readWalletUTxOIndex @_ @s @k w wid
@@ -575,8 +573,6 @@ benchmarksSeq
         , k ~ ShelleyKey
         , HasSNetworkId n
         , PaymentAddress n k 'CredFromKeyK
-        , NetworkDiscriminantVal n
-        , NetworkDiscriminantBits n
         , KnownNat p
         )
     => Proxy n
@@ -586,7 +582,7 @@ benchmarksSeq
     -> Text -- ^ Bench name
     -> Time
     -> IO BenchSeqResults
-benchmarksSeq _ w wid _wname benchname restoreTime = do
+benchmarksSeq network w wid _wname benchname restoreTime = do
     ((cp, pending), readWalletTime) <- bench "read wallet" $ do
         (cp, _, pending) <- unsafeRunExceptT $ W.readWallet w wid
         pure (cp, pending)
@@ -609,7 +605,7 @@ benchmarksSeq _ w wid _wname benchname restoreTime = do
             (Just 100)
 
     (_, estimateFeesTime) <- bench "estimate tx fee" $ do
-        let out = TxOut (dummyAddress @n) (TokenBundle.fromCoin $ Coin 1)
+        let out = TxOut (dummyAddress network) (TokenBundle.fromCoin $ Coin 1)
         let txCtx = defaultTransactionCtx
         (utxoAvailable, wallet, pendingTxs) <-
             unsafeRunExceptT $ W.readWalletUTxOIndex w wid
@@ -659,8 +655,7 @@ instance ToJSON BenchBaselineResults where
 {- HLINT ignore bench_baseline_restoration "Use camelCase" -}
 bench_baseline_restoration
     :: forall (n :: NetworkDiscriminant) .
-        ( NetworkDiscriminantVal n
-        , HasNetworkId n
+        ( HasSNetworkId n
         )
     => PipeliningStrategy (CardanoBlock StandardCrypto)
     -> Proxy n
@@ -679,7 +674,7 @@ bench_baseline_restoration
     -- ^ Target sync progress
     -> IO SomeBenchmarkResults
 bench_baseline_restoration
-    pipeliningStrat proxy tr wlTr socket np vData benchName
+    pipeliningStrat _proxy tr wlTr socket np vData benchName
         traceToDisk targetSync = do
             putStrLn $ "*** " ++ T.unpack benchName
             withRestoreEnvironment doRestore
@@ -690,7 +685,7 @@ bench_baseline_restoration
                 networkTrace pipeliningStrat np socket vData sTol $ \nw ->
                     action progressTrace nw
       where
-        networkId = networkIdVal proxy
+        networkId = networkIdVal (sNetworkId @n)
         networkTrace = trMessageText wlTr
     doRestore
         :: Tracer IO (Maybe (Quantity "block" Word32))
@@ -741,8 +736,7 @@ bench_restoration
         , CompareDiscovery s
         , KnownAddresses s
         , PersistPrivateKey (k 'RootK)
-        , NetworkDiscriminantVal n
-        , HasNetworkId n
+        , HasSNetworkId n
         , TxWitnessTagFor k
         , Buildable results
         , ToJSON results
@@ -770,7 +764,7 @@ bench_restoration
     pipeliningStrat proxy tr wlTr socket np vData benchname (wid, wname, s) traceToDisk
         targetSync benchmarks = do
     putStrLn $ "*** " ++ T.unpack benchname
-    let networkId = networkIdVal proxy
+    let networkId = networkIdVal (sNetworkId @n)
     let tl = newTransactionLayer @k networkId
     let gp = genesisParameters np
     withNetworkLayer (trMessageText wlTr) pipeliningStrat
@@ -848,12 +842,14 @@ withWalletLayerTracer benchname pipelining traceToDisk act = do
         | otherwise -> act nullTracer
 
 dummyAddress
-    :: forall (n :: NetworkDiscriminant). NetworkDiscriminantVal n
-    => Address
-dummyAddress
-    | networkDiscriminantVal @n == networkDiscriminantVal @'Mainnet =
+    :: forall (n :: NetworkDiscriminant). HasSNetworkId n
+    => Proxy n
+    -> Address
+
+dummyAddress proxy = case sNetworkIdOfProxy proxy of
+    SMainnet ->
         Address $ BS.pack $ 0 : replicate 56 0
-    | otherwise =
+    _ ->
         Address $ BS.pack $ 1 : replicate 56 0
 
 -- | Hash the given text, and construct a mnemonic from it.
@@ -904,7 +900,7 @@ withBenchDBLayer ti tr action =
     tr' = trMessageText tr
 
 prepareNode
-    :: forall n. (NetworkDiscriminantVal n, HasNetworkId n)
+    :: forall n. HasSNetworkId n
     => Tracer IO (BenchmarkLog n)
     -> Proxy n
     -> CardanoNodeConn
@@ -913,7 +909,7 @@ prepareNode
     -> IO ()
 prepareNode tr proxy socketPath np vData = do
     traceWith tr $ MsgSyncStart proxy
-    let networkId = networkIdVal proxy
+    let networkId = networkIdVal (sNetworkId @n)
     sl <- withNetworkLayer nullTracer
             tunedForMainnetPipeliningStrategy
             np socketPath vData sTol $ \nw' -> do
@@ -926,8 +922,8 @@ prepareNode tr proxy socketPath np vData = do
 -- | Regularly poll the wallets to monitor syncing progress. Block until all
 -- wallets reach the given percentage.
 waitForWalletSyncTo
-    :: forall s k n. (NetworkDiscriminantVal n)
-    => Percentage
+    :: forall s k n
+    .  Percentage
     -> Tracer IO (BenchmarkLog n)
     -> Proxy n
     -> WalletLayer IO s k 'CredFromKeyK
@@ -966,8 +962,8 @@ reportProgress nw tr targetSync readSlot =  do
 -- | Poll the network tip until it reaches the slot corresponding to the current
 -- time.
 waitForNodeSync
-    :: forall n. (NetworkDiscriminantVal n)
-    => Tracer IO (BenchmarkLog n)
+    :: forall n
+    . Tracer IO (BenchmarkLog n)
     -> NetworkLayer IO Block
     -> IO SlotNo
 waitForNodeSync tr nw = loop 960 -- allow 240 minutes for first tip
@@ -1009,7 +1005,7 @@ instance HasSeverityAnnotation (BenchmarkLog n) where
         MsgSyncCompleted{} -> Info
         MsgRetryShortly{} -> Warning
 
-instance NetworkDiscriminantVal n => ToText (BenchmarkLog n) where
+instance HasSNetworkId n => ToText (BenchmarkLog n) where
     toText = \case
         MsgNodeTipTick tip progress ->
             "Initial node synchronization: "
@@ -1020,14 +1016,14 @@ instance NetworkDiscriminantVal n => ToText (BenchmarkLog n) where
                 +| progressList |+ ""
         MsgSyncStart _ ->
             "Syncing "
-                +| networkDiscriminantVal @n |+ " node... "
+                +| network |+ " node... "
         MsgSyncCompleted _ tip ->
             "Completed sync of "
-                +| networkDiscriminantVal @n |+ " up to " +|| tip ||+ ""
+                +| network |+ " up to " +|| tip ||+ ""
         MsgRetryShortly delay ->
             "Fetching tip failed, retrying in "
                 +|| (delay `div` 1000) ||+ "ms"
-
+        where network = networkDiscriminantVal $ sNetworkId @n
 
 -- | Format a type-level per-myriad number as percent
 --

@@ -453,5 +453,5 @@ instance PersistPublicKey (IcarusKey depth) where
 -- (which uses script hashes as credentials). Icarus and Byron addresses are
 -- differently constructed hence we ignore this check. Still for Icarus style we
 -- need this abstraction as it uses sequential discovery.
-instance NetworkDiscriminantCheck (n :: NetworkDiscriminant) IcarusKey where
-    networkDiscriminantCheck _ = True
+instance NetworkDiscriminantCheck IcarusKey where
+    networkDiscriminantCheck _ _ = True
