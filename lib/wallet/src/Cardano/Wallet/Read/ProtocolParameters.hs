@@ -18,6 +18,7 @@ import Prelude
 import qualified Cardano.Api as CardanoApi
 import qualified Cardano.Wallet.Primitive.Types as Wallet
 
+-- TODO: Make this data type abstract: don't export the constructor.
 data ProtocolParameters era = ProtocolParameters
     { pparamsWallet
         :: !Wallet.ProtocolParameters
