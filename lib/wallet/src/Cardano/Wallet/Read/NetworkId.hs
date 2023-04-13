@@ -14,7 +14,6 @@
 module Cardano.Wallet.Read.NetworkId
     ( NetworkDiscriminant (..)
     , networkDiscriminantVal
-    , NetworkDiscriminantBits
     , networkDiscriminantBits
     , NetworkDiscriminantCheck (..)
     , SNetworkId (..)
@@ -62,14 +61,6 @@ import qualified Data.Text as T
 data NetworkDiscriminant = Mainnet | Testnet Nat
     deriving (Typeable)
 
-class NetworkDiscriminantBits (n :: NetworkDiscriminant) where
-    networkDiscriminantBits :: Word8
-
-instance NetworkDiscriminantBits 'Mainnet where
-    networkDiscriminantBits = 0b00000001
-
-instance NetworkDiscriminantBits ('Testnet pm) where
-    networkDiscriminantBits = 0b00000000
 
 class NetworkDiscriminantCheck (n :: NetworkDiscriminant) k where
     networkDiscriminantCheck :: Word8 -> Bool
@@ -120,6 +111,10 @@ networkDiscriminantVal :: SNetworkId n -> Text
 networkDiscriminantVal SMainnet = "mainnet"
 networkDiscriminantVal (STestnet pm)
     = "testnet (" <> T.pack (show $ fromSNat pm) <> ")"
+
+networkDiscriminantBits :: SNetworkId n -> Word8
+networkDiscriminantBits SMainnet = 0b00000001
+networkDiscriminantBits (STestnet _) = 0b00000000
 
 {-----------------------------------------------------------------------------
    conversions

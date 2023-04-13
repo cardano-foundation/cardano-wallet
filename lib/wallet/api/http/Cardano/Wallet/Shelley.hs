@@ -97,10 +97,7 @@ import Cardano.Wallet.Primitive.Types.RewardAccount
 import Cardano.Wallet.Primitive.Types.Tx.SealedTx
     ( SealedTx )
 import Cardano.Wallet.Read.NetworkId
-    ( HasSNetworkId (sNetworkId)
-    , NetworkDiscriminantBits
-    , networkDiscriminantVal
-    )
+    ( HasSNetworkId (sNetworkId), networkDiscriminantVal )
 import Cardano.Wallet.Registry
     ( HasWorkerCtx (..) )
 import Cardano.Wallet.Shelley.BlockchainSource
@@ -314,7 +311,6 @@ serveWallet
             , EncodeAddress n
             , EncodeStakeAddress n
             , DecodeStakeAddress n
-            , NetworkDiscriminantBits n
             , HasSNetworkId n
             , HasNetworkId n
             , Typeable n

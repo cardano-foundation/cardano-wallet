@@ -514,7 +514,7 @@ import Cardano.Wallet.Primitive.Types.Tx.TxIn
 import Cardano.Wallet.Primitive.Types.Tx.TxOut
     ( TxOut (..) )
 import Cardano.Wallet.Read.NetworkId
-    ( HasSNetworkId, NetworkDiscriminant, NetworkDiscriminantBits )
+    ( HasSNetworkId, NetworkDiscriminant )
 import Cardano.Wallet.Registry
     ( HasWorkerCtx (..)
     , MkWorker (..)
@@ -1415,7 +1415,6 @@ postIcarusWallet
         , k ~ IcarusKey
         , HasWorkerRegistry s k ctx
         , PaymentAddress n IcarusKey 'CredFromKeyK
-        , NetworkDiscriminantBits n
         , HasSNetworkId n
         )
     => ctx
@@ -1439,7 +1438,6 @@ postTrezorWallet
         , k ~ IcarusKey
         , HasWorkerRegistry s k ctx
         , PaymentAddress n IcarusKey 'CredFromKeyK
-        , NetworkDiscriminantBits n
         , HasSNetworkId n
         )
     => ctx
@@ -1463,7 +1461,6 @@ postLedgerWallet
         , k ~ IcarusKey
         , HasWorkerRegistry s k ctx
         , PaymentAddress n IcarusKey 'CredFromKeyK
-        , NetworkDiscriminantBits n
         , HasSNetworkId n
         )
     => ctx
@@ -2385,7 +2382,7 @@ postTransactionFeeOld ctx@ApiLayer{..} (ApiT wid) body =
 
 constructTransaction
     :: forall (n :: NetworkDiscriminant)
-     . (NetworkDiscriminantBits n, HasSNetworkId n)
+     . HasSNetworkId n
     => ApiLayer (SeqState n ShelleyKey) ShelleyKey 'CredFromKeyK
     -> ArgGenChange (SeqState n ShelleyKey)
     -> IO (Set PoolId)
@@ -2813,7 +2810,6 @@ constructSharedTransaction
         , ctx ~ ApiLayer s k 'CredFromScriptK
         , HasNetworkLayer IO ctx
         , IsOurs s Address
-        , NetworkDiscriminantBits n
         , HasSNetworkId n
         )
     => ctx

@@ -37,11 +37,7 @@ import Cardano.Wallet.Primitive.AddressDerivation.Shelley
 import Cardano.Wallet.Primitive.Types.Address
     ( Address (..) )
 import Cardano.Wallet.Read.NetworkId
-    ( HasSNetworkId (sNetworkId)
-    , NetworkDiscriminant (..)
-    , NetworkDiscriminantBits
-    , SNetworkId
-    )
+    ( HasSNetworkId (sNetworkId), NetworkDiscriminant (..), SNetworkId )
 import Control.Arrow
     ( (>>>) )
 import Data.Proxy
@@ -73,7 +69,6 @@ data SomeNetworkDiscriminant where
             , DecodeStakeAddress n
             , DelegationAddress n ShelleyKey 'CredFromKeyK
             , HasNetworkId n
-            , NetworkDiscriminantBits n
             , HasSNetworkId n
             , Typeable n
             )

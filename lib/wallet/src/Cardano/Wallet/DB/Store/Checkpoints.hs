@@ -114,7 +114,7 @@ import Cardano.Wallet.Primitive.Types.TokenBundle
 import Cardano.Wallet.Primitive.Types.TokenMap
     ( AssetId (..) )
 import Cardano.Wallet.Read.NetworkId
-    ( HasSNetworkId, NetworkDiscriminantBits, NetworkDiscriminantCheck )
+    ( HasSNetworkId, NetworkDiscriminantCheck )
 import Control.Monad
     ( forM, forM_, unless, void, when )
 import Control.Monad.Trans.Class
@@ -459,7 +459,6 @@ instance
     , PaymentAddress n key 'CredFromKeyK
     , AddressCredential key ~ 'CredFromKeyK
     , SoftDerivation key
-    , NetworkDiscriminantBits n
     , NetworkDiscriminantCheck n key
     , HasSNetworkId n
     , (key == SharedKey) ~ 'False

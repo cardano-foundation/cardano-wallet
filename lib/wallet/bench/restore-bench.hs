@@ -146,7 +146,6 @@ import Cardano.Wallet.Primitive.Types.UTxOStatistics
 import Cardano.Wallet.Read.NetworkId
     ( HasSNetworkId (sNetworkId)
     , NetworkDiscriminant (..)
-    , NetworkDiscriminantBits
     , SNetworkId (..)
     , networkDiscriminantVal
     , sNetworkIdOfProxy
@@ -383,7 +382,7 @@ cardanoRestoreBench tr c socketFile = do
             (wid, WalletName wname, s)
 
     mkSeqAnyState'
-        :: forall (p :: Nat) (n :: NetworkDiscriminant). (NetworkDiscriminantBits n, HasSNetworkId n)
+        :: forall (p :: Nat) (n :: NetworkDiscriminant). HasSNetworkId n
         => Proxy p
         -> Proxy n
         -> (ShelleyKey 'RootK XPrv, Passphrase "encryption")
@@ -461,7 +460,6 @@ benchmarksRnd
         , k ~ ByronKey
         , PaymentAddress n k 'CredFromKeyK
         , HasSNetworkId n
-        , NetworkDiscriminantBits n
         , KnownNat p
         )
     => Proxy n
@@ -575,7 +573,6 @@ benchmarksSeq
         , k ~ ShelleyKey
         , HasSNetworkId n
         , PaymentAddress n k 'CredFromKeyK
-        , NetworkDiscriminantBits n
         , KnownNat p
         )
     => Proxy n

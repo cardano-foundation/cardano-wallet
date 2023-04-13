@@ -122,7 +122,7 @@ import Cardano.Wallet.Primitive.Types.Address
 import Cardano.Wallet.Primitive.Types.RewardAccount
     ( RewardAccount )
 import Cardano.Wallet.Read.NetworkId
-    ( HasSNetworkId, NetworkDiscriminant, NetworkDiscriminantBits (..) )
+    ( HasSNetworkId (..), NetworkDiscriminant, networkDiscriminantBits )
 import Control.Applicative
     ( (<|>) )
 import Control.Arrow
@@ -173,7 +173,6 @@ type SupportsDiscovery (n :: NetworkDiscriminant) k =
     , AddressIndexDerivationType SharedKey ~ 'Soft
     , AddressCredential k ~ 'CredFromScriptK
     , SoftDerivation k
-    , NetworkDiscriminantBits n
     , HasSNetworkId n
     )
 
@@ -556,7 +555,7 @@ isShared
 isShared addrRaw st = case ready st of
     Pending -> nop
     Active (SharedAddressPools extPool intPool pending) ->
-        if networkTag == networkDiscriminantBits @n then
+        if networkTag == networkDiscriminantBits (sNetworkId @n) then
             case paymentKeyFingerprint addrRaw of
                 Left _ -> nop
                 Right addr -> case ( AddressPool.lookup addr (getPool extPool)

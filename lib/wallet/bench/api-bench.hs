@@ -96,11 +96,7 @@ import Cardano.Wallet.Primitive.Types.Tx.TxOut
 import Cardano.Wallet.Primitive.Types.UTxOStatistics
     ( HistogramBar (..), UTxOStatistics (..) )
 import Cardano.Wallet.Read.NetworkId
-    ( HasSNetworkId (..)
-    , NetworkDiscriminant (..)
-    , NetworkDiscriminantBits
-    , SNetworkId (..)
-    )
+    ( HasSNetworkId (..), NetworkDiscriminant (..), SNetworkId (..) )
 import Cardano.Wallet.Shelley.Network.Discriminant
     ( HasNetworkId, networkIdVal )
 import Cardano.Wallet.Shelley.Transaction
@@ -243,7 +239,6 @@ benchmarksSeq
         , k ~ ShelleyKey
         , ktype ~ 'CredFromKeyK
         , HasSNetworkId n
-        , NetworkDiscriminantBits n
         , DelegationAddress n k ktype
         )
     => BenchmarkConfig n s k ktype
@@ -340,7 +335,6 @@ benchmarksShared
         , k ~ SharedKey
         , ktype ~ 'CredFromScriptK
         , HasSNetworkId n
-        , NetworkDiscriminantBits n
         )
     => BenchmarkConfig n s k ktype
     -> IO BenchSharedResults

@@ -177,7 +177,6 @@ type SupportsDiscovery n k =
     , AddressCredential k ~ 'CredFromKeyK
     , SoftDerivation k
     , NetworkDiscriminantCheck n k
-    , NetworkDiscriminantBits n
     , HasSNetworkId n
     )
 

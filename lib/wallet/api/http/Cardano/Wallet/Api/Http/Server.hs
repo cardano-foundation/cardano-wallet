@@ -192,7 +192,7 @@ import Cardano.Wallet.Primitive.AddressDiscovery.Shared
 import Cardano.Wallet.Primitive.Types
     ( PoolMetadataSource (..), SmashServer (..), poolMetadataSource )
 import Cardano.Wallet.Read.NetworkId
-    ( HasSNetworkId, NetworkDiscriminantBits )
+    ( HasSNetworkId )
 import Cardano.Wallet.Shelley.BlockchainSource
     ( BlockchainSource (..) )
 import Cardano.Wallet.Shelley.Compatibility
@@ -242,7 +242,6 @@ server
         ( PaymentAddress n IcarusKey 'CredFromKeyK
         , PaymentAddress n ByronKey 'CredFromKeyK
         , DelegationAddress n ShelleyKey 'CredFromKeyK
-        , NetworkDiscriminantBits n
         , HasSNetworkId n
         , HasNetworkId n
         )
