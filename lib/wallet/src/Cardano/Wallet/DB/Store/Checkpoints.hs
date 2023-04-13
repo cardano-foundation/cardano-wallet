@@ -459,7 +459,7 @@ instance
     , PaymentAddress n key 'CredFromKeyK
     , AddressCredential key ~ 'CredFromKeyK
     , SoftDerivation key
-    , NetworkDiscriminantCheck n key
+    , NetworkDiscriminantCheck key
     , HasSNetworkId n
     , (key == SharedKey) ~ 'False
     , Eq (Seq.SeqState n key)

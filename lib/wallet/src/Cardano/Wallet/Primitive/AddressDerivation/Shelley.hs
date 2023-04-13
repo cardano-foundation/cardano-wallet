@@ -96,8 +96,7 @@ import Cardano.Wallet.Primitive.Passphrase
 import Cardano.Wallet.Primitive.Types.Address
     ( Address (..) )
 import Cardano.Wallet.Read.NetworkId
-    ( HasSNetworkId (sNetworkId)
-    , NetworkDiscriminant (..)
+    ( NetworkDiscriminant (..)
     , NetworkDiscriminantCheck (..)
     , networkDiscriminantBits
     )
@@ -377,10 +376,9 @@ instance MkKeyFingerprint ShelleyKey (Proxy (n :: NetworkDiscriminant), ShelleyK
 instance BoundedAddressLength ShelleyKey where
     maxLengthAddressFor _ = Address $ BS.replicate 57 0
 
-instance HasSNetworkId n =>
-    NetworkDiscriminantCheck (n :: NetworkDiscriminant) ShelleyKey where
-    networkDiscriminantCheck networkTag =
-        networkTag == networkDiscriminantBits (sNetworkId @n)
+instance NetworkDiscriminantCheck ShelleyKey where
+    networkDiscriminantCheck network networkTag =
+        networkTag == networkDiscriminantBits network
 
 {-------------------------------------------------------------------------------
                           Dealing with Rewards

@@ -61,9 +61,8 @@ import qualified Data.Text as T
 data NetworkDiscriminant = Mainnet | Testnet Nat
     deriving (Typeable)
 
-
-class NetworkDiscriminantCheck (n :: NetworkDiscriminant) k where
-    networkDiscriminantCheck :: Word8 -> Bool
+class NetworkDiscriminantCheck k where
+    networkDiscriminantCheck :: SNetworkId n -> Word8 -> Bool
 
 {-----------------------------------------------------------------------------
     Value level network discrimination

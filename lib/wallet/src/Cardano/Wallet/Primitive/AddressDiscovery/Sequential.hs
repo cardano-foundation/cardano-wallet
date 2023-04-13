@@ -176,7 +176,7 @@ type SupportsDiscovery n k =
     , MkKeyFingerprint k Address
     , AddressCredential k ~ 'CredFromKeyK
     , SoftDerivation k
-    , NetworkDiscriminantCheck n k
+    , NetworkDiscriminantCheck k
     , HasSNetworkId n
     )
 
@@ -484,6 +484,8 @@ decoratePath st r ix = NE.fromList
         { derivationPrefix = DerivationPrefix (purpose, coinType, accountIx)
         } = st
 
+
+
 -- NOTE
 -- We have to scan both the internal and external chain. Note that, the
 -- BIP-44 account discovery algorithm is only specified for the external
@@ -491,7 +493,7 @@ decoratePath st r ix = NE.fromList
 -- addresses on the internal chain anywhere in the available range.
 instance SupportsDiscovery n k => IsOurs (SeqState n k) Address where
     isOurs addrRaw st =
-        if networkDiscriminantCheck @n @k networkTag then
+        if networkDiscriminantCheck @k (sNetworkId @n) networkTag then
             case paymentKeyFingerprint addrRaw of
                 Left _ -> (Nothing, st)
                 Right addr ->
