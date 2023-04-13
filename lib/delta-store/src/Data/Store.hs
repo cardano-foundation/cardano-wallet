@@ -18,6 +18,7 @@ module Data.Store (
 
     -- * Helpers
     , updateLoad
+    , loadWhenNothing
 
     -- * Combinators
     , embedStore
@@ -44,7 +45,7 @@ import Control.Concurrent.Class.MonadSTM
     , writeTVar
     )
 import Control.Exception
-    ( Exception, SomeException, toException )
+    ( Exception, SomeException (..), toException )
 import Control.Monad
     ( join )
 import Control.Monad.Class.MonadThrow
@@ -332,3 +333,13 @@ updateLoad load handle update' Nothing da = do
         Left e -> handle e
         Right x -> update' x da
 updateLoad _load _  update' (Just x) da = update' x da
+
+-- | Call 'loadS' from a 'Store' if the value is not already in memory.
+loadWhenNothing
+    :: (Monad m, MonadThrow m, Delta da)
+    => Maybe (Base da) -> Store m da -> m (Base da)
+loadWhenNothing (Just a) _ = pure a
+loadWhenNothing Nothing store =
+    loadS store >>= \case
+        Left (SomeException e) -> throwIO e
+        Right a -> pure a
