@@ -262,8 +262,10 @@ excludingD u ins = (du, u `excluding` spent)
 
 -- | Receive additional 'UTxO' / union.
 receiveD :: UTxO -> UTxO -> (DeltaUTxO, UTxO)
-receiveD a b = (da, a <> b)
-  where da = DeltaUTxO { excluded = mempty, received = b }
+receiveD a b = (da, a <> new)
+  where
+    new =  b `excluding` dom a
+    da = DeltaUTxO { excluded = mempty, received = new}
 
 --------------------------------------------------------------------------------
 -- Queries
