@@ -635,6 +635,7 @@ import qualified Cardano.Wallet.Primitive.Types.UTxOIndex as UTxOIndex
 import qualified Cardano.Wallet.Primitive.Types.UTxOSelection as UTxOSelection
 import qualified Cardano.Wallet.Primitive.Types.UTxOStatistics as UTxOStatistics
 import qualified Cardano.Wallet.Read as Read
+import qualified Cardano.Wallet.Write.ProtocolParameters as Write
 import qualified Cardano.Wallet.Write.Tx as WriteTx
 import qualified Cardano.Wallet.Write.Tx.Balance as Write
 import qualified Data.ByteArray as BA
@@ -2103,7 +2104,8 @@ buildAndSignTransactionPure
         (unsignedBalancedTx, updatedWalletState) <- lift $
             buildTransactionPure @s @k @n @recentEra
                 wallet ti utxoIndex txLayer changeAddrGen
-                (toBalanceTxPParams protocolParams) preSelection txCtx
+                (Write.unsafeFromWalletProtocolParameters protocolParams)
+                preSelection txCtx
         put wallet { getState = updatedWalletState }
 
         let passphrase = preparePassphrase passphraseScheme userPassphrase
@@ -2201,7 +2203,7 @@ buildTransaction DBLayer{..} txLayer timeInterpreter walletId
                 utxoIndex
                 txLayer
                 changeAddrGen
-                (toBalanceTxPParams protocolParameters)
+                (Write.unsafeFromWalletProtocolParameters protocolParameters)
                 PreSelection { outputs = paymentOuts }
                 txCtx
                 & runExceptT . withExceptT
@@ -2219,7 +2221,7 @@ buildTransactionPure
     -> UTxOIndex WalletUTxO
     -> TransactionLayer k 'CredFromKeyK SealedTx
     -> ChangeAddressGen s
-    -> (ProtocolParameters, Cardano.BundledProtocolParameters era)
+    -> Write.ProtocolParameters era
     -> PreSelection
     -> TransactionCtx
     -> ExceptT
@@ -2234,7 +2236,7 @@ buildTransactionPure
         withExceptT (Right . ErrConstructTxBody) . except $
             mkUnsignedTransaction txLayer @era
                 (unsafeShelleyOnlyGetRewardXPub (getState wallet))
-                (fst pparams)
+                (Write.pparamsWallet pparams)
                 txCtx
                 (Left preSelection)
 
@@ -2868,7 +2870,7 @@ delegationFee
 delegationFee db@DBLayer{atomically, walletsDB} netLayer
     txLayer ti era changeAddressGen walletId = do
     WriteTx.withRecentEra era $ \(recentEra :: WriteTx.RecentEra era) -> do
-        protocolParams <- toBalanceTxPParams
+        protocolParams <- Write.unsafeFromWalletProtocolParameters
             <$> liftIO (currentProtocolParameters netLayer)
         wallet <- liftIO . atomically $ readDBVar walletsDB >>= \wallets ->
             case Map.lookup walletId wallets of
@@ -2882,7 +2884,7 @@ delegationFee db@DBLayer{atomically, walletsDB} netLayer
         unsignedTxBody <- wrapErrMkTransaction $
             mkUnsignedTransaction txLayer @era
                 (unsafeShelleyOnlyGetRewardXPub (getState wallet))
-                (fst protocolParams)
+                (Write.pparamsWallet protocolParams)
                 defaultTransactionCtx
                 -- It would seem that we should add a delegation action
                 -- to the partial tx we construct, this was not done
@@ -3848,21 +3850,3 @@ defaultChangeAddressGen arg proxy =
     ChangeAddressGen
         (genChange arg)
         (maxLengthAddressFor proxy)
-
--- TODO: ADP-2459 - replace with something nicer.
-toBalanceTxPParams
-    :: forall era. WriteTx.IsRecentEra era
-    => ProtocolParameters
-    -> (ProtocolParameters, Cardano.BundledProtocolParameters era)
-toBalanceTxPParams pp =
-    ( pp
-    , maybe
-        (error $ unwords
-            [ "toBalanceTxPParams: no nodePParams."
-            , "This should only be possible in Byron, where withRecentEra"
-            , "should prevent this from being reached."
-            ])
-        (Cardano.bundleProtocolParams
-            (WriteTx.fromRecentEra (WriteTx.recentEra @era)))
-        $ currentNodeProtocolParameters pp
-    )

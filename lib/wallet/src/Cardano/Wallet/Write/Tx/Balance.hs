@@ -101,6 +101,8 @@ import Cardano.Wallet.Transaction
     , WitnessCountCtx (..)
     , defaultTransactionCtx
     )
+import Cardano.Wallet.Write.ProtocolParameters
+    ( ProtocolParameters (..) )
 import Cardano.Wallet.Write.Tx
     ( IsRecentEra (..)
     , PParams
@@ -352,7 +354,7 @@ balanceTransaction
         )
     => Tracer m BalanceTxLog
     -> UTxOAssumptions
-    -> (W.ProtocolParameters, Cardano.BundledProtocolParameters era)
+    -> ProtocolParameters era
     -- ^ 'Cardano.ProtocolParameters' can be retrieved via a Local State Query
     -- to a local node.
     --
@@ -380,7 +382,7 @@ balanceTransaction
 balanceTransaction tr utxoAssumptions pp ti utxo genChange s unadjustedPtx = do
     let ledgerPP = Cardano.unbundleLedgerShelleyBasedProtocolParams
             shelleyEra
-            (snd pp)
+            (pparamsNode pp)
     let adjustedPtx = over (#tx)
             (increaseZeroAdaOutputs (recentEra @era) ledgerPP)
             unadjustedPtx
@@ -469,7 +471,7 @@ balanceTransactionWithSelectionStrategyAndNoZeroAdaAdjustment
         )
     => Tracer m BalanceTxLog
     -> UTxOAssumptions
-    -> (W.ProtocolParameters, Cardano.BundledProtocolParameters era)
+    -> ProtocolParameters era
     -> TimeInterpreter (Either PastHorizonException)
     -> UTxOIndex WalletUTxO
     -> ChangeAddressGen changeState
@@ -483,7 +485,7 @@ balanceTransactionWithSelectionStrategyAndNoZeroAdaAdjustment
         txLayer
         toInpScriptsM
         mScriptTemplate)
-    (pp, nodePParams)
+    (ProtocolParameters pp nodePParams)
     ti
     internalUtxoAvailable
     genChange

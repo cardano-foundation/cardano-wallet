@@ -382,6 +382,7 @@ library
     Cardano.Wallet.Transaction.Built
     Cardano.Wallet.Version
     Cardano.Wallet.Version.TH
+    Cardano.Wallet.Write.ProtocolParameters
     Cardano.Wallet.Write.Tx
     Cardano.Wallet.Write.Tx.Balance
     Cardano.Wallet.Write.Tx.Gen
