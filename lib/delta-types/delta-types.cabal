@@ -1,6 +1,6 @@
-name:                dbvar
-version:             2023.2.22
-synopsis:            Mutable variables that are written to disk using delta encodings.
+name:                delta-types
+version:             0.1.0.0
+synopsis:            Delta types, also known as change actions.
 homepage:            https://github.com/input-output-hk/cardano-wallet
 author:              IOHK Engineering Team
 maintainer:          operations@iohk.io
@@ -31,22 +31,15 @@ library
   build-depends:
       base
     , containers
-    , exceptions
     , fmt
-    , io-classes
     , QuickCheck
-    , safe-exceptions
     , semigroupoids
-    , stm
     , text
-    , transformers
   hs-source-dirs:
       src
   exposed-modules:
-      Data.DBVar
       Data.Delta
       Data.DeltaMap
-      Test.DBVar
 
 test-suite unit
   default-language:
@@ -61,12 +54,10 @@ test-suite unit
     ghc-options: -O2 -Werror
   build-depends:
       base
-    , io-classes
-    , io-sim
     , hspec
     , QuickCheck
     , fmt
-    , dbvar
+    , delta-types
   build-tool-depends:
       hspec-discover:hspec-discover
   type:

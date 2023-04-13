@@ -1,10 +1,10 @@
-name:                delta-table
+name:                delta-store
 version:             0.1.0.0
-synopsis:            Work with database tables using delta encodings.
+synopsis:            Facility for storing a Haskell value, using delta types.
 homepage:            https://github.com/input-output-hk/cardano-wallet
 author:              IOHK Engineering Team
 maintainer:          operations@iohk.io
-copyright:           2023 IOHK
+copyright:           2021 IOHK
 license:             Apache-2.0
 category:            Web
 build-type:          Simple
@@ -30,21 +30,13 @@ library
       -Werror
   build-depends:
       base
-    , conduit
     , containers
-    , delta-store
     , delta-types
     , exceptions
     , fmt
-    , generic-lens
     , io-classes
-    , monad-logger
-    , persistent
-    , persistent-sqlite
     , QuickCheck
-    , safe
     , safe-exceptions
-    , say
     , semigroupoids
     , stm
     , text
@@ -52,12 +44,9 @@ library
   hs-source-dirs:
       src
   exposed-modules:
-      Data.Chain
-      Data.Table
-      Database.Persist.Delta
-      Database.Schema
-  other-modules:
-      Demo.Database
+      Data.DBVar
+      Data.Store
+      Test.DBVar
 
 test-suite unit
   default-language:
@@ -76,6 +65,9 @@ test-suite unit
     , io-sim
     , hspec
     , QuickCheck
+    , fmt
+    , delta-store
+    , delta-types
   build-tool-depends:
       hspec-discover:hspec-discover
   type:
@@ -84,3 +76,5 @@ test-suite unit
       test/unit
   main-is:
       Main.hs
+  other-modules:
+      Data.StoreSpec

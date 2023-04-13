@@ -16,7 +16,6 @@ import Data.Map.Strict
 import Fmt
     ( Buildable (..) )
 
-
 import qualified Data.Map.Strict as Map
 
 {-------------------------------------------------------------------------------

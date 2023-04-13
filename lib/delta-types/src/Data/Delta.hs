@@ -57,9 +57,6 @@ class Delta delta where
     -- | Base type for which @delta@ represents a delta encoding.
     -- This is implemented as a type family, so that we can have
     -- multiple delta encodings for the same base type.
-    --
-    -- FIXME: Better name for 'Base'? It's sooo generic.
-    -- Pier, dock, ground, anchor, site, …
     type Base delta :: Type
     -- | Apply a delta encoding to the base type.
     apply :: delta -> Base delta -> Base delta
