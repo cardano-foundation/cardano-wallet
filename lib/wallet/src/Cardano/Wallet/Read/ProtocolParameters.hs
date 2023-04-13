@@ -1,3 +1,4 @@
+{-# LANGUAGE NamedFieldPuns #-}
 {-# LANGUAGE ScopedTypeVariables #-}
 {-# LANGUAGE TypeApplications #-}
 
@@ -29,14 +30,15 @@ unsafeFromWalletProtocolParameters
     :: forall era. CardanoApi.IsShelleyBasedEra era
     => Wallet.ProtocolParameters
     -> ProtocolParameters era
-unsafeFromWalletProtocolParameters pp = ProtocolParameters
-    { pparamsWallet = pp
-    , pparamsNode = maybe
-        (error $ unwords
-            [ "unsafeFromWalletProtocolParameters: no nodePParams."
-            , "This should only be possible in Byron, where IsShelleyBasedEra"
-            , "should prevent this from being reached."
-            ])
+unsafeFromWalletProtocolParameters pparamsWallet =
+    ProtocolParameters {pparamsWallet, pparamsNode}
+  where
+    pparamsNode = maybe
+        (error missingNodeParamsError)
         (CardanoApi.bundleProtocolParams (CardanoApi.cardanoEra @era))
-        (Wallet.currentNodeProtocolParameters pp)
-    }
+        (Wallet.currentNodeProtocolParameters pparamsWallet)
+    missingNodeParamsError = unwords
+        [ "unsafeFromWalletProtocolParameters: no nodePParams."
+        , "This should only be possible in Byron, where IsShelleyBasedEra"
+        , "should prevent this from being reached."
+        ]
