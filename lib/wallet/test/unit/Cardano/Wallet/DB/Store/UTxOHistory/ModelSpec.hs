@@ -1,7 +1,7 @@
 -- |
 -- Copyright: © 2023 IOHK
 -- License: Apache-2.0
-module Cardano.Wallet.DB.Store.DeltaUTxO.ModelSpec
+module Cardano.Wallet.DB.Store.UTxOHistory.ModelSpec
     ( spec
     , genSlotNo
     , genSlot
@@ -13,7 +13,7 @@ import Prelude
 
 import Cardano.Slotting.Slot
     ( SlotNo (..), WithOrigin (..) )
-import Cardano.Wallet.DB.Store.DeltaUTxO.Model
+import Cardano.Wallet.DB.Store.UTxOHistory.Model
     ( DeltaUTxOHistory (..)
     , Pruned (..)
     , UTxOHistory

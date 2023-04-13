@@ -9,7 +9,7 @@
 --
 -- 'UTxOHistory' represents a history of a UTxO set that can be rolled
 -- back (up to the 'finality' point).
-module Cardano.Wallet.DB.Store.DeltaUTxO.Model
+module Cardano.Wallet.DB.Store.UTxOHistory.Model
     ( -- * Types
       UTxOHistory
     , Pruned (..)
@@ -39,7 +39,7 @@ import Prelude
 
 import Cardano.Slotting.Slot
     ( SlotNo, WithOrigin (..) )
-import Cardano.Wallet.DB.Store.DeltaUTxO.Model.Internal
+import Cardano.Wallet.DB.Store.UTxOHistory.Model.Internal
     ( Pruned (..), UTxOHistory (..) )
 import Cardano.Wallet.Primitive.Types
     ( Slot )

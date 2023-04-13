@@ -3,7 +3,7 @@
 -- License: Apache-2.0
 --
 -- Internals of 'UTxOHistory'.
-module Cardano.Wallet.DB.Store.DeltaUTxO.Model.Internal
+module Cardano.Wallet.DB.Store.UTxOHistory.Model.Internal
     ( UTxOHistory (..)
     , Pruned (..)
     )
