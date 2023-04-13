@@ -76,8 +76,6 @@ import Cardano.Wallet.Primitive.Types.UTxOIndex
     ( UTxOIndex )
 import Cardano.Wallet.Primitive.Types.UTxOSelection
     ( UTxOSelection )
-import Cardano.Wallet.Read.ProtocolParameters
-    ( ProtocolParameters (..) )
 import Cardano.Wallet.Shelley.Compatibility
     ( fromCardanoTxIn, fromCardanoTxOut, toCardanoUTxO )
 import Cardano.Wallet.Shelley.Compatibility.Ledger
@@ -103,6 +101,8 @@ import Cardano.Wallet.Transaction
     , WitnessCountCtx (..)
     , defaultTransactionCtx
     )
+import Cardano.Wallet.Write.ProtocolParameters
+    ( ProtocolParameters (..) )
 import Cardano.Wallet.Write.Tx
     ( IsRecentEra (..)
     , PParams

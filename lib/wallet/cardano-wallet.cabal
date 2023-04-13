@@ -337,7 +337,6 @@ library
     Cardano.Wallet.Read.Primitive.Tx.Features.Withdrawals
     Cardano.Wallet.Read.Primitive.Tx.Mary
     Cardano.Wallet.Read.Primitive.Tx.Shelley
-    Cardano.Wallet.Read.ProtocolParameters
     Cardano.Wallet.Read.Tx
     Cardano.Wallet.Read.Tx.Cardano
     Cardano.Wallet.Read.Tx.CBOR
@@ -380,6 +379,7 @@ library
     Cardano.Wallet.Transaction.Built
     Cardano.Wallet.Version
     Cardano.Wallet.Version.TH
+    Cardano.Wallet.Write.ProtocolParameters
     Cardano.Wallet.Write.Tx
     Cardano.Wallet.Write.Tx.Balance
     Cardano.Wallet.Write.Tx.Gen

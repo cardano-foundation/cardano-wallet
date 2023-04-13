@@ -8,7 +8,7 @@
 --
 -- Provides protocol parameters.
 --
-module Cardano.Wallet.Read.ProtocolParameters
+module Cardano.Wallet.Write.ProtocolParameters
     ( ProtocolParameters (..)
     , unsafeFromWalletProtocolParameters
     ) where

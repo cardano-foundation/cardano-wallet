@@ -508,8 +508,8 @@ import qualified Cardano.Wallet.Primitive.Types.TokenMap as TokenMap
 import qualified Cardano.Wallet.Primitive.Types.Tx.TxOut as TxOut
 import qualified Cardano.Wallet.Primitive.Types.Tx.TxOut.Gen as TxOutGen
 import qualified Cardano.Wallet.Primitive.Types.UTxOIndex as UTxOIndex
-import qualified Cardano.Wallet.Read.ProtocolParameters as Read
 import qualified Cardano.Wallet.Shelley.Compatibility as Compatibility
+import qualified Cardano.Wallet.Write.ProtocolParameters as Write
 import qualified Cardano.Wallet.Write.Tx as WriteTx
 import qualified Codec.CBOR.Encoding as CBOR
 import qualified Codec.CBOR.Write as CBOR
@@ -3747,7 +3747,7 @@ dummyChangeAddrGen = ChangeAddressGen
 balanceTx
     :: WriteTx.IsRecentEra era
     => Wallet'
-    -> Read.ProtocolParameters era
+    -> Write.ProtocolParameters era
     -> TimeInterpreter (Either PastHorizonException)
     -> StdGenSeed
     -> PartialTx era
@@ -4008,7 +4008,7 @@ balanceTransactionGoldenSpec = describe "balance goldens" $ do
         -> Cardano.UTxO Cardano.BabbageEra
         -> Cardano.Lovelace
     txMinFee (Cardano.Tx body _) u = toCardanoLovelace $ evaluateMinimumFee
-        (Read.pparamsNode
+        (Write.pparamsNode
             (mockBundledProtocolParametersForBalancing cardanoEra))
         (estimateKeyWitnessCount u body)
         body
@@ -4205,7 +4205,7 @@ prop_balanceTransactionValid wallet@(Wallet' _ walletUTxO _) (ShowBuildable part
     prop_validSize tx@(Cardano.Tx body _) utxo = do
         let (TxSize size) =
                 estimateSignedTxSize
-                    (Read.pparamsNode
+                    (Write.pparamsNode
                         (mockBundledProtocolParametersForBalancing cardanoEra))
                     (estimateKeyWitnessCount utxo body)
                     body
@@ -4291,7 +4291,7 @@ prop_balanceTransactionValid wallet@(Wallet' _ walletUTxO _) (ShowBuildable part
         TxOutAdaOnly _ coin -> Cardano.lovelaceToValue coin
         TxOutValue _ val -> val
 
-    nodePParams = Read.pparamsNode $
+    nodePParams = Write.pparamsNode $
         mockBundledProtocolParametersForBalancing cardanoEra
 
     ledgerPParams =
@@ -4478,8 +4478,8 @@ mockProtocolParametersForBalancing =
 
 mockBundledProtocolParametersForBalancing
     :: CardanoEra era
-    -> Read.ProtocolParameters era
-mockBundledProtocolParametersForBalancing era = Read.ProtocolParameters
+    -> Write.ProtocolParameters era
+mockBundledProtocolParametersForBalancing era = Write.ProtocolParameters
     { pparamsWallet =
         fst mockProtocolParametersForBalancing
     , pparamsNode =
