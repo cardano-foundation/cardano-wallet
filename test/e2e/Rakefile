@@ -228,6 +228,29 @@ task :get_latest_windows_tests, [:branch, :destination] do |_task, args|
   bk.get_artifacts(last_build, jobs[job_key], destination, 'cardano-wallet-tests-win64.zip', unzip: true)
 end
 
+task :get_bins, [:nb] do |_task, args|
+  log ">> Getting node and wallet binaries from Buildkite into #{BINS}"
+  last_build = args[:nb] || 1
+  bk = Buildkite.new
+  log "Latest passing buildkite '#{bk.pipeline}' pipeline build is #{last_build}"
+  jobs = bk.jobs(last_build)
+  mk_dir(BINS)
+
+  if linux?
+    job_key = 'build-linux'
+    log "Getting '#{job_key}' artifact 👇"
+    bk.get_artifacts(last_build, jobs[job_key], BINS)
+  elsif win?
+    job_key = 'build-windows'
+    log "Getting '#{job_key}' artifact 👇"
+    bk.get_artifacts(last_build, jobs[job_key], BINS)
+  elsif mac?
+    job_key = 'build-macos'
+    log "Getting '#{job_key}' artifact 👇"
+    bk.get_artifacts(last_build, jobs[job_key], BINS)
+  end
+end
+
 task :get_latest_bins, [:branch, :state] do |_task, args|
   log ">> Getting latest node and wallet binaries from Buildkite into #{BINS}"
   branch = args[:branch] || 'master'
