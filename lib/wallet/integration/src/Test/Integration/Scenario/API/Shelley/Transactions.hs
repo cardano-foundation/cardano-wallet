@@ -36,7 +36,6 @@ import Cardano.Wallet.Api.Types
     , ApiWallet
     , DecodeAddress
     , DecodeStakeAddress
-    , EncodeAddress (..)
     , WalletStyle (..)
     , insertedAt
     , pendingSince
@@ -61,6 +60,10 @@ import Cardano.Wallet.Primitive.Types.TokenPolicy
     ( mkTokenFingerprint )
 import Cardano.Wallet.Primitive.Types.Tx
     ( Direction (..), TxMetadata (..), TxMetadataValue (..), TxStatus (..) )
+import Cardano.Wallet.Read.NetworkId
+    ( HasSNetworkId (..) )
+import Cardano.Wallet.Shelley.Compatibility
+    ( encodeAddress )
 import Cardano.Wallet.Unsafe
     ( unsafeFromText )
 import Control.Monad
@@ -196,7 +199,7 @@ data TestCase a = TestCase
 spec :: forall n.
     ( DecodeAddress n
     , DecodeStakeAddress n
-    , EncodeAddress n
+    , HasSNetworkId n
     , PaymentAddress n IcarusKey 'CredFromKeyK
     ) => SpecWith Context
 spec = describe "SHELLEY_TRANSACTIONS" $ do
@@ -2275,7 +2278,7 @@ spec = describe "SHELLEY_TRANSACTIONS" $ do
         \ctx -> runResourceT $ do
 
         (wSelf, addrs) <- fixtureIcarusWalletAddrs @n ctx
-        let addr = encodeAddress @n (head addrs)
+        let addr = encodeAddress (sNetworkId @n) (head addrs)
 
         let payload = Json [json|{
                 "withdrawal": "self",

@@ -27,7 +27,6 @@ import Cardano.Wallet.Api.Types
     , ApiWallet
     , DecodeAddress
     , DecodeStakeAddress
-    , EncodeAddress (..)
     , WalletStyle (..)
     )
 import Cardano.Wallet.Primitive.AddressDiscovery.Sequential
@@ -42,6 +41,8 @@ import Cardano.Wallet.Primitive.Types.TokenQuantity
     ( TokenQuantity (..) )
 import Cardano.Wallet.Primitive.Types.Tx.Constraints
     ( txOutMaxTokenQuantity )
+import Cardano.Wallet.Read.NetworkId
+    ( HasSNetworkId )
 import Control.Monad
     ( forM_ )
 import Data.Generics.Internal.VL.Lens
@@ -103,7 +104,7 @@ import qualified Network.HTTP.Types as HTTP
 spec :: forall n.
     ( DecodeAddress n
     , DecodeStakeAddress n
-    , EncodeAddress n
+    , HasSNetworkId n
     ) => SpecWith Context
 spec = describe "SHELLEY_COIN_SELECTION" $ do
 

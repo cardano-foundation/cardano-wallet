@@ -32,7 +32,6 @@ import Cardano.Wallet.Api.Types
     , ApiUtxoStatistics
     , DecodeAddress
     , DecodeStakeAddress
-    , EncodeAddress (..)
     , WalletStyle (..)
     )
 import Cardano.Wallet.Primitive.AddressDerivation
@@ -48,6 +47,10 @@ import Cardano.Wallet.Primitive.AddressDiscovery.Sequential
     ( defaultAddressPoolGap, getAddressPoolGap )
 import Cardano.Wallet.Primitive.Types.Address
     ( AddressState (..) )
+import Cardano.Wallet.Read.NetworkId
+    ( HasSNetworkId (..) )
+import Cardano.Wallet.Shelley.Compatibility
+    ( encodeAddress )
 import Control.Monad
     ( forM_ )
 import Control.Monad.IO.Class
@@ -104,7 +107,7 @@ import qualified Network.HTTP.Types.Status as HTTP
 spec :: forall n.
     ( DecodeAddress n
     , DecodeStakeAddress n
-    , EncodeAddress n
+    , HasSNetworkId n
     , PaymentAddress n IcarusKey 'CredFromKeyK
     ) => SpecWith Context
 spec = describe "BYRON_HW_WALLETS" $ do
@@ -130,7 +133,7 @@ spec = describe "BYRON_HW_WALLETS" $ do
 
         --send funds
         let [addr] = take 1 $ icarusAddresses @n mnemonics
-        let destination = encodeAddress @n addr
+        let destination = encodeAddress (sNetworkId @n) addr
         let minUTxOValue' = minUTxOValue (_mainEra ctx)
         let payload = Json [json|{
                 "payments": [{
@@ -185,7 +188,7 @@ spec = describe "BYRON_HW_WALLETS" $ do
             wSrc <- restoreWalletFromPubKey @ApiByronWallet @'Byron ctx pubKey restoredWalletName
 
             let [addr] = take 1 $ icarusAddresses @n mnemonics
-            let destination = encodeAddress @n addr
+            let destination = encodeAddress (sNetworkId @n) addr
             let minUTxOValue' = minUTxOValue (_mainEra ctx)
             let payload = Json [json|{
                     "payments": [{
@@ -242,7 +245,7 @@ spec = describe "BYRON_HW_WALLETS" $ do
             wSrc <- restoreWalletFromPubKey @ApiByronWallet @'Byron ctx pubKey restoredWalletName
 
             let [addr] = take 1 $ icarusAddresses @n mnemonics
-            let destination = encodeAddress @n addr
+            let destination = encodeAddress (sNetworkId @n) addr
             let minUTxOValue' = minUTxOValue (_mainEra ctx)
             let payload = Json [json|{
                     "payments": [{

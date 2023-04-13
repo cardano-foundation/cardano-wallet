@@ -283,7 +283,6 @@ import Cardano.Wallet.Api.Types
     , ApiWalletDelegationStatus (..)
     , DecodeAddress (..)
     , DecodeStakeAddress (..)
-    , EncodeAddress (..)
     , Iso8601Time (..)
     , KeyFormat
     , SettingsPutData (..)
@@ -360,7 +359,9 @@ import Cardano.Wallet.Primitive.Types.UTxO
 import Cardano.Wallet.Primitive.Types.UTxOStatistics
     ( HistogramBar (..), UTxOStatistics (..) )
 import Cardano.Wallet.Read.NetworkId
-    ( NetworkDiscriminant )
+    ( HasSNetworkId (..), NetworkDiscriminant )
+import Cardano.Wallet.Shelley.Compatibility
+    ( encodeAddress )
 import "cardano-addresses" Codec.Binary.Encoding
     ( AbstractEncoding (..), encode )
 import Control.Arrow
@@ -923,7 +924,7 @@ pickAnAsset tm = case TokenMap.toFlatList tm of
 mkTxPayloadMA
     :: forall n m.
         ( MonadUnliftIO m
-        , EncodeAddress n
+        , HasSNetworkId n
         )
     => (ApiT Address, Proxy n)
     -> Natural
@@ -952,7 +953,7 @@ postTx
     :: forall n w m.
         ( DecodeAddress n
         , DecodeStakeAddress n
-        , EncodeAddress n
+        , HasSNetworkId n
         , MonadUnliftIO m
         )
     => Context
@@ -1602,7 +1603,7 @@ fixtureMultiAssetRandomWallet
     :: forall n m.
         ( DecodeAddress n
         , DecodeStakeAddress n
-        , EncodeAddress n
+        , HasSNetworkId n
         , MonadUnliftIO m
         )
     => Context
@@ -1647,7 +1648,7 @@ fixtureMultiAssetIcarusWallet
     :: forall n m.
         ( DecodeAddress n
         , DecodeStakeAddress n
-        , EncodeAddress n
+        , HasSNetworkId n
         , MonadUnliftIO m
         )
     => Context
@@ -1812,7 +1813,7 @@ fundSharedWallet
     ( MonadUnliftIO m
     , DecodeStakeAddress n
     , DecodeAddress n
-    , EncodeAddress n )
+    , HasSNetworkId n )
     => Context
     -> Natural
     -> NonEmpty ApiSharedWallet
@@ -1865,7 +1866,7 @@ fixtureSharedWallet
     , MonadFail m
     , DecodeStakeAddress n
     , DecodeAddress n
-    , EncodeAddress n )
+    , HasSNetworkId n )
     => Context
     -> ResourceT m ApiActiveSharedWallet
 fixtureSharedWallet ctx = do
@@ -1879,7 +1880,8 @@ fixtureSharedWalletDelegating
     , MonadFail m
     , DecodeStakeAddress n
     , DecodeAddress n
-    , EncodeAddress n )
+    , HasSNetworkId n
+    )
     => Context
     -> ResourceT m (ApiActiveSharedWallet, ApiActiveSharedWallet)
 fixtureSharedWalletDelegating ctx = do
@@ -2110,7 +2112,7 @@ fixtureRandomWalletAddrs =
 -- TODO: Remove duplication between Shelley / Byron fixtures.
 fixtureRandomWalletWith
     :: forall (n :: NetworkDiscriminant) m.
-        ( EncodeAddress n
+        ( HasSNetworkId n
         , DecodeAddress n
         , DecodeStakeAddress n
         , PaymentAddress n ByronKey 'CredFromKeyK
@@ -2168,7 +2170,7 @@ fixtureIcarusWalletAddrs =
 -- TODO: Remove duplication between Shelley / Byron fixtures.
 fixtureIcarusWalletWith
     :: forall (n :: NetworkDiscriminant) m.
-        ( EncodeAddress n
+        ( HasSNetworkId n
         , DecodeAddress n
         , DecodeStakeAddress n
         , PaymentAddress n IcarusKey 'CredFromKeyK
@@ -2237,7 +2239,7 @@ fixtureLegacyWallet ctx style mnemonics = snd <$> allocate create free
 -- careful.
 fixtureWalletWith
     :: forall n m.
-        ( EncodeAddress n
+        ( HasSNetworkId n
         , DecodeAddress n
         , DecodeStakeAddress n
         , MonadUnliftIO m
@@ -2322,7 +2324,7 @@ constFixtureWalletNoWait ctx = snd <$> allocate create free
 -- | Move coins from a wallet to another
 moveByronCoins
     :: forall (n :: NetworkDiscriminant).
-        ( EncodeAddress n
+        ( HasSNetworkId n
         , DecodeAddress n
         , DecodeStakeAddress n
         )
@@ -2339,7 +2341,7 @@ moveByronCoins ctx src (dest, addrs) coins = do
     balance <- getFromResponse (#balance . #available . #getQuantity)
         <$> request @ApiByronWallet ctx (Link.getWallet @'Byron dest) Default Empty
     let payments = for (zip coins addrs) $ \(amt, addr) ->
-            let addrStr = encodeAddress @n addr
+            let addrStr = encodeAddress (sNetworkId @n) addr
             in [aesonQQ|{
                 "address": #{addrStr},
                 "amount": {
@@ -2474,7 +2476,7 @@ selectCoins
         ( HasType (ApiT WalletId) w
         , DecodeAddress n
         , DecodeStakeAddress n
-        , EncodeAddress n
+        , HasSNetworkId n
         , Link.Discriminate style
         , MonadUnliftIO m
         )
@@ -2490,7 +2492,7 @@ selectCoinsWith
         ( HasType (ApiT WalletId) w
         , DecodeAddress n
         , DecodeStakeAddress n
-        , EncodeAddress n
+        , HasSNetworkId n
         , Link.Discriminate style
         , MonadUnliftIO m
         )
@@ -3390,7 +3392,7 @@ unsafeResponse = either (error . show) id . snd
 -- Only intended to be used with well-known inputs in tests, so throws if
 -- anything goes unexpectedly.
 replaceStakeKey
-    :: forall (n :: NetworkDiscriminant). (DecodeAddress n, EncodeAddress n)
+    :: forall (n :: NetworkDiscriminant). (DecodeAddress n, HasSNetworkId n)
     => (ApiT Address, Proxy n)
     -> (ApiT Address, Proxy n)
     -> (ApiT Address, Proxy n)
@@ -3412,7 +3414,7 @@ replaceStakeKey addr1 addr2 =
         either
             (error . show)
             (second (splitAddr . fromJust . Bech32.dataPartToBytes))
-        . Bech32.decodeLenient . encodeAddress @n . getApiT . fst
+        . Bech32.decodeLenient . encodeAddress (sNetworkId @n) . getApiT . fst
       where
         splitAddr :: ByteString -> (ByteString, ByteString, ByteString)
         splitAddr whole =

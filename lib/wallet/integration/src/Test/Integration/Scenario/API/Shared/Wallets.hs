@@ -40,7 +40,6 @@ import Cardano.Wallet.Api.Types
     , ApiWalletUtxoSnapshot
     , DecodeAddress
     , DecodeStakeAddress
-    , EncodeAddress (..)
     , KeyFormat (..)
     , WalletStyle (..)
     )
@@ -60,6 +59,8 @@ import Cardano.Wallet.Primitive.SyncProgress
     ( SyncProgress (..) )
 import Cardano.Wallet.Primitive.Types.Address
     ( AddressState (..) )
+import Cardano.Wallet.Read.NetworkId
+    ( HasSNetworkId )
 import Control.Monad
     ( forM, forM_ )
 import Control.Monad.IO.Class
@@ -151,7 +152,7 @@ import qualified Network.HTTP.Types as HTTP
 spec :: forall n.
     ( DecodeAddress n
     , DecodeStakeAddress n
-    , EncodeAddress n
+    , HasSNetworkId n
     ) => SpecWith Context
 spec = describe "SHARED_WALLETS" $ do
 

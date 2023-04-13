@@ -109,7 +109,6 @@ import Cardano.Wallet.Shelley.Network
 import Cardano.Wallet.Shelley.Network.Discriminant
     ( DecodeAddress
     , DecodeStakeAddress
-    , EncodeAddress
     , EncodeStakeAddress
     , SomeNetworkDiscriminant (..)
     , networkDiscriminantToId
@@ -307,7 +306,7 @@ serveWallet
             , PaymentAddress n ByronKey 'CredFromKeyK
             , DelegationAddress n ShelleyKey 'CredFromKeyK
             , DecodeAddress n
-            , EncodeAddress n
+            , HasSNetworkId n
             , EncodeStakeAddress n
             , DecodeStakeAddress n
             , HasSNetworkId n

@@ -64,9 +64,9 @@ import Cardano.Wallet.Primitive.Types.Tx.Tx
 import Cardano.Wallet.Primitive.Types.Tx.TxIn
     ( TxIn (..) )
 import Cardano.Wallet.Read.NetworkId
-    ( NetworkDiscriminant )
+    ( HasSNetworkId, NetworkDiscriminant )
 import Cardano.Wallet.Shelley.Network.Discriminant
-    ( DecodeAddress, DecodeStakeAddress, EncodeAddress, EncodeStakeAddress )
+    ( DecodeAddress, DecodeStakeAddress, EncodeStakeAddress )
 import Cardano.Wallet.Transaction
     ( AnyExplicitScript (..)
     , ValidityIntervalExplicit (..)
@@ -209,7 +209,7 @@ instance
                 xs <- parseJSON obj :: Aeson.Parser (ApiWalletInput n)
                 pure $ WalletInput xs
 instance
-    ( EncodeAddress n
+    ( HasSNetworkId n
     , EncodeStakeAddress n
     ) => ToJSON (ApiTxInputGeneral n)
   where
@@ -291,7 +291,7 @@ instance
                     :: Aeson.Parser (ApiWalletOutput n)
                 pure $ WalletOutput xs
 instance
-    ( EncodeAddress n
+    ( HasSNetworkId n
     , EncodeStakeAddress n
     ) => ToJSON (ApiTxOutputGeneral n)
   where

@@ -68,7 +68,6 @@ import Cardano.Wallet.Api.Types
     , ApiWalletOutput (..)
     , DecodeAddress
     , DecodeStakeAddress
-    , EncodeAddress (..)
     , ResourceContext (..)
     , WalletStyle (..)
     , fromApiEra
@@ -113,6 +112,8 @@ import Cardano.Wallet.Primitive.Types.Tx
     )
 import Cardano.Wallet.Primitive.Types.Tx.TxIn
     ( TxIn (..) )
+import Cardano.Wallet.Read.NetworkId
+    ( HasSNetworkId )
 import Cardano.Wallet.Transaction
     ( AnyExplicitScript (..)
     , AnyScript (..)
@@ -245,7 +246,7 @@ import qualified Test.Integration.Plutus as PlutusScenario
 spec :: forall n.
     ( DecodeAddress n
     , DecodeStakeAddress n
-    , EncodeAddress n
+    , HasSNetworkId n
     ) => SpecWith Context
 spec = describe "NEW_SHELLEY_TRANSACTIONS" $ do
     it "TRANS_NEW_CREATE_01a - Empty payload is not allowed" $ \ctx -> runResourceT $ do
@@ -4207,7 +4208,7 @@ spec = describe "NEW_SHELLEY_TRANSACTIONS" $ do
     -- Asset amounts are specified by ((PolicyId Hex, AssetName Hex), amount).
     mkTxPayloadMA
         :: forall l m.
-            ( EncodeAddress l
+            ( HasSNetworkId l
             , MonadUnliftIO m
             )
         => (ApiT Address, Proxy l)

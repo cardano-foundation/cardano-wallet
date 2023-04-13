@@ -19,8 +19,6 @@ import Cardano.Wallet.Api.Types
     , ApiWallet
     , DecodeAddress (..)
     , DecodeStakeAddress (..)
-    , EncodeAddress (..)
-    , encodeAddress
     , getApiT
     )
 import Cardano.Wallet.Api.Types.SchemaMetadata
@@ -29,6 +27,10 @@ import Cardano.Wallet.Primitive.AddressDiscovery.Sequential
     ( defaultAddressPoolGap, getAddressPoolGap )
 import Cardano.Wallet.Primitive.Types.Address
     ( AddressState (..) )
+import Cardano.Wallet.Read.NetworkId
+    ( HasSNetworkId (..) )
+import Cardano.Wallet.Shelley.Compatibility
+    ( encodeAddress )
 import Control.Monad
     ( forM_ )
 import Control.Monad.Trans.Resource
@@ -93,7 +95,7 @@ import qualified Data.Text as T
 spec :: forall n.
     ( DecodeAddress n
     , DecodeStakeAddress n
-    , EncodeAddress n
+    , HasSNetworkId n
     ) => SpecWith Context
 spec = describe "SHELLEY_CLI_HW_WALLETS" $ do
 
@@ -114,7 +116,7 @@ spec = describe "SHELLEY_CLI_HW_WALLETS" $ do
         --send transaction to the wallet
         let amount = Quantity . minUTxOValue . _mainEra $ ctx
         addrs:_ <- listAddresses @n ctx wDest
-        let addr = encodeAddress @n (getApiT $ fst $ addrs ^. #id)
+        let addr = encodeAddress (sNetworkId @n) (getApiT $ fst $ addrs ^. #id)
         let args = T.unpack <$>
                 [ wSrc ^. walletId
                 , "--payment", toText amount <> "@" <> addr
@@ -179,7 +181,7 @@ spec = describe "SHELLEY_CLI_HW_WALLETS" $ do
             -- make sure you cannot send tx from wallet
             wDest <- emptyWallet ctx
             addrs:_ <- listAddresses @n ctx wDest
-            let addr = encodeAddress @n (getApiT $ fst $ addrs ^. #id)
+            let addr = encodeAddress (sNetworkId @n) (getApiT $ fst $ addrs ^. #id)
 
             let amt = T.pack . show . minUTxOValue . _mainEra $ ctx
             let args = T.unpack <$>
@@ -243,7 +245,7 @@ spec = describe "SHELLEY_CLI_HW_WALLETS" $ do
             -- get fee
             wDest <- emptyWallet ctx
             addrs:_ <- listAddresses @n ctx wDest
-            let addr = encodeAddress @n (getApiT $ fst $ addrs ^. #id)
+            let addr = encodeAddress (sNetworkId @n) (getApiT $ fst $ addrs ^. #id)
             let amt = minUTxOValue (_mainEra ctx)
             let args = T.unpack <$>
                     [ wRestored ^. walletId

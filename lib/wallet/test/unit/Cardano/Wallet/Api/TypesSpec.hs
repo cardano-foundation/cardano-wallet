@@ -352,11 +352,7 @@ import Cardano.Wallet.Primitive.Types.UTxOStatistics
 import Cardano.Wallet.Read.NetworkId
     ( NetworkDiscriminant (..) )
 import Cardano.Wallet.Shelley.Network.Discriminant
-    ( DecodeAddress (..)
-    , DecodeStakeAddress (..)
-    , EncodeAddress (..)
-    , EncodeStakeAddress (..)
-    )
+    ( DecodeAddress (..), DecodeStakeAddress (..), EncodeStakeAddress (..) )
 import Cardano.Wallet.TokenMetadata
     ( TokenMetadataError (..) )
 import Cardano.Wallet.Transaction
@@ -1006,9 +1002,6 @@ instance FromJSON SchemaApiErrorInfo where
                               Address Encoding
 -------------------------------------------------------------------------------}
 
--- TODO [ADP-2302] Remove need for overlapping dummy instances
-instance {-# OVERLAPPING #-} EncodeAddress ('Testnet 0) where
-    encodeAddress = const "<addr>"
 
 instance {-# OVERLAPPING #-} DecodeAddress ('Testnet 0) where
     decodeAddress "<addr>" = Right $ Address "<addr>"

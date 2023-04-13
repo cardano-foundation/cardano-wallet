@@ -203,7 +203,6 @@ module Cardano.Wallet.Api.Types
     , WalletOrAccountPostData (..)
 
     -- * User-Facing Address Encoding/Decoding
-    , EncodeAddress (..)
     , DecodeAddress (..)
     , EncodeStakeAddress (..)
     , DecodeStakeAddress (..)
@@ -390,13 +389,11 @@ import Cardano.Wallet.Primitive.Types.Tx.TxIn
 import Cardano.Wallet.Primitive.Types.UTxOStatistics
     ( BoundType, HistogramBar (..), UTxOStatistics (..) )
 import Cardano.Wallet.Read.NetworkId
-    ( NetworkDiscriminant )
+    ( HasSNetworkId (..), NetworkDiscriminant )
+import Cardano.Wallet.Shelley.Compatibility
+    ( encodeAddress )
 import Cardano.Wallet.Shelley.Network.Discriminant
-    ( DecodeAddress (..)
-    , DecodeStakeAddress (..)
-    , EncodeAddress (..)
-    , EncodeStakeAddress (..)
-    )
+    ( DecodeAddress (..), DecodeStakeAddress (..), EncodeStakeAddress (..) )
 import Cardano.Wallet.TokenMetadata
     ( TokenMetadataError (..) )
 import Cardano.Wallet.Util
@@ -1829,8 +1826,8 @@ instance DecodeAddress n => FromHttpApiData (ApiT Address, Proxy n) where
         addr <- bimap (T.pack . getTextDecodingError) ApiT (decodeAddress @n txt)
         return (addr, proxy)
 
-instance EncodeAddress n => ToHttpApiData (ApiT Address, Proxy n) where
-    toUrlPiece = encodeAddress @n . getApiT . fst
+instance HasSNetworkId n => ToHttpApiData (ApiT Address, Proxy n) where
+    toUrlPiece = encodeAddress (sNetworkId @n) . getApiT . fst
 
 {-------------------------------------------------------------------------------
                               API Types: Byron
@@ -1987,7 +1984,7 @@ instance DecodeAddress n => FromJSON (ApiSelectCoinsData n) where
             _ ->
                 fail "No valid parse for ApiSelectCoinsPayments or ApiSelectCoinsAction"
 
-instance EncodeAddress n => ToJSON (ApiSelectCoinsData n) where
+instance HasSNetworkId n => ToJSON (ApiSelectCoinsData n) where
     toJSON (ApiSelectForPayment v) = toJSON v
     toJSON (ApiSelectForDelegation v) = toJSON v
 
@@ -2456,7 +2453,7 @@ instance DecodeAddress t => FromJSON (ApiPaymentDestination t) where
       where
         parseAddrs = ApiPaymentAddresses <$> parseJSON obj
 
-instance EncodeAddress t => ToJSON (ApiPaymentDestination t) where
+instance HasSNetworkId n => ToJSON (ApiPaymentDestination n) where
     toJSON (ApiPaymentAddresses addrs) = toJSON addrs
 
 instance DecodeStakeAddress n => FromJSON (ApiRedeemer n) where
@@ -2523,7 +2520,7 @@ instance (DecodeAddress t, DecodeStakeAddress t) => FromJSON (ApiConstructTransa
         fee <- o .: "fee"
         pure $ ApiConstructTransaction (ApiSerialisedTransaction (ApiT tx) enc) sel fee
 
-instance (EncodeAddress t, EncodeStakeAddress t) => ToJSON (ApiConstructTransaction t) where
+instance (HasSNetworkId t, EncodeStakeAddress t) => ToJSON (ApiConstructTransaction t) where
     toJSON (ApiConstructTransaction (ApiSerialisedTransaction tx encoding) sel fee) =
         object [ "transaction" .= case encoding of
                        HexEncoded ->
@@ -2586,7 +2583,7 @@ instance ToJSON ApiBlockReference where
 instance DecodeAddress n => FromJSON (ApiTxInput n) where
     parseJSON v = ApiTxInput <$> optional (parseJSON v) <*> parseJSON v
 
-instance EncodeAddress n => ToJSON (ApiTxInput n) where
+instance HasSNetworkId n => ToJSON (ApiTxInput n) where
     toJSON (ApiTxInput s i) =
         Object (maybe mempty (fromValue . toJSON) s <> fromValue (toJSON i))
       where
@@ -2596,7 +2593,7 @@ instance EncodeAddress n => ToJSON (ApiTxInput n) where
 instance DecodeAddress n => FromJSON (ApiTxCollateral n) where
     parseJSON v = ApiTxCollateral <$> optional (parseJSON v) <*> parseJSON v
 
-instance EncodeAddress n => ToJSON (ApiTxCollateral n) where
+instance HasSNetworkId n => ToJSON (ApiTxCollateral n) where
     toJSON (ApiTxCollateral s i) =
         Object (maybe mempty (fromValue . toJSON) s <> fromValue (toJSON i))
       where
@@ -3141,7 +3138,7 @@ newtype ApiBurnData = ApiBurnData
     deriving (FromJSON, ToJSON) via DefaultRecord ApiBurnData
     deriving anyclass NFData
 
-instance EncodeAddress n => ToJSON (ApiMintBurnOperation n) where
+instance HasSNetworkId n => ToJSON (ApiMintBurnOperation n) where
     toJSON = object . pure . \case
         ApiMint mint -> "mint" .= mint
         ApiBurn burn -> "burn" .= burn

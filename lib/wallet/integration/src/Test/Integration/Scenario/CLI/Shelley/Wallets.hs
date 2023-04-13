@@ -23,7 +23,6 @@ import Cardano.Wallet.Api.Types
     , ApiWalletUtxoSnapshot
     , DecodeAddress (..)
     , DecodeStakeAddress (..)
-    , EncodeAddress (..)
     , getApiT
     )
 import Cardano.Wallet.Primitive.AddressDiscovery.Sequential
@@ -34,6 +33,10 @@ import Cardano.Wallet.Primitive.SyncProgress
     ( SyncProgress (..) )
 import Cardano.Wallet.Primitive.Types
     ( getWalletName, walletNameMaxLength, walletNameMinLength )
+import Cardano.Wallet.Read.NetworkId
+    ( HasSNetworkId (..) )
+import Cardano.Wallet.Shelley.Compatibility
+    ( encodeAddress )
 import Control.Monad
     ( forM_ )
 import Control.Monad.IO.Unlift
@@ -110,7 +113,7 @@ import qualified Data.Text as T
 spec :: forall n.
     ( DecodeAddress n
     , DecodeStakeAddress n
-    , EncodeAddress n
+    , HasSNetworkId n
     ) => SpecWith Context
 spec = describe "SHELLEY_CLI_WALLETS" $ do
     it "BYRON_GET_03 - Shelley CLI does not show Byron wallet" $ \ctx -> runResourceT $ do
@@ -211,7 +214,7 @@ spec = describe "SHELLEY_CLI_WALLETS" $ do
         --send transaction to the wallet
         let amount = (minUTxOValue (_mainEra ctx))
         addrs:_ <- listAddresses @n ctx wDest
-        let addr = encodeAddress @n (getApiT $ fst $ addrs ^. #id)
+        let addr = encodeAddress (sNetworkId @n) (getApiT $ fst $ addrs ^. #id)
         let args = T.unpack <$>
                 [ wSrc ^. walletId
                 , "--payment", T.pack (show amount) <> "@" <> addr
@@ -717,7 +720,7 @@ spec = describe "SHELLEY_CLI_WALLETS" $ do
                 updateWalletPassphraseViaCLI ctx wid oldPass newPass newPass
             expect (ExitSuccess, "\n", cmdOk) (c, out, err)
 
-            let addrStr = encodeAddress @n (getApiT $ fst $ addr ^. #id)
+            let addrStr = encodeAddress (sNetworkId @n) (getApiT $ fst $ addr ^. #id)
             let args = T.unpack <$>
                     [ wSrc ^. walletId
                     , "--payment", T.pack (show (minUTxOValue (_mainEra ctx))) <> "@" <> addrStr
@@ -765,7 +768,7 @@ spec = describe "SHELLEY_CLI_WALLETS" $ do
             coins =
                 [13_000_000, 43_000_000, 66_000_000, 101_000_000, 1339_000_000]
         addrs:_ <- listAddresses @n ctx wDest
-        let addr = encodeAddress @n (getApiT $ fst $ addrs ^. #id)
+        let addr = encodeAddress (sNetworkId @n) (getApiT $ fst $ addrs ^. #id)
 
         let payments = flip map coins $ \c ->
                 ["--payment", show c <> "@" <> T.unpack addr ]

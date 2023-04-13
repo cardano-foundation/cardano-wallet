@@ -19,11 +19,12 @@ import Cardano.Wallet.Api.Types
     , ApiCoinSelectionOutput (..)
     , DecodeAddress
     , DecodeStakeAddress
-    , EncodeAddress (..)
     , WalletStyle (..)
     )
 import Cardano.Wallet.Primitive.AddressDiscovery.Sequential
     ( purposeBIP44 )
+import Cardano.Wallet.Read.NetworkId
+    ( HasSNetworkId )
 import Data.Generics.Internal.VL.Lens
     ( view, (^.) )
 import Data.List.NonEmpty
@@ -67,7 +68,7 @@ import qualified Network.HTTP.Types.Status as HTTP
 spec :: forall n.
     ( DecodeAddress n
     , DecodeStakeAddress n
-    , EncodeAddress n
+    , HasSNetworkId n
     ) => SpecWith Context
 spec = describe "BYRON_COIN_SELECTION" $ do
 

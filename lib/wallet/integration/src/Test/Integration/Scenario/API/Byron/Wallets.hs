@@ -22,13 +22,14 @@ import Cardano.Wallet.Api.Types
     , ApiWalletUtxoSnapshot
     , DecodeAddress
     , DecodeStakeAddress
-    , EncodeAddress (..)
     , WalletStyle (..)
     )
 import Cardano.Wallet.Primitive.Passphrase
     ( PassphraseMaxLength (..), PassphraseMinLength (..) )
 import Cardano.Wallet.Primitive.SyncProgress
     ( SyncProgress (..) )
+import Cardano.Wallet.Read.NetworkId
+    ( HasSNetworkId )
 import Control.Monad
     ( forM_ )
 import Control.Monad.IO.Class
@@ -103,7 +104,7 @@ import qualified Network.HTTP.Types.Status as HTTP
 spec :: forall n.
     ( DecodeAddress n
     , DecodeStakeAddress n
-    , EncodeAddress n
+    , HasSNetworkId n
     ) => SpecWith Context
 spec = describe "BYRON_WALLETS" $ do
     it "BYRON_GET_04, DELETE_01 - Deleted wallet is not available" $ \ctx -> runResourceT $ do

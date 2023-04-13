@@ -61,7 +61,6 @@ import Cardano.Wallet.Read.NetworkId
 import Cardano.Wallet.Shelley.Network.Discriminant
     ( DecodeAddress (..)
     , DecodeStakeAddress (..)
-    , EncodeAddress (..)
     , EncodeStakeAddress (..)
     )
 import Control.Monad
@@ -140,8 +139,6 @@ import qualified Data.Text as T
 import qualified Servant
 
 -- TODO [ADP-2302] Remove need for overlapping dummy instances
-instance {-# OVERLAPPING #-} EncodeAddress ('Testnet 0) where
-    encodeAddress = T.pack . show
 
 instance {-# OVERLAPPING #-} DecodeAddress ('Testnet 0) where
     decodeAddress _ = pure (Address "<addr>")

@@ -14,7 +14,6 @@ module Cardano.Wallet.Shelley.Network.Discriminant
     ( SomeNetworkDiscriminant (..)
     , networkDiscriminantToId
     , discriminantNetwork
-    , EncodeAddress (..)
     , EncodeStakeAddress (..)
     , DecodeAddress (..)
     , DecodeStakeAddress (..)
@@ -65,7 +64,6 @@ data SomeNetworkDiscriminant where
             ( PaymentAddress n IcarusKey 'CredFromKeyK
             , PaymentAddress n ByronKey 'CredFromKeyK
             , PaymentAddress n ShelleyKey 'CredFromKeyK
-            , EncodeAddress n
             , DecodeAddress n
             , EncodeStakeAddress n
             , DecodeStakeAddress n
@@ -77,11 +75,6 @@ data SomeNetworkDiscriminant where
         -> SomeNetworkDiscriminant
 
 deriving instance Show SomeNetworkDiscriminant
-
--- | An abstract class to allow encoding of addresses depending on the target
--- backend used.
-class EncodeAddress (n :: NetworkDiscriminant) where
-    encodeAddress :: Address -> Text
 
 -- | An abstract class to allow decoding of addresses depending on the target
 -- backend used.

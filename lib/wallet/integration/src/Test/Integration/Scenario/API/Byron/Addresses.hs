@@ -23,7 +23,6 @@ import Cardano.Wallet.Api.Types
     , ApiPutAddressesData
     , ApiT (..)
     , DecodeAddress
-    , EncodeAddress (..)
     , WalletStyle (..)
     )
 import Cardano.Wallet.Primitive.AddressDerivation
@@ -37,7 +36,9 @@ import Cardano.Wallet.Primitive.AddressDiscovery.Sequential
 import Cardano.Wallet.Primitive.Types.Address
     ( AddressState (..) )
 import Cardano.Wallet.Read.NetworkId
-    ( NetworkDiscriminant )
+    ( HasSNetworkId (..), NetworkDiscriminant )
+import Cardano.Wallet.Shelley.Compatibility
+    ( encodeAddress )
 import Control.Monad
     ( forM_ )
 import Control.Monad.Trans.Resource
@@ -91,7 +92,7 @@ import qualified Network.HTTP.Types.Status as HTTP
 
 spec :: forall n.
     ( DecodeAddress n
-    , EncodeAddress n
+    , HasSNetworkId n
     , PaymentAddress n ByronKey 'CredFromKeyK
     , PaymentAddress n IcarusKey 'CredFromKeyK
     ) => SpecWith Context
@@ -279,7 +280,7 @@ scenario_ADDRESS_CREATE_06 = it title $ \ctx -> runResourceT $ do
 scenario_ADDRESS_IMPORT_01
     :: forall (n :: NetworkDiscriminant).
         ( DecodeAddress n
-        , EncodeAddress n
+        , HasSNetworkId n
         , PaymentAddress n ByronKey 'CredFromKeyK
         )
     => (Context -> ResourceT IO (ApiByronWallet, Mnemonic 12))
@@ -290,7 +291,7 @@ scenario_ADDRESS_IMPORT_01 fixture = it title $ \ctx -> runResourceT $ do
     -- Get an unused address
     let addr = randomAddresses @n mw !! 42
     let (_, base) = Link.postRandomAddress w
-    let link = base <> "/" <> encodeAddress @n addr
+    let link = base <> "/" <> encodeAddress (sNetworkId @n) addr
     r0 <- request @() ctx ("PUT", link) Default Empty
     verify r0
         [ expectResponseCode HTTP.status204
@@ -307,7 +308,7 @@ scenario_ADDRESS_IMPORT_01 fixture = it title $ \ctx -> runResourceT $ do
 
 scenario_ADDRESS_IMPORT_02
     :: forall (n :: NetworkDiscriminant).
-        ( EncodeAddress n
+        ( HasSNetworkId n
         , PaymentAddress n IcarusKey 'CredFromKeyK
         )
     => (Context -> ResourceT IO (ApiByronWallet, Mnemonic 15))
@@ -317,7 +318,7 @@ scenario_ADDRESS_IMPORT_02 fixture = it title $ \ctx -> runResourceT $ do
 
     let addr = icarusAddresses @n mw !! 42
     let (_, base) = Link.postRandomAddress w
-    let link = base <> "/" <> encodeAddress @n addr
+    let link = base <> "/" <> encodeAddress (sNetworkId @n) addr
     r0 <- request @() ctx ("PUT", link) Default Empty
     verify r0
         [ expectResponseCode HTTP.status403
@@ -328,7 +329,7 @@ scenario_ADDRESS_IMPORT_02 fixture = it title $ \ctx -> runResourceT $ do
 
 scenario_ADDRESS_IMPORT_03
     :: forall (n :: NetworkDiscriminant).
-        ( EncodeAddress n
+        ( HasSNetworkId n
         , PaymentAddress n ByronKey 'CredFromKeyK
         )
     => (Context -> ResourceT IO (ApiByronWallet, Mnemonic 12))
@@ -339,7 +340,7 @@ scenario_ADDRESS_IMPORT_03 fixture = it title $ \ctx -> runResourceT $ do
     -- Get an unused address
     let addr = randomAddresses @n mw !! 42
     let (_, base) = Link.postRandomAddress w
-    let link = base <> "/" <> encodeAddress @n addr
+    let link = base <> "/" <> encodeAddress (sNetworkId @n) addr
 
     -- Insert it twice
     r0 <- request @() ctx ("PUT", link) Default Empty
@@ -352,7 +353,7 @@ scenario_ADDRESS_IMPORT_03 fixture = it title $ \ctx -> runResourceT $ do
 scenario_ADDRESS_IMPORT_04
     :: forall (n :: NetworkDiscriminant).
         ( DecodeAddress n
-        , EncodeAddress n
+        , HasSNetworkId n
         )
     => (Context -> ResourceT IO ApiByronWallet)
     -> SpecWith Context
@@ -380,7 +381,7 @@ scenario_ADDRESS_IMPORT_04 fixture = it title $ \ctx -> runResourceT $ do
 scenario_ADDRESS_IMPORT_05
     :: forall (n :: NetworkDiscriminant).
         ( DecodeAddress n
-        , EncodeAddress n
+        , HasSNetworkId n
         , PaymentAddress n ByronKey 'CredFromKeyK
         )
     => Int
@@ -390,7 +391,7 @@ scenario_ADDRESS_IMPORT_05 addrNum fixture = it title $ \ctx -> runResourceT $ d
     (w, mw) <- fixture ctx
 
     -- Get unused addrNum addresses
-    let addrs = map (\num -> encodeAddress @n $ randomAddresses @n mw !! num)
+    let addrs = map (\num -> encodeAddress (sNetworkId @n) $ randomAddresses @n mw !! num)
                 [1 .. addrNum]
     let ep = Link.putRandomAddresses w
     let payload =
@@ -413,7 +414,7 @@ scenario_ADDRESS_IMPORT_05 addrNum fixture = it title $ \ctx -> runResourceT $ d
 
 scenario_ADDRESS_IMPORT_06
     :: forall (n :: NetworkDiscriminant).
-        ( EncodeAddress n
+        ( HasSNetworkId n
         , PaymentAddress n ByronKey 'CredFromKeyK
         )
     => (Context -> ResourceT IO (ApiByronWallet, Mnemonic 12))
@@ -425,7 +426,7 @@ scenario_ADDRESS_IMPORT_06 fixture = it title $ \ctx -> runResourceT $ do
     -- Get an unused address from other wallet
     let addr = randomAddresses @n mw2 !! 42
     let (_, base) = Link.postRandomAddress w
-    let link = base <> "/" <> encodeAddress @n addr
+    let link = base <> "/" <> encodeAddress (sNetworkId @n) addr
     r0 <- request @() ctx ("PUT", link) Default Empty
     verify r0
         [ expectResponseCode HTTP.status403

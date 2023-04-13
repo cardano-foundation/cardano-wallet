@@ -27,7 +27,6 @@ import Cardano.Wallet.Api.Types
     , ApiWalletMigrationPlan (..)
     , DecodeAddress
     , DecodeStakeAddress
-    , EncodeAddress (..)
     , WalletStyle (..)
     )
 import Cardano.Wallet.Primitive.AddressDerivation
@@ -44,6 +43,10 @@ import Cardano.Wallet.Primitive.Types.TokenBundle
     ( TokenBundle (..) )
 import Cardano.Wallet.Primitive.Types.Tx
     ( TxStatus (..) )
+import Cardano.Wallet.Read.NetworkId
+    ( HasSNetworkId (..) )
+import Cardano.Wallet.Shelley.Compatibility
+    ( encodeAddress )
 import Control.Monad
     ( forM_, replicateM_, void, when )
 import Control.Monad.IO.Class
@@ -119,7 +122,7 @@ import qualified Test.Hspec as Hspec
 spec :: forall n.
     ( DecodeAddress n
     , DecodeStakeAddress n
-    , EncodeAddress n
+    , HasSNetworkId n
     , PaymentAddress n IcarusKey 'CredFromKeyK
     , PaymentAddress n ByronKey 'CredFromKeyK
     ) => SpecWith Context
@@ -792,11 +795,11 @@ spec = describe "SHELLEY_MIGRATIONS" $ do
             let addrShelley = (addrs !! 1) ^. #id
 
             -- Create an Icarus address:
-            addrIcarus <- liftIO $ encodeAddress @n . head . icarusAddresses @n
+            addrIcarus <- liftIO $ encodeAddress (sNetworkId @n) . head . icarusAddresses @n
                 . entropyToMnemonic @15 <$> genEntropy
 
             -- Create a Byron address:
-            addrByron <- liftIO $ encodeAddress @n . head . randomAddresses @n
+            addrByron <- liftIO $ encodeAddress (sNetworkId @n) . head . randomAddresses @n
                 . entropyToMnemonic @12 <$> genEntropy
 
             -- Create a source wallet:

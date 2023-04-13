@@ -24,7 +24,6 @@ import Cardano.Wallet.Api.Types
     , ApiWallet
     , DecodeAddress
     , DecodeStakeAddress
-    , EncodeAddress
     , WalletStyle (..)
     )
 import Cardano.Wallet.Primitive.AddressDerivation
@@ -35,6 +34,8 @@ import Cardano.Wallet.Primitive.Types.Address
     ( AddressState (..) )
 import Cardano.Wallet.Primitive.Types.Tx
     ( TxStatus (..) )
+import Cardano.Wallet.Read.NetworkId
+    ( HasSNetworkId )
 import Control.Monad
     ( forM, forM_ )
 import Control.Monad.IO.Class
@@ -100,7 +101,7 @@ import qualified Network.HTTP.Types.Status as HTTP
 spec :: forall n.
     ( DecodeAddress n
     , DecodeStakeAddress n
-    , EncodeAddress n
+    , HasSNetworkId n
     ) => SpecWith Context
 spec = describe "SHELLEY_ADDRESSES" $ do
     it "BYRON_ADDRESS_LIST - Byron wallet on Shelley ep" $ \ctx -> runResourceT $ do

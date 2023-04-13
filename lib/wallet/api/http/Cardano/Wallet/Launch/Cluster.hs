@@ -127,11 +127,7 @@ import Cardano.Startup
 import Cardano.Wallet.Api.Http.Shelley.Server
     ( Listen (..) )
 import Cardano.Wallet.Api.Types
-    ( ApiEra (..)
-    , DecodeAddress (..)
-    , EncodeAddress (..)
-    , HealthStatusSMASH (..)
-    )
+    ( ApiEra (..), DecodeAddress (..), HealthStatusSMASH (..) )
 import Cardano.Wallet.Launch
     ( TempDirLog (..), envFromText, lookupEnvNonEmpty )
 import Cardano.Wallet.Logging
@@ -157,8 +153,10 @@ import Cardano.Wallet.Primitive.Types.TokenPolicy
     ( TokenName (..) )
 import Cardano.Wallet.Primitive.Types.TokenQuantity
     ( TokenQuantity (..) )
+import Cardano.Wallet.Read.NetworkId
+    ( SNetworkId (..) )
 import Cardano.Wallet.Shelley.Compatibility
-    ( StandardShelley, fromGenesisData )
+    ( StandardShelley, encodeAddress, fromGenesisData )
 import Cardano.Wallet.Unsafe
     ( unsafeBech32Decode, unsafeFromHex )
 import Cardano.Wallet.Util
@@ -1233,7 +1231,7 @@ withCluster tr dir LocalClusterConfig{..} faucetFunds onClusterStart = bracketTr
         [] -> error "rotate: impossible"
         x : xs -> (x, sort xs)
 
-    encodeAddresses = map (first (T.unpack . encodeAddress @'Nid.Mainnet))
+    encodeAddresses = map (first (T.unpack . encodeAddress SMainnet))
 
 data LogFileConfig = LogFileConfig
     { minSeverityTerminal :: Severity

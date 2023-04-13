@@ -59,12 +59,12 @@ import Cardano.Wallet.Primitive.Types.Tx.Tx
     ( TxMetadata (..), TxScriptValidity )
 import Cardano.Wallet.Primitive.Types.Tx.TxIn
     ( TxIn (..) )
+import Cardano.Wallet.Read.NetworkId
+    ( HasSNetworkId (..) )
+import Cardano.Wallet.Shelley.Compatibility
+    ( encodeAddress )
 import Cardano.Wallet.Shelley.Network.Discriminant
-    ( DecodeAddress (..)
-    , DecodeStakeAddress (..)
-    , EncodeAddress (..)
-    , EncodeStakeAddress (..)
-    )
+    ( DecodeAddress (..), DecodeStakeAddress (..), EncodeStakeAddress (..) )
 import Cardano.Wallet.Transaction
     ( AnyExplicitScript (..)
     , AnyScript (..)
@@ -361,9 +361,9 @@ instance {-# OVERLAPS #-} DecodeAddress n => FromJSON (ApiT Address, Proxy n)
             . bimap ShowFmt ApiT
             . decodeAddress @n
         return (addr, proxy)
-instance {-# OVERLAPS #-} EncodeAddress n => ToJSON (ApiT Address, Proxy n)
+instance {-# OVERLAPS #-} HasSNetworkId n => ToJSON (ApiT Address, Proxy n)
   where
-    toJSON (addr, _) = toJSON . encodeAddress @n . getApiT $ addr
+    toJSON (addr, _) = toJSON . encodeAddress (sNetworkId @n) . getApiT $ addr
 
 instance {-# OVERLAPS #-} (DecodeStakeAddress n)
     => FromJSON (ApiT RewardAccount, Proxy n)

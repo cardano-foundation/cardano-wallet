@@ -156,6 +156,7 @@ module Cardano.Wallet.Shelley.Compatibility
     , interval1
     , getScriptIntegrityHash
     , numberOfTransactionsInBlock
+    , encodeAddress
     ) where
 
 import Prelude
@@ -232,7 +233,7 @@ import Cardano.Wallet.Primitive.Types.MinimumUTxO
 import Cardano.Wallet.Primitive.Types.Tx.Constraints
     ( TokenBundleSizeAssessment (..), TokenBundleSizeAssessor (..) )
 import Cardano.Wallet.Read.NetworkId
-    ( NetworkDiscriminant (..) )
+    ( NetworkDiscriminant (..), SNetworkId (..) )
 import Cardano.Wallet.Read.Primitive.Tx.Allegra
     ( fromAllegraTx )
 import Cardano.Wallet.Read.Primitive.Tx.Alonzo
@@ -253,11 +254,7 @@ import Cardano.Wallet.Read.Primitive.Tx.Shelley
 import Cardano.Wallet.Read.Tx.Hash
     ( fromShelleyTxId )
 import Cardano.Wallet.Shelley.Network.Discriminant
-    ( DecodeAddress (..)
-    , DecodeStakeAddress (..)
-    , EncodeAddress (..)
-    , EncodeStakeAddress (..)
-    )
+    ( DecodeAddress (..), DecodeStakeAddress (..), EncodeStakeAddress (..) )
 import Cardano.Wallet.Transaction
     ( WitnessCountCtx (..) )
 import Cardano.Wallet.Unsafe
@@ -1966,12 +1963,10 @@ shelleyDecodeStakeAddress serverNetwork txt = do
     errBech32 = TextDecodingError
         "Unable to decode stake-address: must be a valid bech32 string."
 
-instance EncodeAddress 'Mainnet where
-    encodeAddress = shelleyEncodeAddress SL.Mainnet
-
-instance EncodeAddress ('Testnet pm) where
-    -- https://github.com/cardano-foundation/CIPs/tree/master/CIP5
-    encodeAddress = shelleyEncodeAddress SL.Testnet
+encodeAddress :: SNetworkId n -> W.Address -> Text
+encodeAddress = \case
+    SMainnet -> shelleyEncodeAddress SL.Mainnet
+    STestnet _ -> shelleyEncodeAddress SL.Testnet
 
 shelleyEncodeAddress :: SL.Network -> W.Address -> Text
 shelleyEncodeAddress network (W.Address bytes) =

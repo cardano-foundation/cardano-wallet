@@ -14,12 +14,7 @@ module Test.Integration.Scenario.CLI.Byron.Addresses
 import Prelude
 
 import Cardano.Wallet.Api.Types
-    ( ApiAddress
-    , ApiByronWallet
-    , ApiT (..)
-    , DecodeAddress
-    , EncodeAddress (..)
-    )
+    ( ApiAddress, ApiByronWallet, ApiT (..), DecodeAddress )
 import Cardano.Wallet.Primitive.AddressDerivation
     ( Depth (..), PaymentAddress )
 import Cardano.Wallet.Primitive.AddressDerivation.Byron
@@ -29,7 +24,9 @@ import Cardano.Wallet.Primitive.AddressDerivation.Icarus
 import Cardano.Wallet.Primitive.Types.Address
     ( AddressState (..) )
 import Cardano.Wallet.Read.NetworkId
-    ( NetworkDiscriminant )
+    ( HasSNetworkId (..), NetworkDiscriminant )
+import Cardano.Wallet.Shelley.Compatibility
+    ( encodeAddress )
 import Control.Monad
     ( forM_ )
 import Control.Monad.Trans.Resource
@@ -74,7 +71,7 @@ import qualified Data.Text as T
 
 spec :: forall n.
     ( DecodeAddress n
-    , EncodeAddress n
+    , HasSNetworkId n
     , PaymentAddress n ByronKey 'CredFromKeyK
     , PaymentAddress n IcarusKey 'CredFromKeyK
     ) => SpecWith Context
@@ -282,14 +279,14 @@ scenario_ADDRESS_CREATE_07 index expectedMsg = it index $ \ctx -> runResourceT @
 
 scenario_ADDRESS_IMPORT_01
     :: forall (n :: NetworkDiscriminant).
-        ( EncodeAddress n
+        ( HasSNetworkId n
         , PaymentAddress n ByronKey 'CredFromKeyK
         )
     => SpecWith Context
 scenario_ADDRESS_IMPORT_01 = it title $ \ctx -> runResourceT @IO $ do
     (w, mw) <- emptyRandomWalletMws ctx
     let wid = T.unpack (w ^. walletId)
-    let addr = T.unpack $ encodeAddress @n $ randomAddresses @n mw !! 42
+    let addr = T.unpack $ encodeAddress (sNetworkId @n) $ randomAddresses @n mw !! 42
     (Exit c, Stdout _out, Stderr err) <- importAddressViaCLI ctx [wid, addr]
     c `shouldBe` ExitSuccess
     err `shouldContain` cmdOk
@@ -298,14 +295,14 @@ scenario_ADDRESS_IMPORT_01 = it title $ \ctx -> runResourceT @IO $ do
 
 scenario_ADDRESS_IMPORT_02
     :: forall (n :: NetworkDiscriminant).
-        ( EncodeAddress n
+        ( HasSNetworkId n
         , PaymentAddress n IcarusKey 'CredFromKeyK
         )
     => SpecWith Context
 scenario_ADDRESS_IMPORT_02 = it title $ \ctx -> runResourceT @IO $ do
     (w, mw) <- emptyIcarusWalletMws ctx
     let wid = T.unpack (w ^. walletId)
-    let addr = T.unpack $ encodeAddress @n $ icarusAddresses @n mw !! 42
+    let addr = T.unpack $ encodeAddress (sNetworkId @n) $ icarusAddresses @n mw !! 42
     (Exit c, Stdout _out, Stderr err) <- importAddressViaCLI ctx [wid, addr]
     c `shouldBe` ExitFailure 1
     err `shouldContain` errMsg403NotAByronWallet

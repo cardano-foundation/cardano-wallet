@@ -27,7 +27,6 @@ import Cardano.Wallet.Api.Types
     , ApiWalletDiscovery (..)
     , DecodeAddress
     , DecodeStakeAddress
-    , EncodeAddress (..)
     , WalletStyle (..)
     )
 import Cardano.Wallet.Api.Types.Transaction
@@ -38,6 +37,8 @@ import Cardano.Wallet.Primitive.Types.TokenPolicy
     ( mkTokenFingerprint )
 import Cardano.Wallet.Primitive.Types.Tx
     ( Direction (..), TxStatus (..) )
+import Cardano.Wallet.Read.NetworkId
+    ( HasSNetworkId )
 import Cardano.Wallet.Unsafe
     ( unsafeFromText )
 import Control.Monad
@@ -125,7 +126,7 @@ data TestCase a = TestCase
 spec :: forall n.
     ( DecodeAddress n
     , DecodeStakeAddress n
-    , EncodeAddress n
+    , HasSNetworkId n
     ) => SpecWith Context
 spec = describe "BYRON_TRANSACTIONS" $ do
 

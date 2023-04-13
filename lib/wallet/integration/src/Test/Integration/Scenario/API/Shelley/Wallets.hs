@@ -29,7 +29,6 @@ import Cardano.Wallet.Api.Types
     , ApiWalletUtxoSnapshot
     , DecodeAddress
     , DecodeStakeAddress
-    , EncodeAddress (..)
     , WalletStyle (..)
     )
 import Cardano.Wallet.Primitive.AddressDerivation
@@ -42,6 +41,8 @@ import Cardano.Wallet.Primitive.SyncProgress
     ( SyncProgress (..) )
 import Cardano.Wallet.Primitive.Types
     ( walletNameMaxLength, walletNameMinLength )
+import Cardano.Wallet.Read.NetworkId
+    ( HasSNetworkId )
 import Cardano.Wallet.Unsafe
     ( unsafeFromHexText, unsafeXPub )
 import Control.Monad
@@ -150,7 +151,7 @@ import qualified Network.HTTP.Types as HTTP
 spec :: forall n.
     ( DecodeAddress n
     , DecodeStakeAddress n
-    , EncodeAddress n
+    , HasSNetworkId n
     ) => SpecWith Context
 spec = describe "SHELLEY_WALLETS" $ do
     it "WALLETS_CREATE_01 - Create a wallet" $ \ctx -> runResourceT $ do

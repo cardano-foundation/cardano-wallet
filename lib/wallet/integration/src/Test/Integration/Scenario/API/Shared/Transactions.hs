@@ -44,7 +44,6 @@ import Cardano.Wallet.Api.Types
     , ApiWalletOutput (..)
     , DecodeAddress
     , DecodeStakeAddress
-    , EncodeAddress (..)
     , Iso8601Time (..)
     , WalletStyle (..)
     , fromApiEra
@@ -76,6 +75,8 @@ import Cardano.Wallet.Primitive.Types.Tx
     , TxStatus (..)
     , cardanoTxIdeallyNoLaterThan
     )
+import Cardano.Wallet.Read.NetworkId
+    ( HasSNetworkId )
 import Cardano.Wallet.Transaction
     ( AnyExplicitScript (..), ScriptReference (..), WitnessCount (..) )
 import Control.Monad
@@ -188,7 +189,7 @@ data TestCase a = TestCase
 spec :: forall n.
     ( DecodeAddress n
     , DecodeStakeAddress n
-    , EncodeAddress n
+    , HasSNetworkId n
     ) => SpecWith Context
 spec = describe "SHARED_TRANSACTIONS" $ do
 

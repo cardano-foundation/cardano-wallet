@@ -35,9 +35,11 @@ import Prelude hiding
     ( id )
 
 import Cardano.Wallet.Api.Types
-    ( ApiT (..), ApiWalletInput (..), EncodeAddress (..) )
+    ( ApiT (..), ApiWalletInput (..) )
 import Cardano.Wallet.Primitive.Types.Hash
     ( Hash (..) )
+import Cardano.Wallet.Read.NetworkId
+    ( HasSNetworkId )
 import Cardano.Wallet.Unsafe
     ( unsafeFromHexText, unsafeRight )
 import Codec.Binary.Bech32.TH
@@ -337,7 +339,7 @@ withdrawScript_1 =
 -- This endpoint also needs to make sure that the minted assets
 -- are assigned to a change output.
 currencyTx
-    :: forall n. EncodeAddress n
+    :: forall n. HasSNetworkId n
     => ApiWalletInput n
     -- ^ UTxO that is hard-wired into the smart contract.
     -> Aeson.Value
