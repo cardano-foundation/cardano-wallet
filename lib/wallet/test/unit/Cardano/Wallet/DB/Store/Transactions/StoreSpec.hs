@@ -58,8 +58,6 @@ import Data.Generics.Internal.VL
     ( set )
 import Data.Store
     ( Store (..) )
-import Test.DBVar
-    ( GenDelta, prop_StoreUpdates )
 import Test.Hspec
     ( Spec, around, describe, it )
 import Test.QuickCheck
@@ -76,6 +74,8 @@ import Test.QuickCheck
     )
 import Test.QuickCheck.Monadic
     ( forAllM, pick )
+import Test.Store
+    ( GenDelta, prop_StoreUpdates )
 
 import qualified Cardano.Wallet.DB.Store.Transactions.Layer as TxSet
 import qualified Cardano.Wallet.Primitive.Types.Tx as W

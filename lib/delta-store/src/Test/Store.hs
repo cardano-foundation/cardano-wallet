@@ -1,6 +1,6 @@
 {-# LANGUAGE FlexibleContexts #-}
 {-# LANGUAGE RankNTypes #-}
-module Test.DBVar
+module Test.Store
     ( genUpdates
     , prop_StoreUpdates
     , GenDelta

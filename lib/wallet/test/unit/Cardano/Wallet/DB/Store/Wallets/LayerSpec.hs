@@ -19,12 +19,12 @@ import Cardano.Wallet.DB.Store.Wallets.Layer
     ( newQueryStoreTxWalletsHistory )
 import Cardano.Wallet.DB.Store.Wallets.StoreSpec
     ( genDeltaTxWallets )
-import Test.DBVar
-    ( prop_StoreUpdates )
 import Test.Hspec
     ( Spec, around, describe, it )
 import Test.QuickCheck
     ( property )
+import Test.Store
+    ( prop_StoreUpdates )
 
 spec :: Spec
 spec = do

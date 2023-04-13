@@ -28,12 +28,12 @@ import Cardano.Wallet.DB.Store.Wallets.Store
     ( mkStoreTxWalletsHistory )
 import Data.Store
     ( newStore )
-import Test.DBVar
-    ( GenDelta, prop_StoreUpdates )
 import Test.Hspec
     ( Spec, around, describe, it )
 import Test.QuickCheck
     ( Gen, NonEmptyList (..), arbitrary, choose, frequency, property )
+import Test.Store
+    ( GenDelta, prop_StoreUpdates )
 
 import qualified Cardano.Wallet.Primitive.Types as W
 import qualified Data.Map.Strict as Map

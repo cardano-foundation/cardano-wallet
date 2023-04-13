@@ -37,12 +37,12 @@ import Data.Quantity
     ( Quantity (..) )
 import System.Random
     ( Random )
-import Test.DBVar
-    ( prop_StoreUpdates )
 import Test.Hspec
     ( Spec, around, describe, it )
 import Test.QuickCheck
     ( Arbitrary (..), property )
+import Test.Store
+    ( prop_StoreUpdates )
 
 import qualified Data.ByteString as BS
 

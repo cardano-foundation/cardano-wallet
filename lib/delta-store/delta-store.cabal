@@ -46,7 +46,7 @@ library
   exposed-modules:
       Data.DBVar
       Data.Store
-      Test.DBVar
+      Test.Store
 
 test-suite unit
   default-language:
