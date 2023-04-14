@@ -32,8 +32,6 @@ import Cardano.Wallet.DB
     )
 import Cardano.Wallet.DB.Arbitrary
     ( GenState, GenTxHistory (..), InitialCheckpoint (..), MockChain (..) )
-import Cardano.Wallet.DB.Layer
-    ( PersistAddressBook )
 import Cardano.Wallet.DB.Pure.Implementation
     ( filterTxHistory )
 import Cardano.Wallet.DummyTarget.Primitive.Types
@@ -127,7 +125,7 @@ type TestOnLayer s =
 
 -- | Wallet properties.
 properties
-    :: (GenState s, PersistAddressBook s)
+    :: GenState s
     => WithFreshDB s
     -> SpecWith ()
 properties withFreshDB = describe "DB.Properties" $ do
@@ -360,7 +358,7 @@ prop_createWalletTwice test (wid, InitialCheckpoint cp0, meta) = monadicIO
 
 -- | Checks that a given resource can be read after having been inserted in DB.
 prop_readAfterPut
-    :: (Buildable (f a), Eq (f a), Applicative f, GenState s)
+    :: (Buildable (f a), Eq (f a), Applicative f)
     => TestOnLayer s
     -> ( DBLayer IO s ShelleyKey
          -> WalletId
@@ -385,8 +383,7 @@ prop_readAfterPut test putOp readOp a = test $ \db wid -> do
     assertWith "Inserted == Read" (res == fa)
 
 prop_getTxAfterPutValidTxId
-    :: GenState s
-    => TestOnLayer s
+    :: TestOnLayer s
     -> GenTxHistory
     -> Property
 prop_getTxAfterPutValidTxId test txGen = test $ \DBLayer {..} wid -> do
@@ -412,8 +409,7 @@ prop_getTxAfterPutValidTxId test txGen = test $ \DBLayer {..} wid -> do
             (txMeta == txInfoMeta && txId == txInfoId)
 
 prop_getTxAfterPutInvalidTxId
-    :: GenState s
-    => TestOnLayer s
+    :: TestOnLayer s
     -> GenTxHistory
     -> (Hash "Tx")
     -> Property
@@ -442,7 +438,7 @@ prop_getTxAfterPutInvalidWalletId test wid txGen =
 
 -- | Can't put resource before a wallet has been initialized
 prop_putBeforeInit
-    :: (Buildable (f a), Eq (f a), GenState s)
+    :: (Buildable (f a), Eq (f a))
     => WithFreshDB s
     -> ( DBLayer IO s ShelleyKey
          -> WalletId
@@ -477,9 +473,6 @@ prop_isolation
        , Eq (g c)
        , Buildable (h d)
        , Eq (h d)
-       , GenState s
-       , Show s
-       , PersistAddressBook s
        )
     => TestOnLayer s
     -> ( DBLayer IO s ShelleyKey
@@ -525,7 +518,7 @@ prop_isolation test putA readB readC readD (ShowFmt a) =
 
 -- | Check that the DB supports multiple sequential puts for a given resource
 prop_sequentialPut
-    :: (Buildable (f a), Eq (f a), GenState s, PersistAddressBook s)
+    :: (Buildable (f a), Eq (f a))
     => TestOnLayer s
     -> ( DBLayer IO s ShelleyKey
          -> WalletId
@@ -557,7 +550,7 @@ prop_sequentialPut test putOp readOp resolve as =
 -- | Can rollback to any particular checkpoint previously stored
 prop_rollbackCheckpoint
     :: forall s
-     . (GenState s, Eq s)
+     . GenState s
     => WithFreshDB s
     -> InitialCheckpoint s
     -> MockChain

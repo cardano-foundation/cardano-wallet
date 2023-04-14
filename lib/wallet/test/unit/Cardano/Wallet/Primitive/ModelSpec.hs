@@ -1006,7 +1006,7 @@ prop_discoverFromBlockData (ApplyBlocks s _ blocks) =
     -- may reveal this.
     summary = summarizeOnTxOut blocks
     discoverState
-        :: (IsOurs s Address, IsOurs s RewardAccount, MaybeLight s)
+        :: (IsOurs s Address, IsOurs s RewardAccount)
         => BlockData Identity (Either Address RewardAccount) ChainEvents s
         -> s -> s
     discoverState bs = snd . runIdentity . discoverFromBlockData bs

@@ -311,8 +311,7 @@ latest = NE.head
 
 -- | Make a 'ChainFollower' for 'FollowerState'.
 mkFollower
-    :: Monad m
-    => (forall a. State FollowerState a -> m a)
+    :: (forall a. State FollowerState a -> m a)
     -> ChainFollower m ChainPoint BlockHeader
         (LightBlocks m Block addr txs)
 mkFollower lift = ChainFollower

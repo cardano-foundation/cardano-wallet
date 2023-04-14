@@ -525,7 +525,6 @@ instance
     ( Typeable c
     , SupportsDiscovery 'Mainnet k
     , AddressPoolTest k
-    , GetPurpose k
     , (k == SharedKey) ~ 'False
     ) => Arbitrary (SeqAddressPool c k) where
     shrink (SeqAddressPool pool) =

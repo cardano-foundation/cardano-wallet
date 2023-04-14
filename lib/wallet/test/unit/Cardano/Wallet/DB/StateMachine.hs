@@ -222,10 +222,12 @@ import Data.TreeDiff
     ( ToExpr (..), defaultExprViaShow, genericToExpr )
 import GHC.Generics
     ( Generic, Generic1 )
+import GHC.Stack
+    ( HasCallStack, callStack )
 import System.Random
     ( getStdRandom, randomR )
 import Test.Hspec
-    ( HasCallStack, SpecWith, describe, expectationFailure, it )
+    ( SpecWith, describe, expectationFailure, it )
 import Test.QuickCheck
     ( Arbitrary (..)
     , Args (..)
@@ -448,6 +450,7 @@ runMock = \case
     RollbackTo _wid point ->
         first (Resp . fmap Point) . mRollbackTo point
   where
+    _requireCallStack = callStack
     timeInterpreter = dummyTimeInterpreter
 
 {-------------------------------------------------------------------------------
@@ -619,7 +622,7 @@ declareGenerator
 declareGenerator name f gen = (name, (f, gen))
 
 generatorWithoutId
-    :: forall s r. (Arbitrary (Wallet s), GenState s)
+    :: forall s r. GenState s
     => [(String, (Int, Gen (Cmd s (Reference WalletId r))))]
 generatorWithoutId =
     [ declareGenerator "CreateWallet" 5
@@ -635,7 +638,7 @@ generatorWithoutId =
     genId = MWid <$> elements ["a", "b", "c"]
 
 generatorWithWid
-    :: forall s r. (Arbitrary (Wallet s), GenState s)
+    :: forall s r. Arbitrary (Wallet s)
     => [Reference WalletId r]
     -> [(String, (Int, Gen (Cmd s (Reference WalletId r))))]
 generatorWithWid wids =
