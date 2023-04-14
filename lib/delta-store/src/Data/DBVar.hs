@@ -4,6 +4,9 @@
 {-# LANGUAGE RankNTypes #-}
 {-# LANGUAGE ScopedTypeVariables #-}
 {-# LANGUAGE TypeFamilies #-}
+-- |
+-- Copyright: © 2023 IOHK
+-- License: Apache-2.0
 module Data.DBVar (
     -- * Synopsis
     -- | 'DBVar' represents a mutable variable whose value is kept in memory,

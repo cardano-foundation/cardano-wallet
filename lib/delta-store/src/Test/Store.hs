@@ -1,5 +1,8 @@
 {-# LANGUAGE FlexibleContexts #-}
 {-# LANGUAGE RankNTypes #-}
+-- |
+-- Copyright: © 2023 IOHK
+-- License: Apache-2.0
 module Test.Store
     ( genUpdates
     , prop_StoreUpdates

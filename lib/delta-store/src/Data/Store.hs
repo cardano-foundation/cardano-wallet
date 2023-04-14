@@ -5,6 +5,9 @@
 {-# LANGUAGE RankNTypes #-}
 {-# LANGUAGE ScopedTypeVariables #-}
 {-# LANGUAGE TypeFamilies #-}
+-- |
+-- Copyright: © 2023 IOHK
+-- License: Apache-2.0
 module Data.Store (
     -- * Synopsis
     -- | 'Store' represents a facility for storing one value of a given type.
