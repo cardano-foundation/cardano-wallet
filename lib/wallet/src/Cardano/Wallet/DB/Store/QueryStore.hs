@@ -16,10 +16,11 @@ import Control.Exception
     ( SomeException (..), throwIO )
 import Control.Monad.IO.Class
     ( MonadIO (liftIO) )
-import Data.DBVar
-    ( Store (loadS) )
 import Data.Delta
     ( Delta (Base) )
+import Data.Store
+    ( Store (loadS) )
+
 {-----------------------------------------------------------------------------
     General QueryStore abstraction
 ------------------------------------------------------------------------------}

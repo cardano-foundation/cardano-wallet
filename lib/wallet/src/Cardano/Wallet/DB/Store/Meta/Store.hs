@@ -22,14 +22,14 @@ import Control.Arrow
     ( (&&&) )
 import Control.Exception
     ( SomeException )
-import Data.DBVar
-    ( Store (Store, loadS, updateS, writeS) )
 import Data.Foldable
     ( Foldable (toList) )
 import Data.List.Split
     ( chunksOf )
 import Data.Maybe
     ( fromJust )
+import Data.Store
+    ( Store (Store, loadS, updateS, writeS) )
 import Database.Persist.Sql
     ( Entity (entityVal)
     , PersistEntity (keyFromRecordM)

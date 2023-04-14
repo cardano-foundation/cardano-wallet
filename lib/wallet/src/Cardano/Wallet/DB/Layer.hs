@@ -163,7 +163,7 @@ import Control.Tracer
 import Data.Coerce
     ( coerce )
 import Data.DBVar
-    ( Store (..), loadDBVar, modifyDBMaybe, readDBVar, updateDBVar )
+    ( loadDBVar, modifyDBMaybe, readDBVar, updateDBVar )
 import Data.Functor
     ( (<&>) )
 import Data.Generics.Internal.VL.Lens
@@ -174,6 +174,8 @@ import Data.Proxy
     ( Proxy (..) )
 import Data.Quantity
     ( Quantity (..) )
+import Data.Store
+    ( Store (..) )
 import Data.Text
     ( Text )
 import Data.Text.Class

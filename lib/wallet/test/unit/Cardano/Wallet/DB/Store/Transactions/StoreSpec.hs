@@ -50,16 +50,14 @@ import Cardano.Wallet.Primitive.Types.Tx
     ( Tx (..) )
 import Control.Monad
     ( forM_, (<=<) )
-import Data.DBVar
-    ( Store (..) )
 import Data.Delta
     ( Delta (..) )
 import Data.Functor.Identity
     ( Identity (..) )
 import Data.Generics.Internal.VL
     ( set )
-import Test.DBVar
-    ( GenDelta, prop_StoreUpdates )
+import Data.Store
+    ( Store (..) )
 import Test.Hspec
     ( Spec, around, describe, it )
 import Test.QuickCheck
@@ -76,6 +74,8 @@ import Test.QuickCheck
     )
 import Test.QuickCheck.Monadic
     ( forAllM, pick )
+import Test.Store
+    ( GenDelta, prop_StoreUpdates )
 
 import qualified Cardano.Wallet.DB.Store.Transactions.Layer as TxSet
 import qualified Cardano.Wallet.Primitive.Types.Tx as W

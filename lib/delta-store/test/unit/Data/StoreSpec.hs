@@ -8,14 +8,12 @@ module Data.StoreSpec
 
 import Prelude
 
-import Data.DBVar
-    ( Store (..), newCachedStore, newStore )
 import Data.Delta
     ( Delta (..) )
+import Data.Store
+    ( Store (..), newCachedStore, newStore )
 import Fmt
     ( Buildable (..) )
-import Test.DBVar
-    ( prop_StoreUpdates )
 import Test.Hspec
     ( Spec, describe, it, parallel )
 import Test.QuickCheck
@@ -24,6 +22,8 @@ import Test.QuickCheck.Gen
     ( Gen, listOf )
 import Test.QuickCheck.Monadic
     ( monadicIO, run )
+import Test.Store
+    ( prop_StoreUpdates )
 
 spec :: Spec
 spec = do

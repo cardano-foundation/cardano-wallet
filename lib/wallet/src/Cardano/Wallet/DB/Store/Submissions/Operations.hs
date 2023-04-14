@@ -50,14 +50,14 @@ import Control.Monad
     ( forM_ )
 import Control.Monad.Class.MonadThrow
     ( throwIO )
-import Data.DBVar
-    ( Store (..), updateLoad )
 import Data.Delta
     ( Delta (..) )
 import Data.Map.Strict
     ( Map )
 import Data.Quantity
     ( Quantity )
+import Data.Store
+    ( Store (..), updateLoad )
 import Data.Word
     ( Word32 )
 import Database.Persist

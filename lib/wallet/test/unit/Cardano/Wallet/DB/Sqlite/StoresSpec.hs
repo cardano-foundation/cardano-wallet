@@ -48,12 +48,12 @@ import Control.Monad
     ( forM_ )
 import Data.Bifunctor
     ( second )
-import Data.DBVar
-    ( Store (..) )
 import Data.Delta
     ( Base, Delta (..) )
 import Data.Generics.Internal.VL.Lens
     ( over, (^.) )
+import Data.Store
+    ( Store (..) )
 import Fmt
     ( Buildable (..), listF, pretty )
 import Test.Hspec

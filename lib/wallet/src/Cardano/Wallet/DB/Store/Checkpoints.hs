@@ -125,8 +125,6 @@ import Control.Monad.Trans.Maybe
     ( MaybeT (..) )
 import Data.Bifunctor
     ( bimap, second )
-import Data.DBVar
-    ( Store (..) )
 import Data.Foldable
     ( for_ )
 import Data.Functor
@@ -143,6 +141,8 @@ import Data.Proxy
     ( Proxy (..) )
 import Data.Quantity
     ( Quantity (..) )
+import Data.Store
+    ( Store (..) )
 import Data.Type.Equality
     ( type (==) )
 import Data.Typeable

@@ -52,8 +52,6 @@ import Control.Arrow
     ( Arrow ((&&&)) )
 import Control.Monad.Reader
     ( MonadIO, ReaderT )
-import Data.DBVar
-    ( Store (..) )
 import Data.Foldable
     ( fold, toList )
 import Data.Functor
@@ -68,6 +66,8 @@ import Data.Maybe
     ( listToMaybe, maybeToList )
 import Data.Monoid
     ( First (..), getFirst )
+import Data.Store
+    ( Store (..) )
 import Data.Word
     ( Word32 )
 import Database.Persist.Sql

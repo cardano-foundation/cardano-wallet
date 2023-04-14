@@ -23,12 +23,12 @@ import Control.Monad.IO.Class
     ( MonadIO, liftIO )
 import Data.Bifunctor
     ( first )
-import Data.DBVar
-    ( Store (..), updateLoad )
 import Data.Delta
     ( Delta (..) )
 import Data.Proxy
     ( Proxy (..) )
+import Data.Store
+    ( Store (..), updateLoad )
 import Data.Table
     ( DeltaDB (..), Pile (..), Table (..) )
 import Database.Persist

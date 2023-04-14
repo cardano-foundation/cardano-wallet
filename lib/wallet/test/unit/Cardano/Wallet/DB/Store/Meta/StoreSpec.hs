@@ -41,20 +41,20 @@ import Cardano.Wallet.Primitive.Types
     ( Range (..), SortOrder (Ascending, Descending), WalletId )
 import Control.Monad
     ( forM_, (<=<) )
-import Data.DBVar
-    ( Store (..) )
 import Data.Foldable
     ( toList )
+import Data.Store
+    ( Store (..) )
 import GHC.Natural
     ( Natural )
-import Test.DBVar
-    ( prop_StoreUpdates )
 import Test.Hspec
     ( Spec, around, describe, it )
 import Test.QuickCheck
     ( Gen, arbitrary, elements, frequency, property )
 import Test.QuickCheck.Monadic
     ( forAllM, pick )
+import Test.Store
+    ( prop_StoreUpdates )
 
 import qualified Data.Map.Strict as Map
 
