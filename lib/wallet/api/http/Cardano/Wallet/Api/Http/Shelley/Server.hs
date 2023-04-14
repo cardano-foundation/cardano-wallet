@@ -227,7 +227,7 @@ import Cardano.Wallet.Api.Types
     , ApiAccountPublicKey (..)
     , ApiAccountSharedPublicKey (..)
     , ApiActiveSharedWallet (..)
-    , ApiAddress (..)
+    , ApiAddressWithPath (..)
     , ApiAnyCertificate (..)
     , ApiAsArray (..)
     , ApiAsset (..)
@@ -2015,7 +2015,7 @@ postRandomAddress
     => ctx
     -> ApiT WalletId
     -> ApiPostRandomAddressData
-    -> Handler (ApiAddress n)
+    -> Handler (ApiAddressWithPath n)
 postRandomAddress ctx (ApiT wid) body = do
     let pwd = coerce $ getApiT $ body ^. #passphrase
     let mix = getApiT <$> (body ^. #addressIndex)
@@ -2024,7 +2024,7 @@ postRandomAddress ctx (ApiT wid) body = do
     pure $ coerceAddress (addr, Unused, path)
   where
     coerceAddress (a, s, p) =
-        ApiAddress (ApiT a, Proxy @n) (ApiT s) (NE.map ApiT p)
+        ApiAddressWithPath (ApiT a, Proxy @n) (ApiT s) (NE.map ApiT p)
 
 putRandomAddress
     :: forall ctx s k n.
@@ -2068,7 +2068,7 @@ listAddresses
     -> (s -> Address -> Maybe Address)
     -> ApiT WalletId
     -> Maybe (ApiT AddressState)
-    -> Handler [ApiAddress n]
+    -> Handler [ApiAddressWithPath n]
 listAddresses ctx normalize (ApiT wid) stateFilter = do
     addrs <- withWorkerCtx ctx wid liftE liftE $ \wrk -> liftHandler $
         W.listAddresses @_ @s @k wrk wid normalize
@@ -2079,7 +2079,7 @@ listAddresses ctx normalize (ApiT wid) stateFilter = do
         Nothing -> const True
         Just (ApiT s) -> \(_,state,_) -> (state == s)
     coerceAddress (a, s, p) =
-        ApiAddress (ApiT a, Proxy @n) (ApiT s) (NE.map ApiT p)
+        ApiAddressWithPath (ApiT a, Proxy @n) (ApiT s) (NE.map ApiT p)
 
 {-------------------------------------------------------------------------------
                                     Transactions

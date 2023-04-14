@@ -16,7 +16,7 @@ module Test.Integration.Scenario.API.Byron.Transactions
 import Prelude
 
 import Cardano.Wallet.Api.Types
-    ( ApiAddress
+    ( ApiAddressWithPath
     , ApiAsset (..)
     , ApiByronWallet
     , ApiFee (..)
@@ -420,11 +420,11 @@ spec = describe "BYRON_TRANSACTIONS" $ do
         destination <- case walType of
             DiscoveryRandom -> do
                 let payloadAddr = Json [json| { "passphrase": #{fixturePassphrase} }|]
-                rA <- request @(ApiAddress n) ctx (Link.postRandomAddress wDestByron) Default payloadAddr
+                rA <- request @(ApiAddressWithPath n) ctx (Link.postRandomAddress wDestByron) Default payloadAddr
                 pure $ getFromResponse #id rA
             DiscoverySequential -> do
                 let link = Link.listAddresses @'Byron wDestByron
-                rA2 <- request @[ApiAddress n] ctx link Default Empty
+                rA2 <- request @[ApiAddressWithPath n] ctx link Default Empty
                 let addrs = getFromResponse Prelude.id rA2
                 pure $ (addrs !! 1) ^. #id
 

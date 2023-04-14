@@ -19,7 +19,7 @@ import Prelude
 import Cardano.Mnemonic
     ( entropyToMnemonic, genEntropy, mnemonicToText )
 import Cardano.Wallet.Api.Types
-    ( ApiAddress
+    ( ApiAddressWithPath
     , ApiByronWallet
     , ApiNetworkInformation
     , ApiTransaction
@@ -460,7 +460,7 @@ spec = describe "SHELLEY_WALLETS" $ do
             verify rW expectations
 
             let w = getFromResponse id rW
-            rA <- request @[ApiAddress n] ctx
+            rA <- request @[ApiAddressWithPath n] ctx
                 (Link.listAddresses @'Shelley w) Default Empty
             _ <- request @ApiWallet ctx
                 (Link.deleteWallet @'Shelley w) Default Empty

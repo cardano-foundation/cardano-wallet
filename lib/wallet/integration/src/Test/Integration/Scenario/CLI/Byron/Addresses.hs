@@ -14,7 +14,7 @@ module Test.Integration.Scenario.CLI.Byron.Addresses
 import Prelude
 
 import Cardano.Wallet.Api.Types
-    ( ApiAddress, ApiByronWallet, ApiT (..) )
+    ( ApiAddressWithPath, ApiByronWallet, ApiT (..) )
 import Cardano.Wallet.Primitive.AddressDerivation
     ( Depth (..), PaymentAddress )
 import Cardano.Wallet.Primitive.AddressDerivation.Byron
@@ -127,7 +127,7 @@ scenario_ADDRESS_LIST_01 walType fixture = it title $ \ctx -> runResourceT $ do
     (Exit c, Stdout out, Stderr err) <- listAddressesViaCLI ctx [wid]
     err `shouldBe` cmdOk
     c `shouldBe` ExitSuccess
-    j <- expectValidJSON (Proxy @[ApiAddress n]) out
+    j <- expectValidJSON (Proxy @[ApiAddressWithPath n]) out
     let n = length j
     forM_ [0..(n-1)] $ \addrNum -> do
         expectCliListField
@@ -152,7 +152,7 @@ scenario_ADDRESS_LIST_02 walType fixture = it title $ \ctx -> runResourceT $ do
     (Exit c, Stdout out, Stderr err) <- listAddressesViaCLI ctx (args "used")
     err `shouldBe` cmdOk
     c `shouldBe` ExitSuccess
-    j <- expectValidJSON (Proxy @[ApiAddress n]) out
+    j <- expectValidJSON (Proxy @[ApiAddressWithPath n]) out
     let n = length j
     forM_ [0..(n-1)] $ \addrNum -> do
         expectCliListField
@@ -162,7 +162,7 @@ scenario_ADDRESS_LIST_02 walType fixture = it title $ \ctx -> runResourceT $ do
     (Exit c2, Stdout out2, Stderr err2) <- listAddressesViaCLI ctx (args "unused")
     err2 `shouldBe` cmdOk
     c2 `shouldBe` ExitSuccess
-    j2 <- expectValidJSON (Proxy @[ApiAddress n]) out2
+    j2 <- expectValidJSON (Proxy @[ApiAddressWithPath n]) out2
     let n2 = length j2
     forM_ [0..(n2-1)] $ \addrNum -> do
         expectCliListField
@@ -193,7 +193,7 @@ scenario_ADDRESS_CREATE_01 = it title $ \ctx -> runResourceT @IO $ do
     (c, out, err) <- createAddressViaCLI ctx [wid] (T.unpack fixturePassphrase)
     T.unpack err `shouldContain` cmdOk
     c `shouldBe` ExitSuccess
-    j <- expectValidJSON (Proxy @(ApiAddress n)) (T.unpack out)
+    j <- expectValidJSON (Proxy @(ApiAddressWithPath n)) (T.unpack out)
     verify j [ expectCliField #state (`shouldBe` ApiT Unused) ]
   where
     title = "CLI_ADDRESS_CREATE_01 - Can create a random address without index"
@@ -228,12 +228,12 @@ scenario_ADDRESS_CREATE_04 = it title $ \ctx -> runResourceT @IO $ do
     (c, out, err) <- createAddressViaCLI ctx [wid] (T.unpack fixturePassphrase)
     T.unpack err `shouldContain` cmdOk
     c `shouldBe` ExitSuccess
-    addr <- expectValidJSON (Proxy @(ApiAddress n)) (T.unpack out)
+    addr <- expectValidJSON (Proxy @(ApiAddressWithPath n)) (T.unpack out)
 
     (Exit cl, Stdout outl, Stderr errl) <- listAddressesViaCLI ctx [wid]
     errl `shouldBe` cmdOk
     cl `shouldBe` ExitSuccess
-    j <- expectValidJSON (Proxy @[ApiAddress n]) outl
+    j <- expectValidJSON (Proxy @[ApiAddressWithPath n]) outl
     expectCliListField 0 id (`shouldBe` addr) j
   where
     title = "CLI_ADDRESS_CREATE_04 - Can list address after creating it"
@@ -247,7 +247,7 @@ scenario_ADDRESS_CREATE_05 = it title $ \ctx -> runResourceT @IO $ do
     (c, out, err) <- createAddressViaCLI ctx args (T.unpack fixturePassphrase)
     T.unpack err `shouldContain` cmdOk
     c `shouldBe` ExitSuccess
-    j <- expectValidJSON (Proxy @(ApiAddress n)) (T.unpack out)
+    j <- expectValidJSON (Proxy @(ApiAddressWithPath n)) (T.unpack out)
     verify j [ expectCliField #state (`shouldBe` ApiT Unused) ]
   where
     title = "CLI_ADDRESS_CREATE_05 - Can create an address and specify the index"

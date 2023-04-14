@@ -39,7 +39,7 @@ import Cardano.Wallet.Api.Hex
     ( fromHexText )
 import Cardano.Wallet.Api.Types
     ( AddressAmount (..)
-    , ApiAddress (..)
+    , ApiAddressWithPath (..)
     , ApiAnyCertificate (..)
     , ApiAssetMintBurn (..)
     , ApiCertificate (..)
@@ -725,7 +725,7 @@ spec = describe "NEW_SHELLEY_TRANSACTIONS" $ do
                 , ApiT (DerivationIndex 0)
                 ]
         let addrSourceChange:_ =
-                filter (\(ApiAddress _ _ derPath') -> derPath == derPath') addrsSourceAll
+                filter (\(ApiAddressWithPath _ _ derPath') -> derPath == derPath') addrsSourceAll
         let addrSrc =  addrSourceChange ^. #id
         let expectedTxOutSource = WalletOutput $ ApiWalletOutput
                 { address = addrSrc

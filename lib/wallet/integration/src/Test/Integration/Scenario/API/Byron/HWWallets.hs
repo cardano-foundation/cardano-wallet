@@ -23,7 +23,7 @@ import Cardano.Mnemonic
     )
 import Cardano.Wallet.Api.Types
     ( AddressAmount (..)
-    , ApiAddress
+    , ApiAddressWithPath
     , ApiByronWallet
     , ApiCoinSelectionOutput (..)
     , ApiFee
@@ -284,7 +284,7 @@ spec = describe "BYRON_HW_WALLETS" $ do
             wPub <- restoreWalletFromPubKey @ApiByronWallet @'Byron ctx pubKey restoredWalletName
 
             let g = fromIntegral $ getAddressPoolGap defaultAddressPoolGap
-            r <- request @[ApiAddress n] ctx
+            r <- request @[ApiAddressWithPath n] ctx
                 (Link.listAddresses @'Byron wPub) Default Empty
             expectResponseCode HTTP.status200 r
             expectListSize g r
@@ -305,7 +305,7 @@ spec = describe "BYRON_HW_WALLETS" $ do
 
             let wPub = getFromResponse id rRestore
 
-            r <- request @[ApiAddress n] ctx
+            r <- request @[ApiAddressWithPath n] ctx
                 (Link.listAddresses @'Byron wPub) Default Empty
             expectResponseCode HTTP.status200 r
             expectListSize addrPoolGap r

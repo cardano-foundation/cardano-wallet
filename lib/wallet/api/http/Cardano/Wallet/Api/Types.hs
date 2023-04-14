@@ -57,7 +57,7 @@ module Cardano.Wallet.Api.Types
     , AnyAddressType (..)
     , ApiAccountKey (..)
     , ApiAccountKeyShared (..)
-    , ApiAddress (..)
+    , ApiAddressWithPath (..)
     , ApiAddressData (..)
     , ApiAddressDataPayload (..)
     , ApiAddressInspect (..)
@@ -681,13 +681,13 @@ toApiAssetMetadata W.AssetMetadata{name,description,ticker,url,logo,decimals} =
     ApiAssetMetadata name description ticker
         (ApiT <$> url) (ApiT <$> logo) (ApiT <$> decimals)
 
-data ApiAddress (n :: NetworkDiscriminant) = ApiAddress
+data ApiAddressWithPath (n :: NetworkDiscriminant) = ApiAddressWithPath
     { id :: !(ApiT Address, Proxy n)
     , state :: !(ApiT AddressState)
     , derivationPath :: NonEmpty (ApiT DerivationIndex)
     }
     deriving (Eq, Generic, Show, Typeable)
-    deriving (FromJSON, ToJSON) via DefaultRecord (ApiAddress n)
+    deriving (FromJSON, ToJSON) via DefaultRecord (ApiAddressWithPath n)
     deriving anyclass NFData
 
 newtype ApiCosignerIndex = ApiCosignerIndex Word8
@@ -2997,7 +2997,7 @@ type family ApiBalanceTransactionPostDataT (n :: k) :: Type
 type family ApiDecodedTransactionT (n :: k) :: Type
 
 type instance ApiAddressT (n :: NetworkDiscriminant) =
-    ApiAddress n
+    ApiAddressWithPath n
 
 type instance ApiStakeKeysT (n :: NetworkDiscriminant) =
     ApiStakeKeys n

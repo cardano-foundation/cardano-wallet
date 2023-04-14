@@ -135,7 +135,7 @@ spec = describe "SHELLEY_MIGRATIONS" $ do
             targetWallet <- emptyWallet ctx
             targetAddresses <- listAddresses @n ctx targetWallet
             let targetAddressIds = targetAddresses <&>
-                    (\(ApiTypes.ApiAddress addrId _ _) -> addrId)
+                    (\(ApiTypes.ApiAddressWithPath addrId _ _) -> addrId)
             let ep = Link.createMigrationPlan @'Shelley sourceWallet
             response <- request @(ApiWalletMigrationPlan n) ctx ep Default
                 (Json [json|{addresses: #{targetAddressIds}}|])
@@ -161,7 +161,7 @@ spec = describe "SHELLEY_MIGRATIONS" $ do
             targetWallet <- emptyWallet ctx
             targetAddresses <- listAddresses @n ctx targetWallet
             let targetAddressIds = targetAddresses <&>
-                    (\(ApiTypes.ApiAddress addrId _ _) -> addrId)
+                    (\(ApiTypes.ApiAddressWithPath addrId _ _) -> addrId)
             let ep = Link.createMigrationPlan @'Shelley sourceWallet
             response <- request @(ApiWalletMigrationPlan n) ctx ep Default
                 (Json [json|{addresses: #{targetAddressIds}}|])
@@ -187,7 +187,7 @@ spec = describe "SHELLEY_MIGRATIONS" $ do
                 targetWallet <- emptyWallet ctx
                 targetAddresses <- listAddresses @n ctx targetWallet
                 let targetAddressIds = targetAddresses <&>
-                        (\(ApiTypes.ApiAddress addrId _ _) -> addrId)
+                        (\(ApiTypes.ApiAddressWithPath addrId _ _) -> addrId)
                 let ep = Link.createMigrationPlan @'Shelley sourceWallet
                 result <- request
                     @(ApiWalletMigrationPlan n) ctx ep Default
@@ -252,7 +252,7 @@ spec = describe "SHELLEY_MIGRATIONS" $ do
             targetWallet <- emptyWallet ctx
             targetAddresses <- listAddresses @n ctx targetWallet
             let targetAddressIds = targetAddresses <&>
-                    (\(ApiTypes.ApiAddress addrId _ _) -> addrId)
+                    (\(ApiTypes.ApiAddressWithPath addrId _ _) -> addrId)
             let ep = Link.createMigrationPlan @'Shelley sourceWallet
             response <- request @(ApiWalletMigrationPlan n) ctx ep Default
                 (Json [json|{addresses: #{targetAddressIds}}|])
@@ -269,7 +269,7 @@ spec = describe "SHELLEY_MIGRATIONS" $ do
             targetWallet <- emptyWallet ctx
             targetAddresses <- listAddresses @n ctx targetWallet
             let targetAddressIds = targetAddresses <&>
-                    (\(ApiTypes.ApiAddress addrId _ _) -> addrId)
+                    (\(ApiTypes.ApiAddressWithPath addrId _ _) -> addrId)
             let ep = Link.createMigrationPlan @'Shelley sourceWallet
             response1 <- request @(ApiWalletMigrationPlan n) ctx ep Default
                 (Json [json|{addresses: #{targetAddressIds}}|])
@@ -303,7 +303,7 @@ spec = describe "SHELLEY_MIGRATIONS" $ do
             targetWallet <- emptyWallet ctx
             targetAddresses <- listAddresses @n ctx targetWallet
             let targetAddressIds = targetAddresses <&>
-                    (\(ApiTypes.ApiAddress addrId _ _) -> addrId)
+                    (\(ApiTypes.ApiAddressWithPath addrId _ _) -> addrId)
             let ep = Link.createMigrationPlan @'Shelley sourceWallet
             response <- request @(ApiWalletMigrationPlan n) ctx ep Default
                 (Json [json|{addresses: #{targetAddressIds}}|])
@@ -430,7 +430,7 @@ spec = describe "SHELLEY_MIGRATIONS" $ do
             targetWallet <- emptyWallet ctx
             targetAddresses <- listAddresses @n ctx targetWallet
             let targetAddressIds = targetAddresses <&>
-                    (\(ApiTypes.ApiAddress addrId _ _) -> addrId)
+                    (\(ApiTypes.ApiAddressWithPath addrId _ _) -> addrId)
 
             -- Create a migration plan, and check that the plan is complete:
             let ep = Link.createMigrationPlan @'Shelley sourceWallet
@@ -550,7 +550,7 @@ spec = describe "SHELLEY_MIGRATIONS" $ do
             targetWallet <- emptyWallet ctx
             targetAddresses <- listAddresses @n ctx targetWallet
             let targetAddressIds = targetAddresses <&>
-                    (\(ApiTypes.ApiAddress addrId _ _) -> addrId)
+                    (\(ApiTypes.ApiAddressWithPath addrId _ _) -> addrId)
 
             -- Create a migration plan, and check that the plan is only
             -- partially complete:
@@ -611,7 +611,7 @@ spec = describe "SHELLEY_MIGRATIONS" $ do
         targetWallet <- emptyWallet ctx
         targetAddresses <- listAddresses @n ctx targetWallet
         let targetAddressIds = targetAddresses <&>
-                (\(ApiTypes.ApiAddress addrId _ _) -> addrId)
+                (\(ApiTypes.ApiAddressWithPath addrId _ _) -> addrId)
 
         -- Compute the expected migration plan:
         responsePlan <- request @(ApiWalletMigrationPlan n) ctx
@@ -697,7 +697,7 @@ spec = describe "SHELLEY_MIGRATIONS" $ do
             targetWallet <- emptyWallet ctx
             targetAddresses <- listAddresses @n ctx targetWallet
             let targetAddressIds = targetAddresses <&>
-                    (\(ApiTypes.ApiAddress addrId _ _) -> addrId)
+                    (\(ApiTypes.ApiAddressWithPath addrId _ _) -> addrId)
             let ep = Link.migrateWallet @'Shelley sourceWallet
             response <- request @[ApiTransaction n] ctx ep Default $
                     Json [json|
@@ -726,7 +726,7 @@ spec = describe "SHELLEY_MIGRATIONS" $ do
             targetWallet <- emptyWallet ctx
             targetAddresses <- listAddresses @n ctx targetWallet
             let targetAddressIds = targetAddresses <&>
-                    (\(ApiTypes.ApiAddress addrId _ _) -> addrId)
+                    (\(ApiTypes.ApiAddressWithPath addrId _ _) -> addrId)
 
             -- Create a migration plan:
             let endpointPlan = (Link.createMigrationPlan @'Shelley sourceWallet)
@@ -770,7 +770,7 @@ spec = describe "SHELLEY_MIGRATIONS" $ do
             targetWallet <- emptyWallet ctx
             targetAddresses <- listAddresses @n ctx targetWallet
             let targetAddressIds = targetAddresses <&>
-                    (\(ApiTypes.ApiAddress addrId _ _) -> addrId)
+                    (\(ApiTypes.ApiAddressWithPath addrId _ _) -> addrId)
 
             -- Attempt to perform a migration:
             response <- request @[ApiTransaction n] ctx
@@ -875,7 +875,7 @@ spec = describe "SHELLEY_MIGRATIONS" $ do
             targetWallet <- emptyWallet ctx
             targetAddresses <- listAddresses @n ctx targetWallet
             let targetAddressIds = targetAddresses <&>
-                    (\(ApiTypes.ApiAddress addrId _ _) -> addrId)
+                    (\(ApiTypes.ApiAddressWithPath addrId _ _) -> addrId)
 
             -- Compute the expected migration plan:
             let feeExpected =
@@ -964,7 +964,7 @@ spec = describe "SHELLEY_MIGRATIONS" $ do
             targetWallet <- emptyWallet ctx
             targetAddresses <- listAddresses @n ctx targetWallet
             let targetAddressIds = targetAddresses <&>
-                    (\(ApiTypes.ApiAddress addrId _ _) -> addrId)
+                    (\(ApiTypes.ApiAddressWithPath addrId _ _) -> addrId)
 
             -- Perform a migration:
             let ep = Link.migrateWallet @'Shelley sourceWallet
@@ -1050,7 +1050,7 @@ spec = describe "SHELLEY_MIGRATIONS" $ do
             targetWallet <- emptyWallet ctx
             targetAddresses <- listAddresses @n ctx targetWallet
             let targetAddressIds = targetAddresses <&>
-                    (\(ApiTypes.ApiAddress addrId _ _) -> addrId)
+                    (\(ApiTypes.ApiAddressWithPath addrId _ _) -> addrId)
 
             -- Create a migration plan:
             let endpointPlan = (Link.createMigrationPlan @'Shelley sourceWallet)
@@ -1212,7 +1212,7 @@ spec = describe "SHELLEY_MIGRATIONS" $ do
             targetWallet <- emptyWallet ctx
             targetAddresses <- listAddresses @n ctx targetWallet
             let targetAddressIds = take targetAddressCount targetAddresses <&>
-                    (\(ApiTypes.ApiAddress addrId _ _) -> addrId)
+                    (\(ApiTypes.ApiAddressWithPath addrId _ _) -> addrId)
 
             -- Create a migration plan:
             response0 <- request @(ApiWalletMigrationPlan n) ctx

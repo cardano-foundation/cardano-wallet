@@ -17,7 +17,7 @@ import Prelude
 import Cardano.Mnemonic
     ( entropyToMnemonic, genEntropy, mnemonicToText )
 import Cardano.Wallet.Api.Types
-    ( ApiAddress
+    ( ApiAddressWithPath
     , ApiFee
     , ApiTransaction
     , ApiUtxoStatistics
@@ -258,7 +258,7 @@ spec = describe "SHELLEY_HW_WALLETS" $ do
             wPub <- restoreWalletFromPubKey @ApiWallet @'Shelley ctx pubKey restoredWalletName
 
             let g = fromIntegral $ getAddressPoolGap defaultAddressPoolGap
-            r <- request @[ApiAddress n] ctx
+            r <- request @[ApiAddressWithPath n] ctx
                 (Link.listAddresses @'Shelley wPub) Default Empty
             expectResponseCode HTTP.status200 r
             expectListSize g r
@@ -279,7 +279,7 @@ spec = describe "SHELLEY_HW_WALLETS" $ do
 
             let wPub = getFromResponse id rRestore
 
-            r <- request @[ApiAddress n] ctx
+            r <- request @[ApiAddressWithPath n] ctx
                 (Link.listAddresses @'Shelley wPub) Default Empty
             expectResponseCode HTTP.status200 r
             expectListSize addrPoolGap r

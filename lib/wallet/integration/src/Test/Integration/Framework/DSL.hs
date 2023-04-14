@@ -259,7 +259,7 @@ import Cardano.Wallet.Api.Types
     , ApiAccountKeyShared
     , ApiAccountSharedPublicKey (..)
     , ApiActiveSharedWallet
-    , ApiAddress
+    , ApiAddressWithPath
     , ApiBlockReference (..)
     , ApiByronWallet
     , ApiCoinSelection
@@ -1611,7 +1611,7 @@ fixtureMultiAssetRandomWallet ctx = do
 
     -- create Byron address
     let p = Json [aesonQQ| { "passphrase": #{fixturePassphrase} }|]
-    r <- request @(ApiAddress n) ctx (Link.postRandomAddress wB) Default p
+    r <- request @(ApiAddressWithPath n) ctx (Link.postRandomAddress wB) Default p
     expectSuccess r
 
     -- pick out assets to send
@@ -1619,7 +1619,7 @@ fixtureMultiAssetRandomWallet ctx = do
     assetsSrc `shouldNotBe` mempty
     let val = minUTxOValue (_mainEra ctx) <$ pickAnAsset assetsSrc
 
-    rL <- request @[ApiAddress n] ctx (Link.listAddresses @'Byron wB) Default Empty
+    rL <- request @[ApiAddressWithPath n] ctx (Link.listAddresses @'Byron wB) Default Empty
     let addrs = getFromResponse id rL
     let destination = (addrs !! 1) ^. #id
     payload <- mkTxPayloadMA @n destination 0 [val] fixturePassphrase
@@ -1658,7 +1658,7 @@ fixtureMultiAssetIcarusWallet ctx = do
     assetsSrc `shouldNotBe` mempty
     let val = minUTxOValue (_mainEra ctx) <$ pickAnAsset assetsSrc
 
-    rL <- request @[ApiAddress n] ctx (Link.listAddresses @'Byron wB) Default Empty
+    rL <- request @[ApiAddressWithPath n] ctx (Link.listAddresses @'Byron wB) Default Empty
     let addrs = getFromResponse id rL
     let destination = (addrs !! 1) ^. #id
     payload <- mkTxPayloadMA @n destination 0 [val] fixturePassphrase
@@ -1820,7 +1820,7 @@ fundSharedWallet ctx amt sharedWals = do
            _ -> error
                "funding of shared wallet make sense only for active one"
 
-   rAddr <- request @[ApiAddress n] ctx
+   rAddr <- request @[ApiAddressWithPath n] ctx
        (Link.listAddresses @'Shared wal) Default Empty
    expectResponseCode HTTP.status200 rAddr
    let sharedAddrs = getFromResponse Prelude.id rAddr
@@ -2267,7 +2267,7 @@ fixtureWalletWith ctx coins0 = do
             <$> request @ApiWallet ctx
                     (Link.getWallet @'Shelley dest) Default Empty
         addrs <- fmap (view #id) . getFromResponse id
-            <$> request @[ApiAddress n] ctx
+            <$> request @[ApiAddressWithPath n] ctx
                     (Link.listAddresses @'Shelley dest) Default Empty
         let payments = for (zip coins addrs) $ \(amt, addr) -> [aesonQQ|{
                 "address": #{addr},
@@ -2588,10 +2588,10 @@ listAddresses
     :: forall n m. (MonadUnliftIO m, HasSNetworkId n)
     => Context
     -> ApiWallet
-    -> m [ApiAddress n]
+    -> m [ApiAddressWithPath n]
 listAddresses ctx w = do
     let link = Link.listAddresses @'Shelley w
-    r <- request @[ApiAddress n] ctx link Default Empty
+    r <- request @[ApiAddressWithPath n] ctx link Default Empty
     expectResponseCode HTTP.status200 r
     return (getFromResponse id r)
 

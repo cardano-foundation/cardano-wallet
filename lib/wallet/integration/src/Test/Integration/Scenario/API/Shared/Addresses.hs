@@ -20,7 +20,7 @@ module Test.Integration.Scenario.API.Shared.Addresses
 import Prelude
 
 import Cardano.Wallet.Api.Types
-    ( ApiAddress, ApiSharedWallet (..), WalletStyle (..) )
+    ( ApiAddressWithPath, ApiSharedWallet (..), WalletStyle (..) )
 import Cardano.Wallet.Primitive.AddressDerivation.SharedKey
     ( purposeCIP1854 )
 import Cardano.Wallet.Primitive.AddressDiscovery.Sequential
@@ -71,7 +71,7 @@ spec = describe "SHARED_ADDRESSES" $ do
             ]
         let (ApiSharedWallet (Right wal)) = getFromResponse id rPost
 
-        r <- request @[ApiAddress n] ctx
+        r <- request @[ApiAddressWithPath n] ctx
             (Link.listAddresses @'Shared wal) Default Empty
         expectResponseCode HTTP.status200 r
         let g = fromIntegral $ getAddressPoolGap defaultAddressPoolGap
@@ -105,7 +105,7 @@ spec = describe "SHARED_ADDRESSES" $ do
             ]
         let (ApiSharedWallet (Left wal)) = getFromResponse id rPost
 
-        r <- request @[ApiAddress n] ctx
+        r <- request @[ApiAddressWithPath n] ctx
             (Link.listAddresses @'Shared wal) Default Empty
         expectResponseCode HTTP.status200 r
         expectListSize 0 r

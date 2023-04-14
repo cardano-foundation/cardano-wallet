@@ -76,10 +76,10 @@ import Cardano.Wallet.Api.Types
     , ApiAccountPublicKey (..)
     , ApiAccountSharedPublicKey (..)
     , ApiActiveSharedWallet (..)
-    , ApiAddress (..)
     , ApiAddressData (..)
     , ApiAddressDataPayload (..)
     , ApiAddressInspect (..)
+    , ApiAddressWithPath (..)
     , ApiAnyCertificate (..)
     , ApiAsArray (..)
     , ApiAsset (..)
@@ -1013,9 +1013,9 @@ instance {-# OVERLAPPING #-} DecodeStakeAddress ('Testnet 0) where
                               Arbitrary Instances
 -------------------------------------------------------------------------------}
 
-instance Arbitrary (ApiAddress n) where
+instance Arbitrary (ApiAddressWithPath n) where
     shrink _ = []
-    arbitrary = ApiAddress
+    arbitrary = ApiAddressWithPath
         <$> fmap (, Proxy @n) arbitrary
         <*> arbitrary
         <*> arbitrary
@@ -2515,8 +2515,8 @@ specification =
         either (error . (msg <>) . show) Prelude.id . Yaml.decodeEither'
     msg = "Whoops! Failed to parse or find the api specification document: "
 
-instance Typeable n => ToSchema (ApiAddress n) where
-    declareNamedSchema _ = declareSchemaForDefinition "ApiAddress"
+instance Typeable n => ToSchema (ApiAddressWithPath n) where
+    declareNamedSchema _ = declareSchemaForDefinition "ApiAddressWithPath"
 
 instance ToSchema ApiAddressInspect where
     declareNamedSchema _ = declareSchemaForDefinition "ApiAddressInspect"

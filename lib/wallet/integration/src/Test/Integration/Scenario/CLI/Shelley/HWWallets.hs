@@ -12,7 +12,7 @@ module Test.Integration.Scenario.CLI.Shelley.HWWallets
 import Prelude
 
 import Cardano.Wallet.Api.Types
-    ( ApiAddress
+    ( ApiAddressWithPath
     , ApiFee
     , ApiTransaction
     , ApiUtxoStatistics
@@ -285,7 +285,7 @@ spec = describe "SHELLEY_CLI_HW_WALLETS" $ do
                 listAddressesViaCLI ctx [T.unpack (w ^. walletId)]
             err `shouldBe` "Ok.\n"
             c `shouldBe` ExitSuccess
-            json <- expectValidJSON (Proxy @[ApiAddress n]) out
+            json <- expectValidJSON (Proxy @[ApiAddressWithPath n]) out
             length json `shouldBe` g
             forM_ [0..(g-1)] $ \addrNum -> do
                 expectCliListField

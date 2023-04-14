@@ -25,7 +25,7 @@ import Cardano.Address.Script
 import Cardano.Mnemonic
     ( MkSomeMnemonic (..) )
 import Cardano.Wallet.Api.Types
-    ( ApiAddress
+    ( ApiAddressWithPath
     , ApiAnyCertificate (..)
     , ApiCertificate (..)
     , ApiConstructTransaction (..)
@@ -684,7 +684,7 @@ spec = describe "SHARED_TRANSACTIONS" $ do
 
         -- prepare payload
         let amt = (minUTxOValue (_mainEra ctx) :: Natural)
-        rAddr <- request @[ApiAddress n] ctx
+        rAddr <- request @[ApiAddressWithPath n] ctx
             (Link.listAddresses @'Shared wb) Default Empty
         let addrs = getFromResponse Prelude.id rAddr
         let destination = (addrs !! 1) ^. #id
@@ -1155,7 +1155,7 @@ spec = describe "SHARED_TRANSACTIONS" $ do
             (,) <$> fixtureSharedWallet @n ctx <*> emptySharedWallet ctx
 
         -- destination wallet
-        rAddr <- request @[ApiAddress n] ctx
+        rAddr <- request @[ApiAddressWithPath n] ctx
             (Link.listAddresses @'Shared walDest) Default Empty
         expectResponseCode HTTP.status200 rAddr
         let addrs = getFromResponse Prelude.id rAddr
@@ -1610,7 +1610,7 @@ spec = describe "SHARED_TRANSACTIONS" $ do
             (,) <$> fixtureSharedWallet @n ctx <*> emptySharedWallet ctx
         -- post tx
         let amt = minUTxOValue (_mainEra ctx) :: Natural
-        rAddr <- request @[ApiAddress n] ctx
+        rAddr <- request @[ApiAddressWithPath n] ctx
             (Link.listAddresses @'Shared walDest) Default Empty
         expectResponseCode HTTP.status200 rAddr
         let addrs = getFromResponse Prelude.id rAddr
@@ -1699,7 +1699,7 @@ spec = describe "SHARED_TRANSACTIONS" $ do
             (,) <$> fixtureSharedWallet @n ctx <*> emptySharedWallet ctx
         -- post tx
         let amt = minUTxOValue (_mainEra ctx) :: Natural
-        rAddr <- request @[ApiAddress n] ctx
+        rAddr <- request @[ApiAddressWithPath n] ctx
             (Link.listAddresses @'Shared walDest) Default Empty
         expectResponseCode HTTP.status200 rAddr
         let addrs = getFromResponse Prelude.id rAddr
@@ -1998,7 +1998,7 @@ spec = describe "SHARED_TRANSACTIONS" $ do
             (,) <$> fixtureSharedWallet @n ctx <*> emptySharedWallet ctx
 
         -- destination wallet
-        rAddr <- request @[ApiAddress n] ctx
+        rAddr <- request @[ApiAddressWithPath n] ctx
             (Link.listAddresses @'Shared walDest) Default Empty
         expectResponseCode HTTP.status200 rAddr
         let addrs = getFromResponse Prelude.id rAddr

@@ -25,7 +25,7 @@ import Cardano.CLI
 import Cardano.Startup
     ( withUtf8Encoding )
 import Cardano.Wallet.Api.Types
-    ( ApiAddress
+    ( ApiAddressWithPath
     , ApiAsset (..)
     , ApiEra
     , ApiFee
@@ -275,7 +275,7 @@ walletApiBench capture ctx = do
         pure ()
 
     postTx (wSrc, postTxEndp, pass) wDest amt = do
-        (_, addrs) <- unsafeRequest @[ApiAddress n] ctx
+        (_, addrs) <- unsafeRequest @[ApiAddressWithPath n] ctx
             (Link.listAddresses @'Shelley wDest) Empty
         let destination = (addrs !! 1) ^. #id
         let payload = Json [json|{
@@ -306,7 +306,7 @@ walletApiBench capture ctx = do
         fmtResult "getUTxOsStatistics " t3
 
         t4 <- measureApiLogs capture
-            (request @[ApiAddress n] ctx (Link.listAddresses @'Shelley wal1) Default Empty)
+            (request @[ApiAddressWithPath n] ctx (Link.listAddresses @'Shelley wal1) Default Empty)
         fmtResult "listAddresses      " t4
 
         t5 <- measureApiLogs capture
@@ -322,7 +322,7 @@ walletApiBench capture ctx = do
                 Empty
         fmtResult "getTransaction     " t5a
 
-        (_, addrs) <- unsafeRequest @[ApiAddress n] ctx (Link.listAddresses @'Shelley wal2) Empty
+        (_, addrs) <- unsafeRequest @[ApiAddressWithPath n] ctx (Link.listAddresses @'Shelley wal2) Empty
         let amt = minUTxOValue era
         let destination = (addrs !! 1) ^. #id
         let payload = Json [json|{
