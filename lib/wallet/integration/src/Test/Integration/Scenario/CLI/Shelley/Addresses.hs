@@ -12,7 +12,7 @@ module Test.Integration.Scenario.CLI.Shelley.Addresses
 import Prelude
 
 import Cardano.Wallet.Api.Types
-    ( ApiAddressWithPath, ApiWallet, getApiT )
+    ( ApiAddressWithPath, ApiWallet, apiAddress )
 import Cardano.Wallet.Primitive.AddressDiscovery.Sequential
     ( defaultAddressPoolGap, getAddressPoolGap )
 import Cardano.Wallet.Primitive.Types.Address
@@ -181,7 +181,8 @@ spec = describe "SHELLEY_CLI_ADDRESSES" $ do
 
         -- run 10 transactions to make all addresses `Used`
         forM_ [0..initPoolGap - 1] $ \addrNum -> do
-            let dest = encodeAddress (sNetworkId @n) (getApiT $ fst $ (j !! addrNum) ^. #id)
+            let dest = encodeAddress (sNetworkId @n)
+                    (apiAddress $ (j !! addrNum) ^. #id)
             let args = [wSrc, "--payment" , show amt <> "@" <> (T.unpack dest)]
             (cTx, _, _) <- postTransactionViaCLI ctx "cardano-wallet" args
             cTx `shouldBe` ExitSuccess

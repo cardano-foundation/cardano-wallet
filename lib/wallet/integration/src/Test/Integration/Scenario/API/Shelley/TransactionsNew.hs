@@ -72,7 +72,7 @@ import Cardano.Wallet.Api.Types
     , fromApiEra
     )
 import Cardano.Wallet.Api.Types.Transaction
-    ( ApiValidityIntervalExplicit (..), mkApiWitnessCount )
+    ( ApiAddress (..), ApiValidityIntervalExplicit (..), mkApiWitnessCount )
 import Cardano.Wallet.Pools
     ( StakePool )
 import Cardano.Wallet.Primitive.AddressDerivation
@@ -84,8 +84,6 @@ import Cardano.Wallet.Primitive.AddressDerivation
     )
 import Cardano.Wallet.Primitive.Types
     ( EpochNo (..), NonWalletCertificate (..), SlotNo (..) )
-import Cardano.Wallet.Primitive.Types.Address
-    ( Address (..) )
 import Cardano.Wallet.Primitive.Types.Coin
     ( Coin (..) )
 import Cardano.Wallet.Primitive.Types.Hash
@@ -2554,15 +2552,15 @@ spec = describe "NEW_SHELLEY_TRANSACTIONS" $ do
                   )
                 , ( "currency", \ctx w -> do
                     liftIO $ pendingWith "flaky #3124"
-                    (addr,proxy) <- view #id . head <$> listAddresses @n ctx w
+                    ApiAddress addr <- view #id . head <$> listAddresses @n ctx w
                     let getFreshUTxO = do
                             -- To obtain a fresh UTxO, we perform
                             -- coin selection and just pick the first input
                             -- that has been selected.
                             let singleton = pure -- specialized to NonEmpty
-                            (_, result) <- selectCoins @_ @'Shelley ctx w $
+                            (_, result) <- selectCoins @n @'Shelley ctx w $
                                 singleton $ AddressAmount
-                                    { address = (addr, proxy)
+                                    { address = ApiAddress addr
                                     , amount  = Quantity 10_000_000
                                     , assets  = ApiT TokenMap.empty
                                     }
@@ -4211,7 +4209,7 @@ spec = describe "NEW_SHELLEY_TRANSACTIONS" $ do
             ( HasSNetworkId l
             , MonadUnliftIO m
             )
-        => (ApiT Address, Proxy l)
+        => ApiAddress l
         -> Natural
         -> [((Text, Text), Natural)]
         -> m Payload

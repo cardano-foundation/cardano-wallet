@@ -27,6 +27,7 @@ import Cardano.Wallet.Api.Types
     , ApiWallet
     , DecodeStakeAddress
     , WalletStyle (..)
+    , apiAddress
     )
 import Cardano.Wallet.Primitive.AddressDiscovery.Sequential
     ( purposeCIP1852 )
@@ -323,7 +324,7 @@ spec = describe "SHELLEY_COIN_SELECTION" $ do
             makeRequest >>= flip verify
                 [ expectResponseCode HTTP.status403
                 , expectErrorMessage $ errMsg403OutputTokenQuantityExceedsLimit
-                    (getApiT $ fst targetAddress)
+                    (apiAddress targetAddress)
                     (policyId)
                     (assetName)
                     (excessiveQuantity)
@@ -356,6 +357,6 @@ spec = describe "SHELLEY_COIN_SELECTION" $ do
             makeRequest >>= flip verify
                 [ expectResponseCode HTTP.status403
                 , expectErrorMessage $ errMsg403OutputTokenBundleSizeExceedsLimit
-                    (getApiT $ fst targetAddress)
+                    (apiAddress targetAddress)
                     (assetCount)
                 ]

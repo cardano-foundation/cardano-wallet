@@ -7,6 +7,7 @@
 {-# LANGUAGE PolyKinds #-}
 {-# LANGUAGE ScopedTypeVariables #-}
 {-# LANGUAGE StrictData #-}
+{-# LANGUAGE TypeApplications #-}
 
 -- |
 -- Copyright: © 2018-2022 IOHK
@@ -30,11 +31,14 @@ module Cardano.Wallet.Api.Types.Transaction
     , mkApiWitnessCount
     , ResourceContext (..)
     , ApiLimit(..)
+    , ApiAddress (..)
     )
     where
 
 import Prelude
 
+import Cardano.Wallet.Api.Aeson
+    ( eitherToParser )
 import Cardano.Wallet.Api.Lib.ApiAsArray
     ( ApiAsArray )
 import Cardano.Wallet.Api.Lib.ApiT
@@ -64,7 +68,9 @@ import Cardano.Wallet.Primitive.Types.Tx.Tx
 import Cardano.Wallet.Primitive.Types.Tx.TxIn
     ( TxIn (..) )
 import Cardano.Wallet.Read.NetworkId
-    ( HasSNetworkId, NetworkDiscriminant )
+    ( HasSNetworkId (..), NetworkDiscriminant )
+import Cardano.Wallet.Shelley.Compatibility
+    ( decodeAddress, encodeAddress )
 import Cardano.Wallet.Shelley.Network.Discriminant
     ( DecodeStakeAddress, EncodeStakeAddress )
 import Cardano.Wallet.Transaction
@@ -72,6 +78,8 @@ import Cardano.Wallet.Transaction
     , ValidityIntervalExplicit (..)
     , WitnessCount (..)
     )
+import Cardano.Wallet.Util
+    ( ShowFmt (..) )
 import Control.DeepSeq
     ( NFData )
 import Data.Aeson.Types
@@ -86,6 +94,10 @@ import Data.Aeson.Types
     , (.:)
     , (.:?)
     )
+import Data.Bifunctor
+    ( first )
+import Data.Hashable
+    ( Hashable )
 import Data.List.NonEmpty
     ( NonEmpty )
 import Data.Quantity
@@ -110,6 +122,21 @@ import Servant
 import qualified Cardano.Wallet.Primitive.Types.RewardAccount as W
 import qualified Cardano.Wallet.Primitive.Types.TokenMap as W
 import qualified Data.Aeson.Types as Aeson
+
+newtype ApiAddress (n :: NetworkDiscriminant)
+    = ApiAddress {apiAddress :: Address}
+        deriving (Eq, Generic, Show, NFData, Ord, Hashable)
+
+instance HasSNetworkId n => FromJSON (ApiAddress n)
+  where
+    parseJSON x = do
+        addr <- parseJSON x >>= eitherToParser
+                    . first (\e -> ShowFmt $ show (x,e))
+                        . decodeAddress (sNetworkId @n)
+        return $ ApiAddress addr
+instance HasSNetworkId n => ToJSON (ApiAddress n)
+  where
+    toJSON (ApiAddress addr) = toJSON . encodeAddress (sNetworkId @n) $ addr
 
 newtype ApiTxMetadata = ApiTxMetadata
     { getApiTxMetadata :: Maybe (ApiT TxMetadata)
@@ -159,7 +186,7 @@ newtype ApiValidityIntervalExplicit =
 data ApiWalletInput (n :: NetworkDiscriminant) = ApiWalletInput
     { id :: ApiT (Hash "Tx")
     , index :: Word32
-    , address :: (ApiT Address, Proxy n)
+    , address :: ApiAddress n
     , derivationPath :: NonEmpty (ApiT DerivationIndex)
     , amount :: Quantity "lovelace" Natural
     , assets :: ApiT W.TokenMap
@@ -229,7 +256,7 @@ data ApiWithdrawalGeneral (n :: NetworkDiscriminant) = ApiWithdrawalGeneral
     deriving anyclass NFData
 
 data ApiWalletOutput (n :: NetworkDiscriminant) = ApiWalletOutput
-    { address :: (ApiT Address, Proxy n)
+    { address :: ApiAddress n
     , amount :: Quantity "lovelace" Natural
     , assets :: ApiT W.TokenMap
     , derivationPath :: NonEmpty (ApiT DerivationIndex)
@@ -263,7 +290,7 @@ instance FromJSON a => FromJSON (AddressAmount a) where
 
 -- | A helper type to reduce the amount of repetition.
 --
-type ApiTxOutput n = AddressAmount (ApiT Address, Proxy n)
+type ApiTxOutput n = AddressAmount (ApiAddress n)
 
 data ApiTxOutputGeneral (n :: NetworkDiscriminant) =
       ExternalOutput (ApiTxOutput n)

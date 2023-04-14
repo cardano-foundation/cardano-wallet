@@ -19,7 +19,8 @@ import Prelude
 import Cardano.Mnemonic
     ( entropyToMnemonic, genEntropy, mnemonicToText )
 import Cardano.Wallet.Api.Types
-    ( ApiEra (..)
+    ( ApiAddress
+    , ApiEra (..)
     , ApiT (..)
     , ApiTransaction
     , ApiUtxoStatistics
@@ -27,6 +28,7 @@ import Cardano.Wallet.Api.Types
     , ApiWalletMigrationPlan (..)
     , DecodeStakeAddress
     , WalletStyle (..)
+    , apiAddress
     )
 import Cardano.Wallet.Primitive.AddressDerivation
     ( Depth (..), PaymentAddress )
@@ -34,8 +36,6 @@ import Cardano.Wallet.Primitive.AddressDerivation.Byron
     ( ByronKey )
 import Cardano.Wallet.Primitive.AddressDerivation.Icarus
     ( IcarusKey )
-import Cardano.Wallet.Primitive.Types.Address
-    ( Address )
 import Cardano.Wallet.Primitive.Types.Coin
     ( Coin (..) )
 import Cardano.Wallet.Primitive.Types.TokenBundle
@@ -58,8 +58,6 @@ import Data.Functor
     ( (<&>) )
 import Data.Generics.Internal.VL.Lens
     ( view, (^.) )
-import Data.Proxy
-    ( Proxy )
 import Data.Quantity
     ( Quantity (..) )
 import Numeric.Natural
@@ -202,7 +200,7 @@ spec = describe "SHELLEY_MIGRATIONS" $ do
         \Cannot create a plan for a wallet that only contains freeriders."
         $ \ctx -> runResourceT @IO $ do
             sourceWallet <- emptyWallet ctx
-            srcAddrs <- map (getApiT . fst . view #id)
+            srcAddrs <- map (apiAddress . view #id)
                 <$> listAddresses @n ctx sourceWallet
 
             -- Add a relatively small number of freerider UTxO entries to the
@@ -389,7 +387,7 @@ spec = describe "SHELLEY_MIGRATIONS" $ do
             let perEntryAdaQuantity = Coin 1_562_500
             let perEntryAssetCount = 1
             let batchSize = 20
-            sourceAddresses <- take 20 . map (getApiT . fst . view #id)
+            sourceAddresses <- take 20 . map (apiAddress . view #id)
                 <$> listAddresses @n ctx sourceWallet
             replicateM_ 6 $ liftIO $ _mintSeaHorseAssets ctx
                 perEntryAssetCount
@@ -509,7 +507,7 @@ spec = describe "SHELLEY_MIGRATIONS" $ do
             let perEntryAdaQuantity = Coin 1_462_500
             let perEntryAssetCount = 1
             let batchSize = 20
-            sourceAddresses <- take 20 . map (getApiT . fst . view #id)
+            sourceAddresses <- take 20 . map (apiAddress . view #id)
                 <$> listAddresses @n ctx sourceWallet
             replicateM_ 6 $ liftIO $ _mintSeaHorseAssets ctx
                 perEntryAssetCount
@@ -1150,7 +1148,7 @@ spec = describe "SHELLEY_MIGRATIONS" $ do
     migrateWallet
         :: Context
         -> ApiWallet
-        -> [(ApiT Address, Proxy n)]
+        -> [ApiAddress n]
         -> IO ()
     migrateWallet ctx src targets = do
         (status, _) <- request @(ApiWalletMigrationPlan n) ctx

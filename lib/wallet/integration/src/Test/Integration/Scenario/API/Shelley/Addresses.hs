@@ -939,7 +939,7 @@ spec = describe "SHELLEY_ADDRESSES" $ do
         addrs <- listAddresses @n ctx w
         forM_ (zip (fmap fromIntegral indices) generatedAddresses)
             $ \(idx, genAddr) -> do
-                let walAddr = fst (addrs !! idx ^. #id) ^. (#getApiT . #unAddress)
+                let walAddr = addrs !! idx ^. #id . (#apiAddress . #unAddress)
                 walAddr `shouldBe` genAddr
 
     it "ANY_ADDRESS_POST_13 - Golden tests for script with timelocks" $ \ctx -> do

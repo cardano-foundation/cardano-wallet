@@ -293,7 +293,7 @@ import Cardano.Wallet.Api.Types.Error
 import Cardano.Wallet.Api.Types.SchemaMetadata
     ( TxMetadataSchema, toSimpleMetadataFlag )
 import Cardano.Wallet.Api.Types.Transaction
-    ( ApiLimit (..) )
+    ( ApiAddress (..), ApiLimit (..) )
 import Cardano.Wallet.Compat
     ( (^?) )
 import Cardano.Wallet.Pools
@@ -925,7 +925,7 @@ mkTxPayloadMA
         ( MonadUnliftIO m
         , HasSNetworkId n
         )
-    => (ApiT Address, Proxy n)
+    => ApiAddress n
     -> Natural
     -> [((Text, Text), Natural)]
     -> Text
@@ -2472,7 +2472,7 @@ selectCoins
         )
     => Context
     -> w
-    -> NonEmpty (AddressAmount (ApiT Address, Proxy n))
+    -> NonEmpty (AddressAmount (ApiAddress n))
     -> m (HTTP.Status, Either RequestException (ApiCoinSelection n))
 selectCoins ctx w payments =
     selectCoinsWith @n @style @w ctx w payments id
@@ -2487,7 +2487,7 @@ selectCoinsWith
         )
     => Context
     -> w
-    -> NonEmpty (AddressAmount (ApiT Address, Proxy n))
+    -> NonEmpty (AddressAmount (ApiAddress n))
     -> (Payload -> Payload)
     -> m (HTTP.Status, Either RequestException (ApiCoinSelection n))
 selectCoinsWith ctx w payments transform = do
@@ -3383,9 +3383,9 @@ unsafeResponse = either (error . show) id . snd
 replaceStakeKey
     :: forall (n :: NetworkDiscriminant)
      . HasSNetworkId n
-    => (ApiT Address, Proxy n)
-    -> (ApiT Address, Proxy n)
-    -> (ApiT Address, Proxy n)
+    => ApiAddress n
+    -> ApiAddress n
+    -> ApiAddress n
 replaceStakeKey addr1 addr2 =
     let
         (hrp1, (tag1, pay1, _stake1)) = decodeAddr addr1
@@ -3398,13 +3398,13 @@ replaceStakeKey addr1 addr2 =
 
   where
     decodeAddr
-        :: (ApiT Address, Proxy n)
+        :: ApiAddress n
         -> (Bech32.HumanReadablePart, (ByteString, ByteString, ByteString))
     decodeAddr =
         either
             (error . show)
             (second (splitAddr . fromJust . Bech32.dataPartToBytes))
-        . Bech32.decodeLenient . encodeAddress (sNetworkId @n) . getApiT . fst
+        . Bech32.decodeLenient . encodeAddress (sNetworkId @n) . apiAddress
       where
         splitAddr :: ByteString -> (ByteString, ByteString, ByteString)
         splitAddr whole =
@@ -3420,12 +3420,11 @@ replaceStakeKey addr1 addr2 =
                         ]
     encodeAddr
         :: (Bech32.HumanReadablePart, (ByteString, ByteString, ByteString) )
-        -> (ApiT Address, Proxy n)
+        -> ApiAddress n
     encodeAddr (hrp, (tag, pay, stake)) =
         let
             bytes = tag <> pay <> stake
             dp = Bech32.dataPartFromBytes bytes
             addr = either (error . show) id $
                 decodeAddress (sNetworkId @n) $ Bech32.encodeLenient hrp dp
-        in
-            (ApiT addr, Proxy)
+        in ApiAddress addr

@@ -19,7 +19,8 @@ import Prelude
 import Cardano.Mnemonic
     ( entropyToMnemonic, genEntropy )
 import Cardano.Wallet.Api.Types
-    ( ApiByronWallet
+    ( ApiAddress
+    , ApiByronWallet
     , ApiEra (..)
     , ApiT (..)
     , ApiTransaction
@@ -36,8 +37,6 @@ import Cardano.Wallet.Primitive.AddressDerivation.Byron
     ( ByronKey )
 import Cardano.Wallet.Primitive.AddressDerivation.Icarus
     ( IcarusKey )
-import Cardano.Wallet.Primitive.Types.Address
-    ( Address )
 import Cardano.Wallet.Primitive.Types.Tx
     ( TxStatus (..) )
 import Cardano.Wallet.Read.NetworkId
@@ -56,8 +55,6 @@ import Data.Generics.Internal.VL.Lens
     ( view, (^.) )
 import Data.Maybe
     ( mapMaybe )
-import Data.Proxy
-    ( Proxy (..) )
 import Data.Quantity
     ( Quantity (..) )
 import Data.Text
@@ -608,7 +605,7 @@ spec = describe "BYRON_MIGRATIONS" $ do
     migrateWallet
         :: Context
         -> ApiByronWallet
-        -> [(ApiT Address, Proxy n)]
+        -> [ApiAddress n]
         -> IO ()
     migrateWallet ctx src targets = do
         (status, _) <- request @(ApiWalletMigrationPlan n) ctx

@@ -23,11 +23,11 @@ import Cardano.Mnemonic
     )
 import Cardano.Wallet.Api.Types
     ( AddressAmount (..)
+    , ApiAddress (..)
     , ApiAddressWithPath
     , ApiByronWallet
     , ApiCoinSelectionOutput (..)
     , ApiFee
-    , ApiT (..)
     , ApiTransaction
     , ApiUtxoStatistics
     , DecodeStakeAddress
@@ -58,8 +58,6 @@ import Control.Monad.Trans.Resource
     ( runResourceT )
 import Data.Generics.Internal.VL.Lens
     ( (^.) )
-import Data.Proxy
-    ( Proxy (..) )
 import Data.Quantity
     ( Quantity (..) )
 import Data.Text
@@ -333,7 +331,7 @@ spec = describe "BYRON_HW_WALLETS" $ do
                 @ApiByronWallet @'Byron ctx pubKey restoredWalletName
             let paymentCount = 4
             let targetAddresses = take paymentCount $
-                    (\a -> (ApiT a, Proxy @n)) <$>
+                    ApiAddress <$>
                     icarusAddresses @n mnemonics
             let minUTxOValue' = minUTxOValue (_mainEra ctx)
             let targetAmounts = take paymentCount $

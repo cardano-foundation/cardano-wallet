@@ -355,7 +355,8 @@ import Cardano.Wallet.Api.Types.MintBurn
 import Cardano.Wallet.Api.Types.SchemaMetadata
     ( TxMetadataSchema (..), TxMetadataWithSchema (TxMetadataWithSchema) )
 import Cardano.Wallet.Api.Types.Transaction
-    ( ApiLimit
+    ( ApiAddress (..)
+    , ApiLimit
     , ApiValidityIntervalExplicit (..)
     , fromApiLimit
     , mkApiWitnessCount
@@ -2024,7 +2025,7 @@ postRandomAddress ctx (ApiT wid) body = do
     pure $ coerceAddress (addr, Unused, path)
   where
     coerceAddress (a, s, p) =
-        ApiAddressWithPath (ApiT a, Proxy @n) (ApiT s) (NE.map ApiT p)
+        ApiAddressWithPath (ApiAddress @n a) (ApiT s) (NE.map ApiT p)
 
 putRandomAddress
     :: forall ctx s k n.
@@ -2034,9 +2035,9 @@ putRandomAddress
         )
     => ctx
     -> ApiT WalletId
-    -> (ApiT Address, Proxy n)
+    -> ApiAddress n
     -> Handler NoContent
-putRandomAddress ctx (ApiT wid) (ApiT addr, _proxy)  = do
+putRandomAddress ctx (ApiT wid) (ApiAddress addr)  = do
     withWorkerCtx ctx wid liftE liftE
         $ \wrk -> liftHandler $ W.importRandomAddresses @_ @s @k wrk wid [addr]
     pure NoContent
@@ -2056,7 +2057,7 @@ putRandomAddresses ctx (ApiT wid) (ApiPutAddressesData addrs)  = do
         $ \wrk -> liftHandler $ W.importRandomAddresses @_ @s @k wrk wid addrs'
     pure NoContent
   where
-    addrs' = map (getApiT . fst) addrs
+    addrs' = apiAddress <$> addrs
 
 listAddresses
     :: forall ctx s k ktype n.
@@ -2079,7 +2080,7 @@ listAddresses ctx normalize (ApiT wid) stateFilter = do
         Nothing -> const True
         Just (ApiT s) -> \(_,state,_) -> (state == s)
     coerceAddress (a, s, p) =
-        ApiAddressWithPath (ApiT a, Proxy @n) (ApiT s) (NE.map ApiT p)
+        ApiAddressWithPath (ApiAddress @n a) (ApiT s) (NE.map ApiT p)
 
 {-------------------------------------------------------------------------------
                                     Transactions
@@ -2732,13 +2733,13 @@ constructTransaction api argGenChange knownPools poolStatus apiWalletId body = d
 toUnsignedTxOut :: ApiTxOutputGeneral n -> TxOut
 toUnsignedTxOut = \case
     WalletOutput o ->
-        let address = getApiT (fst (o ^. #address))
+        let address = apiAddress (o ^. #address)
             coin = Coin.fromQuantity (o ^. #amount)
             assets = getApiT (o ^. #assets)
         in
             TxOut address (TokenBundle coin assets)
     ExternalOutput o ->
-        let address = getApiT (fst (o ^. #address))
+        let address = apiAddress (o ^. #address)
             coin = Coin.fromQuantity (o ^. #amount)
             assets = getApiT (o ^. #assets)
         in
@@ -2751,7 +2752,7 @@ toUnsignedTxInp = \case
     WalletInput i ->
         let txId = getApiT (i ^. #id)
             index = i ^. #index
-            address = getApiT (fst (i ^. #address))
+            address = apiAddress (i ^. #address)
             derivationPath = fmap getApiT (i ^. #derivationPath)
             coin = Coin.fromQuantity (i ^. #amount)
             assets = getApiT (i ^. #assets)
@@ -2767,7 +2768,7 @@ toUnsignedTxChange
     -> TxChange (NonEmpty DerivationIndex)
 toUnsignedTxChange = \case
     WalletOutput o ->
-        let address = getApiT (fst (o ^. #address))
+        let address = apiAddress (o ^. #address)
             derivationPath = fmap getApiT (o ^. #derivationPath)
             coin = Coin.fromQuantity (o ^. #amount)
             assets = getApiT (o ^. #assets)
@@ -3280,7 +3281,7 @@ toInp (txin@(TxIn txid ix), txoutPathM) =
             WalletInput $ ApiWalletInput
                 { id = ApiT txid
                 , index = ix
-                , address = (ApiT addr, Proxy @n)
+                , address = ApiAddress addr
                 , derivationPath = NE.map ApiT path
                 , amount = Quantity $ fromIntegral c
                 , assets = ApiT tmap
@@ -3293,7 +3294,7 @@ toOut (txoutIncoming, Nothing) =
     ExternalOutput $ toAddressAmount @n txoutIncoming
 toOut ((TxOut addr (TokenBundle (Coin c) tmap)), (Just path)) =
         WalletOutput $ ApiWalletOutput
-            { address = (ApiT addr, Proxy @n)
+            { address = ApiAddress addr
             , amount = Quantity $ fromIntegral c
             , assets = ApiT tmap
             , derivationPath = NE.map ApiT path
@@ -3408,8 +3409,11 @@ getOurOuts apiDecodedTx =
     generalOuts = apiDecodedTx ^. #outputs
     isOutOurs (WalletOutput _) = True
     isOutOurs _ = False
-    toTxOut (WalletOutput (ApiWalletOutput (ApiT addr, _) (Quantity amt) (ApiT tmap) _)) =
-        TxOut addr (TokenBundle (Coin $ fromIntegral amt) tmap)
+    toTxOut
+        ( WalletOutput
+                (ApiWalletOutput (ApiAddress addr) (Quantity amt) (ApiT tmap) _)
+            ) =
+            TxOut addr (TokenBundle (Coin $ fromIntegral amt) tmap)
     toTxOut _ = error "we should have only our outputs at this point"
 
 isInpOurs :: ApiTxInputGeneral n -> Bool
@@ -3817,7 +3821,7 @@ createMigrationPlan ctx@ApiLayer{..} withdrawalType (ApiT wid) postData =
 mkApiWalletMigrationPlan
     :: forall n s. IsOurs s Address
     => s
-    -> NonEmpty (ApiT Address, Proxy n)
+    -> NonEmpty (ApiAddress n)
     -> Withdrawal
     -> MigrationPlan
     -> Maybe (ApiWalletMigrationPlan n)
@@ -3839,7 +3843,7 @@ mkApiWalletMigrationPlan s addresses rewardWithdrawal plan =
         :: Maybe (NonEmpty (W.SelectionWithoutChange, Withdrawal))
     maybeSelectionWithdrawals
         = W.migrationPlanToSelectionWithdrawals plan rewardWithdrawal
-        $ getApiT . fst <$> addresses
+        $ apiAddress <$> addresses
 
     maybeUnsignedTxs = fmap mkUnsignedTx <$> maybeSelectionWithdrawals
       where
@@ -3952,7 +3956,7 @@ migrateWallet ctx@ApiLayer{..} withdrawalType (ApiT wid) postData = do
                     , txCBOR = tx ^. #txCBOR
                     }
   where
-    addresses = getApiT . fst <$> view #addresses postData
+    addresses = apiAddress <$> view #addresses postData
     pwd = coerce $ getApiT $ postData ^. #passphrase
     ti :: TimeInterpreter (ExceptT PastHorizonException IO)
     ti = timeInterpreter (ctx ^. networkLayer)
@@ -4381,7 +4385,7 @@ mkApiCoinSelectionInput
     ApiWalletInput
         { id = ApiT txid
         , index = index
-        , address = (ApiT addr, Proxy @n)
+        , address = ApiAddress addr
         , amount = Coin.toQuantity amount
         , assets = ApiT assets
         , derivationPath = ApiT <$> path
@@ -4389,7 +4393,7 @@ mkApiCoinSelectionInput
 
 mkApiCoinSelectionOutput :: forall n. TxOut -> ApiCoinSelectionOutput n
 mkApiCoinSelectionOutput (TxOut addr (TokenBundle amount assets)) =
-    ApiCoinSelectionOutput (ApiT addr, Proxy @n)
+    ApiCoinSelectionOutput (ApiAddress addr)
     (Coin.toQuantity amount)
     (ApiT assets)
 
@@ -4399,7 +4403,7 @@ mkApiCoinSelectionChange
     -> ApiCoinSelectionChange n
 mkApiCoinSelectionChange txChange =
     ApiCoinSelectionChange
-        { address = (ApiT $ view #address txChange, Proxy @n)
+        { address = (ApiAddress $ view #address txChange)
         , amount = Coin.toQuantity $ view #amount txChange
         , assets = ApiT $ view #assets txChange
         , derivationPath = ApiT <$> view #derivationPath txChange
@@ -4414,7 +4418,7 @@ mkApiCoinSelectionCollateral
     ApiCoinSelectionCollateral
         { id = ApiT txid
         , index = index
-        , address = (ApiT addr, Proxy @n)
+        , address = ApiAddress addr
         , amount = Coin.toQuantity amount
         , derivationPath = ApiT <$> path
         }
@@ -4573,16 +4577,16 @@ mkApiTransaction timeInterpreter wrk wid timeRefLens tx = do
 
     toAddressAmountNoAssets
         :: TxOut
-        -> AddressAmountNoAssets (ApiT Address, Proxy n)
+        -> AddressAmountNoAssets (ApiAddress n)
     toAddressAmountNoAssets (TxOut addr (TokenBundle.TokenBundle coin _)) =
-        AddressAmountNoAssets (ApiT addr, Proxy @n) (mkApiCoin coin)
+        AddressAmountNoAssets (ApiAddress addr) (mkApiCoin coin)
 
 toAddressAmount
-    :: forall (n :: NetworkDiscriminant). ()
-    => TxOut
-    -> AddressAmount (ApiT Address, Proxy n)
+    :: forall (n :: NetworkDiscriminant)
+     . TxOut
+    -> AddressAmount (ApiAddress n)
 toAddressAmount (TxOut addr (TokenBundle.TokenBundle coin assets)) =
-    AddressAmount (ApiT addr, Proxy @n) (mkApiCoin coin) (ApiT assets)
+    AddressAmount (ApiAddress addr) (mkApiCoin coin) (ApiT assets)
 
 mkApiCoin :: Coin -> Quantity "lovelace" Natural
 mkApiCoin (Coin c) = Quantity $ fromIntegral c
@@ -4607,9 +4611,10 @@ mkApiWithdrawal (acct, c) =
     ApiWithdrawal (ApiT acct, Proxy @n) (mkApiCoin c)
 
 addressAmountToTxOut
-    :: forall (n :: NetworkDiscriminant). AddressAmount (ApiT Address, Proxy n)
+    :: forall (n :: NetworkDiscriminant)
+     . AddressAmount (ApiAddress n)
     -> TxOut
-addressAmountToTxOut (AddressAmount (ApiT addr, _) c (ApiT assets)) =
+addressAmountToTxOut (AddressAmount (ApiAddress addr) c (ApiT assets)) =
     TxOut addr (TokenBundle.TokenBundle (Coin.fromQuantity c) assets)
 
 natural :: Quantity q Word32 -> Quantity q Natural
@@ -4667,7 +4672,7 @@ fromExternalInput
 fromExternalInput ApiExternalInput
     { id = ApiT tid
     , index = ix
-    , address = (ApiT addr, _)
+    , address = ApiAddress addr
     , amount = Quantity amt
     , assets = ApiT assets
     , datum

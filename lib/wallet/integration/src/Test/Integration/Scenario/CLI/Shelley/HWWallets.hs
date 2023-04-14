@@ -18,7 +18,7 @@ import Cardano.Wallet.Api.Types
     , ApiUtxoStatistics
     , ApiWallet
     , DecodeStakeAddress (..)
-    , getApiT
+    , apiAddress
     )
 import Cardano.Wallet.Api.Types.SchemaMetadata
     ( TxMetadataSchema (..) )
@@ -116,7 +116,7 @@ spec = describe "SHELLEY_CLI_HW_WALLETS" $ do
         --send transaction to the wallet
         let amount = Quantity . minUTxOValue . _mainEra $ ctx
         addrs:_ <- listAddresses @n ctx wDest
-        let addr = encodeAddress (sNetworkId @n) (getApiT $ fst $ addrs ^. #id)
+        let addr = encodeAddress (sNetworkId @n) (apiAddress $ addrs ^. #id)
         let args = T.unpack <$>
                 [ wSrc ^. walletId
                 , "--payment", toText amount <> "@" <> addr
@@ -181,7 +181,7 @@ spec = describe "SHELLEY_CLI_HW_WALLETS" $ do
             -- make sure you cannot send tx from wallet
             wDest <- emptyWallet ctx
             addrs:_ <- listAddresses @n ctx wDest
-            let addr = encodeAddress (sNetworkId @n) (getApiT $ fst $ addrs ^. #id)
+            let addr = encodeAddress (sNetworkId @n) (apiAddress $ addrs ^. #id)
 
             let amt = T.pack . show . minUTxOValue . _mainEra $ ctx
             let args = T.unpack <$>
@@ -245,7 +245,7 @@ spec = describe "SHELLEY_CLI_HW_WALLETS" $ do
             -- get fee
             wDest <- emptyWallet ctx
             addrs:_ <- listAddresses @n ctx wDest
-            let addr = encodeAddress (sNetworkId @n) (getApiT $ fst $ addrs ^. #id)
+            let addr = encodeAddress (sNetworkId @n) (apiAddress $ addrs ^. #id)
             let amt = minUTxOValue (_mainEra ctx)
             let args = T.unpack <$>
                     [ wRestored ^. walletId

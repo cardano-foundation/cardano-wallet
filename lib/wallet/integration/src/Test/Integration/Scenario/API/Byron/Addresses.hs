@@ -18,7 +18,8 @@ import Prelude
 import Cardano.Mnemonic
     ( Mnemonic )
 import Cardano.Wallet.Api.Types
-    ( ApiAddressWithPath
+    ( ApiAddress (..)
+    , ApiAddressWithPath
     , ApiByronWallet
     , ApiPutAddressesData
     , ApiT (..)
@@ -44,8 +45,6 @@ import Control.Monad.Trans.Resource
     ( ResourceT, runResourceT )
 import Data.Generics.Internal.VL.Lens
     ( (^.) )
-import Data.Generics.Product.Positions
-    ( position )
 import Test.Hspec
     ( SpecWith, describe, shouldBe, shouldSatisfy )
 import Test.Hspec.Extra
@@ -300,7 +299,7 @@ scenario_ADDRESS_IMPORT_01 fixture = it title $ \ctx -> runResourceT $ do
     r1 <- request @[ApiAddressWithPath n] ctx (Link.listAddresses @'Byron w) Default Empty
     verify r1
         [ expectListField 0 #state (`shouldBe` ApiT Unused)
-        , expectListField 0 (#id . position @1) (`shouldBe` ApiT addr)
+        , expectListField 0 #id (`shouldBe` ApiAddress addr)
         ]
   where
     title = "ADDRESS_IMPORT_01 - I can import an address from my wallet"

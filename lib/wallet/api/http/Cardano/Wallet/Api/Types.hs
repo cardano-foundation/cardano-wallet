@@ -51,6 +51,7 @@ module Cardano.Wallet.Api.Types
     , fmtAllowedWords
 
     -- * API Types
+    , ApiAddress (..)
     , AddressAmount (..)
     , AddressAmountNoAssets (..)
     , AnyAddress (..)
@@ -324,6 +325,7 @@ import Cardano.Wallet.Api.Types.SchemaMetadata
     ( TxMetadataWithSchema )
 import Cardano.Wallet.Api.Types.Transaction
     ( AddressAmount (..)
+    , ApiAddress (..)
     , ApiDecodedTransaction (..)
     , ApiPostPolicyKeyData (..)
     , ApiTxInputGeneral (..)
@@ -682,7 +684,7 @@ toApiAssetMetadata W.AssetMetadata{name,description,ticker,url,logo,decimals} =
         (ApiT <$> url) (ApiT <$> logo) (ApiT <$> decimals)
 
 data ApiAddressWithPath (n :: NetworkDiscriminant) = ApiAddressWithPath
-    { id :: !(ApiT Address, Proxy n)
+    { id :: !(ApiAddress n)
     , state :: !(ApiT AddressState)
     , derivationPath :: NonEmpty (ApiT DerivationIndex)
     }
@@ -774,7 +776,7 @@ data ApiCoinSelection (n :: NetworkDiscriminant) = ApiCoinSelection
     deriving anyclass NFData
 
 data ApiCoinSelectionChange (n :: NetworkDiscriminant) = ApiCoinSelectionChange
-    { address :: !(ApiT Address, Proxy n)
+    { address :: !(ApiAddress n)
     , amount :: !(Quantity "lovelace" Natural)
     , assets :: !(ApiT TokenMap)
     , derivationPath :: NonEmpty (ApiT DerivationIndex)
@@ -784,7 +786,7 @@ data ApiCoinSelectionChange (n :: NetworkDiscriminant) = ApiCoinSelectionChange
     deriving anyclass NFData
 
 data ApiCoinSelectionOutput (n :: NetworkDiscriminant) = ApiCoinSelectionOutput
-    { address :: !(ApiT Address, Proxy n)
+    { address :: !(ApiAddress n)
     , amount :: !(Quantity "lovelace" Natural)
     , assets :: !(ApiT TokenMap)
     }
@@ -796,7 +798,7 @@ data ApiCoinSelectionCollateral (n :: NetworkDiscriminant) =
     ApiCoinSelectionCollateral
         { id :: !(ApiT (Hash "Tx"))
         , index :: !Word32
-        , address :: !(ApiT Address, Proxy n)
+        , address :: !(ApiAddress n)
         , derivationPath :: NonEmpty (ApiT DerivationIndex)
         , amount :: !(Quantity "lovelace" Natural)
         }
@@ -1158,7 +1160,7 @@ data ApiSerialisedTransaction = ApiSerialisedTransaction
 data ApiExternalInput (n :: NetworkDiscriminant) = ApiExternalInput
     { id :: !(ApiT (Hash "Tx"))
     , index :: !Word32
-    , address :: !(ApiT Address, Proxy n)
+    , address :: !(ApiAddress n)
     , amount :: !(Quantity "lovelace" Natural)
     , assets :: !(ApiT TokenMap)
     , datum :: !(Maybe (ApiT WriteTx.DatumHash))
@@ -1361,7 +1363,7 @@ data ApiTxInput (n :: NetworkDiscriminant) = ApiTxInput
     deriving anyclass NFData
 
 data ApiTxCollateral (n :: NetworkDiscriminant) = ApiTxCollateral
-    { source :: !(Maybe (AddressAmountNoAssets (ApiT Address, Proxy n)))
+    { source :: !(Maybe (AddressAmountNoAssets (ApiAddress n)))
     , input :: !(ApiT TxIn)
     }
     deriving (Eq, Generic, Show, Typeable)
@@ -1508,7 +1510,7 @@ data ApiPostRandomAddressData = ApiPostRandomAddressData
 
 newtype ApiWalletMigrationPlanPostData (n :: NetworkDiscriminant) =
     ApiWalletMigrationPlanPostData
-    { addresses :: NonEmpty (ApiT Address, Proxy n)
+    { addresses :: NonEmpty (ApiAddress n)
     }
     deriving (Eq, Generic, Typeable)
     deriving (FromJSON, ToJSON)
@@ -1519,7 +1521,7 @@ newtype ApiWalletMigrationPlanPostData (n :: NetworkDiscriminant) =
 data ApiWalletMigrationPostData (n :: NetworkDiscriminant) (s :: Symbol) =
     ApiWalletMigrationPostData
     { passphrase :: !(ApiT (Passphrase s))
-    , addresses :: !(NonEmpty (ApiT Address, Proxy n))
+    , addresses :: !(NonEmpty (ApiAddress n))
     }
     deriving (Eq, Generic, Show, Typeable)
     deriving (FromJSON, ToJSON)
@@ -1527,7 +1529,7 @@ data ApiWalletMigrationPostData (n :: NetworkDiscriminant) (s :: Symbol) =
     deriving anyclass NFData
 
 newtype ApiPutAddressesData (n :: NetworkDiscriminant) = ApiPutAddressesData
-    { addresses :: [(ApiT Address, Proxy n)]
+    { addresses :: [ApiAddress n]
     }
     deriving (Eq, Generic, Typeable)
     deriving (FromJSON, ToJSON) via DefaultRecord (ApiPutAddressesData n)
@@ -1820,14 +1822,14 @@ instance FromText (ApiT PassphraseHash)  where
             , "expecting a hex-encoded value."
             ]
 
-instance HasSNetworkId n => FromHttpApiData (ApiT Address, Proxy n) where
+instance HasSNetworkId n => FromHttpApiData (ApiAddress n) where
     parseUrlPiece txt = do
-        let proxy = Proxy @n
-        addr <- bimap (T.pack . getTextDecodingError) ApiT (decodeAddress (sNetworkId @n) txt)
-        return (addr, proxy)
+        addr <- first (T.pack . getTextDecodingError)
+            $ decodeAddress (sNetworkId @n) txt
+        return (ApiAddress @n addr)
 
-instance HasSNetworkId n => ToHttpApiData (ApiT Address, Proxy n) where
-    toUrlPiece = encodeAddress (sNetworkId @n) . getApiT . fst
+instance HasSNetworkId n => ToHttpApiData (ApiAddress n) where
+    toUrlPiece = encodeAddress (sNetworkId @n) . apiAddress
 
 {-------------------------------------------------------------------------------
                               API Types: Byron
@@ -3006,7 +3008,7 @@ type instance ApiPutAddressesDataT (n :: NetworkDiscriminant) =
     ApiPutAddressesData n
 
 type instance ApiAddressIdT (n :: NetworkDiscriminant) =
-    (ApiT Address, Proxy n)
+    (ApiAddress n)
 
 type instance ApiCoinSelectionT (n :: NetworkDiscriminant) =
     ApiCoinSelection n
@@ -3114,7 +3116,7 @@ data ApiMintBurnOperation (n :: NetworkDiscriminant)
 -- "address".
 data ApiMintData (n :: NetworkDiscriminant) = ApiMintData
     { receivingAddress
-        :: Maybe (ApiT Address, Proxy n)
+        :: Maybe (ApiAddress n)
         -- ^ An optional address to which minted assets should be paid.
         --
         -- If no address is specified, then minted assets will be returned to

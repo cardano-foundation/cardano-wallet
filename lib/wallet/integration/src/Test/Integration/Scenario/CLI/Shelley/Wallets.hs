@@ -22,6 +22,7 @@ import Cardano.Wallet.Api.Types
     , ApiWallet
     , ApiWalletUtxoSnapshot
     , DecodeStakeAddress (..)
+    , apiAddress
     , getApiT
     )
 import Cardano.Wallet.Primitive.AddressDiscovery.Sequential
@@ -214,7 +215,7 @@ spec = describe "SHELLEY_CLI_WALLETS" $ do
         --send transaction to the wallet
         let amount = (minUTxOValue (_mainEra ctx))
         addrs:_ <- listAddresses @n ctx wDest
-        let addr = encodeAddress (sNetworkId @n) (getApiT $ fst $ addrs ^. #id)
+        let addr = encodeAddress (sNetworkId @n) (apiAddress $ addrs ^. #id)
         let args = T.unpack <$>
                 [ wSrc ^. walletId
                 , "--payment", T.pack (show amount) <> "@" <> addr
@@ -720,7 +721,7 @@ spec = describe "SHELLEY_CLI_WALLETS" $ do
                 updateWalletPassphraseViaCLI ctx wid oldPass newPass newPass
             expect (ExitSuccess, "\n", cmdOk) (c, out, err)
 
-            let addrStr = encodeAddress (sNetworkId @n) (getApiT $ fst $ addr ^. #id)
+            let addrStr = encodeAddress (sNetworkId @n) (apiAddress $ addr ^. #id)
             let args = T.unpack <$>
                     [ wSrc ^. walletId
                     , "--payment", T.pack (show (minUTxOValue (_mainEra ctx))) <> "@" <> addrStr
@@ -768,7 +769,7 @@ spec = describe "SHELLEY_CLI_WALLETS" $ do
             coins =
                 [13_000_000, 43_000_000, 66_000_000, 101_000_000, 1339_000_000]
         addrs:_ <- listAddresses @n ctx wDest
-        let addr = encodeAddress (sNetworkId @n) (getApiT $ fst $ addrs ^. #id)
+        let addr = encodeAddress (sNetworkId @n) (apiAddress $ addrs ^. #id)
 
         let payments = flip map coins $ \c ->
                 ["--payment", show c <> "@" <> T.unpack addr ]
