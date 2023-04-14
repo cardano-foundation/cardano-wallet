@@ -95,8 +95,6 @@ import Test.Hspec
     ( Expectation, Spec, describe, it, shouldBe )
 import Test.Hspec.Core.QuickCheck
     ( modifyMaxSuccess )
-import Test.Hspec.Extra
-    ( parallel )
 import Test.QuickCheck
     ( Arbitrary (..)
     , Blind (..)
@@ -147,7 +145,7 @@ spec =
     describe "Token map properties" $
     modifyMaxSuccess (const 1000) $ do
 
-    parallel $ describe "Class instances obey laws" $ do
+    describe "Class instances obey laws" $ do
         testLawsMany @TokenMap
             [ eqLaws
             , monoidLaws
@@ -160,7 +158,7 @@ spec =
             , ordLaws
             ]
 
-    parallel $ describe
+    describe
         "All operations preserve the invariant: \
         \all token quantities held within a map are non-zero" $ do
 
@@ -189,7 +187,7 @@ spec =
         it "prop_adjustQuantity_invariant" $
             property prop_adjustQuantity_invariant
 
-    parallel $ describe "Construction and deconstruction" $ do
+    describe "Construction and deconstruction" $ do
 
         it "prop_fromFlatList" $
             property prop_fromFlatList
@@ -204,7 +202,7 @@ spec =
         it "prop_toNestedList_fromNestedList" $
             property prop_toNestedList_fromNestedList
 
-    parallel $ describe "Filtering" $ do
+    describe "Filtering" $ do
 
         it "prop_filter_conjoin" $
             property prop_filter_conjoin
@@ -213,7 +211,7 @@ spec =
         it "prop_filter_twice" $
             property prop_filter_twice
 
-    parallel $ describe "Arithmetic" $ do
+    describe "Arithmetic" $ do
 
         it "prop_add_commutative" $
             property prop_add_commutative
@@ -250,7 +248,7 @@ spec =
         it "prop_intersection_subset" $
             property prop_intersection_subset
 
-    parallel $ describe "Quantities" $ do
+    describe "Quantities" $ do
 
         it "prop_removeQuantity_isEmpty" $
             property prop_removeQuantity_isEmpty
@@ -265,21 +263,21 @@ spec =
         it "prop_maximumQuantity_all" $
             property prop_maximumQuantity_all
 
-    parallel $ describe "Queries" $ do
+    describe "Queries" $ do
 
         it "prop_size_isEmpty" $ do
             property prop_size_isEmpty
         it "prop_size_toFlatList" $ do
             property prop_size_toFlatList
 
-    parallel $ describe "Transformations" $ do
+    describe "Transformations" $ do
 
         it "prop_mapAssetIds_identity" $ do
             prop_mapAssetIds_identity & property
         it "prop_mapAssetIds_composition" $ do
             prop_mapAssetIds_composition & property
 
-    parallel $ describe "Partitioning assets" $ do
+    describe "Partitioning assets" $ do
 
         it "prop_equipartitionAssets_coverage" $
             property prop_equipartitionAssets_coverage
@@ -290,7 +288,7 @@ spec =
         it "prop_equipartitionAssets_sum" $
             property prop_equipartitionAssets_sum
 
-    parallel $ describe "Partitioning quantities" $ do
+    describe "Partitioning quantities" $ do
 
         it "prop_equipartitionQuantities_fair" $
             property prop_equipartitionQuantities_fair
@@ -301,7 +299,7 @@ spec =
         it "prop_equipartitionQuantities_sum" $
             property prop_equipartitionQuantities_sum
 
-    parallel $ describe "Partitioning quantities with an upper bound" $ do
+    describe "Partitioning quantities with an upper bound" $ do
 
         it "prop_equipartitionQuantitiesWithUpperBound_coverage" $
             property prop_equipartitionQuantitiesWithUpperBound_coverage
@@ -314,7 +312,7 @@ spec =
         it "prop_equipartitionQuantitiesWithUpperBound_sum" $
             property prop_equipartitionQuantitiesWithUpperBound_sum
 
-    parallel $ describe "Generating partitions" $ do
+    describe "Generating partitions" $ do
 
         it "prop_genTokenMapPartition_fold" $
             prop_genTokenMapPartition_fold & property
@@ -323,7 +321,7 @@ spec =
         it "prop_genTokenMapPartition_nonPositive" $
             prop_genTokenMapPartition_nonPositive & property
 
-    parallel $ describe "JSON serialization" $ do
+    describe "JSON serialization" $ do
 
         describe "Roundtrip tests" $ do
             testJson $ Proxy @(Flat TokenMap)
@@ -337,7 +335,7 @@ spec =
             it "Empty token list"
                 testEmptyTokenList
 
-    parallel $ describe "Textual serialization" $ do
+    describe "Textual serialization" $ do
         it "Flat style" $
             property testPrettyFlat
         it "Nested style" $

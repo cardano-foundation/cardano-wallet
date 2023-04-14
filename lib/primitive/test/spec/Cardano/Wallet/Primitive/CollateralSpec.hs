@@ -41,7 +41,7 @@ import Data.Maybe
 import Numeric
     ( showHex )
 import Test.Hspec
-    ( Expectation, Spec, describe, it, parallel, shouldBe )
+    ( Expectation, Spec, describe, it, shouldBe )
 import Test.QuickCheck
     ( Arbitrary (..)
     , Gen
@@ -669,7 +669,7 @@ instance Arbitrary TxOut where
 
 spec :: Spec
 spec = do
-    parallel $ do
+    do
         describe "address types" $ do
             describe "generators" $
                 it "generates values with sufficient coverage" $

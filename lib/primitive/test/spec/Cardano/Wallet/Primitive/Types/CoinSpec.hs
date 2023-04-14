@@ -21,8 +21,6 @@ import Data.List.NonEmpty
     ( NonEmpty )
 import Test.Hspec
     ( Spec, describe, it )
-import Test.Hspec.Extra
-    ( parallel )
 import Test.QuickCheck
     ( Arbitrary (..)
     , Property
@@ -44,7 +42,7 @@ import qualified Test.QuickCheck as QC
 spec :: Spec
 spec = describe "Cardano.Wallet.Primitive.Types.CoinSpec" $ do
 
-    parallel $ describe "Arithmetic operations" $ do
+    describe "Arithmetic operations" $ do
 
         it "prop_add_toNatural" $ do
             property prop_add_toNatural
@@ -59,7 +57,7 @@ spec = describe "Cardano.Wallet.Primitive.Types.CoinSpec" $ do
         it "prop_subtract_toNatural" $ do
             property prop_subtract_toNatural
 
-    parallel $ describe "Partitioning" $ do
+    describe "Partitioning" $ do
 
         it "prop_partitionDefault_fold" $
             prop_partitionDefault_fold & property
@@ -68,7 +66,7 @@ spec = describe "Cardano.Wallet.Primitive.Types.CoinSpec" $ do
         it "prop_partitionDefault_zeroWeightSum" $
             prop_partitionDefault_zeroWeightSum & property
 
-    parallel $ describe "Generators and shrinkers" $ do
+    describe "Generators and shrinkers" $ do
 
         describe "Coins that can be zero" $ do
             it "genCoin_coverage" $
@@ -82,7 +80,7 @@ spec = describe "Cardano.Wallet.Primitive.Types.CoinSpec" $ do
             it "shrinkCoinPositive" $
                 property prop_shrinkCoinPositive
 
-    parallel $ describe "Generating partitions" $ do
+    describe "Generating partitions" $ do
 
         it "prop_genCoinPartition_fold" $
             prop_genCoinPartition_fold & property

@@ -56,8 +56,6 @@ import Data.Maybe
     ( listToMaybe )
 import Test.Hspec
     ( Spec, describe, it )
-import Test.Hspec.Extra
-    ( parallel )
 import Test.QuickCheck
     ( Arbitrary (..)
     , CoArbitrary (..)
@@ -85,11 +83,11 @@ spec :: Spec
 spec =
     describe "Cardano.Wallet.Primitive.Types.UTxOSpec" $ do
 
-    parallel $ describe "delta encoding" $ do
+    describe "delta encoding" $ do
         it "DeltaUTXO is a semigroup compatible with `apply`" $
             property prop_deltaUTxO_semigroup_apply
 
-    parallel $ describe "filtering and partitioning" $ do
+    describe "filtering and partitioning" $ do
 
         it "prop_filter_disjoint" $
             property prop_filter_disjoint
@@ -102,7 +100,7 @@ spec =
         it "prop_partition_mappend" $
             property prop_partition_mappend
 
-    parallel $ describe "filtering by address" $ do
+    describe "filtering by address" $ do
 
         it "matching everything gives us everything" $
             property prop_filterByAddress_matchAll
@@ -117,7 +115,7 @@ spec =
         it "filterByAddress is always subset" $
             property prop_filterByAddress_isSubset
 
-    parallel $ describe "Transformations" $ do
+    describe "Transformations" $ do
 
         describe "mapAssetIds" $ do
             it "prop_mapAssetIds_identity" $
