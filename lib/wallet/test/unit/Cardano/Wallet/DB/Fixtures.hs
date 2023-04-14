@@ -193,9 +193,13 @@ unsafeUpdateS store ba da = updateS store (Just ba) da *> unsafeLoadS store
 
 -- | Property that a pure query returns the same result as the store one.
 queryLaw :: (Monad m, Eq b, Query qa)
-    => QueryStore m qa da -- ^ the store to test
-  -> World qa -- ^ the world to query
-  -> qa b -- ^ the query to run
-  -> m Bool -- ^ if the pure query returns the same result as the store one
+    => QueryStore m qa da
+    -- ^ the store to test
+    -> World qa
+    -- ^ the world to query
+    -> qa b
+    -- ^ the query to run
+    -> m Bool
+    -- ^ if the pure query returns the same result as the store one
 queryLaw QueryStore{queryS} z r =
     (query r z ==) <$> queryS r

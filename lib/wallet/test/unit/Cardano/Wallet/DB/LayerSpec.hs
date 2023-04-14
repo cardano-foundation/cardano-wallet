@@ -310,13 +310,18 @@ stateMachineSpec = describe ("State machine test (" ++ showState @s ++ ")") $ do
     it "Sequential" $ prop_sequential newDB
 
 stateMachineSpecSeq, stateMachineSpecRnd, stateMachineSpecShared :: Spec
-stateMachineSpecSeq = stateMachineSpec @ShelleyKey @(SeqState 'Mainnet ShelleyKey)
-stateMachineSpecRnd = stateMachineSpec @ByronKey @(RndState 'Mainnet)
-stateMachineSpecShared = stateMachineSpec @SharedKey @(SharedState 'Mainnet SharedKey)
+stateMachineSpecSeq =
+    stateMachineSpec @ShelleyKey @(SeqState 'Mainnet ShelleyKey)
+stateMachineSpecRnd =
+    stateMachineSpec @ByronKey @(RndState 'Mainnet)
+stateMachineSpecShared =
+    stateMachineSpec @SharedKey @(SharedState 'Mainnet SharedKey)
 
 instance PaymentAddress 'Mainnet SharedKey 'CredFromScriptK where
-    paymentAddress _ = error "does not make sense for SharedKey but want to use stateMachineSpec"
-    liftPaymentAddress _ = error "does not make sense for SharedKey but want to use stateMachineSpec"
+    paymentAddress _ = error
+        "does not make sense for SharedKey but want to use stateMachineSpec"
+    liftPaymentAddress _ = error
+        "does not make sense for SharedKey but want to use stateMachineSpec"
 
 showState :: forall s. Typeable s => String
 showState = show (typeOf @s undefined)
