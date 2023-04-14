@@ -18,7 +18,7 @@ services:
         max-size: "50m"
 
   cardano-wallet:
-    image: inputoutput/cardano-wallet:2022.12.14
+    image: inputoutput/cardano-wallet:2023.4.14
     volumes:
       - wallet-${NETWORK}-db:/wallet-db
       - node-ipc:/ipc
