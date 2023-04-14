@@ -106,8 +106,6 @@ import Data.Word
     ( Word8 )
 import Test.Hspec
     ( Spec, describe, expectationFailure, it )
-import Test.Hspec.Extra
-    ( parallel )
 import Test.QuickCheck
     ( Arbitrary (..)
     , Property
@@ -142,7 +140,7 @@ import qualified Data.ByteString as BS
 
 spec :: Spec
 spec = do
-    parallel $ describe "AddressPoolGap" $ do
+    describe "AddressPoolGap" $ do
         it "'AddressPoolGap.succ maxBound' should result in a runtime err"
             (expectFailure prop_succMaxBoundGap)
         it "'AddressPoolGap.pred minBound' should result in a runtime err"
@@ -154,10 +152,10 @@ spec = do
         it "defaultAddressPoolGap is valid"
             (property prop_defaultValid)
 
-    parallel $ describe "DerivationPrefix" $ do
+    describe "DerivationPrefix" $ do
         textRoundtrip (Proxy @DerivationPrefix)
 
-    parallel $ describe "AddressPoolGap - Text Roundtrip" $ do
+    describe "AddressPoolGap - Text Roundtrip" $ do
         textRoundtrip $ Proxy @AddressPoolGap
         let err = "An address pool gap must be a natural number between 10 and 100000."
         it "fail fromText @AddressPoolGap \"-10\"" $
@@ -177,7 +175,7 @@ spec = do
         it "fail fromText @AddressPoolGap \"2.5\"" $
             fromText @AddressPoolGap "2.5" === Left (TextDecodingError err)
 
-    parallel $ describe "PendingIxs & GenChange" $ do
+    describe "PendingIxs & GenChange" $ do
         it "Can always generate exactly `gap` different change addresses from rootXPrv"
             (property prop_genChangeGapFromRootXPrv)
         it "Can always generate exactly `gap` different change addresses from accXPub"
@@ -187,17 +185,17 @@ spec = do
         it "Can generate new change addresses after discovering a pending one"
             (property prop_changeNoLock)
 
-    parallel $ describe "IsOwned" $ do
+    describe "IsOwned" $ do
         it "Any discovered address has a corresponding private key!" $ do
             (property prop_lookupDiscovered)
 
-    parallel $ describe "CompareDiscovery" $ do
+    describe "CompareDiscovery" $ do
         it "Known addresses are always lesser than unknown ones" $ do
             (checkCoverage prop_compareKnownUnknown)
         it "compareDiscovery is anti-symmetric" $ do
             (checkCoverage prop_compareAntiSymmetric)
 
-    parallel $ describe "KnownAddresses" $ do
+    describe "KnownAddresses" $ do
         it "Any known address is ours" $ do
             (property prop_knownAddressesAreOurs)
         it "There are at least gap known addresses" $ do

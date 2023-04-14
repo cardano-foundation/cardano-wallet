@@ -65,8 +65,6 @@ import System.Random
     ( mkStdGen )
 import Test.Hspec
     ( Expectation, Spec, describe, it, shouldBe )
-import Test.Hspec.Extra
-    ( parallel )
 import Test.QuickCheck
     ( Arbitrary (..)
     , Gen
@@ -86,7 +84,7 @@ import qualified Data.Map as Map
 import qualified Data.Set as Set
 
 spec :: Spec
-spec = parallel $ do
+spec = do
     goldenSpecMainnet
     goldenSpecTestnet
     propSpec
@@ -97,7 +95,7 @@ spec = parallel $ do
 
 goldenSpecMainnet :: Spec
 goldenSpecMainnet =
-    parallel $ describe "Golden tests for Byron Addresses w/ random scheme (Mainnet)" $ do
+    describe "Golden tests for Byron Addresses w/ random scheme (Mainnet)" $ do
     let goldenInitial = GoldenTest
             { mnem =
                     arbitraryMnemonic
@@ -164,7 +162,7 @@ prop_IndexesAlwaysHardened g accIx =
 
 goldenSpecTestnet :: Spec
 goldenSpecTestnet =
-    parallel $ describe "Golden tests forByron Addresses w/ random scheme (Testnet)" $ do
+    describe "Golden tests forByron Addresses w/ random scheme (Testnet)" $ do
     let golden01 = GoldenTest
             { mnem =
                     arbitraryMnemonic
@@ -259,7 +257,7 @@ rndStateFromMnem mnemonic = (rootXPrv, mkRndState @'Mainnet rootXPrv 0)
 -------------------------------------------------------------------------------}
 
 propSpec :: Spec
-propSpec = parallel $ describe "Random Address Discovery Properties" $ do
+propSpec = describe "Random Address Discovery Properties" $ do
     it "isOurs works as expected during key derivation" $ do
         property prop_derivedKeysAreOurs
     it "isOwned works as expected during key derivation" $ do

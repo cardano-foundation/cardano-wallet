@@ -45,8 +45,6 @@ import Ouroboros.Consensus.BlockchainTime.WallClock.Types
     ( RelativeTime (..) )
 import Test.Hspec
     ( Spec, describe, it, shouldBe )
-import Test.Hspec.Extra
-    ( parallel )
 import Test.QuickCheck
     ( Arbitrary (..), counterexample, property, withMaxSuccess )
 import Test.QuickCheck.Monadic
@@ -68,7 +66,7 @@ spec = do
 
     let ti = (mkSingleEraInterpreter (StartTime t0) sp :: TimeInterpreter Identity)
     let runQry = runIdentity . interpretQuery ti
-    parallel $ describe "syncProgress" $ do
+    describe "syncProgress" $ do
         it "works for any two slots" $ property $ \tip (dt :: RelativeTime) ->
             runIdentity (syncProgress st ti tip dt) `deepseq` ()
         let tolerance = SyncTolerance 0

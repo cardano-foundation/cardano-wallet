@@ -41,7 +41,7 @@ import Data.Maybe
 import Numeric
     ( showHex )
 import Test.Hspec
-    ( Expectation, Spec, describe, it, parallel, shouldBe )
+    ( Expectation, Spec, describe, it, shouldBe )
 import Test.QuickCheck
     ( Arbitrary (..)
     , Gen
@@ -669,57 +669,56 @@ instance Arbitrary TxOut where
 
 spec :: Spec
 spec = do
-    parallel $ do
-        describe "address types" $ do
-            describe "generators" $
-                it "generates values with sufficient coverage" $
-                    property prop_genAddressType_coverage
-            it "property prop_addressTypeHeaderNibble_roundtrips" $
-                property prop_addressTypeHeaderNibble_roundtrips
-            it "serialise/deserialise roundtrips" $
-                property prop_header_roundtrips
-            it "classifies byron address type correctly" $
-                property prop_addressType_byron
-            it "classifies stake address type correctly" $
-                property prop_addressType_stake
-            it "classifies shelley key hash type correctly" $
-                property prop_addressType_shelleyKeyHash
-            it "classifies shelley script hash type correctly" $
-                property prop_addressType_shelleyScriptHash
+    describe "address types" $ do
+        describe "generators" $
+            it "generates values with sufficient coverage" $
+                property prop_genAddressType_coverage
+        it "property prop_addressTypeHeaderNibble_roundtrips" $
+            property prop_addressTypeHeaderNibble_roundtrips
+        it "serialise/deserialise roundtrips" $
+            property prop_header_roundtrips
+        it "classifies byron address type correctly" $
+            property prop_addressType_byron
+        it "classifies stake address type correctly" $
+            property prop_addressType_stake
+        it "classifies shelley key hash type correctly" $
+            property prop_addressType_shelleyKeyHash
+        it "classifies shelley script hash type correctly" $
+            property prop_addressType_shelleyScriptHash
+        it "golden" $ do
+            unit_addressType_byronGolden
+            unit_addressType_shelleyEnterprisePaymentGolden
+            unit_addressType_stakeAddrGolden
+            unit_addressType_pointerAddrGolden
+            unit_addressType_delegationAddrGolden
+        describe "addressType" $ do
+            it "satisfies same properties as getAddressType" $
+                property prop_addressType_equivalance
+    describe "collateral suitability" $ do
+        describe "generators and shrinkers" $ do
+            it "generates values with sufficient coverage" $
+                property prop_genAddress_coverage
+            it "shrink maintains validity" $
+                property prop_simplifyAddress_validAddress
+            it "shrink maintains type" $
+                property prop_simplifyAddress_typeMaintained
+        describe "addressSuitableForCollateral" $ do
+            it "assesses all addresses correctly" $
+                property prop_addressSuitableForCollateral
             it "golden" $ do
-                unit_addressType_byronGolden
-                unit_addressType_shelleyEnterprisePaymentGolden
-                unit_addressType_stakeAddrGolden
-                unit_addressType_pointerAddrGolden
-                unit_addressType_delegationAddrGolden
-            describe "addressType" $ do
-                it "satisfies same properties as getAddressType" $
-                    property prop_addressType_equivalance
-        describe "collateral suitability" $ do
-            describe "generators and shrinkers" $ do
-                it "generates values with sufficient coverage" $
-                    property prop_genAddress_coverage
-                it "shrink maintains validity" $
-                    property prop_simplifyAddress_validAddress
-                it "shrink maintains type" $
-                    property prop_simplifyAddress_typeMaintained
-            describe "addressSuitableForCollateral" $ do
-                it "assesses all addresses correctly" $
-                    property prop_addressSuitableForCollateral
-                it "golden" $ do
-                    unit_addressSuitableForCollateral_byronGolden
-                    unit_addressSuitableForCollateral_shelleyEnterprisePaymentGolden
-                    unit_addressSuitableForCollateral_stakeAddrGolden
-                    unit_addressSuitableForCollateral_pointerAddrGolden
-                    unit_addressSuitableForCollateral_delegationAddrGolden
-            describe "addressTypeSuitableForCollateral" $ do
-                it "satisfies same properties as addressSuitableForCollateral" $
-                    property prop_addressSuitableForCollateral_equivalence
-            describe "asCollateral" $ do
-                it "satisfies same boolean properties as addressSuitableForCollateral" $
-                    property prop_equivalence_bool
-                it "satisfies same properties as addressSuitableForCollateral" $
-                    property prop_equivalence
+                unit_addressSuitableForCollateral_byronGolden
+                unit_addressSuitableForCollateral_shelleyEnterprisePaymentGolden
+                unit_addressSuitableForCollateral_stakeAddrGolden
+                unit_addressSuitableForCollateral_pointerAddrGolden
+                unit_addressSuitableForCollateral_delegationAddrGolden
+        describe "addressTypeSuitableForCollateral" $ do
+            it "satisfies same properties as addressSuitableForCollateral" $
+                property prop_addressSuitableForCollateral_equivalence
+        describe "asCollateral" $ do
+            it "satisfies same boolean properties as addressSuitableForCollateral" $
+                property prop_equivalence_bool
+            it "satisfies same properties as addressSuitableForCollateral" $
+                property prop_equivalence
 
 -- The following golden keys were generated from the recovery phrase:
 -- [change twin tired knee syrup cover dog glare canvas canvas jump egg]

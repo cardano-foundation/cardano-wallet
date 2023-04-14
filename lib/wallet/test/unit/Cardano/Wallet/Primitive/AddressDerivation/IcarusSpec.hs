@@ -47,8 +47,6 @@ import Cardano.Wallet.Read.NetworkId
     ( NetworkDiscriminant (..) )
 import Test.Hspec
     ( Spec, describe, it )
-import Test.Hspec.Extra
-    ( parallel )
 import Test.QuickCheck
     ( Arbitrary (..)
     , Property
@@ -64,13 +62,13 @@ import qualified Data.ByteString as BS
 
 spec :: Spec
 spec = do
-    parallel $ describe "BIP-0044 Derivation Properties" $ do
+    describe "BIP-0044 Derivation Properties" $ do
         it "deriveAccountPrivateKey works for various indexes" $
             property prop_accountKeyDerivation
         it "N(CKDpriv((kpar, cpar), i)) === CKDpub(N(kpar, cpar), i)" $
             property prop_publicChildKeyDerivation
 
-    parallel $ describe "MkKeyFingerprint Properties" $ do
+    describe "MkKeyFingerprint Properties" $ do
         it "paymentKeyFingerprint . liftPaymentAddress == pure" $
             property prop_roundtripFingerprintLift
 

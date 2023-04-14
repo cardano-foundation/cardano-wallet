@@ -33,8 +33,6 @@ import System.FilePath
     ( (</>) )
 import Test.Hspec
     ( Spec, around, describe, it, shouldBe )
-import Test.Hspec.Extra
-    ( parallel )
 import Test.Utils.Paths
     ( getTestData )
 import Test.Utils.Trace
@@ -48,9 +46,9 @@ withMemoryDBLayer
 withMemoryDBLayer = withDBLayer nullTracer Nothing dummyTimeInterpreter
 
 spec :: Spec
-spec = parallel $ do
+spec = do
     around withMemoryDBLayer $ do
-        parallel $ describe "Sqlite" properties
+        describe "Sqlite" properties
 
     describe "Migration Regressions" $ do
         test_migrationFromv20191216

@@ -52,8 +52,6 @@ import Data.Word
     ( Word32, Word64 )
 import Test.Hspec
     ( Expectation, Spec, describe, it, shouldBe )
-import Test.Hspec.Extra
-    ( parallel )
 import Test.QuickCheck
     ( Arbitrary (..)
     , Property
@@ -75,7 +73,7 @@ import qualified Data.ByteString.Lazy as BL
 {- HLINT ignore spec "Use head" -}
 
 spec :: Spec
-spec = parallel $ do
+spec = do
     describe "Encoding Tx" $ do
         let txs = txs1 <> txs2
         let roundTripTx tx = do

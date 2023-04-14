@@ -41,8 +41,6 @@ import Data.Proxy
     ( Proxy (..) )
 import Test.Hspec
     ( Spec, describe, it, shouldBe )
-import Test.Hspec.Extra
-    ( parallel )
 import Test.QuickCheck
     ( Arbitrary (..), Property, counterexample, property, (===), (==>) )
 import Test.QuickCheck.Monadic
@@ -53,7 +51,7 @@ import Test.Text.Roundtrip
 import qualified Data.ByteArray as BA
 
 spec :: Spec
-spec = parallel $ do
+spec = do
     describe "Text Roundtrip" $ do
         textRoundtrip $ Proxy @(Passphrase "user")
 

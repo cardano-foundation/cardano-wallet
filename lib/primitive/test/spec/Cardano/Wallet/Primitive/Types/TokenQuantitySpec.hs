@@ -37,8 +37,6 @@ import Test.Hspec
     ( Spec, describe, it )
 import Test.Hspec.Core.QuickCheck
     ( modifyMaxSuccess )
-import Test.Hspec.Extra
-    ( parallel )
 import Test.QuickCheck
     ( Arbitrary (..)
     , Property
@@ -80,7 +78,7 @@ spec =
     describe "Token quantity properties" $
     modifyMaxSuccess (const 1000) $ do
 
-    parallel $ describe "Class instances obey laws" $ do
+    describe "Class instances obey laws" $ do
         testLawsMany @TokenQuantity
             [ eqLaws
             , monoidLaws
@@ -90,7 +88,7 @@ spec =
             , showReadLaws
             ]
 
-    parallel $ describe "Operations" $ do
+    describe "Operations" $ do
 
         it "prop_pred_succ" $
             property prop_pred_succ
@@ -115,7 +113,7 @@ spec =
         it "prop_add_difference ((x + y) - y = x)" $
             property prop_add_difference
 
-    parallel $ describe "Partitioning" $ do
+    describe "Partitioning" $ do
 
         it "prop_partitionDefault_fold" $
             prop_partitionDefault_fold & property
@@ -124,7 +122,7 @@ spec =
         it "prop_partitionDefault_zeroWeightSum" $
             prop_partitionDefault_zeroWeightSum & property
 
-    parallel $ describe "Generating partitions" $ do
+    describe "Generating partitions" $ do
 
         it "prop_genTokenQuantityPartition_fold" $
             prop_genTokenQuantityPartition_fold & property
@@ -133,12 +131,12 @@ spec =
         it "prop_genTokenQuantityPartition_nonPositive" $
             prop_genTokenQuantityPartition_nonPositive & property
 
-    parallel $ describe "JSON serialization" $ do
+    describe "JSON serialization" $ do
 
         describe "Roundtrip tests" $ do
             testJson $ Proxy @TokenQuantity
 
-    parallel $ describe "Text serialization" $ do
+    describe "Text serialization" $ do
 
         describe "Roundtrip tests" $ do
             textRoundtrip $ Proxy @TokenQuantity

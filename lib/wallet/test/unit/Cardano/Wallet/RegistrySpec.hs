@@ -39,8 +39,6 @@ import GHC.Generics
     ( Generic )
 import Test.Hspec
     ( Spec, describe, it, shouldBe, shouldReturn )
-import Test.Hspec.Extra
-    ( parallel )
 import Test.QuickCheck
     ( Arbitrary (..), Positive (..), Property, generate, property )
 import Test.QuickCheck.Monadic
@@ -65,7 +63,7 @@ import qualified Data.ByteString as BS
 
 spec :: Spec
 spec = do
-    parallel $ describe "Workers" $ do
+    describe "Workers" $ do
         it "Executes task and stops gracefully when done"
             workerRunsTaskAndExits
         it "Stops gracefully when receiving an async exception"

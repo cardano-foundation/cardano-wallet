@@ -25,7 +25,7 @@ import Data.Maybe
 import Data.Set
     ( Set )
 import Test.Hspec
-    ( Spec, describe, it, parallel )
+    ( Spec, describe, it )
 import Test.QuickCheck
     ( Gen
     , Property
@@ -46,7 +46,7 @@ import qualified Data.Set as Set
 
 spec :: Spec
 spec = do
-    parallel $ describe "Pool invariants" $ do
+    describe "Pool invariants" $ do
         it "prop_consistent . new" $
             prop_consistent testPool
 
@@ -70,7 +70,7 @@ spec = do
             prop_next_is_unused
 
 
-    parallel $ describe "Address discovery" $ do
+    describe "Address discovery" $ do
         it "discover by query = discover in sequence" $
             prop_discover (AddressPool.new (*2) (6::Int))
 

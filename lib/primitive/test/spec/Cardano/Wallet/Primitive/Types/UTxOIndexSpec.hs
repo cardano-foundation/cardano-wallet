@@ -50,8 +50,6 @@ import Data.Word
     ( Word8 )
 import Test.Hspec
     ( Spec, describe, it )
-import Test.Hspec.Extra
-    ( parallel )
 import Test.QuickCheck
     ( Arbitrary (..)
     , CoArbitrary (..)
@@ -92,12 +90,12 @@ spec :: Spec
 spec =
     describe "Cardano.Wallet.Primitive.Types.UTxOIndexSpec" $ do
 
-    parallel $ describe "Class instances obey laws" $ do
+    describe "Class instances obey laws" $ do
         testLawsMany @(UTxOIndex TestUTxO)
             [ eqLaws
             ]
 
-    parallel $ describe
+    describe
         "All operations preserve the invariant:" $ do
 
         it "prop_arbitrary_invariant" $
@@ -117,7 +115,7 @@ spec =
         it "prop_selectRandom_invariant" $
             property prop_selectRandom_invariant
 
-    parallel $ describe "Construction and deconstruction" $ do
+    describe "Construction and deconstruction" $ do
 
         it "prop_empty_toList" $
             property prop_empty_toList
@@ -126,7 +124,7 @@ spec =
         it "prop_toList_fromSequence" $
             property prop_toList_fromSequence
 
-    parallel $ describe "Modification" $ do
+    describe "Modification" $ do
 
         it "prop_delete_balance" $
             property prop_delete_balance
@@ -145,7 +143,7 @@ spec =
         it "prop_insert_size" $
             property prop_insert_size
 
-    parallel $ describe "Filtering and partitioning" $ do
+    describe "Filtering and partitioning" $ do
 
         it "prop_filter_disjoint" $
             property prop_filter_disjoint
@@ -156,7 +154,7 @@ spec =
         it "prop_partition_disjoint" $
             property prop_partition_disjoint
 
-    parallel $ describe "Index Selection" $ do
+    describe "Index Selection" $ do
 
         it "prop_SelectionFilter_coverage" $
             property prop_SelectionFilter_coverage
@@ -169,7 +167,7 @@ spec =
         it "prop_selectRandomWithPriority" $
             property prop_selectRandomWithPriority
 
-    parallel $ describe "Set Selection" $ do
+    describe "Set Selection" $ do
 
         it "prop_selectRandomSetMember_empty" $
             property prop_selectRandomSetMember_empty

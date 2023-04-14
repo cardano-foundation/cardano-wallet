@@ -28,8 +28,6 @@ import Cardano.Wallet.Primitive.Types.UTxOSelection.Gen
     )
 import Test.Hspec
     ( Spec, describe, it )
-import Test.Hspec.Extra
-    ( parallel )
 import Test.QuickCheck
     ( Arbitrary (..)
     , CoArbitrary (..)
@@ -55,7 +53,7 @@ spec :: Spec
 spec =
     describe "Cardano.Wallet.Primitive.Types.UTxOSelectionSpec" $ do
 
-    parallel $ describe "Generators and shrinkers" $ do
+    describe "Generators and shrinkers" $ do
 
         it "prop_genUTxOSelection" $
             property prop_genUTxOSelection
@@ -66,7 +64,7 @@ spec =
         it "prop_shrinkUTxOSelectionNonEmpty" $
             property prop_shrinkUTxOSelectionNonEmpty
 
-    parallel $ describe "Construction and deconstruction" $ do
+    describe "Construction and deconstruction" $ do
 
         it "prop_fromIndex_isValid" $
             property prop_fromIndex_isValid
@@ -81,14 +79,14 @@ spec =
         it "prop_fromIndexPair_toIndexPair" $
             property prop_fromIndexPair_toIndexPair
 
-    parallel $ describe "Promotion and demotion" $ do
+    describe "Promotion and demotion" $ do
 
         it "prop_fromNonEmpty_toNonEmpty" $
             property prop_fromNonEmpty_toNonEmpty
         it "prop_toNonEmpty_fromNonEmpty" $
             property prop_toNonEmpty_fromNonEmpty
 
-    parallel $ describe "Indicator and accessor functions" $ do
+    describe "Indicator and accessor functions" $ do
 
         it "prop_availableBalance_availableMap" $
             property prop_availableBalance_availableMap
@@ -105,7 +103,7 @@ spec =
         it "prop_leftoverSize_selectedSize" $
             property prop_leftoverSize_selectedSize
 
-    parallel $ describe "Modification" $ do
+    describe "Modification" $ do
 
         it "prop_select_empty" $
             property prop_select_empty

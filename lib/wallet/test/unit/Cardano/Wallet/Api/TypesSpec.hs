@@ -465,8 +465,6 @@ import System.FilePath
     ( (</>) )
 import Test.Hspec
     ( Spec, SpecWith, describe, it, shouldBe )
-import Test.Hspec.Extra
-    ( parallel )
 import Test.QuickCheck
     ( Arbitrary (..)
     , Arbitrary1 (..)
@@ -540,7 +538,7 @@ import qualified Test.Utils.Roundtrip as Utils
 
 
 spec :: Spec
-spec = parallel $ do
+spec = do
 
     let jsonTestDataPath :: FilePath
         jsonTestDataPath = ($(getTestData) </> "Cardano" </> "Wallet" </> "Api")

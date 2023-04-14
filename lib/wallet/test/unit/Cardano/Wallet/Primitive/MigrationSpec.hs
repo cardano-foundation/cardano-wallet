@@ -37,8 +37,6 @@ import Data.Generics.Labels
     ()
 import Test.Hspec
     ( Spec, describe, it )
-import Test.Hspec.Extra
-    ( parallel )
 import Test.QuickCheck
     ( Blind (..), Gen, Property, choose, forAllBlind, property )
 import Test.QuickCheck.Extra
@@ -49,9 +47,9 @@ import qualified Data.List.NonEmpty as NE
 import qualified Data.Map.Strict as Map
 
 spec :: Spec
-spec = describe "Cardano.Wallet.Primitive.MigrationSpec" $
+spec =
+    describe "Cardano.Wallet.Primitive.MigrationSpec" $
 
-    parallel $
         describe "Creating migration plans (with concrete wallet types)" $ do
 
             it "prop_createPlan_equivalent" $

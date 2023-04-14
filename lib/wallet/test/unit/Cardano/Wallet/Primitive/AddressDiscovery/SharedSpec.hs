@@ -74,8 +74,6 @@ import Data.Word
     ( Word32, Word8 )
 import Test.Hspec
     ( Spec, describe, it )
-import Test.Hspec.Extra
-    ( parallel )
 import Test.QuickCheck
     ( Arbitrary (..)
     , Gen
@@ -116,7 +114,7 @@ spec = do
         it "upon address discovery there is exact and consecutive number of Unused indices that amounts to the address pool gap number"
             (property (prop_addressDiscoveryDoesNotChangeGapInvariance @'Mainnet))
 
-    parallel $ describe "KnownAddresses" $ do
+    describe "KnownAddresses" $ do
         it "addresses with wrong prefixes and our credentials are discovered via isOurs" $ do
             (property prop_oursUnexpectedPrefix)
 

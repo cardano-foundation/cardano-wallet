@@ -20,13 +20,13 @@ import Control.Monad.Trans.Class
 import Control.Monad.Trans.Except
     ( ExceptT, catchE, runExceptT, throwE )
 import Test.Hspec
-    ( Spec, describe, it, parallel )
+    ( Spec, describe, it )
 import Test.QuickCheck
     ( Property, (===) )
 
 spec :: Spec
 spec = do
-    parallel $ describe "Control.Concurrent.Concierge" $ do
+    describe "Control.Concurrent.Concierge" $ do
         it "Atomic operations do not interleave"
             unit_atomic
 

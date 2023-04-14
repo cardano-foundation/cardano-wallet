@@ -24,8 +24,6 @@ import Data.Time.Text
     )
 import Test.Hspec
     ( Spec, describe, it, shouldBe, shouldSatisfy )
-import Test.Hspec.Extra
-    ( parallel )
 import Test.QuickCheck
     ( property, (.&&.), (===) )
 import Test.Utils.Time
@@ -34,31 +32,31 @@ import Test.Utils.Time
 import qualified Data.Text as T
 
 spec :: Spec
-spec = parallel $ describe "Conversion of UTC time values to and from text" $ do
+spec = describe "Conversion of UTC time values to and from text" $ do
 
-    parallel $ describe "Roundtrip conversion to and from text succeeds for all formats" $
+    describe "Roundtrip conversion to and from text succeeds for all formats" $
         forM_ allSupportedFormats $ \tf ->
             it (timeFormatName tf) $ property $ \t ->
                 utcTimeFromText [tf] (utcTimeToText tf $ getUniformTime t)
                     `shouldBe` Just (getUniformTime t)
 
-    parallel $ describe "Parsing valid strings succeeds for all formats" $
+    describe "Parsing valid strings succeeds for all formats" $
         forM_ allSupportedFormats $ \tf -> describe (timeFormatName tf) $
             forM_ (validForFormat tf) $ \es -> describe (title es) $
                 forM_ (examples es) $ \e ->
                     it (T.unpack e) $ property $
                         utcTimeFromText [tf] e `shouldSatisfy` isJust
 
-    parallel $ describe "Parsing invalid strings fails for all formats" $
+    describe "Parsing invalid strings fails for all formats" $
         forM_ allSupportedFormats $ \tf -> describe (timeFormatName tf) $
             forM_ (invalidForFormat tf) $ \es -> describe (title es) $
                 forM_ (examples es) $ \e ->
                     it (T.unpack e) $ property $
                         utcTimeFromText [tf] e === Nothing
 
-    parallel $ describe "Equivalent times are decoded equivalently." $ do
+    describe "Equivalent times are decoded equivalently." $ do
 
-        parallel $ describe "Times with identical dates" $ do
+        describe "Times with identical dates" $ do
             ensureTimesDecodeEquivalently iso8601
                 "2008-08-08T12:00:00+01:00"
                 "2008-08-08T11:00:00Z"
@@ -72,7 +70,7 @@ spec = parallel $ describe "Conversion of UTC time values to and from text" $ do
                 "2008-08-08T12:00:00-08:00"
                 "2008-08-08T20:00:00Z"
 
-        parallel $ describe "Times with different dates" $ do
+        describe "Times with different dates" $ do
             ensureTimesDecodeEquivalently iso8601
                 "2008-08-08T00:00:00+01:00"
                 "2008-08-07T23:00:00Z"

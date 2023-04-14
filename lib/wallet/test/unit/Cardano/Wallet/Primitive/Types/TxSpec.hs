@@ -51,8 +51,6 @@ import Data.Maybe
     ( listToMaybe )
 import Test.Hspec
     ( Spec, describe, it )
-import Test.Hspec.Extra
-    ( parallel )
 import Test.Hspec.QuickCheck
     ( prop )
 import Test.QuickCheck
@@ -75,13 +73,13 @@ import qualified Data.Set as Set
 spec :: Spec
 spec = do
 
-    parallel $ describe "SealedTx" $ do
+    describe "SealedTx" $ do
         prop "sealedTxFromBytes - won't accept gibberish"
             prop_sealedTxGibberish
         prop "mockSealedTx - passes through mock values"
             prop_mockSealedTx
 
-    parallel $ describe "Transformations" $ do
+    describe "Transformations" $ do
 
         describe "txMapAssetIds" $ do
             it "prop_txMapAssetIds_identity" $

@@ -946,6 +946,7 @@ test-suite unit
     Data.Time.UtilsSpec
     Data.Vector.ShuffleSpec
     Spec
+    SpecHook
     System.Random.StdGenSeedSpec
 
 test-suite integration

@@ -21,13 +21,11 @@ import Data.Text
     ( Text )
 import Test.Hspec
     ( Spec, SpecWith, describe, it, shouldBe )
-import Test.Hspec.Extra
-    ( parallel )
 
 import qualified Data.Text as T
 
 spec :: Spec
-spec = parallel $ describe "mkAssetFingerprint" $ do
+spec = describe "mkAssetFingerprint" $ do
     goldenTestCIP14
         "7eae28af2208be856f7a119668ae52a49b73725e326dc16579dcc373"
         ""

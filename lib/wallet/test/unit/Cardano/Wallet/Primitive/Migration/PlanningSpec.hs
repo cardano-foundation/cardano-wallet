@@ -53,8 +53,6 @@ import Test.Hspec
     ( Spec, describe, it )
 import Test.Hspec.Core.QuickCheck
     ( modifyMaxSuccess )
-import Test.Hspec.Extra
-    ( parallel )
 import Test.QuickCheck
     ( Blind (..)
     , Gen
@@ -87,7 +85,7 @@ spec = describe "Cardano.Wallet.Primitive.Migration.PlanningSpec" $
 
     modifyMaxSuccess (const 1_000) $ do
 
-    parallel $ describe "Creating migration plans" $ do
+    describe "Creating migration plans" $ do
 
         describe "Empty migrations" $
             it "prop_createPlan_empty" $
@@ -105,7 +103,7 @@ spec = describe "Cardano.Wallet.Primitive.Migration.PlanningSpec" $
             it "prop_createPlan_giant" $
                 property prop_createPlan_giant
 
-    parallel $ describe "Categorizing UTxO entries" $ do
+    describe "Categorizing UTxO entries" $ do
 
         it "prop_categorizeUTxOEntries" $
             property prop_categorizeUTxOEntries

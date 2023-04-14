@@ -59,8 +59,6 @@ import Numeric.Natural
     ( Natural )
 import Test.Hspec
     ( Expectation, Spec, describe, it, shouldBe )
-import Test.Hspec.Extra
-    ( parallel )
 import Test.QuickCheck
     ( Arbitrary (..), Property, property, vector, (=/=), (===) )
 import Test.QuickCheck.Arbitrary
@@ -75,7 +73,7 @@ import qualified Data.Text.Encoding as T
 
 spec :: Spec
 spec = do
-    parallel $ describe "Mint/Burn Policy key Address Derivation Properties" $ do
+    describe "Mint/Burn Policy key Address Derivation Properties" $ do
         let minSlot = I.Finite $ intCast $ minBound @Word64
         let maxSlot = I.Finite $ intCast $ maxBound @Word64
         let hashKeyTxt :: Text

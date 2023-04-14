@@ -47,6 +47,8 @@ import Ouroboros.Network.NodeToClient
     ( NodeToClientVersionData )
 import Test.Hspec
     ( Spec, beforeAll, describe, it, shouldBe, shouldReturn )
+import Test.Hspec.Core.Spec
+    ( sequential )
 import Test.QuickCheck
     ( counterexample, property )
 import Test.QuickCheck.Monadic
@@ -89,7 +91,7 @@ concurrentConnectionSpec = describe "NetworkLayer regression test #1708" $ do
             void $ waitAnyCancel tasks
 
 observerSpec :: Spec
-observerSpec = describe "Observer" $ do
+observerSpec = sequential $ describe "Observer" $ do
     it "can fetch all observed keys, but not any other keys"
         $ property $ \keys1 keys2 -> monadicIO $ do
             (observer, refresh, _trVar) <- run mockObserver

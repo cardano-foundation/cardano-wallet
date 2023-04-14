@@ -159,8 +159,6 @@ import GHC.Generics
     ( Generic )
 import Test.Hspec
     ( Spec, describe, it, shouldSatisfy )
-import Test.Hspec.Extra
-    ( parallel )
 import Test.QuickCheck
     ( Arbitrary (..)
     , CoArbitrary (..)
@@ -228,19 +226,19 @@ import qualified Data.Text as T
 
 spec :: Spec
 spec = do
-    parallel $ describe "Buildable instances examples" $ do
+    describe "Buildable instances examples" $ do
         let block = blockchain !! 1
         let utxo = utxoFromTx $ head $ transactions block
         it (show $ ShowFmt utxo) True
 
-    parallel $ describe "Compare Wallet impl. with Specification" $ do
+    describe "Compare Wallet impl. with Specification" $ do
         it "Lemma 3.2 - dom u ⋪ updateUTxO b u = new b"
             (checkCoverage prop_3_2)
 
         it "applyBlock matches the basic model from the specification"
             (checkCoverage prop_applyBlockBasic)
 
-    parallel $ describe "Extra Properties" $ do
+    describe "Extra Properties" $ do
         it "Incoming transactions have output addresses that belong to the wallet"
             (property prop_applyBlockTxHistoryIncoming)
 
@@ -304,11 +302,11 @@ spec = do
             it "spendTx/utxoFromTx"
                 (property prop_spendTx_utxoFromTx)
 
-    parallel $ describe "DeltaWallet" $ do
+    describe "DeltaWallet" $ do
         it "applyBlock gives deltas that match final wallet state" $
             property prop_applyBlock_DeltaWallet
 
-    parallel $ describe "Available UTxO" $ do
+    describe "Available UTxO" $ do
         it "prop_availableUTxO_isSubmap" $
             property prop_availableUTxO_isSubmap
         it "prop_availableUTxO_notMember" $
@@ -318,11 +316,11 @@ spec = do
         it "prop_availableUTxO_availableBalance" $
             property prop_availableUTxO_availableBalance
 
-    parallel $ describe "Change UTxO" $ do
+    describe "Change UTxO" $ do
         it "prop_changeUTxO" $
             property prop_changeUTxO
 
-    parallel $ describe "Total UTxO" $ do
+    describe "Total UTxO" $ do
         it "prop_totalUTxO_pendingChangeIncluded" $
             property prop_totalUTxO_pendingChangeIncluded
         it "prop_totalUTxO_pendingCollateralInputsIncluded" $
@@ -330,21 +328,21 @@ spec = do
         it "prop_totalUTxO_pendingInputsExcluded" $
             property prop_totalUTxO_pendingInputsExcluded
 
-    parallel $ describe "Applying transactions to UTxO sets" $ do
+    describe "Applying transactions to UTxO sets" $ do
         it "prop_applyOurTxToUTxO_allOurs" $
             property prop_applyOurTxToUTxO_allOurs
         it "prop_applyOurTxToUTxO_someOurs" $
             property prop_applyOurTxToUTxO_someOurs
 
-    parallel $ describe "Address discovery" $ do
+    describe "Address discovery" $ do
         it "discoverAddressesBlock ~ isOurTx" $
             property prop_discoverAddressesBlock
 
-    parallel $ describe "Light-mode" $ do
+    describe "Light-mode" $ do
         it "discovery on blocks = discovery on summary" $
             property prop_discoverFromBlockData
 
-    parallel $ describe "applyBlocks" $ do
+    describe "applyBlocks" $ do
 
         describe "filteredTxs" $ do
             it "prop_applyBlocks_filteredTxs_someOurs" $

@@ -99,3 +99,4 @@ test-suite test
     Cardano.CoinSelection.CollateralSpec
     Cardano.CoinSelectionSpec
     Spec
+    SpecHook
