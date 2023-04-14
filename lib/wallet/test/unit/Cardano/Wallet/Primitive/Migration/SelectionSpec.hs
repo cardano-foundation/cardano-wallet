@@ -82,8 +82,6 @@ import Test.Hspec
     ( Spec, describe, it )
 import Test.Hspec.Core.QuickCheck
     ( modifyMaxSuccess )
-import Test.Hspec.Extra
-    ( parallel )
 import Test.QuickCheck
     ( Arbitrary (..)
     , Blind (..)
@@ -121,29 +119,29 @@ spec = describe "Cardano.Wallet.Primitive.Migration.SelectionSpec" $
 
     modifyMaxSuccess (const 1_000) $ do
 
-    parallel $ describe "Creating selections" $ do
+    describe "Creating selections" $ do
 
         it "prop_create" $
             property prop_create
 
-    parallel $ describe "Extending selections" $ do
+    describe "Extending selections" $ do
 
         it "prop_extend" $
             property prop_extend
 
-    parallel $ describe "Adding value to outputs" $ do
+    describe "Adding value to outputs" $ do
 
         it "prop_addValueToOutputs" $
             property prop_addValueToOutputs
 
-    parallel $ describe "Minimizing fees" $ do
+    describe "Minimizing fees" $ do
 
         it "prop_minimizeFee" $
             property prop_minimizeFee
         it "prop_minimizeFeeStep" $
             property prop_minimizeFeeStep
 
-    parallel $ describe "Constraint calculations" $ do
+    describe "Constraint calculations" $ do
 
         it "prop_txOutputCost" $
             property prop_txOutputCost

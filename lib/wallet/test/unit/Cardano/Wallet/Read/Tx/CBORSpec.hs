@@ -16,7 +16,7 @@ import Data.ByteString
 import Data.ByteString.Lazy
     ( fromStrict )
 import Test.Hspec
-    ( Spec, describe, it, parallel, pendingWith )
+    ( Spec, describe, it, pendingWith )
 import Test.QuickCheck
     ( Property, property, (===) )
 
@@ -37,7 +37,7 @@ import qualified Data.ByteString.Lazy as BL
 
 spec :: Spec
 spec = describe "Cardano.Wallet.Read.Tx.CBOR" $ do
-    parallel $ describe "TxCBOR encoding" $ do
+    describe "TxCBOR encoding" $ do
 
         it "roundtrips byron tx properly" $ do
             pendingWith "CBOR for  byron missing"

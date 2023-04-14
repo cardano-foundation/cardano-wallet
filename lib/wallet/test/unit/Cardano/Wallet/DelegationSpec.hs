@@ -40,8 +40,6 @@ import Hedgehog.Corpus
     ( metasyntactic )
 import Test.Hspec
     ( Spec, describe, it, shouldBe )
-import Test.Hspec.Extra
-    ( parallel )
 import Test.QuickCheck
     ( Arbitrary (..)
     , NonEmptyList (..)
@@ -68,7 +66,7 @@ import qualified Data.ByteString as BS
 import qualified Data.Set as Set
 
 spec :: Spec
-spec = parallel $ describe "Cardano.Wallet.DelegationSpec" $ do
+spec = describe "Cardano.Wallet.DelegationSpec" $ do
 
     describe "Join/Quit Stake pool properties" $ do
         it "You can quit if you cannot join" $ do

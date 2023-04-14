@@ -79,8 +79,6 @@ import Ouroboros.Consensus.Util.Counting
     ( exactlyTwo )
 import Test.Hspec
     ( Spec, describe, it, runIO, shouldBe, shouldReturn, shouldSatisfy )
-import Test.Hspec.Extra
-    ( parallel )
 import Test.QuickCheck
     ( Arbitrary (..), Property, choose, property, withMaxSuccess, (===) )
 import Test.QuickCheck.Arbitrary.Generic
@@ -100,7 +98,7 @@ import qualified Ouroboros.Consensus.HardFork.History.Summary as HF
 spec :: Spec
 spec = do
     describe "slotting" $ do
-        parallel $ describe "runQuery NEW mkSingleEraInterpreter == OLD . fromFlatSlot" $ do
+        describe "runQuery NEW mkSingleEraInterpreter == OLD . fromFlatSlot" $ do
             it "epochOf and epochNumber"
                 $  property $ legacySlottingTest (\_ s -> epochNumber s) epochOf
 

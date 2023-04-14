@@ -222,8 +222,6 @@ import System.Random
     ( Random )
 import Test.Hspec
     ( Spec, describe, it, shouldBe, shouldSatisfy, xit )
-import Test.Hspec.Extra
-    ( parallel )
 import Test.QuickCheck
     ( Arbitrary (..)
     , Blind (..)
@@ -295,7 +293,7 @@ import qualified Data.Map.Strict as Map
 import qualified Data.Text as T
 
 spec :: Spec
-spec = parallel $ describe "Cardano.WalletSpec" $ do
+spec = describe "Cardano.WalletSpec" $ do
     describe "Pointless mockEventSource to cover 'Show' instances for errors" $ do
         let wid = WalletId (hash @ByteString "arbitrary")
         it (show $ ErrSignPaymentNoSuchWallet (ErrNoSuchWallet wid)) True

@@ -52,8 +52,6 @@ import Data.Proxy
     ( Proxy (..) )
 import Test.Hspec
     ( Spec, describe, it, shouldBe, shouldSatisfy )
-import Test.Hspec.Extra
-    ( parallel )
 import Test.QuickCheck
     ( Arbitrary (..)
     , Gen
@@ -87,7 +85,7 @@ import qualified Data.Text.Encoding as T
 
 spec :: Spec
 spec = do
-    parallel $ describe "Bounded / Enum relationship" $ do
+    describe "Bounded / Enum relationship" $ do
         it "The calls Index.succ maxBound should result in a runtime err (hard)"
             prop_succMaxBoundHardIx
         it "The calls Index.pred minBound should result in a runtime err (hard)"
@@ -97,14 +95,14 @@ spec = do
         it "The calls Index.pred minBound should result in a runtime err (soft)"
             prop_predMinBoundSoftIx
 
-    parallel $ describe "Enum Roundtrip" $ do
+    describe "Enum Roundtrip" $ do
         it "Index @'Hardened _" (property prop_roundtripEnumIndexHard)
         it "Index @'Soft _" (property prop_roundtripEnumIndexSoft)
 
-    parallel $ describe "Text Roundtrip" $ do
+    describe "Text Roundtrip" $ do
         textRoundtrip $ Proxy @DerivationIndex
 
-    parallel $ describe "MkSomeMnemonic" $ do
+    describe "MkSomeMnemonic" $ do
         let noInDictErr =
                 "Found an unknown word not present in the pre-defined dictionary. \
                 \The full dictionary is available here: https://github.com/input\
@@ -183,7 +181,7 @@ spec = do
                         ]
             res `shouldSatisfy` isRight
 
-    parallel $ describe "Keys storing and retrieving roundtrips" $ do
+    describe "Keys storing and retrieving roundtrips" $ do
         it "XPrv ShelleyKey"
             (property $ prop_roundtripXPrv @ShelleyKey)
         it "XPrv IcarusKey"

@@ -36,7 +36,7 @@ import Data.Proxy
 import Data.Typeable
     ( Typeable, typeRep )
 import Test.Hspec
-    ( Spec, describe, it, parallel )
+    ( Spec, describe, it )
 import Test.Hspec.Core.QuickCheck
     ( modifyMaxSuccess )
 import Test.QuickCheck
@@ -47,7 +47,7 @@ spec = describe "Cardano.Wallet.Shelley.Compatibility.LedgerSpec" $
 
     modifyMaxSuccess (const 1000) $ do
 
-    parallel $ describe "Roundtrip conversions" $ do
+    describe "Roundtrip conversions" $ do
 
         ledgerRoundtrip $ Proxy @Coin
         ledgerRoundtrip $ Proxy @TokenBundle

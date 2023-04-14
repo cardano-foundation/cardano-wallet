@@ -165,8 +165,6 @@ import Test.Hspec
     , shouldSatisfy
     , shouldThrow
     )
-import Test.Hspec.Extra
-    ( parallel )
 import Test.QuickCheck
     ( Arbitrary (..)
     , NonNegative (..)
@@ -228,7 +226,7 @@ spec = describe "Cardano.Wallet.Primitive.Types" $ do
             , ordLaws
             ]
 
-    parallel $ describe "Can perform roundtrip textual encoding & decoding" $ do
+    describe "Can perform roundtrip textual encoding & decoding" $ do
         textRoundtrip $ Proxy @Address
         textRoundtrip $ Proxy @AddressState
         textRoundtrip $ Proxy @Direction
@@ -250,7 +248,7 @@ spec = describe "Cardano.Wallet.Primitive.Types" $ do
             withMaxSuccess 1000 $ property $ \(pid :: PoolId) ->
                 decodePoolIdBech32 (encodePoolIdBech32 pid) === Right pid
 
-    parallel $ describe "Buildable" $ do
+    describe "Buildable" $ do
         it "WalletId" $ do
             let mw = someDummyMnemonic (Proxy @12)
             let xprv = generateKeyFromSeed
@@ -351,7 +349,7 @@ spec = describe "Cardano.Wallet.Primitive.Types" $ do
             , getActiveSlotCoefficient = 1
             }
     let slotsPerEpoch = getEpochLength sp
-    parallel $ describe "flatSlot" $ do
+    describe "flatSlot" $ do
 
         it "fromFlatSlot . flatSlot == id" $ property $ \sl ->
             fromFlatSlot slotsPerEpoch (flatSlot slotsPerEpoch sl) === sl
@@ -378,7 +376,7 @@ spec = describe "Cardano.Wallet.Primitive.Types" $ do
                 else
                     evaluate result `shouldThrow` anyErrorCall
 
-    parallel $ describe "Ranges" $ do
+    describe "Ranges" $ do
 
         it "arbitrary ranges are valid" $
             withMaxSuccess 1000 $ property $ \(r :: Range Integer) ->
@@ -507,7 +505,7 @@ spec = describe "Cardano.Wallet.Primitive.Types" $ do
                 cover 10 (rangeIsFinite      r) "is finite" $
                 Range a b `isSubrangeOf` Range a (succ <$> b)
 
-    parallel $ describe "Range bounds" $ do
+    describe "Range bounds" $ do
 
         it "NegativeInfinity < InclusiveBound a" $
             property $ \(a :: Int) ->
@@ -521,7 +519,7 @@ spec = describe "Cardano.Wallet.Primitive.Types" $ do
             property $ \(a :: Int) (b :: Int) ->
                 compare (InclusiveBound a) (InclusiveBound b) === compare a b
 
-    parallel $ describe "Epoch arithmetic: arbitrary value generation" $ do
+    describe "Epoch arithmetic: arbitrary value generation" $ do
 
         it "EpochNo generation covers interesting cases" $
             withMaxSuccess 10000 $ property $ \(epoch :: EpochNo) ->
@@ -553,7 +551,7 @@ spec = describe "Cardano.Wallet.Primitive.Types" $ do
                             "time point during the lifetime of the blockchain"
                     True
 
-    parallel $ describe "Slot arithmetic" $ do
+    describe "Slot arithmetic" $ do
 
         it "slotFloor (slotStartTime slotMinBound) == Just slotMinBound" $
             withMaxSuccess 1000 $ property $ \sps ->
@@ -747,7 +745,7 @@ spec = describe "Cardano.Wallet.Primitive.Types" $ do
                             "`slotRangeFromTimeRange` yielded nothing" $
                         (f =<< f r) === f r
 
-    parallel $ describe "Negative cases for types decoding" $ do
+    describe "Negative cases for types decoding" $ do
         it "fail fromText @SyncTolerance \"patate\"" $ do
             let err = "Cannot parse given time duration. Here are a few \
                     \examples of valid text representing a sync tolerance: \
@@ -830,13 +828,13 @@ spec = describe "Cardano.Wallet.Primitive.Types" $ do
             it ("fail fromText @PoolOwner " ++ title) $
                 fromText @PoolOwner str `shouldBe` Left (TextDecodingError msg)
 
-    parallel $ describe "unsafeEpochNo" $ do
+    describe "unsafeEpochNo" $ do
         it "returns a successful result for any Word31" $
             property prop_unsafeEpochNoValid
         it "throws an exception for any value bigger than a Word31" $
             property prop_unsafeEpochNoThrows
 
-    parallel $ describe "Lemma 2.1 - Properties of UTxO operations" $ do
+    describe "Lemma 2.1 - Properties of UTxO operations" $ do
         it "2.1.1) ins⊲ u ⊆ u"
             (checkCoverage prop_2_1_1)
         it "2.1.2) ins⋪ u ⊆ u"
@@ -856,13 +854,13 @@ spec = describe "Cardano.Wallet.Primitive.Types" $ do
         it "2.1.9) ins⋪ u = (dom u \\ ins)⊲ u"
             (checkCoverage prop_2_1_9)
 
-    parallel $ describe "Lemma 2.6 - Properties of balance" $ do
+    describe "Lemma 2.6 - Properties of balance" $ do
         it "2.6.1) dom u ⋂ dom v ==> balance (u ⋃ v) = balance u + balance v"
             (checkCoverage prop_2_6_1)
         it "2.6.2) balance (ins⋪ u) = balance u - balance (ins⊲ u)"
             (checkCoverage prop_2_6_2)
 
-    parallel $ describe "Slotting ordering" $ do
+    describe "Slotting ordering" $ do
         it "Any Slot >= slotMinBound"
             (property (>= slotMinBound))
         it "SlotId 1 2 < SlotId 2 1"
@@ -872,7 +870,7 @@ spec = describe "Cardano.Wallet.Primitive.Types" $ do
         it "SlotId 1 2 < SlotId 2 2"
             (property $ SlotId { epochNumber = 1, slotNumber = 2 } < SlotId 2 2)
 
-    parallel $ describe "UtxoStatistics" $ do
+    describe "UtxoStatistics" $ do
         it "total statistics == balance utxo"
             (checkCoverage propUtxoTotalIsBalance)
         it "sum of weighted distribution >= total balance"

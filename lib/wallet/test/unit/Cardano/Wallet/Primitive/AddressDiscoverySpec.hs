@@ -49,8 +49,6 @@ import Data.Proxy
     ( Proxy (..) )
 import Test.Hspec
     ( Spec, describe, it )
-import Test.Hspec.Extra
-    ( parallel )
 import Test.QuickCheck
     ( Arbitrary (..)
     , Gen
@@ -71,7 +69,7 @@ import qualified Data.Text.Encoding as T
 
 spec :: Spec
 spec = do
-    parallel $ describe "Random Address Discovery Properties" $ do
+    describe "Random Address Discovery Properties" $ do
         it "isOurs works as expected during key derivation in testnet" $ do
             property (prop_derivedKeysAreOurs @('Testnet 0))
         it "isOurs works as expected during key derivation in mainnet" $ do

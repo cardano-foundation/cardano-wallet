@@ -129,8 +129,6 @@ import Servant.API.Verbs
     ( NoContentVerb, ReflectMethod (..) )
 import Test.Hspec
     ( HasCallStack, Spec, describe, it, runIO, xdescribe )
-import Test.Hspec.Extra
-    ( parallel )
 import Type.Reflection
     ( typeOf )
 
@@ -155,34 +153,34 @@ instance {-# OVERLAPPING #-} DecodeStakeAddress ('Testnet 0) where
     decodeStakeAddress _ = pure (RewardAccount "<acct>")
 
 spec :: Spec
-spec = parallel $ do
+spec = do
     gSpec (everyPathParam api) $ \(SomeTest proxy tests) ->
-        parallel $ describe "Malformed PathParam" $ do
+        describe "Malformed PathParam" $ do
             forM_ tests $ \(req, msg) -> it (titleize proxy req) $
                 runSession (spec_MalformedParam req msg) application
 
     gSpec (everyBodyParam api) $ \(SomeTest proxy tests) ->
-        parallel $ describe "Malformed BodyParam" $ do
+        describe "Malformed BodyParam" $ do
             forM_ tests $ \(req, msg) -> it (titleize proxy req) $
                 runSession (spec_MalformedParam req msg) application
 
     gSpec (everyHeader api) $ \(SomeTest proxy tests) -> do
         case typeOf proxy `testEquality` typeOf (Proxy @"Accept") of
-            Just Refl -> parallel $ describe "Malformed Headers" $
+            Just Refl -> describe "Malformed Headers" $
                 forM_ tests $ \(req, msg) -> it (titleize proxy req) $
                     runSession (spec_WrongAcceptHeader req msg) application
             Nothing ->
                 pure ()
 
         case typeOf proxy `testEquality` typeOf (Proxy @"Content-Type") of
-            Just Refl -> parallel $ describe "Malformed Headers" $
+            Just Refl -> describe "Malformed Headers" $
                 forM_ tests $ \(req, msg) -> it (titleize proxy req) $
                     runSession (spec_WrongContentTypeHeader req msg) application
             Nothing ->
                 pure ()
 
     gSpec (everyAllowedMethod api) $ \(SomeTest proxy tests) ->
-        parallel $ describe "Not Allowed Methods" $
+        describe "Not Allowed Methods" $
             forM_ tests $ \(req, msg) -> it (titleize proxy req) $
                 runSession (spec_NotAllowedMethod req msg) application
 

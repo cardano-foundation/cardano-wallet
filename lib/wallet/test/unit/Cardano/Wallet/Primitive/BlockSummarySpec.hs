@@ -29,8 +29,6 @@ import Data.Foldable
     ( toList )
 import Test.Hspec
     ( Spec, describe, it )
-import Test.Hspec.Extra
-    ( parallel )
 import Test.QuickCheck
     ( Arbitrary (..)
     , Gen
@@ -60,7 +58,7 @@ spec = do
             property prop_merge_commutative
 
 
-    parallel $ describe "ChainEvents" $ do
+    describe "ChainEvents" $ do
         it "conversion to and from [BlockEvents]" $
             property prop_toFromBlocks
 

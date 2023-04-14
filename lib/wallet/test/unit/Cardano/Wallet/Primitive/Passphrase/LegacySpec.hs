@@ -45,15 +45,13 @@ import GHC.Stack
     ( HasCallStack )
 import Test.Hspec
     ( Spec, before_, describe, it, pendingWith, shouldBe )
-import Test.Hspec.Extra
-    ( parallel )
 import Test.QuickCheck
     ( Arbitrary (..), Property, property, (==>) )
 import Test.QuickCheck.Monadic
     ( monadicIO )
 
 spec :: Spec
-spec = parallel $ do
+spec = do
     scryptoniteSpec
     onlyWithScrypt $ do
         scryptPropsSpec

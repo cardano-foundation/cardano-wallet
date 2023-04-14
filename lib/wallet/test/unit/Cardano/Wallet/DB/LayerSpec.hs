@@ -247,8 +247,6 @@ import Test.Hspec
     , shouldSatisfy
     , shouldThrow
     )
-import Test.Hspec.Extra
-    ( parallel )
 import Test.QuickCheck
     ( NonEmptyList (..), Property, generate, property, (==>) )
 import Test.QuickCheck.Monadic
@@ -287,7 +285,6 @@ import qualified UnliftIO.STM as STM
 spec :: Spec
 spec =
     describe "LayerSpec"
-        $ parallel
         $ do
             stateMachineSpecSeq
             stateMachineSpecRnd
