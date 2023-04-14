@@ -112,8 +112,6 @@ import Numeric.Natural
     ( Natural )
 import Test.Hspec
     ( Spec, describe, it )
-import Test.Hspec.Extra
-    ( parallel )
 import Test.QuickCheck
     ( Arbitrary (..)
     , Gen
@@ -159,19 +157,19 @@ import qualified Data.Foldable as F
 spec :: Spec
 spec = describe "Cardano.CoinSelectionSpec" $ do
 
-    parallel $ describe "Performing selections" $ do
+    describe "Performing selections" $ do
 
         it "prop_performSelection" $
             property prop_performSelection
 
-    parallel $ describe "Constructing balance constraints and parameters" $ do
+    describe "Constructing balance constraints and parameters" $ do
 
         it "prop_toBalanceConstraintsParams_computeMinimumCost" $
             property prop_toBalanceConstraintsParams_computeMinimumCost
         it "prop_toBalanceConstraintsParams_computeSelectionLimit" $
             property prop_toBalanceConstraintsParams_computeSelectionLimit
 
-    parallel $ describe "Preparing outputs" $ do
+    describe "Preparing outputs" $ do
 
         it "prop_prepareOutputsWith_twice" $
             property prop_prepareOutputsWith_twice
@@ -182,7 +180,7 @@ spec = describe "Cardano.CoinSelectionSpec" $ do
         it "prop_prepareOutputsWith_preparedOrExistedBefore" $
             property prop_prepareOutputsWith_preparedOrExistedBefore
 
-    parallel $ describe "Computing minimum collateral amounts" $ do
+    describe "Computing minimum collateral amounts" $ do
 
         unitTests_computeMinimumCollateral
 

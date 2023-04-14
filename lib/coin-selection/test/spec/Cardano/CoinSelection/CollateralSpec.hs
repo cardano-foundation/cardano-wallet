@@ -72,8 +72,6 @@ import Numeric.Natural
     ( Natural )
 import Test.Hspec
     ( Spec, describe, it )
-import Test.Hspec.Extra
-    ( parallel )
 import Test.QuickCheck
     ( Arbitrary (..)
     , Gen
@@ -112,12 +110,12 @@ import qualified Data.Text.Lazy as TL
 spec :: Spec
 spec = do
 
-    parallel $ describe "performSelection" $ do
+    describe "performSelection" $ do
 
         it "prop_performSelection_general" $
             property prop_performSelection_general
 
-    parallel $ describe "selectCollateralSmallest" $ do
+    describe "selectCollateralSmallest" $ do
 
         it "prop_selectCollateralSmallest_general" $
             property prop_selectCollateralSmallest_general
@@ -130,7 +128,7 @@ spec = do
         unitTests_selectCollateralSmallest_constrainedSelectionCount
         unitTests_selectCollateralSmallest_constrainedSearchSpace
 
-    parallel $ describe "selectCollateralLargest" $ do
+    describe "selectCollateralLargest" $ do
 
         it "prop_selectCollateralLargest_general" $
             property prop_selectCollateralLargest_general
@@ -140,19 +138,19 @@ spec = do
         unitTests_selectCollateralLargest_optimal
         unitTests_selectCollateralLargest_insufficient
 
-    parallel $ describe "SingleBitCoinMap" $ do
+    describe "SingleBitCoinMap" $ do
 
         it "prop_genSingleBitCoinMap" $
             property prop_genSingleBitCoinMap
         it "prop_shrinkSingleBitCoinMap" $
             property prop_shrinkSingleBitCoinMap
 
-    parallel $ describe "shrinkListToPrefixes" $ do
+    describe "shrinkListToPrefixes" $ do
 
         it "prop_shrinkListToPrefixes" $
             property prop_shrinkListToPrefixes
 
-    parallel $ describe "submaps" $ do
+    describe "submaps" $ do
 
         it "prop_submaps_isSubmapOf" $
             property prop_submaps_isSubmapOf
@@ -163,7 +161,7 @@ spec = do
 
         unitTests_submaps
 
-    parallel $ describe "subsequencesOfSize" $ do
+    describe "subsequencesOfSize" $ do
 
         it "prop_subsequencesOfSize" $
             property prop_subsequencesOfSize
@@ -173,12 +171,12 @@ spec = do
         unitTests_numberOfSubsequencesOfSize_bounds
         unitTests_numberOfSubsequencesOfSize_outOfBounds
 
-    parallel $ describe "firstRight" $ do
+    describe "firstRight" $ do
 
         it "prop_firstRight" $
             property prop_firstRight
 
-    parallel $ describe "takeUntil" $ do
+    describe "takeUntil" $ do
 
         it "prop_takeUntil_identity" $
             property prop_takeUntil_identity
@@ -189,7 +187,7 @@ spec = do
 
         unitTests_takeUntil
 
-    parallel $ describe "guardSearchSpaceSize" $ do
+    describe "guardSearchSpaceSize" $ do
 
         unitTests_guardSearchSpaceSize
 

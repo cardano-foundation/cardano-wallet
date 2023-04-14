@@ -195,8 +195,6 @@ import Test.Hspec
     ( Expectation, Spec, SpecWith, describe, it, shouldBe )
 import Test.Hspec.Core.QuickCheck
     ( modifyMaxSuccess )
-import Test.Hspec.Extra
-    ( parallel )
 import Test.QuickCheck
     ( Arbitrary (..)
     , Blind (..)
@@ -265,14 +263,14 @@ spec = describe "Cardano.CoinSelection.BalanceSpec" $
 
     modifyMaxSuccess (const 1_000) $ do
 
-    parallel $ describe "Coverage" $ do
+    describe "Coverage" $ do
 
         it "prop_Small_UTxOIndex_coverage" $
             property prop_Small_UTxOIndex_coverage
         it "prop_Large_UTxOIndex_coverage" $
             property prop_Large_UTxOIndex_coverage
 
-    parallel $ describe "Class instances respect laws" $ do
+    describe "Class instances respect laws" $ do
 
         testLawsMany @(AssetCount TokenMap)
             [ eqLaws
@@ -283,12 +281,12 @@ spec = describe "Cardano.CoinSelection.BalanceSpec" $
             , ordLaws
             ]
 
-    parallel $ describe "Ordering of token maps" $ do
+    describe "Ordering of token maps" $ do
 
         it "prop_AssetCount_TokenMap_placesEmptyMapsFirst" $
             property prop_AssetCount_TokenMap_placesEmptyMapsFirst
 
-    parallel $ describe "Performing a selection" $ do
+    describe "Performing a selection" $ do
 
         it "prop_performSelection_small" $
             property prop_performSelection_small
@@ -297,12 +295,12 @@ spec = describe "Cardano.CoinSelection.BalanceSpec" $
         it "prop_performSelection_huge" $
             property prop_performSelection_huge
 
-    parallel $ describe "Performing a selection with zero outputs" $ do
+    describe "Performing a selection with zero outputs" $ do
 
         it "prop_performSelectionEmpty" $
             property prop_performSelectionEmpty
 
-    parallel $ describe "Running a selection (without making change)" $ do
+    describe "Running a selection (without making change)" $ do
 
         it "prop_runSelection_UTxO_empty" $
             property prop_runSelection_UTxO_empty
@@ -315,12 +313,12 @@ spec = describe "Cardano.CoinSelection.BalanceSpec" $
         it "prop_runSelection_UTxO_muchMoreThanEnough" $
             property prop_runSelection_UTxO_muchMoreThanEnough
 
-    parallel $ describe "Running a selection (non-empty)" $ do
+    describe "Running a selection (non-empty)" $ do
 
         it "prop_runSelectionNonEmpty" $
             property prop_runSelectionNonEmpty
 
-    parallel $ describe "Running a selection step" $ do
+    describe "Running a selection step" $ do
 
         it "prop_runSelectionStep_supplyExhausted" $
             prop_runSelectionStep_supplyExhausted
@@ -344,14 +342,14 @@ spec = describe "Cardano.CoinSelection.BalanceSpec" $
             prop_runSelectionStep_exceedsOptimalTargetAndGetsFurtherAway
                 & property
 
-    parallel $ describe "Behaviour of selection lenses" $ do
+    describe "Behaviour of selection lenses" $ do
 
         it "prop_assetSelectionLens_givesPriorityToSingletonAssets" $
             property prop_assetSelectionLens_givesPriorityToSingletonAssets
         it "prop_coinSelectionLens_givesPriorityToCoins" $
             property prop_coinSelectionLens_givesPriorityToCoins
 
-    parallel $ describe "Boundary tests" $ do
+    describe "Boundary tests" $ do
 
         unit_testBoundaries "Large token quantities"
             boundaryTestMatrix_largeTokenQuantities
@@ -360,7 +358,7 @@ spec = describe "Cardano.CoinSelection.BalanceSpec" $
         unit_testBoundaries "Comparison of selection strategies"
             boundaryTestMatrix_selectionStrategies
 
-    parallel $ describe "Making change" $ do
+    describe "Making change" $ do
 
         it "prop_makeChange_identity" $
             property prop_makeChange_identity
@@ -371,18 +369,18 @@ spec = describe "Cardano.CoinSelection.BalanceSpec" $
         unitTests "makeChange"
             unit_makeChange
 
-    parallel $ describe "Collating non-user specified asset quantities" $ do
+    describe "Collating non-user specified asset quantities" $ do
 
         it "prop_collateNonUserSpecifiedAssetQuantities" $
             property prop_collateNonUserSpecifiedAssetQuantities
         describe "unit_collateNonUserSpecifiedAssetQuantities"
             unit_collateNonUserSpecifiedAssetQuantities
 
-    parallel $ describe "assignCoinsToChangeMaps" $ do
+    describe "assignCoinsToChangeMaps" $ do
         unitTests "assignCoinsToChangeMaps"
             unit_assignCoinsToChangeMaps
 
-    parallel $ describe "Making change for coins" $ do
+    describe "Making change for coins" $ do
 
         it "prop_makeChangeForCoin_sum" $
             property prop_makeChangeForCoin_sum
@@ -391,7 +389,7 @@ spec = describe "Cardano.CoinSelection.BalanceSpec" $
         unitTests "makeChangeForCoin"
             unit_makeChangeForCoin
 
-    parallel $ describe "Making change for one non-user-specified asset" $ do
+    describe "Making change for one non-user-specified asset" $ do
 
         it "prop_makeChangeForNonUserSpecifiedAsset_sum" $
             property prop_makeChangeForNonUserSpecifiedAsset_sum
@@ -402,7 +400,7 @@ spec = describe "Cardano.CoinSelection.BalanceSpec" $
         unitTests "makeChangeForNonUserSpecifiedAsset"
             unit_makeChangeForNonUserSpecifiedAsset
 
-    parallel $ describe "Making change for many non-user-specified assets" $ do
+    describe "Making change for many non-user-specified assets" $ do
 
         it "prop_makeChangeForNonUserSpecifiedAssets_length" $
             property prop_makeChangeForNonUserSpecifiedAssets_length
@@ -413,7 +411,7 @@ spec = describe "Cardano.CoinSelection.BalanceSpec" $
         describe "unit_makeChangeForNonUserSpecifiedAssets"
             unit_makeChangeForNonUserSpecifiedAssets
 
-    parallel $ describe "Making change for user-specified assets" $ do
+    describe "Making change for user-specified assets" $ do
 
         it "prop_makeChangeForUserSpecifiedAsset_sum" $
             property prop_makeChangeForUserSpecifiedAsset_sum
@@ -422,7 +420,7 @@ spec = describe "Cardano.CoinSelection.BalanceSpec" $
         unitTests "makeChangeForUserSpecifiedAsset"
             unit_makeChangeForUserSpecifiedAsset
 
-    parallel $ describe "Splitting bundles with excessive asset counts" $ do
+    describe "Splitting bundles with excessive asset counts" $ do
 
         it "prop_splitBundleIfAssetCountExcessive_length" $
             property prop_splitBundleIfAssetCountExcessive_length
@@ -437,21 +435,21 @@ spec = describe "Cardano.CoinSelection.BalanceSpec" $
         it "prop_splitBundlesWithExcessiveAssetCounts_sum" $
             property prop_splitBundlesWithExcessiveAssetCounts_sum
 
-    parallel $ describe "Splitting bundles with excessive token quantities" $ do
+    describe "Splitting bundles with excessive token quantities" $ do
 
         it "prop_splitBundlesWithExcessiveTokenQuantities_length" $
             property prop_splitBundlesWithExcessiveTokenQuantities_length
         it "prop_splitBundlesWithExcessiveTokenQuantities_sum" $
             property prop_splitBundlesWithExcessiveTokenQuantities_sum
 
-    parallel $ describe "Grouping and ungrouping" $ do
+    describe "Grouping and ungrouping" $ do
 
         it "prop_groupByKey_ungroupByKey" $
             property $ prop_groupByKey_ungroupByKey @Int @Int
         it "prop_ungroupByKey_groupByKey" $
             property $ prop_ungroupByKey_groupByKey @Int @Int
 
-    parallel $ describe "Round-robin processing" $ do
+    describe "Round-robin processing" $ do
 
         it "prop_runRoundRobin_identity" $
             property $ prop_runRoundRobin_identity @Int
@@ -464,7 +462,7 @@ spec = describe "Cardano.CoinSelection.BalanceSpec" $
         it "prop_runRoundRobin_generationOrder" $
             property $ prop_runRoundRobin_generationOrder @TokenName @Word8
 
-    parallel $ describe "Selection limits" $ do
+    describe "Selection limits" $ do
 
         it "prop_reduceSelectionLimitBy_lessThanOrEqual" $
             property prop_reduceSelectionLimitBy_lessThanOrEqual
@@ -475,12 +473,12 @@ spec = describe "Cardano.CoinSelection.BalanceSpec" $
         it "prop_reduceSelectionLimitBy_reductionPositive" $
             property prop_reduceSelectionLimitBy_reductionPositive
 
-    parallel $ describe "Utility functions" $ do
+    describe "Utility functions" $ do
 
         it "prop_mapMaybe_oracle" $
             property prop_mapMaybe_oracle
 
-    parallel $ describe "Minting and burning values from the change maps" $ do
+    describe "Minting and burning values from the change maps" $ do
 
         it "prop_addMintValueToChangeMaps_value" $
             property prop_addMintValueToChangeMaps_value
