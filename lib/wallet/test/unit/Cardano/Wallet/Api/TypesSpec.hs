@@ -673,6 +673,7 @@ spec = do
         jsonTest @WalletPutData
         jsonTest @WalletPutPassphraseData
         jsonTest @(ApiRewardAccount T0)
+        jsonTest @(ApiExternalCertificate T0)
 
     describe "ApiEra roundtrip" $
         it "toApiEra . fromApiEra == id" $ property $ \era -> do

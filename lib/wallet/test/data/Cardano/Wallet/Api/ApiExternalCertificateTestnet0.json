@@ -1,0 +1,49 @@
+{
+    "samples": [
+        {
+            "certificate_type": "quit_pool_external",
+            "reward_account": "6cda9070f59716fe266555098108693fb7d9e5b21434f02f8c12c529"
+        },
+        {
+            "certificate_type": "quit_pool_external",
+            "reward_account": "07159bb3845661eee5e63af72c0c71c219a0517328b2dd0c39e2cc94"
+        },
+        {
+            "certificate_type": "join_pool_external",
+            "pool": "pool16ha3hs3sp6xtjevs3t8zqrxewd4phlu6laylevddacq6zt936r5",
+            "reward_account": "f196d982399a53675964cff781898f01d85c72d273d9bbf225ac5131"
+        },
+        {
+            "certificate_type": "register_reward_account_external",
+            "reward_account": "20941ffcb3e630a357fe899bb0dbf5e0526d34971db7006fb6c8951e"
+        },
+        {
+            "certificate_type": "quit_pool_external",
+            "reward_account": "7350fb225ed51b53698d8f389a8023a020d4e90bdb7ce94acff6c0a2"
+        },
+        {
+            "certificate_type": "join_pool_external",
+            "pool": "pool1rlluhea9qd0yrvhe27lw5elszwandtzmuk7nztknq20h56k925v",
+            "reward_account": "cf4998a2eb75a5f34c9a0133b4b227c709179a8dfa921e3320376f93"
+        },
+        {
+            "certificate_type": "register_reward_account_external",
+            "reward_account": "9f93a16be5765367cec15e12a704ae9b5405f153eea141541d68a2c6"
+        },
+        {
+            "certificate_type": "join_pool_external",
+            "pool": "pool1uudn0x85kzyyc2npyzusrcvrpf8ck24ajxj0xywrkp8qc5r7zqu",
+            "reward_account": "6bce8bb2323ab030851b7d1f3af4e0f35f485634354689448cad878b"
+        },
+        {
+            "certificate_type": "join_pool_external",
+            "pool": "pool1a3ujwwf7jvvatrhwzvpldhnmxqsz598yq6chvmwr5mz2v6gzp22",
+            "reward_account": "2a08f6f738bd83706e3a307c4f8795292f9c77da2be6f65d687c1875"
+        },
+        {
+            "certificate_type": "register_reward_account_external",
+            "reward_account": "d908fb7a3e4b00e3f11cb20ca82a03fe4e37c49f9f73c179b7c8a775"
+        }
+    ],
+    "seed": -510442086
+}
