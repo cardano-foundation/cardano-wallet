@@ -3,42 +3,31 @@
         {
             "foreign": [
                 {
-                    "key": "<stake-addr>",
-                    "reward_balance": {
-                        "quantity": 3,
-                        "unit": "lovelace"
-                    },
-                    "stake": {
-                        "quantity": 3,
-                        "unit": "lovelace"
-                    }
-                },
-                {
-                    "key": "<stake-addr>",
+                    "key": "stake_test1uqqqqqgpqyqsqqgpqqqsqqgqqyqqqqqqqyqsqqgpqqqsqqgpeva9x",
                     "reward_balance": {
                         "quantity": 1,
                         "unit": "lovelace"
                     },
                     "stake": {
-                        "quantity": 3,
+                        "quantity": 1,
                         "unit": "lovelace"
                     }
                 },
                 {
-                    "key": "<stake-addr>",
+                    "key": "stake_test1uqqqqqgqqqqqzqqqqqqqzqgqqyqszqqqqyqqzqqqqyqqzqgyz97uk",
                     "reward_balance": {
-                        "quantity": 0,
+                        "quantity": 1,
                         "unit": "lovelace"
                     },
                     "stake": {
-                        "quantity": 2,
+                        "quantity": 1,
                         "unit": "lovelace"
                     }
                 }
             ],
             "none": {
                 "stake": {
-                    "quantity": 2,
+                    "quantity": 0,
                     "unit": "lovelace"
                 }
             },
@@ -46,108 +35,201 @@
                 {
                     "delegation": {
                         "active": {
-                            "status": "not_delegating"
+                            "status": "delegating",
+                            "target": "pool1qqqqqqqpqyqsqqqpqyqszqqqqyqqqqqpqqqszqgpqqqsqys6wtm"
                         },
-                        "next": []
+                        "next": [
+                            {
+                                "changes_at": {
+                                    "epoch_number": 0,
+                                    "epoch_start_time": "1880-06-04T13:14:17.322156611173Z"
+                                },
+                                "status": "delegating",
+                                "target": "pool1qyqqqqgqqqqqzqgpqyqqzqqpqyqqqqgpqyqqzqqpqyqqq6u04sh"
+                            }
+                        ]
                     },
-                    "index": 3,
-                    "key": "<stake-addr>",
+                    "index": 0,
+                    "key": "stake_test1uqqqqqgqqyqszqqpqqqqqqgpqqqqqqqqqqqszqgqqqqsqqgzxh0ww",
+                    "reward_balance": {
+                        "quantity": 0,
+                        "unit": "lovelace"
+                    },
+                    "stake": {
+                        "quantity": 0,
+                        "unit": "lovelace"
+                    }
+                }
+            ]
+        },
+        {
+            "foreign": [
+                {
+                    "key": "stake_test1uqqsqqgqqqqszqgpqqqqqqqqqqqqqqgqqqqqzqgqqyqszqq6xum0p",
                     "reward_balance": {
                         "quantity": 1,
                         "unit": "lovelace"
                     },
                     "stake": {
-                        "quantity": 3,
+                        "quantity": 0,
                         "unit": "lovelace"
                     }
-                },
+                }
+            ],
+            "none": {
+                "stake": {
+                    "quantity": 0,
+                    "unit": "lovelace"
+                }
+            },
+            "ours": [
                 {
                     "delegation": {
                         "active": {
                             "status": "delegating",
-                            "target": "pool1qvqsqqqyqqqqqqgzqsqqyqqzqsqsqqspqypqzqczqszqxr8qawk"
+                            "target": "pool1qqqqqqqqqyqqqqqpqqqqzqqqqyqsqqgpqyqsqqgpqyqsq77nyvt"
+                        },
+                        "next": [
+                            {
+                                "changes_at": {
+                                    "epoch_number": 0,
+                                    "epoch_start_time": "1887-11-09T22:37:53.692820260371Z"
+                                },
+                                "status": "not_delegating"
+                            }
+                        ]
+                    },
+                    "index": 0,
+                    "key": "stake_test1uqqszqqqqyqqqqqpqqqqzqgqqqqqqqgpqqqsqqgpqqqqqqgsjhclg",
+                    "reward_balance": {
+                        "quantity": 0,
+                        "unit": "lovelace"
+                    },
+                    "stake": {
+                        "quantity": 0,
+                        "unit": "lovelace"
+                    }
+                }
+            ]
+        },
+        {
+            "foreign": [
+                {
+                    "key": "stake_test1uqqsqqqpqqqsqqgpqqqqzqgpqqqsqqqpqqqqzqqpqyqszqgf72z8t",
+                    "reward_balance": {
+                        "quantity": 0,
+                        "unit": "lovelace"
+                    },
+                    "stake": {
+                        "quantity": 0,
+                        "unit": "lovelace"
+                    }
+                },
+                {
+                    "key": "stake_test1uqqsqqqpqyqqzqgqqyqsqqgqqqqqqqgqqqqqzqgpqyqqzqgrldxg3",
+                    "reward_balance": {
+                        "quantity": 0,
+                        "unit": "lovelace"
+                    },
+                    "stake": {
+                        "quantity": 1,
+                        "unit": "lovelace"
+                    }
+                }
+            ],
+            "none": {
+                "stake": {
+                    "quantity": 0,
+                    "unit": "lovelace"
+                }
+            },
+            "ours": [
+                {
+                    "delegation": {
+                        "active": {
+                            "status": "delegating",
+                            "target": "pool1qyqqqqqqqqqqzqgpqyqqqqgpqqqszqqpqqqszqqqqqqqqa97f2c"
+                        },
+                        "next": [
+                            {
+                                "changes_at": {
+                                    "epoch_number": 1,
+                                    "epoch_start_time": "1860-02-10T01:49:38Z"
+                                },
+                                "status": "delegating",
+                                "target": "pool1qqqsqqgqqqqsqqgpqqqqqqqpqqqqzqqqqqqsqqgpqqqqzc465dd"
+                            },
+                            {
+                                "changes_at": {
+                                    "epoch_number": 1,
+                                    "epoch_start_time": "1895-02-28T22:00:00Z"
+                                },
+                                "status": "delegating",
+                                "target": "pool1qqqszqqqqyqszqqqqqqszqqpqqqsqqqpqqqqqqgqqqqqqsxclnr"
+                            }
+                        ]
+                    },
+                    "index": 0,
+                    "key": "stake_test1uqqqzqqpqqqsqqgqqyqqqqgqqyqqzqqqqqqszqqpqyqsqqgkxrcrn",
+                    "reward_balance": {
+                        "quantity": 1,
+                        "unit": "lovelace"
+                    },
+                    "stake": {
+                        "quantity": 1,
+                        "unit": "lovelace"
+                    }
+                }
+            ]
+        },
+        {
+            "foreign": [
+                {
+                    "key": "stake_test1uqqqqqgqqyqszqgqqyqqqqqqqyqsqqgpqqqszqgqqqqszqgw29qlt",
+                    "reward_balance": {
+                        "quantity": 0,
+                        "unit": "lovelace"
+                    },
+                    "stake": {
+                        "quantity": 1,
+                        "unit": "lovelace"
+                    }
+                },
+                {
+                    "key": "stake_test1uqqsqqqqqyqqzqgpqyqqqqqqqyqqqqgpqqqszqgqqyqqqqqymsynf",
+                    "reward_balance": {
+                        "quantity": 1,
+                        "unit": "lovelace"
+                    },
+                    "stake": {
+                        "quantity": 1,
+                        "unit": "lovelace"
+                    }
+                }
+            ],
+            "none": {
+                "stake": {
+                    "quantity": 0,
+                    "unit": "lovelace"
+                }
+            },
+            "ours": [
+                {
+                    "delegation": {
+                        "active": {
+                            "status": "delegating",
+                            "target": "pool1qyqqqqqpqyqszqqqqqqqzqgqqyqsqqgpqqqsqqqqqyqsq8l8j8w"
                         },
                         "next": []
                     },
                     "index": 0,
-                    "key": "<stake-addr>",
+                    "key": "stake_test1uqqszqgpqyqqqqqqqqqqqqgpqqqszqgpqyqsqqgpqqqqqqq595w4q",
                     "reward_balance": {
                         "quantity": 1,
                         "unit": "lovelace"
                     },
                     "stake": {
-                        "quantity": 2,
-                        "unit": "lovelace"
-                    }
-                },
-                {
-                    "delegation": {
-                        "active": {
-                            "status": "delegating",
-                            "target": "pool1qgzqgpqrqvqqxpqqqqzqzqqrqgqqqpqqqqqqxqgrqgqsq3hksym"
-                        },
-                        "next": [
-                            {
-                                "changes_at": {
-                                    "epoch_number": 0,
-                                    "epoch_start_time": "1884-04-12T14:00:00Z"
-                                },
-                                "status": "delegating",
-                                "target": "pool1qgqqzqgqqgqsxqqpqspsgqsrqvpsqqsrqqpsxqsyqgpsgl40quy"
-                            },
-                            {
-                                "changes_at": {
-                                    "epoch_number": 3,
-                                    "epoch_start_time": "1891-06-29T14:56:51.432178755201Z"
-                                },
-                                "status": "not_delegating"
-                            }
-                        ]
-                    },
-                    "index": 2,
-                    "key": "<stake-addr>",
-                    "reward_balance": {
-                        "quantity": 4,
-                        "unit": "lovelace"
-                    },
-                    "stake": {
-                        "quantity": 2,
-                        "unit": "lovelace"
-                    }
-                },
-                {
-                    "delegation": {
-                        "active": {
-                            "status": "not_delegating"
-                        },
-                        "next": []
-                    },
-                    "index": 3,
-                    "key": "<stake-addr>",
-                    "reward_balance": {
                         "quantity": 1,
-                        "unit": "lovelace"
-                    },
-                    "stake": {
-                        "quantity": 4,
-                        "unit": "lovelace"
-                    }
-                },
-                {
-                    "delegation": {
-                        "active": {
-                            "status": "not_delegating"
-                        },
-                        "next": []
-                    },
-                    "index": 4,
-                    "key": "<stake-addr>",
-                    "reward_balance": {
-                        "quantity": 0,
-                        "unit": "lovelace"
-                    },
-                    "stake": {
-                        "quantity": 3,
                         "unit": "lovelace"
                     }
                 },
@@ -159,29 +241,21 @@
                         "next": [
                             {
                                 "changes_at": {
-                                    "epoch_number": 3,
-                                    "epoch_start_time": "1873-05-23T09:43:29.978127541353Z"
-                                },
-                                "status": "delegating",
-                                "target": "pool1qgzqqqspqqpsgqgrqgqsgpqzqspqqqqpqgpszqqyqvqqquaq2sl"
-                            },
-                            {
-                                "changes_at": {
-                                    "epoch_number": 0,
-                                    "epoch_start_time": "1895-12-11T09:51:22.213195213204Z"
+                                    "epoch_number": 1,
+                                    "epoch_start_time": "1908-03-08T20:27:55.186901871946Z"
                                 },
                                 "status": "not_delegating"
                             }
                         ]
                     },
-                    "index": 2,
-                    "key": "<stake-addr>",
+                    "index": 0,
+                    "key": "stake_test1uqqqzqgqqyqqqqqqqyqsqqgqqqqszqqpqqqszqqpqqqqqqqr3y9v6",
                     "reward_balance": {
                         "quantity": 1,
                         "unit": "lovelace"
                     },
                     "stake": {
-                        "quantity": 2,
+                        "quantity": 1,
                         "unit": "lovelace"
                     }
                 }
@@ -190,42 +264,9 @@
         {
             "foreign": [
                 {
-                    "key": "<stake-addr>",
+                    "key": "stake_test1uqqqzqqpqqqqzqgqqyqqzqqqqyqsqqqpqyqsqqgqqyqqzqqz4vrj7",
                     "reward_balance": {
-                        "quantity": 4,
-                        "unit": "lovelace"
-                    },
-                    "stake": {
-                        "quantity": 4,
-                        "unit": "lovelace"
-                    }
-                },
-                {
-                    "key": "<stake-addr>",
-                    "reward_balance": {
-                        "quantity": 4,
-                        "unit": "lovelace"
-                    },
-                    "stake": {
-                        "quantity": 2,
-                        "unit": "lovelace"
-                    }
-                },
-                {
-                    "key": "<stake-addr>",
-                    "reward_balance": {
-                        "quantity": 3,
-                        "unit": "lovelace"
-                    },
-                    "stake": {
-                        "quantity": 3,
-                        "unit": "lovelace"
-                    }
-                },
-                {
-                    "key": "<stake-addr>",
-                    "reward_balance": {
-                        "quantity": 2,
+                        "quantity": 1,
                         "unit": "lovelace"
                     },
                     "stake": {
@@ -234,288 +275,9 @@
                     }
                 },
                 {
-                    "key": "<stake-addr>",
-                    "reward_balance": {
-                        "quantity": 2,
-                        "unit": "lovelace"
-                    },
-                    "stake": {
-                        "quantity": 3,
-                        "unit": "lovelace"
-                    }
-                }
-            ],
-            "none": {
-                "stake": {
-                    "quantity": 4,
-                    "unit": "lovelace"
-                }
-            },
-            "ours": [
-                {
-                    "delegation": {
-                        "active": {
-                            "status": "not_delegating"
-                        },
-                        "next": [
-                            {
-                                "changes_at": {
-                                    "epoch_number": 1,
-                                    "epoch_start_time": "1864-10-23T11:53:30.730749159238Z"
-                                },
-                                "status": "delegating",
-                                "target": "pool1qgpsqqqqqqpqzqqqqspqqpqqqyqsxqgyqyqsgqqyqvzqyspc84a"
-                            }
-                        ]
-                    },
-                    "index": 5,
-                    "key": "<stake-addr>",
-                    "reward_balance": {
-                        "quantity": 4,
-                        "unit": "lovelace"
-                    },
-                    "stake": {
-                        "quantity": 0,
-                        "unit": "lovelace"
-                    }
-                },
-                {
-                    "delegation": {
-                        "active": {
-                            "status": "delegating",
-                            "target": "pool1qypqxqqqqvpsgqgpqyqsgqsrqgqqyqgrqypqzqsqqvpqxt3jcyy"
-                        },
-                        "next": [
-                            {
-                                "changes_at": {
-                                    "epoch_number": 0,
-                                    "epoch_start_time": "1875-04-10T06:00:00Z"
-                                },
-                                "status": "delegating",
-                                "target": "pool1qqqqqqsrqgzqyqgqqyqsqpqpqqzqgqczqsqqqqgzqqpsqnvhddw"
-                            },
-                            {
-                                "changes_at": {
-                                    "epoch_number": 0,
-                                    "epoch_start_time": "1870-05-13T02:15:11Z"
-                                },
-                                "status": "not_delegating"
-                            }
-                        ]
-                    },
-                    "index": 3,
-                    "key": "<stake-addr>",
+                    "key": "stake_test1uqqqqqqqqyqqqqqqqyqsqqqpqqqszqqpqyqszqqqqyqsqqg89vd0n",
                     "reward_balance": {
                         "quantity": 1,
-                        "unit": "lovelace"
-                    },
-                    "stake": {
-                        "quantity": 0,
-                        "unit": "lovelace"
-                    }
-                },
-                {
-                    "delegation": {
-                        "active": {
-                            "status": "delegating",
-                            "target": "pool1qgzqyqcpqypszqsqqspsxqcpqypqyqgrqyzqzpqqqszqxya4h0c"
-                        },
-                        "next": [
-                            {
-                                "changes_at": {
-                                    "epoch_number": 1,
-                                    "epoch_start_time": "1896-06-02T17:59:31Z"
-                                },
-                                "status": "not_delegating"
-                            }
-                        ]
-                    },
-                    "index": 1,
-                    "key": "<stake-addr>",
-                    "reward_balance": {
-                        "quantity": 1,
-                        "unit": "lovelace"
-                    },
-                    "stake": {
-                        "quantity": 0,
-                        "unit": "lovelace"
-                    }
-                },
-                {
-                    "delegation": {
-                        "active": {
-                            "status": "not_delegating"
-                        },
-                        "next": [
-                            {
-                                "changes_at": {
-                                    "epoch_number": 0,
-                                    "epoch_start_time": "1873-01-05T07:52:46.936338610058Z"
-                                },
-                                "status": "delegating",
-                                "target": "pool1qvqsqpqyqgqsxqsqqqpsxqcrqqzqxqcrqspqxpqqqvzqq3ahmzf"
-                            }
-                        ]
-                    },
-                    "index": 4,
-                    "key": "<stake-addr>",
-                    "reward_balance": {
-                        "quantity": 2,
-                        "unit": "lovelace"
-                    },
-                    "stake": {
-                        "quantity": 2,
-                        "unit": "lovelace"
-                    }
-                },
-                {
-                    "delegation": {
-                        "active": {
-                            "status": "delegating",
-                            "target": "pool1qgqqqqsrqqqqgqcqqsqsqqsrqqqqgqqrqsqqgqspqgzqxepx9x3"
-                        },
-                        "next": [
-                            {
-                                "changes_at": {
-                                    "epoch_number": 4,
-                                    "epoch_start_time": "1860-12-12T03:36:49Z"
-                                },
-                                "status": "delegating",
-                                "target": "pool1qypsxqgpqyzqxqqpqgpqxqspqqpqzqqyqqzqqqqpqypsyyle3gw"
-                            }
-                        ]
-                    },
-                    "index": 5,
-                    "key": "<stake-addr>",
-                    "reward_balance": {
-                        "quantity": 4,
-                        "unit": "lovelace"
-                    },
-                    "stake": {
-                        "quantity": 0,
-                        "unit": "lovelace"
-                    }
-                },
-                {
-                    "delegation": {
-                        "active": {
-                            "status": "delegating",
-                            "target": "pool1qgzqypqyqyqszpqrqgqsqpqpqsqqgqcqqvpqxpqqqspszt7uvw4"
-                        },
-                        "next": [
-                            {
-                                "changes_at": {
-                                    "epoch_number": 0,
-                                    "epoch_start_time": "1890-09-18T22:00:00Z"
-                                },
-                                "status": "not_delegating"
-                            },
-                            {
-                                "changes_at": {
-                                    "epoch_number": 1,
-                                    "epoch_start_time": "1906-04-01T19:34:10.084510552063Z"
-                                },
-                                "status": "delegating",
-                                "target": "pool1qgqqzqgrqsqqgqqpqvpsypqrqsqszqqpqypszqqzqyqqyx4cztt"
-                            }
-                        ]
-                    },
-                    "index": 4,
-                    "key": "<stake-addr>",
-                    "reward_balance": {
-                        "quantity": 3,
-                        "unit": "lovelace"
-                    },
-                    "stake": {
-                        "quantity": 0,
-                        "unit": "lovelace"
-                    }
-                }
-            ]
-        },
-        {
-            "foreign": [
-                {
-                    "key": "<stake-addr>",
-                    "reward_balance": {
-                        "quantity": 3,
-                        "unit": "lovelace"
-                    },
-                    "stake": {
-                        "quantity": 4,
-                        "unit": "lovelace"
-                    }
-                },
-                {
-                    "key": "<stake-addr>",
-                    "reward_balance": {
-                        "quantity": 0,
-                        "unit": "lovelace"
-                    },
-                    "stake": {
-                        "quantity": 4,
-                        "unit": "lovelace"
-                    }
-                },
-                {
-                    "key": "<stake-addr>",
-                    "reward_balance": {
-                        "quantity": 2,
-                        "unit": "lovelace"
-                    },
-                    "stake": {
-                        "quantity": 4,
-                        "unit": "lovelace"
-                    }
-                },
-                {
-                    "key": "<stake-addr>",
-                    "reward_balance": {
-                        "quantity": 4,
-                        "unit": "lovelace"
-                    },
-                    "stake": {
-                        "quantity": 1,
-                        "unit": "lovelace"
-                    }
-                },
-                {
-                    "key": "<stake-addr>",
-                    "reward_balance": {
-                        "quantity": 0,
-                        "unit": "lovelace"
-                    },
-                    "stake": {
-                        "quantity": 3,
-                        "unit": "lovelace"
-                    }
-                }
-            ],
-            "none": {
-                "stake": {
-                    "quantity": 3,
-                    "unit": "lovelace"
-                }
-            },
-            "ours": []
-        },
-        {
-            "foreign": [
-                {
-                    "key": "<stake-addr>",
-                    "reward_balance": {
-                        "quantity": 4,
-                        "unit": "lovelace"
-                    },
-                    "stake": {
-                        "quantity": 0,
-                        "unit": "lovelace"
-                    }
-                },
-                {
-                    "key": "<stake-addr>",
-                    "reward_balance": {
-                        "quantity": 4,
                         "unit": "lovelace"
                     },
                     "stake": {
@@ -534,280 +296,28 @@
                 {
                     "delegation": {
                         "active": {
-                            "status": "not_delegating"
-                        },
-                        "next": []
-                    },
-                    "index": 2,
-                    "key": "<stake-addr>",
-                    "reward_balance": {
-                        "quantity": 4,
-                        "unit": "lovelace"
-                    },
-                    "stake": {
-                        "quantity": 4,
-                        "unit": "lovelace"
-                    }
-                },
-                {
-                    "delegation": {
-                        "active": {
                             "status": "delegating",
-                            "target": "pool1qgzqyqgzqvqqgqcyqszqzqszqyqsxqszqyqqyqspqspsyg5hcdl"
-                        },
-                        "next": []
-                    },
-                    "index": 5,
-                    "key": "<stake-addr>",
-                    "reward_balance": {
-                        "quantity": 4,
-                        "unit": "lovelace"
-                    },
-                    "stake": {
-                        "quantity": 1,
-                        "unit": "lovelace"
-                    }
-                },
-                {
-                    "delegation": {
-                        "active": {
-                            "status": "delegating",
-                            "target": "pool1qvqsxqgyqgpqgqgpqvqqyqgpqsqsypqpqgzqyqgqqvqqyahw6zd"
+                            "target": "pool1qyqszqqqqqqszqqqqyqqzqqpqqqqqqqqqyqsqqqpqyqszcruzew"
                         },
                         "next": [
                             {
                                 "changes_at": {
-                                    "epoch_number": 4,
-                                    "epoch_start_time": "1878-09-02T06:48:22Z"
+                                    "epoch_number": 1,
+                                    "epoch_start_time": "1867-11-20T08:00:00Z"
                                 },
                                 "status": "delegating",
-                                "target": "pool1qyqsyqcyqvqqxqqrqgpqqqqpqgzqyqcqqypqzqqyqgpsz2qjw0q"
+                                "target": "pool1qyqqqqqpqqqszqqqqyqqqqgqqqqszqgpqyqszqqqqqqsqy8t6lh"
                             }
                         ]
                     },
-                    "index": 5,
-                    "key": "<stake-addr>",
+                    "index": 0,
+                    "key": "stake_test1uqqqzqqqqqqqqqqpqyqqqqqpqyqsqqgpqqqqqqgpqyqqzqqemsh9p",
                     "reward_balance": {
                         "quantity": 1,
                         "unit": "lovelace"
                     },
                     "stake": {
-                        "quantity": 2,
-                        "unit": "lovelace"
-                    }
-                }
-            ]
-        },
-        {
-            "foreign": [
-                {
-                    "key": "<stake-addr>",
-                    "reward_balance": {
-                        "quantity": 4,
-                        "unit": "lovelace"
-                    },
-                    "stake": {
                         "quantity": 1,
-                        "unit": "lovelace"
-                    }
-                },
-                {
-                    "key": "<stake-addr>",
-                    "reward_balance": {
-                        "quantity": 2,
-                        "unit": "lovelace"
-                    },
-                    "stake": {
-                        "quantity": 2,
-                        "unit": "lovelace"
-                    }
-                },
-                {
-                    "key": "<stake-addr>",
-                    "reward_balance": {
-                        "quantity": 1,
-                        "unit": "lovelace"
-                    },
-                    "stake": {
-                        "quantity": 0,
-                        "unit": "lovelace"
-                    }
-                },
-                {
-                    "key": "<stake-addr>",
-                    "reward_balance": {
-                        "quantity": 0,
-                        "unit": "lovelace"
-                    },
-                    "stake": {
-                        "quantity": 0,
-                        "unit": "lovelace"
-                    }
-                },
-                {
-                    "key": "<stake-addr>",
-                    "reward_balance": {
-                        "quantity": 2,
-                        "unit": "lovelace"
-                    },
-                    "stake": {
-                        "quantity": 0,
-                        "unit": "lovelace"
-                    }
-                }
-            ],
-            "none": {
-                "stake": {
-                    "quantity": 3,
-                    "unit": "lovelace"
-                }
-            },
-            "ours": [
-                {
-                    "delegation": {
-                        "active": {
-                            "status": "delegating",
-                            "target": "pool1qspsqpqpqyqqxqgqqyzqzpqzqypszqcqqvqqqpqrqypsqpwu200"
-                        },
-                        "next": [
-                            {
-                                "changes_at": {
-                                    "epoch_number": 0,
-                                    "epoch_start_time": "1876-08-05T19:01:09.777913254083Z"
-                                },
-                                "status": "delegating",
-                                "target": "pool1qgqqgqspqqpqxqsqqqzqxqcqqvpszpqqqgpszqqyqvpqqqa3nh5"
-                            }
-                        ]
-                    },
-                    "index": 4,
-                    "key": "<stake-addr>",
-                    "reward_balance": {
-                        "quantity": 2,
-                        "unit": "lovelace"
-                    },
-                    "stake": {
-                        "quantity": 0,
-                        "unit": "lovelace"
-                    }
-                },
-                {
-                    "delegation": {
-                        "active": {
-                            "status": "delegating",
-                            "target": "pool1qypsxqsyqvqqxqsqqspqxqsqqqzqgqsqqgqqyqcpqyqsq9ncf6p"
-                        },
-                        "next": [
-                            {
-                                "changes_at": {
-                                    "epoch_number": 3,
-                                    "epoch_start_time": "1901-03-24T23:00:00Z"
-                                },
-                                "status": "not_delegating"
-                            },
-                            {
-                                "changes_at": {
-                                    "epoch_number": 4,
-                                    "epoch_start_time": "1875-03-15T04:00:00Z"
-                                },
-                                "status": "delegating",
-                                "target": "pool1qvqqyqgpqvzqypqzqgpqypqqqgzqzqszqvpsgqsrqvpsym5uex9"
-                            }
-                        ]
-                    },
-                    "index": 3,
-                    "key": "<stake-addr>",
-                    "reward_balance": {
-                        "quantity": 1,
-                        "unit": "lovelace"
-                    },
-                    "stake": {
-                        "quantity": 4,
-                        "unit": "lovelace"
-                    }
-                },
-                {
-                    "delegation": {
-                        "active": {
-                            "status": "not_delegating"
-                        },
-                        "next": []
-                    },
-                    "index": 4,
-                    "key": "<stake-addr>",
-                    "reward_balance": {
-                        "quantity": 0,
-                        "unit": "lovelace"
-                    },
-                    "stake": {
-                        "quantity": 1,
-                        "unit": "lovelace"
-                    }
-                },
-                {
-                    "delegation": {
-                        "active": {
-                            "status": "delegating",
-                            "target": "pool1qvzqgqqyqyqsgqqpqyzqgqcqqypsqqqrqqpsgpqyqszqxx8xd0r"
-                        },
-                        "next": [
-                            {
-                                "changes_at": {
-                                    "epoch_number": 3,
-                                    "epoch_start_time": "1879-06-14T09:38:34Z"
-                                },
-                                "status": "not_delegating"
-                            },
-                            {
-                                "changes_at": {
-                                    "epoch_number": 0,
-                                    "epoch_start_time": "1870-02-11T17:44:38.044270056163Z"
-                                },
-                                "status": "not_delegating"
-                            }
-                        ]
-                    },
-                    "index": 3,
-                    "key": "<stake-addr>",
-                    "reward_balance": {
-                        "quantity": 1,
-                        "unit": "lovelace"
-                    },
-                    "stake": {
-                        "quantity": 0,
-                        "unit": "lovelace"
-                    }
-                },
-                {
-                    "delegation": {
-                        "active": {
-                            "status": "not_delegating"
-                        },
-                        "next": [
-                            {
-                                "changes_at": {
-                                    "epoch_number": 0,
-                                    "epoch_start_time": "1877-08-12T15:00:00Z"
-                                },
-                                "status": "not_delegating"
-                            },
-                            {
-                                "changes_at": {
-                                    "epoch_number": 2,
-                                    "epoch_start_time": "1860-07-02T07:00:00Z"
-                                },
-                                "status": "not_delegating"
-                            }
-                        ]
-                    },
-                    "index": 2,
-                    "key": "<stake-addr>",
-                    "reward_balance": {
-                        "quantity": 4,
-                        "unit": "lovelace"
-                    },
-                    "stake": {
-                        "quantity": 0,
                         "unit": "lovelace"
                     }
                 }
@@ -817,7 +327,7 @@
             "foreign": [],
             "none": {
                 "stake": {
-                    "quantity": 2,
+                    "quantity": 0,
                     "unit": "lovelace"
                 }
             },
@@ -826,123 +336,22 @@
                     "delegation": {
                         "active": {
                             "status": "delegating",
-                            "target": "pool1qyzqxqsyqypqyqcyqvqqgqspqqqqxqgyqspqzqgpqqqqxu4z49u"
+                            "target": "pool1qyqqzqgqqyqsqqgpqqqszqgqqqqszqqqqyqszqgqqqqsztea62t"
                         },
                         "next": [
                             {
                                 "changes_at": {
                                     "epoch_number": 1,
-                                    "epoch_start_time": "1868-04-06T13:44:24Z"
+                                    "epoch_start_time": "1904-05-20T05:12:59Z"
                                 },
-                                "status": "delegating",
-                                "target": "pool1qyqsqqgqqsqsgqspqgzqgpqpqgqszqspqvqqxpqyqgzqyev5e47"
-                            },
-                            {
-                                "changes_at": {
-                                    "epoch_number": 0,
-                                    "epoch_start_time": "1886-03-12T21:00:00Z"
-                                },
-                                "status": "delegating",
-                                "target": "pool1qgqqqpqrqypsgqczqqpqzqqqqsqqgqqrqqqqypqqqgpqzvw5ffe"
-                            }
-                        ]
-                    },
-                    "index": 1,
-                    "key": "<stake-addr>",
-                    "reward_balance": {
-                        "quantity": 0,
-                        "unit": "lovelace"
-                    },
-                    "stake": {
-                        "quantity": 1,
-                        "unit": "lovelace"
-                    }
-                },
-                {
-                    "delegation": {
-                        "active": {
-                            "status": "delegating",
-                            "target": "pool1qszqqqcrqgqszqsqqgpqzqqzqspqxpqyqgzqxqgrqvpszc49286"
-                        },
-                        "next": [
-                            {
-                                "changes_at": {
-                                    "epoch_number": 0,
-                                    "epoch_start_time": "1876-03-12T16:00:00Z"
-                                },
-                                "status": "delegating",
-                                "target": "pool1qqqsxqqyqvqsgqgrqgqqgqqzqvzqgqgqqqpsqqcrqyzqx8u0443"
-                            },
-                            {
-                                "changes_at": {
-                                    "epoch_number": 4,
-                                    "epoch_start_time": "1869-08-28T20:20:42.526718895347Z"
-                                },
-                                "status": "delegating",
-                                "target": "pool1qqzqyqszqgpsqpqzqgqqqqcpqvqqxqgyqszqgqcqqyqqqtr825v"
-                            }
-                        ]
-                    },
-                    "index": 5,
-                    "key": "<stake-addr>",
-                    "reward_balance": {
-                        "quantity": 1,
-                        "unit": "lovelace"
-                    },
-                    "stake": {
-                        "quantity": 3,
-                        "unit": "lovelace"
-                    }
-                },
-                {
-                    "delegation": {
-                        "active": {
-                            "status": "delegating",
-                            "target": "pool1qspqxqgqqvqszqcpqqpqyqcqqvpqqpqpqsqqzqcyqgpsynw42m0"
-                        },
-                        "next": [
-                            {
-                                "changes_at": {
-                                    "epoch_number": 1,
-                                    "epoch_start_time": "1866-10-09T12:00:00Z"
-                                },
-                                "status": "delegating",
-                                "target": "pool1qqpqqqszqqpqqqsrqqzqgqspqqpsgqspqvzqgqcpqqpqg7wddcx"
-                            }
-                        ]
-                    },
-                    "index": 5,
-                    "key": "<stake-addr>",
-                    "reward_balance": {
-                        "quantity": 0,
-                        "unit": "lovelace"
-                    },
-                    "stake": {
-                        "quantity": 2,
-                        "unit": "lovelace"
-                    }
-                },
-                {
-                    "delegation": {
-                        "active": {
-                            "status": "delegating",
-                            "target": "pool1qqpqyqspqyqqyqgqqypszqcrqqqsgqgrqypqxqqqqqpqzuatsgu"
-                        },
-                        "next": [
-                            {
-                                "changes_at": {
-                                    "epoch_number": 1,
-                                    "epoch_start_time": "1901-04-05T00:00:00Z"
-                                },
-                                "status": "delegating",
-                                "target": "pool1qvzqyqgyqyzqzqqyqypqyqcrqgqqxpqrqgpqqqcyqypsxc0at4t"
+                                "status": "not_delegating"
                             }
                         ]
                     },
                     "index": 0,
-                    "key": "<stake-addr>",
+                    "key": "stake_test1uqqqqqgqqqqszqqpqqqsqqqpqqqqqqgpqyqqzqgqqyqsqqgj4530u",
                     "reward_balance": {
-                        "quantity": 0,
+                        "quantity": 1,
                         "unit": "lovelace"
                     },
                     "stake": {
@@ -959,62 +368,28 @@
                             {
                                 "changes_at": {
                                     "epoch_number": 0,
-                                    "epoch_start_time": "1866-09-15T03:48:38.669844599616Z"
+                                    "epoch_start_time": "1864-02-12T12:00:00Z"
                                 },
-                                "status": "not_delegating"
+                                "status": "delegating",
+                                "target": "pool1qqqsqqgpqqqsqqqqqyqqqqgqqyqqzqgqqyqszqqpqyqqzsvcjl6"
                             },
                             {
                                 "changes_at": {
-                                    "epoch_number": 2,
-                                    "epoch_start_time": "1871-11-28T16:14:31Z"
+                                    "epoch_number": 0,
+                                    "epoch_start_time": "1879-08-28T02:12:12.531605433802Z"
                                 },
-                                "status": "delegating",
-                                "target": "pool1qypqxqqpqqpqypqqqvzqxqgzqgqqyqqyqsqsxqqrqqpszlmu068"
+                                "status": "not_delegating"
                             }
                         ]
                     },
                     "index": 0,
-                    "key": "<stake-addr>",
+                    "key": "stake_test1uqqsqqqqqqqqqqqpqyqszqgpqyqszqqpqyqqqqgpqqqsqqq7apr2n",
                     "reward_balance": {
-                        "quantity": 3,
+                        "quantity": 1,
                         "unit": "lovelace"
                     },
                     "stake": {
-                        "quantity": 3,
-                        "unit": "lovelace"
-                    }
-                },
-                {
-                    "delegation": {
-                        "active": {
-                            "status": "delegating",
-                            "target": "pool1qyqqzqspqgqsyqczqvpqxqqqqvqsyqcrqvqqxpqzqypsgwm6f8d"
-                        },
-                        "next": [
-                            {
-                                "changes_at": {
-                                    "epoch_number": 2,
-                                    "epoch_start_time": "1881-04-26T20:00:00Z"
-                                },
-                                "status": "not_delegating"
-                            },
-                            {
-                                "changes_at": {
-                                    "epoch_number": 4,
-                                    "epoch_start_time": "1897-11-16T09:00:00Z"
-                                },
-                                "status": "not_delegating"
-                            }
-                        ]
-                    },
-                    "index": 1,
-                    "key": "<stake-addr>",
-                    "reward_balance": {
-                        "quantity": 0,
-                        "unit": "lovelace"
-                    },
-                    "stake": {
-                        "quantity": 2,
+                        "quantity": 1,
                         "unit": "lovelace"
                     }
                 }
@@ -1023,46 +398,13 @@
         {
             "foreign": [
                 {
-                    "key": "<stake-addr>",
+                    "key": "stake_test1uqqszqqqqyqszqgqqqqsqqqqqqqqqqgpqyqqzqgqqyqszqqvmfh0p",
                     "reward_balance": {
                         "quantity": 1,
                         "unit": "lovelace"
                     },
                     "stake": {
-                        "quantity": 2,
-                        "unit": "lovelace"
-                    }
-                },
-                {
-                    "key": "<stake-addr>",
-                    "reward_balance": {
-                        "quantity": 0,
-                        "unit": "lovelace"
-                    },
-                    "stake": {
-                        "quantity": 4,
-                        "unit": "lovelace"
-                    }
-                },
-                {
-                    "key": "<stake-addr>",
-                    "reward_balance": {
-                        "quantity": 2,
-                        "unit": "lovelace"
-                    },
-                    "stake": {
-                        "quantity": 3,
-                        "unit": "lovelace"
-                    }
-                },
-                {
-                    "key": "<stake-addr>",
-                    "reward_balance": {
-                        "quantity": 0,
-                        "unit": "lovelace"
-                    },
-                    "stake": {
-                        "quantity": 4,
+                        "quantity": 1,
                         "unit": "lovelace"
                     }
                 }
@@ -1073,310 +415,7 @@
                     "unit": "lovelace"
                 }
             },
-            "ours": [
-                {
-                    "delegation": {
-                        "active": {
-                            "status": "delegating",
-                            "target": "pool1qszqzqszqgpsgqsyqgpsyqsqqspsqpqzqvqsqqcqqspsz6w5f0e"
-                        },
-                        "next": []
-                    },
-                    "index": 2,
-                    "key": "<stake-addr>",
-                    "reward_balance": {
-                        "quantity": 3,
-                        "unit": "lovelace"
-                    },
-                    "stake": {
-                        "quantity": 0,
-                        "unit": "lovelace"
-                    }
-                },
-                {
-                    "delegation": {
-                        "active": {
-                            "status": "not_delegating"
-                        },
-                        "next": []
-                    },
-                    "index": 1,
-                    "key": "<stake-addr>",
-                    "reward_balance": {
-                        "quantity": 3,
-                        "unit": "lovelace"
-                    },
-                    "stake": {
-                        "quantity": 3,
-                        "unit": "lovelace"
-                    }
-                },
-                {
-                    "delegation": {
-                        "active": {
-                            "status": "not_delegating"
-                        },
-                        "next": [
-                            {
-                                "changes_at": {
-                                    "epoch_number": 1,
-                                    "epoch_start_time": "1879-12-30T07:00:00Z"
-                                },
-                                "status": "not_delegating"
-                            },
-                            {
-                                "changes_at": {
-                                    "epoch_number": 4,
-                                    "epoch_start_time": "1873-09-24T19:00:00Z"
-                                },
-                                "status": "delegating",
-                                "target": "pool1qvpqqqgzqgqqqqqzqgzqzqgyqvpqzqqqqqpsxqqyqgpsqs3lfjj"
-                            }
-                        ]
-                    },
-                    "index": 4,
-                    "key": "<stake-addr>",
-                    "reward_balance": {
-                        "quantity": 4,
-                        "unit": "lovelace"
-                    },
-                    "stake": {
-                        "quantity": 2,
-                        "unit": "lovelace"
-                    }
-                },
-                {
-                    "delegation": {
-                        "active": {
-                            "status": "not_delegating"
-                        },
-                        "next": []
-                    },
-                    "index": 0,
-                    "key": "<stake-addr>",
-                    "reward_balance": {
-                        "quantity": 0,
-                        "unit": "lovelace"
-                    },
-                    "stake": {
-                        "quantity": 0,
-                        "unit": "lovelace"
-                    }
-                },
-                {
-                    "delegation": {
-                        "active": {
-                            "status": "not_delegating"
-                        },
-                        "next": [
-                            {
-                                "changes_at": {
-                                    "epoch_number": 0,
-                                    "epoch_start_time": "1867-01-14T14:17:53.378485224589Z"
-                                },
-                                "status": "not_delegating"
-                            },
-                            {
-                                "changes_at": {
-                                    "epoch_number": 2,
-                                    "epoch_start_time": "1880-10-28T18:23:56Z"
-                                },
-                                "status": "not_delegating"
-                            }
-                        ]
-                    },
-                    "index": 1,
-                    "key": "<stake-addr>",
-                    "reward_balance": {
-                        "quantity": 0,
-                        "unit": "lovelace"
-                    },
-                    "stake": {
-                        "quantity": 4,
-                        "unit": "lovelace"
-                    }
-                }
-            ]
-        },
-        {
-            "foreign": [
-                {
-                    "key": "<stake-addr>",
-                    "reward_balance": {
-                        "quantity": 3,
-                        "unit": "lovelace"
-                    },
-                    "stake": {
-                        "quantity": 2,
-                        "unit": "lovelace"
-                    }
-                },
-                {
-                    "key": "<stake-addr>",
-                    "reward_balance": {
-                        "quantity": 1,
-                        "unit": "lovelace"
-                    },
-                    "stake": {
-                        "quantity": 4,
-                        "unit": "lovelace"
-                    }
-                },
-                {
-                    "key": "<stake-addr>",
-                    "reward_balance": {
-                        "quantity": 0,
-                        "unit": "lovelace"
-                    },
-                    "stake": {
-                        "quantity": 2,
-                        "unit": "lovelace"
-                    }
-                },
-                {
-                    "key": "<stake-addr>",
-                    "reward_balance": {
-                        "quantity": 4,
-                        "unit": "lovelace"
-                    },
-                    "stake": {
-                        "quantity": 0,
-                        "unit": "lovelace"
-                    }
-                },
-                {
-                    "key": "<stake-addr>",
-                    "reward_balance": {
-                        "quantity": 0,
-                        "unit": "lovelace"
-                    },
-                    "stake": {
-                        "quantity": 2,
-                        "unit": "lovelace"
-                    }
-                }
-            ],
-            "none": {
-                "stake": {
-                    "quantity": 2,
-                    "unit": "lovelace"
-                }
-            },
             "ours": []
-        },
-        {
-            "foreign": [
-                {
-                    "key": "<stake-addr>",
-                    "reward_balance": {
-                        "quantity": 1,
-                        "unit": "lovelace"
-                    },
-                    "stake": {
-                        "quantity": 1,
-                        "unit": "lovelace"
-                    }
-                },
-                {
-                    "key": "<stake-addr>",
-                    "reward_balance": {
-                        "quantity": 2,
-                        "unit": "lovelace"
-                    },
-                    "stake": {
-                        "quantity": 0,
-                        "unit": "lovelace"
-                    }
-                },
-                {
-                    "key": "<stake-addr>",
-                    "reward_balance": {
-                        "quantity": 2,
-                        "unit": "lovelace"
-                    },
-                    "stake": {
-                        "quantity": 2,
-                        "unit": "lovelace"
-                    }
-                },
-                {
-                    "key": "<stake-addr>",
-                    "reward_balance": {
-                        "quantity": 4,
-                        "unit": "lovelace"
-                    },
-                    "stake": {
-                        "quantity": 1,
-                        "unit": "lovelace"
-                    }
-                },
-                {
-                    "key": "<stake-addr>",
-                    "reward_balance": {
-                        "quantity": 1,
-                        "unit": "lovelace"
-                    },
-                    "stake": {
-                        "quantity": 1,
-                        "unit": "lovelace"
-                    }
-                },
-                {
-                    "key": "<stake-addr>",
-                    "reward_balance": {
-                        "quantity": 0,
-                        "unit": "lovelace"
-                    },
-                    "stake": {
-                        "quantity": 4,
-                        "unit": "lovelace"
-                    }
-                }
-            ],
-            "none": {
-                "stake": {
-                    "quantity": 2,
-                    "unit": "lovelace"
-                }
-            },
-            "ours": [
-                {
-                    "delegation": {
-                        "active": {
-                            "status": "not_delegating"
-                        },
-                        "next": []
-                    },
-                    "index": 0,
-                    "key": "<stake-addr>",
-                    "reward_balance": {
-                        "quantity": 2,
-                        "unit": "lovelace"
-                    },
-                    "stake": {
-                        "quantity": 4,
-                        "unit": "lovelace"
-                    }
-                },
-                {
-                    "delegation": {
-                        "active": {
-                            "status": "not_delegating"
-                        },
-                        "next": []
-                    },
-                    "index": 2,
-                    "key": "<stake-addr>",
-                    "reward_balance": {
-                        "quantity": 3,
-                        "unit": "lovelace"
-                    },
-                    "stake": {
-                        "quantity": 4,
-                        "unit": "lovelace"
-                    }
-                }
-            ]
         },
         {
             "foreign": [],
@@ -1395,75 +434,16 @@
                         "next": [
                             {
                                 "changes_at": {
-                                    "epoch_number": 4,
-                                    "epoch_start_time": "1901-04-13T07:27:41.661085471035Z"
+                                    "epoch_number": 0,
+                                    "epoch_start_time": "1900-01-27T07:05:52Z"
                                 },
                                 "status": "delegating",
-                                "target": "pool1qqqqyqqzqsqqgqqpqspqzqgpqyqqzqspqspsxqsqqqpsqruzany"
-                            },
-                            {
-                                "changes_at": {
-                                    "epoch_number": 3,
-                                    "epoch_start_time": "1860-10-25T08:00:00Z"
-                                },
-                                "status": "not_delegating"
+                                "target": "pool1qyqsqqgqqyqsqqqpqyqqqqqqqqqqqqqpqqqszqgqqqqszld86dm"
                             }
                         ]
                     },
-                    "index": 5,
-                    "key": "<stake-addr>",
-                    "reward_balance": {
-                        "quantity": 3,
-                        "unit": "lovelace"
-                    },
-                    "stake": {
-                        "quantity": 1,
-                        "unit": "lovelace"
-                    }
-                },
-                {
-                    "delegation": {
-                        "active": {
-                            "status": "not_delegating"
-                        },
-                        "next": [
-                            {
-                                "changes_at": {
-                                    "epoch_number": 4,
-                                    "epoch_start_time": "1898-08-26T03:10:01Z"
-                                },
-                                "status": "delegating",
-                                "target": "pool1qqqsgqcrqspsgqczqqzqqqcrqyqqgqqpqypqxqqqqqpsyf4wccr"
-                            },
-                            {
-                                "changes_at": {
-                                    "epoch_number": 4,
-                                    "epoch_start_time": "1877-10-08T19:36:16Z"
-                                },
-                                "status": "not_delegating"
-                            }
-                        ]
-                    },
-                    "index": 1,
-                    "key": "<stake-addr>",
-                    "reward_balance": {
-                        "quantity": 1,
-                        "unit": "lovelace"
-                    },
-                    "stake": {
-                        "quantity": 2,
-                        "unit": "lovelace"
-                    }
-                },
-                {
-                    "delegation": {
-                        "active": {
-                            "status": "not_delegating"
-                        },
-                        "next": []
-                    },
-                    "index": 2,
-                    "key": "<stake-addr>",
+                    "index": 0,
+                    "key": "stake_test1uqqsqqgpqqqqqqgqqqqqqqqpqyqqqqqqqqqqqqgqqqqqqqgu7vldx",
                     "reward_balance": {
                         "quantity": 1,
                         "unit": "lovelace"
@@ -1474,7 +454,63 @@
                     }
                 }
             ]
+        },
+        {
+            "foreign": [],
+            "none": {
+                "stake": {
+                    "quantity": 0,
+                    "unit": "lovelace"
+                }
+            },
+            "ours": [
+                {
+                    "delegation": {
+                        "active": {
+                            "status": "delegating",
+                            "target": "pool1qqqsqqgpqyqqzqgpqyqqzqgqqyqszqgpqyqsqqgpqyqsz3wd788"
+                        },
+                        "next": [
+                            {
+                                "changes_at": {
+                                    "epoch_number": 0,
+                                    "epoch_start_time": "1907-06-19T07:04:56Z"
+                                },
+                                "status": "delegating",
+                                "target": "pool1qyqszqqqqyqqzqqqqyqqzqqqqqqqzqqpqyqqqqqpqyqszckla0n"
+                            },
+                            {
+                                "changes_at": {
+                                    "epoch_number": 0,
+                                    "epoch_start_time": "1904-05-29T06:48:39.669264945717Z"
+                                },
+                                "status": "not_delegating"
+                            }
+                        ]
+                    },
+                    "index": 0,
+                    "key": "stake_test1uqqszqgpqqqszqgqqyqqqqqqqqqsqqqqqqqqqqgqqyqszqqma72vg",
+                    "reward_balance": {
+                        "quantity": 0,
+                        "unit": "lovelace"
+                    },
+                    "stake": {
+                        "quantity": 0,
+                        "unit": "lovelace"
+                    }
+                }
+            ]
+        },
+        {
+            "foreign": [],
+            "none": {
+                "stake": {
+                    "quantity": 0,
+                    "unit": "lovelace"
+                }
+            },
+            "ours": []
         }
     ],
-    "seed": 1452717351
+    "seed": 468008167
 }
