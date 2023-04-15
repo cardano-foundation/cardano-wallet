@@ -46,7 +46,7 @@ import Cardano.Wallet.Api.Lib.ApiT
 import Cardano.Wallet.Api.Lib.Options
     ( DefaultRecord (..) )
 import Cardano.Wallet.Api.Types.Certificate
-    ( ApiAnyCertificate )
+    ( ApiAnyCertificate, ApiRewardAccount )
 import Cardano.Wallet.Api.Types.MintBurn
     ( ApiAssetMintBurn )
 import Cardano.Wallet.Api.Types.Primitive
@@ -107,7 +107,7 @@ import Data.Text
 import Data.Text.Class
     ( toText )
 import Data.Typeable
-    ( Proxy, Typeable )
+    ( Typeable )
 import Data.Word
     ( Word32, Word8 )
 import GHC.Generics
@@ -119,7 +119,7 @@ import Quiet
 import Servant
     ( FromHttpApiData (..), ToHttpApiData (..) )
 
-import qualified Cardano.Wallet.Primitive.Types.RewardAccount as W
+
 import qualified Cardano.Wallet.Primitive.Types.TokenMap as W
 import qualified Data.Aeson.Types as Aeson
 
@@ -248,7 +248,7 @@ data ResourceContext = External | Our
     deriving anyclass NFData
 
 data ApiWithdrawalGeneral (n :: NetworkDiscriminant) = ApiWithdrawalGeneral
-    { stakeAddress :: (ApiT W.RewardAccount, Proxy n)
+    { stakeAddress :: ApiRewardAccount n
     , amount :: Quantity "lovelace" Natural
     , context :: ResourceContext
     }
@@ -333,7 +333,7 @@ newtype ApiPostPolicyKeyData = ApiPostPolicyKeyData
     deriving anyclass NFData
 
 data ApiWithdrawal (n :: NetworkDiscriminant) = ApiWithdrawal
-    { stakeAddress :: !(ApiT W.RewardAccount, Proxy n)
+    { stakeAddress :: !(ApiRewardAccount n)
     , amount :: !(Quantity "lovelace" Natural)
     }
     deriving (Eq, Generic, Show)

@@ -67,8 +67,8 @@ import qualified Network.HTTP.Types.Status as HTTP
 spec
     :: forall n
      . ( HasSNetworkId n
-       , DecodeStakeAddress n
-       )
+     , DecodeStakeAddress n
+     )
     => SpecWith Context
 spec = describe "BYRON_COIN_SELECTION" $ do
 

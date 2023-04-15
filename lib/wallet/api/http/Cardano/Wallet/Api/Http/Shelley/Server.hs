@@ -345,7 +345,7 @@ import Cardano.Wallet.Api.Types
 import Cardano.Wallet.Api.Types.BlockHeader
     ( ApiBlockHeader, mkApiBlockHeader )
 import Cardano.Wallet.Api.Types.Certificate
-    ( mkApiAnyCertificate )
+    ( ApiRewardAccount (..), mkApiAnyCertificate )
 import Cardano.Wallet.Api.Types.Error
     ( ApiErrorInfo (..) )
 import Cardano.Wallet.Api.Types.Key
@@ -2680,7 +2680,7 @@ constructTransaction api argGenChange knownPools poolStatus apiWalletId body = d
                     scriptSlotIntervals script
 
     toUsignedTxWdrl p = \case
-        ApiWithdrawalGeneral (ApiT rewardAcc, _) amount Our ->
+        ApiWithdrawalGeneral (ApiRewardAccount rewardAcc) amount Our ->
             Just (rewardAcc, Coin.fromQuantity amount, p)
         ApiWithdrawalGeneral _ _ External ->
             Nothing
@@ -3256,9 +3256,11 @@ decodeTransaction
 
     toWrdl acct (rewardKey, (Coin c)) =
         if rewardKey == acct then
-           ApiWithdrawalGeneral (ApiT rewardKey, Proxy @n) (Quantity $ fromIntegral c) Our
+            ApiWithdrawalGeneral (ApiRewardAccount rewardKey)
+                (Quantity $ fromIntegral c) Our
         else
-           ApiWithdrawalGeneral (ApiT rewardKey, Proxy @n) (Quantity $ fromIntegral c) External
+            ApiWithdrawalGeneral (ApiRewardAccount rewardKey)
+                (Quantity $ fromIntegral c) External
 
 ourRewardAccountRegistration :: ApiAnyCertificate n -> Bool
 ourRewardAccountRegistration = \case
@@ -3377,7 +3379,7 @@ submitTransaction ctx apiw@(ApiT wid) apitx = do
         let generalWdrls = apiDecodedTx ^. #withdrawals
             isWdrlOurs (ApiWithdrawalGeneral _ _ context) = context == Our
         in case filter isWdrlOurs generalWdrls of
-            [ApiWithdrawalGeneral (ApiT acct, _) (Quantity amt) _] ->
+            [ApiWithdrawalGeneral (ApiRewardAccount acct) (Quantity amt) _] ->
                 WithdrawalSelf
                     ( if rewardAcct == acct
                         then acct
@@ -3726,7 +3728,7 @@ listStakeKeys' utxo lookupStakeRef fetchRewards ourKeysWithInfo = do
 
         let mkOurs (acc, ix, deleg) = ApiOurStakeKey
                 { _index = ix
-                , _key = (ApiT acc, Proxy)
+                , _key = ApiRewardAccount acc
                 , _rewardBalance = Coin.toQuantity $
                     rewards acc
                 , _delegation = deleg
@@ -3735,7 +3737,7 @@ listStakeKeys' utxo lookupStakeRef fetchRewards ourKeysWithInfo = do
                 }
 
         let mkForeign acc = ApiForeignStakeKey
-                { _key = (ApiT acc, Proxy)
+                { _key = ApiRewardAccount acc
                 , _rewardBalance = Coin.toQuantity $
                     rewards acc
                 , _stake = Coin.toQuantity $
@@ -4429,7 +4431,7 @@ mkApiCoinSelectionWithdrawal
     -> ApiCoinSelectionWithdrawal n
 mkApiCoinSelectionWithdrawal (rewardAcct, wdrl, path) =
     ApiCoinSelectionWithdrawal
-        { stakeAddress = (ApiT rewardAcct, Proxy @n)
+        { stakeAddress = ApiRewardAccount rewardAcct
         , amount = Coin.toQuantity wdrl
         , derivationPath = ApiT <$> path
         }
@@ -4608,7 +4610,7 @@ mkApiWithdrawal
     => (RewardAccount, Coin)
     -> ApiWithdrawal n
 mkApiWithdrawal (acct, c) =
-    ApiWithdrawal (ApiT acct, Proxy @n) (mkApiCoin c)
+    ApiWithdrawal (ApiRewardAccount acct) (mkApiCoin c)
 
 addressAmountToTxOut
     :: forall (n :: NetworkDiscriminant)

@@ -47,6 +47,8 @@ import Cardano.Address.Script
     )
 import Cardano.Api
     ( StakeAddress, deserialiseFromRawBytes, proxyToAsType )
+import Cardano.Api.Gen
+    ( genAddressAnyWithNetworkId )
 import Cardano.Mnemonic
     ( CheckSumBits
     , ConsistentEntropy
@@ -216,6 +218,8 @@ import Cardano.Wallet.Api.Types
     )
 import Cardano.Wallet.Api.Types.BlockHeader
     ( ApiBlockHeader )
+import Cardano.Wallet.Api.Types.Certificate
+    ( ApiRewardAccount (..) )
 import Cardano.Wallet.Api.Types.Error
     ( ApiError (..)
     , ApiErrorBalanceTxUnderestimatedFee (..)
@@ -354,7 +358,7 @@ import Cardano.Wallet.Primitive.Types.UTxOStatistics
 import Cardano.Wallet.Read.NetworkId
     ( HasSNetworkId (..), NetworkDiscriminant (..) )
 import Cardano.Wallet.Shelley.Network.Discriminant
-    ( DecodeStakeAddress (..), EncodeStakeAddress (..), networkIdVal )
+    ( networkIdVal )
 import Cardano.Wallet.TokenMetadata
     ( TokenMetadataError (..) )
 import Cardano.Wallet.Transaction
@@ -516,8 +520,6 @@ import Web.HttpApiData
     ( FromHttpApiData (..) )
 
 import qualified Cardano.Api as Cardano
-import Cardano.Api.Gen
-    ( genAddressAnyWithNetworkId )
 import qualified Cardano.Wallet.Api.Types as Api
 import qualified Cardano.Wallet.Primitive.Types.Coin as Coin
 import qualified Cardano.Wallet.Primitive.Types.UTxOStatistics as UTxOStatistics
@@ -670,6 +672,7 @@ spec = do
         jsonTest @WalletPostData
         jsonTest @WalletPutData
         jsonTest @WalletPutPassphraseData
+        jsonTest @(ApiRewardAccount T0)
 
     describe "ApiEra roundtrip" $
         it "toApiEra . fromApiEra == id" $ property $ \era -> do
@@ -1004,20 +1007,14 @@ instance FromJSON SchemaApiErrorInfo where
         toSchemaName [] = []
         toSchemaName xs = "x-err" <> xs
 
-{-------------------------------------------------------------------------------
-                              Address Encoding
--------------------------------------------------------------------------------}
-
-instance {-# OVERLAPPING #-} EncodeStakeAddress T0 where
-    encodeStakeAddress = const "<stake-addr>"
-
-instance {-# OVERLAPPING #-} DecodeStakeAddress T0 where
-    decodeStakeAddress "<stake-addr>" = Right $ RewardAccount "<stake-addr>"
-    decodeStakeAddress _ = Left $ TextDecodingError "invalid stake address"
 
 {-------------------------------------------------------------------------------
                               Arbitrary Instances
 -------------------------------------------------------------------------------}
+
+instance Arbitrary (ApiRewardAccount n)
+    where
+        arbitrary = ApiRewardAccount <$> arbitrary
 
 fromCardanoAddressAny :: Cardano.AddressAny -> Address
 fromCardanoAddressAny =  Address . Cardano.serialiseToRawBytes
@@ -1870,7 +1867,7 @@ instance HasSNetworkId n => Arbitrary (ApiTxInputGeneral n) where
 
 instance HasSNetworkId n => Arbitrary (ApiWithdrawalGeneral (n :: NetworkDiscriminant)) where
     arbitrary = ApiWithdrawalGeneral
-        <$> fmap (, Proxy @n) arbitrary
+        <$> arbitrary
         <*> arbitrary
         <*> oneof [pure External, pure Our]
 
@@ -1918,12 +1915,10 @@ instance Arbitrary ApiRegisterPool where
 
 instance HasSNetworkId n => Arbitrary (ApiExternalCertificate n) where
     arbitrary = oneof
-        [ RegisterRewardAccountExternal <$> genRewardAcct
-        , JoinPoolExternal <$> genRewardAcct <*> arbitrary
-        , QuitPoolExternal <$> genRewardAcct
+        [ RegisterRewardAccountExternal <$> arbitrary
+        , JoinPoolExternal <$> arbitrary <*> arbitrary
+        , QuitPoolExternal <$> arbitrary
         ]
-      where
-          genRewardAcct = fmap (, Proxy @n) arbitrary
 
 instance HasSNetworkId n => Arbitrary (ApiAnyCertificate n) where
     arbitrary = oneof
@@ -2291,7 +2286,7 @@ instance Arbitrary TxScriptValidity where
 
 instance Arbitrary (ApiWithdrawal (t :: NetworkDiscriminant)) where
     arbitrary = ApiWithdrawal
-        <$> fmap (, Proxy @t) arbitrary
+        <$> arbitrary
         <*> arbitrary
 
 instance Arbitrary RewardAccount where
@@ -2457,15 +2452,15 @@ instance Arbitrary ApiAccountKeyShared where
         oneof [ pure $ ApiAccountKeyShared pubKey NonExtended purposeCIP1854
               , pure $ ApiAccountKeyShared xpubKey Extended purposeCIP1854 ]
 
-instance Arbitrary (Proxy n) => Arbitrary (ApiStakeKeys n) where
+instance Arbitrary (ApiStakeKeys n) where
     arbitrary = Test.QuickCheck.scale (`div` 4) genericArbitrary
     shrink = genericShrink
 
-instance Arbitrary (Proxy n) => Arbitrary (ApiOurStakeKey n) where
+instance Arbitrary (ApiOurStakeKey n) where
     arbitrary = genericArbitrary
     shrink = genericShrink
 
-instance Arbitrary (Proxy n) => Arbitrary (ApiForeignStakeKey n) where
+instance Arbitrary (ApiForeignStakeKey n) where
     arbitrary = genericArbitrary
     shrink = genericShrink
 

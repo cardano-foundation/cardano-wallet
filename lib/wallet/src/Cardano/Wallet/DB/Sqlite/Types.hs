@@ -631,12 +631,6 @@ instance ToHttpApiData RewardAccount where
 instance FromHttpApiData RewardAccount where
     parseUrlPiece = fromText'
 
-instance ToJSON RewardAccount where
-    toJSON = String . toText
-
-instance FromJSON RewardAccount where
-    parseJSON = aesonFromText "RewardAccount"
-
 instance PathPiece RewardAccount where
     fromPathPiece = fromTextMaybe
     toPathPiece = toText

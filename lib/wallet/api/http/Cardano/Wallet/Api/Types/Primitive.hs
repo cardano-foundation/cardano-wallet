@@ -37,7 +37,7 @@ import Cardano.Wallet.Api.Lib.ApiT
 import Cardano.Wallet.Api.Types.Key
     ( parseBech32 )
 import Cardano.Wallet.Primitive.AddressDerivation
-    ( DerivationIndex, RewardAccount )
+    ( DerivationIndex )
 import Cardano.Wallet.Primitive.Passphrase.Types
     ( Passphrase (..), PassphraseMaxLength (..), PassphraseMinLength (..) )
 import Cardano.Wallet.Primitive.Types
@@ -57,8 +57,6 @@ import Cardano.Wallet.Primitive.Types.Tx.Tx
     ( TxMetadata (..), TxScriptValidity )
 import Cardano.Wallet.Primitive.Types.Tx.TxIn
     ( TxIn (..) )
-import Cardano.Wallet.Shelley.Network.Discriminant
-    ( DecodeStakeAddress (..), EncodeStakeAddress (..) )
 import Cardano.Wallet.Transaction
     ( AnyExplicitScript (..)
     , AnyScript (..)
@@ -95,8 +93,6 @@ import Data.Aeson.Types
     ( prependFailure )
 import Data.Bifunctor
     ( Bifunctor (..) )
-import Data.Proxy
-    ( Proxy (..) )
 import Data.Quantity
     ( Quantity (..) )
 import Data.Text.Class
@@ -347,20 +343,6 @@ instance ToJSON (ApiT TxScriptValidity) where
     toJSON = genericToJSON Aeson.defaultOptions
         { constructorTagModifier = camelTo2 '_' . drop 8 } . getApiT
 
-instance {-# OVERLAPS #-} (DecodeStakeAddress n)
-    => FromJSON (ApiT RewardAccount, Proxy n)
-  where
-    parseJSON x = do
-        let proxy = Proxy @n
-        acct <- parseJSON x >>= eitherToParser
-            . bimap ShowFmt ApiT
-            . decodeStakeAddress @n
-        return (acct, proxy)
-
-instance {-# OVERLAPS #-} EncodeStakeAddress n
-    => ToJSON (ApiT RewardAccount, Proxy n)
-  where
-    toJSON (acct, _) = toJSON . encodeStakeAddress @n . getApiT $ acct
 
 instance FromJSON (ApiT PoolId) where
     parseJSON = parseJSON >=> eitherToParser

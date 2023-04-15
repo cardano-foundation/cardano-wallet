@@ -162,6 +162,7 @@ module Cardano.Wallet.Api.Types
     , ApiWithdrawal (..)
     , ApiWithdrawalGeneral (..)
     , ApiWithdrawalPostData (..)
+    , ApiRewardAccount (..)
     , fromApiEra
     , Iso8601Time (..)
     , KeyFormat (..)
@@ -309,6 +310,7 @@ import Cardano.Wallet.Api.Types.Certificate
     , ApiDeregisterPool (..)
     , ApiExternalCertificate (..)
     , ApiRegisterPool (..)
+    , ApiRewardAccount (..)
     )
 import Cardano.Wallet.Api.Types.Key
     ( ApiAccountKey (..)
@@ -512,7 +514,6 @@ import qualified Cardano.Address.Script as CA
 import qualified Cardano.Crypto.Wallet as CC
 import qualified Cardano.Wallet.Primitive.AddressDerivation as AD
 import qualified Cardano.Wallet.Primitive.Types as W
-import qualified Cardano.Wallet.Primitive.Types.RewardAccount as W
 import qualified Cardano.Wallet.Primitive.Types.TokenPolicy as W
 import qualified Cardano.Wallet.Write.Tx as WriteTx
 import qualified Codec.Binary.Bech32 as Bech32
@@ -1337,7 +1338,7 @@ data ApiTransaction (n :: NetworkDiscriminant) = ApiTransaction
 
 data ApiCoinSelectionWithdrawal (n :: NetworkDiscriminant) =
     ApiCoinSelectionWithdrawal
-    { stakeAddress :: !(ApiT W.RewardAccount, Proxy n)
+    { stakeAddress :: !(ApiRewardAccount n)
     , derivationPath :: !(NonEmpty (ApiT DerivationIndex))
     , amount :: !(Quantity "lovelace" Natural)
     }
@@ -1905,7 +1906,7 @@ newtype ApiMnemonicT (sizes :: [Nat]) =
 -- | A stake key belonging to the current wallet.
 data ApiOurStakeKey (n :: NetworkDiscriminant) = ApiOurStakeKey
      { _index :: !Natural
-    , _key :: !(ApiT W.RewardAccount, Proxy n)
+    , _key :: !(ApiRewardAccount n)
     , _stake :: !(Quantity "lovelace" Natural)
       -- ^ The total ada this stake key controls / is associated with. This
       -- also includes the reward balance.
@@ -1922,7 +1923,7 @@ data ApiOurStakeKey (n :: NetworkDiscriminant) = ApiOurStakeKey
 -- We /could/ provide the current delegation status for foreign stake
 -- keys.
 data ApiForeignStakeKey (n :: NetworkDiscriminant) = ApiForeignStakeKey
-    { _key :: !(ApiT W.RewardAccount, Proxy n)
+    { _key :: !(ApiRewardAccount n)
     , _stake :: !(Quantity "lovelace" Natural)
       -- ^ The total ada this stake key controls / is associated with. This
       -- also includes the reward balance.
