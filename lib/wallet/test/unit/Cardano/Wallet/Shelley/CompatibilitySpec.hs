@@ -37,8 +37,6 @@ import Cardano.Mnemonic
     , SomeMnemonic (..)
     , entropyToMnemonic
     )
-import Cardano.Wallet.Api.Types
-    ( DecodeStakeAddress (..) )
 import Cardano.Wallet.Byron.Compatibility
     ( maryTokenBundleMaxSize )
 import Cardano.Wallet.Primitive.AddressDerivation
@@ -89,6 +87,7 @@ import Cardano.Wallet.Shelley.Compatibility
     , computeTokenBundleSerializedLengthBytes
     , decentralizationLevelFromPParams
     , decodeAddress
+    , decodeStakeAddress
     , encodeStakeAddress
     , fromCardanoValue
     , fromTip
@@ -194,12 +193,12 @@ spec = do
 
     describe "Shelley StakeAddress" $ do
         prop "roundtrip / Mainnet" $ \x ->
-            (decodeStakeAddress @'Mainnet . encodeStakeAddress SMainnet) x
+            (decodeStakeAddress SMainnet . encodeStakeAddress SMainnet) x
             ===
             Right x
 
         prop "roundtrip / Testnet" $ \x -> toSNat 0 $ \n ->
-            (decodeStakeAddress @('Testnet 0)
+            (decodeStakeAddress (STestnet n)
                 . encodeStakeAddress (STestnet n)) x
             ===
             Right x

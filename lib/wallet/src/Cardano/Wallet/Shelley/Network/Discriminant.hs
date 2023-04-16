@@ -14,7 +14,6 @@ module Cardano.Wallet.Shelley.Network.Discriminant
     ( SomeNetworkDiscriminant (..)
     , networkDiscriminantToId
     , discriminantNetwork
-    , DecodeStakeAddress (..)
     , withSNetworkId
     , networkIdVal
     ) where
@@ -41,16 +40,11 @@ import Control.Arrow
     ( (>>>) )
 import Data.Proxy
     ( Proxy (..) )
-import Data.Text
-    ( Text )
-import Data.Text.Class
-    ( TextDecodingError )
 import Data.Typeable
     ( Typeable )
 
 import qualified Cardano.Api as Cardano
 import qualified Cardano.Ledger.BaseTypes as Ledger
-import qualified Cardano.Wallet.Primitive.Types.RewardAccount as W
 
 -- | Encapsulate a network discriminant and the necessary constraints it should
 -- satisfy.
@@ -60,7 +54,6 @@ data SomeNetworkDiscriminant where
             ( PaymentAddress n IcarusKey 'CredFromKeyK
             , PaymentAddress n ByronKey 'CredFromKeyK
             , PaymentAddress n ShelleyKey 'CredFromKeyK
-            , DecodeStakeAddress n
             , DelegationAddress n ShelleyKey 'CredFromKeyK
             , HasSNetworkId n
             , Typeable n
@@ -69,9 +62,6 @@ data SomeNetworkDiscriminant where
         -> SomeNetworkDiscriminant
 
 deriving instance Show SomeNetworkDiscriminant
-
-class DecodeStakeAddress (n :: NetworkDiscriminant) where
-    decodeStakeAddress :: Text -> Either TextDecodingError W.RewardAccount
 
 networkDiscriminantToId :: SomeNetworkDiscriminant -> NetworkId
 networkDiscriminantToId some = withSNetworkId some networkIdVal

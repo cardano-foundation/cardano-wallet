@@ -27,7 +27,6 @@ import Cardano.Wallet.Api.Types
     , ApiVerificationKeyShelley (..)
     , ApiWallet
     , ApiWalletUtxoSnapshot
-    , DecodeStakeAddress
     , WalletStyle (..)
     )
 import Cardano.Wallet.Primitive.AddressDerivation
@@ -149,9 +148,7 @@ import qualified Network.HTTP.Types as HTTP
 
 spec
     :: forall n
-     . ( HasSNetworkId n
-       , DecodeStakeAddress n
-       )
+     . HasSNetworkId n
     => SpecWith Context
 spec = describe "SHELLEY_WALLETS" $ do
     it "WALLETS_CREATE_01 - Create a wallet" $ \ctx -> runResourceT $ do

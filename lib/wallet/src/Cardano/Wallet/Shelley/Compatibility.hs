@@ -159,6 +159,7 @@ module Cardano.Wallet.Shelley.Compatibility
     , encodeAddress
     , decodeAddress
     , encodeStakeAddress
+    , decodeStakeAddress
     ) where
 
 import Prelude
@@ -235,7 +236,7 @@ import Cardano.Wallet.Primitive.Types.MinimumUTxO
 import Cardano.Wallet.Primitive.Types.Tx.Constraints
     ( TokenBundleSizeAssessment (..), TokenBundleSizeAssessor (..) )
 import Cardano.Wallet.Read.NetworkId
-    ( NetworkDiscriminant (..), SNetworkId (..) )
+    ( SNetworkId (..) )
 import Cardano.Wallet.Read.Primitive.Tx.Allegra
     ( fromAllegraTx )
 import Cardano.Wallet.Read.Primitive.Tx.Alonzo
@@ -253,10 +254,9 @@ import Cardano.Wallet.Read.Primitive.Tx.Features.Outputs
 import Cardano.Wallet.Read.Primitive.Tx.Mary
     ( fromMaryTx )
 import Cardano.Wallet.Read.Primitive.Tx.Shelley
+    ( fromShelleyTx )
 import Cardano.Wallet.Read.Tx.Hash
     ( fromShelleyTxId )
-import Cardano.Wallet.Shelley.Network.Discriminant
-    ( DecodeStakeAddress (..) )
 import Cardano.Wallet.Transaction
     ( WitnessCountCtx (..) )
 import Cardano.Wallet.Unsafe
@@ -1909,10 +1909,12 @@ encodeStakeAddress :: SNetworkId n -> W.RewardAccount -> Text
 encodeStakeAddress SMainnet = shelleyEncodeStakeAddress SL.Mainnet
 encodeStakeAddress (STestnet _)= shelleyEncodeStakeAddress SL.Testnet
 
-instance DecodeStakeAddress 'Mainnet where
-    decodeStakeAddress = shelleyDecodeStakeAddress SL.Mainnet
-instance DecodeStakeAddress ('Testnet pm) where
-    decodeStakeAddress = shelleyDecodeStakeAddress SL.Testnet
+decodeStakeAddress
+    :: SNetworkId n
+    -> Text
+    -> Either TextDecodingError W.RewardAccount
+decodeStakeAddress SMainnet = shelleyDecodeStakeAddress SL.Mainnet
+decodeStakeAddress (STestnet _) = shelleyDecodeStakeAddress SL.Testnet
 
 stakeAddressPrefix :: Word8
 stakeAddressPrefix = 0xE0

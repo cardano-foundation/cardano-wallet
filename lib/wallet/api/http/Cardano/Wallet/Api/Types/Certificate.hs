@@ -22,7 +22,8 @@ module Cardano.Wallet.Api.Types.Certificate
     , ApiExternalCertificate (..)
     , ApiRegisterPool (..)
     , ApiRewardAccount (..)
-    , mkApiAnyCertificate)
+    , mkApiAnyCertificate
+    )
     where
 
 import Prelude
@@ -48,9 +49,7 @@ import Cardano.Wallet.Primitive.Types.Coin
 import Cardano.Wallet.Read.NetworkId
     ( HasSNetworkId (sNetworkId), NetworkDiscriminant )
 import Cardano.Wallet.Shelley.Compatibility
-    ( encodeStakeAddress )
-import Cardano.Wallet.Shelley.Network.Discriminant
-    ( DecodeStakeAddress (..) )
+    ( decodeStakeAddress, encodeStakeAddress )
 import Cardano.Wallet.Util
     ( ShowFmt (..) )
 import Control.DeepSeq
@@ -90,11 +89,11 @@ newtype ApiRewardAccount (n :: NetworkDiscriminant)
     deriving (Eq, Generic, Show)
     deriving anyclass NFData
 
-instance (DecodeStakeAddress n) => FromJSON (ApiRewardAccount n)
+instance HasSNetworkId n => FromJSON (ApiRewardAccount n)
   where
     parseJSON x = parseJSON x >>= eitherToParser
         . bimap ShowFmt ApiRewardAccount
-        . decodeStakeAddress @n
+        . decodeStakeAddress (sNetworkId @n)
 
 instance HasSNetworkId n => ToJSON (ApiRewardAccount n)
   where
@@ -115,7 +114,7 @@ data ApiExternalCertificate (n :: NetworkDiscriminant)
     deriving (Eq, Generic, Show)
     deriving anyclass NFData
 
-instance DecodeStakeAddress n => FromJSON (ApiExternalCertificate n) where
+instance HasSNetworkId n => FromJSON (ApiExternalCertificate n) where
     parseJSON = genericParseJSON apiCertificateOptions
 
 instance HasSNetworkId n => ToJSON (ApiExternalCertificate n) where
@@ -172,7 +171,7 @@ instance FromJSON ApiDeregisterPool where
 instance ToJSON ApiDeregisterPool where
     toJSON = extendAesonObject ["certificate_type" .= String "deregister_pool"]
 
-instance DecodeStakeAddress n => FromJSON (ApiAnyCertificate n) where
+instance HasSNetworkId n => FromJSON (ApiAnyCertificate n) where
     parseJSON = withObject "ApiAnyCertificate" $ \o -> do
         (certType :: String) <- o .: "certificate_type"
         case certType of

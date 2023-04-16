@@ -204,10 +204,6 @@ module Cardano.Wallet.Api.Types
     , ApiAccountSharedPublicKey (..)
     , WalletOrAccountPostData (..)
 
-    -- * User-Facing Address Encoding/Decoding
-
-    , DecodeStakeAddress (..)
-
     -- * Shared Wallets
     , ApiSharedWallet (..)
     , ApiIncompleteSharedWallet (..)
@@ -395,8 +391,6 @@ import Cardano.Wallet.Read.NetworkId
     ( HasSNetworkId (..), NetworkDiscriminant )
 import Cardano.Wallet.Shelley.Compatibility
     ( decodeAddress, encodeAddress )
-import Cardano.Wallet.Shelley.Network.Discriminant
-    ( DecodeStakeAddress (..) )
 import Cardano.Wallet.TokenMetadata
     ( TokenMetadataError (..) )
 import Cardano.Wallet.Util
@@ -2458,7 +2452,7 @@ instance HasSNetworkId t => FromJSON (ApiPaymentDestination t) where
 instance HasSNetworkId n => ToJSON (ApiPaymentDestination n) where
     toJSON (ApiPaymentAddresses addrs) = toJSON addrs
 
-instance DecodeStakeAddress n => FromJSON (ApiRedeemer n) where
+instance HasSNetworkId n => FromJSON (ApiRedeemer n) where
     parseJSON = withObject "ApiRedeemer" $ \o -> do
         purpose <- o .: "purpose"
         bytes <- o .: "data"
@@ -2513,7 +2507,7 @@ instance FromJSON ApiValidityBound where
                     _ -> fail "ApiValidityBound string must have either 'second' or 'slot' unit."
                 _ -> fail "ApiValidityBound string must have 'unit' field."
 
-instance (HasSNetworkId t, DecodeStakeAddress t) => FromJSON (ApiConstructTransaction t) where
+instance HasSNetworkId n => FromJSON (ApiConstructTransaction n) where
     parseJSON = withObject "ApiConstructTransaction object" $ \o -> do
         txTxt <- o .: "transaction"
         (tx, enc) <- (,HexEncoded) <$> parseSealedTxBytes @'Base16 txTxt <|>
@@ -2522,7 +2516,7 @@ instance (HasSNetworkId t, DecodeStakeAddress t) => FromJSON (ApiConstructTransa
         fee <- o .: "fee"
         pure $ ApiConstructTransaction (ApiSerialisedTransaction (ApiT tx) enc) sel fee
 
-instance HasSNetworkId t => ToJSON (ApiConstructTransaction t) where
+instance HasSNetworkId n => ToJSON (ApiConstructTransaction n) where
     toJSON (ApiConstructTransaction (ApiSerialisedTransaction tx encoding) sel fee) =
         object [ "transaction" .= case encoding of
                        HexEncoded ->

@@ -16,7 +16,7 @@ import Prelude
 import Cardano.CLI
     ( Port )
 import Cardano.Wallet.Api.Types
-    ( ApiFee (..), ApiTransaction, ApiWallet, DecodeStakeAddress, apiAddress )
+    ( ApiFee (..), ApiTransaction, ApiWallet, apiAddress )
 import Cardano.Wallet.Api.Types.SchemaMetadata
     ( TxMetadataSchema (..), detailedMetadata, noSchemaMetadata )
 import Cardano.Wallet.Primitive.Types
@@ -116,9 +116,7 @@ import qualified Data.Text as T
 
 spec
     :: forall n
-     . ( HasSNetworkId n
-       , DecodeStakeAddress n
-       )
+     . HasSNetworkId n
     => SpecWith Context
 spec = describe "SHELLEY_CLI_TRANSACTIONS" $ do
     it "TRANS_CREATE_01 - Can create transaction via CLI" $ \ctx -> runResourceT $ do

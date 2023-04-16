@@ -25,7 +25,6 @@ import Cardano.Wallet.Api.Types
     , ApiTxId (..)
     , ApiWallet
     , ApiWalletDiscovery (..)
-    , DecodeStakeAddress
     , WalletStyle (..)
     )
 import Cardano.Wallet.Api.Types.Transaction
@@ -124,9 +123,7 @@ data TestCase a = TestCase
 
 spec
     :: forall n
-     . ( HasSNetworkId n
-       , DecodeStakeAddress n
-       )
+     . HasSNetworkId n
     => SpecWith Context
 spec = describe "BYRON_TRANSACTIONS" $ do
 

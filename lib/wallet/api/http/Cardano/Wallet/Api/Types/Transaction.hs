@@ -71,8 +71,6 @@ import Cardano.Wallet.Read.NetworkId
     ( HasSNetworkId (..), NetworkDiscriminant )
 import Cardano.Wallet.Shelley.Compatibility
     ( decodeAddress, encodeAddress )
-import Cardano.Wallet.Shelley.Network.Discriminant
-    ( DecodeStakeAddress )
 import Cardano.Wallet.Transaction
     ( AnyExplicitScript (..)
     , ValidityIntervalExplicit (..)
@@ -217,10 +215,7 @@ data ApiTxInputGeneral (n :: NetworkDiscriminant) =
     deriving (Eq, Generic, Show, Typeable)
     deriving anyclass NFData
 
-instance
-    ( HasSNetworkId n
-    , DecodeStakeAddress n
-    ) => FromJSON (ApiTxInputGeneral n)
+instance HasSNetworkId n => FromJSON (ApiTxInputGeneral n)
   where
     parseJSON obj = do
         derPathM <-
@@ -294,10 +289,7 @@ data ApiTxOutputGeneral (n :: NetworkDiscriminant) =
     deriving (Eq, Generic, Show, Typeable)
     deriving anyclass NFData
 
-instance
-    ( HasSNetworkId n
-    , DecodeStakeAddress n
-    ) => FromJSON (ApiTxOutputGeneral n)
+instance HasSNetworkId n => FromJSON (ApiTxOutputGeneral n)
   where
     parseJSON obj = do
         derPathM <-
@@ -333,7 +325,7 @@ data ApiWithdrawal (n :: NetworkDiscriminant) = ApiWithdrawal
     deriving (FromJSON, ToJSON) via DefaultRecord (ApiWithdrawal n)
     deriving anyclass NFData
 
-instance DecodeStakeAddress n => FromJSON (ApiWithdrawalGeneral n) where
+instance HasSNetworkId n => FromJSON (ApiWithdrawalGeneral n) where
     parseJSON obj = do
         myResource <-
             (withObject "ApiWithdrawalGeneral" $

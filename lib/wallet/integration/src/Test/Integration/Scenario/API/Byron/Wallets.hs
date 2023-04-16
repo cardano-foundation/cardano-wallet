@@ -20,7 +20,6 @@ import Cardano.Wallet.Api.Types
     , ApiUtxoStatistics
     , ApiWalletDiscovery (..)
     , ApiWalletUtxoSnapshot
-    , DecodeStakeAddress
     , WalletStyle (..)
     )
 import Cardano.Wallet.Primitive.Passphrase
@@ -102,9 +101,7 @@ import qualified Network.HTTP.Types.Status as HTTP
 
 spec
     :: forall n
-     . ( HasSNetworkId n
-       , DecodeStakeAddress n
-       )
+     . HasSNetworkId n
     => SpecWith Context
 spec = describe "BYRON_WALLETS" $ do
     it "BYRON_GET_04, DELETE_01 - Deleted wallet is not available" $ \ctx -> runResourceT $ do

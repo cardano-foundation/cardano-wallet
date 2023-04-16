@@ -30,7 +30,6 @@ import Cardano.Wallet.Api.Types
     , ApiFee
     , ApiTransaction
     , ApiUtxoStatistics
-    , DecodeStakeAddress
     , WalletStyle (..)
     )
 import Cardano.Wallet.Primitive.AddressDerivation
@@ -104,7 +103,6 @@ import qualified Network.HTTP.Types.Status as HTTP
 spec
     :: forall n
      . ( HasSNetworkId n
-       , DecodeStakeAddress n
        , PaymentAddress n IcarusKey 'CredFromKeyK
        )
     => SpecWith Context
