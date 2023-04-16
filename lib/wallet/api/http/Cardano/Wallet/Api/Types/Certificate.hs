@@ -46,9 +46,11 @@ import Cardano.Wallet.Primitive.Types
 import Cardano.Wallet.Primitive.Types.Coin
     ( unCoin )
 import Cardano.Wallet.Read.NetworkId
-    ( NetworkDiscriminant )
+    ( HasSNetworkId (sNetworkId), NetworkDiscriminant )
+import Cardano.Wallet.Shelley.Compatibility
+    ( encodeStakeAddress )
 import Cardano.Wallet.Shelley.Network.Discriminant
-    ( DecodeStakeAddress (..), EncodeStakeAddress, encodeStakeAddress )
+    ( DecodeStakeAddress (..) )
 import Cardano.Wallet.Util
     ( ShowFmt (..) )
 import Control.DeepSeq
@@ -83,7 +85,6 @@ import qualified Cardano.Wallet.Primitive.Types.RewardAccount as W
 import qualified Data.Aeson.Types as Aeson
 import qualified Data.List.NonEmpty as NE
 
-
 newtype ApiRewardAccount (n :: NetworkDiscriminant)
     = ApiRewardAccount W.RewardAccount
     deriving (Eq, Generic, Show)
@@ -95,9 +96,10 @@ instance (DecodeStakeAddress n) => FromJSON (ApiRewardAccount n)
         . bimap ShowFmt ApiRewardAccount
         . decodeStakeAddress @n
 
-instance EncodeStakeAddress n => ToJSON (ApiRewardAccount n)
+instance HasSNetworkId n => ToJSON (ApiRewardAccount n)
   where
-    toJSON (ApiRewardAccount acct) = toJSON . encodeStakeAddress @n $ acct
+    toJSON (ApiRewardAccount acct) = toJSON
+        . encodeStakeAddress (sNetworkId @n) $ acct
 
 data ApiExternalCertificate (n :: NetworkDiscriminant)
     = RegisterRewardAccountExternal
@@ -116,7 +118,7 @@ data ApiExternalCertificate (n :: NetworkDiscriminant)
 instance DecodeStakeAddress n => FromJSON (ApiExternalCertificate n) where
     parseJSON = genericParseJSON apiCertificateOptions
 
-instance EncodeStakeAddress n => ToJSON (ApiExternalCertificate n) where
+instance HasSNetworkId n => ToJSON (ApiExternalCertificate n) where
     toJSON = genericToJSON apiCertificateOptions
 
 data ApiRegisterPool = ApiRegisterPool
@@ -186,7 +188,7 @@ instance DecodeStakeAddress n => FromJSON (ApiAnyCertificate n) where
             "genesis" -> OtherCertificate <$> parseJSON (Object o)
             _ -> fail $ "unknown certificate_type: " <> show certType
 
-instance EncodeStakeAddress n => ToJSON (ApiAnyCertificate n) where
+instance HasSNetworkId n => ToJSON (ApiAnyCertificate n) where
     toJSON (WalletDelegationCertificate cert) = toJSON cert
     toJSON (DelegationCertificate cert) = toJSON cert
     toJSON (StakePoolRegister reg) = toJSON reg

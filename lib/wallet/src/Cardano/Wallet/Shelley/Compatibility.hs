@@ -158,6 +158,7 @@ module Cardano.Wallet.Shelley.Compatibility
     , numberOfTransactionsInBlock
     , encodeAddress
     , decodeAddress
+    , encodeStakeAddress
     ) where
 
 import Prelude
@@ -255,7 +256,7 @@ import Cardano.Wallet.Read.Primitive.Tx.Shelley
 import Cardano.Wallet.Read.Tx.Hash
     ( fromShelleyTxId )
 import Cardano.Wallet.Shelley.Network.Discriminant
-    ( DecodeStakeAddress (..), EncodeStakeAddress (..) )
+    ( DecodeStakeAddress (..) )
 import Cardano.Wallet.Transaction
     ( WitnessCountCtx (..) )
 import Cardano.Wallet.Unsafe
@@ -1904,10 +1905,9 @@ computeTokenBundleSerializedLengthBytes = W.TxSize . safeCast
                       Address Encoding / Decoding
 -------------------------------------------------------------------------------}
 
-instance EncodeStakeAddress 'Mainnet where
-    encodeStakeAddress = shelleyEncodeStakeAddress SL.Mainnet
-instance EncodeStakeAddress ('Testnet pm) where
-    encodeStakeAddress = shelleyEncodeStakeAddress SL.Testnet
+encodeStakeAddress :: SNetworkId n -> W.RewardAccount -> Text
+encodeStakeAddress SMainnet = shelleyEncodeStakeAddress SL.Mainnet
+encodeStakeAddress (STestnet _)= shelleyEncodeStakeAddress SL.Testnet
 
 instance DecodeStakeAddress 'Mainnet where
     decodeStakeAddress = shelleyDecodeStakeAddress SL.Mainnet

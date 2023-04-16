@@ -206,7 +206,6 @@ module Cardano.Wallet.Api.Types
 
     -- * User-Facing Address Encoding/Decoding
 
-    , EncodeStakeAddress (..)
     , DecodeStakeAddress (..)
 
     -- * Shared Wallets
@@ -397,7 +396,7 @@ import Cardano.Wallet.Read.NetworkId
 import Cardano.Wallet.Shelley.Compatibility
     ( decodeAddress, encodeAddress )
 import Cardano.Wallet.Shelley.Network.Discriminant
-    ( DecodeStakeAddress (..), EncodeStakeAddress (..) )
+    ( DecodeStakeAddress (..) )
 import Cardano.Wallet.TokenMetadata
     ( TokenMetadataError (..) )
 import Cardano.Wallet.Util
@@ -2475,7 +2474,7 @@ instance DecodeStakeAddress n => FromJSON (ApiRedeemer n) where
                     Right addr -> pure $ ApiRedeemerRewarding bytes addr
             _ ->
                 fail "unknown purpose for redeemer."
-instance EncodeStakeAddress n => ToJSON (ApiRedeemer n) where
+instance HasSNetworkId n => ToJSON (ApiRedeemer n) where
     toJSON = \case
         ApiRedeemerSpending bytes input -> object
             [ "purpose" .= ("spending" :: Text)
@@ -2523,7 +2522,7 @@ instance (HasSNetworkId t, DecodeStakeAddress t) => FromJSON (ApiConstructTransa
         fee <- o .: "fee"
         pure $ ApiConstructTransaction (ApiSerialisedTransaction (ApiT tx) enc) sel fee
 
-instance (HasSNetworkId t, EncodeStakeAddress t) => ToJSON (ApiConstructTransaction t) where
+instance HasSNetworkId t => ToJSON (ApiConstructTransaction t) where
     toJSON (ApiConstructTransaction (ApiSerialisedTransaction tx encoding) sel fee) =
         object [ "transaction" .= case encoding of
                        HexEncoded ->

@@ -38,7 +38,7 @@ import Cardano.Mnemonic
     , entropyToMnemonic
     )
 import Cardano.Wallet.Api.Types
-    ( DecodeStakeAddress (..), EncodeStakeAddress (..) )
+    ( DecodeStakeAddress (..) )
 import Cardano.Wallet.Byron.Compatibility
     ( maryTokenBundleMaxSize )
 import Cardano.Wallet.Primitive.AddressDerivation
@@ -77,13 +77,19 @@ import Cardano.Wallet.Primitive.Types.Tx.Constraints
 import Cardano.Wallet.Primitive.Types.Tx.TxOut.Gen
     ( genTxOutTokenBundle )
 import Cardano.Wallet.Read.NetworkId
-    ( NetworkDiscriminant (..), NetworkId (..), SNetworkId (..), toSNetworkId )
+    ( NetworkDiscriminant (..)
+    , NetworkId (..)
+    , SNetworkId (..)
+    , toSNat
+    , toSNetworkId
+    )
 import Cardano.Wallet.Shelley.Compatibility
     ( CardanoBlock
     , StandardCrypto
     , computeTokenBundleSerializedLengthBytes
     , decentralizationLevelFromPParams
     , decodeAddress
+    , encodeStakeAddress
     , fromCardanoValue
     , fromTip
     , inspectAddress
@@ -188,12 +194,13 @@ spec = do
 
     describe "Shelley StakeAddress" $ do
         prop "roundtrip / Mainnet" $ \x ->
-            (decodeStakeAddress @'Mainnet . encodeStakeAddress @'Mainnet) x
+            (decodeStakeAddress @'Mainnet . encodeStakeAddress SMainnet) x
             ===
             Right x
 
-        prop "roundtrip / Testnet" $ \x ->
-            (decodeStakeAddress @('Testnet 0) . encodeStakeAddress @('Testnet 0)) x
+        prop "roundtrip / Testnet" $ \x -> toSNat 0 $ \n ->
+            (decodeStakeAddress @('Testnet 0)
+                . encodeStakeAddress (STestnet n)) x
             ===
             Right x
 

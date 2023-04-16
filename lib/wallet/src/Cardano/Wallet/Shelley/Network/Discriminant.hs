@@ -14,7 +14,6 @@ module Cardano.Wallet.Shelley.Network.Discriminant
     ( SomeNetworkDiscriminant (..)
     , networkDiscriminantToId
     , discriminantNetwork
-    , EncodeStakeAddress (..)
     , DecodeStakeAddress (..)
     , withSNetworkId
     , networkIdVal
@@ -61,7 +60,6 @@ data SomeNetworkDiscriminant where
             ( PaymentAddress n IcarusKey 'CredFromKeyK
             , PaymentAddress n ByronKey 'CredFromKeyK
             , PaymentAddress n ShelleyKey 'CredFromKeyK
-            , EncodeStakeAddress n
             , DecodeStakeAddress n
             , DelegationAddress n ShelleyKey 'CredFromKeyK
             , HasSNetworkId n
@@ -71,9 +69,6 @@ data SomeNetworkDiscriminant where
         -> SomeNetworkDiscriminant
 
 deriving instance Show SomeNetworkDiscriminant
-
-class EncodeStakeAddress (n :: NetworkDiscriminant) where
-    encodeStakeAddress :: W.RewardAccount -> Text
 
 class DecodeStakeAddress (n :: NetworkDiscriminant) where
     decodeStakeAddress :: Text -> Either TextDecodingError W.RewardAccount

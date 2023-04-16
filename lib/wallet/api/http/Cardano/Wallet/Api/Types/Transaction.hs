@@ -72,7 +72,7 @@ import Cardano.Wallet.Read.NetworkId
 import Cardano.Wallet.Shelley.Compatibility
     ( decodeAddress, encodeAddress )
 import Cardano.Wallet.Shelley.Network.Discriminant
-    ( DecodeStakeAddress, EncodeStakeAddress )
+    ( DecodeStakeAddress )
 import Cardano.Wallet.Transaction
     ( AnyExplicitScript (..)
     , ValidityIntervalExplicit (..)
@@ -118,7 +118,6 @@ import Quiet
     ( Quiet (Quiet) )
 import Servant
     ( FromHttpApiData (..), ToHttpApiData (..) )
-
 
 import qualified Cardano.Wallet.Primitive.Types.TokenMap as W
 import qualified Data.Aeson.Types as Aeson
@@ -235,11 +234,8 @@ instance
             Just _ -> do
                 xs <- parseJSON obj :: Aeson.Parser (ApiWalletInput n)
                 pure $ WalletInput xs
-instance
-    ( HasSNetworkId n
-    , EncodeStakeAddress n
-    ) => ToJSON (ApiTxInputGeneral n)
-  where
+
+instance HasSNetworkId n => ToJSON (ApiTxInputGeneral n) where
     toJSON (ExternalInput content) = toJSON content
     toJSON (WalletInput content) = toJSON content
 
@@ -317,11 +313,8 @@ instance
                 xs <- parseJSON obj
                     :: Aeson.Parser (ApiWalletOutput n)
                 pure $ WalletOutput xs
-instance
-    ( HasSNetworkId n
-    , EncodeStakeAddress n
-    ) => ToJSON (ApiTxOutputGeneral n)
-  where
+
+instance HasSNetworkId n => ToJSON (ApiTxOutputGeneral n) where
     toJSON (ExternalOutput content) = toJSON content
     toJSON (WalletOutput content) = toJSON content
 
@@ -353,7 +346,7 @@ instance DecodeStakeAddress n => FromJSON (ApiWithdrawalGeneral n) where
                 (ApiWithdrawal addr amt)  <- parseJSON obj :: Aeson.Parser (ApiWithdrawal n)
                 pure $ ApiWithdrawalGeneral addr amt Our
 
-instance EncodeStakeAddress n => ToJSON (ApiWithdrawalGeneral n) where
+instance HasSNetworkId n => ToJSON (ApiWithdrawalGeneral n) where
     toJSON (ApiWithdrawalGeneral addr amt ctx) = do
         let obj = [ "stake_address" .= toJSON addr
                   , "amount" .= toJSON amt]
