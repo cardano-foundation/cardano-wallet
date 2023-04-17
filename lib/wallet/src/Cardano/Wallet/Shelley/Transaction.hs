@@ -403,7 +403,7 @@ constructUnsignedTx
     -> ShelleyBasedEra era
     -> Either ErrMkTransaction (Cardano.TxBody era)
 constructUnsignedTx
-    networkId (md, certs) ttl rewardAcnt wdrl
+    networkId (md, certs) ttl wdrl
     cs fee toMint toBurn inpScripts stakingScriptM era =
         mkUnsignedTx
             era ttl cs md wdrls certs (toCardanoLovelace fee)
@@ -699,9 +699,6 @@ newTransactionLayer networkId = TransactionLayer
         let delta = case selection of
                 Right selOf -> selectionDelta TxOut.coin selOf
                 Left _preSel -> Coin 0
-        let rewardAcct = case stakeCred of
-                Left stakeXPub -> toRewardAccountRaw stakeXPub
-                Right _script -> error "TO_DO: ADP-2604 when withdrawals are tackled"
         let assetsToBeMinted = view #txAssetsToMint ctx
         let assetsToBeBurned = view #txAssetsToBurn ctx
         let inpsScripts = view #txNativeScriptInputs ctx
