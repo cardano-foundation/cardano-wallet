@@ -10,6 +10,7 @@
 {-# LANGUAGE TypeApplications #-}
 {-# LANGUAGE TypeFamilies #-}
 {-# LANGUAGE UndecidableInstances #-}
+{-# LANGUAGE StandaloneDeriving #-}
 
 module Cardano.Wallet.Read.NetworkId
     ( NetworkDiscriminant (..)
@@ -78,6 +79,9 @@ data NetworkId
 data SNat (n :: Nat) where
     SNat :: KnownNat n => Proxy n -> SNat n
 
+deriving instance Show (SNat n)
+deriving instance Eq (SNat n)
+
 fromSNat :: SNat n -> Natural
 fromSNat p@(SNat _) = natVal p
 
@@ -93,6 +97,9 @@ withSNat nat f = case someNatVal nat of
 data SNetworkId (n :: NetworkDiscriminant) where
     SMainnet :: SNetworkId 'Mainnet
     STestnet :: SNat i -> SNetworkId ('Testnet i)
+
+deriving instance Show (SNetworkId n)
+deriving instance Eq (SNetworkId n)
 
 -- | A class for extracting the singleton for 'NetworkDiscriminant'.
 class HasSNetworkId n where
