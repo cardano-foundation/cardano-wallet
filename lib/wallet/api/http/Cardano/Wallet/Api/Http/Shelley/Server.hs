@@ -519,7 +519,7 @@ import Cardano.Wallet.Primitive.Types.Tx.TxIn
 import Cardano.Wallet.Primitive.Types.Tx.TxOut
     ( TxOut (..) )
 import Cardano.Wallet.Read.NetworkId
-    ( HasSNetworkId (..), NetworkDiscriminant )
+    ( HasSNetworkId (..) )
 import Cardano.Wallet.Registry
     ( HasWorkerCtx (..)
     , MkWorker (..)
@@ -2349,7 +2349,7 @@ mkApiTransactionFromInfo ti wrk wid deposit info metadataSchema = do
         Expired  -> #pendingSince
 
 postTransactionFeeOld
-    :: forall s k (n :: NetworkDiscriminant)
+    :: forall s k n
      . ( WalletFlavor s n k
        , AddressBookIso s
        , BoundedAddressLength k
@@ -2425,7 +2425,7 @@ postTransactionFeeOld ctx@ApiLayer{..} (ApiT walletId) body = do
         tmpExtraPadding = 5
 
 constructTransaction
-    :: forall (n :: NetworkDiscriminant)
+    :: forall n
      . HasSNetworkId n
     => ApiLayer (SeqState n ShelleyKey) ShelleyKey 'CredFromKeyK
     -> ArgGenChange (SeqState n ShelleyKey)
@@ -2848,7 +2848,7 @@ parseValidityInterval ti validityInterval = do
 -- TO-DO withdrawals
 -- TO-DO minting/burning
 constructSharedTransaction
-    :: forall (n :: NetworkDiscriminant) . HasSNetworkId n
+    :: forall n . HasSNetworkId n
     => ApiLayer (SharedState n SharedKey) SharedKey 'CredFromScriptK
     -> ArgGenChange (SharedState n SharedKey)
     -> IO (Set PoolId)
@@ -2969,7 +2969,7 @@ constructSharedTransaction
 
 
 decodeSharedTransaction
-    :: forall (n :: NetworkDiscriminant) . HasSNetworkId n
+    :: forall n . HasSNetworkId n
     => ApiLayer (SharedState n SharedKey) SharedKey 'CredFromScriptK
     -> ApiT WalletId
     -> ApiSerialisedTransaction
@@ -3063,7 +3063,7 @@ decodeSharedTransaction ctx (ApiT wid) (ApiSerialisedTransaction (ApiT sealed) _
         }
 
 balanceTransaction
-    :: forall s k ktype (n :: NetworkDiscriminant)
+    :: forall s k ktype n
      . (GenChange s, BoundedAddressLength k)
     => ApiLayer s k ktype
     -> ArgGenChange s
@@ -3298,13 +3298,13 @@ toOut ((TxOut addr (TokenBundle (Coin c) tmap)), (Just path)) =
             }
 
 submitTransaction
-    :: forall ctx s k (n :: NetworkDiscriminant).
-        ( ctx ~ ApiLayer s k 'CredFromKeyK
-        , s ~ SeqState n k
-        , WalletFlavor s n k
-        , HasNetworkLayer IO ctx
-        , IsOwned s k 'CredFromKeyK
-        )
+    :: forall ctx s k n
+     . ( ctx ~ ApiLayer s k 'CredFromKeyK
+       , s ~ SeqState n k
+       , WalletFlavor s n k
+       , HasNetworkLayer IO ctx
+       , IsOwned s k 'CredFromKeyK
+       )
     => ctx
     -> ApiT WalletId
     -> ApiSerialisedTransaction
@@ -3438,7 +3438,7 @@ isForeign apiDecodedTx =
         all isWdrlForeign generalWdrls
 
 submitSharedTransaction
-    :: forall (n :: NetworkDiscriminant) . HasSNetworkId n
+    :: forall n . HasSNetworkId n
     => ApiLayer (SharedState n SharedKey) SharedKey 'CredFromScriptK
     -> ApiT WalletId
     -> ApiSerialisedTransaction
@@ -3694,16 +3694,17 @@ quitStakePool ctx@ApiLayer{..} argGenChange (ApiT walletId) body = do
 -- no rewards => ada in distr == utxo balance
 -- all keys in inputs appear (once) in output
 listStakeKeys'
-    :: forall (n :: NetworkDiscriminant) m. Monad m
+    :: forall n m
+     . Monad m
     => UTxO.UTxO
-        -- ^ The wallet's UTxO
+    -- ^ The wallet's UTxO
     -> (Address -> Maybe RewardAccount)
-        -- ^ Lookup reward account of addr
+    -- ^ Lookup reward account of addr
     -> (Set RewardAccount -> m (Map RewardAccount Coin))
-        -- ^ Batch fetch of rewards
+    -- ^ Batch fetch of rewards
     -> [(RewardAccount, Natural, ApiWalletDelegation)]
-        -- ^ The wallet's known stake keys, along with derivation index, and
-        -- delegation status.
+    -- ^ The wallet's known stake keys, along with derivation index, and
+    -- delegation status.
     -> m (ApiStakeKeys n)
 listStakeKeys' utxo lookupStakeRef fetchRewards ourKeysWithInfo = do
         let distr = stakeKeyCoinDistr lookupStakeRef utxo
@@ -4164,7 +4165,7 @@ getAccountPublicKey ctx mkAccount (ApiT wid) extended = do
           _ -> NonExtended
 
 getPolicyKey
-    :: forall ctx s k (n :: NetworkDiscriminant)
+    :: forall ctx s k n
      . ( ctx ~ ApiLayer s k 'CredFromKeyK
        , WalletFlavor s n k
        )
@@ -4178,10 +4179,10 @@ getPolicyKey ctx (ApiT wid) hashed = do
         pure $ uncurry ApiPolicyKey (computeKeyPayload hashed k)
 
 postPolicyKey
-    :: forall ctx s (n :: NetworkDiscriminant).
-        ( ctx ~ ApiLayer s ShelleyKey 'CredFromKeyK
-        , s ~ SeqState n ShelleyKey
-        )
+    :: forall ctx s n
+     . ( ctx ~ ApiLayer s ShelleyKey 'CredFromKeyK
+       , s ~ SeqState n ShelleyKey
+       )
     => ctx
     -> ApiT WalletId
     -> Maybe Bool
@@ -4195,7 +4196,7 @@ postPolicyKey ctx (ApiT wid) hashed apiPassphrase =
     pwd = getApiT (apiPassphrase ^. #passphrase)
 
 postPolicyId
-    :: forall ctx s k (n :: NetworkDiscriminant)
+    :: forall ctx s k n
      . ( ctx ~ ApiLayer s k 'CredFromKeyK
        , WalletKey k
        , WalletFlavor s n k
@@ -4259,7 +4260,7 @@ guardIsRecentEra (Cardano.AnyCardanoEra era) = case era of
     invalidEra = Write.ErrOldEraNotSupported $ Cardano.AnyCardanoEra era
 
 mkWithdrawal
-    :: forall (n :: NetworkDiscriminant) ktype tx block
+    :: forall n ktype tx block
      . NetworkLayer IO block
     -> TransactionLayer ShelleyKey ktype tx
     -> DBLayer IO (SeqState n ShelleyKey) ShelleyKey
@@ -4277,7 +4278,7 @@ mkWithdrawal netLayer txLayer db wallet era = \case
 -- | Unsafe version of `mkWithdrawal` that throws runtime error
 -- when applied to a non-shelley or non-sequential wallet state.
 shelleyOnlyMkWithdrawal
-    :: forall s k (n :: NetworkDiscriminant) ktype tx block
+    :: forall s k n ktype tx block
      . WalletFlavor s n k
     => NetworkLayer IO block
     -> TransactionLayer k ktype tx
@@ -4295,7 +4296,7 @@ shelleyOnlyMkWithdrawal netLayer txLayer db wallet era postData =
         liftHandler $ throwE ErrReadRewardAccountNotAShelleyWallet
 
 shelleyOnlyRewardAccountBuilder
-    :: forall s k (n :: NetworkDiscriminant)
+    :: forall s k n
      . ( HardDerivation k
        , Bounded (Index (AddressIndexDerivationType k) (AddressCredential k))
        , WalletKey k
@@ -4579,7 +4580,7 @@ mkApiTransaction timeInterpreter wrk wid timeRefLens tx = do
         AddressAmountNoAssets (ApiAddress addr) (mkApiCoin coin)
 
 toAddressAmount
-    :: forall (n :: NetworkDiscriminant)
+    :: forall n
      . TxOut
     -> AddressAmount (ApiAddress n)
 toAddressAmount (TxOut addr (TokenBundle.TokenBundle coin assets)) =
@@ -4601,15 +4602,13 @@ mkApiFee mDeposit minCoins (Percentile estMin, Percentile estMax) = ApiFee
     }
 
 mkApiWithdrawal
-    :: forall (n :: NetworkDiscriminant). ()
-    => (RewardAccount, Coin)
+    :: (RewardAccount, Coin)
     -> ApiWithdrawal n
 mkApiWithdrawal (acct, c) =
     ApiWithdrawal (ApiRewardAccount acct) (mkApiCoin c)
 
 addressAmountToTxOut
-    :: forall (n :: NetworkDiscriminant)
-     . AddressAmount (ApiAddress n)
+    :: AddressAmount (ApiAddress n)
     -> TxOut
 addressAmountToTxOut (AddressAmount (ApiAddress addr) c (ApiT assets)) =
     TxOut addr (TokenBundle.TokenBundle (Coin.fromQuantity c) assets)

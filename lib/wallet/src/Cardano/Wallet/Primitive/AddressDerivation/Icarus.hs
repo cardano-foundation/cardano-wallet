@@ -77,7 +77,7 @@ import Cardano.Wallet.Primitive.Types.ProtocolMagic
     ( ProtocolMagic (..), magicSNetworkId )
 import Cardano.Wallet.Read.NetworkId
     ( HasSNetworkId
-    , NetworkDiscriminant (..)
+    , NetworkDiscriminant
     , NetworkDiscriminantCheck (..)
     , SNetworkId (..)
     )
@@ -375,7 +375,7 @@ instance PaymentAddress IcarusKey 'CredFromKeyK where
         $ CBOR.toStrictByteString
         $ CBOR.encodeAddress (getKey k) []
 
-    paymentAddress s@(STestnet pm) k = Address
+    paymentAddress s@(STestnet _) k = Address
         $ CBOR.toStrictByteString
         $ CBOR.encodeAddress (getKey k)
             [ CBOR.encodeProtocolMagicAttr (magicSNetworkId s)

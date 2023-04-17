@@ -224,10 +224,11 @@ instance Buildable (SharedAddressPool c k) where
 
 -- | Create a new shared address pool from complete script templates.
 newSharedAddressPool
-    :: forall (n :: NetworkDiscriminant) c key.
-        ( key ~ SharedKey
-        , SupportsDiscovery n key
-        , Typeable c )
+    :: forall n c key
+     . ( key ~ SharedKey
+       , SupportsDiscovery n key
+       , Typeable c
+       )
     => AddressPoolGap
     -> ScriptTemplate
     -> Maybe ScriptTemplate
@@ -553,7 +554,7 @@ templatesComplete accXPub pTemplate dTemplate =
 -------------------------------------------------------------------------------}
 
 isShared
-    :: forall (n :: NetworkDiscriminant) k. SupportsDiscovery n k
+    :: forall n k. SupportsDiscovery n k
     => Address
     -> SharedState n k
     -> (Maybe (Index 'Soft 'CredFromScriptK, Role), SharedState n k)
@@ -708,7 +709,7 @@ instance FromText CredentialType where
             ]
 
 liftPaymentAddress
-    :: forall (n :: NetworkDiscriminant) (k :: Depth -> Type -> Type).
+    :: forall n (k :: Depth -> Type -> Type).
        HasSNetworkId n
     => KeyFingerprint "payment" k
     -> Address
@@ -718,7 +719,7 @@ liftPaymentAddress (KeyFingerprint fingerprint) =
     (PaymentFromScriptHash (ScriptHash fingerprint))
 
 liftDelegationAddress
-    :: forall (n :: NetworkDiscriminant) (k :: Depth -> Type -> Type).
+    :: forall n (k :: Depth -> Type -> Type).
        HasSNetworkId n
     => Index 'Soft 'CredFromScriptK
     -> ScriptTemplate

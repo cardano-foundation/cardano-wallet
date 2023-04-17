@@ -303,12 +303,12 @@ import Cardano.Wallet.Primitive.AddressDerivation
     , DerivationType (..)
     , HardDerivation (..)
     , Index (..)
-    
     , PersistPublicKey (..)
     , Role (..)
     , WalletKey (..)
     , fromHex
-    , hex, paymentAddressS
+    , hex
+    , paymentAddressS
     )
 import Cardano.Wallet.Primitive.AddressDerivation.Byron
     ( ByronKey (..) )
@@ -353,7 +353,7 @@ import Cardano.Wallet.Primitive.Types.UTxO
 import Cardano.Wallet.Primitive.Types.UTxOStatistics
     ( HistogramBar (..), UTxOStatistics (..) )
 import Cardano.Wallet.Read.NetworkId
-    ( HasSNetworkId (..), NetworkDiscriminant )
+    ( HasSNetworkId (..) )
 import Cardano.Wallet.Shelley.Compatibility
     ( decodeAddress, encodeAddress )
 import "cardano-addresses" Codec.Binary.Encoding
@@ -1796,7 +1796,7 @@ emptySharedWalletDelegating ctx = do
    pure (getFromResponse Prelude.id rPostA, getFromResponse Prelude.id rPostB)
 
 fundSharedWallet
-    :: forall (n :: NetworkDiscriminant) m
+    :: forall n m
      . ( MonadUnliftIO m
        , HasSNetworkId n
        )
@@ -1847,7 +1847,7 @@ fundSharedWallet ctx amt sharedWals = do
            ]
 
 fixtureSharedWallet
-    :: forall (n :: NetworkDiscriminant) m
+    :: forall n m
      . ( MonadUnliftIO m
        , MonadFail m
        , HasSNetworkId n
@@ -1860,11 +1860,11 @@ fixtureSharedWallet ctx = do
    return wal
 
 fixtureSharedWalletDelegating
-    :: forall (n :: NetworkDiscriminant) m.
-    ( MonadUnliftIO m
-    , MonadFail m
-    , HasSNetworkId n
-    )
+    :: forall n m
+     . ( MonadUnliftIO m
+       , MonadFail m
+       , HasSNetworkId n
+       )
     => Context
     -> ResourceT m (ApiActiveSharedWallet, ApiActiveSharedWallet)
 fixtureSharedWalletDelegating ctx = do
@@ -2076,7 +2076,7 @@ fixtureRandomWallet
 fixtureRandomWallet = fmap fst . fixtureRandomWalletMws
 
 fixtureRandomWalletAddrs
-    :: forall (n :: NetworkDiscriminant) m
+    :: forall n m
      . (MonadUnliftIO m, HasSNetworkId n)
     => Context
     -> ResourceT m (ApiByronWallet, [Address])
@@ -2092,7 +2092,7 @@ fixtureRandomWalletAddrs =
 --
 -- TODO: Remove duplication between Shelley / Byron fixtures.
 fixtureRandomWalletWith
-    :: forall (n :: NetworkDiscriminant) m
+    :: forall n m
      . ( HasSNetworkId n , MonadUnliftIO m)
     => Context
     -> [Natural]
@@ -2127,7 +2127,7 @@ fixtureIcarusWallet
 fixtureIcarusWallet = fmap fst . fixtureIcarusWalletMws
 
 fixtureIcarusWalletAddrs
-    :: forall (n :: NetworkDiscriminant) m
+    :: forall n m
      . ( HasSNetworkId n , MonadUnliftIO m)
     => Context
     -> ResourceT m (ApiByronWallet, [Address])
@@ -2143,7 +2143,7 @@ fixtureIcarusWalletAddrs =
 --
 -- TODO: Remove duplication between Shelley / Byron fixtures.
 fixtureIcarusWalletWith
-    :: forall (n :: NetworkDiscriminant) m
+    :: forall n m
      . ( HasSNetworkId n , MonadUnliftIO m)
     => Context
     -> [Natural]
@@ -2289,7 +2289,8 @@ constFixtureWalletNoWait ctx = snd <$> allocate create free
         (Link.deleteWallet @'Shelley w) Default Empty
 
 -- | Move coins from a wallet to another
-moveByronCoins :: forall (n :: NetworkDiscriminant)
+moveByronCoins
+    :: forall n
      . HasSNetworkId n
     => Context
         -- ^ Api context
@@ -2479,7 +2480,7 @@ delegationFee ctx w = do
 -- >>> take 1 (randomAddresses @n)
 -- [addr]
 randomAddresses
-    :: forall (n :: NetworkDiscriminant)
+    :: forall n
      . HasSNetworkId n
     => Mnemonic 12
     -> [Address]
@@ -2505,7 +2506,7 @@ randomAddresses mw =
 -- >>> take 1 (icarusAddresses @n)
 -- [addr]
 icarusAddresses
-    :: forall (n :: NetworkDiscriminant)
+    :: forall n
      . HasSNetworkId n
     => Mnemonic 15
     -> [Address]
@@ -2531,7 +2532,7 @@ icarusAddresses mw =
 -- >>> take 1 (shelleyAddresses @n)
 -- [addr]
 shelleyAddresses
-    :: forall (n :: NetworkDiscriminant)
+    :: forall n
      . HasSNetworkId n
     => Mnemonic 15
     -> [Address]
@@ -3344,7 +3345,7 @@ unsafeResponse = either (error . show) id . snd
 -- Only intended to be used with well-known inputs in tests, so throws if
 -- anything goes unexpectedly.
 replaceStakeKey
-    :: forall (n :: NetworkDiscriminant)
+    :: forall n
      . HasSNetworkId n
     => ApiAddress n
     -> ApiAddress n

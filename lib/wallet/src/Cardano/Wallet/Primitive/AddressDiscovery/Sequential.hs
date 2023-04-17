@@ -273,10 +273,10 @@ instance Buildable (SeqAddressPool c k) where
 -- | Create a new Address pool from a list of addresses. Note that, the list is
 -- expected to be ordered in sequence (first indexes, first in the list).
 newSeqAddressPool
-    :: forall (n :: NetworkDiscriminant) c key.
-        ( SupportsDiscovery n key
-        , Typeable c
-        )
+    :: forall n c key
+     . ( SupportsDiscovery n key
+       , Typeable c
+       )
     => key 'AccountK XPub
     -> AddressPoolGap
     -> SeqAddressPool c key

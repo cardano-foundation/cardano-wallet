@@ -34,8 +34,6 @@ import Cardano.Wallet.Flavor
     ( WalletFlavor )
 import Cardano.Wallet.Primitive.Types
     ( WalletId )
-import Cardano.Wallet.Read.NetworkId
-    ( NetworkDiscriminant )
 import Cardano.Wallet.Transaction
     ( TokenMapWithScripts (..) )
 import Control.Category
@@ -51,7 +49,7 @@ import Servant
 
 -- | Promote mint and burn to their API type.
 convertApiAssetMintBurn
-    :: forall ctx s k (n :: NetworkDiscriminant)
+    :: forall ctx s k n
      . ( HasDBLayer IO s k ctx
        , WalletFlavor s n k
        )
@@ -73,7 +71,7 @@ convertApiAssetMintBurn ctx wid (mint, burn) = do
     pure (convert mint, convert burn)
 
 getTxApiAssetMintBurn
-    :: forall ctx s k (n :: NetworkDiscriminant)
+    :: forall ctx s k n
      . ( HasDBLayer IO s k ctx
        , WalletFlavor s n k
        )

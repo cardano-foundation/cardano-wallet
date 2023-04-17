@@ -159,7 +159,8 @@ main = withUtf8Encoding $
         { apiServerTracer = trMessage $ contramap snd (traceInTVarIO tvar) }
 
 walletApiBench
-    :: forall (n :: NetworkDiscriminant). (n ~ 'Mainnet)
+    :: forall n
+    . (n ~ 'Mainnet)
     => LogCaptureFunc ApiLog ()
     -> Context
     -> IO ()

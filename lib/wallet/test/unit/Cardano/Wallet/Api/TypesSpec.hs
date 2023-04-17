@@ -1866,7 +1866,7 @@ instance HasSNetworkId n => Arbitrary (ApiTxInputGeneral n) where
         , WalletInput <$> arbitrary
         ]
 
-instance HasSNetworkId n => Arbitrary (ApiWithdrawalGeneral (n :: NetworkDiscriminant)) where
+instance HasSNetworkId n => Arbitrary (ApiWithdrawalGeneral n) where
     arbitrary = ApiWithdrawalGeneral
         <$> arbitrary
         <*> arbitrary
@@ -2833,11 +2833,11 @@ instance Typeable n => ToSchema (ApiConstructTransaction n) where
 instance ToSchema ApiMultiDelegationAction where
     declareNamedSchema _ = declareSchemaForDefinition "ApiMultiDelegationAction"
 
-type ApiTxInputsGeneral (n :: NetworkDiscriminant) = [ApiTxInputGeneral n]
+type ApiTxInputsGeneral n = [ApiTxInputGeneral n]
 
-type ApiTxOutputsGeneral (n :: NetworkDiscriminant) = [ApiTxOutputGeneral n]
+type ApiTxOutputsGeneral n = [ApiTxOutputGeneral n]
 
-type ApiWithdrawalsGeneral (n :: NetworkDiscriminant) = [ApiWithdrawalGeneral n]
+type ApiWithdrawalsGeneral n = [ApiWithdrawalGeneral n]
 
 instance Typeable n => ToSchema (ApiTxInputsGeneral n) where
     declareNamedSchema _ = declareSchemaForDefinition "ApiInputsGeneral"

@@ -233,7 +233,7 @@ instance ToJSON BenchSeqResults where
     toJSON = genericToJSON Aeson.defaultOptions
 
 benchmarksSeq
-    :: forall (n :: NetworkDiscriminant) s k ktype.
+    :: forall n s k ktype.
         ( s ~ SeqState n k
         , k ~ ShelleyKey
         , ktype ~ 'CredFromKeyK
@@ -329,12 +329,12 @@ instance ToJSON BenchSharedResults where
     toJSON = genericToJSON Aeson.defaultOptions
 
 benchmarksShared
-    :: forall (n :: NetworkDiscriminant) s k ktype.
-        ( s ~ SharedState n k
-        , k ~ SharedKey
-        , ktype ~ 'CredFromScriptK
-        , HasSNetworkId n
-        )
+    :: forall n s k ktype
+     . ( s ~ SharedState n k
+       , k ~ SharedKey
+       , ktype ~ 'CredFromScriptK
+       , HasSNetworkId n
+       )
     => BenchmarkConfig n s k ktype
     -> IO BenchSharedResults
 benchmarksShared BenchmarkConfig{benchmarkName,ctx,wid} = do
@@ -410,12 +410,12 @@ instance ToJSON BenchRndResults where
     toJSON = genericToJSON Aeson.defaultOptions
 
 benchmarksRnd
-    :: forall (n :: NetworkDiscriminant) s k ktype.
-        ( s ~ RndState n
-        , k ~ ByronKey
-        , ktype ~ 'CredFromKeyK
-        , HasSNetworkId n
-        )
+    :: forall n s k ktype
+     . ( s ~ RndState n
+       , k ~ ByronKey
+       , ktype ~ 'CredFromKeyK
+       , HasSNetworkId n
+       )
     => BenchmarkConfig n s k ktype
     -> IO BenchRndResults
 benchmarksRnd BenchmarkConfig{benchmarkName,ctx,wid} = do
@@ -477,10 +477,10 @@ benchmarksRnd BenchmarkConfig{benchmarkName,ctx,wid} = do
     Custom Wallet API functions
 -------------------------------------------------------------------------------}
 selectAssets
-    :: forall (n :: NetworkDiscriminant) s (k :: Depth -> * -> *) ktype
-    .   ( HasSNetworkId n
-        , BoundedAddressLength k
-        )
+    :: forall n s (k :: Depth -> * -> *) ktype
+     . ( HasSNetworkId n
+       , BoundedAddressLength k
+       )
     => Proxy n
     -> MockWalletLayer IO s k ktype
     -> WalletId
@@ -509,7 +509,7 @@ selectAssets networkId ctx wid = do
         } $ \_state -> id
 
 dummyAddress
-    :: forall (n :: NetworkDiscriminant)
+    :: forall n
      . HasSNetworkId n
     => Proxy n
     -> Address
@@ -537,7 +537,7 @@ data BenchmarkConfig (n :: NetworkDiscriminant) s k ktype =
 
 -- | Run benchmarks on all wallet databases in a given directory.
 benchmarkWallets
-    :: forall (n :: NetworkDiscriminant) (k :: Depth -> * -> *) ktype s results
+    :: forall n (k :: Depth -> * -> *) ktype s results
      . ( PersistAddressBook s
        , WalletKey k
        , PersistPrivateKey (k 'RootK)
@@ -596,7 +596,7 @@ mockTimeInterpreter :: TimeInterpreter IO
 mockTimeInterpreter = dummyTimeInterpreter
 
 withWalletsFromDirectory
-    :: forall (n :: NetworkDiscriminant) s k ktype a
+    :: forall n s k ktype a
      . ( PersistAddressBook s
        , PersistPrivateKey (k 'RootK)
        , WalletKey k
