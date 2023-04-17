@@ -75,7 +75,7 @@ import Cardano.Wallet.Primitive.Types.Tx.Constraints
 import Cardano.Wallet.Primitive.Types.Tx.TxOut.Gen
     ( genTxOutTokenBundle )
 import Cardano.Wallet.Read.NetworkId
-    ( NetworkId (..), SNetworkId (..), toSNat, toSNetworkId )
+    ( NetworkId (..), SNetworkId (..), toSNat, withSNetworkId )
 import Cardano.Wallet.Shelley.Compatibility
     ( CardanoBlock
     , StandardCrypto
@@ -220,7 +220,7 @@ spec = do
                     & counterexample (show $ bech32 bytes)
 
         prop "Shelley addresses from bech32 - testnet"
-            $ \k -> toSNetworkId (NTestnet 0)
+            $ \k -> withSNetworkId (NTestnet 0)
                 $ \n ->
                     let addr@(Address raw) =
                             paymentAddress @ShelleyKey @'CredFromKeyK n k

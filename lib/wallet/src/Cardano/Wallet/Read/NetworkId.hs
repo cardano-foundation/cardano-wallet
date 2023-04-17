@@ -22,7 +22,7 @@ module Cardano.Wallet.Read.NetworkId
     , fromSNat
     , toSNat
     , fromSNetworkId
-    , toSNetworkId
+    , withSNetworkId
     , sNetworkIdOfProxy
     )
   where
@@ -126,12 +126,12 @@ fromSNetworkId SMainnet = NMainnet
 fromSNetworkId (STestnet p) = NTestnet $ fromSNat p
 
 -- | Run a function on a 'NetworkDiscriminant' singleton given a network id.
-toSNetworkId
+withSNetworkId
     :: NetworkId
     -> (forall (n :: NetworkDiscriminant). SNetworkId n -> a)
     -> a
-toSNetworkId NMainnet f = f SMainnet
-toSNetworkId (NTestnet i) f = toSNat i $  f . STestnet
+withSNetworkId NMainnet f = f SMainnet
+withSNetworkId (NTestnet i) f = toSNat i $  f . STestnet
 
 sNetworkIdOfProxy :: forall n. HasSNetworkId n => Proxy n -> SNetworkId n
 sNetworkIdOfProxy Proxy = sNetworkId @n

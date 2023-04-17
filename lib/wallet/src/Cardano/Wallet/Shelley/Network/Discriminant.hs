@@ -14,7 +14,6 @@ module Cardano.Wallet.Shelley.Network.Discriminant
     ( SomeNetworkDiscriminant (..)
     , networkDiscriminantToId
     , discriminantNetwork
-    , withSNetworkId
     , networkIdVal
     ) where
 
@@ -50,7 +49,8 @@ data SomeNetworkDiscriminant where
 deriving instance Show SomeNetworkDiscriminant
 
 networkDiscriminantToId :: SomeNetworkDiscriminant -> NetworkId
-networkDiscriminantToId some = withSNetworkId some networkIdVal
+networkDiscriminantToId (SomeNetworkDiscriminant (Proxy :: Proxy n))
+    = networkIdVal (sNetworkId @n)
 
 discriminantNetwork :: SomeNetworkDiscriminant -> Ledger.Network
 discriminantNetwork = networkDiscriminantToId >>> \case
@@ -64,9 +64,3 @@ networkIdVal (STestnet snat) = Cardano.Testnet networkMagic
       where
         networkMagic =
             Cardano.NetworkMagic . fromIntegral $ fromSNat snat
-
-withSNetworkId
-    :: SomeNetworkDiscriminant
-    -> (forall (n :: NetworkDiscriminant). HasSNetworkId n => SNetworkId n -> r)
-    -> r
-withSNetworkId (SomeNetworkDiscriminant (_proxy :: Proxy n)) f = f $ sNetworkId @n
