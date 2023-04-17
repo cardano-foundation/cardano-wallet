@@ -62,14 +62,9 @@ import Cardano.Wallet.Primitive.SyncProgress
 import Cardano.Wallet.Primitive.Types.Coin
     ( Coin (..) )
 import Cardano.Wallet.Read.NetworkId
-    ( NetworkDiscriminant (..) )
+    ( NetworkDiscriminant (..), NetworkId (..) )
 import Cardano.Wallet.Shelley
-    ( SomeNetworkDiscriminant (..)
-    , Tracers
-    , Tracers' (..)
-    , nullTracers
-    , serveWallet
-    )
+    ( Tracers, Tracers' (..), nullTracers, serveWallet )
 import Cardano.Wallet.Shelley.BlockchainSource
     ( BlockchainSource (..) )
 import Cardano.Wallet.Shelley.Faucet
@@ -88,8 +83,6 @@ import Data.Generics.Internal.VL.Lens
     ( (^.) )
 import Data.List.NonEmpty
     ( NonEmpty ((:|)) )
-import Data.Proxy
-    ( Proxy (..) )
 import Network.HTTP.Client
     ( defaultManagerSettings
     , managerResponseTimeout
@@ -483,7 +476,7 @@ withShelleyServer tracers action = do
             (NodeSource conn vData (SyncTolerance 10))
             np
             tunedForMainnetPipeliningStrategy
-            (SomeNetworkDiscriminant $ Proxy @'Mainnet)
+            NMainnet
             []
             tracers
             (Just db)

@@ -367,7 +367,6 @@ library
     Cardano.Wallet.Shelley.MinimumUTxO
     Cardano.Wallet.Shelley.MinimumUTxO.Internal
     Cardano.Wallet.Shelley.Network
-    Cardano.Wallet.Shelley.Network.Discriminant
     Cardano.Wallet.Shelley.Network.Node
     Cardano.Wallet.Shelley.Transaction
     Cardano.Wallet.Submissions.Operations

@@ -138,9 +138,8 @@ import Cardano.Wallet.Read.NetworkId
     , networkDiscriminantVal
     , networkIdVal
     , sNetworkIdOfProxy
+    , withSNetworkId
     )
-import Cardano.Wallet.Shelley
-    ( SomeNetworkDiscriminant (..) )
 import Cardano.Wallet.Shelley.Compatibility
     ( CardanoBlock
     , NodeToClientVersionData
@@ -268,73 +267,74 @@ cardanoRestoreBench
     -> NetworkConfiguration
     -> CardanoNodeConn
     -> IO ()
-cardanoRestoreBench tr c socketFile = do
-    (SomeNetworkDiscriminant networkProxy, np, vData, _b)
+cardanoRestoreBench tr c socketFile =  do
+    (networkId, np, vData, _b)
         <- unsafeRunExceptT $ parseGenesisData c
-
     (_, walletTr) <- initBenchmarkLogging "wallet" Notice
 
-    let network = networkDiscriminantVal $ sNetworkIdOfProxy networkProxy
+    withSNetworkId networkId $ \(sNetwork :: SNetworkId n)-> do
+        let network =  networkDiscriminantVal sNetwork
+            networkProxy = Proxy @n
 
-    sayErr $ "Network: " <> network
-    prepareNode (trMessageText tr) networkProxy socketFile np vData
+        sayErr $ "Network: " <> network
+        prepareNode (trMessageText tr) networkProxy socketFile np vData
 
-    let benchRestoreRndWithOwnership p pipelinings = do
-            let benchname = showPercentFromPermyriad p <> "-percent-rnd"
-            bench_restoration
-                pipelinings
-                networkProxy
-                (trMessageText tr)
-                walletTr
-                socketFile
-                np
-                vData
-                benchname
-                (walletRnd benchname $ mkRndAnyState' p networkProxy)
-                True -- Write progress to .timelog file
-                (unsafeMkPercentage 1)
-                benchmarksRnd
-    let benchRestoreSeqWithOwnership p pipelinings = do
-            let benchname = showPercentFromPermyriad p <> "-percent-seq"
-            bench_restoration
-                pipelinings
-                networkProxy
-                (trMessageText tr)
-                walletTr
-                socketFile
-                np
-                vData
-                benchname
-                (walletSeq benchname $ mkSeqAnyState' p networkProxy)
-                True -- Write progress to .timelog file
-                (unsafeMkPercentage 1)
-                benchmarksSeq
-    let benchRestoreBaseline pipelinings = do
-            let benchname = "baseline"
-            bench_baseline_restoration
-                pipelinings
-                networkProxy
-                (trMessageText tr)
-                walletTr
-                socketFile
-                np
-                vData
-                benchname
-                True
-                (unsafeMkPercentage 1)
+        let benchRestoreRndWithOwnership p pipelinings = do
+                let benchname = showPercentFromPermyriad p <> "-percent-rnd"
+                bench_restoration
+                    pipelinings
+                    networkProxy
+                    (trMessageText tr)
+                    walletTr
+                    socketFile
+                    np
+                    vData
+                    benchname
+                    (walletRnd benchname $ mkRndAnyState' p networkProxy)
+                    True -- Write progress to .timelog file
+                    (unsafeMkPercentage 1)
+                    benchmarksRnd
+        let benchRestoreSeqWithOwnership p pipelinings = do
+                let benchname = showPercentFromPermyriad p <> "-percent-seq"
+                bench_restoration
+                    pipelinings
+                    networkProxy
+                    (trMessageText tr)
+                    walletTr
+                    socketFile
+                    np
+                    vData
+                    benchname
+                    (walletSeq benchname $ mkSeqAnyState' p networkProxy)
+                    True -- Write progress to .timelog file
+                    (unsafeMkPercentage 1)
+                    benchmarksSeq
+        let benchRestoreBaseline pipelinings = do
+                let benchname = "baseline"
+                bench_baseline_restoration
+                    pipelinings
+                    networkProxy
+                    (trMessageText tr)
+                    walletTr
+                    socketFile
+                    np
+                    vData
+                    benchname
+                    True
+                    (unsafeMkPercentage 1)
 
-    runBenchmarks [
-        benchRestoreBaseline tunedForMainnetPipeliningStrategy
-        -- -- We restore /to/ a percentage that is low enough to be fast,
-        -- -- but high enough to give an accurate enough indication of the
-        -- -- to-100% time.
-        , benchRestoreSeqWithOwnership (Proxy @0)
-            tunedForMainnetPipeliningStrategy
-        , benchRestoreSeqWithOwnership (Proxy @1)
-            tunedForMainnetPipeliningStrategy
-        , benchRestoreRndWithOwnership (Proxy @1)
-            tunedForMainnetPipeliningStrategy
-        ]
+        runBenchmarks [
+            benchRestoreBaseline tunedForMainnetPipeliningStrategy
+            -- -- We restore /to/ a percentage that is low enough to be fast,
+            -- -- but high enough to give an accurate enough indication of the
+            -- -- to-100% time.
+            , benchRestoreSeqWithOwnership (Proxy @0)
+                tunedForMainnetPipeliningStrategy
+            , benchRestoreSeqWithOwnership (Proxy @1)
+                tunedForMainnetPipeliningStrategy
+            , benchRestoreRndWithOwnership (Proxy @1)
+                tunedForMainnetPipeliningStrategy
+            ]
   where
     walletRnd
         :: Text

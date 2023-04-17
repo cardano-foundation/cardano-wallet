@@ -137,7 +137,9 @@ fromSNetworkId (STestnet p) = NTestnet $ fromSNat p
 -- | Run a function on a 'NetworkDiscriminant' singleton given a network id.
 withSNetworkId
     :: NetworkId
-    -> (forall (n :: NetworkDiscriminant). Typeable n => SNetworkId n -> a)
+    -> (forall (n :: NetworkDiscriminant)
+        . (Typeable n , HasSNetworkId n)
+        => SNetworkId n -> a)
     -> a
 withSNetworkId NMainnet f = f SMainnet
 withSNetworkId (NTestnet i) f = withSNat i $  f . STestnet

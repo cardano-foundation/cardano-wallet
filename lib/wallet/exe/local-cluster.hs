@@ -49,13 +49,9 @@ import Cardano.Wallet.Primitive.SyncProgress
 import Cardano.Wallet.Primitive.Types.Coin
     ( Coin (..) )
 import Cardano.Wallet.Read.NetworkId
-    ( NetworkDiscriminant (..), SNetworkId (..) )
+    ( NetworkId (..), SNetworkId (..) )
 import Cardano.Wallet.Shelley
-    ( SomeNetworkDiscriminant (..)
-    , serveWallet
-    , setupTracers
-    , tracerSeverities
-    )
+    ( serveWallet, setupTracers, tracerSeverities )
 import Cardano.Wallet.Shelley.BlockchainSource
     ( BlockchainSource (..) )
 import Cardano.Wallet.Shelley.Compatibility
@@ -66,8 +62,6 @@ import Control.Monad
     ( void, when )
 import Control.Tracer
     ( contramap, traceWith )
-import Data.Proxy
-    ( Proxy (..) )
 import Data.Text
     ( Text )
 import Data.Text.Class
@@ -253,7 +247,7 @@ main = withLocalClusterSetup $ \dir clusterLogs walletLogs ->
                 (NodeSource socketPath vData (SyncTolerance 10))
                 gp
                 tunedForMainnetPipeliningStrategy
-                (SomeNetworkDiscriminant $ Proxy @'Mainnet)
+                NMainnet
                 []
                 tracers
                 (Just db)

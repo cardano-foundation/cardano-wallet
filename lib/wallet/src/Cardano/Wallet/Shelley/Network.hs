@@ -22,12 +22,12 @@ import Cardano.Wallet.Network
     ( NetworkLayer )
 import Cardano.Wallet.Primitive.Types
     ( NetworkParameters )
+import Cardano.Wallet.Read.NetworkId
+    ( NetworkId )
 import Cardano.Wallet.Shelley.BlockchainSource
     ( BlockchainSource (..) )
 import Cardano.Wallet.Shelley.Compatibility
     ( CardanoBlock, StandardCrypto )
-import Cardano.Wallet.Shelley.Network.Discriminant
-    ( SomeNetworkDiscriminant )
 import Control.Monad.Trans.Cont
     ( ContT (ContT) )
 import Data.Functor.Contravariant
@@ -56,7 +56,7 @@ withNetworkLayer
     => Tracer IO NetworkLayerLog
     -> PipeliningStrategy (CardanoBlock StandardCrypto)
     -> BlockchainSource
-    -> SomeNetworkDiscriminant
+    -> NetworkId
     -> NetworkParameters
     -> ContT r IO (NetworkLayer IO (CardanoBlock StandardCrypto))
 withNetworkLayer tr pipeliningStrategy blockchainSrc _net netParams =
