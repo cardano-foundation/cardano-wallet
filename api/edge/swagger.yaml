@@ -4834,19 +4834,6 @@ x-errBalanceTxInternalError: &errBalanceTxInternalError
       type: string
       enum: ["balance_tx_internal_error"]
 
-x-errBalanceTxMaxSizeLimitExceeded: &errBalanceTxMaxSizeLimitExceeded
-  <<: *responsesErr
-  title: balance_tx_max_size_limit_exceeded
-  properties:
-    message:
-      type: string
-      description: |
-        I was not able to balance the transaction without exceeding
-        the maximum transaction size.
-    code:
-      type: string
-      enum: ["balance_tx_max_size_limit_exceeded"]
-
 x-errBalanceTxUnderestimatedFee: &errBalanceTxUnderestimatedFee
   <<: *responsesErr
   title: balance_tx_underestimated_fee
@@ -6189,7 +6176,6 @@ x-responsesBalanceTransaction: &responsesBalanceTransaction
             - <<: *errBalanceTxExistingReturnCollateral
             - <<: *errBalanceTxExistingTotalCollateral
             - <<: *errBalanceTxInternalError
-            - <<: *errBalanceTxMaxSizeLimitExceeded
             - <<: *errCannotCoverFee
             - <<: *errInsufficientCollateral
             - <<: *errInvalidWalletType
