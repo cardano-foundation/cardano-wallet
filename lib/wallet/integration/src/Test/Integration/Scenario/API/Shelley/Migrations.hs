@@ -29,12 +29,6 @@ import Cardano.Wallet.Api.Types
     , WalletStyle (..)
     , apiAddress
     )
-import Cardano.Wallet.Primitive.AddressDerivation
-    ( Depth (..), PaymentAddress )
-import Cardano.Wallet.Primitive.AddressDerivation.Byron
-    ( ByronKey )
-import Cardano.Wallet.Primitive.AddressDerivation.Icarus
-    ( IcarusKey )
 import Cardano.Wallet.Primitive.Types.Coin
     ( Coin (..) )
 import Cardano.Wallet.Primitive.Types.TokenBundle
@@ -117,10 +111,7 @@ import qualified Test.Hspec as Hspec
 
 spec
     :: forall n
-     . ( HasSNetworkId n
-       , PaymentAddress n IcarusKey 'CredFromKeyK
-       , PaymentAddress n ByronKey 'CredFromKeyK
-       )
+     . HasSNetworkId n
     => SpecWith Context
 spec = describe "SHELLEY_MIGRATIONS" $ do
 

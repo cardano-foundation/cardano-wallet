@@ -94,6 +94,8 @@ import Cardano.Wallet.Primitive.AddressDerivation
     , SoftDerivation (..)
     , ToRewardAccount (..)
     , WalletKey (..)
+    , liftDelegationAddressS
+    , liftPaymentAddressS
     , roleVal
     , toAddressParts
     , unsafePaymentKeyFingerprint
@@ -592,29 +594,29 @@ instance SupportsDiscovery n k => CompareDiscovery (SeqState n k) where
             Left _ -> Nothing
             Right addr -> AddressPool.lookup addr pool
 
-instance
-    ( PaymentAddress n k 'CredFromKeyK
-    ) => KnownAddresses (SeqState n k) where
+instance (PaymentAddress k 'CredFromKeyK, HasSNetworkId n)
+    => KnownAddresses (SeqState n k) where
     knownAddresses st =
         nonChangeAddresses <> usedChangeAddresses <> pendingChangeAddresses
       where
         -- | List addresses in order of increasing indices.
         listAddresses
-            :: forall c. (Typeable c)
+            :: forall c
+             . Typeable c
             => SeqAddressPool c k
             -> [(Address, AddressState, NonEmpty DerivationIndex)]
         listAddresses (SeqAddressPool pool) =
-            map shuffle . L.sortOn idx . Map.toList
-            $ AddressPool.addresses pool
+            map shuffle . L.sortOn idx . Map.toList $ AddressPool.addresses pool
           where
-            idx (_,(ix,_)) = ix
-            shuffle (k,(ix,s)) =
-                (liftPaymentAddress @n @k @'CredFromKeyK k, s, decoratePath st (roleVal @c) ix)
-
+            idx (_, (ix, _)) = ix
+            shuffle (k, (ix, s)) =
+                ( liftPaymentAddressS @n @k @'CredFromKeyK k
+                , s
+                , decoratePath st (roleVal @c) ix
+                )
         nonChangeAddresses = listAddresses $ externalPool st
         changeAddresses = listAddresses $ internalPool st
-        usedChangeAddresses = [ addr | addr@(_, Used, _) <- changeAddresses ]
-
+        usedChangeAddresses = [addr | addr@(_, Used, _) <- changeAddresses]
         -- pick as many unused change addresses as there are pending
         -- transactions. Note: the last `internalGap` addresses are all
         -- unused.
@@ -632,7 +634,7 @@ instance GetAccount (SeqState n k) k where
 -- efficient query @addr -> m txs@.
 -- Does /not/ take 'RewardAccount' into account.
 discoverSeq
-    :: forall n k m. (PaymentAddress n k 'CredFromKeyK, Monad m)
+    :: forall n k m. (PaymentAddress k 'CredFromKeyK, Monad m, HasSNetworkId n)
     => (Either Address RewardAccount -> m ChainEvents)
     -> SeqState n k -> m (ChainEvents, SeqState n k)
 discoverSeq query state = do
@@ -650,7 +652,7 @@ discoverSeq query state = do
     pure (discoveredEvents, state')
   where
     -- Only enterprise address (for legacy Icarus keys)
-    fromPayment = liftPaymentAddress @n @k @'CredFromKeyK
+    fromPayment = liftPaymentAddressS @n @k @'CredFromKeyK
     discover :: SeqAddressPool r k -> m (ChainEvents, SeqAddressPool r k)
     discover = fmap (second SeqAddressPool)
         . AddressPool.discover (query . Left . fromPayment) . getPool
@@ -659,9 +661,15 @@ discoverSeq query state = do
 -- efficient query @addr -> m txs@.
 -- Does take 'RewardAccount' into account.
 discoverSeqWithRewards
-    :: forall n k m. (DelegationAddress n k 'CredFromKeyK, ToRewardAccount k, Monad m)
+    :: forall n k m
+     . ( DelegationAddress k 'CredFromKeyK
+       , ToRewardAccount k
+       , Monad m
+       , HasSNetworkId n
+       )
     => (Either Address RewardAccount -> m ChainEvents)
-    -> SeqState n k -> m (ChainEvents, SeqState n k)
+    -> SeqState n k
+    -> m (ChainEvents, SeqState n k)
 discoverSeqWithRewards query state = do
     eventsReward <- query . Right $ toRewardAccount (rewardAccountKey state)
     (eventsInternal, internalPool') <- discover (internalPool state)
@@ -684,7 +692,7 @@ discoverSeqWithRewards query state = do
     -- Unfortunately, this is not possible at the moment.
     -- However, fortunately, the staking part is always the same,
     -- so we supply it here in order to obtain an 'Address' that we can query.
-    fromPayment hash = liftDelegationAddress @n hash (rewardAccountKey state)
+    fromPayment hash = liftDelegationAddressS @n hash (rewardAccountKey state)
 
     discover :: SeqAddressPool r k -> m (ChainEvents, SeqAddressPool r k)
     discover = fmap (second SeqAddressPool)
@@ -787,7 +795,8 @@ instance
 instance SupportsDiscovery n k => CompareDiscovery (SeqAnyState n k p) where
     compareDiscovery (SeqAnyState s) = compareDiscovery s
 
-instance PaymentAddress n k 'CredFromKeyK => KnownAddresses (SeqAnyState n k p) where
+instance (PaymentAddress k 'CredFromKeyK, HasSNetworkId n)
+    => KnownAddresses (SeqAnyState n k p) where
     knownAddresses (SeqAnyState s) = knownAddresses s
 
 instance MaybeLight (SeqAnyState n k p) where

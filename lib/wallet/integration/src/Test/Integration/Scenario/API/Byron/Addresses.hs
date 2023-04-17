@@ -25,12 +25,6 @@ import Cardano.Wallet.Api.Types
     , ApiT (..)
     , WalletStyle (..)
     )
-import Cardano.Wallet.Primitive.AddressDerivation
-    ( Depth (..), PaymentAddress )
-import Cardano.Wallet.Primitive.AddressDerivation.Byron
-    ( ByronKey )
-import Cardano.Wallet.Primitive.AddressDerivation.Icarus
-    ( IcarusKey )
 import Cardano.Wallet.Primitive.AddressDiscovery.Sequential
     ( purposeBIP44 )
 import Cardano.Wallet.Primitive.Types.Address
@@ -90,10 +84,7 @@ import qualified Network.HTTP.Types.Status as HTTP
 
 spec
     :: forall n
-     . ( HasSNetworkId n
-       , PaymentAddress n ByronKey 'CredFromKeyK
-       , PaymentAddress n IcarusKey 'CredFromKeyK
-       )
+     . HasSNetworkId n
     => SpecWith Context
 spec = do
     describe "BYRON_ADDRESSES" $ do
@@ -277,10 +268,8 @@ scenario_ADDRESS_CREATE_06 = it title $ \ctx -> runResourceT $ do
     title = "ADDRESS_CREATE_06 - Cannot create an address that already exists"
 
 scenario_ADDRESS_IMPORT_01
-    :: forall (n :: NetworkDiscriminant).
-        ( HasSNetworkId n
-        , PaymentAddress n ByronKey 'CredFromKeyK
-        )
+    :: forall (n :: NetworkDiscriminant)
+     . HasSNetworkId n
     => (Context -> ResourceT IO (ApiByronWallet, Mnemonic 12))
     -> SpecWith Context
 scenario_ADDRESS_IMPORT_01 fixture = it title $ \ctx -> runResourceT $ do
@@ -305,10 +294,8 @@ scenario_ADDRESS_IMPORT_01 fixture = it title $ \ctx -> runResourceT $ do
     title = "ADDRESS_IMPORT_01 - I can import an address from my wallet"
 
 scenario_ADDRESS_IMPORT_02
-    :: forall (n :: NetworkDiscriminant).
-        ( HasSNetworkId n
-        , PaymentAddress n IcarusKey 'CredFromKeyK
-        )
+    :: forall (n :: NetworkDiscriminant)
+     . HasSNetworkId n
     => (Context -> ResourceT IO (ApiByronWallet, Mnemonic 15))
     -> SpecWith Context
 scenario_ADDRESS_IMPORT_02 fixture = it title $ \ctx -> runResourceT $ do
@@ -326,10 +313,8 @@ scenario_ADDRESS_IMPORT_02 fixture = it title $ \ctx -> runResourceT $ do
     title = "ADDRESS_IMPORT_02 - I can't import an address on an Icarus wallet"
 
 scenario_ADDRESS_IMPORT_03
-    :: forall (n :: NetworkDiscriminant).
-        ( HasSNetworkId n
-        , PaymentAddress n ByronKey 'CredFromKeyK
-        )
+    :: forall (n :: NetworkDiscriminant)
+     . HasSNetworkId n
     => (Context -> ResourceT IO (ApiByronWallet, Mnemonic 12))
     -> SpecWith Context
 scenario_ADDRESS_IMPORT_03 fixture = it title $ \ctx -> runResourceT $ do
@@ -376,10 +361,8 @@ scenario_ADDRESS_IMPORT_04 fixture = it title $ \ctx -> runResourceT $ do
     title = "ADDRESS_IMPORT_04 - I can import a used address (idempotence)"
 
 scenario_ADDRESS_IMPORT_05
-    :: forall (n :: NetworkDiscriminant).
-        ( HasSNetworkId n
-        , PaymentAddress n ByronKey 'CredFromKeyK
-        )
+    :: forall (n :: NetworkDiscriminant)
+     . HasSNetworkId n
     => Int
     -> (Context -> ResourceT IO (ApiByronWallet, Mnemonic 12))
     -> SpecWith Context
@@ -409,10 +392,8 @@ scenario_ADDRESS_IMPORT_05 addrNum fixture = it title $ \ctx -> runResourceT $ d
     title = "ADDRESS_IMPORT_05 - I can import " <> show addrNum <>" of addresses"
 
 scenario_ADDRESS_IMPORT_06
-    :: forall (n :: NetworkDiscriminant).
-        ( HasSNetworkId n
-        , PaymentAddress n ByronKey 'CredFromKeyK
-        )
+    :: forall (n :: NetworkDiscriminant)
+     . HasSNetworkId n
     => (Context -> ResourceT IO (ApiByronWallet, Mnemonic 12))
     -> SpecWith Context
 scenario_ADDRESS_IMPORT_06 fixture = it title $ \ctx -> runResourceT $ do

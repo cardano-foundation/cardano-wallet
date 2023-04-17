@@ -86,13 +86,7 @@ import Cardano.Wallet.Network
     , NetworkLayer (..)
     )
 import Cardano.Wallet.Primitive.AddressDerivation
-    ( Depth (..)
-    , PaymentAddress
-    , PersistPrivateKey
-    , WalletKey
-    , digest
-    , publicKey
-    )
+    ( Depth (..), PersistPrivateKey, WalletKey, digest, publicKey )
 import Cardano.Wallet.Primitive.AddressDerivation.Byron
     ( ByronKey )
 import Cardano.Wallet.Primitive.AddressDerivation.Shelley
@@ -450,7 +444,6 @@ benchmarksRnd
     :: forall (n :: NetworkDiscriminant) s k p.
         ( s ~ RndAnyState n p
         , k ~ ByronKey
-        , PaymentAddress n k 'CredFromKeyK
         , HasSNetworkId n
         , KnownNat p
         )
@@ -564,7 +557,6 @@ benchmarksSeq
         ( s ~ SeqAnyState n k p
         , k ~ ShelleyKey
         , HasSNetworkId n
-        , PaymentAddress n k 'CredFromKeyK
         , KnownNat p
         )
     => Proxy n

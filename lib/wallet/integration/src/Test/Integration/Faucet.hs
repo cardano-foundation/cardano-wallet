@@ -84,7 +84,7 @@ import Cardano.Wallet.Primitive.Types.TokenPolicy
 import Cardano.Wallet.Primitive.Types.TokenQuantity
     ( TokenQuantity (..) )
 import Cardano.Wallet.Read.NetworkId
-    ( NetworkDiscriminant (..) )
+    ( SNetworkId (..) )
 import Cardano.Wallet.Unsafe
     ( unsafeFromText, unsafeMkMnemonic )
 import Control.Monad
@@ -2241,7 +2241,7 @@ byronAddresses mw =
         addrXPrv =
             Byron.deriveAddressPrivateKey pwd accXPrv
     in
-        [ paymentAddress @'Mainnet
+        [ paymentAddress SMainnet
             $ publicKey $ addrXPrv $ liftIndex @'Hardened ix
         | ix <- [minBound..maxBound]
         ]
@@ -2258,7 +2258,7 @@ icaAddresses mw =
         addrXPrv =
             deriveAddressPrivateKey pwd accXPrv UtxoExternal
     in
-        [ paymentAddress @'Mainnet $ publicKey $ addrXPrv ix
+        [ paymentAddress SMainnet $ publicKey $ addrXPrv ix
         | ix <- [minBound..maxBound]
         ]
 
@@ -2290,7 +2290,7 @@ genShelleyAddresses mw =
         addrXPrv =
             deriveAddressPrivateKey pwd accXPrv UtxoExternal
     in
-        [ paymentAddress @'Mainnet $ publicKey $ addrXPrv ix
+        [ paymentAddress SMainnet $ publicKey $ addrXPrv ix
         | ix <- [minBound..maxBound]
         ]
 

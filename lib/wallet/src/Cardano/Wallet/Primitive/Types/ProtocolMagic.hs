@@ -1,5 +1,6 @@
 {-# LANGUAGE AllowAmbiguousTypes #-}
 {-# LANGUAGE DeriveGeneric #-}
+{-# LANGUAGE GADTs #-}
 {-# LANGUAGE GeneralizedNewtypeDeriving #-}
 {-# LANGUAGE RankNTypes #-}
 {-# LANGUAGE ScopedTypeVariables #-}
@@ -15,10 +16,13 @@ module Cardano.Wallet.Primitive.Types.ProtocolMagic
     ( ProtocolMagic (..)
     , mainnetMagic
     , testnetMagic
+    , magicSNetworkId
     ) where
 
 import Prelude
 
+import Cardano.Wallet.Read.NetworkId
+    ( SNetworkId (..), fromSNat )
 import Control.DeepSeq
     ( NFData (..) )
 import Data.Aeson
@@ -56,3 +60,7 @@ mainnetMagic =  ProtocolMagic 764824073
 -- | Derive testnet magic from a type-level Nat
 testnetMagic :: forall pm. KnownNat pm => ProtocolMagic
 testnetMagic = ProtocolMagic $ fromIntegral $ natVal $ Proxy @pm
+
+magicSNetworkId :: SNetworkId n -> ProtocolMagic
+magicSNetworkId SMainnet = ProtocolMagic  764824073
+magicSNetworkId (STestnet pm) = ProtocolMagic $ fromIntegral $ fromSNat pm

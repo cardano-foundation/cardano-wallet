@@ -172,7 +172,7 @@ import Cardano.Wallet.Api.Types.SchemaMetadata
 import Cardano.Wallet.Pools
     ( StakePoolLayer (..) )
 import Cardano.Wallet.Primitive.AddressDerivation
-    ( DelegationAddress (..), Depth (..), PaymentAddress (..), Role (..) )
+    ( Depth (..), Role (..), delegationAddressS, paymentAddressS )
 import Cardano.Wallet.Primitive.AddressDerivation.Byron
     ( ByronKey )
 import Cardano.Wallet.Primitive.AddressDerivation.Icarus
@@ -234,14 +234,9 @@ import qualified Cardano.Wallet.Primitive.AddressDerivation.Shared as Shared
 import qualified Cardano.Wallet.Primitive.AddressDerivation.Shelley as Shelley
 import qualified Data.Text as T
 
-
 server
-    :: forall n.
-        ( PaymentAddress n IcarusKey 'CredFromKeyK
-        , PaymentAddress n ByronKey 'CredFromKeyK
-        , DelegationAddress n ShelleyKey 'CredFromKeyK
-        , HasSNetworkId n
-        )
+    :: forall n
+     . HasSNetworkId n
     => ApiLayer (RndState n) ByronKey 'CredFromKeyK
     -> ApiLayer (SeqState n IcarusKey) IcarusKey 'CredFromKeyK
     -> ApiLayer (SeqState n ShelleyKey) ShelleyKey 'CredFromKeyK
@@ -319,7 +314,7 @@ server byron icarus shelley multisig spl ntp blockchainSource =
     coinSelections :: Server (CoinSelections n)
     coinSelections = (\wid -> \case
         ApiSelectForPayment ascp ->
-            selectCoins shelley (delegationAddress @n) wid ascp
+            selectCoins shelley (delegationAddressS @n) wid ascp
         ApiSelectForDelegation (ApiSelectCoinsAction action) ->
             case action of
                 Join pid ->
@@ -336,7 +331,7 @@ server byron icarus shelley multisig spl ntp blockchainSource =
     shelleyTransactions :: Server (ShelleyTransactions n)
     shelleyTransactions =
              constructTransaction shelley
-                (delegationAddress @n)
+                (delegationAddressS @n)
                 (knownPools spl)
                 (getPoolLifeCycleStatus spl)
         :<|> signTransaction @_ @_ @_ @'CredFromKeyK shelley
@@ -351,9 +346,9 @@ server byron icarus shelley multisig spl ntp blockchainSource =
                     (parseSimpleMetadataFlag simpleMetadataFlag)
             )
         :<|> deleteTransaction shelley
-        :<|> postTransactionOld shelley (delegationAddress @n)
+        :<|> postTransactionOld shelley (delegationAddressS @n)
         :<|> postTransactionFeeOld shelley
-        :<|> balanceTransaction shelley (delegationAddress @n) Nothing Nothing
+        :<|> balanceTransaction shelley (delegationAddressS @n) Nothing Nothing
         :<|> decodeTransaction shelley
         :<|> submitTransaction @_ @_ @_ @n shelley
 
@@ -366,8 +361,8 @@ server byron icarus shelley multisig spl ntp blockchainSource =
     stakePools =
              listStakePools_
         :<|> joinStakePool shelley
-            (delegationAddress @n) (knownPools spl) (getPoolLifeCycleStatus spl)
-        :<|> quitStakePool shelley (delegationAddress @n)
+            (delegationAddressS @n) (knownPools spl) (getPoolLifeCycleStatus spl)
+        :<|> quitStakePool shelley (delegationAddressS @n)
         :<|> (postPoolMaintenance :<|> getPoolMaintenance)
         :<|> delegationFee shelley
         :<|> listStakeKeys rewardAccountFromAddress shelley
@@ -476,7 +471,7 @@ server byron icarus shelley multisig spl ntp blockchainSource =
       where
         handleRandom = liftHandler $ throwE ErrNotASequentialWallet
         handleSequential = selectCoins icarus genChangeSequential wid x
-        genChangeSequential paymentK _ = paymentAddress @n paymentK
+        genChangeSequential paymentK _ = paymentAddressS @n paymentK
     byronCoinSelections _ _ = Handler
         $ throwE
         $ apiError err400 InvalidWalletType
@@ -515,7 +510,7 @@ server byron icarus shelley multisig spl ntp blockchainSource =
 
                  )
                  (icarus, do
-                    let genChange k _ = paymentAddress @n k
+                    let genChange k _ = paymentAddressS @n k
                     postTransactionOld icarus genChange wid tx
                  )
              )

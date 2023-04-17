@@ -314,6 +314,7 @@ import Cardano.Wallet.Primitive.AddressDerivation
     , WalletKey (..)
     , deriveRewardAccount
     , hashVerificationKey
+    , liftDelegationAddressS
     , liftIndex
     , stakeDerivationPath
     )
@@ -458,7 +459,7 @@ import Cardano.Wallet.Primitive.Types.UTxOSelection
 import Cardano.Wallet.Primitive.Types.UTxOStatistics
     ( UTxOStatistics )
 import Cardano.Wallet.Read.NetworkId
-    ( HasSNetworkId, NetworkDiscriminant )
+    ( HasSNetworkId (..), NetworkDiscriminant )
 import Cardano.Wallet.Read.Tx.CBOR
     ( TxCBOR )
 import Cardano.Wallet.Shelley.Compatibility
@@ -808,7 +809,7 @@ createIcarusWallet
     :: forall ctx s k n.
         ( HasGenesisData ctx
         , HasDBLayer IO s k ctx
-        , PaymentAddress n k 'CredFromKeyK
+        , PaymentAddress k 'CredFromKeyK
         , k ~ IcarusKey
         , s ~ SeqState n k
         , HasSNetworkId n
@@ -1489,12 +1490,13 @@ listAddresses ctx wid normalize = db & \DBLayer{..} -> do
     db = ctx ^. dbLayer @IO @s @k
 
 createRandomAddress
-    :: forall ctx s k n.
+    :: forall ctx s k n .
         ( HasDBLayer IO s k ctx
-        , PaymentAddress n k 'CredFromKeyK
+        , PaymentAddress k 'CredFromKeyK
         , RndStateLike s
         , k ~ ByronKey
         , AddressBookIso s
+        , HasSNetworkId n
         )
     => ctx
     -> WalletId
@@ -1561,15 +1563,18 @@ importRandomAddresses ctx wid addrs = db & \DBLayer{..} ->
 -- to make sure that we compare them correctly.
 normalizeDelegationAddress
     :: forall s k n.
-        ( DelegationAddress n k 'CredFromKeyK
+        ( DelegationAddress k 'CredFromKeyK
         , s ~ SeqState n k
+        , HasSNetworkId n
         )
     => s
     -> Address
     -> Maybe Address
 normalizeDelegationAddress s addr = do
     fingerprint <- eitherToMaybe (paymentKeyFingerprint addr)
-    pure $ liftDelegationAddress @n fingerprint $ Seq.rewardAccountKey s
+    pure
+        $ liftDelegationAddressS @n fingerprint
+        $ Seq.rewardAccountKey s
 
 assignChangeAddressesAndUpdateDb
     :: forall ctx s k.

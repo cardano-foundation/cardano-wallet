@@ -234,7 +234,7 @@ import Cardano.Wallet.Primitive.Types.UTxO
 import Cardano.Wallet.Primitive.Types.UTxO.Gen
     ( shrinkUTxO )
 import Cardano.Wallet.Read.NetworkId
-    ( NetworkDiscriminant (..) )
+    ( NetworkDiscriminant (..), NetworkId (..), SNetworkId (..), toSNetworkId )
 import Cardano.Wallet.Read.Primitive.Tx.Features.Integrity
     ( txIntegrity )
 import Cardano.Wallet.Read.Tx.Cardano
@@ -802,7 +802,7 @@ instance Arbitrary a => Arbitrary (NonEmpty a) where
 keyToAddress :: (XPrv, Passphrase "encryption") -> Address
 keyToAddress (xprv, _pwd) =
     -- TODO, decrypt?
-    paymentAddress @'Mainnet @ShelleyKey @'CredFromKeyK .
+    paymentAddress @ShelleyKey @'CredFromKeyK SMainnet.
     publicKey .
     liftRawKey @ShelleyKey $ xprv
 
@@ -2518,7 +2518,7 @@ dummyByronChangeAddressGen = AnyChangeAddressGenWithState
 dummyShelleyChangeAddressGen :: AnyChangeAddressGenWithState
 dummyShelleyChangeAddressGen = AnyChangeAddressGenWithState
     (defaultChangeAddressGen @(SeqState 'Mainnet ShelleyKey )
-        (delegationAddress @'Mainnet @ShelleyKey)
+        (delegationAddress @ShelleyKey SMainnet)
         (Proxy @ShelleyKey))
     (mkSeqStateFromRootXPrv
         (rootK, pwd)
@@ -3741,7 +3741,7 @@ dummyChangeAddrGen = ChangeAddressGen
                 'Cardano.Wallet.Primitive.AddressDerivation.Soft
                 'CredFromKeyK
             -> Address
-        addressAtIx ix = paymentAddress @'Mainnet @ShelleyKey @'CredFromKeyK
+        addressAtIx ix = paymentAddress @ShelleyKey @'CredFromKeyK SMainnet
             $ publicKey
             $ Shelley.ShelleyKey
             $ Shelley.deriveAddressPrivateKeyShelley
@@ -4401,13 +4401,14 @@ prop_bootstrapWitnesses
             addrK = addrKeyAtIx $ toEnum $ fromEnum ix
             addr = case net of
                 Cardano.Mainnet ->
-                    paymentAddress @'Mainnet $ publicKey addrK
+                    paymentAddress SMainnet $ publicKey addrK
                 Cardano.Testnet _magic ->
                     -- The choice of network magic here is not important. The
                     -- size of the witness will not be affected by it. What may
                     -- affect the size, is the 'Cardano.NetworkId' we pass to
                     -- 'mkByronWitness' above.
-                    paymentAddress @('Testnet 0) $ publicKey addrK
+                    toSNetworkId (NTestnet 0) $ \testnet ->
+                        paymentAddress testnet $ publicKey addrK
         in
             case era of
                 RecentEraConway ->

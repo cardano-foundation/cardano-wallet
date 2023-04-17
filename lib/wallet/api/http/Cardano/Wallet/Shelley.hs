@@ -53,12 +53,7 @@ import Cardano.Wallet.Network
 import Cardano.Wallet.Pools
     ( StakePoolLayer (..), withNodeStakePoolLayer, withStakePoolDbLayer )
 import Cardano.Wallet.Primitive.AddressDerivation
-    ( DelegationAddress (..)
-    , Depth (..)
-    , PaymentAddress
-    , PersistPrivateKey
-    , WalletKey
-    )
+    ( Depth (..), PersistPrivateKey, WalletKey )
 import Cardano.Wallet.Primitive.AddressDerivation.Byron
     ( ByronKey )
 import Cardano.Wallet.Primitive.AddressDerivation.Icarus
@@ -297,10 +292,7 @@ serveWallet
 
     startServer
         :: forall n.
-            ( PaymentAddress n IcarusKey 'CredFromKeyK
-            , PaymentAddress n ByronKey 'CredFromKeyK
-            , DelegationAddress n ShelleyKey 'CredFromKeyK
-            , HasSNetworkId n
+            ( HasSNetworkId n
             , Typeable n
             )
         => Proxy n

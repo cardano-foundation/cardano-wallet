@@ -53,7 +53,7 @@ import Cardano.Wallet.Primitive.Types.Tx.TxIn
 import Cardano.Wallet.Primitive.Types.Tx.TxOut
     ( TxOut (..) )
 import Cardano.Wallet.Read.NetworkId
-    ( NetworkDiscriminant (..) )
+    ( SNetworkId (..) )
 import Control.Arrow
     ( first )
 import Crypto.Hash.Utils
@@ -312,9 +312,9 @@ instance SoftDerivation StakeKey' where
 instance MkKeyFingerprint StakeKey' Address where
     paymentKeyFingerprint (Address addr) = Right $ KeyFingerprint $ B8.drop 4 addr
 
-instance PaymentAddress 'Mainnet StakeKey' 'CredFromKeyK where
-    liftPaymentAddress (KeyFingerprint fp) = Address fp
-    paymentAddress k = Address $ "addr" <> unRewardAccount (toRewardAccount k)
+instance PaymentAddress StakeKey' 'CredFromKeyK where
+    liftPaymentAddress _ (KeyFingerprint fp) = Address fp
+    paymentAddress _ k = Address $ "addr" <> unRewardAccount (toRewardAccount k)
 
 instance MkKeyFingerprint StakeKey' (StakeKey' 'CredFromKeyK XPub) where
     paymentKeyFingerprint k =
@@ -470,8 +470,8 @@ stepCmd CmdOldWalletToggleFirstKey env =
             in tryApplyTx tx env
 stepCmd (CmdMimicPointerOutput (RewardAccount acc)) env =
             let
-                addr = liftPaymentAddress @'Mainnet @StakeKey' @'CredFromKeyK $
-                    KeyFingerprint acc
+                addr = liftPaymentAddress @StakeKey' @'CredFromKeyK SMainnet
+                    $ KeyFingerprint acc
                 c = Coin 1
                 out = TxOut addr (TB.fromCoin c)
                 tx = Tx [] [] [out]

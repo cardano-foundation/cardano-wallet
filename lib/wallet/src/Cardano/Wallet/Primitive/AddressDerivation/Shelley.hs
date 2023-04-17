@@ -97,8 +97,10 @@ import Cardano.Wallet.Primitive.Passphrase
 import Cardano.Wallet.Primitive.Types.Address
     ( Address (..) )
 import Cardano.Wallet.Read.NetworkId
-    ( NetworkDiscriminant (..)
+    ( HasSNetworkId
+    , NetworkDiscriminant (..)
     , NetworkDiscriminantCheck (..)
+    , SNetworkId (..)
     , networkDiscriminantBits
     )
 import Control.DeepSeq
@@ -287,33 +289,29 @@ instance WalletKey ShelleyKey where
 instance GetPurpose ShelleyKey where
     getPurpose = purposeCIP1852
 
-instance PaymentAddress 'Mainnet ShelleyKey 'CredFromKeyK where
-    paymentAddress paymentK = do
+instance PaymentAddress ShelleyKey 'CredFromKeyK where
+    paymentAddress SMainnet paymentK = do
         Address $ BL.toStrict $ runPut $ do
             putWord8 (enterprise + networkId)
             putByteString . blake2b224 . xpubPublicKey . getKey $ paymentK
       where
         enterprise = 96
         networkId = 1
-
-    liftPaymentAddress (KeyFingerprint fingerprint) =
-        Address $ BL.toStrict $ runPut $ do
-            putWord8 (enterprise + networkId)
-            putByteString fingerprint
-      where
-        enterprise = 96
-        networkId = 1
-
-instance PaymentAddress ('Testnet pm) ShelleyKey 'CredFromKeyK where
-    paymentAddress paymentK =
+    paymentAddress _ paymentK =
         Address $ BL.toStrict $ runPut $ do
             putWord8 (enterprise + networkId)
             putByteString . blake2b224 . xpubPublicKey . getKey $ paymentK
       where
         enterprise = 96
         networkId = 0
-
-    liftPaymentAddress (KeyFingerprint fingerprint) =
+    liftPaymentAddress SMainnet (KeyFingerprint fingerprint) =
+        Address $ BL.toStrict $ runPut $ do
+            putWord8 (enterprise + networkId)
+            putByteString fingerprint
+      where
+        enterprise = 96
+        networkId = 1
+    liftPaymentAddress _ (KeyFingerprint fingerprint) =
         Address $ BL.toStrict $ runPut $ do
             putWord8 (enterprise + networkId)
             putByteString fingerprint
@@ -321,8 +319,8 @@ instance PaymentAddress ('Testnet pm) ShelleyKey 'CredFromKeyK where
         enterprise = 96
         networkId = 0
 
-instance DelegationAddress 'Mainnet ShelleyKey 'CredFromKeyK where
-    delegationAddress paymentK stakingK =
+instance DelegationAddress ShelleyKey 'CredFromKeyK where
+    delegationAddress SMainnet paymentK stakingK =
         Address $ BL.toStrict $ runPut $ do
             putWord8 (base + networkId)
             putByteString . blake2b224 . xpubPublicKey . getKey $ paymentK
@@ -330,8 +328,16 @@ instance DelegationAddress 'Mainnet ShelleyKey 'CredFromKeyK where
       where
         base = 0
         networkId = 1
+    delegationAddress _ paymentK stakingK =
+        Address $ BL.toStrict $ runPut $ do
+            putWord8 (base + networkId)
+            putByteString . blake2b224 . xpubPublicKey . getKey $ paymentK
+            putByteString . blake2b224 . xpubPublicKey . getKey $ stakingK
+      where
+        base = 0
+        networkId = 0
 
-    liftDelegationAddress (KeyFingerprint fingerprint) stakingK =
+    liftDelegationAddress SMainnet (KeyFingerprint fingerprint) stakingK =
         Address $ BL.toStrict $ runPut $ do
             putWord8 (base + networkId)
             putByteString fingerprint
@@ -339,18 +345,7 @@ instance DelegationAddress 'Mainnet ShelleyKey 'CredFromKeyK where
       where
         base = 0
         networkId = 1
-
-instance DelegationAddress ('Testnet pm) ShelleyKey 'CredFromKeyK where
-    delegationAddress paymentK stakingK =
-        Address $ BL.toStrict $ runPut $ do
-            putWord8 (base + networkId)
-            putByteString . blake2b224 . xpubPublicKey . getKey $ paymentK
-            putByteString . blake2b224 . xpubPublicKey . getKey $ stakingK
-      where
-        base = 0
-        networkId = 0
-
-    liftDelegationAddress (KeyFingerprint fingerprint) stakingK =
+    liftDelegationAddress _ (KeyFingerprint fingerprint) stakingK =
         Address $ BL.toStrict $ runPut $ do
             putWord8 (base + networkId)
             putByteString fingerprint
@@ -423,8 +418,7 @@ instance ToRewardAccount ShelleyKey where
 toRewardAccountRaw :: XPub -> RewardAccount
 toRewardAccountRaw = RewardAccount . blake2b224 . xpubPublicKey
 
-instance DelegationAddress n ShelleyKey 'CredFromKeyK
-    => MaybeLight (SeqState n ShelleyKey)
+instance HasSNetworkId n => MaybeLight (SeqState n ShelleyKey)
   where
     maybeDiscover = Just $ DiscoverTxs discoverSeqWithRewards
 

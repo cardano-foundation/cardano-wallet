@@ -22,14 +22,6 @@ import Prelude
 
 import Cardano.Api.Shelley
     ( NetworkId )
-import Cardano.Wallet.Primitive.AddressDerivation
-    ( DelegationAddress, Depth (..), PaymentAddress )
-import Cardano.Wallet.Primitive.AddressDerivation.Byron
-    ( ByronKey )
-import Cardano.Wallet.Primitive.AddressDerivation.Icarus
-    ( IcarusKey )
-import Cardano.Wallet.Primitive.AddressDerivation.Shelley
-    ( ShelleyKey )
 import Cardano.Wallet.Read.NetworkId
     ( HasSNetworkId (sNetworkId)
     , NetworkDiscriminant (..)
@@ -50,14 +42,8 @@ import qualified Cardano.Ledger.BaseTypes as Ledger
 -- satisfy.
 data SomeNetworkDiscriminant where
     SomeNetworkDiscriminant
-        :: forall (n :: NetworkDiscriminant).
-            ( PaymentAddress n IcarusKey 'CredFromKeyK
-            , PaymentAddress n ByronKey 'CredFromKeyK
-            , PaymentAddress n ShelleyKey 'CredFromKeyK
-            , DelegationAddress n ShelleyKey 'CredFromKeyK
-            , HasSNetworkId n
-            , Typeable n
-            )
+        :: forall (n :: NetworkDiscriminant)
+         . (HasSNetworkId n, Typeable n)
         => Proxy n
         -> SomeNetworkDiscriminant
 

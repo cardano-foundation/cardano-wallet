@@ -75,12 +75,7 @@ import Cardano.Wallet.Primitive.Types.Tx.Constraints
 import Cardano.Wallet.Primitive.Types.Tx.TxOut.Gen
     ( genTxOutTokenBundle )
 import Cardano.Wallet.Read.NetworkId
-    ( NetworkDiscriminant (..)
-    , NetworkId (..)
-    , SNetworkId (..)
-    , toSNat
-    , toSNetworkId
-    )
+    ( NetworkId (..), SNetworkId (..), toSNat, toSNetworkId )
 import Cardano.Wallet.Shelley.Compatibility
     ( CardanoBlock
     , StandardCrypto
@@ -205,28 +200,37 @@ spec = do
 
     describe "Shelley Addresses" $ do
         prop "(Mainnet) can be deserialised by shelley ledger spec" $ \k -> do
-            let Address addr = paymentAddress @'Mainnet @ShelleyKey @'CredFromKeyK k
+            let Address addr
+                    = paymentAddress @ShelleyKey @'CredFromKeyK SMainnet k
             case SL.deserialiseAddr @StandardCrypto addr of
                 Just _ -> property True
                 Nothing -> property False
 
         prop "Shelley addresses from bech32" $ \k ->
-            let addr@(Address bytes) = paymentAddress @'Mainnet @ShelleyKey @'CredFromKeyK k
+            let addr@(Address bytes)
+                    = paymentAddress @ShelleyKey @'CredFromKeyK SMainnet k
             in  decodeAddress SMainnet (bech32 bytes) === Right addr
                     & counterexample (show $ bech32 bytes)
 
         prop "Shelley addresses with delegation from bech32" $ \k1 k2 ->
-            let addr@(Address bytes) = delegationAddress @'Mainnet @ShelleyKey @'CredFromKeyK k1 k2
+            let addr@(Address bytes)
+                    = delegationAddress
+                        @ShelleyKey @'CredFromKeyK SMainnet k1 k2
             in  decodeAddress SMainnet (bech32 bytes) === Right addr
                     & counterexample (show $ bech32 bytes)
 
-        prop "Shelley addresses from bech32 - testnet" $ \k ->
-            let addr@(Address raw) = paymentAddress @('Testnet 0) @ShelleyKey @'CredFromKeyK k
-            in  toSNetworkId (NTestnet 0) $ \n -> decodeAddress n (bech32testnet raw) === Right addr
-                   & counterexample (show $ bech32testnet raw)
+        prop "Shelley addresses from bech32 - testnet"
+            $ \k -> toSNetworkId (NTestnet 0)
+                $ \n ->
+                    let addr@(Address raw) =
+                            paymentAddress @ShelleyKey @'CredFromKeyK n k
+                    in  decodeAddress n (bech32testnet raw)
+                            === Right addr
+                            & counterexample (show $ bech32testnet raw)
 
         prop "Byron addresses from base58" $ \k ->
-            let addr@(Address bytes) = paymentAddress @'Mainnet @ByronKey @'CredFromKeyK k
+            let addr@(Address bytes)
+                    = paymentAddress @ByronKey @'CredFromKeyK SMainnet k
             in  decodeAddress SMainnet (base58 bytes) === Right addr
                     & counterexample (show $ base58 bytes)
 

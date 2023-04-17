@@ -44,7 +44,7 @@ import Cardano.Wallet.Primitive.Passphrase.Types
 import Cardano.Wallet.Primitive.Types.Address
     ( Address )
 import Cardano.Wallet.Read.NetworkId
-    ( NetworkDiscriminant (..) )
+    ( SNetworkId (..) )
 import Test.Hspec
     ( Spec, describe, it )
 import Test.QuickCheck
@@ -123,7 +123,8 @@ prop_roundtripFingerprintLift
 prop_roundtripFingerprintLift addr =
     let
         fingerprint = paymentKeyFingerprint @IcarusKey addr
-        eAddr = liftPaymentAddress @'Mainnet @IcarusKey @'CredFromKeyK <$> fingerprint
+        eAddr = liftPaymentAddress @IcarusKey @'CredFromKeyK SMainnet
+            <$> fingerprint
     in
         eAddr === Right addr
 

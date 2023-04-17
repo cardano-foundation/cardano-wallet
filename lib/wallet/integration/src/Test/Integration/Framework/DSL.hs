@@ -303,19 +303,15 @@ import Cardano.Wallet.Primitive.AddressDerivation
     , DerivationType (..)
     , HardDerivation (..)
     , Index (..)
-    , PaymentAddress (..)
+    
     , PersistPublicKey (..)
     , Role (..)
     , WalletKey (..)
     , fromHex
-    , hex
+    , hex, paymentAddressS
     )
 import Cardano.Wallet.Primitive.AddressDerivation.Byron
     ( ByronKey (..) )
-import Cardano.Wallet.Primitive.AddressDerivation.Icarus
-    ( IcarusKey )
-import Cardano.Wallet.Primitive.AddressDerivation.Shelley
-    ( ShelleyKey )
 import Cardano.Wallet.Primitive.AddressDiscovery.Sequential
     ( coinTypeAda )
 import Cardano.Wallet.Primitive.AddressDiscovery.Shared
@@ -2080,10 +2076,8 @@ fixtureRandomWallet
 fixtureRandomWallet = fmap fst . fixtureRandomWalletMws
 
 fixtureRandomWalletAddrs
-    :: forall (n :: NetworkDiscriminant) m.
-        ( PaymentAddress n ByronKey 'CredFromKeyK
-        , MonadUnliftIO m
-        )
+    :: forall (n :: NetworkDiscriminant) m
+     . (MonadUnliftIO m, HasSNetworkId n)
     => Context
     -> ResourceT m (ApiByronWallet, [Address])
 fixtureRandomWalletAddrs =
@@ -2098,11 +2092,8 @@ fixtureRandomWalletAddrs =
 --
 -- TODO: Remove duplication between Shelley / Byron fixtures.
 fixtureRandomWalletWith
-    :: forall (n :: NetworkDiscriminant) m.
-        ( HasSNetworkId n
-        , PaymentAddress n ByronKey 'CredFromKeyK
-        , MonadUnliftIO m
-        )
+    :: forall (n :: NetworkDiscriminant) m
+     . ( HasSNetworkId n , MonadUnliftIO m)
     => Context
     -> [Natural]
     -> ResourceT m ApiByronWallet
@@ -2136,10 +2127,8 @@ fixtureIcarusWallet
 fixtureIcarusWallet = fmap fst . fixtureIcarusWalletMws
 
 fixtureIcarusWalletAddrs
-    :: forall (n :: NetworkDiscriminant) m.
-        ( PaymentAddress n IcarusKey 'CredFromKeyK
-        , MonadUnliftIO m
-        )
+    :: forall (n :: NetworkDiscriminant) m
+     . ( HasSNetworkId n , MonadUnliftIO m)
     => Context
     -> ResourceT m (ApiByronWallet, [Address])
 fixtureIcarusWalletAddrs =
@@ -2154,11 +2143,8 @@ fixtureIcarusWalletAddrs =
 --
 -- TODO: Remove duplication between Shelley / Byron fixtures.
 fixtureIcarusWalletWith
-    :: forall (n :: NetworkDiscriminant) m.
-        ( HasSNetworkId n
-        , PaymentAddress n IcarusKey 'CredFromKeyK
-        , MonadUnliftIO m
-        )
+    :: forall (n :: NetworkDiscriminant) m
+     . ( HasSNetworkId n , MonadUnliftIO m)
     => Context
     -> [Natural]
     -> ResourceT m ApiByronWallet
@@ -2494,7 +2480,7 @@ delegationFee ctx w = do
 -- [addr]
 randomAddresses
     :: forall (n :: NetworkDiscriminant)
-     . PaymentAddress n ByronKey 'CredFromKeyK
+     . HasSNetworkId n
     => Mnemonic 12
     -> [Address]
 randomAddresses mw =
@@ -2508,7 +2494,7 @@ randomAddresses mw =
         addrXPrv =
             Byron.deriveAddressPrivateKey pwd accXPrv
     in
-        [ paymentAddress @n (publicKey $ addrXPrv ix)
+        [ paymentAddressS @n (publicKey $ addrXPrv ix)
         | ix <- [minBound..maxBound]
         ]
 
@@ -2520,7 +2506,7 @@ randomAddresses mw =
 -- [addr]
 icarusAddresses
     :: forall (n :: NetworkDiscriminant)
-     . PaymentAddress n IcarusKey 'CredFromKeyK
+     . HasSNetworkId n
     => Mnemonic 15
     -> [Address]
 icarusAddresses mw =
@@ -2534,7 +2520,7 @@ icarusAddresses mw =
         addrXPrv =
             deriveAddressPrivateKey pwd accXPrv UtxoExternal
     in
-        [ paymentAddress @n (publicKey $ addrXPrv ix)
+        [ paymentAddressS @n (publicKey $ addrXPrv ix)
         | ix <- [minBound..maxBound]
         ]
 
@@ -2546,7 +2532,7 @@ icarusAddresses mw =
 -- [addr]
 shelleyAddresses
     :: forall (n :: NetworkDiscriminant)
-     . PaymentAddress n ShelleyKey 'CredFromKeyK
+     . HasSNetworkId n
     => Mnemonic 15
     -> [Address]
 shelleyAddresses mw =
@@ -2560,7 +2546,7 @@ shelleyAddresses mw =
         addrXPrv =
             deriveAddressPrivateKey pwd accXPrv UtxoExternal
     in
-        [ paymentAddress @n (publicKey $ addrXPrv ix)
+        [ paymentAddressS @n (publicKey $ addrXPrv ix)
         | ix <- [minBound..maxBound]
         ]
 

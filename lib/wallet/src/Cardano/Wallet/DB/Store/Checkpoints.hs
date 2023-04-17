@@ -114,7 +114,7 @@ import Cardano.Wallet.Primitive.Types.TokenBundle
 import Cardano.Wallet.Primitive.Types.TokenMap
     ( AssetId (..) )
 import Cardano.Wallet.Read.NetworkId
-    ( HasSNetworkId, NetworkDiscriminantCheck )
+    ( HasSNetworkId (..), NetworkDiscriminantCheck )
 import Control.Monad
     ( forM, forM_, unless, void, when )
 import Control.Monad.Trans.Class
@@ -456,7 +456,7 @@ instance
     , PersistPublicKey (key 'CredFromKeyK)
     , PersistPublicKey (key 'PolicyK)
     , MkKeyFingerprint key (Proxy n, key 'CredFromKeyK XPub)
-    , PaymentAddress n key 'CredFromKeyK
+    , PaymentAddress key 'CredFromKeyK
     , AddressCredential key ~ 'CredFromKeyK
     , SoftDerivation key
     , NetworkDiscriminantCheck key
@@ -521,14 +521,28 @@ selectSeqStatePendingIxs wid =
     fromRes = fmap (W.Index . seqStatePendingIxIndex . entityVal)
 
 insertSeqAddressMap
-    :: forall n c key. (PaymentAddress n key 'CredFromKeyK, Typeable c)
-    =>  W.WalletId -> W.SlotNo -> SeqAddressMap c key -> SqlPersistT IO ()
-insertSeqAddressMap wid sl (SeqAddressMap pool) = void $
-    dbChunked insertMany_
-        [ SeqStateAddress wid sl (liftPaymentAddress @n @key @'CredFromKeyK addr)
-            (W.getIndex ix) (roleVal @c) status
-        | (addr, (ix, status)) <- Map.toList pool
-        ]
+    :: forall n c key
+     . ( PaymentAddress key 'CredFromKeyK
+       , Typeable c
+       , HasSNetworkId n
+       )
+    => W.WalletId
+    -> W.SlotNo
+    -> SeqAddressMap c key
+    -> SqlPersistT IO ()
+insertSeqAddressMap wid sl (SeqAddressMap pool) =
+    void
+        $ dbChunked
+            insertMany_
+            [ SeqStateAddress
+                wid
+                sl
+                (liftPaymentAddress @key @'CredFromKeyK (sNetworkId @n) addr)
+                (W.getIndex ix)
+                (roleVal @c)
+                status
+            | (addr, (ix, status)) <- Map.toList pool
+            ]
 
 -- MkKeyFingerprint key (Proxy n, key 'CredFromKeyK XPub)
 selectSeqAddressMap :: forall (c :: Role) key.

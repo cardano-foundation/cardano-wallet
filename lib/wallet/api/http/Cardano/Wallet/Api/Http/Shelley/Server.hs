@@ -380,11 +380,11 @@ import Cardano.Wallet.Primitive.AddressDerivation
     , DerivationType (..)
     , HardDerivation (..)
     , Index (..)
-    , PaymentAddress (..)
     , RewardAccount (..)
     , Role
     , SoftDerivation (..)
     , WalletKey (..)
+    , delegationAddressS
     , deriveRewardAccount
     , publicKey
     , stakeDerivationPath
@@ -519,7 +519,7 @@ import Cardano.Wallet.Primitive.Types.Tx.TxIn
 import Cardano.Wallet.Primitive.Types.Tx.TxOut
     ( TxOut (..) )
 import Cardano.Wallet.Read.NetworkId
-    ( HasSNetworkId, NetworkDiscriminant )
+    ( HasSNetworkId (..), NetworkDiscriminant )
 import Cardano.Wallet.Registry
     ( HasWorkerCtx (..)
     , MkWorker (..)
@@ -1425,7 +1425,6 @@ postIcarusWallet
         , s ~ SeqState n k
         , k ~ IcarusKey
         , HasWorkerRegistry s k ctx
-        , PaymentAddress n IcarusKey 'CredFromKeyK
         , HasSNetworkId n
         )
     => ctx
@@ -1448,7 +1447,6 @@ postTrezorWallet
         , s ~ SeqState n k
         , k ~ IcarusKey
         , HasWorkerRegistry s k ctx
-        , PaymentAddress n IcarusKey 'CredFromKeyK
         , HasSNetworkId n
         )
     => ctx
@@ -1471,7 +1469,6 @@ postLedgerWallet
         , s ~ SeqState n k
         , k ~ IcarusKey
         , HasWorkerRegistry s k ctx
-        , PaymentAddress n IcarusKey 'CredFromKeyK
         , HasSNetworkId n
         )
     => ctx
@@ -1810,7 +1807,7 @@ selectCoinsForJoin
         , AddressBookIso s
         , Seq.SupportsDiscovery n k
         , BoundedAddressLength k
-        , DelegationAddress n k 'CredFromKeyK
+        , DelegationAddress k 'CredFromKeyK
         )
     => ApiLayer s k 'CredFromKeyK
     -> IO (Set PoolId)
@@ -1840,8 +1837,7 @@ selectCoinsForJoin ctx@ApiLayer{..}
             poolId
             poolStatus
             walletId
-        let changeAddrGen = W.defaultChangeAddressGen
-                (delegationAddress @n)
+        let changeAddrGen = W.defaultChangeAddressGen (delegationAddressS @n)
                 (Proxy @k)
 
         let txCtx = defaultTransactionCtx { txDelegationAction = Just action }
@@ -1879,7 +1875,7 @@ selectCoinsForQuit
         , AddressBookIso s
         , Seq.SupportsDiscovery n k
         , BoundedAddressLength k
-        , DelegationAddress n k 'CredFromKeyK
+        , DelegationAddress k 'CredFromKeyK
         )
     => ApiLayer (SeqState n k) k 'CredFromKeyK
     -> ApiT WalletId
@@ -1894,8 +1890,7 @@ selectCoinsForQuit ctx@ApiLayer{..} (ApiT walletId) = do
         withdrawal <- W.shelleyOnlyMkSelfWithdrawal @_ @_ @_ @_ @n
             netLayer txLayer era db walletId
         action <- WD.quitStakePoolDelegationAction db walletId withdrawal
-        let changeAddrGen = W.defaultChangeAddressGen
-                (delegationAddress @n)
+        let changeAddrGen = W.defaultChangeAddressGen (delegationAddressS @n)
                 (Proxy @k)
         let txCtx = defaultTransactionCtx
                 { txDelegationAction = Just action
@@ -2011,7 +2006,7 @@ postRandomAddress
         ( s ~ RndState n
         , k ~ ByronKey
         , ctx ~ ApiLayer s k 'CredFromKeyK
-        , PaymentAddress n ByronKey 'CredFromKeyK
+        , HasSNetworkId n
         )
     => ctx
     -> ApiT WalletId
@@ -3617,7 +3612,7 @@ delegationFee
        , k ~ ShelleyKey
        , AddressBookIso s
        , s ~ SeqState n k
-       , DelegationAddress n k 'CredFromKeyK
+       , HasSNetworkId n
        )
     => ApiLayer s k 'CredFromKeyK
     -> ApiT WalletId
@@ -3633,7 +3628,7 @@ delegationFee ctx@ApiLayer{..} (ApiT walletId) = do
                 txLayer
                 (timeInterpreter netLayer)
                 (AnyRecentEra recentEra)
-                (W.defaultChangeAddressGen (delegationAddress @n) (Proxy @k))
+                (W.defaultChangeAddressGen (delegationAddressS @n) (Proxy @k))
                 walletId
         pure $ mkApiFee (Just deposit) [] feePercentiles
 

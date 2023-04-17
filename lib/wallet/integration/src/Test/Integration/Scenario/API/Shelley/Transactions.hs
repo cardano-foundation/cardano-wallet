@@ -44,10 +44,6 @@ import Cardano.Wallet.Api.Types.Error
     ( ApiErrorInfo (..) )
 import Cardano.Wallet.Api.Types.SchemaMetadata
     ( detailedMetadata )
-import Cardano.Wallet.Primitive.AddressDerivation
-    ( Depth (..), PaymentAddress )
-import Cardano.Wallet.Primitive.AddressDerivation.Icarus
-    ( IcarusKey )
 import Cardano.Wallet.Primitive.Types
     ( SortOrder (..), WalletId )
 import Cardano.Wallet.Primitive.Types.Coin
@@ -194,9 +190,7 @@ data TestCase a = TestCase
 
 spec
     :: forall n
-     . ( HasSNetworkId n
-       , PaymentAddress n IcarusKey 'CredFromKeyK
-       )
+     . HasSNetworkId n
     => SpecWith Context
 spec = describe "SHELLEY_TRANSACTIONS" $ do
 

@@ -15,12 +15,6 @@ import Prelude
 
 import Cardano.Wallet.Api.Types
     ( ApiAddressWithPath, ApiByronWallet, ApiT (..) )
-import Cardano.Wallet.Primitive.AddressDerivation
-    ( Depth (..), PaymentAddress )
-import Cardano.Wallet.Primitive.AddressDerivation.Byron
-    ( ByronKey )
-import Cardano.Wallet.Primitive.AddressDerivation.Icarus
-    ( IcarusKey )
 import Cardano.Wallet.Primitive.Types.Address
     ( AddressState (..) )
 import Cardano.Wallet.Read.NetworkId
@@ -71,10 +65,7 @@ import qualified Data.Text as T
 
 spec
     :: forall n
-     . ( HasSNetworkId n
-       , PaymentAddress n ByronKey 'CredFromKeyK
-       , PaymentAddress n IcarusKey 'CredFromKeyK
-       )
+     . HasSNetworkId n
     => SpecWith Context
 spec = do
     describe "BYRON_CLI_ADDRESSES" $ do
@@ -279,10 +270,8 @@ scenario_ADDRESS_CREATE_07 index expectedMsg = it index $ \ctx -> runResourceT @
     out `shouldBe` mempty
 
 scenario_ADDRESS_IMPORT_01
-    :: forall (n :: NetworkDiscriminant).
-        ( HasSNetworkId n
-        , PaymentAddress n ByronKey 'CredFromKeyK
-        )
+    :: forall (n :: NetworkDiscriminant)
+     . HasSNetworkId n
     => SpecWith Context
 scenario_ADDRESS_IMPORT_01 = it title $ \ctx -> runResourceT @IO $ do
     (w, mw) <- emptyRandomWalletMws ctx
@@ -295,10 +284,8 @@ scenario_ADDRESS_IMPORT_01 = it title $ \ctx -> runResourceT @IO $ do
     title = "CLI_ADDRESS_IMPORT_01 - I can import an address from my wallet"
 
 scenario_ADDRESS_IMPORT_02
-    :: forall (n :: NetworkDiscriminant).
-        ( HasSNetworkId n
-        , PaymentAddress n IcarusKey 'CredFromKeyK
-        )
+    :: forall (n :: NetworkDiscriminant)
+     . HasSNetworkId n
     => SpecWith Context
 scenario_ADDRESS_IMPORT_02 = it title $ \ctx -> runResourceT @IO $ do
     (w, mw) <- emptyIcarusWalletMws ctx

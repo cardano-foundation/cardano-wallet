@@ -66,6 +66,7 @@ import Cardano.Wallet.Primitive.AddressDerivation
     , Depth (..)
     , PersistPrivateKey
     , WalletKey
+    , delegationAddressS
     )
 import Cardano.Wallet.Primitive.AddressDerivation.Byron
     ( ByronKey )
@@ -237,7 +238,7 @@ benchmarksSeq
         , k ~ ShelleyKey
         , ktype ~ 'CredFromKeyK
         , HasSNetworkId n
-        , DelegationAddress n k ktype
+        , DelegationAddress k ktype
         )
     => BenchmarkConfig n s k ktype
     -> IO BenchSeqResults
@@ -285,7 +286,7 @@ benchmarksSeq BenchmarkConfig{benchmarkName,ctx,wid} = do
             (dbLayer ctx) (networkLayer ctx) (transactionLayer ctx)
             (timeInterpreter (networkLayer ctx))
             (Write.AnyRecentEra Write.RecentEraBabbage)
-            (W.defaultChangeAddressGen (delegationAddress @n) (Proxy @k))
+            (W.defaultChangeAddressGen (delegationAddressS @n) (Proxy @k))
             wid
 
     (_, selectAssetsTime) <- bench "selectAssets"
