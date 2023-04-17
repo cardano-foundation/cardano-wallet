@@ -57,7 +57,8 @@ import Cardano.Crypto.Wallet
 import Cardano.Mnemonic
     ( SomeMnemonic (..), entropyToBytes, mnemonicToEntropy )
 import Cardano.Wallet.Primitive.AddressDerivation
-    ( AddressParts (..)
+    ( AccountIxForStaking (..)
+    , AddressParts (..)
     , BoundedAddressLength (..)
     , DelegationAddress (..)
     , Depth (..)
@@ -426,6 +427,9 @@ instance DelegationAddress n ShelleyKey 'CredFromKeyK
     => MaybeLight (SeqState n ShelleyKey)
   where
     maybeDiscover = Just $ DiscoverTxs discoverSeqWithRewards
+
+instance AccountIxForStaking (SeqState n ShelleyKey) where
+    getAccountIx _ = Nothing
 
 {-------------------------------------------------------------------------------
                           Storing and retrieving keys

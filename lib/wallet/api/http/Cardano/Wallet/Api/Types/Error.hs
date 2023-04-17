@@ -99,6 +99,7 @@ data ApiErrorInfo
     | CreatedMultiaccountTransaction
     | CreatedMultidelegationTransaction
     | CreatedWrongPolicyScriptTemplate
+    | DelegationInvalid
     | ExistingKeyWitnesses
     | ForeignTransaction
     | HardenedDerivationRequired

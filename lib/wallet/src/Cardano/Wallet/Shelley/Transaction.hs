@@ -79,7 +79,7 @@ import Cardano.Address.Derivation
     ( XPrv, toXPub )
 import Cardano.Address.Script
     ( Cosigner
-    , KeyHash
+    , KeyHash (..)
     , KeyRole (..)
     , Script (..)
     , ScriptTemplate (..)
@@ -127,6 +127,8 @@ import Cardano.Wallet.Primitive.AddressDerivation.Icarus
     ( IcarusKey )
 import Cardano.Wallet.Primitive.AddressDerivation.Shared
     ( SharedKey )
+import Cardano.Wallet.Primitive.AddressDerivation.SharedKey
+    ( replaceCosignersWithVerKeys )
 import Cardano.Wallet.Primitive.AddressDerivation.Shelley
     ( ShelleyKey, toRewardAccountRaw )
 import Cardano.Wallet.Primitive.AddressDiscovery.Shared
@@ -202,7 +204,8 @@ import Cardano.Wallet.Shelley.Compatibility.Ledger
 import Cardano.Wallet.Shelley.MinimumUTxO
     ( computeMinimumCoinForUTxO, isBelowMinimumCoinForUTxO )
 import Cardano.Wallet.Transaction
-    ( AnyScript (..)
+    ( AnyExplicitScript (..)
+    , AnyScript (..)
     , DelegationAction (..)
     , ErrAssignRedeemers (..)
     , ErrMkTransaction (..)
@@ -215,7 +218,7 @@ import Cardano.Wallet.Transaction
     , TxFeeAndChange (..)
     , ValidityIntervalExplicit
     , Withdrawal (..)
-    , WitnessCount
+    , WitnessCount (..)
     , WitnessCountCtx (..)
     , mapTxFeeAndChange
     , withdrawalToCoin
@@ -275,6 +278,7 @@ import Ouroboros.Consensus.Shelley.Eras
 import Ouroboros.Network.Block
     ( SlotNo )
 
+import qualified Cardano.Address.Style.Shelley as CA
 import qualified Cardano.Api as Cardano
 import qualified Cardano.Api.Byron as Byron
 import qualified Cardano.Api.Extra as Cardano
@@ -394,14 +398,17 @@ constructUnsignedTx
     -- ^ Assets to be burned
     -> Map TxIn (Script KeyHash)
     -- ^ scripts for inputs
+    -> Maybe (Script KeyHash)
+    -- ^ Delegation script
     -> ShelleyBasedEra era
     -> Either ErrMkTransaction (Cardano.TxBody era)
 constructUnsignedTx
     networkId (md, certs) ttl wdrl
-    cs fee toMint toBurn inpScripts era =
+    cs fee toMint toBurn inpScripts stakingScriptM era =
         mkUnsignedTx
             era ttl cs md wdrls certs (toCardanoLovelace fee)
             (fst toMint) (fst toBurn) mintingScripts inpScripts
+            stakingScriptM
   where
     wdrls = mkWithdrawals networkId wdrl
     mintingScripts = Map.union (snd toMint) (snd toBurn)
@@ -436,9 +443,10 @@ mkTx networkId payload ttl (rewardAcnt, pwdAcnt) addrResolver wdrl cs fees era =
 
     unsigned <- mkUnsignedTx era ttl (Right cs) md wdrls certs
         (toCardanoLovelace fees)
-        TokenMap.empty TokenMap.empty Map.empty Map.empty
-    let signed = signTransaction networkId acctResolver (const Nothing)
-            addrResolver inputResolver (unsigned, mkExtraWits unsigned)
+        TokenMap.empty TokenMap.empty Map.empty Map.empty Nothing
+    let signed = signTransaction networkId AnyWitnessCountCtx acctResolver
+            (const Nothing) (const Nothing) addrResolver inputResolver
+            (unsigned, mkExtraWits unsigned)
 
     let withResolvedInputs (tx, _, _, _, _, _) = tx
             { resolvedInputs = second Just <$> F.toList (view #inputs cs)
@@ -472,10 +480,13 @@ signTransaction
         )
     => Cardano.NetworkId
     -- ^ Network identifier (e.g. mainnet, testnet)
+    -> WitnessCountCtx
     -> (RewardAccount -> Maybe (XPrv, Passphrase "encryption"))
     -- ^ Stake key store / reward account resolution
     -> (KeyHash -> Maybe (XPrv, Passphrase "encryption"))
     -- ^ Policy key resolution
+    -> (KeyHash -> Maybe (XPrv, Passphrase "encryption"))
+    -- ^ Staking script key resolution
     -> (Address -> Maybe (k ktype XPrv, Passphrase "encryption"))
     -- ^ Payment key store
     -> (TxIn -> Maybe Address)
@@ -485,8 +496,10 @@ signTransaction
     -> Cardano.Tx era
 signTransaction
     networkId
+    witCountCtx
     resolveRewardAcct
     resolvePolicyKey
+    resolveStakingKeyInScript
     resolveAddress
     resolveInput
     (body, wits) =
@@ -499,7 +512,8 @@ signTransaction
         , mapMaybe mkWdrlCertWitness wdrls
         , mapMaybe mkExtraWitness extraKeys
         , mapMaybe mkWdrlCertWitness certs
-        , mapMaybe mkPolicyWitness mintBurnScripts
+        , mapMaybe mkPolicyWitness mintBurnScriptsKeyHashes
+        , mapMaybe mkStakingScriptWitness stakingScriptsKeyHashes
         ]
       where
         Cardano.TxBody bodyContent = body
@@ -529,24 +543,43 @@ signTransaction
 
         certs = cardanoCertKeysForWitnesses $ Cardano.txCertificates bodyContent
 
-        mintBurnScripts =
-            let (_, toMint, toBurn, _, _, _) = fromCardanoTx AnyWitnessCountCtx $
+        mintBurnScriptsKeyHashes =
+            let (_, toMint, toBurn, _, _, _) = fromCardanoTx witCountCtx $
                     Cardano.makeSignedTransaction wits body
             in
             -- Note that we use 'nub' here because multiple scripts can share
             -- the same policyXPub. It's sufficient to have one witness for
             -- each.
-            L.nub $ getScripts toMint <> getScripts toBurn
+            L.nub $ getScriptsKeyHashes toMint <> getScriptsKeyHashes toBurn
 
-    getScripts :: TokenMapWithScripts -> [KeyHash]
-    getScripts scripts =
-        let retrieveAllKeyHashes (NativeScript s _) = foldScript (:) [] s
-            retrieveAllKeyHashes _ = []
-            isTimelock (NativeScript _ _) = True
-            isTimelock _ = False
-        in concatMap retrieveAllKeyHashes $
-           filter isTimelock $
-           Map.elems $ scripts ^. #txScripts
+        stakingScriptsKeyHashes =
+            let (_, _, _, _, _, (WitnessCount _ nativeScripts _)) =
+                    fromCardanoTx witCountCtx $
+                    Cardano.makeSignedTransaction wits body
+                isDelegationKeyHash (KeyHash Delegation _) = True
+                isDelegationKeyHash (KeyHash _ _) = False
+            in
+                filter isDelegationKeyHash $
+                L.nub $ concatMap retrieveAllKeyHashesE $
+                filter isTimelockE nativeScripts
+
+    retrieveAllKeyHashesE (NativeExplicitScript s _) = foldScript (:) [] s
+    retrieveAllKeyHashesE _ = []
+
+    isTimelockE (NativeExplicitScript _ _) = True
+    isTimelockE _ = False
+
+    retrieveAllKeyHashes (NativeScript s _) = foldScript (:) [] s
+    retrieveAllKeyHashes _ = []
+
+    isTimelock (NativeScript _ _) = True
+    isTimelock _ = False
+
+    getScriptsKeyHashes :: TokenMapWithScripts -> [KeyHash]
+    getScriptsKeyHashes scripts =
+        concatMap retrieveAllKeyHashes $
+        filter isTimelock $
+        Map.elems $ scripts ^. #txScripts
 
     mkTxInWitness :: TxIn -> Maybe (Cardano.KeyWitness era)
     mkTxInWitness i = do
@@ -565,6 +598,10 @@ signTransaction
     mkPolicyWitness :: KeyHash -> Maybe (Cardano.KeyWitness era)
     mkPolicyWitness a =
         mkShelleyWitness body <$> resolvePolicyKey a
+
+    mkStakingScriptWitness :: KeyHash -> Maybe (Cardano.KeyWitness era)
+    mkStakingScriptWitness a =
+        mkShelleyWitness body <$> resolveStakingKeyInScript a
 
     mkExtraWitness :: Cardano.Hash Cardano.PaymentKey -> Maybe (Cardano.KeyWitness era)
     mkExtraWitness vkh = do
@@ -599,17 +636,19 @@ newTransactionLayer networkId = TransactionLayer
 
             Just action -> withShelleyBasedEra era $ do
                 let stakeXPub = toXPub $ fst stakeCreds
-                let certs = mkDelegationCertificates action stakeXPub
+                let certs = mkDelegationCertificates action (Left stakeXPub)
                 let payload = TxPayload (view #txMetadata ctx) certs (const [])
                 mkTx networkId payload ttl stakeCreds keystore wdrl
                     selection delta
 
     , addVkWitnesses =
-        \era stakeCreds policyCreds addressResolver inputResolver sealedTx -> do
+        \era witCountCtx stakeCreds policyCreds scriptStakingCredM addressResolver
+        inputResolver sealedTx -> do
             let acctMap :: Map RewardAccount (XPrv, Passphrase "encryption")
                 acctMap = Map.fromList $ map
                     (\(xprv, pwd) -> (toRewardAccountRaw $ toXPub xprv,(xprv, pwd)))
                     stakeCreds
+
             let acctResolver
                     :: RewardAccount -> Maybe (XPrv, Passphrase "encryption")
                 acctResolver acct = Map.lookup acct acctMap
@@ -619,35 +658,42 @@ newTransactionLayer networkId = TransactionLayer
                 policyResolver keyhash = do
                     let (keyhash', xprv, encP) = policyCreds
                     guard (keyhash == keyhash') $> (xprv, encP)
+            let stakingScriptResolver
+                    :: KeyHash -> Maybe (XPrv, Passphrase "encryption")
+                stakingScriptResolver keyhash = case scriptStakingCredM of
+                    Just scriptStakingCred -> do
+                        let (keyhash', xprv, encP) = scriptStakingCred
+                        guard (keyhash == keyhash') $> (xprv, encP)
+                    Nothing -> Nothing
             case cardanoTxIdeallyNoLaterThan era sealedTx of
                 InAnyCardanoEra ByronEra _ ->
                     sealedTx
                 InAnyCardanoEra ShelleyEra (Cardano.Tx body wits) ->
-                    signTransaction networkId acctResolver (const Nothing)
-                    addressResolver inputResolver (body, wits)
+                    signTransaction networkId witCountCtx acctResolver (const Nothing)
+                    (const Nothing) addressResolver inputResolver (body, wits)
                     & sealedTxFromCardano'
                 InAnyCardanoEra AllegraEra (Cardano.Tx body wits) ->
-                    signTransaction networkId acctResolver (const Nothing)
-                    addressResolver inputResolver (body, wits)
+                    signTransaction networkId witCountCtx acctResolver (const Nothing)
+                    (const Nothing) addressResolver inputResolver (body, wits)
                     & sealedTxFromCardano'
                 InAnyCardanoEra MaryEra (Cardano.Tx body wits) ->
-                    signTransaction networkId acctResolver policyResolver
-                    addressResolver inputResolver (body, wits)
+                    signTransaction networkId witCountCtx acctResolver policyResolver
+                    stakingScriptResolver addressResolver inputResolver (body, wits)
                     & sealedTxFromCardano'
                 InAnyCardanoEra AlonzoEra (Cardano.Tx body wits) ->
-                    signTransaction networkId acctResolver policyResolver
-                    addressResolver inputResolver (body, wits)
+                    signTransaction networkId witCountCtx acctResolver policyResolver
+                    stakingScriptResolver addressResolver inputResolver (body, wits)
                     & sealedTxFromCardano'
                 InAnyCardanoEra BabbageEra (Cardano.Tx body wits) ->
-                    signTransaction networkId acctResolver policyResolver
-                    addressResolver inputResolver (body, wits)
+                    signTransaction networkId witCountCtx acctResolver policyResolver
+                    stakingScriptResolver addressResolver inputResolver (body, wits)
                     & sealedTxFromCardano'
                 InAnyCardanoEra ConwayEra (Cardano.Tx body wits) ->
-                    signTransaction networkId acctResolver policyResolver
-                    addressResolver inputResolver (body, wits)
+                    signTransaction networkId witCountCtx acctResolver policyResolver
+                    stakingScriptResolver addressResolver inputResolver (body, wits)
                     & sealedTxFromCardano'
 
-    , mkUnsignedTransaction = \stakeXPub _pp ctx selection -> do
+    , mkUnsignedTransaction = \stakeCred _pp ctx selection -> do
         let ttl   = txValidityInterval ctx
         let wdrl  = view #txWithdrawal ctx
         let delta = case selection of
@@ -656,18 +702,29 @@ newTransactionLayer networkId = TransactionLayer
         let assetsToBeMinted = view #txAssetsToMint ctx
         let assetsToBeBurned = view #txAssetsToBurn ctx
         let inpsScripts = view #txNativeScriptInputs ctx
-
+        let stakingScriptM =
+                flip (replaceCosignersWithVerKeys CA.Stake) minBound <$>
+                view #txStakingCredentialScriptTemplate ctx
         case view #txDelegationAction ctx of
             Nothing -> do
                 let md = view #txMetadata ctx
                 constructUnsignedTx networkId (md, []) ttl wdrl
                     selection delta assetsToBeMinted assetsToBeBurned inpsScripts
+                    Nothing
                     (WriteTx.shelleyBasedEraFromRecentEra WriteTx.recentEra)
             Just action -> do
-                let certs = mkDelegationCertificates action stakeXPub
+                let certs = case stakeCred of
+                        Left xpub ->
+                            mkDelegationCertificates action (Left xpub)
+                        Right (Just script) ->
+                            mkDelegationCertificates action (Right script)
+                        Right Nothing ->
+                            error $ "stakeCred in mkUnsignedTransaction must be either "
+                            <> "xpub or script when there is delegation action"
                 let payload = (view #txMetadata ctx, certs)
                 constructUnsignedTx networkId payload ttl wdrl
                     selection delta assetsToBeMinted assetsToBeBurned inpsScripts
+                    stakingScriptM
                     (WriteTx.shelleyBasedEraFromRecentEra WriteTx.recentEra)
 
     , calcMinimumCost = \era pp ctx skeleton ->
@@ -705,18 +762,18 @@ _decodeSealedTx preferredLatestEra witCtx (cardanoTxIdeallyNoLaterThan preferred
 mkDelegationCertificates
     :: DelegationAction
         -- Pool Id to which we're planning to delegate
-    -> XPub
-        -- Reward account public key
+    -> Either XPub (Script KeyHash)
+        --Staking credential
     -> [Cardano.Certificate]
-mkDelegationCertificates da accXPub =
+mkDelegationCertificates da cred =
     case da of
        Join poolId ->
-               [ toStakePoolDlgCert accXPub poolId ]
+               [ toStakePoolDlgCert cred poolId ]
        JoinRegisteringKey poolId ->
-            [ toStakeKeyRegCert accXPub
-            , toStakePoolDlgCert accXPub poolId
+            [ toStakeKeyRegCert cred
+            , toStakePoolDlgCert cred poolId
             ]
-       Quit -> [toStakeKeyDeregCert accXPub]
+       Quit -> [toStakeKeyDeregCert cred]
 
 
 -- | Describes modifications that can be made to a `Tx` using `updateTx`.
@@ -1122,7 +1179,7 @@ estimateKeyWitnessCount utxo txbody@(Cardano.TxBody txbodycontent) =
         txCerts = case Cardano.txCertificates txbodycontent of
             Cardano.TxCertificatesNone -> 0
             Cardano.TxCertificates _ certs _ ->
-                length $ filter (not . isStakeKeyRegCert) certs
+                sumVia estimateDelegSigningKeys certs
         scriptVkWitsUpperBound =
             fromIntegral
             $ sumVia estimateMaxWitnessRequiredPerInput
@@ -1131,7 +1188,7 @@ estimateKeyWitnessCount utxo txbody@(Cardano.TxBody txbodycontent) =
             length txExtraKeyWits' +
             length txWithdrawals' +
             txUpdateProposal' +
-            txCerts +
+            fromIntegral txCerts +
             scriptVkWitsUpperBound
         inputWits = KeyWitnessCount
             { nKeyWits = fromIntegral
@@ -1150,8 +1207,22 @@ estimateKeyWitnessCount utxo txbody@(Cardano.TxBody txbodycontent) =
 
     dummyKeyRole = Payment
 
-    isStakeKeyRegCert (Cardano.StakeAddressRegistrationCertificate _) = True
-    isStakeKeyRegCert _ = False
+
+    estimateDelegSigningKeys :: Cardano.Certificate -> Integer
+    estimateDelegSigningKeys = \case
+        Cardano.StakeAddressRegistrationCertificate _ -> 0
+        Cardano.StakeAddressDeregistrationCertificate cred ->
+            estimateWitNumForCred cred
+        Cardano.StakeAddressDelegationCertificate cred _ ->
+            estimateWitNumForCred cred
+        _ -> 1
+      where
+        -- Does not include the key witness needed for script credentials.
+        -- They are accounted for separately in @scriptVkWitsUpperBound@.
+        estimateWitNumForCred = \case
+            Cardano.StakeCredentialByKey _ -> 1
+            Cardano.StakeCredentialByScript _ -> 0
+
 
     toTimelockScript
         :: Ledger.Script (Cardano.ShelleyLedgerEra era)
@@ -2478,8 +2549,21 @@ mkUnsignedTx
     -> TokenMap
     -> Map AssetId (Script KeyHash)
     -> Map TxIn (Script KeyHash)
+    -> Maybe (Script KeyHash)
     -> Either ErrMkTransaction (Cardano.TxBody era)
-mkUnsignedTx era ttl cs md wdrls certs fees mintData burnData mintingScripts inpsScripts = extractValidatedOutputs cs >>= \outs ->
+mkUnsignedTx
+    era
+    ttl
+    cs
+    md
+    wdrls
+    certs
+    fees
+    mintData
+    burnData
+    mintingScripts
+    inpsScripts
+    stakingScriptM = extractValidatedOutputs cs >>= \outs ->
     left toErrMkTx $ fmap removeDummyInput $ Cardano.createAndValidateTransactionBody
     Cardano.TxBodyContent
     { Cardano.txIns = inputWits
@@ -2507,13 +2591,26 @@ mkUnsignedTx era ttl cs md wdrls certs fees mintData burnData mintingScripts inp
     , txScriptValidity = Cardano.TxScriptValidityNone
     , txExtraKeyWits = Cardano.TxExtraKeyWitnessesNone
 
-    , Cardano.txCertificates =
-        let
-            -- It seems that passing Map.empty here works just fine.
-            witMap = Map.empty
-            ctx = Cardano.BuildTxWith witMap
-        in
-        Cardano.TxCertificates certSupported certs ctx
+    , Cardano.txCertificates = case stakingScriptM of
+        Nothing ->
+            let
+                witMap = Map.empty
+                ctx = Cardano.BuildTxWith witMap
+            in
+                Cardano.TxCertificates certSupported certs ctx
+        Just stakingScript ->
+            let
+                buildKey =
+                    Cardano.StakeCredentialByScript
+                    . Cardano.hashScript
+                    . Cardano.SimpleScript
+                    $ toCardanoSimpleScript stakingScript
+                buildVal = Cardano.ScriptWitness Cardano.ScriptWitnessForStakeAddr
+                    (toScriptWitness stakingScript)
+                witMap = Map.fromList [(buildKey, buildVal)]
+                ctx = Cardano.BuildTxWith witMap
+            in
+                Cardano.TxCertificates certSupported certs ctx
 
     , Cardano.txFee = explicitFees era fees
 

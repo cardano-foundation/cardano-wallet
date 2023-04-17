@@ -73,7 +73,8 @@ import Cardano.Address.Style.Shelley
 import Cardano.Crypto.Wallet
     ( XPrv, XPub, unXPub )
 import Cardano.Wallet.Primitive.AddressDerivation
-    ( AddressParts (..)
+    ( AccountIxForStaking (..)
+    , AddressParts (..)
     , Depth (..)
     , DerivationIndex (..)
     , DerivationPrefix (..)
@@ -92,6 +93,8 @@ import Cardano.Wallet.Primitive.AddressDerivation
     , utxoExternal
     , utxoInternal
     )
+import Cardano.Wallet.Primitive.AddressDerivation.Shared
+    ( allCosignerStakingKeys )
 import Cardano.Wallet.Primitive.AddressDerivation.SharedKey
     ( SharedKey (..)
     , constructAddressFromIx
@@ -123,6 +126,8 @@ import Cardano.Wallet.Primitive.Types.RewardAccount
     ( RewardAccount )
 import Cardano.Wallet.Read.NetworkId
     ( HasSNetworkId (..), NetworkDiscriminant, networkDiscriminantBits )
+import Cardano.Wallet.Transaction
+    ( ToWitnessCountCtx (..), WitnessCountCtx (..) )
 import Control.Applicative
     ( (<|>) )
 import Control.Arrow
@@ -782,10 +787,39 @@ estimateMaxWitnessRequiredPerInput = \case
     RequireAllOf xs      ->
         sum $ map estimateMaxWitnessRequiredPerInput xs
     RequireAnyOf xs      ->
-        optimumIfNotEmpty maximum $ map estimateMaxWitnessRequiredPerInput xs
-    RequireSomeOf m xs   ->
-        let largestReqFirst =
-                reverse $ L.sort $ map estimateMaxWitnessRequiredPerInput xs
-        in sum $ take (fromIntegral m) largestReqFirst
+        sum $ map estimateMaxWitnessRequiredPerInput xs
+    -- Estimate (and tx fees) could be lowered with:
+    --
+    -- optimumIfNotEmpty maximum $ map estimateMaxWitnessRequiredPerInput xs
+    -- however signTransaction
+    --
+    -- however we'd then need to adjust signTx accordingly such that it still
+    -- doesn't add more witnesses than we plan for.
+    --
+    -- Partially related task: https://input-output.atlassian.net/browse/ADP-2676
+    RequireSomeOf _m xs   ->
+        sum $ map estimateMaxWitnessRequiredPerInput xs
+    -- Estimate (and tx fees) could be lowered with:
+    --
+    -- let largestReqFirst =
+    --      reverse $ L.sort $ map estimateMaxWitnessRequiredPerInput xs
+    -- in sum $ take (fromIntegral m) largestReqFirst
+    --
+    -- however we'd then need to adjust signTx accordingly such that it still
+    -- doesn't add more witnesses than we plan for.
+    --
+    -- Partially related task: https://input-output.atlassian.net/browse/ADP-2676
     ActiveFromSlot _     -> 0
     ActiveUntilSlot _    -> 0
+
+instance AccountIxForStaking (SharedState n SharedKey) where
+    getAccountIx st =
+        let DerivationPrefix (_, _, ix) = derivationPrefix st
+        in Just ix
+
+instance ToWitnessCountCtx (SharedState n SharedKey) where
+    toWitnessCountCtx s =
+        let delegationTemplateM = delegationTemplate s
+            stakingKeyHashes =
+                maybe [] allCosignerStakingKeys delegationTemplateM
+        in SharedWalletCtx stakingKeyHashes

@@ -53,6 +53,7 @@ module Cardano.Wallet.Primitive.AddressDerivation
     -- * Delegation
     , RewardAccount (..)
     , ToRewardAccount(..)
+    , AccountIxForStaking (..)
     , deriveRewardAccount
 
     -- * Helpers
@@ -554,9 +555,10 @@ deriveRewardAccount
        , Bounded (Index (AddressIndexDerivationType k) (AddressCredential k)) )
     => Passphrase "encryption"
     -> k 'RootK XPrv
+    -> Index 'Hardened 'AccountK
     -> k (AddressCredential k) XPrv
-deriveRewardAccount pwd rootPrv =
-    let accPrv = deriveAccountPrivateKey pwd rootPrv minBound
+deriveRewardAccount pwd rootPrv accIx =
+    let accPrv = deriveAccountPrivateKey pwd rootPrv accIx
     in deriveAddressPrivateKey pwd accPrv MutableAccount minBound
 
 hashVerificationKey
@@ -566,6 +568,11 @@ hashVerificationKey
     -> KeyHash
 hashVerificationKey keyRole =
     KeyHash keyRole . blake2b224 . xpubPublicKey . getRawKey
+
+-- | This class is used to determine account index in the context of script
+-- staking. It is supposed to be not Nothing only for shared wallets
+class AccountIxForStaking s where
+    getAccountIx :: s -> Maybe (Index 'Hardened 'AccountK)
 
 {-------------------------------------------------------------------------------
                      Interface over keys / address types

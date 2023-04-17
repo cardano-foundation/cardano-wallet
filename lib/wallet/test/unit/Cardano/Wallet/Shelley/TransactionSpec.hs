@@ -669,7 +669,7 @@ prop_signTransaction_addsRewardAccountKey
 
             rawRewardK :: (XPrv, Passphrase "encryption")
             rawRewardK =
-                ( getRawKey $ deriveRewardAccount (snd rootK) (fst rootK)
+                ( getRawKey $ deriveRewardAccount (snd rootK) (fst rootK) minBound
                 , snd rootK
                 )
 
@@ -699,8 +699,8 @@ prop_signTransaction_addsRewardAccountKey
                 tl = testTxLayer
 
                 sealedTx = sealedTxFromCardano' $ Cardano.Tx txBody wits
-                sealedTx' = signTransaction tl (AnyCardanoEra era)
-                    (const Nothing) Nothing rootK utxo sealedTx
+                sealedTx' = signTransaction tl (AnyCardanoEra era) AnyWitnessCountCtx
+                    (const Nothing) Nothing rootK utxo Nothing sealedTx
 
                 expectedWits :: [InAnyCardanoEra Cardano.KeyWitness]
                 expectedWits = InAnyCardanoEra era <$>
@@ -776,10 +776,12 @@ prop_signTransaction_addsExtraKeyWitnesses
             sealedTx = sealedTxFromCardano' $ Cardano.Tx txBody wits
             sealedTx' = signTransaction tl
                 (AnyCardanoEra era)
+                AnyWitnessCountCtx
                 (lookupFnFromKeys extraKeys)
                 Nothing
                 (first liftRawKey rootK)
                 utxo
+                Nothing
                 sealedTx
 
             expectedWits :: [InAnyCardanoEra Cardano.KeyWitness]
@@ -911,10 +913,12 @@ prop_signTransaction_addsTxInWitnesses
                 sealedTx = sealedTxFromCardano' $ Cardano.Tx txBody wits
                 sealedTx' = signTransaction tl
                     (AnyCardanoEra era)
+                    AnyWitnessCountCtx
                     (lookupFnFromKeys extraKeys)
                     Nothing
                     (first liftRawKey rootK)
                     utxo
+                    Nothing
                     sealedTx
 
                 expectedWits :: [InAnyCardanoEra Cardano.KeyWitness]
@@ -965,10 +969,12 @@ prop_signTransaction_addsTxInCollateralWitnesses
                     sealedTx = sealedTxFromCardano' $ Cardano.Tx txBody wits
                     sealedTx' = signTransaction tl
                         (AnyCardanoEra era)
+                        AnyWitnessCountCtx
                         (lookupFnFromKeys extraKeys)
                         Nothing
                         (first liftRawKey rootK)
                         utxo
+                        Nothing
                         sealedTx
 
                     expectedWits :: [InAnyCardanoEra Cardano.KeyWitness]
@@ -1002,10 +1008,12 @@ prop_signTransaction_neverRemovesWitnesses
             sealedTx = sealedTxFromCardano' tx
             sealedTx' = signTransaction tl
                 (AnyCardanoEra era)
+                AnyWitnessCountCtx
                 (lookupFnFromKeys extraKeys)
                 Nothing
                 (first liftRawKey rootK)
                 utxo
+                Nothing
                 sealedTx
 
             witnessesBefore = getSealedTxWitnesses sealedTx
@@ -1035,10 +1043,12 @@ prop_signTransaction_neverChangesTxBody
             sealedTx = sealedTxFromCardano' tx
             sealedTx' = signTransaction tl
                 (AnyCardanoEra era)
+                AnyWitnessCountCtx
                 (lookupFnFromKeys extraKeys)
                 Nothing
                 (first liftRawKey rootK)
                 utxo
+                Nothing
                 sealedTx
 
             txBodyContent
@@ -1073,10 +1083,12 @@ prop_signTransaction_preservesScriptIntegrity (AnyCardanoEra era) rootK utxo =
             sealedTx = sealedTxFromCardano' tx
             sealedTx' = signTransaction tl
                 (AnyCardanoEra era)
+                AnyWitnessCountCtx
                 (const Nothing)
                 Nothing
                 (first liftRawKey rootK)
                 utxo
+                Nothing
                 sealedTx
 
             txIntegrityCardanoApi = txIntegrity . fromCardanoApiTx
@@ -1899,7 +1911,7 @@ binaryCalculationsSpec' era = describe ("calculateBinary - "+||era||+"") $ do
           unsigned = either (error . show) id $
               mkUnsignedTx (shelleyBasedEraFromRecentEra era)
                 (Nothing, slotNo) (Right cs) md mempty [] fee
-              TokenMap.empty TokenMap.empty Map.empty Map.empty
+              TokenMap.empty TokenMap.empty Map.empty Map.empty Nothing
           cs = Selection
             { inputs = NE.fromList inps
             , collateral = []
@@ -1989,7 +2001,7 @@ makeShelleyTx era testCase = Cardano.makeSignedTransaction addrWits unsigned
     fee = toCardanoLovelace $ selectionDelta TxOut.coin cs
     unsigned = either (error . show) id $
         mkUnsignedTx era (Nothing, slotNo) (Right cs) md mempty [] fee
-        TokenMap.empty TokenMap.empty Map.empty Map.empty
+        TokenMap.empty TokenMap.empty Map.empty Map.empty Nothing
     addrWits = map (mkShelleyWitness unsigned) pairs
     cs = Selection
         { inputs = NE.fromList inps
@@ -3976,7 +3988,7 @@ balanceTransactionGoldenSpec = describe "balance goldens" $ do
             Nothing
             Cardano.TxScriptValidityNone
 
-        certs = mkDelegationCertificates delegationAction xpub
+        certs = mkDelegationCertificates delegationAction (Left xpub)
           where
             poolId = PoolId "\236(\243=\203\230\214@\n\RS^3\155\208d|\
                             \\ts\202l\f\249\194\187\230\131\141\198"

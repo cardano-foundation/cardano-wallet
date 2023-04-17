@@ -226,8 +226,6 @@ import Cardano.Address.Derivation
     ( XPrv, XPub )
 import Cardano.Address.Script
     ( Cosigner (..), KeyHash )
-import Cardano.Address.Style.Shared
-    ( deriveDelegationPublicKey )
 import Cardano.Api
     ( AnyCardanoEra, serialiseToCBOR )
 import Cardano.Api.Extra
@@ -618,7 +616,6 @@ import UnliftIO.MVar
     ( modifyMVar_, newMVar )
 
 import qualified Cardano.Address.Script as CA
-import qualified Cardano.Address.Style.Shared as CA
 import qualified Cardano.Address.Style.Shelley as CAShelley
 import qualified Cardano.Api as Cardano
 import qualified Cardano.Crypto.Wallet as CC
@@ -1940,6 +1937,7 @@ signTransaction
   -- ^ The way to interact with the wallet backend
   -> Cardano.AnyCardanoEra
   -- ^ Preferred latest era
+  -> WitnessCountCtx
   -> (Address -> Maybe (k ktype XPrv, Passphrase "encryption"))
   -- ^ The wallets address-key lookup function
   -> (Maybe (XPrv, Passphrase "encryption"))
@@ -1949,19 +1947,21 @@ signTransaction
   -> UTxO
   -- ^ The total UTxO set of the wallet (i.e. if pending transactions all
   -- applied).
+  -> Maybe (Index 'Hardened 'AccountK)
+  -- ^ account ix used only for delegation scripts
   -> SealedTx
   -- ^ The transaction to sign
   -> SealedTx
   -- ^ The original transaction, with additional signatures added where
   -- necessary
-signTransaction
-    tl preferredLatestEra keyLookup mextraRewardAcc (rootKey, rootPwd) utxo =
+signTransaction tl preferredLatestEra witCountCtx keyLookup mextraRewardAcc
+    (rootKey, rootPwd) utxo accIxForStakingM =
     let
         rewardAcnts :: [(XPrv, Passphrase "encryption")]
         rewardAcnts = ourRewardAcc : maybeToList mextraRewardAcc
           where
             ourRewardAcc =
-                (getRawKey $ deriveRewardAccount @k rootPwd rootKey, rootPwd)
+                (getRawKey $ deriveRewardAccount @k rootPwd rootKey minBound, rootPwd)
 
         policyKey :: (KeyHash, XPrv, Passphrase "encryption")
         policyKey =
@@ -1972,6 +1972,18 @@ signTransaction
           where
             xprv = derivePolicyPrivateKey rootPwd (getRawKey rootKey) minBound
 
+        stakingKeyM :: Maybe (KeyHash, XPrv, Passphrase "encryption")
+        stakingKeyM = case xprvM of
+            Just xprv -> Just
+                ( hashVerificationKey @k CA.Delegation $ liftRawKey $ toXPub xprv
+                , xprv
+                , rootPwd
+                )
+            Nothing -> Nothing
+          where
+            xprvM = getRawKey . deriveRewardAccount @k rootPwd rootKey <$>
+                accIxForStakingM
+
         inputResolver :: TxIn -> Maybe Address
         inputResolver i = do
             TxOut addr _ <- UTxO.lookup i utxo
@@ -1980,8 +1992,10 @@ signTransaction
         addVkWitnesses
             tl
             preferredLatestEra
+            witCountCtx
             rewardAcnts
             policyKey
+            stakingKeyM
             keyLookup
             inputResolver
 
@@ -2130,10 +2144,12 @@ buildAndSignTransactionPure
             signedTx = signTransaction @k @'CredFromKeyK
                 txLayer
                 anyCardanoEra
+                AnyWitnessCountCtx
                 (isOwned (getState wallet) (rootKey, passphrase))
                 mExternalRewardAccount
                 (rootKey, passphrase)
                 (wallet ^. #utxo)
+                Nothing
                 (sealedTxFromCardano $ inAnyCardanoEra unsignedBalancedTx)
 
         let ( tx
@@ -2254,7 +2270,7 @@ buildTransactionPure
     unsignedTxBody <-
         withExceptT (Right . ErrConstructTxBody) . except $
             mkUnsignedTransaction txLayer @era
-                (unsafeShelleyOnlyGetRewardXPub @s @k @n (getState wallet))
+                (Left $ unsafeShelleyOnlyGetRewardXPub @s @k @n (getState wallet))
                 (Write.pparamsWallet pparams)
                 txCtx
                 (Left preSelection)
@@ -2392,7 +2408,7 @@ constructTransaction txLayer netLayer db wid txCtx preSel = do
     (_, xpub, _) <- readRewardAccount db wid
         & withExceptT ErrConstructTxReadRewardAccount
     pp <- liftIO $ currentProtocolParameters netLayer
-    mkUnsignedTransaction txLayer xpub pp txCtx (Left preSel)
+    mkUnsignedTransaction txLayer (Left xpub) pp txCtx (Left preSel)
         & withExceptT ErrConstructTxBody . except
 
 constructUnbalancedSharedTransaction
@@ -2413,9 +2429,9 @@ constructUnbalancedSharedTransaction txLayer netLayer db wid txCtx sel = db & \D
         $ withNoSuchWallet wid
         $ readCheckpoint wid
     let s = getState cp
-    let accXPub = getRawKey $ Shared.accountXPub s
-    let xpub = CA.getKey $
-            deriveDelegationPublicKey (CA.liftXPub accXPub) minBound
+    let scriptM =
+            flip (replaceCosignersWithVerKeys CAShelley.Stake) minBound <$>
+            delegationTemplate s
     let getScript addr = case fst (isShared addr s) of
             Nothing ->
                 error $ "Some inputs selected by coin selection do not belong "
@@ -2431,7 +2447,7 @@ constructUnbalancedSharedTransaction txLayer netLayer db wid txCtx sel = db & \D
     sealedTx <- mapExceptT atomically $ do
         pp <- liftIO $ currentProtocolParameters netLayer
         withExceptT ErrConstructTxBody $ ExceptT $ pure $
-            mkUnsignedTransaction txLayer xpub pp txCtx (Left sel)
+            mkUnsignedTransaction txLayer (Right scriptM) pp txCtx (Left sel)
     pure (sealedTx, getScript)
 
 -- | Calculate the transaction expiry slot, given a 'TimeInterpreter', and an
@@ -2931,7 +2947,7 @@ transactionFee DBLayer{atomically, walletsDB} protocolParams txLayer ti
         pureTimeInterpreter <- liftIO $ snapshot ti
         unsignedTxBody <- wrapErrMkTransaction $
             mkUnsignedTransaction txLayer @era
-                (unsafeShelleyOnlyGetRewardXPub @s @k @n (getState wallet))
+                (Left $ unsafeShelleyOnlyGetRewardXPub @s @k @n (getState wallet))
                 (Write.pparamsWallet protocolParams)
                 txCtx
                 (Left preSelection)
@@ -3518,6 +3534,7 @@ data ErrConstructTx
     | ErrConstructTxWrongValidityBounds
     | ErrConstructTxValidityIntervalNotWithinScriptTimelock
     | ErrConstructTxSharedWalletIncomplete
+    | ErrConstructTxDelegationInvalid
     deriving (Show, Eq)
 
 -- | Errors that can occur when getting policy id.

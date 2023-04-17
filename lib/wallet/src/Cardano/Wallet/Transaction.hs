@@ -45,6 +45,7 @@ module Cardano.Wallet.Transaction
     , WitnessCount (..)
     , emptyWitnessCount
     , WitnessCountCtx (..)
+    , ToWitnessCountCtx (..)
     , toKeyRole
 
     -- * Errors
@@ -138,6 +139,7 @@ import GHC.Generics
 import qualified Cardano.Api as Cardano
 import qualified Cardano.Wallet.Primitive.Types.TokenMap as TokenMap
 import qualified Cardano.Wallet.Write.Tx as WriteTx
+import qualified Data.List as L
 import qualified Data.Map.Strict as Map
 
 data TransactionLayer k ktype tx = TransactionLayer
@@ -167,10 +169,13 @@ data TransactionLayer k ktype tx = TransactionLayer
     , addVkWitnesses
         :: AnyCardanoEra
             -- Preferred latest era
+        -> WitnessCountCtx
         -> [(XPrv, Passphrase "encryption")]
             -- Reward accounts
         -> (KeyHash, XPrv, Passphrase "encryption")
-            -- policy public and private key
+            -- policy key hash and private key
+        -> Maybe (KeyHash, XPrv, Passphrase "encryption")
+            -- optional staking key hash and private key
         -> (Address -> Maybe (k ktype XPrv, Passphrase "encryption"))
             -- Key store / address resolution
         -> (TxIn -> Maybe Address)
@@ -186,8 +191,8 @@ data TransactionLayer k ktype tx = TransactionLayer
     , mkUnsignedTransaction
         :: forall era
          . WriteTx.IsRecentEra era
-        => XPub
-            -- Reward account public key
+        => Either XPub (Maybe (Script KeyHash))
+            -- Reward account public key or optional script hash
         -> ProtocolParameters
             -- Current protocol parameters
         -> TransactionCtx
@@ -273,6 +278,8 @@ data TransactionCtx = TransactionCtx
     -- ^ The assets to burn.
     , txPaymentCredentialScriptTemplate :: Maybe ScriptTemplate
     -- ^ Script template regulating payment credentials
+    , txStakingCredentialScriptTemplate :: Maybe ScriptTemplate
+    -- ^ Script template regulating delegation credentials
     , txNativeScriptInputs :: Map TxIn (Script KeyHash)
     -- ^ A map of script hashes related to inputs. Only for multisig wallets
     , txCollateralRequirement :: SelectionCollateralRequirement
@@ -316,6 +323,7 @@ defaultTransactionCtx = TransactionCtx
     , txAssetsToMint = (TokenMap.empty, Map.empty)
     , txAssetsToBurn = (TokenMap.empty, Map.empty)
     , txPaymentCredentialScriptTemplate = Nothing
+    , txStakingCredentialScriptTemplate = Nothing
     , txNativeScriptInputs = Map.empty
     , txCollateralRequirement = SelectionCollateralNotRequired
     , txFeePadding = Coin 0
@@ -422,7 +430,7 @@ emptyWitnessCount = WitnessCount
 -- WitnessCount is needed only during or after signing, in other phases it is not used.
 data WitnessCountCtx =
       ShelleyWalletCtx KeyHash -- Policy
-    | SharedWalletCtx
+    | SharedWalletCtx [KeyHash] -- Delegation key hashes of all cosigners
     | AnyWitnessCountCtx
     deriving (Eq, Generic, Show)
     deriving anyclass NFData
@@ -434,8 +442,17 @@ toKeyRole witCtx (Hash key) = case witCtx of
             Policy
         else
             Unknown
-    SharedWalletCtx -> Payment
+    SharedWalletCtx stakingKeyHashes ->
+        let toStakeKey (KeyHash _ k) = k
+            isStakeKey = L.elem key (map toStakeKey stakingKeyHashes)
+        in if isStakeKey then
+               Delegation
+           else
+               Payment
     AnyWitnessCountCtx -> Unknown
+
+class ToWitnessCountCtx s where
+    toWitnessCountCtx :: s -> WitnessCountCtx
 
 data ErrMkTransaction
     = ErrMkTransactionNoSuchWallet WalletId

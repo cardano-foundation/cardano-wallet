@@ -371,7 +371,8 @@ import Cardano.Wallet.Network
 import Cardano.Wallet.Pools
     ( EpochInfo (..), toEpochInfo )
 import Cardano.Wallet.Primitive.AddressDerivation
-    ( BoundedAddressLength (..)
+    ( AccountIxForStaking (..)
+    , BoundedAddressLength (..)
     , DelegationAddress (..)
     , Depth (..)
     , DerivationIndex (..)
@@ -385,6 +386,7 @@ import Cardano.Wallet.Primitive.AddressDerivation
     , WalletKey (..)
     , deriveRewardAccount
     , publicKey
+    , stakeDerivationPath
     )
 import Cardano.Wallet.Primitive.AddressDerivation.Byron
     ( ByronKey, mkByronKeyFromMasterKey )
@@ -397,7 +399,7 @@ import Cardano.Wallet.Primitive.AddressDerivation.MintBurn
     , withinSlotInterval
     )
 import Cardano.Wallet.Primitive.AddressDerivation.SharedKey
-    ( SharedKey (..) )
+    ( SharedKey (..), replaceCosignersWithVerKeys )
 import Cardano.Wallet.Primitive.AddressDerivation.Shelley
     ( ShelleyKey )
 import Cardano.Wallet.Primitive.AddressDiscovery
@@ -529,11 +531,14 @@ import Cardano.Wallet.Shelley.Compatibility.Ledger
 import Cardano.Wallet.TokenMetadata
     ( TokenMetadataClient, fillMetadata )
 import Cardano.Wallet.Transaction
-    ( DelegationAction (..)
+    ( AnyExplicitScript (..)
+    , DelegationAction (..)
     , PreSelection (..)
+    , ToWitnessCountCtx (..)
     , TransactionCtx (..)
     , TransactionLayer (..)
     , Withdrawal (..)
+    , WitnessCount (..)
     , WitnessCountCtx (..)
     , defaultTransactionCtx
     )
@@ -658,6 +663,8 @@ import UnliftIO.Concurrent
 import UnliftIO.Exception
     ( IOException, bracket, tryAnyDeep, tryJust )
 
+import qualified Cardano.Address.Script as CA
+import qualified Cardano.Address.Style.Shelley as CA
 import qualified Cardano.Api as Cardano
 import qualified Cardano.Wallet as W
 import qualified Cardano.Wallet.Api.Types as Api
@@ -2085,6 +2092,8 @@ signTransaction
         , WalletKey k
         , IsOwned s k ktype
         , HardDerivation k
+        , AccountIxForStaking s
+        , ToWitnessCountCtx s
         )
     => ctx
     -> ApiT WalletId
@@ -2116,9 +2125,15 @@ signTransaction ctx (ApiT wid) body = do
                         -> Maybe (k ktype XPrv, Passphrase "encryption")
                     keyLookup = isOwned (getState cp) (rootK, pwdP)
 
+                    accIxForStakingM :: Maybe (Index 'Hardened 'AccountK)
+                    accIxForStakingM = getAccountIx @s (getState cp)
+
+                    witCountCtx = toWitnessCountCtx @s (getState cp)
+
                 era <- liftIO $ NW.currentNodeEra nl
                 let sealedTx = body ^. #transaction . #getApiT
-                pure $ W.signTransaction tl era keyLookup Nothing (rootK, pwdP) utxo sealedTx
+                pure $ W.signTransaction tl era witCountCtx keyLookup
+                    Nothing (rootK, pwdP) utxo accIxForStakingM sealedTx
 
     -- TODO: The body+witnesses seem redundant with the sealedTx already. What's
     -- the use-case for having them provided separately? In the end, the client
@@ -2663,26 +2678,6 @@ constructTransaction api argGenChange knownPools poolStatus apiWalletId body = d
                 not $ withinSlotInterval before hereafter $
                     scriptSlotIntervals script
 
-    parseDelegationRequest
-        :: NonEmpty ApiMultiDelegationAction
-        -> ExceptT ErrConstructTx IO WD.DelegationRequest
-    parseDelegationRequest (action :| otherActions) = except $
-        case otherActions of
-            [] -> case action of
-               Joining (ApiT pool) stakeKeyIdx | isValidKeyIdx stakeKeyIdx ->
-                    Right $ WD.Join pool
-               Leaving stakeKeyIdx | isValidKeyIdx stakeKeyIdx ->
-                    Right WD.Quit
-               _ -> Left ErrConstructTxMultiaccountNotSupported
-            -- Current limitation:
-            -- at this moment we are handling just one delegation action:
-            -- either joining pool, or rejoining or quitting
-            -- When we support multi-account this should be lifted
-            _ -> Left ErrConstructTxMultidelegationNotSupported
-      where
-        isValidKeyIdx (ApiStakeKeyIndex (ApiT derIndex)) =
-            derIndex == DerivationIndex (getIndex @'Hardened minBound)
-
     toUsignedTxWdrl p = \case
         ApiWithdrawalGeneral (ApiT rewardAcc, _) amount Our ->
             Just (rewardAcc, Coin.fromQuantity amount, p)
@@ -2781,6 +2776,26 @@ toUnsignedTxChange = \case
     ExternalOutput _ ->
         error "constructTx.toUnsignedTxChange: change should always be ours"
 
+parseDelegationRequest
+    :: NonEmpty ApiMultiDelegationAction
+    -> ExceptT ErrConstructTx IO WD.DelegationRequest
+parseDelegationRequest (action :| otherActions) = except $
+    case otherActions of
+        [] -> case action of
+           Joining (ApiT pool) stakeKeyIdx | isValidKeyIdx stakeKeyIdx ->
+                Right $ WD.Join pool
+           Leaving stakeKeyIdx | isValidKeyIdx stakeKeyIdx ->
+                Right WD.Quit
+           _ -> Left ErrConstructTxMultiaccountNotSupported
+        -- Current limitation:
+        -- at this moment we are handling just one delegation action:
+        -- either joining pool, or rejoining or quitting
+        -- When we support multi-account this should be lifted
+        _ -> Left ErrConstructTxMultidelegationNotSupported
+  where
+    isValidKeyIdx (ApiStakeKeyIndex (ApiT derIndex)) =
+        derIndex == DerivationIndex (getIndex @'Hardened minBound)
+
 parseValidityInterval
     :: TimeInterpreter (ExceptT PastHorizonException IO)
     -> Maybe ApiValidityInterval
@@ -2834,26 +2849,19 @@ parseValidityInterval ti validityInterval = do
 
     pure (before, hereafter)
 
--- TO-DO delegations/withdrawals
+-- TO-DO withdrawals
 -- TO-DO minting/burning
 constructSharedTransaction
-    :: forall ctx s k n.
-        ( k ~ SharedKey
-        , s ~ SharedState n k
-        , ctx ~ ApiLayer s k 'CredFromScriptK
-        , HasNetworkLayer IO ctx
-        , IsOurs s Address
-        , HasSNetworkId n
-        )
-    => ctx
-    -> ArgGenChange s
+    :: forall (n :: NetworkDiscriminant) . HasSNetworkId n
+    => ApiLayer (SharedState n SharedKey) SharedKey 'CredFromScriptK
+    -> ArgGenChange (SharedState n SharedKey)
     -> IO (Set PoolId)
     -> (PoolId -> IO PoolLifeCycleStatus)
     -> ApiT WalletId
     -> ApiConstructTransactionData n
     -> Handler (ApiConstructTransaction n)
 constructSharedTransaction
-    ctx argGenChange _knownPools _getPoolStatus (ApiT wid) body = do
+    api argGenChange knownPools getPoolStatus (ApiT wid) body = do
     let isNoPayload =
             isNothing (body ^. #payments) &&
             isNothing (body ^. #withdrawal) &&
@@ -2868,23 +2876,42 @@ constructSharedTransaction
     (before, hereafter) <- liftHandler $
         parseValidityInterval ti (body ^. #validityInterval)
 
-    withWorkerCtx ctx wid liftE liftE $ \wrk -> do
+    delegationRequest <-
+        liftHandler $ traverse parseDelegationRequest $ body ^. #delegations
+
+    withWorkerCtx api wid liftE liftE $ \wrk -> do
         let db = wrk ^. dbLayer
             netLayer = wrk ^. networkLayer
             txLayer = wrk ^. transactionLayer @SharedKey @'CredFromScriptK
+            trWorker = MsgWallet >$< wrk ^. logger
 
+        pp <- liftIO $ NW.currentProtocolParameters netLayer
+        epoch <- getCurrentEpoch api
         era <- liftIO $ NW.currentNodeEra (wrk ^. networkLayer)
         AnyRecentEra (_recentEra :: WriteTx.RecentEra era)
             <- guardIsRecentEra era
         (cp, _, _) <- liftHandler $ withExceptT ErrConstructTxNoSuchWallet $
-            W.readWallet @_ @s @k wrk wid
+            W.readWallet wrk wid
+
+        let delegationTemplateM = Shared.delegationTemplate $ getState cp
+        when (isNothing delegationTemplateM && isJust delegationRequest) $
+            liftHandler $ throwE ErrConstructTxDelegationInvalid
+
+        optionalDelegationAction <- liftHandler $
+            forM delegationRequest $
+                WD.handleDelegationRequest
+                    trWorker db epoch knownPools
+                    getPoolStatus wid NoWithdrawal
+
         let txCtx = defaultTransactionCtx
                 { txWithdrawal = NoWithdrawal
                 , txMetadata = md
                 , txValidityInterval = (Just before, hereafter)
-                , txDelegationAction = Nothing
+                , txDelegationAction = optionalDelegationAction
                 , txPaymentCredentialScriptTemplate =
                         Just (Shared.paymentTemplate $ getState cp)
+                , txStakingCredentialScriptTemplate =
+                        Shared.delegationTemplate $ getState cp
                 }
         case Shared.ready (getState cp) of
             Shared.Pending ->
@@ -2900,7 +2927,7 @@ constructSharedTransaction
                     txLayer netLayer db wid txCtx PreSelection {outputs = outs}
 
                 balancedTx <-
-                    balanceTransaction ctx argGenChange (Just scriptLookup)
+                    balanceTransaction api argGenChange (Just scriptLookup)
                     (Just (Shared.paymentTemplate $ getState cp)) (ApiT wid)
                         ApiBalanceTransactionPostData
                         { transaction =
@@ -2910,19 +2937,24 @@ constructSharedTransaction
                         , encoding = body ^. #encoding
                         }
 
-                apiDecoded <-
-                    decodeSharedTransaction @_ @s @k ctx (ApiT wid) balancedTx
-
+                apiDecoded <- decodeSharedTransaction api (ApiT wid) balancedTx
+                let deposits = case optionalDelegationAction of
+                        Just (JoinRegisteringKey _poolId) ->
+                            [W.stakeKeyDeposit pp]
+                        _ -> []
+                let refunds = case optionalDelegationAction of
+                        Just Quit -> [W.stakeKeyDeposit pp]
+                        _ -> []
                 pure $ ApiConstructTransaction
                     { transaction = balancedTx
                     , coinSelection =
-                        mkApiCoinSelection [] [] Nothing md
+                        mkApiCoinSelection deposits refunds Nothing md
                         (unsignedTx outs apiDecoded)
                     , fee = apiDecoded ^. #fee
                     }
   where
     ti :: TimeInterpreter (ExceptT PastHorizonException IO)
-    ti = timeInterpreter (ctx ^. networkLayer)
+    ti = timeInterpreter (api ^. networkLayer)
 
     unsignedTx initialOuts decodedTx = UnsignedTx
         { unsignedCollateral =
@@ -2941,41 +2973,64 @@ constructSharedTransaction
 
 
 decodeSharedTransaction
-    :: forall ctx s k (n :: NetworkDiscriminant).
-        ( ctx ~ ApiLayer s k 'CredFromScriptK
-        , IsOurs s Address
-        , HasNetworkLayer IO ctx
-        )
-    => ctx
+    :: forall (n :: NetworkDiscriminant) . HasSNetworkId n
+    => ApiLayer (SharedState n SharedKey) SharedKey 'CredFromScriptK
     -> ApiT WalletId
     -> ApiSerialisedTransaction
     -> Handler (ApiDecodedTransaction n)
 decodeSharedTransaction ctx (ApiT wid) (ApiSerialisedTransaction (ApiT sealed) _) = do
     era <- liftIO $ NW.currentNodeEra nl
-    let (decodedTx, _toMint, _toBurn, _allCerts, interval, witsCount) =
-            decodeTx tl era SharedWalletCtx sealed
-    let (Tx { txId
-            , fee
-            , resolvedInputs
-            , resolvedCollateralInputs
-            , outputs
-            , metadata
-            , scriptValidity
-            }) = decodedTx
-    (txinsOutsPaths, collateralInsOutsPaths, outsPath)
+    (txinsOutsPaths, collateralInsOutsPaths, outsPath, pp, certs, txId, fee
+        , metadata, scriptValidity, interval, witsCount)
         <- withWorkerCtx ctx wid liftE liftE $ \wrk -> do
+        (cp, _, _) <- liftHandler $ withExceptT W.ErrDecodeTxNoSuchWallet $
+            W.readWallet wrk wid
+        let witCountCtx = toWitnessCountCtx @(SharedState n SharedKey) (getState cp)
+        let (decodedTx, _toMint, _toBurn, allCerts, interval, witsCount) =
+                decodeTx tl era witCountCtx sealed
+        let (Tx { txId
+                , fee
+                , resolvedInputs
+                , resolvedCollateralInputs
+                , outputs
+                , metadata
+                , scriptValidity
+                }) = decodedTx
         inputPaths <-
-            liftHandler $ W.lookupTxIns @_ @s @k wrk wid $
+            liftHandler $ W.lookupTxIns @_ wrk wid $
             fst <$> resolvedInputs
         collateralInputPaths <-
-            liftHandler $ W.lookupTxIns @_ @s @k wrk wid $
+            liftHandler $ W.lookupTxIns @_ wrk wid $
             fst <$> resolvedCollateralInputs
         outputPaths <-
-            liftHandler $ W.lookupTxOuts @_ @s @k wrk wid outputs
+            liftHandler $ W.lookupTxOuts @_ wrk wid outputs
+        pp <- liftIO $ NW.currentProtocolParameters (wrk ^. networkLayer)
+        let delegationTemplateM = (getState cp) ^. #delegationTemplate
+        let scriptM =
+                flip (replaceCosignersWithVerKeys CA.Stake) minBound <$>
+                delegationTemplateM
+        let rewardAcctPath =
+                stakeDerivationPath $ Shared.derivationPrefix $ getState cp
+        let rewardAcctM = case scriptM of
+                Just script ->
+                    let scriptHash =
+                            CA.unScriptHash $
+                            CA.toScriptHash script
+                    in Just $ RewardAccount scriptHash
+                Nothing -> Nothing
+        let certs = mkApiAnyCertificate rewardAcctM rewardAcctPath <$> allCerts
         pure
             ( inputPaths
             , collateralInputPaths
             , outputPaths
+            , pp
+            , certs
+            , txId
+            , fee
+            , metadata
+            , scriptValidity
+            , interval
+            , witsCount
             )
     pure $ ApiDecodedTransaction
         { id = ApiT txId
@@ -2989,17 +3044,20 @@ decodeSharedTransaction ctx (ApiT wid) (ApiSerialisedTransaction (ApiT sealed) _
         -- TODO minting/burning multisig
         , mint = emptyApiAssetMntBurn
         , burn = emptyApiAssetMntBurn
-        -- TODO delegation/withdrawals multisig
-        , certificates = []
-        , depositsTaken = []
-        , depositsReturned = []
+        , certificates = certs
+        , depositsTaken =
+            (Quantity . fromIntegral . unCoin . W.stakeKeyDeposit $ pp)
+                <$ filter ourRewardAccountRegistration certs
+        , depositsReturned =
+            (Quantity . fromIntegral . unCoin . W.stakeKeyDeposit $ pp)
+                <$ filter ourRewardAccountDeregistration certs
         , metadata = ApiTxMetadata $ ApiT <$> metadata
         , scriptValidity = ApiT <$> scriptValidity
         , validityInterval = ApiValidityIntervalExplicit <$> interval
         , witnessCount = mkApiWitnessCount witsCount
         }
   where
-    tl = ctx ^. W.transactionLayer @k @'CredFromScriptK
+    tl = ctx ^. W.transactionLayer @SharedKey @'CredFromScriptK
     nl = ctx ^. W.networkLayer @IO
 
     emptyApiAssetMntBurn = ApiAssetMintBurn
@@ -3168,7 +3226,7 @@ decodeTransaction
         pp <- liftIO $ NW.currentProtocolParameters (wrk ^. networkLayer)
         (minted, burned) <-
             convertApiAssetMintBurn @_ @s @k @n wrk wid (toMint, toBurn)
-        let certs = mkApiAnyCertificate acct acctPath <$> allCerts
+        let certs = mkApiAnyCertificate (Just acct) acctPath <$> allCerts
         pure $ ApiDecodedTransaction
             { id = ApiT txId
             , fee = maybe (Quantity 0) (Quantity . fromIntegral . unCoin) fee
@@ -3200,12 +3258,16 @@ decodeTransaction
            ApiWithdrawalGeneral (ApiT rewardKey, Proxy @n) (Quantity $ fromIntegral c) Our
         else
            ApiWithdrawalGeneral (ApiT rewardKey, Proxy @n) (Quantity $ fromIntegral c) External
-    ourRewardAccountRegistration = \case
-        WalletDelegationCertificate (RegisterRewardAccount _) -> True
-        _ -> False
-    ourRewardAccountDeregistration = \case
-        WalletDelegationCertificate (QuitPool _) -> True
-        _ -> False
+
+ourRewardAccountRegistration :: ApiAnyCertificate n -> Bool
+ourRewardAccountRegistration = \case
+    WalletDelegationCertificate (RegisterRewardAccount _) -> True
+    _ -> False
+
+ourRewardAccountDeregistration :: ApiAnyCertificate n -> Bool
+ourRewardAccountDeregistration = \case
+    WalletDelegationCertificate (QuitPool _) -> True
+    _ -> False
 
 toInp
     :: forall n. (TxIn, Maybe (TxOut, NonEmpty DerivationIndex))
@@ -3375,13 +3437,8 @@ isForeign apiDecodedTx =
         all isWdrlForeign generalWdrls
 
 submitSharedTransaction
-    :: forall ctx s k (n :: NetworkDiscriminant).
-        ( ctx ~ ApiLayer s k 'CredFromScriptK
-        , s ~ SharedState n k
-        , HasNetworkLayer IO ctx
-        , IsOwned s k 'CredFromScriptK
-        )
-    => ctx
+    :: forall (n :: NetworkDiscriminant) . HasSNetworkId n
+    => ApiLayer (SharedState n SharedKey) SharedKey 'CredFromScriptK
     -> ApiT WalletId
     -> ApiSerialisedTransaction
     -> Handler ApiTxId
@@ -3390,9 +3447,8 @@ submitSharedTransaction ctx apiw@(ApiT wid) apitx = do
     era <- liftIO $ NW.currentNodeEra nl
 
     let sealedTx = getApiT . (view #serialisedTxSealed) $ apitx
-    let (tx,_,_,_,_,_) = decodeTx tl era SharedWalletCtx sealedTx
 
-    apiDecoded <- decodeSharedTransaction @_ @s @k ctx apiw apitx
+    apiDecoded <- decodeSharedTransaction @n ctx apiw apitx
     when (isForeign apiDecoded) $
         liftHandler $ throwE ErrSubmitTransactionForeignWallet
     let ourOuts = getOurOuts apiDecoded
@@ -3401,19 +3457,39 @@ submitSharedTransaction ctx apiw@(ApiT wid) apitx = do
     void $ withWorkerCtx ctx wid liftE liftE $ \wrk -> do
 
         (cp, _, _) <- liftHandler $ withExceptT ErrSubmitTransactionNoSuchWallet $
-            W.readWallet @_ @s @k wrk wid
-        let (ScriptTemplate _ script) = (Shared.paymentTemplate $ getState cp)
-        let witsPerInput = Shared.estimateMinWitnessRequiredPerInput script
+            W.readWallet @_ wrk wid
+        let witCountCtx = toWitnessCountCtx @(SharedState n SharedKey) (getState cp)
+        let (tx,_,_,_,_, (WitnessCount _ nativeScripts _)) =
+                decodeTx tl era witCountCtx sealedTx
 
+        let numberStakingNativeScripts =
+                length $ filter hasDelegationKeyHash nativeScripts
+        let delegationScriptTemplateM = Shared.delegationTemplate $ getState cp
+        let delegationWitsRequired = case delegationScriptTemplateM of
+                Nothing -> 0
+                Just (ScriptTemplate _ scriptD) ->
+                    if numberStakingNativeScripts == 0 then
+                        0
+                    else if numberStakingNativeScripts == 1 then
+                        Shared.estimateMinWitnessRequiredPerInput scriptD
+                    else
+                        error "wallet supports transactions with 0 or 1 staking script"
+
+        let (ScriptTemplate _ scriptP) = Shared.paymentTemplate $ getState cp
+        let pWitsPerInput = Shared.estimateMinWitnessRequiredPerInput scriptP
         let witsRequiredForInputs =
                 length $ L.nubBy samePaymentKey $
                 filter isInpOurs $
                 (apiDecoded ^. #inputs) ++ (apiDecoded ^. #collateral)
         let totalNumberOfWits = length $ getSealedTxWitnesses sealedTx
-        let allWitsRequired = fromIntegral witsPerInput * witsRequiredForInputs
+        let paymentWitsRequired =
+                fromIntegral pWitsPerInput * witsRequiredForInputs
+        let allWitsRequired =
+                paymentWitsRequired + fromIntegral delegationWitsRequired
         when (allWitsRequired > totalNumberOfWits) $
             liftHandler $ throwE $
-            ErrSubmitTransactionPartiallySignedOrNoSignedTx allWitsRequired totalNumberOfWits
+            ErrSubmitTransactionPartiallySignedOrNoSignedTx
+            allWitsRequired totalNumberOfWits
 
         let txCtx = defaultTransactionCtx
                 { txValidityInterval = (Nothing, ttl)
@@ -3429,9 +3505,21 @@ submitSharedTransaction ctx apiw@(ApiT wid) apitx = do
     pure $ ApiTxId (apiDecoded ^. #id)
   where
     nl = ctx ^. networkLayer
-    tl = ctx ^. W.transactionLayer @k @'CredFromScriptK
+    tl = ctx ^. W.transactionLayer @SharedKey @'CredFromScriptK
     ti :: TimeInterpreter (ExceptT PastHorizonException IO)
     ti = timeInterpreter nl
+
+    retrieveAllKeyHashes (NativeExplicitScript s _) = foldScript (:) [] s
+    retrieveAllKeyHashes _ = []
+
+    isTimelock (NativeExplicitScript _ _) = True
+    isTimelock _ = False
+
+    isDelegationKeyHash (KeyHash CA.Delegation _) = True
+    isDelegationKeyHash (KeyHash _ _) = False
+
+    hasDelegationKeyHash s =
+        isTimelock s && all isDelegationKeyHash (retrieveAllKeyHashes s)
 
 joinStakePool
     :: forall s n k.
@@ -4231,7 +4319,7 @@ selfRewardAccountBuilder
        )
     => RewardAccountBuilder k
 selfRewardAccountBuilder (rootK, pwdP) =
-    (getRawKey (deriveRewardAccount @k pwdP rootK), pwdP)
+    (getRawKey (deriveRewardAccount @k pwdP rootK minBound), pwdP)
 
 -- | Makes an 'ApiCoinSelection' from the given 'UnsignedTx'.
 mkApiCoinSelection
@@ -4437,7 +4525,7 @@ mkApiTransaction timeInterpreter wrk wid timeRefLens tx = do
     getApiAnyCertificates db ParsedTxCBOR{certificates} = do
         (rewardAccount, _, derivPath) <- liftHandler
             $ W.shelleyOnlyReadRewardAccount @s @k @n db wid
-        pure $ mkApiAnyCertificate rewardAccount derivPath <$> certificates
+        pure $ mkApiAnyCertificate (Just rewardAccount) derivPath <$> certificates
 
     depositIfAny :: Natural
     depositIfAny
