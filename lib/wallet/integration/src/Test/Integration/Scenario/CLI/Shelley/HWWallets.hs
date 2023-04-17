@@ -17,7 +17,6 @@ import Cardano.Wallet.Api.Types
     , ApiTransaction
     , ApiUtxoStatistics
     , ApiWallet
-    , DecodeStakeAddress (..)
     , apiAddress
     )
 import Cardano.Wallet.Api.Types.SchemaMetadata
@@ -93,9 +92,7 @@ import qualified Data.Text as T
 
 spec
     :: forall n
-     . ( HasSNetworkId n
-       , DecodeStakeAddress n
-       )
+     . HasSNetworkId n
     => SpecWith Context
 spec = describe "SHELLEY_CLI_HW_WALLETS" $ do
 

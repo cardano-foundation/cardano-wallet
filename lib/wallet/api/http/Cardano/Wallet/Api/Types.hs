@@ -162,6 +162,7 @@ module Cardano.Wallet.Api.Types
     , ApiWithdrawal (..)
     , ApiWithdrawalGeneral (..)
     , ApiWithdrawalPostData (..)
+    , ApiRewardAccount (..)
     , fromApiEra
     , Iso8601Time (..)
     , KeyFormat (..)
@@ -202,11 +203,6 @@ module Cardano.Wallet.Api.Types
     , ApiAccountPublicKey (..)
     , ApiAccountSharedPublicKey (..)
     , WalletOrAccountPostData (..)
-
-    -- * User-Facing Address Encoding/Decoding
-
-    , EncodeStakeAddress (..)
-    , DecodeStakeAddress (..)
 
     -- * Shared Wallets
     , ApiSharedWallet (..)
@@ -309,6 +305,7 @@ import Cardano.Wallet.Api.Types.Certificate
     , ApiDeregisterPool (..)
     , ApiExternalCertificate (..)
     , ApiRegisterPool (..)
+    , ApiRewardAccount (..)
     )
 import Cardano.Wallet.Api.Types.Key
     ( ApiAccountKey (..)
@@ -394,8 +391,6 @@ import Cardano.Wallet.Read.NetworkId
     ( HasSNetworkId (..), NetworkDiscriminant )
 import Cardano.Wallet.Shelley.Compatibility
     ( decodeAddress, encodeAddress )
-import Cardano.Wallet.Shelley.Network.Discriminant
-    ( DecodeStakeAddress (..), EncodeStakeAddress (..) )
 import Cardano.Wallet.TokenMetadata
     ( TokenMetadataError (..) )
 import Cardano.Wallet.Util
@@ -512,7 +507,6 @@ import qualified Cardano.Address.Script as CA
 import qualified Cardano.Crypto.Wallet as CC
 import qualified Cardano.Wallet.Primitive.AddressDerivation as AD
 import qualified Cardano.Wallet.Primitive.Types as W
-import qualified Cardano.Wallet.Primitive.Types.RewardAccount as W
 import qualified Cardano.Wallet.Primitive.Types.TokenPolicy as W
 import qualified Cardano.Wallet.Write.Tx as WriteTx
 import qualified Codec.Binary.Bech32 as Bech32
@@ -1337,7 +1331,7 @@ data ApiTransaction (n :: NetworkDiscriminant) = ApiTransaction
 
 data ApiCoinSelectionWithdrawal (n :: NetworkDiscriminant) =
     ApiCoinSelectionWithdrawal
-    { stakeAddress :: !(ApiT W.RewardAccount, Proxy n)
+    { stakeAddress :: !(ApiRewardAccount n)
     , derivationPath :: !(NonEmpty (ApiT DerivationIndex))
     , amount :: !(Quantity "lovelace" Natural)
     }
@@ -1905,7 +1899,7 @@ newtype ApiMnemonicT (sizes :: [Nat]) =
 -- | A stake key belonging to the current wallet.
 data ApiOurStakeKey (n :: NetworkDiscriminant) = ApiOurStakeKey
      { _index :: !Natural
-    , _key :: !(ApiT W.RewardAccount, Proxy n)
+    , _key :: !(ApiRewardAccount n)
     , _stake :: !(Quantity "lovelace" Natural)
       -- ^ The total ada this stake key controls / is associated with. This
       -- also includes the reward balance.
@@ -1922,7 +1916,7 @@ data ApiOurStakeKey (n :: NetworkDiscriminant) = ApiOurStakeKey
 -- We /could/ provide the current delegation status for foreign stake
 -- keys.
 data ApiForeignStakeKey (n :: NetworkDiscriminant) = ApiForeignStakeKey
-    { _key :: !(ApiT W.RewardAccount, Proxy n)
+    { _key :: !(ApiRewardAccount n)
     , _stake :: !(Quantity "lovelace" Natural)
       -- ^ The total ada this stake key controls / is associated with. This
       -- also includes the reward balance.
@@ -2458,7 +2452,7 @@ instance HasSNetworkId t => FromJSON (ApiPaymentDestination t) where
 instance HasSNetworkId n => ToJSON (ApiPaymentDestination n) where
     toJSON (ApiPaymentAddresses addrs) = toJSON addrs
 
-instance DecodeStakeAddress n => FromJSON (ApiRedeemer n) where
+instance HasSNetworkId n => FromJSON (ApiRedeemer n) where
     parseJSON = withObject "ApiRedeemer" $ \o -> do
         purpose <- o .: "purpose"
         bytes <- o .: "data"
@@ -2474,7 +2468,7 @@ instance DecodeStakeAddress n => FromJSON (ApiRedeemer n) where
                     Right addr -> pure $ ApiRedeemerRewarding bytes addr
             _ ->
                 fail "unknown purpose for redeemer."
-instance EncodeStakeAddress n => ToJSON (ApiRedeemer n) where
+instance HasSNetworkId n => ToJSON (ApiRedeemer n) where
     toJSON = \case
         ApiRedeemerSpending bytes input -> object
             [ "purpose" .= ("spending" :: Text)
@@ -2513,7 +2507,7 @@ instance FromJSON ApiValidityBound where
                     _ -> fail "ApiValidityBound string must have either 'second' or 'slot' unit."
                 _ -> fail "ApiValidityBound string must have 'unit' field."
 
-instance (HasSNetworkId t, DecodeStakeAddress t) => FromJSON (ApiConstructTransaction t) where
+instance HasSNetworkId n => FromJSON (ApiConstructTransaction n) where
     parseJSON = withObject "ApiConstructTransaction object" $ \o -> do
         txTxt <- o .: "transaction"
         (tx, enc) <- (,HexEncoded) <$> parseSealedTxBytes @'Base16 txTxt <|>
@@ -2522,7 +2516,7 @@ instance (HasSNetworkId t, DecodeStakeAddress t) => FromJSON (ApiConstructTransa
         fee <- o .: "fee"
         pure $ ApiConstructTransaction (ApiSerialisedTransaction (ApiT tx) enc) sel fee
 
-instance (HasSNetworkId t, EncodeStakeAddress t) => ToJSON (ApiConstructTransaction t) where
+instance HasSNetworkId n => ToJSON (ApiConstructTransaction n) where
     toJSON (ApiConstructTransaction (ApiSerialisedTransaction tx encoding) sel fee) =
         object [ "transaction" .= case encoding of
                        HexEncoded ->

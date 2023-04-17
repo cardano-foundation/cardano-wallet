@@ -21,7 +21,9 @@ module Cardano.Wallet.Api.Types.Certificate
     , ApiDeregisterPool (..)
     , ApiExternalCertificate (..)
     , ApiRegisterPool (..)
-    , mkApiAnyCertificate)
+    , ApiRewardAccount (..)
+    , mkApiAnyCertificate
+    )
     where
 
 import Prelude
@@ -30,6 +32,8 @@ import Cardano.Pool.Metadata.Types
     ( StakePoolMetadataHash, StakePoolMetadataUrl )
 import Cardano.Pool.Types
     ( PoolId (..), PoolOwner )
+import Cardano.Wallet.Api.Aeson
+    ( eitherToParser )
 import Cardano.Wallet.Api.Lib.ApiT
     ( ApiT (..) )
 import Cardano.Wallet.Api.Lib.ExtendedObject
@@ -43,9 +47,11 @@ import Cardano.Wallet.Primitive.Types
 import Cardano.Wallet.Primitive.Types.Coin
     ( unCoin )
 import Cardano.Wallet.Read.NetworkId
-    ( NetworkDiscriminant )
-import Cardano.Wallet.Shelley.Network.Discriminant
-    ( DecodeStakeAddress, EncodeStakeAddress )
+    ( HasSNetworkId (sNetworkId), NetworkDiscriminant )
+import Cardano.Wallet.Shelley.Compatibility
+    ( decodeStakeAddress, encodeStakeAddress )
+import Cardano.Wallet.Util
+    ( ShowFmt (..) )
 import Control.DeepSeq
     ( NFData )
 import Data.Aeson.Types
@@ -62,12 +68,12 @@ import Data.Aeson.Types
     , withObject
     , (.:)
     )
+import Data.Bifunctor
+    ( bimap )
 import Data.List.NonEmpty
     ( NonEmpty )
 import Data.Quantity
     ( Percentage, Quantity (..) )
-import Data.Typeable
-    ( Proxy (..) )
 import GHC.Generics
     ( Generic )
 import Numeric.Natural
@@ -78,22 +84,40 @@ import qualified Cardano.Wallet.Primitive.Types.RewardAccount as W
 import qualified Data.Aeson.Types as Aeson
 import qualified Data.List.NonEmpty as NE
 
+newtype ApiRewardAccount (n :: NetworkDiscriminant)
+    = ApiRewardAccount W.RewardAccount
+    deriving (Eq, Generic, Show)
+    deriving anyclass NFData
+
+instance HasSNetworkId n => FromJSON (ApiRewardAccount n)
+  where
+    parseJSON x = parseJSON x >>= eitherToParser
+        . bimap ShowFmt ApiRewardAccount
+        . decodeStakeAddress (sNetworkId @n)
+
+instance HasSNetworkId n => ToJSON (ApiRewardAccount n)
+  where
+    toJSON (ApiRewardAccount acct) = toJSON
+        . encodeStakeAddress (sNetworkId @n) $ acct
+
 data ApiExternalCertificate (n :: NetworkDiscriminant)
     = RegisterRewardAccountExternal
-        { rewardAccount :: (ApiT W.RewardAccount, Proxy n)
+        { rewardAccount :: ApiRewardAccount n
         }
     | JoinPoolExternal
-        { rewardAccount :: (ApiT W.RewardAccount, Proxy n)
+        { rewardAccount :: ApiRewardAccount n
         , pool :: ApiT PoolId
         }
     | QuitPoolExternal
-        { rewardAccount :: (ApiT W.RewardAccount, Proxy n)
+        { rewardAccount :: ApiRewardAccount n
         }
     deriving (Eq, Generic, Show)
     deriving anyclass NFData
-instance DecodeStakeAddress n => FromJSON (ApiExternalCertificate n) where
+
+instance HasSNetworkId n => FromJSON (ApiExternalCertificate n) where
     parseJSON = genericParseJSON apiCertificateOptions
-instance EncodeStakeAddress n => ToJSON (ApiExternalCertificate n) where
+
+instance HasSNetworkId n => ToJSON (ApiExternalCertificate n) where
     toJSON = genericToJSON apiCertificateOptions
 
 data ApiRegisterPool = ApiRegisterPool
@@ -147,7 +171,7 @@ instance FromJSON ApiDeregisterPool where
 instance ToJSON ApiDeregisterPool where
     toJSON = extendAesonObject ["certificate_type" .= String "deregister_pool"]
 
-instance DecodeStakeAddress n => FromJSON (ApiAnyCertificate n) where
+instance HasSNetworkId n => FromJSON (ApiAnyCertificate n) where
     parseJSON = withObject "ApiAnyCertificate" $ \o -> do
         (certType :: String) <- o .: "certificate_type"
         case certType of
@@ -163,7 +187,7 @@ instance DecodeStakeAddress n => FromJSON (ApiAnyCertificate n) where
             "genesis" -> OtherCertificate <$> parseJSON (Object o)
             _ -> fail $ "unknown certificate_type: " <> show certType
 
-instance EncodeStakeAddress n => ToJSON (ApiAnyCertificate n) where
+instance HasSNetworkId n => ToJSON (ApiAnyCertificate n) where
     toJSON (WalletDelegationCertificate cert) = toJSON cert
     toJSON (DelegationCertificate cert) = toJSON cert
     toJSON (StakePoolRegister reg) = toJSON reg
@@ -223,18 +247,19 @@ mkApiAnyCertificate acct' acctPath' = \case
         if Just rewardKey == acctM then
             WalletDelegationCertificate $ QuitPool $ NE.map ApiT acctPath
         else
-            DelegationCertificate $ QuitPoolExternal (ApiT rewardKey, Proxy @n)
+            DelegationCertificate
+                $ QuitPoolExternal (ApiRewardAccount rewardKey)
     toApiDelCert acctM acctPath (W.CertRegisterKey rewardKey) =
         if Just rewardKey == acctM then
             WalletDelegationCertificate $
-            RegisterRewardAccount $ NE.map ApiT acctPath
+                RegisterRewardAccount $ NE.map ApiT acctPath
         else
             DelegationCertificate $
-            RegisterRewardAccountExternal (ApiT rewardKey, Proxy @n)
+                RegisterRewardAccountExternal (ApiRewardAccount rewardKey)
     toApiDelCert acctM acctPath (W.CertDelegateFull rewardKey poolId') =
         if Just rewardKey == acctM then
             WalletDelegationCertificate $
             JoinPool (NE.map ApiT acctPath) (ApiT poolId')
         else
             DelegationCertificate $
-            JoinPoolExternal (ApiT rewardKey, Proxy @n) (ApiT poolId')
+            JoinPoolExternal (ApiRewardAccount rewardKey) (ApiT poolId')

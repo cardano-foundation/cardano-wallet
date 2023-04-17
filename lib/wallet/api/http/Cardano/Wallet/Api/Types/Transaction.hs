@@ -46,7 +46,7 @@ import Cardano.Wallet.Api.Lib.ApiT
 import Cardano.Wallet.Api.Lib.Options
     ( DefaultRecord (..) )
 import Cardano.Wallet.Api.Types.Certificate
-    ( ApiAnyCertificate )
+    ( ApiAnyCertificate, ApiRewardAccount )
 import Cardano.Wallet.Api.Types.MintBurn
     ( ApiAssetMintBurn )
 import Cardano.Wallet.Api.Types.Primitive
@@ -71,8 +71,6 @@ import Cardano.Wallet.Read.NetworkId
     ( HasSNetworkId (..), NetworkDiscriminant )
 import Cardano.Wallet.Shelley.Compatibility
     ( decodeAddress, encodeAddress )
-import Cardano.Wallet.Shelley.Network.Discriminant
-    ( DecodeStakeAddress, EncodeStakeAddress )
 import Cardano.Wallet.Transaction
     ( AnyExplicitScript (..)
     , ValidityIntervalExplicit (..)
@@ -107,7 +105,7 @@ import Data.Text
 import Data.Text.Class
     ( toText )
 import Data.Typeable
-    ( Proxy, Typeable )
+    ( Typeable )
 import Data.Word
     ( Word32, Word8 )
 import GHC.Generics
@@ -119,7 +117,6 @@ import Quiet
 import Servant
     ( FromHttpApiData (..), ToHttpApiData (..) )
 
-import qualified Cardano.Wallet.Primitive.Types.RewardAccount as W
 import qualified Cardano.Wallet.Primitive.Types.TokenMap as W
 import qualified Data.Aeson.Types as Aeson
 
@@ -218,10 +215,7 @@ data ApiTxInputGeneral (n :: NetworkDiscriminant) =
     deriving (Eq, Generic, Show, Typeable)
     deriving anyclass NFData
 
-instance
-    ( HasSNetworkId n
-    , DecodeStakeAddress n
-    ) => FromJSON (ApiTxInputGeneral n)
+instance HasSNetworkId n => FromJSON (ApiTxInputGeneral n)
   where
     parseJSON obj = do
         derPathM <-
@@ -235,11 +229,8 @@ instance
             Just _ -> do
                 xs <- parseJSON obj :: Aeson.Parser (ApiWalletInput n)
                 pure $ WalletInput xs
-instance
-    ( HasSNetworkId n
-    , EncodeStakeAddress n
-    ) => ToJSON (ApiTxInputGeneral n)
-  where
+
+instance HasSNetworkId n => ToJSON (ApiTxInputGeneral n) where
     toJSON (ExternalInput content) = toJSON content
     toJSON (WalletInput content) = toJSON content
 
@@ -248,7 +239,7 @@ data ResourceContext = External | Our
     deriving anyclass NFData
 
 data ApiWithdrawalGeneral (n :: NetworkDiscriminant) = ApiWithdrawalGeneral
-    { stakeAddress :: (ApiT W.RewardAccount, Proxy n)
+    { stakeAddress :: ApiRewardAccount n
     , amount :: Quantity "lovelace" Natural
     , context :: ResourceContext
     }
@@ -298,10 +289,7 @@ data ApiTxOutputGeneral (n :: NetworkDiscriminant) =
     deriving (Eq, Generic, Show, Typeable)
     deriving anyclass NFData
 
-instance
-    ( HasSNetworkId n
-    , DecodeStakeAddress n
-    ) => FromJSON (ApiTxOutputGeneral n)
+instance HasSNetworkId n => FromJSON (ApiTxOutputGeneral n)
   where
     parseJSON obj = do
         derPathM <-
@@ -317,11 +305,8 @@ instance
                 xs <- parseJSON obj
                     :: Aeson.Parser (ApiWalletOutput n)
                 pure $ WalletOutput xs
-instance
-    ( HasSNetworkId n
-    , EncodeStakeAddress n
-    ) => ToJSON (ApiTxOutputGeneral n)
-  where
+
+instance HasSNetworkId n => ToJSON (ApiTxOutputGeneral n) where
     toJSON (ExternalOutput content) = toJSON content
     toJSON (WalletOutput content) = toJSON content
 
@@ -333,14 +318,14 @@ newtype ApiPostPolicyKeyData = ApiPostPolicyKeyData
     deriving anyclass NFData
 
 data ApiWithdrawal (n :: NetworkDiscriminant) = ApiWithdrawal
-    { stakeAddress :: !(ApiT W.RewardAccount, Proxy n)
+    { stakeAddress :: !(ApiRewardAccount n)
     , amount :: !(Quantity "lovelace" Natural)
     }
     deriving (Eq, Generic, Show)
     deriving (FromJSON, ToJSON) via DefaultRecord (ApiWithdrawal n)
     deriving anyclass NFData
 
-instance DecodeStakeAddress n => FromJSON (ApiWithdrawalGeneral n) where
+instance HasSNetworkId n => FromJSON (ApiWithdrawalGeneral n) where
     parseJSON obj = do
         myResource <-
             (withObject "ApiWithdrawalGeneral" $
@@ -353,7 +338,7 @@ instance DecodeStakeAddress n => FromJSON (ApiWithdrawalGeneral n) where
                 (ApiWithdrawal addr amt)  <- parseJSON obj :: Aeson.Parser (ApiWithdrawal n)
                 pure $ ApiWithdrawalGeneral addr amt Our
 
-instance EncodeStakeAddress n => ToJSON (ApiWithdrawalGeneral n) where
+instance HasSNetworkId n => ToJSON (ApiWithdrawalGeneral n) where
     toJSON (ApiWithdrawalGeneral addr amt ctx) = do
         let obj = [ "stake_address" .= toJSON addr
                   , "amount" .= toJSON amt]

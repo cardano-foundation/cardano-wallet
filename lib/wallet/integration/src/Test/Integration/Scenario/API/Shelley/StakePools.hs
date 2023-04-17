@@ -50,8 +50,6 @@ import Cardano.Wallet.Primitive.Types.Tx.TxMeta
     ( Direction (..), TxStatus (..) )
 import Cardano.Wallet.Read.NetworkId
     ( HasSNetworkId )
-import Cardano.Wallet.Shelley.Network.Discriminant
-    ( DecodeStakeAddress (..) )
 import Cardano.Wallet.Unsafe
     ( unsafeFromHex, unsafeMkPercentage )
 import Control.Monad
@@ -158,9 +156,7 @@ import qualified Prelude
 
 spec
     :: forall n
-     . ( HasSNetworkId n
-       , DecodeStakeAddress n
-       )
+     . HasSNetworkId n
     => SpecWith Context
 spec = describe "SHELLEY_STAKE_POOLS" $ do
     let listPools ctx stake =

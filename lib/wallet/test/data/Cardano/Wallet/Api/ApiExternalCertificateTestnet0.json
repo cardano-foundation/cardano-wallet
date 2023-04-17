@@ -1,0 +1,47 @@
+{
+    "samples": [
+        {
+            "certificate_type": "quit_pool_external",
+            "reward_account": "stake_test1uq63nc64lnj5maes5v2w7vkrg6lkhg726uzr0u8z5yh4gjqr7vgfx"
+        },
+        {
+            "certificate_type": "join_pool_external",
+            "pool": "pool1qh0q0prmez6t2whtd2jclh58fqucd33yrylqg86ngvn3c6gq2yj",
+            "reward_account": "stake_test1upd42rrzsgd2hcvjvmw7l5g4fpu7q64ljte7uz4g9m02shqm2cz33"
+        },
+        {
+            "certificate_type": "join_pool_external",
+            "pool": "pool1cmvpsxkx9vkjr57lnfc3njeqfs8xvk3mtd9hlh5q09hjyx30w08",
+            "reward_account": "stake_test1urzruvwwxxfuqm4jzepqhytndnfxe90ylc6wxwa6mnsdk9cjphjap"
+        },
+        {
+            "certificate_type": "quit_pool_external",
+            "reward_account": "stake_test1uqn3v6423f5wmg7ul8lmelteq6gf3eqm6xdjw00ugplktfg934fpv"
+        },
+        {
+            "certificate_type": "register_reward_account_external",
+            "reward_account": "stake_test1upcx70va0agduk77jts32xx7905qqmy2df2m427uyg4lj6sxa7hwh"
+        },
+        {
+            "certificate_type": "quit_pool_external",
+            "reward_account": "stake_test1uprk4d6zj0pcpwnal4c5swmzd5spu0np0sd85cr0gd58ncc65tsel"
+        },
+        {
+            "certificate_type": "register_reward_account_external",
+            "reward_account": "stake_test1updgl647vmcm4adha0a9d5c0tw6l9x857fufwawl3j7n67cpz62yx"
+        },
+        {
+            "certificate_type": "register_reward_account_external",
+            "reward_account": "stake_test1ursl07m8jspuuxl30k6q6lhf7faals2ev6dcejl9hlcs52gf4fn40"
+        },
+        {
+            "certificate_type": "register_reward_account_external",
+            "reward_account": "stake_test1urgw5c4p9qektf2wj66jnkarn3hnpypfcg9y0al4z5hdsrcj4q294"
+        },
+        {
+            "certificate_type": "quit_pool_external",
+            "reward_account": "stake_test1upaxzahmasf2zn9eamlsuzszz2pd3zuj6gv7z74a9m3czcgartxv6"
+        }
+    ],
+    "seed": 2052080322
+}

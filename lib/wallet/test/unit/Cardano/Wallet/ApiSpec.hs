@@ -52,12 +52,8 @@ import Cardano.Wallet.Api.Malformed
     , malformed
     , wellformed
     )
-import Cardano.Wallet.Primitive.Types.RewardAccount
-    ( RewardAccount (..) )
 import Cardano.Wallet.Read.NetworkId
     ( NetworkDiscriminant (..) )
-import Cardano.Wallet.Shelley.Network.Discriminant
-    ( DecodeStakeAddress (..), EncodeStakeAddress (..) )
 import Control.Monad
     ( forM_ )
 import Data.Aeson.QQ
@@ -132,13 +128,6 @@ import qualified Data.ByteString.Lazy as BL
 import qualified Data.Map.Strict as Map
 import qualified Data.Text as T
 import qualified Servant
-
--- TODO [ADP-2302] Remove need for overlapping dummy instances
-instance {-# OVERLAPPING #-} EncodeStakeAddress ('Testnet 0) where
-    encodeStakeAddress = T.pack . show
-
-instance {-# OVERLAPPING #-} DecodeStakeAddress ('Testnet 0) where
-    decodeStakeAddress _ = pure (RewardAccount "<acct>")
 
 spec :: Spec
 spec = do

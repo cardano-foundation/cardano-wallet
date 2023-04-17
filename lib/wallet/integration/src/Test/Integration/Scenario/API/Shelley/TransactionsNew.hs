@@ -66,11 +66,12 @@ import Cardano.Wallet.Api.Types
     , ApiWallet
     , ApiWalletInput (..)
     , ApiWalletOutput (..)
-    , DecodeStakeAddress
     , ResourceContext (..)
     , WalletStyle (..)
     , fromApiEra
     )
+import Cardano.Wallet.Api.Types.Certificate
+    ( ApiRewardAccount (..) )
 import Cardano.Wallet.Api.Types.Transaction
     ( ApiAddress (..), ApiValidityIntervalExplicit (..), mkApiWitnessCount )
 import Cardano.Wallet.Pools
@@ -242,9 +243,7 @@ import qualified Test.Integration.Plutus as PlutusScenario
 
 spec
     :: forall n
-     . ( HasSNetworkId n
-       , DecodeStakeAddress n
-       )
+     . HasSNetworkId n
     => SpecWith Context
 spec = describe "NEW_SHELLEY_TRANSACTIONS" $ do
     it "TRANS_NEW_CREATE_01a - Empty payload is not allowed" $ \ctx -> runResourceT $ do
@@ -1789,12 +1788,15 @@ spec = describe "NEW_SHELLEY_TRANSACTIONS" $ do
                 \c419d48e1840bdeba8338206cf3df799d04328c4208b4d7a87248e604a7844\
                 \7c2a7acfa4488f3df5c92b01535f756e6ae6e1f23ddb9f438de10ef5f6" :: Text
 
-        let rewardAccount' = ApiT $ RewardAccount "\137\252a\210\GS\223\203\212\212\&6R\191\ENQ\196\f4o\167\148\135\DC4#\182PR\215aL"
+        let rewardAccount' = RewardAccount "\137\252a\210\GS\223\203\212\212\&6R\191\ENQ\196\f4o\167\148\135\DC4#\182PR\215aL"
         let pool' = ApiT $ PoolId "\236(\243=\203\230\214@\n\RS^3\155\208d|\ts\202l\f\249\194\187\230\131\141\198"
 
         let certsJoin =
-                [ DelegationCertificate (RegisterRewardAccountExternal (rewardAccount', Proxy))
-                , DelegationCertificate (JoinPoolExternal (rewardAccount', Proxy) pool')
+                [ DelegationCertificate
+                    $ RegisterRewardAccountExternal
+                    $ ApiRewardAccount rewardAccount'
+                , DelegationCertificate
+                    $ JoinPoolExternal (ApiRewardAccount rewardAccount') pool'
                 ]
 
         let decodePayloadJoin = Json [json|{
@@ -1823,7 +1825,9 @@ spec = describe "NEW_SHELLEY_TRANSACTIONS" $ do
                 \c9571d7175c9263a12e40139c93929ef6ba11c1815f792b40cf5f6" :: Text
 
         let certsQuit =
-                [ DelegationCertificate (QuitPoolExternal (rewardAccount', Proxy))
+                [ DelegationCertificate
+                    $ QuitPoolExternal
+                    $ ApiRewardAccount rewardAccount'
                 ]
 
         let decodePayloadQuit = Json [json|{

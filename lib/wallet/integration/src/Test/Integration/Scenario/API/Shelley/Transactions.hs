@@ -35,7 +35,6 @@ import Cardano.Wallet.Api.Types
     , ApiTxId (..)
     , ApiTxInput (..)
     , ApiWallet
-    , DecodeStakeAddress
     , WalletStyle (..)
     , apiAddress
     , insertedAt
@@ -196,7 +195,6 @@ data TestCase a = TestCase
 spec
     :: forall n
      . ( HasSNetworkId n
-       , DecodeStakeAddress n
        , PaymentAddress n IcarusKey 'CredFromKeyK
        )
     => SpecWith Context

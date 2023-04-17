@@ -19,6 +19,10 @@ import Cardano.Wallet.Primitive.Types.Hash
     ( Hash (..) )
 import Control.DeepSeq
     ( NFData (..) )
+import Data.Aeson
+    ( FromJSON (..), ToJSON (..), Value (String) )
+import Data.Aeson.Extra
+    ( aesonFromText )
 import Data.ByteString
     ( ByteString )
 import Data.Text.Class
@@ -48,3 +52,9 @@ instance ToText RewardAccount where
 
 instance FromText RewardAccount where
     fromText = fmap (RewardAccount . getHash @"RewardAccount") . fromText
+
+instance ToJSON RewardAccount where
+    toJSON = String . toText
+
+instance FromJSON RewardAccount where
+    parseJSON = aesonFromText "RewardAccount"

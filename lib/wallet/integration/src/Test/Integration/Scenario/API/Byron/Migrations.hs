@@ -28,7 +28,6 @@ import Cardano.Wallet.Api.Types
     , ApiUtxoStatistics
     , ApiWallet
     , ApiWalletMigrationPlan (..)
-    , DecodeStakeAddress
     , WalletStyle (..)
     )
 import Cardano.Wallet.Primitive.AddressDerivation
@@ -109,7 +108,6 @@ import qualified Test.Hspec as Hspec
 spec
     :: forall n
      . ( HasSNetworkId n
-       , DecodeStakeAddress n
        , PaymentAddress n IcarusKey 'CredFromKeyK
        , PaymentAddress n ByronKey 'CredFromKeyK
        )
