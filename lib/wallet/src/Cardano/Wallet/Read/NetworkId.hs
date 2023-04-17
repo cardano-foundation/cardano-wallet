@@ -81,8 +81,8 @@ data SNat (n :: Nat) where
 fromSNat :: SNat n -> Natural
 fromSNat p@(SNat _) = natVal p
 
-toSNat :: Natural -> (forall (n :: Nat). SNat n -> a) -> a
-toSNat nat f = case someNatVal nat of
+withSNat :: Natural -> (forall (n :: Nat). KnownNat n => SNat n -> a) -> a
+withSNat nat f = case someNatVal nat of
     SomeNat proxy -> f (SNat proxy)
 
 {-----------------------------------------------------------------------------
@@ -137,10 +137,10 @@ fromSNetworkId (STestnet p) = NTestnet $ fromSNat p
 -- | Run a function on a 'NetworkDiscriminant' singleton given a network id.
 withSNetworkId
     :: NetworkId
-    -> (forall (n :: NetworkDiscriminant). SNetworkId n -> a)
+    -> (forall (n :: NetworkDiscriminant). Typeable n => SNetworkId n -> a)
     -> a
 withSNetworkId NMainnet f = f SMainnet
-withSNetworkId (NTestnet i) f = toSNat i $  f . STestnet
+withSNetworkId (NTestnet i) f = withSNat i $  f . STestnet
 
 sNetworkIdOfProxy :: forall n. HasSNetworkId n => Proxy n -> SNetworkId n
 sNetworkIdOfProxy Proxy = sNetworkId @n
