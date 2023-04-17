@@ -19,7 +19,7 @@ import Prelude
 import Cardano.Mnemonic
     ( entropyToMnemonic, genEntropy, mnemonicToText )
 import Cardano.Wallet.Api.Types
-    ( ApiAddress
+    ( ApiAddressWithPath
     , ApiByronWallet
     , ApiNetworkInformation
     , ApiTransaction
@@ -27,9 +27,7 @@ import Cardano.Wallet.Api.Types
     , ApiVerificationKeyShelley (..)
     , ApiWallet
     , ApiWalletUtxoSnapshot
-    , DecodeAddress
     , DecodeStakeAddress
-    , EncodeAddress (..)
     , WalletStyle (..)
     )
 import Cardano.Wallet.Primitive.AddressDerivation
@@ -42,6 +40,8 @@ import Cardano.Wallet.Primitive.SyncProgress
     ( SyncProgress (..) )
 import Cardano.Wallet.Primitive.Types
     ( walletNameMaxLength, walletNameMinLength )
+import Cardano.Wallet.Read.NetworkId
+    ( HasSNetworkId )
 import Cardano.Wallet.Unsafe
     ( unsafeFromHexText, unsafeXPub )
 import Control.Monad
@@ -147,11 +147,12 @@ import qualified Data.Set as Set
 import qualified Data.Text as T
 import qualified Network.HTTP.Types as HTTP
 
-spec :: forall n.
-    ( DecodeAddress n
-    , DecodeStakeAddress n
-    , EncodeAddress n
-    ) => SpecWith Context
+spec
+    :: forall n
+     . ( HasSNetworkId n
+       , DecodeStakeAddress n
+       )
+    => SpecWith Context
 spec = describe "SHELLEY_WALLETS" $ do
     it "WALLETS_CREATE_01 - Create a wallet" $ \ctx -> runResourceT $ do
         m15 <- liftIO $ genMnemonics M15
@@ -459,7 +460,7 @@ spec = describe "SHELLEY_WALLETS" $ do
             verify rW expectations
 
             let w = getFromResponse id rW
-            rA <- request @[ApiAddress n] ctx
+            rA <- request @[ApiAddressWithPath n] ctx
                 (Link.listAddresses @'Shelley w) Default Empty
             _ <- request @ApiWallet ctx
                 (Link.deleteWallet @'Shelley w) Default Empty

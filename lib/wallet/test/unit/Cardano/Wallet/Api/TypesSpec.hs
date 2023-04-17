@@ -76,10 +76,11 @@ import Cardano.Wallet.Api.Types
     , ApiAccountPublicKey (..)
     , ApiAccountSharedPublicKey (..)
     , ApiActiveSharedWallet (..)
-    , ApiAddress (..)
+    , ApiAddress
     , ApiAddressData (..)
     , ApiAddressDataPayload (..)
     , ApiAddressInspect (..)
+    , ApiAddressWithPath (..)
     , ApiAnyCertificate (..)
     , ApiAsArray (..)
     , ApiAsset (..)
@@ -226,7 +227,8 @@ import Cardano.Wallet.Api.Types.Error
 import Cardano.Wallet.Api.Types.SchemaMetadata
     ( TxMetadataSchema (..), TxMetadataWithSchema (..) )
 import Cardano.Wallet.Api.Types.Transaction
-    ( ApiValidityIntervalExplicit (..)
+    ( ApiAddress (..)
+    , ApiValidityIntervalExplicit (..)
     , ApiWitnessCount (..)
     , mkApiWitnessCount
     )
@@ -350,13 +352,9 @@ import Cardano.Wallet.Primitive.Types.UTxO
 import Cardano.Wallet.Primitive.Types.UTxOStatistics
     ( HistogramBar (..), UTxOStatistics (..) )
 import Cardano.Wallet.Read.NetworkId
-    ( NetworkDiscriminant (..) )
+    ( HasSNetworkId (..), NetworkDiscriminant (..) )
 import Cardano.Wallet.Shelley.Network.Discriminant
-    ( DecodeAddress (..)
-    , DecodeStakeAddress (..)
-    , EncodeAddress (..)
-    , EncodeStakeAddress (..)
-    )
+    ( DecodeStakeAddress (..), EncodeStakeAddress (..), networkIdVal )
 import Cardano.Wallet.TokenMetadata
     ( TokenMetadataError (..) )
 import Cardano.Wallet.Transaction
@@ -517,6 +515,9 @@ import Text.Regex.PCRE
 import Web.HttpApiData
     ( FromHttpApiData (..) )
 
+import qualified Cardano.Api as Cardano
+import Cardano.Api.Gen
+    ( genAddressAnyWithNetworkId )
 import qualified Cardano.Wallet.Api.Types as Api
 import qualified Cardano.Wallet.Primitive.Types.Coin as Coin
 import qualified Cardano.Wallet.Primitive.Types.UTxOStatistics as UTxOStatistics
@@ -536,6 +537,7 @@ import qualified Data.Yaml as Yaml
 import qualified Prelude
 import qualified Test.Utils.Roundtrip as Utils
 
+type T0 = 'Testnet 0
 
 spec :: Spec
 spec = do
@@ -549,30 +551,30 @@ spec = do
         jsonTest = Utils.jsonRoundtripAndGolden jsonTestDataPath (Proxy @a)
 
     describe "JSON golden roundtrip" $ do
-        jsonTest @(AddressAmount (ApiT Address, Proxy ('Testnet 0)))
-        jsonTest @(AddressAmountNoAssets (ApiT Address, Proxy ('Testnet 0)))
+        jsonTest @(AddressAmount (ApiAddress T0))
+        jsonTest @(AddressAmountNoAssets (ApiAddress T0))
         jsonTest @(ApiAsArray "Test" (Maybe Word64))
-        jsonTest @(ApiBalanceTransactionPostData ('Testnet 0))
-        jsonTest @(ApiCoinSelection ('Testnet 0))
-        jsonTest @(ApiCoinSelectionChange ('Testnet 0))
-        jsonTest @(ApiCoinSelectionCollateral ('Testnet 0))
-        jsonTest @(ApiCoinSelectionOutput ('Testnet 0))
-        jsonTest @(ApiCoinSelectionWithdrawal ('Testnet 0))
-        jsonTest @(ApiConstructTransaction ('Testnet 0))
-        jsonTest @(ApiConstructTransactionData ('Testnet 0))
-        jsonTest @(ApiDecodedTransaction ('Testnet 0))
-        jsonTest @(ApiExternalInput ('Testnet 0))
-        jsonTest @(ApiForeignStakeKey ('Testnet 0))
-        jsonTest @(ApiOurStakeKey ('Testnet 0))
-        jsonTest @(ApiPaymentDestination ('Testnet 0))
-        jsonTest @(ApiPutAddressesData ('Testnet 0))
-        jsonTest @(ApiSelectCoinsData ('Testnet 0))
-        jsonTest @(ApiStakeKeys ('Testnet 0))
+        jsonTest @(ApiBalanceTransactionPostData T0)
+        jsonTest @(ApiCoinSelection T0)
+        jsonTest @(ApiCoinSelectionChange T0)
+        jsonTest @(ApiCoinSelectionCollateral T0)
+        jsonTest @(ApiCoinSelectionOutput T0)
+        jsonTest @(ApiCoinSelectionWithdrawal T0)
+        jsonTest @(ApiConstructTransaction T0)
+        jsonTest @(ApiConstructTransactionData T0)
+        jsonTest @(ApiDecodedTransaction T0)
+        jsonTest @(ApiExternalInput T0)
+        jsonTest @(ApiForeignStakeKey T0)
+        jsonTest @(ApiOurStakeKey T0)
+        jsonTest @(ApiPaymentDestination T0)
+        jsonTest @(ApiPutAddressesData T0)
+        jsonTest @(ApiSelectCoinsData T0)
+        jsonTest @(ApiStakeKeys T0)
         jsonTest @(ApiT (Hash "Genesis"))
         jsonTest @(ApiT (Hash "Tx"))
         jsonTest @(ApiT (Passphrase "lenient"))
         jsonTest @(ApiT (Passphrase "user"))
-        jsonTest @(ApiT Address, Proxy ('Testnet 0))
+        jsonTest @(ApiAddress T0)
         jsonTest @(ApiT AddressPoolGap)
         jsonTest @(ApiT DerivationIndex)
         jsonTest @(ApiT Direction)
@@ -585,17 +587,17 @@ spec = do
         jsonTest @(ApiT TxStatus)
         jsonTest @(ApiT WalletId)
         jsonTest @(ApiT WalletName)
-        jsonTest @(ApiTransaction ('Testnet 0))
-        jsonTest @(ApiTxInputGeneral ('Testnet 0))
-        jsonTest @(ApiTxOutputGeneral ('Testnet 0))
+        jsonTest @(ApiTransaction T0)
+        jsonTest @(ApiTxInputGeneral T0)
+        jsonTest @(ApiTxOutputGeneral T0)
         jsonTest @(ApiWalletBalance)
-        jsonTest @(ApiWalletMigrationPlan ('Testnet 0))
-        jsonTest @(ApiWalletMigrationPlanPostData ('Testnet 0))
-        jsonTest @(ApiWalletMigrationPostData ('Testnet 0) "lenient")
-        jsonTest @(ApiWalletMigrationPostData ('Testnet 0) "user")
-        jsonTest @(ApiWithdrawalGeneral ('Testnet 0))
-        jsonTest @(PostTransactionFeeOldData ('Testnet 0))
-        jsonTest @(PostTransactionOldData ('Testnet 0))
+        jsonTest @(ApiWalletMigrationPlan T0)
+        jsonTest @(ApiWalletMigrationPlanPostData T0)
+        jsonTest @(ApiWalletMigrationPostData T0 "lenient")
+        jsonTest @(ApiWalletMigrationPostData T0 "user")
+        jsonTest @(ApiWithdrawalGeneral T0)
+        jsonTest @(PostTransactionFeeOldData T0)
+        jsonTest @(PostTransactionOldData T0)
         jsonTest @AccountPostData
         jsonTest @AnyAddress
         jsonTest @ApiAccountKey
@@ -719,7 +721,7 @@ spec = do
         let match regex sourc = matchTest
                 (makeRegexOpts compBlank execBlank $ T.unpack regex)
                 (T.unpack sourc)
-        validateEveryToJSONWithPatternChecker match (Proxy @(Api ('Testnet 0)))
+        validateEveryToJSONWithPatternChecker match (Proxy @(Api T0))
 
     describe
         "Verify that every type used with JSON content type in a servant API \
@@ -734,7 +736,7 @@ spec = do
     describe
         "verify that every path specified by the servant server matches an \
         \existing path in the specification" $
-        forM_ (everyApiEndpoint (Proxy @(Api ('Testnet 0)))) $ \endpoint ->
+        forM_ (everyApiEndpoint (Proxy @(Api T0))) $ \endpoint ->
         it (show endpoint <> " exists in specification") $ do
             let path = T.pack (apiEndpointPath endpoint)
                 verb = apiEndpointVerb endpoint
@@ -892,10 +894,10 @@ spec = do
                     \parsing AddressAmount failed, parsing Natural failed, \
                     \unexpected negative number -14"
             Aeson.parseEither parseJSON [aesonQQ|
-                { "address": "<addr>"
+                { "address": "addr_test12rt90k38sak06mwtj6rfkgzpzw2nzgxtkp5675nxl6wqqc5p745g840sg6q73dcrf3w6up"
                 , "amount": {"unit":"lovelace","quantity":-14}
                 }
-            |] `shouldBe` (Left @String @(AddressAmount (ApiT Address, Proxy ('Testnet 0))) msg)
+            |] `shouldBe` (Left @String @(AddressAmount (ApiAddress T0)) msg)
 
         it "AddressAmount (too big)" $ do
             let msg = "Error in $: parsing AddressAmount failed, \
@@ -903,13 +905,13 @@ spec = do
                     \than or equal to " <> show (unCoin txOutMaxCoin)
                     <> " lovelace."
             Aeson.parseEither parseJSON [aesonQQ|
-                { "address": "<addr>"
+                { "address": "addr_test12rt90k38sak06mwtj6rfkgzpzw2nzgxtkp5675nxl6wqqc5p745g840sg6q73dcrf3w6up"
                 , "amount":
                     { "unit":"lovelace"
                     ,"quantity":#{unCoin txOutMaxCoin + 1}
                     }
                 }
-            |] `shouldBe` (Left @String @(AddressAmount (ApiT Address, Proxy ('Testnet 0))) msg)
+            |] `shouldBe` (Left @String @(AddressAmount (ApiAddress T0)) msg)
 
         it "ApiT PoolId" $ do
             let msg =
@@ -1006,18 +1008,10 @@ instance FromJSON SchemaApiErrorInfo where
                               Address Encoding
 -------------------------------------------------------------------------------}
 
--- TODO [ADP-2302] Remove need for overlapping dummy instances
-instance {-# OVERLAPPING #-} EncodeAddress ('Testnet 0) where
-    encodeAddress = const "<addr>"
-
-instance {-# OVERLAPPING #-} DecodeAddress ('Testnet 0) where
-    decodeAddress "<addr>" = Right $ Address "<addr>"
-    decodeAddress _ = Left $ TextDecodingError "invalid address"
-
-instance {-# OVERLAPPING #-} EncodeStakeAddress ('Testnet 0) where
+instance {-# OVERLAPPING #-} EncodeStakeAddress T0 where
     encodeStakeAddress = const "<stake-addr>"
 
-instance {-# OVERLAPPING #-} DecodeStakeAddress ('Testnet 0) where
+instance {-# OVERLAPPING #-} DecodeStakeAddress T0 where
     decodeStakeAddress "<stake-addr>" = Right $ RewardAccount "<stake-addr>"
     decodeStakeAddress _ = Left $ TextDecodingError "invalid stake address"
 
@@ -1025,10 +1019,17 @@ instance {-# OVERLAPPING #-} DecodeStakeAddress ('Testnet 0) where
                               Arbitrary Instances
 -------------------------------------------------------------------------------}
 
-instance Arbitrary (ApiAddress n) where
+fromCardanoAddressAny :: Cardano.AddressAny -> Address
+fromCardanoAddressAny =  Address . Cardano.serialiseToRawBytes
+
+instance HasSNetworkId n => Arbitrary (ApiAddress n) where
+    arbitrary = ApiAddress . fromCardanoAddressAny <$>
+        genAddressAnyWithNetworkId (pure $ networkIdVal (sNetworkId @n))
+
+instance HasSNetworkId n => Arbitrary (ApiAddressWithPath n) where
     shrink _ = []
-    arbitrary = ApiAddress
-        <$> fmap (, Proxy @n) arbitrary
+    arbitrary = ApiAddressWithPath
+        <$> arbitrary
         <*> arbitrary
         <*> arbitrary
 
@@ -1093,7 +1094,7 @@ instance Arbitrary AnyAddress where
         addrType <- arbitraryBoundedEnum
         pure $ AnyAddress payload' addrType network'
 
-instance Arbitrary (ApiSelectCoinsPayments n) where
+instance HasSNetworkId n => Arbitrary (ApiSelectCoinsPayments n) where
     arbitrary = genericArbitrary
     shrink = genericShrink
 
@@ -1156,7 +1157,7 @@ instance Arbitrary ApiSelectCoinsAction where
     arbitrary = genericArbitrary
     shrink = genericShrink
 
-instance Arbitrary (ApiSelectCoinsData n) where
+instance HasSNetworkId n => Arbitrary (ApiSelectCoinsData n) where
     arbitrary = genericArbitrary
     shrink = genericShrink
 
@@ -1171,7 +1172,7 @@ instance Arbitrary ApiCertificate where
         arbitraryRewardAccountPath = NE.fromList <$> vectorOf 5 arbitrary
     shrink = genericShrink
 
-instance Arbitrary (ApiCoinSelection n) where
+instance HasSNetworkId n => Arbitrary (ApiCoinSelection n) where
     arbitrary = ApiCoinSelection
         <$> reasonablySized arbitrary
         <*> reasonablySized arbitrary
@@ -1184,30 +1185,30 @@ instance Arbitrary (ApiCoinSelection n) where
         <*> arbitrary
     shrink = genericShrink
 
-instance Arbitrary (ApiCoinSelectionChange n) where
+instance HasSNetworkId n => Arbitrary (ApiCoinSelectionChange n) where
     arbitrary = ApiCoinSelectionChange
-        <$> fmap (, Proxy @n) arbitrary
+        <$> arbitrary
         <*> arbitrary
         <*> arbitrary
         <*> arbitrary
     shrink _ = []
 
-instance Arbitrary (ApiCoinSelectionCollateral n) where
+instance HasSNetworkId n => Arbitrary (ApiCoinSelectionCollateral n) where
     arbitrary = ApiCoinSelectionCollateral
         <$> arbitrary
         <*> arbitrary
-        <*> fmap (, Proxy @n) arbitrary
+        <*> arbitrary
         <*> arbitrary
         <*> arbitrary
     shrink _ = []
 
-instance Arbitrary (ApiCoinSelectionOutput n) where
+instance HasSNetworkId n => Arbitrary (ApiCoinSelectionOutput n) where
     arbitrary = applyArbitrary3 ApiCoinSelectionOutput
     shrink _ = []
 
-instance Arbitrary (ApiCoinSelectionWithdrawal n) where
+instance HasSNetworkId n => Arbitrary (ApiCoinSelectionWithdrawal n) where
     arbitrary = ApiCoinSelectionWithdrawal
-        <$> fmap (, Proxy @n) arbitrary
+        <$> arbitrary
         <*> reasonablySized arbitrary
         <*> arbitrary
 
@@ -1259,7 +1260,7 @@ instance Arbitrary ApiWalletMigrationBalance where
         <*> reasonablySized arbitrary
     shrink = genericShrink
 
-instance Arbitrary (ApiWalletMigrationPlan n) where
+instance HasSNetworkId n => Arbitrary (ApiWalletMigrationPlan n) where
     arbitrary = ApiWalletMigrationPlan
         <$> reasonablySized arbitrary
         <*> reasonablySized arbitrary
@@ -1267,23 +1268,26 @@ instance Arbitrary (ApiWalletMigrationPlan n) where
         <*> reasonablySized arbitrary
     shrink = genericShrink
 
-instance Arbitrary (ApiWalletMigrationPlanPostData n) where
+instance HasSNetworkId n => Arbitrary (ApiWalletMigrationPlanPostData n) where
     arbitrary = do
         addrCount <- choose (1, 255)
         addrs <- (:|)
             <$> arbitrary
             <*> replicateM (addrCount - 1) arbitrary
-        pure $ ApiWalletMigrationPlanPostData ((, Proxy @n) <$> addrs)
+        pure $ ApiWalletMigrationPlanPostData addrs
 
-instance Arbitrary (Passphrase purpose) =>
-         Arbitrary (ApiWalletMigrationPostData n purpose) where
+instance
+    (HasSNetworkId n, Arbitrary (Passphrase purpose))
+    => Arbitrary (ApiWalletMigrationPostData n purpose)
+    where
     arbitrary = do
         pwd <- arbitrary
         addrCount <- choose (1, 255)
-        addrs <- (:|)
-            <$> arbitrary
-            <*> replicateM (addrCount - 1) arbitrary
-        pure $ ApiWalletMigrationPostData pwd ((, Proxy @n) <$> addrs)
+        addrs <-
+            (:|)
+                <$> arbitrary
+                <*> replicateM (addrCount - 1) arbitrary
+        pure $ ApiWalletMigrationPostData pwd addrs
 
 instance Arbitrary ApiWalletPassphrase where
     arbitrary = genericArbitrary
@@ -1812,7 +1816,7 @@ instance Arbitrary ApiSignTransactionPostData where
         <*> arbitrary
         <*> elements [Just HexEncoded, Just Base64Encoded, Nothing]
 
-instance Arbitrary (PostTransactionOldData n) where
+instance HasSNetworkId n => Arbitrary (PostTransactionOldData n) where
     arbitrary = PostTransactionOldData
         <$> arbitrary
         <*> arbitrary
@@ -1825,7 +1829,7 @@ instance Arbitrary TxMetadataWithSchema where
     <$> elements [TxMetadataNoSchema, TxMetadataDetailedSchema]
     <*> arbitrary
 
-instance Arbitrary (ApiConstructTransactionData n) where
+instance HasSNetworkId n => Arbitrary (ApiConstructTransactionData n) where
     arbitrary = ApiConstructTransactionData
         <$> arbitrary
         <*> elements [Just SelfWithdraw, Nothing]
@@ -1835,7 +1839,7 @@ instance Arbitrary (ApiConstructTransactionData n) where
         <*> pure Nothing
         <*> elements [Just HexEncoded, Just Base64Encoded, Nothing]
 
-instance Arbitrary (ApiExternalInput n) where
+instance HasSNetworkId n => Arbitrary (ApiExternalInput n) where
     arbitrary = ApiExternalInput
         <$> arbitrary
         <*> arbitrary
@@ -1844,33 +1848,33 @@ instance Arbitrary (ApiExternalInput n) where
         <*> arbitrary
         <*> liftArbitrary (liftArbitrary genDatumHash)
 
-instance Arbitrary (ApiBalanceTransactionPostData n) where
+instance HasSNetworkId n => Arbitrary (ApiBalanceTransactionPostData n) where
     arbitrary = ApiBalanceTransactionPostData
         <$> arbitrary
         <*> arbitrary
         <*> arbitrary
         <*> elements [Just HexEncoded, Just Base64Encoded, Nothing]
 
-instance Arbitrary (ApiRedeemer n) where
+instance HasSNetworkId n => Arbitrary (ApiRedeemer n) where
     arbitrary = oneof
         [ ApiRedeemerSpending <$> arbitrary <*> arbitrary
         , ApiRedeemerMinting <$> arbitrary <*> arbitrary
         , ApiRedeemerRewarding <$> arbitrary <*> arbitrary
         ]
 
-instance Arbitrary (ApiTxInputGeneral n) where
+instance HasSNetworkId n => Arbitrary (ApiTxInputGeneral n) where
     arbitrary = oneof
         [ ExternalInput <$> arbitrary
         , WalletInput <$> arbitrary
         ]
 
-instance Arbitrary (ApiWithdrawalGeneral (t :: NetworkDiscriminant)) where
+instance HasSNetworkId n => Arbitrary (ApiWithdrawalGeneral (n :: NetworkDiscriminant)) where
     arbitrary = ApiWithdrawalGeneral
-        <$> fmap (, Proxy @t) arbitrary
+        <$> fmap (, Proxy @n) arbitrary
         <*> arbitrary
         <*> oneof [pure External, pure Our]
 
-instance Arbitrary (ApiWalletInput n) where
+instance HasSNetworkId n => Arbitrary (ApiWalletInput n) where
     arbitrary = ApiWalletInput
         <$> arbitrary
         <*> arbitrary
@@ -1879,14 +1883,14 @@ instance Arbitrary (ApiWalletInput n) where
         <*> arbitrary
         <*> arbitrary
 
-instance Arbitrary (ApiWalletOutput n) where
+instance HasSNetworkId n => Arbitrary (ApiWalletOutput n) where
     arbitrary = ApiWalletOutput
         <$> arbitrary
         <*> arbitrary
         <*> arbitrary
         <*> arbitrary
 
-instance Arbitrary (ApiTxOutputGeneral n) where
+instance HasSNetworkId n => Arbitrary (ApiTxOutputGeneral n) where
     arbitrary = oneof
         [ ExternalOutput <$> arbitrary
         , WalletOutput <$> arbitrary
@@ -1912,7 +1916,7 @@ instance Arbitrary ApiRegisterPool where
         <*> arbitrary
         <*> pure Nothing
 
-instance Arbitrary (ApiExternalCertificate n) where
+instance HasSNetworkId n => Arbitrary (ApiExternalCertificate n) where
     arbitrary = oneof
         [ RegisterRewardAccountExternal <$> genRewardAcct
         , JoinPoolExternal <$> genRewardAcct <*> arbitrary
@@ -1921,7 +1925,7 @@ instance Arbitrary (ApiExternalCertificate n) where
       where
           genRewardAcct = fmap (, Proxy @n) arbitrary
 
-instance Arbitrary (ApiAnyCertificate n) where
+instance HasSNetworkId n => Arbitrary (ApiAnyCertificate n) where
     arbitrary = oneof
         [ WalletDelegationCertificate <$> arbitrary
         , DelegationCertificate <$> arbitrary
@@ -1947,7 +1951,7 @@ instance Arbitrary ApiWitnessCount where
             <*> vectorOf numberOfScripts (flip NativeExplicitScript referenceInp  <$> arbitrary)
             <*> choose (0, 2)
 
-instance Arbitrary (ApiDecodedTransaction n) where
+instance HasSNetworkId n => Arbitrary (ApiDecodedTransaction n) where
     arbitrary = ApiDecodedTransaction
         <$> arbitrary
         <*> arbitrary
@@ -1977,7 +1981,7 @@ instance Arbitrary StakeAddress where
 instance Arbitrary ApiSealedTxEncoding where
     arbitrary = elements [HexEncoded, Base64Encoded]
 
-instance Arbitrary (ApiConstructTransaction n) where
+instance HasSNetworkId n => Arbitrary (ApiConstructTransaction n) where
     arbitrary = applyArbitrary3 ApiConstructTransaction
 
 instance Arbitrary ApiTokenAmountFingerprint where
@@ -2043,7 +2047,7 @@ instance ToSchema ApiPostPolicyIdData where
         addDefinition =<< declareSchemaForDefinition "ScriptTemplateValue"
         declareSchemaForDefinition "ApiPostPolicyIdData"
 
-instance Arbitrary (ApiMintBurnData n) where
+instance HasSNetworkId n => Arbitrary (ApiMintBurnData n) where
     arbitrary = ApiMintBurnData
         <$> elements
             [ ApiT $ RequireSignatureOf (Cosigner 0)
@@ -2066,16 +2070,16 @@ instance Arbitrary (ApiMintBurnData n) where
 instance Arbitrary ApiStakeKeyIndex where
     arbitrary = ApiStakeKeyIndex <$> arbitrary
 
-instance Arbitrary (ApiMintData n) where
+instance HasSNetworkId n => Arbitrary (ApiMintData n) where
     arbitrary = ApiMintData <$> arbitrary <*> arbitrary
 
-instance Arbitrary (ApiPaymentDestination n) where
+instance HasSNetworkId n => Arbitrary (ApiPaymentDestination n) where
     arbitrary = ApiPaymentAddresses <$> arbitrary
 
 instance Arbitrary ApiBurnData where
     arbitrary = ApiBurnData <$> arbitrary
 
-instance Arbitrary (ApiMintBurnOperation n) where
+instance HasSNetworkId n => Arbitrary (ApiMintBurnOperation n) where
     arbitrary = oneof
         [ ApiMint <$> arbitrary
         , ApiBurn <$> arbitrary
@@ -2112,13 +2116,13 @@ instance Arbitrary ApiWithdrawalPostData where
 
 deriving instance Arbitrary ApiValidityIntervalExplicit
 
-instance Arbitrary (ApiPutAddressesData n) where
+instance HasSNetworkId n => Arbitrary (ApiPutAddressesData n) where
     arbitrary = do
         n <- choose (1,255)
         addrs <- vector n
-        pure $ ApiPutAddressesData ((, Proxy @n) <$> addrs)
+        pure $ ApiPutAddressesData addrs
 
-instance Arbitrary (PostTransactionFeeOldData n) where
+instance HasSNetworkId n => Arbitrary (PostTransactionFeeOldData n) where
     arbitrary = PostTransactionFeeOldData
         <$> arbitrary
         <*> elements [Just SelfWithdrawal, Nothing]
@@ -2227,7 +2231,7 @@ instance Arbitrary ApiTxMetadata where
     arbitrary = genericArbitrary
     shrink = genericShrink
 
-instance Arbitrary (ApiTransaction n) where
+instance HasSNetworkId n => Arbitrary (ApiTransaction n) where
     shrink = genericShrink
     arbitrary = do
         txStatus <- arbitrary
@@ -2359,11 +2363,11 @@ instance Arbitrary ApiUtxoStatistics where
             (ApiT bType)
             boundCountMap
 
-instance Arbitrary (ApiTxInput n) where
+instance HasSNetworkId n => Arbitrary (ApiTxInput n) where
     shrink _ = []
     arbitrary = applyArbitrary2 ApiTxInput
 
-instance Arbitrary (ApiTxCollateral n) where
+instance HasSNetworkId n => Arbitrary (ApiTxCollateral n) where
     shrink _ = []
     arbitrary = applyArbitrary2 ApiTxCollateral
 
@@ -2527,8 +2531,8 @@ specification =
         either (error . (msg <>) . show) Prelude.id . Yaml.decodeEither'
     msg = "Whoops! Failed to parse or find the api specification document: "
 
-instance Typeable n => ToSchema (ApiAddress n) where
-    declareNamedSchema _ = declareSchemaForDefinition "ApiAddress"
+instance Typeable n => ToSchema (ApiAddressWithPath n) where
+    declareNamedSchema _ = declareSchemaForDefinition "ApiAddressWithPath"
 
 instance ToSchema ApiAddressInspect where
     declareNamedSchema _ = declareSchemaForDefinition "ApiAddressInspect"

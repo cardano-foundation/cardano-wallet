@@ -107,9 +107,7 @@ import Cardano.Wallet.Shelley.Compatibility
 import Cardano.Wallet.Shelley.Network
     ( withNetworkLayer )
 import Cardano.Wallet.Shelley.Network.Discriminant
-    ( DecodeAddress
-    , DecodeStakeAddress
-    , EncodeAddress
+    ( DecodeStakeAddress
     , EncodeStakeAddress
     , SomeNetworkDiscriminant (..)
     , networkDiscriminantToId
@@ -306,8 +304,6 @@ serveWallet
             ( PaymentAddress n IcarusKey 'CredFromKeyK
             , PaymentAddress n ByronKey 'CredFromKeyK
             , DelegationAddress n ShelleyKey 'CredFromKeyK
-            , DecodeAddress n
-            , EncodeAddress n
             , EncodeStakeAddress n
             , DecodeStakeAddress n
             , HasSNetworkId n

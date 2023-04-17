@@ -23,16 +23,14 @@ import Cardano.Mnemonic
     )
 import Cardano.Wallet.Api.Types
     ( AddressAmount (..)
-    , ApiAddress
+    , ApiAddress (..)
+    , ApiAddressWithPath
     , ApiByronWallet
     , ApiCoinSelectionOutput (..)
     , ApiFee
-    , ApiT (..)
     , ApiTransaction
     , ApiUtxoStatistics
-    , DecodeAddress
     , DecodeStakeAddress
-    , EncodeAddress (..)
     , WalletStyle (..)
     )
 import Cardano.Wallet.Primitive.AddressDerivation
@@ -48,6 +46,10 @@ import Cardano.Wallet.Primitive.AddressDiscovery.Sequential
     ( defaultAddressPoolGap, getAddressPoolGap )
 import Cardano.Wallet.Primitive.Types.Address
     ( AddressState (..) )
+import Cardano.Wallet.Read.NetworkId
+    ( HasSNetworkId (..) )
+import Cardano.Wallet.Shelley.Compatibility
+    ( encodeAddress )
 import Control.Monad
     ( forM_ )
 import Control.Monad.IO.Class
@@ -56,8 +58,6 @@ import Control.Monad.Trans.Resource
     ( runResourceT )
 import Data.Generics.Internal.VL.Lens
     ( (^.) )
-import Data.Proxy
-    ( Proxy (..) )
 import Data.Quantity
     ( Quantity (..) )
 import Data.Text
@@ -101,12 +101,13 @@ import qualified Data.List.NonEmpty as NE
 import qualified Data.Text.Encoding as T
 import qualified Network.HTTP.Types.Status as HTTP
 
-spec :: forall n.
-    ( DecodeAddress n
-    , DecodeStakeAddress n
-    , EncodeAddress n
-    , PaymentAddress n IcarusKey 'CredFromKeyK
-    ) => SpecWith Context
+spec
+    :: forall n
+     . ( HasSNetworkId n
+       , DecodeStakeAddress n
+       , PaymentAddress n IcarusKey 'CredFromKeyK
+       )
+    => SpecWith Context
 spec = describe "BYRON_HW_WALLETS" $ do
     it "HW_WALLETS_01 - Restoration from account public key preserves funds" $ \ctx -> runResourceT $ do
         wSrc <- fixtureIcarusWallet ctx
@@ -130,7 +131,7 @@ spec = describe "BYRON_HW_WALLETS" $ do
 
         --send funds
         let [addr] = take 1 $ icarusAddresses @n mnemonics
-        let destination = encodeAddress @n addr
+        let destination = encodeAddress (sNetworkId @n) addr
         let minUTxOValue' = minUTxOValue (_mainEra ctx)
         let payload = Json [json|{
                 "payments": [{
@@ -185,7 +186,7 @@ spec = describe "BYRON_HW_WALLETS" $ do
             wSrc <- restoreWalletFromPubKey @ApiByronWallet @'Byron ctx pubKey restoredWalletName
 
             let [addr] = take 1 $ icarusAddresses @n mnemonics
-            let destination = encodeAddress @n addr
+            let destination = encodeAddress (sNetworkId @n) addr
             let minUTxOValue' = minUTxOValue (_mainEra ctx)
             let payload = Json [json|{
                     "payments": [{
@@ -242,7 +243,7 @@ spec = describe "BYRON_HW_WALLETS" $ do
             wSrc <- restoreWalletFromPubKey @ApiByronWallet @'Byron ctx pubKey restoredWalletName
 
             let [addr] = take 1 $ icarusAddresses @n mnemonics
-            let destination = encodeAddress @n addr
+            let destination = encodeAddress (sNetworkId @n) addr
             let minUTxOValue' = minUTxOValue (_mainEra ctx)
             let payload = Json [json|{
                     "payments": [{
@@ -281,7 +282,7 @@ spec = describe "BYRON_HW_WALLETS" $ do
             wPub <- restoreWalletFromPubKey @ApiByronWallet @'Byron ctx pubKey restoredWalletName
 
             let g = fromIntegral $ getAddressPoolGap defaultAddressPoolGap
-            r <- request @[ApiAddress n] ctx
+            r <- request @[ApiAddressWithPath n] ctx
                 (Link.listAddresses @'Byron wPub) Default Empty
             expectResponseCode HTTP.status200 r
             expectListSize g r
@@ -302,7 +303,7 @@ spec = describe "BYRON_HW_WALLETS" $ do
 
             let wPub = getFromResponse id rRestore
 
-            r <- request @[ApiAddress n] ctx
+            r <- request @[ApiAddressWithPath n] ctx
                 (Link.listAddresses @'Byron wPub) Default Empty
             expectResponseCode HTTP.status200 r
             expectListSize addrPoolGap r
@@ -330,7 +331,7 @@ spec = describe "BYRON_HW_WALLETS" $ do
                 @ApiByronWallet @'Byron ctx pubKey restoredWalletName
             let paymentCount = 4
             let targetAddresses = take paymentCount $
-                    (\a -> (ApiT a, Proxy @n)) <$>
+                    ApiAddress <$>
                     icarusAddresses @n mnemonics
             let minUTxOValue' = minUTxOValue (_mainEra ctx)
             let targetAmounts = take paymentCount $

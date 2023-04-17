@@ -16,7 +16,7 @@ module Test.Integration.Scenario.API.Byron.Transactions
 import Prelude
 
 import Cardano.Wallet.Api.Types
-    ( ApiAddress
+    ( ApiAddressWithPath
     , ApiAsset (..)
     , ApiByronWallet
     , ApiFee (..)
@@ -25,9 +25,7 @@ import Cardano.Wallet.Api.Types
     , ApiTxId (..)
     , ApiWallet
     , ApiWalletDiscovery (..)
-    , DecodeAddress
     , DecodeStakeAddress
-    , EncodeAddress (..)
     , WalletStyle (..)
     )
 import Cardano.Wallet.Api.Types.Transaction
@@ -38,6 +36,8 @@ import Cardano.Wallet.Primitive.Types.TokenPolicy
     ( mkTokenFingerprint )
 import Cardano.Wallet.Primitive.Types.Tx
     ( Direction (..), TxStatus (..) )
+import Cardano.Wallet.Read.NetworkId
+    ( HasSNetworkId )
 import Cardano.Wallet.Unsafe
     ( unsafeFromText )
 import Control.Monad
@@ -122,11 +122,12 @@ data TestCase a = TestCase
     , assertions :: [(HTTP.Status, Either RequestException a) -> IO ()]
     }
 
-spec :: forall n.
-    ( DecodeAddress n
-    , DecodeStakeAddress n
-    , EncodeAddress n
-    ) => SpecWith Context
+spec
+    :: forall n
+     . ( HasSNetworkId n
+       , DecodeStakeAddress n
+       )
+    => SpecWith Context
 spec = describe "BYRON_TRANSACTIONS" $ do
 
     describe "BYRON_TRANS_ASSETS_CREATE_01 - Multi-asset transaction with ADA" $
@@ -419,11 +420,11 @@ spec = describe "BYRON_TRANSACTIONS" $ do
         destination <- case walType of
             DiscoveryRandom -> do
                 let payloadAddr = Json [json| { "passphrase": #{fixturePassphrase} }|]
-                rA <- request @(ApiAddress n) ctx (Link.postRandomAddress wDestByron) Default payloadAddr
+                rA <- request @(ApiAddressWithPath n) ctx (Link.postRandomAddress wDestByron) Default payloadAddr
                 pure $ getFromResponse #id rA
             DiscoverySequential -> do
                 let link = Link.listAddresses @'Byron wDestByron
-                rA2 <- request @[ApiAddress n] ctx link Default Empty
+                rA2 <- request @[ApiAddressWithPath n] ctx link Default Empty
                 let addrs = getFromResponse Prelude.id rA2
                 pure $ (addrs !! 1) ^. #id
 

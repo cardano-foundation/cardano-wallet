@@ -52,7 +52,8 @@ module Cardano.Wallet.Api.Malformed
 import Prelude
 
 import Cardano.Wallet.Api.Types
-    ( ApiAddressData
+    ( ApiAddress
+    , ApiAddressData
     , ApiAddressInspectData
     , ApiBalanceTransactionPostData
     , ApiBytesT (..)
@@ -91,8 +92,6 @@ import Cardano.Wallet.Primitive.AddressDerivation
     ( DerivationIndex (..), Role (..) )
 import Cardano.Wallet.Primitive.Types
     ( WalletId, walletNameMaxLength )
-import Cardano.Wallet.Primitive.Types.Address
-    ( Address (..) )
 import Cardano.Wallet.Primitive.Types.TokenPolicy
     ( TokenName, TokenPolicyId )
 import Cardano.Wallet.Primitive.Types.Tx
@@ -105,8 +104,6 @@ import Data.Aeson.QQ
     ( aesonQQ )
 import Data.ByteString.Lazy
     ( ByteString )
-import Data.Proxy
-    ( Proxy (..) )
 import Data.String
     ( IsString )
 import Data.Text
@@ -191,11 +188,11 @@ instance Malformed (PathParam ApiPoolSpecifier) where
       where
         msg = "Invalid stake pool id: expecting a Bech32 encoded value with human readable part of 'pool'."
 
-instance Wellformed (PathParam (ApiT Address, Proxy ('Testnet 0))) where
+instance Wellformed (PathParam (ApiAddress ('Testnet 0))) where
     wellformed = [PathParam
         "FHnt4NL7yPY7JbfJYSadQVSGJG7EKkN4kpVJMhJ8CN3uDNymGnJuuwcHmyP4ouZ"]
 
-instance Malformed (PathParam (ApiT Address, Proxy ('Testnet 0))) where
+instance Malformed (PathParam (ApiAddress ('Testnet 0))) where
     malformed = []
 
 instance Wellformed (PathParam ApiAddressInspectData) where
@@ -1796,7 +1793,7 @@ msgJsonInvalid = "I couldn't understand the content of your message. \
     \the JSON is valid."
 
 addrPlaceholder :: Text
-addrPlaceholder = "<addr>"
+addrPlaceholder = "addr_test12rt90k38sak06mwtj6rfkgzpzw2nzgxtkp5675nxl6wqqc5p745g840sg6q73dcrf3w6up"
 
 accountPublicKeyInvalid :: Text
 accountPublicKeyInvalid = T.replicate 128 "ś"

@@ -47,8 +47,6 @@ import Cardano.Wallet.Primitive.Types
     , SlotNo (..)
     , unsafeEpochNo
     )
-import Cardano.Wallet.Primitive.Types.Address
-    ( Address (..) )
 import Cardano.Wallet.Primitive.Types.Coin
     ( Coin (..), coinFromQuantity, coinToQuantity )
 import Cardano.Wallet.Primitive.Types.Hash
@@ -60,11 +58,7 @@ import Cardano.Wallet.Primitive.Types.Tx.Tx
 import Cardano.Wallet.Primitive.Types.Tx.TxIn
     ( TxIn (..) )
 import Cardano.Wallet.Shelley.Network.Discriminant
-    ( DecodeAddress (..)
-    , DecodeStakeAddress (..)
-    , EncodeAddress (..)
-    , EncodeStakeAddress (..)
-    )
+    ( DecodeStakeAddress (..), EncodeStakeAddress (..) )
 import Cardano.Wallet.Transaction
     ( AnyExplicitScript (..)
     , AnyScript (..)
@@ -352,18 +346,6 @@ instance FromJSON (ApiT TxScriptValidity) where
 instance ToJSON (ApiT TxScriptValidity) where
     toJSON = genericToJSON Aeson.defaultOptions
         { constructorTagModifier = camelTo2 '_' . drop 8 } . getApiT
-
-instance {-# OVERLAPS #-} DecodeAddress n => FromJSON (ApiT Address, Proxy n)
-  where
-    parseJSON x = do
-        let proxy = Proxy @n
-        addr <- parseJSON x >>= eitherToParser
-            . bimap ShowFmt ApiT
-            . decodeAddress @n
-        return (addr, proxy)
-instance {-# OVERLAPS #-} EncodeAddress n => ToJSON (ApiT Address, Proxy n)
-  where
-    toJSON (addr, _) = toJSON . encodeAddress @n . getApiT $ addr
 
 instance {-# OVERLAPS #-} (DecodeStakeAddress n)
     => FromJSON (ApiT RewardAccount, Proxy n)

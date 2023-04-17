@@ -10,6 +10,9 @@
 
 module Cardano.Api.Gen
     ( genAddressAny
+    , genAddressAnyWithNetworkId
+    , genAddressShelleyWithNetworkId
+    , genAddressByronWithNetworkId
     , genAddressByron
     , genAddressInEra
     , genAddressShelley
@@ -903,22 +906,36 @@ genPaymentCredential =
         byScript :: Gen PaymentCredential
         byScript = PaymentCredentialByScript <$> genScriptHash
 
+genAddressAnyWithNetworkId :: Gen NetworkId -> Gen AddressAny
+genAddressAnyWithNetworkId genNetworkId' =
+    oneof
+        [ AddressByron
+            <$> genAddressByronWithNetworkId genNetworkId'
+        {- , AddressShelley
+            <$> genAddressShelleyWithNetworkId genNetworkId' -}
+        ]
+
+genAddressByronWithNetworkId :: Gen NetworkId -> Gen (Address ByronAddr)
+genAddressByronWithNetworkId genNetworkId' =
+    makeByronAddress
+        <$> genNetworkId'
+        <*> genVerificationKey AsByronKey
+
+genAddressShelleyWithNetworkId :: Gen NetworkId -> Gen (Address ShelleyAddr)
+genAddressShelleyWithNetworkId genNetworkId' =
+    makeShelleyAddress
+        <$> genNetworkId'
+        <*> genPaymentCredential
+        <*> genStakeAddressReference
+
 genAddressAny :: Gen AddressAny
-genAddressAny = oneof
-    [ AddressByron
-        <$> genAddressByron
-    , AddressShelley
-        <$> genAddressShelley
-    ]
+genAddressAny = genAddressAnyWithNetworkId genNetworkId
 
 genAddressByron :: Gen (Address ByronAddr)
-genAddressByron = makeByronAddress <$> genNetworkId
-                                   <*> genVerificationKey AsByronKey
+genAddressByron = genAddressByronWithNetworkId genNetworkId
 
 genAddressShelley :: Gen (Address ShelleyAddr)
-genAddressShelley = makeShelleyAddress <$> genNetworkId
-                                       <*> genPaymentCredential
-                                       <*> genStakeAddressReference
+genAddressShelley = genAddressShelleyWithNetworkId genNetworkId
 
 genAddressInEra :: CardanoEra era -> Gen (AddressInEra era)
 genAddressInEra era =

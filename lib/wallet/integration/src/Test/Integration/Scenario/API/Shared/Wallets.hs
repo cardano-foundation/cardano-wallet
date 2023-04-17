@@ -26,8 +26,8 @@ import Cardano.Mnemonic
 import Cardano.Wallet.Api.Types
     ( ApiAccountKeyShared (..)
     , ApiActiveSharedWallet
-    , ApiAddress
-    , ApiAddress
+    , ApiAddressWithPath
+    , ApiAddressWithPath
     , ApiCosignerIndex (..)
     , ApiCredentialType (..)
     , ApiFee (..)
@@ -38,9 +38,7 @@ import Cardano.Wallet.Api.Types
     , ApiUtxoStatistics
     , ApiWallet
     , ApiWalletUtxoSnapshot
-    , DecodeAddress
     , DecodeStakeAddress
-    , EncodeAddress (..)
     , KeyFormat (..)
     , WalletStyle (..)
     )
@@ -60,6 +58,8 @@ import Cardano.Wallet.Primitive.SyncProgress
     ( SyncProgress (..) )
 import Cardano.Wallet.Primitive.Types.Address
     ( AddressState (..) )
+import Cardano.Wallet.Read.NetworkId
+    ( HasSNetworkId )
 import Control.Monad
     ( forM, forM_ )
 import Control.Monad.IO.Class
@@ -148,11 +148,12 @@ import qualified Data.Text as T
 import qualified Data.Text.Encoding as T
 import qualified Network.HTTP.Types as HTTP
 
-spec :: forall n.
-    ( DecodeAddress n
-    , DecodeStakeAddress n
-    , EncodeAddress n
-    ) => SpecWith Context
+spec
+    :: forall n
+     . ( HasSNetworkId n
+       , DecodeStakeAddress n
+       )
+    => SpecWith Context
 spec = describe "SHARED_WALLETS" $ do
 
     it "SHARED_WALLETS_CREATE_01 - \
@@ -626,7 +627,7 @@ spec = describe "SHARED_WALLETS" $ do
             `shouldBe`
             getWalletIdFromSharedWallet wal
 
-        rAddrsActive <- request @[ApiAddress n] ctx
+        rAddrsActive <- request @[ApiAddressWithPath n] ctx
             (Link.listAddresses @'Shared activeWal) Default Empty
         expectResponseCode HTTP.status200 rAddrsActive
         let g = fromIntegral $ getAddressPoolGap defaultAddressPoolGap
@@ -691,7 +692,7 @@ spec = describe "SHARED_WALLETS" $ do
         getWalletIdFromSharedWallet walWithSelf
             `shouldBe` getWalletIdFromSharedWallet wal
 
-        rAddrsActive <- request @[ApiAddress n] ctx
+        rAddrsActive <- request @[ApiAddressWithPath n] ctx
             (Link.listAddresses @'Shared activeWal) Default Empty
         expectResponseCode HTTP.status200 rAddrsActive
         let g = fromIntegral $ getAddressPoolGap defaultAddressPoolGap
@@ -934,7 +935,7 @@ spec = describe "SHARED_WALLETS" $ do
         liftIO $ cosigners cosignerKeysPost
             `shouldBe` Map.fromList [(Cosigner 0,accXPub0)]
 
-        rAddrsPending <- request @[ApiAddress n] ctx
+        rAddrsPending <- request @[ApiAddressWithPath n] ctx
             (Link.listAddresses @'Shared pendingWal) Default Empty
         expectResponseCode HTTP.status200 rAddrsPending
         expectListSize 0 rAddrsPending
@@ -954,7 +955,7 @@ spec = describe "SHARED_WALLETS" $ do
                 , (Cosigner 1, accXPub1)
                 ]
 
-        rAddrsActive <- request @[ApiAddress n] ctx
+        rAddrsActive <- request @[ApiAddressWithPath n] ctx
             (Link.listAddresses @'Shared activeWal) Default Empty
         expectResponseCode HTTP.status200 rAddrsActive
         let g = fromIntegral $ getAddressPoolGap defaultAddressPoolGap
@@ -1426,7 +1427,7 @@ spec = describe "SHARED_WALLETS" $ do
             ]
         let walShared@(ApiSharedWallet (Right wal)) = getFromResponse id rPost
 
-        rAddr <- request @[ApiAddress n] ctx
+        rAddr <- request @[ApiAddressWithPath n] ctx
             (Link.listAddresses @'Shared wal) Default Empty
         expectResponseCode HTTP.status200 rAddr
         let sharedAddrs = getFromResponse id rAddr
@@ -1484,7 +1485,7 @@ spec = describe "SHARED_WALLETS" $ do
         (ApiSharedWallet (Right wDest)) <- emptySharedWallet ctx
 
         --send funds
-        rAddr <- request @[ApiAddress n] ctx
+        rAddr <- request @[ApiAddressWithPath n] ctx
             (Link.listAddresses @'Shared wDest) Default Empty
         expectResponseCode HTTP.status200 rAddr
         let addrs = getFromResponse Prelude.id rAddr

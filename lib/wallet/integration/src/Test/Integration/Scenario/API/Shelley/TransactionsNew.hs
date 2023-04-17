@@ -39,7 +39,7 @@ import Cardano.Wallet.Api.Hex
     ( fromHexText )
 import Cardano.Wallet.Api.Types
     ( AddressAmount (..)
-    , ApiAddress (..)
+    , ApiAddressWithPath (..)
     , ApiAnyCertificate (..)
     , ApiAssetMintBurn (..)
     , ApiCertificate (..)
@@ -66,15 +66,13 @@ import Cardano.Wallet.Api.Types
     , ApiWallet
     , ApiWalletInput (..)
     , ApiWalletOutput (..)
-    , DecodeAddress
     , DecodeStakeAddress
-    , EncodeAddress (..)
     , ResourceContext (..)
     , WalletStyle (..)
     , fromApiEra
     )
 import Cardano.Wallet.Api.Types.Transaction
-    ( ApiValidityIntervalExplicit (..), mkApiWitnessCount )
+    ( ApiAddress (..), ApiValidityIntervalExplicit (..), mkApiWitnessCount )
 import Cardano.Wallet.Pools
     ( StakePool )
 import Cardano.Wallet.Primitive.AddressDerivation
@@ -86,8 +84,6 @@ import Cardano.Wallet.Primitive.AddressDerivation
     )
 import Cardano.Wallet.Primitive.Types
     ( EpochNo (..), NonWalletCertificate (..), SlotNo (..) )
-import Cardano.Wallet.Primitive.Types.Address
-    ( Address (..) )
 import Cardano.Wallet.Primitive.Types.Coin
     ( Coin (..) )
 import Cardano.Wallet.Primitive.Types.Hash
@@ -113,6 +109,8 @@ import Cardano.Wallet.Primitive.Types.Tx
     )
 import Cardano.Wallet.Primitive.Types.Tx.TxIn
     ( TxIn (..) )
+import Cardano.Wallet.Read.NetworkId
+    ( HasSNetworkId )
 import Cardano.Wallet.Transaction
     ( AnyExplicitScript (..)
     , AnyScript (..)
@@ -242,11 +240,12 @@ import qualified Data.Text.Encoding as T
 import qualified Network.HTTP.Types.Status as HTTP
 import qualified Test.Integration.Plutus as PlutusScenario
 
-spec :: forall n.
-    ( DecodeAddress n
-    , DecodeStakeAddress n
-    , EncodeAddress n
-    ) => SpecWith Context
+spec
+    :: forall n
+     . ( HasSNetworkId n
+       , DecodeStakeAddress n
+       )
+    => SpecWith Context
 spec = describe "NEW_SHELLEY_TRANSACTIONS" $ do
     it "TRANS_NEW_CREATE_01a - Empty payload is not allowed" $ \ctx -> runResourceT $ do
         wa <- fixtureWallet ctx
@@ -724,7 +723,7 @@ spec = describe "NEW_SHELLEY_TRANSACTIONS" $ do
                 , ApiT (DerivationIndex 0)
                 ]
         let addrSourceChange:_ =
-                filter (\(ApiAddress _ _ derPath') -> derPath == derPath') addrsSourceAll
+                filter (\(ApiAddressWithPath _ _ derPath') -> derPath == derPath') addrsSourceAll
         let addrSrc =  addrSourceChange ^. #id
         let expectedTxOutSource = WalletOutput $ ApiWalletOutput
                 { address = addrSrc
@@ -2553,15 +2552,15 @@ spec = describe "NEW_SHELLEY_TRANSACTIONS" $ do
                   )
                 , ( "currency", \ctx w -> do
                     liftIO $ pendingWith "flaky #3124"
-                    (addr,proxy) <- view #id . head <$> listAddresses @n ctx w
+                    ApiAddress addr <- view #id . head <$> listAddresses @n ctx w
                     let getFreshUTxO = do
                             -- To obtain a fresh UTxO, we perform
                             -- coin selection and just pick the first input
                             -- that has been selected.
                             let singleton = pure -- specialized to NonEmpty
-                            (_, result) <- selectCoins @_ @'Shelley ctx w $
+                            (_, result) <- selectCoins @n @'Shelley ctx w $
                                 singleton $ AddressAmount
-                                    { address = (addr, proxy)
+                                    { address = ApiAddress addr
                                     , amount  = Quantity 10_000_000
                                     , assets  = ApiT TokenMap.empty
                                     }
@@ -4207,10 +4206,10 @@ spec = describe "NEW_SHELLEY_TRANSACTIONS" $ do
     -- Asset amounts are specified by ((PolicyId Hex, AssetName Hex), amount).
     mkTxPayloadMA
         :: forall l m.
-            ( EncodeAddress l
+            ( HasSNetworkId l
             , MonadUnliftIO m
             )
-        => (ApiT Address, Proxy l)
+        => ApiAddress l
         -> Natural
         -> [((Text, Text), Natural)]
         -> m Payload

@@ -17,20 +17,20 @@ import Prelude
 import Cardano.Mnemonic
     ( entropyToMnemonic, genEntropy, mnemonicToText )
 import Cardano.Wallet.Api.Types
-    ( ApiAddress
+    ( ApiAddressWithPath
     , ApiFee
     , ApiTransaction
     , ApiUtxoStatistics
     , ApiWallet
-    , DecodeAddress
     , DecodeStakeAddress
-    , EncodeAddress
     , WalletStyle (..)
     )
 import Cardano.Wallet.Primitive.AddressDiscovery.Sequential
     ( defaultAddressPoolGap, getAddressPoolGap )
 import Cardano.Wallet.Primitive.Types.Address
     ( AddressState (..) )
+import Cardano.Wallet.Read.NetworkId
+    ( HasSNetworkId )
 import Control.Monad
     ( forM_ )
 import Control.Monad.IO.Class
@@ -84,11 +84,12 @@ import Test.Integration.Framework.TestData
 import qualified Cardano.Wallet.Api.Link as Link
 import qualified Network.HTTP.Types.Status as HTTP
 
-spec :: forall n.
-    ( DecodeAddress n
-    , DecodeStakeAddress n
-    , EncodeAddress n
-    ) => SpecWith Context
+spec
+    :: forall n
+     . ( HasSNetworkId n
+       , DecodeStakeAddress n
+       )
+    => SpecWith Context
 spec = describe "SHELLEY_HW_WALLETS" $ do
     it "HW_WALLETS_01 - Restoration from account public key preserves funds" $ \ctx -> runResourceT $ do
         wSrc <- fixtureWallet ctx
@@ -257,7 +258,7 @@ spec = describe "SHELLEY_HW_WALLETS" $ do
             wPub <- restoreWalletFromPubKey @ApiWallet @'Shelley ctx pubKey restoredWalletName
 
             let g = fromIntegral $ getAddressPoolGap defaultAddressPoolGap
-            r <- request @[ApiAddress n] ctx
+            r <- request @[ApiAddressWithPath n] ctx
                 (Link.listAddresses @'Shelley wPub) Default Empty
             expectResponseCode HTTP.status200 r
             expectListSize g r
@@ -278,7 +279,7 @@ spec = describe "SHELLEY_HW_WALLETS" $ do
 
             let wPub = getFromResponse id rRestore
 
-            r <- request @[ApiAddress n] ctx
+            r <- request @[ApiAddressWithPath n] ctx
                 (Link.listAddresses @'Shelley wPub) Default Empty
             expectResponseCode HTTP.status200 r
             expectListSize addrPoolGap r

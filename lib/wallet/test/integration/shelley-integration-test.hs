@@ -39,8 +39,6 @@ import Cardano.Startup
     , setDefaultFilePermissions
     , withUtf8Encoding
     )
-import Cardano.Wallet.Api.Types
-    ( DecodeAddress (..), EncodeAddress (..) )
 import Cardano.Wallet.Launch
     ( withSystemTempDir )
 import Cardano.Wallet.Launch.Cluster
@@ -71,7 +69,7 @@ import Cardano.Wallet.Primitive.SyncProgress
 import Cardano.Wallet.Primitive.Types.Coin
     ( Coin (..) )
 import Cardano.Wallet.Read.NetworkId
-    ( NetworkDiscriminant (..) )
+    ( NetworkDiscriminant (..), SNetworkId (..) )
 import Cardano.Wallet.Shelley
     ( SomeNetworkDiscriminant (..)
     , Tracers
@@ -81,6 +79,8 @@ import Cardano.Wallet.Shelley
     )
 import Cardano.Wallet.Shelley.BlockchainSource
     ( BlockchainSource (..) )
+import Cardano.Wallet.Shelley.Compatibility
+    ( decodeAddress, encodeAddress )
 import Cardano.Wallet.Shelley.Faucet
     ( initFaucet )
 import Cardano.Wallet.TokenMetadata.MockServer
@@ -328,7 +328,7 @@ specWithServer testDir (tr, tracers) = aroundAll withContext
                 $ onClusterStart (onReady $ T.pack smashUrl) dbDecorator
 
     tr' = contramap MsgCluster tr
-    encodeAddresses = map (first (T.unpack . encodeAddress @'Mainnet))
+    encodeAddresses = map (first (T.unpack . encodeAddress SMainnet))
 
     faucetFunds = FaucetFunds
         { pureAdaFunds =
@@ -343,7 +343,7 @@ specWithServer testDir (tr, tracers) = aroundAll withContext
             <$> concatMap genRewardAccounts mirMnemonics
         }
 
-    unsafeDecodeAddr = either (error . show) id . decodeAddress @'Mainnet
+    unsafeDecodeAddr = either (error . show) id . decodeAddress SMainnet
 
     onClusterStart action dbDecorator (RunningNode conn block0 (gp, vData) genesisPools) = do
         let db = testDir </> "wallets"

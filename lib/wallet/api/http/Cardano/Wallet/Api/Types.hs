@@ -51,13 +51,14 @@ module Cardano.Wallet.Api.Types
     , fmtAllowedWords
 
     -- * API Types
+    , ApiAddress (..)
     , AddressAmount (..)
     , AddressAmountNoAssets (..)
     , AnyAddress (..)
     , AnyAddressType (..)
     , ApiAccountKey (..)
     , ApiAccountKeyShared (..)
-    , ApiAddress (..)
+    , ApiAddressWithPath (..)
     , ApiAddressData (..)
     , ApiAddressDataPayload (..)
     , ApiAddressInspect (..)
@@ -203,8 +204,7 @@ module Cardano.Wallet.Api.Types
     , WalletOrAccountPostData (..)
 
     -- * User-Facing Address Encoding/Decoding
-    , EncodeAddress (..)
-    , DecodeAddress (..)
+
     , EncodeStakeAddress (..)
     , DecodeStakeAddress (..)
 
@@ -325,6 +325,7 @@ import Cardano.Wallet.Api.Types.SchemaMetadata
     ( TxMetadataWithSchema )
 import Cardano.Wallet.Api.Types.Transaction
     ( AddressAmount (..)
+    , ApiAddress (..)
     , ApiDecodedTransaction (..)
     , ApiPostPolicyKeyData (..)
     , ApiTxInputGeneral (..)
@@ -390,13 +391,11 @@ import Cardano.Wallet.Primitive.Types.Tx.TxIn
 import Cardano.Wallet.Primitive.Types.UTxOStatistics
     ( BoundType, HistogramBar (..), UTxOStatistics (..) )
 import Cardano.Wallet.Read.NetworkId
-    ( NetworkDiscriminant )
+    ( HasSNetworkId (..), NetworkDiscriminant )
+import Cardano.Wallet.Shelley.Compatibility
+    ( decodeAddress, encodeAddress )
 import Cardano.Wallet.Shelley.Network.Discriminant
-    ( DecodeAddress (..)
-    , DecodeStakeAddress (..)
-    , EncodeAddress (..)
-    , EncodeStakeAddress (..)
-    )
+    ( DecodeStakeAddress (..), EncodeStakeAddress (..) )
 import Cardano.Wallet.TokenMetadata
     ( TokenMetadataError (..) )
 import Cardano.Wallet.Util
@@ -684,13 +683,13 @@ toApiAssetMetadata W.AssetMetadata{name,description,ticker,url,logo,decimals} =
     ApiAssetMetadata name description ticker
         (ApiT <$> url) (ApiT <$> logo) (ApiT <$> decimals)
 
-data ApiAddress (n :: NetworkDiscriminant) = ApiAddress
-    { id :: !(ApiT Address, Proxy n)
+data ApiAddressWithPath (n :: NetworkDiscriminant) = ApiAddressWithPath
+    { id :: !(ApiAddress n)
     , state :: !(ApiT AddressState)
     , derivationPath :: NonEmpty (ApiT DerivationIndex)
     }
     deriving (Eq, Generic, Show, Typeable)
-    deriving (FromJSON, ToJSON) via DefaultRecord (ApiAddress n)
+    deriving (FromJSON, ToJSON) via DefaultRecord (ApiAddressWithPath n)
     deriving anyclass NFData
 
 newtype ApiCosignerIndex = ApiCosignerIndex Word8
@@ -777,7 +776,7 @@ data ApiCoinSelection (n :: NetworkDiscriminant) = ApiCoinSelection
     deriving anyclass NFData
 
 data ApiCoinSelectionChange (n :: NetworkDiscriminant) = ApiCoinSelectionChange
-    { address :: !(ApiT Address, Proxy n)
+    { address :: !(ApiAddress n)
     , amount :: !(Quantity "lovelace" Natural)
     , assets :: !(ApiT TokenMap)
     , derivationPath :: NonEmpty (ApiT DerivationIndex)
@@ -787,7 +786,7 @@ data ApiCoinSelectionChange (n :: NetworkDiscriminant) = ApiCoinSelectionChange
     deriving anyclass NFData
 
 data ApiCoinSelectionOutput (n :: NetworkDiscriminant) = ApiCoinSelectionOutput
-    { address :: !(ApiT Address, Proxy n)
+    { address :: !(ApiAddress n)
     , amount :: !(Quantity "lovelace" Natural)
     , assets :: !(ApiT TokenMap)
     }
@@ -799,7 +798,7 @@ data ApiCoinSelectionCollateral (n :: NetworkDiscriminant) =
     ApiCoinSelectionCollateral
         { id :: !(ApiT (Hash "Tx"))
         , index :: !Word32
-        , address :: !(ApiT Address, Proxy n)
+        , address :: !(ApiAddress n)
         , derivationPath :: NonEmpty (ApiT DerivationIndex)
         , amount :: !(Quantity "lovelace" Natural)
         }
@@ -1161,7 +1160,7 @@ data ApiSerialisedTransaction = ApiSerialisedTransaction
 data ApiExternalInput (n :: NetworkDiscriminant) = ApiExternalInput
     { id :: !(ApiT (Hash "Tx"))
     , index :: !Word32
-    , address :: !(ApiT Address, Proxy n)
+    , address :: !(ApiAddress n)
     , amount :: !(Quantity "lovelace" Natural)
     , assets :: !(ApiT TokenMap)
     , datum :: !(Maybe (ApiT WriteTx.DatumHash))
@@ -1364,7 +1363,7 @@ data ApiTxInput (n :: NetworkDiscriminant) = ApiTxInput
     deriving anyclass NFData
 
 data ApiTxCollateral (n :: NetworkDiscriminant) = ApiTxCollateral
-    { source :: !(Maybe (AddressAmountNoAssets (ApiT Address, Proxy n)))
+    { source :: !(Maybe (AddressAmountNoAssets (ApiAddress n)))
     , input :: !(ApiT TxIn)
     }
     deriving (Eq, Generic, Show, Typeable)
@@ -1511,7 +1510,7 @@ data ApiPostRandomAddressData = ApiPostRandomAddressData
 
 newtype ApiWalletMigrationPlanPostData (n :: NetworkDiscriminant) =
     ApiWalletMigrationPlanPostData
-    { addresses :: NonEmpty (ApiT Address, Proxy n)
+    { addresses :: NonEmpty (ApiAddress n)
     }
     deriving (Eq, Generic, Typeable)
     deriving (FromJSON, ToJSON)
@@ -1522,7 +1521,7 @@ newtype ApiWalletMigrationPlanPostData (n :: NetworkDiscriminant) =
 data ApiWalletMigrationPostData (n :: NetworkDiscriminant) (s :: Symbol) =
     ApiWalletMigrationPostData
     { passphrase :: !(ApiT (Passphrase s))
-    , addresses :: !(NonEmpty (ApiT Address, Proxy n))
+    , addresses :: !(NonEmpty (ApiAddress n))
     }
     deriving (Eq, Generic, Show, Typeable)
     deriving (FromJSON, ToJSON)
@@ -1530,7 +1529,7 @@ data ApiWalletMigrationPostData (n :: NetworkDiscriminant) (s :: Symbol) =
     deriving anyclass NFData
 
 newtype ApiPutAddressesData (n :: NetworkDiscriminant) = ApiPutAddressesData
-    { addresses :: [(ApiT Address, Proxy n)]
+    { addresses :: [ApiAddress n]
     }
     deriving (Eq, Generic, Typeable)
     deriving (FromJSON, ToJSON) via DefaultRecord (ApiPutAddressesData n)
@@ -1823,14 +1822,14 @@ instance FromText (ApiT PassphraseHash)  where
             , "expecting a hex-encoded value."
             ]
 
-instance DecodeAddress n => FromHttpApiData (ApiT Address, Proxy n) where
+instance HasSNetworkId n => FromHttpApiData (ApiAddress n) where
     parseUrlPiece txt = do
-        let proxy = Proxy @n
-        addr <- bimap (T.pack . getTextDecodingError) ApiT (decodeAddress @n txt)
-        return (addr, proxy)
+        addr <- first (T.pack . getTextDecodingError)
+            $ decodeAddress (sNetworkId @n) txt
+        return (ApiAddress @n addr)
 
-instance EncodeAddress n => ToHttpApiData (ApiT Address, Proxy n) where
-    toUrlPiece = encodeAddress @n . getApiT . fst
+instance HasSNetworkId n => ToHttpApiData (ApiAddress n) where
+    toUrlPiece = encodeAddress (sNetworkId @n) . apiAddress
 
 {-------------------------------------------------------------------------------
                               API Types: Byron
@@ -1973,7 +1972,7 @@ instance FromJSON (ApiT W.AssetDecimals) where
 instance ToJSON (ApiT W.AssetDecimals) where
     toJSON = toJSON . W.unAssetDecimals . getApiT
 
-instance DecodeAddress n => FromJSON (ApiSelectCoinsData n) where
+instance HasSNetworkId n => FromJSON (ApiSelectCoinsData n) where
     parseJSON = withObject "DelegationAction" $ \o -> do
         p <- o .:? "payments"
         a <- o .:? "delegation_action"
@@ -1987,7 +1986,7 @@ instance DecodeAddress n => FromJSON (ApiSelectCoinsData n) where
             _ ->
                 fail "No valid parse for ApiSelectCoinsPayments or ApiSelectCoinsAction"
 
-instance EncodeAddress n => ToJSON (ApiSelectCoinsData n) where
+instance HasSNetworkId n => ToJSON (ApiSelectCoinsData n) where
     toJSON (ApiSelectForPayment v) = toJSON v
     toJSON (ApiSelectForDelegation v) = toJSON v
 
@@ -2451,12 +2450,12 @@ instance FromJSON ApiSignTransactionPostData where
 instance ToJSON ApiSignTransactionPostData where
     toJSON = genericToJSON strictRecordTypeOptions
 
-instance DecodeAddress t => FromJSON (ApiPaymentDestination t) where
+instance HasSNetworkId t => FromJSON (ApiPaymentDestination t) where
     parseJSON obj = parseAddrs
       where
         parseAddrs = ApiPaymentAddresses <$> parseJSON obj
 
-instance EncodeAddress t => ToJSON (ApiPaymentDestination t) where
+instance HasSNetworkId n => ToJSON (ApiPaymentDestination n) where
     toJSON (ApiPaymentAddresses addrs) = toJSON addrs
 
 instance DecodeStakeAddress n => FromJSON (ApiRedeemer n) where
@@ -2514,7 +2513,7 @@ instance FromJSON ApiValidityBound where
                     _ -> fail "ApiValidityBound string must have either 'second' or 'slot' unit."
                 _ -> fail "ApiValidityBound string must have 'unit' field."
 
-instance (DecodeAddress t, DecodeStakeAddress t) => FromJSON (ApiConstructTransaction t) where
+instance (HasSNetworkId t, DecodeStakeAddress t) => FromJSON (ApiConstructTransaction t) where
     parseJSON = withObject "ApiConstructTransaction object" $ \o -> do
         txTxt <- o .: "transaction"
         (tx, enc) <- (,HexEncoded) <$> parseSealedTxBytes @'Base16 txTxt <|>
@@ -2523,7 +2522,7 @@ instance (DecodeAddress t, DecodeStakeAddress t) => FromJSON (ApiConstructTransa
         fee <- o .: "fee"
         pure $ ApiConstructTransaction (ApiSerialisedTransaction (ApiT tx) enc) sel fee
 
-instance (EncodeAddress t, EncodeStakeAddress t) => ToJSON (ApiConstructTransaction t) where
+instance (HasSNetworkId t, EncodeStakeAddress t) => ToJSON (ApiConstructTransaction t) where
     toJSON (ApiConstructTransaction (ApiSerialisedTransaction tx encoding) sel fee) =
         object [ "transaction" .= case encoding of
                        HexEncoded ->
@@ -2583,20 +2582,20 @@ instance ToJSON ApiBlockReference where
             Aeson.Object rest -> Aeson.Object ("height" .= bh <> rest)
             _ -> error "ApiSlotReference isn't an object."
 
-instance DecodeAddress n => FromJSON (ApiTxInput n) where
+instance HasSNetworkId n => FromJSON (ApiTxInput n) where
     parseJSON v = ApiTxInput <$> optional (parseJSON v) <*> parseJSON v
 
-instance EncodeAddress n => ToJSON (ApiTxInput n) where
+instance HasSNetworkId n => ToJSON (ApiTxInput n) where
     toJSON (ApiTxInput s i) =
         Object (maybe mempty (fromValue . toJSON) s <> fromValue (toJSON i))
       where
         fromValue (Object o) = o
         fromValue _ = mempty
 
-instance DecodeAddress n => FromJSON (ApiTxCollateral n) where
+instance HasSNetworkId n => FromJSON (ApiTxCollateral n) where
     parseJSON v = ApiTxCollateral <$> optional (parseJSON v) <*> parseJSON v
 
-instance EncodeAddress n => ToJSON (ApiTxCollateral n) where
+instance HasSNetworkId n => ToJSON (ApiTxCollateral n) where
     toJSON (ApiTxCollateral s i) =
         Object (maybe mempty (fromValue . toJSON) s <> fromValue (toJSON i))
       where
@@ -3000,7 +2999,7 @@ type family ApiBalanceTransactionPostDataT (n :: k) :: Type
 type family ApiDecodedTransactionT (n :: k) :: Type
 
 type instance ApiAddressT (n :: NetworkDiscriminant) =
-    ApiAddress n
+    ApiAddressWithPath n
 
 type instance ApiStakeKeysT (n :: NetworkDiscriminant) =
     ApiStakeKeys n
@@ -3009,7 +3008,7 @@ type instance ApiPutAddressesDataT (n :: NetworkDiscriminant) =
     ApiPutAddressesData n
 
 type instance ApiAddressIdT (n :: NetworkDiscriminant) =
-    (ApiT Address, Proxy n)
+    (ApiAddress n)
 
 type instance ApiCoinSelectionT (n :: NetworkDiscriminant) =
     ApiCoinSelection n
@@ -3117,7 +3116,7 @@ data ApiMintBurnOperation (n :: NetworkDiscriminant)
 -- "address".
 data ApiMintData (n :: NetworkDiscriminant) = ApiMintData
     { receivingAddress
-        :: Maybe (ApiT Address, Proxy n)
+        :: Maybe (ApiAddress n)
         -- ^ An optional address to which minted assets should be paid.
         --
         -- If no address is specified, then minted assets will be returned to
@@ -3141,12 +3140,12 @@ newtype ApiBurnData = ApiBurnData
     deriving (FromJSON, ToJSON) via DefaultRecord ApiBurnData
     deriving anyclass NFData
 
-instance EncodeAddress n => ToJSON (ApiMintBurnOperation n) where
+instance HasSNetworkId n => ToJSON (ApiMintBurnOperation n) where
     toJSON = object . pure . \case
         ApiMint mint -> "mint" .= mint
         ApiBurn burn -> "burn" .= burn
 
-instance DecodeAddress n => FromJSON (ApiMintBurnOperation n) where
+instance HasSNetworkId n => FromJSON (ApiMintBurnOperation n) where
     parseJSON = Aeson.withObject "ApiMintBurnOperation" $ \o ->
         case Aeson.keys o of
             ["mint"] -> ApiMint <$> o .: "mint"

@@ -19,7 +19,8 @@ import Prelude
 import Cardano.Mnemonic
     ( entropyToMnemonic, genEntropy )
 import Cardano.Wallet.Api.Types
-    ( ApiByronWallet
+    ( ApiAddress
+    , ApiByronWallet
     , ApiEra (..)
     , ApiT (..)
     , ApiTransaction
@@ -27,9 +28,7 @@ import Cardano.Wallet.Api.Types
     , ApiUtxoStatistics
     , ApiWallet
     , ApiWalletMigrationPlan (..)
-    , DecodeAddress
     , DecodeStakeAddress
-    , EncodeAddress (..)
     , WalletStyle (..)
     )
 import Cardano.Wallet.Primitive.AddressDerivation
@@ -38,10 +37,12 @@ import Cardano.Wallet.Primitive.AddressDerivation.Byron
     ( ByronKey )
 import Cardano.Wallet.Primitive.AddressDerivation.Icarus
     ( IcarusKey )
-import Cardano.Wallet.Primitive.Types.Address
-    ( Address )
 import Cardano.Wallet.Primitive.Types.Tx
     ( TxStatus (..) )
+import Cardano.Wallet.Read.NetworkId
+    ( HasSNetworkId (..) )
+import Cardano.Wallet.Shelley.Compatibility
+    ( encodeAddress )
 import Control.Monad
     ( forM_, void, when )
 import Control.Monad.IO.Class
@@ -54,8 +55,6 @@ import Data.Generics.Internal.VL.Lens
     ( view, (^.) )
 import Data.Maybe
     ( mapMaybe )
-import Data.Proxy
-    ( Proxy (..) )
 import Data.Quantity
     ( Quantity (..) )
 import Data.Text
@@ -107,14 +106,14 @@ import qualified Data.Map.Strict as Map
 import qualified Network.HTTP.Types.Status as HTTP
 import qualified Test.Hspec as Hspec
 
-
-spec :: forall n.
-    ( DecodeAddress n
-    , DecodeStakeAddress n
-    , EncodeAddress n
-    , PaymentAddress n IcarusKey 'CredFromKeyK
-    , PaymentAddress n ByronKey 'CredFromKeyK
-    ) => SpecWith Context
+spec
+    :: forall n
+     . ( HasSNetworkId n
+       , DecodeStakeAddress n
+       , PaymentAddress n IcarusKey 'CredFromKeyK
+       , PaymentAddress n ByronKey 'CredFromKeyK
+       )
+    => SpecWith Context
 spec = describe "BYRON_MIGRATIONS" $ do
 
     it "BYRON_CREATE_MIGRATION_PLAN_01 - \
@@ -125,7 +124,7 @@ spec = describe "BYRON_MIGRATIONS" $ do
             targetWallet <- emptyWallet ctx
             targetAddresses <- listAddresses @n ctx targetWallet
             let targetAddressIds = targetAddresses <&>
-                    (\(ApiTypes.ApiAddress addrId _ _) -> addrId)
+                    (\(ApiTypes.ApiAddressWithPath addrId _ _) -> addrId)
             let ep = Link.createMigrationPlan @'Byron sourceWallet
             response <- request @(ApiWalletMigrationPlan n) ctx ep Default
                 (Json [json|{addresses: #{targetAddressIds}}|])
@@ -152,7 +151,7 @@ spec = describe "BYRON_MIGRATIONS" $ do
             targetWallet <- emptyWallet ctx
             targetAddresses <- listAddresses @n ctx targetWallet
             let targetAddressIds = targetAddresses <&>
-                    (\(ApiTypes.ApiAddress addrId _ _) -> addrId)
+                    (\(ApiTypes.ApiAddressWithPath addrId _ _) -> addrId)
             let ep = Link.createMigrationPlan @'Byron sourceWallet
             response <- request @(ApiWalletMigrationPlan n) ctx ep Default
                 (Json [json|{addresses: #{targetAddressIds}}|])
@@ -169,7 +168,7 @@ spec = describe "BYRON_MIGRATIONS" $ do
             targetWallet <- emptyWallet ctx
             targetAddresses <- listAddresses @n ctx targetWallet
             let targetAddressIds = targetAddresses <&>
-                    (\(ApiTypes.ApiAddress addrId _ _) -> addrId)
+                    (\(ApiTypes.ApiAddressWithPath addrId _ _) -> addrId)
             let ep = Link.createMigrationPlan @'Byron sourceWallet
             response <- request @(ApiWalletMigrationPlan n) ctx ep Default
                 (Json [json|{addresses: #{targetAddressIds}}|])
@@ -208,7 +207,7 @@ spec = describe "BYRON_MIGRATIONS" $ do
             targetWallet <- emptyWallet ctx
             targetAddresses <- listAddresses @n ctx targetWallet
             let targetAddressIds = targetAddresses <&>
-                    (\(ApiTypes.ApiAddress addrId _ _) -> addrId)
+                    (\(ApiTypes.ApiAddressWithPath addrId _ _) -> addrId)
             let ep = Link.createMigrationPlan @'Byron sourceWallet
             response <- request @(ApiWalletMigrationPlan n) ctx ep Default
                 (Json [json|{addresses: #{targetAddressIds}}|])
@@ -226,7 +225,7 @@ spec = describe "BYRON_MIGRATIONS" $ do
             targetWallet <- emptyWallet ctx
             targetAddresses <- listAddresses @n ctx targetWallet
             let targetAddressIds = targetAddresses <&>
-                    (\(ApiTypes.ApiAddress addrId _ _) -> addrId)
+                    (\(ApiTypes.ApiAddressWithPath addrId _ _) -> addrId)
             let ep = Link.createMigrationPlan @'Byron sourceWallet
             response1 <- request @(ApiWalletMigrationPlan n) ctx ep Default
                 (Json [json|{addresses: #{targetAddressIds}}|])
@@ -296,7 +295,7 @@ spec = describe "BYRON_MIGRATIONS" $ do
         targetWallet <- emptyWallet ctx
         targetAddresses <- listAddresses @n ctx targetWallet
         let targetAddressIds = targetAddresses <&>
-                (\(ApiTypes.ApiAddress addrId _ _) -> addrId)
+                (\(ApiTypes.ApiAddressWithPath addrId _ _) -> addrId)
 
         -- Compute the expected migration plan:
         responsePlan <- request @(ApiWalletMigrationPlan n) ctx
@@ -383,7 +382,7 @@ spec = describe "BYRON_MIGRATIONS" $ do
             targetWallet <- emptyWallet ctx
             targetAddresses <- listAddresses @n ctx targetWallet
             let targetAddressIds = targetAddresses <&>
-                    (\(ApiTypes.ApiAddress addrId _ _) -> addrId)
+                    (\(ApiTypes.ApiAddressWithPath addrId _ _) -> addrId)
             let ep = Link.migrateWallet @'Byron sourceWallet
             response <- request @[ApiTransaction n] ctx ep Default $
                 Json [json|
@@ -412,7 +411,7 @@ spec = describe "BYRON_MIGRATIONS" $ do
             targetWallet <- emptyWallet ctx
             targetAddresses <- listAddresses @n ctx targetWallet
             let targetAddressIds = targetAddresses <&>
-                    (\(ApiTypes.ApiAddress addrId _ _) -> addrId)
+                    (\(ApiTypes.ApiAddressWithPath addrId _ _) -> addrId)
 
             -- Create a migration plan:
             let endpointPlan = (Link.createMigrationPlan @'Byron sourceWallet)
@@ -456,7 +455,7 @@ spec = describe "BYRON_MIGRATIONS" $ do
             targetWallet <- emptyWallet ctx
             targetAddresses <- listAddresses @n ctx targetWallet
             let targetAddressIds = targetAddresses <&>
-                    (\(ApiTypes.ApiAddress addrId _ _) -> addrId)
+                    (\(ApiTypes.ApiAddressWithPath addrId _ _) -> addrId)
 
             -- Attempt to perform a migration:
             response <- request @[ApiTransaction n] ctx
@@ -486,13 +485,13 @@ spec = describe "BYRON_MIGRATIONS" $ do
                 let addrShelley = (addrs !! 1) ^. #id
 
                 -- Create an Icarus address:
-                addrIcarus <- liftIO $ encodeAddress @n
+                addrIcarus <- liftIO $ encodeAddress (sNetworkId @n)
                     . head
                     . icarusAddresses @n
                     . entropyToMnemonic @15 <$> genEntropy
 
                 -- Create a Byron address:
-                addrByron <- liftIO $ encodeAddress @n
+                addrByron <- liftIO $ encodeAddress (sNetworkId @n)
                     . head
                     . randomAddresses @n
                     . entropyToMnemonic @12 <$> genEntropy
@@ -573,7 +572,7 @@ spec = describe "BYRON_MIGRATIONS" $ do
             targetWallet <- emptyWallet ctx
             targetAddresses <- listAddresses @n ctx targetWallet
             let targetAddressIds = targetAddresses <&>
-                    (\(ApiTypes.ApiAddress addrId _ _) -> addrId)
+                    (\(ApiTypes.ApiAddressWithPath addrId _ _) -> addrId)
 
 
             -- Attempt a migration:
@@ -606,7 +605,7 @@ spec = describe "BYRON_MIGRATIONS" $ do
     migrateWallet
         :: Context
         -> ApiByronWallet
-        -> [(ApiT Address, Proxy n)]
+        -> [ApiAddress n]
         -> IO ()
     migrateWallet ctx src targets = do
         (status, _) <- request @(ApiWalletMigrationPlan n) ctx
@@ -670,7 +669,7 @@ spec = describe "BYRON_MIGRATIONS" $ do
             targetWallet <- emptyWallet ctx
             targetAddresses <- listAddresses @n ctx targetWallet
             let targetAddressIds = take targetAddressCount targetAddresses <&>
-                    (\(ApiTypes.ApiAddress addrId _ _) -> addrId)
+                    (\(ApiTypes.ApiAddressWithPath addrId _ _) -> addrId)
 
             -- Create a migration plan:
             response0 <- request @(ApiWalletMigrationPlan n) ctx

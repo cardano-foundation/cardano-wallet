@@ -25,6 +25,7 @@ import Cardano.Mnemonic
     ( entropyToMnemonic, genEntropy, mnemonicToText )
 import Cardano.Wallet.Api.Types
     ( AddressAmount (..)
+    , ApiAddress
     , ApiAsset (..)
     , ApiCoinSelectionOutput (..)
     , ApiEra (..)
@@ -34,10 +35,9 @@ import Cardano.Wallet.Api.Types
     , ApiTxId (..)
     , ApiTxInput (..)
     , ApiWallet
-    , DecodeAddress
     , DecodeStakeAddress
-    , EncodeAddress (..)
     , WalletStyle (..)
+    , apiAddress
     , insertedAt
     , pendingSince
     )
@@ -51,8 +51,6 @@ import Cardano.Wallet.Primitive.AddressDerivation.Icarus
     ( IcarusKey )
 import Cardano.Wallet.Primitive.Types
     ( SortOrder (..), WalletId )
-import Cardano.Wallet.Primitive.Types.Address
-    ( Address )
 import Cardano.Wallet.Primitive.Types.Coin
     ( Coin (..) )
 import Cardano.Wallet.Primitive.Types.Hash
@@ -61,6 +59,10 @@ import Cardano.Wallet.Primitive.Types.TokenPolicy
     ( mkTokenFingerprint )
 import Cardano.Wallet.Primitive.Types.Tx
     ( Direction (..), TxMetadata (..), TxMetadataValue (..), TxStatus (..) )
+import Cardano.Wallet.Read.NetworkId
+    ( HasSNetworkId (..) )
+import Cardano.Wallet.Shelley.Compatibility
+    ( encodeAddress )
 import Cardano.Wallet.Unsafe
     ( unsafeFromText )
 import Control.Monad
@@ -79,8 +81,6 @@ import Data.Generics.Product.Typed
     ( HasType )
 import Data.Maybe
     ( isJust, isNothing )
-import Data.Proxy
-    ( Proxy )
 import Data.Quantity
     ( Quantity (..) )
 import Data.Text
@@ -193,12 +193,13 @@ data TestCase a = TestCase
     , assertions :: [(HTTP.Status, Either RequestException a) -> IO ()]
     }
 
-spec :: forall n.
-    ( DecodeAddress n
-    , DecodeStakeAddress n
-    , EncodeAddress n
-    , PaymentAddress n IcarusKey 'CredFromKeyK
-    ) => SpecWith Context
+spec
+    :: forall n
+     . ( HasSNetworkId n
+       , DecodeStakeAddress n
+       , PaymentAddress n IcarusKey 'CredFromKeyK
+       )
+    => SpecWith Context
 spec = describe "SHELLEY_TRANSACTIONS" $ do
 
     it "TRANS_MIN_UTXO_01: \
@@ -827,7 +828,7 @@ spec = describe "SHELLEY_TRANSACTIONS" $ do
             sourceWallets <- forM assetsPerAddrScenarios $ \nAssetsPerAddr -> do
                 wSrc <- fixtureWallet ctx
                 srcAddrs <-
-                    map (getApiT . fst . view #id) <$> listAddresses @n ctx wSrc
+                    map (apiAddress . view #id) <$> listAddresses @n ctx wSrc
                 let batchSize = 1
                 let coinPerAddr = Coin 1000_000_000
                 liftIO $ _mintSeaHorseAssets ctx
@@ -867,7 +868,7 @@ spec = describe "SHELLEY_TRANSACTIONS" $ do
             -- 3. They should all succeed
             responses `shouldBe` (map (, Right ()) assetsPerAddrScenarios)
 
-    let hasAssetOutputs :: [AddressAmount (ApiT Address, Proxy n)] -> Bool
+    let hasAssetOutputs :: [AddressAmount (ApiAddress n)] -> Bool
         hasAssetOutputs = any ((/= mempty) . view #assets)
 
     it "TRANS_ASSETS_CREATE_02b - Multi-asset tx history" $
@@ -2275,7 +2276,7 @@ spec = describe "SHELLEY_TRANSACTIONS" $ do
         \ctx -> runResourceT $ do
 
         (wSelf, addrs) <- fixtureIcarusWalletAddrs @n ctx
-        let addr = encodeAddress @n (head addrs)
+        let addr = encodeAddress (sNetworkId @n) (head addrs)
 
         let payload = Json [json|{
                 "withdrawal": "self",

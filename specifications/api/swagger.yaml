@@ -2081,7 +2081,7 @@ x-executionUnitPrices: &executionUnitPrices
 
 components:
   schemas:
-    ApiAddress: &ApiAddress
+    ApiAddressWithPath: &ApiAddressWithPath
       type: object
       required:
         - id
@@ -5878,7 +5878,7 @@ x-responsesListAddresses: &responsesListAddresses
       application/json:
         schema:
           type: array
-          items: *ApiAddress
+          items: *ApiAddressWithPath
 
 x-responsesGetShelleyKey: &responsesGetShelleyKey
   <<: *responsesErr400
@@ -6104,7 +6104,7 @@ x-responsesPostRandomAddress: &responsesPostRandomAddress
     description: Created
     content:
       application/json:
-        schema: *ApiAddress
+        schema: *ApiAddressWithPath
 
 x-responsesPutRandomAddress: &responsesPutRandomAddress
   <<: *responsesErr400

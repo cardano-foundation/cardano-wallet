@@ -14,12 +14,7 @@ module Test.Integration.Scenario.CLI.Byron.Addresses
 import Prelude
 
 import Cardano.Wallet.Api.Types
-    ( ApiAddress
-    , ApiByronWallet
-    , ApiT (..)
-    , DecodeAddress
-    , EncodeAddress (..)
-    )
+    ( ApiAddressWithPath, ApiByronWallet, ApiT (..) )
 import Cardano.Wallet.Primitive.AddressDerivation
     ( Depth (..), PaymentAddress )
 import Cardano.Wallet.Primitive.AddressDerivation.Byron
@@ -29,7 +24,9 @@ import Cardano.Wallet.Primitive.AddressDerivation.Icarus
 import Cardano.Wallet.Primitive.Types.Address
     ( AddressState (..) )
 import Cardano.Wallet.Read.NetworkId
-    ( NetworkDiscriminant )
+    ( HasSNetworkId (..), NetworkDiscriminant )
+import Cardano.Wallet.Shelley.Compatibility
+    ( encodeAddress )
 import Control.Monad
     ( forM_ )
 import Control.Monad.Trans.Resource
@@ -72,12 +69,13 @@ import Test.Integration.Framework.TestData
 
 import qualified Data.Text as T
 
-spec :: forall n.
-    ( DecodeAddress n
-    , EncodeAddress n
-    , PaymentAddress n ByronKey 'CredFromKeyK
-    , PaymentAddress n IcarusKey 'CredFromKeyK
-    ) => SpecWith Context
+spec
+    :: forall n
+     . ( HasSNetworkId n
+       , PaymentAddress n ByronKey 'CredFromKeyK
+       , PaymentAddress n IcarusKey 'CredFromKeyK
+       )
+    => SpecWith Context
 spec = do
     describe "BYRON_CLI_ADDRESSES" $ do
         scenario_ADDRESS_LIST_01 @n "random" emptyRandomWallet
@@ -119,7 +117,7 @@ spec = do
 
 scenario_ADDRESS_LIST_01
     :: forall (n :: NetworkDiscriminant)
-     . DecodeAddress n
+     . HasSNetworkId n
     => String
     -> (Context -> ResourceT IO ApiByronWallet)
     -> SpecWith Context
@@ -129,7 +127,7 @@ scenario_ADDRESS_LIST_01 walType fixture = it title $ \ctx -> runResourceT $ do
     (Exit c, Stdout out, Stderr err) <- listAddressesViaCLI ctx [wid]
     err `shouldBe` cmdOk
     c `shouldBe` ExitSuccess
-    j <- expectValidJSON (Proxy @[ApiAddress n]) out
+    j <- expectValidJSON (Proxy @[ApiAddressWithPath n]) out
     let n = length j
     forM_ [0..(n-1)] $ \addrNum -> do
         expectCliListField
@@ -140,7 +138,7 @@ scenario_ADDRESS_LIST_01 walType fixture = it title $ \ctx -> runResourceT $ do
 
 scenario_ADDRESS_LIST_02
     :: forall (n :: NetworkDiscriminant)
-     . DecodeAddress n
+     . HasSNetworkId n
     => String
     -> (Context -> ResourceT IO ApiByronWallet)
     -> SpecWith Context
@@ -154,7 +152,7 @@ scenario_ADDRESS_LIST_02 walType fixture = it title $ \ctx -> runResourceT $ do
     (Exit c, Stdout out, Stderr err) <- listAddressesViaCLI ctx (args "used")
     err `shouldBe` cmdOk
     c `shouldBe` ExitSuccess
-    j <- expectValidJSON (Proxy @[ApiAddress n]) out
+    j <- expectValidJSON (Proxy @[ApiAddressWithPath n]) out
     let n = length j
     forM_ [0..(n-1)] $ \addrNum -> do
         expectCliListField
@@ -164,7 +162,7 @@ scenario_ADDRESS_LIST_02 walType fixture = it title $ \ctx -> runResourceT $ do
     (Exit c2, Stdout out2, Stderr err2) <- listAddressesViaCLI ctx (args "unused")
     err2 `shouldBe` cmdOk
     c2 `shouldBe` ExitSuccess
-    j2 <- expectValidJSON (Proxy @[ApiAddress n]) out2
+    j2 <- expectValidJSON (Proxy @[ApiAddressWithPath n]) out2
     let n2 = length j2
     forM_ [0..(n2-1)] $ \addrNum -> do
         expectCliListField
@@ -188,14 +186,14 @@ scenario_ADDRESS_LIST_04 walType fixture = it title $ \ctx -> runResourceT $ do
     title = "CLI_ADDRESS_LIST_04 - " ++ walType ++ " deleted wallet"
 
 scenario_ADDRESS_CREATE_01
-    :: forall (n :: NetworkDiscriminant). DecodeAddress n => SpecWith Context
+    :: forall (n :: NetworkDiscriminant). HasSNetworkId n => SpecWith Context
 scenario_ADDRESS_CREATE_01 = it title $ \ctx -> runResourceT @IO $ do
     w <- emptyRandomWallet ctx
     let wid = T.unpack (w ^. walletId)
     (c, out, err) <- createAddressViaCLI ctx [wid] (T.unpack fixturePassphrase)
     T.unpack err `shouldContain` cmdOk
     c `shouldBe` ExitSuccess
-    j <- expectValidJSON (Proxy @(ApiAddress n)) (T.unpack out)
+    j <- expectValidJSON (Proxy @(ApiAddressWithPath n)) (T.unpack out)
     verify j [ expectCliField #state (`shouldBe` ApiT Unused) ]
   where
     title = "CLI_ADDRESS_CREATE_01 - Can create a random address without index"
@@ -223,25 +221,25 @@ scenario_ADDRESS_CREATE_03 = it title $ \ctx -> runResourceT @IO $ do
     title = "ADDRESS_CREATE_03 - Cannot create a random address with wrong passphrase"
 
 scenario_ADDRESS_CREATE_04
-    :: forall (n :: NetworkDiscriminant). DecodeAddress n => SpecWith Context
+    :: forall (n :: NetworkDiscriminant). HasSNetworkId n => SpecWith Context
 scenario_ADDRESS_CREATE_04 = it title $ \ctx -> runResourceT @IO $ do
     w <- emptyRandomWallet ctx
     let wid = T.unpack (w ^. walletId)
     (c, out, err) <- createAddressViaCLI ctx [wid] (T.unpack fixturePassphrase)
     T.unpack err `shouldContain` cmdOk
     c `shouldBe` ExitSuccess
-    addr <- expectValidJSON (Proxy @(ApiAddress n)) (T.unpack out)
+    addr <- expectValidJSON (Proxy @(ApiAddressWithPath n)) (T.unpack out)
 
     (Exit cl, Stdout outl, Stderr errl) <- listAddressesViaCLI ctx [wid]
     errl `shouldBe` cmdOk
     cl `shouldBe` ExitSuccess
-    j <- expectValidJSON (Proxy @[ApiAddress n]) outl
+    j <- expectValidJSON (Proxy @[ApiAddressWithPath n]) outl
     expectCliListField 0 id (`shouldBe` addr) j
   where
     title = "CLI_ADDRESS_CREATE_04 - Can list address after creating it"
 
 scenario_ADDRESS_CREATE_05
-    :: forall (n :: NetworkDiscriminant). DecodeAddress n => SpecWith Context
+    :: forall (n :: NetworkDiscriminant). HasSNetworkId n => SpecWith Context
 scenario_ADDRESS_CREATE_05 = it title $ \ctx -> runResourceT @IO $ do
     w <- emptyRandomWallet ctx
     let wid = T.unpack (w ^. walletId)
@@ -249,7 +247,7 @@ scenario_ADDRESS_CREATE_05 = it title $ \ctx -> runResourceT @IO $ do
     (c, out, err) <- createAddressViaCLI ctx args (T.unpack fixturePassphrase)
     T.unpack err `shouldContain` cmdOk
     c `shouldBe` ExitSuccess
-    j <- expectValidJSON (Proxy @(ApiAddress n)) (T.unpack out)
+    j <- expectValidJSON (Proxy @(ApiAddressWithPath n)) (T.unpack out)
     verify j [ expectCliField #state (`shouldBe` ApiT Unused) ]
   where
     title = "CLI_ADDRESS_CREATE_05 - Can create an address and specify the index"
@@ -282,14 +280,14 @@ scenario_ADDRESS_CREATE_07 index expectedMsg = it index $ \ctx -> runResourceT @
 
 scenario_ADDRESS_IMPORT_01
     :: forall (n :: NetworkDiscriminant).
-        ( EncodeAddress n
+        ( HasSNetworkId n
         , PaymentAddress n ByronKey 'CredFromKeyK
         )
     => SpecWith Context
 scenario_ADDRESS_IMPORT_01 = it title $ \ctx -> runResourceT @IO $ do
     (w, mw) <- emptyRandomWalletMws ctx
     let wid = T.unpack (w ^. walletId)
-    let addr = T.unpack $ encodeAddress @n $ randomAddresses @n mw !! 42
+    let addr = T.unpack $ encodeAddress (sNetworkId @n) $ randomAddresses @n mw !! 42
     (Exit c, Stdout _out, Stderr err) <- importAddressViaCLI ctx [wid, addr]
     c `shouldBe` ExitSuccess
     err `shouldContain` cmdOk
@@ -298,14 +296,14 @@ scenario_ADDRESS_IMPORT_01 = it title $ \ctx -> runResourceT @IO $ do
 
 scenario_ADDRESS_IMPORT_02
     :: forall (n :: NetworkDiscriminant).
-        ( EncodeAddress n
+        ( HasSNetworkId n
         , PaymentAddress n IcarusKey 'CredFromKeyK
         )
     => SpecWith Context
 scenario_ADDRESS_IMPORT_02 = it title $ \ctx -> runResourceT @IO $ do
     (w, mw) <- emptyIcarusWalletMws ctx
     let wid = T.unpack (w ^. walletId)
-    let addr = T.unpack $ encodeAddress @n $ icarusAddresses @n mw !! 42
+    let addr = T.unpack $ encodeAddress (sNetworkId @n) $ icarusAddresses @n mw !! 42
     (Exit c, Stdout _out, Stderr err) <- importAddressViaCLI ctx [wid, addr]
     c `shouldBe` ExitFailure 1
     err `shouldContain` errMsg403NotAByronWallet

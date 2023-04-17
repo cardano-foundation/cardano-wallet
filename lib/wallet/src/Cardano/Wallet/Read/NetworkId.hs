@@ -18,13 +18,14 @@ module Cardano.Wallet.Read.NetworkId
     , NetworkDiscriminantCheck (..)
     , SNetworkId (..)
     , HasSNetworkId (..)
+    , NetworkId (..)
     , fromSNat
     , toSNat
     , fromSNetworkId
     , toSNetworkId
     , sNetworkIdOfProxy
     )
-where
+  where
 
 import Prelude
 

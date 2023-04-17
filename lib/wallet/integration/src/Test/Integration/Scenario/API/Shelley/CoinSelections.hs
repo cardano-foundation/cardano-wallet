@@ -25,10 +25,9 @@ import Cardano.Wallet.Api.Types
     , ApiCoinSelectionOutput (..)
     , ApiT (..)
     , ApiWallet
-    , DecodeAddress
     , DecodeStakeAddress
-    , EncodeAddress (..)
     , WalletStyle (..)
+    , apiAddress
     )
 import Cardano.Wallet.Primitive.AddressDiscovery.Sequential
     ( purposeCIP1852 )
@@ -42,6 +41,8 @@ import Cardano.Wallet.Primitive.Types.TokenQuantity
     ( TokenQuantity (..) )
 import Cardano.Wallet.Primitive.Types.Tx.Constraints
     ( txOutMaxTokenQuantity )
+import Cardano.Wallet.Read.NetworkId
+    ( HasSNetworkId )
 import Control.Monad
     ( forM_ )
 import Data.Generics.Internal.VL.Lens
@@ -100,11 +101,12 @@ import qualified Data.Text as T
 import qualified Data.Text.Encoding as T
 import qualified Network.HTTP.Types as HTTP
 
-spec :: forall n.
-    ( DecodeAddress n
-    , DecodeStakeAddress n
-    , EncodeAddress n
-    ) => SpecWith Context
+spec
+    :: forall n
+     . ( HasSNetworkId n
+       , DecodeStakeAddress n
+       )
+    => SpecWith Context
 spec = describe "SHELLEY_COIN_SELECTION" $ do
 
     it "WALLETS_COIN_SELECTION_01 - \
@@ -322,7 +324,7 @@ spec = describe "SHELLEY_COIN_SELECTION" $ do
             makeRequest >>= flip verify
                 [ expectResponseCode HTTP.status403
                 , expectErrorMessage $ errMsg403OutputTokenQuantityExceedsLimit
-                    (getApiT $ fst targetAddress)
+                    (apiAddress targetAddress)
                     (policyId)
                     (assetName)
                     (excessiveQuantity)
@@ -355,6 +357,6 @@ spec = describe "SHELLEY_COIN_SELECTION" $ do
             makeRequest >>= flip verify
                 [ expectResponseCode HTTP.status403
                 , expectErrorMessage $ errMsg403OutputTokenBundleSizeExceedsLimit
-                    (getApiT $ fst targetAddress)
+                    (apiAddress targetAddress)
                     (assetCount)
                 ]

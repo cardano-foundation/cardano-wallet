@@ -12,16 +12,13 @@ module Test.Integration.Scenario.CLI.Shelley.HWWallets
 import Prelude
 
 import Cardano.Wallet.Api.Types
-    ( ApiAddress
+    ( ApiAddressWithPath
     , ApiFee
     , ApiTransaction
     , ApiUtxoStatistics
     , ApiWallet
-    , DecodeAddress (..)
     , DecodeStakeAddress (..)
-    , EncodeAddress (..)
-    , encodeAddress
-    , getApiT
+    , apiAddress
     )
 import Cardano.Wallet.Api.Types.SchemaMetadata
     ( TxMetadataSchema (..) )
@@ -29,6 +26,10 @@ import Cardano.Wallet.Primitive.AddressDiscovery.Sequential
     ( defaultAddressPoolGap, getAddressPoolGap )
 import Cardano.Wallet.Primitive.Types.Address
     ( AddressState (..) )
+import Cardano.Wallet.Read.NetworkId
+    ( HasSNetworkId (..) )
+import Cardano.Wallet.Shelley.Compatibility
+    ( encodeAddress )
 import Control.Monad
     ( forM_ )
 import Control.Monad.Trans.Resource
@@ -90,11 +91,12 @@ import Test.Integration.Scenario.CLI.Shelley.Wallets
 
 import qualified Data.Text as T
 
-spec :: forall n.
-    ( DecodeAddress n
-    , DecodeStakeAddress n
-    , EncodeAddress n
-    ) => SpecWith Context
+spec
+    :: forall n
+     . ( HasSNetworkId n
+       , DecodeStakeAddress n
+       )
+    => SpecWith Context
 spec = describe "SHELLEY_CLI_HW_WALLETS" $ do
 
     it "HW_WALLETS_01x - Restoration from account public key preserves funds" $ \ctx -> runResourceT $ do
@@ -114,7 +116,7 @@ spec = describe "SHELLEY_CLI_HW_WALLETS" $ do
         --send transaction to the wallet
         let amount = Quantity . minUTxOValue . _mainEra $ ctx
         addrs:_ <- listAddresses @n ctx wDest
-        let addr = encodeAddress @n (getApiT $ fst $ addrs ^. #id)
+        let addr = encodeAddress (sNetworkId @n) (apiAddress $ addrs ^. #id)
         let args = T.unpack <$>
                 [ wSrc ^. walletId
                 , "--payment", toText amount <> "@" <> addr
@@ -179,7 +181,7 @@ spec = describe "SHELLEY_CLI_HW_WALLETS" $ do
             -- make sure you cannot send tx from wallet
             wDest <- emptyWallet ctx
             addrs:_ <- listAddresses @n ctx wDest
-            let addr = encodeAddress @n (getApiT $ fst $ addrs ^. #id)
+            let addr = encodeAddress (sNetworkId @n) (apiAddress $ addrs ^. #id)
 
             let amt = T.pack . show . minUTxOValue . _mainEra $ ctx
             let args = T.unpack <$>
@@ -243,7 +245,7 @@ spec = describe "SHELLEY_CLI_HW_WALLETS" $ do
             -- get fee
             wDest <- emptyWallet ctx
             addrs:_ <- listAddresses @n ctx wDest
-            let addr = encodeAddress @n (getApiT $ fst $ addrs ^. #id)
+            let addr = encodeAddress (sNetworkId @n) (apiAddress $ addrs ^. #id)
             let amt = minUTxOValue (_mainEra ctx)
             let args = T.unpack <$>
                     [ wRestored ^. walletId
@@ -283,7 +285,7 @@ spec = describe "SHELLEY_CLI_HW_WALLETS" $ do
                 listAddressesViaCLI ctx [T.unpack (w ^. walletId)]
             err `shouldBe` "Ok.\n"
             c `shouldBe` ExitSuccess
-            json <- expectValidJSON (Proxy @[ApiAddress n]) out
+            json <- expectValidJSON (Proxy @[ApiAddressWithPath n]) out
             length json `shouldBe` g
             forM_ [0..(g-1)] $ \addrNum -> do
                 expectCliListField

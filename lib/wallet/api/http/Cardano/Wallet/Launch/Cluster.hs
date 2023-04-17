@@ -127,11 +127,7 @@ import Cardano.Startup
 import Cardano.Wallet.Api.Http.Shelley.Server
     ( Listen (..) )
 import Cardano.Wallet.Api.Types
-    ( ApiEra (..)
-    , DecodeAddress (..)
-    , EncodeAddress (..)
-    , HealthStatusSMASH (..)
-    )
+    ( ApiEra (..), HealthStatusSMASH (..) )
 import Cardano.Wallet.Launch
     ( TempDirLog (..), envFromText, lookupEnvNonEmpty )
 import Cardano.Wallet.Logging
@@ -157,8 +153,10 @@ import Cardano.Wallet.Primitive.Types.TokenPolicy
     ( TokenName (..) )
 import Cardano.Wallet.Primitive.Types.TokenQuantity
     ( TokenQuantity (..) )
+import Cardano.Wallet.Read.NetworkId
+    ( SNetworkId (..) )
 import Cardano.Wallet.Shelley.Compatibility
-    ( StandardShelley, fromGenesisData )
+    ( StandardShelley, decodeAddress, encodeAddress, fromGenesisData )
 import Cardano.Wallet.Unsafe
     ( unsafeBech32Decode, unsafeFromHex )
 import Cardano.Wallet.Util
@@ -246,7 +244,6 @@ import qualified Cardano.Ledger.Address as Ledger
 import qualified Cardano.Ledger.Shelley.API as Ledger
 import qualified Cardano.Wallet.Primitive.Types.TokenBundle as TokenBundle
 import qualified Cardano.Wallet.Primitive.Types.TokenMap as TokenMap
-import qualified Cardano.Wallet.Read.NetworkId as Nid
 import qualified Codec.Binary.Bech32 as Bech32
 import qualified Codec.CBOR.Encoding as CBOR
 import qualified Codec.CBOR.Read as CBOR
@@ -1233,7 +1230,7 @@ withCluster tr dir LocalClusterConfig{..} faucetFunds onClusterStart = bracketTr
         [] -> error "rotate: impossible"
         x : xs -> (x, sort xs)
 
-    encodeAddresses = map (first (T.unpack . encodeAddress @'Nid.Mainnet))
+    encodeAddresses = map (first (T.unpack . encodeAddress SMainnet))
 
 data LogFileConfig = LogFileConfig
     { minSeverityTerminal :: Severity
@@ -2367,7 +2364,7 @@ internalFaucetFunds = map
   , "Ae2tdPwUPEZEAQJxUj5Xkcukd5mvCwrMuicspyAiDuPkxA598NJGrpRdnG2"
   ]
   where
-    unsafeDecodeAddr = either (error . show) id . decodeAddress @'Nid.Mainnet
+    unsafeDecodeAddr = either (error . show) id . decodeAddress SMainnet
 
 
 -- | Allow running the test cluster a second time in the same process.
