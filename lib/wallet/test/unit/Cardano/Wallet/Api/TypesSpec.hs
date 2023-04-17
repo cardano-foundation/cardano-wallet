@@ -356,9 +356,7 @@ import Cardano.Wallet.Primitive.Types.UTxO
 import Cardano.Wallet.Primitive.Types.UTxOStatistics
     ( HistogramBar (..), UTxOStatistics (..) )
 import Cardano.Wallet.Read.NetworkId
-    ( HasSNetworkId (..), NetworkDiscriminant (..) )
-import Cardano.Wallet.Shelley.Network.Discriminant
-    ( networkIdVal )
+    ( HasSNetworkId (..), NetworkDiscriminant (..), networkIdVal )
 import Cardano.Wallet.TokenMetadata
     ( TokenMetadataError (..) )
 import Cardano.Wallet.Transaction

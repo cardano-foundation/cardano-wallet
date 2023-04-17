@@ -136,6 +136,7 @@ import Cardano.Wallet.Read.NetworkId
     , NetworkDiscriminant (..)
     , SNetworkId (..)
     , networkDiscriminantVal
+    , networkIdVal
     , sNetworkIdOfProxy
     )
 import Cardano.Wallet.Shelley
@@ -148,8 +149,6 @@ import Cardano.Wallet.Shelley.Compatibility
     , fromCardanoBlock
     , numberOfTransactionsInBlock
     )
-import Cardano.Wallet.Shelley.Network.Discriminant
-    ( networkIdVal )
 import Cardano.Wallet.Shelley.Network.Node
     ( withNetworkLayer )
 import Cardano.Wallet.Shelley.Transaction

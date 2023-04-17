@@ -97,9 +97,11 @@ import Cardano.Wallet.Primitive.Types.Tx.TxOut
 import Cardano.Wallet.Primitive.Types.UTxOStatistics
     ( HistogramBar (..), UTxOStatistics (..) )
 import Cardano.Wallet.Read.NetworkId
-    ( HasSNetworkId (..), NetworkDiscriminant (..), SNetworkId (..) )
-import Cardano.Wallet.Shelley.Network.Discriminant
-    ( networkIdVal )
+    ( HasSNetworkId (..)
+    , NetworkDiscriminant (..)
+    , SNetworkId (..)
+    , networkIdVal
+    )
 import Cardano.Wallet.Shelley.Transaction
     ( TxWitnessTagFor (..), newTransactionLayer )
 import Cardano.Wallet.Transaction

@@ -23,6 +23,7 @@ module Cardano.Wallet.Read.NetworkId
     , fromSNetworkId
     , withSNetworkId
     , sNetworkIdOfProxy
+    , networkIdVal
     )
   where
 
@@ -41,6 +42,7 @@ import GHC.Natural
 import GHC.TypeNats
     ( KnownNat, Nat, SomeNat (..), natVal, someNatVal )
 
+import qualified Cardano.Api as Cardano
 import qualified Data.Text as T
 
 {-------------------------------------------------------------------------------
@@ -114,6 +116,14 @@ networkDiscriminantVal (STestnet pm)
 networkDiscriminantBits :: SNetworkId n -> Word8
 networkDiscriminantBits SMainnet = 0b00000001
 networkDiscriminantBits (STestnet _) = 0b00000000
+
+-- | Extract a Cardano.NetworkId from NetworkDiscriminant singleton.
+networkIdVal :: SNetworkId n -> Cardano.NetworkId
+networkIdVal SMainnet = Cardano.Mainnet
+networkIdVal (STestnet snat) = Cardano.Testnet networkMagic
+      where
+        networkMagic =
+            Cardano.NetworkMagic . fromIntegral $ fromSNat snat
 
 {-----------------------------------------------------------------------------
    conversions
