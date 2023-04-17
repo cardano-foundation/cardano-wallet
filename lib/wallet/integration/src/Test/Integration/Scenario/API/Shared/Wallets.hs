@@ -92,6 +92,7 @@ import Test.Integration.Framework.DSL
     , MnemonicLength (..)
     , Payload (..)
     , bech32Text
+    , between
     , decodeErrorInfo
     , deleteSharedWallet
     , emptySharedWallet
@@ -1443,17 +1444,24 @@ spec = describe "SHARED_WALLETS" $ do
                 }],
                 "passphrase": #{fixturePassphrase}
             }|]
-        (_, ApiFee (Quantity _) (Quantity feeMax) _ _) <- unsafeRequest ctx
+        (_, ApiFee (Quantity feeMin) (Quantity feeMax) _ _) <- unsafeRequest ctx
             (Link.getTransactionFeeOld @'Shelley wShelley) payloadTx
         let ep = Link.createTransactionOld @'Shelley
         rTx <- request @(ApiTransaction n) ctx (ep wShelley) Default payloadTx
         expectResponseCode HTTP.status202 rTx
+
+        -- TODO Drop expectation https://input-output.atlassian.net/browse/ADP-2935
+        expectField
+            (#fee . #getQuantity)
+            (between (feeMin, feeMax))
+            rTx
+        let Quantity fee = getFromResponse #fee rTx
         eventually "wShelley balance is decreased" $ do
             ra <- request @ApiWallet ctx
                 (Link.getWallet @'Shelley wShelley) Default Empty
             expectField
                 (#balance . #available)
-                (`shouldBe` Quantity (faucetAmt - feeMax - amt)) ra
+                (`shouldBe` Quantity (faucetAmt - fee - amt)) ra
 
         rWal <- getSharedWallet ctx walShared
         verify (fmap (view #wallet) <$> rWal)

@@ -166,9 +166,10 @@ import Cardano.Mnemonic
 import Cardano.Pool.Types
     ( PoolId )
 import Cardano.Tx.Balance.Internal.CoinSelection
-    ( SelectionOf (..), SelectionStrategy (..), selectionDelta )
+    ( SelectionOf (..), SelectionStrategy (..) )
 import Cardano.Wallet
     ( BuiltTx (..)
+    , DelegationFee (feePercentiles)
     , ErrAddCosignerKey (..)
     , ErrConstructSharedWallet (..)
     , ErrConstructTx (..)
@@ -189,6 +190,7 @@ import Cardano.Wallet
     , TxSubmitLog
     , WalletWorkerLog (..)
     , dbLayer
+    , dummyChangeAddressGen
     , genesisData
     , logger
     , manageRewardBalance
@@ -2116,7 +2118,7 @@ signTransaction ctx (ApiT wid) body = do
 
                 era <- liftIO $ NW.currentNodeEra nl
                 let sealedTx = body ^. #transaction . #getApiT
-                pure $ W.signTransaction tl era keyLookup (rootK, pwdP) utxo sealedTx
+                pure $ W.signTransaction tl era keyLookup Nothing (rootK, pwdP) utxo sealedTx
 
     -- TODO: The body+witnesses seem redundant with the sealedTx already. What's
     -- the use-case for having them provided separately? In the end, the client
@@ -2336,50 +2338,80 @@ mkApiTransactionFromInfo ti wrk wid deposit info metadataSchema = do
         Expired  -> #pendingSince
 
 postTransactionFeeOld
-    :: forall s k n
+    :: forall s k (n :: NetworkDiscriminant)
      . ( WalletFlavor s n k
+       , AddressBookIso s
        , BoundedAddressLength k
        )
     => ApiLayer s k 'CredFromKeyK
     -> ApiT WalletId
     -> PostTransactionFeeOldData n
     -> Handler ApiFee
-postTransactionFeeOld ctx@ApiLayer{..} (ApiT wid) body =
-    withWorkerCtx ctx wid liftE liftE $ \wrk -> do
-        let db = wrk ^. dbLayer
-        era <- liftIO $ NW.currentNodeEra netLayer
+postTransactionFeeOld ctx@ApiLayer{..} (ApiT walletId) body = do
+    era <- liftIO $ NW.currentNodeEra netLayer
+    AnyRecentEra (recentEra :: WriteTx.RecentEra era) <- guardIsRecentEra era
+    (protocolParameters, _bundledProtocolParameters) <- liftIO $
+        W.toBalanceTxPParams @era <$> currentProtocolParameters netLayer
+    let mTTL = body ^? #timeToLive . traverse . #getQuantity
+    withWorkerCtx ctx walletId liftE liftE $ \workerCtx -> do
+        let db = workerCtx ^. dbLayer
+        ttl <- liftIO $ W.transactionExpirySlot (timeInterpreter netLayer) mTTL
         wdrl <- case body ^. #withdrawal of
             Nothing -> pure NoWithdrawal
             Just apiWdrl ->
-                shelleyOnlyMkWithdrawal @s @k @n @'CredFromKeyK
-                    netLayer txLayer db wid era apiWdrl
-        let txCtx = defaultTransactionCtx
+                shelleyOnlyMkWithdrawal @s @k @n
+                    netLayer txLayer db walletId era apiWdrl
+        let outputs = F.toList $ addressAmountToTxOut <$> body ^. #payments
+        minCoins <- liftIO $ W.calcMinimumCoinValues @_ @k @'CredFromKeyK
+            workerCtx era outputs
+        feePercentiles <- liftIO $ W.transactionFee @s @k @n
+            db
+            (Write.unsafeFromWalletProtocolParameters protocolParameters)
+            txLayer
+            (timeInterpreter netLayer)
+            recentEra
+            (dummyChangeAddressGen @k)
+            walletId
+            defaultTransactionCtx
                 { txWithdrawal = wdrl
                 , txMetadata = body
                     ^? #metadata . traverse . #txMetadataWithSchema_metadata
+                , txValidityInterval = (Nothing, ttl)
                 }
-        (utxoAvailable, wallet, pendingTxs) <-
-            liftHandler $ W.readWalletUTxOIndex @_ @s @k wrk wid
-        let outs = addressAmountToTxOut <$> body ^. #payments
-        pp <- liftIO $ NW.currentProtocolParameters netLayer
-        let selectAssetsParams = W.SelectAssetsParams
-                { outputs = F.toList outs
-                , pendingTxs
-                , randomSeed = Nothing
-                , txContext = txCtx
-                , utxoAvailableForInputs = UTxOSelection.fromIndex utxoAvailable
-                , utxoAvailableForCollateral = UTxOIndex.toMap utxoAvailable
-                , wallet
-                , selectionStrategy = SelectionStrategyOptimal
-                }
-        let estimateFee = W.selectAssets @_ @s @k @'CredFromKeyK
-                (MsgWallet . W.MsgBalanceTx >$< wrk ^. logger)
-                txLayer era pp selectAssetsParams $ \_state ->
-                    Fee . selectionDelta TokenBundle.getCoin
-        feePercentiles <- liftHandler $ W.calculateFeePercentiles estimateFee
-        minCoins <- liftIO $
-            W.calcMinimumCoinValues @_ @k @'CredFromKeyK wrk era (F.toList outs)
-        pure $ mkApiFee Nothing minCoins feePercentiles
+            PreSelection{outputs}
+        pure
+            $ mkApiFee Nothing minCoins
+            $ W.padFeePercentiles protocolParameters padding feePercentiles
+  where
+    -- Padding to make the fee percentiles more imprecise, for the following
+    -- reasons:
+    --
+    -- 1. dummyChangeAddressGen uses the longest possbile addresses. For byron
+    -- wallets they are 83 bytes long, which is longer than what we'd
+    -- expect in reality, and longer than the shortest Byron address we'd expect
+    -- of 66 bytes. I.e. we could be off by up to 17 bytes.
+    --
+    -- 2. Our integration tests often assume that transaction fees are bounded
+    -- absolutely by the estimate intervals provided by postTransactionFee.
+    -- This assumption is flawed, since each estimate interval is merely a pair
+    -- of 10- and 90-th percentile values: these are not absolute bounds.
+    --
+    -- But for the moment, it's still useful for integration tests to expect
+    -- that eventual fees are bounded by prior fee estimates: during the risky
+    -- transition to balanceTx they will compare the result of a rewritten
+    -- version of postTransactionFee with the result of an unmodified version
+    -- of postTransaction. They may also act as golden tests in lieu of
+    -- better/more tests on the unit level. A small amount of padding is a
+    -- cheap way to keep these checks.
+    --
+    -- In the context of a mainnet `minfeeA` value of 44 lovelace/byte the
+    -- padding is negligible - less than 1/1000 ada.
+    padding :: Quantity "byte" Word
+    padding = Quantity $ 20 + tmpExtraPadding
+      where
+        -- TODO [ADP-2268] This padding should be droppable once postTransaction
+        -- also relies on balanceTx.
+        tmpExtraPadding = 5
 
 constructTransaction
     :: forall (n :: NetworkDiscriminant)
@@ -3501,7 +3533,7 @@ delegationFee ctx@ApiLayer{..} (ApiT walletId) = do
     AnyRecentEra (recentEra :: WriteTx.RecentEra era) <- guardIsRecentEra era
     withWorkerCtx ctx walletId liftE liftE $ \workerCtx -> liftIO $ do
         W.DelegationFee {feePercentiles, deposit} <-
-            W.delegationFee
+            W.delegationFee @s @k @n
                 (workerCtx ^. dbLayer)
                 netLayer
                 txLayer

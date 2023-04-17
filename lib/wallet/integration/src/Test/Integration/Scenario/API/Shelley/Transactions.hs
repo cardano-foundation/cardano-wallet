@@ -111,6 +111,7 @@ import Test.Integration.Framework.DSL
     , emptyRandomWallet
     , emptyWallet
     , eventually
+    , expectErrorCode
     , expectErrorMessage
     , expectField
     , expectListField
@@ -163,7 +164,6 @@ import Test.Integration.Framework.TestData
     , errMsg403MinUTxOValue
     , errMsg403NotAShelleyWallet
     , errMsg403NotEnoughMoney
-    , errMsg403TxTooBig
     , errMsg403WithdrawalNotBeneficial
     , errMsg403WrongPass
     , errMsg404CannotFindTx
@@ -417,6 +417,7 @@ spec = describe "SHELLEY_TRANSACTIONS" $ do
 
         let txid = getFromResponse #id rTx
         let linkSrc = Link.getTransaction @'Shelley wa (ApiTxId txid)
+        let Quantity fee = getFromResponse #fee rTx
         eventually "transaction is no longer pending on source wallet" $ do
             rSrc <- request @(ApiTransaction n) ctx linkSrc Default Empty
             verify rSrc
@@ -458,7 +459,7 @@ spec = describe "SHELLEY_TRANSACTIONS" $ do
                 (Link.getWallet @'Shelley wa) Default Empty
             expectField
                 (#balance . #available)
-                (`shouldBe` Quantity (initialAmt - feeMax - amt)) ra2
+                (`shouldBe` Quantity (initialAmt - fee - amt)) ra2
 
     it "TRANS_CREATE_02x - Multiple Output Tx to single wallet" $
         \ctx -> runResourceT $ do
@@ -1148,7 +1149,7 @@ spec = describe "SHELLEY_TRANSACTIONS" $ do
             (Link.createTransactionOld @'Shelley wa) Default payload
 
         expectResponseCode HTTP.status403 r
-        expectErrorMessage errMsg403TxTooBig r
+        expectErrorCode "transaction_is_too_big" r
 
     it "TRANSMETA_ESTIMATE_01a - \
         \fee estimation includes metadata" $
@@ -1282,7 +1283,7 @@ spec = describe "SHELLEY_TRANSACTIONS" $ do
 
         verify r
             [ expectResponseCode HTTP.status403
-            , expectErrorMessage errMsg403TxTooBig
+            , expectErrorCode "transaction_is_too_big"
             ]
 
     describe "TRANS_ESTIMATE_08 - Bad payload" $ do
@@ -2113,11 +2114,13 @@ spec = describe "SHELLEY_TRANSACTIONS" $ do
                 }],
                 "passphrase": #{fixturePassphrase}
             }|]
-        (_, ApiFee (Quantity _) (Quantity fee) _ _) <- unsafeRequest ctx
-            (Link.getTransactionFeeOld @'Shelley wSelf) payload
+        (_, ApiFee (Quantity estimatedFeeMin) (Quantity estimatedFeeMax) _ _)
+            <- unsafeRequest ctx
+                (Link.getTransactionFeeOld @'Shelley wSelf) payload
 
         rTx <- request @(ApiTransaction n) ctx
             (Link.createTransactionOld @'Shelley wSelf) Default payload
+        let Quantity fee = getFromResponse #fee rTx
         verify rTx
             [ expectResponseCode HTTP.status202
             , expectField #withdrawals
@@ -2126,6 +2129,10 @@ spec = describe "SHELLEY_TRANSACTIONS" $ do
                 (`shouldBe` Incoming)
             , expectField (#amount . #getQuantity)
                 (`shouldBe` (oneMillionAda - fee))
+
+            -- TODO: Drop https://input-output.atlassian.net/browse/ADP-2935
+            , expectField (#fee . #getQuantity)
+                (between (estimatedFeeMin, estimatedFeeMax))
             ]
         let tid = getFromResponse Prelude.id rTx
 

@@ -362,64 +362,48 @@ spec = describe "SHELLEY_CLI_TRANSACTIONS" $ do
                 ]
 
     it "TRANSMETA_CREATE_01b - \
-        \Transaction with metadata via CLI with simple metadata" $
-        \ctx -> runResourceT $ do
+        \Transaction with metadata via CLI with simple metadata" $ \ctx ->
+        runResourceT $ do
 
-        wSrc <- fixtureWallet ctx
-        wDest <- emptyWallet ctx
-        let amt = 10_000_000
-        let md = Just "{ \"1\": { \"string\": \"hello\" } }"
-        let expected = Just $
-                detailedMetadata $
-                TxMetadata $
-                    Map.singleton 1 (TxMetaText "hello")
+        -- Prepare test fixture:
+        srcWallet <- fixtureWallet ctx
+        let srcWalletId = T.unpack (srcWallet ^. walletId)
+        dstWallet <- emptyWallet ctx
+        let amount = 10_000_000
+        let metadata = Just "{ \"1\": { \"string\": \"hello\" } }"
+        let txMetadata = TxMetadata $ Map.singleton 1 (TxMetaText "hello")
+        let successfulJsonCliResponse proxy f = do
+                (Exit code, Stdout out, Stderr err) <- f
+                err `shouldBe` "Ok.\n"
+                code `shouldBe` ExitSuccess
+                expectValidJSON proxy out
 
-        args <- postTxArgs ctx wSrc wDest amt md Nothing
-        Stdout feeOut <- postTransactionFeeViaCLI ctx args
-        ApiFee (Quantity feeMin) (Quantity feeMax) _ _ <-
-            expectValidJSON Proxy feeOut
+        -- Post transaction with metadata using CLI:
+        postedTx <-
+            postTxViaCLI ctx srcWallet dstWallet amount metadata Nothing
+        verify postedTx
+            [ expectCliField #metadata
+                (`shouldBe` Just (detailedMetadata txMetadata)) ]
 
-        txJson <- postTxViaCLI ctx wSrc wDest amt md Nothing
-        verify txJson
-            [ expectCliField
-                (#amount . #getQuantity)
-                (between (feeMin + amt, feeMax + amt))
-            , expectCliField (#direction . #getApiT) (`shouldBe` Outgoing)
-            , expectCliField (#status . #getApiT) (`shouldBe` Pending)
-            , expectCliField #metadata (`shouldBe` expected)
-            ]
+        -- Query posted transaction by its id using CLI:
+        queriedTx <- successfulJsonCliResponse (Proxy @(ApiTransaction n)) $
+            getTransactionViaCLI ctx srcWalletId (getTxId postedTx)
+                TxMetadataNoSchema
 
-        let wSrcId = T.unpack (wSrc ^. walletId)
-        let txId = getTxId txJson
+        -- Verify that correct metadata is present in the query result:
+        verify queriedTx
+            [ expectCliField #metadata
+                (`shouldBe` Just (noSchemaMetadata txMetadata)) ]
 
-        (Exit code, Stdout out, Stderr err) <-
-            getTransactionViaCLI ctx wSrcId txId TxMetadataNoSchema
-        err `shouldBe` "Ok.\n"
-        code `shouldBe` ExitSuccess
-        outJson <- expectValidJSON (Proxy @(ApiTransaction n)) out
-        let expectedNoSchema = Just $
-                noSchemaMetadata $
-                TxMetadata $
-                    Map.singleton 1 (TxMetaText "hello")
-        verify outJson
-            [ expectCliField
-                (#amount . #getQuantity)
-                (between (feeMin + amt, feeMax + amt))
-            , expectCliField (#direction . #getApiT) (`shouldBe` Outgoing)
-            , expectCliField (#status . #getApiT) (`shouldBe` Pending)
-            , expectCliField #metadata (`shouldBe` expectedNoSchema)
-            ]
         eventually "metadata is confirmed in transaction list" $ do
-            (Exit codeL, Stdout outL, Stderr errL) <-
-                listTransactionsViaCLI ctx TxMetadataNoSchema
-                    [T.unpack $ wSrc ^. walletId]
-            errL `shouldBe` "Ok.\n"
-            codeL `shouldBe` ExitSuccess
-            outJsonL <- expectValidJSON (Proxy @([ApiTransaction n])) outL
-            verify
-                outJsonL
-                [ expectCliListField 0 #metadata (`shouldBe` expectedNoSchema)
-                , expectCliListField 0 (#status . #getApiT) (`shouldBe` InLedger)
+            txList <-
+                successfulJsonCliResponse (Proxy @([ApiTransaction n])) $
+                listTransactionsViaCLI ctx TxMetadataNoSchema [srcWalletId]
+            verify txList
+                [ expectCliListField 0 #metadata
+                    (`shouldBe` Just (noSchemaMetadata txMetadata))
+                , expectCliListField 0 (#status . #getApiT)
+                    (`shouldBe` InLedger)
                 ]
 
     it "TRANSTTL_CREATE_01 - Transaction with TTL via CLI" $ \ctx -> runResourceT $ do

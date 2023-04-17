@@ -193,10 +193,6 @@
             "message": "𡡥􎳛'b_#q\u0006e*\nC∝𤈓􌽶i\u001fmT\u000em+𫃋7V"
         },
         {
-            "code": "balance_tx_max_size_limit_exceeded",
-            "message": "<?󽄒"
-        },
-        {
             "code": "address_already_exists",
             "message": "rK-pB\u0016_L\u001b~18􈆱<\u0018i_\u0016襏e"
         },
@@ -382,10 +378,6 @@
         {
             "code": "bad_request",
             "message": "n>\u001fOxL\u0011d;"
-        },
-        {
-            "code": "balance_tx_max_size_limit_exceeded",
-            "message": "V:\u001dP\u001f.󳙤I\rk𮖵E\u0002𫩯A\u00061\u0003]pcc\u001a5"
         },
         {
             "code": "not_delegating_to",
