@@ -20,7 +20,6 @@ module Cardano.Wallet.Read.NetworkId
     , HasSNetworkId (..)
     , NetworkId (..)
     , fromSNat
-    , toSNat
     , fromSNetworkId
     , withSNetworkId
     , sNetworkIdOfProxy

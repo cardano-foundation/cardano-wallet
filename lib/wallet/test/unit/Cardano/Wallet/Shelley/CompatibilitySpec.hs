@@ -75,7 +75,7 @@ import Cardano.Wallet.Primitive.Types.Tx.Constraints
 import Cardano.Wallet.Primitive.Types.Tx.TxOut.Gen
     ( genTxOutTokenBundle )
 import Cardano.Wallet.Read.NetworkId
-    ( NetworkId (..), SNetworkId (..), toSNat, withSNetworkId )
+    ( NetworkId (..), SNetworkId (..), withSNetworkId )
 import Cardano.Wallet.Shelley.Compatibility
     ( CardanoBlock
     , StandardCrypto
@@ -192,11 +192,8 @@ spec = do
             ===
             Right x
 
-        prop "roundtrip / Testnet" $ \x -> toSNat 0 $ \n ->
-            (decodeStakeAddress (STestnet n)
-                . encodeStakeAddress (STestnet n)) x
-            ===
-            Right x
+        prop "roundtrip / Testnet" $ \x -> withSNetworkId (NTestnet 0) $ \n ->
+            (decodeStakeAddress n . encodeStakeAddress n) x === Right x
 
     describe "Shelley Addresses" $ do
         prop "(Mainnet) can be deserialised by shelley ledger spec" $ \k -> do
