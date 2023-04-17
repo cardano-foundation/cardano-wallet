@@ -1762,7 +1762,7 @@ spec = describe "SHARED_TRANSACTIONS" $ do
         rTx <- request @(ApiConstructTransaction n) ctx
             (Link.createUnsignedTransaction @'Shared w) Default delegationJoin
         expectResponseCode HTTP.status403 rTx
-        decodeErrorInfo rTx `shouldBe` StakingInvalid
+        decodeErrorInfo rTx `shouldBe` DelegationInvalid
 
     it "SHARED_TRANSACTIONS_DELEGATION_01a - \
        \Can join stakepool, rejoin another and quit" $ \ctx -> runResourceT $ do

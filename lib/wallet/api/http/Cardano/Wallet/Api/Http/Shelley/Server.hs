@@ -2895,7 +2895,7 @@ constructSharedTransaction
 
         let delegationTemplateM = Shared.delegationTemplate $ getState cp
         when (isNothing delegationTemplateM && isJust delegationRequest) $
-            liftHandler $ throwE ErrConstructTxStakingInvalid
+            liftHandler $ throwE ErrConstructTxDelegationInvalid
 
         optionalDelegationAction <- liftHandler $
             forM delegationRequest $

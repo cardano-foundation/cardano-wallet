@@ -453,8 +453,8 @@ instance IsServerError ErrConstructTx where
             , "'PATCH /shared-wallets/{walletId}/delegation-script-template'"
             , "to make it suitable for constructing transactions."
             ]
-        ErrConstructTxStakingInvalid ->
-            apiError err403 StakingInvalid $ T.unwords
+        ErrConstructTxDelegationInvalid ->
+            apiError err403 DelegationInvalid $ T.unwords
             [ "I cannot construct a delegating transaction for a shared wallet "
             , "that is lacking a delegation script template."
             ]

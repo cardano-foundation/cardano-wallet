@@ -4476,7 +4476,7 @@ x-errSharedWalletIncomplete: &errSharedWalletIncomplete
       type: string
       enum: ['shared_wallet_incomplete']
 
-x-errStakingInvalid: &errStakingInvalid
+x-errDelegationInvalid: &errDelegationInvalid
   <<: *responsesErr
   title: staking_invalid
   properties:
@@ -5739,7 +5739,7 @@ x-responsesConstructTransaction: &responsesConstructTransaction
             - <<: *errInvalidValidityBounds
             - <<: *errValidityIntervalNotInsideScriptTimelock
             - <<: *errSharedWalletIncomplete
-            - <<: *errStakingInvalid
+            - <<: *errDelegationInvalid
   <<: *responsesErr404WalletNotFound
   <<: *responsesErr406
   <<: *responsesErr415UnsupportedMediaType

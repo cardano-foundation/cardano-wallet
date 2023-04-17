@@ -3534,7 +3534,7 @@ data ErrConstructTx
     | ErrConstructTxWrongValidityBounds
     | ErrConstructTxValidityIntervalNotWithinScriptTimelock
     | ErrConstructTxSharedWalletIncomplete
-    | ErrConstructTxStakingInvalid
+    | ErrConstructTxDelegationInvalid
     deriving (Show, Eq)
 
 -- | Errors that can occur when getting policy id.

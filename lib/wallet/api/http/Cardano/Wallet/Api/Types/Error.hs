@@ -99,6 +99,7 @@ data ApiErrorInfo
     | CreatedMultiaccountTransaction
     | CreatedMultidelegationTransaction
     | CreatedWrongPolicyScriptTemplate
+    | DelegationInvalid
     | ExistingKeyWitnesses
     | ForeignTransaction
     | HardenedDerivationRequired
@@ -149,7 +150,6 @@ data ApiErrorInfo
         !ApiErrorSharedWalletNoSuchCosigner
     | SharedWalletScriptTemplateInvalid
     | SoftDerivationRequired
-    | StakingInvalid
     | StartTimeLaterThanEndTime
     | TokensMintedButNotSpentOrBurned
     | TransactionAlreadyBalanced
