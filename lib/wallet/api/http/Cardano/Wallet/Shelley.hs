@@ -102,7 +102,7 @@ import Cardano.Wallet.Shelley.Compatibility
 import Cardano.Wallet.Shelley.Network
     ( withNetworkLayer )
 import Cardano.Wallet.Shelley.Network.Discriminant
-    ( SomeNetworkDiscriminant (..), networkDiscriminantToId )
+    ( SomeNetworkDiscriminant (..), networkIdVal )
 import Cardano.Wallet.Shelley.Transaction
     ( newTransactionLayer )
 import Cardano.Wallet.TokenMetadata
@@ -269,7 +269,7 @@ serveWallet
     trace = traceWith applicationTracer
 
     netId :: NetworkId
-    netId = networkDiscriminantToId network
+    netId = networkIdVal (sNetworkId @network)
 
     bindSocket :: ContT r IO (Either ListenError (Warp.Port, Socket))
     bindSocket = ContT $ Server.withListeningSocket hostPref listen
