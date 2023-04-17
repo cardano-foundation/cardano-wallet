@@ -7,10 +7,9 @@
 {-# LANGUAGE PolyKinds #-}
 {-# LANGUAGE RankNTypes #-}
 {-# LANGUAGE ScopedTypeVariables #-}
-{-# LANGUAGE TypeApplications #-}
+{-# LANGUAGE StandaloneDeriving #-}
 {-# LANGUAGE TypeFamilies #-}
 {-# LANGUAGE UndecidableInstances #-}
-{-# LANGUAGE StandaloneDeriving #-}
 
 module Cardano.Wallet.Read.NetworkId
     ( NetworkDiscriminant (..)
@@ -23,7 +22,6 @@ module Cardano.Wallet.Read.NetworkId
     , fromSNat
     , fromSNetworkId
     , withSNetworkId
-    , sNetworkIdOfProxy
     , networkIdVal
     )
   where
@@ -144,12 +142,11 @@ fromSNetworkId (STestnet p) = NTestnet $ fromSNat p
 -- | Run a function on a 'NetworkDiscriminant' singleton given a network id.
 withSNetworkId
     :: NetworkId
-    -> (forall (n :: NetworkDiscriminant)
-        . (Typeable n , HasSNetworkId n)
-        => SNetworkId n -> a)
+    -> ( forall (n :: NetworkDiscriminant)
+          . (Typeable n, HasSNetworkId n)
+         => SNetworkId n
+         -> a
+       )
     -> a
 withSNetworkId NMainnet f = f SMainnet
 withSNetworkId (NTestnet i) f = withSNat i $  f . STestnet
-
-sNetworkIdOfProxy :: forall n. HasSNetworkId n => Proxy n -> SNetworkId n
-sNetworkIdOfProxy Proxy = sNetworkId @n

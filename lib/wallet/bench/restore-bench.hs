@@ -137,7 +137,6 @@ import Cardano.Wallet.Read.NetworkId
     , SNetworkId (..)
     , networkDiscriminantVal
     , networkIdVal
-    , sNetworkIdOfProxy
     , withSNetworkId
     )
 import Cardano.Wallet.Shelley.Compatibility
@@ -274,23 +273,22 @@ cardanoRestoreBench tr c socketFile =  do
 
     withSNetworkId networkId $ \(sNetwork :: SNetworkId n)-> do
         let network =  networkDiscriminantVal sNetwork
-            networkProxy = Proxy @n
 
         sayErr $ "Network: " <> network
-        prepareNode (trMessageText tr) networkProxy socketFile np vData
+        prepareNode (trMessageText tr) sNetwork socketFile np vData
 
         let benchRestoreRndWithOwnership p pipelinings = do
                 let benchname = showPercentFromPermyriad p <> "-percent-rnd"
                 bench_restoration
                     pipelinings
-                    networkProxy
+                    sNetwork
                     (trMessageText tr)
                     walletTr
                     socketFile
                     np
                     vData
                     benchname
-                    (walletRnd benchname $ mkRndAnyState' p networkProxy)
+                    (walletRnd benchname $ mkRndAnyState' p sNetwork)
                     True -- Write progress to .timelog file
                     (unsafeMkPercentage 1)
                     benchmarksRnd
@@ -298,14 +296,14 @@ cardanoRestoreBench tr c socketFile =  do
                 let benchname = showPercentFromPermyriad p <> "-percent-seq"
                 bench_restoration
                     pipelinings
-                    networkProxy
+                    sNetwork
                     (trMessageText tr)
                     walletTr
                     socketFile
                     np
                     vData
                     benchname
-                    (walletSeq benchname $ mkSeqAnyState' p networkProxy)
+                    (walletSeq benchname $ mkSeqAnyState' p sNetwork)
                     True -- Write progress to .timelog file
                     (unsafeMkPercentage 1)
                     benchmarksSeq
@@ -313,7 +311,7 @@ cardanoRestoreBench tr c socketFile =  do
                 let benchname = "baseline"
                 bench_baseline_restoration
                     pipelinings
-                    networkProxy
+                    sNetwork
                     (trMessageText tr)
                     walletTr
                     socketFile
@@ -369,7 +367,7 @@ cardanoRestoreBench tr c socketFile =  do
     mkSeqAnyState'
         :: forall (p :: Nat) n. HasSNetworkId n
         => Proxy p
-        -> Proxy n
+        -> SNetworkId n
         -> (ShelleyKey 'RootK XPrv, Passphrase "encryption")
         -> AddressPoolGap
         -> SeqAnyState n ShelleyKey p
@@ -380,7 +378,7 @@ cardanoRestoreBench tr c socketFile =  do
     mkRndAnyState'
         :: forall (p :: Nat) n. ()
         => Proxy p
-        -> Proxy n
+        -> SNetworkId n
         -> ByronKey 'RootK XPrv
         -> Int
         -> RndAnyState n p
@@ -446,7 +444,7 @@ benchmarksRnd
         , HasSNetworkId n
         , KnownNat p
         )
-    => Proxy n
+    => SNetworkId n
     -> WalletLayer IO s k 'CredFromKeyK
     -> WalletId
     -> WalletName
@@ -558,7 +556,7 @@ benchmarksSeq
         , HasSNetworkId n
         , KnownNat p
         )
-    => Proxy n
+    => SNetworkId n
     -> WalletLayer IO s k 'CredFromKeyK
     -> WalletId
     -> WalletName
@@ -641,7 +639,7 @@ bench_baseline_restoration
         ( HasSNetworkId n
         )
     => PipeliningStrategy (CardanoBlock StandardCrypto)
-    -> Proxy n
+    -> SNetworkId n
     -> Tracer IO (BenchmarkLog n)
     -> Trace IO Text
     -- ^ For wallet tracing
@@ -720,7 +718,7 @@ bench_restoration
         , ToJSON results
         )
     => PipeliningStrategy (CardanoBlock StandardCrypto)
-    -> Proxy n
+    -> SNetworkId n
     -> Tracer IO (BenchmarkLog n)
     -> Trace IO Text -- ^ For wallet tracing
     -> CardanoNodeConn  -- ^ Socket path
@@ -730,7 +728,7 @@ bench_restoration
     -> (WalletId, WalletName, s)
     -> Bool -- ^ If @True@, will trace detailed progress to a .timelog file.
     -> Percentage -- ^ Target sync progress
-    -> (Proxy n
+    -> (SNetworkId n
         -> WalletLayer IO s k 'CredFromKeyK
         -> WalletId
         -> WalletName
@@ -820,11 +818,10 @@ withWalletLayerTracer benchname pipelining traceToDisk act = do
         | otherwise -> act nullTracer
 
 dummyAddress
-    :: forall n. HasSNetworkId n
-    => Proxy n
+    :: SNetworkId n
     -> Address
 
-dummyAddress proxy = case sNetworkIdOfProxy proxy of
+dummyAddress n = case n of
     SMainnet ->
         Address $ BS.pack $ 0 : replicate 56 0
     _ ->
@@ -875,7 +872,7 @@ withBenchDBLayer ti tr action =
 prepareNode
     :: forall n. HasSNetworkId n
     => Tracer IO (BenchmarkLog n)
-    -> Proxy n
+    -> SNetworkId n
     -> CardanoNodeConn
     -> NetworkParameters
     -> NodeToClientVersionData
@@ -898,7 +895,7 @@ waitForWalletSyncTo
     :: forall s k n
     .  Percentage
     -> Tracer IO (BenchmarkLog n)
-    -> Proxy n
+    -> SNetworkId n
     -> WalletLayer IO s k 'CredFromKeyK
     -> WalletId
     -> GenesisParameters
@@ -963,8 +960,8 @@ waitForNodeSync tr nw = loop 960 -- allow 240 minutes for first tip
 data BenchmarkLog (n :: NetworkDiscriminant)
     = MsgNodeTipTick BlockHeader SyncProgress
     | MsgRestorationTick POSIXTime SyncProgress
-    | MsgSyncStart (Proxy n)
-    | MsgSyncCompleted (Proxy n) SlotNo
+    | MsgSyncStart (SNetworkId n)
+    | MsgSyncCompleted (SNetworkId n) SlotNo
     | MsgRetryShortly Int
     deriving (Show, Eq)
 
