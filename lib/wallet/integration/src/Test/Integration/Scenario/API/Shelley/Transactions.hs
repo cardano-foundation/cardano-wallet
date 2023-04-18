@@ -108,6 +108,7 @@ import Test.Integration.Framework.DSL
     , emptyWallet
     , eventually
     , expectErrorCode
+    , expectErrorInfo
     , expectErrorMessage
     , expectField
     , expectListField
@@ -1142,7 +1143,7 @@ spec = describe "SHELLEY_TRANSACTIONS" $ do
             (Link.createTransactionOld @'Shelley wa) Default payload
 
         expectResponseCode HTTP.status403 r
-        expectErrorCode "transaction_is_too_big" r
+        expectErrorInfo (`shouldBe` TransactionIsTooBig) r
 
     it "TRANSMETA_ESTIMATE_01a - \
         \fee estimation includes metadata" $
