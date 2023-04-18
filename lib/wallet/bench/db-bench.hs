@@ -750,8 +750,9 @@ setupDB tr = do
     withSetup action = withTempSqliteFile $ \fp -> do
         let trDB = contramap MsgDB tr
         withConnectionPool trDB fp $ \pool -> do
-            ctx <- either throwIO pure =<< newSqliteContext trDB pool [] migrateAll
-            db <- newDBLayerWith NoCache tr singleEraInterpreter ctx
+            ctx <- either throwIO pure
+                =<< newSqliteContext trDB pool [] migrateAll
+            db <- newDBLayerWith NoCache tr singleEraInterpreter testWid ctx
             action (fp, db)
 
 singleEraInterpreter :: TimeInterpreter IO

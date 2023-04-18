@@ -188,7 +188,8 @@ newtype DBOpen stm m s (k :: Depth -> Type -> Type) = DBOpen
 -- but we often need additional constraints on the wallet state that allows us
 -- to serialize and unserialize it (e.g. @forall s. (Serialize s) => ...@).
 data DBLayer m s k = forall stm. (MonadIO stm, MonadFail stm) => DBLayer
-    { initializeWallet
+    { walletId_ :: WalletId
+    , initializeWallet
         :: WalletId
         -> Wallet s
         -> WalletMetadata
@@ -496,10 +497,12 @@ data DBLayerCollection stm m s k = DBLayerCollection
 mkDBLayerFromParts
     :: forall stm m s k. (MonadIO stm, MonadFail stm)
     => TimeInterpreter IO
+    -> WalletId
     -> DBLayerCollection stm m s k
     -> DBLayer m s k
-mkDBLayerFromParts ti DBLayerCollection{..} = DBLayer
-    { initializeWallet = initializeWallet_ dbWallets
+mkDBLayerFromParts ti wid_ DBLayerCollection{..} = DBLayer
+    { walletId_ = wid_
+    , initializeWallet = initializeWallet_ dbWallets
     , getWalletId = getWalletId_ dbWallets
     , walletsDB = walletsDB_ dbCheckpoints
     , putCheckpoint = putCheckpoint_ dbCheckpoints

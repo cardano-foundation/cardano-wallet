@@ -758,7 +758,7 @@ bench_restoration
         np socket vData sTol $ \nw -> do
             let ti = neverFails "bench db shouldn't forecast into future"
                     $ timeInterpreter nw
-            withBenchDBLayer ti wlTr
+            withBenchDBLayer ti wlTr wid
                 $ \db -> withWalletLayerTracer
                     benchname pipeliningStrat traceToDisk
                 $ \progressTrace -> do
@@ -866,11 +866,12 @@ withBenchDBLayer
         )
     => TimeInterpreter IO
     -> Trace IO Text
+    -> WalletId
     -> (DBLayer IO s k -> IO a)
     -> IO a
-withBenchDBLayer ti tr action =
+withBenchDBLayer ti tr wid action =
     withSystemTempFile "bench.db" $ \dbFile _ ->
-        withDBLayer tr' migrationDefaultValues dbFile ti action
+        withDBLayer tr' migrationDefaultValues dbFile ti wid action
   where
     migrationDefaultValues = Sqlite.DefaultFieldValues
         { Sqlite.defaultActiveSlotCoefficient = 1

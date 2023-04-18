@@ -272,7 +272,7 @@ newDBFactory tr defaultFieldValues ti = \case
                     Just db -> pure (m, db)
                     Nothing -> do
                         let tr' = contramap (MsgWalletDB "") tr
-                        (_cleanup, db) <- newDBLayerInMemory tr' ti
+                        (_cleanup, db) <- newDBLayerInMemory tr' ti wid
                         pure (Map.insert wid db m, db)
                 action db
             , removeDatabase = \wid -> do
@@ -291,6 +291,7 @@ newDBFactory tr defaultFieldValues ti = \case
                 defaultFieldValues
                 (databaseFile wid)
                 ti
+                wid
                 action
             , removeDatabase = \wid -> do
                 let widp = pretty wid
@@ -462,16 +463,18 @@ withDBLayer
        -- ^ Path to database file
     -> TimeInterpreter IO
        -- ^ Time interpreter for slot to time conversions
+    -> W.WalletId
     -> (DBLayer IO s k -> IO a)
        -- ^ Action to run.
     -> IO a
-withDBLayer tr defaultFieldValues dbFile ti action = do
+withDBLayer tr defaultFieldValues dbFile ti wid action = do
     let trDB = contramap MsgDB tr
     let manualMigrations = migrateManually trDB (Proxy @k) defaultFieldValues
     let autoMigrations   = migrateAll
     withConnectionPool trDB dbFile $ \pool -> do
         res <- newSqliteContext trDB pool manualMigrations autoMigrations
-        either throwIO (action <=< newDBLayerWith CacheLatestCheckpoint tr ti) res
+        either throwIO
+            (action <=< newDBLayerWith CacheLatestCheckpoint tr ti wid) res
 
 -- | Runs an IO action with a new 'DBLayer' backed by a sqlite in-memory
 -- database.
@@ -484,9 +487,11 @@ withDBLayerInMemory
        -- ^ Logging object
     -> TimeInterpreter IO
        -- ^ Time interpreter for slot to time conversions
+    -> W.WalletId
     -> (DBLayer IO s k -> IO a)
     -> IO a
-withDBLayerInMemory tr ti action = bracket (newDBLayerInMemory tr ti) fst (action . snd)
+withDBLayerInMemory tr ti wid action = bracket
+    (newDBLayerInMemory tr ti wid) fst (action . snd)
 
 -- | Creates a 'DBLayer' backed by a sqlite in-memory database.
 --
@@ -501,12 +506,13 @@ newDBLayerInMemory
        -- ^ Logging object
     -> TimeInterpreter IO
        -- ^ Time interpreter for slot to time conversions
+    -> W.WalletId
     -> IO (IO (), DBLayer IO s k)
-newDBLayerInMemory tr ti = do
+newDBLayerInMemory tr ti wid = do
     let tr' = contramap MsgDB tr
     (destroy, ctx) <-
         newInMemorySqliteContext tr' [] migrateAll ForeignKeysEnabled
-    db <- newDBLayer tr ti ctx
+    db <- newDBLayer tr ti wid ctx
     pure (destroy, db)
 
 -- | What to do with regards to caching. This is useful to disable caching in
@@ -535,6 +541,7 @@ newDBLayer
        -- ^ Logging
     -> TimeInterpreter IO
        -- ^ Time interpreter for slot to time conversions
+    -> W.WalletId
     -> SqliteContext
        -- ^ A (thread-)safe wrapper for query execution.
     -> IO (DBLayer IO s k)
@@ -553,10 +560,11 @@ newDBLayerWith
        -- ^ Logging
     -> TimeInterpreter IO
        -- ^ Time interpreter for slot to time conversions
+    -> W.WalletId
     -> SqliteContext
        -- ^ A (thread-)safe wrapper for query execution.
     -> IO (DBLayer IO s k)
-newDBLayerWith _cacheBehavior _tr ti SqliteContext{runQuery} = mdo
+newDBLayerWith _cacheBehavior _tr ti wid_ SqliteContext{runQuery} = mdo
     -- FIXME LATER during ADP-1043:
     --   Remove the 'NoCache' behavior, we cannot get it back.
     --   This will affect read benchmarks, they will need to benchmark
@@ -774,7 +782,7 @@ newDBLayerWith _cacheBehavior _tr ti SqliteContext{runQuery} = mdo
 
     let atomically_ = withMVar queryLock . const . runQuery
 
-    pure $ mkDBLayerFromParts ti DBLayerCollection{..}
+    pure $ mkDBLayerFromParts ti wid_ DBLayerCollection{..}
 
 mkDecorator
     :: QueryStoreTxWalletsHistory

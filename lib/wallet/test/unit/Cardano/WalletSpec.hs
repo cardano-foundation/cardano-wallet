@@ -1232,6 +1232,9 @@ data WalletLayerFixture s m = WalletLayerFixture
     , _fixtureWallet :: [WalletId]
     }
 
+testWid :: WalletId
+testWid = WalletId (hash ("test" :: ByteString))
+
 setupFixture
     :: forall s m
      . ( MonadUnliftIO m
@@ -1246,7 +1249,7 @@ setupFixture (wid, wname, wstate) = do
     let nl = mockNetworkLayer
     let tl = dummyTransactionLayer
     (_kill, db) <-
-        liftIO $ newDBLayerInMemory nullTracer timeInterpreter
+        liftIO $ newDBLayerInMemory nullTracer timeInterpreter testWid
     let db' = hoistDBLayer liftIO db
         wl = WalletLayer nullTracer (block0, np) nl tl db'
     res <- runExceptT $ W.createWallet wl wid wname wstate
