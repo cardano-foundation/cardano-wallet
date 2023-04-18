@@ -45,7 +45,6 @@
 module Cardano.Wallet.DB.StateMachine
     ( prop_sequential
     , validateGenerators
-    , showLabelledExamples
     , TestConstraints
     ) where
 
@@ -229,30 +228,22 @@ import GHC.Generics
     ( Generic, Generic1 )
 import GHC.Stack
     ( HasCallStack, callStack )
-import System.Random
-    ( getStdRandom, randomR )
 import Test.Hspec
     ( SpecWith, describe, expectationFailure, it )
 import Test.QuickCheck
     ( Arbitrary (..)
-    , Args (..)
     , Gen
     , Property
     , applyArbitrary2
     , arbitraryBoundedEnum
-    , collect
     , elements
     , frequency
     , generate
-    , labelledExamplesWith
-    , property
     , resize
     , (===)
     )
 import Test.QuickCheck.Monadic
     ( monadicIO, run )
-import Test.QuickCheck.Random
-    ( mkQCGen )
 import Test.StateMachine
     ( CommandNames (..)
     , Concrete
@@ -1216,30 +1207,9 @@ execCmds mwid = \(QSM.Commands cs) -> go (initModel mwid) cs
     go m (c : cs) = e : go (after e) cs where e = execCmd m c
 
 {-------------------------------------------------------------------------------
-  Finding minimal labelled examples - helper functions
--------------------------------------------------------------------------------}
-
-showLabelledExamples :: forall s k. (TestConstraints s k) => Maybe Int -> IO ()
-showLabelledExamples mReplay = do
-    replaySeed <- case mReplay of
-        Nothing -> getStdRandom $ randomR (1, 999999)
-        Just seed -> return seed
-    putStrLn $ "Using replaySeed " ++ show replaySeed
-    let args = QC.stdArgs
-            { maxSuccess = 10000
-            , replay = Just (mkQCGen replaySeed, 0)
-            }
-    labelledExamplesWith args $
-        forAllCommands (sm @IO @s @k testMWid dbLayerUnused) Nothing $ \cmds ->
-            repeatedly collect (tag . (execCmds testMWid) $ cmds)
-                (property True)
-
-repeatedly :: (a -> b -> b) -> ([a] -> b -> b)
-repeatedly = flip . L.foldl' . flip
-
-{-------------------------------------------------------------------------------
   Top-level tests
 -------------------------------------------------------------------------------}
+
 testMWid :: MWid
 testMWid = MWid "test"
 
