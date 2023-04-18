@@ -573,19 +573,18 @@ prop_rollbackCheckpoint test (InitialCheckpoint cp0) (MockChain chain) = monadic
                 ([], _) -> Nothing
                 (b : q, cp) ->
                     let cp' = snd . snd $ applyBlock b cp in Just (cp', (q, cp'))
-        ShowFmt wid <- namedPick "Wallet ID" arbitrary
         ShowFmt meta <- namedPick "Wallet Metadata" arbitrary
         ShowFmt point <- namedPick "Rollback target" (elements $ ShowFmt <$> cps)
         run $ atomically $ do
-            unsafeRunExceptT $ initializeWallet wid cp0 meta mempty gp
-            unsafeRunExceptT $ forM_ cps (putCheckpoint wid)
+            unsafeRunExceptT $ initializeWallet testWid cp0 meta mempty gp
+            unsafeRunExceptT $ forM_ cps (putCheckpoint testWid)
         let tip = currentTip point
         point' <-
             run
                 $ atomically
                 $ unsafeRunExceptT
-                $ rollbackTo wid (toSlot $ chainPointFromBlockHeader tip)
-        cp <- run $ atomically $ readCheckpoint wid
+                $ rollbackTo testWid (toSlot $ chainPointFromBlockHeader tip)
+        cp <- run $ atomically $ readCheckpoint testWid
         let str = maybe "∅" pretty cp
         monitor $ counterexample ("Checkpoint after rollback: \n" <> str)
         assert (ShowFmt cp == ShowFmt (pure point))
@@ -611,26 +610,25 @@ prop_rollbackTxHistory
     -> Property
 prop_rollbackTxHistory test (InitialCheckpoint cp0) (GenTxHistory txs0) = do
     monadicIO $ test testWid $ \DBLayer {..} -> do
-        ShowFmt wid <- namedPick "Wallet ID" arbitrary
         ShowFmt meta <- namedPick "Wallet Metadata" arbitrary
         ShowFmt requestedPoint <- namedPick "Requested Rollback slot" arbitrary
         let ixs = forgotten requestedPoint
         monitor $ label ("Forgotten tx after point: " <> show (L.length ixs))
         monitor $ cover 50 (not $ null ixs) "rolling back something"
         run $ atomically $ do
-            unsafeRunExceptT $ initializeWallet wid cp0 meta mempty gp
-            unsafeRunExceptT $ putTxHistory wid txs0
+            unsafeRunExceptT $ initializeWallet testWid cp0 meta mempty gp
+            unsafeRunExceptT $ putTxHistory testWid txs0
         point <-
             run
                 $ unsafeRunExceptT
                 $ mapExceptT atomically
-                $ rollbackTo wid (At requestedPoint)
+                $ rollbackTo testWid (At requestedPoint)
         txs <-
             run
                 $ atomically
                 $ fmap toTxHistory
                     <$> readTransactions
-                        wid
+                        testWid
                         Nothing
                         Descending
                         wholeRange
