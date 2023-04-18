@@ -1,7 +1,9 @@
 {-# LANGUAGE ScopedTypeVariables #-}
 {-# LANGUAGE TypeApplications #-}
 {-# LANGUAGE TypeFamilies #-}
-
+-- |
+-- Copyright: © 2023 IOHK
+-- License: Apache-2.0
 module Data.StoreSpec
     ( spec
     ) where

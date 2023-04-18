@@ -4,6 +4,9 @@
 {-# LANGUAGE RankNTypes #-}
 {-# LANGUAGE ScopedTypeVariables #-}
 {-# LANGUAGE TypeFamilies #-}
+-- |
+-- Copyright: © 2023 IOHK
+-- License: Apache-2.0
 module Data.DBVar (
     -- * Synopsis
     -- | 'DBVar' represents a mutable variable whose value is kept in memory,
@@ -45,7 +48,7 @@ import Data.Store
 -- any particular storage is specified by the 'Store' type.
 -- For efficient updates, the delta encoding @delta@ is used in the update.
 --
--- Concurrency:
+-- Concurrency: 'DBVar' fully supports concurrent reads and updates.
 --
 -- * Updates are atomic and will block other updates.
 -- * Reads will /not/ be blocked during an update
@@ -94,7 +97,7 @@ initDBVar store v = do
     writeS store v
     newWithCache (updateS store . Just) v
 
--- | Create a 'DBVar' by loading its value from an existing 'Store'
+-- | Create a 'DBVar' by loading its value from an existing 'Store'.
 -- Throws an exception if the value cannot be loaded.
 loadDBVar
     ::  ( MonadSTM m, MonadThrow m, MonadEvaluate m, MonadMask m
