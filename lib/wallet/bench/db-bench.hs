@@ -737,7 +737,7 @@ setupDB tr = do
     uncurry (BenchEnv destroyPool) <$> createPool
   where
     withSetup action = withTempSqliteFile $ \fp -> do
-        withDBLayer tr Nothing fp singleEraInterpreter $ \db ->
+        withDBLayer tr Nothing fp singleEraInterpreter testWid $ \db ->
             action (fp, db)
 
 singleEraInterpreter :: TimeInterpreter IO

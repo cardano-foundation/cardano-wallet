@@ -1246,7 +1246,7 @@ setupFixture (wid, wname, wstate) = do
     let nl = mockNetworkLayer
     let tl = dummyTransactionLayer
     (_kill, db) <-
-        liftIO $ newDBLayerInMemory nullTracer timeInterpreter
+        liftIO $ newDBLayerInMemory nullTracer timeInterpreter wid
     let db' = hoistDBLayer liftIO db
         wl = WalletLayer nullTracer (block0, np) nl tl db'
     res <- runExceptT $ W.createWallet wl wid wname wstate

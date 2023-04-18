@@ -60,7 +60,10 @@ import Cardano.Pool.Types
 import Cardano.Wallet
     ( mkNoSuchWalletError )
 import Cardano.Wallet.DB
-    ( DBLayer (..), ErrWalletAlreadyInitialized (ErrWalletAlreadyInitialized) )
+    ( DBLayer (..)
+    , ErrWalletAlreadyInitialized (ErrWalletAlreadyInitialized)
+    , ErrWalletNotInitialized
+    )
 import Cardano.Wallet.DB.Arbitrary
     ( GenState, GenTxHistory (..), InitialCheckpoint (..) )
 import Cardano.Wallet.DB.Pure.Implementation
@@ -188,6 +191,8 @@ import Control.Foldl
     ( Fold (..) )
 import Control.Monad
     ( forM_, replicateM, void, when )
+import Control.Monad.Except
+    ( ExceptT )
 import Control.Monad.IO.Unlift
     ( MonadIO )
 import Control.Monad.Trans.Except
@@ -459,60 +464,63 @@ runMock = \case
 
 runIO
     :: forall m s k. (MonadIO m, MockPrivKey (k 'RootK))
-    => DBLayer m s k
+    => WalletId
+    -> DBLayer m s k
     -> Cmd s WalletId
     -> m (Resp s WalletId)
-runIO DBLayer{..} = fmap Resp . go
+runIO wid DBLayer{..} = fmap Resp . go
   where
-
-    runDB wid atomically' = mapExceptT atomically' . mkNoSuchWalletError wid
+    runDB :: Functor stm => (stm (Either ErrNoSuchWallet a) -> m (Either ErrNoSuchWallet a))
+        -> ExceptT ErrWalletNotInitialized stm a
+        -> ExceptT ErrNoSuchWallet m a
+    runDB atomically' = mapExceptT atomically' . mkNoSuchWalletError wid
     go
         :: Cmd s WalletId
         -> m (Either Err (Success s WalletId))
     go = \case
-        CreateWallet wid wal meta txs gp ->
-            catchWalletAlreadyExists (const (NewWallet (unMockWid wid))) $
+        CreateWallet _wid wal meta txs gp ->
+            catchWalletAlreadyExists (const (NewWallet wid)) $
             mapExceptT atomically $
-            initializeWallet (unMockWid wid) wal meta txs gp
+            initializeWallet wid wal meta txs gp
         GetWalletId -> bimap (const WalletNotInitialized) WalletId'
             <$> atomically (runExceptT getWalletId)
-        PutCheckpoint wid wal -> catchNoSuchWallet Unit $
-            runDB wid atomically $ putCheckpoint wid wal
-        ReadCheckpoint wid -> Right . Checkpoint <$>
+        PutCheckpoint _wid wal -> catchNoSuchWallet Unit $
+            runDB atomically $ putCheckpoint wid wal
+        ReadCheckpoint _wid -> Right . Checkpoint <$>
             atomically (readCheckpoint wid)
-        ListCheckpoints wid -> Right . ChainPoints <$>
+        ListCheckpoints _wid -> Right . ChainPoints <$>
             atomically (listCheckpoints wid)
-        PutWalletMeta wid meta -> catchNoSuchWallet Unit $
-            runDB wid atomically$ putWalletMeta wid meta
-        ReadWalletMeta wid -> fmap (Right . (Metadata . fmap fst)) $
+        PutWalletMeta _wid meta -> catchNoSuchWallet Unit $
+            runDB atomically$ putWalletMeta wid meta
+        ReadWalletMeta _wid -> fmap (Right . (Metadata . fmap fst)) $
             atomically $ readWalletMeta wid
-        PutDelegationCertificate wid pool sl -> catchNoSuchWallet Unit $
-            runDB wid atomically $ putDelegationCertificate wid pool sl
-        IsStakeKeyRegistered wid -> catchNoSuchWallet StakeKeyStatus $
-            runDB wid atomically $ isStakeKeyRegistered wid
-        PutTxHistory wid txs -> catchNoSuchWallet Unit $
-            runDB wid atomically $ putTxHistory wid txs
-        ReadTxHistory wid minWith order range status ->
+        PutDelegationCertificate _wid pool sl -> catchNoSuchWallet Unit $
+            runDB atomically $ putDelegationCertificate wid pool sl
+        IsStakeKeyRegistered _wid -> catchNoSuchWallet StakeKeyStatus $
+            runDB atomically $ isStakeKeyRegistered wid
+        PutTxHistory  _wid txs -> catchNoSuchWallet Unit $
+            runDB atomically $ putTxHistory wid txs
+        ReadTxHistory _wid minWith order range status ->
             fmap (Right . TxHistory) $
             atomically $
             readTransactions wid minWith order range status Nothing
-        GetTx wid tid ->
+        GetTx _wid tid ->
             catchNoSuchWallet (TxHistory . maybe [] pure) $
-            runDB wid atomically $ getTx wid tid
-        PutPrivateKey wid pk -> catchNoSuchWallet Unit $
-            runDB wid atomically $
+            runDB atomically $ getTx wid tid
+        PutPrivateKey _wid pk -> catchNoSuchWallet Unit $
+            runDB atomically $
             putPrivateKey wid (fromMockPrivKey pk)
-        ReadPrivateKey wid -> Right . PrivateKey . fmap toMockPrivKey <$>
+        ReadPrivateKey _wid -> Right . PrivateKey . fmap toMockPrivKey <$>
             atomically (readPrivateKey wid)
-        ReadGenesisParameters wid -> Right . GenesisParams <$>
+        ReadGenesisParameters _wid -> Right . GenesisParams <$>
             atomically (readGenesisParameters wid)
-        PutDelegationRewardBalance wid amt -> catchNoSuchWallet Unit $
-            runDB wid atomically $
+        PutDelegationRewardBalance _wid amt -> catchNoSuchWallet Unit $
+            runDB atomically $
             putDelegationRewardBalance wid amt
-        ReadDelegationRewardBalance wid -> Right . DelegationRewardBalance <$>
+        ReadDelegationRewardBalance _wid -> Right . DelegationRewardBalance <$>
             atomically (readDelegationRewardBalance wid)
-        RollbackTo wid sl -> catchNoSuchWallet Point $
-            runDB wid atomically $ rollbackTo wid sl
+        RollbackTo _wid sl -> catchNoSuchWallet Point $
+            runDB atomically $ rollbackTo wid sl
 
     catchWalletAlreadyExists f =
         fmap (bimap errWalletAlreadyExists f) . runExceptT
@@ -752,12 +760,13 @@ postcondition m c r =
 
 semantics
     :: (MonadIO m, MockPrivKey (k 'RootK))
-    => DBLayer m s k
+    => WalletId
+    -> DBLayer m s k
     -> Cmd s :@ Concrete
     -> m (Resp s :@ Concrete)
-semantics db (At c) =
+semantics wid db (At c) =
     (At . fmap QSM.reference) <$>
-        runIO db (fmap QSM.concrete c)
+        runIO wid db (fmap QSM.concrete c)
 
 symbolicResp :: Model s Symbolic -> Cmd s :@ Symbolic -> GenSym (Resp s :@ Symbolic)
 symbolicResp m c =
@@ -775,9 +784,10 @@ type TestConstraints s k =
 
 sm
     :: (MonadIO m, TestConstraints s k)
-    => DBLayer m s k
+    => WalletId
+    -> DBLayer m s k
     -> StateMachine (Model s) (At (Cmd s)) m (At (Resp s))
-sm db = QSM.StateMachine
+sm wid db = QSM.StateMachine
     { initModel = initModel
     , transition = transition
     , precondition = precondition
@@ -785,7 +795,7 @@ sm db = QSM.StateMachine
     , invariant = Nothing
     , generator = generator
     , shrinker = const shrinker
-    , semantics = semantics db
+    , semantics = semantics wid db
     , mock = symbolicResp
     , cleanup = const $ pure ()
     }
@@ -1220,7 +1230,7 @@ showLabelledExamples mReplay = do
             , replay = Just (mkQCGen replaySeed, 0)
             }
     labelledExamplesWith args $
-        forAllCommands (sm @IO @s @k dbLayerUnused) Nothing $ \cmds ->
+        forAllCommands (sm @IO @s @k testWid dbLayerUnused) Nothing $ \cmds ->
             repeatedly collect (tag . execCmds $ cmds) (property True)
 
 repeatedly :: (a -> b -> b) -> ([a] -> b -> b)
@@ -1229,17 +1239,19 @@ repeatedly = flip . L.foldl' . flip
 {-------------------------------------------------------------------------------
   Top-level tests
 -------------------------------------------------------------------------------}
+testWid :: WalletId
+testWid = WalletId (hash ("test" :: ByteString))
 
 prop_sequential
     :: forall s k. (TestConstraints s k)
-    => (IO (IO (), DBLayer IO s k))
+    => (WalletId -> (IO (IO (),DBLayer IO s k)))
     -> Property
 prop_sequential newDB =
     QC.checkCoverage $
-    forAllCommands (sm @IO @s @k dbLayerUnused) Nothing $ \cmds ->
+    forAllCommands (sm @IO @s @k testWid dbLayerUnused) Nothing $ \cmds ->
         monadicIO $ do
-            (destroyDB, db) <- run newDB
-            let sm' = sm db
+            (destroyDB, db) <- run (newDB testWid)
+            let sm' = sm testWid db
             (hist, _model, res) <- runCommands sm' cmds
             prettyCommands sm' hist
                 $ measureTagCoverage cmds

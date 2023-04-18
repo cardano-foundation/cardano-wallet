@@ -61,6 +61,7 @@ import Cardano.Wallet.DB.Layer
     , WalletDBLog (..)
     , newDBFactory
     , newDBLayerInMemory
+    , retrieveWalletId
     , withDBLayer
     , withDBLayerFromDBOpen
     , withDBLayerInMemory
@@ -327,10 +328,12 @@ showState = show (typeOf @s undefined)
 
 withFreshDB
     :: (MonadIO m )
-    => (DBLayer IO (SeqState 'Mainnet ShelleyKey) ShelleyKey -> m ())
+    => WalletId
+    -> (DBLayer IO (SeqState 'Mainnet ShelleyKey) ShelleyKey -> m ())
     -> m ()
-withFreshDB f = do
-    (kill, db) <- liftIO $ newDBLayerInMemory nullTracer dummyTimeInterpreter
+withFreshDB wid f = do
+    (kill, db) <-
+        liftIO $ newDBLayerInMemory nullTracer dummyTimeInterpreter wid
     f db
     liftIO kill
 
@@ -375,6 +378,7 @@ withLoggingDB = around f . beforeWith clean
         withDBLayerInMemory
             (traceInTVarIO logVar)
             dummyTimeInterpreter
+            testWid
             (\db -> act (logVar, db))
     clean (logs, db) = do
         STM.atomically $ writeTVar logs []
@@ -877,6 +881,7 @@ withTestDBFile action expectations = do
             (Just defaultFieldValues)
             fp
             ti
+            testWid
             action
         expectations fp
   where
@@ -896,8 +901,11 @@ defaultFieldValues = DefaultFieldValues
 
 -- Note: Having helper with concrete key types reduces the need
 -- for type-application everywhere.
-withShelleyDBLayer :: PersistAddressBook s => (DBLayer IO s ShelleyKey -> IO a) -> IO a
-withShelleyDBLayer = withDBLayerInMemory nullTracer dummyTimeInterpreter
+withShelleyDBLayer
+    :: PersistAddressBook s
+    => (DBLayer IO s ShelleyKey -> IO a)
+    -> IO a
+withShelleyDBLayer = withDBLayerInMemory nullTracer dummyTimeInterpreter testWid
 
 withShelleyFileDBLayer
     :: PersistAddressBook s
@@ -909,6 +917,7 @@ withShelleyFileDBLayer fp = withDBLayer
     (Just defaultFieldValues)
     fp
     dummyTimeInterpreter
+    testWid
 
 getWalletId'
     :: DBLayer m s k
@@ -1154,7 +1163,12 @@ withDBLayerFromCopiedFile
         -- ^ (logs, result of the action)
 withDBLayerFromCopiedFile dbName action = withinCopiedFile dbName
     $ \path tr -> withDBOpenFromFile tr (Just defaultFieldValues) path
-    $ withDBLayerFromDBOpen @k @s dummyTimeInterpreter action
+    $ \db -> do
+        mwid <- retrieveWalletId db
+        case mwid of
+            Nothing -> fail "No wallet id found in database"
+            Just wid ->
+                withDBLayerFromDBOpen @k @s dummyTimeInterpreter wid action db
 
 withinCopiedFile
     :: FilePath
@@ -1381,7 +1395,7 @@ testMigrationSubmissionsEncoding dbName = do
     let performMigrations path =
           withDBLayer @(SeqState 'Mainnet ShelleyKey) @ShelleyKey
             nullTracer (Just defaultFieldValues) path dummyTimeInterpreter
-                $ \_ -> pure ()
+                testWid $ \_ -> pure ()
         testOnCopiedAndMigrated test = fmap snd
             $ withinCopiedFile dbName $ \path _  -> do
                 performMigrations path

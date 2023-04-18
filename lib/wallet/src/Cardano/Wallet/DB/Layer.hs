@@ -269,7 +269,7 @@ newDBFactory tr defaultFieldValues ti = \case
                     Just db -> pure (m, db)
                     Nothing -> do
                         let tr' = contramap (MsgWalletDB "") tr
-                        (_cleanup, db) <- newDBLayerInMemory tr' ti
+                        (_cleanup, db) <- newDBLayerInMemory tr' ti wid
                         pure (Map.insert wid db m, db)
                 action db
             , removeDatabase = \wid -> do
@@ -288,6 +288,7 @@ newDBFactory tr defaultFieldValues ti = \case
                 (Just defaultFieldValues)
                 (databaseFile wid)
                 ti
+                wid
                 action
             , removeDatabase = \wid -> do
                 let widp = pretty wid
@@ -453,11 +454,15 @@ withDBLayerFromDBOpen
      . (PersistAddressBook s, PersistPrivateKey (k 'RootK))
     => TimeInterpreter IO
     -- ^ Time interpreter for slot to time conversions
+    -> W.WalletId
+    -- ^ Wallet ID of the database
     -> (DBLayer IO s k -> IO a)
+    -- ^ Action to run.
     -> DBOpen (SqlPersistT IO) IO s k
+    -- ^ Already opened database.
     -> IO a
-withDBLayerFromDBOpen ti action dbopen =
-    newDBLayerFromDBOpen ti dbopen >>= action
+withDBLayerFromDBOpen ti wid action dbopen =
+    newDBLayerFromDBOpen ti wid dbopen >>= action
 
 -- | Runs an action with a connection to the SQLite database.
 --
@@ -479,13 +484,15 @@ withDBLayer
     -> FilePath
        -- ^ Path to database file
     -> TimeInterpreter IO
-       -- ^ Time interpreter for slot to time conversions
+       -- ^ Time interpreter for slot to time conversions.
+    -> W.WalletId
+         -- ^ Wallet ID of the database.
     -> (DBLayer IO s k -> IO a)
        -- ^ Action to run.
     -> IO a
-withDBLayer tr defaultFieldValues dbFile ti action =
+withDBLayer tr defaultFieldValues dbFile ti wid action =
     withDBOpenFromFile tr defaultFieldValues dbFile
-        $ newDBLayerFromDBOpen ti >=> action
+        $ newDBLayerFromDBOpen ti wid >=> action
 
 -- | Runs an IO action with a new 'DBLayer' backed by a sqlite in-memory
 -- database.
@@ -495,13 +502,16 @@ withDBLayerInMemory
         , PersistPrivateKey (k 'RootK)
         )
     => Tracer IO WalletDBLog
-       -- ^ Logging object
+       -- ^ Logging object.
     -> TimeInterpreter IO
        -- ^ Time interpreter for slot to time conversions
+    -> W.WalletId
+       -- ^ Wallet ID of the database.
     -> (DBLayer IO s k -> IO a)
+       -- ^ Action to run.
     -> IO a
-withDBLayerInMemory tr ti action
-    = bracket (newDBLayerInMemory tr ti) fst (action . snd)
+withDBLayerInMemory tr ti wid action = bracket
+    (newDBLayerInMemory tr ti wid) fst (action . snd)
 
 -- | Creates a 'DBLayer' backed by a sqlite in-memory database.
 --
@@ -513,13 +523,15 @@ newDBLayerInMemory
         , PersistPrivateKey (k 'RootK)
         )
     => Tracer IO WalletDBLog
-       -- ^ Logging object
+       -- ^ Logging object.
     -> TimeInterpreter IO
-       -- ^ Time interpreter for slot to time conversions
+       -- ^ Time interpreter for slot to time conversions.
+    -> W.WalletId
+       -- ^ Wallet ID of the database.
     -> IO (IO (), DBLayer IO s k)
-newDBLayerInMemory tr ti = do
+newDBLayerInMemory tr ti wid = do
     (destroy, dbopen) <- newDBOpenInMemory tr
-    db <- newDBLayerFromDBOpen ti dbopen
+    db <- newDBLayerFromDBOpen ti wid dbopen
     pure (destroy, db)
 
 -- | From a 'DBOpen', create a database which can store the state
@@ -531,10 +543,12 @@ newDBLayerFromDBOpen
         )
     => TimeInterpreter IO
        -- ^ Time interpreter for slot to time conversions
+    -> W.WalletId
+       -- ^ Wallet ID of the database.
     -> DBOpen (SqlPersistT IO) IO s k
        -- ^ A (thread-)safe wrapper for query execution.
     -> IO (DBLayer IO s k)
-newDBLayerFromDBOpen ti DBOpen{atomically=runQuery} = mdo
+newDBLayerFromDBOpen ti wid_ DBOpen{atomically=runQuery} = mdo
 
     -- FIXME LATER during ADP-1043:
     --   Handle the case where loading the database fails.
@@ -743,7 +757,7 @@ newDBLayerFromDBOpen ti DBOpen{atomically=runQuery} = mdo
 
     let atomically_ = runQuery
 
-    pure $ mkDBLayerFromParts ti DBLayerCollection{..}
+    pure $ mkDBLayerFromParts ti wid_ DBLayerCollection{..}
 
 mkDecorator
     :: QueryStoreTxWalletsHistory

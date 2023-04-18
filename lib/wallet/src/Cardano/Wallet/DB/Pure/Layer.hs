@@ -84,8 +84,9 @@ newDBLayer
        ( MonadUnliftIO m
        , MonadFail m )
     => TimeInterpreter Identity
+    -> WalletId
     -> m (DBLayer m s k)
-newDBLayer timeInterpreter = do
+newDBLayer timeInterpreter wid = do
     lock <- newMVar ()
     db <- newMVar (emptyDatabase :: Database WalletId s (k 'RootK XPrv, PassphraseHash))
     let getWalletId' = ExceptT
@@ -98,7 +99,8 @@ newDBLayer timeInterpreter = do
                                       Wallets
         -----------------------------------------------------------------------}
 
-        { initializeWallet = \pk cp meta txs gp -> ExceptT $
+        { walletId_ = wid
+        , initializeWallet = \pk cp meta txs gp -> ExceptT $
                 alterDB errWalletAlreadyExists db $
                 mInitializeWallet pk cp meta txs gp
 
