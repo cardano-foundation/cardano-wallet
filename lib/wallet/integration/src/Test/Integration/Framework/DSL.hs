@@ -303,19 +303,15 @@ import Cardano.Wallet.Primitive.AddressDerivation
     , DerivationType (..)
     , HardDerivation (..)
     , Index (..)
-    , PaymentAddress (..)
     , PersistPublicKey (..)
     , Role (..)
     , WalletKey (..)
     , fromHex
     , hex
+    , paymentAddressS
     )
 import Cardano.Wallet.Primitive.AddressDerivation.Byron
     ( ByronKey (..) )
-import Cardano.Wallet.Primitive.AddressDerivation.Icarus
-    ( IcarusKey )
-import Cardano.Wallet.Primitive.AddressDerivation.Shelley
-    ( ShelleyKey )
 import Cardano.Wallet.Primitive.AddressDiscovery.Sequential
     ( coinTypeAda )
 import Cardano.Wallet.Primitive.AddressDiscovery.Shared
@@ -357,7 +353,7 @@ import Cardano.Wallet.Primitive.Types.UTxO
 import Cardano.Wallet.Primitive.Types.UTxOStatistics
     ( HistogramBar (..), UTxOStatistics (..) )
 import Cardano.Wallet.Read.NetworkId
-    ( HasSNetworkId (..), NetworkDiscriminant )
+    ( HasSNetworkId (..) )
 import Cardano.Wallet.Shelley.Compatibility
     ( decodeAddress, encodeAddress )
 import "cardano-addresses" Codec.Binary.Encoding
@@ -1800,7 +1796,7 @@ emptySharedWalletDelegating ctx = do
    pure (getFromResponse Prelude.id rPostA, getFromResponse Prelude.id rPostB)
 
 fundSharedWallet
-    :: forall (n :: NetworkDiscriminant) m
+    :: forall n m
      . ( MonadUnliftIO m
        , HasSNetworkId n
        )
@@ -1851,7 +1847,7 @@ fundSharedWallet ctx amt sharedWals = do
            ]
 
 fixtureSharedWallet
-    :: forall (n :: NetworkDiscriminant) m
+    :: forall n m
      . ( MonadUnliftIO m
        , MonadFail m
        , HasSNetworkId n
@@ -1864,11 +1860,11 @@ fixtureSharedWallet ctx = do
    return wal
 
 fixtureSharedWalletDelegating
-    :: forall (n :: NetworkDiscriminant) m.
-    ( MonadUnliftIO m
-    , MonadFail m
-    , HasSNetworkId n
-    )
+    :: forall n m
+     . ( MonadUnliftIO m
+       , MonadFail m
+       , HasSNetworkId n
+       )
     => Context
     -> ResourceT m (ApiActiveSharedWallet, ApiActiveSharedWallet)
 fixtureSharedWalletDelegating ctx = do
@@ -2080,10 +2076,8 @@ fixtureRandomWallet
 fixtureRandomWallet = fmap fst . fixtureRandomWalletMws
 
 fixtureRandomWalletAddrs
-    :: forall (n :: NetworkDiscriminant) m.
-        ( PaymentAddress n ByronKey 'CredFromKeyK
-        , MonadUnliftIO m
-        )
+    :: forall n m
+     . (MonadUnliftIO m, HasSNetworkId n)
     => Context
     -> ResourceT m (ApiByronWallet, [Address])
 fixtureRandomWalletAddrs =
@@ -2098,11 +2092,8 @@ fixtureRandomWalletAddrs =
 --
 -- TODO: Remove duplication between Shelley / Byron fixtures.
 fixtureRandomWalletWith
-    :: forall (n :: NetworkDiscriminant) m.
-        ( HasSNetworkId n
-        , PaymentAddress n ByronKey 'CredFromKeyK
-        , MonadUnliftIO m
-        )
+    :: forall n m
+     . ( HasSNetworkId n , MonadUnliftIO m)
     => Context
     -> [Natural]
     -> ResourceT m ApiByronWallet
@@ -2136,10 +2127,8 @@ fixtureIcarusWallet
 fixtureIcarusWallet = fmap fst . fixtureIcarusWalletMws
 
 fixtureIcarusWalletAddrs
-    :: forall (n :: NetworkDiscriminant) m.
-        ( PaymentAddress n IcarusKey 'CredFromKeyK
-        , MonadUnliftIO m
-        )
+    :: forall n m
+     . ( HasSNetworkId n , MonadUnliftIO m)
     => Context
     -> ResourceT m (ApiByronWallet, [Address])
 fixtureIcarusWalletAddrs =
@@ -2154,11 +2143,8 @@ fixtureIcarusWalletAddrs =
 --
 -- TODO: Remove duplication between Shelley / Byron fixtures.
 fixtureIcarusWalletWith
-    :: forall (n :: NetworkDiscriminant) m.
-        ( HasSNetworkId n
-        , PaymentAddress n IcarusKey 'CredFromKeyK
-        , MonadUnliftIO m
-        )
+    :: forall n m
+     . ( HasSNetworkId n , MonadUnliftIO m)
     => Context
     -> [Natural]
     -> ResourceT m ApiByronWallet
@@ -2303,7 +2289,8 @@ constFixtureWalletNoWait ctx = snd <$> allocate create free
         (Link.deleteWallet @'Shelley w) Default Empty
 
 -- | Move coins from a wallet to another
-moveByronCoins :: forall (n :: NetworkDiscriminant)
+moveByronCoins
+    :: forall n
      . HasSNetworkId n
     => Context
         -- ^ Api context
@@ -2493,8 +2480,8 @@ delegationFee ctx w = do
 -- >>> take 1 (randomAddresses @n)
 -- [addr]
 randomAddresses
-    :: forall (n :: NetworkDiscriminant)
-     . PaymentAddress n ByronKey 'CredFromKeyK
+    :: forall n
+     . HasSNetworkId n
     => Mnemonic 12
     -> [Address]
 randomAddresses mw =
@@ -2508,7 +2495,7 @@ randomAddresses mw =
         addrXPrv =
             Byron.deriveAddressPrivateKey pwd accXPrv
     in
-        [ paymentAddress @n (publicKey $ addrXPrv ix)
+        [ paymentAddressS @n (publicKey $ addrXPrv ix)
         | ix <- [minBound..maxBound]
         ]
 
@@ -2519,8 +2506,8 @@ randomAddresses mw =
 -- >>> take 1 (icarusAddresses @n)
 -- [addr]
 icarusAddresses
-    :: forall (n :: NetworkDiscriminant)
-     . PaymentAddress n IcarusKey 'CredFromKeyK
+    :: forall n
+     . HasSNetworkId n
     => Mnemonic 15
     -> [Address]
 icarusAddresses mw =
@@ -2534,7 +2521,7 @@ icarusAddresses mw =
         addrXPrv =
             deriveAddressPrivateKey pwd accXPrv UtxoExternal
     in
-        [ paymentAddress @n (publicKey $ addrXPrv ix)
+        [ paymentAddressS @n (publicKey $ addrXPrv ix)
         | ix <- [minBound..maxBound]
         ]
 
@@ -2545,8 +2532,8 @@ icarusAddresses mw =
 -- >>> take 1 (shelleyAddresses @n)
 -- [addr]
 shelleyAddresses
-    :: forall (n :: NetworkDiscriminant)
-     . PaymentAddress n ShelleyKey 'CredFromKeyK
+    :: forall n
+     . HasSNetworkId n
     => Mnemonic 15
     -> [Address]
 shelleyAddresses mw =
@@ -2560,7 +2547,7 @@ shelleyAddresses mw =
         addrXPrv =
             deriveAddressPrivateKey pwd accXPrv UtxoExternal
     in
-        [ paymentAddress @n (publicKey $ addrXPrv ix)
+        [ paymentAddressS @n (publicKey $ addrXPrv ix)
         | ix <- [minBound..maxBound]
         ]
 
@@ -3358,7 +3345,7 @@ unsafeResponse = either (error . show) id . snd
 -- Only intended to be used with well-known inputs in tests, so throws if
 -- anything goes unexpectedly.
 replaceStakeKey
-    :: forall (n :: NetworkDiscriminant)
+    :: forall n
      . HasSNetworkId n
     => ApiAddress n
     -> ApiAddress n

@@ -314,6 +314,7 @@ import Cardano.Wallet.Primitive.AddressDerivation
     , WalletKey (..)
     , deriveRewardAccount
     , hashVerificationKey
+    , liftDelegationAddressS
     , liftIndex
     , stakeDerivationPath
     )
@@ -458,7 +459,7 @@ import Cardano.Wallet.Primitive.Types.UTxOSelection
 import Cardano.Wallet.Primitive.Types.UTxOStatistics
     ( UTxOStatistics )
 import Cardano.Wallet.Read.NetworkId
-    ( HasSNetworkId, NetworkDiscriminant )
+    ( HasSNetworkId (..) )
 import Cardano.Wallet.Read.Tx.CBOR
     ( TxCBOR )
 import Cardano.Wallet.Shelley.Compatibility
@@ -808,7 +809,7 @@ createIcarusWallet
     :: forall ctx s k n.
         ( HasGenesisData ctx
         , HasDBLayer IO s k ctx
-        , PaymentAddress n k 'CredFromKeyK
+        , PaymentAddress k 'CredFromKeyK
         , k ~ IcarusKey
         , s ~ SeqState n k
         , HasSNetworkId n
@@ -1251,7 +1252,7 @@ mkExternalWithdrawal netLayer txLayer era mnemonic = do
         WithdrawalExternal rewardAccount derivationPath balance xprv
 
 mkSelfWithdrawal
-    :: forall ktype tx (n :: NetworkDiscriminant) block
+    :: forall ktype tx n block
      . NetworkLayer IO block
     -> TransactionLayer ShelleyKey ktype tx
     -> AnyCardanoEra
@@ -1271,7 +1272,7 @@ mkSelfWithdrawal netLayer txLayer era db wallet = do
 -- | Unsafe version of the `mkSelfWithdrawal` function that throws an exception
 -- when applied to a non-shelley or a non-sequential wallet.
 shelleyOnlyMkSelfWithdrawal
-    :: forall s k ktype tx (n :: NetworkDiscriminant) block
+    :: forall s k ktype tx n block
      . WalletFlavor s n k
     => NetworkLayer IO block
     -> TransactionLayer k ktype tx
@@ -1311,7 +1312,7 @@ checkRewardIsWorthTxCost txLayer pp era balance = do
         dummyPath = DerivationIndex 0 :| []
 
 readRewardAccount
-    :: forall (n :: NetworkDiscriminant)
+    :: forall n
      . DBLayer IO (SeqState n ShelleyKey) ShelleyKey
     -> WalletId
     -> ExceptT ErrReadRewardAccount IO
@@ -1334,7 +1335,7 @@ readRewardAccount db wid = do
 -- that throws error when applied to a non-sequential
 -- or a non-shelley wallet state.
 shelleyOnlyReadRewardAccount
-    :: forall s k (n :: NetworkDiscriminant)
+    :: forall s k n
      . WalletFlavor s n k
     => DBLayer IO s k
     -> WalletId
@@ -1346,7 +1347,7 @@ shelleyOnlyReadRewardAccount db wid = do
         _ -> throwE ErrReadRewardAccountNotAShelleyWallet
 
 readPolicyPublicKey
-    :: forall ctx s k (n :: NetworkDiscriminant)
+    :: forall ctx s k n
      . ( HasDBLayer IO s k ctx
        , WalletFlavor s n k
        )
@@ -1370,7 +1371,7 @@ readPolicyPublicKey ctx wid = db & \DBLayer{..} -> do
     db = ctx ^. dbLayer @IO @s @k
 
 manageRewardBalance
-    :: forall (n :: NetworkDiscriminant) block
+    :: forall n block
      . Tracer IO WalletWorkerLog
     -> NetworkLayer IO block
     -> DBLayer IO (SeqState n ShelleyKey) ShelleyKey
@@ -1489,12 +1490,12 @@ listAddresses ctx wid normalize = db & \DBLayer{..} -> do
     db = ctx ^. dbLayer @IO @s @k
 
 createRandomAddress
-    :: forall ctx s k n.
+    :: forall ctx s k n .
         ( HasDBLayer IO s k ctx
-        , PaymentAddress n k 'CredFromKeyK
         , RndStateLike s
         , k ~ ByronKey
         , AddressBookIso s
+        , HasSNetworkId n
         )
     => ctx
     -> WalletId
@@ -1561,15 +1562,18 @@ importRandomAddresses ctx wid addrs = db & \DBLayer{..} ->
 -- to make sure that we compare them correctly.
 normalizeDelegationAddress
     :: forall s k n.
-        ( DelegationAddress n k 'CredFromKeyK
+        ( DelegationAddress k 'CredFromKeyK
         , s ~ SeqState n k
+        , HasSNetworkId n
         )
     => s
     -> Address
     -> Maybe Address
 normalizeDelegationAddress s addr = do
     fingerprint <- eitherToMaybe (paymentKeyFingerprint addr)
-    pure $ liftDelegationAddress @n fingerprint $ Seq.rewardAccountKey s
+    pure
+        $ liftDelegationAddressS @n fingerprint
+        $ Seq.rewardAccountKey s
 
 assignChangeAddressesAndUpdateDb
     :: forall ctx s k.
@@ -2006,7 +2010,7 @@ type MakeRewardAccountBuilder k =
 --
 -- Requires the encryption passphrase in order to decrypt the root private key.
 buildSignSubmitTransaction
-    :: forall k s (n :: NetworkDiscriminant)
+    :: forall k s n
      . ( WalletKey k
        , HardDerivation k
        , Bounded (Index (AddressIndexDerivationType k) (AddressCredential k))
@@ -2098,7 +2102,7 @@ buildSignSubmitTransaction ti db@DBLayer{..} netLayer txLayer pwd walletId
     wrapBalanceConstructError = either ExceptionBalanceTx ExceptionConstructTx
 
 buildAndSignTransactionPure
-    :: forall k s (n :: NetworkDiscriminant)
+    :: forall k s n
      . ( WalletKey k
        , HardDerivation k
        , Bounded (Index (AddressIndexDerivationType k) (AddressCredential k))
@@ -2198,7 +2202,7 @@ buildAndSignTransactionPure
     anyCardanoEra = WriteTx.fromAnyRecentEra era
 
 buildTransaction
-    :: forall s k (n :: NetworkDiscriminant) era
+    :: forall s k n era
     . ( WalletFlavor s n k
       , WriteTx.IsRecentEra era
       , AddressBookIso s
@@ -2247,7 +2251,7 @@ buildTransaction DBLayer{..} txLayer timeInterpreter walletId
                 & either (liftIO . throwIO) pure
 
 buildTransactionPure
-    :: forall s k (n :: NetworkDiscriminant) era
+    :: forall s k n era
      . ( WriteTx.IsRecentEra era
        , WalletFlavor s n k
        )
@@ -2301,7 +2305,7 @@ buildTransactionPure
 -- https://input-output.atlassian.net/browse/ADP-2933
 
 unsafeShelleyOnlyGetRewardXPub
-    :: forall s k (n :: NetworkDiscriminant)
+    :: forall s k n
      . WalletFlavor s n k
     => s -> XPub
 unsafeShelleyOnlyGetRewardXPub walletState =
@@ -2395,7 +2399,7 @@ buildAndSignTransaction ctx wid era mkRwdAcct pwd txCtx sel = db & \DBLayer{..} 
 
 -- | Construct an unsigned transaction from a given selection.
 constructTransaction
-    :: forall (n :: NetworkDiscriminant) ktype era block
+    :: forall n ktype era block
      . WriteTx.IsRecentEra era
     => TransactionLayer ShelleyKey ktype SealedTx
     -> NetworkLayer IO block
@@ -2412,7 +2416,7 @@ constructTransaction txLayer netLayer db wid txCtx preSel = do
         & withExceptT ErrConstructTxBody . except
 
 constructUnbalancedSharedTransaction
-    :: forall (n :: NetworkDiscriminant) ktype era block
+    :: forall n ktype era block
      . ( WriteTx.IsRecentEra era
        , HasSNetworkId n)
     => TransactionLayer SharedKey ktype SealedTx
@@ -2886,7 +2890,7 @@ data DelegationFee = DelegationFee
 instance NFData DelegationFee
 
 delegationFee
-    :: forall s k (n :: NetworkDiscriminant)
+    :: forall s k n
      . ( AddressBookIso s
        , WalletFlavor s n k
        )
@@ -2919,7 +2923,7 @@ delegationFee db@DBLayer{..} netLayer txLayer ti era changeAddressGen walletId =
     throwInIO = runExceptT >=> either (throwIO . ExceptionNoSuchWallet) pure
 
 transactionFee
-    :: forall s k (n :: NetworkDiscriminant) era
+    :: forall s k n era
      . ( AddressBookIso s
        , WriteTx.IsRecentEra era
        , WalletFlavor s n k
@@ -3297,10 +3301,10 @@ readAccountPublicKey ctx wid = db & \DBLayer{..} -> do
     db = ctx ^. dbLayer @IO @s @k
 
 writePolicyPublicKey
-    :: forall ctx s (n :: NetworkDiscriminant).
-        ( HasDBLayer IO s ShelleyKey ctx
-        , s ~ SeqState n ShelleyKey
-        )
+    :: forall ctx s n
+     . ( HasDBLayer IO s ShelleyKey ctx
+       , s ~ SeqState n ShelleyKey
+       )
     => ctx
     -> WalletId
     -> Passphrase "user"

@@ -54,8 +54,8 @@ import Cardano.Wallet.Primitive.AddressDerivation
     , DerivationIndex (..)
     , DerivationType (..)
     , Index (..)
-    , PaymentAddress (..)
     , liftIndex
+    , paymentAddressS
     , publicKey
     )
 import Cardano.Wallet.Primitive.AddressDerivation.Byron
@@ -75,7 +75,7 @@ import Cardano.Wallet.Primitive.Types.Address
 import Cardano.Wallet.Primitive.Types.RewardAccount
     ( RewardAccount )
 import Cardano.Wallet.Read.NetworkId
-    ( NetworkDiscriminant )
+    ( HasSNetworkId, NetworkDiscriminant )
 import Control.Arrow
     ( second )
 import Control.DeepSeq
@@ -268,7 +268,7 @@ newtype ErrImportAddress
     = ErrAddrDoesNotBelong Address
     deriving (Generic, Eq, Show)
 
-instance PaymentAddress n ByronKey 'CredFromKeyK => GenChange (RndState n) where
+instance HasSNetworkId n => GenChange (RndState n) where
     type ArgGenChange (RndState n) = (ByronKey 'RootK XPrv, Passphrase "encryption")
     genChange (rootXPrv, pwd) st = (address, st')
       where
@@ -320,13 +320,13 @@ deriveCredFromKeyKeyFromPath rootXPrv passphrase (accIx, addrIx) = addrXPrv
 
 -- | Use the key material in 'RndState' to derive a change address.
 deriveRndStateAddress
-    :: forall n. (PaymentAddress n ByronKey 'CredFromKeyK)
+    :: forall n. HasSNetworkId n
     => ByronKey 'RootK XPrv
     -> Passphrase "encryption"
     -> DerivationPath
     -> Address
 deriveRndStateAddress k passphrase path =
-    paymentAddress @n $ publicKey $ deriveCredFromKeyKeyFromPath k passphrase path
+    paymentAddressS @n $ publicKey $ deriveCredFromKeyKeyFromPath k passphrase path
 
 -- Unlike sequential derivation, we can't derive an order from the index only
 -- (they are randomly generated), nor anything else in the address itself.
@@ -444,7 +444,7 @@ instance IsOurs (RndAnyState n p) RewardAccount where
 instance KnownNat p => IsOwned (RndAnyState n p) ByronKey 'CredFromKeyK where
     isOwned _ _ _ = Nothing
 
-instance PaymentAddress n ByronKey 'CredFromKeyK => GenChange (RndAnyState n p) where
+instance HasSNetworkId n => GenChange (RndAnyState n p) where
     type ArgGenChange (RndAnyState n p) = ArgGenChange (RndState n)
     genChange a (RndAnyState s) = RndAnyState <$> genChange a s
 

@@ -77,7 +77,7 @@ import Cardano.Wallet.Primitive.AddressDiscovery.Sequential
 import Cardano.Wallet.Primitive.Types.Address
     ( Address (..), AddressState (..) )
 import Cardano.Wallet.Read.NetworkId
-    ( NetworkDiscriminant (..) )
+    ( NetworkDiscriminant (..), SNetworkId (..) )
 import Cardano.Wallet.Unsafe
     ( someDummyMnemonic )
 import Cardano.Wallet.Util
@@ -372,7 +372,7 @@ prop_changeIsOnlyKnownAfterGeneration (intPool, extPool) =
         s0 = SeqState intPool extPool emptyPendingIxs ourAccount
              Nothing rewardAccount defaultPrefix
         addrs0 = pair' <$> knownAddresses s0
-        (change, s1) = genChange (\k _ -> paymentAddress @'Mainnet k) s0
+        (change, s1) = genChange (\k _ -> paymentAddress SMainnet k) s0
         addrs1 = fst' <$> knownAddresses s1
     in conjoin
         [ prop_addrsNotInInternalPool addrs0
@@ -441,7 +441,7 @@ instance AddressPoolTest IcarusKey where
     ourAddresses _proxy cc =
         mkAddress . deriveAddressPublicKey ourAccount cc <$> [minBound..maxBound]
       where
-        mkAddress = paymentAddress @'Mainnet @IcarusKey
+        mkAddress = paymentAddress @IcarusKey SMainnet
 
 instance AddressPoolTest ShelleyKey where
     ourAccount = publicKey $
@@ -452,7 +452,7 @@ instance AddressPoolTest ShelleyKey where
     ourAddresses _proxy cc =
         mkAddress . deriveAddressPublicKey ourAccount cc <$> [minBound..maxBound]
       where
-        mkAddress k = delegationAddress @'Mainnet k rewardAccount
+        mkAddress k = delegationAddress SMainnet k rewardAccount
 
 rewardAccount
     :: ShelleyKey 'CredFromKeyK XPub
@@ -466,7 +466,7 @@ changeAddresses
     -> SeqState 'Mainnet ShelleyKey
     -> ([Address], SeqState 'Mainnet ShelleyKey)
 changeAddresses as s =
-    let (a, s') = genChange (\k _ -> paymentAddress @'Mainnet k) s
+    let (a, s') = genChange (\k _ -> paymentAddress SMainnet k) s
     in if a `elem` as then (as, s) else changeAddresses (a:as) s'
 
 unsafeMkAddressPoolGap :: (Integral a, Show a) => a -> AddressPoolGap

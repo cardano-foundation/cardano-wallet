@@ -143,7 +143,7 @@ import Cardano.Wallet.Primitive.Types.Tx.TxOut
 import Cardano.Wallet.Primitive.Types.UTxO
     ( UTxO (..) )
 import Cardano.Wallet.Read.NetworkId
-    ( NetworkDiscriminant (..) )
+    ( NetworkDiscriminant (..), SNetworkId (..) )
 import Cardano.Wallet.Unsafe
     ( someDummyMnemonic, unsafeRunExceptT )
 import Control.DeepSeq
@@ -874,7 +874,7 @@ withMovingSlot i b@(Block h _ _) = b
 
 mkAddress :: Int -> Int -> Address
 mkAddress i j =
-    delegationAddress @'Mainnet
+    delegationAddress SMainnet
         (ShelleyKey $ unsafeXPub $ B8.pack $ take 64 $ randoms $ mkStdGen seed)
         rewardAccount
   where
@@ -885,7 +885,7 @@ mkAddress i j =
 
 mkByronAddress :: Int -> Int -> Address
 mkByronAddress i j =
-    paymentAddress @'Mainnet @ByronKey @'CredFromKeyK
+    paymentAddress @ByronKey @'CredFromKeyK SMainnet
         (ByronKey
             (unsafeXPub (B8.pack $ take 64 $ randoms g))
             (Index acctIx, Index addrIx)

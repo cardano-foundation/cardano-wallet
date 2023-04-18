@@ -58,8 +58,6 @@ import Cardano.Wallet.Primitive.Types
     )
 import Cardano.Wallet.Primitive.Types.Coin
     ( Coin (..) )
-import Cardano.Wallet.Read.NetworkId
-    ( NetworkDiscriminant )
 import Cardano.Wallet.Transaction
     ( ErrCannotJoin (..)
     , TransactionCtx
@@ -224,7 +222,7 @@ quitStakePoolDelegationAction db@DBLayer{..} walletId withdrawal = do
     pure Tx.Quit
 
 quitStakePool
-    :: forall (n :: NetworkDiscriminant) block
+    :: forall n block
      . NetworkLayer IO block
     -> DBLayer IO (SeqState n ShelleyKey) ShelleyKey
     -> TimeInterpreter (ExceptT PastHorizonException IO)

@@ -23,7 +23,7 @@ import Cardano.Wallet.Primitive.AddressDerivation
     ( Depth (AccountK, CredFromKeyK, RootK)
     , DerivationType (..)
     , Index
-    , PaymentAddress (..)
+    , paymentAddressS
     , publicKey
     )
 import Cardano.Wallet.Primitive.AddressDerivation.Byron
@@ -40,7 +40,7 @@ import Cardano.Wallet.Primitive.Passphrase
     , preparePassphrase
     )
 import Cardano.Wallet.Read.NetworkId
-    ( NetworkDiscriminant (..) )
+    ( HasSNetworkId, NetworkDiscriminant (..) )
 import Control.Monad
     ( replicateM )
 import Data.Maybe
@@ -80,7 +80,8 @@ spec = do
 -------------------------------------------------------------------------------}
 
 prop_derivedKeysAreOurs
-    :: forall (n :: NetworkDiscriminant). (PaymentAddress n ByronKey 'CredFromKeyK)
+    :: forall n
+     . HasSNetworkId n
     => SomeMnemonic
     -> Passphrase "encryption"
     -> Index 'WholeDomain 'AccountK
@@ -96,7 +97,7 @@ prop_derivedKeysAreOurs seed encPwd accIx addrIx rk' =
     (resNeg, stNeg') = isOurs addr (mkRndState @n rk' 0)
     key = publicKey $ unsafeGenerateKeyFromSeed @'CredFromKeyK (accIx, addrIx) seed encPwd
     rootXPrv = generateKeyFromSeed seed encPwd
-    addr = paymentAddress @n key
+    addr = paymentAddressS @n key
 
 {-------------------------------------------------------------------------------
                              Arbitrary Instances

@@ -46,7 +46,7 @@ import Cardano.Wallet.Primitive.Passphrase
 import Cardano.Wallet.Primitive.Types.Address
     ( Address (..), AddressState (..) )
 import Cardano.Wallet.Read.NetworkId
-    ( NetworkDiscriminant (..) )
+    ( NetworkDiscriminant (..), SNetworkId (..) )
 import Control.Monad
     ( forM_ )
 import Data.ByteArray.Encoding
@@ -297,7 +297,7 @@ prop_derivedKeysAreOwned (Rnd st rk pwd) (Rnd st' rk' pwd') addrIx =
     .&&.
     isOwned @_ @_ @'CredFromKeyK st' (rk', pwd') addr === Nothing
   where
-    addr = paymentAddress @'Mainnet (publicKey addrKey)
+    addr = paymentAddress SMainnet (publicKey addrKey)
     addrKey = deriveAddressPrivateKey pwd acctKey addrIx
     acctKey = deriveAccountPrivateKey pwd rk (liftIndex $ accountIndex st)
 
@@ -369,4 +369,4 @@ mkAddress (Rnd (RndState _ accIx _ _ _) rk pwd) addrIx =
         acctKey = deriveAccountPrivateKey pwd rk (liftIndex accIx)
         addrKey = deriveAddressPrivateKey pwd acctKey addrIx
     in
-        paymentAddress @'Mainnet (publicKey addrKey)
+        paymentAddress SMainnet (publicKey addrKey)

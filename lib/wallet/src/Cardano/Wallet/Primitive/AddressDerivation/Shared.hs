@@ -213,7 +213,13 @@ instance MkKeyFingerprint SharedKey Address where
            else
             Left $ ErrInvalidAddress addr (Proxy @SharedKey)
 
-instance MkKeyFingerprint SharedKey (Proxy (n :: NetworkDiscriminant), SharedKey 'CredFromScriptK XPub) where
+instance
+    MkKeyFingerprint
+        SharedKey
+        ( Proxy (n :: NetworkDiscriminant)
+        , SharedKey 'CredFromScriptK XPub
+        )
+    where
     paymentKeyFingerprint (_, paymentK) =
         Right $ KeyFingerprint $ blake2b224 $ xpubPublicKey $ getKey paymentK
 

@@ -63,6 +63,7 @@ import Cardano.Wallet.Primitive.AddressDerivation
     , WalletKey (..)
     , fromHex
     , hex
+    , paymentAddressS
     )
 import Cardano.Wallet.Primitive.AddressDiscovery
     ( DiscoverTxs (..), GetPurpose (..), IsOurs (..), MaybeLight (..) )
@@ -73,9 +74,13 @@ import Cardano.Wallet.Primitive.Passphrase
 import Cardano.Wallet.Primitive.Types.Address
     ( Address (..) )
 import Cardano.Wallet.Primitive.Types.ProtocolMagic
-    ( ProtocolMagic (..), testnetMagic )
+    ( ProtocolMagic (..), magicSNetworkId )
 import Cardano.Wallet.Read.NetworkId
-    ( NetworkDiscriminant (..), NetworkDiscriminantCheck (..) )
+    ( HasSNetworkId
+    , NetworkDiscriminant
+    , NetworkDiscriminantCheck (..)
+    , SNetworkId (..)
+    )
 import Control.Arrow
     ( first, left )
 import Control.DeepSeq
@@ -106,8 +111,6 @@ import Data.Proxy
     ( Proxy (..) )
 import GHC.Generics
     ( Generic )
-import GHC.TypeLits
-    ( KnownNat )
 
 import qualified Cardano.Byron.Codec.Cbor as CBOR
 import qualified Cardano.Crypto.Wallet as CC
@@ -367,20 +370,17 @@ instance WalletKey IcarusKey where
 instance GetPurpose IcarusKey where
     getPurpose = purposeBIP44
 
-instance PaymentAddress 'Mainnet IcarusKey 'CredFromKeyK where
-    paymentAddress k = Address
+instance PaymentAddress IcarusKey 'CredFromKeyK where
+    paymentAddress SMainnet k= Address
         $ CBOR.toStrictByteString
         $ CBOR.encodeAddress (getKey k) []
-    liftPaymentAddress (KeyFingerprint bytes) =
-        Address bytes
 
-instance KnownNat pm => PaymentAddress ('Testnet pm) IcarusKey 'CredFromKeyK where
-    paymentAddress k = Address
+    paymentAddress s@(STestnet _) k = Address
         $ CBOR.toStrictByteString
         $ CBOR.encodeAddress (getKey k)
-            [ CBOR.encodeProtocolMagicAttr (testnetMagic @pm)
+            [ CBOR.encodeProtocolMagicAttr (magicSNetworkId s)
             ]
-    liftPaymentAddress (KeyFingerprint bytes) =
+    liftPaymentAddress _ (KeyFingerprint bytes) =
         Address bytes
 
 instance MkKeyFingerprint IcarusKey Address where
@@ -389,13 +389,13 @@ instance MkKeyFingerprint IcarusKey Address where
             Just _  -> Right $ KeyFingerprint bytes
             Nothing -> Left $ ErrInvalidAddress addr (Proxy @IcarusKey)
 
-instance PaymentAddress n IcarusKey 'CredFromKeyK
-    => MkKeyFingerprint IcarusKey (Proxy (n :: NetworkDiscriminant), IcarusKey 'CredFromKeyK XPub)
+instance HasSNetworkId n => MkKeyFingerprint IcarusKey
+    (Proxy (n :: NetworkDiscriminant), IcarusKey 'CredFromKeyK XPub)
   where
     paymentKeyFingerprint (proxy, k) =
         bimap (const err) coerce
         . paymentKeyFingerprint @IcarusKey
-        . paymentAddress @n
+        . paymentAddressS @n
         $ k
       where
         err = ErrInvalidAddress (proxy, k) Proxy
@@ -403,8 +403,7 @@ instance PaymentAddress n IcarusKey 'CredFromKeyK
 instance IsOurs (SeqState n IcarusKey) RewardAccount where
     isOurs _account state = (Nothing, state)
 
-instance PaymentAddress n IcarusKey 'CredFromKeyK =>
-    MaybeLight (SeqState n IcarusKey)
+instance HasSNetworkId n => MaybeLight (SeqState n IcarusKey)
   where
     maybeDiscover = Just $ DiscoverTxs discoverSeq
 

@@ -41,7 +41,7 @@ import Cardano.Wallet.Primitive.AddressDerivation
 import Cardano.Wallet.Primitive.Types.Address
     ( Address (..) )
 import Cardano.Wallet.Read.NetworkId
-    ( HasSNetworkId (sNetworkId), NetworkDiscriminant (..), SNetworkId (..) )
+    ( HasSNetworkId (sNetworkId), SNetworkId (..) )
 import Control.DeepSeq
     ( NFData (..) )
 import Data.Maybe
@@ -83,7 +83,8 @@ newtype SharedKey (depth :: Depth) key =
 instance (NFData key) => NFData (SharedKey depth key)
 
 constructAddressFromIx
-    :: forall (n :: NetworkDiscriminant).  HasSNetworkId n
+    :: forall n
+     . HasSNetworkId n
     => Role
     -> ScriptTemplate
     -> Maybe ScriptTemplate
@@ -156,7 +157,7 @@ replaceCosignersWithVerKeys role' (ScriptTemplate xpubs scriptTemplate) ix =
 
 -- | Convert 'NetworkDiscriminant type parameter to
 -- 'Cardano.Address.NetworkTag'.
-toNetworkTag :: forall (n :: NetworkDiscriminant). HasSNetworkId n => CA.NetworkTag
+toNetworkTag :: forall n. HasSNetworkId n => CA.NetworkTag
 toNetworkTag = case sNetworkId @n of
     SMainnet -> CA.NetworkTag 1
     STestnet _ -> CA.NetworkTag 0 -- fixme: Not all testnets have NetworkTag=0

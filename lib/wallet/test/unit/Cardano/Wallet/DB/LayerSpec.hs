@@ -314,7 +314,7 @@ stateMachineSpecRnd =
 stateMachineSpecShared =
     stateMachineSpec @SharedKey @(SharedState 'Mainnet SharedKey)
 
-instance PaymentAddress 'Mainnet SharedKey 'CredFromScriptK where
+instance PaymentAddress SharedKey 'CredFromScriptK where
     paymentAddress _ = error
         "does not make sense for SharedKey but want to use stateMachineSpec"
     liftPaymentAddress _ = error

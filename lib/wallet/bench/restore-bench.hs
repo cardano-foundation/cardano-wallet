@@ -86,13 +86,7 @@ import Cardano.Wallet.Network
     , NetworkLayer (..)
     )
 import Cardano.Wallet.Primitive.AddressDerivation
-    ( Depth (..)
-    , PaymentAddress
-    , PersistPrivateKey
-    , WalletKey
-    , digest
-    , publicKey
-    )
+    ( Depth (..), PersistPrivateKey, WalletKey, digest, publicKey )
 import Cardano.Wallet.Primitive.AddressDerivation.Byron
     ( ByronKey )
 import Cardano.Wallet.Primitive.AddressDerivation.Shelley
@@ -374,7 +368,7 @@ cardanoRestoreBench tr c socketFile = do
             (wid, WalletName wname, s)
 
     mkSeqAnyState'
-        :: forall (p :: Nat) (n :: NetworkDiscriminant). HasSNetworkId n
+        :: forall (p :: Nat) n. HasSNetworkId n
         => Proxy p
         -> Proxy n
         -> (ShelleyKey 'RootK XPrv, Passphrase "encryption")
@@ -385,7 +379,7 @@ cardanoRestoreBench tr c socketFile = do
 
 
     mkRndAnyState'
-        :: forall (p :: Nat) (n :: NetworkDiscriminant). ()
+        :: forall (p :: Nat) n. ()
         => Proxy p
         -> Proxy n
         -> ByronKey 'RootK XPrv
@@ -447,10 +441,9 @@ instance ToJSON BenchRndResults where
     toJSON = genericToJSON Aeson.defaultOptions
 
 benchmarksRnd
-    :: forall (n :: NetworkDiscriminant) s k p.
+    :: forall n s k p.
         ( s ~ RndAnyState n p
         , k ~ ByronKey
-        , PaymentAddress n k 'CredFromKeyK
         , HasSNetworkId n
         , KnownNat p
         )
@@ -560,11 +553,10 @@ instance ToJSON BenchSeqResults where
     toJSON = genericToJSON Aeson.defaultOptions
 
 benchmarksSeq
-    :: forall (n :: NetworkDiscriminant) s k p.
+    :: forall n s k p.
         ( s ~ SeqAnyState n k p
         , k ~ ShelleyKey
         , HasSNetworkId n
-        , PaymentAddress n k 'CredFromKeyK
         , KnownNat p
         )
     => Proxy n
@@ -646,7 +638,7 @@ instance ToJSON BenchBaselineResults where
 
 {- HLINT ignore bench_baseline_restoration "Use camelCase" -}
 bench_baseline_restoration
-    :: forall (n :: NetworkDiscriminant) .
+    :: forall n .
         ( HasSNetworkId n
         )
     => PipeliningStrategy (CardanoBlock StandardCrypto)
@@ -716,7 +708,7 @@ bench_baseline_restoration
 
 {- HLINT ignore bench_restoration "Use camelCase" -}
 bench_restoration
-    :: forall (n :: NetworkDiscriminant) (k :: Depth -> * -> *) s results.
+    :: forall n (k :: Depth -> * -> *) s results.
         ( IsOurs s RewardAccount
         , MaybeLight s
         , IsOwned s k 'CredFromKeyK
@@ -829,7 +821,7 @@ withWalletLayerTracer benchname pipelining traceToDisk act = do
         | otherwise -> act nullTracer
 
 dummyAddress
-    :: forall (n :: NetworkDiscriminant). HasSNetworkId n
+    :: forall n. HasSNetworkId n
     => Proxy n
     -> Address
 

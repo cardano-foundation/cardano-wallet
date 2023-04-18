@@ -119,7 +119,7 @@ spec = do
             (property prop_oursUnexpectedPrefix)
 
 prop_addressWithScriptFromOurVerKeyIxIn
-    :: forall (n :: NetworkDiscriminant). HasSNetworkId n
+    :: forall n. HasSNetworkId n
     => CatalystSharedState
     -> Index 'Soft 'CredFromScriptK
     -> Property
@@ -132,7 +132,7 @@ prop_addressWithScriptFromOurVerKeyIxIn (CatalystSharedState accXPub' accIx' pTe
     (Just (keyIx', _), _) = isShared @n addr sharedState
 
 prop_addressWithScriptFromOurVerKeyIxBeyond
-    :: forall (n :: NetworkDiscriminant). HasSNetworkId n
+    :: forall n. HasSNetworkId n
     => CatalystSharedState
     -> Index 'Soft 'CredFromScriptK
     -> Property
@@ -152,7 +152,7 @@ getAddrPool st = case ready st of
     Pending -> error "expected active state"
 
 prop_addressDiscoveryMakesAddressUsed
-    :: forall (n :: NetworkDiscriminant). HasSNetworkId n
+    :: forall n. HasSNetworkId n
     => CatalystSharedState
     -> Index 'Soft 'CredFromScriptK
     -> Property
@@ -167,7 +167,7 @@ prop_addressDiscoveryMakesAddressUsed (CatalystSharedState accXPub' accIx' pTemp
     ourAddrs = AddressPool.addresses (getAddrPool sharedState')
 
 prop_addressDoubleDiscovery
-    :: forall (n :: NetworkDiscriminant). HasSNetworkId n
+    :: forall n. HasSNetworkId n
     => CatalystSharedState
     -> Index 'Soft 'CredFromScriptK
     -> Property
@@ -182,7 +182,7 @@ prop_addressDoubleDiscovery (CatalystSharedState accXPub' accIx' pTemplate' dTem
     sharedState'' = isShared @n addr (snd sharedState')
 
 prop_addressDiscoveryImpossibleFromOtherAccXPub
-    :: forall (n :: NetworkDiscriminant). HasSNetworkId n
+    :: forall n. HasSNetworkId n
     => CatalystSharedState
     -> Index 'Soft 'CredFromScriptK
     -> SharedKey 'AccountK XPub
@@ -198,7 +198,7 @@ prop_addressDiscoveryImpossibleFromOtherAccXPub (CatalystSharedState _ accIx' pT
     sharedState = mkSharedStateFromAccountXPub @n accXPub' accIx' g pTemplate'' dTemplate'
 
 prop_addressDiscoveryImpossibleFromOtherAccountOfTheSameRootXPrv
-    :: forall (n :: NetworkDiscriminant). HasSNetworkId n
+    :: forall n. HasSNetworkId n
     => CatalystSharedState
     -> Index 'Soft 'CredFromScriptK
     -> (SharedKey 'RootK XPrv, Index 'Hardened 'AccountK, Index 'Hardened 'AccountK)
@@ -217,7 +217,7 @@ prop_addressDiscoveryImpossibleFromOtherAccountOfTheSameRootXPrv (CatalystShared
     addr = constructAddressFromIx @n UtxoExternal pTemplate''' dTemplate' keyIx
 
 prop_addressDiscoveryImpossibleWithinAccountButDifferentScript
-    :: forall (n :: NetworkDiscriminant). HasSNetworkId n
+    :: forall n. HasSNetworkId n
     => CatalystSharedState
     -> Index 'Soft 'CredFromScriptK
     -> OneCosignerScript
@@ -233,7 +233,7 @@ prop_addressDiscoveryImpossibleWithinAccountButDifferentScript (CatalystSharedSt
     addr = constructAddressFromIx @n UtxoExternal pTemplate'' dTemplate' keyIx
 
 prop_addressDiscoveryDoesNotChangeGapInvariance
-    :: forall (n :: NetworkDiscriminant). HasSNetworkId n
+    :: forall n. HasSNetworkId n
     => CatalystSharedState
     -> Index 'Soft 'CredFromScriptK
     -> Property

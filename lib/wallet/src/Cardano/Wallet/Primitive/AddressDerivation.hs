@@ -75,6 +75,10 @@ module Cardano.Wallet.Primitive.AddressDerivation
     , unsafePaymentKeyFingerprint
     , AddressParts (..)
     , toAddressParts
+    , liftPaymentAddressS
+    , liftDelegationAddressS
+    , paymentAddressS
+    , delegationAddressS
     ) where
 
 import Prelude
@@ -92,7 +96,7 @@ import Cardano.Wallet.Primitive.Types.Address
 import Cardano.Wallet.Primitive.Types.RewardAccount
     ( RewardAccount (..) )
 import Cardano.Wallet.Read.NetworkId
-    ( NetworkDiscriminant (..) )
+    ( HasSNetworkId (..), SNetworkId )
 import Control.Applicative
     ( (<|>) )
 import Control.DeepSeq
@@ -639,24 +643,39 @@ class BoundedAddressLength key where
 
 -- | Encoding of addresses for certain key types and backend targets.
 class MkKeyFingerprint key Address
-    => PaymentAddress (network :: NetworkDiscriminant) key ktype where
+    => PaymentAddress key ktype where
     -- | Convert a public key to a payment 'Address' valid for the given
     -- network discrimination.
     --
     -- Note that 'paymentAddress' is ambiguous and requires therefore a type
     -- application.
     paymentAddress
-        :: key ktype XPub
+        :: SNetworkId n
+        -> key ktype XPub
         -> Address
 
     -- | Lift a payment fingerprint back into a payment address.
     liftPaymentAddress
-        :: KeyFingerprint "payment" key
+        :: SNetworkId n
+        -> KeyFingerprint "payment" key
             -- ^ Payment fingerprint
         -> Address
 
-class PaymentAddress network key ktype
-    => DelegationAddress (network :: NetworkDiscriminant) key ktype where
+paymentAddressS :: forall n key ktype
+    . (PaymentAddress key ktype, HasSNetworkId n)
+    => key ktype XPub
+    -> Address
+paymentAddressS = paymentAddress @_ @ktype (sNetworkId @n)
+
+liftPaymentAddressS
+    :: forall n key ktype
+     . (PaymentAddress key ktype, HasSNetworkId n)
+    => KeyFingerprint "payment" key
+    -> Address
+liftPaymentAddressS = liftPaymentAddress @_ @ktype (sNetworkId @n)
+
+class PaymentAddress key ktype
+    => DelegationAddress key ktype where
     -- | Convert a public key and a staking key to a delegation 'Address' valid
     -- for the given network discrimination. Funds sent to this address will be
     -- delegated according to the delegation settings attached to the delegation
@@ -665,7 +684,8 @@ class PaymentAddress network key ktype
     -- Note that 'delegationAddress' is ambiguous and requires therefore a type
     -- application.
     delegationAddress
-        :: key ktype XPub
+        :: SNetworkId n
+        -> key ktype XPub
             -- ^ Payment key
         -> key ktype XPub
             -- ^ Staking key / Reward account
@@ -673,11 +693,27 @@ class PaymentAddress network key ktype
 
     -- | Lift a payment fingerprint back into a delegation address.
     liftDelegationAddress
-        :: KeyFingerprint "payment" key
+        :: SNetworkId n
+        -> KeyFingerprint "payment" key
             -- ^ Payment fingerprint
         -> key ktype XPub
             -- ^ Staking key / Reward account
         -> Address
+
+delegationAddressS :: forall n key ktype
+    . (DelegationAddress key ktype, HasSNetworkId n)
+    => key ktype XPub
+    -> key ktype XPub
+    -> Address
+delegationAddressS = delegationAddress @_ @ktype (sNetworkId @n)
+
+liftDelegationAddressS
+    :: forall n key ktype
+     . (DelegationAddress key ktype, HasSNetworkId n)
+    => KeyFingerprint "payment" key
+    -> key ktype XPub
+    -> Address
+liftDelegationAddressS = liftDelegationAddress @_ @ktype (sNetworkId @n)
 
 -- | Operations for saving a private key into a database, and restoring it from
 -- a database. The keys should be encoded in hexadecimal strings.

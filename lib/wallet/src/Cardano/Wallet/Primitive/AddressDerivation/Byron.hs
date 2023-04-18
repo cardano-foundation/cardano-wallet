@@ -81,9 +81,9 @@ import Cardano.Wallet.Primitive.Passphrase
 import Cardano.Wallet.Primitive.Types.Address
     ( Address (..) )
 import Cardano.Wallet.Primitive.Types.ProtocolMagic
-    ( ProtocolMagic (..), testnetMagic )
+    ( ProtocolMagic (..), magicSNetworkId )
 import Cardano.Wallet.Read.NetworkId
-    ( NetworkDiscriminant (..) )
+    ( SNetworkId (..) )
 import Control.DeepSeq
     ( NFData )
 import Crypto.Hash
@@ -102,8 +102,6 @@ import Data.Proxy
     ( Proxy (..) )
 import GHC.Generics
     ( Generic )
-import GHC.TypeLits
-    ( KnownNat )
 
 import qualified Cardano.Byron.Codec.Cbor as CBOR
 import qualified Cardano.Crypto.Wallet as CC
@@ -156,29 +154,25 @@ instance WalletKey ByronKey where
     liftRawKey = error "not supported"
     keyTypeDescriptor _ = "rnd"
 
-instance KnownNat pm => PaymentAddress ('Testnet pm) ByronKey 'CredFromKeyK where
-    paymentAddress k = Address
-        $ CBOR.toStrictByteString
-        $ CBOR.encodeAddress (getKey k)
-            [ CBOR.encodeDerivationPathAttr pwd acctIx addrIx
-            , CBOR.encodeProtocolMagicAttr (testnetMagic @pm)
-            ]
-      where
-        (acctIx, addrIx) = derivationPath k
-        pwd = payloadPassphrase k
-    liftPaymentAddress (KeyFingerprint bytes) =
-        Address bytes
+instance PaymentAddress ByronKey 'CredFromKeyK where
+    paymentAddress s@(STestnet _) k = Address
+            $ CBOR.toStrictByteString
+            $ CBOR.encodeAddress (getKey k)
+                [ CBOR.encodeDerivationPathAttr pwd acctIx addrIx
+                , CBOR.encodeProtocolMagicAttr (magicSNetworkId s)
+                ]
+        where
+            (acctIx, addrIx) = derivationPath k
+            pwd = payloadPassphrase k
+    paymentAddress SMainnet k = Address
+            $ CBOR.toStrictByteString
+            $ CBOR.encodeAddress (getKey k)
+                [ CBOR.encodeDerivationPathAttr pwd acctIx addrIx ]
+        where
+            (acctIx, addrIx) = derivationPath k
+            pwd = payloadPassphrase k
 
-instance PaymentAddress 'Mainnet ByronKey 'CredFromKeyK where
-    paymentAddress k = Address
-        $ CBOR.toStrictByteString
-        $ CBOR.encodeAddress (getKey k)
-            [ CBOR.encodeDerivationPathAttr pwd acctIx addrIx ]
-      where
-        (acctIx, addrIx) = derivationPath k
-        pwd = payloadPassphrase k
-    liftPaymentAddress (KeyFingerprint bytes) =
-        Address bytes
+    liftPaymentAddress _ (KeyFingerprint bytes) = Address bytes
 
 instance MkKeyFingerprint ByronKey Address where
     paymentKeyFingerprint addr@(Address bytes) =
