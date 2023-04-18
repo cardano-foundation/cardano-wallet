@@ -190,8 +190,7 @@ newtype DBOpen stm m s (k :: Depth -> Type -> Type) = DBOpen
 data DBLayer m s k = forall stm. (MonadIO stm, MonadFail stm) => DBLayer
     { walletId_ :: WalletId
     , initializeWallet
-        :: WalletId
-        -> Wallet s
+        :: Wallet s
         -> WalletMetadata
         -> [(Tx, TxMeta)]
         -> GenesisParameters
@@ -634,8 +633,7 @@ updateSubmissions dbCheckpoints wid emap xs
 -- | A database layer for a collection of wallets
 data DBWallets stm s = DBWallets
     { initializeWallet_
-        :: WalletId
-        -> Wallet s
+        :: Wallet s
         -> WalletMetadata
         -> [(Tx, TxMeta)]
         -> GenesisParameters

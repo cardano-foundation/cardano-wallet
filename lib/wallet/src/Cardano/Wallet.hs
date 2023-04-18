@@ -794,7 +794,7 @@ createWallet ctx wid wname s =
                     }
         withExceptT (const $ ErrWalletAlreadyExists wid)
             $ mapExceptT atomically
-            $ initializeWallet wid cp meta hist gp $> wid
+            $ initializeWallet cp meta hist gp $> wid
   where
     db = ctx ^. dbLayer @m @s @k
     (block0, NetworkParameters gp _sp _pp) = ctx ^. genesisData
@@ -833,7 +833,7 @@ createIcarusWallet ctx wid wname credentials =
                     }
         withExceptT (const $ ErrWalletAlreadyExists wid)
             $ mapExceptT atomically
-            $ initializeWallet wid cp meta hist gp $> wid
+            $ initializeWallet cp meta hist gp $> wid
   where
     db = ctx ^. dbLayer @IO @s @k
     (block0, NetworkParameters gp _sp _pp) = ctx ^. genesisData

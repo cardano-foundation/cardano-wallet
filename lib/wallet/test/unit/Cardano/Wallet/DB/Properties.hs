@@ -120,7 +120,7 @@ withFreshWallet wid withFreshDB f = do
         run
             $ atomically
             $ unsafeRunExceptT
-            $ initializeWallet wid cp0 meta mempty gp
+            $ initializeWallet cp0 meta mempty gp
         f db wid
 
 type TestOnLayer s =
@@ -361,9 +361,9 @@ prop_createWalletTwice test (wid, InitialCheckpoint cp0, meta) = monadicIO
     $ \DBLayer {..} -> do
         liftIO $ do
             let err = ErrWalletAlreadyInitialized
-            atomically (runExceptT $ initializeWallet wid cp0 meta mempty gp)
+            atomically (runExceptT $ initializeWallet cp0 meta mempty gp)
                 `shouldReturn` Right ()
-            atomically (runExceptT $ initializeWallet wid cp0 meta mempty gp)
+            atomically (runExceptT $ initializeWallet cp0 meta mempty gp)
                 `shouldReturn` Left err
 
 -- | Checks that a given resource can be read after having been inserted in DB.
@@ -576,7 +576,7 @@ prop_rollbackCheckpoint test (InitialCheckpoint cp0) (MockChain chain) = monadic
         ShowFmt meta <- namedPick "Wallet Metadata" arbitrary
         ShowFmt point <- namedPick "Rollback target" (elements $ ShowFmt <$> cps)
         run $ atomically $ do
-            unsafeRunExceptT $ initializeWallet testWid cp0 meta mempty gp
+            unsafeRunExceptT $ initializeWallet cp0 meta mempty gp
             unsafeRunExceptT $ forM_ cps (putCheckpoint testWid)
         let tip = currentTip point
         point' <-
@@ -616,7 +616,7 @@ prop_rollbackTxHistory test (InitialCheckpoint cp0) (GenTxHistory txs0) = do
         monitor $ label ("Forgotten tx after point: " <> show (L.length ixs))
         monitor $ cover 50 (not $ null ixs) "rolling back something"
         run $ atomically $ do
-            unsafeRunExceptT $ initializeWallet testWid cp0 meta mempty gp
+            unsafeRunExceptT $ initializeWallet cp0 meta mempty gp
             unsafeRunExceptT $ putTxHistory testWid txs0
         point <-
             run

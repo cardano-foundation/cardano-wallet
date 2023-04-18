@@ -103,9 +103,9 @@ newDBLayer timeInterpreter wid = do
         -----------------------------------------------------------------------}
 
         { walletId_ = wid
-        , initializeWallet = \pk cp meta txs gp -> ExceptT $
+        , initializeWallet = \cp meta txs gp -> ExceptT $
                 alterDB errWalletAlreadyExists db $
-                mInitializeWallet pk cp meta txs gp
+                mInitializeWallet cp meta txs gp
 
         {-----------------------------------------------------------------------
                                     Checkpoints

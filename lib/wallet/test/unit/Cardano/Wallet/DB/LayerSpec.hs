@@ -349,13 +349,13 @@ loggingSpec = withLoggingDB @(SeqState 'Mainnet ShelleyKey) $ do
     describe "Sqlite query logging" $ do
         it "should log queries at DEBUG level" $ \(getLogs, DBLayer{..}) -> do
             atomically $ unsafeRunExceptT $
-                initializeWallet testWid testCpSeq testMetadata mempty gp
+                initializeWallet testCpSeq testMetadata mempty gp
             logs <- getLogs
             logs `shouldHaveMsgQuery` "INSERT"
 
         it "should not log query parameters" $ \(getLogs, DBLayer{..}) -> do
             atomically $ unsafeRunExceptT $
-                initializeWallet testWid testCpSeq testMetadata mempty gp
+                initializeWallet testCpSeq testMetadata mempty gp
             let walletName = T.unpack $ coerce $ name testMetadata
             msgs <- T.unlines . mapMaybe getMsgQuery <$> getLogs
             T.unpack msgs `shouldNotContain` walletName
@@ -477,7 +477,7 @@ fileModeSpec =  do
     describe "Sqlite database file" $ do
         let writeSomething DBLayer{..} = do
                 atomically $ unsafeRunExceptT $
-                    initializeWallet testWid testCpSeq testMetadata mempty gp
+                    initializeWallet testCpSeq testMetadata mempty gp
             tempFilesAbsent fp = do
                 doesFileExist fp `shouldReturn` True
                 doesFileExist (fp <> "-wal") `shouldReturn` False
@@ -495,7 +495,7 @@ fileModeSpec =  do
         it "create and list wallet works" $ \f -> do
             withShelleyFileDBLayer f $ \DBLayer{..} -> do
                 atomically $ unsafeRunExceptT $
-                    initializeWallet testWid testCp testMetadata mempty gp
+                    initializeWallet testCp testMetadata mempty gp
             testReopening f getWalletId' testWid
 
         it "create and get meta works" $ \f -> do
@@ -504,14 +504,14 @@ fileModeSpec =  do
                 let meta = testMetadata
                        { passphraseInfo = Just $ WalletPassphraseInfo now EncryptWithPBKDF2 }
                 atomically $ unsafeRunExceptT $
-                    initializeWallet testWid testCp meta mempty gp
+                    initializeWallet testCp meta mempty gp
                 return (meta, WalletDelegation NotDelegating [])
             testReopening f (`readWalletMeta'` testWid) (Just meta)
 
         it "create and get private key" $ \f -> do
             (k, h) <- withShelleyFileDBLayer f $ \db@DBLayer{..} -> do
                 atomically $ unsafeRunExceptT $
-                    initializeWallet testWid testCp testMetadata mempty gp
+                    initializeWallet testCp testMetadata mempty gp
                 unsafeRunExceptT $ attachPrivateKey db testWid
             testReopening f (`readPrivateKey'` testWid) (Just (k, h))
 
@@ -519,7 +519,7 @@ fileModeSpec =  do
             withShelleyFileDBLayer f $ \DBLayer{..} -> do
                 atomically $ do
                     unsafeRunExceptT $
-                        initializeWallet testWid testCp testMetadata mempty gp
+                        initializeWallet testCp testMetadata mempty gp
                     unsafeRunExceptT $ putTxHistory testWid testTxs
             testReopening
                 f
@@ -532,7 +532,7 @@ fileModeSpec =  do
             withShelleyFileDBLayer f $ \DBLayer{..} -> do
                 atomically $ do
                     unsafeRunExceptT $
-                        initializeWallet testWid testCp testMetadata mempty gp
+                        initializeWallet testCp testMetadata mempty gp
                     unsafeRunExceptT $ putTxHistory testWid testTxs
             testReopening
                 f
@@ -545,7 +545,7 @@ fileModeSpec =  do
             withShelleyFileDBLayer f $ \DBLayer{..} -> do
                 atomically $ do
                     unsafeRunExceptT $
-                        initializeWallet testWid testCp testMetadata mempty gp
+                        initializeWallet testCp testMetadata mempty gp
                     unsafeRunExceptT $ putCheckpoint testWid testCp
             testReopening f (`readCheckpoint'` testWid) (Just testCp)
 
@@ -588,7 +588,7 @@ fileModeSpec =  do
                             knownAddresses (getState testCp)
 
                     atomically $ unsafeRunExceptT $ initializeWallet
-                        testWid testCp testMetadata mempty gp
+                        testCp testMetadata mempty gp
 
                     ------------------------------------------------------------
                     -- Transaction 1
@@ -729,7 +729,7 @@ fileModeSpec =  do
                         knownAddresses (getState testCp)
 
                 atomically $ unsafeRunExceptT $ initializeWallet
-                    testWid testCp testMetadata mempty gp
+                    testCp testMetadata mempty gp
 
                 let mockApplyBlock1 = mockApply db (dummyHash "block1")
                         [ Tx
@@ -822,7 +822,7 @@ prop_randomOpChunks (NonEmpty (p : pairs)) =
                 dbF `shouldBeConsistentWith` dbM
     boot DBLayer{..} (cp, meta) = do
         let cp0 = imposeGenesisState cp
-        atomically $ unsafeRunExceptT $ initializeWallet testWid cp0 meta mempty gp
+        atomically $ unsafeRunExceptT $ initializeWallet cp0 meta mempty gp
 
     insertPair
         :: DBLayer IO s k

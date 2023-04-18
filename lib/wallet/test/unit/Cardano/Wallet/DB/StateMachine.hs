@@ -340,7 +340,7 @@ unMockPrivKeyHash = PassphraseHash .  BA.convert . B8.pack
 -------------------------------------------------------------------------------}
 
 data Cmd s wid
-    = CreateWallet MWid (Wallet s) WalletMetadata TxHistory GenesisParameters
+    = CreateWallet (Wallet s) WalletMetadata TxHistory GenesisParameters
     | PutCheckpoint wid (Wallet s)
     | ReadCheckpoint wid
     | ListCheckpoints wid
@@ -400,9 +400,9 @@ instance Traversable (Resp s) where
 
 runMock :: HasCallStack => Cmd s MWid -> Mock s -> (Resp s MWid, Mock s)
 runMock = \case
-    CreateWallet _wid wal meta txs gp -> \db@(Database wid _ _) ->
+    CreateWallet wal meta txs gp -> \db@(Database wid _ _) ->
         first (Resp . fmap (const (NewWallet wid)))
-            . mInitializeWallet wid wal meta txs gp $ db
+            . mInitializeWallet wal meta txs gp $ db
     PutCheckpoint _wid wal ->
         first (Resp . fmap Unit) . mPutCheckpoint wal
     ListCheckpoints _wid ->
@@ -465,10 +465,10 @@ runIO DBLayer{..} = fmap Resp . go
         :: Cmd s WalletId
         -> m (Either Err (Success s WalletId))
     go = \case
-        CreateWallet _wid wal meta txs gp ->
+        CreateWallet wal meta txs gp ->
             catchWalletAlreadyExists (const (NewWallet wid)) $
             mapExceptT atomically $
-            initializeWallet wid wal meta txs gp
+            initializeWallet wal meta txs gp
         PutCheckpoint _wid wal -> catchNoSuchWallet Unit $
             runDB atomically $ putCheckpoint wid wal
         ReadCheckpoint _wid -> Right . Checkpoint <$>
@@ -620,16 +620,11 @@ generatorWithoutId
 generatorWithoutId =
     [ declareGenerator "CreateWallet" 5
         $ CreateWallet
-            <$> genId
-            <*> (getInitialCheckpoint <$> arbitrary)
+            <$> (getInitialCheckpoint <$> arbitrary)
             <*> arbitrary
             <*> fmap unGenTxHistory arbitrary
             <*> pure dummyGenesisParameters
     ]
-  where
-    genId :: Gen MWid
-    genId = MWid <$> elements ["a", "b", "c"]
-
 generatorWithWid
     :: forall s r. Arbitrary (Wallet s)
     => [Reference WalletId r]
@@ -704,8 +699,8 @@ shrinker (At cmd) = case cmd of
         [ At $ PutTxHistory wid h'
         | h' <- map unGenTxHistory . shrink . GenTxHistory $ h
         ]
-    CreateWallet wid wal met txs gp ->
-        [ At $ CreateWallet wid wal' met' (unGenTxHistory txs') gp
+    CreateWallet wal met txs gp ->
+        [ At $ CreateWallet wal' met' (unGenTxHistory txs') gp
         | (txs', wal', met') <- shrink (GenTxHistory txs, wal, met)
         ]
     PutWalletMeta wid met ->
@@ -1021,8 +1016,7 @@ allTags = enumerate
 
 tag :: forall s. [Event s Symbolic] -> [Tag]
 tag = Foldl.fold $ catMaybes <$> sequenceA
-    [ createWalletTwice
-    , readTransactions (not . null) SuccessfulReadTxHistory
+    [ readTransactions (not . null) SuccessfulReadTxHistory
     , readTransactions null UnsuccessfulReadTxHistory
     , txUnsorted inputs TxUnsortedInputs
     , txUnsorted outputs TxUnsortedOutputs
@@ -1039,14 +1033,6 @@ tag = Foldl.fold $ catMaybes <$> sequenceA
             Just (wids ! wid)
         _otherwise ->
             Nothing
-
-    createWalletTwice :: Fold (Event s Symbolic) (Maybe Tag)
-    createWalletTwice = countAction CreateWalletTwice (>= 2) match
-      where
-        match :: Event s Symbolic -> Maybe MWid
-        match ev = case (cmd ev, mockResp ev) of
-            (At (CreateWallet wid _ _ _ _), Resp _) -> Just wid
-            _otherwise -> Nothing
 
     countAction
         :: forall k. Ord k => Tag -> (Int -> Bool)

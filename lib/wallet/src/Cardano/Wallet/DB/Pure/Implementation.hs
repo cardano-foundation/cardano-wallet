@@ -219,13 +219,12 @@ mCleanDB wid _ = (Right (), emptyDatabase wid)
 
 mInitializeWallet
     :: forall wid s xprv
-    .  wid
-    -> Wallet s
+    .   Wallet s
     -> WalletMetadata
     -> TxHistory
     -> GenesisParameters
     -> ModelOp wid s xprv ()
-mInitializeWallet _wid cp meta txs0 gp db@Database {walletId, wallet,txs}
+mInitializeWallet cp meta txs0 gp db@Database {walletId, wallet,txs}
     | isJust wallet = (Left WalletAlreadyInitialized, db)
     | otherwise =
         let
