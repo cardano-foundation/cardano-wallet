@@ -107,7 +107,6 @@ import Test.Integration.Framework.DSL
     , emptyRandomWallet
     , emptyWallet
     , eventually
-    , expectErrorCode
     , expectErrorInfo
     , expectErrorMessage
     , expectField
@@ -1277,7 +1276,7 @@ spec = describe "SHELLEY_TRANSACTIONS" $ do
 
         verify r
             [ expectResponseCode HTTP.status403
-            , expectErrorCode "transaction_is_too_big"
+            , expectErrorInfo (`shouldBe` TransactionIsTooBig)
             ]
 
     describe "TRANS_ESTIMATE_08 - Bad payload" $ do
