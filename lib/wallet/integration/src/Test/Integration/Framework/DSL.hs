@@ -34,6 +34,7 @@ module Test.Integration.Framework.DSL
     , expectError
     , expectErrorMessage
     , expectErrorCode
+    , expectErrorInfo
     , expectField
     , expectListField
     , expectListSize
@@ -558,6 +559,15 @@ expectErrorCode expectedErrCode = snd >>> \case
         expectationFailure $
             "Expected a 'ClientError' with code " <> show expectedErrCode
             <> " but got " <> show otherError
+
+-- | Defines an expectation about an API error, assuming it can successfully
+--   be decoded as an 'ApiErrorInfo' object.
+expectErrorInfo
+    :: (HasCallStack, Show a)
+    => (ApiErrorInfo -> m ())
+    -> (s, Either RequestException a)
+    -> m ()
+expectErrorInfo f = f . decodeErrorInfo
 
 -- | Decodes the information about an error into an 'ApiErrorInfo' value.
 decodeErrorInfo
