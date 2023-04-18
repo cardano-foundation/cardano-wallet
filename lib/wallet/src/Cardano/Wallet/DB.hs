@@ -200,10 +200,6 @@ data DBLayer m s k = forall stm. (MonadIO stm, MonadFail stm) => DBLayer
         -- 'putWalletMeta', 'putTxHistory' or 'putProtocolParameters' will
         -- actually all fail if they are called _first_ on a wallet.
 
-    , getWalletId
-        :: ExceptT ErrWalletNotInitialized stm WalletId
-        -- ^ Get the list of all known wallets in the DB, possibly empty.
-
     , walletsDB
         :: DBVar stm (DeltaMap WalletId (DeltaWalletState s))
         -- ^ 'DBVar' containing the 'WalletState' of each wallet in the database.
@@ -503,7 +499,6 @@ mkDBLayerFromParts
 mkDBLayerFromParts ti wid_ DBLayerCollection{..} = DBLayer
     { walletId_ = wid_
     , initializeWallet = initializeWallet_ dbWallets
-    , getWalletId = getWalletId_ dbWallets
     , walletsDB = walletsDB_ dbCheckpoints
     , putCheckpoint = putCheckpoint_ dbCheckpoints
     , readCheckpoint = readCheckpoint'

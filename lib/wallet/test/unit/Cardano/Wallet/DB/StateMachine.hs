@@ -71,7 +71,6 @@ import Cardano.Wallet.DB.Pure.Implementation
     , TxHistory
     , WalletDatabase (..)
     , emptyDatabase
-    , mGetWalletId
     , mInitializeWallet
     , mIsStakeKeyRegistered
     , mListCheckpoints
@@ -342,7 +341,6 @@ unMockPrivKeyHash = PassphraseHash .  BA.convert . B8.pack
 
 data Cmd s wid
     = CreateWallet MWid (Wallet s) WalletMetadata TxHistory GenesisParameters
-    | GetWalletId
     | PutCheckpoint wid (Wallet s)
     | ReadCheckpoint wid
     | ListCheckpoints wid
@@ -405,8 +403,6 @@ runMock = \case
     CreateWallet wid wal meta txs gp ->
         first (Resp . fmap (const (NewWallet wid)))
             . mInitializeWallet wid wal meta txs gp
-    GetWalletId ->
-        first (Resp . fmap WalletId') . mGetWalletId
     PutCheckpoint _wid wal ->
         first (Resp . fmap Unit) . mPutCheckpoint wal
     ListCheckpoints _wid ->
@@ -473,8 +469,6 @@ runIO wid DBLayer{..} = fmap Resp . go
             catchWalletAlreadyExists (const (NewWallet wid)) $
             mapExceptT atomically $
             initializeWallet wid wal meta txs gp
-        GetWalletId -> bimap (const WalletNotInitialized) WalletId'
-            <$> atomically (runExceptT getWalletId)
         PutCheckpoint _wid wal -> catchNoSuchWallet Unit $
             runDB atomically $ putCheckpoint wid wal
         ReadCheckpoint _wid -> Right . Checkpoint <$>
@@ -641,9 +635,7 @@ generatorWithWid
     => [Reference WalletId r]
     -> [(String, (Int, Gen (Cmd s (Reference WalletId r))))]
 generatorWithWid wids =
-    [ declareGenerator "ListWallets" 5
-        $ pure GetWalletId
-    , declareGenerator "PutCheckpoints" 5
+    [ declareGenerator "PutCheckpoints" 5
         $ PutCheckpoint <$> genId <*> arbitrary
     , declareGenerator "ReadCheckpoint" 5
         $ ReadCheckpoint <$> genId
@@ -1096,8 +1088,6 @@ tag = Foldl.fold $ catMaybes <$> sequenceA
             case (cmd ev, mockResp ev) of
                 (At (CreateWallet wid _ _ _ _), Resp (Right _)) ->
                     Map.insert wid False created
-                (At GetWalletId, Resp (Right (WalletId' wid))) ->
-                    foldr (Map.adjust (const True)) created [wid]
                 _otherwise ->
                     created
 

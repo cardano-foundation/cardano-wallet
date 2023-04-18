@@ -178,7 +178,7 @@ import Control.Monad
 import Control.Monad.IO.Class
     ( MonadIO, liftIO )
 import Control.Monad.Trans.Except
-    ( ExceptT, mapExceptT, runExceptT )
+    ( ExceptT, mapExceptT )
 import Control.Tracer
     ( Tracer )
 import Crypto.Hash
@@ -360,7 +360,7 @@ loggingSpec = withLoggingDB @(SeqState 'Mainnet ShelleyKey) $ do
     describe "Sqlite observables" $ do
         it "should measure query timings" $ \(getLogs, DBLayer{..}) -> do
             let count = 5
-            replicateM_ count (atomically $ runExceptT getWalletId)
+            replicateM_ count (atomically $ readCheckpoint walletId_)
             msgs <- findObserveDiffs <$> getLogs
             length msgs `shouldBe` count * 2
 
@@ -475,8 +475,6 @@ fileModeSpec =  do
         let writeSomething DBLayer{..} = do
                 atomically $ unsafeRunExceptT $
                     initializeWallet testWid testCpSeq testMetadata mempty gp
-                atomically (runExceptT getWalletId) `shouldReturn`
-                    (Right testWid)
             tempFilesAbsent fp = do
                 doesFileExist fp `shouldReturn` True
                 doesFileExist (fp <> "-wal") `shouldReturn` False
@@ -917,10 +915,10 @@ withShelleyFileDBLayer fp = withDBLayer
     testWid
 
 getWalletId'
-    :: DBLayer m s k
+    :: Applicative m
+    => DBLayer m s k
     -> m WalletId
-getWalletId' DBLayer{..} =
-    atomically $ unsafeRunExceptT getWalletId
+getWalletId' DBLayer{..} = pure walletId_
 
 readCheckpoint'
     :: DBLayer m s k
@@ -1181,8 +1179,8 @@ testMigrationTxMetaFee
 testMigrationTxMetaFee dbName expectedLength caseByCase = do
     (logs, result) <- withDBLayerFromCopiedFile @ShelleyKey dbName
         $ \DBLayer{..} -> atomically $ do
-            wid <- unsafeRunExceptT getWalletId
-            readTransactions wid Nothing Descending wholeRange Nothing Nothing
+            readTransactions walletId_
+                Nothing Descending wholeRange Nothing Nothing
 
     -- Check that we've indeed logged a needed migration for 'fee'
     length (filter isMsgManualMigration logs) `shouldBe` 1
@@ -1223,8 +1221,8 @@ testMigrationCleanupCheckpoints
 testMigrationCleanupCheckpoints dbName genesisParameters tip = do
     (logs, result) <- withDBLayerFromCopiedFile @ShelleyKey dbName
         $ \DBLayer{..} -> atomically $ do
-            wid <- unsafeRunExceptT getWalletId
-            (,) <$> readGenesisParameters wid <*> readCheckpoint wid
+            (,) <$> readGenesisParameters walletId_
+                <*> readCheckpoint walletId_
 
     length (filter (isMsgManualMigration fieldGenesisHash) logs) `shouldBe` 1
     length (filter (isMsgManualMigration fieldGenesisStart) logs) `shouldBe` 1
@@ -1245,8 +1243,7 @@ testMigrationRole
 testMigrationRole dbName = do
     (logs, Just cp) <- withDBLayerFromCopiedFile @ShelleyKey dbName
         $ \DBLayer{..} -> atomically $ do
-            wid <- unsafeRunExceptT getWalletId
-            readCheckpoint wid
+            readCheckpoint walletId_
 
     let migrationMsg = filter isMsgManualMigration logs
     length migrationMsg `shouldBe` 3
@@ -1273,8 +1270,7 @@ testMigrationSeqStateDerivationPrefix
 testMigrationSeqStateDerivationPrefix dbName prefix = do
     (logs, Just cp) <- withDBLayerFromCopiedFile @k @s dbName
         $ \DBLayer{..} -> atomically $ do
-            wid <- unsafeRunExceptT getWalletId
-            readCheckpoint wid
+            readCheckpoint walletId_
 
     let migrationMsg = filter isMsgManualMigration logs
     length migrationMsg `shouldBe` 1
