@@ -569,8 +569,8 @@ data Model s r
 
 deriving instance (Show1 r, Show s) => Show (Model s r)
 
-initModel :: Model s r
-initModel = Model emptyDatabase []
+initModel :: MWid -> Model s r
+initModel wid = Model (emptyDatabase wid) []
 
 toMock :: (Functor (f s), Eq1 r) => Model s r -> f s :@ r -> f s MWid
 toMock (Model _ wids) (At fr) = fmap (wids !) fr
@@ -784,18 +784,18 @@ type TestConstraints s k =
 
 sm
     :: (MonadIO m, TestConstraints s k)
-    => WalletId
+    => MWid
     -> DBLayer m s k
     -> StateMachine (Model s) (At (Cmd s)) m (At (Resp s))
-sm wid db = QSM.StateMachine
-    { initModel = initModel
+sm mwid db = QSM.StateMachine
+    { initModel = initModel mwid
     , transition = transition
     , precondition = precondition
     , postcondition = postcondition
     , invariant = Nothing
     , generator = generator
     , shrinker = const shrinker
-    , semantics = semantics wid db
+    , semantics = semantics (unMockWid mwid) db
     , mock = symbolicResp
     , cleanup = const $ pure ()
     }
@@ -1205,8 +1205,8 @@ execCmd
 execCmd model (QSM.Command cmd resp _vars) =
     lockstep model cmd resp
 
-execCmds :: QSM.Commands (At (Cmd s)) (At (Resp s)) -> [Event s Symbolic]
-execCmds = \(QSM.Commands cs) -> go initModel cs
+execCmds :: MWid -> QSM.Commands (At (Cmd s)) (At (Resp s)) -> [Event s Symbolic]
+execCmds mwid = \(QSM.Commands cs) -> go (initModel mwid) cs
   where
     go
         :: Model s Symbolic
@@ -1230,8 +1230,9 @@ showLabelledExamples mReplay = do
             , replay = Just (mkQCGen replaySeed, 0)
             }
     labelledExamplesWith args $
-        forAllCommands (sm @IO @s @k testWid dbLayerUnused) Nothing $ \cmds ->
-            repeatedly collect (tag . execCmds $ cmds) (property True)
+        forAllCommands (sm @IO @s @k testMWid dbLayerUnused) Nothing $ \cmds ->
+            repeatedly collect (tag . (execCmds testMWid) $ cmds)
+                (property True)
 
 repeatedly :: (a -> b -> b) -> ([a] -> b -> b)
 repeatedly = flip . L.foldl' . flip
@@ -1239,8 +1240,11 @@ repeatedly = flip . L.foldl' . flip
 {-------------------------------------------------------------------------------
   Top-level tests
 -------------------------------------------------------------------------------}
+testMWid :: MWid
+testMWid = MWid "test"
+
 testWid :: WalletId
-testWid = WalletId (hash ("test" :: ByteString))
+testWid = unMockWid testMWid
 
 prop_sequential
     :: forall s k. (TestConstraints s k)
@@ -1248,10 +1252,10 @@ prop_sequential
     -> Property
 prop_sequential newDB =
     QC.checkCoverage $
-    forAllCommands (sm @IO @s @k testWid dbLayerUnused) Nothing $ \cmds ->
+    forAllCommands (sm @IO @s @k testMWid dbLayerUnused) Nothing $ \cmds ->
         monadicIO $ do
             (destroyDB, db) <- run (newDB testWid)
-            let sm' = sm testWid db
+            let sm' = sm testMWid db
             (hist, _model, res) <- runCommands sm' cmds
             prettyCommands sm' hist
                 $ measureTagCoverage cmds
@@ -1265,7 +1269,7 @@ prop_sequential newDB =
         measureTag p t = QC.cover 5 (t `Set.member` matchedTags) (show t) p
 
         matchedTags :: Set Tag
-        matchedTags = Set.fromList $ tag $ execCmds cmds
+        matchedTags = Set.fromList $ tag $ (execCmds testMWid) cmds
 
 -- Controls that generators and shrinkers can run within a reasonable amount of
 -- time. We have been bitten several times already by generators which took much
