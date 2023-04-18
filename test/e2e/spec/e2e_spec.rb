@@ -3018,9 +3018,8 @@ RSpec.describe 'Cardano Wallet E2E tests', :all, :e2e do
         tx_collateral(tx, present: false)
         tx_collateral_outputs(tx, present: false)
         tx_metadata(tx, nil)
-        # ADP-2298 - Deposit_returned is falsely reported on some incoming transactions (intermittently)
-        # tx_deposits(tx, deposit_taken: 0, deposit_returned: deposit)
-        tx_withdrawals(tx, present: false)
+        tx_deposits(tx, deposit_taken: 0, deposit_returned: deposit)
+        tx_withdrawals(tx, present: true) # automatic withdrawal
         tx_mint_burn(tx, mint: [], burn: [])
         tx_extra_signatures(tx, present: false)
         tx_script_integrity(tx, present: false)

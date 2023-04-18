@@ -1207,11 +1207,10 @@ RSpec.describe 'Cardano Wallet E2E tests - Shared wallets', :all, :e2e, :shared 
         tx_decoded = SHARED.transactions.decode(@wid_sha, tx_constructed['transaction'])
         expect(tx_decoded).to be_correct_and_respond 202
 
-        # TODO: although you can construct and decode delegation, deposit_taken /deposit_returned are not shown atm
-        # deposit_taken = tx_constructed['coin_selection']['deposits_taken'].first['quantity']
-        # decoded_deposit_taken = tx_decoded['deposits_taken'].first['quantity']
-        # expect(deposit_taken).to eq decoded_deposit_taken
-        # expect(deposit_taken).to eq expected_deposit
+        deposit_taken = tx_constructed['coin_selection']['deposits_taken'].first['quantity']
+        decoded_deposit_taken = tx_decoded['deposits_taken'].first['quantity']
+        expect(deposit_taken).to eq decoded_deposit_taken
+        expect(deposit_taken).to eq expected_deposit
 
         expected_fee = tx_constructed['fee']['quantity']
         decoded_fee = tx_decoded['fee']['quantity']
@@ -1226,12 +1225,19 @@ RSpec.describe 'Cardano Wallet E2E tests - Shared wallets', :all, :e2e, :shared 
         expect(tx_decoded['collateral']).to eq []
         expect(tx_decoded['collateral_outputs']).to eq []
         expect(tx_decoded['metadata']).to eq nil
-        expect(tx_decoded['deposits_taken']).to eq []
         expect(tx_decoded['deposits_returned']).to eq []
         expect(tx_decoded['withdrawals']).to eq []
         expect(tx_decoded['mint']).to eq({ 'tokens' => [] })
         expect(tx_decoded['burn']).to eq({ 'tokens' => [] })
-        expect(tx_decoded['certificates']).to eq []
+        
+        # Certificates
+        expect(tx_decoded['certificates']).to include(have_key('certificate_type')).twice
+        expect(tx_decoded['certificates']).to include(have_value('register_reward_account')).once
+        expect(tx_decoded['certificates']).to include(have_value('join_pool')).once
+        expect(tx_decoded['certificates']).to include(have_key('reward_account_path')).twice
+        expect(tx_decoded['certificates']).to include(have_value(%w[1854H 1815H 0H 2 0])).twice
+        expect(tx_decoded['certificates']).to include(have_key('pool')).once
+        expect(tx_decoded['certificates']).to include(have_value(pool_id)).once
 
         tx_signed = SHARED.transactions.sign(@wid_sha, PASS, tx_constructed['transaction'])
         expect(tx_signed).to be_correct_and_respond 202
