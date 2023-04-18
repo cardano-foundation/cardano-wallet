@@ -88,7 +88,10 @@ newDBLayer
     -> m (DBLayer m s k)
 newDBLayer timeInterpreter wid = do
     lock <- newMVar ()
-    db <- newMVar (emptyDatabase :: Database WalletId s (k 'RootK XPrv, PassphraseHash))
+    db <- newMVar
+            (emptyDatabase wid
+                :: Database WalletId s (k 'RootK XPrv, PassphraseHash)
+            )
     let getWalletId' = ExceptT
             $ alterDB errWalletNotInitialized db mGetWalletId
     let

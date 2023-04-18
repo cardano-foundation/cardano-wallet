@@ -45,7 +45,6 @@
 module Cardano.Wallet.DB.StateMachine
     ( prop_sequential
     , validateGenerators
-    , showLabelledExamples
     , TestConstraints
     ) where
 
@@ -72,7 +71,6 @@ import Cardano.Wallet.DB.Pure.Implementation
     , TxHistory
     , WalletDatabase (..)
     , emptyDatabase
-    , mGetWalletId
     , mInitializeWallet
     , mIsStakeKeyRegistered
     , mListCheckpoints
@@ -229,30 +227,22 @@ import GHC.Generics
     ( Generic, Generic1 )
 import GHC.Stack
     ( HasCallStack, callStack )
-import System.Random
-    ( getStdRandom, randomR )
 import Test.Hspec
     ( SpecWith, describe, expectationFailure, it )
 import Test.QuickCheck
     ( Arbitrary (..)
-    , Args (..)
     , Gen
     , Property
     , applyArbitrary2
     , arbitraryBoundedEnum
-    , collect
     , elements
     , frequency
     , generate
-    , labelledExamplesWith
-    , property
     , resize
     , (===)
     )
 import Test.QuickCheck.Monadic
     ( monadicIO, run )
-import Test.QuickCheck.Random
-    ( mkQCGen )
 import Test.StateMachine
     ( CommandNames (..)
     , Concrete
@@ -351,7 +341,6 @@ unMockPrivKeyHash = PassphraseHash .  BA.convert . B8.pack
 
 data Cmd s wid
     = CreateWallet MWid (Wallet s) WalletMetadata TxHistory GenesisParameters
-    | GetWalletId
     | PutCheckpoint wid (Wallet s)
     | ReadCheckpoint wid
     | ListCheckpoints wid
@@ -411,11 +400,9 @@ instance Traversable (Resp s) where
 
 runMock :: HasCallStack => Cmd s MWid -> Mock s -> (Resp s MWid, Mock s)
 runMock = \case
-    CreateWallet wid wal meta txs gp ->
+    CreateWallet _wid wal meta txs gp -> \db@(Database wid _ _) ->
         first (Resp . fmap (const (NewWallet wid)))
-            . mInitializeWallet wid wal meta txs gp
-    GetWalletId ->
-        first (Resp . fmap WalletId') . mGetWalletId
+            . mInitializeWallet wid wal meta txs gp $ db
     PutCheckpoint _wid wal ->
         first (Resp . fmap Unit) . mPutCheckpoint wal
     ListCheckpoints _wid ->
@@ -464,12 +451,12 @@ runMock = \case
 
 runIO
     :: forall m s k. (MonadIO m, MockPrivKey (k 'RootK))
-    => WalletId
-    -> DBLayer m s k
+    => DBLayer m s k
     -> Cmd s WalletId
     -> m (Resp s WalletId)
-runIO wid DBLayer{..} = fmap Resp . go
+runIO DBLayer{..} = fmap Resp . go
   where
+    wid = walletId_
     runDB :: Functor stm => (stm (Either ErrNoSuchWallet a) -> m (Either ErrNoSuchWallet a))
         -> ExceptT ErrWalletNotInitialized stm a
         -> ExceptT ErrNoSuchWallet m a
@@ -482,8 +469,6 @@ runIO wid DBLayer{..} = fmap Resp . go
             catchWalletAlreadyExists (const (NewWallet wid)) $
             mapExceptT atomically $
             initializeWallet wid wal meta txs gp
-        GetWalletId -> bimap (const WalletNotInitialized) WalletId'
-            <$> atomically (runExceptT getWalletId)
         PutCheckpoint _wid wal -> catchNoSuchWallet Unit $
             runDB atomically $ putCheckpoint wid wal
         ReadCheckpoint _wid -> Right . Checkpoint <$>
@@ -569,8 +554,8 @@ data Model s r
 
 deriving instance (Show1 r, Show s) => Show (Model s r)
 
-initModel :: Model s r
-initModel = Model emptyDatabase []
+initModel :: MWid -> Model s r
+initModel wid = Model (emptyDatabase wid) []
 
 toMock :: (Functor (f s), Eq1 r) => Model s r -> f s :@ r -> f s MWid
 toMock (Model _ wids) (At fr) = fmap (wids !) fr
@@ -650,9 +635,7 @@ generatorWithWid
     => [Reference WalletId r]
     -> [(String, (Int, Gen (Cmd s (Reference WalletId r))))]
 generatorWithWid wids =
-    [ declareGenerator "ListWallets" 5
-        $ pure GetWalletId
-    , declareGenerator "PutCheckpoints" 5
+    [ declareGenerator "PutCheckpoints" 5
         $ PutCheckpoint <$> genId <*> arbitrary
     , declareGenerator "ReadCheckpoint" 5
         $ ReadCheckpoint <$> genId
@@ -760,13 +743,12 @@ postcondition m c r =
 
 semantics
     :: (MonadIO m, MockPrivKey (k 'RootK))
-    => WalletId
-    -> DBLayer m s k
+    => DBLayer m s k
     -> Cmd s :@ Concrete
     -> m (Resp s :@ Concrete)
-semantics wid db (At c) =
+semantics db (At c) =
     (At . fmap QSM.reference) <$>
-        runIO wid db (fmap QSM.concrete c)
+        runIO db (fmap QSM.concrete c)
 
 symbolicResp :: Model s Symbolic -> Cmd s :@ Symbolic -> GenSym (Resp s :@ Symbolic)
 symbolicResp m c =
@@ -784,18 +766,18 @@ type TestConstraints s k =
 
 sm
     :: (MonadIO m, TestConstraints s k)
-    => WalletId
+    => MWid
     -> DBLayer m s k
     -> StateMachine (Model s) (At (Cmd s)) m (At (Resp s))
-sm wid db = QSM.StateMachine
-    { initModel = initModel
+sm mwid db = QSM.StateMachine
+    { initModel = initModel mwid
     , transition = transition
     , precondition = precondition
     , postcondition = postcondition
     , invariant = Nothing
     , generator = generator
     , shrinker = const shrinker
-    , semantics = semantics wid db
+    , semantics = semantics db
     , mock = symbolicResp
     , cleanup = const $ pure ()
     }
@@ -1016,7 +998,6 @@ instance ToExpr RewardAccount where
 data Tag
     = CreateWalletTwice
       -- ^ The same wallet id is used twice.
-    | CreateThenList
     | SuccessfulReadTxHistory
     | UnsuccessfulReadTxHistory
     | TxUnsortedInputs
@@ -1041,7 +1022,6 @@ allTags = enumerate
 tag :: forall s. [Event s Symbolic] -> [Tag]
 tag = Foldl.fold $ catMaybes <$> sequenceA
     [ createWalletTwice
-    , createThenList
     , readTransactions (not . null) SuccessfulReadTxHistory
     , readTransactions null UnsuccessfulReadTxHistory
     , txUnsorted inputs TxUnsortedInputs
@@ -1095,25 +1075,6 @@ tag = Foldl.fold $ catMaybes <$> sequenceA
                 -> Just (wids ! wid)
         _otherwise
             -> Nothing
-
-    createThenList :: Fold (Event s Symbolic) (Maybe Tag)
-    createThenList =
-        Fold update mempty extract
-      where
-        update :: Map MWid Bool -> Event s Symbolic -> Map MWid Bool
-        update created ev =
-            case (cmd ev, mockResp ev) of
-                (At (CreateWallet wid _ _ _ _), Resp (Right _)) ->
-                    Map.insert wid False created
-                (At GetWalletId, Resp (Right (WalletId' wid))) ->
-                    foldr (Map.adjust (const True)) created [wid]
-                _otherwise ->
-                    created
-
-        extract :: Map MWid Bool -> Maybe Tag
-        extract created
-            | or created = Just CreateThenList
-            | otherwise = Nothing
 
     readTransactions
         :: ([TransactionInfo] -> Bool)
@@ -1205,8 +1166,8 @@ execCmd
 execCmd model (QSM.Command cmd resp _vars) =
     lockstep model cmd resp
 
-execCmds :: QSM.Commands (At (Cmd s)) (At (Resp s)) -> [Event s Symbolic]
-execCmds = \(QSM.Commands cs) -> go initModel cs
+execCmds :: MWid -> QSM.Commands (At (Cmd s)) (At (Resp s)) -> [Event s Symbolic]
+execCmds mwid = \(QSM.Commands cs) -> go (initModel mwid) cs
   where
     go
         :: Model s Symbolic
@@ -1216,31 +1177,14 @@ execCmds = \(QSM.Commands cs) -> go initModel cs
     go m (c : cs) = e : go (after e) cs where e = execCmd m c
 
 {-------------------------------------------------------------------------------
-  Finding minimal labelled examples - helper functions
--------------------------------------------------------------------------------}
-
-showLabelledExamples :: forall s k. (TestConstraints s k) => Maybe Int -> IO ()
-showLabelledExamples mReplay = do
-    replaySeed <- case mReplay of
-        Nothing -> getStdRandom $ randomR (1, 999999)
-        Just seed -> return seed
-    putStrLn $ "Using replaySeed " ++ show replaySeed
-    let args = QC.stdArgs
-            { maxSuccess = 10000
-            , replay = Just (mkQCGen replaySeed, 0)
-            }
-    labelledExamplesWith args $
-        forAllCommands (sm @IO @s @k testWid dbLayerUnused) Nothing $ \cmds ->
-            repeatedly collect (tag . execCmds $ cmds) (property True)
-
-repeatedly :: (a -> b -> b) -> ([a] -> b -> b)
-repeatedly = flip . L.foldl' . flip
-
-{-------------------------------------------------------------------------------
   Top-level tests
 -------------------------------------------------------------------------------}
+
+testMWid :: MWid
+testMWid = MWid "test"
+
 testWid :: WalletId
-testWid = WalletId (hash ("test" :: ByteString))
+testWid = unMockWid testMWid
 
 prop_sequential
     :: forall s k. (TestConstraints s k)
@@ -1248,10 +1192,10 @@ prop_sequential
     -> Property
 prop_sequential newDB =
     QC.checkCoverage $
-    forAllCommands (sm @IO @s @k testWid dbLayerUnused) Nothing $ \cmds ->
+    forAllCommands (sm @IO @s @k testMWid dbLayerUnused) Nothing $ \cmds ->
         monadicIO $ do
             (destroyDB, db) <- run (newDB testWid)
-            let sm' = sm testWid db
+            let sm' = sm testMWid db
             (hist, _model, res) <- runCommands sm' cmds
             prettyCommands sm' hist
                 $ measureTagCoverage cmds
@@ -1265,7 +1209,7 @@ prop_sequential newDB =
         measureTag p t = QC.cover 5 (t `Set.member` matchedTags) (show t) p
 
         matchedTags :: Set Tag
-        matchedTags = Set.fromList $ tag $ execCmds cmds
+        matchedTags = Set.fromList $ tag $ (execCmds testMWid) cmds
 
 -- Controls that generators and shrinkers can run within a reasonable amount of
 -- time. We have been bitten several times already by generators which took much
