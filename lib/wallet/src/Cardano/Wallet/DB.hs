@@ -209,8 +209,7 @@ data DBLayer m s k = forall stm. (MonadIO stm, MonadFail stm) => DBLayer
         -- and all other functions in the long-term.
 
     , putCheckpoint
-        :: WalletId
-        -> Wallet s
+        :: Wallet s
         -> ExceptT ErrWalletNotInitialized stm ()
         -- ^ Replace the current checkpoint for a given wallet. We do not handle
         -- rollbacks yet, and therefore only stores the latest available
@@ -670,8 +669,7 @@ data DBCheckpoints stm s = DBCheckpoints
         -- and all other functions in the long-term.
 
     , putCheckpoint_
-        :: WalletId
-        -> Wallet s
+        :: Wallet s
         -> ExceptT ErrWalletNotInitialized stm ()
         -- ^ Replace the current checkpoint for a given wallet. We do not handle
         -- rollbacks yet, and therefore only stores the latest available

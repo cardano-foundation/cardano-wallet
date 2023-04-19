@@ -341,7 +341,7 @@ unMockPrivKeyHash = PassphraseHash .  BA.convert . B8.pack
 
 data Cmd s wid
     = CreateWallet (Wallet s) WalletMetadata TxHistory GenesisParameters
-    | PutCheckpoint wid (Wallet s)
+    | PutCheckpoint (Wallet s)
     | ReadCheckpoint wid
     | ListCheckpoints wid
     | PutWalletMeta wid WalletMetadata
@@ -403,7 +403,7 @@ runMock = \case
     CreateWallet wal meta txs gp -> \db@(Database wid _ _) ->
         first (Resp . fmap (const (NewWallet wid)))
             . mInitializeWallet wal meta txs gp $ db
-    PutCheckpoint _wid wal ->
+    PutCheckpoint wal ->
         first (Resp . fmap Unit) . mPutCheckpoint wal
     ListCheckpoints _wid ->
         first (Resp . fmap ChainPoints) . mListCheckpoints
@@ -469,8 +469,8 @@ runIO DBLayer{..} = fmap Resp . go
             catchWalletAlreadyExists (const (NewWallet wid)) $
             mapExceptT atomically $
             initializeWallet wal meta txs gp
-        PutCheckpoint _wid wal -> catchNoSuchWallet Unit $
-            runDB atomically $ putCheckpoint wid wal
+        PutCheckpoint wal -> catchNoSuchWallet Unit $
+            runDB atomically $ putCheckpoint wal
         ReadCheckpoint _wid -> Right . Checkpoint <$>
             atomically (readCheckpoint wid)
         ListCheckpoints _wid -> Right . ChainPoints <$>
@@ -631,7 +631,7 @@ generatorWithWid
     -> [(String, (Int, Gen (Cmd s (Reference WalletId r))))]
 generatorWithWid wids =
     [ declareGenerator "PutCheckpoints" 5
-        $ PutCheckpoint <$> genId <*> arbitrary
+        $ PutCheckpoint <$> arbitrary
     , declareGenerator "ReadCheckpoint" 5
         $ ReadCheckpoint <$> genId
     , declareGenerator "ListCheckpoints" 5
@@ -692,8 +692,8 @@ shrinker
     => Cmd s :@ r
     -> [Cmd s :@ r]
 shrinker (At cmd) = case cmd of
-    PutCheckpoint wid wal ->
-        [ At $ PutCheckpoint wid wal'
+    PutCheckpoint wal ->
+        [ At $ PutCheckpoint wal'
         | wal' <- shrink wal ]
     PutTxHistory wid h ->
         [ At $ PutTxHistory wid h'
@@ -1104,12 +1104,12 @@ tag = Foldl.fold $ catMaybes <$> sequenceA
                 _otherwise ->
                     False
 
-    isPutCheckpointSuccess :: Event s Symbolic -> Maybe MWid
+    isPutCheckpointSuccess :: Event s Symbolic -> Maybe ()
     isPutCheckpointSuccess ev = case (cmd ev, mockResp ev, before ev) of
-        (At (PutCheckpoint wid _wal)
+        (At (PutCheckpoint _wal)
             , Resp (Right (Unit ()))
-            , Model _ wids )
-                -> Just (wids ! wid)
+            , Model _ _wids )
+                -> Just ()
         _otherwise
             -> Nothing
 

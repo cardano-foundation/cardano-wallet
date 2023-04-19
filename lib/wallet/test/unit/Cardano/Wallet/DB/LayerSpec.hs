@@ -546,7 +546,7 @@ fileModeSpec =  do
                 atomically $ do
                     unsafeRunExceptT $
                         initializeWallet testCp testMetadata mempty gp
-                    unsafeRunExceptT $ putCheckpoint testWid testCp
+                    unsafeRunExceptT $ putCheckpoint testCp
             testReopening f (`readCheckpoint'` testWid) (Just testCp)
 
         describe "Golden rollback scenarios" $ do
@@ -574,7 +574,7 @@ fileModeSpec =  do
                     let (FilteredBlock{transactions=txs}, (_,cpB)) =
                             applyBlock fakeBlock cpA
                     atomically $ do
-                        unsafeRunExceptT $ putCheckpoint testWid cpB
+                        unsafeRunExceptT $ putCheckpoint cpB
                         unsafeRunExceptT $ putTxHistory testWid txs
                         unsafeRunExceptT $ prune testWid (Quantity 2_160)
                             $ 2_160 * 3 * 20
@@ -829,7 +829,7 @@ prop_randomOpChunks (NonEmpty (p : pairs)) =
         -> (Wallet s, WalletMetadata)
         -> IO ()
     insertPair DBLayer{..} (cp, meta) = atomically $ do
-            unsafeRunExceptT $ putCheckpoint testWid cp
+            unsafeRunExceptT $ putCheckpoint cp
             unsafeRunExceptT $ putWalletMeta testWid meta
 
     imposeGenesisState :: Wallet s -> Wallet s

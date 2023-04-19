@@ -151,7 +151,7 @@ properties withFreshDB = describe "DB.Properties" $ do
             $ property
             $ prop_readAfterPut
                 testOnLayer
-                (\DBLayer{..} wid -> mapExceptT atomically . putCheckpoint wid)
+                (\DBLayer{..} _wid -> mapExceptT atomically . putCheckpoint)
                 (\DBLayer{..} -> atomically . readCheckpoint)
         it "Wallet Metadata"
             $ property
@@ -188,7 +188,7 @@ properties withFreshDB = describe "DB.Properties" $ do
             $ property
             $ prop_putBeforeInit
                 withFreshDB
-                (\DBLayer{..} wid -> mapExceptT atomically . putCheckpoint wid)
+                (\DBLayer{..} _wid -> mapExceptT atomically . putCheckpoint)
                 (\DBLayer{..} -> atomically . readCheckpoint)
                 Nothing
         it "Wallet Metadata"
@@ -218,7 +218,7 @@ properties withFreshDB = describe "DB.Properties" $ do
             $ property
             $ prop_isolation
                 testOnLayer
-                (\DBLayer{..} wid -> mapExceptT atomically . putCheckpoint wid)
+                (\DBLayer{..} _wid -> mapExceptT atomically . putCheckpoint)
                 (\DBLayer{..} -> atomically . readWalletMeta)
                 readTxHistory_
                 (\DBLayer{..} -> atomically . readPrivateKey)
@@ -246,7 +246,7 @@ properties withFreshDB = describe "DB.Properties" $ do
             $ checkCoverage
             $ prop_sequentialPut
                 testOnLayer
-                (\DBLayer{..} wid -> mapExceptT atomically . putCheckpoint wid)
+                (\DBLayer{..} _wid -> mapExceptT atomically . putCheckpoint)
                 (\DBLayer{..} -> atomically . readCheckpoint)
                 lastMay
                 . sortOn (currentTip . unShowFmt)
@@ -577,7 +577,7 @@ prop_rollbackCheckpoint test (InitialCheckpoint cp0) (MockChain chain) = monadic
         ShowFmt point <- namedPick "Rollback target" (elements $ ShowFmt <$> cps)
         run $ atomically $ do
             unsafeRunExceptT $ initializeWallet cp0 meta mempty gp
-            unsafeRunExceptT $ forM_ cps (putCheckpoint testWid)
+            unsafeRunExceptT $ forM_ cps putCheckpoint
         let tip = currentTip point
         point' <-
             run

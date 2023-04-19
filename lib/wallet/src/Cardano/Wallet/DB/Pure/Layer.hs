@@ -112,7 +112,7 @@ newDBLayer timeInterpreter wid = do
         -----------------------------------------------------------------------}
         , walletsDB = error "MVar.walletsDB: not implemented"
 
-        , putCheckpoint = \_pk cp -> ExceptT $
+        , putCheckpoint = \cp -> ExceptT $
             alterDB errWalletNotInitialized db (mCheckWallet) >>= \case
                 Left err -> pure $ Left err
                 Right _ -> do

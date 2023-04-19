@@ -623,14 +623,14 @@ newDBLayerFromDBOpen ti wid_ DBOpen{atomically=runQuery} = mdo
       dbCheckpoints = DBCheckpoints
         { walletsDB_ = walletsDB
 
-        , putCheckpoint_ = \wid cp -> ExceptT $ do
+        , putCheckpoint_ = \cp -> ExceptT $ do
             modifyDBMaybe walletsDB $ \ws ->
-                case Map.lookup wid ws of
-                    Nothing -> (Nothing, Left ErrWalletNotInitialized)
-                    Just _  ->
+                if null ws
+                    then (Nothing, Left ErrWalletNotInitialized)
+                    else
                         let (prologue, wcp) = fromWallet cp
                             slot = getSlot wcp
-                            delta = Just $ Adjust wid
+                            delta = Just $ Adjust wid_
                                 [ UpdateCheckpoints [ PutCheckpoint slot wcp ]
                                 , ReplacePrologue prologue
                                 ]
