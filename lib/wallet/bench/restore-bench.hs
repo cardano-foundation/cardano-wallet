@@ -858,7 +858,7 @@ withBenchDBLayer
     -> IO a
 withBenchDBLayer ti tr action =
     withSystemTempFile "bench.db" $ \dbFile _ ->
-        withDBLayer tr' migrationDefaultValues dbFile ti action
+        withDBLayer tr' (Just migrationDefaultValues) dbFile ti action
   where
     migrationDefaultValues = Sqlite.DefaultFieldValues
         { Sqlite.defaultActiveSlotCoefficient = 1

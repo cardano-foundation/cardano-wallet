@@ -62,7 +62,9 @@ import Cardano.Wallet.DB.Layer
     , newDBFactory
     , newDBLayerInMemory
     , withDBLayer
+    , withDBLayerFromDBOpen
     , withDBLayerInMemory
+    , withDBOpenFromFile
     )
 import Cardano.Wallet.DB.Properties
     ( properties )
@@ -872,7 +874,7 @@ withTestDBFile action expectations = do
         removeFile fp
         withDBLayer
             (trMessageText trace)
-            defaultFieldValues
+            (Just defaultFieldValues)
             fp
             ti
             action
@@ -904,7 +906,7 @@ withShelleyFileDBLayer
     -> IO a
 withShelleyFileDBLayer fp = withDBLayer
     nullTracer  -- fixme: capture logging
-    defaultFieldValues
+    (Just defaultFieldValues)
     fp
     dummyTimeInterpreter
 
@@ -1126,8 +1128,8 @@ manualMigrationsSpec = describe "Manual migrations" $ do
     it "'migrate' db to create metadata table when it doesn't exist"
         testCreateMetadataTable
 
-    it "'migrate' db never modifies database with newer version" $
-        testNewerDatabaseIsNeverModified @(SeqState 'Mainnet ShelleyKey)
+    it "'migrate' db never modifies database with newer version"
+        testNewerDatabaseIsNeverModified
 
     it "'migrate' db submissions encoding" $
         testMigrationSubmissionsEncoding
@@ -1151,8 +1153,8 @@ withDBLayerFromCopiedFile
     -> IO ([WalletDBLog], a)
         -- ^ (logs, result of the action)
 withDBLayerFromCopiedFile dbName action = withinCopiedFile dbName
-    $ \path tr->
-        withDBLayer tr defaultFieldValues path dummyTimeInterpreter action
+    $ \path tr -> withDBOpenFromFile tr (Just defaultFieldValues) path
+    $ withDBLayerFromDBOpen @k @s dummyTimeInterpreter action
 
 withinCopiedFile
     :: FilePath
@@ -1328,11 +1330,11 @@ testMigrationPassphraseScheme dbName = do
     Right walNoPassphrase  = fromText "ba74a7d2c1157ea7f32a93f255dac30e9ebca62b"
 
 testCreateMetadataTable ::
-    forall s k. (k ~ ShelleyKey, s ~ SeqState 'Mainnet k) => IO ()
+    forall k. (k ~ ShelleyKey) => IO ()
 testCreateMetadataTable = withSystemTempFile "db.sql" $ \path _ -> do
     let noop _ = pure ()
         tr = nullTracer
-    withDBLayer @s @k tr defaultFieldValues path dummyTimeInterpreter noop
+    withDBOpenFromFile @_ @k tr (Just defaultFieldValues) path noop
     actualVersion <- Sqlite.runSqlite (T.pack path) $ do
         [Sqlite.Single (version :: Int)] <- Sqlite.rawSql
             "SELECT version FROM database_schema_version \
@@ -1341,7 +1343,7 @@ testCreateMetadataTable = withSystemTempFile "db.sql" $ \path _ -> do
     actualVersion `shouldBe` currentSchemaVersion
 
 testNewerDatabaseIsNeverModified ::
-    forall s k. (k ~ ShelleyKey, PersistAddressBook s) => IO ()
+    forall k. (k ~ ShelleyKey) => IO ()
 testNewerDatabaseIsNeverModified = withSystemTempFile "db.sql" $ \path _ -> do
     let newerVersion = SchemaVersion 100
     _ <- Sqlite.runSqlite (T.pack path) $ do
@@ -1353,7 +1355,7 @@ testNewerDatabaseIsNeverModified = withSystemTempFile "db.sql" $ \path _ -> do
             ) []
     let noop _ = pure ()
         tr = nullTracer
-    withDBLayer @s @k tr defaultFieldValues path dummyTimeInterpreter noop
+    withDBOpenFromFile @_ @k tr (Just defaultFieldValues) path noop
         `shouldThrow` \case
             InvalidDatabaseSchemaVersion {..}
                 | expectedVersion == currentSchemaVersion
@@ -1378,7 +1380,7 @@ testMigrationSubmissionsEncoding
 testMigrationSubmissionsEncoding dbName = do
     let performMigrations path =
           withDBLayer @(SeqState 'Mainnet ShelleyKey) @ShelleyKey
-            nullTracer defaultFieldValues path dummyTimeInterpreter
+            nullTracer (Just defaultFieldValues) path dummyTimeInterpreter
                 $ \_ -> pure ()
         testOnCopiedAndMigrated test = fmap snd
             $ withinCopiedFile dbName $ \path _  -> do
