@@ -1316,7 +1316,7 @@ readRewardAccount db wid = do
             maybe (throwE (ErrNoSuchWallet wallet)) pure
 
 readSharedRewardAccount
-    :: forall (n :: NetworkDiscriminant)
+    :: forall n
      . DBLayer IO (SharedState n SharedKey) SharedKey
     -> WalletId
     -> ExceptT ErrReadRewardAccount IO
@@ -1408,7 +1408,7 @@ manageRewardBalance tr' netLayer db@DBLayer{..} wid = do
     tr = contramap MsgWallet tr'
 
 manageSharedRewardBalance
-    :: forall (n :: NetworkDiscriminant) block
+    :: forall n block
      . Tracer IO WalletWorkerLog
     -> NetworkLayer IO block
     -> DBLayer IO (SharedState n SharedKey) SharedKey
