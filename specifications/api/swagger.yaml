@@ -4369,14 +4369,14 @@ x-errInsufficientCollateral: &errInsufficientCollateral
 
 x-errTransactionIsTooBig: &errTransactionIsTooBig
   <<: *responsesErr
-  title: transaction_is_too_big
+  title: transaction_too_large
   properties:
     message:
       type: string
       description: May occur when the wallet can't cover for all requested outputs without making the transaction too large.
     code:
       type: string
-      enum: ['transaction_is_too_big']
+      enum: ['transaction_too_large']
 
 x-errCreatedMultidelegationTransaction: &errCreatedMultidelegationTransaction
   <<: *responsesErr
