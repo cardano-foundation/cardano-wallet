@@ -192,13 +192,11 @@ import Cardano.Wallet.Primitive.AddressDiscovery.Shared
 import Cardano.Wallet.Primitive.Types
     ( PoolMetadataSource (..), SmashServer (..), poolMetadataSource )
 import Cardano.Wallet.Read.NetworkId
-    ( HasSNetworkId (..) )
+    ( HasSNetworkId (..), networkIdVal )
 import Cardano.Wallet.Shelley.BlockchainSource
     ( BlockchainSource (..) )
 import Cardano.Wallet.Shelley.Compatibility
     ( inspectAddress, rewardAccountFromAddress )
-import Cardano.Wallet.Shelley.Network.Discriminant
-    ( networkIdVal )
 import Control.Applicative
     ( liftA2 )
 import Control.Monad

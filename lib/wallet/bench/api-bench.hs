@@ -97,9 +97,13 @@ import Cardano.Wallet.Primitive.Types.Tx.TxOut
 import Cardano.Wallet.Primitive.Types.UTxOStatistics
     ( HistogramBar (..), UTxOStatistics (..) )
 import Cardano.Wallet.Read.NetworkId
-    ( HasSNetworkId (..), NetworkDiscriminant (..), SNetworkId (..) )
-import Cardano.Wallet.Shelley.Network.Discriminant
-    ( networkIdVal )
+    ( HasSNetworkId (..)
+    , NetworkDiscriminant (..)
+    , NetworkId (..)
+    , SNetworkId (..)
+    , networkIdVal
+    , withSNetworkId
+    )
 import Cardano.Wallet.Shelley.Transaction
     ( TxWitnessTagFor (..), newTransactionLayer )
 import Cardano.Wallet.Transaction
@@ -165,14 +169,15 @@ main = do
 benchmarkApi :: FilePath -> IO ()
 benchmarkApi dir = do
     (_, tr) <- initBenchmarkLogging "wallet" Notice
-    runBenchmarks
-        [ benchmarkWallets "sequential"
-            dir tr (Proxy @('Testnet 0)) benchmarksSeq
-        , benchmarkWallets "shared"
-            dir tr (Proxy @('Testnet 0)) benchmarksShared
-        , benchmarkWallets "random"
-            dir tr (Proxy @('Testnet 0)) benchmarksRnd
-        ]
+    withSNetworkId (NTestnet 0) $ \networkId ->
+        runBenchmarks
+            [ benchmarkWallets "sequential"
+                dir tr networkId benchmarksSeq
+            , benchmarkWallets "shared"
+                dir tr networkId benchmarksShared
+            , benchmarkWallets "random"
+                dir tr networkId benchmarksRnd
+            ]
 
 {-------------------------------------------------------------------------------
     Wallet API benchmarks
@@ -242,7 +247,7 @@ benchmarksSeq
         )
     => BenchmarkConfig n s k ktype
     -> IO BenchSeqResults
-benchmarksSeq BenchmarkConfig{benchmarkName,ctx,wid} = do
+benchmarksSeq BenchmarkConfig{benchmarkName,ctx,wid, networkId} = do
     ((cp, pending), readWalletTime) <- bench "readWallet" $ do
         (cp, _, pending) <- unsafeRunExceptT $ W.readWallet @_ @s @k ctx wid
         pure (cp, pending)
@@ -290,7 +295,7 @@ benchmarksSeq BenchmarkConfig{benchmarkName,ctx,wid} = do
             wid
 
     (_, selectAssetsTime) <- bench "selectAssets"
-        $ selectAssets @_ @s @k @ktype (Proxy @n) ctx wid
+        $ selectAssets @_ @s @k @ktype networkId ctx wid
 
     pure BenchSeqResults
         { benchName = benchmarkName
@@ -337,7 +342,7 @@ benchmarksShared
        )
     => BenchmarkConfig n s k ktype
     -> IO BenchSharedResults
-benchmarksShared BenchmarkConfig{benchmarkName,ctx,wid} = do
+benchmarksShared BenchmarkConfig{benchmarkName,ctx,wid, networkId} = do
     ((cp, pending), readWalletTime) <- bench "readWallet" $ do
         (cp, _, pending) <- unsafeRunExceptT $ W.readWallet @_ @s @k ctx wid
         pure (cp, pending)
@@ -372,7 +377,7 @@ benchmarksShared BenchmarkConfig{benchmarkName,ctx,wid} = do
             wid Nothing Nothing Nothing Descending (Just 50)
 
     (_, selectAssetsTime) <- bench "selectAssets"
-        $ selectAssets @_ @s @k @ktype (Proxy @n) ctx wid
+        $ selectAssets @_ @s @k @ktype networkId ctx wid
 
     pure BenchSharedResults
         { benchName = benchmarkName
@@ -414,11 +419,10 @@ benchmarksRnd
      . ( s ~ RndState n
        , k ~ ByronKey
        , ktype ~ 'CredFromKeyK
-       , HasSNetworkId n
        )
     => BenchmarkConfig n s k ktype
     -> IO BenchRndResults
-benchmarksRnd BenchmarkConfig{benchmarkName,ctx,wid} = do
+benchmarksRnd BenchmarkConfig{benchmarkName,ctx,wid, networkId} = do
     ((cp, pending), readWalletTime) <- bench "readWallet" $ do
         (cp, _, pending) <- unsafeRunExceptT $ W.readWallet @_ @s @k ctx wid
         pure (cp, pending)
@@ -458,7 +462,7 @@ benchmarksRnd BenchmarkConfig{benchmarkName,ctx,wid} = do
         $ W.createMigrationPlan @_ @k @s ctx era wid Tx.NoWithdrawal
 
     (_, selectAssetsTime) <- bench "selectAssets"
-        $ selectAssets @_ @s @k @ktype (Proxy @n) ctx wid
+        $ selectAssets @_ @s @k @ktype networkId ctx wid
 
     pure BenchRndResults
         { benchName = benchmarkName
@@ -478,10 +482,8 @@ benchmarksRnd BenchmarkConfig{benchmarkName,ctx,wid} = do
 -------------------------------------------------------------------------------}
 selectAssets
     :: forall n s (k :: Depth -> * -> *) ktype
-     . ( HasSNetworkId n
-       , BoundedAddressLength k
-       )
-    => Proxy n
+     . BoundedAddressLength k
+    => SNetworkId n
     -> MockWalletLayer IO s k ktype
     -> WalletId
     -> IO (Either String CoinSelection.Selection)
@@ -509,11 +511,9 @@ selectAssets networkId ctx wid = do
         } $ \_state -> id
 
 dummyAddress
-    :: forall n
-     . HasSNetworkId n
-    => Proxy n
+    :: SNetworkId n
     -> Address
-dummyAddress _proxy = case sNetworkId @n of
+dummyAddress n = case n of
     SMainnet ->
         Address $ BS.pack $ 0 : replicate 56 0
     _ ->
@@ -530,7 +530,7 @@ instance Buildable SomeBenchmarkResults where
 data BenchmarkConfig (n :: NetworkDiscriminant) s k ktype =
     BenchmarkConfig
         { benchmarkName :: Text
-        , networkId :: Proxy n
+        , networkId :: SNetworkId n
         , ctx :: MockWalletLayer IO s k ktype
         , wid :: WalletId
         }
@@ -544,7 +544,6 @@ benchmarkWallets
        , TxWitnessTagFor k
        , Buildable results
        , ToJSON results
-       , HasSNetworkId n
        )
     => Text
         -- ^ Benchmark name (used for naming resulting files)
@@ -552,18 +551,18 @@ benchmarkWallets
         -- ^ Directory from which to load database files
     -> Trace IO Text
         -- ^ For wallet tracing
-    -> Proxy n
+    -> SNetworkId n
     -> ( BenchmarkConfig n s k ktype -> IO results )
         -- ^ Benchmark to run
     -> IO [SomeBenchmarkResults]
-benchmarkWallets benchName dir walletTr proxy action = do
-    withWalletsFromDirectory dir walletTr proxy
+benchmarkWallets benchName dir walletTr networkId action = do
+    withWalletsFromDirectory dir walletTr networkId
         $ \ctx@(MockWalletLayer{dbLayer=DB.DBLayer{atomically,readWalletMeta}}) wid
         -> do
             Just (WalletMetadata{name},_) <- atomically $ readWalletMeta wid
             let config = BenchmarkConfig
                     { benchmarkName = benchName <> " " <> pretty name
-                    , networkId = proxy
+                    , networkId = networkId
                     , ctx
                     , wid
                     }
@@ -601,15 +600,14 @@ withWalletsFromDirectory
        , PersistPrivateKey (k 'RootK)
        , WalletKey k
        , TxWitnessTagFor k
-       , HasSNetworkId n
        )
     => FilePath
         -- ^ Directory of database files
     -> Trace IO Text
-    -> Proxy n
+    -> SNetworkId n
     -> (MockWalletLayer IO s k ktype -> WalletId -> IO a)
     -> IO [a]
-withWalletsFromDirectory dir tr _proxy action = do
+withWalletsFromDirectory dir tr networkId action = do
     DB.DBFactory{listDatabases,withDatabase}
         <- DB.newDBFactory tr' migrationDefaultValues ti (Just dir)
     wids <- listDatabases
@@ -619,7 +617,7 @@ withWalletsFromDirectory dir tr _proxy action = do
     mkMockWalletLayer db =
         MockWalletLayer mockNetworkLayer tl db tr
     ti = mockTimeInterpreter
-    tl = newTransactionLayer @k (networkIdVal (sNetworkId @n))
+    tl = newTransactionLayer @k (networkIdVal networkId)
     tr' = trMessageText tr
     migrationDefaultValues = Sqlite.DefaultFieldValues
         { Sqlite.defaultActiveSlotCoefficient = 1

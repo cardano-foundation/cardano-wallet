@@ -20,15 +20,12 @@
 -- "Cardano.Wallet.Shelley.Transaction"
 
 module Cardano.Wallet.Shelley
-    ( SomeNetworkDiscriminant (..)
-    , serveWallet
+    ( serveWallet
     , module Tracers
     ) where
 
 import Prelude
 
-import Cardano.Api
-    ( NetworkId )
 import Cardano.Wallet
     ( WalletException )
 import Cardano.Wallet.Api
@@ -92,7 +89,13 @@ import Cardano.Wallet.Primitive.Types.RewardAccount
 import Cardano.Wallet.Primitive.Types.Tx.SealedTx
     ( SealedTx )
 import Cardano.Wallet.Read.NetworkId
-    ( HasSNetworkId (sNetworkId), networkDiscriminantVal )
+    ( HasSNetworkId
+    , NetworkId
+    , SNetworkId
+    , networkDiscriminantVal
+    , networkIdVal
+    , withSNetworkId
+    )
 import Cardano.Wallet.Registry
     ( HasWorkerCtx (..) )
 import Cardano.Wallet.Shelley.BlockchainSource
@@ -101,8 +104,6 @@ import Cardano.Wallet.Shelley.Compatibility
     ( CardanoBlock, StandardCrypto )
 import Cardano.Wallet.Shelley.Network
     ( withNetworkLayer )
-import Cardano.Wallet.Shelley.Network.Discriminant
-    ( SomeNetworkDiscriminant (..), networkDiscriminantToId )
 import Cardano.Wallet.Shelley.Transaction
     ( newTransactionLayer )
 import Cardano.Wallet.TokenMetadata
@@ -173,8 +174,8 @@ serveWallet
     -- currently in use by the network that are relevant to the wallet.
     -> PipeliningStrategy (CardanoBlock StandardCrypto)
     -- ^ pipelining value depending  on block height
-    -> SomeNetworkDiscriminant
-    -- ^ Proxy for the network discriminant
+    -> NetworkId
+    -- ^ Network identifier
     -> [PoolCertificate]
     -- ^ Shelley genesis pools
     -> Tracers IO
@@ -205,7 +206,7 @@ serveWallet
     , slottingParameters
     }
   pipeliningStrategy
-  network@(SomeNetworkDiscriminant (proxyNetwork :: Proxy network))
+  network
   shelleyGenesisPools
   Tracers{..}
   databaseDir
@@ -216,13 +217,13 @@ serveWallet
   settings
   tokenMetaUri
   block0
-  beforeMainLoop = evalContT $ do
+  beforeMainLoop = withSNetworkId network $ \sNetwork -> evalContT $  do
+    let netId = networkIdVal sNetwork
     lift $ case blockchainSource of
         NodeSource nodeConn _ _ -> trace $ MsgStartingNode nodeConn
     lift . trace
         $ MsgNetworkName
-        $ networkDiscriminantVal
-        $ sNetworkId @network
+        $ networkDiscriminantVal sNetwork
     netLayer <- withNetworkLayer
         networkTracer
         pipeliningStrategy
@@ -243,10 +244,10 @@ serveWallet
                 netParams
                 shelleyGenesisPools
                 netLayer
-    randomApi <- withRandomApi netLayer
-    icarusApi  <- withIcarusApi netLayer
-    shelleyApi <- withShelleyApi netLayer
-    multisigApi <- withMultisigApi netLayer
+    randomApi <- withRandomApi netId netLayer
+    icarusApi  <- withIcarusApi netId netLayer
+    shelleyApi <- withShelleyApi netId netLayer
+    multisigApi <- withMultisigApi netId netLayer
     ntpClient <- withNtpClient ntpClientTracer
     bindSocket >>= lift . \case
         Left err -> do
@@ -254,7 +255,7 @@ serveWallet
             pure $ ExitFailure $ exitCodeApiServer err
         Right (_port, socket) -> do
             startServer
-                proxyNetwork
+                sNetwork
                 socket
                 randomApi
                 icarusApi
@@ -268,26 +269,23 @@ serveWallet
     trace :: ApplicationLog -> IO ()
     trace = traceWith applicationTracer
 
-    netId :: NetworkId
-    netId = networkDiscriminantToId network
-
     bindSocket :: ContT r IO (Either ListenError (Warp.Port, Socket))
     bindSocket = ContT $ Server.withListeningSocket hostPref listen
 
-    withRandomApi netLayer =
+    withRandomApi netId netLayer =
         lift $ apiLayer (newTransactionLayer netId) netLayer Server.idleWorker
 
-    withIcarusApi netLayer =
+    withIcarusApi netId netLayer =
         lift $ apiLayer (newTransactionLayer netId) netLayer Server.idleWorker
 
-    withShelleyApi netLayer =
+    withShelleyApi netId netLayer =
         lift $ apiLayer (newTransactionLayer netId) netLayer $
             Server.manageRewardBalance
                 <$> view typed
                 <*> pure netLayer
                 <*> view typed
 
-    withMultisigApi netLayer =
+    withMultisigApi netId netLayer =
         lift $ apiLayer (newTransactionLayer netId) netLayer Server.idleWorker
 
     startServer
@@ -295,7 +293,7 @@ serveWallet
             ( HasSNetworkId n
             , Typeable n
             )
-        => Proxy n
+        => SNetworkId n
         -> Socket
         -> ApiLayer (RndState n) ByronKey 'CredFromKeyK
         -> ApiLayer (SeqState n IcarusKey) IcarusKey 'CredFromKeyK

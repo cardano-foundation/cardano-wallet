@@ -234,7 +234,11 @@ import Cardano.Wallet.Primitive.Types.UTxO
 import Cardano.Wallet.Primitive.Types.UTxO.Gen
     ( shrinkUTxO )
 import Cardano.Wallet.Read.NetworkId
-    ( NetworkDiscriminant (..), NetworkId (..), SNetworkId (..), toSNetworkId )
+    ( NetworkDiscriminant (..)
+    , NetworkId (..)
+    , SNetworkId (..)
+    , withSNetworkId
+    )
 import Cardano.Wallet.Read.Primitive.Tx.Features.Integrity
     ( txIntegrity )
 import Cardano.Wallet.Read.Tx.Cardano
@@ -4407,7 +4411,7 @@ prop_bootstrapWitnesses
                     -- size of the witness will not be affected by it. What may
                     -- affect the size, is the 'Cardano.NetworkId' we pass to
                     -- 'mkByronWitness' above.
-                    toSNetworkId (NTestnet 0) $ \testnet ->
+                    withSNetworkId (NTestnet 0) $ \testnet ->
                         paymentAddress testnet $ publicKey addrK
         in
             case era of

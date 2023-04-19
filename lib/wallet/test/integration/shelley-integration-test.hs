@@ -69,14 +69,9 @@ import Cardano.Wallet.Primitive.SyncProgress
 import Cardano.Wallet.Primitive.Types.Coin
     ( Coin (..) )
 import Cardano.Wallet.Read.NetworkId
-    ( NetworkDiscriminant (..), SNetworkId (..) )
+    ( NetworkDiscriminant (..), NetworkId (..), SNetworkId (..) )
 import Cardano.Wallet.Shelley
-    ( SomeNetworkDiscriminant (..)
-    , Tracers
-    , serveWallet
-    , setupTracers
-    , tracerSeverities
-    )
+    ( Tracers, serveWallet, setupTracers, tracerSeverities )
 import Cardano.Wallet.Shelley.BlockchainSource
     ( BlockchainSource (..) )
 import Cardano.Wallet.Shelley.Compatibility
@@ -99,8 +94,6 @@ import Data.IORef
     ( IORef, atomicModifyIORef', newIORef )
 import Data.Maybe
     ( fromMaybe )
-import Data.Proxy
-    ( Proxy (..) )
 import Data.Text
     ( Text )
 import Data.Text.Class
@@ -355,7 +348,7 @@ specWithServer testDir (tr, tracers) = aroundAll withContext
                 (NodeSource conn vData (SyncTolerance 10))
                 gp
                 tunedForMainnetPipeliningStrategy
-                (SomeNetworkDiscriminant $ Proxy @'Mainnet)
+                NMainnet
                 genesisPools
                 tracers
                 (Just db)

@@ -7,7 +7,7 @@
 {-# LANGUAGE PolyKinds #-}
 {-# LANGUAGE RankNTypes #-}
 {-# LANGUAGE ScopedTypeVariables #-}
-{-# LANGUAGE TypeApplications #-}
+{-# LANGUAGE StandaloneDeriving #-}
 {-# LANGUAGE TypeFamilies #-}
 {-# LANGUAGE UndecidableInstances #-}
 
@@ -20,10 +20,9 @@ module Cardano.Wallet.Read.NetworkId
     , HasSNetworkId (..)
     , NetworkId (..)
     , fromSNat
-    , toSNat
     , fromSNetworkId
-    , toSNetworkId
-    , sNetworkIdOfProxy
+    , withSNetworkId
+    , networkIdVal
     )
   where
 
@@ -42,6 +41,7 @@ import GHC.Natural
 import GHC.TypeNats
     ( KnownNat, Nat, SomeNat (..), natVal, someNatVal )
 
+import qualified Cardano.Api as Cardano
 import qualified Data.Text as T
 
 {-------------------------------------------------------------------------------
@@ -77,11 +77,14 @@ data NetworkId
 data SNat (n :: Nat) where
     SNat :: KnownNat n => Proxy n -> SNat n
 
+deriving instance Show (SNat n)
+deriving instance Eq (SNat n)
+
 fromSNat :: SNat n -> Natural
 fromSNat p@(SNat _) = natVal p
 
-toSNat :: Natural -> (forall (n :: Nat). SNat n -> a) -> a
-toSNat nat f = case someNatVal nat of
+withSNat :: Natural -> (forall (n :: Nat). KnownNat n => SNat n -> a) -> a
+withSNat nat f = case someNatVal nat of
     SomeNat proxy -> f (SNat proxy)
 
 {-----------------------------------------------------------------------------
@@ -92,6 +95,9 @@ toSNat nat f = case someNatVal nat of
 data SNetworkId (n :: NetworkDiscriminant) where
     SMainnet :: SNetworkId 'Mainnet
     STestnet :: SNat i -> SNetworkId ('Testnet i)
+
+deriving instance Show (SNetworkId n)
+deriving instance Eq (SNetworkId n)
 
 -- | A class for extracting the singleton for 'NetworkDiscriminant'.
 class HasSNetworkId n where
@@ -116,6 +122,14 @@ networkDiscriminantBits :: SNetworkId n -> Word8
 networkDiscriminantBits SMainnet = 0b00000001
 networkDiscriminantBits (STestnet _) = 0b00000000
 
+-- | Extract a Cardano.NetworkId from NetworkDiscriminant singleton.
+networkIdVal :: SNetworkId n -> Cardano.NetworkId
+networkIdVal SMainnet = Cardano.Mainnet
+networkIdVal (STestnet snat) = Cardano.Testnet networkMagic
+      where
+        networkMagic =
+            Cardano.NetworkMagic . fromIntegral $ fromSNat snat
+
 {-----------------------------------------------------------------------------
    conversions
 ------------------------------------------------------------------------------}
@@ -126,12 +140,13 @@ fromSNetworkId SMainnet = NMainnet
 fromSNetworkId (STestnet p) = NTestnet $ fromSNat p
 
 -- | Run a function on a 'NetworkDiscriminant' singleton given a network id.
-toSNetworkId
+withSNetworkId
     :: NetworkId
-    -> (forall (n :: NetworkDiscriminant). SNetworkId n -> a)
+    -> ( forall (n :: NetworkDiscriminant)
+          . (Typeable n, HasSNetworkId n)
+         => SNetworkId n
+         -> a
+       )
     -> a
-toSNetworkId NMainnet f = f SMainnet
-toSNetworkId (NTestnet i) f = toSNat i $  f . STestnet
-
-sNetworkIdOfProxy :: forall n. HasSNetworkId n => Proxy n -> SNetworkId n
-sNetworkIdOfProxy Proxy = sNetworkId @n
+withSNetworkId NMainnet f = f SMainnet
+withSNetworkId (NTestnet i) f = withSNat i $  f . STestnet
