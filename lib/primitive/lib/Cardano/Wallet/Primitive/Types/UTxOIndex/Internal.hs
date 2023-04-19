@@ -380,10 +380,20 @@ size = Map.size . universe
 -- Set operations
 --------------------------------------------------------------------------------
 
+-- | Creates a new index by subtracting the second index from the first.
+--
+-- This operation is fast if the intersection of the first and second indices
+-- is small relative to the size of the first index.
+--
 difference :: Ord u => UTxOIndex u -> UTxOIndex u -> UTxOIndex u
-difference a b = fromSequence
-    $ Map.toList
-    $ Map.difference (universe a) (universe b)
+difference a b
+    | disjoint a b = a
+    | otherwise = deleteMany keysToDelete a
+  where
+    keysToDelete =
+        Set.intersection
+            (Map.keysSet (universe a))
+            (Map.keysSet (universe b))
 
 -- | Indicates whether a pair of UTxO indices are disjoint.
 --
