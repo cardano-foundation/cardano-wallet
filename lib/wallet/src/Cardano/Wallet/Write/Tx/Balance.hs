@@ -1,6 +1,7 @@
 {-# LANGUAGE DataKinds #-}
 {-# LANGUAGE DeriveGeneric #-}
 {-# LANGUAGE DuplicateRecordFields #-}
+{-# LANGUAGE EmptyCase #-}
 {-# LANGUAGE ExistentialQuantification #-}
 {-# LANGUAGE GADTs #-}
 {-# LANGUAGE LambdaCase #-}
@@ -35,7 +36,7 @@ import Cardano.Tx.Balance.Internal.CoinSelection
     , SelectionCollateralRequirement (..)
     , SelectionConstraints (..)
     , SelectionError (..)
-    , SelectionLimitOf (NoLimit)
+    , SelectionLimitOf (..)
     , SelectionOf (..)
     , SelectionOutputError (..)
     , SelectionParams (..)
@@ -78,8 +79,6 @@ import Cardano.Wallet.Primitive.Types.UTxOSelection
     ( UTxOSelection )
 import Cardano.Wallet.Shelley.Compatibility
     ( fromCardanoTxIn, fromCardanoTxOut, toCardanoUTxO )
-import Cardano.Wallet.Shelley.Compatibility.Ledger
-    ( toWalletCoin )
 import Cardano.Wallet.Shelley.Transaction
     ( KeyWitnessCount (..)
     , TxFeeUpdate (..)
@@ -98,7 +97,6 @@ import Cardano.Wallet.Transaction
     , TransactionCtx (..)
     , TransactionLayer (..)
     , TxFeeAndChange (..)
-    , WitnessCountCtx (..)
     , defaultTransactionCtx
     )
 import Cardano.Wallet.Write.ProtocolParameters
@@ -107,10 +105,13 @@ import Cardano.Wallet.Write.Tx
     ( IsRecentEra (..)
     , PParams
     , RecentEra (..)
+    , ShelleyLedgerEra
+    , TxOut
     , computeMinimumCoinForTxOut
     , modifyLedgerBody
     , modifyTxOutCoin
     , modifyTxOutputs
+    , txBody
     )
 import Control.Arrow
     ( left )
@@ -166,6 +167,7 @@ import Text.Pretty.Simple
 
 import qualified Cardano.Address.Script as CA
 import qualified Cardano.Api as Cardano
+import qualified Cardano.Api.Byron as Cardano
 import qualified Cardano.Api.Extra as Cardano
 import qualified Cardano.Api.Shelley as Cardano
 import qualified Cardano.Wallet.Primitive.Types as W
@@ -180,6 +182,7 @@ import qualified Cardano.Wallet.Primitive.Types.UTxO as W
 import qualified Cardano.Wallet.Primitive.Types.UTxO as UTxO
 import qualified Cardano.Wallet.Primitive.Types.UTxOIndex as UTxOIndex
 import qualified Cardano.Wallet.Primitive.Types.UTxOSelection as UTxOSelection
+import qualified Cardano.Wallet.Shelley.Compatibility.Ledger as W
 import qualified Cardano.Wallet.Write.Tx as Write.Tx
 import qualified Data.Map as Map
 import qualified Data.Set as Set
@@ -537,9 +540,10 @@ balanceTransactionWithSelectionStrategyAndNoZeroAdaAdjustment
             (BuildableInAnyEra Cardano.cardanoEra ptx)
 
         externalSelectedUtxo <- extractExternallySelectedUTxO ptx
+
         let mSel = selectAssets'
                 era
-                (extractOutputsFromTx $ toSealed partialTx)
+                (extractOutputsFromTx partialTx)
                 (UTxOSelection.fromIndexPair
                     (internalUtxoAvailable, externalSelectedUtxo))
                 balance0
@@ -714,7 +718,7 @@ balanceTransactionWithSelectionStrategyAndNoZeroAdaAdjustment
         -> ExceptT ErrBalanceTx m (Cardano.Value, Cardano.Lovelace, KeyWitnessCount)
     balanceAfterSettingMinFee tx = ExceptT . pure $ do
         let witCount = estimateKeyWitnessCount combinedUTxO (getBody tx)
-        let minfee = toWalletCoin $ Write.Tx.evaluateMinimumFee
+        let minfee = W.toWalletCoin $ Write.Tx.evaluateMinimumFee
                 (recentEra @era) ledgerPP (Write.Tx.fromCardanoTx tx) witCount
         let update = TxUpdate [] [] [] [] (UseNewTxFee minfee)
         tx' <- left ErrBalanceTxUpdateError $ updateTx tx update
@@ -770,6 +774,19 @@ balanceTransactionWithSelectionStrategyAndNoZeroAdaAdjustment
       where
          unUTxO (Cardano.UTxO u) = u
 
+    extractOutputsFromTx :: Cardano.Tx era -> [W.TxOut]
+    extractOutputsFromTx (Cardano.ByronTx _) = case recentEra @era of {}
+    extractOutputsFromTx (Cardano.ShelleyTx _ tx) =
+        map fromLedgerTxOut
+        $ Write.Tx.outputs (recentEra @era)
+        $ txBody (recentEra @era) tx
+      where
+        fromLedgerTxOut :: TxOut (ShelleyLedgerEra era) -> W.TxOut
+        fromLedgerTxOut o = case recentEra @era of
+           RecentEraAlonzo -> W.fromAlonzoTxOut o
+           RecentEraBabbage -> W.fromBabbageTxOut o
+           RecentEraConway -> W.fromConwayTxOut o
+
     assembleTransaction
         :: TxUpdate
         -> ExceptT ErrBalanceTx m (Cardano.Tx era)
@@ -778,11 +795,6 @@ balanceTransactionWithSelectionStrategyAndNoZeroAdaAdjustment
         left ErrBalanceTxAssignRedeemers $ assignScriptRedeemers
             nodePParams ti combinedUTxO redeemers tx'
 
-    extractOutputsFromTx tx =
-        let
-            era = Cardano.AnyCardanoEra $ Cardano.cardanoEra @era
-            (W.Tx {outputs}, _, _, _, _, _) = decodeTx txLayer era AnyWitnessCountCtx tx
-        in outputs
 
     guardConflictingWithdrawalNetworks
         (Cardano.Tx (Cardano.TxBody body) _) = do

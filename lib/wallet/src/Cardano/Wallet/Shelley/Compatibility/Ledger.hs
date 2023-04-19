@@ -42,7 +42,9 @@ module Cardano.Wallet.Shelley.Compatibility.Ledger
     , toAlonzoTxOut
     , toBabbageTxOut
     , toConwayTxOut
-
+    , fromAlonzoTxOut
+    , fromBabbageTxOut
+    , fromConwayTxOut
     ) where
 
 import Prelude
@@ -378,6 +380,28 @@ toConwayTxOut (TxOut addr bundle) = \case
                 $ Crypto.UnsafeHash
                 $ toShort bytes)
             Ledger.SNothing
+
+
+-- NOTE: Inline scripts and datums will be lost in the conversion.
+fromConwayTxOut
+    :: Babbage.BabbageTxOut StandardConway
+    -> TxOut
+fromConwayTxOut (Babbage.BabbageTxOut addr val _ _)
+    = TxOut (toWallet addr) (toWallet val)
+
+-- NOTE: Inline scripts and datums will be lost in the conversion.
+fromBabbageTxOut
+    :: Babbage.BabbageTxOut StandardBabbage
+    -> TxOut
+fromBabbageTxOut (Babbage.BabbageTxOut addr val _ _)
+    = TxOut (toWallet addr) (toWallet val)
+
+-- NOTE: Datum hashes will be lost by the conversion.
+fromAlonzoTxOut
+    :: Alonzo.AlonzoTxOut StandardAlonzo
+    -> TxOut
+fromAlonzoTxOut (Alonzo.AlonzoTxOut addr val _)
+    = TxOut (toWallet addr) (toWallet val)
 
 toWalletScript
     :: Ledger.Crypto crypto
