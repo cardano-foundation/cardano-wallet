@@ -362,8 +362,9 @@ walletCreationProp
     :: (WalletId, WalletName, DummyState)
     -> Property
 walletCreationProp newWallet = monadicIO $ do
-    WalletLayerFixture DBLayer{..} _wl walletIds <- run $ setupFixture newWallet
-    resFromDb <- run $ atomically $ readCheckpoint $ L.head walletIds
+    WalletLayerFixture DBLayer{..} _wl _walletIds <-
+        run $ setupFixture newWallet
+    resFromDb <- run $ atomically readCheckpoint
     assert (isJust resFromDb)
 
 walletDoubleCreationProp

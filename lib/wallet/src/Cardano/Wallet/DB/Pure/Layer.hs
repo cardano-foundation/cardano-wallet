@@ -119,7 +119,7 @@ newDBLayer timeInterpreter wid = do
                     alterDB errWalletNotInitialized db $
                         mPutCheckpoint cp
 
-        , readCheckpoint = const $ join <$> readDBMaybe db mReadCheckpoint
+        , readCheckpoint = join <$> readDBMaybe db mReadCheckpoint
 
         , listCheckpoints = const
             $ fromMaybe []

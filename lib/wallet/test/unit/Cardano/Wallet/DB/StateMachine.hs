@@ -342,7 +342,7 @@ unMockPrivKeyHash = PassphraseHash .  BA.convert . B8.pack
 data Cmd s wid
     = CreateWallet (Wallet s) WalletMetadata TxHistory GenesisParameters
     | PutCheckpoint (Wallet s)
-    | ReadCheckpoint wid
+    | ReadCheckpoint
     | ListCheckpoints wid
     | PutWalletMeta wid WalletMetadata
     | ReadWalletMeta wid
@@ -407,7 +407,7 @@ runMock = \case
         first (Resp . fmap Unit) . mPutCheckpoint wal
     ListCheckpoints _wid ->
         first (Resp . fmap ChainPoints) . mListCheckpoints
-    ReadCheckpoint _wid ->
+    ReadCheckpoint ->
         first (Resp . fmap Checkpoint) . mReadCheckpoint
     PutWalletMeta _wid meta ->
         first (Resp . fmap Unit) . mPutWalletMeta meta
@@ -471,8 +471,8 @@ runIO DBLayer{..} = fmap Resp . go
             initializeWallet wal meta txs gp
         PutCheckpoint wal -> catchNoSuchWallet Unit $
             runDB atomically $ putCheckpoint wal
-        ReadCheckpoint _wid -> Right . Checkpoint <$>
-            atomically (readCheckpoint wid)
+        ReadCheckpoint -> Right . Checkpoint <$>
+            atomically readCheckpoint
         ListCheckpoints _wid -> Right . ChainPoints <$>
             atomically (listCheckpoints wid)
         PutWalletMeta _wid meta -> catchNoSuchWallet Unit $
@@ -633,7 +633,7 @@ generatorWithWid wids =
     [ declareGenerator "PutCheckpoints" 5
         $ PutCheckpoint <$> arbitrary
     , declareGenerator "ReadCheckpoint" 5
-        $ ReadCheckpoint <$> genId
+        $ pure ReadCheckpoint
     , declareGenerator "ListCheckpoints" 5
         $ ListCheckpoints <$> genId
     , declareGenerator "PutWalletMeta" 5
@@ -991,9 +991,7 @@ instance ToExpr RewardAccount where
 
 -- | Interesting combinations of commands.
 data Tag
-    = CreateWalletTwice
-      -- ^ The same wallet id is used twice.
-    | SuccessfulReadTxHistory
+    = SuccessfulReadTxHistory
     | UnsuccessfulReadTxHistory
     | TxUnsortedInputs
       -- ^ Putting a transaction with unsorted inputs.
@@ -1099,7 +1097,7 @@ tag = Foldl.fold $ catMaybes <$> sequenceA
         update :: Bool -> Event s Symbolic -> Bool
         update didRead ev = didRead ||
             case (cmd ev, mockResp ev) of
-                (At (ReadCheckpoint _), Resp (Right (Checkpoint cp))) ->
+                (At ReadCheckpoint, Resp (Right (Checkpoint cp))) ->
                     check cp
                 _otherwise ->
                     False
@@ -1108,7 +1106,7 @@ tag = Foldl.fold $ catMaybes <$> sequenceA
     isPutCheckpointSuccess ev = case (cmd ev, mockResp ev, before ev) of
         (At (PutCheckpoint _wal)
             , Resp (Right (Unit ()))
-            , Model _ _wids )
+            , Model _ _ )
                 -> Just ()
         _otherwise
             -> Nothing

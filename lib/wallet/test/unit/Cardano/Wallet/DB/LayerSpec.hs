@@ -363,7 +363,7 @@ loggingSpec = withLoggingDB @(SeqState 'Mainnet ShelleyKey) $ do
     describe "Sqlite observables" $ do
         it "should measure query timings" $ \(getLogs, DBLayer{..}) -> do
             let count = 5
-            replicateM_ count (atomically $ readCheckpoint walletId_)
+            replicateM_ count (atomically readCheckpoint)
             msgs <- findObserveDiffs <$> getLogs
             length msgs `shouldBe` count * 2
 
@@ -440,7 +440,7 @@ fileModeSpec =  do
                     handle @IO @SomeException (const (pure ())) $ forever $ do
                         atomically $ do
                             liftIO $ threadDelay 10_000
-                            void $ readCheckpoint testWid
+                            void readCheckpoint
 
                 killThread pid *> removeDatabase testWid
                 listDirectory dir `shouldReturn` mempty
@@ -547,7 +547,7 @@ fileModeSpec =  do
                     unsafeRunExceptT $
                         initializeWallet testCp testMetadata mempty gp
                     unsafeRunExceptT $ putCheckpoint testCp
-            testReopening f (`readCheckpoint'` testWid) (Just testCp)
+            testReopening f readCheckpoint' (Just testCp)
 
         describe "Golden rollback scenarios" $ do
             let dummyHash x = Hash $
@@ -556,7 +556,7 @@ fileModeSpec =  do
                     x <> BS.pack (replicate (32 - (BS.length x)) 0)
 
             let mockApply DBLayer{..} h mockTxs = do
-                    Just cpA <- atomically $ readCheckpoint testWid
+                    Just cpA <- atomically readCheckpoint
                     let slotA = view #slotNo $ currentTip cpA
                     let Quantity bhA = view #blockHeight $ currentTip cpA
                     let hashA = headerHash $ currentTip cpA
@@ -791,7 +791,7 @@ fileModeSpec =  do
 
                 atomically . void . unsafeRunExceptT $
                     rollbackTo testWid (At $ SlotNo 200)
-                Just cp <- atomically $ readCheckpoint testWid
+                Just cp <- atomically readCheckpoint
                 view #slotNo (currentTip cp) `shouldBe` (SlotNo 0)
 
                 getTxsInLedger db `shouldReturn` []
@@ -842,8 +842,8 @@ prop_randomOpChunks (NonEmpty (p : pairs)) =
         walId2 <-  getWalletId' db2
         walId1 `shouldBe` walId2
 
-        cps1 <- readCheckpoint' db1 walId1
-        cps2 <- readCheckpoint' db2 walId1
+        cps1 <- readCheckpoint' db1
+        cps2 <- readCheckpoint' db2
         cps1 `shouldBe` cps2
 
         meta1 <- readWalletMeta' db1 walId1
@@ -924,10 +924,8 @@ getWalletId' DBLayer{..} = pure walletId_
 
 readCheckpoint'
     :: DBLayer m s k
-    -> WalletId
     -> m (Maybe (Wallet s))
-readCheckpoint' DBLayer{..} =
-    atomically . readCheckpoint
+readCheckpoint' DBLayer{..} = atomically readCheckpoint
 
 readWalletMeta'
     :: DBLayer m s k
@@ -1228,7 +1226,7 @@ testMigrationCleanupCheckpoints dbName genesisParameters tip = do
     (logs, result) <- withDBLayerFromCopiedFile @ShelleyKey dbName
         $ \DBLayer{..} -> atomically $ do
             (,) <$> readGenesisParameters walletId_
-                <*> readCheckpoint walletId_
+                <*> readCheckpoint
 
     length (filter (isMsgManualMigration fieldGenesisHash) logs) `shouldBe` 1
     length (filter (isMsgManualMigration fieldGenesisStart) logs) `shouldBe` 1
@@ -1249,7 +1247,7 @@ testMigrationRole
 testMigrationRole dbName = do
     (logs, Just cp) <- withDBLayerFromCopiedFile @ShelleyKey dbName
         $ \DBLayer{..} -> atomically $ do
-            readCheckpoint walletId_
+            readCheckpoint
 
     let migrationMsg = filter isMsgManualMigration logs
     length migrationMsg `shouldBe` 3
@@ -1276,7 +1274,7 @@ testMigrationSeqStateDerivationPrefix
 testMigrationSeqStateDerivationPrefix dbName prefix = do
     (logs, Just cp) <- withDBLayerFromCopiedFile @k @s dbName
         $ \DBLayer{..} -> atomically $ do
-            readCheckpoint walletId_
+            readCheckpoint
 
     let migrationMsg = filter isMsgManualMigration logs
     length migrationMsg `shouldBe` 1
@@ -1524,8 +1522,7 @@ gp = dummyGenesisParameters
 
 getAvailableBalance :: DBLayer IO s k -> IO Natural
 getAvailableBalance DBLayer{..} = do
-    cp <- fmap (fromMaybe (error "nothing")) <$>
-        atomically $ readCheckpoint testWid
+    cp <- fromMaybe (error "nothing") <$> atomically readCheckpoint
     pend <- atomically $ fmap toTxHistory
         <$> readTransactions testWid Nothing Descending wholeRange
                 (Just Pending) Nothing

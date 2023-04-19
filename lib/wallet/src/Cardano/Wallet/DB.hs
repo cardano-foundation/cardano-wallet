@@ -218,8 +218,7 @@ data DBLayer m s k = forall stm. (MonadIO stm, MonadFail stm) => DBLayer
         -- If the wallet doesn't exist, this operation returns an error.
 
     , readCheckpoint
-        :: WalletId
-        -> stm (Maybe (Wallet s))
+        :: stm (Maybe (Wallet s))
         -- ^ Fetch the most recent checkpoint of a given wallet.
         --
         -- Return 'Nothing' if there's no such wallet.
@@ -503,7 +502,7 @@ mkDBLayerFromParts ti wid_ DBLayerCollection{..} = DBLayer
     , listCheckpoints = listCheckpoints_ dbCheckpoints
     , putWalletMeta = putWalletMeta_ dbWalletMeta
     , readWalletMeta = \wid -> do
-        readCheckpoint' wid >>= \case
+        readCheckpoint' >>= \case
             Nothing -> pure Nothing
             Just cp -> do
                 currentEpoch <- liftIO $
@@ -522,7 +521,7 @@ mkDBLayerFromParts ti wid_ DBLayerCollection{..} = DBLayer
     , putTxHistory = \wid a -> wrapNoSuchWallet wid $
         putTxHistory_ dbTxHistory wid a
     , readTransactions = \wid minWithdrawal order range status limit ->
-        readCurrentTip wid >>= \case
+        readCurrentTip >>= \case
             Just tip -> do
                 inLedgers <- if status `elem` [Nothing, Just WTxMeta.InLedger]
                     then readTxHistory_ dbTxHistory range tip limit order
@@ -552,7 +551,7 @@ mkDBLayerFromParts ti wid_ DBLayerCollection{..} = DBLayer
                     $ inLedgers <> inSubmissions
             Nothing -> pure []
     , getTx = \wid txid -> wrapNoSuchWallet wid $ do
-        readCurrentTip wid >>= \case
+        readCurrentTip >>= \case
             Just tip -> do
                 historical <- getTx_ dbTxHistory txid tip
                 case historical of
@@ -609,9 +608,9 @@ mkDBLayerFromParts ti wid_ DBLayerCollection{..} = DBLayer
             False -> pure $ Left ErrWalletNotInitialized
             True  -> Right <$> action
 
-    readCurrentTip :: WalletId -> stm (Maybe BlockHeader)
+    readCurrentTip :: stm (Maybe BlockHeader)
     readCurrentTip =
-        (fmap . fmap) currentTip . readCheckpoint_ dbCheckpoints
+        fmap currentTip <$> readCheckpoint_ dbCheckpoints
 
 -- | Update the transaction submission state of a wallet.
 updateSubmissions
@@ -678,8 +677,7 @@ data DBCheckpoints stm s = DBCheckpoints
         -- If the wallet doesn't exist, this operation returns an error.
 
     , readCheckpoint_
-        :: WalletId
-        -> stm (Maybe (Wallet s))
+        :: stm (Maybe (Wallet s))
         -- ^ Fetch the most recent checkpoint of a given wallet.
         --
         -- Return 'Nothing' if there's no such wallet.

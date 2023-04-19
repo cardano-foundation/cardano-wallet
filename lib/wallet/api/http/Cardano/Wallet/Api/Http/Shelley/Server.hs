@@ -1246,7 +1246,7 @@ patchSharedWallet ctx liftKey cred (ApiT wid) body = do
                         cp <- mapExceptT atomically
                             $ withExceptT ErrAddCosignerKeyNoSuchWallet
                             $ W.withNoSuchWallet wid
-                            $ readCheckpoint wid
+                            readCheckpoint
                         let state = getState cp
                         --could be for account and root key wallets
                         prvKeyM <-
@@ -2105,8 +2105,7 @@ signTransaction ctx (ApiT wid) body = do
             W.withRootKey @s @k db wid pwd ErrWitnessTxWithRootKey $ \rootK scheme -> do
                 cp <- mapExceptT atomically
                     $ withExceptT ErrWitnessTxNoSuchWallet
-                    $ W.withNoSuchWallet wid
-                    $ readCheckpoint wid
+                    $ W.withNoSuchWallet wid readCheckpoint
                 let
                     pwdP :: Passphrase "encryption"
                     pwdP = preparePassphrase scheme pwd

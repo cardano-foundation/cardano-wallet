@@ -857,7 +857,7 @@ readWallet
     -> ExceptT ErrNoSuchWallet IO
         (Wallet s, (WalletMetadata, WalletDelegation), Set Tx)
 readWallet ctx wid = db & \DBLayer{..} -> mapExceptT atomically $ do
-    cp <- withNoSuchWallet wid $ readCheckpoint wid
+    cp <- withNoSuchWallet wid readCheckpoint
     meta <- withNoSuchWallet wid $ readWalletMeta wid
     pending <- lift
         $ readTransactions wid Nothing Descending wholeRange (Just Pending)
@@ -1116,7 +1116,7 @@ restoreBlocks
 restoreBlocks ctx tr wid blocks nodeTip = db & \DBLayer{..} ->
   mapExceptT atomically $ do
     slottingParams  <- liftIO $ currentSlottingParameters nl
-    cp0 <- withNoSuchWallet wid (readCheckpoint wid)
+    cp0 <- withNoSuchWallet wid readCheckpoint
     unless (cp0 `isParentOf` firstHeader blocks) $ fail $ T.unpack $ T.unwords
         [ "restoreBlocks: given chain isn't a valid continuation."
         , "Wallet is at:", pretty (currentTip cp0)
@@ -1328,7 +1328,7 @@ readRewardAccount db wid = do
     readWalletCheckpoint ::
         DBLayer IO s k -> WalletId -> ExceptT ErrNoSuchWallet IO (Wallet s)
     readWalletCheckpoint DBLayer{..} wallet =
-        liftIO (atomically (readCheckpoint wallet)) >>=
+        liftIO (atomically readCheckpoint)  >>=
             maybe (throwE (ErrNoSuchWallet wallet)) pure
 
 -- | Unsafe version of the `readRewardAccount` function
@@ -1357,8 +1357,7 @@ readPolicyPublicKey
 readPolicyPublicKey ctx wid = db & \DBLayer{..} -> do
     cp <- withExceptT ErrReadPolicyPublicKeyNoSuchWallet
         $ mapExceptT atomically
-        $ withNoSuchWallet wid
-        $ readCheckpoint wid
+        $ withNoSuchWallet wid readCheckpoint
     case walletFlavor @s @n @k of
         ShelleyWallet -> do
             let s = getState cp
@@ -1420,8 +1419,7 @@ lookupTxIns
 lookupTxIns ctx wid txins = db & \DBLayer{..} -> do
     cp <- mapExceptT atomically
           $ withExceptT ErrDecodeTxNoSuchWallet
-          $ withNoSuchWallet wid
-          $ readCheckpoint wid
+          $ withNoSuchWallet wid readCheckpoint
     pure $ map (\i -> (i, lookupTxIn cp i)) txins
   where
     db = ctx ^. dbLayer @IO @s @k
@@ -1447,8 +1445,7 @@ lookupTxOuts
 lookupTxOuts ctx wid txouts = db & \DBLayer{..} -> do
     cp <- mapExceptT atomically
           $ withExceptT ErrDecodeTxNoSuchWallet
-          $ withNoSuchWallet wid
-          $ readCheckpoint wid
+          $ withNoSuchWallet wid readCheckpoint
     -- NOTE: We evolve the state (in practice an address pool) as we loop
     -- through the outputs, but we don't consider pending transactions.
     -- /Theoretically/ the outputs might only be discoverable after discovering
@@ -1476,8 +1473,7 @@ listAddresses
     -> ExceptT ErrNoSuchWallet IO [(Address, AddressState, NonEmpty DerivationIndex)]
 listAddresses ctx wid normalize = db & \DBLayer{..} -> do
     cp <- mapExceptT atomically
-        $ withNoSuchWallet wid
-        $ readCheckpoint wid
+        $ withNoSuchWallet wid readCheckpoint
     let s = getState cp
 
     -- FIXME
@@ -1618,7 +1614,7 @@ assignChangeAddressesWithoutDbUpdate
 assignChangeAddressesWithoutDbUpdate ctx wid argGenChange selection =
     db & \DBLayer{..} -> mapExceptT atomically $ do
         cp <- withExceptT ErrConstructTxNoSuchWallet $
-            withNoSuchWallet wid $ readCheckpoint wid
+            withNoSuchWallet wid readCheckpoint
         let (selectionUpdated, _) =
                 assignChangeAddresses
                     (defaultChangeAddressGen argGenChange (Proxy @k))
@@ -2360,8 +2356,7 @@ buildAndSignTransaction ctx wid era mkRwdAcct pwd txCtx sel = db & \DBLayer{..} 
         let pwdP = preparePassphrase scheme pwd
         mapExceptT atomically $ do
             cp <- withExceptT ErrSignPaymentNoSuchWallet
-                $ withNoSuchWallet wid
-                $ readCheckpoint wid
+                $ withNoSuchWallet wid readCheckpoint
             pp <- liftIO $ currentProtocolParameters nl
             let keyFrom = isOwned (getState cp) (xprv, pwdP)
             let rewardAcnt = mkRwdAcct (xprv, pwdP)
@@ -2430,8 +2425,7 @@ constructUnbalancedSharedTransaction
 constructUnbalancedSharedTransaction txLayer netLayer db wid txCtx sel = db & \DBLayer{..} -> do
     cp <- withExceptT ErrConstructTxNoSuchWallet
         $ mapExceptT atomically
-        $ withNoSuchWallet wid
-        $ readCheckpoint wid
+        $ withNoSuchWallet wid readCheckpoint
     let s = getState cp
     let scriptM =
             flip (replaceCosignersWithVerKeys CAShelley.Stake) minBound <$>
@@ -2483,8 +2477,7 @@ constructTxMeta
 constructTxMeta DBLayer{..} wid txCtx inps outs =
     mapExceptT atomically $ do
         checkpoint <- withExceptT ErrSubmitTransactionNoSuchWallet
-              $ withNoSuchWallet wid
-              $ readCheckpoint wid
+              $ withNoSuchWallet wid readCheckpoint
         let latestBlockHeader = currentTip checkpoint
         let amountOut = F.fold $ map TxOut.coin outs
             amountIn = F.fold (map snd inps)
@@ -2730,7 +2723,7 @@ listAssets
     -> WalletId
     -> ExceptT ErrNoSuchWallet IO (Set TokenMap.AssetId)
 listAssets ctx wid = db & \DBLayer{..} -> do
-    cp <- mapExceptT atomically $ withNoSuchWallet wid $ readCheckpoint wid
+    cp <- mapExceptT atomically $ withNoSuchWallet wid readCheckpoint
     txs <- lift . atomically $
         let noMinWithdrawal = Nothing
             allTxStatuses = Nothing
@@ -3240,8 +3233,7 @@ signMetadataWith ctx wid pwd (role_, ix) metadata = db & \DBLayer{..} -> do
 
     cp <- mapExceptT atomically
         $ withExceptT ErrSignMetadataWithNoSuchWallet
-        $ withNoSuchWallet wid
-        $ readCheckpoint wid
+        $ withNoSuchWallet wid readCheckpoint
 
     withRootKey db wid pwd ErrSignMetadataWithRootKey $ \rootK scheme -> do
         let encPwd = preparePassphrase scheme pwd
@@ -3272,8 +3264,7 @@ derivePublicKey ctx wid role_ ix = db & \DBLayer{..} -> do
 
     cp <- mapExceptT atomically
         $ withExceptT ErrDerivePublicKeyNoSuchWallet
-        $ withNoSuchWallet wid
-        $ readCheckpoint wid
+        $ withNoSuchWallet wid readCheckpoint
 
     let acctK = getAccount $ getState cp
     let addrK = deriveAddressPublicKey acctK role_ addrIx
@@ -3294,8 +3285,7 @@ readAccountPublicKey
 readAccountPublicKey ctx wid = db & \DBLayer{..} -> do
     cp <- mapExceptT atomically
         $ withExceptT ErrReadAccountPublicKeyNoSuchWallet
-        $ withNoSuchWallet wid
-        $ readCheckpoint wid
+        $ withNoSuchWallet wid readCheckpoint
     pure $ getAccount (getState cp)
   where
     db = ctx ^. dbLayer @IO @s @k
@@ -3312,8 +3302,7 @@ writePolicyPublicKey
 writePolicyPublicKey ctx wid pwd = db & \DBLayer{..} -> do
     cp <- mapExceptT atomically
         $ withExceptT ErrWritePolicyPublicKeyNoSuchWallet
-        $ withNoSuchWallet wid
-        $ readCheckpoint wid
+        $ withNoSuchWallet wid readCheckpoint
 
     let (SeqPrologue seqState) = getPrologue $ getState cp
 
@@ -3355,8 +3344,7 @@ getAccountPublicKeyAtIndex ctx wid pwd ix purposeM = db & \DBLayer{..} -> do
 
     _cp <- mapExceptT atomically
         $ withExceptT ErrReadAccountPublicKeyNoSuchWallet
-        $ withNoSuchWallet wid
-        $ readCheckpoint wid
+        $ withNoSuchWallet wid readCheckpoint
 
     withRootKey @s @k db wid pwd ErrReadAccountPublicKeyRootKey
         $ \rootK scheme -> do
@@ -3404,7 +3392,7 @@ updateCosigner ctx wid cosignerXPub cosigner cred = db & \DBLayer{..} -> do
     cp <- withExceptT ErrAddCosignerKeyNoSuchWallet
         $ mapExceptT atomically
         $ withNoSuchWallet wid
-        $ readCheckpoint wid
+        readCheckpoint
     ExceptT $ atomically $ modifyDBMaybe walletsDB $
         adjustNoSuchWallet wid ErrAddCosignerKeyNoSuchWallet
             (updateCosigner' cp)
