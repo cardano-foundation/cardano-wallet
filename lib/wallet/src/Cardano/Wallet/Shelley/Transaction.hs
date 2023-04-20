@@ -1082,7 +1082,7 @@ evaluateMinimumFee pp (KeyWitnessCount nWits nBootWits) body =
 
 -- | Estimate the size of the transaction (body) when fully signed.
 estimateSignedTxSize
-    :: Cardano.IsShelleyBasedEra era
+    :: WriteTx.IsRecentEra era
     => Cardano.BundledProtocolParameters era
     -> KeyWitnessCount
     -> Cardano.TxBody era
