@@ -343,7 +343,7 @@ data Cmd s wid
     = CreateWallet (Wallet s) WalletMetadata TxHistory GenesisParameters
     | PutCheckpoint (Wallet s)
     | ReadCheckpoint
-    | ListCheckpoints wid
+    | ListCheckpoints
     | PutWalletMeta wid WalletMetadata
     | ReadWalletMeta wid
     | PutTxHistory wid TxHistory
@@ -405,7 +405,7 @@ runMock = \case
             . mInitializeWallet wal meta txs gp $ db
     PutCheckpoint wal ->
         first (Resp . fmap Unit) . mPutCheckpoint wal
-    ListCheckpoints _wid ->
+    ListCheckpoints ->
         first (Resp . fmap ChainPoints) . mListCheckpoints
     ReadCheckpoint ->
         first (Resp . fmap Checkpoint) . mReadCheckpoint
@@ -473,8 +473,8 @@ runIO DBLayer{..} = fmap Resp . go
             runDB atomically $ putCheckpoint wal
         ReadCheckpoint -> Right . Checkpoint <$>
             atomically readCheckpoint
-        ListCheckpoints _wid -> Right . ChainPoints <$>
-            atomically (listCheckpoints wid)
+        ListCheckpoints -> Right . ChainPoints <$>
+            atomically listCheckpoints
         PutWalletMeta _wid meta -> catchNoSuchWallet Unit $
             runDB atomically$ putWalletMeta wid meta
         ReadWalletMeta _wid -> fmap (Right . (Metadata . fmap fst)) $
@@ -635,7 +635,7 @@ generatorWithWid wids =
     , declareGenerator "ReadCheckpoint" 5
         $ pure ReadCheckpoint
     , declareGenerator "ListCheckpoints" 5
-        $ ListCheckpoints <$> genId
+        $ pure ListCheckpoints
     , declareGenerator "PutWalletMeta" 5
         $ PutWalletMeta <$> genId <*> arbitrary
     , declareGenerator "ReadWalletMeta" 5

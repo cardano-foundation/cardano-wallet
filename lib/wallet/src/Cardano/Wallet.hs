@@ -1005,7 +1005,7 @@ restoreWallet
     -> ExceptT ErrNoSuchWallet IO ()
 restoreWallet ctx wid = db & \DBLayer{..} ->
     let checkpointPolicy = CP.defaultPolicy
-        readChainPoints = atomically $ listCheckpoints wid
+        readChainPoints = atomically listCheckpoints
         rollBackward =
             throwInIO . rollbackBlocks @_ @s @k ctx wid . toSlot
         rollForward' blockdata tip = throwInIO $

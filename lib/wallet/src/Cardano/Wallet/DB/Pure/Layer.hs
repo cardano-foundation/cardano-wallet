@@ -121,9 +121,7 @@ newDBLayer timeInterpreter wid = do
 
         , readCheckpoint = join <$> readDBMaybe db mReadCheckpoint
 
-        , listCheckpoints = const
-            $ fromMaybe []
-            <$> readDBMaybe db mListCheckpoints
+        , listCheckpoints = fromMaybe [] <$> readDBMaybe db mListCheckpoints
 
         , rollbackTo = \_pk pt -> ExceptT $
             alterDB errWalletNotInitialized db $

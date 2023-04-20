@@ -224,8 +224,7 @@ data DBLayer m s k = forall stm. (MonadIO stm, MonadFail stm) => DBLayer
         -- Return 'Nothing' if there's no such wallet.
 
     , listCheckpoints
-        :: WalletId
-        -> stm [ChainPoint]
+        :: stm [ChainPoint]
         -- ^ List all known checkpoint tips, ordered by slot ids from the oldest
         -- to the newest.
 
@@ -683,8 +682,7 @@ data DBCheckpoints stm s = DBCheckpoints
         -- Return 'Nothing' if there's no such wallet.
 
     , listCheckpoints_
-        :: WalletId
-        -> stm [ChainPoint]
+        :: stm [ChainPoint]
         -- ^ List all known checkpoint tips, ordered by slot ids from the oldest
         -- to the newest.
     }

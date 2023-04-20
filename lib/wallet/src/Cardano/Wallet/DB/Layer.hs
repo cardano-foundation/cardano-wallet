@@ -637,10 +637,10 @@ newDBLayerFromDBOpen ti wid_ DBOpen{atomically=runQuery} = mdo
 
         , readCheckpoint_ = readCheckpoint
 
-        , listCheckpoints_ = \wid -> do
+        , listCheckpoints_ = do
             let toChainPoint = W.chainPointFromBlockHeader
             map (toChainPoint . blockHeaderFromEntity . entityVal) <$> selectList
-                [ CheckpointWalletId ==. wid ]
+                [ CheckpointWalletId ==. wid_ ]
                 [ Asc CheckpointSlot ]
         }
 
