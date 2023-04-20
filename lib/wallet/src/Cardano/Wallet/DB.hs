@@ -245,8 +245,7 @@ data DBLayer m s k = forall stm. (MonadIO stm, MonadFail stm) => DBLayer
         :: ExceptT ErrWalletNotInitialized stm Bool
 
     , putDelegationCertificate
-        :: WalletId
-        -> DelegationCertificate
+        :: DelegationCertificate
         -> SlotNo
         -> ExceptT ErrWalletNotInitialized stm ()
         -- ^ Binds a stake pool id to a wallet. This will have an influence on
@@ -508,7 +507,7 @@ mkDBLayerFromParts ti wid_ DBLayerCollection{..} = DBLayer
                 pure $ mwm <&> (, del)
     , isStakeKeyRegistered = wrapNoSuchWallet wid_ $
         isStakeKeyRegistered_ dbDelegation
-    , putDelegationCertificate = \wid a b -> wrapNoSuchWallet wid $
+    , putDelegationCertificate = \a b -> wrapNoSuchWallet wid_ $
         putDelegationCertificate_ dbDelegation a b
     , putDelegationRewardBalance = \wid a -> wrapNoSuchWallet wid $
         putDelegationRewardBalance_ dbDelegation a

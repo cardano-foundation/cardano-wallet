@@ -1205,7 +1205,7 @@ restoreBlocks ctx tr wid blocks nodeTip = db & \DBLayer{..} ->
     mkNoSuchWalletError wid
         $ forM_ slotPoolDelegations $ \delegation@(slotNo, cert) -> do
             liftIO $ logDelegation delegation
-            putDelegationCertificate wid cert slotNo
+            putDelegationCertificate cert slotNo
 
     liftIO $ mapM_ logCheckpoint cpsKeep
 

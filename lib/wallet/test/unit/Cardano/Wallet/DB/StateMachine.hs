@@ -357,7 +357,7 @@ data Cmd s wid
     | ReadPrivateKey wid
     | ReadGenesisParameters wid
     | RollbackTo wid Slot
-    | PutDelegationCertificate wid DelegationCertificate SlotNo
+    | PutDelegationCertificate DelegationCertificate SlotNo
     | IsStakeKeyRegistered wid
     | PutDelegationRewardBalance wid Coin
     | ReadDelegationRewardBalance wid
@@ -414,7 +414,7 @@ runMock = \case
     ReadWalletMeta ->
         first (Resp . fmap (Metadata . fmap fst) )
             . mReadWalletMeta timeInterpreter
-    PutDelegationCertificate _wid cert sl ->
+    PutDelegationCertificate cert sl ->
         first (Resp . fmap Unit) . mPutDelegationCertificate cert sl
     IsStakeKeyRegistered _wid ->
         first (Resp . fmap StakeKeyStatus) . mIsStakeKeyRegistered
@@ -479,8 +479,8 @@ runIO DBLayer{..} = fmap Resp . go
             runDB atomically $ putWalletMeta meta
         ReadWalletMeta -> Right . (Metadata . fmap fst) <$>
             atomically readWalletMeta
-        PutDelegationCertificate _wid pool sl -> catchNoSuchWallet Unit $
-            runDB atomically $ putDelegationCertificate wid pool sl
+        PutDelegationCertificate pool sl -> catchNoSuchWallet Unit $
+            runDB atomically $ putDelegationCertificate pool sl
         IsStakeKeyRegistered _wid -> catchNoSuchWallet StakeKeyStatus $
             runDB atomically isStakeKeyRegistered
         PutTxHistory  _wid txs -> catchNoSuchWallet Unit $
@@ -641,7 +641,7 @@ generatorWithWid wids =
     , declareGenerator "ReadWalletMeta" 5
         $ pure ReadWalletMeta
     , declareGenerator "PutDelegationCertificate" 5
-        $ PutDelegationCertificate <$> genId <*> arbitrary <*> arbitrary
+        $ PutDelegationCertificate <$> arbitrary <*> arbitrary
     , declareGenerator "IsStakeKeyRegistered" 1
         $ IsStakeKeyRegistered <$> genId
     , declareGenerator "PutTxHistory" 5
@@ -1120,7 +1120,7 @@ tag = Foldl.fold $ catMaybes <$> sequenceA
                 (Just _wid, _, _, _) ->
                     Map.alter (fmap (+1)) () acc
                 ( Nothing
-                  , At (PutDelegationCertificate wid _ _)
+                  , At (PutDelegationCertificate _ _)
                   , Resp (Right _)
                   , Model _ _wids
                   ) ->

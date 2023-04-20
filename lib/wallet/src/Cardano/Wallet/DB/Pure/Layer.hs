@@ -141,7 +141,7 @@ newDBLayer timeInterpreter wid = do
             $ readDBMaybe db
             $ mReadWalletMeta timeInterpreter
 
-        , putDelegationCertificate = \_pk cert sl -> ExceptT $
+        , putDelegationCertificate = \cert sl -> ExceptT $
             alterDB errWalletNotInitialized db $
             mPutDelegationCertificate cert sl
 
