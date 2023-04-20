@@ -1307,7 +1307,7 @@ type ConwayTx =
     Ledger.Tx (Cardano.ShelleyLedgerEra Cardano.ConwayEra)
 
 assignScriptRedeemers
-    :: forall era. Cardano.IsShelleyBasedEra era
+    :: forall era. WriteTx.IsRecentEra era
     => Cardano.BundledProtocolParameters era
     -> TimeInterpreter (Either PastHorizonException)
     -> Cardano.UTxO era
@@ -1315,14 +1315,8 @@ assignScriptRedeemers
     -> Cardano.Tx era
     -> Either ErrAssignRedeemers (Cardano.Tx era )
 assignScriptRedeemers pparams ti utxo redeemers tx =
-    case Cardano.shelleyBasedEra @era of
-        Cardano.ShelleyBasedEraShelley ->
-            pure tx
-        Cardano.ShelleyBasedEraAllegra ->
-            pure tx
-        Cardano.ShelleyBasedEraMary->
-            pure tx
-        Cardano.ShelleyBasedEraAlonzo -> do
+    case WriteTx.recentEra @era of
+        WriteTx.RecentEraAlonzo -> do
             let Cardano.ShelleyTx _ alonzoTx = tx
             alonzoTx' <- flip execStateT alonzoTx $ do
                 indexedRedeemers <- StateT assignNullRedeemersAlonzo
@@ -1331,7 +1325,7 @@ assignScriptRedeemers pparams ti utxo redeemers tx =
                 modifyM (assignExecutionUnitsAlonzo executionUnits)
                 modify' addScriptIntegrityHashAlonzo
             pure $ Cardano.ShelleyTx ShelleyBasedEraAlonzo alonzoTx'
-        Cardano.ShelleyBasedEraBabbage -> do
+        WriteTx.RecentEraBabbage -> do
             let Cardano.ShelleyTx _ babbageTx = tx
             babbageTx' <- flip execStateT babbageTx $ do
                 indexedRedeemers <- StateT assignNullRedeemersBabbage
@@ -1340,7 +1334,7 @@ assignScriptRedeemers pparams ti utxo redeemers tx =
                 modifyM (assignExecutionUnitsBabbage executionUnits)
                 modify' addScriptIntegrityHashBabbage
             pure $ Cardano.ShelleyTx ShelleyBasedEraBabbage babbageTx'
-        Cardano.ShelleyBasedEraConway -> do
+        WriteTx.RecentEraConway -> do
             let Cardano.ShelleyTx _ conwayTx = tx
             conwayTx' <- flip execStateT conwayTx $ do
                 indexedRedeemers <- StateT assignNullRedeemersConway
