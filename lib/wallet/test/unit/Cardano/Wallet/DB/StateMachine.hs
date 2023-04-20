@@ -344,7 +344,7 @@ data Cmd s wid
     | PutCheckpoint (Wallet s)
     | ReadCheckpoint
     | ListCheckpoints
-    | PutWalletMeta wid WalletMetadata
+    | PutWalletMeta WalletMetadata
     | ReadWalletMeta wid
     | PutTxHistory wid TxHistory
     | ReadTxHistory wid
@@ -409,7 +409,7 @@ runMock = \case
         first (Resp . fmap ChainPoints) . mListCheckpoints
     ReadCheckpoint ->
         first (Resp . fmap Checkpoint) . mReadCheckpoint
-    PutWalletMeta _wid meta ->
+    PutWalletMeta meta ->
         first (Resp . fmap Unit) . mPutWalletMeta meta
     ReadWalletMeta _wid ->
         first (Resp . fmap (Metadata . fmap fst) )
@@ -475,8 +475,8 @@ runIO DBLayer{..} = fmap Resp . go
             atomically readCheckpoint
         ListCheckpoints -> Right . ChainPoints <$>
             atomically listCheckpoints
-        PutWalletMeta _wid meta -> catchNoSuchWallet Unit $
-            runDB atomically$ putWalletMeta wid meta
+        PutWalletMeta meta -> catchNoSuchWallet Unit $
+            runDB atomically $ putWalletMeta meta
         ReadWalletMeta _wid -> fmap (Right . (Metadata . fmap fst)) $
             atomically $ readWalletMeta wid
         PutDelegationCertificate _wid pool sl -> catchNoSuchWallet Unit $
@@ -637,7 +637,7 @@ generatorWithWid wids =
     , declareGenerator "ListCheckpoints" 5
         $ pure ListCheckpoints
     , declareGenerator "PutWalletMeta" 5
-        $ PutWalletMeta <$> genId <*> arbitrary
+        $ PutWalletMeta <$> arbitrary
     , declareGenerator "ReadWalletMeta" 5
         $ ReadWalletMeta <$> genId
     , declareGenerator "PutDelegationCertificate" 5
@@ -703,8 +703,8 @@ shrinker (At cmd) = case cmd of
         [ At $ CreateWallet wal' met' (unGenTxHistory txs') gp
         | (txs', wal', met') <- shrink (GenTxHistory txs, wal, met)
         ]
-    PutWalletMeta wid met ->
-        [ At $ PutWalletMeta wid met'
+    PutWalletMeta met ->
+        [ At $ PutWalletMeta met'
         | met' <- shrink met
         ]
     RollbackTo wid sid ->

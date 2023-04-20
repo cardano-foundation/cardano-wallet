@@ -133,9 +133,9 @@ newDBLayer timeInterpreter wid = do
                                    Wallet Metadata
         -----------------------------------------------------------------------}
 
-        , putWalletMeta = \_pk meta -> ExceptT $
-            alterDB errWalletNotInitialized db $
-            mPutWalletMeta meta
+        , putWalletMeta = ExceptT
+            .  alterDB errWalletNotInitialized db
+            .  mPutWalletMeta
 
         , readWalletMeta = const
             $ fmap join

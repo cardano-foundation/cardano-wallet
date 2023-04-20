@@ -229,8 +229,7 @@ data DBLayer m s k = forall stm. (MonadIO stm, MonadFail stm) => DBLayer
         -- to the newest.
 
     , putWalletMeta
-        :: WalletId
-        -> WalletMetadata
+        :: WalletMetadata
         -> ExceptT ErrWalletNotInitialized stm ()
         -- ^ Replace an existing wallet metadata with the given one.
         --
@@ -690,8 +689,7 @@ data DBCheckpoints stm s = DBCheckpoints
 -- | A database layer for storing 'WalletMetadata'.
 data DBWalletMeta stm = DBWalletMeta
     { putWalletMeta_
-        :: WalletId
-        -> WalletMetadata
+        :: WalletMetadata
         -> ExceptT ErrWalletNotInitialized stm ()
         -- ^ Replace an existing wallet metadata with the given one.
         --

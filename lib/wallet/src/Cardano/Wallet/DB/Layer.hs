@@ -734,11 +734,11 @@ newDBLayerFromDBOpen ti wid_ DBOpen{atomically=runQuery} = mdo
         -----------------------------------------------------------------------}
     let
       dbWalletMeta = DBWalletMeta
-        { putWalletMeta_ = \wid meta -> ExceptT $ do
-            selectWallet wid >>= \case
+        { putWalletMeta_ = \meta -> ExceptT $ do
+            selectWallet wid_ >>= \case
                 Nothing -> pure $ Left ErrWalletNotInitialized
                 Just _ -> do
-                    updateWhere [WalId ==. wid]
+                    updateWhere [WalId ==. wid_]
                         (mkWalletMetadataUpdate meta)
                     pure $ Right ()
 
