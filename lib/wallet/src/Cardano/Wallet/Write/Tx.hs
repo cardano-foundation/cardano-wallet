@@ -320,11 +320,20 @@ asAnyRecentEra
     :: Cardano.InAnyCardanoEra a
     -> Maybe (InAnyRecentEra a)
 asAnyRecentEra = \case
+    Cardano.InAnyCardanoEra Cardano.ByronEra _ ->
+        Nothing
+    Cardano.InAnyCardanoEra Cardano.ShelleyEra _ ->
+        Nothing
+    Cardano.InAnyCardanoEra Cardano.AllegraEra _ ->
+        Nothing
+    Cardano.InAnyCardanoEra Cardano.MaryEra _ ->
+        Nothing
     Cardano.InAnyCardanoEra Cardano.BabbageEra a ->
         Just $ InAnyRecentEra RecentEraBabbage a
     Cardano.InAnyCardanoEra Cardano.AlonzoEra a ->
         Just $ InAnyRecentEra RecentEraAlonzo a
-    _ -> Nothing
+    Cardano.InAnyCardanoEra Cardano.ConwayEra a ->
+        Just $ InAnyRecentEra RecentEraConway a
 
 -- | An existential type like 'AnyCardanoEra', but for 'RecentEra'.
 data AnyRecentEra where
