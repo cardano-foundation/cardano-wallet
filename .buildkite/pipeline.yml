@@ -72,19 +72,6 @@ steps:
     env:
       TMPDIR: "/cache"
 
-  - label: 'Build Docker Image'
-    depends_on: linux-nix
-    command:
-      - "mkdir -p config && echo '{  outputs = _: { dockerHubRepoName = \"inputoutput/cardano-wallet\"; }; }'  > config/flake.nix"
-      - "nix build .#pushDockerImage --override-input hostNixpkgs \"path:$(nix eval --impure -I $NIX_PATH --expr '(import <nixpkgs> {}).path')\" --override-input customConfig path:./config -o docker-build-push"
-      - "./docker-build-push"
-    agents:
-      system: ${linux}
-    env:
-      TMPDIR: "/cache"
-    soft_fail:
-      - exit_status: '*'
-
   - label: 'Print TODO list'
     depends_on: linux-nix
     command: 'nix develop --command scripts/todo-list.sh'
@@ -173,7 +160,7 @@ steps:
     agents:
       system: ${macos}
 
-  - block: "Build package (linux)"
+  - block: "Build package and docker image (linux)"
     depends_on: linux-nix
     if: '(build.branch != "staging") && (build.branch != "trying") && (build.branch != "master")'
     key: trigger-build-linux-package
@@ -187,6 +174,20 @@ steps:
       system: ${linux}
     env:
       TMPDIR: "/cache"
+
+  - label: 'Build Docker Image (linux)'
+    depends_on: [linux-nix, trigger-build-linux-package]
+    key: build-docker
+    command:
+      - "mkdir -p config && echo '{  outputs = _: { dockerHubRepoName = \"inputoutput/cardano-wallet\"; }; }'  > config/flake.nix"
+      - "nix build .#pushDockerImage --override-input hostNixpkgs \"path:$(nix eval --impure -I $NIX_PATH --expr '(import <nixpkgs> {}).path')\" --override-input customConfig path:./config -o docker-build-push"
+      - "./docker-build-push"
+    agents:
+      system: ${linux}
+    env:
+      TMPDIR: "/cache"
+    soft_fail:
+      - exit_status: '*'
 
   - block: "Build windows artifacts"
     depends_on: linux-nix
