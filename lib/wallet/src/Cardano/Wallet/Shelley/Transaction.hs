@@ -200,7 +200,7 @@ import Cardano.Wallet.Shelley.Compatibility
     , toStakePoolDlgCert
     )
 import Cardano.Wallet.Shelley.Compatibility.Ledger
-    ( toLedger, toWalletScript, toWalletScriptFromShelley )
+    ( toLedger, toWalletCoin, toWalletScript, toWalletScriptFromShelley )
 import Cardano.Wallet.Shelley.MinimumUTxO
     ( computeMinimumCoinForUTxO, isBelowMinimumCoinForUTxO )
 import Cardano.Wallet.Transaction
@@ -1082,8 +1082,8 @@ evaluateMinimumFee pp (KeyWitnessCount nWits nBootWits) body =
 
 -- | Estimate the size of the transaction (body) when fully signed.
 estimateSignedTxSize
-    :: WriteTx.IsRecentEra era
-    => Cardano.BundledProtocolParameters era
+    :: forall era. WriteTx.IsRecentEra era
+    => WriteTx.PParams (WriteTx.ShelleyLedgerEra era)
     -> KeyWitnessCount
     -> Cardano.TxBody era
     -> TxSize
@@ -1122,11 +1122,21 @@ estimateSignedTxSize pparams nWits body =
     coinQuotRem (Coin p) (Coin q) = quotRem p q
 
     minfee :: KeyWitnessCount -> Coin
-    minfee witCount = evaluateMinimumFee pparams witCount body
+    minfee witCount = toWalletCoin $ WriteTx.evaluateMinimumFee
+        (WriteTx.recentEra @era) pparams (toLedgerTx body) witCount
+
+    toLedgerTx
+        :: Cardano.TxBody era -> WriteTx.Tx (WriteTx.ShelleyLedgerEra era)
+    toLedgerTx b = case Cardano.Tx b [] of
+        Byron.ByronTx {} -> case WriteTx.recentEra @era of
+            {}
+        Cardano.ShelleyTx _era ledgerTx -> ledgerTx
 
     feePerByte :: Coin
-    feePerByte = Coin.fromNatural $
-        view #protocolParamTxFeePerByte (Cardano.unbundleProtocolParams pparams)
+    feePerByte = Coin.fromNatural $ case WriteTx.recentEra @era of
+        WriteTx.RecentEraAlonzo -> Alonzo._minfeeA pparams
+        WriteTx.RecentEraBabbage -> Babbage._minfeeA pparams
+        WriteTx.RecentEraConway -> Conway._minfeeA pparams
 
 numberOfShelleyWitnesses :: Word -> KeyWitnessCount
 numberOfShelleyWitnesses n = KeyWitnessCount n 0
