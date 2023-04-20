@@ -101,6 +101,7 @@ import Test.Integration.Framework.DSL
     , Headers (..)
     , Payload (..)
     , between
+    , computeApiCoinSelectionFee
     , counterexample
     , decodeErrorInfo
     , emptyRandomWallet
@@ -1043,7 +1044,7 @@ spec = describe "SHELLEY_TRANSACTIONS" $ do
                 , txMetadata =
                     Nothing
                 , expectedFee =
-                    Quantity 131_400
+                    Quantity 129_500
                 }
             , CreateTransactionWithMetadataTest
                 { testName =
@@ -1053,7 +1054,7 @@ spec = describe "SHELLEY_TRANSACTIONS" $ do
                 , txMetadata =
                     Just $ TxMetadata $ Map.singleton 1 $ TxMetaText "hello"
                 , expectedFee =
-                    Quantity 135_600
+                    Quantity 134_200
                 }
             , CreateTransactionWithMetadataTest
                 { testName =
@@ -1063,7 +1064,7 @@ spec = describe "SHELLEY_TRANSACTIONS" $ do
                 , txMetadata =
                       Just txMetadata_ADP_1005
                 , expectedFee =
-                    Quantity 153_200
+                    Quantity 151_800
                 }
             , CreateTransactionWithMetadataTest
                 { testName =
@@ -1078,7 +1079,7 @@ spec = describe "SHELLEY_TRANSACTIONS" $ do
                 , txMetadata =
                       Just txMetadata_ADP_1005
                 , expectedFee =
-                    Quantity 167_200
+                    Quantity 165_200
                 }
             ]
 
@@ -2450,7 +2451,7 @@ spec = describe "SHELLEY_TRANSACTIONS" $ do
 
         -- First, perform a dry-run selection using the 'selectCoins' endpoint.
         -- This will allow us to confirm that the 'selectCoins' endpoint
-        -- produces a selection whose fee is identical to the selection
+        -- produces a selection whose fee is similar to the selection
         -- produced by the 'postTransaction' endpoint.
         coinSelectionResponse <-
             selectCoinsWith @n @'Shelley ctx wa payments maybeAddTxMetadata
@@ -2464,15 +2465,26 @@ spec = describe "SHELLEY_TRANSACTIONS" $ do
                 (`shouldSatisfy` (not . null))
             ]
 
-        -- The expectation below is disabled until the ADP-2268 is implemented,
-        -- (The fees aren't guaranteed to be the same between the two endpoints
-        -- because the 'selectCoins' endpoint has already been updated to
-        -- use the new coin selection functionality while the 'postTransaction'
-        -- endpoint still uses the old one, which gives a slightly different
-        -- estimation)
-        -- let apiCoinSelection = getFromResponse Prelude.id coinSelectionResponse
-        -- let fee = computeApiCoinSelectionFee apiCoinSelection
-        -- Quantity (fromIntegral (unCoin (fee))) `shouldBe` expectedFee
+
+        let apiCoinSelection = getFromResponse Prelude.id coinSelectionResponse
+        let fee = computeApiCoinSelectionFee apiCoinSelection
+        let withinToleranceTo (Quantity expected) tol
+                = between (Quantity $ expected - tol, Quantity $ expected + tol)
+
+        -- Some tolerance is needed as 'selectCoins' doesn't make room for a
+        -- validity interval / TTL, whereas 'postTransaction' does. We seem to
+        -- need 6 bytes / 600 lovelace, but using a bit more to rule out
+        -- flakiness from variable size encoding of slot numbers.
+        --
+        --
+        -- TODO Consider replacing with golden tests on the unit level
+        -- for fee values.
+        --
+        -- Related to https://input-output.atlassian.net/browse/ADP-2935
+        liftIO $ withinToleranceTo
+            expectedFee
+            1_000
+            (Quantity (fromIntegral (unCoin (fee))))
 
         -- Next, actually create a transaction and submit it to the network.
         -- This transaction should have a fee that is identical to the fee
@@ -2484,6 +2496,7 @@ spec = describe "SHELLEY_TRANSACTIONS" $ do
                 }|]
         ra <- request @(ApiTransaction n) ctx
             (Link.createTransactionOld @'Shelley wa) Default payload
+
         verify ra
             [ expectSuccess
             , expectResponseCode HTTP.status202
@@ -2492,7 +2505,14 @@ spec = describe "SHELLEY_TRANSACTIONS" $ do
                 #metadata
                 (`shouldBe` detailedMetadata <$> txMetadata)
             , expectField
-                (#fee) (`shouldBe` expectedFee)
+                #fee
+                (withinToleranceTo expectedFee 1_000)
+                -- Rule out flakiness from variable size of slot numbers.
+                --
+                -- TODO Consider replacing with golden tests on the unit level
+                -- for fee values.
+                --
+                -- Related to https://input-output.atlassian.net/browse/ADP-2935
             ]
 
         eventually "metadata is confirmed in transaction list" $ do
