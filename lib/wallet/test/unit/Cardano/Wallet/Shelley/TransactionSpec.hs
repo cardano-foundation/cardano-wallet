@@ -4573,9 +4573,9 @@ updateTxSpec = do
         describe "existing key witnesses" $ do
             it "returns `Left err` with noTxUpdate" $ do
                 -- Could be argued that it should instead return `Right tx`.
-                let anyShelleyTx = shelleyBasedTxFromBytes
+                let anyShelleyTx = recentEraTxFromBytes
                         $ unsafeFromHex txWithInputsOutputsAndWits
-                withShelleyBasedTx anyShelleyTx $ \tx ->
+                WriteTx.withInAnyRecentEra anyShelleyTx $ \tx ->
                         updateTx tx noTxUpdate
                             `shouldBe` Left (ErrExistingKeyWitnesses 2)
 
@@ -4629,7 +4629,7 @@ estimateSignedTxSizeSpec = describe "estimateSignedTxSize" $
     it "equals the binary size of signed txs" $ property $
         forAllGoldens signedTxGoldens $ \hexTx -> do
             let bs = unsafeFromHex hexTx
-            withShelleyBasedTx (shelleyBasedTxFromBytes bs) $
+            WriteTx.withInAnyRecentEra (recentEraTxFromBytes bs) $
                 \(Cardano.Tx (body :: Cardano.TxBody era) _) -> do
                 -- 'mockProtocolParametersForBalancing' is not valid for
                 -- 'ShelleyEra'.
@@ -4995,17 +4995,17 @@ newtype ShowOrd a = ShowOrd { unShowOrd :: a }
 instance (Eq a, Show a) => Ord (ShowOrd a) where
     compare = comparing show
 
-shelleyBasedTxFromBytes :: ByteString -> Cardano.InAnyShelleyBasedEra Cardano.Tx
-shelleyBasedTxFromBytes bytes =
+recentEraTxFromBytes :: ByteString -> WriteTx.InAnyRecentEra Cardano.Tx
+recentEraTxFromBytes bytes =
     let
         anyEraTx
             = cardanoTx
             $ either (error . show) id
             $ sealedTxFromBytes bytes
     in
-        case asAnyShelleyBasedEra anyEraTx of
-            Just shelleyTx -> shelleyTx
-            Nothing -> error "shelleyBasedTxFromBytes: ByronTx not supported"
+        case WriteTx.asAnyRecentEra anyEraTx of
+            Just recentEraTx -> recentEraTx
+            Nothing -> error "recentEraTxFromBytes: older eras not supported"
 
 cardanoTx :: SealedTx -> InAnyCardanoEra Cardano.Tx
 cardanoTx = cardanoTxIdeallyNoLaterThan maxBound
