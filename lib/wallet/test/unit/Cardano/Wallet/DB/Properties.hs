@@ -66,6 +66,10 @@ import Control.Monad.IO.Class
     ( liftIO )
 import Control.Monad.Trans.Except
     ( ExceptT, mapExceptT, runExceptT, withExceptT )
+import Crypto.Hash
+    ( hash )
+import Data.ByteString
+    ( ByteString )
 import Data.Foldable
     ( fold )
 import Data.Functor.Identity
@@ -99,22 +103,25 @@ import Test.QuickCheck.Monadic
 import qualified Data.List as L
 
 -- | How to boot a fresh database.
-type WithFreshDB s =
-    (DBLayer IO s ShelleyKey -> PropertyM IO ())
+type WithFreshDB s
+    = WalletId
+    -> (DBLayer IO s ShelleyKey -> PropertyM IO ())
     -> PropertyM IO ()
 
 withFreshWallet
     :: GenState s
-    => WithFreshDB s
+    => WalletId
+    -> WithFreshDB s
     -> (DBLayer IO s ShelleyKey -> WalletId -> PropertyM IO ())
     -> PropertyM IO ()
-withFreshWallet withFreshDB f = withFreshDB $ \db@DBLayer {..} -> do
-    (InitialCheckpoint cp0, meta, wid) <- pick arbitrary
-    run
-        $ atomically
-        $ unsafeRunExceptT
-        $ initializeWallet wid cp0 meta mempty gp
-    f db wid
+withFreshWallet wid withFreshDB f = do
+    withFreshDB wid $ \db@DBLayer {..} -> do
+        (InitialCheckpoint cp0, meta) <- pick arbitrary
+        run
+            $ atomically
+            $ unsafeRunExceptT
+            $ initializeWallet wid cp0 meta mempty gp
+        f db wid
 
 type TestOnLayer s =
     ( DBLayer IO s ShelleyKey
@@ -123,13 +130,16 @@ type TestOnLayer s =
     )
     -> Property
 
+testWid :: WalletId
+testWid = WalletId (hash ("test" :: ByteString))
+
 -- | Wallet properties.
 properties
     :: GenState s
     => WithFreshDB s
     -> SpecWith ()
 properties withFreshDB = describe "DB.Properties" $ do
-    let testOnLayer = monadicIO . withFreshWallet withFreshDB
+    let testOnLayer = monadicIO . withFreshWallet testWid withFreshDB
 
     describe "Extra Properties about DB initialization" $ do
         it "creating same wallet twice yields an error"
@@ -347,7 +357,7 @@ prop_createWalletTwice
        )
     -> Property
 prop_createWalletTwice test (wid, InitialCheckpoint cp0, meta) = monadicIO
-    $ test
+    $ test wid
     $ \DBLayer {..} -> do
         liftIO $ do
             let err = ErrWalletAlreadyInitialized
@@ -456,8 +466,8 @@ prop_putBeforeInit
     -> (WalletId, a)
     -- ^ Property arguments
     -> Property
-prop_putBeforeInit test putOp readOp empty (wid, a) = monadicIO $ test $ \db ->
-    liftIO $ do
+prop_putBeforeInit test putOp readOp empty (wid, a) = monadicIO $ test wid
+    $ \db -> liftIO $ do
         runExceptT (putOp db wid a) >>= \case
             Right _ ->
                 fail "expected put operation to fail but it succeeded!"
@@ -556,26 +566,25 @@ prop_rollbackCheckpoint
     -> MockChain
     -> Property
 prop_rollbackCheckpoint test (InitialCheckpoint cp0) (MockChain chain) = monadicIO
-    $ test
+    $ test testWid
     $ \DBLayer {..} -> do
         let cps :: [Wallet s]
             cps = flip unfoldr (chain, cp0) $ \case
                 ([], _) -> Nothing
                 (b : q, cp) ->
                     let cp' = snd . snd $ applyBlock b cp in Just (cp', (q, cp'))
-        ShowFmt wid <- namedPick "Wallet ID" arbitrary
         ShowFmt meta <- namedPick "Wallet Metadata" arbitrary
         ShowFmt point <- namedPick "Rollback target" (elements $ ShowFmt <$> cps)
         run $ atomically $ do
-            unsafeRunExceptT $ initializeWallet wid cp0 meta mempty gp
-            unsafeRunExceptT $ forM_ cps (putCheckpoint wid)
+            unsafeRunExceptT $ initializeWallet testWid cp0 meta mempty gp
+            unsafeRunExceptT $ forM_ cps (putCheckpoint testWid)
         let tip = currentTip point
         point' <-
             run
                 $ atomically
                 $ unsafeRunExceptT
-                $ rollbackTo wid (toSlot $ chainPointFromBlockHeader tip)
-        cp <- run $ atomically $ readCheckpoint wid
+                $ rollbackTo testWid (toSlot $ chainPointFromBlockHeader tip)
+        cp <- run $ atomically $ readCheckpoint testWid
         let str = maybe "∅" pretty cp
         monitor $ counterexample ("Checkpoint after rollback: \n" <> str)
         assert (ShowFmt cp == ShowFmt (pure point))
@@ -600,27 +609,26 @@ prop_rollbackTxHistory
     -> GenTxHistory
     -> Property
 prop_rollbackTxHistory test (InitialCheckpoint cp0) (GenTxHistory txs0) = do
-    monadicIO $ test $ \DBLayer {..} -> do
-        ShowFmt wid <- namedPick "Wallet ID" arbitrary
+    monadicIO $ test testWid $ \DBLayer {..} -> do
         ShowFmt meta <- namedPick "Wallet Metadata" arbitrary
         ShowFmt requestedPoint <- namedPick "Requested Rollback slot" arbitrary
         let ixs = forgotten requestedPoint
         monitor $ label ("Forgotten tx after point: " <> show (L.length ixs))
         monitor $ cover 50 (not $ null ixs) "rolling back something"
         run $ atomically $ do
-            unsafeRunExceptT $ initializeWallet wid cp0 meta mempty gp
-            unsafeRunExceptT $ putTxHistory wid txs0
+            unsafeRunExceptT $ initializeWallet testWid cp0 meta mempty gp
+            unsafeRunExceptT $ putTxHistory testWid txs0
         point <-
             run
                 $ unsafeRunExceptT
                 $ mapExceptT atomically
-                $ rollbackTo wid (At requestedPoint)
+                $ rollbackTo testWid (At requestedPoint)
         txs <-
             run
                 $ atomically
                 $ fmap toTxHistory
                     <$> readTransactions
-                        wid
+                        testWid
                         Nothing
                         Descending
                         wholeRange

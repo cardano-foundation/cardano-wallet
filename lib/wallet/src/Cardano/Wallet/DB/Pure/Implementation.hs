@@ -151,7 +151,8 @@ import qualified Data.Map.Strict as Map
 -- Tne type parameters exist so that simpler mock types can be used in place of
 -- actual wallet types.
 data Database wid s xprv = Database
-    { wallet :: Maybe (wid, WalletDatabase s xprv)
+    { walletId :: wid
+    , wallet :: Maybe (WalletDatabase s xprv)
     -- ^ Wallet-related information.
     , txs :: !(Map (Hash "Tx") Tx)
     -- ^ In the database, transactions are global and not associated with any
@@ -183,8 +184,8 @@ type TxHistoryMap = Map (Hash "Tx") (Tx, TxMeta)
 type TxHistory = [(Tx, TxMeta)]
 
 -- | Produces an empty model database.
-emptyDatabase :: Database wid s xprv
-emptyDatabase = Database Nothing mempty
+emptyDatabase :: wid -> Database wid s xprv
+emptyDatabase wid = Database wid Nothing mempty
 
 {-------------------------------------------------------------------------------
                                   Model Operation Types
@@ -213,8 +214,8 @@ data Err
                             Model Database wid Functions
 -------------------------------------------------------------------------------}
 
-mCleanDB :: ModelOp wid s xprv ()
-mCleanDB _ = (Right (), emptyDatabase)
+mCleanDB :: wid -> ModelOp wid s xprv ()
+mCleanDB wid _ = (Right (), emptyDatabase wid)
 
 mInitializeWallet
     :: forall wid s xprv
@@ -224,7 +225,7 @@ mInitializeWallet
     -> TxHistory
     -> GenesisParameters
     -> ModelOp wid s xprv ()
-mInitializeWallet wid cp meta txs0 gp db@Database {wallet,txs}
+mInitializeWallet _wid cp meta txs0 gp db@Database {walletId, wallet,txs}
     | isJust wallet = (Left WalletAlreadyInitialized, db)
     | otherwise =
         let
@@ -242,7 +243,7 @@ mInitializeWallet wid cp meta txs0 gp db@Database {wallet,txs}
             txs' = Map.fromList $ (\(tx, _) -> (view #txId tx, tx)) <$> txs0
             history = Map.fromList $ first (view #txId) <$> txs0
         in
-            (Right (), Database (Just (wid, wal)) (txs <> txs'))
+            (Right (), Database walletId (Just wal) (txs <> txs'))
 
 mCheckWallet :: ModelOp wid s xprv ()
 mCheckWallet db@Database {wallet}
@@ -251,8 +252,8 @@ mCheckWallet db@Database {wallet}
     | otherwise = (Left WalletNotInitialized, db)
 
 mGetWalletId :: ModelOp wid s xprv wid
-mGetWalletId db@(Database wallet _) = case wallet of
-    Just (wid, _) -> (Right wid, db)
+mGetWalletId db@(Database wid wallet _) = case wallet of
+    Just _ -> (Right wid, db)
     Nothing -> (Left WalletNotInitialized, db)
 
 mPutCheckpoint
@@ -262,9 +263,9 @@ mPutCheckpoint cp = alterModelNoTxs' $ \wal
 
 mReadCheckpoint
     :: ModelOp wid s xprv (Maybe (Wallet s))
-mReadCheckpoint db@(Database wallet _) =
+mReadCheckpoint db@(Database _ wallet _) =
     case wallet of
-        Just (_, wal) -> (Right (mostRecentCheckpoint wal), db)
+        Just wal -> (Right (mostRecentCheckpoint wal), db)
         Nothing -> (Left WalletNotInitialized, db)
 
 mostRecentCheckpoint :: WalletDatabase s xprv -> Maybe (Wallet s)
@@ -272,10 +273,10 @@ mostRecentCheckpoint = fmap snd . Map.lookupMax . checkpoints
 
 mListCheckpoints
     :: ModelOp wid s xprv [ChainPoint]
-mListCheckpoints db@(Database wallet _) =
+mListCheckpoints db@(Database _ wallet _) =
     case wallet of
         Nothing -> (Left WalletNotInitialized, db)
-        Just (_, wal) -> (Right $ sort $ tips wal, db)
+        Just wal -> (Right $ sort $ tips wal, db)
   where
     tips =
         map (chainPointFromBlockHeader . currentTip)
@@ -319,10 +320,10 @@ mRemovePendingOrExpiredTx tid = alterModelErr $ \wal txs ->
                 )
 
 mRollbackTo :: Slot -> ModelOp wid s xprv ChainPoint
-mRollbackTo requested db@(Database wallet txs) = case wallet of
+mRollbackTo requested db@(Database wid wallet txs) = case wallet of
     Nothing ->
         ( Left WalletNotInitialized, db )
-    Just (wid, wal) ->
+    Just wal ->
         case findNearestPoint (Map.elems $ checkpoints wal) of
             Nothing -> (Left WalletNotInitialized, db)
             Just point ->
@@ -340,7 +341,7 @@ mRollbackTo requested db@(Database wallet txs) = case wallet of
                         $ chainPointFromBlockHeader
                         $ view #currentTip
                         $ checkpoints wal Map.! point
-                    , Database (Just (wid, wal')) txs
+                    , Database wid (Just wal') txs
                     )
   where
     -- | Removes all transaction beyond the rollback point.
@@ -370,10 +371,10 @@ mPutWalletMeta meta = alterModelNoTxs $ \wal -> ((), wal { metadata = meta })
 mReadWalletMeta
     :: TimeInterpreter Identity
     -> ModelOp wid s xprv (Maybe (WalletMetadata, WalletDelegation))
-mReadWalletMeta ti db@(Database wallet _) =
+mReadWalletMeta ti db@(Database _ wallet _) =
     case wallet of
         Nothing -> (Left WalletNotInitialized, db)
-        Just (_, wal) -> (Right (mkMetadata wal), db)
+        Just wal -> (Right (mkMetadata wal), db)
   where
     epochOf' = runIdentity . interpretQuery ti . epochOf
     mkMetadata
@@ -454,12 +455,12 @@ mReadTxHistory
     -> Range SlotNo
     -> Maybe TxStatus
     -> ModelOp wid s xprv [TransactionInfo]
-mReadTxHistory ti minWithdrawal order range mstatus db@(Database wallet txs) =
+mReadTxHistory ti minWithdrawal order range mstatus db@(Database _ wallet txs) =
     (Right res, db)
   where
     slotStartTime' = runIdentity . interpretQuery ti . slotToUTCTime
     res = fromMaybe mempty $ do
-        (_, wal) <- wallet
+        wal <- wallet
         (_, cp) <- Map.lookupMax (checkpoints wal)
         pure $ getTxs cp (txHistory wal)
 
@@ -571,13 +572,13 @@ alterModelErr
        )
     -> Database wid s xprv
     -> (Either Err x, Database wid s xprv)
-alterModelErr f (Database wallet txs) = case wallet of
-    Nothing -> (Left WalletNotInitialized, Database wallet txs)
-    Just (wid, wal) ->
+alterModelErr f (Database wid wallet txs) = case wallet of
+    Nothing -> (Left WalletNotInitialized, Database wid wallet txs)
+    Just wal ->
         case f wal txs of
-            Left err -> (Left err, Database wallet txs)
+            Left err -> (Left err, Database wid wallet txs)
             Right (x, wal', txs') ->
-                (Right x, Database (Just (wid, wal')) txs')
+                (Right x, Database wid (Just wal') txs')
 
 alterModel
     :: ( WalletDatabase s xprv
@@ -586,7 +587,8 @@ alterModel
        )
     -> Database wid s xprv
     -> (Either Err x, Database wid s xprv)
-alterModel f (Database wallet txs) = alterModelErr f' (Database wallet txs)
+alterModel f (Database wid wallet txs)
+    = alterModelErr f' (Database wid wallet txs)
   where
     f' wal txs' = Right $ f wal txs'
 
@@ -619,16 +621,16 @@ alterModelNoTxs' f = alterModelNoTxs $ \wal -> ((), f wal)
 readWalletModel
     ::  (WalletDatabase s xprv -> a)
     -> ModelOp wid s xprv a
-readWalletModel f db@(Database wallet _) = case wallet of
+readWalletModel f db@(Database _ wallet _) = case wallet of
     Nothing -> (Left WalletNotInitialized, db)
-    Just (_, wal) -> (Right (f wal), db)
+    Just wal -> (Right (f wal), db)
 
 readWalletModelMaybe :: (WalletDatabase s xprv -> a)
     -> Database wid s xprv
     -> (Either err (Maybe a), Database wid s xprv)
-readWalletModelMaybe f db@(Database wallet _) = case wallet of
+readWalletModelMaybe f db@(Database _ wallet _) = case wallet of
     Nothing -> (Right Nothing, db)
-    Just (_, wal) -> (Right (Just (f wal)), db)
+    Just wal -> (Right (Just (f wal)), db)
 
 -- | Apply optional filters on slotNo and sort using the default sort order
 -- (first time/slotNo, then by TxId) to a 'TxHistory'.

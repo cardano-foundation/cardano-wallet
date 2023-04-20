@@ -21,22 +21,21 @@ module Cardano.Wallet.DB.Layer
     , findDatabases
     , DBFactoryLog (..)
 
-    -- * Internal implementation
+    -- * Open a database
+    , withDBOpenFromFile
+    , newDBOpenInMemory
+    , retrieveWalletId
+    , WalletDBLog (..)
+    , DefaultFieldValues (..)
+
+    -- * Database for a specific 'WalletId'
     , withDBLayer
     , withDBLayerInMemory
-    , WalletDBLog (..)
-    , CacheBehavior (..)
-
-    -- * Unbracketed internal implementation
-    , newDBLayerWith
     , newDBLayerInMemory
+    , withDBLayerFromDBOpen
 
     -- * Interfaces
     , PersistAddressBook (..)
-
-    -- * Migration Support
-    , DefaultFieldValues (..)
-
     ) where
 
 import Prelude
@@ -75,6 +74,7 @@ import Cardano.Wallet.DB
     , DBFactory (..)
     , DBLayer
     , DBLayerCollection (..)
+    , DBOpen (..)
     , DBPrivateKey (..)
     , DBTxHistory (..)
     , DBWalletMeta (..)
@@ -151,7 +151,7 @@ import Control.DeepSeq
 import Control.Exception
     ( evaluate, throw )
 import Control.Monad
-    ( forM, unless, (<=<) )
+    ( forM, unless, (>=>) )
 import Control.Monad.IO.Class
     ( MonadIO (..) )
 import Control.Monad.Trans
@@ -269,7 +269,7 @@ newDBFactory tr defaultFieldValues ti = \case
                     Just db -> pure (m, db)
                     Nothing -> do
                         let tr' = contramap (MsgWalletDB "") tr
-                        (_cleanup, db) <- newDBLayerInMemory tr' ti
+                        (_cleanup, db) <- newDBLayerInMemory tr' ti wid
                         pure (Map.insert wid db m, db)
                 action db
             , removeDatabase = \wid -> do
@@ -285,9 +285,10 @@ newDBFactory tr defaultFieldValues ti = \case
         pure DBFactory
             { withDatabase = \wid action -> withRef refs wid $ withDBLayer
                 (contramap (MsgWalletDB (databaseFile wid)) tr)
-                defaultFieldValues
+                (Just defaultFieldValues)
                 (databaseFile wid)
                 ti
+                wid
                 action
             , removeDatabase = \wid -> do
                 let widp = pretty wid
@@ -379,8 +380,89 @@ instance ToText DBFactoryLog where
         MsgWalletDB _file msg -> toText msg
 
 {-------------------------------------------------------------------------------
-                                 Database layer
+    DBOpen
 -------------------------------------------------------------------------------}
+-- | Open an SQLite database file and run an action on it.
+--
+-- Database migrations are run to create tables if necessary.
+--
+-- If the given file path does not exist, it will be created.
+withDBOpenFromFile
+    :: forall s k a
+     . WalletKey k
+    => Tracer IO WalletDBLog
+       -- ^ Logging object
+    -> Maybe DefaultFieldValues
+       -- ^ Default database field values, used during manual migration.
+       -- Use 'Nothing' to skip manual migrations.
+    -> FilePath
+       -- ^ Path to database file
+    -> (DBOpen (SqlPersistT IO) IO s k -> IO a)
+       -- ^ Action to run.
+    -> IO a
+withDBOpenFromFile tr defaultFieldValues dbFile action = do
+    let trDB = contramap MsgDB tr
+    let manualMigrations =
+            maybe [] (migrateManually trDB (Proxy @k)) defaultFieldValues
+    let autoMigrations   = migrateAll
+    withConnectionPool trDB dbFile $ \pool -> do
+        res <- newSqliteContext trDB pool manualMigrations autoMigrations
+        case res of
+            Left err -> throwIO err
+            Right sqliteContext -> action =<< newQueryLock sqliteContext
+
+-- | Open an SQLite database in-memory.
+--
+-- Returns a cleanup function which you should always use exactly once when
+-- finished with the 'DBOpen'.
+newDBOpenInMemory
+    :: forall s k
+     . Tracer IO WalletDBLog
+       -- ^ Logging object
+    -> IO (IO (), DBOpen (SqlPersistT IO) IO s k)
+newDBOpenInMemory tr = do
+    let tr' = contramap MsgDB tr
+    (destroy, sqliteContext) <-
+        newInMemorySqliteContext tr' [] migrateAll ForeignKeysEnabled
+    db <- newQueryLock sqliteContext
+    pure (destroy, db)
+
+newQueryLock
+    :: SqliteContext
+    -> IO (DBOpen (SqlPersistT IO) IO s k)
+newQueryLock SqliteContext{runQuery} = do
+    -- NOTE
+    -- The cache will not work properly unless 'atomically' is protected by a
+    -- mutex (queryLock), which means no concurrent queries.
+    queryLock <- newMVar () -- fixme: ADP-586
+    pure $ DBOpen
+        { atomically = withMVar queryLock . const . runQuery }
+
+-- | Retrieve the wallet id from the database if it's initialized.
+retrieveWalletId :: DBOpen (SqlPersistT IO) IO s k -> IO (Maybe W.WalletId)
+retrieveWalletId DBOpen{atomically} =
+    atomically
+        $ fmap (walId . entityVal)
+            <$> selectFirst [] []
+
+{-------------------------------------------------------------------------------
+    DBLayer
+-------------------------------------------------------------------------------}
+
+withDBLayerFromDBOpen
+    :: forall k s a
+     . (PersistAddressBook s, PersistPrivateKey (k 'RootK))
+    => TimeInterpreter IO
+    -- ^ Time interpreter for slot to time conversions
+    -> W.WalletId
+    -- ^ Wallet ID of the database
+    -> (DBLayer IO s k -> IO a)
+    -- ^ Action to run.
+    -> DBOpen (SqlPersistT IO) IO s k
+    -- ^ Already opened database.
+    -> IO a
+withDBLayerFromDBOpen ti wid action dbopen =
+    newDBLayerFromDBOpen ti wid dbopen >>= action
 
 -- | Runs an action with a connection to the SQLite database.
 --
@@ -396,35 +478,21 @@ withDBLayer
         )
     => Tracer IO WalletDBLog
        -- ^ Logging object
-    -> DefaultFieldValues
-       -- ^ Default database field values, used during migration.
+    -> Maybe DefaultFieldValues
+       -- ^ Default database field values, used during manual migration.
+       -- Use 'Nothing' to skip manual migrations.
     -> FilePath
        -- ^ Path to database file
     -> TimeInterpreter IO
-       -- ^ Time interpreter for slot to time conversions
+       -- ^ Time interpreter for slot to time conversions.
+    -> W.WalletId
+         -- ^ Wallet ID of the database.
     -> (DBLayer IO s k -> IO a)
        -- ^ Action to run.
     -> IO a
-withDBLayer tr defaultFieldValues dbFile ti action = do
-    let trDB = contramap MsgDB tr
-    let manualMigrations = migrateManually trDB (Proxy @k) defaultFieldValues
-    let autoMigrations   = migrateAll
-    withConnectionPool trDB dbFile $ \pool -> do
-        res <- newSqliteContext trDB pool manualMigrations autoMigrations
-        either throwIO (action <=< newDBLayerWith CacheLatestCheckpoint tr ti) res
-
-newtype WalletDBLog
-    = MsgDB DBLog
-    deriving (Generic, Show, Eq)
-
-instance HasPrivacyAnnotation WalletDBLog
-instance HasSeverityAnnotation WalletDBLog where
-    getSeverityAnnotation = \case
-        MsgDB msg -> getSeverityAnnotation msg
-
-instance ToText WalletDBLog where
-    toText = \case
-        MsgDB msg -> toText msg
+withDBLayer tr defaultFieldValues dbFile ti wid action =
+    withDBOpenFromFile tr defaultFieldValues dbFile
+        $ newDBLayerFromDBOpen ti wid >=> action
 
 -- | Runs an IO action with a new 'DBLayer' backed by a sqlite in-memory
 -- database.
@@ -434,12 +502,16 @@ withDBLayerInMemory
         , PersistPrivateKey (k 'RootK)
         )
     => Tracer IO WalletDBLog
-       -- ^ Logging object
+       -- ^ Logging object.
     -> TimeInterpreter IO
        -- ^ Time interpreter for slot to time conversions
+    -> W.WalletId
+       -- ^ Wallet ID of the database.
     -> (DBLayer IO s k -> IO a)
+       -- ^ Action to run.
     -> IO a
-withDBLayerInMemory tr ti action = bracket (newDBLayerInMemory tr ti) fst (action . snd)
+withDBLayerInMemory tr ti wid action = bracket
+    (newDBLayerInMemory tr ti wid) fst (action . snd)
 
 -- | Creates a 'DBLayer' backed by a sqlite in-memory database.
 --
@@ -451,79 +523,37 @@ newDBLayerInMemory
         , PersistPrivateKey (k 'RootK)
         )
     => Tracer IO WalletDBLog
-       -- ^ Logging object
+       -- ^ Logging object.
     -> TimeInterpreter IO
-       -- ^ Time interpreter for slot to time conversions
+       -- ^ Time interpreter for slot to time conversions.
+    -> W.WalletId
+       -- ^ Wallet ID of the database.
     -> IO (IO (), DBLayer IO s k)
-newDBLayerInMemory tr ti = do
-    let tr' = contramap MsgDB tr
-    (destroy, ctx) <-
-        newInMemorySqliteContext tr' [] migrateAll ForeignKeysEnabled
-    db <- newDBLayer tr ti ctx
+newDBLayerInMemory tr ti wid = do
+    (destroy, dbopen) <- newDBOpenInMemory tr
+    db <- newDBLayerFromDBOpen ti wid dbopen
     pure (destroy, db)
 
--- | What to do with regards to caching. This is useful to disable caching in
--- database benchmarks.
-data CacheBehavior
-    = NoCache
-    | CacheLatestCheckpoint
-    deriving (Eq, Show)
-
--- | Sets up a connection to the SQLite database.
---
--- Database migrations are run to create tables if necessary.
---
--- If the given file path does not exist, it will be created by the sqlite
--- library.
---
--- 'newDBLayer' will provide the actual 'DBLayer' implementation. It requires an
--- 'SqliteContext' which can be obtained from a database connection pool. This
--- is better initialized with 'withDBLayer'.
-newDBLayer
+-- | From a 'DBOpen', create a database which can store the state
+-- of one wallet with a specific 'WalletId'.
+newDBLayerFromDBOpen
     :: forall s k.
         ( PersistAddressBook s
         , PersistPrivateKey (k 'RootK)
         )
-    => Tracer IO WalletDBLog
-       -- ^ Logging
-    -> TimeInterpreter IO
+    => TimeInterpreter IO
        -- ^ Time interpreter for slot to time conversions
-    -> SqliteContext
+    -> W.WalletId
+       -- ^ Wallet ID of the database.
+    -> DBOpen (SqlPersistT IO) IO s k
        -- ^ A (thread-)safe wrapper for query execution.
     -> IO (DBLayer IO s k)
-newDBLayer = newDBLayerWith @s @k CacheLatestCheckpoint
-
-{- HLINT ignore newDBLayerWith "Redundant <$>" -}
--- | Like 'newDBLayer', but allows to explicitly specify the caching behavior.
-newDBLayerWith
-    :: forall s k.
-        ( PersistAddressBook s
-        , PersistPrivateKey (k 'RootK)
-        )
-    => CacheBehavior
-       -- ^ Option to disable caching.
-    -> Tracer IO WalletDBLog
-       -- ^ Logging
-    -> TimeInterpreter IO
-       -- ^ Time interpreter for slot to time conversions
-    -> SqliteContext
-       -- ^ A (thread-)safe wrapper for query execution.
-    -> IO (DBLayer IO s k)
-newDBLayerWith _cacheBehavior _tr ti SqliteContext{runQuery} = mdo
-    -- FIXME LATER during ADP-1043:
-    --   Remove the 'NoCache' behavior, we cannot get it back.
-    --   This will affect read benchmarks, they will need to benchmark
-    --   'loadDBVar' instead.
+newDBLayerFromDBOpen ti wid_ DBOpen{atomically=runQuery} = mdo
 
     -- FIXME LATER during ADP-1043:
     --   Handle the case where loading the database fails.
     walletsDB <- runQuery $ loadDBVar mkStoreWallets
     let transactionsQS = newQueryStoreTxWalletsHistory
-
-    -- NOTE
-    -- The cache will not work properly unless 'atomically' is protected by a
-    -- mutex (queryLock), which means no concurrent queries.
-    queryLock <- newMVar () -- fixme: ADP-586
 
     -- Insert genesis checkpoint into the DBVar.
     -- Throws an internal error if the checkpoint is not actually at genesis.
@@ -725,9 +755,9 @@ newDBLayerWith _cacheBehavior _tr ti SqliteContext{runQuery} = mdo
                                      ACID Execution
         -----------------------------------------------------------------------}
 
-    let atomically_ = withMVar queryLock . const . runQuery
+    let atomically_ = runQuery
 
-    pure $ mkDBLayerFromParts ti DBLayerCollection{..}
+    pure $ mkDBLayerFromParts ti wid_ DBLayerCollection{..}
 
 mkDecorator
     :: QueryStoreTxWalletsHistory
@@ -1024,6 +1054,22 @@ selectGenesisParameters
 selectGenesisParameters wid = do
     gp <- selectFirst [WalId ==. wid] []
     pure $ (genesisParametersFromEntity . entityVal) <$> gp
+
+{-------------------------------------------------------------------------------
+    Logging
+-------------------------------------------------------------------------------}
+newtype WalletDBLog
+    = MsgDB DBLog
+    deriving (Generic, Show, Eq)
+
+instance HasPrivacyAnnotation WalletDBLog
+instance HasSeverityAnnotation WalletDBLog where
+    getSeverityAnnotation = \case
+        MsgDB msg -> getSeverityAnnotation msg
+
+instance ToText WalletDBLog where
+    toText = \case
+        MsgDB msg -> toText msg
 
 {-------------------------------------------------------------------------------
     Internal errors

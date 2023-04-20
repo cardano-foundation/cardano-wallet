@@ -56,11 +56,7 @@ import Cardano.BM.Data.Tracer
 import Cardano.BM.Setup
     ( setupTrace_, shutdown )
 import Cardano.DB.Sqlite
-    ( ConnectionPool
-    , SqliteContext (..)
-    , newSqliteContext
-    , withConnectionPool
-    )
+    ( ConnectionPool, SqliteContext (..) )
 import Cardano.Mnemonic
     ( EntropySize, SomeMnemonic (..), entropyToMnemonic, genEntropy )
 import Cardano.Startup
@@ -68,13 +64,7 @@ import Cardano.Startup
 import Cardano.Wallet.DB
     ( DBLayer (..) )
 import Cardano.Wallet.DB.Layer
-    ( CacheBehavior (..)
-    , PersistAddressBook
-    , WalletDBLog (..)
-    , newDBLayerWith
-    )
-import Cardano.Wallet.DB.Sqlite.Schema
-    ( migrateAll )
+    ( PersistAddressBook, WalletDBLog (..), withDBLayer )
 import Cardano.Wallet.DummyTarget.Primitive.Types
     ( block0, dummyGenesisParameters, mkTxId )
 import Cardano.Wallet.Logging
@@ -152,8 +142,6 @@ import Control.Monad
     ( join )
 import Control.Monad.Trans.Except
     ( mapExceptT )
-import Control.Tracer
-    ( contramap )
 import Criterion.Main
     ( Benchmark
     , Benchmarkable
@@ -205,7 +193,7 @@ import System.Random
 import Test.Utils.Resource
     ( unBracket )
 import UnliftIO.Exception
-    ( bracket, throwIO )
+    ( bracket )
 import UnliftIO.Temporary
     ( withSystemTempFile )
 
@@ -740,6 +728,7 @@ setupDB
     :: forall s k.
         ( PersistAddressBook s
         , PersistPrivateKey (k 'RootK)
+        , WalletKey k
         )
     => Tracer IO WalletDBLog
     -> IO (BenchEnv s k)
@@ -748,10 +737,7 @@ setupDB tr = do
     uncurry (BenchEnv destroyPool) <$> createPool
   where
     withSetup action = withTempSqliteFile $ \fp -> do
-        let trDB = contramap MsgDB tr
-        withConnectionPool trDB fp $ \pool -> do
-            ctx <- either throwIO pure =<< newSqliteContext trDB pool [] migrateAll
-            db <- newDBLayerWith NoCache tr singleEraInterpreter ctx
+        withDBLayer tr Nothing fp singleEraInterpreter testWid $ \db ->
             action (fp, db)
 
 singleEraInterpreter :: TimeInterpreter IO
@@ -770,6 +756,7 @@ withCleanDB
     :: ( NFData c
        , PersistAddressBook s
        , PersistPrivateKey (k 'RootK)
+       , WalletKey k
        , NFData b
        )
     => Tracer IO WalletDBLog

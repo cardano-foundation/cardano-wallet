@@ -46,9 +46,10 @@ spec :: Spec
 spec =
     before (pendingOnMacOS "#2472: timeouts in CI mac builds")
     $ describe "PureLayer"
-    $ properties
-        (liftIO (PureLayer.newDBLayer @_ @(SeqState 'Mainnet ShelleyKey)
-            dummyTimeInterpreter) >>=)
+    $ properties $ \wid test -> do
+        run <- liftIO $ PureLayer.newDBLayer @_ @(SeqState 'Mainnet ShelleyKey)
+            dummyTimeInterpreter wid
+        test run
 
 newtype DummyStatePureLayer = DummyStatePureLayer Int
     deriving (Show, Eq)
