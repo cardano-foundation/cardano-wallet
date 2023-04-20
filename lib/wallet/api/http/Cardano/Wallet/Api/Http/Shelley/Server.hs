@@ -706,7 +706,6 @@ import qualified Network.Ntp as Ntp
 import qualified Network.Wai.Handler.Warp as Warp
 import qualified Network.Wai.Handler.WarpTLS as Warp
 
-
 -- | How the server should listen for incoming requests.
 data Listen
     = ListenOnPort Port
@@ -3144,22 +3143,12 @@ balanceTransaction
                         txLayer
                         genInpScripts
                         mScriptTemplate)
-                    (Write.ProtocolParameters pp nodePParams)
+                    (Write.unsafeFromWalletProtocolParameters pp)
                     ti
                     utxoIndex
                     (W.defaultChangeAddressGen argGenChange (Proxy @k))
                     (getState wallet)
                     partialTx
-              where
-                nodePParams = maybe
-                    (error $ unwords
-                        [ "balanceTransaction: no nodePParams."
-                        , "Should only be possible in Byron, where"
-                        , "withRecentEra should prevent this being reached."
-                        ])
-                    (Cardano.bundleProtocolParams
-                        (WriteTx.fromRecentEra (WriteTx.recentEra @era)))
-                    $ W.currentNodeProtocolParameters pp
 
         anyRecentTx <- maybeToHandler (Write.ErrOldEraNotSupported era)
             . WriteTx.asAnyRecentEra
