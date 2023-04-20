@@ -168,7 +168,6 @@ import Text.Pretty.Simple
 import qualified Cardano.Address.Script as CA
 import qualified Cardano.Api as Cardano
 import qualified Cardano.Api.Byron as Cardano
-import qualified Cardano.Api.Extra as Cardano
 import qualified Cardano.Api.Shelley as Cardano
 import qualified Cardano.Wallet.Primitive.Types as W
 import qualified Cardano.Wallet.Primitive.Types.Address as W
@@ -383,11 +382,8 @@ balanceTransaction
     -> PartialTx era
     -> ExceptT ErrBalanceTx m (Cardano.Tx era, changeState)
 balanceTransaction tr utxoAssumptions pp ti utxo genChange s unadjustedPtx = do
-    let ledgerPP = Cardano.unbundleLedgerShelleyBasedProtocolParams
-            shelleyEra
-            (pparamsNode pp)
     let adjustedPtx = over (#tx)
-            (increaseZeroAdaOutputs (recentEra @era) ledgerPP)
+            (increaseZeroAdaOutputs (recentEra @era) (pparamsLedger pp))
             unadjustedPtx
 
     let balanceWith strategy =
@@ -400,8 +396,6 @@ balanceTransaction tr utxoAssumptions pp ti utxo genChange s unadjustedPtx = do
             then balanceWith SelectionStrategyMinimal
             else throwE e
   where
-    shelleyEra = Cardano.shelleyBasedEra @era
-
     -- Determines whether or not the minimal selection strategy is worth trying.
     -- This depends upon the way in which the optimal selection strategy failed.
     minimalStrategyIsWorthTrying :: ErrBalanceTx -> Bool
@@ -488,7 +482,7 @@ balanceTransactionWithSelectionStrategyAndNoZeroAdaAdjustment
         txLayer
         toInpScriptsM
         mScriptTemplate)
-    (ProtocolParameters pp nodePParams)
+    (ProtocolParameters pp ledgerPP)
     ti
     internalUtxoAvailable
     genChange
@@ -707,11 +701,6 @@ balanceTransactionWithSelectionStrategyAndNoZeroAdaAdjustment
             (Write.Tx.fromCardanoUTxO combinedUTxO)
         . Write.Tx.txBody (recentEra @era)
         . Write.Tx.fromCardanoTx
-
-    ledgerPP =
-        Cardano.unbundleLedgerShelleyBasedProtocolParams
-            (Cardano.shelleyBasedEra @era)
-            nodePParams
 
     balanceAfterSettingMinFee
         :: Cardano.Tx era

@@ -16,7 +16,9 @@ module Cardano.Wallet.Write.ProtocolParameters
 import Prelude
 
 import qualified Cardano.Api as CardanoApi
+import qualified Cardano.Api.Extra as CardanoApi
 import qualified Cardano.Wallet.Primitive.Types as Wallet
+import qualified Cardano.Wallet.Write.Tx as WriteTx
 
 -- TODO:
 --  - Make this data type abstract: don't export the constructor.
@@ -24,8 +26,8 @@ import qualified Cardano.Wallet.Primitive.Types as Wallet
 data ProtocolParameters era = ProtocolParameters
     { pparamsWallet
         :: !Wallet.ProtocolParameters
-    , pparamsNode
-        :: !(CardanoApi.BundledProtocolParameters era)
+    , pparamsLedger
+        :: !(WriteTx.PParams (WriteTx.ShelleyLedgerEra era))
     }
 
 -- TODO: ADP-2459 - replace with something nicer.
@@ -34,11 +36,14 @@ unsafeFromWalletProtocolParameters
     => Wallet.ProtocolParameters
     -> ProtocolParameters era
 unsafeFromWalletProtocolParameters pparamsWallet =
-    ProtocolParameters {pparamsWallet, pparamsNode}
+    ProtocolParameters {pparamsWallet, pparamsLedger}
   where
-    pparamsNode = maybe
+    pparamsLedger = maybe
         (error missingNodeParamsError)
-        (CardanoApi.bundleProtocolParams (CardanoApi.cardanoEra @era))
+        (CardanoApi.unbundleLedgerShelleyBasedProtocolParams
+            (CardanoApi.shelleyBasedEra @era)
+            . CardanoApi.bundleProtocolParams (CardanoApi.cardanoEra @era)
+        )
         (Wallet.currentNodeProtocolParameters pparamsWallet)
     missingNodeParamsError = unwords
         [ "unsafeFromWalletProtocolParameters: no nodePParams."

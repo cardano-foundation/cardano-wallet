@@ -488,6 +488,7 @@ import Test.Utils.Pretty
     ( Pretty (..), (====) )
 
 import qualified Cardano.Api as Cardano
+import qualified Cardano.Api.Extra as Cardano
 import qualified Cardano.Api.Shelley as Cardano
 import qualified Cardano.Crypto.Hash.Blake2b as Crypto
 import qualified Cardano.Crypto.Hash.Class as Crypto
@@ -2691,7 +2692,8 @@ balanceTransactionSpec = describe "balanceTransaction" $ do
 
         let balanceWithDust = balanceTx
                 dustWallet
-                (mockBundledProtocolParametersForBalancing Cardano.BabbageEra)
+                (mockBundledProtocolParametersForBalancing
+                    Cardano.ShelleyBasedEraBabbage)
                 dummyTimeInterpreter
                 testStdGenSeed
 
@@ -2830,7 +2832,8 @@ balanceTransactionSpec = describe "balanceTransaction" $ do
 
     balance = balanceTx
         wallet
-        (mockBundledProtocolParametersForBalancing Cardano.BabbageEra)
+        (mockBundledProtocolParametersForBalancing
+            Cardano.ShelleyBasedEraBabbage)
         (dummyTimeInterpreterWithHorizon horizon)
         testStdGenSeed
 
@@ -3798,7 +3801,7 @@ balanceTx
 
 -- | Also returns the updated change state
 balanceTransactionWithDummyChangeState
-    :: WriteTx.IsRecentEra era
+    :: forall era. WriteTx.IsRecentEra era
     => UTxOAssumptions
     -> UTxO
     -> StdGenSeed
@@ -3811,7 +3814,9 @@ balanceTransactionWithDummyChangeState cs utxo seed ptx =
         balanceTransaction @_ @(Rand StdGen)
             (nullTracer @(Rand StdGen))
             cs
-            (mockBundledProtocolParametersForBalancing cardanoEra)
+            (mockBundledProtocolParametersForBalancing $
+                Cardano.shelleyBasedEra @era
+            )
             dummyTimeInterpreter
             utxoIndex
             dummyChangeAddrGen
@@ -3887,7 +3892,7 @@ balanceTransactionGoldenSpec = describe "balance goldens" $ do
             let tx = either (error . show) id $ balanceTx
                     (mkTestWallet walletUTxO)
                     (mockBundledProtocolParametersForBalancing
-                        Cardano.BabbageEra)
+                        Cardano.ShelleyBasedEraBabbage)
                     dummyTimeInterpreter
                     testStdGenSeed
                     ptx
@@ -3949,7 +3954,7 @@ balanceTransactionGoldenSpec = describe "balance goldens" $ do
                 res = balanceTx
                     (mkTestWallet walletUTxO)
                     (mockBundledProtocolParametersForBalancing
-                        Cardano.BabbageEra)
+                        Cardano.ShelleyBasedEraBabbage)
                     dummyTimeInterpreter
                     testStdGenSeed
                     ptx
@@ -4032,8 +4037,8 @@ balanceTransactionGoldenSpec = describe "balance goldens" $ do
         -> Cardano.UTxO Cardano.BabbageEra
         -> Cardano.Lovelace
     txMinFee (Cardano.Tx body _) u = toCardanoLovelace $ evaluateMinimumFee
-        (Write.pparamsNode
-            (mockBundledProtocolParametersForBalancing cardanoEra))
+        (Cardano.bundleProtocolParams Cardano.BabbageEra $
+            snd mockProtocolParametersForBalancing)
         (estimateKeyWitnessCount u body)
         body
 
@@ -4058,7 +4063,8 @@ prop_balanceTransactionValid wallet@(Wallet' _ walletUTxO _) (ShowBuildable part
         let originalBalance = txBalance (view #tx partialTx) combinedUTxO
         let res = balanceTx
                 wallet
-                (mockBundledProtocolParametersForBalancing Cardano.AlonzoEra)
+                (mockBundledProtocolParametersForBalancing
+                    Cardano.ShelleyBasedEraAlonzo)
                 dummyTimeInterpreter
                 seed
                 partialTx
@@ -4318,12 +4324,13 @@ prop_balanceTransactionValid wallet@(Wallet' _ walletUTxO _) (ShowBuildable part
         TxOutAdaOnly _ coin -> Cardano.lovelaceToValue coin
         TxOutValue _ val -> val
 
-    nodePParams = Write.pparamsNode $
-        mockBundledProtocolParametersForBalancing cardanoEra
+    nodePParams =
+        Cardano.bundleProtocolParams Cardano.AlonzoEra $
+        snd $
+        mockProtocolParametersForBalancing
 
-    ledgerPParams =
-        Cardano.toLedgerPParams Cardano.ShelleyBasedEraAlonzo
-            $ snd mockProtocolParametersForBalancing
+    ledgerPParams = Write.pparamsLedger $
+        mockBundledProtocolParametersForBalancing Cardano.ShelleyBasedEraAlonzo
 
     txOutputs :: Cardano.Tx era -> [Cardano.TxOut Cardano.CtxTx era]
     txOutputs (Cardano.Tx (Cardano.TxBody content) _) =
@@ -4343,7 +4350,8 @@ prop_balanceTransactionExistingTotalCollateral
             Left err -> ErrBalanceTxExistingTotalCollateral === err
             e -> counterexample (show e) False
   where
-    pp = mockBundledProtocolParametersForBalancing Cardano.BabbageEra
+    pp = mockBundledProtocolParametersForBalancing
+        Cardano.ShelleyBasedEraBabbage
     ti = dummyTimeInterpreter
 
 prop_balanceTransactionExistingReturnCollateral
@@ -4360,7 +4368,8 @@ prop_balanceTransactionExistingReturnCollateral
             Left err -> ErrBalanceTxExistingReturnCollateral === err
             e -> counterexample (show e) False
   where
-    pp = mockBundledProtocolParametersForBalancing Cardano.BabbageEra
+    pp = mockBundledProtocolParametersForBalancing
+        Cardano.ShelleyBasedEraBabbage
     ti = dummyTimeInterpreter
 
 
@@ -4505,13 +4514,14 @@ mockProtocolParametersForBalancing =
     )
 
 mockBundledProtocolParametersForBalancing
-    :: CardanoEra era
+    :: Cardano.ShelleyBasedEra era
     -> Write.ProtocolParameters era
 mockBundledProtocolParametersForBalancing era = Write.ProtocolParameters
     { pparamsWallet =
         fst mockProtocolParametersForBalancing
-    , pparamsNode =
-        Cardano.bundleProtocolParams era $
+    , pparamsLedger =
+        Cardano.unbundleLedgerShelleyBasedProtocolParams era $
+        Cardano.bundleProtocolParams (Cardano.shelleyBasedToCardanoEra era) $
         snd mockProtocolParametersForBalancing
     }
 
