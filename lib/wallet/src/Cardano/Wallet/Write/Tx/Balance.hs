@@ -793,7 +793,7 @@ balanceTransactionWithSelectionStrategyAndNoZeroAdaAdjustment
     assembleTransaction update = ExceptT . pure $ do
         tx' <- left ErrBalanceTxUpdateError $ updateTx partialTx update
         left ErrBalanceTxAssignRedeemers $ assignScriptRedeemers
-            nodePParams ti combinedUTxO redeemers tx'
+            ledgerPP ti combinedUTxO redeemers tx'
 
 
     guardConflictingWithdrawalNetworks

@@ -281,7 +281,6 @@ import Ouroboros.Network.Block
 import qualified Cardano.Address.Style.Shelley as CA
 import qualified Cardano.Api as Cardano
 import qualified Cardano.Api.Byron as Byron
-import qualified Cardano.Api.Extra as Cardano
 import qualified Cardano.Api.Shelley as Cardano
 import qualified Cardano.Chain.Common as Byron
 import qualified Cardano.Crypto as CC
@@ -1308,7 +1307,7 @@ type ConwayTx =
 
 assignScriptRedeemers
     :: forall era. WriteTx.IsRecentEra era
-    => Cardano.BundledProtocolParameters era
+    => WriteTx.PParams (WriteTx.ShelleyLedgerEra era)
     -> TimeInterpreter (Either PastHorizonException)
     -> Cardano.UTxO era
     -> [Redeemer]
@@ -1357,10 +1356,6 @@ assignScriptRedeemers pparams ti utxo redeemers tx =
             (toEpochInfo ti)
 
     systemStart = getSystemStart ti
-
-    pparams' = Cardano.unbundleLedgerShelleyBasedProtocolParams
-        (shelleyBasedEra @era)
-        pparams
 
     -- | Assign redeemers with null execution units to the input transaction.
     --
@@ -1443,9 +1438,9 @@ assignScriptRedeemers pparams ti utxo redeemers tx =
             (Map Alonzo.RdmrPtr (Either ErrAssignRedeemers Alonzo.ExUnits))
     evaluateExecutionUnitsAlonzo indexedRedeemers alonzoTx = do
         let costs = toCostModelsAsArray
-                (Alonzo.unCostModels $ Alonzo._costmdls pparams')
+                (Alonzo.unCostModels $ Alonzo._costmdls pparams)
         let res = evaluateTransactionExecutionUnits
-                pparams'
+                pparams
                 alonzoTx
                 (fromCardanoUTxO utxo)
                 epochInfo
@@ -1465,10 +1460,10 @@ assignScriptRedeemers pparams ti utxo redeemers tx =
             (Map Alonzo.RdmrPtr (Either ErrAssignRedeemers Alonzo.ExUnits))
     evaluateExecutionUnitsBabbage indexedRedeemers babbageTx = do
         let costs = toCostModelsAsArray
-                (Alonzo.unCostModels $ Babbage._costmdls pparams')
+                (Alonzo.unCostModels $ Babbage._costmdls pparams)
 
         let res = evaluateTransactionExecutionUnits
-                pparams'
+                pparams
                 babbageTx
                 (fromCardanoUTxO utxo)
                 epochInfo
@@ -1488,10 +1483,10 @@ assignScriptRedeemers pparams ti utxo redeemers tx =
             (Map Alonzo.RdmrPtr (Either ErrAssignRedeemers Alonzo.ExUnits))
     evaluateExecutionUnitsConway indexedRedeemers conwayTx = do
         let costs = toCostModelsAsArray
-                (Alonzo.unCostModels $ Conway._costmdls pparams')
+                (Alonzo.unCostModels $ Conway._costmdls pparams)
 
         let res = evaluateTransactionExecutionUnits
-                pparams'
+                pparams
                 conwayTx
                 (fromCardanoUTxO utxo)
                 epochInfo
@@ -1583,7 +1578,7 @@ assignScriptRedeemers pparams ti utxo redeemers tx =
         in alonzoTx
             { Alonzo.body = (Alonzo.body alonzoTx)
                 { Alonzo.scriptIntegrityHash = Alonzo.hashScriptIntegrity
-                    (Set.fromList $ Alonzo.getLanguageView pparams' <$> langs)
+                    (Set.fromList $ Alonzo.getLanguageView pparams <$> langs)
                     (Alonzo.txrdmrs wits)
                     (Alonzo.txdats wits)
                 }
@@ -1603,7 +1598,7 @@ assignScriptRedeemers pparams ti utxo redeemers tx =
         in babbageTx
             { Babbage.body = (Babbage.body babbageTx)
                 { Babbage.scriptIntegrityHash = Alonzo.hashScriptIntegrity
-                    (Set.fromList $ Alonzo.getLanguageView pparams'
+                    (Set.fromList $ Alonzo.getLanguageView pparams
                         <$> langs)
                     (Alonzo.txrdmrs wits)
                     (Alonzo.txdats wits)
@@ -1624,7 +1619,7 @@ assignScriptRedeemers pparams ti utxo redeemers tx =
         in conwayTx
             { Conway.body = (Conway.body conwayTx)
                 { Conway.scriptIntegrityHash = Alonzo.hashScriptIntegrity
-                    (Set.fromList $ Alonzo.getLanguageView pparams'
+                    (Set.fromList $ Alonzo.getLanguageView pparams
                         <$> langs)
                     (Alonzo.txrdmrs wits)
                     (Alonzo.txdats wits)
