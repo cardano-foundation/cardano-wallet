@@ -42,6 +42,8 @@ import Control.Monad.Random.Class
     ( MonadRandom (..) )
 import Data.Function
     ( (&) )
+import Data.Map.Strict
+    ( Map )
 import Data.Maybe
     ( isJust, isNothing )
 import Data.Ratio
@@ -106,6 +108,8 @@ spec =
             property prop_empty_invariant
         it "prop_singleton_invariant" $
             property prop_singleton_invariant
+        it "prop_fromMap_invariant" $
+            property prop_fromMap_invariant
         it "prop_fromSequence_invariant" $
             property prop_fromSequence_invariant
         it "prop_insert_invariant" $
@@ -119,6 +123,8 @@ spec =
 
         it "prop_empty_toList" $
             property prop_empty_toList
+        it "prop_fromMap_fromSequence" $
+            property prop_fromMap_fromSequence
         it "prop_singleton_toList" $
             property prop_singleton_toList
         it "prop_toList_fromSequence" $
@@ -195,6 +201,9 @@ prop_empty_invariant = invariantHolds (UTxOIndex.empty @TestUTxO)
 prop_singleton_invariant :: TestUTxO -> TokenBundle -> Property
 prop_singleton_invariant u b = invariantHolds $ UTxOIndex.singleton u b
 
+prop_fromMap_invariant :: Map TestUTxO TokenBundle -> Property
+prop_fromMap_invariant = invariantHolds . UTxOIndex.fromMap
+
 prop_fromSequence_invariant :: [(TestUTxO, TokenBundle)] -> Property
 prop_fromSequence_invariant = invariantHolds . UTxOIndex.fromSequence
 
@@ -234,6 +243,10 @@ prop_selectRandom_invariant i f =
 prop_empty_toList :: Property
 prop_empty_toList =
     UTxOIndex.toList (UTxOIndex.empty @TestUTxO) === []
+
+prop_fromMap_fromSequence :: Map TestUTxO TokenBundle -> Property
+prop_fromMap_fromSequence m =
+    UTxOIndex.fromMap m === UTxOIndex.fromSequence (Map.toList m)
 
 prop_singleton_toList :: TestUTxO -> TokenBundle -> Property
 prop_singleton_toList u b =

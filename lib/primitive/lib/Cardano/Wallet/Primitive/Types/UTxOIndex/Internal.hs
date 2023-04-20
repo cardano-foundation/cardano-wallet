@@ -233,8 +233,14 @@ fromSequence = flip insertMany empty
 -- Note that this operation is potentially expensive as it must construct an
 -- index from scratch, and therefore should only be used sparingly.
 --
+-- Satisfies the following property:
+--
+-- @
+-- 'fromMap' ≡ 'fromSequence' . 'Map.toList'
+-- @
+--
 fromMap :: Ord u => Map u TokenBundle -> UTxOIndex u
-fromMap = fromSequence . Map.toList
+fromMap = Map.foldlWithKey' (\i u b -> insertUnsafe u b i) empty
 
 --------------------------------------------------------------------------------
 -- Deconstruction
