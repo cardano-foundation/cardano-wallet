@@ -106,6 +106,8 @@ spec =
             property prop_empty_invariant
         it "prop_singleton_invariant" $
             property prop_singleton_invariant
+        it "prop_fromMap_invariant" $
+            property prop_fromMap_invariant
         it "prop_fromSequence_invariant" $
             property prop_fromSequence_invariant
         it "prop_insert_invariant" $
@@ -194,6 +196,9 @@ prop_empty_invariant = invariantHolds (UTxOIndex.empty @TestUTxO)
 
 prop_singleton_invariant :: TestUTxO -> TokenBundle -> Property
 prop_singleton_invariant u b = invariantHolds $ UTxOIndex.singleton u b
+
+prop_fromMap_invariant :: Map TestUTxO TokenBundle -> Property
+prop_fromMap_invariant = invariantHolds . UTxOIndex.fromMap
 
 prop_fromSequence_invariant :: [(TestUTxO, TokenBundle)] -> Property
 prop_fromSequence_invariant = invariantHolds . UTxOIndex.fromSequence
