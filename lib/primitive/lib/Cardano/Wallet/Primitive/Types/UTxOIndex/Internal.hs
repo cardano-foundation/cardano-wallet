@@ -240,7 +240,7 @@ fromSequence = flip insertMany empty
 -- @
 --
 fromMap :: Ord u => Map u TokenBundle -> UTxOIndex u
-fromMap = fromSequence . Map.toList
+fromMap = flip insertMany empty . Map.toList
 
 --------------------------------------------------------------------------------
 -- Deconstruction
