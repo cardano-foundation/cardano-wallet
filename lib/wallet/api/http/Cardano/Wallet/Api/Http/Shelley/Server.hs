@@ -2939,7 +2939,7 @@ constructSharedTransaction
                         Just Quit -> [W.stakeKeyDeposit pp]
                         _ -> []
                 delCerts <- case optionalDelegationAction of
-                    Nothing -> pure $ Nothing
+                    Nothing -> pure Nothing
                     Just action -> do
                         res <- liftHandler $ W.readSharedRewardAccount @n db wid
                         when (isNothing res)$
