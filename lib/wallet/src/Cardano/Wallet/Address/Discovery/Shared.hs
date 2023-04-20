@@ -376,7 +376,7 @@ mkSharedStateFromAccountXPub accXPub accIx gap pTemplate dTemplateM =
         , accountXPub = accXPub
         , paymentTemplate = pTemplate
         , delegationTemplate = dTemplateM
-        , rewardAccountKey = RewardAccount . unScriptHash . toScriptHash .
+        , rewardAccountKey = FromScriptHash . unScriptHash . toScriptHash .
             flip (replaceCosignersWithVerKeys CA.Stake) minBound <$> dTemplateM
         , poolGap = gap
         , ready = Pending

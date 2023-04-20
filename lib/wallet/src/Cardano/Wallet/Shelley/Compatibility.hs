@@ -72,8 +72,7 @@ module Cardano.Wallet.Shelley.Compatibility
     , toStakeKeyRegCert
     , toStakeKeyDeregCert
     , toStakePoolDlgCert
-    , toKeyHashStakeCredential
-    , toScriptHashStakeCredential
+    , toLedgerStakeCredential
     , fromStakeCredential
     , toShelleyCoin
     , fromShelleyCoin
@@ -1395,9 +1394,9 @@ fromPoolMetadata meta =
 fromStakeCredential :: SL.Credential 'SL.Staking crypto -> W.RewardAccount
 fromStakeCredential = \case
     SL.ScriptHashObj (SL.ScriptHash h) ->
-        W.RewardAccount (hashToBytes h)
+        W.FromScriptHash (hashToBytes h)
     SL.KeyHashObj (SL.KeyHash h) ->
-        W.RewardAccount (hashToBytes h)
+        W.FromKeyHash (hashToBytes h)
 
 fromPoolKeyHash :: SL.KeyHash rol sc -> PoolId
 fromPoolKeyHash (SL.KeyHash h) = PoolId (hashToBytes h)
@@ -1447,12 +1446,20 @@ toPolicyID (W.UnsafeTokenPolicyId (W.Hash bytes)) =
     SL.PolicyID (SL.ScriptHash (unsafeHashFromBytes bytes))
 
 toCardanoStakeCredential :: W.RewardAccount -> Cardano.StakeCredential
-toCardanoStakeCredential = Cardano.StakeCredentialByKey
-    . Cardano.StakeKeyHash
-    . SL.KeyHash
-    . UnsafeHash
-    . SBS.toShort
-    . W.unRewardAccount
+toCardanoStakeCredential = \case
+    W.FromKeyHash bs ->
+        Cardano.StakeCredentialByKey
+        . Cardano.StakeKeyHash
+        . SL.KeyHash
+        . UnsafeHash
+        . SBS.toShort
+        $ bs
+    W.FromScriptHash bs ->
+        Cardano.StakeCredentialByScript
+        . Cardano.fromShelleyScriptHash
+        . SL.ScriptHash
+        . unsafeHashFromBytes
+        $ bs
 
 toCardanoLovelace :: W.Coin -> Cardano.Lovelace
 toCardanoLovelace (W.Coin c) = Cardano.Lovelace $ intCast c
@@ -1685,23 +1692,21 @@ toCardanoSimpleScriptV1 = \case
 just :: Builder -> Builder -> [Maybe a] -> a
 just t1 t2 = tina (t1+|": unable to deserialise "+|t2)
 
--- | Convert from reward account address (which is a hash of a public key)
--- to a shelley ledger stake credential.
-toKeyHashStakeCredential
+toLedgerStakeCredential
     :: (Crypto.HashAlgorithm (SL.ADDRHASH crypto))
     => W.RewardAccount
     -> SL.StakeCredential crypto
-toKeyHashStakeCredential = SL.KeyHashObj
-    . SL.KeyHash . unsafeHashFromBytes . W.unRewardAccount
-
--- | Convert from reward account address (which is a hash of a script)
--- to a shelley ledger stake credential.
-toScriptHashStakeCredential
-    :: (Crypto.HashAlgorithm (SL.ADDRHASH crypto))
-    => W.RewardAccount
-    -> SL.StakeCredential crypto
-toScriptHashStakeCredential = SL.ScriptHashObj
-    . SL.ScriptHash . unsafeHashFromBytes . W.unRewardAccount
+toLedgerStakeCredential = \case
+    W.FromKeyHash bs ->
+          SL.KeyHashObj
+        . SL.KeyHash
+        . unsafeHashFromBytes
+        $ bs
+    W.FromScriptHash bs ->
+          SL.ScriptHashObj
+        . SL.ScriptHash
+        . unsafeHashFromBytes
+        $ bs
 
 unsafeHashFromBytes :: Crypto.HashAlgorithm h => ByteString -> Hash h a
 unsafeHashFromBytes =
@@ -1926,8 +1931,11 @@ decodeStakeAddress
 decodeStakeAddress SMainnet = shelleyDecodeStakeAddress SL.Mainnet
 decodeStakeAddress (STestnet _) = shelleyDecodeStakeAddress SL.Testnet
 
-stakeAddressPrefix :: Word8
-stakeAddressPrefix = 0xE0
+keyhashStakeAddressPrefix :: Word8
+keyhashStakeAddressPrefix = 0xE0
+
+scripthashStakeAddressPrefix :: Word8
+scripthashStakeAddressPrefix = 0xF0
 
 networkIdMask :: Word8
 networkIdMask = 0x0F
@@ -1938,15 +1946,21 @@ toNetworkId = \case
     SL.Mainnet -> 1
 
 shelleyEncodeStakeAddress :: SL.Network -> W.RewardAccount -> Text
-shelleyEncodeStakeAddress network (W.RewardAccount acct) =
-    Bech32.encodeLenient hrp (dataPartFromBytes bytes)
+shelleyEncodeStakeAddress network acct =
+    Bech32.encodeLenient hrp (dataPartFromBytes (bytes acct))
   where
     hrp = case network of
         SL.Testnet -> [Bech32.humanReadablePart|stake_test|]
         SL.Mainnet -> [Bech32.humanReadablePart|stake|]
-    bytes = BL.toStrict $ runPut $ do
-        putWord8 $ (networkIdMask .&. toNetworkId network) .|. stakeAddressPrefix
-        putByteString acct
+    bytes = \case
+        W.FromKeyHash bs ->
+            BL.toStrict $ runPut $ do
+            putWord8 $ (networkIdMask .&. toNetworkId network) .|. keyhashStakeAddressPrefix
+            putByteString bs
+        W.FromScriptHash bs ->
+            BL.toStrict $ runPut $ do
+            putWord8 $ (networkIdMask .&. toNetworkId network) .|. scripthashStakeAddressPrefix
+            putByteString bs
 
 shelleyDecodeStakeAddress ::
     SL.Network -> Text -> Either TextDecodingError W.RewardAccount

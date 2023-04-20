@@ -38,5 +38,5 @@ addresses = mkRewardAccount <$> ['0' ..]
 
 mkRewardAccount :: Char -> RewardAccount
 mkRewardAccount c
-    = RewardAccount . getHash
+    = FromKeyHash . getHash
     . mockHashRewardAccount $ "Reward" `B8.snoc` c

@@ -1788,7 +1788,7 @@ spec = describe "NEW_SHELLEY_TRANSACTIONS" $ do
                 \c419d48e1840bdeba8338206cf3df799d04328c4208b4d7a87248e604a7844\
                 \7c2a7acfa4488f3df5c92b01535f756e6ae6e1f23ddb9f438de10ef5f6" :: Text
 
-        let rewardAccount' = RewardAccount "\137\252a\210\GS\223\203\212\212\&6R\191\ENQ\196\f4o\167\148\135\DC4#\182PR\215aL"
+        let rewardAccount' = FromKeyHash  "\137\252a\210\GS\223\203\212\212\&6R\191\ENQ\196\f4o\167\148\135\DC4#\182PR\215aL"
         let pool' = ApiT $ PoolId "\236(\243=\203\230\214@\n\RS^3\155\208d|\ts\202l\f\249\194\187\230\131\141\198"
 
         let certsJoin =

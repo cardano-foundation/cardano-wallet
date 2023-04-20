@@ -784,7 +784,7 @@ instance Arbitrary DecentralizationLevel where
 
 instance Arbitrary RewardAccount where
     arbitrary =
-        RewardAccount . BS.pack <$> vector 28
+        FromKeyHash . BS.pack <$> vector 28
 
 instance Arbitrary (Hash purpose) where
     arbitrary = Hash . convertToBase Base16 . BS.pack <$> vector 16
@@ -801,7 +801,7 @@ instance Arbitrary DelegationCertificate where
         , CertDelegateFull <$> genArbitraryRewardAccount <*> arbitrary
         ]
       where
-        genArbitraryRewardAccount = pure $ RewardAccount $ BS.replicate 32 0
+        genArbitraryRewardAccount = pure $ FromKeyHash $ BS.replicate 32 0
 
 instance Arbitrary Word31 where
     arbitrary = arbitrarySizedBoundedIntegral

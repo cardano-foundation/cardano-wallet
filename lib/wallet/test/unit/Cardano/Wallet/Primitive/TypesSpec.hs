@@ -1168,7 +1168,7 @@ instance Arbitrary TxMetadata where
     arbitrary = genNestedTxMetadata
 
 instance Arbitrary RewardAccount where
-    arbitrary = RewardAccount . BS.pack <$> vector 28
+    arbitrary = FromKeyHash . BS.pack <$> vector 28
 
 instance Arbitrary BlockHeader where
     shrink _ = []

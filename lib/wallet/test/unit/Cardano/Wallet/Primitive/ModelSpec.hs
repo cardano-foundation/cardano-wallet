@@ -1085,7 +1085,7 @@ ourAddresses =
     Set.map (\(ShowFmt a) -> a) . _ourAddresses
 
 ourRewardAccount :: RewardAccount
-ourRewardAccount = RewardAccount $ BS.replicate 28 0
+ourRewardAccount = FromKeyHash $ BS.replicate 28 0
 
 instance NFData WalletState
 
