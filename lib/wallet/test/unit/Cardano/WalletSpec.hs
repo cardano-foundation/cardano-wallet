@@ -308,16 +308,12 @@ spec = describe "Cardano.WalletSpec" $ do
             (property walletDoubleCreationProp)
         it "Wallet after being created can be got using valid wallet Id"
             (property walletGetProp)
-        it "Wallet with wrong wallet Id cannot be got"
-            (property walletGetWrongIdProp)
         it "Two wallets with same mnemonic have a same public id"
             (property walletIdDeterministic)
         it "Two wallets with different mnemonic have a different public id"
             (property walletIdInjective)
         it "Wallet has name corresponding to its last update"
             (property walletUpdateName)
-        it "Can't change name if wallet doesn't exist"
-            (property walletUpdateNameNoSuchWallet)
         it "Can change passphrase of the last private key attached, if any"
             (property walletUpdatePassphrase)
         it "Can't change passphrase with a wrong old passphrase"
@@ -384,14 +380,6 @@ walletGetProp newWallet = monadicIO $ do
     resFromGet <- run $ runExceptT $ W.readWallet wl (L.head walletIds)
     assert (isRight resFromGet)
 
-walletGetWrongIdProp
-    :: ((WalletId, WalletName, DummyState), WalletId)
-    -> Property
-walletGetWrongIdProp (newWallet@(wid, _, _), walletId) = monadicIO $ do
-    WalletLayerFixture _db wl _walletIds <- run $ setupFixture newWallet
-    attempt <- run $ runExceptT $ W.readWallet wl walletId
-    assert ((if wid /= walletId then isLeft else isRight) attempt)
-
 walletIdDeterministic
     :: (WalletId, WalletName, DummyState)
     -> Property
@@ -420,18 +408,6 @@ walletUpdateName wallet@(_, wName0, _) names = monadicIO $ do
         fmap (name . (\(_, (b, _), _) -> b))
             <$> unsafeRunExceptT $ W.readWallet wl wid
     assert (wName == last (wName0 : names))
-
-walletUpdateNameNoSuchWallet
-    :: (WalletId, WalletName, DummyState)
-    -> WalletId
-    -> WalletName
-    -> Property
-walletUpdateNameNoSuchWallet wallet@(wid', _, _) wid wName =
-    wid /= wid' ==> monadicIO $ do
-        WalletLayerFixture _ wl _ <- run $ setupFixture wallet
-        attempt <- run $ runExceptT $
-            W.updateWallet wl wid (\x -> x { name = wName })
-        assert (attempt == Left (ErrNoSuchWallet wid))
 
 walletUpdatePassphrase
     :: (WalletId, WalletName, DummyState)

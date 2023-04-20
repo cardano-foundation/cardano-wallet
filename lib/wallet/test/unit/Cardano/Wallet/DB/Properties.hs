@@ -158,7 +158,8 @@ properties withFreshDB = describe "DB.Properties" $ do
             $ prop_readAfterPut
                 testOnLayer
                 (\DBLayer{..} _wid -> mapExceptT atomically . putWalletMeta)
-                (\DBLayer{..} -> atomically . fmap (fmap fst) . readWalletMeta)
+                (\DBLayer{..} _ -> atomically . fmap (fmap fst)
+                    $ readWalletMeta)
         it "Tx History"
             $ property
             $ prop_readAfterPut
@@ -196,7 +197,8 @@ properties withFreshDB = describe "DB.Properties" $ do
             $ prop_putBeforeInit
                 withFreshDB
                 (\DBLayer{..} _wid -> mapExceptT atomically . putWalletMeta)
-                (\DBLayer{..} -> atomically . fmap (fmap fst) . readWalletMeta)
+                (\DBLayer{..} _ -> atomically . fmap (fmap fst)
+                    $ readWalletMeta)
                 Nothing
         it "Tx History"
             $ property
@@ -219,7 +221,7 @@ properties withFreshDB = describe "DB.Properties" $ do
             $ prop_isolation
                 testOnLayer
                 (\DBLayer{..} _wid -> mapExceptT atomically . putCheckpoint)
-                (\DBLayer{..} -> atomically . readWalletMeta)
+                (\DBLayer{..} _ -> atomically readWalletMeta)
                 readTxHistory_
                 (\DBLayer{..} -> atomically . readPrivateKey)
         it "Wallet Metadata vs Tx History & Checkpoint & Private Key"
@@ -236,7 +238,7 @@ properties withFreshDB = describe "DB.Properties" $ do
                 testOnLayer
                 putTxHistory_
                 (\DBLayer{..} _ -> atomically readCheckpoint)
-                (\DBLayer{..} -> atomically . readWalletMeta)
+                (\DBLayer{..} _ -> atomically readWalletMeta)
                 (\DBLayer{..} -> atomically . readPrivateKey)
 
     let lastMay [] = Nothing
@@ -255,7 +257,8 @@ properties withFreshDB = describe "DB.Properties" $ do
             $ prop_sequentialPut
                 testOnLayer
                 (\DBLayer{..} _wid -> mapExceptT atomically . putWalletMeta)
-                (\DBLayer{..} -> atomically . fmap (fmap fst) . readWalletMeta)
+                (\DBLayer{..} _ -> atomically . fmap (fmap fst)
+                    $ readWalletMeta)
                 lastMay
         it "Tx History"
             $ checkCoverage

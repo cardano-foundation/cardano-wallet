@@ -742,7 +742,7 @@ newDBLayerFromDBOpen ti wid_ DBOpen{atomically=runQuery} = mdo
                         (mkWalletMetadataUpdate meta)
                     pure $ Right ()
 
-        , readWalletMeta_ = readWalletMetadata
+        , readWalletMeta_ = readWalletMetadata wid_
         }
 
         {-----------------------------------------------------------------------

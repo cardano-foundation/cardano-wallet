@@ -203,7 +203,7 @@ import Data.String.Interpolate
 import Data.Text
     ( Text )
 import Data.Text.Class
-    ( fromText, toText )
+    ( toText )
 import Data.Time.Clock
     ( getCurrentTime )
 import Data.Time.Clock.POSIX
@@ -506,7 +506,7 @@ fileModeSpec =  do
                 atomically $ unsafeRunExceptT $
                     initializeWallet testCp meta mempty gp
                 return (meta, WalletDelegation NotDelegating [])
-            testReopening f (`readWalletMeta'` testWid) (Just meta)
+            testReopening f readWalletMeta' (Just meta)
 
         it "create and get private key" $ \f -> do
             (k, h) <- withShelleyFileDBLayer f $ \db@DBLayer{..} -> do
@@ -846,8 +846,8 @@ prop_randomOpChunks (NonEmpty (p : pairs)) =
         cps2 <- readCheckpoint' db2
         cps1 `shouldBe` cps2
 
-        meta1 <- readWalletMeta' db1 walId1
-        meta2 <- readWalletMeta' db2 walId1
+        meta1 <- readWalletMeta' db1
+        meta2 <- readWalletMeta' db2
         meta1 `shouldBe` meta2
 
 -- | Test that data is preserved when closing the database and opening
@@ -929,10 +929,8 @@ readCheckpoint' DBLayer{..} = atomically readCheckpoint
 
 readWalletMeta'
     :: DBLayer m s k
-    -> WalletId
     -> m (Maybe (WalletMetadata, WalletDelegation))
-readWalletMeta' DBLayer{..} =
-    atomically . readWalletMeta
+readWalletMeta' DBLayer{..} = atomically readWalletMeta
 
 readTransactions'
     :: DBLayer m s k
@@ -983,9 +981,14 @@ cutRandomly = iter []
 
 manualMigrationsSpec :: Spec
 manualMigrationsSpec = describe "Manual migrations" $ do
-    it "'migrate' db with no passphrase scheme set." $
-        testMigrationPassphraseScheme
-            "passphraseScheme-v2020-03-16.sqlite"
+    it "'migrate' db with no passphrase scheme set."
+        testMigrationPassphraseScheme1
+    it "not 'migrate' db with no passphrase scheme set."
+        testMigrationPassphraseScheme2
+    it "not 'migrate' db with no date."
+        testMigrationPassphraseScheme3
+    it "not 'migrate' db with no passphrase scheme set and no date."
+        testMigrationPassphraseScheme4
 
     it "'migrate' db with no 'derivation_prefix' for seq state (Icarus)" $
         testMigrationSeqStateDerivationPrefix @IcarusKey
@@ -1284,57 +1287,69 @@ testMigrationSeqStateDerivationPrefix dbName prefix = do
         let fieldInDB = fieldDB $ persistFieldDef DB.SeqStateDerivationPrefix
         in fieldName field == unFieldNameDB fieldInDB
 
-testMigrationPassphraseScheme
-    :: FilePath -> IO ()
-testMigrationPassphraseScheme dbName = do
-    (logs, (a,b,c,d)) <- withDBLayerFromCopiedFile @ShelleyKey dbName
-        $ \DBLayer{..} -> atomically $ do
-            Just a <- readWalletMeta walNeedMigration
-            Just b <- readWalletMeta walNewScheme
-            Just c <- readWalletMeta walOldScheme
-            Just d <- readWalletMeta walNoPassphrase
-            pure (fst a, fst b, fst c, fst d)
-
-    -- Migration is visible from the logs
-    let migrationMsg = filter isMsgManualMigration logs
-    length migrationMsg `shouldBe` 1
-
+testMigrationPassphraseScheme1 :: IO ()
+testMigrationPassphraseScheme1 = do
     -- The first wallet is stored in the database with only a
     -- 'passphraseLastUpdatedAt' field, but no 'passphraseScheme'. So,
     -- after the migration, both should now be `Just`.
+    (logs, a) <- withDBLayerFromCopiedFile @ShelleyKey
+        "passphraseScheme/she.17ca0ed41a372e483f2968aa386a4b6b0ca6b5ee.sqlite"
+        $ \DBLayer{..} -> atomically $ do
+            Just a <- readWalletMeta
+            pure (fst a)
+
+    -- Migration is visible from the logs
+    let migrationMsg = filter isMsgManualMigrationPw logs
+    length migrationMsg `shouldBe` 1
     (passphraseScheme <$> passphraseInfo a) `shouldBe` Just EncryptWithPBKDF2
 
+testMigrationPassphraseScheme2 :: IO ()
+testMigrationPassphraseScheme2 = do
     -- The second wallet was just fine and already has a passphrase
     -- scheme set to use PBKDF2. Nothing should have changed.
-    (passphraseScheme <$> passphraseInfo b) `shouldBe` Just EncryptWithPBKDF2
+    (logs, a) <- withDBLayerFromCopiedFile @ShelleyKey
+        "passphraseScheme/she.2e8353d2bb937445948669a1dcc69ec9628a558c.sqlite"
+        $ \DBLayer{..} -> atomically $ do
+            Just a <- readWalletMeta
+            pure (fst a)
 
+    let migrationMsg = filter isMsgManualMigrationPw logs
+    length migrationMsg `shouldBe` 1
+    (passphraseScheme <$> passphraseInfo a) `shouldBe` Just EncryptWithPBKDF2
+
+testMigrationPassphraseScheme3 :: IO ()
+testMigrationPassphraseScheme3 = do
     -- The third wallet had a scheme too, but was using the legacy
     -- scheme. Nothing should have changed.
-    (passphraseScheme <$> passphraseInfo c) `shouldBe` Just EncryptWithScrypt
+    (logs, a) <- withDBLayerFromCopiedFile @ShelleyKey
+        "passphraseScheme/she.899abf7137aa8b3200d55d70474f6fdd2649fa2f.sqlite"
+        $ \DBLayer{..} -> atomically $ do
+            Just a <- readWalletMeta
+            pure (fst a)
 
+    let migrationMsg = filter isMsgManualMigrationPw logs
+    length migrationMsg `shouldBe` 1
+    (passphraseScheme <$> passphraseInfo a) `shouldBe` Just EncryptWithScrypt
+
+testMigrationPassphraseScheme4 :: IO ()
+testMigrationPassphraseScheme4 = do
     -- The last wallet had no passphrase whatsoever (restored from
     -- account public key), so it should still have NO scheme.
-    (passphraseScheme <$> passphraseInfo d) `shouldBe` Nothing
-  where
-    isMsgManualMigration = matchMsgManualMigration $ \field ->
-        let fieldInDB = fieldDB $ persistFieldDef DB.WalPassphraseScheme
-        in  fieldName field == unFieldNameDB fieldInDB
+    (logs, a ) <- withDBLayerFromCopiedFile @ShelleyKey
+        "passphraseScheme/she.be92ab4ec9399449e53b94378e6cb6724691f8b3.sqlite"
+        $ \DBLayer{..} -> atomically $ do
+            Just a <- readWalletMeta
+            pure (fst a)
 
-    -- Coming from __test/data/passphraseScheme-v2020-03-16.sqlite__:
-    --
-    --     sqlite3> SELECT wallet_id, passphrase_last_updated_at,passphrase_scheme FROM wallet;
-    --
-    --     wallet_id                                | passphrase_last_updated_at    | passphrase_scheme
-    --     =========================================+===============================+==================
-    --     64581f7393190aed462fc3180ce52c3c1fe580a9 | 2020-06-02T14:22:17.48678659  |
-    --     5e481f55084afda69fc9cd3863ced80fa83734aa | 2020-06-02T14:22:03.234087113 | EncryptWithPBKDF2
-    --     4a6279cd71d5993a288b2c5879daa7c42cebb73d | 2020-06-02T14:21:45.418841818 | EncryptWithScrypt
-    --     ba74a7d2c1157ea7f32a93f255dac30e9ebca62b |                               |
-    --
-    Right walNeedMigration = fromText "64581f7393190aed462fc3180ce52c3c1fe580a9"
-    Right walNewScheme     = fromText "5e481f55084afda69fc9cd3863ced80fa83734aa"
-    Right walOldScheme     = fromText "4a6279cd71d5993a288b2c5879daa7c42cebb73d"
-    Right walNoPassphrase  = fromText "ba74a7d2c1157ea7f32a93f255dac30e9ebca62b"
+    let migrationMsg = filter isMsgManualMigrationPw logs
+    length migrationMsg `shouldBe` 1
+    (passphraseScheme <$> passphraseInfo a) `shouldBe` Nothing
+
+isMsgManualMigrationPw :: WalletDBLog -> Bool
+isMsgManualMigrationPw = matchMsgManualMigration $ \field ->
+    let fieldInDB = fieldDB $ persistFieldDef DB.WalPassphraseScheme
+    in  fieldName field == unFieldNameDB fieldInDB
+
 
 testCreateMetadataTable ::
     forall k. (k ~ ShelleyKey) => IO ()

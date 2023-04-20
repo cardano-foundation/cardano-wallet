@@ -131,7 +131,7 @@ joinStakePoolDelegationAction
     tr DBLayer{..} currentEpoch knownPools poolId poolStatus wid = do
     (walletDelegation, stakeKeyIsRegistered) <-
         atomically . throwInIO ErrStakePoolDelegationNoSuchWallet $
-            (,) <$> withNoSuchWallet wid (fmap snd <$> readWalletMeta wid)
+            (,) <$> withNoSuchWallet wid (fmap snd <$> readWalletMeta)
                 <*> mkNoSuchWalletError wid (isStakeKeyRegistered wid)
 
     let retirementInfo =
@@ -210,7 +210,7 @@ quitStakePoolDelegationAction
     -> Withdrawal
     -> IO Tx.DelegationAction
 quitStakePoolDelegationAction db@DBLayer{..} walletId withdrawal = do
-    (_, delegation) <- atomically (readWalletMeta walletId)
+    (_, delegation) <- atomically readWalletMeta
         >>= maybe
             (throwIO (ExceptionStakePoolDelegation
                 (ErrStakePoolDelegationNoSuchWallet

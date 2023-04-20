@@ -345,7 +345,7 @@ data Cmd s wid
     | ReadCheckpoint
     | ListCheckpoints
     | PutWalletMeta WalletMetadata
-    | ReadWalletMeta wid
+    | ReadWalletMeta
     | PutTxHistory wid TxHistory
     | ReadTxHistory wid
         (Maybe Coin)
@@ -411,7 +411,7 @@ runMock = \case
         first (Resp . fmap Checkpoint) . mReadCheckpoint
     PutWalletMeta meta ->
         first (Resp . fmap Unit) . mPutWalletMeta meta
-    ReadWalletMeta _wid ->
+    ReadWalletMeta ->
         first (Resp . fmap (Metadata . fmap fst) )
             . mReadWalletMeta timeInterpreter
     PutDelegationCertificate _wid cert sl ->
@@ -477,8 +477,8 @@ runIO DBLayer{..} = fmap Resp . go
             atomically listCheckpoints
         PutWalletMeta meta -> catchNoSuchWallet Unit $
             runDB atomically $ putWalletMeta meta
-        ReadWalletMeta _wid -> fmap (Right . (Metadata . fmap fst)) $
-            atomically $ readWalletMeta wid
+        ReadWalletMeta -> Right . (Metadata . fmap fst) <$>
+            atomically readWalletMeta
         PutDelegationCertificate _wid pool sl -> catchNoSuchWallet Unit $
             runDB atomically $ putDelegationCertificate wid pool sl
         IsStakeKeyRegistered _wid -> catchNoSuchWallet StakeKeyStatus $
@@ -639,7 +639,7 @@ generatorWithWid wids =
     , declareGenerator "PutWalletMeta" 5
         $ PutWalletMeta <$> arbitrary
     , declareGenerator "ReadWalletMeta" 5
-        $ ReadWalletMeta <$> genId
+        $ pure ReadWalletMeta
     , declareGenerator "PutDelegationCertificate" 5
         $ PutDelegationCertificate <$> genId <*> arbitrary <*> arbitrary
     , declareGenerator "IsStakeKeyRegistered" 1
@@ -1114,29 +1114,29 @@ tag = Foldl.fold $ catMaybes <$> sequenceA
     readMetaAfterPutCert :: Fold (Event s Symbolic) (Maybe Tag)
     readMetaAfterPutCert = Fold update mempty extract
       where
-        update :: Map MWid Int -> Event s Symbolic -> Map MWid Int
+        update :: Map () Int -> Event s Symbolic -> Map () Int
         update acc ev =
             case (isReadWalletMetadata ev, cmd ev, mockResp ev, before ev) of
-                (Just wid, _, _, _) ->
-                    Map.alter (fmap (+1)) wid acc
+                (Just _wid, _, _, _) ->
+                    Map.alter (fmap (+1)) () acc
                 ( Nothing
                   , At (PutDelegationCertificate wid _ _)
                   , Resp (Right _)
-                  , Model _ wids
+                  , Model _ _wids
                   ) ->
-                    Map.insert (wids ! wid) 0 acc
+                    Map.insert () 0 acc
                 _ ->
                     acc
 
-        extract :: Map MWid Int -> Maybe Tag
+        extract :: Map () Int -> Maybe Tag
         extract created
             | any (> 0) created = Just ReadMetaAfterPutCert
             | otherwise = Nothing
 
-    isReadWalletMetadata :: Event s Symbolic -> Maybe MWid
+    isReadWalletMetadata :: Event s Symbolic -> Maybe ()
     isReadWalletMetadata ev = case (cmd ev, mockResp ev, before ev) of
-        (At (ReadWalletMeta wid), Resp Right{}, Model _ wids) ->
-            Just (wids ! wid)
+        (At (ReadWalletMeta ), Resp Right{}, Model _ _wids) ->
+            Just ()
         _ ->
             Nothing
 

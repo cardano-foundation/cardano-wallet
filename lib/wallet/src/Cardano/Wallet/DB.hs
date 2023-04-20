@@ -236,8 +236,7 @@ data DBLayer m s k = forall stm. (MonadIO stm, MonadFail stm) => DBLayer
         -- If the wallet doesn't exist, this operation returns an error
 
     , readWalletMeta
-        :: WalletId
-        -> stm (Maybe (WalletMetadata, WalletDelegation))
+        :: stm (Maybe (WalletMetadata, WalletDelegation))
         -- ^ Fetch a wallet metadata, if they exist.
         --
         -- Return 'Nothing' if there's no such wallet.
@@ -499,14 +498,14 @@ mkDBLayerFromParts ti wid_ DBLayerCollection{..} = DBLayer
     , readCheckpoint = readCheckpoint'
     , listCheckpoints = listCheckpoints_ dbCheckpoints
     , putWalletMeta = putWalletMeta_ dbWalletMeta
-    , readWalletMeta = \wid -> do
+    , readWalletMeta = do
         readCheckpoint' >>= \case
             Nothing -> pure Nothing
             Just cp -> do
                 currentEpoch <- liftIO $
                     interpretQuery ti (epochOf $ cp ^. #currentTip . #slotNo)
-                del <- readDelegation_ (dbDelegation wid) currentEpoch
-                mwm <- readWalletMeta_ dbWalletMeta wid
+                del <- readDelegation_ (dbDelegation wid_) currentEpoch
+                mwm <- readWalletMeta_ dbWalletMeta
                 pure $ mwm <&> (, del)
     , isStakeKeyRegistered = \wid -> wrapNoSuchWallet wid $
         isStakeKeyRegistered_ (dbDelegation wid)
@@ -696,8 +695,7 @@ data DBWalletMeta stm = DBWalletMeta
         -- If the wallet doesn't exist, this operation returns an error
 
     , readWalletMeta_
-        :: WalletId
-        -> stm (Maybe WalletMetadata)
+        :: stm (Maybe WalletMetadata)
         -- ^ Fetch a wallet metadata, if they exist.
         --
         -- Return 'Nothing' if there's no such wallet.

@@ -858,7 +858,7 @@ readWallet
         (Wallet s, (WalletMetadata, WalletDelegation), Set Tx)
 readWallet ctx wid = db & \DBLayer{..} -> mapExceptT atomically $ do
     cp <- withNoSuchWallet wid readCheckpoint
-    meta <- withNoSuchWallet wid $ readWalletMeta wid
+    meta <- withNoSuchWallet wid readWalletMeta
     pending <- lift
         $ readTransactions wid Nothing Descending wholeRange (Just Pending)
             Nothing
@@ -894,7 +894,7 @@ updateWallet
     -> (WalletMetadata -> WalletMetadata)
     -> ExceptT ErrNoSuchWallet IO ()
 updateWallet ctx wid modify = db & \DBLayer{..} -> mapExceptT atomically $ do
-    meta <- fmap fst . withNoSuchWallet wid $ readWalletMeta wid
+    meta <- fmap fst . withNoSuchWallet wid $ readWalletMeta
     mkNoSuchWalletError wid $ putWalletMeta (modify meta)
   where
     db = ctx ^. dbLayer @IO @s @k
@@ -3163,7 +3163,7 @@ attachPrivateKey db wid (xprv, hpwd) scheme = db & \DBLayer{..} -> do
     now <- liftIO getCurrentTime
     mapExceptT atomically $ do
         mkNoSuchWalletError wid $ putPrivateKey wid (xprv, hpwd)
-        meta <- withNoSuchWallet wid $ readWalletMeta wid
+        meta <- withNoSuchWallet wid readWalletMeta
         let modify x = x
                 { passphraseInfo = Just $ WalletPassphraseInfo
                     { lastUpdatedAt = now
@@ -3199,7 +3199,7 @@ withRootKey
 withRootKey DBLayer{..} wid pwd embed action = do
     (xprv, scheme) <- withExceptT embed $ mapExceptT atomically $ do
         mScheme <- (>>= (fmap passphraseScheme . passphraseInfo)) <$>
-            lift (fmap fst <$> readWalletMeta wid)
+            lift (fmap fst <$> readWalletMeta)
         mXPrv <- lift $ readPrivateKey wid
         case (mXPrv, mScheme) of
             (Just (xprv, hpwd), Just scheme) -> do

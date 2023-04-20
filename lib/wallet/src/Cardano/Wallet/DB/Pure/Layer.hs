@@ -137,8 +137,7 @@ newDBLayer timeInterpreter wid = do
             .  alterDB errWalletNotInitialized db
             .  mPutWalletMeta
 
-        , readWalletMeta = const
-            $ fmap join
+        , readWalletMeta = fmap join
             $ readDBMaybe db
             $ mReadWalletMeta timeInterpreter
 
