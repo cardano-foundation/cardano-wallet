@@ -240,7 +240,7 @@ fromSequence = flip insertMany empty
 -- @
 --
 fromMap :: Ord u => Map u TokenBundle -> UTxOIndex u
-fromMap = F.foldl' (\i (u, b) -> insert u b i) empty . Map.toList
+fromMap = F.foldl' (\i (u, b) -> insertUnsafe u b i) empty . Map.toList
 
 --------------------------------------------------------------------------------
 -- Deconstruction
