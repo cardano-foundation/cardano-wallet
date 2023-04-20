@@ -53,7 +53,10 @@ import Cardano.Api
     , TxOutValue (TxOutAdaOnly, TxOutValue)
     )
 import Cardano.Api.Extra
-    ( asAnyShelleyBasedEra, withShelleyBasedTx )
+    ( asAnyShelleyBasedEra
+    , unbundleLedgerShelleyBasedProtocolParams
+    , withShelleyBasedTx
+    )
 import Cardano.Api.Gen
     ( genAddressByron
     , genAddressInEra
@@ -4224,10 +4227,13 @@ prop_balanceTransactionValid wallet@(Wallet' _ walletUTxO _) (ShowBuildable part
         -> Cardano.UTxO Cardano.AlonzoEra
         -> Property
     prop_validSize tx@(Cardano.Tx body _) utxo = do
+        let pparams
+                = unbundleLedgerShelleyBasedProtocolParams
+                    ShelleyBasedEraAlonzo
+                $ Cardano.bundleProtocolParams cardanoEra
+                $ (snd mockProtocolParametersForBalancing)
         let (TxSize size) =
-                estimateSignedTxSize
-                    (Write.pparamsNode
-                        (mockBundledProtocolParametersForBalancing cardanoEra))
+                estimateSignedTxSize pparams
                     (estimateKeyWitnessCount utxo body)
                     body
         let limit = fromIntegral $ getQuantity $
@@ -4633,8 +4639,11 @@ estimateSignedTxSizeSpec = describe "estimateSignedTxSize" $
                 \(Cardano.Tx (body :: Cardano.TxBody era) _) -> do
                 -- 'mockProtocolParametersForBalancing' is not valid for
                 -- 'ShelleyEra'.
-                let pparams = Cardano.bundleProtocolParams cardanoEra $
-                        (snd mockProtocolParametersForBalancing)
+                let pparams
+                        = unbundleLedgerShelleyBasedProtocolParams
+                            (shelleyBasedEra @era)
+                        $ Cardano.bundleProtocolParams cardanoEra
+                        $ (snd mockProtocolParametersForBalancing)
                             { Cardano.protocolParamMinUTxOValue = Just 1_000_000
                             }
                     utxo = utxoPromisingInputsHaveVkPaymentCreds body

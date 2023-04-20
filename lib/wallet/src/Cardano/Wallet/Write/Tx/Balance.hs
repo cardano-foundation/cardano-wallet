@@ -684,7 +684,7 @@ balanceTransactionWithSelectionStrategyAndNoZeroAdaAdjustment
         -> Cardano.Tx era
         -> ExceptT ErrBalanceTx m (Cardano.Tx era)
     guardTxSize witCount tx@(Cardano.Tx body _noKeyWits) = do
-        let size = estimateSignedTxSize nodePParams witCount body
+        let size = estimateSignedTxSize ledgerPP witCount body
         let maxSize = TxSize
                 . intCast
                 . getQuantity
