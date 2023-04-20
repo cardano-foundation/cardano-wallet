@@ -127,9 +127,9 @@ fromPoolMetadata meta =
 fromStakeCredential :: SL.Credential 'SL.Staking crypto -> W.RewardAccount
 fromStakeCredential = \case
     SL.ScriptHashObj (SL.ScriptHash h) ->
-        W.RewardAccount (hashToBytes h)
+        W.FromScriptHash (hashToBytes h)
     SL.KeyHashObj (SL.KeyHash h) ->
-        W.RewardAccount (hashToBytes h)
+        W.FromKeyHash (hashToBytes h)
 
 fromPoolKeyHash :: SL.KeyHash rol sc -> PoolId
 fromPoolKeyHash (SL.KeyHash h) =

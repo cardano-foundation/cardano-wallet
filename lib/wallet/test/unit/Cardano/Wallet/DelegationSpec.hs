@@ -242,7 +242,7 @@ instance Eq XPrv where
 deriving instance Show Withdrawal
 
 instance Arbitrary RewardAccount where
-    arbitrary = RewardAccount . BS.pack <$> vector 28
+    arbitrary = FromKeyHash . BS.pack <$> vector 28
 
 instance Arbitrary W.PoolRetirementEpochInfo where
     arbitrary = W.PoolRetirementEpochInfo <$> arbitrary <*> arbitrary

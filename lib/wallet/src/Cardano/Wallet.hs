@@ -1229,7 +1229,7 @@ mkExternalWithdrawal
 mkExternalWithdrawal netLayer txLayer era mnemonic = do
     let (_, rewardAccount, derivationPath) =
             someRewardAccount @ShelleyKey mnemonic
-    balance <- getCachedRewardAccountBalance netLayer (Left rewardAccount)
+    balance <- getCachedRewardAccountBalance netLayer rewardAccount
     pp <- currentProtocolParameters netLayer
     let (xprv, _acct , _path) = someRewardAccount @ShelleyKey mnemonic
     pure $ checkRewardIsWorthTxCost txLayer pp era balance $>
@@ -1247,7 +1247,7 @@ mkSelfWithdrawal netLayer txLayer era db wallet = do
     (rewardAccount, _, derivationPath) <-
         runExceptT (readRewardAccount db wallet)
             >>= either (throwIO . ExceptionReadRewardAccount) pure
-    balance <- getCachedRewardAccountBalance netLayer (Left rewardAccount)
+    balance <- getCachedRewardAccountBalance netLayer rewardAccount
     pp <- currentProtocolParameters netLayer
     return $ case checkRewardIsWorthTxCost txLayer pp era balance of
         Left ErrWithdrawalNotBeneficial -> NoWithdrawal
@@ -1292,7 +1292,7 @@ checkRewardIsWorthTxCost txLayer pp era balance = do
     mkTxCtx wdrl = defaultTransactionCtx
         { txWithdrawal = WithdrawalSelf dummyAcct dummyPath wdrl }
       where
-        dummyAcct = RewardAccount mempty
+        dummyAcct = FromKeyHash mempty
         dummyPath = DerivationIndex 0 :| []
 
 readRewardAccount
@@ -1387,7 +1387,7 @@ manageRewardBalance tr' netLayer db@DBLayer{..} wid = do
          query <- runExceptT $ do
             (acct, _, _) <- withExceptT ErrFetchRewardsReadRewardAccount
                 $ readRewardAccount db wid
-            liftIO $ getCachedRewardAccountBalance netLayer (Left acct)
+            liftIO $ getCachedRewardAccountBalance netLayer acct
          traceWith tr $ MsgRewardBalanceResult query
          case query of
             Right amt -> do
@@ -1422,7 +1422,7 @@ manageSharedRewardBalance tr' netLayer db@DBLayer{..} wid = do
                 $ readSharedRewardAccount db wid
             when (isNothing acctM) $
                 throwE ErrFetchRewardsMissingRewardAccount
-            liftIO $ getCachedRewardAccountBalance netLayer (Right $ fst $ fromJust acctM)
+            liftIO $ getCachedRewardAccountBalance netLayer (fst $ fromJust acctM)
          traceWith tr $ MsgRewardBalanceResult query
          case query of
             Right amt -> do

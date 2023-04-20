@@ -1545,7 +1545,7 @@ feeCalculationSpec era = describe "fee calculations" $ do
     estimateTxSize' = fromIntegral . unTxSize . estimateTxSize era
 
     (dummyAcct, dummyPath) =
-        (RewardAccount mempty, DerivationIndex 0 :| [])
+        (FromKeyHash mempty, DerivationIndex 0 :| [])
 
 feeEstimationRegressionSpec :: Spec
 feeEstimationRegressionSpec = describe "Regression tests" $ do

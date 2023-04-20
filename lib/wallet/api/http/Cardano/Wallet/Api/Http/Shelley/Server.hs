@@ -3017,7 +3017,7 @@ decodeSharedTransaction ctx (ApiT wid) (ApiSerialisedTransaction (ApiT sealed) _
                     let scriptHash =
                             CA.unScriptHash $
                             CA.toScriptHash script
-                    in Just $ RewardAccount scriptHash
+                    in Just $ FromScriptHash scriptHash
                 Nothing -> Nothing
         let certs = mkApiAnyCertificate rewardAcctM rewardAcctPath <$> allCerts
         pure

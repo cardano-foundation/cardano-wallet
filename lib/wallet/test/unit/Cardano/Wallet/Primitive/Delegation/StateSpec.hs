@@ -198,9 +198,12 @@ prop_pointerRules cmds = do
   where
 
     ixFromCert :: Cert -> Int
-    ixFromCert (DeRegisterKey a) = read . B8.unpack . unRewardAccount $ a
-    ixFromCert (RegisterKey a) = read . B8.unpack . unRewardAccount $ a
-    ixFromCert (Delegate a) = read . B8.unpack . unRewardAccount $ a
+    ixFromCert (DeRegisterKey (FromKeyHash a)) = read . B8.unpack $ a
+    ixFromCert (DeRegisterKey (FromScriptHash a)) = read . B8.unpack $ a
+    ixFromCert (RegisterKey (FromKeyHash a)) = read . B8.unpack $ a
+    ixFromCert (RegisterKey (FromScriptHash a)) = read . B8.unpack $ a
+    ixFromCert (Delegate (FromKeyHash a)) = read . B8.unpack $ a
+    ixFromCert (Delegate (FromScriptHash a)) = read . B8.unpack $ a
 
     -- For filtering away registrations from CmdAdversarialReg
     notReg :: Cert -> Bool
@@ -294,7 +297,7 @@ newtype StakeKey' (depth :: Depth) key = StakeKey' Word
 type StakeKey = StakeKey' 'CredFromKeyK XPub
 
 instance ToRewardAccount StakeKey' where
-    toRewardAccount (StakeKey' i) = RewardAccount . B8.pack $ show i
+    toRewardAccount (StakeKey' i) = FromKeyHash . B8.pack $ show i
     someRewardAccount = error "someRewardAccount: not implemented"
 
 instance HardDerivation StakeKey' where
@@ -314,11 +317,14 @@ instance MkKeyFingerprint StakeKey' Address where
 
 instance PaymentAddress StakeKey' 'CredFromKeyK where
     liftPaymentAddress _ (KeyFingerprint fp) = Address fp
-    paymentAddress _ k = Address $ "addr" <> unRewardAccount (toRewardAccount k)
+    paymentAddress _ k =
+        let FromKeyHash bs = toRewardAccount k
+        in Address $ "addr" <> bs
 
 instance MkKeyFingerprint StakeKey' (StakeKey' 'CredFromKeyK XPub) where
     paymentKeyFingerprint k =
-        Right $ KeyFingerprint $ unRewardAccount (toRewardAccount k)
+        let FromKeyHash bs = toRewardAccount k
+        in Right $ KeyFingerprint bs
 
 --
 -- Mock chain of delegation certificates
@@ -373,9 +379,11 @@ isAdversarial (CmdMimicPointerOutput _) = True
 
 instance Show Cmd where
     show (CmdSetPortfolioOf n) = "CmdSetPortfolioOf " <> show n
-    show (CmdAdversarialReg (RewardAccount a)) = "CmdAdversarialReg " <> B8.unpack a
+    show (CmdAdversarialReg (FromKeyHash a)) = "CmdAdversarialReg " <> B8.unpack a
+    show (CmdAdversarialReg (FromScriptHash a)) = "CmdAdversarialReg " <> B8.unpack a
     show CmdOldWalletToggleFirstKey = "CmdOldWalletToggleFirstKey"
-    show (CmdMimicPointerOutput (RewardAccount a)) = "CmdMimicPointerOutput " <> B8.unpack a
+    show (CmdMimicPointerOutput (FromKeyHash a)) = "CmdMimicPointerOutput " <> B8.unpack a
+    show (CmdMimicPointerOutput (FromScriptHash a)) = "CmdMimicPointerOutput " <> B8.unpack a
 
 instance Buildable Tx where
     build (Tx cs [] []) = "Tx " <> listF cs
@@ -415,8 +423,8 @@ instance Buildable Env where
 
 
 rewardAccountF :: RewardAccount -> Builder
-rewardAccountF (RewardAccount a) = build (B8.unpack a)
-
+rewardAccountF (FromKeyHash a) = build (B8.unpack a)
+rewardAccountF (FromScriptHash a) = build (B8.unpack a)
 
 instance Buildable Cert where
     build (RegisterKey k) = "RegKey " <> rewardAccountF k
@@ -454,7 +462,12 @@ stepCmd (CmdSetPortfolioOf n) env =
         Just tx -> tryApplyTx tx env
         Nothing -> env
   where
-    mkAddr k = Address $ "addr" <> unRewardAccount (toRewardAccount k)
+    getKeyHash k =
+        let bs' = case toRewardAccount k of
+                FromKeyHash bs -> bs
+                FromScriptHash bs -> bs
+        in bs'
+    mkAddr k = Address $ "addr" <> getKeyHash k
     minUTxOVal = Coin 1
 
 stepCmd (CmdAdversarialReg k) env
@@ -468,7 +481,15 @@ stepCmd CmdOldWalletToggleFirstKey env =
                 isReg =  key0 `Set.member` (regs (ledger env))
                 tx = Tx [if isReg then DeRegisterKey key0 else RegisterKey key0] [] []
             in tryApplyTx tx env
-stepCmd (CmdMimicPointerOutput (RewardAccount acc)) env =
+stepCmd (CmdMimicPointerOutput (FromKeyHash acc)) env =
+            let
+                addr = liftPaymentAddress @StakeKey' @'CredFromKeyK SMainnet
+                    $ KeyFingerprint acc
+                c = Coin 1
+                out = TxOut addr (TB.fromCoin c)
+                tx = Tx [] [] [out]
+            in tryApplyTx tx env
+stepCmd (CmdMimicPointerOutput (FromScriptHash acc)) env =
             let
                 addr = liftPaymentAddress @StakeKey' @'CredFromKeyK SMainnet
                     $ KeyFingerprint acc
