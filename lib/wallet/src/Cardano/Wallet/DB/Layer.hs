@@ -728,7 +728,7 @@ newDBLayerFromDBOpen ti wid_ DBOpen{atomically=runQuery} = mdo
         {-----------------------------------------------------------------------
                                     Wallet Delegation
         -----------------------------------------------------------------------}
-    let dbDelegation = mkDBDelegation ti
+    let dbDelegation = mkDBDelegation ti wid_
         {-----------------------------------------------------------------------
                                    Wallet Metadata
         -----------------------------------------------------------------------}

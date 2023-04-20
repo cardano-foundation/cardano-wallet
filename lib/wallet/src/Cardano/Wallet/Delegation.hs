@@ -132,7 +132,7 @@ joinStakePoolDelegationAction
     (walletDelegation, stakeKeyIsRegistered) <-
         atomically . throwInIO ErrStakePoolDelegationNoSuchWallet $
             (,) <$> withNoSuchWallet wid (fmap snd <$> readWalletMeta)
-                <*> mkNoSuchWalletError wid (isStakeKeyRegistered wid)
+                <*> mkNoSuchWalletError wid isStakeKeyRegistered
 
     let retirementInfo =
             PoolRetirementEpochInfo currentEpoch . view #retirementEpoch <$>

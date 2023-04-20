@@ -2908,7 +2908,7 @@ delegationFee db@DBLayer{..} netLayer txLayer ti era changeAddressGen walletId =
             (PreSelection [])
         deposit <- liftIO
             $ throwInIO . mkNoSuchWalletError walletId
-            $ mapExceptT atomically (isStakeKeyRegistered walletId) <&> \case
+            $ mapExceptT atomically isStakeKeyRegistered <&> \case
                 False -> stakeKeyDeposit (Write.pparamsWallet protocolParams)
                 True -> Coin 0
         pure DelegationFee { feePercentiles, deposit }

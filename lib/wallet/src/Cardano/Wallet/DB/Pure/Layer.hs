@@ -146,7 +146,7 @@ newDBLayer timeInterpreter wid = do
             mPutDelegationCertificate cert sl
 
         , isStakeKeyRegistered =
-            const $ ExceptT . alterDB errWalletNotInitialized db $ mIsStakeKeyRegistered
+            ExceptT . alterDB errWalletNotInitialized db $ mIsStakeKeyRegistered
 
         {-----------------------------------------------------------------------
                                      Tx History

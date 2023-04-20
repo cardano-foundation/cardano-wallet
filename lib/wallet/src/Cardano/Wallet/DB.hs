@@ -242,8 +242,7 @@ data DBLayer m s k = forall stm. (MonadIO stm, MonadFail stm) => DBLayer
         -- Return 'Nothing' if there's no such wallet.
 
     , isStakeKeyRegistered
-        :: WalletId
-        -> ExceptT ErrWalletNotInitialized stm Bool
+        :: ExceptT ErrWalletNotInitialized stm Bool
 
     , putDelegationCertificate
         :: WalletId
@@ -463,7 +462,7 @@ data DBLayerCollection stm m s k = DBLayerCollection
     { dbWallets :: DBWallets stm s
     , dbCheckpoints :: DBCheckpoints stm s
     , dbWalletMeta :: DBWalletMeta stm
-    , dbDelegation :: WalletId -> DBDelegation stm
+    , dbDelegation :: DBDelegation stm
     , dbTxHistory :: DBTxHistory stm
     , dbPrivateKey :: WalletId -> DBPrivateKey stm k
 
@@ -504,17 +503,17 @@ mkDBLayerFromParts ti wid_ DBLayerCollection{..} = DBLayer
             Just cp -> do
                 currentEpoch <- liftIO $
                     interpretQuery ti (epochOf $ cp ^. #currentTip . #slotNo)
-                del <- readDelegation_ (dbDelegation wid_) currentEpoch
+                del <- readDelegation_ dbDelegation currentEpoch
                 mwm <- readWalletMeta_ dbWalletMeta
                 pure $ mwm <&> (, del)
-    , isStakeKeyRegistered = \wid -> wrapNoSuchWallet wid $
-        isStakeKeyRegistered_ (dbDelegation wid)
+    , isStakeKeyRegistered = wrapNoSuchWallet wid_ $
+        isStakeKeyRegistered_ dbDelegation
     , putDelegationCertificate = \wid a b -> wrapNoSuchWallet wid $
-        putDelegationCertificate_ (dbDelegation wid) a b
+        putDelegationCertificate_ dbDelegation a b
     , putDelegationRewardBalance = \wid a -> wrapNoSuchWallet wid $
-        putDelegationRewardBalance_ (dbDelegation wid) a
-    , readDelegationRewardBalance = \wid ->
-        readDelegationRewardBalance_ (dbDelegation wid)
+        putDelegationRewardBalance_ dbDelegation a
+    , readDelegationRewardBalance = \_wid ->
+        readDelegationRewardBalance_ dbDelegation
     , putTxHistory = \wid a -> wrapNoSuchWallet wid $
         putTxHistory_ dbTxHistory wid a
     , readTransactions = \wid minWithdrawal order range status limit ->
