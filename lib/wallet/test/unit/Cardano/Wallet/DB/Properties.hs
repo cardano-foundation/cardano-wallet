@@ -566,7 +566,7 @@ prop_rollbackCheckpoint test (InitialCheckpoint cp0) (MockChain chain) = monadic
             run
                 $ atomically
                 $ unsafeRunExceptT
-                $ rollbackTo testWid (toSlot $ chainPointFromBlockHeader tip)
+                $ rollbackTo (toSlot $ chainPointFromBlockHeader tip)
         cp <- run $ atomically readCheckpoint
         let str = maybe "∅" pretty cp
         monitor $ counterexample ("Checkpoint after rollback: \n" <> str)
@@ -605,7 +605,7 @@ prop_rollbackTxHistory test (InitialCheckpoint cp0) (GenTxHistory txs0) = do
             run
                 $ unsafeRunExceptT
                 $ mapExceptT atomically
-                $ rollbackTo testWid (At requestedPoint)
+                $ rollbackTo (At requestedPoint)
         txs <-
             run
                 $ atomically

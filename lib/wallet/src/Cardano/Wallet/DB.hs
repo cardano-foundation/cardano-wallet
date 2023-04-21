@@ -355,8 +355,7 @@ data DBLayer m s k = forall stm. (MonadIO stm, MonadFail stm) => DBLayer
         -- ^ Read the *Byron* genesis parameters.
 
     , rollbackTo
-        :: WalletId
-        -> Slot
+        :: Slot
         -> ExceptT ErrWalletNotInitialized stm ChainPoint
         -- ^ Drops all checkpoints and transaction data which
         -- have appeared after the given 'ChainPoint'.
@@ -455,8 +454,7 @@ data DBLayerCollection stm m s k = DBLayerCollection
     -- The following two functions will need to be split up
     -- and distributed the smaller layer parts as well.
     , rollbackTo_
-        :: WalletId
-        -> Slot
+        :: Slot
         -> ExceptT ErrWalletNotInitialized stm ChainPoint
     , prune_
         :: WalletId

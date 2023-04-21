@@ -123,9 +123,9 @@ newDBLayer timeInterpreter wid = do
 
         , listCheckpoints = fromMaybe [] <$> readDBMaybe db mListCheckpoints
 
-        , rollbackTo = \_pk pt -> ExceptT $
-            alterDB errWalletNotInitialized db $
-            mRollbackTo pt
+        , rollbackTo = ExceptT
+            . alterDB errWalletNotInitialized db
+            . mRollbackTo
 
         , prune = \_ _ -> error "MVar.prune: not implemented"
 

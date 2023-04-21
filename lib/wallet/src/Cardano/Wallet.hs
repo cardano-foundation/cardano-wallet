@@ -1093,7 +1093,7 @@ rollbackBlocks
     -> Slot
     -> ExceptT ErrNoSuchWallet IO ChainPoint
 rollbackBlocks ctx wid point = db & \DBLayer{..} -> mkNoSuchWalletError wid $ do
-    mapExceptT atomically $ rollbackTo wid point
+    mapExceptT atomically $ rollbackTo point
   where
     db = ctx ^. dbLayer @IO @s @k
 

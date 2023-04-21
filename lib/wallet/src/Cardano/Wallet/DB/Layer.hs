@@ -667,10 +667,10 @@ newDBLayerFromDBOpen ti wid_ DBOpen{atomically=runQuery} = mdo
         , mkDecorator_ = mkDecorator transactionsQS
         }
 
-    let rollbackTo_ wid requestedPoint = do
+    let rollbackTo_ requestedPoint = do
             mNearestCheckpoint <-
                 ExceptT $ modifyDBMaybe walletsDB $ \ws ->
-                    case Map.lookup wid ws of
+                    case Map.lookup wid_ ws of
                         Nothing  ->
                             ( Nothing
                             , pure Nothing
@@ -679,10 +679,10 @@ newDBLayerFromDBOpen ti wid_ DBOpen{atomically=runQuery} = mdo
                             Nothing ->
                                 ( Nothing
                                 , throw
-                                    $ ErrNoOlderCheckpoint wid requestedPoint
+                                    $ ErrNoOlderCheckpoint wid_ requestedPoint
                                 )
                             Just nearestPoint ->
-                                ( Just $ Adjust wid
+                                ( Just $ Adjust wid_
                                     [ UpdateCheckpoints
                                         [ RollbackTo nearestPoint ]
                                     , UpdateSubmissions
@@ -700,10 +700,10 @@ newDBLayerFromDBOpen ti wid_ DBOpen{atomically=runQuery} = mdo
                 Nothing  -> ExceptT $ pure $ Left ErrWalletNotInitialized
                 Just wcp -> lift $ do
                     let nearestPoint = wcp ^. #currentTip . #slotNo
-                    deleteDelegationCertificates wid
+                    deleteDelegationCertificates wid_
                         [ CertSlot >. nearestPoint
                         ]
-                    deleteStakeKeyCerts wid
+                    deleteStakeKeyCerts wid_
                         [ StakeKeyCertSlot >. nearestPoint
                         ]
                     updateS (store transactionsQS) Nothing $

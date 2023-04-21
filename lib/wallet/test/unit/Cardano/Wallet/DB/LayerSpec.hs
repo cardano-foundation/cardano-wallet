@@ -790,7 +790,7 @@ fileModeSpec =  do
                 getTxsInLedger db `shouldReturn` [(Outgoing, 2), (Incoming, 4)]
 
                 atomically . void . unsafeRunExceptT $
-                    rollbackTo testWid (At $ SlotNo 200)
+                    rollbackTo (At $ SlotNo 200)
                 Just cp <- atomically readCheckpoint
                 view #slotNo (currentTip cp) `shouldBe` (SlotNo 0)
 
