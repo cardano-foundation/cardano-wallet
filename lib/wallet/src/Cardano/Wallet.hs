@@ -2637,10 +2637,9 @@ runLocalTxSubmissionPool cfg ctx wid = db & \DBLayer{..} -> do
                 postTx nw (st ^. #submittedTx )
             atomically $ do
                 result <- runExceptT $ resubmitTx
-                                wid
-                                (st ^. #txId)
-                                (st ^. #submittedTx)
-                                sl
+                    (st ^. #txId)
+                    (st ^. #submittedTx)
+                    sl
                 case result of
                     Left _  -> error
                         "runLocalTxSubmissionPool: wallet not found"
