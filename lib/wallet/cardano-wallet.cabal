@@ -1018,6 +1018,7 @@ benchmark latency
   build-depends:
     , aeson
     , base
+    , cardano-addresses
     , cardano-wallet
     , cardano-wallet-api-http
     , cardano-wallet-integration
