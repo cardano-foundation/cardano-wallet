@@ -1203,7 +1203,7 @@ restoreBlocks ctx tr wid blocks nodeTip = db & \DBLayer{..} ->
     mkNoSuchWalletError wid $ putTxHistory txs
 
     mkNoSuchWalletError wid
-        $ rollForwardTxSubmissions wid (localTip ^. #slotNo)
+        $ rollForwardTxSubmissions (localTip ^. #slotNo)
         $ fmap (\(tx,meta) -> (meta ^. #slotNo, txId tx)) txs
 
     mkNoSuchWalletError wid
