@@ -73,17 +73,9 @@ import Cardano.Wallet.Address.Derivation.Byron
     ( ByronKey (..) )
 import Cardano.Wallet.Address.Derivation.Shelley
     ( ShelleyKey (..), generateKeyFromSeed, unsafeGenerateKeyFromSeed )
-import Cardano.Wallet.DB
-    ( DBLayer (..) )
-import Cardano.Wallet.DB.Layer
-    ( PersistAddressBook, WalletDBLog (..), withDBLayer )
-import Cardano.Wallet.DummyTarget.Primitive.Types
-    ( block0, dummyGenesisParameters, mkTxId )
-import Cardano.Wallet.Logging
-    ( trMessageText )
-import Cardano.Wallet.Primitive.AddressDiscovery.Random
+import Cardano.Wallet.Address.Discovery.Random
     ( RndState (..), mkRndState )
-import Cardano.Wallet.Primitive.AddressDiscovery.Sequential
+import Cardano.Wallet.Address.Discovery.Sequential
     ( DerivationPrefix (..)
     , SeqAddressPool (..)
     , SeqState (..)
@@ -93,6 +85,14 @@ import Cardano.Wallet.Primitive.AddressDiscovery.Sequential
     , mkSeqStateFromRootXPrv
     , purposeCIP1852
     )
+import Cardano.Wallet.DB
+    ( DBLayer (..) )
+import Cardano.Wallet.DB.Layer
+    ( PersistAddressBook, WalletDBLog (..), withDBLayer )
+import Cardano.Wallet.DummyTarget.Primitive.Types
+    ( block0, dummyGenesisParameters, mkTxId )
+import Cardano.Wallet.Logging
+    ( trMessageText )
 import Cardano.Wallet.Primitive.Model
     ( Wallet, initWallet, unsafeInitWallet )
 import Cardano.Wallet.Primitive.Passphrase

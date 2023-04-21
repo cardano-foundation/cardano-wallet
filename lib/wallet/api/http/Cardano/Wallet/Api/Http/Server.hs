@@ -52,6 +52,12 @@ import Cardano.Wallet.Address.Derivation.SharedKey
     ( constructAddressFromIx )
 import Cardano.Wallet.Address.Derivation.Shelley
     ( ShelleyKey (..) )
+import Cardano.Wallet.Address.Discovery.Random
+    ( RndState )
+import Cardano.Wallet.Address.Discovery.Sequential
+    ( SeqState )
+import Cardano.Wallet.Address.Discovery.Shared
+    ( CredentialType (..), SharedState )
 import Cardano.Wallet.Api
     ( Addresses
     , Api
@@ -183,12 +189,6 @@ import Cardano.Wallet.Api.Types.SchemaMetadata
     ( TxMetadataSchema (..), parseSimpleMetadataFlag )
 import Cardano.Wallet.Pools
     ( StakePoolLayer (..) )
-import Cardano.Wallet.Primitive.AddressDiscovery.Random
-    ( RndState )
-import Cardano.Wallet.Primitive.AddressDiscovery.Sequential
-    ( SeqState )
-import Cardano.Wallet.Primitive.AddressDiscovery.Shared
-    ( CredentialType (..), SharedState )
 import Cardano.Wallet.Primitive.Types
     ( PoolMetadataSource (..), SmashServer (..), poolMetadataSource )
 import Cardano.Wallet.Read.NetworkId

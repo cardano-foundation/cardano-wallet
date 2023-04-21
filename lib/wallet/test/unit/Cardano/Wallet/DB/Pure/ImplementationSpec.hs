@@ -17,14 +17,14 @@ import Prelude
 
 import Cardano.Wallet.Address.Derivation.Shelley
     ( ShelleyKey )
+import Cardano.Wallet.Address.Discovery
+    ( IsOurs (..) )
+import Cardano.Wallet.Address.Discovery.Sequential
+    ( SeqState (..) )
 import Cardano.Wallet.DB.Properties
     ( properties )
 import Cardano.Wallet.DummyTarget.Primitive.Types
     ( dummyTimeInterpreter )
-import Cardano.Wallet.Primitive.AddressDiscovery
-    ( IsOurs (..) )
-import Cardano.Wallet.Primitive.AddressDiscovery.Sequential
-    ( SeqState (..) )
 import Cardano.Wallet.Primitive.Types.Address
     ( Address )
 import Cardano.Wallet.Read.NetworkId

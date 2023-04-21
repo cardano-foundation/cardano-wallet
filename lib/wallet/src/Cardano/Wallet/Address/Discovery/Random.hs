@@ -20,7 +20,7 @@
 -- An implementation of address discovery for the random address
 -- scheme as used by the legacy Cardano wallets.
 
-module Cardano.Wallet.Primitive.AddressDiscovery.Random
+module Cardano.Wallet.Address.Discovery.Random
     (
     -- ** State
       RndState (..)
@@ -60,7 +60,7 @@ import Cardano.Wallet.Address.Derivation
     )
 import Cardano.Wallet.Address.Derivation.Byron
     ( ByronKey (..), deriveAccountPrivateKey, deriveAddressPrivateKey )
-import Cardano.Wallet.Primitive.AddressDiscovery
+import Cardano.Wallet.Address.Discovery
     ( CompareDiscovery (..)
     , GenChange (..)
     , IsOurs (isOurs)

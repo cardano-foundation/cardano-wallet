@@ -58,25 +58,25 @@ import Cardano.Wallet.Address.Derivation.SharedKey
     ( SharedKey, purposeCIP1854 )
 import Cardano.Wallet.Address.Derivation.Shelley
     ( ShelleyKey (..) )
-import Cardano.Wallet.DB.Pure.Implementation
-    ( TxHistory, filterTxHistory )
-import Cardano.Wallet.DummyTarget.Primitive.Types as DummyTarget
-    ( block0, mkTx )
-import Cardano.Wallet.Gen
-    ( genMnemonic, genSimpleTxMetadata, shrinkSlotNo, shrinkTxMetadata )
-import Cardano.Wallet.Primitive.AddressDiscovery
+import Cardano.Wallet.Address.Discovery
     ( IsOurs, PendingIxs, emptyPendingIxs )
-import Cardano.Wallet.Primitive.AddressDiscovery.Random
+import Cardano.Wallet.Address.Discovery.Random
     ( RndState (..) )
-import Cardano.Wallet.Primitive.AddressDiscovery.Sequential
+import Cardano.Wallet.Address.Discovery.Sequential
     ( DerivationPrefix (..)
     , SeqState (..)
     , coinTypeAda
     , defaultAddressPoolGap
     , purposeCIP1852
     )
-import Cardano.Wallet.Primitive.AddressDiscovery.Shared
+import Cardano.Wallet.Address.Discovery.Shared
     ( SharedAddressPools (..), SharedState (..) )
+import Cardano.Wallet.DB.Pure.Implementation
+    ( TxHistory, filterTxHistory )
+import Cardano.Wallet.DummyTarget.Primitive.Types as DummyTarget
+    ( block0, mkTx )
+import Cardano.Wallet.Gen
+    ( genMnemonic, genSimpleTxMetadata, shrinkSlotNo, shrinkTxMetadata )
 import Cardano.Wallet.Primitive.Model
     ( Wallet, currentTip, getState, unsafeInitWallet, utxo )
 import Cardano.Wallet.Primitive.Passphrase.Types
@@ -230,8 +230,8 @@ import qualified Cardano.Wallet.Address.Derivation.Byron as Byron
 import qualified Cardano.Wallet.Address.Derivation.MintBurn as MintBurn
 import qualified Cardano.Wallet.Address.Derivation.Shared as Shared
 import qualified Cardano.Wallet.Address.Derivation.Shelley as Shelley
-import qualified Cardano.Wallet.Primitive.AddressDiscovery.Sequential as Seq
-import qualified Cardano.Wallet.Primitive.AddressDiscovery.Shared as Shared
+import qualified Cardano.Wallet.Address.Discovery.Sequential as Seq
+import qualified Cardano.Wallet.Address.Discovery.Shared as Shared
 import qualified Data.ByteArray as BA
 import qualified Data.ByteString as BS
 import qualified Data.ByteString.Char8 as B8

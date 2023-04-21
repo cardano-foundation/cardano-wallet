@@ -65,9 +65,9 @@ import Cardano.Wallet.Address.Derivation
     , hex
     , paymentAddressS
     )
-import Cardano.Wallet.Primitive.AddressDiscovery
+import Cardano.Wallet.Address.Discovery
     ( DiscoverTxs (..), GetPurpose (..), IsOurs (..), MaybeLight (..) )
-import Cardano.Wallet.Primitive.AddressDiscovery.Sequential
+import Cardano.Wallet.Address.Discovery.Sequential
     ( SeqState, coinTypeAda, discoverSeq, purposeBIP44 )
 import Cardano.Wallet.Primitive.Passphrase
     ( Passphrase (..), PassphraseHash (..), changePassphraseXPrv )

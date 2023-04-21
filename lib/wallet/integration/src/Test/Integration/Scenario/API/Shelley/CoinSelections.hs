@@ -19,6 +19,8 @@ import Prelude
 
 import Cardano.Mnemonic
     ( mnemonicToText )
+import Cardano.Wallet.Address.Discovery.Sequential
+    ( purposeCIP1852 )
 import Cardano.Wallet.Api.Types
     ( AddressAmount (..)
     , ApiCoinSelection
@@ -28,8 +30,6 @@ import Cardano.Wallet.Api.Types
     , WalletStyle (..)
     , apiAddress
     )
-import Cardano.Wallet.Primitive.AddressDiscovery.Sequential
-    ( purposeCIP1852 )
 import Cardano.Wallet.Primitive.Types.Hash
     ( Hash (..) )
 import Cardano.Wallet.Primitive.Types.TokenMap

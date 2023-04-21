@@ -130,21 +130,21 @@ import Cardano.Wallet.Address.Derivation.Icarus
     ( IcarusKey )
 import Cardano.Wallet.Address.Derivation.Shelley
     ( ShelleyKey )
-import Cardano.Wallet.Byron.Compatibility
-    ( maryTokenBundleMaxSize )
-import Cardano.Wallet.Gen
-    ( genMnemonic, genScript )
-import Cardano.Wallet.Primitive.AddressDiscovery.Random
+import Cardano.Wallet.Address.Discovery.Random
     ( RndState, mkRndState )
-import Cardano.Wallet.Primitive.AddressDiscovery.Sequential
+import Cardano.Wallet.Address.Discovery.Sequential
     ( SeqState
     , defaultAddressPoolGap
     , mkSeqStateFromRootXPrv
     , purposeBIP44
     , purposeCIP1852
     )
-import Cardano.Wallet.Primitive.AddressDiscovery.Shared
+import Cardano.Wallet.Address.Discovery.Shared
     ( estimateMaxWitnessRequiredPerInput )
+import Cardano.Wallet.Byron.Compatibility
+    ( maryTokenBundleMaxSize )
+import Cardano.Wallet.Gen
+    ( genMnemonic, genScript )
 import Cardano.Wallet.Primitive.Model
     ( Wallet (..), unsafeInitWallet )
 import Cardano.Wallet.Primitive.Passphrase

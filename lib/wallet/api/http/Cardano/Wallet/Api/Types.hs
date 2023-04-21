@@ -281,6 +281,12 @@ import Cardano.Pool.Types
     ( PoolId (..), decodePoolIdBech32, encodePoolIdBech32 )
 import Cardano.Wallet.Address.Derivation
     ( Depth (..), DerivationIndex (..), Index (..) )
+import Cardano.Wallet.Address.Discovery.Random
+    ( RndState )
+import Cardano.Wallet.Address.Discovery.Sequential
+    ( AddressPoolGap, SeqState, getAddressPoolGap )
+import Cardano.Wallet.Address.Discovery.Shared
+    ( CredentialType (..) )
 import Cardano.Wallet.Api.Aeson
     ( eitherToParser )
 import Cardano.Wallet.Api.Aeson.Variant
@@ -340,12 +346,6 @@ import Cardano.Wallet.Api.Types.Transaction
     )
 import Cardano.Wallet.Pools
     ( EpochInfo, StakePool (..), StakePoolFlag, StakePoolMetrics )
-import Cardano.Wallet.Primitive.AddressDiscovery.Random
-    ( RndState )
-import Cardano.Wallet.Primitive.AddressDiscovery.Sequential
-    ( AddressPoolGap, SeqState, getAddressPoolGap )
-import Cardano.Wallet.Primitive.AddressDiscovery.Shared
-    ( CredentialType (..) )
 import Cardano.Wallet.Primitive.Passphrase.Types
     ( Passphrase (..), PassphraseHash (..) )
 import Cardano.Wallet.Primitive.SyncProgress

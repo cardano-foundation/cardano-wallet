@@ -27,12 +27,12 @@ import Algebra.PartialOrd
     ( PartialOrd (..) )
 import Cardano.Wallet.Address.Derivation
     ( DerivationIndex (..) )
+import Cardano.Wallet.Address.Discovery
+    ( DiscoverTxs (..), IsOurs (..), MaybeLight (..) )
 import Cardano.Wallet.DummyTarget.Primitive.Types
     ( block0 )
 import Cardano.Wallet.Gen
     ( genSlot )
-import Cardano.Wallet.Primitive.AddressDiscovery
-    ( DiscoverTxs (..), IsOurs (..), MaybeLight (..) )
 import Cardano.Wallet.Primitive.BlockSummary
     ( ChainEvents, summarizeOnTxOut )
 import Cardano.Wallet.Primitive.Model

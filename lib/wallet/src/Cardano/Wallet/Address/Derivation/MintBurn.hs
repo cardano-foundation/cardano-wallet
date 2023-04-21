@@ -55,7 +55,7 @@ import Cardano.Wallet.Address.Derivation
     , liftRawKey
     , publicKey
     )
-import Cardano.Wallet.Primitive.AddressDiscovery
+import Cardano.Wallet.Address.Discovery
     ( coinTypeAda )
 import Cardano.Wallet.Primitive.Passphrase
     ( Passphrase (..) )

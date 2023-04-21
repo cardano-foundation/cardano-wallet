@@ -58,6 +58,12 @@ import Cardano.Wallet.Address.Derivation.Shared
     ( SharedKey )
 import Cardano.Wallet.Address.Derivation.Shelley
     ( ShelleyKey )
+import Cardano.Wallet.Address.Discovery.Random
+    ( RndState (..) )
+import Cardano.Wallet.Address.Discovery.Sequential
+    ( SeqState (..) )
+import Cardano.Wallet.Address.Discovery.Shared
+    ( SharedState (..) )
 import Cardano.Wallet.BenchShared
     ( Time, bench, initBenchmarkLogging, runBenchmarks )
 import Cardano.Wallet.DB
@@ -74,12 +80,6 @@ import Cardano.Wallet.Logging
     ( trMessageText )
 import Cardano.Wallet.Network
     ( NetworkLayer (..) )
-import Cardano.Wallet.Primitive.AddressDiscovery.Random
-    ( RndState (..) )
-import Cardano.Wallet.Primitive.AddressDiscovery.Sequential
-    ( SeqState (..) )
-import Cardano.Wallet.Primitive.AddressDiscovery.Shared
-    ( SharedState (..) )
 import Cardano.Wallet.Primitive.Model
     ( totalUTxO )
 import Cardano.Wallet.Primitive.Slotting

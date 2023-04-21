@@ -71,6 +71,21 @@ import Cardano.Wallet.Address.Derivation.SharedKey
     ( SharedKey )
 import Cardano.Wallet.Address.Derivation.Shelley
     ( ShelleyKey (..), generateKeyFromSeed )
+import Cardano.Wallet.Address.Discovery
+    ( KnownAddresses (..) )
+import Cardano.Wallet.Address.Discovery.Random
+    ( RndState (..) )
+import Cardano.Wallet.Address.Discovery.Sequential
+    ( DerivationPrefix (..)
+    , SeqState (..)
+    , coinTypeAda
+    , defaultAddressPoolGap
+    , mkSeqStateFromRootXPrv
+    , purposeBIP44
+    , purposeCIP1852
+    )
+import Cardano.Wallet.Address.Discovery.Shared
+    ( SharedState )
 import Cardano.Wallet.DB
     ( DBFactory (..), DBLayer (..) )
 import Cardano.Wallet.DB.Layer
@@ -102,21 +117,6 @@ import Cardano.Wallet.Gen
     ( genMnemonic )
 import Cardano.Wallet.Logging
     ( trMessageText )
-import Cardano.Wallet.Primitive.AddressDiscovery
-    ( KnownAddresses (..) )
-import Cardano.Wallet.Primitive.AddressDiscovery.Random
-    ( RndState (..) )
-import Cardano.Wallet.Primitive.AddressDiscovery.Sequential
-    ( DerivationPrefix (..)
-    , SeqState (..)
-    , coinTypeAda
-    , defaultAddressPoolGap
-    , mkSeqStateFromRootXPrv
-    , purposeBIP44
-    , purposeCIP1852
-    )
-import Cardano.Wallet.Primitive.AddressDiscovery.Shared
-    ( SharedState )
 import Cardano.Wallet.Primitive.Model
     ( FilteredBlock (..)
     , Wallet

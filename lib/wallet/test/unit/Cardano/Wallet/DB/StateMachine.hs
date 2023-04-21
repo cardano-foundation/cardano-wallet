@@ -74,6 +74,18 @@ import Cardano.Wallet.Address.Derivation.SharedKey
     ( SharedKey )
 import Cardano.Wallet.Address.Derivation.Shelley
     ( ShelleyKey )
+import Cardano.Wallet.Address.Discovery
+    ( PendingIxs )
+import Cardano.Wallet.Address.Discovery.Random
+    ( RndState )
+import Cardano.Wallet.Address.Discovery.Sequential
+    ( AddressPoolGap, SeqState (..) )
+import Cardano.Wallet.Address.Discovery.Shared
+    ( Readiness
+    , SharedAddressPool (..)
+    , SharedAddressPools (..)
+    , SharedState (..)
+    )
 import Cardano.Wallet.DB
     ( DBLayer (..)
     , ErrWalletAlreadyInitialized (ErrWalletAlreadyInitialized)
@@ -108,18 +120,6 @@ import Cardano.Wallet.DB.WalletState
     ( ErrNoSuchWallet (..) )
 import Cardano.Wallet.DummyTarget.Primitive.Types
     ( dummyGenesisParameters, dummyTimeInterpreter )
-import Cardano.Wallet.Primitive.AddressDiscovery
-    ( PendingIxs )
-import Cardano.Wallet.Primitive.AddressDiscovery.Random
-    ( RndState )
-import Cardano.Wallet.Primitive.AddressDiscovery.Sequential
-    ( AddressPoolGap, SeqState (..) )
-import Cardano.Wallet.Primitive.AddressDiscovery.Shared
-    ( Readiness
-    , SharedAddressPool (..)
-    , SharedAddressPools (..)
-    , SharedState (..)
-    )
 import Cardano.Wallet.Primitive.Model
     ( Wallet )
 import Cardano.Wallet.Primitive.Passphrase.Types

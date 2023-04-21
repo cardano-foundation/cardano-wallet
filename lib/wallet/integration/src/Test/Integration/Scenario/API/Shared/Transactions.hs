@@ -28,6 +28,8 @@ import Cardano.Wallet.Address.Derivation
     ( DerivationIndex (..), Index (..) )
 import Cardano.Wallet.Address.Derivation.SharedKey
     ( replaceCosignersWithVerKeys )
+import Cardano.Wallet.Address.Discovery.Shared
+    ( CredentialType (..) )
 import Cardano.Wallet.Api.Types
     ( ApiAddressWithPath
     , ApiAnyCertificate (..)
@@ -57,8 +59,6 @@ import Cardano.Wallet.Api.Types.Transaction
     ( mkApiWitnessCount )
 import Cardano.Wallet.Pools
     ( StakePool )
-import Cardano.Wallet.Primitive.AddressDiscovery.Shared
-    ( CredentialType (..) )
 import Cardano.Wallet.Primitive.Passphrase
     ( Passphrase (..) )
 import Cardano.Wallet.Primitive.Types

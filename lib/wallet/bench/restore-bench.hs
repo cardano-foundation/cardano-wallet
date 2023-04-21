@@ -66,6 +66,17 @@ import Cardano.Wallet.Address.Derivation.Byron
     ( ByronKey )
 import Cardano.Wallet.Address.Derivation.Shelley
     ( ShelleyKey )
+import Cardano.Wallet.Address.Discovery
+    ( GenChange (..), IsOurs, IsOwned, MaybeLight )
+import Cardano.Wallet.Address.Discovery.Random
+    ( RndAnyState, mkRndAnyState )
+import Cardano.Wallet.Address.Discovery.Sequential
+    ( AddressPoolGap
+    , SeqAnyState (..)
+    , mkAddressPoolGap
+    , mkSeqAnyState
+    , purposeCIP1852
+    )
 import Cardano.Wallet.Api.Types
     ( toApiUtxoStatistics )
 import Cardano.Wallet.BenchShared
@@ -90,17 +101,6 @@ import Cardano.Wallet.Network
     , ChainFollower (..)
     , ChainSyncLog (..)
     , NetworkLayer (..)
-    )
-import Cardano.Wallet.Primitive.AddressDiscovery
-    ( GenChange (..), IsOurs, IsOwned, MaybeLight )
-import Cardano.Wallet.Primitive.AddressDiscovery.Random
-    ( RndAnyState, mkRndAnyState )
-import Cardano.Wallet.Primitive.AddressDiscovery.Sequential
-    ( AddressPoolGap
-    , SeqAnyState (..)
-    , mkAddressPoolGap
-    , mkSeqAnyState
-    , purposeCIP1852
     )
 import Cardano.Wallet.Primitive.Model
     ( Wallet, currentTip, getState, totalUTxO )

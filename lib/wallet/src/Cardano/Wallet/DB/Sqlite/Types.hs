@@ -38,13 +38,13 @@ import Cardano.Slotting.Slot
     ( SlotNo (..) )
 import Cardano.Wallet.Address.Derivation
     ( Role (..) )
-import Cardano.Wallet.Primitive.AddressDiscovery.Sequential
+import Cardano.Wallet.Address.Discovery.Sequential
     ( AddressPoolGap (..)
     , DerivationPrefix
     , getAddressPoolGap
     , mkAddressPoolGap
     )
-import Cardano.Wallet.Primitive.AddressDiscovery.Shared
+import Cardano.Wallet.Address.Discovery.Shared
     ( CredentialType )
 import Cardano.Wallet.Primitive.Passphrase.Types
     ( Passphrase (..), PassphraseScheme (..) )

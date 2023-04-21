@@ -19,7 +19,7 @@
 -- TODO: https://input-output.atlassian.net/browse/ADP-2841
 {-# OPTIONS_GHC -fno-warn-star-is-type #-}
 
-module Cardano.Wallet.Primitive.AddressDiscovery.SequentialSpec
+module Cardano.Wallet.Address.Discovery.SequentialSpec
     ( spec
     ) where
 
@@ -46,9 +46,7 @@ import Cardano.Wallet.Address.Derivation.SharedKey
     ( SharedKey (..) )
 import Cardano.Wallet.Address.Derivation.Shelley
     ( ShelleyKey (..) )
-import Cardano.Wallet.Address.PoolSpec
-    ( genPool, shrinkPool )
-import Cardano.Wallet.Primitive.AddressDiscovery
+import Cardano.Wallet.Address.Discovery
     ( CompareDiscovery (..)
     , GenChange (..)
     , GetPurpose
@@ -58,7 +56,7 @@ import Cardano.Wallet.Primitive.AddressDiscovery
     , emptyPendingIxs
     , genChange
     )
-import Cardano.Wallet.Primitive.AddressDiscovery.Sequential
+import Cardano.Wallet.Address.Discovery.Sequential
     ( AddressPoolGap (..)
     , DerivationPrefix (..)
     , MkAddressPoolGapError (..)
@@ -74,6 +72,8 @@ import Cardano.Wallet.Primitive.AddressDiscovery.Sequential
     , newSeqAddressPool
     , purposeCIP1852
     )
+import Cardano.Wallet.Address.PoolSpec
+    ( genPool, shrinkPool )
 import Cardano.Wallet.Primitive.Types.Address
     ( Address (..), AddressState (..) )
 import Cardano.Wallet.Read.NetworkId

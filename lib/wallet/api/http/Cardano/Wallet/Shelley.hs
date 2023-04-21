@@ -38,6 +38,14 @@ import Cardano.Wallet.Address.Derivation.SharedKey
     ( SharedKey )
 import Cardano.Wallet.Address.Derivation.Shelley
     ( ShelleyKey )
+import Cardano.Wallet.Address.Discovery
+    ( IsOurs, MaybeLight )
+import Cardano.Wallet.Address.Discovery.Random
+    ( RndState )
+import Cardano.Wallet.Address.Discovery.Sequential
+    ( SeqState )
+import Cardano.Wallet.Address.Discovery.Shared
+    ( SharedState )
 import Cardano.Wallet.Api
     ( ApiLayer, ApiV2 )
 import Cardano.Wallet.Api.Http.Logging
@@ -59,14 +67,6 @@ import Cardano.Wallet.Network
     ( NetworkLayer (..) )
 import Cardano.Wallet.Pools
     ( StakePoolLayer (..), withNodeStakePoolLayer, withStakePoolDbLayer )
-import Cardano.Wallet.Primitive.AddressDiscovery
-    ( IsOurs, MaybeLight )
-import Cardano.Wallet.Primitive.AddressDiscovery.Random
-    ( RndState )
-import Cardano.Wallet.Primitive.AddressDiscovery.Sequential
-    ( SeqState )
-import Cardano.Wallet.Primitive.AddressDiscovery.Shared
-    ( SharedState )
 import Cardano.Wallet.Primitive.Slotting
     ( neverFails )
 import Cardano.Wallet.Primitive.Types

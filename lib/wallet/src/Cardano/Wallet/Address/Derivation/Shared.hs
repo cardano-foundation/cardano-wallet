@@ -69,7 +69,7 @@ import Cardano.Wallet.Address.Derivation.Shelley
     , deriveAddressPublicKeyShelley
     , unsafeGenerateKeyFromSeedShelley
     )
-import Cardano.Wallet.Primitive.AddressDiscovery
+import Cardano.Wallet.Address.Discovery
     ( GetPurpose (..) )
 import Cardano.Wallet.Primitive.Passphrase
     ( Passphrase (..), PassphraseHash (..), changePassphraseXPrv )

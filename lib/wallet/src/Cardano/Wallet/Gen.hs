@@ -45,7 +45,7 @@ import Cardano.Api
     )
 import Cardano.Mnemonic
     ( ConsistentEntropy, EntropySize, Mnemonic, entropyToMnemonic )
-import Cardano.Wallet.Primitive.AddressDiscovery.Shared
+import Cardano.Wallet.Address.Discovery.Shared
     ( retrieveAllCosigners )
 import Cardano.Wallet.Primitive.Types
     ( ActiveSlotCoefficient (..)

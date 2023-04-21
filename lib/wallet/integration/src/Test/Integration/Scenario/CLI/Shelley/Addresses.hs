@@ -11,10 +11,10 @@ module Test.Integration.Scenario.CLI.Shelley.Addresses
 
 import Prelude
 
+import Cardano.Wallet.Address.Discovery.Sequential
+    ( defaultAddressPoolGap, getAddressPoolGap )
 import Cardano.Wallet.Api.Types
     ( ApiAddressWithPath, ApiWallet, apiAddress )
-import Cardano.Wallet.Primitive.AddressDiscovery.Sequential
-    ( defaultAddressPoolGap, getAddressPoolGap )
 import Cardano.Wallet.Primitive.Types.Address
     ( AddressState (..) )
 import Cardano.Wallet.Read.NetworkId

@@ -42,12 +42,12 @@ import Cardano.Wallet
     )
 import Cardano.Wallet.Address.Derivation.Shelley
     ( ShelleyKey (..) )
+import Cardano.Wallet.Address.Discovery.Sequential
+    ( SeqState (..) )
 import Cardano.Wallet.DB
     ( DBLayer (..) )
 import Cardano.Wallet.Network
     ( NetworkLayer (..) )
-import Cardano.Wallet.Primitive.AddressDiscovery.Sequential
-    ( SeqState (..) )
 import Cardano.Wallet.Primitive.Slotting
     ( PastHorizonException, TimeInterpreter )
 import Cardano.Wallet.Primitive.Types

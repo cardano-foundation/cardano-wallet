@@ -11,6 +11,8 @@ module Test.Integration.Scenario.CLI.Shelley.HWWallets
 
 import Prelude
 
+import Cardano.Wallet.Address.Discovery.Sequential
+    ( defaultAddressPoolGap, getAddressPoolGap )
 import Cardano.Wallet.Api.Types
     ( ApiAddressWithPath
     , ApiFee
@@ -21,8 +23,6 @@ import Cardano.Wallet.Api.Types
     )
 import Cardano.Wallet.Api.Types.SchemaMetadata
     ( TxMetadataSchema (..) )
-import Cardano.Wallet.Primitive.AddressDiscovery.Sequential
-    ( defaultAddressPoolGap, getAddressPoolGap )
 import Cardano.Wallet.Primitive.Types.Address
     ( AddressState (..) )
 import Cardano.Wallet.Read.NetworkId
