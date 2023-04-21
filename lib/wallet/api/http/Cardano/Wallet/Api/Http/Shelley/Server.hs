@@ -199,6 +199,38 @@ import Cardano.Wallet
     )
 import Cardano.Wallet.Address.Book
     ( AddressBookIso )
+import Cardano.Wallet.Address.Derivation
+    ( AccountIxForStaking (..)
+    , BoundedAddressLength (..)
+    , DelegationAddress (..)
+    , Depth (..)
+    , DerivationIndex (..)
+    , DerivationType (..)
+    , HardDerivation (..)
+    , Index (..)
+    , RewardAccount (..)
+    , Role
+    , SoftDerivation (..)
+    , WalletKey (..)
+    , delegationAddressS
+    , deriveRewardAccount
+    , publicKey
+    , stakeDerivationPath
+    )
+import Cardano.Wallet.Address.Derivation.Byron
+    ( ByronKey, mkByronKeyFromMasterKey )
+import Cardano.Wallet.Address.Derivation.Icarus
+    ( IcarusKey )
+import Cardano.Wallet.Address.Derivation.MintBurn
+    ( scriptSlotIntervals
+    , toTokenMapAndScript
+    , toTokenPolicyId
+    , withinSlotInterval
+    )
+import Cardano.Wallet.Address.Derivation.SharedKey
+    ( SharedKey (..), replaceCosignersWithVerKeys )
+import Cardano.Wallet.Address.Derivation.Shelley
+    ( ShelleyKey )
 import Cardano.Wallet.Address.HasDelegation
     ( HasDelegation (..) )
 import Cardano.Wallet.Api
@@ -371,38 +403,6 @@ import Cardano.Wallet.Network
     ( NetworkLayer (..), fetchRewardAccountBalances, timeInterpreter )
 import Cardano.Wallet.Pools
     ( EpochInfo (..), toEpochInfo )
-import Cardano.Wallet.Primitive.AddressDerivation
-    ( AccountIxForStaking (..)
-    , BoundedAddressLength (..)
-    , DelegationAddress (..)
-    , Depth (..)
-    , DerivationIndex (..)
-    , DerivationType (..)
-    , HardDerivation (..)
-    , Index (..)
-    , RewardAccount (..)
-    , Role
-    , SoftDerivation (..)
-    , WalletKey (..)
-    , delegationAddressS
-    , deriveRewardAccount
-    , publicKey
-    , stakeDerivationPath
-    )
-import Cardano.Wallet.Primitive.AddressDerivation.Byron
-    ( ByronKey, mkByronKeyFromMasterKey )
-import Cardano.Wallet.Primitive.AddressDerivation.Icarus
-    ( IcarusKey )
-import Cardano.Wallet.Primitive.AddressDerivation.MintBurn
-    ( scriptSlotIntervals
-    , toTokenMapAndScript
-    , toTokenPolicyId
-    , withinSlotInterval
-    )
-import Cardano.Wallet.Primitive.AddressDerivation.SharedKey
-    ( SharedKey (..), replaceCosignersWithVerKeys )
-import Cardano.Wallet.Primitive.AddressDerivation.Shelley
-    ( ShelleyKey )
 import Cardano.Wallet.Primitive.AddressDiscovery
     ( CompareDiscovery
     , GenChange (ArgGenChange)
@@ -668,13 +668,13 @@ import qualified Cardano.Address.Script as CA
 import qualified Cardano.Address.Style.Shelley as CA
 import qualified Cardano.Api as Cardano
 import qualified Cardano.Wallet as W
+import qualified Cardano.Wallet.Address.Derivation as Addr
+import qualified Cardano.Wallet.Address.Derivation.Byron as Byron
+import qualified Cardano.Wallet.Address.Derivation.Icarus as Icarus
 import qualified Cardano.Wallet.Api.Types as Api
 import qualified Cardano.Wallet.DB as W
 import qualified Cardano.Wallet.Delegation as WD
 import qualified Cardano.Wallet.Network as NW
-import qualified Cardano.Wallet.Primitive.AddressDerivation as Addr
-import qualified Cardano.Wallet.Primitive.AddressDerivation.Byron as Byron
-import qualified Cardano.Wallet.Primitive.AddressDerivation.Icarus as Icarus
 import qualified Cardano.Wallet.Primitive.AddressDiscovery.Sequential as Seq
 import qualified Cardano.Wallet.Primitive.AddressDiscovery.Shared as Shared
 import qualified Cardano.Wallet.Primitive.Types as W

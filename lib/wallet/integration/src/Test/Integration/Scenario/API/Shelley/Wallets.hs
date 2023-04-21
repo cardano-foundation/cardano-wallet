@@ -18,6 +18,8 @@ import Prelude
 
 import Cardano.Mnemonic
     ( entropyToMnemonic, genEntropy, mnemonicToText )
+import Cardano.Wallet.Address.Derivation
+    ( DerivationIndex (..), Role (..) )
 import Cardano.Wallet.Api.Types
     ( ApiAddressWithPath
     , ApiByronWallet
@@ -29,8 +31,6 @@ import Cardano.Wallet.Api.Types
     , ApiWalletUtxoSnapshot
     , WalletStyle (..)
     )
-import Cardano.Wallet.Primitive.AddressDerivation
-    ( DerivationIndex (..), Role (..) )
 import Cardano.Wallet.Primitive.AddressDiscovery.Sequential
     ( AddressPoolGap (..) )
 import Cardano.Wallet.Primitive.Passphrase

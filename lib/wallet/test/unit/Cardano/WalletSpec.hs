@@ -46,6 +46,17 @@ import Cardano.Wallet
     , submitTx
     , throttle
     )
+import Cardano.Wallet.Address.Derivation
+    ( Depth (..)
+    , DerivationIndex (..)
+    , DerivationType (..)
+    , HardDerivation (..)
+    , Index
+    , Role (..)
+    , publicKey
+    )
+import Cardano.Wallet.Address.Derivation.Shelley
+    ( ShelleyKey (..), generateKeyFromSeed )
 import Cardano.Wallet.DB
     ( DBLayer (..), hoistDBLayer, putTxHistory )
 import Cardano.Wallet.DB.Fixtures
@@ -68,17 +79,6 @@ import Cardano.Wallet.Gen
     ( genMnemonic, genSlotNo )
 import Cardano.Wallet.Network
     ( NetworkLayer (..) )
-import Cardano.Wallet.Primitive.AddressDerivation
-    ( Depth (..)
-    , DerivationIndex (..)
-    , DerivationType (..)
-    , HardDerivation (..)
-    , Index
-    , Role (..)
-    , publicKey
-    )
-import Cardano.Wallet.Primitive.AddressDerivation.Shelley
-    ( ShelleyKey (..), generateKeyFromSeed )
 import Cardano.Wallet.Primitive.AddressDiscovery
     ( CompareDiscovery (..)
     , GenChange (..)

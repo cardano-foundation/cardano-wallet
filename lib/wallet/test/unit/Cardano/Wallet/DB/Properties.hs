@@ -25,6 +25,8 @@ module Cardano.Wallet.DB.Properties
 
 import Prelude
 
+import Cardano.Wallet.Address.Derivation.Shelley
+    ( ShelleyKey (..) )
 import Cardano.Wallet.DB
     ( DBLayer (..)
     , ErrWalletAlreadyInitialized (ErrWalletAlreadyInitialized)
@@ -36,8 +38,6 @@ import Cardano.Wallet.DB.Pure.Implementation
     ( filterTxHistory )
 import Cardano.Wallet.DummyTarget.Primitive.Types
     ( dummyGenesisParameters )
-import Cardano.Wallet.Primitive.AddressDerivation.Shelley
-    ( ShelleyKey (..) )
 import Cardano.Wallet.Primitive.Model
     ( Wallet (currentTip), applyBlock, currentTip )
 import Cardano.Wallet.Primitive.Types

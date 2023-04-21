@@ -42,13 +42,7 @@ import Cardano.Pool.Types
     ( PoolId (..) )
 import Cardano.Wallet.Address.Book
     ( AddressBookIso (..) )
-import Cardano.Wallet.DB.Pure.Implementation
-    ( TxHistory, filterTxHistory )
-import Cardano.Wallet.DummyTarget.Primitive.Types as DummyTarget
-    ( block0, mkTx )
-import Cardano.Wallet.Gen
-    ( genMnemonic, genSimpleTxMetadata, shrinkSlotNo, shrinkTxMetadata )
-import Cardano.Wallet.Primitive.AddressDerivation
+import Cardano.Wallet.Address.Derivation
     ( Depth (..)
     , DerivationType (..)
     , Index (..)
@@ -56,14 +50,20 @@ import Cardano.Wallet.Primitive.AddressDerivation
     , WalletKey (..)
     , publicKey
     )
-import Cardano.Wallet.Primitive.AddressDerivation.Byron
+import Cardano.Wallet.Address.Derivation.Byron
     ( ByronKey (..) )
-import Cardano.Wallet.Primitive.AddressDerivation.Shared
+import Cardano.Wallet.Address.Derivation.Shared
     ()
-import Cardano.Wallet.Primitive.AddressDerivation.SharedKey
+import Cardano.Wallet.Address.Derivation.SharedKey
     ( SharedKey, purposeCIP1854 )
-import Cardano.Wallet.Primitive.AddressDerivation.Shelley
+import Cardano.Wallet.Address.Derivation.Shelley
     ( ShelleyKey (..) )
+import Cardano.Wallet.DB.Pure.Implementation
+    ( TxHistory, filterTxHistory )
+import Cardano.Wallet.DummyTarget.Primitive.Types as DummyTarget
+    ( block0, mkTx )
+import Cardano.Wallet.Gen
+    ( genMnemonic, genSimpleTxMetadata, shrinkSlotNo, shrinkTxMetadata )
 import Cardano.Wallet.Primitive.AddressDiscovery
     ( IsOurs, PendingIxs, emptyPendingIxs )
 import Cardano.Wallet.Primitive.AddressDiscovery.Random
@@ -226,10 +226,10 @@ import Test.QuickCheck.Extra
 import Test.Utils.Time
     ( genUniformTime )
 
-import qualified Cardano.Wallet.Primitive.AddressDerivation.Byron as Byron
-import qualified Cardano.Wallet.Primitive.AddressDerivation.MintBurn as MintBurn
-import qualified Cardano.Wallet.Primitive.AddressDerivation.Shared as Shared
-import qualified Cardano.Wallet.Primitive.AddressDerivation.Shelley as Shelley
+import qualified Cardano.Wallet.Address.Derivation.Byron as Byron
+import qualified Cardano.Wallet.Address.Derivation.MintBurn as MintBurn
+import qualified Cardano.Wallet.Address.Derivation.Shared as Shared
+import qualified Cardano.Wallet.Address.Derivation.Shelley as Shelley
 import qualified Cardano.Wallet.Primitive.AddressDiscovery.Sequential as Seq
 import qualified Cardano.Wallet.Primitive.AddressDiscovery.Shared as Shared
 import qualified Data.ByteArray as BA

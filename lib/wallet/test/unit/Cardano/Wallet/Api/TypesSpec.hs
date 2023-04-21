@@ -66,6 +66,22 @@ import Cardano.Pool.Metadata
 import Cardano.Pool.Metadata.Types
 import Cardano.Pool.Types
     ( PoolId (..), PoolOwner (..), StakePoolTicker (..) )
+import Cardano.Wallet.Address.Derivation
+    ( Depth (..)
+    , DerivationIndex (..)
+    , DerivationType (..)
+    , HardDerivation (..)
+    , Index (..)
+    , Role (..)
+    , WalletKey (..)
+    , fromHex
+    )
+import Cardano.Wallet.Address.Derivation.SharedKey
+    ( purposeCIP1854 )
+import Cardano.Wallet.Address.Derivation.Shelley
+    ( ShelleyKey (..), generateKeyFromSeed )
+import Cardano.Wallet.Address.DerivationSpec
+    ()
 import Cardano.Wallet.Api
     ( Api )
 import Cardano.Wallet.Api.Types
@@ -253,22 +269,6 @@ import Cardano.Wallet.Pools
     , StakePoolFlag
     , StakePoolMetrics (StakePoolMetrics)
     )
-import Cardano.Wallet.Primitive.AddressDerivation
-    ( Depth (..)
-    , DerivationIndex (..)
-    , DerivationType (..)
-    , HardDerivation (..)
-    , Index (..)
-    , Role (..)
-    , WalletKey (..)
-    , fromHex
-    )
-import Cardano.Wallet.Primitive.AddressDerivation.SharedKey
-    ( purposeCIP1854 )
-import Cardano.Wallet.Primitive.AddressDerivation.Shelley
-    ( ShelleyKey (..), generateKeyFromSeed )
-import Cardano.Wallet.Primitive.AddressDerivationSpec
-    ()
 import Cardano.Wallet.Primitive.AddressDiscovery.Sequential
     ( AddressPoolGap, getAddressPoolGap, purposeCIP1852 )
 import Cardano.Wallet.Primitive.AddressDiscovery.Shared

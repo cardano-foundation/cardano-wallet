@@ -52,6 +52,20 @@ import Cardano.Wallet.Address.Book
     , SeqAddressMap (..)
     , SharedAddressMap (..)
     )
+import Cardano.Wallet.Address.Derivation
+    ( Depth (..)
+    , HardDerivation (..)
+    , MkKeyFingerprint (..)
+    , PaymentAddress (..)
+    , PersistPublicKey (..)
+    , Role (..)
+    , SoftDerivation (..)
+    , WalletKey (..)
+    , roleVal
+    , unsafePaymentKeyFingerprint
+    )
+import Cardano.Wallet.Address.Derivation.SharedKey
+    ( SharedKey (..) )
 import Cardano.Wallet.Checkpoints
     ( DeltaCheckpoints (..), DeltasCheckpoints, loadCheckpoints )
 import Cardano.Wallet.DB
@@ -91,20 +105,6 @@ import Cardano.Wallet.DB.WalletState
     , WalletState (..)
     , getSlot
     )
-import Cardano.Wallet.Primitive.AddressDerivation
-    ( Depth (..)
-    , HardDerivation (..)
-    , MkKeyFingerprint (..)
-    , PaymentAddress (..)
-    , PersistPublicKey (..)
-    , Role (..)
-    , SoftDerivation (..)
-    , WalletKey (..)
-    , roleVal
-    , unsafePaymentKeyFingerprint
-    )
-import Cardano.Wallet.Primitive.AddressDerivation.SharedKey
-    ( SharedKey (..) )
 import Cardano.Wallet.Primitive.AddressDiscovery
     ( PendingIxs, pendingIxsFromList, pendingIxsToList )
 import Cardano.Wallet.Primitive.AddressDiscovery.Shared
@@ -166,7 +166,7 @@ import Database.Persist.Sqlite
 import UnliftIO.Exception
     ( toException )
 
-import qualified Cardano.Wallet.Primitive.AddressDerivation as W
+import qualified Cardano.Wallet.Address.Derivation as W
 import qualified Cardano.Wallet.Primitive.AddressDiscovery.Random as Rnd
 import qualified Cardano.Wallet.Primitive.AddressDiscovery.Sequential as Seq
 import qualified Cardano.Wallet.Primitive.AddressDiscovery.Shared as Shared

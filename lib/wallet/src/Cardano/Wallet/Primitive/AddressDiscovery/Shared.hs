@@ -72,7 +72,7 @@ import Cardano.Address.Style.Shelley
     ( Credential (..), delegationAddress, paymentAddress )
 import Cardano.Crypto.Wallet
     ( XPrv, XPub, unXPub )
-import Cardano.Wallet.Primitive.AddressDerivation
+import Cardano.Wallet.Address.Derivation
     ( AccountIxForStaking (..)
     , AddressParts (..)
     , Depth (..)
@@ -93,9 +93,9 @@ import Cardano.Wallet.Primitive.AddressDerivation
     , utxoExternal
     , utxoInternal
     )
-import Cardano.Wallet.Primitive.AddressDerivation.Shared
+import Cardano.Wallet.Address.Derivation.Shared
     ( allCosignerStakingKeys )
-import Cardano.Wallet.Primitive.AddressDerivation.SharedKey
+import Cardano.Wallet.Address.Derivation.SharedKey
     ( SharedKey (..)
     , constructAddressFromIx
     , purposeCIP1854

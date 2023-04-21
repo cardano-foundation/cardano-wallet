@@ -123,6 +123,8 @@ module Cardano.Wallet.Api.Link
 
 import Prelude
 
+import Cardano.Wallet.Address.Derivation
+    ( DerivationIndex, Role )
 import Cardano.Wallet.Api.Types
     ( ApiAddressInspectData (..)
     , ApiPoolSpecifier
@@ -137,8 +139,6 @@ import Cardano.Wallet.Api.Types.SchemaMetadata
     ( TxMetadataSchema (..), toSimpleMetadataFlag )
 import Cardano.Wallet.Api.Types.Transaction
     ( ApiLimit )
-import Cardano.Wallet.Primitive.AddressDerivation
-    ( DerivationIndex, Role )
 import Cardano.Wallet.Primitive.AddressDiscovery.Shared
     ( CredentialType (..) )
 import Cardano.Wallet.Primitive.Types

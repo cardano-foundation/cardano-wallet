@@ -19,9 +19,7 @@ import Cardano.Address.Derivation
     ( XPrv )
 import Cardano.Mnemonic
     ( MkSomeMnemonic (..), SomeMnemonic (..) )
-import Cardano.Wallet.Gen
-    ( genMnemonic )
-import Cardano.Wallet.Primitive.AddressDerivation
+import Cardano.Wallet.Address.Derivation
     ( Depth (..)
     , DerivationType (..)
     , Index (..)
@@ -29,14 +27,16 @@ import Cardano.Wallet.Primitive.AddressDerivation
     , WalletKey (..)
     , liftIndex
     )
-import Cardano.Wallet.Primitive.AddressDerivation.Byron
+import Cardano.Wallet.Address.Derivation.Byron
     ( ByronKey (..)
     , deriveAccountPrivateKey
     , deriveAddressPrivateKey
     , generateKeyFromSeed
     )
-import Cardano.Wallet.Primitive.AddressDerivationSpec
+import Cardano.Wallet.Address.DerivationSpec
     ()
+import Cardano.Wallet.Gen
+    ( genMnemonic )
 import Cardano.Wallet.Primitive.AddressDiscovery
     ( GenChange (..), IsOurs (..), IsOwned (..), KnownAddresses (..) )
 import Cardano.Wallet.Primitive.AddressDiscovery.Random

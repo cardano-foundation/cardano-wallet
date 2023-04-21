@@ -257,6 +257,37 @@ import Cardano.Tx.Balance.Internal.CoinSelection
     )
 import Cardano.Wallet.Address.Book
     ( AddressBookIso, Prologue (..), getDiscoveries, getPrologue )
+import Cardano.Wallet.Address.Derivation
+    ( BoundedAddressLength (..)
+    , DelegationAddress (..)
+    , Depth (..)
+    , DerivationIndex (..)
+    , DerivationPrefix (..)
+    , DerivationType (..)
+    , HardDerivation (..)
+    , Index (..)
+    , MkKeyFingerprint (..)
+    , PaymentAddress (..)
+    , Role (..)
+    , SoftDerivation (..)
+    , ToRewardAccount (..)
+    , WalletKey (..)
+    , deriveRewardAccount
+    , hashVerificationKey
+    , liftDelegationAddressS
+    , liftIndex
+    , stakeDerivationPath
+    )
+import Cardano.Wallet.Address.Derivation.Byron
+    ( ByronKey )
+import Cardano.Wallet.Address.Derivation.Icarus
+    ( IcarusKey )
+import Cardano.Wallet.Address.Derivation.MintBurn
+    ( derivePolicyPrivateKey, policyDerivationPath )
+import Cardano.Wallet.Address.Derivation.SharedKey
+    ( SharedKey (..), replaceCosignersWithVerKeys )
+import Cardano.Wallet.Address.Derivation.Shelley
+    ( ShelleyKey (..), deriveAccountPrivateKeyShelley )
 import Cardano.Wallet.Checkpoints
     ( DeltaCheckpoints (..)
     , SparseCheckpointsConfig (..)
@@ -297,37 +328,6 @@ import Cardano.Wallet.Network
     , ErrPostTx (..)
     , NetworkLayer (..)
     )
-import Cardano.Wallet.Primitive.AddressDerivation
-    ( BoundedAddressLength (..)
-    , DelegationAddress (..)
-    , Depth (..)
-    , DerivationIndex (..)
-    , DerivationPrefix (..)
-    , DerivationType (..)
-    , HardDerivation (..)
-    , Index (..)
-    , MkKeyFingerprint (..)
-    , PaymentAddress (..)
-    , Role (..)
-    , SoftDerivation (..)
-    , ToRewardAccount (..)
-    , WalletKey (..)
-    , deriveRewardAccount
-    , hashVerificationKey
-    , liftDelegationAddressS
-    , liftIndex
-    , stakeDerivationPath
-    )
-import Cardano.Wallet.Primitive.AddressDerivation.Byron
-    ( ByronKey )
-import Cardano.Wallet.Primitive.AddressDerivation.Icarus
-    ( IcarusKey )
-import Cardano.Wallet.Primitive.AddressDerivation.MintBurn
-    ( derivePolicyPrivateKey, policyDerivationPath )
-import Cardano.Wallet.Primitive.AddressDerivation.SharedKey
-    ( SharedKey (..), replaceCosignersWithVerKeys )
-import Cardano.Wallet.Primitive.AddressDerivation.Shelley
-    ( ShelleyKey (..), deriveAccountPrivateKeyShelley )
 import Cardano.Wallet.Primitive.AddressDiscovery
     ( CompareDiscovery (..)
     , GenChange (..)

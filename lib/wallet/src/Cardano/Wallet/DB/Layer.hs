@@ -63,6 +63,8 @@ import Cardano.DB.Sqlite.Delete
     )
 import Cardano.Slotting.Slot
     ( WithOrigin (..) )
+import Cardano.Wallet.Address.Derivation
+    ( Depth (..), PersistPrivateKey (..), WalletKey (..) )
 import Cardano.Wallet.Checkpoints
     ( DeltaCheckpoints (..)
     , defaultSparseCheckpointsConfig
@@ -136,8 +138,6 @@ import Cardano.Wallet.DB.WalletState
     , getLatest
     , getSlot
     )
-import Cardano.Wallet.Primitive.AddressDerivation
-    ( Depth (..), PersistPrivateKey (..), WalletKey (..) )
 import Cardano.Wallet.Primitive.Passphrase.Types
     ( PassphraseHash )
 import Cardano.Wallet.Primitive.Slotting

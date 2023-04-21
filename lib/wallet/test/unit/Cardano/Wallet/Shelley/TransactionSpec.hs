@@ -110,11 +110,7 @@ import Cardano.Wallet
     , defaultChangeAddressGen
     , signTransaction
     )
-import Cardano.Wallet.Byron.Compatibility
-    ( maryTokenBundleMaxSize )
-import Cardano.Wallet.Gen
-    ( genMnemonic, genScript )
-import Cardano.Wallet.Primitive.AddressDerivation
+import Cardano.Wallet.Address.Derivation
     ( DelegationAddress (delegationAddress)
     , Depth (..)
     , DerivationIndex (..)
@@ -128,12 +124,16 @@ import Cardano.Wallet.Primitive.AddressDerivation
     , paymentAddress
     , publicKey
     )
-import Cardano.Wallet.Primitive.AddressDerivation.Byron
+import Cardano.Wallet.Address.Derivation.Byron
     ( ByronKey )
-import Cardano.Wallet.Primitive.AddressDerivation.Icarus
+import Cardano.Wallet.Address.Derivation.Icarus
     ( IcarusKey )
-import Cardano.Wallet.Primitive.AddressDerivation.Shelley
+import Cardano.Wallet.Address.Derivation.Shelley
     ( ShelleyKey )
+import Cardano.Wallet.Byron.Compatibility
+    ( maryTokenBundleMaxSize )
+import Cardano.Wallet.Gen
+    ( genMnemonic, genScript )
 import Cardano.Wallet.Primitive.AddressDiscovery.Random
     ( RndState, mkRndState )
 import Cardano.Wallet.Primitive.AddressDiscovery.Sequential
@@ -504,8 +504,8 @@ import qualified Cardano.Ledger.Serialization as Ledger
 import qualified Cardano.Ledger.Shelley.API as SL
 import qualified Cardano.Ledger.Val as Value
 import qualified Cardano.Tx.Balance.Internal.CoinSelection as CS
-import qualified Cardano.Wallet.Primitive.AddressDerivation.Byron as Byron
-import qualified Cardano.Wallet.Primitive.AddressDerivation.Shelley as Shelley
+import qualified Cardano.Wallet.Address.Derivation.Byron as Byron
+import qualified Cardano.Wallet.Address.Derivation.Shelley as Shelley
 import qualified Cardano.Wallet.Primitive.Types.Coin as Coin
 import qualified Cardano.Wallet.Primitive.Types.TokenBundle as TokenBundle
 import qualified Cardano.Wallet.Primitive.Types.TokenMap as TokenMap
@@ -3742,7 +3742,7 @@ dummyChangeAddrGen = ChangeAddressGen
       where
         addressAtIx
             :: Index
-                'Cardano.Wallet.Primitive.AddressDerivation.Soft
+                'Cardano.Wallet.Address.Derivation.Soft
                 'CredFromKeyK
             -> Address
         addressAtIx ix = paymentAddress @ShelleyKey @'CredFromKeyK SMainnet
@@ -3751,7 +3751,7 @@ dummyChangeAddrGen = ChangeAddressGen
             $ Shelley.deriveAddressPrivateKeyShelley
                 pwd
                 acctK
-                Cardano.Wallet.Primitive.AddressDerivation.UtxoInternal
+                Cardano.Wallet.Address.Derivation.UtxoInternal
                 ix
 
         pwd = Passphrase ""

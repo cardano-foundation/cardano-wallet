@@ -4,7 +4,7 @@
 
 {-# OPTIONS_GHC -Wno-orphans #-}
 
-module Cardano.Wallet.Primitive.AddressDerivation.MintBurnSpec
+module Cardano.Wallet.Address.Derivation.MintBurnSpec
     ( spec
     ) where
 
@@ -16,7 +16,7 @@ import Cardano.Address.Script
     ( KeyHash, KeyRole (..), Script (..), keyHashFromBytes )
 import Cardano.Mnemonic
     ( Mnemonic, SomeMnemonic (..) )
-import Cardano.Wallet.Primitive.AddressDerivation
+import Cardano.Wallet.Address.Derivation
     ( Depth (..)
     , DerivationType (..)
     , Index (..)
@@ -25,15 +25,15 @@ import Cardano.Wallet.Primitive.AddressDerivation
     , hashVerificationKey
     , liftRawKey
     )
-import Cardano.Wallet.Primitive.AddressDerivation.MintBurn
+import Cardano.Wallet.Address.Derivation.MintBurn
     ( derivePolicyKeyAndHash
     , derivePolicyPrivateKey
     , scriptSlotIntervals
     , withinSlotInterval
     )
-import Cardano.Wallet.Primitive.AddressDerivation.Shelley
+import Cardano.Wallet.Address.Derivation.Shelley
     ( ShelleyKey )
-import Cardano.Wallet.Primitive.AddressDerivationSpec
+import Cardano.Wallet.Address.DerivationSpec
     ()
 import Cardano.Wallet.Primitive.Passphrase
     ( Passphrase )
@@ -65,7 +65,7 @@ import Test.QuickCheck.Arbitrary
     ( arbitraryBoundedEnum )
 
 import qualified Cardano.Address.Script as CA
-import qualified Cardano.Wallet.Primitive.AddressDerivation.Shelley as Shelley
+import qualified Cardano.Wallet.Address.Derivation.Shelley as Shelley
 import qualified Data.ByteString as BS
 import qualified Data.ByteString.Lazy as BL
 import qualified Data.Interval as I

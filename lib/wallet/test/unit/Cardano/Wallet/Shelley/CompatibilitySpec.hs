@@ -37,9 +37,7 @@ import Cardano.Mnemonic
     , SomeMnemonic (..)
     , entropyToMnemonic
     )
-import Cardano.Wallet.Byron.Compatibility
-    ( maryTokenBundleMaxSize )
-import Cardano.Wallet.Primitive.AddressDerivation
+import Cardano.Wallet.Address.Derivation
     ( Depth (..)
     , Index (getIndex)
     , PaymentAddress (..)
@@ -47,10 +45,12 @@ import Cardano.Wallet.Primitive.AddressDerivation
     , delegationAddress
     , publicKey
     )
-import Cardano.Wallet.Primitive.AddressDerivation.Byron
+import Cardano.Wallet.Address.Derivation.Byron
     ( ByronKey (..) )
-import Cardano.Wallet.Primitive.AddressDerivation.Shelley
+import Cardano.Wallet.Address.Derivation.Shelley
     ( ShelleyKey (..) )
+import Cardano.Wallet.Byron.Compatibility
+    ( maryTokenBundleMaxSize )
 import Cardano.Wallet.Primitive.Types
     ( SlotId (..), TokenBundleMaxSize (..), getDecentralizationLevel )
 import Cardano.Wallet.Primitive.Types.Address
@@ -166,9 +166,9 @@ import qualified Cardano.Ledger.BaseTypes as SL
 import qualified Cardano.Ledger.Shelley as SL
 import qualified Cardano.Ledger.Shelley as SLAPI
 import qualified Cardano.Ledger.Shelley.PParams as SL
-import qualified Cardano.Wallet.Primitive.AddressDerivation as AddressDerivation
-import qualified Cardano.Wallet.Primitive.AddressDerivation.Byron as Byron
-import qualified Cardano.Wallet.Primitive.AddressDerivation.Shelley as Shelley
+import qualified Cardano.Wallet.Address.Derivation as Address.Derivation
+import qualified Cardano.Wallet.Address.Derivation.Byron as Byron
+import qualified Cardano.Wallet.Address.Derivation.Shelley as Shelley
 import qualified Cardano.Wallet.Primitive.Types as W
 import qualified Cardano.Wallet.Primitive.Types.TokenBundle as TokenBundle
 import qualified Codec.Binary.Bech32 as Bech32
@@ -760,14 +760,14 @@ instance Arbitrary (ByronKey 'CredFromKeyK XPrv) where
         pure $ Byron.unsafeGenerateKeyFromSeed (acctIx, addrIx) mnemonic mempty
 
 instance
-    ( Enum (AddressDerivation.Index derivationType depth)
-    , Bounded (AddressDerivation.Index derivationType depth)
+    ( Enum (Address.Derivation.Index derivationType depth)
+    , Bounded (Address.Derivation.Index derivationType depth)
     ) =>
-    Arbitrary (AddressDerivation.Index derivationType depth) where
+    Arbitrary (Address.Derivation.Index derivationType depth) where
     arbitrary = toEnum <$> chooseInt (0, maxIndex)
       where
         maxIndex = fromIntegral . getIndex $
-            maxBound @(AddressDerivation.Index derivationType depth)
+            maxBound @(Address.Derivation.Index derivationType depth)
 
 instance (WalletKey k, Arbitrary (k 'CredFromKeyK XPrv)) =>
     Arbitrary (k 'CredFromKeyK XPub)

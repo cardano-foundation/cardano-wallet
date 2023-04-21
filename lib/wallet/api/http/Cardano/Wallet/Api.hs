@@ -176,6 +176,8 @@ import Prelude
 
 import Cardano.Wallet
     ( TxSubmitLog, WalletLayer (..), WalletWorkerLog )
+import Cardano.Wallet.Address.Derivation
+    ( Depth, DerivationIndex, Role )
 import Cardano.Wallet.Api.Types
     ( AnyAddress
     , ApiAccountKey
@@ -250,8 +252,6 @@ import Cardano.Wallet.Network
     ( NetworkLayer )
 import Cardano.Wallet.Pools
     ( StakePool )
-import Cardano.Wallet.Primitive.AddressDerivation
-    ( Depth, DerivationIndex, Role )
 import Cardano.Wallet.Primitive.Types
     ( Block
     , NetworkParameters

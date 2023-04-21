@@ -49,7 +49,7 @@ import Cardano.Address.Derivation
     ( XPrv )
 import Cardano.Byron.Codec.Cbor
     ( decodeAddressDerivationPath, decodeAddressPayload, deserialiseCbor )
-import Cardano.Wallet.Primitive.AddressDerivation
+import Cardano.Wallet.Address.Derivation
     ( Depth (..)
     , DerivationIndex (..)
     , DerivationType (..)
@@ -58,7 +58,7 @@ import Cardano.Wallet.Primitive.AddressDerivation
     , paymentAddressS
     , publicKey
     )
-import Cardano.Wallet.Primitive.AddressDerivation.Byron
+import Cardano.Wallet.Address.Derivation.Byron
     ( ByronKey (..), deriveAccountPrivateKey, deriveAddressPrivateKey )
 import Cardano.Wallet.Primitive.AddressDiscovery
     ( CompareDiscovery (..)

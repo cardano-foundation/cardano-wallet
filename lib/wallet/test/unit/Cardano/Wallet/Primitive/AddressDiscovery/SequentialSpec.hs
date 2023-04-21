@@ -27,9 +27,7 @@ import Prelude
 
 import Cardano.Address.Derivation
     ( XPub )
-import Cardano.Wallet.Address.PoolSpec
-    ( genPool, shrinkPool )
-import Cardano.Wallet.Primitive.AddressDerivation
+import Cardano.Wallet.Address.Derivation
     ( DelegationAddress (..)
     , Depth (..)
     , DerivationIndex
@@ -42,12 +40,14 @@ import Cardano.Wallet.Primitive.AddressDerivation
     , SoftDerivation (..)
     , WalletKey (..)
     )
-import Cardano.Wallet.Primitive.AddressDerivation.Icarus
+import Cardano.Wallet.Address.Derivation.Icarus
     ( IcarusKey (..) )
-import Cardano.Wallet.Primitive.AddressDerivation.SharedKey
+import Cardano.Wallet.Address.Derivation.SharedKey
     ( SharedKey (..) )
-import Cardano.Wallet.Primitive.AddressDerivation.Shelley
+import Cardano.Wallet.Address.Derivation.Shelley
     ( ShelleyKey (..) )
+import Cardano.Wallet.Address.PoolSpec
+    ( genPool, shrinkPool )
 import Cardano.Wallet.Primitive.AddressDiscovery
     ( CompareDiscovery (..)
     , GenChange (..)
@@ -133,9 +133,9 @@ import Test.QuickCheck.Monadic
 import Test.Text.Roundtrip
     ( textRoundtrip )
 
+import qualified Cardano.Wallet.Address.Derivation.Icarus as Icarus
+import qualified Cardano.Wallet.Address.Derivation.Shelley as Shelley
 import qualified Cardano.Wallet.Address.Pool as AddressPool
-import qualified Cardano.Wallet.Primitive.AddressDerivation.Icarus as Icarus
-import qualified Cardano.Wallet.Primitive.AddressDerivation.Shelley as Shelley
 import qualified Data.ByteString as BS
 
 spec :: Spec

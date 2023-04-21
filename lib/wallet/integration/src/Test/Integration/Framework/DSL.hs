@@ -254,6 +254,21 @@ import Cardano.Pool.Metadata.Types
     ( PoolMetadataGCStatus (..) )
 import Cardano.Pool.Types
     ( PoolId (..) )
+import Cardano.Wallet.Address.Derivation
+    ( Depth (..)
+    , DerivationIndex (..)
+    , DerivationType (..)
+    , HardDerivation (..)
+    , Index (..)
+    , PersistPublicKey (..)
+    , Role (..)
+    , WalletKey (..)
+    , fromHex
+    , hex
+    , paymentAddressS
+    )
+import Cardano.Wallet.Address.Derivation.Byron
+    ( ByronKey (..) )
 import Cardano.Wallet.Api.Types
     ( AddressAmount
     , ApiAccountKeyShared
@@ -297,21 +312,6 @@ import Cardano.Wallet.Compat
     ( (^?) )
 import Cardano.Wallet.Pools
     ( EpochInfo, StakePool )
-import Cardano.Wallet.Primitive.AddressDerivation
-    ( Depth (..)
-    , DerivationIndex (..)
-    , DerivationType (..)
-    , HardDerivation (..)
-    , Index (..)
-    , PersistPublicKey (..)
-    , Role (..)
-    , WalletKey (..)
-    , fromHex
-    , hex
-    , paymentAddressS
-    )
-import Cardano.Wallet.Primitive.AddressDerivation.Byron
-    ( ByronKey (..) )
 import Cardano.Wallet.Primitive.AddressDiscovery.Sequential
     ( coinTypeAda )
 import Cardano.Wallet.Primitive.AddressDiscovery.Shared
@@ -478,11 +478,11 @@ import UnliftIO.Process
 import Web.HttpApiData
     ( ToHttpApiData (..) )
 
+import qualified Cardano.Wallet.Address.Derivation.Byron as Byron
+import qualified Cardano.Wallet.Address.Derivation.Icarus as Icarus
+import qualified Cardano.Wallet.Address.Derivation.Shared as Shared
+import qualified Cardano.Wallet.Address.Derivation.Shelley as Shelley
 import qualified Cardano.Wallet.Api.Link as Link
-import qualified Cardano.Wallet.Primitive.AddressDerivation.Byron as Byron
-import qualified Cardano.Wallet.Primitive.AddressDerivation.Icarus as Icarus
-import qualified Cardano.Wallet.Primitive.AddressDerivation.Shared as Shared
-import qualified Cardano.Wallet.Primitive.AddressDerivation.Shelley as Shelley
 import qualified Cardano.Wallet.Primitive.Passphrase.Types as W
 import qualified Cardano.Wallet.Primitive.Types.Coin as Coin
 import qualified Cardano.Wallet.Primitive.Types.TokenBundle as TokenBundle

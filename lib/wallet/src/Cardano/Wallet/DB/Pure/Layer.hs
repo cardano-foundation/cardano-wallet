@@ -21,6 +21,8 @@ import Prelude
 
 import Cardano.Address.Derivation
     ( XPrv )
+import Cardano.Wallet.Address.Derivation
+    ( Depth (..) )
 import Cardano.Wallet.DB
     ( DBLayer (..)
     , ErrWalletAlreadyInitialized (..)
@@ -50,8 +52,6 @@ import Cardano.Wallet.DB.Pure.Implementation
     , mReadWalletMeta
     , mRollbackTo
     )
-import Cardano.Wallet.Primitive.AddressDerivation
-    ( Depth (..) )
 import Cardano.Wallet.Primitive.Passphrase
     ( PassphraseHash )
 import Cardano.Wallet.Primitive.Slotting

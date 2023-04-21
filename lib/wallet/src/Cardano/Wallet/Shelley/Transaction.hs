@@ -119,17 +119,17 @@ import Cardano.Tx.Balance.Internal.CoinSelection
     , SelectionSkeleton (..)
     , selectionDelta
     )
-import Cardano.Wallet.Primitive.AddressDerivation
+import Cardano.Wallet.Address.Derivation
     ( Depth (..), RewardAccount (..), WalletKey (..) )
-import Cardano.Wallet.Primitive.AddressDerivation.Byron
+import Cardano.Wallet.Address.Derivation.Byron
     ( ByronKey )
-import Cardano.Wallet.Primitive.AddressDerivation.Icarus
+import Cardano.Wallet.Address.Derivation.Icarus
     ( IcarusKey )
-import Cardano.Wallet.Primitive.AddressDerivation.Shared
+import Cardano.Wallet.Address.Derivation.Shared
     ( SharedKey )
-import Cardano.Wallet.Primitive.AddressDerivation.SharedKey
+import Cardano.Wallet.Address.Derivation.SharedKey
     ( replaceCosignersWithVerKeys )
-import Cardano.Wallet.Primitive.AddressDerivation.Shelley
+import Cardano.Wallet.Address.Derivation.Shelley
     ( ShelleyKey, toRewardAccountRaw )
 import Cardano.Wallet.Primitive.AddressDiscovery.Shared
     ( estimateMaxWitnessRequiredPerInput )

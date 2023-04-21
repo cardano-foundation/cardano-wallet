@@ -21,6 +21,10 @@ import Cardano.Address.Derivation
     ( XPrv )
 import Cardano.Pool.Types
     ( PoolId (..), PoolOwner (..), decodePoolIdBech32, encodePoolIdBech32 )
+import Cardano.Wallet.Address.Derivation
+    ( Depth (..), WalletKey (..), digest, publicKey )
+import Cardano.Wallet.Address.Derivation.Shelley
+    ( ShelleyKey (..), generateKeyFromSeed )
 import Cardano.Wallet.Gen
     ( genActiveSlotCoefficient
     , genBlockHeader
@@ -30,10 +34,6 @@ import Cardano.Wallet.Gen
     , shrinkSlotNo
     , shrinkTxMetadata
     )
-import Cardano.Wallet.Primitive.AddressDerivation
-    ( Depth (..), WalletKey (..), digest, publicKey )
-import Cardano.Wallet.Primitive.AddressDerivation.Shelley
-    ( ShelleyKey (..), generateKeyFromSeed )
 import Cardano.Wallet.Primitive.Slotting.Legacy
     ( SlotParameters (..)
     , epochStartTime

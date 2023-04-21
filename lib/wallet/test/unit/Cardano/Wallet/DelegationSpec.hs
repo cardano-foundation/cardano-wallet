@@ -15,7 +15,7 @@ import Cardano.Address.Derivation
     ( XPrv, xprvFromBytes, xprvToBytes )
 import Cardano.Pool.Types
     ( PoolId (..) )
-import Cardano.Wallet.Primitive.AddressDerivation
+import Cardano.Wallet.Address.Derivation
     ( DerivationIndex (..) )
 import Cardano.Wallet.Primitive.Types
     ( EpochNo (..)

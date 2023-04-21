@@ -8,7 +8,7 @@
 
 {-# OPTIONS_GHC -fno-warn-orphans #-}
 
-module Cardano.Wallet.Primitive.AddressDerivationSpec
+module Cardano.Wallet.Address.DerivationSpec
     ( spec
     ) where
 
@@ -18,9 +18,7 @@ import Cardano.Address.Derivation
     ( XPrv, XPub )
 import Cardano.Mnemonic
     ( MkSomeMnemonic (..), MkSomeMnemonicError (..), SomeMnemonic (..) )
-import Cardano.Wallet.Gen
-    ( genMnemonic )
-import Cardano.Wallet.Primitive.AddressDerivation
+import Cardano.Wallet.Address.Derivation
     ( Depth (..)
     , DerivationIndex (..)
     , DerivationType (..)
@@ -30,12 +28,14 @@ import Cardano.Wallet.Primitive.AddressDerivation
     , WalletKey (..)
     , getIndex
     )
-import Cardano.Wallet.Primitive.AddressDerivation.Byron
+import Cardano.Wallet.Address.Derivation.Byron
     ( ByronKey (..) )
-import Cardano.Wallet.Primitive.AddressDerivation.Icarus
+import Cardano.Wallet.Address.Derivation.Icarus
     ( IcarusKey (..) )
-import Cardano.Wallet.Primitive.AddressDerivation.Shelley
+import Cardano.Wallet.Address.Derivation.Shelley
     ( ShelleyKey (..) )
+import Cardano.Wallet.Gen
+    ( genMnemonic )
 import Cardano.Wallet.Primitive.Passphrase
     ( PassphraseHash (..), preparePassphrase )
 import Cardano.Wallet.Primitive.Passphrase.Types
@@ -74,9 +74,9 @@ import Test.Text.Roundtrip
     ( textRoundtrip )
 
 import qualified Cardano.Crypto.Wallet as CC
-import qualified Cardano.Wallet.Primitive.AddressDerivation.Byron as Byron
-import qualified Cardano.Wallet.Primitive.AddressDerivation.Icarus as Icarus
-import qualified Cardano.Wallet.Primitive.AddressDerivation.Shelley as Shelley
+import qualified Cardano.Wallet.Address.Derivation.Byron as Byron
+import qualified Cardano.Wallet.Address.Derivation.Icarus as Icarus
+import qualified Cardano.Wallet.Address.Derivation.Shelley as Shelley
 import qualified Data.ByteArray as BA
 import qualified Data.ByteString as BS
 import qualified Data.ByteString.Char8 as B8

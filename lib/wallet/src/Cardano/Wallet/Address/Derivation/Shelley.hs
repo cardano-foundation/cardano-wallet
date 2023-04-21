@@ -20,7 +20,7 @@
 --
 -- Implementation of address derivation for 'Shelley' Keys.
 
-module Cardano.Wallet.Primitive.AddressDerivation.Shelley
+module Cardano.Wallet.Address.Derivation.Shelley
     ( -- * Types
       ShelleyKey(..)
 
@@ -56,7 +56,7 @@ import Cardano.Crypto.Wallet
     )
 import Cardano.Mnemonic
     ( SomeMnemonic (..), entropyToBytes, mnemonicToEntropy )
-import Cardano.Wallet.Primitive.AddressDerivation
+import Cardano.Wallet.Address.Derivation
     ( AccountIxForStaking (..)
     , AddressParts (..)
     , BoundedAddressLength (..)

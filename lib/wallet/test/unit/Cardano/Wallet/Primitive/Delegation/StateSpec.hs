@@ -16,7 +16,7 @@ import Prelude
 
 import Cardano.Address.Derivation
     ( XPub )
-import Cardano.Wallet.Primitive.AddressDerivation
+import Cardano.Wallet.Address.Derivation
     ( Depth (..)
     , DerivationType (..)
     , HardDerivation (..)

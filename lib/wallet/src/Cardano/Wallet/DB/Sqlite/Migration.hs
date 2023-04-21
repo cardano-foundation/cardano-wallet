@@ -33,12 +33,12 @@ import Cardano.DB.Sqlite
     , fieldType
     , tableName
     )
+import Cardano.Wallet.Address.Derivation.Icarus
+    ( IcarusKey )
+import Cardano.Wallet.Address.Derivation.Shelley
+    ( ShelleyKey (..) )
 import Cardano.Wallet.DB.Sqlite.Schema
     ( EntityField (..) )
-import Cardano.Wallet.Primitive.AddressDerivation.Icarus
-    ( IcarusKey )
-import Cardano.Wallet.Primitive.AddressDerivation.Shelley
-    ( ShelleyKey (..) )
 import Cardano.Wallet.Primitive.Passphrase.Types
     ( PassphraseScheme (..) )
 import Control.Monad
@@ -74,7 +74,7 @@ import Numeric.Natural
 import UnliftIO.Exception
     ( Exception, throwIO, throwString )
 
-import qualified Cardano.Wallet.Primitive.AddressDerivation as W
+import qualified Cardano.Wallet.Address.Derivation as W
 import qualified Cardano.Wallet.Primitive.AddressDiscovery.Sequential as Seq
 import qualified Cardano.Wallet.Primitive.Types as W
 import qualified Cardano.Wallet.Primitive.Types.Address as W

@@ -25,7 +25,7 @@
 -- see the "Cardano.Crypto.Wallet" module, and the implementation in
 -- <https://github.com/input-output-hk/cardano-crypto/blob/4590efa638397e952a51a8994b5543e4ea3c1ecd/cbits/encrypted_sign.c cardano-crypto>.
 
-module Cardano.Wallet.Primitive.AddressDerivation.Byron
+module Cardano.Wallet.Address.Derivation.Byron
     ( -- * Types
       ByronKey(..)
     , DerivationPathFrom
@@ -58,7 +58,7 @@ import Cardano.Crypto.Wallet
     )
 import Cardano.Mnemonic
     ( SomeMnemonic (..), entropyToBytes, mnemonicToEntropy )
-import Cardano.Wallet.Primitive.AddressDerivation
+import Cardano.Wallet.Address.Derivation
     ( BoundedAddressLength (..)
     , Depth (..)
     , DerivationType (..)
@@ -105,7 +105,7 @@ import GHC.Generics
 
 import qualified Cardano.Byron.Codec.Cbor as CBOR
 import qualified Cardano.Crypto.Wallet as CC
-import qualified Cardano.Wallet.Primitive.AddressDerivation as W
+import qualified Cardano.Wallet.Address.Derivation as W
 import qualified Codec.CBOR.Encoding as CBOR
 import qualified Codec.CBOR.Write as CBOR
 import qualified Crypto.KDF.PBKDF2 as PBKDF2

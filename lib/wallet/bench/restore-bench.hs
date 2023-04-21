@@ -60,6 +60,12 @@ import Cardano.Wallet
     , WalletWorkerLog (..)
     , networkLayer
     )
+import Cardano.Wallet.Address.Derivation
+    ( Depth (..), PersistPrivateKey, WalletKey, digest, publicKey )
+import Cardano.Wallet.Address.Derivation.Byron
+    ( ByronKey )
+import Cardano.Wallet.Address.Derivation.Shelley
+    ( ShelleyKey )
 import Cardano.Wallet.Api.Types
     ( toApiUtxoStatistics )
 import Cardano.Wallet.BenchShared
@@ -85,12 +91,6 @@ import Cardano.Wallet.Network
     , ChainSyncLog (..)
     , NetworkLayer (..)
     )
-import Cardano.Wallet.Primitive.AddressDerivation
-    ( Depth (..), PersistPrivateKey, WalletKey, digest, publicKey )
-import Cardano.Wallet.Primitive.AddressDerivation.Byron
-    ( ByronKey )
-import Cardano.Wallet.Primitive.AddressDerivation.Shelley
-    ( ShelleyKey )
 import Cardano.Wallet.Primitive.AddressDiscovery
     ( GenChange (..), IsOurs, IsOwned, MaybeLight )
 import Cardano.Wallet.Primitive.AddressDiscovery.Random
@@ -231,10 +231,10 @@ import UnliftIO.Temporary
     ( withSystemTempFile )
 
 import qualified Cardano.Wallet as W
+import qualified Cardano.Wallet.Address.Derivation.Byron as Byron
+import qualified Cardano.Wallet.Address.Derivation.Shelley as Shelley
 import qualified Cardano.Wallet.Checkpoints.Policy as CP
 import qualified Cardano.Wallet.DB.Layer as Sqlite
-import qualified Cardano.Wallet.Primitive.AddressDerivation.Byron as Byron
-import qualified Cardano.Wallet.Primitive.AddressDerivation.Shelley as Shelley
 import qualified Cardano.Wallet.Primitive.Types.TokenBundle as TokenBundle
 import qualified Cardano.Wallet.Primitive.Types.UTxOIndex as UTxOIndex
 import qualified Cardano.Wallet.Primitive.Types.UTxOSelection as UTxOSelection

@@ -32,12 +32,12 @@ import Prelude
 
 import Cardano.Address.Derivation
     ( XPub, xpubPublicKey )
+import Cardano.Wallet.Address.Derivation
+    ( Depth (..), DerivationType (..), Index (..), Role (..) )
+import Cardano.Wallet.Address.Derivation.SharedKey
+    ( purposeCIP1854 )
 import Cardano.Wallet.Api.Lib.Options
     ( DefaultSum (..) )
-import Cardano.Wallet.Primitive.AddressDerivation
-    ( Depth (..), DerivationType (..), Index (..), Role (..) )
-import Cardano.Wallet.Primitive.AddressDerivation.SharedKey
-    ( purposeCIP1854 )
 import Cardano.Wallet.Primitive.AddressDiscovery.Sequential
     ( purposeCIP1852 )
 import Codec.Binary.Bech32

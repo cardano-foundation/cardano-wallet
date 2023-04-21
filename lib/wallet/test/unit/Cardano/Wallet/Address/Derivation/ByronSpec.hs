@@ -7,7 +7,7 @@
 
 {-# OPTIONS_GHC -fno-warn-orphans #-}
 
-module Cardano.Wallet.Primitive.AddressDerivation.ByronSpec
+module Cardano.Wallet.Address.Derivation.ByronSpec
     ( spec
     ) where
 
@@ -17,16 +17,16 @@ import Cardano.Address.Derivation
     ( XPrv )
 import Cardano.Mnemonic
     ( SomeMnemonic (..) )
-import Cardano.Wallet.Primitive.AddressDerivation
+import Cardano.Wallet.Address.Derivation
     ( Depth (..), DerivationType (..), Index (..) )
-import Cardano.Wallet.Primitive.AddressDerivation.Byron
+import Cardano.Wallet.Address.Derivation.Byron
     ( ByronKey (..)
     , generateKeyFromSeed
     , minSeedLengthBytes
     , unsafeGenerateKeyFromSeed
     , unsafeMkByronKeyFromMasterKey
     )
-import Cardano.Wallet.Primitive.AddressDerivationSpec
+import Cardano.Wallet.Address.DerivationSpec
     ()
 import Cardano.Wallet.Primitive.Passphrase.Types
     ( Passphrase (..) )

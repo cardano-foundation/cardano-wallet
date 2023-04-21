@@ -82,7 +82,7 @@ import Cardano.Tx.Balance.Internal.CoinSelection
     , SelectionSkeleton
     , WalletSelectionContext
     )
-import Cardano.Wallet.Primitive.AddressDerivation
+import Cardano.Wallet.Address.Derivation
     ( Depth (..), DerivationIndex )
 import Cardano.Wallet.Primitive.Passphrase.Types
     ( Passphrase )

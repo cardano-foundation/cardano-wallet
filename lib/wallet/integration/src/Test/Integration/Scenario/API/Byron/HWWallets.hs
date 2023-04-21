@@ -21,6 +21,8 @@ import Cardano.Mnemonic
     , genEntropy
     , mnemonicToText
     )
+import Cardano.Wallet.Address.Derivation
+    ( HardDerivation (..), PersistPublicKey (..), WalletKey (..) )
 import Cardano.Wallet.Api.Types
     ( AddressAmount (..)
     , ApiAddress (..)
@@ -32,8 +34,6 @@ import Cardano.Wallet.Api.Types
     , ApiUtxoStatistics
     , WalletStyle (..)
     )
-import Cardano.Wallet.Primitive.AddressDerivation
-    ( HardDerivation (..), PersistPublicKey (..), WalletKey (..) )
 import Cardano.Wallet.Primitive.AddressDiscovery.Sequential
     ( defaultAddressPoolGap, getAddressPoolGap )
 import Cardano.Wallet.Primitive.Types.Address
@@ -86,8 +86,8 @@ import Test.Integration.Framework.DSL
 import Test.Integration.Framework.TestData
     ( errMsg403NoRootKey, updateNamePayload, updatePassPayload )
 
+import qualified Cardano.Wallet.Address.Derivation.Icarus as Icarus
 import qualified Cardano.Wallet.Api.Link as Link
-import qualified Cardano.Wallet.Primitive.AddressDerivation.Icarus as Icarus
 import qualified Data.HashSet as Set
 import qualified Data.List.NonEmpty as NE
 import qualified Data.Text.Encoding as T

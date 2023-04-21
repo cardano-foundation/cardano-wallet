@@ -15,12 +15,12 @@ module Cardano.Wallet.DB.Pure.ImplementationSpec
 
 import Prelude
 
+import Cardano.Wallet.Address.Derivation.Shelley
+    ( ShelleyKey )
 import Cardano.Wallet.DB.Properties
     ( properties )
 import Cardano.Wallet.DummyTarget.Primitive.Types
     ( dummyTimeInterpreter )
-import Cardano.Wallet.Primitive.AddressDerivation.Shelley
-    ( ShelleyKey )
 import Cardano.Wallet.Primitive.AddressDiscovery
     ( IsOurs (..) )
 import Cardano.Wallet.Primitive.AddressDiscovery.Sequential

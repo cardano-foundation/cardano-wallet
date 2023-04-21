@@ -124,6 +124,8 @@ import Cardano.Pool.Types
     ( PoolId (..) )
 import Cardano.Startup
     ( restrictFileMode )
+import Cardano.Wallet.Address.Derivation
+    ( hex )
 import Cardano.Wallet.Api.Http.Shelley.Server
     ( Listen (..) )
 import Cardano.Wallet.Api.Types
@@ -134,8 +136,6 @@ import Cardano.Wallet.Logging
     ( BracketLog, bracketTracer )
 import Cardano.Wallet.Network.Ports
     ( randomUnusedTCPPorts )
-import Cardano.Wallet.Primitive.AddressDerivation
-    ( hex )
 import Cardano.Wallet.Primitive.Types
     ( Block (..)
     , EpochNo (..)

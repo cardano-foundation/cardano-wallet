@@ -5,13 +5,13 @@
 module Cardano.Wallet.Flavor (WalletFlavorS (..), WalletFlavor (..))
     where
 
-import Cardano.Wallet.Primitive.AddressDerivation.Byron
+import Cardano.Wallet.Address.Derivation.Byron
     ( ByronKey )
-import Cardano.Wallet.Primitive.AddressDerivation.Icarus
+import Cardano.Wallet.Address.Derivation.Icarus
     ( IcarusKey (..) )
-import Cardano.Wallet.Primitive.AddressDerivation.SharedKey
+import Cardano.Wallet.Address.Derivation.SharedKey
     ( SharedKey )
-import Cardano.Wallet.Primitive.AddressDerivation.Shelley
+import Cardano.Wallet.Address.Derivation.Shelley
     ( ShelleyKey )
 import Cardano.Wallet.Primitive.AddressDiscovery.Random
     ( RndState (..) )

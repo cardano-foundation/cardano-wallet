@@ -14,6 +14,8 @@ module Test.Integration.Scenario.API.Shelley.Addresses
 
 import Prelude
 
+import Cardano.Wallet.Address.Derivation
+    ( DerivationIndex (..), Role (..) )
 import Cardano.Wallet.Api.Types
     ( AnyAddress
     , ApiAccountKey
@@ -24,8 +26,6 @@ import Cardano.Wallet.Api.Types
     , ApiWallet
     , WalletStyle (..)
     )
-import Cardano.Wallet.Primitive.AddressDerivation
-    ( DerivationIndex (..), Role (..) )
 import Cardano.Wallet.Primitive.AddressDiscovery.Sequential
     ( defaultAddressPoolGap, getAddressPoolGap, purposeCIP1852 )
 import Cardano.Wallet.Primitive.Types.Address

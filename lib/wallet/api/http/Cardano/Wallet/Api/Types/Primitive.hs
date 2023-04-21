@@ -28,6 +28,8 @@ import Cardano.Pool.Metadata.Types
     ( StakePoolMetadataHash, StakePoolMetadataUrl )
 import Cardano.Pool.Types
     ( PoolId, PoolOwner, decodePoolIdBech32, encodePoolIdBech32 )
+import Cardano.Wallet.Address.Derivation
+    ( DerivationIndex )
 import Cardano.Wallet.Api.Aeson
     ( eitherToParser )
 import Cardano.Wallet.Api.Hex
@@ -36,8 +38,6 @@ import Cardano.Wallet.Api.Lib.ApiT
     ( ApiT (..), fromTextApiT, toTextApiT )
 import Cardano.Wallet.Api.Types.Key
     ( parseBech32 )
-import Cardano.Wallet.Primitive.AddressDerivation
-    ( DerivationIndex )
 import Cardano.Wallet.Primitive.Passphrase.Types
     ( Passphrase (..), PassphraseMaxLength (..), PassphraseMinLength (..) )
 import Cardano.Wallet.Primitive.Types

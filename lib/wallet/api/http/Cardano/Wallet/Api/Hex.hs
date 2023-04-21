@@ -8,7 +8,7 @@ module Cardano.Wallet.Api.Hex
 
 import Prelude
 
-import Cardano.Wallet.Primitive.AddressDerivation
+import Cardano.Wallet.Address.Derivation
     ( fromHex, hex )
 import Data.ByteString
     ( ByteString )
