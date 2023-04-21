@@ -503,7 +503,7 @@ walletListTransactionsSorted wallet@(wid, _, _) _order (_mstart, _mend) =
         WalletLayerFixture DBLayer{..} wl _ <- setupFixture wallet
         atomically $ unsafeRunExceptT $ putTxHistory history
         txs <- unsafeRunExceptT $
-            W.listTransactions @_ @_ @_ wl wid Nothing Nothing Nothing
+            W.listTransactions @_ @_ @_ wl Nothing Nothing Nothing
                 Descending Nothing
         length txs `shouldBe` L.length history
         -- With the 'Down'-wrapper, the sort is descending.
@@ -547,7 +547,7 @@ walletListTransactionsWithLimit wallet@(wid, _, _) =
             WalletLayerFixture DBLayer{..} wl _ <- setupFixture wallet
             atomically $ unsafeRunExceptT $ putTxHistory history'
             txs <- unsafeRunExceptT $
-                W.listTransactions @_ @_ @_ wl wid Nothing start stop order
+                W.listTransactions @_ @_ @_ wl Nothing start stop order
                     $ Just limitNatural
             let times = [(txInfoId i, txInfoTime i) | i <- txs]
             shouldBe times $ take limit $ sortOn (dir . snd) $ do

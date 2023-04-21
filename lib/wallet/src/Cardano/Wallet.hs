@@ -859,8 +859,12 @@ readWallet
 readWallet ctx wid = db & \DBLayer{..} -> mapExceptT atomically $ do
     cp <- withNoSuchWallet wid readCheckpoint
     meta <- withNoSuchWallet wid readWalletMeta
-    pending <- lift
-        $ readTransactions wid Nothing Descending wholeRange (Just Pending)
+    pending <- lift $
+        readTransactions
+            Nothing
+            Descending
+            wholeRange
+            (Just Pending)
             Nothing
     pure (cp, meta, Set.fromList (fromTransactionInfo <$> pending))
   where
@@ -2038,9 +2042,11 @@ buildSignSubmitTransaction ti db@DBLayer{..} netLayer txLayer pwd walletId
         (BuiltTx{..}, slot) <- atomically $ do
             pendingTxs <- fmap fromTransactionInfo <$>
                 readTransactions
-                    walletId Nothing Descending wholeRange (Just Pending)
-                        Nothing
-
+                    Nothing
+                    Descending
+                    wholeRange
+                    (Just Pending)
+                    Nothing
             txWithSlot@(builtTx, slot) <-
                 throwOnErr <=< modifyDBMaybe walletsDB $
                 adjustNoSuchWallet walletId wrapNoWalletForConstruct $ \s -> do
@@ -2226,7 +2232,7 @@ buildTransaction DBLayer{..} txLayer timeInterpreter walletId
 
         pendingTxs <- Set.fromList . fmap fromTransactionInfo <$>
             readTransactions
-                walletId Nothing Descending wholeRange (Just Pending) Nothing
+                Nothing Descending wholeRange (Just Pending) Nothing
 
         let utxoIndex = UTxOIndex.fromMap . CS.toInternalUTxOMap $
                 availableUTxO @s pendingTxs wallet
@@ -2675,7 +2681,6 @@ listTransactions
         , HasNetworkLayer IO ctx
         )
     => ctx
-    -> WalletId
     -> Maybe Coin
         -- Inclusive minimum value of at least one withdrawal in each transaction
     -> Maybe UTCTime
@@ -2686,7 +2691,7 @@ listTransactions
     -> Maybe Natural
         -- ^ Maximum number of transactions to return.
     -> ExceptT ErrListTransactions IO [TransactionInfo]
-listTransactions ctx wid mMinWithdrawal mStart mEnd order mLimit
+listTransactions ctx mMinWithdrawal mStart mEnd order mLimit
     = db & \DBLayer{..} -> do
         when (Just True == ( (<(Coin 1)) <$> mMinWithdrawal )) $
             throwE ErrListTransactionsMinWithdrawalWrong
@@ -2694,7 +2699,7 @@ listTransactions ctx wid mMinWithdrawal mStart mEnd order mLimit
             mapExceptT liftIO getSlotRange >>= maybe
                 (pure [])
                 (\r -> lift
-                $ readTransactions wid mMinWithdrawal order r Nothing mLimit)
+                $ readTransactions mMinWithdrawal order r Nothing mLimit)
   where
     ti :: TimeInterpreter (ExceptT PastHorizonException IO)
     ti = timeInterpreter (ctx ^. networkLayer)
@@ -2727,7 +2732,7 @@ listAssets ctx wid = db & \DBLayer{..} -> do
     txs <- lift . atomically $
         let noMinWithdrawal = Nothing
             allTxStatuses = Nothing
-        in readTransactions wid noMinWithdrawal Ascending wholeRange
+        in readTransactions noMinWithdrawal Ascending wholeRange
             allTxStatuses Nothing
     let txAssets :: TransactionInfo -> Set TokenMap.AssetId
         txAssets = Set.unions

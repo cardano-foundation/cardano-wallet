@@ -524,7 +524,7 @@ fileModeSpec =  do
             testReopening
                 f
                 (\db' ->
-                    readTransactions' db' testWid Ascending wholeRange Nothing
+                    readTransactions' db' Ascending wholeRange Nothing
                     )
                 testTxs -- expected after opening db
 
@@ -537,7 +537,7 @@ fileModeSpec =  do
             testReopening
                 f
                 (\db' ->
-                    readTransactions' db' testWid Descending wholeRange Nothing
+                    readTransactions' db' Descending wholeRange Nothing
                     )
                 (reverse testTxs) -- expected after opening db
 
@@ -934,14 +934,13 @@ readWalletMeta' DBLayer{..} = atomically readWalletMeta
 
 readTransactions'
     :: DBLayer m s k
-    -> WalletId
     -> SortOrder
     -> Range SlotNo
     -> Maybe TxStatus
     -> m [(Tx, TxMeta)]
-readTransactions' DBLayer{..} a0 a1 a2 mstatus =
+readTransactions' DBLayer{..} a1 a2 mstatus =
     atomically . fmap (fmap toTxHistory)
-        $ readTransactions a0 Nothing a1 a2 mstatus Nothing
+        $ readTransactions Nothing a1 a2 mstatus Nothing
 
 readPrivateKey'
     :: DBLayer m s k
@@ -1186,7 +1185,7 @@ testMigrationTxMetaFee
 testMigrationTxMetaFee dbName expectedLength caseByCase = do
     (logs, result) <- withDBLayerFromCopiedFile @ShelleyKey dbName
         $ \DBLayer{..} -> atomically $ do
-            readTransactions walletId_
+            readTransactions
                 Nothing Descending wholeRange Nothing Nothing
 
     -- Check that we've indeed logged a needed migration for 'fee'
@@ -1539,7 +1538,7 @@ getAvailableBalance :: DBLayer IO s k -> IO Natural
 getAvailableBalance DBLayer{..} = do
     cp <- fromMaybe (error "nothing") <$> atomically readCheckpoint
     pend <- atomically $ fmap toTxHistory
-        <$> readTransactions testWid Nothing Descending wholeRange
+        <$> readTransactions Nothing Descending wholeRange
                 (Just Pending) Nothing
     return $ fromIntegral $ unCoin $ TokenBundle.getCoin $
         availableBalance (Set.fromList $ map fst pend) cp
@@ -1547,7 +1546,7 @@ getAvailableBalance DBLayer{..} = do
 getTxsInLedger :: DBLayer IO s k -> IO ([(Direction, Natural)])
 getTxsInLedger DBLayer {..} = do
     pend <- atomically $ fmap toTxHistory
-        <$> readTransactions testWid Nothing Descending wholeRange
+        <$> readTransactions Nothing Descending wholeRange
                 (Just InLedger) Nothing
     pure $ map (\(_, m) -> (direction m, fromIntegral $ unCoin $ amount m)) pend
 

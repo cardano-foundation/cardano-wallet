@@ -2242,7 +2242,7 @@ listTransactions
     ctx (ApiT wid) mMinWithdrawal mStart mEnd mOrder mLimit metadataSchema =
         withWorkerCtx ctx wid liftE liftE $ \wrk -> do
             txs <- liftHandler $
-                W.listTransactions @_ @_ @_ wrk wid
+                W.listTransactions @_ @_ @_ wrk
                 (Coin . fromIntegral . getMinWithdrawal <$> mMinWithdrawal)
                 (getIso8601Time <$> mStart)
                 (getIso8601Time <$> mEnd)

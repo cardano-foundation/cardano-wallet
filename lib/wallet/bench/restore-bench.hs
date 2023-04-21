@@ -467,11 +467,11 @@ benchmarksRnd network w wid wname benchname restoreTime = do
     (transactions, listTransactionsTime) <- bench "list transactions"
         $ fmap (fromIntegral . length)
         $ unsafeRunExceptT
-        $ W.listTransactions @_ @s @k w wid Nothing Nothing Nothing Descending
+        $ W.listTransactions @_ @s @k w Nothing Nothing Nothing Descending
             Nothing
     (_, listTransactionsLimitedTime) <- bench "list transactions (max_count = 100)" $ do
         unsafeRunExceptT
-        $ W.listTransactions @_ @s @k w wid Nothing Nothing Nothing Descending
+        $ W.listTransactions @_ @s @k w Nothing Nothing Nothing Descending
             (Just 100)
 
     (_, estimateFeesTime) <- bench "estimate tx fee" $ do
@@ -578,11 +578,11 @@ benchmarksSeq network w wid _wname benchname restoreTime = do
     (transactions, listTransactionsTime) <- bench "list transactions"
         $ fmap (fromIntegral . length)
         $ unsafeRunExceptT
-        $ W.listTransactions @_ @s @k w wid Nothing Nothing Nothing Descending
+        $ W.listTransactions @_ @s @k w Nothing Nothing Nothing Descending
             Nothing
     (_, listTransactionsLimitedTime) <- bench "list transactions (max_count = 100)" $ do
         unsafeRunExceptT
-        $ W.listTransactions @_ @s @k w wid Nothing Nothing Nothing Descending
+        $ W.listTransactions @_ @s @k w Nothing Nothing Nothing Descending
             (Just 100)
 
     (_, estimateFeesTime) <- bench "estimate tx fee" $ do

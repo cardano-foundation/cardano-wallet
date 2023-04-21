@@ -156,7 +156,7 @@ newDBLayer timeInterpreter wid = do
             . alterDB errWalletNotInitialized db
             . mPutTxHistory
 
-        , readTransactions = \_pk minWithdrawal order range mstatus _mlimit ->
+        , readTransactions = \minWithdrawal order range mstatus _mlimit ->
             fmap (fromMaybe []) $
             readDBMaybe db $
                 mReadTxHistory

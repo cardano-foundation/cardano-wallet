@@ -274,12 +274,12 @@ benchmarksSeq BenchmarkConfig{benchmarkName,ctx,wid, networkId} = do
         $ fmap (fromIntegral . length)
         $ unsafeRunExceptT
         $ W.listTransactions @_ @s @k ctx
-            wid Nothing Nothing Nothing Descending Nothing
+            Nothing Nothing Nothing Descending Nothing
 
     (_, listTransactionsLimitedTime) <- bench "listTransactions (max_count=50)"
         $ unsafeRunExceptT
         $ W.listTransactions @_ @s @k ctx
-            wid Nothing Nothing Nothing Descending (Just 50)
+            Nothing Nothing Nothing Descending (Just 50)
 
     let era = Cardano.anyCardanoEra Cardano.BabbageEra
     (_, createMigrationPlanTime) <- bench "createMigrationPlan"
@@ -369,12 +369,12 @@ benchmarksShared BenchmarkConfig{benchmarkName,ctx,wid, networkId} = do
         $ fmap (fromIntegral . length)
         $ unsafeRunExceptT
         $ W.listTransactions @_ @s @k ctx
-            wid Nothing Nothing Nothing Descending Nothing
+            Nothing Nothing Nothing Descending Nothing
 
     (_, listTransactionsLimitedTime) <- bench "listTransactions (max_count=50)"
         $ unsafeRunExceptT
         $ W.listTransactions @_ @s @k ctx
-            wid Nothing Nothing Nothing Descending (Just 50)
+            Nothing Nothing Nothing Descending (Just 50)
 
     (_, selectAssetsTime) <- bench "selectAssets"
         $ selectAssets @_ @s @k @ktype networkId ctx wid
@@ -449,12 +449,12 @@ benchmarksRnd BenchmarkConfig{benchmarkName,ctx,wid, networkId} = do
         $ fmap (fromIntegral . length)
         $ unsafeRunExceptT
         $ W.listTransactions @_ @s @k ctx
-            wid Nothing Nothing Nothing Descending Nothing
+            Nothing Nothing Nothing Descending Nothing
 
     (_, listTransactionsLimitedTime) <- bench "listTransactions (max_count=50)"
         $ unsafeRunExceptT
         $ W.listTransactions @_ @s @k ctx
-            wid Nothing Nothing Nothing Descending (Just 50)
+            Nothing Nothing Nothing Descending (Just 50)
 
     let era = Cardano.anyCardanoEra Cardano.BabbageEra
     (_, createMigrationPlanTime) <- bench "createMigrationPlan"

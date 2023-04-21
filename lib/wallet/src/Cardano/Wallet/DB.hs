@@ -285,8 +285,7 @@ data DBLayer m s k = forall stm. (MonadIO stm, MonadFail stm) => DBLayer
         -- If the wallet doesn't exist, this operation returns an error.
 
     , readTransactions
-        :: WalletId
-        -> Maybe Coin
+        :: Maybe Coin
         -> SortOrder
         -> Range SlotNo
         -> Maybe TxStatus
@@ -511,7 +510,7 @@ mkDBLayerFromParts ti wid_ DBLayerCollection{..} = DBLayer
     , readDelegationRewardBalance = readDelegationRewardBalance_ dbDelegation
     , putTxHistory = \a -> wrapNoSuchWallet wid_ $
         putTxHistory_ dbTxHistory a
-    , readTransactions = \wid minWithdrawal order range status limit ->
+    , readTransactions = \minWithdrawal order range status limit ->
         readCurrentTip >>= \case
             Just tip -> do
                 inLedgers <- if status `elem` [Nothing, Just WTxMeta.InLedger]
@@ -525,7 +524,7 @@ mkDBLayerFromParts ti wid_ DBLayerCollection{..} = DBLayer
                         Just WTxMeta.Pending -> isInSubmission
                         Just WTxMeta.Expired -> isExpired
                         Just WTxMeta.InLedger -> const False
-                inSubmissionsRaw <- withSubmissions wid [] $
+                inSubmissionsRaw <- withSubmissions wid_ [] $
                         pure
                             . filter whichSubmission
                             . getInSubmissionTransactions

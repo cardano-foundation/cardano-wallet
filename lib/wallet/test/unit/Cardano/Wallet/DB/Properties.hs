@@ -165,7 +165,7 @@ properties withFreshDB = describe "DB.Properties" $ do
             $ prop_readAfterPut
                 testOnLayer
                 (\db _ -> putTxHistory_ db)
-                readTxHistory_
+                (\db _ -> readTxHistory_ db)
         it "Private Key"
             $ property
             $ prop_readAfterPut
@@ -205,7 +205,7 @@ properties withFreshDB = describe "DB.Properties" $ do
             $ prop_putBeforeInit
                 withFreshDB
                 (\db _ -> putTxHistory_ db)
-                readTxHistory_
+                (\db _ -> readTxHistory_ db)
                 (pure mempty)
         it "Private Key"
             $ property
@@ -222,14 +222,14 @@ properties withFreshDB = describe "DB.Properties" $ do
                 testOnLayer
                 (\DBLayer{..} _wid -> mapExceptT atomically . putCheckpoint)
                 (\DBLayer{..} _ -> atomically readWalletMeta)
-                readTxHistory_
+                (\db _ -> readTxHistory_ db)
                 (\DBLayer{..} -> atomically . readPrivateKey)
         it "Wallet Metadata vs Tx History & Checkpoint & Private Key"
             $ property
             $ prop_isolation
                 testOnLayer
                 (\DBLayer{..} _wid -> mapExceptT atomically . putWalletMeta)
-                readTxHistory_
+                (\db _ -> readTxHistory_ db)
                 (\DBLayer{..} _ -> atomically readCheckpoint)
                 (\DBLayer{..} -> atomically . readPrivateKey)
         it "Tx History vs Checkpoint & Wallet Metadata & Private Key"
@@ -265,7 +265,7 @@ properties withFreshDB = describe "DB.Properties" $ do
             $ prop_sequentialPut
                 testOnLayer
                 (\db _ -> putTxHistory_ db)
-                readTxHistory_
+                (\db _ -> readTxHistory_ db)
                 ( let sort' =
                         GenTxHistory
                             . filterTxHistory Nothing Descending wholeRange
@@ -292,12 +292,11 @@ properties withFreshDB = describe "DB.Properties" $ do
 readTxHistory_
     :: Functor m
     => DBLayer m s ShelleyKey
-    -> WalletId
-    -> m (Identity GenTxHistory)
-readTxHistory_ DBLayer {..} wid =
+    ->  m (Identity GenTxHistory)
+readTxHistory_ DBLayer {..} =
     (Identity . GenTxHistory . fmap toTxHistory)
         <$> atomically
-            (readTransactions wid Nothing Descending wholeRange Nothing Nothing)
+            (readTransactions Nothing Descending wholeRange Nothing Nothing)
 
 putTxHistory_
     :: Functor m
@@ -630,7 +629,6 @@ prop_rollbackTxHistory test (InitialCheckpoint cp0) (GenTxHistory txs0) = do
                 $ atomically
                 $ fmap toTxHistory
                     <$> readTransactions
-                        testWid
                         Nothing
                         Descending
                         wholeRange

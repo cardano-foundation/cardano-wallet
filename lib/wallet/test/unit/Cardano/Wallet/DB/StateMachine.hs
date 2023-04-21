@@ -347,7 +347,7 @@ data Cmd s wid
     | PutWalletMeta WalletMetadata
     | ReadWalletMeta
     | PutTxHistory TxHistory
-    | ReadTxHistory wid
+    | ReadTxHistory
         (Maybe Coin)
         SortOrder
         (Range SlotNo)
@@ -420,7 +420,7 @@ runMock = \case
         first (Resp . fmap StakeKeyStatus) . mIsStakeKeyRegistered
     PutTxHistory txs ->
         first (Resp . fmap Unit) . mPutTxHistory txs
-    ReadTxHistory _wid minW order range status ->
+    ReadTxHistory minW order range status ->
         first (Resp . fmap TxHistory)
         . mReadTxHistory timeInterpreter minW order range status
     GetTx _wid _tid ->
@@ -485,10 +485,10 @@ runIO DBLayer{..} = fmap Resp . go
             runDB atomically isStakeKeyRegistered
         PutTxHistory txs -> catchNoSuchWallet Unit $
             runDB atomically $ putTxHistory txs
-        ReadTxHistory _wid minWith order range status ->
+        ReadTxHistory minWith order range status ->
             fmap (Right . TxHistory) $
             atomically $
-            readTransactions wid minWith order range status Nothing
+            readTransactions minWith order range status Nothing
         GetTx _wid tid ->
             catchNoSuchWallet (TxHistory . maybe [] pure) $
             runDB atomically $ getTx wid tid
@@ -648,8 +648,7 @@ generatorWithWid wids =
         $ PutTxHistory <$> fmap unGenTxHistory arbitrary
     , declareGenerator "ReadTxHistory" 5
         $ ReadTxHistory
-            <$> genId
-            <*> genMinWithdrawal
+            <$> genMinWithdrawal
             <*> genSortOrder
             <*> genRange
             <*> arbitrary
@@ -711,8 +710,8 @@ shrinker (At cmd) = case cmd of
         [ At $ RollbackTo wid sid'
         | sid' <- shrink sid
         ]
-    ReadTxHistory wid minW so range status ->
-        [ At $ ReadTxHistory wid minW so range' status
+    ReadTxHistory minW so range status ->
+        [ At $ ReadTxHistory minW so range' status
         | range' <- shrink range
         ]
     _ -> []
