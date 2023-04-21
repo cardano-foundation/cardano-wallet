@@ -520,7 +520,7 @@ fileModeSpec =  do
                 atomically $ do
                     unsafeRunExceptT $
                         initializeWallet testCp testMetadata mempty gp
-                    unsafeRunExceptT $ putTxHistory testWid testTxs
+                    unsafeRunExceptT $ putTxHistory testTxs
             testReopening
                 f
                 (\db' ->
@@ -533,7 +533,7 @@ fileModeSpec =  do
                 atomically $ do
                     unsafeRunExceptT $
                         initializeWallet testCp testMetadata mempty gp
-                    unsafeRunExceptT $ putTxHistory testWid testTxs
+                    unsafeRunExceptT $ putTxHistory testTxs
             testReopening
                 f
                 (\db' ->
@@ -575,7 +575,7 @@ fileModeSpec =  do
                             applyBlock fakeBlock cpA
                     atomically $ do
                         unsafeRunExceptT $ putCheckpoint cpB
-                        unsafeRunExceptT $ putTxHistory testWid txs
+                        unsafeRunExceptT $ putTxHistory txs
                         unsafeRunExceptT $ prune testWid (Quantity 2_160)
                             $ 2_160 * 3 * 20
 

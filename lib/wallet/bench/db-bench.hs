@@ -511,7 +511,7 @@ benchPutTxHistory
     -> IO ()
 benchPutTxHistory numTxs numInputs numOutputs numAssets range DBLayer{..} = do
     let txs = mkTxHistory numTxs numInputs numOutputs numAssets range
-    unsafeRunExceptT $ mapExceptT atomically $ putTxHistory testWid txs
+    unsafeRunExceptT $ mapExceptT atomically $ putTxHistory txs
 
 benchReadTxHistory
     :: SortOrder
@@ -618,7 +618,7 @@ txHistoryFixture  bSize nAssets range db@DBLayer{..}= do
     walletFixture db
     let (nInps, nOuts) = (20, 20)
     let txs = mkTxHistory bSize nInps nOuts nAssets range
-    atomically $ unsafeRunExceptT $ putTxHistory testWid txs
+    atomically $ unsafeRunExceptT $ putTxHistory txs
 
 walletFixture :: DBLayerBench -> IO ()
 walletFixture DBLayer{initializeWallet, atomically} = do

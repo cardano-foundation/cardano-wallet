@@ -152,9 +152,9 @@ newDBLayer timeInterpreter wid = do
                                      Tx History
         -----------------------------------------------------------------------}
 
-        , putTxHistory = \_pk txh -> ExceptT $
-            alterDB errWalletNotInitialized db $
-            mPutTxHistory txh
+        , putTxHistory = ExceptT
+            . alterDB errWalletNotInitialized db
+            . mPutTxHistory
 
         , readTransactions = \_pk minWithdrawal order range mstatus _mlimit ->
             fmap (fromMaybe []) $

@@ -651,9 +651,8 @@ newDBLayerFromDBOpen ti wid_ DBOpen{atomically=runQuery} = mdo
       lookupTx = queryS transactionsQS . GetByTxId
       lookupTxOut = queryS transactionsQS . GetTxOut
       dbTxHistory = DBTxHistory
-        { putTxHistory_ = \wid ->
-            updateS (store transactionsQS) Nothing
-                . ExpandTxWalletsHistory wid
+        { putTxHistory_ = updateS (store transactionsQS) Nothing
+                . ExpandTxWalletsHistory wid_
 
         , readTxHistory_ = \range tip mlimit order -> do
             txs <- queryS transactionsQS $ SomeMetas range mlimit order

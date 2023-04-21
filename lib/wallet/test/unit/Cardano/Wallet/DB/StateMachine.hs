@@ -346,7 +346,7 @@ data Cmd s wid
     | ListCheckpoints
     | PutWalletMeta WalletMetadata
     | ReadWalletMeta
-    | PutTxHistory wid TxHistory
+    | PutTxHistory TxHistory
     | ReadTxHistory wid
         (Maybe Coin)
         SortOrder
@@ -418,7 +418,7 @@ runMock = \case
         first (Resp . fmap Unit) . mPutDelegationCertificate cert sl
     IsStakeKeyRegistered _wid ->
         first (Resp . fmap StakeKeyStatus) . mIsStakeKeyRegistered
-    PutTxHistory _wid txs ->
+    PutTxHistory txs ->
         first (Resp . fmap Unit) . mPutTxHistory txs
     ReadTxHistory _wid minW order range status ->
         first (Resp . fmap TxHistory)
@@ -483,8 +483,8 @@ runIO DBLayer{..} = fmap Resp . go
             runDB atomically $ putDelegationCertificate pool sl
         IsStakeKeyRegistered _wid -> catchNoSuchWallet StakeKeyStatus $
             runDB atomically isStakeKeyRegistered
-        PutTxHistory  _wid txs -> catchNoSuchWallet Unit $
-            runDB atomically $ putTxHistory wid txs
+        PutTxHistory txs -> catchNoSuchWallet Unit $
+            runDB atomically $ putTxHistory txs
         ReadTxHistory _wid minWith order range status ->
             fmap (Right . TxHistory) $
             atomically $
@@ -645,7 +645,7 @@ generatorWithWid wids =
     , declareGenerator "IsStakeKeyRegistered" 1
         $ IsStakeKeyRegistered <$> genId
     , declareGenerator "PutTxHistory" 5
-        $ PutTxHistory <$> genId <*> fmap unGenTxHistory arbitrary
+        $ PutTxHistory <$> fmap unGenTxHistory arbitrary
     , declareGenerator "ReadTxHistory" 5
         $ ReadTxHistory
             <$> genId
@@ -695,8 +695,8 @@ shrinker (At cmd) = case cmd of
     PutCheckpoint wal ->
         [ At $ PutCheckpoint wal'
         | wal' <- shrink wal ]
-    PutTxHistory wid h ->
-        [ At $ PutTxHistory wid h'
+    PutTxHistory h ->
+        [ At $ PutTxHistory h'
         | h' <- map unGenTxHistory . shrink . GenTxHistory $ h
         ]
     CreateWallet wal met txs gp ->
@@ -1083,7 +1083,7 @@ tag = Foldl.fold $ catMaybes <$> sequenceA
         update :: Bool -> Event s Symbolic -> Bool
         update didRead ev = didRead ||
             case (cmd ev, mockResp ev) of
-                (At (PutTxHistory _ h), Resp (Right _)) ->
+                (At (PutTxHistory h), Resp (Right _)) ->
                     any (isUnordered . sel . fst) h
                 _otherwise ->
                     False

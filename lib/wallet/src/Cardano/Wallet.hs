@@ -1196,7 +1196,7 @@ restoreBlocks ctx tr wid blocks nodeTip = db & \DBLayer{..} ->
         forM_ mcbor $ \cbor -> do
             traceWith tr $ MsgStoringCBOR cbor
 
-    mkNoSuchWalletError wid $ putTxHistory wid txs
+    mkNoSuchWalletError wid $ putTxHistory txs
 
     mkNoSuchWalletError wid
         $ rollForwardTxSubmissions wid (localTip ^. #slotNo)

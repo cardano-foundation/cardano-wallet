@@ -216,7 +216,7 @@ quitStakePoolDelegationAction db@DBLayer{..} walletId withdrawal = do
                 (ErrStakePoolDelegationNoSuchWallet
                     (ErrNoSuchWallet walletId))))
             pure
-    rewards <- liftIO $ fetchRewardBalance @s @k db walletId
+    rewards <- liftIO $ fetchRewardBalance @s @k db
     either (throwIO . ExceptionStakePoolDelegation . ErrStakePoolQuit) pure
         (guardQuit delegation withdrawal rewards)
     pure Tx.Quit

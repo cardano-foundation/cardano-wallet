@@ -275,8 +275,7 @@ data DBLayer m s k = forall stm. (MonadIO stm, MonadFail stm) => DBLayer
         -- stake.
 
     , putTxHistory
-        :: WalletId
-        -> [(Tx, TxMeta)]
+        :: [(Tx, TxMeta)]
         -> ExceptT ErrWalletNotInitialized stm ()
         -- ^ Augments the transaction history for a known wallet.
         --
@@ -510,8 +509,8 @@ mkDBLayerFromParts ti wid_ DBLayerCollection{..} = DBLayer
     , putDelegationRewardBalance = \a -> wrapNoSuchWallet wid_ $
         putDelegationRewardBalance_ dbDelegation a
     , readDelegationRewardBalance = readDelegationRewardBalance_ dbDelegation
-    , putTxHistory = \wid a -> wrapNoSuchWallet wid $
-        putTxHistory_ dbTxHistory wid a
+    , putTxHistory = \a -> wrapNoSuchWallet wid_ $
+        putTxHistory_ dbTxHistory a
     , readTransactions = \wid minWithdrawal order range status limit ->
         readCurrentTip >>= \case
             Just tip -> do
@@ -738,8 +737,7 @@ data DBDelegation stm = DBDelegation
 -- | A database layer that stores the transaction history.
 data DBTxHistory stm = DBTxHistory
     { putTxHistory_
-        :: WalletId
-        -> [(Tx, TxMeta)]
+        :: [(Tx, TxMeta)]
         -> stm ()
         -- ^ Augments the transaction history for a known wallet.
         --
