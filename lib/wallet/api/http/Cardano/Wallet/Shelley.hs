@@ -28,6 +28,16 @@ import Prelude
 
 import Cardano.Wallet
     ( WalletException )
+import Cardano.Wallet.Address.Derivation
+    ( Depth (..), PersistPrivateKey, WalletKey )
+import Cardano.Wallet.Address.Derivation.Byron
+    ( ByronKey )
+import Cardano.Wallet.Address.Derivation.Icarus
+    ( IcarusKey )
+import Cardano.Wallet.Address.Derivation.SharedKey
+    ( SharedKey )
+import Cardano.Wallet.Address.Derivation.Shelley
+    ( ShelleyKey )
 import Cardano.Wallet.Api
     ( ApiLayer, ApiV2 )
 import Cardano.Wallet.Api.Http.Logging
@@ -49,16 +59,6 @@ import Cardano.Wallet.Network
     ( NetworkLayer (..) )
 import Cardano.Wallet.Pools
     ( StakePoolLayer (..), withNodeStakePoolLayer, withStakePoolDbLayer )
-import Cardano.Wallet.Primitive.AddressDerivation
-    ( Depth (..), PersistPrivateKey, WalletKey )
-import Cardano.Wallet.Primitive.AddressDerivation.Byron
-    ( ByronKey )
-import Cardano.Wallet.Primitive.AddressDerivation.Icarus
-    ( IcarusKey )
-import Cardano.Wallet.Primitive.AddressDerivation.SharedKey
-    ( SharedKey )
-import Cardano.Wallet.Primitive.AddressDerivation.Shelley
-    ( ShelleyKey )
 import Cardano.Wallet.Primitive.AddressDiscovery
     ( IsOurs, MaybeLight )
 import Cardano.Wallet.Primitive.AddressDiscovery.Random

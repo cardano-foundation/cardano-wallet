@@ -20,7 +20,7 @@
 -- Where purpose' and coin_type' are fixed, and each new policy_ix' represents a
 -- different policy key.
 
-module Cardano.Wallet.Primitive.AddressDerivation.MintBurn
+module Cardano.Wallet.Address.Derivation.MintBurn
     ( -- * Constants
       purposeCIP1855
       -- * Helpers
@@ -43,7 +43,7 @@ import Cardano.Crypto.Wallet
     ( deriveXPrv )
 import Cardano.Crypto.Wallet.Types
     ( DerivationScheme (DerivationScheme2) )
-import Cardano.Wallet.Primitive.AddressDerivation
+import Cardano.Wallet.Address.Derivation
     ( Depth (..)
     , DerivationIndex (..)
     , DerivationType (..)

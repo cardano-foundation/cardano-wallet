@@ -32,6 +32,8 @@ import Cardano.Pool.Metadata.Types
     ( StakePoolMetadataHash, StakePoolMetadataUrl )
 import Cardano.Pool.Types
     ( PoolId (..), PoolOwner )
+import Cardano.Wallet.Address.Derivation
+    ( DerivationIndex (..) )
 import Cardano.Wallet.Api.Aeson
     ( eitherToParser )
 import Cardano.Wallet.Api.Lib.ApiT
@@ -40,8 +42,6 @@ import Cardano.Wallet.Api.Lib.ExtendedObject
     ( extendAesonObject, parseExtendedAesonObject )
 import Cardano.Wallet.Api.Types.Primitive
     ()
-import Cardano.Wallet.Primitive.AddressDerivation
-    ( DerivationIndex (..) )
 import Cardano.Wallet.Primitive.Types
     ( NonWalletCertificate )
 import Cardano.Wallet.Primitive.Types.Coin

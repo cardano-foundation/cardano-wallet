@@ -45,7 +45,7 @@ import Prelude
 
 import Cardano.Address.Derivation
     ( XPub, xpubToBytes )
-import Cardano.Wallet.Primitive.AddressDerivation
+import Cardano.Wallet.Address.Derivation
     ( Depth (..), DerivationType (..), Index (..) )
 import Cardano.Wallet.Primitive.Passphrase
     ( Passphrase (..) )

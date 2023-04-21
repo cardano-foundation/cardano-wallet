@@ -8,7 +8,7 @@
 
 {-# OPTIONS_GHC -fno-warn-orphans #-}
 
-module Cardano.Wallet.Primitive.AddressDerivation.IcarusSpec
+module Cardano.Wallet.Address.Derivation.IcarusSpec
     ( spec
     ) where
 
@@ -18,9 +18,7 @@ import Cardano.Address.Derivation
     ( XPrv )
 import Cardano.Mnemonic
     ( SomeMnemonic (..) )
-import Cardano.Wallet.Gen
-    ( genLegacyAddress )
-import Cardano.Wallet.Primitive.AddressDerivation
+import Cardano.Wallet.Address.Derivation
     ( Depth (..)
     , DerivationType (..)
     , HardDerivation (..)
@@ -31,14 +29,16 @@ import Cardano.Wallet.Primitive.AddressDerivation
     , SoftDerivation (..)
     , WalletKey (..)
     )
-import Cardano.Wallet.Primitive.AddressDerivation.Icarus
+import Cardano.Wallet.Address.Derivation.Icarus
     ( IcarusKey (..)
     , generateKeyFromSeed
     , minSeedLengthBytes
     , unsafeGenerateKeyFromSeed
     )
-import Cardano.Wallet.Primitive.AddressDerivationSpec
+import Cardano.Wallet.Address.DerivationSpec
     ()
+import Cardano.Wallet.Gen
+    ( genLegacyAddress )
 import Cardano.Wallet.Primitive.Passphrase.Types
     ( Passphrase (..) )
 import Cardano.Wallet.Primitive.Types.Address

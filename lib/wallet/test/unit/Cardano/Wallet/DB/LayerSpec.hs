@@ -53,6 +53,24 @@ import Cardano.Mnemonic
     ( SomeMnemonic (..) )
 import Cardano.Wallet
     ( mkNoSuchWalletError )
+import Cardano.Wallet.Address.Derivation
+    ( Depth (..)
+    , DerivationType (..)
+    , Index
+    , PaymentAddress (..)
+    , PersistPrivateKey
+    , WalletKey
+    )
+import Cardano.Wallet.Address.Derivation.Byron
+    ( ByronKey (..) )
+import Cardano.Wallet.Address.Derivation.Icarus
+    ( IcarusKey )
+import Cardano.Wallet.Address.Derivation.Shared
+    ()
+import Cardano.Wallet.Address.Derivation.SharedKey
+    ( SharedKey )
+import Cardano.Wallet.Address.Derivation.Shelley
+    ( ShelleyKey (..), generateKeyFromSeed )
 import Cardano.Wallet.DB
     ( DBFactory (..), DBLayer (..) )
 import Cardano.Wallet.DB.Layer
@@ -84,24 +102,6 @@ import Cardano.Wallet.Gen
     ( genMnemonic )
 import Cardano.Wallet.Logging
     ( trMessageText )
-import Cardano.Wallet.Primitive.AddressDerivation
-    ( Depth (..)
-    , DerivationType (..)
-    , Index
-    , PaymentAddress (..)
-    , PersistPrivateKey
-    , WalletKey
-    )
-import Cardano.Wallet.Primitive.AddressDerivation.Byron
-    ( ByronKey (..) )
-import Cardano.Wallet.Primitive.AddressDerivation.Icarus
-    ( IcarusKey )
-import Cardano.Wallet.Primitive.AddressDerivation.Shared
-    ()
-import Cardano.Wallet.Primitive.AddressDerivation.SharedKey
-    ( SharedKey )
-import Cardano.Wallet.Primitive.AddressDerivation.Shelley
-    ( ShelleyKey (..), generateKeyFromSeed )
 import Cardano.Wallet.Primitive.AddressDiscovery
     ( KnownAddresses (..) )
 import Cardano.Wallet.Primitive.AddressDiscovery.Random
@@ -271,9 +271,9 @@ import UnliftIO.STM
 import UnliftIO.Temporary
     ( withSystemTempDirectory, withSystemTempFile )
 
+import qualified Cardano.Wallet.Address.Derivation.Shelley as Seq
 import qualified Cardano.Wallet.DB.Sqlite.Schema as DB
 import qualified Cardano.Wallet.DB.Sqlite.Types as DB
-import qualified Cardano.Wallet.Primitive.AddressDerivation.Shelley as Seq
 import qualified Cardano.Wallet.Primitive.Types.Coin as Coin
 import qualified Cardano.Wallet.Primitive.Types.TokenBundle as TokenBundle
 import qualified Data.ByteArray as BA

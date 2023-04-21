@@ -18,7 +18,7 @@
 --
 -- Definition of 'Shared' Keys.
 
-module Cardano.Wallet.Primitive.AddressDerivation.SharedKey
+module Cardano.Wallet.Address.Derivation.SharedKey
     ( -- * Types
       SharedKey(..)
 
@@ -36,7 +36,7 @@ import Cardano.Address.Style.Shared
     ( deriveAddressPublicKey, deriveDelegationPublicKey, hashKey, liftXPub )
 import Cardano.Address.Style.Shelley
     ( Credential (..), delegationAddress, paymentAddress )
-import Cardano.Wallet.Primitive.AddressDerivation
+import Cardano.Wallet.Address.Derivation
     ( Depth (..), DerivationType (..), Index (..), Role (..) )
 import Cardano.Wallet.Primitive.Types.Address
     ( Address (..) )

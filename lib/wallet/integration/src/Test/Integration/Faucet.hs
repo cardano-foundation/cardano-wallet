@@ -64,7 +64,7 @@ import Cardano.Mnemonic
     , genEntropy
     , mnemonicToText
     )
-import Cardano.Wallet.Primitive.AddressDerivation
+import Cardano.Wallet.Address.Derivation
     ( DerivationType (..)
     , HardDerivation (..)
     , PaymentAddress (..)
@@ -104,9 +104,9 @@ import GHC.TypeLits
 import UnliftIO.MVar
     ( MVar, modifyMVar )
 
-import qualified Cardano.Wallet.Primitive.AddressDerivation.Byron as Byron
-import qualified Cardano.Wallet.Primitive.AddressDerivation.Icarus as Icarus
-import qualified Cardano.Wallet.Primitive.AddressDerivation.Shelley as Shelley
+import qualified Cardano.Wallet.Address.Derivation.Byron as Byron
+import qualified Cardano.Wallet.Address.Derivation.Icarus as Icarus
+import qualified Cardano.Wallet.Address.Derivation.Shelley as Shelley
 import qualified Cardano.Wallet.Primitive.Types.TokenBundle as TokenBundle
 import qualified Data.ByteString.Char8 as B8
 import qualified Data.List.NonEmpty as NE

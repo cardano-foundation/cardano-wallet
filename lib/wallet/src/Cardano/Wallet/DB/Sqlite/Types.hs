@@ -36,7 +36,7 @@ import Cardano.Pool.Types
     ( PoolId )
 import Cardano.Slotting.Slot
     ( SlotNo (..) )
-import Cardano.Wallet.Primitive.AddressDerivation
+import Cardano.Wallet.Address.Derivation
     ( Role (..) )
 import Cardano.Wallet.Primitive.AddressDiscovery.Sequential
     ( AddressPoolGap (..)

@@ -35,6 +35,13 @@ import Cardano.Pool.Metadata.Types
     ( StakePoolMetadataHash (..), StakePoolMetadataUrl (..) )
 import Cardano.Pool.Types
     ( PoolId (..), PoolOwner (..), decodePoolIdBech32 )
+import Cardano.Wallet.Address.Derivation
+    ( DerivationIndex (..)
+    , HardDerivation (..)
+    , Role (..)
+    , WalletKey (..)
+    , hex
+    )
 import Cardano.Wallet.Api.Hex
     ( fromHexText )
 import Cardano.Wallet.Api.Types
@@ -76,13 +83,6 @@ import Cardano.Wallet.Api.Types.Transaction
     ( ApiAddress (..), ApiValidityIntervalExplicit (..), mkApiWitnessCount )
 import Cardano.Wallet.Pools
     ( StakePool )
-import Cardano.Wallet.Primitive.AddressDerivation
-    ( DerivationIndex (..)
-    , HardDerivation (..)
-    , Role (..)
-    , WalletKey (..)
-    , hex
-    )
 import Cardano.Wallet.Primitive.Types
     ( EpochNo (..), NonWalletCertificate (..), SlotNo (..) )
 import Cardano.Wallet.Primitive.Types.Coin
@@ -229,8 +229,8 @@ import qualified Cardano.Api.Shelley as Cardano
 import qualified Cardano.Ledger.Alonzo.Tx as Alonzo
 import qualified Cardano.Ledger.Crypto as Ledger
 import qualified Cardano.Ledger.Keys as Ledger
+import qualified Cardano.Wallet.Address.Derivation.Shelley as Shelley
 import qualified Cardano.Wallet.Api.Link as Link
-import qualified Cardano.Wallet.Primitive.AddressDerivation.Shelley as Shelley
 import qualified Cardano.Wallet.Primitive.Types.TokenMap as TokenMap
 import qualified Data.Aeson as Aeson
 import qualified Data.List.NonEmpty as NE

@@ -20,7 +20,7 @@
 --
 -- Implementation of address derivation for 'Shared' Keys.
 
-module Cardano.Wallet.Primitive.AddressDerivation.Shared
+module Cardano.Wallet.Address.Derivation.Shared
     ( -- * Types
       SharedKey(..)
 
@@ -42,7 +42,7 @@ import Cardano.Crypto.Wallet
     ( XPrv, XPub, toXPub, unXPrv, unXPub, xprv, xpub )
 import Cardano.Mnemonic
     ( SomeMnemonic )
-import Cardano.Wallet.Primitive.AddressDerivation
+import Cardano.Wallet.Address.Derivation
     ( AddressParts (..)
     , BoundedAddressLength (..)
     , Depth (..)
@@ -61,9 +61,9 @@ import Cardano.Wallet.Primitive.AddressDerivation
     , hex
     , toAddressParts
     )
-import Cardano.Wallet.Primitive.AddressDerivation.SharedKey
+import Cardano.Wallet.Address.Derivation.SharedKey
     ( SharedKey (..), purposeCIP1854 )
-import Cardano.Wallet.Primitive.AddressDerivation.Shelley
+import Cardano.Wallet.Address.Derivation.Shelley
     ( deriveAccountPrivateKeyShelley
     , deriveAddressPrivateKeyShelley
     , deriveAddressPublicKeyShelley

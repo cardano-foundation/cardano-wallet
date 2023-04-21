@@ -18,7 +18,7 @@
 -- Implementation of address derivation for 'Icarus' keys. This uses the Byron
 -- derivation for addresses, but on top of the derivation scheme V2.
 
-module Cardano.Wallet.Primitive.AddressDerivation.Icarus
+module Cardano.Wallet.Address.Derivation.Icarus
     ( -- * Types
       IcarusKey(..)
 
@@ -46,7 +46,7 @@ import Cardano.Crypto.Wallet
     )
 import Cardano.Mnemonic
     ( SomeMnemonic (..), entropyToBytes, mnemonicToEntropy, mnemonicToText )
-import Cardano.Wallet.Primitive.AddressDerivation
+import Cardano.Wallet.Address.Derivation
     ( BoundedAddressLength (..)
     , Depth (..)
     , DerivationType (..)

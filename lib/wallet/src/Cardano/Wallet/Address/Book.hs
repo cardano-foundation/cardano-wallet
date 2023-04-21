@@ -27,16 +27,16 @@ module Cardano.Wallet.Address.Book
 
 import Prelude
 
-import Cardano.Wallet.Primitive.AddressDerivation
+import Cardano.Wallet.Address.Derivation
     ( Depth (..)
     , DerivationType (..)
     , Index (..)
     , KeyFingerprint (..)
     , Role (..)
     )
-import Cardano.Wallet.Primitive.AddressDerivation.Shared
+import Cardano.Wallet.Address.Derivation.Shared
     ()
-import Cardano.Wallet.Primitive.AddressDerivation.SharedKey
+import Cardano.Wallet.Address.Derivation.SharedKey
     ( SharedKey (..) )
 import Cardano.Wallet.Primitive.Types.Address
     ( Address (..), AddressState (..) )

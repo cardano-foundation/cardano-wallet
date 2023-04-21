@@ -41,6 +41,8 @@ import Prelude
 
 import Cardano.Address.Derivation
     ( XPrv )
+import Cardano.Wallet.Address.Derivation
+    ( Depth (..) )
 import Cardano.Wallet.DB.Errors
 import Cardano.Wallet.DB.Store.Submissions.Layer
     ( getInSubmissionTransaction, getInSubmissionTransactions )
@@ -61,8 +63,6 @@ import Cardano.Wallet.DB.WalletState
     , WalletState (submissions)
     , adjustNoSuchWallet
     )
-import Cardano.Wallet.Primitive.AddressDerivation
-    ( Depth (..) )
 import Cardano.Wallet.Primitive.Model
     ( Wallet, currentTip )
 import Cardano.Wallet.Primitive.Passphrase

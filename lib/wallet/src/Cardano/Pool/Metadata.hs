@@ -54,7 +54,7 @@ import Cardano.Pool.Metadata.Types
     )
 import Cardano.Pool.Types
     ( PoolId, decodePoolIdBech32 )
-import Cardano.Wallet.Primitive.AddressDerivation
+import Cardano.Wallet.Address.Derivation
     ( hex )
 import Control.Error
     ( note )

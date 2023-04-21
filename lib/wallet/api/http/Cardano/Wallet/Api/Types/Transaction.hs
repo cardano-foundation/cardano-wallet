@@ -37,6 +37,8 @@ module Cardano.Wallet.Api.Types.Transaction
 
 import Prelude
 
+import Cardano.Wallet.Address.Derivation
+    ( DerivationIndex (..) )
 import Cardano.Wallet.Api.Aeson
     ( eitherToParser )
 import Cardano.Wallet.Api.Lib.ApiAsArray
@@ -51,8 +53,6 @@ import Cardano.Wallet.Api.Types.MintBurn
     ( ApiAssetMintBurn )
 import Cardano.Wallet.Api.Types.Primitive
     ()
-import Cardano.Wallet.Primitive.AddressDerivation
-    ( DerivationIndex (..) )
 import Cardano.Wallet.Primitive.Passphrase.Types
     ( Passphrase (..) )
 import Cardano.Wallet.Primitive.Types.Address

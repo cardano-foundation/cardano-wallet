@@ -14,6 +14,10 @@ import Cardano.DB.Sqlite
     ( ForeignKeysSetting (..), SqliteContext (runQuery) )
 import Cardano.Wallet.Address.Book
     ( AddressBookIso (..), Prologue, getPrologue )
+import Cardano.Wallet.Address.Derivation.Shared
+    ( SharedKey )
+import Cardano.Wallet.Address.Derivation.Shelley
+    ( ShelleyKey )
 import Cardano.Wallet.Checkpoints
     ( DeltaCheckpoints (..) )
 import Cardano.Wallet.DB.Arbitrary
@@ -30,10 +34,6 @@ import Cardano.Wallet.DB.WalletState
     , getLatest
     , getSlot
     )
-import Cardano.Wallet.Primitive.AddressDerivation.Shared
-    ( SharedKey )
-import Cardano.Wallet.Primitive.AddressDerivation.Shelley
-    ( ShelleyKey )
 import Cardano.Wallet.Primitive.AddressDiscovery.Random
     ( RndState )
 import Cardano.Wallet.Primitive.AddressDiscovery.Sequential

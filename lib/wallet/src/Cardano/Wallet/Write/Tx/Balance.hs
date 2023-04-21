@@ -51,9 +51,9 @@ import Cardano.Tx.Balance.Internal.CoinSelection
     , performSelection
     , toExternalUTxOMap
     )
-import Cardano.Wallet.Primitive.AddressDerivation
+import Cardano.Wallet.Address.Derivation
     ( Depth (..) )
-import Cardano.Wallet.Primitive.AddressDerivation.Shared
+import Cardano.Wallet.Address.Derivation.Shared
     ( SharedKey (..) )
 import Cardano.Wallet.Primitive.Slotting
     ( PastHorizonException, TimeInterpreter )

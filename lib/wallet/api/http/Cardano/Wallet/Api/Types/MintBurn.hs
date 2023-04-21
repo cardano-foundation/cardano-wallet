@@ -21,6 +21,8 @@ module Cardano.Wallet.Api.Types.MintBurn
 
 import Prelude
 
+import Cardano.Wallet.Address.Derivation
+    ( Depth (..), DerivationIndex (..), DerivationType (..), Index, getIndex )
 import Cardano.Wallet.Api.Lib.ApiT
     ( ApiT (..) )
 import Cardano.Wallet.Api.Lib.Options
@@ -29,8 +31,6 @@ import Cardano.Wallet.Api.Types.Key
     ( ApiPolicyKey )
 import Cardano.Wallet.Api.Types.Primitive
     ()
-import Cardano.Wallet.Primitive.AddressDerivation
-    ( Depth (..), DerivationIndex (..), DerivationType (..), Index, getIndex )
 import Cardano.Wallet.Primitive.Types.TokenMap
     ( toNestedList )
 import Cardano.Wallet.Primitive.Types.TokenPolicy

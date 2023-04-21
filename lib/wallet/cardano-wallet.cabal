@@ -226,6 +226,13 @@ library
     Cardano.Pool.Types
     Cardano.Wallet
     Cardano.Wallet.Address.Book
+    Cardano.Wallet.Address.Derivation
+    Cardano.Wallet.Address.Derivation.Byron
+    Cardano.Wallet.Address.Derivation.Icarus
+    Cardano.Wallet.Address.Derivation.MintBurn
+    Cardano.Wallet.Address.Derivation.Shared
+    Cardano.Wallet.Address.Derivation.SharedKey
+    Cardano.Wallet.Address.Derivation.Shelley
     Cardano.Wallet.Address.HasDelegation
     Cardano.Wallet.Address.Pool
     Cardano.Wallet.Byron.Compatibility
@@ -268,13 +275,6 @@ library
     Cardano.Wallet.Network.Ports
     Cardano.Wallet.Orphans
     Cardano.Wallet.Pools
-    Cardano.Wallet.Primitive.AddressDerivation
-    Cardano.Wallet.Primitive.AddressDerivation.Byron
-    Cardano.Wallet.Primitive.AddressDerivation.Icarus
-    Cardano.Wallet.Primitive.AddressDerivation.MintBurn
-    Cardano.Wallet.Primitive.AddressDerivation.Shared
-    Cardano.Wallet.Primitive.AddressDerivation.SharedKey
-    Cardano.Wallet.Primitive.AddressDerivation.Shelley
     Cardano.Wallet.Primitive.AddressDiscovery
     Cardano.Wallet.Primitive.AddressDiscovery.Random
     Cardano.Wallet.Primitive.AddressDiscovery.Sequential
@@ -873,6 +873,10 @@ test-suite unit
     Cardano.Pool.DB.Properties
     Cardano.Pool.DB.SqliteSpec
     Cardano.Pool.RankSpec
+    Cardano.Wallet.Address.Derivation.ByronSpec
+    Cardano.Wallet.Address.Derivation.IcarusSpec
+    Cardano.Wallet.Address.Derivation.MintBurnSpec
+    Cardano.Wallet.Address.DerivationSpec
     Cardano.Wallet.Address.PoolSpec
     Cardano.Wallet.Api.Malformed
     Cardano.Wallet.Api.Server.TlsSpec
@@ -901,10 +905,6 @@ test-suite unit
     Cardano.Wallet.Network.LightSpec
     Cardano.Wallet.Network.PortsSpec
     Cardano.Wallet.NetworkSpec
-    Cardano.Wallet.Primitive.AddressDerivation.ByronSpec
-    Cardano.Wallet.Primitive.AddressDerivation.IcarusSpec
-    Cardano.Wallet.Primitive.AddressDerivation.MintBurnSpec
-    Cardano.Wallet.Primitive.AddressDerivationSpec
     Cardano.Wallet.Primitive.AddressDiscovery.RandomSpec
     Cardano.Wallet.Primitive.AddressDiscovery.SequentialSpec
     Cardano.Wallet.Primitive.AddressDiscovery.SharedSpec

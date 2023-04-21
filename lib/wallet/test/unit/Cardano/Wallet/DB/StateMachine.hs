@@ -58,6 +58,22 @@ import Cardano.Pool.Types
     ( PoolId (..) )
 import Cardano.Wallet
     ( mkNoSuchWalletError )
+import Cardano.Wallet.Address.Derivation
+    ( Depth (..)
+    , DerivationPrefix
+    , Index
+    , KeyFingerprint
+    , PersistPrivateKey (..)
+    , Role (..)
+    )
+import Cardano.Wallet.Address.Derivation.Byron
+    ( ByronKey )
+import Cardano.Wallet.Address.Derivation.Shared
+    ()
+import Cardano.Wallet.Address.Derivation.SharedKey
+    ( SharedKey )
+import Cardano.Wallet.Address.Derivation.Shelley
+    ( ShelleyKey )
 import Cardano.Wallet.DB
     ( DBLayer (..)
     , ErrWalletAlreadyInitialized (ErrWalletAlreadyInitialized)
@@ -92,22 +108,6 @@ import Cardano.Wallet.DB.WalletState
     ( ErrNoSuchWallet (..) )
 import Cardano.Wallet.DummyTarget.Primitive.Types
     ( dummyGenesisParameters, dummyTimeInterpreter )
-import Cardano.Wallet.Primitive.AddressDerivation
-    ( Depth (..)
-    , DerivationPrefix
-    , Index
-    , KeyFingerprint
-    , PersistPrivateKey (..)
-    , Role (..)
-    )
-import Cardano.Wallet.Primitive.AddressDerivation.Byron
-    ( ByronKey )
-import Cardano.Wallet.Primitive.AddressDerivation.Shared
-    ()
-import Cardano.Wallet.Primitive.AddressDerivation.SharedKey
-    ( SharedKey )
-import Cardano.Wallet.Primitive.AddressDerivation.Shelley
-    ( ShelleyKey )
 import Cardano.Wallet.Primitive.AddressDiscovery
     ( PendingIxs )
 import Cardano.Wallet.Primitive.AddressDiscovery.Random

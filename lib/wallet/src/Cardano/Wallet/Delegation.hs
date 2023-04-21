@@ -40,12 +40,12 @@ import Cardano.Wallet
     , transactionExpirySlot
     , withNoSuchWallet
     )
+import Cardano.Wallet.Address.Derivation.Shelley
+    ( ShelleyKey (..) )
 import Cardano.Wallet.DB
     ( DBLayer (..) )
 import Cardano.Wallet.Network
     ( NetworkLayer (..) )
-import Cardano.Wallet.Primitive.AddressDerivation.Shelley
-    ( ShelleyKey (..) )
 import Cardano.Wallet.Primitive.AddressDiscovery.Sequential
     ( SeqState (..) )
 import Cardano.Wallet.Primitive.Slotting

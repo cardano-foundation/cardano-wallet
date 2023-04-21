@@ -40,6 +40,18 @@ import Cardano.Wallet
     , normalizeDelegationAddress
     , normalizeSharedAddress
     )
+import Cardano.Wallet.Address.Derivation
+    ( Depth (..), Role (..), delegationAddressS, paymentAddressS )
+import Cardano.Wallet.Address.Derivation.Byron
+    ( ByronKey )
+import Cardano.Wallet.Address.Derivation.Icarus
+    ( IcarusKey (..) )
+import Cardano.Wallet.Address.Derivation.Shared
+    ( SharedKey (..) )
+import Cardano.Wallet.Address.Derivation.SharedKey
+    ( constructAddressFromIx )
+import Cardano.Wallet.Address.Derivation.Shelley
+    ( ShelleyKey (..) )
 import Cardano.Wallet.Api
     ( Addresses
     , Api
@@ -171,18 +183,6 @@ import Cardano.Wallet.Api.Types.SchemaMetadata
     ( TxMetadataSchema (..), parseSimpleMetadataFlag )
 import Cardano.Wallet.Pools
     ( StakePoolLayer (..) )
-import Cardano.Wallet.Primitive.AddressDerivation
-    ( Depth (..), Role (..), delegationAddressS, paymentAddressS )
-import Cardano.Wallet.Primitive.AddressDerivation.Byron
-    ( ByronKey )
-import Cardano.Wallet.Primitive.AddressDerivation.Icarus
-    ( IcarusKey (..) )
-import Cardano.Wallet.Primitive.AddressDerivation.Shared
-    ( SharedKey (..) )
-import Cardano.Wallet.Primitive.AddressDerivation.SharedKey
-    ( constructAddressFromIx )
-import Cardano.Wallet.Primitive.AddressDerivation.Shelley
-    ( ShelleyKey (..) )
 import Cardano.Wallet.Primitive.AddressDiscovery.Random
     ( RndState )
 import Cardano.Wallet.Primitive.AddressDiscovery.Sequential
@@ -228,8 +228,8 @@ import qualified Cardano.Address.Derivation as CA
 import qualified Cardano.Address.Script as CA
 import qualified Cardano.Address.Style.Shelley as CA
 import qualified Cardano.Api as Cardano
-import qualified Cardano.Wallet.Primitive.AddressDerivation.Shared as Shared
-import qualified Cardano.Wallet.Primitive.AddressDerivation.Shelley as Shelley
+import qualified Cardano.Wallet.Address.Derivation.Shared as Shared
+import qualified Cardano.Wallet.Address.Derivation.Shelley as Shelley
 import qualified Data.Text as T
 
 server

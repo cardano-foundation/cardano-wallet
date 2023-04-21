@@ -51,6 +51,8 @@ module Cardano.Wallet.Api.Malformed
 
 import Prelude
 
+import Cardano.Wallet.Address.Derivation
+    ( DerivationIndex (..), Role (..) )
 import Cardano.Wallet.Api.Types
     ( ApiAddress
     , ApiAddressData
@@ -88,8 +90,6 @@ import Cardano.Wallet.Api.Types
     , WalletPutData
     , WalletPutPassphraseData
     )
-import Cardano.Wallet.Primitive.AddressDerivation
-    ( DerivationIndex (..), Role (..) )
 import Cardano.Wallet.Primitive.Types
     ( WalletId, walletNameMaxLength )
 import Cardano.Wallet.Primitive.Types.TokenPolicy

@@ -279,6 +279,8 @@ import Cardano.Pool.Metadata.Types
     ( PoolMetadataGCStatus (..), StakePoolMetadata (..) )
 import Cardano.Pool.Types
     ( PoolId (..), decodePoolIdBech32, encodePoolIdBech32 )
+import Cardano.Wallet.Address.Derivation
+    ( Depth (..), DerivationIndex (..), Index (..) )
 import Cardano.Wallet.Api.Aeson
     ( eitherToParser )
 import Cardano.Wallet.Api.Aeson.Variant
@@ -338,8 +340,6 @@ import Cardano.Wallet.Api.Types.Transaction
     )
 import Cardano.Wallet.Pools
     ( EpochInfo, StakePool (..), StakePoolFlag, StakePoolMetrics )
-import Cardano.Wallet.Primitive.AddressDerivation
-    ( Depth (..), DerivationIndex (..), Index (..) )
 import Cardano.Wallet.Primitive.AddressDiscovery.Random
     ( RndState )
 import Cardano.Wallet.Primitive.AddressDiscovery.Sequential
@@ -505,7 +505,7 @@ import Web.HttpApiData
 
 import qualified Cardano.Address.Script as CA
 import qualified Cardano.Crypto.Wallet as CC
-import qualified Cardano.Wallet.Primitive.AddressDerivation as AD
+import qualified Cardano.Wallet.Address.Derivation as AD
 import qualified Cardano.Wallet.Primitive.Types as W
 import qualified Cardano.Wallet.Primitive.Types.TokenPolicy as W
 import qualified Cardano.Wallet.Write.Tx as WriteTx

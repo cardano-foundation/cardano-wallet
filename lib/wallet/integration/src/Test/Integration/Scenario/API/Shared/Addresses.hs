@@ -19,10 +19,10 @@ module Test.Integration.Scenario.API.Shared.Addresses
 
 import Prelude
 
+import Cardano.Wallet.Address.Derivation.SharedKey
+    ( purposeCIP1854 )
 import Cardano.Wallet.Api.Types
     ( ApiAddressWithPath, ApiSharedWallet (..), WalletStyle (..) )
-import Cardano.Wallet.Primitive.AddressDerivation.SharedKey
-    ( purposeCIP1854 )
 import Cardano.Wallet.Primitive.AddressDiscovery.Sequential
     ( defaultAddressPoolGap, getAddressPoolGap )
 import Cardano.Wallet.Primitive.Types.Address

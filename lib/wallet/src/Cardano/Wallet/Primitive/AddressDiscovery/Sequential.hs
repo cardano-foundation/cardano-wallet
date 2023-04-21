@@ -77,7 +77,7 @@ import Cardano.Address.Script
     ( Cosigner (..), KeyHash (..), KeyRole (..), ScriptTemplate (..) )
 import Cardano.Crypto.Wallet
     ( XPrv, XPub )
-import Cardano.Wallet.Primitive.AddressDerivation
+import Cardano.Wallet.Address.Derivation
     ( AddressParts (..)
     , DelegationAddress (..)
     , Depth (..)
@@ -100,9 +100,9 @@ import Cardano.Wallet.Primitive.AddressDerivation
     , toAddressParts
     , unsafePaymentKeyFingerprint
     )
-import Cardano.Wallet.Primitive.AddressDerivation.MintBurn
+import Cardano.Wallet.Address.Derivation.MintBurn
     ( derivePolicyPrivateKey )
-import Cardano.Wallet.Primitive.AddressDerivation.SharedKey
+import Cardano.Wallet.Address.Derivation.SharedKey
     ( SharedKey (..) )
 import Cardano.Wallet.Primitive.AddressDiscovery
     ( CompareDiscovery (..)

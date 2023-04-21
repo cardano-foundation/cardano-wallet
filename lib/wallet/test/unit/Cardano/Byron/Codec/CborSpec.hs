@@ -26,9 +26,9 @@ import Cardano.Byron.Codec.Cbor
     )
 import Cardano.Mnemonic
     ( MkSomeMnemonic (..) )
-import Cardano.Wallet.Primitive.AddressDerivation
+import Cardano.Wallet.Address.Derivation
     ( Depth (..), DerivationType (..), Index (..) )
-import Cardano.Wallet.Primitive.AddressDerivation.Byron
+import Cardano.Wallet.Address.Derivation.Byron
     ( ByronKey (..), generateKeyFromSeed )
 import Cardano.Wallet.Primitive.Passphrase.Types
     ( Passphrase (..) )

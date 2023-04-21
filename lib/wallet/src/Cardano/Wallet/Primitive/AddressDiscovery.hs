@@ -43,7 +43,7 @@ import Prelude
 
 import Cardano.Crypto.Wallet
     ( XPrv, XPub )
-import Cardano.Wallet.Primitive.AddressDerivation
+import Cardano.Wallet.Address.Derivation
     ( Depth (..)
     , DerivationIndex (..)
     , DerivationType (..)

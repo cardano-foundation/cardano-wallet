@@ -25,9 +25,7 @@ import Cardano.Address.Script
     , ValidationLevel (..)
     , validateScriptTemplate
     )
-import Cardano.Wallet.Gen
-    ( genNatural, genScript, genScriptTemplate )
-import Cardano.Wallet.Primitive.AddressDerivation
+import Cardano.Wallet.Address.Derivation
     ( Depth (..)
     , DerivationType (..)
     , HardDerivation (..)
@@ -36,10 +34,12 @@ import Cardano.Wallet.Primitive.AddressDerivation
     , Role (..)
     , WalletKey (..)
     )
-import Cardano.Wallet.Primitive.AddressDerivation.Shared
+import Cardano.Wallet.Address.Derivation.Shared
     ( unsafeGenerateKeyFromSeed )
-import Cardano.Wallet.Primitive.AddressDerivation.SharedKey
+import Cardano.Wallet.Address.Derivation.SharedKey
     ( SharedKey (..), constructAddressFromIx )
+import Cardano.Wallet.Gen
+    ( genNatural, genScript, genScriptTemplate )
 import Cardano.Wallet.Primitive.AddressDiscovery
     ( IsOurs (..), KnownAddresses (..) )
 import Cardano.Wallet.Primitive.AddressDiscovery.Sequential

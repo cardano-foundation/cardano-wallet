@@ -61,6 +61,18 @@ import Cardano.Mnemonic
     ( EntropySize, SomeMnemonic (..), entropyToMnemonic, genEntropy )
 import Cardano.Startup
     ( withUtf8Encoding )
+import Cardano.Wallet.Address.Derivation
+    ( DelegationAddress (..)
+    , Depth (..)
+    , Index (..)
+    , PaymentAddress (..)
+    , PersistPrivateKey
+    , WalletKey (..)
+    )
+import Cardano.Wallet.Address.Derivation.Byron
+    ( ByronKey (..) )
+import Cardano.Wallet.Address.Derivation.Shelley
+    ( ShelleyKey (..), generateKeyFromSeed, unsafeGenerateKeyFromSeed )
 import Cardano.Wallet.DB
     ( DBLayer (..) )
 import Cardano.Wallet.DB.Layer
@@ -69,18 +81,6 @@ import Cardano.Wallet.DummyTarget.Primitive.Types
     ( block0, dummyGenesisParameters, mkTxId )
 import Cardano.Wallet.Logging
     ( trMessageText )
-import Cardano.Wallet.Primitive.AddressDerivation
-    ( DelegationAddress (..)
-    , Depth (..)
-    , Index (..)
-    , PaymentAddress (..)
-    , PersistPrivateKey
-    , WalletKey (..)
-    )
-import Cardano.Wallet.Primitive.AddressDerivation.Byron
-    ( ByronKey (..) )
-import Cardano.Wallet.Primitive.AddressDerivation.Shelley
-    ( ShelleyKey (..), generateKeyFromSeed, unsafeGenerateKeyFromSeed )
 import Cardano.Wallet.Primitive.AddressDiscovery.Random
     ( RndState (..), mkRndState )
 import Cardano.Wallet.Primitive.AddressDiscovery.Sequential
@@ -199,8 +199,8 @@ import UnliftIO.Temporary
 
 import qualified Cardano.BM.Configuration.Model as CM
 import qualified Cardano.BM.Data.BackendKind as CM
+import qualified Cardano.Wallet.Address.Derivation.Byron as Byron
 import qualified Cardano.Wallet.Address.Pool as AddressPool
-import qualified Cardano.Wallet.Primitive.AddressDerivation.Byron as Byron
 import qualified Cardano.Wallet.Primitive.Types.Coin as Coin
 import qualified Cardano.Wallet.Primitive.Types.TokenBundle as TokenBundle
 import qualified Cardano.Wallet.Primitive.Types.TokenMap as TokenMap

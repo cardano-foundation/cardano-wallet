@@ -17,11 +17,11 @@ import Cardano.Api
     ( ShelleyBasedEra (..) )
 import Cardano.Api.Gen
     ( genAddressAny )
-import Cardano.Wallet.Primitive.AddressDerivation
+import Cardano.Wallet.Address.Derivation
     ( BoundedAddressLength (..) )
-import Cardano.Wallet.Primitive.AddressDerivation.Byron
+import Cardano.Wallet.Address.Derivation.Byron
     ( ByronKey )
-import Cardano.Wallet.Primitive.AddressDerivation.Shelley
+import Cardano.Wallet.Address.Derivation.Shelley
     ( ShelleyKey )
 import Cardano.Wallet.Primitive.Types.Address
     ( Address (..) )

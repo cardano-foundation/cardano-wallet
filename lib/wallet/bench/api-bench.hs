@@ -44,6 +44,20 @@ import Cardano.BM.Data.Severity
     ( Severity (..) )
 import Cardano.BM.Trace
     ( Trace )
+import Cardano.Wallet.Address.Derivation
+    ( BoundedAddressLength (..)
+    , DelegationAddress (..)
+    , Depth (..)
+    , PersistPrivateKey
+    , WalletKey
+    , delegationAddressS
+    )
+import Cardano.Wallet.Address.Derivation.Byron
+    ( ByronKey )
+import Cardano.Wallet.Address.Derivation.Shared
+    ( SharedKey )
+import Cardano.Wallet.Address.Derivation.Shelley
+    ( ShelleyKey )
 import Cardano.Wallet.BenchShared
     ( Time, bench, initBenchmarkLogging, runBenchmarks )
 import Cardano.Wallet.DB
@@ -60,20 +74,6 @@ import Cardano.Wallet.Logging
     ( trMessageText )
 import Cardano.Wallet.Network
     ( NetworkLayer (..) )
-import Cardano.Wallet.Primitive.AddressDerivation
-    ( BoundedAddressLength (..)
-    , DelegationAddress (..)
-    , Depth (..)
-    , PersistPrivateKey
-    , WalletKey
-    , delegationAddressS
-    )
-import Cardano.Wallet.Primitive.AddressDerivation.Byron
-    ( ByronKey )
-import Cardano.Wallet.Primitive.AddressDerivation.Shared
-    ( SharedKey )
-import Cardano.Wallet.Primitive.AddressDerivation.Shelley
-    ( ShelleyKey )
 import Cardano.Wallet.Primitive.AddressDiscovery.Random
     ( RndState (..) )
 import Cardano.Wallet.Primitive.AddressDiscovery.Sequential

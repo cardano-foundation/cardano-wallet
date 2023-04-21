@@ -17,17 +17,17 @@ import Cardano.Address.Derivation
     ( XPrv )
 import Cardano.Mnemonic
     ( SomeMnemonic (..) )
-import Cardano.Wallet.Gen
-    ( genMnemonic )
-import Cardano.Wallet.Primitive.AddressDerivation
+import Cardano.Wallet.Address.Derivation
     ( Depth (AccountK, CredFromKeyK, RootK)
     , DerivationType (..)
     , Index
     , paymentAddressS
     , publicKey
     )
-import Cardano.Wallet.Primitive.AddressDerivation.Byron
+import Cardano.Wallet.Address.Derivation.Byron
     ( ByronKey, generateKeyFromSeed, unsafeGenerateKeyFromSeed )
+import Cardano.Wallet.Gen
+    ( genMnemonic )
 import Cardano.Wallet.Primitive.AddressDiscovery
     ( IsOurs (..), knownAddresses )
 import Cardano.Wallet.Primitive.AddressDiscovery.Random

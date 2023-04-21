@@ -27,10 +27,10 @@
 --
 -- The actual implementations are in the following modules:
 --
---  * "Cardano.Wallet.Primitive.AddressDerivation.Shelley"
---  * "Cardano.Wallet.Primitive.AddressDerivation.Byron"
+--  * "Cardano.Wallet.Address.Derivation.Shelley"
+--  * "Cardano.Wallet.Address.Derivation.Byron"
 
-module Cardano.Wallet.Primitive.AddressDerivation
+module Cardano.Wallet.Address.Derivation
     (
     -- * HD Derivation
       Depth (..)
@@ -458,7 +458,7 @@ instance LiftIndex 'Soft where
 -- - CIP-1815 (for so-called Shelley and Jormungandr wallets)
 --
 -- Both scheme works by considering 5 levels of derivation from an initial root
--- key (see also 'Depth' from Cardano.Wallet.Primitive.AddressDerivation). A
+-- key (see also 'Depth' from Cardano.Wallet.Address.Derivation). A
 -- SeqState keeps track of indexes from the two last levels of a derivation
 -- branch. The 'DerivationPrefix' defines the first three indexes chosen for
 -- this particular 'SeqState'.
