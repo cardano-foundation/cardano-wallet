@@ -333,8 +333,7 @@ data DBLayer m s k = forall stm. (MonadIO stm, MonadFail stm) => DBLayer
         -- their status as expired.
 
     , removePendingOrExpiredTx
-        :: WalletId
-        -> Hash "Tx"
+        :: Hash "Tx"
         -> ExceptT ErrRemoveTx stm ()
         -- ^ Manually remove a pending transaction.
 
@@ -561,8 +560,8 @@ mkDBLayerFromParts ti wid_ DBLayerCollection{..} = DBLayer
     , rollForwardTxSubmissions = \tip txs -> updateSubmissions' wid_
             mapNoSuchWallet
             $ \_ -> Right [Sbms.rollForwardTxSubmissions tip txs]
-    , removePendingOrExpiredTx = \wid txid ->
-            updateSubmissions' wid (ErrRemoveTxNoSuchWallet . mapNoSuchWallet)
+    , removePendingOrExpiredTx = \txid ->
+            updateSubmissions' wid_ (ErrRemoveTxNoSuchWallet . mapNoSuchWallet)
                 $ \xs ->
                 pure <$> Sbms.removePendingOrExpiredTx xs txid
     , putPrivateKey = \wid a -> wrapNoSuchWallet wid $

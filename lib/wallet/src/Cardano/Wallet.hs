@@ -2569,11 +2569,10 @@ forgetTx
         ( HasDBLayer IO s k ctx
         )
     => ctx
-    -> WalletId
     -> Hash "Tx"
     -> ExceptT ErrRemoveTx IO ()
-forgetTx ctx wid tid = db & \DBLayer{..} -> do
-    mapExceptT atomically $ removePendingOrExpiredTx wid tid
+forgetTx ctx tid = db & \DBLayer{..} -> do
+    mapExceptT atomically $ removePendingOrExpiredTx tid
   where
     db = ctx ^. dbLayer @IO @s @k
 

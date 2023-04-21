@@ -2221,7 +2221,7 @@ deleteTransaction
     -> Handler NoContent
 deleteTransaction ctx (ApiT wid) (ApiTxId (ApiT (tid))) = do
     withWorkerCtx ctx wid liftE liftE $ \wrk -> liftHandler $
-        W.forgetTx wrk wid tid
+        W.forgetTx wrk tid
     return NoContent
 
 listTransactions
