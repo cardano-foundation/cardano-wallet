@@ -2623,12 +2623,11 @@ runLocalTxSubmissionPool
         )
     => LocalTxSubmissionConfig
     -> ctx
-    -> WalletId
     -> m ()
-runLocalTxSubmissionPool cfg ctx wid = db & \DBLayer{..} -> do
+runLocalTxSubmissionPool cfg ctx = db & \DBLayer{..} -> do
     submitPending <- rateLimited $ \bh -> bracketTracer trBracket $ do
         sp <- currentSlottingParameters nw
-        pending <- atomically $ readLocalTxSubmissionPending wid
+        pending <- atomically readLocalTxSubmissionPending
         let sl = bh ^. #slotNo
             pendingOldStyle = pending >>= mkLocalTxSubmission
         -- Re-submit transactions due, ignore errors

@@ -821,13 +821,13 @@ prop_localTxSubmission tc = monadicIO $ do
         $ \ctx@(TxRetryTestCtx dbl@(DBLayer{..}) nl tr _ wid) -> do
         unsafeRunExceptT
             $ forM_ (retryTestPool tc) $ submitTx tr dbl nl wid
-        res0 <- atomically $ readLocalTxSubmissionPending wid
+        res0 <- atomically readLocalTxSubmissionPending
         -- Run test
         let cfg = LocalTxSubmissionConfig (timeStep st) 10
-        runLocalTxSubmissionPool @_ @DummyState @ShelleyKey cfg ctx wid
+        runLocalTxSubmissionPool @_ @DummyState @ShelleyKey cfg ctx
 
         -- Gather state
-        res1 <- atomically $ readLocalTxSubmissionPending wid
+        res1 <- atomically readLocalTxSubmissionPending
         pure (res0, res1)
 
     let (resStart, resEnd) = resAction res

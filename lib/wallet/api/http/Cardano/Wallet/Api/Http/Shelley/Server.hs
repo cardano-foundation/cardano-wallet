@@ -4808,7 +4808,7 @@ registerWorker ctx before coworker wid =
         , workerMain = \ctx' _ -> race_
             (unsafeRunExceptT $ W.restoreWallet ctx' wid)
             (race_
-                (forever $ W.runLocalTxSubmissionPool txCfg ctx' wid)
+                (forever $ W.runLocalTxSubmissionPool txCfg ctx')
                 (coworker ctx' wid))
         }
     txCfg = W.defaultLocalTxSubmissionConfig
