@@ -841,7 +841,7 @@ createIcarusWallet ctx wid wname credentials =
 -- | Check whether a wallet is in good shape when restarting a worker.
 checkWalletIntegrity :: DBLayer IO s k -> WalletId -> GenesisParameters -> IO ()
 checkWalletIntegrity db walletId gp = db & \DBLayer{..} -> do
-    gp' <- atomically (readGenesisParameters walletId) >>= do
+    gp' <- atomically readGenesisParameters >>= do
         let noSuchWallet = ErrNoSuchWallet walletId
         maybe (throwIO $ ErrCheckWalletIntegrityNoSuchWallet noSuchWallet) pure
     when ( (gp ^. #getGenesisBlockHash /= gp' ^. #getGenesisBlockHash) ||

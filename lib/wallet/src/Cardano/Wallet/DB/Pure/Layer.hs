@@ -220,9 +220,7 @@ newDBLayer timeInterpreter wid = do
                                  Protocol Parameters
         -----------------------------------------------------------------------}
 
-        , readGenesisParameters = const
-            $ join
-            <$> readDBMaybe db mReadGenesisParameters
+        , readGenesisParameters = join <$> readDBMaybe db mReadGenesisParameters
 
         {-----------------------------------------------------------------------
                                  Delegation Rewards

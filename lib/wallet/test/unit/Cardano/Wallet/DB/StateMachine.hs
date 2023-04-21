@@ -355,7 +355,7 @@ data Cmd s wid
     | GetTx (Hash "Tx")
     | PutPrivateKey MPrivKey
     | ReadPrivateKey
-    | ReadGenesisParameters wid
+    | ReadGenesisParameters
     | RollbackTo wid Slot
     | PutDelegationCertificate DelegationCertificate SlotNo
     | IsStakeKeyRegistered wid
@@ -432,7 +432,7 @@ runMock = \case
         first (Resp . fmap Unit) . mPutPrivateKey pk
     ReadPrivateKey ->
         first (Resp . fmap PrivateKey) . mReadPrivateKey
-    ReadGenesisParameters _wid ->
+    ReadGenesisParameters ->
         first (Resp . fmap GenesisParams) . mReadGenesisParameters
     PutDelegationRewardBalance _wid amt ->
         first (Resp . fmap Unit) . mPutDelegationRewardBalance amt
@@ -497,8 +497,8 @@ runIO DBLayer{..} = fmap Resp . go
             putPrivateKey (fromMockPrivKey pk)
         ReadPrivateKey -> Right . PrivateKey . fmap toMockPrivKey <$>
             atomically readPrivateKey
-        ReadGenesisParameters _wid -> Right . GenesisParams <$>
-            atomically (readGenesisParameters wid)
+        ReadGenesisParameters -> Right . GenesisParams <$>
+            atomically readGenesisParameters
         PutDelegationRewardBalance _wid amt -> catchNoSuchWallet Unit $
             runDB atomically $
             putDelegationRewardBalance amt
@@ -662,7 +662,7 @@ generatorWithWid wids =
     -- , declareGenerator "Prune" 1
     --     $ Prune <$> genId <*> arbitrary
     , declareGenerator "ReadGenesisParameters" 1
-        $ ReadGenesisParameters <$> genId
+        $ pure ReadGenesisParameters
     ]
   where
     genId :: Gen (Reference WalletId r)

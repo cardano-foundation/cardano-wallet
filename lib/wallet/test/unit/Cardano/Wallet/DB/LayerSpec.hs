@@ -1225,7 +1225,7 @@ testMigrationCleanupCheckpoints
 testMigrationCleanupCheckpoints dbName genesisParameters tip = do
     (logs, result) <- withDBLayerFromCopiedFile @ShelleyKey dbName
         $ \DBLayer{..} -> atomically $ do
-            (,) <$> readGenesisParameters walletId_
+            (,) <$> readGenesisParameters
                 <*> readCheckpoint
 
     length (filter (isMsgManualMigration fieldGenesisHash) logs) `shouldBe` 1

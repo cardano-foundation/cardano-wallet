@@ -604,7 +604,7 @@ newDBLayerFromDBOpen ti wid_ DBOpen{atomically=runQuery} = mdo
                                 ExpandTxWalletsHistory wid_ txs
                 Right _ -> throwE ErrWalletAlreadyInitialized
 
-        , readGenesisParameters_ = selectGenesisParameters
+        , readGenesisParameters_ = selectGenesisParameters wid_
 
         , getWalletId_ = do
             ws <- lift $ map unWalletKey <$> selectKeysList [] [Asc WalId]

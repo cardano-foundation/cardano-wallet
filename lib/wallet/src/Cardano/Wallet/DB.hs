@@ -351,8 +351,7 @@ data DBLayer m s k = forall stm. (MonadIO stm, MonadFail stm) => DBLayer
         -- hash.
 
     , readGenesisParameters
-        :: WalletId
-        -> stm (Maybe GenesisParameters)
+        :: stm (Maybe GenesisParameters)
         -- ^ Read the *Byron* genesis parameters.
 
     , rollbackTo
@@ -622,8 +621,7 @@ data DBWallets stm s = DBWallets
         -- actually all fail if they are called _first_ on a wallet.
 
     , readGenesisParameters_
-        :: WalletId
-        -> stm (Maybe GenesisParameters)
+        :: stm (Maybe GenesisParameters)
         -- ^ Read the *Byron* genesis parameters.
 
     , getWalletId_
