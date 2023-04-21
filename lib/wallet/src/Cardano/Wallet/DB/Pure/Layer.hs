@@ -228,8 +228,9 @@ newDBLayer timeInterpreter wid = do
                                  Delegation Rewards
         -----------------------------------------------------------------------}
 
-        , putDelegationRewardBalance = \_pk amt -> ExceptT $
-            alterDB errWalletNotInitialized db (mPutDelegationRewardBalance amt)
+        , putDelegationRewardBalance = ExceptT
+            . alterDB errWalletNotInitialized db
+            . mPutDelegationRewardBalance
 
         , readDelegationRewardBalance =
             const $ fromMaybe (Coin 0)

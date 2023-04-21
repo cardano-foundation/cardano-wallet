@@ -1387,7 +1387,7 @@ manageRewardBalance tr' netLayer db@DBLayer{..} wid = do
          case query of
             Right amt -> do
                 res <- atomically $ runExceptT $ mkNoSuchWalletError wid $
-                    putDelegationRewardBalance wid amt
+                    putDelegationRewardBalance amt
                 -- It can happen that the wallet doesn't exist _yet_, whereas we
                 -- already have a reward balance. If that's the case, we log and
                 -- move on.

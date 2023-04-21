@@ -360,7 +360,7 @@ data Cmd s wid
     | PutDelegationCertificate DelegationCertificate SlotNo
     | IsStakeKeyRegistered wid
     | PutDelegationRewardBalance wid Coin
-    | ReadDelegationRewardBalance wid
+    | ReadDelegationRewardBalance
     deriving stock (Show, Generic1, Eq, Functor, Foldable, Traversable)
     deriving anyclass (CommandNames)
 
@@ -436,7 +436,7 @@ runMock = \case
         first (Resp . fmap GenesisParams) . mReadGenesisParameters
     PutDelegationRewardBalance _wid amt ->
         first (Resp . fmap Unit) . mPutDelegationRewardBalance amt
-    ReadDelegationRewardBalance _wid ->
+    ReadDelegationRewardBalance ->
         first (Resp . fmap DelegationRewardBalance)
         . mReadDelegationRewardBalance
     RollbackTo _wid point ->
@@ -501,8 +501,8 @@ runIO DBLayer{..} = fmap Resp . go
             atomically (readGenesisParameters wid)
         PutDelegationRewardBalance _wid amt -> catchNoSuchWallet Unit $
             runDB atomically $
-            putDelegationRewardBalance wid amt
-        ReadDelegationRewardBalance _wid -> Right . DelegationRewardBalance <$>
+            putDelegationRewardBalance amt
+        ReadDelegationRewardBalance -> Right . DelegationRewardBalance <$>
             atomically (readDelegationRewardBalance wid)
         RollbackTo _wid sl -> catchNoSuchWallet Point $
             runDB atomically $ rollbackTo wid sl
