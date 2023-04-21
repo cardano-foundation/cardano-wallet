@@ -366,8 +366,7 @@ data DBLayer m s k = forall stm. (MonadIO stm, MonadFail stm) => DBLayer
         -- because the database may only keep sparse checkpoints.
 
     , prune
-        :: WalletId
-        -> Quantity "block" Word32
+        :: Quantity "block" Word32
         -> SlotNo
         -> ExceptT ErrWalletNotInitialized stm ()
         -- ^ Prune database entities and remove entities that can be discarded.
@@ -457,8 +456,7 @@ data DBLayerCollection stm m s k = DBLayerCollection
         :: Slot
         -> ExceptT ErrWalletNotInitialized stm ChainPoint
     , prune_
-        :: WalletId
-        -> Quantity "block" Word32
+        :: Quantity "block" Word32
         -> SlotNo
         -> ExceptT ErrWalletNotInitialized stm ()
     , atomically_

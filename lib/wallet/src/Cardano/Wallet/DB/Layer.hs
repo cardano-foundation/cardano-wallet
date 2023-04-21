@@ -713,14 +713,14 @@ newDBLayerFromDBOpen ti wid_ DBOpen{atomically=runQuery} = mdo
                         $ W.chainPointFromBlockHeader
                         $ view #currentTip wcp
 
-    let prune_ wid epochStability finalitySlot = do
+    let prune_ epochStability finalitySlot = do
             ExceptT $ do
                 readCheckpoint >>= \case
                     Nothing -> pure $ Left ErrWalletNotInitialized
                     Just cp -> Right <$> do
                         let tip = cp ^. #currentTip
-                        pruneCheckpoints wid epochStability tip
-            lift $ updateDBVar walletsDB $ Adjust wid
+                        pruneCheckpoints wid_ epochStability tip
+            lift $ updateDBVar walletsDB $ Adjust wid_
                 [ UpdateSubmissions [pruneByFinality finalitySlot]
                 ]
 

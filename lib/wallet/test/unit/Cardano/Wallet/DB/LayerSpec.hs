@@ -576,8 +576,8 @@ fileModeSpec =  do
                     atomically $ do
                         unsafeRunExceptT $ putCheckpoint cpB
                         unsafeRunExceptT $ putTxHistory txs
-                        unsafeRunExceptT $ prune testWid (Quantity 2_160)
-                            $ 2_160 * 3 * 20
+                        unsafeRunExceptT
+                            $ prune (Quantity 2_160) $ 2_160 * 3 * 20
 
             it "Should spend collateral inputs and create spendable collateral \
                 \outputs if validation fails" $

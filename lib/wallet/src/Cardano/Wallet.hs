@@ -1216,7 +1216,7 @@ restoreBlocks ctx tr wid blocks nodeTip = db & \DBLayer{..} ->
     ExceptT $ modifyDBMaybe walletsDB $
         adjustNoSuchWallet wid id $ \_ -> Right ( delta, () )
 
-    mkNoSuchWalletError wid $ prune wid epochStability finalitySlot
+    mkNoSuchWalletError wid $ prune epochStability finalitySlot
 
     liftIO $ do
         traceWith tr $ MsgDiscoveredTxs txs
