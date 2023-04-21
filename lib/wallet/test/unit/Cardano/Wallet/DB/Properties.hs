@@ -61,7 +61,7 @@ import Cardano.Wallet.Unsafe
 import Cardano.Wallet.Util
     ( ShowFmt (..) )
 import Control.Monad
-    ( forM_, when )
+    ( forM_ )
 import Control.Monad.IO.Class
     ( liftIO )
 import Control.Monad.Trans.Except
@@ -180,9 +180,6 @@ properties withFreshDB = describe "DB.Properties" $ do
         it "cannot read after putting tx history for invalid tx id"
             $ property
             $ prop_getTxAfterPutInvalidTxId testOnLayer
-        it "cannot read after putting tx history for invalid wallet id"
-            $ property
-            $ prop_getTxAfterPutInvalidWalletId testOnLayer
 
     describe "can't put before wallet exists" $ do
         it "Checkpoint"
@@ -431,21 +428,6 @@ prop_getTxAfterPutInvalidTxId test txGen txId' = test $ \DBLayer {..} wid -> do
     assertWith
         "Irrespective of Inserted, Read is Nothing for invalid tx id"
         (isNothing res)
-
-prop_getTxAfterPutInvalidWalletId
-    :: TestOnLayer s
-    -> WalletId
-    -> GenTxHistory
-    -> Property
-prop_getTxAfterPutInvalidWalletId test wid txGen =
-    test $ \DBLayer {..} wid' -> liftIO $ do
-        let txs = unGenTxHistory txGen
-        atomically (runExceptT $ putTxHistory txs) `shouldReturn` Right ()
-        forM_ txs $ \(Tx {txId}, _) -> do
-            let err = ErrWalletNotInitialized
-            when (wid /= wid')
-                $ atomically (runExceptT $ getTx wid txId)
-                `shouldReturn` Left err
 
 -- | Can't put resource before a wallet has been initialized
 prop_putBeforeInit
