@@ -2078,7 +2078,7 @@ buildSignSubmitTransaction ti db@DBLayer{..} netLayer txLayer pwd walletId
                             )
                         )
 
-            mkNoSuchWalletError walletId (addTxSubmission walletId builtTx slot)
+            mkNoSuchWalletError walletId (addTxSubmission builtTx slot)
                 & throwWrappedErr wrapNoWalletForSubmit
 
             pure txWithSlot
@@ -2530,7 +2530,7 @@ submitTx tr DBLayer{addTxSubmission, atomically}
         withExceptT ErrSubmitTxNetwork $ postTx nw builtSealedTx
         withExceptT ErrSubmitTxNoSuchWallet $
             mapExceptT atomically $ mkNoSuchWalletError walletId $
-                addTxSubmission walletId tx (builtTxMeta ^. #slotNo)
+                addTxSubmission tx (builtTxMeta ^. #slotNo)
 
 -- | Broadcast an externally-signed transaction to the network.
 --
@@ -2760,7 +2760,7 @@ getTransaction ctx wid tid =
                 $ atomically
                 $ runExceptT
                 $ mkNoSuchWalletError wid
-                $ getTx wid tid
+                $ getTx tid
         case res of
             Left err -> do
                 throwE (ErrGetTransactionNoSuchWallet err)

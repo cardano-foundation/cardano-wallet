@@ -497,7 +497,7 @@ walletListTransactionsSorted
     -> SortOrder
     -> (Maybe UniformTime, Maybe UniformTime)
     -> Property
-walletListTransactionsSorted wallet@(wid, _, _) _order (_mstart, _mend) =
+walletListTransactionsSorted wallet@(_, _, _) _order (_mstart, _mend) =
     forAll (logScale' 1.5 arbitrary) $ \history ->
     monadicIO $ liftIO $ do
         WalletLayerFixture DBLayer{..} wl _ <- setupFixture wallet
@@ -527,7 +527,7 @@ genLimit n =
 walletListTransactionsWithLimit
     :: (WalletId, WalletName, DummyState)
     -> Property
-walletListTransactionsWithLimit wallet@(wid, _, _) =
+walletListTransactionsWithLimit wallet@(_, _, _) =
     forAll (logScale' 1.5 arbitrary) $ \history ->
     forAll (genLimit $ length history) $ \limit ->
     -- collect (length history) $

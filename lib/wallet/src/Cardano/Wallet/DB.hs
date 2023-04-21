@@ -297,8 +297,7 @@ data DBLayer m s k = forall stm. (MonadIO stm, MonadFail stm) => DBLayer
         -- Returns an empty list if the wallet isn't found.
 
     , getTx
-        :: WalletId
-        -> Hash "Tx"
+        :: Hash "Tx"
         -> ExceptT ErrWalletNotInitialized stm (Maybe TransactionInfo)
         -- ^ Fetch the latest transaction by id, returns Nothing when the
         -- transaction isn't found.
@@ -306,8 +305,7 @@ data DBLayer m s k = forall stm. (MonadIO stm, MonadFail stm) => DBLayer
         -- If the wallet doesn't exist, this operation returns an error.
 
     , addTxSubmission
-        :: WalletId
-        -> BuiltTx
+        :: BuiltTx
         -> SlotNo
         -> ExceptT ErrWalletNotInitialized stm ()
         -- ^ Add a /new/ transaction to the local submission pool
@@ -540,13 +538,13 @@ mkDBLayerFromParts ti wid_ DBLayerCollection{..} = DBLayer
                     . filterMinWithdrawal minWithdrawal
                     $ inLedgers <> inSubmissions
             Nothing -> pure []
-    , getTx = \wid txid -> wrapNoSuchWallet wid $ do
+    , getTx = \txid -> wrapNoSuchWallet wid_ $ do
         readCurrentTip >>= \case
             Just tip -> do
                 historical <- getTx_ dbTxHistory txid tip
                 case historical of
                     Just tx -> pure $ Just tx
-                    Nothing ->  withSubmissions wid Nothing $ \submissions -> do
+                    Nothing ->  withSubmissions wid_ Nothing $ \submissions -> do
                         let inSubmission =
                                 getInSubmissionTransaction txid submissions
                         fmap join $ for inSubmission $
@@ -555,7 +553,7 @@ mkDBLayerFromParts ti wid_ DBLayerCollection{..} = DBLayer
                             (mkDecorator_ dbTxHistory) tip
                                 . fmap snd
             Nothing -> pure Nothing
-    , addTxSubmission = \wid builtTx slotNo  -> updateSubmissions' wid
+    , addTxSubmission = \builtTx slotNo  -> updateSubmissions' wid_
             mapNoSuchWallet
             $ \_ -> Right [Sbms.addTxSubmission builtTx slotNo]
     , readLocalTxSubmissionPending = \wid -> withSubmissions wid [] $ \xs -> do

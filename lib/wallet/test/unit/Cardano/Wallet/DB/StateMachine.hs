@@ -352,7 +352,7 @@ data Cmd s wid
         SortOrder
         (Range SlotNo)
         (Maybe TxStatus)
-    | GetTx wid (Hash "Tx")
+    | GetTx (Hash "Tx")
     | PutPrivateKey wid MPrivKey
     | ReadPrivateKey wid
     | ReadGenesisParameters wid
@@ -423,7 +423,7 @@ runMock = \case
     ReadTxHistory minW order range status ->
         first (Resp . fmap TxHistory)
         . mReadTxHistory timeInterpreter minW order range status
-    GetTx _wid _tid ->
+    GetTx _tid ->
         first (Resp . fmap (TxHistory . maybe [] pure))
         -- TODO: Implement mGetTx
         -- . mGetTx wid tid
@@ -489,9 +489,9 @@ runIO DBLayer{..} = fmap Resp . go
             fmap (Right . TxHistory) $
             atomically $
             readTransactions minWith order range status Nothing
-        GetTx _wid tid ->
+        GetTx tid ->
             catchNoSuchWallet (TxHistory . maybe [] pure) $
-            runDB atomically $ getTx wid tid
+            runDB atomically $ getTx tid
         PutPrivateKey _wid pk -> catchNoSuchWallet Unit $
             runDB atomically $
             putPrivateKey wid (fromMockPrivKey pk)

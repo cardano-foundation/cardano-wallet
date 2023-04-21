@@ -167,9 +167,9 @@ newDBLayer timeInterpreter wid = do
                     mstatus
 
         -- TODO: shift implementation to mGetTx
-        , getTx = \pk tid -> do
-            pk' <- getWalletId'
-            when ( pk /= pk') $ throwE ErrWalletNotInitialized
+        , getTx = \tid -> do
+            wid' <- getWalletId'
+            when ( wid /= wid') $ throwE ErrWalletNotInitialized
             ExceptT $ do
                 alterDB errWalletNotInitialized db (mCheckWallet) >>= \case
                     Left err -> pure $ Left err

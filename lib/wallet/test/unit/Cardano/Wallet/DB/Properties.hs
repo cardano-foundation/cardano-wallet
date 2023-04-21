@@ -394,12 +394,12 @@ prop_getTxAfterPutValidTxId
     :: TestOnLayer s
     -> GenTxHistory
     -> Property
-prop_getTxAfterPutValidTxId test txGen = test $ \DBLayer {..} wid -> do
+prop_getTxAfterPutValidTxId test txGen = test $ \DBLayer {..} _ -> do
     let txs = unGenTxHistory txGen
     run $ unsafeRunExceptT $ mapExceptT atomically $ putTxHistory txs
     forM_ txs $ \(Tx {txId}, txMeta) -> do
         (Just (TransactionInfo {txInfoId, txInfoMeta})) <-
-            run $ atomically $ unsafeRunExceptT $ getTx wid txId
+            run $ atomically $ unsafeRunExceptT $ getTx txId
         monitor
             $ counterexample
             $ "\nInserted\n"
@@ -421,10 +421,10 @@ prop_getTxAfterPutInvalidTxId
     -> GenTxHistory
     -> (Hash "Tx")
     -> Property
-prop_getTxAfterPutInvalidTxId test txGen txId' = test $ \DBLayer {..} wid -> do
+prop_getTxAfterPutInvalidTxId test txGen txId' = test $ \DBLayer {..} _ -> do
     let txs = unGenTxHistory txGen
     run $ unsafeRunExceptT $ mapExceptT atomically $ putTxHistory txs
-    res <- run $ atomically $ unsafeRunExceptT $ getTx wid txId'
+    res <- run $ atomically $ unsafeRunExceptT $ getTx txId'
     assertWith
         "Irrespective of Inserted, Read is Nothing for invalid tx id"
         (isNothing res)
