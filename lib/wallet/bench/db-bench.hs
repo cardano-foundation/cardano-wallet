@@ -281,7 +281,7 @@ bgroupReadUTxO tr = bgroup "UTxO (Read)"
 benchPutUTxO :: Int -> Int -> Int -> DBLayerBench -> IO ()
 benchPutUTxO numCheckpoints utxoSize numAssets DBLayer{..} = do
     let cps = mkCheckpoints numCheckpoints utxoSize numAssets
-    unsafeRunExceptT $ mapExceptT atomically $ mapM_ (putCheckpoint testWid) cps
+    unsafeRunExceptT $ mapExceptT atomically $ mapM_ putCheckpoint cps
 
 mkCheckpoints :: Int -> Int -> Int -> [WalletBench]
 mkCheckpoints numCheckpoints utxoSize numAssets =
@@ -302,13 +302,13 @@ mkCheckpoints numCheckpoints utxoSize numAssets =
         (mkOutputs i utxoSize numAssets)
 
 benchReadUTxO :: DBLayerBench -> IO (Maybe WalletBench)
-benchReadUTxO DBLayer{..} = atomically $ readCheckpoint testWid
+benchReadUTxO DBLayer{..} = atomically readCheckpoint
 
 utxoFixture ::  Int -> Int -> Int -> DBLayerBench -> IO ()
 utxoFixture  numCheckpoints utxoSize numAssets db@DBLayer{..}= do
     walletFixture db
     let cps = mkCheckpoints numCheckpoints utxoSize numAssets
-    unsafeRunExceptT $ mapM_ (mapExceptT atomically . putCheckpoint testWid) cps
+    unsafeRunExceptT $ mapM_ (mapExceptT atomically . putCheckpoint) cps
 
 ----------------------------------------------------------------------------
 -- Wallet State (Sequential Scheme) Benchmarks
@@ -339,7 +339,7 @@ bgroupWriteSeqState tr = bgroup "SeqState"
 
 benchPutSeqState :: DBLayerBench -> [WalletBench] -> IO ()
 benchPutSeqState DBLayer{..} cps = do
-    unsafeRunExceptT $ mapExceptT atomically $ mapM_ (putCheckpoint testWid) cps
+    unsafeRunExceptT $ mapExceptT atomically $ mapM_ putCheckpoint cps
 
 mkSeqState :: Int -> Int -> SeqState 'Mainnet ShelleyKey
 mkSeqState numAddrs _ = s
@@ -393,7 +393,7 @@ bgroupWriteRndState tr = bgroup "RndState"
 
 benchPutRndState :: DBLayerBenchByron -> [Wallet (RndState 'Mainnet)] -> IO ()
 benchPutRndState DBLayer{..} cps =
-    unsafeRunExceptT $ mapExceptT atomically $ mapM_ (putCheckpoint testWid) cps
+    unsafeRunExceptT $ mapExceptT atomically $ mapM_ putCheckpoint cps
 
 ----------------------------------------------------------------------------
 -- Tx history Benchmarks
@@ -511,7 +511,7 @@ benchPutTxHistory
     -> IO ()
 benchPutTxHistory numTxs numInputs numOutputs numAssets range DBLayer{..} = do
     let txs = mkTxHistory numTxs numInputs numOutputs numAssets range
-    unsafeRunExceptT $ mapExceptT atomically $ putTxHistory testWid txs
+    unsafeRunExceptT $ mapExceptT atomically $ putTxHistory txs
 
 benchReadTxHistory
     :: SortOrder
@@ -521,7 +521,7 @@ benchReadTxHistory
     -> DBLayerBench
     -> IO [TransactionInfo]
 benchReadTxHistory sortOrder (inf, sup) mstatus mlimit DBLayer{..} =
-    atomically $ readTransactions testWid Nothing sortOrder range mstatus mlimit
+    atomically $ readTransactions Nothing sortOrder range mstatus mlimit
   where
     range = Range
         (SlotNo . fromIntegral <$> inf)
@@ -618,12 +618,11 @@ txHistoryFixture  bSize nAssets range db@DBLayer{..}= do
     walletFixture db
     let (nInps, nOuts) = (20, 20)
     let txs = mkTxHistory bSize nInps nOuts nAssets range
-    atomically $ unsafeRunExceptT $ putTxHistory testWid txs
+    atomically $ unsafeRunExceptT $ putTxHistory txs
 
 walletFixture :: DBLayerBench -> IO ()
 walletFixture DBLayer{initializeWallet, atomically} = do
     atomically $ unsafeRunExceptT $ initializeWallet
-        testWid
         testCp
         testMetadata
         mempty
@@ -632,7 +631,6 @@ walletFixture DBLayer{initializeWallet, atomically} = do
 walletFixtureByron :: DBLayerBenchByron -> IO ()
 walletFixtureByron DBLayer{initializeWallet, atomically} = do
     atomically $ unsafeRunExceptT $ initializeWallet
-        testWid
         testCpByron
         testMetadata
         mempty

@@ -203,7 +203,7 @@ import Data.String.Interpolate
 import Data.Text
     ( Text )
 import Data.Text.Class
-    ( fromText, toText )
+    ( toText )
 import Data.Time.Clock
     ( getCurrentTime )
 import Data.Time.Clock.POSIX
@@ -349,13 +349,13 @@ loggingSpec = withLoggingDB @(SeqState 'Mainnet ShelleyKey) $ do
     describe "Sqlite query logging" $ do
         it "should log queries at DEBUG level" $ \(getLogs, DBLayer{..}) -> do
             atomically $ unsafeRunExceptT $
-                initializeWallet testWid testCpSeq testMetadata mempty gp
+                initializeWallet testCpSeq testMetadata mempty gp
             logs <- getLogs
             logs `shouldHaveMsgQuery` "INSERT"
 
         it "should not log query parameters" $ \(getLogs, DBLayer{..}) -> do
             atomically $ unsafeRunExceptT $
-                initializeWallet testWid testCpSeq testMetadata mempty gp
+                initializeWallet testCpSeq testMetadata mempty gp
             let walletName = T.unpack $ coerce $ name testMetadata
             msgs <- T.unlines . mapMaybe getMsgQuery <$> getLogs
             T.unpack msgs `shouldNotContain` walletName
@@ -363,7 +363,7 @@ loggingSpec = withLoggingDB @(SeqState 'Mainnet ShelleyKey) $ do
     describe "Sqlite observables" $ do
         it "should measure query timings" $ \(getLogs, DBLayer{..}) -> do
             let count = 5
-            replicateM_ count (atomically $ readCheckpoint walletId_)
+            replicateM_ count (atomically readCheckpoint)
             msgs <- findObserveDiffs <$> getLogs
             length msgs `shouldBe` count * 2
 
@@ -440,7 +440,7 @@ fileModeSpec =  do
                     handle @IO @SomeException (const (pure ())) $ forever $ do
                         atomically $ do
                             liftIO $ threadDelay 10_000
-                            void $ readCheckpoint testWid
+                            void readCheckpoint
 
                 killThread pid *> removeDatabase testWid
                 listDirectory dir `shouldReturn` mempty
@@ -477,7 +477,7 @@ fileModeSpec =  do
     describe "Sqlite database file" $ do
         let writeSomething DBLayer{..} = do
                 atomically $ unsafeRunExceptT $
-                    initializeWallet testWid testCpSeq testMetadata mempty gp
+                    initializeWallet testCpSeq testMetadata mempty gp
             tempFilesAbsent fp = do
                 doesFileExist fp `shouldReturn` True
                 doesFileExist (fp <> "-wal") `shouldReturn` False
@@ -495,7 +495,7 @@ fileModeSpec =  do
         it "create and list wallet works" $ \f -> do
             withShelleyFileDBLayer f $ \DBLayer{..} -> do
                 atomically $ unsafeRunExceptT $
-                    initializeWallet testWid testCp testMetadata mempty gp
+                    initializeWallet testCp testMetadata mempty gp
             testReopening f getWalletId' testWid
 
         it "create and get meta works" $ \f -> do
@@ -504,27 +504,27 @@ fileModeSpec =  do
                 let meta = testMetadata
                        { passphraseInfo = Just $ WalletPassphraseInfo now EncryptWithPBKDF2 }
                 atomically $ unsafeRunExceptT $
-                    initializeWallet testWid testCp meta mempty gp
+                    initializeWallet testCp meta mempty gp
                 return (meta, WalletDelegation NotDelegating [])
-            testReopening f (`readWalletMeta'` testWid) (Just meta)
+            testReopening f readWalletMeta' (Just meta)
 
         it "create and get private key" $ \f -> do
             (k, h) <- withShelleyFileDBLayer f $ \db@DBLayer{..} -> do
                 atomically $ unsafeRunExceptT $
-                    initializeWallet testWid testCp testMetadata mempty gp
+                    initializeWallet testCp testMetadata mempty gp
                 unsafeRunExceptT $ attachPrivateKey db testWid
-            testReopening f (`readPrivateKey'` testWid) (Just (k, h))
+            testReopening f readPrivateKey' (Just (k, h))
 
         it "put and read tx history (Ascending)" $ \f -> do
             withShelleyFileDBLayer f $ \DBLayer{..} -> do
                 atomically $ do
                     unsafeRunExceptT $
-                        initializeWallet testWid testCp testMetadata mempty gp
-                    unsafeRunExceptT $ putTxHistory testWid testTxs
+                        initializeWallet testCp testMetadata mempty gp
+                    unsafeRunExceptT $ putTxHistory testTxs
             testReopening
                 f
                 (\db' ->
-                    readTransactions' db' testWid Ascending wholeRange Nothing
+                    readTransactions' db' Ascending wholeRange Nothing
                     )
                 testTxs -- expected after opening db
 
@@ -532,12 +532,12 @@ fileModeSpec =  do
             withShelleyFileDBLayer f $ \DBLayer{..} -> do
                 atomically $ do
                     unsafeRunExceptT $
-                        initializeWallet testWid testCp testMetadata mempty gp
-                    unsafeRunExceptT $ putTxHistory testWid testTxs
+                        initializeWallet testCp testMetadata mempty gp
+                    unsafeRunExceptT $ putTxHistory testTxs
             testReopening
                 f
                 (\db' ->
-                    readTransactions' db' testWid Descending wholeRange Nothing
+                    readTransactions' db' Descending wholeRange Nothing
                     )
                 (reverse testTxs) -- expected after opening db
 
@@ -545,9 +545,9 @@ fileModeSpec =  do
             withShelleyFileDBLayer f $ \DBLayer{..} -> do
                 atomically $ do
                     unsafeRunExceptT $
-                        initializeWallet testWid testCp testMetadata mempty gp
-                    unsafeRunExceptT $ putCheckpoint testWid testCp
-            testReopening f (`readCheckpoint'` testWid) (Just testCp)
+                        initializeWallet testCp testMetadata mempty gp
+                    unsafeRunExceptT $ putCheckpoint testCp
+            testReopening f readCheckpoint' (Just testCp)
 
         describe "Golden rollback scenarios" $ do
             let dummyHash x = Hash $
@@ -556,7 +556,7 @@ fileModeSpec =  do
                     x <> BS.pack (replicate (32 - (BS.length x)) 0)
 
             let mockApply DBLayer{..} h mockTxs = do
-                    Just cpA <- atomically $ readCheckpoint testWid
+                    Just cpA <- atomically readCheckpoint
                     let slotA = view #slotNo $ currentTip cpA
                     let Quantity bhA = view #blockHeight $ currentTip cpA
                     let hashA = headerHash $ currentTip cpA
@@ -574,10 +574,10 @@ fileModeSpec =  do
                     let (FilteredBlock{transactions=txs}, (_,cpB)) =
                             applyBlock fakeBlock cpA
                     atomically $ do
-                        unsafeRunExceptT $ putCheckpoint testWid cpB
-                        unsafeRunExceptT $ putTxHistory testWid txs
-                        unsafeRunExceptT $ prune testWid (Quantity 2_160)
-                            $ 2_160 * 3 * 20
+                        unsafeRunExceptT $ putCheckpoint cpB
+                        unsafeRunExceptT $ putTxHistory txs
+                        unsafeRunExceptT
+                            $ prune (Quantity 2_160) $ 2_160 * 3 * 20
 
             it "Should spend collateral inputs and create spendable collateral \
                 \outputs if validation fails" $
@@ -588,7 +588,7 @@ fileModeSpec =  do
                             knownAddresses (getState testCp)
 
                     atomically $ unsafeRunExceptT $ initializeWallet
-                        testWid testCp testMetadata mempty gp
+                        testCp testMetadata mempty gp
 
                     ------------------------------------------------------------
                     -- Transaction 1
@@ -729,7 +729,7 @@ fileModeSpec =  do
                         knownAddresses (getState testCp)
 
                 atomically $ unsafeRunExceptT $ initializeWallet
-                    testWid testCp testMetadata mempty gp
+                    testCp testMetadata mempty gp
 
                 let mockApplyBlock1 = mockApply db (dummyHash "block1")
                         [ Tx
@@ -790,8 +790,8 @@ fileModeSpec =  do
                 getTxsInLedger db `shouldReturn` [(Outgoing, 2), (Incoming, 4)]
 
                 atomically . void . unsafeRunExceptT $
-                    rollbackTo testWid (At $ SlotNo 200)
-                Just cp <- atomically $ readCheckpoint testWid
+                    rollbackTo (At $ SlotNo 200)
+                Just cp <- atomically readCheckpoint
                 view #slotNo (currentTip cp) `shouldBe` (SlotNo 0)
 
                 getTxsInLedger db `shouldReturn` []
@@ -822,15 +822,15 @@ prop_randomOpChunks (NonEmpty (p : pairs)) =
                 dbF `shouldBeConsistentWith` dbM
     boot DBLayer{..} (cp, meta) = do
         let cp0 = imposeGenesisState cp
-        atomically $ unsafeRunExceptT $ initializeWallet testWid cp0 meta mempty gp
+        atomically $ unsafeRunExceptT $ initializeWallet cp0 meta mempty gp
 
     insertPair
         :: DBLayer IO s k
         -> (Wallet s, WalletMetadata)
         -> IO ()
     insertPair DBLayer{..} (cp, meta) = atomically $ do
-            unsafeRunExceptT $ putCheckpoint testWid cp
-            unsafeRunExceptT $ putWalletMeta testWid meta
+            unsafeRunExceptT $ putCheckpoint cp
+            unsafeRunExceptT $ putWalletMeta meta
 
     imposeGenesisState :: Wallet s -> Wallet s
     imposeGenesisState = over #currentTip $ \(BlockHeader _ _ h _) ->
@@ -842,12 +842,12 @@ prop_randomOpChunks (NonEmpty (p : pairs)) =
         walId2 <-  getWalletId' db2
         walId1 `shouldBe` walId2
 
-        cps1 <- readCheckpoint' db1 walId1
-        cps2 <- readCheckpoint' db2 walId1
+        cps1 <- readCheckpoint' db1
+        cps2 <- readCheckpoint' db2
         cps1 `shouldBe` cps2
 
-        meta1 <- readWalletMeta' db1 walId1
-        meta2 <- readWalletMeta' db2 walId1
+        meta1 <- readWalletMeta' db1
+        meta2 <- readWalletMeta' db2
         meta1 `shouldBe` meta2
 
 -- | Test that data is preserved when closing the database and opening
@@ -924,35 +924,28 @@ getWalletId' DBLayer{..} = pure walletId_
 
 readCheckpoint'
     :: DBLayer m s k
-    -> WalletId
     -> m (Maybe (Wallet s))
-readCheckpoint' DBLayer{..} =
-    atomically . readCheckpoint
+readCheckpoint' DBLayer{..} = atomically readCheckpoint
 
 readWalletMeta'
     :: DBLayer m s k
-    -> WalletId
     -> m (Maybe (WalletMetadata, WalletDelegation))
-readWalletMeta' DBLayer{..} =
-    atomically . readWalletMeta
+readWalletMeta' DBLayer{..} = atomically readWalletMeta
 
 readTransactions'
     :: DBLayer m s k
-    -> WalletId
     -> SortOrder
     -> Range SlotNo
     -> Maybe TxStatus
     -> m [(Tx, TxMeta)]
-readTransactions' DBLayer{..} a0 a1 a2 mstatus =
+readTransactions' DBLayer{..} a1 a2 mstatus =
     atomically . fmap (fmap toTxHistory)
-        $ readTransactions a0 Nothing a1 a2 mstatus Nothing
+        $ readTransactions Nothing a1 a2 mstatus Nothing
 
 readPrivateKey'
     :: DBLayer m s k
-    -> WalletId
     -> m (Maybe (k 'RootK XPrv, PassphraseHash))
-readPrivateKey' DBLayer{..} =
-    atomically . readPrivateKey
+readPrivateKey' DBLayer{..} = atomically readPrivateKey
 
 -- | Attach an arbitrary private key to a wallet
 attachPrivateKey
@@ -964,7 +957,7 @@ attachPrivateKey DBLayer{..} wid = do
     seed <- liftIO $ generate $ SomeMnemonic <$> genMnemonic @15
     (scheme, h) <- liftIO $ encryptPassphrase pwd
     let k = generateKeyFromSeed (seed, Nothing) (preparePassphrase scheme pwd)
-    mkNoSuchWalletError wid $ mapExceptT atomically $ putPrivateKey wid (k, h)
+    mkNoSuchWalletError wid $ mapExceptT atomically $ putPrivateKey (k, h)
     return (k, h)
 
 cutRandomly :: [a] -> IO [[a]]
@@ -985,9 +978,14 @@ cutRandomly = iter []
 
 manualMigrationsSpec :: Spec
 manualMigrationsSpec = describe "Manual migrations" $ do
-    it "'migrate' db with no passphrase scheme set." $
-        testMigrationPassphraseScheme
-            "passphraseScheme-v2020-03-16.sqlite"
+    it "'migrate' db with no passphrase scheme set."
+        testMigrationPassphraseScheme1
+    it "not 'migrate' db with no passphrase scheme set."
+        testMigrationPassphraseScheme2
+    it "not 'migrate' db with no date."
+        testMigrationPassphraseScheme3
+    it "not 'migrate' db with no passphrase scheme set and no date."
+        testMigrationPassphraseScheme4
 
     it "'migrate' db with no 'derivation_prefix' for seq state (Icarus)" $
         testMigrationSeqStateDerivationPrefix @IcarusKey
@@ -1185,7 +1183,7 @@ testMigrationTxMetaFee
 testMigrationTxMetaFee dbName expectedLength caseByCase = do
     (logs, result) <- withDBLayerFromCopiedFile @ShelleyKey dbName
         $ \DBLayer{..} -> atomically $ do
-            readTransactions walletId_
+            readTransactions
                 Nothing Descending wholeRange Nothing Nothing
 
     -- Check that we've indeed logged a needed migration for 'fee'
@@ -1227,8 +1225,8 @@ testMigrationCleanupCheckpoints
 testMigrationCleanupCheckpoints dbName genesisParameters tip = do
     (logs, result) <- withDBLayerFromCopiedFile @ShelleyKey dbName
         $ \DBLayer{..} -> atomically $ do
-            (,) <$> readGenesisParameters walletId_
-                <*> readCheckpoint walletId_
+            (,) <$> readGenesisParameters
+                <*> readCheckpoint
 
     length (filter (isMsgManualMigration fieldGenesisHash) logs) `shouldBe` 1
     length (filter (isMsgManualMigration fieldGenesisStart) logs) `shouldBe` 1
@@ -1249,7 +1247,7 @@ testMigrationRole
 testMigrationRole dbName = do
     (logs, Just cp) <- withDBLayerFromCopiedFile @ShelleyKey dbName
         $ \DBLayer{..} -> atomically $ do
-            readCheckpoint walletId_
+            readCheckpoint
 
     let migrationMsg = filter isMsgManualMigration logs
     length migrationMsg `shouldBe` 3
@@ -1276,7 +1274,7 @@ testMigrationSeqStateDerivationPrefix
 testMigrationSeqStateDerivationPrefix dbName prefix = do
     (logs, Just cp) <- withDBLayerFromCopiedFile @k @s dbName
         $ \DBLayer{..} -> atomically $ do
-            readCheckpoint walletId_
+            readCheckpoint
 
     let migrationMsg = filter isMsgManualMigration logs
     length migrationMsg `shouldBe` 1
@@ -1286,57 +1284,69 @@ testMigrationSeqStateDerivationPrefix dbName prefix = do
         let fieldInDB = fieldDB $ persistFieldDef DB.SeqStateDerivationPrefix
         in fieldName field == unFieldNameDB fieldInDB
 
-testMigrationPassphraseScheme
-    :: FilePath -> IO ()
-testMigrationPassphraseScheme dbName = do
-    (logs, (a,b,c,d)) <- withDBLayerFromCopiedFile @ShelleyKey dbName
-        $ \DBLayer{..} -> atomically $ do
-            Just a <- readWalletMeta walNeedMigration
-            Just b <- readWalletMeta walNewScheme
-            Just c <- readWalletMeta walOldScheme
-            Just d <- readWalletMeta walNoPassphrase
-            pure (fst a, fst b, fst c, fst d)
-
-    -- Migration is visible from the logs
-    let migrationMsg = filter isMsgManualMigration logs
-    length migrationMsg `shouldBe` 1
-
+testMigrationPassphraseScheme1 :: IO ()
+testMigrationPassphraseScheme1 = do
     -- The first wallet is stored in the database with only a
     -- 'passphraseLastUpdatedAt' field, but no 'passphraseScheme'. So,
     -- after the migration, both should now be `Just`.
+    (logs, a) <- withDBLayerFromCopiedFile @ShelleyKey
+        "passphraseScheme/she.17ca0ed41a372e483f2968aa386a4b6b0ca6b5ee.sqlite"
+        $ \DBLayer{..} -> atomically $ do
+            Just a <- readWalletMeta
+            pure (fst a)
+
+    -- Migration is visible from the logs
+    let migrationMsg = filter isMsgManualMigrationPw logs
+    length migrationMsg `shouldBe` 1
     (passphraseScheme <$> passphraseInfo a) `shouldBe` Just EncryptWithPBKDF2
 
+testMigrationPassphraseScheme2 :: IO ()
+testMigrationPassphraseScheme2 = do
     -- The second wallet was just fine and already has a passphrase
     -- scheme set to use PBKDF2. Nothing should have changed.
-    (passphraseScheme <$> passphraseInfo b) `shouldBe` Just EncryptWithPBKDF2
+    (logs, a) <- withDBLayerFromCopiedFile @ShelleyKey
+        "passphraseScheme/she.2e8353d2bb937445948669a1dcc69ec9628a558c.sqlite"
+        $ \DBLayer{..} -> atomically $ do
+            Just a <- readWalletMeta
+            pure (fst a)
 
+    let migrationMsg = filter isMsgManualMigrationPw logs
+    length migrationMsg `shouldBe` 1
+    (passphraseScheme <$> passphraseInfo a) `shouldBe` Just EncryptWithPBKDF2
+
+testMigrationPassphraseScheme3 :: IO ()
+testMigrationPassphraseScheme3 = do
     -- The third wallet had a scheme too, but was using the legacy
     -- scheme. Nothing should have changed.
-    (passphraseScheme <$> passphraseInfo c) `shouldBe` Just EncryptWithScrypt
+    (logs, a) <- withDBLayerFromCopiedFile @ShelleyKey
+        "passphraseScheme/she.899abf7137aa8b3200d55d70474f6fdd2649fa2f.sqlite"
+        $ \DBLayer{..} -> atomically $ do
+            Just a <- readWalletMeta
+            pure (fst a)
 
+    let migrationMsg = filter isMsgManualMigrationPw logs
+    length migrationMsg `shouldBe` 1
+    (passphraseScheme <$> passphraseInfo a) `shouldBe` Just EncryptWithScrypt
+
+testMigrationPassphraseScheme4 :: IO ()
+testMigrationPassphraseScheme4 = do
     -- The last wallet had no passphrase whatsoever (restored from
     -- account public key), so it should still have NO scheme.
-    (passphraseScheme <$> passphraseInfo d) `shouldBe` Nothing
-  where
-    isMsgManualMigration = matchMsgManualMigration $ \field ->
-        let fieldInDB = fieldDB $ persistFieldDef DB.WalPassphraseScheme
-        in  fieldName field == unFieldNameDB fieldInDB
+    (logs, a ) <- withDBLayerFromCopiedFile @ShelleyKey
+        "passphraseScheme/she.be92ab4ec9399449e53b94378e6cb6724691f8b3.sqlite"
+        $ \DBLayer{..} -> atomically $ do
+            Just a <- readWalletMeta
+            pure (fst a)
 
-    -- Coming from __test/data/passphraseScheme-v2020-03-16.sqlite__:
-    --
-    --     sqlite3> SELECT wallet_id, passphrase_last_updated_at,passphrase_scheme FROM wallet;
-    --
-    --     wallet_id                                | passphrase_last_updated_at    | passphrase_scheme
-    --     =========================================+===============================+==================
-    --     64581f7393190aed462fc3180ce52c3c1fe580a9 | 2020-06-02T14:22:17.48678659  |
-    --     5e481f55084afda69fc9cd3863ced80fa83734aa | 2020-06-02T14:22:03.234087113 | EncryptWithPBKDF2
-    --     4a6279cd71d5993a288b2c5879daa7c42cebb73d | 2020-06-02T14:21:45.418841818 | EncryptWithScrypt
-    --     ba74a7d2c1157ea7f32a93f255dac30e9ebca62b |                               |
-    --
-    Right walNeedMigration = fromText "64581f7393190aed462fc3180ce52c3c1fe580a9"
-    Right walNewScheme     = fromText "5e481f55084afda69fc9cd3863ced80fa83734aa"
-    Right walOldScheme     = fromText "4a6279cd71d5993a288b2c5879daa7c42cebb73d"
-    Right walNoPassphrase  = fromText "ba74a7d2c1157ea7f32a93f255dac30e9ebca62b"
+    let migrationMsg = filter isMsgManualMigrationPw logs
+    length migrationMsg `shouldBe` 1
+    (passphraseScheme <$> passphraseInfo a) `shouldBe` Nothing
+
+isMsgManualMigrationPw :: WalletDBLog -> Bool
+isMsgManualMigrationPw = matchMsgManualMigration $ \field ->
+    let fieldInDB = fieldDB $ persistFieldDef DB.WalPassphraseScheme
+    in  fieldName field == unFieldNameDB fieldInDB
+
 
 testCreateMetadataTable ::
     forall k. (k ~ ShelleyKey) => IO ()
@@ -1524,10 +1534,9 @@ gp = dummyGenesisParameters
 
 getAvailableBalance :: DBLayer IO s k -> IO Natural
 getAvailableBalance DBLayer{..} = do
-    cp <- fmap (fromMaybe (error "nothing")) <$>
-        atomically $ readCheckpoint testWid
+    cp <- fromMaybe (error "nothing") <$> atomically readCheckpoint
     pend <- atomically $ fmap toTxHistory
-        <$> readTransactions testWid Nothing Descending wholeRange
+        <$> readTransactions Nothing Descending wholeRange
                 (Just Pending) Nothing
     return $ fromIntegral $ unCoin $ TokenBundle.getCoin $
         availableBalance (Set.fromList $ map fst pend) cp
@@ -1535,7 +1544,7 @@ getAvailableBalance DBLayer{..} = do
 getTxsInLedger :: DBLayer IO s k -> IO ([(Direction, Natural)])
 getTxsInLedger DBLayer {..} = do
     pend <- atomically $ fmap toTxHistory
-        <$> readTransactions testWid Nothing Descending wholeRange
+        <$> readTransactions Nothing Descending wholeRange
                 (Just InLedger) Nothing
     pure $ map (\(_, m) -> (direction m, fromIntegral $ unCoin $ amount m)) pend
 

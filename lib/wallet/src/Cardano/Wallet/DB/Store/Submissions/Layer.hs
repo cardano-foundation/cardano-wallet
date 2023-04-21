@@ -42,7 +42,7 @@ import Cardano.Wallet.DB.Store.Submissions.Operations
     , submissionMetaFromTxMeta
     )
 import Cardano.Wallet.Primitive.Types
-    ( SlotNo (SlotNo), WalletId )
+    ( SlotNo (SlotNo) )
 import Cardano.Wallet.Primitive.Types.Hash
     ( Hash (..) )
 import Cardano.Wallet.Primitive.Types.Tx
@@ -112,11 +112,11 @@ rollForwardTxSubmissions
     :: SlotNo -> [(SlotNo, Hash "Tx")] -> DeltaTxSubmissions
 rollForwardTxSubmissions tip txs = RollForward tip (second TxId <$> txs)
 
-removePendingOrExpiredTx :: TxSubmissions -> WalletId -> Hash "Tx"
+removePendingOrExpiredTx :: TxSubmissions -> Hash "Tx"
     -> Either ErrRemoveTx DeltaTxSubmissions
-removePendingOrExpiredTx walletSubmissions wid txId = do
+removePendingOrExpiredTx walletSubmissions txId = do
     let
-        errNoTx = ErrRemoveTxNoSuchTransaction $ ErrNoSuchTransaction wid txId
+        errNoTx = ErrRemoveTxNoSuchTransaction $ ErrNoSuchTransaction txId
         errInLedger = ErrRemoveTxAlreadyInLedger txId
     case status (TxId txId) (transactions walletSubmissions) of
         Unknown -> Left errNoTx

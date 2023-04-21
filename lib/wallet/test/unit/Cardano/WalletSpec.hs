@@ -308,16 +308,12 @@ spec = describe "Cardano.WalletSpec" $ do
             (property walletDoubleCreationProp)
         it "Wallet after being created can be got using valid wallet Id"
             (property walletGetProp)
-        it "Wallet with wrong wallet Id cannot be got"
-            (property walletGetWrongIdProp)
         it "Two wallets with same mnemonic have a same public id"
             (property walletIdDeterministic)
         it "Two wallets with different mnemonic have a different public id"
             (property walletIdInjective)
         it "Wallet has name corresponding to its last update"
             (property walletUpdateName)
-        it "Can't change name if wallet doesn't exist"
-            (property walletUpdateNameNoSuchWallet)
         it "Can change passphrase of the last private key attached, if any"
             (property walletUpdatePassphrase)
         it "Can't change passphrase with a wrong old passphrase"
@@ -362,8 +358,9 @@ walletCreationProp
     :: (WalletId, WalletName, DummyState)
     -> Property
 walletCreationProp newWallet = monadicIO $ do
-    WalletLayerFixture DBLayer{..} _wl walletIds <- run $ setupFixture newWallet
-    resFromDb <- run $ atomically $ readCheckpoint $ L.head walletIds
+    WalletLayerFixture DBLayer{..} _wl _walletIds <-
+        run $ setupFixture newWallet
+    resFromDb <- run $ atomically readCheckpoint
     assert (isJust resFromDb)
 
 walletDoubleCreationProp
@@ -382,14 +379,6 @@ walletGetProp newWallet = monadicIO $ do
     WalletLayerFixture _db wl walletIds <- run $ setupFixture newWallet
     resFromGet <- run $ runExceptT $ W.readWallet wl (L.head walletIds)
     assert (isRight resFromGet)
-
-walletGetWrongIdProp
-    :: ((WalletId, WalletName, DummyState), WalletId)
-    -> Property
-walletGetWrongIdProp (newWallet@(wid, _, _), walletId) = monadicIO $ do
-    WalletLayerFixture _db wl _walletIds <- run $ setupFixture newWallet
-    attempt <- run $ runExceptT $ W.readWallet wl walletId
-    assert ((if wid /= walletId then isLeft else isRight) attempt)
 
 walletIdDeterministic
     :: (WalletId, WalletName, DummyState)
@@ -419,18 +408,6 @@ walletUpdateName wallet@(_, wName0, _) names = monadicIO $ do
         fmap (name . (\(_, (b, _), _) -> b))
             <$> unsafeRunExceptT $ W.readWallet wl wid
     assert (wName == last (wName0 : names))
-
-walletUpdateNameNoSuchWallet
-    :: (WalletId, WalletName, DummyState)
-    -> WalletId
-    -> WalletName
-    -> Property
-walletUpdateNameNoSuchWallet wallet@(wid', _, _) wid wName =
-    wid /= wid' ==> monadicIO $ do
-        WalletLayerFixture _ wl _ <- run $ setupFixture wallet
-        attempt <- run $ runExceptT $
-            W.updateWallet wl wid (\x -> x { name = wName })
-        assert (attempt == Left (ErrNoSuchWallet wid))
 
 walletUpdatePassphrase
     :: (WalletId, WalletName, DummyState)
@@ -520,13 +497,13 @@ walletListTransactionsSorted
     -> SortOrder
     -> (Maybe UniformTime, Maybe UniformTime)
     -> Property
-walletListTransactionsSorted wallet@(wid, _, _) _order (_mstart, _mend) =
+walletListTransactionsSorted wallet@(_, _, _) _order (_mstart, _mend) =
     forAll (logScale' 1.5 arbitrary) $ \history ->
     monadicIO $ liftIO $ do
         WalletLayerFixture DBLayer{..} wl _ <- setupFixture wallet
-        atomically $ unsafeRunExceptT $ putTxHistory wid history
+        atomically $ unsafeRunExceptT $ putTxHistory history
         txs <- unsafeRunExceptT $
-            W.listTransactions @_ @_ @_ wl wid Nothing Nothing Nothing
+            W.listTransactions @_ @_ @_ wl Nothing Nothing Nothing
                 Descending Nothing
         length txs `shouldBe` L.length history
         -- With the 'Down'-wrapper, the sort is descending.
@@ -550,7 +527,7 @@ genLimit n =
 walletListTransactionsWithLimit
     :: (WalletId, WalletName, DummyState)
     -> Property
-walletListTransactionsWithLimit wallet@(wid, _, _) =
+walletListTransactionsWithLimit wallet@(_, _, _) =
     forAll (logScale' 1.5 arbitrary) $ \history ->
     forAll (genLimit $ length history) $ \limit ->
     -- collect (length history) $
@@ -568,9 +545,9 @@ walletListTransactionsWithLimit wallet@(wid, _, _) =
         limitNatural = fromIntegral limit
         test start stop order dir cut = liftIO @(PropertyM IO) $ do
             WalletLayerFixture DBLayer{..} wl _ <- setupFixture wallet
-            atomically $ unsafeRunExceptT $ putTxHistory wid history'
+            atomically $ unsafeRunExceptT $ putTxHistory history'
             txs <- unsafeRunExceptT $
-                W.listTransactions @_ @_ @_ wl wid Nothing start stop order
+                W.listTransactions @_ @_ @_ wl Nothing start stop order
                     $ Just limitNatural
             let times = [(txInfoId i, txInfoTime i) | i <- txs]
             shouldBe times $ take limit $ sortOn (dir . snd) $ do
@@ -643,7 +620,7 @@ walletListsOnlyRelatedAssets txId txMeta =
     forAll genOuts $ \(out1, out2, wallet@(wid, _, _)) -> monadicIO $ do
         WalletLayerFixture DBLayer{..} wl _ <- liftIO $ setupFixture wallet
         let listHistoricalAssets hry = do
-                liftIO . atomically . unsafeRunExceptT $ putTxHistory wid hry
+                liftIO . atomically . unsafeRunExceptT $ putTxHistory hry
                 liftIO . unsafeRunExceptT $ W.listAssets wl wid
         let tx = Tx
                 { txId
@@ -844,13 +821,13 @@ prop_localTxSubmission tc = monadicIO $ do
         $ \ctx@(TxRetryTestCtx dbl@(DBLayer{..}) nl tr _ wid) -> do
         unsafeRunExceptT
             $ forM_ (retryTestPool tc) $ submitTx tr dbl nl wid
-        res0 <- atomically $ readLocalTxSubmissionPending wid
+        res0 <- atomically readLocalTxSubmissionPending
         -- Run test
         let cfg = LocalTxSubmissionConfig (timeStep st) 10
-        runLocalTxSubmissionPool @_ @DummyState @ShelleyKey cfg ctx wid
+        runLocalTxSubmissionPool @_ @DummyState @ShelleyKey cfg ctx
 
         -- Gather state
-        res1 <- atomically $ readLocalTxSubmissionPending wid
+        res1 <- atomically readLocalTxSubmissionPending
         pure (res0, res1)
 
     let (resStart, resEnd) = resAction res

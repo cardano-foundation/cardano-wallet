@@ -35,8 +35,8 @@ data ErrRemoveTx
 
 -- | Indicates that the specified transaction hash is not found in the
 -- transaction history of the given wallet.
-data ErrNoSuchTransaction
-    = ErrNoSuchTransaction WalletId (Hash "Tx")
+newtype ErrNoSuchTransaction
+    = ErrNoSuchTransaction (Hash "Tx")
     deriving (Eq, Show)
 
 -- | Forbidden operation was executed on an already existing wallet

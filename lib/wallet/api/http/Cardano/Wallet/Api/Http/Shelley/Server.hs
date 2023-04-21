@@ -933,10 +933,9 @@ mkShelleyWallet
         )
     => MkApiWallet ctx s ApiWallet
 mkShelleyWallet ctx@ApiLayer{..} wid cp meta delegation pending progress = do
-    reward <- withWorkerCtx @_ @s @k ctx wid liftE liftE $ \wrk -> do
-        let db = wrk ^. dbLayer
+    reward <- withWorkerCtx @_ @s @k ctx wid liftE liftE $ \wrk ->
         -- never fails - returns zero if balance not found
-        liftIO $ W.fetchRewardBalance @s @k db wid
+        liftIO $ W.fetchRewardBalance @s @k $ wrk ^. dbLayer
 
     let ti = timeInterpreter netLayer
 
@@ -1167,10 +1166,9 @@ mkSharedWallet ctx wid cp meta delegation pending progress =
             ApiScriptTemplate <$> Shared.delegationTemplate st
         }
     Shared.Active _ -> do
-        reward <- withWorkerCtx @_ @s @k ctx wid liftE liftE $ \wrk -> do
-            let db = wrk ^. dbLayer
+        reward <- withWorkerCtx @_ @s @k ctx wid liftE liftE $ \wrk ->
             -- never fails - returns zero if balance not found
-            liftIO $ W.fetchRewardBalance @s @k db wid
+            liftIO $ W.fetchRewardBalance @s @k $ wrk ^. dbLayer
 
         let ti = timeInterpreter $ ctx ^. networkLayer
         apiDelegation <- liftIO $ toApiWalletDelegation delegation
@@ -1246,13 +1244,13 @@ patchSharedWallet ctx liftKey cred (ApiT wid) body = do
                         cp <- mapExceptT atomically
                             $ withExceptT ErrAddCosignerKeyNoSuchWallet
                             $ W.withNoSuchWallet wid
-                            $ readCheckpoint wid
+                            readCheckpoint
                         let state = getState cp
                         --could be for account and root key wallets
                         prvKeyM <-
-                            mapExceptT atomically $ lift $ readPrivateKey wid
+                            mapExceptT atomically $ lift readPrivateKey
                         metaM <-
-                            mapExceptT atomically $ lift $ readWalletMeta wid
+                            mapExceptT atomically $ lift readWalletMeta
                         when (isNothing metaM) $
                             throwE ErrAddCosignerKeyWalletMetadataNotFound
                         pure (state, prvKeyM, fst $ fromJust metaM)
@@ -2105,8 +2103,7 @@ signTransaction ctx (ApiT wid) body = do
             W.withRootKey @s @k db wid pwd ErrWitnessTxWithRootKey $ \rootK scheme -> do
                 cp <- mapExceptT atomically
                     $ withExceptT ErrWitnessTxNoSuchWallet
-                    $ W.withNoSuchWallet wid
-                    $ readCheckpoint wid
+                    $ W.withNoSuchWallet wid readCheckpoint
                 let
                     pwdP :: Passphrase "encryption"
                     pwdP = preparePassphrase scheme pwd
@@ -2224,7 +2221,7 @@ deleteTransaction
     -> Handler NoContent
 deleteTransaction ctx (ApiT wid) (ApiTxId (ApiT (tid))) = do
     withWorkerCtx ctx wid liftE liftE $ \wrk -> liftHandler $
-        W.forgetTx wrk wid tid
+        W.forgetTx wrk tid
     return NoContent
 
 listTransactions
@@ -2245,7 +2242,7 @@ listTransactions
     ctx (ApiT wid) mMinWithdrawal mStart mEnd mOrder mLimit metadataSchema =
         withWorkerCtx ctx wid liftE liftE $ \wrk -> do
             txs <- liftHandler $
-                W.listTransactions @_ @_ @_ wrk wid
+                W.listTransactions @_ @_ @_ wrk
                 (Coin . fromIntegral . getMinWithdrawal <$> mMinWithdrawal)
                 (getIso8601Time <$> mStart)
                 (getIso8601Time <$> mEnd)
@@ -4811,7 +4808,7 @@ registerWorker ctx before coworker wid =
         , workerMain = \ctx' _ -> race_
             (unsafeRunExceptT $ W.restoreWallet ctx' wid)
             (race_
-                (forever $ W.runLocalTxSubmissionPool txCfg ctx' wid)
+                (forever $ W.runLocalTxSubmissionPool txCfg ctx')
                 (coworker ctx' wid))
         }
     txCfg = W.defaultLocalTxSubmissionConfig

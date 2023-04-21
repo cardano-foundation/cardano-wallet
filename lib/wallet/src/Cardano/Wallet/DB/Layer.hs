@@ -567,10 +567,9 @@ newDBLayerFromDBOpen ti wid_ DBOpen{atomically=runQuery} = mdo
 
     -- Retrieve the latest checkpoint from the DBVar
     let readCheckpoint
-            :: W.WalletId
-            -> SqlPersistT IO (Maybe (W.Wallet s))
-        readCheckpoint wid =
-            fmap getLatest . Map.lookup wid <$> readDBVar walletsDB
+            ::  SqlPersistT IO (Maybe (W.Wallet s))
+        readCheckpoint =
+            fmap (getLatest . snd). Map.lookupMin <$> readDBVar walletsDB
 
     let pruneCheckpoints
             :: W.WalletId
@@ -595,17 +594,17 @@ newDBLayerFromDBOpen ti wid_ DBOpen{atomically=runQuery} = mdo
         -----------------------------------------------------------------------}
     let
       dbWallets = DBWallets
-        { initializeWallet_ = \wid cp meta txs gp -> do
+        { initializeWallet_ = \cp meta txs gp -> do
             res <- lift $ runExceptT $ getWalletId_ dbWallets
             case res of
                 Left ErrWalletNotInitialized -> lift $ do
-                    insert_ $ mkWalletEntity wid meta gp
-                    insertCheckpointGenesis wid cp
+                    insert_ $ mkWalletEntity wid_ meta gp
+                    insertCheckpointGenesis wid_ cp
                     updateS (store transactionsQS) Nothing $
-                                ExpandTxWalletsHistory wid txs
+                                ExpandTxWalletsHistory wid_ txs
                 Right _ -> throwE ErrWalletAlreadyInitialized
 
-        , readGenesisParameters_ = selectGenesisParameters
+        , readGenesisParameters_ = selectGenesisParameters wid_
 
         , getWalletId_ = do
             ws <- lift $ map unWalletKey <$> selectKeysList [] [Asc WalId]
@@ -623,14 +622,14 @@ newDBLayerFromDBOpen ti wid_ DBOpen{atomically=runQuery} = mdo
       dbCheckpoints = DBCheckpoints
         { walletsDB_ = walletsDB
 
-        , putCheckpoint_ = \wid cp -> ExceptT $ do
+        , putCheckpoint_ = \cp -> ExceptT $ do
             modifyDBMaybe walletsDB $ \ws ->
-                case Map.lookup wid ws of
-                    Nothing -> (Nothing, Left ErrWalletNotInitialized)
-                    Just _  ->
+                if null ws
+                    then (Nothing, Left ErrWalletNotInitialized)
+                    else
                         let (prologue, wcp) = fromWallet cp
                             slot = getSlot wcp
-                            delta = Just $ Adjust wid
+                            delta = Just $ Adjust wid_
                                 [ UpdateCheckpoints [ PutCheckpoint slot wcp ]
                                 , ReplacePrologue prologue
                                 ]
@@ -638,10 +637,10 @@ newDBLayerFromDBOpen ti wid_ DBOpen{atomically=runQuery} = mdo
 
         , readCheckpoint_ = readCheckpoint
 
-        , listCheckpoints_ = \wid -> do
+        , listCheckpoints_ = do
             let toChainPoint = W.chainPointFromBlockHeader
             map (toChainPoint . blockHeaderFromEntity . entityVal) <$> selectList
-                [ CheckpointWalletId ==. wid ]
+                [ CheckpointWalletId ==. wid_ ]
                 [ Asc CheckpointSlot ]
         }
 
@@ -652,9 +651,8 @@ newDBLayerFromDBOpen ti wid_ DBOpen{atomically=runQuery} = mdo
       lookupTx = queryS transactionsQS . GetByTxId
       lookupTxOut = queryS transactionsQS . GetTxOut
       dbTxHistory = DBTxHistory
-        { putTxHistory_ = \wid ->
-            updateS (store transactionsQS) Nothing
-                . ExpandTxWalletsHistory wid
+        { putTxHistory_ = updateS (store transactionsQS) Nothing
+                . ExpandTxWalletsHistory wid_
 
         , readTxHistory_ = \range tip mlimit order -> do
             txs <- queryS transactionsQS $ SomeMetas range mlimit order
@@ -669,10 +667,10 @@ newDBLayerFromDBOpen ti wid_ DBOpen{atomically=runQuery} = mdo
         , mkDecorator_ = mkDecorator transactionsQS
         }
 
-    let rollbackTo_ wid requestedPoint = do
+    let rollbackTo_ requestedPoint = do
             mNearestCheckpoint <-
                 ExceptT $ modifyDBMaybe walletsDB $ \ws ->
-                    case Map.lookup wid ws of
+                    case Map.lookup wid_ ws of
                         Nothing  ->
                             ( Nothing
                             , pure Nothing
@@ -681,10 +679,10 @@ newDBLayerFromDBOpen ti wid_ DBOpen{atomically=runQuery} = mdo
                             Nothing ->
                                 ( Nothing
                                 , throw
-                                    $ ErrNoOlderCheckpoint wid requestedPoint
+                                    $ ErrNoOlderCheckpoint wid_ requestedPoint
                                 )
                             Just nearestPoint ->
-                                ( Just $ Adjust wid
+                                ( Just $ Adjust wid_
                                     [ UpdateCheckpoints
                                         [ RollbackTo nearestPoint ]
                                     , UpdateSubmissions
@@ -702,10 +700,10 @@ newDBLayerFromDBOpen ti wid_ DBOpen{atomically=runQuery} = mdo
                 Nothing  -> ExceptT $ pure $ Left ErrWalletNotInitialized
                 Just wcp -> lift $ do
                     let nearestPoint = wcp ^. #currentTip . #slotNo
-                    deleteDelegationCertificates wid
+                    deleteDelegationCertificates wid_
                         [ CertSlot >. nearestPoint
                         ]
-                    deleteStakeKeyCerts wid
+                    deleteStakeKeyCerts wid_
                         [ StakeKeyCertSlot >. nearestPoint
                         ]
                     updateS (store transactionsQS) Nothing $
@@ -715,41 +713,41 @@ newDBLayerFromDBOpen ti wid_ DBOpen{atomically=runQuery} = mdo
                         $ W.chainPointFromBlockHeader
                         $ view #currentTip wcp
 
-    let prune_ wid epochStability finalitySlot = do
+    let prune_ epochStability finalitySlot = do
             ExceptT $ do
-                readCheckpoint wid >>= \case
+                readCheckpoint >>= \case
                     Nothing -> pure $ Left ErrWalletNotInitialized
                     Just cp -> Right <$> do
                         let tip = cp ^. #currentTip
-                        pruneCheckpoints wid epochStability tip
-            lift $ updateDBVar walletsDB $ Adjust wid
+                        pruneCheckpoints wid_ epochStability tip
+            lift $ updateDBVar walletsDB $ Adjust wid_
                 [ UpdateSubmissions [pruneByFinality finalitySlot]
                 ]
 
         {-----------------------------------------------------------------------
                                     Wallet Delegation
         -----------------------------------------------------------------------}
-    let dbDelegation = mkDBDelegation ti
+    let dbDelegation = mkDBDelegation ti wid_
         {-----------------------------------------------------------------------
                                    Wallet Metadata
         -----------------------------------------------------------------------}
     let
       dbWalletMeta = DBWalletMeta
-        { putWalletMeta_ = \wid meta -> ExceptT $ do
-            selectWallet wid >>= \case
+        { putWalletMeta_ = \meta -> ExceptT $ do
+            selectWallet wid_ >>= \case
                 Nothing -> pure $ Left ErrWalletNotInitialized
                 Just _ -> do
-                    updateWhere [WalId ==. wid]
+                    updateWhere [WalId ==. wid_]
                         (mkWalletMetadataUpdate meta)
                     pure $ Right ()
 
-        , readWalletMeta_ = readWalletMetadata
+        , readWalletMeta_ = readWalletMetadata wid_
         }
 
         {-----------------------------------------------------------------------
                                        Keystore
         -----------------------------------------------------------------------}
-    let dbPrivateKey = mkDBPrivateKey
+    let dbPrivateKey = mkDBPrivateKey wid_
 
         {-----------------------------------------------------------------------
                                      ACID Execution

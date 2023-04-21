@@ -103,31 +103,29 @@ newDBLayer timeInterpreter wid = do
         -----------------------------------------------------------------------}
 
         { walletId_ = wid
-        , initializeWallet = \pk cp meta txs gp -> ExceptT $
+        , initializeWallet = \cp meta txs gp -> ExceptT $
                 alterDB errWalletAlreadyExists db $
-                mInitializeWallet pk cp meta txs gp
+                mInitializeWallet cp meta txs gp
 
         {-----------------------------------------------------------------------
                                     Checkpoints
         -----------------------------------------------------------------------}
         , walletsDB = error "MVar.walletsDB: not implemented"
 
-        , putCheckpoint = \_pk cp -> ExceptT $
+        , putCheckpoint = \cp -> ExceptT $
             alterDB errWalletNotInitialized db (mCheckWallet) >>= \case
                 Left err -> pure $ Left err
                 Right _ -> do
                     alterDB errWalletNotInitialized db $
                         mPutCheckpoint cp
 
-        , readCheckpoint = const $ join <$> readDBMaybe db mReadCheckpoint
+        , readCheckpoint = join <$> readDBMaybe db mReadCheckpoint
 
-        , listCheckpoints = const
-            $ fromMaybe []
-            <$> readDBMaybe db mListCheckpoints
+        , listCheckpoints = fromMaybe [] <$> readDBMaybe db mListCheckpoints
 
-        , rollbackTo = \_pk pt -> ExceptT $
-            alterDB errWalletNotInitialized db $
-            mRollbackTo pt
+        , rollbackTo = ExceptT
+            . alterDB errWalletNotInitialized db
+            . mRollbackTo
 
         , prune = \_ _ -> error "MVar.prune: not implemented"
 
@@ -135,31 +133,30 @@ newDBLayer timeInterpreter wid = do
                                    Wallet Metadata
         -----------------------------------------------------------------------}
 
-        , putWalletMeta = \_pk meta -> ExceptT $
-            alterDB errWalletNotInitialized db $
-            mPutWalletMeta meta
+        , putWalletMeta = ExceptT
+            .  alterDB errWalletNotInitialized db
+            .  mPutWalletMeta
 
-        , readWalletMeta = const
-            $ fmap join
+        , readWalletMeta = fmap join
             $ readDBMaybe db
             $ mReadWalletMeta timeInterpreter
 
-        , putDelegationCertificate = \_pk cert sl -> ExceptT $
+        , putDelegationCertificate = \cert sl -> ExceptT $
             alterDB errWalletNotInitialized db $
             mPutDelegationCertificate cert sl
 
         , isStakeKeyRegistered =
-            const $ ExceptT . alterDB errWalletNotInitialized db $ mIsStakeKeyRegistered
+            ExceptT . alterDB errWalletNotInitialized db $ mIsStakeKeyRegistered
 
         {-----------------------------------------------------------------------
                                      Tx History
         -----------------------------------------------------------------------}
 
-        , putTxHistory = \_pk txh -> ExceptT $
-            alterDB errWalletNotInitialized db $
-            mPutTxHistory txh
+        , putTxHistory = ExceptT
+            . alterDB errWalletNotInitialized db
+            . mPutTxHistory
 
-        , readTransactions = \_pk minWithdrawal order range mstatus _mlimit ->
+        , readTransactions = \minWithdrawal order range mstatus _mlimit ->
             fmap (fromMaybe []) $
             readDBMaybe db $
                 mReadTxHistory
@@ -170,9 +167,9 @@ newDBLayer timeInterpreter wid = do
                     mstatus
 
         -- TODO: shift implementation to mGetTx
-        , getTx = \pk tid -> do
-            pk' <- getWalletId'
-            when ( pk /= pk') $ throwE ErrWalletNotInitialized
+        , getTx = \tid -> do
+            wid' <- getWalletId'
+            when ( wid /= wid') $ throwE ErrWalletNotInitialized
             ExceptT $ do
                 alterDB errWalletNotInitialized db (mCheckWallet) >>= \case
                     Left err -> pure $ Left err
@@ -194,11 +191,11 @@ newDBLayer timeInterpreter wid = do
                                        Keystore
         -----------------------------------------------------------------------}
 
-        , putPrivateKey = \_pk prv -> ExceptT $
-            alterDB errWalletNotInitialized db $
-            mPutPrivateKey prv
+        , putPrivateKey = ExceptT
+            . alterDB errWalletNotInitialized db
+            . mPutPrivateKey
 
-        , readPrivateKey = const $ join <$> readDBMaybe db mReadPrivateKey
+        , readPrivateKey = join <$> readDBMaybe db mReadPrivateKey
 
         {-----------------------------------------------------------------------
                                        Pending Tx
@@ -223,20 +220,18 @@ newDBLayer timeInterpreter wid = do
                                  Protocol Parameters
         -----------------------------------------------------------------------}
 
-        , readGenesisParameters = const
-            $ join
-            <$> readDBMaybe db mReadGenesisParameters
+        , readGenesisParameters = join <$> readDBMaybe db mReadGenesisParameters
 
         {-----------------------------------------------------------------------
                                  Delegation Rewards
         -----------------------------------------------------------------------}
 
-        , putDelegationRewardBalance = \_pk amt -> ExceptT $
-            alterDB errWalletNotInitialized db (mPutDelegationRewardBalance amt)
+        , putDelegationRewardBalance = ExceptT
+            . alterDB errWalletNotInitialized db
+            . mPutDelegationRewardBalance
 
-        , readDelegationRewardBalance =
-            const $ fromMaybe (Coin 0)
-                <$> readDBMaybe db mReadDelegationRewardBalance
+        , readDelegationRewardBalance = fromMaybe (Coin 0)
+            <$> readDBMaybe db mReadDelegationRewardBalance
 
         {-----------------------------------------------------------------------
                                       Execution
