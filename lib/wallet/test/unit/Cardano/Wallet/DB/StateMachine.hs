@@ -354,7 +354,7 @@ data Cmd s wid
         (Maybe TxStatus)
     | GetTx (Hash "Tx")
     | PutPrivateKey MPrivKey
-    | ReadPrivateKey wid
+    | ReadPrivateKey
     | ReadGenesisParameters wid
     | RollbackTo wid Slot
     | PutDelegationCertificate DelegationCertificate SlotNo
@@ -430,7 +430,7 @@ runMock = \case
         . (Right Nothing,)
     PutPrivateKey pk ->
         first (Resp . fmap Unit) . mPutPrivateKey pk
-    ReadPrivateKey _wid ->
+    ReadPrivateKey ->
         first (Resp . fmap PrivateKey) . mReadPrivateKey
     ReadGenesisParameters _wid ->
         first (Resp . fmap GenesisParams) . mReadGenesisParameters
@@ -495,8 +495,8 @@ runIO DBLayer{..} = fmap Resp . go
         PutPrivateKey pk -> catchNoSuchWallet Unit $
             runDB atomically $
             putPrivateKey (fromMockPrivKey pk)
-        ReadPrivateKey _wid -> Right . PrivateKey . fmap toMockPrivKey <$>
-            atomically (readPrivateKey wid)
+        ReadPrivateKey -> Right . PrivateKey . fmap toMockPrivKey <$>
+            atomically readPrivateKey
         ReadGenesisParameters _wid -> Right . GenesisParams <$>
             atomically (readGenesisParameters wid)
         PutDelegationRewardBalance _wid amt -> catchNoSuchWallet Unit $
@@ -655,7 +655,7 @@ generatorWithWid wids =
     , declareGenerator "PutPrivateKey" 3
         $ PutPrivateKey <$> genPrivKey
     , declareGenerator "ReadPrivateKey" 3
-        $ ReadPrivateKey <$> genId
+        $ pure ReadPrivateKey
     , declareGenerator "RollbackTo" 1
         $ RollbackTo <$> genId <*> arbitrary
     -- TODO: Implement mPrune
@@ -1050,12 +1050,12 @@ tag = Foldl.fold $ catMaybes <$> sequenceA
             | any enough matches = Just res
             | otherwise = Nothing
 
-    isReadPrivateKeySuccess :: Event s Symbolic -> Maybe MWid
+    isReadPrivateKeySuccess :: Event s Symbolic -> Maybe ()
     isReadPrivateKeySuccess ev = case (cmd ev, mockResp ev, before ev) of
-        (At (ReadPrivateKey wid)
+        (At ReadPrivateKey
             , Resp (Right (PrivateKey (Just _)))
-            , Model _ wids )
-                -> Just (wids ! wid)
+            , Model _ _wids )
+                -> Just ()
         _otherwise
             -> Nothing
 

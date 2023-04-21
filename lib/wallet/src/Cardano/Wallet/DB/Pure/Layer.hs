@@ -195,7 +195,7 @@ newDBLayer timeInterpreter wid = do
             . alterDB errWalletNotInitialized db
             . mPutPrivateKey
 
-        , readPrivateKey = const $ join <$> readDBMaybe db mReadPrivateKey
+        , readPrivateKey = join <$> readDBMaybe db mReadPrivateKey
 
         {-----------------------------------------------------------------------
                                        Pending Tx

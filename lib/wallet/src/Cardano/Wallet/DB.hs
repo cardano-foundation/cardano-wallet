@@ -346,8 +346,7 @@ data DBLayer m s k = forall stm. (MonadIO stm, MonadFail stm) => DBLayer
         -- operations (like transaction signing).
 
     , readPrivateKey
-        :: WalletId
-        -> stm (Maybe (k 'RootK XPrv, PassphraseHash))
+        :: stm (Maybe (k 'RootK XPrv, PassphraseHash))
         -- ^ Read a previously stored private key and its associated passphrase
         -- hash.
 
@@ -565,8 +564,7 @@ mkDBLayerFromParts ti wid_ DBLayerCollection{..} = DBLayer
                 pure <$> Sbms.removePendingOrExpiredTx xs txid
     , putPrivateKey = \a -> wrapNoSuchWallet wid_ $
         putPrivateKey_ dbPrivateKey  a
-    , readPrivateKey = \_wid ->
-        readPrivateKey_ dbPrivateKey
+    , readPrivateKey = readPrivateKey_ dbPrivateKey
     , readGenesisParameters = readGenesisParameters_ dbWallets
     , rollbackTo = rollbackTo_
     , prune = prune_

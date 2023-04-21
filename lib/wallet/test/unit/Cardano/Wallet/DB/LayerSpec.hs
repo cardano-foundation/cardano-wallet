@@ -513,7 +513,7 @@ fileModeSpec =  do
                 atomically $ unsafeRunExceptT $
                     initializeWallet testCp testMetadata mempty gp
                 unsafeRunExceptT $ attachPrivateKey db testWid
-            testReopening f (`readPrivateKey'` testWid) (Just (k, h))
+            testReopening f readPrivateKey' (Just (k, h))
 
         it "put and read tx history (Ascending)" $ \f -> do
             withShelleyFileDBLayer f $ \DBLayer{..} -> do
@@ -944,10 +944,8 @@ readTransactions' DBLayer{..} a1 a2 mstatus =
 
 readPrivateKey'
     :: DBLayer m s k
-    -> WalletId
     -> m (Maybe (k 'RootK XPrv, PassphraseHash))
-readPrivateKey' DBLayer{..} =
-    atomically . readPrivateKey
+readPrivateKey' DBLayer{..} = atomically readPrivateKey
 
 -- | Attach an arbitrary private key to a wallet
 attachPrivateKey

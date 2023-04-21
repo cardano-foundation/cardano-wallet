@@ -3202,7 +3202,7 @@ withRootKey DBLayer{..} wid pwd embed action = do
     (xprv, scheme) <- withExceptT embed $ mapExceptT atomically $ do
         mScheme <- (>>= (fmap passphraseScheme . passphraseInfo)) <$>
             lift (fmap fst <$> readWalletMeta)
-        mXPrv <- lift $ readPrivateKey wid
+        mXPrv <- lift readPrivateKey
         case (mXPrv, mScheme) of
             (Just (xprv, hpwd), Just scheme) -> do
                 withExceptT (ErrWithRootKeyWrongPassphrase wid) $ ExceptT $

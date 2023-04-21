@@ -171,7 +171,7 @@ properties withFreshDB = describe "DB.Properties" $ do
             $ prop_readAfterPut
                 testOnLayer
                 (\DBLayer{..} _wid -> mapExceptT atomically . putPrivateKey)
-                (\DBLayer{..} -> atomically . readPrivateKey)
+                (\DBLayer{..} _wid -> atomically readPrivateKey)
 
     describe "getTx properties" $ do
         it "can read after putting tx history for valid tx id"
@@ -209,7 +209,7 @@ properties withFreshDB = describe "DB.Properties" $ do
             $ prop_putBeforeInit
                 withFreshDB
                 (\DBLayer{..} _wid -> mapExceptT atomically . putPrivateKey)
-                (\DBLayer{..} -> atomically . readPrivateKey)
+                (\DBLayer{..} _wid -> atomically readPrivateKey)
                 Nothing
 
     describe "put doesn't affect other resources" $ do
@@ -220,7 +220,7 @@ properties withFreshDB = describe "DB.Properties" $ do
                 (\DBLayer{..} _wid -> mapExceptT atomically . putCheckpoint)
                 (\DBLayer{..} _ -> atomically readWalletMeta)
                 (\db _ -> readTxHistory_ db)
-                (\DBLayer{..} -> atomically . readPrivateKey)
+                (\DBLayer{..} _wid -> atomically readPrivateKey)
         it "Wallet Metadata vs Tx History & Checkpoint & Private Key"
             $ property
             $ prop_isolation
@@ -228,7 +228,7 @@ properties withFreshDB = describe "DB.Properties" $ do
                 (\DBLayer{..} _wid -> mapExceptT atomically . putWalletMeta)
                 (\db _ -> readTxHistory_ db)
                 (\DBLayer{..} _ -> atomically readCheckpoint)
-                (\DBLayer{..} -> atomically . readPrivateKey)
+                (\DBLayer{..} _wid -> atomically readPrivateKey)
         it "Tx History vs Checkpoint & Wallet Metadata & Private Key"
             $ property
             $ prop_isolation
@@ -236,7 +236,7 @@ properties withFreshDB = describe "DB.Properties" $ do
                 (\db _ -> putTxHistory_ db)
                 (\DBLayer{..} _ -> atomically readCheckpoint)
                 (\DBLayer{..} _ -> atomically readWalletMeta)
-                (\DBLayer{..} -> atomically . readPrivateKey)
+                (\DBLayer{..} _wid -> atomically readPrivateKey)
 
     let lastMay [] = Nothing
         lastMay xs = Just (last xs)
@@ -274,7 +274,7 @@ properties withFreshDB = describe "DB.Properties" $ do
             $ prop_sequentialPut
                 testOnLayer
                 (\DBLayer{..} _wid -> mapExceptT atomically . putPrivateKey)
-                (\DBLayer{..} -> atomically . readPrivateKey)
+                (\DBLayer{..} _wid -> atomically readPrivateKey)
                 lastMay
 
     describe "rollback" $ do

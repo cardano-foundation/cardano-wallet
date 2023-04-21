@@ -1248,7 +1248,7 @@ patchSharedWallet ctx liftKey cred (ApiT wid) body = do
                         let state = getState cp
                         --could be for account and root key wallets
                         prvKeyM <-
-                            mapExceptT atomically $ lift $ readPrivateKey wid
+                            mapExceptT atomically $ lift readPrivateKey
                         metaM <-
                             mapExceptT atomically $ lift readWalletMeta
                         when (isNothing metaM) $
