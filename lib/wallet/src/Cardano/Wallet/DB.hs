@@ -338,8 +338,7 @@ data DBLayer m s k = forall stm. (MonadIO stm, MonadFail stm) => DBLayer
         -- ^ Manually remove a pending transaction.
 
     , putPrivateKey
-        :: WalletId
-        -> (k 'RootK XPrv, PassphraseHash)
+        :: (k 'RootK XPrv, PassphraseHash)
         -> ExceptT ErrWalletNotInitialized stm ()
         -- ^ Store or replace a private key for a given wallet. Note that wallet
         -- _could_ be stored and manipulated without any private key associated
@@ -453,7 +452,7 @@ data DBLayerCollection stm m s k = DBLayerCollection
     , dbWalletMeta :: DBWalletMeta stm
     , dbDelegation :: DBDelegation stm
     , dbTxHistory :: DBTxHistory stm
-    , dbPrivateKey :: WalletId -> DBPrivateKey stm k
+    , dbPrivateKey :: DBPrivateKey stm k
 
     -- The following two functions will need to be split up
     -- and distributed the smaller layer parts as well.
@@ -564,10 +563,10 @@ mkDBLayerFromParts ti wid_ DBLayerCollection{..} = DBLayer
             updateSubmissions' wid_ (ErrRemoveTxNoSuchWallet . mapNoSuchWallet)
                 $ \xs ->
                 pure <$> Sbms.removePendingOrExpiredTx xs txid
-    , putPrivateKey = \wid a -> wrapNoSuchWallet wid $
-        putPrivateKey_ (dbPrivateKey wid) a
-    , readPrivateKey = \wid ->
-        readPrivateKey_ (dbPrivateKey wid)
+    , putPrivateKey = \a -> wrapNoSuchWallet wid_ $
+        putPrivateKey_ dbPrivateKey  a
+    , readPrivateKey = \_wid ->
+        readPrivateKey_ dbPrivateKey
     , readGenesisParameters = readGenesisParameters_ dbWallets
     , rollbackTo = rollbackTo_
     , prune = prune_

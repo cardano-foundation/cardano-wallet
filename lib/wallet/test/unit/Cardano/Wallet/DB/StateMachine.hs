@@ -353,7 +353,7 @@ data Cmd s wid
         (Range SlotNo)
         (Maybe TxStatus)
     | GetTx (Hash "Tx")
-    | PutPrivateKey wid MPrivKey
+    | PutPrivateKey MPrivKey
     | ReadPrivateKey wid
     | ReadGenesisParameters wid
     | RollbackTo wid Slot
@@ -428,7 +428,7 @@ runMock = \case
         -- TODO: Implement mGetTx
         -- . mGetTx wid tid
         . (Right Nothing,)
-    PutPrivateKey _wid pk ->
+    PutPrivateKey pk ->
         first (Resp . fmap Unit) . mPutPrivateKey pk
     ReadPrivateKey _wid ->
         first (Resp . fmap PrivateKey) . mReadPrivateKey
@@ -492,9 +492,9 @@ runIO DBLayer{..} = fmap Resp . go
         GetTx tid ->
             catchNoSuchWallet (TxHistory . maybe [] pure) $
             runDB atomically $ getTx tid
-        PutPrivateKey _wid pk -> catchNoSuchWallet Unit $
+        PutPrivateKey pk -> catchNoSuchWallet Unit $
             runDB atomically $
-            putPrivateKey wid (fromMockPrivKey pk)
+            putPrivateKey (fromMockPrivKey pk)
         ReadPrivateKey _wid -> Right . PrivateKey . fmap toMockPrivKey <$>
             atomically (readPrivateKey wid)
         ReadGenesisParameters _wid -> Right . GenesisParams <$>
@@ -653,7 +653,7 @@ generatorWithWid wids =
             <*> genRange
             <*> arbitrary
     , declareGenerator "PutPrivateKey" 3
-        $ PutPrivateKey <$> genId <*> genPrivKey
+        $ PutPrivateKey <$> genPrivKey
     , declareGenerator "ReadPrivateKey" 3
         $ ReadPrivateKey <$> genId
     , declareGenerator "RollbackTo" 1

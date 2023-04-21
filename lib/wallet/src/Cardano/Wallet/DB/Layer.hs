@@ -747,7 +747,7 @@ newDBLayerFromDBOpen ti wid_ DBOpen{atomically=runQuery} = mdo
         {-----------------------------------------------------------------------
                                        Keystore
         -----------------------------------------------------------------------}
-    let dbPrivateKey = mkDBPrivateKey
+    let dbPrivateKey = mkDBPrivateKey wid_
 
         {-----------------------------------------------------------------------
                                      ACID Execution

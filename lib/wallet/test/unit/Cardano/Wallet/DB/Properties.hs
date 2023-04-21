@@ -170,7 +170,7 @@ properties withFreshDB = describe "DB.Properties" $ do
             $ property
             $ prop_readAfterPut
                 testOnLayer
-                (\DBLayer{..} wid -> mapExceptT atomically . putPrivateKey wid)
+                (\DBLayer{..} _wid -> mapExceptT atomically . putPrivateKey)
                 (\DBLayer{..} -> atomically . readPrivateKey)
 
     describe "getTx properties" $ do
@@ -208,7 +208,7 @@ properties withFreshDB = describe "DB.Properties" $ do
             $ property
             $ prop_putBeforeInit
                 withFreshDB
-                (\DBLayer{..} wid -> mapExceptT atomically . putPrivateKey wid)
+                (\DBLayer{..} _wid -> mapExceptT atomically . putPrivateKey)
                 (\DBLayer{..} -> atomically . readPrivateKey)
                 Nothing
 
@@ -273,7 +273,7 @@ properties withFreshDB = describe "DB.Properties" $ do
             $ checkCoverage
             $ prop_sequentialPut
                 testOnLayer
-                (\DBLayer{..} wid -> mapExceptT atomically . putPrivateKey wid)
+                (\DBLayer{..} _wid -> mapExceptT atomically . putPrivateKey)
                 (\DBLayer{..} -> atomically . readPrivateKey)
                 lastMay
 

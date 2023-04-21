@@ -959,7 +959,7 @@ attachPrivateKey DBLayer{..} wid = do
     seed <- liftIO $ generate $ SomeMnemonic <$> genMnemonic @15
     (scheme, h) <- liftIO $ encryptPassphrase pwd
     let k = generateKeyFromSeed (seed, Nothing) (preparePassphrase scheme pwd)
-    mkNoSuchWalletError wid $ mapExceptT atomically $ putPrivateKey wid (k, h)
+    mkNoSuchWalletError wid $ mapExceptT atomically $ putPrivateKey (k, h)
     return (k, h)
 
 cutRandomly :: [a] -> IO [[a]]

@@ -191,9 +191,9 @@ newDBLayer timeInterpreter wid = do
                                        Keystore
         -----------------------------------------------------------------------}
 
-        , putPrivateKey = \_pk prv -> ExceptT $
-            alterDB errWalletNotInitialized db $
-            mPutPrivateKey prv
+        , putPrivateKey = ExceptT
+            . alterDB errWalletNotInitialized db
+            . mPutPrivateKey
 
         , readPrivateKey = const $ join <$> readDBMaybe db mReadPrivateKey
 

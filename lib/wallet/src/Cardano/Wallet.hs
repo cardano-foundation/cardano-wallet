@@ -3164,7 +3164,7 @@ attachPrivateKey
 attachPrivateKey db wid (xprv, hpwd) scheme = db & \DBLayer{..} -> do
     now <- liftIO getCurrentTime
     mapExceptT atomically $ do
-        mkNoSuchWalletError wid $ putPrivateKey wid (xprv, hpwd)
+        mkNoSuchWalletError wid $ putPrivateKey (xprv, hpwd)
         meta <- withNoSuchWallet wid readWalletMeta
         let modify x = x
                 { passphraseInfo = Just $ WalletPassphraseInfo
