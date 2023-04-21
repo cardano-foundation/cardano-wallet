@@ -933,10 +933,9 @@ mkShelleyWallet
         )
     => MkApiWallet ctx s ApiWallet
 mkShelleyWallet ctx@ApiLayer{..} wid cp meta delegation pending progress = do
-    reward <- withWorkerCtx @_ @s @k ctx wid liftE liftE $ \wrk -> do
-        let db = wrk ^. dbLayer
+    reward <- withWorkerCtx @_ @s @k ctx wid liftE liftE $ \wrk ->
         -- never fails - returns zero if balance not found
-        liftIO $ W.fetchRewardBalance @s @k db wid
+        liftIO $ W.fetchRewardBalance @s @k $ wrk ^. dbLayer
 
     let ti = timeInterpreter netLayer
 
@@ -1167,10 +1166,9 @@ mkSharedWallet ctx wid cp meta delegation pending progress =
             ApiScriptTemplate <$> Shared.delegationTemplate st
         }
     Shared.Active _ -> do
-        reward <- withWorkerCtx @_ @s @k ctx wid liftE liftE $ \wrk -> do
-            let db = wrk ^. dbLayer
+        reward <- withWorkerCtx @_ @s @k ctx wid liftE liftE $ \wrk ->
             -- never fails - returns zero if balance not found
-            liftIO $ W.fetchRewardBalance @s @k db wid
+            liftIO $ W.fetchRewardBalance @s @k $ wrk ^. dbLayer
 
         let ti = timeInterpreter $ ctx ^. networkLayer
         apiDelegation <- liftIO $ toApiWalletDelegation delegation

@@ -268,8 +268,7 @@ data DBLayer m s k = forall stm. (MonadIO stm, MonadFail stm) => DBLayer
         -- This is separate from putWalletMeta because it's not meta data
 
     , readDelegationRewardBalance
-        :: WalletId
-        -> stm Coin
+        :: stm Coin
         -- ^ Get the reward account balance.
         --
         -- Returns zero if the wallet isn't found or if wallet hasn't delegated
@@ -510,8 +509,7 @@ mkDBLayerFromParts ti wid_ DBLayerCollection{..} = DBLayer
         putDelegationCertificate_ dbDelegation a b
     , putDelegationRewardBalance = \a -> wrapNoSuchWallet wid_ $
         putDelegationRewardBalance_ dbDelegation a
-    , readDelegationRewardBalance = \_wid ->
-        readDelegationRewardBalance_ dbDelegation
+    , readDelegationRewardBalance = readDelegationRewardBalance_ dbDelegation
     , putTxHistory = \wid a -> wrapNoSuchWallet wid $
         putTxHistory_ dbTxHistory wid a
     , readTransactions = \wid minWithdrawal order range status limit ->

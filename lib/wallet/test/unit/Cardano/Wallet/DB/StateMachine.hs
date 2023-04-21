@@ -503,7 +503,7 @@ runIO DBLayer{..} = fmap Resp . go
             runDB atomically $
             putDelegationRewardBalance amt
         ReadDelegationRewardBalance -> Right . DelegationRewardBalance <$>
-            atomically (readDelegationRewardBalance wid)
+            atomically readDelegationRewardBalance
         RollbackTo _wid sl -> catchNoSuchWallet Point $
             runDB atomically $ rollbackTo wid sl
 

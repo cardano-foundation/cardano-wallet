@@ -1232,8 +1232,8 @@ restoreBlocks ctx tr wid blocks nodeTip = db & \DBLayer{..} ->
       where parent = headerHash $ currentTip cp
 
 -- | Fetch the cached reward balance of a given wallet from the database.
-fetchRewardBalance :: forall s k. DBLayer IO s k -> WalletId -> IO Coin
-fetchRewardBalance DBLayer{..} = atomically . readDelegationRewardBalance
+fetchRewardBalance :: forall s k. DBLayer IO s k -> IO Coin
+fetchRewardBalance DBLayer{..} = atomically readDelegationRewardBalance
 
 mkExternalWithdrawal
     :: forall k ktype tx block

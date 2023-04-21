@@ -232,9 +232,8 @@ newDBLayer timeInterpreter wid = do
             . alterDB errWalletNotInitialized db
             . mPutDelegationRewardBalance
 
-        , readDelegationRewardBalance =
-            const $ fromMaybe (Coin 0)
-                <$> readDBMaybe db mReadDelegationRewardBalance
+        , readDelegationRewardBalance = fromMaybe (Coin 0)
+            <$> readDBMaybe db mReadDelegationRewardBalance
 
         {-----------------------------------------------------------------------
                                       Execution
