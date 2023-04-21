@@ -1,0 +1,70 @@
+diff --git a/lib/wallet/src/Cardano/Wallet/Shelley/Network/Node.hs b/lib/wallet/src/Cardano/Wallet/Shelley/Network/Node.hs
+index b17e6a4618..b7111e9957 100644
+--- a/lib/wallet/src/Cardano/Wallet/Shelley/Network/Node.hs
++++ b/lib/wallet/src/Cardano/Wallet/Shelley/Network/Node.hs
+@@ -6,6 +6,7 @@
+ {-# LANGUAGE NumericUnderscores #-}
+ {-# LANGUAGE RankNTypes #-}
+ {-# LANGUAGE ScopedTypeVariables #-}
++{-# LANGUAGE TemplateHaskell #-}
+ {-# LANGUAGE TupleSections #-}
+ {-# LANGUAGE TypeApplications #-}
+
+@@ -293,11 +294,20 @@ import qualified Cardano.Wallet.Primitive.Types.Coin as W
+ import qualified Cardano.Wallet.Primitive.Types.RewardAccount as W
+ import qualified Cardano.Wallet.Primitive.Types.Tx as W
+ import qualified Codec.CBOR.Term as CBOR
++import qualified Data.ByteString as BS
+ import qualified Data.Map as Map
+ import qualified Data.Set as Set
+ import qualified Data.Text as T
+ import qualified Ouroboros.Consensus.Byron.Ledger as Byron
+ import qualified Ouroboros.Consensus.Shelley.Ledger as Shelley
++import System.Directory
++    ( createDirectoryIfMissing )
++import System.FilePath
++    ( (</>) )
++import System.IO.Unsafe
++    ( unsafePerformIO )
++import Test.Utils.Paths
++    ( getTestData )
+
+ {- HLINT ignore "Use readTVarIO" -}
+ {- HLINT ignore "Use newTVarIO" -}
+@@ -465,7 +475,8 @@ withNodeNetworkLayerBase
+         let cmd = CmdSubmitTx . toConsensusGenTx $
+                 unsealShelleyTx preferredEra tx
+         liftIO (send txSubmissionQueue cmd) >>= \case
+-            SubmitSuccess -> pure ()
++            SubmitSuccess -> do
++                -- USAGE: Run the wallet integration tests, and
++                -- this code will write the valid txs to disk.
++                liftIO $ writeTestDataTx tx
+             SubmitFail e -> throwE $ ErrPostTxValidationError $ T.pack $ show e
+
+     _stakeDistribution queue coin = do
+@@ -569,6 +580,24 @@ withNodeNetworkLayerBase
+             fromRight NotResponding . runExcept . SP.syncProgress tol ti slot
+                 <$> currentRelativeTime ti
+
++
++{-# NOINLINE testDataMVar #-}
++testDataMVar :: TMVar IO Int
++testDataMVar = unsafePerformIO $ newTMVarIO 0
++
++writeTestDataTx :: SealedTx -> IO ()
++writeTestDataTx tx = do
++    name <- atomically $ do
++        i <- takeTMVar testDataMVar
++        putTMVar testDataMVar $ i + 1
++        return $ show i <> ".dat"
++
++    let dir = $(getTestData) </> "signedTxs"
++    createDirectoryIfMissing True dir
++    let f = dir </> name
++    BS.writeFile f (serialisedTx tx)
++
++
+ {-------------------------------------------------------------------------------
+     NetworkClient
+     Node-to-client mini-protocol descriptions
