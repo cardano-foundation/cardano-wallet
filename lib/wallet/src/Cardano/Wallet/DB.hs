@@ -582,7 +582,7 @@ mkDBLayerFromParts ti wid_ DBLayerCollection{..} = DBLayer
     , removePendingOrExpiredTx = \wid txid ->
             updateSubmissions' wid (ErrRemoveTxNoSuchWallet . mapNoSuchWallet)
                 $ \xs ->
-                pure <$> Sbms.removePendingOrExpiredTx xs wid txid
+                pure <$> Sbms.removePendingOrExpiredTx xs txid
     , putPrivateKey = \wid a -> wrapNoSuchWallet wid $
         putPrivateKey_ (dbPrivateKey wid) a
     , readPrivateKey = \wid ->

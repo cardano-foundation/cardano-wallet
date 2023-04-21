@@ -2767,7 +2767,7 @@ getTransaction ctx wid tid =
             Left err -> do
                 throwE (ErrGetTransactionNoSuchWallet err)
             Right Nothing -> do
-                let err' = ErrNoSuchTransaction wid tid
+                let err' = ErrNoSuchTransaction tid
                 throwE (ErrGetTransactionNoSuchTransaction err')
             Right (Just tx) ->
                 pure tx
