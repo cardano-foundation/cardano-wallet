@@ -57,6 +57,13 @@ import Cardano.Wallet.Address.Derivation
     )
 import Cardano.Wallet.Address.Derivation.Shelley
     ( ShelleyKey (..), generateKeyFromSeed )
+import Cardano.Wallet.Address.Discovery
+    ( CompareDiscovery (..)
+    , GenChange (..)
+    , IsOurs (..)
+    , IsOwned (..)
+    , KnownAddresses (..)
+    )
 import Cardano.Wallet.DB
     ( DBLayer (..), hoistDBLayer, putTxHistory )
 import Cardano.Wallet.DB.Fixtures
@@ -79,13 +86,6 @@ import Cardano.Wallet.Gen
     ( genMnemonic, genSlotNo )
 import Cardano.Wallet.Network
     ( NetworkLayer (..) )
-import Cardano.Wallet.Primitive.AddressDiscovery
-    ( CompareDiscovery (..)
-    , GenChange (..)
-    , IsOurs (..)
-    , IsOwned (..)
-    , KnownAddresses (..)
-    )
 import Cardano.Wallet.Primitive.Migration.SelectionSpec
     ( MockTxConstraints (..), genTokenBundleMixed, unMockTxConstraints )
 import Cardano.Wallet.Primitive.Passphrase

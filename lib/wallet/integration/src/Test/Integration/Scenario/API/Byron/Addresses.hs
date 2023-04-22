@@ -17,6 +17,8 @@ import Prelude
 
 import Cardano.Mnemonic
     ( Mnemonic )
+import Cardano.Wallet.Address.Discovery.Sequential
+    ( purposeBIP44 )
 import Cardano.Wallet.Api.Types
     ( ApiAddress (..)
     , ApiAddressWithPath
@@ -25,8 +27,6 @@ import Cardano.Wallet.Api.Types
     , ApiT (..)
     , WalletStyle (..)
     )
-import Cardano.Wallet.Primitive.AddressDiscovery.Sequential
-    ( purposeBIP44 )
 import Cardano.Wallet.Primitive.Types.Address
     ( AddressState (..) )
 import Cardano.Wallet.Read.NetworkId

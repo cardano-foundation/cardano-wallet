@@ -9,7 +9,7 @@
 
 {-# OPTIONS_GHC -fno-warn-orphans #-}
 
-module Cardano.Wallet.Primitive.AddressDiscovery.RandomSpec
+module Cardano.Wallet.Address.Discovery.RandomSpec
     ( spec
     ) where
 
@@ -35,12 +35,12 @@ import Cardano.Wallet.Address.Derivation.Byron
     )
 import Cardano.Wallet.Address.DerivationSpec
     ()
+import Cardano.Wallet.Address.Discovery
+    ( GenChange (..), IsOurs (..), IsOwned (..), KnownAddresses (..) )
+import Cardano.Wallet.Address.Discovery.Random
+    ( RndState (..), findUnusedPath, mkRndState )
 import Cardano.Wallet.Gen
     ( genMnemonic )
-import Cardano.Wallet.Primitive.AddressDiscovery
-    ( GenChange (..), IsOurs (..), IsOwned (..), KnownAddresses (..) )
-import Cardano.Wallet.Primitive.AddressDiscovery.Random
-    ( RndState (..), findUnusedPath, mkRndState )
 import Cardano.Wallet.Primitive.Passphrase
     ( Passphrase (..) )
 import Cardano.Wallet.Primitive.Types.Address

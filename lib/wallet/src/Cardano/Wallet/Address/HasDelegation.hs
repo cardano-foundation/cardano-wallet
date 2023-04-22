@@ -18,11 +18,11 @@ import Cardano.Wallet.Address.Derivation.SharedKey
     ( SharedKey )
 import Cardano.Wallet.Address.Derivation.Shelley
     ( ShelleyKey )
-import Cardano.Wallet.Primitive.AddressDiscovery.Random
+import Cardano.Wallet.Address.Discovery.Random
     ( RndState (..) )
-import Cardano.Wallet.Primitive.AddressDiscovery.Sequential
+import Cardano.Wallet.Address.Discovery.Sequential
     ( SeqState )
-import Cardano.Wallet.Primitive.AddressDiscovery.Shared
+import Cardano.Wallet.Address.Discovery.Shared
     ( SharedState )
 
 -- | Discriminate whether an address state supports delegation.

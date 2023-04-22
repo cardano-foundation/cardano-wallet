@@ -13,14 +13,14 @@ module Test.Integration.Scenario.API.Byron.CoinSelections
 
 import Prelude
 
+import Cardano.Wallet.Address.Discovery.Sequential
+    ( purposeBIP44 )
 import Cardano.Wallet.Api.Types
     ( AddressAmount (..)
     , ApiByronWallet
     , ApiCoinSelectionOutput (..)
     , WalletStyle (..)
     )
-import Cardano.Wallet.Primitive.AddressDiscovery.Sequential
-    ( purposeBIP44 )
 import Cardano.Wallet.Read.NetworkId
     ( HasSNetworkId )
 import Data.Generics.Internal.VL.Lens

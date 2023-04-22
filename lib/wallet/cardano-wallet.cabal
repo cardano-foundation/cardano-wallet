@@ -233,6 +233,10 @@ library
     Cardano.Wallet.Address.Derivation.Shared
     Cardano.Wallet.Address.Derivation.SharedKey
     Cardano.Wallet.Address.Derivation.Shelley
+    Cardano.Wallet.Address.Discovery
+    Cardano.Wallet.Address.Discovery.Random
+    Cardano.Wallet.Address.Discovery.Sequential
+    Cardano.Wallet.Address.Discovery.Shared
     Cardano.Wallet.Address.HasDelegation
     Cardano.Wallet.Address.Pool
     Cardano.Wallet.Byron.Compatibility
@@ -275,10 +279,6 @@ library
     Cardano.Wallet.Network.Ports
     Cardano.Wallet.Orphans
     Cardano.Wallet.Pools
-    Cardano.Wallet.Primitive.AddressDiscovery
-    Cardano.Wallet.Primitive.AddressDiscovery.Random
-    Cardano.Wallet.Primitive.AddressDiscovery.Sequential
-    Cardano.Wallet.Primitive.AddressDiscovery.Shared
     Cardano.Wallet.Primitive.BlockSummary
     Cardano.Wallet.Primitive.Delegation.State
     Cardano.Wallet.Primitive.Delegation.UTxO
@@ -877,6 +877,10 @@ test-suite unit
     Cardano.Wallet.Address.Derivation.IcarusSpec
     Cardano.Wallet.Address.Derivation.MintBurnSpec
     Cardano.Wallet.Address.DerivationSpec
+    Cardano.Wallet.Address.Discovery.RandomSpec
+    Cardano.Wallet.Address.Discovery.SequentialSpec
+    Cardano.Wallet.Address.Discovery.SharedSpec
+    Cardano.Wallet.Address.DiscoverySpec
     Cardano.Wallet.Address.PoolSpec
     Cardano.Wallet.Api.Malformed
     Cardano.Wallet.Api.Server.TlsSpec
@@ -905,10 +909,6 @@ test-suite unit
     Cardano.Wallet.Network.LightSpec
     Cardano.Wallet.Network.PortsSpec
     Cardano.Wallet.NetworkSpec
-    Cardano.Wallet.Primitive.AddressDiscovery.RandomSpec
-    Cardano.Wallet.Primitive.AddressDiscovery.SequentialSpec
-    Cardano.Wallet.Primitive.AddressDiscovery.SharedSpec
-    Cardano.Wallet.Primitive.AddressDiscoverySpec
     Cardano.Wallet.Primitive.BlockSummarySpec
     Cardano.Wallet.Primitive.Delegation.StateSpec
     Cardano.Wallet.Primitive.Migration.PlanningSpec

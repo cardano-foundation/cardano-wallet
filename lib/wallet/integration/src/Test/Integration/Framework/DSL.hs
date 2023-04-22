@@ -269,6 +269,10 @@ import Cardano.Wallet.Address.Derivation
     )
 import Cardano.Wallet.Address.Derivation.Byron
     ( ByronKey (..) )
+import Cardano.Wallet.Address.Discovery.Sequential
+    ( coinTypeAda )
+import Cardano.Wallet.Address.Discovery.Shared
+    ( CredentialType (..) )
 import Cardano.Wallet.Api.Types
     ( AddressAmount
     , ApiAccountKeyShared
@@ -312,10 +316,6 @@ import Cardano.Wallet.Compat
     ( (^?) )
 import Cardano.Wallet.Pools
     ( EpochInfo, StakePool )
-import Cardano.Wallet.Primitive.AddressDiscovery.Sequential
-    ( coinTypeAda )
-import Cardano.Wallet.Primitive.AddressDiscovery.Shared
-    ( CredentialType (..) )
 import Cardano.Wallet.Primitive.Passphrase
     ( Passphrase (..), preparePassphrase )
 import Cardano.Wallet.Primitive.Passphrase.Legacy

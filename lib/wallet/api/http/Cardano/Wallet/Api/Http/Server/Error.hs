@@ -88,6 +88,8 @@ import Cardano.Wallet
     )
 import Cardano.Wallet.Address.Derivation
     ( DerivationType (Hardened, Soft), Index (Index) )
+import Cardano.Wallet.Address.Discovery.Shared
+    ( ErrAddCosigner (..), ErrScriptTemplate (..) )
 import Cardano.Wallet.Api.Hex
     ( hexText )
 import Cardano.Wallet.Api.Types
@@ -100,8 +102,6 @@ import Cardano.Wallet.Api.Types.Error
     , ApiErrorSharedWalletNoSuchCosigner (..)
     , ApiErrorTxOutputLovelaceInsufficient (..)
     )
-import Cardano.Wallet.Primitive.AddressDiscovery.Shared
-    ( ErrAddCosigner (..), ErrScriptTemplate (..) )
 import Cardano.Wallet.Primitive.Slotting
     ( PastHorizonException )
 import Cardano.Wallet.Primitive.Types.TokenMap

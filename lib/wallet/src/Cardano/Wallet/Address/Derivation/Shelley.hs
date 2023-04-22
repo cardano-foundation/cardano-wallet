@@ -82,9 +82,9 @@ import Cardano.Wallet.Address.Derivation
     , mutableAccount
     , toAddressParts
     )
-import Cardano.Wallet.Primitive.AddressDiscovery
+import Cardano.Wallet.Address.Discovery
     ( DiscoverTxs (..), GetPurpose (..), IsOurs (..), MaybeLight (..) )
-import Cardano.Wallet.Primitive.AddressDiscovery.Sequential
+import Cardano.Wallet.Address.Discovery.Sequential
     ( DerivationPrefix (..)
     , SeqState (..)
     , coinTypeAda

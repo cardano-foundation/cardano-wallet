@@ -288,6 +288,32 @@ import Cardano.Wallet.Address.Derivation.SharedKey
     ( SharedKey (..), replaceCosignersWithVerKeys )
 import Cardano.Wallet.Address.Derivation.Shelley
     ( ShelleyKey (..), deriveAccountPrivateKeyShelley )
+import Cardano.Wallet.Address.Discovery
+    ( CompareDiscovery (..)
+    , GenChange (..)
+    , GetAccount (..)
+    , GetPurpose (..)
+    , IsOurs (..)
+    , IsOwned (..)
+    , KnownAddresses (..)
+    , MaybeLight (..)
+    )
+import Cardano.Wallet.Address.Discovery.Random
+    ( ErrImportAddress (..), RndStateLike )
+import Cardano.Wallet.Address.Discovery.Sequential
+    ( SeqState (..)
+    , defaultAddressPoolGap
+    , mkSeqStateFromRootXPrv
+    , purposeBIP44
+    )
+import Cardano.Wallet.Address.Discovery.Shared
+    ( CredentialType (..)
+    , ErrAddCosigner (..)
+    , ErrScriptTemplate (..)
+    , SharedState (..)
+    , addCosignerAccXPub
+    , isShared
+    )
 import Cardano.Wallet.Checkpoints
     ( DeltaCheckpoints (..)
     , SparseCheckpointsConfig (..)
@@ -327,32 +353,6 @@ import Cardano.Wallet.Network
     , ChainFollower (..)
     , ErrPostTx (..)
     , NetworkLayer (..)
-    )
-import Cardano.Wallet.Primitive.AddressDiscovery
-    ( CompareDiscovery (..)
-    , GenChange (..)
-    , GetAccount (..)
-    , GetPurpose (..)
-    , IsOurs (..)
-    , IsOwned (..)
-    , KnownAddresses (..)
-    , MaybeLight (..)
-    )
-import Cardano.Wallet.Primitive.AddressDiscovery.Random
-    ( ErrImportAddress (..), RndStateLike )
-import Cardano.Wallet.Primitive.AddressDiscovery.Sequential
-    ( SeqState (..)
-    , defaultAddressPoolGap
-    , mkSeqStateFromRootXPrv
-    , purposeBIP44
-    )
-import Cardano.Wallet.Primitive.AddressDiscovery.Shared
-    ( CredentialType (..)
-    , ErrAddCosigner (..)
-    , ErrScriptTemplate (..)
-    , SharedState (..)
-    , addCosignerAccXPub
-    , isShared
     )
 import Cardano.Wallet.Primitive.BlockSummary
     ( ChainEvents )
@@ -622,12 +622,12 @@ import qualified Cardano.Api as Cardano
 import qualified Cardano.Crypto.Wallet as CC
 import qualified Cardano.Slotting.Slot as Slot
 import qualified Cardano.Tx.Balance.Internal.CoinSelection as CS
+import qualified Cardano.Wallet.Address.Discovery.Random as Rnd
+import qualified Cardano.Wallet.Address.Discovery.Sequential as Seq
+import qualified Cardano.Wallet.Address.Discovery.Shared as Shared
 import qualified Cardano.Wallet.Checkpoints.Policy as CP
 import qualified Cardano.Wallet.DB.WalletState as WS
 import qualified Cardano.Wallet.DB.WalletState as WalletState
-import qualified Cardano.Wallet.Primitive.AddressDiscovery.Random as Rnd
-import qualified Cardano.Wallet.Primitive.AddressDiscovery.Sequential as Seq
-import qualified Cardano.Wallet.Primitive.AddressDiscovery.Shared as Shared
 import qualified Cardano.Wallet.Primitive.Migration as Migration
 import qualified Cardano.Wallet.Primitive.Types as W
 import qualified Cardano.Wallet.Primitive.Types.Coin as Coin

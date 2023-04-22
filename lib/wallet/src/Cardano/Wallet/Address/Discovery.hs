@@ -16,10 +16,10 @@
 -- This module contains types for address discovery. The two address discovery
 -- schemes implemented are:
 --
---  * "Cardano.Wallet.Primitive.AddressDiscovery.Sequential"
---  * "Cardano.Wallet.Primitive.AddressDiscovery.Random"
+--  * "Cardano.Wallet.Address.Discovery.Sequential"
+--  * "Cardano.Wallet.Address.Discovery.Random"
 
-module Cardano.Wallet.Primitive.AddressDiscovery
+module Cardano.Wallet.Address.Discovery
     ( IsOurs(..)
     , IsOwned(..)
     , GenChange(..)

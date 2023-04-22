@@ -16,6 +16,8 @@ import Prelude
 
 import Cardano.Wallet.Address.Derivation
     ( DerivationIndex (..), Role (..) )
+import Cardano.Wallet.Address.Discovery.Sequential
+    ( defaultAddressPoolGap, getAddressPoolGap, purposeCIP1852 )
 import Cardano.Wallet.Api.Types
     ( AnyAddress
     , ApiAccountKey
@@ -26,8 +28,6 @@ import Cardano.Wallet.Api.Types
     , ApiWallet
     , WalletStyle (..)
     )
-import Cardano.Wallet.Primitive.AddressDiscovery.Sequential
-    ( defaultAddressPoolGap, getAddressPoolGap, purposeCIP1852 )
 import Cardano.Wallet.Primitive.Types.Address
     ( AddressState (..) )
 import Cardano.Wallet.Primitive.Types.Tx

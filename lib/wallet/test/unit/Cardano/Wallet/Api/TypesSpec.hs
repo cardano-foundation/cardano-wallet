@@ -82,6 +82,10 @@ import Cardano.Wallet.Address.Derivation.Shelley
     ( ShelleyKey (..), generateKeyFromSeed )
 import Cardano.Wallet.Address.DerivationSpec
     ()
+import Cardano.Wallet.Address.Discovery.Sequential
+    ( AddressPoolGap, getAddressPoolGap, purposeCIP1852 )
+import Cardano.Wallet.Address.Discovery.Shared
+    ( retrieveAllCosigners )
 import Cardano.Wallet.Api
     ( Api )
 import Cardano.Wallet.Api.Types
@@ -269,10 +273,6 @@ import Cardano.Wallet.Pools
     , StakePoolFlag
     , StakePoolMetrics (StakePoolMetrics)
     )
-import Cardano.Wallet.Primitive.AddressDiscovery.Sequential
-    ( AddressPoolGap, getAddressPoolGap, purposeCIP1852 )
-import Cardano.Wallet.Primitive.AddressDiscovery.Shared
-    ( retrieveAllCosigners )
 import Cardano.Wallet.Primitive.Passphrase.Types
     ( Passphrase (..)
     , PassphraseHash (PassphraseHash)

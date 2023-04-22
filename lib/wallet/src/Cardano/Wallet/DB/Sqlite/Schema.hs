@@ -33,6 +33,8 @@ import Cardano.Address.Script
 import Cardano.Pool.Types
 import Cardano.Slotting.Slot
     ( SlotNo )
+import Cardano.Wallet.Address.Discovery.Shared
+    ( CredentialType )
 import Cardano.Wallet.DB.Sqlite.Types
     ( BlockHeight
     , BlockId
@@ -41,8 +43,6 @@ import Cardano.Wallet.DB.Sqlite.Types
     , TxSubmissionStatusEnum (..)
     , sqlSettings'
     )
-import Cardano.Wallet.Primitive.AddressDiscovery.Shared
-    ( CredentialType )
 import Data.Quantity
     ( Percentage (..) )
 import Data.Text
@@ -59,7 +59,7 @@ import System.Random
     ( StdGen )
 
 import qualified Cardano.Wallet.Address.Derivation as W
-import qualified Cardano.Wallet.Primitive.AddressDiscovery.Sequential as W
+import qualified Cardano.Wallet.Address.Discovery.Sequential as W
 import qualified Cardano.Wallet.Primitive.Passphrase.Types as W
 import qualified Cardano.Wallet.Primitive.Types as W
 import qualified Cardano.Wallet.Primitive.Types.Address as W

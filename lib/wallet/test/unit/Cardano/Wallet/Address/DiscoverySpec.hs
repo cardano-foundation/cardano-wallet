@@ -7,7 +7,7 @@
 {-# LANGUAGE TypeFamilies #-}
 {-# OPTIONS_GHC -fno-warn-orphans #-}
 
-module Cardano.Wallet.Primitive.AddressDiscoverySpec
+module Cardano.Wallet.Address.DiscoverySpec
     ( spec
     ) where
 
@@ -26,12 +26,12 @@ import Cardano.Wallet.Address.Derivation
     )
 import Cardano.Wallet.Address.Derivation.Byron
     ( ByronKey, generateKeyFromSeed, unsafeGenerateKeyFromSeed )
+import Cardano.Wallet.Address.Discovery
+    ( IsOurs (..), knownAddresses )
+import Cardano.Wallet.Address.Discovery.Random
+    ( mkRndState )
 import Cardano.Wallet.Gen
     ( genMnemonic )
-import Cardano.Wallet.Primitive.AddressDiscovery
-    ( IsOurs (..), knownAddresses )
-import Cardano.Wallet.Primitive.AddressDiscovery.Random
-    ( mkRndState )
 import Cardano.Wallet.Primitive.Passphrase
     ( Passphrase (..)
     , PassphraseScheme (EncryptWithPBKDF2)

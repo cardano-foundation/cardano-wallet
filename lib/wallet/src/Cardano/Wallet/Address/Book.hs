@@ -51,10 +51,10 @@ import Data.Type.Equality
 import Fmt
     ( Buildable (..) )
 
+import qualified Cardano.Wallet.Address.Discovery.Random as Rnd
+import qualified Cardano.Wallet.Address.Discovery.Sequential as Seq
+import qualified Cardano.Wallet.Address.Discovery.Shared as Shared
 import qualified Cardano.Wallet.Address.Pool as AddressPool
-import qualified Cardano.Wallet.Primitive.AddressDiscovery.Random as Rnd
-import qualified Cardano.Wallet.Primitive.AddressDiscovery.Sequential as Seq
-import qualified Cardano.Wallet.Primitive.AddressDiscovery.Shared as Shared
 import qualified Data.Map.Strict as Map
 
 {-------------------------------------------------------------------------------

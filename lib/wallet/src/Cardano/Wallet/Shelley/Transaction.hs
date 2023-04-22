@@ -131,7 +131,7 @@ import Cardano.Wallet.Address.Derivation.SharedKey
     ( replaceCosignersWithVerKeys )
 import Cardano.Wallet.Address.Derivation.Shelley
     ( ShelleyKey, toRewardAccountRaw )
-import Cardano.Wallet.Primitive.AddressDiscovery.Shared
+import Cardano.Wallet.Address.Discovery.Shared
     ( estimateMaxWitnessRequiredPerInput )
 import Cardano.Wallet.Primitive.Passphrase
     ( Passphrase (..) )

@@ -231,6 +231,36 @@ import Cardano.Wallet.Address.Derivation.SharedKey
     ( SharedKey (..), replaceCosignersWithVerKeys )
 import Cardano.Wallet.Address.Derivation.Shelley
     ( ShelleyKey )
+import Cardano.Wallet.Address.Discovery
+    ( CompareDiscovery
+    , GenChange (ArgGenChange)
+    , GetAccount
+    , GetPurpose (..)
+    , IsOurs
+    , IsOwned
+    , KnownAddresses
+    , MaybeLight
+    , isOwned
+    )
+import Cardano.Wallet.Address.Discovery.Random
+    ( RndState, mkRndState )
+import Cardano.Wallet.Address.Discovery.Sequential
+    ( DerivationPrefix (..)
+    , SeqState (..)
+    , defaultAddressPoolGap
+    , getGap
+    , mkSeqStateFromAccountXPub
+    , mkSeqStateFromRootXPrv
+    , purposeCIP1852
+    )
+import Cardano.Wallet.Address.Discovery.Shared
+    ( CredentialType (..)
+    , SharedState (..)
+    , mkSharedStateFromAccountXPub
+    , mkSharedStateFromRootXPrv
+    , toSharedWalletId
+    , validateScriptTemplates
+    )
 import Cardano.Wallet.Address.HasDelegation
     ( HasDelegation (..) )
 import Cardano.Wallet.Api
@@ -403,36 +433,6 @@ import Cardano.Wallet.Network
     ( NetworkLayer (..), fetchRewardAccountBalances, timeInterpreter )
 import Cardano.Wallet.Pools
     ( EpochInfo (..), toEpochInfo )
-import Cardano.Wallet.Primitive.AddressDiscovery
-    ( CompareDiscovery
-    , GenChange (ArgGenChange)
-    , GetAccount
-    , GetPurpose (..)
-    , IsOurs
-    , IsOwned
-    , KnownAddresses
-    , MaybeLight
-    , isOwned
-    )
-import Cardano.Wallet.Primitive.AddressDiscovery.Random
-    ( RndState, mkRndState )
-import Cardano.Wallet.Primitive.AddressDiscovery.Sequential
-    ( DerivationPrefix (..)
-    , SeqState (..)
-    , defaultAddressPoolGap
-    , getGap
-    , mkSeqStateFromAccountXPub
-    , mkSeqStateFromRootXPrv
-    , purposeCIP1852
-    )
-import Cardano.Wallet.Primitive.AddressDiscovery.Shared
-    ( CredentialType (..)
-    , SharedState (..)
-    , mkSharedStateFromAccountXPub
-    , mkSharedStateFromRootXPrv
-    , toSharedWalletId
-    , validateScriptTemplates
-    )
 import Cardano.Wallet.Primitive.Delegation.UTxO
     ( stakeKeyCoinDistr )
 import Cardano.Wallet.Primitive.Migration
@@ -671,12 +671,12 @@ import qualified Cardano.Wallet as W
 import qualified Cardano.Wallet.Address.Derivation as Addr
 import qualified Cardano.Wallet.Address.Derivation.Byron as Byron
 import qualified Cardano.Wallet.Address.Derivation.Icarus as Icarus
+import qualified Cardano.Wallet.Address.Discovery.Sequential as Seq
+import qualified Cardano.Wallet.Address.Discovery.Shared as Shared
 import qualified Cardano.Wallet.Api.Types as Api
 import qualified Cardano.Wallet.DB as W
 import qualified Cardano.Wallet.Delegation as WD
 import qualified Cardano.Wallet.Network as NW
-import qualified Cardano.Wallet.Primitive.AddressDiscovery.Sequential as Seq
-import qualified Cardano.Wallet.Primitive.AddressDiscovery.Shared as Shared
 import qualified Cardano.Wallet.Primitive.Types as W
 import qualified Cardano.Wallet.Primitive.Types.Coin as Coin
 import qualified Cardano.Wallet.Primitive.Types.TokenBundle as TokenBundle

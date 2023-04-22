@@ -66,6 +66,10 @@ import Cardano.Wallet.Address.Derivation
     )
 import Cardano.Wallet.Address.Derivation.SharedKey
     ( SharedKey (..) )
+import Cardano.Wallet.Address.Discovery
+    ( PendingIxs, pendingIxsFromList, pendingIxsToList )
+import Cardano.Wallet.Address.Discovery.Shared
+    ( CredentialType (..) )
 import Cardano.Wallet.Checkpoints
     ( DeltaCheckpoints (..), DeltasCheckpoints, loadCheckpoints )
 import Cardano.Wallet.DB
@@ -105,10 +109,6 @@ import Cardano.Wallet.DB.WalletState
     , WalletState (..)
     , getSlot
     )
-import Cardano.Wallet.Primitive.AddressDiscovery
-    ( PendingIxs, pendingIxsFromList, pendingIxsToList )
-import Cardano.Wallet.Primitive.AddressDiscovery.Shared
-    ( CredentialType (..) )
 import Cardano.Wallet.Primitive.Types.TokenBundle
     ( TokenBundle )
 import Cardano.Wallet.Primitive.Types.TokenMap
@@ -167,9 +167,9 @@ import UnliftIO.Exception
     ( toException )
 
 import qualified Cardano.Wallet.Address.Derivation as W
-import qualified Cardano.Wallet.Primitive.AddressDiscovery.Random as Rnd
-import qualified Cardano.Wallet.Primitive.AddressDiscovery.Sequential as Seq
-import qualified Cardano.Wallet.Primitive.AddressDiscovery.Shared as Shared
+import qualified Cardano.Wallet.Address.Discovery.Random as Rnd
+import qualified Cardano.Wallet.Address.Discovery.Sequential as Seq
+import qualified Cardano.Wallet.Address.Discovery.Shared as Shared
 import qualified Cardano.Wallet.Primitive.Types as W
 import qualified Cardano.Wallet.Primitive.Types.Address as W
 import qualified Cardano.Wallet.Primitive.Types.Coin as W

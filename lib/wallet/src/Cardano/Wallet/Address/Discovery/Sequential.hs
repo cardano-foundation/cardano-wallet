@@ -35,7 +35,7 @@
 -- a single account. In practice, one wants to manage a set of pools, one per
 -- account.
 
-module Cardano.Wallet.Primitive.AddressDiscovery.Sequential
+module Cardano.Wallet.Address.Discovery.Sequential
     (
       SupportsDiscovery
 
@@ -104,7 +104,7 @@ import Cardano.Wallet.Address.Derivation.MintBurn
     ( derivePolicyPrivateKey )
 import Cardano.Wallet.Address.Derivation.SharedKey
     ( SharedKey (..) )
-import Cardano.Wallet.Primitive.AddressDiscovery
+import Cardano.Wallet.Address.Discovery
     ( CompareDiscovery (..)
     , GenChange (..)
     , GetAccount (..)

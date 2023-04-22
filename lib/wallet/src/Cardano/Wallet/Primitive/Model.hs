@@ -72,7 +72,7 @@ module Cardano.Wallet.Primitive.Model
 
 import Prelude
 
-import Cardano.Wallet.Primitive.AddressDiscovery
+import Cardano.Wallet.Address.Discovery
     ( DiscoverTxs (..), IsOurs (..) )
 import Cardano.Wallet.Primitive.BlockSummary
     ( BlockEvents (..)

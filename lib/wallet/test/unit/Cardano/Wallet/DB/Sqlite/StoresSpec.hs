@@ -18,6 +18,12 @@ import Cardano.Wallet.Address.Derivation.Shared
     ( SharedKey )
 import Cardano.Wallet.Address.Derivation.Shelley
     ( ShelleyKey )
+import Cardano.Wallet.Address.Discovery.Random
+    ( RndState )
+import Cardano.Wallet.Address.Discovery.Sequential
+    ( SeqState )
+import Cardano.Wallet.Address.Discovery.Shared
+    ( Readiness (Pending), SharedState (..) )
 import Cardano.Wallet.Checkpoints
     ( DeltaCheckpoints (..) )
 import Cardano.Wallet.DB.Arbitrary
@@ -34,12 +40,6 @@ import Cardano.Wallet.DB.WalletState
     , getLatest
     , getSlot
     )
-import Cardano.Wallet.Primitive.AddressDiscovery.Random
-    ( RndState )
-import Cardano.Wallet.Primitive.AddressDiscovery.Sequential
-    ( SeqState )
-import Cardano.Wallet.Primitive.AddressDiscovery.Shared
-    ( Readiness (Pending), SharedState (..) )
 import Cardano.Wallet.Primitive.Types
     ( SlotNo (..), WalletId (..), WithOrigin (..) )
 import Cardano.Wallet.Read.NetworkId

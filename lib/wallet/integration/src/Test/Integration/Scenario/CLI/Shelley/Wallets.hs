@@ -16,6 +16,8 @@ import Prelude
 
 import Cardano.CLI
     ( Port )
+import Cardano.Wallet.Address.Discovery.Sequential
+    ( AddressPoolGap (..) )
 import Cardano.Wallet.Api.Types
     ( ApiTransaction
     , ApiUtxoStatistics
@@ -24,8 +26,6 @@ import Cardano.Wallet.Api.Types
     , apiAddress
     , getApiT
     )
-import Cardano.Wallet.Primitive.AddressDiscovery.Sequential
-    ( AddressPoolGap (..) )
 import Cardano.Wallet.Primitive.Passphrase
     ( PassphraseMaxLength (..), PassphraseMinLength (..) )
 import Cardano.Wallet.Primitive.SyncProgress

@@ -10,7 +10,7 @@
 
 {-# OPTIONS_GHC -fno-warn-orphans #-}
 
-module Cardano.Wallet.Primitive.AddressDiscovery.SharedSpec
+module Cardano.Wallet.Address.Discovery.SharedSpec
     ( spec
     ) where
 
@@ -38,13 +38,11 @@ import Cardano.Wallet.Address.Derivation.Shared
     ( unsafeGenerateKeyFromSeed )
 import Cardano.Wallet.Address.Derivation.SharedKey
     ( SharedKey (..), constructAddressFromIx )
-import Cardano.Wallet.Gen
-    ( genNatural, genScript, genScriptTemplate )
-import Cardano.Wallet.Primitive.AddressDiscovery
+import Cardano.Wallet.Address.Discovery
     ( IsOurs (..), KnownAddresses (..) )
-import Cardano.Wallet.Primitive.AddressDiscovery.Sequential
+import Cardano.Wallet.Address.Discovery.Sequential
     ( AddressPoolGap (..), defaultAddressPoolGap, mkUnboundedAddressPoolGap )
-import Cardano.Wallet.Primitive.AddressDiscovery.Shared
+import Cardano.Wallet.Address.Discovery.Shared
     ( Readiness (..)
     , SharedAddressPool (..)
     , SharedAddressPools (..)
@@ -54,6 +52,8 @@ import Cardano.Wallet.Primitive.AddressDiscovery.Shared
     , mkSharedStateFromAccountXPub
     , mkSharedStateFromRootXPrv
     )
+import Cardano.Wallet.Gen
+    ( genNatural, genScript, genScriptTemplate )
 import Cardano.Wallet.Primitive.Passphrase.Gen
     ( genEncryptionPassphrase )
 import Cardano.Wallet.Primitive.Types.Address

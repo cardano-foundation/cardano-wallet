@@ -75,7 +75,7 @@ import UnliftIO.Exception
     ( Exception, throwIO, throwString )
 
 import qualified Cardano.Wallet.Address.Derivation as W
-import qualified Cardano.Wallet.Primitive.AddressDiscovery.Sequential as Seq
+import qualified Cardano.Wallet.Address.Discovery.Sequential as Seq
 import qualified Cardano.Wallet.Primitive.Types as W
 import qualified Cardano.Wallet.Primitive.Types.Address as W
 import qualified Cardano.Wallet.Primitive.Types.Coin as W

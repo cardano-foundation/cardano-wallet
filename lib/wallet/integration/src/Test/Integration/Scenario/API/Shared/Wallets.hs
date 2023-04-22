@@ -25,6 +25,10 @@ import Cardano.Mnemonic
     ( MkSomeMnemonic (..) )
 import Cardano.Wallet.Address.Derivation
     ( DerivationIndex (..), Role (..) )
+import Cardano.Wallet.Address.Discovery.Sequential
+    ( defaultAddressPoolGap, getAddressPoolGap )
+import Cardano.Wallet.Address.Discovery.Shared
+    ( CredentialType (..) )
 import Cardano.Wallet.Api.Types
     ( ApiAccountKeyShared (..)
     , ApiActiveSharedWallet
@@ -47,10 +51,6 @@ import Cardano.Wallet.Api.Types.Error
     ( ApiErrorInfo (..), ApiErrorSharedWalletNoSuchCosigner (..) )
 import Cardano.Wallet.Compat
     ( (^?) )
-import Cardano.Wallet.Primitive.AddressDiscovery.Sequential
-    ( defaultAddressPoolGap, getAddressPoolGap )
-import Cardano.Wallet.Primitive.AddressDiscovery.Shared
-    ( CredentialType (..) )
 import Cardano.Wallet.Primitive.Passphrase
     ( Passphrase (..) )
 import Cardano.Wallet.Primitive.SyncProgress

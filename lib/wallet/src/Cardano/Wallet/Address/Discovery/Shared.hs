@@ -24,7 +24,7 @@
 -- An implementation of shared script state using
 -- scheme specified in CIP-1854 Multi-signature Wallets.
 
-module Cardano.Wallet.Primitive.AddressDiscovery.Shared
+module Cardano.Wallet.Address.Discovery.Shared
     (
       SupportsDiscovery
 
@@ -102,7 +102,7 @@ import Cardano.Wallet.Address.Derivation.SharedKey
     , replaceCosignersWithVerKeys
     , toNetworkTag
     )
-import Cardano.Wallet.Primitive.AddressDiscovery
+import Cardano.Wallet.Address.Discovery
     ( CompareDiscovery (..)
     , GenChange (..)
     , GetAccount (..)
@@ -116,7 +116,7 @@ import Cardano.Wallet.Primitive.AddressDiscovery
     , nextChangeIndex
     , pendingIxsToList
     )
-import Cardano.Wallet.Primitive.AddressDiscovery.Sequential
+import Cardano.Wallet.Address.Discovery.Sequential
     ( AddressPoolGap (..) )
 import Cardano.Wallet.Primitive.Passphrase
     ( Passphrase )

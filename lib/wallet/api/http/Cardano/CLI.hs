@@ -132,6 +132,8 @@ import Cardano.Mnemonic
     ( MkSomeMnemonic (..), SomeMnemonic (..) )
 import Cardano.Wallet.Address.Derivation
     ( Depth (..), DerivationType (..), Index (..) )
+import Cardano.Wallet.Address.Discovery.Sequential
+    ( AddressPoolGap, defaultAddressPoolGap )
 import Cardano.Wallet.Api.Client
     ( AddressClient (..)
     , NetworkClient (..)
@@ -171,8 +173,6 @@ import Cardano.Wallet.Api.Types.SchemaMetadata
     ( TxMetadataSchema (..), TxMetadataWithSchema )
 import Cardano.Wallet.Orphans
     ()
-import Cardano.Wallet.Primitive.AddressDiscovery.Sequential
-    ( AddressPoolGap, defaultAddressPoolGap )
 import Cardano.Wallet.Primitive.Passphrase.Types
     ( Passphrase (..), PassphraseMaxLength, PassphraseMinLength )
 import Cardano.Wallet.Primitive.SyncProgress
