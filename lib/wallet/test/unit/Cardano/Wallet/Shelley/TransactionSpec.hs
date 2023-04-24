@@ -4241,7 +4241,7 @@ prop_balanceTransactionValid wallet@(Wallet' _ walletUTxO _) (ShowBuildable part
                 = unbundleLedgerShelleyBasedProtocolParams
                     ShelleyBasedEraAlonzo
                 $ Cardano.bundleProtocolParams cardanoEra
-                $ (snd mockProtocolParametersForBalancing)
+                $ snd mockProtocolParametersForBalancing
         let (TxSize size) =
                 estimateSignedTxSize pparams
                     (estimateKeyWitnessCount utxo body)
@@ -4590,13 +4590,16 @@ updateTxSpec = do
                     prop_updateTx anyShelleyEraTx
 
         describe "existing key witnesses" $ do
+
+            signedTxs <- runIO signedTxGoldens
+
             it "returns `Left err` with noTxUpdate" $ do
                 -- Could be argued that it should instead return `Right tx`.
-                let anyShelleyTx = recentEraTxFromBytes
-                        $ unsafeFromHex txWithInputsOutputsAndWits
-                WriteTx.withInAnyRecentEra anyShelleyTx $ \tx ->
+                let anyRecentEraTx = recentEraTxFromBytes
+                        $ snd $ head signedTxs
+                WriteTx.withInAnyRecentEra anyRecentEraTx $ \tx ->
                         updateTx tx noTxUpdate
-                            `shouldBe` Left (ErrExistingKeyWitnesses 2)
+                            `shouldBe` Left (ErrExistingKeyWitnesses 1)
 
             it "returns `Left err` when extra body content is non-empty" $ do
                 pendingWith "todo: add test data"
@@ -4939,25 +4942,6 @@ modifyBabbageTxBody
             auxData
             scriptValidity)
         keyWits
-
-txWithInputsOutputsAndWits :: ByteString
-txWithInputsOutputsAndWits = mconcat
-    [ "83a400828258200000000000000000000000000000000000000000000000000000"
-    , "000000000000008258200000000000000000000000000000000000000000000000"
-    , "000000000000000000010183825839010202020202020202020202020202020202"
-    , "020202020202020202020202020202020202020202020202020202020202020202"
-    , "0202020202021a005b8d8082583901030303030303030303030303030303030303"
-    , "030303030303030303030303030303030303030303030303030303030303030303"
-    , "03030303031a005b8d808258390104040404040404040404040404040404040404"
-    , "040404040404040404040404040404040404040404040404040404040404040404"
-    , "040404041a007801e0021a0002102003191e46a10082825820130ae82201d7072e"
-    , "6fbfc0a1884fb54636554d14945b799125cf7ce38d477f5158405835ff78c6fc5e"
-    , "4466a179ca659fa85c99b8a3fba083f3f3f42ba360d479c64ef169914b52ade49b"
-    , "19a7208fd63a6e67a19c406b4826608fdc5307025506c307825820010000000000"
-    , "00000000000000000000000000000000000000000000000000005840e8e769ecd0"
-    , "f3c538f0a5a574a1c881775f086d6f4c845b81be9b78955728bffa7efa54297c6a"
-    , "5d73337bd6280205b1759c13f79d4c93f29871fc51b78aeba80ef6"
-    ]
 
 -- | Goldens can be regenrated by running the integration tests with
 -- lib/wallet/test/data/signedTxs/genData.patch applied.
