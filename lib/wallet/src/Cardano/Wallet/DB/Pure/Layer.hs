@@ -14,26 +14,21 @@
 -- when compiling the wallet for targets which don't have SQLite.
 
 module Cardano.Wallet.DB.Pure.Layer
-    ( newDBLayer
+    ( newDBFresh
     ) where
 
 import Prelude
 
-import Cardano.Address.Derivation
-    ( XPrv )
-import Cardano.Wallet.Address.Derivation
-    ( Depth (..) )
 import Cardano.Wallet.DB
-    ( DBLayer (..)
-    , DBLayerParams (..)
-    , ErrWalletAlreadyInitialized (..)
+    ( DBFresh (..)
+    , DBLayer (..)
+    , ErrWalletAlreadyInitialized (ErrWalletAlreadyInitialized)
     , ErrWalletNotInitialized (..)
     )
 import Cardano.Wallet.DB.Pure.Implementation
     ( Database
     , Err (..)
     , ModelOp
-    , emptyDatabase
     , mCheckWallet
     , mGetWalletId
     , mInitializeWallet
@@ -53,8 +48,6 @@ import Cardano.Wallet.DB.Pure.Implementation
     , mReadWalletMeta
     , mRollbackTo
     )
-import Cardano.Wallet.Primitive.Passphrase
-    ( PassphraseHash )
 import Cardano.Wallet.Primitive.Slotting
     ( TimeInterpreter )
 import Cardano.Wallet.Primitive.Types
@@ -64,9 +57,9 @@ import Cardano.Wallet.Primitive.Types.Coin
 import Cardano.Wallet.Primitive.Types.Tx
     ( TransactionInfo (..) )
 import Control.Monad
-    ( join, when )
+    ( join, unless, when )
 import Control.Monad.IO.Unlift
-    ( MonadUnliftIO (..) )
+    ( MonadIO (..), MonadUnliftIO (..) )
 import Control.Monad.Trans.Except
     ( ExceptT (..), throwE )
 import Data.Functor.Identity
@@ -76,26 +69,35 @@ import Data.Maybe
 import UnliftIO.Exception
     ( Exception, throwIO )
 import UnliftIO.MVar
-    ( MVar, modifyMVar, newMVar, withMVar )
+    ( MVar, isEmptyMVar, modifyMVar, newEmptyMVar, newMVar, putMVar, withMVar )
 
 -- | Instantiate a new in-memory "database" layer that simply stores data in
 -- a local MVar. Data vanishes if the software is shut down.
-newDBLayer
+newDBFresh
     :: forall m s k.
        ( MonadUnliftIO m
        , MonadFail m )
     => TimeInterpreter Identity
     -> WalletId
-    -> m (DBLayer m s k)
-newDBLayer timeInterpreter wid = do
+    -> m (DBFresh m s k)
+newDBFresh timeInterpreter wid = do
     lock <- newMVar ()
-    db <- newMVar
-            (emptyDatabase wid
-                :: Database WalletId s (k 'RootK XPrv, PassphraseHash)
-            )
-    let getWalletId' = ExceptT
-            $ alterDB errWalletNotInitialized db mGetWalletId
+    db <- newEmptyMVar
+
     let
+      getWalletId' = ExceptT
+            $ alterDB errWalletNotInitialized db mGetWalletId
+      dbf = DBFresh
+            {
+              bootDBLayer = \sp -> do
+                t <- isEmptyMVar db
+                unless t $ throwE ErrWalletAlreadyInitialized
+                liftIO
+                    $ putMVar db
+                    $ mInitializeWallet wid sp
+                pure dbl
+            , loadDBLayer = error "loadDBLayer: not implemented"
+              }
       dbl = DBLayer
 
 
@@ -104,9 +106,6 @@ newDBLayer timeInterpreter wid = do
         -----------------------------------------------------------------------}
 
         { walletId_ = wid
-        , initializeWallet = \(DBLayerParams cp meta txs gp) -> ExceptT $
-                alterDB errWalletAlreadyExists db $
-                mInitializeWallet cp meta txs gp
 
         {-----------------------------------------------------------------------
                                     Checkpoints
@@ -240,7 +239,7 @@ newDBLayer timeInterpreter wid = do
 
         , atomically = \action -> withMVar lock $ \() -> action
         }
-    pure dbl
+    pure dbf
 
 -- | Read the database, but return 'Nothing' if the operation fails.
 readDBMaybe :: MonadUnliftIO f
@@ -281,11 +280,6 @@ readDB = alterDB Just -- >>= either (throwIO . MVarDBError) pure
 errWalletNotInitialized :: Err -> Maybe ErrWalletNotInitialized
 errWalletNotInitialized WalletNotInitialized = Just ErrWalletNotInitialized
 errWalletNotInitialized _ = Nothing
-
-errWalletAlreadyExists :: Err -> Maybe ErrWalletAlreadyInitialized
-errWalletAlreadyExists WalletAlreadyInitialized
-    = Just ErrWalletAlreadyInitialized
-errWalletAlreadyExists _ = Nothing
 
 -- | Error which happens when model returns an unexpected value.
 newtype MVarDBError = MVarDBError Err

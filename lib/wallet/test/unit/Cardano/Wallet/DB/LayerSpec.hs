@@ -87,17 +87,17 @@ import Cardano.Wallet.Address.Discovery.Sequential
 import Cardano.Wallet.Address.Discovery.Shared
     ( SharedState )
 import Cardano.Wallet.DB
-    ( DBFactory (..), DBLayer (..), DBLayerParams (..) )
+    ( DBFactory (..), DBFresh (..), DBLayer (..), DBLayerParams (..) )
 import Cardano.Wallet.DB.Layer
     ( DefaultFieldValues (..)
     , PersistAddressBook
     , WalletDBLog (..)
     , newDBFactory
-    , newDBLayerInMemory
+    , newDBFreshInMemory
     , retrieveWalletId
-    , withDBLayer
-    , withDBLayerFromDBOpen
-    , withDBLayerInMemory
+    , withDBFresh
+    , withDBFreshFromDBOpen
+    , withDBFreshInMemory
     , withDBOpenFromFile
     )
 import Cardano.Wallet.DB.Properties
@@ -298,16 +298,21 @@ spec =
             manualMigrationsSpec
 
 stateMachineSpec
-    :: forall k s .
-        ( PersistAddressBook s
-        , TestConstraints s k
-        , Typeable s
-        )
+    :: forall k s
+     . ( PersistAddressBook s
+       , TestConstraints s k
+       , Typeable s
+       )
     => Spec
 stateMachineSpec = describe ("State machine test (" ++ showState @s ++ ")") $ do
     validateGenerators @s
-    let newDB = newDBLayerInMemory @s @k nullTracer dummyTimeInterpreter
-    it "Sequential" $ prop_sequential newDB
+    it "Sequential" $ prop_sequential boot
+  where
+    boot wid sp = do
+        let newDB = newDBFreshInMemory @s @k nullTracer dummyTimeInterpreter
+        (cleanup, dbf) <- newDB wid
+        db <- unsafeRunExceptT $ bootDBLayer dbf sp
+        pure (cleanup, db)
 
 stateMachineSpecSeq, stateMachineSpecRnd, stateMachineSpecShared :: Spec
 stateMachineSpecSeq =
@@ -329,11 +334,11 @@ showState = show (typeOf @s undefined)
 withFreshDB
     :: (MonadIO m )
     => WalletId
-    -> (DBLayer IO (SeqState 'Mainnet ShelleyKey) ShelleyKey -> m ())
+    -> (DBFresh IO (SeqState 'Mainnet ShelleyKey) ShelleyKey -> m ())
     -> m ()
 withFreshDB wid f = do
     (kill, db) <-
-        liftIO $ newDBLayerInMemory nullTracer dummyTimeInterpreter wid
+        liftIO $ newDBFreshInMemory nullTracer dummyTimeInterpreter wid
     f db
     liftIO kill
 
@@ -347,35 +352,41 @@ propertiesSpecSeq = describe "Properties" $ properties withFreshDB
 loggingSpec :: Spec
 loggingSpec = withLoggingDB @(SeqState 'Mainnet ShelleyKey) $ do
     describe "Sqlite query logging" $ do
-        it "should log queries at DEBUG level" $ \(getLogs, DBLayer{..}) -> do
-            atomically $ unsafeRunExceptT $ initializeWallet
-                $ DBLayerParams testCpSeq testMetadata mempty gp
-            logs <- getLogs
-            logs `shouldHaveMsgQuery` "INSERT"
+        it "should log queries at DEBUG level"
+            $ \(getLogs, DBFresh{bootDBLayer}) -> do
+                void $ unsafeRunExceptT
+                    $ bootDBLayer
+                    $ DBLayerParams testCpSeq testMetadata mempty gp
+                logs <- getLogs
+                logs `shouldHaveMsgQuery` "INSERT"
 
-        it "should not log query parameters" $ \(getLogs, DBLayer{..}) -> do
-            atomically $ unsafeRunExceptT $ initializeWallet
-                $ DBLayerParams testCpSeq testMetadata mempty gp
-            let walletName = T.unpack $ coerce $ name testMetadata
-            msgs <- T.unlines . mapMaybe getMsgQuery <$> getLogs
-            T.unpack msgs `shouldNotContain` walletName
+        it "should not log query parameters"
+            $ \(getLogs, DBFresh{bootDBLayer}) -> do
+                void $ unsafeRunExceptT
+                    $ bootDBLayer
+                    $ DBLayerParams testCpSeq testMetadata mempty gp
+                let walletName = T.unpack $ coerce $ name testMetadata
+                msgs <- T.unlines . mapMaybe getMsgQuery <$> getLogs
+                T.unpack msgs `shouldNotContain` walletName
 
     describe "Sqlite observables" $ do
-        it "should measure query timings" $ \(getLogs, DBLayer{..}) -> do
-            let count = 5
-            replicateM_ count (atomically readCheckpoint)
-            msgs <- findObserveDiffs <$> getLogs
-            length msgs `shouldBe` count * 2
+        it "should measure query timings" $ \(getLogs, DBFresh{bootDBLayer}) ->
+            do  DBLayer{readCheckpoint, atomically}
+                    <- unsafeRunExceptT $ bootDBLayer testDBLayerParams
+                let count = 5
+                replicateM_ count $ atomically readCheckpoint
+                msgs <- findObserveDiffs <$> getLogs
+                length msgs `shouldBe` (count + 1) * 2
 
 withLoggingDB
     :: PersistAddressBook s
-    => SpecWith (IO [DBLog], DBLayer IO s ShelleyKey)
+    => SpecWith (IO [DBLog], DBFresh IO s ShelleyKey)
     -> Spec
 withLoggingDB = around f . beforeWith clean
   where
     f act = do
         logVar <- newTVarIO []
-        withDBLayerInMemory
+        withDBFreshInMemory
             (traceInTVarIO logVar)
             dummyTimeInterpreter
             testWid
@@ -408,7 +419,7 @@ findObserveDiffs = filter isObserveDiff
                                 File Mode Spec
 -------------------------------------------------------------------------------}
 
-type TestDBSeq = DBLayer IO (SeqState 'Mainnet ShelleyKey) ShelleyKey
+type TestDBSeqFresh = DBFresh IO (SeqState 'Mainnet ShelleyKey) ShelleyKey
 
 fileModeSpec :: Spec
 fileModeSpec =  do
@@ -416,7 +427,7 @@ fileModeSpec =  do
         it "Opening and closing of db works" $ do
             replicateM_ 25 $ do
                 db <- temporaryDBFile
-                withShelleyFileDBLayer @(SeqState 'Mainnet ShelleyKey) db
+                withShelleyFileDBFresh @(SeqState 'Mainnet ShelleyKey) db
                     (\_ -> pure ())
 
     describe "DBFactory" $ do
@@ -436,11 +447,16 @@ fileModeSpec =  do
                 -- NOTE
                 -- Start a concurrent worker which makes action on the DB in
                 -- parallel to simulate activity.
-                pid <- forkIO $ withDatabase testWid $ \(DBLayer{..} :: TestDBSeq) -> do
-                    handle @IO @SomeException (const (pure ())) $ forever $ do
-                        atomically $ do
-                            liftIO $ threadDelay 10_000
-                            void readCheckpoint
+                pid <- forkIO
+                    $ withDatabase testWid
+                    $ \(DBFresh{..} :: TestDBSeqFresh) ->
+                    handle @IO @SomeException (const (pure ())) $ do
+                        DBLayer{..} <-
+                            unsafeRunExceptT $ bootDBLayer testDBLayerParams
+                        forever $ do
+                            atomically $ do
+                                liftIO $ threadDelay 10_000
+                                void readCheckpoint
 
                 killThread pid *> removeDatabase testWid
                 listDirectory dir `shouldReturn` mempty
@@ -448,7 +464,7 @@ fileModeSpec =  do
         it "removeDatabase still works if file is opened" $ do
             withDBFactory $ \dir DBFactory{..} -> do
                 -- set up a database file
-                withDatabase testWid $ \(_ :: TestDBSeq) -> pure ()
+                withDatabase testWid $ \(_ :: TestDBSeqFresh) -> pure ()
                 files <- listDirectory dir
                 files `shouldNotBe` mempty
 
@@ -464,7 +480,7 @@ fileModeSpec =  do
                 closed <- newEmptyMVar
 
                 let conn =
-                        withDatabase testWid $ \(_ :: TestDBSeq) -> do
+                        withDatabase testWid $ \(_ :: TestDBSeqFresh) -> do
                             threadDelay 500_000
                             putMVar closed ()
                 let rm = do
@@ -475,10 +491,10 @@ fileModeSpec =  do
                     `shouldReturn` ((), False)
 
     describe "Sqlite database file" $ do
-        let writeSomething DBLayer{..} = do
-                atomically
+        let writeSomething DBFresh{..} =
+                void
                     $ unsafeRunExceptT
-                    $ initializeWallet
+                    $ bootDBLayer
                     $ testDBLayerParams{dBLayerParamsState = testCpSeq}
             tempFilesAbsent fp = do
                 doesFileExist fp `shouldReturn` True
@@ -495,65 +511,65 @@ fileModeSpec =  do
         describe "Check db reading/writing from/to file and cleaning" $ do
 
         it "create and list wallet works" $ \f -> do
-            withShelleyFileDBLayer f $ \DBLayer{..} -> do
-                atomically
-                    $ unsafeRunExceptT
-                    $ initializeWallet
-                        testDBLayerParams
+            withShelleyFileDBFresh f $ \DBFresh{..} ->
+                void $ unsafeRunExceptT $ bootDBLayer testDBLayerParams
             testReopening f getWalletId' testWid
 
         it "create and get meta works" $ \f -> do
-            meta <- withShelleyFileDBLayer f $ \DBLayer{..} -> do
+            meta <- withShelleyFileDBFresh f $ \DBFresh{..} -> do
                 now <- getCurrentTime
                 let meta =
                         testMetadata
                             { passphraseInfo =
-                                Just $ WalletPassphraseInfo now EncryptWithPBKDF2
+                                Just
+                                    $ WalletPassphraseInfo
+                                        now
+                                        EncryptWithPBKDF2
                             }
-                atomically
+                void
                     $ unsafeRunExceptT
-                    $ initializeWallet
+                    $ bootDBLayer
                         testDBLayerParams{dBLayerParamsMetadata = meta}
                 return (meta, WalletDelegation NotDelegating [])
             testReopening f readWalletMeta' (Just meta)
 
         it "create and get private key" $ \f -> do
-            (k, h) <- withShelleyFileDBLayer f $ \db@DBLayer{..} -> do
-                atomically
-                    $ unsafeRunExceptT
-                    $ initializeWallet testDBLayerParams
+            (k, h) <- withShelleyFileDBFresh f $ \DBFresh{bootDBLayer} -> do
+                db <-
+                    unsafeRunExceptT
+                        $ bootDBLayer testDBLayerParams
                 unsafeRunExceptT $ attachPrivateKey db testWid
             testReopening f readPrivateKey' (Just (k, h))
 
         it "put and read tx history (Ascending)" $ \f -> do
-            withShelleyFileDBLayer f $ \DBLayer{..} -> do
-                atomically $ do
-                    unsafeRunExceptT $ initializeWallet testDBLayerParams
-                    unsafeRunExceptT $ putTxHistory testTxs
+            withShelleyFileDBFresh f $ \DBFresh{bootDBLayer} -> do
+                DBLayer{atomically, putTxHistory} <-
+                    unsafeRunExceptT $ bootDBLayer testDBLayerParams
+                atomically $ unsafeRunExceptT $ putTxHistory testTxs
             testReopening
                 f
-                (\db' ->
+                ( \db' ->
                     readTransactions' db' Ascending wholeRange Nothing
-                    )
+                )
                 testTxs -- expected after opening db
 
         it "put and read tx history (Descending)" $ \f -> do
-            withShelleyFileDBLayer f $ \DBLayer{..} -> do
-                atomically $ do
-                    unsafeRunExceptT $ initializeWallet testDBLayerParams
-                    unsafeRunExceptT $ putTxHistory testTxs
+            withShelleyFileDBFresh f $ \DBFresh{bootDBLayer} -> do
+                DBLayer{atomically, putTxHistory} <-
+                    unsafeRunExceptT $ bootDBLayer testDBLayerParams
+                atomically $ unsafeRunExceptT $ putTxHistory testTxs
             testReopening
                 f
-                (\db' ->
+                ( \db' ->
                     readTransactions' db' Descending wholeRange Nothing
-                    )
+                )
                 (reverse testTxs) -- expected after opening db
 
         it "put and read checkpoint" $ \f -> do
-            withShelleyFileDBLayer f $ \DBLayer{..} -> do
-                atomically $ do
-                    unsafeRunExceptT $ initializeWallet testDBLayerParams
-                    unsafeRunExceptT $ putCheckpoint testCp
+            withShelleyFileDBFresh f $ \DBFresh{bootDBLayer} -> do
+                DBLayer{atomically, putCheckpoint} <-
+                    unsafeRunExceptT $ bootDBLayer testDBLayerParams
+                atomically $ unsafeRunExceptT $ putCheckpoint testCp
             testReopening f readCheckpoint' (Just testCp)
 
         describe "Golden rollback scenarios" $ do
@@ -588,14 +604,14 @@ fileModeSpec =  do
 
             it "Should spend collateral inputs and create spendable collateral \
                 \outputs if validation fails" $
-                \f -> withShelleyFileDBLayer f $ \db@DBLayer{..} -> do
+                \f -> withShelleyFileDBFresh f $ \DBFresh{bootDBLayer} -> do
 
                     let ourAddrs =
                             map (\(a,s,_) -> (a,s)) $
                             knownAddresses (getState testCp)
 
-                    atomically $ unsafeRunExceptT $ initializeWallet
-                        testDBLayerParams
+                    db <- unsafeRunExceptT $ bootDBLayer testDBLayerParams
+
                     ------------------------------------------------------------
                     -- Transaction 1
                     --
@@ -728,15 +744,14 @@ fileModeSpec =  do
 
             it "(Regression test #1575) - TxMetas and checkpoints should \
                \rollback to the same place" $ \f -> do
-              withShelleyFileDBLayer f $ \db@DBLayer{..} -> do
+              withShelleyFileDBFresh f $ \DBFresh{bootDBLayer} -> do
 
                 let ourAddrs =
                         map (\(a,s,_) -> (a,s)) $
                         knownAddresses (getState testCp)
 
-                atomically
-                    $ unsafeRunExceptT
-                    $ initializeWallet testDBLayerParams
+                db@DBLayer{atomically, rollbackTo, readCheckpoint}
+                    <- unsafeRunExceptT $ bootDBLayer testDBLayerParams
                 let mockApplyBlock1 = mockApply db (dummyHash "block1")
                         [ Tx
                             { txId = dummyHash "tx1"
@@ -819,18 +834,17 @@ prop_randomOpChunks (NonEmpty (p : pairs)) =
   where
     prop = do
         filepath <- temporaryDBFile
-        withShelleyFileDBLayer filepath $ \dbF -> do
-            withShelleyDBLayer $ \dbM -> do
-                boot dbM p
-                boot dbF p
+        withShelleyFileDBFresh filepath $ \dbfF -> do
+            withShelleyDBLayer $ \dbfM -> do
+                dbM <- boot dbfM p
+                dbF <- boot dbfF p
                 forM_ pairs (insertPair dbM)
                 cutRandomly pairs >>= mapM_ (mapM (insertPair dbF))
                 dbF `shouldBeConsistentWith` dbM
-    boot DBLayer{..} (cp, meta) = do
+    boot DBFresh{bootDBLayer} (cp, meta) = do
         let cp0 = imposeGenesisState cp
-        atomically
-            $ unsafeRunExceptT
-            $ initializeWallet
+        unsafeRunExceptT
+            $ bootDBLayer
             $ DBLayerParams cp0 meta mempty gp
 
     insertPair
@@ -868,12 +882,13 @@ testReopening
     -> s
     -> Expectation
 testReopening filepath call expectedAfterOpen = do
-    withShelleyFileDBLayer filepath $ \db -> do
+    withShelleyFileDBFresh filepath $ \DBFresh{loadDBLayer} -> do
+        db <- unsafeRunExceptT loadDBLayer
         call db `shouldReturn` expectedAfterOpen
 
 -- | Run a test action inside withDBLayer, then check assertions.
 withTestDBFile
-    :: (DBLayer IO (SeqState 'Mainnet ShelleyKey) ShelleyKey -> IO ())
+    :: (DBFresh IO (SeqState 'Mainnet ShelleyKey) ShelleyKey -> IO ())
     -> (FilePath -> IO a)
     -> IO a
 withTestDBFile action expectations = do
@@ -882,7 +897,7 @@ withTestDBFile action expectations = do
     withSystemTempFile "spec.db" $ \fp h -> do
         hClose h
         removeFile fp
-        withDBLayer
+        withDBFresh
             (trMessageText trace)
             (Just defaultFieldValues)
             fp
@@ -909,16 +924,16 @@ defaultFieldValues = DefaultFieldValues
 -- for type-application everywhere.
 withShelleyDBLayer
     :: PersistAddressBook s
-    => (DBLayer IO s ShelleyKey -> IO a)
+    => (DBFresh IO s ShelleyKey -> IO a)
     -> IO a
-withShelleyDBLayer = withDBLayerInMemory nullTracer dummyTimeInterpreter testWid
+withShelleyDBLayer = withDBFreshInMemory nullTracer dummyTimeInterpreter testWid
 
-withShelleyFileDBLayer
+withShelleyFileDBFresh
     :: PersistAddressBook s
     => FilePath
-    -> (DBLayer IO s ShelleyKey -> IO a)
+    -> (DBFresh IO s ShelleyKey -> IO a)
     -> IO a
-withShelleyFileDBLayer fp = withDBLayer
+withShelleyFileDBFresh fp = withDBFresh
     nullTracer  -- fixme: capture logging
     (Just defaultFieldValues)
     fp
@@ -1171,8 +1186,10 @@ withDBLayerFromCopiedFile dbName action = withinCopiedFile dbName
         mwid <- retrieveWalletId db
         case mwid of
             Nothing -> fail "No wallet id found in database"
-            Just wid ->
-                withDBLayerFromDBOpen @k @s dummyTimeInterpreter wid action db
+            Just wid -> do
+                let action' DBFresh{loadDBLayer} = do
+                        unsafeRunExceptT loadDBLayer >>= action
+                withDBFreshFromDBOpen @k @s dummyTimeInterpreter wid action' db
 
 withinCopiedFile
     :: FilePath
@@ -1407,7 +1424,7 @@ testMigrationSubmissionsEncoding
     :: FilePath -> IO ()
 testMigrationSubmissionsEncoding dbName = do
     let performMigrations path =
-          withDBLayer @(SeqState 'Mainnet ShelleyKey) @ShelleyKey
+          withDBFresh @(SeqState 'Mainnet ShelleyKey) @ShelleyKey
             nullTracer (Just defaultFieldValues) path dummyTimeInterpreter
                 testWid $ \_ -> pure ()
         testOnCopiedAndMigrated test = fmap snd

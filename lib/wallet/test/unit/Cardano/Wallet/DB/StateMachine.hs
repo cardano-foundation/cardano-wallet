@@ -58,6 +58,8 @@ import Cardano.Pool.Types
     ( PoolId (..) )
 import Cardano.Wallet
     ( mkNoSuchWalletError )
+import Cardano.Wallet.Address.Book
+    ( AddressBookIso )
 import Cardano.Wallet.Address.Derivation
     ( Depth (..)
     , DerivationPrefix
@@ -75,7 +77,7 @@ import Cardano.Wallet.Address.Derivation.SharedKey
 import Cardano.Wallet.Address.Derivation.Shelley
     ( ShelleyKey )
 import Cardano.Wallet.Address.Discovery
-    ( PendingIxs )
+    ( IsOurs, PendingIxs )
 import Cardano.Wallet.Address.Discovery.Random
     ( RndState )
 import Cardano.Wallet.Address.Discovery.Sequential
@@ -87,19 +89,16 @@ import Cardano.Wallet.Address.Discovery.Shared
     , SharedState (..)
     )
 import Cardano.Wallet.DB
-    ( DBLayer (..)
-    , DBLayerParams (..)
-    , ErrWalletAlreadyInitialized (ErrWalletAlreadyInitialized)
-    , ErrWalletNotInitialized
-    )
+    ( DBLayer (..), DBLayerParams (..), ErrWalletNotInitialized )
 import Cardano.Wallet.DB.Arbitrary
     ( GenState, GenTxHistory (..), InitialCheckpoint (..) )
+import Cardano.Wallet.DB.Errors
+    ( ErrNoSuchWallet (..) )
 import Cardano.Wallet.DB.Pure.Implementation
     ( Database (..)
     , Err (..)
     , TxHistory
     , WalletDatabase (..)
-    , emptyDatabase
     , mInitializeWallet
     , mIsStakeKeyRegistered
     , mListCheckpoints
@@ -117,8 +116,6 @@ import Cardano.Wallet.DB.Pure.Implementation
     , mReadWalletMeta
     , mRollbackTo
     )
-import Cardano.Wallet.DB.WalletState
-    ( ErrNoSuchWallet (..) )
 import Cardano.Wallet.DummyTarget.Primitive.Types
     ( dummyGenesisParameters, dummyTimeInterpreter )
 import Cardano.Wallet.Primitive.Model
@@ -186,6 +183,8 @@ import Cardano.Wallet.Read.Eras.EraValue
     ( eraValueSerialize )
 import Cardano.Wallet.Read.NetworkId
     ( NetworkDiscriminant (..) )
+import Control.DeepSeq
+    ( NFData )
 import Control.Foldl
     ( Fold (..) )
 import Control.Monad
@@ -212,7 +211,7 @@ import Data.List.Extra
     ( enumerate )
 import Data.Map
     ( Map )
-import Data.Map.Strict.NonEmptyMap
+import Data.Map.Strict.NonEmptyMap.Internal
     ( NonEmptyMap )
 import Data.Maybe
     ( catMaybes, fromJust, isJust )
@@ -224,6 +223,8 @@ import Data.Time.Clock
     ( NominalDiffTime, diffUTCTime, getCurrentTime )
 import Data.TreeDiff
     ( ToExpr (..), defaultExprViaShow, genericToExpr )
+import Fmt
+    ( Buildable )
 import GHC.Generics
     ( Generic, Generic1 )
 import GHC.Stack
@@ -341,7 +342,7 @@ unMockPrivKeyHash = PassphraseHash .  BA.convert . B8.pack
 -------------------------------------------------------------------------------}
 
 data Cmd s wid
-    = CreateWallet (Wallet s) WalletMetadata TxHistory GenesisParameters
+    = CreateWallet
     | PutCheckpoint (Wallet s)
     | ReadCheckpoint
     | ListCheckpoints
@@ -401,9 +402,7 @@ instance Traversable (Resp s) where
 
 runMock :: HasCallStack => Cmd s MWid -> Mock s -> (Resp s MWid, Mock s)
 runMock = \case
-    CreateWallet wal meta txs gp -> \db@(Database wid _ _) ->
-        first (Resp . fmap (const (NewWallet wid)))
-            . mInitializeWallet wal meta txs gp $ db
+    CreateWallet -> \db@(Database wid _ _) -> (Resp $ Right $ NewWallet wid, db)
     PutCheckpoint wal ->
         first (Resp . fmap Unit) . mPutCheckpoint wal
     ListCheckpoints ->
@@ -466,10 +465,7 @@ runIO DBLayer{..} = fmap Resp . go
         :: Cmd s WalletId
         -> m (Either Err (Success s WalletId))
     go = \case
-        CreateWallet wal meta txs gp ->
-            catchWalletAlreadyExists (const (NewWallet wid)) $
-            mapExceptT atomically $
-            initializeWallet $ DBLayerParams wal meta txs gp
+        CreateWallet -> pure $ Right $ NewWallet wid
         PutCheckpoint wal -> catchNoSuchWallet Unit $
             runDB atomically $ putCheckpoint wal
         ReadCheckpoint -> Right . Checkpoint <$>
@@ -507,17 +503,11 @@ runIO DBLayer{..} = fmap Resp . go
             atomically readDelegationRewardBalance
         RollbackTo _wid sl -> catchNoSuchWallet Point $
             runDB atomically $ rollbackTo sl
-
-    catchWalletAlreadyExists f =
-        fmap (bimap errWalletAlreadyExists f) . runExceptT
     catchNoSuchWallet f =
         fmap (bimap errNoSuchWallet f) . runExceptT
 
     errNoSuchWallet :: ErrNoSuchWallet -> Err
     errNoSuchWallet (ErrNoSuchWallet _wid) = WalletAlreadyInitialized
-
-    errWalletAlreadyExists :: ErrWalletAlreadyInitialized -> Err
-    errWalletAlreadyExists ErrWalletAlreadyInitialized = WalletAlreadyInitialized
 
 {-------------------------------------------------------------------------------
   Working with references
@@ -555,8 +545,8 @@ data Model s r
 
 deriving instance (Show1 r, Show s) => Show (Model s r)
 
-initModel :: MWid -> Model s r
-initModel wid = Model (emptyDatabase wid) []
+initModel :: MWid -> DBLayerParams s -> Model s r
+initModel mwid params = Model (mInitializeWallet mwid params) []
 
 toMock :: (Functor (f s), Eq1 r) => Model s r -> f s :@ r -> f s MWid
 toMock (Model _ wids) (At fr) = fmap (wids !) fr
@@ -600,7 +590,7 @@ lockstep m@(Model _ ws) c (At resp) = Event
 
 {- HLINT ignore generator "Use ++" -}
 generator
-    :: forall s. (Arbitrary (Wallet s), GenState s)
+    :: forall s. Arbitrary (Wallet s)
     => Model s Symbolic
     -> Maybe (Gen (Cmd s :@ Symbolic))
 generator (Model _ wids) = Just $ frequency $ fmap (fmap At) . snd <$> concat
@@ -616,16 +606,11 @@ declareGenerator
 declareGenerator name f gen = (name, (f, gen))
 
 generatorWithoutId
-    :: forall s r. GenState s
-    => [(String, (Int, Gen (Cmd s (Reference WalletId r))))]
+    :: [(String, (Int, Gen (Cmd s (Reference WalletId r))))]
 generatorWithoutId =
-    [ declareGenerator "CreateWallet" 5
-        $ CreateWallet
-            <$> (getInitialCheckpoint <$> arbitrary)
-            <*> arbitrary
-            <*> fmap unGenTxHistory arbitrary
-            <*> pure dummyGenesisParameters
+    [ declareGenerator "CreateWallet" 5 $ pure CreateWallet
     ]
+
 generatorWithWid
     :: forall s r. Arbitrary (Wallet s)
     => [Reference WalletId r]
@@ -699,10 +684,6 @@ shrinker (At cmd) = case cmd of
         [ At $ PutTxHistory h'
         | h' <- map unGenTxHistory . shrink . GenTxHistory $ h
         ]
-    CreateWallet wal met txs gp ->
-        [ At $ CreateWallet wal' met' (unGenTxHistory txs') gp
-        | (txs', wal', met') <- shrink (GenTxHistory txs, wal, met)
-        ]
     PutWalletMeta met ->
         [ At $ PutWalletMeta met'
         | met' <- shrink met
@@ -762,10 +743,11 @@ type TestConstraints s k =
 sm
     :: (MonadIO m, TestConstraints s k)
     => MWid
+    -> DBLayerParams s
     -> DBLayer m s k
     -> StateMachine (Model s) (At (Cmd s)) m (At (Resp s))
-sm mwid db = QSM.StateMachine
-    { initModel = initModel mwid
+sm mwid params db = QSM.StateMachine
+    { initModel = initModel mwid params
     , transition = transition
     , precondition = precondition
     , postcondition = postcondition
@@ -1150,8 +1132,12 @@ execCmd
 execCmd model (QSM.Command cmd resp _vars) =
     lockstep model cmd resp
 
-execCmds :: MWid -> QSM.Commands (At (Cmd s)) (At (Resp s)) -> [Event s Symbolic]
-execCmds mwid = \(QSM.Commands cs) -> go (initModel mwid) cs
+execCmds
+    :: MWid
+    -> DBLayerParams s
+    -> QSM.Commands (At (Cmd s)) (At (Resp s))
+    -> [Event s Symbolic]
+execCmds mwid params = \(QSM.Commands cs) -> go (initModel mwid params) cs
   where
     go
         :: Model s Symbolic
@@ -1170,30 +1156,51 @@ testMWid = MWid "test"
 testWid :: WalletId
 testWid = unMockWid testMWid
 
+genDBParams
+    :: ( AddressBookIso s
+       , Arbitrary s
+       , Buildable s
+       , Eq s
+       , IsOurs s Address
+       , IsOurs s RewardAccount
+       , NFData s
+       , Show s
+       )
+    => Gen (DBLayerParams s)
+genDBParams =
+    DBLayerParams
+        <$> (getInitialCheckpoint <$> arbitrary)
+        <*> arbitrary
+        <*> fmap unGenTxHistory arbitrary
+        <*> pure dummyGenesisParameters
+
 prop_sequential
     :: forall s k. (TestConstraints s k)
-    => (WalletId -> (IO (IO (),DBLayer IO s k)))
+    => (WalletId -> DBLayerParams s -> (IO (IO (),DBLayer IO s k)))
     -> Property
 prop_sequential newDB =
-    QC.checkCoverage $
-    forAllCommands (sm @IO @s @k testMWid dbLayerUnused) Nothing $ \cmds ->
-        monadicIO $ do
-            (destroyDB, db) <- run (newDB testWid)
-            let sm' = sm testMWid db
-            (hist, _model, res) <- runCommands sm' cmds
-            prettyCommands sm' hist
-                $ measureTagCoverage cmds
-                $ res === Ok
-            run destroyDB -- fixme: bracket difficult
-  where
-    measureTagCoverage :: Commands (At (Cmd s)) (At (Resp s)) -> Property -> Property
-    measureTagCoverage cmds prop = foldl' measureTag prop allTags
-      where
-        measureTag :: Property -> Tag -> Property
-        measureTag p t = QC.cover 5 (t `Set.member` matchedTags) (show t) p
+    QC.forAll genDBParams $ \params ->
+        let measureTagCoverage :: Commands (At (Cmd s)) (At (Resp s))
+                -> Property -> Property
+            measureTagCoverage cmds prop = foldl' measureTag prop allTags
+              where
+                matchedTags :: Set Tag
+                matchedTags =
+                    Set.fromList $ tag $ (execCmds testMWid params) cmds
+                measureTag :: Property -> Tag -> Property
+                measureTag p t =
+                    QC.cover 5 (t `Set.member` matchedTags) (show t) p
+        in QC.checkCoverage $
+        forAllCommands (sm @IO @s @k testMWid params dbLayerUnused) Nothing $
+            \cmds -> monadicIO $ do
+                (destroyDB, db) <- run (newDB testWid params)
+                let sm' = sm testMWid params db
+                (hist, _model, res) <- runCommands sm' cmds
+                prettyCommands sm' hist
+                    $ measureTagCoverage cmds
+                    $ res === Ok
+                run destroyDB -- fixme: bracket difficult
 
-        matchedTags :: Set Tag
-        matchedTags = Set.fromList $ tag $ (execCmds testMWid) cmds
 
 -- Controls that generators and shrinkers can run within a reasonable amount of
 -- time. We have been bitten several times already by generators which took much

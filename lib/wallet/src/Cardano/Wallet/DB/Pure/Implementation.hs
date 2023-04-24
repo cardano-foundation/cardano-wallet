@@ -47,7 +47,6 @@ module Cardano.Wallet.DB.Pure.Implementation
     , Err (..)
 
     -- * Model database functions
-    , mCleanDB
     , mInitializeWallet
     , mGetWalletId
     , mPutCheckpoint
@@ -76,6 +75,8 @@ import Prelude
 
 import Cardano.Pool.Types
     ( PoolId )
+import Cardano.Wallet.DB
+    ( DBLayerParams (..) )
 import Cardano.Wallet.Primitive.Model
     ( Wallet, currentTip )
 import Cardano.Wallet.Primitive.Slotting
@@ -214,35 +215,26 @@ data Err
                             Model Database wid Functions
 -------------------------------------------------------------------------------}
 
-mCleanDB :: wid -> ModelOp wid s xprv ()
-mCleanDB wid _ = (Right (), emptyDatabase wid)
-
 mInitializeWallet
     :: forall wid s xprv
-    .   Wallet s
-    -> WalletMetadata
-    -> TxHistory
-    -> GenesisParameters
-    -> ModelOp wid s xprv ()
-mInitializeWallet cp meta txs0 gp db@Database {walletId, wallet,txs}
-    | isJust wallet = (Left WalletAlreadyInitialized, db)
-    | otherwise =
-        let
-            wal = WalletDatabase
-                { checkpoints = Map.singleton (tip cp) cp
-                , stakeKeys = mempty
-                , certificates = mempty
-                , metadata = meta
-                , txHistory = history
-                , xprv = Nothing
-                , genesisParameters = gp
-                , rewardAccountBalance = Coin 0
-                , submittedTxs = mempty
-                }
-            txs' = Map.fromList $ (\(tx, _) -> (view #txId tx, tx)) <$> txs0
-            history = Map.fromList $ first (view #txId) <$> txs0
-        in
-            (Right (), Database walletId (Just wal) (txs <> txs'))
+     . wid
+    -> DBLayerParams s
+    -> Database wid s xprv
+mInitializeWallet wid (DBLayerParams cp meta txs0 gp) =
+    Database wid (Just wal) txs0'
+  where
+    wal = WalletDatabase
+        { checkpoints = Map.singleton (tip cp) cp
+        , stakeKeys = mempty
+        , certificates = mempty
+        , metadata = meta
+        , txHistory = Map.fromList $ first (view #txId) <$> txs0
+        , xprv = Nothing
+        , genesisParameters = gp
+        , rewardAccountBalance = Coin 0
+        , submittedTxs = mempty
+        }
+    txs0' = Map.fromList $ (\(tx, _) -> (view #txId tx, tx)) <$> txs0
 
 mCheckWallet :: ModelOp wid s xprv ()
 mCheckWallet db@Database {wallet}

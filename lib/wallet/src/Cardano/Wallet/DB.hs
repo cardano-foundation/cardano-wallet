@@ -3,6 +3,7 @@
 {-# LANGUAGE ExistentialQuantification #-}
 {-# LANGUAGE KindSignatures #-}
 {-# LANGUAGE LambdaCase #-}
+{-# LANGUAGE NamedFieldPuns #-}
 {-# LANGUAGE OverloadedLabels #-}
 {-# LANGUAGE RankNTypes #-}
 {-# LANGUAGE RecordWildCards #-}
@@ -22,6 +23,7 @@ module Cardano.Wallet.DB
     , DBOpen (..)
     , DBFactory (..)
     , DBLayerParams(..)
+    , DBFresh (..)
 
     -- * DBLayer building blocks
     , DBLayerCollection (..)
@@ -36,6 +38,8 @@ module Cardano.Wallet.DB
     , hoistDBLayer
       -- * Errors
     , module Cardano.Wallet.DB.Errors
+    , mkDBFreshFromParts
+    , hoistDBFresh
     ) where
 
 import Prelude
@@ -109,11 +113,11 @@ import Control.Monad.IO.Class
 import Control.Monad.Trans
     ( lift )
 import Control.Monad.Trans.Except
-    ( ExceptT (..) )
+    ( ExceptT (..), mapExceptT, runExceptT, throwE )
 import Data.DBVar
     ( DBVar, modifyDBMaybe, readDBVar )
 import Data.Functor
-    ( (<&>) )
+    ( ($>), (<&>) )
 import Data.Generics.Internal.VL
     ( (^.) )
 import Data.Kind
@@ -149,7 +153,7 @@ import qualified Data.Map.Strict as Map
 -- In our use case, this will typically be a directory of database files,
 -- or a 'Map' of in-memory SQLite databases.
 data DBFactory m s k = DBFactory
-    { withDatabase :: forall a. WalletId -> (DBLayer m s k -> IO a) -> IO a
+    { withDatabase :: forall a. WalletId -> (DBFresh m s k -> IO a) -> IO a
         -- ^ Creates a new or use an existing database, maintaining an open
         -- connection so long as necessary
 
@@ -188,6 +192,21 @@ data DBLayerParams s = DBLayerParams
     }
     deriving (Eq, Show)
 
+data DBFresh m s (k :: Depth -> Type -> Type) = DBFresh
+    { bootDBLayer
+        :: DBLayerParams s
+        -> ExceptT ErrWalletAlreadyInitialized m (DBLayer m s k)
+        -- ^ Initialize a database
+    , loadDBLayer :: ExceptT ErrWalletNotInitialized m (DBLayer m s k)
+        -- ^ Load an existing database
+    }
+
+hoistDBFresh :: Functor m => (forall a. m a -> n a) -> DBFresh m s k -> DBFresh n s k
+hoistDBFresh f (DBFresh boot load) = DBFresh
+    { bootDBLayer = \params -> mapExceptT f $ hoistDBLayer f <$> boot params
+    , loadDBLayer = mapExceptT f $ hoistDBLayer f <$> load
+    }
+
 {-----------------------------------------------------------------------------
     DBLayer
 ------------------------------------------------------------------------------}
@@ -205,12 +224,6 @@ data DBLayerParams s = DBLayerParams
 -- to serialize and unserialize it (e.g. @forall s. (Serialize s) => ...@).
 data DBLayer m s k = forall stm. (MonadIO stm, MonadFail stm) => DBLayer
     { walletId_ :: WalletId
-    , initializeWallet
-        :: DBLayerParams s
-        -> ExceptT ErrWalletAlreadyInitialized stm ()
-        -- ^ Initialize a database entry for a given wallet. 'putCheckpoint',
-        -- 'putWalletMeta', 'putTxHistory' or 'putProtocolParameters' will
-        -- actually all fail if they are called _first_ on a wallet.
 
     , walletsDB
         :: DBVar stm (DeltaMap WalletId (DeltaWalletState s))
@@ -456,8 +469,7 @@ to delete them wholesale rather than maintaining them.
 
 -}
 data DBLayerCollection stm m s k = DBLayerCollection
-    { dbWallets :: DBWallets stm s
-    , dbCheckpoints :: DBCheckpoints stm s
+    { dbCheckpoints :: DBCheckpoints stm s
     , dbWalletMeta :: DBWalletMeta stm
     , dbDelegation :: DBDelegation stm
     , dbTxHistory :: DBTxHistory stm
@@ -476,17 +488,49 @@ data DBLayerCollection stm m s k = DBLayerCollection
         :: forall a. stm a -> m a
     }
 
+mkDBFreshFromParts
+    :: forall stm m s k
+     . (MonadIO stm, MonadFail stm, Functor m)
+    => TimeInterpreter IO
+    -> WalletId
+    -> DBWallets stm s
+    -> DBLayerCollection stm m s k
+    -> DBFresh m s k
+mkDBFreshFromParts
+    ti
+    wid_
+    DBWallets{initializeWallet_, getWalletId_}
+    parts@DBLayerCollection{atomically_} =
+        DBFresh
+            { bootDBLayer = \params ->
+                mapExceptT atomically_ (initializeWallet_ params) $> db
+            , loadDBLayer = mapExceptT atomically_ $ do
+                ewid <- lift . runExceptT $ getWalletId_
+                case ewid of
+                    Right _ -> pure db
+                    Left _ -> throwE ErrWalletNotInitialized
+            }
+      where
+        db = mkDBLayerFromParts ti wid_ wrapNoSuchWallet parts
+        wrapNoSuchWallet :: stm a -> ExceptT ErrWalletNotInitialized stm a
+        wrapNoSuchWallet action = getWalletId_ >> lift action
+
+type CheckWalletInitialized stm =
+    forall a
+     . stm a
+    -> ExceptT ErrWalletNotInitialized stm a
+
 {- HLINT ignore mkDBLayerFromParts "Avoid lambda" -}
 -- | Create a legacy 'DBLayer' from smaller database layers.
 mkDBLayerFromParts
     :: forall stm m s k. (MonadIO stm, MonadFail stm)
     => TimeInterpreter IO
     -> WalletId
+    -> CheckWalletInitialized stm
     -> DBLayerCollection stm m s k
     -> DBLayer m s k
-mkDBLayerFromParts ti wid_ DBLayerCollection{..} = DBLayer
+mkDBLayerFromParts ti wid_ wrapNoSuchWallet DBLayerCollection{..} = DBLayer
     { walletId_ = wid_
-    , initializeWallet = initializeWallet_ dbWallets
     , walletsDB = walletsDB_ dbCheckpoints
     , putCheckpoint = putCheckpoint_ dbCheckpoints
     , readCheckpoint = readCheckpoint'
@@ -573,7 +617,7 @@ mkDBLayerFromParts ti wid_ DBLayerCollection{..} = DBLayer
     , putPrivateKey = \a -> wrapNoSuchWallet $
         putPrivateKey_ dbPrivateKey  a
     , readPrivateKey = readPrivateKey_ dbPrivateKey
-    , readGenesisParameters = readGenesisParameters_ dbWallets
+    , readGenesisParameters = readGenesisParameters_ dbCheckpoints
     , rollbackTo = rollbackTo_
     , prune = prune_
     , atomically = atomically_
@@ -588,11 +632,6 @@ mkDBLayerFromParts ti wid_ DBLayerCollection{..} = DBLayer
     mapNoSuchWallet _ = ErrWalletNotInitialized
     updateSubmissions' = updateSubmissions dbCheckpoints
     readCheckpoint' = readCheckpoint_ dbCheckpoints
-    wrapNoSuchWallet
-        :: stm a
-        -> ExceptT ErrWalletNotInitialized stm a
-    wrapNoSuchWallet action = getWalletId_ dbWallets >> lift action
-
     readCurrentTip :: stm (Maybe BlockHeader)
     readCurrentTip =
         fmap currentTip <$> readCheckpoint_ dbCheckpoints
@@ -622,14 +661,9 @@ data DBWallets stm s = DBWallets
         -- 'putWalletMeta', 'putTxHistory' or 'putProtocolParameters' will
         -- actually all fail if they are called _first_ on a wallet.
 
-    , readGenesisParameters_
-        :: stm (Maybe GenesisParameters)
-        -- ^ Read the *Byron* genesis parameters.
-
     , getWalletId_
         :: ExceptT ErrWalletNotInitialized stm WalletId
         -- ^ Get the 'WalletId' of the wallet stored in the DB.
-
     }
 
 -- | A database layer for storing wallet states.
@@ -662,6 +696,10 @@ data DBCheckpoints stm s = DBCheckpoints
         :: stm [ChainPoint]
         -- ^ List all known checkpoint tips, ordered by slot ids from the oldest
         -- to the newest.
+
+    , readGenesisParameters_
+        :: stm (Maybe GenesisParameters)
+        -- ^ Read the *Byron* genesis parameters.
     }
 
 -- | A database layer for storing 'WalletMetadata'.

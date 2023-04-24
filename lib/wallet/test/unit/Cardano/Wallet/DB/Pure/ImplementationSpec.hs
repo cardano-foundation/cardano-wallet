@@ -47,7 +47,7 @@ spec =
     before (pendingOnMacOS "#2472: timeouts in CI mac builds")
     $ describe "PureLayer"
     $ properties $ \wid test -> do
-        run <- liftIO $ PureLayer.newDBLayer @_ @(SeqState 'Mainnet ShelleyKey)
+        run <- liftIO $ PureLayer.newDBFresh @_ @(SeqState 'Mainnet ShelleyKey)
             dummyTimeInterpreter wid
         test run
 
