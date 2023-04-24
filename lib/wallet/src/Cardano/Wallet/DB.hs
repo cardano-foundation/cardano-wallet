@@ -105,6 +105,8 @@ import Control.Monad
     ( join )
 import Control.Monad.IO.Class
     ( MonadIO, liftIO )
+import Control.Monad.Trans
+    ( lift )
 import Control.Monad.Trans.Except
     ( ExceptT (..) )
 import Data.DBVar
@@ -488,14 +490,14 @@ mkDBLayerFromParts ti wid_ DBLayerCollection{..} = DBLayer
                 del <- readDelegation_ dbDelegation currentEpoch
                 mwm <- readWalletMeta_ dbWalletMeta
                 pure $ mwm <&> (, del)
-    , isStakeKeyRegistered = wrapNoSuchWallet wid_ $
+    , isStakeKeyRegistered = wrapNoSuchWallet $
         isStakeKeyRegistered_ dbDelegation
-    , putDelegationCertificate = \a b -> wrapNoSuchWallet wid_ $
+    , putDelegationCertificate = \a b -> wrapNoSuchWallet $
         putDelegationCertificate_ dbDelegation a b
-    , putDelegationRewardBalance = \a -> wrapNoSuchWallet wid_ $
+    , putDelegationRewardBalance = \a -> wrapNoSuchWallet $
         putDelegationRewardBalance_ dbDelegation a
     , readDelegationRewardBalance = readDelegationRewardBalance_ dbDelegation
-    , putTxHistory = \a -> wrapNoSuchWallet wid_ $
+    , putTxHistory = \a -> wrapNoSuchWallet $
         putTxHistory_ dbTxHistory a
     , readTransactions = \minWithdrawal order range status limit ->
         readCurrentTip >>= \case
@@ -527,7 +529,7 @@ mkDBLayerFromParts ti wid_ DBLayerCollection{..} = DBLayer
                     . filterMinWithdrawal minWithdrawal
                     $ inLedgers <> inSubmissions
             Nothing -> pure []
-    , getTx = \txid -> wrapNoSuchWallet wid_ $ do
+    , getTx = \txid -> wrapNoSuchWallet $ do
         readCurrentTip >>= \case
             Just tip -> do
                 historical <- getTx_ dbTxHistory txid tip
@@ -557,7 +559,7 @@ mkDBLayerFromParts ti wid_ DBLayerCollection{..} = DBLayer
             updateSubmissions' wid_ (ErrRemoveTxNoSuchWallet . mapNoSuchWallet)
                 $ \xs ->
                 pure <$> Sbms.removePendingOrExpiredTx xs txid
-    , putPrivateKey = \a -> wrapNoSuchWallet wid_ $
+    , putPrivateKey = \a -> wrapNoSuchWallet $
         putPrivateKey_ dbPrivateKey  a
     , readPrivateKey = readPrivateKey_ dbPrivateKey
     , readGenesisParameters = readGenesisParameters_ dbWallets
@@ -576,13 +578,9 @@ mkDBLayerFromParts ti wid_ DBLayerCollection{..} = DBLayer
     updateSubmissions' = updateSubmissions dbCheckpoints
     readCheckpoint' = readCheckpoint_ dbCheckpoints
     wrapNoSuchWallet
-        :: WalletId
-        -> stm a
+        :: stm a
         -> ExceptT ErrWalletNotInitialized stm a
-    wrapNoSuchWallet wid action = ExceptT $
-        hasWallet_ dbWallets wid >>= \case
-            False -> pure $ Left ErrWalletNotInitialized
-            True  -> Right <$> action
+    wrapNoSuchWallet action = getWalletId_ dbWallets >> lift action
 
     readCurrentTip :: stm (Maybe BlockHeader)
     readCurrentTip =
@@ -624,11 +622,6 @@ data DBWallets stm s = DBWallets
         :: ExceptT ErrWalletNotInitialized stm WalletId
         -- ^ Get the 'WalletId' of the wallet stored in the DB.
 
-    , hasWallet_
-        :: WalletId
-        -> stm Bool
-        -- ^ Check whether the wallet with 'WalletId' is present
-        -- in the database.
     }
 
 -- | A database layer for storing wallet states.

@@ -167,7 +167,7 @@ import Data.Functor
 import Data.Generics.Internal.VL.Lens
     ( view, (^.) )
 import Data.Maybe
-    ( catMaybes, fromMaybe, isJust, maybeToList )
+    ( catMaybes, fromMaybe, maybeToList )
 import Data.Proxy
     ( Proxy (..) )
 import Data.Quantity
@@ -612,7 +612,6 @@ newDBLayerFromDBOpen ti wid_ DBOpen{atomically=runQuery} = mdo
                 [w] -> pure w
                 _ -> throwE ErrWalletNotInitialized
 
-        , hasWallet_ = fmap isJust . selectWallet
         }
 
         {-----------------------------------------------------------------------
