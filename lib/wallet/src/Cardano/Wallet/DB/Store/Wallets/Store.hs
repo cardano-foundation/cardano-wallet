@@ -23,14 +23,14 @@ import Cardano.Wallet.DB.Store.Meta.Layer
     ( QueryTxMeta (..) )
 import Cardano.Wallet.DB.Store.Meta.Model
     ( DeltaTxMetaHistory, mkTxMetaHistory )
-import Cardano.Wallet.DB.Store.QueryStore
-    ( QueryStore (..) )
 import Cardano.Wallet.DB.Store.Transactions.Model
     ( DeltaTxSet (..), mkTxSet )
 import Cardano.Wallet.DB.Store.Wallets.Model
     ( DeltaTxWalletsHistory (..) )
 import Control.Applicative
     ( liftA2 )
+import Data.QueryStore
+    ( QueryStore (..) )
 import Data.Store
     ( Store (..) )
 import Database.Persist.Sql

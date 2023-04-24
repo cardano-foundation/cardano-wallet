@@ -46,6 +46,7 @@ library
   exposed-modules:
       Data.DBVar
       Data.Store
+      Data.QueryStore
       Test.Store
 
 test-suite unit

@@ -35,14 +35,14 @@ import Cardano.Wallet.DB.Store.Meta.ModelSpec
     ( genExpand, genRollback )
 import Cardano.Wallet.DB.Store.Meta.Store
     ( mkStoreMetaTransactions )
-import Cardano.Wallet.DB.Store.QueryStore
-    ( QueryStore (..) )
 import Cardano.Wallet.Primitive.Types
     ( Range (..), SortOrder (Ascending, Descending), WalletId )
 import Control.Monad
     ( forM_, (<=<) )
 import Data.Foldable
     ( toList )
+import Data.QueryStore
+    ( QueryStore (..) )
 import Data.Store
     ( Store (..) )
 import GHC.Natural

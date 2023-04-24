@@ -22,14 +22,14 @@ import Cardano.Wallet.DB.Sqlite.Schema
     ( CBOR )
 import Cardano.Wallet.DB.Sqlite.Types
     ( TxId )
-import Cardano.Wallet.DB.Store.QueryStore
-    ( Query (..), QueryStore (..) )
 import Cardano.Wallet.DB.Store.Transactions.Model
     ( DeltaTxSet, TxRelation (..), TxSet (..), fromTxCollateralOut, fromTxOut )
 import Control.Applicative
     ( (<|>) )
 import Data.Maybe
     ( maybeToList )
+import Data.QueryStore
+    ( Query (..), QueryStore (..) )
 import Data.Word
     ( Word32 )
 import Database.Persist.Sql

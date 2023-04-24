@@ -26,8 +26,6 @@ import Cardano.Wallet.DB.Sqlite.Types
     ( TxId (..) )
 import Cardano.Wallet.DB.Store.Meta.Layer
     ( QueryTxMeta (..), mkQueryStoreTxMeta )
-import Cardano.Wallet.DB.Store.QueryStore
-    ( QueryStore (..) )
 import Cardano.Wallet.DB.Store.Transactions.Layer
     ( mkQueryStoreTxSet )
 import Cardano.Wallet.DB.Store.Transactions.Model
@@ -38,6 +36,8 @@ import Cardano.Wallet.DB.Store.Wallets.Store
     ( mkStoreTxWalletsHistory )
 import Cardano.Wallet.Primitive.Types
     ( Range (..), SortOrder )
+import Data.QueryStore
+    ( QueryStore (..) )
 import Data.Word
     ( Word32 )
 import Database.Persist.Sql

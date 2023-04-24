@@ -22,8 +22,6 @@ import Cardano.Wallet.DB.Store.Meta.Model
     ( DeltaTxMetaHistory, TxMetaHistory (..) )
 import Cardano.Wallet.DB.Store.Meta.Store
     ( mkStoreMetaTransactions )
-import Cardano.Wallet.DB.Store.QueryStore
-    ( Query (..), QueryStore (..) )
 import Cardano.Wallet.Primitive.Types
     ( Range (..), SortOrder (..) )
 import Data.Foldable
@@ -34,6 +32,8 @@ import Data.Maybe
     ( catMaybes )
 import Data.Ord
     ( Down (..) )
+import Data.QueryStore
+    ( Query (..), QueryStore (..) )
 import Data.Set
     ( Set )
 import Database.Persist.Sql
