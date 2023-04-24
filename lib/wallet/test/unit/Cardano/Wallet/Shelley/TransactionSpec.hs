@@ -353,7 +353,7 @@ import Data.Function
 import Data.Functor.Identity
     ( Identity, runIdentity )
 import Data.Generics.Internal.VL.Lens
-    ( over, view, (^.) )
+    ( over, view )
 import Data.Generics.Product
     ( setField )
 import Data.IntCast
@@ -4406,7 +4406,7 @@ prop_bootstrapWitnesses
   where
     emptyCardanoTxBody = body
       where
-        Cardano.Tx body _ = WriteTx.toCardanoTx @era $ WriteTx.emptyTx era
+        Cardano.Tx body _ = WriteTx.toCardanoTx $ WriteTx.emptyTx era
 
     rootK = Byron.generateKeyFromSeed dummyMnemonic mempty
     pwd = mempty
@@ -4665,22 +4665,15 @@ estimateSignedTxSizeSpec = describe "estimateSignedTxSize" $ do
             utxo = utxoPromisingInputsHaveVkPaymentCreds body
             witCount = estimateKeyWitnessCount utxo body
 
-            ledgerTx = WriteTx.fromCardanoTx tx
+            ledgerTx :: WriteTx.Tx (WriteTx.ShelleyLedgerEra era)
+            ledgerTx = WriteTx.fromCardanoTx @era tx
 
-            noScripts = case (WriteTx.recentEra @era) of
-                RecentEraAlonzo -> Map.null $ ledgerTx ^.
-                    (Alonzo.witsAlonzoTxL . Alonzo.scriptAlonzoWitsL)
-                RecentEraBabbage -> Map.null $ ledgerTx ^.
-                    (Alonzo.witsAlonzoTxL . Alonzo.scriptAlonzoWitsL)
-                RecentEraConway -> Map.null $ ledgerTx ^.
-                    (Alonzo.witsAlonzoTxL . Alonzo.scriptAlonzoWitsL)
-            noBootWits = case WriteTx.recentEra @era of
-                RecentEraAlonzo -> Set.null $ ledgerTx ^.
-                    (Alonzo.witsAlonzoTxL . Alonzo.bootAddrAlonzoWitsL)
-                RecentEraBabbage -> Set.null $ ledgerTx ^.
-                    (Alonzo.witsAlonzoTxL . Alonzo.bootAddrAlonzoWitsL)
-                RecentEraConway -> Set.null $ ledgerTx ^.
-                    (Alonzo.witsAlonzoTxL . Alonzo.bootAddrAlonzoWitsL)
+            noScripts = Map.null $ view
+                (Alonzo.witsAlonzoTxL . Alonzo.scriptAlonzoWitsL)
+                ledgerTx
+            noBootWits = Set.null $ view
+                (Alonzo.witsAlonzoTxL . Alonzo.bootAddrAlonzoWitsL)
+                ledgerTx
 
             testDoesNotYetSupport x = pendingWith $
                     "Test setup does not work for txs with " <> x
