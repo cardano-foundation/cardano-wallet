@@ -2089,6 +2089,18 @@ spec = describe "SHARED_TRANSACTIONS" $ do
                     [ expectField #delegation (`shouldBe` delegating (ApiT pool2) [])
                     ]
 
+        -- there's currently no withdrawals in the wallet
+        rw1 <- request @[ApiTransaction n] ctx
+            (Link.listTransactions' @'Shared party1 (Just 1)
+                Nothing Nothing Nothing Nothing)
+            Default Empty
+        verify rw1 [ expectListSize 0 ]
+        rw2 <- request @[ApiTransaction n] ctx
+            (Link.listTransactions' @'Shared party2 (Just 1)
+                Nothing Nothing Nothing Nothing)
+            Default Empty
+        verify rw2 [ expectListSize 0 ]
+
   where
      listSharedTransactions ctx w mStart mEnd mOrder mLimit = do
          let path = Link.listTransactions' @'Shared w
