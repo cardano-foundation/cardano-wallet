@@ -465,9 +465,9 @@ import Cardano.Wallet.Primitive.Slotting
     , neverFails
     , ongoingSlotAt
     , slotToUTCTime
-    , snapshot
     , timeOfEpoch
     , toSlotId
+    , toTimeTranslation
     , unsafeExtendSafeZone
     )
 import Cardano.Wallet.Primitive.SyncProgress
@@ -1757,6 +1757,7 @@ selectCoins ctx@ApiLayer {..} argGenChange (ApiT walletId) body = do
     withWorkerCtx ctx walletId liftE liftE $ \workerCtx -> do
         let db = workerCtx ^. dbLayer
             ti = timeInterpreter netLayer
+        timeTranslation <- liftIO $ toTimeTranslation ti
         pp <- liftIO $ NW.currentProtocolParameters (workerCtx ^. networkLayer)
         withdrawal <-
             body ^. #withdrawal
@@ -1771,7 +1772,7 @@ selectCoins ctx@ApiLayer {..} argGenChange (ApiT walletId) body = do
                 }
 
         (cardanoTx, walletState) <- liftIO $ W.buildTransaction @s @k @n @e
-            db txLayer ti walletId genChange pp txCtx paymentOuts
+            db txLayer timeTranslation walletId genChange pp txCtx paymentOuts
 
         let W.CoinSelection{..} =
                 W.buildCoinSelectionForTransaction @s @k @n
@@ -1822,7 +1823,8 @@ selectCoinsForJoin ctx@ApiLayer{..}
     AnyRecentEra (_ :: WriteTx.RecentEra e) <- guardIsRecentEra era
     withWorkerCtx ctx walletId liftE liftE $ \workerCtx -> liftIO $ do
         let db = workerCtx ^. typed @(DBLayer IO s k)
-            ti = timeInterpreter netLayer
+        timeTranslation <- liftIO $
+            toTimeTranslation (timeInterpreter netLayer)
         pp <- NW.currentProtocolParameters netLayer
         action <- liftIO $ WD.joinStakePoolDelegationAction @s @k
             (contramap MsgWallet $ workerCtx ^. logger)
@@ -1840,7 +1842,8 @@ selectCoinsForJoin ctx@ApiLayer{..}
         let paymentOuts = []
 
         (cardanoTx, walletState) <- W.buildTransaction @s @k @n @e
-            db txLayer ti walletId changeAddrGen pp txCtx paymentOuts
+            db txLayer timeTranslation walletId changeAddrGen pp txCtx
+            paymentOuts
 
         let W.CoinSelection{..} =
                 W.buildCoinSelectionForTransaction @s @k @n
@@ -1880,7 +1883,8 @@ selectCoinsForQuit ctx@ApiLayer{..} (ApiT walletId) = do
     AnyRecentEra (_ :: WriteTx.RecentEra e) <- guardIsRecentEra era
     withWorkerCtx ctx walletId liftE liftE $ \workerCtx -> liftIO $ do
         let db = workerCtx ^. typed @(DBLayer IO s k)
-            ti = timeInterpreter netLayer
+        timeTranslation <- liftIO $
+            toTimeTranslation (timeInterpreter netLayer)
         pp <- NW.currentProtocolParameters netLayer
         withdrawal <- W.shelleyOnlyMkSelfWithdrawal @_ @_ @_ @_ @n
             netLayer txLayer era db walletId
@@ -1895,7 +1899,8 @@ selectCoinsForQuit ctx@ApiLayer{..} (ApiT walletId) = do
         let paymentOuts = []
 
         (cardanoTx, walletState) <- W.buildTransaction @s @k @n @e
-            db txLayer ti walletId changeAddrGen pp txCtx paymentOuts
+            db txLayer timeTranslation walletId changeAddrGen pp txCtx
+            paymentOuts
 
         let W.CoinSelection{..} =
                 W.buildCoinSelectionForTransaction @s @k @n
@@ -2176,7 +2181,6 @@ postTransactionOld ctx@ApiLayer{..} argGenChange (ApiT wid) body = do
         (BuiltTx{..}, txTime) <- atomicallyWithHandler
             (ctx ^. walletLocks) (PostTransactionOld wid) $ liftIO $
                 W.buildSignSubmitTransaction @k @s @n
-                    ti
                     db
                     netLayer
                     txLayer
@@ -2340,6 +2344,8 @@ postTransactionFeeOld ctx@ApiLayer{..} (ApiT walletId) body = do
     let mTTL = body ^? #timeToLive . traverse . #getQuantity
     withWorkerCtx ctx walletId liftE liftE $ \workerCtx -> do
         let db = workerCtx ^. dbLayer
+        timeTranslation <- liftIO $
+            toTimeTranslation (timeInterpreter netLayer)
         ttl <- liftIO $ W.transactionExpirySlot (timeInterpreter netLayer) mTTL
         wdrl <- case body ^. #withdrawal of
             Nothing -> pure NoWithdrawal
@@ -2353,7 +2359,7 @@ postTransactionFeeOld ctx@ApiLayer{..} (ApiT walletId) body = do
             db
             (Write.unsafeFromWalletProtocolParameters protocolParameters)
             txLayer
-            (timeInterpreter netLayer)
+            timeTranslation
             recentEra
             (dummyChangeAddressGen @k)
             walletId
@@ -3055,7 +3061,8 @@ balanceTransaction
     withWorkerCtx ctx wid liftE liftE $ \wrk -> do
         (utxoIndex, wallet, _txs) <-
             liftHandler $ W.readWalletUTxOIndex @_ @s @k wrk wid
-        ti <- liftIO $ snapshot $ timeInterpreter netLayer
+        timeTranslation <- liftIO $
+            toTimeTranslation (timeInterpreter netLayer)
 
         let mkPartialTx
                 :: forall era. WriteTx.IsRecentEra era => Cardano.Tx era
@@ -3115,7 +3122,7 @@ balanceTransaction
                         genInpScripts
                         mScriptTemplate)
                     (Write.unsafeFromWalletProtocolParameters pp)
-                    ti
+                    timeTranslation
                     utxoIndex
                     (W.defaultChangeAddressGen argGenChange (Proxy @k))
                     (getState wallet)
@@ -3523,10 +3530,8 @@ joinStakePool
         let tr = wrk ^. logger
             db = wrk ^. typed @(DBLayer IO s k)
             ti = timeInterpreter netLayer
-
         (BuiltTx{..}, txTime) <- liftIO $
             W.buildSignSubmitTransaction @k @s @n
-                ti
                 db
                 netLayer
                 txLayer
@@ -3581,12 +3586,14 @@ delegationFee ctx@ApiLayer{..} (ApiT walletId) = do
     era <- liftIO $ NW.currentNodeEra netLayer
     AnyRecentEra (recentEra :: WriteTx.RecentEra era) <- guardIsRecentEra era
     withWorkerCtx ctx walletId liftE liftE $ \workerCtx -> liftIO $ do
+        timeTranslation <-
+            toTimeTranslation (timeInterpreter netLayer)
         W.DelegationFee {feePercentiles, deposit} <-
             W.delegationFee @s @k @n
                 (workerCtx ^. dbLayer)
                 netLayer
                 txLayer
-                (timeInterpreter netLayer)
+                timeTranslation
                 (AnyRecentEra recentEra)
                 (W.defaultChangeAddressGen (delegationAddressS @n) (Proxy @k))
                 walletId
@@ -3617,7 +3624,6 @@ quitStakePool ctx@ApiLayer{..} argGenChange (ApiT walletId) body = do
         txCtx <- liftIO $ WD.quitStakePool netLayer db ti walletId
         (BuiltTx{..}, txTime) <- liftIO $ do
             W.buildSignSubmitTransaction @k @s @n
-                ti
                 db
                 netLayer
                 txLayer

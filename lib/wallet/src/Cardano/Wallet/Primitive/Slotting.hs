@@ -58,6 +58,9 @@ module Cardano.Wallet.Primitive.Slotting
     , EpochInfo
     , toEpochInfo
 
+      -- ** TimeTranslation
+    , toTimeTranslation
+
       -- ** Combinators for running queries
     , unsafeExtendSafeZone
     , neverFails
@@ -73,7 +76,7 @@ import Cardano.BM.Data.Severity
 import Cardano.BM.Data.Tracer
     ( HasSeverityAnnotation (..) )
 import Cardano.Slotting.EpochInfo.API
-    ( EpochInfo )
+    ( EpochInfo, hoistEpochInfo )
 import Cardano.Wallet.Orphans
     ()
 import Cardano.Wallet.Primitive.Types
@@ -87,6 +90,8 @@ import Cardano.Wallet.Primitive.Types
     , SlottingParameters (..)
     , StartTime (..)
     )
+import Cardano.Wallet.Write.Tx.TimeTranslation
+    ( TimeTranslation, timeTranslationFromEpochInfo )
 import Control.Monad
     ( ap, join, liftM, (>=>) )
 import Control.Monad.IO.Class
@@ -94,7 +99,7 @@ import Control.Monad.IO.Class
 import Control.Monad.Trans.Class
     ( lift )
 import Control.Monad.Trans.Except
-    ( ExceptT (..), runExceptT )
+    ( ExceptT (..), runExcept, runExceptT )
 import Control.Tracer
     ( Tracer, contramap, natTracer, nullTracer, traceWith )
 import Data.Coerce
@@ -400,6 +405,14 @@ toEpochInfo TimeInterpreter{interpreter} =
 getSystemStart :: TimeInterpreter m -> SystemStart
 getSystemStart TimeInterpreter{blockchainStartTime} =
     let (StartTime t) = blockchainStartTime in SystemStart t
+
+toTimeTranslation
+    :: TimeInterpreter (ExceptT PastHorizonException IO)
+    -> IO TimeTranslation
+toTimeTranslation timeInterpreter = do
+    info <- runExceptT (toEpochInfo timeInterpreter)
+        >>= either throwIO (pure . hoistEpochInfo runExcept)
+    pure $ timeTranslationFromEpochInfo (getSystemStart timeInterpreter) info
 
 data TimeInterpreterLog
     = MsgInterpreterPastHorizon

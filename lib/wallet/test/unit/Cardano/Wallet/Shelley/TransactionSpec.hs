@@ -158,29 +158,17 @@ import Cardano.Wallet.Primitive.Passphrase
     , preparePassphrase
     )
 import Cardano.Wallet.Primitive.Slotting
-    ( PastHorizonException
-    , TimeInterpreter
-    , hoistTimeInterpreter
-    , mkSingleEraInterpreter
-    , mkTimeInterpreter
-    )
+    ( PastHorizonException )
 import Cardano.Wallet.Primitive.Types
-    ( ActiveSlotCoefficient (ActiveSlotCoefficient)
-    , Block (..)
+    ( Block (..)
     , BlockHeader (..)
-    , EpochLength (EpochLength)
     , ExecutionUnitPrices (..)
     , ExecutionUnits (..)
     , FeePolicy (..)
-    , GenesisParameters (..)
     , LinearFunction (..)
     , ProtocolParameters (..)
-    , SlotLength (SlotLength)
-    , SlottingParameters (..)
-    , StartTime (StartTime)
     , TokenBundleMaxSize (..)
     , TxParameters (..)
-    , getGenesisBlockDate
     )
 import Cardano.Wallet.Primitive.Types.Address
     ( Address (..) )
@@ -318,6 +306,8 @@ import Cardano.Wallet.Write.Tx.Balance
     , balanceTransaction
     , posAndNegFromCardanoValue
     )
+import Cardano.Wallet.Write.Tx.TimeTranslation
+    ( TimeTranslation, timeTranslationFromEpochInfo )
 import Control.Arrow
     ( first )
 import Control.Monad
@@ -333,7 +323,7 @@ import Control.Monad.Random
 import Control.Monad.Random.Strict
     ( StdGen )
 import Control.Monad.Trans.Except
-    ( except, runExceptT )
+    ( except, runExcept, runExceptT )
 import Control.Monad.Trans.State.Strict
     ( evalState, state )
 import Crypto.Hash.Utils
@@ -351,7 +341,7 @@ import Data.Either
 import Data.Function
     ( on, (&) )
 import Data.Functor.Identity
-    ( Identity, runIdentity )
+    ( Identity )
 import Data.Generics.Internal.VL.Lens
     ( over, view, (^.) )
 import Data.Generics.Product
@@ -511,6 +501,9 @@ import qualified Cardano.Ledger.Crypto as Crypto
 import qualified Cardano.Ledger.Serialization as Ledger
 import qualified Cardano.Ledger.Shelley.API as SL
 import qualified Cardano.Ledger.Val as Value
+import qualified Cardano.Slotting.EpochInfo as Slotting
+import qualified Cardano.Slotting.Slot as Slotting
+import qualified Cardano.Slotting.Time as Slotting
 import qualified Cardano.Tx.Balance.Internal.CoinSelection as CS
 import qualified Cardano.Wallet.Address.Derivation.Byron as Byron
 import qualified Cardano.Wallet.Address.Derivation.Shelley as Shelley
@@ -537,9 +530,7 @@ import qualified Data.Text as T
 import qualified Data.Text.Encoding as T
 import qualified Data.Text.IO as T
 import qualified Data.Yaml as Yaml
-import qualified Ouroboros.Consensus.HardFork.History.EraParams as HF
-import qualified Ouroboros.Consensus.HardFork.History.Qry as HF
-import qualified Ouroboros.Consensus.HardFork.History.Summary as HF
+import qualified Ouroboros.Consensus.HardFork.History as HF
 import qualified Test.Hspec.Extra as Hspec
 
 spec :: Spec
@@ -2698,7 +2689,7 @@ balanceTransactionSpec = describe "balanceTransaction" $ do
                 dustWallet
                 (mockBundledProtocolParametersForBalancing
                     Cardano.ShelleyBasedEraBabbage)
-                dummyTimeInterpreter
+                dummyTimeTranslation
                 testStdGenSeed
 
         let totalOutput tx =
@@ -2838,7 +2829,7 @@ balanceTransactionSpec = describe "balanceTransaction" $ do
         wallet
         (mockBundledProtocolParametersForBalancing
             Cardano.ShelleyBasedEraBabbage)
-        (dummyTimeInterpreterWithHorizon horizon)
+        (dummyTimeTranslationWithHorizon horizon)
         testStdGenSeed
 
     utxo coins = UTxO $ Map.fromList $ zip ins outs
@@ -3779,7 +3770,7 @@ balanceTx
     :: WriteTx.IsRecentEra era
     => Wallet'
     -> Write.ProtocolParameters era
-    -> TimeInterpreter (Either PastHorizonException)
+    -> TimeTranslation
     -> StdGenSeed
     -> PartialTx era
     -> Either
@@ -3787,7 +3778,7 @@ balanceTx
 balanceTx
     (Wallet' utxoAssumptions utxo (AnyChangeAddressGenWithState genChange s))
     pp
-    ti
+    timeTranslation
     seed
     ptx =
     fmap fst $ flip evalRand (stdGenFromSeed seed) $ runExceptT $
@@ -3795,7 +3786,7 @@ balanceTx
             (nullTracer @(Rand StdGen))
             utxoAssumptions
             pp
-            ti
+            timeTranslation
             utxoIndex
             genChange
             s
@@ -3821,7 +3812,7 @@ balanceTransactionWithDummyChangeState cs utxo seed ptx =
             (mockBundledProtocolParametersForBalancing $
                 Cardano.shelleyBasedEra @era
             )
-            dummyTimeInterpreter
+            dummyTimeTranslation
             utxoIndex
             dummyChangeAddrGen
             (getState wal)
@@ -3897,7 +3888,7 @@ balanceTransactionGoldenSpec = describe "balance goldens" $ do
                     (mkTestWallet walletUTxO)
                     (mockBundledProtocolParametersForBalancing
                         Cardano.ShelleyBasedEraBabbage)
-                    dummyTimeInterpreter
+                    dummyTimeTranslation
                     testStdGenSeed
                     ptx
             let serializeTx = serialisedTx
@@ -3959,7 +3950,7 @@ balanceTransactionGoldenSpec = describe "balance goldens" $ do
                     (mkTestWallet walletUTxO)
                     (mockBundledProtocolParametersForBalancing
                         Cardano.ShelleyBasedEraBabbage)
-                    dummyTimeInterpreter
+                    dummyTimeTranslation
                     testStdGenSeed
                     ptx
                 combinedUTxO = mconcat
@@ -4069,7 +4060,7 @@ prop_balanceTransactionValid wallet@(Wallet' _ walletUTxO _) (ShowBuildable part
                 wallet
                 (mockBundledProtocolParametersForBalancing
                     Cardano.ShelleyBasedEraAlonzo)
-                dummyTimeInterpreter
+                dummyTimeTranslation
                 seed
                 partialTx
         let originalOuts = txOutputs (view #tx partialTx)
@@ -4349,13 +4340,12 @@ prop_balanceTransactionExistingTotalCollateral
         hasTotalCollateral tx
             && not (hasInsCollateral tx)
             && not (hasReturnCollateral tx) ==>
-        case balanceTx wallet pp ti seed partialTx of
+        case balanceTx wallet pp dummyTimeTranslation seed partialTx of
             Left err -> ErrBalanceTxExistingTotalCollateral === err
             e -> counterexample (show e) False
   where
     pp = mockBundledProtocolParametersForBalancing
         Cardano.ShelleyBasedEraBabbage
-    ti = dummyTimeInterpreter
 
 prop_balanceTransactionExistingReturnCollateral
     :: Wallet'
@@ -4367,14 +4357,12 @@ prop_balanceTransactionExistingReturnCollateral
         hasReturnCollateral tx
             && not (hasInsCollateral tx)
             && not (hasTotalCollateral tx) ==>
-        case balanceTx wallet pp ti seed partialTx of
+        case balanceTx wallet pp dummyTimeTranslation seed partialTx of
             Left err -> ErrBalanceTxExistingReturnCollateral === err
             e -> counterexample (show e) False
   where
     pp = mockBundledProtocolParametersForBalancing
         Cardano.ShelleyBasedEraBabbage
-    ti = dummyTimeInterpreter
-
 
 {-# ANN prop_bootstrapWitnesses ("HLint: ignore Eta reduce" :: String) #-}
 prop_bootstrapWitnesses
@@ -4974,50 +4962,36 @@ readTestTransactions = runIO $ do
             pure [(f, contents)]
     traverse (\(f,bs) -> (f,) <$> unsafeSealedTxFromHex bs) files
 
-dummyTimeInterpreter :: Monad m => TimeInterpreter m
-dummyTimeInterpreter = hoistTimeInterpreter (pure . runIdentity)
-    $ mkSingleEraInterpreter
-        (getGenesisBlockDate dummyGenesisParameters)
-        dummySlottingParameters
+dummyTimeTranslation :: TimeTranslation
+dummyTimeTranslation =
+    timeTranslationFromEpochInfo
+        (Slotting.SystemStart (posixSecondsToUTCTime 0))
+        (Slotting.fixedEpochInfo
+            (Slotting.EpochSize 21_600)
+            (Slotting.slotLengthFromSec 1))
 
-dummySlottingParameters :: SlottingParameters
-dummySlottingParameters = SlottingParameters
-    { getSlotLength = SlotLength 1
-    , getEpochLength = EpochLength 21_600
-    , getActiveSlotCoefficient = ActiveSlotCoefficient 1
-    , getSecurityParameter = Quantity 2_160
-    }
+-- | A dummy 'TimeTranslation' for testing 'PastHorizonException's.
+dummyTimeTranslationWithHorizon :: SlotNo -> TimeTranslation
+dummyTimeTranslationWithHorizon horizon =
+    timeTranslationFromEpochInfo systemStart epochInfo
+  where
+    slotLength = 1
+    t0 = HF.initBound
+    t1 = HF.Bound
+            (RelativeTime $ fromIntegral $ slotLength * (unSlotNo horizon))
+            horizon
+            (Cardano.EpochNo 1)
 
-dummyGenesisParameters :: GenesisParameters
-dummyGenesisParameters = GenesisParameters
-    { getGenesisBlockHash = genesisHash
-    , getGenesisBlockDate = StartTime $ posixSecondsToUTCTime 0
-    }
+    era1Params = HF.defaultEraParams (SecurityParam 2) (mkSlotLength 1)
+    summary = HF.summaryWithExactly
+        (exactlyOne (HF.EraSummary t0 (HF.EraEnd t1) era1Params))
 
-genesisHash :: Hash "Genesis"
-genesisHash = Hash (B8.replicate 32 '0')
+    systemStart :: Slotting.SystemStart
+    systemStart = Slotting.SystemStart (posixSecondsToUTCTime 0)
 
--- | A dummy 'TimeInterpreter' for testing 'PastHorizonException's.
-dummyTimeInterpreterWithHorizon
-    :: SlotNo
-    -> TimeInterpreter (Either PastHorizonException)
-dummyTimeInterpreterWithHorizon horizon =
-    let
-        slotLength = 1
-        t0 = HF.initBound
-        t1 = HF.Bound
-                (RelativeTime $ fromIntegral $ slotLength * (unSlotNo horizon))
-                horizon
-                (Cardano.EpochNo 1)
-
-        era1Params = HF.defaultEraParams (SecurityParam 2) (mkSlotLength 1)
-        summary = HF.summaryWithExactly $ exactlyOne
-            (HF.EraSummary t0 (HF.EraEnd t1) era1Params)
-        in
-            hoistTimeInterpreter (runIdentity . runExceptT) $ mkTimeInterpreter
-                nullTracer
-                (StartTime $ posixSecondsToUTCTime 0)
-                (pure $ HF.mkInterpreter summary)
+    epochInfo :: Slotting.EpochInfo (Either PastHorizonException)
+    epochInfo = Slotting.hoistEpochInfo runExcept
+        (HF.interpreterToEpochInfo (HF.mkInterpreter summary))
 
 --------------------------------------------------------------------------------
 -- Utilities
