@@ -4960,6 +4960,8 @@ txWithInputsOutputsAndWits = mconcat
     , "5d73337bd6280205b1759c13f79d4c93f29871fc51b78aeba80ef6"
     ]
 
+-- | Goldens can be regenrated by running the integration tests with
+-- lib/wallet/test/data/signedTxs/genData.patch applied.
 signedTxGoldens :: IO [(FilePath, ByteString)]
 signedTxGoldens = do
     let dir = $(getTestData) </> "signedTxs"
