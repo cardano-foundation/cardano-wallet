@@ -2101,6 +2101,53 @@ spec = describe "SHARED_TRANSACTIONS" $ do
             Default Empty
         verify rw2 [ expectListSize 0 ]
 
+        dest <- emptyWallet ctx
+        -- We can use rewards
+        -- Tested by making an explicit withdrawal request to self.
+
+        -- We wait for the start of a new epoch here
+        -- so that there is a good chance that we spend all rewards
+        -- in the next transaction, and don't receive any new rewards
+        -- before that transaction has concluded.
+        waitForNextEpoch ctx
+
+        addrs <- listAddresses @n ctx dest
+        let coin = minUTxOValue (_mainEra ctx) :: Natural
+        let addr = (addrs !! 1) ^. #id
+        let payloadWithdrawal = Json [json|
+                { "payments":
+                    [ { "address": #{addr}
+                      , "amount":
+                        { "quantity": #{coin}
+                        , "unit": "lovelace"
+                        }
+                      }
+                    ]
+                , "passphrase": #{fixturePassphrase},
+                  "withdrawal": "self"
+                }|]
+        rTx3 <- request @(ApiConstructTransaction n) ctx
+            (Link.createUnsignedTransaction @'Shared party1) Default payloadWithdrawal
+        verify rTx3
+            [ expectResponseCode HTTP.status202
+            , expectField (#coinSelection . #withdrawals) (`shouldSatisfy` (not . null))
+            ]
+
+        let (ApiSerialisedTransaction apiTx5 _) =
+                getFromResponse #transaction rTx3
+        signedTx5 <-
+            signSharedTx ctx party1 apiTx5
+                [ expectResponseCode HTTP.status202 ]
+        let (ApiSerialisedTransaction apiTx6 _) = signedTx5
+        signedTx6 <-
+            signSharedTx ctx party2 apiTx6
+                [ expectResponseCode HTTP.status202 ]
+
+        submittedTx4 <- submitSharedTxWithWid ctx party1 signedTx6
+        verify submittedTx4
+            [ expectResponseCode HTTP.status202
+            ]
+
   where
      listSharedTransactions ctx w mStart mEnd mOrder mLimit = do
          let path = Link.listTransactions' @'Shared w
