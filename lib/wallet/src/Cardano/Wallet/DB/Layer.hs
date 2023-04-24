@@ -76,6 +76,7 @@ import Cardano.Wallet.DB
     , DBFactory (..)
     , DBLayer
     , DBLayerCollection (..)
+    , DBLayerParams (..)
     , DBOpen (..)
     , DBPrivateKey (..)
     , DBTxHistory (..)
@@ -594,7 +595,7 @@ newDBLayerFromDBOpen ti wid_ DBOpen{atomically=runQuery} = mdo
         -----------------------------------------------------------------------}
     let
       dbWallets = DBWallets
-        { initializeWallet_ = \cp meta txs gp -> do
+        { initializeWallet_ = \(DBLayerParams cp meta txs gp) -> do
             res <- lift $ runExceptT $ getWalletId_ dbWallets
             case res of
                 Left ErrWalletNotInitialized -> lift $ do

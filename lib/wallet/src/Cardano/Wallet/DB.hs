@@ -21,6 +21,7 @@ module Cardano.Wallet.DB
       DBLayer (..)
     , DBOpen (..)
     , DBFactory (..)
+    , DBLayerParams(..)
 
     -- * DBLayer building blocks
     , DBLayerCollection (..)
@@ -175,6 +176,19 @@ newtype DBOpen stm m s (k :: Depth -> Type -> Type) = DBOpen
     }
 
 {-----------------------------------------------------------------------------
+    DBFresh
+------------------------------------------------------------------------------}
+
+-- | Necessary arguments to create a new wallet.
+data DBLayerParams s = DBLayerParams
+    { dBLayerParamsState :: Wallet s
+    , dBLayerParamsMetadata :: WalletMetadata
+    , dBLayerParamsHistory :: [(Tx, TxMeta)]
+    , dBLayerParamsGenesisParameters :: GenesisParameters
+    }
+    deriving (Eq, Show)
+
+{-----------------------------------------------------------------------------
     DBLayer
 ------------------------------------------------------------------------------}
 -- | An open database which can store the state of one wallet with a specific
@@ -192,10 +206,7 @@ newtype DBOpen stm m s (k :: Depth -> Type -> Type) = DBOpen
 data DBLayer m s k = forall stm. (MonadIO stm, MonadFail stm) => DBLayer
     { walletId_ :: WalletId
     , initializeWallet
-        :: Wallet s
-        -> WalletMetadata
-        -> [(Tx, TxMeta)]
-        -> GenesisParameters
+        :: DBLayerParams s
         -> ExceptT ErrWalletAlreadyInitialized stm ()
         -- ^ Initialize a database entry for a given wallet. 'putCheckpoint',
         -- 'putWalletMeta', 'putTxHistory' or 'putProtocolParameters' will
@@ -605,10 +616,7 @@ updateSubmissions dbCheckpoints wid emap xs
 -- | A database layer for a collection of wallets
 data DBWallets stm s = DBWallets
     { initializeWallet_
-        :: Wallet s
-        -> WalletMetadata
-        -> [(Tx, TxMeta)]
-        -> GenesisParameters
+        :: DBLayerParams s
         -> ExceptT ErrWalletAlreadyInitialized stm ()
         -- ^ Initialize a database entry for a given wallet. 'putCheckpoint',
         -- 'putWalletMeta', 'putTxHistory' or 'putProtocolParameters' will

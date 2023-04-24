@@ -315,6 +315,7 @@ import Cardano.Wallet.Checkpoints
     )
 import Cardano.Wallet.DB
     ( DBLayer (..)
+    , DBLayerParams (..)
     , ErrNoSuchTransaction (..)
     , ErrRemoveTx (..)
     , ErrWalletAlreadyExists (..)
@@ -774,7 +775,7 @@ createWallet ctx wid wname s =
                     }
         withExceptT (const $ ErrWalletAlreadyExists wid)
             $ mapExceptT atomically
-            $ initializeWallet cp meta hist gp $> wid
+            $ initializeWallet (DBLayerParams cp meta hist gp) $> wid
   where
     db = ctx ^. dbLayer @m @s @k
     (block0, NetworkParameters gp _sp _pp) = ctx ^. genesisData
@@ -813,7 +814,7 @@ createIcarusWallet ctx wid wname credentials =
                     }
         withExceptT (const $ ErrWalletAlreadyExists wid)
             $ mapExceptT atomically
-            $ initializeWallet cp meta hist gp $> wid
+            $ initializeWallet (DBLayerParams cp meta hist gp) $> wid
   where
     db = ctx ^. dbLayer @IO @s @k
     (block0, NetworkParameters gp _sp _pp) = ctx ^. genesisData

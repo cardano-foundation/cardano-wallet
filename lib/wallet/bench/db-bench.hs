@@ -86,7 +86,7 @@ import Cardano.Wallet.Address.Discovery.Sequential
     , purposeCIP1852
     )
 import Cardano.Wallet.DB
-    ( DBLayer (..) )
+    ( DBLayer (..), DBLayerParams (..) )
 import Cardano.Wallet.DB.Layer
     ( PersistAddressBook, WalletDBLog (..), withDBLayer )
 import Cardano.Wallet.DummyTarget.Primitive.Types
@@ -622,7 +622,7 @@ txHistoryFixture  bSize nAssets range db@DBLayer{..}= do
 
 walletFixture :: DBLayerBench -> IO ()
 walletFixture DBLayer{initializeWallet, atomically} = do
-    atomically $ unsafeRunExceptT $ initializeWallet
+    atomically $ unsafeRunExceptT $ initializeWallet $ DBLayerParams
         testCp
         testMetadata
         mempty
@@ -630,7 +630,7 @@ walletFixture DBLayer{initializeWallet, atomically} = do
 
 walletFixtureByron :: DBLayerBenchByron -> IO ()
 walletFixtureByron DBLayer{initializeWallet, atomically} = do
-    atomically $ unsafeRunExceptT $ initializeWallet
+    atomically $ unsafeRunExceptT $ initializeWallet $ DBLayerParams
         testCpByron
         testMetadata
         mempty

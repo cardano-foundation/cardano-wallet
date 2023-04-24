@@ -88,6 +88,7 @@ import Cardano.Wallet.Address.Discovery.Shared
     )
 import Cardano.Wallet.DB
     ( DBLayer (..)
+    , DBLayerParams (..)
     , ErrWalletAlreadyInitialized (ErrWalletAlreadyInitialized)
     , ErrWalletNotInitialized
     )
@@ -468,7 +469,7 @@ runIO DBLayer{..} = fmap Resp . go
         CreateWallet wal meta txs gp ->
             catchWalletAlreadyExists (const (NewWallet wid)) $
             mapExceptT atomically $
-            initializeWallet wal meta txs gp
+            initializeWallet $ DBLayerParams wal meta txs gp
         PutCheckpoint wal -> catchNoSuchWallet Unit $
             runDB atomically $ putCheckpoint wal
         ReadCheckpoint -> Right . Checkpoint <$>

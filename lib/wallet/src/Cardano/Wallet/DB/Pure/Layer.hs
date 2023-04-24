@@ -25,6 +25,7 @@ import Cardano.Wallet.Address.Derivation
     ( Depth (..) )
 import Cardano.Wallet.DB
     ( DBLayer (..)
+    , DBLayerParams (..)
     , ErrWalletAlreadyInitialized (..)
     , ErrWalletNotInitialized (..)
     )
@@ -103,7 +104,7 @@ newDBLayer timeInterpreter wid = do
         -----------------------------------------------------------------------}
 
         { walletId_ = wid
-        , initializeWallet = \cp meta txs gp -> ExceptT $
+        , initializeWallet = \(DBLayerParams cp meta txs gp) -> ExceptT $
                 alterDB errWalletAlreadyExists db $
                 mInitializeWallet cp meta txs gp
 
