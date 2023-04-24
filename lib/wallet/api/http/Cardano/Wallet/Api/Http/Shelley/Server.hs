@@ -2834,7 +2834,6 @@ parseValidityInterval ti validityInterval = do
 
     pure (before, hereafter)
 
--- TO-DO withdrawals
 -- TO-DO minting/burning
 -- TO-DO reference scripts
 constructSharedTransaction
@@ -2876,6 +2875,13 @@ constructSharedTransaction
         era <- liftIO $ NW.currentNodeEra (wrk ^. networkLayer)
         AnyRecentEra (_recentEra :: WriteTx.RecentEra era)
             <- guardIsRecentEra era
+
+        withdrawal <- case body ^. #withdrawal of
+            Just SelfWithdraw -> liftIO $
+                W.shelleyOnlyMkSelfWithdrawal @_ @_ @_ @_ @n
+                    netLayer txLayer era db wid
+            _ -> pure NoWithdrawal
+
         (cp, _, _) <- liftHandler $ withExceptT ErrConstructTxNoSuchWallet $
             W.readWallet wrk wid
 
@@ -2887,10 +2893,10 @@ constructSharedTransaction
             forM delegationRequest $
                 WD.handleDelegationRequest
                     trWorker db epoch knownPools
-                    getPoolStatus wid NoWithdrawal
+                    getPoolStatus wid withdrawal
 
         let txCtx = defaultTransactionCtx
-                { txWithdrawal = NoWithdrawal
+                { txWithdrawal = withdrawal
                 , txMetadata = md
                 , txValidityInterval = (Just before, hereafter)
                 , txDelegationAction = optionalDelegationAction
