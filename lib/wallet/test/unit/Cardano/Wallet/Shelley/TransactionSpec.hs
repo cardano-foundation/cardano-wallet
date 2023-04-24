@@ -4330,8 +4330,7 @@ prop_balanceTransactionValid wallet@(Wallet' _ walletUTxO _) (ShowBuildable part
 
     nodePParams =
         Cardano.bundleProtocolParams Cardano.AlonzoEra $
-        snd $
-        mockProtocolParametersForBalancing
+            snd mockProtocolParametersForBalancing
 
     ledgerPParams = Write.pparamsLedger $
         mockBundledProtocolParametersForBalancing Cardano.ShelleyBasedEraAlonzo
@@ -4966,7 +4965,7 @@ signedTxGoldens :: IO [(FilePath, ByteString)]
 signedTxGoldens = do
     let dir = $(getTestData) </> "signedTxs"
     files <- listDirectory dir
-    fmap (sortOn (goldenIx . fst)) . fmap catMaybes . forM files $ \name ->
+    fmap (sortOn (goldenIx . fst) . catMaybes) . forM files $ \name ->
         if ".cbor" `isSuffixOf` name
         then Just . (name,) <$> BS.readFile (dir </> name)
         else pure Nothing
