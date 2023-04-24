@@ -342,6 +342,8 @@ import Data.ByteArray.Encoding
     ( Base (..), convertToBase )
 import Data.ByteString
     ( ByteString )
+import Data.Char
+    ( isDigit )
 import Data.Default
     ( Default (..) )
 import Data.Either
@@ -351,19 +353,19 @@ import Data.Function
 import Data.Functor.Identity
     ( Identity, runIdentity )
 import Data.Generics.Internal.VL.Lens
-    ( over, view )
+    ( over, view, (^.) )
 import Data.Generics.Product
     ( setField )
 import Data.IntCast
     ( intCast )
 import Data.List
-    ( isSuffixOf, nub )
+    ( isSuffixOf, nub, sortOn )
 import Data.List.NonEmpty
     ( NonEmpty (..) )
 import Data.Map.Strict
     ( Map )
 import Data.Maybe
-    ( fromJust, fromMaybe, isJust )
+    ( catMaybes, fromJust, fromMaybe, isJust )
 import Data.Ord
     ( comparing )
 import Data.Proxy
@@ -486,6 +488,8 @@ import Test.Utils.Paths
     ( getTestData )
 import Test.Utils.Pretty
     ( Pretty (..), (====) )
+import Text.Read
+    ( readMaybe )
 
 import qualified Cardano.Api as Cardano
 import qualified Cardano.Api.Extra as Cardano
@@ -4641,28 +4645,70 @@ prop_updateTx
     collateralIns = sealedCollateralInputs . sealedTxFromCardano'
 
 estimateSignedTxSizeSpec :: Spec
-estimateSignedTxSizeSpec = describe "estimateSignedTxSize" $
-    it "equals the binary size of signed txs" $ property $
-        forAllGoldens signedTxGoldens $ \hexTx -> do
-            let bs = unsafeFromHex hexTx
-            WriteTx.withInAnyRecentEra (recentEraTxFromBytes bs) $
-                \(Cardano.Tx (body :: Cardano.TxBody era) _) -> do
-                -- 'mockProtocolParametersForBalancing' is not valid for
-                -- 'ShelleyEra'.
-                let pparams
-                        = unbundleLedgerShelleyBasedProtocolParams
-                            (shelleyBasedEra @era)
-                        $ Cardano.bundleProtocolParams cardanoEra
-                        $ (snd mockProtocolParametersForBalancing)
-                            { Cardano.protocolParamMinUTxOValue = Just 1_000_000
-                            }
-                    utxo = utxoPromisingInputsHaveVkPaymentCreds body
-                    witCount = estimateKeyWitnessCount utxo body
-                estimateSignedTxSize pparams witCount body
-                    `shouldBe` TxSize (fromIntegral (BS.length bs))
+estimateSignedTxSizeSpec = describe "estimateSignedTxSize" $ do
+    txBinaries <- runIO signedTxGoldens
+    describe "equals the binary size of signed txs" $
+        forAllGoldens txBinaries test
   where
-    forAllGoldens goldens f = forM_ goldens $ \x ->
-        Hspec.counterexample (show x) $ f x
+
+    test
+        :: forall era. WriteTx.IsRecentEra era
+        => String
+        -> ByteString
+        -> Cardano.Tx era
+        -> IO ()
+    test _name bs tx@(Cardano.Tx (body :: Cardano.TxBody era) _) = do
+        let pparams = Cardano.toLedgerPParams (WriteTx.shelleyBasedEra @era)
+                $ snd mockProtocolParametersForBalancing
+            utxo = utxoPromisingInputsHaveVkPaymentCreds body
+            witCount = estimateKeyWitnessCount utxo body
+
+            ledgerTx = WriteTx.fromCardanoTx tx
+
+            noScripts = case (WriteTx.recentEra @era) of
+                RecentEraAlonzo -> Map.null $ ledgerTx ^.
+                    (Alonzo.witsAlonzoTxL . Alonzo.scriptAlonzoWitsL)
+                RecentEraBabbage -> Map.null $ ledgerTx ^.
+                    (Alonzo.witsAlonzoTxL . Alonzo.scriptAlonzoWitsL)
+                RecentEraConway -> Map.null $ ledgerTx ^.
+                    (Alonzo.witsAlonzoTxL . Alonzo.scriptAlonzoWitsL)
+            noBootWits = case WriteTx.recentEra @era of
+                RecentEraAlonzo -> Set.null $ ledgerTx ^.
+                    (Alonzo.witsAlonzoTxL . Alonzo.bootAddrAlonzoWitsL)
+                RecentEraBabbage -> Set.null $ ledgerTx ^.
+                    (Alonzo.witsAlonzoTxL . Alonzo.bootAddrAlonzoWitsL)
+                RecentEraConway -> Set.null $ ledgerTx ^.
+                    (Alonzo.witsAlonzoTxL . Alonzo.bootAddrAlonzoWitsL)
+
+            testDoesNotYetSupport x = pendingWith $
+                    "Test setup does not work for txs with " <> x
+
+        case (noScripts, noBootWits) of
+                (True, True) -> do
+                    estimateSignedTxSize pparams witCount body
+                        `shouldBe`
+                        TxSize (fromIntegral (BS.length bs))
+                (False, False) -> testDoesNotYetSupport "bootstrap wits + scripts"
+                (True, False) -> testDoesNotYetSupport "bootstrap wits"
+                (False, True) -> testDoesNotYetSupport "scripts"
+
+    forAllGoldens
+        :: [(String, ByteString)]
+        -> (forall era. WriteTx.IsRecentEra era
+                => String
+                -> ByteString
+                -> Cardano.Tx era
+                -> IO ())
+        -> Spec
+    forAllGoldens goldens f = forM_ goldens $ \(name, bs) -> it name $
+        WriteTx.withInAnyRecentEra (recentEraTxFromBytes bs) $ \tx ->
+            let
+                msg = unlines
+                    [ B8.unpack $ hex bs
+                    , pretty $ sealedTxFromCardano $ InAnyCardanoEra cardanoEra tx
+                    ]
+            in
+                Hspec.counterexample msg $ f name bs tx
 
     -- estimateSignedTxSize now depends upon being able to resolve inputs. To
     -- keep tese tests working, we can create a UTxO with dummy values as long
@@ -4679,10 +4725,17 @@ estimateSignedTxSizeSpec = describe "estimateSignedTxSize" $
                      (shelleyBasedEra @era)
                      (TxOut paymentAddr mempty)
                )
-            | i <- map fst $ Cardano.txIns body
+            | i <- allTxIns body
             ]
 
       where
+        allTxIns b = col ++ map fst ins
+          where
+            col = case Cardano.txInsCollateral b of
+                Cardano.TxInsCollateral _ c -> c
+                Cardano.TxInsCollateralNone -> []
+            ins = Cardano.txIns body
+
         paymentAddr = Address $ unsafeFromHex
             "6079467c69a9ac66280174d09d62575ba955748b21dec3b483a9469a65"
 
@@ -4907,42 +4960,20 @@ txWithInputsOutputsAndWits = mconcat
     , "5d73337bd6280205b1759c13f79d4c93f29871fc51b78aeba80ef6"
     ]
 
-signedTxGoldens :: [ByteString]
-signedTxGoldens =
-    [ mconcat
-      [ "84a6008182582062d3756241f3f19483e2f710e00e83c80e84329bff08753df3a6"
-      , "28beea3454ec18370d800182825839010c36ef7fff0869d7e75cd70f0f369bb770"
-      , "d66efd50625c2c1a5e84f3cd2a80021c790f232cddd9216631f285a0d745361d40"
-      , "2305a61abc071a000f422a82583901d6c89cba59e000ab67171115d99a2f845c38"
-      , "b7616838d168af37288fcd2a80021c790f232cddd9216631f285a0d745361d4023"
-      , "05a61abc071b000000174865a61e021a0001ffb803198fae0e81581c98947dd5fc"
-      , "0ec3fa16043bdbf5577fa383bb89deab60d9d9f80a214ca10082825820debdc920"
-      , "10207d6b51bfd2bab3d03610742d71cbf3867a7c8a7fce360c134a0e5840919835"
-      , "b47a543b72fae3a64cf75145cf0aa44e31cc0e089c9b2fea93d0acae9e2d69c28d"
-      , "4808904be4129c7a16ff3563843a8851a56701eb45947b1329bd540b8258204cff"
-      , "849a17fcbd9e40425e2c2ef96544333c91306e5f869e9d66fc0db91ffa0c584043"
-      , "c3dd8e9596ba3698633e7d6fcc20c4b0081211a1351ec192296abbb40411692fc7"
-      , "5504d7a50f02f2439313dc5f16aa982aab8cea6e32e0c6e64a1b82609306f5f6"
-      ]
+signedTxGoldens :: IO [(FilePath, ByteString)]
+signedTxGoldens = do
+    let dir = $(getTestData) </> "signedTxs"
+    files <- listDirectory dir
+    fmap (sortOn (goldenIx . fst)) . fmap catMaybes . forM files $ \name ->
+        if ".cbor" `isSuffixOf` name
+        then Just . (name,) <$> BS.readFile (dir </> name)
+        else pure Nothing
 
-    , mconcat
-      [ "84a6008182582062d3756241f3f19483e2f710e00e83c80e84329bff08753df3a6"
-      , "28beea3454ec18370d800182825839010c36ef7fff0869d7e75cd70f0f369bb770"
-      , "d66efd50625c2c1a5e84f3cd2a80021c790f232cddd9216631f285a0d745361d40"
-      , "2305a61abc071a000f422a82583901d6c89cba59e000ab67171115d99a2f845c38"
-      , "b7616838d168af37288fcd2a80021c790f232cddd9216631f285a0d745361d4023"
-      , "05a61abc071b000000174865a61e021a0001ffb803198fae0e81581c98947dd5fc"
-      , "0ec3fa16043bdbf5577fa383bb89deab60d9d9f80a214ca10082825820debdc920"
-      , "10207d6b51bfd2bab3d03610742d71cbf3867a7c8a7fce360c134a0e5840919835"
-      , "b47a543b72fae3a64cf75145cf0aa44e31cc0e089c9b2fea93d0acae9e2d69c28d"
-      , "4808904be4129c7a16ff3563843a8851a56701eb45947b1329bd540b8258204cff"
-      , "849a17fcbd9e40425e2c2ef96544333c91306e5f869e9d66fc0db91ffa0c584043"
-      , "c3dd8e9596ba3698633e7d6fcc20c4b0081211a1351ec192296abbb40411692fc7"
-      , "5504d7a50f02f2439313dc5f16aa982aab8cea6e32e0c6e64a1b82609306f5f6"
-      ]
+  where
+    goldenIx :: FilePath -> Maybe Int
+    goldenIx = readMaybe . takeWhile isDigit
 
-    , txWithInputsOutputsAndWits
-    ]
+
 readTestTransactions :: SpecM a [(FilePath, SealedTx)]
 readTestTransactions = runIO $ do
     let dir = $(getTestData) </> "plutus"
