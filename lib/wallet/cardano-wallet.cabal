@@ -385,6 +385,7 @@ library
     Cardano.Wallet.Write.Tx
     Cardano.Wallet.Write.Tx.Balance
     Cardano.Wallet.Write.Tx.Gen
+    Cardano.Wallet.Write.Tx.TimeTranslation
     Control.Concurrent.Concierge
     Control.Monad.Exception.Unchecked
     Control.Monad.Util

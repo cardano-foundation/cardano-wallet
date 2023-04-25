@@ -83,7 +83,7 @@ import Cardano.Wallet.Network
 import Cardano.Wallet.Primitive.Model
     ( totalUTxO )
 import Cardano.Wallet.Primitive.Slotting
-    ( TimeInterpreter, hoistTimeInterpreter )
+    ( TimeInterpreter, hoistTimeInterpreter, toTimeTranslation )
 import Cardano.Wallet.Primitive.Types
     ( SortOrder (..), WalletId, WalletMetadata (..) )
 import Cardano.Wallet.Primitive.Types.Address
@@ -286,10 +286,12 @@ benchmarksSeq BenchmarkConfig{benchmarkName,ctx,wid, networkId} = do
         $ unsafeRunExceptT
         $ W.createMigrationPlan @_ @k @s ctx era wid Tx.NoWithdrawal
 
-    (_, delegationFeeTime) <- bench "delegationFee"
-        $ W.delegationFee @_ @k @n
+    (_, delegationFeeTime) <- bench "delegationFee" $ do
+        timeTranslation <-
+            toTimeTranslation (timeInterpreter (networkLayer ctx))
+        W.delegationFee @_ @k @n
             (dbLayer ctx) (networkLayer ctx) (transactionLayer ctx)
-            (timeInterpreter (networkLayer ctx))
+            timeTranslation
             (Write.AnyRecentEra Write.RecentEraBabbage)
             (W.defaultChangeAddressGen (delegationAddressS @n) (Proxy @k))
             wid

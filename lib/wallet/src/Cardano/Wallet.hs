@@ -391,7 +391,7 @@ import Cardano.Wallet.Primitive.Slotting
     , neverFails
     , slotRangeFromTimeRange
     , slotToUTCTime
-    , snapshot
+    , toTimeTranslation
     , unsafeExtendSafeZone
     )
 import Cardano.Wallet.Primitive.SyncProgress
@@ -499,6 +499,8 @@ import Cardano.Wallet.Write.Tx.Balance
     , assignChangeAddresses
     , balanceTransaction
     )
+import Cardano.Wallet.Write.Tx.TimeTranslation
+    ( TimeTranslation )
 import Control.Arrow
     ( first )
 import Control.DeepSeq
@@ -2019,8 +2021,7 @@ buildSignSubmitTransaction
        , AddressBookIso s
        , WalletFlavor s n k
        )
-    => TimeInterpreter (ExceptT PastHorizonException IO)
-    -> DBLayer IO s k
+    => DBLayer IO s k
     -> NetworkLayer IO Read.Block
     -> TransactionLayer k 'CredFromKeyK SealedTx
     -> Passphrase "user"
@@ -2030,12 +2031,13 @@ buildSignSubmitTransaction
     -> PreSelection
     -> TransactionCtx
     -> IO (BuiltTx, UTCTime)
-buildSignSubmitTransaction ti db@DBLayer{..} netLayer txLayer pwd walletId
+buildSignSubmitTransaction db@DBLayer{..} netLayer txLayer pwd walletId
     changeAddrGen era preSelection txCtx = do
     --
     stdGen <- initStdGen
-    pureTimeInterpreter <- snapshot ti
     protocolParameters <- currentProtocolParameters netLayer
+    let ti = timeInterpreter netLayer
+    timeTranslation <- toTimeTranslation ti
 
     throwOnErr <=< runExceptT $ withRootKey db walletId pwd wrapRootKeyError $
         \rootKey scheme -> lift $ do
@@ -2056,7 +2058,7 @@ buildSignSubmitTransaction ti db@DBLayer{..} netLayer txLayer pwd walletId
                             $ availableUTxO @s (Set.fromList pendingTxs) wallet
 
                     buildAndSignTransactionPure @k @s @n
-                        pureTimeInterpreter
+                        timeTranslation
                         utxoIndex
                         rootKey
                         scheme
@@ -2112,7 +2114,7 @@ buildAndSignTransactionPure
        , IsOurs s RewardAccount
        , WalletFlavor s n k
        )
-    => TimeInterpreter (Either PastHorizonException)
+    => TimeTranslation
     -> UTxOIndex WalletUTxO
     -> k 'RootK XPrv
     -> PassphraseScheme
@@ -2128,14 +2130,14 @@ buildAndSignTransactionPure
         (ExceptT (Either ErrBalanceTx ErrConstructTx) (Rand StdGen))
         BuiltTx
 buildAndSignTransactionPure
-    ti utxoIndex rootKey passphraseScheme userPassphrase
+    timeTranslation utxoIndex rootKey passphraseScheme userPassphrase
     protocolParams txLayer changeAddrGen era preSelection txCtx =
     --
     WriteTx.withRecentEra era $ \(_ :: WriteTx.RecentEra recentEra) -> do
         wallet <- get
         (unsignedBalancedTx, updatedWalletState) <- lift $
             buildTransactionPure @s @k @n @recentEra
-                wallet ti utxoIndex txLayer changeAddrGen
+                wallet timeTranslation utxoIndex txLayer changeAddrGen
                 (Write.unsafeFromWalletProtocolParameters protocolParams)
                 preSelection txCtx
         put wallet { getState = updatedWalletState }
@@ -2211,17 +2213,16 @@ buildTransaction
       )
     => DBLayer IO s k
     -> TransactionLayer k 'CredFromKeyK SealedTx
-    -> TimeInterpreter (ExceptT PastHorizonException IO)
+    -> TimeTranslation
     -> WalletId
     -> ChangeAddressGen s
     -> ProtocolParameters
     -> TransactionCtx
     -> [TxOut] -- ^ payment outputs
     -> IO (Cardano.Tx era, Wallet s)
-buildTransaction DBLayer{..} txLayer timeInterpreter walletId
-    changeAddrGen protocolParameters txCtx paymentOuts = do
+buildTransaction DBLayer{..} txLayer timeTranslation walletId changeAddrGen
+    protocolParameters txCtx paymentOuts = do
     stdGen <- initStdGen
-    pureTimeInterpreter <- snapshot timeInterpreter
     atomically $ do
         wallet <- readDBVar walletsDB >>= \wallets ->
             case Map.lookup walletId wallets of
@@ -2240,7 +2241,7 @@ buildTransaction DBLayer{..} txLayer timeInterpreter walletId
         fmap (\s' -> wallet { getState = s' }) <$>
             buildTransactionPure @s @_ @n @era
                 wallet
-                pureTimeInterpreter
+                timeTranslation
                 utxoIndex
                 txLayer
                 changeAddrGen
@@ -2258,7 +2259,7 @@ buildTransactionPure
        , WalletFlavor s n k
        )
     => Wallet s
-    -> TimeInterpreter (Either PastHorizonException)
+    -> TimeTranslation
     -> UTxOIndex WalletUTxO
     -> TransactionLayer k 'CredFromKeyK SealedTx
     -> ChangeAddressGen s
@@ -2270,7 +2271,7 @@ buildTransactionPure
         (Rand StdGen)
         (Cardano.Tx era, s)
 buildTransactionPure
-    wallet ti utxoIndex txLayer changeAddrGen
+    wallet timeTranslation utxoIndex txLayer changeAddrGen
     pparams preSelection txCtx = do
     --
     unsignedTxBody <-
@@ -2286,7 +2287,7 @@ buildTransactionPure
             nullTracer
             (Write.allKeyPaymentCredentials txLayer)
             pparams
-            ti
+            timeTranslation
             utxoIndex
             changeAddrGen
             (getState wallet)
@@ -2892,18 +2893,19 @@ delegationFee
     => DBLayer IO s k
     -> NetworkLayer IO Read.Block
     -> TransactionLayer k 'CredFromKeyK SealedTx
-    -> TimeInterpreter (ExceptT PastHorizonException IO)
+    -> TimeTranslation
     -> AnyRecentEra
     -> ChangeAddressGen s
     -> WalletId
     -> IO DelegationFee
-delegationFee db@DBLayer{..} netLayer txLayer ti era changeAddressGen walletId =
+delegationFee db@DBLayer{..} netLayer txLayer timeTranslation era
+    changeAddressGen walletId =
     WriteTx.withRecentEra era $ \(recentEra :: WriteTx.RecentEra era) -> do
         protocolParams <- Write.unsafeFromWalletProtocolParameters
             <$> liftIO (currentProtocolParameters netLayer)
         feePercentiles <- transactionFee @s @k @n
-            db protocolParams txLayer ti recentEra changeAddressGen walletId
-            defaultTransactionCtx
+            db protocolParams txLayer timeTranslation recentEra changeAddressGen
+            walletId defaultTransactionCtx
             -- It would seem that we should add a delegation action
             -- to the partial tx we construct, this was not done
             -- previously, and the difference should be negligible.
@@ -2926,15 +2928,15 @@ transactionFee
     => DBLayer IO s k
     -> Write.ProtocolParameters era
     -> TransactionLayer k 'CredFromKeyK SealedTx
-    -> TimeInterpreter (ExceptT PastHorizonException IO)
+    -> TimeTranslation
     -> WriteTx.RecentEra era
     -> ChangeAddressGen s
     -> WalletId
     -> TransactionCtx
     -> PreSelection
     -> IO (Percentile 10 Fee, Percentile 90 Fee)
-transactionFee DBLayer{atomically, walletsDB} protocolParams txLayer ti
-    recentEra changeAddressGen walletId txCtx preSelection = do
+transactionFee DBLayer{atomically, walletsDB} protocolParams txLayer
+    timeTranslation recentEra changeAddressGen walletId txCtx preSelection = do
         wallet <- liftIO . atomically $ readDBVar walletsDB >>= \wallets ->
             case Map.lookup walletId wallets of
                 Nothing -> liftIO . throwIO
@@ -2943,7 +2945,6 @@ transactionFee DBLayer{atomically, walletsDB} protocolParams txLayer ti
                 Just ws -> pure $ WalletState.getLatest ws
         let utxoIndex = UTxOIndex.fromMap . CS.toInternalUTxOMap $
                 availableUTxO @s mempty wallet
-        pureTimeInterpreter <- liftIO $ snapshot ti
         unsignedTxBody <- wrapErrMkTransaction $
             mkUnsignedTransaction txLayer @era
                 (Left $ unsafeShelleyOnlyGetRewardXPub @s @k @n (getState wallet))
@@ -2962,7 +2963,7 @@ transactionFee DBLayer{atomically, walletsDB} protocolParams txLayer ti
                         nullTracer
                         (Write.allKeyPaymentCredentials txLayer)
                         protocolParams
-                        pureTimeInterpreter
+                        timeTranslation
                         utxoIndex
                         changeAddressGen
                         (getState wallet)

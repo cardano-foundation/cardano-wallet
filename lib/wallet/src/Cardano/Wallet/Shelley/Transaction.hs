@@ -109,9 +109,7 @@ import Cardano.Ledger.Era
 import Cardano.Ledger.Shelley.API
     ( StrictMaybe (..) )
 import Cardano.Slotting.EpochInfo
-    ( EpochInfo )
-import Cardano.Slotting.EpochInfo.API
-    ( hoistEpochInfo )
+    ( EpochInfo, hoistEpochInfo )
 import Cardano.Tx.Balance.Internal.CoinSelection
     ( SelectionLimitOf (..)
     , SelectionOf (..)
@@ -135,8 +133,6 @@ import Cardano.Wallet.Address.Discovery.Shared
     ( estimateMaxWitnessRequiredPerInput )
 import Cardano.Wallet.Primitive.Passphrase
     ( Passphrase (..) )
-import Cardano.Wallet.Primitive.Slotting
-    ( PastHorizonException, TimeInterpreter, getSystemStart, toEpochInfo )
 import Cardano.Wallet.Primitive.Types
     ( Certificate
     , ExecutionUnitPrices (..)
@@ -227,6 +223,8 @@ import Cardano.Wallet.Util
     ( HasCallStack, internalError, modifyM )
 import Cardano.Wallet.Write.Tx
     ( KeyWitnessCount (..), fromCardanoUTxO )
+import Cardano.Wallet.Write.Tx.TimeTranslation
+    ( TimeTranslation, epochInfo, systemStartTime )
 import Codec.Serialise
     ( deserialiseOrFail )
 import Control.Arrow
@@ -235,20 +233,14 @@ import Control.Monad
     ( forM, forM_, guard, when )
 import Control.Monad.Trans.Class
     ( lift )
-import Control.Monad.Trans.Except
-    ( runExceptT )
 import Control.Monad.Trans.State.Strict
     ( StateT (..), execStateT, get, modify' )
 import Data.Bifunctor
     ( bimap )
-import Data.Either
-    ( fromRight )
 import Data.Function
     ( (&) )
 import Data.Functor
     ( ($>), (<&>) )
-import Data.Functor.Identity
-    ( runIdentity )
 import Data.Generics.Internal.VL.Lens
     ( view, (^.) )
 import Data.Generics.Labels
@@ -273,6 +265,8 @@ import GHC.Generics
     ( Generic )
 import Numeric.Natural
     ( Natural )
+import Ouroboros.Consensus.Cardano.Block
+    ( StandardConway )
 import Ouroboros.Consensus.Shelley.Eras
     ( StandardAlonzo, StandardBabbage )
 import Ouroboros.Network.Block
@@ -321,8 +315,6 @@ import qualified Data.Map.Merge.Strict as Map
 import qualified Data.Sequence.Strict as StrictSeq
 import qualified Data.Set as Set
 import qualified Data.Text as T
-import Ouroboros.Consensus.Cardano.Block
-    ( StandardConway )
 
 -- | Type encapsulating what we need to know to add things -- payloads,
 -- certificates -- to a transaction.
@@ -1318,12 +1310,12 @@ type ConwayTx =
 assignScriptRedeemers
     :: forall era. WriteTx.IsRecentEra era
     => WriteTx.PParams (WriteTx.ShelleyLedgerEra era)
-    -> TimeInterpreter (Either PastHorizonException)
+    -> TimeTranslation
     -> Cardano.UTxO era
     -> [Redeemer]
     -> Cardano.Tx era
-    -> Either ErrAssignRedeemers (Cardano.Tx era )
-assignScriptRedeemers pparams ti utxo redeemers tx =
+    -> Either ErrAssignRedeemers (Cardano.Tx era)
+assignScriptRedeemers pparams timeTranslation utxo redeemers tx =
     case WriteTx.recentEra @era of
         WriteTx.RecentEraAlonzo -> do
             let Cardano.ShelleyTx _ alonzoTx = tx
@@ -1353,19 +1345,11 @@ assignScriptRedeemers pparams ti utxo redeemers tx =
                 modify' addScriptIntegrityHashConway
             pure $ Cardano.ShelleyTx ShelleyBasedEraConway conwayTx'
   where
-    epochInfo :: EpochInfo (Either T.Text)
-    epochInfo = hoistEpochInfo (left (T.pack . show) . runIdentity . runExceptT)
-        -- Because `TimeInterpreter` conflates the monad for fetching the
-        -- interpreter with the possibility of errors, we cope with this `error`
-        -- call for now. A nicer solution would be exposing either
-        -- `EpochInfo` or `Cardano.EraHistory` in the `NetworkLayer` directly,
-        -- or - perhaps at some point - reimagining the `TimeInterpreter`
-        -- abstraction.
-        $ fromRight
-            (error "`toEpochInfo ti` can never fail")
-            (toEpochInfo ti)
+    epochInformation :: EpochInfo (Either T.Text)
+    epochInformation =
+        hoistEpochInfo (left (T.pack . show)) $ epochInfo timeTranslation
 
-    systemStart = getSystemStart ti
+    systemStart = systemStartTime timeTranslation
 
     -- | Assign redeemers with null execution units to the input transaction.
     --
@@ -1453,7 +1437,7 @@ assignScriptRedeemers pparams ti utxo redeemers tx =
                 pparams
                 alonzoTx
                 (fromCardanoUTxO utxo)
-                epochInfo
+                epochInformation
                 systemStart
                 costs
         case res of
@@ -1476,7 +1460,7 @@ assignScriptRedeemers pparams ti utxo redeemers tx =
                 pparams
                 babbageTx
                 (fromCardanoUTxO utxo)
-                epochInfo
+                epochInformation
                 systemStart
                 costs
         case res of
@@ -1499,7 +1483,7 @@ assignScriptRedeemers pparams ti utxo redeemers tx =
                 pparams
                 conwayTx
                 (fromCardanoUTxO utxo)
-                epochInfo
+                epochInformation
                 systemStart
                 costs
         case res of

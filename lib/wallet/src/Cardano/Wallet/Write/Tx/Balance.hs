@@ -55,8 +55,6 @@ import Cardano.Wallet.Address.Derivation
     ( Depth (..) )
 import Cardano.Wallet.Address.Derivation.Shared
     ( SharedKey (..) )
-import Cardano.Wallet.Primitive.Slotting
-    ( PastHorizonException, TimeInterpreter )
 import Cardano.Wallet.Primitive.Types
     ( FeePolicy (LinearFee), LinearFunction (LinearFunction) )
 import Cardano.Wallet.Primitive.Types.Hash
@@ -113,6 +111,8 @@ import Cardano.Wallet.Write.Tx
     , modifyTxOutputs
     , txBody
     )
+import Cardano.Wallet.Write.Tx.TimeTranslation
+    ( TimeTranslation )
 import Control.Arrow
     ( left )
 import Control.Monad
@@ -364,7 +364,7 @@ balanceTransaction
     -- will protect against collateral being forfeited.
     --
     -- TODO: Remove the 'W.ProtocolParameters' argument.
-    -> TimeInterpreter (Either PastHorizonException)
+    -> TimeTranslation
     -- ^ Needed to convert convert validity intervals from 'UTCTime' to 'SlotNo'
     -- when executing Plutus scripts.
     --
@@ -381,7 +381,8 @@ balanceTransaction
     -> changeState
     -> PartialTx era
     -> ExceptT ErrBalanceTx m (Cardano.Tx era, changeState)
-balanceTransaction tr utxoAssumptions pp ti utxo genChange s unadjustedPtx = do
+balanceTransaction
+    tr utxoAssumptions pp timeTranslation utxo genChange s unadjustedPtx = do
     let adjustedPtx = over (#tx)
             (increaseZeroAdaOutputs (recentEra @era) (pparamsLedger pp))
             unadjustedPtx
@@ -389,7 +390,8 @@ balanceTransaction tr utxoAssumptions pp ti utxo genChange s unadjustedPtx = do
     let balanceWith strategy =
             balanceTransactionWithSelectionStrategyAndNoZeroAdaAdjustment
                 @era @m @changeState
-                tr utxoAssumptions pp ti utxo genChange s strategy adjustedPtx
+                tr utxoAssumptions pp timeTranslation utxo
+                genChange s strategy adjustedPtx
     balanceWith SelectionStrategyOptimal
         `catchE` \e ->
             if minimalStrategyIsWorthTrying e
@@ -469,7 +471,7 @@ balanceTransactionWithSelectionStrategyAndNoZeroAdaAdjustment
     => Tracer m BalanceTxLog
     -> UTxOAssumptions
     -> ProtocolParameters era
-    -> TimeInterpreter (Either PastHorizonException)
+    -> TimeTranslation
     -> UTxOIndex WalletUTxO
     -> ChangeAddressGen changeState
     -> changeState
@@ -483,7 +485,7 @@ balanceTransactionWithSelectionStrategyAndNoZeroAdaAdjustment
         toInpScriptsM
         mScriptTemplate)
     (ProtocolParameters pp ledgerPP)
-    ti
+    timeTranslation
     internalUtxoAvailable
     genChange
     s
@@ -776,13 +778,12 @@ balanceTransactionWithSelectionStrategyAndNoZeroAdaAdjustment
            RecentEraBabbage -> W.fromBabbageTxOut o
            RecentEraConway -> W.fromConwayTxOut o
 
-    assembleTransaction
-        :: TxUpdate
-        -> ExceptT ErrBalanceTx m (Cardano.Tx era)
+    assembleTransaction :: TxUpdate -> ExceptT ErrBalanceTx m (Cardano.Tx era)
     assembleTransaction update = ExceptT . pure $ do
         tx' <- left ErrBalanceTxUpdateError $ updateTx partialTx update
-        left ErrBalanceTxAssignRedeemers $ assignScriptRedeemers
-            ledgerPP ti combinedUTxO redeemers tx'
+        left ErrBalanceTxAssignRedeemers $
+            assignScriptRedeemers
+                ledgerPP timeTranslation combinedUTxO redeemers tx'
 
 
     guardConflictingWithdrawalNetworks
