@@ -459,13 +459,6 @@ scriptFromCardanoScriptInAnyLang =
   where
     era = cardanoEraFromRecentEra $ recentEra @era
 
--- | NOTE: The roundtrip
--- @
---     scriptToCardanoScriptInAnyLang . scriptFromCardanoScriptInAnyLang
--- @
--- will convert 'SimpleScript' to 'SimpleScript'. Because 'SimpleScript'
--- is 'ShelleyEra'-specific, and 'ShelleyEra' is not a 'RecentEra', this should
--- not be a problem.
 scriptToCardanoScriptInAnyLang
     :: forall era. IsRecentEra era
     => Script (Cardano.ShelleyLedgerEra era)
@@ -856,13 +849,6 @@ toCardanoTx
     -> Cardano.Tx era
 toCardanoTx = Cardano.ShelleyTx (shelleyBasedEraFromRecentEra $ recentEra @era)
 
--- | NOTE: The roundtrip
--- @
---     toCardanoUTxO . fromCardanoUTxO
--- @
--- will mark any 'SimpleScript' reference scripts as 'SimpleScript'. Because
--- 'SimpleScript' is 'ShelleyEra'-specific, and 'ShelleyEra' is not a
--- 'RecentEra', this should not be a problem.
 toCardanoUTxO
     :: forall era. IsRecentEra era
     => Shelley.UTxO (ShelleyLedgerEra era)
