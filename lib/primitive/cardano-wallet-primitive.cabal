@@ -167,3 +167,24 @@ test-suite test
     Data.QuantitySpec
     Spec
     SpecHook
+
+benchmark utxo-index
+    default-language:
+        Haskell2010
+    type:
+        exitcode-stdio-1.0
+    hs-source-dirs:
+        bench
+    main-is:
+        UTxOIndexBench.hs
+    build-depends:
+      , base
+      , cardano-wallet-primitive
+      , cardano-wallet-test-utils
+      , containers
+      , deepseq
+      , format-numbers
+      , QuickCheck
+      , tasty-bench
+      , tasty-hunit
+      , text
