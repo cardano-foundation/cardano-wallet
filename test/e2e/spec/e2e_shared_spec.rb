@@ -1332,7 +1332,7 @@ RSpec.describe 'Cardano Wallet E2E tests - Shared wallets', :all, :e2e, :shared 
       wid = @wid_sha
 
       # get 3 txs
-      txs = SHARED.transactions.list(wid, { max_count: 3 })
+      txs = SHARED.transactions.list(wid, { max_count: 3, order: 'ascending' })
       expect(txs).to be_correct_and_respond 200
       expect(txs.size).to be 3
 
@@ -1340,7 +1340,7 @@ RSpec.describe 'Cardano Wallet E2E tests - Shared wallets', :all, :e2e, :shared 
       first_tx_time = txs.last['inserted_at']['time']
 
       # get 2 txs
-      txs = SHARED.transactions.list(wid, { max_count: 2 })
+      txs = SHARED.transactions.list(wid, { max_count: 2, order: 'ascending' })
       expect(txs).to be_correct_and_respond 200
       expect(txs.size).to eq 2
       expect(txs.first['inserted_at']['time']).to eq last_tx_time
@@ -1351,8 +1351,8 @@ RSpec.describe 'Cardano Wallet E2E tests - Shared wallets', :all, :e2e, :shared 
       expect(txs.size).to eq 2
       expect(txs.first['inserted_at']['time']).to eq first_tx_time
 
-      # get 2 txs in descending order with start and end time
-      txs = SHARED.transactions.list(wid, { max_count: 2, start: first_tx_time, end: last_tx_time, order: 'descending' })
+      # get 2 txs in ascending order with start and end time
+      txs = SHARED.transactions.list(wid, { max_count: 2, start: last_tx_time, end: first_tx_time, order: 'ascending' })
       expect(txs).to be_correct_and_respond 200
       expect(txs.size).to eq 2
       expect(txs.first['inserted_at']['time']).to eq last_tx_time

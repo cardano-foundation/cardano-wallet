@@ -2835,7 +2835,7 @@ RSpec.describe 'Cardano Wallet E2E tests', :all, :e2e do
         wid = @wid
 
         # get 3 txs
-        txs = SHELLEY.transactions.list(wid, { max_count: 3 })
+        txs = SHELLEY.transactions.list(wid, { max_count: 3, order: 'ascending' })
         expect(txs).to be_correct_and_respond 200
         expect(txs.size).to be 3
 
@@ -2843,7 +2843,7 @@ RSpec.describe 'Cardano Wallet E2E tests', :all, :e2e do
         first_tx_time = txs.last['inserted_at']['time']
 
         # get 2 txs
-        txs = SHELLEY.transactions.list(wid, { max_count: 2 })
+        txs = SHELLEY.transactions.list(wid, { max_count: 2, order: 'ascending' })
         expect(txs).to be_correct_and_respond 200
         expect(txs.size).to eq 2
         expect(txs.first['inserted_at']['time']).to eq last_tx_time
@@ -2854,8 +2854,8 @@ RSpec.describe 'Cardano Wallet E2E tests', :all, :e2e do
         expect(txs.size).to eq 2
         expect(txs.first['inserted_at']['time']).to eq first_tx_time
 
-        # get 2 txs in descending order with start and end time
-        txs = SHELLEY.transactions.list(wid, { max_count: 2, start: first_tx_time, end: last_tx_time, order: 'descending' })
+        # get 2 txs in ascending order with start and end time
+        txs = SHELLEY.transactions.list(wid, { max_count: 2, start: last_tx_time, end: first_tx_time, order: 'ascending' })
         expect(txs).to be_correct_and_respond 200
         expect(txs.size).to eq 2
         expect(txs.first['inserted_at']['time']).to eq last_tx_time
@@ -3274,7 +3274,7 @@ RSpec.describe 'Cardano Wallet E2E tests', :all, :e2e do
 
     def test_byron_trans_list(wid)
       # get 3 txs
-      txs = BYRON.transactions.list(wid, { max_count: 3 })
+      txs = BYRON.transactions.list(wid, { max_count: 3, order: 'ascending' })
       expect(txs).to be_correct_and_respond 200
       expect(txs.size).to be 3
 
@@ -3282,7 +3282,7 @@ RSpec.describe 'Cardano Wallet E2E tests', :all, :e2e do
       first_tx_time = txs.last['inserted_at']['time']
 
       # get 2 txs
-      txs = BYRON.transactions.list(wid, { max_count: 2 })
+      txs = BYRON.transactions.list(wid, { max_count: 2, order: 'ascending' })
       expect(txs).to be_correct_and_respond 200
       expect(txs.size).to eq 2
       expect(txs.first['inserted_at']['time']).to eq last_tx_time
@@ -3293,8 +3293,8 @@ RSpec.describe 'Cardano Wallet E2E tests', :all, :e2e do
       expect(txs.size).to eq 2
       expect(txs.first['inserted_at']['time']).to eq first_tx_time
 
-      # get 2 txs in descending order with start and end time
-      txs = BYRON.transactions.list(wid, { max_count: 2, start: first_tx_time, end: last_tx_time, order: 'descending' })
+      # get 2 txs in ascending order with start and end time
+      txs = BYRON.transactions.list(wid, { max_count: 2, start: last_tx_time, end: first_tx_time, order: 'ascending' })
       expect(txs).to be_correct_and_respond 200
       expect(txs.size).to eq 2
       expect(txs.first['inserted_at']['time']).to eq last_tx_time
