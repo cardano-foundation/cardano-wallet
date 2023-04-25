@@ -53,7 +53,10 @@ import Cardano.Api
     , TxOutValue (TxOutAdaOnly, TxOutValue)
     )
 import Cardano.Api.Extra
-    ( asAnyShelleyBasedEra, withShelleyBasedTx )
+    ( asAnyShelleyBasedEra
+    , unbundleLedgerShelleyBasedProtocolParams
+    , withShelleyBasedTx
+    )
 import Cardano.Api.Gen
     ( genAddressByron
     , genAddressInEra
@@ -339,6 +342,8 @@ import Data.ByteArray.Encoding
     ( Base (..), convertToBase )
 import Data.ByteString
     ( ByteString )
+import Data.Char
+    ( isDigit )
 import Data.Default
     ( Default (..) )
 import Data.Either
@@ -348,19 +353,19 @@ import Data.Function
 import Data.Functor.Identity
     ( Identity, runIdentity )
 import Data.Generics.Internal.VL.Lens
-    ( over, view )
+    ( over, view, (^.) )
 import Data.Generics.Product
     ( setField )
 import Data.IntCast
     ( intCast )
 import Data.List
-    ( isSuffixOf, nub )
+    ( isSuffixOf, nub, sortOn )
 import Data.List.NonEmpty
     ( NonEmpty (..) )
 import Data.Map.Strict
     ( Map )
 import Data.Maybe
-    ( fromJust, fromMaybe, isJust )
+    ( catMaybes, fromJust, fromMaybe, isJust )
 import Data.Ord
     ( comparing )
 import Data.Proxy
@@ -483,8 +488,11 @@ import Test.Utils.Paths
     ( getTestData )
 import Test.Utils.Pretty
     ( Pretty (..), (====) )
+import Text.Read
+    ( readMaybe )
 
 import qualified Cardano.Api as Cardano
+import qualified Cardano.Api.Extra as Cardano
 import qualified Cardano.Api.Shelley as Cardano
 import qualified Cardano.Crypto.Hash.Blake2b as Crypto
 import qualified Cardano.Crypto.Hash.Class as Crypto
@@ -2688,7 +2696,8 @@ balanceTransactionSpec = describe "balanceTransaction" $ do
 
         let balanceWithDust = balanceTx
                 dustWallet
-                (mockBundledProtocolParametersForBalancing Cardano.BabbageEra)
+                (mockBundledProtocolParametersForBalancing
+                    Cardano.ShelleyBasedEraBabbage)
                 dummyTimeInterpreter
                 testStdGenSeed
 
@@ -2827,7 +2836,8 @@ balanceTransactionSpec = describe "balanceTransaction" $ do
 
     balance = balanceTx
         wallet
-        (mockBundledProtocolParametersForBalancing Cardano.BabbageEra)
+        (mockBundledProtocolParametersForBalancing
+            Cardano.ShelleyBasedEraBabbage)
         (dummyTimeInterpreterWithHorizon horizon)
         testStdGenSeed
 
@@ -3795,7 +3805,7 @@ balanceTx
 
 -- | Also returns the updated change state
 balanceTransactionWithDummyChangeState
-    :: WriteTx.IsRecentEra era
+    :: forall era. WriteTx.IsRecentEra era
     => UTxOAssumptions
     -> UTxO
     -> StdGenSeed
@@ -3808,7 +3818,9 @@ balanceTransactionWithDummyChangeState cs utxo seed ptx =
         balanceTransaction @_ @(Rand StdGen)
             (nullTracer @(Rand StdGen))
             cs
-            (mockBundledProtocolParametersForBalancing cardanoEra)
+            (mockBundledProtocolParametersForBalancing $
+                Cardano.shelleyBasedEra @era
+            )
             dummyTimeInterpreter
             utxoIndex
             dummyChangeAddrGen
@@ -3884,7 +3896,7 @@ balanceTransactionGoldenSpec = describe "balance goldens" $ do
             let tx = either (error . show) id $ balanceTx
                     (mkTestWallet walletUTxO)
                     (mockBundledProtocolParametersForBalancing
-                        Cardano.BabbageEra)
+                        Cardano.ShelleyBasedEraBabbage)
                     dummyTimeInterpreter
                     testStdGenSeed
                     ptx
@@ -3946,7 +3958,7 @@ balanceTransactionGoldenSpec = describe "balance goldens" $ do
                 res = balanceTx
                     (mkTestWallet walletUTxO)
                     (mockBundledProtocolParametersForBalancing
-                        Cardano.BabbageEra)
+                        Cardano.ShelleyBasedEraBabbage)
                     dummyTimeInterpreter
                     testStdGenSeed
                     ptx
@@ -4029,8 +4041,8 @@ balanceTransactionGoldenSpec = describe "balance goldens" $ do
         -> Cardano.UTxO Cardano.BabbageEra
         -> Cardano.Lovelace
     txMinFee (Cardano.Tx body _) u = toCardanoLovelace $ evaluateMinimumFee
-        (Write.pparamsNode
-            (mockBundledProtocolParametersForBalancing cardanoEra))
+        (Cardano.bundleProtocolParams Cardano.BabbageEra $
+            snd mockProtocolParametersForBalancing)
         (estimateKeyWitnessCount u body)
         body
 
@@ -4055,7 +4067,8 @@ prop_balanceTransactionValid wallet@(Wallet' _ walletUTxO _) (ShowBuildable part
         let originalBalance = txBalance (view #tx partialTx) combinedUTxO
         let res = balanceTx
                 wallet
-                (mockBundledProtocolParametersForBalancing Cardano.AlonzoEra)
+                (mockBundledProtocolParametersForBalancing
+                    Cardano.ShelleyBasedEraAlonzo)
                 dummyTimeInterpreter
                 seed
                 partialTx
@@ -4224,10 +4237,13 @@ prop_balanceTransactionValid wallet@(Wallet' _ walletUTxO _) (ShowBuildable part
         -> Cardano.UTxO Cardano.AlonzoEra
         -> Property
     prop_validSize tx@(Cardano.Tx body _) utxo = do
+        let pparams
+                = unbundleLedgerShelleyBasedProtocolParams
+                    ShelleyBasedEraAlonzo
+                $ Cardano.bundleProtocolParams cardanoEra
+                $ snd mockProtocolParametersForBalancing
         let (TxSize size) =
-                estimateSignedTxSize
-                    (Write.pparamsNode
-                        (mockBundledProtocolParametersForBalancing cardanoEra))
+                estimateSignedTxSize pparams
                     (estimateKeyWitnessCount utxo body)
                     body
         let limit = fromIntegral $ getQuantity $
@@ -4312,12 +4328,12 @@ prop_balanceTransactionValid wallet@(Wallet' _ walletUTxO _) (ShowBuildable part
         TxOutAdaOnly _ coin -> Cardano.lovelaceToValue coin
         TxOutValue _ val -> val
 
-    nodePParams = Write.pparamsNode $
-        mockBundledProtocolParametersForBalancing cardanoEra
+    nodePParams =
+        Cardano.bundleProtocolParams Cardano.AlonzoEra $
+            snd mockProtocolParametersForBalancing
 
-    ledgerPParams =
-        Cardano.toLedgerPParams Cardano.ShelleyBasedEraAlonzo
-            $ snd mockProtocolParametersForBalancing
+    ledgerPParams = Write.pparamsLedger $
+        mockBundledProtocolParametersForBalancing Cardano.ShelleyBasedEraAlonzo
 
     txOutputs :: Cardano.Tx era -> [Cardano.TxOut Cardano.CtxTx era]
     txOutputs (Cardano.Tx (Cardano.TxBody content) _) =
@@ -4337,7 +4353,8 @@ prop_balanceTransactionExistingTotalCollateral
             Left err -> ErrBalanceTxExistingTotalCollateral === err
             e -> counterexample (show e) False
   where
-    pp = mockBundledProtocolParametersForBalancing Cardano.BabbageEra
+    pp = mockBundledProtocolParametersForBalancing
+        Cardano.ShelleyBasedEraBabbage
     ti = dummyTimeInterpreter
 
 prop_balanceTransactionExistingReturnCollateral
@@ -4354,7 +4371,8 @@ prop_balanceTransactionExistingReturnCollateral
             Left err -> ErrBalanceTxExistingReturnCollateral === err
             e -> counterexample (show e) False
   where
-    pp = mockBundledProtocolParametersForBalancing Cardano.BabbageEra
+    pp = mockBundledProtocolParametersForBalancing
+        Cardano.ShelleyBasedEraBabbage
     ti = dummyTimeInterpreter
 
 
@@ -4499,13 +4517,14 @@ mockProtocolParametersForBalancing =
     )
 
 mockBundledProtocolParametersForBalancing
-    :: CardanoEra era
+    :: Cardano.ShelleyBasedEra era
     -> Write.ProtocolParameters era
 mockBundledProtocolParametersForBalancing era = Write.ProtocolParameters
     { pparamsWallet =
         fst mockProtocolParametersForBalancing
-    , pparamsNode =
-        Cardano.bundleProtocolParams era $
+    , pparamsLedger =
+        Cardano.unbundleLedgerShelleyBasedProtocolParams era $
+        Cardano.bundleProtocolParams (Cardano.shelleyBasedToCardanoEra era) $
         snd mockProtocolParametersForBalancing
     }
 
@@ -4571,13 +4590,16 @@ updateTxSpec = do
                     prop_updateTx anyShelleyEraTx
 
         describe "existing key witnesses" $ do
+
+            signedTxs <- runIO signedTxTestData
+
             it "returns `Left err` with noTxUpdate" $ do
                 -- Could be argued that it should instead return `Right tx`.
-                let anyShelleyTx = shelleyBasedTxFromBytes
-                        $ unsafeFromHex txWithInputsOutputsAndWits
-                withShelleyBasedTx anyShelleyTx $ \tx ->
+                let anyRecentEraTx = recentEraTxFromBytes
+                        $ snd $ head signedTxs
+                WriteTx.withInAnyRecentEra anyRecentEraTx $ \tx ->
                         updateTx tx noTxUpdate
-                            `shouldBe` Left (ErrExistingKeyWitnesses 2)
+                            `shouldBe` Left (ErrExistingKeyWitnesses 1)
 
             it "returns `Left err` when extra body content is non-empty" $ do
                 pendingWith "todo: add test data"
@@ -4625,25 +4647,70 @@ prop_updateTx
     collateralIns = sealedCollateralInputs . sealedTxFromCardano'
 
 estimateSignedTxSizeSpec :: Spec
-estimateSignedTxSizeSpec = describe "estimateSignedTxSize" $
-    it "equals the binary size of signed txs" $ property $
-        forAllGoldens signedTxGoldens $ \hexTx -> do
-            let bs = unsafeFromHex hexTx
-            withShelleyBasedTx (shelleyBasedTxFromBytes bs) $
-                \(Cardano.Tx (body :: Cardano.TxBody era) _) -> do
-                -- 'mockProtocolParametersForBalancing' is not valid for
-                -- 'ShelleyEra'.
-                let pparams = Cardano.bundleProtocolParams cardanoEra $
-                        (snd mockProtocolParametersForBalancing)
-                            { Cardano.protocolParamMinUTxOValue = Just 1_000_000
-                            }
-                    utxo = utxoPromisingInputsHaveVkPaymentCreds body
-                    witCount = estimateKeyWitnessCount utxo body
-                estimateSignedTxSize pparams witCount body
-                    `shouldBe` TxSize (fromIntegral (BS.length bs))
+estimateSignedTxSizeSpec = describe "estimateSignedTxSize" $ do
+    txBinaries <- runIO signedTxTestData
+    describe "equals the binary size of signed txs" $
+        forAllGoldens txBinaries test
   where
-    forAllGoldens goldens f = forM_ goldens $ \x ->
-        Hspec.counterexample (show x) $ f x
+
+    test
+        :: forall era. WriteTx.IsRecentEra era
+        => String
+        -> ByteString
+        -> Cardano.Tx era
+        -> IO ()
+    test _name bs tx@(Cardano.Tx (body :: Cardano.TxBody era) _) = do
+        let pparams = Cardano.toLedgerPParams (WriteTx.shelleyBasedEra @era)
+                $ snd mockProtocolParametersForBalancing
+            utxo = utxoPromisingInputsHaveVkPaymentCreds body
+            witCount = estimateKeyWitnessCount utxo body
+
+            ledgerTx = WriteTx.fromCardanoTx tx
+
+            noScripts = case (WriteTx.recentEra @era) of
+                RecentEraAlonzo -> Map.null $ ledgerTx ^.
+                    (Alonzo.witsAlonzoTxL . Alonzo.scriptAlonzoWitsL)
+                RecentEraBabbage -> Map.null $ ledgerTx ^.
+                    (Alonzo.witsAlonzoTxL . Alonzo.scriptAlonzoWitsL)
+                RecentEraConway -> Map.null $ ledgerTx ^.
+                    (Alonzo.witsAlonzoTxL . Alonzo.scriptAlonzoWitsL)
+            noBootWits = case WriteTx.recentEra @era of
+                RecentEraAlonzo -> Set.null $ ledgerTx ^.
+                    (Alonzo.witsAlonzoTxL . Alonzo.bootAddrAlonzoWitsL)
+                RecentEraBabbage -> Set.null $ ledgerTx ^.
+                    (Alonzo.witsAlonzoTxL . Alonzo.bootAddrAlonzoWitsL)
+                RecentEraConway -> Set.null $ ledgerTx ^.
+                    (Alonzo.witsAlonzoTxL . Alonzo.bootAddrAlonzoWitsL)
+
+            testDoesNotYetSupport x = pendingWith $
+                    "Test setup does not work for txs with " <> x
+
+        case (noScripts, noBootWits) of
+                (True, True) -> do
+                    estimateSignedTxSize pparams witCount body
+                        `shouldBe`
+                        TxSize (fromIntegral (BS.length bs))
+                (False, False) -> testDoesNotYetSupport "bootstrap wits + scripts"
+                (True, False) -> testDoesNotYetSupport "bootstrap wits"
+                (False, True) -> testDoesNotYetSupport "scripts"
+
+    forAllGoldens
+        :: [(String, ByteString)]
+        -> (forall era. WriteTx.IsRecentEra era
+                => String
+                -> ByteString
+                -> Cardano.Tx era
+                -> IO ())
+        -> Spec
+    forAllGoldens goldens f = forM_ goldens $ \(name, bs) -> it name $
+        WriteTx.withInAnyRecentEra (recentEraTxFromBytes bs) $ \tx ->
+            let
+                msg = unlines
+                    [ B8.unpack $ hex bs
+                    , pretty $ sealedTxFromCardano $ InAnyCardanoEra cardanoEra tx
+                    ]
+            in
+                Hspec.counterexample msg $ f name bs tx
 
     -- estimateSignedTxSize now depends upon being able to resolve inputs. To
     -- keep tese tests working, we can create a UTxO with dummy values as long
@@ -4660,10 +4727,17 @@ estimateSignedTxSizeSpec = describe "estimateSignedTxSize" $
                      (shelleyBasedEra @era)
                      (TxOut paymentAddr mempty)
                )
-            | i <- map fst $ Cardano.txIns body
+            | i <- allTxIns body
             ]
 
       where
+        allTxIns b = col ++ map fst ins
+          where
+            col = case Cardano.txInsCollateral b of
+                Cardano.TxInsCollateral _ c -> c
+                Cardano.TxInsCollateralNone -> []
+            ins = Cardano.txIns body
+
         paymentAddr = Address $ unsafeFromHex
             "6079467c69a9ac66280174d09d62575ba955748b21dec3b483a9469a65"
 
@@ -4869,61 +4943,24 @@ modifyBabbageTxBody
             scriptValidity)
         keyWits
 
-txWithInputsOutputsAndWits :: ByteString
-txWithInputsOutputsAndWits = mconcat
-    [ "83a400828258200000000000000000000000000000000000000000000000000000"
-    , "000000000000008258200000000000000000000000000000000000000000000000"
-    , "000000000000000000010183825839010202020202020202020202020202020202"
-    , "020202020202020202020202020202020202020202020202020202020202020202"
-    , "0202020202021a005b8d8082583901030303030303030303030303030303030303"
-    , "030303030303030303030303030303030303030303030303030303030303030303"
-    , "03030303031a005b8d808258390104040404040404040404040404040404040404"
-    , "040404040404040404040404040404040404040404040404040404040404040404"
-    , "040404041a007801e0021a0002102003191e46a10082825820130ae82201d7072e"
-    , "6fbfc0a1884fb54636554d14945b799125cf7ce38d477f5158405835ff78c6fc5e"
-    , "4466a179ca659fa85c99b8a3fba083f3f3f42ba360d479c64ef169914b52ade49b"
-    , "19a7208fd63a6e67a19c406b4826608fdc5307025506c307825820010000000000"
-    , "00000000000000000000000000000000000000000000000000005840e8e769ecd0"
-    , "f3c538f0a5a574a1c881775f086d6f4c845b81be9b78955728bffa7efa54297c6a"
-    , "5d73337bd6280205b1759c13f79d4c93f29871fc51b78aeba80ef6"
-    ]
+-- | A collection of signed transaction bytestrings useful for testing.
+--
+-- These bytestrings can be regenerated by running the integration tests
+-- with lib/wallet/test/data/signedTxs/genData.patch applied.
+--
+signedTxTestData :: IO [(FilePath, ByteString)]
+signedTxTestData = do
+    let dir = $(getTestData) </> "signedTxs"
+    files <- listDirectory dir
+    fmap (sortOn (goldenIx . fst) . catMaybes) . forM files $ \name ->
+        if ".cbor" `isSuffixOf` name
+        then Just . (name,) <$> BS.readFile (dir </> name)
+        else pure Nothing
 
-signedTxGoldens :: [ByteString]
-signedTxGoldens =
-    [ mconcat
-      [ "84a6008182582062d3756241f3f19483e2f710e00e83c80e84329bff08753df3a6"
-      , "28beea3454ec18370d800182825839010c36ef7fff0869d7e75cd70f0f369bb770"
-      , "d66efd50625c2c1a5e84f3cd2a80021c790f232cddd9216631f285a0d745361d40"
-      , "2305a61abc071a000f422a82583901d6c89cba59e000ab67171115d99a2f845c38"
-      , "b7616838d168af37288fcd2a80021c790f232cddd9216631f285a0d745361d4023"
-      , "05a61abc071b000000174865a61e021a0001ffb803198fae0e81581c98947dd5fc"
-      , "0ec3fa16043bdbf5577fa383bb89deab60d9d9f80a214ca10082825820debdc920"
-      , "10207d6b51bfd2bab3d03610742d71cbf3867a7c8a7fce360c134a0e5840919835"
-      , "b47a543b72fae3a64cf75145cf0aa44e31cc0e089c9b2fea93d0acae9e2d69c28d"
-      , "4808904be4129c7a16ff3563843a8851a56701eb45947b1329bd540b8258204cff"
-      , "849a17fcbd9e40425e2c2ef96544333c91306e5f869e9d66fc0db91ffa0c584043"
-      , "c3dd8e9596ba3698633e7d6fcc20c4b0081211a1351ec192296abbb40411692fc7"
-      , "5504d7a50f02f2439313dc5f16aa982aab8cea6e32e0c6e64a1b82609306f5f6"
-      ]
+  where
+    goldenIx :: FilePath -> Maybe Int
+    goldenIx = readMaybe . takeWhile isDigit
 
-    , mconcat
-      [ "84a6008182582062d3756241f3f19483e2f710e00e83c80e84329bff08753df3a6"
-      , "28beea3454ec18370d800182825839010c36ef7fff0869d7e75cd70f0f369bb770"
-      , "d66efd50625c2c1a5e84f3cd2a80021c790f232cddd9216631f285a0d745361d40"
-      , "2305a61abc071a000f422a82583901d6c89cba59e000ab67171115d99a2f845c38"
-      , "b7616838d168af37288fcd2a80021c790f232cddd9216631f285a0d745361d4023"
-      , "05a61abc071b000000174865a61e021a0001ffb803198fae0e81581c98947dd5fc"
-      , "0ec3fa16043bdbf5577fa383bb89deab60d9d9f80a214ca10082825820debdc920"
-      , "10207d6b51bfd2bab3d03610742d71cbf3867a7c8a7fce360c134a0e5840919835"
-      , "b47a543b72fae3a64cf75145cf0aa44e31cc0e089c9b2fea93d0acae9e2d69c28d"
-      , "4808904be4129c7a16ff3563843a8851a56701eb45947b1329bd540b8258204cff"
-      , "849a17fcbd9e40425e2c2ef96544333c91306e5f869e9d66fc0db91ffa0c584043"
-      , "c3dd8e9596ba3698633e7d6fcc20c4b0081211a1351ec192296abbb40411692fc7"
-      , "5504d7a50f02f2439313dc5f16aa982aab8cea6e32e0c6e64a1b82609306f5f6"
-      ]
-
-    , txWithInputsOutputsAndWits
-    ]
 readTestTransactions :: SpecM a [(FilePath, SealedTx)]
 readTestTransactions = runIO $ do
     let dir = $(getTestData) </> "plutus"
@@ -4995,17 +5032,17 @@ newtype ShowOrd a = ShowOrd { unShowOrd :: a }
 instance (Eq a, Show a) => Ord (ShowOrd a) where
     compare = comparing show
 
-shelleyBasedTxFromBytes :: ByteString -> Cardano.InAnyShelleyBasedEra Cardano.Tx
-shelleyBasedTxFromBytes bytes =
+recentEraTxFromBytes :: ByteString -> WriteTx.InAnyRecentEra Cardano.Tx
+recentEraTxFromBytes bytes =
     let
         anyEraTx
             = cardanoTx
             $ either (error . show) id
             $ sealedTxFromBytes bytes
     in
-        case asAnyShelleyBasedEra anyEraTx of
-            Just shelleyTx -> shelleyTx
-            Nothing -> error "shelleyBasedTxFromBytes: ByronTx not supported"
+        case WriteTx.asAnyRecentEra anyEraTx of
+            Just recentEraTx -> recentEraTx
+            Nothing -> error "recentEraTxFromBytes: older eras not supported"
 
 cardanoTx :: SealedTx -> InAnyCardanoEra Cardano.Tx
 cardanoTx = cardanoTxIdeallyNoLaterThan maxBound

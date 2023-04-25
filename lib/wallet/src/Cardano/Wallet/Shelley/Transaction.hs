@@ -200,7 +200,7 @@ import Cardano.Wallet.Shelley.Compatibility
     , toStakePoolDlgCert
     )
 import Cardano.Wallet.Shelley.Compatibility.Ledger
-    ( toLedger, toWalletScript, toWalletScriptFromShelley )
+    ( toLedger, toWalletCoin, toWalletScript, toWalletScriptFromShelley )
 import Cardano.Wallet.Shelley.MinimumUTxO
     ( computeMinimumCoinForUTxO, isBelowMinimumCoinForUTxO )
 import Cardano.Wallet.Transaction
@@ -281,7 +281,6 @@ import Ouroboros.Network.Block
 import qualified Cardano.Address.Style.Shelley as CA
 import qualified Cardano.Api as Cardano
 import qualified Cardano.Api.Byron as Byron
-import qualified Cardano.Api.Extra as Cardano
 import qualified Cardano.Api.Shelley as Cardano
 import qualified Cardano.Chain.Common as Byron
 import qualified Cardano.Crypto as CC
@@ -1083,8 +1082,8 @@ evaluateMinimumFee pp (KeyWitnessCount nWits nBootWits) body =
 
 -- | Estimate the size of the transaction (body) when fully signed.
 estimateSignedTxSize
-    :: Cardano.IsShelleyBasedEra era
-    => Cardano.BundledProtocolParameters era
+    :: forall era. WriteTx.IsRecentEra era
+    => WriteTx.PParams (WriteTx.ShelleyLedgerEra era)
     -> KeyWitnessCount
     -> Cardano.TxBody era
     -> TxSize
@@ -1123,11 +1122,21 @@ estimateSignedTxSize pparams nWits body =
     coinQuotRem (Coin p) (Coin q) = quotRem p q
 
     minfee :: KeyWitnessCount -> Coin
-    minfee witCount = evaluateMinimumFee pparams witCount body
+    minfee witCount = toWalletCoin $ WriteTx.evaluateMinimumFee
+        (WriteTx.recentEra @era) pparams (toLedgerTx body) witCount
+
+    toLedgerTx
+        :: Cardano.TxBody era -> WriteTx.Tx (WriteTx.ShelleyLedgerEra era)
+    toLedgerTx b = case Cardano.Tx b [] of
+        Byron.ByronTx {} -> case WriteTx.recentEra @era of
+            {}
+        Cardano.ShelleyTx _era ledgerTx -> ledgerTx
 
     feePerByte :: Coin
-    feePerByte = Coin.fromNatural $
-        view #protocolParamTxFeePerByte (Cardano.unbundleProtocolParams pparams)
+    feePerByte = Coin.fromNatural $ case WriteTx.recentEra @era of
+        WriteTx.RecentEraAlonzo -> Alonzo._minfeeA pparams
+        WriteTx.RecentEraBabbage -> Babbage._minfeeA pparams
+        WriteTx.RecentEraConway -> Conway._minfeeA pparams
 
 numberOfShelleyWitnesses :: Word -> KeyWitnessCount
 numberOfShelleyWitnesses n = KeyWitnessCount n 0
@@ -1307,22 +1316,16 @@ type ConwayTx =
     Ledger.Tx (Cardano.ShelleyLedgerEra Cardano.ConwayEra)
 
 assignScriptRedeemers
-    :: forall era. Cardano.IsShelleyBasedEra era
-    => Cardano.BundledProtocolParameters era
+    :: forall era. WriteTx.IsRecentEra era
+    => WriteTx.PParams (WriteTx.ShelleyLedgerEra era)
     -> TimeInterpreter (Either PastHorizonException)
     -> Cardano.UTxO era
     -> [Redeemer]
     -> Cardano.Tx era
     -> Either ErrAssignRedeemers (Cardano.Tx era )
 assignScriptRedeemers pparams ti utxo redeemers tx =
-    case Cardano.shelleyBasedEra @era of
-        Cardano.ShelleyBasedEraShelley ->
-            pure tx
-        Cardano.ShelleyBasedEraAllegra ->
-            pure tx
-        Cardano.ShelleyBasedEraMary->
-            pure tx
-        Cardano.ShelleyBasedEraAlonzo -> do
+    case WriteTx.recentEra @era of
+        WriteTx.RecentEraAlonzo -> do
             let Cardano.ShelleyTx _ alonzoTx = tx
             alonzoTx' <- flip execStateT alonzoTx $ do
                 indexedRedeemers <- StateT assignNullRedeemersAlonzo
@@ -1331,7 +1334,7 @@ assignScriptRedeemers pparams ti utxo redeemers tx =
                 modifyM (assignExecutionUnitsAlonzo executionUnits)
                 modify' addScriptIntegrityHashAlonzo
             pure $ Cardano.ShelleyTx ShelleyBasedEraAlonzo alonzoTx'
-        Cardano.ShelleyBasedEraBabbage -> do
+        WriteTx.RecentEraBabbage -> do
             let Cardano.ShelleyTx _ babbageTx = tx
             babbageTx' <- flip execStateT babbageTx $ do
                 indexedRedeemers <- StateT assignNullRedeemersBabbage
@@ -1340,7 +1343,7 @@ assignScriptRedeemers pparams ti utxo redeemers tx =
                 modifyM (assignExecutionUnitsBabbage executionUnits)
                 modify' addScriptIntegrityHashBabbage
             pure $ Cardano.ShelleyTx ShelleyBasedEraBabbage babbageTx'
-        Cardano.ShelleyBasedEraConway -> do
+        WriteTx.RecentEraConway -> do
             let Cardano.ShelleyTx _ conwayTx = tx
             conwayTx' <- flip execStateT conwayTx $ do
                 indexedRedeemers <- StateT assignNullRedeemersConway
@@ -1363,10 +1366,6 @@ assignScriptRedeemers pparams ti utxo redeemers tx =
             (toEpochInfo ti)
 
     systemStart = getSystemStart ti
-
-    pparams' = Cardano.unbundleLedgerShelleyBasedProtocolParams
-        (shelleyBasedEra @era)
-        pparams
 
     -- | Assign redeemers with null execution units to the input transaction.
     --
@@ -1449,9 +1448,9 @@ assignScriptRedeemers pparams ti utxo redeemers tx =
             (Map Alonzo.RdmrPtr (Either ErrAssignRedeemers Alonzo.ExUnits))
     evaluateExecutionUnitsAlonzo indexedRedeemers alonzoTx = do
         let costs = toCostModelsAsArray
-                (Alonzo.unCostModels $ Alonzo._costmdls pparams')
+                (Alonzo.unCostModels $ Alonzo._costmdls pparams)
         let res = evaluateTransactionExecutionUnits
-                pparams'
+                pparams
                 alonzoTx
                 (fromCardanoUTxO utxo)
                 epochInfo
@@ -1471,10 +1470,10 @@ assignScriptRedeemers pparams ti utxo redeemers tx =
             (Map Alonzo.RdmrPtr (Either ErrAssignRedeemers Alonzo.ExUnits))
     evaluateExecutionUnitsBabbage indexedRedeemers babbageTx = do
         let costs = toCostModelsAsArray
-                (Alonzo.unCostModels $ Babbage._costmdls pparams')
+                (Alonzo.unCostModels $ Babbage._costmdls pparams)
 
         let res = evaluateTransactionExecutionUnits
-                pparams'
+                pparams
                 babbageTx
                 (fromCardanoUTxO utxo)
                 epochInfo
@@ -1494,10 +1493,10 @@ assignScriptRedeemers pparams ti utxo redeemers tx =
             (Map Alonzo.RdmrPtr (Either ErrAssignRedeemers Alonzo.ExUnits))
     evaluateExecutionUnitsConway indexedRedeemers conwayTx = do
         let costs = toCostModelsAsArray
-                (Alonzo.unCostModels $ Conway._costmdls pparams')
+                (Alonzo.unCostModels $ Conway._costmdls pparams)
 
         let res = evaluateTransactionExecutionUnits
-                pparams'
+                pparams
                 conwayTx
                 (fromCardanoUTxO utxo)
                 epochInfo
@@ -1589,7 +1588,7 @@ assignScriptRedeemers pparams ti utxo redeemers tx =
         in alonzoTx
             { Alonzo.body = (Alonzo.body alonzoTx)
                 { Alonzo.scriptIntegrityHash = Alonzo.hashScriptIntegrity
-                    (Set.fromList $ Alonzo.getLanguageView pparams' <$> langs)
+                    (Set.fromList $ Alonzo.getLanguageView pparams <$> langs)
                     (Alonzo.txrdmrs wits)
                     (Alonzo.txdats wits)
                 }
@@ -1609,7 +1608,7 @@ assignScriptRedeemers pparams ti utxo redeemers tx =
         in babbageTx
             { Babbage.body = (Babbage.body babbageTx)
                 { Babbage.scriptIntegrityHash = Alonzo.hashScriptIntegrity
-                    (Set.fromList $ Alonzo.getLanguageView pparams'
+                    (Set.fromList $ Alonzo.getLanguageView pparams
                         <$> langs)
                     (Alonzo.txrdmrs wits)
                     (Alonzo.txdats wits)
@@ -1630,7 +1629,7 @@ assignScriptRedeemers pparams ti utxo redeemers tx =
         in conwayTx
             { Conway.body = (Conway.body conwayTx)
                 { Conway.scriptIntegrityHash = Alonzo.hashScriptIntegrity
-                    (Set.fromList $ Alonzo.getLanguageView pparams'
+                    (Set.fromList $ Alonzo.getLanguageView pparams
                         <$> langs)
                     (Alonzo.txrdmrs wits)
                     (Alonzo.txdats wits)
