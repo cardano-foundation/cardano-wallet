@@ -158,6 +158,8 @@ import Data.Generics.Internal.VL.Lens
     ( over, view, (^.) )
 import Data.Generics.Labels
     ()
+import Data.Generics.Product
+    ( getField )
 import Data.IntCast
     ( intCast, intCastMaybe )
 import Data.List.NonEmpty
@@ -967,8 +969,15 @@ balanceTransactionWithSelectionStrategyAndNoZeroAdaAdjustment
                 , computeSelectionLimit = \_ -> NoLimit
                 , maximumCollateralInputCount =
                     intCast @Word16 @Int $ view #maximumCollateralInputCount pp
-                , minimumCollateralPercentage =
-                    view #minimumCollateralPercentage pp
+                , minimumCollateralPercentage = case recentEra @era of
+                    -- case-statement avoids "Overlapping instances" problem.
+                    -- May be avoidable with ADP-2353.
+                    RecentEraAlonzo ->
+                        getField @"_collateralPercentage" ledgerPP
+                    RecentEraBabbage ->
+                        getField @"_collateralPercentage" ledgerPP
+                    RecentEraConway ->
+                        getField @"_collateralPercentage" ledgerPP
                 , maximumLengthChangeAddress =
                     maxLengthChangeAddress genChange
                 }
