@@ -709,7 +709,7 @@ instance IsServerError ErrFetchRewards where
     toServerError = \case
         ErrFetchRewardsReadRewardAccount e -> toServerError e
         ErrFetchRewardsMissingRewardAccount ->
-            apiError err404 MissingRewardAccount $ mconcat
+            apiError err500 MissingRewardAccount $ mconcat
                 [ "I couldn't read a reward account which is required for reward "
                 , "detection. Either there is db malfunction or managing rewards "
                 , "was used for shared wallets missing delegation template."

@@ -326,11 +326,6 @@ withNetworkLayer tr pipeliningStrategy np conn ver tol action = do
     withNodeNetworkLayerBase
         (tr <> trTimings) pipeliningStrategy np conn ver tol action
 
-data RewardAccountSource
-    = RewardAccountFromKeyHash
-    | RewardAccountFromScriptHash
-    deriving (Eq, Show)
-
 withNodeNetworkLayerBase
     :: HasCallStack
     => Tracer IO Log

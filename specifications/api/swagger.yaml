@@ -5439,7 +5439,7 @@ x-responsesPostSharedWallet: &responsesPostSharedWallet
         schema:
           oneOf:
             - <<: *errSharedWalletScriptTemplateInvalid
-  404:
+  500:
     description: Forbidden
     content:
       application/json:

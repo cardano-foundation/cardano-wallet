@@ -557,7 +557,7 @@ import Data.List
 import Data.List.NonEmpty
     ( NonEmpty (..) )
 import Data.Maybe
-    ( fromJust, fromMaybe, isJust, isNothing, mapMaybe, maybeToList )
+    ( fromMaybe, isJust, mapMaybe, maybeToList )
 import Data.Proxy
     ( Proxy (..) )
 import Data.Quantity
@@ -1381,31 +1381,41 @@ manageRewardBalance
     -> DBLayer IO (SeqState n ShelleyKey) ShelleyKey
     -> WalletId
     -> IO ()
-manageRewardBalance tr' netLayer db@DBLayer{..} wid = do
+manageRewardBalance tr' netLayer db wid = do
     watchNodeTip netLayer $ \bh -> do
          traceWith tr $ MsgRewardBalanceQuery bh
          query <- runExceptT $ do
             (acct, _, _) <- withExceptT ErrFetchRewardsReadRewardAccount
                 $ readRewardAccount db wid
             liftIO $ getCachedRewardAccountBalance netLayer acct
-         traceWith tr $ MsgRewardBalanceResult query
-         case query of
-            Right amt -> do
-                res <- atomically $ runExceptT $ mkNoSuchWalletError wid $
-                    putDelegationRewardBalance amt
-                -- It can happen that the wallet doesn't exist _yet_, whereas we
-                -- already have a reward balance. If that's the case, we log and
-                -- move on.
-                case res of
-                    Left err -> traceWith tr $ MsgRewardBalanceNoSuchWallet err
-                    Right () -> pure ()
-            Left _err ->
-                -- Occasionally failing to query is generally not fatal. It will
-                -- just update the balance next time the tip changes.
-                pure ()
+         handleRewardAccountQuery tr wid db query
     traceWith tr MsgRewardBalanceExited
   where
     tr = contramap MsgWallet tr'
+
+handleRewardAccountQuery
+    :: Monad m
+    => Tracer m WalletLog
+    -> WalletId
+    -> DBLayer m s k
+    -> Either ErrFetchRewards Coin
+    -> m ()
+handleRewardAccountQuery tr wid DBLayer{..} query = do
+    traceWith tr $ MsgRewardBalanceResult query
+    case query of
+       Right amt -> do
+           res <- atomically $ runExceptT $ mkNoSuchWalletError wid $
+               putDelegationRewardBalance amt
+           -- It can happen that the wallet doesn't exist _yet_, whereas we
+           -- already have a reward balance. If that's the case, we log and
+           -- move on.
+           case res of
+               Left err -> traceWith tr $ MsgRewardBalanceNoSuchWallet err
+               Right () -> pure ()
+       Left _err ->
+           -- Occasionally failing to query is generally not fatal. It will
+           -- just update the balance next time the tip changes.
+           pure ()
 
 manageSharedRewardBalance
     :: forall n block
@@ -1414,30 +1424,17 @@ manageSharedRewardBalance
     -> DBLayer IO (SharedState n SharedKey) SharedKey
     -> WalletId
     -> IO ()
-manageSharedRewardBalance tr' netLayer db@DBLayer{..} wid = do
+manageSharedRewardBalance tr' netLayer db wid = do
     watchNodeTip netLayer $ \bh -> do
          traceWith tr $ MsgRewardBalanceQuery bh
          query <- runExceptT $ do
             acctM <- withExceptT ErrFetchRewardsReadRewardAccount
                 $ readSharedRewardAccount db wid
-            when (isNothing acctM) $
-                throwE ErrFetchRewardsMissingRewardAccount
-            liftIO $ getCachedRewardAccountBalance netLayer (fst $ fromJust acctM)
-         traceWith tr $ MsgRewardBalanceResult query
-         case query of
-            Right amt -> do
-                res <- atomically $ runExceptT $ mkNoSuchWalletError wid $
-                    putDelegationRewardBalance amt
-                -- It can happen that the wallet doesn't exist _yet_, whereas we
-                -- already have a reward balance. If that's the case, we log and
-                -- move on.
-                case res of
-                    Left err -> traceWith tr $ MsgRewardBalanceNoSuchWallet err
-                    Right () -> pure ()
-            Left _err ->
-                -- Occasionally failing to query is generally not fatal. It will
-                -- just update the balance next time the tip changes.
-                pure ()
+            case acctM of
+                Nothing -> throwE ErrFetchRewardsMissingRewardAccount
+                Just acct ->
+                    liftIO $ getCachedRewardAccountBalance netLayer (fst acct)
+         handleRewardAccountQuery tr wid db query
     traceWith tr MsgRewardBalanceExited
   where
     tr = contramap MsgWallet tr'

@@ -2941,11 +2941,10 @@ constructSharedTransaction
                 delCerts <- case optionalDelegationAction of
                     Nothing -> pure Nothing
                     Just action -> do
-                        res <- liftHandler $ W.readSharedRewardAccount @n db wid
-                        when (isNothing res)$
-                            liftHandler $ throwE ErrConstructTxDelegationInvalid
-                        let path = snd $ fromJust res
-                        pure $ Just (action, path)
+                        resM <- liftHandler $ W.readSharedRewardAccount @n db wid
+                        --at this moment we are sure reward account is present
+                        --if not ErrConstructTxDelegationInvalid would be thrown already
+                        pure $ Just (action, snd $ fromJust resM)
 
                 pure $ ApiConstructTransaction
                     { transaction = balancedTx
