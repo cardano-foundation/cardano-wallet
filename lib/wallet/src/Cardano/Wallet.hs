@@ -123,8 +123,6 @@ module Cardano.Wallet
 
     -- ** Payment
     , transactionExpirySlot
-    , SelectAssetsParams (..)
-    , selectAssets
     , buildCoinSelectionForTransaction
     , CoinSelection (..)
     , readWalletUTxO
@@ -243,17 +241,10 @@ import Cardano.Slotting.Slot
 import Cardano.Tx.Balance.Internal.CoinSelection
     ( Selection
     , SelectionBalanceError (..)
-    , SelectionConstraints (..)
     , SelectionError (..)
     , SelectionOf (..)
-    , SelectionParams (..)
-    , SelectionStrategy (..)
     , UnableToConstructChangeError (..)
-    , WalletUTxO (..)
     , emptySkeleton
-    , makeSelectionReportDetailed
-    , makeSelectionReportSummarized
-    , performSelection
     )
 import Cardano.Wallet.Address.Book
     ( AddressBookIso, Prologue (..), getDiscoveries, getPrologue )
@@ -452,8 +443,6 @@ import Cardano.Wallet.Primitive.Types.Tx.TxOut
     ( TxOut (..) )
 import Cardano.Wallet.Primitive.Types.UTxO
     ( UTxO (..) )
-import Cardano.Wallet.Primitive.Types.UTxOSelection
-    ( UTxOSelection )
 import Cardano.Wallet.Primitive.Types.UTxOStatistics
     ( UTxOStatistics )
 import Cardano.Wallet.Read.NetworkId
@@ -516,8 +505,6 @@ import Control.Monad.Class.MonadTime
     )
 import Control.Monad.IO.Unlift
     ( MonadIO (..), MonadUnliftIO )
-import Control.Monad.Random.Class
-    ( MonadRandom (..) )
 import Control.Monad.Random.Strict
     ( Rand, StdGen, evalRand, initStdGen )
 import Control.Monad.State.Class
@@ -561,16 +548,12 @@ import Data.Generics.Labels
     ()
 import Data.Generics.Product.Typed
     ( HasType, typed )
-import Data.IntCast
-    ( intCast )
 import Data.Kind
     ( Type )
 import Data.List
     ( foldl' )
 import Data.List.NonEmpty
     ( NonEmpty (..) )
-import Data.Map.Strict
-    ( Map )
 import Data.Maybe
     ( fromMaybe, isJust, mapMaybe, maybeToList )
 import Data.Proxy
@@ -588,7 +571,7 @@ import Data.Time.Clock
 import Data.Void
     ( Void )
 import Data.Word
-    ( Word16, Word64 )
+    ( Word64 )
 import Fmt
     ( Buildable
     , blockListF
@@ -610,8 +593,6 @@ import GHC.TypeNats
     ( Nat )
 import Statistics.Quantile
     ( medianUnbiased, quantiles )
-import System.Random.StdGenSeed
-    ( StdGenSeed (..), stdGenFromSeed, stdGenSeed )
 import UnliftIO.Exception
     ( Exception, catch, evaluate, throwIO )
 import UnliftIO.MVar
@@ -633,10 +614,8 @@ import qualified Cardano.Wallet.Primitive.Types as W
 import qualified Cardano.Wallet.Primitive.Types.Coin as Coin
 import qualified Cardano.Wallet.Primitive.Types.TokenBundle as TokenBundle
 import qualified Cardano.Wallet.Primitive.Types.TokenMap as TokenMap
-import qualified Cardano.Wallet.Primitive.Types.Tx.Tx as Tx
 import qualified Cardano.Wallet.Primitive.Types.Tx.TxOut as TxOut
 import qualified Cardano.Wallet.Primitive.Types.UTxO as UTxO
-import qualified Cardano.Wallet.Primitive.Types.UTxOSelection as UTxOSelection
 import qualified Cardano.Wallet.Primitive.Types.UTxOStatistics as UTxOStatistics
 import qualified Cardano.Wallet.Read as Read
 import qualified Cardano.Wallet.Write.ProtocolParameters as Write
@@ -1792,141 +1771,6 @@ calcMinimumCoinValues ctx era outs = do
   where
     nl = ctx ^. networkLayer
     tl = ctx ^. transactionLayer @k @ktype
-
--- | Parameters for the 'selectAssets' function.
---
-data SelectAssetsParams s result = SelectAssetsParams
-    { outputs :: [TxOut]
-    , pendingTxs :: Set Tx
-    , randomSeed :: Maybe StdGenSeed
-    , txContext :: TransactionCtx
-    , utxoAvailableForCollateral :: Map WalletUTxO TokenBundle
-    , utxoAvailableForInputs :: UTxOSelection WalletUTxO
-    , wallet :: Wallet s
-    , selectionStrategy :: SelectionStrategy
-        -- ^ Specifies which selection strategy to use. See 'SelectionStrategy'.
-    }
-    deriving Generic
-
--- | Selects assets from a wallet.
---
--- This function has the following responsibilities:
---
---  - selecting inputs from the UTxO set to pay for user-specified outputs;
---  - selecting inputs from the UTxO set to pay for collateral;
---  - producing change outputs to return excess value to the wallet;
---  - balancing a selection to pay for the transaction fee.
---
--- When selecting inputs to pay for user-specified outputs, inputs are selected
--- randomly.
---
--- By default, the seed used for random selection is derived automatically,
--- from the given 'MonadRandom' context.
---
--- However, if a concrete value is specified for the optional 'randomSeed'
--- parameter, then that value will be used instead as the seed for random
--- selection.
---
-selectAssets
-    :: forall m s k ktype result
-     . (BoundedAddressLength k, MonadRandom m)
-    => Tracer m BalanceTxLog
-    -> TransactionLayer k ktype SealedTx
-    -> Cardano.AnyCardanoEra
-    -> ProtocolParameters
-    -> SelectAssetsParams s result
-    -> (s -> Selection -> result)
-    -> ExceptT ErrSelectAssets m result
-selectAssets tr txLayer era pp params transform = do
-    guardPendingWithdrawal
-    lift $ traceWith tr $ MsgSelectionStart
-        (UTxOSelection.availableSize $ params ^. #utxoAvailableForInputs)
-        (params ^. #outputs)
-    let selectionConstraints = SelectionConstraints
-            { assessTokenBundleSize =
-                view #assessTokenBundleSize $
-                tokenBundleSizeAssessor txLayer $
-                pp ^. #txParameters . #getTokenBundleMaxSize
-            , certificateDepositAmount =
-                view #stakeKeyDeposit pp
-            , computeMinimumAdaQuantity =
-                constraints txLayer era pp ^. #txOutputMinimumAdaQuantity
-            , isBelowMinimumAdaQuantity =
-                constraints txLayer era pp ^. #txOutputBelowMinimumAdaQuantity
-            , computeMinimumCost =
-                calcMinimumCost txLayer era pp $ params ^. #txContext
-            , computeSelectionLimit =
-                Cardano.Wallet.Transaction.computeSelectionLimit
-                    txLayer era pp $ params ^. #txContext
-            , maximumCollateralInputCount =
-                intCast @Word16 @Int $ view #maximumCollateralInputCount pp
-            , minimumCollateralPercentage =
-                view #minimumCollateralPercentage pp
-            , maximumLengthChangeAddress =
-                maxLengthAddressFor $ Proxy @k
-            }
-    let selectionParams = SelectionParams
-            { assetsToMint =
-                fst $ params ^. #txContext . #txAssetsToMint
-            , assetsToBurn =
-                fst $ params ^. #txContext . #txAssetsToBurn
-            , extraCoinIn = Coin 0
-            , extraCoinOut = Coin 0
-            , outputsToCover = params ^. #outputs
-            , rewardWithdrawal =
-                withdrawalToCoin $ params ^. #txContext . #txWithdrawal
-            , certificateDepositsReturned =
-                case params ^. #txContext . #txDelegationAction of
-                    Just Quit -> 1
-                    _ -> 0
-            , certificateDepositsTaken =
-                case params ^. #txContext . #txDelegationAction of
-                    Just (JoinRegisteringKey _) -> 1
-                    _ -> 0
-            , collateralRequirement =
-                params ^. #txContext . #txCollateralRequirement
-            , utxoAvailableForCollateral =
-                params ^. #utxoAvailableForCollateral
-            , utxoAvailableForInputs =
-                params ^. #utxoAvailableForInputs
-            , selectionStrategy =
-                view #selectionStrategy params
-            }
-    randomSeed <- maybe stdGenSeed pure (params ^. #randomSeed)
-    let mSel = flip evalRand (stdGenFromSeed randomSeed)
-            $ runExceptT
-            $ performSelection selectionConstraints selectionParams
-    case mSel of
-        Left e -> lift $
-            traceWith tr $ MsgSelectionError e
-        Right sel -> lift $ do
-            traceWith tr $ MsgSelectionReportSummarized
-                $ makeSelectionReportSummarized sel
-            traceWith tr $ MsgSelectionReportDetailed
-                $ makeSelectionReportDetailed sel
-    withExceptT ErrSelectAssetsSelectionError $ except $
-        transform (getState $ params ^. #wallet) <$> mSel
-  where
-
-    -- Ensure that there's no existing pending withdrawals. Indeed, a withdrawal
-    -- is necessarily withdrawing rewards in their totality. So, after a first
-    -- withdrawal is executed, the reward pot is empty. So, to prevent two
-    -- transactions with withdrawals to go through (which will inevitably cause
-    -- one of them to never be inserted), we warn users early on about it.
-    guardPendingWithdrawal :: ExceptT ErrSelectAssets m ()
-    guardPendingWithdrawal =
-        case Set.lookupMin $ Set.filter hasWithdrawal $ params ^. #pendingTxs of
-            Just pendingWithdrawal
-                | withdrawalToCoin txWithdrawal /= Coin 0 ->
-                    throwE $ ErrSelectAssetsAlreadyWithdrawing pendingWithdrawal
-            _otherwise ->
-                pure ()
-      where
-        hasWithdrawal :: Tx -> Bool
-        hasWithdrawal = not . null . Tx.withdrawals
-
-        txWithdrawal :: Withdrawal
-        txWithdrawal = params ^. (#txContext . #txWithdrawal)
 
 signTransaction
   :: forall k ktype
