@@ -444,8 +444,7 @@ modifyTxOutCoin
     -> (Coin -> Coin)
     -> TxOut (ShelleyLedgerEra era)
     -> TxOut (ShelleyLedgerEra era)
-modifyTxOutCoin era f =
-    modifyTxOutValue era (modifyCoin f)
+modifyTxOutCoin era = modifyTxOutValue era . modifyCoin
 
 txOutValue
     :: RecentEra era
