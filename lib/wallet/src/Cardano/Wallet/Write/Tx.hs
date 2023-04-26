@@ -34,6 +34,7 @@ module Cardano.Wallet.Write.Tx
     , fromRecentEra
     , LatestLedgerEra
     , LatestEra
+    , withConstraints
 
     -- ** Key witness counts
     , KeyWitnessCount (..)
@@ -266,7 +267,6 @@ type RecentEraLedgerConstraints era =
 class
     ( Cardano.IsShelleyBasedEra era
     , Typeable era
-    , RecentEraLedgerConstraints (ShelleyLedgerEra era)
     ) => IsRecentEra era where
     recentEra :: RecentEra era
 
@@ -452,7 +452,7 @@ scriptFromCardanoScriptInAnyLang
     :: forall era. IsRecentEra era
     => Cardano.ScriptInAnyLang
     -> Script (Cardano.ShelleyLedgerEra era)
-scriptFromCardanoScriptInAnyLang =
+scriptFromCardanoScriptInAnyLang = withConstraints (recentEra @era) $
     Cardano.toShelleyScript
     . fromMaybe (error "all valid scripts should be valid in latest era")
     . Cardano.toScriptInEra era
@@ -463,9 +463,8 @@ scriptToCardanoScriptInAnyLang
     :: forall era. IsRecentEra era
     => Script (Cardano.ShelleyLedgerEra era)
     -> Cardano.ScriptInAnyLang
-scriptToCardanoScriptInAnyLang =
-    rewrap
-    . Cardano.fromShelleyBasedScript shelleyEra
+scriptToCardanoScriptInAnyLang = withConstraints (recentEra @era) $
+    rewrap . Cardano.fromShelleyBasedScript shelleyEra
   where
     rewrap (Cardano.ScriptInEra _ s) = Cardano.toScriptInAnyLang s
     shelleyEra = shelleyBasedEraFromRecentEra $ recentEra @era
@@ -853,7 +852,7 @@ toCardanoUTxO
     :: forall era. IsRecentEra era
     => Shelley.UTxO (ShelleyLedgerEra era)
     -> Cardano.UTxO era
-toCardanoUTxO =
+toCardanoUTxO = withConstraints (recentEra @era) $
     Cardano.UTxO
     . Map.mapKeys Cardano.fromShelleyTxIn
     . Map.map (Cardano.fromShelleyTxOut (shelleyBasedEra @era))
@@ -865,7 +864,7 @@ fromCardanoUTxO
     :: forall era. IsRecentEra era
     => Cardano.UTxO era
     -> Shelley.UTxO (Cardano.ShelleyLedgerEra era)
-fromCardanoUTxO =
+fromCardanoUTxO = withConstraints (recentEra @era) $
     Shelley.UTxO
     . Map.mapKeys Cardano.toShelleyTxIn
     . Map.map (Cardano.toShelleyTxOut (shelleyBasedEra @era))
@@ -877,7 +876,7 @@ toCardanoValue
     :: forall era. IsRecentEra era
     => Core.Value (ShelleyLedgerEra era)
     -> Cardano.Value
-toCardanoValue = Cardano.fromMaryValue
+toCardanoValue = withConstraints (recentEra @era) Cardano.fromMaryValue
 
 --------------------------------------------------------------------------------
 -- Balancing
@@ -954,7 +953,7 @@ evaluateTransactionBalance era pp utxo = withConstraints era $
 -- 'RecentEra'.
 withConstraints
     :: RecentEra era
-    -> (IsRecentEra era => a)
+    -> ((IsRecentEra era, RecentEraLedgerConstraints (ShelleyLedgerEra era)) => a)
     -> a
 withConstraints era a = case era of
     RecentEraAlonzo -> a

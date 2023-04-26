@@ -305,6 +305,7 @@ import Cardano.Wallet.Write.Tx
     ( AnyRecentEra (..)
     , RecentEra (..)
     , cardanoEraFromRecentEra
+    , recentEra
     , shelleyBasedEraFromRecentEra
     )
 import Cardano.Wallet.Write.Tx.Balance
@@ -588,8 +589,8 @@ spec_forAllRecentEras description p =
         $ property
         $ p (AnyCardanoEra era)
   where
-    forAllRecentEras' f = forAllRecentEras $ \(AnyRecentEra recentEra) ->
-        f $ AnyCardanoEra $ WriteTx.cardanoEraFromRecentEra recentEra
+    forAllRecentEras' f = forAllRecentEras $ \(AnyRecentEra era) ->
+        f $ AnyCardanoEra $ WriteTx.cardanoEraFromRecentEra era
 
 spec_forAllEras
     :: Testable prop => String -> (AnyCardanoEra -> prop) -> Spec
@@ -4668,10 +4669,12 @@ estimateSignedTxSizeSpec = describe "estimateSignedTxSize" $ do
             ledgerTx :: WriteTx.Tx (WriteTx.ShelleyLedgerEra era)
             ledgerTx = WriteTx.fromCardanoTx @era tx
 
-            noScripts = Map.null $ view
+            noScripts = WriteTx.withConstraints (recentEra @era) $ Map.null $
+                view
                 (Alonzo.witsAlonzoTxL . Alonzo.scriptAlonzoWitsL)
                 ledgerTx
-            noBootWits = Set.null $ view
+            noBootWits = WriteTx.withConstraints (recentEra @era) $ Set.null $
+                view
                 (Alonzo.witsAlonzoTxL . Alonzo.bootAddrAlonzoWitsL)
                 ledgerTx
 
