@@ -34,6 +34,8 @@ import GHC.Generics
 import Quiet
     ( Quiet (..) )
 
+import Data.Text as T
+
 -- | A reward account is used in group-type addresses for delegation.
 --
 -- It is either the public key or script hash.
@@ -51,11 +53,18 @@ instance Buildable RewardAccount where
     build (FromScriptHash bs) = build . Hash @"RewardAccount" $ bs
 
 instance ToText RewardAccount where
-    toText (FromKeyHash bs) = toText . Hash @"RewardAccount" $ bs
-    toText (FromScriptHash bs) = toText . Hash @"RewardAccount" $ bs
+    toText (FromKeyHash bs) = T.cons 'k' . toText . Hash @"RewardAccount" $ bs
+    toText (FromScriptHash bs) = T.cons 's' . toText . Hash @"RewardAccount" $ bs
 
 instance FromText RewardAccount where
-    fromText = fmap (FromKeyHash . getHash @"RewardAccount") . fromText
+    fromText txt = case T.splitAt 1 txt of
+        ("s", txt') ->
+            fmap (FromScriptHash . getHash @"RewardAccount") . fromText $ txt'
+        ("k", txt') ->
+            fmap (FromKeyHash . getHash @"RewardAccount") . fromText $ txt'
+        _ -> -- for backward compatibility when there is already db
+            fmap (FromKeyHash . getHash @"RewardAccount") . fromText $ txt
+
 
 instance ToJSON RewardAccount where
     toJSON = String . toText
