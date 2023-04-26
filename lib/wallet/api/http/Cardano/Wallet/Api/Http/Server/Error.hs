@@ -734,6 +734,12 @@ instance IsServerError ErrReadRewardAccount where
                 , "that is invalid for this type of wallet. Only new 'Shelley' "
                 , "wallets can do something with rewards and this one isn't."
                 ]
+        ErrReadRewardAccountMissing ->
+            apiError err501 MissingRewardAccount $ mconcat
+                [ "I couldn't read a reward account which is required for "
+                , "withdrawals. Either there is db malfunction or withdrawals "
+                , "was used for shared wallets missing delegation template."
+                ]
 
 instance IsServerError ErrReadPolicyPublicKey where
     toServerError = \case

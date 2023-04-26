@@ -2878,7 +2878,7 @@ constructSharedTransaction
 
         withdrawal <- case body ^. #withdrawal of
             Just SelfWithdraw -> liftIO $
-                W.shelleyOnlyMkSelfWithdrawal @_ @_ @_ @_ @n
+                W.mkSelfWithdrawalShared @_ @_ @n
                     netLayer txLayer era db wid
             _ -> pure NoWithdrawal
 

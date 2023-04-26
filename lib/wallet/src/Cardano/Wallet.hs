@@ -85,6 +85,7 @@ module Cardano.Wallet
     , checkWalletIntegrity
     , mkExternalWithdrawal
     , mkSelfWithdrawal
+    , mkSelfWithdrawalShared
     , shelleyOnlyMkSelfWithdrawal
     , readRewardAccount
     , shelleyOnlyReadRewardAccount
@@ -1293,6 +1294,27 @@ shelleyOnlyMkSelfWithdrawal netLayer txLayer era db wallet =
   where
     notShelleyWallet = throwIO
         $ ExceptionReadRewardAccount ErrReadRewardAccountNotAShelleyWallet
+
+mkSelfWithdrawalShared
+    :: forall ktype tx n block
+     . NetworkLayer IO block
+    -> TransactionLayer SharedKey ktype tx
+    -> AnyCardanoEra
+    -> DBLayer IO (SharedState n SharedKey) SharedKey
+    -> WalletId
+    -> IO Withdrawal
+mkSelfWithdrawalShared netLayer txLayer era db wallet = do
+    rewardAccountM <-
+        runExceptT (readSharedRewardAccount db wallet)
+            >>= either (throwIO . ExceptionReadRewardAccount) pure
+    when (isNothing rewardAccountM) $
+        throwIO $ ExceptionReadRewardAccount ErrReadRewardAccountMissing
+    let (rewardAccount, derivationPath) = fromJust rewardAccountM
+    balance <- getCachedRewardAccountBalance netLayer rewardAccount
+    pp <- currentProtocolParameters netLayer
+    return $ case checkRewardIsWorthTxCost txLayer pp era balance of
+        Left ErrWithdrawalNotBeneficial -> NoWithdrawal
+        Right () -> WithdrawalSelf rewardAccount derivationPath balance
 
 checkRewardIsWorthTxCost
     :: forall k ktype tx
@@ -3698,6 +3720,7 @@ data ErrNotASequentialWallet
 data ErrReadRewardAccount
     = ErrReadRewardAccountNotAShelleyWallet
     | ErrReadRewardAccountNoSuchWallet ErrNoSuchWallet
+    | ErrReadRewardAccountMissing
     deriving (Generic, Eq, Show)
 
 data ErrWithdrawalNotBeneficial
