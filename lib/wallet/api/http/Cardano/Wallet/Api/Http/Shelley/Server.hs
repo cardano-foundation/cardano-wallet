@@ -3096,8 +3096,8 @@ balanceTransaction
 
                 mkRecentEra :: Handler (WriteTx.RecentEra era)
                 mkRecentEra = case Cardano.cardanoEra @era of
+                    Cardano.ConwayEra -> pure WriteTx.RecentEraConway
                     Cardano.BabbageEra -> pure WriteTx.RecentEraBabbage
-                    Cardano.AlonzoEra -> pure WriteTx.RecentEraAlonzo
                     _ -> liftHandler $ throwE $ Write.ErrOldEraNotSupported era
 
                 mkLedgerUTxO
@@ -3105,9 +3105,7 @@ balanceTransaction
                     -> Handler (WriteTx.UTxO (ShelleyLedgerEra era))
                 mkLedgerUTxO ins = do
                     recentEra <- mkRecentEra
-                    liftHandler
-                        . ExceptT
-                        . pure
+                    pure
                         . WriteTx.utxoFromTxOutsInRecentEra recentEra
                         . map fromExternalInput
                         $ ins
@@ -4219,7 +4217,7 @@ guardIsRecentEra :: AnyCardanoEra -> Handler AnyRecentEra
 guardIsRecentEra (Cardano.AnyCardanoEra era) = case era of
     Cardano.ConwayEra -> pure $ WriteTx.AnyRecentEra WriteTx.RecentEraConway
     Cardano.BabbageEra -> pure $ WriteTx.AnyRecentEra WriteTx.RecentEraBabbage
-    Cardano.AlonzoEra  -> pure $ WriteTx.AnyRecentEra WriteTx.RecentEraAlonzo
+    Cardano.AlonzoEra  -> liftE invalidEra
     Cardano.MaryEra    -> liftE invalidEra
     Cardano.AllegraEra -> liftE invalidEra
     Cardano.ShelleyEra -> liftE invalidEra

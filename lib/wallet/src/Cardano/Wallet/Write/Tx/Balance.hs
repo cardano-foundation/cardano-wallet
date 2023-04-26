@@ -816,7 +816,6 @@ balanceTransactionWithSelectionStrategyAndNoZeroAdaAdjustment
       where
         fromLedgerTxOut :: TxOut (ShelleyLedgerEra era) -> W.TxOut
         fromLedgerTxOut o = case recentEra @era of
-           RecentEraAlonzo -> W.fromAlonzoTxOut o
            RecentEraBabbage -> W.fromBabbageTxOut o
            RecentEraConway -> W.fromConwayTxOut o
 
@@ -973,8 +972,6 @@ balanceTransactionWithSelectionStrategyAndNoZeroAdaAdjustment
                 , computeSelectionLimit = \_ -> NoLimit
                 , maximumCollateralInputCount = unsafeIntCast @Natural @Int $
                     case recentEra @era of
-                        RecentEraAlonzo ->
-                            getField @"_maxCollateralInputs" ledgerPP
                         RecentEraBabbage ->
                             getField @"_maxCollateralInputs" ledgerPP
                         RecentEraConway ->
@@ -983,8 +980,6 @@ balanceTransactionWithSelectionStrategyAndNoZeroAdaAdjustment
                 , minimumCollateralPercentage = case recentEra @era of
                     -- case-statement avoids "Overlapping instances" problem.
                     -- May be avoidable with ADP-2353.
-                    RecentEraAlonzo ->
-                        getField @"_collateralPercentage" ledgerPP
                     RecentEraBabbage ->
                         getField @"_collateralPercentage" ledgerPP
                     RecentEraConway ->

@@ -162,7 +162,6 @@ import qualified Cardano.Api as Cardano
 import qualified Cardano.Wallet.Primitive.Types.Coin as Coin
 import qualified Cardano.Wallet.Primitive.Types.TokenBundle as TokenBundle
 import qualified Cardano.Wallet.Primitive.Types.TokenMap as TokenMap
-import qualified Cardano.Wallet.Write.Tx as WriteTx
 import qualified Data.Aeson as Aeson
 import qualified Data.ByteString as BS
 import qualified Data.ByteString.Lazy as BL
@@ -476,15 +475,6 @@ instance IsServerError ErrDecodeTx where
             { errHTTPCode = 404
             , errReasonPhrase = errReasonPhrase err404
             }
-
-instance IsServerError WriteTx.ErrInvalidTxOutInEra where
-     toServerError = \case
-         WriteTx.ErrInlineDatumNotSupportedInAlonzo ->
-             apiError err400 BalanceTxInlineDatumsNotSupportedInAlonzo
-                 "Inline datums are not supported in the Alonzo era."
-         WriteTx.ErrInlineScriptNotSupportedInAlonzo ->
-             apiError err400 BalanceTxInlineScriptsNotSupportedInAlonzo
-                 "Inline scripts are not supported in the Alonzo era."
 
 instance IsServerError ErrBalanceTx where
     toServerError = \case

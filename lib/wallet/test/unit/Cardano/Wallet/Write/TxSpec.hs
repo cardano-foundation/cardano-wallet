@@ -11,10 +11,10 @@ import Prelude
 
 import Cardano.Api.Gen
     ( genHashableScriptData, genScriptInAnyLang, genTxIn )
-import Cardano.Ledger.Alonzo.PParams
-    ( _coinsPerUTxOWord )
 import Cardano.Ledger.Babbage.PParams
     ( _coinsPerUTxOByte )
+import Cardano.Ledger.Babbage.TxBody
+    ( BabbageTxOut (..) )
 import Cardano.Wallet.Unsafe
     ( unsafeFromHex )
 import Cardano.Wallet.Write.Tx
@@ -22,6 +22,7 @@ import Cardano.Wallet.Write.Tx
     , RecentEra (..)
     , Script
     , StandardBabbage
+    , StandardConway
     , TxOutInBabbage
     , binaryDataFromBytes
     , binaryDataToBytes
@@ -154,16 +155,6 @@ spec = do
     describe "TxOut" $ do
         describe "computeMinimumCoinForTxOut" $ do
             it "isBelowMinimumCoinForTxOut (setCoin (result <> delta)) \
-               \ == False (Alonzo)"
-                $ property $ \out delta perWord -> do
-                    let pp = def { _coinsPerUTxOWord = perWord }
-                    let era = RecentEraAlonzo
-                    let c = delta <> computeMinimumCoinForTxOut era pp out
-                    isBelowMinimumCoinForTxOut era pp
-                        (modifyTxOutCoin era (const c) out)
-                        === False
-
-            it "isBelowMinimumCoinForTxOut (setCoin (result <> delta)) \
                \ == False (Babbage)"
                 $ property $ \out delta perByte -> do
                     let pp = def { _coinsPerUTxOByte = perByte }
@@ -172,6 +163,17 @@ spec = do
                     isBelowMinimumCoinForTxOut era pp
                         (modifyTxOutCoin era (const c) out)
                         === False
+
+            it "isBelowMinimumCoinForTxOut (setCoin (result <> delta)) \
+               \ == False (Conway)"
+                $ property $ \out delta perByte -> do
+                    let pp = def { _coinsPerUTxOByte = perByte }
+                    let era = RecentEraConway
+                    let c = delta <> computeMinimumCoinForTxOut era pp out
+                    isBelowMinimumCoinForTxOut era pp
+                        (modifyTxOutCoin era (const c) out)
+                        === False
+
 
     describe "UTxO" $ do
         it "is isomorphic to Cardano.UTxO (modulo SimpleScriptV1/2)" $ do
@@ -210,6 +212,10 @@ instance Arbitrary (Cardano.UTxO Cardano.BabbageEra) where
 
 instance Arbitrary TxOutInBabbage where
     arbitrary = genTxOut RecentEraBabbage
+
+instance Arbitrary (BabbageTxOut StandardConway) where
+    arbitrary = genTxOut RecentEraConway
+
 
 --------------------------------------------------------------------------------
 -- Helpers

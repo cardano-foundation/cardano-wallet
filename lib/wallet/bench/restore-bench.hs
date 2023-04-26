@@ -1020,7 +1020,7 @@ guardIsRecentEra :: AnyCardanoEra -> IO AnyRecentEra
 guardIsRecentEra (Cardano.AnyCardanoEra era) = case era of
     Cardano.ConwayEra -> pure $ WriteTx.AnyRecentEra WriteTx.RecentEraConway
     Cardano.BabbageEra -> pure $ WriteTx.AnyRecentEra WriteTx.RecentEraBabbage
-    Cardano.AlonzoEra -> pure $ WriteTx.AnyRecentEra WriteTx.RecentEraAlonzo
+    Cardano.AlonzoEra -> invalidEra
     Cardano.MaryEra -> invalidEra
     Cardano.AllegraEra -> invalidEra
     Cardano.ShelleyEra -> invalidEra
