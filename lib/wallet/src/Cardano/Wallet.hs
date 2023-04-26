@@ -614,7 +614,7 @@ import Statistics.Quantile
 import System.Random.StdGenSeed
     ( StdGenSeed (..), stdGenFromSeed, stdGenSeed )
 import UnliftIO.Exception
-    ( Exception, catch, throwIO )
+    ( Exception, catch, evaluate, throwIO )
 import UnliftIO.MVar
     ( modifyMVar_, newMVar )
 
@@ -2943,8 +2943,25 @@ transactionFee DBLayer{atomically, walletsDB} protocolParams txLayer
                     $ ExceptionNoSuchWallet
                     $ ErrNoSuchWallet walletId
                 Just ws -> pure $ WalletState.getLatest ws
-        let utxoIndex = UTxOIndex.fromMap . CS.toInternalUTxOMap $
-                availableUTxO @s mempty wallet
+        utxoIndex <-
+            -- Important:
+            --
+            -- Since it's potentially expensive to construct a UTxO index, we
+            -- really want to avoid constructing the index more than once.
+            --
+            -- In order to avoid accidentally passing an unevaluated thunk to
+            -- the 'calculateFeePercentiles' function (which might lead to
+            -- repeatedly evaluating the index on every iteration of the fee
+            -- calculation loop), we first evaluate the index to WHNF.
+            --
+            -- Evaluating to WHNF should be enough to ensure that the index is
+            -- fully evaluated, as all fields of the 'UTxOIndex' type are
+            -- strict, and each field is defined in terms of 'Data.Map.Strict'.
+            --
+            evaluate
+                $ UTxOIndex.fromMap
+                $ CS.toInternalUTxOMap
+                $ availableUTxO @s mempty wallet
         unsignedTxBody <- wrapErrMkTransaction $
             mkUnsignedTransaction txLayer @era
                 (Left $ unsafeShelleyOnlyGetRewardXPub @s @k @n (getState wallet))
