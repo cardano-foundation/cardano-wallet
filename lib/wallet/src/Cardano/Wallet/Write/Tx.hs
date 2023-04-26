@@ -67,6 +67,8 @@ module Cardano.Wallet.Write.Tx
 
     -- * PParams
     , Core.PParams
+    , FeePerByte (..)
+    , feePerByte
 
     -- * Tx
     , Core.Tx
@@ -272,6 +274,7 @@ type RecentEraLedgerConstraints era =
     , Babbage.ShelleyEraTxBody era
     , HasField' "_collateralPercentage" (Core.PParams era) Natural
     , HasField' "_maxCollateralInputs" (Core.PParams era) Natural
+    , HasField' "_minfeeA" (Core.PParams era) Natural
     )
 
 -- | Bring useful constraints into scope from a value-level
@@ -845,6 +848,21 @@ toCardanoValue
 toCardanoValue = withConstraints (recentEra @era) Cardano.fromMaryValue
 
 --------------------------------------------------------------------------------
+-- PParams
+--------------------------------------------------------------------------------
+
+newtype FeePerByte = FeePerByte Natural
+    deriving (Show, Eq)
+
+feePerByte
+    :: RecentEra era
+    -> Core.PParams (Cardano.ShelleyLedgerEra era)
+    -> FeePerByte
+feePerByte era pp = FeePerByte $ case era of
+    RecentEraConway -> pp ^. #_minfeeA
+    RecentEraBabbage -> pp ^. #_minfeeA
+
+--------------------------------------------------------------------------------
 -- Balancing
 --------------------------------------------------------------------------------
 
@@ -865,9 +883,11 @@ evaluateMinimumFee era pp tx kwc =
     mainFee = withConstraints era $
         Shelley.evaluateTransactionFee pp tx nKeyWits
 
+    FeePerByte feePerByte' = feePerByte era pp
+
     bootWitnessFee :: Coin
     bootWitnessFee = Coin $
-        intCast $ feePerByte * byteCount
+        intCast $ feePerByte' * byteCount
       where
         byteCount :: Natural
         byteCount = sizeOf_BootstrapWitnesses $ intCast nBootstrapWits
@@ -877,11 +897,6 @@ evaluateMinimumFee era pp tx kwc =
         sizeOf_BootstrapWitnesses :: Natural -> Natural
         sizeOf_BootstrapWitnesses 0 = 0
         sizeOf_BootstrapWitnesses n = 4 + 180 * n
-
-        feePerByte :: Natural
-        feePerByte = case era of
-            RecentEraConway -> pp ^. #_minfeeA
-            RecentEraBabbage -> pp ^. #_minfeeA
 
 -- | Evaluate the /balance/ of a transaction using the ledger.
 --

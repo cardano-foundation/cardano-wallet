@@ -227,7 +227,8 @@ import Cardano.Wallet.Transaction
 import Cardano.Wallet.Util
     ( HasCallStack, internalError, modifyM )
 import Cardano.Wallet.Write.Tx
-    ( IsRecentEra (recentEra)
+    ( FeePerByte (..)
+    , IsRecentEra (recentEra)
     , KeyWitnessCount (..)
     , RecentEra (..)
     , fromCardanoUTxO
@@ -1622,6 +1623,7 @@ estimateTxCost era pp skeleton =
         let LinearFee LinearFunction {..} = getFeePolicy $ txParameters pp
         in Coin $ ceiling $ intercept + slope * fromIntegral size
 
+
 -- | Calculate the cost of increasing a CBOR-encoded Coin-value by another Coin
 -- with the lovelace/byte cost given by the 'FeePolicy'.
 --
@@ -1635,22 +1637,19 @@ estimateTxCost era pp skeleton =
 -- >>> costOfIncreasingCoin p 0 4294967296
 -- Coin 352 -- 8 bytes * 44 lovelace/byte
 costOfIncreasingCoin
-    :: FeePolicy
+    :: FeePerByte
     -> Coin -- ^ Original coin
     -> Coin -- ^ Increment
     -> Coin
-costOfIncreasingCoin (LinearFee fee) from delta =
+costOfIncreasingCoin (FeePerByte perByte) from delta =
     costOfCoin (from <> delta) `Coin.difference` costOfCoin from
   where
-    perByte = ceiling $ slope fee
     costOfCoin = Coin . (perByte *) . unTxSize . sizeOfCoin
 
 -- The maximum cost increase 'costOfIncreasingCoin' can return, which is the
 -- cost of 8 bytes.
-maximumCostOfIncreasingCoin :: FeePolicy -> Coin
-maximumCostOfIncreasingCoin (LinearFee fee) = Coin $ ceiling $ 8 * perByte
-  where
-    perByte = slope fee
+maximumCostOfIncreasingCoin :: FeePerByte -> Coin
+maximumCostOfIncreasingCoin (FeePerByte perByte) = Coin $ 8 * perByte
 
 -- | Calculate the size of a coin when encoded as CBOR.
 sizeOfCoin :: Coin -> TxSize
@@ -1691,7 +1690,7 @@ sizeOfCoin (Coin c)
 -- @maximumCostOfIncreasingCoin feePolicy@, the function will always
 -- return 'Right'.
 distributeSurplus
-    :: FeePolicy
+    :: FeePerByte
     -> Coin
     -- ^ Surplus transaction balance to distribute.
     -> TxFeeAndChange [TxOut]
@@ -1706,7 +1705,7 @@ distributeSurplus feePolicy surplus fc@(TxFeeAndChange fee change) =
         (zipWith (flip TxOut.addCoin) change)
 
 distributeSurplusDelta
-    :: FeePolicy
+    :: FeePerByte
     -> Coin
     -- ^ Surplus to distribute
     -> TxFeeAndChange [Coin]
@@ -1725,7 +1724,7 @@ distributeSurplusDelta feePolicy surplus (TxFeeAndChange fee change) =
                 (\() -> [])
 
 distributeSurplusDeltaWithOneChangeCoin
-    :: FeePolicy
+    :: FeePerByte
     -> Coin -- ^ Surplus to distribute
     -> TxFeeAndChange Coin
     -> Either ErrMoreSurplusNeeded (TxFeeAndChange Coin)
@@ -1797,7 +1796,7 @@ distributeSurplusDeltaWithOneChangeCoin
             (costOfIncreasingCoin feePolicy (c <> fee0) increase)
 
 burnSurplusAsFees
-    :: FeePolicy
+    :: FeePerByte
     -> Coin -- Surplus
     -> TxFeeAndChange ()
     -> Either ErrMoreSurplusNeeded (TxFeeAndChange ())
