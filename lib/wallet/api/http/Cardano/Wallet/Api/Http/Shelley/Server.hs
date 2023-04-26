@@ -2872,6 +2872,13 @@ constructSharedTransaction
         AnyRecentEra (_recentEra :: Write.RecentEra era)
             <- guardIsRecentEra era
         (cp, _, _) <- handler $ W.readWallet wrk
+
+        withdrawal <- case body ^. #withdrawal of
+            Just SelfWithdraw -> liftIO $
+                W.mkSelfWithdrawalShared @_ @_ @n
+                    netLayer txLayer era db wid
+            _ -> pure NoWithdrawal
+
         let delegationTemplateM = Shared.delegationTemplate $ getState cp
         when (isNothing delegationTemplateM && isJust delegationRequest) $
             liftHandler $ throwE ErrConstructTxDelegationInvalid
