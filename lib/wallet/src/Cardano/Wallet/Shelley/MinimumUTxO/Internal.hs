@@ -116,10 +116,10 @@ computeMinimumCoinForUTxO_CardanoLedger
                     $ toMaryTxOut txOut
             Cardano.ShelleyBasedEraAlonzo ->
                 evaluateMinLovelaceOutput pp
-                    $ toAlonzoTxOut txOut Nothing
+                    $ toAlonzoTxOut txOut
             Cardano.ShelleyBasedEraBabbage ->
                 evaluateMinLovelaceOutput pp
-                    $ toBabbageTxOut txOut Nothing
+                    $ toBabbageTxOut txOut
             Cardano.ShelleyBasedEraConway ->
                 evaluateMinLovelaceOutput pp
-                    $ toConwayTxOut txOut Nothing
+                    $ toConwayTxOut txOut

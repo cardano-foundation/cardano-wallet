@@ -53,10 +53,7 @@ import Cardano.Api
     , TxOutValue (TxOutAdaOnly, TxOutValue)
     )
 import Cardano.Api.Extra
-    ( asAnyShelleyBasedEra
-    , unbundleLedgerShelleyBasedProtocolParams
-    , withShelleyBasedTx
-    )
+    ( unbundleLedgerShelleyBasedProtocolParams )
 import Cardano.Api.Gen
     ( genAddressByron
     , genAddressInEra
@@ -2683,7 +2680,7 @@ balanceTransactionSpec = describe "balanceTransaction" $ do
         WriteTx.isBelowMinimumCoinForTxOut era pp (head outs)
             `shouldBe` False
 
-        head outs `shouldBe` (toBabbageTxOut out' Nothing)
+        head outs `shouldBe` (toBabbageTxOut out')
     describe "effect of txMaxSize on coin selection" $ do
 
         let balanceWithDust = balanceTx
@@ -4542,10 +4539,10 @@ updateTxSpec = do
         describe "no existing key witnesses" $ do
             txs <- readTestTransactions
             forM_ txs $ \(filepath, sealedTx) -> do
-                let anyShelleyEraTx
-                        = fromJust $ asAnyShelleyBasedEra $ cardanoTx sealedTx
+                let anyRecentEraTx
+                        = fromJust $ WriteTx.asAnyRecentEra $ cardanoTx sealedTx
                 it ("without TxUpdate: " <> filepath) $ do
-                    withShelleyBasedTx anyShelleyEraTx $ \tx ->
+                    WriteTx.withInAnyRecentEra anyRecentEraTx $ \tx ->
                         case updateTx tx noTxUpdate of
                             Left e ->
                                 expectationFailure $
@@ -4576,7 +4573,7 @@ updateTxSpec = do
                                       `shouldBe` Cardano.serialiseToCBOR tx'
 
                 prop ("with TxUpdate: " <> filepath) $
-                    prop_updateTx anyShelleyEraTx
+                    prop_updateTx anyRecentEraTx
 
         describe "existing key witnesses" $ do
 
@@ -4603,14 +4600,14 @@ unsafeSealedTxFromHex =
     isNewlineChar c = c `elem` [10,13]
 
 prop_updateTx
-    :: Cardano.InAnyShelleyBasedEra Cardano.Tx
+    :: WriteTx.InAnyRecentEra Cardano.Tx
     -> [(TxIn, TxOut)]
     -> [TxIn]
     -> [TxOut]
     -> Coin
     -> Property
 prop_updateTx
-    (Cardano.InAnyShelleyBasedEra era tx)
+    (WriteTx.InAnyRecentEra _era tx)
     extraIns extraCol extraOuts newFee =
     do
         let extra = TxUpdate extraIns extraCol extraOuts [] (UseNewTxFee newFee)
@@ -4620,17 +4617,9 @@ prop_updateTx
             [ inputs tx' === inputs tx <> Set.fromList (fst <$> extraIns)
             , outputs tx' === outputs tx <> Set.fromList extraOuts
             , sealedFee tx' === Just newFee
-            , collateralIns tx' ===
-                if isAlonzoOrLater era
-                then collateralIns tx <> Set.fromList extraCol
-                else mempty
+            , collateralIns tx' === collateralIns tx <> Set.fromList extraCol
             ]
   where
-    -- No 'Ord' on 'AnyCardanoEra'
-    isAlonzoOrLater Cardano.ShelleyBasedEraAlonzo  = True
-    isAlonzoOrLater Cardano.ShelleyBasedEraBabbage = True
-    isAlonzoOrLater _                              = False
-
     inputs = sealedInputs . sealedTxFromCardano'
     outputs = sealedOutputs . sealedTxFromCardano'
     collateralIns = sealedCollateralInputs . sealedTxFromCardano'
@@ -4815,7 +4804,7 @@ paymentPartialTx txouts = PartialTx (Cardano.Tx body []) mempty []
         { Babbage.inputs = mempty
         , Babbage.collateral = mempty
         , Babbage.outputs = StrictSeq.fromList $
-            map (Ledger.mkSized . (`toBabbageTxOut` Nothing)) txouts
+            map (Ledger.mkSized . toBabbageTxOut) txouts
         , Babbage.txcerts = mempty
         , Babbage.txwdrls = Wdrl mempty
         , Babbage.txfee = mempty
