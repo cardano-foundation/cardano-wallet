@@ -293,6 +293,7 @@ import Cardano.Wallet.Write.Tx
     ( AnyRecentEra (..)
     , RecentEra (..)
     , cardanoEraFromRecentEra
+    , recentEra
     , shelleyBasedEraFromRecentEra
     )
 import Cardano.Wallet.Write.Tx.Balance
@@ -343,7 +344,7 @@ import Data.Function
 import Data.Functor.Identity
     ( Identity )
 import Data.Generics.Internal.VL.Lens
-    ( over, view, (^.) )
+    ( over, view )
 import Data.Generics.Product
     ( setField )
 import Data.IntCast
@@ -579,8 +580,8 @@ spec_forAllRecentEras description p =
         $ property
         $ p (AnyCardanoEra era)
   where
-    forAllRecentEras' f = forAllRecentEras $ \(AnyRecentEra recentEra) ->
-        f $ AnyCardanoEra $ WriteTx.cardanoEraFromRecentEra recentEra
+    forAllRecentEras' f = forAllRecentEras $ \(AnyRecentEra era) ->
+        f $ AnyCardanoEra $ WriteTx.cardanoEraFromRecentEra era
 
 spec_forAllEras
     :: Testable prop => String -> (AnyCardanoEra -> prop) -> Spec
@@ -4394,7 +4395,7 @@ prop_bootstrapWitnesses
   where
     emptyCardanoTxBody = body
       where
-        Cardano.Tx body _ = WriteTx.toCardanoTx @era $ WriteTx.emptyTx era
+        Cardano.Tx body _ = WriteTx.toCardanoTx $ WriteTx.emptyTx era
 
     rootK = Byron.generateKeyFromSeed dummyMnemonic mempty
     pwd = mempty
@@ -4653,22 +4654,17 @@ estimateSignedTxSizeSpec = describe "estimateSignedTxSize" $ do
             utxo = utxoPromisingInputsHaveVkPaymentCreds body
             witCount = estimateKeyWitnessCount utxo body
 
-            ledgerTx = WriteTx.fromCardanoTx tx
+            ledgerTx :: WriteTx.Tx (WriteTx.ShelleyLedgerEra era)
+            ledgerTx = WriteTx.fromCardanoTx @era tx
 
-            noScripts = case (WriteTx.recentEra @era) of
-                RecentEraAlonzo -> Map.null $ ledgerTx ^.
-                    (Alonzo.witsAlonzoTxL . Alonzo.scriptAlonzoWitsL)
-                RecentEraBabbage -> Map.null $ ledgerTx ^.
-                    (Alonzo.witsAlonzoTxL . Alonzo.scriptAlonzoWitsL)
-                RecentEraConway -> Map.null $ ledgerTx ^.
-                    (Alonzo.witsAlonzoTxL . Alonzo.scriptAlonzoWitsL)
-            noBootWits = case WriteTx.recentEra @era of
-                RecentEraAlonzo -> Set.null $ ledgerTx ^.
-                    (Alonzo.witsAlonzoTxL . Alonzo.bootAddrAlonzoWitsL)
-                RecentEraBabbage -> Set.null $ ledgerTx ^.
-                    (Alonzo.witsAlonzoTxL . Alonzo.bootAddrAlonzoWitsL)
-                RecentEraConway -> Set.null $ ledgerTx ^.
-                    (Alonzo.witsAlonzoTxL . Alonzo.bootAddrAlonzoWitsL)
+            noScripts = WriteTx.withConstraints (recentEra @era) $ Map.null $
+                view
+                (Alonzo.witsAlonzoTxL . Alonzo.scriptAlonzoWitsL)
+                ledgerTx
+            noBootWits = WriteTx.withConstraints (recentEra @era) $ Set.null $
+                view
+                (Alonzo.witsAlonzoTxL . Alonzo.bootAddrAlonzoWitsL)
+                ledgerTx
 
             testDoesNotYetSupport x = pendingWith $
                     "Test setup does not work for txs with " <> x

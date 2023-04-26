@@ -2917,6 +2917,7 @@ delegationFee db@DBLayer{..} netLayer txLayer timeTranslation era
                 True -> Coin 0
         pure DelegationFee { feePercentiles, deposit }
   where
+    throwInIO :: ExceptT ErrNoSuchWallet IO a -> IO a
     throwInIO = runExceptT >=> either (throwIO . ExceptionNoSuchWallet) pure
 
 transactionFee
