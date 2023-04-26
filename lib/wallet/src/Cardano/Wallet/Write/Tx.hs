@@ -253,7 +253,16 @@ data RecentEra era where
 deriving instance Eq (RecentEra era)
 deriving instance Show (RecentEra era)
 
+class
+    ( Cardano.IsShelleyBasedEra era
+    , Typeable era
+    ) => IsRecentEra era where
+    recentEra :: RecentEra era
+
 -- | Convenient constraints. Constraints may be dropped as we move to new eras.
+--
+-- Adding too many constraints shouldn't be a concern as the point of 'RecentEra'
+-- is to work with a small closed set of eras, anyway.
 type RecentEraLedgerConstraints era =
     ( Core.Era era
     , Core.Script era ~ AlonzoScript era
@@ -264,11 +273,21 @@ type RecentEraLedgerConstraints era =
     , Babbage.ShelleyEraTxBody era
     )
 
-class
-    ( Cardano.IsShelleyBasedEra era
-    , Typeable era
-    ) => IsRecentEra era where
-    recentEra :: RecentEra era
+-- | Bring useful constraints into scope from a value-level
+-- 'RecentEra'.
+--
+-- TODO [ADP-2354] Make 'RecentEraLedgerConstraints' superclass of
+-- 'IsRecentEra'. Currently this would cause weird type-inference errors in the
+-- wallet code specifically with GHC 8.10.
+-- https://input-output.atlassian.net/browse/ADP-2353
+withConstraints
+    :: RecentEra era
+    -> ((RecentEraLedgerConstraints (ShelleyLedgerEra era)) => a)
+    -> a
+withConstraints era a = case era of
+    RecentEraAlonzo -> a
+    RecentEraBabbage -> a
+    RecentEraConway -> a
 
 -- | Return a proof that the wallet can create txs in this era, or @Nothing@.
 toRecentEra :: Cardano.CardanoEra era -> Maybe (RecentEra era)
@@ -944,18 +963,3 @@ evaluateTransactionBalance era pp utxo = withConstraints era $
         -- Pass this parameter in as a function instead of hard-coding the
         -- value here:
         const True
-
---------------------------------------------------------------------------------
--- Module-internal helpers
---------------------------------------------------------------------------------
-
--- | Bring constraints related to 'IsRecentEra' into scope from a value-level
--- 'RecentEra'.
-withConstraints
-    :: RecentEra era
-    -> ((IsRecentEra era, RecentEraLedgerConstraints (ShelleyLedgerEra era)) => a)
-    -> a
-withConstraints era a = case era of
-    RecentEraAlonzo -> a
-    RecentEraBabbage -> a
-    RecentEraConway -> a
