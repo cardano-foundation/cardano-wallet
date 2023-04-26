@@ -104,7 +104,7 @@ import Test.QuickCheck.Monadic
 import qualified Data.List as L
 
 -- | How to boot a fresh database.
-type WithFreshDB s
+type WithDBFresh s
     = WalletId
     -> (DBLayer IO s ShelleyKey -> PropertyM IO ())
     -> PropertyM IO ()
@@ -112,7 +112,7 @@ type WithFreshDB s
 withFreshWallet
     :: GenState s
     => WalletId
-    -> WithFreshDB s
+    -> WithDBFresh s
     -> (DBLayer IO s ShelleyKey -> WalletId -> PropertyM IO ())
     -> PropertyM IO ()
 withFreshWallet wid withFreshDB f = do
@@ -138,7 +138,7 @@ testWid = WalletId (hash ("test" :: ByteString))
 -- | Wallet properties.
 properties
     :: GenState s
-    => WithFreshDB s
+    => WithDBFresh s
     -> SpecWith ()
 properties withFreshDB = describe "DB.Properties" $ do
     let testOnLayer = monadicIO . withFreshWallet testWid withFreshDB
@@ -350,7 +350,7 @@ assertWith lbl condition = do
 
 -- | Trying to create a same wallet twice should yield an error
 prop_createWalletTwice
-    :: WithFreshDB s
+    :: WithDBFresh s
     -> ( WalletId
        , InitialCheckpoint s
        , WalletMetadata
@@ -435,7 +435,7 @@ prop_getTxAfterPutInvalidTxId test txGen txId' = test $ \DBLayer {..} _ -> do
 -- | Can't put resource before a wallet has been initialized
 prop_putBeforeInit
     :: (Buildable (f a), Eq (f a))
-    => WithFreshDB s
+    => WithDBFresh s
     -> ( DBLayer IO s ShelleyKey
          -> WalletId
          -> a
@@ -547,7 +547,7 @@ prop_sequentialPut test putOp readOp resolve as =
 prop_rollbackCheckpoint
     :: forall s
      . GenState s
-    => WithFreshDB s
+    => WithDBFresh s
     -> InitialCheckpoint s
     -> MockChain
     -> Property
@@ -590,7 +590,7 @@ prop_rollbackCheckpoint test (InitialCheckpoint cp0) (MockChain chain) = monadic
 -- if there is a rollback to genesis.
 prop_rollbackTxHistory
     :: forall s
-     . WithFreshDB s
+     . WithDBFresh s
     -> InitialCheckpoint s
     -> GenTxHistory
     -> Property
