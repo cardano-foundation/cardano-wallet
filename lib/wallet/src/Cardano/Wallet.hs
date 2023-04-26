@@ -614,7 +614,7 @@ import Statistics.Quantile
 import System.Random.StdGenSeed
     ( StdGenSeed (..), stdGenFromSeed, stdGenSeed )
 import UnliftIO.Exception
-    ( Exception, catch, throwIO )
+    ( Exception, catch, evaluate, throwIO )
 import UnliftIO.MVar
     ( modifyMVar_, newMVar )
 
@@ -2943,8 +2943,10 @@ transactionFee DBLayer{atomically, walletsDB} protocolParams txLayer
                     $ ExceptionNoSuchWallet
                     $ ErrNoSuchWallet walletId
                 Just ws -> pure $ WalletState.getLatest ws
-        let utxoIndex = UTxOIndex.fromMap . CS.toInternalUTxOMap $
-                availableUTxO @s mempty wallet
+        utxoIndex <- evaluate
+            $ UTxOIndex.fromMap
+            $ CS.toInternalUTxOMap
+            $ availableUTxO @s mempty wallet
         unsignedTxBody <- wrapErrMkTransaction $
             mkUnsignedTransaction txLayer @era
                 (Left $ unsafeShelleyOnlyGetRewardXPub @s @k @n (getState wallet))
