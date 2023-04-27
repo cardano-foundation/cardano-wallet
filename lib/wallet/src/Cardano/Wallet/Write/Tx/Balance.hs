@@ -321,16 +321,18 @@ data UTxOAssumptions = forall k ktype. UTxOAssumptions
         :: Maybe ScriptTemplate
     }
 
-data UTxOIndex = UTxOIndex
+data UTxOIndex era = UTxOIndex
     { walletUTxO :: !W.UTxO
     , walletUTxOIndex :: !(UTxOIndex.UTxOIndex WalletUTxO)
+    , cardanoUTxO :: !(Cardano.UTxO era)
     }
 
-constructUTxOIndex :: W.UTxO -> UTxOIndex
+constructUTxOIndex :: IsRecentEra era => W.UTxO -> UTxOIndex era
 constructUTxOIndex walletUTxO =
-    UTxOIndex {walletUTxO, walletUTxOIndex}
+    UTxOIndex {walletUTxO, walletUTxOIndex, cardanoUTxO}
   where
     walletUTxOIndex = UTxOIndex.fromMap $ toInternalUTxOMap walletUTxO
+    cardanoUTxO = toCardanoUTxO Cardano.shelleyBasedEra walletUTxO
 
 -- | Assumes all 'UTxO' entries have addresses with key payment credentials;
 -- either normal, post-Shelley credentials, or boostrap/byron credentials
@@ -384,7 +386,7 @@ balanceTransaction
     -- It is unclear whether an incorrect value could cause collateral to be
     -- forfeited. We should ideally investigate and clarify as part of ADP-1544
     -- or similar ticket. Relevant ledger code: https://github.com/input-output-hk/cardano-ledger/blob/fdec04e8c071060a003263cdcb37e7319fb4dbf3/eras/alonzo/impl/src/Cardano/Ledger/Alonzo/TxInfo.hs#L428-L440
-    -> UTxOIndex
+    -> UTxOIndex era
     -- ^ TODO [ADP-1789] Replace with @Cardano.UTxO@
     -> ChangeAddressGen changeState
     -> changeState
@@ -481,7 +483,7 @@ balanceTransactionWithSelectionStrategyAndNoZeroAdaAdjustment
     -> UTxOAssumptions
     -> ProtocolParameters era
     -> TimeTranslation
-    -> UTxOIndex
+    -> UTxOIndex era
     -> ChangeAddressGen changeState
     -> changeState
     -> SelectionStrategy
@@ -495,7 +497,7 @@ balanceTransactionWithSelectionStrategyAndNoZeroAdaAdjustment
         mScriptTemplate)
     (ProtocolParameters pp ledgerPP)
     timeTranslation
-    (UTxOIndex walletUTxO internalUtxoAvailable)
+    (UTxOIndex walletUTxO internalUtxoAvailable cardanoUTxO)
     genChange
     s
     selectionStrategy
@@ -765,7 +767,7 @@ balanceTransactionWithSelectionStrategyAndNoZeroAdaAdjustment
          -- UTxO set. (Whether or not this is a sane thing for the user to do,
          -- is another question.)
          [ unUTxO inputUTxO
-         , unUTxO $ toCardanoUTxO Cardano.shelleyBasedEra walletUTxO
+         , unUTxO cardanoUTxO
          ]
 
       where
