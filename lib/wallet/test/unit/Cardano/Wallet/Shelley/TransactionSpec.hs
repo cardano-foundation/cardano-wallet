@@ -79,7 +79,7 @@ import Cardano.BM.Data.Tracer
 import Cardano.Ledger.Alonzo.Genesis
     ( AlonzoGenesis (costmdls) )
 import Cardano.Ledger.Alonzo.TxInfo
-    ( TranslationError (..) )
+    ( TranslationError (..), TxOutSource (TxOutFromOutput) )
 import Cardano.Ledger.Era
     ( Era )
 import Cardano.Ledger.Shelley.API
@@ -4082,6 +4082,11 @@ prop_balanceTransactionValid wallet@(Wallet' _ walletUTxO _) (ShowBuildable part
                         ]
                 in
                     counterexample counterexampleText $ property False
+            Left
+                (ErrBalanceTxAssignRedeemers
+                (ErrAssignRedeemersTranslationError
+                (ByronTxOutInContext (TxOutFromOutput _)))) ->
+                label "ErrByronTxOutInContext" $ property True
             Left
                 (ErrBalanceTxSelectAssets
                 (ErrSelectAssetsSelectionError
