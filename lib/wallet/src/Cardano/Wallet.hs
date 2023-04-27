@@ -496,7 +496,7 @@ import Cardano.Wallet.Write.Tx.Balance
     , PartialTx (..)
     , assignChangeAddresses
     , balanceTransaction
-    , constructUTxOIndexForBalanceTx
+    , constructUTxOIndex
     )
 import Cardano.Wallet.Write.Tx.TimeTranslation
     ( TimeTranslation )
@@ -2279,7 +2279,7 @@ buildTransactionPure
             (Write.allKeyPaymentCredentials txLayer)
             pparams
             timeTranslation
-            (constructUTxOIndexForBalanceTx utxo)
+            (constructUTxOIndex utxo)
             changeAddrGen
             (getState wallet)
             PartialTx
@@ -2950,9 +2950,7 @@ transactionFee DBLayer{atomically, walletsDB} protocolParams txLayer
             -- fully evaluated, as all fields of the 'UTxOIndex' type are
             -- strict, and each field is defined in terms of 'Data.Map.Strict'.
             --
-            evaluate
-                $ constructUTxOIndexForBalanceTx
-                $ availableUTxO @s mempty wallet
+            evaluate $ constructUTxOIndex $ availableUTxO @s mempty wallet
         unsignedTxBody <- wrapErrMkTransaction $
             mkUnsignedTransaction txLayer @era
                 (Left $ unsafeShelleyOnlyGetRewardXPub @s @k @n (getState wallet))

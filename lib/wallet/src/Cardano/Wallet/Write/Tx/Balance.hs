@@ -321,14 +321,14 @@ data UTxOAssumptions = forall k ktype. UTxOAssumptions
         :: Maybe ScriptTemplate
     }
 
-data UTxOIndexForBalanceTx = UTxOIndexForBalanceTx
+data UTxOIndex = UTxOIndex
     { walletUTxO :: !W.UTxO
     , walletUTxOIndex :: !(UTxOIndex.UTxOIndex WalletUTxO)
     }
 
-constructUTxOIndexForBalanceTx :: W.UTxO -> UTxOIndexForBalanceTx
-constructUTxOIndexForBalanceTx walletUTxO =
-    UTxOIndexForBalanceTx {walletUTxO, walletUTxOIndex}
+constructUTxOIndex :: W.UTxO -> UTxOIndex
+constructUTxOIndex walletUTxO =
+    UTxOIndex {walletUTxO, walletUTxOIndex}
   where
     walletUTxOIndex = UTxOIndex.fromMap $ toInternalUTxOMap walletUTxO
 
@@ -384,7 +384,7 @@ balanceTransaction
     -- It is unclear whether an incorrect value could cause collateral to be
     -- forfeited. We should ideally investigate and clarify as part of ADP-1544
     -- or similar ticket. Relevant ledger code: https://github.com/input-output-hk/cardano-ledger/blob/fdec04e8c071060a003263cdcb37e7319fb4dbf3/eras/alonzo/impl/src/Cardano/Ledger/Alonzo/TxInfo.hs#L428-L440
-    -> UTxOIndexForBalanceTx
+    -> UTxOIndex
     -- ^ TODO [ADP-1789] Replace with @Cardano.UTxO@
     -> ChangeAddressGen changeState
     -> changeState
@@ -481,7 +481,7 @@ balanceTransactionWithSelectionStrategyAndNoZeroAdaAdjustment
     -> UTxOAssumptions
     -> ProtocolParameters era
     -> TimeTranslation
-    -> UTxOIndexForBalanceTx
+    -> UTxOIndex
     -> ChangeAddressGen changeState
     -> changeState
     -> SelectionStrategy
@@ -495,7 +495,7 @@ balanceTransactionWithSelectionStrategyAndNoZeroAdaAdjustment
         mScriptTemplate)
     (ProtocolParameters pp ledgerPP)
     timeTranslation
-    (UTxOIndexForBalanceTx walletUTxO internalUtxoAvailable)
+    (UTxOIndex walletUTxO internalUtxoAvailable)
     genChange
     s
     selectionStrategy
