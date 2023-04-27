@@ -62,6 +62,7 @@ module Cardano.Wallet.Shelley.Transaction
     , _decodeSealedTx
     , _estimateMaxNumberOfInputs
     , mkDelegationCertificates
+    , calculateMinimumFee
     , estimateTxCost
     , estimateTxSize
     , mkByronWitness
@@ -719,11 +720,6 @@ newTransactionLayer networkId = TransactionLayer
                     selection delta assetsToBeMinted assetsToBeBurned inpsScripts
                     stakingScriptM
                     (WriteTx.shelleyBasedEraFromRecentEra WriteTx.recentEra)
-
-    , calcMinimumCost = \era pp ctx skeleton ->
-        estimateTxCost era pp (mkTxSkeleton (txWitnessTagFor @k) ctx skeleton)
-        <>
-        txFeePadding ctx
 
     , computeSelectionLimit = \era pp ctx outputsToCover ->
         let txMaxSize = getTxMaxSize $ txParameters pp in
@@ -1605,6 +1601,25 @@ estimateTxCost era pp skeleton =
     computeFee (TxSize size) =
         let LinearFee LinearFunction {..} = getFeePolicy $ txParameters pp
         in Coin $ ceiling $ intercept + slope * fromIntegral size
+
+
+-- | Calculates a minimal fee amount necessary to pay for a given selection
+-- including necessary deposits.
+calculateMinimumFee
+    :: AnyCardanoEra
+    -- ^ Era for which the transaction should be created.
+    -> ProtocolParameters
+    -- ^ Current protocol parameters
+    -> TxWitnessTag
+    -- ^ Witness tag
+    -> TransactionCtx
+    -- ^ Additional information about the transaction
+    -> SelectionSkeleton
+    -- ^ An intermediate representation of an ongoing selection
+    -> Coin
+calculateMinimumFee era pp witnessTag ctx skeleton =
+    estimateTxCost era pp (mkTxSkeleton witnessTag ctx skeleton)
+        <> txFeePadding ctx
 
 -- | Calculate the cost of increasing a CBOR-encoded Coin-value by another Coin
 -- with the lovelace/byte cost given by the 'FeePolicy'.

@@ -246,7 +246,8 @@ import Cardano.Wallet.Shelley.Transaction
     , TxSkeleton (..)
     , TxUpdate (..)
     , TxWitnessTag (..)
-    , TxWitnessTagFor
+    , TxWitnessTagFor (txWitnessTagFor)
+    , calculateMinimumFee
     , costOfIncreasingCoin
     , distributeSurplus
     , distributeSurplusDelta
@@ -338,6 +339,8 @@ import Data.Either
     ( isLeft, isRight )
 import Data.Function
     ( on, (&) )
+import Data.Functor
+    ( (<&>) )
 import Data.Functor.Identity
     ( Identity )
 import Data.Generics.Internal.VL.Lens
@@ -1535,8 +1538,10 @@ feeCalculationSpec era = describe "fee calculations" $ do
             }
 
     minFee :: TransactionCtx -> Integer
-    minFee ctx = Coin.toInteger $ calcMinimumCost testTxLayer era pp ctx sel
-      where sel = emptySkeleton
+    minFee ctx =
+        Coin.toInteger $ calculateMinimumFee era pp witnessTag ctx emptySkeleton
+      where
+        witnessTag = txWitnessTagFor @ShelleyKey
 
     minFeeSkeleton :: TxSkeleton -> Integer
     minFeeSkeleton = Coin.toInteger . estimateTxCost era pp
@@ -2536,7 +2541,8 @@ balanceTransactionSpec = describe "balanceTransaction" $ do
     describe "change address generation" $ do
         let balance' =
                 balanceTransactionWithDummyChangeState
-                    (allKeyPaymentCredentials testTxLayer)
+                    (allKeyPaymentCredentials testTxLayer
+                        (txWitnessTagFor @ShelleyKey))
                     dustUTxO
                     testStdGenSeed
 
@@ -3222,16 +3228,12 @@ data Wallet' = Wallet'
     deriving Show via (ShowBuildable Wallet')
 
 instance Buildable UTxOAssumptions where
-    build (UTxOAssumptions _tl _scriptLookup scriptTemplate) =
-        blockListF
-            [ nameF "scriptTemplate" $ build scriptTemplate
-            ]
+    build (UTxOAssumptions _tl _scriptLookup scriptTemplate _txWitnessTag) =
+        blockListF [ nameF "scriptTemplate" $ build scriptTemplate ]
 
 instance Buildable AnyChangeAddressGenWithState where
-    build (AnyChangeAddressGenWithState
-            (ChangeAddressGen g maxLengthAddr)
-            s0)
-        = blockListF
+    build (AnyChangeAddressGenWithState (ChangeAddressGen g maxLengthAddr) s0) =
+        blockListF
             [ nameF "changeAddr0" $
                 build $ show $ toLedger $ fst $ g s0
             , nameF "max address length" $
@@ -3248,13 +3250,15 @@ instance Buildable Wallet' where
 
 instance Arbitrary Wallet' where
     arbitrary = oneof
-        [ Wallet' allShelleyPaymentKeyCredentials
-            <$> (genWalletUTxO genShelleyVkAddr)
-            <*> (pure dummyShelleyChangeAddressGen)
+        [ genWalletUTxO genShelleyVkAddr <&> \utxo -> Wallet'
+            (allShelleyPaymentKeyCredentials (txWitnessTagFor @ShelleyKey))
+            utxo
+            dummyShelleyChangeAddressGen
 
-        , Wallet' allByronPaymentKeyCredentials
-            <$> (genWalletUTxO genByronVkAddr)
-            <*> (pure dummyByronChangeAddressGen)
+        , genWalletUTxO genByronVkAddr <&> \utxo -> Wallet'
+            (allByronPaymentKeyCredentials (txWitnessTagFor @ByronKey))
+            utxo
+            dummyByronChangeAddressGen
         ]
       where
         allShelleyPaymentKeyCredentials = allKeyPaymentCredentials tl
@@ -3311,7 +3315,9 @@ instance Arbitrary Wallet' where
 
 mkTestWallet :: UTxO -> Wallet'
 mkTestWallet utxo = Wallet'
-    (allKeyPaymentCredentials $ newTransactionLayer @ShelleyKey Cardano.Mainnet)
+    (allKeyPaymentCredentials
+        (newTransactionLayer @ShelleyKey Cardano.Mainnet)
+        (txWitnessTagFor @ShelleyKey))
     utxo
     dummyShelleyChangeAddressGen
 

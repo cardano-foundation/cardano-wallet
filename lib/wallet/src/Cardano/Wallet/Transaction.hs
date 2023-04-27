@@ -79,7 +79,6 @@ import Cardano.Tx.Balance.Internal.CoinSelection
     , SelectionLimit
     , SelectionOf (..)
     , SelectionOutputTokenQuantityExceedsLimitError
-    , SelectionSkeleton
     , WalletSelectionContext
     )
 import Cardano.Wallet.Address.Derivation
@@ -207,19 +206,6 @@ data TransactionLayer k ktype tx = TransactionLayer
         -- multisignature transactions, etc.
         --
         -- The function returns CBOR-ed transaction body to be signed in another step.
-
-    , calcMinimumCost
-        :: AnyCardanoEra
-            -- Era for which the transaction should be created.
-        -> ProtocolParameters
-            -- Current protocol parameters
-        -> TransactionCtx
-            -- Additional information about the transaction
-        -> SelectionSkeleton
-            -- An intermediate representation of an ongoing selection
-        -> Coin
-        -- ^ Compute a minimal fee amount necessary to pay for a given selection
-        -- This also includes necessary deposits.
 
     , computeSelectionLimit
         :: AnyCardanoEra

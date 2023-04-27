@@ -107,7 +107,9 @@ import Cardano.Wallet.Shelley.Transaction
     ( KeyWitnessCount (..)
     , TxFeeUpdate (..)
     , TxUpdate (..)
+    , TxWitnessTag
     , assignScriptRedeemers
+    , calculateMinimumFee
     , distributeSurplus
     , estimateKeyWitnessCount
     , estimateSignedTxSize
@@ -347,13 +349,11 @@ instance Buildable (PartialTx era) where
 --
 -- however representing it as such is inconvenient at the moment.
 data UTxOAssumptions = forall k ktype. UTxOAssumptions
-    { txLayer
-        :: TransactionLayer k ktype SealedTx
-        -- TODO: Replace with smaller and smaller parts of 'TransactionLayer'
-    , inputScriptLookup
-        :: Maybe (W.Address -> (CA.Script KeyHash))
-    , inputScriptTemplate
-        :: Maybe ScriptTemplate
+    { txLayer :: TransactionLayer k ktype SealedTx
+    -- TODO: Replace with smaller and smaller parts of 'TransactionLayer'
+    , inputScriptLookup :: Maybe (W.Address -> CA.Script KeyHash)
+    , inputScriptTemplate :: Maybe ScriptTemplate
+    , txWitnessTag :: TxWitnessTag
     }
 
 data UTxOIndex era = UTxOIndex
@@ -374,11 +374,12 @@ constructUTxOIndex walletUTxO =
 -- depending on the 'k' of the supplied 'TransactionLayer'.
 allKeyPaymentCredentials
     :: forall k. TransactionLayer k 'CredFromKeyK SealedTx
-    -> UTxOAssumptions
-allKeyPaymentCredentials tl = UTxOAssumptions
+    -> TxWitnessTag -> UTxOAssumptions
+allKeyPaymentCredentials tl tag = UTxOAssumptions
     { txLayer = tl
     , inputScriptLookup = Nothing
     , inputScriptTemplate = Nothing
+    , txWitnessTag = tag
     }
 
 -- | Assumes all 'UTxO' entries have addresses with script payment credentials,
@@ -388,11 +389,13 @@ allScriptPaymentCredentials
     :: (W.Address -> (CA.Script KeyHash))
     -> ScriptTemplate
     -> TransactionLayer SharedKey 'CredFromScriptK SealedTx
+    -> TxWitnessTag
     -> UTxOAssumptions
-allScriptPaymentCredentials scriptLookup template tl = UTxOAssumptions
+allScriptPaymentCredentials scriptLookup template tl tag = UTxOAssumptions
     { txLayer = tl
     , inputScriptLookup = Just scriptLookup
     , inputScriptTemplate = Just template
+    , txWitnessTag = tag
     }
 
 balanceTransaction
@@ -526,10 +529,7 @@ balanceTransactionWithSelectionStrategyAndNoZeroAdaAdjustment
     -> ExceptT ErrBalanceTx m (Cardano.Tx era, changeState)
 balanceTransactionWithSelectionStrategyAndNoZeroAdaAdjustment
     tr
-    (UTxOAssumptions
-        txLayer
-        toInpScriptsM
-        mScriptTemplate)
+    (UTxOAssumptions txLayer toInpScriptsM mScriptTemplate txWitnessTag)
     (ProtocolParameters pp ledgerPP)
     timeTranslation
     (UTxOIndex walletUTxO internalUtxoAvailable cardanoUTxO)
@@ -891,139 +891,134 @@ balanceTransactionWithSelectionStrategyAndNoZeroAdaAdjustment
         -> StdGenSeed
         -> Either (SelectionError WalletSelectionContext) Selection
     selectAssets' era outs utxoSelection balance fee0 seed =
-        let
-            txPlutusScriptExecutionCost = maxScriptExecutionCost pp redeemers
-            colReq =
-                if txPlutusScriptExecutionCost > W.Coin 0 then
-                    SelectionCollateralRequired
-                else
-                    SelectionCollateralNotRequired
+        flip evalRand (stdGenFromSeed seed)
+            $ runExceptT
+            $ performSelection selectionConstraints selectionParams
+      where
+        txPlutusScriptExecutionCost = maxScriptExecutionCost pp redeemers
+        colReq =
+            if txPlutusScriptExecutionCost > W.Coin 0
+                then SelectionCollateralRequired
+                else SelectionCollateralNotRequired
 
-            (positiveBundle, negativeBundle) = posAndNegFromCardanoValue balance
-            (TokenBundle positiveAda positiveTokens) = positiveBundle
-            (TokenBundle negativeAda negativeTokens) = negativeBundle
+        (positiveBundle, negativeBundle) = posAndNegFromCardanoValue balance
+        TokenBundle positiveAda positiveTokens = positiveBundle
+        TokenBundle negativeAda negativeTokens = negativeBundle
+        adaInOutputs = F.foldMap (TokenBundle.getCoin . view #tokens) outs
+        tokensInOutputs = F.foldMap (TokenBundle.tokens . view #tokens) outs
+        selectedBalance = UTxOSelection.selectedBalance utxoSelection
+        tokensInInputs = TokenBundle.tokens selectedBalance
+        adaInInputs = TokenBundle.getCoin selectedBalance
 
-            adaInOutputs = F.foldMap (TokenBundle.getCoin . view #tokens) outs
-            tokensInOutputs = F.foldMap (TokenBundle.tokens . view #tokens) outs
-            tokensInInputs = TokenBundle.tokens
-                $ UTxOSelection.selectedBalance utxoSelection
-            adaInInputs = TokenBundle.getCoin
-                $ UTxOSelection.selectedBalance utxoSelection
+        boringFee =
+            calculateMinimumFee
+                era
+                pp
+                txWitnessTag
+                defaultTransactionCtx
+                SelectionSkeleton
+                    { skeletonInputCount =
+                        UTxOSelection.selectedSize utxoSelection
+                    , skeletonOutputs = outs
+                    , skeletonChange = []
+                    }
 
-            boringFee =
-                let
-                    boringSkeleton = SelectionSkeleton
-                        { skeletonInputCount =
-                            UTxOSelection.selectedSize utxoSelection
-                        , skeletonOutputs = outs
-                        , skeletonChange = []
-                        }
-                in calcMinimumCost
-                        txLayer
-                        era
-                        pp
-                        defaultTransactionCtx
-                        boringSkeleton
+        feePadding =
+            let LinearFee LinearFunction {slope = perByte} =
+                    pp ^. #txParameters . #getFeePolicy
 
-            feePadding =
-                let LinearFee LinearFunction {slope = perByte} =
-                        view (#txParameters . #getFeePolicy) pp
+                -- Could be made smarter by only padding for the script
+                -- integrity hash when we intend to add one. [ADP-2621]
+                scriptIntegrityHashBytes = 32 + 2
 
-                    -- Could be made smarter by only padding for the script
-                    -- integrity hash when we intend to add one. [ADP-2621]
-                    scriptIntegrityHashBytes = 32 + 2
-
-                    -- Add padding to allow the fee value to increase.
-                    -- Out of caution, assume it can increase by the theoretical
-                    -- maximum of 8 bytes ('maximumCostOfIncreasingCoin').
-                    --
-                    -- NOTE: It's not convenient to import the constant at the
-                    -- moment because of the package split.
-                    --
-                    -- Any overestimation will be reduced by 'distributeSurplus'
-                    -- in the final stage of 'balanceTransaction'.
-                    extraBytes = 8
-                in
-                W.Coin $ (round perByte) * (extraBytes + scriptIntegrityHashBytes)
-
-            fromCardanoLovelace (Cardano.Lovelace l) = Coin.unsafeFromIntegral l
-
-            selectionConstraints = SelectionConstraints
-                { assessTokenBundleSize =
-                    view #assessTokenBundleSize $
-                    tokenBundleSizeAssessor txLayer $
-                    pp ^. (#txParameters . #getTokenBundleMaxSize)
-                , certificateDepositAmount =
-                    view #stakeKeyDeposit pp
-                , computeMinimumAdaQuantity =
-                    view #txOutputMinimumAdaQuantity
-                        (constraints txLayer era pp)
-                , isBelowMinimumAdaQuantity =
-                    view #txOutputBelowMinimumAdaQuantity
-                        (constraints txLayer era pp)
-                , computeMinimumCost = \skeleton -> mconcat
-                    [ feePadding
-                    , fromCardanoLovelace fee0
-                    , calcMinimumCost txLayer era pp
-                        (defaultTransactionCtx
-                            { txPaymentCredentialScriptTemplate = mScriptTemplate
-                            , txPlutusScriptExecutionCost =
-                                txPlutusScriptExecutionCost })
-                        skeleton
-                    ] `Coin.difference` boringFee
-                , computeSelectionLimit = \_ -> NoLimit
-                , maximumCollateralInputCount = unsafeIntCast @Natural @Int $
-                    case recentEra @era of
-                        RecentEraBabbage ->
-                            getField @"_maxCollateralInputs" ledgerPP
-                        RecentEraConway ->
-                            getField @"_maxCollateralInputs" ledgerPP
-
-                , minimumCollateralPercentage = case recentEra @era of
-                    -- case-statement avoids "Overlapping instances" problem.
-                    -- May be avoidable with ADP-2353.
-                    RecentEraBabbage ->
-                        getField @"_collateralPercentage" ledgerPP
-                    RecentEraConway ->
-                        getField @"_collateralPercentage" ledgerPP
-                , maximumLengthChangeAddress =
-                    maxLengthChangeAddress genChange
-                }
-
-            selectionParams = SelectionParams
-                -- The following fields are essensially adjusting the coin
-                -- selections notion of balance by @balance0 - sum inputs + sum
-                -- outputs + fee0@ where @balance0@ is the balance of the
-                -- partial tx.
-                { assetsToMint = positiveTokens <> tokensInOutputs
-                , assetsToBurn = negativeTokens <> tokensInInputs
-                , extraCoinIn =
-                    positiveAda
-                    <> adaInOutputs
-                    <> fromCardanoLovelace fee0
-                , extraCoinOut = negativeAda <> adaInInputs
-
-                -- We don't use the following 3 fields because certs and
-                -- withdrawals are already included in the balance (passed in
-                -- above).
-                , rewardWithdrawal = W.Coin 0
-                , certificateDepositsReturned = 0
-                , certificateDepositsTaken = 0
-
-                -- NOTE: It is important that coin selection has the correct
-                -- notion of fees, because it will be used to tell how much
-                -- collateral is needed.
-                , collateralRequirement = colReq
-                , outputsToCover = outs
-                , utxoAvailableForCollateral =
-                      UTxOSelection.availableMap utxoSelection
-                , utxoAvailableForInputs = utxoSelection
-                , selectionStrategy = selectionStrategy
-                }
+                -- Add padding to allow the fee value to increase.
+                -- Out of caution, assume it can increase by the theoretical
+                -- maximum of 8 bytes ('maximumCostOfIncreasingCoin').
+                --
+                -- NOTE: It's not convenient to import the constant at the
+                -- moment because of the package split.
+                --
+                -- Any overestimation will be reduced by 'distributeSurplus'
+                -- in the final stage of 'balanceTransaction'.
+                extraBytes = 8
             in
-                flip evalRand (stdGenFromSeed seed)
-                    $ runExceptT
-                    $ performSelection selectionConstraints selectionParams
+            W.Coin $ round perByte * (extraBytes + scriptIntegrityHashBytes)
+
+        fromCardanoLovelace (Cardano.Lovelace l) = Coin.unsafeFromIntegral l
+
+        selectionConstraints = SelectionConstraints
+            { assessTokenBundleSize =
+                view #assessTokenBundleSize $
+                tokenBundleSizeAssessor txLayer $
+                pp ^. #txParameters . #getTokenBundleMaxSize
+            , certificateDepositAmount =
+                pp ^. #stakeKeyDeposit
+            , computeMinimumAdaQuantity =
+                constraints txLayer era pp ^. #txOutputMinimumAdaQuantity
+            , isBelowMinimumAdaQuantity =
+                constraints txLayer era pp ^. #txOutputBelowMinimumAdaQuantity
+            , computeMinimumCost = \skeleton -> mconcat
+                [ feePadding
+                , fromCardanoLovelace fee0
+                , calculateMinimumFee
+                    era
+                    pp
+                    txWitnessTag
+                    (defaultTransactionCtx
+                        { txPaymentCredentialScriptTemplate = mScriptTemplate
+                        , txPlutusScriptExecutionCost =
+                            txPlutusScriptExecutionCost })
+                    skeleton
+                ] `Coin.difference` boringFee
+            , computeSelectionLimit = \_ -> NoLimit
+            , maximumCollateralInputCount = unsafeIntCast @Natural @Int $
+                case recentEra @era of
+                    RecentEraBabbage ->
+                        getField @"_maxCollateralInputs" ledgerPP
+                    RecentEraConway ->
+                        getField @"_maxCollateralInputs" ledgerPP
+
+            , minimumCollateralPercentage = case recentEra @era of
+                -- case-statement avoids "Overlapping instances" problem.
+                -- May be avoidable with ADP-2353.
+                RecentEraBabbage ->
+                    getField @"_collateralPercentage" ledgerPP
+                RecentEraConway ->
+                    getField @"_collateralPercentage" ledgerPP
+            , maximumLengthChangeAddress =
+                maxLengthChangeAddress genChange
+            }
+
+        selectionParams = SelectionParams
+            -- The following fields are essensially adjusting the coin
+            -- selections notion of balance by @balance0 - sum inputs + sum
+            -- outputs + fee0@ where @balance0@ is the balance of the
+            -- partial tx.
+            { assetsToMint = positiveTokens <> tokensInOutputs
+            , assetsToBurn = negativeTokens <> tokensInInputs
+            , extraCoinIn =
+                positiveAda
+                <> adaInOutputs
+                <> fromCardanoLovelace fee0
+            , extraCoinOut = negativeAda <> adaInInputs
+
+            -- We don't use the following 3 fields because certs and
+            -- withdrawals are already included in the balance (passed in
+            -- above).
+            , rewardWithdrawal = W.Coin 0
+            , certificateDepositsReturned = 0
+            , certificateDepositsTaken = 0
+
+            -- NOTE: It is important that coin selection has the correct
+            -- notion of fees, because it will be used to tell how much
+            -- collateral is needed.
+            , collateralRequirement = colReq
+            , outputsToCover = outs
+            , utxoAvailableForCollateral =
+                UTxOSelection.availableMap utxoSelection
+            , utxoAvailableForInputs = utxoSelection
+            , selectionStrategy = selectionStrategy
+            }
 
 data ChangeAddressGen s = ChangeAddressGen
     { getChangeAddressGen ::  (s -> (W.Address, s))

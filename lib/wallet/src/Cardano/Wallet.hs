@@ -457,6 +457,8 @@ import Cardano.Wallet.Shelley.Compatibility
     , fromCardanoTxOut
     , fromCardanoWdrls
     )
+import Cardano.Wallet.Shelley.Transaction
+    ( TxWitnessTag, TxWitnessTagFor (txWitnessTagFor), calculateMinimumFee )
 import Cardano.Wallet.Transaction
     ( DelegationAction (..)
     , ErrCannotJoin (..)
@@ -1200,65 +1202,63 @@ fetchRewardBalance :: forall s k. DBLayer IO s k -> IO Coin
 fetchRewardBalance DBLayer{..} = atomically readDelegationRewardBalance
 
 mkExternalWithdrawal
-    :: forall k ktype tx block
-     . NetworkLayer IO block
-    -> TransactionLayer k ktype tx
+    :: NetworkLayer IO block
+    -> TxWitnessTag
     -> AnyCardanoEra
     -> SomeMnemonic
     -> IO (Either ErrWithdrawalNotBeneficial Withdrawal)
-mkExternalWithdrawal netLayer txLayer era mnemonic = do
+mkExternalWithdrawal netLayer txWitnessTag era mnemonic = do
     let (_, rewardAccount, derivationPath) =
             someRewardAccount @ShelleyKey mnemonic
     balance <- getCachedRewardAccountBalance netLayer rewardAccount
     pp <- currentProtocolParameters netLayer
     let (xprv, _acct , _path) = someRewardAccount @ShelleyKey mnemonic
-    pure $ checkRewardIsWorthTxCost txLayer pp era balance $>
+    pure $ checkRewardIsWorthTxCost txWitnessTag pp era balance $>
         WithdrawalExternal rewardAccount derivationPath balance xprv
 
 mkSelfWithdrawal
-    :: forall ktype tx n block
-     . NetworkLayer IO block
-    -> TransactionLayer ShelleyKey ktype tx
+    :: NetworkLayer IO block
+    -> TxWitnessTag
     -> AnyCardanoEra
     -> DBLayer IO (SeqState n ShelleyKey) ShelleyKey
     -> IO Withdrawal
-mkSelfWithdrawal netLayer txLayer era db = do
+mkSelfWithdrawal netLayer txWitnessTag era db = do
     (rewardAccount, _, derivationPath) <- readRewardAccount db
     balance <- getCachedRewardAccountBalance netLayer rewardAccount
     pp <- currentProtocolParameters netLayer
-    return $ case checkRewardIsWorthTxCost txLayer pp era balance of
+    pure $ case checkRewardIsWorthTxCost txWitnessTag pp era balance of
         Left ErrWithdrawalNotBeneficial -> NoWithdrawal
         Right () -> WithdrawalSelf rewardAccount derivationPath balance
 
 -- | Unsafe version of the `mkSelfWithdrawal` function that throws an exception
 -- when applied to a non-shelley or a non-sequential wallet.
 shelleyOnlyMkSelfWithdrawal
-    :: forall s k ktype tx n block
+    :: forall s k n block
      . WalletFlavor s n k
     => NetworkLayer IO block
-    -> TransactionLayer k ktype tx
+    -> TxWitnessTag
     -> AnyCardanoEra
     -> DBLayer IO s k
     -> IO Withdrawal
-shelleyOnlyMkSelfWithdrawal netLayer txLayer era db =
+shelleyOnlyMkSelfWithdrawal netLayer txWitnessTag era db =
     case walletFlavor @s @n @k of
-        ShelleyWallet -> mkSelfWithdrawal netLayer txLayer era db
+        ShelleyWallet -> mkSelfWithdrawal netLayer txWitnessTag era db
         _ -> notShelleyWallet
   where
     notShelleyWallet = throwIO
         $ ExceptionReadRewardAccount ErrReadRewardAccountNotAShelleyWallet
 
 checkRewardIsWorthTxCost
-    :: forall k ktype tx
-     . TransactionLayer k ktype tx
+    :: TxWitnessTag
     -> ProtocolParameters
     -> AnyCardanoEra
     -> Coin
     -> Either ErrWithdrawalNotBeneficial ()
-checkRewardIsWorthTxCost txLayer pp era balance = do
+checkRewardIsWorthTxCost txWitnessTag pp era balance = do
     when (balance == Coin 0)
         $ Left ErrWithdrawalNotBeneficial
-    let minimumCost txCtx = calcMinimumCost txLayer era pp txCtx emptySkeleton
+    let minimumCost txCtx =
+            calculateMinimumFee era pp txWitnessTag txCtx emptySkeleton
         costWith = minimumCost $ mkTxCtx balance
         costWithout = minimumCost $ mkTxCtx $ Coin 0
         worthOfWithdrawal = Coin.toInteger costWith - Coin.toInteger costWithout
@@ -1846,6 +1846,7 @@ type MakeRewardAccountBuilder k =
 buildSignSubmitTransaction
     :: forall k s n
      . ( WalletKey k
+       , TxWitnessTagFor k
        , HardDerivation k
        , Bounded (Index (AddressIndexDerivationType k) (AddressCredential k))
        , IsOwned s k 'CredFromKeyK
@@ -1935,6 +1936,7 @@ buildSignSubmitTransaction db@DBLayer{..} netLayer txLayer pwd walletId
 buildAndSignTransactionPure
     :: forall k s n
      . ( WalletKey k
+       , TxWitnessTagFor k
        , HardDerivation k
        , Bounded (Index (AddressIndexDerivationType k) (AddressCredential k))
        , IsOwned s k 'CredFromKeyK
@@ -2037,6 +2039,7 @@ buildTransaction
     . ( WalletFlavor s n k
       , WriteTx.IsRecentEra era
       , AddressBookIso s
+      , TxWitnessTagFor k
       )
     => DBLayer IO s k
     -> TransactionLayer k 'CredFromKeyK SealedTx
@@ -2083,6 +2086,7 @@ buildTransactionPure
     :: forall s k n era
      . ( WriteTx.IsRecentEra era
        , WalletFlavor s n k
+       , TxWitnessTagFor k
        )
     => Wallet s
     -> TimeTranslation
@@ -2111,7 +2115,7 @@ buildTransactionPure
     withExceptT Left $
         balanceTransaction @_ @_ @s
             nullTracer
-            (Write.allKeyPaymentCredentials txLayer)
+            (Write.allKeyPaymentCredentials txLayer (txWitnessTagFor @k))
             pparams
             timeTranslation
             (constructUTxOIndex utxo)
@@ -2682,6 +2686,7 @@ delegationFee
     :: forall s k n
      . ( AddressBookIso s
        , WalletFlavor s n k
+       , TxWitnessTagFor k
        )
     => DBLayer IO s k
     -> NetworkLayer IO Read.Block
@@ -2714,6 +2719,7 @@ transactionFee
      . ( AddressBookIso s
        , WriteTx.IsRecentEra era
        , WalletFlavor s n k
+       , TxWitnessTagFor k
        )
     => DBLayer IO s k
     -> Write.ProtocolParameters era
@@ -2765,7 +2771,8 @@ transactionFee DBLayer{atomically, walletsDB} protocolParams txLayer
             res <- runExceptT $
                     balanceTransaction @_ @_ @s
                         nullTracer
-                        (Write.allKeyPaymentCredentials txLayer)
+                        (Write.allKeyPaymentCredentials
+                            txLayer (txWitnessTagFor @k))
                         protocolParams
                         timeTranslation
                         utxoIndex
