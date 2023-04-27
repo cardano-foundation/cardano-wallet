@@ -89,8 +89,6 @@ data ApiErrorInfo
     | BalanceTxExistingKeyWitnesses
     | BalanceTxExistingReturnCollateral
     | BalanceTxExistingTotalCollateral
-    | BalanceTxInlineDatumsNotSupportedInAlonzo
-    | BalanceTxInlineScriptsNotSupportedInAlonzo
     | BalanceTxInternalError
     | BalanceTxUnderestimatedFee
         ApiErrorBalanceTxUnderestimatedFee

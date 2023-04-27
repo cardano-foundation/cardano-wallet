@@ -63,7 +63,7 @@ module Cardano.Wallet.Write.Tx
     -- ** Misc
     , StandardCrypto
     , StandardBabbage
-    , StandardAlonzo
+    , StandardConway
 
     -- * PParams
     , Core.PParams
@@ -79,10 +79,10 @@ module Cardano.Wallet.Write.Tx
 
     -- * TxOut
     , Core.TxOut
+    , BabbageTxOut (..)
     , TxOutInBabbage
     , TxOutInRecentEra (..)
     , unwrapTxOutInRecentEra
-    , ErrInvalidTxOutInEra (..)
     , modifyTxOutValue
     , modifyTxOutCoin
     , txOutValue
@@ -130,7 +130,6 @@ module Cardano.Wallet.Write.Tx
     -- * UTxO
     , Shelley.UTxO (..)
     , utxoFromTxOutsInRecentEra
-    , utxoFromTxOutsInLatestEra
     , utxoFromTxOuts
 
     -- * Balancing
@@ -142,7 +141,7 @@ module Cardano.Wallet.Write.Tx
 import Prelude
 
 import Cardano.Api
-    ( AlonzoEra, BabbageEra, ConwayEra )
+    ( BabbageEra, ConwayEra )
 import Cardano.Api.Shelley
     ( ShelleyLedgerEra )
 import Cardano.Crypto.Hash
@@ -151,6 +150,8 @@ import Cardano.Ledger.Alonzo.Data
     ( BinaryData, Datum (..) )
 import Cardano.Ledger.Alonzo.Scripts
     ( AlonzoScript (..) )
+import Cardano.Ledger.Babbage.TxBody
+    ( BabbageTxOut (..) )
 import Cardano.Ledger.BaseTypes
     ( maybeToStrictMaybe )
 import Cardano.Ledger.Coin
@@ -173,8 +174,8 @@ import Cardano.Wallet.Primitive.Types.Tx.Constraints
     ( txOutMaxCoin )
 import Cardano.Wallet.Shelley.Compatibility.Ledger
     ( toLedger )
-import Control.Monad
-    ( forM )
+import Control.Arrow
+    ( second )
 import Data.ByteString
     ( ByteString )
 import Data.ByteString.Short
@@ -193,14 +194,12 @@ import Data.IntCast
     ( intCast )
 import Data.Maybe
     ( fromMaybe )
-import Data.Maybe.Strict
-    ( StrictMaybe (..) )
 import Data.Typeable
     ( Typeable )
 import Numeric.Natural
     ( Natural )
 import Ouroboros.Consensus.Shelley.Eras
-    ( StandardAlonzo, StandardBabbage, StandardConway )
+    ( StandardBabbage, StandardConway )
 
 import qualified Cardano.Api as Cardano
 import qualified Cardano.Api.Byron as Cardano
@@ -211,8 +210,6 @@ import qualified Cardano.Crypto.Hash.Class as Crypto
 import qualified Cardano.Ledger.Address as Ledger
 import qualified Cardano.Ledger.Alonzo.Data as Alonzo
 import qualified Cardano.Ledger.Alonzo.Scripts as Alonzo
-import qualified Cardano.Ledger.Alonzo.Tx as Alonzo
-import qualified Cardano.Ledger.Alonzo.TxBody as Alonzo
 import qualified Cardano.Ledger.Babbage as Babbage
 import qualified Cardano.Ledger.Babbage.Tx as Babbage
 import qualified Cardano.Ledger.Babbage.TxBody as Babbage
@@ -249,7 +246,6 @@ type LatestLedgerEra = StandardConway
 -- NOTE: We /could/ let 'era' refer to eras from the ledger rather than from
 -- cardano-api.
 data RecentEra era where
-    RecentEraAlonzo :: RecentEra AlonzoEra
     RecentEraBabbage :: RecentEra BabbageEra
     RecentEraConway :: RecentEra ConwayEra
 
@@ -271,7 +267,7 @@ type RecentEraLedgerConstraints era =
     , Core.Script era ~ AlonzoScript era
     , CLI era
     , Crypto era ~ StandardCrypto
-    , Core.Tx era ~ Alonzo.AlonzoTx era
+    , Core.Tx era ~ Babbage.AlonzoTx era
     , Core.Value era ~ MaryValue StandardCrypto
     , Babbage.ShelleyEraTxBody era
     , HasField' "_collateralPercentage" (Core.PParams era) Natural
@@ -290,7 +286,6 @@ withConstraints
     -> ((RecentEraLedgerConstraints (ShelleyLedgerEra era)) => a)
     -> a
 withConstraints era a = case era of
-    RecentEraAlonzo -> a
     RecentEraBabbage -> a
     RecentEraConway -> a
 
@@ -299,7 +294,7 @@ toRecentEra :: Cardano.CardanoEra era -> Maybe (RecentEra era)
 toRecentEra = \case
     Cardano.ConwayEra  -> Just RecentEraConway
     Cardano.BabbageEra -> Just RecentEraBabbage
-    Cardano.AlonzoEra  -> Just RecentEraAlonzo
+    Cardano.AlonzoEra  -> Nothing
     Cardano.MaryEra    -> Nothing
     Cardano.AllegraEra -> Nothing
     Cardano.ShelleyEra -> Nothing
@@ -309,13 +304,9 @@ fromRecentEra :: RecentEra era -> Cardano.CardanoEra era
 fromRecentEra = \case
   RecentEraConway -> Cardano.ConwayEra
   RecentEraBabbage -> Cardano.BabbageEra
-  RecentEraAlonzo -> Cardano.AlonzoEra
 
 instance IsRecentEra BabbageEra where
     recentEra = RecentEraBabbage
-
-instance IsRecentEra AlonzoEra where
-    recentEra = RecentEraAlonzo
 
 instance IsRecentEra ConwayEra where
     recentEra = RecentEraConway
@@ -329,7 +320,6 @@ shelleyBasedEraFromRecentEra :: RecentEra era -> Cardano.ShelleyBasedEra era
 shelleyBasedEraFromRecentEra = \case
     RecentEraConway -> Cardano.ShelleyBasedEraConway
     RecentEraBabbage -> Cardano.ShelleyBasedEraBabbage
-    RecentEraAlonzo -> Cardano.ShelleyBasedEraAlonzo
 
 -- | For convenience working with 'IsRecentEra'. Similar to 'Cardano.cardanoEra,
 -- but with a 'IsRecentEra era' constraint instead of 'Cardano.IsCardanoEra.
@@ -368,10 +358,10 @@ asAnyRecentEra = \case
         Nothing
     Cardano.InAnyCardanoEra Cardano.MaryEra _ ->
         Nothing
+    Cardano.InAnyCardanoEra Cardano.AlonzoEra _ ->
+        Nothing
     Cardano.InAnyCardanoEra Cardano.BabbageEra a ->
         Just $ InAnyRecentEra RecentEraBabbage a
-    Cardano.InAnyCardanoEra Cardano.AlonzoEra a ->
-        Just $ InAnyRecentEra RecentEraAlonzo a
     Cardano.InAnyCardanoEra Cardano.ConwayEra a ->
         Just $ InAnyRecentEra RecentEraConway a
 
@@ -437,12 +427,10 @@ modifyTxOutValue
     -> (MaryValue StandardCrypto -> MaryValue StandardCrypto)
     -> TxOut (ShelleyLedgerEra era)
     -> TxOut (ShelleyLedgerEra era)
-modifyTxOutValue RecentEraConway f (Babbage.BabbageTxOut addr val dat script) =
-        Babbage.BabbageTxOut addr (f val) dat script
-modifyTxOutValue RecentEraBabbage f (Babbage.BabbageTxOut addr val dat script) =
-        Babbage.BabbageTxOut addr (f val) dat script
-modifyTxOutValue RecentEraAlonzo f (Alonzo.AlonzoTxOut addr val dat) =
-        Alonzo.AlonzoTxOut addr (f val) dat
+modifyTxOutValue RecentEraConway f (BabbageTxOut addr val dat script) =
+        BabbageTxOut addr (f val) dat script
+modifyTxOutValue RecentEraBabbage f (BabbageTxOut addr val dat script) =
+        BabbageTxOut addr (f val) dat script
 
 modifyTxOutCoin
     :: RecentEra era
@@ -457,7 +445,6 @@ txOutValue
     -> MaryValue StandardCrypto
 txOutValue RecentEraConway (Babbage.BabbageTxOut _ val _ _) = val
 txOutValue RecentEraBabbage (Babbage.BabbageTxOut _ val _ _) = val
-txOutValue RecentEraAlonzo (Alonzo.AlonzoTxOut _ val _) = val
 
 type TxOutInBabbage = Babbage.BabbageTxOut (Babbage.BabbageEra StandardCrypto)
 
@@ -624,19 +611,13 @@ data TxOutInRecentEra
         (Maybe (AlonzoScript LatestLedgerEra))
         -- Same contents as 'TxOut LatestLedgerEra'.
 
-data ErrInvalidTxOutInEra
-    = ErrInlineDatumNotSupportedInAlonzo
-    | ErrInlineScriptNotSupportedInAlonzo
-    deriving (Eq, Show)
-
 unwrapTxOutInRecentEra
     :: RecentEra era
     -> TxOutInRecentEra
-    -> Either ErrInvalidTxOutInEra (TxOut (ShelleyLedgerEra era))
+    -> (TxOut (ShelleyLedgerEra era))
 unwrapTxOutInRecentEra era recentEraTxOut = case era of
-    RecentEraConway -> pure $ recentEraToConwayTxOut recentEraTxOut
-    RecentEraBabbage -> pure $ recentEraToBabbageTxOut recentEraTxOut
-    RecentEraAlonzo -> recentEraToAlonzoTxOut recentEraTxOut
+    RecentEraConway -> recentEraToConwayTxOut recentEraTxOut
+    RecentEraBabbage -> recentEraToBabbageTxOut recentEraTxOut
 
 recentEraToConwayTxOut
     :: TxOutInRecentEra
@@ -664,20 +645,6 @@ recentEraToBabbageTxOut (TxOutInRecentEra addr val datum mscript) =
             Alonzo.TimelockScript (coerce timelockEra)
         Alonzo.PlutusScript l bs ->
             Alonzo.PlutusScript l bs
-
-recentEraToAlonzoTxOut
-    :: TxOutInRecentEra
-    -> Either
-        ErrInvalidTxOutInEra
-        (Core.TxOut (ShelleyLedgerEra AlonzoEra))
-recentEraToAlonzoTxOut (TxOutInRecentEra _addr _val _datum (Just _script))
-    = Left ErrInlineScriptNotSupportedInAlonzo
-recentEraToAlonzoTxOut (TxOutInRecentEra _addr _val (Alonzo.Datum _) _script)
-    = Left ErrInlineDatumNotSupportedInAlonzo
-recentEraToAlonzoTxOut (TxOutInRecentEra addr val Alonzo.NoDatum Nothing)
-    = Right $ Alonzo.AlonzoTxOut addr val SNothing
-recentEraToAlonzoTxOut (TxOutInRecentEra addr val (Alonzo.DatumHash dh) Nothing)
-    = Right $ Alonzo.AlonzoTxOut addr val (SJust dh)
 
 --
 -- MinimumUTxO
@@ -732,7 +699,6 @@ isBelowMinimumCoinForTxOut era pp out =
     getCoin :: RecentEra era -> TxOut (ShelleyLedgerEra era) -> Coin
     getCoin RecentEraConway (Babbage.BabbageTxOut _ val _ _) = coin val
     getCoin RecentEraBabbage (Babbage.BabbageTxOut _ val _ _) = coin val
-    getCoin RecentEraAlonzo (Alonzo.AlonzoTxOut _ val _) = coin val
 
 --------------------------------------------------------------------------------
 -- UTxO
@@ -746,35 +712,16 @@ utxoFromTxOuts
 utxoFromTxOuts era = withConstraints era $
     Shelley.UTxO . Map.fromList
 
--- | Construct a 'UTxO era' using 'TxOutInRecentEra'. Fails if any output is
--- invalid in the targeted 'era'.
+-- | Construct a 'UTxO era' using 'TxOutInRecentEra'.
+--
+-- Used to have a possibility for failure when we supported Alonzo and Babbage,
+-- and could possibly become failable again with future eras.
 utxoFromTxOutsInRecentEra
     :: forall era. RecentEra era
     -> [(TxIn, TxOutInRecentEra)]
-    -> Either ErrInvalidTxOutInEra (Shelley.UTxO (ShelleyLedgerEra era))
+    -> Shelley.UTxO (ShelleyLedgerEra era)
 utxoFromTxOutsInRecentEra era = withConstraints era $
-    fmap (Shelley.UTxO . Map.fromList) . mapM downcast
-  where
-    downcast
-        :: (TxIn, TxOutInRecentEra)
-        -> Either
-            ErrInvalidTxOutInEra
-            (TxIn, TxOut (ShelleyLedgerEra era))
-    downcast (i, o) = do
-        o' <- unwrapTxOutInRecentEra era o
-        pure (i, o')
-
--- | Useful for testing.
-utxoFromTxOutsInLatestEra
-    :: RecentEra era
-    -> [(TxIn, TxOutInRecentEra)]
-    -> Either ErrInvalidTxOutInEra (Shelley.UTxO (Cardano.ShelleyLedgerEra era))
-utxoFromTxOutsInLatestEra era entries = withConstraints era $ do
-    entries' <- forM entries $ \(i,o) -> do
-        o' <- unwrapTxOutInRecentEra era o
-        return (i, o')
-    return $ Shelley.UTxO $ Map.fromList entries'
-
+    Shelley.UTxO . Map.fromList . map (second (unwrapTxOutInRecentEra era))
 
 --------------------------------------------------------------------------------
 -- Tx
@@ -792,9 +739,6 @@ modifyTxOutputs era f body = case era of
     RecentEraBabbage -> body
         { Babbage.outputs = mapSized f <$> Babbage.outputs body
         }
-    RecentEraAlonzo -> body
-        { Alonzo.outputs = f <$> Alonzo.outputs body
-        }
   where
     mapSized f' = mkSized . f' . sizedValue
 
@@ -802,9 +746,9 @@ txBody
     :: RecentEra era
     -> Core.Tx (ShelleyLedgerEra era)
     -> Core.TxBody (ShelleyLedgerEra era)
-txBody RecentEraConway = Alonzo.body -- same type for conway
-txBody RecentEraBabbage = Alonzo.body -- same type for babbage
-txBody RecentEraAlonzo = Alonzo.body
+txBody era = case era of
+    RecentEraBabbage -> Babbage.body -- same type for babbage
+    RecentEraConway -> Babbage.body -- same type for conway
 
 -- Until we have convenient lenses to use
 outputs
@@ -813,7 +757,6 @@ outputs
     -> [TxOut (ShelleyLedgerEra era)]
 outputs RecentEraConway = map sizedValue . toList . Conway.outputs
 outputs RecentEraBabbage = map sizedValue . toList . Babbage.outputs
-outputs RecentEraAlonzo = toList . Alonzo.outputs
 
 -- NOTE: To reduce the need for the caller to deal with @CardanoApiEra
 -- (ShelleyLedgerEra era) ~ era@, we quantify this function over @cardanoEra@
@@ -939,7 +882,6 @@ evaluateMinimumFee era pp tx kwc =
         feePerByte = case era of
             RecentEraConway -> pp ^. #_minfeeA
             RecentEraBabbage -> pp ^. #_minfeeA
-            RecentEraAlonzo -> pp ^. #_minfeeA
 
 -- | Evaluate the /balance/ of a transaction using the ledger.
 --

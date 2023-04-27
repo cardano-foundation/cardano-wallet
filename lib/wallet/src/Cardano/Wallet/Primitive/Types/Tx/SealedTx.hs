@@ -212,7 +212,8 @@ cardanoTxFromBytes
     -> ByteString -- ^ Serialised transaction
     -> Either DecoderError (InAnyCardanoEra Cardano.Tx)
 cardanoTxFromBytes maxEra bs = asum $ map snd $ filter (withinEra maxEra . fst)
-    [ deserialise BabbageEra Cardano.AsBabbageEra
+    [ deserialise ConwayEra  Cardano.AsConwayEra
+    , deserialise BabbageEra Cardano.AsBabbageEra
     , deserialise AlonzoEra  Cardano.AsAlonzoEra
     , deserialise MaryEra    Cardano.AsMaryEra
     , deserialise AllegraEra Cardano.AsAllegraEra

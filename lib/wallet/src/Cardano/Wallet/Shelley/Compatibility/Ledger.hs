@@ -41,7 +41,6 @@ module Cardano.Wallet.Shelley.Compatibility.Ledger
     , toAlonzoTxOut
     , toBabbageTxOut
     , toConwayTxOut
-    , fromAlonzoTxOut
     , fromBabbageTxOut
     , fromConwayTxOut
     ) where
@@ -358,13 +357,6 @@ fromBabbageTxOut
     :: Babbage.BabbageTxOut StandardBabbage
     -> TxOut
 fromBabbageTxOut (Babbage.BabbageTxOut addr val _ _)
-    = TxOut (toWallet addr) (toWallet val)
-
--- NOTE: Datum hashes will be lost by the conversion.
-fromAlonzoTxOut
-    :: Alonzo.AlonzoTxOut StandardAlonzo
-    -> TxOut
-fromAlonzoTxOut (Alonzo.AlonzoTxOut addr val _)
     = TxOut (toWallet addr) (toWallet val)
 
 toWalletScript

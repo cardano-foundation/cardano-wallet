@@ -4748,28 +4748,6 @@ x-errBalanceTxEraNotSupported: &errBalanceTxEraNotSupported
       type: string
       enum: ["balance_tx_era_not_supported"]
 
-x-errBalanceTxInlineDatumsNotSupportedInAlonzo: &errBalanceTxInlineDatumsNotSupportedInAlonzo
-  <<: *responsesErr
-  title: inline_datums_not_supported_in_alonzo
-  properties:
-    message:
-      type: string
-      description: Inline datums are not supported in Alonzo.
-    code:
-      type: string
-      enum: ["inline_datums_not_supported_in_alonzo"]
-
-x-errBalanceTxInlineScriptsNotSupportedInAlonzo: &errBalanceTxInlineScriptsNotSupportedInAlonzo
-  <<: *responsesErr
-  title: inline_scripts_not_supported_in_alonzo
-  properties:
-    message:
-      type: string
-      description: Inline scripts are not supported in Alonzo.
-    code:
-      type: string
-      enum: ["inline_scripts_not_supported_in_alonzo"]
-
 x-errBalanceTxConflictingNetworks: &errBalanceTxConflictingNetworks
   <<: *responsesErr
   title: balance_tx_conflicting_networks
@@ -6174,8 +6152,6 @@ x-responsesBalanceTransaction: &responsesBalanceTransaction
             - <<: *errTranslationError
             - <<: *errUnresolvedInputs
             - <<: *errInputResolutionConflicts
-            - <<: *errBalanceTxInlineScriptsNotSupportedInAlonzo
-            - <<: *errBalanceTxInlineDatumsNotSupportedInAlonzo
   403:
     description: Forbidden
     content:
