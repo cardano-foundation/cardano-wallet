@@ -1130,6 +1130,7 @@ forAllShelleyBasedEras eraSpec = do
     eraSpec (AnyCardanoEra MaryEra)
     eraSpec (AnyCardanoEra AlonzoEra)
     eraSpec (AnyCardanoEra BabbageEra)
+    eraSpec (AnyCardanoEra ConwayEra)
 
 forAllRecentEras :: (AnyRecentEra -> Spec) -> Spec
 forAllRecentEras eraSpec = do
@@ -1144,6 +1145,7 @@ allEras =
     , (4, AnyCardanoEra MaryEra)
     , (5, AnyCardanoEra AlonzoEra)
     , (6, AnyCardanoEra BabbageEra)
+    , (7, AnyCardanoEra ConwayEra)
     ]
 
 eraNum :: AnyCardanoEra -> Int
