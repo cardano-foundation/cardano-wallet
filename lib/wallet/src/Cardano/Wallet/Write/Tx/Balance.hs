@@ -71,8 +71,6 @@ import Cardano.Wallet.Primitive.Types.Tx
     ( SealedTx, sealedTxFromCardano )
 import Cardano.Wallet.Primitive.Types.Tx.Constraints
     ( TxSize (..) )
-import Cardano.Wallet.Primitive.Types.UTxOIndex
-    ( UTxOIndex )
 import Cardano.Wallet.Primitive.Types.UTxOSelection
     ( UTxOSelection )
 import Cardano.Wallet.Shelley.Compatibility
@@ -325,7 +323,7 @@ data UTxOAssumptions = forall k ktype. UTxOAssumptions
 
 data UTxOIndexForBalanceTx = UTxOIndexForBalanceTx
     { walletUTxO :: !W.UTxO
-    , walletUTxOIndex :: !(UTxOIndex WalletUTxO)
+    , walletUTxOIndex :: !(UTxOIndex.UTxOIndex WalletUTxO)
     }
 
 constructUTxOIndexForBalanceTx :: W.UTxO -> UTxOIndexForBalanceTx
@@ -662,7 +660,7 @@ balanceTransactionWithSelectionStrategyAndNoZeroAdaAdjustment
     -- Left (ErrBalanceTxUnresolvedInputs [inA, inC])
     extractExternallySelectedUTxO
         :: PartialTx era
-        -> ExceptT ErrBalanceTx m (UTxOIndex WalletUTxO)
+        -> ExceptT ErrBalanceTx m (UTxOIndex.UTxOIndex WalletUTxO)
     extractExternallySelectedUTxO (PartialTx tx _ _rdms) = do
         let res = flip map txIns $ \(i, _) -> do
                 case Map.lookup i utxo of
