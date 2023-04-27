@@ -132,7 +132,7 @@ import Cardano.Wallet.Write.Tx
     , ShelleyLedgerEra
     , TxOut
     , computeMinimumCoinForTxOut
-    , feePerByte
+    , getFeePerByte
     , modifyLedgerBody
     , modifyTxOutCoin
     , modifyTxOutputs
@@ -657,7 +657,7 @@ balanceTransactionWithSelectionStrategyAndNoZeroAdaAdjustment
             (unsafeFromLovelace candidateMinFee)
             (extraOutputs)
 
-    let feePerByte' = feePerByte (recentEra @era) ledgerPP
+    let feePerByte = getFeePerByte (recentEra @era) ledgerPP
 
     -- @distributeSurplus@ should never fail becase we have provided enough
     -- padding in @selectAssets'@.
@@ -666,7 +666,7 @@ balanceTransactionWithSelectionStrategyAndNoZeroAdaAdjustment
             ErrBalanceTxInternalError $
                 ErrUnderestimatedFee c (toSealed candidateTx) witCount)
         (ExceptT . pure $
-            distributeSurplus feePerByte' surplus feeAndChange)
+            distributeSurplus feePerByte surplus feeAndChange)
 
     fmap (, s') . guardTxSize witCount =<< guardTxBalanced =<< assembleTransaction
         TxUpdate

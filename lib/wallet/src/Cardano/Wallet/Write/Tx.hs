@@ -68,7 +68,7 @@ module Cardano.Wallet.Write.Tx
     -- * PParams
     , Core.PParams
     , FeePerByte (..)
-    , feePerByte
+    , getFeePerByte
 
     -- * Tx
     , Core.Tx
@@ -854,11 +854,11 @@ toCardanoValue = withConstraints (recentEra @era) Cardano.fromMaryValue
 newtype FeePerByte = FeePerByte Natural
     deriving (Show, Eq)
 
-feePerByte
+getFeePerByte
     :: RecentEra era
     -> Core.PParams (Cardano.ShelleyLedgerEra era)
     -> FeePerByte
-feePerByte era pp = FeePerByte $ case era of
+getFeePerByte era pp = FeePerByte $ case era of
     RecentEraConway -> pp ^. #_minfeeA
     RecentEraBabbage -> pp ^. #_minfeeA
 
@@ -883,11 +883,11 @@ evaluateMinimumFee era pp tx kwc =
     mainFee = withConstraints era $
         Shelley.evaluateTransactionFee pp tx nKeyWits
 
-    FeePerByte feePerByte' = feePerByte era pp
+    FeePerByte feePerByte = getFeePerByte era pp
 
     bootWitnessFee :: Coin
     bootWitnessFee = Coin $
-        intCast $ feePerByte' * byteCount
+        intCast $ feePerByte * byteCount
       where
         byteCount :: Natural
         byteCount = sizeOf_BootstrapWitnesses $ intCast nBootstrapWits

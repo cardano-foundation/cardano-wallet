@@ -1623,7 +1623,6 @@ estimateTxCost era pp skeleton =
         let LinearFee LinearFunction {..} = getFeePolicy $ txParameters pp
         in Coin $ ceiling $ intercept + slope * fromIntegral size
 
-
 -- | Calculate the cost of increasing a CBOR-encoded Coin-value by another Coin
 -- with the lovelace/byte cost given by the 'FeePolicy'.
 --
