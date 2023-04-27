@@ -303,6 +303,7 @@ import Cardano.Wallet.Write.Tx.Balance
     , ErrSelectAssets (..)
     , PartialTx (..)
     , UTxOAssumptions (..)
+    , UTxOIndexForBalanceTx (..)
     , allKeyPaymentCredentials
     , balanceTransaction
     , posAndNegFromCardanoValue
@@ -3788,7 +3789,7 @@ balanceTx
             utxoAssumptions
             pp
             timeTranslation
-            utxoIndex
+            (UTxOIndexForBalanceTx utxoIndex)
             genChange
             s
             ptx
@@ -3814,7 +3815,7 @@ balanceTransactionWithDummyChangeState cs utxo seed ptx =
                 Cardano.shelleyBasedEra @era
             )
             dummyTimeTranslation
-            utxoIndex
+            (UTxOIndexForBalanceTx utxoIndex)
             dummyChangeAddrGen
             (getState wal)
             ptx

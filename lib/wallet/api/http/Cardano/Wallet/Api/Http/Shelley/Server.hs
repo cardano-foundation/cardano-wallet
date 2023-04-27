@@ -547,6 +547,8 @@ import Cardano.Wallet.Unsafe
     ( unsafeRunExceptT )
 import Cardano.Wallet.Write.Tx
     ( AnyRecentEra (..) )
+import Cardano.Wallet.Write.Tx.Balance
+    ( UTxOIndexForBalanceTx (..) )
 import Control.Arrow
     ( second, (&&&) )
 import Control.DeepSeq
@@ -3123,7 +3125,7 @@ balanceTransaction
                         mScriptTemplate)
                     (Write.unsafeFromWalletProtocolParameters pp)
                     timeTranslation
-                    utxoIndex
+                    (UTxOIndexForBalanceTx utxoIndex)
                     (W.defaultChangeAddressGen argGenChange (Proxy @k))
                     (getState wallet)
                     partialTx

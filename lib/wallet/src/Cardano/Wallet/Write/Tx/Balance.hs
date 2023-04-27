@@ -323,6 +323,9 @@ data UTxOAssumptions = forall k ktype. UTxOAssumptions
         :: Maybe ScriptTemplate
     }
 
+newtype UTxOIndexForBalanceTx = UTxOIndexForBalanceTx
+    { walletUTxOIndex :: UTxOIndex WalletUTxO }
+
 -- | Assumes all 'UTxO' entries have addresses with key payment credentials;
 -- either normal, post-Shelley credentials, or boostrap/byron credentials
 -- depending on the 'k' of the supplied 'TransactionLayer'.
@@ -375,7 +378,7 @@ balanceTransaction
     -- It is unclear whether an incorrect value could cause collateral to be
     -- forfeited. We should ideally investigate and clarify as part of ADP-1544
     -- or similar ticket. Relevant ledger code: https://github.com/input-output-hk/cardano-ledger/blob/fdec04e8c071060a003263cdcb37e7319fb4dbf3/eras/alonzo/impl/src/Cardano/Ledger/Alonzo/TxInfo.hs#L428-L440
-    -> UTxOIndex WalletUTxO
+    -> UTxOIndexForBalanceTx
     -- ^ TODO [ADP-1789] Replace with @Cardano.UTxO@
     -> ChangeAddressGen changeState
     -> changeState
@@ -472,7 +475,7 @@ balanceTransactionWithSelectionStrategyAndNoZeroAdaAdjustment
     -> UTxOAssumptions
     -> ProtocolParameters era
     -> TimeTranslation
-    -> UTxOIndex WalletUTxO
+    -> UTxOIndexForBalanceTx
     -> ChangeAddressGen changeState
     -> changeState
     -> SelectionStrategy
@@ -486,7 +489,7 @@ balanceTransactionWithSelectionStrategyAndNoZeroAdaAdjustment
         mScriptTemplate)
     (ProtocolParameters pp ledgerPP)
     timeTranslation
-    internalUtxoAvailable
+    (UTxOIndexForBalanceTx internalUtxoAvailable)
     genChange
     s
     selectionStrategy

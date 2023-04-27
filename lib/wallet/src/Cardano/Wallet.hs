@@ -496,6 +496,7 @@ import Cardano.Wallet.Write.Tx.Balance
     , ErrBalanceTxInternalError (..)
     , ErrSelectAssets (..)
     , PartialTx (..)
+    , UTxOIndexForBalanceTx (..)
     , assignChangeAddresses
     , balanceTransaction
     )
@@ -2288,7 +2289,7 @@ buildTransactionPure
             (Write.allKeyPaymentCredentials txLayer)
             pparams
             timeTranslation
-            utxoIndex
+            (UTxOIndexForBalanceTx utxoIndex)
             changeAddrGen
             (getState wallet)
             PartialTx
@@ -2982,7 +2983,7 @@ transactionFee DBLayer{atomically, walletsDB} protocolParams txLayer
                         (Write.allKeyPaymentCredentials txLayer)
                         protocolParams
                         timeTranslation
-                        utxoIndex
+                        (UTxOIndexForBalanceTx utxoIndex)
                         changeAddressGen
                         (getState wallet)
                         ptx
