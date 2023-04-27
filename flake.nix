@@ -280,7 +280,10 @@
                         if integrationCheck.doCheck == true
                         then
                           {
-                            cardano-wallet.integration-prev-era = integrationPrevEraCheck;
+                            # Uncomment and update the LOCAL_CLUSTER_ERA when we're close to a
+                            # hard-fork and would like to run integration tests on two eras in CI
+                            # again.
+                            # cardano-wallet.integration-prev-era = integrationPrevEraCheck;
                           }
                         else
                           {}
