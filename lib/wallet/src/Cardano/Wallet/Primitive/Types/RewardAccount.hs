@@ -53,16 +53,14 @@ instance Buildable RewardAccount where
     build (FromScriptHash bs) = build . Hash @"RewardAccount" $ bs
 
 instance ToText RewardAccount where
-    toText (FromKeyHash bs) = T.cons 'k' . toText . Hash @"RewardAccount" $ bs
+    toText (FromKeyHash bs) = toText . Hash @"RewardAccount" $ bs
     toText (FromScriptHash bs) = T.cons 's' . toText . Hash @"RewardAccount" $ bs
 
 instance FromText RewardAccount where
     fromText txt = case T.splitAt 1 txt of
         ("s", txt') ->
             fmap (FromScriptHash . getHash @"RewardAccount") . fromText $ txt'
-        ("k", txt') ->
-            fmap (FromKeyHash . getHash @"RewardAccount") . fromText $ txt'
-        _ -> -- for backward compatibility when there is already db
+        _ -> -- Hash is hex encoded so 0-9af
             fmap (FromKeyHash . getHash @"RewardAccount") . fromText $ txt
 
 
