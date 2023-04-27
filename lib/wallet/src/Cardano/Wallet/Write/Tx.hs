@@ -275,6 +275,7 @@ type RecentEraLedgerConstraints era =
     , Core.Value era ~ MaryValue StandardCrypto
     , Babbage.ShelleyEraTxBody era
     , HasField' "_collateralPercentage" (Core.PParams era) Natural
+    , HasField' "_maxCollateralInputs" (Core.PParams era) Natural
     )
 
 -- | Bring useful constraints into scope from a value-level
