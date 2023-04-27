@@ -4496,7 +4496,7 @@ mockProtocolParametersForBalancing =
                 (577 % 10_000)
         , Cardano.protocolParamMaxBlockExUnits =
             Just $ Cardano.ExecutionUnits 10_000_000_000 14_000_000
-        , Cardano.protocolParamCollateralPercent = Just 1
+        , Cardano.protocolParamCollateralPercent = Just 150
         , Cardano.protocolParamMaxCollateralInputs = Just 3
         }
     )
