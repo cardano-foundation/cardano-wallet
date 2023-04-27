@@ -49,7 +49,7 @@ import Cardano.Tx.Balance.Internal.CoinSelection
     , makeSelectionReportDetailed
     , makeSelectionReportSummarized
     , performSelection
-    , toExternalUTxOMap
+    , toInternalUTxOMap
     )
 import Cardano.Wallet.Address.Derivation
     ( Depth (..) )
@@ -328,11 +328,11 @@ data UTxOIndexForBalanceTx = UTxOIndexForBalanceTx
     , walletUTxOIndex :: !(UTxOIndex WalletUTxO)
     }
 
-constructUTxOIndexForBalanceTx :: UTxOIndex WalletUTxO -> UTxOIndexForBalanceTx
-constructUTxOIndexForBalanceTx walletUTxOIndex =
+constructUTxOIndexForBalanceTx :: W.UTxO -> UTxOIndexForBalanceTx
+constructUTxOIndexForBalanceTx walletUTxO =
     UTxOIndexForBalanceTx {walletUTxO, walletUTxOIndex}
   where
-    walletUTxO = toExternalUTxOMap $ UTxOIndex.toMap walletUTxOIndex
+    walletUTxOIndex = UTxOIndex.fromMap $ toInternalUTxOMap walletUTxO
 
 -- | Assumes all 'UTxO' entries have addresses with key payment credentials;
 -- either normal, post-Shelley credentials, or boostrap/byron credentials

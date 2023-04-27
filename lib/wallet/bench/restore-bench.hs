@@ -53,7 +53,7 @@ import Cardano.BM.Trace
 import Cardano.Mnemonic
     ( SomeMnemonic (..), entropyToMnemonic )
 import Cardano.Tx.Balance.Internal.CoinSelection
-    ( SelectionStrategy (..), selectionDelta )
+    ( SelectionStrategy (..), selectionDelta, toInternalUTxOMap )
 import Cardano.Wallet
     ( SelectAssetsParams (..)
     , WalletLayer (..)
@@ -478,7 +478,8 @@ benchmarksRnd network w wid wname benchname restoreTime = do
         let out = TxOut (dummyAddress network) (TokenBundle.fromCoin $ Coin 1)
         let txCtx = defaultTransactionCtx
         (utxoAvailable, wallet, pendingTxs) <-
-            unsafeRunExceptT $ W.readWalletUTxOIndex @_ @s @k w wid
+            unsafeRunExceptT $ W.readWalletUTxO @_ @s @k w wid
+        let utxoIndex = UTxOIndex.fromMap $ toInternalUTxOMap utxoAvailable
         pp <- liftIO $ currentProtocolParameters (w ^. networkLayer)
         era <- liftIO $ currentNodeEra (w ^. networkLayer)
         let estimateFee = W.selectAssets @_ @s @k @'CredFromKeyK
@@ -491,8 +492,8 @@ benchmarksRnd network w wid wname benchname restoreTime = do
                 , pendingTxs
                 , randomSeed = Nothing
                 , txContext = txCtx
-                , utxoAvailableForInputs = UTxOSelection.fromIndex utxoAvailable
-                , utxoAvailableForCollateral = UTxOIndex.toMap utxoAvailable
+                , utxoAvailableForInputs = UTxOSelection.fromIndex utxoIndex
+                , utxoAvailableForCollateral = UTxOIndex.toMap utxoIndex
                 , wallet
                 , selectionStrategy = SelectionStrategyOptimal
                 } $ \_state -> W.Fee . selectionDelta TokenBundle.getCoin
@@ -589,7 +590,8 @@ benchmarksSeq network w wid _wname benchname restoreTime = do
         let out = TxOut (dummyAddress network) (TokenBundle.fromCoin $ Coin 1)
         let txCtx = defaultTransactionCtx
         (utxoAvailable, wallet, pendingTxs) <-
-            unsafeRunExceptT $ W.readWalletUTxOIndex w wid
+            unsafeRunExceptT $ W.readWalletUTxO w wid
+        let utxoIndex = UTxOIndex.fromMap $ toInternalUTxOMap utxoAvailable
         pp <- liftIO $ currentProtocolParameters (w ^. networkLayer)
         era <- liftIO $ currentNodeEra (w ^. networkLayer)
         let estimateFee = W.selectAssets @_ @s @k @'CredFromKeyK
@@ -602,8 +604,8 @@ benchmarksSeq network w wid _wname benchname restoreTime = do
                 , pendingTxs
                 , randomSeed = Nothing
                 , txContext = txCtx
-                , utxoAvailableForInputs = UTxOSelection.fromIndex utxoAvailable
-                , utxoAvailableForCollateral = UTxOIndex.toMap utxoAvailable
+                , utxoAvailableForInputs = UTxOSelection.fromIndex utxoIndex
+                , utxoAvailableForCollateral = UTxOIndex.toMap utxoIndex
                 , wallet
                 , selectionStrategy = SelectionStrategyOptimal
                 } $ \_state -> W.Fee . selectionDelta TokenBundle.getCoin

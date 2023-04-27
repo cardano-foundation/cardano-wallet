@@ -506,7 +506,6 @@ import qualified Cardano.Ledger.Val as Value
 import qualified Cardano.Slotting.EpochInfo as Slotting
 import qualified Cardano.Slotting.Slot as Slotting
 import qualified Cardano.Slotting.Time as Slotting
-import qualified Cardano.Tx.Balance.Internal.CoinSelection as CS
 import qualified Cardano.Wallet.Address.Derivation.Byron as Byron
 import qualified Cardano.Wallet.Address.Derivation.Shelley as Shelley
 import qualified Cardano.Wallet.Primitive.Types.Coin as Coin
@@ -514,7 +513,6 @@ import qualified Cardano.Wallet.Primitive.Types.TokenBundle as TokenBundle
 import qualified Cardano.Wallet.Primitive.Types.TokenMap as TokenMap
 import qualified Cardano.Wallet.Primitive.Types.Tx.TxOut as TxOut
 import qualified Cardano.Wallet.Primitive.Types.Tx.TxOut.Gen as TxOutGen
-import qualified Cardano.Wallet.Primitive.Types.UTxOIndex as UTxOIndex
 import qualified Cardano.Wallet.Shelley.Compatibility as Compatibility
 import qualified Cardano.Wallet.Write.ProtocolParameters as Write
 import qualified Cardano.Wallet.Write.Tx as WriteTx
@@ -3789,12 +3787,10 @@ balanceTx
             utxoAssumptions
             pp
             timeTranslation
-            (constructUTxOIndexForBalanceTx utxoIndex)
+            (constructUTxOIndexForBalanceTx utxo)
             genChange
             s
             ptx
-  where
-    utxoIndex = UTxOIndex.fromMap $ CS.toInternalUTxOMap utxo
 
 -- | Also returns the updated change state
 balanceTransactionWithDummyChangeState
@@ -3815,12 +3811,11 @@ balanceTransactionWithDummyChangeState cs utxo seed ptx =
                 Cardano.shelleyBasedEra @era
             )
             dummyTimeTranslation
-            (constructUTxOIndexForBalanceTx utxoIndex)
+            (constructUTxOIndexForBalanceTx utxo)
             dummyChangeAddrGen
             (getState wal)
             ptx
   where
-    utxoIndex = UTxOIndex.fromMap $ CS.toInternalUTxOMap utxo
     wal = unsafeInitWallet utxo (header block0) s
       where
         s = DummyChangeState { nextUnusedIndex = 0 }

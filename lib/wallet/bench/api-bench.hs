@@ -44,6 +44,8 @@ import Cardano.BM.Data.Severity
     ( Severity (..) )
 import Cardano.BM.Trace
     ( Trace )
+import Cardano.Tx.Balance.Internal.CoinSelection
+    ( toInternalUTxOMap )
 import Cardano.Wallet.Address.Derivation
     ( BoundedAddressLength (..)
     , DelegationAddress (..)
@@ -493,7 +495,8 @@ selectAssets networkId ctx wid = do
     let tr = trMessageText (tracer ctx)
     let out = TxOut (dummyAddress networkId) (TokenBundle.fromCoin $ Coin 1)
     (utxoAvailable, wallet, pendingTxs) <-
-        unsafeRunExceptT $ W.readWalletUTxOIndex @_ @s @k ctx wid
+        unsafeRunExceptT $ W.readWalletUTxO @_ @s @k ctx wid
+    let utxoIndex = UTxOIndex.fromMap $ toInternalUTxOMap utxoAvailable
     pp <- currentProtocolParameters (networkLayer ctx)
     era <- currentNodeEra (networkLayer ctx)
     runExceptT $ withExceptT show $ W.selectAssets @_ @s @k @ktype
@@ -506,8 +509,8 @@ selectAssets networkId ctx wid = do
         , pendingTxs
         , randomSeed = Nothing
         , txContext = Tx.defaultTransactionCtx
-        , utxoAvailableForInputs = UTxOSelection.fromIndex utxoAvailable
-        , utxoAvailableForCollateral = UTxOIndex.toMap utxoAvailable
+        , utxoAvailableForInputs = UTxOSelection.fromIndex utxoIndex
+        , utxoAvailableForCollateral = UTxOIndex.toMap utxoIndex
         , wallet
         , selectionStrategy = CoinSelection.SelectionStrategyOptimal
         } $ \_state -> id
