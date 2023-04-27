@@ -912,10 +912,12 @@ balanceTransactionWithSelectionStrategyAndNoZeroAdaAdjustment
         TokenBundle adaInInputs tokensInInputs =
             UTxOSelection.selectedBalance utxoSelection
 
+        feePerByte = getFeePerByte (recentEra @era) ledgerPP
+
         boringFee =
             calculateMinimumFee
                 era
-                pp
+                feePerByte
                 txWitnessTag
                 defaultTransactionCtx
                 SelectionSkeleton
@@ -965,7 +967,7 @@ balanceTransactionWithSelectionStrategyAndNoZeroAdaAdjustment
                 , txPlutusScriptExecutionCost
                 , calculateMinimumFee
                     era
-                    pp
+                    feePerByte
                     txWitnessTag
                     (defaultTransactionCtx
                         { txPaymentCredentialScriptTemplate = mScriptTemplate

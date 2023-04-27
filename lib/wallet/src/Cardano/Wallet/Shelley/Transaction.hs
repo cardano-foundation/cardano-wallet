@@ -13,7 +13,6 @@
 {-# LANGUAGE NumericUnderscores #-}
 {-# LANGUAGE OverloadedLabels #-}
 {-# LANGUAGE Rank2Types #-}
-{-# LANGUAGE RecordWildCards #-}
 {-# LANGUAGE RoleAnnotations #-}
 {-# LANGUAGE ScopedTypeVariables #-}
 {-# LANGUAGE TupleSections #-}
@@ -61,6 +60,7 @@ module Cardano.Wallet.Shelley.Transaction
     , _decodeSealedTx
     , mkDelegationCertificates
     , calculateMinimumFee
+    , getFeePerByteFromWalletPParams
     , estimateTxCost
     , estimateTxSize
     , mkByronWitness
@@ -1304,6 +1304,16 @@ assignScriptRedeemers pparams timeTranslation utxo redeemers tx =
                 }
             }
 
+getFeePerByteFromWalletPParams
+    :: ProtocolParameters
+    -> FeePerByte
+getFeePerByteFromWalletPParams pp =
+    let
+        LinearFee LinearFunction {slope}
+            = getFeePolicy $ txParameters pp
+    in
+        FeePerByte $ ceiling slope
+
 txConstraints
     :: AnyCardanoEra -> ProtocolParameters -> TxWitnessTag -> TxConstraints
 txConstraints era protocolParams witnessTag = TxConstraints
@@ -1323,7 +1333,12 @@ txConstraints era protocolParams witnessTag = TxConstraints
     }
   where
     txBaseCost =
-        estimateTxCost era protocolParams empty
+        constantTxFee <> estimateTxCost era feePerByte empty
+
+    constantTxFee = Coin $ ceiling intercept
+    feePerByte = getFeePerByteFromWalletPParams protocolParams
+    LinearFee LinearFunction {intercept}
+        = getFeePolicy $ txParameters protocolParams
 
     txBaseSize =
         estimateTxSize era empty
@@ -1373,8 +1388,10 @@ txConstraints era protocolParams witnessTag = TxConstraints
     -- Computes the size difference between the given skeleton and an empty
     -- skeleton.
     marginalCostOf :: TxSkeleton -> Coin
-    marginalCostOf =
-        Coin.distance txBaseCost . estimateTxCost era protocolParams
+    marginalCostOf skeleton =
+        Coin.distance
+            (estimateTxCost era feePerByte empty)
+            (estimateTxCost era feePerByte skeleton)
 
     -- Computes the size difference between the given skeleton and an empty
     -- skeleton.
@@ -1471,20 +1488,22 @@ mkTxSkeleton witness context skeleton = TxSkeleton
 
 -- | Estimates the final cost of a transaction based on its skeleton.
 --
-estimateTxCost :: AnyCardanoEra -> ProtocolParameters -> TxSkeleton -> Coin
-estimateTxCost era pp skeleton = computeFee (estimateTxSize era skeleton)
+-- The constant tx fee is /not/ included in the result of this function.
+estimateTxCost :: AnyCardanoEra -> FeePerByte -> TxSkeleton -> Coin
+estimateTxCost era (FeePerByte feePerByte) skeleton =
+    computeFee (estimateTxSize era skeleton)
   where
     computeFee :: TxSize -> Coin
-    computeFee (TxSize size) =
-        let LinearFee LinearFunction {..} = getFeePolicy $ txParameters pp
-        in Coin $ ceiling $ intercept + slope * fromIntegral size
+    computeFee (TxSize size) = Coin $ feePerByte * size
 
 -- | Calculates a minimal fee amount necessary to pay for a given selection
 -- including necessary deposits.
+--
+-- The constant tx fee is /not/ included in the result of this function.
 calculateMinimumFee
     :: AnyCardanoEra
     -- ^ Era for which the transaction should be created.
-    -> ProtocolParameters
+    -> FeePerByte
     -> TxWitnessTag
     -- ^ Witness tag
     -> TransactionCtx
@@ -1492,8 +1511,8 @@ calculateMinimumFee
     -> SelectionSkeleton
     -- ^ An intermediate representation of an ongoing selection
     -> Coin
-calculateMinimumFee era pp witnessTag ctx skeleton =
-    estimateTxCost era pp (mkTxSkeleton witnessTag ctx skeleton)
+calculateMinimumFee era feePerByte witnessTag ctx skeleton =
+    estimateTxCost era feePerByte (mkTxSkeleton witnessTag ctx skeleton)
 
 -- | Calculate the cost of increasing a CBOR-encoded Coin-value by another Coin
 -- with the lovelace/byte cost given by the 'FeePolicy'.

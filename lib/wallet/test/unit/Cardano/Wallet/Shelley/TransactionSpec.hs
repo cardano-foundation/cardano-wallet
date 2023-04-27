@@ -1465,22 +1465,16 @@ feeCalculationSpec era = describe "fee calculations" $ do
                 & counterexample ("size without: " <> show sizeWithout)
 
   where
-    pp :: ProtocolParameters
-    pp = dummyProtocolParameters
-            { txParameters = dummyTxParameters
-                { getFeePolicy =
-                    LinearFee LinearFunction {intercept = 100_000, slope = 100}
-                }
-            }
+    feePerByte = mainnetFeePerByte
 
     minFee :: TransactionCtx -> Integer
-    minFee ctx =
-        Coin.toInteger $ calculateMinimumFee era pp witnessTag ctx emptySkeleton
+    minFee ctx = Coin.toInteger $
+        calculateMinimumFee era feePerByte witnessTag ctx emptySkeleton
       where
         witnessTag = txWitnessTagFor @ShelleyKey
 
     minFeeSkeleton :: TxSkeleton -> Integer
-    minFeeSkeleton = Coin.toInteger . estimateTxCost era pp
+    minFeeSkeleton = Coin.toInteger . estimateTxCost era feePerByte
 
     estimateTxSize' :: TxSkeleton -> Integer
     estimateTxSize' = fromIntegral . unTxSize . estimateTxSize era
@@ -2000,18 +1994,6 @@ dummyWit b =
 dummyTxId :: Hash "Tx"
 dummyTxId = Hash $ BS.pack $ replicate 32 0
 
-dummyTxParameters :: TxParameters
-dummyTxParameters = TxParameters
-    { getFeePolicy =
-        error "dummyTxParameters: getFeePolicy"
-    , getTxMaxSize =
-        error "dummyTxParameters: getTxMaxSize"
-    , getTokenBundleMaxSize =
-        error "dummyTxParameters: getMaxTokenBundleSize"
-    , getMaxExecutionUnits =
-        error "dummyTxParameters: getMaxExecutionUnits"
-    }
-
 dummyProtocolParameters :: ProtocolParameters
 dummyProtocolParameters = ProtocolParameters
     { decentralizationLevel =
@@ -2125,7 +2107,7 @@ instance Arbitrary MockSelection where
 prop_txConstraints_txBaseCost :: AnyCardanoEra -> Property
 prop_txConstraints_txBaseCost era =
     txBaseCost (mockTxConstraints era)
-        === estimateTxCost era mockProtocolParameters emptyTxSkeleton
+        === estimateTxCost era mainnetFeePerByte emptyTxSkeleton
 
 -- Tests that using 'txBaseSize' to estimate the size of an empty selection
 -- produces a result that is consistent with the result of using
@@ -2158,7 +2140,7 @@ prop_txConstraints_txCost era mock =
         , F.foldMap (txOutputCost (mockTxConstraints era) . tokens) txOutputs
         , txRewardWithdrawalCost (mockTxConstraints era) txRewardWithdrawal
         ]
-    lowerBound = estimateTxCost era mockProtocolParameters emptyTxSkeleton
+    lowerBound = estimateTxCost era mainnetFeePerByte emptyTxSkeleton
         {txInputCount, txOutputs, txRewardWithdrawal}
     -- We allow a small amount of overestimation due to the slight variation in
     -- the marginal cost of an input:

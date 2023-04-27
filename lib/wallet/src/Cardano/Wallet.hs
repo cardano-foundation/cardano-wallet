@@ -461,7 +461,7 @@ import Cardano.Wallet.Shelley.Compatibility
     , fromCardanoWdrls
     )
 import Cardano.Wallet.Shelley.Transaction
-    ( calculateMinimumFee )
+    ( calculateMinimumFee, getFeePerByteFromWalletPParams )
 import Cardano.Wallet.Transaction
     ( DelegationAction (..)
     , ErrCannotJoin (..)
@@ -1250,13 +1250,14 @@ checkRewardIsWorthTxCost txWitnessTag pp era balance = do
     when (balance == Coin 0)
         $ Left ErrWithdrawalNotBeneficial
     let minimumCost txCtx =
-            calculateMinimumFee era pp txWitnessTag txCtx emptySkeleton
+            calculateMinimumFee era feePerByte txWitnessTag txCtx emptySkeleton
         costWith = minimumCost $ mkTxCtx balance
         costWithout = minimumCost $ mkTxCtx $ Coin 0
         worthOfWithdrawal = Coin.toInteger costWith - Coin.toInteger costWithout
     when (Coin.toInteger balance < 2 * worthOfWithdrawal)
         $ Left ErrWithdrawalNotBeneficial
   where
+    feePerByte = getFeePerByteFromWalletPParams pp
     mkTxCtx wdrl = defaultTransactionCtx
         { txWithdrawal = WithdrawalSelf dummyAcct dummyPath wdrl }
       where
