@@ -323,8 +323,16 @@ data UTxOAssumptions = forall k ktype. UTxOAssumptions
         :: Maybe ScriptTemplate
     }
 
-newtype UTxOIndexForBalanceTx = UTxOIndexForBalanceTx
-    { walletUTxOIndex :: UTxOIndex WalletUTxO }
+data UTxOIndexForBalanceTx = UTxOIndexForBalanceTx
+    { walletUTxO :: !W.UTxO
+    , walletUTxOIndex :: !(UTxOIndex WalletUTxO)
+    }
+
+constructUTxOIndexForBalanceTx :: UTxOIndex WalletUTxO -> UTxOIndexForBalanceTx
+constructUTxOIndexForBalanceTx walletUTxOIndex =
+    UTxOIndexForBalanceTx {walletUTxO, walletUTxOIndex}
+  where
+    walletUTxO = toExternalUTxOMap $ UTxOIndex.toMap walletUTxOIndex
 
 -- | Assumes all 'UTxO' entries have addresses with key payment credentials;
 -- either normal, post-Shelley credentials, or boostrap/byron credentials
@@ -489,7 +497,7 @@ balanceTransactionWithSelectionStrategyAndNoZeroAdaAdjustment
         mScriptTemplate)
     (ProtocolParameters pp ledgerPP)
     timeTranslation
-    (UTxOIndexForBalanceTx internalUtxoAvailable)
+    (UTxOIndexForBalanceTx walletUTxO internalUtxoAvailable)
     genChange
     s
     selectionStrategy
@@ -749,9 +757,6 @@ balanceTransactionWithSelectionStrategyAndNoZeroAdaAdjustment
             (c:cs) -> throwE $ ErrBalanceTxInputResolutionConflicts (c :| cs)
       where
          unUTxO (Cardano.UTxO u) = u
-
-    walletUTxO :: W.UTxO
-    walletUTxO = toExternalUTxOMap $ UTxOIndex.toMap internalUtxoAvailable
 
     combinedUTxO :: Cardano.UTxO era
     combinedUTxO = Cardano.UTxO $ mconcat
