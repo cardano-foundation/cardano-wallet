@@ -20,7 +20,35 @@
 {-# OPTIONS_GHC -fno-warn-ambiguous-fields #-}
 #endif
 
-module Cardano.Wallet.Write.Tx.Balance where
+module Cardano.Wallet.Write.Tx.Balance
+    (
+    -- * Balancing transactions
+      balanceTransaction
+    , BalanceTxLog (..)
+    , ErrBalanceTx (..)
+    , ErrBalanceTxInternalError (..)
+    , ErrSelectAssets (..)
+
+    -- * Change addresses
+    , ChangeAddressGen (..)
+    , assignChangeAddresses
+
+    -- * Partial transactions
+    , PartialTx (..)
+
+    -- * UTxO assumptions
+    , UTxOAssumptions (..)
+    , allKeyPaymentCredentials
+    , allScriptPaymentCredentials
+
+    -- * UTxO indices
+    , UTxOIndex
+    , constructUTxOIndex
+
+    -- * Utilities
+    , posAndNegFromCardanoValue
+    )
+    where
 
 import Prelude
 
@@ -49,7 +77,7 @@ import Cardano.Tx.Balance.Internal.CoinSelection
     , makeSelectionReportDetailed
     , makeSelectionReportSummarized
     , performSelection
-    , toExternalUTxOMap
+    , toInternalUTxOMap
     )
 import Cardano.Wallet.Address.Derivation
     ( Depth (..) )
@@ -71,8 +99,6 @@ import Cardano.Wallet.Primitive.Types.Tx
     ( SealedTx, sealedTxFromCardano )
 import Cardano.Wallet.Primitive.Types.Tx.Constraints
     ( TxSize (..) )
-import Cardano.Wallet.Primitive.Types.UTxOIndex
-    ( UTxOIndex )
 import Cardano.Wallet.Primitive.Types.UTxOSelection
     ( UTxOSelection )
 import Cardano.Wallet.Shelley.Compatibility
@@ -323,6 +349,19 @@ data UTxOAssumptions = forall k ktype. UTxOAssumptions
         :: Maybe ScriptTemplate
     }
 
+data UTxOIndex era = UTxOIndex
+    { walletUTxO :: !W.UTxO
+    , walletUTxOIndex :: !(UTxOIndex.UTxOIndex WalletUTxO)
+    , cardanoUTxO :: !(Cardano.UTxO era)
+    }
+
+constructUTxOIndex :: IsRecentEra era => W.UTxO -> UTxOIndex era
+constructUTxOIndex walletUTxO =
+    UTxOIndex {walletUTxO, walletUTxOIndex, cardanoUTxO}
+  where
+    walletUTxOIndex = UTxOIndex.fromMap $ toInternalUTxOMap walletUTxO
+    cardanoUTxO = toCardanoUTxO Cardano.shelleyBasedEra walletUTxO
+
 -- | Assumes all 'UTxO' entries have addresses with key payment credentials;
 -- either normal, post-Shelley credentials, or boostrap/byron credentials
 -- depending on the 'k' of the supplied 'TransactionLayer'.
@@ -375,7 +414,7 @@ balanceTransaction
     -- It is unclear whether an incorrect value could cause collateral to be
     -- forfeited. We should ideally investigate and clarify as part of ADP-1544
     -- or similar ticket. Relevant ledger code: https://github.com/input-output-hk/cardano-ledger/blob/fdec04e8c071060a003263cdcb37e7319fb4dbf3/eras/alonzo/impl/src/Cardano/Ledger/Alonzo/TxInfo.hs#L428-L440
-    -> UTxOIndex WalletUTxO
+    -> UTxOIndex era
     -- ^ TODO [ADP-1789] Replace with @Cardano.UTxO@
     -> ChangeAddressGen changeState
     -> changeState
@@ -472,7 +511,7 @@ balanceTransactionWithSelectionStrategyAndNoZeroAdaAdjustment
     -> UTxOAssumptions
     -> ProtocolParameters era
     -> TimeTranslation
-    -> UTxOIndex WalletUTxO
+    -> UTxOIndex era
     -> ChangeAddressGen changeState
     -> changeState
     -> SelectionStrategy
@@ -486,7 +525,7 @@ balanceTransactionWithSelectionStrategyAndNoZeroAdaAdjustment
         mScriptTemplate)
     (ProtocolParameters pp ledgerPP)
     timeTranslation
-    internalUtxoAvailable
+    (UTxOIndex walletUTxO internalUtxoAvailable cardanoUTxO)
     genChange
     s
     selectionStrategy
@@ -651,7 +690,7 @@ balanceTransactionWithSelectionStrategyAndNoZeroAdaAdjustment
     -- Left (ErrBalanceTxUnresolvedInputs [inA, inC])
     extractExternallySelectedUTxO
         :: PartialTx era
-        -> ExceptT ErrBalanceTx m (UTxOIndex WalletUTxO)
+        -> ExceptT ErrBalanceTx m (UTxOIndex.UTxOIndex WalletUTxO)
     extractExternallySelectedUTxO (PartialTx tx _ _rdms) = do
         let res = flip map txIns $ \(i, _) -> do
                 case Map.lookup i utxo of
@@ -747,9 +786,6 @@ balanceTransactionWithSelectionStrategyAndNoZeroAdaAdjustment
       where
          unUTxO (Cardano.UTxO u) = u
 
-    walletUTxO :: W.UTxO
-    walletUTxO = toExternalUTxOMap $ UTxOIndex.toMap internalUtxoAvailable
-
     combinedUTxO :: Cardano.UTxO era
     combinedUTxO = Cardano.UTxO $ mconcat
          -- The @Cardano.UTxO@ can contain strictly more information than
@@ -759,7 +795,7 @@ balanceTransactionWithSelectionStrategyAndNoZeroAdaAdjustment
          -- UTxO set. (Whether or not this is a sane thing for the user to do,
          -- is another question.)
          [ unUTxO inputUTxO
-         , unUTxO $ toCardanoUTxO Cardano.shelleyBasedEra walletUTxO
+         , unUTxO cardanoUTxO
          ]
 
       where

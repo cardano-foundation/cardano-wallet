@@ -547,6 +547,8 @@ import Cardano.Wallet.Unsafe
     ( unsafeRunExceptT )
 import Cardano.Wallet.Write.Tx
     ( AnyRecentEra (..) )
+import Cardano.Wallet.Write.Tx.Balance
+    ( constructUTxOIndex )
 import Control.Arrow
     ( second, (&&&) )
 import Control.DeepSeq
@@ -3059,8 +3061,8 @@ balanceTransaction
     pp <- liftIO $ NW.currentProtocolParameters nl
     era <- liftIO $ NW.currentNodeEra nl
     withWorkerCtx ctx wid liftE liftE $ \wrk -> do
-        (utxoIndex, wallet, _txs) <-
-            liftHandler $ W.readWalletUTxOIndex @_ @s @k wrk wid
+        (walletUTxO, wallet, _txs) <-
+            liftHandler $ W.readWalletUTxO @_ @s @k wrk wid
         timeTranslation <- liftIO $
             toTimeTranslation (timeInterpreter netLayer)
 
@@ -3123,7 +3125,7 @@ balanceTransaction
                         mScriptTemplate)
                     (Write.unsafeFromWalletProtocolParameters pp)
                     timeTranslation
-                    utxoIndex
+                    (constructUTxOIndex walletUTxO)
                     (W.defaultChangeAddressGen argGenChange (Proxy @k))
                     (getState wallet)
                     partialTx

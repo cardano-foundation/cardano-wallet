@@ -127,7 +127,7 @@ module Cardano.Wallet
     , selectAssets
     , buildCoinSelectionForTransaction
     , CoinSelection (..)
-    , readWalletUTxOIndex
+    , readWalletUTxO
     , defaultChangeAddressGen
     , dummyChangeAddressGen
     , assignChangeAddressesAndUpdateDb
@@ -452,8 +452,6 @@ import Cardano.Wallet.Primitive.Types.Tx.TxOut
     ( TxOut (..) )
 import Cardano.Wallet.Primitive.Types.UTxO
     ( UTxO (..) )
-import Cardano.Wallet.Primitive.Types.UTxOIndex
-    ( UTxOIndex )
 import Cardano.Wallet.Primitive.Types.UTxOSelection
     ( UTxOSelection )
 import Cardano.Wallet.Primitive.Types.UTxOStatistics
@@ -498,6 +496,7 @@ import Cardano.Wallet.Write.Tx.Balance
     , PartialTx (..)
     , assignChangeAddresses
     , balanceTransaction
+    , constructUTxOIndex
     )
 import Cardano.Wallet.Write.Tx.TimeTranslation
     ( TimeTranslation )
@@ -623,7 +622,6 @@ import qualified Cardano.Address.Style.Shelley as CAShelley
 import qualified Cardano.Api as Cardano
 import qualified Cardano.Crypto.Wallet as CC
 import qualified Cardano.Slotting.Slot as Slot
-import qualified Cardano.Tx.Balance.Internal.CoinSelection as CS
 import qualified Cardano.Wallet.Address.Discovery.Random as Rnd
 import qualified Cardano.Wallet.Address.Discovery.Sequential as Seq
 import qualified Cardano.Wallet.Address.Discovery.Shared as Shared
@@ -638,7 +636,6 @@ import qualified Cardano.Wallet.Primitive.Types.TokenMap as TokenMap
 import qualified Cardano.Wallet.Primitive.Types.Tx.Tx as Tx
 import qualified Cardano.Wallet.Primitive.Types.Tx.TxOut as TxOut
 import qualified Cardano.Wallet.Primitive.Types.UTxO as UTxO
-import qualified Cardano.Wallet.Primitive.Types.UTxOIndex as UTxOIndex
 import qualified Cardano.Wallet.Primitive.Types.UTxOSelection as UTxOSelection
 import qualified Cardano.Wallet.Primitive.Types.UTxOStatistics as UTxOStatistics
 import qualified Cardano.Wallet.Read as Read
@@ -1764,18 +1761,16 @@ buildCoinSelectionForTransaction
     rewardAcctPath =
         stakeDerivationPath (Seq.derivationPrefix (getState wallet))
 
--- | Read a wallet checkpoint and index its UTxO, for 'selectAssets' and
+-- | Read a wallet checkpoint and its UTxO, for 'selectAssets' and
 -- 'selectAssetsNoOutputs'.
-readWalletUTxOIndex
+readWalletUTxO
     :: forall ctx s k. HasDBLayer IO s k ctx
     => ctx
     -> WalletId
-    -> ExceptT ErrNoSuchWallet IO (UTxOIndex WalletUTxO, Wallet s, Set Tx)
-readWalletUTxOIndex ctx wid = do
+    -> ExceptT ErrNoSuchWallet IO (UTxO, Wallet s, Set Tx)
+readWalletUTxO ctx wid = do
     (cp, _, pending) <- readWallet @ctx @s @k ctx wid
-    let utxo = UTxOIndex.fromMap $
-            CS.toInternalUTxOMap $ availableUTxO @s pending cp
-    return (utxo, cp, pending)
+    return (availableUTxO @s pending cp, cp, pending)
 
 -- | Calculate the minimum coin values required for a bunch of specified
 -- outputs.
@@ -2053,13 +2048,10 @@ buildSignSubmitTransaction db@DBLayer{..} netLayer txLayer pwd walletId
                 throwOnErr <=< modifyDBMaybe walletsDB $
                 adjustNoSuchWallet walletId wrapNoWalletForConstruct $ \s -> do
                     let wallet = WalletState.getLatest s
-                    let utxoIndex = UTxOIndex.fromMap
-                            $ CS.toInternalUTxOMap
-                            $ availableUTxO @s (Set.fromList pendingTxs) wallet
-
+                    let utxo = availableUTxO @s (Set.fromList pendingTxs) wallet
                     buildAndSignTransactionPure @k @s @n
                         timeTranslation
-                        utxoIndex
+                        utxo
                         rootKey
                         scheme
                         pwd
@@ -2115,7 +2107,7 @@ buildAndSignTransactionPure
        , WalletFlavor s n k
        )
     => TimeTranslation
-    -> UTxOIndex WalletUTxO
+    -> UTxO
     -> k 'RootK XPrv
     -> PassphraseScheme
     -> Passphrase "user"
@@ -2130,14 +2122,14 @@ buildAndSignTransactionPure
         (ExceptT (Either ErrBalanceTx ErrConstructTx) (Rand StdGen))
         BuiltTx
 buildAndSignTransactionPure
-    timeTranslation utxoIndex rootKey passphraseScheme userPassphrase
+    timeTranslation utxo rootKey passphraseScheme userPassphrase
     protocolParams txLayer changeAddrGen era preSelection txCtx =
     --
     WriteTx.withRecentEra era $ \(_ :: WriteTx.RecentEra recentEra) -> do
         wallet <- get
         (unsignedBalancedTx, updatedWalletState) <- lift $
             buildTransactionPure @s @k @n @recentEra
-                wallet timeTranslation utxoIndex txLayer changeAddrGen
+                wallet timeTranslation utxo txLayer changeAddrGen
                 (Write.unsafeFromWalletProtocolParameters protocolParams)
                 preSelection txCtx
         put wallet { getState = updatedWalletState }
@@ -2235,14 +2227,13 @@ buildTransaction DBLayer{..} txLayer timeTranslation walletId changeAddrGen
             readTransactions
                 Nothing Descending wholeRange (Just Pending) Nothing
 
-        let utxoIndex = UTxOIndex.fromMap . CS.toInternalUTxOMap $
-                availableUTxO @s pendingTxs wallet
+        let utxo = availableUTxO @s pendingTxs wallet
 
         fmap (\s' -> wallet { getState = s' }) <$>
             buildTransactionPure @s @_ @n @era
                 wallet
                 timeTranslation
-                utxoIndex
+                utxo
                 txLayer
                 changeAddrGen
                 (Write.unsafeFromWalletProtocolParameters protocolParameters)
@@ -2260,7 +2251,7 @@ buildTransactionPure
        )
     => Wallet s
     -> TimeTranslation
-    -> UTxOIndex WalletUTxO
+    -> UTxO
     -> TransactionLayer k 'CredFromKeyK SealedTx
     -> ChangeAddressGen s
     -> Write.ProtocolParameters era
@@ -2271,7 +2262,7 @@ buildTransactionPure
         (Rand StdGen)
         (Cardano.Tx era, s)
 buildTransactionPure
-    wallet timeTranslation utxoIndex txLayer changeAddrGen
+    wallet timeTranslation utxo txLayer changeAddrGen
     pparams preSelection txCtx = do
     --
     unsignedTxBody <-
@@ -2288,7 +2279,7 @@ buildTransactionPure
             (Write.allKeyPaymentCredentials txLayer)
             pparams
             timeTranslation
-            utxoIndex
+            (constructUTxOIndex utxo)
             changeAddrGen
             (getState wallet)
             PartialTx
@@ -2959,10 +2950,7 @@ transactionFee DBLayer{atomically, walletsDB} protocolParams txLayer
             -- fully evaluated, as all fields of the 'UTxOIndex' type are
             -- strict, and each field is defined in terms of 'Data.Map.Strict'.
             --
-            evaluate
-                $ UTxOIndex.fromMap
-                $ CS.toInternalUTxOMap
-                $ availableUTxO @s mempty wallet
+            evaluate $ constructUTxOIndex $ availableUTxO @s mempty wallet
         unsignedTxBody <- wrapErrMkTransaction $
             mkUnsignedTransaction txLayer @era
                 (Left $ unsafeShelleyOnlyGetRewardXPub @s @k @n (getState wallet))
