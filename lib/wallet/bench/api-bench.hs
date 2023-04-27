@@ -494,9 +494,9 @@ selectAssets
 selectAssets networkId ctx wid = do
     let tr = trMessageText (tracer ctx)
     let out = TxOut (dummyAddress networkId) (TokenBundle.fromCoin $ Coin 1)
-    (utxoAvailable, wallet, pendingTxs) <-
+    (walletUTxO, wallet, pendingTxs) <-
         unsafeRunExceptT $ W.readWalletUTxO @_ @s @k ctx wid
-    let utxoIndex = UTxOIndex.fromMap $ toInternalUTxOMap utxoAvailable
+    let utxoAvailable = UTxOIndex.fromMap $ toInternalUTxOMap walletUTxO
     pp <- currentProtocolParameters (networkLayer ctx)
     era <- currentNodeEra (networkLayer ctx)
     runExceptT $ withExceptT show $ W.selectAssets @_ @s @k @ktype
@@ -509,8 +509,8 @@ selectAssets networkId ctx wid = do
         , pendingTxs
         , randomSeed = Nothing
         , txContext = Tx.defaultTransactionCtx
-        , utxoAvailableForInputs = UTxOSelection.fromIndex utxoIndex
-        , utxoAvailableForCollateral = UTxOIndex.toMap utxoIndex
+        , utxoAvailableForInputs = UTxOSelection.fromIndex utxoAvailable
+        , utxoAvailableForCollateral = UTxOIndex.toMap utxoAvailable
         , wallet
         , selectionStrategy = CoinSelection.SelectionStrategyOptimal
         } $ \_state -> id

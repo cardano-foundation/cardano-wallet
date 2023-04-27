@@ -3061,7 +3061,7 @@ balanceTransaction
     pp <- liftIO $ NW.currentProtocolParameters nl
     era <- liftIO $ NW.currentNodeEra nl
     withWorkerCtx ctx wid liftE liftE $ \wrk -> do
-        (utxo, wallet, _txs) <-
+        (walletUTxO, wallet, _txs) <-
             liftHandler $ W.readWalletUTxO @_ @s @k wrk wid
         timeTranslation <- liftIO $
             toTimeTranslation (timeInterpreter netLayer)
@@ -3070,11 +3070,10 @@ balanceTransaction
                 :: forall era. WriteTx.IsRecentEra era => Cardano.Tx era
                 -> Handler (Write.PartialTx era)
             mkPartialTx tx = do
-                utxoInputs <-
-                    fmap WriteTx.toCardanoUTxO $ mkLedgerUTxO $ body ^. #inputs
+                utxo <- fmap WriteTx.toCardanoUTxO $ mkLedgerUTxO $ body ^. #inputs
                 pure $ Write.PartialTx
                     tx
-                    utxoInputs
+                    utxo
                     (fromApiRedeemer <$> body ^. #redeemers)
               where
                 -- NOTE: There are a couple of spread-out pieces of logic
@@ -3126,7 +3125,7 @@ balanceTransaction
                         mScriptTemplate)
                     (Write.unsafeFromWalletProtocolParameters pp)
                     timeTranslation
-                    (constructUTxOIndex utxo)
+                    (constructUTxOIndex walletUTxO)
                     (W.defaultChangeAddressGen argGenChange (Proxy @k))
                     (getState wallet)
                     partialTx
