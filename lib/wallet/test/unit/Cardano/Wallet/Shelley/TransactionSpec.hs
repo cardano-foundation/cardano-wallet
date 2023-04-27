@@ -79,7 +79,7 @@ import Cardano.BM.Data.Tracer
 import Cardano.Ledger.Alonzo.Genesis
     ( AlonzoGenesis (costmdls) )
 import Cardano.Ledger.Alonzo.TxInfo
-    ( TranslationError (..), TxOutSource (TxOutFromOutput) )
+    ( TranslationError (..) )
 import Cardano.Ledger.Era
     ( Era )
 import Cardano.Ledger.Shelley.API
@@ -219,8 +219,6 @@ import Cardano.Wallet.Primitive.Types.Tx.TxOut.Gen
     ( genTxOutTokenBundle )
 import Cardano.Wallet.Primitive.Types.UTxO
     ( UTxO (..) )
-import Cardano.Wallet.Primitive.Types.UTxO.Gen
-    ( shrinkUTxO )
 import Cardano.Wallet.Read.NetworkId
     ( NetworkDiscriminant (..)
     , NetworkId (..)
@@ -3318,7 +3316,17 @@ instance Arbitrary Wallet' where
         [ Wallet' utxoAssumptions utxo' changeAddressGen
         | utxo' <- shrinkUTxO utxo
         ]
+      where
+        -- We cannot use 'Cardano.Wallet.Primitive.Types.UTxO.Gen.shrinkUTxO'
+        -- because it will shrink to invalid addresses.
+        shrinkUTxO
+            = take 16
+            . fmap (UTxO . Map.fromList)
+            . shrinkList shrinkEntry
+            . Map.toList
+            . unUTxO
 
+        shrinkEntry _ = []
 
 mkTestWallet :: UTxO -> Wallet'
 mkTestWallet utxo = Wallet'
@@ -3381,35 +3389,6 @@ instance IsCardanoEra era => Arbitrary (Cardano.TxOutValue era) where
       shrink _ =
         error "Arbitrary (TxOutValue era) is not implemented for old eras"
 
-instance Arbitrary (PartialTx Cardano.AlonzoEra) where
-    arbitrary = do
-        let era = AlonzoEra
-        tx <- genTxForBalancing era
-        let (Cardano.Tx (Cardano.TxBody content) _) = tx
-        let inputs = Cardano.txIns content
-        inputUTxO <- fmap (Cardano.UTxO . Map.fromList) . forM inputs $ \i -> do
-            -- NOTE: genTxOut does not generate quantities larger than
-            -- `maxBound :: Word64`, however users could supply these.
-            -- We should ideally test what happens, and make it clear what code,
-            -- if any, should validate.
-            o <- genTxOut Cardano.AlonzoEra
-            return (fst i, o)
-        let redeemers = []
-        return $ PartialTx
-            tx
-            inputUTxO
-            redeemers
-    shrink (PartialTx tx inputUTxO redeemers) =
-        [ PartialTx tx inputUTxO' redeemers
-        | inputUTxO' <- shrinkInputResolution inputUTxO
-        ] ++
-        [ restrictResolution $ PartialTx
-            tx'
-            inputUTxO
-            redeemers
-        | tx' <- shrinkTxAlonzo tx
-        ]
-
 instance Arbitrary (PartialTx Cardano.BabbageEra) where
     arbitrary = do
         let era = BabbageEra
@@ -3462,11 +3441,6 @@ instance Semigroup (Cardano.UTxO era) where
 instance Monoid (Cardano.UTxO era) where
     mempty = Cardano.UTxO mempty
 
-shrinkTxAlonzo ::
-    Cardano.Tx Cardano.AlonzoEra -> [Cardano.Tx Cardano.AlonzoEra]
-shrinkTxAlonzo (Cardano.Tx bod wits) =
-    [ Cardano.Tx bod' wits | bod' <- shrinkTxBodyAlonzo bod ]
-
 shrinkTxBabbage ::
     Cardano.Tx Cardano.BabbageEra -> [Cardano.Tx Cardano.BabbageEra]
 shrinkTxBabbage (Cardano.Tx bod wits) =
@@ -3486,67 +3460,6 @@ restrictResolution (PartialTx tx (Cardano.UTxO u) redeemers) =
   where
     inputsInTx (Cardano.Tx (Cardano.TxBody bod) _) =
              Set.fromList $ map fst $ Cardano.txIns bod
-
-shrinkTxBodyAlonzo
-    :: Cardano.TxBody Cardano.AlonzoEra
-    -> [Cardano.TxBody Cardano.AlonzoEra]
-shrinkTxBodyAlonzo (Cardano.ShelleyTxBody e bod scripts scriptData aux val) =
-    tail
-        [ Cardano.ShelleyTxBody e bod' scripts' scriptData' aux' val'
-        | bod' <- prependOriginal shrinkLedgerTxBody bod
-        , aux' <- aux : filter (/= aux) [Nothing]
-        , scriptData' <- prependOriginal shrinkScriptData scriptData
-        , scripts' <- prependOriginal (shrinkList (const [])) scripts
-        , val' <- case Cardano.txScriptValiditySupportedInShelleyBasedEra e of
-            Nothing -> [val]
-            Just txsvsie -> val : filter (/= val)
-                [ Cardano.TxScriptValidity txsvsie Cardano.ScriptValid ]
-        ]
-  where
-    shrinkLedgerTxBody
-        :: Ledger.TxBody (Cardano.ShelleyLedgerEra Cardano.AlonzoEra)
-        -> [Ledger.TxBody (Cardano.ShelleyLedgerEra Cardano.AlonzoEra)]
-    shrinkLedgerTxBody body = tail
-        [ body
-            { Alonzo.txwdrls = wdrls'
-            , Alonzo.outputs = outs'
-            , Alonzo.inputs = ins'
-            , Alonzo.txcerts = certs'
-            , Alonzo.mint = mint'
-            , Alonzo.reqSignerHashes = rsh'
-            , Alonzo.txUpdates = updates'
-            , Alonzo.txfee = txfee'
-            , Alonzo.adHash = adHash'
-            , Alonzo.txvldt = vldt'
-            }
-        | updates' <-
-            prependOriginal shrinkStrictMaybe (Alonzo.txUpdates body)
-        , wdrls' <-
-            prependOriginal shrinkWdrl (Alonzo.txwdrls body)
-        , outs' <-
-            prependOriginal (shrinkSeq (const [])) (Alonzo.outputs body)
-        , ins' <-
-            prependOriginal (shrinkSet (const [])) (Alonzo.inputs body)
-        , certs' <-
-            prependOriginal (shrinkSeq (const [])) (Alonzo.txcerts body)
-        , mint' <-
-            prependOriginal shrinkValue (Alonzo.mint body)
-        , rsh' <-
-            prependOriginal (shrinkSet (const [])) (Alonzo.reqSignerHashes body)
-        , txfee' <-
-            prependOriginal shrinkFee (Alonzo.txfee body)
-        , adHash' <-
-            prependOriginal shrinkStrictMaybe (Alonzo.adHash body)
-        , vldt' <-
-            prependOriginal shrinkValidity (Alonzo.txvldt body)
-        ]
-      where
-        shrinkValidity (ValidityInterval a b) = tail
-            [ ValidityInterval a' b'
-            | a' <- prependOriginal shrinkStrictMaybe a
-            , b' <- prependOriginal shrinkStrictMaybe b
-            ]
-
 
 shrinkTxBodyBabbage
     :: Cardano.TxBody Cardano.BabbageEra -> [Cardano.TxBody Cardano.BabbageEra]
@@ -3576,6 +3489,8 @@ shrinkTxBodyBabbage (Cardano.ShelleyTxBody e bod scripts scriptData aux val) =
             , Babbage.reqSignerHashes = rsh'
             , Babbage.txUpdates = updates'
             , Babbage.txfee = txfee'
+            , Babbage.txvldt = vldt'
+            , Babbage.adHash = adHash'
             }
         | updates' <-
             prependOriginal shrinkStrictMaybe (Babbage.txUpdates body)
@@ -3594,6 +3509,16 @@ shrinkTxBodyBabbage (Cardano.ShelleyTxBody e bod scripts scriptData aux val) =
                 (shrinkSet (const [])) (Babbage.reqSignerHashes body)
         , txfee' <-
             prependOriginal shrinkFee (Babbage.txfee body)
+        , adHash' <-
+            prependOriginal shrinkStrictMaybe (Babbage.adHash body)
+        , vldt' <-
+            prependOriginal shrinkValidity (Babbage.txvldt body)
+        ]
+
+    shrinkValidity (ValidityInterval a b) = tail
+        [ ValidityInterval a' b'
+        | a' <- prependOriginal shrinkStrictMaybe a
+        , b' <- prependOriginal shrinkStrictMaybe b
         ]
 
 shrinkScriptData
@@ -4085,8 +4010,14 @@ prop_balanceTransactionValid wallet@(Wallet' _ walletUTxO _) (ShowBuildable part
             Left
                 (ErrBalanceTxAssignRedeemers
                 (ErrAssignRedeemersTranslationError
-                (ByronTxOutInContext (TxOutFromOutput _)))) ->
-                label "ErrByronTxOutInContext" $ property True
+                (ByronTxOutInContext _))) ->
+                label "failed with ByronTxOutInContext" $ property True
+            Left
+                (ErrBalanceTxAssignRedeemers
+                (ErrAssignRedeemersTranslationError
+                (ReferenceScriptsNotSupported _))) ->
+                -- Possible with PlutusV1
+                label "ReferenceScriptsNotSupported" $ property True
             Left
                 (ErrBalanceTxSelectAssets
                 (ErrSelectAssetsSelectionError
