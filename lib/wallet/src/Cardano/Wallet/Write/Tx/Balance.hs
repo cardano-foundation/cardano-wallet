@@ -20,7 +20,35 @@
 {-# OPTIONS_GHC -fno-warn-ambiguous-fields #-}
 #endif
 
-module Cardano.Wallet.Write.Tx.Balance where
+module Cardano.Wallet.Write.Tx.Balance
+    (
+    -- * Balancing transactions
+      balanceTransaction
+    , BalanceTxLog (..)
+    , ErrBalanceTx (..)
+    , ErrBalanceTxInternalError (..)
+    , ErrSelectAssets (..)
+
+    -- * Change addresses
+    , ChangeAddressGen (..)
+    , assignChangeAddresses
+
+    -- * Partial transactions
+    , PartialTx (..)
+
+    -- * UTxO assumptions
+    , UTxOAssumptions (..)
+    , allKeyPaymentCredentials
+    , allScriptPaymentCredentials
+
+    -- * UTxO indices
+    , UTxOIndex
+    , constructUTxOIndex
+
+    -- * Utilities
+    , posAndNegFromCardanoValue
+    )
+    where
 
 import Prelude
 
