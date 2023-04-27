@@ -14,9 +14,9 @@ import Cardano.Wallet.Address.Derivation.SharedKey
 import Cardano.Wallet.Address.Derivation.Shelley
     ( ShelleyKey )
 import Cardano.Wallet.Address.Discovery.Random
-    ( RndState (..) )
+    ( RndAnyState, RndState (..) )
 import Cardano.Wallet.Address.Discovery.Sequential
-    ( SeqState )
+    ( SeqAnyState, SeqState )
 import Cardano.Wallet.Address.Discovery.Shared
     ( SharedState (..) )
 
@@ -25,6 +25,8 @@ data WalletFlavorS s n k  where
     IcarusWallet :: WalletFlavorS (SeqState n IcarusKey) n IcarusKey
     ByronWallet :: WalletFlavorS (RndState n) n ByronKey
     SharedWallet :: WalletFlavorS (SharedState n k) n SharedKey
+    BenchByronWallet :: WalletFlavorS (RndAnyState n p) n ByronKey
+    BenchShelleyWallet :: WalletFlavorS (SeqAnyState n ShelleyKey p) n ShelleyKey
 
 class WalletFlavor s n k where
     walletFlavor :: WalletFlavorS s n k
@@ -37,6 +39,12 @@ instance WalletFlavor (SeqState n ShelleyKey) n ShelleyKey where
 
 instance WalletFlavor (RndState n) n ByronKey where
     walletFlavor = ByronWallet
+
+instance WalletFlavor (SeqAnyState n ShelleyKey p) n ShelleyKey where
+    walletFlavor = BenchShelleyWallet
+
+instance WalletFlavor (RndAnyState n p) n ByronKey where
+    walletFlavor = BenchByronWallet
 
 instance WalletFlavor (SharedState n SharedKey) n SharedKey where
     walletFlavor = SharedWallet

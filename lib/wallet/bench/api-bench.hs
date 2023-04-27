@@ -44,11 +44,8 @@ import Cardano.BM.Data.Severity
     ( Severity (..) )
 import Cardano.BM.Trace
     ( Trace )
-import Cardano.Tx.Balance.Internal.CoinSelection
-    ( toInternalUTxOMap )
 import Cardano.Wallet.Address.Derivation
-    ( BoundedAddressLength (..)
-    , DelegationAddress (..)
+    ( DelegationAddress (..)
     , Depth (..)
     , PersistPrivateKey
     , WalletKey
@@ -88,14 +85,10 @@ import Cardano.Wallet.Primitive.Slotting
     ( TimeInterpreter, hoistTimeInterpreter, toTimeTranslation )
 import Cardano.Wallet.Primitive.Types
     ( SortOrder (..), WalletId, WalletMetadata (..) )
-import Cardano.Wallet.Primitive.Types.Address
-    ( Address (..) )
 import Cardano.Wallet.Primitive.Types.Coin
     ( Coin (..) )
 import Cardano.Wallet.Primitive.Types.Tx
     ( SealedTx (..) )
-import Cardano.Wallet.Primitive.Types.Tx.TxOut
-    ( TxOut (..) )
 import Cardano.Wallet.Primitive.Types.UTxOStatistics
     ( HistogramBar (..), UTxOStatistics (..) )
 import Cardano.Wallet.Read.NetworkId
@@ -116,12 +109,8 @@ import Control.Monad
     ( forM )
 import Control.Monad.IO.Class
     ( liftIO )
-import Control.Monad.Trans.Except
-    ( runExceptT, withExceptT )
 import Data.Aeson
     ( ToJSON (..), genericToJSON, (.=) )
-import Data.Functor.Contravariant
-    ( contramap )
 import Data.Proxy
     ( Proxy (..) )
 import Data.Quantity
@@ -138,20 +127,15 @@ import Say
     ( sayErr )
 
 import qualified Cardano.Api as Cardano
-import qualified Cardano.Tx.Balance.Internal.CoinSelection as CoinSelection
 import qualified Cardano.Wallet as W
 import qualified Cardano.Wallet.DB as DB
 import qualified Cardano.Wallet.DB.Layer as DB
 import qualified Cardano.Wallet.DB.Layer as Sqlite
-import qualified Cardano.Wallet.Primitive.Types.TokenBundle as TokenBundle
-import qualified Cardano.Wallet.Primitive.Types.UTxOIndex as UTxOIndex
-import qualified Cardano.Wallet.Primitive.Types.UTxOSelection as UTxOSelection
 import qualified Cardano.Wallet.Primitive.Types.UTxOStatistics as UTxOStatistics
 import qualified Cardano.Wallet.Read as Read
 import qualified Cardano.Wallet.Transaction as Tx
 import qualified Cardano.Wallet.Write.Tx as Write
 import qualified Data.Aeson as Aeson
-import qualified Data.ByteString as BS
 import qualified Data.Map.Strict as Map
 import qualified Data.Text as T
 import qualified System.Environment as Sys
@@ -230,7 +214,6 @@ data BenchSeqResults = BenchSeqResults
     , listTransactionsLimitedTime :: Time
     , createMigrationPlanTime :: Time
     , delegationFeeTime :: Time
-    , selectAssetsTime :: Time
     } deriving (Show, Generic)
 
 instance Buildable BenchSeqResults where
@@ -249,7 +232,7 @@ benchmarksSeq
         )
     => BenchmarkConfig n s k ktype
     -> IO BenchSeqResults
-benchmarksSeq BenchmarkConfig{benchmarkName,ctx,wid, networkId} = do
+benchmarksSeq BenchmarkConfig{benchmarkName,ctx,wid} = do
     ((cp, pending), readWalletTime) <- bench "readWallet" $ do
         (cp, _, pending) <- unsafeRunExceptT $ W.readWallet @_ @s @k ctx wid
         pure (cp, pending)
@@ -298,9 +281,6 @@ benchmarksSeq BenchmarkConfig{benchmarkName,ctx,wid, networkId} = do
             (W.defaultChangeAddressGen (delegationAddressS @n) (Proxy @k))
             wid
 
-    (_, selectAssetsTime) <- bench "selectAssets"
-        $ selectAssets @_ @s @k @ktype networkId ctx wid
-
     pure BenchSeqResults
         { benchName = benchmarkName
         , walletOverview = WalletOverview{utxo,addresses,transactions}
@@ -312,7 +292,6 @@ benchmarksSeq BenchmarkConfig{benchmarkName,ctx,wid, networkId} = do
         , listTransactionsLimitedTime
         , createMigrationPlanTime
         , delegationFeeTime
-        , selectAssetsTime
         }
 
 {-------------------------------------------------------------------------------
@@ -328,7 +307,6 @@ data BenchSharedResults = BenchSharedResults
     , listAssetsTime :: Time
     , listTransactionsTime :: Time
     , listTransactionsLimitedTime :: Time
-    , selectAssetsTime :: Time
     } deriving (Show, Generic)
 
 instance Buildable BenchSharedResults where
@@ -346,7 +324,7 @@ benchmarksShared
        )
     => BenchmarkConfig n s k ktype
     -> IO BenchSharedResults
-benchmarksShared BenchmarkConfig{benchmarkName,ctx,wid, networkId} = do
+benchmarksShared BenchmarkConfig{benchmarkName,ctx,wid} = do
     ((cp, pending), readWalletTime) <- bench "readWallet" $ do
         (cp, _, pending) <- unsafeRunExceptT $ W.readWallet @_ @s @k ctx wid
         pure (cp, pending)
@@ -380,9 +358,6 @@ benchmarksShared BenchmarkConfig{benchmarkName,ctx,wid, networkId} = do
         $ W.listTransactions @_ @s @k ctx
             Nothing Nothing Nothing Descending (Just 50)
 
-    (_, selectAssetsTime) <- bench "selectAssets"
-        $ selectAssets @_ @s @k @ktype networkId ctx wid
-
     pure BenchSharedResults
         { benchName = benchmarkName
         , walletOverview = WalletOverview{utxo,addresses,transactions}
@@ -392,7 +367,6 @@ benchmarksShared BenchmarkConfig{benchmarkName,ctx,wid, networkId} = do
         , listAssetsTime
         , listTransactionsTime
         , listTransactionsLimitedTime
-        , selectAssetsTime
         }
 
 {-------------------------------------------------------------------------------
@@ -409,7 +383,6 @@ data BenchRndResults = BenchRndResults
     , listTransactionsTime :: Time
     , listTransactionsLimitedTime :: Time
     , createMigrationPlanTime :: Time
-    , selectAssetsTime :: Time
     } deriving (Show, Generic)
 
 instance Buildable BenchRndResults where
@@ -426,7 +399,7 @@ benchmarksRnd
        )
     => BenchmarkConfig n s k ktype
     -> IO BenchRndResults
-benchmarksRnd BenchmarkConfig{benchmarkName,ctx,wid, networkId} = do
+benchmarksRnd BenchmarkConfig{benchmarkName,ctx,wid} = do
     ((cp, pending), readWalletTime) <- bench "readWallet" $ do
         (cp, _, pending) <- unsafeRunExceptT $ W.readWallet @_ @s @k ctx wid
         pure (cp, pending)
@@ -465,9 +438,6 @@ benchmarksRnd BenchmarkConfig{benchmarkName,ctx,wid, networkId} = do
         $ unsafeRunExceptT
         $ W.createMigrationPlan @_ @k @s ctx era wid Tx.NoWithdrawal
 
-    (_, selectAssetsTime) <- bench "selectAssets"
-        $ selectAssets @_ @s @k @ktype networkId ctx wid
-
     pure BenchRndResults
         { benchName = benchmarkName
         , walletOverview = WalletOverview{utxo,addresses,transactions}
@@ -478,51 +448,7 @@ benchmarksRnd BenchmarkConfig{benchmarkName,ctx,wid, networkId} = do
         , listTransactionsTime
         , listTransactionsLimitedTime
         , createMigrationPlanTime
-        , selectAssetsTime
         }
-
-{-------------------------------------------------------------------------------
-    Custom Wallet API functions
--------------------------------------------------------------------------------}
-selectAssets
-    :: forall n s (k :: Depth -> * -> *) ktype
-     . BoundedAddressLength k
-    => SNetworkId n
-    -> MockWalletLayer IO s k ktype
-    -> WalletId
-    -> IO (Either String CoinSelection.Selection)
-selectAssets networkId ctx wid = do
-    let tr = trMessageText (tracer ctx)
-    let out = TxOut (dummyAddress networkId) (TokenBundle.fromCoin $ Coin 1)
-    (walletUTxO, wallet, pendingTxs) <-
-        unsafeRunExceptT $ W.readWalletUTxO @_ @s @k ctx wid
-    let utxoAvailable = UTxOIndex.fromMap $ toInternalUTxOMap walletUTxO
-    pp <- currentProtocolParameters (networkLayer ctx)
-    era <- currentNodeEra (networkLayer ctx)
-    runExceptT $ withExceptT show $ W.selectAssets @_ @s @k @ktype
-        (contramap (W.MsgWallet . W.MsgBalanceTx) tr)
-        (transactionLayer ctx)
-        era
-        pp
-        W.SelectAssetsParams
-        { outputs = [out]
-        , pendingTxs
-        , randomSeed = Nothing
-        , txContext = Tx.defaultTransactionCtx
-        , utxoAvailableForInputs = UTxOSelection.fromIndex utxoAvailable
-        , utxoAvailableForCollateral = UTxOIndex.toMap utxoAvailable
-        , wallet
-        , selectionStrategy = CoinSelection.SelectionStrategyOptimal
-        } $ \_state -> id
-
-dummyAddress
-    :: SNetworkId n
-    -> Address
-dummyAddress n = case n of
-    SMainnet ->
-        Address $ BS.pack $ 0 : replicate 56 0
-    _ ->
-        Address $ BS.pack $ 1 : replicate 56 0
 
 {-------------------------------------------------------------------------------
     Benchmark Harness

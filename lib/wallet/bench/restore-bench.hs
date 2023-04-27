@@ -52,13 +52,11 @@ import Cardano.BM.Trace
     ( Trace, nullTracer )
 import Cardano.Mnemonic
     ( SomeMnemonic (..), entropyToMnemonic )
-import Cardano.Tx.Balance.Internal.CoinSelection
-    ( SelectionStrategy (..), selectionDelta, toInternalUTxOMap )
 import Cardano.Wallet
-    ( SelectAssetsParams (..)
+    ( WalletException (..)
     , WalletLayer (..)
     , WalletWorkerLog (..)
-    , networkLayer
+    , dummyChangeAddressGen
     )
 import Cardano.Wallet.Address.Derivation
     ( Depth (..), PersistPrivateKey, WalletKey, digest, publicKey )
@@ -104,10 +102,10 @@ import Cardano.Wallet.Network
     )
 import Cardano.Wallet.Primitive.Model
     ( Wallet, currentTip, getState, totalUTxO )
-import Cardano.Wallet.Primitive.Passphrase
+import Cardano.Wallet.Primitive.Passphrase.Types
     ( Passphrase (..) )
 import Cardano.Wallet.Primitive.Slotting
-    ( TimeInterpreter, neverFails )
+    ( TimeInterpreter, neverFails, toTimeTranslation )
 import Cardano.Wallet.Primitive.SyncProgress
     ( SyncProgress (..), SyncTolerance, mkSyncTolerance )
 import Cardano.Wallet.Primitive.Types
@@ -140,7 +138,8 @@ import Cardano.Wallet.Read.NetworkId
     , withSNetworkId
     )
 import Cardano.Wallet.Shelley.Compatibility
-    ( CardanoBlock
+    ( AnyCardanoEra (..)
+    , CardanoBlock
     , NodeToClientVersionData
     , StandardCrypto
     , emptyGenesis
@@ -152,11 +151,15 @@ import Cardano.Wallet.Shelley.Network.Node
 import Cardano.Wallet.Shelley.Transaction
     ( TxWitnessTagFor (..), newTransactionLayer )
 import Cardano.Wallet.Transaction
-    ( defaultTransactionCtx )
+    ( PreSelection (..), defaultTransactionCtx )
 import Cardano.Wallet.Unsafe
     ( unsafeMkEntropy, unsafeMkPercentage, unsafeRunExceptT )
+import Cardano.Wallet.Write.Tx
+    ( AnyRecentEra (..) )
 import Control.Arrow
     ( first )
+import Control.Exception
+    ( throwIO )
 import Control.Monad
     ( unless, void )
 import Control.Monad.IO.Class
@@ -170,11 +173,7 @@ import Crypto.Hash.Utils
 import Data.Aeson
     ( ToJSON (..), genericToJSON, (.=) )
 import Data.Functor.Contravariant
-    ( contramap, (>$<) )
-import Data.Generics.Internal.VL.Lens
-    ( (^.) )
-import Data.Generics.Product
-    ( typed )
+    ( contramap )
 import Data.List
     ( foldl' )
 import Data.Proxy
@@ -234,11 +233,14 @@ import qualified Cardano.Wallet as W
 import qualified Cardano.Wallet.Address.Derivation.Byron as Byron
 import qualified Cardano.Wallet.Address.Derivation.Shelley as Shelley
 import qualified Cardano.Wallet.Checkpoints.Policy as CP
-import qualified Cardano.Wallet.DB.Layer as Sqlite
+import qualified Cardano.Wallet.DB.Sqlite.Migration as Sqlite
+    ( DefaultFieldValues (..) )
 import qualified Cardano.Wallet.Primitive.Types.TokenBundle as TokenBundle
-import qualified Cardano.Wallet.Primitive.Types.UTxOIndex as UTxOIndex
-import qualified Cardano.Wallet.Primitive.Types.UTxOSelection as UTxOSelection
 import qualified Cardano.Wallet.Primitive.Types.UTxOStatistics as UTxOStatistics
+import qualified Cardano.Wallet.Shelley.Compatibility as Cardano
+import qualified Cardano.Wallet.Write.ProtocolParameters as Write
+import qualified Cardano.Wallet.Write.Tx as WriteTx
+import qualified Cardano.Wallet.Write.Tx.Balance as Write
 import qualified Data.Aeson as Aeson
 import qualified Data.ByteString as BS
 import qualified Data.ByteString.Char8 as B8
@@ -266,7 +268,7 @@ cardanoRestoreBench
     -> NetworkConfiguration
     -> CardanoNodeConn
     -> IO ()
-cardanoRestoreBench tr c socketFile =  do
+cardanoRestoreBench tr c socketFile = do
     (networkId, np, vData, _b)
         <- unsafeRunExceptT $ parseGenesisData c
     (_, walletTr) <- initBenchmarkLogging "wallet" Notice
@@ -451,7 +453,8 @@ benchmarksRnd
     -> Text
     -> Time
     -> IO BenchRndResults
-benchmarksRnd network w wid wname benchname restoreTime = do
+benchmarksRnd network w@(WalletLayer _ _ netLayer txLayer dbLayer) wid wname
+    benchname restoreTime = do
     ((cp, pending), readWalletTime) <- bench "read wallet" $ do
         (cp, _, pending) <- unsafeRunExceptT $ W.readWallet w wid
         pure (cp, pending)
@@ -475,29 +478,22 @@ benchmarksRnd network w wid wname benchname restoreTime = do
             (Just 100)
 
     (_, estimateFeesTime) <- bench "estimate tx fee" $ do
-        let out = TxOut (dummyAddress network) (TokenBundle.fromCoin $ Coin 1)
-        let txCtx = defaultTransactionCtx
-        (walletUTxO, wallet, pendingTxs) <-
-            unsafeRunExceptT $ W.readWalletUTxO @_ @s @k w wid
-        let utxoAvailable = UTxOIndex.fromMap $ toInternalUTxOMap walletUTxO
-        pp <- liftIO $ currentProtocolParameters (w ^. networkLayer)
-        era <- liftIO $ currentNodeEra (w ^. networkLayer)
-        let estimateFee = W.selectAssets @_ @s @k @'CredFromKeyK
-                (MsgWallet . W.MsgBalanceTx >$< w ^. W.logger)
-                (w ^. typed)
-                era
-                pp
-                W.SelectAssetsParams
-                { outputs = [out]
-                , pendingTxs
-                , randomSeed = Nothing
-                , txContext = txCtx
-                , utxoAvailableForInputs = UTxOSelection.fromIndex utxoAvailable
-                , utxoAvailableForCollateral = UTxOIndex.toMap utxoAvailable
-                , wallet
-                , selectionStrategy = SelectionStrategyOptimal
-                } $ \_state -> W.Fee . selectionDelta TokenBundle.getCoin
-        runExceptT $ withExceptT show $ W.calculateFeePercentiles estimateFee
+        AnyRecentEra (recentEra :: WriteTx.RecentEra era) <-
+            guardIsRecentEra =<< currentNodeEra netLayer
+        (protocolParameters, _bundledProtocolParameters) <-
+            W.toBalanceTxPParams @era <$> currentProtocolParameters netLayer
+        timeTranslation <- toTimeTranslation (timeInterpreter netLayer)
+        W.transactionFee @s @k @n
+            dbLayer
+            (Write.unsafeFromWalletProtocolParameters protocolParameters)
+            txLayer
+            timeTranslation
+            recentEra
+            (dummyChangeAddressGen @k)
+            wid
+            defaultTransactionCtx
+            (PreSelection
+                [TxOut (dummyAddress network) (TokenBundle.fromCoin (Coin 1))])
 
     oneAddress <- genAddresses 1 cp
     (_, importOneAddressTime) <- bench "import one addresses" $ do
@@ -533,6 +529,8 @@ benchmarksRnd network w wid wname benchname restoreTime = do
         seed = dummySeedFromName $ getWalletName wname
         xprv = Byron.generateKeyFromSeed seed mempty
 
+
+
 data BenchSeqResults = BenchSeqResults
     { benchName :: Text
     , restoreTime :: Time
@@ -564,7 +562,8 @@ benchmarksSeq
     -> Text -- ^ Bench name
     -> Time
     -> IO BenchSeqResults
-benchmarksSeq network w wid _wname benchname restoreTime = do
+benchmarksSeq network w@(WalletLayer _ _ netLayer txLayer dbLayer) wid _wname
+    benchname restoreTime = do
     ((cp, pending), readWalletTime) <- bench "read wallet" $ do
         (cp, _, pending) <- unsafeRunExceptT $ W.readWallet w wid
         pure (cp, pending)
@@ -587,29 +586,22 @@ benchmarksSeq network w wid _wname benchname restoreTime = do
             (Just 100)
 
     (_, estimateFeesTime) <- bench "estimate tx fee" $ do
-        let out = TxOut (dummyAddress network) (TokenBundle.fromCoin $ Coin 1)
-        let txCtx = defaultTransactionCtx
-        (walletUTxO, wallet, pendingTxs) <-
-            unsafeRunExceptT $ W.readWalletUTxO w wid
-        let utxoAvailable = UTxOIndex.fromMap $ toInternalUTxOMap walletUTxO
-        pp <- liftIO $ currentProtocolParameters (w ^. networkLayer)
-        era <- liftIO $ currentNodeEra (w ^. networkLayer)
-        let estimateFee = W.selectAssets @_ @s @k @'CredFromKeyK
-                (MsgWallet . W.MsgBalanceTx >$< w ^. W.logger)
-                (w ^. typed)
-                era
-                pp
-                W.SelectAssetsParams
-                { outputs = [out]
-                , pendingTxs
-                , randomSeed = Nothing
-                , txContext = txCtx
-                , utxoAvailableForInputs = UTxOSelection.fromIndex utxoAvailable
-                , utxoAvailableForCollateral = UTxOIndex.toMap utxoAvailable
-                , wallet
-                , selectionStrategy = SelectionStrategyOptimal
-                } $ \_state -> W.Fee . selectionDelta TokenBundle.getCoin
-        runExceptT $ withExceptT show $ W.calculateFeePercentiles estimateFee
+        AnyRecentEra (recentEra :: WriteTx.RecentEra era) <-
+            guardIsRecentEra =<< currentNodeEra netLayer
+        (protocolParameters, _bundledProtocolParameters) <-
+            W.toBalanceTxPParams @era <$> currentProtocolParameters netLayer
+        timeTranslation <- toTimeTranslation (timeInterpreter netLayer)
+        W.transactionFee @s @k @n
+            dbLayer
+            (Write.unsafeFromWalletProtocolParameters protocolParameters)
+            txLayer
+            timeTranslation
+            recentEra
+            (dummyChangeAddressGen @k)
+            wid
+            defaultTransactionCtx
+            (PreSelection
+                [TxOut (dummyAddress network) (TokenBundle.fromCoin (Coin 1))])
 
     let walletOverview = WalletOverview{utxo,addresses,transactions}
 
@@ -1023,3 +1015,16 @@ showPercentFromPermyriad =
 
 sTol :: SyncTolerance
 sTol = mkSyncTolerance 3600
+
+guardIsRecentEra :: AnyCardanoEra -> IO AnyRecentEra
+guardIsRecentEra (Cardano.AnyCardanoEra era) = case era of
+    Cardano.ConwayEra -> pure $ WriteTx.AnyRecentEra WriteTx.RecentEraConway
+    Cardano.BabbageEra -> pure $ WriteTx.AnyRecentEra WriteTx.RecentEraBabbage
+    Cardano.AlonzoEra -> pure $ WriteTx.AnyRecentEra WriteTx.RecentEraAlonzo
+    Cardano.MaryEra -> invalidEra
+    Cardano.AllegraEra -> invalidEra
+    Cardano.ShelleyEra -> invalidEra
+    Cardano.ByronEra -> invalidEra
+    where
+    invalidEra = throwIO $ ExceptionBalanceTx $ Write.ErrOldEraNotSupported $
+        Cardano.AnyCardanoEra era
