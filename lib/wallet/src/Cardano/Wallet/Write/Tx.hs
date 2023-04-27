@@ -1,5 +1,6 @@
 {-# LANGUAGE AllowAmbiguousTypes #-}
 {-# LANGUAGE ConstraintKinds #-}
+{-# LANGUAGE DataKinds #-}
 {-# LANGUAGE EmptyCase #-}
 {-# LANGUAGE FlexibleContexts #-}
 {-# LANGUAGE FlexibleInstances #-}
@@ -186,6 +187,8 @@ import Data.Generics.Internal.VL.Lens
     ( (^.) )
 import Data.Generics.Labels
     ()
+import Data.Generics.Product
+    ( HasField' )
 import Data.IntCast
     ( intCast )
 import Data.Maybe
@@ -271,6 +274,8 @@ type RecentEraLedgerConstraints era =
     , Core.Tx era ~ Alonzo.AlonzoTx era
     , Core.Value era ~ MaryValue StandardCrypto
     , Babbage.ShelleyEraTxBody era
+    , HasField' "_collateralPercentage" (Core.PParams era) Natural
+    , HasField' "_maxCollateralInputs" (Core.PParams era) Natural
     )
 
 -- | Bring useful constraints into scope from a value-level

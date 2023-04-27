@@ -151,6 +151,8 @@ import Control.Monad.Trans.Except
     ( ExceptT (ExceptT), catchE, except, runExceptT, throwE, withExceptT )
 import Control.Monad.Trans.State
     ( runState, state )
+import Data.Bits
+    ( Bits )
 import Data.Either
     ( lefts, partitionEithers )
 import qualified Data.Foldable as F
@@ -158,18 +160,20 @@ import Data.Generics.Internal.VL.Lens
     ( over, view, (^.) )
 import Data.Generics.Labels
     ()
+import Data.Generics.Product
+    ( getField )
 import Data.IntCast
     ( intCast, intCastMaybe )
 import Data.List.NonEmpty
     ( NonEmpty (..) )
+import Data.Maybe
+    ( fromMaybe )
 import Data.Quantity
     ( Quantity (..) )
 import Data.Text.Class
     ( ToText (..) )
 import Data.Type.Equality
     ( (:~:) (..), testEquality )
-import Data.Word
-    ( Word16 )
 import Fmt
     ( Buildable
     , Builder
@@ -184,6 +188,8 @@ import Fmt
     )
 import GHC.Generics
     ( Generic )
+import GHC.Stack
+    ( HasCallStack )
 import Numeric.Natural
     ( Natural )
 import System.Random.StdGenSeed
@@ -965,10 +971,24 @@ balanceTransactionWithSelectionStrategyAndNoZeroAdaAdjustment
                         skeleton
                     ] `Coin.difference` boringFee
                 , computeSelectionLimit = \_ -> NoLimit
-                , maximumCollateralInputCount =
-                    intCast @Word16 @Int $ view #maximumCollateralInputCount pp
-                , minimumCollateralPercentage =
-                    view #minimumCollateralPercentage pp
+                , maximumCollateralInputCount = unsafeIntCast @Natural @Int $
+                    case recentEra @era of
+                        RecentEraAlonzo ->
+                            getField @"_maxCollateralInputs" ledgerPP
+                        RecentEraBabbage ->
+                            getField @"_maxCollateralInputs" ledgerPP
+                        RecentEraConway ->
+                            getField @"_maxCollateralInputs" ledgerPP
+
+                , minimumCollateralPercentage = case recentEra @era of
+                    -- case-statement avoids "Overlapping instances" problem.
+                    -- May be avoidable with ADP-2353.
+                    RecentEraAlonzo ->
+                        getField @"_collateralPercentage" ledgerPP
+                    RecentEraBabbage ->
+                        getField @"_collateralPercentage" ledgerPP
+                    RecentEraConway ->
+                        getField @"_collateralPercentage" ledgerPP
                 , maximumLengthChangeAddress =
                     maxLengthChangeAddress genChange
                 }
@@ -1075,3 +1095,11 @@ posAndNegFromCardanoValue = foldMap go . Cardano.valueToList
 
     mkPolicyId = UnsafeTokenPolicyId . Hash . Cardano.serialiseToRawBytes
     mkTokenName = UnsafeTokenName . Cardano.serialiseToRawBytes
+
+unsafeIntCast
+    :: (HasCallStack, Integral a, Integral b, Bits a, Bits b, Show a)
+    => a
+    -> b
+unsafeIntCast x = fromMaybe err $ intCastMaybe x
+  where
+    err = error $ "unsafeIntCast failed for " <> show x
