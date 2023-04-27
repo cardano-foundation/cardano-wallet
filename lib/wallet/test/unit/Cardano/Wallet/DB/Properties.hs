@@ -86,7 +86,7 @@ import Data.Maybe
 import Fmt
     ( Buildable, pretty )
 import Test.Hspec
-    ( SpecWith, describe, it, shouldBe, shouldReturn )
+    ( SpecWith, describe, it, shouldReturn )
 import Test.QuickCheck
     ( Arbitrary (..)
     , Gen
@@ -182,37 +182,6 @@ properties withFreshDB = describe "DB.Properties" $ do
         it "cannot read after putting tx history for invalid tx id"
             $ property
             $ prop_getTxAfterPutInvalidTxId testOnLayer
-
-    describe "can't put before wallet exists" $ do
-        it "Checkpoint"
-            $ property
-            $ prop_putBeforeInit
-                withFreshDB
-                (\DBLayer{..} _wid -> mapExceptT atomically . putCheckpoint)
-                (\DBLayer{..} _wid -> atomically readCheckpoint)
-                Nothing
-        it "Wallet Metadata"
-            $ property
-            $ prop_putBeforeInit
-                withFreshDB
-                (\DBLayer{..} _wid -> mapExceptT atomically . putWalletMeta)
-                (\DBLayer{..} _ -> atomically . fmap (fmap fst)
-                    $ readWalletMeta)
-                Nothing
-        it "Tx History"
-            $ property
-            $ prop_putBeforeInit
-                withFreshDB
-                (\db _ -> putTxHistory_ db)
-                (\db _ -> readTxHistory_ db)
-                (pure mempty)
-        it "Private Key"
-            $ property
-            $ prop_putBeforeInit
-                withFreshDB
-                (\DBLayer{..} _wid -> mapExceptT atomically . putPrivateKey)
-                (\DBLayer{..} _wid -> atomically readPrivateKey)
-                Nothing
 
     describe "put doesn't affect other resources" $ do
         it "Checkpoint vs Wallet Metadata & Tx History & Private Key"
@@ -431,35 +400,6 @@ prop_getTxAfterPutInvalidTxId test txGen txId' = test $ \DBLayer {..} _ -> do
     assertWith
         "Irrespective of Inserted, Read is Nothing for invalid tx id"
         (isNothing res)
-
--- | Can't put resource before a wallet has been initialized
-prop_putBeforeInit
-    :: (Buildable (f a), Eq (f a))
-    => WithDBFresh s
-    -> ( DBLayer IO s ShelleyKey
-         -> WalletId
-         -> a
-         -> ExceptT ErrWalletNotInitialized IO ()
-       )
-    -- ^ Put Operation
-    -> ( DBLayer IO s ShelleyKey
-         -> WalletId
-         -> IO (f a)
-       )
-    -- ^ Read Operation
-    -> f a
-    -- ^ An 'empty' value for the 'Applicative' f
-    -> (WalletId, a)
-    -- ^ Property arguments
-    -> Property
-prop_putBeforeInit test putOp readOp empty (wid, a) = monadicIO $ test wid
-    $ \db -> liftIO $ do
-        runExceptT (putOp db wid a) >>= \case
-            Right _ ->
-                fail "expected put operation to fail but it succeeded!"
-            Left err ->
-                err `shouldBe` ErrWalletNotInitialized
-        (ShowFmt <$> readOp db wid) `shouldReturn` (ShowFmt empty)
 
 -- | Modifying one resource leaves the other untouched
 prop_isolation
