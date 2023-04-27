@@ -188,6 +188,8 @@ import Fmt
     )
 import GHC.Generics
     ( Generic )
+import GHC.Stack
+    ( HasCallStack )
 import Numeric.Natural
     ( Natural )
 import System.Random.StdGenSeed
@@ -1094,7 +1096,10 @@ posAndNegFromCardanoValue = foldMap go . Cardano.valueToList
     mkPolicyId = UnsafeTokenPolicyId . Hash . Cardano.serialiseToRawBytes
     mkTokenName = UnsafeTokenName . Cardano.serialiseToRawBytes
 
-unsafeIntCast :: (Integral a, Integral b, Bits a, Bits b, Show a) => a -> b
+unsafeIntCast
+    :: (HasCallStack, Integral a, Integral b, Bits a, Bits b, Show a)
+    => a
+    -> b
 unsafeIntCast x = fromMaybe err $ intCastMaybe x
   where
     err = error $ "unsafeIntCast failed for " <> show x
