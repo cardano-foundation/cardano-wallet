@@ -2,7 +2,6 @@
 {-# LANGUAGE FlexibleContexts #-}
 {-# LANGUAGE FlexibleInstances #-}
 {-# LANGUAGE FunctionalDependencies #-}
-{-# LANGUAGE LambdaCase #-}
 {-# LANGUAGE OverloadedLabels #-}
 {-# LANGUAGE TypeApplications #-}
 
@@ -53,8 +52,6 @@ import Cardano.Address.Script
     ( KeyHash (..), KeyRole (..), Script (..) )
 import Cardano.Crypto.Hash
     ( hashFromBytes, hashToBytes )
-import Cardano.Ledger.SafeHash
-    ( unsafeMakeSafeHash )
 import Cardano.Wallet.Primitive.Types.Address
     ( Address (..) )
 import Cardano.Wallet.Primitive.Types.Coin
@@ -322,65 +319,32 @@ toMaryTxOut (TxOut addr bundle) =
 
 toAlonzoTxOut
     :: TxOut
-    -> Maybe (Hash "Datum")
     -> Alonzo.AlonzoTxOut StandardAlonzo
-toAlonzoTxOut (TxOut addr bundle) = \case
-    Nothing ->
-        Alonzo.AlonzoTxOut
-            (toLedger addr)
-            (toLedger bundle)
-            Ledger.SNothing
-    Just (Hash bytes) ->
-        Alonzo.AlonzoTxOut
-            (toLedger addr)
-            (toLedger bundle)
-            (Ledger.SJust
-                $ unsafeMakeSafeHash
-                $ Crypto.UnsafeHash
-                $ toShort bytes)
+toAlonzoTxOut (TxOut addr bundle) =
+    Alonzo.AlonzoTxOut
+        (toLedger addr)
+        (toLedger bundle)
+        Ledger.SNothing
 
 toBabbageTxOut
     :: TxOut
-    -> Maybe (Hash "Datum")
     -> Babbage.BabbageTxOut StandardBabbage
-toBabbageTxOut (TxOut addr bundle) = \case
-    Nothing ->
-        Babbage.BabbageTxOut
-            (toLedger addr)
-            (toLedger bundle)
-            Babbage.NoDatum
-            Ledger.SNothing
-    Just (Hash bytes) ->
-        Babbage.BabbageTxOut
-            (toLedger addr)
-            (toLedger bundle)
-            (Babbage.DatumHash
-                $ unsafeMakeSafeHash
-                $ Crypto.UnsafeHash
-                $ toShort bytes)
-            Ledger.SNothing
+toBabbageTxOut (TxOut addr bundle) =
+    Babbage.BabbageTxOut
+        (toLedger addr)
+        (toLedger bundle)
+        Babbage.NoDatum
+        Ledger.SNothing
 
 toConwayTxOut
     :: TxOut
-    -> Maybe (Hash "Datum")
     -> Babbage.BabbageTxOut StandardConway
-toConwayTxOut (TxOut addr bundle) = \case
-    Nothing ->
-        Babbage.BabbageTxOut
-            (toLedger addr)
-            (toLedger bundle)
-            Babbage.NoDatum
-            Ledger.SNothing
-    Just (Hash bytes) ->
-        Babbage.BabbageTxOut
-            (toLedger addr)
-            (toLedger bundle)
-            (Babbage.DatumHash
-                $ unsafeMakeSafeHash
-                $ Crypto.UnsafeHash
-                $ toShort bytes)
-            Ledger.SNothing
-
+toConwayTxOut (TxOut addr bundle) =
+    Babbage.BabbageTxOut
+        (toLedger addr)
+        (toLedger bundle)
+        Babbage.NoDatum
+        Ledger.SNothing
 
 -- NOTE: Inline scripts and datums will be lost in the conversion.
 fromConwayTxOut

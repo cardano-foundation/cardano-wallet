@@ -183,7 +183,6 @@ import Cardano.Wallet.Shelley.Compatibility
     , toCardanoLovelace
     , toCardanoPolicyId
     , toCardanoSimpleScript
-    , toCardanoSimpleScriptV1
     , toCardanoStakeCredential
     , toCardanoTxIn
     , toCardanoTxOut
@@ -196,7 +195,14 @@ import Cardano.Wallet.Shelley.Compatibility
     , toStakePoolDlgCert
     )
 import Cardano.Wallet.Shelley.Compatibility.Ledger
-    ( toLedger, toWalletCoin, toWalletScript, toWalletScriptFromShelley )
+    ( toAlonzoTxOut
+    , toBabbageTxOut
+    , toConwayTxOut
+    , toLedger
+    , toWalletCoin
+    , toWalletScript
+    , toWalletScriptFromShelley
+    )
 import Cardano.Wallet.Shelley.MinimumUTxO
     ( computeMinimumCoinForUTxO, isBelowMinimumCoinForUTxO )
 import Cardano.Wallet.Transaction
@@ -222,7 +228,11 @@ import Cardano.Wallet.Transaction
 import Cardano.Wallet.Util
     ( HasCallStack, internalError, modifyM )
 import Cardano.Wallet.Write.Tx
-    ( KeyWitnessCount (..), fromCardanoUTxO )
+    ( IsRecentEra (recentEra)
+    , KeyWitnessCount (..)
+    , RecentEra (..)
+    , fromCardanoUTxO
+    )
 import Cardano.Wallet.Write.Tx.TimeTranslation
     ( TimeTranslation, epochInfo, systemStartTime )
 import Codec.Serialise
@@ -296,8 +306,6 @@ import qualified Cardano.Ledger.Conway.TxBody as Conway
 import qualified Cardano.Ledger.Core as Ledger
 import qualified Cardano.Ledger.Keys.Bootstrap as SL
 import qualified Cardano.Ledger.Serialization as Ledger
-import qualified Cardano.Ledger.Shelley.API as Shelley
-import qualified Cardano.Ledger.ShelleyMA.TxBody as ShelleyMA
 import qualified Cardano.Wallet.Primitive.Types.Coin as Coin
 import qualified Cardano.Wallet.Primitive.Types.TokenBundle as TokenBundle
 import qualified Cardano.Wallet.Primitive.Types.TokenMap as TokenMap
@@ -808,7 +816,7 @@ data TxFeeUpdate
 -- To avoid the need for `ledger -> wallet` conversions, this function can only
 -- be used to *add* tx body content.
 updateTx
-    :: forall era. Cardano.IsShelleyBasedEra era
+    :: forall era. WriteTx.IsRecentEra era
     => Cardano.Tx era
     -> TxUpdate
     -> Either ErrUpdateSealedTx (Cardano.Tx era)
@@ -821,6 +829,8 @@ updateTx (Cardano.Tx body existingKeyWits) extraContent = do
        then Right $ Cardano.Tx body' mempty
        else Left $ ErrExistingKeyWitnesses $ length existingKeyWits
   where
+    era = recentEra @era
+
     modifyTxBody
         :: TxUpdate
         -> Cardano.TxBody era
@@ -828,8 +838,8 @@ updateTx (Cardano.Tx body existingKeyWits) extraContent = do
     modifyTxBody ebc = \case
         Cardano.ShelleyTxBody shelleyEra bod scripts scriptData aux val ->
             Right $ Cardano.ShelleyTxBody shelleyEra
-                (modifyShelleyTxBody ebc shelleyEra bod)
-                (scripts ++ (flip toLedgerScript shelleyEra
+                (modifyShelleyTxBody ebc era bod)
+                (scripts ++ (flip toLedgerScript era
                     <$> extraInputScripts))
                 scriptData
                 aux
@@ -840,30 +850,18 @@ updateTx (Cardano.Tx body existingKeyWits) extraContent = do
 
     toLedgerScript
         :: Script KeyHash
-        -> ShelleyBasedEra era
+        -> RecentEra era
         -> Ledger.Script (Cardano.ShelleyLedgerEra era)
     toLedgerScript walletScript = \case
-        ShelleyBasedEraShelley ->
-            Cardano.toShelleyScript $ Cardano.ScriptInEra
-            Cardano.SimpleScriptInShelley
-            (Cardano.SimpleScript $ toCardanoSimpleScriptV1 walletScript)
-        ShelleyBasedEraAllegra ->
-            Cardano.toShelleyScript $ Cardano.ScriptInEra
-            Cardano.SimpleScriptInAllegra
-            (Cardano.SimpleScript $ toCardanoSimpleScript walletScript)
-        ShelleyBasedEraMary ->
-            Cardano.toShelleyScript $ Cardano.ScriptInEra
-            Cardano.SimpleScriptInMary
-            (Cardano.SimpleScript $ toCardanoSimpleScript walletScript)
-        ShelleyBasedEraAlonzo ->
+        RecentEraAlonzo ->
             Cardano.toShelleyScript $ Cardano.ScriptInEra
             Cardano.SimpleScriptInAlonzo
             (Cardano.SimpleScript $ toCardanoSimpleScript walletScript)
-        ShelleyBasedEraBabbage ->
+        RecentEraBabbage ->
             Cardano.toShelleyScript $ Cardano.ScriptInEra
             Cardano.SimpleScriptInBabbage
             (Cardano.SimpleScript $ toCardanoSimpleScript walletScript)
-        ShelleyBasedEraConway ->
+        RecentEraConway ->
             Cardano.toShelleyScript $ Cardano.ScriptInEra
             Cardano.SimpleScriptInConway
             (Cardano.SimpleScript $ toCardanoSimpleScript walletScript)
@@ -873,18 +871,14 @@ updateTx (Cardano.Tx body existingKeyWits) extraContent = do
 -- to treat Alonzo and Shelley differently.
 modifyShelleyTxBody
     :: TxUpdate
-    -> ShelleyBasedEra era
+    -> RecentEra era
     -> Ledger.TxBody (Cardano.ShelleyLedgerEra era)
     -> Ledger.TxBody (Cardano.ShelleyLedgerEra era)
 modifyShelleyTxBody txUpdate era ledgerBody = case era of
-    ShelleyBasedEraConway -> ledgerBody
+    RecentEraConway -> ledgerBody
         { Conway.outputs = Conway.outputs ledgerBody
             <> StrictSeq.fromList
-                ( Ledger.mkSized
-                . Cardano.toShelleyTxOut era
-                . Cardano.toCtxUTxOTxOut
-                . toCardanoTxOut era <$> extraOutputs
-                )
+                (Ledger.mkSized . toConwayTxOut <$> extraOutputs)
         , Conway.inputs = Conway.inputs ledgerBody
             <> Set.fromList (Cardano.toShelleyTxIn <$> extraInputs')
         , Conway.collateral = Conway.collateral ledgerBody
@@ -892,14 +886,10 @@ modifyShelleyTxBody txUpdate era ledgerBody = case era of
         , Conway.txfee =
             modifyFee $ Conway.txfee ledgerBody
         }
-    ShelleyBasedEraBabbage -> ledgerBody
+    RecentEraBabbage -> ledgerBody
         { Babbage.outputs = Babbage.outputs ledgerBody
             <> StrictSeq.fromList
-                ( Ledger.mkSized
-                . Cardano.toShelleyTxOut era
-                . Cardano.toCtxUTxOTxOut
-                . toCardanoTxOut era <$> extraOutputs
-                )
+                (Ledger.mkSized . toBabbageTxOut <$> extraOutputs)
         , Babbage.inputs = Babbage.inputs ledgerBody
             <> Set.fromList (Cardano.toShelleyTxIn <$> extraInputs')
         , Babbage.collateral = Babbage.collateral ledgerBody
@@ -907,13 +897,10 @@ modifyShelleyTxBody txUpdate era ledgerBody = case era of
         , Babbage.txfee =
             modifyFee $ Babbage.txfee ledgerBody
         }
-    ShelleyBasedEraAlonzo -> ledgerBody
+    RecentEraAlonzo -> ledgerBody
         { Alonzo.outputs = Alonzo.outputs ledgerBody
             <> StrictSeq.fromList
-                ( Cardano.toShelleyTxOut era
-                . Cardano.toCtxUTxOTxOut
-                . toCardanoTxOut era <$> extraOutputs
-                )
+                (toAlonzoTxOut <$> extraOutputs)
         , Alonzo.inputs = Alonzo.inputs ledgerBody
             <> Set.fromList (Cardano.toShelleyTxIn <$> extraInputs')
         , Alonzo.collateral = Alonzo.collateral ledgerBody
@@ -921,65 +908,6 @@ modifyShelleyTxBody txUpdate era ledgerBody = case era of
         , Alonzo.txfee =
             modifyFee $ Alonzo.txfee ledgerBody
         }
-    ShelleyBasedEraMary ->
-        let
-            ShelleyMA.MATxBody
-                inputs outputs certs wdrls txfee vldt update adHash mint
-                    = ledgerBody
-            toTxOut
-                = Cardano.toShelleyTxOut era
-                . Cardano.toCtxUTxOTxOut
-                . toCardanoTxOut era
-        in
-        ShelleyMA.MATxBody
-            (inputs <> Set.fromList (Cardano.toShelleyTxIn <$> extraInputs'))
-            (outputs <> StrictSeq.fromList (toTxOut <$> extraOutputs))
-            certs
-            wdrls
-            (modifyFee txfee)
-            vldt
-            update
-            adHash
-            mint
-    ShelleyBasedEraAllegra ->
-        let
-            ShelleyMA.MATxBody
-                inputs outputs certs wdrls txfee vldt update adHash mint
-                    = ledgerBody
-            toTxOut
-                = Cardano.toShelleyTxOut era
-                . Cardano.toCtxUTxOTxOut
-                . toCardanoTxOut era
-        in
-        ShelleyMA.MATxBody
-            (inputs <> Set.fromList (Cardano.toShelleyTxIn <$> extraInputs'))
-            (outputs <> StrictSeq.fromList (toTxOut <$> extraOutputs))
-            certs
-            wdrls
-            (modifyFee txfee)
-            vldt
-            update
-            adHash
-            mint
-    ShelleyBasedEraShelley ->
-        let
-            Shelley.ShelleyTxBody
-                inputs outputs certs wdrls txfee ttl txUpdate' mdHash
-                    = ledgerBody
-            toTxOut
-                = Cardano.toShelleyTxOut era
-                . Cardano.toCtxUTxOTxOut
-                . toCardanoTxOut era
-        in
-        Shelley.ShelleyTxBody
-            (inputs <> Set.fromList (Cardano.toShelleyTxIn <$> extraInputs'))
-            (outputs <> StrictSeq.fromList (toTxOut <$> extraOutputs))
-            certs
-            wdrls
-            (modifyFee txfee)
-            ttl
-            txUpdate'
-            mdHash
   where
     TxUpdate extraInputs extraCollateral extraOutputs _ feeUpdate
         = txUpdate
