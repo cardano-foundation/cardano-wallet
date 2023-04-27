@@ -426,11 +426,11 @@ import Test.QuickCheck
     , Blind (..)
     , InfiniteList (..)
     , NonEmptyList (..)
-    , Positive (..)
     , Property
     , Testable
     , arbitraryBoundedEnum
     , arbitraryPrintableChar
+    , arbitrarySizedNatural
     , checkCoverage
     , choose
     , classify
@@ -2960,15 +2960,8 @@ prop_distributeSurplusDelta_coversCostIncreaseAndConservesSurplus
 instance Arbitrary FeePerByte where
     arbitrary = frequency
         [ (1, pure mainnetFeePerByte)
-        , (7, anyFeePerByte)
+        , (7, FeePerByte <$> arbitrarySizedNatural)
         ]
-      where
-        anyFeePerByte :: Gen FeePerByte
-        anyFeePerByte = FeePerByte <$>
-            frequency
-                [ (1, pure 0)
-                , (3, fromIntegral @Int @Natural . getPositive <$> arbitrary)
-                ]
 
     shrink (FeePerByte x) =
         FeePerByte <$> shrinkNatural x
