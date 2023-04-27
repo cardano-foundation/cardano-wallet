@@ -851,6 +851,7 @@ toCardanoValue = withConstraints (recentEra @era) Cardano.fromMaryValue
 -- PParams
 --------------------------------------------------------------------------------
 
+-- | The 'minfeeA' protocol parameter in unit @lovelace/byte@.
 newtype FeePerByte = FeePerByte Natural
     deriving (Show, Eq)
 
