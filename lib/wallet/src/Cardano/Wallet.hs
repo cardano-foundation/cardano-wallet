@@ -8,6 +8,7 @@
 {-# LANGUAGE ExistentialQuantification #-}
 {-# LANGUAGE FlexibleContexts #-}
 {-# LANGUAGE FlexibleInstances #-}
+{-# LANGUAGE GADTs #-}
 {-# LANGUAGE GeneralizedNewtypeDeriving #-}
 {-# LANGUAGE LambdaCase #-}
 {-# LANGUAGE MultiParamTypeClasses #-}
@@ -314,7 +315,9 @@ import Cardano.Wallet.Checkpoints
     , sparseCheckpoints
     )
 import Cardano.Wallet.DB
-    ( DBLayer (..)
+    ( DBFresh (..)
+    , DBLayer (..)
+    , DBLayerParams (..)
     , ErrNoSuchTransaction (..)
     , ErrRemoveTx (..)
     , ErrWalletAlreadyExists (..)
@@ -749,35 +752,36 @@ transactionLayer = typed @(TransactionLayer k ktype SealedTx)
 
 -- | Initialise and store a new wallet, returning its ID.
 createWallet
-    :: forall ctx m s k
+    :: forall m s k
      . ( MonadUnliftIO m
        , MonadTime m
-       , HasGenesisData ctx
-       , HasDBLayer m s k ctx
        , IsOurs s Address
        , IsOurs s RewardAccount
        )
-    => ctx
+    => (Block, NetworkParameters)
+    -> DBFresh m s k
     -> WalletId
     -> WalletName
     -> s
-    -> ExceptT ErrWalletAlreadyExists m WalletId
-createWallet ctx wid wname s =
-    db & \DBLayer {..} -> do
-        let (hist, cp) = initWallet block0 s
-        now <- lift getCurrentTime
-        let meta =
-                WalletMetadata
-                    { name = wname
-                    , creationTime = now
-                    , passphraseInfo = Nothing
-                    }
-        withExceptT (const $ ErrWalletAlreadyExists wid)
-            $ mapExceptT atomically
-            $ initializeWallet cp meta hist gp $> wid
-  where
-    db = ctx ^. dbLayer @m @s @k
-    (block0, NetworkParameters gp _sp _pp) = ctx ^. genesisData
+    -> ExceptT ErrWalletAlreadyExists m (DBLayer m s k)
+createWallet
+    (block0, NetworkParameters gp _sp _pp)
+    DBFresh{bootDBLayer}
+    wid
+    wname
+    s =
+        do
+            let (hist, cp) = initWallet block0 s
+            now <- lift getCurrentTime
+            let meta =
+                    WalletMetadata
+                        { name = wname
+                        , creationTime = now
+                        , passphraseInfo = Nothing
+                        }
+            withExceptT (const $ ErrWalletAlreadyExists wid)
+                $ bootDBLayer
+                $ DBLayerParams cp meta hist gp
 
 -- | Initialise and store a new legacy Icarus wallet. These wallets are
 -- intrinsically sequential, but, in the incentivized testnet, we only have
@@ -786,21 +790,24 @@ createWallet ctx wid wname s =
 -- To work-around this, we scan the genesis block with an arbitrary big gap and
 -- resort to a default gap afterwards.
 createIcarusWallet
-    :: forall ctx s k n.
-        ( HasGenesisData ctx
-        , HasDBLayer IO s k ctx
-        , PaymentAddress k 'CredFromKeyK
-        , k ~ IcarusKey
-        , s ~ SeqState n k
-        , HasSNetworkId n
-        )
-    => ctx
+    :: forall s k n
+     . ( PaymentAddress k 'CredFromKeyK
+       , k ~ IcarusKey
+       , s ~ SeqState n k
+       , HasSNetworkId n
+       )
+    => (Block, NetworkParameters)
+    -> DBFresh IO s k
     -> WalletId
     -> WalletName
     -> (k 'RootK XPrv, Passphrase "encryption")
-    -> ExceptT ErrWalletAlreadyExists IO WalletId
-createIcarusWallet ctx wid wname credentials =
-    db & \DBLayer {..} -> do
+    -> ExceptT ErrWalletAlreadyExists IO (DBLayer IO s k)
+createIcarusWallet
+    (block0, NetworkParameters gp _sp _pp)
+    DBFresh{bootDBLayer}
+    wid
+    wname
+    credentials = do
         let g = defaultAddressPoolGap
         let s = mkSeqStateFromRootXPrv @n credentials purposeBIP44 g
         let (hist, cp) = initWallet block0 s
@@ -812,11 +819,9 @@ createIcarusWallet ctx wid wname credentials =
                     , passphraseInfo = Nothing
                     }
         withExceptT (const $ ErrWalletAlreadyExists wid)
-            $ mapExceptT atomically
-            $ initializeWallet cp meta hist gp $> wid
-  where
-    db = ctx ^. dbLayer @IO @s @k
-    (block0, NetworkParameters gp _sp _pp) = ctx ^. genesisData
+            $ bootDBLayer
+            $ DBLayerParams cp meta hist gp
+
 
 -- | Check whether a wallet is in good shape when restarting a worker.
 checkWalletIntegrity :: DBLayer IO s k -> WalletId -> GenesisParameters -> IO ()

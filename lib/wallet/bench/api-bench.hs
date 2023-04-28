@@ -66,7 +66,7 @@ import Cardano.Wallet.Address.Discovery.Shared
 import Cardano.Wallet.BenchShared
     ( Time, bench, initBenchmarkLogging, runBenchmarks )
 import Cardano.Wallet.DB
-    ( DBLayer )
+    ( DBFresh (..), DBLayer )
 import Cardano.Wallet.DB.Layer
     ( PersistAddressBook )
 import Cardano.Wallet.DummyTarget.Primitive.Types
@@ -543,7 +543,9 @@ withWalletsFromDirectory dir tr networkId action = do
         <- DB.newDBFactory tr' migrationDefaultValues ti (Just dir)
     wids <- listDatabases
     forM wids $ \wid ->
-        withDatabase wid (flip action wid . mkMockWalletLayer)
+        withDatabase wid $ \DBFresh{loadDBLayer} -> do
+            db <- unsafeRunExceptT loadDBLayer
+            (flip action wid . mkMockWalletLayer) db
   where
     mkMockWalletLayer db =
         MockWalletLayer mockNetworkLayer tl db tr

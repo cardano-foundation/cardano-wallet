@@ -3,6 +3,7 @@
 {-# LANGUAGE ExistentialQuantification #-}
 {-# LANGUAGE KindSignatures #-}
 {-# LANGUAGE LambdaCase #-}
+{-# LANGUAGE NamedFieldPuns #-}
 {-# LANGUAGE OverloadedLabels #-}
 {-# LANGUAGE RankNTypes #-}
 {-# LANGUAGE RecordWildCards #-}
@@ -21,6 +22,8 @@ module Cardano.Wallet.DB
       DBLayer (..)
     , DBOpen (..)
     , DBFactory (..)
+    , DBLayerParams(..)
+    , DBFresh (..)
 
     -- * DBLayer building blocks
     , DBLayerCollection (..)
@@ -35,6 +38,8 @@ module Cardano.Wallet.DB
     , hoistDBLayer
       -- * Errors
     , module Cardano.Wallet.DB.Errors
+    , mkDBFreshFromParts
+    , hoistDBFresh
     ) where
 
 import Prelude
@@ -105,12 +110,14 @@ import Control.Monad
     ( join )
 import Control.Monad.IO.Class
     ( MonadIO, liftIO )
+import Control.Monad.Trans
+    ( lift )
 import Control.Monad.Trans.Except
-    ( ExceptT (..) )
+    ( ExceptT (..), mapExceptT, runExceptT, throwE )
 import Data.DBVar
     ( DBVar, modifyDBMaybe, readDBVar )
 import Data.Functor
-    ( (<&>) )
+    ( ($>), (<&>) )
 import Data.Generics.Internal.VL
     ( (^.) )
 import Data.Kind
@@ -146,7 +153,7 @@ import qualified Data.Map.Strict as Map
 -- In our use case, this will typically be a directory of database files,
 -- or a 'Map' of in-memory SQLite databases.
 data DBFactory m s k = DBFactory
-    { withDatabase :: forall a. WalletId -> (DBLayer m s k -> IO a) -> IO a
+    { withDatabase :: forall a. WalletId -> (DBFresh m s k -> IO a) -> IO a
         -- ^ Creates a new or use an existing database, maintaining an open
         -- connection so long as necessary
 
@@ -173,6 +180,34 @@ newtype DBOpen stm m s (k :: Depth -> Type -> Type) = DBOpen
     }
 
 {-----------------------------------------------------------------------------
+    DBFresh
+------------------------------------------------------------------------------}
+
+-- | Necessary arguments to create a new wallet.
+data DBLayerParams s = DBLayerParams
+    { dBLayerParamsState :: Wallet s
+    , dBLayerParamsMetadata :: WalletMetadata
+    , dBLayerParamsHistory :: [(Tx, TxMeta)]
+    , dBLayerParamsGenesisParameters :: GenesisParameters
+    }
+    deriving (Eq, Show)
+
+data DBFresh m s (k :: Depth -> Type -> Type) = DBFresh
+    { bootDBLayer
+        :: DBLayerParams s
+        -> ExceptT ErrWalletAlreadyInitialized m (DBLayer m s k)
+        -- ^ Initialize a database
+    , loadDBLayer :: ExceptT ErrWalletNotInitialized m (DBLayer m s k)
+        -- ^ Load an existing database
+    }
+
+hoistDBFresh :: Functor m => (forall a. m a -> n a) -> DBFresh m s k -> DBFresh n s k
+hoistDBFresh f (DBFresh boot load) = DBFresh
+    { bootDBLayer = \params -> mapExceptT f $ hoistDBLayer f <$> boot params
+    , loadDBLayer = mapExceptT f $ hoistDBLayer f <$> load
+    }
+
+{-----------------------------------------------------------------------------
     DBLayer
 ------------------------------------------------------------------------------}
 -- | An open database which can store the state of one wallet with a specific
@@ -189,15 +224,6 @@ newtype DBOpen stm m s (k :: Depth -> Type -> Type) = DBOpen
 -- to serialize and unserialize it (e.g. @forall s. (Serialize s) => ...@).
 data DBLayer m s k = forall stm. (MonadIO stm, MonadFail stm) => DBLayer
     { walletId_ :: WalletId
-    , initializeWallet
-        :: Wallet s
-        -> WalletMetadata
-        -> [(Tx, TxMeta)]
-        -> GenesisParameters
-        -> ExceptT ErrWalletAlreadyInitialized stm ()
-        -- ^ Initialize a database entry for a given wallet. 'putCheckpoint',
-        -- 'putWalletMeta', 'putTxHistory' or 'putProtocolParameters' will
-        -- actually all fail if they are called _first_ on a wallet.
 
     , walletsDB
         :: DBVar stm (DeltaMap WalletId (DeltaWalletState s))
@@ -443,8 +469,7 @@ to delete them wholesale rather than maintaining them.
 
 -}
 data DBLayerCollection stm m s k = DBLayerCollection
-    { dbWallets :: DBWallets stm s
-    , dbCheckpoints :: DBCheckpoints stm s
+    { dbCheckpoints :: DBCheckpoints stm s
     , dbWalletMeta :: DBWalletMeta stm
     , dbDelegation :: DBDelegation stm
     , dbTxHistory :: DBTxHistory stm
@@ -463,17 +488,49 @@ data DBLayerCollection stm m s k = DBLayerCollection
         :: forall a. stm a -> m a
     }
 
+mkDBFreshFromParts
+    :: forall stm m s k
+     . (MonadIO stm, MonadFail stm, Functor m)
+    => TimeInterpreter IO
+    -> WalletId
+    -> DBWallets stm s
+    -> DBLayerCollection stm m s k
+    -> DBFresh m s k
+mkDBFreshFromParts
+    ti
+    wid_
+    DBWallets{initializeWallet_, getWalletId_}
+    parts@DBLayerCollection{atomically_} =
+        DBFresh
+            { bootDBLayer = \params ->
+                mapExceptT atomically_ (initializeWallet_ params) $> db
+            , loadDBLayer = mapExceptT atomically_ $ do
+                ewid <- lift . runExceptT $ getWalletId_
+                case ewid of
+                    Right _ -> pure db
+                    Left _ -> throwE ErrWalletNotInitialized
+            }
+      where
+        db = mkDBLayerFromParts ti wid_ wrapNoSuchWallet parts
+        wrapNoSuchWallet :: stm a -> ExceptT ErrWalletNotInitialized stm a
+        wrapNoSuchWallet action = getWalletId_ >> lift action
+
+type CheckWalletInitialized stm =
+    forall a
+     . stm a
+    -> ExceptT ErrWalletNotInitialized stm a
+
 {- HLINT ignore mkDBLayerFromParts "Avoid lambda" -}
 -- | Create a legacy 'DBLayer' from smaller database layers.
 mkDBLayerFromParts
     :: forall stm m s k. (MonadIO stm, MonadFail stm)
     => TimeInterpreter IO
     -> WalletId
+    -> CheckWalletInitialized stm
     -> DBLayerCollection stm m s k
     -> DBLayer m s k
-mkDBLayerFromParts ti wid_ DBLayerCollection{..} = DBLayer
+mkDBLayerFromParts ti wid_ wrapNoSuchWallet DBLayerCollection{..} = DBLayer
     { walletId_ = wid_
-    , initializeWallet = initializeWallet_ dbWallets
     , walletsDB = walletsDB_ dbCheckpoints
     , putCheckpoint = putCheckpoint_ dbCheckpoints
     , readCheckpoint = readCheckpoint'
@@ -488,14 +545,14 @@ mkDBLayerFromParts ti wid_ DBLayerCollection{..} = DBLayer
                 del <- readDelegation_ dbDelegation currentEpoch
                 mwm <- readWalletMeta_ dbWalletMeta
                 pure $ mwm <&> (, del)
-    , isStakeKeyRegistered = wrapNoSuchWallet wid_ $
+    , isStakeKeyRegistered = wrapNoSuchWallet $
         isStakeKeyRegistered_ dbDelegation
-    , putDelegationCertificate = \a b -> wrapNoSuchWallet wid_ $
+    , putDelegationCertificate = \a b -> wrapNoSuchWallet $
         putDelegationCertificate_ dbDelegation a b
-    , putDelegationRewardBalance = \a -> wrapNoSuchWallet wid_ $
+    , putDelegationRewardBalance = \a -> wrapNoSuchWallet $
         putDelegationRewardBalance_ dbDelegation a
     , readDelegationRewardBalance = readDelegationRewardBalance_ dbDelegation
-    , putTxHistory = \a -> wrapNoSuchWallet wid_ $
+    , putTxHistory = \a -> wrapNoSuchWallet $
         putTxHistory_ dbTxHistory a
     , readTransactions = \minWithdrawal order range status limit ->
         readCurrentTip >>= \case
@@ -527,7 +584,7 @@ mkDBLayerFromParts ti wid_ DBLayerCollection{..} = DBLayer
                     . filterMinWithdrawal minWithdrawal
                     $ inLedgers <> inSubmissions
             Nothing -> pure []
-    , getTx = \txid -> wrapNoSuchWallet wid_ $ do
+    , getTx = \txid -> wrapNoSuchWallet $ do
         readCurrentTip >>= \case
             Just tip -> do
                 historical <- getTx_ dbTxHistory txid tip
@@ -557,10 +614,10 @@ mkDBLayerFromParts ti wid_ DBLayerCollection{..} = DBLayer
             updateSubmissions' wid_ (ErrRemoveTxNoSuchWallet . mapNoSuchWallet)
                 $ \xs ->
                 pure <$> Sbms.removePendingOrExpiredTx xs txid
-    , putPrivateKey = \a -> wrapNoSuchWallet wid_ $
+    , putPrivateKey = \a -> wrapNoSuchWallet $
         putPrivateKey_ dbPrivateKey  a
     , readPrivateKey = readPrivateKey_ dbPrivateKey
-    , readGenesisParameters = readGenesisParameters_ dbWallets
+    , readGenesisParameters = readGenesisParameters_ dbCheckpoints
     , rollbackTo = rollbackTo_
     , prune = prune_
     , atomically = atomically_
@@ -575,15 +632,6 @@ mkDBLayerFromParts ti wid_ DBLayerCollection{..} = DBLayer
     mapNoSuchWallet _ = ErrWalletNotInitialized
     updateSubmissions' = updateSubmissions dbCheckpoints
     readCheckpoint' = readCheckpoint_ dbCheckpoints
-    wrapNoSuchWallet
-        :: WalletId
-        -> stm a
-        -> ExceptT ErrWalletNotInitialized stm a
-    wrapNoSuchWallet wid action = ExceptT $
-        hasWallet_ dbWallets wid >>= \case
-            False -> pure $ Left ErrWalletNotInitialized
-            True  -> Right <$> action
-
     readCurrentTip :: stm (Maybe BlockHeader)
     readCurrentTip =
         fmap currentTip <$> readCheckpoint_ dbCheckpoints
@@ -607,28 +655,15 @@ updateSubmissions dbCheckpoints wid emap xs
 -- | A database layer for a collection of wallets
 data DBWallets stm s = DBWallets
     { initializeWallet_
-        :: Wallet s
-        -> WalletMetadata
-        -> [(Tx, TxMeta)]
-        -> GenesisParameters
+        :: DBLayerParams s
         -> ExceptT ErrWalletAlreadyInitialized stm ()
         -- ^ Initialize a database entry for a given wallet. 'putCheckpoint',
         -- 'putWalletMeta', 'putTxHistory' or 'putProtocolParameters' will
         -- actually all fail if they are called _first_ on a wallet.
 
-    , readGenesisParameters_
-        :: stm (Maybe GenesisParameters)
-        -- ^ Read the *Byron* genesis parameters.
-
     , getWalletId_
         :: ExceptT ErrWalletNotInitialized stm WalletId
         -- ^ Get the 'WalletId' of the wallet stored in the DB.
-
-    , hasWallet_
-        :: WalletId
-        -> stm Bool
-        -- ^ Check whether the wallet with 'WalletId' is present
-        -- in the database.
     }
 
 -- | A database layer for storing wallet states.
@@ -661,6 +696,10 @@ data DBCheckpoints stm s = DBCheckpoints
         :: stm [ChainPoint]
         -- ^ List all known checkpoint tips, ordered by slot ids from the oldest
         -- to the newest.
+
+    , readGenesisParameters_
+        :: stm (Maybe GenesisParameters)
+        -- ^ Read the *Byron* genesis parameters.
     }
 
 -- | A database layer for storing 'WalletMetadata'.

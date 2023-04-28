@@ -87,9 +87,9 @@ import Cardano.Wallet.BenchShared
     , runBenchmarks
     )
 import Cardano.Wallet.DB
-    ( DBLayer )
+    ( DBFresh )
 import Cardano.Wallet.DB.Layer
-    ( PersistAddressBook, withDBLayer )
+    ( PersistAddressBook, withDBFresh )
 import Cardano.Wallet.Launch
     ( CardanoNodeConn, NetworkConfiguration (..), parseGenesisData )
 import Cardano.Wallet.Logging
@@ -742,14 +742,15 @@ bench_restoration
             let ti = neverFails "bench db shouldn't forecast into future"
                     $ timeInterpreter nw
             withBenchDBLayer ti wlTr wid
-                $ \db -> withWalletLayerTracer
+                $ \dbf -> withWalletLayerTracer
                     benchname pipeliningStrat traceToDisk
                 $ \progressTrace -> do
+                    let gps = (emptyGenesis gp, np)
+                    db <- unsafeRunExceptT $ W.createWallet gps dbf wid wname s
                     let tracer =
                             trMessageText wlTr <>
                             contramap walletWorkerLogToBlockHeight progressTrace
-                    let w = WalletLayer tracer (emptyGenesis gp, np) nw tl db
-                    _ <- unsafeRunExceptT $ W.createWallet w wid wname s
+                    let w = WalletLayer tracer gps nw tl db
                     void
                         $ forkIO
                         $ unsafeRunExceptT
@@ -849,11 +850,11 @@ withBenchDBLayer
     => TimeInterpreter IO
     -> Trace IO Text
     -> WalletId
-    -> (DBLayer IO s k -> IO a)
+    -> (DBFresh IO s k -> IO a)
     -> IO a
 withBenchDBLayer ti tr wid action =
     withSystemTempFile "bench.db" $ \dbFile _ ->
-        withDBLayer tr' (Just migrationDefaultValues) dbFile ti wid action
+        withDBFresh tr' (Just migrationDefaultValues) dbFile ti wid action
   where
     migrationDefaultValues = Sqlite.DefaultFieldValues
         { Sqlite.defaultActiveSlotCoefficient = 1
