@@ -376,8 +376,7 @@ mkSharedStateFromAccountXPub accXPub accIx gap pTemplate dTemplateM =
         , accountXPub = accXPub
         , paymentTemplate = pTemplate
         , delegationTemplate = dTemplateM
-        , rewardAccountKey = FromScriptHash . unScriptHash . toScriptHash .
-            flip (replaceCosignersWithVerKeys CA.Stake) minBound <$> dTemplateM
+        , rewardAccountKey = Nothing
         , poolGap = gap
         , ready = Pending
         }
@@ -401,17 +400,24 @@ activate
     :: forall n k. (SupportsDiscovery n k, WalletKey k, k ~ SharedKey)
     => SharedState n k -> SharedState n k
 activate
-    st@(SharedState{accountXPub,paymentTemplate=pT,delegationTemplate=dT,poolGap,ready})
-  = st { ready = new ready }
+    st@(SharedState{accountXPub,paymentTemplate=pT,delegationTemplate=dT
+                   ,rewardAccountKey,poolGap,ready})
+  = st { ready = updateReady ready, rewardAccountKey = updateRewardAccount ready }
   where
-    new Pending
+    updateReady Pending
         | templatesComplete accountXPub pT dT
             = Active $ SharedAddressPools
               { externalPool = newSharedAddressPool @n poolGap pT dT
               , internalPool = newSharedAddressPool @n poolGap pT dT
               , pendingChangeIxs = emptyPendingIxs
               }
-    new r   = r
+    updateReady r = r
+
+    updateRewardAccount Pending
+        | templatesComplete accountXPub pT dT
+            = FromScriptHash . unScriptHash . toScriptHash .
+                  flip (replaceCosignersWithVerKeys CA.Stake) minBound <$> dT
+    updateRewardAccount _ = rewardAccountKey
 
 -- | Possible errors from adding a co-signer key to the shared wallet state.
 data ErrAddCosigner
