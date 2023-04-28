@@ -41,7 +41,6 @@ module Cardano.Wallet.Shelley.Transaction
     , TxFeeUpdate (..)
 
     -- * For balancing (To be moved)
-    , maxScriptExecutionCost
     , estimateKeyWitnessCount
     , evaluateMinimumFee
     , estimateSignedTxSize
@@ -128,8 +127,6 @@ import Cardano.Wallet.Primitive.Passphrase
     ( Passphrase (..) )
 import Cardano.Wallet.Primitive.Types
     ( Certificate
-    , ExecutionUnitPrices (..)
-    , ExecutionUnits (..)
     , FeePolicy (..)
     , LinearFunction (..)
     , ProtocolParameters (..)
@@ -1076,26 +1073,6 @@ estimateKeyWitnessCount utxo txbody@(Cardano.TxBody txbodycontent) =
                 , "Caller is expected to ensure this does not happen."
                 ]
 
-maxScriptExecutionCost
-    :: ProtocolParameters
-     -- ^ Current protocol parameters
-    -> [Redeemer]
-    -- ^ Redeemers for this transaction
-    -> Coin
-maxScriptExecutionCost pp redeemers
-    | not (null redeemers) = case view #executionUnitPrices pp of
-        Just prices -> executionCost prices maxExecutionUnits
-        Nothing     -> Coin 0
-    | otherwise = Coin 0
-  where
-    maxExecutionUnits :: ExecutionUnits
-    maxExecutionUnits = view (#txParameters . #getMaxExecutionUnits) pp
-
-    executionCost :: ExecutionUnitPrices -> ExecutionUnits -> Coin
-    executionCost ps us = Coin.fromNatural . ceiling
-        $ (ps ^. #pricePerStep)       * toRational (us ^. #executionSteps)
-        + (ps ^. #pricePerMemoryUnit) * toRational (us ^. #executionMemory)
-
 type BabbageTx =
     Ledger.Tx (Cardano.ShelleyLedgerEra Cardano.BabbageEra)
 
@@ -1442,7 +1419,6 @@ data TxSkeleton = TxSkeleton
     , txMintOrBurnScripts :: [Script KeyHash]
     , txAssetsToMintOrBurn :: Set AssetId
     -- ^ The set of assets to mint or burn.
-    , txScriptExecutionCost :: !Coin
     }
     deriving (Eq, Show, Generic)
 
@@ -1462,7 +1438,6 @@ emptyTxSkeleton txWitnessTag = TxSkeleton
     , txPaymentTemplate = Nothing
     , txMintOrBurnScripts = []
     , txAssetsToMintOrBurn = Set.empty
-    , txScriptExecutionCost = Coin 0
     }
 
 -- | Constructs a transaction skeleton from wallet primitive types.
@@ -1492,17 +1467,12 @@ mkTxSkeleton witness context skeleton = TxSkeleton
     , txAssetsToMintOrBurn = (<>)
         (TokenMap.getAssets (fst $ view #txAssetsToMint context))
         (TokenMap.getAssets (fst $ view #txAssetsToBurn context))
-    , txScriptExecutionCost = view #txPlutusScriptExecutionCost context
     }
 
 -- | Estimates the final cost of a transaction based on its skeleton.
 --
 estimateTxCost :: AnyCardanoEra -> ProtocolParameters -> TxSkeleton -> Coin
-estimateTxCost era pp skeleton =
-    F.fold
-        [ computeFee (estimateTxSize era skeleton)
-        , view #txScriptExecutionCost skeleton
-        ]
+estimateTxCost era pp skeleton = computeFee (estimateTxSize era skeleton)
   where
     computeFee :: TxSize -> Coin
     computeFee (TxSize size) =
@@ -1515,7 +1485,6 @@ calculateMinimumFee
     :: AnyCardanoEra
     -- ^ Era for which the transaction should be created.
     -> ProtocolParameters
-    -- ^ Current protocol parameters
     -> TxWitnessTag
     -- ^ Witness tag
     -> TransactionCtx
@@ -1525,7 +1494,6 @@ calculateMinimumFee
     -> Coin
 calculateMinimumFee era pp witnessTag ctx skeleton =
     estimateTxCost era pp (mkTxSkeleton witnessTag ctx skeleton)
-        <> txFeePadding ctx
 
 -- | Calculate the cost of increasing a CBOR-encoded Coin-value by another Coin
 -- with the lovelace/byte cost given by the 'FeePolicy'.

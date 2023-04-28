@@ -957,14 +957,14 @@ balanceTransactionWithSelectionStrategyAndNoZeroAdaAdjustment
             , computeMinimumCost = \skeleton -> mconcat
                 [ feePadding
                 , fromCardanoLovelace fee0
+                , txPlutusScriptExecutionCost
                 , calculateMinimumFee
                     era
                     pp
                     txWitnessTag
                     (defaultTransactionCtx
                         { txPaymentCredentialScriptTemplate = mScriptTemplate
-                        , txPlutusScriptExecutionCost =
-                            txPlutusScriptExecutionCost })
+                        })
                     skeleton
                 ] `Coin.difference` boringFee
             , computeSelectionLimit = \_ -> NoLimit
