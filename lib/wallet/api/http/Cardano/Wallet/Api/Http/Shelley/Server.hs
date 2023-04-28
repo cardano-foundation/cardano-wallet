@@ -1063,9 +1063,18 @@ postSharedWalletFromRootXPrv ctx generateKey body = do
     if stateReadiness == Shared.Pending
     then void $ liftHandler $ createNonRestoringWalletWorker @_ @s @k ctx wid
         (\wrk -> W.createWallet @(WorkerCtx ctx) @_ @s @k wrk wid wName state)
-    else void $ liftHandler $ createWalletWorker @_ @s @k ctx wid
+    else if isNothing dTemplateM then
+        void $ liftHandler $ createWalletWorker @_ @s @k ctx wid
         (\wrk -> W.createWallet @(WorkerCtx ctx) @_ @s @k wrk wid wName state)
         idleWorker
+    else void $ liftHandler $ createWalletWorker @_ @s @k ctx wid
+        (\wrk -> W.createWallet @(WorkerCtx ctx) @_ @s @k wrk wid wName state)
+        (\workerCtx _ -> W.manageSharedRewardBalance
+            (workerCtx ^. typed)
+            (workerCtx ^. networkLayer)
+            (workerCtx ^. typed @(DBLayer IO (SharedState n SharedKey) k))
+            wid
+        )
     withWorkerCtx @_ @s @k ctx wid liftE liftE $ \wrk -> liftHandler $
         W.attachPrivateKeyFromPwd @_ @s @k wrk wid (rootXPrv, pwd)
     fst <$> getWallet ctx (mkSharedWallet @_ @s @k) (ApiT wid)
@@ -1121,9 +1130,18 @@ postSharedWalletFromAccountXPub ctx liftKey body = do
     if stateReadiness == Shared.Pending
     then void $ liftHandler $ createNonRestoringWalletWorker @_ @s @k ctx wid
         (\wrk -> W.createWallet @(WorkerCtx ctx) @_ @s @k wrk wid wName state)
-    else void $ liftHandler $ createWalletWorker @_ @s @k ctx wid
+    else if isNothing dTemplateM then
+        void $ liftHandler $ createWalletWorker @_ @s @k ctx wid
         (\wrk -> W.createWallet @(WorkerCtx ctx) @_ @s @k wrk wid wName state)
         idleWorker
+    else void $ liftHandler $ createWalletWorker @_ @s @k ctx wid
+        (\wrk -> W.createWallet @(WorkerCtx ctx) @_ @s @k wrk wid wName state)
+        (\workerCtx _ -> W.manageSharedRewardBalance
+            (workerCtx ^. typed)
+            (workerCtx ^. networkLayer)
+            (workerCtx ^. typed @(DBLayer IO (SharedState n SharedKey) k))
+            wid
+        )
     fst <$> getWallet ctx (mkSharedWallet @_ @s @k) (ApiT wid)
   where
     g = defaultAddressPoolGap
@@ -2825,6 +2843,7 @@ parseValidityInterval ti validityInterval = do
 
 -- TO-DO withdrawals
 -- TO-DO minting/burning
+-- TO-DO reference scripts
 constructSharedTransaction
     :: forall n . HasSNetworkId n
     => ApiLayer (SharedState n SharedKey) SharedKey 'CredFromScriptK
@@ -2919,11 +2938,19 @@ constructSharedTransaction
                 let refunds = case optionalDelegationAction of
                         Just Quit -> [W.stakeKeyDeposit pp]
                         _ -> []
+                delCerts <- case optionalDelegationAction of
+                    Nothing -> pure Nothing
+                    Just action -> do
+                        resM <- liftHandler $ W.readSharedRewardAccount @n db wid
+                        --at this moment we are sure reward account is present
+                        --if not ErrConstructTxDelegationInvalid would be thrown already
+                        pure $ Just (action, snd $ fromJust resM)
+
                 pure $ ApiConstructTransaction
                     { transaction = balancedTx
                     , coinSelection =
-                        mkApiCoinSelection deposits refunds Nothing md
-                        (unsignedTx outs apiDecoded)
+                        mkApiCoinSelection deposits refunds
+                        delCerts md (unsignedTx outs apiDecoded)
                     , fee = apiDecoded ^. #fee
                     }
   where
@@ -2944,7 +2971,6 @@ constructSharedTransaction
         , unsignedWithdrawals =
             []
         }
-
 
 decodeSharedTransaction
     :: forall n . HasSNetworkId n
@@ -2990,7 +3016,7 @@ decodeSharedTransaction ctx (ApiT wid) (ApiSerialisedTransaction (ApiT sealed) _
                     let scriptHash =
                             CA.unScriptHash $
                             CA.toScriptHash script
-                    in Just $ RewardAccount scriptHash
+                    in Just $ FromScriptHash scriptHash
                 Nothing -> Nothing
         let certs = mkApiAnyCertificate rewardAcctM rewardAcctPath <$> allCerts
         pure

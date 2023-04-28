@@ -715,7 +715,7 @@ instance Arbitrary (Hash "BlockHeader") where
     arbitrary = Hash . BS.pack <$> vector 32
 
 instance Arbitrary RewardAccount where
-    arbitrary = RewardAccount . BS.pack <$> vector 28
+    arbitrary = FromKeyHash . BS.pack <$> vector 28
 
 instance Arbitrary (Tip (CardanoBlock StandardCrypto)) where
     arbitrary = frequency

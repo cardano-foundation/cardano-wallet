@@ -422,7 +422,7 @@ instance ToRewardAccount ShelleyKey where
         stakK = deriveAddressPrivateKey mempty acctK MutableAccount minBound
 
 toRewardAccountRaw :: XPub -> RewardAccount
-toRewardAccountRaw = RewardAccount . blake2b224 . xpubPublicKey
+toRewardAccountRaw = FromKeyHash . blake2b224 . xpubPublicKey
 
 instance HasSNetworkId n => MaybeLight (SeqState n ShelleyKey)
   where

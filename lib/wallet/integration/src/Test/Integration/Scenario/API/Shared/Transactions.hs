@@ -118,6 +118,7 @@ import Test.Integration.Framework.DSL
     , Payload (..)
     , arbitraryStake
     , decodeErrorInfo
+    , delegating
     , deleteSharedWallet
     , emptySharedWallet
     , emptyWallet
@@ -150,7 +151,9 @@ import Test.Integration.Framework.DSL
     , unsafeRequest
     , utcIso8601ToText
     , verify
+    , waitForNextEpoch
     , walletId
+    , (.>)
     )
 import Test.Integration.Framework.Request
     ( RequestException )
@@ -1768,7 +1771,7 @@ spec = describe "SHARED_TRANSACTIONS" $ do
         (party1,party2) <- fixtureSharedWalletDelegating @n ctx
         let depositAmt = Quantity 1_000_000
 
-        pool1:_ <- map (view $ _Unwrapped . #id) . snd <$>
+        pool1:pool2:_ <- map (view $ _Unwrapped . #id) . snd <$>
             unsafeRequest @[ApiT StakePool]
             ctx (Link.listStakePools arbitraryStake) Empty
 
@@ -1813,10 +1816,10 @@ spec = describe "SHARED_TRANSACTIONS" $ do
             (Link.decodeTransaction @'Shared party1) Default decodePayload1
         rDecodedTx2 <- request @(ApiDecodedTransaction n) ctx
             (Link.decodeTransaction @'Shared party2) Default decodePayload1
-        let expectedFee = getFromResponse (#fee . #getQuantity) rTx1
-        let decodedExpectations =
+        let expectedFee1 = getFromResponse (#fee . #getQuantity) rTx1
+        let decodedExpectations1 =
                 [ expectResponseCode HTTP.status202
-                , expectField (#fee . #getQuantity) (`shouldBe` expectedFee)
+                , expectField (#fee . #getQuantity) (`shouldBe` expectedFee1)
                 , expectField #withdrawals (`shouldBe` [])
                 , expectField #collateral (`shouldBe` [])
                 , expectField #scriptValidity
@@ -1852,12 +1855,12 @@ spec = describe "SHARED_TRANSACTIONS" $ do
                 [expectField #certificates
                      (`shouldBe` [ registerStakeKeyCert stakeKeyDerPathParty1
                                  , delegatingCert stakeKeyDerPathParty1])]
-        verify rDecodedTx1 (decodedExpectations ++ certExpectation1 ++ witsExp1)
+        verify rDecodedTx1 (decodedExpectations1 ++ certExpectation1 ++ witsExp1)
         let certExpectation2 =
                 [expectField #certificates
                      (`shouldBe` [ registerStakeKeyCert stakeKeyDerPathParty2
                                  , delegatingCert stakeKeyDerPathParty2])]
-        verify rDecodedTx2 (decodedExpectations ++ certExpectation2 ++ witsExp1)
+        verify rDecodedTx2 (decodedExpectations1 ++ certExpectation2 ++ witsExp1)
         let (ApiSerialisedTransaction apiTx1 _) =
                 getFromResponse #transaction rTx1
         signedTx1 <-
@@ -1880,8 +1883,8 @@ spec = describe "SHARED_TRANSACTIONS" $ do
                 , expectField (#witnessCount . #bootstrap)
                       (`shouldBe` 0)]
 
-        verify rDecodedTx3 (decodedExpectations ++ certExpectation1 ++ witsExp2)
-        verify rDecodedTx4 (decodedExpectations ++ certExpectation2 ++ witsExp2)
+        verify rDecodedTx3 (decodedExpectations1 ++ certExpectation1 ++ witsExp2)
+        verify rDecodedTx4 (decodedExpectations1 ++ certExpectation2 ++ witsExp2)
 
         --missing party2' witness for script staking
         submittedTx1 <- submitSharedTxWithWid ctx party1 signedTx1
@@ -1913,8 +1916,8 @@ spec = describe "SHARED_TRANSACTIONS" $ do
                 , expectField (#witnessCount . #bootstrap)
                       (`shouldBe` 0)]
 
-        verify rDecodedTx5 (decodedExpectations ++ certExpectation1 ++ witsExp3)
-        verify rDecodedTx6 (decodedExpectations ++ certExpectation2 ++ witsExp3)
+        verify rDecodedTx5 (decodedExpectations1 ++ certExpectation1 ++ witsExp3)
+        verify rDecodedTx6 (decodedExpectations1 ++ certExpectation2 ++ witsExp3)
 
         submittedTx2 <- submitSharedTxWithWid ctx party1 signedTx2
         verify submittedTx2
@@ -1968,6 +1971,123 @@ spec = describe "SHARED_TRANSACTIONS" $ do
                 , expectField #inputs $ \inputs' -> do
                     inputs' `shouldSatisfy` all (isJust . source)
                 ]
+
+        waitForNextEpoch ctx
+        waitForNextEpoch ctx
+
+        eventually "party1: Wallet gets rewards from pool1" $ do
+            r <- request @ApiWallet ctx (Link.getWallet @'Shared party1) Default Empty
+            verify r
+                [ expectField
+                      (#balance . #reward)
+                      (.> (Quantity 0))
+                ]
+        eventually "party2: Wallet gets rewards from pool1" $ do
+            r <- request @ApiWallet ctx (Link.getWallet @'Shared party2) Default Empty
+            verify r
+                [ expectField
+                      (#balance . #reward)
+                      (.> (Quantity 0))
+                ]
+
+        eventually "party1: Wallet is delegating to pool1" $ do
+            request @ApiWallet ctx (Link.getWallet @'Shared party1) Default Empty
+                >>= flip verify
+                    [ expectField #delegation (`shouldBe` delegating (ApiT pool1) [])
+                    ]
+        eventually "party2: Wallet is delegating to pool1" $ do
+            request @ApiWallet ctx (Link.getWallet @'Shared party2) Default Empty
+                >>= flip verify
+                    [ expectField #delegation (`shouldBe` delegating (ApiT pool1) [])
+                    ]
+
+        -- join another stake pool
+        let delegationRejoin = Json [json|{
+                "delegations": [{
+                    "join": {
+                        "pool": #{ApiT pool2},
+                        "stake_key_index": "0H"
+                    }
+                }]
+            }|]
+        rTx2 <- request @(ApiConstructTransaction n) ctx
+            (Link.createUnsignedTransaction @'Shared party1) Default delegationRejoin
+        verify rTx2
+            [ expectResponseCode HTTP.status202
+            , expectField (#coinSelection . #depositsTaken) (`shouldBe` [])
+            , expectField (#coinSelection . #depositsReturned) (`shouldBe` [])
+            ]
+
+        let (ApiSerialisedTransaction apiTx3 _) =
+                getFromResponse #transaction rTx2
+        signedTx3 <-
+            signSharedTx ctx party1 apiTx3
+                [ expectResponseCode HTTP.status202 ]
+        let (ApiSerialisedTransaction apiTx4 _) = signedTx3
+        signedTx4 <-
+            signSharedTx ctx party2 apiTx4
+                [ expectResponseCode HTTP.status202 ]
+
+        submittedTx3 <- submitSharedTxWithWid ctx party1 signedTx4
+        verify submittedTx3
+            [ expectResponseCode HTTP.status202
+            ]
+        let delegatingCert2 path =
+                WalletDelegationCertificate $ JoinPool path (ApiT pool2)
+
+        let expectedFee2 = getFromResponse (#fee . #getQuantity) rTx2
+        let decodedExpectations2 =
+                [ expectResponseCode HTTP.status202
+                , expectField (#fee . #getQuantity) (`shouldBe` expectedFee2)
+                , expectField #withdrawals (`shouldBe` [])
+                , expectField #collateral (`shouldBe` [])
+                , expectField #scriptValidity
+                    (`shouldBe` (Just $ ApiT TxScriptValid))
+                , expectField #depositsReturned (`shouldBe` [])
+                , expectField #depositsTaken (`shouldBe` [])
+                ]
+        let decodePayload4 = Json (toJSON signedTx4)
+        --after first tx all funds are in change address of ix=0
+        let paymentScript1 =
+                ApiT $ NativeExplicitScript
+                (replaceCosignersWithVerKeys
+                    CA.UTxOInternal pScriptTemplate (Index 0))
+                ViaSpending
+        let witsExp4 =
+                [ expectField (#witnessCount . #scripts)
+                      (`shouldContain` [delegationScript])
+                , expectField (#witnessCount . #scripts)
+                      (`shouldContain` [paymentScript1])
+                , expectField (#witnessCount . #verificationKey)
+                      (`shouldBe` 4)
+                , expectField (#witnessCount . #bootstrap)
+                      (`shouldBe` 0)]
+        rDecodedTx7 <- request @(ApiDecodedTransaction n) ctx
+            (Link.decodeTransaction @'Shared party1) Default decodePayload4
+        rDecodedTx8 <- request @(ApiDecodedTransaction n) ctx
+            (Link.decodeTransaction @'Shared party2) Default decodePayload4
+        let certExpectation3 =
+                [expectField #certificates
+                     (`shouldBe` [ delegatingCert2 stakeKeyDerPathParty1])]
+        verify rDecodedTx7 (decodedExpectations2 ++ certExpectation3 ++ witsExp4)
+        let certExpectation4 =
+                [expectField #certificates
+                     (`shouldBe` [ delegatingCert2 stakeKeyDerPathParty2])]
+        verify rDecodedTx8 (decodedExpectations2 ++ certExpectation4 ++ witsExp4)
+
+        waitForNextEpoch ctx
+        waitForNextEpoch ctx
+
+        eventually "party1: Wallet is delegating to pool2" $ do
+            request @ApiWallet ctx (Link.getWallet @'Shared party1) Default Empty
+                >>= flip verify
+                    [ expectField #delegation (`shouldBe` delegating (ApiT pool2) [])
+                    ]
+        eventually "party2: Wallet is delegating to pool2" $ do
+            request @ApiWallet ctx (Link.getWallet @'Shared party2) Default Empty
+                >>= flip verify
+                    [ expectField #delegation (`shouldBe` delegating (ApiT pool2) [])
+                    ]
 
   where
      listSharedTransactions ctx w mStart mEnd mOrder mLimit = do

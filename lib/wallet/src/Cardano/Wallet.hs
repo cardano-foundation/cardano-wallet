@@ -79,6 +79,8 @@ module Cardano.Wallet
     , walletSyncProgress
     , fetchRewardBalance
     , manageRewardBalance
+    , manageSharedRewardBalance
+    , readSharedRewardAccount
     , rollbackBlocks
     , checkWalletIntegrity
     , mkExternalWithdrawal
@@ -1290,7 +1292,7 @@ checkRewardIsWorthTxCost txLayer pp era balance = do
     mkTxCtx wdrl = defaultTransactionCtx
         { txWithdrawal = WithdrawalSelf dummyAcct dummyPath wdrl }
       where
-        dummyAcct = RewardAccount mempty
+        dummyAcct = FromKeyHash mempty
         dummyPath = DerivationIndex 0 :| []
 
 readRewardAccount
@@ -1307,8 +1309,29 @@ readRewardAccount db wid = do
     let path = stakeDerivationPath $ Seq.derivationPrefix walletState
     pure (toRewardAccount xpub, getRawKey xpub, path)
   where
-    readWalletCheckpoint ::
-        DBLayer IO s k -> WalletId -> ExceptT ErrNoSuchWallet IO (Wallet s)
+    readWalletCheckpoint
+        :: DBLayer IO s k -> WalletId -> ExceptT ErrNoSuchWallet IO (Wallet s)
+    readWalletCheckpoint DBLayer{..} wallet =
+        liftIO (atomically readCheckpoint) >>=
+            maybe (throwE (ErrNoSuchWallet wallet)) pure
+
+readSharedRewardAccount
+    :: forall n
+     . DBLayer IO (SharedState n SharedKey) SharedKey
+    -> WalletId
+    -> ExceptT ErrReadRewardAccount IO
+         (Maybe (RewardAccount, NonEmpty DerivationIndex))
+readSharedRewardAccount db wid = do
+    walletState <- getState <$>
+        withExceptT ErrReadRewardAccountNoSuchWallet
+            (readWalletCheckpoint db wid)
+    let path = stakeDerivationPath $ Shared.derivationPrefix walletState
+    case Shared.rewardAccountKey walletState of
+        Just rewardAcct -> pure $ Just (rewardAcct, path)
+        Nothing -> pure Nothing
+  where
+    readWalletCheckpoint
+        :: DBLayer IO s k -> WalletId -> ExceptT ErrNoSuchWallet IO (Wallet s)
     readWalletCheckpoint DBLayer{..} wallet =
         liftIO (atomically readCheckpoint)  >>=
             maybe (throwE (ErrNoSuchWallet wallet)) pure
@@ -1358,30 +1381,61 @@ manageRewardBalance
     -> DBLayer IO (SeqState n ShelleyKey) ShelleyKey
     -> WalletId
     -> IO ()
-manageRewardBalance tr' netLayer db@DBLayer{..} wid = do
+manageRewardBalance tr' netLayer db wid = do
     watchNodeTip netLayer $ \bh -> do
          traceWith tr $ MsgRewardBalanceQuery bh
          query <- runExceptT $ do
             (acct, _, _) <- withExceptT ErrFetchRewardsReadRewardAccount
                 $ readRewardAccount db wid
             liftIO $ getCachedRewardAccountBalance netLayer acct
-         traceWith tr $ MsgRewardBalanceResult query
-         case query of
-            Right amt -> do
-                res <- atomically $ runExceptT $ mkNoSuchWalletError wid $
-                    putDelegationRewardBalance amt
-                -- It can happen that the wallet doesn't exist _yet_, whereas we
-                -- already have a reward balance. If that's the case, we log and
-                -- move on.
-                case res of
-                    Left err -> traceWith tr $ MsgRewardBalanceNoSuchWallet err
-                    Right () -> pure ()
-            Left _err ->
-                -- Occasionally failing to query is generally not fatal. It will
-                -- just update the balance next time the tip changes.
-                pure ()
+         handleRewardAccountQuery tr wid db query
     traceWith tr MsgRewardBalanceExited
+  where
+    tr = contramap MsgWallet tr'
 
+handleRewardAccountQuery
+    :: Monad m
+    => Tracer m WalletLog
+    -> WalletId
+    -> DBLayer m s k
+    -> Either ErrFetchRewards Coin
+    -> m ()
+handleRewardAccountQuery tr wid DBLayer{..} query = do
+    traceWith tr $ MsgRewardBalanceResult query
+    case query of
+       Right amt -> do
+           res <- atomically $ runExceptT $ mkNoSuchWalletError wid $
+               putDelegationRewardBalance amt
+           -- It can happen that the wallet doesn't exist _yet_, whereas we
+           -- already have a reward balance. If that's the case, we log and
+           -- move on.
+           case res of
+               Left err -> traceWith tr $ MsgRewardBalanceNoSuchWallet err
+               Right () -> pure ()
+       Left _err ->
+           -- Occasionally failing to query is generally not fatal. It will
+           -- just update the balance next time the tip changes.
+           pure ()
+
+manageSharedRewardBalance
+    :: forall n block
+     . Tracer IO WalletWorkerLog
+    -> NetworkLayer IO block
+    -> DBLayer IO (SharedState n SharedKey) SharedKey
+    -> WalletId
+    -> IO ()
+manageSharedRewardBalance tr' netLayer db wid = do
+    watchNodeTip netLayer $ \bh -> do
+         traceWith tr $ MsgRewardBalanceQuery bh
+         query <- runExceptT $ do
+            acctM <- withExceptT ErrFetchRewardsReadRewardAccount
+                $ readSharedRewardAccount db wid
+            case acctM of
+                Nothing -> throwE ErrFetchRewardsMissingRewardAccount
+                Just acct ->
+                    liftIO $ getCachedRewardAccountBalance netLayer (fst acct)
+         handleRewardAccountQuery tr wid db query
+    traceWith tr MsgRewardBalanceExited
   where
     tr = contramap MsgWallet tr'
 
@@ -3455,8 +3509,9 @@ data ErrStakePoolDelegation
     deriving (Show)
 
 -- | Errors that can occur when fetching the reward balance of a wallet
-newtype ErrFetchRewards
+data ErrFetchRewards
     = ErrFetchRewardsReadRewardAccount ErrReadRewardAccount
+    | ErrFetchRewardsMissingRewardAccount
     deriving (Generic, Eq, Show)
 
 data ErrCheckWalletIntegrity

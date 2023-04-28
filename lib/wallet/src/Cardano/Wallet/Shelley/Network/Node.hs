@@ -94,9 +94,9 @@ import Cardano.Wallet.Shelley.Compatibility
     , slottingParametersFromGenesis
     , toCardanoBlockHeader
     , toCardanoEra
+    , toLedgerStakeCredential
     , toPoint
     , toShelleyCoin
-    , toStakeCredential
     , unsealShelleyTx
     )
 import Control.Applicative
@@ -284,6 +284,7 @@ import qualified Cardano.Crypto.Hash as Crypto
 import qualified Cardano.Ledger.Alonzo.PParams as Alonzo
 import qualified Cardano.Ledger.Babbage.PParams as Babbage
 import qualified Cardano.Ledger.Conway.PParams as Conway
+import qualified Cardano.Ledger.Credential as SL
 import qualified Cardano.Ledger.Crypto as SL
 import qualified Cardano.Ledger.Shelley.API as SL
 import qualified Cardano.Ledger.Shelley.LedgerState as SL
@@ -354,7 +355,9 @@ withNodeNetworkLayerBase
     queryRewardQ <- connectDelegationRewardsClient
         (handlers ClientDelegationRewards)
 
-    rewardsObserver <- newRewardBalanceFetcher tr readNodeTip queryRewardQ
+    rewardsObserver <-
+        newRewardBalanceFetcher tr readNodeTip queryRewardQ
+
     let readCurrentNodeEra = atomically $ readTMVar eraVar
 
     action NetworkLayer
@@ -844,10 +847,10 @@ fetchRewardAccounts tr queryRewardQ accounts = do
             IO
             (Map W.RewardAccount W.Coin, [Log])
     shelleyQry =
-       fmap fromBalanceResult
+        fmap fromBalanceResult
         . LSQry
         . Shelley.GetFilteredDelegationsAndRewardAccounts
-        $ Set.map toStakeCredential accounts
+        $ Set.map toLedgerStakeCredential accounts
 
     fromBalanceResult
         :: ( Map (SL.Credential 'SL.Staking crypto)

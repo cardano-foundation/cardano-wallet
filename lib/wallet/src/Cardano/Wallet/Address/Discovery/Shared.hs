@@ -87,6 +87,7 @@ import Cardano.Wallet.Address.Derivation
     , Role (..)
     , SoftDerivation
     , WalletKey (..)
+    , mutableAccount
     , roleVal
     , toAddressParts
     , unsafePaymentKeyFingerprint
@@ -123,7 +124,7 @@ import Cardano.Wallet.Primitive.Passphrase
 import Cardano.Wallet.Primitive.Types.Address
     ( Address (..), AddressState (..) )
 import Cardano.Wallet.Primitive.Types.RewardAccount
-    ( RewardAccount )
+    ( RewardAccount (..) )
 import Cardano.Wallet.Read.NetworkId
     ( HasSNetworkId (..), NetworkDiscriminant, networkDiscriminantBits )
 import Cardano.Wallet.Transaction
@@ -135,7 +136,7 @@ import Control.Arrow
 import Control.DeepSeq
     ( NFData )
 import Control.Monad
-    ( unless )
+    ( guard, unless )
 import Crypto.Hash
     ( Blake2b_160, Digest, hash )
 import Data.Data
@@ -302,6 +303,8 @@ data SharedState (n :: NetworkDiscriminant) k = SharedState
         -- ^ Script template together with a map of account keys and cosigners
         -- for staking credential. If not specified then the same template as for
         -- payment is used.
+    , rewardAccountKey :: !(Maybe RewardAccount)
+        -- ^ Reward account script hash associated with this wallet
     , poolGap :: !AddressPoolGap
         -- ^ Address pool gap to be used in the address pool of shared state
     , ready :: !(Readiness (SharedAddressPools k))
@@ -318,8 +321,16 @@ deriving instance ( Show (k 'AccountK XPub) ) => Show (SharedState n k)
 -- because there is no general equality for address pools
 -- (we cannot test the generators for equality).
 instance Eq (k 'AccountK XPub) => Eq (SharedState n k) where
-    SharedState a1 a2 a3 a4 a5 ap == SharedState b1 b2 b3 b4 b5 bp
-        = and [a1 == b1, a2 == b2, a3 == b3, a4 == b4, a5 == b5, ap `match` bp]
+    SharedState a1 a2 a3 a4 a5 a6 ap == SharedState b1 b2 b3 b4 b5 b6 bp
+        = and
+            [ a1 == b1
+            , a2 == b2
+            , a3 == b3
+            , a4 == b4
+            , a5 == b5
+            , a6 == b6
+            , ap `match` bp
+            ]
       where
         match Pending Pending = True
         match (Active sharedAddressPools1) (Active sharedAddressPools2)
@@ -332,6 +343,7 @@ instance PersistPublicKey (k 'AccountK) => Buildable (SharedState n k) where
         <> indentF 4 ("accountXPub:" <> build (accountXPub st))
         <> indentF 4 ("paymentTemplate:" <> build (paymentTemplate st))
         <> indentF 4 ("delegationTemplate:" <> build (delegationTemplate st))
+        <> indentF 4 ("rewardAccountKey:" <> build (toText <$> rewardAccountKey st))
         <> indentF 4 ("poolGap:" <> build (toText $ poolGap st))
         <> indentF 4 ("ready: " <> readyF (ready st))
       where
@@ -364,6 +376,7 @@ mkSharedStateFromAccountXPub accXPub accIx gap pTemplate dTemplateM =
         , accountXPub = accXPub
         , paymentTemplate = pTemplate
         , delegationTemplate = dTemplateM
+        , rewardAccountKey = Nothing
         , poolGap = gap
         , ready = Pending
         }
@@ -387,17 +400,24 @@ activate
     :: forall n k. (SupportsDiscovery n k, WalletKey k, k ~ SharedKey)
     => SharedState n k -> SharedState n k
 activate
-    st@(SharedState{accountXPub,paymentTemplate=pT,delegationTemplate=dT,poolGap,ready})
-  = st { ready = new ready }
+    st@(SharedState{accountXPub,paymentTemplate=pT,delegationTemplate=dT
+                   ,rewardAccountKey,poolGap,ready})
+  = st { ready = updateReady ready, rewardAccountKey = updateRewardAccount ready }
   where
-    new Pending
+    updateReady Pending
         | templatesComplete accountXPub pT dT
             = Active $ SharedAddressPools
               { externalPool = newSharedAddressPool @n poolGap pT dT
               , internalPool = newSharedAddressPool @n poolGap pT dT
               , pendingChangeIxs = emptyPendingIxs
               }
-    new r   = r
+    updateReady r = r
+
+    updateRewardAccount Pending
+        | templatesComplete accountXPub pT dT
+            = FromScriptHash . unScriptHash . toScriptHash .
+                  flip (replaceCosignersWithVerKeys CA.Stake) minBound <$> dT
+    updateRewardAccount _ = rewardAccountKey
 
 -- | Possible errors from adding a co-signer key to the shared wallet state.
 data ErrAddCosigner
@@ -613,7 +633,22 @@ decoratePath st role' ix = NE.fromList
     DerivationPrefix (purpose, coinType, accIx) = derivationPrefix st
 
 instance IsOurs (SharedState n k) RewardAccount where
-    isOurs _account st = (Nothing, st)
+    isOurs account state@SharedState{derivationPrefix, rewardAccountKey} =
+        let
+            DerivationPrefix (purpose, coinType, accountIx) = derivationPrefix
+            path = NE.fromList
+                [ DerivationIndex $ getIndex purpose
+                , DerivationIndex $ getIndex coinType
+                , DerivationIndex $ getIndex accountIx
+                , DerivationIndex $ getIndex mutableAccount
+                , DerivationIndex $ getIndex @'Soft minBound
+                ]
+        in
+            case rewardAccountKey of
+                Just rewardAcct ->
+                    (guard (account == rewardAcct) *> Just path, state)
+                Nothing ->
+                    (Nothing, state)
 
 instance GetAccount (SharedState n k) k where
     getAccount = accountXPub

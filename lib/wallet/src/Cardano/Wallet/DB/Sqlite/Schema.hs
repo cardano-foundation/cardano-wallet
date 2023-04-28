@@ -447,6 +447,7 @@ SharedState
     sharedStateScriptGap                W.AddressPoolGap          sql=pool_gap
     sharedStatePaymentScript            (Script Cosigner)         sql=payment_script
     sharedStateDelegationScript         (Script Cosigner) Maybe   sql=delegation_script
+    sharedStateRewardAccount            W.RewardAccount Maybe     sql=reward_account
     sharedStateDerivationPrefix         W.DerivationPrefix        sql=derivation_prefix
 
     Primary sharedStateWalletId

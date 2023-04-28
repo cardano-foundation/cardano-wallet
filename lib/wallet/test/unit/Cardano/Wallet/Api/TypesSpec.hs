@@ -2289,7 +2289,9 @@ instance Arbitrary (ApiWithdrawal (t :: NetworkDiscriminant)) where
         <*> arbitrary
 
 instance Arbitrary RewardAccount where
-    arbitrary = RewardAccount . BS.pack <$> vector 28
+    arbitrary = do
+        bs <- BS.pack <$> vector 28
+        oneof [pure $ FromKeyHash bs, pure $ FromScriptHash bs]
 
 instance Arbitrary Coin where
     -- No Shrinking
