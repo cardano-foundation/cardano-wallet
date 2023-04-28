@@ -39,6 +39,8 @@ module Data.Store (
     -- ** Constructors
     , SimpleStore
     , mkSimpleStore
+    , UpdateStore
+    , mkUpdateStore
 
     -- ** Helpers
     , updateLoad
@@ -323,6 +325,20 @@ mkSimpleStore loadS writeS =
         , writeS
         , updateS = \_ (Replace a) -> writeS a
         }
+
+-- | A 'Store' whose focus lies on updating the value rather than querying it.
+type UpdateStore m da = Store m da
+
+-- | @mkUpdateStore loadS writeS updateS@ constructs an 'UpdateStore'
+-- from the given operations.
+mkUpdateStore
+    :: (Monad m, a ~ Base da, Delta da)
+    => m (Either SomeException a)
+    -> (a -> m ())
+    -> (Maybe a -> da -> m ())
+    -> UpdateStore m da
+mkUpdateStore loadS writeS updateS =
+    Store{loadS, writeS, updateS}
 
 {-------------------------------------------------------------------------------
     Combinators
