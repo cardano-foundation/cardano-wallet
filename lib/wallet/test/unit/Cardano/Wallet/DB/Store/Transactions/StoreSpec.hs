@@ -27,8 +27,6 @@ import Cardano.Wallet.DB.Fixtures
     )
 import Cardano.Wallet.DB.Sqlite.Types
     ( TxId (TxId) )
-import Cardano.Wallet.DB.Store.QueryStore
-    ( QueryStore (..) )
 import Cardano.Wallet.DB.Store.Transactions.Decoration
     ( DecoratedTxIns
     , decorateTxInsForRelation
@@ -56,6 +54,8 @@ import Data.Functor.Identity
     ( Identity (..) )
 import Data.Generics.Internal.VL
     ( set )
+import Data.QueryStore
+    ( QueryStore (..) )
 import Data.Store
     ( Store (..) )
 import Test.Hspec

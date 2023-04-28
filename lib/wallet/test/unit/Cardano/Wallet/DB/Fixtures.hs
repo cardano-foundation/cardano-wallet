@@ -33,8 +33,6 @@ import Cardano.Wallet.DB.Sqlite.Schema
     ( Wallet (..), migrateAll )
 import Cardano.Wallet.DB.Sqlite.Types
     ( BlockId (..) )
-import Cardano.Wallet.DB.Store.QueryStore
-    ( Query (..), QueryStore (..), World )
 import Cardano.Wallet.Primitive.Types
     ( WalletId (..) )
 import Cardano.Wallet.Primitive.Types.Hash
@@ -49,6 +47,8 @@ import Data.Delta
     ( Delta (Base) )
 import Data.Either
     ( fromRight )
+import Data.QueryStore
+    ( Query (..), QueryStore (..), World )
 import Data.Store
     ( Store (loadS, updateS) )
 import Data.Time.Clock

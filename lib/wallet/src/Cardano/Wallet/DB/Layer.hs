@@ -106,8 +106,6 @@ import Cardano.Wallet.DB.Store.Checkpoints
     ( PersistAddressBook (..), blockHeaderFromEntity, mkStoreWallets )
 import Cardano.Wallet.DB.Store.Meta.Model
     ( mkTxMetaFromEntity )
-import Cardano.Wallet.DB.Store.QueryStore
-    ( QueryStore (..) )
 import Cardano.Wallet.DB.Store.Submissions.Layer
     ( pruneByFinality, rollBackSubmissions )
 import Cardano.Wallet.DB.Store.Submissions.Operations
@@ -174,6 +172,8 @@ import Data.Proxy
     ( Proxy (..) )
 import Data.Quantity
     ( Quantity (..) )
+import Data.QueryStore
+    ( QueryStore (..) )
 import Data.Store
     ( Store (..) )
 import Data.Text

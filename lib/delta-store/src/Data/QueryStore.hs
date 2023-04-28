@@ -3,7 +3,10 @@
 {-# LANGUAGE RankNTypes #-}
 {-# LANGUAGE TypeFamilies #-}
 
-module Cardano.Wallet.DB.Store.QueryStore
+-- |
+-- Copyright: © 2023 IOHK
+-- License: Apache-2.0
+module Data.QueryStore
     ( QueryStore (..)
     , Query (..)
     , queryStoreProperty

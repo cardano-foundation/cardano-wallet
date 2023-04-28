@@ -13,12 +13,12 @@ import Cardano.DB.Sqlite
     ( ForeignKeysSetting (..) )
 import Cardano.Wallet.DB.Fixtures
     ( WalletProperty, logScale, withDBInMemory, withInitializedWalletProp )
-import Cardano.Wallet.DB.Store.QueryStore
-    ( QueryStore (store) )
 import Cardano.Wallet.DB.Store.Wallets.Layer
     ( newQueryStoreTxWalletsHistory )
 import Cardano.Wallet.DB.Store.Wallets.StoreSpec
     ( genDeltaTxWallets )
+import Data.QueryStore
+    ( QueryStore (store) )
 import Test.Hspec
     ( Spec, around, describe, it )
 import Test.QuickCheck
