@@ -214,7 +214,7 @@ import Data.Map
 import Data.Map.Strict.NonEmptyMap.Internal
     ( NonEmptyMap )
 import Data.Maybe
-    ( catMaybes, fromJust, isJust )
+    ( catMaybes, fromJust )
 import Data.Quantity
     ( Percentage (..), Quantity (..) )
 import Data.Set
@@ -370,7 +370,7 @@ data Success s wid
     = Unit ()
     | NewWallet wid
     | WalletId' wid
-    | Checkpoint (Maybe (Wallet s))
+    | Checkpoint (Wallet s)
     | Metadata (Maybe WalletMetadata)
     | TxHistory [TransactionInfo]
     | LocalTxSubmission [LocalTxSubmissionStatus (Hash "Tx")]
@@ -988,8 +988,6 @@ data Tag
     | TxUnsortedInputs
       -- ^ Putting a transaction with unsorted inputs.
     | TxUnsortedOutputs
-    | SuccessfulReadCheckpoint
-      -- ^ Read the checkpoint of a wallet that's been created.
     | SuccessfulReadPrivateKey
       -- ^ Private key was written then read.
     | PutCheckpointTwice
@@ -1010,7 +1008,6 @@ tag = Foldl.fold $ catMaybes <$> sequenceA
     , readTransactions null UnsuccessfulReadTxHistory
     , txUnsorted inputs TxUnsortedInputs
     , txUnsorted outputs TxUnsortedOutputs
-    , readCheckpoint isJust SuccessfulReadCheckpoint
     , countAction SuccessfulReadPrivateKey (>= 1) isReadPrivateKeySuccess
     , countAction PutCheckpointTwice (>= 2) isPutCheckpointSuccess
     , countAction RolledBackOnce (>= 1) isRollbackSuccess
@@ -1077,20 +1074,6 @@ tag = Foldl.fold $ catMaybes <$> sequenceA
             case (cmd ev, mockResp ev) of
                 (At (PutTxHistory h), Resp (Right _)) ->
                     any (isUnordered . sel . fst) h
-                _otherwise ->
-                    False
-
-    readCheckpoint
-        :: (Maybe (Wallet s) -> Bool)
-        -> Tag
-        -> Fold (Event s Symbolic) (Maybe Tag)
-    readCheckpoint check res = Fold update False (extractf res)
-      where
-        update :: Bool -> Event s Symbolic -> Bool
-        update didRead ev = didRead ||
-            case (cmd ev, mockResp ev) of
-                (At ReadCheckpoint, Resp (Right (Checkpoint cp))) ->
-                    check cp
                 _otherwise ->
                     False
 

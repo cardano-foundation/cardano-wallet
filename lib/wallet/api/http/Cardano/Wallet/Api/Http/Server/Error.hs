@@ -20,6 +20,7 @@ module Cardano.Wallet.Api.Http.Server.Error
   , apiError
   , err425
   , showT
+  , handler
   )
   where
 
@@ -115,7 +116,7 @@ import Cardano.Wallet.Transaction
 import Cardano.Wallet.Write.Tx.Balance
     ( ErrBalanceTx (..), ErrBalanceTxInternalError (..) )
 import Control.Monad.Except
-    ( ExceptT, withExceptT )
+    ( ExceptT, lift, withExceptT )
 import Control.Monad.Trans.Except
     ( throwE )
 import Data.Generics.Internal.VL
@@ -183,6 +184,10 @@ liftHandler action = Handler (withExceptT toServerError action)
 
 liftE :: IsServerError e => e -> Handler a
 liftE = liftHandler . throwE
+
+-- | Lift an IO action into servant 'Handler'
+handler :: IO a -> Handler a
+handler = Handler . lift
 
 apiError :: ServerError -> ApiErrorInfo -> Text -> ServerError
 apiError err info messageUnformatted = err
@@ -326,10 +331,6 @@ instance IsServerError ErrSignPayment where
 instance IsServerError ErrWitnessTx where
     toServerError = \case
         ErrWitnessTxSignTx e -> toServerError e
-        ErrWitnessTxNoSuchWallet e -> (toServerError e)
-            { errHTTPCode = 404
-            , errReasonPhrase = errReasonPhrase err404
-            }
         ErrWitnessTxWithRootKey e@ErrWithRootKeyNoRootKey{} -> (toServerError e)
             { errHTTPCode = 403
             , errReasonPhrase = errReasonPhrase err403
@@ -717,7 +718,6 @@ instance IsServerError ErrFetchRewards where
 
 instance IsServerError ErrReadRewardAccount where
     toServerError = \case
-        ErrReadRewardAccountNoSuchWallet e -> toServerError e
         ErrReadRewardAccountNotAShelleyWallet ->
             apiError err403 InvalidWalletType $ mconcat
                 [ "It is regrettable but you've just attempted an operation "
@@ -727,7 +727,6 @@ instance IsServerError ErrReadRewardAccount where
 
 instance IsServerError ErrReadPolicyPublicKey where
     toServerError = \case
-        ErrReadPolicyPublicKeyNoSuchWallet e -> toServerError e
         ErrReadPolicyPublicKeyNotAShelleyWallet ->
             apiError err403 InvalidWalletType $ mconcat
                 [ "You have attempted an operation that is invalid for this "

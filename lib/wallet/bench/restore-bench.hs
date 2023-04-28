@@ -463,9 +463,8 @@ benchmarksRnd network w@(WalletLayer _ _ netLayer txLayer dbLayer) wid wname
         pure $ UTxOStatistics.compute (totalUTxO pending cp)
 
     (addresses, listAddressesTime) <- bench "list addresses"
-        $ fmap (fromIntegral . length)
-        $ unsafeRunExceptT
-        $ W.listAddresses w wid (const pure)
+        $ fromIntegral . length
+        <$> W.listAddresses w (const pure)
 
     (transactions, listTransactionsTime) <- bench "list transactions"
         $ fmap (fromIntegral . length)
@@ -571,9 +570,7 @@ benchmarksSeq network w@(WalletLayer _ _ netLayer txLayer dbLayer) wid _wname
         pure $ UTxOStatistics.compute (totalUTxO pending cp)
 
     (addresses, listAddressesTime) <- bench "list addresses"
-        $ fmap (fromIntegral . length)
-        $ unsafeRunExceptT
-        $ W.listAddresses w wid (const pure)
+        $ fromIntegral . length <$> W.listAddresses w (const pure)
 
     (transactions, listTransactionsTime) <- bench "list transactions"
         $ fmap (fromIntegral . length)

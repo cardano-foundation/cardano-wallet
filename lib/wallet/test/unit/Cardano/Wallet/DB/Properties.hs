@@ -158,7 +158,7 @@ properties withFreshDB = describe "DB.Properties" $ do
             $ prop_readAfterPut
                 testOnLayer
                 (\DBLayer{..} _wid -> lift . atomically . putCheckpoint)
-                (\DBLayer{..} _wid -> atomically readCheckpoint)
+                (\DBLayer{..} _wid -> Identity <$> atomically readCheckpoint)
         it "Wallet Metadata"
             $ property
             $ prop_readAfterPut
@@ -221,8 +221,8 @@ properties withFreshDB = describe "DB.Properties" $ do
             $ prop_sequentialPut
                 testOnLayer
                 (\DBLayer{..} _wid -> lift . atomically . putCheckpoint)
-                (\DBLayer{..} _-> atomically readCheckpoint)
-                lastMay
+                (\DBLayer{..} _-> Identity <$> atomically readCheckpoint)
+                (Identity . last)
                 . sortOn (currentTip . unShowFmt)
         it "Wallet Metadata"
             $ checkCoverage
@@ -523,9 +523,9 @@ prop_rollbackCheckpoint test (InitialCheckpoint cp0) (MockChain chain) =
                         $ rollbackTo (toSlot $ chainPointFromBlockHeader tip)
                 cp <- atomically readCheckpoint
                 pure (tip, cp, point')
-            let str = maybe "∅" pretty cp
+            let str = pretty cp
             monitor $ counterexample ("Checkpoint after rollback: \n" <> str)
-            assert (ShowFmt cp == ShowFmt (pure point))
+            assert (ShowFmt cp == ShowFmt point)
             assert (ShowFmt point' == ShowFmt (chainPointFromBlockHeader tip))
 
 -- | Re-schedule pending transaction on rollback, i.e.:

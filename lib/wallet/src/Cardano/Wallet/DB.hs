@@ -239,13 +239,9 @@ data DBLayer m s k = forall stm. (MonadIO stm, MonadFail stm) => DBLayer
         -- rollbacks yet, and therefore only stores the latest available
         -- checkpoint.
         --
-        -- If the wallet doesn't exist, this operation returns an error.
 
-    , readCheckpoint
-        :: stm (Maybe (Wallet s))
+    , readCheckpoint :: stm (Wallet s)
         -- ^ Fetch the most recent checkpoint of a given wallet.
-        --
-        -- Return 'Nothing' if there's no such wallet.
 
     , listCheckpoints
         :: stm [ChainPoint]
@@ -535,9 +531,7 @@ mkDBLayerFromParts ti wid_ wrapNoSuchWallet DBLayerCollection{..} = DBLayer
     , listCheckpoints = listCheckpoints_ dbCheckpoints
     , putWalletMeta = putWalletMeta_ dbWalletMeta
     , readWalletMeta = do
-        readCheckpoint' >>= \case
-            Nothing -> pure Nothing
-            Just cp -> do
+        readCheckpoint' >>= \cp -> do
                 currentEpoch <- liftIO $
                     interpretQuery ti (epochOf $ cp ^. #currentTip . #slotNo)
                 del <- readDelegation_ dbDelegation currentEpoch
@@ -553,8 +547,7 @@ mkDBLayerFromParts ti wid_ wrapNoSuchWallet DBLayerCollection{..} = DBLayer
     , putTxHistory = \a -> wrapNoSuchWallet $
         putTxHistory_ dbTxHistory a
     , readTransactions = \minWithdrawal order range status limit ->
-        readCurrentTip >>= \case
-            Just tip -> do
+        readCurrentTip >>= \tip -> do
                 inLedgers <- if status `elem` [Nothing, Just WTxMeta.InLedger]
                     then readTxHistory_ dbTxHistory range tip limit order
                     else pure []
@@ -581,10 +574,8 @@ mkDBLayerFromParts ti wid_ wrapNoSuchWallet DBLayerCollection{..} = DBLayer
                     . sortTransactionsBySlot order
                     . filterMinWithdrawal minWithdrawal
                     $ inLedgers <> inSubmissions
-            Nothing -> pure []
     , getTx = \txid -> wrapNoSuchWallet $ do
-        readCurrentTip >>= \case
-            Just tip -> do
+        readCurrentTip >>= \tip -> do
                 historical <- getTx_ dbTxHistory txid tip
                 case historical of
                     Just tx -> pure $ Just tx
@@ -596,7 +587,6 @@ mkDBLayerFromParts ti wid_ wrapNoSuchWallet DBLayerCollection{..} = DBLayer
                             (hoistTimeInterpreter liftIO ti)
                             (mkDecorator_ dbTxHistory) tip
                                 . fmap snd
-            Nothing -> pure Nothing
     , addTxSubmission = \builtTx slotNo  -> updateSubmissions' wid_
             mapNoSuchWallet
             $ \_ -> Right [Sbms.addTxSubmission builtTx slotNo]
@@ -630,9 +620,8 @@ mkDBLayerFromParts ti wid_ wrapNoSuchWallet DBLayerCollection{..} = DBLayer
     mapNoSuchWallet _ = ErrWalletNotInitialized
     updateSubmissions' = updateSubmissions dbCheckpoints
     readCheckpoint' = readCheckpoint_ dbCheckpoints
-    readCurrentTip :: stm (Maybe BlockHeader)
-    readCurrentTip =
-        fmap currentTip <$> readCheckpoint_ dbCheckpoints
+    readCurrentTip :: stm BlockHeader
+    readCurrentTip = currentTip <$> readCheckpoint_ dbCheckpoints
 
 -- | Update the transaction submission state of a wallet.
 updateSubmissions
@@ -679,11 +668,8 @@ data DBCheckpoints stm s = DBCheckpoints
         -- ^ Replace the current checkpoint for a given wallet. We do not handle
         -- rollbacks yet, and therefore only stores the latest available
         -- checkpoint.
-        --
-        -- If the wallet doesn't exist, this operation returns an error.
 
-    , readCheckpoint_
-        :: stm (Maybe (Wallet s))
+    , readCheckpoint_ :: stm (Wallet s)
         -- ^ Fetch the most recent checkpoint of a given wallet.
         --
         -- Return 'Nothing' if there's no such wallet.

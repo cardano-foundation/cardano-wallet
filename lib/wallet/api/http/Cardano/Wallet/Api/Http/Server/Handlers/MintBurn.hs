@@ -32,8 +32,6 @@ import Cardano.Wallet.Api.Types.MintBurn
     ( ApiAssetMintBurn (..), includePolicyKeyInfo, policyIx, toApiTokens )
 import Cardano.Wallet.Flavor
     ( WalletFlavor )
-import Cardano.Wallet.Primitive.Types
-    ( WalletId )
 import Cardano.Wallet.Transaction
     ( TokenMapWithScripts (..) )
 import Control.Category
@@ -54,12 +52,11 @@ convertApiAssetMintBurn
        , WalletFlavor s n k
        )
     => ctx
-    -> WalletId
     -> (TokenMapWithScripts, TokenMapWithScripts)
     -> Handler (ApiAssetMintBurn, ApiAssetMintBurn)
-convertApiAssetMintBurn ctx wid (mint, burn) = do
+convertApiAssetMintBurn ctx (mint, burn) = do
     xpubM <- fmap (fmap fst . eitherToMaybe)
-        <$> liftIO . runExceptT $ readPolicyPublicKey @ctx @s @k @n ctx wid
+        <$> liftIO . runExceptT $ readPolicyPublicKey @ctx @s @k @n ctx
     let  convert tokenWithScripts =  ApiAssetMintBurn
             { tokens = toApiTokens tokenWithScripts
             , walletPolicyKeyHash =
@@ -76,8 +73,7 @@ getTxApiAssetMintBurn
        , WalletFlavor s n k
        )
     => ctx
-    -> WalletId
     -> ParsedTxCBOR
     -> (Handler (ApiAssetMintBurn, ApiAssetMintBurn))
-getTxApiAssetMintBurn ctx wid ParsedTxCBOR{..} =
-    convertApiAssetMintBurn @ctx @s @k @n ctx wid mintBurn
+getTxApiAssetMintBurn ctx ParsedTxCBOR{..} =
+    convertApiAssetMintBurn @ctx @s @k @n ctx mintBurn

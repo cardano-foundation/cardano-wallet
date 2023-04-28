@@ -238,12 +238,12 @@ mPutCheckpoint cp = alterModelNoTxs' $ \wal
     -> wal { checkpoints = Map.insert (tip cp) cp (checkpoints wal) }
 
 mReadCheckpoint
-    :: ModelOp wid s xprv (Maybe (Wallet s))
+    :: ModelOp wid s xprv (Wallet s)
 mReadCheckpoint db@(Database _ wallet _)
     = (Right (mostRecentCheckpoint wallet), db)
 
-mostRecentCheckpoint :: WalletDatabase s xprv -> Maybe (Wallet s)
-mostRecentCheckpoint = fmap snd . Map.lookupMax . checkpoints
+mostRecentCheckpoint :: WalletDatabase s xprv -> Wallet s
+mostRecentCheckpoint = snd . Map.findMax . checkpoints
 
 mListCheckpoints
     :: ModelOp wid s xprv [ChainPoint]

@@ -302,8 +302,6 @@ spec = describe "Cardano.WalletSpec" $ do
         it (show $ ErrWithRootKeyWrongPassphrase wid ErrWrongPassphrase) True
 
     describe "WalletLayer works as expected" $ do
-        it "Wallet upon creation is written down in db"
-            (property walletCreationProp)
         it "Wallet cannot be created more than once"
             (property walletDoubleCreationProp)
         it "Wallet after being created can be got using valid wallet Id"
@@ -353,15 +351,6 @@ spec = describe "Cardano.WalletSpec" $ do
 {-------------------------------------------------------------------------------
                                     Properties
 -------------------------------------------------------------------------------}
-
-walletCreationProp
-    :: (WalletId, WalletName, DummyState)
-    -> Property
-walletCreationProp newWallet = monadicIO $ do
-    WalletLayerFixture _ DBLayer{..} _wl _walletIds <-
-        run $ setupFixture newWallet
-    resFromDb <- run $ atomically readCheckpoint
-    assert (isJust resFromDb)
 
 walletDoubleCreationProp
     :: (WalletId, WalletName, DummyState)
@@ -617,11 +606,11 @@ instance Sqlite.PersistAddressBook DummyStateWithAddresses where
 
 walletListsOnlyRelatedAssets :: Hash "Tx" -> TxMeta -> Property
 walletListsOnlyRelatedAssets txId txMeta =
-    forAll genOuts $ \(out1, out2, wallet@(wid, _, _)) -> monadicIO $ do
+    forAll genOuts $ \(out1, out2, wallet) -> monadicIO $ do
         WalletLayerFixture _ DBLayer{..} wl _ <- liftIO $ setupFixture wallet
         let listHistoricalAssets hry = do
                 liftIO . atomically . unsafeRunExceptT $ putTxHistory hry
-                liftIO . unsafeRunExceptT $ W.listAssets wl wid
+                liftIO $ W.listAssets wl
         let tx = Tx
                 { txId
                 , txCBOR = Nothing

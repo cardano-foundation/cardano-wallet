@@ -195,7 +195,7 @@ import Data.Generics.Internal.VL.Lens
 import Data.Generics.Labels
     ()
 import Data.Maybe
-    ( fromMaybe, isJust, isNothing, mapMaybe )
+    ( isJust, isNothing, mapMaybe )
 import Data.Quantity
     ( Quantity (..) )
 import Data.String.Interpolate
@@ -570,7 +570,7 @@ fileModeSpec =  do
                 DBLayer{atomically, putCheckpoint} <-
                     unsafeRunExceptT $ bootDBLayer testDBLayerParams
                 atomically $ putCheckpoint testCp
-            testReopening f readCheckpoint' (Just testCp)
+            testReopening f readCheckpoint' testCp
 
         describe "Golden rollback scenarios" $ do
             let dummyHash x = Hash $
@@ -579,7 +579,7 @@ fileModeSpec =  do
                     x <> BS.pack (replicate (32 - (BS.length x)) 0)
 
             let mockApply DBLayer{..} h mockTxs = do
-                    Just cpA <- atomically readCheckpoint
+                    cpA <- atomically readCheckpoint
                     let slotA = view #slotNo $ currentTip cpA
                     let Quantity bhA = view #blockHeight $ currentTip cpA
                     let hashA = headerHash $ currentTip cpA
@@ -812,7 +812,7 @@ fileModeSpec =  do
 
                 atomically . void . unsafeRunExceptT $
                     rollbackTo (At $ SlotNo 200)
-                Just cp <- atomically readCheckpoint
+                cp <- atomically readCheckpoint
                 view #slotNo (currentTip cp) `shouldBe` (SlotNo 0)
 
                 getTxsInLedger db `shouldReturn` []
@@ -948,7 +948,7 @@ getWalletId' DBLayer{..} = pure walletId_
 
 readCheckpoint'
     :: DBLayer m s k
-    -> m (Maybe (Wallet s))
+    -> m (Wallet s)
 readCheckpoint' DBLayer{..} = atomically readCheckpoint
 
 readWalletMeta'
@@ -1258,7 +1258,7 @@ testMigrationCleanupCheckpoints dbName genesisParameters tip = do
     length (filter (isMsgManualMigration fieldGenesisStart) logs) `shouldBe` 1
 
     (fst result) `shouldBe` Just genesisParameters
-    (currentTip <$> snd result) `shouldBe` Just tip
+    currentTip (snd result) `shouldBe` tip
   where
     fieldGenesisHash = fieldDB $ persistFieldDef DB.WalGenesisHash
     fieldGenesisStart = fieldDB $ persistFieldDef DB.WalGenesisStart
@@ -1271,7 +1271,7 @@ testMigrationRole
     :: String
     -> IO ()
 testMigrationRole dbName = do
-    (logs, Just cp) <- withDBLayerFromCopiedFile @ShelleyKey dbName
+    (logs, cp) <- withDBLayerFromCopiedFile @ShelleyKey dbName
         $ \DBLayer{..} -> atomically $ do
             readCheckpoint
 
@@ -1298,9 +1298,8 @@ testMigrationSeqStateDerivationPrefix
        )
     -> IO ()
 testMigrationSeqStateDerivationPrefix dbName prefix = do
-    (logs, Just cp) <- withDBLayerFromCopiedFile @k @s dbName
-        $ \DBLayer{..} -> atomically $ do
-            readCheckpoint
+    (logs, cp) <- withDBLayerFromCopiedFile @k @s dbName
+        $ \DBLayer{..} -> atomically readCheckpoint
 
     let migrationMsg = filter isMsgManualMigration logs
     length migrationMsg `shouldBe` 1
@@ -1563,7 +1562,7 @@ gp = dummyGenesisParameters
 
 getAvailableBalance :: DBLayer IO s k -> IO Natural
 getAvailableBalance DBLayer{..} = do
-    cp <- fromMaybe (error "nothing") <$> atomically readCheckpoint
+    cp <- atomically readCheckpoint
     pend <- atomically $ fmap toTxHistory
         <$> readTransactions Nothing Descending wholeRange
                 (Just Pending) Nothing

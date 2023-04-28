@@ -14,7 +14,7 @@
 
 module Cardano.Wallet.DB.Pure.Layer
     ( newDBFresh
-    ) where
+    , throwErrorReadDB) where
 
 import Prelude
 
@@ -112,7 +112,7 @@ newDBFresh timeInterpreter wid = do
 
         , putCheckpoint = noErrorAlterDB  db .  mPutCheckpoint
 
-        , readCheckpoint = join <$> readDBMaybe db mReadCheckpoint
+        , readCheckpoint = throwErrorReadDB db mReadCheckpoint
 
         , listCheckpoints = fromMaybe [] <$> readDBMaybe db mListCheckpoints
 
@@ -263,6 +263,17 @@ noErrorAlterDB
     -> ModelOp WalletId s xprv a
     -> m ()
 noErrorAlterDB db op = void $ alterDB (const Nothing) db op
+
+throwErrorReadDB
+    :: MonadUnliftIO m
+    => MVar (Database WalletId s xprv)
+    -> ModelOp WalletId s xprv b
+    -> m b
+throwErrorReadDB db op = do
+    mr <- readDB db op
+    case mr of
+        Left e -> throwIO $ MVarDBError e
+        Right r -> pure r
 
 -- | Run a query operation on the model database.
 readDB

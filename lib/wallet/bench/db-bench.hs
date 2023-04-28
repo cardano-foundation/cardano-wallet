@@ -302,7 +302,7 @@ mkCheckpoints numCheckpoints utxoSize numAssets =
         (map fst $ mkInputs i utxoSize)
         (mkOutputs i utxoSize numAssets)
 
-benchReadUTxO :: DBLayerBench -> IO (Maybe WalletBench)
+benchReadUTxO :: DBLayerBench -> IO WalletBench
 benchReadUTxO DBLayer{..} = atomically readCheckpoint
 
 utxoFixture ::  Int -> Int -> Int -> DBFreshBench -> IO DBLayerBench

@@ -246,14 +246,12 @@ benchmarksSeq BenchmarkConfig{benchmarkName,ctx,wid} = do
         $ W.getWalletUtxoSnapshot @_ @s @k @ktype ctx wid
 
     (addresses, listAddressesTime) <- bench "listAddresses"
-        $ fmap (fromIntegral . length)
-        $ unsafeRunExceptT
-        $ W.listAddresses @_ @s @k ctx wid (const pure)
+        $ fromIntegral . length
+        <$> W.listAddresses @_ @s @k ctx (const pure)
 
     (_, listAssetsTime) <- bench "listAssets"
-        $ fmap length
-        $ unsafeRunExceptT
-        $ W.listAssets @s @k ctx wid
+        $ length
+        <$> W.listAssets @s @k ctx
 
     (transactions, listTransactionsTime) <- bench "listTransactions"
         $ fmap (fromIntegral . length)
@@ -338,14 +336,12 @@ benchmarksShared BenchmarkConfig{benchmarkName,ctx,wid} = do
         $ W.getWalletUtxoSnapshot @_ @s @k @ktype ctx wid
 
     (addresses, listAddressesTime) <- bench "listAddresses"
-        $ fmap (fromIntegral . length)
-        $ unsafeRunExceptT
-        $ W.listAddresses @_ @s @k ctx wid (const pure)
+        $ fromIntegral . length
+        <$> W.listAddresses @_ @s @k ctx (const pure)
 
     (_, listAssetsTime) <- bench "listAssets"
-        $ fmap length
-        $ unsafeRunExceptT
-        $ W.listAssets @s @k ctx wid
+        $ length
+        <$> W.listAssets @s @k ctx
 
     (transactions, listTransactionsTime) <- bench "listTransactions"
         $ fmap (fromIntegral . length)
@@ -413,14 +409,12 @@ benchmarksRnd BenchmarkConfig{benchmarkName,ctx,wid} = do
         $ W.getWalletUtxoSnapshot @_ @s @k @ktype ctx wid
 
     (addresses, listAddressesTime) <- bench "listAddresses"
-        $ fmap (fromIntegral . length)
-        $ unsafeRunExceptT
-        $ W.listAddresses @_ @s @k ctx wid (const pure)
+        $ fromIntegral . length
+        <$> W.listAddresses @_ @s @k ctx (const pure)
 
     (_, listAssetsTime) <- bench "listAssets"
-        $ fmap length
-        $ unsafeRunExceptT
-        $ W.listAssets @s @k ctx wid
+        $ length
+        <$> W.listAssets @s @k ctx
 
     (transactions, listTransactionsTime) <- bench "listTransactions"
         $ fmap (fromIntegral . length)

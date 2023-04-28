@@ -229,9 +229,7 @@ quitStakePool
     -> WalletId
     -> IO TransactionCtx
 quitStakePool netLayer db timeInterpreter walletId = do
-    (rewardAccount, _, derivationPath) <-
-        runExceptT (readRewardAccount db walletId)
-            >>= either (throwIO . ExceptionReadRewardAccount) pure
+    (rewardAccount, _, derivationPath) <- readRewardAccount db
     withdrawal <- WithdrawalSelf rewardAccount derivationPath
         <$> getCachedRewardAccountBalance netLayer rewardAccount
     action <- quitStakePoolDelegationAction db walletId withdrawal
