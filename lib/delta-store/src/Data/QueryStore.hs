@@ -22,7 +22,7 @@ import Control.Monad.IO.Class
 import Data.Delta
     ( Delta (Base) )
 import Data.Store
-    ( Store (loadS) )
+    ( Store (loadS), UpdateStore )
 
 {-----------------------------------------------------------------------------
     General QueryStore abstraction
@@ -57,7 +57,7 @@ Conceptually, a 'QueryStore' is very plain — it stores a single value of type
 (If you want to store multiple values, consider storing a 'Set' or 'Map'.)
 -}
 data QueryStore m qa da = QueryStore
-    { store :: Store m da
+    { store :: UpdateStore m da
     , queryS :: forall b. qa b -> m b
     }
 

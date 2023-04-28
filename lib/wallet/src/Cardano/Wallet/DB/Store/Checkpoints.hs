@@ -137,7 +137,7 @@ import Data.Proxy
 import Data.Quantity
     ( Quantity (..) )
 import Data.Store
-    ( Store (..) )
+    ( Store (..), UpdateStore, mkUpdateStore )
 import Data.Type.Equality
     ( type (==) )
 import Data.Typeable
@@ -182,14 +182,13 @@ import qualified Data.Map.Strict as Map
     WalletState Store
 -------------------------------------------------------------------------------}
 
-
 -- | Store for 'WalletState' of a single wallet.
 mkStoreWallet
     :: forall s. PersistAddressBook s
     => W.WalletId
-    -> Store (SqlPersistT IO) (DeltaWalletState s)
+    -> UpdateStore (SqlPersistT IO) (DeltaWalletState s)
 mkStoreWallet wid =
-    Store{ loadS = load, writeS = write, updateS = \_ -> update }
+    mkUpdateStore load write (\_ -> update)
   where
     storeCheckpoints = mkStoreCheckpoints wid
     submissions = mkStoreSubmissions wid
@@ -221,9 +220,9 @@ mkStoreWallet wid =
 mkStoreCheckpoints
     :: forall s. PersistAddressBook s
     => W.WalletId
-    -> Store (SqlPersistT IO) (DeltasCheckpoints (WalletCheckpoint s))
+    -> UpdateStore (SqlPersistT IO) (DeltasCheckpoints (WalletCheckpoint s))
 mkStoreCheckpoints wid =
-    Store{ loadS = load, writeS = write, updateS = \_ -> update }
+    mkUpdateStore load write (\_ -> update)
   where
     load = bimap toException loadCheckpoints <$> selectAllCheckpoints wid
 

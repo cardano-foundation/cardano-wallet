@@ -399,7 +399,7 @@ newCachedStore Store{loadS,writeS,updateS} = do
 
 -- | Store one type in the 'Store' of another type by using an 'Embedding'.
 embedStore :: (MonadSTM m, MonadMask m, Delta da)
-    => Embedding da db -> Store m db -> m (Store m da)
+    => Embedding da db -> UpdateStore m db -> m (UpdateStore m da)
 embedStore embed bstore = do
     -- For reasons of efficiency, we have to store the 'Machine'
     -- that is created within the 'Embedding'.
@@ -429,8 +429,7 @@ embedStore embed bstore = do
                     mask $ \restore -> do
                         restore $ updateS bstore (Just $ state_ mab2) db
                         writeMachine mab2
-    pure $ Store {loadS=load,writeS=write,updateS=update}
-
+    pure $ mkUpdateStore load write update
 
 -- | Store one type in the 'Store' of another type by using an 'Embedding'.
 --
@@ -438,7 +437,7 @@ embedStore embed bstore = do
 -- use the more efficient 'embedStore' instead.
 embedStore'
     :: (Monad m, MonadThrow m)
-    => Embedding' da db -> Store m db -> Store m da
+    => Embedding' da db -> UpdateStore m db -> UpdateStore m da
 embedStore' Embedding'{load,write,update} Store{loadS,writeS,updateS} =
     let
         loadL =  (load =<<) <$> loadS
@@ -451,11 +450,7 @@ embedStore' Embedding'{load,write,update} Store{loadS,writeS,updateS} =
                 case ea of
                     Left  e -> throwIO e
                     Right a -> updateL (Just a) da
-    in Store
-        { loadS   = loadL
-        , writeS  = writeS . write
-        , updateS = updateL
-        }
+    in  mkUpdateStore loadL (writeS . write) updateL
 
 -- | Combine two 'Stores' into a 'Store' for pairs.
 --

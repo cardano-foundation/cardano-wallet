@@ -32,7 +32,7 @@ import Control.Applicative
 import Data.QueryStore
     ( QueryStore (..) )
 import Data.Store
-    ( Store (..) )
+    ( Store (..), UpdateStore, mkUpdateStore )
 import Database.Persist.Sql
     ( SqlPersistT )
 
@@ -40,9 +40,9 @@ import qualified Cardano.Wallet.DB.Store.Meta.Model as TxMetaStore
 
 
 mkStoreTxWalletsHistory
-    :: Store (SqlPersistT IO) DeltaTxSet
+    :: UpdateStore (SqlPersistT IO) DeltaTxSet
     -> QueryStore (SqlPersistT IO) QueryTxMeta DeltaTxMetaHistory
-    -> Store (SqlPersistT IO) DeltaTxWalletsHistory
+    -> UpdateStore (SqlPersistT IO) DeltaTxWalletsHistory
 mkStoreTxWalletsHistory storeTransactions storeMeta =
     let load =
             liftA2 (,)
@@ -75,4 +75,4 @@ mkStoreTxWalletsHistory storeTransactions storeMeta =
                         updateS (store storeMeta) mWmetas
                             $ TxMetaStore.Expand
                             $ mkTxMetaHistory wid cs
-    in  Store{loadS = load, writeS = write, updateS = update}
+    in  mkUpdateStore load write update

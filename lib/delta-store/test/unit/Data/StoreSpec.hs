@@ -1,5 +1,4 @@
 {-# LANGUAGE ScopedTypeVariables #-}
-{-# LANGUAGE TypeApplications #-}
 {-# LANGUAGE TypeFamilies #-}
 -- |
 -- Copyright: © 2023 IOHK
@@ -13,7 +12,7 @@ import Prelude
 import Data.Delta
     ( Delta (..) )
 import Data.Store
-    ( Store (..), newCachedStore, newStore )
+    ( Store (..), UpdateStore, newCachedStore, newStore )
 import Fmt
     ( Buildable (..) )
 import Test.Hspec
@@ -35,7 +34,7 @@ spec = do
     describe "CachedStore" $ do
         it "respects store laws" $ monadicIO $ do
             cachedStore <- run $ do
-                testStore <- newStore @TestStoreDelta
+                testStore <- newTestStore
                 resetTestStoreBase testStore
                 newCachedStore testStore
             prop_StoreUpdates run
@@ -46,7 +45,7 @@ spec = do
 
             das <- generate $ listOf genTestStoreDeltas
 
-            testStore <- newStore @TestStoreDelta
+            testStore <- newTestStore
 
             cachedStore <- newCachedStore testStore
 
@@ -59,6 +58,9 @@ spec = do
             Right originalFinal <- loadS testStore
 
             pure $ cachedFinal === originalFinal
+
+newTestStore :: IO (UpdateStore IO TestStoreDelta)
+newTestStore = newStore
 
 updateStore :: Monad m => Store m da -> [da] -> m ()
 updateStore store = mapM_ (updateS store Nothing)

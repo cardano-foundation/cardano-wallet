@@ -29,7 +29,7 @@ import Data.List.Split
 import Data.Maybe
     ( fromJust )
 import Data.Store
-    ( Store (Store, loadS, updateS, writeS) )
+    ( UpdateStore, mkUpdateStore )
 import Database.Persist.Sql
     ( Entity (entityVal)
     , PersistEntity (keyFromRecordM)
@@ -43,9 +43,10 @@ import Database.Persist.Sql
 import qualified Data.Map.Strict as Map
 
 -- | Create an SQL store to hold meta transactions for a wallet.
-mkStoreMetaTransactions :: Store (SqlPersistT IO) DeltaTxMetaHistory
 mkStoreMetaTransactions
-    = Store { loadS = load, writeS = write, updateS = update}
+    :: UpdateStore (SqlPersistT IO) DeltaTxMetaHistory
+mkStoreMetaTransactions
+    = mkUpdateStore load write update
 
 update
     :: Maybe TxMetaHistory

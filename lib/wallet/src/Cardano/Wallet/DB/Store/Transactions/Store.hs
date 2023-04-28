@@ -67,7 +67,7 @@ import Data.Maybe
 import Data.Monoid
     ( First (..), getFirst )
 import Data.Store
-    ( Store (..) )
+    ( UpdateStore, mkUpdateStore )
 import Data.Word
     ( Word32 )
 import Database.Persist.Sql
@@ -91,13 +91,12 @@ import qualified Data.Map.Strict as Map
 import qualified Data.Set as Set
 
 mkStoreTransactions
-    :: Store (SqlPersistT IO) DeltaTxSet
+    :: UpdateStore (SqlPersistT IO) DeltaTxSet
 mkStoreTransactions =
-    Store
-    { loadS = Right <$> selectTxSet
-    , writeS = write
-    , updateS = const updateTxSet
-    }
+    mkUpdateStore load write update
+  where
+    load = Right <$> selectTxSet
+    update = const updateTxSet
 
 updateTxSet :: DeltaTxSet -> SqlPersistT IO ()
 updateTxSet change = case change of

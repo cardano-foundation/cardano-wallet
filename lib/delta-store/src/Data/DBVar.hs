@@ -33,7 +33,7 @@ import Control.Monad.Class.MonadThrow
 import Data.Delta
     ( Delta (..) )
 import Data.Store
-    ( Store (..) )
+    ( Store (..), UpdateStore )
 
 {-------------------------------------------------------------------------------
     DBVar
@@ -90,7 +90,7 @@ initDBVar
     ::  ( MonadSTM m, MonadThrow m, MonadEvaluate m, MonadMask m
         , Delta da, a ~ Base da
         )
-    => Store m da -- ^ 'Store' for writing.
+    => UpdateStore m da -- ^ 'Store' for writing.
     -> a -- ^ Initial value.
     -> m (DBVar m da)
 initDBVar store v = do
@@ -103,7 +103,7 @@ loadDBVar
     ::  ( MonadSTM m, MonadThrow m, MonadEvaluate m, MonadMask m
         , Delta da
         )
-    => Store m da -- ^ 'Store' for writing and for reading the initial value.
+    => UpdateStore m da -- ^ 'Store' for writing and for reading the initial value.
     -> m (DBVar m da)
 loadDBVar store =
     loadS store >>= \case
