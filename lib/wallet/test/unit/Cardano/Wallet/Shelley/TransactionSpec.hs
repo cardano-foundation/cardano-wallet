@@ -253,7 +253,6 @@ import Cardano.Wallet.Shelley.Transaction
     , estimateTxCost
     , estimateTxSize
     , evaluateMinimumFee
-    , maxScriptExecutionCost
     , maximumCostOfIncreasingCoin
     , mkByronWitness
     , mkDelegationCertificates
@@ -1319,26 +1318,6 @@ feeCalculationSpec era = describe "fee calculations" $ do
             & counterexample ("marginal size: " <> show marginalSize)
             & counterexample ("size with: " <> show sizeWith)
             & counterexample ("size without: " <> show sizeWithout)
-
-    describe "calculate fee execution costs" $ do
-        let ppWithPrices :: ProtocolParameters
-            ppWithPrices = dummyProtocolParameters
-                { executionUnitPrices = Just (ExecutionUnitPrices 1 1)
-                , txParameters = dummyTxParameters
-                    { getMaxExecutionUnits = ExecutionUnits 10_000_000 10_000_000_000
-                    }
-                }
-        txs <- readTestTransactions
-        forM_ txs $ \(filepath, tx) -> do
-            let rdmrs = replicate (sealedNumberOfRedeemers tx) (error "Redeemer")
-            if (null rdmrs) then do
-                it ("without redeemers: " <> filepath) $
-                    maxScriptExecutionCost ppWithPrices rdmrs
-                        `shouldBe` (Coin 0)
-            else do
-                it ("with redeemers: " <> filepath) $
-                    maxScriptExecutionCost ppWithPrices rdmrs
-                        `shouldSatisfy` (> (Coin 0))
 
     describe "fee calculations" $ do
         it "withdrawals incur fees" $ property $ \wdrl ->
@@ -4464,41 +4443,6 @@ sealedOutputs =
     . view #outputs
     . fst6
     . _decodeSealedTx maxBound (ShelleyWalletCtx dummyPolicyK)
-
-sealedNumberOfRedeemers :: SealedTx -> Int
-sealedNumberOfRedeemers sealedTx =
-    case cardanoTx sealedTx of
-        InAnyCardanoEra ByronEra _   -> 0
-        InAnyCardanoEra ShelleyEra _ -> 0
-        InAnyCardanoEra AllegraEra _ -> 0
-        InAnyCardanoEra MaryEra _    -> 0
-        InAnyCardanoEra AlonzoEra (Cardano.Tx body _) ->
-            let dats =
-                    case body of
-                        Cardano.ShelleyTxBody _ _ _ d _ _ -> d
-            in case dats of
-                    Cardano.TxBodyNoScriptData ->
-                        0
-                    Cardano.TxBodyScriptData _ _ (Alonzo.Redeemers rdmrs) ->
-                        Map.size rdmrs
-        InAnyCardanoEra BabbageEra (Cardano.Tx body _) ->
-            let dats =
-                    case body of
-                        Cardano.ShelleyTxBody _ _ _ d _ _ -> d
-            in case dats of
-                    Cardano.TxBodyNoScriptData ->
-                        0
-                    Cardano.TxBodyScriptData _ _ (Alonzo.Redeemers rdmrs) ->
-                        Map.size rdmrs
-        InAnyCardanoEra ConwayEra (Cardano.Tx body _) ->
-            let dats =
-                    case body of
-                        Cardano.ShelleyTxBody _ _ _ d _ _ -> d
-            in case dats of
-                    Cardano.TxBodyNoScriptData ->
-                        0
-                    Cardano.TxBodyScriptData _ _ (Alonzo.Redeemers rdmrs) ->
-                        Map.size rdmrs
 
 sealedFee
     :: forall era. Cardano.IsCardanoEra era => Cardano.Tx era -> Maybe Coin

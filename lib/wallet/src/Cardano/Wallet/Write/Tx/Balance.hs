@@ -113,7 +113,6 @@ import Cardano.Wallet.Shelley.Transaction
     , distributeSurplus
     , estimateKeyWitnessCount
     , estimateSignedTxSize
-    , maxScriptExecutionCost
     , updateTx
     )
 import Cardano.Wallet.Transaction
@@ -135,6 +134,7 @@ import Cardano.Wallet.Write.Tx
     , TxOut
     , computeMinimumCoinForTxOut
     , getFeePerByte
+    , maxScriptExecutionCost
     , modifyLedgerBody
     , modifyTxOutCoin
     , modifyTxOutputs
@@ -893,7 +893,12 @@ balanceTransactionWithSelectionStrategyAndNoZeroAdaAdjustment
             $ runExceptT
             $ performSelection selectionConstraints selectionParams
       where
-        txPlutusScriptExecutionCost = maxScriptExecutionCost pp redeemers
+        txPlutusScriptExecutionCost = W.toWallet @W.Coin $
+            if null redeemers then
+                mempty
+            else
+                maxScriptExecutionCost (recentEra @era) ledgerPP
+
         colReq =
             if txPlutusScriptExecutionCost > W.Coin 0
                 then SelectionCollateralRequired
