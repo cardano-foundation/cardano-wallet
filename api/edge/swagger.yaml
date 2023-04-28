@@ -5043,6 +5043,17 @@ x-errNonNullRewards: &errNonNullRewards
       type: string
       enum: ['non_null_rewards']
 
+x-errMissingRewardAccount: &errMissingRewardAccount
+  <<: *responsesErr
+  title: missing_reward_account
+  properties:
+    message:
+      type: string
+      description: May occur when there is a missing reward account but wallet participates in staking.
+    code:
+      type: string
+      enum: ['missing_reward_account']
+
 x-errUtxoTooSmall: &errUtxoTooSmall
   <<: *responsesErr
   title: utxo_too_small
@@ -5428,6 +5439,13 @@ x-responsesPostSharedWallet: &responsesPostSharedWallet
         schema:
           oneOf:
             - <<: *errSharedWalletScriptTemplateInvalid
+  500:
+    description: Forbidden
+    content:
+      application/json:
+        schema:
+          oneOf:
+            - <<: *errMissingRewardAccount
   201:
     description: Created
     content:
