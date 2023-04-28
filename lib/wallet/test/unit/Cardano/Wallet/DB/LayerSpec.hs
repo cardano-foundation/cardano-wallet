@@ -569,7 +569,7 @@ fileModeSpec =  do
             withShelleyFileDBFresh f $ \DBFresh{bootDBLayer} -> do
                 DBLayer{atomically, putCheckpoint} <-
                     unsafeRunExceptT $ bootDBLayer testDBLayerParams
-                atomically $ unsafeRunExceptT $ putCheckpoint testCp
+                atomically $ putCheckpoint testCp
             testReopening f readCheckpoint' (Just testCp)
 
         describe "Golden rollback scenarios" $ do
@@ -597,7 +597,7 @@ fileModeSpec =  do
                     let (FilteredBlock{transactions=txs}, (_,cpB)) =
                             applyBlock fakeBlock cpA
                     atomically $ do
-                        unsafeRunExceptT $ putCheckpoint cpB
+                        putCheckpoint cpB
                         unsafeRunExceptT $ putTxHistory txs
                         unsafeRunExceptT
                             $ prune (Quantity 2_160) $ 2_160 * 3 * 20
@@ -852,7 +852,7 @@ prop_randomOpChunks (NonEmpty (p : pairs)) =
         -> (Wallet s, WalletMetadata)
         -> IO ()
     insertPair DBLayer{..} (cp, meta) = atomically $ do
-            unsafeRunExceptT $ putCheckpoint cp
+            putCheckpoint cp
             unsafeRunExceptT $ putWalletMeta meta
 
     imposeGenesisState :: Wallet s -> Wallet s

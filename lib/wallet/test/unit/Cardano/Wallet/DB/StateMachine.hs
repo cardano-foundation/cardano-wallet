@@ -457,17 +457,27 @@ runIO
 runIO DBLayer{..} = fmap Resp . go
   where
     wid = walletId_
-    runDB :: Functor stm => (stm (Either ErrNoSuchWallet a) -> m (Either ErrNoSuchWallet a))
+    runDB
+        :: Functor stm
+        => (stm (Either ErrNoSuchWallet a) -> m (Either ErrNoSuchWallet a))
         -> ExceptT ErrWalletNotInitialized stm a
         -> ExceptT ErrNoSuchWallet m a
     runDB atomically' = mapExceptT atomically' . mkNoSuchWalletError wid
+
+    runDBSuccess
+      :: (stm a -> m a)
+         -> (a -> Success s WalletId)
+         -> stm a
+         -> m (Either Err (Success s WalletId))
+    runDBSuccess atomically' s action = do
+        r <- atomically' action
+        pure $ Right $ s r
     go
         :: Cmd s WalletId
         -> m (Either Err (Success s WalletId))
     go = \case
         CreateWallet -> pure $ Right $ NewWallet wid
-        PutCheckpoint wal -> catchNoSuchWallet Unit $
-            runDB atomically $ putCheckpoint wal
+        PutCheckpoint wal -> runDBSuccess atomically Unit $ putCheckpoint wal
         ReadCheckpoint -> Right . Checkpoint <$>
             atomically readCheckpoint
         ListCheckpoints -> Right . ChainPoints <$>

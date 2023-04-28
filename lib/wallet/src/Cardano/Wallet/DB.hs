@@ -234,9 +234,7 @@ data DBLayer m s k = forall stm. (MonadIO stm, MonadFail stm) => DBLayer
         -- Intended to replace 'putCheckpoint' and 'readCheckpoint' in the short-term,
         -- and all other functions in the long-term.
 
-    , putCheckpoint
-        :: Wallet s
-        -> ExceptT ErrWalletNotInitialized stm ()
+    , putCheckpoint :: Wallet s -> stm ()
         -- ^ Replace the current checkpoint for a given wallet. We do not handle
         -- rollbacks yet, and therefore only stores the latest available
         -- checkpoint.
@@ -677,9 +675,7 @@ data DBCheckpoints stm s = DBCheckpoints
         -- Intended to replace 'putCheckpoint' and 'readCheckpoint' in the short-term,
         -- and all other functions in the long-term.
 
-    , putCheckpoint_
-        :: Wallet s
-        -> ExceptT ErrWalletNotInitialized stm ()
+    , putCheckpoint_ :: Wallet s -> stm ()
         -- ^ Replace the current checkpoint for a given wallet. We do not handle
         -- rollbacks yet, and therefore only stores the latest available
         -- checkpoint.

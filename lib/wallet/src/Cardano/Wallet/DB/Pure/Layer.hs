@@ -55,7 +55,7 @@ import Cardano.Wallet.Primitive.Types.Coin
 import Cardano.Wallet.Primitive.Types.Tx
     ( TransactionInfo (..) )
 import Control.Monad
-    ( join, unless, when )
+    ( join, unless, void, when )
 import Control.Monad.IO.Unlift
     ( MonadIO (..), MonadUnliftIO (..) )
 import Control.Monad.Trans.Except
@@ -110,9 +110,7 @@ newDBFresh timeInterpreter wid = do
         -----------------------------------------------------------------------}
         , walletsDB = error "MVar.walletsDB: not implemented"
 
-        , putCheckpoint = ExceptT .
-            alterDB errWalletNotInitialized db .
-                mPutCheckpoint
+        , putCheckpoint = noErrorAlterDB  db .  mPutCheckpoint
 
         , readCheckpoint = join <$> readDBMaybe db mReadCheckpoint
 
@@ -258,6 +256,13 @@ alterDB convertErr db op = modifyMVar db (bubble . op)
         Just e' -> pure (db', Left e')
         Nothing -> throwIO $ MVarDBError e
     bubble (Right a, !db') = pure (db', Right a)
+
+noErrorAlterDB
+    :: MonadUnliftIO m
+    => MVar (Database WalletId s xprv)
+    -> ModelOp WalletId s xprv a
+    -> m ()
+noErrorAlterDB db op = void $ alterDB (const Nothing) db op
 
 -- | Run a query operation on the model database.
 readDB

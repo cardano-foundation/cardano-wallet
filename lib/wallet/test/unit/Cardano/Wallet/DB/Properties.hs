@@ -66,6 +66,8 @@ import Control.Monad
     ( forM_, void )
 import Control.Monad.IO.Class
     ( liftIO )
+import Control.Monad.Trans
+    ( lift )
 import Control.Monad.Trans.Except
     ( ExceptT, mapExceptT, runExceptT, withExceptT )
 import Crypto.Hash
@@ -155,7 +157,7 @@ properties withFreshDB = describe "DB.Properties" $ do
             $ property
             $ prop_readAfterPut
                 testOnLayer
-                (\DBLayer{..} _wid -> mapExceptT atomically . putCheckpoint)
+                (\DBLayer{..} _wid -> lift . atomically . putCheckpoint)
                 (\DBLayer{..} _wid -> atomically readCheckpoint)
         it "Wallet Metadata"
             $ property
@@ -190,7 +192,7 @@ properties withFreshDB = describe "DB.Properties" $ do
             $ property
             $ prop_isolation
                 testOnLayer
-                (\DBLayer{..} _wid -> mapExceptT atomically . putCheckpoint)
+                (\DBLayer{..} _wid -> lift . atomically . putCheckpoint)
                 (\DBLayer{..} _ -> atomically readWalletMeta)
                 (\db _ -> readTxHistory_ db)
                 (\DBLayer{..} _wid -> atomically readPrivateKey)
@@ -218,7 +220,7 @@ properties withFreshDB = describe "DB.Properties" $ do
             $ checkCoverage
             $ prop_sequentialPut
                 testOnLayer
-                (\DBLayer{..} _wid -> mapExceptT atomically . putCheckpoint)
+                (\DBLayer{..} _wid -> lift . atomically . putCheckpoint)
                 (\DBLayer{..} _-> atomically readCheckpoint)
                 lastMay
                 . sortOn (currentTip . unShowFmt)
@@ -513,7 +515,7 @@ prop_rollbackCheckpoint test (InitialCheckpoint cp0) (MockChain chain) =
                     unsafeRunExceptT
                         $ bootDBLayer
                         $ DBLayerParams cp0 meta mempty gp
-                atomically $ unsafeRunExceptT $ forM_ cps putCheckpoint
+                atomically $ forM_ cps putCheckpoint
                 let tip = currentTip point
                 point' <-
                     atomically

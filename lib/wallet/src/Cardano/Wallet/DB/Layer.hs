@@ -621,18 +621,18 @@ newDBFreshFromDBOpen ti wid_ DBOpen{atomically=runQuery} = mdo
       dbCheckpoints = DBCheckpoints
         { walletsDB_ = walletsDB
 
-        , putCheckpoint_ = \cp -> ExceptT $ do
+        , putCheckpoint_ = \cp -> do
             modifyDBMaybe walletsDB $ \ws ->
                 if null ws
-                    then (Nothing, Left ErrWalletNotInitialized)
+                    then (Nothing, ())
                     else
                         let (prologue, wcp) = fromWallet cp
                             slot = getSlot wcp
-                            delta = Just $ Adjust wid_
+                            delta = Adjust wid_
                                 [ UpdateCheckpoints [ PutCheckpoint slot wcp ]
                                 , ReplacePrologue prologue
                                 ]
-                        in  (delta, Right ())
+                        in  (Just delta, ())
 
         , readCheckpoint_ = readCheckpoint
 
