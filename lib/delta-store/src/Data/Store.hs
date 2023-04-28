@@ -36,6 +36,10 @@ module Data.Store (
     -- $EitherSomeException
 
     -- * Store, functions
+    -- ** Constructors
+    , SimpleStore
+    , mkSimpleStore
+
     -- ** Helpers
     , updateLoad
     , loadWhenNothing
@@ -71,7 +75,14 @@ import Control.Monad
 import Control.Monad.Class.MonadThrow
     ( MonadEvaluate, MonadMask, MonadThrow, evaluate, finally, mask, throwIO )
 import Data.Delta
-    ( Delta (..), Embedding, Embedding' (..), Machine (..), inject, project )
+    ( Delta (..)
+    , Embedding
+    , Embedding' (..)
+    , Machine (..)
+    , Replace (..)
+    , inject
+    , project
+    )
 
 {-------------------------------------------------------------------------------
     Store
@@ -277,6 +288,9 @@ However, this case has the sensible default value:
 Ruling out this case on the type-level adds almost no value.
 -}
 
+{-------------------------------------------------------------------------------
+    Constructors
+-------------------------------------------------------------------------------}
 {- HLINT ignore newStore "Use readTVarIO" -}
 -- | An in-memory 'Store' from a mutable variable ('TVar').
 -- Useful for testing.
@@ -292,6 +306,23 @@ newStore = do
 -- | Failure that occurs when calling 'loadS' on a 'newStore' that is empty.
 data NotInitialized = NotInitialized deriving (Eq, Show)
 instance Exception NotInitialized
+
+-- | A 'Store' whose delta type 'Replace' just replaces the whole value.
+type SimpleStore m a = Store m (Replace a)
+
+-- | @mkSimpleStore loadS writeS@ constructs a 'SimpleStore'
+-- from the given operations.
+mkSimpleStore
+    :: Monad m
+    => m (Either SomeException a)
+    -> (a -> m ())
+    -> SimpleStore m a
+mkSimpleStore loadS writeS =
+    Store
+        { loadS
+        , writeS
+        , updateS = \_ (Replace a) -> writeS a
+        }
 
 {-------------------------------------------------------------------------------
     Combinators
