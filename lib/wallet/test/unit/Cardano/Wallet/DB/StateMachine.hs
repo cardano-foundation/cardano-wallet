@@ -507,7 +507,7 @@ runIO DBLayer{..} = fmap Resp . go
         fmap (bimap errNoSuchWallet f) . runExceptT
 
     errNoSuchWallet :: ErrNoSuchWallet -> Err
-    errNoSuchWallet (ErrNoSuchWallet _wid) = WalletAlreadyInitialized
+    errNoSuchWallet (ErrNoSuchWallet _wid) = WalletNotInitialized
 
 {-------------------------------------------------------------------------------
   Working with references

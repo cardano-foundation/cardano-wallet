@@ -1,6 +1,5 @@
 {-# LANGUAGE BangPatterns #-}
 {-# LANGUAGE DataKinds #-}
-{-# LANGUAGE LambdaCase #-}
 {-# LANGUAGE RankNTypes #-}
 {-# LANGUAGE RecordWildCards #-}
 {-# LANGUAGE TypeFamilies #-}
@@ -29,7 +28,6 @@ import Cardano.Wallet.DB.Pure.Implementation
     ( Database
     , Err (..)
     , ModelOp
-    , mCheckWallet
     , mGetWalletId
     , mInitializeWallet
     , mIsStakeKeyRegistered
@@ -112,12 +110,9 @@ newDBFresh timeInterpreter wid = do
         -----------------------------------------------------------------------}
         , walletsDB = error "MVar.walletsDB: not implemented"
 
-        , putCheckpoint = \cp -> ExceptT $
-            alterDB errWalletNotInitialized db (mCheckWallet) >>= \case
-                Left err -> pure $ Left err
-                Right _ -> do
-                    alterDB errWalletNotInitialized db $
-                        mPutCheckpoint cp
+        , putCheckpoint = ExceptT .
+            alterDB errWalletNotInitialized db .
+                mPutCheckpoint
 
         , readCheckpoint = join <$> readDBMaybe db mReadCheckpoint
 
@@ -171,21 +166,18 @@ newDBFresh timeInterpreter wid = do
             wid' <- getWalletId'
             when ( wid /= wid') $ throwE ErrWalletNotInitialized
             ExceptT $ do
-                alterDB errWalletNotInitialized db (mCheckWallet) >>= \case
-                    Left err -> pure $ Left err
-                    Right _ -> do
-                        txInfos <- fmap (fromMaybe [])
-                            $ readDBMaybe db
-                            $ mReadTxHistory
-                                timeInterpreter
-                                Nothing
-                                Descending
-                                wholeRange
-                                Nothing
-                        let txPresent (TransactionInfo{..}) = txInfoId == tid
-                        case filter txPresent txInfos of
-                            [] -> pure $ Right Nothing
-                            t:_ -> pure $ Right $ Just t
+                txInfos <- fmap (fromMaybe [])
+                    $ readDBMaybe db
+                    $ mReadTxHistory
+                        timeInterpreter
+                        Nothing
+                        Descending
+                        wholeRange
+                        Nothing
+                let txPresent (TransactionInfo{..}) = txInfoId == tid
+                case filter txPresent txInfos of
+                    [] -> pure $ Right Nothing
+                    t:_ -> pure $ Right $ Just t
 
         {-----------------------------------------------------------------------
                                        Keystore
@@ -278,8 +270,7 @@ readDB
 readDB = alterDB Just -- >>= either (throwIO . MVarDBError) pure
 
 errWalletNotInitialized :: Err -> Maybe ErrWalletNotInitialized
-errWalletNotInitialized WalletNotInitialized = Just ErrWalletNotInitialized
-errWalletNotInitialized _ = Nothing
+errWalletNotInitialized _ = Just ErrWalletNotInitialized
 
 -- | Error which happens when model returns an unexpected value.
 newtype MVarDBError = MVarDBError Err
