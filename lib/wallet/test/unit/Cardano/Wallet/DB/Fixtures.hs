@@ -47,10 +47,8 @@ import Data.Delta
     ( Delta (Base) )
 import Data.Either
     ( fromRight )
-import Data.QueryStore
-    ( Query (..), QueryStore (..), World )
 import Data.Store
-    ( Store (loadS, updateS) )
+    ( Query (..), Store (..), World )
 import Data.Time.Clock
     ( UTCTime )
 import Data.Time.Clock.POSIX
@@ -193,7 +191,7 @@ unsafeUpdateS store ba da = updateS store (Just ba) da *> unsafeLoadS store
 
 -- | Property that a pure query returns the same result as the store one.
 queryLaw :: (Monad m, Eq b, Query qa)
-    => QueryStore m qa da
+    => Store m qa da
     -- ^ the store to test
     -> World qa
     -- ^ the world to query
@@ -201,5 +199,5 @@ queryLaw :: (Monad m, Eq b, Query qa)
     -- ^ the query to run
     -> m Bool
     -- ^ if the pure query returns the same result as the store one
-queryLaw QueryStore{queryS} z r =
+queryLaw Store{queryS} z r =
     (query r z ==) <$> queryS r

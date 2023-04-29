@@ -31,13 +31,13 @@ import Cardano.Wallet.DB.Store.Transactions.Layer
 import Cardano.Wallet.DB.Store.Transactions.Model
     ( TxRelation )
 import Cardano.Wallet.DB.Store.Wallets.Model
-    ( DeltaTxWalletsHistory (..) )
+    ( DeltaTxWalletsHistory (..), TxWalletsHistory )
 import Cardano.Wallet.DB.Store.Wallets.Store
     ( mkStoreTxWalletsHistory )
 import Cardano.Wallet.Primitive.Types
     ( Range (..), SortOrder )
-import Data.QueryStore
-    ( QueryStore (..) )
+import Data.Store
+    ( Query (..), Store (..), mkQueryStore )
 import Data.Word
     ( Word32 )
 import Database.Persist.Sql
@@ -67,27 +67,34 @@ data QueryTxWalletsHistory b where
         -> SortOrder
         -> QueryTxWalletsHistory [TxMeta]
 
+instance Query QueryTxWalletsHistory where
+    type World QueryTxWalletsHistory = TxWalletsHistory
+    query q (txs,metas) = case q of
+        GetByTxId txid -> query (TxSet.GetByTxId txid) txs
+        GetTxOut key -> query (TxSet.GetTxOut key) txs
+        OneMeta txId -> query (GetOne txId) metas
+        SomeMetas range limit order -> flip query metas
+            $ GetSome range limit order
+
 {-----------------------------------------------------------------------------
     Query Store type
 ------------------------------------------------------------------------------}
 type QueryStoreTxWalletsHistory =
-    QueryStore (SqlPersistT IO) QueryTxWalletsHistory DeltaTxWalletsHistory
+    Store (SqlPersistT IO) QueryTxWalletsHistory DeltaTxWalletsHistory
 
 newQueryStoreTxWalletsHistory
-    :: QueryStore (SqlPersistT IO) QueryTxWalletsHistory DeltaTxWalletsHistory
+    :: Store (SqlPersistT IO) QueryTxWalletsHistory DeltaTxWalletsHistory
 newQueryStoreTxWalletsHistory =
-    QueryStore
-        { queryS = \case
-            GetByTxId txid -> queryS txs $ TxSet.GetByTxId txid
-            GetTxOut key -> queryS txs $ TxSet.GetTxOut key
-            OneMeta txId -> queryS metas $ GetOne txId
-            SomeMetas range limit order -> queryS metas
-                $ GetSome range limit order
-        , store =
-            mkStoreTxWalletsHistory
-                (store txs)
-                metas
-        }
+    mkQueryStore query' wallets
   where
     txs = mkQueryStoreTxSet
     metas = mkQueryStoreTxMeta
+    wallets = mkStoreTxWalletsHistory txs metas
+
+    query' :: forall b. QueryTxWalletsHistory b -> (SqlPersistT IO) b
+    query' = \case
+        GetByTxId txid -> queryS txs $ TxSet.GetByTxId txid
+        GetTxOut key -> queryS txs $ TxSet.GetTxOut key
+        OneMeta txId -> queryS metas $ GetOne txId
+        SomeMetas range limit order -> queryS metas
+            $ GetSome range limit order

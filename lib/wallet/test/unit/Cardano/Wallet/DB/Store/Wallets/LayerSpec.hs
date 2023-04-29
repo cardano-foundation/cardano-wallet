@@ -17,8 +17,6 @@ import Cardano.Wallet.DB.Store.Wallets.Layer
     ( newQueryStoreTxWalletsHistory )
 import Cardano.Wallet.DB.Store.Wallets.StoreSpec
     ( genDeltaTxWallets )
-import Data.QueryStore
-    ( QueryStore (store) )
 import Test.Hspec
     ( Spec, around, describe, it )
 import Test.QuickCheck
@@ -38,6 +36,6 @@ prop_StoreWalletsLaws =
     let qs = newQueryStoreTxWalletsHistory
     prop_StoreUpdates
       runQ
-      (store qs)
+      qs
       (pure mempty)
       (logScale . genDeltaTxWallets wid)

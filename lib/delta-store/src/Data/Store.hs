@@ -1,5 +1,6 @@
 -- We intentionally specify more constraints than necessary for some exports.
 {-# OPTIONS_GHC -Wno-redundant-constraints#-}
+{-# LANGUAGE GADTs #-}
 {-# LANGUAGE LambdaCase #-}
 {-# LANGUAGE NamedFieldPuns #-}
 {-# LANGUAGE RankNTypes #-}
@@ -37,20 +38,25 @@ module Data.Store (
     -- $EitherSomeException
 
     -- * Store, functions
+    -- ** Query
+    , Query (..)
+    , Whole (..)
+
     -- ** Constructors
     , SimpleStore
     , mkSimpleStore
     , UpdateStore
     , mkUpdateStore
-
-    -- ** Helpers
-    , updateLoad
-    , loadWhenNothing
+    , mkQueryStore
 
     -- ** Combinators
     , embedStore
     , pairStores
     , newCachedStore
+
+    -- ** Helpers
+    , updateLoad
+    , loadWhenNothing
 
     -- ** Testing
     , embedStore'
@@ -89,7 +95,7 @@ import Data.Delta
 import Data.Kind
     ( Type )
 import GHC.Generics
-    ( (:+:) )
+    ( (:+:) (..) )
 
 {-------------------------------------------------------------------------------
     Store
@@ -99,9 +105,14 @@ A 'Store' is a storage facility for Haskell values of type @a ~ @'Base'@ da@.
 Typical use cases are a file or a database on the hard disk.
 -}
 data Store m (qa :: Type -> Type) da = Store
-    { -- | Load the value from the store into memory, or fail.
-      -- This operation can be an expensive.
+    {
+      -- | Load the value from the store into memory, or fail.
+      -- This operation can be expensive.
       loadS   :: m (Either SomeException (Base da))
+      -- | Query the value from the store.
+      -- This operation can be less expensive, as only the
+      -- query result needs to be put into memory.
+    , queryS  :: forall b. qa b -> m b
       -- | Write a value to the store.
     , writeS  :: Base da -> m ()
       -- | Update the store efficiently by using a delta encoding @da@.
@@ -301,11 +312,15 @@ Ruling out this case on the type-level adds almost no value.
 {- HLINT ignore newStore "Use readTVarIO" -}
 -- | An in-memory 'Store' from a mutable variable ('TVar').
 -- Useful for testing.
-newStore :: (Delta da, MonadSTM m) => m (Store m qa da)
+newStore
+    :: (MonadSTM m, MonadThrow m, Delta da, Query qa, Base da ~ World qa)
+    => m (Store m qa da)
 newStore = do
     ref <- newTVarIO $ Left $ toException NotInitialized
+    let load = atomically (readTVar ref)
     pure $ Store
-        { loadS   = atomically $ readTVar ref
+        { loadS   = load
+        , queryS  = \q -> query q <$> (throwLeft =<< load)
         , writeS  = atomically . writeTVar ref . Right
         , updateS = \_ -> atomically . modifyTVar' ref . fmap . apply
         }
@@ -314,25 +329,21 @@ newStore = do
 data NotInitialized = NotInitialized deriving (Eq, Show)
 instance Exception NotInitialized
 
--- FIXME: Remove this dummy definition later.
-data Whole a b
-
 -- | A 'Store' whose delta type 'Replace' just replaces the whole value.
 type SimpleStore m a = Store m (Whole a) (Replace a)
 
 -- | @mkSimpleStore loadS writeS@ constructs a 'SimpleStore'
 -- from the given operations.
 mkSimpleStore
-    :: Monad m
+    :: forall m a
+     . (Monad m, MonadThrow m)
     => m (Either SomeException a)
     -> (a -> m ())
     -> SimpleStore m a
 mkSimpleStore loadS writeS =
-    Store
-        { loadS
-        , writeS
-        , updateS = \_ (Replace a) -> writeS a
-        }
+    mkUpdateStore loadS writeS update'
+  where
+    update' _ (Replace a) = writeS a
 
 -- | A 'Store' whose focus lies on updating the value rather than querying it.
 type UpdateStore m da = Store m (Whole (Base da)) da
@@ -340,13 +351,46 @@ type UpdateStore m da = Store m (Whole (Base da)) da
 -- | @mkUpdateStore loadS writeS updateS@ constructs an 'UpdateStore'
 -- from the given operations.
 mkUpdateStore
-    :: (Monad m, a ~ Base da, Delta da)
+    :: forall m a da
+     . (Monad m, MonadThrow m, a ~ Base da, Delta da)
     => m (Either SomeException a)
     -> (a -> m ())
     -> (Maybe a -> da -> m ())
     -> UpdateStore m da
 mkUpdateStore loadS writeS updateS =
-    Store{loadS, writeS, updateS}
+    Store{loadS, queryS=query', writeS, updateS}
+  where
+    query' :: forall b. Whole a b -> m b
+    query' Whole = loadS >>= throwLeft
+
+-- | @mkQueryStore queryS store@ constructs a 'Store'
+-- from a query and an 'UpdateStore'.
+mkQueryStore :: forall m qa da
+     . (MonadThrow m, Delta da, Query qa, Base da ~ World qa)
+    => (forall b. qa b -> m b)
+    -> UpdateStore m da
+    -> Store m qa da
+mkQueryStore queryS Store{loadS,writeS,updateS} =
+    Store{queryS,loadS,writeS,updateS}
+
+{-------------------------------------------------------------------------------
+    Query
+-------------------------------------------------------------------------------}
+-- | A /query/ @qa b@ for the type @a ~ World qa@
+-- corresponds to a function @a -> b@.
+-- Put differently, a query allows us to extract some information of type @b@
+-- from the larger type @a@.
+class Query qa where
+    type family World qa
+    query :: qa b -> World qa -> b
+
+-- | The query that retrieves the whole value.
+data Whole a b where
+    Whole :: Whole a a
+
+instance Query (Whole a) where
+    type World (Whole a) = a
+    query Whole a = a
 
 {-------------------------------------------------------------------------------
     Combinators
@@ -361,7 +405,10 @@ mkUpdateStore loadS writeS updateS =
 -- I think the answer is "yes", but only because the mutable variables
 -- provided by the monad @m@ do not work together with e.g. SQL transactions.
 newCachedStore
-    :: forall m qa da. (Delta da, MonadSTM m, MonadThrow m, MonadEvaluate m)
+    :: forall m qa da
+      . ( MonadSTM m, MonadThrow m, MonadEvaluate m
+        , Delta da, Query qa, Base da ~ World qa
+        )
     => Store m qa da -> m (Store m qa da)
 newCachedStore Store{loadS,writeS,updateS} = do
     -- Lock that puts loadS, writeS and updateS into sequence
@@ -396,6 +443,7 @@ newCachedStore Store{loadS,writeS,updateS} = do
 
     pure $ Store
         { loadS = load
+        , queryS = \q -> query q <$> (throwLeft =<< load)
         , writeS = \a -> withLock $ do
             atomically $ writeCache (Just a)
             writeS a
@@ -471,6 +519,9 @@ pairStores
     -> Store m (qa :+: qb) (da,db)
 pairStores sa sb = Store
     { loadS = liftA2 (,) <$> loadS sa <*> loadS sb
+    , queryS = \case
+        L1 qa -> queryS sa qa
+        R1 qb -> queryS sb qb
     , writeS = \(a,b) -> writeS sa a >> writeS sb b
     , updateS = \mi (da,db) ->
         case mi of
@@ -497,13 +548,16 @@ updateLoad load handle update' Nothing da = do
         Right x -> update' x da
 updateLoad _load _  update' (Just x) da = update' x da
 
+-- | Throw 'Left' as an exception in the monad.
+throwLeft :: MonadThrow m => Either SomeException b -> m b
+throwLeft = \case
+    Left (SomeException e) -> throwIO e
+    Right a -> pure a
+
 -- | Helper for implementing `updateS`.
 -- Call 'loadS' from a 'Store' if the value is not already given in memory.
 loadWhenNothing
     :: (Monad m, MonadThrow m, Delta da)
     => Maybe (Base da) -> Store m qa da -> m (Base da)
 loadWhenNothing (Just a) _ = pure a
-loadWhenNothing Nothing store =
-    loadS store >>= \case
-        Left (SomeException e) -> throwIO e
-        Right a -> pure a
+loadWhenNothing Nothing store = loadS store >>= throwLeft

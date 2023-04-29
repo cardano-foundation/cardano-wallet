@@ -29,8 +29,6 @@ import Cardano.Wallet.DB.Store.Wallets.Model
     ( DeltaTxWalletsHistory (..) )
 import Control.Applicative
     ( liftA2 )
-import Data.QueryStore
-    ( QueryStore (..) )
 import Data.Store
     ( Store (..), UpdateStore, mkUpdateStore )
 import Database.Persist.Sql
@@ -40,17 +38,17 @@ import qualified Cardano.Wallet.DB.Store.Meta.Model as TxMetaStore
 
 
 mkStoreTxWalletsHistory
-    :: UpdateStore (SqlPersistT IO) DeltaTxSet
-    -> QueryStore (SqlPersistT IO) QueryTxMeta DeltaTxMetaHistory
+    :: Store (SqlPersistT IO) q DeltaTxSet
+    -> Store (SqlPersistT IO) QueryTxMeta DeltaTxMetaHistory
     -> UpdateStore (SqlPersistT IO) DeltaTxWalletsHistory
 mkStoreTxWalletsHistory storeTransactions storeMeta =
     let load =
             liftA2 (,)
                 <$> loadS storeTransactions
-                <*> loadS (store storeMeta)
+                <*> loadS storeMeta
         write = \(txSet, txMetaHistory) -> do
             writeS storeTransactions txSet
-            writeS (store storeMeta) txMetaHistory
+            writeS storeMeta txMetaHistory
         update ma delta =
             let (mTxSet, mWmetas) = (fst <$> ma, snd <$> ma)
             in  case delta of
@@ -63,7 +61,7 @@ mkStoreTxWalletsHistory storeTransactions storeMeta =
                                     $ TxMetaStore.rollbackTxMetaHistory
                                         slot
                                         metas
-                        updateS (store storeMeta) (mWmetas)
+                        updateS storeMeta (mWmetas)
                             $ TxMetaStore.Rollback slot
                         updateS storeTransactions mTxSet
                             $ DeleteTxs tbd
@@ -72,7 +70,7 @@ mkStoreTxWalletsHistory storeTransactions storeMeta =
                             $ Append
                             $ mkTxSet
                             $ fst <$> cs
-                        updateS (store storeMeta) mWmetas
+                        updateS storeMeta mWmetas
                             $ TxMetaStore.Expand
                             $ mkTxMetaHistory wid cs
     in  mkUpdateStore load write update

@@ -177,8 +177,6 @@ import Data.Proxy
     ( Proxy (..) )
 import Data.Quantity
     ( Quantity (..) )
-import Data.QueryStore
-    ( QueryStore (..) )
 import Data.Store
     ( Store (..), UpdateStore )
 import Data.Text
@@ -564,8 +562,8 @@ newDBFreshFromDBOpen ti wid_ DBOpen{atomically=atomically_} =
             case res of
                 Left ErrWalletNotInitialized -> lift $ do
                     insert_ $ mkWalletEntity wid_ meta gp
-                    updateS (store transactionsQS) Nothing $
-                                ExpandTxWalletsHistory wid_ txs
+                    updateS transactionsQS Nothing $
+                        ExpandTxWalletsHistory wid_ txs
                 Right _ -> throwE ErrWalletAlreadyInitialized
 
         , getWalletId_ = do
@@ -647,7 +645,7 @@ newDBFreshFromDBOpen ti wid_ DBOpen{atomically=atomically_} =
             deleteStakeKeyCerts wid_
                 [ StakeKeyCertSlot >. nearestPoint
                 ]
-            updateS (store transactionsQS) Nothing $
+            updateS transactionsQS Nothing $
                 RollbackTxWalletsHistory nearestPoint
             pure $ W.chainPointFromBlockHeader currentTip
 
@@ -666,7 +664,7 @@ newDBFreshFromDBOpen ti wid_ DBOpen{atomically=atomically_} =
     lookupTxOut = queryS transactionsQS . GetTxOut
 
     dbTxHistory = DBTxHistory
-        { putTxHistory_ = updateS (store transactionsQS) Nothing
+        { putTxHistory_ = updateS transactionsQS Nothing
                 . ExpandTxWalletsHistory wid_
         , readTxHistory_ = \range tip mlimit order -> do
             txs <- queryS transactionsQS $ SomeMetas range mlimit order
