@@ -187,6 +187,7 @@ import Cardano.Wallet
     , HasNetworkLayer
     , Percentile (..)
     , TxSubmitLog
+    , WalletException (..)
     , WalletWorkerLog (..)
     , dbLayer
     , dummyChangeAddressGen
@@ -1943,11 +1944,7 @@ selectCoinsForQuit ctx@ApiLayer{..} (ApiT walletId) = do
 -------------------------------------------------------------------------------}
 
 data ErrGetAsset
-     = ErrGetAssetNoSuchWallet ErrNoSuchWallet
-     | ErrGetAssetNotPresent
-    deriving (Eq, Show)
-
-newtype ErrListAssets = ErrListAssetsNoSuchWallet ErrNoSuchWallet
+     = ErrGetAssetNotPresent
     deriving (Eq, Show)
 
 -- | All assets associated with this wallet, and their metadata (if metadata is
@@ -4712,6 +4709,7 @@ startWalletWorker ctx coworker = void . registerWorker ctx before coworker
         case edb of
             Left _ ->
                 throwIO
+                    $ ExceptionNoSuchWallet
                     $ ErrNoSuchWallet wid
             Right db -> do
                 W.checkWalletIntegrity db gp
@@ -4903,13 +4901,8 @@ instance IsServerError ErrCreateWallet where
                 , "permissions or available space?"
                 ]
 
-instance IsServerError ErrListAssets where
-    toServerError = \case
-        ErrListAssetsNoSuchWallet e -> toServerError e
-
 instance IsServerError ErrGetAsset where
     toServerError = \case
-        ErrGetAssetNoSuchWallet e -> toServerError e
         ErrGetAssetNotPresent ->
             apiError err404 AssetNotPresent $ mconcat
                 [ "The requested asset is not associated with this wallet."

@@ -207,8 +207,6 @@ module Cardano.Wallet
     -- * Utilities
     , throttle
     , guardHardIndex
-    , withNoSuchWallet
-    , mkNoSuchWalletError
     , toBalanceTxPParams
 
     -- * Logging
@@ -523,8 +521,6 @@ import Control.Monad.Trans.Except
     , throwE
     , withExceptT
     )
-import Control.Monad.Trans.Maybe
-    ( MaybeT (..), maybeToExceptT )
 import Control.Monad.Trans.State
     ( StateT, evalState, runStateT, state )
 import Control.Tracer
@@ -860,12 +856,6 @@ walletSyncProgress ctx w = do
   where
     nl = ctx ^. networkLayer
 
-mkNoSuchWalletError
-    :: Functor m
-    => WalletId
-    -> ExceptT e m a
-    -> ExceptT ErrNoSuchWallet m a
-mkNoSuchWalletError wid = withExceptT (\_ -> ErrNoSuchWallet wid)
 
 -- | Update a wallet's metadata with the given update function.
 updateWallet
@@ -3243,21 +3233,17 @@ normalizeSharedAddress st addr = case Shared.ready st of
 data ErrSignMetadataWith
     = ErrSignMetadataWithRootKey ErrWithRootKey
         -- ^ The wallet exists, but there's no root key attached to it
-    | ErrSignMetadataWithNoSuchWallet ErrNoSuchWallet
-        -- ^ The wallet doesn't exist?
     | ErrSignMetadataWithInvalidIndex (ErrInvalidDerivationIndex 'Soft 'CredFromKeyK)
         -- ^ User provided a derivation index outside of the 'Soft' domain
     deriving (Eq, Show)
 
-data ErrDerivePublicKey
-    = ErrDerivePublicKeyNoSuchWallet ErrNoSuchWallet
-        -- ^ The wallet doesn't exist?
-    | ErrDerivePublicKeyInvalidIndex (ErrInvalidDerivationIndex 'Soft 'CredFromKeyK)
+newtype ErrDerivePublicKey
+    = ErrDerivePublicKeyInvalidIndex (ErrInvalidDerivationIndex 'Soft 'CredFromKeyK)
         -- ^ User provided a derivation index outside of the 'Soft' domain
     deriving (Eq, Show)
 
 data ErrAddCosignerKey
-    = ErrAddCosignerKeyNoSuchWallet ErrNoSuchWallet
+    = ErrAddCosignerKeyNoSuchWallet ErrNoSuchWallet -- TODO ADP-3003 remove
         -- ^ The shared wallet doesn't exist?
     | ErrAddCosignerKey ErrAddCosigner
         -- ^ Error adding this co-signer to the shared wallet.
@@ -3273,9 +3259,7 @@ data ErrConstructSharedWallet
     deriving (Eq, Show)
 
 data ErrReadAccountPublicKey
-    = ErrReadAccountPublicKeyNoSuchWallet ErrNoSuchWallet
-        -- ^ The wallet doesn't exist?
-    | ErrReadAccountPublicKeyInvalidAccountIndex (ErrInvalidDerivationIndex 'Hardened 'AccountK)
+    = ErrReadAccountPublicKeyInvalidAccountIndex (ErrInvalidDerivationIndex 'Hardened 'AccountK)
         -- ^ User provided a derivation index for account outside of the 'Hard' domain
     | ErrReadAccountPublicKeyInvalidPurposeIndex (ErrInvalidDerivationIndex 'Hardened 'PurposeK)
         -- ^ User provided a derivation index for purpose outside of the 'Hard' domain
@@ -3291,7 +3275,7 @@ data ErrInvalidDerivationIndex derivation level
 -- | Errors that can occur when signing a transaction.
 data ErrSignPayment
     = ErrSignPaymentMkTx ErrMkTransaction
-    | ErrSignPaymentNoSuchWallet ErrNoSuchWallet
+    | ErrSignPaymentNoSuchWallet ErrNoSuchWallet -- TODO: ADP-3003 remove this error
     | ErrSignPaymentWithRootKey ErrWithRootKey
     | ErrSignPaymentIncorrectTTL PastHorizonException
     deriving (Show, Eq)
@@ -3307,7 +3291,7 @@ data ErrSubmitTransaction
 data ErrConstructTx
     = ErrConstructTxWrongPayload
     | ErrConstructTxBody ErrMkTransaction
-    | ErrConstructTxNoSuchWallet ErrNoSuchWallet
+    | ErrConstructTxNoSuchWallet ErrNoSuchWallet -- TODO: ADP-3003 remove this error
     | ErrConstructTxReadRewardAccount ErrReadRewardAccount
     | ErrConstructTxIncorrectTTL PastHorizonException
     | ErrConstructTxMultidelegationNotSupported
@@ -3341,7 +3325,7 @@ data ErrSubmitTx
     deriving (Show, Eq)
 
 -- | Errors that can occur when trying to change a wallet's passphrase.
-data ErrUpdatePassphrase
+newtype ErrUpdatePassphrase
     = ErrUpdatePassphraseWithRootKey ErrWithRootKey
     deriving (Show, Eq)
 
@@ -3355,8 +3339,7 @@ data ErrWithRootKey
 
 -- | Errors that can occur when trying to list transactions.
 data ErrListTransactions
-    = ErrListTransactionsNoSuchWallet ErrNoSuchWallet
-    | ErrListTransactionsStartTimeLaterThanEndTime ErrStartTimeLaterThanEndTime
+    = ErrListTransactionsStartTimeLaterThanEndTime ErrStartTimeLaterThanEndTime
     | ErrListTransactionsMinWithdrawalWrong
     | ErrListTransactionsPastHorizonException PastHorizonException
     deriving (Show)
@@ -3402,13 +3385,13 @@ newtype ErrWalletNotResponding
 
 data ErrCreateRandomAddress
     = ErrIndexAlreadyExists (Index 'Hardened 'CredFromKeyK)
-    | ErrCreateAddrNoSuchWallet ErrNoSuchWallet
+    | ErrCreateAddrNoSuchWallet ErrNoSuchWallet -- TODO: ADP-3003 remove this error
     | ErrCreateAddrWithRootKey ErrWithRootKey
     | ErrCreateAddressNotAByronWallet
     deriving (Generic, Eq, Show)
 
 data ErrImportRandomAddress
-    = ErrImportAddrNoSuchWallet ErrNoSuchWallet
+    = ErrImportAddrNoSuchWallet ErrNoSuchWallet -- TODO: ADP-3003 remove this error
     | ErrImportAddr ErrImportAddress
     | ErrImportAddressNotAByronWallet
     deriving (Generic, Eq, Show)
@@ -3431,7 +3414,7 @@ data ErrReadPolicyPublicKey
     deriving (Generic, Eq, Show)
 
 data ErrWritePolicyPublicKey
-    = ErrWritePolicyPublicKeyNoSuchWallet ErrNoSuchWallet
+    = ErrWritePolicyPublicKeyNoSuchWallet ErrNoSuchWallet -- TODO: ADP-3003 remove this error
     | ErrWritePolicyPublicKeyWithRootKey ErrWithRootKey
     deriving (Generic, Eq, Show)
 
@@ -3482,14 +3465,6 @@ instance Exception WalletException
 {-------------------------------------------------------------------------------
                                    Utils
 -------------------------------------------------------------------------------}
-
-withNoSuchWallet
-    :: Monad m
-    => WalletId
-    -> m (Maybe a)
-    -> ExceptT ErrNoSuchWallet m a
-withNoSuchWallet wid =
-    maybeToExceptT (ErrNoSuchWallet wid) . MaybeT
 
 data PoolRetirementEpochInfo = PoolRetirementEpochInfo
     { currentEpoch
@@ -3543,7 +3518,6 @@ data WalletLog
     | MsgMigrationUTxOAfter UTxOStatistics
     | MsgRewardBalanceQuery BlockHeader
     | MsgRewardBalanceResult (Either ErrFetchRewards Coin)
-    | MsgRewardBalanceNoSuchWallet ErrNoSuchWallet
     | MsgRewardBalanceExited
     | MsgTxSubmit TxSubmitLog
     | MsgIsStakeKeyRegistered Bool
@@ -3588,9 +3562,6 @@ instance ToText WalletLog where
             "Updating the reward balance for block " <> pretty bh
         MsgRewardBalanceResult (Right amt) ->
             "The reward balance is " <> pretty amt
-        MsgRewardBalanceNoSuchWallet err ->
-            "Trying to store a balance for a wallet that doesn't exist (yet?): " <>
-            T.pack (show err)
         MsgRewardBalanceResult (Left err) ->
             "Problem fetching reward balance. Will try again on next chain update. " <>
             T.pack (show err)
@@ -3622,7 +3593,6 @@ instance HasSeverityAnnotation WalletLog where
         MsgRewardBalanceQuery _ -> Debug
         MsgRewardBalanceResult (Right _) -> Debug
         MsgRewardBalanceResult (Left _) -> Notice
-        MsgRewardBalanceNoSuchWallet{} -> Warning
         MsgRewardBalanceExited -> Notice
         MsgTxSubmit msg -> getSeverityAnnotation msg
         MsgIsStakeKeyRegistered _ -> Info

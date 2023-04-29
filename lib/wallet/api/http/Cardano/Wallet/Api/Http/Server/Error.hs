@@ -606,7 +606,6 @@ instance IsServerError ErrUpdatePassphrase where
 
 instance IsServerError ErrListTransactions where
     toServerError = \case
-        ErrListTransactionsNoSuchWallet e -> toServerError e
         ErrListTransactionsStartTimeLaterThanEndTime e -> toServerError e
         ErrListTransactionsMinWithdrawalWrong ->
             apiError err400 MinWithdrawalWrong
@@ -770,19 +769,16 @@ instance IsServerError ErrWithdrawalNotBeneficial where
 instance IsServerError ErrSignMetadataWith where
     toServerError = \case
         ErrSignMetadataWithRootKey e -> toServerError e
-        ErrSignMetadataWithNoSuchWallet e -> toServerError e
         ErrSignMetadataWithInvalidIndex e -> toServerError e
 
 instance IsServerError ErrReadAccountPublicKey where
     toServerError = \case
         ErrReadAccountPublicKeyRootKey e -> toServerError e
-        ErrReadAccountPublicKeyNoSuchWallet e -> toServerError e
         ErrReadAccountPublicKeyInvalidAccountIndex e -> toServerError e
         ErrReadAccountPublicKeyInvalidPurposeIndex e -> toServerError e
 
 instance IsServerError ErrDerivePublicKey where
     toServerError = \case
-        ErrDerivePublicKeyNoSuchWallet e -> toServerError e
         ErrDerivePublicKeyInvalidIndex e -> toServerError e
 
 instance IsServerError ErrAddCosignerKey where
