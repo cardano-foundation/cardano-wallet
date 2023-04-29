@@ -484,8 +484,8 @@ runIO DBLayer{..} = fmap Resp . go
         PutWalletMeta meta ->
             runDBSuccess atomically Unit $ putWalletMeta meta
         ReadWalletMeta -> Right . (Metadata . fst) <$> atomically readWalletMeta
-        PutDelegationCertificate pool sl -> catchNoSuchWallet Unit $
-            runDB atomically $ putDelegationCertificate pool sl
+        PutDelegationCertificate pool sl ->
+            runDBSuccess atomically Unit $ putDelegationCertificate pool sl
         IsStakeKeyRegistered _wid ->
             runDBSuccess atomically StakeKeyStatus isStakeKeyRegistered
         PutTxHistory txs -> catchNoSuchWallet Unit $

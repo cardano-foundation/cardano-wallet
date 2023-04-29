@@ -258,7 +258,7 @@ data DBLayer m s k = forall stm. (MonadIO stm, MonadFail stm) => DBLayer
     , putDelegationCertificate
         :: DelegationCertificate
         -> SlotNo
-        -> ExceptT ErrWalletNotInitialized stm ()
+        -> stm ()
         -- ^ Binds a stake pool id to a wallet. This will have an influence on
         -- the wallet metadata: the last known certificate will indicate to
         -- which pool a wallet is currently delegating.
@@ -529,8 +529,7 @@ mkDBLayerFromParts ti wid_ wrapNoSuchWallet DBLayerCollection{..} = DBLayer
                 wm <- readWalletMeta_ dbWalletMeta
                 pure (wm, del)
     , isStakeKeyRegistered = isStakeKeyRegistered_ dbDelegation
-    , putDelegationCertificate = \a b -> wrapNoSuchWallet $
-        putDelegationCertificate_ dbDelegation a b
+    , putDelegationCertificate = putDelegationCertificate_ dbDelegation
     , putDelegationRewardBalance = \a -> wrapNoSuchWallet $
         putDelegationRewardBalance_ dbDelegation a
     , readDelegationRewardBalance = readDelegationRewardBalance_ dbDelegation

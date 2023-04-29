@@ -131,8 +131,7 @@ newDBFresh timeInterpreter wid = do
         , readWalletMeta = throwErrorReadDB db
             $ mReadWalletMeta timeInterpreter
 
-        , putDelegationCertificate = \cert sl -> ExceptT $
-            alterDB errWalletNotInitialized db $
+        , putDelegationCertificate = \cert sl -> noErrorAlterDB db $
             mPutDelegationCertificate cert sl
 
         , isStakeKeyRegistered = throwErrorReadDB db mIsStakeKeyRegistered
