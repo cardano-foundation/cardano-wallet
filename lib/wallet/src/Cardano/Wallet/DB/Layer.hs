@@ -731,10 +731,13 @@ newDBFreshFromDBOpen ti wid_ DBOpen{atomically=runQuery} = mdo
         -----------------------------------------------------------------------}
     let
       dbWalletMeta = DBWalletMeta
-        { putWalletMeta_ = \meta ->
-            updateWhere [WalId ==. wid_] (mkWalletMetadataUpdate meta)
+        { putWalletMeta_ = updateWhere [WalId ==. wid_] . mkWalletMetadataUpdate
 
-        , readWalletMeta_ = readWalletMetadata wid_
+        , readWalletMeta_ = do
+            mr <- readWalletMetadata wid_
+            case mr of
+                Nothing -> error "readWalletMeta_: not found"
+                Just r -> pure r
         }
 
         {-----------------------------------------------------------------------

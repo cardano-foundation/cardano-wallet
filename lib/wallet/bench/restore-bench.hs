@@ -456,7 +456,7 @@ benchmarksRnd
 benchmarksRnd network w@(WalletLayer _ _ netLayer txLayer dbLayer) wid wname
     benchname restoreTime = do
     ((cp, pending), readWalletTime) <- bench "read wallet" $ do
-        (cp, _, pending) <- unsafeRunExceptT $ W.readWallet w wid
+        (cp, _, pending) <- W.readWallet w
         pure (cp, pending)
 
     (utxo, _) <- bench "utxo statistics" $
@@ -564,7 +564,7 @@ benchmarksSeq
 benchmarksSeq network w@(WalletLayer _ _ netLayer txLayer dbLayer) wid _wname
     benchname restoreTime = do
     ((cp, pending), readWalletTime) <- bench "read wallet" $ do
-        (cp, _, pending) <- unsafeRunExceptT $ W.readWallet w wid
+        (cp, _, pending) <- W.readWallet w
         pure (cp, pending)
     (utxo, _) <- bench "utxo statistics" $
         pure $ UTxOStatistics.compute (totalUTxO pending cp)
@@ -897,7 +897,7 @@ waitForWalletSyncTo
 waitForWalletSyncTo targetSync tr proxy walletLayer wid gp vData = do
     posixNow <- utcTimeToPOSIXSeconds <$> getCurrentTime
     progress <-  do
-        w <- fmap fst' <$> unsafeRunExceptT $ W.readWallet walletLayer wid
+        w <- fst' <$> W.readWallet walletLayer
         syncProgress nl (slotNo $ currentTip w)
     traceWith tr $ MsgRestorationTick posixNow progress
     threadDelay 1000000

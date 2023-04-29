@@ -371,7 +371,7 @@ data Success s wid
     | NewWallet wid
     | WalletId' wid
     | Checkpoint (Wallet s)
-    | Metadata (Maybe WalletMetadata)
+    | Metadata WalletMetadata
     | TxHistory [TransactionInfo]
     | LocalTxSubmission [LocalTxSubmissionStatus (Hash "Tx")]
     | PrivateKey (Maybe MPrivKey)
@@ -412,8 +412,7 @@ runMock = \case
     PutWalletMeta meta ->
         first (Resp . fmap Unit) . mPutWalletMeta meta
     ReadWalletMeta ->
-        first (Resp . fmap (Metadata . fmap fst) )
-            . mReadWalletMeta timeInterpreter
+        first (Resp . fmap (Metadata . fst) ) . mReadWalletMeta timeInterpreter
     PutDelegationCertificate cert sl ->
         first (Resp . fmap Unit) . mPutDelegationCertificate cert sl
     IsStakeKeyRegistered _wid ->
@@ -484,8 +483,7 @@ runIO DBLayer{..} = fmap Resp . go
             atomically listCheckpoints
         PutWalletMeta meta ->
             runDBSuccess atomically Unit $ putWalletMeta meta
-        ReadWalletMeta -> Right . (Metadata . fmap fst) <$>
-            atomically readWalletMeta
+        ReadWalletMeta -> Right . (Metadata . fst) <$> atomically readWalletMeta
         PutDelegationCertificate pool sl -> catchNoSuchWallet Unit $
             runDB atomically $ putDelegationCertificate pool sl
         IsStakeKeyRegistered _wid -> catchNoSuchWallet StakeKeyStatus $

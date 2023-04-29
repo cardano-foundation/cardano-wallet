@@ -8,7 +8,6 @@
 {-# LANGUAGE RankNTypes #-}
 {-# LANGUAGE RecordWildCards #-}
 {-# LANGUAGE ScopedTypeVariables #-}
-{-# LANGUAGE TupleSections #-}
 
 -- |
 -- Copyright: © 2018-2020 IOHK
@@ -117,7 +116,7 @@ import Control.Monad.Trans.Except
 import Data.DBVar
     ( DBVar, modifyDBMaybe, readDBVar )
 import Data.Functor
-    ( ($>), (<&>) )
+    ( ($>) )
 import Data.Generics.Internal.VL
     ( (^.) )
 import Data.Kind
@@ -251,11 +250,8 @@ data DBLayer m s k = forall stm. (MonadIO stm, MonadFail stm) => DBLayer
     , putWalletMeta :: WalletMetadata -> stm ()
         -- ^ Replace an existing wallet metadata with the given one.
 
-    , readWalletMeta
-        :: stm (Maybe (WalletMetadata, WalletDelegation))
+    , readWalletMeta :: stm (WalletMetadata, WalletDelegation)
         -- ^ Fetch a wallet metadata, if they exist.
-        --
-        -- Return 'Nothing' if there's no such wallet.
 
     , isStakeKeyRegistered
         :: ExceptT ErrWalletNotInitialized stm Bool
@@ -531,8 +527,8 @@ mkDBLayerFromParts ti wid_ wrapNoSuchWallet DBLayerCollection{..} = DBLayer
                 currentEpoch <- liftIO $
                     interpretQuery ti (epochOf $ cp ^. #currentTip . #slotNo)
                 del <- readDelegation_ dbDelegation currentEpoch
-                mwm <- readWalletMeta_ dbWalletMeta
-                pure $ mwm <&> (, del)
+                wm <- readWalletMeta_ dbWalletMeta
+                pure (wm, del)
     , isStakeKeyRegistered = wrapNoSuchWallet $
         isStakeKeyRegistered_ dbDelegation
     , putDelegationCertificate = \a b -> wrapNoSuchWallet $
@@ -685,8 +681,7 @@ data DBWalletMeta stm = DBWalletMeta
     { putWalletMeta_ :: WalletMetadata -> stm ()
         -- ^ Replace an existing wallet metadata with the given one.
 
-    , readWalletMeta_
-        :: stm (Maybe WalletMetadata)
+    , readWalletMeta_ :: stm WalletMetadata
         -- ^ Fetch a wallet metadata, if they exist.
         --
         -- Return 'Nothing' if there's no such wallet.

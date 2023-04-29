@@ -29,7 +29,6 @@ import Cardano.Pool.Types
     ( PoolId (..) )
 import Cardano.Wallet
     ( ErrCannotQuit (..)
-    , ErrNoSuchWallet (..)
     , ErrStakePoolDelegation (..)
     , PoolRetirementEpochInfo (..)
     , WalletException (..)
@@ -38,7 +37,6 @@ import Cardano.Wallet
     , mkNoSuchWalletError
     , readRewardAccount
     , transactionExpirySlot
-    , withNoSuchWallet
     )
 import Cardano.Wallet.Address.Derivation.Shelley
     ( ShelleyKey (..) )
@@ -74,7 +72,7 @@ import Control.Exception
 import Control.Monad
     ( forM_, unless, when, (>=>) )
 import Control.Monad.Except
-    ( ExceptT, runExceptT )
+    ( ExceptT, lift, runExceptT )
 import Control.Monad.IO.Class
     ( MonadIO (..) )
 import Control.Monad.Trans.Except
@@ -116,7 +114,7 @@ handleDelegationRequest
         pools <- getKnownPools
         joinStakePoolDelegationAction
             tr db currEpoch pools poolId poolStatus walletId
-    Quit -> liftIO $ quitStakePoolDelegationAction db walletId withdrawal
+    Quit -> liftIO $ quitStakePoolDelegationAction db withdrawal
 
 joinStakePoolDelegationAction
     :: Tracer IO WalletLog
@@ -131,7 +129,7 @@ joinStakePoolDelegationAction
     tr DBLayer{..} currentEpoch knownPools poolId poolStatus wid = do
     (walletDelegation, stakeKeyIsRegistered) <-
         atomically . throwInIO ErrStakePoolDelegationNoSuchWallet $
-            (,) <$> withNoSuchWallet wid (fmap snd <$> readWalletMeta)
+            (,) <$> lift (snd <$> readWalletMeta)
                 <*> mkNoSuchWalletError wid isStakeKeyRegistered
 
     let retirementInfo =
@@ -206,16 +204,10 @@ guardJoin knownPools delegation pid mRetirementEpochInfo = do
 quitStakePoolDelegationAction
     :: forall s k
      . DBLayer IO s k
-    -> WalletId
     -> Withdrawal
     -> IO Tx.DelegationAction
-quitStakePoolDelegationAction db@DBLayer{..} walletId withdrawal = do
+quitStakePoolDelegationAction db@DBLayer{..} withdrawal = do
     (_, delegation) <- atomically readWalletMeta
-        >>= maybe
-            (throwIO (ExceptionStakePoolDelegation
-                (ErrStakePoolDelegationNoSuchWallet
-                    (ErrNoSuchWallet walletId))))
-            pure
     rewards <- liftIO $ fetchRewardBalance @s @k db
     either (throwIO . ExceptionStakePoolDelegation . ErrStakePoolQuit) pure
         (guardQuit delegation withdrawal rewards)
@@ -226,13 +218,12 @@ quitStakePool
      . NetworkLayer IO block
     -> DBLayer IO (SeqState n ShelleyKey) ShelleyKey
     -> TimeInterpreter (ExceptT PastHorizonException IO)
-    -> WalletId
     -> IO TransactionCtx
-quitStakePool netLayer db timeInterpreter walletId = do
+quitStakePool netLayer db timeInterpreter = do
     (rewardAccount, _, derivationPath) <- readRewardAccount db
     withdrawal <- WithdrawalSelf rewardAccount derivationPath
         <$> getCachedRewardAccountBalance netLayer rewardAccount
-    action <- quitStakePoolDelegationAction db walletId withdrawal
+    action <- quitStakePoolDelegationAction db withdrawal
     ttl <- transactionExpirySlot timeInterpreter  Nothing
     pure defaultTransactionCtx
         { txWithdrawal = withdrawal

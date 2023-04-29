@@ -189,7 +189,7 @@ import Data.ByteString
 import Data.Coerce
     ( coerce )
 import Data.Either
-    ( isLeft, isRight )
+    ( isLeft )
 import Data.Function
     ( on )
 import Data.Functor.Identity
@@ -304,8 +304,6 @@ spec = describe "Cardano.WalletSpec" $ do
     describe "WalletLayer works as expected" $ do
         it "Wallet cannot be created more than once"
             (property walletDoubleCreationProp)
-        it "Wallet after being created can be got using valid wallet Id"
-            (property walletGetProp)
         it "Two wallets with same mnemonic have a same public id"
             (property walletIdDeterministic)
         it "Two wallets with different mnemonic have a different public id"
@@ -361,14 +359,6 @@ walletDoubleCreationProp newWallet =
         secondTrial <- run $ runExceptT $ createFixtureWallet dbf newWallet
         assert (isLeft secondTrial)
 
-walletGetProp
-    :: (WalletId, WalletName, DummyState)
-    -> Property
-walletGetProp newWallet = monadicIO $ do
-    WalletLayerFixture _ _db wl walletIds <- run $ setupFixture newWallet
-    resFromGet <- run $ runExceptT $ W.readWallet wl (walletIds)
-    assert (isRight resFromGet)
-
 walletIdDeterministic
     :: (WalletId, WalletName, DummyState)
     -> Property
@@ -391,11 +381,9 @@ walletUpdateName
     -> Property
 walletUpdateName wallet wName = monadicIO $ do
     wName' <- run $ do
-        WalletLayerFixture _ _ wl wid <- setupFixture wallet
-        unsafeRunExceptT $
-            W.updateWallet wl wid (\x -> x { name = wName })
-        fmap (name . (\(_, (b, _), _) -> b))
-            <$> unsafeRunExceptT $ W.readWallet wl wid
+        WalletLayerFixture _ _ wl _ <- setupFixture wallet
+        W.updateWallet wl (\x -> x { name = wName })
+        (name . (\(_, (b, _), _) -> b)) <$> W.readWallet wl
     assert (wName == wName')
 
 walletUpdatePassphrase
@@ -458,8 +446,8 @@ walletUpdatePassphraseDate
 walletUpdatePassphraseDate wallet (xprv, pwd) = monadicIO $ liftIO $ do
     WalletLayerFixture _ _ wl wid  <- liftIO $ setupFixture wallet
     let infoShouldSatisfy predicate = do
-            info <- (passphraseInfo . (\(_, (b, _), _) -> b)) <$>
-                unsafeRunExceptT (W.readWallet wl wid)
+            info <- (passphraseInfo . (\(_, (b, _), _) -> b))
+                <$> W.readWallet wl
             info `shouldSatisfy` predicate
             return info
 

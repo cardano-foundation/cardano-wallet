@@ -95,7 +95,6 @@ module Cardano.Wallet
     , ErrWalletAlreadyExists (..)
     , ErrNoSuchWallet (..)
     , ErrWalletNotInitialized (..)
-    , ErrListUTxOStatistics (..)
     , ErrUpdatePassphrase (..)
     , ErrFetchRewards (..)
     , ErrCheckWalletIntegrity (..)
@@ -122,7 +121,6 @@ module Cardano.Wallet
     , ErrCreateRandomAddress(..)
     , ErrImportRandomAddress(..)
     , ErrImportAddress(..)
-    , ErrDecodeTx (..)
 
     -- ** Payment
     , transactionExpirySlot
@@ -838,19 +836,16 @@ checkWalletIntegrity db walletId gp = db & \DBLayer{..} -> do
 readWallet
     :: forall ctx s k. HasDBLayer IO s k ctx
     => ctx
-    -> WalletId
-    -> ExceptT ErrNoSuchWallet IO
-        (Wallet s, (WalletMetadata, WalletDelegation), Set Tx)
-readWallet ctx wid = db & \DBLayer{..} -> mapExceptT atomically $ do
-    cp <- lift readCheckpoint
-    meta <- withNoSuchWallet wid readWalletMeta
-    pending <- lift $
-        readTransactions
-            Nothing
-            Descending
-            wholeRange
-            (Just Pending)
-            Nothing
+    -> IO (Wallet s, (WalletMetadata, WalletDelegation), Set Tx)
+readWallet ctx = db & \DBLayer{..} -> atomically $ do
+    cp <- readCheckpoint
+    meta <- readWalletMeta
+    pending <- readTransactions
+        Nothing
+        Descending
+        wholeRange
+        (Just Pending)
+        Nothing
     pure (cp, meta, Set.fromList (fromTransactionInfo <$> pending))
   where
     db = ctx ^. dbLayer @IO @s @k
@@ -879,12 +874,11 @@ updateWallet
         ( HasDBLayer IO s k ctx
         )
     => ctx
-    -> WalletId
     -> (WalletMetadata -> WalletMetadata)
-    -> ExceptT ErrNoSuchWallet IO ()
-updateWallet ctx wid modify = db & \DBLayer{..} -> mapExceptT atomically $ do
-    meta <- fmap fst . withNoSuchWallet wid $ readWalletMeta
-    lift $ putWalletMeta (modify meta)
+    -> IO ()
+updateWallet ctx modify = db & \DBLayer{..} -> atomically $ do
+    meta <- fst <$> readWalletMeta
+    putWalletMeta (modify meta)
   where
     db = ctx ^. dbLayer @IO @s @k
 
@@ -931,10 +925,9 @@ getWalletUtxoSnapshot
         , HasTransactionLayer k ktype ctx
         )
     => ctx
-    -> WalletId
-    -> ExceptT ErrNoSuchWallet IO [(TokenBundle, Coin)]
-getWalletUtxoSnapshot ctx wid = do
-    (wallet, _, pending) <- withExceptT id (readWallet @ctx @s @k ctx wid)
+    -> IO [(TokenBundle, Coin)]
+getWalletUtxoSnapshot ctx = do
+    (wallet, _, pending) <- readWallet @ctx @s @k ctx
     pp <- liftIO $ currentProtocolParameters nl
     era <- liftIO $ currentNodeEra nl
     let txOuts = availableUTxO @s pending wallet
@@ -964,11 +957,9 @@ getWalletUtxoSnapshot ctx wid = do
 listUtxoStatistics
     :: forall ctx s k. HasDBLayer IO s k ctx
     => ctx
-    -> WalletId
-    -> ExceptT ErrListUTxOStatistics IO UTxOStatistics
-listUtxoStatistics ctx wid = do
-    (wal, _, pending) <- withExceptT
-        ErrListUTxOStatisticsNoSuchWallet (readWallet @ctx @s @k ctx wid)
+    -> IO UTxOStatistics
+listUtxoStatistics ctx = do
+    (wal, _, pending) <- readWallet @ctx @s @k ctx
     let utxo = availableUTxO @s pending wal
     pure $ UTxOStatistics.compute utxo
 
@@ -1772,10 +1763,9 @@ buildCoinSelectionForTransaction
 readWalletUTxO
     :: forall ctx s k. HasDBLayer IO s k ctx
     => ctx
-    -> WalletId
-    -> ExceptT ErrNoSuchWallet IO (UTxO, Wallet s, Set Tx)
-readWalletUTxO ctx wid = do
-    (cp, _, pending) <- readWallet @ctx @s @k ctx wid
+    -> IO (UTxO, Wallet s, Set Tx)
+readWalletUTxO ctx = do
+    (cp, _, pending) <- readWallet @ctx @s @k ctx
     return (availableUTxO @s pending cp, cp, pending)
 
 -- | Calculate the minimum coin values required for a bunch of specified
@@ -2634,12 +2624,10 @@ createMigrationPlan
         )
     => ctx
     -> Cardano.AnyCardanoEra
-    -> WalletId
     -> Withdrawal
-    -> ExceptT ErrCreateMigrationPlan IO MigrationPlan
-createMigrationPlan ctx era wid rewardWithdrawal = do
-    (wallet, _, pending) <- withExceptT ErrCreateMigrationPlanNoSuchWallet $
-        readWallet @ctx @s @k ctx wid
+    -> IO MigrationPlan
+createMigrationPlan ctx era rewardWithdrawal = do
+    (wallet, _, pending) <- readWallet @ctx @s @k ctx
     pp <- liftIO $ currentProtocolParameters nl
     let txConstraints = constraints tl era pp
     let utxo = availableUTxO @s pending wallet
@@ -3033,7 +3021,7 @@ attachPrivateKey db wid (xprv, hpwd) scheme = db & \DBLayer{..} -> do
     now <- liftIO getCurrentTime
     mapExceptT atomically $ do
         mkNoSuchWalletError wid $ putPrivateKey (xprv, hpwd)
-        meta <- withNoSuchWallet wid readWalletMeta
+        meta <- lift readWalletMeta
         let modify x = x
                 { passphraseInfo = Just $ WalletPassphraseInfo
                     { lastUpdatedAt = now
@@ -3069,7 +3057,7 @@ withRootKey
 withRootKey DBLayer{..} wid pwd embed action = do
     (xprv, scheme) <- withExceptT embed $ mapExceptT atomically $ do
         mScheme <- (>>= (fmap passphraseScheme . passphraseInfo)) <$>
-            lift (fmap fst <$> readWalletMeta)
+            lift (Just . fst <$> readWalletMeta)
         mXPrv <- lift readPrivateKey
         case (mXPrv, mScheme) of
             (Just (xprv, hpwd), Just scheme) -> do
@@ -3345,10 +3333,6 @@ data ErrInvalidDerivationIndex derivation level
     = ErrIndexOutOfBound (Index derivation level) (Index derivation level) DerivationIndex
     deriving (Eq, Show)
 
--- | Errors that can occur when listing UTxO statistics.
-newtype ErrListUTxOStatistics
-    = ErrListUTxOStatisticsNoSuchWallet ErrNoSuchWallet
-    deriving (Show, Eq)
 
 -- | Errors that can occur when signing a transaction.
 data ErrSignPayment
@@ -3360,8 +3344,7 @@ data ErrSignPayment
 
 -- | Errors that can occur when submitting a transaction.
 data ErrSubmitTransaction
-    = ErrSubmitTransactionNoSuchWallet ErrNoSuchWallet
-    | ErrSubmitTransactionForeignWallet
+    = ErrSubmitTransactionForeignWallet
     | ErrSubmitTransactionPartiallySignedOrNoSignedTx Int Int
     | ErrSubmitTransactionMultidelegationNotSupported
     deriving (Show, Eq)
@@ -3395,11 +3378,6 @@ data ErrWitnessTx
     = ErrWitnessTxSignTx ErrSignTx
     | ErrWitnessTxWithRootKey ErrWithRootKey
     | ErrWitnessTxIncorrectTTL PastHorizonException
-    deriving (Show, Eq)
-
--- | Errors that can occur when decoding a transaction.
-newtype ErrDecodeTx
-    = ErrDecodeTxNoSuchWallet ErrNoSuchWallet
     deriving (Show, Eq)
 
 -- | Errors that can occur when submitting a signed transaction to the network.
@@ -3446,7 +3424,6 @@ data ErrStartTimeLaterThanEndTime = ErrStartTimeLaterThanEndTime
 
 data ErrCreateMigrationPlan
     = ErrCreateMigrationPlanEmpty
-    | ErrCreateMigrationPlanNoSuchWallet ErrNoSuchWallet
     deriving (Generic, Eq, Show)
 
 data ErrStakePoolDelegation
@@ -3518,7 +3495,6 @@ data WalletException
     | ExceptionAddCosignerKey ErrAddCosignerKey
     | ExceptionConstructSharedWallet ErrConstructSharedWallet
     | ExceptionReadAccountPublicKey ErrReadAccountPublicKey
-    | ExceptionListUTxOStatistics ErrListUTxOStatistics
     | ExceptionSignPayment ErrSignPayment
     | ExceptionBalanceTx ErrBalanceTx
     | ExceptionBalanceTxInternalError ErrBalanceTxInternalError
@@ -3526,7 +3502,6 @@ data WalletException
     | ExceptionConstructTx ErrConstructTx
     | ExceptionGetPolicyId ErrGetPolicyId
     | ExceptionWitnessTx ErrWitnessTx
-    | ExceptionDecodeTx ErrDecodeTx
     | ExceptionSubmitTx ErrSubmitTx
     | ExceptionUpdatePassphrase ErrUpdatePassphrase
     | ExceptionWithRootKey ErrWithRootKey

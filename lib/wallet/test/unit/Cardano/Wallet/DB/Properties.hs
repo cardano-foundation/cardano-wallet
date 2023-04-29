@@ -164,8 +164,7 @@ properties withFreshDB = describe "DB.Properties" $ do
             $ prop_readAfterPut
                 testOnLayer
                 (\DBLayer{..} _wid -> lift . atomically . putWalletMeta)
-                (\DBLayer{..} _ -> atomically . fmap (fmap fst)
-                    $ readWalletMeta)
+                (\DBLayer{..} _ -> Identity . fst <$>  atomically readWalletMeta)
         it "Tx History"
             $ property
             $ prop_readAfterPut
@@ -229,8 +228,7 @@ properties withFreshDB = describe "DB.Properties" $ do
             $ prop_sequentialPut
                 testOnLayer
                 (\DBLayer{..} _wid -> lift . atomically . putWalletMeta)
-                (\DBLayer{..} _ -> atomically . fmap (fmap fst)
-                    $ readWalletMeta)
+                (\DBLayer{..} _ -> Just . fst <$> atomically readWalletMeta)
                 lastMay
         it "Tx History"
             $ checkCoverage

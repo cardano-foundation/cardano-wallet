@@ -128,8 +128,7 @@ newDBFresh timeInterpreter wid = do
 
         , putWalletMeta = noErrorAlterDB db .  mPutWalletMeta
 
-        , readWalletMeta = fmap join
-            $ readDBMaybe db
+        , readWalletMeta = throwErrorReadDB db
             $ mReadWalletMeta timeInterpreter
 
         , putDelegationCertificate = \cert sl -> ExceptT $

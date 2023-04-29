@@ -531,7 +531,7 @@ fileModeSpec =  do
                     $ bootDBLayer
                         testDBLayerParams{dBLayerParamsMetadata = meta}
                 return (meta, WalletDelegation NotDelegating [])
-            testReopening f readWalletMeta' (Just meta)
+            testReopening f readWalletMeta' meta
 
         it "create and get private key" $ \f -> do
             (k, h) <- withShelleyFileDBFresh f $ \DBFresh{bootDBLayer} -> do
@@ -953,7 +953,7 @@ readCheckpoint' DBLayer{..} = atomically readCheckpoint
 
 readWalletMeta'
     :: DBLayer m s k
-    -> m (Maybe (WalletMetadata, WalletDelegation))
+    -> m (WalletMetadata, WalletDelegation)
 readWalletMeta' DBLayer{..} = atomically readWalletMeta
 
 readTransactions'
@@ -1316,9 +1316,7 @@ testMigrationPassphraseScheme1 = do
     -- after the migration, both should now be `Just`.
     (logs, a) <- withDBLayerFromCopiedFile @ShelleyKey
         "passphraseScheme/she.17ca0ed41a372e483f2968aa386a4b6b0ca6b5ee.sqlite"
-        $ \DBLayer{..} -> atomically $ do
-            Just a <- readWalletMeta
-            pure (fst a)
+        $ \DBLayer{..} -> atomically $ fst <$> readWalletMeta
 
     -- Migration is visible from the logs
     let migrationMsg = filter isMsgManualMigrationPw logs
@@ -1331,9 +1329,7 @@ testMigrationPassphraseScheme2 = do
     -- scheme set to use PBKDF2. Nothing should have changed.
     (logs, a) <- withDBLayerFromCopiedFile @ShelleyKey
         "passphraseScheme/she.2e8353d2bb937445948669a1dcc69ec9628a558c.sqlite"
-        $ \DBLayer{..} -> atomically $ do
-            Just a <- readWalletMeta
-            pure (fst a)
+        $ \DBLayer{..} -> atomically $ fst <$> readWalletMeta
 
     let migrationMsg = filter isMsgManualMigrationPw logs
     length migrationMsg `shouldBe` 1
@@ -1345,9 +1341,7 @@ testMigrationPassphraseScheme3 = do
     -- scheme. Nothing should have changed.
     (logs, a) <- withDBLayerFromCopiedFile @ShelleyKey
         "passphraseScheme/she.899abf7137aa8b3200d55d70474f6fdd2649fa2f.sqlite"
-        $ \DBLayer{..} -> atomically $ do
-            Just a <- readWalletMeta
-            pure (fst a)
+        $ \DBLayer{..} -> atomically $ fst <$> readWalletMeta
 
     let migrationMsg = filter isMsgManualMigrationPw logs
     length migrationMsg `shouldBe` 1
@@ -1359,9 +1353,7 @@ testMigrationPassphraseScheme4 = do
     -- account public key), so it should still have NO scheme.
     (logs, a ) <- withDBLayerFromCopiedFile @ShelleyKey
         "passphraseScheme/she.be92ab4ec9399449e53b94378e6cb6724691f8b3.sqlite"
-        $ \DBLayer{..} -> atomically $ do
-            Just a <- readWalletMeta
-            pure (fst a)
+        $ \DBLayer{..} -> atomically $ fst <$> readWalletMeta
 
     let migrationMsg = filter isMsgManualMigrationPw logs
     length migrationMsg `shouldBe` 1

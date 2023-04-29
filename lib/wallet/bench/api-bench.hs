@@ -234,16 +234,15 @@ benchmarksSeq
     -> IO BenchSeqResults
 benchmarksSeq BenchmarkConfig{benchmarkName,ctx,wid} = do
     ((cp, pending), readWalletTime) <- bench "readWallet" $ do
-        (cp, _, pending) <- unsafeRunExceptT $ W.readWallet @_ @s @k ctx wid
+        (cp, _, pending) <- W.readWallet @_ @s @k ctx
         pure (cp, pending)
 
     (utxo, _) <- bench "utxo statistics" $
         pure $ UTxOStatistics.compute (totalUTxO pending cp)
 
     (_, getWalletUtxoSnapshotTime) <- bench "getWalletUtxoSnapshot"
-        $ fmap length
-        $ unsafeRunExceptT
-        $ W.getWalletUtxoSnapshot @_ @s @k @ktype ctx wid
+        $ length
+        <$> W.getWalletUtxoSnapshot @_ @s @k @ktype ctx
 
     (addresses, listAddressesTime) <- bench "listAddresses"
         $ fromIntegral . length
@@ -266,8 +265,7 @@ benchmarksSeq BenchmarkConfig{benchmarkName,ctx,wid} = do
 
     let era = Cardano.anyCardanoEra Cardano.BabbageEra
     (_, createMigrationPlanTime) <- bench "createMigrationPlan"
-        $ unsafeRunExceptT
-        $ W.createMigrationPlan @_ @k @s ctx era wid Tx.NoWithdrawal
+        $ W.createMigrationPlan @_ @k @s ctx era Tx.NoWithdrawal
 
     (_, delegationFeeTime) <- bench "delegationFee" $ do
         timeTranslation <-
@@ -322,18 +320,17 @@ benchmarksShared
        )
     => BenchmarkConfig n s k ktype
     -> IO BenchSharedResults
-benchmarksShared BenchmarkConfig{benchmarkName,ctx,wid} = do
+benchmarksShared BenchmarkConfig{benchmarkName,ctx} = do
     ((cp, pending), readWalletTime) <- bench "readWallet" $ do
-        (cp, _, pending) <- unsafeRunExceptT $ W.readWallet @_ @s @k ctx wid
+        (cp, _, pending) <- W.readWallet @_ @s @k ctx
         pure (cp, pending)
 
     (utxo, _) <- bench "utxo statistics" $
         pure $ UTxOStatistics.compute (totalUTxO pending cp)
 
     (_, getWalletUtxoSnapshotTime) <- bench "getWalletUtxoSnapshot"
-        $ fmap length
-        $ unsafeRunExceptT
-        $ W.getWalletUtxoSnapshot @_ @s @k @ktype ctx wid
+        $ length
+        <$> W.getWalletUtxoSnapshot @_ @s @k @ktype ctx
 
     (addresses, listAddressesTime) <- bench "listAddresses"
         $ fromIntegral . length
@@ -395,18 +392,17 @@ benchmarksRnd
        )
     => BenchmarkConfig n s k ktype
     -> IO BenchRndResults
-benchmarksRnd BenchmarkConfig{benchmarkName,ctx,wid} = do
+benchmarksRnd BenchmarkConfig{benchmarkName,ctx} = do
     ((cp, pending), readWalletTime) <- bench "readWallet" $ do
-        (cp, _, pending) <- unsafeRunExceptT $ W.readWallet @_ @s @k ctx wid
+        (cp, _, pending) <- W.readWallet @_ @s @k ctx
         pure (cp, pending)
 
     (utxo, _) <- bench "utxo statistics" $
         pure $ UTxOStatistics.compute (totalUTxO pending cp)
 
     (_, getWalletUtxoSnapshotTime) <- bench "getWalletUtxoSnapshot"
-        $ fmap length
-        $ unsafeRunExceptT
-        $ W.getWalletUtxoSnapshot @_ @s @k @ktype ctx wid
+        $ length
+        <$> W.getWalletUtxoSnapshot @_ @s @k @ktype ctx
 
     (addresses, listAddressesTime) <- bench "listAddresses"
         $ fromIntegral . length
@@ -429,8 +425,7 @@ benchmarksRnd BenchmarkConfig{benchmarkName,ctx,wid} = do
 
     let era = Cardano.anyCardanoEra Cardano.BabbageEra
     (_, createMigrationPlanTime) <- bench "createMigrationPlan"
-        $ unsafeRunExceptT
-        $ W.createMigrationPlan @_ @k @s ctx era wid Tx.NoWithdrawal
+        $ W.createMigrationPlan @_ @k @s ctx era Tx.NoWithdrawal
 
     pure BenchRndResults
         { benchName = benchmarkName
@@ -484,7 +479,7 @@ benchmarkWallets benchName dir walletTr networkId action = do
     withWalletsFromDirectory dir walletTr networkId
         $ \ctx@(MockWalletLayer{dbLayer=DB.DBLayer{atomically,readWalletMeta}}) wid
         -> do
-            Just (WalletMetadata{name},_) <- atomically readWalletMeta
+            (WalletMetadata{name},_) <- atomically readWalletMeta
             let config = BenchmarkConfig
                     { benchmarkName = benchName <> " " <> pretty name
                     , networkId = networkId

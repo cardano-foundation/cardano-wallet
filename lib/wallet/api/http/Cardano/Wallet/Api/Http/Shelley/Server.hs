@@ -170,7 +170,6 @@ import Cardano.Tx.Balance.Internal.CoinSelection
 import Cardano.Wallet
     ( BuiltTx (..)
     , DelegationFee (feePercentiles)
-    , ErrAddCosignerKey (..)
     , ErrCheckWalletIntegrity (..)
     , ErrConstructSharedWallet (..)
     , ErrConstructTx (..)
@@ -565,7 +564,7 @@ import Control.Monad.IO.Class
 import Control.Monad.Trans.Class
     ( lift )
 import Control.Monad.Trans.Except
-    ( ExceptT (..), except, mapExceptT, runExceptT, throwE, withExceptT )
+    ( ExceptT (..), except, runExceptT, throwE, withExceptT )
 import Control.Monad.Trans.Maybe
     ( MaybeT (..), exceptToMaybeT )
 import Control.Tracer
@@ -1257,7 +1256,7 @@ patchSharedWallet ctx liftKey cred (ApiT wid) body = do
 
     when (isRight (wal' ^. #wallet) && isLeft (wal ^. #wallet)) $ do
         (state, prvKeyM, meta) <- withWorkerCtx ctx wid liftE liftE
-            $ \wrk -> liftHandler $ do
+            $ \wrk -> handler $ do
                 let db = wrk ^. W.dbLayer @IO @s @k
                 db & \W.DBLayer
                     { atomically
@@ -1265,16 +1264,12 @@ patchSharedWallet ctx liftKey cred (ApiT wid) body = do
                     , readPrivateKey
                     , readWalletMeta
                     } -> do
-                        cp <- lift $ atomically readCheckpoint
+                        cp <- atomically readCheckpoint
                         let state = getState cp
                         --could be for account and root key wallets
-                        prvKeyM <-
-                            mapExceptT atomically $ lift readPrivateKey
-                        metaM <-
-                            mapExceptT atomically $ lift readWalletMeta
-                        when (isNothing metaM) $
-                            throwE ErrAddCosignerKeyWalletMetadataNotFound
-                        pure (state, prvKeyM, fst $ fromJust metaM)
+                        prvKeyM <- atomically readPrivateKey
+                        meta <- atomically readWalletMeta
+                        pure (state, prvKeyM, fst meta)
 
         void $ deleteWallet ctx (ApiT wid)
         let wName = meta ^. #name
@@ -1283,7 +1278,7 @@ patchSharedWallet ctx liftKey cred (ApiT wid) body = do
                 W.createWallet @_ @s @k genesisParams wrk wid wName state)
             idleWorker
         withWorkerCtx @_ @s @k ctx wid liftE liftE $ \wrk ->
-            liftHandler $ W.updateWallet wrk wid (const meta)
+            handler $ W.updateWallet wrk (const meta)
         when (isJust prvKeyM)
             $ withWorkerCtx @_ @s @k ctx wid liftE liftE $ \wrk -> liftHandler
             $ W.attachPrivateKeyFromPwdHashShelley
@@ -1603,7 +1598,7 @@ getWallet ctx mkApiWallet (ApiT wid) = do
 
     whenAlive wrk = do
         (cp, (meta, delegation), pending)
-            <- liftHandler $ W.readWallet @_ @s @k wrk wid
+            <- handler $ W.readWallet @_ @s @k wrk
         progress <- liftIO $ W.walletSyncProgress @_ @_ ctx cp
         (, meta ^. #creationTime)
             <$> mkApiWallet ctx wid cp meta delegation pending progress
@@ -1613,7 +1608,7 @@ getWallet ctx mkApiWallet (ApiT wid) = do
             db <- liftHandler $ loadDBLayer df
             let wrk = hoistResource db (MsgFromWorker wid) ctx
             (cp, (meta, delegation), pending)
-                <- liftHandler $ W.readWallet @_ @s @k wrk wid
+                <- handler $ W.readWallet @_ @s @k wrk
             (, meta ^. #creationTime)
                 <$> mkApiWallet ctx wid cp meta delegation pending NotResponding
 
@@ -1658,7 +1653,7 @@ putWallet ctx mkApiWallet (ApiT wid) body = do
         Nothing ->
             return ()
         Just (ApiT wName) -> withWorkerCtx ctx wid liftE liftE $ \wrk -> do
-            liftHandler $ W.updateWallet wrk wid (modify wName)
+            handler $ W.updateWallet wrk (modify wName)
     fst <$> getWallet ctx mkApiWallet (ApiT wid)
   where
     modify :: W.WalletName -> WalletMetadata -> WalletMetadata
@@ -1734,8 +1729,8 @@ getUTxOsStatistics
     -> ApiT WalletId
     -> Handler ApiUtxoStatistics
 getUTxOsStatistics ctx (ApiT wid) = do
-    stats <- withWorkerCtx ctx wid liftE liftE $ \wrk -> liftHandler $
-        W.listUtxoStatistics wrk wid
+    stats <- withWorkerCtx ctx wid liftE liftE $ \wrk -> handler $
+        W.listUtxoStatistics wrk
     return $ toApiUtxoStatistics stats
 
 getWalletUtxoSnapshot
@@ -1744,8 +1739,8 @@ getWalletUtxoSnapshot
     -> ApiT WalletId
     -> Handler ApiWalletUtxoSnapshot
 getWalletUtxoSnapshot ctx (ApiT wid) = do
-    entries <- withWorkerCtx ctx wid liftE liftE $ \wrk -> liftHandler $
-        W.getWalletUtxoSnapshot @_ @_ @_ @ktype wrk wid
+    entries <- withWorkerCtx ctx wid liftE liftE $ \wrk -> handler $
+        W.getWalletUtxoSnapshot @_ @_ @_ @ktype wrk
     return $ mkApiWalletUtxoSnapshot entries
   where
     mkApiWalletUtxoSnapshot :: [(TokenBundle, Coin)] -> ApiWalletUtxoSnapshot
@@ -1914,7 +1909,7 @@ selectCoinsForQuit ctx@ApiLayer{..} (ApiT walletId) = do
         pp <- NW.currentProtocolParameters netLayer
         withdrawal <- W.shelleyOnlyMkSelfWithdrawal @_ @_ @_ @_ @n
             netLayer txLayer era db
-        action <- WD.quitStakePoolDelegationAction db walletId withdrawal
+        action <- WD.quitStakePoolDelegationAction db withdrawal
         let changeAddrGen = W.defaultChangeAddressGen (delegationAddressS @n)
                 (Proxy @k)
         let txCtx = defaultTransactionCtx
@@ -2887,9 +2882,7 @@ constructSharedTransaction
         era <- liftIO $ NW.currentNodeEra (wrk ^. networkLayer)
         AnyRecentEra (_recentEra :: WriteTx.RecentEra era)
             <- guardIsRecentEra era
-        (cp, _, _) <- liftHandler $ withExceptT ErrConstructTxNoSuchWallet $
-            W.readWallet wrk wid
-
+        (cp, _, _) <- handler $ W.readWallet wrk
         let delegationTemplateM = Shared.delegationTemplate $ getState cp
         when (isNothing delegationTemplateM && isJust delegationRequest) $
             liftHandler $ throwE ErrConstructTxDelegationInvalid
@@ -2987,8 +2980,7 @@ decodeSharedTransaction ctx (ApiT wid) (ApiSerialisedTransaction (ApiT sealed) _
     (txinsOutsPaths, collateralInsOutsPaths, outsPath, pp, certs, txId, fee
         , metadata, scriptValidity, interval, witsCount)
         <- withWorkerCtx ctx wid liftE liftE $ \wrk -> do
-        (cp, _, _) <- liftHandler $ withExceptT W.ErrDecodeTxNoSuchWallet $
-            W.readWallet wrk wid
+        (cp, _, _) <- handler $ W.readWallet wrk
         let witCountCtx = toWitnessCountCtx @(SharedState n SharedKey) (getState cp)
         let (decodedTx, _toMint, _toBurn, allCerts, interval, witsCount) =
                 decodeTx tl era witCountCtx sealed
@@ -3089,11 +3081,8 @@ balanceTransaction
     pp <- liftIO $ NW.currentProtocolParameters nl
     era <- liftIO $ NW.currentNodeEra nl
     withWorkerCtx ctx wid liftE liftE $ \wrk -> do
-        (walletUTxO, wallet, _txs) <-
-            liftHandler $ W.readWalletUTxO @_ @s @k wrk wid
-        timeTranslation <- liftIO $
-            toTimeTranslation (timeInterpreter netLayer)
-
+        (walletUTxO, wallet, _txs) <- handler $ W.readWalletUTxO @_ @s @k wrk
+        timeTranslation <- liftIO $ toTimeTranslation (timeInterpreter netLayer)
         let mkPartialTx
                 :: forall era. WriteTx.IsRecentEra era => Cardano.Tx era
                 -> Handler (Write.PartialTx era)
@@ -3453,8 +3442,7 @@ submitSharedTransaction ctx apiw@(ApiT wid) apitx = do
 
     void $ withWorkerCtx ctx wid liftE liftE $ \wrk -> do
 
-        (cp, _, _) <- liftHandler $ withExceptT ErrSubmitTransactionNoSuchWallet $
-            W.readWallet @_ wrk wid
+        (cp, _, _) <- handler $ W.readWallet @_ wrk
         let witCountCtx = toWitnessCountCtx @(SharedState n SharedKey) (getState cp)
         let (tx,_,_,_,_, (WitnessCount _ nativeScripts _)) =
                 decodeTx tl era witCountCtx sealedTx
@@ -3650,7 +3638,7 @@ quitStakePool ctx@ApiLayer{..} argGenChange (ApiT walletId) body = do
     withWorkerCtx ctx walletId liftE liftE $ \wrk -> do
         let db = wrk ^. typed @(DBLayer IO s k)
             ti = timeInterpreter netLayer
-        txCtx <- liftIO $ WD.quitStakePool netLayer db ti walletId
+        txCtx <- liftIO $ WD.quitStakePool netLayer db ti
         (BuiltTx{..}, txTime) <- liftIO $ do
             W.buildSignSubmitTransaction @k @s @n
                 db
@@ -3755,9 +3743,9 @@ listStakeKeys
     -> ApiT WalletId
     -> Handler (ApiStakeKeys n)
 listStakeKeys lookupStakeRef ctx@ApiLayer{..} (ApiT wid) =
-    withWorkerCtx ctx wid liftE liftE $ \wrk -> liftHandler $ do
+    withWorkerCtx ctx wid liftE liftE $ \wrk -> handler $ do
         let db = wrk ^. typed @(DBLayer IO s ShelleyKey)
-        (wal, (_, delegation) ,pending) <- W.readWallet @_ @s @ShelleyKey wrk wid
+        (wal, (_, delegation) ,pending) <- W.readWallet @_ @s @ShelleyKey wrk
         let utxo = availableUTxO @s pending wal
         let takeFst (a,_,_) = a
         ourAccount <- takeFst <$> liftIO (W.readRewardAccount @n db)
@@ -3795,10 +3783,8 @@ createMigrationPlan ctx@ApiLayer{..} withdrawalType (ApiT wid) postData =
             Nothing -> pure NoWithdrawal
             Just pd -> shelleyOnlyMkWithdrawal @s @k @n @'CredFromKeyK
                 netLayer txLayer db era pd
-        (wallet, _, _) <- liftHandler
-            $ withExceptT ErrCreateMigrationPlanNoSuchWallet
-            $ W.readWallet wrk wid
-        plan <- liftHandler $ W.createMigrationPlan wrk era wid rewardWithdrawal
+        (wallet, _, _) <- handler $ W.readWallet wrk
+        plan <- handler $ W.createMigrationPlan wrk era rewardWithdrawal
         liftHandler
             $ failWith ErrCreateMigrationPlanEmpty
             $ mkApiWalletMigrationPlan
@@ -3896,7 +3882,7 @@ migrateWallet ctx@ApiLayer{..} withdrawalType (ApiT wid) postData = do
             Nothing -> pure NoWithdrawal
             Just pd -> shelleyOnlyMkWithdrawal @s @k @n
                 netLayer txLayer db era pd
-        plan <- liftHandler $ W.createMigrationPlan wrk era wid rewardWithdrawal
+        plan <- handler $ W.createMigrationPlan wrk era rewardWithdrawal
         ttl <- liftIO $ W.transactionExpirySlot ti Nothing
         pp <- liftIO $ NW.currentProtocolParameters netLayer
         selectionWithdrawals <- liftHandler

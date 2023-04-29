@@ -333,17 +333,17 @@ mPutWalletMeta meta = alterModelNoTxs $ \wal -> ((), wal { metadata = meta })
 
 mReadWalletMeta
     :: TimeInterpreter Identity
-    -> ModelOp wid s xprv (Maybe (WalletMetadata, WalletDelegation))
+    -> ModelOp wid s xprv (WalletMetadata, WalletDelegation)
 mReadWalletMeta ti db@(Database _ wallet _) = (Right (mkMetadata wallet), db)
   where
     epochOf' = runIdentity . interpretQuery ti . epochOf
     mkMetadata
         :: WalletDatabase s xprv
-        -> Maybe (WalletMetadata, WalletDelegation)
-    mkMetadata WalletDatabase{checkpoints,certificates,metadata} = do
-        (slot, _) <- Map.lookupMax checkpoints
-        let currentEpoch = epochOf' slot
-        pure (metadata, readWalletDelegation certificates currentEpoch)
+        -> (WalletMetadata, WalletDelegation)
+    mkMetadata WalletDatabase{checkpoints,certificates,metadata} = let
+        (slot, _) = Map.findMax checkpoints
+        currentEpoch = epochOf' slot
+        in (metadata, readWalletDelegation certificates currentEpoch)
 
     readWalletDelegation :: Map SlotNo (Maybe PoolId) -> EpochNo -> WalletDelegation
     readWalletDelegation certificates currentEpoch

@@ -49,7 +49,6 @@ import Cardano.Wallet
     , ErrConstructTx (..)
     , ErrCreateMigrationPlan (..)
     , ErrCreateRandomAddress (..)
-    , ErrDecodeTx (..)
     , ErrDerivePublicKey (..)
     , ErrFetchRewards (..)
     , ErrGetPolicyId (..)
@@ -58,7 +57,6 @@ import Cardano.Wallet
     , ErrImportRandomAddress (..)
     , ErrInvalidDerivationIndex (..)
     , ErrListTransactions (..)
-    , ErrListUTxOStatistics (..)
     , ErrMkTransaction (..)
     , ErrNoSuchTransaction (..)
     , ErrNoSuchWallet (..)
@@ -214,7 +212,6 @@ instance IsServerError WalletException where
         ExceptionAddCosignerKey e -> toServerError e
         ExceptionConstructSharedWallet e -> toServerError e
         ExceptionReadAccountPublicKey e -> toServerError e
-        ExceptionListUTxOStatistics e -> toServerError e
         ExceptionSignPayment e -> toServerError e
         ExceptionBalanceTx e -> toServerError e
         ExceptionBalanceTxInternalError e -> toServerError e
@@ -222,7 +219,6 @@ instance IsServerError WalletException where
         ExceptionConstructTx e -> toServerError e
         ExceptionGetPolicyId e -> toServerError e
         ExceptionWitnessTx e -> toServerError e
-        ExceptionDecodeTx e -> toServerError e
         ExceptionSubmitTx e -> toServerError e
         ExceptionUpdatePassphrase e -> toServerError e
         ExceptionWithRootKey e -> toServerError e
@@ -308,10 +304,6 @@ instance IsServerError ErrWithRootKey where
                 , toText s <> " scheme used by the given wallet: "
                 , toText wid
                 ]
-
-instance IsServerError ErrListUTxOStatistics where
-    toServerError = \case
-        ErrListUTxOStatisticsNoSuchWallet e -> toServerError e
 
 instance IsServerError ErrSignPayment where
     toServerError = \case
@@ -470,13 +462,6 @@ instance IsServerError ErrGetPolicyId where
             , "from cosigner#0."
             ]
 
-instance IsServerError ErrDecodeTx where
-    toServerError = \case
-        ErrDecodeTxNoSuchWallet e -> (toServerError e)
-            { errHTTPCode = 404
-            , errReasonPhrase = errReasonPhrase err404
-            }
-
 instance IsServerError ErrBalanceTx where
     toServerError = \case
         ErrOldEraNotSupported (Cardano.AnyCardanoEra era) ->
@@ -592,10 +577,6 @@ instance IsServerError ErrPostTx where
 
 instance IsServerError ErrSubmitTransaction where
     toServerError = \case
-        ErrSubmitTransactionNoSuchWallet e -> (toServerError e)
-            { errHTTPCode = 404
-            , errReasonPhrase = errReasonPhrase err404
-            }
         ErrSubmitTransactionForeignWallet ->
             apiError err403 ForeignTransaction $ mconcat
                 [ "The transaction to be submitted is foreign to the current wallet "
@@ -965,8 +946,7 @@ instance IsServerError ErrCreateMigrationPlan where
                 , "any of the funds to be migrated. Try adding some ada to "
                 , "your wallet before trying again."
                 ]
-        ErrCreateMigrationPlanNoSuchWallet e -> toServerError e
-
+                
 instance IsServerError ErrSelectAssets where
     toServerError = \case
         ErrSelectAssetsPrepareOutputsError e -> toServerError e
