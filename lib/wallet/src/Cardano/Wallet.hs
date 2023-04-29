@@ -2462,15 +2462,7 @@ runLocalTxSubmissionPool cfg ctx = db & \DBLayer{..} -> do
         forM_ (filter (isScheduled sp sl) pendingOldStyle) $ \st -> do
             _ <- runExceptT $ traceResult (trRetry (st ^. #txId)) $
                 postTx nw (st ^. #submittedTx )
-            atomically $ do
-                result <- runExceptT $ resubmitTx
-                    (st ^. #txId)
-                    (st ^. #submittedTx)
-                    sl
-                case result of
-                    Left _  -> error
-                        "runLocalTxSubmissionPool: wallet not found"
-                    Right () -> pure ()
+            atomically $ resubmitTx (st ^. #txId) (st ^. #submittedTx) sl
     watchNodeTip nw submitPending
   where
     nw = ctx ^. networkLayer @m

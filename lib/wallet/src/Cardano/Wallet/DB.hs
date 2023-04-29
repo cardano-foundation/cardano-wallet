@@ -318,7 +318,7 @@ data DBLayer m s k = forall stm. (MonadIO stm, MonadFail stm) => DBLayer
         :: Hash "Tx"
         -> SealedTx -- TODO: ADP-2596 really not needed
         -> SlotNo
-        -> ExceptT ErrWalletNotInitialized stm ()
+        -> stm ()
         -- ^ Resubmit a transaction.
 
     , readLocalTxSubmissionPending
@@ -571,7 +571,8 @@ mkDBLayerFromParts ti wid_ wrapNoSuchWallet DBLayerCollection{..} = DBLayer
     , readLocalTxSubmissionPending = withSubmissions wid_ [] $ \xs -> do
         pure $ filter (has $ txStatus . _InSubmission) $
             getInSubmissionTransactions xs
-    , resubmitTx = \hash _ slotNo -> updateSubmissions' wid_ mapNoSuchWallet
+    , resubmitTx = \hash _ slotNo -> abortNoSuchWallet
+            $ updateSubmissions' wid_ id
             $ Right . Sbms.resubmitTx hash slotNo
     , rollForwardTxSubmissions = \tip txs -> updateSubmissions' wid_
             mapNoSuchWallet
