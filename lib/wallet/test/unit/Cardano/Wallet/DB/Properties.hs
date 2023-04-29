@@ -69,7 +69,7 @@ import Control.Monad.IO.Class
 import Control.Monad.Trans
     ( lift )
 import Control.Monad.Trans.Except
-    ( ExceptT, mapExceptT, runExceptT )
+    ( ExceptT, runExceptT )
 import Crypto.Hash
     ( hash )
 import Data.ByteString
@@ -509,10 +509,8 @@ prop_rollbackCheckpoint test (InitialCheckpoint cp0) (MockChain chain) =
                         $ DBLayerParams cp0 meta mempty gp
                 atomically $ forM_ cps putCheckpoint
                 let tip = currentTip point
-                point' <-
-                    atomically
-                        $ unsafeRunExceptT
-                        $ rollbackTo (toSlot $ chainPointFromBlockHeader tip)
+                point' <- atomically
+                    $ rollbackTo (toSlot $ chainPointFromBlockHeader tip)
                 cp <- atomically readCheckpoint
                 pure (tip, cp, point')
             let str = pretty cp
@@ -551,10 +549,7 @@ prop_rollbackTxHistory test (InitialCheckpoint cp0) (GenTxHistory txs0) = do
                     $ bootDBLayer
                     $ DBLayerParams cp0 meta mempty gp
             atomically $ putTxHistory txs0
-            point <-
-                unsafeRunExceptT
-                    $ mapExceptT atomically
-                    $ rollbackTo (At requestedPoint)
+            point <- atomically $ rollbackTo (At requestedPoint)
             txs <-
                 atomically
                     $ fmap toTxHistory

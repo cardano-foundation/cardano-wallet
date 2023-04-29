@@ -802,8 +802,7 @@ fileModeSpec =  do
                 getAvailableBalance db `shouldReturn` 2
                 getTxsInLedger db `shouldReturn` [(Outgoing, 2), (Incoming, 4)]
 
-                atomically . void . unsafeRunExceptT $
-                    rollbackTo (At $ SlotNo 200)
+                atomically . void $ rollbackTo (At $ SlotNo 200)
                 cp <- atomically readCheckpoint
                 view #slotNo (currentTip cp) `shouldBe` (SlotNo 0)
 

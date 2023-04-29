@@ -984,8 +984,7 @@ restoreWallet
 restoreWallet ctx wid = db & \DBLayer{..} ->
     let checkpointPolicy = CP.defaultPolicy
         readChainPoints = atomically listCheckpoints
-        rollBackward =
-            throwInIO . rollbackBlocks @_ @s @k ctx wid . toSlot
+        rollBackward = rollbackBlocks @_ @s @k ctx . toSlot
         rollForward' blockdata tip = throwInIO $
             restoreBlocks @_ @s @k
                 ctx (contramap MsgWalletFollow tr) wid blockdata tip
@@ -1063,11 +1062,10 @@ rollbackBlocks
         ( HasDBLayer IO s k ctx
         )
     => ctx
-    -> WalletId
     -> Slot
-    -> ExceptT ErrNoSuchWallet IO ChainPoint
-rollbackBlocks ctx wid point = db & \DBLayer{..} -> mkNoSuchWalletError wid $ do
-    mapExceptT atomically $ rollbackTo point
+    -> IO ChainPoint
+rollbackBlocks ctx point = db & \DBLayer{..} ->
+    atomically $ rollbackTo point
   where
     db = ctx ^. dbLayer @IO @s @k
 
@@ -3343,7 +3341,7 @@ data ErrSubmitTx
     deriving (Show, Eq)
 
 -- | Errors that can occur when trying to change a wallet's passphrase.
-newtype ErrUpdatePassphrase
+data ErrUpdatePassphrase
     = ErrUpdatePassphraseWithRootKey ErrWithRootKey
     deriving (Show, Eq)
 

@@ -359,7 +359,7 @@ data DBLayer m s k = forall stm. (MonadIO stm, MonadFail stm) => DBLayer
 
     , rollbackTo
         :: Slot
-        -> ExceptT ErrWalletNotInitialized stm ChainPoint
+        -> stm ChainPoint
         -- ^ Drops all checkpoints and transaction data which
         -- have appeared after the given 'ChainPoint'.
         --
@@ -456,7 +456,7 @@ data DBLayerCollection stm m s k = DBLayerCollection
     -- and distributed the smaller layer parts as well.
     , rollbackTo_
         :: Slot
-        -> ExceptT ErrWalletNotInitialized stm ChainPoint
+        -> stm ChainPoint
     , prune_
         :: Quantity "block" Word32
         -> SlotNo

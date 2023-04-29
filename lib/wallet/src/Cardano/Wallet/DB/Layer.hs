@@ -150,7 +150,7 @@ import Control.DeepSeq
 import Control.Exception
     ( evaluate, throw )
 import Control.Monad
-    ( forM, unless, (>=>) )
+    ( forM, join, unless, (>=>) )
 import Control.Monad.IO.Class
     ( MonadIO (..) )
 import Control.Monad.Trans
@@ -669,7 +669,7 @@ newDBFreshFromDBOpen ti wid_ DBOpen{atomically=runQuery} = mdo
 
     let rollbackTo_ requestedPoint = do
             mNearestCheckpoint <-
-                ExceptT $ modifyDBMaybe walletsDB $ \ws ->
+                modifyDBMaybe walletsDB $ \ws ->
                     case Map.lookup wid_ ws of
                         Nothing  ->
                             ( Nothing
@@ -696,9 +696,9 @@ newDBFreshFromDBOpen ti wid_ DBOpen{atomically=runQuery} = mdo
                                         (wal ^. #checkpoints . #checkpoints)
                                 )
 
-            case mNearestCheckpoint of
-                Nothing  -> ExceptT $ pure $ Left ErrWalletNotInitialized
-                Just wcp -> lift $ do
+            case join mNearestCheckpoint of
+                Nothing  -> abortOnNoSuchWallet
+                Just wcp -> do
                     let nearestPoint = wcp ^. #currentTip . #slotNo
                     deleteDelegationCertificates wid_
                         [ CertSlot >. nearestPoint
@@ -752,6 +752,10 @@ newDBFreshFromDBOpen ti wid_ DBOpen{atomically=runQuery} = mdo
     let atomically_ = runQuery
 
     pure $ mkDBFreshFromParts ti wid_ dbWallets DBLayerCollection{..}
+
+-- TODO: remove on ADP-3003
+abortOnNoSuchWallet :: a
+abortOnNoSuchWallet = error "abortOnNoSuchWallet: not found"
 
 mkDecorator
     :: QueryStoreTxWalletsHistory

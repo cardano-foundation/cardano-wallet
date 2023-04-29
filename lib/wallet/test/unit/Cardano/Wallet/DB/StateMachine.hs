@@ -56,8 +56,6 @@ import Cardano.Address.Script
     ( ScriptTemplate (..) )
 import Cardano.Pool.Types
     ( PoolId (..) )
-import Cardano.Wallet
-    ( mkNoSuchWalletError )
 import Cardano.Wallet.Address.Book
     ( AddressBookIso )
 import Cardano.Wallet.Address.Derivation
@@ -89,11 +87,9 @@ import Cardano.Wallet.Address.Discovery.Shared
     , SharedState (..)
     )
 import Cardano.Wallet.DB
-    ( DBLayer (..), DBLayerParams (..), ErrWalletNotInitialized )
+    ( DBLayer (..), DBLayerParams (..) )
 import Cardano.Wallet.DB.Arbitrary
     ( GenState, GenTxHistory (..), InitialCheckpoint (..) )
-import Cardano.Wallet.DB.Errors
-    ( ErrNoSuchWallet (..) )
 import Cardano.Wallet.DB.Pure.Implementation
     ( Database (..)
     , Err (..)
@@ -189,16 +185,12 @@ import Control.Foldl
     ( Fold (..) )
 import Control.Monad
     ( forM_, replicateM, void, when )
-import Control.Monad.Except
-    ( ExceptT )
 import Control.Monad.IO.Unlift
     ( MonadIO )
-import Control.Monad.Trans.Except
-    ( mapExceptT, runExceptT )
 import Crypto.Hash
     ( Blake2b_160, Digest, digestFromByteString, hash )
 import Data.Bifunctor
-    ( bimap, first )
+    ( first )
 import Data.ByteString
     ( ByteString )
 import Data.Foldable
@@ -456,12 +448,6 @@ runIO
 runIO DBLayer{..} = fmap Resp . go
   where
     wid = walletId_
-    runDB
-        :: Functor stm
-        => (stm (Either ErrNoSuchWallet a) -> m (Either ErrNoSuchWallet a))
-        -> ExceptT ErrWalletNotInitialized stm a
-        -> ExceptT ErrNoSuchWallet m a
-    runDB atomically' = mapExceptT atomically' . mkNoSuchWalletError wid
 
     runDBSuccess
       :: (stm a -> m a)
@@ -506,13 +492,8 @@ runIO DBLayer{..} = fmap Resp . go
             putDelegationRewardBalance amt
         ReadDelegationRewardBalance -> Right . DelegationRewardBalance <$>
             atomically readDelegationRewardBalance
-        RollbackTo _wid sl -> catchNoSuchWallet Point $
-            runDB atomically $ rollbackTo sl
-    catchNoSuchWallet f =
-        fmap (bimap errNoSuchWallet f) . runExceptT
+        RollbackTo _wid sl -> runDBSuccess atomically Point $ rollbackTo sl
 
-    errNoSuchWallet :: ErrNoSuchWallet -> Err
-    errNoSuchWallet (ErrNoSuchWallet _wid) = WalletNotInitialized
 
 {-------------------------------------------------------------------------------
   Working with references

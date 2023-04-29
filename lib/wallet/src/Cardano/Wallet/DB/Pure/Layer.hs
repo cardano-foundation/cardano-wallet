@@ -22,7 +22,6 @@ import Cardano.Wallet.DB
     ( DBFresh (..)
     , DBLayer (..)
     , ErrWalletAlreadyInitialized (ErrWalletAlreadyInitialized)
-    , ErrWalletNotInitialized (..)
     )
 import Cardano.Wallet.DB.Pure.Implementation
     ( Database
@@ -54,11 +53,11 @@ import Cardano.Wallet.Primitive.Types.Coin
 import Cardano.Wallet.Primitive.Types.Tx
     ( TransactionInfo (..) )
 import Control.Monad
-    ( join, unless, void )
+    ( join, unless )
 import Control.Monad.IO.Unlift
     ( MonadIO (..), MonadUnliftIO (..) )
 import Control.Monad.Trans.Except
-    ( ExceptT (..), throwE )
+    ( throwE )
 import Data.Functor.Identity
     ( Identity (..) )
 import Data.Maybe
@@ -113,8 +112,7 @@ newDBFresh timeInterpreter wid = do
 
         , listCheckpoints = fromMaybe [] <$> readDBMaybe db mListCheckpoints
 
-        , rollbackTo = ExceptT
-            . alterDB errWalletNotInitialized db
+        , rollbackTo = noErrorAlterDB db
             . mRollbackTo
 
         , prune = \_ _ -> error "MVar.prune: not implemented"
@@ -245,8 +243,12 @@ noErrorAlterDB
     :: MonadUnliftIO m
     => MVar (Database WalletId s xprv)
     -> ModelOp WalletId s xprv a
-    -> m ()
-noErrorAlterDB db op = void $ alterDB (const Nothing) db op
+    -> m a
+noErrorAlterDB db op = do
+    r <- alterDB (const Nothing) db op
+    case r of
+        Left e -> throwIO $ MVarDBError e
+        Right a -> pure a
 
 throwErrorReadDB
     :: MonadUnliftIO m
@@ -268,9 +270,6 @@ readDB
     -- ^ Operation to run on the database
     -> m (Either Err a)
 readDB = alterDB Just -- >>= either (throwIO . MVarDBError) pure
-
-errWalletNotInitialized :: Err -> Maybe ErrWalletNotInitialized
-errWalletNotInitialized _ = Just ErrWalletNotInitialized
 
 -- | Error which happens when model returns an unexpected value.
 newtype MVarDBError = MVarDBError Err
