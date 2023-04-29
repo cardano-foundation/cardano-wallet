@@ -170,7 +170,6 @@ import Cardano.Tx.Balance.Internal.CoinSelection
 import Cardano.Wallet
     ( BuiltTx (..)
     , DelegationFee (feePercentiles)
-    , ErrCheckWalletIntegrity (..)
     , ErrConstructSharedWallet (..)
     , ErrConstructTx (..)
     , ErrCreateMigrationPlan (..)
@@ -4713,10 +4712,9 @@ startWalletWorker ctx coworker = void . registerWorker ctx before coworker
         case edb of
             Left _ ->
                 throwIO
-                    $ ErrCheckWalletIntegrityNoSuchWallet
                     $ ErrNoSuchWallet wid
             Right db -> do
-                W.checkWalletIntegrity db wid gp
+                W.checkWalletIntegrity db gp
                 pure db
     (_, NetworkParameters gp _ _) = ctx ^. genesisData
 
