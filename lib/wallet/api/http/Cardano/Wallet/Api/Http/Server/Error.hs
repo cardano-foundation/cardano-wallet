@@ -652,7 +652,6 @@ instance IsServerError ErrNoSuchTransaction where
 
 instance IsServerError ErrStakePoolDelegation where
     toServerError = \case
-        ErrStakePoolDelegationNoSuchWallet e -> toServerError e
         ErrStakePoolJoin e -> toServerError e
         ErrStakePoolQuit e -> toServerError e
 
@@ -946,7 +945,7 @@ instance IsServerError ErrCreateMigrationPlan where
                 , "any of the funds to be migrated. Try adding some ada to "
                 , "your wallet before trying again."
                 ]
-                
+
 instance IsServerError ErrSelectAssets where
     toServerError = \case
         ErrSelectAssetsPrepareOutputsError e -> toServerError e

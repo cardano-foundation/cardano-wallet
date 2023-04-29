@@ -497,7 +497,7 @@ import Control.Arrow
 import Control.DeepSeq
     ( NFData )
 import Control.Monad
-    ( forM, forM_, replicateM, unless, when, (<=<), (>=>) )
+    ( forM, forM_, replicateM, unless, when, (<=<) )
 import Control.Monad.Class.MonadTime
     ( DiffTime
     , MonadMonotonicTime (..)
@@ -2751,14 +2751,10 @@ delegationFee db@DBLayer{..} netLayer txLayer timeTranslation era
             -- previously, and the difference should be negligible.
             (PreSelection [])
         deposit <- liftIO
-            $ throwInIO . mkNoSuchWalletError walletId
-            $ mapExceptT atomically isStakeKeyRegistered <&> \case
+            $ atomically isStakeKeyRegistered <&> \case
                 False -> stakeKeyDeposit (Write.pparamsWallet protocolParams)
                 True -> Coin 0
         pure DelegationFee { feePercentiles, deposit }
-  where
-    throwInIO :: ExceptT ErrNoSuchWallet IO a -> IO a
-    throwInIO = runExceptT >=> either (throwIO . ExceptionNoSuchWallet) pure
 
 transactionFee
     :: forall s k n era
@@ -3427,8 +3423,7 @@ data ErrCreateMigrationPlan
     deriving (Generic, Eq, Show)
 
 data ErrStakePoolDelegation
-    = ErrStakePoolDelegationNoSuchWallet ErrNoSuchWallet
-    | ErrStakePoolJoin ErrCannotJoin
+    = ErrStakePoolJoin ErrCannotJoin
     | ErrStakePoolQuit ErrCannotQuit
     deriving (Show)
 

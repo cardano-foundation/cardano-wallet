@@ -1854,7 +1854,6 @@ selectCoinsForJoin ctx@ApiLayer{..}
             pools
             poolId
             poolStatus
-            walletId
         let changeAddrGen = W.defaultChangeAddressGen (delegationAddressS @n)
                 (Proxy @k)
 
@@ -2482,7 +2481,7 @@ constructTransaction api argGenChange knownPools poolStatus apiWalletId body = d
             forM delegationRequest $
                 WD.handleDelegationRequest
                     trWorker db epoch knownPools
-                    poolStatus walletId withdrawal
+                    poolStatus withdrawal
 
         let transactionCtx1 =
                 case optionalDelegationAction of
@@ -2891,7 +2890,7 @@ constructSharedTransaction
             forM delegationRequest $
                 WD.handleDelegationRequest
                     trWorker db epoch knownPools
-                    getPoolStatus wid NoWithdrawal
+                    getPoolStatus NoWithdrawal
 
         let txCtx = defaultTransactionCtx
                 { txWithdrawal = NoWithdrawal
@@ -3565,7 +3564,6 @@ joinStakePool
                     pools
                     poolId
                     poolStatus
-                    walletId
 
         pp <- liftIO $ NW.currentProtocolParameters netLayer
         mkApiTransaction ti wrk #pendingSince

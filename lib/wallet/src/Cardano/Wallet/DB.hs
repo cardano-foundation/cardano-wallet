@@ -253,8 +253,7 @@ data DBLayer m s k = forall stm. (MonadIO stm, MonadFail stm) => DBLayer
     , readWalletMeta :: stm (WalletMetadata, WalletDelegation)
         -- ^ Fetch a wallet metadata, if they exist.
 
-    , isStakeKeyRegistered
-        :: ExceptT ErrWalletNotInitialized stm Bool
+    , isStakeKeyRegistered :: stm Bool
 
     , putDelegationCertificate
         :: DelegationCertificate
@@ -529,8 +528,7 @@ mkDBLayerFromParts ti wid_ wrapNoSuchWallet DBLayerCollection{..} = DBLayer
                 del <- readDelegation_ dbDelegation currentEpoch
                 wm <- readWalletMeta_ dbWalletMeta
                 pure (wm, del)
-    , isStakeKeyRegistered = wrapNoSuchWallet $
-        isStakeKeyRegistered_ dbDelegation
+    , isStakeKeyRegistered = isStakeKeyRegistered_ dbDelegation
     , putDelegationCertificate = \a b -> wrapNoSuchWallet $
         putDelegationCertificate_ dbDelegation a b
     , putDelegationRewardBalance = \a -> wrapNoSuchWallet $

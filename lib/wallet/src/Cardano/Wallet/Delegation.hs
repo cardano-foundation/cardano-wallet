@@ -34,7 +34,6 @@ import Cardano.Wallet
     , WalletException (..)
     , WalletLog (..)
     , fetchRewardBalance
-    , mkNoSuchWalletError
     , readRewardAccount
     , transactionExpirySlot
     )
@@ -49,11 +48,7 @@ import Cardano.Wallet.Network
 import Cardano.Wallet.Primitive.Slotting
     ( PastHorizonException, TimeInterpreter )
 import Cardano.Wallet.Primitive.Types
-    ( IsDelegatingTo (..)
-    , PoolLifeCycleStatus
-    , WalletDelegation (..)
-    , WalletId (..)
-    )
+    ( IsDelegatingTo (..), PoolLifeCycleStatus, WalletDelegation (..) )
 import Cardano.Wallet.Primitive.Types.Coin
     ( Coin (..) )
 import Cardano.Wallet.Transaction
@@ -72,7 +67,7 @@ import Control.Exception
 import Control.Monad
     ( forM_, unless, when, (>=>) )
 import Control.Monad.Except
-    ( ExceptT, lift, runExceptT )
+    ( ExceptT, runExceptT )
 import Control.Monad.IO.Class
     ( MonadIO (..) )
 import Control.Monad.Trans.Except
@@ -103,17 +98,16 @@ handleDelegationRequest
     -> W.EpochNo
     -> IO (Set PoolId)
     -> (PoolId -> IO PoolLifeCycleStatus)
-    -> WalletId
     -> Withdrawal
     -> DelegationRequest
     -> ExceptT ErrStakePoolDelegation IO Tx.DelegationAction
 handleDelegationRequest
-    tr db currEpoch getKnownPools getPoolStatus walletId withdrawal = \case
+    tr db currEpoch getKnownPools getPoolStatus withdrawal = \case
     Join poolId -> liftIO $ do
         poolStatus <- getPoolStatus poolId
         pools <- getKnownPools
         joinStakePoolDelegationAction
-            tr db currEpoch pools poolId poolStatus walletId
+            tr db currEpoch pools poolId poolStatus
     Quit -> liftIO $ quitStakePoolDelegationAction db withdrawal
 
 joinStakePoolDelegationAction
@@ -123,14 +117,13 @@ joinStakePoolDelegationAction
     -> Set PoolId
     -> PoolId
     -> PoolLifeCycleStatus
-    -> WalletId
     -> IO Tx.DelegationAction
 joinStakePoolDelegationAction
-    tr DBLayer{..} currentEpoch knownPools poolId poolStatus wid = do
+    tr DBLayer{..} currentEpoch knownPools poolId poolStatus = do
     (walletDelegation, stakeKeyIsRegistered) <-
-        atomically . throwInIO ErrStakePoolDelegationNoSuchWallet $
-            (,) <$> lift (snd <$> readWalletMeta)
-                <*> mkNoSuchWalletError wid isStakeKeyRegistered
+        atomically $
+            (,) <$> (snd <$> readWalletMeta)
+                <*> isStakeKeyRegistered
 
     let retirementInfo =
             PoolRetirementEpochInfo currentEpoch . view #retirementEpoch <$>
@@ -160,9 +153,8 @@ joinStakePool
     -> Set PoolId
     -> PoolId
     -> PoolLifeCycleStatus
-    -> WalletId
     -> IO TransactionCtx
-joinStakePool tr ti db curEpoch pools poolId poolStatus walletId = do
+joinStakePool tr ti db curEpoch pools poolId poolStatus = do
     action <- joinStakePoolDelegationAction
         tr
         db
@@ -170,7 +162,6 @@ joinStakePool tr ti db curEpoch pools poolId poolStatus walletId = do
         pools
         poolId
         poolStatus
-        walletId
     ttl <- transactionExpirySlot ti Nothing
     pure defaultTransactionCtx
         { txWithdrawal = NoWithdrawal

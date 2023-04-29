@@ -135,8 +135,7 @@ newDBFresh timeInterpreter wid = do
             alterDB errWalletNotInitialized db $
             mPutDelegationCertificate cert sl
 
-        , isStakeKeyRegistered =
-            ExceptT . alterDB errWalletNotInitialized db $ mIsStakeKeyRegistered
+        , isStakeKeyRegistered = throwErrorReadDB db mIsStakeKeyRegistered
 
         {-----------------------------------------------------------------------
                                      Tx History
