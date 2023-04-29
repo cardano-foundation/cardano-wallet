@@ -1176,7 +1176,7 @@ restoreBlocks ctx tr wid blocks nodeTip = db & \DBLayer{..} ->
         forM_ mcbor $ \cbor -> do
             traceWith tr $ MsgStoringCBOR cbor
 
-    mkNoSuchWalletError wid $ putTxHistory txs
+    lift $ putTxHistory txs
 
     mkNoSuchWalletError wid
         $ rollForwardTxSubmissions (localTip ^. #slotNo)
@@ -1354,15 +1354,14 @@ manageRewardBalance
      . Tracer IO WalletWorkerLog
     -> NetworkLayer IO block
     -> DBLayer IO (SeqState n ShelleyKey) ShelleyKey
-    -> WalletId
     -> IO ()
-manageRewardBalance tr' netLayer db wid = do
+manageRewardBalance tr' netLayer db = do
     watchNodeTip netLayer $ \bh -> do
          traceWith tr $ MsgRewardBalanceQuery bh
          query <- do
             (acct, _, _) <- readRewardAccount db
             liftIO $ getCachedRewardAccountBalance netLayer acct
-         handleRewardAccountQuery tr wid db $ Right query
+         handleRewardAccountQuery tr db $ Right query
     traceWith tr MsgRewardBalanceExited
   where
     tr = contramap MsgWallet tr'
@@ -1370,11 +1369,10 @@ manageRewardBalance tr' netLayer db wid = do
 handleRewardAccountQuery
     :: Monad m
     => Tracer m WalletLog
-    -> WalletId
     -> DBLayer m s k
     -> Either ErrFetchRewards Coin
     -> m ()
-handleRewardAccountQuery tr wid DBLayer{..} query = do
+handleRewardAccountQuery tr DBLayer{..} query = do
     traceWith tr $ MsgRewardBalanceResult query
     case query of
        Right amt -> atomically $ putDelegationRewardBalance amt
@@ -1391,9 +1389,8 @@ manageSharedRewardBalance
      . Tracer IO WalletWorkerLog
     -> NetworkLayer IO block
     -> DBLayer IO (SharedState n SharedKey) SharedKey
-    -> WalletId
     -> IO ()
-manageSharedRewardBalance tr' netLayer db wid = do
+manageSharedRewardBalance tr' netLayer db = do
     watchNodeTip netLayer $ \bh -> do
          traceWith tr $ MsgRewardBalanceQuery bh
          query <- runExceptT $ do
@@ -1402,7 +1399,7 @@ manageSharedRewardBalance tr' netLayer db wid = do
                 Nothing -> throwE ErrFetchRewardsMissingRewardAccount
                 Just acct ->
                     liftIO $ getCachedRewardAccountBalance netLayer (fst acct)
-         handleRewardAccountQuery tr wid db query
+         handleRewardAccountQuery tr db query
     traceWith tr MsgRewardBalanceExited
   where
     tr = contramap MsgWallet tr'

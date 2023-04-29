@@ -141,8 +141,6 @@ import Control.DeepSeq
     ( NFData (..), force )
 import Control.Monad
     ( join )
-import Control.Monad.Trans.Except
-    ( mapExceptT )
 import Criterion.Main
     ( Benchmark
     , Benchmarkable
@@ -511,7 +509,7 @@ benchPutTxHistory
     -> IO ()
 benchPutTxHistory numTxs numInputs numOutputs numAssets range DBLayer{..} = do
     let txs = mkTxHistory numTxs numInputs numOutputs numAssets range
-    unsafeRunExceptT $ mapExceptT atomically $ putTxHistory txs
+    atomically $ putTxHistory txs
 
 benchReadTxHistory
     :: SortOrder
@@ -618,7 +616,7 @@ txHistoryFixture  bSize nAssets range dbf = do
     db@DBLayer{..} <- walletFixture dbf
     let (nInps, nOuts) = (20, 20)
     let txs = mkTxHistory bSize nInps nOuts nAssets range
-    atomically $ unsafeRunExceptT $ putTxHistory txs
+    atomically $ putTxHistory txs
     pure db
 
 walletFixture :: DBFreshBench -> IO DBLayerBench

@@ -478,7 +478,7 @@ walletListTransactionsSorted wallet@(_, _, _) _order (_mstart, _mend) =
     forAll (logScale' 1.5 arbitrary) $ \history ->
     monadicIO $ liftIO $ do
         WalletLayerFixture _ DBLayer{..} wl _ <- setupFixture wallet
-        atomically $ unsafeRunExceptT $ putTxHistory history
+        atomically $ putTxHistory history
         txs <- unsafeRunExceptT $
             W.listTransactions @_ @_ @_ wl Nothing Nothing Nothing
                 Descending Nothing
@@ -522,7 +522,7 @@ walletListTransactionsWithLimit wallet@(_, _, _) =
         limitNatural = fromIntegral limit
         test start stop order dir cut = liftIO @(PropertyM IO) $ do
             WalletLayerFixture _ DBLayer{..} wl _ <- setupFixture wallet
-            atomically $ unsafeRunExceptT $ putTxHistory history'
+            atomically $ putTxHistory history'
             txs <- unsafeRunExceptT $
                 W.listTransactions @_ @_ @_ wl Nothing start stop order
                     $ Just limitNatural
@@ -597,7 +597,7 @@ walletListsOnlyRelatedAssets txId txMeta =
     forAll genOuts $ \(out1, out2, wallet) -> monadicIO $ do
         WalletLayerFixture _ DBLayer{..} wl _ <- liftIO $ setupFixture wallet
         let listHistoricalAssets hry = do
-                liftIO . atomically . unsafeRunExceptT $ putTxHistory hry
+                liftIO . atomically $ putTxHistory hry
                 liftIO $ W.listAssets wl
         let tx = Tx
                 { txId

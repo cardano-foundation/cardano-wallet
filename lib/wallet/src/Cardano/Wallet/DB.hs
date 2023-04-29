@@ -283,15 +283,11 @@ data DBLayer m s k = forall stm. (MonadIO stm, MonadFail stm) => DBLayer
         -- Returns zero if the wallet isn't found or if wallet hasn't delegated
         -- stake.
 
-    , putTxHistory
-        :: [(Tx, TxMeta)]
-        -> ExceptT ErrWalletNotInitialized stm ()
+    , putTxHistory :: [(Tx, TxMeta)] -> stm ()
         -- ^ Augments the transaction history for a known wallet.
         --
         -- If an entry for a particular transaction already exists it is not
         -- altered nor merged (just ignored).
-        --
-        -- If the wallet doesn't exist, this operation returns an error.
 
     , readTransactions
         :: Maybe Coin
@@ -530,8 +526,7 @@ mkDBLayerFromParts ti wid_ wrapNoSuchWallet DBLayerCollection{..} = DBLayer
     , putDelegationCertificate = putDelegationCertificate_ dbDelegation
     , putDelegationRewardBalance = putDelegationRewardBalance_ dbDelegation
     , readDelegationRewardBalance = readDelegationRewardBalance_ dbDelegation
-    , putTxHistory = \a -> wrapNoSuchWallet $
-        putTxHistory_ dbTxHistory a
+    , putTxHistory = putTxHistory_ dbTxHistory
     , readTransactions = \minWithdrawal order range status limit ->
         readCurrentTip >>= \tip -> do
                 inLedgers <- if status `elem` [Nothing, Just WTxMeta.InLedger]

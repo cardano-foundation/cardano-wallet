@@ -32,7 +32,7 @@ import Cardano.Wallet.DB
     , DBLayer (..)
     , DBLayerParams (..)
     , ErrWalletAlreadyInitialized (ErrWalletAlreadyInitialized)
-    , ErrWalletNotInitialized (ErrWalletNotInitialized)
+    , ErrWalletNotInitialized
     )
 import Cardano.Wallet.DB.Arbitrary
     ( GenState, GenTxHistory (..), InitialCheckpoint (..), MockChain (..) )
@@ -69,7 +69,7 @@ import Control.Monad.IO.Class
 import Control.Monad.Trans
     ( lift )
 import Control.Monad.Trans.Except
-    ( ExceptT, mapExceptT, runExceptT, withExceptT )
+    ( ExceptT, mapExceptT, runExceptT )
 import Crypto.Hash
     ( hash )
 import Data.ByteString
@@ -169,7 +169,7 @@ properties withFreshDB = describe "DB.Properties" $ do
             $ property
             $ prop_readAfterPut
                 testOnLayer
-                (\db _ -> putTxHistory_ db)
+                (\db _ -> lift . putTxHistory_ db)
                 (\db _ -> readTxHistory_ db)
         it "Private Key"
             $ property
@@ -207,7 +207,7 @@ properties withFreshDB = describe "DB.Properties" $ do
             $ property
             $ prop_isolation
                 testOnLayer
-                (\db _ -> putTxHistory_ db)
+                (\db _ -> lift . putTxHistory_ db)
                 (\DBLayer{..} _ -> atomically readCheckpoint)
                 (\DBLayer{..} _ -> atomically readWalletMeta)
                 (\DBLayer{..} _wid -> atomically readPrivateKey)
@@ -234,7 +234,7 @@ properties withFreshDB = describe "DB.Properties" $ do
             $ checkCoverage
             $ prop_sequentialPut
                 testOnLayer
-                (\db _ -> putTxHistory_ db)
+                (\db _ -> lift . putTxHistory_ db)
                 (\db _ -> readTxHistory_ db)
                 ( let sort' =
                         GenTxHistory
@@ -269,15 +269,10 @@ readTxHistory_ DBLayer {..} =
             (readTransactions Nothing Descending wholeRange Nothing Nothing)
 
 putTxHistory_
-    :: Functor m
-    => DBLayer m s ShelleyKey
+    :: DBLayer m s ShelleyKey
     -> GenTxHistory
-    -> ExceptT ErrWalletNotInitialized m ()
-putTxHistory_ DBLayer {..} =
-    withExceptT (const ErrWalletNotInitialized)
-        . mapExceptT atomically
-        . putTxHistory
-        . unGenTxHistory
+    -> m ()
+putTxHistory_ DBLayer {..} = atomically . putTxHistory . unGenTxHistory
 
 {-------------------------------------------------------------------------------
                                        Utils
@@ -370,7 +365,7 @@ prop_getTxAfterPutValidTxId
     -> Property
 prop_getTxAfterPutValidTxId test txGen = test $ \DBLayer {..} _ -> do
     let txs = unGenTxHistory txGen
-    run $ unsafeRunExceptT $ mapExceptT atomically $ putTxHistory txs
+    run $ atomically $ putTxHistory txs
     forM_ txs $ \(Tx {txId}, txMeta) -> do
         (Just (TransactionInfo {txInfoId, txInfoMeta})) <-
             run $ atomically $ unsafeRunExceptT $ getTx txId
@@ -397,7 +392,7 @@ prop_getTxAfterPutInvalidTxId
     -> Property
 prop_getTxAfterPutInvalidTxId test txGen txId' = test $ \DBLayer {..} _ -> do
     let txs = unGenTxHistory txGen
-    run $ unsafeRunExceptT $ mapExceptT atomically $ putTxHistory txs
+    run $ atomically $ putTxHistory txs
     res <- run $ atomically $ unsafeRunExceptT $ getTx txId'
     assertWith
         "Irrespective of Inserted, Read is Nothing for invalid tx id"
@@ -440,8 +435,7 @@ prop_isolation
 prop_isolation test putA readB readC readD (ShowFmt a) =
     test $ \db@DBLayer {..} wid -> do
         (GenTxHistory txs) <- pick arbitrary
-        run $ atomically $ do
-            unsafeRunExceptT $ putTxHistory txs
+        run $ atomically $ putTxHistory txs
         (b, c, d) <-
             run
                 $ (,,)
@@ -556,7 +550,7 @@ prop_rollbackTxHistory test (InitialCheckpoint cp0) (GenTxHistory txs0) = do
                 unsafeRunExceptT
                     $ bootDBLayer
                     $ DBLayerParams cp0 meta mempty gp
-            atomically $ unsafeRunExceptT $ putTxHistory txs0
+            atomically $ putTxHistory txs0
             point <-
                 unsafeRunExceptT
                     $ mapExceptT atomically

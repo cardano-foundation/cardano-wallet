@@ -545,7 +545,7 @@ fileModeSpec =  do
             withShelleyFileDBFresh f $ \DBFresh{bootDBLayer} -> do
                 DBLayer{atomically, putTxHistory} <-
                     unsafeRunExceptT $ bootDBLayer testDBLayerParams
-                atomically $ unsafeRunExceptT $ putTxHistory testTxs
+                atomically $ putTxHistory testTxs
             testReopening
                 f
                 ( \db' ->
@@ -557,7 +557,7 @@ fileModeSpec =  do
             withShelleyFileDBFresh f $ \DBFresh{bootDBLayer} -> do
                 DBLayer{atomically, putTxHistory} <-
                     unsafeRunExceptT $ bootDBLayer testDBLayerParams
-                atomically $ unsafeRunExceptT $ putTxHistory testTxs
+                atomically $ putTxHistory testTxs
             testReopening
                 f
                 ( \db' ->
@@ -598,7 +598,7 @@ fileModeSpec =  do
                             applyBlock fakeBlock cpA
                     atomically $ do
                         putCheckpoint cpB
-                        unsafeRunExceptT $ putTxHistory txs
+                        putTxHistory txs
                         unsafeRunExceptT
                             $ prune (Quantity 2_160) $ 2_160 * 3 * 20
 

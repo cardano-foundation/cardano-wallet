@@ -140,9 +140,7 @@ newDBFresh timeInterpreter wid = do
                                      Tx History
         -----------------------------------------------------------------------}
 
-        , putTxHistory = ExceptT
-            . alterDB errWalletNotInitialized db
-            . mPutTxHistory
+        , putTxHistory = noErrorAlterDB db . mPutTxHistory
 
         , readTransactions = \minWithdrawal order range mstatus _mlimit ->
             fmap (fromMaybe []) $

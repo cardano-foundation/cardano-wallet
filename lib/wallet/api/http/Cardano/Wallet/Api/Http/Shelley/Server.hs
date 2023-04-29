@@ -843,7 +843,7 @@ postWallet
 postWallet ctx generateKey liftKey (WalletOrAccountPostData body) = case body of
     Left body' -> postShelleyWallet ctx generateKey body'
     Right body' ->
-        let action workerCtx =
+        let action workerCtx _ =
                 W.manageRewardBalance
                     (workerCtx ^. typed @(Tracer IO WalletWorkerLog))
                     (workerCtx ^. networkLayer)
@@ -876,7 +876,6 @@ postShelleyWallet ctx generateKey body = do
             (workerCtx ^. typed)
             (workerCtx ^. networkLayer)
             (workerCtx ^. typed @(DBLayer IO (SeqState n ShelleyKey) k))
-            wid
         )
     withWorkerCtx @_ @s @k ctx wid liftE liftE $ \wrk -> liftHandler $
         W.attachPrivateKeyFromPwd @_ @s @k wrk wid (rootXPrv, pwd)
@@ -1075,7 +1074,6 @@ postSharedWalletFromRootXPrv ctx generateKey body = do
             (workerCtx ^. typed)
             (workerCtx ^. networkLayer)
             (workerCtx ^. typed @(DBLayer IO (SharedState n SharedKey) k))
-            wid
         )
     withWorkerCtx @_ @s @k ctx wid liftE liftE $ \wrk -> liftHandler $
         W.attachPrivateKeyFromPwd @_ @s @k wrk wid (rootXPrv, pwd)
@@ -1143,7 +1141,6 @@ postSharedWalletFromAccountXPub ctx liftKey body = do
             (workerCtx ^. typed)
             (workerCtx ^. networkLayer)
             (workerCtx ^. typed @(DBLayer IO (SharedState n SharedKey) k))
-            wid
         )
     fst <$> getWallet ctx (mkSharedWallet @_ @s @k) (ApiT wid)
   where

@@ -488,8 +488,7 @@ runIO DBLayer{..} = fmap Resp . go
             runDBSuccess atomically Unit $ putDelegationCertificate pool sl
         IsStakeKeyRegistered _wid ->
             runDBSuccess atomically StakeKeyStatus isStakeKeyRegistered
-        PutTxHistory txs -> catchNoSuchWallet Unit $
-            runDB atomically $ putTxHistory txs
+        PutTxHistory txs -> runDBSuccess atomically Unit $ putTxHistory txs
         ReadTxHistory minWith order range status ->
             fmap (Right . TxHistory) $
             atomically $
