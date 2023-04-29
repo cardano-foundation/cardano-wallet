@@ -547,7 +547,6 @@ instance IsServerError ErrBalanceTxInternalError where
 
 instance IsServerError ErrRemoveTx where
     toServerError = \case
-        ErrRemoveTxNoSuchWallet wid -> toServerError wid
         ErrRemoveTxNoSuchTransaction (ErrNoSuchTransaction tid) ->
             apiError err404 NoSuchTransaction $ mconcat
                 [ "I couldn't find a transaction with the given id: "

@@ -28,8 +28,7 @@ data ErrPutLocalTxSubmission
 
 -- | Can't remove pending or expired transaction.
 data ErrRemoveTx
-    = ErrRemoveTxNoSuchWallet ErrWalletNotInitialized
-    | ErrRemoveTxNoSuchTransaction ErrNoSuchTransaction
+    = ErrRemoveTxNoSuchTransaction ErrNoSuchTransaction
     | ErrRemoveTxAlreadyInLedger (Hash "Tx")
     deriving (Eq, Show)
 

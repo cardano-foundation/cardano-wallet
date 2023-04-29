@@ -578,7 +578,8 @@ mkDBLayerFromParts ti wid_ wrapNoSuchWallet DBLayerCollection{..} = DBLayer
             $ updateSubmissions' wid_ id
             $ \_ -> Right [Sbms.rollForwardTxSubmissions tip txs]
     , removePendingOrExpiredTx = \txid ->
-            updateSubmissions' wid_ (ErrRemoveTxNoSuchWallet . mapNoSuchWallet)
+            updateSubmissions' wid_
+                (const $ error "removePendingOrExpiredTx: no such wallet to be removed in ADP-3003")
                 $ \xs ->
                 pure <$> Sbms.removePendingOrExpiredTx xs txid
     , putPrivateKey = \a -> wrapNoSuchWallet $
@@ -596,7 +597,6 @@ mkDBLayerFromParts ti wid_ wrapNoSuchWallet DBLayerCollection{..} = DBLayer
         case mstate of
             Nothing -> pure def
             Just state -> action $ submissions state
-    mapNoSuchWallet _ = ErrWalletNotInitialized
     updateSubmissions' = updateSubmissions dbCheckpoints
     readCheckpoint' = readCheckpoint_ dbCheckpoints
     readCurrentTip :: stm BlockHeader
