@@ -1924,8 +1924,7 @@ buildSignSubmitTransaction db@DBLayer{..} netLayer txLayer pwd walletId
                             )
                         )
 
-            mkNoSuchWalletError walletId (addTxSubmission builtTx slot)
-                & throwWrappedErr wrapNoWalletForSubmit
+            addTxSubmission builtTx slot
 
             pure txWithSlot
 
@@ -1945,7 +1944,6 @@ buildSignSubmitTransaction db@DBLayer{..} netLayer txLayer pwd walletId
 
     wrapRootKeyError = ExceptionWitnessTx . ErrWitnessTxWithRootKey
     wrapNoWalletForConstruct = ExceptionConstructTx . ErrConstructTxNoSuchWallet
-    wrapNoWalletForSubmit = ExceptionSubmitTx . ErrSubmitTxNoSuchWallet
     wrapNetworkError = ExceptionSubmitTx . ErrSubmitTxNetwork
     wrapBalanceConstructError = either ExceptionBalanceTx ExceptionConstructTx
 
@@ -2356,16 +2354,12 @@ submitTx :: MonadUnliftIO m =>
     Tracer m WalletWorkerLog
     -> DBLayer m s k
     -> NetworkLayer m block
-    -> WalletId
     -> BuiltTx
     -> ExceptT ErrSubmitTx m ()
-submitTx tr DBLayer{addTxSubmission, atomically}
-    nw walletId tx@BuiltTx{..} =
+submitTx tr DBLayer{addTxSubmission, atomically} nw tx@BuiltTx{..} =
     traceResult (MsgWallet . MsgTxSubmit . MsgSubmitTx tx >$< tr) $ do
         withExceptT ErrSubmitTxNetwork $ postTx nw builtSealedTx
-        withExceptT ErrSubmitTxNoSuchWallet $
-            mapExceptT atomically $ mkNoSuchWalletError walletId $
-                addTxSubmission tx (builtTxMeta ^. #slotNo)
+        lift $ atomically $ addTxSubmission tx (builtTxMeta ^. #slotNo)
 
 -- | Broadcast an externally-signed transaction to the network.
 --
@@ -3361,7 +3355,6 @@ data ErrWitnessTx
 -- | Errors that can occur when submitting a signed transaction to the network.
 data ErrSubmitTx
     = ErrSubmitTxNetwork ErrPostTx
-    | ErrSubmitTxNoSuchWallet ErrNoSuchWallet
     | ErrSubmitTxImpossible ErrNoSuchTransaction
     deriving (Show, Eq)
 

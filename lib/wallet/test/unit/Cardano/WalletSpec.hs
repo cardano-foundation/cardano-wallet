@@ -35,7 +35,6 @@ import Cardano.Tx.Balance.Internal.CoinSelection
     )
 import Cardano.Wallet
     ( ErrSignPayment (..)
-    , ErrSubmitTx (..)
     , ErrUpdatePassphrase (..)
     , ErrWithRootKey (..)
     , LocalTxSubmissionConfig (..)
@@ -297,7 +296,6 @@ spec = describe "Cardano.WalletSpec" $ do
     describe "Pointless mockEventSource to cover 'Show' instances for errors" $ do
         let wid = WalletId (hash @ByteString "arbitrary")
         it (show $ ErrSignPaymentNoSuchWallet (ErrNoSuchWallet wid)) True
-        it (show $ ErrSubmitTxNoSuchWallet (ErrNoSuchWallet wid)) True
         it (show $ ErrUpdatePassphraseNoSuchWallet (ErrNoSuchWallet wid)) True
         it (show $ ErrWithRootKeyWrongPassphrase wid ErrWrongPassphrase) True
 
@@ -795,9 +793,9 @@ prop_localTxSubmission tc = monadicIO $ do
     st <- TxRetryTestState tc 2 <$> newMVar (Time 0)
     assert $ not $ null $ retryTestPool tc
     res <- run $ runTest st
-        $ \ctx@(TxRetryTestCtx dbl@(DBLayer{..}) nl tr _ wid) -> do
+        $ \ctx@(TxRetryTestCtx dbl@(DBLayer{..}) nl tr _ _) -> do
         unsafeRunExceptT
-            $ forM_ (retryTestPool tc) $ submitTx tr dbl nl wid
+            $ forM_ (retryTestPool tc) $ submitTx tr dbl nl
         res0 <- atomically readLocalTxSubmissionPending
         -- Run test
         let cfg = LocalTxSubmissionConfig (timeStep st) 10

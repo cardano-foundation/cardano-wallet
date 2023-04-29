@@ -103,6 +103,8 @@ import Cardano.Wallet.Submissions.TxStatus
     ( _Expired, _InSubmission )
 import Cardano.Wallet.Transaction.Built
     ( BuiltTx )
+import Cardano.Wallet.Unsafe
+    ( unsafeRunExceptT )
 import Control.Lens
     ( has )
 import Control.Monad
@@ -308,7 +310,7 @@ data DBLayer m s k = forall stm. (MonadIO stm, MonadFail stm) => DBLayer
     , addTxSubmission
         :: BuiltTx
         -> SlotNo
-        -> ExceptT ErrWalletNotInitialized stm ()
+        -> stm ()
         -- ^ Add a /new/ transaction to the local submission pool
         -- with the most recent submission slot.
 
@@ -563,8 +565,8 @@ mkDBLayerFromParts ti wid_ wrapNoSuchWallet DBLayerCollection{..} = DBLayer
                     (hoistTimeInterpreter liftIO ti)
                     (mkDecorator_ dbTxHistory) tip
                         . fmap snd
-    , addTxSubmission = \builtTx slotNo  -> updateSubmissions' wid_
-            mapNoSuchWallet
+    , addTxSubmission = \builtTx slotNo -> abortNoSuchWallet
+            $ updateSubmissions' wid_ id
             $ \_ -> Right [Sbms.addTxSubmission builtTx slotNo]
     , readLocalTxSubmissionPending = withSubmissions wid_ [] $ \xs -> do
         pure $ filter (has $ txStatus . _InSubmission) $
@@ -598,6 +600,11 @@ mkDBLayerFromParts ti wid_ wrapNoSuchWallet DBLayerCollection{..} = DBLayer
     readCheckpoint' = readCheckpoint_ dbCheckpoints
     readCurrentTip :: stm BlockHeader
     readCurrentTip = currentTip <$> readCheckpoint_ dbCheckpoints
+
+
+-- TODO: remove on ADP-3003
+abortNoSuchWallet :: (MonadFail stm, Show e) => ExceptT e stm () -> stm ()
+abortNoSuchWallet = unsafeRunExceptT
 
 -- | Update the transaction submission state of a wallet.
 updateSubmissions

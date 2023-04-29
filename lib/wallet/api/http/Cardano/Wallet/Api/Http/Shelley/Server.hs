@@ -3338,7 +3338,7 @@ submitTransaction ctx apiw@(ApiT wid) apitx = do
                 , txWithdrawal = wdrl
                 }
         txMeta <- handler $ W.constructTxMeta db txCtx ourInps ourOuts
-        liftHandler $ W.submitTx (wrk ^. logger) db nl wid
+        liftHandler $ W.submitTx (wrk ^. logger) db nl
             BuiltTx
                 { builtTx = tx
                 , builtTxMeta = txMeta
@@ -3477,7 +3477,7 @@ submitSharedTransaction ctx apiw@(ApiT wid) apitx = do
                 }
         let db = wrk ^. dbLayer
         txMeta <- handler $ W.constructTxMeta db txCtx ourInps ourOuts
-        liftHandler $ W.submitTx (wrk ^. logger) db nl wid
+        liftHandler $ W.submitTx (wrk ^. logger) db nl
             BuiltTx
                 { builtTx = tx
                 , builtTxMeta = txMeta
@@ -3900,7 +3900,7 @@ migrateWallet ctx@ApiLayer{..} withdrawalType (ApiT wid) postData = do
                     txContext
                     (selection {change = []})
 
-            liftHandler $ W.submitTx tr db netLayer wid
+            liftHandler $ W.submitTx tr db netLayer
                 BuiltTx
                     { builtTx = tx
                     , builtTxMeta = txMeta

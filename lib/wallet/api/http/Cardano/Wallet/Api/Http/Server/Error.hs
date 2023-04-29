@@ -599,10 +599,6 @@ instance IsServerError ErrSubmitTransaction where
 instance IsServerError ErrSubmitTx where
     toServerError = \case
         ErrSubmitTxNetwork e -> toServerError e
-        ErrSubmitTxNoSuchWallet e@ErrNoSuchWallet{} -> (toServerError e)
-            { errHTTPCode = 404
-            , errReasonPhrase = errReasonPhrase err404
-            }
         ErrSubmitTxImpossible e -> toServerError e
 
 instance IsServerError ErrUpdatePassphrase where
