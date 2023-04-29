@@ -60,7 +60,6 @@ module Cardano.Wallet.Shelley.Transaction
     , TxWitnessTagFor (..)
     , EraConstraints
     , _decodeSealedTx
-    , _estimateMaxNumberOfInputs
     , mkDelegationCertificates
     , calculateMinimumFee
     , estimateTxCost
@@ -112,8 +111,7 @@ import Cardano.Ledger.Shelley.API
 import Cardano.Slotting.EpochInfo
     ( EpochInfo, hoistEpochInfo )
 import Cardano.Tx.Balance.Internal.CoinSelection
-    ( SelectionLimitOf (..)
-    , SelectionOf (..)
+    ( SelectionOf (..)
     , SelectionOutputTokenQuantityExceedsLimitError (..)
     , SelectionSkeleton (..)
     , selectionDelta
@@ -265,7 +263,7 @@ import Data.Set
 import Data.Type.Equality
     ( type (==) )
 import Data.Word
-    ( Word16, Word64, Word8 )
+    ( Word64, Word8 )
 import GHC.Generics
     ( Generic )
 import Numeric.Natural
@@ -721,11 +719,6 @@ newTransactionLayer networkId = TransactionLayer
                     stakingScriptM
                     (WriteTx.shelleyBasedEraFromRecentEra WriteTx.recentEra)
 
-    , computeSelectionLimit = \era pp ctx outputsToCover ->
-        let txMaxSize = getTxMaxSize $ txParameters pp in
-        MaximumInputLimit $
-            _estimateMaxNumberOfInputs @k era txMaxSize ctx outputsToCover
-
     , tokenBundleSizeAssessor =
         Compatibility.tokenBundleSizeAssessor
 
@@ -897,64 +890,7 @@ modifyShelleyTxBody txUpdate era ledgerBody = case era of
         toLedgerCoin :: Coin -> Ledger.Coin
         toLedgerCoin (Coin c) = Ledger.Coin (intCast c)
 
--- NOTE / FIXME: This is an 'estimation' because it is actually quite hard to
--- estimate what would be the cost of a selecting a particular input. Indeed, an
--- input may contain any arbitrary assets, which has a direct impact on the
--- shape of change outputs. In practice, this should work out pretty well
--- because of other approximations done along the way which should compensate
--- for possible extra assets in inputs not counted as part of this estimation.
---
--- Worse that may happen here is the wallet generating a transaction that is
--- slightly too big, For a better user experience, we could detect that earlier
--- before submitting the transaction and return a more user-friendly error.
---
--- Or... to be even better, the 'SelectionLimit' from the RoundRobin module
--- could be a function of the 'SelectionState' already selected. With this
--- information and the shape of the requested output, we can get down to a
--- pretty accurate result.
-_estimateMaxNumberOfInputs
-    :: forall k
-     . TxWitnessTagFor k
-    => AnyCardanoEra
-    -> Quantity "byte" Word16
-     -- ^ Transaction max size in bytes
-    -> TransactionCtx
-     -- ^ An additional transaction context
-    -> [TxOut]
-     -- ^ A list of outputs being considered.
-    -> Int
-_estimateMaxNumberOfInputs era txMaxSize ctx outs =
-    fromIntegral $ findLargestUntil ((> maxSize) . txSizeGivenInputs) 0
-  where
-    -- | Find the largest amount of inputs that doesn't make the tx too big.
-    -- Tries in sequence from 0 and upward (up to 255, but smaller than 50 in
-    -- practice because of the max transaction size).
-    findLargestUntil :: (Integer -> Bool) -> Integer -> Integer
-    findLargestUntil isTxTooLarge inf
-        | inf == maxNInps        = maxNInps
-        | isTxTooLarge (inf + 1) = inf
-        | otherwise              = findLargestUntil isTxTooLarge (inf + 1)
-
-    maxSize  = toInteger (getQuantity txMaxSize)
-    maxNInps = 255 -- Arbitrary, but large enough.
-
-    txSizeGivenInputs nInps = fromIntegral size
-      where
-        TxSize size = estimateTxSize era $ mkTxSkeleton
-            (txWitnessTagFor @k) ctx sel
-        sel  = dummySkeleton (fromIntegral nInps) outs
-
-dummySkeleton :: Int -> [TxOut] -> SelectionSkeleton
-dummySkeleton inputCount outputs = SelectionSkeleton
-    { skeletonInputCount =
-        inputCount
-    , skeletonOutputs =
-        outputs
-    , skeletonChange =
-        TokenBundle.getAssets . view #tokens <$> outputs
-    }
-
--- ^ Evaluate a minimal fee amount necessary to pay for a given tx
+-- | Evaluate a minimal fee amount necessary to pay for a given tx
 -- using ledger's functionality.
 evaluateMinimumFee
     :: Cardano.IsShelleyBasedEra era
@@ -1601,7 +1537,6 @@ estimateTxCost era pp skeleton =
     computeFee (TxSize size) =
         let LinearFee LinearFunction {..} = getFeePolicy $ txParameters pp
         in Coin $ ceiling $ intercept + slope * fromIntegral size
-
 
 -- | Calculates a minimal fee amount necessary to pay for a given selection
 -- including necessary deposits.

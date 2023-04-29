@@ -1258,8 +1258,6 @@ dummyTransactionLayer = TransactionLayer
         error "dummyTransactionLayer: addVkWitnesses not implemented"
     , mkUnsignedTransaction =
         error "dummyTransactionLayer: mkUnsignedTransaction not implemented"
-    , computeSelectionLimit =
-        error "dummyTransactionLayer: computeSelectionLimit not implemented"
     , tokenBundleSizeAssessor =
         error "dummyTransactionLayer: tokenBundleSizeAssessor not implemented"
     , constraints =

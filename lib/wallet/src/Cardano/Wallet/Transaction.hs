@@ -76,7 +76,6 @@ import Cardano.Pool.Types
     ( PoolId )
 import Cardano.Tx.Balance.Internal.CoinSelection
     ( SelectionCollateralRequirement (..)
-    , SelectionLimit
     , SelectionOf (..)
     , SelectionOutputTokenQuantityExceedsLimitError
     , WalletSelectionContext
@@ -206,13 +205,6 @@ data TransactionLayer k ktype tx = TransactionLayer
         -- multisignature transactions, etc.
         --
         -- The function returns CBOR-ed transaction body to be signed in another step.
-
-    , computeSelectionLimit
-        :: AnyCardanoEra
-        -> ProtocolParameters
-        -> TransactionCtx
-        -> [TxOut]
-        -> SelectionLimit
 
     , tokenBundleSizeAssessor
         :: TokenBundleMaxSize -> TokenBundleSizeAssessor
