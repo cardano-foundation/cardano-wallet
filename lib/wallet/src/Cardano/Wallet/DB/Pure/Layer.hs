@@ -168,9 +168,7 @@ newDBFresh timeInterpreter wid = do
                                        Keystore
         -----------------------------------------------------------------------}
 
-        , putPrivateKey = ExceptT
-            . alterDB errWalletNotInitialized db
-            . mPutPrivateKey
+        , putPrivateKey = noErrorAlterDB db . mPutPrivateKey
 
         , readPrivateKey = join <$> readDBMaybe db mReadPrivateKey
 

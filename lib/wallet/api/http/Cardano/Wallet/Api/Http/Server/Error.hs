@@ -602,7 +602,6 @@ instance IsServerError ErrSubmitTx where
 
 instance IsServerError ErrUpdatePassphrase where
     toServerError = \case
-        ErrUpdatePassphraseNoSuchWallet e -> toServerError e
         ErrUpdatePassphraseWithRootKey e  -> toServerError e
 
 instance IsServerError ErrListTransactions where

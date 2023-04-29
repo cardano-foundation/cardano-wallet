@@ -51,8 +51,6 @@ import Cardano.DB.Sqlite
     ( DBField, DBLog (..), fieldName )
 import Cardano.Mnemonic
     ( SomeMnemonic (..) )
-import Cardano.Wallet
-    ( mkNoSuchWalletError )
 import Cardano.Wallet.Address.Derivation
     ( Depth (..)
     , DerivationType (..)
@@ -109,8 +107,6 @@ import Cardano.Wallet.DB.Sqlite.Migration
     )
 import Cardano.Wallet.DB.StateMachine
     ( TestConstraints, prop_sequential, validateGenerators )
-import Cardano.Wallet.DB.WalletState
-    ( ErrNoSuchWallet (..) )
 import Cardano.Wallet.DummyTarget.Primitive.Types
     ( block0, dummyGenesisParameters, dummyTimeInterpreter )
 import Cardano.Wallet.Gen
@@ -180,8 +176,6 @@ import Control.Monad
     ( forM_, forever, replicateM_, unless, void )
 import Control.Monad.IO.Class
     ( MonadIO, liftIO )
-import Control.Monad.Trans.Except
-    ( ExceptT, mapExceptT )
 import Control.Tracer
     ( Tracer )
 import Crypto.Hash
@@ -535,10 +529,8 @@ fileModeSpec =  do
 
         it "create and get private key" $ \f -> do
             (k, h) <- withShelleyFileDBFresh f $ \DBFresh{bootDBLayer} -> do
-                db <-
-                    unsafeRunExceptT
-                        $ bootDBLayer testDBLayerParams
-                unsafeRunExceptT $ attachPrivateKey db testWid
+                db <- unsafeRunExceptT $ bootDBLayer testDBLayerParams
+                attachPrivateKey db
             testReopening f readPrivateKey' (Just (k, h))
 
         it "put and read tx history (Ascending)" $ \f -> do
@@ -974,14 +966,13 @@ readPrivateKey' DBLayer{..} = atomically readPrivateKey
 -- | Attach an arbitrary private key to a wallet
 attachPrivateKey
     :: DBLayer IO s ShelleyKey
-    -> WalletId
-    -> ExceptT ErrNoSuchWallet IO (ShelleyKey 'RootK XPrv, PassphraseHash)
-attachPrivateKey DBLayer{..} wid = do
+    -> IO (ShelleyKey 'RootK XPrv, PassphraseHash)
+attachPrivateKey DBLayer{..} = do
     let pwd = Passphrase $ BA.convert $ T.encodeUtf8 "simplevalidphrase"
     seed <- liftIO $ generate $ SomeMnemonic <$> genMnemonic @15
     (scheme, h) <- liftIO $ encryptPassphrase pwd
     let k = generateKeyFromSeed (seed, Nothing) (preparePassphrase scheme pwd)
-    mkNoSuchWalletError wid $ mapExceptT atomically $ putPrivateKey (k, h)
+    atomically $ putPrivateKey (k, h)
     return (k, h)
 
 cutRandomly :: [a] -> IO [[a]]

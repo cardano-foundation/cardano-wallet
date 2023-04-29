@@ -175,7 +175,7 @@ properties withFreshDB = describe "DB.Properties" $ do
             $ property
             $ prop_readAfterPut
                 testOnLayer
-                (\DBLayer{..} _wid -> mapExceptT atomically . putPrivateKey)
+                (\DBLayer{..} _wid -> lift . atomically . putPrivateKey)
                 (\DBLayer{..} _wid -> atomically readPrivateKey)
 
     describe "getTx properties" $ do
@@ -246,7 +246,7 @@ properties withFreshDB = describe "DB.Properties" $ do
             $ checkCoverage
             $ prop_sequentialPut
                 testOnLayer
-                (\DBLayer{..} _wid -> mapExceptT atomically . putPrivateKey)
+                (\DBLayer{..} _wid -> lift . atomically . putPrivateKey)
                 (\DBLayer{..} _wid -> atomically readPrivateKey)
                 lastMay
 

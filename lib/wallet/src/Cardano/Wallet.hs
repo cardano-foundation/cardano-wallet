@@ -894,14 +894,14 @@ updateWalletPassphraseWithOldPassphrase
     -> ExceptT ErrUpdatePassphrase IO ()
 updateWalletPassphraseWithOldPassphrase ctx wid (old, new) =
     withRootKey @s @k db wid old ErrUpdatePassphraseWithRootKey
-        $ \xprv scheme -> withExceptT ErrUpdatePassphraseNoSuchWallet $ do
+        $ \xprv scheme -> do
             -- IMPORTANT NOTE:
             -- This use 'EncryptWithPBKDF2', regardless of the passphrase
             -- current scheme, we'll re-encrypt it using the current scheme,
             -- always.
             let new' = (currentPassphraseScheme, new)
             let xprv' = changePassphrase (scheme, old) new' xprv
-            attachPrivateKeyFromPwdScheme @ctx @s @k ctx wid (xprv', new')
+            lift $ attachPrivateKeyFromPwdScheme @ctx @s @k ctx (xprv', new')
   where
     db = ctx ^. typed
 
@@ -910,13 +910,11 @@ updateWalletPassphraseWithMnemonic
         ( HasDBLayer IO s k ctx
         )
     => ctx
-    -> WalletId
     -> (k 'RootK XPrv, Passphrase "user")
-    -> ExceptT ErrUpdatePassphrase IO ()
-updateWalletPassphraseWithMnemonic ctx wid (xprv, new) =
-    withExceptT ErrUpdatePassphraseNoSuchWallet $ do
-        attachPrivateKeyFromPwdScheme @ctx @s @k ctx wid
-            (xprv, (currentPassphraseScheme , new))
+    -> IO ()
+updateWalletPassphraseWithMnemonic ctx (xprv, new) =
+    attachPrivateKeyFromPwdScheme @ctx @s @k ctx
+        (xprv, (currentPassphraseScheme , new))
 
 getWalletUtxoSnapshot
     :: forall ctx s k ktype.
@@ -2905,10 +2903,9 @@ attachPrivateKeyFromPwdScheme
         ( HasDBLayer IO s k ctx
         )
     => ctx
-    -> WalletId
     -> (k 'RootK XPrv, (PassphraseScheme, Passphrase "user"))
-    -> ExceptT ErrNoSuchWallet IO ()
-attachPrivateKeyFromPwdScheme ctx wid (xprv, (scheme, pwd)) = db & \_ -> do
+    -> IO ()
+attachPrivateKeyFromPwdScheme ctx (xprv, (scheme, pwd)) = db & \_ -> do
     hpwd <- liftIO $ encryptPassphrase' scheme pwd
     -- NOTE Only new wallets are constructed through this function, so the
     -- passphrase is encrypted with the new scheme (i.e. PBKDF2)
@@ -2920,7 +2917,7 @@ attachPrivateKeyFromPwdScheme ctx wid (xprv, (scheme, pwd)) = db & \_ -> do
     -- 'EncryptWithPBKDF2', if this happens, this is a programmer error and we
     -- must fail hard for this would have dramatic effects later on.
     case checkPassphrase scheme pwd hpwd of
-        Right () -> attachPrivateKey db wid (xprv, hpwd) scheme
+        Right () -> attachPrivateKey db (xprv, hpwd) scheme
         Left{} -> fail
             "Awe crap! The passphrase given to 'attachPrivateKeyFromPwd' wasn't \
             \rightfully constructed. This is a programmer error. Look for calls \
@@ -2934,11 +2931,10 @@ attachPrivateKeyFromPwd
         ( HasDBLayer IO s k ctx
         )
     => ctx
-    -> WalletId
     -> (k 'RootK XPrv, Passphrase "user")
-    -> ExceptT ErrNoSuchWallet IO ()
-attachPrivateKeyFromPwd ctx wid (xprv, pwd) =
-    attachPrivateKeyFromPwdScheme @ctx @s @k ctx wid
+    -> IO ()
+attachPrivateKeyFromPwd ctx (xprv, pwd) =
+    attachPrivateKeyFromPwdScheme @ctx @s @k ctx
        (xprv, (currentPassphraseScheme, pwd))
 
 -- | The hash here is the output of Scrypt function with the following parameters:
@@ -2951,13 +2947,12 @@ attachPrivateKeyFromPwdHashByron
         ( HasDBLayer IO s k ctx
         )
     => ctx
-    -> WalletId
     -> (k 'RootK XPrv, PassphraseHash)
-    -> ExceptT ErrNoSuchWallet IO ()
-attachPrivateKeyFromPwdHashByron ctx wid (xprv, hpwd) = db & \_ ->
+    -> IO ()
+attachPrivateKeyFromPwdHashByron ctx (xprv, hpwd) = db & \_ ->
     -- NOTE Only legacy wallets are imported through this function, passphrase
     -- were encrypted with the legacy scheme (Scrypt).
-    attachPrivateKey db wid (xprv, hpwd) EncryptWithScrypt
+    attachPrivateKey db (xprv, hpwd) EncryptWithScrypt
   where
     db = ctx ^. dbLayer @IO @s @k
 
@@ -2966,32 +2961,30 @@ attachPrivateKeyFromPwdHashShelley
         ( HasDBLayer IO s k ctx
         )
     => ctx
-    -> WalletId
     -> (k 'RootK XPrv, PassphraseHash)
-    -> ExceptT ErrNoSuchWallet IO ()
-attachPrivateKeyFromPwdHashShelley ctx wid (xprv, hpwd) = db & \_ ->
-    attachPrivateKey db wid (xprv, hpwd) currentPassphraseScheme
+    -> IO ()
+attachPrivateKeyFromPwdHashShelley ctx (xprv, hpwd) = db & \_ ->
+    attachPrivateKey db (xprv, hpwd) currentPassphraseScheme
   where
     db = ctx ^. dbLayer @IO @s @k
 
 attachPrivateKey
     :: DBLayer IO s k
-    -> WalletId
     -> (k 'RootK XPrv, PassphraseHash)
     -> PassphraseScheme
-    -> ExceptT ErrNoSuchWallet IO ()
-attachPrivateKey db wid (xprv, hpwd) scheme = db & \DBLayer{..} -> do
+    -> IO ()
+attachPrivateKey db (xprv, hpwd) scheme = db & \DBLayer{..} -> do
     now <- liftIO getCurrentTime
-    mapExceptT atomically $ do
-        mkNoSuchWalletError wid $ putPrivateKey (xprv, hpwd)
-        meta <- lift readWalletMeta
+    atomically $ do
+        putPrivateKey (xprv, hpwd)
+        meta <- readWalletMeta
         let modify x = x
                 { passphraseInfo = Just $ WalletPassphraseInfo
                     { lastUpdatedAt = now
                     , passphraseScheme = scheme
                     }
                 }
-        lift $ putWalletMeta (modify $ fst meta)
+        putWalletMeta (modify $ fst meta)
 
 -- | Execute an action which requires holding a root XPrv.
 --
@@ -3350,9 +3343,8 @@ data ErrSubmitTx
     deriving (Show, Eq)
 
 -- | Errors that can occur when trying to change a wallet's passphrase.
-data ErrUpdatePassphrase
-    = ErrUpdatePassphraseNoSuchWallet ErrNoSuchWallet
-    | ErrUpdatePassphraseWithRootKey ErrWithRootKey
+newtype ErrUpdatePassphrase
+    = ErrUpdatePassphraseWithRootKey ErrWithRootKey
     deriving (Show, Eq)
 
 -- | Errors that can occur when trying to perform an operation on a wallet that

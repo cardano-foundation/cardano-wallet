@@ -342,7 +342,7 @@ data DBLayer m s k = forall stm. (MonadIO stm, MonadFail stm) => DBLayer
 
     , putPrivateKey
         :: (k 'RootK XPrv, PassphraseHash)
-        -> ExceptT ErrWalletNotInitialized stm ()
+        -> stm ()
         -- ^ Store or replace a private key for a given wallet. Note that wallet
         -- _could_ be stored and manipulated without any private key associated
         -- to it. A private key is only seldomly required for very specific
@@ -488,14 +488,7 @@ mkDBFreshFromParts
                     Left _ -> throwE ErrWalletNotInitialized
             }
       where
-        db = mkDBLayerFromParts ti wid_ wrapNoSuchWallet parts
-        wrapNoSuchWallet :: stm a -> ExceptT ErrWalletNotInitialized stm a
-        wrapNoSuchWallet action = getWalletId_ >> lift action
-
-type CheckWalletInitialized stm =
-    forall a
-     . stm a
-    -> ExceptT ErrWalletNotInitialized stm a
+        db = mkDBLayerFromParts ti wid_ parts
 
 {- HLINT ignore mkDBLayerFromParts "Avoid lambda" -}
 -- | Create a legacy 'DBLayer' from smaller database layers.
@@ -503,10 +496,9 @@ mkDBLayerFromParts
     :: forall stm m s k. (MonadIO stm, MonadFail stm)
     => TimeInterpreter IO
     -> WalletId
-    -> CheckWalletInitialized stm
     -> DBLayerCollection stm m s k
     -> DBLayer m s k
-mkDBLayerFromParts ti wid_ wrapNoSuchWallet DBLayerCollection{..} = DBLayer
+mkDBLayerFromParts ti wid_ DBLayerCollection{..} = DBLayer
     { walletId_ = wid_
     , walletsDB = walletsDB_ dbCheckpoints
     , putCheckpoint = putCheckpoint_ dbCheckpoints
@@ -582,8 +574,7 @@ mkDBLayerFromParts ti wid_ wrapNoSuchWallet DBLayerCollection{..} = DBLayer
                 (const $ error "removePendingOrExpiredTx: no such wallet to be removed in ADP-3003")
                 $ \xs ->
                 pure <$> Sbms.removePendingOrExpiredTx xs txid
-    , putPrivateKey = \a -> wrapNoSuchWallet $
-        putPrivateKey_ dbPrivateKey  a
+    , putPrivateKey = putPrivateKey_ dbPrivateKey
     , readPrivateKey = readPrivateKey_ dbPrivateKey
     , readGenesisParameters = readGenesisParameters_ dbCheckpoints
     , rollbackTo = rollbackTo_

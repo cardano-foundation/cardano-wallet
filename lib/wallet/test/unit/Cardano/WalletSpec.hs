@@ -296,7 +296,6 @@ spec = describe "Cardano.WalletSpec" $ do
     describe "Pointless mockEventSource to cover 'Show' instances for errors" $ do
         let wid = WalletId (hash @ByteString "arbitrary")
         it (show $ ErrSignPaymentNoSuchWallet (ErrNoSuchWallet wid)) True
-        it (show $ ErrUpdatePassphraseNoSuchWallet (ErrNoSuchWallet wid)) True
         it (show $ ErrWithRootKeyWrongPassphrase wid ErrWrongPassphrase) True
 
     describe "WalletLayer works as expected" $ do
@@ -402,7 +401,7 @@ walletUpdatePassphrase wallet new mxprv = monadicIO $ do
         assert (attempt == Left err)
 
     prop_withPrivateKey wl wid (xprv, pwd) = do
-        run $ unsafeRunExceptT $ W.attachPrivateKeyFromPwd wl wid (xprv, pwd)
+        run $ W.attachPrivateKeyFromPwd wl (xprv, pwd)
         attempt <- run $ runExceptT
             $ W.updateWalletPassphraseWithOldPassphrase wl wid (coerce pwd, new)
         assert (attempt == Right ())
@@ -416,7 +415,7 @@ walletUpdatePassphraseWrong wallet (xprv, pwd) (old, new) =
     pwd /= coerce old ==> monadicIO $ do
         WalletLayerFixture _ _ wl wid <- run $ setupFixture wallet
         attempt <- run $ do
-            unsafeRunExceptT $ W.attachPrivateKeyFromPwd wl wid (xprv, pwd)
+            W.attachPrivateKeyFromPwd wl (xprv, pwd)
             runExceptT
                 $ W.updateWalletPassphraseWithOldPassphrase wl wid (old, new)
         let err = ErrUpdatePassphraseWithRootKey
@@ -450,7 +449,7 @@ walletUpdatePassphraseDate wallet (xprv, pwd) = monadicIO $ liftIO $ do
             return info
 
     void $ infoShouldSatisfy isNothing
-    unsafeRunExceptT $ W.attachPrivateKeyFromPwd wl wid (xprv, pwd)
+    W.attachPrivateKeyFromPwd wl (xprv, pwd)
     info <- infoShouldSatisfy isJust
     pause
     unsafeRunExceptT

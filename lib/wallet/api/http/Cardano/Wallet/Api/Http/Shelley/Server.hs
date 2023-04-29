@@ -877,8 +877,8 @@ postShelleyWallet ctx generateKey body = do
             (workerCtx ^. networkLayer)
             (workerCtx ^. typed @(DBLayer IO (SeqState n ShelleyKey) k))
         )
-    withWorkerCtx @_ @s @k ctx wid liftE liftE $ \wrk -> liftHandler $
-        W.attachPrivateKeyFromPwd @_ @s @k wrk wid (rootXPrv, pwd)
+    withWorkerCtx @_ @s @k ctx wid liftE liftE $ \wrk -> handler $
+        W.attachPrivateKeyFromPwd @_ @s @k wrk (rootXPrv, pwd)
     fst <$> getWallet ctx (mkShelleyWallet @_ @s @k) (ApiT wid)
   where
     seed = getApiMnemonicT (body ^. #mnemonicSentence)
@@ -1075,8 +1075,8 @@ postSharedWalletFromRootXPrv ctx generateKey body = do
             (workerCtx ^. networkLayer)
             (workerCtx ^. typed @(DBLayer IO (SharedState n SharedKey) k))
         )
-    withWorkerCtx @_ @s @k ctx wid liftE liftE $ \wrk -> liftHandler $
-        W.attachPrivateKeyFromPwd @_ @s @k wrk wid (rootXPrv, pwd)
+    withWorkerCtx @_ @s @k ctx wid liftE liftE $ \wrk -> handler $
+        W.attachPrivateKeyFromPwd @_ @s @k wrk (rootXPrv, pwd)
     fst <$> getWallet ctx (mkSharedWallet @_ @s @k) (ApiT wid)
   where
     seed = body ^. #mnemonicSentence . #getApiMnemonicT
@@ -1277,9 +1277,9 @@ patchSharedWallet ctx liftKey cred (ApiT wid) body = do
         withWorkerCtx @_ @s @k ctx wid liftE liftE $ \wrk ->
             handler $ W.updateWallet wrk (const meta)
         when (isJust prvKeyM)
-            $ withWorkerCtx @_ @s @k ctx wid liftE liftE $ \wrk -> liftHandler
+            $ withWorkerCtx @_ @s @k ctx wid liftE liftE $ \wrk -> handler
             $ W.attachPrivateKeyFromPwdHashShelley
-                @_ @s @k wrk wid (fromJust prvKeyM)
+                @_ @s @k wrk (fromJust prvKeyM)
 
     fst <$> getWallet ctx (mkSharedWallet @_ @s @k) (ApiT wid)
   where
@@ -1315,8 +1315,8 @@ postLegacyWallet ctx (rootXPrv, pwd) createWallet = do
     void $ liftHandler $ createWalletWorker @_ @s @k ctx wid
         (`createWallet` wid)
         idleWorker
-    withWorkerCtx ctx wid liftE liftE $ \wrk -> liftHandler $
-        W.attachPrivateKeyFromPwd wrk wid (rootXPrv, pwd)
+    withWorkerCtx ctx wid liftE liftE $ \wrk -> handler $
+        W.attachPrivateKeyFromPwd wrk (rootXPrv, pwd)
     fst <$> getWallet ctx mkLegacyWallet (ApiT wid)
   where
     wid = WalletId $ Addr.digest $ publicKey rootXPrv
@@ -1422,8 +1422,8 @@ postRandomWalletFromXPrv ctx body = do
         (\wrk -> W.createWallet @_ @s @k
             genesisParams wrk wid wName s)
         idleWorker
-    withWorkerCtx ctx wid liftE liftE $ \wrk -> liftHandler $
-        W.attachPrivateKeyFromPwdHashByron wrk wid (byronKey, pwd)
+    withWorkerCtx ctx wid liftE liftE $ \wrk -> handler $
+        W.attachPrivateKeyFromPwdHashByron wrk (byronKey, pwd)
     fst <$> getWallet ctx mkLegacyWallet (ApiT wid)
   where
     wName = getApiT (body ^. #name)
@@ -1691,9 +1691,8 @@ putWalletPassphrase ctx createKey getKey (ApiT wid)
                     $ deriveAccountPrivateKey encrPass challengeKey minBound
             storedPubKey <- handler $ W.readAccountPublicKey wrk
             if getKey challengPubKey == getKey storedPubKey
-                then liftHandler
-                    $ W.updateWalletPassphraseWithMnemonic
-                        wrk wid (challengeKey, new)
+                then handler $ W.updateWalletPassphraseWithMnemonic wrk
+                        (challengeKey, new)
                 else liftHandler
                     $ throwE
                     $ ErrUpdatePassphraseWithRootKey
