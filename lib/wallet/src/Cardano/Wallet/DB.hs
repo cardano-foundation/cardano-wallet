@@ -298,8 +298,6 @@ data DBLayer m s k = forall stm. (MonadIO stm, MonadFail stm) => DBLayer
         -> stm [TransactionInfo]
         -- ^ Fetch the current transaction history of a known wallet, ordered by
         -- descending slot number.
-        --
-        -- Returns an empty list if the wallet isn't found.
 
     , getTx
         :: Hash "Tx"
@@ -736,8 +734,6 @@ data DBTxHistory stm = DBTxHistory
         -> stm [TransactionInfo]
         -- ^ Fetch the current transaction history of a known wallet, ordered by
         -- descending slot number.
-        --
-        -- Returns an empty list if the wallet isn't found.
 
     , getTx_
         :: Hash "Tx"
