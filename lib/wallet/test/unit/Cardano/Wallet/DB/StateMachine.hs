@@ -482,8 +482,8 @@ runIO DBLayer{..} = fmap Resp . go
             atomically readCheckpoint
         ListCheckpoints -> Right . ChainPoints <$>
             atomically listCheckpoints
-        PutWalletMeta meta -> catchNoSuchWallet Unit $
-            runDB atomically $ putWalletMeta meta
+        PutWalletMeta meta ->
+            runDBSuccess atomically Unit $ putWalletMeta meta
         ReadWalletMeta -> Right . (Metadata . fmap fst) <$>
             atomically readWalletMeta
         PutDelegationCertificate pool sl -> catchNoSuchWallet Unit $

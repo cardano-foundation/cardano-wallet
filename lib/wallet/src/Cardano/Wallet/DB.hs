@@ -248,12 +248,8 @@ data DBLayer m s k = forall stm. (MonadIO stm, MonadFail stm) => DBLayer
         -- ^ List all known checkpoint tips, ordered by slot ids from the oldest
         -- to the newest.
 
-    , putWalletMeta
-        :: WalletMetadata
-        -> ExceptT ErrWalletNotInitialized stm ()
+    , putWalletMeta :: WalletMetadata -> stm ()
         -- ^ Replace an existing wallet metadata with the given one.
-        --
-        -- If the wallet doesn't exist, this operation returns an error
 
     , readWalletMeta
         :: stm (Maybe (WalletMetadata, WalletDelegation))
@@ -686,12 +682,8 @@ data DBCheckpoints stm s = DBCheckpoints
 
 -- | A database layer for storing 'WalletMetadata'.
 data DBWalletMeta stm = DBWalletMeta
-    { putWalletMeta_
-        :: WalletMetadata
-        -> ExceptT ErrWalletNotInitialized stm ()
+    { putWalletMeta_ :: WalletMetadata -> stm ()
         -- ^ Replace an existing wallet metadata with the given one.
-        --
-        -- If the wallet doesn't exist, this operation returns an error
 
     , readWalletMeta_
         :: stm (Maybe WalletMetadata)

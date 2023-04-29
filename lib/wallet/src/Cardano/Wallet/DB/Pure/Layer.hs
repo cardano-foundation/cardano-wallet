@@ -126,9 +126,7 @@ newDBFresh timeInterpreter wid = do
                                    Wallet Metadata
         -----------------------------------------------------------------------}
 
-        , putWalletMeta = ExceptT
-            .  alterDB errWalletNotInitialized db
-            .  mPutWalletMeta
+        , putWalletMeta = noErrorAlterDB db .  mPutWalletMeta
 
         , readWalletMeta = fmap join
             $ readDBMaybe db

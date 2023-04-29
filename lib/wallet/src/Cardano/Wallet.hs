@@ -884,7 +884,7 @@ updateWallet
     -> ExceptT ErrNoSuchWallet IO ()
 updateWallet ctx wid modify = db & \DBLayer{..} -> mapExceptT atomically $ do
     meta <- fmap fst . withNoSuchWallet wid $ readWalletMeta
-    mkNoSuchWalletError wid $ putWalletMeta (modify meta)
+    lift $ putWalletMeta (modify meta)
   where
     db = ctx ^. dbLayer @IO @s @k
 
@@ -3040,7 +3040,7 @@ attachPrivateKey db wid (xprv, hpwd) scheme = db & \DBLayer{..} -> do
                     , passphraseScheme = scheme
                     }
                 }
-        mkNoSuchWalletError wid $ putWalletMeta (modify $ fst meta)
+        lift $ putWalletMeta (modify $ fst meta)
 
 -- | Execute an action which requires holding a root XPrv.
 --

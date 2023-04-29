@@ -852,8 +852,8 @@ prop_randomOpChunks (NonEmpty (p : pairs)) =
         -> (Wallet s, WalletMetadata)
         -> IO ()
     insertPair DBLayer{..} (cp, meta) = atomically $ do
-            putCheckpoint cp
-            unsafeRunExceptT $ putWalletMeta meta
+        putCheckpoint cp
+        putWalletMeta meta
 
     imposeGenesisState :: Wallet s -> Wallet s
     imposeGenesisState = over #currentTip $ \(BlockHeader _ _ h _) ->

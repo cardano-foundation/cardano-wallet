@@ -731,13 +731,8 @@ newDBFreshFromDBOpen ti wid_ DBOpen{atomically=runQuery} = mdo
         -----------------------------------------------------------------------}
     let
       dbWalletMeta = DBWalletMeta
-        { putWalletMeta_ = \meta -> ExceptT $ do
-            selectWallet wid_ >>= \case
-                Nothing -> pure $ Left ErrWalletNotInitialized
-                Just _ -> do
-                    updateWhere [WalId ==. wid_]
-                        (mkWalletMetadataUpdate meta)
-                    pure $ Right ()
+        { putWalletMeta_ = \meta ->
+            updateWhere [WalId ==. wid_] (mkWalletMetadataUpdate meta)
 
         , readWalletMeta_ = readWalletMetadata wid_
         }
@@ -956,10 +951,6 @@ privateKeyFromEntity (PrivateKey _ k h) =
 {-------------------------------------------------------------------------------
     SQLite database operations
 -------------------------------------------------------------------------------}
-
-selectWallet :: MonadIO m => W.WalletId -> SqlPersistT m (Maybe Wallet)
-selectWallet wid =
-    fmap entityVal <$> selectFirst [WalId ==. wid] []
 
 -- | Delete stake key certificates for a wallet.
 deleteStakeKeyCerts

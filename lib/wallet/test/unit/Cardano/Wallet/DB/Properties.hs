@@ -163,7 +163,7 @@ properties withFreshDB = describe "DB.Properties" $ do
             $ property
             $ prop_readAfterPut
                 testOnLayer
-                (\DBLayer{..} _wid -> mapExceptT atomically . putWalletMeta)
+                (\DBLayer{..} _wid -> lift . atomically . putWalletMeta)
                 (\DBLayer{..} _ -> atomically . fmap (fmap fst)
                     $ readWalletMeta)
         it "Tx History"
@@ -200,7 +200,7 @@ properties withFreshDB = describe "DB.Properties" $ do
             $ property
             $ prop_isolation
                 testOnLayer
-                (\DBLayer{..} _wid -> mapExceptT atomically . putWalletMeta)
+                (\DBLayer{..} _wid -> lift . atomically . putWalletMeta)
                 (\db _ -> readTxHistory_ db)
                 (\DBLayer{..} _ -> atomically readCheckpoint)
                 (\DBLayer{..} _wid -> atomically readPrivateKey)
@@ -228,7 +228,7 @@ properties withFreshDB = describe "DB.Properties" $ do
             $ checkCoverage
             $ prop_sequentialPut
                 testOnLayer
-                (\DBLayer{..} _wid -> mapExceptT atomically . putWalletMeta)
+                (\DBLayer{..} _wid -> lift . atomically . putWalletMeta)
                 (\DBLayer{..} _ -> atomically . fmap (fmap fst)
                     $ readWalletMeta)
                 lastMay
