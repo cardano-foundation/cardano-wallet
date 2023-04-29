@@ -1178,8 +1178,7 @@ restoreBlocks ctx tr wid blocks nodeTip = db & \DBLayer{..} ->
 
     lift $ putTxHistory txs
 
-    mkNoSuchWalletError wid
-        $ rollForwardTxSubmissions (localTip ^. #slotNo)
+    lift $ rollForwardTxSubmissions (localTip ^. #slotNo)
         $ fmap (\(tx,meta) -> (meta ^. #slotNo, txId tx)) txs
 
     lift $ forM_ slotPoolDelegations $ \delegation@(slotNo, cert) -> do

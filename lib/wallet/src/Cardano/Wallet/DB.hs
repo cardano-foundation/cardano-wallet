@@ -331,7 +331,7 @@ data DBLayer m s k = forall stm. (MonadIO stm, MonadFail stm) => DBLayer
     , rollForwardTxSubmissions
         :: SlotNo
         -> [(SlotNo, Hash "Tx")]
-        -> ExceptT ErrWalletNotInitialized stm ()
+        -> stm ()
         -- ^ Removes any expired transactions from the pending set and marks
         -- their status as expired.
 
@@ -574,8 +574,8 @@ mkDBLayerFromParts ti wid_ wrapNoSuchWallet DBLayerCollection{..} = DBLayer
     , resubmitTx = \hash _ slotNo -> abortNoSuchWallet
             $ updateSubmissions' wid_ id
             $ Right . Sbms.resubmitTx hash slotNo
-    , rollForwardTxSubmissions = \tip txs -> updateSubmissions' wid_
-            mapNoSuchWallet
+    , rollForwardTxSubmissions = \tip txs -> abortNoSuchWallet
+            $ updateSubmissions' wid_ id
             $ \_ -> Right [Sbms.rollForwardTxSubmissions tip txs]
     , removePendingOrExpiredTx = \txid ->
             updateSubmissions' wid_ (ErrRemoveTxNoSuchWallet . mapNoSuchWallet)
