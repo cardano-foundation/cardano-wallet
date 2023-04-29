@@ -371,7 +371,7 @@ data DBLayer m s k = forall stm. (MonadIO stm, MonadFail stm) => DBLayer
     , prune
         :: Quantity "block" Word32
         -> SlotNo
-        -> ExceptT ErrWalletNotInitialized stm ()
+        -> stm ()
         -- ^ Prune database entities and remove entities that can be discarded.
         --
         -- The second argument represents the stability window, or said
@@ -460,7 +460,7 @@ data DBLayerCollection stm m s k = DBLayerCollection
     , prune_
         :: Quantity "block" Word32
         -> SlotNo
-        -> ExceptT ErrWalletNotInitialized stm ()
+        -> stm ()
     , atomically_
         :: forall a. stm a -> m a
     }

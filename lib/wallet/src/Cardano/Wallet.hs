@@ -1183,10 +1183,11 @@ restoreBlocks ctx tr wid blocks nodeTip = db & \DBLayer{..} ->
 
     liftIO $ mapM_ logCheckpoint cpsKeep
 
+    -- TODO: ADP-3003 remove the ExceptT layer in this function
     ExceptT $ modifyDBMaybe walletsDB $
         adjustNoSuchWallet wid id $ \_ -> Right ( delta, () )
 
-    mkNoSuchWalletError wid $ prune epochStability finalitySlot
+    lift $ prune epochStability finalitySlot
 
     liftIO $ do
         traceWith tr $ MsgDiscoveredTxs txs

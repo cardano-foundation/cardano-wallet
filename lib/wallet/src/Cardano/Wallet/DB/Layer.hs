@@ -156,7 +156,7 @@ import Control.Monad.IO.Class
 import Control.Monad.Trans
     ( lift )
 import Control.Monad.Trans.Except
-    ( ExceptT (..), runExceptT, throwE )
+    ( runExceptT, throwE )
 import Control.Tracer
     ( Tracer, contramap, traceWith )
 import Data.Coerce
@@ -714,11 +714,10 @@ newDBFreshFromDBOpen ti wid_ DBOpen{atomically=runQuery} = mdo
                         $ view #currentTip wcp
 
     let prune_ epochStability finalitySlot = do
-            ExceptT $ do
-                readCheckpoint >>= \cp -> Right <$> do
+            readCheckpoint >>= \cp -> do
                         let tip = cp ^. #currentTip
                         pruneCheckpoints wid_ epochStability tip
-            lift $ updateDBVar walletsDB $ Adjust wid_
+            updateDBVar walletsDB $ Adjust wid_
                 [ UpdateSubmissions [pruneByFinality finalitySlot]
                 ]
 
