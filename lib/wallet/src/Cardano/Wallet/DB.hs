@@ -269,9 +269,7 @@ data DBLayer m s k = forall stm. (MonadIO stm, MonadFail stm) => DBLayer
         -- 1. Stored on-chain.
         -- 2. Affected by rollbacks (or said differently, tied to a 'SlotNo').
 
-    , putDelegationRewardBalance
-        :: Coin
-        -> ExceptT ErrWalletNotInitialized stm ()
+    , putDelegationRewardBalance :: Coin -> stm ()
         -- ^ Store the latest known reward account balance.
         --
         -- This is separate from checkpoints because the data corresponds to the
@@ -530,8 +528,7 @@ mkDBLayerFromParts ti wid_ wrapNoSuchWallet DBLayerCollection{..} = DBLayer
                 pure (wm, del)
     , isStakeKeyRegistered = isStakeKeyRegistered_ dbDelegation
     , putDelegationCertificate = putDelegationCertificate_ dbDelegation
-    , putDelegationRewardBalance = \a -> wrapNoSuchWallet $
-        putDelegationRewardBalance_ dbDelegation a
+    , putDelegationRewardBalance = putDelegationRewardBalance_ dbDelegation
     , readDelegationRewardBalance = readDelegationRewardBalance_ dbDelegation
     , putTxHistory = \a -> wrapNoSuchWallet $
         putTxHistory_ dbTxHistory a

@@ -504,8 +504,7 @@ runIO DBLayer{..} = fmap Resp . go
             atomically readPrivateKey
         ReadGenesisParameters -> Right . GenesisParams <$>
             atomically readGenesisParameters
-        PutDelegationRewardBalance _wid amt -> catchNoSuchWallet Unit $
-            runDB atomically $
+        PutDelegationRewardBalance _wid amt -> runDBSuccess atomically Unit $
             putDelegationRewardBalance amt
         ReadDelegationRewardBalance -> Right . DelegationRewardBalance <$>
             atomically readDelegationRewardBalance

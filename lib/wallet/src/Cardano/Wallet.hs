@@ -1377,15 +1377,10 @@ handleRewardAccountQuery
 handleRewardAccountQuery tr wid DBLayer{..} query = do
     traceWith tr $ MsgRewardBalanceResult query
     case query of
-       Right amt -> do
-           res <- atomically $ runExceptT $ mkNoSuchWalletError wid $
-               putDelegationRewardBalance amt
+       Right amt -> atomically $ putDelegationRewardBalance amt
            -- It can happen that the wallet doesn't exist _yet_, whereas we
            -- already have a reward balance. If that's the case, we log and
            -- move on.
-           case res of
-               Left err -> traceWith tr $ MsgRewardBalanceNoSuchWallet err
-               Right () -> pure ()
        Left _err ->
            -- Occasionally failing to query is generally not fatal. It will
            -- just update the balance next time the tip changes.

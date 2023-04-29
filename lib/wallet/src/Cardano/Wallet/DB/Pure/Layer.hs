@@ -211,8 +211,7 @@ newDBFresh timeInterpreter wid = do
                                  Delegation Rewards
         -----------------------------------------------------------------------}
 
-        , putDelegationRewardBalance = ExceptT
-            . alterDB errWalletNotInitialized db
+        , putDelegationRewardBalance = noErrorAlterDB db
             . mPutDelegationRewardBalance
 
         , readDelegationRewardBalance = fromMaybe (Coin 0)
