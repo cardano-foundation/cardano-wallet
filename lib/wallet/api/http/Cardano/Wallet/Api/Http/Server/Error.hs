@@ -639,7 +639,6 @@ instance IsServerError PastHorizonException where
 
 instance IsServerError ErrGetTransaction where
     toServerError = \case
-        ErrGetTransactionNoSuchWallet e -> toServerError e
         ErrGetTransactionNoSuchTransaction e -> toServerError e
 
 instance IsServerError ErrNoSuchTransaction where

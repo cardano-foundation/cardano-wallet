@@ -28,7 +28,6 @@ import Cardano.Wallet.DB.Pure.Implementation
     ( Database
     , Err (..)
     , ModelOp
-    , mGetWalletId
     , mInitializeWallet
     , mIsStakeKeyRegistered
     , mListCheckpoints
@@ -55,7 +54,7 @@ import Cardano.Wallet.Primitive.Types.Coin
 import Cardano.Wallet.Primitive.Types.Tx
     ( TransactionInfo (..) )
 import Control.Monad
-    ( join, unless, void, when )
+    ( join, unless, void )
 import Control.Monad.IO.Unlift
     ( MonadIO (..), MonadUnliftIO (..) )
 import Control.Monad.Trans.Except
@@ -83,8 +82,6 @@ newDBFresh timeInterpreter wid = do
     db <- newEmptyMVar
 
     let
-      getWalletId' = ExceptT
-            $ alterDB errWalletNotInitialized db mGetWalletId
       dbf = DBFresh
             {
               bootDBLayer = \sp -> do
@@ -154,9 +151,6 @@ newDBFresh timeInterpreter wid = do
 
         -- TODO: shift implementation to mGetTx
         , getTx = \tid -> do
-            wid' <- getWalletId'
-            when ( wid /= wid') $ throwE ErrWalletNotInitialized
-            ExceptT $ do
                 txInfos <- fmap (fromMaybe [])
                     $ readDBMaybe db
                     $ mReadTxHistory
@@ -167,8 +161,8 @@ newDBFresh timeInterpreter wid = do
                         Nothing
                 let txPresent (TransactionInfo{..}) = txInfoId == tid
                 case filter txPresent txInfos of
-                    [] -> pure $ Right Nothing
-                    t:_ -> pure $ Right $ Just t
+                    [] -> pure Nothing
+                    t:_ -> pure $ Just t
 
         {-----------------------------------------------------------------------
                                        Keystore

@@ -2581,25 +2581,16 @@ getTransaction
     :: forall ctx s k
      . HasDBLayer IO s k ctx
     => ctx
-    -> WalletId
     -> Hash "Tx"
     -> ExceptT ErrGetTransaction IO TransactionInfo
-getTransaction ctx wid tid =
+getTransaction ctx tid =
     db & \DBLayer {..} -> do
-        res <-
-            lift
-                $ atomically
-                $ runExceptT
-                $ mkNoSuchWalletError wid
-                $ getTx tid
+        res <- lift $ atomically $ getTx tid
         case res of
-            Left err -> do
-                throwE (ErrGetTransactionNoSuchWallet err)
-            Right Nothing -> do
-                let err' = ErrNoSuchTransaction tid
-                throwE (ErrGetTransactionNoSuchTransaction err')
-            Right (Just tx) ->
-                pure tx
+            Nothing -> throwE
+                $ ErrGetTransactionNoSuchTransaction
+                $ ErrNoSuchTransaction tid
+            Just tx -> pure tx
   where
     db = ctx ^. dbLayer @IO @s @k
 
@@ -3397,9 +3388,8 @@ data ErrListTransactions
     deriving (Show)
 
 -- | Errors that can occur when trying to get transaction.
-data ErrGetTransaction
-    = ErrGetTransactionNoSuchWallet ErrNoSuchWallet
-    | ErrGetTransactionNoSuchTransaction ErrNoSuchTransaction
+newtype ErrGetTransaction
+    = ErrGetTransactionNoSuchTransaction ErrNoSuchTransaction
     deriving (Show, Eq)
 
 -- | Indicates that the specified start time is later than the specified end

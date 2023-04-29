@@ -494,8 +494,7 @@ runIO DBLayer{..} = fmap Resp . go
             atomically $
             readTransactions minWith order range status Nothing
         GetTx tid ->
-            catchNoSuchWallet (TxHistory . maybe [] pure) $
-            runDB atomically $ getTx tid
+            runDBSuccess atomically (TxHistory . maybe [] pure) $ getTx tid
         PutPrivateKey pk -> catchNoSuchWallet Unit $
             runDB atomically $
             putPrivateKey (fromMockPrivKey pk)

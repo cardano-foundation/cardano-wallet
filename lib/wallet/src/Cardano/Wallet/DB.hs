@@ -301,11 +301,9 @@ data DBLayer m s k = forall stm. (MonadIO stm, MonadFail stm) => DBLayer
 
     , getTx
         :: Hash "Tx"
-        -> ExceptT ErrWalletNotInitialized stm (Maybe TransactionInfo)
+        -> stm (Maybe TransactionInfo)
         -- ^ Fetch the latest transaction by id, returns Nothing when the
         -- transaction isn't found.
-        --
-        -- If the wallet doesn't exist, this operation returns an error.
 
     , addTxSubmission
         :: BuiltTx
@@ -553,19 +551,18 @@ mkDBLayerFromParts ti wid_ wrapNoSuchWallet DBLayerCollection{..} = DBLayer
                     . sortTransactionsBySlot order
                     . filterMinWithdrawal minWithdrawal
                     $ inLedgers <> inSubmissions
-    , getTx = \txid -> wrapNoSuchWallet $ do
-        readCurrentTip >>= \tip -> do
-                historical <- getTx_ dbTxHistory txid tip
-                case historical of
-                    Just tx -> pure $ Just tx
-                    Nothing ->  withSubmissions wid_ Nothing $ \submissions -> do
-                        let inSubmission =
-                                getInSubmissionTransaction txid submissions
-                        fmap join $ for inSubmission $
-                            mkTransactionInfo
-                            (hoistTimeInterpreter liftIO ti)
-                            (mkDecorator_ dbTxHistory) tip
-                                . fmap snd
+    , getTx = \txid -> readCurrentTip >>= \tip -> do
+        historical <- getTx_ dbTxHistory txid tip
+        case historical of
+            Just tx -> pure $ Just tx
+            Nothing ->  withSubmissions wid_ Nothing $ \submissions -> do
+                let inSubmission =
+                        getInSubmissionTransaction txid submissions
+                fmap join $ for inSubmission $
+                    mkTransactionInfo
+                    (hoistTimeInterpreter liftIO ti)
+                    (mkDecorator_ dbTxHistory) tip
+                        . fmap snd
     , addTxSubmission = \builtTx slotNo  -> updateSubmissions' wid_
             mapNoSuchWallet
             $ \_ -> Right [Sbms.addTxSubmission builtTx slotNo]

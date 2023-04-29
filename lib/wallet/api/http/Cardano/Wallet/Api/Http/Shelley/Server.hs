@@ -2292,7 +2292,7 @@ getTransaction
     -> Handler (ApiTransaction n)
 getTransaction ctx (ApiT wid) (ApiTxId (ApiT (tid))) metadataSchema =
     withWorkerCtx ctx wid liftE liftE $ \wrk -> do
-        tx <- liftHandler $ W.getTransaction wrk wid tid
+        tx <- liftHandler $ W.getTransaction wrk tid
         depo <- liftIO $ W.stakeKeyDeposit <$>
             NW.currentProtocolParameters (wrk ^. networkLayer)
         mkApiTransactionFromInfo
