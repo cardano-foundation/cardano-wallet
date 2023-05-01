@@ -84,7 +84,10 @@ import Cardano.Wallet.Address.Derivation
 import Cardano.Wallet.Address.Derivation.Shared
     ( SharedKey (..) )
 import Cardano.Wallet.Primitive.Types
-    ( FeePolicy (LinearFee), LinearFunction (LinearFunction) )
+    ( FeePolicy (LinearFee)
+    , LinearFunction (LinearFunction)
+    , TokenBundleMaxSize (TokenBundleMaxSize)
+    )
 import Cardano.Wallet.Primitive.Types.Hash
     ( Hash (..) )
 import Cardano.Wallet.Primitive.Types.Redeemer
@@ -960,9 +963,13 @@ balanceTransactionWithSelectionStrategyAndNoZeroAdaAdjustment
 
         selectionConstraints = SelectionConstraints
             { assessTokenBundleSize =
-                view #assessTokenBundleSize $
-                tokenBundleSizeAssessor txLayer $
-                pp ^. #txParameters . #getTokenBundleMaxSize
+                view #assessTokenBundleSize
+                $ tokenBundleSizeAssessor txLayer
+                $ TokenBundleMaxSize
+                $ TxSize
+                $ case recentEra @era of
+                    RecentEraBabbage -> ledgerPP ^. #_maxValSize
+                    RecentEraConway -> ledgerPP ^. #_maxValSize
             , certificateDepositAmount = W.toWallet $ case recentEra @era of
                 RecentEraBabbage -> getField @"_keyDeposit" ledgerPP
                 RecentEraConway -> getField @"_keyDeposit" ledgerPP
