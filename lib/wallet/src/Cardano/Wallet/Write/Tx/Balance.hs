@@ -98,7 +98,7 @@ import Cardano.Wallet.Primitive.Types.TokenQuantity
 import Cardano.Wallet.Primitive.Types.Tx
     ( SealedTx, sealedTxFromCardano )
 import Cardano.Wallet.Primitive.Types.Tx.Constraints
-    ( TxSize (..) )
+    ( TxSize (..), txOutMaxCoin )
 import Cardano.Wallet.Primitive.Types.UTxOSelection
     ( UTxOSelection )
 import Cardano.Wallet.Shelley.Compatibility
@@ -134,6 +134,7 @@ import Cardano.Wallet.Write.Tx
     , TxOut
     , computeMinimumCoinForTxOut
     , getFeePerByte
+    , isBelowMinimumCoinForTxOut
     , maxScriptExecutionCost
     , modifyLedgerBody
     , modifyTxOutCoin
@@ -819,6 +820,13 @@ balanceTransactionWithSelectionStrategyAndNoZeroAdaAdjustment
            RecentEraBabbage -> W.fromBabbageTxOut o
            RecentEraConway -> W.fromConwayTxOut o
 
+    toLedgerTxOut
+        :: W.TxOut
+        -> TxOut (ShelleyLedgerEra era)
+    toLedgerTxOut o = case recentEra @era of
+       RecentEraBabbage -> W.toBabbageTxOut o
+       RecentEraConway -> W.toConwayTxOut o
+
     assembleTransaction :: TxUpdate -> ExceptT ErrBalanceTx m (Cardano.Tx era)
     assembleTransaction update = ExceptT . pure $ do
         tx' <- left ErrBalanceTxUpdateError $ updateTx partialTx update
@@ -957,10 +965,16 @@ balanceTransactionWithSelectionStrategyAndNoZeroAdaAdjustment
                 pp ^. #txParameters . #getTokenBundleMaxSize
             , certificateDepositAmount =
                 pp ^. #stakeKeyDeposit
-            , computeMinimumAdaQuantity =
-                constraints txLayer era pp ^. #txOutputMinimumAdaQuantity
-            , isBelowMinimumAdaQuantity =
-                constraints txLayer era pp ^. #txOutputBelowMinimumAdaQuantity
+            , computeMinimumAdaQuantity = \addr tokens -> W.toWallet $
+                computeMinimumCoinForTxOut
+                    (recentEra @era)
+                    ledgerPP
+                    (toLedgerTxOut $ W.TxOut addr (TokenBundle txOutMaxCoin tokens))
+            , isBelowMinimumAdaQuantity = \addr bundle ->
+                isBelowMinimumCoinForTxOut
+                    (recentEra @era)
+                    ledgerPP
+                    (toLedgerTxOut $ W.TxOut addr bundle)
             , computeMinimumCost = \skeleton -> mconcat
                 [ feePadding
                 , fromCardanoLovelace fee0
@@ -1099,3 +1113,4 @@ unsafeIntCast
 unsafeIntCast x = fromMaybe err $ intCastMaybe x
   where
     err = error $ "unsafeIntCast failed for " <> show x
+
