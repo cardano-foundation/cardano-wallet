@@ -84,10 +84,7 @@ import Cardano.Wallet.Address.Derivation
 import Cardano.Wallet.Address.Derivation.Shared
     ( SharedKey (..) )
 import Cardano.Wallet.Primitive.Types
-    ( FeePolicy (LinearFee)
-    , LinearFunction (LinearFunction)
-    , TokenBundleMaxSize (TokenBundleMaxSize)
-    )
+    ( TokenBundleMaxSize (TokenBundleMaxSize) )
 import Cardano.Wallet.Primitive.Types.Hash
     ( Hash (..) )
 import Cardano.Wallet.Primitive.Types.Redeemer
@@ -136,6 +133,7 @@ import Cardano.Wallet.Write.Tx
     , ShelleyLedgerEra
     , TxOut
     , computeMinimumCoinForTxOut
+    , feeOfBytes
     , getFeePerByte
     , isBelowMinimumCoinForTxOut
     , maxScriptExecutionCost
@@ -208,7 +206,6 @@ import qualified Cardano.Address.Script as CA
 import qualified Cardano.Api as Cardano
 import qualified Cardano.Api.Byron as Cardano
 import qualified Cardano.Api.Shelley as Cardano
-import qualified Cardano.Wallet.Primitive.Types as W
 import qualified Cardano.Wallet.Primitive.Types.Address as W
 import qualified Cardano.Wallet.Primitive.Types.Coin as Coin
 import qualified Cardano.Wallet.Primitive.Types.Coin as W
@@ -939,9 +936,7 @@ balanceTransactionWithSelectionStrategyAndNoZeroAdaAdjustment
                     }
 
         feePadding =
-            let LinearFee LinearFunction {slope = perByte} =
-                    pp ^. #txParameters . #getFeePolicy
-
+            let
                 -- Could be made smarter by only padding for the script
                 -- integrity hash when we intend to add one. [ADP-2621]
                 scriptIntegrityHashBytes = 32 + 2
@@ -957,7 +952,8 @@ balanceTransactionWithSelectionStrategyAndNoZeroAdaAdjustment
                 -- in the final stage of 'balanceTransaction'.
                 extraBytes = 8
             in
-            W.Coin $ round perByte * (extraBytes + scriptIntegrityHashBytes)
+                W.toWallet . feeOfBytes feePerByte $
+                    extraBytes + scriptIntegrityHashBytes
 
         fromCardanoLovelace (Cardano.Lovelace l) = Coin.unsafeFromIntegral l
 

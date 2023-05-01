@@ -69,6 +69,7 @@ module Cardano.Wallet.Write.Tx
     , Core.PParams
     , FeePerByte (..)
     , getFeePerByte
+    , feeOfBytes
     , maxScriptExecutionCost
 
     -- * Tx
@@ -866,6 +867,12 @@ getFeePerByte
 getFeePerByte era pp = FeePerByte $ case era of
     RecentEraConway -> pp ^. #_minfeeA
     RecentEraBabbage -> pp ^. #_minfeeA
+
+feeOfBytes
+    :: FeePerByte
+    -> Natural
+    -> Coin
+feeOfBytes (FeePerByte perByte) bytes = Coin $ intCast $ perByte * bytes
 
 type ExUnitPrices = Alonzo.Prices
 
