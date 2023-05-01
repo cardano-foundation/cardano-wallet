@@ -84,7 +84,7 @@ import Cardano.Wallet.Address.Derivation
 import Cardano.Wallet.Address.Derivation.Shared
     ( SharedKey (..) )
 import Cardano.Wallet.Primitive.Types
-    ( TokenBundleMaxSize (TokenBundleMaxSize) )
+    ( TokenBundleMaxSize (TokenBundleMaxSize, unTokenBundleMaxSize) )
 import Cardano.Wallet.Primitive.Types.Hash
     ( Hash (..) )
 import Cardano.Wallet.Primitive.Types.Redeemer
@@ -529,7 +529,7 @@ balanceTransactionWithSelectionStrategyAndNoZeroAdaAdjustment
 balanceTransactionWithSelectionStrategyAndNoZeroAdaAdjustment
     tr
     (UTxOAssumptions txLayer toInpScriptsM mScriptTemplate txWitnessTag)
-    (ProtocolParameters pp ledgerPP)
+    (ProtocolParameters _pp ledgerPP)
     timeTranslation
     (UTxOIndex walletUTxO internalUtxoAvailable cardanoUTxO)
     genChange
@@ -727,10 +727,10 @@ balanceTransactionWithSelectionStrategyAndNoZeroAdaAdjustment
         -> ExceptT ErrBalanceTx m (Cardano.Tx era)
     guardTxSize witCount tx@(Cardano.Tx body _noKeyWits) = do
         let size = estimateSignedTxSize ledgerPP witCount body
-        let maxSize = TxSize
-                . intCast
-                . getQuantity
-                $ view (#txParameters . #getTxMaxSize) pp
+        let maxSize = TxSize $ case (recentEra @era) of
+                RecentEraBabbage -> ledgerPP ^. #_maxTxSize
+                RecentEraConway -> ledgerPP ^. #_maxTxSize
+
         when (size > maxSize) $
             throwE ErrBalanceTxMaxSizeLimitExceeded
         return tx
