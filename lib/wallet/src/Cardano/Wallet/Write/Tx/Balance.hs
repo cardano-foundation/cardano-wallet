@@ -963,8 +963,9 @@ balanceTransactionWithSelectionStrategyAndNoZeroAdaAdjustment
                 view #assessTokenBundleSize $
                 tokenBundleSizeAssessor txLayer $
                 pp ^. #txParameters . #getTokenBundleMaxSize
-            , certificateDepositAmount =
-                pp ^. #stakeKeyDeposit
+            , certificateDepositAmount = W.toWallet $ case recentEra @era of
+                RecentEraBabbage -> getField @"_keyDeposit" ledgerPP
+                RecentEraConway -> getField @"_keyDeposit" ledgerPP
             , computeMinimumAdaQuantity = \addr tokens -> W.toWallet $
                 computeMinimumCoinForTxOut
                     (recentEra @era)

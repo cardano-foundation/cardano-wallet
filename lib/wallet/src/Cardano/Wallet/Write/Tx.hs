@@ -278,6 +278,7 @@ type RecentEraLedgerConstraints era =
     , HasField' "_minfeeA" (Core.PParams era) Natural
     , HasField' "_prices" (Core.PParams era) ExUnitPrices
     , HasField' "_maxTxExUnits" (Core.PParams era) ExUnits
+    , HasField' "_keyDeposit" (Core.PParams era) Coin
     )
 
 -- | Bring useful constraints into scope from a value-level
