@@ -458,7 +458,7 @@ import Cardano.Wallet.Shelley.Compatibility
     , fromCardanoWdrls
     )
 import Cardano.Wallet.Shelley.Transaction
-    ( TxWitnessTag, TxWitnessTagFor (txWitnessTagFor), calculateMinimumFee )
+    ( calculateMinimumFee )
 import Cardano.Wallet.Transaction
     ( DelegationAction (..)
     , ErrCannotJoin (..)
@@ -477,6 +477,8 @@ import Cardano.Wallet.Transaction
     )
 import Cardano.Wallet.Transaction.Built
     ( BuiltTx (..) )
+import Cardano.Wallet.TxWitnessTag
+    ( TxWitnessTag )
 import Cardano.Wallet.Write.Tx
     ( AnyRecentEra )
 import Cardano.Wallet.Write.Tx.Balance
@@ -1846,7 +1848,6 @@ type MakeRewardAccountBuilder k =
 buildSignSubmitTransaction
     :: forall k s n
      . ( WalletKey k
-       , TxWitnessTagFor k
        , HardDerivation k
        , Bounded (Index (AddressIndexDerivationType k) (AddressCredential k))
        , IsOwned s k 'CredFromKeyK
@@ -1936,7 +1937,6 @@ buildSignSubmitTransaction db@DBLayer{..} netLayer txLayer pwd walletId
 buildAndSignTransactionPure
     :: forall k s n
      . ( WalletKey k
-       , TxWitnessTagFor k
        , HardDerivation k
        , Bounded (Index (AddressIndexDerivationType k) (AddressCredential k))
        , IsOwned s k 'CredFromKeyK
@@ -2039,7 +2039,6 @@ buildTransaction
     . ( WalletFlavor s n k
       , WriteTx.IsRecentEra era
       , AddressBookIso s
-      , TxWitnessTagFor k
       )
     => DBLayer IO s k
     -> TransactionLayer k 'CredFromKeyK SealedTx
@@ -2086,7 +2085,6 @@ buildTransactionPure
     :: forall s k n era
      . ( WriteTx.IsRecentEra era
        , WalletFlavor s n k
-       , TxWitnessTagFor k
        )
     => Wallet s
     -> TimeTranslation
@@ -2115,7 +2113,7 @@ buildTransactionPure
     withExceptT Left $
         balanceTransaction @_ @_ @s
             nullTracer
-            (Write.allKeyPaymentCredentials txLayer (txWitnessTagFor @k))
+            (Write.allKeyPaymentCredentials txLayer)
             pparams
             timeTranslation
             (constructUTxOIndex utxo)
@@ -2686,7 +2684,6 @@ delegationFee
     :: forall s k n
      . ( AddressBookIso s
        , WalletFlavor s n k
-       , TxWitnessTagFor k
        )
     => DBLayer IO s k
     -> NetworkLayer IO Read.Block
@@ -2719,7 +2716,6 @@ transactionFee
      . ( AddressBookIso s
        , WriteTx.IsRecentEra era
        , WalletFlavor s n k
-       , TxWitnessTagFor k
        )
     => DBLayer IO s k
     -> Write.ProtocolParameters era
@@ -2771,8 +2767,7 @@ transactionFee DBLayer{atomically, walletsDB} protocolParams txLayer
             res <- runExceptT $
                     balanceTransaction @_ @_ @s
                         nullTracer
-                        (Write.allKeyPaymentCredentials
-                            txLayer (txWitnessTagFor @k))
+                        (Write.allKeyPaymentCredentials txLayer)
                         protocolParams
                         timeTranslation
                         utxoIndex

@@ -1783,7 +1783,8 @@ selectCoins ctx@ApiLayer {..} argGenChange (ApiT walletId) body = do
         withdrawal <-
             body ^. #withdrawal
                 & maybe (pure NoWithdrawal)
-                    (shelleyOnlyMkWithdrawal @s @k @n netLayer (txWitnessTagFor @k) db era)
+                    (shelleyOnlyMkWithdrawal @s @k @n
+                        netLayer (txWitnessTagFor @k) db era)
         let genChange = W.defaultChangeAddressGen argGenChange (Proxy @k)
         let paymentOuts = NE.toList $ addressAmountToTxOut <$> body ^. #payments
         let txCtx = defaultTransactionCtx
@@ -1824,7 +1825,6 @@ selectCoinsForJoin
         , Seq.SupportsDiscovery n k
         , BoundedAddressLength k
         , DelegationAddress k 'CredFromKeyK
-        , TxWitnessTagFor k
         )
     => ApiLayer s k 'CredFromKeyK
     -> IO (Set PoolId)
@@ -3515,7 +3515,6 @@ joinStakePool
         , IsOurs (SeqState n k) RewardAccount
         , SoftDerivation k
         , WalletKey k
-        , TxWitnessTagFor k
         , AddressBookIso s
         , BoundedAddressLength k
         , HasDelegation s

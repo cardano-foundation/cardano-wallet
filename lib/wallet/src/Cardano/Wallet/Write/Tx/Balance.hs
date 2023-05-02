@@ -373,13 +373,12 @@ constructUTxOIndex walletUTxO =
 -- either normal, post-Shelley credentials, or boostrap/byron credentials
 -- depending on the 'k' of the supplied 'TransactionLayer'.
 allKeyPaymentCredentials
-    :: forall k. TransactionLayer k 'CredFromKeyK SealedTx
-    -> TxWitnessTag -> UTxOAssumptions
-allKeyPaymentCredentials tl tag = UTxOAssumptions
+    :: forall k. TransactionLayer k 'CredFromKeyK SealedTx -> UTxOAssumptions
+allKeyPaymentCredentials tl = UTxOAssumptions
     { txLayer = tl
     , inputScriptLookup = Nothing
     , inputScriptTemplate = Nothing
-    , txWitnessTag = tag
+    , txWitnessTag = transactionWitnessTag tl
     }
 
 -- | Assumes all 'UTxO' entries have addresses with script payment credentials,
@@ -389,13 +388,12 @@ allScriptPaymentCredentials
     :: (W.Address -> (CA.Script KeyHash))
     -> ScriptTemplate
     -> TransactionLayer SharedKey 'CredFromScriptK SealedTx
-    -> TxWitnessTag
     -> UTxOAssumptions
-allScriptPaymentCredentials scriptLookup template tl tag = UTxOAssumptions
+allScriptPaymentCredentials scriptLookup template tl = UTxOAssumptions
     { txLayer = tl
     , inputScriptLookup = Just scriptLookup
     , inputScriptTemplate = Just template
-    , txWitnessTag = tag
+    , txWitnessTag = transactionWitnessTag tl
     }
 
 balanceTransaction
@@ -906,9 +904,8 @@ balanceTransactionWithSelectionStrategyAndNoZeroAdaAdjustment
         TokenBundle negativeAda negativeTokens = negativeBundle
         adaInOutputs = F.foldMap (TokenBundle.getCoin . view #tokens) outs
         tokensInOutputs = F.foldMap (TokenBundle.tokens . view #tokens) outs
-        selectedBalance = UTxOSelection.selectedBalance utxoSelection
-        tokensInInputs = TokenBundle.tokens selectedBalance
-        adaInInputs = TokenBundle.getCoin selectedBalance
+        TokenBundle adaInInputs tokensInInputs =
+            UTxOSelection.selectedBalance utxoSelection
 
         boringFee =
             calculateMinimumFee

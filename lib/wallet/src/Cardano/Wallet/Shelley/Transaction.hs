@@ -118,16 +118,10 @@ import Cardano.Tx.Balance.Internal.CoinSelection
     )
 import Cardano.Wallet.Address.Derivation
     ( Depth (..), RewardAccount (..), WalletKey (..) )
-import Cardano.Wallet.Address.Derivation.Byron
-    ( ByronKey )
-import Cardano.Wallet.Address.Derivation.Icarus
-    ( IcarusKey )
-import Cardano.Wallet.Address.Derivation.Shared
-    ( SharedKey )
 import Cardano.Wallet.Address.Derivation.SharedKey
     ( replaceCosignersWithVerKeys )
 import Cardano.Wallet.Address.Derivation.Shelley
-    ( ShelleyKey, toRewardAccountRaw )
+    ( toRewardAccountRaw )
 import Cardano.Wallet.Address.Discovery.Shared
     ( estimateMaxWitnessRequiredPerInput )
 import Cardano.Wallet.Primitive.Passphrase
@@ -217,6 +211,8 @@ import Cardano.Wallet.Transaction
     , mapTxFeeAndChange
     , withdrawalToCoin
     )
+import Cardano.Wallet.TxWitnessTag
+    ( TxWitnessTag (..), TxWitnessTagFor (..) )
 import Cardano.Wallet.Util
     ( HasCallStack, internalError, modifyM )
 import Cardano.Wallet.Write.Tx
@@ -250,8 +246,6 @@ import Data.Generics.Labels
     ()
 import Data.IntCast
     ( intCast )
-import Data.Kind
-    ( Type )
 import Data.Map.Strict
     ( Map, (!) )
 import Data.Maybe
@@ -337,16 +331,6 @@ data TxPayload era = TxPayload
       -- witnesses for what they're trying to do.
     }
 
-data TxWitnessTag
-    = TxWitnessByronUTxO WalletStyle
-    | TxWitnessShelleyUTxO
-    deriving (Show, Eq)
-
-data WalletStyle
-    = Icarus
-    | Byron
-    deriving (Show, Eq)
-
 type EraConstraints era =
     ( IsShelleyBasedEra era
     , ToCBOR (Ledger.TxBody (Cardano.ShelleyLedgerEra era))
@@ -354,23 +338,6 @@ type EraConstraints era =
     , (era == ByronEra) ~ 'False
     )
 
--- | Provide a transaction witness for a given private key. The type of witness
--- is different between types of keys and, with backward-compatible support, we
--- need to support many types for one backend target.
-class TxWitnessTagFor (k :: Depth -> Type -> Type) where
-    txWitnessTagFor :: TxWitnessTag
-
-instance TxWitnessTagFor ShelleyKey where
-    txWitnessTagFor = TxWitnessShelleyUTxO
-
-instance TxWitnessTagFor SharedKey where
-    txWitnessTagFor = TxWitnessShelleyUTxO
-
-instance TxWitnessTagFor IcarusKey where
-    txWitnessTagFor = TxWitnessByronUTxO Icarus
-
-instance TxWitnessTagFor ByronKey where
-    txWitnessTagFor = TxWitnessByronUTxO Byron
 
 constructUnsignedTx
     :: forall era
@@ -577,10 +544,12 @@ signTransaction
     mkTxInWitness i = do
         addr <- resolveInput i
         (k, pwd) <- resolveAddress addr
-        pure $ case (txWitnessTagFor @k) of
+        pure $ case txWitnessTagFor @k of
             TxWitnessShelleyUTxO ->
                 mkShelleyWitness body (getRawKey k, pwd)
-            TxWitnessByronUTxO{} ->
+            TxWitnessByronUTxO ->
+                mkByronWitness body networkId addr (getRawKey k, pwd)
+            TxWitnessByronIcarusUTxO ->
                 mkByronWitness body networkId addr (getRawKey k, pwd)
 
     mkWdrlCertWitness :: RewardAccount -> Maybe (Cardano.KeyWitness era)
@@ -725,6 +694,8 @@ newTransactionLayer networkId = TransactionLayer
     , constraints = \era pp -> txConstraints era pp (txWitnessTagFor @k)
 
     , decodeTx = _decodeSealedTx
+
+    , transactionWitnessTag = txWitnessTagFor @k
     }
 
 _decodeSealedTx
@@ -1788,7 +1759,8 @@ estimateTxSize era skeleton =
 
     numberOf_VkeyWitnesses
         = case txWitnessTag of
-            TxWitnessByronUTxO{} -> 0
+            TxWitnessByronUTxO -> 0
+            TxWitnessByronIcarusUTxO -> 0
             TxWitnessShelleyUTxO ->
                 if numberOf_ScriptVkeyWitnesses == 0 then
                     numberOf_Inputs
@@ -1803,7 +1775,8 @@ estimateTxSize era skeleton =
 
     numberOf_BootstrapWitnesses
         = case txWitnessTag of
-            TxWitnessByronUTxO{} -> numberOf_Inputs
+            TxWitnessByronUTxO -> numberOf_Inputs
+            TxWitnessByronIcarusUTxO -> numberOf_Inputs
             TxWitnessShelleyUTxO -> 0
 
     -- transaction =
@@ -2033,7 +2006,8 @@ estimateTxSize era skeleton =
     -- larger than mainnet ones. But meh.
     sizeOf_ChangeAddress
         = case txWitnessTag of
-            TxWitnessByronUTxO{} -> 85
+            TxWitnessByronUTxO -> 85
+            TxWitnessByronIcarusUTxO -> 85
             TxWitnessShelleyUTxO -> 59
 
     -- value = coin / [coin,multiasset<uint>]

@@ -335,8 +335,6 @@ import Data.Either
     ( isLeft, isRight )
 import Data.Function
     ( on, (&) )
-import Data.Functor
-    ( (<&>) )
 import Data.Functor.Identity
     ( Identity )
 import Data.Generics.Internal.VL.Lens
@@ -2434,8 +2432,7 @@ balanceTransactionSpec = describe "balanceTransaction" $ do
     describe "change address generation" $ do
         let balance' =
                 balanceTransactionWithDummyChangeState
-                    (allKeyPaymentCredentials testTxLayer
-                        (txWitnessTagFor @ShelleyKey))
+                    (allKeyPaymentCredentials testTxLayer)
                     dustUTxO
                     testStdGenSeed
 
@@ -3143,24 +3140,20 @@ instance Buildable Wallet' where
 
 instance Arbitrary Wallet' where
     arbitrary = oneof
-        [ genWalletUTxO genShelleyVkAddr <&> \utxo -> Wallet'
-            (allShelleyPaymentKeyCredentials (txWitnessTagFor @ShelleyKey))
-            utxo
-            dummyShelleyChangeAddressGen
+        [ Wallet' allShelleyPaymentKeyCredentials
+            <$> (genWalletUTxO genShelleyVkAddr)
+            <*> (pure dummyShelleyChangeAddressGen)
 
-        , genWalletUTxO genByronVkAddr <&> \utxo -> Wallet'
-            (allByronPaymentKeyCredentials (txWitnessTagFor @ByronKey))
-            utxo
-            dummyByronChangeAddressGen
+        , Wallet' allByronPaymentKeyCredentials
+            <$> (genWalletUTxO genByronVkAddr)
+            <*> (pure dummyByronChangeAddressGen)
         ]
       where
-        allShelleyPaymentKeyCredentials = allKeyPaymentCredentials tl
-          where
-            tl = newTransactionLayer @ShelleyKey Cardano.Mainnet
+        allShelleyPaymentKeyCredentials = allKeyPaymentCredentials $
+            newTransactionLayer @ShelleyKey Cardano.Mainnet
 
-        allByronPaymentKeyCredentials = allKeyPaymentCredentials tl
-          where
-            tl = newTransactionLayer @ByronKey Cardano.Mainnet
+        allByronPaymentKeyCredentials = allKeyPaymentCredentials $
+            newTransactionLayer @ByronKey Cardano.Mainnet
 
         genShelleyVkAddr :: Gen (Cardano.AddressInEra Cardano.BabbageEra)
         genShelleyVkAddr = Cardano.shelleyAddressInEra
@@ -3208,9 +3201,7 @@ instance Arbitrary Wallet' where
 
 mkTestWallet :: UTxO -> Wallet'
 mkTestWallet utxo = Wallet'
-    (allKeyPaymentCredentials
-        (newTransactionLayer @ShelleyKey Cardano.Mainnet)
-        (txWitnessTagFor @ShelleyKey))
+    (allKeyPaymentCredentials (newTransactionLayer @ShelleyKey Cardano.Mainnet))
     utxo
     dummyShelleyChangeAddressGen
 

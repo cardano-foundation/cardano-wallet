@@ -115,6 +115,8 @@ import Cardano.Wallet.Primitive.Types.Tx.TxIn
     ( TxIn (..) )
 import Cardano.Wallet.Primitive.Types.Tx.TxOut
     ( TxOut (..) )
+import Cardano.Wallet.TxWitnessTag
+    ( TxWitnessTag )
 import Control.DeepSeq
     ( NFData (..) )
 import Data.List.NonEmpty
@@ -230,6 +232,8 @@ data TransactionLayer k ktype tx = TransactionLayer
             , WitnessCount
             )
     -- ^ Decode an externally-created transaction.
+
+    , transactionWitnessTag :: TxWitnessTag
     }
 
 type TxValidityInterval = (Maybe SlotNo, SlotNo)

@@ -149,6 +149,8 @@ import Cardano.Wallet.Transaction
     )
 import Cardano.Wallet.Transaction.Built
     ( BuiltTx (..) )
+import Cardano.Wallet.TxWitnessTag
+    ( TxWitnessTag (TxWitnessShelleyUTxO) )
 import Cardano.Wallet.Unsafe
     ( unsafeRunExceptT )
 import Cardano.Wallet.Util
@@ -1281,6 +1283,7 @@ dummyTransactionLayer = TransactionLayer
         , Nothing
         , emptyWitnessCount
         )
+    , transactionWitnessTag = TxWitnessShelleyUTxO
     }
   where
     forMaybe :: [a] -> (a -> Maybe b) -> [b]
