@@ -32,7 +32,7 @@ import Cardano.Wallet.DB
     , DBLayer (..)
     , DBLayerParams (..)
     , ErrWalletAlreadyInitialized (ErrWalletAlreadyInitialized)
-    , ErrWalletNotInitialized (ErrWalletNotInitialized)
+    , ErrWalletNotInitialized
     )
 import Cardano.Wallet.DB.Arbitrary
     ( GenState, GenTxHistory (..), InitialCheckpoint (..), MockChain (..) )
@@ -66,8 +66,10 @@ import Control.Monad
     ( forM_, void )
 import Control.Monad.IO.Class
     ( liftIO )
+import Control.Monad.Trans
+    ( lift )
 import Control.Monad.Trans.Except
-    ( ExceptT, mapExceptT, runExceptT, withExceptT )
+    ( ExceptT, runExceptT )
 import Crypto.Hash
     ( hash )
 import Data.ByteString
@@ -155,26 +157,25 @@ properties withFreshDB = describe "DB.Properties" $ do
             $ property
             $ prop_readAfterPut
                 testOnLayer
-                (\DBLayer{..} _wid -> mapExceptT atomically . putCheckpoint)
-                (\DBLayer{..} _wid -> atomically readCheckpoint)
+                (\DBLayer{..} _wid -> lift . atomically . putCheckpoint)
+                (\DBLayer{..} _wid -> Identity <$> atomically readCheckpoint)
         it "Wallet Metadata"
             $ property
             $ prop_readAfterPut
                 testOnLayer
-                (\DBLayer{..} _wid -> mapExceptT atomically . putWalletMeta)
-                (\DBLayer{..} _ -> atomically . fmap (fmap fst)
-                    $ readWalletMeta)
+                (\DBLayer{..} _wid -> lift . atomically . putWalletMeta)
+                (\DBLayer{..} _ -> Identity . fst <$>  atomically readWalletMeta)
         it "Tx History"
             $ property
             $ prop_readAfterPut
                 testOnLayer
-                (\db _ -> putTxHistory_ db)
+                (\db _ -> lift . putTxHistory_ db)
                 (\db _ -> readTxHistory_ db)
         it "Private Key"
             $ property
             $ prop_readAfterPut
                 testOnLayer
-                (\DBLayer{..} _wid -> mapExceptT atomically . putPrivateKey)
+                (\DBLayer{..} _wid -> lift . atomically . putPrivateKey)
                 (\DBLayer{..} _wid -> atomically readPrivateKey)
 
     describe "getTx properties" $ do
@@ -190,7 +191,7 @@ properties withFreshDB = describe "DB.Properties" $ do
             $ property
             $ prop_isolation
                 testOnLayer
-                (\DBLayer{..} _wid -> mapExceptT atomically . putCheckpoint)
+                (\DBLayer{..} _wid -> lift . atomically . putCheckpoint)
                 (\DBLayer{..} _ -> atomically readWalletMeta)
                 (\db _ -> readTxHistory_ db)
                 (\DBLayer{..} _wid -> atomically readPrivateKey)
@@ -198,7 +199,7 @@ properties withFreshDB = describe "DB.Properties" $ do
             $ property
             $ prop_isolation
                 testOnLayer
-                (\DBLayer{..} _wid -> mapExceptT atomically . putWalletMeta)
+                (\DBLayer{..} _wid -> lift . atomically . putWalletMeta)
                 (\db _ -> readTxHistory_ db)
                 (\DBLayer{..} _ -> atomically readCheckpoint)
                 (\DBLayer{..} _wid -> atomically readPrivateKey)
@@ -206,7 +207,7 @@ properties withFreshDB = describe "DB.Properties" $ do
             $ property
             $ prop_isolation
                 testOnLayer
-                (\db _ -> putTxHistory_ db)
+                (\db _ -> lift . putTxHistory_ db)
                 (\DBLayer{..} _ -> atomically readCheckpoint)
                 (\DBLayer{..} _ -> atomically readWalletMeta)
                 (\DBLayer{..} _wid -> atomically readPrivateKey)
@@ -218,23 +219,22 @@ properties withFreshDB = describe "DB.Properties" $ do
             $ checkCoverage
             $ prop_sequentialPut
                 testOnLayer
-                (\DBLayer{..} _wid -> mapExceptT atomically . putCheckpoint)
-                (\DBLayer{..} _-> atomically readCheckpoint)
-                lastMay
+                (\DBLayer{..} _wid -> lift . atomically . putCheckpoint)
+                (\DBLayer{..} _-> Identity <$> atomically readCheckpoint)
+                (Identity . last)
                 . sortOn (currentTip . unShowFmt)
         it "Wallet Metadata"
             $ checkCoverage
             $ prop_sequentialPut
                 testOnLayer
-                (\DBLayer{..} _wid -> mapExceptT atomically . putWalletMeta)
-                (\DBLayer{..} _ -> atomically . fmap (fmap fst)
-                    $ readWalletMeta)
+                (\DBLayer{..} _wid -> lift . atomically . putWalletMeta)
+                (\DBLayer{..} _ -> Just . fst <$> atomically readWalletMeta)
                 lastMay
         it "Tx History"
             $ checkCoverage
             $ prop_sequentialPut
                 testOnLayer
-                (\db _ -> putTxHistory_ db)
+                (\db _ -> lift . putTxHistory_ db)
                 (\db _ -> readTxHistory_ db)
                 ( let sort' =
                         GenTxHistory
@@ -246,7 +246,7 @@ properties withFreshDB = describe "DB.Properties" $ do
             $ checkCoverage
             $ prop_sequentialPut
                 testOnLayer
-                (\DBLayer{..} _wid -> mapExceptT atomically . putPrivateKey)
+                (\DBLayer{..} _wid -> lift . atomically . putPrivateKey)
                 (\DBLayer{..} _wid -> atomically readPrivateKey)
                 lastMay
 
@@ -269,15 +269,10 @@ readTxHistory_ DBLayer {..} =
             (readTransactions Nothing Descending wholeRange Nothing Nothing)
 
 putTxHistory_
-    :: Functor m
-    => DBLayer m s ShelleyKey
+    :: DBLayer m s ShelleyKey
     -> GenTxHistory
-    -> ExceptT ErrWalletNotInitialized m ()
-putTxHistory_ DBLayer {..} =
-    withExceptT (const ErrWalletNotInitialized)
-        . mapExceptT atomically
-        . putTxHistory
-        . unGenTxHistory
+    -> m ()
+putTxHistory_ DBLayer {..} = atomically . putTxHistory . unGenTxHistory
 
 {-------------------------------------------------------------------------------
                                        Utils
@@ -370,10 +365,10 @@ prop_getTxAfterPutValidTxId
     -> Property
 prop_getTxAfterPutValidTxId test txGen = test $ \DBLayer {..} _ -> do
     let txs = unGenTxHistory txGen
-    run $ unsafeRunExceptT $ mapExceptT atomically $ putTxHistory txs
+    run $ atomically $ putTxHistory txs
     forM_ txs $ \(Tx {txId}, txMeta) -> do
         (Just (TransactionInfo {txInfoId, txInfoMeta})) <-
-            run $ atomically $ unsafeRunExceptT $ getTx txId
+            run $ atomically $ getTx txId
         monitor
             $ counterexample
             $ "\nInserted\n"
@@ -397,8 +392,8 @@ prop_getTxAfterPutInvalidTxId
     -> Property
 prop_getTxAfterPutInvalidTxId test txGen txId' = test $ \DBLayer {..} _ -> do
     let txs = unGenTxHistory txGen
-    run $ unsafeRunExceptT $ mapExceptT atomically $ putTxHistory txs
-    res <- run $ atomically $ unsafeRunExceptT $ getTx txId'
+    run $ atomically $ putTxHistory txs
+    res <- run $ atomically $ getTx txId'
     assertWith
         "Irrespective of Inserted, Read is Nothing for invalid tx id"
         (isNothing res)
@@ -440,8 +435,7 @@ prop_isolation
 prop_isolation test putA readB readC readD (ShowFmt a) =
     test $ \db@DBLayer {..} wid -> do
         (GenTxHistory txs) <- pick arbitrary
-        run $ atomically $ do
-            unsafeRunExceptT $ putTxHistory txs
+        run $ atomically $ putTxHistory txs
         (b, c, d) <-
             run
                 $ (,,)
@@ -513,17 +507,15 @@ prop_rollbackCheckpoint test (InitialCheckpoint cp0) (MockChain chain) =
                     unsafeRunExceptT
                         $ bootDBLayer
                         $ DBLayerParams cp0 meta mempty gp
-                atomically $ unsafeRunExceptT $ forM_ cps putCheckpoint
+                atomically $ forM_ cps putCheckpoint
                 let tip = currentTip point
-                point' <-
-                    atomically
-                        $ unsafeRunExceptT
-                        $ rollbackTo (toSlot $ chainPointFromBlockHeader tip)
+                point' <- atomically
+                    $ rollbackTo (toSlot $ chainPointFromBlockHeader tip)
                 cp <- atomically readCheckpoint
                 pure (tip, cp, point')
-            let str = maybe "∅" pretty cp
+            let str = pretty cp
             monitor $ counterexample ("Checkpoint after rollback: \n" <> str)
-            assert (ShowFmt cp == ShowFmt (pure point))
+            assert (ShowFmt cp == ShowFmt point)
             assert (ShowFmt point' == ShowFmt (chainPointFromBlockHeader tip))
 
 -- | Re-schedule pending transaction on rollback, i.e.:
@@ -556,11 +548,8 @@ prop_rollbackTxHistory test (InitialCheckpoint cp0) (GenTxHistory txs0) = do
                 unsafeRunExceptT
                     $ bootDBLayer
                     $ DBLayerParams cp0 meta mempty gp
-            atomically $ unsafeRunExceptT $ putTxHistory txs0
-            point <-
-                unsafeRunExceptT
-                    $ mapExceptT atomically
-                    $ rollbackTo (At requestedPoint)
+            atomically $ putTxHistory txs0
+            point <- atomically $ rollbackTo (At requestedPoint)
             txs <-
                 atomically
                     $ fmap toTxHistory

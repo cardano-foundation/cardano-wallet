@@ -56,8 +56,6 @@ import Cardano.Address.Script
     ( ScriptTemplate (..) )
 import Cardano.Pool.Types
     ( PoolId (..) )
-import Cardano.Wallet
-    ( mkNoSuchWalletError )
 import Cardano.Wallet.Address.Book
     ( AddressBookIso )
 import Cardano.Wallet.Address.Derivation
@@ -89,11 +87,9 @@ import Cardano.Wallet.Address.Discovery.Shared
     , SharedState (..)
     )
 import Cardano.Wallet.DB
-    ( DBLayer (..), DBLayerParams (..), ErrWalletNotInitialized )
+    ( DBLayer (..), DBLayerParams (..) )
 import Cardano.Wallet.DB.Arbitrary
     ( GenState, GenTxHistory (..), InitialCheckpoint (..) )
-import Cardano.Wallet.DB.Errors
-    ( ErrNoSuchWallet (..) )
 import Cardano.Wallet.DB.Pure.Implementation
     ( Database (..)
     , Err (..)
@@ -189,16 +185,12 @@ import Control.Foldl
     ( Fold (..) )
 import Control.Monad
     ( forM_, replicateM, void, when )
-import Control.Monad.Except
-    ( ExceptT )
 import Control.Monad.IO.Unlift
     ( MonadIO )
-import Control.Monad.Trans.Except
-    ( mapExceptT, runExceptT )
 import Crypto.Hash
     ( Blake2b_160, Digest, digestFromByteString, hash )
 import Data.Bifunctor
-    ( bimap, first )
+    ( first )
 import Data.ByteString
     ( ByteString )
 import Data.Foldable
@@ -214,7 +206,7 @@ import Data.Map
 import Data.Map.Strict.NonEmptyMap.Internal
     ( NonEmptyMap )
 import Data.Maybe
-    ( catMaybes, fromJust, isJust )
+    ( catMaybes, fromJust )
 import Data.Quantity
     ( Percentage (..), Quantity (..) )
 import Data.Set
@@ -370,8 +362,8 @@ data Success s wid
     = Unit ()
     | NewWallet wid
     | WalletId' wid
-    | Checkpoint (Maybe (Wallet s))
-    | Metadata (Maybe WalletMetadata)
+    | Checkpoint (Wallet s)
+    | Metadata WalletMetadata
     | TxHistory [TransactionInfo]
     | LocalTxSubmission [LocalTxSubmissionStatus (Hash "Tx")]
     | PrivateKey (Maybe MPrivKey)
@@ -412,8 +404,7 @@ runMock = \case
     PutWalletMeta meta ->
         first (Resp . fmap Unit) . mPutWalletMeta meta
     ReadWalletMeta ->
-        first (Resp . fmap (Metadata . fmap fst) )
-            . mReadWalletMeta timeInterpreter
+        first (Resp . fmap (Metadata . fst) ) . mReadWalletMeta timeInterpreter
     PutDelegationCertificate cert sl ->
         first (Resp . fmap Unit) . mPutDelegationCertificate cert sl
     IsStakeKeyRegistered _wid ->
@@ -457,57 +448,52 @@ runIO
 runIO DBLayer{..} = fmap Resp . go
   where
     wid = walletId_
-    runDB :: Functor stm => (stm (Either ErrNoSuchWallet a) -> m (Either ErrNoSuchWallet a))
-        -> ExceptT ErrWalletNotInitialized stm a
-        -> ExceptT ErrNoSuchWallet m a
-    runDB atomically' = mapExceptT atomically' . mkNoSuchWalletError wid
+
+    runDBSuccess
+      :: (stm a -> m a)
+         -> (a -> Success s WalletId)
+         -> stm a
+         -> m (Either Err (Success s WalletId))
+    runDBSuccess atomically' s action = do
+        r <- atomically' action
+        pure $ Right $ s r
     go
         :: Cmd s WalletId
         -> m (Either Err (Success s WalletId))
     go = \case
         CreateWallet -> pure $ Right $ NewWallet wid
-        PutCheckpoint wal -> catchNoSuchWallet Unit $
-            runDB atomically $ putCheckpoint wal
+        PutCheckpoint wal -> runDBSuccess atomically Unit $ putCheckpoint wal
         ReadCheckpoint -> Right . Checkpoint <$>
             atomically readCheckpoint
         ListCheckpoints -> Right . ChainPoints <$>
             atomically listCheckpoints
-        PutWalletMeta meta -> catchNoSuchWallet Unit $
-            runDB atomically $ putWalletMeta meta
-        ReadWalletMeta -> Right . (Metadata . fmap fst) <$>
-            atomically readWalletMeta
-        PutDelegationCertificate pool sl -> catchNoSuchWallet Unit $
-            runDB atomically $ putDelegationCertificate pool sl
-        IsStakeKeyRegistered _wid -> catchNoSuchWallet StakeKeyStatus $
-            runDB atomically isStakeKeyRegistered
-        PutTxHistory txs -> catchNoSuchWallet Unit $
-            runDB atomically $ putTxHistory txs
+        PutWalletMeta meta ->
+            runDBSuccess atomically Unit $ putWalletMeta meta
+        ReadWalletMeta -> Right . (Metadata . fst) <$> atomically readWalletMeta
+        PutDelegationCertificate pool sl ->
+            runDBSuccess atomically Unit $ putDelegationCertificate pool sl
+        IsStakeKeyRegistered _wid ->
+            runDBSuccess atomically StakeKeyStatus isStakeKeyRegistered
+        PutTxHistory txs -> runDBSuccess atomically Unit $ putTxHistory txs
         ReadTxHistory minWith order range status ->
             fmap (Right . TxHistory) $
             atomically $
             readTransactions minWith order range status Nothing
         GetTx tid ->
-            catchNoSuchWallet (TxHistory . maybe [] pure) $
-            runDB atomically $ getTx tid
-        PutPrivateKey pk -> catchNoSuchWallet Unit $
-            runDB atomically $
+            runDBSuccess atomically (TxHistory . maybe [] pure) $ getTx tid
+        PutPrivateKey pk ->
+            runDBSuccess atomically  Unit $
             putPrivateKey (fromMockPrivKey pk)
         ReadPrivateKey -> Right . PrivateKey . fmap toMockPrivKey <$>
             atomically readPrivateKey
         ReadGenesisParameters -> Right . GenesisParams <$>
             atomically readGenesisParameters
-        PutDelegationRewardBalance _wid amt -> catchNoSuchWallet Unit $
-            runDB atomically $
+        PutDelegationRewardBalance _wid amt -> runDBSuccess atomically Unit $
             putDelegationRewardBalance amt
         ReadDelegationRewardBalance -> Right . DelegationRewardBalance <$>
             atomically readDelegationRewardBalance
-        RollbackTo _wid sl -> catchNoSuchWallet Point $
-            runDB atomically $ rollbackTo sl
-    catchNoSuchWallet f =
-        fmap (bimap errNoSuchWallet f) . runExceptT
+        RollbackTo _wid sl -> runDBSuccess atomically Point $ rollbackTo sl
 
-    errNoSuchWallet :: ErrNoSuchWallet -> Err
-    errNoSuchWallet (ErrNoSuchWallet _wid) = WalletAlreadyInitialized
 
 {-------------------------------------------------------------------------------
   Working with references
@@ -978,8 +964,6 @@ data Tag
     | TxUnsortedInputs
       -- ^ Putting a transaction with unsorted inputs.
     | TxUnsortedOutputs
-    | SuccessfulReadCheckpoint
-      -- ^ Read the checkpoint of a wallet that's been created.
     | SuccessfulReadPrivateKey
       -- ^ Private key was written then read.
     | PutCheckpointTwice
@@ -1000,7 +984,6 @@ tag = Foldl.fold $ catMaybes <$> sequenceA
     , readTransactions null UnsuccessfulReadTxHistory
     , txUnsorted inputs TxUnsortedInputs
     , txUnsorted outputs TxUnsortedOutputs
-    , readCheckpoint isJust SuccessfulReadCheckpoint
     , countAction SuccessfulReadPrivateKey (>= 1) isReadPrivateKeySuccess
     , countAction PutCheckpointTwice (>= 2) isPutCheckpointSuccess
     , countAction RolledBackOnce (>= 1) isRollbackSuccess
@@ -1067,20 +1050,6 @@ tag = Foldl.fold $ catMaybes <$> sequenceA
             case (cmd ev, mockResp ev) of
                 (At (PutTxHistory h), Resp (Right _)) ->
                     any (isUnordered . sel . fst) h
-                _otherwise ->
-                    False
-
-    readCheckpoint
-        :: (Maybe (Wallet s) -> Bool)
-        -> Tag
-        -> Fold (Event s Symbolic) (Maybe Tag)
-    readCheckpoint check res = Fold update False (extractf res)
-      where
-        update :: Bool -> Event s Symbolic -> Bool
-        update didRead ev = didRead ||
-            case (cmd ev, mockResp ev) of
-                (At ReadCheckpoint, Resp (Right (Checkpoint cp))) ->
-                    check cp
                 _otherwise ->
                     False
 

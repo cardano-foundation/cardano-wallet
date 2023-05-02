@@ -8,7 +8,6 @@
 {-# LANGUAGE RankNTypes #-}
 {-# LANGUAGE RecordWildCards #-}
 {-# LANGUAGE ScopedTypeVariables #-}
-{-# LANGUAGE TupleSections #-}
 
 -- |
 -- Copyright: © 2018-2020 IOHK
@@ -104,6 +103,8 @@ import Cardano.Wallet.Submissions.TxStatus
     ( _Expired, _InSubmission )
 import Cardano.Wallet.Transaction.Built
     ( BuiltTx )
+import Cardano.Wallet.Unsafe
+    ( unsafeRunExceptT )
 import Control.Lens
     ( has )
 import Control.Monad
@@ -117,7 +118,7 @@ import Control.Monad.Trans.Except
 import Data.DBVar
     ( DBVar, modifyDBMaybe, readDBVar )
 import Data.Functor
-    ( ($>), (<&>) )
+    ( ($>) )
 import Data.Generics.Internal.VL
     ( (^.) )
 import Data.Kind
@@ -234,46 +235,32 @@ data DBLayer m s k = forall stm. (MonadIO stm, MonadFail stm) => DBLayer
         -- Intended to replace 'putCheckpoint' and 'readCheckpoint' in the short-term,
         -- and all other functions in the long-term.
 
-    , putCheckpoint
-        :: Wallet s
-        -> ExceptT ErrWalletNotInitialized stm ()
+    , putCheckpoint :: Wallet s -> stm ()
         -- ^ Replace the current checkpoint for a given wallet. We do not handle
         -- rollbacks yet, and therefore only stores the latest available
         -- checkpoint.
         --
-        -- If the wallet doesn't exist, this operation returns an error.
 
-    , readCheckpoint
-        :: stm (Maybe (Wallet s))
+    , readCheckpoint :: stm (Wallet s)
         -- ^ Fetch the most recent checkpoint of a given wallet.
-        --
-        -- Return 'Nothing' if there's no such wallet.
 
     , listCheckpoints
         :: stm [ChainPoint]
         -- ^ List all known checkpoint tips, ordered by slot ids from the oldest
         -- to the newest.
 
-    , putWalletMeta
-        :: WalletMetadata
-        -> ExceptT ErrWalletNotInitialized stm ()
+    , putWalletMeta :: WalletMetadata -> stm ()
         -- ^ Replace an existing wallet metadata with the given one.
-        --
-        -- If the wallet doesn't exist, this operation returns an error
 
-    , readWalletMeta
-        :: stm (Maybe (WalletMetadata, WalletDelegation))
+    , readWalletMeta :: stm (WalletMetadata, WalletDelegation)
         -- ^ Fetch a wallet metadata, if they exist.
-        --
-        -- Return 'Nothing' if there's no such wallet.
 
-    , isStakeKeyRegistered
-        :: ExceptT ErrWalletNotInitialized stm Bool
+    , isStakeKeyRegistered :: stm Bool
 
     , putDelegationCertificate
         :: DelegationCertificate
         -> SlotNo
-        -> ExceptT ErrWalletNotInitialized stm ()
+        -> stm ()
         -- ^ Binds a stake pool id to a wallet. This will have an influence on
         -- the wallet metadata: the last known certificate will indicate to
         -- which pool a wallet is currently delegating.
@@ -284,9 +271,7 @@ data DBLayer m s k = forall stm. (MonadIO stm, MonadFail stm) => DBLayer
         -- 1. Stored on-chain.
         -- 2. Affected by rollbacks (or said differently, tied to a 'SlotNo').
 
-    , putDelegationRewardBalance
-        :: Coin
-        -> ExceptT ErrWalletNotInitialized stm ()
+    , putDelegationRewardBalance :: Coin -> stm ()
         -- ^ Store the latest known reward account balance.
         --
         -- This is separate from checkpoints because the data corresponds to the
@@ -300,15 +285,11 @@ data DBLayer m s k = forall stm. (MonadIO stm, MonadFail stm) => DBLayer
         -- Returns zero if the wallet isn't found or if wallet hasn't delegated
         -- stake.
 
-    , putTxHistory
-        :: [(Tx, TxMeta)]
-        -> ExceptT ErrWalletNotInitialized stm ()
+    , putTxHistory :: [(Tx, TxMeta)] -> stm ()
         -- ^ Augments the transaction history for a known wallet.
         --
         -- If an entry for a particular transaction already exists it is not
         -- altered nor merged (just ignored).
-        --
-        -- If the wallet doesn't exist, this operation returns an error.
 
     , readTransactions
         :: Maybe Coin
@@ -319,21 +300,17 @@ data DBLayer m s k = forall stm. (MonadIO stm, MonadFail stm) => DBLayer
         -> stm [TransactionInfo]
         -- ^ Fetch the current transaction history of a known wallet, ordered by
         -- descending slot number.
-        --
-        -- Returns an empty list if the wallet isn't found.
 
     , getTx
         :: Hash "Tx"
-        -> ExceptT ErrWalletNotInitialized stm (Maybe TransactionInfo)
+        -> stm (Maybe TransactionInfo)
         -- ^ Fetch the latest transaction by id, returns Nothing when the
         -- transaction isn't found.
-        --
-        -- If the wallet doesn't exist, this operation returns an error.
 
     , addTxSubmission
         :: BuiltTx
         -> SlotNo
-        -> ExceptT ErrWalletNotInitialized stm ()
+        -> stm ()
         -- ^ Add a /new/ transaction to the local submission pool
         -- with the most recent submission slot.
 
@@ -341,7 +318,7 @@ data DBLayer m s k = forall stm. (MonadIO stm, MonadFail stm) => DBLayer
         :: Hash "Tx"
         -> SealedTx -- TODO: ADP-2596 really not needed
         -> SlotNo
-        -> ExceptT ErrWalletNotInitialized stm ()
+        -> stm ()
         -- ^ Resubmit a transaction.
 
     , readLocalTxSubmissionPending
@@ -354,7 +331,7 @@ data DBLayer m s k = forall stm. (MonadIO stm, MonadFail stm) => DBLayer
     , rollForwardTxSubmissions
         :: SlotNo
         -> [(SlotNo, Hash "Tx")]
-        -> ExceptT ErrWalletNotInitialized stm ()
+        -> stm ()
         -- ^ Removes any expired transactions from the pending set and marks
         -- their status as expired.
 
@@ -365,7 +342,7 @@ data DBLayer m s k = forall stm. (MonadIO stm, MonadFail stm) => DBLayer
 
     , putPrivateKey
         :: (k 'RootK XPrv, PassphraseHash)
-        -> ExceptT ErrWalletNotInitialized stm ()
+        -> stm ()
         -- ^ Store or replace a private key for a given wallet. Note that wallet
         -- _could_ be stored and manipulated without any private key associated
         -- to it. A private key is only seldomly required for very specific
@@ -382,7 +359,7 @@ data DBLayer m s k = forall stm. (MonadIO stm, MonadFail stm) => DBLayer
 
     , rollbackTo
         :: Slot
-        -> ExceptT ErrWalletNotInitialized stm ChainPoint
+        -> stm ChainPoint
         -- ^ Drops all checkpoints and transaction data which
         -- have appeared after the given 'ChainPoint'.
         --
@@ -394,7 +371,7 @@ data DBLayer m s k = forall stm. (MonadIO stm, MonadFail stm) => DBLayer
     , prune
         :: Quantity "block" Word32
         -> SlotNo
-        -> ExceptT ErrWalletNotInitialized stm ()
+        -> stm ()
         -- ^ Prune database entities and remove entities that can be discarded.
         --
         -- The second argument represents the stability window, or said
@@ -479,11 +456,11 @@ data DBLayerCollection stm m s k = DBLayerCollection
     -- and distributed the smaller layer parts as well.
     , rollbackTo_
         :: Slot
-        -> ExceptT ErrWalletNotInitialized stm ChainPoint
+        -> stm ChainPoint
     , prune_
         :: Quantity "block" Word32
         -> SlotNo
-        -> ExceptT ErrWalletNotInitialized stm ()
+        -> stm ()
     , atomically_
         :: forall a. stm a -> m a
     }
@@ -511,14 +488,7 @@ mkDBFreshFromParts
                     Left _ -> throwE ErrWalletNotInitialized
             }
       where
-        db = mkDBLayerFromParts ti wid_ wrapNoSuchWallet parts
-        wrapNoSuchWallet :: stm a -> ExceptT ErrWalletNotInitialized stm a
-        wrapNoSuchWallet action = getWalletId_ >> lift action
-
-type CheckWalletInitialized stm =
-    forall a
-     . stm a
-    -> ExceptT ErrWalletNotInitialized stm a
+        db = mkDBLayerFromParts ti wid_ parts
 
 {- HLINT ignore mkDBLayerFromParts "Avoid lambda" -}
 -- | Create a legacy 'DBLayer' from smaller database layers.
@@ -526,10 +496,9 @@ mkDBLayerFromParts
     :: forall stm m s k. (MonadIO stm, MonadFail stm)
     => TimeInterpreter IO
     -> WalletId
-    -> CheckWalletInitialized stm
     -> DBLayerCollection stm m s k
     -> DBLayer m s k
-mkDBLayerFromParts ti wid_ wrapNoSuchWallet DBLayerCollection{..} = DBLayer
+mkDBLayerFromParts ti wid_ DBLayerCollection{..} = DBLayer
     { walletId_ = wid_
     , walletsDB = walletsDB_ dbCheckpoints
     , putCheckpoint = putCheckpoint_ dbCheckpoints
@@ -537,26 +506,19 @@ mkDBLayerFromParts ti wid_ wrapNoSuchWallet DBLayerCollection{..} = DBLayer
     , listCheckpoints = listCheckpoints_ dbCheckpoints
     , putWalletMeta = putWalletMeta_ dbWalletMeta
     , readWalletMeta = do
-        readCheckpoint' >>= \case
-            Nothing -> pure Nothing
-            Just cp -> do
+        readCheckpoint' >>= \cp -> do
                 currentEpoch <- liftIO $
                     interpretQuery ti (epochOf $ cp ^. #currentTip . #slotNo)
                 del <- readDelegation_ dbDelegation currentEpoch
-                mwm <- readWalletMeta_ dbWalletMeta
-                pure $ mwm <&> (, del)
-    , isStakeKeyRegistered = wrapNoSuchWallet $
-        isStakeKeyRegistered_ dbDelegation
-    , putDelegationCertificate = \a b -> wrapNoSuchWallet $
-        putDelegationCertificate_ dbDelegation a b
-    , putDelegationRewardBalance = \a -> wrapNoSuchWallet $
-        putDelegationRewardBalance_ dbDelegation a
+                wm <- readWalletMeta_ dbWalletMeta
+                pure (wm, del)
+    , isStakeKeyRegistered = isStakeKeyRegistered_ dbDelegation
+    , putDelegationCertificate = putDelegationCertificate_ dbDelegation
+    , putDelegationRewardBalance = putDelegationRewardBalance_ dbDelegation
     , readDelegationRewardBalance = readDelegationRewardBalance_ dbDelegation
-    , putTxHistory = \a -> wrapNoSuchWallet $
-        putTxHistory_ dbTxHistory a
+    , putTxHistory = putTxHistory_ dbTxHistory
     , readTransactions = \minWithdrawal order range status limit ->
-        readCurrentTip >>= \case
-            Just tip -> do
+        readCurrentTip >>= \tip -> do
                 inLedgers <- if status `elem` [Nothing, Just WTxMeta.InLedger]
                     then readTxHistory_ dbTxHistory range tip limit order
                     else pure []
@@ -583,39 +545,36 @@ mkDBLayerFromParts ti wid_ wrapNoSuchWallet DBLayerCollection{..} = DBLayer
                     . sortTransactionsBySlot order
                     . filterMinWithdrawal minWithdrawal
                     $ inLedgers <> inSubmissions
-            Nothing -> pure []
-    , getTx = \txid -> wrapNoSuchWallet $ do
-        readCurrentTip >>= \case
-            Just tip -> do
-                historical <- getTx_ dbTxHistory txid tip
-                case historical of
-                    Just tx -> pure $ Just tx
-                    Nothing ->  withSubmissions wid_ Nothing $ \submissions -> do
-                        let inSubmission =
-                                getInSubmissionTransaction txid submissions
-                        fmap join $ for inSubmission $
-                            mkTransactionInfo
-                            (hoistTimeInterpreter liftIO ti)
-                            (mkDecorator_ dbTxHistory) tip
-                                . fmap snd
-            Nothing -> pure Nothing
-    , addTxSubmission = \builtTx slotNo  -> updateSubmissions' wid_
-            mapNoSuchWallet
+    , getTx = \txid -> readCurrentTip >>= \tip -> do
+        historical <- getTx_ dbTxHistory txid tip
+        case historical of
+            Just tx -> pure $ Just tx
+            Nothing ->  withSubmissions wid_ Nothing $ \submissions -> do
+                let inSubmission =
+                        getInSubmissionTransaction txid submissions
+                fmap join $ for inSubmission $
+                    mkTransactionInfo
+                    (hoistTimeInterpreter liftIO ti)
+                    (mkDecorator_ dbTxHistory) tip
+                        . fmap snd
+    , addTxSubmission = \builtTx slotNo -> abortNoSuchWallet
+            $ updateSubmissions' wid_ id
             $ \_ -> Right [Sbms.addTxSubmission builtTx slotNo]
     , readLocalTxSubmissionPending = withSubmissions wid_ [] $ \xs -> do
         pure $ filter (has $ txStatus . _InSubmission) $
             getInSubmissionTransactions xs
-    , resubmitTx = \hash _ slotNo -> updateSubmissions' wid_ mapNoSuchWallet
+    , resubmitTx = \hash _ slotNo -> abortNoSuchWallet
+            $ updateSubmissions' wid_ id
             $ Right . Sbms.resubmitTx hash slotNo
-    , rollForwardTxSubmissions = \tip txs -> updateSubmissions' wid_
-            mapNoSuchWallet
+    , rollForwardTxSubmissions = \tip txs -> abortNoSuchWallet
+            $ updateSubmissions' wid_ id
             $ \_ -> Right [Sbms.rollForwardTxSubmissions tip txs]
     , removePendingOrExpiredTx = \txid ->
-            updateSubmissions' wid_ (ErrRemoveTxNoSuchWallet . mapNoSuchWallet)
+            updateSubmissions' wid_
+                (const $ error "removePendingOrExpiredTx: no such wallet to be removed in ADP-3003")
                 $ \xs ->
                 pure <$> Sbms.removePendingOrExpiredTx xs txid
-    , putPrivateKey = \a -> wrapNoSuchWallet $
-        putPrivateKey_ dbPrivateKey  a
+    , putPrivateKey = putPrivateKey_ dbPrivateKey
     , readPrivateKey = readPrivateKey_ dbPrivateKey
     , readGenesisParameters = readGenesisParameters_ dbCheckpoints
     , rollbackTo = rollbackTo_
@@ -629,12 +588,15 @@ mkDBLayerFromParts ti wid_ wrapNoSuchWallet DBLayerCollection{..} = DBLayer
         case mstate of
             Nothing -> pure def
             Just state -> action $ submissions state
-    mapNoSuchWallet _ = ErrWalletNotInitialized
     updateSubmissions' = updateSubmissions dbCheckpoints
     readCheckpoint' = readCheckpoint_ dbCheckpoints
-    readCurrentTip :: stm (Maybe BlockHeader)
-    readCurrentTip =
-        fmap currentTip <$> readCheckpoint_ dbCheckpoints
+    readCurrentTip :: stm BlockHeader
+    readCurrentTip = currentTip <$> readCheckpoint_ dbCheckpoints
+
+
+-- TODO: remove on ADP-3003
+abortNoSuchWallet :: (MonadFail stm, Show e) => ExceptT e stm () -> stm ()
+abortNoSuchWallet = unsafeRunExceptT
 
 -- | Update the transaction submission state of a wallet.
 updateSubmissions
@@ -677,17 +639,12 @@ data DBCheckpoints stm s = DBCheckpoints
         -- Intended to replace 'putCheckpoint' and 'readCheckpoint' in the short-term,
         -- and all other functions in the long-term.
 
-    , putCheckpoint_
-        :: Wallet s
-        -> ExceptT ErrWalletNotInitialized stm ()
+    , putCheckpoint_ :: Wallet s -> stm ()
         -- ^ Replace the current checkpoint for a given wallet. We do not handle
         -- rollbacks yet, and therefore only stores the latest available
         -- checkpoint.
-        --
-        -- If the wallet doesn't exist, this operation returns an error.
 
-    , readCheckpoint_
-        :: stm (Maybe (Wallet s))
+    , readCheckpoint_ :: stm (Wallet s)
         -- ^ Fetch the most recent checkpoint of a given wallet.
         --
         -- Return 'Nothing' if there's no such wallet.
@@ -704,15 +661,10 @@ data DBCheckpoints stm s = DBCheckpoints
 
 -- | A database layer for storing 'WalletMetadata'.
 data DBWalletMeta stm = DBWalletMeta
-    { putWalletMeta_
-        :: WalletMetadata
-        -> ExceptT ErrWalletNotInitialized stm ()
+    { putWalletMeta_ :: WalletMetadata -> stm ()
         -- ^ Replace an existing wallet metadata with the given one.
-        --
-        -- If the wallet doesn't exist, this operation returns an error
 
-    , readWalletMeta_
-        :: stm (Maybe WalletMetadata)
+    , readWalletMeta_ :: stm WalletMetadata
         -- ^ Fetch a wallet metadata, if they exist.
         --
         -- Return 'Nothing' if there's no such wallet.
@@ -778,8 +730,6 @@ data DBTxHistory stm = DBTxHistory
         -> stm [TransactionInfo]
         -- ^ Fetch the current transaction history of a known wallet, ordered by
         -- descending slot number.
-        --
-        -- Returns an empty list if the wallet isn't found.
 
     , getTx_
         :: Hash "Tx"

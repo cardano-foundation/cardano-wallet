@@ -28,8 +28,7 @@ data ErrPutLocalTxSubmission
 
 -- | Can't remove pending or expired transaction.
 data ErrRemoveTx
-    = ErrRemoveTxNoSuchWallet ErrWalletNotInitialized
-    | ErrRemoveTxNoSuchTransaction ErrNoSuchTransaction
+    = ErrRemoveTxNoSuchTransaction ErrNoSuchTransaction
     | ErrRemoveTxAlreadyInLedger (Hash "Tx")
     deriving (Eq, Show)
 
@@ -48,6 +47,7 @@ newtype ErrWalletAlreadyExists
 newtype ErrNoSuchWallet
     = ErrNoSuchWallet WalletId -- Wallet is gone or doesn't exist yet
     deriving (Eq, Show)
+
 
 -- | Can't perform given operation because there's no wallet in the db
 data ErrWalletNotInitialized = ErrWalletNotInitialized

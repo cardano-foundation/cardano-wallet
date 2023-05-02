@@ -20,6 +20,7 @@ module Cardano.Wallet.Api.Http.Server.Error
   , apiError
   , err425
   , showT
+  , handler
   )
   where
 
@@ -48,7 +49,6 @@ import Cardano.Wallet
     , ErrConstructTx (..)
     , ErrCreateMigrationPlan (..)
     , ErrCreateRandomAddress (..)
-    , ErrDecodeTx (..)
     , ErrDerivePublicKey (..)
     , ErrFetchRewards (..)
     , ErrGetPolicyId (..)
@@ -57,7 +57,6 @@ import Cardano.Wallet
     , ErrImportRandomAddress (..)
     , ErrInvalidDerivationIndex (..)
     , ErrListTransactions (..)
-    , ErrListUTxOStatistics (..)
     , ErrMkTransaction (..)
     , ErrNoSuchTransaction (..)
     , ErrNoSuchWallet (..)
@@ -115,7 +114,7 @@ import Cardano.Wallet.Transaction
 import Cardano.Wallet.Write.Tx.Balance
     ( ErrBalanceTx (..), ErrBalanceTxInternalError (..) )
 import Control.Monad.Except
-    ( ExceptT, withExceptT )
+    ( ExceptT, lift, withExceptT )
 import Control.Monad.Trans.Except
     ( throwE )
 import Data.Generics.Internal.VL
@@ -184,6 +183,10 @@ liftHandler action = Handler (withExceptT toServerError action)
 liftE :: IsServerError e => e -> Handler a
 liftE = liftHandler . throwE
 
+-- | Lift an IO action into servant 'Handler'
+handler :: IO a -> Handler a
+handler = Handler . lift
+
 apiError :: ServerError -> ApiErrorInfo -> Text -> ServerError
 apiError err info messageUnformatted = err
     { errBody = Aeson.encode ApiError {info, message}
@@ -209,7 +212,6 @@ instance IsServerError WalletException where
         ExceptionAddCosignerKey e -> toServerError e
         ExceptionConstructSharedWallet e -> toServerError e
         ExceptionReadAccountPublicKey e -> toServerError e
-        ExceptionListUTxOStatistics e -> toServerError e
         ExceptionSignPayment e -> toServerError e
         ExceptionBalanceTx e -> toServerError e
         ExceptionBalanceTxInternalError e -> toServerError e
@@ -217,7 +219,6 @@ instance IsServerError WalletException where
         ExceptionConstructTx e -> toServerError e
         ExceptionGetPolicyId e -> toServerError e
         ExceptionWitnessTx e -> toServerError e
-        ExceptionDecodeTx e -> toServerError e
         ExceptionSubmitTx e -> toServerError e
         ExceptionUpdatePassphrase e -> toServerError e
         ExceptionWithRootKey e -> toServerError e
@@ -304,10 +305,6 @@ instance IsServerError ErrWithRootKey where
                 , toText wid
                 ]
 
-instance IsServerError ErrListUTxOStatistics where
-    toServerError = \case
-        ErrListUTxOStatisticsNoSuchWallet e -> toServerError e
-
 instance IsServerError ErrSignPayment where
     toServerError = \case
         ErrSignPaymentMkTx e -> toServerError e
@@ -326,10 +323,6 @@ instance IsServerError ErrSignPayment where
 instance IsServerError ErrWitnessTx where
     toServerError = \case
         ErrWitnessTxSignTx e -> toServerError e
-        ErrWitnessTxNoSuchWallet e -> (toServerError e)
-            { errHTTPCode = 404
-            , errReasonPhrase = errReasonPhrase err404
-            }
         ErrWitnessTxWithRootKey e@ErrWithRootKeyNoRootKey{} -> (toServerError e)
             { errHTTPCode = 403
             , errReasonPhrase = errReasonPhrase err403
@@ -469,13 +462,6 @@ instance IsServerError ErrGetPolicyId where
             , "from cosigner#0."
             ]
 
-instance IsServerError ErrDecodeTx where
-    toServerError = \case
-        ErrDecodeTxNoSuchWallet e -> (toServerError e)
-            { errHTTPCode = 404
-            , errReasonPhrase = errReasonPhrase err404
-            }
-
 instance IsServerError ErrBalanceTx where
     toServerError = \case
         ErrOldEraNotSupported (Cardano.AnyCardanoEra era) ->
@@ -561,7 +547,6 @@ instance IsServerError ErrBalanceTxInternalError where
 
 instance IsServerError ErrRemoveTx where
     toServerError = \case
-        ErrRemoveTxNoSuchWallet wid -> toServerError wid
         ErrRemoveTxNoSuchTransaction (ErrNoSuchTransaction tid) ->
             apiError err404 NoSuchTransaction $ mconcat
                 [ "I couldn't find a transaction with the given id: "
@@ -591,10 +576,6 @@ instance IsServerError ErrPostTx where
 
 instance IsServerError ErrSubmitTransaction where
     toServerError = \case
-        ErrSubmitTransactionNoSuchWallet e -> (toServerError e)
-            { errHTTPCode = 404
-            , errReasonPhrase = errReasonPhrase err404
-            }
         ErrSubmitTransactionForeignWallet ->
             apiError err403 ForeignTransaction $ mconcat
                 [ "The transaction to be submitted is foreign to the current wallet "
@@ -617,20 +598,14 @@ instance IsServerError ErrSubmitTransaction where
 instance IsServerError ErrSubmitTx where
     toServerError = \case
         ErrSubmitTxNetwork e -> toServerError e
-        ErrSubmitTxNoSuchWallet e@ErrNoSuchWallet{} -> (toServerError e)
-            { errHTTPCode = 404
-            , errReasonPhrase = errReasonPhrase err404
-            }
         ErrSubmitTxImpossible e -> toServerError e
 
 instance IsServerError ErrUpdatePassphrase where
     toServerError = \case
-        ErrUpdatePassphraseNoSuchWallet e -> toServerError e
         ErrUpdatePassphraseWithRootKey e  -> toServerError e
 
 instance IsServerError ErrListTransactions where
     toServerError = \case
-        ErrListTransactionsNoSuchWallet e -> toServerError e
         ErrListTransactionsStartTimeLaterThanEndTime e -> toServerError e
         ErrListTransactionsMinWithdrawalWrong ->
             apiError err400 MinWithdrawalWrong
@@ -657,7 +632,6 @@ instance IsServerError PastHorizonException where
 
 instance IsServerError ErrGetTransaction where
     toServerError = \case
-        ErrGetTransactionNoSuchWallet e -> toServerError e
         ErrGetTransactionNoSuchTransaction e -> toServerError e
 
 instance IsServerError ErrNoSuchTransaction where
@@ -670,7 +644,6 @@ instance IsServerError ErrNoSuchTransaction where
 
 instance IsServerError ErrStakePoolDelegation where
     toServerError = \case
-        ErrStakePoolDelegationNoSuchWallet e -> toServerError e
         ErrStakePoolJoin e -> toServerError e
         ErrStakePoolQuit e -> toServerError e
 
@@ -717,7 +690,6 @@ instance IsServerError ErrFetchRewards where
 
 instance IsServerError ErrReadRewardAccount where
     toServerError = \case
-        ErrReadRewardAccountNoSuchWallet e -> toServerError e
         ErrReadRewardAccountNotAShelleyWallet ->
             apiError err403 InvalidWalletType $ mconcat
                 [ "It is regrettable but you've just attempted an operation "
@@ -727,7 +699,6 @@ instance IsServerError ErrReadRewardAccount where
 
 instance IsServerError ErrReadPolicyPublicKey where
     toServerError = \case
-        ErrReadPolicyPublicKeyNoSuchWallet e -> toServerError e
         ErrReadPolicyPublicKeyNotAShelleyWallet ->
             apiError err403 InvalidWalletType $ mconcat
                 [ "You have attempted an operation that is invalid for this "
@@ -798,19 +769,16 @@ instance IsServerError ErrWithdrawalNotBeneficial where
 instance IsServerError ErrSignMetadataWith where
     toServerError = \case
         ErrSignMetadataWithRootKey e -> toServerError e
-        ErrSignMetadataWithNoSuchWallet e -> toServerError e
         ErrSignMetadataWithInvalidIndex e -> toServerError e
 
 instance IsServerError ErrReadAccountPublicKey where
     toServerError = \case
         ErrReadAccountPublicKeyRootKey e -> toServerError e
-        ErrReadAccountPublicKeyNoSuchWallet e -> toServerError e
         ErrReadAccountPublicKeyInvalidAccountIndex e -> toServerError e
         ErrReadAccountPublicKeyInvalidPurposeIndex e -> toServerError e
 
 instance IsServerError ErrDerivePublicKey where
     toServerError = \case
-        ErrDerivePublicKeyNoSuchWallet e -> toServerError e
         ErrDerivePublicKeyInvalidIndex e -> toServerError e
 
 instance IsServerError ErrAddCosignerKey where
@@ -966,7 +934,6 @@ instance IsServerError ErrCreateMigrationPlan where
                 , "any of the funds to be migrated. Try adding some ada to "
                 , "your wallet before trying again."
                 ]
-        ErrCreateMigrationPlanNoSuchWallet e -> toServerError e
 
 instance IsServerError ErrSelectAssets where
     toServerError = \case

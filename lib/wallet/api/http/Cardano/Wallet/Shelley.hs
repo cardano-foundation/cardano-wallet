@@ -279,11 +279,12 @@ serveWallet
         lift $ apiLayer (newTransactionLayer netId) netLayer Server.idleWorker
 
     withShelleyApi netId netLayer =
-        lift $ apiLayer (newTransactionLayer netId) netLayer $
+        lift $ apiLayer (newTransactionLayer netId) netLayer $ \wrk _ ->
             Server.manageRewardBalance
                 <$> view typed
                 <*> pure netLayer
                 <*> view typed
+                $ wrk
 
     withMultisigApi netId netLayer =
         lift $ apiLayer (newTransactionLayer netId) netLayer Server.idleWorker

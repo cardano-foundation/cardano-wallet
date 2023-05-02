@@ -1,6 +1,5 @@
 {-# LANGUAGE BangPatterns #-}
 {-# LANGUAGE DataKinds #-}
-{-# LANGUAGE LambdaCase #-}
 {-# LANGUAGE RankNTypes #-}
 {-# LANGUAGE RecordWildCards #-}
 {-# LANGUAGE TypeFamilies #-}
@@ -15,7 +14,7 @@
 
 module Cardano.Wallet.DB.Pure.Layer
     ( newDBFresh
-    ) where
+    , throwErrorReadDB) where
 
 import Prelude
 
@@ -23,14 +22,11 @@ import Cardano.Wallet.DB
     ( DBFresh (..)
     , DBLayer (..)
     , ErrWalletAlreadyInitialized (ErrWalletAlreadyInitialized)
-    , ErrWalletNotInitialized (..)
     )
 import Cardano.Wallet.DB.Pure.Implementation
     ( Database
     , Err (..)
     , ModelOp
-    , mCheckWallet
-    , mGetWalletId
     , mInitializeWallet
     , mIsStakeKeyRegistered
     , mListCheckpoints
@@ -57,11 +53,11 @@ import Cardano.Wallet.Primitive.Types.Coin
 import Cardano.Wallet.Primitive.Types.Tx
     ( TransactionInfo (..) )
 import Control.Monad
-    ( join, unless, when )
+    ( join, unless )
 import Control.Monad.IO.Unlift
     ( MonadIO (..), MonadUnliftIO (..) )
 import Control.Monad.Trans.Except
-    ( ExceptT (..), throwE )
+    ( throwE )
 import Data.Functor.Identity
     ( Identity (..) )
 import Data.Maybe
@@ -85,8 +81,6 @@ newDBFresh timeInterpreter wid = do
     db <- newEmptyMVar
 
     let
-      getWalletId' = ExceptT
-            $ alterDB errWalletNotInitialized db mGetWalletId
       dbf = DBFresh
             {
               bootDBLayer = \sp -> do
@@ -112,19 +106,13 @@ newDBFresh timeInterpreter wid = do
         -----------------------------------------------------------------------}
         , walletsDB = error "MVar.walletsDB: not implemented"
 
-        , putCheckpoint = \cp -> ExceptT $
-            alterDB errWalletNotInitialized db (mCheckWallet) >>= \case
-                Left err -> pure $ Left err
-                Right _ -> do
-                    alterDB errWalletNotInitialized db $
-                        mPutCheckpoint cp
+        , putCheckpoint = noErrorAlterDB  db .  mPutCheckpoint
 
-        , readCheckpoint = join <$> readDBMaybe db mReadCheckpoint
+        , readCheckpoint = throwErrorReadDB db mReadCheckpoint
 
         , listCheckpoints = fromMaybe [] <$> readDBMaybe db mListCheckpoints
 
-        , rollbackTo = ExceptT
-            . alterDB errWalletNotInitialized db
+        , rollbackTo = noErrorAlterDB db
             . mRollbackTo
 
         , prune = \_ _ -> error "MVar.prune: not implemented"
@@ -133,28 +121,21 @@ newDBFresh timeInterpreter wid = do
                                    Wallet Metadata
         -----------------------------------------------------------------------}
 
-        , putWalletMeta = ExceptT
-            .  alterDB errWalletNotInitialized db
-            .  mPutWalletMeta
+        , putWalletMeta = noErrorAlterDB db .  mPutWalletMeta
 
-        , readWalletMeta = fmap join
-            $ readDBMaybe db
+        , readWalletMeta = throwErrorReadDB db
             $ mReadWalletMeta timeInterpreter
 
-        , putDelegationCertificate = \cert sl -> ExceptT $
-            alterDB errWalletNotInitialized db $
+        , putDelegationCertificate = \cert sl -> noErrorAlterDB db $
             mPutDelegationCertificate cert sl
 
-        , isStakeKeyRegistered =
-            ExceptT . alterDB errWalletNotInitialized db $ mIsStakeKeyRegistered
+        , isStakeKeyRegistered = throwErrorReadDB db mIsStakeKeyRegistered
 
         {-----------------------------------------------------------------------
                                      Tx History
         -----------------------------------------------------------------------}
 
-        , putTxHistory = ExceptT
-            . alterDB errWalletNotInitialized db
-            . mPutTxHistory
+        , putTxHistory = noErrorAlterDB db . mPutTxHistory
 
         , readTransactions = \minWithdrawal order range mstatus _mlimit ->
             fmap (fromMaybe []) $
@@ -168,32 +149,24 @@ newDBFresh timeInterpreter wid = do
 
         -- TODO: shift implementation to mGetTx
         , getTx = \tid -> do
-            wid' <- getWalletId'
-            when ( wid /= wid') $ throwE ErrWalletNotInitialized
-            ExceptT $ do
-                alterDB errWalletNotInitialized db (mCheckWallet) >>= \case
-                    Left err -> pure $ Left err
-                    Right _ -> do
-                        txInfos <- fmap (fromMaybe [])
-                            $ readDBMaybe db
-                            $ mReadTxHistory
-                                timeInterpreter
-                                Nothing
-                                Descending
-                                wholeRange
-                                Nothing
-                        let txPresent (TransactionInfo{..}) = txInfoId == tid
-                        case filter txPresent txInfos of
-                            [] -> pure $ Right Nothing
-                            t:_ -> pure $ Right $ Just t
+                txInfos <- fmap (fromMaybe [])
+                    $ readDBMaybe db
+                    $ mReadTxHistory
+                        timeInterpreter
+                        Nothing
+                        Descending
+                        wholeRange
+                        Nothing
+                let txPresent (TransactionInfo{..}) = txInfoId == tid
+                case filter txPresent txInfos of
+                    [] -> pure Nothing
+                    t:_ -> pure $ Just t
 
         {-----------------------------------------------------------------------
                                        Keystore
         -----------------------------------------------------------------------}
 
-        , putPrivateKey = ExceptT
-            . alterDB errWalletNotInitialized db
-            . mPutPrivateKey
+        , putPrivateKey = noErrorAlterDB db . mPutPrivateKey
 
         , readPrivateKey = join <$> readDBMaybe db mReadPrivateKey
 
@@ -226,8 +199,7 @@ newDBFresh timeInterpreter wid = do
                                  Delegation Rewards
         -----------------------------------------------------------------------}
 
-        , putDelegationRewardBalance = ExceptT
-            . alterDB errWalletNotInitialized db
+        , putDelegationRewardBalance = noErrorAlterDB db
             . mPutDelegationRewardBalance
 
         , readDelegationRewardBalance = fromMaybe (Coin 0)
@@ -267,6 +239,28 @@ alterDB convertErr db op = modifyMVar db (bubble . op)
         Nothing -> throwIO $ MVarDBError e
     bubble (Right a, !db') = pure (db', Right a)
 
+noErrorAlterDB
+    :: MonadUnliftIO m
+    => MVar (Database WalletId s xprv)
+    -> ModelOp WalletId s xprv a
+    -> m a
+noErrorAlterDB db op = do
+    r <- alterDB (const Nothing) db op
+    case r of
+        Left e -> throwIO $ MVarDBError e
+        Right a -> pure a
+
+throwErrorReadDB
+    :: MonadUnliftIO m
+    => MVar (Database WalletId s xprv)
+    -> ModelOp WalletId s xprv b
+    -> m b
+throwErrorReadDB db op = do
+    mr <- readDB db op
+    case mr of
+        Left e -> throwIO $ MVarDBError e
+        Right r -> pure r
+
 -- | Run a query operation on the model database.
 readDB
     :: MonadUnliftIO m
@@ -276,10 +270,6 @@ readDB
     -- ^ Operation to run on the database
     -> m (Either Err a)
 readDB = alterDB Just -- >>= either (throwIO . MVarDBError) pure
-
-errWalletNotInitialized :: Err -> Maybe ErrWalletNotInitialized
-errWalletNotInitialized WalletNotInitialized = Just ErrWalletNotInitialized
-errWalletNotInitialized _ = Nothing
 
 -- | Error which happens when model returns an unexpected value.
 newtype MVarDBError = MVarDBError Err

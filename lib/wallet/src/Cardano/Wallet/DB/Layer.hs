@@ -150,13 +150,13 @@ import Control.DeepSeq
 import Control.Exception
     ( evaluate, throw )
 import Control.Monad
-    ( forM, unless, (>=>) )
+    ( forM, join, unless, (>=>) )
 import Control.Monad.IO.Class
     ( MonadIO (..) )
 import Control.Monad.Trans
     ( lift )
 import Control.Monad.Trans.Except
-    ( ExceptT (..), runExceptT, throwE )
+    ( runExceptT, throwE )
 import Control.Tracer
     ( Tracer, contramap, traceWith )
 import Data.Coerce
@@ -568,9 +568,9 @@ newDBFreshFromDBOpen ti wid_ DBOpen{atomically=runQuery} = mdo
 
     -- Retrieve the latest checkpoint from the DBVar
     let readCheckpoint
-            ::  SqlPersistT IO (Maybe (W.Wallet s))
+            ::  SqlPersistT IO (W.Wallet s)
         readCheckpoint =
-            fmap (getLatest . snd). Map.lookupMin <$> readDBVar walletsDB
+            getLatest . snd . Map.findMin <$> readDBVar walletsDB
 
     let pruneCheckpoints
             :: W.WalletId
@@ -621,18 +621,18 @@ newDBFreshFromDBOpen ti wid_ DBOpen{atomically=runQuery} = mdo
       dbCheckpoints = DBCheckpoints
         { walletsDB_ = walletsDB
 
-        , putCheckpoint_ = \cp -> ExceptT $ do
+        , putCheckpoint_ = \cp -> do
             modifyDBMaybe walletsDB $ \ws ->
                 if null ws
-                    then (Nothing, Left ErrWalletNotInitialized)
+                    then (Nothing, ())
                     else
                         let (prologue, wcp) = fromWallet cp
                             slot = getSlot wcp
-                            delta = Just $ Adjust wid_
+                            delta = Adjust wid_
                                 [ UpdateCheckpoints [ PutCheckpoint slot wcp ]
                                 , ReplacePrologue prologue
                                 ]
-                        in  (delta, Right ())
+                        in  (Just delta, ())
 
         , readCheckpoint_ = readCheckpoint
 
@@ -669,7 +669,7 @@ newDBFreshFromDBOpen ti wid_ DBOpen{atomically=runQuery} = mdo
 
     let rollbackTo_ requestedPoint = do
             mNearestCheckpoint <-
-                ExceptT $ modifyDBMaybe walletsDB $ \ws ->
+                modifyDBMaybe walletsDB $ \ws ->
                     case Map.lookup wid_ ws of
                         Nothing  ->
                             ( Nothing
@@ -696,9 +696,9 @@ newDBFreshFromDBOpen ti wid_ DBOpen{atomically=runQuery} = mdo
                                         (wal ^. #checkpoints . #checkpoints)
                                 )
 
-            case mNearestCheckpoint of
-                Nothing  -> ExceptT $ pure $ Left ErrWalletNotInitialized
-                Just wcp -> lift $ do
+            case join mNearestCheckpoint of
+                Nothing  -> abortOnNoSuchWallet
+                Just wcp -> do
                     let nearestPoint = wcp ^. #currentTip . #slotNo
                     deleteDelegationCertificates wid_
                         [ CertSlot >. nearestPoint
@@ -714,13 +714,10 @@ newDBFreshFromDBOpen ti wid_ DBOpen{atomically=runQuery} = mdo
                         $ view #currentTip wcp
 
     let prune_ epochStability finalitySlot = do
-            ExceptT $ do
-                readCheckpoint >>= \case
-                    Nothing -> pure $ Left ErrWalletNotInitialized
-                    Just cp -> Right <$> do
+            readCheckpoint >>= \cp -> do
                         let tip = cp ^. #currentTip
                         pruneCheckpoints wid_ epochStability tip
-            lift $ updateDBVar walletsDB $ Adjust wid_
+            updateDBVar walletsDB $ Adjust wid_
                 [ UpdateSubmissions [pruneByFinality finalitySlot]
                 ]
 
@@ -733,15 +730,13 @@ newDBFreshFromDBOpen ti wid_ DBOpen{atomically=runQuery} = mdo
         -----------------------------------------------------------------------}
     let
       dbWalletMeta = DBWalletMeta
-        { putWalletMeta_ = \meta -> ExceptT $ do
-            selectWallet wid_ >>= \case
-                Nothing -> pure $ Left ErrWalletNotInitialized
-                Just _ -> do
-                    updateWhere [WalId ==. wid_]
-                        (mkWalletMetadataUpdate meta)
-                    pure $ Right ()
+        { putWalletMeta_ = updateWhere [WalId ==. wid_] . mkWalletMetadataUpdate
 
-        , readWalletMeta_ = readWalletMetadata wid_
+        , readWalletMeta_ = do
+            mr <- readWalletMetadata wid_
+            case mr of
+                Nothing -> error "readWalletMeta_: not found"
+                Just r -> pure r
         }
 
         {-----------------------------------------------------------------------
@@ -756,6 +751,10 @@ newDBFreshFromDBOpen ti wid_ DBOpen{atomically=runQuery} = mdo
     let atomically_ = runQuery
 
     pure $ mkDBFreshFromParts ti wid_ dbWallets DBLayerCollection{..}
+
+-- TODO: remove on ADP-3003
+abortOnNoSuchWallet :: a
+abortOnNoSuchWallet = error "abortOnNoSuchWallet: not found"
 
 mkDecorator
     :: QueryStoreTxWalletsHistory
@@ -958,10 +957,6 @@ privateKeyFromEntity (PrivateKey _ k h) =
 {-------------------------------------------------------------------------------
     SQLite database operations
 -------------------------------------------------------------------------------}
-
-selectWallet :: MonadIO m => W.WalletId -> SqlPersistT m (Maybe Wallet)
-selectWallet wid =
-    fmap entityVal <$> selectFirst [WalId ==. wid] []
 
 -- | Delete stake key certificates for a wallet.
 deleteStakeKeyCerts
