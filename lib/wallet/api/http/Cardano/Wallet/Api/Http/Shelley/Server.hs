@@ -1245,7 +1245,7 @@ patchSharedWallet
 patchSharedWallet ctx liftKey cred (ApiT wid) body = do
     wal <- fst <$> getWallet ctx (mkSharedWallet @_ @s @k) (ApiT wid)
     withWorkerCtx ctx wid liftE liftE $ \wrk -> do
-        liftHandler $ W.updateCosigner wrk wid (liftKey accXPub) cosigner cred
+        liftHandler $ W.updateCosigner wrk (liftKey accXPub) cosigner cred
     wal' <- fst <$> getWallet ctx (mkSharedWallet @_ @s @k) (ApiT wid)
     -- we switch on restoring only after incomplete -> active transition
     -- active -> active when transition of updating cosigner keys takes place
@@ -1789,7 +1789,7 @@ selectCoins ctx@ApiLayer {..} argGenChange (ApiT walletId) body = do
                 }
 
         (cardanoTx, walletState) <- liftIO $ W.buildTransaction @s @k @n @e
-            db txLayer timeTranslation walletId genChange pp txCtx paymentOuts
+            db txLayer timeTranslation genChange pp txCtx paymentOuts
 
         let W.CoinSelection{..} =
                 W.buildCoinSelectionForTransaction @s @k @n
@@ -1858,7 +1858,7 @@ selectCoinsForJoin ctx@ApiLayer{..}
         let paymentOuts = []
 
         (cardanoTx, walletState) <- W.buildTransaction @s @k @n @e
-            db txLayer timeTranslation walletId changeAddrGen pp txCtx
+            db txLayer timeTranslation changeAddrGen pp txCtx
             paymentOuts
 
         let W.CoinSelection{..} =
@@ -1915,8 +1915,7 @@ selectCoinsForQuit ctx@ApiLayer{..} (ApiT walletId) = do
         let paymentOuts = []
 
         (cardanoTx, walletState) <- W.buildTransaction @s @k @n @e
-            db txLayer timeTranslation walletId changeAddrGen pp txCtx
-            paymentOuts
+            db txLayer timeTranslation changeAddrGen pp txCtx paymentOuts
 
         let W.CoinSelection{..} =
                 W.buildCoinSelectionForTransaction @s @k @n
@@ -2046,7 +2045,7 @@ putRandomAddress
     -> Handler NoContent
 putRandomAddress ctx (ApiT wid) (ApiAddress addr)  = do
     withWorkerCtx ctx wid liftE liftE
-        $ \wrk -> liftHandler $ W.importRandomAddresses @_ @s @k wrk wid [addr]
+        $ \wrk -> liftHandler $ W.importRandomAddresses @_ @s @k wrk [addr]
     pure NoContent
 
 putRandomAddresses
@@ -2061,7 +2060,7 @@ putRandomAddresses
     -> Handler NoContent
 putRandomAddresses ctx (ApiT wid) (ApiPutAddressesData addrs)  = do
     withWorkerCtx ctx wid liftE liftE
-        $ \wrk -> liftHandler $ W.importRandomAddresses @_ @s @k wrk wid addrs'
+        $ \wrk -> liftHandler $ W.importRandomAddresses @_ @s @k wrk addrs'
     pure NoContent
   where
     addrs' = apiAddress <$> addrs
@@ -2372,7 +2371,6 @@ postTransactionFeeOld ctx@ApiLayer{..} (ApiT walletId) body = do
             timeTranslation
             recentEra
             (dummyChangeAddressGen @k)
-            walletId
             defaultTransactionCtx
                 { txWithdrawal = wdrl
                 , txMetadata = body
@@ -3603,7 +3601,6 @@ delegationFee ctx@ApiLayer{..} (ApiT walletId) = do
                 timeTranslation
                 (AnyRecentEra recentEra)
                 (W.defaultChangeAddressGen (delegationAddressS @n) (Proxy @k))
-                walletId
         pure $ mkApiFee (Just deposit) [] feePercentiles
 
 quitStakePool
@@ -4807,7 +4804,7 @@ registerWorker ctx before coworker wid =
         , workerAfter = defaultWorkerAfter
         -- fixme: ADP-641 Review error handling here
         , workerMain = \ctx' _ -> race_
-            (unsafeRunExceptT $ W.restoreWallet ctx' wid)
+            (unsafeRunExceptT $ W.restoreWallet ctx')
             (race_
                 (forever $ W.runLocalTxSubmissionPool txCfg ctx')
                 (coworker ctx' wid))

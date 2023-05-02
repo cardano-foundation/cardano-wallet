@@ -5,7 +5,7 @@ module Cardano.Wallet.DB.Errors where
 import Prelude
 
 import Cardano.Wallet.Primitive.Types
-    ( WalletId (..) )
+    ( BlockHeader (..), WalletId (..) )
 import Cardano.Wallet.Primitive.Types.Hash
     ( Hash )
 import Control.Exception
@@ -48,7 +48,6 @@ newtype ErrNoSuchWallet
     = ErrNoSuchWallet WalletId -- Wallet is gone or doesn't exist yet
     deriving (Eq, Show)
 
-
 -- | Can't perform given operation because there's no wallet in the db
 data ErrWalletNotInitialized = ErrWalletNotInitialized
     deriving (Eq, Show)
@@ -56,3 +55,8 @@ data ErrWalletNotInitialized = ErrWalletNotInitialized
 -- | Can't perform given operation because there's already a wallet in the db
 data ErrWalletAlreadyInitialized = ErrWalletAlreadyInitialized
     deriving (Eq, Show)
+
+newtype ErrNotGenesisBlockHeader = ErrNotGenesisBlockHeader BlockHeader
+    deriving (Eq, Show)
+
+instance Exception ErrNotGenesisBlockHeader

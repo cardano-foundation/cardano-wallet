@@ -28,8 +28,7 @@
 --   "Cardano.Wallet.DB.Sqlite.Stores"
 
 module Cardano.Wallet.DB.Store.Checkpoints
-    ( mkStoreWallets
-    , PersistAddressBook (..)
+    ( PersistAddressBook (..)
     , blockHeaderFromEntity
 
     -- * Testing
@@ -72,7 +71,7 @@ import Cardano.Wallet.Address.Discovery.Shared
     ( CredentialType (..) )
 import Cardano.Wallet.Checkpoints
     ( DeltaCheckpoints (..), DeltasCheckpoints, loadCheckpoints )
-import Cardano.Wallet.DB
+import Cardano.Wallet.DB.Errors
     ( ErrBadFormat (..) )
 import Cardano.Wallet.DB.Sqlite.Schema
     ( Checkpoint (..)
@@ -89,7 +88,6 @@ import Cardano.Wallet.DB.Sqlite.Schema
     , SharedStatePendingIx (..)
     , UTxO (..)
     , UTxOToken (..)
-    , Wallet (..)
     )
 import Cardano.Wallet.DB.Sqlite.Types
     ( BlockId (..)
@@ -102,8 +100,7 @@ import Cardano.Wallet.DB.Sqlite.Types
 import Cardano.Wallet.DB.Store.Submissions.Operations
     ( mkStoreSubmissions )
 import Cardano.Wallet.DB.WalletState
-    ( DeltaMap (..)
-    , DeltaWalletState
+    ( DeltaWalletState
     , DeltaWalletState1 (..)
     , WalletCheckpoint (..)
     , WalletState (..)
@@ -119,8 +116,6 @@ import Control.Monad
     ( forM, forM_, unless, void, when )
 import Control.Monad.Trans.Class
     ( lift )
-import Control.Monad.Trans.Except
-    ( ExceptT (..), runExceptT )
 import Control.Monad.Trans.Maybe
     ( MaybeT (..) )
 import Data.Bifunctor
@@ -130,7 +125,7 @@ import Data.Foldable
 import Data.Functor
     ( (<&>) )
 import Data.Generics.Internal.VL.Lens
-    ( view, (^.) )
+    ( (^.) )
 import Data.Kind
     ( Type )
 import Data.Map.Strict
@@ -186,34 +181,7 @@ import qualified Data.Map.Strict as Map
 {-------------------------------------------------------------------------------
     WalletState Store
 -------------------------------------------------------------------------------}
--- | Store for 'WalletState' of multiple different wallets.
-mkStoreWallets
-    :: forall s key. (PersistAddressBook s, key ~ W.WalletId)
-    => Store (SqlPersistT IO)
-        (DeltaMap key (DeltaWalletState s))
-mkStoreWallets = Store{loadS=load,writeS=write,updateS=update}
-  where
-    write = error "mkStoreWalletsCheckpoints: not implemented"
 
-    update _ (Insert wid a) =
-        writeS (mkStoreWallet wid) a
-    update _ (Delete wid) = do
-        -- FIXME LATER during ADP-1043:
-        --  Deleting an entry in the Checkpoint table
-        --  will trigger a delete cascade. We want this cascade
-        --  to be explicit in our code.
-        deleteWhere [CheckpointWalletId ==. wid]
-    update _ (Adjust wid da) =
-        updateS (mkStoreWallet wid) Nothing da
-
-    load = do
-        wids <- fmap (view #walId . entityVal) <$> selectAll
-        runExceptT $ do
-            xs <- forM wids $ ExceptT . loadS . mkStoreWallet
-            pure $ Map.fromList (zip wids xs)
-      where
-        selectAll :: SqlPersistT IO [Entity Wallet]
-        selectAll = selectList [] []
 
 -- | Store for 'WalletState' of a single wallet.
 mkStoreWallet

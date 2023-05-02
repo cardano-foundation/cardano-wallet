@@ -324,10 +324,13 @@ import Cardano.Wallet.DB.Store.Submissions.Layer
 import Cardano.Wallet.DB.WalletState
     ( DeltaWalletState1 (..)
     , ErrNoSuchWallet (..)
-    , adjustNoSuchWallet
     , fromWallet
     , getLatest
     , getSlot
+    , updateState
+    , updateStateNoErrors
+    , updateStateWithResult
+    , updateStateWithResultNoError
     )
 import Cardano.Wallet.Flavor
     ( WalletFlavor (..), WalletFlavorS (..) )
@@ -530,7 +533,7 @@ import Crypto.Hash
 import Data.ByteString
     ( ByteString )
 import Data.DBVar
-    ( modifyDBMaybe, readDBVar )
+    ( readDBVar )
 import Data.Either
     ( partitionEithers )
 import Data.Either.Extra
@@ -624,7 +627,6 @@ import qualified Data.ByteArray as BA
 import qualified Data.Foldable as F
 import qualified Data.List as L
 import qualified Data.List.NonEmpty as NE
-import qualified Data.Map as Map
 import qualified Data.Set as Set
 import qualified Data.Text as T
 import qualified Data.Vector as V
@@ -968,15 +970,14 @@ restoreWallet
         , MaybeLight s
         )
     => ctx
-    -> WalletId
     -> ExceptT ErrNoSuchWallet IO ()
-restoreWallet ctx wid = db & \DBLayer{..} ->
+restoreWallet ctx = db & \DBLayer{..} ->
     let checkpointPolicy = CP.defaultPolicy
         readChainPoints = atomically listCheckpoints
         rollBackward = rollbackBlocks @_ @s @k ctx . toSlot
-        rollForward' blockdata tip = throwInIO $
+        rollForward' blockdata tip =
             restoreBlocks @_ @s @k
-                ctx (contramap MsgWalletFollow tr) wid blockdata tip
+                ctx (contramap MsgWalletFollow tr) blockdata tip
     in
       catchFromIO $ case (maybeDiscover, lightSync nw) of
         (Just discover, Just sync) ->
@@ -999,12 +1000,6 @@ restoreWallet ctx wid = db & \DBLayer{..} ->
     nw = ctx ^. networkLayer @IO
     tr = ctx ^. logger @_ @WalletWorkerLog
     (_block0, NetworkParameters{genesisParameters=gp}) = ctx ^. genesisData
-
-    -- See Note [CheckedExceptionsAndCallbacks]
-    throwInIO :: ExceptT ErrNoSuchWallet IO a -> IO a
-    throwInIO x = runExceptT x >>= \case
-        Right a -> pure a
-        Left  e -> throwIO $ UncheckErrNoSuchWallet e
 
     catchFromIO :: IO a -> ExceptT ErrNoSuchWallet IO a
     catchFromIO m = ExceptT $
@@ -1074,14 +1069,12 @@ restoreBlocks
         )
     => ctx
     -> Tracer IO WalletFollowLog
-    -> WalletId
     -> BlockData IO (Either Address RewardAccount) ChainEvents s
     -> BlockHeader
-    -> ExceptT ErrNoSuchWallet IO ()
-restoreBlocks ctx tr wid blocks nodeTip = db & \DBLayer{..} ->
-  mapExceptT atomically $ do
+    -> IO ()
+restoreBlocks ctx tr blocks nodeTip = db & \DBLayer{..} -> atomically $ do
     slottingParams  <- liftIO $ currentSlottingParameters nl
-    cp0 <- lift readCheckpoint
+    cp0 <- readCheckpoint
     unless (cp0 `isParentOf` firstHeader blocks) $ fail $ T.unpack $ T.unwords
         [ "restoreBlocks: given chain isn't a valid continuation."
         , "Wallet is at:", pretty (currentTip cp0)
@@ -1161,22 +1154,19 @@ restoreBlocks ctx tr wid blocks nodeTip = db & \DBLayer{..} ->
         forM_ mcbor $ \cbor -> do
             traceWith tr $ MsgStoringCBOR cbor
 
-    lift $ putTxHistory txs
+    putTxHistory txs
 
-    lift $ rollForwardTxSubmissions (localTip ^. #slotNo)
+    rollForwardTxSubmissions (localTip ^. #slotNo)
         $ fmap (\(tx,meta) -> (meta ^. #slotNo, txId tx)) txs
 
-    lift $ forM_ slotPoolDelegations $ \delegation@(slotNo, cert) -> do
+    forM_ slotPoolDelegations $ \delegation@(slotNo, cert) -> do
             liftIO $ logDelegation delegation
             putDelegationCertificate cert slotNo
 
     liftIO $ mapM_ logCheckpoint cpsKeep
+    updateStateNoErrors id walletsDB $ const delta
 
-    -- TODO: ADP-3003 remove the ExceptT layer in this function
-    ExceptT $ modifyDBMaybe walletsDB $
-        adjustNoSuchWallet wid id $ \_ -> Right ( delta, () )
-
-    lift $ prune epochStability finalitySlot
+    prune epochStability finalitySlot
 
     liftIO $ do
         traceWith tr $ MsgDiscoveredTxs txs
@@ -1478,9 +1468,8 @@ createRandomAddress
     -> ExceptT ErrCreateRandomAddress IO (Address, NonEmpty DerivationIndex)
 createRandomAddress ctx wid pwd mIx = db & \DBLayer{..} ->
     withRootKey @s @k db wid pwd ErrCreateAddrWithRootKey $ \xprv scheme -> do
-        ExceptT $ atomically $ modifyDBMaybe walletsDB $
-            adjustNoSuchWallet wid ErrCreateAddrNoSuchWallet $
-                createRandomAddress' xprv scheme
+        mapExceptT atomically $ updateStateWithResult id walletsDB $
+            createRandomAddress' xprv scheme
   where
     db = ctx ^. typed
 
@@ -1507,27 +1496,26 @@ createRandomAddress ctx wid pwd mIx = db & \DBLayer{..} ->
             addr = Rnd.deriveRndStateAddress @n xprv prepared path
 
 importRandomAddresses
-    :: forall ctx s k.
-        ( HasDBLayer IO s k ctx
-        , RndStateLike s
-        , k ~ ByronKey
-        , AddressBookIso s
-        )
+    :: forall ctx s k
+     . ( HasDBLayer IO s k ctx
+       , RndStateLike s
+       , k ~ ByronKey
+       , AddressBookIso s
+       )
     => ctx
-    -> WalletId
     -> [Address]
     -> ExceptT ErrImportRandomAddress IO ()
-importRandomAddresses ctx wid addrs = db & \DBLayer{..} ->
-    ExceptT $ atomically $ modifyDBMaybe walletsDB $
-        adjustNoSuchWallet wid ErrImportAddrNoSuchWallet
-            importRandomAddresses'
+importRandomAddresses ctx addrs =
+    db & \DBLayer{..} ->
+        mapExceptT atomically
+            $ updateStateWithResult id walletsDB importRandomAddresses'
   where
     db = ctx ^. dbLayer @IO @s @k
     importRandomAddresses' wal = case es1 of
         Left err -> Left $ ErrImportAddr err
-        Right s1 -> Right ([ ReplacePrologue $ getPrologue s1 ], ())
+        Right s1 -> Right ([ReplacePrologue $ getPrologue s1], ())
       where
-        s0  = getState $ getLatest wal
+        s0 = getState $ getLatest wal
         es1 = foldl' (\s addr -> s >>= Rnd.importAddress addr) (Right s0) addrs
 
 -- NOTE
@@ -1550,24 +1538,26 @@ normalizeDelegationAddress s addr = do
         $ Seq.rewardAccountKey s
 
 assignChangeAddressesAndUpdateDb
-    :: forall ctx s k.
-        ( GenChange s
-        , BoundedAddressLength k
-        , HasDBLayer IO s k ctx
-        , AddressBookIso s
-        )
+    :: forall ctx s k
+     . ( GenChange s
+       , BoundedAddressLength k
+       , HasDBLayer IO s k ctx
+       , AddressBookIso s
+       )
     => ctx
-    -> WalletId
     -> ArgGenChange s
     -> Selection
-    -> ExceptT ErrSignPayment IO (SelectionOf TxOut)
-assignChangeAddressesAndUpdateDb ctx wid argGenChange selection =
-    db & \DBLayer{..} -> ExceptT $ atomically $ modifyDBMaybe walletsDB $
-        adjustNoSuchWallet wid ErrSignPaymentNoSuchWallet
-            assignChangeAddressesAndUpdateDb'
+    -> IO (SelectionOf TxOut)
+assignChangeAddressesAndUpdateDb ctx argGenChange selection =
+    db & \DBLayer{..} ->
+        atomically
+            $ updateStateWithResultNoError
+                id
+                walletsDB
+                assignChangeAddressesAndUpdateDb'
   where
     db = ctx ^. dbLayer @IO @s @k
-    assignChangeAddressesAndUpdateDb' wallet = Right
+    assignChangeAddressesAndUpdateDb' wallet =
         -- Newly generated change addresses only change the Prologue
         ([ReplacePrologue $ getPrologue stateUpdated], selectionUpdated)
       where
@@ -1881,9 +1871,8 @@ buildSignSubmitTransaction db@DBLayer{..} netLayer txLayer pwd walletId
                     wholeRange
                     (Just Pending)
                     Nothing
-            txWithSlot@(builtTx, slot) <-
-                throwOnErr <=< modifyDBMaybe walletsDB $
-                adjustNoSuchWallet walletId wrapNoWalletForConstruct $ \s -> do
+            txWithSlot@(builtTx, slot) <- throwOnErr <=< runExceptT $
+                updateStateWithResult id walletsDB $ \s -> do
                     let wallet = WalletState.getLatest s
                     let utxo = availableUTxO @s (Set.fromList pendingTxs) wallet
                     buildAndSignTransactionPure @k @s @n
@@ -1928,7 +1917,6 @@ buildSignSubmitTransaction db@DBLayer{..} netLayer txLayer pwd walletId
     throwWrappedErr f e = runExceptT (withExceptT f e) >>= throwOnErr
 
     wrapRootKeyError = ExceptionWitnessTx . ErrWitnessTxWithRootKey
-    wrapNoWalletForConstruct = ExceptionConstructTx . ErrConstructTxNoSuchWallet
     wrapNetworkError = ExceptionSubmitTx . ErrSubmitTxNetwork
     wrapBalanceConstructError = either ExceptionBalanceTx ExceptionConstructTx
 
@@ -2041,22 +2029,16 @@ buildTransaction
     => DBLayer IO s k
     -> TransactionLayer k 'CredFromKeyK SealedTx
     -> TimeTranslation
-    -> WalletId
     -> ChangeAddressGen s
     -> ProtocolParameters
     -> TransactionCtx
     -> [TxOut] -- ^ payment outputs
     -> IO (Cardano.Tx era, Wallet s)
-buildTransaction DBLayer{..} txLayer timeTranslation walletId changeAddrGen
+buildTransaction DBLayer{..} txLayer timeTranslation changeAddrGen
     protocolParameters txCtx paymentOuts = do
     stdGen <- initStdGen
     atomically $ do
-        wallet <- readDBVar walletsDB >>= \wallets ->
-            case Map.lookup walletId wallets of
-                Nothing -> liftIO . throwIO
-                    $ ExceptionNoSuchWallet
-                    $ ErrNoSuchWallet walletId
-                Just ws -> pure $ WalletState.getLatest ws
+        wallet <- readDBVar walletsDB <&> WalletState.getLatest
 
         pendingTxs <- Set.fromList . fmap fromTransactionInfo <$>
             readTransactions
@@ -2689,16 +2671,15 @@ delegationFee
     -> TimeTranslation
     -> AnyRecentEra
     -> ChangeAddressGen s
-    -> WalletId
     -> IO DelegationFee
 delegationFee db@DBLayer{..} netLayer txLayer timeTranslation era
-    changeAddressGen walletId =
+    changeAddressGen =
     WriteTx.withRecentEra era $ \(recentEra :: WriteTx.RecentEra era) -> do
         protocolParams <- Write.unsafeFromWalletProtocolParameters
             <$> liftIO (currentProtocolParameters netLayer)
         feePercentiles <- transactionFee @s @k @n
             db protocolParams txLayer timeTranslation recentEra changeAddressGen
-            walletId defaultTransactionCtx
+            defaultTransactionCtx
             -- It would seem that we should add a delegation action
             -- to the partial tx we construct, this was not done
             -- previously, and the difference should be negligible.
@@ -2721,18 +2702,13 @@ transactionFee
     -> TimeTranslation
     -> WriteTx.RecentEra era
     -> ChangeAddressGen s
-    -> WalletId
     -> TransactionCtx
     -> PreSelection
     -> IO (Percentile 10 Fee, Percentile 90 Fee)
 transactionFee DBLayer{atomically, walletsDB} protocolParams txLayer
-    timeTranslation recentEra changeAddressGen walletId txCtx preSelection = do
-        wallet <- liftIO . atomically $ readDBVar walletsDB >>= \wallets ->
-            case Map.lookup walletId wallets of
-                Nothing -> liftIO . throwIO
-                    $ ExceptionNoSuchWallet
-                    $ ErrNoSuchWallet walletId
-                Just ws -> pure $ WalletState.getLatest ws
+    timeTranslation recentEra changeAddressGen txCtx preSelection = do
+        wallet <- liftIO . atomically
+            $ readDBVar walletsDB <&> WalletState.getLatest
         utxoIndex <-
             -- Important:
             --
@@ -3106,9 +3082,8 @@ writePolicyPublicKey ctx wid pwd = db & \DBLayer{..} -> do
             pure $ liftRawKey $ toXPub xprv
 
     let seqState' = seqState & #policyXPub .~ Just policyXPub
-    ExceptT $ atomically $ modifyDBMaybe walletsDB $
-        adjustNoSuchWallet wid ErrWritePolicyPublicKeyNoSuchWallet $
-        \_ -> Right ( [ReplacePrologue $ SeqPrologue seqState'], () )
+    lift $ atomically $ updateStateNoErrors id walletsDB $
+        \_ -> [ReplacePrologue $ SeqPrologue seqState']
 
     pure policyXPub
   where
@@ -3165,34 +3140,30 @@ guardHardIndex ix =
     else pure (Index $ getDerivationIndex ix)
 
 updateCosigner
-    :: forall ctx s k n.
-        ( s ~ SharedState n k
-        , k ~ SharedKey
-        , Shared.SupportsDiscovery n k
-        , WalletKey k
-        , HasDBLayer IO s k ctx
-        )
+    :: forall ctx s k n
+     . ( s ~ SharedState n k
+       , k ~ SharedKey
+       , Shared.SupportsDiscovery n k
+       , WalletKey k
+       , HasDBLayer IO s k ctx
+       )
     => ctx
-    -> WalletId
     -> k 'AccountK XPub
     -> Cosigner
     -> CredentialType
     -> ExceptT ErrAddCosignerKey IO ()
-updateCosigner ctx wid cosignerXPub cosigner cred = db & \DBLayer{..} -> do
-    cp <- lift $ atomically readCheckpoint
-    ExceptT $ atomically $ modifyDBMaybe walletsDB $
-        adjustNoSuchWallet wid ErrAddCosignerKeyNoSuchWallet
-            (updateCosigner' cp)
+updateCosigner ctx cosignerXPub cosigner cred =
+    db & \DBLayer{..} -> do
+        cp <- lift $ atomically readCheckpoint
+        mapExceptT atomically $ updateState id walletsDB $ updateCosigner' cp
   where
     db = ctx ^. dbLayer @_ @s @k
     updateCosigner' cp wallet =
         case addCosignerAccXPub (cosigner, cosignerXPub) cred s0 of
             Left err -> Left $ ErrAddCosignerKey err
-            Right s1 -> case ready s1 of
-                Shared.Pending ->
-                    Right (prologueUpdate s1, ())
-                Shared.Active _ ->
-                  Right (prologueUpdate s1 ++ discoveriesUpdate s1, ())
+            Right s1 -> Right $ case ready s1 of
+                Shared.Pending -> prologueUpdate s1
+                Shared.Active _ -> prologueUpdate s1 ++ discoveriesUpdate s1
       where
         s0 = getState $ getLatest wallet
         prologueUpdate s =
@@ -3200,9 +3171,10 @@ updateCosigner ctx wid cosignerXPub cosigner cred = db & \DBLayer{..} -> do
         wc@(WS.WalletCheckpoint bh utxo' _) = snd $ fromWallet cp
         discoveriesUpdate s =
             [ UpdateCheckpoints
-              [ PutCheckpoint (getSlot wc)
-                (WS.WalletCheckpoint bh utxo' (getDiscoveries s))
-              ]
+                [ PutCheckpoint
+                    (getSlot wc)
+                    (WS.WalletCheckpoint bh utxo' (getDiscoveries s))
+                ]
             ]
 
 -- NOTE
@@ -3243,9 +3215,7 @@ newtype ErrDerivePublicKey
     deriving (Eq, Show)
 
 data ErrAddCosignerKey
-    = ErrAddCosignerKeyNoSuchWallet ErrNoSuchWallet -- TODO ADP-3003 remove
-        -- ^ The shared wallet doesn't exist?
-    | ErrAddCosignerKey ErrAddCosigner
+    = ErrAddCosignerKey ErrAddCosigner
         -- ^ Error adding this co-signer to the shared wallet.
     | ErrAddCosignerKeyWalletMetadataNotFound
         -- ^ No meta was found.
@@ -3275,7 +3245,6 @@ data ErrInvalidDerivationIndex derivation level
 -- | Errors that can occur when signing a transaction.
 data ErrSignPayment
     = ErrSignPaymentMkTx ErrMkTransaction
-    | ErrSignPaymentNoSuchWallet ErrNoSuchWallet -- TODO: ADP-3003 remove this error
     | ErrSignPaymentWithRootKey ErrWithRootKey
     | ErrSignPaymentIncorrectTTL PastHorizonException
     deriving (Show, Eq)
@@ -3291,7 +3260,6 @@ data ErrSubmitTransaction
 data ErrConstructTx
     = ErrConstructTxWrongPayload
     | ErrConstructTxBody ErrMkTransaction
-    | ErrConstructTxNoSuchWallet ErrNoSuchWallet -- TODO: ADP-3003 remove this error
     | ErrConstructTxReadRewardAccount ErrReadRewardAccount
     | ErrConstructTxIncorrectTTL PastHorizonException
     | ErrConstructTxMultidelegationNotSupported
@@ -3385,14 +3353,12 @@ newtype ErrWalletNotResponding
 
 data ErrCreateRandomAddress
     = ErrIndexAlreadyExists (Index 'Hardened 'CredFromKeyK)
-    | ErrCreateAddrNoSuchWallet ErrNoSuchWallet -- TODO: ADP-3003 remove this error
     | ErrCreateAddrWithRootKey ErrWithRootKey
     | ErrCreateAddressNotAByronWallet
     deriving (Generic, Eq, Show)
 
 data ErrImportRandomAddress
-    = ErrImportAddrNoSuchWallet ErrNoSuchWallet -- TODO: ADP-3003 remove this error
-    | ErrImportAddr ErrImportAddress
+    = ErrImportAddr ErrImportAddress
     | ErrImportAddressNotAByronWallet
     deriving (Generic, Eq, Show)
 
@@ -3413,9 +3379,8 @@ data ErrReadPolicyPublicKey
     | ErrReadPolicyPublicKeyAbsent
     deriving (Generic, Eq, Show)
 
-data ErrWritePolicyPublicKey
-    = ErrWritePolicyPublicKeyNoSuchWallet ErrNoSuchWallet -- TODO: ADP-3003 remove this error
-    | ErrWritePolicyPublicKeyWithRootKey ErrWithRootKey
+newtype ErrWritePolicyPublicKey
+    = ErrWritePolicyPublicKeyWithRootKey ErrWithRootKey
     deriving (Generic, Eq, Show)
 
 -- | This exception type should gradually replace all cases of `ExceptT Err*`

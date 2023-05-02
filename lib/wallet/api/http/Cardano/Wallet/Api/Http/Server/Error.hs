@@ -308,10 +308,6 @@ instance IsServerError ErrWithRootKey where
 instance IsServerError ErrSignPayment where
     toServerError = \case
         ErrSignPaymentMkTx e -> toServerError e
-        ErrSignPaymentNoSuchWallet e -> (toServerError e)
-            { errHTTPCode = 404
-            , errReasonPhrase = errReasonPhrase err404
-            }
         ErrSignPaymentWithRootKey e@ErrWithRootKeyNoRootKey{} -> (toServerError e)
             { errHTTPCode = 403
             , errReasonPhrase = errReasonPhrase err403
@@ -374,7 +370,6 @@ instance IsServerError ErrMkTransaction where
                 ]
         ErrMkTransactionJoinStakePool e -> toServerError e
         ErrMkTransactionQuitStakePool e -> toServerError e
-        ErrMkTransactionNoSuchWallet wid -> toServerError (ErrNoSuchWallet wid)
         ErrMkTransactionIncorrectTTL e -> toServerError e
 
 instance IsServerError ErrConstructTx where
@@ -386,10 +381,6 @@ instance IsServerError ErrConstructTx where
             , "metadata nor minting. Include at least one of them."
             ]
         ErrConstructTxBody e -> toServerError e
-        ErrConstructTxNoSuchWallet e -> (toServerError e)
-            { errHTTPCode = 404
-            , errReasonPhrase = errReasonPhrase err404
-            }
         ErrConstructTxReadRewardAccount e -> toServerError e
         ErrConstructTxIncorrectTTL e -> toServerError e
         ErrConstructTxMultidelegationNotSupported ->
@@ -716,12 +707,10 @@ instance IsServerError ErrReadPolicyPublicKey where
 
 instance IsServerError ErrWritePolicyPublicKey where
     toServerError = \case
-        ErrWritePolicyPublicKeyNoSuchWallet e -> toServerError e
         ErrWritePolicyPublicKeyWithRootKey  e -> toServerError e
 
 instance IsServerError ErrCreateRandomAddress where
     toServerError = \case
-        ErrCreateAddrNoSuchWallet e -> toServerError e
         ErrCreateAddrWithRootKey  e -> toServerError e
         ErrIndexAlreadyExists ix ->
             apiError err409 AddressAlreadyExists $ mconcat
@@ -736,7 +725,6 @@ instance IsServerError ErrCreateRandomAddress where
 
 instance IsServerError ErrImportRandomAddress where
     toServerError = \case
-        ErrImportAddrNoSuchWallet e -> toServerError e
         ErrImportAddressNotAByronWallet ->
             apiError err403 InvalidWalletType $ mconcat
                 [ "I cannot derive new address for this wallet type."
@@ -783,7 +771,6 @@ instance IsServerError ErrDerivePublicKey where
 
 instance IsServerError ErrAddCosignerKey where
     toServerError = \case
-        ErrAddCosignerKeyNoSuchWallet e -> toServerError e
         ErrAddCosignerKeyWalletMetadataNotFound ->
             apiError err503 WalletMetadataNotFound $ T.unwords
                 [ "It was not possible to find any metadata for the given"

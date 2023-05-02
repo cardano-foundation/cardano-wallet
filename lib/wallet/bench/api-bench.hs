@@ -232,7 +232,7 @@ benchmarksSeq
         )
     => BenchmarkConfig n s k ktype
     -> IO BenchSeqResults
-benchmarksSeq BenchmarkConfig{benchmarkName,ctx,wid} = do
+benchmarksSeq BenchmarkConfig{benchmarkName,ctx} = do
     ((cp, pending), readWalletTime) <- bench "readWallet" $ do
         (cp, _, pending) <- W.readWallet @_ @s @k ctx
         pure (cp, pending)
@@ -275,7 +275,6 @@ benchmarksSeq BenchmarkConfig{benchmarkName,ctx,wid} = do
             timeTranslation
             (Write.AnyRecentEra Write.RecentEraBabbage)
             (W.defaultChangeAddressGen (delegationAddressS @n) (Proxy @k))
-            wid
 
     pure BenchSeqResults
         { benchName = benchmarkName

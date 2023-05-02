@@ -34,8 +34,7 @@ import Cardano.Tx.Balance.Internal.CoinSelection
     , SelectionError (..)
     )
 import Cardano.Wallet
-    ( ErrSignPayment (..)
-    , ErrUpdatePassphrase (..)
+    ( ErrUpdatePassphrase (..)
     , ErrWithRootKey (..)
     , LocalTxSubmissionConfig (..)
     , SelectionWithoutChange
@@ -71,8 +70,6 @@ import Cardano.Wallet.DB.Layer
     ( newDBFreshInMemory )
 import Cardano.Wallet.DB.Store.Submissions.Operations
     ( TxSubmissionsStatus )
-import Cardano.Wallet.DB.WalletState
-    ( ErrNoSuchWallet (..) )
 import Cardano.Wallet.DummyTarget.Primitive.Types
     ( block0
     , dummyNetworkLayer
@@ -295,7 +292,6 @@ spec :: Spec
 spec = describe "Cardano.WalletSpec" $ do
     describe "Pointless mockEventSource to cover 'Show' instances for errors" $ do
         let wid = WalletId (hash @ByteString "arbitrary")
-        it (show $ ErrSignPaymentNoSuchWallet (ErrNoSuchWallet wid)) True
         it (show $ ErrWithRootKeyWrongPassphrase wid ErrWrongPassphrase) True
 
     describe "WalletLayer works as expected" $ do
@@ -312,7 +308,7 @@ spec = describe "Cardano.WalletSpec" $ do
         it "Can't change passphrase with a wrong old passphrase"
             (property walletUpdatePassphraseWrong)
         it "Can't change passphrase if wallet doesn't exist"
-            (property walletUpdatePassphraseNoSuchWallet)
+            (property walletUpdatePassphraseNoRootKey)
         it "Passphrase info is up-to-date after wallet passphrase update"
             (property walletUpdatePassphraseDate)
         -- fixme: [ADP-1132] Rework property for new transactions code.
@@ -423,12 +419,12 @@ walletUpdatePassphraseWrong wallet (xprv, pwd) (old, new) =
                 ErrWrongPassphrase
         assert (attempt == Left err)
 
-walletUpdatePassphraseNoSuchWallet
+walletUpdatePassphraseNoRootKey
     :: (WalletId, WalletName, DummyState)
     -> WalletId
     -> (Passphrase "user", Passphrase "user")
     -> Property
-walletUpdatePassphraseNoSuchWallet wallet@(wid', _, _) wid (old, new) =
+walletUpdatePassphraseNoRootKey wallet@(wid', _, _) wid (old, new) =
     wid /= wid' ==> monadicIO $ do
         WalletLayerFixture _ _ wl _ <- run $ setupFixture wallet
         attempt <- run $ runExceptT
