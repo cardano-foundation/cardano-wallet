@@ -2,6 +2,7 @@
 {-# LANGUAGE NamedFieldPuns #-}
 {-# LANGUAGE OverloadedLabels #-}
 {-# LANGUAGE StandaloneDeriving #-}
+{-# LANGUAGE TupleSections #-}
 {-# LANGUAGE TypeFamilies #-}
 
 -- |
@@ -35,7 +36,11 @@ module Cardano.Wallet.DB.WalletState
     -- * Multiple wallets
     , DeltaMap (..)
     , ErrNoSuchWallet (..)
-    , adjustNoSuchWallet
+    , adjustWallet
+    , updateState
+    , updateStateWithResult
+    , updateStateNoErrors
+    , updateStateWithResultNoError
     ) where
 
 import Prelude
@@ -51,9 +56,13 @@ import Cardano.Wallet.DB.Store.Submissions.Layer
 import Cardano.Wallet.DB.Store.Submissions.Operations
     ( DeltaTxSubmissions, TxSubmissions )
 import Cardano.Wallet.Primitive.Types
-    ( BlockHeader, WalletId )
+    ( BlockHeader )
 import Cardano.Wallet.Primitive.Types.UTxO
     ( UTxO )
+import Control.Monad.Except
+    ( ExceptT (..), runExceptT, void )
+import Data.DBVar
+    ( DBVar, modifyDBMaybe )
 import Data.Delta
     ( Delta (..) )
 import Data.DeltaMap
@@ -62,8 +71,6 @@ import Data.Generics.Internal.VL
     ( withIso )
 import Data.Generics.Internal.VL.Lens
     ( over, view, (^.) )
-import Data.Map.Strict
-    ( Map )
 import Data.Word
     ( Word32 )
 import Fmt
@@ -74,7 +81,6 @@ import GHC.Generics
 import qualified Cardano.Wallet.Checkpoints as CPS
 import qualified Cardano.Wallet.Primitive.Model as W
 import qualified Cardano.Wallet.Primitive.Types as W
-import qualified Data.Map.Strict as Map
 
 {-------------------------------------------------------------------------------
     Wallet Checkpoint
@@ -177,18 +183,59 @@ instance Buildable (DeltaWalletState1 s) where
 instance Show (DeltaWalletState1 s) where
     show = pretty
 
-{-------------------------------------------------------------------------------
-    Multiple wallets.
--------------------------------------------------------------------------------}
--- | Adjust a specific wallet if it exists or return 'ErrNoSuchWallet'.
-adjustNoSuchWallet
-    :: WalletId
-    -> (ErrNoSuchWallet -> e)
-    -> (w              -> Either e (dw, b))
-    -> (Map WalletId w -> (Maybe (DeltaMap WalletId dw), Either e b))
-adjustNoSuchWallet wid err update wallets = case Map.lookup wid wallets of
-    Nothing -> (Nothing, Left $ err $ ErrNoSuchWallet wid)
-    Just wal -> case update wal of
+adjustWallet
+    :: (w              -> Either e (dw, b))
+    -> (w -> (Maybe dw, Either e b))
+adjustWallet update wal =  case update wal of
         Left e -> (Nothing, Left e)
-        Right (dw, b) -> (Just $ Adjust wid dw, Right b)
+        Right (dw, b) -> (Just dw, Right b)
 
+updateStateWithResult :: (Delta da, Monad m)
+    => (Base da -> w)
+    -- ^ Get the part of the state that we want to update
+    -> DBVar m da
+    -- ^ The state variable
+    -> (w -> Either e (da, b))
+    -- ^ The update function
+    -> ExceptT e m b
+updateStateWithResult d state use =
+    ExceptT
+        $ modifyDBMaybe state
+        $ adjustWallet use . d
+
+updateState
+    :: (Delta da, Monad m)
+    => (Base da -> w)
+    -- ^ Get the part of the state that we want to update
+    -> DBVar m da
+    -- ^ The state variable
+    -> (w -> Either e da)
+    -- ^ The update function
+    -> ExceptT e m ()
+updateState d state use = updateStateWithResult d state $ fmap (,()) . use
+
+updateStateWithResultNoError :: (Delta da, Monad m)
+    => (Base da -> w)
+    -- ^ Get the part of the state that we want to update
+    -> DBVar m da
+    -- ^ The state variable
+    -> (w -> (da, b))
+    -- ^ The update function
+    -> m b
+updateStateWithResultNoError d state use = do
+    er <- runExceptT $ updateStateWithResult d state $ fmap Right use
+    case er of
+        Left _ -> error "updateStateWithResultNoError: impossible"
+        Right r -> pure r
+
+updateStateNoErrors
+    :: (Delta da, Monad m)
+    => (Base da -> w)
+    -- ^ Get the part of the state that we want to update
+    -> DBVar m da
+    -- ^ The state variable
+    -> (w -> da)
+    -- ^ The update function
+    -> m ()
+updateStateNoErrors d state use = void
+    $ runExceptT $ updateState d state (Right . use)

@@ -4,10 +4,11 @@
 {-# LANGUAGE LambdaCase #-}
 {-# LANGUAGE NamedFieldPuns #-}
 {-# LANGUAGE OverloadedLabels #-}
+{-# LANGUAGE RankNTypes #-}
 {-# LANGUAGE RecordWildCards #-}
-{-# LANGUAGE RecursiveDo #-}
 {-# LANGUAGE ScopedTypeVariables #-}
 {-# LANGUAGE TypeApplications #-}
+{-# LANGUAGE TypeFamilies #-}
 
 -- |
 -- Copyright: © 2018-2020 IOHK
@@ -74,7 +75,7 @@ import Cardano.Wallet.DB
     ( DBCheckpoints (..)
     , DBDelegation (..)
     , DBFactory (..)
-    , DBFresh
+    , DBFresh (..)
     , DBLayerCollection (..)
     , DBLayerParams (..)
     , DBOpen (..)
@@ -82,9 +83,10 @@ import Cardano.Wallet.DB
     , DBTxHistory (..)
     , DBWalletMeta (..)
     , DBWallets (..)
+    , ErrNotGenesisBlockHeader (ErrNotGenesisBlockHeader)
     , ErrWalletAlreadyInitialized (ErrWalletAlreadyInitialized)
     , ErrWalletNotInitialized (..)
-    , mkDBFreshFromParts
+    , mkDBLayerFromParts
     )
 import Cardano.Wallet.DB.Sqlite.Migration
     ( DefaultFieldValues (..), migrateManually )
@@ -104,7 +106,7 @@ import Cardano.Wallet.DB.Sqlite.Schema
 import Cardano.Wallet.DB.Sqlite.Types
     ( BlockId (..), TxId (..) )
 import Cardano.Wallet.DB.Store.Checkpoints
-    ( PersistAddressBook (..), blockHeaderFromEntity, mkStoreWallets )
+    ( PersistAddressBook (..), blockHeaderFromEntity, mkStoreWallet )
 import Cardano.Wallet.DB.Store.Meta.Model
     ( mkTxMetaFromEntity )
 import Cardano.Wallet.DB.Store.Submissions.Layer
@@ -128,7 +130,7 @@ import Cardano.Wallet.DB.Store.Wallets.Layer
 import Cardano.Wallet.DB.Store.Wallets.Store
     ( DeltaTxWalletsHistory (..) )
 import Cardano.Wallet.DB.WalletState
-    ( DeltaMap (..)
+    ( DeltaWalletState
     , DeltaWalletState1 (..)
     , findNearestPoint
     , fromGenesis
@@ -136,6 +138,8 @@ import Cardano.Wallet.DB.WalletState
     , getBlockHeight
     , getLatest
     , getSlot
+    , updateStateNoErrors
+    , updateStateWithResultNoError
     )
 import Cardano.Wallet.Primitive.Passphrase.Types
     ( PassphraseHash )
@@ -150,23 +154,23 @@ import Control.DeepSeq
 import Control.Exception
     ( evaluate, throw )
 import Control.Monad
-    ( forM, join, unless, (>=>) )
+    ( forM, unless )
 import Control.Monad.IO.Class
     ( MonadIO (..) )
 import Control.Monad.Trans
     ( lift )
 import Control.Monad.Trans.Except
-    ( runExceptT, throwE )
+    ( mapExceptT, runExceptT, throwE )
 import Control.Tracer
     ( Tracer, contramap, traceWith )
 import Data.Coerce
     ( coerce )
 import Data.DBVar
-    ( loadDBVar, modifyDBMaybe, readDBVar, updateDBVar )
+    ( DBVar, initDBVar, loadDBVar, readDBVar, updateDBVar )
 import Data.Functor
     ( (<&>) )
 import Data.Generics.Internal.VL.Lens
-    ( view, (^.) )
+    ( (^.) )
 import Data.Maybe
     ( catMaybes, fromMaybe, maybeToList )
 import Data.Proxy
@@ -224,6 +228,8 @@ import qualified Cardano.Wallet.Primitive.Types.Hash as W
 import qualified Cardano.Wallet.Primitive.Types.Tx as W
 import qualified Cardano.Wallet.Primitive.Types.Tx.TxOut as W
 import qualified Cardano.Wallet.Read.Tx as Read
+import Data.Bifunctor
+    ( second )
 import qualified Data.Generics.Internal.VL as L
 import qualified Data.Map.Strict as Map
 import qualified Data.Set as Set
@@ -462,8 +468,7 @@ withDBFreshFromDBOpen
     -> DBOpen (SqlPersistT IO) IO s k
     -- ^ Already opened database.
     -> IO a
-withDBFreshFromDBOpen ti wid action dbopen =
-    newDBFreshFromDBOpen ti wid dbopen >>= action
+withDBFreshFromDBOpen ti wid action = action . newDBFreshFromDBOpen ti wid
 
 -- | Runs an action with a connection to the SQLite database.
 --
@@ -493,7 +498,7 @@ withDBFresh
     -> IO a
 withDBFresh tr defaultFieldValues dbFile ti wid action =
     withDBOpenFromFile tr defaultFieldValues dbFile
-        $ newDBFreshFromDBOpen ti wid >=> action
+        $  action . newDBFreshFromDBOpen ti wid
 
 -- | Runs an IO action with a new 'DBFresh' backed by a sqlite in-memory
 -- database.
@@ -531,9 +536,7 @@ newDBFreshInMemory
        -- ^ Wallet ID of the database.
     -> IO (IO (), DBFresh IO s k)
 newDBFreshInMemory tr ti wid = do
-    (destroy, dbopen) <- newDBOpenInMemory tr
-    db <- newDBFreshFromDBOpen ti wid dbopen
-    pure (destroy, db)
+    second (newDBFreshFromDBOpen ti wid) <$> newDBOpenInMemory tr
 
 -- | From a 'DBOpen', create a database which can store the state
 -- of one wallet with a specific 'WalletId'.
@@ -548,63 +551,22 @@ newDBFreshFromDBOpen
        -- ^ Wallet ID of the database.
     -> DBOpen (SqlPersistT IO) IO s k
        -- ^ A (thread-)safe wrapper for query execution.
-    -> IO (DBFresh IO s k)
-newDBFreshFromDBOpen ti wid_ DBOpen{atomically=runQuery} = mdo
+    -> DBFresh IO s k
+newDBFreshFromDBOpen ti wid_ DBOpen{atomically=atomically_} =
+    mkDBFreshFromParts ti wid_
+        dbWallets (mkStoreWallet wid_) dbLayerCollection atomically_
+  where
+    transactionsQS = newQueryStoreTxWalletsHistory
 
-    -- FIXME LATER during ADP-1043:
-    --   Handle the case where loading the database fails.
-    walletsDB <- runQuery $ loadDBVar mkStoreWallets
-    let transactionsQS = newQueryStoreTxWalletsHistory
-
-    -- Insert genesis checkpoint into the DBVar.
-    -- Throws an internal error if the checkpoint is not actually at genesis.
-    let insertCheckpointGenesis wid cp =
-            case fromGenesis cp of
-                Nothing -> throwIO $ ErrInitializeGenesisAbsent wid header
-                Just wallet ->
-                    updateDBVar walletsDB $ Insert wid wallet
-          where
-            header = cp ^. #currentTip
-
-    -- Retrieve the latest checkpoint from the DBVar
-    let readCheckpoint
-            ::  SqlPersistT IO (W.Wallet s)
-        readCheckpoint =
-            getLatest . snd . Map.findMin <$> readDBVar walletsDB
-
-    let pruneCheckpoints
-            :: W.WalletId
-            -> Quantity "block" Word32 -> W.BlockHeader
-            -> SqlPersistT IO ()
-        pruneCheckpoints wid epochStability tip = do
-            let heights = Set.fromList $ sparseCheckpoints
-                    (defaultSparseCheckpointsConfig epochStability)
-                    (tip ^. #blockHeight)
-            modifyDBMaybe walletsDB $ \ws ->
-                case Map.lookup wid ws of
-                    Nothing  -> (Nothing, ())
-                    Just wal ->
-                        let willKeep cp = getBlockHeight cp `Set.member` heights
-                            slots = Map.filter willKeep (wal ^. #checkpoints . #checkpoints)
-                            delta = Adjust wid
-                                [ UpdateCheckpoints [ RestrictTo $ Map.keys slots ] ]
-                        in  (Just delta, ())
-
-        {-----------------------------------------------------------------------
-                                      Wallets
-        -----------------------------------------------------------------------}
-    let
-      dbWallets = DBWallets
-        { initializeWallet_ = \(DBLayerParams cp meta txs gp) -> do
+    dbWallets = DBWallets
+        { initializeWallet_ = \(DBLayerParams _ meta txs gp) -> do
             res <- lift $ runExceptT $ getWalletId_ dbWallets
             case res of
                 Left ErrWalletNotInitialized -> lift $ do
                     insert_ $ mkWalletEntity wid_ meta gp
-                    insertCheckpointGenesis wid_ cp
                     updateS (store transactionsQS) Nothing $
                                 ExpandTxWalletsHistory wid_ txs
                 Right _ -> throwE ErrWalletAlreadyInitialized
-
 
         , getWalletId_ = do
             ws <- lift $ map unWalletKey <$> selectKeysList [] [Asc WalId]
@@ -614,46 +576,98 @@ newDBFreshFromDBOpen ti wid_ DBOpen{atomically=runQuery} = mdo
 
         }
 
+    dbLayerCollection walletsDB = DBLayerCollection{..}
+      where
+        readCheckpoint
+            ::  SqlPersistT IO (W.Wallet s)
+        readCheckpoint = getLatest <$> readDBVar walletsDB
+
+        pruneCheckpoints
+            :: Quantity "block" Word32 -> W.BlockHeader
+            -> SqlPersistT IO ()
+        pruneCheckpoints epochStability tip = do
+            let heights = Set.fromList $ sparseCheckpoints
+                    (defaultSparseCheckpointsConfig epochStability)
+                    (tip ^. #blockHeight)
+            updateStateNoErrors id walletsDB $ \ wal ->
+                let willKeep cp = getBlockHeight cp `Set.member` heights
+                    slots = Map.filter willKeep
+                        $ wal ^. #checkpoints . #checkpoints
+                in [ UpdateCheckpoints [ RestrictTo $ Map.keys slots ] ]
+
         {-----------------------------------------------------------------------
                                     Checkpoints
         -----------------------------------------------------------------------}
-    let
-      dbCheckpoints = DBCheckpoints
-        { walletsDB_ = walletsDB
+        dbCheckpoints = DBCheckpoints
+            { walletsDB_ = walletsDB
 
-        , putCheckpoint_ = \cp -> do
-            modifyDBMaybe walletsDB $ \ws ->
-                if null ws
-                    then (Nothing, ())
-                    else
-                        let (prologue, wcp) = fromWallet cp
-                            slot = getSlot wcp
-                            delta = Adjust wid_
-                                [ UpdateCheckpoints [ PutCheckpoint slot wcp ]
-                                , ReplacePrologue prologue
+            , putCheckpoint_ = \cp ->
+                updateStateNoErrors id walletsDB $ \_ ->
+                    let (prologue, wcp) = fromWallet cp
+                        slot = getSlot wcp
+                    in  [ UpdateCheckpoints [ PutCheckpoint slot wcp ]
+                        , ReplacePrologue prologue
+                        ]
+
+            , readCheckpoint_ = readCheckpoint
+
+            , listCheckpoints_ = do
+                let toChainPoint = W.chainPointFromBlockHeader
+                map (toChainPoint . blockHeaderFromEntity . entityVal) <$> selectList
+                    [ CheckpointWalletId ==. wid_ ]
+                    [ Asc CheckpointSlot ]
+            , readGenesisParameters_ = selectGenesisParameters wid_
+            }
+
+        rollbackTo_ requestedPoint = do
+            nearestCheckpoint <- updateStateWithResultNoError id walletsDB
+                $ \wal ->
+                case findNearestPoint wal requestedPoint of
+                    Nothing -> throw $ ErrNoOlderCheckpoint wid_ requestedPoint
+                    Just nearestPoint ->
+                        (  [ UpdateCheckpoints
+                                [ RollbackTo nearestPoint ]
+                            , UpdateSubmissions
+                                [ rollBackSubmissions $
+                                        case nearestPoint of
+                                        { At s -> s; Origin -> 0 }
                                 ]
-                        in  (Just delta, ())
+                            ]
+                        ,   case Map.lookup nearestPoint
+                                    (wal ^. #checkpoints . #checkpoints) of
+                                Nothing -> error "rollbackTo_: \
+                                    \nearest point not found, impossible!"
+                                Just p -> p
+                        )
+            let currentTip = nearestCheckpoint ^. #currentTip
+                nearestPoint = currentTip ^. #slotNo
+            deleteDelegationCertificates wid_
+                [ CertSlot >. nearestPoint
+                ]
+            deleteStakeKeyCerts wid_
+                [ StakeKeyCertSlot >. nearestPoint
+                ]
+            updateS (store transactionsQS) Nothing $
+                RollbackTxWalletsHistory nearestPoint
+            pure $ W.chainPointFromBlockHeader currentTip
 
-        , readCheckpoint_ = readCheckpoint
-
-        , listCheckpoints_ = do
-            let toChainPoint = W.chainPointFromBlockHeader
-            map (toChainPoint . blockHeaderFromEntity . entityVal) <$> selectList
-                [ CheckpointWalletId ==. wid_ ]
-                [ Asc CheckpointSlot ]
-        , readGenesisParameters_ = selectGenesisParameters wid_
-        }
+        prune_ epochStability finalitySlot = do
+            readCheckpoint >>= \cp -> do
+                let tip = cp ^. #currentTip
+                pruneCheckpoints epochStability tip
+            updateDBVar walletsDB
+                [ UpdateSubmissions [pruneByFinality finalitySlot]
+                ]
 
         {-----------------------------------------------------------------------
                                      Tx History
         -----------------------------------------------------------------------}
-    let
-      lookupTx = queryS transactionsQS . GetByTxId
-      lookupTxOut = queryS transactionsQS . GetTxOut
-      dbTxHistory = DBTxHistory
+    lookupTx = queryS transactionsQS . GetByTxId
+    lookupTxOut = queryS transactionsQS . GetTxOut
+
+    dbTxHistory = DBTxHistory
         { putTxHistory_ = updateS (store transactionsQS) Nothing
                 . ExpandTxWalletsHistory wid_
-
         , readTxHistory_ = \range tip mlimit order -> do
             txs <- queryS transactionsQS $ SomeMetas range mlimit order
             forM txs $
@@ -667,69 +681,9 @@ newDBFreshFromDBOpen ti wid_ DBOpen{atomically=runQuery} = mdo
         , mkDecorator_ = mkDecorator transactionsQS
         }
 
-    let rollbackTo_ requestedPoint = do
-            mNearestCheckpoint <-
-                modifyDBMaybe walletsDB $ \ws ->
-                    case Map.lookup wid_ ws of
-                        Nothing  ->
-                            ( Nothing
-                            , pure Nothing
-                            )
-                        Just wal -> case findNearestPoint wal requestedPoint of
-                            Nothing ->
-                                ( Nothing
-                                , throw
-                                    $ ErrNoOlderCheckpoint wid_ requestedPoint
-                                )
-                            Just nearestPoint ->
-                                ( Just $ Adjust wid_
-                                    [ UpdateCheckpoints
-                                        [ RollbackTo nearestPoint ]
-                                    , UpdateSubmissions
-                                        [ rollBackSubmissions $
-                                             case nearestPoint of
-                                                { At s -> s; Origin -> 0 }
-                                        ]
-                                    ]
-                                , pure $
-                                    Map.lookup nearestPoint
-                                        (wal ^. #checkpoints . #checkpoints)
-                                )
+    dbDelegation = mkDBDelegation ti wid_
 
-            case join mNearestCheckpoint of
-                Nothing  -> abortOnNoSuchWallet
-                Just wcp -> do
-                    let nearestPoint = wcp ^. #currentTip . #slotNo
-                    deleteDelegationCertificates wid_
-                        [ CertSlot >. nearestPoint
-                        ]
-                    deleteStakeKeyCerts wid_
-                        [ StakeKeyCertSlot >. nearestPoint
-                        ]
-                    updateS (store transactionsQS) Nothing $
-                        RollbackTxWalletsHistory nearestPoint
-
-                    pure
-                        $ W.chainPointFromBlockHeader
-                        $ view #currentTip wcp
-
-    let prune_ epochStability finalitySlot = do
-            readCheckpoint >>= \cp -> do
-                        let tip = cp ^. #currentTip
-                        pruneCheckpoints wid_ epochStability tip
-            updateDBVar walletsDB $ Adjust wid_
-                [ UpdateSubmissions [pruneByFinality finalitySlot]
-                ]
-
-        {-----------------------------------------------------------------------
-                                    Wallet Delegation
-        -----------------------------------------------------------------------}
-    let dbDelegation = mkDBDelegation ti wid_
-        {-----------------------------------------------------------------------
-                                   Wallet Metadata
-        -----------------------------------------------------------------------}
-    let
-      dbWalletMeta = DBWalletMeta
+    dbWalletMeta = DBWalletMeta
         { putWalletMeta_ = updateWhere [WalId ==. wid_] . mkWalletMetadataUpdate
 
         , readWalletMeta_ = do
@@ -739,22 +693,50 @@ newDBFreshFromDBOpen ti wid_ DBOpen{atomically=runQuery} = mdo
                 Just r -> pure r
         }
 
-        {-----------------------------------------------------------------------
-                                       Keystore
-        -----------------------------------------------------------------------}
-    let dbPrivateKey = mkDBPrivateKey wid_
+    dbPrivateKey = mkDBPrivateKey wid_
 
-        {-----------------------------------------------------------------------
-                                     ACID Execution
-        -----------------------------------------------------------------------}
+mkDBFreshFromParts
+    :: forall stm m s k
+     . ( PersistAddressBook s
+       , stm ~ SqlPersistT IO
+       , MonadIO m
+       )
+    => TimeInterpreter IO
+    -> W.WalletId
+    -> DBWallets stm s
+    -> Store stm (DeltaWalletState s)
+    -> (DBVar stm (DeltaWalletState s) -> DBLayerCollection stm m s k)
+    -> (forall a. stm a -> m a)
+    -> DBFresh m s k
+mkDBFreshFromParts
+    ti
+    wid_
+    DBWallets{initializeWallet_, getWalletId_}
+    store
+    parts
+    atomically_ =
+        DBFresh
+            { bootDBLayer = \params -> do
+                let cp = dBLayerParamsState params
+                case fromGenesis cp of
+                    Nothing ->
+                        throwIO
+                            $ ErrNotGenesisBlockHeader
+                            $ cp ^. #currentTip
+                    Just wallet -> mapExceptT atomically_ $ do
+                        initializeWallet_ params
+                        lift $ db <$> initDBVar store wallet
+            , loadDBLayer = mapExceptT atomically_ $ do
+                ewid <- lift . runExceptT $ getWalletId_
+                case ewid of
+                    Right _ -> do
+                        walletsDB <- lift $ loadDBVar store
+                        pure $ db walletsDB
+                    Left _ -> throwE ErrWalletNotInitialized
+            }
+      where
+        db = mkDBLayerFromParts ti wid_ . parts
 
-    let atomically_ = runQuery
-
-    pure $ mkDBFreshFromParts ti wid_ dbWallets DBLayerCollection{..}
-
--- TODO: remove on ADP-3003
-abortOnNoSuchWallet :: a
-abortOnNoSuchWallet = error "abortOnNoSuchWallet: not found"
 
 mkDecorator
     :: QueryStoreTxWalletsHistory

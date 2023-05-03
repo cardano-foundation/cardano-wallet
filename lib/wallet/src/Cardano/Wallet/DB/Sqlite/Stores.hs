@@ -16,8 +16,7 @@
 --   i.e. "Cardano.Wallet.DB.Sqlite.StoresNew".
 
 module Cardano.Wallet.DB.Sqlite.Stores
-    ( mkStoreWallets
-    , PersistAddressBook (..)
+    ( PersistAddressBook (..)
     , blockHeaderFromEntity
     -- * Testing
     , mkStoreWallet

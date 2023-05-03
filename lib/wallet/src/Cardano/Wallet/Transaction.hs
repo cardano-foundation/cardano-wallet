@@ -89,12 +89,7 @@ import Cardano.Wallet.Primitive.Passphrase.Types
 import Cardano.Wallet.Primitive.Slotting
     ( PastHorizonException )
 import Cardano.Wallet.Primitive.Types
-    ( Certificate
-    , ProtocolParameters
-    , SlotNo (..)
-    , TokenBundleMaxSize (..)
-    , WalletId
-    )
+    ( Certificate, ProtocolParameters, SlotNo (..), TokenBundleMaxSize (..) )
 import Cardano.Wallet.Primitive.Types.Address
     ( Address (..) )
 import Cardano.Wallet.Primitive.Types.Coin
@@ -455,8 +450,7 @@ class ToWitnessCountCtx s where
     toWitnessCountCtx :: s -> WitnessCountCtx
 
 data ErrMkTransaction
-    = ErrMkTransactionNoSuchWallet WalletId
-    | ErrMkTransactionTxBodyError Text
+    =  ErrMkTransactionTxBodyError Text
     -- ^ We failed to construct a transaction for some reasons.
     | ErrMkTransactionTokenQuantityExceedsLimit
         (SelectionOutputTokenQuantityExceedsLimitError WalletSelectionContext)

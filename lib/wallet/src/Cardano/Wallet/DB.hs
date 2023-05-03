@@ -3,7 +3,6 @@
 {-# LANGUAGE ExistentialQuantification #-}
 {-# LANGUAGE KindSignatures #-}
 {-# LANGUAGE LambdaCase #-}
-{-# LANGUAGE NamedFieldPuns #-}
 {-# LANGUAGE OverloadedLabels #-}
 {-# LANGUAGE RankNTypes #-}
 {-# LANGUAGE RecordWildCards #-}
@@ -37,7 +36,6 @@ module Cardano.Wallet.DB
     , hoistDBLayer
       -- * Errors
     , module Cardano.Wallet.DB.Errors
-    , mkDBFreshFromParts
     , hoistDBFresh
     ) where
 
@@ -51,21 +49,17 @@ import Cardano.Wallet.DB.Errors
 import Cardano.Wallet.DB.Store.Submissions.Layer
     ( getInSubmissionTransaction, getInSubmissionTransactions )
 import Cardano.Wallet.DB.Store.Submissions.Operations
-    ( DeltaTxSubmissions
-    , SubmissionMeta (..)
-    , TxSubmissions
-    , TxSubmissionsStatus
-    )
+    ( SubmissionMeta (..), TxSubmissionsStatus )
 import Cardano.Wallet.DB.Store.Transactions.Decoration
     ( TxInDecorator )
 import Cardano.Wallet.DB.Store.Transactions.TransactionInfo
     ( mkTransactionInfoFromReadTx )
 import Cardano.Wallet.DB.WalletState
-    ( DeltaMap
-    , DeltaWalletState
+    ( DeltaWalletState
     , DeltaWalletState1 (UpdateSubmissions)
     , WalletState (submissions)
-    , adjustNoSuchWallet
+    , updateState
+    , updateStateNoErrors
     )
 import Cardano.Wallet.Primitive.Model
     ( Wallet, currentTip )
@@ -103,22 +97,16 @@ import Cardano.Wallet.Submissions.TxStatus
     ( _Expired, _InSubmission )
 import Cardano.Wallet.Transaction.Built
     ( BuiltTx )
-import Cardano.Wallet.Unsafe
-    ( unsafeRunExceptT )
 import Control.Lens
     ( has )
 import Control.Monad
     ( join )
 import Control.Monad.IO.Class
     ( MonadIO, liftIO )
-import Control.Monad.Trans
-    ( lift )
 import Control.Monad.Trans.Except
-    ( ExceptT (..), mapExceptT, runExceptT, throwE )
+    ( ExceptT (..), mapExceptT )
 import Data.DBVar
-    ( DBVar, modifyDBMaybe, readDBVar )
-import Data.Functor
-    ( ($>) )
+    ( DBVar, readDBVar )
 import Data.Generics.Internal.VL
     ( (^.) )
 import Data.Kind
@@ -227,7 +215,7 @@ data DBLayer m s k = forall stm. (MonadIO stm, MonadFail stm) => DBLayer
     { walletId_ :: WalletId
 
     , walletsDB
-        :: DBVar stm (DeltaMap WalletId (DeltaWalletState s))
+        :: DBVar stm (DeltaWalletState s)
         -- ^ 'DBVar' containing the 'WalletState' of each wallet in the database.
         -- Currently contains all 'Checkpoints' of the 'UTxO' and the
         -- 'Discoveries', as well as the 'Prologue' of the address discovery state.
@@ -465,31 +453,6 @@ data DBLayerCollection stm m s k = DBLayerCollection
         :: forall a. stm a -> m a
     }
 
-mkDBFreshFromParts
-    :: forall stm m s k
-     . (MonadIO stm, MonadFail stm, Functor m)
-    => TimeInterpreter IO
-    -> WalletId
-    -> DBWallets stm s
-    -> DBLayerCollection stm m s k
-    -> DBFresh m s k
-mkDBFreshFromParts
-    ti
-    wid_
-    DBWallets{initializeWallet_, getWalletId_}
-    parts@DBLayerCollection{atomically_} =
-        DBFresh
-            { bootDBLayer = \params ->
-                mapExceptT atomically_ (initializeWallet_ params) $> db
-            , loadDBLayer = mapExceptT atomically_ $ do
-                ewid <- lift . runExceptT $ getWalletId_
-                case ewid of
-                    Right _ -> pure db
-                    Left _ -> throwE ErrWalletNotInitialized
-            }
-      where
-        db = mkDBLayerFromParts ti wid_ parts
-
 {- HLINT ignore mkDBLayerFromParts "Avoid lambda" -}
 -- | Create a legacy 'DBLayer' from smaller database layers.
 mkDBLayerFromParts
@@ -530,7 +493,7 @@ mkDBLayerFromParts ti wid_ DBLayerCollection{..} = DBLayer
                         Just WTxMeta.Pending -> isInSubmission
                         Just WTxMeta.Expired -> isExpired
                         Just WTxMeta.InLedger -> const False
-                inSubmissionsRaw <- withSubmissions wid_ [] $
+                inSubmissionsRaw <- withSubmissions $
                         pure
                             . filter whichSubmission
                             . getInSubmissionTransactions
@@ -549,7 +512,7 @@ mkDBLayerFromParts ti wid_ DBLayerCollection{..} = DBLayer
         historical <- getTx_ dbTxHistory txid tip
         case historical of
             Just tx -> pure $ Just tx
-            Nothing ->  withSubmissions wid_ Nothing $ \submissions -> do
+            Nothing ->  withSubmissions $ \submissions -> do
                 let inSubmission =
                         getInSubmissionTransaction txid submissions
                 fmap join $ for inSubmission $
@@ -557,23 +520,24 @@ mkDBLayerFromParts ti wid_ DBLayerCollection{..} = DBLayer
                     (hoistTimeInterpreter liftIO ti)
                     (mkDecorator_ dbTxHistory) tip
                         . fmap snd
-    , addTxSubmission = \builtTx slotNo -> abortNoSuchWallet
-            $ updateSubmissions' wid_ id
-            $ \_ -> Right [Sbms.addTxSubmission builtTx slotNo]
-    , readLocalTxSubmissionPending = withSubmissions wid_ [] $ \xs -> do
+    , addTxSubmission = \builtTx slotNo ->
+            updateSubmissionsNoError dbCheckpoints
+                $ \_ -> mkUpdateSubmissions
+                    [Sbms.addTxSubmission builtTx slotNo]
+    , readLocalTxSubmissionPending = withSubmissions $ \xs -> do
         pure $ filter (has $ txStatus . _InSubmission) $
             getInSubmissionTransactions xs
-    , resubmitTx = \hash _ slotNo -> abortNoSuchWallet
-            $ updateSubmissions' wid_ id
-            $ Right . Sbms.resubmitTx hash slotNo
-    , rollForwardTxSubmissions = \tip txs -> abortNoSuchWallet
-            $ updateSubmissions' wid_ id
-            $ \_ -> Right [Sbms.rollForwardTxSubmissions tip txs]
+    , resubmitTx = \hash _ slotNo ->
+            updateSubmissionsNoError dbCheckpoints
+                $ mkUpdateSubmissions . Sbms.resubmitTx hash slotNo
+    , rollForwardTxSubmissions = \tip txs ->
+            updateSubmissionsNoError dbCheckpoints
+                $ \_ -> mkUpdateSubmissions
+                    [Sbms.rollForwardTxSubmissions tip txs]
     , removePendingOrExpiredTx = \txid ->
-            updateSubmissions' wid_
-                (const $ error "removePendingOrExpiredTx: no such wallet to be removed in ADP-3003")
-                $ \xs ->
-                pure <$> Sbms.removePendingOrExpiredTx xs txid
+            updateSubmissions dbCheckpoints $ \xs ->
+                mkUpdateSubmissions . pure
+                    <$> Sbms.removePendingOrExpiredTx xs txid
     , putPrivateKey = putPrivateKey_ dbPrivateKey
     , readPrivateKey = readPrivateKey_ dbPrivateKey
     , readGenesisParameters = readGenesisParameters_ dbCheckpoints
@@ -582,37 +546,15 @@ mkDBLayerFromParts ti wid_ DBLayerCollection{..} = DBLayer
     , atomically = atomically_
     }
   where
-    withSubmissions wid def action = do
-        mstate <- fmap (Map.lookup wid)
-            $ readDBVar $ walletsDB_ dbCheckpoints
-        case mstate of
-            Nothing -> pure def
-            Just state -> action $ submissions state
-    updateSubmissions' = updateSubmissions dbCheckpoints
+    withSubmissions action = do
+        state <- readDBVar $ walletsDB_ dbCheckpoints
+        action $ submissions state
     readCheckpoint' = readCheckpoint_ dbCheckpoints
     readCurrentTip :: stm BlockHeader
     readCurrentTip = currentTip <$> readCheckpoint_ dbCheckpoints
-
-
--- TODO: remove on ADP-3003
-abortNoSuchWallet :: (MonadFail stm, Show e) => ExceptT e stm () -> stm ()
-abortNoSuchWallet = unsafeRunExceptT
-
--- | Update the transaction submission state of a wallet.
-updateSubmissions
-    :: Monad stm
-    => DBCheckpoints stm s
-    -> WalletId
-    -> (ErrNoSuchWallet -> e)
-    -> (TxSubmissions -> Either e [DeltaTxSubmissions])
-    -> ExceptT e stm ()
-updateSubmissions dbCheckpoints wid emap xs
-    = ExceptT
-        $ modifyDBMaybe (walletsDB_ dbCheckpoints)
-        $ adjustNoSuchWallet wid emap
-        $ \submissionsData ->
-            (\ys -> ([UpdateSubmissions ys], ()))
-                <$>  xs (submissions submissionsData)
+    mkUpdateSubmissions w = [UpdateSubmissions w]
+    updateSubmissionsNoError = updateStateNoErrors submissions . walletsDB_
+    updateSubmissions = updateState submissions . walletsDB_
 
 -- | A database layer for a collection of wallets
 data DBWallets stm s = DBWallets
@@ -631,7 +573,7 @@ data DBWallets stm s = DBWallets
 -- | A database layer for storing wallet states.
 data DBCheckpoints stm s = DBCheckpoints
     { walletsDB_
-        :: DBVar stm (DeltaMap WalletId (DeltaWalletState s))
+        :: DBVar stm (DeltaWalletState s)
         -- ^ 'DBVar' containing the 'WalletState' of each wallet in the database.
         -- Currently contains all 'Checkpoints' of the 'UTxO' and the
         -- 'Discoveries', as well as the 'Prologue' of the address discovery state.

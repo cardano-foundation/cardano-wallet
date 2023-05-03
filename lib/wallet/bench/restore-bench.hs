@@ -448,12 +448,11 @@ benchmarksRnd
         )
     => SNetworkId n
     -> WalletLayer IO s k 'CredFromKeyK
-    -> WalletId
     -> WalletName
     -> Text
     -> Time
     -> IO BenchRndResults
-benchmarksRnd network w@(WalletLayer _ _ netLayer txLayer dbLayer) wid wname
+benchmarksRnd network w@(WalletLayer _ _ netLayer txLayer dbLayer) wname
     benchname restoreTime = do
     ((cp, pending), readWalletTime) <- bench "read wallet" $ do
         (cp, _, pending) <- W.readWallet w
@@ -489,7 +488,6 @@ benchmarksRnd network w@(WalletLayer _ _ netLayer txLayer dbLayer) wid wname
             timeTranslation
             recentEra
             (dummyChangeAddressGen @k)
-            wid
             defaultTransactionCtx
             (PreSelection
                 [TxOut (dummyAddress network) (TokenBundle.fromCoin (Coin 1))])
@@ -497,12 +495,12 @@ benchmarksRnd network w@(WalletLayer _ _ netLayer txLayer dbLayer) wid wname
     oneAddress <- genAddresses 1 cp
     (_, importOneAddressTime) <- bench "import one addresses" $ do
         runExceptT $ withExceptT show $
-            W.importRandomAddresses @_ @s @k w wid oneAddress
+            W.importRandomAddresses @_ @s @k w oneAddress
 
     manyAddresses <- genAddresses 1000 cp
     (_, importManyAddressesTime) <- bench "import many addresses" $ do
         runExceptT $ withExceptT show $
-            W.importRandomAddresses @_ @s @k w wid manyAddresses
+            W.importRandomAddresses @_ @s @k w manyAddresses
 
     let walletOverview = WalletOverview{utxo,addresses,transactions}
 
@@ -556,12 +554,11 @@ benchmarksSeq
         )
     => SNetworkId n
     -> WalletLayer IO s k 'CredFromKeyK
-    -> WalletId
     -> WalletName
     -> Text -- ^ Bench name
     -> Time
     -> IO BenchSeqResults
-benchmarksSeq network w@(WalletLayer _ _ netLayer txLayer dbLayer) wid _wname
+benchmarksSeq network w@(WalletLayer _ _ netLayer txLayer dbLayer) _wname
     benchname restoreTime = do
     ((cp, pending), readWalletTime) <- bench "read wallet" $ do
         (cp, _, pending) <- W.readWallet w
@@ -595,7 +592,6 @@ benchmarksSeq network w@(WalletLayer _ _ netLayer txLayer dbLayer) wid _wname
             timeTranslation
             recentEra
             (dummyChangeAddressGen @k)
-            wid
             defaultTransactionCtx
             (PreSelection
                 [TxOut (dummyAddress network) (TokenBundle.fromCoin (Coin 1))])
@@ -721,7 +717,6 @@ bench_restoration
     -> Percentage -- ^ Target sync progress
     -> (SNetworkId n
         -> WalletLayer IO s k 'CredFromKeyK
-        -> WalletId
         -> WalletName
         -> Text
         -> Time
@@ -751,7 +746,7 @@ bench_restoration
                     void
                         $ forkIO
                         $ unsafeRunExceptT
-                        $ W.restoreWallet @_ @s @k w wid
+                        $ W.restoreWallet @_ @s @k w
 
                     -- NOTE: This is now the time to restore /all/ wallets.
                     (_, restorationTime) <- bench "restoration" $ do
@@ -765,7 +760,7 @@ bench_restoration
                             vData
 
                     results <-
-                        benchmarks proxy w wid wname benchname restorationTime
+                        benchmarks proxy w wname benchname restorationTime
                     saveBenchmarkPoints benchname results
                     pure $ SomeBenchmarkResults results
 
