@@ -66,7 +66,7 @@ import Data.Maybe
 import Data.Monoid
     ( Sum (..) )
 import Data.Monoid.Cancellative
-    ( LeftReductive, Reductive, RightReductive )
+    ( LeftReductive, Reductive ((</>)), RightReductive )
 import Data.Monoid.GCD
     ( GCDMonoid, LeftGCDMonoid, RightGCDMonoid )
 import Data.Monoid.Monus
@@ -259,9 +259,7 @@ unsafeToWord64 c = fromMaybe onError (toWord64Maybe c)
 -- Returns 'Nothing' if the second coin is strictly greater than the first.
 --
 subtract :: Coin -> Coin -> Maybe Coin
-subtract (Coin a) (Coin b)
-    | a >= b    = Just $ Coin (a - b)
-    | otherwise = Nothing
+subtract = (</>)
 
 -- | Calculates the combined value of two coins.
 --
