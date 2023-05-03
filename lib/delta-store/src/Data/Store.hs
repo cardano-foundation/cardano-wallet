@@ -5,6 +5,7 @@
 {-# LANGUAGE RankNTypes #-}
 {-# LANGUAGE ScopedTypeVariables #-}
 {-# LANGUAGE TypeFamilies #-}
+{-# LANGUAGE TypeOperators #-}
 -- |
 -- Copyright: © 2023 IOHK
 -- License: Apache-2.0
@@ -85,6 +86,10 @@ import Data.Delta
     , inject
     , project
     )
+import Data.Kind
+    ( Type )
+import GHC.Generics
+    ( (:+:) )
 
 {-------------------------------------------------------------------------------
     Store
@@ -93,7 +98,7 @@ import Data.Delta
 A 'Store' is a storage facility for Haskell values of type @a ~ @'Base'@ da@.
 Typical use cases are a file or a database on the hard disk.
 -}
-data Store m da = Store
+data Store m (qa :: Type -> Type) da = Store
     { -- | Load the value from the store into memory, or fail.
       -- This operation can be an expensive.
       loadS   :: m (Either SomeException (Base da))
@@ -296,7 +301,7 @@ Ruling out this case on the type-level adds almost no value.
 {- HLINT ignore newStore "Use readTVarIO" -}
 -- | An in-memory 'Store' from a mutable variable ('TVar').
 -- Useful for testing.
-newStore :: (Delta da, MonadSTM m) => m (Store m da)
+newStore :: (Delta da, MonadSTM m) => m (Store m qa da)
 newStore = do
     ref <- newTVarIO $ Left $ toException NotInitialized
     pure $ Store
@@ -309,8 +314,11 @@ newStore = do
 data NotInitialized = NotInitialized deriving (Eq, Show)
 instance Exception NotInitialized
 
+-- FIXME: Remove this dummy definition later.
+data Whole a b
+
 -- | A 'Store' whose delta type 'Replace' just replaces the whole value.
-type SimpleStore m a = Store m (Replace a)
+type SimpleStore m a = Store m (Whole a) (Replace a)
 
 -- | @mkSimpleStore loadS writeS@ constructs a 'SimpleStore'
 -- from the given operations.
@@ -327,7 +335,7 @@ mkSimpleStore loadS writeS =
         }
 
 -- | A 'Store' whose focus lies on updating the value rather than querying it.
-type UpdateStore m da = Store m da
+type UpdateStore m da = Store m (Whole (Base da)) da
 
 -- | @mkUpdateStore loadS writeS updateS@ constructs an 'UpdateStore'
 -- from the given operations.
@@ -353,8 +361,8 @@ mkUpdateStore loadS writeS updateS =
 -- I think the answer is "yes", but only because the mutable variables
 -- provided by the monad @m@ do not work together with e.g. SQL transactions.
 newCachedStore
-    :: forall m da. (Delta da, MonadSTM m, MonadThrow m, MonadEvaluate m)
-    => Store m da -> m (Store m da)
+    :: forall m qa da. (Delta da, MonadSTM m, MonadThrow m, MonadEvaluate m)
+    => Store m qa da -> m (Store m qa da)
 newCachedStore Store{loadS,writeS,updateS} = do
     -- Lock that puts loadS, writeS and updateS into sequence
     islocked <- newTVarIO False
@@ -456,7 +464,11 @@ embedStore' Embedding'{load,write,update} Store{loadS,writeS,updateS} =
 --
 -- TODO: Handle the case where 'writeS' or 'updateS' throw an exception
 -- and partially break the 'Store'.
-pairStores :: Monad m => Store m da -> Store m db -> Store m (da, db)
+pairStores
+    :: Monad m
+    => Store m qa da
+    -> Store m qb db
+    -> Store m (qa :+: qb) (da,db)
 pairStores sa sb = Store
     { loadS = liftA2 (,) <$> loadS sa <*> loadS sb
     , writeS = \(a,b) -> writeS sa a >> writeS sb b
@@ -489,7 +501,7 @@ updateLoad _load _  update' (Just x) da = update' x da
 -- Call 'loadS' from a 'Store' if the value is not already given in memory.
 loadWhenNothing
     :: (Monad m, MonadThrow m, Delta da)
-    => Maybe (Base da) -> Store m da -> m (Base da)
+    => Maybe (Base da) -> Store m qa da -> m (Base da)
 loadWhenNothing (Just a) _ = pure a
 loadWhenNothing Nothing store =
     loadS store >>= \case

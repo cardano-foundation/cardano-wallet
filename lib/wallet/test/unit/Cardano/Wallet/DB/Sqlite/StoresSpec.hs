@@ -211,7 +211,7 @@ prop_StoreUpdates
     :: ( Monad m, Delta da, Eq (Base da), Buildable da )
     => (forall b. m b -> IO b)
     -- ^ Function to embed the monad in 'IO'
-    -> Store m da
+    -> Store m qa da
     -- ^ Store that is to be tested.
     -> Gen (Base da)
     -- ^ Generator for the initial value.

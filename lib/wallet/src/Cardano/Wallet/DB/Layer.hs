@@ -180,7 +180,7 @@ import Data.Quantity
 import Data.QueryStore
     ( QueryStore (..) )
 import Data.Store
-    ( Store (..) )
+    ( Store (..), UpdateStore )
 import Data.Text
     ( Text )
 import Data.Text.Class
@@ -704,7 +704,7 @@ mkDBFreshFromParts
     => TimeInterpreter IO
     -> W.WalletId
     -> DBWallets stm s
-    -> Store stm (DeltaWalletState s)
+    -> UpdateStore stm (DeltaWalletState s)
     -> (DBVar stm (DeltaWalletState s) -> DBLayerCollection stm m s k)
     -> (forall a. stm a -> m a)
     -> DBFresh m s k

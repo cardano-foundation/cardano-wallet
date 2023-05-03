@@ -183,12 +183,12 @@ withInitializedWalletProp prop db wid = monadicIO $ do
 -- store unsafe ops
 
 -- | Bomb on failing 'loadS'.
-unsafeLoadS :: Functor f => Store f da -> f (Base da)
+unsafeLoadS :: Functor m => Store m qa da -> m (Base da)
 unsafeLoadS s = fromRight (error "store law is broken") <$> loadS s
 
 -- | A simpler interface for 'updateS' in tests, using 'unsafeLoadS'.
 -- Natural for use with 'foldM'.
-unsafeUpdateS :: Applicative m => Store m da -> Base da -> da -> m (Base da)
+unsafeUpdateS :: Applicative m => Store m qa da -> Base da -> da -> m (Base da)
 unsafeUpdateS store ba da = updateS store (Just ba) da *> unsafeLoadS store
 
 -- | Property that a pure query returns the same result as the store one.
