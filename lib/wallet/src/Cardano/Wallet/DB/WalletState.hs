@@ -35,7 +35,6 @@ module Cardano.Wallet.DB.WalletState
 
     -- * Multiple wallets
     , DeltaMap (..)
-    , ErrNoSuchWallet (..)
     , adjustWallet
     , updateState
     , updateStateWithResult
@@ -49,8 +48,6 @@ import Cardano.Wallet.Address.Book
     ( AddressBookIso (..), Discoveries, Prologue )
 import Cardano.Wallet.Checkpoints
     ( Checkpoints )
-import Cardano.Wallet.DB.Errors
-    ( ErrNoSuchWallet (..) )
 import Cardano.Wallet.DB.Store.Submissions.Layer
     ( emptyTxSubmissions )
 import Cardano.Wallet.DB.Store.Submissions.Operations

@@ -319,11 +319,12 @@ import Cardano.Wallet.DB
     , ErrWalletAlreadyExists (..)
     , ErrWalletNotInitialized (..)
     )
+import Cardano.Wallet.DB.Errors
+    ( ErrNoSuchWallet (..) )
 import Cardano.Wallet.DB.Store.Submissions.Layer
     ( mkLocalTxSubmission )
 import Cardano.Wallet.DB.WalletState
     ( DeltaWalletState1 (..)
-    , ErrNoSuchWallet (..)
     , fromWallet
     , getLatest
     , getSlot

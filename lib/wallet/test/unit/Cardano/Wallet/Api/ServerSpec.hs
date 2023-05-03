@@ -26,7 +26,7 @@ import Cardano.Wallet.Api.Http.Shelley.Server
     )
 import Cardano.Wallet.Api.Types
     ( ApiNetworkInformation (..), ApiWalletMode (..) )
-import Cardano.Wallet.DB.WalletState
+import Cardano.Wallet.DB.Errors
     ( ErrNoSuchWallet (..) )
 import Cardano.Wallet.DummyTarget.Primitive.Types
     ( dummyNetworkLayer )
