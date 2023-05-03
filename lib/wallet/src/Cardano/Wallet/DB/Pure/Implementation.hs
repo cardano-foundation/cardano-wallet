@@ -59,7 +59,6 @@ module Cardano.Wallet.DB.Pure.Implementation
     , mPutTxHistory
     , mReadTxHistory
     , mPutLocalTxSubmission
-    , mReadLocalTxSubmissionPending
     , mUpdatePendingTxForExpiry
     , mPutPrivateKey
     , mReadPrivateKey
@@ -103,8 +102,7 @@ import Cardano.Wallet.Primitive.Types.Coin
 import Cardano.Wallet.Primitive.Types.Hash
     ( Hash (..) )
 import Cardano.Wallet.Primitive.Types.Tx
-    ( LocalTxSubmissionStatus (..)
-    , SealedTx (..)
+    ( SealedTx (..)
     , TransactionInfo (..)
     , Tx (..)
     , TxMeta (..)
@@ -486,22 +484,6 @@ mPutLocalTxSubmission tid tx sl = alterModelErr $ \wal txs ->
     putTx = Map.insertWith upsert tid (tx, sl)
     upsert (_, newSl) (origTx, _) = (origTx, newSl)
 
-mReadLocalTxSubmissionPending
-    ::  ModelOp wid s xprv [LocalTxSubmissionStatus SealedTx]
-mReadLocalTxSubmissionPending = readWalletModel $ \wal ->
-    sortOn (view #txId) $ mapMaybe (getSubmission wal) (pendings wal)
-  where
-    pendings = mapMaybe getPending . Map.toList . txHistory
-
-    getPending :: (Hash "Tx", TxMeta) -> Maybe (Hash "Tx", SlotNo)
-    getPending (txid, TxMeta{status,slotNo})
-        | status == Pending = Just (txid, slotNo)
-        | otherwise = Nothing
-
-    getSubmission wal (tid, _sl0) = make <$> Map.lookup tid (submittedTxs wal)
-      where
-        make (tx, sl1) = LocalTxSubmissionStatus tid tx sl1
-
 {-------------------------------------------------------------------------------
                              Model function helpers
 -------------------------------------------------------------------------------}
@@ -557,11 +539,6 @@ alterModelNoTxs' f = alterModelNoTxs $ \wal -> ((), f wal)
 
 -- | Create a 'ModelOp wid' for a specific wallet which reads but does not alter the
 -- database.
-readWalletModel
-    ::  (WalletDatabase s xprv -> a)
-    -> ModelOp wid s xprv a
-readWalletModel f db@(Database _ wallet _) = (Right (f wallet), db)
-
 readWalletModelMaybe :: (WalletDatabase s xprv -> a)
     -> Database wid s xprv
     -> (Either err (Maybe a), Database wid s xprv)

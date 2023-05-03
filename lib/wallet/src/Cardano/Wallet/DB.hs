@@ -308,13 +308,6 @@ data DBLayer m s k = forall stm. (MonadIO stm, MonadFail stm) => DBLayer
         -> stm ()
         -- ^ Resubmit a transaction.
 
-    , readLocalTxSubmissionPending
-        :: stm [TxSubmissionsStatus]
-        -- ^ List all transactions from the local submission pool which are
-        -- still pending as of the latest checkpoint of the given wallet. The
-        -- slot numbers for first submission and most recent submission are
-        -- included.
-
     , rollForwardTxSubmissions
         :: SlotNo
         -> [(SlotNo, Hash "Tx")]
@@ -518,9 +511,6 @@ mkDBLayerFromParts ti wid_ DBLayerCollection{..} = DBLayer
             updateSubmissionsNoError dbCheckpoints
                 $ \_ -> mkUpdateSubmissions
                     [Sbms.addTxSubmission builtTx slotNo]
-    , readLocalTxSubmissionPending = withSubmissions $ \xs -> do
-        pure $ filter (has $ txStatus . _InSubmission) $
-            getInSubmissionTransactions xs
     , resubmitTx = \hash _ slotNo ->
             updateSubmissionsNoError dbCheckpoints
                 $ mkUpdateSubmissions . Sbms.resubmitTx hash slotNo

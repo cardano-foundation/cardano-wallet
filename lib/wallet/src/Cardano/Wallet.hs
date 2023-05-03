@@ -178,6 +178,7 @@ module Cardano.Wallet
     , getTransaction
     , submitExternalTx
     , submitTx
+    , readLocalTxSubmissionPending
     , LocalTxSubmissionConfig (..)
     , defaultLocalTxSubmissionConfig
     , runLocalTxSubmissionPool
@@ -2451,7 +2452,7 @@ runLocalTxSubmissionPool
 runLocalTxSubmissionPool cfg ctx = db & \DBLayer{..} -> do
     submitPending <- rateLimited $ \bh -> bracketTracer trBracket $ do
         sp <- currentSlottingParameters nw
-        pending <- atomically readLocalTxSubmissionPending
+        pending <- readLocalTxSubmissionPending @m @s @k ctx
         let sl = bh ^. #slotNo
             pendingOldStyle = pending >>= mkLocalTxSubmission
         -- Re-submit transactions due, ignore errors
