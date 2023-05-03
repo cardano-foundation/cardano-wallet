@@ -70,7 +70,7 @@ import Data.Monoid.Cancellative
 import Data.Monoid.GCD
     ( GCDMonoid, LeftGCDMonoid, RightGCDMonoid )
 import Data.Monoid.Monus
-    ( Monus, OverlappingGCDMonoid )
+    ( Monus ((<\>)), OverlappingGCDMonoid )
 import Data.Monoid.Null
     ( MonoidNull )
 import Data.Quantity
@@ -271,7 +271,7 @@ add = (<>)
 -- Returns 'Coin 0' if the second coin is strictly greater than the first.
 --
 difference :: Coin -> Coin -> Coin
-difference a b = fromMaybe (Coin 0) (subtract a b)
+difference = (<\>)
 
 -- | Absolute difference between two coin amounts. The result is never negative.
 distance :: Coin -> Coin -> Coin
