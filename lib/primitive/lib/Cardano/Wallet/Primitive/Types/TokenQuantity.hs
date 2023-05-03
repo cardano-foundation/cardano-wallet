@@ -79,8 +79,8 @@ import Quiet
 newtype TokenQuantity = TokenQuantity
     { unTokenQuantity :: Natural }
     deriving stock (Eq, Ord, Generic)
-    deriving (Read, Show) via (Quiet TokenQuantity)
     deriving anyclass (NFData, Hashable)
+    deriving (Read, Show) via Quiet TokenQuantity
 
 --------------------------------------------------------------------------------
 -- Instances
