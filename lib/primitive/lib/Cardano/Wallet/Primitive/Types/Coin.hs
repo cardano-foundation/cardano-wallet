@@ -94,7 +94,7 @@ newtype Coin = Coin
     { unCoin :: Natural
     }
     deriving stock (Ord, Eq, Generic)
-    deriving (Read, Show) via (Quiet Coin)
+    deriving (Read, Show) via Quiet Coin
 
 -- | The 'Semigroup' instance for 'Coin' corresponds to ordinary addition.
 --
