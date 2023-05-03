@@ -266,7 +266,7 @@ subtract (Coin a) (Coin b)
 -- | Calculates the combined value of two coins.
 --
 add :: Coin -> Coin -> Coin
-add (Coin a) (Coin b) = Coin (a + b)
+add = (<>)
 
 -- | Subtracts the second coin from the first.
 --
