@@ -1807,8 +1807,8 @@ selectCoins ctx@ApiLayer {..} argGenChange (ApiT walletId) body = do
             , certificates = uncurry mkApiCoinSelectionCerts <$>
                 delegationAction
             , withdrawals = mkApiCoinSelectionWithdrawal <$> withdrawals
-            , depositsTaken = maybeToList $ mkApiCoin <$> deposit
-            , depositsReturned = maybeToList $ mkApiCoin <$> refund
+            , depositsTaken = maybeToList $ Coin.toQuantity <$> deposit
+            , depositsReturned = maybeToList $ Coin.toQuantity <$> refund
             , metadata = ApiBytesT. serialiseToCBOR
                 <$> body ^? #metadata . traverse . #getApiT
             }
@@ -1877,8 +1877,8 @@ selectCoinsForJoin ctx@ApiLayer{..}
             , certificates = uncurry mkApiCoinSelectionCerts <$>
                 delegationAction
             , withdrawals = mkApiCoinSelectionWithdrawal <$> withdrawals
-            , depositsTaken = maybeToList $ mkApiCoin <$> deposit
-            , depositsReturned = maybeToList $ mkApiCoin <$> refund
+            , depositsTaken = maybeToList $ Coin.toQuantity <$> deposit
+            , depositsReturned = maybeToList $ Coin.toQuantity <$> refund
             , metadata = Nothing
             }
 
@@ -1934,8 +1934,8 @@ selectCoinsForQuit ctx@ApiLayer{..} (ApiT walletId) = do
             , certificates = uncurry mkApiCoinSelectionCerts <$>
                 delegationAction
             , withdrawals = mkApiCoinSelectionWithdrawal <$> withdrawals
-            , depositsTaken = maybeToList $ mkApiCoin <$> deposit
-            , depositsReturned = maybeToList $ mkApiCoin <$> refund
+            , depositsTaken = maybeToList $ Coin.toQuantity <$> deposit
+            , depositsReturned = maybeToList $ Coin.toQuantity <$> refund
             , metadata = Nothing
             }
 
@@ -4316,9 +4316,9 @@ mkApiCoinSelection deps refunds mcerts metadata unsignedTx =
             <$> unsignedTx ^. #unsignedWithdrawals
         , certificates = uncurry mkApiCoinSelectionCerts
             <$> mcerts
-        , depositsTaken = mkApiCoin
+        , depositsTaken = Coin.toQuantity
             <$> deps
-        , depositsReturned = mkApiCoin
+        , depositsReturned = Coin.toQuantity
             <$> refunds
         , metadata = ApiBytesT. serialiseToCBOR
             <$> metadata
@@ -4541,17 +4541,14 @@ mkApiTransaction timeInterpreter wrk timeRefLens tx = do
         :: TxOut
         -> AddressAmountNoAssets (ApiAddress n)
     toAddressAmountNoAssets (TxOut addr (TokenBundle.TokenBundle coin _)) =
-        AddressAmountNoAssets (ApiAddress addr) (mkApiCoin coin)
+        AddressAmountNoAssets (ApiAddress addr) (Coin.toQuantity coin)
 
 toAddressAmount
     :: forall n
      . TxOut
     -> AddressAmount (ApiAddress n)
 toAddressAmount (TxOut addr (TokenBundle.TokenBundle coin assets)) =
-    AddressAmount (ApiAddress addr) (mkApiCoin coin) (ApiT assets)
-
-mkApiCoin :: Coin -> Quantity "lovelace" Natural
-mkApiCoin (Coin c) = Quantity $ fromIntegral c
+    AddressAmount (ApiAddress addr) (Coin.toQuantity coin) (ApiT assets)
 
 mkApiFee
     :: Maybe Coin
@@ -4569,7 +4566,7 @@ mkApiWithdrawal
     :: (RewardAccount, Coin)
     -> ApiWithdrawal n
 mkApiWithdrawal (acct, c) =
-    ApiWithdrawal (ApiRewardAccount acct) (mkApiCoin c)
+    ApiWithdrawal (ApiRewardAccount acct) (Coin.toQuantity c)
 
 addressAmountToTxOut
     :: AddressAmount (ApiAddress n)

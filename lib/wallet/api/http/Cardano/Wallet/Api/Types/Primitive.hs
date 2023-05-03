@@ -48,7 +48,7 @@ import Cardano.Wallet.Primitive.Types
     , unsafeEpochNo
     )
 import Cardano.Wallet.Primitive.Types.Coin
-    ( Coin (..), coinFromQuantity, coinToQuantity )
+    ( Coin (..) )
 import Cardano.Wallet.Primitive.Types.Hash
     ( Hash (..) )
 import Cardano.Wallet.Primitive.Types.Tx.Constraints
@@ -101,8 +101,11 @@ import Data.Word
     ( Word32, Word64 )
 import Data.Word.Odd
     ( Word31 )
+import Numeric.Natural
+    ( Natural )
 
 import qualified Cardano.Wallet.Primitive.Types as W
+import qualified Cardano.Wallet.Primitive.Types.Coin as Coin
 import qualified Cardano.Wallet.Primitive.Types.TokenBundle as W
 import qualified Cardano.Wallet.Primitive.Types.TokenMap as W
 import qualified Cardano.Wallet.Primitive.Types.TokenPolicy as W
@@ -302,7 +305,7 @@ instance ToJSON (ApiT W.TokenMap) where
 instance ToJSON (ApiT W.TokenBundle) where
     -- TODO: consider other structures
     toJSON (ApiT (W.TokenBundle c ts)) = object
-        [ "amount" .= coinToQuantity @Word c
+        [ "amount" .= Coin.toQuantity @Natural c
         , "assets" .= toJSON (ApiT ts)
         ]
 
@@ -315,7 +318,7 @@ instance FromJSON (ApiT W.TokenBundle) where
             <*> fmap getApiT (v .: "assets" .!= mempty)
       where
         validateCoin :: Quantity "lovelace" Word64 -> Aeson.Parser Coin
-        validateCoin (coinFromQuantity -> c)
+        validateCoin (Coin.fromQuantity -> c)
             | coinIsValidForTxOut c = pure c
             | otherwise = fail $
                 "invalid coin value: value has to be lower than or equal to "

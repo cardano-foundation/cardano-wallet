@@ -102,6 +102,7 @@ import Test.Integration.Framework.TestData
 
 import qualified Cardano.Wallet.Api.Link as Link
 import qualified Cardano.Wallet.Api.Types as ApiTypes
+import qualified Cardano.Wallet.Primitive.Types.Coin as Coin
 import qualified Cardano.Wallet.Primitive.Types.TokenMap as TokenMap
 import qualified Data.Foldable as F
 import qualified Data.List.NonEmpty as NE
@@ -1061,7 +1062,7 @@ spec = describe "SHELLEY_MIGRATIONS" $ do
                 , expectField id
                     ((`shouldBe` 1) . apiPlanTotalOutputCount)
                 , expectField (#balanceSelected . #ada)
-                    (`shouldBe` coinToQuantity (view #coin sourceBalance))
+                    (`shouldBe` Coin.toQuantity (view #coin sourceBalance))
                 , expectField (#balanceLeftover . #ada . #getQuantity)
                     (`shouldBe` 0)
                 , expectField (#balanceSelected . #assets . #getApiT)
@@ -1263,6 +1264,3 @@ apiPlanTotalInputCount p =
 apiPlanTotalOutputCount :: ApiWalletMigrationPlan n -> Int
 apiPlanTotalOutputCount p =
     F.sum (length . view #outputs <$> view #selections p)
-
-coinToQuantity :: Coin -> Quantity "lovelace" Natural
-coinToQuantity = Quantity . fromIntegral . unCoin

@@ -44,8 +44,6 @@ module Cardano.Wallet.Primitive.Types.Coin
     , partition
     , partitionDefault
     , unsafePartition
-    , coinToQuantity
-    , coinFromQuantity
     ) where
 
 import Prelude hiding
@@ -185,11 +183,6 @@ toQuantityMaybe (Coin c) = Quantity <$> intCastMaybe c
 toWord64Maybe :: Coin -> Maybe Word64
 toWord64Maybe (Coin c) = intCastMaybe c
 
-coinToQuantity :: Integral n => Coin -> Quantity "lovelace" n
-coinToQuantity = Quantity . Prelude.fromIntegral . unCoin
-
-coinFromQuantity :: Integral n => Quantity "lovelace" n -> Coin
-coinFromQuantity = Coin . Prelude.fromIntegral . getQuantity
 --------------------------------------------------------------------------------
 -- Conversions (Unsafe)
 -------------------------------------------------------------------------------
