@@ -57,7 +57,7 @@ import Data.Map.Strict
 import Data.Quantity
     ( Quantity )
 import Data.Store
-    ( Store (..), updateLoad )
+    ( UpdateStore, mkUpdateStore, updateLoad )
 import Data.Word
     ( Word32 )
 import Database.Persist
@@ -156,9 +156,9 @@ data ErrSubmissions
 mkStoreAnySubmissions
     :: (Base d ~ TxSubmissions, Delta d)
     => WalletId
-    -> Store (SqlPersistT IO) d
+    -> UpdateStore (SqlPersistT IO) d
 mkStoreAnySubmissions wid =
-    Store { loadS = load, writeS = write, updateS = update }
+    mkUpdateStore load write update
   where
     load = do
         slots <- selectList [SubmissionsSlotsWallet ==. wid] []
@@ -210,5 +210,7 @@ mkStatus iden sealed expiring Nothing ExpiredE
 mkStatus _ _ _ _ _
     = Sbm.Unknown
 
-mkStoreSubmissions :: WalletId -> Store (SqlPersistT IO) DeltaTxSubmissions
+mkStoreSubmissions
+    :: WalletId
+    -> UpdateStore (SqlPersistT IO) DeltaTxSubmissions
 mkStoreSubmissions = mkStoreAnySubmissions

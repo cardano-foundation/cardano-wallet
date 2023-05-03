@@ -1,10 +1,12 @@
 -- We intentionally specify more constraints than necessary for some exports.
 {-# OPTIONS_GHC -Wno-redundant-constraints#-}
+{-# LANGUAGE GADTs #-}
 {-# LANGUAGE LambdaCase #-}
 {-# LANGUAGE NamedFieldPuns #-}
 {-# LANGUAGE RankNTypes #-}
 {-# LANGUAGE ScopedTypeVariables #-}
 {-# LANGUAGE TypeFamilies #-}
+{-# LANGUAGE TypeOperators #-}
 -- |
 -- Copyright: © 2023 IOHK
 -- License: Apache-2.0
@@ -15,6 +17,8 @@ module Data.Store (
     -- Typically, this facility is useful when we want to store
     -- a value __outside of RAM__, e.g. in a database file on the hard disk,
     -- because otherwise, we can just work with the Haskell value itself.
+    -- In such cases, the value is typically a collection,
+    -- for example 'Data.Map.Map'@ @'Integer'@ @'String'.
 
     -- * Store, definition
     -- ** Type
@@ -23,27 +27,44 @@ module Data.Store (
     -- ** Properties
     -- $Properties
 
-    -- *** Store Laws
-    -- $StoreLaws
+    -- *** Laws: Load and Write
+    -- $LoadWriteLaws
+
+    -- *** Laws: Update
+    -- $UpdateLaws
+
+    -- *** Laws: Query
+    -- $QueryLaws
 
     -- *** Monad
     -- $StoreMonad
 
-    -- *** updateS
+    -- *** updateS, Maybe argument
     -- $updateS
 
     -- *** loadS, SomeException
     -- $EitherSomeException
 
     -- * Store, functions
-    -- ** Helpers
-    , updateLoad
-    , loadWhenNothing
+    -- ** Query
+    , Query (..)
+    , Whole (..)
+
+    -- ** Constructors
+    , SimpleStore
+    , mkSimpleStore
+    , UpdateStore
+    , mkUpdateStore
+    , mkQueryStore
 
     -- ** Combinators
     , embedStore
     , pairStores
     , newCachedStore
+
+    -- ** Helpers
+    , updateLoad
+    , loadWhenNothing
 
     -- ** Testing
     , embedStore'
@@ -71,28 +92,61 @@ import Control.Monad
 import Control.Monad.Class.MonadThrow
     ( MonadEvaluate, MonadMask, MonadThrow, evaluate, finally, mask, throwIO )
 import Data.Delta
-    ( Delta (..), Embedding, Embedding' (..), Machine (..), inject, project )
+    ( Delta (..)
+    , Embedding
+    , Embedding' (..)
+    , Machine (..)
+    , Replace (..)
+    , inject
+    , project
+    )
+import Data.Kind
+    ( Type )
+import GHC.Generics
+    ( (:+:) (..) )
 
 {-------------------------------------------------------------------------------
     Store
 -------------------------------------------------------------------------------}
 {- |
-A 'Store' is a storage facility for Haskell values of type @a ~ @'Base'@ da@.
+A 'Store' is a storage facility for Haskell values of type
+@a ~ @'Base'@ da ~ @'World'@ qa@.
+
 Typical use cases are a file or a database on the hard disk.
+
+The purpose of the type parameters is:
+
+* The monad @m@ encapsulates access to the storage space.
+* The query type @qa@ represents the specialized queries
+  that this store supports.
+* The delta type @da@ is used for efficient updates.
+
+If you care about one these aspects, but not the others,
+we recommend to use a specialized type synonym
+such as 'SimpleStore' or 'UpdateStore'.
 -}
-data Store m da = Store
-    { -- | Load the value from the store into memory, or fail.
-      -- This operation can be an expensive.
+data Store m (qa :: Type -> Type) da = Store
+    {
+      -- | Load the value from the store into memory, or fail.
+      --
+      -- This operation can be expensive.
       loadS   :: m (Either SomeException (Base da))
-      -- | Write a value to the store.
+      -- | Write a value from memory into the store.
     , writeS  :: Base da -> m ()
-      -- | Update the store efficiently by using a delta encoding @da@.
-      -- The first argument may supply the current in-memory value
-      -- for efficiency.
+      -- | Update the value in the store
+      -- efficiently by using a 'Delta' type @da@.
+      --
+      -- For effiency,
+      -- the first argument may supply the current value in-memory.
     , updateS
         :: Maybe (Base da) -- old value, for performance
         -> da -- delta to new value
         -> m () -- write new value
+      -- | Run a specialized 'Query' on the value in the store.
+      --
+      -- This operation can be less expensive than 'loadS',
+      -- because the query may not need to load the whole value into memory.
+    , queryS  :: forall b. qa b -> m b
     }
 
 {- $Properties
@@ -101,22 +155,17 @@ specified in this section.
 We make no attempt at enforcing these properties on the type-level.
 However, the module "Test.Store" provides QuickCheck code for these
 properties for automated testing.
-
-The most important aspect of a 'Store' is that it has
-many similarities with an 'Embedding'.
-These similarities are captured in the __store laws__ discussed below.
-
-The main difference to 'Embedding' is that storing a value in
-a 'Store' has __side effects__. In particular,
-access to the storage space is encapsulated in the monad.
-This requires additional considerations with regards to e.g. exceptions
-and concurrency.
 -}
 
--- Note [StoreLaws]
-{- $StoreLaws
-The following properties characterize the most important aspects
-of a 'Store':
+-- Note [LoadWriteLaws]
+{- $LoadWriteLaws
+
+The most fundamental operations on a 'Store' are
+
+* 'loadS' — loads the value contained in the 'Store' into memory.
+* 'writeS' — writes a value from memory into the 'Store'.
+
+These two operations are characterized by the following design:
 
 1. The store __need not contain__ a properly formatted __value__.
 
@@ -136,15 +185,27 @@ of a 'Store':
 
 2. The store is __redundant__.
 
-    Two stores with different contents may describe
+    Two stores with different internal contents may contain
     the same value of type @a@.
     For example, two files with different whitespace
     may describe the same JSON value.
-    In general, we have
+    In general, loading a value and writing it again may change the
+    internal store contents, i.e.
 
-        > loadS s >>= either (const $ pure ()) (writeS s)  ≠  pure ()
+        > loadS s >>= either (\_ -> pure ()) (writeS s)  ≠  pure ()
+-}
 
-3. Updating a store __commutes with 'apply'__.
+-- Note [UpdateLaws]
+{- $UpdateLaws
+
+In order to update the store content without loading all of it into memory,
+'Store' supports the operation
+
+* 'updateS' — updates the value contained in the 'Store' using a 'Delta' type.
+
+This operation is characterized by the following law:
+
+* Updating a store __commutes with 'apply'__.
 
     We have
 
@@ -153,9 +214,29 @@ of a 'Store':
     However, since the store is redundant, we often have
 
         > updateS s (Just a) da  ≠  writeS s (apply a da)
+
+The combination of 'loadS', 'writeS', 'updateS' has many similarities
+with an 'Embedding' of delta types. However, the main difference
+is that manipulating a 'Store' involves side effects.
 -}
 
--- Note [updateS]
+-- Note [QueryLaws]
+{- $QueryLaws
+
+In order to query parts of the store content
+without loading all of it into memory,
+'Store' supports the operation
+
+* 'queryS' — run a specialized 'Query' on the value contained in the 'Store'.
+
+This operation is characterized by the following law:
+
+* Querying a store __commutes with 'query'__:
+
+        >  ∀q. query q <$> (loadS s >>= either throw pure)  =  queryS s q
+-}
+
+-- Note [updateS argument]
 {- $updateS
 
 The function 'updateS' applies a delta to the content of the 'Store'.
@@ -173,7 +254,6 @@ We expect that the following property holds:
 >   loadS s >>= \(Right a) -> updateS s (Just a) da
 
 The helper 'loadWhenNothing' is useful for handling this argument.
-
 -}
 
 {- $StoreMonad
@@ -181,15 +261,17 @@ The helper 'loadWhenNothing' is useful for handling this argument.
 The monad @m@ in 'Store'@ m da@ provides the storage space for the value.
 Put differently, we like to think of @m@ as a
 'Control.Monad.Trans.State.State' monad whose state contains the value.
-However, this monad @m@ can have __additional effects__
-such as exceptions, non-determinism, or concurrency,
-and this complicates the specification significantly.
-(In fact, the equality sign @=@ for the Store Laws has to be
+However, this monad @m@ could have __additional side effects__
+such as exceptions, concurrency, non-determinism, and so on.
+We would have to specify how a 'Store' should behave with regards to these
+effects, which complicates matters significantly.
+(In fact, the equality sign @=@ for the laws above has to be
 interpreted "… equal effects as far as the 'Store' is concerned".
-A correct approach to a specification would involve Hoare logic.)
+A proper approach to a specification would involve Hoare logic.)
 
-We assume that the monad @m@ only has the effects __state__ and
-__exceptions__ — we make no attempt at specifying how an implementation
+For simplicity, we now assume that the monad @m@ only has
+the effects __state__ and __exceptions__ —
+we make no attempt at specifying how an implementation
 should behave for concurrent usage of, say, 'updateS'.
 This assumption ensures some composability of the 'Store' abstraction.
 However, it also implies that choosing @m ~ @'Control.Monad.STM.STM'
@@ -201,7 +283,7 @@ of this on the type level?)
 More specifically, the interaction between 'Store' functions and
 effects are as follows:
 
-* __State__: The Store Laws presented above specify the essentials
+* __State__: The laws presented above specify the essentials
 of how the store state changes. However, this specification is not complete,
 other "expected" rules such as
 
@@ -213,13 +295,15 @@ other "expected" rules such as
 
     * 'loadS' should not throw a synchronous exception,
       but return 'Left' instead.
+    * 'queryS' should throw a synchronous exception iff 'loadS' returns 'Left'.
+      Moving the error case into the monad @m@ simplifes the use of this operation.
     * 'writeS' and 'loadS' should not throw synchronous exceptions.
       However, in case they do throw an exception,
       the contents of the 'Store' should be treated as corrupted,
       and 'loadS' should return 'Left' subsequently.
 
 * __Concurrency__: We do not specify behavior under concurrent operation.
-    However, concurrent access to a 'Store' is a frequent desire
+    Concurrent access to a 'Store' is a frequent desideratum
     — but you will have to implement it yourself.
 
     One design pattern is to use a custom monad @m ~ MyMonad@
@@ -242,8 +326,8 @@ other "expected" rules such as
 -- Note [EitherSomeException]
 {- $EitherSomeException
 
-In case of an __error case__, 'loadS' and 'load' return a failure value
-of type 'SomeException' type.
+In the __error case__ that the store does not contain a value,
+'loadS' returns a 'Left' value of type 'SomeException'.
 This type is a disjoint sum of all possible
 error types (that is, members of the 'Exception' class).
 
@@ -277,14 +361,21 @@ However, this case has the sensible default value:
 Ruling out this case on the type-level adds almost no value.
 -}
 
+{-------------------------------------------------------------------------------
+    Constructors
+-------------------------------------------------------------------------------}
 {- HLINT ignore newStore "Use readTVarIO" -}
 -- | An in-memory 'Store' from a mutable variable ('TVar').
 -- Useful for testing.
-newStore :: (Delta da, MonadSTM m) => m (Store m da)
+newStore
+    :: (MonadSTM m, MonadThrow m, Delta da, Query qa, Base da ~ World qa)
+    => m (Store m qa da)
 newStore = do
     ref <- newTVarIO $ Left $ toException NotInitialized
+    let load = atomically (readTVar ref)
     pure $ Store
-        { loadS   = atomically $ readTVar ref
+        { loadS   = load
+        , queryS  = \q -> query q <$> (throwLeft =<< load)
         , writeS  = atomically . writeTVar ref . Right
         , updateS = \_ -> atomically . modifyTVar' ref . fmap . apply
         }
@@ -292,6 +383,70 @@ newStore = do
 -- | Failure that occurs when calling 'loadS' on a 'newStore' that is empty.
 data NotInitialized = NotInitialized deriving (Eq, Show)
 instance Exception NotInitialized
+
+-- | A 'Store' which supports 'loadS' and 'writeS',
+-- but no fancy query or update operations.
+type SimpleStore m a = Store m (Whole a) (Replace a)
+
+-- | @mkSimpleStore loadS writeS@ constructs a 'SimpleStore'
+-- from the given operations.
+mkSimpleStore
+    :: forall m a
+     . (Monad m, MonadThrow m)
+    => m (Either SomeException a)
+    -> (a -> m ())
+    -> SimpleStore m a
+mkSimpleStore loadS writeS =
+    mkUpdateStore loadS writeS update'
+  where
+    update' _ (Replace a) = writeS a
+
+-- | A 'Store' whose focus lies on updating the value rather than querying it.
+type UpdateStore m da = Store m (Whole (Base da)) da
+
+-- | @mkUpdateStore loadS writeS updateS@ constructs an 'UpdateStore'
+-- from the given operations.
+mkUpdateStore
+    :: forall m a da
+     . (Monad m, MonadThrow m, a ~ Base da, Delta da)
+    => m (Either SomeException a)
+    -> (a -> m ())
+    -> (Maybe a -> da -> m ())
+    -> UpdateStore m da
+mkUpdateStore loadS writeS updateS =
+    Store{loadS, queryS=query', writeS, updateS}
+  where
+    query' :: forall b. Whole a b -> m b
+    query' Whole = loadS >>= throwLeft
+
+-- | @mkQueryStore queryS store@ constructs a 'Store'
+-- from a query and an 'UpdateStore'.
+mkQueryStore :: forall m qa da
+     . (MonadThrow m, Delta da, Query qa, Base da ~ World qa)
+    => (forall b. qa b -> m b)
+    -> UpdateStore m da
+    -> Store m qa da
+mkQueryStore queryS Store{loadS,writeS,updateS} =
+    Store{queryS,loadS,writeS,updateS}
+
+{-------------------------------------------------------------------------------
+    Query
+-------------------------------------------------------------------------------}
+-- | A /query/ @qa b@ for the type @a ~ World qa@
+-- corresponds to a function @a -> b@.
+-- Put differently, a query allows us to extract some information of type @b@
+-- from the larger type @a@.
+class Query qa where
+    type family World qa
+    query :: qa b -> World qa -> b
+
+-- | The query that retrieves the whole value.
+data Whole a b where
+    Whole :: Whole a a
+
+instance Query (Whole a) where
+    type World (Whole a) = a
+    query Whole a = a
 
 {-------------------------------------------------------------------------------
     Combinators
@@ -306,8 +461,11 @@ instance Exception NotInitialized
 -- I think the answer is "yes", but only because the mutable variables
 -- provided by the monad @m@ do not work together with e.g. SQL transactions.
 newCachedStore
-    :: forall m da. (Delta da, MonadSTM m, MonadThrow m, MonadEvaluate m)
-    => Store m da -> m (Store m da)
+    :: forall m qa da
+      . ( MonadSTM m, MonadThrow m, MonadEvaluate m
+        , Delta da, Query qa, Base da ~ World qa
+        )
+    => Store m qa da -> m (Store m qa da)
 newCachedStore Store{loadS,writeS,updateS} = do
     -- Lock that puts loadS, writeS and updateS into sequence
     islocked <- newTVarIO False
@@ -341,6 +499,7 @@ newCachedStore Store{loadS,writeS,updateS} = do
 
     pure $ Store
         { loadS = load
+        , queryS = \q -> query q <$> (throwLeft =<< load)
         , writeS = \a -> withLock $ do
             atomically $ writeCache (Just a)
             writeS a
@@ -352,7 +511,7 @@ newCachedStore Store{loadS,writeS,updateS} = do
 
 -- | Store one type in the 'Store' of another type by using an 'Embedding'.
 embedStore :: (MonadSTM m, MonadMask m, Delta da)
-    => Embedding da db -> Store m db -> m (Store m da)
+    => Embedding da db -> UpdateStore m db -> m (UpdateStore m da)
 embedStore embed bstore = do
     -- For reasons of efficiency, we have to store the 'Machine'
     -- that is created within the 'Embedding'.
@@ -382,8 +541,7 @@ embedStore embed bstore = do
                     mask $ \restore -> do
                         restore $ updateS bstore (Just $ state_ mab2) db
                         writeMachine mab2
-    pure $ Store {loadS=load,writeS=write,updateS=update}
-
+    pure $ mkUpdateStore load write update
 
 -- | Store one type in the 'Store' of another type by using an 'Embedding'.
 --
@@ -391,7 +549,7 @@ embedStore embed bstore = do
 -- use the more efficient 'embedStore' instead.
 embedStore'
     :: (Monad m, MonadThrow m)
-    => Embedding' da db -> Store m db -> Store m da
+    => Embedding' da db -> UpdateStore m db -> UpdateStore m da
 embedStore' Embedding'{load,write,update} Store{loadS,writeS,updateS} =
     let
         loadL =  (load =<<) <$> loadS
@@ -404,19 +562,22 @@ embedStore' Embedding'{load,write,update} Store{loadS,writeS,updateS} =
                 case ea of
                     Left  e -> throwIO e
                     Right a -> updateL (Just a) da
-    in Store
-        { loadS   = loadL
-        , writeS  = writeS . write
-        , updateS = updateL
-        }
+    in  mkUpdateStore loadL (writeS . write) updateL
 
 -- | Combine two 'Stores' into a 'Store' for pairs.
 --
 -- TODO: Handle the case where 'writeS' or 'updateS' throw an exception
 -- and partially break the 'Store'.
-pairStores :: Monad m => Store m da -> Store m db -> Store m (da, db)
+pairStores
+    :: Monad m
+    => Store m qa da
+    -> Store m qb db
+    -> Store m (qa :+: qb) (da,db)
 pairStores sa sb = Store
     { loadS = liftA2 (,) <$> loadS sa <*> loadS sb
+    , queryS = \case
+        L1 qa -> queryS sa qa
+        R1 qb -> queryS sb qb
     , writeS = \(a,b) -> writeS sa a >> writeS sb b
     , updateS = \mi (da,db) ->
         case mi of
@@ -443,13 +604,16 @@ updateLoad load handle update' Nothing da = do
         Right x -> update' x da
 updateLoad _load _  update' (Just x) da = update' x da
 
+-- | Throw 'Left' as an exception in the monad.
+throwLeft :: MonadThrow m => Either SomeException b -> m b
+throwLeft = \case
+    Left (SomeException e) -> throwIO e
+    Right a -> pure a
+
 -- | Helper for implementing `updateS`.
 -- Call 'loadS' from a 'Store' if the value is not already given in memory.
 loadWhenNothing
     :: (Monad m, MonadThrow m, Delta da)
-    => Maybe (Base da) -> Store m da -> m (Base da)
+    => Maybe (Base da) -> Store m qa da -> m (Base da)
 loadWhenNothing (Just a) _ = pure a
-loadWhenNothing Nothing store =
-    loadS store >>= \case
-        Left (SomeException e) -> throwIO e
-        Right a -> pure a
+loadWhenNothing Nothing store = loadS store >>= throwLeft

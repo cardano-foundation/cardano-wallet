@@ -26,8 +26,14 @@ import Cardano.Wallet.DB.Store.Wallets.Model
     ( DeltaTxWalletsHistory (..) )
 import Cardano.Wallet.DB.Store.Wallets.Store
     ( mkStoreTxWalletsHistory )
+import Control.Concurrent.Class.MonadSTM
+    ( MonadSTM )
+import Control.Monad.Class.MonadThrow
+    ( MonadThrow )
+import Data.Delta
+    ( Delta )
 import Data.Store
-    ( newStore )
+    ( UpdateStore, newStore )
 import Test.Hspec
     ( Spec, around, describe, it )
 import Test.QuickCheck
@@ -52,7 +58,7 @@ prop_StoreWalletsLaws =
   withInitializedWalletProp $ \wid runQ -> do
     -- Note: We have already tested `mkStoreTransactions`,
     -- so we use `newStore` here for a faster test.
-    storeTransactions <- runQ newStore
+    storeTransactions <- runQ newUpdateStore
     let storeWalletsMeta = mkQueryStoreTxMeta
         storeTxWalletsHistory =
             mkStoreTxWalletsHistory storeTransactions storeWalletsMeta
@@ -62,6 +68,11 @@ prop_StoreWalletsLaws =
       storeTxWalletsHistory
       (pure mempty)
       (logScale . genDeltaTxWallets wid)
+
+newUpdateStore
+    :: (Delta da, MonadSTM m, MonadThrow m)
+    => m (UpdateStore m da)
+newUpdateStore = newStore
 
 genDeltaTxWallets :: W.WalletId -> GenDelta DeltaTxWalletsHistory
 genDeltaTxWallets wid (_, metas) = do

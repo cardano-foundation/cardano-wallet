@@ -41,8 +41,6 @@ import Control.Monad
     ( forM_, (<=<) )
 import Data.Foldable
     ( toList )
-import Data.QueryStore
-    ( QueryStore (..) )
 import Data.Store
     ( Store (..) )
 import GHC.Natural
@@ -86,7 +84,7 @@ prop_QueryLaw :: WalletProperty
 prop_QueryLaw =
     withInitializedWalletProp $ \wid runQ ->
         forAllM (genExpand wid arbitrary) $ \history -> do
-            runQ $ writeS (store mkQueryStoreTxMeta) history
+            runQ $ writeS mkQueryStoreTxMeta history
             unknownTxId <- TxId <$> pick arbitrary
             let txIds = unknownTxId : Map.keys (relations history)
             forM_ txIds $ \txId -> do

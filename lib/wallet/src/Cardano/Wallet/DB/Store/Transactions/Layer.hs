@@ -28,8 +28,8 @@ import Control.Applicative
     ( (<|>) )
 import Data.Maybe
     ( maybeToList )
-import Data.QueryStore
-    ( Query (..), QueryStore (..) )
+import Data.Store
+    ( Query (..), Store, mkQueryStore )
 import Data.Word
     ( Word32 )
 import Database.Persist.Sql
@@ -49,9 +49,12 @@ data QueryTxSet b where
     GetTxOut :: (TxId, Word32) -> QueryTxSet (Maybe W.TxOut)
 
 -- | Implementation of a 'QueryStore' for 'TxSet'.
-mkQueryStoreTxSet :: QueryStore (SqlPersistT IO) QueryTxSet DeltaTxSet
-mkQueryStoreTxSet = QueryStore
-    { queryS = \case
+mkQueryStoreTxSet :: Store (SqlPersistT IO) QueryTxSet DeltaTxSet
+mkQueryStoreTxSet =
+    mkQueryStore query' TxSet.mkStoreTransactions
+  where
+    query' :: forall b. QueryTxSet b -> (SqlPersistT IO) b
+    query' = \case
         GetByTxId txid -> TxSet.selectTx txid
         GetTxOut key -> do
             mout <- TxSet.selectTxOut key
@@ -59,8 +62,6 @@ mkQueryStoreTxSet = QueryStore
             pure $
                     (fromTxOut <$> mout)
                 <|> (fromTxCollateralOut <$> mcollateralOut)
-    , store = TxSet.mkStoreTransactions
-    }
 
 instance Query QueryTxSet where
     type World QueryTxSet = TxSet

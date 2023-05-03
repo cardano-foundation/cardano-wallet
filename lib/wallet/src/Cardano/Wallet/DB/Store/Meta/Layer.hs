@@ -2,6 +2,7 @@
 {-# LANGUAGE InstanceSigs #-}
 {-# LANGUAGE LambdaCase #-}
 {-# LANGUAGE RecordWildCards #-}
+{-# LANGUAGE ScopedTypeVariables #-}
 {-# LANGUAGE TypeApplications #-}
 {-# LANGUAGE TypeFamilies #-}
 
@@ -32,10 +33,10 @@ import Data.Maybe
     ( catMaybes )
 import Data.Ord
     ( Down (..) )
-import Data.QueryStore
-    ( Query (..), QueryStore (..) )
 import Data.Set
     ( Set )
+import Data.Store
+    ( Query (..), Store, mkQueryStore )
 import Database.Persist.Sql
     ( Entity (entityVal)
     , Filter
@@ -87,27 +88,27 @@ orderMetas Ascending = [Asc TxMetaSlot, Asc TxMetaTxId]
 orderMetas Descending = [Desc TxMetaSlot, Asc TxMetaTxId]
 
 -- | A 'QueryStore' for 'TxMeta'.
-mkQueryStoreTxMeta :: QueryStore (SqlPersistT IO) QueryTxMeta DeltaTxMetaHistory
+mkQueryStoreTxMeta :: Store (SqlPersistT IO) QueryTxMeta DeltaTxMetaHistory
 mkQueryStoreTxMeta =
-    QueryStore
-        { queryS = \case
-            GetSome range limit order ->
-                fmap entityVal
-                    <$> selectList @DB.TxMeta
-                        (filterMetas True range)
-                        (limitMetas limit <> orderMetas order)
-            GetOne txId ->
-                fmap entityVal
-                    <$> selectFirst @_ @_ @DB.TxMeta
-                        [TxMetaTxId ==. txId]
-                        []
-            GetAfterSlot slot ->
-                foldMap ((Set.singleton . txMetaTxId) . entityVal)
-                    <$> selectList @DB.TxMeta
-                        (filterMetas False $ Range (Just slot) Nothing)
-                        []
-        , store = mkStoreMetaTransactions
-        }
+    mkQueryStore query' mkStoreMetaTransactions
+  where
+    query' :: forall b. QueryTxMeta b -> (SqlPersistT IO) b
+    query' = \case
+        GetSome range limit order ->
+            fmap entityVal
+                <$> selectList @DB.TxMeta
+                    (filterMetas True range)
+                    (limitMetas limit <> orderMetas order)
+        GetOne txId ->
+            fmap entityVal
+                <$> selectFirst @_ @_ @DB.TxMeta
+                    [TxMetaTxId ==. txId]
+                    []
+        GetAfterSlot slot ->
+            foldMap ((Set.singleton . txMetaTxId) . entityVal)
+                <$> selectList @DB.TxMeta
+                    (filterMetas False $ Range (Just slot) Nothing)
+                    []
 
 instance Query QueryTxMeta where
     type World QueryTxMeta = TxMetaHistory

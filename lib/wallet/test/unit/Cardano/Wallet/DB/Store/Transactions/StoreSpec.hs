@@ -54,8 +54,6 @@ import Data.Functor.Identity
     ( Identity (..) )
 import Data.Generics.Internal.VL
     ( set )
-import Data.QueryStore
-    ( QueryStore (..) )
 import Data.Store
     ( Store (..) )
 import Test.Hspec
@@ -192,7 +190,7 @@ prop_QueryLaw :: StoreProperty
 prop_QueryLaw =
     withStoreProp $ \runQ ->
         forAllM genTxSet $ \txs -> do
-            runQ $ writeS (store TxSet.mkQueryStoreTxSet) txs
+            runQ $ writeS TxSet.mkQueryStoreTxSet txs
             forM_ (take 10 $ Map.keys $ relations txs) $ \txId -> do
                 assertWith "GetTxById" <=< runQ
                     $ queryLaw TxSet.mkQueryStoreTxSet txs

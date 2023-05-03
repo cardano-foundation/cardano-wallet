@@ -5,6 +5,7 @@
 {-# LANGUAGE ScopedTypeVariables #-}
 {-# LANGUAGE TypeFamilies #-}
 {-# LANGUAGE TypeOperators #-}
+
 module Database.Persist.Delta (
     -- * Synopsis
     -- | Manipulating SQL database tables using delta encodings
@@ -28,7 +29,7 @@ import Data.Delta
 import Data.Proxy
     ( Proxy (..) )
 import Data.Store
-    ( Store (..), updateLoad )
+    ( UpdateStore, mkUpdateStore, updateLoad )
 import Data.Table
     ( DeltaDB (..), Pile (..), Table (..) )
 import Database.Persist
@@ -39,14 +40,20 @@ import Database.Schema
     ( (:.) (..), Col (..), IsRow, Primary (..) )
 import Say
     ( say, sayShow )
-
 -- FIXME: Replace with IOSim stuff later.
+import Conduit
+    ( ResourceT )
+import Control.Monad.Class.MonadThrow
+    ( MonadThrow )
+import Control.Monad.Logger
+    ( NoLoggingT (..) )
 import Data.IORef
     ( newIORef, readIORef, writeIORef )
 
 import qualified Data.Table as Table
 import qualified Database.Persist as Persist
 import qualified Database.Schema as Sql
+
 
 {-------------------------------------------------------------------------------
     Database operations
@@ -105,16 +112,24 @@ sqlDB = Database
 {-------------------------------------------------------------------------------
     Database operations
 -------------------------------------------------------------------------------}
--- | Construct a 'Store' from an SQL table.
+
+-- | Construct a 'UpdateStore' from an SQL table.
 --
 -- The unique IDs will be stored in a column "id" at the end of
 -- each row in the database table.
+
+
 newSqlStore
-    :: (MonadIO m, IsRow row, IsRow (row :. Col "id" Primary), Show row)
-    => m (Store SqlPersistM [DeltaDB Int row])
+    :: ( MonadIO m
+       , IsRow row
+       , IsRow (row :. Col "id" Primary)
+       , Show row
+       , MonadThrow (NoLoggingT (ResourceT IO))
+       )
+    => m (UpdateStore SqlPersistM [DeltaDB Int row])
 newSqlStore = newDatabaseStore sqlDB
 
--- | Construct a 'Store' for 'Entity'.
+-- | Construct a 'UpdateStore' for 'Entity'.
 --
 -- FIXME: This function should also do \"migrations\", i.e.
 -- create the database table in the first place.
@@ -122,16 +137,15 @@ newEntityStore
     :: forall row m.
     ( PersistRecordBackend row SqlBackend
     , ToBackendKey SqlBackend row, Show row
-    , MonadIO m
-    )
-    => m (Store SqlPersistM [DeltaDB Int row])
+    , MonadIO m, MonadThrow (NoLoggingT (ResourceT IO)))
+    => m (UpdateStore SqlPersistM [DeltaDB Int row])
 newEntityStore = newDatabaseStore persistDB
 
--- | Helper function to create a 'Store' using a 'Database' backend.
+-- | Helper function to create a 'UpdateStore' using a 'Database' backend.
 newDatabaseStore
-    :: forall m n row. (MonadIO m, MonadIO n, Show row)
+    :: forall m n row. (MonadIO m, MonadIO n, Show row, MonadThrow m)
     => Database m Int row
-    -> n (Store m [DeltaDB Int row])
+    -> n (UpdateStore m [DeltaDB Int row])
 newDatabaseStore db = do
     ref <- liftIO $ newIORef Nothing
     let rememberSupply table = liftIO $ writeIORef ref $ Just $ uids table
@@ -163,12 +177,7 @@ newDatabaseStore db = do
                         sayShow ds
                     mapM_ (update1 table) ds
                     rememberSupply (apply ds table) -- need to use updated supply
-
-    pure $ Store
-        { loadS = load
-        , writeS = write
-        , updateS = update
-        }
+    pure $ mkUpdateStore load write update
   where
     debug = when False
 
