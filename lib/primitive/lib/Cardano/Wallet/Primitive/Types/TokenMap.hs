@@ -598,7 +598,7 @@ size = Set.size . getAssets
 -- | Returns true if and only if the given map is empty.
 --
 isEmpty :: TokenMap -> Bool
-isEmpty = (== empty)
+isEmpty = MonoidNull.null
 
 -- | Returns true if and only if the given map is not empty.
 --
