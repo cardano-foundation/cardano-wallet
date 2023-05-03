@@ -113,7 +113,7 @@ import Cardano.Wallet.Primitive.Types.TokenQuantity
 import Control.DeepSeq
     ( NFData )
 import Control.Monad
-    ( guard, when, (<=<) )
+    ( when, (<=<) )
 import Data.Aeson
     ( FromJSON (..), ToJSON (..), camelTo2, genericParseJSON, genericToJSON )
 import Data.Aeson.Types
@@ -122,8 +122,6 @@ import Data.Bifunctor
     ( first )
 import Data.Function
     ( on )
-import Data.Functor
-    ( ($>) )
 import Data.Hashable
     ( Hashable (..), hashUsing )
 import Data.List.NonEmpty
@@ -133,7 +131,7 @@ import Data.Map.Strict
 import Data.Maybe
     ( mapMaybe )
 import Data.Monoid.Cancellative
-    ( LeftReductive, Reductive, RightReductive )
+    ( LeftReductive, Reductive ((</>)), RightReductive )
 import Data.Monoid.GCD
     ( GCDMonoid, LeftGCDMonoid, RightGCDMonoid )
 import Data.Monoid.Monus
@@ -546,7 +544,7 @@ add = (<>)
 -- map when compared with the `leq` function.
 --
 subtract :: TokenMap -> TokenMap -> Maybe TokenMap
-subtract a b = guard (b `leq` a) $> unsafeSubtract a b
+subtract = (</>)
 
 -- | Analogous to @Set.difference@, return the difference between two token
 -- maps.
