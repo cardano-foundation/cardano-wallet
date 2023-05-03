@@ -40,12 +40,8 @@ import Cardano.Numeric.Util
     ( equipartitionNatural, partitionNatural )
 import Control.DeepSeq
     ( NFData (..) )
-import Control.Monad
-    ( guard )
 import Data.Aeson
     ( FromJSON (..), ToJSON (..) )
-import Data.Functor
-    ( ($>) )
 import Data.Hashable
     ( Hashable )
 import Data.List.NonEmpty
@@ -55,7 +51,7 @@ import Data.Maybe
 import Data.Monoid
     ( Sum (..) )
 import Data.Monoid.Cancellative
-    ( LeftReductive, Reductive, RightReductive )
+    ( LeftReductive, Reductive ((</>)), RightReductive )
 import Data.Monoid.GCD
     ( GCDMonoid, LeftGCDMonoid, RightGCDMonoid )
 import Data.Monoid.Monus
@@ -135,7 +131,7 @@ add = (<>)
 -- Returns 'Nothing' if the first quantity is less than the second quantity.
 --
 subtract :: TokenQuantity -> TokenQuantity -> Maybe TokenQuantity
-subtract x y = guard (x >= y) $> unsafeSubtract x y
+subtract = (</>)
 
 -- | Finds the predecessor of a given token quantity.
 --
