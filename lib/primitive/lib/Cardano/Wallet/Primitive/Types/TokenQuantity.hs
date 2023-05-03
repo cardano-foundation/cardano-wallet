@@ -128,7 +128,7 @@ zero = TokenQuantity 0
 --------------------------------------------------------------------------------
 
 add :: TokenQuantity -> TokenQuantity -> TokenQuantity
-add (TokenQuantity x) (TokenQuantity y) = TokenQuantity $ x + y
+add = (<>)
 
 -- | Subtracts the second token quantity from the first.
 --
