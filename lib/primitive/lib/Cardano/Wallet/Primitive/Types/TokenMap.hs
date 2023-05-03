@@ -603,7 +603,7 @@ isEmpty = MonoidNull.null
 -- | Returns true if and only if the given map is not empty.
 --
 isNotEmpty :: TokenMap -> Bool
-isNotEmpty = (/= empty)
+isNotEmpty = not . MonoidNull.null
 
 --------------------------------------------------------------------------------
 -- Quantities
