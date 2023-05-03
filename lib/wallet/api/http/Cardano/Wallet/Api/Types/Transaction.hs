@@ -8,6 +8,7 @@
 {-# LANGUAGE ScopedTypeVariables #-}
 {-# LANGUAGE StrictData #-}
 {-# LANGUAGE TypeApplications #-}
+{-# LANGUAGE TypeFamilies #-}
 
 -- |
 -- Copyright: © 2018-2022 IOHK
@@ -58,7 +59,7 @@ import Cardano.Wallet.Primitive.Passphrase.Types
 import Cardano.Wallet.Primitive.Types.Address
     ( Address (..) )
 import Cardano.Wallet.Primitive.Types.Coin
-    ( Coin (unCoin), coinFromQuantity )
+    ( Coin (unCoin) )
 import Cardano.Wallet.Primitive.Types.Hash
     ( Hash (..) )
 import Cardano.Wallet.Primitive.Types.Tx.Constraints
@@ -117,6 +118,7 @@ import Quiet
 import Servant
     ( FromHttpApiData (..), ToHttpApiData (..) )
 
+import qualified Cardano.Wallet.Primitive.Types.Coin as Coin
 import qualified Cardano.Wallet.Primitive.Types.TokenMap as W
 import qualified Data.Aeson.Types as Aeson
 
@@ -274,7 +276,7 @@ instance FromJSON a => FromJSON (AddressAmount a) where
             <*> v .:? "assets" .!= mempty
       where
         validateCoin q
-            | coinIsValidForTxOut (coinFromQuantity q) = pure q
+            | coinIsValidForTxOut (Coin.fromQuantity q) = pure q
             | otherwise = fail $
                 "invalid coin value: value has to be lower than or equal to "
                 <> show (unCoin txOutMaxCoin) <> " lovelace."
