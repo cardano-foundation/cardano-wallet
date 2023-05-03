@@ -120,6 +120,8 @@ import Data.Aeson.Types
     ( Options (..), Parser )
 import Data.Bifunctor
     ( first )
+import Data.Function
+    ( on )
 import Data.Functor
     ( ($>) )
 import Data.Hashable
@@ -268,9 +270,7 @@ instance TypeError ('Text "Ord not supported for token maps")
 -- In the above example, map 'x' is strictly less than map 'y'.
 --
 instance PartialOrd TokenMap where
-    m1 `leq` m2 = F.all
-        (\a -> getQuantity m1 a <= getQuantity m2 a)
-        (getAssets m1 `Set.union` getAssets m2)
+    leq = MonoidMap.isSubmapOf `on` unTokenMap
 
 -- | Defines a lexicographic ordering.
 --
