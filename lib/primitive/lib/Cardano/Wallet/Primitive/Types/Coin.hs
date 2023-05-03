@@ -275,7 +275,7 @@ difference = (<\>)
 
 -- | Absolute difference between two coin amounts. The result is never negative.
 distance :: Coin -> Coin -> Coin
-distance (Coin a) (Coin b) = if a < b then Coin (b - a) else Coin (a - b)
+distance a b = (a <\> b) <> (b <\> a)
 
 --------------------------------------------------------------------------------
 -- Partitioning
