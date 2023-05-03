@@ -166,6 +166,7 @@ import qualified Data.Aeson as Aeson
 import qualified Data.Foldable as F
 import qualified Data.List as L
 import qualified Data.List.NonEmpty as NE
+import qualified Data.Monoid.GCD as GCDMonoid
 import qualified Data.Monoid.Null as MonoidNull
 import qualified Data.MonoidMap as MonoidMap
 import qualified Data.Set as Set
@@ -579,16 +580,7 @@ difference = (<\>)
 --          [          ("b", 2), ("c", 2)          ]
 --
 intersection :: TokenMap -> TokenMap -> TokenMap
-intersection m1 m2 =
-    fromFlatList (getMinimumQuantity <$> F.toList sharedAssets)
-  where
-    getMinimumQuantity :: AssetId -> (AssetId, TokenQuantity)
-    getMinimumQuantity a = (a, ) $ min
-        (getQuantity m1 a)
-        (getQuantity m2 a)
-
-    sharedAssets :: Set AssetId
-    sharedAssets = Set.intersection (getAssets m1) (getAssets m2)
+intersection = GCDMonoid.gcd
 
 --------------------------------------------------------------------------------
 -- Queries
