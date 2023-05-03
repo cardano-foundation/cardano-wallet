@@ -33,9 +33,9 @@ module Cardano.Wallet.DB.WalletState
     , DeltaWalletState1 (..)
     , DeltaWalletState
 
-    -- * Multiple wallets
-    , DeltaMap (..)
-    , adjustWallet
+    -- * Helpers
+    , modifyRight
+
     , updateState
     , updateStateWithResult
     , updateStateNoErrors
@@ -62,8 +62,6 @@ import Data.DBVar
     ( DBVar, modifyDBMaybe )
 import Data.Delta
     ( Delta (..) )
-import Data.DeltaMap
-    ( DeltaMap (..) )
 import Data.Generics.Internal.VL
     ( withIso )
 import Data.Generics.Internal.VL.Lens
@@ -180,12 +178,16 @@ instance Buildable (DeltaWalletState1 s) where
 instance Show (DeltaWalletState1 s) where
     show = pretty
 
-adjustWallet
-    :: (w              -> Either e (dw, b))
-    -> (w -> (Maybe dw, Either e b))
-adjustWallet update wal =  case update wal of
+{-------------------------------------------------------------------------------
+    Helper functions
+-------------------------------------------------------------------------------}
+modifyRight
+    :: (a -> Either e (da, b))
+    -> (a -> (Maybe da, Either e b))
+modifyRight update a =
+    case update a of
         Left e -> (Nothing, Left e)
-        Right (dw, b) -> (Just dw, Right b)
+        Right (da, b) -> (Just da, Right b)
 
 updateStateWithResult :: (Delta da, Monad m)
     => (Base da -> w)
@@ -198,7 +200,7 @@ updateStateWithResult :: (Delta da, Monad m)
 updateStateWithResult d state use =
     ExceptT
         $ modifyDBMaybe state
-        $ adjustWallet use . d
+        $ modifyRight use . d
 
 updateState
     :: (Delta da, Monad m)
