@@ -52,6 +52,8 @@ import Data.List.NonEmpty
     ( NonEmpty (..) )
 import Data.Maybe
     ( fromMaybe )
+import Data.Monoid
+    ( Sum (..) )
 import Data.Text.Class
     ( FromText (..), ToText (..) )
 import Fmt
@@ -81,16 +83,11 @@ newtype TokenQuantity = TokenQuantity
     deriving stock (Eq, Ord, Generic)
     deriving anyclass (NFData, Hashable)
     deriving (Read, Show) via Quiet TokenQuantity
+    deriving (Semigroup, Monoid) via Sum Natural
 
 --------------------------------------------------------------------------------
 -- Instances
 --------------------------------------------------------------------------------
-
-instance Semigroup TokenQuantity where
-    (<>) = add
-
-instance Monoid TokenQuantity where
-    mempty = zero
 
 instance Buildable TokenQuantity where
     build = build . toText . unTokenQuantity
