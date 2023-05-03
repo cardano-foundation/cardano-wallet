@@ -63,6 +63,8 @@ import Data.List.NonEmpty
     ( NonEmpty (..) )
 import Data.Maybe
     ( fromMaybe )
+import Data.Monoid
+    ( Sum (..) )
 import Data.Quantity
     ( Quantity (..) )
 import Data.Text.Class
@@ -95,15 +97,7 @@ newtype Coin = Coin
     }
     deriving stock (Ord, Eq, Generic)
     deriving (Read, Show) via Quiet Coin
-
--- | The 'Semigroup' instance for 'Coin' corresponds to ordinary addition.
---
-instance Semigroup Coin where
-    -- Natural doesn't have a default Semigroup instance.
-    (<>) = add
-
-instance Monoid Coin where
-    mempty = Coin 0
+    deriving (Semigroup, Monoid) via Sum Natural
 
 instance ToText Coin where
     toText (Coin c) = T.pack $ show c
