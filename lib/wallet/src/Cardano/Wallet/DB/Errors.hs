@@ -52,6 +52,8 @@ newtype ErrNoSuchWallet
 data ErrWalletNotInitialized = ErrWalletNotInitialized
     deriving (Eq, Show)
 
+instance Exception ErrWalletNotInitialized
+
 -- | Can't perform given operation because there's already a wallet in the db
 data ErrWalletAlreadyInitialized = ErrWalletAlreadyInitialized
     deriving (Eq, Show)
