@@ -186,9 +186,6 @@ newDBFresh timeInterpreter wid = do
         , rollForwardTxSubmissions =
             error "rollForwardTxSubmissions not tested in State Machine tests"
 
-        , removePendingOrExpiredTx = error
-            "removePendingOrExpiredTx not implemented in State Machine tests"
-
         {-----------------------------------------------------------------------
                                  Protocol Parameters
         -----------------------------------------------------------------------}

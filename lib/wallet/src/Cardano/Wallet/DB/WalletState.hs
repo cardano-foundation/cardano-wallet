@@ -35,6 +35,7 @@ module Cardano.Wallet.DB.WalletState
 
     -- * Helpers
     , modifyRight
+    , updateSubmissionsEither
 
     , updateState
     , updateStateWithResult
@@ -188,6 +189,13 @@ modifyRight update a =
     case update a of
         Left e -> (Nothing, Left e)
         Right (da, b) -> (Just da, Right b)
+
+updateSubmissionsEither
+    :: (TxSubmissions -> Either e [DeltaTxSubmissions])
+    -> (WalletState s -> (Maybe (DeltaWalletState s), Either e ()))
+updateSubmissionsEither f =
+    modifyRight $
+        fmap ((,()) . (:[]) . UpdateSubmissions) . f . submissions
 
 updateStateWithResult :: (Delta da, Monad m)
     => (Base da -> w)

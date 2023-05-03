@@ -61,7 +61,6 @@ module Cardano.Wallet.DB.Pure.Implementation
     , mPutLocalTxSubmission
     , mReadLocalTxSubmissionPending
     , mUpdatePendingTxForExpiry
-    , mRemovePendingOrExpiredTx
     , mPutPrivateKey
     , mReadPrivateKey
     , mReadGenesisParameters
@@ -272,23 +271,6 @@ mUpdatePendingTxForExpiry tipSlot = alterModelNoTxs' $ \wal ->
     isExpired TxMeta {status, expiry} = case (status, expiry) of
         (Pending, Just txExp) | txExp <= tipSlot -> True
         _ -> False
-
-mRemovePendingOrExpiredTx :: Hash "Tx" -> ModelOp wid s xprv ()
-mRemovePendingOrExpiredTx tid = alterModelErr $ \wal txs ->
-    case Map.lookup tid (txHistory wal) of
-        Nothing -> Left (NoSuchTx tid)
-        Just txMeta
-            | txMeta ^. #status == InLedger ->
-                Left (CantRemoveTxInLedger tid)
-        Just _ ->
-            Right
-                ( ()
-                , wal
-                    { txHistory = Map.delete tid (txHistory wal)
-                    , submittedTxs = Map.delete tid (submittedTxs wal)
-                    }
-                , txs
-                )
 
 mRollbackTo :: Slot -> ModelOp wid s xprv ChainPoint
 mRollbackTo requested (Database wid wal txs) =

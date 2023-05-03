@@ -112,16 +112,18 @@ rollForwardTxSubmissions
     :: SlotNo -> [(SlotNo, Hash "Tx")] -> DeltaTxSubmissions
 rollForwardTxSubmissions tip txs = RollForward tip (second TxId <$> txs)
 
-removePendingOrExpiredTx :: TxSubmissions -> Hash "Tx"
-    -> Either ErrRemoveTx DeltaTxSubmissions
-removePendingOrExpiredTx walletSubmissions txId = do
+removePendingOrExpiredTx
+    :: Hash "Tx"
+    -> TxSubmissions
+    -> Either ErrRemoveTx [DeltaTxSubmissions]
+removePendingOrExpiredTx txId walletSubmissions = do
     let
         errNoTx = ErrRemoveTxNoSuchTransaction $ ErrNoSuchTransaction txId
         errInLedger = ErrRemoveTxAlreadyInLedger txId
     case status (TxId txId) (transactions walletSubmissions) of
         Unknown -> Left errNoTx
         InLedger{} -> Left errInLedger
-        _ -> Right $ Forget (TxId txId)
+        _ -> Right [Forget (TxId txId)]
 
 rollBackSubmissions :: SlotNo -> DeltaTxSubmissions
 rollBackSubmissions = RollBack
