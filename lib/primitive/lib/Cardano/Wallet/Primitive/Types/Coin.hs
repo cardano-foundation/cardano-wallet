@@ -65,8 +65,18 @@ import Data.Maybe
     ( fromMaybe )
 import Data.Monoid
     ( Sum (..) )
+import Data.Monoid.Cancellative
+    ( LeftReductive, Reductive, RightReductive )
+import Data.Monoid.GCD
+    ( GCDMonoid, LeftGCDMonoid, RightGCDMonoid )
+import Data.Monoid.Monus
+    ( Monus, OverlappingGCDMonoid )
+import Data.Monoid.Null
+    ( MonoidNull )
 import Data.Quantity
     ( Quantity (..) )
+import Data.Semigroup.Commutative
+    ( Commutative )
 import Data.Text.Class
     ( FromText (..), ToText (..) )
 import Data.Word
@@ -97,7 +107,10 @@ newtype Coin = Coin
     }
     deriving stock (Ord, Eq, Generic)
     deriving (Read, Show) via Quiet Coin
-    deriving (Semigroup, Monoid) via Sum Natural
+    deriving (Commutative, Semigroup, Monoid, MonoidNull) via Sum Natural
+    deriving (LeftReductive, RightReductive, Reductive) via Sum Natural
+    deriving (LeftGCDMonoid, RightGCDMonoid, GCDMonoid) via Sum Natural
+    deriving (OverlappingGCDMonoid, Monus) via Sum Natural
 
 instance ToText Coin where
     toText (Coin c) = T.pack $ show c
