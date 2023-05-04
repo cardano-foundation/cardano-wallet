@@ -25,6 +25,11 @@ module Test.QuickCheck.Extra
     , genSized2With
     , reasonablySized
 
+    -- * Generating values purely
+    , GenSeed (..)
+    , GenSize (..)
+    , generateWith
+
       -- * Shrinking
     , liftShrinker
     , shrinkBoundedEnum
@@ -124,8 +129,12 @@ import Test.QuickCheck
     , suchThatMap
     , (.&&.)
     )
+import Test.QuickCheck.Gen
+    ( Gen (MkGen) )
 import Test.QuickCheck.Gen.Unsafe
     ( promote )
+import Test.QuickCheck.Random
+    ( mkQCGen )
 import Test.Utils.Pretty
     ( pShowBuilder )
 import Text.Pretty.Simple
@@ -254,6 +263,29 @@ shrinkInterleaved (a, shrinkA) (b, shrinkB) = interleave
     interleave (x : xs) (y : ys) = x : y : interleave xs ys
     interleave xs [] = xs
     interleave [] ys = ys
+
+--------------------------------------------------------------------------------
+-- Generating values purely
+--------------------------------------------------------------------------------
+
+-- | Specifies a PRNG seed to use when generating a value.
+--
+newtype GenSeed = GenSeed Int
+
+-- | Specifies a size of value to generate.
+--
+-- (The QuickCheck size parameter.)
+--
+newtype GenSize = GenSize Int
+
+-- | Generates a value purely, according to the given parameters.
+--
+-- This function is an alternative to the standard QuickCheck 'generate'
+-- function.
+--
+generateWith :: GenSeed -> GenSize -> Gen a -> a
+generateWith (GenSeed seed) (GenSize size) (MkGen runGen) =
+    runGen (mkQCGen seed) size
 
 --------------------------------------------------------------------------------
 -- Evaluating shrinkers
