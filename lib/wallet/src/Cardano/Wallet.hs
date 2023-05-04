@@ -319,11 +319,12 @@ import Cardano.Wallet.DB
     , ErrWalletAlreadyExists (..)
     , ErrWalletNotInitialized (..)
     )
+import Cardano.Wallet.DB.Errors
+    ( ErrNoSuchWallet (..) )
 import Cardano.Wallet.DB.Store.Submissions.Layer
     ( mkLocalTxSubmission )
 import Cardano.Wallet.DB.WalletState
     ( DeltaWalletState1 (..)
-    , ErrNoSuchWallet (..)
     , fromWallet
     , getLatest
     , getSlot
@@ -537,7 +538,7 @@ import Crypto.Hash
 import Data.ByteString
     ( ByteString )
 import Data.DBVar
-    ( readDBVar )
+    ( modifyDBMaybe, readDBVar )
 import Data.Either
     ( partitionEithers )
 import Data.Either.Extra
@@ -613,6 +614,7 @@ import qualified Cardano.Wallet.Address.Discovery.Random as Rnd
 import qualified Cardano.Wallet.Address.Discovery.Sequential as Seq
 import qualified Cardano.Wallet.Address.Discovery.Shared as Shared
 import qualified Cardano.Wallet.Checkpoints.Policy as CP
+import qualified Cardano.Wallet.DB.Store.Submissions.Layer as Submissions
 import qualified Cardano.Wallet.DB.WalletState as WS
 import qualified Cardano.Wallet.DB.WalletState as WalletState
 import qualified Cardano.Wallet.Primitive.Migration as Migration
@@ -2369,8 +2371,12 @@ forgetTx
     => ctx
     -> Hash "Tx"
     -> ExceptT ErrRemoveTx IO ()
-forgetTx ctx tid = db & \DBLayer{..} -> do
-    mapExceptT atomically $ removePendingOrExpiredTx tid
+forgetTx ctx txid = db & \DBLayer{..} ->
+    ExceptT
+        . atomically
+        . modifyDBMaybe walletsDB
+        . WalletState.updateSubmissionsEither
+        $ Submissions.removePendingOrExpiredTx txid
   where
     db = ctx ^. dbLayer @IO @s @k
 

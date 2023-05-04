@@ -58,7 +58,6 @@ import Cardano.Wallet.DB.WalletState
     ( DeltaWalletState
     , DeltaWalletState1 (UpdateSubmissions)
     , WalletState (submissions)
-    , updateState
     , updateStateNoErrors
     )
 import Cardano.Wallet.Primitive.Model
@@ -323,11 +322,6 @@ data DBLayer m s k = forall stm. (MonadIO stm, MonadFail stm) => DBLayer
         -- ^ Removes any expired transactions from the pending set and marks
         -- their status as expired.
 
-    , removePendingOrExpiredTx
-        :: Hash "Tx"
-        -> ExceptT ErrRemoveTx stm ()
-        -- ^ Manually remove a pending transaction.
-
     , putPrivateKey
         :: (k 'RootK XPrv, PassphraseHash)
         -> stm ()
@@ -534,10 +528,6 @@ mkDBLayerFromParts ti wid_ DBLayerCollection{..} = DBLayer
             updateSubmissionsNoError dbCheckpoints
                 $ \_ -> mkUpdateSubmissions
                     [Sbms.rollForwardTxSubmissions tip txs]
-    , removePendingOrExpiredTx = \txid ->
-            updateSubmissions dbCheckpoints $ \xs ->
-                mkUpdateSubmissions . pure
-                    <$> Sbms.removePendingOrExpiredTx xs txid
     , putPrivateKey = putPrivateKey_ dbPrivateKey
     , readPrivateKey = readPrivateKey_ dbPrivateKey
     , readGenesisParameters = readGenesisParameters_ dbCheckpoints
@@ -554,7 +544,6 @@ mkDBLayerFromParts ti wid_ DBLayerCollection{..} = DBLayer
     readCurrentTip = currentTip <$> readCheckpoint_ dbCheckpoints
     mkUpdateSubmissions w = [UpdateSubmissions w]
     updateSubmissionsNoError = updateStateNoErrors submissions . walletsDB_
-    updateSubmissions = updateState submissions . walletsDB_
 
 -- | A database layer for a collection of wallets
 data DBWallets stm s = DBWallets
