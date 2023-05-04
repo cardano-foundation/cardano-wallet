@@ -486,7 +486,7 @@ mkDBLayerFromParts ti wid_ DBLayerCollection{..} = DBLayer
                 $ Sbms.resubmitTx hash slotNo
     , rollForwardTxSubmissions = \tip txs ->
             updateSubmissionsNoError dbCheckpoints
-                $ \_ -> [Sbms.rollForwardTxSubmissions tip txs]
+                $ \_ -> Sbms.rollForwardTxSubmissions tip txs
     , putPrivateKey = putPrivateKey_ dbPrivateKey
     , readPrivateKey = readPrivateKey_ dbPrivateKey
     , readGenesisParameters = readGenesisParameters_ dbCheckpoints

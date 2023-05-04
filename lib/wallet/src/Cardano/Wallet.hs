@@ -1209,8 +1209,7 @@ restoreBlocks ctx tr blocks nodeTip = db & \DBLayer{..} -> atomically $ do
     rollForwardTxSubmissions (localTip ^. #slotNo)
         $ fmap (\(tx,meta) -> (meta ^. #slotNo, txId tx)) txs
     let deltaPruneSubmissions =
-            [ UpdateSubmissions [Submissions.pruneByFinality finalitySlot]
-            ]
+            [ UpdateSubmissions $ Submissions.pruneByFinality finalitySlot ]
 
     forM_ slotPoolDelegations $ \delegation@(slotNo, cert) -> do
             liftIO $ logDelegation delegation
