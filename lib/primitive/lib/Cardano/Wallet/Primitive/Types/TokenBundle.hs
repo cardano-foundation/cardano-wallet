@@ -118,6 +118,8 @@ import GHC.Generics
     ( Generic )
 import GHC.TypeLits
     ( ErrorMessage (..), TypeError )
+import Safe
+    ( fromJustNote )
 
 import qualified Cardano.Wallet.Primitive.Types.Coin as Coin
 import qualified Cardano.Wallet.Primitive.Types.TokenMap as TokenMap
@@ -454,5 +456,4 @@ mapAssetIds f (TokenBundle c m) = TokenBundle c (TokenMap.mapAssetIds f m)
 -- Throws a run-time exception if the pre-condition is violated.
 --
 unsafeSubtract :: TokenBundle -> TokenBundle -> TokenBundle
-unsafeSubtract (TokenBundle (Coin c1) m1) (TokenBundle (Coin c2) m2) =
-    TokenBundle (Coin $ c1 - c2) (TokenMap.unsafeSubtract m1 m2)
+unsafeSubtract b1 b2 = fromJustNote "TokenBundle.unsafeSubtract" $ b1 </> b2
