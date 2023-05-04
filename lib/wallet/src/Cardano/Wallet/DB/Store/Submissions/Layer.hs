@@ -73,14 +73,15 @@ emptyTxSubmissions = mkEmpty 0
 addTxSubmission
     :: BuiltTx
     -> SlotNo
-    -> DeltaTxSubmissions
+    -> [DeltaTxSubmissions]
 addTxSubmission BuiltTx{..} resubmitted =
     let txId = TxId $ builtTx ^. #txId
         expiry = case builtTxMeta ^. #expiry of
             Nothing -> SlotNo maxBound
             Just slot -> slot
-    in AddSubmission expiry (txId, builtSealedTx)
-        $ submissionMetaFromTxMeta builtTxMeta resubmitted
+    in  [ AddSubmission expiry (txId, builtSealedTx)
+          $ submissionMetaFromTxMeta builtTxMeta resubmitted
+        ]
 
 resubmitTx
     :: Hash "Tx"
