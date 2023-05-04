@@ -1308,11 +1308,9 @@ getFeePerByteFromWalletPParams
     :: ProtocolParameters
     -> FeePerByte
 getFeePerByteFromWalletPParams pp =
-    let
-        LinearFee LinearFunction {slope}
-            = getFeePolicy $ txParameters pp
-    in
-        FeePerByte $ ceiling slope
+    FeePerByte $ ceiling slope
+  where
+    LinearFee LinearFunction{slope} = getFeePolicy $ txParameters pp
 
 txConstraints
     :: AnyCardanoEra -> ProtocolParameters -> TxWitnessTag -> TxConstraints
