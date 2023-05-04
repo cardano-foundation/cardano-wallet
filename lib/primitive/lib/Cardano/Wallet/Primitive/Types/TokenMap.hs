@@ -160,6 +160,8 @@ import Numeric.Natural
     ( Natural )
 import Quiet
     ( Quiet (..) )
+import Safe
+    ( fromJustNote )
 
 import qualified Cardano.Wallet.Primitive.Types.TokenQuantity as TokenQuantity
 import qualified Data.Aeson as Aeson
@@ -783,7 +785,4 @@ mapAssetIds f m = fromFlatList $ first f <$> toFlatList m
 -- Throws a run-time exception if the pre-condition is violated.
 --
 unsafeSubtract :: TokenMap -> TokenMap -> TokenMap
-unsafeSubtract a b = F.foldl' acc a $ toFlatList b
-  where
-    acc c (asset, quantity) =
-        adjustQuantity c asset (`TokenQuantity.unsafeSubtract` quantity)
+unsafeSubtract b1 b2 = fromJustNote "TokenMap.unsafeSubtract" $ b1 </> b2
