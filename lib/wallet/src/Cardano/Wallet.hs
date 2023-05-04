@@ -178,6 +178,7 @@ module Cardano.Wallet
     , getTransaction
     , submitExternalTx
     , submitTx
+    , readLocalTxSubmissionPending
     , LocalTxSubmissionConfig (..)
     , defaultLocalTxSubmissionConfig
     , runLocalTxSubmissionPool
@@ -323,6 +324,8 @@ import Cardano.Wallet.DB.Errors
     ( ErrNoSuchWallet (..) )
 import Cardano.Wallet.DB.Store.Submissions.Layer
     ( mkLocalTxSubmission )
+import Cardano.Wallet.DB.Store.Submissions.Operations
+    ( TxSubmissionsStatus )
 import Cardano.Wallet.DB.WalletState
     ( DeltaWalletState1 (..)
     , fromWallet
@@ -2380,6 +2383,27 @@ forgetTx ctx txid = db & \DBLayer{..} ->
   where
     db = ctx ^. dbLayer @IO @s @k
 
+-- | List all transactions from the local submission pool which are
+-- still pending as of the latest checkpoint of the given wallet. The
+-- slot numbers for first submission and most recent submission are
+-- included.
+readLocalTxSubmissionPending
+    :: forall m s k ctx.
+        ( HasDBLayer m s k ctx
+        )
+    => ctx
+    -> m [TxSubmissionsStatus]
+readLocalTxSubmissionPending ctx = db & \DBLayer{..} ->
+    atomically
+        $ readLocalTxSubmissionPending' <$> readDBVar walletsDB
+  where
+    db = ctx ^. dbLayer @m @s @k
+
+    readLocalTxSubmissionPending' =
+          filter Submissions.isInSubmission
+        . Submissions.getInSubmissionTransactions
+        . WalletState.submissions
+
 -- | Given a LocalTxSubmission record, calculate the slot when it should be
 -- retried next.
 --
@@ -2430,7 +2454,7 @@ runLocalTxSubmissionPool
 runLocalTxSubmissionPool cfg ctx = db & \DBLayer{..} -> do
     submitPending <- rateLimited $ \bh -> bracketTracer trBracket $ do
         sp <- currentSlottingParameters nw
-        pending <- atomically readLocalTxSubmissionPending
+        pending <- readLocalTxSubmissionPending @m @s @k ctx
         let sl = bh ^. #slotNo
             pendingOldStyle = pending >>= mkLocalTxSubmission
         -- Re-submit transactions due, ignore errors

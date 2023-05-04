@@ -40,7 +40,6 @@ import Cardano.Wallet
     , SelectionWithoutChange
     , WalletLayer (..)
     , migrationPlanToSelectionWithdrawals
-    , runLocalTxSubmissionPool
     , submitTx
     , throttle
     )
@@ -790,16 +789,16 @@ prop_localTxSubmission tc = monadicIO $ do
     st <- TxRetryTestState tc 2 <$> newMVar (Time 0)
     assert $ not $ null $ retryTestPool tc
     res <- run $ runTest st
-        $ \ctx@(TxRetryTestCtx dbl@(DBLayer{..}) nl tr _ _) -> do
+        $ \ctx@(TxRetryTestCtx dbl nl tr _ _) -> do
         unsafeRunExceptT
             $ forM_ (retryTestPool tc) $ submitTx tr dbl nl
-        res0 <- atomically readLocalTxSubmissionPending
+        res0 <- W.readLocalTxSubmissionPending @_ @DummyState @ShelleyKey ctx
         -- Run test
         let cfg = LocalTxSubmissionConfig (timeStep st) 10
-        runLocalTxSubmissionPool @_ @DummyState @ShelleyKey cfg ctx
+        W.runLocalTxSubmissionPool @_ @DummyState @ShelleyKey cfg ctx
 
         -- Gather state
-        res1 <- atomically readLocalTxSubmissionPending
+        res1 <- W.readLocalTxSubmissionPending @_ @DummyState @ShelleyKey ctx
         pure (res0, res1)
 
     let (resStart, resEnd) = resAction res

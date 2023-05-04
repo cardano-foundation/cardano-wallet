@@ -24,6 +24,7 @@ module Cardano.Wallet.DB.Store.Submissions.Layer
     , pruneByFinality
     , addTxSubmission
     , getInSubmissionTransaction
+    , isInSubmission
     )
     where
 
@@ -50,15 +51,15 @@ import Cardano.Wallet.Primitive.Types.Tx
 import Cardano.Wallet.Submissions.Operations
     ( Operation (..) )
 import Cardano.Wallet.Submissions.Submissions
-    ( TxStatusMeta (..), mkEmpty, transactions, transactionsL )
+    ( TxStatusMeta (..), mkEmpty, transactions, transactionsL, txStatus )
 import Cardano.Wallet.Submissions.TxStatus
-    ( TxStatus (..), expirySlot, getTx, status )
+    ( TxStatus (..), expirySlot, getTx, status, _InSubmission )
 import Cardano.Wallet.Transaction.Built
     ( BuiltTx (..) )
 import Control.Category
     ( (.) )
 import Control.Lens
-    ( ix, (^.), (^..), (^?) )
+    ( has, ix, (^.), (^..), (^?) )
 import Data.Bifunctor
     ( second )
 import Data.Maybe
@@ -99,6 +100,8 @@ resubmitTx (TxId -> txId) resubmitted walletSubmissions
                 , Forget txId
                 ]
 
+isInSubmission :: TxSubmissionsStatus -> Bool
+isInSubmission = has (txStatus . _InSubmission)
 
 getInSubmissionTransactions :: TxSubmissions -> [TxSubmissionsStatus]
 getInSubmissionTransactions submissions

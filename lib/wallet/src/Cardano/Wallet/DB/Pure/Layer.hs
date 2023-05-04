@@ -177,9 +177,6 @@ newDBFresh timeInterpreter wid = do
         , addTxSubmission =
             error "addTxSubmission not tested in State Machine tests"
 
-        , readLocalTxSubmissionPending =
-            error "readLocalTxSubmissionPending not tested in State Machine tests"
-
         , resubmitTx =
             error "resubmitTx not tested in State Machine tests"
 
