@@ -424,7 +424,6 @@ to delete them wholesale rather than maintaining them.
 -}
 data DBLayerCollection stm m s k = DBLayerCollection
     { dbCheckpoints :: DBCheckpoints stm s
-    , dbWalletMeta :: DBWalletMeta stm
     , dbDelegation :: DBDelegation stm
     , dbTxHistory :: DBTxHistory stm
     , dbPrivateKey :: DBPrivateKey stm k
@@ -440,6 +439,8 @@ data DBLayerCollection stm m s k = DBLayerCollection
         -> stm ()
     , atomically_
         :: forall a. stm a -> m a
+    , putWalletMeta_ :: WalletMetadata -> stm ()
+    , readWalletMeta_ :: stm WalletMetadata
     }
 
 {- HLINT ignore mkDBLayerFromParts "Avoid lambda" -}
@@ -456,13 +457,13 @@ mkDBLayerFromParts ti wid_ DBLayerCollection{..} = DBLayer
     , putCheckpoint = putCheckpoint_ dbCheckpoints
     , readCheckpoint = readCheckpoint'
     , listCheckpoints = listCheckpoints_ dbCheckpoints
-    , putWalletMeta = putWalletMeta_ dbWalletMeta
+    , putWalletMeta = putWalletMeta_
     , readWalletMeta = do
         readCheckpoint' >>= \cp -> do
                 currentEpoch <- liftIO $
                     interpretQuery ti (epochOf $ cp ^. #currentTip . #slotNo)
                 del <- readDelegation_ dbDelegation currentEpoch
-                wm <- readWalletMeta_ dbWalletMeta
+                wm <- readWalletMeta_
                 pure (wm, del)
     , isStakeKeyRegistered = isStakeKeyRegistered_ dbDelegation
     , putDelegationCertificate = putDelegationCertificate_ dbDelegation

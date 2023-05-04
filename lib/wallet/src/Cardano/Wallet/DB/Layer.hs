@@ -81,7 +81,6 @@ import Cardano.Wallet.DB
     , DBOpen (..)
     , DBPrivateKey (..)
     , DBTxHistory (..)
-    , DBWalletMeta (..)
     , DBWallets (..)
     , ErrNotGenesisBlockHeader (ErrNotGenesisBlockHeader)
     , ErrWalletAlreadyInitialized (ErrWalletAlreadyInitialized)
@@ -108,7 +107,7 @@ import Cardano.Wallet.DB.Sqlite.Types
 import Cardano.Wallet.DB.Store.Checkpoints
     ( PersistAddressBook (..), blockHeaderFromEntity, mkStoreWallet )
 import Cardano.Wallet.DB.Store.Info.Store
-    ( WalletInfo (..) )
+    ( DeltaWalletInfo (..), WalletInfo (..) )
 import Cardano.Wallet.DB.Store.Meta.Model
     ( mkTxMetaFromEntity )
 import Cardano.Wallet.DB.Store.Submissions.Layer
@@ -129,11 +128,12 @@ import Cardano.Wallet.DB.Store.Wallets.Layer
     , QueryTxWalletsHistory (..)
     , newQueryStoreTxWalletsHistory
     )
-import Cardano.Wallet.DB.Store.Wallets.Store
+import Cardano.Wallet.DB.Store.Wallets.Model
     ( DeltaTxWalletsHistory (..) )
 import Cardano.Wallet.DB.WalletState
     ( DeltaWalletState
     , DeltaWalletState1 (..)
+    , WalletState (..)
     , findNearestPoint
     , fromGenesis
     , fromWallet
@@ -147,7 +147,7 @@ import Cardano.Wallet.Primitive.Passphrase.Types
     ( PassphraseHash )
 import Cardano.Wallet.Primitive.Slotting
     ( TimeInterpreter, firstSlotInEpoch, hoistTimeInterpreter, interpretQuery )
-import Cardano.Wallet.Read.Eras
+import Cardano.Wallet.Read.Eras.EraValue
     ( EraValue )
 import Cardano.Wallet.Read.Tx.CBOR
     ( parseTxFromCBOR )
@@ -193,16 +193,13 @@ import Database.Persist.Sql
     ( Entity (..)
     , Filter
     , SelectOpt (..)
-    , Update (..)
     , deleteWhere
     , insert_
     , repsert
     , selectFirst
     , selectKeysList
     , selectList
-    , updateWhere
     , (<.)
-    , (=.)
     , (==.)
     , (>.)
     , (>=.)
@@ -223,11 +220,13 @@ import UnliftIO.MVar
     ( modifyMVar, modifyMVar_, newMVar, readMVar, withMVar )
 
 import qualified Cardano.Wallet.Primitive.Model as W
-import qualified Cardano.Wallet.Primitive.Passphrase as W
+import qualified Cardano.Wallet.Primitive.Passphrase.Types as W
+    ( PassphraseHash )
 import qualified Cardano.Wallet.Primitive.Types as W
 import qualified Cardano.Wallet.Primitive.Types.Coin as Coin
 import qualified Cardano.Wallet.Primitive.Types.Hash as W
-import qualified Cardano.Wallet.Primitive.Types.Tx as W
+import qualified Cardano.Wallet.Primitive.Types.Tx.TransactionInfo as W
+    ( TransactionInfo )
 import qualified Cardano.Wallet.Primitive.Types.Tx.TxOut as W
 import qualified Cardano.Wallet.Read.Tx as Read
 import qualified Data.Generics.Internal.VL as L
@@ -559,11 +558,10 @@ newDBFreshFromDBOpen ti wid_ DBOpen{atomically=atomically_} =
     transactionsQS = newQueryStoreTxWalletsHistory
 
     dbWallets = DBWallets
-        { initializeWallet_ = \(DBLayerParams _ meta txs gp) -> do
+        { initializeWallet_ = \(DBLayerParams _ _ txs _) -> do
             res <- lift $ runExceptT $ getWalletId_ dbWallets
             case res of
                 Left ErrWalletNotInitialized -> lift $ do
-                    insert_ $ mkWalletEntity wid_ meta gp
                     updateS transactionsQS Nothing $
                         ExpandTxWalletsHistory wid_ txs
                 Right _ -> throwE ErrWalletAlreadyInitialized
@@ -578,6 +576,13 @@ newDBFreshFromDBOpen ti wid_ DBOpen{atomically=atomically_} =
 
     dbLayerCollection walletsDB = DBLayerCollection{..}
       where
+        putWalletMeta_ wm =
+            updateStateNoErrors id walletsDB $ \_ ->
+                [ UpdateInfo $ UpdateWalletMetadata wm ]
+
+        readWalletMeta_ = do
+            walletMeta . info <$> readDBVar walletsDB
+
         readCheckpoint
             ::  SqlPersistT IO (W.Wallet s)
         readCheckpoint = getLatest <$> readDBVar walletsDB
@@ -683,15 +688,6 @@ newDBFreshFromDBOpen ti wid_ DBOpen{atomically=atomically_} =
 
     dbDelegation = mkDBDelegation ti wid_
 
-    dbWalletMeta = DBWalletMeta
-        { putWalletMeta_ = updateWhere [WalId ==. wid_] . mkWalletMetadataUpdate
-
-        , readWalletMeta_ = do
-            mr <- readWalletMetadata wid_
-            case mr of
-                Nothing -> error "readWalletMeta_: not found"
-                Just r -> pure r
-        }
 
     dbPrivateKey = mkDBPrivateKey wid_
 
@@ -741,7 +737,6 @@ mkDBFreshFromParts
       where
         db = mkDBLayerFromParts ti wid_ . parts
 
-
 mkDecorator
     :: QueryStoreTxWalletsHistory
     -> TxInDecorator (EraValue Read.Tx) (SqlPersistT IO)
@@ -749,13 +744,6 @@ mkDecorator transactionsQS =
     decorateTxInsForReadTxFromLookupTxOut lookupTxOut
   where
     lookupTxOut = queryS transactionsQS . GetTxOut
-
-readWalletMetadata
-    :: W.WalletId
-    -> SqlPersistT IO (Maybe W.WalletMetadata)
-readWalletMetadata wid =
-     fmap (metadataFromEntity . entityVal)
-        <$> selectFirst [WalId ==. wid] []
 
 {-----------------------------------------------------------------------
                             Wallet Delegation
@@ -866,36 +854,6 @@ toWalletDelegationStatus = \case
         W.NotDelegating
     DelegationCertificate _ _ (Just pool) ->
         W.Delegating pool
-
-mkWalletEntity :: W.WalletId -> W.WalletMetadata -> W.GenesisParameters -> Wallet
-mkWalletEntity wid meta gp = Wallet
-    { walId = wid
-    , walName = meta ^. #name . coerce
-    , walCreationTime = meta ^. #creationTime
-    , walPassphraseLastUpdatedAt = W.lastUpdatedAt <$> meta ^. #passphraseInfo
-    , walPassphraseScheme = W.passphraseScheme <$> meta ^. #passphraseInfo
-    , walGenesisHash = BlockId (coerce (gp ^. #getGenesisBlockHash))
-    , walGenesisStart = coerce (gp ^. #getGenesisBlockDate)
-    }
-
-mkWalletMetadataUpdate :: W.WalletMetadata -> [Update Wallet]
-mkWalletMetadataUpdate meta =
-    [ WalName =. meta ^. #name . coerce
-    , WalCreationTime =. meta ^. #creationTime
-    , WalPassphraseLastUpdatedAt =.
-        W.lastUpdatedAt <$> meta ^. #passphraseInfo
-    , WalPassphraseScheme =.
-        W.passphraseScheme <$> meta ^. #passphraseInfo
-    ]
-
-metadataFromEntity :: Wallet -> W.WalletMetadata
-metadataFromEntity wal = W.WalletMetadata
-    { name = W.WalletName (walName wal)
-    , creationTime = walCreationTime wal
-    , passphraseInfo = W.WalletPassphraseInfo
-        <$> walPassphraseLastUpdatedAt wal
-        <*> walPassphraseScheme wal
-    }
 
 genesisParametersFromEntity
     :: Wallet
