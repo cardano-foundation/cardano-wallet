@@ -81,6 +81,8 @@ import Cardano.Wallet.Read.NetworkId
     , NetworkDiscriminantCheck (..)
     , SNetworkId (..)
     )
+import Cardano.Wallet.TxWitnessTag
+    ( TxWitnessTag (..), TxWitnessTagFor (..) )
 import Control.Arrow
     ( first, left )
 import Control.DeepSeq
@@ -134,7 +136,10 @@ newtype IcarusKey (depth :: Depth) key =
     IcarusKey { getKey :: key }
     deriving stock (Generic, Show, Eq)
 
-instance (NFData key) => NFData (IcarusKey depth key)
+instance NFData key => NFData (IcarusKey depth key)
+
+instance TxWitnessTagFor IcarusKey where
+    txWitnessTagFor = TxWitnessByronIcarusUTxO
 
 -- | The minimum seed length for 'generateKeyFromSeed' and 'unsafeGenerateKeyFromSeed'.
 minSeedLengthBytes :: Int

@@ -76,10 +76,8 @@ import Cardano.Pool.Types
     ( PoolId )
 import Cardano.Tx.Balance.Internal.CoinSelection
     ( SelectionCollateralRequirement (..)
-    , SelectionLimit
     , SelectionOf (..)
     , SelectionOutputTokenQuantityExceedsLimitError
-    , SelectionSkeleton
     , WalletSelectionContext
     )
 import Cardano.Wallet.Address.Derivation
@@ -112,6 +110,8 @@ import Cardano.Wallet.Primitive.Types.Tx.TxIn
     ( TxIn (..) )
 import Cardano.Wallet.Primitive.Types.Tx.TxOut
     ( TxOut (..) )
+import Cardano.Wallet.TxWitnessTag
+    ( TxWitnessTag )
 import Control.DeepSeq
     ( NFData (..) )
 import Data.List.NonEmpty
@@ -203,26 +203,6 @@ data TransactionLayer k ktype tx = TransactionLayer
         --
         -- The function returns CBOR-ed transaction body to be signed in another step.
 
-    , calcMinimumCost
-        :: AnyCardanoEra
-            -- Era for which the transaction should be created.
-        -> ProtocolParameters
-            -- Current protocol parameters
-        -> TransactionCtx
-            -- Additional information about the transaction
-        -> SelectionSkeleton
-            -- An intermediate representation of an ongoing selection
-        -> Coin
-        -- ^ Compute a minimal fee amount necessary to pay for a given selection
-        -- This also includes necessary deposits.
-
-    , computeSelectionLimit
-        :: AnyCardanoEra
-        -> ProtocolParameters
-        -> TransactionCtx
-        -> [TxOut]
-        -> SelectionLimit
-
     , tokenBundleSizeAssessor
         :: TokenBundleMaxSize -> TokenBundleSizeAssessor
         -- ^ A function to assess the size of a token bundle.
@@ -247,6 +227,8 @@ data TransactionLayer k ktype tx = TransactionLayer
             , WitnessCount
             )
     -- ^ Decode an externally-created transaction.
+
+    , transactionWitnessTag :: TxWitnessTag
     }
 
 type TxValidityInterval = (Maybe SlotNo, SlotNo)

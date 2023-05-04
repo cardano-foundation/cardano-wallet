@@ -84,6 +84,8 @@ import Cardano.Wallet.Primitive.Types.ProtocolMagic
     ( ProtocolMagic (..), magicSNetworkId )
 import Cardano.Wallet.Read.NetworkId
     ( SNetworkId (..) )
+import Cardano.Wallet.TxWitnessTag
+    ( TxWitnessTag (..), TxWitnessTagFor (..) )
 import Control.DeepSeq
     ( NFData )
 import Crypto.Hash
@@ -131,6 +133,9 @@ data ByronKey (depth :: Depth) key = ByronKey
 instance (NFData key, NFData (DerivationPathFrom depth)) => NFData (ByronKey depth key)
 deriving instance (Show key, Show (DerivationPathFrom depth)) => Show (ByronKey depth key)
 deriving instance (Eq key, Eq (DerivationPathFrom depth)) => Eq (ByronKey depth key)
+
+instance TxWitnessTagFor ByronKey where
+    txWitnessTagFor = TxWitnessByronUTxO
 
 -- | The hierarchical derivation indices for a given level/depth.
 type family DerivationPathFrom (depth :: Depth) :: Type where

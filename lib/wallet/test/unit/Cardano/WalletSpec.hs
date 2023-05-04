@@ -146,6 +146,8 @@ import Cardano.Wallet.Transaction
     )
 import Cardano.Wallet.Transaction.Built
     ( BuiltTx (..) )
+import Cardano.Wallet.TxWitnessTag
+    ( TxWitnessTag (TxWitnessShelleyUTxO) )
 import Cardano.Wallet.Unsafe
     ( unsafeRunExceptT )
 import Cardano.Wallet.Util
@@ -1254,10 +1256,6 @@ dummyTransactionLayer = TransactionLayer
         error "dummyTransactionLayer: addVkWitnesses not implemented"
     , mkUnsignedTransaction =
         error "dummyTransactionLayer: mkUnsignedTransaction not implemented"
-    , calcMinimumCost =
-        error "dummyTransactionLayer: calcMinimumCost not implemented"
-    , computeSelectionLimit =
-        error "dummyTransactionLayer: computeSelectionLimit not implemented"
     , tokenBundleSizeAssessor =
         error "dummyTransactionLayer: tokenBundleSizeAssessor not implemented"
     , constraints =
@@ -1281,6 +1279,7 @@ dummyTransactionLayer = TransactionLayer
         , Nothing
         , emptyWitnessCount
         )
+    , transactionWitnessTag = TxWitnessShelleyUTxO
     }
   where
     forMaybe :: [a] -> (a -> Maybe b) -> [b]

@@ -126,8 +126,6 @@ import Cardano.Wallet.Address.Derivation
     )
 import Cardano.Wallet.Address.Derivation.Byron
     ( ByronKey )
-import Cardano.Wallet.Address.Derivation.Icarus
-    ( IcarusKey )
 import Cardano.Wallet.Address.Derivation.Shelley
     ( ShelleyKey )
 import Cardano.Wallet.Address.Discovery.Random
@@ -205,7 +203,6 @@ import Cardano.Wallet.Primitive.Types.Tx
     , sealedTxFromCardano'
     , serialisedTx
     , txMetadataIsNull
-    , withinEra
     )
 import Cardano.Wallet.Primitive.Types.Tx.Constraints
     ( TxConstraints (..), TxSize (..) )
@@ -246,7 +243,8 @@ import Cardano.Wallet.Shelley.Transaction
     , TxSkeleton (..)
     , TxUpdate (..)
     , TxWitnessTag (..)
-    , TxWitnessTagFor
+    , TxWitnessTagFor (txWitnessTagFor)
+    , calculateMinimumFee
     , costOfIncreasingCoin
     , distributeSurplus
     , distributeSurplusDelta
@@ -269,7 +267,6 @@ import Cardano.Wallet.Shelley.Transaction
     , txConstraints
     , updateTx
     , _decodeSealedTx
-    , _estimateMaxNumberOfInputs
     )
 import Cardano.Wallet.Transaction
     ( DelegationAction (..)
@@ -370,8 +367,6 @@ import Data.Text
     ( Text )
 import Data.Time.Clock.POSIX
     ( posixSecondsToUTCTime )
-import Data.Typeable
-    ( Typeable, typeRep )
 import Data.Word
     ( Word16, Word64, Word8 )
 import Fmt
@@ -406,7 +401,6 @@ import System.Random.StdGenSeed
     ( StdGenSeed (..), stdGenFromSeed )
 import Test.Hspec
     ( Spec
-    , SpecWith
     , describe
     , expectationFailure
     , it
@@ -425,7 +419,6 @@ import Test.QuickCheck
     ( Arbitrary (..)
     , Blind (..)
     , InfiniteList (..)
-    , NonEmptyList (..)
     , Property
     , Testable
     , arbitraryBoundedEnum
@@ -454,7 +447,6 @@ import Test.QuickCheck
     , vector
     , vectorOf
     , withMaxSuccess
-    , within
     , (.||.)
     , (=/=)
     , (===)
@@ -472,7 +464,7 @@ import Test.QuickCheck.Extra
 import Test.QuickCheck.Gen
     ( Gen (..), listOf1 )
 import Test.QuickCheck.Random
-    ( QCGen, mkQCGen )
+    ( QCGen )
 import Test.Utils.Paths
     ( getTestData )
 import Test.Utils.Pretty
@@ -532,7 +524,6 @@ import qualified Test.Hspec.Extra as Hspec
 spec :: Spec
 spec = do
     decodeSealedTxSpec
-    forAllEras estimateMaxInputsSpec
     forAllEras feeCalculationSpec
     feeEstimationRegressionSpec
     forAllRecentEras binaryCalculationsSpec
@@ -1183,37 +1174,6 @@ decodeSealedTxSpec = describe "SealedTx serialisation/deserialisation" $ do
         , "b77b47f2ddb31c19326b87ed6f71fb9a27133ad51b000000e8d4a510000e80a0f5f6"
         ]
 
--- Note:
---
--- In the tests below, the expected numbers of inputs are highly sensitive
--- to the size distribution of token bundles within generated transaction
--- outputs.
---
--- If these tests fail unexpectedly, it's a good idea to check whether or
--- not the distribution of generated token bundles has changed.
---
-estimateMaxInputsSpec :: AnyCardanoEra -> Spec
-estimateMaxInputsSpec era@(AnyCardanoEra cEra) =
-    if withinEra (AnyCardanoEra AlonzoEra) era
-    then do
-        describe ("Alonzo and earlier - " <> show cEra) $ do
-            estimateMaxInputsTests @ShelleyKey era
-                [(1,115),(5,109),(10,104),(20,93),(50,54)]
-            estimateMaxInputsTests @ByronKey era
-                [(1,73),(5,69),(10,65),(20,57),(50,29)]
-            estimateMaxInputsTests @IcarusKey era
-                [(1,73),(5,69),(10,65),(20,57),(50,29)]
-    -- Babbage era and later has slightly larger transactions, meaning slightly
-    -- smaller expected outputs.
-    else do
-        describe ("Babbage and later - " <> show cEra) $ do
-            estimateMaxInputsTests @ShelleyKey era
-                [(1,115),(5,109),(10,104),(20,92),(50,53)]
-            estimateMaxInputsTests @ByronKey era
-                [(1,73),(5,69),(10,65),(20,56),(50,28)]
-            estimateMaxInputsTests @IcarusKey era
-                [(1,73),(5,69),(10,65),(20,56),(50,28)]
-
 feeCalculationSpec :: AnyCardanoEra -> Spec
 feeCalculationSpec era = describe "fee calculations" $ do
     it "withdrawals incur fees" $ property $ \wdrl ->
@@ -1535,8 +1495,10 @@ feeCalculationSpec era = describe "fee calculations" $ do
             }
 
     minFee :: TransactionCtx -> Integer
-    minFee ctx = Coin.toInteger $ calcMinimumCost testTxLayer era pp ctx sel
-      where sel = emptySkeleton
+    minFee ctx =
+        Coin.toInteger $ calculateMinimumFee era pp witnessTag ctx emptySkeleton
+      where
+        witnessTag = txWitnessTagFor @ShelleyKey
 
     minFeeSkeleton :: TxSkeleton -> Integer
     minFeeSkeleton = Coin.toInteger . estimateTxCost era pp
@@ -1855,37 +1817,6 @@ transactionConstraintsSpec = describe "Transaction constraints" $ do
     it "maximum size of output" $
         property prop_txConstraints_txOutputMaximumSize
 
-newtype GivenNumOutputs = GivenNumOutputs Int deriving Num
-newtype ExpectedNumInputs = ExpectedNumInputs Int deriving Num
-
--- | Set of tests related to `estimateMaxNumberOfInputs` from the transaction
--- layer.
-estimateMaxInputsTests
-    :: forall k. (TxWitnessTagFor k, Typeable k)
-    => AnyCardanoEra
-    -> [(GivenNumOutputs, ExpectedNumInputs)]
-    -> SpecWith ()
-estimateMaxInputsTests era cases = do
-    let k = show $ typeRep (Proxy @k)
-    describe ("estimateMaxNumberOfInputs for "<>k) $ do
-        forM_ cases $ \(GivenNumOutputs nOuts, ExpectedNumInputs nInps) -> do
-            let (o,i) = (show nOuts, show nInps)
-            it ("order of magnitude, nOuts = " <> o <> " => nInps = " <> i) $ do
-                -- NOTE: These tests broke in the GHC 8.6 -> 8.10 bump,
-                -- presumably due to some change in the arbitrary generation.
-                -- It would be better if they weren't so fragile.
-                --
-                -- They also broke when bumping to lts-18.4.
-                let outs = [ generatePure r arbitrary | r <- [ 1 .. nOuts ] ]
-                length outs `shouldBe` nOuts
-                _estimateMaxNumberOfInputs @k era (Quantity 16_384) defaultTransactionCtx outs
-                    `shouldBe` nInps
-
-        prop "more outputs ==> less inputs"
-            (prop_moreOutputsMeansLessInputs @k era)
-        prop "bigger size  ==> more inputs"
-            (prop_biggerMaxSizeMeansMoreInputs @k)
-
 --------------------------------------------------------------------------------
 -- Roundtrip tests for SealedTx
 
@@ -1945,36 +1876,6 @@ compareOnCBOR b sealed = case cardanoTx sealed of
         Cardano.serialiseToCBOR a ==== Cardano.serialiseToCBOR b
 
 --------------------------------------------------------------------------------
---
-
--- | Increasing the number of outputs reduces the number of inputs.
-prop_moreOutputsMeansLessInputs
-    :: forall k. TxWitnessTagFor k
-    => AnyCardanoEra
-    -> Quantity "byte" Word16
-    -> NonEmptyList TxOut
-    -> Property
-prop_moreOutputsMeansLessInputs era size (NonEmpty xs)
-    = withMaxSuccess 1_000
-    $ within 300_000
-    $ _estimateMaxNumberOfInputs @k era size defaultTransactionCtx (tail xs)
-      >=
-      _estimateMaxNumberOfInputs @k era size defaultTransactionCtx xs
-
--- | Increasing the max size automatically increased the number of inputs
-prop_biggerMaxSizeMeansMoreInputs
-    :: forall k. TxWitnessTagFor k
-    => AnyCardanoEra
-    -> Quantity "byte" Word16
-    -> [TxOut]
-    -> Property
-prop_biggerMaxSizeMeansMoreInputs era size outs
-    = withMaxSuccess 1_000
-    $ within 300_000
-    $ getQuantity size < maxBound `div` 2 ==>
-        _estimateMaxNumberOfInputs @k era size defaultTransactionCtx outs
-        <=
-        _estimateMaxNumberOfInputs @k era ((*2) <$> size ) defaultTransactionCtx outs
 
 testTxLayer :: TransactionLayer ShelleyKey 'CredFromKeyK SealedTx
 testTxLayer = newTransactionLayer @ShelleyKey Cardano.Mainnet
@@ -2155,11 +2056,6 @@ dummyProtocolParameters = ProtocolParameters
     , currentNodeProtocolParameters =
         error "dummyProtocolParameters: currentNodeProtocolParameters"
     }
-
--- | Like generate, but the random generate is fixed to a particular seed so
--- that it generates always the same values.
-generatePure :: Int -> Gen a -> a
-generatePure seed (MkGen r) = r (mkQCGen seed) 30
 
 --------------------------------------------------------------------------------
 -- Transaction constraints
@@ -3222,16 +3118,12 @@ data Wallet' = Wallet'
     deriving Show via (ShowBuildable Wallet')
 
 instance Buildable UTxOAssumptions where
-    build (UTxOAssumptions _tl _scriptLookup scriptTemplate) =
-        blockListF
-            [ nameF "scriptTemplate" $ build scriptTemplate
-            ]
+    build (UTxOAssumptions _tl _scriptLookup scriptTemplate _txWitnessTag) =
+        blockListF [ nameF "scriptTemplate" $ build scriptTemplate ]
 
 instance Buildable AnyChangeAddressGenWithState where
-    build (AnyChangeAddressGenWithState
-            (ChangeAddressGen g maxLengthAddr)
-            s0)
-        = blockListF
+    build (AnyChangeAddressGenWithState (ChangeAddressGen g maxLengthAddr) s0) =
+        blockListF
             [ nameF "changeAddr0" $
                 build $ show $ toLedger $ fst $ g s0
             , nameF "max address length" $
@@ -3257,13 +3149,11 @@ instance Arbitrary Wallet' where
             <*> (pure dummyByronChangeAddressGen)
         ]
       where
-        allShelleyPaymentKeyCredentials = allKeyPaymentCredentials tl
-          where
-            tl = newTransactionLayer @ShelleyKey Cardano.Mainnet
+        allShelleyPaymentKeyCredentials = allKeyPaymentCredentials $
+            newTransactionLayer @ShelleyKey Cardano.Mainnet
 
-        allByronPaymentKeyCredentials = allKeyPaymentCredentials tl
-          where
-            tl = newTransactionLayer @ByronKey Cardano.Mainnet
+        allByronPaymentKeyCredentials = allKeyPaymentCredentials $
+            newTransactionLayer @ByronKey Cardano.Mainnet
 
         genShelleyVkAddr :: Gen (Cardano.AddressInEra Cardano.BabbageEra)
         genShelleyVkAddr = Cardano.shelleyAddressInEra
@@ -3311,7 +3201,7 @@ instance Arbitrary Wallet' where
 
 mkTestWallet :: UTxO -> Wallet'
 mkTestWallet utxo = Wallet'
-    (allKeyPaymentCredentials $ newTransactionLayer @ShelleyKey Cardano.Mainnet)
+    (allKeyPaymentCredentials (newTransactionLayer @ShelleyKey Cardano.Mainnet))
     utxo
     dummyShelleyChangeAddressGen
 
