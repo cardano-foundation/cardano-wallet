@@ -28,6 +28,7 @@ module Test.QuickCheck.Extra
     -- * Generating values purely
     , GenSeed (..)
     , GenSize (..)
+    , genSizeDefault
     , generateWith
 
       -- * Shrinking
@@ -277,6 +278,12 @@ newtype GenSeed = GenSeed Int
 -- (The QuickCheck size parameter.)
 --
 newtype GenSize = GenSize Int
+
+-- | A value of 'GenSize' that's identical to the default QuickCheck size
+--   parameter.
+--
+genSizeDefault :: GenSize
+genSizeDefault = GenSize 30
 
 -- | Generates a value purely, according to the given parameters.
 --
