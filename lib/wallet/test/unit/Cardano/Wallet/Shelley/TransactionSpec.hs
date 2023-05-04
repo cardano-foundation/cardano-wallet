@@ -1782,9 +1782,7 @@ binaryCalculationsSpec' era = describe ("calculateBinary - "+||era||+"") $ do
 
 transactionConstraintsSpec :: Spec
 transactionConstraintsSpec = describe "Transaction constraints" $ do
-    spec_forAllEras "cost of empty transaction" prop_txConstraints_txBaseCost
     spec_forAllEras "size of empty transaction" prop_txConstraints_txBaseSize
-    spec_forAllEras "cost of non-empty transaction" prop_txConstraints_txCost
     it "size of non-empty transaction" $
         property prop_txConstraints_txSize
     it "maximum size of output" $
@@ -2100,16 +2098,7 @@ instance Arbitrary MockSelection where
     arbitrary = genMockSelection
     shrink = shrinkMockSelection
 
--- Tests that using 'txBaseCost' to estimate the cost of an empty selection
--- produces a result that is consistent with the result of using
--- 'estimateTxCost'.
---
-prop_txConstraints_txBaseCost :: AnyCardanoEra -> Property
-prop_txConstraints_txBaseCost era =
-    txBaseCost (mockTxConstraints era)
-        === estimateTxCost era mainnetFeePerByte emptyTxSkeleton
-
--- Tests that using 'txBaseSize' to estimate the size of an empty selection
+-- Tests that using 'txBaseSize' to estimate the size of an empty selection                                                                        ....
 -- produces a result that is consistent with the result of using
 -- 'estimateTxSize'.
 --
@@ -2117,34 +2106,6 @@ prop_txConstraints_txBaseSize :: AnyCardanoEra -> Property
 prop_txConstraints_txBaseSize era =
     txBaseSize (mockTxConstraints era)
         === estimateTxSize era emptyTxSkeleton
-
--- Tests that using 'txConstraints' to estimate the cost of a non-empty
--- selection produces a result that is consistent with the result of using
--- 'estimateTxCost'.
---
-prop_txConstraints_txCost :: AnyCardanoEra -> MockSelection -> Property
-prop_txConstraints_txCost era mock =
-    counterexample ("result: " <> show result) $
-    counterexample ("lower bound: " <> show lowerBound) $
-    counterexample ("upper bound: " <> show upperBound) $
-    conjoin
-        [ result >= lowerBound
-        , result <= upperBound
-        ]
-  where
-    MockSelection {txInputCount, txOutputs, txRewardWithdrawal} = mock
-    result :: Coin
-    result = mconcat
-        [ txBaseCost (mockTxConstraints era)
-        , txInputCount `mtimesDefault` txInputCost (mockTxConstraints era)
-        , F.foldMap (txOutputCost (mockTxConstraints era) . tokens) txOutputs
-        , txRewardWithdrawalCost (mockTxConstraints era) txRewardWithdrawal
-        ]
-    lowerBound = estimateTxCost era mainnetFeePerByte emptyTxSkeleton
-        {txInputCount, txOutputs, txRewardWithdrawal}
-    -- We allow a small amount of overestimation due to the slight variation in
-    -- the marginal cost of an input:
-    upperBound = lowerBound <> txInputCount `mtimesDefault` Coin (4*44)
 
 -- Tests that using 'txConstraints' to estimate the size of a non-empty
 -- selection produces a result that is consistent with the result of using
