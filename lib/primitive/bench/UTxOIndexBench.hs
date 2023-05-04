@@ -122,8 +122,8 @@ type UTxOMapSize = Int
 -- | Constructs a map with ada-only token bundles.
 --
 makeUTxOMapAdaOnly :: UTxOMapSize -> UTxOMap
-makeUTxOMapAdaOnly size =
-    Map.fromList $ take size $ zip testUTxOMapKeys bundles
+makeUTxOMapAdaOnly mapSize =
+    Map.fromList $ take mapSize $ zip testUTxOMapKeys bundles
   where
     bundles :: [TokenBundle]
     bundles = repeat $ TokenBundle.fromCoin minimalCoin
@@ -131,8 +131,8 @@ makeUTxOMapAdaOnly size =
 -- | Constructs a map with bundles consisting of (ada, NFT) pairs.
 --
 makeUTxOMapNFTs :: UTxOMapSize -> UTxOMap
-makeUTxOMapNFTs size =
-    Map.fromList $ take size $ zip testUTxOMapKeys bundles
+makeUTxOMapNFTs mapSize =
+    Map.fromList $ take mapSize $ zip testUTxOMapKeys bundles
   where
     bundles :: [TokenBundle]
     bundles = makeBundle <$> testUTxOMapKeys
@@ -144,17 +144,17 @@ makeUTxOMapNFTs size =
 -- | Constructs a map with a diverse variety of different bundles.
 --
 makeUTxOMapDiverse :: UTxOMapSize -> UTxOMap
-makeUTxOMapDiverse size =
+makeUTxOMapDiverse mapSize =
     -- We use a fixed PRNG seed and QC size parameter to maximise consistency
     -- between benchmark runs:
-    generateWith (GenSeed 0) (GenSize 30) (genUTxOMapDiverse size)
+    generateWith (GenSeed 0) (GenSize 30) (genUTxOMapDiverse mapSize)
 
 -- | Generates a map with a diverse variety of different bundles.
 --
 genUTxOMapDiverse :: UTxOMapSize -> Gen UTxOMap
-genUTxOMapDiverse size =
+genUTxOMapDiverse mapSize =
     Map.fromList . zip testUTxOMapKeys <$>
-    vectorOf size genTokenBundle
+    vectorOf mapSize genTokenBundle
   where
     genTokenBundle :: Gen TokenBundle
     genTokenBundle = TokenBundle <$> genAdaQuantity <*> genTokenMap
