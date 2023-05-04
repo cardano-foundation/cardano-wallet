@@ -85,12 +85,8 @@ import Cardano.Wallet.Primitive.Types.TokenQuantity
     ( TokenQuantity (..) )
 import Control.DeepSeq
     ( NFData )
-import Control.Monad
-    ( guard )
 import Data.Bifunctor
     ( first )
-import Data.Functor
-    ( ($>) )
 import Data.Hashable
     ( Hashable )
 import Data.List.NonEmpty
@@ -335,7 +331,7 @@ add = (<>)
 -- bundle when compared with the `leq` function.
 --
 subtract :: TokenBundle -> TokenBundle -> Maybe TokenBundle
-subtract a b = guard (b `leq` a) $> unsafeSubtract a b
+subtract = (</>)
 
 -- | Analogous to @Set.difference@, return the difference between two token
 -- maps.
