@@ -70,6 +70,8 @@ import qualified Data.Map.Strict as Map
 emptyTxSubmissions :: TxSubmissions
 emptyTxSubmissions = mkEmpty 0
 
+-- | Add a /new/ transaction to the local submission pool
+-- with the most recent submission slot.
 addTxSubmission
     :: BuiltTx
     -> SlotNo
