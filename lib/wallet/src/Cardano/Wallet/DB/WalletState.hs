@@ -34,8 +34,7 @@ module Cardano.Wallet.DB.WalletState
     , DeltaWalletState
 
     -- * Helpers
-    , modifyRight
-    , updateSubmissionsEither
+    , updateSubmissions
 
     , updateState
     , updateStateWithResult
@@ -65,6 +64,8 @@ import Data.DBVar
     ( DBVar, modifyDBMaybe )
 import Data.Delta
     ( Delta (..) )
+import Data.Delta.Update
+    ( Update, updateField )
 import Data.Generics.Internal.VL
     ( withIso )
 import Data.Generics.Internal.VL.Lens
@@ -202,12 +203,10 @@ modifyRight update a =
         Left e -> (Nothing, Left e)
         Right (da, b) -> (Just da, Right b)
 
-updateSubmissionsEither
-    :: (TxSubmissions -> Either e [DeltaTxSubmissions])
-    -> (WalletState s -> (Maybe (DeltaWalletState s), Either e ()))
-updateSubmissionsEither f =
-    modifyRight $
-        fmap ((,()) . (:[]) . UpdateSubmissions) . f . submissions
+updateSubmissions
+    :: Update [DeltaTxSubmissions] r
+    -> Update (DeltaWalletState s) r
+updateSubmissions = updateField submissions ((:[]) . UpdateSubmissions)
 
 updateStateWithResult :: (Delta da, Monad m)
     => (Base da -> w)

@@ -543,7 +543,7 @@ import Crypto.Hash
 import Data.ByteString
     ( ByteString )
 import Data.DBVar
-    ( modifyDBMaybe, readDBVar )
+    ( readDBVar )
 import Data.Either
     ( partitionEithers )
 import Data.Either.Extra
@@ -635,6 +635,7 @@ import qualified Cardano.Wallet.Write.ProtocolParameters as Write
 import qualified Cardano.Wallet.Write.Tx as WriteTx
 import qualified Cardano.Wallet.Write.Tx.Balance as Write
 import qualified Data.ByteArray as BA
+import qualified Data.Delta.Update as Delta
 import qualified Data.Foldable as F
 import qualified Data.List as L
 import qualified Data.List.NonEmpty as NE
@@ -2375,8 +2376,9 @@ forgetTx
 forgetTx ctx txid = db & \DBLayer{..} ->
     ExceptT
         . atomically
-        . modifyDBMaybe walletsDB
-        . WalletState.updateSubmissionsEither
+        . Delta.onDBVar walletsDB
+        . WalletState.updateSubmissions
+        . Delta.updateWithError
         $ Submissions.removePendingOrExpiredTx txid
   where
     db = ctx ^. dbLayer @IO @s @k
