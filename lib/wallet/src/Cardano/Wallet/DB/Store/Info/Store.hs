@@ -58,6 +58,8 @@ import Database.Persist
     )
 import Database.Persist.Sql
     ( SqlPersistT, deleteWhere )
+import Fmt
+    ( Buildable (..) )
 
 mkWalletMetadataUpdate :: WalletMetadata -> [Update Wallet]
 mkWalletMetadataUpdate meta =
@@ -84,10 +86,15 @@ data WalletInfo = WalletInfo
     , walletMeta :: WalletMetadata
     , walletGenesisParameters :: GenesisParameters
     }
+    deriving (Eq, Show)
 
 -- | Delta type for 'WalletInfo'. Can change only 'WalletMetadata'.
 newtype DeltaWalletInfo
     = UpdateWalletMetadata WalletMetadata
+    deriving (Eq, Show)
+
+instance Buildable DeltaWalletInfo where
+    build (UpdateWalletMetadata meta) = build meta
 
 instance Delta DeltaWalletInfo where
     type Base DeltaWalletInfo = WalletInfo
