@@ -28,9 +28,6 @@ module Cardano.Wallet.Primitive.Types.TokenQuantity
     , isNonZero
     , isZero
 
-      -- * Unsafe operations
-    , unsafeSubtract
-
     ) where
 
 import Prelude hiding
@@ -236,16 +233,3 @@ isNonZero = (/= zero)
 
 isZero :: TokenQuantity -> Bool
 isZero = (== zero)
-
---------------------------------------------------------------------------------
--- Unsafe operations
---------------------------------------------------------------------------------
-
--- | Subtracts the second token quantity from the first.
---
--- Pre-condition: the first quantity is not less than the second quantity.
---
--- Throws a run-time exception if the pre-condition is violated.
---
-unsafeSubtract :: TokenQuantity -> TokenQuantity -> TokenQuantity
-unsafeSubtract (TokenQuantity x) (TokenQuantity y) = TokenQuantity $ x - y
