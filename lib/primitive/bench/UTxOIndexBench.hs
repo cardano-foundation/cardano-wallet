@@ -36,7 +36,7 @@ import Numeric.Natural
 import Test.QuickCheck
     ( choose, frequency, oneof, vectorOf )
 import Test.QuickCheck.Extra
-    ( GenSeed (GenSeed), GenSize (GenSize), chooseNatural, generateWith )
+    ( GenSeed (GenSeed), chooseNatural, genSizeDefault, generateWith )
 import Test.QuickCheck.Gen
     ( Gen (..) )
 import Test.Tasty.Bench
@@ -147,7 +147,7 @@ makeUTxOMapDiverse :: UTxOMapSize -> UTxOMap
 makeUTxOMapDiverse mapSize =
     -- We use a fixed PRNG seed and QC size parameter to maximise consistency
     -- between benchmark runs:
-    generateWith (GenSeed 0) (GenSize 30) (genUTxOMapDiverse mapSize)
+    generateWith (GenSeed 0) genSizeDefault (genUTxOMapDiverse mapSize)
 
 -- | Generates a map with a diverse variety of different bundles.
 --
