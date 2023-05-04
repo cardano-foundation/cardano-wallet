@@ -352,10 +352,7 @@ subtract = (</>)
 -- oneToken
 --
 difference :: TokenBundle -> TokenBundle -> TokenBundle
-difference (TokenBundle c1 m1) (TokenBundle c2 m2) =
-    TokenBundle
-        (Coin.difference c1 c2)
-        (TokenMap.difference m1 m2)
+difference = (<\>)
 
 --------------------------------------------------------------------------------
 -- Quantities
