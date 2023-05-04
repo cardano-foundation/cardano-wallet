@@ -34,9 +34,11 @@ import Data.Text.Format.Numbers
 import Numeric.Natural
     ( Natural )
 import Test.QuickCheck
-    ( Gen, choose, frequency, generate, oneof, variant, vectorOf )
+    ( choose, frequency, oneof, vectorOf )
 import Test.QuickCheck.Extra
-    ( chooseNatural )
+    ( GenSeed (GenSeed), chooseNatural, genSizeDefault, generateWith )
+import Test.QuickCheck.Gen
+    ( Gen (..) )
 import Test.Tasty.Bench
     ( Benchmark, bench, bgroup, defaultMain, nf )
 
@@ -64,9 +66,9 @@ benchmarkIndexFromMap = do
     let utxoMapNFTs__10_000 = makeUTxOMapNFTs  10_000
     let utxoMapNFTs_100_000 = makeUTxOMapNFTs 100_000
 
-    utxoMapDiverse___1_000 <- makeUTxOMapDiverse   1_000
-    utxoMapDiverse__10_000 <- makeUTxOMapDiverse  10_000
-    utxoMapDiverse_100_000 <- makeUTxOMapDiverse 100_000
+    let utxoMapDiverse___1_000 = makeUTxOMapDiverse   1_000
+    let utxoMapDiverse__10_000 = makeUTxOMapDiverse  10_000
+    let utxoMapDiverse_100_000 = makeUTxOMapDiverse 100_000
 
     -- Ensure the UTxO maps are fully evaluated (no thunks):
 
@@ -120,8 +122,8 @@ type UTxOMapSize = Int
 -- | Constructs a map with ada-only token bundles.
 --
 makeUTxOMapAdaOnly :: UTxOMapSize -> UTxOMap
-makeUTxOMapAdaOnly size =
-    Map.fromList $ take size $ zip testUTxOMapKeys bundles
+makeUTxOMapAdaOnly mapSize =
+    Map.fromList $ take mapSize $ zip testUTxOMapKeys bundles
   where
     bundles :: [TokenBundle]
     bundles = repeat $ TokenBundle.fromCoin minimalCoin
@@ -129,8 +131,8 @@ makeUTxOMapAdaOnly size =
 -- | Constructs a map with bundles consisting of (ada, NFT) pairs.
 --
 makeUTxOMapNFTs :: UTxOMapSize -> UTxOMap
-makeUTxOMapNFTs size =
-    Map.fromList $ take size $ zip testUTxOMapKeys bundles
+makeUTxOMapNFTs mapSize =
+    Map.fromList $ take mapSize $ zip testUTxOMapKeys bundles
   where
     bundles :: [TokenBundle]
     bundles = makeBundle <$> testUTxOMapKeys
@@ -141,20 +143,18 @@ makeUTxOMapNFTs size =
 
 -- | Constructs a map with a diverse variety of different bundles.
 --
-makeUTxOMapDiverse :: UTxOMapSize -> IO UTxOMap
-makeUTxOMapDiverse =
-    generateWithSeed fixedSeed . genUTxOMapDiverse
-  where
-    -- A fixed PRNG seed to maximise consistency between benchmark runs.
-    fixedSeed :: Int
-    fixedSeed = 0
+makeUTxOMapDiverse :: UTxOMapSize -> UTxOMap
+makeUTxOMapDiverse mapSize =
+    -- We use a fixed PRNG seed and QC size parameter to maximise consistency
+    -- between benchmark runs:
+    generateWith (GenSeed 0) genSizeDefault (genUTxOMapDiverse mapSize)
 
 -- | Generates a map with a diverse variety of different bundles.
 --
 genUTxOMapDiverse :: UTxOMapSize -> Gen UTxOMap
-genUTxOMapDiverse size =
+genUTxOMapDiverse mapSize =
     Map.fromList . zip testUTxOMapKeys <$>
-    vectorOf size genTokenBundle
+    vectorOf mapSize genTokenBundle
   where
     genTokenBundle :: Gen TokenBundle
     genTokenBundle = TokenBundle <$> genAdaQuantity <*> genTokenMap
@@ -226,11 +226,6 @@ minimalTokenQuantity = TokenQuantity 1
 --------------------------------------------------------------------------------
 -- Utilities
 --------------------------------------------------------------------------------
-
--- | Generates values using a specific PRNG seed.
---
-generateWithSeed :: Int -> Gen a -> IO a
-generateWithSeed seed = generate . variant seed
 
 -- | Pretty-prints a number with separators.
 --
