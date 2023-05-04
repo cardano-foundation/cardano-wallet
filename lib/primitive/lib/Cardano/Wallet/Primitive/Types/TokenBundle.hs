@@ -327,8 +327,7 @@ setCoin b c = b { coin = c }
 -- | Adds one token bundle to another.
 --
 add :: TokenBundle -> TokenBundle -> TokenBundle
-add (TokenBundle (Coin c1) m1) (TokenBundle (Coin c2) m2) =
-    TokenBundle (Coin $ c1 + c2) (TokenMap.add m1 m2)
+add = (<>)
 
 -- | Subtracts the second token bundle from the first.
 --
