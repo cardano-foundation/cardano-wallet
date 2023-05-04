@@ -32,6 +32,8 @@ import Cardano.Wallet.DB.Fixtures
     ( initializeWallet, withDBInMemory )
 import Cardano.Wallet.DB.Sqlite.Stores
     ( PersistAddressBook (..), mkStoreWallet )
+import Cardano.Wallet.DB.Store.Info.Store
+    ( WalletInfo (WalletInfo) )
 import Cardano.Wallet.DB.WalletState
     ( DeltaWalletState
     , DeltaWalletState1 (..)
@@ -40,6 +42,8 @@ import Cardano.Wallet.DB.WalletState
     , getLatest
     , getSlot
     )
+import Cardano.Wallet.DummyTarget.Primitive.Types
+    ( dummyGenesisParameters )
 import Cardano.Wallet.Primitive.Types
     ( SlotNo (..), WalletId (..), WithOrigin (..) )
 import Cardano.Wallet.Read.NetworkId
@@ -52,6 +56,8 @@ import Data.Delta
     ( Base, Delta (..) )
 import Data.Generics.Internal.VL.Lens
     ( over, (^.) )
+import Data.Maybe
+    ( fromJust )
 import Data.Store
     ( Store (..) )
 import Fmt
@@ -139,10 +145,10 @@ prop_loadAfterWrite toIO writeOp loadOp a = do
     Update
 -------------------------------------------------------------------------------}
 prop_StoreWallet
-    :: forall s.
-    ( PersistAddressBook s
-    , GenState s
-    )
+    :: forall s
+     . ( PersistAddressBook s
+       , GenState s
+       )
     => SqliteContext
     -> (WalletId, InitialCheckpoint s)
     -> Property
@@ -151,9 +157,18 @@ prop_StoreWallet db (wid, InitialCheckpoint cp0) =
   where
     toIO = runQuery db
     setup = run . toIO $ initializeWallet wid
+    genState = do
+        wi <-
+            WalletInfo wid
+                <$> arbitrary
+                <*> pure dummyGenesisParameters
+        pure $ fromJust . fromGenesis cp0 $ wi
     prop = do
-        let Just w0 = fromGenesis cp0
-        prop_StoreUpdates toIO (mkStoreWallet wid) (pure w0) genDeltaWalletState
+        prop_StoreUpdates
+            toIO
+            (mkStoreWallet wid)
+            genState
+            genDeltaWalletState
 
 genDeltaWalletState
     :: GenState s

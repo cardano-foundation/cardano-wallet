@@ -68,7 +68,7 @@ module Data.Store (
 
     -- ** Testing
     , embedStore'
-    , newStore, NotInitialized (..)
+    , newStore, NotInitialized (..), updateSequence
     ) where
 
 import Prelude
@@ -88,7 +88,7 @@ import Control.Concurrent.Class.MonadSTM
 import Control.Exception
     ( Exception, SomeException (..), toException )
 import Control.Monad
-    ( join )
+    ( foldM_, join )
 import Control.Monad.Class.MonadThrow
     ( MonadEvaluate, MonadMask, MonadThrow, evaluate, finally, mask, throwIO )
 import Data.Delta
@@ -617,3 +617,13 @@ loadWhenNothing
     => Maybe (Base da) -> Store m qa da -> m (Base da)
 loadWhenNothing (Just a) _ = pure a
 loadWhenNothing Nothing store = loadS store >>= throwLeft
+
+updateSequence
+    :: (Monad m, Delta delta)
+    => (Base delta -> delta -> m ())
+    -> Base delta
+    -> [delta]
+    -> m ()
+updateSequence f s = foldM_ update' s . reverse
+  where
+    update' s' da = f s' da >> pure (da `apply` s')

@@ -49,6 +49,8 @@ import Cardano.Wallet.Address.Book
     ( AddressBookIso (..), Discoveries, Prologue )
 import Cardano.Wallet.Checkpoints
     ( Checkpoints )
+import Cardano.Wallet.DB.Store.Info.Store
+    ( DeltaWalletInfo, WalletInfo (..) )
 import Cardano.Wallet.DB.Store.Submissions.Layer
     ( emptyTxSubmissions )
 import Cardano.Wallet.DB.Store.Submissions.Operations
@@ -126,19 +128,26 @@ data WalletState s = WalletState
     { prologue    :: !(Prologue s)
     , checkpoints :: !(Checkpoints (WalletCheckpoint s))
     , submissions :: !TxSubmissions
+    , info :: !WalletInfo
     } deriving (Generic)
 
 deriving instance AddressBookIso s => Eq (WalletState s)
 
 -- | Create a wallet from the genesis block.
-fromGenesis :: AddressBookIso s => W.Wallet s -> Maybe (WalletState s)
-fromGenesis cp
-    | W.isGenesisBlockHeader header = Just $
-        WalletState
-            { prologue
-            , checkpoints = CPS.fromGenesis checkpoint
-            , submissions = emptyTxSubmissions
-            }
+fromGenesis
+    :: AddressBookIso s
+    => W.Wallet s
+    -> WalletInfo
+    -> Maybe (WalletState s)
+fromGenesis cp winfo
+    | W.isGenesisBlockHeader header =
+        Just
+            $ WalletState
+                { prologue
+                , checkpoints = CPS.fromGenesis checkpoint
+                , submissions = emptyTxSubmissions
+                , info = winfo
+                }
     | otherwise = Nothing
   where
     header = cp ^. #currentTip
@@ -164,17 +173,20 @@ data DeltaWalletState1 s
     | UpdateCheckpoints (CPS.DeltasCheckpoints (WalletCheckpoint s))
     -- ^ Update the wallet checkpoints.
     | UpdateSubmissions [DeltaTxSubmissions]
+    | UpdateInfo DeltaWalletInfo
 
 instance Delta (DeltaWalletState1 s) where
     type Base (DeltaWalletState1 s) = WalletState s
     apply (ReplacePrologue p) = over #prologue $ const p
     apply (UpdateCheckpoints d) = over #checkpoints $ apply d
     apply (UpdateSubmissions d) = over #submissions $ apply d
+    apply (UpdateInfo d) = over #info $ apply d
 
 instance Buildable (DeltaWalletState1 s) where
     build (ReplacePrologue _) = "ReplacePrologue …"
     build (UpdateCheckpoints d) = "UpdateCheckpoints (" <> build d <> ")"
     build (UpdateSubmissions d) = "UpdateSubmissions (" <> build d <> ")"
+    build (UpdateInfo d) = "UpdateInfo (" <> build d <> ")"
 
 instance Show (DeltaWalletState1 s) where
     show = pretty

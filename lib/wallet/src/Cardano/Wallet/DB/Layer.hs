@@ -107,6 +107,8 @@ import Cardano.Wallet.DB.Sqlite.Types
     ( BlockId (..), TxId (..) )
 import Cardano.Wallet.DB.Store.Checkpoints
     ( PersistAddressBook (..), blockHeaderFromEntity, mkStoreWallet )
+import Cardano.Wallet.DB.Store.Info.Store
+    ( WalletInfo (..) )
 import Cardano.Wallet.DB.Store.Meta.Model
     ( mkTxMetaFromEntity )
 import Cardano.Wallet.DB.Store.Submissions.Layer
@@ -163,6 +165,8 @@ import Control.Monad.Trans.Except
     ( mapExceptT, runExceptT, throwE )
 import Control.Tracer
     ( Tracer, contramap, traceWith )
+import Data.Bifunctor
+    ( second )
 import Data.Coerce
     ( coerce )
 import Data.DBVar
@@ -226,8 +230,6 @@ import qualified Cardano.Wallet.Primitive.Types.Hash as W
 import qualified Cardano.Wallet.Primitive.Types.Tx as W
 import qualified Cardano.Wallet.Primitive.Types.Tx.TxOut as W
 import qualified Cardano.Wallet.Read.Tx as Read
-import Data.Bifunctor
-    ( second )
 import qualified Data.Generics.Internal.VL as L
 import qualified Data.Map.Strict as Map
 import qualified Data.Set as Set
@@ -716,7 +718,11 @@ mkDBFreshFromParts
         DBFresh
             { bootDBLayer = \params -> do
                 let cp = dBLayerParamsState params
-                case fromGenesis cp of
+                case fromGenesis cp
+                    $ WalletInfo
+                        wid_
+                        (dBLayerParamsMetadata params)
+                        (dBLayerParamsGenesisParameters params) of
                     Nothing ->
                         throwIO
                             $ ErrNotGenesisBlockHeader

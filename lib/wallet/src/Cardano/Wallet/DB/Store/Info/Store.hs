@@ -82,9 +82,9 @@ metadataFromEntity wal =
 
 -- | Compound type for 'WalletMetadata' and 'GenesisParameters'.
 data WalletInfo = WalletInfo
-    { walletId :: WalletId
-    , walletMeta :: WalletMetadata
-    , walletGenesisParameters :: GenesisParameters
+    { walletId :: !WalletId
+    , walletMeta :: !WalletMetadata
+    , walletGenesisParameters :: !GenesisParameters
     }
     deriving (Eq, Show)
 
