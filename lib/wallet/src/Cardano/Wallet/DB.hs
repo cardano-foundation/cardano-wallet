@@ -27,7 +27,6 @@ module Cardano.Wallet.DB
     , DBLayerCollection (..)
     , DBWallets (..)
     , DBCheckpoints (..)
-    , DBWalletMeta (..)
     , DBDelegation (..)
     , DBTxHistory (..)
     , DBPrivateKey (..)
@@ -581,17 +580,6 @@ data DBCheckpoints stm s = DBCheckpoints
     , readGenesisParameters_
         :: stm (Maybe GenesisParameters)
         -- ^ Read the *Byron* genesis parameters.
-    }
-
--- | A database layer for storing 'WalletMetadata'.
-data DBWalletMeta stm = DBWalletMeta
-    { putWalletMeta_ :: WalletMetadata -> stm ()
-        -- ^ Replace an existing wallet metadata with the given one.
-
-    , readWalletMeta_ :: stm WalletMetadata
-        -- ^ Fetch a wallet metadata, if they exist.
-        --
-        -- Return 'Nothing' if there's no such wallet.
     }
 
 -- | A database layer for storing delegation certificates

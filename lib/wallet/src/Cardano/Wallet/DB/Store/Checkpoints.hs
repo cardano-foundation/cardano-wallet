@@ -210,6 +210,7 @@ mkStoreWallet wid = mkUpdateStore load write update
                 <*> einfo
 
     write wallet = do
+        writeS infoStore (wallet ^. #info)
         insertPrologue wid (wallet ^. #prologue)
         writeS checkpointsStore (wallet ^. #checkpoints)
         writeS submissionsStore (wallet ^. #submissions)
