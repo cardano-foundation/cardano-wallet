@@ -82,7 +82,6 @@ import Cardano.Wallet.DB
     , DBOpen (..)
     , DBPrivateKey (..)
     , DBTxHistory (..)
-    , DBWallets (..)
     , ErrNotGenesisBlockHeader (ErrNotGenesisBlockHeader)
     , ErrWalletAlreadyInitialized (ErrWalletAlreadyInitialized)
     , ErrWalletNotInitialized (..)
@@ -164,7 +163,7 @@ import Control.Monad.IO.Class
 import Control.Monad.Trans
     ( lift )
 import Control.Monad.Trans.Except
-    ( mapExceptT, runExceptT, throwE )
+    ( mapExceptT, throwE )
 import Control.Tracer
     ( Tracer, contramap, traceWith )
 import Data.Bifunctor
@@ -555,26 +554,16 @@ newDBFreshFromDBOpen
     -> DBFresh IO s k
 newDBFreshFromDBOpen ti wid_ DBOpen{atomically=atomically_} =
     mkDBFreshFromParts ti wid_
-        dbWallets (mkStoreWallet wid_)
+        getWalletId_ (mkStoreWallet wid_)
             dbLayerCollection atomically_
   where
     transactionsQS = newQueryStoreTxWalletsHistory
 
-    dbWallets = DBWallets
-
-        { initializeWallet_ = \(DBLayerParams _ _ _ _) -> do
-            res <- lift $ runExceptT $ getWalletId_ dbWallets
-            case res of
-                Left ErrWalletNotInitialized -> pure ()
-                Right _ -> throwE ErrWalletAlreadyInitialized
-
-        , getWalletId_ = do
-            ws <- lift $ map unWalletKey <$> selectKeysList [] [Asc WalId]
-            case ws of
-                [w] -> pure w
-                _ -> throwE ErrWalletNotInitialized
-
-        }
+    getWalletId_ = do
+        ws <- map unWalletKey <$> selectKeysList [] [Asc WalId]
+        pure $ case ws of
+            [_] -> True
+            _ -> False
 
     dbLayerCollection walletsDB = DBLayerCollection{..}
       where
@@ -702,7 +691,7 @@ mkDBFreshFromParts
        )
     => TimeInterpreter IO
     -> W.WalletId
-    -> DBWallets stm s
+    -> stm Bool
     -> UpdateStore stm (DeltaWalletState s)
     -> (DBVar stm (DeltaWalletState s) -> DBLayerCollection stm m s k)
     -> (forall a. stm a -> m a)
@@ -710,7 +699,7 @@ mkDBFreshFromParts
 mkDBFreshFromParts
     ti
     wid_
-    DBWallets{getWalletId_}
+    getWalletId_
     store
     parts
     atomically_ =
@@ -727,10 +716,10 @@ mkDBFreshFromParts
                             $ ErrNotGenesisBlockHeader
                             $ cp ^. #currentTip
                     Just wallet -> do
-                        ewid <- lift . atomically_ . runExceptT $ getWalletId_
-                        case ewid of
-                            Right _ -> throwE ErrWalletAlreadyInitialized
-                            Left _ -> pure ()
+                        present <- lift . atomically_ $ getWalletId_
+                        if present
+                            then throwE ErrWalletAlreadyInitialized
+                            else pure ()
                         lift $ do
                             r@DBLayer{transactionsStore, atomically}
                                 <- atomically_ $ db <$> initDBVar store wallet
@@ -739,12 +728,12 @@ mkDBFreshFromParts
                                 $ dBLayerParamsHistory params
                             pure r
             , loadDBLayer = mapExceptT atomically_ $ do
-                ewid <- lift . runExceptT $ getWalletId_
-                case ewid of
-                    Right _ -> do
+                present <- lift getWalletId_
+                if present
+                    then do
                         walletsDB <- lift $ loadDBVar store
                         pure $ db walletsDB
-                    Left _ -> throwE ErrWalletNotInitialized
+                    else throwE ErrWalletNotInitialized
             }
       where
         db = mkDBLayerFromParts ti wid_ . parts

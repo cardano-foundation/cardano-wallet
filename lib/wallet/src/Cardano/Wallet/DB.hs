@@ -25,7 +25,6 @@ module Cardano.Wallet.DB
 
     -- * DBLayer building blocks
     , DBLayerCollection (..)
-    , DBWallets (..)
     , DBCheckpoints (..)
     , DBDelegation (..)
     , DBTxHistory (..)
@@ -548,20 +547,6 @@ mkDBLayerFromParts ti wid_ DBLayerCollection{..} = DBLayer
     readCurrentTip = currentTip <$> readCheckpoint_ dbCheckpoints
     mkUpdateSubmissions w = [UpdateSubmissions w]
     updateSubmissionsNoError = updateStateNoErrors submissions . walletsDB_
-
--- | A database layer for a collection of wallets
-data DBWallets stm s = DBWallets
-    { initializeWallet_
-        :: DBLayerParams s
-        -> ExceptT ErrWalletAlreadyInitialized stm ()
-        -- ^ Initialize a database entry for a given wallet. 'putCheckpoint',
-        -- 'putWalletMeta', 'putTxHistory' or 'putProtocolParameters' will
-        -- actually all fail if they are called _first_ on a wallet.
-
-    , getWalletId_
-        :: ExceptT ErrWalletNotInitialized stm WalletId
-        -- ^ Get the 'WalletId' of the wallet stored in the DB.
-    }
 
 -- | A database layer for storing wallet states.
 data DBCheckpoints stm s = DBCheckpoints
