@@ -3006,16 +3006,16 @@ withRootKey
     -> (k 'RootK XPrv -> PassphraseScheme -> ExceptT e IO a)
     -> ExceptT e IO a
 withRootKey DBLayer{..} wid pwd embed action = do
-    (xprv, scheme) <- withExceptT embed $ mapExceptT atomically $ do
-        mScheme <- (>>= (fmap passphraseScheme . passphraseInfo)) <$>
-            lift (Just . fst <$> readWalletMeta)
-        mXPrv <- lift readPrivateKey
-        case (mXPrv, mScheme) of
-            (Just (xprv, hpwd), Just scheme) -> do
-                withExceptT (ErrWithRootKeyWrongPassphrase wid) $ ExceptT $
-                    return $ checkPassphrase scheme pwd hpwd
-                return (xprv, scheme)
-            _ -> throwE $ ErrWithRootKeyNoRootKey wid
+    (xprv, scheme) <- withExceptT embed . ExceptT . atomically $ do
+        wMetadata <- fst <$> readWalletMeta
+        let mScheme = passphraseScheme <$> passphraseInfo wMetadata
+        mXPrv <- readPrivateKey
+        pure $ case (mXPrv, mScheme) of
+            (Just (xprv, hpwd), Just scheme) ->
+                case checkPassphrase scheme pwd hpwd of
+                    Left err -> Left $ ErrWithRootKeyWrongPassphrase wid err
+                    Right _ -> Right (xprv, scheme)
+            _ -> Left $ ErrWithRootKeyNoRootKey wid
     action xprv scheme
 
 -- | Sign an arbitrary transaction metadata object with a private key belonging
