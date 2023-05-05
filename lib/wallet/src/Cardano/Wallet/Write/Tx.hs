@@ -71,6 +71,7 @@ module Cardano.Wallet.Write.Tx
     , getFeePerByte
     , feeOfBytes
     , maxScriptExecutionCost
+    , stakeKeyDeposit
 
     -- * Tx
     , Core.Tx
@@ -887,6 +888,13 @@ maxScriptExecutionCost
     -> Coin
 maxScriptExecutionCost era pp = withConstraints era $
     txscriptfee (pp ^. #_prices) (pp ^. #_maxTxExUnits)
+
+stakeKeyDeposit
+    :: RecentEra era
+    -> Core.PParams (Cardano.ShelleyLedgerEra era)
+    -> Coin
+stakeKeyDeposit era pp = withConstraints era $
+    pp ^. #_keyDeposit
 
 --------------------------------------------------------------------------------
 -- Balancing

@@ -84,7 +84,7 @@ import Cardano.Wallet.Address.Derivation
 import Cardano.Wallet.Address.Derivation.Shared
     ( SharedKey (..) )
 import Cardano.Wallet.Primitive.Types
-    ( TokenBundleMaxSize (TokenBundleMaxSize, unTokenBundleMaxSize) )
+    ( TokenBundleMaxSize (TokenBundleMaxSize) )
 import Cardano.Wallet.Primitive.Types.Hash
     ( Hash (..) )
 import Cardano.Wallet.Primitive.Types.Redeemer
@@ -168,13 +168,11 @@ import Data.Generics.Labels
 import Data.Generics.Product
     ( getField )
 import Data.IntCast
-    ( intCast, intCastMaybe )
+    ( intCastMaybe )
 import Data.List.NonEmpty
     ( NonEmpty (..) )
 import Data.Maybe
     ( fromMaybe )
-import Data.Quantity
-    ( Quantity (..) )
 import Data.Text.Class
     ( ToText (..) )
 import Data.Type.Equality
@@ -529,7 +527,7 @@ balanceTransactionWithSelectionStrategyAndNoZeroAdaAdjustment
 balanceTransactionWithSelectionStrategyAndNoZeroAdaAdjustment
     tr
     (UTxOAssumptions txLayer toInpScriptsM mScriptTemplate txWitnessTag)
-    (ProtocolParameters _pp ledgerPP)
+    (ProtocolParameters pp)
     timeTranslation
     (UTxOIndex walletUTxO internalUtxoAvailable cardanoUTxO)
     genChange
@@ -656,7 +654,7 @@ balanceTransactionWithSelectionStrategyAndNoZeroAdaAdjustment
             (unsafeFromLovelace candidateMinFee)
             (extraOutputs)
 
-    let feePerByte = getFeePerByte (recentEra @era) ledgerPP
+    let feePerByte = getFeePerByte (recentEra @era) pp
 
     -- @distributeSurplus@ should never fail becase we have provided enough
     -- padding in @selectAssets'@.
@@ -726,10 +724,10 @@ balanceTransactionWithSelectionStrategyAndNoZeroAdaAdjustment
         -> Cardano.Tx era
         -> ExceptT ErrBalanceTx m (Cardano.Tx era)
     guardTxSize witCount tx@(Cardano.Tx body _noKeyWits) = do
-        let size = estimateSignedTxSize ledgerPP witCount body
+        let size = estimateSignedTxSize pp witCount body
         let maxSize = TxSize $ case (recentEra @era) of
-                RecentEraBabbage -> ledgerPP ^. #_maxTxSize
-                RecentEraConway -> ledgerPP ^. #_maxTxSize
+                RecentEraBabbage -> pp ^. #_maxTxSize
+                RecentEraConway -> pp ^. #_maxTxSize
 
         when (size > maxSize) $
             throwE ErrBalanceTxMaxSizeLimitExceeded
@@ -745,7 +743,7 @@ balanceTransactionWithSelectionStrategyAndNoZeroAdaAdjustment
     txBalance :: Cardano.Tx era -> Cardano.Value
     txBalance
         = Write.Tx.toCardanoValue @era
-        . Write.Tx.evaluateTransactionBalance (recentEra @era) ledgerPP
+        . Write.Tx.evaluateTransactionBalance (recentEra @era) pp
             (Write.Tx.fromCardanoUTxO combinedUTxO)
         . Write.Tx.txBody (recentEra @era)
         . Write.Tx.fromCardanoTx
@@ -756,7 +754,7 @@ balanceTransactionWithSelectionStrategyAndNoZeroAdaAdjustment
     balanceAfterSettingMinFee tx = ExceptT . pure $ do
         let witCount = estimateKeyWitnessCount combinedUTxO (getBody tx)
         let minfee = W.toWalletCoin $ Write.Tx.evaluateMinimumFee
-                (recentEra @era) ledgerPP (Write.Tx.fromCardanoTx tx) witCount
+                (recentEra @era) pp (Write.Tx.fromCardanoTx tx) witCount
         let update = TxUpdate [] [] [] [] (UseNewTxFee minfee)
         tx' <- left ErrBalanceTxUpdateError $ updateTx tx update
         let balance = txBalance tx'
@@ -824,15 +822,15 @@ balanceTransactionWithSelectionStrategyAndNoZeroAdaAdjustment
         :: W.TxOut
         -> TxOut (ShelleyLedgerEra era)
     toLedgerTxOut o = case recentEra @era of
-       RecentEraBabbage -> W.toBabbageTxOut o
-       RecentEraConway -> W.toConwayTxOut o
+         RecentEraBabbage -> W.toBabbageTxOut o
+         RecentEraConway -> W.toConwayTxOut o
 
     assembleTransaction :: TxUpdate -> ExceptT ErrBalanceTx m (Cardano.Tx era)
     assembleTransaction update = ExceptT . pure $ do
         tx' <- left ErrBalanceTxUpdateError $ updateTx partialTx update
         left ErrBalanceTxAssignRedeemers $
             assignScriptRedeemers
-                ledgerPP timeTranslation combinedUTxO redeemers tx'
+                pp timeTranslation combinedUTxO redeemers tx'
 
 
     guardConflictingWithdrawalNetworks
@@ -905,7 +903,7 @@ balanceTransactionWithSelectionStrategyAndNoZeroAdaAdjustment
             if null redeemers then
                 mempty
             else
-                maxScriptExecutionCost (recentEra @era) ledgerPP
+                maxScriptExecutionCost (recentEra @era) pp
 
         colReq =
             if txPlutusScriptExecutionCost > W.Coin 0
@@ -920,7 +918,7 @@ balanceTransactionWithSelectionStrategyAndNoZeroAdaAdjustment
         TokenBundle adaInInputs tokensInInputs =
             UTxOSelection.selectedBalance utxoSelection
 
-        feePerByte = getFeePerByte (recentEra @era) ledgerPP
+        feePerByte = getFeePerByte (recentEra @era) pp
 
         boringFee =
             calculateMinimumFee
@@ -964,20 +962,20 @@ balanceTransactionWithSelectionStrategyAndNoZeroAdaAdjustment
                 $ TokenBundleMaxSize
                 $ TxSize
                 $ case recentEra @era of
-                    RecentEraBabbage -> ledgerPP ^. #_maxValSize
-                    RecentEraConway -> ledgerPP ^. #_maxValSize
+                    RecentEraBabbage -> pp ^. #_maxValSize
+                    RecentEraConway -> pp ^. #_maxValSize
             , certificateDepositAmount = W.toWallet $ case recentEra @era of
-                RecentEraBabbage -> getField @"_keyDeposit" ledgerPP
-                RecentEraConway -> getField @"_keyDeposit" ledgerPP
+                RecentEraBabbage -> getField @"_keyDeposit" pp
+                RecentEraConway -> getField @"_keyDeposit" pp
             , computeMinimumAdaQuantity = \addr tokens -> W.toWallet $
                 computeMinimumCoinForTxOut
                     (recentEra @era)
-                    ledgerPP
+                    pp
                     (toLedgerTxOut $ W.TxOut addr (TokenBundle txOutMaxCoin tokens))
             , isBelowMinimumAdaQuantity = \addr bundle ->
                 isBelowMinimumCoinForTxOut
                     (recentEra @era)
-                    ledgerPP
+                    pp
                     (toLedgerTxOut $ W.TxOut addr bundle)
             , computeMinimumCost = \skeleton -> mconcat
                 [ feePadding
@@ -996,17 +994,17 @@ balanceTransactionWithSelectionStrategyAndNoZeroAdaAdjustment
             , maximumCollateralInputCount = unsafeIntCast @Natural @Int $
                 case recentEra @era of
                     RecentEraBabbage ->
-                        getField @"_maxCollateralInputs" ledgerPP
+                        getField @"_maxCollateralInputs" pp
                     RecentEraConway ->
-                        getField @"_maxCollateralInputs" ledgerPP
+                        getField @"_maxCollateralInputs" pp
 
             , minimumCollateralPercentage = case recentEra @era of
                 -- case-statement avoids "Overlapping instances" problem.
                 -- May be avoidable with ADP-2353.
                 RecentEraBabbage ->
-                    getField @"_collateralPercentage" ledgerPP
+                    getField @"_collateralPercentage" pp
                 RecentEraConway ->
-                    getField @"_collateralPercentage" ledgerPP
+                    getField @"_collateralPercentage" pp
             , maximumLengthChangeAddress =
                 maxLengthChangeAddress genChange
             }
