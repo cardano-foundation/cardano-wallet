@@ -69,6 +69,7 @@ module Cardano.Wallet.Write.Tx
     , Core.PParams
     , FeePerByte (..)
     , getFeePerByte
+    , maxScriptExecutionCost
 
     -- * Tx
     , Core.Tx
@@ -275,6 +276,8 @@ type RecentEraLedgerConstraints era =
     , HasField' "_collateralPercentage" (Core.PParams era) Natural
     , HasField' "_maxCollateralInputs" (Core.PParams era) Natural
     , HasField' "_minfeeA" (Core.PParams era) Natural
+    , HasField' "_prices" (Core.PParams era) ExUnitPrices
+    , HasField' "_maxTxExUnits" (Core.PParams era) ExUnits
     )
 
 -- | Bring useful constraints into scope from a value-level
@@ -862,6 +865,20 @@ getFeePerByte
 getFeePerByte era pp = FeePerByte $ case era of
     RecentEraConway -> pp ^. #_minfeeA
     RecentEraBabbage -> pp ^. #_minfeeA
+
+type ExUnitPrices = Alonzo.Prices
+
+type ExUnits = Alonzo.ExUnits
+
+txscriptfee :: ExUnitPrices -> ExUnits -> Coin
+txscriptfee = Alonzo.txscriptfee
+
+maxScriptExecutionCost
+    :: RecentEra era
+    -> Core.PParams (ShelleyLedgerEra era)
+    -> Coin
+maxScriptExecutionCost era pp = withConstraints era $
+    txscriptfee (pp ^. #_prices) (pp ^. #_maxTxExUnits)
 
 --------------------------------------------------------------------------------
 -- Balancing

@@ -113,7 +113,6 @@ import Cardano.Wallet.Shelley.Transaction
     , distributeSurplus
     , estimateKeyWitnessCount
     , estimateSignedTxSize
-    , maxScriptExecutionCost
     , updateTx
     )
 import Cardano.Wallet.Transaction
@@ -135,6 +134,7 @@ import Cardano.Wallet.Write.Tx
     , TxOut
     , computeMinimumCoinForTxOut
     , getFeePerByte
+    , maxScriptExecutionCost
     , modifyLedgerBody
     , modifyTxOutCoin
     , modifyTxOutputs
@@ -893,7 +893,12 @@ balanceTransactionWithSelectionStrategyAndNoZeroAdaAdjustment
             $ runExceptT
             $ performSelection selectionConstraints selectionParams
       where
-        txPlutusScriptExecutionCost = maxScriptExecutionCost pp redeemers
+        txPlutusScriptExecutionCost = W.toWallet @W.Coin $
+            if null redeemers then
+                mempty
+            else
+                maxScriptExecutionCost (recentEra @era) ledgerPP
+
         colReq =
             if txPlutusScriptExecutionCost > W.Coin 0
                 then SelectionCollateralRequired
@@ -907,10 +912,12 @@ balanceTransactionWithSelectionStrategyAndNoZeroAdaAdjustment
         TokenBundle adaInInputs tokensInInputs =
             UTxOSelection.selectedBalance utxoSelection
 
+        feePerByte = getFeePerByte (recentEra @era) ledgerPP
+
         boringFee =
             calculateMinimumFee
                 era
-                pp
+                feePerByte
                 txWitnessTag
                 defaultTransactionCtx
                 SelectionSkeleton
@@ -957,14 +964,14 @@ balanceTransactionWithSelectionStrategyAndNoZeroAdaAdjustment
             , computeMinimumCost = \skeleton -> mconcat
                 [ feePadding
                 , fromCardanoLovelace fee0
+                , txPlutusScriptExecutionCost
                 , calculateMinimumFee
                     era
-                    pp
+                    feePerByte
                     txWitnessTag
                     (defaultTransactionCtx
                         { txPaymentCredentialScriptTemplate = mScriptTemplate
-                        , txPlutusScriptExecutionCost =
-                            txPlutusScriptExecutionCost })
+                        })
                     skeleton
                 ] `Coin.difference` boringFee
             , computeSelectionLimit = \_ -> NoLimit

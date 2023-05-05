@@ -253,7 +253,6 @@ import Cardano.Wallet.Shelley.Transaction
     , estimateTxCost
     , estimateTxSize
     , evaluateMinimumFee
-    , maxScriptExecutionCost
     , maximumCostOfIncreasingCoin
     , mkByronWitness
     , mkDelegationCertificates
@@ -1320,26 +1319,6 @@ feeCalculationSpec era = describe "fee calculations" $ do
             & counterexample ("size with: " <> show sizeWith)
             & counterexample ("size without: " <> show sizeWithout)
 
-    describe "calculate fee execution costs" $ do
-        let ppWithPrices :: ProtocolParameters
-            ppWithPrices = dummyProtocolParameters
-                { executionUnitPrices = Just (ExecutionUnitPrices 1 1)
-                , txParameters = dummyTxParameters
-                    { getMaxExecutionUnits = ExecutionUnits 10_000_000 10_000_000_000
-                    }
-                }
-        txs <- readTestTransactions
-        forM_ txs $ \(filepath, tx) -> do
-            let rdmrs = replicate (sealedNumberOfRedeemers tx) (error "Redeemer")
-            if (null rdmrs) then do
-                it ("without redeemers: " <> filepath) $
-                    maxScriptExecutionCost ppWithPrices rdmrs
-                        `shouldBe` (Coin 0)
-            else do
-                it ("with redeemers: " <> filepath) $
-                    maxScriptExecutionCost ppWithPrices rdmrs
-                        `shouldSatisfy` (> (Coin 0))
-
     describe "fee calculations" $ do
         it "withdrawals incur fees" $ property $ \wdrl ->
             let
@@ -1486,22 +1465,16 @@ feeCalculationSpec era = describe "fee calculations" $ do
                 & counterexample ("size without: " <> show sizeWithout)
 
   where
-    pp :: ProtocolParameters
-    pp = dummyProtocolParameters
-            { txParameters = dummyTxParameters
-                { getFeePolicy =
-                    LinearFee LinearFunction {intercept = 100_000, slope = 100}
-                }
-            }
+    feePerByte = mainnetFeePerByte
 
     minFee :: TransactionCtx -> Integer
-    minFee ctx =
-        Coin.toInteger $ calculateMinimumFee era pp witnessTag ctx emptySkeleton
+    minFee ctx = Coin.toInteger $
+        calculateMinimumFee era feePerByte witnessTag ctx emptySkeleton
       where
         witnessTag = txWitnessTagFor @ShelleyKey
 
     minFeeSkeleton :: TxSkeleton -> Integer
-    minFeeSkeleton = Coin.toInteger . estimateTxCost era pp
+    minFeeSkeleton = Coin.toInteger . estimateTxCost era feePerByte
 
     estimateTxSize' :: TxSkeleton -> Integer
     estimateTxSize' = fromIntegral . unTxSize . estimateTxSize era
@@ -1809,9 +1782,7 @@ binaryCalculationsSpec' era = describe ("calculateBinary - "+||era||+"") $ do
 
 transactionConstraintsSpec :: Spec
 transactionConstraintsSpec = describe "Transaction constraints" $ do
-    spec_forAllEras "cost of empty transaction" prop_txConstraints_txBaseCost
     spec_forAllEras "size of empty transaction" prop_txConstraints_txBaseSize
-    spec_forAllEras "cost of non-empty transaction" prop_txConstraints_txCost
     it "size of non-empty transaction" $
         property prop_txConstraints_txSize
     it "maximum size of output" $
@@ -2021,18 +1992,6 @@ dummyWit b =
 dummyTxId :: Hash "Tx"
 dummyTxId = Hash $ BS.pack $ replicate 32 0
 
-dummyTxParameters :: TxParameters
-dummyTxParameters = TxParameters
-    { getFeePolicy =
-        error "dummyTxParameters: getFeePolicy"
-    , getTxMaxSize =
-        error "dummyTxParameters: getTxMaxSize"
-    , getTokenBundleMaxSize =
-        error "dummyTxParameters: getMaxTokenBundleSize"
-    , getMaxExecutionUnits =
-        error "dummyTxParameters: getMaxExecutionUnits"
-    }
-
 dummyProtocolParameters :: ProtocolParameters
 dummyProtocolParameters = ProtocolParameters
     { decentralizationLevel =
@@ -2139,16 +2098,7 @@ instance Arbitrary MockSelection where
     arbitrary = genMockSelection
     shrink = shrinkMockSelection
 
--- Tests that using 'txBaseCost' to estimate the cost of an empty selection
--- produces a result that is consistent with the result of using
--- 'estimateTxCost'.
---
-prop_txConstraints_txBaseCost :: AnyCardanoEra -> Property
-prop_txConstraints_txBaseCost era =
-    txBaseCost (mockTxConstraints era)
-        === estimateTxCost era mockProtocolParameters emptyTxSkeleton
-
--- Tests that using 'txBaseSize' to estimate the size of an empty selection
+-- Tests that using 'txBaseSize' to estimate the size of an empty selection                                                                        ....
 -- produces a result that is consistent with the result of using
 -- 'estimateTxSize'.
 --
@@ -2156,34 +2106,6 @@ prop_txConstraints_txBaseSize :: AnyCardanoEra -> Property
 prop_txConstraints_txBaseSize era =
     txBaseSize (mockTxConstraints era)
         === estimateTxSize era emptyTxSkeleton
-
--- Tests that using 'txConstraints' to estimate the cost of a non-empty
--- selection produces a result that is consistent with the result of using
--- 'estimateTxCost'.
---
-prop_txConstraints_txCost :: AnyCardanoEra -> MockSelection -> Property
-prop_txConstraints_txCost era mock =
-    counterexample ("result: " <> show result) $
-    counterexample ("lower bound: " <> show lowerBound) $
-    counterexample ("upper bound: " <> show upperBound) $
-    conjoin
-        [ result >= lowerBound
-        , result <= upperBound
-        ]
-  where
-    MockSelection {txInputCount, txOutputs, txRewardWithdrawal} = mock
-    result :: Coin
-    result = mconcat
-        [ txBaseCost (mockTxConstraints era)
-        , txInputCount `mtimesDefault` txInputCost (mockTxConstraints era)
-        , F.foldMap (txOutputCost (mockTxConstraints era) . tokens) txOutputs
-        , txRewardWithdrawalCost (mockTxConstraints era) txRewardWithdrawal
-        ]
-    lowerBound = estimateTxCost era mockProtocolParameters emptyTxSkeleton
-        {txInputCount, txOutputs, txRewardWithdrawal}
-    -- We allow a small amount of overestimation due to the slight variation in
-    -- the marginal cost of an input:
-    upperBound = lowerBound <> txInputCount `mtimesDefault` Coin (4*44)
 
 -- Tests that using 'txConstraints' to estimate the size of a non-empty
 -- selection produces a result that is consistent with the result of using
@@ -4464,41 +4386,6 @@ sealedOutputs =
     . view #outputs
     . fst6
     . _decodeSealedTx maxBound (ShelleyWalletCtx dummyPolicyK)
-
-sealedNumberOfRedeemers :: SealedTx -> Int
-sealedNumberOfRedeemers sealedTx =
-    case cardanoTx sealedTx of
-        InAnyCardanoEra ByronEra _   -> 0
-        InAnyCardanoEra ShelleyEra _ -> 0
-        InAnyCardanoEra AllegraEra _ -> 0
-        InAnyCardanoEra MaryEra _    -> 0
-        InAnyCardanoEra AlonzoEra (Cardano.Tx body _) ->
-            let dats =
-                    case body of
-                        Cardano.ShelleyTxBody _ _ _ d _ _ -> d
-            in case dats of
-                    Cardano.TxBodyNoScriptData ->
-                        0
-                    Cardano.TxBodyScriptData _ _ (Alonzo.Redeemers rdmrs) ->
-                        Map.size rdmrs
-        InAnyCardanoEra BabbageEra (Cardano.Tx body _) ->
-            let dats =
-                    case body of
-                        Cardano.ShelleyTxBody _ _ _ d _ _ -> d
-            in case dats of
-                    Cardano.TxBodyNoScriptData ->
-                        0
-                    Cardano.TxBodyScriptData _ _ (Alonzo.Redeemers rdmrs) ->
-                        Map.size rdmrs
-        InAnyCardanoEra ConwayEra (Cardano.Tx body _) ->
-            let dats =
-                    case body of
-                        Cardano.ShelleyTxBody _ _ _ d _ _ -> d
-            in case dats of
-                    Cardano.TxBodyNoScriptData ->
-                        0
-                    Cardano.TxBodyScriptData _ _ (Alonzo.Redeemers rdmrs) ->
-                        Map.size rdmrs
 
 sealedFee
     :: forall era. Cardano.IsCardanoEra era => Cardano.Tx era -> Maybe Coin

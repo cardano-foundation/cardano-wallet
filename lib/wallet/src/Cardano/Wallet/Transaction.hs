@@ -246,9 +246,6 @@ data TransactionCtx = TransactionCtx
     -- transaction is valid.
     , txDelegationAction :: Maybe DelegationAction
     -- ^ An additional delegation to take.
-    , txPlutusScriptExecutionCost :: Coin
-    -- ^ Total execution cost of plutus scripts, determined by their execution units
-    -- and prices obtained from network.
     , txAssetsToMint :: (TokenMap, Map AssetId (Script KeyHash))
     -- ^ The assets to mint.
     , txAssetsToBurn :: (TokenMap, Map AssetId (Script KeyHash))
@@ -261,10 +258,6 @@ data TransactionCtx = TransactionCtx
     -- ^ A map of script hashes related to inputs. Only for multisig wallets
     , txCollateralRequirement :: SelectionCollateralRequirement
     -- ^ The collateral requirement.
-    , txFeePadding :: !Coin
-    -- ^ Extra fees. Some parts of a transaction are not representable using
-    -- cardano-wallet types, which makes it useful to account for them like
-    -- this. For instance: datums.
     } deriving Generic
 
 -- | Represents a preliminary selection of tx outputs typically made by user.
@@ -296,14 +289,12 @@ defaultTransactionCtx = TransactionCtx
     , txMetadata = Nothing
     , txValidityInterval = (Nothing, maxBound)
     , txDelegationAction = Nothing
-    , txPlutusScriptExecutionCost = Coin 0
     , txAssetsToMint = (TokenMap.empty, Map.empty)
     , txAssetsToBurn = (TokenMap.empty, Map.empty)
     , txPaymentCredentialScriptTemplate = Nothing
     , txStakingCredentialScriptTemplate = Nothing
     , txNativeScriptInputs = Map.empty
     , txCollateralRequirement = SelectionCollateralNotRequired
-    , txFeePadding = Coin 0
     }
 
 -- | User-requested action related to a delegation
