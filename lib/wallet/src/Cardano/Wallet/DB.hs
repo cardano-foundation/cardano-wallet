@@ -242,7 +242,7 @@ data DBLayer m s k = forall stm. (MonadIO stm, MonadFail stm) => DBLayer
         -- ^ List all known checkpoint tips, ordered by slot ids from the oldest
         -- to the newest.
 
-    , readWalletMeta :: stm (WalletMetadata, WalletDelegation)
+    , readWalletMeta :: stm WalletMetadata
         -- ^ Fetch a wallet metadata, if they exist.
 
     , readDelegation :: stm WalletDelegation
@@ -462,13 +462,7 @@ mkDBLayerFromParts ti wid_ DBLayerCollection{..} = DBLayer
     , putCheckpoint = putCheckpoint_ dbCheckpoints
     , readCheckpoint = readCheckpoint'
     , listCheckpoints = listCheckpoints_ dbCheckpoints
-    , readWalletMeta = do
-        readCheckpoint' >>= \cp -> do
-                currentEpoch <- liftIO $
-                    interpretQuery ti (epochOf $ cp ^. #currentTip . #slotNo)
-                del <- readDelegation_ dbDelegation currentEpoch
-                wm <- readWalletMeta_
-                pure (wm, del)
+    , readWalletMeta = readWalletMeta_
     , readDelegation = do
         readCheckpoint' >>= \cp -> do
             currentEpoch <- liftIO $

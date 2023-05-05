@@ -1268,7 +1268,7 @@ patchSharedWallet ctx liftKey cred (ApiT wid) body = do
                         --could be for account and root key wallets
                         prvKeyM <- atomically readPrivateKey
                         meta <- atomically readWalletMeta
-                        pure (state, prvKeyM, fst meta)
+                        pure (state, prvKeyM, meta)
 
         void $ deleteWallet ctx (ApiT wid)
         let wName = meta ^. #name

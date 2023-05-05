@@ -862,13 +862,14 @@ readWallet
 readWallet ctx = db & \DBLayer{..} -> atomically $ do
     cp <- readCheckpoint
     meta <- readWalletMeta
+    dele <- readDelegation
     pending <- readTransactions
         Nothing
         Descending
         wholeRange
         (Just Pending)
         Nothing
-    pure (cp, meta, Set.fromList (fromTransactionInfo <$> pending))
+    pure (cp, (meta, dele) , Set.fromList (fromTransactionInfo <$> pending))
   where
     db = ctx ^. dbLayer @IO @s @k
 
@@ -2997,7 +2998,7 @@ attachPrivateKey db (xprv, hpwd) scheme = db & \DBLayer{..} -> do
                     , passphraseScheme = scheme
                     }
                 }
-        putWalletMeta walletsDB (modify $ fst meta)
+        putWalletMeta walletsDB (modify meta)
 
 -- | Execute an action which requires holding a root XPrv.
 --
@@ -3025,7 +3026,7 @@ withRootKey
     -> ExceptT e IO a
 withRootKey DBLayer{..} wid pwd embed action = do
     (xprv, scheme) <- withExceptT embed . ExceptT . atomically $ do
-        wMetadata <- fst <$> readWalletMeta
+        wMetadata <- readWalletMeta
         let mScheme = passphraseScheme <$> passphraseInfo wMetadata
         mXPrv <- readPrivateKey
         pure $ case (mXPrv, mScheme) of

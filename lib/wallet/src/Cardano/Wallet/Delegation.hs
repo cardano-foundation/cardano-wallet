@@ -122,7 +122,7 @@ joinStakePoolDelegationAction
     tr DBLayer{..} currentEpoch knownPools poolId poolStatus = do
     (walletDelegation, stakeKeyIsRegistered) <-
         atomically $
-            (,) <$> (snd <$> readWalletMeta)
+            (,) <$> readDelegation
                 <*> isStakeKeyRegistered
 
     let retirementInfo =
@@ -198,7 +198,7 @@ quitStakePoolDelegationAction
     -> Withdrawal
     -> IO Tx.DelegationAction
 quitStakePoolDelegationAction db@DBLayer{..} withdrawal = do
-    (_, delegation) <- atomically readWalletMeta
+    delegation <- atomically readDelegation
     rewards <- liftIO $ fetchRewardBalance @s @k db
     either (throwIO . ExceptionStakePoolDelegation . ErrStakePoolQuit) pure
         (guardQuit delegation withdrawal rewards)
