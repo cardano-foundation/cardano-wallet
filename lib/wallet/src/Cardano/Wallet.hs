@@ -333,7 +333,6 @@ import Cardano.Wallet.DB.WalletState
     , getSlot
     , updateState
     , updateStateWithResult
-    , updateStateWithResultNoError
     )
 import Cardano.Wallet.Flavor
     ( WalletFlavor (..), WalletFlavorS (..) )
@@ -1562,10 +1561,9 @@ assignChangeAddressesAndUpdateDb
 assignChangeAddressesAndUpdateDb ctx argGenChange selection =
     db & \DBLayer{..} ->
         atomically
-            $ updateStateWithResultNoError
-                id
-                walletsDB
-                assignChangeAddressesAndUpdateDb'
+            . Delta.onDBVar walletsDB
+            . Delta.updateWithResult
+            $ assignChangeAddressesAndUpdateDb'
   where
     db = ctx ^. dbLayer @IO @s @k
     assignChangeAddressesAndUpdateDb' wallet =

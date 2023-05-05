@@ -38,7 +38,6 @@ module Cardano.Wallet.DB.WalletState
 
     , updateState
     , updateStateWithResult
-    , updateStateWithResultNoError
     ) where
 
 import Prelude
@@ -230,17 +229,3 @@ updateState
     -- ^ The update function
     -> ExceptT e m ()
 updateState d state use = updateStateWithResult d state $ fmap (,()) . use
-
-updateStateWithResultNoError :: (Delta da, Monad m)
-    => (Base da -> w)
-    -- ^ Get the part of the state that we want to update
-    -> DBVar m da
-    -- ^ The state variable
-    -> (w -> (da, b))
-    -- ^ The update function
-    -> m b
-updateStateWithResultNoError d state use = do
-    er <- runExceptT $ updateStateWithResult d state $ fmap Right use
-    case er of
-        Left _ -> error "updateStateWithResultNoError: impossible"
-        Right r -> pure r

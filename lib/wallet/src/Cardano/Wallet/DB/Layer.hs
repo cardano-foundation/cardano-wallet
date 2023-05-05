@@ -141,7 +141,6 @@ import Cardano.Wallet.DB.WalletState
     , getBlockHeight
     , getLatest
     , getSlot
-    , updateStateWithResultNoError
     )
 import Cardano.Wallet.Primitive.Passphrase.Types
     ( PassphraseHash )
@@ -614,7 +613,9 @@ newDBFreshFromDBOpen ti wid_ DBOpen{atomically=atomically_} =
             }
 
         rollbackTo_ requestedPoint = do
-            nearestCheckpoint <- updateStateWithResultNoError id walletsDB
+            nearestCheckpoint
+                <- Delta.onDBVar walletsDB
+                $ Delta.updateWithResult
                 $ \wal ->
                 case findNearestPoint wal requestedPoint of
                     Nothing -> throw $ ErrNoOlderCheckpoint wid_ requestedPoint
