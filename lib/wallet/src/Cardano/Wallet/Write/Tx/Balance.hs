@@ -97,7 +97,7 @@ import Cardano.Wallet.Primitive.Types.TokenQuantity
 import Cardano.Wallet.Primitive.Types.Tx
     ( SealedTx, sealedTxFromCardano )
 import Cardano.Wallet.Primitive.Types.Tx.Constraints
-    ( TxSize (..), txOutMaxCoin )
+    ( TokenBundleSizeAssessor, TxSize (..), txOutMaxCoin )
 import Cardano.Wallet.Primitive.Types.UTxOSelection
     ( UTxOSelection )
 import Cardano.Wallet.Shelley.Compatibility
@@ -165,7 +165,6 @@ import Data.Bits
     ( Bits )
 import Data.Either
     ( lefts, partitionEithers )
-import qualified Data.Foldable as F
 import Data.Generics.Internal.VL.Lens
     ( over, view, (^.) )
 import Data.Generics.Labels
@@ -210,8 +209,8 @@ import qualified Cardano.Api as Cardano
 import qualified Cardano.Api.Byron as Cardano
 import qualified Cardano.Api.Shelley as Cardano
 import qualified Cardano.Wallet.Primitive.Types.Address as W
-import qualified Cardano.Wallet.Primitive.Types.Coin as Coin
 import qualified Cardano.Wallet.Primitive.Types.Coin as W
+import qualified Cardano.Wallet.Primitive.Types.Coin as Coin
 import qualified Cardano.Wallet.Primitive.Types.TokenBundle as TokenBundle
 import qualified Cardano.Wallet.Primitive.Types.Tx as W
 import qualified Cardano.Wallet.Primitive.Types.Tx.TxIn as W
@@ -221,6 +220,8 @@ import qualified Cardano.Wallet.Primitive.Types.UTxO as UTxO
 import qualified Cardano.Wallet.Primitive.Types.UTxOIndex as UTxOIndex
 import qualified Cardano.Wallet.Primitive.Types.UTxOSelection as UTxOSelection
 import qualified Cardano.Wallet.Shelley.Compatibility.Ledger as W
+import qualified Cardano.Wallet.Write.Tx as Write
+import qualified Data.Foldable as F
 import qualified Data.Map as Map
 import qualified Data.Set as Set
 
@@ -530,7 +531,7 @@ balanceTransactionWithSelectionStrategyAndNoZeroAdaAdjustment
 balanceTransactionWithSelectionStrategyAndNoZeroAdaAdjustment
     tr
     (UTxOAssumptions txLayer toInpScriptsM mScriptTemplate txWitnessTag)
-    (ProtocolParameters pp)
+    protocolParameters@(ProtocolParameters pp)
     timeTranslation
     (UTxOIndex walletUTxO internalUtxoAvailable cardanoUTxO)
     genChange
@@ -543,8 +544,6 @@ balanceTransactionWithSelectionStrategyAndNoZeroAdaAdjustment
     guardExistingReturnCollateral partialTx
     guardConflictingWithdrawalNetworks partialTx
     guardWalletUTxOConsistencyWith inputUTxO
-
-    let era = Cardano.anyCardanoEra $ Cardano.cardanoEra @era
 
     (balance0, minfee0, _) <- balanceAfterSettingMinFee partialTx
 
@@ -584,13 +583,20 @@ balanceTransactionWithSelectionStrategyAndNoZeroAdaAdjustment
         externalSelectedUtxo <- extractExternallySelectedUTxO ptx
 
         let mSel = selectAssets'
-                era
+                (recentEra @era)
+                protocolParameters
+                txWitnessTag
                 (extractOutputsFromTx partialTx)
+                redeemers
                 (UTxOSelection.fromIndexPair
                     (internalUtxoAvailable, externalSelectedUtxo))
                 balance0
-                minfee0
+                (fromCardanoLovelace minfee0)
                 randomSeed
+                mScriptTemplate
+                genChange
+                selectionStrategy
+                (tokenBundleSizeAssessor txLayer)
 
         case mSel of
             Left e -> lift $ traceWith tr $ MsgSelectionError e
@@ -820,20 +826,12 @@ balanceTransactionWithSelectionStrategyAndNoZeroAdaAdjustment
            RecentEraBabbage -> W.fromBabbageTxOut o
            RecentEraConway -> W.fromConwayTxOut o
 
-    toLedgerTxOut
-        :: W.TxOut
-        -> TxOut (ShelleyLedgerEra era)
-    toLedgerTxOut o = case recentEra @era of
-         RecentEraBabbage -> W.toBabbageTxOut o
-         RecentEraConway -> W.toConwayTxOut o
-
     assembleTransaction :: TxUpdate -> ExceptT ErrBalanceTx m (Cardano.Tx era)
     assembleTransaction update = ExceptT . pure $ do
         tx' <- left ErrBalanceTxUpdateError $ updateTx partialTx update
         left ErrBalanceTxAssignRedeemers $
             assignScriptRedeemers
                 pp timeTranslation combinedUTxO redeemers tx'
-
 
     guardConflictingWithdrawalNetworks
         (Cardano.Tx (Cardano.TxBody body) _) = do
@@ -880,158 +878,174 @@ balanceTransactionWithSelectionStrategyAndNoZeroAdaAdjustment
             Cardano.TxReturnCollateral _ _ ->
                throwE ErrBalanceTxExistingReturnCollateral
 
-    -- | Select assets to cover the specified balance and fee.
-    --
-    -- If the transaction contains redeemers, the function will also ensure the
-    -- selection covers the fees for the maximum allowed execution units of a
-    -- transaction. For this, and other reasons, the selection may include too
-    -- much ada.
-    selectAssets'
-        :: Cardano.AnyCardanoEra
-        -> [W.TxOut]
-        -> UTxOSelection WalletUTxO
-        -- ^ Describes which utxos are pre-selected, and which can be used as
-        -- inputs or collateral.
-        -> Cardano.Value -- Balance to cover
-        -> Cardano.Lovelace -- Current minfee (before selecting assets)
-        -> StdGenSeed
-        -> Either (SelectionError WalletSelectionContext) Selection
-    selectAssets' era outs utxoSelection balance fee0 seed =
-        flip evalRand (stdGenFromSeed seed)
-            $ runExceptT
+    fromCardanoLovelace (Cardano.Lovelace l) = Coin.unsafeFromIntegral l
+
+-- | Select assets to cover the specified balance and fee.
+--
+-- If the transaction contains redeemers, the function will also ensure the
+-- selection covers the fees for the maximum allowed execution units of a
+-- transaction. For this, and other reasons, the selection may include too
+-- much ada.
+selectAssets'
+    :: forall era changeState
+     . Cardano.IsCardanoEra era
+    => RecentEra era
+    -> ProtocolParameters era
+    -> TxWitnessTag
+    -> [W.TxOut]
+    -> [Redeemer]
+    -> UTxOSelection WalletUTxO
+    -- ^ Describes which utxos are pre-selected, and which can be used as
+    -- inputs or collateral.
+    -> Cardano.Value -- Balance to cover
+    -> W.Coin -- Current minfee (before selecting assets)
+    -> StdGenSeed
+    -> Maybe ScriptTemplate
+    -> ChangeAddressGen changeState
+    -> SelectionStrategy
+    -> (TokenBundleMaxSize -> TokenBundleSizeAssessor)
+    -- ^ A function to assess the size of a token bundle.
+    -> Either (SelectionError WalletSelectionContext) Selection
+selectAssets' era (ProtocolParameters pp) txWitnessTag outs redeemers
+    utxoSelection balance fee0 seed inputScriptTemplate changeGen
+    selectionStrategy bundleSizeAssessor =
+        (`evalRand` stdGenFromSeed seed) . runExceptT
             $ performSelection selectionConstraints selectionParams
-      where
-        txPlutusScriptExecutionCost = W.toWallet @W.Coin $
-            if null redeemers then
-                mempty
-            else
-                maxScriptExecutionCost (recentEra @era) pp
-
-        colReq =
-            if txPlutusScriptExecutionCost > W.Coin 0
-                then SelectionCollateralRequired
-                else SelectionCollateralNotRequired
-
-        (positiveBundle, negativeBundle) = posAndNegFromCardanoValue balance
-        TokenBundle positiveAda positiveTokens = positiveBundle
-        TokenBundle negativeAda negativeTokens = negativeBundle
-        adaInOutputs = F.foldMap (TokenBundle.getCoin . view #tokens) outs
-        tokensInOutputs = F.foldMap (TokenBundle.tokens . view #tokens) outs
-        TokenBundle adaInInputs tokensInInputs =
-            UTxOSelection.selectedBalance utxoSelection
-
-        feePerByte = getFeePerByte (recentEra @era) pp
-
-        boringFee =
-            calculateMinimumFee
+  where
+    selectionConstraints = SelectionConstraints
+        { assessTokenBundleSize =
+            view #assessTokenBundleSize
+            $ bundleSizeAssessor
+            $ TokenBundleMaxSize
+            $ TxSize
+            $ case era of
+                RecentEraBabbage -> pp ^. #_maxValSize
+                RecentEraConway -> pp ^. #_maxValSize
+        , certificateDepositAmount = W.toWallet $ case era of
+            RecentEraBabbage -> getField @"_keyDeposit" pp
+            RecentEraConway -> getField @"_keyDeposit" pp
+        , computeMinimumAdaQuantity = \addr tokens -> W.toWallet $
+            computeMinimumCoinForTxOut
                 era
+                pp
+                (mkLedgerTxOut era addr (TokenBundle txOutMaxCoin tokens))
+        , isBelowMinimumAdaQuantity = \addr bundle ->
+            isBelowMinimumCoinForTxOut
+                era
+                pp
+                (mkLedgerTxOut era addr bundle)
+        , computeMinimumCost = \skeleton -> mconcat
+            [ feePadding
+            , fee0
+            , txPlutusScriptExecutionCost
+            , calculateMinimumFee
+                (Cardano.AnyCardanoEra (Write.fromRecentEra era))
                 feePerByte
                 txWitnessTag
-                defaultTransactionCtx
-                SelectionSkeleton
-                    { skeletonInputCount =
-                        UTxOSelection.selectedSize utxoSelection
-                    , skeletonOutputs = outs
-                    , skeletonChange = []
-                    }
+                (defaultTransactionCtx
+                    { txPaymentCredentialScriptTemplate = inputScriptTemplate })
+                skeleton
+            ] `Coin.difference` boringFee
+        , maximumCollateralInputCount = unsafeIntCast @Natural @Int $
+            case era of
+                RecentEraBabbage -> getField @"_maxCollateralInputs" pp
+                RecentEraConway -> getField @"_maxCollateralInputs" pp
 
-        feePadding =
-            let
-                -- Could be made smarter by only padding for the script
-                -- integrity hash when we intend to add one. [ADP-2621]
-                scriptIntegrityHashBytes = 32 + 2
+    , minimumCollateralPercentage =
+        case era of
+            -- case-statement avoids "Overlapping instances" problem.
+            -- May be avoidable with ADP-2353.
+            RecentEraBabbage -> getField @"_collateralPercentage" pp
+            RecentEraConway -> getField @"_collateralPercentage" pp
+    , maximumLengthChangeAddress = maxLengthChangeAddress changeGen
+    }
 
-                -- Add padding to allow the fee value to increase.
-                -- Out of caution, assume it can increase by the theoretical
-                -- maximum of 8 bytes ('maximumCostOfIncreasingCoin').
-                --
-                -- NOTE: It's not convenient to import the constant at the
-                -- moment because of the package split.
-                --
-                -- Any overestimation will be reduced by 'distributeSurplus'
-                -- in the final stage of 'balanceTransaction'.
-                extraBytes = 8
-            in
-                W.toWallet . feeOfBytes feePerByte $
+    selectionParams = SelectionParams
+        -- The following fields are essensially adjusting the coin
+        -- selections notion of balance by @balance0 - sum inputs + sum
+        -- outputs + fee0@ where @balance0@ is the balance of the
+        -- partial tx.
+        { assetsToMint = positiveTokens <> tokensInOutputs
+        , assetsToBurn = negativeTokens <> tokensInInputs
+        , extraCoinIn = positiveAda <> adaInOutputs <> fee0
+        , extraCoinOut = negativeAda <> adaInInputs
+
+        -- NOTE: It is important that coin selection has the correct
+        -- notion of fees, because it will be used to tell how much
+        -- collateral is needed.
+        , collateralRequirement
+        , outputsToCover = outs
+        , utxoAvailableForCollateral = UTxOSelection.availableMap utxoSelection
+        , utxoAvailableForInputs = utxoSelection
+        , selectionStrategy = selectionStrategy
+        }
+
+    mkLedgerTxOut
+        :: RecentEra era
+        -> W.Address
+        -> TokenBundle
+        -> TxOut (ShelleyLedgerEra era)
+    mkLedgerTxOut txOutEra address bundle =
+        case txOutEra of
+            RecentEraBabbage -> W.toBabbageTxOut txOut
+            RecentEraConway -> W.toConwayTxOut txOut
+          where
+            txOut = W.TxOut address bundle
+
+    txPlutusScriptExecutionCost = W.toWallet @W.Coin $
+        if null redeemers
+            then mempty
+            else maxScriptExecutionCost era pp
+
+    collateralRequirement =
+        if txPlutusScriptExecutionCost > W.Coin 0
+            then SelectionCollateralRequired
+            else SelectionCollateralNotRequired
+
+    (positiveBundle, negativeBundle) = posAndNegFromCardanoValue balance
+    TokenBundle positiveAda positiveTokens = positiveBundle
+    TokenBundle negativeAda negativeTokens = negativeBundle
+    adaInOutputs = F.foldMap (TokenBundle.getCoin . view #tokens) outs
+    tokensInOutputs = F.foldMap (TokenBundle.tokens . view #tokens) outs
+    TokenBundle adaInInputs tokensInInputs =
+        UTxOSelection.selectedBalance utxoSelection
+
+    feePerByte = getFeePerByte era pp
+
+    boringFee =
+        calculateMinimumFee
+            (Cardano.AnyCardanoEra (Write.fromRecentEra era))
+            feePerByte
+            txWitnessTag
+            defaultTransactionCtx
+            SelectionSkeleton
+                { skeletonInputCount = UTxOSelection.selectedSize utxoSelection
+                , skeletonOutputs = outs
+                , skeletonChange = []
+                }
+
+    feePadding =
+        let
+            -- Could be made smarter by only padding for the script
+            -- integrity hash when we intend to add one. [ADP-2621]
+            scriptIntegrityHashBytes = 32 + 2
+
+            -- Add padding to allow the fee value to increase.
+            -- Out of caution, assume it can increase by the theoretical
+            -- maximum of 8 bytes ('maximumCostOfIncreasingCoin').
+            --
+            -- NOTE: It's not convenient to import the constant at the
+            -- moment because of the package split.
+            --
+            -- Any overestimation will be reduced by 'distributeSurplus'
+            -- in the final stage of 'balanceTransaction'.
+            extraBytes = 8
+        in
+            W.toWallet . feeOfBytes feePerByte $
                     extraBytes + scriptIntegrityHashBytes
 
-        fromCardanoLovelace (Cardano.Lovelace l) = Coin.unsafeFromIntegral l
-
-        selectionConstraints = SelectionConstraints
-            { assessTokenBundleSize =
-                view #assessTokenBundleSize
-                $ tokenBundleSizeAssessor txLayer
-                $ TokenBundleMaxSize
-                $ TxSize
-                $ case recentEra @era of
-                    RecentEraBabbage -> pp ^. #_maxValSize
-                    RecentEraConway -> pp ^. #_maxValSize
-            , computeMinimumAdaQuantity = \addr tokens -> W.toWallet $
-                computeMinimumCoinForTxOut
-                    (recentEra @era)
-                    pp
-                    (toLedgerTxOut $ W.TxOut addr (TokenBundle txOutMaxCoin tokens))
-            , isBelowMinimumAdaQuantity = \addr bundle ->
-                isBelowMinimumCoinForTxOut
-                    (recentEra @era)
-                    pp
-                    (toLedgerTxOut $ W.TxOut addr bundle)
-            , computeMinimumCost = \skeleton -> mconcat
-                [ feePadding
-                , fromCardanoLovelace fee0
-                , txPlutusScriptExecutionCost
-                , calculateMinimumFee
-                    era
-                    feePerByte
-                    txWitnessTag
-                    (defaultTransactionCtx
-                        { txPaymentCredentialScriptTemplate = mScriptTemplate
-                        })
-                    skeleton
-                ] `Coin.difference` boringFee
-            , maximumCollateralInputCount = unsafeIntCast @Natural @Int $
-                case recentEra @era of
-                    RecentEraBabbage ->
-                        getField @"_maxCollateralInputs" pp
-                    RecentEraConway ->
-                        getField @"_maxCollateralInputs" pp
-
-            , minimumCollateralPercentage = case recentEra @era of
-                -- case-statement avoids "Overlapping instances" problem.
-                -- May be avoidable with ADP-2353.
-                RecentEraBabbage ->
-                    getField @"_collateralPercentage" pp
-                RecentEraConway ->
-                    getField @"_collateralPercentage" pp
-            , maximumLengthChangeAddress =
-                maxLengthChangeAddress genChange
-            }
-
-        selectionParams = SelectionParams
-            -- The following fields are essensially adjusting the coin
-            -- selections notion of balance by @balance0 - sum inputs + sum
-            -- outputs + fee0@ where @balance0@ is the balance of the
-            -- partial tx.
-            { assetsToMint = positiveTokens <> tokensInOutputs
-            , assetsToBurn = negativeTokens <> tokensInInputs
-            , extraCoinIn =
-                positiveAda
-                <> adaInOutputs
-                <> fromCardanoLovelace fee0
-            , extraCoinOut = negativeAda <> adaInInputs
-            -- NOTE: It is important that coin selection has the correct
-            -- notion of fees, because it will be used to tell how much
-            -- collateral is needed.
-            , collateralRequirement = colReq
-            , outputsToCover = outs
-            , utxoAvailableForCollateral =
-                UTxOSelection.availableMap utxoSelection
-            , utxoAvailableForInputs = utxoSelection
-            , selectionStrategy = selectionStrategy
-            }
-
 data ChangeAddressGen s = ChangeAddressGen
-    { getChangeAddressGen ::  (s -> (W.Address, s))
+    { getChangeAddressGen :: s -> (W.Address, s)
 
     -- | Returns the longest address that the wallet can generate for a given
     --   key.
@@ -1105,4 +1119,3 @@ unsafeIntCast
 unsafeIntCast x = fromMaybe err $ intCastMaybe x
   where
     err = error $ "unsafeIntCast failed for " <> show x
-
