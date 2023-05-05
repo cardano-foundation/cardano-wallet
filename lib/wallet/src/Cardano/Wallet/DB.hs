@@ -216,7 +216,7 @@ hoistDBFresh f (DBFresh boot load) = DBFresh
 data DBLayer m s k = forall stm. (MonadIO stm, MonadFail stm) => DBLayer
     { walletId_ :: WalletId
 
-    , walletsDB
+    , walletState
         :: DBVar stm (DeltaWalletState s)
         -- ^ 'DBVar' containing the 'WalletState' of each wallet in the database.
         -- Currently contains all 'Checkpoints' of the 'UTxO' and the
@@ -453,7 +453,7 @@ mkDBLayerFromParts
     -> DBLayer m s k
 mkDBLayerFromParts ti wid_ DBLayerCollection{..} = DBLayer
     { walletId_ = wid_
-    , walletsDB = walletsDB_ dbCheckpoints
+    , walletState = walletsDB_ dbCheckpoints
     , transactionsStore = transactionsStore_
     , putCheckpoint = putCheckpoint_ dbCheckpoints
     , readCheckpoint = readCheckpoint'

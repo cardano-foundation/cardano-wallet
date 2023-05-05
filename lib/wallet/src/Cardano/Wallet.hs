@@ -765,7 +765,7 @@ onWalletState
     -> Delta.Update (WalletState.DeltaWalletState s) r
     -> m r
 onWalletState ctx update' = db & \DBLayer{..} ->
-    atomically $ Delta.onDBVar walletsDB update'
+    atomically $ Delta.onDBVar walletState update'
   where
     db = ctx ^. dbLayer @m @s @k
 
@@ -857,7 +857,7 @@ checkWalletIntegrity db gp = db & \DBLayer{..} -> do
             (getGenesisBlockHash gp) (getGenesisBlockHash gp'))
 
 readWalletMeta :: Functor f => DBVar f (DeltaWalletState s) -> f WalletMetadata
-readWalletMeta walletsDB = walletMeta . info <$> readDBVar walletsDB
+readWalletMeta walletState = walletMeta . info <$> readDBVar walletState
 
 -- | Retrieve the wallet state for the wallet with the given ID.
 readWallet
@@ -866,7 +866,7 @@ readWallet
     -> IO (Wallet s, (WalletMetadata, WalletDelegation), Set Tx)
 readWallet ctx = db & \DBLayer{..} -> atomically $ do
     cp <- readCheckpoint
-    meta <- readWalletMeta walletsDB
+    meta <- readWalletMeta walletState
     dele <- readDelegation
     pending <- readTransactions
         Nothing
@@ -894,7 +894,7 @@ putWalletMeta
     => DBVar stm (DeltaWalletState s)
     -> WalletMetadata
     -> stm ()
-putWalletMeta walletsDB wm = onDBVar walletsDB $ update $ \_ ->
+putWalletMeta walletState wm = onDBVar walletState $ update $ \_ ->
     [UpdateInfo $ UpdateWalletMetadata wm]
 
 -- | Update a wallet's metadata with the given update function.
@@ -1203,7 +1203,7 @@ restoreBlocks ctx tr blocks nodeTip = db & \DBLayer{..} -> atomically $ do
             putDelegationCertificate cert slotNo
 
     liftIO $ mapM_ logCheckpoint cpsKeep
-    Delta.onDBVar walletsDB $ Delta.update
+    Delta.onDBVar walletState $ Delta.update
         $ const delta
 
     prune epochStability finalitySlot
@@ -1509,7 +1509,7 @@ createRandomAddress ctx wid pwd mIx = db & \DBLayer{..} ->
     withRootKey @s @k db wid pwd ErrCreateAddrWithRootKey $ \xprv scheme ->
         ExceptT
             . atomically
-            . Delta.onDBVar walletsDB
+            . Delta.onDBVar walletState
             . Delta.updateWithResultAndError
             $ createRandomAddress' xprv scheme
   where
@@ -1907,7 +1907,7 @@ buildSignSubmitTransaction db@DBLayer{..} netLayer txLayer pwd walletId
                     (Just Pending)
                     Nothing
             txWithSlot@(builtTx, slot) <- (throwOnErr <=<
-                (Delta.onDBVar walletsDB . Delta.updateWithResultAndError)) $
+                (Delta.onDBVar walletState . Delta.updateWithResultAndError)) $
                 \s -> do
                     let wallet = WalletState.getLatest s
                     let utxo = availableUTxO @s (Set.fromList pendingTxs) wallet
@@ -2074,7 +2074,7 @@ buildTransaction DBLayer{..} txLayer timeTranslation changeAddrGen
     protocolParameters txCtx paymentOuts = do
     stdGen <- initStdGen
     atomically $ do
-        wallet <- readDBVar walletsDB <&> WalletState.getLatest
+        wallet <- readDBVar walletState <&> WalletState.getLatest
 
         pendingTxs <- Set.fromList . fmap fromTransactionInfo <$>
             readTransactions
@@ -2417,7 +2417,7 @@ readLocalTxSubmissionPending
     -> m [TxSubmissionsStatus]
 readLocalTxSubmissionPending ctx = db & \DBLayer{..} ->
     atomically
-        $ readLocalTxSubmissionPending' <$> readDBVar walletsDB
+        $ readLocalTxSubmissionPending' <$> readDBVar walletState
   where
     db = ctx ^. dbLayer @m @s @k
 
@@ -2761,10 +2761,10 @@ transactionFee
     -> TransactionCtx
     -> PreSelection
     -> IO (Percentile 10 Fee, Percentile 90 Fee)
-transactionFee DBLayer{atomically, walletsDB} protocolParams txLayer
+transactionFee DBLayer{atomically, walletState} protocolParams txLayer
     timeTranslation recentEra changeAddressGen txCtx preSelection = do
         wallet <- liftIO . atomically
-            $ readDBVar walletsDB <&> WalletState.getLatest
+            $ readDBVar walletState <&> WalletState.getLatest
         utxoIndex <-
             -- Important:
             --
@@ -2996,14 +2996,14 @@ attachPrivateKey db (xprv, hpwd) scheme = db & \DBLayer{..} -> do
     now <- liftIO getCurrentTime
     atomically $ do
         putPrivateKey (xprv, hpwd)
-        meta <- readWalletMeta walletsDB
+        meta <- readWalletMeta walletState
         let modify x = x
                 { passphraseInfo = Just $ WalletPassphraseInfo
                     { lastUpdatedAt = now
                     , passphraseScheme = scheme
                     }
                 }
-        putWalletMeta walletsDB (modify meta)
+        putWalletMeta walletState (modify meta)
 
 -- | Execute an action which requires holding a root XPrv.
 --
@@ -3031,7 +3031,7 @@ withRootKey
     -> ExceptT e IO a
 withRootKey DBLayer{..} wid pwd embed action = do
     (xprv, scheme) <- withExceptT embed . ExceptT . atomically $ do
-        wMetadata <- readWalletMeta walletsDB
+        wMetadata <- readWalletMeta walletState
         let mScheme = passphraseScheme <$> passphraseInfo wMetadata
         mXPrv <- readPrivateKey
         pure $ case (mXPrv, mScheme) of
@@ -3137,7 +3137,7 @@ writePolicyPublicKey ctx wid pwd = db & \DBLayer{..} -> do
             pure $ liftRawKey $ toXPub xprv
 
     let seqState' = seqState & #policyXPub .~ Just policyXPub
-    lift $ atomically $ Delta.onDBVar walletsDB $ Delta.update
+    lift $ atomically $ Delta.onDBVar walletState $ Delta.update
         $ \_ -> [ReplacePrologue $ SeqPrologue seqState']
 
     pure policyXPub

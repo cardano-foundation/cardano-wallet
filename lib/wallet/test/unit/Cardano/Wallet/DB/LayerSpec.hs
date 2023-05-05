@@ -925,7 +925,7 @@ readCheckpoint' DBLayer{..} = atomically readCheckpoint
 readWalletMeta'
     :: DBLayer m s k
     -> m WalletMetadata
-readWalletMeta' DBLayer{..} = atomically (readWalletMeta walletsDB)
+readWalletMeta' DBLayer{..} = atomically (readWalletMeta walletState)
 
 readTransactions'
     :: DBLayer m s k
@@ -1280,7 +1280,7 @@ testMigrationSeqStateDerivationPrefix dbName prefix = do
         in fieldName field == unFieldNameDB fieldInDB
 
 inspectMeta :: DBLayer m s k -> m WalletMetadata
-inspectMeta DBLayer{..} = atomically (readWalletMeta walletsDB)
+inspectMeta DBLayer{..} = atomically (readWalletMeta walletState)
 
 testMigrationPassphraseScheme1 :: IO ()
 testMigrationPassphraseScheme1 = do

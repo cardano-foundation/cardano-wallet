@@ -478,9 +478,10 @@ benchmarkWallets
     -> IO [SomeBenchmarkResults]
 benchmarkWallets benchName dir walletTr networkId action = do
     withWalletsFromDirectory dir walletTr networkId
-        $ \ctx@(MockWalletLayer{dbLayer=DB.DBLayer{atomically, walletsDB}}) wid
+        $ \ctx@(MockWalletLayer{dbLayer=DB.DBLayer{atomically, walletState}})
+            wid
         -> do
-            WalletMetadata{name} <- atomically $ readWalletMeta walletsDB
+            WalletMetadata{name} <- atomically $ readWalletMeta walletState
             let config = BenchmarkConfig
                     { benchmarkName = benchName <> " " <> pretty name
                     , networkId = networkId

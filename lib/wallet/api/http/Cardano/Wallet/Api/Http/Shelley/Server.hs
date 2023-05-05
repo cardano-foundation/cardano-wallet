@@ -1262,13 +1262,13 @@ patchSharedWallet ctx liftKey cred (ApiT wid) body = do
                     { atomically
                     , readCheckpoint
                     , readPrivateKey
-                    , walletsDB
+                    , walletState
                     } -> do
                         cp <- atomically readCheckpoint
                         let state = getState cp
                         --could be for account and root key wallets
                         prvKeyM <- atomically readPrivateKey
-                        meta <- atomically (readWalletMeta walletsDB)
+                        meta <- atomically (readWalletMeta walletState)
                         pure (state, prvKeyM, meta)
 
         void $ deleteWallet ctx (ApiT wid)
