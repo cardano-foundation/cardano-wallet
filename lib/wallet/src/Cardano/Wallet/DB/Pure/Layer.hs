@@ -105,6 +105,7 @@ newDBFresh timeInterpreter wid = do
                                     Checkpoints
         -----------------------------------------------------------------------}
         , walletsDB = error "MVar.walletsDB: not implemented"
+        , transactionsStore = error "MVar.transactionsStore: not implemented"
 
         , putCheckpoint = noErrorAlterDB  db .  mPutCheckpoint
 

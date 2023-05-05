@@ -76,6 +76,7 @@ import Cardano.Wallet.DB
     , DBDelegation (..)
     , DBFactory (..)
     , DBFresh (..)
+    , DBLayer (..)
     , DBLayerCollection (..)
     , DBLayerParams (..)
     , DBOpen (..)
@@ -86,6 +87,7 @@ import Cardano.Wallet.DB
     , ErrWalletAlreadyInitialized (ErrWalletAlreadyInitialized)
     , ErrWalletNotInitialized (..)
     , mkDBLayerFromParts
+    , transactionsStore
     )
 import Cardano.Wallet.DB.Sqlite.Migration
     ( DefaultFieldValues (..), migrateManually )
@@ -553,17 +555,17 @@ newDBFreshFromDBOpen
     -> DBFresh IO s k
 newDBFreshFromDBOpen ti wid_ DBOpen{atomically=atomically_} =
     mkDBFreshFromParts ti wid_
-        dbWallets (mkStoreWallet wid_) dbLayerCollection atomically_
+        dbWallets (mkStoreWallet wid_)
+            dbLayerCollection atomically_
   where
     transactionsQS = newQueryStoreTxWalletsHistory
 
     dbWallets = DBWallets
-        { initializeWallet_ = \(DBLayerParams _ _ txs _) -> do
+
+        { initializeWallet_ = \(DBLayerParams _ _ _ _) -> do
             res <- lift $ runExceptT $ getWalletId_ dbWallets
             case res of
-                Left ErrWalletNotInitialized -> lift $ do
-                    updateS transactionsQS Nothing $
-                        ExpandTxWalletsHistory wid_ txs
+                Left ErrWalletNotInitialized -> pure ()
                 Right _ -> throwE ErrWalletAlreadyInitialized
 
         , getWalletId_ = do
@@ -576,6 +578,7 @@ newDBFreshFromDBOpen ti wid_ DBOpen{atomically=atomically_} =
 
     dbLayerCollection walletsDB = DBLayerCollection{..}
       where
+        transactionsStore_ = transactionsQS
         putWalletMeta_ wm =
             updateStateNoErrors id walletsDB $ \_ ->
                 [ UpdateInfo $ UpdateWalletMetadata wm ]
@@ -707,7 +710,7 @@ mkDBFreshFromParts
 mkDBFreshFromParts
     ti
     wid_
-    DBWallets{initializeWallet_, getWalletId_}
+    DBWallets{getWalletId_}
     store
     parts
     atomically_ =
@@ -723,9 +726,18 @@ mkDBFreshFromParts
                         throwIO
                             $ ErrNotGenesisBlockHeader
                             $ cp ^. #currentTip
-                    Just wallet -> mapExceptT atomically_ $ do
-                        initializeWallet_ params
-                        lift $ db <$> initDBVar store wallet
+                    Just wallet -> do
+                        ewid <- lift . atomically_ . runExceptT $ getWalletId_
+                        case ewid of
+                            Right _ -> throwE ErrWalletAlreadyInitialized
+                            Left _ -> pure ()
+                        lift $ do
+                            r@DBLayer{transactionsStore, atomically}
+                                <- atomically_ $ db <$> initDBVar store wallet
+                            atomically $ updateS transactionsStore Nothing
+                                $ ExpandTxWalletsHistory wid_
+                                $ dBLayerParamsHistory params
+                            pure r
             , loadDBLayer = mapExceptT atomically_ $ do
                 ewid <- lift . runExceptT $ getWalletId_
                 case ewid of

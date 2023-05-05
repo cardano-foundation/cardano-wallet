@@ -53,6 +53,10 @@ import Cardano.Wallet.DB.Store.Transactions.Decoration
     ( TxInDecorator )
 import Cardano.Wallet.DB.Store.Transactions.TransactionInfo
     ( mkTransactionInfoFromReadTx )
+import Cardano.Wallet.DB.Store.Wallets.Layer
+    ( QueryTxWalletsHistory )
+import Cardano.Wallet.DB.Store.Wallets.Model
+    ( DeltaTxWalletsHistory )
 import Cardano.Wallet.DB.WalletState
     ( DeltaWalletState
     , DeltaWalletState1 (UpdateSubmissions)
@@ -117,6 +121,8 @@ import Data.Ord
     ( Down (..) )
 import Data.Quantity
     ( Quantity (..) )
+import Data.Store
+    ( Store (..) )
 import Data.Traversable
     ( for )
 import Data.Word
@@ -222,6 +228,9 @@ data DBLayer m s k = forall stm. (MonadIO stm, MonadFail stm) => DBLayer
         --
         -- Intended to replace 'putCheckpoint' and 'readCheckpoint' in the short-term,
         -- and all other functions in the long-term.
+
+    , transactionsStore :: Store stm QueryTxWalletsHistory DeltaTxWalletsHistory
+        -- ^ 'Store' containing all transactions of all wallets in the database.
 
     , putCheckpoint :: Wallet s -> stm ()
         -- ^ Replace the current checkpoint for a given wallet. We do not handle
@@ -438,6 +447,8 @@ data DBLayerCollection stm m s k = DBLayerCollection
         -> stm ()
     , atomically_
         :: forall a. stm a -> m a
+    , transactionsStore_
+        :: Store stm QueryTxWalletsHistory DeltaTxWalletsHistory
     , putWalletMeta_ :: WalletMetadata -> stm ()
     , readWalletMeta_ :: stm WalletMetadata
     }
@@ -453,6 +464,7 @@ mkDBLayerFromParts
 mkDBLayerFromParts ti wid_ DBLayerCollection{..} = DBLayer
     { walletId_ = wid_
     , walletsDB = walletsDB_ dbCheckpoints
+    , transactionsStore = transactionsStore_
     , putCheckpoint = putCheckpoint_ dbCheckpoints
     , readCheckpoint = readCheckpoint'
     , listCheckpoints = listCheckpoints_ dbCheckpoints

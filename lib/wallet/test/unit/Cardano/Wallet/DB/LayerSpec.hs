@@ -370,7 +370,7 @@ loggingSpec = withLoggingDB @(SeqState 'Mainnet ShelleyKey) $ do
                 let count = 5
                 replicateM_ count $ atomically readCheckpoint
                 msgs <- findObserveDiffs <$> getLogs
-                length msgs `shouldBe` (count + 1) * 2
+                length msgs `shouldBe` (count + 3) * 2
 
 withLoggingDB
     :: PersistAddressBook s
