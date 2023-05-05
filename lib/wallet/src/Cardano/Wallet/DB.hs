@@ -245,6 +245,8 @@ data DBLayer m s k = forall stm. (MonadIO stm, MonadFail stm) => DBLayer
     , readWalletMeta :: stm (WalletMetadata, WalletDelegation)
         -- ^ Fetch a wallet metadata, if they exist.
 
+    , readDelegation :: stm WalletDelegation
+
     , isStakeKeyRegistered :: stm Bool
 
     , putDelegationCertificate
@@ -467,6 +469,11 @@ mkDBLayerFromParts ti wid_ DBLayerCollection{..} = DBLayer
                 del <- readDelegation_ dbDelegation currentEpoch
                 wm <- readWalletMeta_
                 pure (wm, del)
+    , readDelegation = do
+        readCheckpoint' >>= \cp -> do
+            currentEpoch <- liftIO $
+                interpretQuery ti (epochOf $ cp ^. #currentTip . #slotNo)
+            readDelegation_ dbDelegation currentEpoch
     , isStakeKeyRegistered = isStakeKeyRegistered_ dbDelegation
     , putDelegationCertificate = putDelegationCertificate_ dbDelegation
     , putDelegationRewardBalance = putDelegationRewardBalance_ dbDelegation
