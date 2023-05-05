@@ -432,16 +432,15 @@ balanceTransaction
     -> PartialTx era
     -> ExceptT ErrBalanceTx m (Cardano.Tx era, changeState)
 balanceTransaction
-    tr utxoAssumptions pp timeTranslation utxo genChange s unadjustedPtx = do
-    let adjustedPtx = over (#tx)
+    tr utxoAssumptions pp timeTranslation utxo genChange s partialTx = do
+    let adjustedPartialTx = over #tx
             (increaseZeroAdaOutputs (recentEra @era) (pparamsLedger pp))
-            unadjustedPtx
-
+            partialTx
     let balanceWith strategy =
             balanceTransactionWithSelectionStrategyAndNoZeroAdaAdjustment
                 @era @m @changeState
                 tr utxoAssumptions pp timeTranslation utxo
-                genChange s strategy adjustedPtx
+                genChange s strategy adjustedPartialTx
     balanceWith SelectionStrategyOptimal
         `catchE` \e ->
             if minimalStrategyIsWorthTrying e
@@ -594,8 +593,7 @@ balanceTransactionWithSelectionStrategyAndNoZeroAdaAdjustment
                 randomSeed
 
         case mSel of
-            Left e -> lift $
-                traceWith tr $ MsgSelectionError e
+            Left e -> lift $ traceWith tr $ MsgSelectionError e
             Right sel -> lift $ do
                 traceWith tr $ MsgSelectionReportSummarized
                     $ makeSelectionReportSummarized sel
