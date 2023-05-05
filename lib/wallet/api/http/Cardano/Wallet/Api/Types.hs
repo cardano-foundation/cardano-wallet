@@ -28,6 +28,7 @@
 {-# LANGUAGE UndecidableInstances #-}
 
 {-# OPTIONS_GHC -Wno-orphans #-}
+{-# OPTIONS_GHC -fno-specialise #-}
 
 -- |
 -- Copyright: © 2018-2020 IOHK

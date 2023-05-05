@@ -5,6 +5,7 @@
 {-# LANGUAGE DerivingVia #-}
 {-# LANGUAGE DuplicateRecordFields #-}
 {-# LANGUAGE NamedFieldPuns #-}
+{-# OPTIONS_GHC -fno-specialise #-}
 
 -- |
 -- Copyright: © 2018-2022 IOHK
