@@ -65,7 +65,7 @@ import Cardano.Tx.Balance.Internal.CoinSelection
     , SelectionConstraints (..)
     , SelectionError (..)
     , SelectionLimitOf (..)
-    , SelectionOf (..)
+    , SelectionOf (change)
     , SelectionOutputError (..)
     , SelectionParams (..)
     , SelectionReportDetailed
@@ -133,13 +133,19 @@ import Cardano.Wallet.Write.Tx
     , ShelleyLedgerEra
     , TxOut
     , computeMinimumCoinForTxOut
+    , evaluateMinimumFee
+    , evaluateTransactionBalance
     , feeOfBytes
+    , fromCardanoTx
+    , fromCardanoUTxO
     , getFeePerByte
     , isBelowMinimumCoinForTxOut
     , maxScriptExecutionCost
     , modifyLedgerBody
     , modifyTxOutCoin
     , modifyTxOutputs
+    , outputs
+    , toCardanoValue
     , txBody
     )
 import Cardano.Wallet.Write.Tx.TimeTranslation
@@ -216,7 +222,6 @@ import qualified Cardano.Wallet.Primitive.Types.UTxO as UTxO
 import qualified Cardano.Wallet.Primitive.Types.UTxOIndex as UTxOIndex
 import qualified Cardano.Wallet.Primitive.Types.UTxOSelection as UTxOSelection
 import qualified Cardano.Wallet.Shelley.Compatibility.Ledger as W
-import qualified Cardano.Wallet.Write.Tx as Write.Tx
 import qualified Data.Map as Map
 import qualified Data.Set as Set
 
@@ -742,19 +747,19 @@ balanceTransactionWithSelectionStrategyAndNoZeroAdaAdjustment
 
     txBalance :: Cardano.Tx era -> Cardano.Value
     txBalance
-        = Write.Tx.toCardanoValue @era
-        . Write.Tx.evaluateTransactionBalance (recentEra @era) pp
-            (Write.Tx.fromCardanoUTxO combinedUTxO)
-        . Write.Tx.txBody (recentEra @era)
-        . Write.Tx.fromCardanoTx
+        = toCardanoValue @era
+        . evaluateTransactionBalance (recentEra @era) pp
+            (fromCardanoUTxO combinedUTxO)
+        . txBody (recentEra @era)
+        . fromCardanoTx
 
     balanceAfterSettingMinFee
         :: Cardano.Tx era
         -> ExceptT ErrBalanceTx m (Cardano.Value, Cardano.Lovelace, KeyWitnessCount)
     balanceAfterSettingMinFee tx = ExceptT . pure $ do
         let witCount = estimateKeyWitnessCount combinedUTxO (getBody tx)
-        let minfee = W.toWalletCoin $ Write.Tx.evaluateMinimumFee
-                (recentEra @era) pp (Write.Tx.fromCardanoTx tx) witCount
+        let minfee = W.toWalletCoin $ evaluateMinimumFee
+                (recentEra @era) pp (fromCardanoTx tx) witCount
         let update = TxUpdate [] [] [] [] (UseNewTxFee minfee)
         tx' <- left ErrBalanceTxUpdateError $ updateTx tx update
         let balance = txBalance tx'
@@ -810,7 +815,7 @@ balanceTransactionWithSelectionStrategyAndNoZeroAdaAdjustment
     extractOutputsFromTx (Cardano.ByronTx _) = case recentEra @era of {}
     extractOutputsFromTx (Cardano.ShelleyTx _ tx) =
         map fromLedgerTxOut
-        $ Write.Tx.outputs (recentEra @era)
+        $ outputs (recentEra @era)
         $ txBody (recentEra @era) tx
       where
         fromLedgerTxOut :: TxOut (ShelleyLedgerEra era) -> W.TxOut
