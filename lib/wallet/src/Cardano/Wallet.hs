@@ -103,6 +103,7 @@ module Cardano.Wallet
     , ErrReadPolicyPublicKey (..)
     , ErrWritePolicyPublicKey (..)
     , ErrGetPolicyId (..)
+    , readWalletMeta
 
     -- * Shared Wallet
     , updateCosigner
@@ -323,7 +324,7 @@ import Cardano.Wallet.DB
 import Cardano.Wallet.DB.Errors
     ( ErrNoSuchWallet (..) )
 import Cardano.Wallet.DB.Store.Info.Store
-    ( DeltaWalletInfo (..) )
+    ( DeltaWalletInfo (..), WalletInfo (..) )
 import Cardano.Wallet.DB.Store.Submissions.Layer
     ( mkLocalTxSubmission )
 import Cardano.Wallet.DB.Store.Submissions.Operations
@@ -331,6 +332,7 @@ import Cardano.Wallet.DB.Store.Submissions.Operations
 import Cardano.Wallet.DB.WalletState
     ( DeltaWalletState
     , DeltaWalletState1 (..)
+    , WalletState (..)
     , fromWallet
     , getLatest
     , getSlot
@@ -854,6 +856,9 @@ checkWalletIntegrity db gp = db & \DBLayer{..} -> do
         (throwIO $ ErrCheckIntegrityDifferentGenesis
             (getGenesisBlockHash gp) (getGenesisBlockHash gp'))
 
+readWalletMeta :: Functor f => DBVar f (DeltaWalletState s) -> f WalletMetadata
+readWalletMeta walletsDB = walletMeta . info <$> readDBVar walletsDB
+
 -- | Retrieve the wallet state for the wallet with the given ID.
 readWallet
     :: forall ctx s k. HasDBLayer IO s k ctx
@@ -861,7 +866,7 @@ readWallet
     -> IO (Wallet s, (WalletMetadata, WalletDelegation), Set Tx)
 readWallet ctx = db & \DBLayer{..} -> atomically $ do
     cp <- readCheckpoint
-    meta <- readWalletMeta
+    meta <- readWalletMeta walletsDB
     dele <- readDelegation
     pending <- readTransactions
         Nothing
@@ -2991,7 +2996,7 @@ attachPrivateKey db (xprv, hpwd) scheme = db & \DBLayer{..} -> do
     now <- liftIO getCurrentTime
     atomically $ do
         putPrivateKey (xprv, hpwd)
-        meta <- readWalletMeta
+        meta <- readWalletMeta walletsDB
         let modify x = x
                 { passphraseInfo = Just $ WalletPassphraseInfo
                     { lastUpdatedAt = now
@@ -3026,7 +3031,7 @@ withRootKey
     -> ExceptT e IO a
 withRootKey DBLayer{..} wid pwd embed action = do
     (xprv, scheme) <- withExceptT embed . ExceptT . atomically $ do
-        wMetadata <- readWalletMeta
+        wMetadata <- readWalletMeta walletsDB
         let mScheme = passphraseScheme <$> passphraseInfo wMetadata
         mXPrv <- readPrivateKey
         pure $ case (mXPrv, mScheme) of

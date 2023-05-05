@@ -195,6 +195,7 @@ import Cardano.Wallet
     , logger
     , manageRewardBalance
     , networkLayer
+    , readWalletMeta
     , transactionLayer
     )
 import Cardano.Wallet.Address.Book
@@ -1261,13 +1262,13 @@ patchSharedWallet ctx liftKey cred (ApiT wid) body = do
                     { atomically
                     , readCheckpoint
                     , readPrivateKey
-                    , readWalletMeta
+                    , walletsDB
                     } -> do
                         cp <- atomically readCheckpoint
                         let state = getState cp
                         --could be for account and root key wallets
                         prvKeyM <- atomically readPrivateKey
-                        meta <- atomically readWalletMeta
+                        meta <- atomically (readWalletMeta walletsDB)
                         pure (state, prvKeyM, meta)
 
         void $ deleteWallet ctx (ApiT wid)

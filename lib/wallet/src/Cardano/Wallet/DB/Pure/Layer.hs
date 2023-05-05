@@ -122,8 +122,6 @@ newDBFresh timeInterpreter wid = do
 
         -- , putWalletMeta = noErrorAlterDB db .  mPutWalletMeta
 
-        , readWalletMeta = error "MVar.readWalletMeta: not implemented"
-
         , readDelegation = error "MVar.readDelegation: not implemented"
 
         , putDelegationCertificate = \cert sl -> noErrorAlterDB db $

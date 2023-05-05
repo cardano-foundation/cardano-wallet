@@ -134,7 +134,6 @@ import Cardano.Wallet.DB.Store.Wallets.Model
 import Cardano.Wallet.DB.WalletState
     ( DeltaWalletState
     , DeltaWalletState1 (..)
-    , WalletState (..)
     , findNearestPoint
     , fromGenesis
     , fromWallet
@@ -565,8 +564,6 @@ newDBFreshFromDBOpen ti wid_ DBOpen{atomically=atomically_} =
     dbLayerCollection walletsDB = DBLayerCollection{..}
       where
         transactionsStore_ = transactionsQS
-        readWalletMeta_ = do
-            walletMeta . info <$> readDBVar walletsDB
 
         readCheckpoint
             ::  SqlPersistT IO (W.Wallet s)

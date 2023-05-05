@@ -242,9 +242,6 @@ data DBLayer m s k = forall stm. (MonadIO stm, MonadFail stm) => DBLayer
         -- ^ List all known checkpoint tips, ordered by slot ids from the oldest
         -- to the newest.
 
-    , readWalletMeta :: stm WalletMetadata
-        -- ^ Fetch a wallet metadata, if they exist.
-
     , readDelegation :: stm WalletDelegation
 
     , isStakeKeyRegistered :: stm Bool
@@ -444,7 +441,6 @@ data DBLayerCollection stm m s k = DBLayerCollection
         :: forall a. stm a -> m a
     , transactionsStore_
         :: Store stm QueryTxWalletsHistory DeltaTxWalletsHistory
-    , readWalletMeta_ :: stm WalletMetadata
     }
 
 {- HLINT ignore mkDBLayerFromParts "Avoid lambda" -}
@@ -462,7 +458,6 @@ mkDBLayerFromParts ti wid_ DBLayerCollection{..} = DBLayer
     , putCheckpoint = putCheckpoint_ dbCheckpoints
     , readCheckpoint = readCheckpoint'
     , listCheckpoints = listCheckpoints_ dbCheckpoints
-    , readWalletMeta = readWalletMeta_
     , readDelegation = do
         readCheckpoint' >>= \cp -> do
             currentEpoch <- liftIO $
