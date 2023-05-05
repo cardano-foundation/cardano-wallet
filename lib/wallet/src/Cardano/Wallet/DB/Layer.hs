@@ -141,7 +141,6 @@ import Cardano.Wallet.DB.WalletState
     , getBlockHeight
     , getLatest
     , getSlot
-    , updateStateNoErrors
     , updateStateWithResultNoError
     )
 import Cardano.Wallet.Primitive.Passphrase.Types
@@ -221,15 +220,14 @@ import UnliftIO.MVar
     ( modifyMVar, modifyMVar_, newMVar, readMVar, withMVar )
 
 import qualified Cardano.Wallet.Primitive.Model as W
-import qualified Cardano.Wallet.Primitive.Passphrase.Types as W
-    ( PassphraseHash )
+import qualified Cardano.Wallet.Primitive.Passphrase as W
 import qualified Cardano.Wallet.Primitive.Types as W
 import qualified Cardano.Wallet.Primitive.Types.Coin as Coin
 import qualified Cardano.Wallet.Primitive.Types.Hash as W
 import qualified Cardano.Wallet.Primitive.Types.Tx.TransactionInfo as W
-    ( TransactionInfo )
 import qualified Cardano.Wallet.Primitive.Types.Tx.TxOut as W
 import qualified Cardano.Wallet.Read.Tx as Read
+import qualified Data.Delta.Update as Delta
 import qualified Data.Generics.Internal.VL as L
 import qualified Data.Map.Strict as Map
 import qualified Data.Set as Set
@@ -569,8 +567,7 @@ newDBFreshFromDBOpen ti wid_ DBOpen{atomically=atomically_} =
       where
         transactionsStore_ = transactionsQS
         putWalletMeta_ wm =
-            updateStateNoErrors id walletsDB $ \_ ->
-                [ UpdateInfo $ UpdateWalletMetadata wm ]
+            updateDBVar walletsDB [ UpdateInfo $ UpdateWalletMetadata wm ]
 
         readWalletMeta_ = do
             walletMeta . info <$> readDBVar walletsDB
@@ -586,7 +583,7 @@ newDBFreshFromDBOpen ti wid_ DBOpen{atomically=atomically_} =
             let heights = Set.fromList $ sparseCheckpoints
                     (defaultSparseCheckpointsConfig epochStability)
                     (tip ^. #blockHeight)
-            updateStateNoErrors id walletsDB $ \ wal ->
+            Delta.onDBVar walletsDB $ Delta.update $ \ wal ->
                 let willKeep cp = getBlockHeight cp `Set.member` heights
                     slots = Map.filter willKeep
                         $ wal ^. #checkpoints . #checkpoints
@@ -599,7 +596,7 @@ newDBFreshFromDBOpen ti wid_ DBOpen{atomically=atomically_} =
             { walletsDB_ = walletsDB
 
             , putCheckpoint_ = \cp ->
-                updateStateNoErrors id walletsDB $ \_ ->
+                Delta.onDBVar walletsDB $ Delta.update $ \_ ->
                     let (prologue, wcp) = fromWallet cp
                         slot = getSlot wcp
                     in  [ UpdateCheckpoints [ PutCheckpoint slot wcp ]

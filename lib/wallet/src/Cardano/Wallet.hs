@@ -332,7 +332,6 @@ import Cardano.Wallet.DB.WalletState
     , getLatest
     , getSlot
     , updateState
-    , updateStateNoErrors
     , updateStateWithResult
     , updateStateWithResultNoError
     )
@@ -1176,7 +1175,8 @@ restoreBlocks ctx tr blocks nodeTip = db & \DBLayer{..} -> atomically $ do
             putDelegationCertificate cert slotNo
 
     liftIO $ mapM_ logCheckpoint cpsKeep
-    updateStateNoErrors id walletsDB $ const delta
+    Delta.onDBVar walletsDB $ Delta.update
+        $ const delta
 
     prune epochStability finalitySlot
 
@@ -3115,8 +3115,8 @@ writePolicyPublicKey ctx wid pwd = db & \DBLayer{..} -> do
             pure $ liftRawKey $ toXPub xprv
 
     let seqState' = seqState & #policyXPub .~ Just policyXPub
-    lift $ atomically $ updateStateNoErrors id walletsDB $
-        \_ -> [ReplacePrologue $ SeqPrologue seqState']
+    lift $ atomically $ Delta.onDBVar walletsDB $ Delta.update
+        $ \_ -> [ReplacePrologue $ SeqPrologue seqState']
 
     pure policyXPub
   where

@@ -38,7 +38,6 @@ module Cardano.Wallet.DB.WalletState
 
     , updateState
     , updateStateWithResult
-    , updateStateNoErrors
     , updateStateWithResultNoError
     ) where
 
@@ -59,7 +58,7 @@ import Cardano.Wallet.Primitive.Types
 import Cardano.Wallet.Primitive.Types.UTxO
     ( UTxO )
 import Control.Monad.Except
-    ( ExceptT (..), runExceptT, void )
+    ( ExceptT (..), runExceptT )
 import Data.DBVar
     ( DBVar, modifyDBMaybe )
 import Data.Delta
@@ -245,15 +244,3 @@ updateStateWithResultNoError d state use = do
     case er of
         Left _ -> error "updateStateWithResultNoError: impossible"
         Right r -> pure r
-
-updateStateNoErrors
-    :: (Delta da, Monad m)
-    => (Base da -> w)
-    -- ^ Get the part of the state that we want to update
-    -> DBVar m da
-    -- ^ The state variable
-    -> (w -> da)
-    -- ^ The update function
-    -> m ()
-updateStateNoErrors d state use = void
-    $ runExceptT $ updateState d state (Right . use)
