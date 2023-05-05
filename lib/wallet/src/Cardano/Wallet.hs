@@ -746,6 +746,18 @@ transactionLayer ::
     => Lens' ctx (TransactionLayer k ktype SealedTx)
 transactionLayer = typed @(TransactionLayer k ktype SealedTx)
 
+-- | Convience to apply an 'Update' to the 'WalletState' via the 'DBLayer'.
+onWalletState
+    :: forall m s k ctx r
+     . ( HasDBLayer m s k ctx )
+    => ctx
+    -> Delta.Update (WalletState.DeltaWalletState s) r
+    -> m r
+onWalletState ctx update = db & \DBLayer{..} ->
+    atomically $ Delta.onDBVar walletsDB update
+  where
+    db = ctx ^. dbLayer @m @s @k
+
 {-------------------------------------------------------------------------------
                                    Wallet
 -------------------------------------------------------------------------------}
@@ -1513,14 +1525,9 @@ importRandomAddresses
     -> [Address]
     -> ExceptT ErrImportRandomAddress IO ()
 importRandomAddresses ctx addrs =
-    db & \DBLayer{..} ->
-        ExceptT
-            . atomically
-            . Delta.onDBVar walletsDB
-            . Delta.updateWithError
-            $ importRandomAddresses'
+    ExceptT . onWalletState @IO @s @k ctx . Delta.updateWithError
+        $ importRandomAddresses'
   where
-    db = ctx ^. dbLayer @IO @s @k
     importRandomAddresses' wal = case es1 of
         Left err -> Left $ ErrImportAddr err
         Right s1 -> Right [ReplacePrologue $ getPrologue s1]
@@ -1559,13 +1566,9 @@ assignChangeAddressesAndUpdateDb
     -> Selection
     -> IO (SelectionOf TxOut)
 assignChangeAddressesAndUpdateDb ctx argGenChange selection =
-    db & \DBLayer{..} ->
-        atomically
-            . Delta.onDBVar walletsDB
-            . Delta.updateWithResult
-            $ assignChangeAddressesAndUpdateDb'
+    onWalletState @IO @s @k ctx . Delta.updateWithResult
+        $ assignChangeAddressesAndUpdateDb'
   where
-    db = ctx ^. dbLayer @IO @s @k
     assignChangeAddressesAndUpdateDb' wallet =
         -- Newly generated change addresses only change the Prologue
         ([ReplacePrologue $ getPrologue stateUpdated], selectionUpdated)
@@ -2372,15 +2375,12 @@ forgetTx
     => ctx
     -> Hash "Tx"
     -> ExceptT ErrRemoveTx IO ()
-forgetTx ctx txid = db & \DBLayer{..} ->
+forgetTx ctx txid =
     ExceptT
-        . atomically
-        . Delta.onDBVar walletsDB
+        . onWalletState @IO @s @k ctx
         . WalletState.updateSubmissions
         . Delta.updateWithError
         $ Submissions.removePendingOrExpiredTx txid
-  where
-    db = ctx ^. dbLayer @IO @s @k
 
 -- | List all transactions from the local submission pool which are
 -- still pending as of the latest checkpoint of the given wallet. The
@@ -3185,12 +3185,9 @@ updateCosigner
     -> CredentialType
     -> ExceptT ErrAddCosignerKey IO ()
 updateCosigner ctx cosignerXPub cosigner cred =
-    db & \DBLayer{..} ->
-        ExceptT . atomically . Delta.onDBVar walletsDB
-            . Delta.updateWithError
-            $ updateCosigner'
+    ExceptT . onWalletState @IO @s @k ctx . Delta.updateWithError
+        $ updateCosigner'
   where
-    db = ctx ^. dbLayer @_ @s @k
     updateCosigner' wallet =
         case addCosignerAccXPub (cosigner, cosignerXPub) cred s0 of
             Left err -> Left $ ErrAddCosignerKey err
