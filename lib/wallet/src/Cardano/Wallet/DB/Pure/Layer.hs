@@ -40,7 +40,6 @@ import Cardano.Wallet.DB.Pure.Implementation
     , mReadGenesisParameters
     , mReadPrivateKey
     , mReadTxHistory
-    , mReadWalletMeta
     , mRollbackTo
     )
 import Cardano.Wallet.Primitive.Slotting
@@ -123,8 +122,7 @@ newDBFresh timeInterpreter wid = do
 
         -- , putWalletMeta = noErrorAlterDB db .  mPutWalletMeta
 
-        , readWalletMeta = throwErrorReadDB db
-            $ mReadWalletMeta timeInterpreter
+        , readWalletMeta = error "MVar.readWalletMeta: not implemented"
 
         , readDelegation = error "MVar.readDelegation: not implemented"
 

@@ -108,7 +108,6 @@ import Cardano.Wallet.DB.Pure.Implementation
     , mReadGenesisParameters
     , mReadPrivateKey
     , mReadTxHistory
-    , mReadWalletMeta
     , mRollbackTo
     )
 import Cardano.Wallet.DummyTarget.Primitive.Types
@@ -337,7 +336,6 @@ data Cmd s wid
     | PutCheckpoint (Wallet s)
     | ReadCheckpoint
     | ListCheckpoints
-    | ReadWalletMeta
     | PutTxHistory TxHistory
     | ReadTxHistory
         (Maybe Coin)
@@ -399,8 +397,6 @@ runMock = \case
         first (Resp . fmap ChainPoints) . mListCheckpoints
     ReadCheckpoint ->
         first (Resp . fmap Checkpoint) . mReadCheckpoint
-    ReadWalletMeta ->
-        first (Resp . fmap (Metadata . fst) ) . mReadWalletMeta timeInterpreter
     PutDelegationCertificate cert sl ->
         first (Resp . fmap Unit) . mPutDelegationCertificate cert sl
     IsStakeKeyRegistered _wid ->
@@ -463,7 +459,6 @@ runIO DBLayer{..} = fmap Resp . go
             atomically readCheckpoint
         ListCheckpoints -> Right . ChainPoints <$>
             atomically listCheckpoints
-        ReadWalletMeta -> Right . (Metadata . fst) <$> atomically readWalletMeta
         PutDelegationCertificate pool sl ->
             runDBSuccess atomically Unit $ putDelegationCertificate pool sl
         IsStakeKeyRegistered _wid ->
@@ -602,8 +597,6 @@ generatorWithWid wids =
         $ pure ReadCheckpoint
     , declareGenerator "ListCheckpoints" 5
         $ pure ListCheckpoints
-    , declareGenerator "ReadWalletMeta" 5
-        $ pure ReadWalletMeta
     , declareGenerator "PutDelegationCertificate" 5
         $ PutDelegationCertificate <$> arbitrary <*> arbitrary
     , declareGenerator "IsStakeKeyRegistered" 1
@@ -958,8 +951,6 @@ data Tag
       -- ^ Multiple checkpoints are successfully saved to a wallet.
     | RolledBackOnce
       -- ^ We have rolled back at least once
-    | ReadMetaAfterPutCert
-      -- ^ Reads wallet metadata after having inserted a delegation cert
     deriving (Bounded, Enum, Eq, Ord, Show)
 
 -- | The list of all possible 'Tag' values.
@@ -975,7 +966,6 @@ tag = Foldl.fold $ catMaybes <$> sequenceA
     , countAction SuccessfulReadPrivateKey (>= 1) isReadPrivateKeySuccess
     , countAction PutCheckpointTwice (>= 2) isPutCheckpointSuccess
     , countAction RolledBackOnce (>= 1) isRollbackSuccess
-    , readMetaAfterPutCert
     ]
   where
     isRollbackSuccess :: Event s Symbolic -> Maybe MWid
@@ -1049,36 +1039,6 @@ tag = Foldl.fold $ catMaybes <$> sequenceA
                 -> Just ()
         _otherwise
             -> Nothing
-
-    readMetaAfterPutCert :: Fold (Event s Symbolic) (Maybe Tag)
-    readMetaAfterPutCert = Fold update mempty extract
-      where
-        update :: Map () Int -> Event s Symbolic -> Map () Int
-        update acc ev =
-            case (isReadWalletMetadata ev, cmd ev, mockResp ev, before ev) of
-                (Just _wid, _, _, _) ->
-                    Map.alter (fmap (+1)) () acc
-                ( Nothing
-                  , At (PutDelegationCertificate _ _)
-                  , Resp (Right _)
-                  , Model _ _wids
-                  ) ->
-                    Map.insert () 0 acc
-                _ ->
-                    acc
-
-        extract :: Map () Int -> Maybe Tag
-        extract created
-            | any (> 0) created = Just ReadMetaAfterPutCert
-            | otherwise = Nothing
-
-    isReadWalletMetadata :: Event s Symbolic -> Maybe ()
-    isReadWalletMetadata ev = case (cmd ev, mockResp ev, before ev) of
-        (At (ReadWalletMeta ), Resp Right{}, Model _ _wids) ->
-            Just ()
-        _ ->
-            Nothing
-
     extractf :: a -> Bool -> Maybe a
     extractf a t = if t then Just a else Nothing
 
