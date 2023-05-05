@@ -17,14 +17,14 @@ import Prelude
 import qualified Cardano.Api as CardanoApi
 import qualified Cardano.Api.Extra as CardanoApi
 import qualified Cardano.Wallet.Primitive.Types as Wallet
-import qualified Cardano.Wallet.Write.Tx as WriteTx
+import qualified Cardano.Wallet.Write.Tx as Write
 
 -- TODO:
 --  - Make this data type abstract: don't export the constructor.
 --  - Replace this type with a re-exported 'Ledger.PParams era'.
 newtype ProtocolParameters era = ProtocolParameters
     { pparamsLedger
-        :: WriteTx.PParams (WriteTx.ShelleyLedgerEra era)
+        :: Write.PParams (Write.ShelleyLedgerEra era)
     }
 
 -- TODO: ADP-2459 - replace with something nicer.

@@ -632,7 +632,7 @@ import qualified Cardano.Wallet.Primitive.Types.UTxO as UTxO
 import qualified Cardano.Wallet.Primitive.Types.UTxOStatistics as UTxOStatistics
 import qualified Cardano.Wallet.Read as Read
 import qualified Cardano.Wallet.Write.ProtocolParameters as Write
-import qualified Cardano.Wallet.Write.Tx as WriteTx
+import qualified Cardano.Wallet.Write.Tx as Write
 import qualified Cardano.Wallet.Write.Tx.Balance as Write
 import qualified Data.ByteArray as BA
 import qualified Data.Foldable as F
@@ -1675,7 +1675,7 @@ data CoinSelection = CoinSelection
 
 buildCoinSelectionForTransaction
     :: forall s k n era
-     . ( WriteTx.IsRecentEra era
+     . ( Write.IsRecentEra era
        , IsOurs s Address
        , s ~ SeqState n k
        )
@@ -1958,7 +1958,7 @@ buildAndSignTransactionPure
     timeTranslation utxo rootKey passphraseScheme userPassphrase
     protocolParams txLayer changeAddrGen era preSelection txCtx =
     --
-    WriteTx.withRecentEra era $ \(_ :: WriteTx.RecentEra recentEra) -> do
+    Write.withRecentEra era $ \(_ :: Write.RecentEra recentEra) -> do
         wallet <- get
         (unsignedBalancedTx, updatedWalletState) <- lift $
             buildTransactionPure @s @k @n @recentEra
@@ -2028,12 +2028,12 @@ buildAndSignTransactionPure
             , builtSealedTx = signedTx
             }
   where
-    anyCardanoEra = WriteTx.fromAnyRecentEra era
+    anyCardanoEra = Write.fromAnyRecentEra era
 
 buildTransaction
     :: forall s k n era
     . ( WalletFlavor s n k
-      , WriteTx.IsRecentEra era
+      , Write.IsRecentEra era
       , AddressBookIso s
       )
     => DBLayer IO s k
@@ -2073,7 +2073,7 @@ buildTransaction DBLayer{..} txLayer timeTranslation changeAddrGen
 
 buildTransactionPure
     :: forall s k n era
-     . ( WriteTx.IsRecentEra era
+     . ( Write.IsRecentEra era
        , WalletFlavor s n k
        )
     => Wallet s
@@ -2138,7 +2138,7 @@ unsafeShelleyOnlyGetRewardXPub walletState =
 
 -- TODO: ADP-2459 - replace with something nicer.
 toBalanceTxPParams
-    :: forall era. WriteTx.IsRecentEra era
+    :: forall era. Write.IsRecentEra era
     => ProtocolParameters
     -> (ProtocolParameters, Cardano.BundledProtocolParameters era)
 toBalanceTxPParams pp =
@@ -2150,7 +2150,7 @@ toBalanceTxPParams pp =
             , "should prevent this from being reached."
             ])
         (Cardano.bundleProtocolParams
-            (WriteTx.fromRecentEra (WriteTx.recentEra @era)))
+            (Write.fromRecentEra (Write.recentEra @era)))
         $ currentNodeProtocolParameters pp
     )
 
@@ -2218,7 +2218,7 @@ buildAndSignTransaction ctx wid era mkRwdAcct pwd txCtx sel = db & \DBLayer{..} 
 -- | Construct an unsigned transaction from a given selection.
 constructTransaction
     :: forall n ktype era
-     . WriteTx.IsRecentEra era
+     . Write.IsRecentEra era
     => TransactionLayer ShelleyKey ktype SealedTx
     -> DBLayer IO (SeqState n ShelleyKey) ShelleyKey
     -> TransactionCtx
@@ -2231,7 +2231,7 @@ constructTransaction txLayer db txCtx preSel = do
 
 constructUnbalancedSharedTransaction
     :: forall n ktype era
-     . ( WriteTx.IsRecentEra era
+     . ( Write.IsRecentEra era
        , HasSNetworkId n)
     => TransactionLayer SharedKey ktype SealedTx
     -> DBLayer IO (SharedState n SharedKey) SharedKey
@@ -2704,7 +2704,7 @@ delegationFee
     -> IO DelegationFee
 delegationFee db@DBLayer{..} netLayer txLayer timeTranslation era
     changeAddressGen =
-    WriteTx.withRecentEra era $ \(recentEra :: WriteTx.RecentEra era) -> do
+    Write.withRecentEra era $ \(recentEra :: Write.RecentEra era) -> do
         protocolParams <- Write.unsafeFromWalletProtocolParameters
             <$> liftIO (currentProtocolParameters netLayer)
         feePercentiles <- transactionFee @s @k @n
@@ -2717,7 +2717,7 @@ delegationFee db@DBLayer{..} netLayer txLayer timeTranslation era
         deposit <- liftIO
             $ atomically isStakeKeyRegistered <&> \case
                 False -> toWallet
-                    $ WriteTx.stakeKeyDeposit recentEra
+                    $ Write.stakeKeyDeposit recentEra
                     $ Write.pparamsLedger protocolParams
                 True -> Coin 0
         pure DelegationFee { feePercentiles, deposit }
@@ -2725,14 +2725,14 @@ delegationFee db@DBLayer{..} netLayer txLayer timeTranslation era
 transactionFee
     :: forall s k n era
      . ( AddressBookIso s
-       , WriteTx.IsRecentEra era
+       , Write.IsRecentEra era
        , WalletFlavor s n k
        )
     => DBLayer IO s k
     -> Write.ProtocolParameters era
     -> TransactionLayer k 'CredFromKeyK SealedTx
     -> TimeTranslation
-    -> WriteTx.RecentEra era
+    -> Write.RecentEra era
     -> ChangeAddressGen s
     -> TransactionCtx
     -> PreSelection

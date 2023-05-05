@@ -133,7 +133,7 @@ import GHC.Generics
 
 import qualified Cardano.Api as Cardano
 import qualified Cardano.Wallet.Primitive.Types.TokenMap as TokenMap
-import qualified Cardano.Wallet.Write.Tx as WriteTx
+import qualified Cardano.Wallet.Write.Tx as Write
 import qualified Data.List as L
 import qualified Data.Map.Strict as Map
 
@@ -185,7 +185,7 @@ data TransactionLayer k ktype tx = TransactionLayer
 
     , mkUnsignedTransaction
         :: forall era
-         . WriteTx.IsRecentEra era
+         . Write.IsRecentEra era
         => Either XPub (Maybe (Script KeyHash))
             -- Reward account public key or optional script hash
         -> TransactionCtx

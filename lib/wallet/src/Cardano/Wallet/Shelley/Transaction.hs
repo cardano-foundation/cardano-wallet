@@ -295,7 +295,7 @@ import qualified Cardano.Wallet.Primitive.Types.TokenBundle as TokenBundle
 import qualified Cardano.Wallet.Primitive.Types.TokenMap as TokenMap
 import qualified Cardano.Wallet.Primitive.Types.Tx.TxOut as TxOut
 import qualified Cardano.Wallet.Shelley.Compatibility as Compatibility
-import qualified Cardano.Wallet.Write.Tx as WriteTx
+import qualified Cardano.Wallet.Write.Tx as Write
 import qualified Codec.CBOR.Encoding as CBOR
 import qualified Codec.CBOR.Write as CBOR
 import qualified Data.ByteString as BS
@@ -669,7 +669,7 @@ newTransactionLayer networkId = TransactionLayer
                 constructUnsignedTx networkId (md, []) ttl wdrl
                     selection delta assetsToBeMinted assetsToBeBurned inpsScripts
                     Nothing
-                    (WriteTx.shelleyBasedEraFromRecentEra WriteTx.recentEra)
+                    (Write.shelleyBasedEraFromRecentEra Write.recentEra)
             Just action -> do
                 let certs = case stakeCred of
                         Left xpub ->
@@ -683,7 +683,7 @@ newTransactionLayer networkId = TransactionLayer
                 constructUnsignedTx networkId payload ttl wdrl
                     selection delta assetsToBeMinted assetsToBeBurned inpsScripts
                     stakingScriptM
-                    (WriteTx.shelleyBasedEraFromRecentEra WriteTx.recentEra)
+                    (Write.shelleyBasedEraFromRecentEra Write.recentEra)
 
     , tokenBundleSizeAssessor =
         Compatibility.tokenBundleSizeAssessor
@@ -767,7 +767,7 @@ data TxFeeUpdate
 -- To avoid the need for `ledger -> wallet` conversions, this function can only
 -- be used to *add* tx body content.
 updateTx
-    :: forall era. WriteTx.IsRecentEra era
+    :: forall era. Write.IsRecentEra era
     => Cardano.Tx era
     -> TxUpdate
     -> Either ErrUpdateSealedTx (Cardano.Tx era)
@@ -881,8 +881,8 @@ evaluateMinimumFee pp (KeyWitnessCount nWits nBootWits) body =
 
 -- | Estimate the size of the transaction (body) when fully signed.
 estimateSignedTxSize
-    :: forall era. WriteTx.IsRecentEra era
-    => WriteTx.PParams (WriteTx.ShelleyLedgerEra era)
+    :: forall era. Write.IsRecentEra era
+    => Write.PParams (Write.ShelleyLedgerEra era)
     -> KeyWitnessCount
     -> Cardano.TxBody era
     -> TxSize
@@ -921,20 +921,20 @@ estimateSignedTxSize pparams nWits body =
     coinQuotRem (Coin p) (Coin q) = quotRem p q
 
     minfee :: KeyWitnessCount -> Coin
-    minfee witCount = toWalletCoin $ WriteTx.evaluateMinimumFee
-        (WriteTx.recentEra @era) pparams (toLedgerTx body) witCount
+    minfee witCount = toWalletCoin $ Write.evaluateMinimumFee
+        (Write.recentEra @era) pparams (toLedgerTx body) witCount
 
     toLedgerTx
-        :: Cardano.TxBody era -> WriteTx.Tx (WriteTx.ShelleyLedgerEra era)
+        :: Cardano.TxBody era -> Write.Tx (Write.ShelleyLedgerEra era)
     toLedgerTx b = case Cardano.Tx b [] of
-        Byron.ByronTx {} -> case WriteTx.recentEra @era of
+        Byron.ByronTx {} -> case Write.recentEra @era of
             {}
         Cardano.ShelleyTx _era ledgerTx -> ledgerTx
 
     feePerByte :: Coin
-    feePerByte = Coin.fromNatural $ case WriteTx.recentEra @era of
-        WriteTx.RecentEraBabbage -> Babbage._minfeeA pparams
-        WriteTx.RecentEraConway -> Conway._minfeeA pparams
+    feePerByte = Coin.fromNatural $ case Write.recentEra @era of
+        Write.RecentEraBabbage -> Babbage._minfeeA pparams
+        Write.RecentEraConway -> Conway._minfeeA pparams
 
 numberOfShelleyWitnesses :: Word -> KeyWitnessCount
 numberOfShelleyWitnesses n = KeyWitnessCount n 0
@@ -1080,16 +1080,16 @@ type ConwayTx =
     Ledger.Tx (Cardano.ShelleyLedgerEra Cardano.ConwayEra)
 
 assignScriptRedeemers
-    :: forall era. WriteTx.IsRecentEra era
-    => WriteTx.PParams (WriteTx.ShelleyLedgerEra era)
+    :: forall era. Write.IsRecentEra era
+    => Write.PParams (Write.ShelleyLedgerEra era)
     -> TimeTranslation
     -> Cardano.UTxO era
     -> [Redeemer]
     -> Cardano.Tx era
     -> Either ErrAssignRedeemers (Cardano.Tx era)
 assignScriptRedeemers pparams timeTranslation utxo redeemers tx =
-    case WriteTx.recentEra @era of
-        WriteTx.RecentEraBabbage -> do
+    case Write.recentEra @era of
+        Write.RecentEraBabbage -> do
             let Cardano.ShelleyTx _ babbageTx = tx
             babbageTx' <- flip execStateT babbageTx $ do
                 indexedRedeemers <- StateT assignNullRedeemersBabbage
@@ -1098,7 +1098,7 @@ assignScriptRedeemers pparams timeTranslation utxo redeemers tx =
                 modifyM (assignExecutionUnitsBabbage executionUnits)
                 modify' addScriptIntegrityHashBabbage
             pure $ Cardano.ShelleyTx ShelleyBasedEraBabbage babbageTx'
-        WriteTx.RecentEraConway -> do
+        Write.RecentEraConway -> do
             let Cardano.ShelleyTx _ conwayTx = tx
             conwayTx' <- flip execStateT conwayTx $ do
                 indexedRedeemers <- StateT assignNullRedeemersConway
