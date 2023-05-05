@@ -331,7 +331,6 @@ import Cardano.Wallet.DB.WalletState
     , fromWallet
     , getLatest
     , getSlot
-    , updateState
     , updateStateWithResult
     )
 import Cardano.Wallet.Flavor
@@ -3184,19 +3183,21 @@ updateCosigner
     -> CredentialType
     -> ExceptT ErrAddCosignerKey IO ()
 updateCosigner ctx cosignerXPub cosigner cred =
-    db & \DBLayer{..} -> do
-        cp <- lift $ atomically readCheckpoint
-        mapExceptT atomically $ updateState id walletsDB $ updateCosigner' cp
+    db & \DBLayer{..} ->
+        ExceptT $ atomically $ Delta.onDBVar walletsDB
+            $ Delta.updateWithError
+            $ updateCosigner'
   where
     db = ctx ^. dbLayer @_ @s @k
-    updateCosigner' cp wallet =
+    updateCosigner' wallet =
         case addCosignerAccXPub (cosigner, cosignerXPub) cred s0 of
             Left err -> Left $ ErrAddCosignerKey err
             Right s1 -> Right $ case ready s1 of
                 Shared.Pending -> prologueUpdate s1
                 Shared.Active _ -> prologueUpdate s1 ++ discoveriesUpdate s1
       where
-        s0 = getState $ getLatest wallet
+        cp = getLatest wallet
+        s0 = getState cp
         prologueUpdate s =
             [ReplacePrologue $ getPrologue s]
         wc@(WS.WalletCheckpoint bh utxo' _) = snd $ fromWallet cp

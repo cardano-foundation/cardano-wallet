@@ -2,7 +2,6 @@
 {-# LANGUAGE NamedFieldPuns #-}
 {-# LANGUAGE OverloadedLabels #-}
 {-# LANGUAGE StandaloneDeriving #-}
-{-# LANGUAGE TupleSections #-}
 {-# LANGUAGE TypeFamilies #-}
 
 -- |
@@ -36,7 +35,6 @@ module Cardano.Wallet.DB.WalletState
     -- * Helpers
     , updateSubmissions
 
-    , updateState
     , updateStateWithResult
     ) where
 
@@ -57,7 +55,7 @@ import Cardano.Wallet.Primitive.Types
 import Cardano.Wallet.Primitive.Types.UTxO
     ( UTxO )
 import Control.Monad.Except
-    ( ExceptT (..), runExceptT )
+    ( ExceptT (..) )
 import Data.DBVar
     ( DBVar, modifyDBMaybe )
 import Data.Delta
@@ -218,14 +216,3 @@ updateStateWithResult d state use =
     ExceptT
         $ modifyDBMaybe state
         $ modifyRight use . d
-
-updateState
-    :: (Delta da, Monad m)
-    => (Base da -> w)
-    -- ^ Get the part of the state that we want to update
-    -> DBVar m da
-    -- ^ The state variable
-    -> (w -> Either e da)
-    -- ^ The update function
-    -> ExceptT e m ()
-updateState d state use = updateStateWithResult d state $ fmap (,()) . use
