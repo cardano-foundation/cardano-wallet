@@ -1270,6 +1270,7 @@ RSpec.describe 'Cardano Wallet E2E tests - Shared wallets', :all, :e2e, :shared 
         tx_extra_signatures(tx, present: false)
         tx_script_integrity(tx, present: false)
         tx_validity_interval_default(tx)
+        tx_certificates(tx, present: false)
         # tx_certificates(tx, present: true, certificates: tx_decoded['certificates'])
         # expect(tx['certificates'].to_s).to include 'register_reward_account'
         # expect(tx['certificates'].to_s).to include 'join_pool'
@@ -1343,6 +1344,7 @@ RSpec.describe 'Cardano Wallet E2E tests - Shared wallets', :all, :e2e, :shared 
         tx_extra_signatures(tx, present: false)
         tx_script_integrity(tx, present: false)
         tx_validity_interval_default(tx)
+        tx_certificates(tx, present: false)
         # tx_certificates(tx, present: true, certificates: decoded_tx['certificates'])
         # expect(tx['certificates'].to_s).to include 'quit_pool'
 
