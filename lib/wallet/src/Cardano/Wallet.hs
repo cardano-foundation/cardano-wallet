@@ -327,12 +327,7 @@ import Cardano.Wallet.DB.Store.Submissions.Layer
 import Cardano.Wallet.DB.Store.Submissions.Operations
     ( TxSubmissionsStatus )
 import Cardano.Wallet.DB.WalletState
-    ( DeltaWalletState1 (..)
-    , fromWallet
-    , getLatest
-    , getSlot
-    , updateStateWithResult
-    )
+    ( DeltaWalletState1 (..), fromWallet, getLatest, getSlot )
 import Cardano.Wallet.Flavor
     ( WalletFlavor (..), WalletFlavorS (..) )
 import Cardano.Wallet.Logging
@@ -1476,9 +1471,12 @@ createRandomAddress
     -> Maybe (Index 'Hardened 'CredFromKeyK)
     -> ExceptT ErrCreateRandomAddress IO (Address, NonEmpty DerivationIndex)
 createRandomAddress ctx wid pwd mIx = db & \DBLayer{..} ->
-    withRootKey @s @k db wid pwd ErrCreateAddrWithRootKey $ \xprv scheme -> do
-        mapExceptT atomically $ updateStateWithResult id walletsDB $
-            createRandomAddress' xprv scheme
+    withRootKey @s @k db wid pwd ErrCreateAddrWithRootKey $ \xprv scheme ->
+        ExceptT
+            . atomically
+            . Delta.onDBVar walletsDB
+            . Delta.updateWithResultAndError
+            $ createRandomAddress' xprv scheme
   where
     db = ctx ^. typed
 
@@ -1516,13 +1514,16 @@ importRandomAddresses
     -> ExceptT ErrImportRandomAddress IO ()
 importRandomAddresses ctx addrs =
     db & \DBLayer{..} ->
-        mapExceptT atomically
-            $ updateStateWithResult id walletsDB importRandomAddresses'
+        ExceptT
+            . atomically
+            . Delta.onDBVar walletsDB
+            . Delta.updateWithError
+            $ importRandomAddresses'
   where
     db = ctx ^. dbLayer @IO @s @k
     importRandomAddresses' wal = case es1 of
         Left err -> Left $ ErrImportAddr err
-        Right s1 -> Right ([ReplacePrologue $ getPrologue s1], ())
+        Right s1 -> Right [ReplacePrologue $ getPrologue s1]
       where
         s0 = getState $ getLatest wal
         es1 = foldl' (\s addr -> s >>= Rnd.importAddress addr) (Right s0) addrs
@@ -1879,8 +1880,9 @@ buildSignSubmitTransaction db@DBLayer{..} netLayer txLayer pwd walletId
                     wholeRange
                     (Just Pending)
                     Nothing
-            txWithSlot@(builtTx, slot) <- throwOnErr <=< runExceptT $
-                updateStateWithResult id walletsDB $ \s -> do
+            txWithSlot@(builtTx, slot) <- (throwOnErr <=<
+                (Delta.onDBVar walletsDB . Delta.updateWithResultAndError)) $
+                \s -> do
                     let wallet = WalletState.getLatest s
                     let utxo = availableUTxO @s (Set.fromList pendingTxs) wallet
                     buildAndSignTransactionPure @k @s @n
@@ -3184,8 +3186,8 @@ updateCosigner
     -> ExceptT ErrAddCosignerKey IO ()
 updateCosigner ctx cosignerXPub cosigner cred =
     db & \DBLayer{..} ->
-        ExceptT $ atomically $ Delta.onDBVar walletsDB
-            $ Delta.updateWithError
+        ExceptT . atomically . Delta.onDBVar walletsDB
+            . Delta.updateWithError
             $ updateCosigner'
   where
     db = ctx ^. dbLayer @_ @s @k
