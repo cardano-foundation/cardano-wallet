@@ -651,7 +651,7 @@ newTransactionLayer networkId = TransactionLayer
                     stakingScriptResolver addressResolver inputResolver (body, wits)
                     & sealedTxFromCardano'
 
-    , mkUnsignedTransaction = \stakeCred _pp ctx selection -> do
+    , mkUnsignedTransaction = \stakeCred ctx selection -> do
         let ttl   = txValidityInterval ctx
         let wdrl  = view #txWithdrawal ctx
         let delta = case selection of

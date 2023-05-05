@@ -2557,7 +2557,7 @@ constructTransaction api argGenChange knownPools poolStatus apiWalletId body = d
 
         unbalancedTx <- liftHandler $
             W.constructTransaction @n @'CredFromKeyK @era
-                txLayer netLayer db transactionCtx2
+                txLayer db transactionCtx2
                     PreSelection { outputs = outs <> mintingOuts }
 
         balancedTx <-
@@ -2910,7 +2910,7 @@ constructSharedTransaction
                             F.toList (addressAmountToTxOut <$> content)
                 (unbalancedTx, scriptLookup) <- liftHandler $
                     W.constructUnbalancedSharedTransaction @n @'CredFromScriptK @era
-                    txLayer netLayer db txCtx PreSelection {outputs = outs}
+                    txLayer db txCtx PreSelection {outputs = outs}
 
                 balancedTx <-
                     balanceTransaction api argGenChange (Just scriptLookup)

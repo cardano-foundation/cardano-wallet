@@ -472,7 +472,6 @@ import Text.Read
     ( readMaybe )
 
 import qualified Cardano.Api as Cardano
-import qualified Cardano.Api.Extra as Cardano
 import qualified Cardano.Api.Shelley as Cardano
 import qualified Cardano.Crypto.Hash.Blake2b as Crypto
 import qualified Cardano.Crypto.Hash.Class as Crypto
@@ -2422,8 +2421,7 @@ balanceTransactionSpec = describe "balanceTransaction" $ do
 
         let balanceWithDust = balanceTx
                 dustWallet
-                (mockBundledProtocolParametersForBalancing
-                    Cardano.ShelleyBasedEraBabbage)
+                mockPParamsForBalancing
                 dummyTimeTranslation
                 testStdGenSeed
 
@@ -2562,8 +2560,7 @@ balanceTransactionSpec = describe "balanceTransaction" $ do
 
     balance = balanceTx
         wallet
-        (mockBundledProtocolParametersForBalancing
-            Cardano.ShelleyBasedEraBabbage)
+        mockPParamsForBalancing
         (dummyTimeTranslationWithHorizon horizon)
         testStdGenSeed
 
@@ -3442,9 +3439,7 @@ balanceTransactionWithDummyChangeState cs utxo seed ptx =
         balanceTransaction @_ @(Rand StdGen)
             (nullTracer @(Rand StdGen))
             cs
-            (mockBundledProtocolParametersForBalancing $
-                Cardano.shelleyBasedEra @era
-            )
+            mockPParamsForBalancing
             dummyTimeTranslation
             (constructUTxOIndex utxo)
             dummyChangeAddrGen
@@ -3497,9 +3492,8 @@ balanceTransactionGoldenSpec = describe "balance goldens" $ do
     it "testPParams" $ do
         let name = "testPParams"
         let dir = $(getTestData) </> "balanceTx" </> "binary"
-        let ledgerPParams =
-                Cardano.toLedgerPParams Cardano.ShelleyBasedEraBabbage
-                    $ snd mockProtocolParametersForBalancing
+        let ledgerPParams = Write.pparamsLedger
+                $ mockPParamsForBalancing @Cardano.BabbageEra
         Golden
             { output = ledgerPParams
             , encodePretty = show
@@ -3518,8 +3512,7 @@ balanceTransactionGoldenSpec = describe "balance goldens" $ do
             let ptx = pingPong_2
             let tx = either (error . show) id $ balanceTx
                     (mkTestWallet walletUTxO)
-                    (mockBundledProtocolParametersForBalancing
-                        Cardano.ShelleyBasedEraBabbage)
+                    mockPParamsForBalancing
                     dummyTimeTranslation
                     testStdGenSeed
                     ptx
@@ -3580,8 +3573,7 @@ balanceTransactionGoldenSpec = describe "balance goldens" $ do
                 walletUTxO = utxo [c]
                 res = balanceTx
                     (mkTestWallet walletUTxO)
-                    (mockBundledProtocolParametersForBalancing
-                        Cardano.ShelleyBasedEraBabbage)
+                    mockPParamsForBalancing
                     dummyTimeTranslation
                     testStdGenSeed
                     ptx
@@ -3664,8 +3656,8 @@ balanceTransactionGoldenSpec = describe "balance goldens" $ do
         -> Cardano.UTxO Cardano.BabbageEra
         -> Cardano.Lovelace
     txMinFee (Cardano.Tx body _) u = toCardanoLovelace $ evaluateMinimumFee
-        (Cardano.bundleProtocolParams Cardano.BabbageEra $
-            snd mockProtocolParametersForBalancing)
+        (Cardano.bundleProtocolParams Cardano.BabbageEra
+            mockCardanoApiPParamsForBalancing)
         (estimateKeyWitnessCount u body)
         body
 
@@ -3691,8 +3683,7 @@ prop_balanceTransactionValid wallet@(Wallet' _ walletUTxO _) (ShowBuildable part
         let originalBalance = txBalance (view #tx partialTx) combinedUTxO
         let res = balanceTx
                 wallet
-                (mockBundledProtocolParametersForBalancing
-                    $ shelleyBasedEra @era)
+                mockPParamsForBalancing
                 dummyTimeTranslation
                 seed
                 partialTx
@@ -3876,7 +3867,7 @@ prop_balanceTransactionValid wallet@(Wallet' _ walletUTxO _) (ShowBuildable part
                 = unbundleLedgerShelleyBasedProtocolParams
                     (shelleyBasedEra @era)
                 $ Cardano.bundleProtocolParams cardanoEra
-                $ snd mockProtocolParametersForBalancing
+                mockCardanoApiPParamsForBalancing
         let (TxSize size) =
                 estimateSignedTxSize pparams
                     (estimateKeyWitnessCount utxo body)
@@ -3965,11 +3956,11 @@ prop_balanceTransactionValid wallet@(Wallet' _ walletUTxO _) (ShowBuildable part
         TxOutValue _ val -> val
 
     nodePParams =
-        Cardano.bundleProtocolParams (cardanoEra @era) $
-            snd mockProtocolParametersForBalancing
+        Cardano.bundleProtocolParams (cardanoEra @era)
+            mockCardanoApiPParamsForBalancing
 
     ledgerPParams = Write.pparamsLedger $
-        mockBundledProtocolParametersForBalancing (shelleyBasedEra @era)
+        mockPParamsForBalancing @era
 
     txOutputs :: Cardano.Tx era -> [Cardano.TxOut Cardano.CtxTx era]
     txOutputs (Cardano.Tx (Cardano.TxBody content) _) =
@@ -3989,8 +3980,7 @@ prop_balanceTransactionExistingTotalCollateral
             Left err -> ErrBalanceTxExistingTotalCollateral === err
             e -> counterexample (show e) False
   where
-    pp = mockBundledProtocolParametersForBalancing
-        Cardano.ShelleyBasedEraBabbage
+    pp = mockPParamsForBalancing
 
 prop_balanceTransactionExistingReturnCollateral
     :: Wallet'
@@ -4006,8 +3996,7 @@ prop_balanceTransactionExistingReturnCollateral
             Left err -> ErrBalanceTxExistingReturnCollateral === err
             e -> counterexample (show e) False
   where
-    pp = mockBundledProtocolParametersForBalancing
-        Cardano.ShelleyBasedEraBabbage
+    pp = mockPParamsForBalancing
 
 {-# ANN prop_bootstrapWitnesses ("HLint: ignore Eta reduce" :: String) #-}
 prop_bootstrapWitnesses
@@ -4096,68 +4085,57 @@ hasReturnCollateral (Cardano.Tx (Cardano.TxBody content) _) =
         Cardano.TxReturnCollateralNone -> False
         Cardano.TxReturnCollateral _ _ -> True
 
--- | Consistent pair of ProtocolParameters of both wallet and cardano-api types.
---
--- We try to use similar parameters to mainnet where it matters (in particular
+-- | We try to use similar parameters to mainnet where it matters (in particular
 -- fees, execution unit prices, and the cost model.)
---
--- NOTE: We don't have a 'Cardano.ProtocolParameters -> ProtocolParameters'
--- function, so we need to manually ensure the hard-coded values are consistent.
-mockProtocolParametersForBalancing
-    :: (ProtocolParameters, Cardano.ProtocolParameters)
-mockProtocolParametersForBalancing =
-    ( mockProtocolParameters
-    , Cardano.ProtocolParameters
-        { Cardano.protocolParamTxFeeFixed = 155_381
-        , Cardano.protocolParamTxFeePerByte = 44
-        , Cardano.protocolParamMaxTxSize = 16_384
-        , Cardano.protocolParamMinUTxOValue = Nothing
-        , Cardano.protocolParamMaxTxExUnits =
-            Just $ Cardano.ExecutionUnits 10_000_000_000 14_000_000
-        , Cardano.protocolParamMaxValueSize = Just 4_000
-        , Cardano.protocolParamProtocolVersion = (6, 0)
-        , Cardano.protocolParamDecentralization = Just 0
-        , Cardano.protocolParamExtraPraosEntropy = Nothing
-        , Cardano.protocolParamMaxBlockHeaderSize = 100_000 -- Dummy value
-        , Cardano.protocolParamMaxBlockBodySize = 100_000
-        , Cardano.protocolParamStakeAddressDeposit = Cardano.Lovelace 2_000_000
-        , Cardano.protocolParamStakePoolDeposit = Cardano.Lovelace 500_000_000
-        , Cardano.protocolParamMinPoolCost = Cardano.Lovelace 32_000_000
-        , Cardano.protocolParamPoolRetireMaxEpoch = Cardano.EpochNo 2
-        , Cardano.protocolParamStakePoolTargetNum = 100
-        , Cardano.protocolParamPoolPledgeInfluence = 0
-        , Cardano.protocolParamMonetaryExpansion = 0
-        , Cardano.protocolParamTreasuryCut  = 0
-        , Cardano.protocolParamUTxOCostPerWord =
-            Just $ fromIntegral $
-                SL.unCoin testParameter_coinsPerUTxOWord_Alonzo
-        , Cardano.protocolParamUTxOCostPerByte =
-            Just $ fromIntegral $
-                SL.unCoin testParameter_coinsPerUTxOByte_Babbage
-        , Cardano.protocolParamCostModels = Cardano.fromAlonzoCostModels
-            costModelsForTesting
-        , Cardano.protocolParamPrices =
-            Just $ Cardano.ExecutionUnitPrices
-                (721 % 10_000_000)
-                (577 % 10_000)
-        , Cardano.protocolParamMaxBlockExUnits =
-            Just $ Cardano.ExecutionUnits 10_000_000_000 14_000_000
-        , Cardano.protocolParamCollateralPercent = Just 150
-        , Cardano.protocolParamMaxCollateralInputs = Just 3
-        }
-    )
-
-mockBundledProtocolParametersForBalancing
-    :: Cardano.ShelleyBasedEra era
-    -> Write.ProtocolParameters era
-mockBundledProtocolParametersForBalancing era = Write.ProtocolParameters
-    { pparamsWallet =
-        fst mockProtocolParametersForBalancing
-    , pparamsLedger =
-        Cardano.unbundleLedgerShelleyBasedProtocolParams era $
-        Cardano.bundleProtocolParams (Cardano.shelleyBasedToCardanoEra era) $
-        snd mockProtocolParametersForBalancing
+mockCardanoApiPParamsForBalancing
+    :: Cardano.ProtocolParameters
+mockCardanoApiPParamsForBalancing = Cardano.ProtocolParameters
+    { Cardano.protocolParamTxFeeFixed = 155_381
+    , Cardano.protocolParamTxFeePerByte = 44
+    , Cardano.protocolParamMaxTxSize = 16_384
+    , Cardano.protocolParamMinUTxOValue = Nothing
+    , Cardano.protocolParamMaxTxExUnits =
+        Just $ Cardano.ExecutionUnits 10_000_000_000 14_000_000
+    , Cardano.protocolParamMaxValueSize = Just 4_000
+    , Cardano.protocolParamProtocolVersion = (6, 0)
+    , Cardano.protocolParamDecentralization = Just 0
+    , Cardano.protocolParamExtraPraosEntropy = Nothing
+    , Cardano.protocolParamMaxBlockHeaderSize = 100_000 -- Dummy value
+    , Cardano.protocolParamMaxBlockBodySize = 100_000
+    , Cardano.protocolParamStakeAddressDeposit = Cardano.Lovelace 2_000_000
+    , Cardano.protocolParamStakePoolDeposit = Cardano.Lovelace 500_000_000
+    , Cardano.protocolParamMinPoolCost = Cardano.Lovelace 32_000_000
+    , Cardano.protocolParamPoolRetireMaxEpoch = Cardano.EpochNo 2
+    , Cardano.protocolParamStakePoolTargetNum = 100
+    , Cardano.protocolParamPoolPledgeInfluence = 0
+    , Cardano.protocolParamMonetaryExpansion = 0
+    , Cardano.protocolParamTreasuryCut  = 0
+    , Cardano.protocolParamUTxOCostPerWord =
+        Just $ fromIntegral $
+            SL.unCoin testParameter_coinsPerUTxOWord_Alonzo
+    , Cardano.protocolParamUTxOCostPerByte =
+        Just $ fromIntegral $
+            SL.unCoin testParameter_coinsPerUTxOByte_Babbage
+    , Cardano.protocolParamCostModels = Cardano.fromAlonzoCostModels
+        costModelsForTesting
+    , Cardano.protocolParamPrices =
+        Just $ Cardano.ExecutionUnitPrices
+            (721 % 10_000_000)
+            (577 % 10_000)
+    , Cardano.protocolParamMaxBlockExUnits =
+        Just $ Cardano.ExecutionUnits 10_000_000_000 14_000_000
+    , Cardano.protocolParamCollateralPercent = Just 150
+    , Cardano.protocolParamMaxCollateralInputs = Just 3
     }
+
+mockPParamsForBalancing
+    :: forall era. WriteTx.IsRecentEra era
+    => Write.ProtocolParameters era
+mockPParamsForBalancing =
+    Write.ProtocolParameters $
+        Cardano.toLedgerPParams
+            (WriteTx.shelleyBasedEra @era)
+            mockCardanoApiPParamsForBalancing
 
 {-# NOINLINE costModelsForTesting #-}
 costModelsForTesting :: Alonzo.CostModels
@@ -4283,8 +4261,7 @@ estimateSignedTxSizeSpec = describe "estimateSignedTxSize" $ do
         -> Cardano.Tx era
         -> IO ()
     test _name bs tx@(Cardano.Tx (body :: Cardano.TxBody era) _) = do
-        let pparams = Cardano.toLedgerPParams (WriteTx.shelleyBasedEra @era)
-                $ snd mockProtocolParametersForBalancing
+        let pparams = Write.pparamsLedger $ mockPParamsForBalancing @era
             utxo = utxoPromisingInputsHaveVkPaymentCreds body
             witCount = estimateKeyWitnessCount utxo body
 

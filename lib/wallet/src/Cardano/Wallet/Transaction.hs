@@ -188,8 +188,6 @@ data TransactionLayer k ktype tx = TransactionLayer
          . WriteTx.IsRecentEra era
         => Either XPub (Maybe (Script KeyHash))
             -- Reward account public key or optional script hash
-        -> ProtocolParameters
-            -- Current protocol parameters
         -> TransactionCtx
             -- An additional context about the transaction
         -> Either PreSelection (SelectionOf TxOut)

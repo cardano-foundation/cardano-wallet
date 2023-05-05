@@ -464,6 +464,8 @@ import Cardano.Wallet.Shelley.Compatibility
     , fromCardanoTxOut
     , fromCardanoWdrls
     )
+import Cardano.Wallet.Shelley.Compatibility.Ledger
+    ( toWallet )
 import Cardano.Wallet.Shelley.Transaction
     ( calculateMinimumFee, getFeePerByteFromWalletPParams )
 import Cardano.Wallet.Transaction
@@ -2094,7 +2096,6 @@ buildTransactionPure
         withExceptT (Right . ErrConstructTxBody) . except $
             mkUnsignedTransaction txLayer @era
                 (Left $ unsafeShelleyOnlyGetRewardXPub @s @k @n (getState wallet))
-                (Write.pparamsWallet pparams)
                 txCtx
                 (Left preSelection)
 
@@ -2216,32 +2217,29 @@ buildAndSignTransaction ctx wid era mkRwdAcct pwd txCtx sel = db & \DBLayer{..} 
 
 -- | Construct an unsigned transaction from a given selection.
 constructTransaction
-    :: forall n ktype era block
+    :: forall n ktype era
      . WriteTx.IsRecentEra era
     => TransactionLayer ShelleyKey ktype SealedTx
-    -> NetworkLayer IO block
     -> DBLayer IO (SeqState n ShelleyKey) ShelleyKey
     -> TransactionCtx
     -> PreSelection
     -> ExceptT ErrConstructTx IO (Cardano.TxBody era)
-constructTransaction txLayer netLayer db txCtx preSel = do
+constructTransaction txLayer db txCtx preSel = do
     (_, xpub, _) <- lift $ readRewardAccount db
-    pp <- liftIO $ currentProtocolParameters netLayer
-    mkUnsignedTransaction txLayer (Left xpub) pp txCtx (Left preSel)
+    mkUnsignedTransaction txLayer (Left xpub) txCtx (Left preSel)
         & withExceptT ErrConstructTxBody . except
 
 constructUnbalancedSharedTransaction
-    :: forall n ktype era block
+    :: forall n ktype era
      . ( WriteTx.IsRecentEra era
        , HasSNetworkId n)
     => TransactionLayer SharedKey ktype SealedTx
-    -> NetworkLayer IO block
     -> DBLayer IO (SharedState n SharedKey) SharedKey
     -> TransactionCtx
     -> PreSelection
     -> ExceptT ErrConstructTx IO
         (Cardano.TxBody era, (Address -> CA.Script KeyHash))
-constructUnbalancedSharedTransaction txLayer netLayer db txCtx sel = db & \DBLayer{..} -> do
+constructUnbalancedSharedTransaction txLayer db txCtx sel = db & \DBLayer{..} -> do
     cp <- lift $ atomically readCheckpoint
     let s = getState cp
     let scriptM =
@@ -2260,9 +2258,8 @@ constructUnbalancedSharedTransaction txLayer netLayer db txCtx sel = db & \DBLay
                             error "role is specified only for payment credential"
                 in replaceCosignersWithVerKeys role' template ix
     sealedTx <- mapExceptT atomically $ do
-        pp <- liftIO $ currentProtocolParameters netLayer
         withExceptT ErrConstructTxBody $ ExceptT $ pure $
-            mkUnsignedTransaction txLayer (Right scriptM) pp txCtx (Left sel)
+            mkUnsignedTransaction txLayer (Right scriptM) txCtx (Left sel)
     pure (sealedTx, getScript)
 
 -- | Calculate the transaction expiry slot, given a 'TimeInterpreter', and an
@@ -2719,7 +2716,9 @@ delegationFee db@DBLayer{..} netLayer txLayer timeTranslation era
             (PreSelection [])
         deposit <- liftIO
             $ atomically isStakeKeyRegistered <&> \case
-                False -> stakeKeyDeposit (Write.pparamsWallet protocolParams)
+                False -> toWallet
+                    $ WriteTx.stakeKeyDeposit recentEra
+                    $ Write.pparamsLedger protocolParams
                 True -> Coin 0
         pure DelegationFee { feePercentiles, deposit }
 
@@ -2761,7 +2760,6 @@ transactionFee DBLayer{atomically, walletsDB} protocolParams txLayer
         unsignedTxBody <- wrapErrMkTransaction $
             mkUnsignedTransaction txLayer @era
                 (Left $ unsafeShelleyOnlyGetRewardXPub @s @k @n (getState wallet))
-                (Write.pparamsWallet protocolParams)
                 txCtx
                 (Left preSelection)
 
