@@ -103,7 +103,6 @@ import Cardano.Wallet.DB.Pure.Implementation
     , mPutDelegationRewardBalance
     , mPutPrivateKey
     , mPutTxHistory
-    , mPutWalletMeta
     , mReadCheckpoint
     , mReadDelegationRewardBalance
     , mReadGenesisParameters
@@ -338,7 +337,6 @@ data Cmd s wid
     | PutCheckpoint (Wallet s)
     | ReadCheckpoint
     | ListCheckpoints
-    | PutWalletMeta WalletMetadata
     | ReadWalletMeta
     | PutTxHistory TxHistory
     | ReadTxHistory
@@ -401,8 +399,6 @@ runMock = \case
         first (Resp . fmap ChainPoints) . mListCheckpoints
     ReadCheckpoint ->
         first (Resp . fmap Checkpoint) . mReadCheckpoint
-    PutWalletMeta meta ->
-        first (Resp . fmap Unit) . mPutWalletMeta meta
     ReadWalletMeta ->
         first (Resp . fmap (Metadata . fst) ) . mReadWalletMeta timeInterpreter
     PutDelegationCertificate cert sl ->
@@ -467,8 +463,6 @@ runIO DBLayer{..} = fmap Resp . go
             atomically readCheckpoint
         ListCheckpoints -> Right . ChainPoints <$>
             atomically listCheckpoints
-        PutWalletMeta meta ->
-            runDBSuccess atomically Unit $ putWalletMeta meta
         ReadWalletMeta -> Right . (Metadata . fst) <$> atomically readWalletMeta
         PutDelegationCertificate pool sl ->
             runDBSuccess atomically Unit $ putDelegationCertificate pool sl
@@ -608,8 +602,6 @@ generatorWithWid wids =
         $ pure ReadCheckpoint
     , declareGenerator "ListCheckpoints" 5
         $ pure ListCheckpoints
-    , declareGenerator "PutWalletMeta" 5
-        $ PutWalletMeta <$> arbitrary
     , declareGenerator "ReadWalletMeta" 5
         $ pure ReadWalletMeta
     , declareGenerator "PutDelegationCertificate" 5
@@ -669,10 +661,6 @@ shrinker (At cmd) = case cmd of
     PutTxHistory h ->
         [ At $ PutTxHistory h'
         | h' <- map unGenTxHistory . shrink . GenTxHistory $ h
-        ]
-    PutWalletMeta met ->
-        [ At $ PutWalletMeta met'
-        | met' <- shrink met
         ]
     RollbackTo wid sid ->
         [ At $ RollbackTo wid sid'

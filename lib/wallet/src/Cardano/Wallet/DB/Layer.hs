@@ -108,7 +108,7 @@ import Cardano.Wallet.DB.Sqlite.Types
 import Cardano.Wallet.DB.Store.Checkpoints
     ( PersistAddressBook (..), blockHeaderFromEntity, mkStoreWallet )
 import Cardano.Wallet.DB.Store.Info.Store
-    ( DeltaWalletInfo (..), WalletInfo (..) )
+    ( WalletInfo (..) )
 import Cardano.Wallet.DB.Store.Meta.Model
     ( mkTxMetaFromEntity )
 import Cardano.Wallet.DB.Store.Submissions.Layer
@@ -565,9 +565,6 @@ newDBFreshFromDBOpen ti wid_ DBOpen{atomically=atomically_} =
     dbLayerCollection walletsDB = DBLayerCollection{..}
       where
         transactionsStore_ = transactionsQS
-        putWalletMeta_ wm =
-            updateDBVar walletsDB [ UpdateInfo $ UpdateWalletMetadata wm ]
-
         readWalletMeta_ = do
             walletMeta . info <$> readDBVar walletsDB
 

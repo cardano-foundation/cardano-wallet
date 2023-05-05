@@ -828,8 +828,8 @@ prop_randomOpChunks (NonEmpty (p : pairs)) =
             withShelleyDBLayer $ \dbfM -> do
                 dbM <- boot dbfM p
                 dbF <- boot dbfF p
-                forM_ pairs (insertPair dbM)
-                cutRandomly pairs >>= mapM_ (mapM (insertPair dbF))
+                forM_ (fst <$> pairs) (insertPair dbM)
+                cutRandomly (fst <$> pairs) >>= mapM_ (mapM (insertPair dbF))
                 dbF `shouldBeConsistentWith` dbM
     boot DBFresh{bootDBLayer} (cp, meta) = do
         let cp0 = imposeGenesisState cp
@@ -839,11 +839,10 @@ prop_randomOpChunks (NonEmpty (p : pairs)) =
 
     insertPair
         :: DBLayer IO s k
-        -> (Wallet s, WalletMetadata)
+        -> Wallet s
         -> IO ()
-    insertPair DBLayer{..} (cp, meta) = atomically $ do
+    insertPair DBLayer{..} cp = atomically $ do
         putCheckpoint cp
-        putWalletMeta meta
 
     imposeGenesisState :: Wallet s -> Wallet s
     imposeGenesisState = over #currentTip $ \(BlockHeader _ _ h _) ->

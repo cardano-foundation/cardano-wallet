@@ -159,12 +159,6 @@ properties withFreshDB = describe "DB.Properties" $ do
                 testOnLayer
                 (\DBLayer{..} _wid -> lift . atomically . putCheckpoint)
                 (\DBLayer{..} _wid -> Identity <$> atomically readCheckpoint)
-        it "Wallet Metadata"
-            $ property
-            $ prop_readAfterPut
-                testOnLayer
-                (\DBLayer{..} _wid -> lift . atomically . putWalletMeta)
-                (\DBLayer{..} _ -> Identity . fst <$>  atomically readWalletMeta)
         it "Tx History"
             $ property
             $ prop_readAfterPut
@@ -195,14 +189,6 @@ properties withFreshDB = describe "DB.Properties" $ do
                 (\DBLayer{..} _ -> atomically readWalletMeta)
                 (\db _ -> readTxHistory_ db)
                 (\DBLayer{..} _wid -> atomically readPrivateKey)
-        it "Wallet Metadata vs Tx History & Checkpoint & Private Key"
-            $ property
-            $ prop_isolation
-                testOnLayer
-                (\DBLayer{..} _wid -> lift . atomically . putWalletMeta)
-                (\db _ -> readTxHistory_ db)
-                (\DBLayer{..} _ -> atomically readCheckpoint)
-                (\DBLayer{..} _wid -> atomically readPrivateKey)
         it "Tx History vs Checkpoint & Wallet Metadata & Private Key"
             $ property
             $ prop_isolation
@@ -223,13 +209,6 @@ properties withFreshDB = describe "DB.Properties" $ do
                 (\DBLayer{..} _-> Identity <$> atomically readCheckpoint)
                 (Identity . last)
                 . sortOn (currentTip . unShowFmt)
-        it "Wallet Metadata"
-            $ checkCoverage
-            $ prop_sequentialPut
-                testOnLayer
-                (\DBLayer{..} _wid -> lift . atomically . putWalletMeta)
-                (\DBLayer{..} _ -> Just . fst <$> atomically readWalletMeta)
-                lastMay
         it "Tx History"
             $ checkCoverage
             $ prop_sequentialPut

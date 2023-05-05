@@ -1,3 +1,4 @@
+{-# LANGUAGE DeriveGeneric #-}
 {-# LANGUAGE LambdaCase #-}
 {-# LANGUAGE MultiParamTypeClasses #-}
 {-# LANGUAGE OverloadedLabels #-}
@@ -60,6 +61,8 @@ import Database.Persist.Sql
     ( SqlPersistT, deleteWhere )
 import Fmt
     ( Buildable (..) )
+import GHC.Generics
+    ( Generic )
 
 mkWalletMetadataUpdate :: WalletMetadata -> [Update Wallet]
 mkWalletMetadataUpdate meta =
@@ -86,7 +89,7 @@ data WalletInfo = WalletInfo
     , walletMeta :: !WalletMetadata
     , walletGenesisParameters :: !GenesisParameters
     }
-    deriving (Eq, Show)
+    deriving (Eq, Show, Generic)
 
 -- | Delta type for 'WalletInfo'. Can change only 'WalletMetadata'.
 newtype DeltaWalletInfo

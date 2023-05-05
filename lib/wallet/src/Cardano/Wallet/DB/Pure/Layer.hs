@@ -35,7 +35,6 @@ import Cardano.Wallet.DB.Pure.Implementation
     , mPutDelegationRewardBalance
     , mPutPrivateKey
     , mPutTxHistory
-    , mPutWalletMeta
     , mReadCheckpoint
     , mReadDelegationRewardBalance
     , mReadGenesisParameters
@@ -122,7 +121,7 @@ newDBFresh timeInterpreter wid = do
                                    Wallet Metadata
         -----------------------------------------------------------------------}
 
-        , putWalletMeta = noErrorAlterDB db .  mPutWalletMeta
+        -- , putWalletMeta = noErrorAlterDB db .  mPutWalletMeta
 
         , readWalletMeta = throwErrorReadDB db
             $ mReadWalletMeta timeInterpreter

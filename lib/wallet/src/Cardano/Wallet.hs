@@ -322,12 +322,19 @@ import Cardano.Wallet.DB
     )
 import Cardano.Wallet.DB.Errors
     ( ErrNoSuchWallet (..) )
+import Cardano.Wallet.DB.Store.Info.Store
+    ( DeltaWalletInfo (..) )
 import Cardano.Wallet.DB.Store.Submissions.Layer
     ( mkLocalTxSubmission )
 import Cardano.Wallet.DB.Store.Submissions.Operations
     ( TxSubmissionsStatus )
 import Cardano.Wallet.DB.WalletState
-    ( DeltaWalletState1 (..), fromWallet, getLatest, getSlot )
+    ( DeltaWalletState
+    , DeltaWalletState1 (..)
+    , fromWallet
+    , getLatest
+    , getSlot
+    )
 import Cardano.Wallet.Flavor
     ( WalletFlavor (..), WalletFlavorS (..) )
 import Cardano.Wallet.Logging
@@ -535,7 +542,9 @@ import Crypto.Hash
 import Data.ByteString
     ( ByteString )
 import Data.DBVar
-    ( readDBVar )
+    ( DBVar, readDBVar )
+import Data.Delta.Update
+    ( onDBVar, update )
 import Data.Either
     ( partitionEithers )
 import Data.Either.Extra
@@ -746,15 +755,15 @@ transactionLayer ::
     => Lens' ctx (TransactionLayer k ktype SealedTx)
 transactionLayer = typed @(TransactionLayer k ktype SealedTx)
 
--- | Convience to apply an 'Update' to the 'WalletState' via the 'DBLayer'.
+-- | Convenience to apply an 'Update' to the 'WalletState' via the 'DBLayer'.
 onWalletState
     :: forall m s k ctx r
      . ( HasDBLayer m s k ctx )
     => ctx
     -> Delta.Update (WalletState.DeltaWalletState s) r
     -> m r
-onWalletState ctx update = db & \DBLayer{..} ->
-    atomically $ Delta.onDBVar walletsDB update
+onWalletState ctx update' = db & \DBLayer{..} ->
+    atomically $ Delta.onDBVar walletsDB update'
   where
     db = ctx ^. dbLayer @m @s @k
 
@@ -874,20 +883,28 @@ walletSyncProgress ctx w = do
   where
     nl = ctx ^. networkLayer
 
+putWalletMeta
+    :: Monad stm
+    => DBVar stm (DeltaWalletState s)
+    -> WalletMetadata
+    -> stm ()
+putWalletMeta walletsDB wm = onDBVar walletsDB $ update $ \_ ->
+    [UpdateInfo $ UpdateWalletMetadata wm]
 
 -- | Update a wallet's metadata with the given update function.
 updateWallet
-    :: forall ctx s k.
-        ( HasDBLayer IO s k ctx
-        )
+    :: forall ctx s k
+     . ( HasDBLayer IO s k ctx
+       )
     => ctx
     -> (WalletMetadata -> WalletMetadata)
     -> IO ()
-updateWallet ctx modify = db & \DBLayer{..} -> atomically $ do
-    meta <- fst <$> readWalletMeta
-    putWalletMeta (modify meta)
-  where
-    db = ctx ^. dbLayer @IO @s @k
+updateWallet ctx f = onWalletState @IO @s @k ctx $ update $ \s ->
+    [ UpdateInfo
+        $ UpdateWalletMetadata
+        $ f
+        $ s ^. #info . #walletMeta
+    ]
 
 -- | Change a wallet's passphrase to the given passphrase.
 updateWalletPassphraseWithOldPassphrase
@@ -2980,7 +2997,7 @@ attachPrivateKey db (xprv, hpwd) scheme = db & \DBLayer{..} -> do
                     , passphraseScheme = scheme
                     }
                 }
-        putWalletMeta (modify $ fst meta)
+        putWalletMeta walletsDB (modify $ fst meta)
 
 -- | Execute an action which requires holding a root XPrv.
 --
