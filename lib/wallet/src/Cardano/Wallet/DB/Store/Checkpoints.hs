@@ -97,6 +97,8 @@ import Cardano.Wallet.DB.Sqlite.Types
     , hashOfNoParent
     , toMaybeHash
     )
+import Cardano.Wallet.DB.Store.Info.Store
+    ( mkStoreInfo )
 import Cardano.Wallet.DB.Store.Submissions.Operations
     ( mkStoreSubmissions )
 import Cardano.Wallet.DB.WalletState
@@ -120,8 +122,6 @@ import Control.Monad.Trans.Maybe
     ( MaybeT (..) )
 import Data.Bifunctor
     ( bimap, second )
-import Data.Foldable
-    ( for_ )
 import Data.Functor
     ( (<&>) )
 import Data.Generics.Internal.VL.Lens
@@ -137,7 +137,7 @@ import Data.Proxy
 import Data.Quantity
     ( Quantity (..) )
 import Data.Store
-    ( Store (..), UpdateStore, mkUpdateStore )
+    ( Store (..), UpdateStore, mkUpdateStore, updateLoad, updateSequence )
 import Data.Type.Equality
     ( type (==) )
 import Data.Typeable
@@ -175,6 +175,8 @@ import qualified Cardano.Wallet.Primitive.Types.Tx.TxOut as W
     ( TxOut (TxOut) )
 import qualified Cardano.Wallet.Primitive.Types.Tx.TxOut as W.TxOut
 import qualified Cardano.Wallet.Primitive.Types.UTxO as W
+import Control.Monad.Class.MonadThrow
+    ( throwIO )
 import qualified Data.Map.Merge.Strict as Map
 import qualified Data.Map.Strict as Map
 
@@ -187,34 +189,43 @@ mkStoreWallet
     :: forall s. PersistAddressBook s
     => W.WalletId
     -> UpdateStore (SqlPersistT IO) (DeltaWalletState s)
-mkStoreWallet wid =
-    mkUpdateStore load write (\_ -> update)
+mkStoreWallet wid = mkUpdateStore load write update
   where
-    storeCheckpoints = mkStoreCheckpoints wid
-    submissions = mkStoreSubmissions wid
+    checkpointsStore = mkStoreCheckpoints wid
+    submissionsStore = mkStoreSubmissions wid
+    infoStore = mkStoreInfo
 
     load = do
-        eprologue <- maybe (Left $ toException ErrBadFormatAddressPrologue) Right
-            <$> loadPrologue wid
-        echeckpoints <- loadS storeCheckpoints
-        esubmissions <- loadS submissions
-        pure $ WalletState <$> eprologue <*> echeckpoints <*> esubmissions
+        eprologue <-
+            maybe (Left $ toException ErrBadFormatAddressPrologue) Right
+                <$> loadPrologue wid
+        echeckpoints <- loadS checkpointsStore
+        esubmissions <- loadS submissionsStore
+        einfo <- loadS infoStore
+        pure
+            $ WalletState
+                <$> eprologue
+                <*> echeckpoints
+                <*> esubmissions
+                <*> einfo
 
     write wallet = do
+        writeS infoStore (wallet ^. #info)
         insertPrologue wid (wallet ^. #prologue)
-        writeS storeCheckpoints (wallet ^. #checkpoints)
-        writeS submissions (wallet ^. #submissions)
+        writeS checkpointsStore (wallet ^. #checkpoints)
+        writeS submissionsStore (wallet ^. #submissions)
 
-    update =
-         -- first update in list is last to be applied!
-        mapM_ update1 . reverse
-    update1 (ReplacePrologue prologue) =
-        insertPrologue wid prologue
-    update1 (UpdateCheckpoints delta) =
-        -- FIXME LATER during ADP-1043: remove 'undefined'
-        updateS storeCheckpoints undefined delta
-    update1 (UpdateSubmissions delta) =
-        for_ (reverse delta) (updateS submissions Nothing)
+    update = updateLoad load throwIO $ updateSequence update1
+      where
+        update1 _ (ReplacePrologue prologue) = insertPrologue wid prologue
+        update1 s (UpdateCheckpoints delta) =
+            updateS checkpointsStore (Just $ checkpoints s) delta
+        update1 s (UpdateSubmissions deltas) =
+            updateSequence
+                (updateS submissionsStore . Just)
+                (submissions s)
+                deltas
+        update1 _ (UpdateInfo delta) = updateS infoStore Nothing delta
 
 -- | Store for the 'Checkpoints' belonging to a 'WalletState'.
 mkStoreCheckpoints

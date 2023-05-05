@@ -1135,7 +1135,7 @@ newtype EpochLength = EpochLength { unEpochLength :: Word32 }
 instance NFData EpochLength
 
 -- | Blockchain start time
-newtype StartTime = StartTime UTCTime
+newtype StartTime = StartTime {utcTimeOfStartTime :: UTCTime}
     deriving (Show, Eq, Ord, Generic)
 
 instance NFData StartTime

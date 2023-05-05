@@ -76,17 +76,17 @@ import Cardano.Wallet.DB
     , DBDelegation (..)
     , DBFactory (..)
     , DBFresh (..)
+    , DBLayer (..)
     , DBLayerCollection (..)
     , DBLayerParams (..)
     , DBOpen (..)
     , DBPrivateKey (..)
     , DBTxHistory (..)
-    , DBWalletMeta (..)
-    , DBWallets (..)
     , ErrNotGenesisBlockHeader (ErrNotGenesisBlockHeader)
     , ErrWalletAlreadyInitialized (ErrWalletAlreadyInitialized)
     , ErrWalletNotInitialized (..)
     , mkDBLayerFromParts
+    , transactionsStore
     )
 import Cardano.Wallet.DB.Sqlite.Migration
     ( DefaultFieldValues (..), migrateManually )
@@ -107,6 +107,8 @@ import Cardano.Wallet.DB.Sqlite.Types
     ( BlockId (..), TxId (..) )
 import Cardano.Wallet.DB.Store.Checkpoints
     ( PersistAddressBook (..), blockHeaderFromEntity, mkStoreWallet )
+import Cardano.Wallet.DB.Store.Info.Store
+    ( DeltaWalletInfo (..), WalletInfo (..) )
 import Cardano.Wallet.DB.Store.Meta.Model
     ( mkTxMetaFromEntity )
 import Cardano.Wallet.DB.Store.Submissions.Layer
@@ -127,11 +129,12 @@ import Cardano.Wallet.DB.Store.Wallets.Layer
     , QueryTxWalletsHistory (..)
     , newQueryStoreTxWalletsHistory
     )
-import Cardano.Wallet.DB.Store.Wallets.Store
+import Cardano.Wallet.DB.Store.Wallets.Model
     ( DeltaTxWalletsHistory (..) )
 import Cardano.Wallet.DB.WalletState
     ( DeltaWalletState
     , DeltaWalletState1 (..)
+    , WalletState (..)
     , findNearestPoint
     , fromGenesis
     , fromWallet
@@ -145,7 +148,7 @@ import Cardano.Wallet.Primitive.Passphrase.Types
     ( PassphraseHash )
 import Cardano.Wallet.Primitive.Slotting
     ( TimeInterpreter, firstSlotInEpoch, hoistTimeInterpreter, interpretQuery )
-import Cardano.Wallet.Read.Eras
+import Cardano.Wallet.Read.Eras.EraValue
     ( EraValue )
 import Cardano.Wallet.Read.Tx.CBOR
     ( parseTxFromCBOR )
@@ -160,9 +163,11 @@ import Control.Monad.IO.Class
 import Control.Monad.Trans
     ( lift )
 import Control.Monad.Trans.Except
-    ( mapExceptT, runExceptT, throwE )
+    ( mapExceptT, throwE )
 import Control.Tracer
     ( Tracer, contramap, traceWith )
+import Data.Bifunctor
+    ( second )
 import Data.Coerce
     ( coerce )
 import Data.DBVar
@@ -189,16 +194,13 @@ import Database.Persist.Sql
     ( Entity (..)
     , Filter
     , SelectOpt (..)
-    , Update (..)
     , deleteWhere
     , insert_
     , repsert
     , selectFirst
     , selectKeysList
     , selectList
-    , updateWhere
     , (<.)
-    , (=.)
     , (==.)
     , (>.)
     , (>=.)
@@ -219,15 +221,15 @@ import UnliftIO.MVar
     ( modifyMVar, modifyMVar_, newMVar, readMVar, withMVar )
 
 import qualified Cardano.Wallet.Primitive.Model as W
-import qualified Cardano.Wallet.Primitive.Passphrase as W
+import qualified Cardano.Wallet.Primitive.Passphrase.Types as W
+    ( PassphraseHash )
 import qualified Cardano.Wallet.Primitive.Types as W
 import qualified Cardano.Wallet.Primitive.Types.Coin as Coin
 import qualified Cardano.Wallet.Primitive.Types.Hash as W
-import qualified Cardano.Wallet.Primitive.Types.Tx as W
+import qualified Cardano.Wallet.Primitive.Types.Tx.TransactionInfo as W
+    ( TransactionInfo )
 import qualified Cardano.Wallet.Primitive.Types.Tx.TxOut as W
 import qualified Cardano.Wallet.Read.Tx as Read
-import Data.Bifunctor
-    ( second )
 import qualified Data.Generics.Internal.VL as L
 import qualified Data.Map.Strict as Map
 import qualified Data.Set as Set
@@ -552,30 +554,27 @@ newDBFreshFromDBOpen
     -> DBFresh IO s k
 newDBFreshFromDBOpen ti wid_ DBOpen{atomically=atomically_} =
     mkDBFreshFromParts ti wid_
-        dbWallets (mkStoreWallet wid_) dbLayerCollection atomically_
+        getWalletId_ (mkStoreWallet wid_)
+            dbLayerCollection atomically_
   where
     transactionsQS = newQueryStoreTxWalletsHistory
 
-    dbWallets = DBWallets
-        { initializeWallet_ = \(DBLayerParams _ meta txs gp) -> do
-            res <- lift $ runExceptT $ getWalletId_ dbWallets
-            case res of
-                Left ErrWalletNotInitialized -> lift $ do
-                    insert_ $ mkWalletEntity wid_ meta gp
-                    updateS transactionsQS Nothing $
-                        ExpandTxWalletsHistory wid_ txs
-                Right _ -> throwE ErrWalletAlreadyInitialized
-
-        , getWalletId_ = do
-            ws <- lift $ map unWalletKey <$> selectKeysList [] [Asc WalId]
-            case ws of
-                [w] -> pure w
-                _ -> throwE ErrWalletNotInitialized
-
-        }
+    getWalletId_ = do
+        ws <- map unWalletKey <$> selectKeysList [] [Asc WalId]
+        pure $ case ws of
+            [_] -> True
+            _ -> False
 
     dbLayerCollection walletsDB = DBLayerCollection{..}
       where
+        transactionsStore_ = transactionsQS
+        putWalletMeta_ wm =
+            updateStateNoErrors id walletsDB $ \_ ->
+                [ UpdateInfo $ UpdateWalletMetadata wm ]
+
+        readWalletMeta_ = do
+            walletMeta . info <$> readDBVar walletsDB
+
         readCheckpoint
             ::  SqlPersistT IO (W.Wallet s)
         readCheckpoint = getLatest <$> readDBVar walletsDB
@@ -681,15 +680,6 @@ newDBFreshFromDBOpen ti wid_ DBOpen{atomically=atomically_} =
 
     dbDelegation = mkDBDelegation ti wid_
 
-    dbWalletMeta = DBWalletMeta
-        { putWalletMeta_ = updateWhere [WalId ==. wid_] . mkWalletMetadataUpdate
-
-        , readWalletMeta_ = do
-            mr <- readWalletMetadata wid_
-            case mr of
-                Nothing -> error "readWalletMeta_: not found"
-                Just r -> pure r
-        }
 
     dbPrivateKey = mkDBPrivateKey wid_
 
@@ -701,7 +691,7 @@ mkDBFreshFromParts
        )
     => TimeInterpreter IO
     -> W.WalletId
-    -> DBWallets stm s
+    -> stm Bool
     -> UpdateStore stm (DeltaWalletState s)
     -> (DBVar stm (DeltaWalletState s) -> DBLayerCollection stm m s k)
     -> (forall a. stm a -> m a)
@@ -709,32 +699,44 @@ mkDBFreshFromParts
 mkDBFreshFromParts
     ti
     wid_
-    DBWallets{initializeWallet_, getWalletId_}
+    getWalletId_
     store
     parts
     atomically_ =
         DBFresh
             { bootDBLayer = \params -> do
                 let cp = dBLayerParamsState params
-                case fromGenesis cp of
+                case fromGenesis cp
+                    $ WalletInfo
+                        wid_
+                        (dBLayerParamsMetadata params)
+                        (dBLayerParamsGenesisParameters params) of
                     Nothing ->
                         throwIO
                             $ ErrNotGenesisBlockHeader
                             $ cp ^. #currentTip
-                    Just wallet -> mapExceptT atomically_ $ do
-                        initializeWallet_ params
-                        lift $ db <$> initDBVar store wallet
+                    Just wallet -> do
+                        present <- lift . atomically_ $ getWalletId_
+                        if present
+                            then throwE ErrWalletAlreadyInitialized
+                            else pure ()
+                        lift $ do
+                            r@DBLayer{transactionsStore, atomically}
+                                <- atomically_ $ db <$> initDBVar store wallet
+                            atomically $ updateS transactionsStore Nothing
+                                $ ExpandTxWalletsHistory wid_
+                                $ dBLayerParamsHistory params
+                            pure r
             , loadDBLayer = mapExceptT atomically_ $ do
-                ewid <- lift . runExceptT $ getWalletId_
-                case ewid of
-                    Right _ -> do
+                present <- lift getWalletId_
+                if present
+                    then do
                         walletsDB <- lift $ loadDBVar store
                         pure $ db walletsDB
-                    Left _ -> throwE ErrWalletNotInitialized
+                    else throwE ErrWalletNotInitialized
             }
       where
         db = mkDBLayerFromParts ti wid_ . parts
-
 
 mkDecorator
     :: QueryStoreTxWalletsHistory
@@ -743,13 +745,6 @@ mkDecorator transactionsQS =
     decorateTxInsForReadTxFromLookupTxOut lookupTxOut
   where
     lookupTxOut = queryS transactionsQS . GetTxOut
-
-readWalletMetadata
-    :: W.WalletId
-    -> SqlPersistT IO (Maybe W.WalletMetadata)
-readWalletMetadata wid =
-     fmap (metadataFromEntity . entityVal)
-        <$> selectFirst [WalId ==. wid] []
 
 {-----------------------------------------------------------------------
                             Wallet Delegation
@@ -860,36 +855,6 @@ toWalletDelegationStatus = \case
         W.NotDelegating
     DelegationCertificate _ _ (Just pool) ->
         W.Delegating pool
-
-mkWalletEntity :: W.WalletId -> W.WalletMetadata -> W.GenesisParameters -> Wallet
-mkWalletEntity wid meta gp = Wallet
-    { walId = wid
-    , walName = meta ^. #name . coerce
-    , walCreationTime = meta ^. #creationTime
-    , walPassphraseLastUpdatedAt = W.lastUpdatedAt <$> meta ^. #passphraseInfo
-    , walPassphraseScheme = W.passphraseScheme <$> meta ^. #passphraseInfo
-    , walGenesisHash = BlockId (coerce (gp ^. #getGenesisBlockHash))
-    , walGenesisStart = coerce (gp ^. #getGenesisBlockDate)
-    }
-
-mkWalletMetadataUpdate :: W.WalletMetadata -> [Update Wallet]
-mkWalletMetadataUpdate meta =
-    [ WalName =. meta ^. #name . coerce
-    , WalCreationTime =. meta ^. #creationTime
-    , WalPassphraseLastUpdatedAt =.
-        W.lastUpdatedAt <$> meta ^. #passphraseInfo
-    , WalPassphraseScheme =.
-        W.passphraseScheme <$> meta ^. #passphraseInfo
-    ]
-
-metadataFromEntity :: Wallet -> W.WalletMetadata
-metadataFromEntity wal = W.WalletMetadata
-    { name = W.WalletName (walName wal)
-    , creationTime = walCreationTime wal
-    , passphraseInfo = W.WalletPassphraseInfo
-        <$> walPassphraseLastUpdatedAt wal
-        <*> walPassphraseScheme wal
-    }
 
 genesisParametersFromEntity
     :: Wallet

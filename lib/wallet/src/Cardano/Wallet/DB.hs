@@ -25,9 +25,7 @@ module Cardano.Wallet.DB
 
     -- * DBLayer building blocks
     , DBLayerCollection (..)
-    , DBWallets (..)
     , DBCheckpoints (..)
-    , DBWalletMeta (..)
     , DBDelegation (..)
     , DBTxHistory (..)
     , DBPrivateKey (..)
@@ -54,6 +52,10 @@ import Cardano.Wallet.DB.Store.Transactions.Decoration
     ( TxInDecorator )
 import Cardano.Wallet.DB.Store.Transactions.TransactionInfo
     ( mkTransactionInfoFromReadTx )
+import Cardano.Wallet.DB.Store.Wallets.Layer
+    ( QueryTxWalletsHistory )
+import Cardano.Wallet.DB.Store.Wallets.Model
+    ( DeltaTxWalletsHistory )
 import Cardano.Wallet.DB.WalletState
     ( DeltaWalletState
     , DeltaWalletState1 (UpdateSubmissions)
@@ -118,6 +120,8 @@ import Data.Ord
     ( Down (..) )
 import Data.Quantity
     ( Quantity (..) )
+import Data.Store
+    ( Store (..) )
 import Data.Traversable
     ( for )
 import Data.Word
@@ -195,6 +199,8 @@ hoistDBFresh f (DBFresh boot load) = DBFresh
     , loadDBLayer = mapExceptT f $ hoistDBLayer f <$> load
     }
 
+
+
 {-----------------------------------------------------------------------------
     DBLayer
 ------------------------------------------------------------------------------}
@@ -221,6 +227,9 @@ data DBLayer m s k = forall stm. (MonadIO stm, MonadFail stm) => DBLayer
         --
         -- Intended to replace 'putCheckpoint' and 'readCheckpoint' in the short-term,
         -- and all other functions in the long-term.
+
+    , transactionsStore :: Store stm QueryTxWalletsHistory DeltaTxWalletsHistory
+        -- ^ 'Store' containing all transactions of all wallets in the database.
 
     , putCheckpoint :: Wallet s -> stm ()
         -- ^ Replace the current checkpoint for a given wallet. We do not handle
@@ -422,7 +431,6 @@ to delete them wholesale rather than maintaining them.
 -}
 data DBLayerCollection stm m s k = DBLayerCollection
     { dbCheckpoints :: DBCheckpoints stm s
-    , dbWalletMeta :: DBWalletMeta stm
     , dbDelegation :: DBDelegation stm
     , dbTxHistory :: DBTxHistory stm
     , dbPrivateKey :: DBPrivateKey stm k
@@ -438,6 +446,10 @@ data DBLayerCollection stm m s k = DBLayerCollection
         -> stm ()
     , atomically_
         :: forall a. stm a -> m a
+    , transactionsStore_
+        :: Store stm QueryTxWalletsHistory DeltaTxWalletsHistory
+    , putWalletMeta_ :: WalletMetadata -> stm ()
+    , readWalletMeta_ :: stm WalletMetadata
     }
 
 {- HLINT ignore mkDBLayerFromParts "Avoid lambda" -}
@@ -451,16 +463,17 @@ mkDBLayerFromParts
 mkDBLayerFromParts ti wid_ DBLayerCollection{..} = DBLayer
     { walletId_ = wid_
     , walletsDB = walletsDB_ dbCheckpoints
+    , transactionsStore = transactionsStore_
     , putCheckpoint = putCheckpoint_ dbCheckpoints
     , readCheckpoint = readCheckpoint'
     , listCheckpoints = listCheckpoints_ dbCheckpoints
-    , putWalletMeta = putWalletMeta_ dbWalletMeta
+    , putWalletMeta = putWalletMeta_
     , readWalletMeta = do
         readCheckpoint' >>= \cp -> do
                 currentEpoch <- liftIO $
                     interpretQuery ti (epochOf $ cp ^. #currentTip . #slotNo)
                 del <- readDelegation_ dbDelegation currentEpoch
-                wm <- readWalletMeta_ dbWalletMeta
+                wm <- readWalletMeta_
                 pure (wm, del)
     , isStakeKeyRegistered = isStakeKeyRegistered_ dbDelegation
     , putDelegationCertificate = putDelegationCertificate_ dbDelegation
@@ -535,20 +548,6 @@ mkDBLayerFromParts ti wid_ DBLayerCollection{..} = DBLayer
     mkUpdateSubmissions w = [UpdateSubmissions w]
     updateSubmissionsNoError = updateStateNoErrors submissions . walletsDB_
 
--- | A database layer for a collection of wallets
-data DBWallets stm s = DBWallets
-    { initializeWallet_
-        :: DBLayerParams s
-        -> ExceptT ErrWalletAlreadyInitialized stm ()
-        -- ^ Initialize a database entry for a given wallet. 'putCheckpoint',
-        -- 'putWalletMeta', 'putTxHistory' or 'putProtocolParameters' will
-        -- actually all fail if they are called _first_ on a wallet.
-
-    , getWalletId_
-        :: ExceptT ErrWalletNotInitialized stm WalletId
-        -- ^ Get the 'WalletId' of the wallet stored in the DB.
-    }
-
 -- | A database layer for storing wallet states.
 data DBCheckpoints stm s = DBCheckpoints
     { walletsDB_
@@ -578,17 +577,6 @@ data DBCheckpoints stm s = DBCheckpoints
     , readGenesisParameters_
         :: stm (Maybe GenesisParameters)
         -- ^ Read the *Byron* genesis parameters.
-    }
-
--- | A database layer for storing 'WalletMetadata'.
-data DBWalletMeta stm = DBWalletMeta
-    { putWalletMeta_ :: WalletMetadata -> stm ()
-        -- ^ Replace an existing wallet metadata with the given one.
-
-    , readWalletMeta_ :: stm WalletMetadata
-        -- ^ Fetch a wallet metadata, if they exist.
-        --
-        -- Return 'Nothing' if there's no such wallet.
     }
 
 -- | A database layer for storing delegation certificates
