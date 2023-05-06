@@ -718,13 +718,14 @@ import qualified Data.Vector as V
 --
 -- __Fix__: Add type-applications at the call-site "@myFunction \@ctx \@s \\@k@"
 
-data WalletLayer m s
-    = WalletLayer
-        (Tracer m WalletWorkerLog)
-        (Block, NetworkParameters)
-        (NetworkLayer m Read.Block)
-        (TransactionLayer (KeyOf s) (CredFromOf s) SealedTx)
-        (DBLayer m s)
+data WalletLayer m s =
+    WalletLayer
+        { logger_ :: Tracer m WalletWorkerLog
+        , genesisData_ :: (Block, NetworkParameters)
+        , networkLayer_ :: NetworkLayer m Read.Block
+        , transactionLayer_ :: TransactionLayer (KeyOf s) (CredFromOf s) SealedTx
+        , dbLayer_ :: DBLayer m s
+        }
     deriving (Generic)
 
 {-------------------------------------------------------------------------------
