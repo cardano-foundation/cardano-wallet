@@ -927,9 +927,7 @@ getCurrentEpochSlotting nl = do
 
 -- | Retrieve the wallet state for the wallet with the given ID.
 readWallet
-    :: forall ctx s
-     . (HasDBLayer IO s ctx, HasNetworkLayer IO ctx)
-    => ctx
+    :: WalletLayer IO s
     -> IO (Wallet s, (WalletMetadata, WalletDelegation), Set Tx)
 readWallet ctx = do
     currentEpochSlotting <- getCurrentEpochSlotting nl
@@ -947,7 +945,7 @@ readWallet ctx = do
         pure (cp, (meta, dele currentEpochSlotting), Set.fromList (fromTransactionInfo <$> pending))
 
   where
-    db = ctx ^. dbLayer @IO @s
+    db = ctx ^. dbLayer
     nl = ctx ^. networkLayer
 
 walletSyncProgress
@@ -1018,23 +1016,18 @@ updateWalletPassphraseWithMnemonic wF ctx (xprv, new) =
         (xprv, (currentPassphraseScheme , new))
 
 getWalletUtxoSnapshot
-    :: forall ctx s
-     . ( HasDBLayer IO s ctx
-       , HasNetworkLayer IO ctx
-       , HasTransactionLayer (KeyOf s) (CredFromOf s) ctx
-       )
-    => ctx
+    :: WalletLayer IO s
     -> IO [(TokenBundle, Coin)]
 getWalletUtxoSnapshot ctx = do
-    (wallet, _, pending) <- readWallet @ctx @s ctx
-    pp <- liftIO $ currentProtocolParameters nl
-    let txOuts = availableUTxO @s pending wallet
+    (wallet, _, pending) <- readWallet ctx
+    pp <- currentProtocolParameters nl
+    let txOuts = availableUTxO pending wallet
             & unUTxO
             & F.toList
     pure $ first (view #tokens) . pairTxOutWithMinAdaQuantity pp <$> txOuts
   where
     nl = ctx ^. networkLayer
-    tl = ctx ^. transactionLayer @(KeyOf s) @(CredFromOf s)
+    tl = transactionLayer_ ctx
 
     pairTxOutWithMinAdaQuantity
         :: ProtocolParameters
@@ -1052,15 +1045,11 @@ getWalletUtxoSnapshot ctx = do
 
 -- | List the wallet's UTxO statistics.
 listUtxoStatistics
-    :: forall ctx s
-     . ( HasDBLayer IO s ctx
-       , HasNetworkLayer IO ctx
-       )
-    => ctx
+    :: WalletLayer IO s
     -> IO UTxOStatistics
 listUtxoStatistics ctx = do
-    (wal, _, pending) <- readWallet @ctx @s ctx
-    let utxo = availableUTxO @s pending wal
+    (wal, _, pending) <- readWallet ctx
+    let utxo = availableUTxO pending wal
     pure $ UTxOStatistics.compute utxo
 
 -- | Restore a wallet from its current tip.
@@ -1868,15 +1857,11 @@ buildCoinSelectionForTransaction
 -- | Read a wallet checkpoint and its UTxO, for 'selectAssets' and
 -- 'selectAssetsNoOutputs'.
 readWalletUTxO
-    :: forall ctx s
-     . ( HasDBLayer IO s ctx
-       , HasNetworkLayer IO ctx
-       )
-    => ctx
+    :: WalletLayer IO s
     -> IO (UTxO, Wallet s, Set Tx)
 readWalletUTxO ctx = do
     (cp, _, pending) <- readWallet ctx
-    return (availableUTxO @s pending cp, cp, pending)
+    return (availableUTxO pending cp, cp, pending)
 
 -- | Calculate the minimum coin values required for a bunch of specified
 -- outputs.
@@ -2751,26 +2736,21 @@ getTransaction ctx tid =
 -------------------------------------------------------------------------------}
 
 createMigrationPlan
-    :: forall ctx s
-     . ( HasDBLayer IO s ctx
-       , HasNetworkLayer IO ctx
-       , HasTransactionLayer (KeyOf s) 'CredFromKeyK ctx
-       )
-    => ctx
+    :: WalletLayer IO s
     -> Withdrawal
     -> IO MigrationPlan
 createMigrationPlan ctx rewardWithdrawal = do
-    (wallet, _, pending) <- readWallet @ctx @s ctx
-    pp <- liftIO $ currentProtocolParameters nl
+    (wallet, _, pending) <- readWallet ctx
+    pp <- currentProtocolParameters nl
     let txConstraints = constraints tl pp
-    let utxo = availableUTxO @s pending wallet
+    let utxo = availableUTxO pending wallet
     pure
         $ Migration.createPlan txConstraints utxo
         $ Migration.RewardWithdrawal
         $ withdrawalToCoin rewardWithdrawal
   where
     nl = ctx ^. networkLayer
-    tl = ctx ^. transactionLayer @(KeyOf s) @'CredFromKeyK
+    tl = transactionLayer_ ctx
 
 type SelectionWithoutChange = SelectionOf Void
 

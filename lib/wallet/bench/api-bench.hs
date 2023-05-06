@@ -224,7 +224,7 @@ benchmarksSeq
     -> IO BenchSeqResults
 benchmarksSeq BenchmarkConfig{benchmarkName,ctx} = do
     ((cp, pending), readWalletTime) <- bench "readWallet" $ do
-        (cp, _, pending) <- W.readWallet @_ @s ctx
+        (cp, _, pending) <- W.readWallet ctx
         pure (cp, pending)
 
     (utxo, _) <- bench "utxo statistics" $
@@ -232,7 +232,7 @@ benchmarksSeq BenchmarkConfig{benchmarkName,ctx} = do
 
     (_, getWalletUtxoSnapshotTime) <- bench "getWalletUtxoSnapshot"
         $ length
-        <$> W.getWalletUtxoSnapshot @_ @s ctx
+        <$> W.getWalletUtxoSnapshot ctx
 
     (addresses, listAddressesTime) <- bench "listAddresses"
         $ fromIntegral . length
@@ -254,7 +254,7 @@ benchmarksSeq BenchmarkConfig{benchmarkName,ctx} = do
             Nothing Nothing Nothing Descending (Just 50)
 
     (_, createMigrationPlanTime) <- bench "createMigrationPlan"
-        $ W.createMigrationPlan @_ @s ctx Tx.NoWithdrawal
+        $ W.createMigrationPlan ctx Tx.NoWithdrawal
 
     (_, delegationFeeTime) <- bench "delegationFee" $ do
         W.delegationFee
@@ -304,7 +304,7 @@ benchmarksShared
     -> IO BenchSharedResults
 benchmarksShared BenchmarkConfig{benchmarkName,ctx} = do
     ((cp, pending), readWalletTime) <- bench "readWallet" $ do
-        (cp, _, pending) <- W.readWallet @_ @s ctx
+        (cp, _, pending) <- W.readWallet ctx
         pure (cp, pending)
 
     (utxo, _) <- bench "utxo statistics" $
@@ -312,7 +312,7 @@ benchmarksShared BenchmarkConfig{benchmarkName,ctx} = do
 
     (_, getWalletUtxoSnapshotTime) <- bench "getWalletUtxoSnapshot"
         $ length
-        <$> W.getWalletUtxoSnapshot @_ @s ctx
+        <$> W.getWalletUtxoSnapshot ctx
 
     (addresses, listAddressesTime) <- bench "listAddresses"
         $ fromIntegral . length
@@ -373,7 +373,7 @@ benchmarksRnd
     -> IO BenchRndResults
 benchmarksRnd BenchmarkConfig{benchmarkName,ctx} = do
     ((cp, pending), readWalletTime) <- bench "readWallet" $ do
-        (cp, _, pending) <- W.readWallet @_ @s ctx
+        (cp, _, pending) <- W.readWallet ctx
         pure (cp, pending)
 
     (utxo, _) <- bench "utxo statistics" $
@@ -381,7 +381,7 @@ benchmarksRnd BenchmarkConfig{benchmarkName,ctx} = do
 
     (_, getWalletUtxoSnapshotTime) <- bench "getWalletUtxoSnapshot"
         $ length
-        <$> W.getWalletUtxoSnapshot @_ @s ctx
+        <$> W.getWalletUtxoSnapshot ctx
 
     (addresses, listAddressesTime) <- bench "listAddresses"
         $ fromIntegral . length
@@ -403,7 +403,7 @@ benchmarksRnd BenchmarkConfig{benchmarkName,ctx} = do
             Nothing Nothing Nothing Descending (Just 50)
 
     (_, createMigrationPlanTime) <- bench "createMigrationPlan"
-        $ W.createMigrationPlan @_ @s ctx Tx.NoWithdrawal
+        $ W.createMigrationPlan ctx Tx.NoWithdrawal
 
     pure BenchRndResults
         { benchName = benchmarkName

@@ -1602,7 +1602,7 @@ getWallet ctx mkApiWallet (ApiT wid) = do
 
     whenAlive wrk = do
         (cp, (meta, delegation), pending)
-            <- handler $ W.readWallet @_ @s wrk
+            <- handler $ W.readWallet wrk
         progress <- liftIO $ W.walletSyncProgress @_ @_ ctx cp
         (, meta ^. #creationTime)
             <$> mkApiWallet ctx wid cp meta delegation pending progress
@@ -1612,7 +1612,7 @@ getWallet ctx mkApiWallet (ApiT wid) = do
             db <- liftHandler $ loadDBLayer df
             let wrk = hoistResource db (MsgFromWorker wid) ctx
             (cp, (meta, delegation), pending)
-                <- handler $ W.readWallet @_ @s wrk
+                <- handler $ W.readWallet wrk
             (, meta ^. #creationTime)
                 <$> mkApiWallet ctx wid cp meta delegation pending NotResponding
 
@@ -1740,13 +1740,12 @@ getUTxOsStatistics ctx (ApiT wid) = do
     return $ toApiUtxoStatistics stats
 
 getWalletUtxoSnapshot
-    :: forall s
-     . ApiLayer s
+    :: ApiLayer s
     -> ApiT WalletId
     -> Handler ApiWalletUtxoSnapshot
 getWalletUtxoSnapshot ctx (ApiT wid) = do
     entries <- withWorkerCtx ctx wid liftE liftE $ \wrk -> handler $
-        W.getWalletUtxoSnapshot @_ @s wrk
+        W.getWalletUtxoSnapshot wrk
     return $ mkApiWalletUtxoSnapshot entries
   where
     mkApiWalletUtxoSnapshot :: [(TokenBundle, Coin)] -> ApiWalletUtxoSnapshot
@@ -3721,7 +3720,7 @@ listStakeKeys
 listStakeKeys lookupStakeRef ctx@ApiLayer{..} (ApiT wid) =
     withWorkerCtx ctx wid liftE liftE $ \wrk -> handler $ do
         let db = wrk ^. typed @(DBLayer IO s)
-        (wal, (_, delegation) ,pending) <- W.readWallet @_ @s wrk
+        (wal, (_, delegation) ,pending) <- W.readWallet wrk
         let utxo = availableUTxO @s pending wal
         let takeFst (a,_,_) = a
         ourAccount <- takeFst <$> liftIO (W.readRewardAccount @s db)
