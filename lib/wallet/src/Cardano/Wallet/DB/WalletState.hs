@@ -2,7 +2,6 @@
 {-# LANGUAGE NamedFieldPuns #-}
 {-# LANGUAGE OverloadedLabels #-}
 {-# LANGUAGE StandaloneDeriving #-}
-{-# LANGUAGE TupleSections #-}
 {-# LANGUAGE TypeFamilies #-}
 
 -- |
@@ -34,13 +33,7 @@ module Cardano.Wallet.DB.WalletState
     , DeltaWalletState
 
     -- * Helpers
-    , modifyRight
-    , updateSubmissionsEither
-
-    , updateState
-    , updateStateWithResult
-    , updateStateNoErrors
-    , updateStateWithResultNoError
+    , updateSubmissions
     ) where
 
 import Prelude
@@ -59,12 +52,10 @@ import Cardano.Wallet.Primitive.Types
     ( BlockHeader )
 import Cardano.Wallet.Primitive.Types.UTxO
     ( UTxO )
-import Control.Monad.Except
-    ( ExceptT (..), runExceptT, void )
-import Data.DBVar
-    ( DBVar, modifyDBMaybe )
 import Data.Delta
     ( Delta (..) )
+import Data.Delta.Update
+    ( Update, updateField )
 import Data.Generics.Internal.VL
     ( withIso )
 import Data.Generics.Internal.VL.Lens
@@ -194,67 +185,7 @@ instance Show (DeltaWalletState1 s) where
 {-------------------------------------------------------------------------------
     Helper functions
 -------------------------------------------------------------------------------}
-modifyRight
-    :: (a -> Either e (da, b))
-    -> (a -> (Maybe da, Either e b))
-modifyRight update a =
-    case update a of
-        Left e -> (Nothing, Left e)
-        Right (da, b) -> (Just da, Right b)
-
-updateSubmissionsEither
-    :: (TxSubmissions -> Either e [DeltaTxSubmissions])
-    -> (WalletState s -> (Maybe (DeltaWalletState s), Either e ()))
-updateSubmissionsEither f =
-    modifyRight $
-        fmap ((,()) . (:[]) . UpdateSubmissions) . f . submissions
-
-updateStateWithResult :: (Delta da, Monad m)
-    => (Base da -> w)
-    -- ^ Get the part of the state that we want to update
-    -> DBVar m da
-    -- ^ The state variable
-    -> (w -> Either e (da, b))
-    -- ^ The update function
-    -> ExceptT e m b
-updateStateWithResult d state use =
-    ExceptT
-        $ modifyDBMaybe state
-        $ modifyRight use . d
-
-updateState
-    :: (Delta da, Monad m)
-    => (Base da -> w)
-    -- ^ Get the part of the state that we want to update
-    -> DBVar m da
-    -- ^ The state variable
-    -> (w -> Either e da)
-    -- ^ The update function
-    -> ExceptT e m ()
-updateState d state use = updateStateWithResult d state $ fmap (,()) . use
-
-updateStateWithResultNoError :: (Delta da, Monad m)
-    => (Base da -> w)
-    -- ^ Get the part of the state that we want to update
-    -> DBVar m da
-    -- ^ The state variable
-    -> (w -> (da, b))
-    -- ^ The update function
-    -> m b
-updateStateWithResultNoError d state use = do
-    er <- runExceptT $ updateStateWithResult d state $ fmap Right use
-    case er of
-        Left _ -> error "updateStateWithResultNoError: impossible"
-        Right r -> pure r
-
-updateStateNoErrors
-    :: (Delta da, Monad m)
-    => (Base da -> w)
-    -- ^ Get the part of the state that we want to update
-    -> DBVar m da
-    -- ^ The state variable
-    -> (w -> da)
-    -- ^ The update function
-    -> m ()
-updateStateNoErrors d state use = void
-    $ runExceptT $ updateState d state (Right . use)
+updateSubmissions
+    :: Update [DeltaTxSubmissions] r
+    -> Update (DeltaWalletState s) r
+updateSubmissions = updateField submissions ((:[]) . UpdateSubmissions)

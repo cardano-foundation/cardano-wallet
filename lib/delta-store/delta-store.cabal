@@ -45,6 +45,7 @@ library
       src
   exposed-modules:
       Data.DBVar
+      Data.Delta.Update
       Data.Store
       Test.Store
 

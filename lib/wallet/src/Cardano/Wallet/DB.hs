@@ -57,11 +57,7 @@ import Cardano.Wallet.DB.Store.Wallets.Layer
 import Cardano.Wallet.DB.Store.Wallets.Model
     ( DeltaTxWalletsHistory )
 import Cardano.Wallet.DB.WalletState
-    ( DeltaWalletState
-    , DeltaWalletState1 (UpdateSubmissions)
-    , WalletState (submissions)
-    , updateStateNoErrors
-    )
+    ( DeltaWalletState, WalletState (submissions), updateSubmissions )
 import Cardano.Wallet.Primitive.Model
     ( Wallet, currentTip )
 import Cardano.Wallet.Primitive.Passphrase
@@ -134,6 +130,7 @@ import qualified Cardano.Wallet.Primitive.Types.Tx.SealedTx as WST
 import qualified Cardano.Wallet.Primitive.Types.Tx.TxMeta as WTxMeta
 import qualified Cardano.Wallet.Read.Tx as Read
 import qualified Cardano.Wallet.Submissions.TxStatus as Subm
+import qualified Data.Delta.Update as Delta
 import qualified Data.Map.Strict as Map
 
 {-----------------------------------------------------------------------------
@@ -522,15 +519,13 @@ mkDBLayerFromParts ti wid_ DBLayerCollection{..} = DBLayer
                         . fmap snd
     , addTxSubmission = \builtTx slotNo ->
             updateSubmissionsNoError dbCheckpoints
-                $ \_ -> mkUpdateSubmissions
-                    [Sbms.addTxSubmission builtTx slotNo]
+                $ \_ -> [Sbms.addTxSubmission builtTx slotNo]
     , resubmitTx = \hash _ slotNo ->
             updateSubmissionsNoError dbCheckpoints
-                $ mkUpdateSubmissions . Sbms.resubmitTx hash slotNo
+                $ Sbms.resubmitTx hash slotNo
     , rollForwardTxSubmissions = \tip txs ->
             updateSubmissionsNoError dbCheckpoints
-                $ \_ -> mkUpdateSubmissions
-                    [Sbms.rollForwardTxSubmissions tip txs]
+                $ \_ -> [Sbms.rollForwardTxSubmissions tip txs]
     , putPrivateKey = putPrivateKey_ dbPrivateKey
     , readPrivateKey = readPrivateKey_ dbPrivateKey
     , readGenesisParameters = readGenesisParameters_ dbCheckpoints
@@ -545,8 +540,10 @@ mkDBLayerFromParts ti wid_ DBLayerCollection{..} = DBLayer
     readCheckpoint' = readCheckpoint_ dbCheckpoints
     readCurrentTip :: stm BlockHeader
     readCurrentTip = currentTip <$> readCheckpoint_ dbCheckpoints
-    mkUpdateSubmissions w = [UpdateSubmissions w]
-    updateSubmissionsNoError = updateStateNoErrors submissions . walletsDB_
+    updateSubmissionsNoError db
+        = Delta.onDBVar (walletsDB_ db)
+        . updateSubmissions
+        . Delta.update
 
 -- | A database layer for storing wallet states.
 data DBCheckpoints stm s = DBCheckpoints

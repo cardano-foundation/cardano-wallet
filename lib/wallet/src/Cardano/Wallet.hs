@@ -327,15 +327,7 @@ import Cardano.Wallet.DB.Store.Submissions.Layer
 import Cardano.Wallet.DB.Store.Submissions.Operations
     ( TxSubmissionsStatus )
 import Cardano.Wallet.DB.WalletState
-    ( DeltaWalletState1 (..)
-    , fromWallet
-    , getLatest
-    , getSlot
-    , updateState
-    , updateStateNoErrors
-    , updateStateWithResult
-    , updateStateWithResultNoError
-    )
+    ( DeltaWalletState1 (..), fromWallet, getLatest, getSlot )
 import Cardano.Wallet.Flavor
     ( WalletFlavor (..), WalletFlavorS (..) )
 import Cardano.Wallet.Logging
@@ -543,7 +535,7 @@ import Crypto.Hash
 import Data.ByteString
     ( ByteString )
 import Data.DBVar
-    ( modifyDBMaybe, readDBVar )
+    ( readDBVar )
 import Data.Either
     ( partitionEithers )
 import Data.Either.Extra
@@ -635,6 +627,7 @@ import qualified Cardano.Wallet.Write.ProtocolParameters as Write
 import qualified Cardano.Wallet.Write.Tx as WriteTx
 import qualified Cardano.Wallet.Write.Tx.Balance as Write
 import qualified Data.ByteArray as BA
+import qualified Data.Delta.Update as Delta
 import qualified Data.Foldable as F
 import qualified Data.List as L
 import qualified Data.List.NonEmpty as NE
@@ -752,6 +745,18 @@ transactionLayer ::
     forall k ktype ctx. (HasTransactionLayer k ktype ctx)
     => Lens' ctx (TransactionLayer k ktype SealedTx)
 transactionLayer = typed @(TransactionLayer k ktype SealedTx)
+
+-- | Convience to apply an 'Update' to the 'WalletState' via the 'DBLayer'.
+onWalletState
+    :: forall m s k ctx r
+     . ( HasDBLayer m s k ctx )
+    => ctx
+    -> Delta.Update (WalletState.DeltaWalletState s) r
+    -> m r
+onWalletState ctx update = db & \DBLayer{..} ->
+    atomically $ Delta.onDBVar walletsDB update
+  where
+    db = ctx ^. dbLayer @m @s @k
 
 {-------------------------------------------------------------------------------
                                    Wallet
@@ -1175,7 +1180,8 @@ restoreBlocks ctx tr blocks nodeTip = db & \DBLayer{..} -> atomically $ do
             putDelegationCertificate cert slotNo
 
     liftIO $ mapM_ logCheckpoint cpsKeep
-    updateStateNoErrors id walletsDB $ const delta
+    Delta.onDBVar walletsDB $ Delta.update
+        $ const delta
 
     prune epochStability finalitySlot
 
@@ -1477,9 +1483,12 @@ createRandomAddress
     -> Maybe (Index 'Hardened 'CredFromKeyK)
     -> ExceptT ErrCreateRandomAddress IO (Address, NonEmpty DerivationIndex)
 createRandomAddress ctx wid pwd mIx = db & \DBLayer{..} ->
-    withRootKey @s @k db wid pwd ErrCreateAddrWithRootKey $ \xprv scheme -> do
-        mapExceptT atomically $ updateStateWithResult id walletsDB $
-            createRandomAddress' xprv scheme
+    withRootKey @s @k db wid pwd ErrCreateAddrWithRootKey $ \xprv scheme ->
+        ExceptT
+            . atomically
+            . Delta.onDBVar walletsDB
+            . Delta.updateWithResultAndError
+            $ createRandomAddress' xprv scheme
   where
     db = ctx ^. typed
 
@@ -1516,14 +1525,12 @@ importRandomAddresses
     -> [Address]
     -> ExceptT ErrImportRandomAddress IO ()
 importRandomAddresses ctx addrs =
-    db & \DBLayer{..} ->
-        mapExceptT atomically
-            $ updateStateWithResult id walletsDB importRandomAddresses'
+    ExceptT . onWalletState @IO @s @k ctx . Delta.updateWithError
+        $ importRandomAddresses'
   where
-    db = ctx ^. dbLayer @IO @s @k
     importRandomAddresses' wal = case es1 of
         Left err -> Left $ ErrImportAddr err
-        Right s1 -> Right ([ReplacePrologue $ getPrologue s1], ())
+        Right s1 -> Right [ReplacePrologue $ getPrologue s1]
       where
         s0 = getState $ getLatest wal
         es1 = foldl' (\s addr -> s >>= Rnd.importAddress addr) (Right s0) addrs
@@ -1559,14 +1566,9 @@ assignChangeAddressesAndUpdateDb
     -> Selection
     -> IO (SelectionOf TxOut)
 assignChangeAddressesAndUpdateDb ctx argGenChange selection =
-    db & \DBLayer{..} ->
-        atomically
-            $ updateStateWithResultNoError
-                id
-                walletsDB
-                assignChangeAddressesAndUpdateDb'
+    onWalletState @IO @s @k ctx . Delta.updateWithResult
+        $ assignChangeAddressesAndUpdateDb'
   where
-    db = ctx ^. dbLayer @IO @s @k
     assignChangeAddressesAndUpdateDb' wallet =
         -- Newly generated change addresses only change the Prologue
         ([ReplacePrologue $ getPrologue stateUpdated], selectionUpdated)
@@ -1881,8 +1883,9 @@ buildSignSubmitTransaction db@DBLayer{..} netLayer txLayer pwd walletId
                     wholeRange
                     (Just Pending)
                     Nothing
-            txWithSlot@(builtTx, slot) <- throwOnErr <=< runExceptT $
-                updateStateWithResult id walletsDB $ \s -> do
+            txWithSlot@(builtTx, slot) <- (throwOnErr <=<
+                (Delta.onDBVar walletsDB . Delta.updateWithResultAndError)) $
+                \s -> do
                     let wallet = WalletState.getLatest s
                     let utxo = availableUTxO @s (Set.fromList pendingTxs) wallet
                     buildAndSignTransactionPure @k @s @n
@@ -2372,14 +2375,12 @@ forgetTx
     => ctx
     -> Hash "Tx"
     -> ExceptT ErrRemoveTx IO ()
-forgetTx ctx txid = db & \DBLayer{..} ->
+forgetTx ctx txid =
     ExceptT
-        . atomically
-        . modifyDBMaybe walletsDB
-        . WalletState.updateSubmissionsEither
+        . onWalletState @IO @s @k ctx
+        . WalletState.updateSubmissions
+        . Delta.updateWithError
         $ Submissions.removePendingOrExpiredTx txid
-  where
-    db = ctx ^. dbLayer @IO @s @k
 
 -- | List all transactions from the local submission pool which are
 -- still pending as of the latest checkpoint of the given wallet. The
@@ -3113,8 +3114,8 @@ writePolicyPublicKey ctx wid pwd = db & \DBLayer{..} -> do
             pure $ liftRawKey $ toXPub xprv
 
     let seqState' = seqState & #policyXPub .~ Just policyXPub
-    lift $ atomically $ updateStateNoErrors id walletsDB $
-        \_ -> [ReplacePrologue $ SeqPrologue seqState']
+    lift $ atomically $ Delta.onDBVar walletsDB $ Delta.update
+        $ \_ -> [ReplacePrologue $ SeqPrologue seqState']
 
     pure policyXPub
   where
@@ -3184,19 +3185,18 @@ updateCosigner
     -> CredentialType
     -> ExceptT ErrAddCosignerKey IO ()
 updateCosigner ctx cosignerXPub cosigner cred =
-    db & \DBLayer{..} -> do
-        cp <- lift $ atomically readCheckpoint
-        mapExceptT atomically $ updateState id walletsDB $ updateCosigner' cp
+    ExceptT . onWalletState @IO @s @k ctx . Delta.updateWithError
+        $ updateCosigner'
   where
-    db = ctx ^. dbLayer @_ @s @k
-    updateCosigner' cp wallet =
+    updateCosigner' wallet =
         case addCosignerAccXPub (cosigner, cosignerXPub) cred s0 of
             Left err -> Left $ ErrAddCosignerKey err
             Right s1 -> Right $ case ready s1 of
                 Shared.Pending -> prologueUpdate s1
                 Shared.Active _ -> prologueUpdate s1 ++ discoveriesUpdate s1
       where
-        s0 = getState $ getLatest wallet
+        cp = getLatest wallet
+        s0 = getState cp
         prologueUpdate s =
             [ReplacePrologue $ getPrologue s]
         wc@(WS.WalletCheckpoint bh utxo' _) = snd $ fromWallet cp
