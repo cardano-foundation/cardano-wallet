@@ -159,12 +159,6 @@ properties withFreshDB = describe "DB.Properties" $ do
                 testOnLayer
                 (\DBLayer{..} _wid -> lift . atomically . putCheckpoint)
                 (\DBLayer{..} _wid -> Identity <$> atomically readCheckpoint)
-        it "Wallet Metadata"
-            $ property
-            $ prop_readAfterPut
-                testOnLayer
-                (\DBLayer{..} _wid -> lift . atomically . putWalletMeta)
-                (\DBLayer{..} _ -> Identity . fst <$>  atomically readWalletMeta)
         it "Tx History"
             $ property
             $ prop_readAfterPut
@@ -192,16 +186,7 @@ properties withFreshDB = describe "DB.Properties" $ do
             $ prop_isolation
                 testOnLayer
                 (\DBLayer{..} _wid -> lift . atomically . putCheckpoint)
-                (\DBLayer{..} _ -> atomically readWalletMeta)
                 (\db _ -> readTxHistory_ db)
-                (\DBLayer{..} _wid -> atomically readPrivateKey)
-        it "Wallet Metadata vs Tx History & Checkpoint & Private Key"
-            $ property
-            $ prop_isolation
-                testOnLayer
-                (\DBLayer{..} _wid -> lift . atomically . putWalletMeta)
-                (\db _ -> readTxHistory_ db)
-                (\DBLayer{..} _ -> atomically readCheckpoint)
                 (\DBLayer{..} _wid -> atomically readPrivateKey)
         it "Tx History vs Checkpoint & Wallet Metadata & Private Key"
             $ property
@@ -209,7 +194,6 @@ properties withFreshDB = describe "DB.Properties" $ do
                 testOnLayer
                 (\db _ -> lift . putTxHistory_ db)
                 (\DBLayer{..} _ -> atomically readCheckpoint)
-                (\DBLayer{..} _ -> atomically readWalletMeta)
                 (\DBLayer{..} _wid -> atomically readPrivateKey)
 
     let lastMay [] = Nothing
@@ -223,13 +207,6 @@ properties withFreshDB = describe "DB.Properties" $ do
                 (\DBLayer{..} _-> Identity <$> atomically readCheckpoint)
                 (Identity . last)
                 . sortOn (currentTip . unShowFmt)
-        it "Wallet Metadata"
-            $ checkCoverage
-            $ prop_sequentialPut
-                testOnLayer
-                (\DBLayer{..} _wid -> lift . atomically . putWalletMeta)
-                (\DBLayer{..} _ -> Just . fst <$> atomically readWalletMeta)
-                lastMay
         it "Tx History"
             $ checkCoverage
             $ prop_sequentialPut
@@ -404,8 +381,6 @@ prop_isolation
        , Eq (f b)
        , Buildable (g c)
        , Eq (g c)
-       , Buildable (h d)
-       , Eq (h d)
        )
     => TestOnLayer s
     -> ( DBLayer IO s ShelleyKey
@@ -423,30 +398,24 @@ prop_isolation
          -> WalletId
          -> IO (g c)
        )
-    -- ^ Read Operation for another resource
-    -> ( DBLayer IO s ShelleyKey
-         -> WalletId
-         -> IO (h d)
-       )
+
     -- ^ Read Operation for another resource
     -> ShowFmt a
     -- ^ Properties arguments
     -> Property
-prop_isolation test putA readB readC readD (ShowFmt a) =
+prop_isolation test putA readB readC  (ShowFmt a) =
     test $ \db@DBLayer {..} wid -> do
         (GenTxHistory txs) <- pick arbitrary
         run $ atomically $ putTxHistory txs
-        (b, c, d) <-
+        (b, c) <-
             run
-                $ (,,)
+                $ (,)
                     <$> readB db wid
                     <*> readC db wid
-                    <*> readD db wid
         liftIO $ do
             unsafeRunExceptT $ putA db wid a
             (ShowFmt <$> readB db wid) `shouldReturn` ShowFmt b
             (ShowFmt <$> readC db wid) `shouldReturn` ShowFmt c
-            (ShowFmt <$> readD db wid) `shouldReturn` ShowFmt d
 
 -- | Check that the DB supports multiple sequential puts for a given resource
 prop_sequentialPut

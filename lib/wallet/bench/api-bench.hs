@@ -44,6 +44,8 @@ import Cardano.BM.Data.Severity
     ( Severity (..) )
 import Cardano.BM.Trace
     ( Trace )
+import Cardano.Wallet
+    ( readWalletMeta )
 import Cardano.Wallet.Address.Derivation
     ( DelegationAddress (..)
     , Depth (..)
@@ -476,9 +478,10 @@ benchmarkWallets
     -> IO [SomeBenchmarkResults]
 benchmarkWallets benchName dir walletTr networkId action = do
     withWalletsFromDirectory dir walletTr networkId
-        $ \ctx@(MockWalletLayer{dbLayer=DB.DBLayer{atomically,readWalletMeta}}) wid
+        $ \ctx@(MockWalletLayer{dbLayer=DB.DBLayer{atomically, walletState}})
+            wid
         -> do
-            (WalletMetadata{name},_) <- atomically readWalletMeta
+            WalletMetadata{name} <- atomically $ readWalletMeta walletState
             let config = BenchmarkConfig
                     { benchmarkName = benchName <> " " <> pretty name
                     , networkId = networkId

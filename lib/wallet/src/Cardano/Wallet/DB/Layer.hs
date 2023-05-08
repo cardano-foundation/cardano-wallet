@@ -108,7 +108,7 @@ import Cardano.Wallet.DB.Sqlite.Types
 import Cardano.Wallet.DB.Store.Checkpoints
     ( PersistAddressBook (..), blockHeaderFromEntity, mkStoreWallet )
 import Cardano.Wallet.DB.Store.Info.Store
-    ( DeltaWalletInfo (..), WalletInfo (..) )
+    ( WalletInfo (..) )
 import Cardano.Wallet.DB.Store.Meta.Model
     ( mkTxMetaFromEntity )
 import Cardano.Wallet.DB.Store.Submissions.Layer
@@ -134,7 +134,6 @@ import Cardano.Wallet.DB.Store.Wallets.Model
 import Cardano.Wallet.DB.WalletState
     ( DeltaWalletState
     , DeltaWalletState1 (..)
-    , WalletState (..)
     , findNearestPoint
     , fromGenesis
     , fromWallet
@@ -562,18 +561,13 @@ newDBFreshFromDBOpen ti wid_ DBOpen{atomically=atomically_} =
             [_] -> True
             _ -> False
 
-    dbLayerCollection walletsDB = DBLayerCollection{..}
+    dbLayerCollection walletState = DBLayerCollection{..}
       where
         transactionsStore_ = transactionsQS
-        putWalletMeta_ wm =
-            updateDBVar walletsDB [ UpdateInfo $ UpdateWalletMetadata wm ]
-
-        readWalletMeta_ = do
-            walletMeta . info <$> readDBVar walletsDB
 
         readCheckpoint
             ::  SqlPersistT IO (W.Wallet s)
-        readCheckpoint = getLatest <$> readDBVar walletsDB
+        readCheckpoint = getLatest <$> readDBVar walletState
 
         pruneCheckpoints
             :: Quantity "block" Word32 -> W.BlockHeader
@@ -582,7 +576,7 @@ newDBFreshFromDBOpen ti wid_ DBOpen{atomically=atomically_} =
             let heights = Set.fromList $ sparseCheckpoints
                     (defaultSparseCheckpointsConfig epochStability)
                     (tip ^. #blockHeight)
-            Delta.onDBVar walletsDB $ Delta.update $ \ wal ->
+            Delta.onDBVar walletState $ Delta.update $ \ wal ->
                 let willKeep cp = getBlockHeight cp `Set.member` heights
                     slots = Map.filter willKeep
                         $ wal ^. #checkpoints . #checkpoints
@@ -592,10 +586,10 @@ newDBFreshFromDBOpen ti wid_ DBOpen{atomically=atomically_} =
                                     Checkpoints
         -----------------------------------------------------------------------}
         dbCheckpoints = DBCheckpoints
-            { walletsDB_ = walletsDB
+            { walletsDB_ = walletState
 
             , putCheckpoint_ = \cp ->
-                Delta.onDBVar walletsDB $ Delta.update $ \_ ->
+                Delta.onDBVar walletState $ Delta.update $ \_ ->
                     let (prologue, wcp) = fromWallet cp
                         slot = getSlot wcp
                     in  [ UpdateCheckpoints [ PutCheckpoint slot wcp ]
@@ -614,7 +608,7 @@ newDBFreshFromDBOpen ti wid_ DBOpen{atomically=atomically_} =
 
         rollbackTo_ requestedPoint = do
             nearestCheckpoint
-                <- Delta.onDBVar walletsDB
+                <- Delta.onDBVar walletState
                 $ Delta.updateWithResult
                 $ \wal ->
                 case findNearestPoint wal requestedPoint of
@@ -650,7 +644,7 @@ newDBFreshFromDBOpen ti wid_ DBOpen{atomically=atomically_} =
             readCheckpoint >>= \cp -> do
                 let tip = cp ^. #currentTip
                 pruneCheckpoints epochStability tip
-            updateDBVar walletsDB
+            updateDBVar walletState
                 [ UpdateSubmissions [pruneByFinality finalitySlot]
                 ]
 
@@ -729,8 +723,8 @@ mkDBFreshFromParts
                 present <- lift getWalletId_
                 if present
                     then do
-                        walletsDB <- lift $ loadDBVar store
-                        pure $ db walletsDB
+                        walletState <- lift $ loadDBVar store
+                        pure $ db walletState
                     else throwE ErrWalletNotInitialized
             }
       where

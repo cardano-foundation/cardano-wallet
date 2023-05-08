@@ -7,7 +7,6 @@
 {-# LANGUAGE FlexibleContexts #-}
 {-# LANGUAGE FlexibleInstances #-}
 {-# LANGUAGE GADTs #-}
-{-# LANGUAGE LambdaCase #-}
 {-# LANGUAGE NamedFieldPuns #-}
 {-# LANGUAGE OverloadedLabels #-}
 {-# LANGUAGE RankNTypes #-}
@@ -53,7 +52,6 @@ module Cardano.Wallet.DB.Pure.Implementation
     , mListCheckpoints
     , mRollbackTo
     , mPutWalletMeta
-    , mReadWalletMeta
     , mPutDelegationCertificate
     , mIsStakeKeyRegistered
     , mPutTxHistory
@@ -76,21 +74,17 @@ import Cardano.Wallet.DB
 import Cardano.Wallet.Primitive.Model
     ( Wallet, currentTip )
 import Cardano.Wallet.Primitive.Slotting
-    ( TimeInterpreter, epochOf, interpretQuery, slotToUTCTime )
+    ( TimeInterpreter, interpretQuery, slotToUTCTime )
 import Cardano.Wallet.Primitive.Types
     ( BlockHeader (blockHeight, slotNo)
     , ChainPoint
     , DelegationCertificate (..)
-    , EpochNo (..)
     , GenesisParameters (..)
     , Range (..)
     , Slot
     , SlotNo (..)
     , SortOrder (..)
     , StakeKeyCertificate (..)
-    , WalletDelegation (..)
-    , WalletDelegationNext (..)
-    , WalletDelegationStatus (..)
     , WalletMetadata (..)
     , chainPointFromBlockHeader
     , dlgCertPoolId
@@ -114,8 +108,6 @@ import Control.Monad
     ( join )
 import Data.Bifunctor
     ( first )
-import Data.Function
-    ( (&) )
 import Data.Functor.Identity
     ( Identity (..) )
 import Data.Generics.Internal.VL.Lens
@@ -310,46 +302,6 @@ mRollbackTo requested (Database wid wal txs) =
 
 mPutWalletMeta :: WalletMetadata -> ModelOp wid s xprv ()
 mPutWalletMeta meta = alterModelNoTxs $ \wal -> ((), wal { metadata = meta })
-
-mReadWalletMeta
-    :: TimeInterpreter Identity
-    -> ModelOp wid s xprv (WalletMetadata, WalletDelegation)
-mReadWalletMeta ti db@(Database _ wallet _) = (Right (mkMetadata wallet), db)
-  where
-    epochOf' = runIdentity . interpretQuery ti . epochOf
-    mkMetadata
-        :: WalletDatabase s xprv
-        -> (WalletMetadata, WalletDelegation)
-    mkMetadata WalletDatabase{checkpoints,certificates,metadata} = let
-        (slot, _) = Map.findMax checkpoints
-        currentEpoch = epochOf' slot
-        in (metadata, readWalletDelegation certificates currentEpoch)
-
-    readWalletDelegation :: Map SlotNo (Maybe PoolId) -> EpochNo -> WalletDelegation
-    readWalletDelegation certificates currentEpoch
-        | currentEpoch == 0 = WalletDelegation NotDelegating []
-        | otherwise =
-            let active = certificates
-                    & Map.filterWithKey (\sl _ -> (epochOf' sl) < currentEpoch - 1)
-                    & Map.lookupMax
-                    & (snd =<<)
-                    & maybe NotDelegating Delegating
-                next1 = certificates
-                    & Map.filterWithKey (\sl _ -> let ep = epochOf' sl in
-                        ep >= currentEpoch - 1 && ep < currentEpoch)
-                    & Map.lookupMax
-                    & maybe [] (mkDelegationNext (currentEpoch + 1) . snd)
-                next2 = certificates
-                    & Map.filterWithKey (\sl _ -> epochOf' sl >= currentEpoch)
-                    & Map.lookupMax
-                    & maybe [] (mkDelegationNext (currentEpoch + 2) . snd)
-            in
-                WalletDelegation active (next1 ++ next2)
-
-    mkDelegationNext :: EpochNo -> Maybe PoolId -> [WalletDelegationNext]
-    mkDelegationNext ep = pure . \case
-        Nothing -> WalletDelegationNext ep NotDelegating
-        Just pid -> WalletDelegationNext ep (Delegating pid)
 
 mPutDelegationCertificate
     :: DelegationCertificate

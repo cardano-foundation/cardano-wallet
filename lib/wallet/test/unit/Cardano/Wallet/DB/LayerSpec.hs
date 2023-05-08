@@ -139,8 +139,6 @@ import Cardano.Wallet.Primitive.Types
     , SlotNo (..)
     , SortOrder (..)
     , StartTime (..)
-    , WalletDelegation (..)
-    , WalletDelegationStatus (..)
     , WalletId (..)
     , WalletMetadata (..)
     , WalletName (..)
@@ -265,6 +263,8 @@ import UnliftIO.STM
 import UnliftIO.Temporary
     ( withSystemTempDirectory, withSystemTempFile )
 
+import Cardano.Wallet
+    ( readWalletMeta )
 import qualified Cardano.Wallet.Address.Derivation.Shelley as Seq
 import qualified Cardano.Wallet.DB.Sqlite.Schema as DB
 import qualified Cardano.Wallet.DB.Sqlite.Types as DB
@@ -508,24 +508,6 @@ fileModeSpec =  do
             withShelleyFileDBFresh f $ \DBFresh{..} ->
                 void $ unsafeRunExceptT $ bootDBLayer testDBLayerParams
             testReopening f getWalletId' testWid
-
-        it "create and get meta works" $ \f -> do
-            meta <- withShelleyFileDBFresh f $ \DBFresh{..} -> do
-                now <- getCurrentTime
-                let meta =
-                        testMetadata
-                            { passphraseInfo =
-                                Just
-                                    $ WalletPassphraseInfo
-                                        now
-                                        EncryptWithPBKDF2
-                            }
-                void
-                    $ unsafeRunExceptT
-                    $ bootDBLayer
-                        testDBLayerParams{dBLayerParamsMetadata = meta}
-                return (meta, WalletDelegation NotDelegating [])
-            testReopening f readWalletMeta' meta
 
         it "create and get private key" $ \f -> do
             (k, h) <- withShelleyFileDBFresh f $ \DBFresh{bootDBLayer} -> do
@@ -828,8 +810,8 @@ prop_randomOpChunks (NonEmpty (p : pairs)) =
             withShelleyDBLayer $ \dbfM -> do
                 dbM <- boot dbfM p
                 dbF <- boot dbfF p
-                forM_ pairs (insertPair dbM)
-                cutRandomly pairs >>= mapM_ (mapM (insertPair dbF))
+                forM_ (fst <$> pairs) (insertPair dbM)
+                cutRandomly (fst <$> pairs) >>= mapM_ (mapM (insertPair dbF))
                 dbF `shouldBeConsistentWith` dbM
     boot DBFresh{bootDBLayer} (cp, meta) = do
         let cp0 = imposeGenesisState cp
@@ -839,11 +821,10 @@ prop_randomOpChunks (NonEmpty (p : pairs)) =
 
     insertPair
         :: DBLayer IO s k
-        -> (Wallet s, WalletMetadata)
+        -> Wallet s
         -> IO ()
-    insertPair DBLayer{..} (cp, meta) = atomically $ do
+    insertPair DBLayer{..} cp = atomically $ do
         putCheckpoint cp
-        putWalletMeta meta
 
     imposeGenesisState :: Wallet s -> Wallet s
     imposeGenesisState = over #currentTip $ \(BlockHeader _ _ h _) ->
@@ -943,8 +924,8 @@ readCheckpoint' DBLayer{..} = atomically readCheckpoint
 
 readWalletMeta'
     :: DBLayer m s k
-    -> m (WalletMetadata, WalletDelegation)
-readWalletMeta' DBLayer{..} = atomically readWalletMeta
+    -> m WalletMetadata
+readWalletMeta' DBLayer{..} = atomically (readWalletMeta walletState)
 
 readTransactions'
     :: DBLayer m s k
@@ -1298,6 +1279,9 @@ testMigrationSeqStateDerivationPrefix dbName prefix = do
         let fieldInDB = fieldDB $ persistFieldDef DB.SeqStateDerivationPrefix
         in fieldName field == unFieldNameDB fieldInDB
 
+inspectMeta :: DBLayer m s k -> m WalletMetadata
+inspectMeta DBLayer{..} = atomically (readWalletMeta walletState)
+
 testMigrationPassphraseScheme1 :: IO ()
 testMigrationPassphraseScheme1 = do
     -- The first wallet is stored in the database with only a
@@ -1305,7 +1289,7 @@ testMigrationPassphraseScheme1 = do
     -- after the migration, both should now be `Just`.
     (logs, a) <- withDBLayerFromCopiedFile @ShelleyKey
         "passphraseScheme/she.17ca0ed41a372e483f2968aa386a4b6b0ca6b5ee.sqlite"
-        $ \DBLayer{..} -> atomically $ fst <$> readWalletMeta
+        inspectMeta
 
     -- Migration is visible from the logs
     let migrationMsg = filter isMsgManualMigrationPw logs
@@ -1318,7 +1302,7 @@ testMigrationPassphraseScheme2 = do
     -- scheme set to use PBKDF2. Nothing should have changed.
     (logs, a) <- withDBLayerFromCopiedFile @ShelleyKey
         "passphraseScheme/she.2e8353d2bb937445948669a1dcc69ec9628a558c.sqlite"
-        $ \DBLayer{..} -> atomically $ fst <$> readWalletMeta
+        inspectMeta
 
     let migrationMsg = filter isMsgManualMigrationPw logs
     length migrationMsg `shouldBe` 1
@@ -1330,7 +1314,7 @@ testMigrationPassphraseScheme3 = do
     -- scheme. Nothing should have changed.
     (logs, a) <- withDBLayerFromCopiedFile @ShelleyKey
         "passphraseScheme/she.899abf7137aa8b3200d55d70474f6fdd2649fa2f.sqlite"
-        $ \DBLayer{..} -> atomically $ fst <$> readWalletMeta
+        inspectMeta
 
     let migrationMsg = filter isMsgManualMigrationPw logs
     length migrationMsg `shouldBe` 1
@@ -1342,7 +1326,7 @@ testMigrationPassphraseScheme4 = do
     -- account public key), so it should still have NO scheme.
     (logs, a ) <- withDBLayerFromCopiedFile @ShelleyKey
         "passphraseScheme/she.be92ab4ec9399449e53b94378e6cb6724691f8b3.sqlite"
-        $ \DBLayer{..} -> atomically $ fst <$> readWalletMeta
+        inspectMeta
 
     let migrationMsg = filter isMsgManualMigrationPw logs
     length migrationMsg `shouldBe` 1

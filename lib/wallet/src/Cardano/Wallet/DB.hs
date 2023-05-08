@@ -216,7 +216,7 @@ hoistDBFresh f (DBFresh boot load) = DBFresh
 data DBLayer m s k = forall stm. (MonadIO stm, MonadFail stm) => DBLayer
     { walletId_ :: WalletId
 
-    , walletsDB
+    , walletState
         :: DBVar stm (DeltaWalletState s)
         -- ^ 'DBVar' containing the 'WalletState' of each wallet in the database.
         -- Currently contains all 'Checkpoints' of the 'UTxO' and the
@@ -242,11 +242,7 @@ data DBLayer m s k = forall stm. (MonadIO stm, MonadFail stm) => DBLayer
         -- ^ List all known checkpoint tips, ordered by slot ids from the oldest
         -- to the newest.
 
-    , putWalletMeta :: WalletMetadata -> stm ()
-        -- ^ Replace an existing wallet metadata with the given one.
-
-    , readWalletMeta :: stm (WalletMetadata, WalletDelegation)
-        -- ^ Fetch a wallet metadata, if they exist.
+    , readDelegation :: stm WalletDelegation
 
     , isStakeKeyRegistered :: stm Bool
 
@@ -445,8 +441,6 @@ data DBLayerCollection stm m s k = DBLayerCollection
         :: forall a. stm a -> m a
     , transactionsStore_
         :: Store stm QueryTxWalletsHistory DeltaTxWalletsHistory
-    , putWalletMeta_ :: WalletMetadata -> stm ()
-    , readWalletMeta_ :: stm WalletMetadata
     }
 
 {- HLINT ignore mkDBLayerFromParts "Avoid lambda" -}
@@ -459,19 +453,16 @@ mkDBLayerFromParts
     -> DBLayer m s k
 mkDBLayerFromParts ti wid_ DBLayerCollection{..} = DBLayer
     { walletId_ = wid_
-    , walletsDB = walletsDB_ dbCheckpoints
+    , walletState = walletsDB_ dbCheckpoints
     , transactionsStore = transactionsStore_
     , putCheckpoint = putCheckpoint_ dbCheckpoints
     , readCheckpoint = readCheckpoint'
     , listCheckpoints = listCheckpoints_ dbCheckpoints
-    , putWalletMeta = putWalletMeta_
-    , readWalletMeta = do
+    , readDelegation = do
         readCheckpoint' >>= \cp -> do
-                currentEpoch <- liftIO $
-                    interpretQuery ti (epochOf $ cp ^. #currentTip . #slotNo)
-                del <- readDelegation_ dbDelegation currentEpoch
-                wm <- readWalletMeta_
-                pure (wm, del)
+            currentEpoch <- liftIO $
+                interpretQuery ti (epochOf $ cp ^. #currentTip . #slotNo)
+            readDelegation_ dbDelegation currentEpoch
     , isStakeKeyRegistered = isStakeKeyRegistered_ dbDelegation
     , putDelegationCertificate = putDelegationCertificate_ dbDelegation
     , putDelegationRewardBalance = putDelegationRewardBalance_ dbDelegation

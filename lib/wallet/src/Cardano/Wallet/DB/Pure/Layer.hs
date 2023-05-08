@@ -35,13 +35,11 @@ import Cardano.Wallet.DB.Pure.Implementation
     , mPutDelegationRewardBalance
     , mPutPrivateKey
     , mPutTxHistory
-    , mPutWalletMeta
     , mReadCheckpoint
     , mReadDelegationRewardBalance
     , mReadGenesisParameters
     , mReadPrivateKey
     , mReadTxHistory
-    , mReadWalletMeta
     , mRollbackTo
     )
 import Cardano.Wallet.Primitive.Slotting
@@ -104,7 +102,7 @@ newDBFresh timeInterpreter wid = do
         {-----------------------------------------------------------------------
                                     Checkpoints
         -----------------------------------------------------------------------}
-        , walletsDB = error "MVar.walletsDB: not implemented"
+        , walletState = error "MVar.walletState: not implemented"
         , transactionsStore = error "MVar.transactionsStore: not implemented"
 
         , putCheckpoint = noErrorAlterDB  db .  mPutCheckpoint
@@ -122,10 +120,9 @@ newDBFresh timeInterpreter wid = do
                                    Wallet Metadata
         -----------------------------------------------------------------------}
 
-        , putWalletMeta = noErrorAlterDB db .  mPutWalletMeta
+        -- , putWalletMeta = noErrorAlterDB db .  mPutWalletMeta
 
-        , readWalletMeta = throwErrorReadDB db
-            $ mReadWalletMeta timeInterpreter
+        , readDelegation = error "MVar.readDelegation: not implemented"
 
         , putDelegationCertificate = \cert sl -> noErrorAlterDB db $
             mPutDelegationCertificate cert sl
