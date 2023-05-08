@@ -2657,12 +2657,6 @@ constructTransaction api argGenChange knownPools poolStatus apiWalletId body = d
                 not $ withinSlotInterval before hereafter $
                     scriptSlotIntervals script
 
-    toUsignedTxWdrl p = \case
-        ApiWithdrawalGeneral (ApiRewardAccount rewardAcc) amount Our ->
-            Just (rewardAcc, Coin.fromQuantity amount, p)
-        ApiWithdrawalGeneral _ _ External ->
-            Nothing
-
     unsignedTx path initialOuts decodedTx = UnsignedTx
         { unsignedCollateral =
             mapMaybe toUnsignedTxInp (decodedTx ^. #collateral)
@@ -2707,6 +2701,14 @@ constructTransaction api argGenChange knownPools poolStatus apiWalletId body = d
         map toTxOut
             . Map.toList
             . foldr (uncurry (Map.insertWith (<>))) Map.empty
+
+toUsignedTxWdrl
+    :: c -> ApiWithdrawalGeneral n -> Maybe (RewardAccount, Coin, c)
+toUsignedTxWdrl p = \case
+    ApiWithdrawalGeneral (ApiRewardAccount rewardAcc) amount Our ->
+        Just (rewardAcc, Coin.fromQuantity amount, p)
+    ApiWithdrawalGeneral _ _ External ->
+        Nothing
 
 toUnsignedTxOut :: ApiTxOutputGeneral n -> TxOut
 toUnsignedTxOut = \case
@@ -2828,7 +2830,6 @@ parseValidityInterval ti validityInterval = do
 
     pure (before, hereafter)
 
--- TO-DO withdrawals
 -- TO-DO minting/burning
 -- TO-DO reference scripts
 constructSharedTransaction
@@ -2881,8 +2882,14 @@ constructSharedTransaction
                     trWorker db epoch knownPools
                     getPoolStatus NoWithdrawal
 
+        withdrawal <- case body ^. #withdrawal of
+            Just SelfWithdraw -> liftIO $
+                W.shelleyOnlyMkSelfWithdrawal @_ @_ @n
+                      netLayer (txWitnessTagFor @SharedKey) era db
+            _ -> pure NoWithdrawal
+
         let txCtx = defaultTransactionCtx
-                { txWithdrawal = NoWithdrawal
+                { txWithdrawal = withdrawal
                 , txMetadata = md
                 , txValidityInterval = (Just before, hereafter)
                 , txDelegationAction = optionalDelegationAction
@@ -2935,14 +2942,14 @@ constructSharedTransaction
                     { transaction = balancedTx
                     , coinSelection =
                         mkApiCoinSelection deposits refunds
-                        delCerts md (unsignedTx outs apiDecoded)
+                        delCerts md (unsignedTx outs apiDecoded delCerts)
                     , fee = apiDecoded ^. #fee
                     }
   where
     ti :: TimeInterpreter (ExceptT PastHorizonException IO)
     ti = timeInterpreter (api ^. networkLayer)
 
-    unsignedTx initialOuts decodedTx = UnsignedTx
+    unsignedTx initialOuts decodedTx rewardDel = UnsignedTx
         { unsignedCollateral =
             mapMaybe toUnsignedTxInp (decodedTx ^. #collateral)
         , unsignedInputs =
@@ -2953,8 +2960,10 @@ constructSharedTransaction
         , unsignedChange =
             drop (length initialOuts)
                 $ map toUnsignedTxChange (decodedTx ^. #outputs)
-        , unsignedWithdrawals =
-            []
+        , unsignedWithdrawals = case rewardDel of
+                Nothing -> []
+                Just (_, path) ->
+                    mapMaybe (toUsignedTxWdrl path) (decodedTx ^. #withdrawals)
         }
 
 decodeSharedTransaction
