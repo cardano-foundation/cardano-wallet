@@ -696,7 +696,7 @@ import qualified Cardano.Wallet.Primitive.Types.UTxO as UTxO
 import qualified Cardano.Wallet.Read as Read
 import qualified Cardano.Wallet.Registry as Registry
 import qualified Cardano.Wallet.Write.ProtocolParameters as Write
-import qualified Cardano.Wallet.Write.Tx as WriteTx
+import qualified Cardano.Wallet.Write.Tx as Write
 import qualified Cardano.Wallet.Write.Tx.Balance as Write
 import qualified Control.Concurrent.Concierge as Concierge
 import qualified Data.ByteString as BS
@@ -1775,7 +1775,7 @@ selectCoins
     -> Handler (ApiCoinSelection n)
 selectCoins ctx@ApiLayer {..} argGenChange (ApiT walletId) body = do
     era <- liftIO $ NW.currentNodeEra netLayer
-    AnyRecentEra (_ :: WriteTx.RecentEra e) <- guardIsRecentEra era
+    AnyRecentEra (_ :: Write.RecentEra e) <- guardIsRecentEra era
     withWorkerCtx ctx walletId liftE liftE $ \workerCtx -> do
         let db = workerCtx ^. dbLayer
             ti = timeInterpreter netLayer
@@ -1842,7 +1842,7 @@ selectCoinsForJoin ctx@ApiLayer{..}
     poolStatus <- liftIO $ getPoolStatus poolId
     pools <- liftIO knownPools
     curEpoch <- getCurrentEpoch ctx
-    AnyRecentEra (_ :: WriteTx.RecentEra e) <- guardIsRecentEra era
+    AnyRecentEra (_ :: Write.RecentEra e) <- guardIsRecentEra era
     withWorkerCtx ctx walletId liftE liftE $ \workerCtx -> liftIO $ do
         let db = workerCtx ^. typed @(DBLayer IO s k)
         timeTranslation <- liftIO $
@@ -1902,7 +1902,7 @@ selectCoinsForQuit
     -> Handler (ApiCoinSelection n)
 selectCoinsForQuit ctx@ApiLayer{..} (ApiT walletId) = do
     era <- liftIO $ NW.currentNodeEra netLayer
-    AnyRecentEra (_ :: WriteTx.RecentEra e) <- guardIsRecentEra era
+    AnyRecentEra (_ :: Write.RecentEra e) <- guardIsRecentEra era
     withWorkerCtx ctx walletId liftE liftE $ \workerCtx -> liftIO $ do
         let db = workerCtx ^. typed @(DBLayer IO s k)
         timeTranslation <- liftIO $
@@ -2182,7 +2182,7 @@ postTransactionOld ctx@ApiLayer{..} argGenChange (ApiT wid) body = do
     withWorkerCtx ctx wid liftE liftE $ \wrk -> do
         let db = wrk ^. dbLayer
         era <- liftIO $ NW.currentNodeEra netLayer
-        AnyRecentEra (recentEra :: WriteTx.RecentEra era)
+        AnyRecentEra (recentEra :: Write.RecentEra era)
             <- guardIsRecentEra era
         ttl <- liftIO $ W.transactionExpirySlot ti mTTL
         wdrl <- case body ^. #withdrawal of
@@ -2355,7 +2355,7 @@ postTransactionFeeOld
     -> Handler ApiFee
 postTransactionFeeOld ctx@ApiLayer{..} (ApiT walletId) body = do
     era <- liftIO $ NW.currentNodeEra netLayer
-    AnyRecentEra (recentEra :: WriteTx.RecentEra era) <- guardIsRecentEra era
+    AnyRecentEra (recentEra :: Write.RecentEra era) <- guardIsRecentEra era
     (protocolParameters, _bundledProtocolParameters) <- liftIO $
         W.toBalanceTxPParams @era <$> currentProtocolParameters netLayer
     let mTTL = body ^? #timeToLive . traverse . #getQuantity
@@ -2461,7 +2461,7 @@ constructTransaction api argGenChange knownPools poolStatus apiWalletId body = d
         era <- liftIO $ NW.currentNodeEra netLayer
         epoch <- getCurrentEpoch api
 
-        AnyRecentEra (_recentEra :: WriteTx.RecentEra era)
+        AnyRecentEra (_recentEra :: Write.RecentEra era)
             <- guardIsRecentEra era
         withdrawal <- case body ^. #withdrawal of
             Just SelfWithdraw -> liftIO $
@@ -2877,7 +2877,7 @@ constructSharedTransaction
         pp <- liftIO $ NW.currentProtocolParameters netLayer
         epoch <- getCurrentEpoch api
         era <- liftIO $ NW.currentNodeEra (wrk ^. networkLayer)
-        AnyRecentEra (_recentEra :: WriteTx.RecentEra era)
+        AnyRecentEra (_recentEra :: Write.RecentEra era)
             <- guardIsRecentEra era
         (cp, _, _) <- handler $ W.readWallet wrk
         let delegationTemplateM = Shared.delegationTemplate $ getState cp
@@ -3081,10 +3081,10 @@ balanceTransaction
         (walletUTxO, wallet, _txs) <- handler $ W.readWalletUTxO @_ @s @k wrk
         timeTranslation <- liftIO $ toTimeTranslation (timeInterpreter netLayer)
         let mkPartialTx
-                :: forall era. WriteTx.IsRecentEra era => Cardano.Tx era
+                :: forall era. Write.IsRecentEra era => Cardano.Tx era
                 -> Handler (Write.PartialTx era)
             mkPartialTx tx = do
-                utxo <- fmap WriteTx.toCardanoUTxO $ mkLedgerUTxO $ body ^. #inputs
+                utxo <- fmap Write.toCardanoUTxO $ mkLedgerUTxO $ body ^. #inputs
                 pure $ Write.PartialTx
                     tx
                     utxo
@@ -3108,24 +3108,24 @@ balanceTransaction
                 --          -> res
                 -- @@
 
-                mkRecentEra :: Handler (WriteTx.RecentEra era)
+                mkRecentEra :: Handler (Write.RecentEra era)
                 mkRecentEra = case Cardano.cardanoEra @era of
-                    Cardano.ConwayEra -> pure WriteTx.RecentEraConway
-                    Cardano.BabbageEra -> pure WriteTx.RecentEraBabbage
+                    Cardano.ConwayEra -> pure Write.RecentEraConway
+                    Cardano.BabbageEra -> pure Write.RecentEraBabbage
                     _ -> liftHandler $ throwE $ Write.ErrOldEraNotSupported era
 
                 mkLedgerUTxO
                     :: [ApiExternalInput n]
-                    -> Handler (WriteTx.UTxO (ShelleyLedgerEra era))
+                    -> Handler (Write.UTxO (ShelleyLedgerEra era))
                 mkLedgerUTxO ins = do
                     recentEra <- mkRecentEra
                     pure
-                        . WriteTx.utxoFromTxOutsInRecentEra recentEra
+                        . Write.utxoFromTxOutsInRecentEra recentEra
                         . map fromExternalInput
                         $ ins
 
         let balanceTx
-                :: forall era. WriteTx.IsRecentEra era
+                :: forall era. Write.IsRecentEra era
                 => Write.PartialTx era
                 -> Handler (Cardano.Tx era)
             balanceTx partialTx =
@@ -3144,11 +3144,11 @@ balanceTransaction
                     partialTx
 
         anyRecentTx <- maybeToHandler (Write.ErrOldEraNotSupported era)
-            . WriteTx.asAnyRecentEra
+            . Write.asAnyRecentEra
             . cardanoTxIdeallyNoLaterThan era
             . getApiT $ body ^. #transaction
 
-        res <- WriteTx.withInAnyRecentEra anyRecentTx
+        res <- Write.withInAnyRecentEra anyRecentTx
             (fmap inAnyCardanoEra . balanceTx <=< mkPartialTx)
 
         case body ^. #encoding of
@@ -3540,7 +3540,7 @@ joinStakePool
     -- FIXME [ADP-1489] pp and era are not guaranteed to be consistent,
     -- which could cause problems under exceptional circumstances.
     era <- liftIO $ NW.currentNodeEra netLayer
-    AnyRecentEra (recentEra :: WriteTx.RecentEra era) <- guardIsRecentEra era
+    AnyRecentEra (recentEra :: Write.RecentEra era) <- guardIsRecentEra era
     withWorkerCtx ctx walletId liftE liftE $ \wrk -> do
         let tr = wrk ^. logger
             db = wrk ^. typed @(DBLayer IO s k)
@@ -3598,7 +3598,7 @@ delegationFee
     -> Handler ApiFee
 delegationFee ctx@ApiLayer{..} (ApiT walletId) = do
     era <- liftIO $ NW.currentNodeEra netLayer
-    AnyRecentEra (recentEra :: WriteTx.RecentEra era) <- guardIsRecentEra era
+    AnyRecentEra (recentEra :: Write.RecentEra era) <- guardIsRecentEra era
     withWorkerCtx ctx walletId liftE liftE $ \workerCtx -> liftIO $ do
         timeTranslation <-
             toTimeTranslation (timeInterpreter netLayer)
@@ -3630,7 +3630,7 @@ quitStakePool
     -> Handler (ApiTransaction n)
 quitStakePool ctx@ApiLayer{..} argGenChange (ApiT walletId) body = do
     era <- liftIO $ NW.currentNodeEra netLayer
-    AnyRecentEra (recentEra :: WriteTx.RecentEra era) <- guardIsRecentEra era
+    AnyRecentEra (recentEra :: Write.RecentEra era) <- guardIsRecentEra era
     withWorkerCtx ctx walletId liftE liftE $ \wrk -> do
         let db = wrk ^. typed @(DBLayer IO s k)
             ti = timeInterpreter netLayer
@@ -4224,8 +4224,8 @@ type RewardAccountBuilder k
 
 guardIsRecentEra :: AnyCardanoEra -> Handler AnyRecentEra
 guardIsRecentEra (Cardano.AnyCardanoEra era) = case era of
-    Cardano.ConwayEra -> pure $ WriteTx.AnyRecentEra WriteTx.RecentEraConway
-    Cardano.BabbageEra -> pure $ WriteTx.AnyRecentEra WriteTx.RecentEraBabbage
+    Cardano.ConwayEra -> pure $ Write.AnyRecentEra Write.RecentEraConway
+    Cardano.BabbageEra -> pure $ Write.AnyRecentEra Write.RecentEraBabbage
     Cardano.AlonzoEra  -> liftE invalidEra
     Cardano.MaryEra    -> liftE invalidEra
     Cardano.AllegraEra -> liftE invalidEra
@@ -4634,7 +4634,7 @@ getWalletTip ti = makeApiBlockReferenceFromHeader ti . currentTip
 
 fromExternalInput
     :: ApiExternalInput n
-    -> (WriteTx.TxIn, WriteTx.TxOutInRecentEra)
+    -> (Write.TxIn, Write.TxOutInRecentEra)
 fromExternalInput ApiExternalInput
     { id = ApiT tid
     , index = ix
@@ -4649,8 +4649,8 @@ fromExternalInput ApiExternalInput
         script = Nothing
         addr' = toLedger addr
         val = toLedger $ TokenBundle (Coin.fromNatural amt) assets
-        datum' = maybe WriteTx.NoDatum (WriteTx.DatumHash . getApiT) datum
-        out = WriteTx.TxOutInRecentEra addr' val datum' script
+        datum' = maybe Write.NoDatum (Write.DatumHash . getApiT) datum
+        out = Write.TxOutInRecentEra addr' val datum' script
     in
         (inp, out)
 

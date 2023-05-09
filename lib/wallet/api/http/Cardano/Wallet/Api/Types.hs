@@ -509,7 +509,7 @@ import qualified Cardano.Crypto.Wallet as CC
 import qualified Cardano.Wallet.Address.Derivation as AD
 import qualified Cardano.Wallet.Primitive.Types as W
 import qualified Cardano.Wallet.Primitive.Types.TokenPolicy as W
-import qualified Cardano.Wallet.Write.Tx as WriteTx
+import qualified Cardano.Wallet.Write.Tx as Write
 import qualified Codec.Binary.Bech32 as Bech32
 import qualified Codec.Binary.Bech32.TH as Bech32
 import qualified Data.Aeson as Aeson
@@ -1158,16 +1158,16 @@ data ApiExternalInput (n :: NetworkDiscriminant) = ApiExternalInput
     , address :: !(ApiAddress n)
     , amount :: !(Quantity "lovelace" Natural)
     , assets :: !(ApiT TokenMap)
-    , datum :: !(Maybe (ApiT WriteTx.DatumHash))
+    , datum :: !(Maybe (ApiT Write.DatumHash))
     }
     deriving (Eq, Generic, Show, Typeable)
     deriving (FromJSON, ToJSON) via DefaultRecord (ApiExternalInput n)
     deriving anyclass NFData
 
-instance FromJSON (ApiT WriteTx.DatumHash) where
+instance FromJSON (ApiT Write.DatumHash) where
     parseJSON = withText "DatumHash" $ \hex -> maybeToParser $ do
         bytes <- parseHex hex
-        ApiT <$> WriteTx.datumHashFromBytes bytes
+        ApiT <$> Write.datumHashFromBytes bytes
       where
         maybeToParser = maybe failWithHelp pure
         failWithHelp = fail
@@ -1176,8 +1176,8 @@ instance FromJSON (ApiT WriteTx.DatumHash) where
         parseHex :: Text -> Maybe ByteString
         parseHex = eitherToMaybe . fromHexText
 
-instance ToJSON (ApiT WriteTx.DatumHash) where
-    toJSON (ApiT dh) = String $ hexText $ WriteTx.datumHashToBytes dh
+instance ToJSON (ApiT Write.DatumHash) where
+    toJSON (ApiT dh) = String $ hexText $ Write.datumHashToBytes dh
 
 data ApiBalanceTransactionPostData (n :: NetworkDiscriminant) =
     ApiBalanceTransactionPostData

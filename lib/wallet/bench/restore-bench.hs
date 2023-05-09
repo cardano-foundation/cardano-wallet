@@ -239,7 +239,7 @@ import qualified Cardano.Wallet.Primitive.Types.TokenBundle as TokenBundle
 import qualified Cardano.Wallet.Primitive.Types.UTxOStatistics as UTxOStatistics
 import qualified Cardano.Wallet.Shelley.Compatibility as Cardano
 import qualified Cardano.Wallet.Write.ProtocolParameters as Write
-import qualified Cardano.Wallet.Write.Tx as WriteTx
+import qualified Cardano.Wallet.Write.Tx as Write
 import qualified Cardano.Wallet.Write.Tx.Balance as Write
 import qualified Data.Aeson as Aeson
 import qualified Data.ByteString as BS
@@ -476,7 +476,7 @@ benchmarksRnd network w@(WalletLayer _ _ netLayer txLayer dbLayer) wname
             (Just 100)
 
     (_, estimateFeesTime) <- bench "estimate tx fee" $ do
-        AnyRecentEra (recentEra :: WriteTx.RecentEra era) <-
+        AnyRecentEra (recentEra :: Write.RecentEra era) <-
             guardIsRecentEra =<< currentNodeEra netLayer
         (protocolParameters, _bundledProtocolParameters) <-
             W.toBalanceTxPParams @era <$> currentProtocolParameters netLayer
@@ -584,7 +584,7 @@ benchmarksSeq network w@(WalletLayer _ _ netLayer txLayer dbLayer) _wname
             (Just 100)
 
     (_, estimateFeesTime) <- bench "estimate tx fee" $ do
-        AnyRecentEra (recentEra :: WriteTx.RecentEra era) <-
+        AnyRecentEra (recentEra :: Write.RecentEra era) <-
             guardIsRecentEra =<< currentNodeEra netLayer
         (protocolParameters, _bundledProtocolParameters) <-
             W.toBalanceTxPParams @era <$> currentProtocolParameters netLayer
@@ -1015,8 +1015,8 @@ sTol = mkSyncTolerance 3600
 
 guardIsRecentEra :: AnyCardanoEra -> IO AnyRecentEra
 guardIsRecentEra (Cardano.AnyCardanoEra era) = case era of
-    Cardano.ConwayEra -> pure $ WriteTx.AnyRecentEra WriteTx.RecentEraConway
-    Cardano.BabbageEra -> pure $ WriteTx.AnyRecentEra WriteTx.RecentEraBabbage
+    Cardano.ConwayEra -> pure $ Write.AnyRecentEra Write.RecentEraConway
+    Cardano.BabbageEra -> pure $ Write.AnyRecentEra Write.RecentEraBabbage
     Cardano.AlonzoEra -> invalidEra
     Cardano.MaryEra -> invalidEra
     Cardano.AllegraEra -> invalidEra
