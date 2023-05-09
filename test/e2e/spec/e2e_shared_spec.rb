@@ -1179,10 +1179,13 @@ RSpec.describe 'Cardano Wallet E2E tests - Shared wallets', :all, :e2e, :shared 
       end
 
       it 'Delegation (without submitting)' do
-        # Delegation not yet implemented, only construct and sign in this tc
-        # balance = get_shared_balances(@wid_sha)
+        balance = get_shared_balances(@wid_sha)
         expected_deposit = CARDANO_CLI.protocol_params['stakeAddressDeposit']
         puts "Expected deposit #{expected_deposit}"
+  
+        # Check wallet stake keys before joing stake pool
+        wallet = SHARED.wallets.get(@wid_sha)
+        expect(wallet['delegation']['active']['status']).to eq 'not_delegating'
 
         # Pick up pool id to join
         pools = SHELLEY.stake_pools
@@ -1239,8 +1242,114 @@ RSpec.describe 'Cardano Wallet E2E tests - Shared wallets', :all, :e2e, :shared 
         expect(tx_decoded['certificates']).to include(have_key('pool')).once
         expect(tx_decoded['certificates']).to include(have_value(pool_id)).once
 
+        # Sign
         tx_signed = SHARED.transactions.sign(@wid_sha, PASS, tx_constructed['transaction'])
         expect(tx_signed).to be_correct_and_respond 202
+
+        # Submit
+        tx_submitted = SHARED.transactions.submit(@wid_sha, tx_signed['transaction'])
+        expect(tx_submitted).to be_correct_and_respond 202
+        tx_id = tx_submitted['id']
+        wait_for_tx_in_ledger(@wid_sha, tx_id, SHARED)
+
+        # Check fee and balance and deposit after joining
+        tx = SHARED.transactions.get(@wid_sha, tx_id)
+        tx_amount(tx, expected_deposit + expected_fee)
+        tx_fee(tx, expected_fee)
+        tx_inputs(tx, present: true)
+        tx_outputs(tx, present: true)
+        tx_direction(tx, 'outgoing')
+        tx_script_validity(tx, 'valid')
+        tx_status(tx, 'in_ledger')
+        tx_collateral(tx, present: false)
+        tx_collateral_outputs(tx, present: false)
+        tx_metadata(tx, nil)
+        tx_deposits(tx, deposit_taken: deposit_taken, deposit_returned: 0)
+        tx_withdrawals(tx, present: false)
+        tx_mint_burn(tx, mint: [], burn: [])
+        tx_extra_signatures(tx, present: false)
+        tx_script_integrity(tx, present: false)
+        tx_validity_interval_default(tx)
+        tx_certificates(tx, present: false)
+        # tx_certificates(tx, present: true, certificates: tx_decoded['certificates'])
+        # expect(tx['certificates'].to_s).to include 'register_reward_account'
+        # expect(tx['certificates'].to_s).to include 'join_pool'
+        # expect(tx['certificates'].to_s).to include pool_id
+
+        join_balance = get_shared_balances(@wid_sha)
+        expected_join_balance = balance['total'] - deposit_taken - expected_fee
+        expect(join_balance['total']).to eq expected_join_balance
+
+        # Quit pool
+        quit_pool = [{ 'quit' => { 'stake_key_index' => '0H' } }]
+        tx_constructed = SHARED.transactions.construct(@wid_sha,
+                                                       nil, # payment
+                                                       nil, # withdrawal
+                                                       nil, # metadata
+                                                       quit_pool,
+                                                       nil, # mint_burn
+                                                       nil) # validity_interval
+        
+        # Check fee and deposit on quitting
+        decoded_tx = SHARED.transactions.decode(@wid_sha, tx_constructed['transaction'])
+        expect(decoded_tx).to be_correct_and_respond 202
+
+        # Certificates
+        expect(decoded_tx['certificates']).to include(have_key('certificate_type')).once
+        expect(decoded_tx['certificates']).to include(have_value('quit_pool')).once
+        expect(decoded_tx['certificates']).to include(have_key('reward_account_path')).once
+        expect(decoded_tx['certificates']).to include(have_value(%w[1854H 1815H 0H 2 0])).once
+        expect(decoded_tx['certificates']).not_to include(have_value('register_reward_account'))
+        expect(decoded_tx['certificates']).not_to include(have_key('pool')).once
+        expect(decoded_tx['certificates']).not_to include(have_value(pool_id)).once
+
+        expect(tx_constructed['coin_selection']['deposits_taken']).to eq []
+        expect(decoded_tx['deposits_taken']).to eq []
+        deposit_returned = tx_constructed['coin_selection']['deposits_returned'].first['quantity']
+        decoded_deposit_returned = decoded_tx['deposits_returned'].first['quantity']
+        expect(deposit_returned).to eq decoded_deposit_returned
+        expect(deposit_returned).to eq expected_deposit
+
+        expected_fee = tx_constructed['fee']['quantity']
+        decoded_fee = decoded_tx['fee']['quantity']
+        expect(expected_fee).to eq decoded_fee
+
+        # Sign
+        tx_signed = SHARED.transactions.sign(@wid_sha, PASS, tx_constructed['transaction'])
+        expect(tx_signed).to be_correct_and_respond 202
+
+        # Submit
+        tx_submitted = SHARED.transactions.submit(@wid_sha, tx_signed['transaction'])
+        expect(tx_submitted).to be_correct_and_respond 202
+        tx_id = tx_submitted['id']
+        wait_for_tx_in_ledger(@wid_sha, tx_id, SHARED)
+
+        # Check fee and balance and deposit after quitting
+        quit_balance = get_shared_balances(@wid_sha)
+        tx = SHARED.transactions.get(@wid_sha, tx_id)
+        expect(tx['amount']['quantity']).to be > 0
+        expect(tx['amount']['quantity']).to be < deposit_returned
+        tx_fee(tx, expected_fee)
+        tx_inputs(tx, present: true)
+        tx_outputs(tx, present: true)
+        tx_direction(tx, 'incoming')
+        tx_script_validity(tx, 'valid')
+        tx_status(tx, 'in_ledger')
+        tx_collateral(tx, present: false)
+        tx_collateral_outputs(tx, present: false)
+        tx_metadata(tx, nil)
+        tx_deposits(tx, deposit_taken: 0, deposit_returned: deposit_returned)
+        tx_withdrawals(tx, present: false)
+        tx_mint_burn(tx, mint: [], burn: [])
+        tx_extra_signatures(tx, present: false)
+        tx_script_integrity(tx, present: false)
+        tx_validity_interval_default(tx)
+        tx_certificates(tx, present: false)
+        # tx_certificates(tx, present: true, certificates: decoded_tx['certificates'])
+        # expect(tx['certificates'].to_s).to include 'quit_pool'
+
+        expected_quit_balance = join_balance['total'] + deposit_returned - expected_fee
+        expect(quit_balance['total']).to eq expected_quit_balance
       end
 
       describe 'Minting and Burning' do
