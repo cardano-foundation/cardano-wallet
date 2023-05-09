@@ -21,22 +21,6 @@
 module Cardano.Wallet.Primitive.Types.TokenMap
     (
     -- * Types
-
-      -- Important:
-      --
-      -- The default data constructor for 'TokenMap' is not exported, by design,
-      -- as the internal data structure has an invariant that must be preserved
-      -- across all operations.
-      --
-      -- Exporting the default constructor would make it possible for functions
-      -- outside the 'TokenMap' module to break the invariant, opening the door
-      -- to subtle regressions.
-      --
-      -- See the definition of 'TokenMap' for more details of the invariant.
-      --
-      -- To construct a 'TokenMap', use one of the provided constructors, all
-      -- of which are tested to check that they respect the invariant.
-      --
       TokenMap
     , AssetId (..)
 
