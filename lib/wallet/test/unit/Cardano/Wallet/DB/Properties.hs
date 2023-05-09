@@ -25,8 +25,10 @@ module Cardano.Wallet.DB.Properties
 
 import Prelude
 
-import Cardano.Wallet.Address.Derivation.Shelley
-    ( ShelleyKey (..) )
+import Cardano.Address.Derivation
+    ( XPrv )
+import Cardano.Wallet.Address.Derivation
+    ( Depth (RootK) )
 import Cardano.Wallet.DB
     ( DBFresh (..)
     , DBLayer (..)
@@ -40,8 +42,12 @@ import Cardano.Wallet.DB.Pure.Implementation
     ( filterTxHistory )
 import Cardano.Wallet.DummyTarget.Primitive.Types
     ( dummyGenesisParameters )
+import Cardano.Wallet.Flavor
+    ( KeyOf )
 import Cardano.Wallet.Primitive.Model
     ( Wallet (currentTip), applyBlock, currentTip )
+import Cardano.Wallet.Primitive.Passphrase.Types
+    ( PassphraseHash )
 import Cardano.Wallet.Primitive.Types
     ( ChainPoint (..)
     , GenesisParameters
@@ -109,7 +115,7 @@ import qualified Data.List as L
 -- | How to boot a fresh database.
 type WithDBFresh s
     = WalletId
-    -> (DBFresh IO s ShelleyKey -> PropertyM IO ())
+    -> (DBFresh IO s -> PropertyM IO ())
     -> PropertyM IO ()
 
 
@@ -117,7 +123,7 @@ withFreshWallet
     :: GenState s
     => WalletId
     -> WithDBFresh s
-    -> (DBLayer IO s ShelleyKey -> WalletId -> PropertyM IO ())
+    -> (DBLayer IO s -> WalletId -> PropertyM IO ())
     -> PropertyM IO ()
 withFreshWallet wid withFreshDB f = do
     withFreshDB wid $ \DBFresh {bootDBLayer} -> do
@@ -129,7 +135,7 @@ withFreshWallet wid withFreshDB f = do
         f db wid
 
 type TestOnLayer s =
-    ( DBLayer IO s ShelleyKey
+    ( DBLayer IO s
       -> WalletId
       -> PropertyM IO ()
     )
@@ -140,7 +146,12 @@ testWid = WalletId (hash ("test" :: ByteString))
 
 -- | Wallet properties.
 properties
-    :: GenState s
+    :: ( GenState s
+       , Show (KeyOf s 'RootK XPrv)
+       , Arbitrary (KeyOf s 'RootK XPrv)
+       , Buildable (KeyOf s 'RootK XPrv, PassphraseHash)
+       , Eq (KeyOf s 'RootK XPrv)
+       )
     => WithDBFresh s
     -> SpecWith ()
 properties withFreshDB = describe "DB.Properties" $ do
@@ -238,7 +249,7 @@ properties withFreshDB = describe "DB.Properties" $ do
 -- | Wrap the result of 'readTransactions' in an arbitrary identity Applicative
 readTxHistory_
     :: Functor m
-    => DBLayer m s ShelleyKey
+    => DBLayer m s
     ->  m (Identity GenTxHistory)
 readTxHistory_ DBLayer {..} =
     (Identity . GenTxHistory . fmap toTxHistory)
@@ -246,7 +257,7 @@ readTxHistory_ DBLayer {..} =
             (readTransactions Nothing Descending wholeRange Nothing Nothing)
 
 putTxHistory_
-    :: DBLayer m s ShelleyKey
+    :: DBLayer m s
     -> GenTxHistory
     -> m ()
 putTxHistory_ DBLayer {..} = atomically . putTxHistory . unGenTxHistory
@@ -314,13 +325,13 @@ prop_createWalletTwice test (wid, InitialCheckpoint cp0, meta) = monadicIO
 prop_readAfterPut
     :: (Buildable (f a), Eq (f a), Applicative f)
     => TestOnLayer s
-    -> ( DBLayer IO s ShelleyKey
+    -> ( DBLayer IO s
          -> WalletId
          -> a
          -> ExceptT ErrWalletNotInitialized IO ()
        )
     -- ^ Put Operation
-    -> ( DBLayer IO s ShelleyKey
+    -> ( DBLayer IO s
          -> WalletId
          -> IO (f a)
        )
@@ -383,18 +394,18 @@ prop_isolation
        , Eq (g c)
        )
     => TestOnLayer s
-    -> ( DBLayer IO s ShelleyKey
+    -> ( DBLayer IO s
          -> WalletId
          -> a
          -> ExceptT ErrWalletNotInitialized IO ()
        )
     -- ^ Put Operation
-    -> ( DBLayer IO s ShelleyKey
+    -> ( DBLayer IO s
          -> WalletId
          -> IO (f b)
        )
     -- ^ Read Operation for another resource
-    -> ( DBLayer IO s ShelleyKey
+    -> ( DBLayer IO s
          -> WalletId
          -> IO (g c)
        )
@@ -421,13 +432,13 @@ prop_isolation test putA readB readC  (ShowFmt a) =
 prop_sequentialPut
     :: (Buildable (f a), Eq (f a))
     => TestOnLayer s
-    -> ( DBLayer IO s ShelleyKey
+    -> ( DBLayer IO s
          -> WalletId
          -> a
          -> ExceptT ErrWalletNotInitialized IO ()
        )
     -- ^ Put Operation
-    -> ( DBLayer IO s ShelleyKey
+    -> ( DBLayer IO s
          -> WalletId
          -> IO (f a)
        )

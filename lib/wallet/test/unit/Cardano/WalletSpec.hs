@@ -49,6 +49,7 @@ import Cardano.Wallet.Address.Derivation
     , DerivationType (..)
     , HardDerivation (..)
     , Index
+    , PersistPrivateKey
     , Role (..)
     , publicKey
     )
@@ -77,6 +78,8 @@ import Cardano.Wallet.DummyTarget.Primitive.Types
     , dummyTimeInterpreter
     , mkTxId
     )
+import Cardano.Wallet.Flavor
+    ( KeyOf, TestState (..) )
 import Cardano.Wallet.Gen
     ( genMnemonic, genSlotNo )
 import Cardano.Wallet.Network
@@ -396,9 +399,8 @@ walletUpdatePassphrase wallet new mxprv = monadicIO $ do
             $ W.updateWalletPassphraseWithOldPassphrase wl wid (new, new)
         let err = ErrUpdatePassphraseWithRootKey $ ErrWithRootKeyNoRootKey wid
         assert (attempt == Left err)
-
     prop_withPrivateKey wl wid (xprv, pwd) = do
-        run $ W.attachPrivateKeyFromPwd wl (xprv, pwd)
+        run $ W.attachPrivateKeyFromPwd @_ @DummyState wl (xprv, pwd)
         attempt <- run $ runExceptT
             $ W.updateWalletPassphraseWithOldPassphrase wl wid (coerce pwd, new)
         assert (attempt == Right ())
@@ -474,7 +476,7 @@ walletListTransactionsSorted wallet@(_, _, _) _order (_mstart, _mend) =
         WalletLayerFixture _ DBLayer{..} wl _ <- setupFixture wallet
         atomically $ putTxHistory history
         txs <- unsafeRunExceptT $
-            W.listTransactions @_ @_ @_ wl Nothing Nothing Nothing
+            W.listTransactions @_ @_ wl Nothing Nothing Nothing
                 Descending Nothing
         length txs `shouldBe` L.length history
         -- With the 'Down'-wrapper, the sort is descending.
@@ -518,7 +520,7 @@ walletListTransactionsWithLimit wallet@(_, _, _) =
             WalletLayerFixture _ DBLayer{..} wl _ <- setupFixture wallet
             atomically $ putTxHistory history'
             txs <- unsafeRunExceptT $
-                W.listTransactions @_ @_ @_ wl Nothing start stop order
+                W.listTransactions @_ @_ wl Nothing start stop order
                     $ Just limitNatural
             let times = [(txInfoId i, txInfoTime i) | i <- txs]
             shouldBe times $ take limit $ sortOn (dir . snd) $ do
@@ -552,11 +554,10 @@ walletListTransactionsWithLimit wallet@(_, _, _) =
                 test (Just l) (Just r) Ascending Identity
                     $ \slot -> slot >= l && slot <= r
 
-newtype DummyStateWithAddresses = DummyStateWithAddresses [Address]
-  deriving stock (Show, Eq)
+type DummyStateWithAddresses = TestState [Address] ShelleyKey
 
 instance IsOurs DummyStateWithAddresses Address where
-    isOurs a s@(DummyStateWithAddresses addr) =
+    isOurs a s@(TestState addr) =
         if a `elem` addr
             then (Just (DerivationIndex 0 :| []), s)
             else (Nothing, s)
@@ -585,6 +586,7 @@ instance Sqlite.PersistAddressBook DummyStateWithAddresses where
     insertDiscoveries _ _ _ = pure ()
     loadPrologue _ = error "DummyStateWithAddresses.loadPrologue: not implemented"
     loadDiscoveries _ _ = error "DummyStateWithAddresses.loadDiscoveries: not implemented"
+
 
 walletListsOnlyRelatedAssets :: Hash "Tx" -> TxMeta -> Property
 walletListsOnlyRelatedAssets txId txMeta =
@@ -625,7 +627,7 @@ walletListsOnlyRelatedAssets txId txMeta =
         wName <- arbitrary
         pure ( TxOut { tokens = tokenBundle1, address = relatedAddress }
              , TxOut { tokens = tokenBundle2, address = unrelatedAddress }
-             , (wId, wName, DummyStateWithAddresses [relatedAddress])
+             , (wId, wName, TestState [relatedAddress])
              )
 
 {-------------------------------------------------------------------------------
@@ -746,7 +748,7 @@ instance Arbitrary SlottingParameters where
 
 -- | 'WalletLayer' context.
 data TxRetryTestCtx = TxRetryTestCtx
-    { ctxDbLayer :: DBLayer TxRetryTestM DummyState ShelleyKey
+    { ctxDbLayer :: DBLayer TxRetryTestM DummyState
     , ctxNetworkLayer :: NetworkLayer TxRetryTestM Read.Block
     , ctxRetryTracer :: Tracer TxRetryTestM W.WalletWorkerLog
     , ctxTracer :: Tracer IO W.WalletWorkerLog
@@ -792,13 +794,13 @@ prop_localTxSubmission tc = monadicIO $ do
         $ \ctx@(TxRetryTestCtx dbl nl tr _ _) -> do
         unsafeRunExceptT
             $ forM_ (retryTestPool tc) $ submitTx tr dbl nl
-        res0 <- W.readLocalTxSubmissionPending @_ @DummyState @ShelleyKey ctx
+        res0 <- W.readLocalTxSubmissionPending @_ @DummyState  ctx
         -- Run test
         let cfg = LocalTxSubmissionConfig (timeStep st) 10
-        W.runLocalTxSubmissionPool @_ @DummyState @ShelleyKey cfg ctx
+        W.runLocalTxSubmissionPool @_ @DummyState cfg ctx
 
         -- Gather state
-        res1 <- W.readLocalTxSubmissionPending @_ @DummyState @ShelleyKey ctx
+        res1 <- W.readLocalTxSubmissionPending @_ @DummyState ctx
         pure (res0, res1)
 
     let (resStart, resEnd) = resAction res
@@ -1175,8 +1177,8 @@ instance Arbitrary UTxO where
         return $ UTxO $ Map.fromList utxo
 
 data WalletLayerFixture s m = WalletLayerFixture
-    { _fixtureDBFresh :: DBFresh m s ShelleyKey
-    , _fixtureDBLayer :: DBLayer m s ShelleyKey
+    { _fixtureDBFresh :: DBFresh m s
+    , _fixtureDBLayer :: DBLayer m s
     , _fixtureWalletLayer :: WalletLayer m s ShelleyKey 'CredFromKeyK
     , _fixtureWallet :: WalletId
     }
@@ -1187,9 +1189,9 @@ createFixtureWallet
        , IsOurs s Address
        , IsOurs s RewardAccount
        )
-    => DBFresh m s k
+    => DBFresh m s
     -> (WalletId, WalletName, s)
-    -> ExceptT W.ErrWalletAlreadyExists m (DBLayer m s k)
+    -> ExceptT W.ErrWalletAlreadyExists m (DBLayer m s)
 createFixtureWallet dbf (wid, wname, wstate) =
     W.createWallet (block0, dummyNetworkParameters) dbf wid wname wstate
 
@@ -1199,6 +1201,7 @@ setupFixture
        , IsOurs s Address
        , IsOurs s RewardAccount
        , Sqlite.PersistAddressBook s
+       , PersistPrivateKey (KeyOf s 'RootK)
        )
     => (WalletId, WalletName, s)
     -> m (WalletLayerFixture s m)
@@ -1305,9 +1308,8 @@ mockNetworkLayer = dummyNetworkLayer
     dummyTip = BlockHeader (SlotNo 0) (Quantity 0) dummyHash (Just dummyHash)
     dummyHash = Hash "dummy hash"
 
-newtype DummyState
-    = DummyState (Map Address (Index 'Soft 'CredFromKeyK))
-    deriving (Generic, Show, Eq)
+type DummyState
+    = TestState (Map Address (Index 'Soft 'CredFromKeyK)) ShelleyKey
 
 instance Sqlite.AddressBookIso DummyState where
     data Prologue DummyState = DummyPrologue
@@ -1331,7 +1333,7 @@ instance NFData DummyState
 
 instance Arbitrary DummyState where
     shrink _ = []
-    arbitrary = return (DummyState mempty)
+    arbitrary = return (TestState mempty)
 
 instance IsOurs DummyState Address where
     isOurs _ s = (Just (DerivationIndex 0 :| []), s)
@@ -1340,7 +1342,7 @@ instance IsOurs DummyState RewardAccount where
     isOurs _ s = (Nothing, s)
 
 instance IsOwned DummyState ShelleyKey 'CredFromKeyK where
-    isOwned (DummyState m) (rootK, pwd) addr = do
+    isOwned (TestState m) (rootK, pwd) addr = do
         ix <- Map.lookup addr m
         let accXPrv = deriveAccountPrivateKey pwd rootK minBound
         let addrXPrv = deriveAddressPrivateKey pwd accXPrv UtxoExternal ix

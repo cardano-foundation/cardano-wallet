@@ -6,6 +6,7 @@
 {-# LANGUAGE RecordWildCards #-}
 {-# LANGUAGE ScopedTypeVariables #-}
 {-# LANGUAGE TypeApplications #-}
+{-# LANGUAGE TypeFamilies #-}
 
 -- |
 -- Copyright: © 2020 IOHK
@@ -63,6 +64,8 @@ import Cardano.Wallet.DB.Sqlite.Migration
     ( DefaultFieldValues (..) )
 import Cardano.Wallet.DB.Store.Checkpoints
     ( PersistAddressBook )
+import Cardano.Wallet.Flavor
+    ( KeyOf )
 import Cardano.Wallet.Network
     ( NetworkLayer (..) )
 import Cardano.Wallet.Pools
@@ -321,6 +324,7 @@ serveWallet
             , PersistAddressBook s
             , PersistPrivateKey (k 'RootK)
             , WalletKey k
+            , k ~ KeyOf s
             )
         => TransactionLayer k ktype SealedTx
         -> NetworkLayer IO (CardanoBlock StandardCrypto)

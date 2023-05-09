@@ -1215,8 +1215,8 @@ data ApiLayer s (k :: Depth -> Type -> Type) ktype
         , netParams :: (Block, NetworkParameters)
         , netLayer :: NetworkLayer IO Read.Block
         , txLayer :: TransactionLayer k ktype SealedTx
-        , _dbFactory :: DBFactory IO s k
-        , _workerRegistry :: WorkerRegistry WalletId (DBLayer IO s k)
+        , _dbFactory :: DBFactory IO s
+        , _workerRegistry :: WorkerRegistry WalletId (DBLayer IO s)
         , concierge :: Concierge IO WalletLock
         , _tokenMetadataClient :: TokenMetadataClient IO
         }
@@ -1228,7 +1228,7 @@ data ApiLayer s (k :: Depth -> Type -> Type) ktype
 data WalletLock = PostTransactionOld WalletId
     deriving (Eq, Ord, Show)
 
-instance HasWorkerCtx (DBLayer IO s k) (ApiLayer s k ktype) where
+instance HasWorkerCtx (DBLayer IO s) (ApiLayer s k ktype) where
     type WorkerCtx (ApiLayer s k ktype) = WalletLayer IO s k ktype
     type WorkerMsg (ApiLayer s k ktype) = WalletWorkerLog
     type WorkerKey (ApiLayer s k ktype) = WalletId
@@ -1239,27 +1239,28 @@ instance HasWorkerCtx (DBLayer IO s k) (ApiLayer s k ktype) where
                                Capabilities
 -------------------------------------------------------------------------------}
 
-type HasWorkerRegistry s k ctx =
-    ( HasType (WorkerRegistry WalletId (DBLayer IO s k)) ctx
-    , HasWorkerCtx (DBLayer IO s k) ctx
+type HasWorkerRegistry s ctx =
+    ( HasType (WorkerRegistry WalletId (DBLayer IO s)) ctx
+    , HasWorkerCtx (DBLayer IO s) ctx
     , WorkerKey ctx ~ WalletId
     , WorkerMsg ctx ~ WalletWorkerLog
     )
 
 workerRegistry
-    :: forall s k ctx. (HasWorkerRegistry s k ctx)
-    => Lens' ctx (WorkerRegistry WalletId (DBLayer IO s k))
+    :: forall s ctx. (HasWorkerRegistry s ctx)
+    => Lens' ctx (WorkerRegistry WalletId (DBLayer IO s))
 workerRegistry =
-    typed @(WorkerRegistry WalletId (DBLayer IO s k))
+    typed @(WorkerRegistry WalletId (DBLayer IO s))
 
-type HasDBFactory s k = HasType (DBFactory IO s k)
+type HasDBFactory s = HasType (DBFactory IO s)
 type HasTokenMetadataClient = HasType (TokenMetadataClient IO)
 
 dbFactory
-    :: forall s k ctx. (HasDBFactory s k ctx)
-    => Lens' ctx (DBFactory IO s k)
+    :: forall s ctx
+     . HasDBFactory s ctx
+    => Lens' ctx (DBFactory IO s)
 dbFactory =
-    typed @(DBFactory IO s k)
+    typed @(DBFactory IO s)
 
 tokenMetadataClient
     :: forall ctx. (HasTokenMetadataClient ctx)

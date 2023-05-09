@@ -3,15 +3,15 @@
 {-# LANGUAGE DuplicateRecordFields #-}
 {-# LANGUAGE FlexibleContexts #-}
 {-# LANGUAGE FlexibleInstances #-}
+{-# LANGUAGE InstanceSigs #-}
 {-# LANGUAGE LambdaCase #-}
 {-# LANGUAGE NamedFieldPuns #-}
 {-# LANGUAGE RankNTypes #-}
 {-# LANGUAGE RecordWildCards #-}
 {-# LANGUAGE TupleSections #-}
 {-# LANGUAGE TypeApplications #-}
-
+{-# LANGUAGE TypeFamilies #-}
 {-# OPTIONS_GHC -fno-warn-orphans #-}
-{-# LANGUAGE InstanceSigs #-}
 
 -- |
 -- Copyright: © 2018-2020 IOHK
@@ -92,6 +92,8 @@ import Cardano.Wallet.DB.Layer
     ( PersistAddressBook, WalletDBLog (..), withDBFresh )
 import Cardano.Wallet.DummyTarget.Primitive.Types
     ( block0, dummyGenesisParameters, mkTxId )
+import Cardano.Wallet.Flavor
+    ( KeyOf )
 import Cardano.Wallet.Logging
     ( trMessageText )
 import Cardano.Wallet.Primitive.Model
@@ -348,6 +350,7 @@ mkSeqState numAddrs _ = s
   where
     s = mkSeqStateFromAccountXPub @'Mainnet
         ourAccount Nothing purposeCIP1852 defaultAddressPoolGap
+    fillPool :: SeqAddressPool r ShelleyKey -> SeqAddressPool r ShelleyKey
     fillPool (SeqAddressPool pool0) = SeqAddressPool $
         foldl' (\p ix -> AddressPool.update (gen ix) p) pool0 [0 .. numAddrs-1]
       where
@@ -709,14 +712,14 @@ benchDiskSize tr action = bracket (setupDB tr) dbDown
 ----------------------------------------------------------------------------
 -- Criterion env functions for database setup
 
-data BenchEnv s k = BenchEnv
+data BenchEnv s = BenchEnv
     { dbDown :: IO ()
     , dbFile :: FilePath
-    , dbFresh :: DBFresh IO s k
+    , dbFresh :: DBFresh IO s
     }
 
-instance NFData (BenchEnv s k) where
-    rnf :: BenchEnv s k -> ()
+instance NFData (BenchEnv s) where
+    rnf :: BenchEnv s -> ()
     rnf _ = ()
 
 withTempSqliteFile :: (FilePath -> IO a) -> IO a
@@ -727,9 +730,10 @@ setupDB
         ( PersistAddressBook s
         , PersistPrivateKey (k 'RootK)
         , WalletKey k
+        , k ~ KeyOf s
         )
     => Tracer IO WalletDBLog
-    -> IO (BenchEnv s k)
+    -> IO (BenchEnv s)
 setupDB tr = do
     (createPool, destroyPool) <- unBracket withSetup
     uncurry (BenchEnv destroyPool) <$> createPool
@@ -756,12 +760,13 @@ withCleanDB
        , PersistPrivateKey (k 'RootK)
        , WalletKey k
        , NFData b
+       , k ~ KeyOf s
        )
     => Tracer IO WalletDBLog
     -- ^ db messages tracer
-    -> (DBFresh IO s k -> IO (DBLayer IO s k, b))
+    -> (DBFresh IO s -> IO (DBLayer IO s, b))
     -- ^ fixture setup, always run before the action
-    -> ((DBLayer IO s k, b) -> IO c)
+    -> ((DBLayer IO s, b) -> IO c)
     -- ^ action to run
     -> Benchmarkable
 withCleanDB tr f g = perRunEnvWithCleanup setup (dbDown . fst) $
@@ -775,14 +780,14 @@ withCleanDB tr f g = perRunEnvWithCleanup setup (dbDown . fst) $
 ----------------------------------------------------------------------------
 -- Mock data to use for benchmarks
 
-type DBFreshBench = DBFresh IO (SeqState 'Mainnet ShelleyKey) ShelleyKey
-type DBLayerBench = DBLayer IO (SeqState 'Mainnet ShelleyKey) ShelleyKey
-type DBLayerBenchByron = DBLayer IO (RndState 'Mainnet) ByronKey
-type DBFreshBenchByron = DBFresh IO (RndState 'Mainnet) ByronKey
+type DBFreshBench = DBFresh IO (SeqState 'Mainnet ShelleyKey)
+type DBLayerBench = DBLayer IO (SeqState 'Mainnet ShelleyKey)
+type DBLayerBenchByron = DBLayer IO (RndState 'Mainnet)
+type DBFreshBenchByron = DBFresh IO (RndState 'Mainnet)
 type WalletBench = Wallet (SeqState 'Mainnet ShelleyKey)
 type WalletBenchByron = Wallet (RndState 'Mainnet)
 
-instance NFData (DBLayer m s k) where
+instance NFData (DBLayer m s) where
     rnf _ = ()
 
 instance NFData SqliteContext where

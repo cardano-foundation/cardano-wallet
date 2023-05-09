@@ -58,6 +58,8 @@ import Cardano.Wallet.DB.Store.Wallets.Model
     ( DeltaTxWalletsHistory )
 import Cardano.Wallet.DB.WalletState
     ( DeltaWalletState, WalletState (submissions), updateSubmissions )
+import Cardano.Wallet.Flavor
+    ( KeyOf )
 import Cardano.Wallet.Primitive.Model
     ( Wallet, currentTip )
 import Cardano.Wallet.Primitive.Passphrase
@@ -141,8 +143,8 @@ import qualified Data.Map.Strict as Map
 --
 -- In our use case, this will typically be a directory of database files,
 -- or a 'Map' of in-memory SQLite databases.
-data DBFactory m s k = DBFactory
-    { withDatabase :: forall a. WalletId -> (DBFresh m s k -> IO a) -> IO a
+data DBFactory m s = DBFactory
+    { withDatabase :: forall a. WalletId -> (DBFresh m s -> IO a) -> IO a
         -- ^ Creates a new or use an existing database, maintaining an open
         -- connection so long as necessary
 
@@ -181,16 +183,16 @@ data DBLayerParams s = DBLayerParams
     }
     deriving (Eq, Show)
 
-data DBFresh m s (k :: Depth -> Type -> Type) = DBFresh
+data DBFresh m s  = DBFresh
     { bootDBLayer
         :: DBLayerParams s
-        -> ExceptT ErrWalletAlreadyInitialized m (DBLayer m s k)
+        -> ExceptT ErrWalletAlreadyInitialized m (DBLayer m s)
         -- ^ Initialize a database
-    , loadDBLayer :: ExceptT ErrWalletNotInitialized m (DBLayer m s k)
+    , loadDBLayer :: ExceptT ErrWalletNotInitialized m (DBLayer m s)
         -- ^ Load an existing database
     }
 
-hoistDBFresh :: Functor m => (forall a. m a -> n a) -> DBFresh m s k -> DBFresh n s k
+hoistDBFresh :: Functor m => (forall a. m a -> n a) -> DBFresh m s -> DBFresh n s
 hoistDBFresh f (DBFresh boot load) = DBFresh
     { bootDBLayer = \params -> mapExceptT f $ hoistDBLayer f <$> boot params
     , loadDBLayer = mapExceptT f $ hoistDBLayer f <$> load
@@ -213,7 +215,7 @@ hoistDBFresh f (DBFresh boot load) = DBFresh
 -- This type is polymorphic in the state type @s@,
 -- but we often need additional constraints on the wallet state that allows us
 -- to serialize and unserialize it (e.g. @forall s. (Serialize s) => ...@).
-data DBLayer m s k = forall stm. (MonadIO stm, MonadFail stm) => DBLayer
+data DBLayer m s = forall stm. (MonadIO stm, MonadFail stm) => DBLayer
     { walletId_ :: WalletId
 
     , walletState
@@ -318,7 +320,7 @@ data DBLayer m s k = forall stm. (MonadIO stm, MonadFail stm) => DBLayer
         -- their status as expired.
 
     , putPrivateKey
-        :: (k 'RootK XPrv, PassphraseHash)
+        :: (KeyOf s 'RootK XPrv, PassphraseHash)
         -> stm ()
         -- ^ Store or replace a private key for a given wallet. Note that wallet
         -- _could_ be stored and manipulated without any private key associated
@@ -326,7 +328,7 @@ data DBLayer m s k = forall stm. (MonadIO stm, MonadFail stm) => DBLayer
         -- operations (like transaction signing).
 
     , readPrivateKey
-        :: stm (Maybe (k 'RootK XPrv, PassphraseHash))
+        :: stm (Maybe (KeyOf s 'RootK XPrv, PassphraseHash))
         -- ^ Read a previously stored private key and its associated passphrase
         -- hash.
 
@@ -393,7 +395,7 @@ here as the semantic for those are slightly different: we really need a
 pattern match here!
 -}
 
-hoistDBLayer :: (forall a . m a -> n a) -> DBLayer m s k -> DBLayer n s k
+hoistDBLayer :: (forall a . m a -> n a) -> DBLayer m s -> DBLayer n s
 hoistDBLayer f DBLayer{..} = DBLayer {atomically = f . atomically, ..}
 
 {-----------------------------------------------------------------------------
@@ -422,11 +424,11 @@ have the state machine unit tests for it. It is less development effort
 to delete them wholesale rather than maintaining them.
 
 -}
-data DBLayerCollection stm m s k = DBLayerCollection
+data DBLayerCollection stm m s = DBLayerCollection
     { dbCheckpoints :: DBCheckpoints stm s
     , dbDelegation :: DBDelegation stm
     , dbTxHistory :: DBTxHistory stm
-    , dbPrivateKey :: DBPrivateKey stm k
+    , dbPrivateKey :: DBPrivateKey stm (KeyOf s)
 
     -- The following two functions will need to be split up
     -- and distributed the smaller layer parts as well.
@@ -446,11 +448,11 @@ data DBLayerCollection stm m s k = DBLayerCollection
 {- HLINT ignore mkDBLayerFromParts "Avoid lambda" -}
 -- | Create a legacy 'DBLayer' from smaller database layers.
 mkDBLayerFromParts
-    :: forall stm m s k. (MonadIO stm, MonadFail stm)
+    :: forall stm m s. (MonadIO stm, MonadFail stm)
     => TimeInterpreter IO
     -> WalletId
-    -> DBLayerCollection stm m s k
-    -> DBLayer m s k
+    -> DBLayerCollection stm m s
+    -> DBLayer m s
 mkDBLayerFromParts ti wid_ DBLayerCollection{..} = DBLayer
     { walletId_ = wid_
     , walletState = walletsDB_ dbCheckpoints

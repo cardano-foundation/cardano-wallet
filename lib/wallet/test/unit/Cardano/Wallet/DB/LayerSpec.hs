@@ -51,6 +51,8 @@ import Cardano.DB.Sqlite
     ( DBField, DBLog (..), fieldName )
 import Cardano.Mnemonic
     ( SomeMnemonic (..) )
+import Cardano.Wallet
+    ( readWalletMeta )
 import Cardano.Wallet.Address.Derivation
     ( Depth (..)
     , DerivationType (..)
@@ -109,6 +111,8 @@ import Cardano.Wallet.DB.StateMachine
     ( TestConstraints, prop_sequential, validateGenerators )
 import Cardano.Wallet.DummyTarget.Primitive.Types
     ( block0, dummyGenesisParameters, dummyTimeInterpreter )
+import Cardano.Wallet.Flavor
+    ( KeyOf )
 import Cardano.Wallet.Gen
     ( genMnemonic )
 import Cardano.Wallet.Logging
@@ -263,8 +267,6 @@ import UnliftIO.STM
 import UnliftIO.Temporary
     ( withSystemTempDirectory, withSystemTempFile )
 
-import Cardano.Wallet
-    ( readWalletMeta )
 import qualified Cardano.Wallet.Address.Derivation.Shelley as Seq
 import qualified Cardano.Wallet.DB.Sqlite.Schema as DB
 import qualified Cardano.Wallet.DB.Sqlite.Types as DB
@@ -296,6 +298,7 @@ stateMachineSpec
      . ( PersistAddressBook s
        , TestConstraints s k
        , Typeable s
+       , k ~ KeyOf s
        )
     => Spec
 stateMachineSpec = describe ("State machine test (" ++ showState @s ++ ")") $ do
@@ -303,7 +306,7 @@ stateMachineSpec = describe ("State machine test (" ++ showState @s ++ ")") $ do
     it "Sequential" $ prop_sequential boot
   where
     boot wid sp = do
-        let newDB = newDBFreshInMemory @s @k nullTracer dummyTimeInterpreter
+        let newDB = newDBFreshInMemory @s nullTracer dummyTimeInterpreter
         (cleanup, dbf) <- newDB wid
         db <- unsafeRunExceptT $ bootDBLayer dbf sp
         pure (cleanup, db)
@@ -328,7 +331,7 @@ showState = show (typeOf @s undefined)
 withFreshDB
     :: (MonadIO m )
     => WalletId
-    -> (DBFresh IO (SeqState 'Mainnet ShelleyKey) ShelleyKey -> m ())
+    -> (DBFresh IO (SeqState 'Mainnet ShelleyKey) -> m ())
     -> m ()
 withFreshDB wid f = do
     (kill, db) <-
@@ -373,8 +376,10 @@ loggingSpec = withLoggingDB @(SeqState 'Mainnet ShelleyKey) $ do
                 length msgs `shouldBe` (count + 3) * 2
 
 withLoggingDB
-    :: PersistAddressBook s
-    => SpecWith (IO [DBLog], DBFresh IO s ShelleyKey)
+    :: ( PersistAddressBook s
+       , PersistPrivateKey (KeyOf s 'RootK)
+       )
+    => SpecWith (IO [DBLog], DBFresh IO s)
     -> Spec
 withLoggingDB = around f . beforeWith clean
   where
@@ -413,7 +418,7 @@ findObserveDiffs = filter isObserveDiff
                                 File Mode Spec
 -------------------------------------------------------------------------------}
 
-type TestDBSeqFresh = DBFresh IO (SeqState 'Mainnet ShelleyKey) ShelleyKey
+type TestDBSeqFresh = DBFresh IO (SeqState 'Mainnet ShelleyKey)
 
 fileModeSpec :: Spec
 fileModeSpec =  do
@@ -797,8 +802,13 @@ fileModeSpec =  do
 -- SQLite session has the same effect as executing the same operations over
 -- multiple sessions.
 prop_randomOpChunks
-    :: (Eq s, PersistAddressBook s, Show s)
-    =>  NonEmptyList (Wallet s, WalletMetadata)
+    :: ( Eq s
+       , PersistAddressBook s
+       , Show s
+       , PersistPrivateKey (KeyOf s 'RootK)
+       , WalletKey (KeyOf s)
+       )
+    => NonEmptyList (Wallet s, WalletMetadata)
     -> Property
 prop_randomOpChunks (NonEmpty []) = error "arbitrary generated an empty list"
 prop_randomOpChunks (NonEmpty (p : pairs)) =
@@ -820,7 +830,7 @@ prop_randomOpChunks (NonEmpty (p : pairs)) =
             $ DBLayerParams cp0 meta mempty gp
 
     insertPair
-        :: DBLayer IO s k
+        :: DBLayer IO s
         -> Wallet s
         -> IO ()
     insertPair DBLayer{..} cp = atomically $ do
@@ -830,7 +840,7 @@ prop_randomOpChunks (NonEmpty (p : pairs)) =
     imposeGenesisState = over #currentTip $ \(BlockHeader _ _ h _) ->
         BlockHeader (SlotNo 0) (Quantity 0) h Nothing
 
-    shouldBeConsistentWith :: (Eq s, Show s) => DBLayer IO s k -> DBLayer IO s k -> IO ()
+    shouldBeConsistentWith :: (Eq s, Show s) => DBLayer IO s -> DBLayer IO s -> IO ()
     shouldBeConsistentWith db1 db2 = do
         walId1 <-  getWalletId' db1
         walId2 <-  getWalletId' db2
@@ -849,7 +859,7 @@ prop_randomOpChunks (NonEmpty (p : pairs)) =
 testReopening
     :: (Show s, Eq s)
     => FilePath
-    -> (DBLayer IO (SeqState 'Mainnet ShelleyKey) ShelleyKey -> IO s)
+    -> (DBLayer IO (SeqState 'Mainnet ShelleyKey) -> IO s)
     -> s
     -> Expectation
 testReopening filepath call expectedAfterOpen = do
@@ -859,7 +869,7 @@ testReopening filepath call expectedAfterOpen = do
 
 -- | Run a test action inside withDBLayer, then check assertions.
 withTestDBFile
-    :: (DBFresh IO (SeqState 'Mainnet ShelleyKey) ShelleyKey -> IO ())
+    :: (DBFresh IO (SeqState 'Mainnet ShelleyKey) -> IO ())
     -> (FilePath -> IO a)
     -> IO a
 withTestDBFile action expectations = do
@@ -894,41 +904,45 @@ defaultFieldValues = DefaultFieldValues
 -- Note: Having helper with concrete key types reduces the need
 -- for type-application everywhere.
 withShelleyDBLayer
-    :: PersistAddressBook s
-    => (DBFresh IO s ShelleyKey -> IO a)
+    :: (PersistAddressBook s, PersistPrivateKey (KeyOf s 'RootK))
+    => (DBFresh IO s -> IO a)
     -> IO a
 withShelleyDBLayer = withDBFreshInMemory nullTracer dummyTimeInterpreter testWid
 
 withShelleyFileDBFresh
-    :: PersistAddressBook s
+    :: ( PersistAddressBook s
+       , PersistPrivateKey (KeyOf s 'RootK)
+       , WalletKey (KeyOf s)
+       )
     => FilePath
-    -> (DBFresh IO s ShelleyKey -> IO a)
+    -> (DBFresh IO s -> IO a)
     -> IO a
-withShelleyFileDBFresh fp = withDBFresh
-    nullTracer  -- fixme: capture logging
-    (Just defaultFieldValues)
-    fp
-    dummyTimeInterpreter
-    testWid
+withShelleyFileDBFresh fp =
+    withDBFresh
+        nullTracer -- fixme: capture logging
+        (Just defaultFieldValues)
+        fp
+        dummyTimeInterpreter
+        testWid
 
 getWalletId'
     :: Applicative m
-    => DBLayer m s k
+    => DBLayer m s
     -> m WalletId
 getWalletId' DBLayer{..} = pure walletId_
 
 readCheckpoint'
-    :: DBLayer m s k
+    :: DBLayer m s
     -> m (Wallet s)
 readCheckpoint' DBLayer{..} = atomically readCheckpoint
 
 readWalletMeta'
-    :: DBLayer m s k
+    :: DBLayer m s
     -> m WalletMetadata
 readWalletMeta' DBLayer{..} = atomically (readWalletMeta walletState)
 
 readTransactions'
-    :: DBLayer m s k
+    :: DBLayer m s
     -> SortOrder
     -> Range SlotNo
     -> Maybe TxStatus
@@ -938,14 +952,15 @@ readTransactions' DBLayer{..} a1 a2 mstatus =
         $ readTransactions Nothing a1 a2 mstatus Nothing
 
 readPrivateKey'
-    :: DBLayer m s k
-    -> m (Maybe (k 'RootK XPrv, PassphraseHash))
+    :: DBLayer m s
+    -> m (Maybe (KeyOf s 'RootK XPrv, PassphraseHash))
 readPrivateKey' DBLayer{..} = atomically readPrivateKey
 
 -- | Attach an arbitrary private key to a wallet
 attachPrivateKey
-    :: DBLayer IO s ShelleyKey
-    -> IO (ShelleyKey 'RootK XPrv, PassphraseHash)
+    :: KeyOf s ~ ShelleyKey
+    => DBLayer IO s
+    -> IO (KeyOf s 'RootK XPrv, PassphraseHash)
 attachPrivateKey DBLayer{..} = do
     let pwd = Passphrase $ BA.convert $ T.encodeUtf8 "simplevalidphrase"
     seed <- liftIO $ generate $ SomeMnemonic <$> genMnemonic @15
@@ -1146,7 +1161,7 @@ withDBLayerFromCopiedFile
         )
     => FilePath
         -- ^ Filename of the @.sqlite@ file to load.
-    -> (DBLayer IO s k -> IO a)
+    -> (DBLayer IO s -> IO a)
         -- ^ Action to run.
     -> IO ([WalletDBLog], a)
         -- ^ (logs, result of the action)
@@ -1279,7 +1294,7 @@ testMigrationSeqStateDerivationPrefix dbName prefix = do
         let fieldInDB = fieldDB $ persistFieldDef DB.SeqStateDerivationPrefix
         in fieldName field == unFieldNameDB fieldInDB
 
-inspectMeta :: DBLayer m s k -> m WalletMetadata
+inspectMeta :: DBLayer m s -> m WalletMetadata
 inspectMeta DBLayer{..} = atomically (readWalletMeta walletState)
 
 testMigrationPassphraseScheme1 :: IO ()
@@ -1525,7 +1540,7 @@ gp = dummyGenesisParameters
                     Helpers for golden rollback tests
 -------------------------------------------------------------------------------}
 
-getAvailableBalance :: DBLayer IO s k -> IO Natural
+getAvailableBalance :: DBLayer IO s -> IO Natural
 getAvailableBalance DBLayer{..} = do
     cp <- atomically readCheckpoint
     pend <- atomically $ fmap toTxHistory
@@ -1534,7 +1549,7 @@ getAvailableBalance DBLayer{..} = do
     return $ fromIntegral $ unCoin $ TokenBundle.getCoin $
         availableBalance (Set.fromList $ map fst pend) cp
 
-getTxsInLedger :: DBLayer IO s k -> IO ([(Direction, Natural)])
+getTxsInLedger :: DBLayer IO s -> IO ([(Direction, Natural)])
 getTxsInLedger DBLayer {..} = do
     pend <- atomically $ fmap toTxHistory
         <$> readTransactions Nothing Descending wholeRange
