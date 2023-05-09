@@ -148,6 +148,7 @@ test-suite test
     , QuickCheck
     , quickcheck-classes
     , quickcheck-instances
+    , quickcheck-monoid-subclasses
     , quickcheck-quid
     , should-not-typecheck
     , string-qq
