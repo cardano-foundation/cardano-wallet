@@ -205,7 +205,7 @@ import Cardano.Wallet.Primitive.Types.Tx
     , txMetadataIsNull
     )
 import Cardano.Wallet.Primitive.Types.Tx.Constraints
-    ( TxConstraints (..), TxSize (..) )
+    ( TokenBundleSizeAssessor, TxConstraints (..), TxSize (..) )
 import Cardano.Wallet.Primitive.Types.Tx.TxIn
     ( TxIn (..) )
 import Cardano.Wallet.Primitive.Types.Tx.TxIn.Gen
@@ -295,7 +295,6 @@ import Cardano.Wallet.Write.Tx.Balance
     , ErrSelectAssets (..)
     , PartialTx (..)
     , UTxOAssumptions (..)
-    , allKeyPaymentCredentials
     , balanceTransaction
     , constructUTxOIndex
     , posAndNegFromCardanoValue
@@ -307,15 +306,7 @@ import Control.Arrow
 import Control.Monad
     ( forM, forM_, replicateM )
 import Control.Monad.Random
-    ( MonadRandom (..)
-    , Rand
-    , Random (randomR, randomRs)
-    , evalRand
-    , random
-    , randoms
-    )
-import Control.Monad.Random.Strict
-    ( StdGen )
+    ( MonadRandom (..), Random (randomR, randomRs), evalRand, random, randoms )
 import Control.Monad.Trans.Except
     ( except, runExcept, runExceptT )
 import Control.Monad.Trans.State.Strict
@@ -2353,7 +2344,7 @@ balanceTransactionSpec = describe "balanceTransaction" $ do
     describe "change address generation" $ do
         let balance' =
                 balanceTransactionWithDummyChangeState
-                    (allKeyPaymentCredentials testTxLayer)
+                    AllKeyPaymentCredentials
                     dustUTxO
                     testStdGenSeed
 
@@ -3031,14 +3022,20 @@ instance MonadRandom Gen where
     getRandomRs range = mkGen (randomRs range)
 
 data Wallet' = Wallet'
+    TxWitnessTag
     UTxOAssumptions
+    (TokenBundleMaxSize -> TokenBundleSizeAssessor)
     UTxO
     AnyChangeAddressGenWithState
     deriving Show via (ShowBuildable Wallet')
 
 instance Buildable UTxOAssumptions where
-    build (UTxOAssumptions _tl _scriptLookup scriptTemplate _txWitnessTag) =
-        blockListF [ nameF "scriptTemplate" $ build scriptTemplate ]
+    build = \case
+        AllKeyPaymentCredentials -> "AllKeyPaymentCredentials"
+        AllByronKeyPaymentCredentials -> "AllByronKeyPaymentCredentials"
+        AllScriptPaymentCredentialsFrom scriptTemplate _scriptLookup ->
+            nameF "AllScriptPaymentCredentialsFrom" $
+                blockListF [ nameF "scriptTemplate" $ build scriptTemplate ]
 
 instance Buildable AnyChangeAddressGenWithState where
     build (AnyChangeAddressGenWithState (ChangeAddressGen g maxLengthAddr) s0) =
@@ -3050,29 +3047,37 @@ instance Buildable AnyChangeAddressGenWithState where
             ]
 
 instance Buildable Wallet' where
-    build (Wallet' assumptions utxo changeAddressGen) =
+    build (Wallet' witnessTag assumptions _sizeAssessor utxo changeAddressGen) =
         nameF "Wallet" $ mconcat
-            [ nameF "assumptions" $ build assumptions
+            [ nameF "txWitnessTag" $ build witnessTag
+            , nameF "assumptions" $ build assumptions
             , nameF "changeAddressGen" $ build changeAddressGen
             , nameF "utxo" $ pretty utxo
             ]
 
+instance Buildable TxWitnessTag where
+    build = \case
+        TxWitnessByronUTxO -> "TxWitnessByronUTxO"
+        TxWitnessByronIcarusUTxO -> "TxWitnessByronIcarusUTxO"
+        TxWitnessShelleyUTxO -> "TxWitnessShelleyUTxO"
+
 instance Arbitrary Wallet' where
     arbitrary = oneof
-        [ Wallet' allShelleyPaymentKeyCredentials
-            <$> (genWalletUTxO genShelleyVkAddr)
-            <*> (pure dummyShelleyChangeAddressGen)
+        [ Wallet'
+            TxWitnessShelleyUTxO
+            AllKeyPaymentCredentials
+            Compatibility.tokenBundleSizeAssessor
+            <$> genWalletUTxO genShelleyVkAddr
+            <*> pure dummyShelleyChangeAddressGen
 
-        , Wallet' allByronPaymentKeyCredentials
-            <$> (genWalletUTxO genByronVkAddr)
-            <*> (pure dummyByronChangeAddressGen)
+        , Wallet'
+            TxWitnessByronUTxO
+            AllByronKeyPaymentCredentials
+            Compatibility.tokenBundleSizeAssessor
+            <$> genWalletUTxO genByronVkAddr
+            <*> pure dummyByronChangeAddressGen
         ]
       where
-        allShelleyPaymentKeyCredentials = allKeyPaymentCredentials $
-            newTransactionLayer @ShelleyKey Cardano.Mainnet
-
-        allByronPaymentKeyCredentials = allKeyPaymentCredentials $
-            newTransactionLayer @ByronKey Cardano.Mainnet
 
         genShelleyVkAddr :: Gen (Cardano.AddressInEra Cardano.BabbageEra)
         genShelleyVkAddr = Cardano.shelleyAddressInEra
@@ -3102,10 +3107,21 @@ instance Arbitrary Wallet' where
                   where
                     era = Cardano.BabbageEra
 
-    shrink (Wallet' utxoAssumptions utxo changeAddressGen) =
-        [ Wallet' utxoAssumptions utxo' changeAddressGen
-        | utxo' <- shrinkUTxO utxo
-        ]
+    shrink
+        ( Wallet'
+            witnessTag
+            utxoAssumptions
+            sizeAssessor
+            utxo
+            changeAddressGen ) =
+            [ Wallet'
+                witnessTag
+                utxoAssumptions
+                sizeAssessor
+                utxo'
+                changeAddressGen
+            | utxo' <- shrinkUTxO utxo
+            ]
       where
         -- We cannot use 'Cardano.Wallet.Primitive.Types.UTxO.Gen.shrinkUTxO'
         -- because it will shrink to invalid addresses.
@@ -3119,10 +3135,13 @@ instance Arbitrary Wallet' where
         shrinkEntry _ = []
 
 mkTestWallet :: UTxO -> Wallet'
-mkTestWallet utxo = Wallet'
-    (allKeyPaymentCredentials (newTransactionLayer @ShelleyKey Cardano.Mainnet))
-    utxo
-    dummyShelleyChangeAddressGen
+mkTestWallet utxo =
+    Wallet'
+        TxWitnessShelleyUTxO
+        AllKeyPaymentCredentials
+        Compatibility.tokenBundleSizeAssessor
+        utxo
+        dummyShelleyChangeAddressGen
 
 newtype ShowBuildable a = ShowBuildable a
     deriving newtype Arbitrary
@@ -3405,24 +3424,30 @@ balanceTx
     -> TimeTranslation
     -> StdGenSeed
     -> PartialTx era
-    -> Either
-        ErrBalanceTx (Cardano.Tx era)
+    -> Either ErrBalanceTx (Cardano.Tx era)
 balanceTx
-    (Wallet' utxoAssumptions utxo (AnyChangeAddressGenWithState genChange s))
-    pp
-    timeTranslation
-    seed
-    ptx =
-    fmap fst $ flip evalRand (stdGenFromSeed seed) $ runExceptT $
-        balanceTransaction @_ @(Rand StdGen)
-            (nullTracer @(Rand StdGen))
-            utxoAssumptions
-            pp
-            timeTranslation
-            (constructUTxOIndex utxo)
-            genChange
-            s
-            ptx
+    ( Wallet'
+        witnessTag
+        utxoAssumptions
+        sizeAssessor
+        utxo
+        (AnyChangeAddressGenWithState genChange s)
+    )
+    pp timeTranslation seed partialTx =
+        (`evalRand` stdGenFromSeed seed) $ runExceptT $ do
+            (transactionInEra, _nextChangeState) <-
+                balanceTransaction
+                    nullTracer
+                    witnessTag
+                    utxoAssumptions
+                    sizeAssessor
+                    pp
+                    timeTranslation
+                    (constructUTxOIndex utxo)
+                    genChange
+                    s
+                    partialTx
+            pure transactionInEra
 
 -- | Also returns the updated change state
 balanceTransactionWithDummyChangeState
@@ -3431,24 +3456,22 @@ balanceTransactionWithDummyChangeState
     -> UTxO
     -> StdGenSeed
     -> PartialTx era
-    -> Either
-        ErrBalanceTx
-        (Cardano.Tx era, DummyChangeState)
-balanceTransactionWithDummyChangeState cs utxo seed ptx =
-    flip evalRand (stdGenFromSeed seed) $ runExceptT $
-        balanceTransaction @_ @(Rand StdGen)
-            (nullTracer @(Rand StdGen))
-            cs
+    -> Either ErrBalanceTx (Cardano.Tx era, DummyChangeState)
+balanceTransactionWithDummyChangeState utxoAssumptions utxo seed partialTx =
+    (`evalRand` stdGenFromSeed seed) $ runExceptT $ do
+        let txLayer = newTransactionLayer @ShelleyKey Cardano.Mainnet
+        balanceTransaction
+            nullTracer
+            (transactionWitnessTag txLayer)
+            utxoAssumptions
+            (tokenBundleSizeAssessor txLayer)
             mockPParamsForBalancing
             dummyTimeTranslation
             (constructUTxOIndex utxo)
             dummyChangeAddrGen
-            (getState wal)
-            ptx
-  where
-    wal = unsafeInitWallet utxo (header block0) s
-      where
-        s = DummyChangeState { nextUnusedIndex = 0 }
+            (getState $ unsafeInitWallet utxo (header block0)
+                DummyChangeState { nextUnusedIndex = 0 })
+            partialTx
 
 prop_posAndNegFromCardanoValueRoundtrip :: Property
 prop_posAndNegFromCardanoValueRoundtrip = forAll genSignedValue $ \v ->
@@ -3674,37 +3697,38 @@ prop_balanceTransactionValid
     -> ShowBuildable (PartialTx Cardano.BabbageEra)
     -> StdGenSeed
     -> Property
-prop_balanceTransactionValid wallet@(Wallet' _ walletUTxO _) (ShowBuildable partialTx) seed
-    = withMaxSuccess 1_000 $ do
-        let combinedUTxO = mconcat
-                [ view #inputs partialTx
-                , Compatibility.toCardanoUTxO (shelleyBasedEra @era) walletUTxO
-                ]
+prop_balanceTransactionValid
+    wallet@(Wallet' _ _ _ walletUTxO _) (ShowBuildable partialTx) seed =
+        withMaxSuccess 1_000 $ do
+        let combinedUTxO =
+                view #inputs partialTx
+                <> Compatibility.toCardanoUTxO (shelleyBasedEra @era) walletUTxO
+
         let originalBalance = txBalance (view #tx partialTx) combinedUTxO
-        let res = balanceTx
-                wallet
-                mockPParamsForBalancing
-                dummyTimeTranslation
-                seed
-                partialTx
         let originalOuts = txOutputs (view #tx partialTx)
-
         let classifications =
-                    classify (hasZeroAdaOutputs $ view #tx partialTx)
-                        "partial tx had zero ada outputs"
-                    . classify (hasZeroAdaOutputs $ view #tx partialTx)
-                        "partial tx had zero ada outputs"
-                    . classify (length originalOuts > 0)
-                        "has payment outputs"
-                    . classify (length originalOuts > 5)
-                        ">5 payment outputs"
-                    . classify (length originalOuts > 10)
-                        ">10 payment outputs"
-                    . classify (length originalOuts > 20)
-                        ">20 payment outputs"
-                    . classify (length originalOuts > 100)
-                        ">100 payment outputs"
+                classify (hasZeroAdaOutputs $ view #tx partialTx)
+                    "partial tx had zero ada outputs"
+                . classify (hasZeroAdaOutputs $ view #tx partialTx)
+                    "partial tx had zero ada outputs"
+                . classify (length originalOuts > 0)
+                    "has payment outputs"
+                . classify (length originalOuts > 5)
+                    ">5 payment outputs"
+                . classify (length originalOuts > 10)
+                    ">10 payment outputs"
+                . classify (length originalOuts > 20)
+                    ">20 payment outputs"
+                . classify (length originalOuts > 100)
+                    ">100 payment outputs"
 
+        let res =
+                balanceTx
+                    wallet
+                    mockPParamsForBalancing
+                    dummyTimeTranslation
+                    seed
+                    partialTx
         classifications $ case res of
             Right tx -> counterexample ("\nResult: " <> show (Pretty tx)) $ do
                 label "success"

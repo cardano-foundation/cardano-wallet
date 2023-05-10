@@ -499,6 +499,7 @@ import Cardano.Wallet.Write.Tx.Balance
     , ErrBalanceTxInternalError (..)
     , ErrSelectAssets (..)
     , PartialTx (..)
+    , UTxOAssumptions (..)
     , assignChangeAddresses
     , balanceTransaction
     , constructUTxOIndex
@@ -637,7 +638,6 @@ import qualified Cardano.Wallet.Primitive.Types.UTxOStatistics as UTxOStatistics
 import qualified Cardano.Wallet.Read as Read
 import qualified Cardano.Wallet.Write.ProtocolParameters as Write
 import qualified Cardano.Wallet.Write.Tx as Write
-import qualified Cardano.Wallet.Write.Tx.Balance as Write
 import qualified Data.ByteArray as BA
 import qualified Data.Delta.Update as Delta
 import qualified Data.Foldable as F
@@ -2123,7 +2123,9 @@ buildTransactionPure
     withExceptT Left $
         balanceTransaction @_ @_ @s
             nullTracer
-            (Write.allKeyPaymentCredentials txLayer)
+            (transactionWitnessTag txLayer)
+            AllKeyPaymentCredentials
+            (tokenBundleSizeAssessor txLayer)
             pparams
             timeTranslation
             (constructUTxOIndex utxo)
@@ -2792,7 +2794,9 @@ transactionFee DBLayer{atomically, walletState} protocolParams txLayer
             res <- runExceptT $
                     balanceTransaction @_ @_ @s
                         nullTracer
-                        (Write.allKeyPaymentCredentials txLayer)
+                        (transactionWitnessTag txLayer)
+                        AllKeyPaymentCredentials
+                        (tokenBundleSizeAssessor txLayer)
                         protocolParams
                         timeTranslation
                         utxoIndex
