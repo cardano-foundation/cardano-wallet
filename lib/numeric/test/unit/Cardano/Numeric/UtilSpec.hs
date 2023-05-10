@@ -85,7 +85,7 @@ spec = do
 --------------------------------------------------------------------------------
 
 prop_padCoalesce_length
-    :: (Monoid a, Ord a, Show a) => NonEmpty a -> NonEmpty () -> Property
+    :: (Monoid a, Ord a) => NonEmpty a -> NonEmpty () -> Property
 prop_padCoalesce_length source target =
     NE.length (padCoalesce source target) === NE.length target
 

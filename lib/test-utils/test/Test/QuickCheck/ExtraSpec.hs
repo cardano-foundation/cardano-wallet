@@ -462,7 +462,7 @@ shrinkPartitionListData
 shrinkPartitionListData = genericShrink
 
 prop_partitionList_coverage
-    :: (Arbitrary a, Eq a, Show a) => PartitionListData a -> Property
+    :: (Eq a, Show a) => PartitionListData a -> Property
 prop_partitionList_coverage (PartitionListData (x, y) as) =
     forAll (partitionList (x, y) as) $ \rs ->
         checkCoverage $
@@ -487,19 +487,19 @@ prop_partitionList_coverage (PartitionListData (x, y) as) =
         property True
 
 prop_partitionList_identity
-    :: (Arbitrary a, Eq a, Show a) => [a] -> Property
+    :: (Eq a, Show a) => [a] -> Property
 prop_partitionList_identity as =
     forAll (partitionList (length as, length as) as)
         (=== [as | length as > 0])
 
 prop_partitionList_mconcat
-    :: (Arbitrary a, Eq a, Show a) => PartitionListData a -> Property
+    :: (Eq a, Show a) => PartitionListData a -> Property
 prop_partitionList_mconcat (PartitionListData (x, y) as) =
     forAll (partitionList (x, y) as)
         ((=== as) . mconcat)
 
 prop_partitionList_GE
-    :: (Arbitrary a, Eq a, Show a) => PartitionListData a -> Property
+    :: Show a => PartitionListData a -> Property
 prop_partitionList_GE (PartitionListData (x, y) as) =
     forAll (partitionList (x, y) as) $ \rs ->
         checkCoverage $
@@ -514,7 +514,7 @@ prop_partitionList_GE (PartitionListData (x, y) as) =
     x' = max 0 x
 
 prop_partitionList_LT
-    :: (Arbitrary a, Eq a, Show a) => PartitionListData a -> Property
+    :: Show a => PartitionListData a -> Property
 prop_partitionList_LT (PartitionListData (x, y) as) =
     forAll (partitionList (x, y) as) $ \rs ->
         checkCoverage $
@@ -609,7 +609,7 @@ prop_selectMapEntries_fromList m =
         (=== (m, mempty)) . first Map.fromList
 
 prop_selectMapEntries_length
-    :: forall k v. (Ord k, Show k, Eq v, Show v)
+    :: forall k v. (Ord k, Show k, Show v)
     => Map k v
     -> Positive (Small Int)
     -> Property
@@ -633,7 +633,7 @@ prop_selectMapEntries_nonPositive m (NonPositive (Small i)) =
     forAll (selectMapEntries m i) (== ([], m))
 
 prop_selectMapEntries_disjoint
-    :: (Ord k, Show k, Eq v, Show v)
+    :: (Ord k, Show k, Show v)
     => Map k v
     -> Positive (Small Int)
     -> Property
@@ -669,7 +669,7 @@ prop_selectMapEntries_union m0 (Positive (Small i)) =
 --------------------------------------------------------------------------------
 
 prop_genShrinkSequence_length
-    :: (Arbitrary a, Eq a, Show a) => a -> Property
+    :: (Arbitrary a, Show a) => a -> Property
 prop_genShrinkSequence_length a =
     forAll (genShrinkSequence shrink a) $ \as ->
         checkCoverage $
@@ -683,7 +683,7 @@ prop_genShrinkSequence_length a =
 -- cannot be shrunk.
 --
 prop_genShrinkSequence_empty
-    :: (Arbitrary a, Eq a, Show a) => a -> Property
+    :: (Arbitrary a, Show a) => a -> Property
 prop_genShrinkSequence_empty a =
     forAll (genShrinkSequence shrink a) $ \as ->
         null as === null (shrink a)
@@ -731,11 +731,11 @@ prop_shrinkSpace_complete a =
     ss = shrinkSpace shrink a
     twoSeconds = 2_000_000
 
-prop_shrinkSpace_empty :: (Arbitrary a, Ord a, Show a) => a -> Property
+prop_shrinkSpace_empty :: (Ord a, Show a) => a -> Property
 prop_shrinkSpace_empty a =
     shrinkSpace (const []) a === mempty
 
-prop_shrinkSpace_singleton :: (Arbitrary a, Ord a, Show a) => a -> Property
+prop_shrinkSpace_singleton :: (Ord a, Show a) => a -> Property
 prop_shrinkSpace_singleton a =
     shrinkSpace (const [a]) a === Set.singleton a
 
