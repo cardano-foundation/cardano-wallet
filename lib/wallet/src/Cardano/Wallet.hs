@@ -637,7 +637,6 @@ import qualified Cardano.Wallet.Primitive.Types.UTxOStatistics as UTxOStatistics
 import qualified Cardano.Wallet.Read as Read
 import qualified Cardano.Wallet.Write.ProtocolParameters as Write
 import qualified Cardano.Wallet.Write.Tx as Write
-import qualified Cardano.Wallet.Write.Tx as Write
 import qualified Cardano.Wallet.Write.Tx.Balance as Write
 import qualified Data.ByteArray as BA
 import qualified Data.Delta.Update as Delta
@@ -689,12 +688,12 @@ import qualified Data.Vector as V
 --
 -- __Fix__: Add type-applications at the call-site "@myFunction \@ctx \@s \\@k@"
 
-data WalletLayer m s (k :: Depth -> Type -> Type) ktype
+data WalletLayer m s ktype
     = WalletLayer
         (Tracer m WalletWorkerLog)
         (Block, NetworkParameters)
         (NetworkLayer m Read.Block)
-        (TransactionLayer k ktype SealedTx)
+        (TransactionLayer (KeyOf s) ktype SealedTx)
         (DBLayer m s)
     deriving (Generic)
 
@@ -1775,23 +1774,14 @@ readWalletUTxO ctx = do
 -- | Calculate the minimum coin values required for a bunch of specified
 -- outputs.
 calcMinimumCoinValues
-    :: forall ctx k ktype f.
-        ( HasTransactionLayer k ktype ctx
-        , HasNetworkLayer IO ctx
-        , Applicative f
-        )
-    => ctx
+    :: ProtocolParameters
+    -> TransactionLayer k ktype tx
     -> Cardano.AnyCardanoEra
-    -> f TxOut
-    -> IO (f Coin)
-calcMinimumCoinValues ctx era outs = do
-    pp <- currentProtocolParameters nl
-    pure
-        $ uncurry (view #txOutputMinimumAdaQuantity (constraints tl era pp))
-        . (\o -> (view #address o, view (#tokens . #tokens) o)) <$> outs
-  where
-    nl = ctx ^. networkLayer
-    tl = ctx ^. transactionLayer @k @ktype
+    -> TxOut
+    -> Coin
+calcMinimumCoinValues pp txLayer era =
+    uncurry (constraints txLayer era pp ^. #txOutputMinimumAdaQuantity)
+     . (\o -> (o ^. #address, o ^. #tokens . #tokens))
 
 signTransaction
   :: forall k ktype
@@ -1968,6 +1958,7 @@ buildAndSignTransactionPure
        , IsOwned s k 'CredFromKeyK
        , IsOurs s RewardAccount
        , WalletFlavor s n
+       , k ~ KeyOf s
        )
     => TimeTranslation
     -> UTxO
@@ -1991,7 +1982,7 @@ buildAndSignTransactionPure
     Write.withRecentEra era $ \(_ :: Write.RecentEra recentEra) -> do
         wallet <- get
         (unsignedBalancedTx, updatedWalletState) <- lift $
-            buildTransactionPure @s @k @n @recentEra
+            buildTransactionPure @s @n @recentEra
                 wallet timeTranslation utxo txLayer changeAddrGen
                 (Write.unsafeFromWalletProtocolParameters protocolParams)
                 preSelection txCtx
@@ -2087,7 +2078,7 @@ buildTransaction DBLayer{..} txLayer timeTranslation changeAddrGen
         let utxo = availableUTxO @s pendingTxs wallet
 
         fmap (\s' -> wallet { getState = s' }) <$>
-            buildTransactionPure @s @_ @n @era
+            buildTransactionPure @s @n @era
                 wallet
                 timeTranslation
                 utxo
@@ -2102,14 +2093,14 @@ buildTransaction DBLayer{..} txLayer timeTranslation changeAddrGen
                 & either (liftIO . throwIO) pure
 
 buildTransactionPure
-    :: forall s k n era
+    :: forall s n era
      . ( Write.IsRecentEra era
        , WalletFlavor s n
        )
     => Wallet s
     -> TimeTranslation
     -> UTxO
-    -> TransactionLayer k 'CredFromKeyK SealedTx
+    -> TransactionLayer (KeyOf s) 'CredFromKeyK SealedTx
     -> ChangeAddressGen s
     -> Write.ProtocolParameters era
     -> PreSelection

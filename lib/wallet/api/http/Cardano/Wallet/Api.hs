@@ -177,7 +177,7 @@ import Prelude
 import Cardano.Wallet
     ( TxSubmitLog, WalletLayer (..), WalletWorkerLog )
 import Cardano.Wallet.Address.Derivation
-    ( Depth, DerivationIndex, Role )
+    ( DerivationIndex, Role )
 import Cardano.Wallet.Api.Types
     ( AnyAddress
     , ApiAccountKey
@@ -248,6 +248,8 @@ import Cardano.Wallet.Api.Types.Transaction
     ( ApiLimit )
 import Cardano.Wallet.DB
     ( DBFactory, DBLayer )
+import Cardano.Wallet.Flavor
+    ( KeyOf )
 import Cardano.Wallet.Network
     ( NetworkLayer )
 import Cardano.Wallet.Pools
@@ -1208,13 +1210,13 @@ type PostExternalTransaction = "proxy"
                                Api Layer
 -------------------------------------------------------------------------------}
 
-data ApiLayer s (k :: Depth -> Type -> Type) ktype
+data ApiLayer s ktype
     = ApiLayer
         { tracerTxSubmit :: Tracer IO TxSubmitLog
         , tracerWalletWorker :: Tracer IO (WorkerLog WalletId WalletWorkerLog)
         , netParams :: (Block, NetworkParameters)
         , netLayer :: NetworkLayer IO Read.Block
-        , txLayer :: TransactionLayer k ktype SealedTx
+        , txLayer :: TransactionLayer (KeyOf s) ktype SealedTx
         , _dbFactory :: DBFactory IO s
         , _workerRegistry :: WorkerRegistry WalletId (DBLayer IO s)
         , concierge :: Concierge IO WalletLock
@@ -1228,10 +1230,10 @@ data ApiLayer s (k :: Depth -> Type -> Type) ktype
 data WalletLock = PostTransactionOld WalletId
     deriving (Eq, Ord, Show)
 
-instance HasWorkerCtx (DBLayer IO s) (ApiLayer s k ktype) where
-    type WorkerCtx (ApiLayer s k ktype) = WalletLayer IO s k ktype
-    type WorkerMsg (ApiLayer s k ktype) = WalletWorkerLog
-    type WorkerKey (ApiLayer s k ktype) = WalletId
+instance HasWorkerCtx (DBLayer IO s) (ApiLayer s ktype) where
+    type WorkerCtx (ApiLayer s ktype) = WalletLayer IO s ktype
+    type WorkerMsg (ApiLayer s ktype) = WalletWorkerLog
+    type WorkerKey (ApiLayer s ktype) = WalletId
     hoistResource db transform (ApiLayer _ tr gp nw tl _ _ _ _) =
         WalletLayer (contramap transform tr) gp nw tl db
 

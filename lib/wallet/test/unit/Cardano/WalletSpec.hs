@@ -49,7 +49,6 @@ import Cardano.Wallet.Address.Derivation
     , DerivationType (..)
     , HardDerivation (..)
     , Index
-    , PersistPrivateKey
     , Role (..)
     , publicKey
     )
@@ -1179,7 +1178,7 @@ instance Arbitrary UTxO where
 data WalletLayerFixture s m = WalletLayerFixture
     { _fixtureDBFresh :: DBFresh m s
     , _fixtureDBLayer :: DBLayer m s
-    , _fixtureWalletLayer :: WalletLayer m s ShelleyKey 'CredFromKeyK
+    , _fixtureWalletLayer :: WalletLayer m s 'CredFromKeyK
     , _fixtureWallet :: WalletId
     }
 
@@ -1201,7 +1200,7 @@ setupFixture
        , IsOurs s Address
        , IsOurs s RewardAccount
        , Sqlite.PersistAddressBook s
-       , PersistPrivateKey (KeyOf s 'RootK)
+       , KeyOf s ~ ShelleyKey
        )
     => (WalletId, WalletName, s)
     -> m (WalletLayerFixture s m)

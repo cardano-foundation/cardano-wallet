@@ -448,7 +448,7 @@ benchmarksRnd
         , KnownNat p
         )
     => SNetworkId n
-    -> WalletLayer IO s k 'CredFromKeyK
+    -> WalletLayer IO s 'CredFromKeyK
     -> WalletName
     -> Text
     -> Time
@@ -558,7 +558,7 @@ benchmarksSeq
         , KnownNat p
         )
     => SNetworkId n
-    -> WalletLayer IO s k 'CredFromKeyK
+    -> WalletLayer IO s 'CredFromKeyK
     -> WalletName
     -> Text -- ^ Bench name
     -> Time
@@ -722,7 +722,7 @@ bench_restoration
     -> Bool -- ^ If @True@, will trace detailed progress to a .timelog file.
     -> Percentage -- ^ Target sync progress
     -> (SNetworkId n
-        -> WalletLayer IO s k 'CredFromKeyK
+        -> WalletLayer IO s 'CredFromKeyK
         -> WalletName
         -> Text
         -> Time
@@ -887,11 +887,11 @@ prepareNode tr proxy socketPath np vData = do
 -- | Regularly poll the wallets to monitor syncing progress. Block until all
 -- wallets reach the given percentage.
 waitForWalletSyncTo
-    :: forall s k n
+    :: forall s n
     .  Percentage
     -> Tracer IO (BenchmarkLog n)
     -> SNetworkId n
-    -> WalletLayer IO s k 'CredFromKeyK
+    -> WalletLayer IO s 'CredFromKeyK
     -> WalletId
     -> GenesisParameters
     -> NodeToClientVersionData
