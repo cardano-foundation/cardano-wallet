@@ -24,6 +24,7 @@ library
       OverloadedStrings
   ghc-options:
       -Wall
+      -Wredundant-constraints
       -Wcompat
   if (flag(release))
     ghc-options:
