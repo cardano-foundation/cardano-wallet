@@ -657,8 +657,8 @@ adjustQuantity
     -> AssetId
     -> (TokenQuantity -> TokenQuantity)
     -> TokenMap
-adjustQuantity m asset adjust =
-    setQuantity m asset $ adjust $ getQuantity m asset
+adjustQuantity (TokenMap m) (AssetId policy token) f =
+    TokenMap $ MonoidMap.adjust (MonoidMap.adjust f token) policy m
 
 -- | Removes the quantity associated with the given asset.
 --
