@@ -1642,14 +1642,14 @@ genUpdateProposalCoverage era proposal = checkCoverage
         Just _ ->
             case proposal of
                 TxUpdateProposalNone ->
-                    cover 5 True "no update proposal" True
+                    cover 60 True "no update proposal" True
                 TxUpdateProposal _ (UpdateProposal m _epoch) ->
                     True
-                    & cover 30 True
+                    & cover 3 True
                         "update proposal"
                     & cover 0.4 (null m)
                         "empty protocol updates"
-                    & cover 10 (not $ null m)
+                    & cover 1 (not $ null m)
                         "non-empty protocol updates"
                 _ ->
                     error "uncovered case"

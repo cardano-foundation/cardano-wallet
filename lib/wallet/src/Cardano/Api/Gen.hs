@@ -1399,9 +1399,9 @@ genUpdateProposal era =
         Nothing ->
             pure TxUpdateProposalNone
         Just supported ->
-            oneof
-                [ pure TxUpdateProposalNone
-                , TxUpdateProposal supported
+            frequency
+                [ (95, pure TxUpdateProposalNone)
+                , (5, TxUpdateProposal supported
                   <$> ( UpdateProposal
                         <$> ( Map.fromList
                               <$> scale (`div` 3) (listOf ( (,)
@@ -1411,6 +1411,7 @@ genUpdateProposal era =
                             )
                         <*> genEpochNo
                       )
+                    )
                 ]
 
 genTxBodyContent :: CardanoEra era -> Gen (TxBodyContent BuildTx era)
