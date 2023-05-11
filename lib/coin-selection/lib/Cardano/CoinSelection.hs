@@ -69,7 +69,6 @@ import Algebra.PartialOrd
 import Cardano.CoinSelection.Balance
     ( SelectionBalanceError (..)
     , SelectionDelta (..)
-    , SelectionLimit
     , SelectionSkeleton
     , SelectionStrategy (..)
     )
@@ -165,10 +164,6 @@ data SelectionConstraints ctx = SelectionConstraints
     , computeMinimumCost
         :: SelectionSkeleton ctx -> Coin
         -- ^ Computes the minimum cost of a given selection skeleton.
-    , computeSelectionLimit
-        :: [(Address ctx, TokenBundle)] -> SelectionLimit
-        -- ^ Computes an upper bound for the number of ordinary inputs to
-        -- select, given a current set of outputs.
     , maximumCollateralInputCount
         :: Int
         -- ^ Specifies an inclusive upper bound on the number of unique inputs
@@ -411,9 +406,6 @@ toBalanceConstraintsParams (constraints, params) =
         , computeMinimumCost =
             view #computeMinimumCost constraints
                 & adjustComputeMinimumCost
-        , computeSelectionLimit =
-            view #computeSelectionLimit constraints
-                & adjustComputeSelectionLimit
         , assessTokenBundleSize =
             view #assessTokenBundleSize constraints
         , maximumOutputAdaQuantity =
@@ -453,24 +445,6 @@ toBalanceConstraintsParams (constraints, params) =
                 -> SelectionSkeleton ctx
             adjustSelectionSkeleton = over #skeletonInputCount
                 (+ view #maximumCollateralInputCount constraints)
-
-        adjustComputeSelectionLimit
-            :: ([(Address ctx, TokenBundle)] -> SelectionLimit)
-            -> ([(Address ctx, TokenBundle)] -> SelectionLimit)
-        adjustComputeSelectionLimit =
-            whenCollateralRequired params (fmap adjustSelectionLimit)
-          where
-            -- When collateral is required, we reserve space for collateral
-            -- inputs ahead of time by subtracting the maximum allowed number
-            -- of collateral inputs (defined by 'maximumCollateralInputCount')
-            -- from the selection limit.
-            --
-            -- This ensures that when we come to perform collateral selection,
-            -- there is still space available.
-            --
-            adjustSelectionLimit :: SelectionLimit -> SelectionLimit
-            adjustSelectionLimit = flip Balance.reduceSelectionLimitBy
-                (view #maximumCollateralInputCount constraints)
 
     balanceParams = Balance.SelectionParams
         { assetsToBurn =
@@ -683,7 +657,6 @@ verifySelection = mconcat
     [ verifySelectionCollateralSufficient
     , verifySelectionCollateralSuitable
     , verifySelectionDeltaValid
-    , verifySelectionInputCountWithinLimit
     , verifySelectionOutputCoinsSufficient
     , verifySelectionOutputSizesWithinLimit
     , verifySelectionOutputTokenQuantitiesWithinLimit
@@ -767,34 +740,6 @@ verifySelectionDeltaValid cs ps selection =
     delta = selectionDeltaAllAssets selection
     minimumCost = selectionMinimumCost cs ps selection
     maximumCost = selectionMaximumCost cs ps selection
-
---------------------------------------------------------------------------------
--- Selection verification: selection limit
---------------------------------------------------------------------------------
-
-data FailureToVerifySelectionInputCountWithinLimit =
-    FailureToVerifySelectionInputCountWithinLimit
-    { collateralInputCount
-        :: Int
-    , ordinaryInputCount
-        :: Int
-    , totalInputCount
-        :: Int
-    , selectionLimit
-        :: SelectionLimit
-    }
-    deriving (Eq, Show)
-
-verifySelectionInputCountWithinLimit :: VerifySelection ctx
-verifySelectionInputCountWithinLimit cs _ps selection =
-    verify
-        (Balance.MaximumInputLimit totalInputCount <= selectionLimit)
-        (FailureToVerifySelectionInputCountWithinLimit {..})
-  where
-    collateralInputCount = length (selection ^. #collateral)
-    ordinaryInputCount = length (selection ^. #inputs)
-    totalInputCount = collateralInputCount + ordinaryInputCount
-    selectionLimit = (cs ^. #computeSelectionLimit) (selection ^. #outputs)
 
 --------------------------------------------------------------------------------
 -- Selection verification: minimum ada quantities
@@ -914,8 +859,6 @@ verifySelectionBalanceError cs ps = \case
         verifyEmptyUTxOError cs ps ()
     Balance.UnableToConstructChange e->
         verifyUnableToConstructChangeError cs ps e
-    Balance.SelectionLimitReached e ->
-        verifySelectionLimitReachedError cs ps e
 
 --------------------------------------------------------------------------------
 -- Selection error verification: balance insufficient errors
@@ -987,57 +930,6 @@ verifySelectionOutputCoinInsufficientError cs _ps e =
         (cs ^. #computeMinimumAdaQuantity)
         (fst reportedOutput)
         (snd reportedOutput ^. #tokens)
-
---------------------------------------------------------------------------------
--- Selection error verification: selection limit errors
---------------------------------------------------------------------------------
-
-data FailureToVerifySelectionLimitReachedError u =
-    FailureToVerifySelectionLimitReachedError
-        { selectedInputs
-            :: [(u, TokenBundle)]
-            -- ^ The inputs that were actually selected.
-        , selectedInputCount
-            :: Int
-            -- ^ The number of inputs that were actually selected.
-        , selectionLimitOriginal
-            :: SelectionLimit
-            -- ^ The selection limit before accounting for collateral inputs.
-        , selectionLimitAdjusted
-            :: SelectionLimit
-            -- ^ The selection limit after accounting for collateral inputs.
-        }
-    deriving (Eq, Show)
-
--- | Verifies a 'Balance.SelectionLimitReachedError'.
---
--- This function verifies that the number of the selected inputs is correct
--- given the amount of space we expect to be reserved for collateral inputs.
---
-verifySelectionLimitReachedError
-    :: forall ctx. SelectionContext ctx
-    => VerifySelectionError (Balance.SelectionLimitReachedError ctx) ctx
-verifySelectionLimitReachedError cs ps e =
-    verify
-        (Balance.MaximumInputLimit selectedInputCount >= selectionLimitAdjusted)
-        (FailureToVerifySelectionLimitReachedError {..})
-  where
-    selectedInputs :: [(UTxO ctx, TokenBundle)]
-    selectedInputs = e ^. #inputsSelected
-
-    selectedInputCount :: Int
-    selectedInputCount = F.length selectedInputs
-
-    selectionLimitAdjusted :: SelectionLimit
-    selectionLimitAdjusted = toBalanceConstraintsParams (cs, ps)
-        & fst
-        & view #computeSelectionLimit
-        & ($ F.toList $ e ^. #outputsToCover)
-
-    selectionLimitOriginal :: SelectionLimit
-    selectionLimitOriginal = cs
-        & view #computeSelectionLimit
-        & ($ F.toList $ e ^. #outputsToCover)
 
 --------------------------------------------------------------------------------
 -- Selection error verification: change construction errors
@@ -1128,7 +1020,6 @@ verifyUnableToConstructChangeError cs ps errorOriginal =
         cs' = cs
             { computeMinimumAdaQuantity = const $ const $ Coin 0
             , computeMinimumCost = const $ Coin 0
-            , computeSelectionLimit = const Balance.NoLimit
             }
 
 --------------------------------------------------------------------------------

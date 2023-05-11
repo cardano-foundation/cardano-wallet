@@ -26,22 +26,18 @@ module Cardano.CoinSelection.BalanceSpec
     , MockAssessTokenBundleSize
     , MockComputeMinimumAdaQuantity
     , MockComputeMinimumCost
-    , MockComputeSelectionLimit
     , TestAddress (..)
     , TestSelectionContext
     , TestUTxO
     , genMockAssessTokenBundleSize
     , genMockComputeMinimumAdaQuantity
     , genMockComputeMinimumCost
-    , genMockComputeSelectionLimit
     , shrinkMockAssessTokenBundleSize
     , shrinkMockComputeMinimumAdaQuantity
     , shrinkMockComputeMinimumCost
-    , shrinkMockComputeSelectionLimit
     , unMockAssessTokenBundleSize
     , unMockComputeMinimumAdaQuantity
     , unMockComputeMinimumCost
-    , unMockComputeSelectionLimit
     ) where
 
 import Prelude
@@ -57,9 +53,6 @@ import Cardano.CoinSelection.Balance
     , SelectionBalanceError (..)
     , SelectionConstraints (..)
     , SelectionLens (..)
-    , SelectionLimit
-    , SelectionLimitOf (..)
-    , SelectionLimitReachedError (..)
     , SelectionParams
     , SelectionParamsOf (..)
     , SelectionResult
@@ -87,7 +80,6 @@ import Cardano.CoinSelection.Balance
     , mapMaybe
     , performSelection
     , performSelectionEmpty
-    , reduceSelectionLimitBy
     , reduceTokenQuantities
     , removeBurnValueFromChangeMaps
     , removeBurnValuesFromChangeMaps
@@ -104,11 +96,7 @@ import Cardano.CoinSelection.Balance
     , ungroupByKey
     )
 import Cardano.CoinSelection.Balance.Gen
-    ( genSelectionLimit
-    , genSelectionStrategy
-    , shrinkSelectionLimit
-    , shrinkSelectionStrategy
-    )
+    ( genSelectionStrategy, shrinkSelectionStrategy )
 import Cardano.Numeric.Util
     ( inAscendingPartialOrder )
 import Cardano.Wallet.Primitive.Types.Coin
@@ -201,7 +189,6 @@ import Test.QuickCheck
     , CoArbitrary (..)
     , Fun
     , Gen
-    , Negative (..)
     , Positive (..)
     , Property
     , applyFun
@@ -223,7 +210,6 @@ import Test.QuickCheck
     , resize
     , shrinkList
     , shrinkMapBy
-    , sized
     , suchThat
     , tabulate
     , withMaxSuccess
@@ -273,10 +259,6 @@ spec = describe "Cardano.CoinSelection.BalanceSpec" $
     describe "Class instances respect laws" $ do
 
         testLawsMany @(AssetCount TokenMap)
-            [ eqLaws
-            , ordLaws
-            ]
-        testLawsMany @SelectionLimit
             [ eqLaws
             , ordLaws
             ]
@@ -461,17 +443,6 @@ spec = describe "Cardano.CoinSelection.BalanceSpec" $
             property $ prop_runRoundRobin_generationCount @TokenName @Word8
         it "prop_runRoundRobin_generationOrder" $
             property $ prop_runRoundRobin_generationOrder @TokenName @Word8
-
-    describe "Selection limits" $ do
-
-        it "prop_reduceSelectionLimitBy_lessThanOrEqual" $
-            property prop_reduceSelectionLimitBy_lessThanOrEqual
-        it "prop_reduceSelectionLimitBy_reductionNegative" $
-            property prop_reduceSelectionLimitBy_reductionNegative
-        it "prop_reduceSelectionLimitBy_reductionZero" $
-            property prop_reduceSelectionLimitBy_reductionZero
-        it "prop_reduceSelectionLimitBy_reductionPositive" $
-            property prop_reduceSelectionLimitBy_reductionPositive
 
     describe "Utility functions" $ do
 
@@ -763,12 +734,8 @@ prop_performSelection_small mockConstraints (Blind (Small params)) =
         "Some minted assets were neither spent nor burned" $
 
     prop_performSelection mockConstraints params $ \result ->
-        cover 10 (selectionUnlimited && selectionSufficient result)
-            "selection unlimited and sufficient"
-        . cover 2 (selectionLimited && selectionSufficient result)
-            "selection limited but sufficient"
-        . cover 2 (selectionLimited && selectionInsufficient result)
-            "selection limited and insufficient"
+        cover 10 (selectionSufficient result)
+            "selection sufficient"
   where
     utxoHasAtLeastOneAsset = not
         . Set.null
@@ -783,30 +750,9 @@ prop_performSelection_small mockConstraints (Blind (Small params)) =
             . fmap snd
             $ view #outputsToCover params
 
-    constraints :: SelectionConstraints TestSelectionContext
-    constraints = unMockSelectionConstraints mockConstraints
-
-    selectionLimit :: SelectionLimit
-    selectionLimit = view #computeSelectionLimit constraints
-        $ F.toList
-        $ view #outputsToCover params
-
-    selectionLimited :: Bool
-    selectionLimited = case selectionLimit of
-        MaximumInputLimit _ -> True
-        NoLimit -> False
-
-    selectionUnlimited :: Bool
-    selectionUnlimited = not selectionLimited
-
     selectionSufficient :: PerformSelectionResult -> Bool
     selectionSufficient = \case
         Right _ -> True
-        _ -> False
-
-    selectionInsufficient :: PerformSelectionResult -> Bool
-    selectionInsufficient = \case
-        Left (SelectionLimitReached _) -> True
         _ -> False
 
     assetsSpentByUserSpecifiedOutputs :: TokenMap
@@ -892,8 +838,6 @@ prop_performSelection mockConstraints params coverage =
         "extraCoinSource" $
     report extraCoinSink
         "extraCoinSink" $
-    report selectionLimit
-        "selectionLimit" $
     report assetsToMint
         "assetsToMint" $
     report assetsToBurn
@@ -907,8 +851,7 @@ prop_performSelection mockConstraints params coverage =
     constraints = unMockSelectionConstraints mockConstraints
 
     SelectionParams
-        { outputsToCover
-        , extraCoinSource
+        { extraCoinSource
         , extraCoinSink
         , assetsToMint
         , assetsToBurn
@@ -962,14 +905,7 @@ prop_performSelection mockConstraints params coverage =
         verify
             (view #extraCoinSink result == view #extraCoinSink params)
             "view #extraCoinSink result == view #extraCoinSink params" $
-        case selectionLimit of
-            MaximumInputLimit limit ->
-                verify
-                    (NE.length (view #inputsSelected result) <= limit)
-                    "NE.length (view #inputsSelected result) <= limit" $
-                    property True
-            NoLimit ->
-                property True
+        property True
       where
         initialSelectionIsSubsetOfFinalSelection :: Bool
         initialSelectionIsSubsetOfFinalSelection =
@@ -983,8 +919,6 @@ prop_performSelection mockConstraints params coverage =
     onFailure = \case
         BalanceInsufficient e ->
             onBalanceInsufficient e
-        SelectionLimitReached e ->
-            onSelectionLimitReached e
         UnableToConstructChange e ->
             onUnableToConstructChange e
         EmptyUTxO ->
@@ -1020,30 +954,6 @@ prop_performSelection mockConstraints params coverage =
             errorBalanceRequired
             errorBalanceShortfall = e
 
-    onSelectionLimitReached
-        :: SelectionLimitReachedError TestSelectionContext -> Property
-    onSelectionLimitReached e =
-        counterexample "onSelectionLimitReached" $
-        report errorBalanceRequired
-            "required balance" $
-        report errorBalanceSelected
-            "selected balance" $
-        verify
-            (selectionLimit <= MaximumInputLimit (length errorInputsSelected))
-            "selectionLimit <= MaximumInputLimit (length errorInputsSelected)" $
-        verify
-            (utxoBalanceRequired == errorBalanceRequired)
-            "utxoBalanceRequired == errorBalanceRequired" $
-        verify
-            (view #utxoAvailable params /= UTxOSelection.empty)
-            "view #utxoAvailable params /= UTxOSelection.empty" $
-        property True
-      where
-        SelectionLimitReachedError
-            errorBalanceRequired errorInputsSelected _ = e
-        errorBalanceSelected =
-            F.foldMap (view #tokens . snd) errorInputsSelected
-
     onUnableToConstructChange :: UnableToConstructChangeError -> Property
     onUnableToConstructChange e =
         counterexample "onUnableToConstructChange" $
@@ -1062,7 +972,6 @@ prop_performSelection mockConstraints params coverage =
         --        the maximum token bundle size, so it's necessary to break
         --        them up, but there isn't enough ada to pay for either the fee
         --        or the minimum ada quantities of the broken-up outputs.
-        --    4.  The input selection limit has been reached.
         --
         -- So to test that our expectation is really true, we run the selection
         -- again with modified constraints that:
@@ -1070,7 +979,6 @@ prop_performSelection mockConstraints params coverage =
         --    1.  Require no fee.
         --    2.  Require no minimum ada quantity.
         --    3.  Impose no maximum token bundle size.
-        --    4.  Impose no selection limit.
         --
         -- We expect that the selection should succeed.
         --
@@ -1081,7 +989,6 @@ prop_performSelection mockConstraints params coverage =
                     , computeMinimumAdaQuantity =
                         const computeMinimumAdaQuantityZero
                     , computeMinimumCost = computeMinimumCostZero
-                    , computeSelectionLimit = const NoLimit
                     } :: SelectionConstraints TestSelectionContext
             performSelection' = performSelection constraints' params
         in
@@ -1103,8 +1010,6 @@ prop_performSelection mockConstraints params coverage =
             "view #utxoAvailable params == UTxOSelection.empty" $
         property True
 
-    selectionLimit = view #computeSelectionLimit constraints $
-        F.toList outputsToCover
     utxoBalanceAvailable = computeUTxOBalanceAvailable params
     utxoBalanceRequired = computeUTxOBalanceRequired params
     utxoBalanceSufficiencyInfo = computeUTxOBalanceSufficiencyInfo params
@@ -1280,8 +1185,7 @@ prop_runSelection_UTxO_empty :: TokenBundle -> SelectionStrategy -> Property
 prop_runSelection_UTxO_empty balanceRequested strategy = monadicIO $ do
     result <- run $ runSelection @_ @TestUTxO
         RunSelectionParams
-            { selectionLimit = NoLimit
-            , utxoAvailable
+            { utxoAvailable
             , minimumBalance = balanceRequested
             , selectionStrategy = strategy
             }
@@ -1304,8 +1208,7 @@ prop_runSelection_UTxO_notEnough
 prop_runSelection_UTxO_notEnough utxoAvailable strategy = monadicIO $ do
     result <- run $ runSelection
         RunSelectionParams
-            { selectionLimit = NoLimit
-            , utxoAvailable
+            { utxoAvailable
             , minimumBalance = balanceRequested
             , selectionStrategy = strategy
             }
@@ -1329,8 +1232,7 @@ prop_runSelection_UTxO_exactlyEnough
 prop_runSelection_UTxO_exactlyEnough utxoAvailable strategy = monadicIO $ do
     result <- run $ runSelection
         RunSelectionParams
-            { selectionLimit = NoLimit
-            , utxoAvailable
+            { utxoAvailable
             , minimumBalance = balanceRequested
             , selectionStrategy = strategy
             }
@@ -1358,8 +1260,7 @@ prop_runSelection_UTxO_moreThanEnough
 prop_runSelection_UTxO_moreThanEnough utxoAvailable strategy = monadicIO $ do
     result <- run $ runSelection
         RunSelectionParams
-            { selectionLimit = NoLimit
-            , utxoAvailable
+            { utxoAvailable
             , minimumBalance = balanceRequested
             , selectionStrategy = strategy
             }
@@ -1407,8 +1308,7 @@ prop_runSelection_UTxO_muchMoreThanEnough (Blind (Large index)) strategy =
     monadicIO $ do
         result <- run $ runSelection
             RunSelectionParams
-                { selectionLimit = NoLimit
-                , utxoAvailable
+                { utxoAvailable
                 , minimumBalance = balanceRequested
                 , selectionStrategy = strategy
                 }
@@ -1763,7 +1663,7 @@ prop_assetSelectionLens_givesPriorityToSingletonAssets (Blind (Small u)) =
     nonAdaAssetCount = Set.size (utxoIndexNonAdaAssets u)
     initialState = UTxOSelection.fromIndex u
     lens = assetSelectionLens
-        NoLimit SelectionStrategyOptimal (nonAdaAsset, minimumAssetQuantity)
+        SelectionStrategyOptimal (nonAdaAsset, minimumAssetQuantity)
     minimumAssetQuantity = TokenQuantity 1
 
 prop_coinSelectionLens_givesPriorityToCoins
@@ -1795,7 +1695,7 @@ prop_coinSelectionLens_givesPriorityToCoins (Blind (Small u)) =
     entryCount = UTxOIndex.size u
     initialState = UTxOSelection.fromIndex u
     lens = coinSelectionLens
-        NoLimit SelectionStrategyOptimal minimumCoinQuantity
+        SelectionStrategyOptimal minimumCoinQuantity
     minimumCoinQuantity = Coin 1
 
 --------------------------------------------------------------------------------
@@ -1846,7 +1746,6 @@ mkBoundaryTestExpectation (BoundaryTestData params expectedResult) = do
         , computeMinimumCost = computeMinimumCostZero
         , assessTokenBundleSize = unMockAssessTokenBundleSize $
             boundaryTestBundleSizeAssessor params
-        , computeSelectionLimit = const NoLimit
         , maximumOutputAdaQuantity = testMaximumOutputAdaQuantity
         , maximumOutputTokenQuantity = testMaximumOutputTokenQuantity
         , maximumLengthChangeAddress = TestAddress 0x0
@@ -2447,8 +2346,6 @@ data MockSelectionConstraints = MockSelectionConstraints
         :: MockComputeMinimumAdaQuantity
     , computeMinimumCost
         :: MockComputeMinimumCost
-    , computeSelectionLimit
-        :: MockComputeSelectionLimit
     } deriving (Eq, Generic, Show)
 
 genMockSelectionConstraints :: Gen MockSelectionConstraints
@@ -2456,7 +2353,6 @@ genMockSelectionConstraints = MockSelectionConstraints
     <$> genMockAssessTokenBundleSize
     <*> genMockComputeMinimumAdaQuantity
     <*> genMockComputeMinimumCost
-    <*> genMockComputeSelectionLimit
 
 shrinkMockSelectionConstraints
     :: MockSelectionConstraints -> [MockSelectionConstraints]
@@ -2464,7 +2360,6 @@ shrinkMockSelectionConstraints = genericRoundRobinShrink
     <@> shrinkMockAssessTokenBundleSize
     <:> shrinkMockComputeMinimumAdaQuantity
     <:> shrinkMockComputeMinimumCost
-    <:> shrinkMockComputeSelectionLimit
     <:> Nil
 
 unMockSelectionConstraints
@@ -2477,8 +2372,6 @@ unMockSelectionConstraints m = SelectionConstraints
         unMockComputeMinimumAdaQuantity $ view #computeMinimumAdaQuantity m
     , computeMinimumCost =
         unMockComputeMinimumCost $ view #computeMinimumCost m
-    , computeSelectionLimit =
-        unMockComputeSelectionLimit $ view #computeSelectionLimit m
     , maximumOutputAdaQuantity =
         testMaximumOutputAdaQuantity
     , maximumOutputTokenQuantity =
@@ -2590,38 +2483,6 @@ computeMinimumCostLinear s
     $ skeletonInputCount s
     + F.length (TokenMap.size . view #tokens . snd <$> skeletonOutputs s)
     + F.sum (Set.size <$> skeletonChange s)
-
---------------------------------------------------------------------------------
--- Computing selection limits
---------------------------------------------------------------------------------
-
-data MockComputeSelectionLimit
-    = MockComputeSelectionLimitNone
-    | MockComputeSelectionLimit Int
-    deriving (Eq, Show)
-
-genMockComputeSelectionLimit :: Gen MockComputeSelectionLimit
-genMockComputeSelectionLimit = oneof
-    [ pure MockComputeSelectionLimitNone
-    , MockComputeSelectionLimit <$> sized (\n -> choose (1, max 1 n))
-    ]
-
-shrinkMockComputeSelectionLimit
-    :: MockComputeSelectionLimit -> [MockComputeSelectionLimit]
-shrinkMockComputeSelectionLimit = \case
-    MockComputeSelectionLimitNone ->
-        []
-    MockComputeSelectionLimit n ->
-        MockComputeSelectionLimit <$> filter (> 0) (shrink n)
-
-unMockComputeSelectionLimit
-    :: MockComputeSelectionLimit
-    -> ([(TestAddress, TokenBundle)] -> SelectionLimit)
-unMockComputeSelectionLimit = \case
-    MockComputeSelectionLimitNone ->
-        const NoLimit
-    MockComputeSelectionLimit n ->
-        const $ MaximumInputLimit n
 
 --------------------------------------------------------------------------------
 -- Assessing token bundle sizes
@@ -4161,60 +4022,6 @@ prop_runRoundRobin_generationOrder initialState = property $
         & fmap (Set.fromList . F.toList)
 
 --------------------------------------------------------------------------------
--- Selection limits
---------------------------------------------------------------------------------
-
-prop_reduceSelectionLimitBy_coverage_limit :: SelectionLimit -> Property
-prop_reduceSelectionLimitBy_coverage_limit limit =
-    checkCoverage $
-    cover 10 (haveLimit)
-        "have limit" $
-    cover 10 (not haveLimit)
-        "do not have limit" $
-    property True
-  where
-    haveLimit :: Bool
-    haveLimit = case limit of
-        NoLimit -> False
-        MaximumInputLimit _ -> True
-
-prop_reduceSelectionLimitBy_coverage_reduction :: Int -> Property
-prop_reduceSelectionLimitBy_coverage_reduction reduction =
-    checkCoverage $
-    cover 10 (reduction < 0)
-        "reduction < 0" $
-    cover 1 (reduction == 0)
-        "reduction = 0" $
-    cover 10 (reduction > 0)
-        "reduction > 0" $
-    property True
-
-prop_reduceSelectionLimitBy_lessThanOrEqual
-    :: SelectionLimit -> Int -> Property
-prop_reduceSelectionLimitBy_lessThanOrEqual limit reduction =
-    prop_reduceSelectionLimitBy_coverage_limit limit .&&.
-    prop_reduceSelectionLimitBy_coverage_reduction reduction .&&.
-    limit `reduceSelectionLimitBy` reduction <= limit
-
-prop_reduceSelectionLimitBy_reductionNegative
-    :: SelectionLimit -> Negative Int -> Property
-prop_reduceSelectionLimitBy_reductionNegative limit (Negative reduction) =
-    prop_reduceSelectionLimitBy_coverage_limit limit .&&.
-    limit `reduceSelectionLimitBy` reduction == limit
-
-prop_reduceSelectionLimitBy_reductionZero
-    :: SelectionLimit -> Property
-prop_reduceSelectionLimitBy_reductionZero limit =
-    prop_reduceSelectionLimitBy_coverage_limit limit .&&.
-    limit `reduceSelectionLimitBy` 0 == limit
-
-prop_reduceSelectionLimitBy_reductionPositive
-    :: SelectionLimit -> Positive Int -> Property
-prop_reduceSelectionLimitBy_reductionPositive limit (Positive reduction) =
-    prop_reduceSelectionLimitBy_coverage_limit limit .&&.
-    limit == fmap (+ reduction) (limit `reduceSelectionLimitBy` reduction)
-
---------------------------------------------------------------------------------
 -- Testing utility functions
 --------------------------------------------------------------------------------
 
@@ -4504,10 +4311,6 @@ genTokenMapLarge = do
     genAssetQuantity = (,)
         <$> genAssetIdLargeRange
         <*> genTokenQuantityPositive
-
-instance Arbitrary SelectionLimit where
-    arbitrary = genSelectionLimit
-    shrink = shrinkSelectionLimit
 
 instance Arbitrary TokenMap where
     arbitrary = genTokenMapSmallRange

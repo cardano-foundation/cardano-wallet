@@ -3805,13 +3805,6 @@ prop_balanceTransactionValid wallet@(Wallet' _ walletUTxO _) (ShowBuildable part
             Left
                 (ErrBalanceTxSelectAssets
                 (ErrSelectAssetsSelectionError
-                (SelectionBalanceErrorOf
-                (SelectionLimitReached _)))) ->
-                    let msg = "selection limit reached should never be returned"
-                    in counterexample msg $ property False
-            Left
-                (ErrBalanceTxSelectAssets
-                (ErrSelectAssetsSelectionError
                 (SelectionBalanceErrorOf (UnableToConstructChange _)))) ->
                 label "unable to construct change" $ property True
             Left ErrBalanceTxInputResolutionConflicts{} ->

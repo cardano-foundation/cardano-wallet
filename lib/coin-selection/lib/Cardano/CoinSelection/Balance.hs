@@ -45,13 +45,6 @@ module Cardano.CoinSelection.Balance
     , BalanceInsufficientError (..)
     , UnableToConstructChangeError (..)
 
-    -- * Selection limits
-    , SelectionLimit
-    , SelectionLimitOf (..)
-    , selectionLimitExceeded
-    , SelectionLimitReachedError (..)
-    , reduceSelectionLimitBy
-
     -- * Querying selections
     , SelectionDelta (..)
     , selectionDeltaAllAssets
@@ -144,7 +137,7 @@ import Cardano.Wallet.Primitive.Types.UTxOIndex
 import Cardano.Wallet.Primitive.Types.UTxOSelection
     ( IsUTxOSelection, UTxOSelection, UTxOSelectionNonEmpty )
 import Control.Monad.Extra
-    ( andM )
+    ( andM, (<=<) )
 import Control.Monad.Random.Class
     ( MonadRandom (..) )
 import Data.Bifunctor
@@ -222,10 +215,6 @@ data SelectionConstraints ctx = SelectionConstraints
     , computeMinimumCost
         :: SelectionSkeleton ctx -> Coin
         -- ^ Computes the minimum cost of a given selection skeleton.
-    , computeSelectionLimit
-        :: [(Address ctx, TokenBundle)] -> SelectionLimit
-        -- ^ Computes an upper bound for the number of ordinary inputs to
-        -- select, given a current set of outputs.
     , maximumLengthChangeAddress
         :: Address ctx
     , maximumOutputAdaQuantity
@@ -457,46 +446,6 @@ data SelectionSkeleton ctx = SelectionSkeleton
 deriving instance SelectionContext ctx => Eq (SelectionSkeleton ctx)
 deriving instance SelectionContext ctx => Show (SelectionSkeleton ctx)
 
--- | Specifies a limit to adhere to when performing a selection.
---
-type SelectionLimit = SelectionLimitOf Int
-
-data SelectionLimitOf a
-    = NoLimit
-      -- ^ Indicates that there is no limit.
-    | MaximumInputLimit a
-      -- ^ Indicates a maximum limit on the number of inputs to select.
-    deriving (Eq, Functor, Show)
-
-instance Ord a => Ord (SelectionLimitOf a) where
-    compare a b = case (a, b) of
-        (NoLimit            , NoLimit            ) -> EQ
-        (MaximumInputLimit _, NoLimit            ) -> LT
-        (NoLimit            , MaximumInputLimit _) -> GT
-        (MaximumInputLimit x, MaximumInputLimit y) -> compare x y
-
--- | Indicates whether or not the given selection limit has been exceeded.
---
-selectionLimitExceeded :: IsUTxOSelection s u => s u -> SelectionLimit -> Bool
-selectionLimitExceeded s = \case
-    NoLimit -> False
-    MaximumInputLimit n -> UTxOSelection.selectedSize s > n
-
--- | Reduces a selection limit by a given reduction amount.
---
--- If the given reduction amount is positive, then this function will reduce
--- the selection limit by that amount.
---
--- If the given reduction amount is zero or negative, then this function will
--- return the original limit unchanged.
---
-reduceSelectionLimitBy :: SelectionLimit -> Int -> SelectionLimit
-reduceSelectionLimitBy limit reduction
-    | reduction <= 0 =
-        limit
-    | otherwise =
-        subtract reduction <$> limit
-
 type SelectionResult = SelectionResultOf []
 
 -- | The result of performing a successful selection.
@@ -689,8 +638,6 @@ selectionMaximumCost c = mtimesDefault (2 :: Int) . selectionMinimumCost c
 data SelectionBalanceError ctx
     = BalanceInsufficient
         BalanceInsufficientError
-    | SelectionLimitReached
-        (SelectionLimitReachedError ctx)
     | UnableToConstructChange
         UnableToConstructChangeError
     | EmptyUTxO
@@ -698,24 +645,6 @@ data SelectionBalanceError ctx
 
 deriving instance SelectionContext ctx => Eq (SelectionBalanceError ctx)
 deriving instance SelectionContext ctx => Show (SelectionBalanceError ctx)
-
--- | Indicates that the balance of selected UTxO entries was insufficient to
---   cover the balance required while remaining within the selection limit.
---
-data SelectionLimitReachedError ctx = SelectionLimitReachedError
-    { utxoBalanceRequired
-        :: !TokenBundle
-      -- ^ The UTXO balance required.
-    , inputsSelected
-        :: ![(UTxO ctx, TokenBundle)]
-      -- ^ The inputs that could be selected while satisfying the
-      -- 'selectionLimit'.
-    , outputsToCover
-        :: !(NonEmpty (Address ctx, TokenBundle))
-    } deriving Generic
-
-deriving instance SelectionContext ctx => Eq (SelectionLimitReachedError ctx)
-deriving instance SelectionContext ctx => Show (SelectionLimitReachedError ctx)
 
 -- | Indicates that the balance of available UTxO entries is insufficient to
 --   cover the balance required.
@@ -875,32 +804,27 @@ performSelectionNonEmpty constraints params
 
     | otherwise = do
         maybeSelection <- runSelectionNonEmpty RunSelectionParams
-            { selectionLimit
-            , utxoAvailable
+            { utxoAvailable
             , minimumBalance = utxoBalanceRequired
             , selectionStrategy
             }
         case maybeSelection of
-            Nothing | utxoAvailable == UTxOSelection.empty ->
-                pure $ Left EmptyUTxO
             Nothing ->
-                selectionLimitReachedError []
-            Just selection | selectionLimitExceeded selection selectionLimit ->
-                selectionLimitReachedError $ F.toList $
-                    UTxOSelection.selectedList selection
-            Just selection -> do
-                let utxoSelected = UTxOSelection.selectedIndex selection
-                let utxoBalanceSelected = UTxOIndex.balance utxoSelected
-                if utxoBalanceRequired `leq` utxoBalanceSelected
-                    then makeChangeRepeatedly selection
-                    else selectionLimitReachedError
-                        (UTxOIndex.toList utxoSelected)
+                -- If it was not possible to select even a single UTxO, it must
+                -- mean that there were no UTxOs available to select.
+                pure $ Left EmptyUTxO
+            Just selection ->
+                -- If we have a non-empty selection of UTxOs, we know that the
+                -- total balance of selected assets must be greater than or
+                -- equal to the minimum required amount, as we have already
+                -- ruled out the possibility that the available balance is
+                -- insufficient.
+                makeChangeRepeatedly selection
   where
     SelectionConstraints
         { assessTokenBundleSize
         , computeMinimumAdaQuantity
         , computeMinimumCost
-        , computeSelectionLimit
         , maximumOutputAdaQuantity
         , maximumOutputTokenQuantity
         , maximumLengthChangeAddress
@@ -914,18 +838,6 @@ performSelectionNonEmpty constraints params
         , assetsToBurn
         , selectionStrategy
         } = params
-
-    selectionLimitReachedError
-        :: [(UTxO ctx, TokenBundle)] -> m (Either (SelectionBalanceError ctx) a)
-    selectionLimitReachedError inputsSelected =
-        pure $ Left $ SelectionLimitReached $ SelectionLimitReachedError
-            { inputsSelected
-            , utxoBalanceRequired
-            , outputsToCover
-            }
-
-    selectionLimit :: SelectionLimit
-    selectionLimit = computeSelectionLimit $ F.toList outputsToCover
 
     utxoBalanceAvailable :: TokenBundle
     utxoBalanceAvailable = computeUTxOBalanceAvailable params
@@ -1076,7 +988,7 @@ performSelectionNonEmpty constraints params
             , assetsToBurn
             }
 
-        selectOneEntry = selectQuantityOf AssetLovelace selectionLimit
+        selectOneEntry = selectQuantityOf AssetLovelace
 
         requiredCost = computeMinimumCost SelectionSkeleton
             { skeletonInputCount = UTxOSelection.selectedSize s
@@ -1107,9 +1019,7 @@ performSelectionNonEmpty constraints params
 -- | Parameters for 'runSelection'.
 --
 data RunSelectionParams u = RunSelectionParams
-    { selectionLimit :: SelectionLimit
-        -- ^ A limit to adhere to when performing a selection.
-    , utxoAvailable :: (UTxOSelection u)
+    { utxoAvailable :: (UTxOSelection u)
         -- ^ UTxO entries available for selection.
     , minimumBalance :: TokenBundle
         -- ^ Minimum balance to cover.
@@ -1122,11 +1032,10 @@ runSelectionNonEmpty
     :: (MonadRandom m, Ord u)
     => RunSelectionParams u
     -> m (Maybe (UTxOSelectionNonEmpty u))
-runSelectionNonEmpty = (=<<)
-    <$> runSelectionNonEmptyWith
-        . selectQuantityOf AssetLovelace
-        . view #selectionLimit
-    <*> runSelection
+runSelectionNonEmpty =
+    runSelectionNonEmptyWith (selectQuantityOf AssetLovelace)
+    <=<
+    runSelection
 
 runSelectionNonEmptyWith
     :: Monad m
@@ -1146,8 +1055,7 @@ runSelection params =
     runRoundRobinM utxoAvailable UTxOSelection.fromNonEmpty selectors
   where
     RunSelectionParams
-        { selectionLimit
-        , utxoAvailable
+        { utxoAvailable
         , minimumBalance
         , selectionStrategy
         } = params
@@ -1161,9 +1069,9 @@ runSelection params =
         reverse (coinSelector : fmap assetSelector minimumAssetQuantities)
       where
         assetSelector = runSelectionStep .
-            assetSelectionLens selectionLimit selectionStrategy
+            assetSelectionLens selectionStrategy
         coinSelector = runSelectionStep $
-            coinSelectionLens selectionLimit selectionStrategy
+            coinSelectionLens selectionStrategy
             minimumCoinQuantity
 
     (minimumCoinQuantity, minimumAssetQuantities) =
@@ -1171,30 +1079,28 @@ runSelection params =
 
 assetSelectionLens
     :: (MonadRandom m, Ord u)
-    => SelectionLimit
-    -> SelectionStrategy
+    => SelectionStrategy
     -> (AssetId, TokenQuantity)
     -> SelectionLens m (UTxOSelection u) (UTxOSelectionNonEmpty u)
-assetSelectionLens limit strategy (asset, minimumAssetQuantity) = SelectionLens
+assetSelectionLens strategy (asset, minimumAssetQuantity) = SelectionLens
     { currentQuantity = selectedAssetQuantity asset
     , updatedQuantity = selectedAssetQuantity asset
     , minimumQuantity = unTokenQuantity minimumAssetQuantity
-    , selectQuantity = selectQuantityOf (Asset asset) limit
+    , selectQuantity = selectQuantityOf (Asset asset)
     , selectionStrategy = strategy
     }
 
 coinSelectionLens
     :: (MonadRandom m, Ord u)
-    => SelectionLimit
-    -> SelectionStrategy
+    => SelectionStrategy
     -> Coin
     -- ^ Minimum coin quantity.
     -> SelectionLens m (UTxOSelection u) (UTxOSelectionNonEmpty u)
-coinSelectionLens limit strategy minimumCoinQuantity = SelectionLens
+coinSelectionLens strategy minimumCoinQuantity = SelectionLens
     { currentQuantity = selectedCoinQuantity
     , updatedQuantity = selectedCoinQuantity
     , minimumQuantity = intCast $ unCoin minimumCoinQuantity
-    , selectQuantity  = selectQuantityOf AssetLovelace limit
+    , selectQuantity  = selectQuantityOf AssetLovelace
     , selectionStrategy = strategy
     }
 
@@ -1202,7 +1108,6 @@ selectQuantityOf
     :: (MonadRandom m, Ord u)
     => IsUTxOSelection utxoSelection u
     => Asset
-    -> SelectionLimit
     -> utxoSelection u
     -> m (Maybe (UTxOSelectionNonEmpty u))
 selectQuantityOf a = selectMatchingQuantity
@@ -1233,24 +1138,15 @@ selectMatchingQuantity
     => NonEmpty (SelectionFilter Asset)
         -- ^ A list of selection filters to be traversed from left-to-right,
         -- in descending order of priority.
-    -> SelectionLimit
-        -- ^ A limit to adhere to when selecting entries.
     -> utxoSelection u
         -- ^ The current selection state.
     -> m (Maybe (UTxOSelectionNonEmpty u))
         -- ^ An updated selection state that includes a matching UTxO entry,
         -- or 'Nothing' if no such entry could be found.
-selectMatchingQuantity filters limit s
-    | limitReached =
-        pure Nothing
-    | otherwise =
-        (updateState =<<) <$> UTxOIndex.selectRandomWithPriority
-            (UTxOSelection.leftoverIndex s) filters
+selectMatchingQuantity filters s =
+    (updateState =<<) <$> UTxOIndex.selectRandomWithPriority
+        (UTxOSelection.leftoverIndex s) filters
   where
-    limitReached = case limit of
-        MaximumInputLimit m -> UTxOSelection.selectedSize s >= m
-        NoLimit -> False
-
     updateState
         :: ((u, TokenBundle), UTxOIndex u) -> Maybe (UTxOSelectionNonEmpty u)
     updateState ((i, _b), _remaining) = UTxOSelection.select i s

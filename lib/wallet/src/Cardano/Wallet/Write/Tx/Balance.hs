@@ -64,7 +64,6 @@ import Cardano.Tx.Balance.Internal.CoinSelection
     , SelectionCollateralRequirement (..)
     , SelectionConstraints (..)
     , SelectionError (..)
-    , SelectionLimitOf (..)
     , SelectionOf (change)
     , SelectionOutputError (..)
     , SelectionParams (..)
@@ -995,7 +994,6 @@ balanceTransactionWithSelectionStrategyAndNoZeroAdaAdjustment
                         })
                     skeleton
                 ] `Coin.difference` boringFee
-            , computeSelectionLimit = \_ -> NoLimit
             , maximumCollateralInputCount = unsafeIntCast @Natural @Int $
                 case recentEra @era of
                     RecentEraBabbage ->

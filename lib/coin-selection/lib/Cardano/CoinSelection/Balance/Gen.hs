@@ -2,10 +2,8 @@
 {-# LANGUAGE TypeApplications #-}
 
 module Cardano.CoinSelection.Balance.Gen
-    ( genSelectionLimit
-    , genSelectionSkeleton
+    ( genSelectionSkeleton
     , genSelectionStrategy
-    , shrinkSelectionLimit
     , shrinkSelectionSkeleton
     , shrinkSelectionStrategy
     )
@@ -14,11 +12,7 @@ module Cardano.CoinSelection.Balance.Gen
 import Prelude
 
 import Cardano.CoinSelection.Balance
-    ( SelectionLimit
-    , SelectionLimitOf (..)
-    , SelectionSkeleton (..)
-    , SelectionStrategy (..)
-    )
+    ( SelectionSkeleton (..), SelectionStrategy (..) )
 import Cardano.CoinSelection.Context
     ( SelectionContext (..) )
 import Cardano.Wallet.Primitive.Types.Coin
@@ -37,7 +31,6 @@ import Test.QuickCheck
     , arbitrary
     , arbitraryBoundedEnum
     , listOf
-    , oneof
     , shrink
     , shrinkList
     , shrinkMapBy
@@ -48,23 +41,6 @@ import Test.QuickCheck.Extra
 
 import qualified Cardano.Wallet.Primitive.Types.TokenBundle as TokenBundle
 import qualified Data.Set as Set
-
---------------------------------------------------------------------------------
--- Selection limits
---------------------------------------------------------------------------------
-
-genSelectionLimit :: Gen SelectionLimit
-genSelectionLimit = oneof
-    [ MaximumInputLimit . getNonNegative <$> arbitrary
-    , pure NoLimit
-    ]
-
-shrinkSelectionLimit :: SelectionLimit -> [SelectionLimit]
-shrinkSelectionLimit = \case
-    MaximumInputLimit n ->
-        MaximumInputLimit . getNonNegative <$> shrink (NonNegative n)
-    NoLimit ->
-        []
 
 --------------------------------------------------------------------------------
 -- Selection skeletons

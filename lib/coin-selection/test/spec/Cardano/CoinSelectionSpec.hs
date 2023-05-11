@@ -38,7 +38,7 @@ import Cardano.CoinSelection
     , verifySelectionError
     )
 import Cardano.CoinSelection.Balance
-    ( SelectionLimit, SelectionSkeleton )
+    ( SelectionSkeleton )
 import Cardano.CoinSelection.Balance.Gen
     ( genSelectionSkeleton
     , genSelectionStrategy
@@ -49,22 +49,18 @@ import Cardano.CoinSelection.BalanceSpec
     ( MockAssessTokenBundleSize
     , MockComputeMinimumAdaQuantity
     , MockComputeMinimumCost
-    , MockComputeSelectionLimit
     , TestAddress (..)
     , TestSelectionContext
     , TestUTxO
     , genMockAssessTokenBundleSize
     , genMockComputeMinimumAdaQuantity
     , genMockComputeMinimumCost
-    , genMockComputeSelectionLimit
     , shrinkMockAssessTokenBundleSize
     , shrinkMockComputeMinimumAdaQuantity
     , shrinkMockComputeMinimumCost
-    , shrinkMockComputeSelectionLimit
     , unMockAssessTokenBundleSize
     , unMockComputeMinimumAdaQuantity
     , unMockComputeMinimumCost
-    , unMockComputeSelectionLimit
     )
 import Cardano.Wallet.Primitive.Types.Coin
     ( Coin (..) )
@@ -94,8 +90,6 @@ import Data.Either
     ( isRight )
 import Data.Function
     ( (&) )
-import Data.Functor
-    ( (<&>) )
 import Data.Generics.Internal.VL.Lens
     ( over, view, (^.) )
 import Data.IntCast
@@ -166,8 +160,6 @@ spec = describe "Cardano.CoinSelectionSpec" $ do
 
         it "prop_toBalanceConstraintsParams_computeMinimumCost" $
             property prop_toBalanceConstraintsParams_computeMinimumCost
-        it "prop_toBalanceConstraintsParams_computeSelectionLimit" $
-            property prop_toBalanceConstraintsParams_computeSelectionLimit
 
     describe "Preparing outputs" $ do
 
@@ -241,9 +233,6 @@ prop_performSelection_coverage params r innerProperty =
         (isSelectionBalanceError_BalanceInsufficient r)
         "isSelectionBalanceError_BalanceInsufficient" $
     cover 0.1
-        (isSelectionBalanceError_SelectionLimitReached r)
-        "isSelectionBalanceError_SelectionLimitReached" $
-    cover 0.1
         (isSelectionBalanceError_UnableToConstructChange r)
         "isSelectionBalanceError_UnableToConstructChange" $
     cover 0.1
@@ -266,9 +255,6 @@ prop_performSelection_coverage params r innerProperty =
     isSelection = isRight
     isSelectionBalanceError_BalanceInsufficient = \case
         Left (SelectionBalanceErrorOf Balance.BalanceInsufficient {})
-            -> True; _ -> False
-    isSelectionBalanceError_SelectionLimitReached = \case
-        Left (SelectionBalanceErrorOf Balance.SelectionLimitReached {})
             -> True; _ -> False
     isSelectionBalanceError_UnableToConstructChange = \case
         Left (SelectionBalanceErrorOf Balance.UnableToConstructChange {})
@@ -315,7 +301,6 @@ prop_performSelection_coverage params r innerProperty =
     _checkExhaustivenessForSelectionError = case undefined of
         SelectionBalanceErrorOf e -> case e of
             Balance.BalanceInsufficient {} -> ()
-            Balance.SelectionLimitReached {} -> ()
             Balance.UnableToConstructChange {} -> ()
             Balance.EmptyUTxO {} -> ()
         SelectionCollateralErrorOf e -> case e of
@@ -387,61 +372,6 @@ prop_toBalanceConstraintsParams_computeMinimumCost
 
     costAdjusted :: Coin
     costAdjusted = computeMinimumCostAdjusted skeleton
-
--- Tests that function 'toBalanceConstraintsParams' applies the correct
--- transformation to the 'computeSelectionLimit' function.
---
-prop_toBalanceConstraintsParams_computeSelectionLimit
-    :: MockSelectionConstraints
-    -> SelectionParams TestSelectionContext
-    -> Property
-prop_toBalanceConstraintsParams_computeSelectionLimit mockConstraints params =
-    checkCoverage $
-    cover 10 (selectionCollateralRequired params)
-        "collateral required: yes" $
-    cover 10 (not (selectionCollateralRequired params))
-        "collateral required: no" $
-    cover 10 (selectionLimitOriginal > selectionLimitAdjusted)
-        "selection limit (original) > selection limit (adjusted)" $
-    report selectionLimitOriginal
-        "selection limit (original)" $
-    report selectionLimitAdjusted
-        "selection limit (adjusted)" $
-    if selectionCollateralRequired params
-    then
-        conjoin
-            [ selectionLimitOriginal >= selectionLimitAdjusted
-            -- Here we apply a transformation that is the *inverse* of
-            -- the transformation within 'toBalanceConstraintsParams':
-            , selectionLimitOriginal ==
-                (selectionLimitAdjusted <&> (+ maximumCollateralInputCount))
-            ]
-    else
-        selectionLimitOriginal === selectionLimitAdjusted
-  where
-    constraints :: SelectionConstraints TestSelectionContext
-    constraints = unMockSelectionConstraints mockConstraints
-
-    maximumCollateralInputCount :: Int
-    maximumCollateralInputCount = constraints ^. #maximumCollateralInputCount
-
-    computeSelectionLimitOriginal
-        :: [(TestAddress, TokenBundle)] -> SelectionLimit
-    computeSelectionLimitOriginal = constraints ^. #computeSelectionLimit
-
-    computeSelectionLimitAdjusted
-        :: [(TestAddress, TokenBundle)] -> SelectionLimit
-    computeSelectionLimitAdjusted =
-        toBalanceConstraintsParams (constraints, params)
-            & fst & view #computeSelectionLimit
-
-    selectionLimitOriginal :: SelectionLimit
-    selectionLimitOriginal = computeSelectionLimitOriginal $
-        params ^. #outputsToCover
-
-    selectionLimitAdjusted :: SelectionLimit
-    selectionLimitAdjusted = computeSelectionLimitAdjusted $
-        params ^. #outputsToCover
 
 --------------------------------------------------------------------------------
 -- Preparing outputs
@@ -555,8 +485,6 @@ data MockSelectionConstraints = MockSelectionConstraints
         :: MockComputeMinimumAdaQuantity
     , computeMinimumCost
         :: MockComputeMinimumCost
-    , computeSelectionLimit
-        :: MockComputeSelectionLimit
     , maximumCollateralInputCount
         :: Int
     , minimumCollateralPercentage
@@ -574,7 +502,6 @@ genMockSelectionConstraints = MockSelectionConstraints
     <*> genCertificateDepositAmount
     <*> genMockComputeMinimumAdaQuantity
     <*> genMockComputeMinimumCost
-    <*> genMockComputeSelectionLimit
     <*> genMaximumCollateralInputCount
     <*> genMinimumCollateralPercentage
     <*> genMaximumOutputAdaQuantity
@@ -587,7 +514,6 @@ shrinkMockSelectionConstraints = genericRoundRobinShrink
     <:> shrinkCertificateDepositAmount
     <:> shrinkMockComputeMinimumAdaQuantity
     <:> shrinkMockComputeMinimumCost
-    <:> shrinkMockComputeSelectionLimit
     <:> shrinkMaximumCollateralInputCount
     <:> shrinkMinimumCollateralPercentage
     <:> shrinkMaximumOutputAdaQuantity
@@ -607,8 +533,6 @@ unMockSelectionConstraints m = SelectionConstraints
         unMockIsBelowMinimumAdaQuantity $ view #computeMinimumAdaQuantity m
     , computeMinimumCost =
         unMockComputeMinimumCost $ view #computeMinimumCost m
-    , computeSelectionLimit =
-        unMockComputeSelectionLimit $ view #computeSelectionLimit m
     , maximumCollateralInputCount =
         view #maximumCollateralInputCount m
     , minimumCollateralPercentage =
