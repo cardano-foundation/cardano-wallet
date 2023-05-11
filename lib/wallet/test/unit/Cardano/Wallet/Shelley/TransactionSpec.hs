@@ -50,10 +50,7 @@ import Cardano.Api
     , IsCardanoEra (..)
     , IsShelleyBasedEra (..)
     , ShelleyBasedEra (..)
-    , TxOutValue (TxOutAdaOnly, TxOutValue)
     )
-import Cardano.Api.Extra
-    ( unbundleLedgerShelleyBasedProtocolParams )
 import Cardano.Api.Gen
     ( genAddressByron
     , genAddressInEra
@@ -3856,13 +3853,8 @@ prop_balanceTransactionValid wallet@(Wallet' _ walletUTxO _) (ShowBuildable part
         -> Cardano.UTxO era
         -> Property
     prop_validSize tx@(Cardano.Tx body _) utxo = do
-        let pparams
-                = unbundleLedgerShelleyBasedProtocolParams
-                    (shelleyBasedEra @era)
-                $ Cardano.bundleProtocolParams cardanoEra
-                mockCardanoApiPParamsForBalancing
         let (TxSize size) =
-                estimateSignedTxSize pparams
+                estimateSignedTxSize ledgerPParams
                     (estimateKeyWitnessCount utxo body)
                     body
         let limit = fromIntegral $ getQuantity $
@@ -3929,28 +3921,23 @@ prop_balanceTransactionValid wallet@(Wallet' _ walletUTxO _) (ShowBuildable part
         :: Cardano.Tx era
         -> Cardano.UTxO era
         -> Cardano.Lovelace
-    txMinFee (Cardano.Tx body _) utxo = toCardanoLovelace
-        $ evaluateMinimumFee nodePParams
+    txMinFee tx@(Cardano.Tx body _) utxo = Write.toCardanoLovelace
+        $ Write.evaluateMinimumFee (recentEra @era) ledgerPParams
+            (Write.fromCardanoTx tx)
             (estimateKeyWitnessCount utxo body)
-            body
 
     txBalance
         :: Cardano.Tx era
         -> Cardano.UTxO era
         -> Cardano.Value
-    txBalance (Cardano.Tx bod _) u =
-        valueFromCardanoTxOutValue
-        $ Cardano.evaluateTransactionBalance nodePParams mempty u bod
-
-    valueFromCardanoTxOutValue
-        :: Cardano.TxOutValue era -> Cardano.Value
-    valueFromCardanoTxOutValue = \case
-        TxOutAdaOnly _ coin -> Cardano.lovelaceToValue coin
-        TxOutValue _ val -> val
-
-    nodePParams =
-        Cardano.bundleProtocolParams (cardanoEra @era)
-            mockCardanoApiPParamsForBalancing
+    txBalance tx u = Write.toCardanoValue @era $
+        Write.evaluateTransactionBalance
+            era
+            ledgerPParams
+            (Write.fromCardanoUTxO u)
+            (Write.txBody era $ Write.fromCardanoTx tx)
+      where
+        era = recentEra @era
 
     ledgerPParams = Write.pparamsLedger $
         mockPParamsForBalancing @era
