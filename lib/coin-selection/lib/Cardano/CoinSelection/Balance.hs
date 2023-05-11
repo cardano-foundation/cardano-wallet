@@ -867,17 +867,17 @@ performSelectionNonEmpty constraints params
             , selectionStrategy
             }
         case maybeSelection of
-            Nothing | utxoAvailable == UTxOSelection.empty ->
-                pure $ Left EmptyUTxO
             Nothing ->
-                selectionLimitReachedError []
-            Just selection -> do
-                let utxoSelected = UTxOSelection.selectedIndex selection
-                let utxoBalanceSelected = UTxOIndex.balance utxoSelected
-                if utxoBalanceRequired `leq` utxoBalanceSelected
-                    then makeChangeRepeatedly selection
-                    else selectionLimitReachedError
-                        (UTxOIndex.toList utxoSelected)
+                -- If it was not possible to select even a single UTxO, it must
+                -- mean that there were no UTxOs available to select.
+                pure $ Left EmptyUTxO
+            Just selection ->
+                -- If we have a non-empty selection of UTxOs, we know that the
+                -- total balance of selected assets must be greater than or
+                -- equal to the minimum required amount, as we have already
+                -- ruled out the possibility that the available balance is
+                -- insufficient.
+                makeChangeRepeatedly selection
   where
     SelectionConstraints
         { assessTokenBundleSize
@@ -897,9 +897,9 @@ performSelectionNonEmpty constraints params
         , selectionStrategy
         } = params
 
-    selectionLimitReachedError
+    _selectionLimitReachedError
         :: [(UTxO ctx, TokenBundle)] -> m (Either (SelectionBalanceError ctx) a)
-    selectionLimitReachedError inputsSelected =
+    _selectionLimitReachedError inputsSelected =
         pure $ Left $ SelectionLimitReached $ SelectionLimitReachedError
             { inputsSelected
             , utxoBalanceRequired
