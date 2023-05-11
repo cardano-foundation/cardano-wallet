@@ -261,6 +261,7 @@ import UnliftIO.Temporary
 
 import qualified Cardano.Wallet.Address.Derivation.Shelley as Seq
 import qualified Cardano.Wallet.Checkpoints as Checkpoints
+import qualified Cardano.Wallet.Checkpoints.Policy as Checkpoints
 import qualified Cardano.Wallet.DB.Sqlite.Schema as DB
 import qualified Cardano.Wallet.DB.Sqlite.Types as DB
 import qualified Cardano.Wallet.DB.Store.Info.Store as WalletInfo
@@ -271,6 +272,7 @@ import qualified Data.ByteArray as BA
 import qualified Data.ByteString as BS
 import qualified Data.Delta.Update as Delta
 import qualified Data.List as L
+import qualified Data.List.NonEmpty as NE
 import qualified Data.Set as Set
 import qualified Data.Text as T
 import qualified Data.Text.Encoding as T
@@ -571,28 +573,27 @@ fileModeSpec =  do
                             mempty
                     let (FilteredBlock{transactions=txs}, (_,cpB)) =
                             applyBlock fakeBlock cpA
-                        epochStability = Quantity 2160
-                        deltaPruneCheckpoints =
-                            Checkpoints.pruneCheckpoints
-                                (view $ #currentTip . #blockHeight)
-                                epochStability
-                                (currentTip cpB ^. #blockHeight)
-                    let putCheckpoint cp =
+                        epochStability = 2160
+                        deltaPruneCheckpoints cp nodeTip =
+                            Checkpoints.extendAndPrune
+                                WalletState.getSlot
+                                (fromIntegral . WalletState.getBlockHeight)
+                                (Checkpoints.sparseArithmetic epochStability)
+                                (fromIntegral $ getQuantity $ nodeTip ^. #blockHeight)
+                                (snd (WalletState.fromWallet cp) NE.:| [])
+                    let putPrologue cp =
                               Delta.onDBVar walletState
                             $ Delta.update $ \_ ->
-                                let (prologue, wcp) = WalletState.fromWallet cp
-                                    slot = WalletState.getSlot wcp
-                                in  [ WalletState.UpdateCheckpoints
-                                        [ Checkpoints.PutCheckpoint slot wcp ]
-                                    , WalletState.ReplacePrologue prologue
-                                    ]
+                                let (prologue, _) = WalletState.fromWallet cp
+                                in  [ WalletState.ReplacePrologue prologue ]
 
                     atomically $ do
-                        putCheckpoint cpB
+                        putPrologue cpB
                         putTxHistory txs
                         Delta.onDBVar walletState
                             $ WalletState.updateCheckpoints
-                            $ Delta.update deltaPruneCheckpoints
+                            $ Delta.update
+                            $ deltaPruneCheckpoints cpB (currentTip cpB)
 
             it "Should spend collateral inputs and create spendable collateral \
                 \outputs if validation fails" $
