@@ -1761,7 +1761,7 @@ prop_coinSelectionLens_givesPriorityToCoins (Blind (Small u)) =
     entryCount = UTxOIndex.size u
     initialState = UTxOSelection.fromIndex u
     lens = coinSelectionLens
-        NoLimit SelectionStrategyOptimal minimumCoinQuantity
+        SelectionStrategyOptimal minimumCoinQuantity
     minimumCoinQuantity = Coin 1
 
 --------------------------------------------------------------------------------

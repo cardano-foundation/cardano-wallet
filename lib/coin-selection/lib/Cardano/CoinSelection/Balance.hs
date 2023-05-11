@@ -1146,7 +1146,7 @@ runSelection params =
         assetSelector = runSelectionStep .
             assetSelectionLens selectionLimit selectionStrategy
         coinSelector = runSelectionStep $
-            coinSelectionLens selectionLimit selectionStrategy
+            coinSelectionLens selectionStrategy
             minimumCoinQuantity
 
     (minimumCoinQuantity, minimumAssetQuantities) =
@@ -1168,12 +1168,11 @@ assetSelectionLens _limit strategy (asset, minimumAssetQuantity) = SelectionLens
 
 coinSelectionLens
     :: (MonadRandom m, Ord u)
-    => SelectionLimit
-    -> SelectionStrategy
+    => SelectionStrategy
     -> Coin
     -- ^ Minimum coin quantity.
     -> SelectionLens m (UTxOSelection u) (UTxOSelectionNonEmpty u)
-coinSelectionLens _limit strategy minimumCoinQuantity = SelectionLens
+coinSelectionLens strategy minimumCoinQuantity = SelectionLens
     { currentQuantity = selectedCoinQuantity
     , updatedQuantity = selectedCoinQuantity
     , minimumQuantity = intCast $ unCoin minimumCoinQuantity
