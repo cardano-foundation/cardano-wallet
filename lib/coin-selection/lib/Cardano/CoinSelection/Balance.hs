@@ -48,7 +48,6 @@ module Cardano.CoinSelection.Balance
     -- * Selection limits
     , SelectionLimit
     , SelectionLimitOf (..)
-    , reduceSelectionLimitBy
 
     -- * Querying selections
     , SelectionDelta (..)
@@ -467,21 +466,6 @@ data SelectionLimitOf a
 instance Ord a => Ord (SelectionLimitOf a) where
     compare a b = case (a, b) of
         (NoLimit, NoLimit) -> EQ
-
--- | Reduces a selection limit by a given reduction amount.
---
--- If the given reduction amount is positive, then this function will reduce
--- the selection limit by that amount.
---
--- If the given reduction amount is zero or negative, then this function will
--- return the original limit unchanged.
---
-reduceSelectionLimitBy :: SelectionLimit -> Int -> SelectionLimit
-reduceSelectionLimitBy limit reduction
-    | reduction <= 0 =
-        limit
-    | otherwise =
-        subtract reduction <$> limit
 
 type SelectionResult = SelectionResultOf []
 

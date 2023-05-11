@@ -469,8 +469,7 @@ toBalanceConstraintsParams (constraints, params) =
             -- there is still space available.
             --
             adjustSelectionLimit :: SelectionLimit -> SelectionLimit
-            adjustSelectionLimit = flip Balance.reduceSelectionLimitBy
-                (view #maximumCollateralInputCount constraints)
+            adjustSelectionLimit = id
 
     balanceParams = Balance.SelectionParams
         { assetsToBurn =

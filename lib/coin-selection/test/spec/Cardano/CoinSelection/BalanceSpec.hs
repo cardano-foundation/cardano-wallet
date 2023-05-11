@@ -86,7 +86,6 @@ import Cardano.CoinSelection.Balance
     , mapMaybe
     , performSelection
     , performSelectionEmpty
-    , reduceSelectionLimitBy
     , reduceTokenQuantities
     , removeBurnValueFromChangeMaps
     , removeBurnValuesFromChangeMaps
@@ -200,7 +199,6 @@ import Test.QuickCheck
     , CoArbitrary (..)
     , Fun
     , Gen
-    , Negative (..)
     , Positive (..)
     , Property
     , applyFun
@@ -459,17 +457,6 @@ spec = describe "Cardano.CoinSelection.BalanceSpec" $
             property $ prop_runRoundRobin_generationCount @TokenName @Word8
         it "prop_runRoundRobin_generationOrder" $
             property $ prop_runRoundRobin_generationOrder @TokenName @Word8
-
-    describe "Selection limits" $ do
-
-        it "prop_reduceSelectionLimitBy_lessThanOrEqual" $
-            property prop_reduceSelectionLimitBy_lessThanOrEqual
-        it "prop_reduceSelectionLimitBy_reductionNegative" $
-            property prop_reduceSelectionLimitBy_reductionNegative
-        it "prop_reduceSelectionLimitBy_reductionZero" $
-            property prop_reduceSelectionLimitBy_reductionZero
-        it "prop_reduceSelectionLimitBy_reductionPositive" $
-            property prop_reduceSelectionLimitBy_reductionPositive
 
     describe "Utility functions" $ do
 
@@ -4090,59 +4077,6 @@ prop_runRoundRobin_generationOrder initialState = property $
         & fmap swap
         & groupByKey
         & fmap (Set.fromList . F.toList)
-
---------------------------------------------------------------------------------
--- Selection limits
---------------------------------------------------------------------------------
-
-prop_reduceSelectionLimitBy_coverage_limit :: SelectionLimit -> Property
-prop_reduceSelectionLimitBy_coverage_limit limit =
-    checkCoverage $
-    cover 10 (haveLimit)
-        "have limit" $
-    cover 10 (not haveLimit)
-        "do not have limit" $
-    property True
-  where
-    haveLimit :: Bool
-    haveLimit = case limit of
-        NoLimit -> False
-
-prop_reduceSelectionLimitBy_coverage_reduction :: Int -> Property
-prop_reduceSelectionLimitBy_coverage_reduction reduction =
-    checkCoverage $
-    cover 10 (reduction < 0)
-        "reduction < 0" $
-    cover 1 (reduction == 0)
-        "reduction = 0" $
-    cover 10 (reduction > 0)
-        "reduction > 0" $
-    property True
-
-prop_reduceSelectionLimitBy_lessThanOrEqual
-    :: SelectionLimit -> Int -> Property
-prop_reduceSelectionLimitBy_lessThanOrEqual limit reduction =
-    prop_reduceSelectionLimitBy_coverage_limit limit .&&.
-    prop_reduceSelectionLimitBy_coverage_reduction reduction .&&.
-    limit `reduceSelectionLimitBy` reduction <= limit
-
-prop_reduceSelectionLimitBy_reductionNegative
-    :: SelectionLimit -> Negative Int -> Property
-prop_reduceSelectionLimitBy_reductionNegative limit (Negative reduction) =
-    prop_reduceSelectionLimitBy_coverage_limit limit .&&.
-    limit `reduceSelectionLimitBy` reduction == limit
-
-prop_reduceSelectionLimitBy_reductionZero
-    :: SelectionLimit -> Property
-prop_reduceSelectionLimitBy_reductionZero limit =
-    prop_reduceSelectionLimitBy_coverage_limit limit .&&.
-    limit `reduceSelectionLimitBy` 0 == limit
-
-prop_reduceSelectionLimitBy_reductionPositive
-    :: SelectionLimit -> Positive Int -> Property
-prop_reduceSelectionLimitBy_reductionPositive limit (Positive reduction) =
-    prop_reduceSelectionLimitBy_coverage_limit limit .&&.
-    limit == fmap (+ reduction) (limit `reduceSelectionLimitBy` reduction)
 
 --------------------------------------------------------------------------------
 -- Testing utility functions
