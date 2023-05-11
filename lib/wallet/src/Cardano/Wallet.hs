@@ -195,6 +195,7 @@ module Cardano.Wallet
     , ErrNoSuchTransaction (..)
     , ErrStartTimeLaterThanEndTime (..)
     , ErrWitnessTx (..)
+    , ErrWriteTxEra (..)
 
     -- ** Root Key
     , withRootKey
@@ -1846,6 +1847,11 @@ signTransaction tl preferredLatestEra witCountCtx keyLookup mextraRewardAcc
 type MakeRewardAccountBuilder k =
     (k 'RootK XPrv, Passphrase "encryption") -> (XPrv, Passphrase "encryption")
 
+data ErrWriteTxEra
+    = ErrOldEraNotSupported Cardano.AnyCardanoEra
+    | ErrTxNotInEra Write.AnyRecentEra
+    deriving (Show, Eq)
+
 -- | Build, Sign, Submit transaction.
 --
 -- Requires the encryption passphrase in order to decrypt the root private key.
@@ -3444,6 +3450,7 @@ data WalletException
     | ExceptionReadAccountPublicKey ErrReadAccountPublicKey
     | ExceptionSignPayment ErrSignPayment
     | ExceptionBalanceTx ErrBalanceTx
+    | ExceptionWriteTxEra ErrWriteTxEra
     | ExceptionBalanceTxInternalError ErrBalanceTxInternalError
     | ExceptionSubmitTransaction ErrSubmitTransaction
     | ExceptionConstructTx ErrConstructTx

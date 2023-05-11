@@ -248,7 +248,6 @@ import qualified Cardano.Wallet.Primitive.Types.UTxOStatistics as UTxOStatistics
 import qualified Cardano.Wallet.Shelley.Compatibility as Cardano
 import qualified Cardano.Wallet.Write.ProtocolParameters as Write
 import qualified Cardano.Wallet.Write.Tx as Write
-import qualified Cardano.Wallet.Write.Tx.Balance as Write
 import qualified Data.Aeson as Aeson
 import qualified Data.ByteString as BS
 import qualified Data.ByteString.Char8 as B8
@@ -1011,7 +1010,7 @@ guardIsRecentEra (Cardano.AnyCardanoEra era) = case era of
     Cardano.ShelleyEra -> invalidEra
     Cardano.ByronEra -> invalidEra
     where
-    invalidEra = throwIO $ ExceptionBalanceTx $ Write.ErrOldEraNotSupported $
+    invalidEra = throwIO $ W.ExceptionWriteTxEra $ W.ErrOldEraNotSupported $
         Cardano.AnyCardanoEra era
 
 withNonEmptyUTxO :: Wallet s -> Set Tx -> e -> IO a -> IO (Either e a)

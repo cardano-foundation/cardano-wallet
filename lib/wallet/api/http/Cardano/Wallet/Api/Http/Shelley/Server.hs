@@ -3115,7 +3115,7 @@ balanceTransaction
                 mkRecentEra = case Cardano.cardanoEra @era of
                     Cardano.ConwayEra -> pure Write.RecentEraConway
                     Cardano.BabbageEra -> pure Write.RecentEraBabbage
-                    _ -> liftHandler $ throwE $ Write.ErrOldEraNotSupported era
+                    _ -> liftHandler $ throwE $ W.ErrOldEraNotSupported era
 
                 mkLedgerUTxO
                     :: [ApiExternalInput n]
@@ -3142,7 +3142,7 @@ balanceTransaction
                     (getState wallet)
                     partialTx
 
-        anyRecentTx <- maybeToHandler (Write.ErrOldEraNotSupported era)
+        anyRecentTx <- maybeToHandler (W.ErrOldEraNotSupported era)
             . Write.asAnyRecentEra
             . cardanoTxIdeallyNoLaterThan era
             . getApiT $ body ^. #transaction
@@ -4230,7 +4230,7 @@ guardIsRecentEra (Cardano.AnyCardanoEra era) = case era of
     Cardano.ShelleyEra -> liftE invalidEra
     Cardano.ByronEra   -> liftE invalidEra
   where
-    invalidEra = Write.ErrOldEraNotSupported $ Cardano.AnyCardanoEra era
+    invalidEra = W.ErrOldEraNotSupported $ Cardano.AnyCardanoEra era
 
 mkWithdrawal
     :: forall n block

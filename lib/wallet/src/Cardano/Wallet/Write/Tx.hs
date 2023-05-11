@@ -1,5 +1,6 @@
 {-# LANGUAGE AllowAmbiguousTypes #-}
 {-# LANGUAGE ConstraintKinds #-}
+{-# LANGUAGE ExplicitNamespaces #-}
 {-# LANGUAGE DataKinds #-}
 {-# LANGUAGE EmptyCase #-}
 {-# LANGUAGE FlexibleContexts #-}
@@ -199,7 +200,9 @@ import Data.Generics.Product
 import Data.IntCast
     ( intCast )
 import Data.Maybe
-    ( fromMaybe )
+    ( fromMaybe, isJust )
+import Data.Type.Equality
+    ( TestEquality (testEquality), type (:~:) (Refl) )
 import Data.Typeable
     ( Typeable )
 import Numeric.Natural
@@ -257,6 +260,12 @@ data RecentEra era where
 
 deriving instance Eq (RecentEra era)
 deriving instance Show (RecentEra era)
+
+instance TestEquality RecentEra where
+    testEquality RecentEraBabbage RecentEraBabbage = Just Refl
+    testEquality RecentEraConway RecentEraConway = Just Refl
+    testEquality RecentEraBabbage RecentEraConway = Nothing
+    testEquality RecentEraConway RecentEraBabbage = Nothing
 
 class
     ( Cardano.IsShelleyBasedEra era
@@ -383,6 +392,10 @@ data AnyRecentEra where
 
 instance Show AnyRecentEra where
     show (AnyRecentEra era) = "AnyRecentEra " <> show era
+
+instance Eq AnyRecentEra where
+    AnyRecentEra e1 == AnyRecentEra e2 =
+        isJust $ testEquality e1 e2
 
 fromAnyRecentEra :: AnyRecentEra -> Cardano.AnyCardanoEra
 fromAnyRecentEra (AnyRecentEra era) = Cardano.AnyCardanoEra (fromRecentEra era)
