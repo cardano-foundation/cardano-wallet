@@ -1189,7 +1189,7 @@ selectQuantityOf
     -> SelectionLimit
     -> utxoSelection u
     -> m (Maybe (UTxOSelectionNonEmpty u))
-selectQuantityOf a = selectMatchingQuantity
+selectQuantityOf a _limit = selectMatchingQuantity
     [ SelectSingleton a
     , SelectPairWith a
     , SelectAnyWith a
@@ -1217,14 +1217,12 @@ selectMatchingQuantity
     => NonEmpty (SelectionFilter Asset)
         -- ^ A list of selection filters to be traversed from left-to-right,
         -- in descending order of priority.
-    -> SelectionLimit
-        -- ^ A limit to adhere to when selecting entries.
     -> utxoSelection u
         -- ^ The current selection state.
     -> m (Maybe (UTxOSelectionNonEmpty u))
         -- ^ An updated selection state that includes a matching UTxO entry,
         -- or 'Nothing' if no such entry could be found.
-selectMatchingQuantity filters _limit s =
+selectMatchingQuantity filters s =
     (updateState =<<) <$> UTxOIndex.selectRandomWithPriority
         (UTxOSelection.leftoverIndex s) filters
   where
