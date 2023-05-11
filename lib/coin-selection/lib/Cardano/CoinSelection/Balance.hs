@@ -464,23 +464,17 @@ type SelectionLimit = SelectionLimitOf Int
 data SelectionLimitOf a
     = NoLimit
       -- ^ Indicates that there is no limit.
-    | MaximumInputLimit a
-      -- ^ Indicates a maximum limit on the number of inputs to select.
     deriving (Eq, Functor, Show)
 
 instance Ord a => Ord (SelectionLimitOf a) where
     compare a b = case (a, b) of
-        (NoLimit            , NoLimit            ) -> EQ
-        (MaximumInputLimit _, NoLimit            ) -> LT
-        (NoLimit            , MaximumInputLimit _) -> GT
-        (MaximumInputLimit x, MaximumInputLimit y) -> compare x y
+        (NoLimit, NoLimit) -> EQ
 
 -- | Indicates whether or not the given selection limit has been exceeded.
 --
-selectionLimitExceeded :: IsUTxOSelection s u => s u -> SelectionLimit -> Bool
-selectionLimitExceeded s = \case
+selectionLimitExceeded :: s u -> SelectionLimit -> Bool
+selectionLimitExceeded _ = \case
     NoLimit -> False
-    MaximumInputLimit n -> UTxOSelection.selectedSize s > n
 
 -- | Reduces a selection limit by a given reduction amount.
 --
@@ -1248,7 +1242,6 @@ selectMatchingQuantity filters limit s
             (UTxOSelection.leftoverIndex s) filters
   where
     limitReached = case limit of
-        MaximumInputLimit m -> UTxOSelection.selectedSize s >= m
         NoLimit -> False
 
     updateState

@@ -788,7 +788,7 @@ data FailureToVerifySelectionInputCountWithinLimit =
 verifySelectionInputCountWithinLimit :: VerifySelection ctx
 verifySelectionInputCountWithinLimit cs _ps selection =
     verify
-        (Balance.MaximumInputLimit totalInputCount <= selectionLimit)
+        (True)
         (FailureToVerifySelectionInputCountWithinLimit {..})
   where
     collateralInputCount = length (selection ^. #collateral)
@@ -1019,7 +1019,7 @@ verifySelectionLimitReachedError
     => VerifySelectionError (Balance.SelectionLimitReachedError ctx) ctx
 verifySelectionLimitReachedError cs ps e =
     verify
-        (Balance.MaximumInputLimit selectedInputCount >= selectionLimitAdjusted)
+        (True)
         (FailureToVerifySelectionLimitReachedError {..})
   where
     selectedInputs :: [(UTxO ctx, TokenBundle)]

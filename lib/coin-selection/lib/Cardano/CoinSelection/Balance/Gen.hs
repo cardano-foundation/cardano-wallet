@@ -55,14 +55,11 @@ import qualified Data.Set as Set
 
 genSelectionLimit :: Gen SelectionLimit
 genSelectionLimit = oneof
-    [ MaximumInputLimit . getNonNegative <$> arbitrary
-    , pure NoLimit
+    [ pure NoLimit
     ]
 
 shrinkSelectionLimit :: SelectionLimit -> [SelectionLimit]
 shrinkSelectionLimit = \case
-    MaximumInputLimit n ->
-        MaximumInputLimit . getNonNegative <$> shrink (NonNegative n)
     NoLimit ->
         []
 

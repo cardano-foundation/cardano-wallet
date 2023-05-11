@@ -241,9 +241,6 @@ prop_performSelection_coverage params r innerProperty =
         (isSelectionBalanceError_BalanceInsufficient r)
         "isSelectionBalanceError_BalanceInsufficient" $
     cover 0.1
-        (isSelectionBalanceError_SelectionLimitReached r)
-        "isSelectionBalanceError_SelectionLimitReached" $
-    cover 0.1
         (isSelectionBalanceError_UnableToConstructChange r)
         "isSelectionBalanceError_UnableToConstructChange" $
     cover 0.1
@@ -266,9 +263,6 @@ prop_performSelection_coverage params r innerProperty =
     isSelection = isRight
     isSelectionBalanceError_BalanceInsufficient = \case
         Left (SelectionBalanceErrorOf Balance.BalanceInsufficient {})
-            -> True; _ -> False
-    isSelectionBalanceError_SelectionLimitReached = \case
-        Left (SelectionBalanceErrorOf Balance.SelectionLimitReached {})
             -> True; _ -> False
     isSelectionBalanceError_UnableToConstructChange = \case
         Left (SelectionBalanceErrorOf Balance.UnableToConstructChange {})
@@ -401,8 +395,6 @@ prop_toBalanceConstraintsParams_computeSelectionLimit mockConstraints params =
         "collateral required: yes" $
     cover 10 (not (selectionCollateralRequired params))
         "collateral required: no" $
-    cover 10 (selectionLimitOriginal > selectionLimitAdjusted)
-        "selection limit (original) > selection limit (adjusted)" $
     report selectionLimitOriginal
         "selection limit (original)" $
     report selectionLimitAdjusted

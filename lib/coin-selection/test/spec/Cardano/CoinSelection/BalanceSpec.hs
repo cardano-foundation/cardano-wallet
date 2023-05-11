@@ -223,7 +223,6 @@ import Test.QuickCheck
     , resize
     , shrinkList
     , shrinkMapBy
-    , sized
     , suchThat
     , tabulate
     , withMaxSuccess
@@ -765,10 +764,6 @@ prop_performSelection_small mockConstraints (Blind (Small params)) =
     prop_performSelection mockConstraints params $ \result ->
         cover 10 (selectionUnlimited && selectionSufficient result)
             "selection unlimited and sufficient"
-        . cover 2 (selectionLimited && selectionSufficient result)
-            "selection limited but sufficient"
-        . cover 2 (selectionLimited && selectionInsufficient result)
-            "selection limited and insufficient"
   where
     utxoHasAtLeastOneAsset = not
         . Set.null
@@ -793,7 +788,6 @@ prop_performSelection_small mockConstraints (Blind (Small params)) =
 
     selectionLimited :: Bool
     selectionLimited = case selectionLimit of
-        MaximumInputLimit _ -> True
         NoLimit -> False
 
     selectionUnlimited :: Bool
@@ -802,11 +796,6 @@ prop_performSelection_small mockConstraints (Blind (Small params)) =
     selectionSufficient :: PerformSelectionResult -> Bool
     selectionSufficient = \case
         Right _ -> True
-        _ -> False
-
-    selectionInsufficient :: PerformSelectionResult -> Bool
-    selectionInsufficient = \case
-        Left (SelectionLimitReached _) -> True
         _ -> False
 
     assetsSpentByUserSpecifiedOutputs :: TokenMap
@@ -963,11 +952,6 @@ prop_performSelection mockConstraints params coverage =
             (view #extraCoinSink result == view #extraCoinSink params)
             "view #extraCoinSink result == view #extraCoinSink params" $
         case selectionLimit of
-            MaximumInputLimit limit ->
-                verify
-                    (NE.length (view #inputsSelected result) <= limit)
-                    "NE.length (view #inputsSelected result) <= limit" $
-                    property True
             NoLimit ->
                 property True
       where
@@ -1028,9 +1012,6 @@ prop_performSelection mockConstraints params coverage =
             "required balance" $
         report errorBalanceSelected
             "selected balance" $
-        verify
-            (selectionLimit <= MaximumInputLimit (length errorInputsSelected))
-            "selectionLimit <= MaximumInputLimit (length errorInputsSelected)" $
         verify
             (utxoBalanceRequired == errorBalanceRequired)
             "utxoBalanceRequired == errorBalanceRequired" $
@@ -2597,13 +2578,11 @@ computeMinimumCostLinear s
 
 data MockComputeSelectionLimit
     = MockComputeSelectionLimitNone
-    | MockComputeSelectionLimit Int
     deriving (Eq, Show)
 
 genMockComputeSelectionLimit :: Gen MockComputeSelectionLimit
 genMockComputeSelectionLimit = oneof
     [ pure MockComputeSelectionLimitNone
-    , MockComputeSelectionLimit <$> sized (\n -> choose (1, max 1 n))
     ]
 
 shrinkMockComputeSelectionLimit
@@ -2611,8 +2590,6 @@ shrinkMockComputeSelectionLimit
 shrinkMockComputeSelectionLimit = \case
     MockComputeSelectionLimitNone ->
         []
-    MockComputeSelectionLimit n ->
-        MockComputeSelectionLimit <$> filter (> 0) (shrink n)
 
 unMockComputeSelectionLimit
     :: MockComputeSelectionLimit
@@ -2620,8 +2597,6 @@ unMockComputeSelectionLimit
 unMockComputeSelectionLimit = \case
     MockComputeSelectionLimitNone ->
         const NoLimit
-    MockComputeSelectionLimit n ->
-        const $ MaximumInputLimit n
 
 --------------------------------------------------------------------------------
 -- Assessing token bundle sizes
@@ -4176,7 +4151,6 @@ prop_reduceSelectionLimitBy_coverage_limit limit =
     haveLimit :: Bool
     haveLimit = case limit of
         NoLimit -> False
-        MaximumInputLimit _ -> True
 
 prop_reduceSelectionLimitBy_coverage_reduction :: Int -> Property
 prop_reduceSelectionLimitBy_coverage_reduction reduction =
