@@ -189,6 +189,7 @@ library
     , string-interpolate
     , template-haskell
     , temporary
+    , these
     , text
     , text-class
     , these
@@ -253,6 +254,7 @@ library
     Cardano.Wallet.DB.Sqlite.Stores
     Cardano.Wallet.DB.Sqlite.Types
     Cardano.Wallet.DB.Store.Checkpoints
+    Cardano.Wallet.DB.Store.Delegations
     Cardano.Wallet.DB.Store.Info.Store
     Cardano.Wallet.DB.Store.Meta.Layer
     Cardano.Wallet.DB.Store.Meta.Model
@@ -271,6 +273,8 @@ library
     Cardano.Wallet.DB.Store.Wallets.Store
     Cardano.Wallet.DB.WalletState
     Cardano.Wallet.Delegation
+    Cardano.Wallet.Delegation.Model
+    Cardano.Wallet.Delegation.Properties
     Cardano.Wallet.Flavor
     Cardano.Wallet.Gen
     Cardano.Wallet.Logging
@@ -899,6 +903,7 @@ test-suite unit
     Cardano.Wallet.DB.Sqlite.StoresSpec
     Cardano.Wallet.DB.Sqlite.TypesSpec
     Cardano.Wallet.DB.StateMachine
+    Cardano.Wallet.DB.Store.Delegations.StoreSpec
     Cardano.Wallet.DB.Store.Info.StoreSpec
     Cardano.Wallet.DB.Store.Meta.ModelSpec
     Cardano.Wallet.DB.Store.Meta.StoreSpec
@@ -907,6 +912,7 @@ test-suite unit
     Cardano.Wallet.DB.Store.UTxOHistory.ModelSpec
     Cardano.Wallet.DB.Store.Wallets.LayerSpec
     Cardano.Wallet.DB.Store.Wallets.StoreSpec
+    Cardano.Wallet.Delegation.ModelSpec
     Cardano.Wallet.DelegationSpec
     Cardano.Wallet.DummyTarget.Primitive.Types
     Cardano.Wallet.Network.LightSpec

@@ -35,6 +35,7 @@ library
     , exceptions
     , fmt
     , io-classes
+    , mtl
     , QuickCheck
     , safe-exceptions
     , semigroupoids
