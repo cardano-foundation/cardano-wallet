@@ -201,6 +201,8 @@ import Test.QuickCheck
     , vector
     , vectorOf
     )
+import Test.QuickCheck.Extra
+    ( GenSeed (..), GenSize (..), generateWith )
 import Test.QuickCheck.Hedgehog
     ( hedgehog )
 import Test.QuickCheck.Instances.ByteString
@@ -1087,6 +1089,25 @@ genProtocolParameters =
     <*> liftArbitrary genNat
     <*> liftArbitrary genLovelace
 
+
+
+-- | A generator which only selects between two values for the sake of being
+-- fast. This is useful for hashing.
+genProtocolParametersFastTinyRange :: Gen ProtocolParameters
+genProtocolParametersFastTinyRange = frequency
+    [ (70, pure variantA)
+    , (30, pure variantB)
+    ]
+
+  where
+    variantA :: ProtocolParameters
+    variantA = generateWith (GenSeed 0) (GenSize 30)
+        genProtocolParametersWithAlonzoScripts
+
+    variantB :: ProtocolParameters
+    variantB = generateWith (GenSeed 1) (GenSize 30)
+        genProtocolParametersWithAlonzoScripts
+
 genProtocolParametersWithAlonzoScripts :: Gen ProtocolParameters
 genProtocolParametersWithAlonzoScripts =
   ProtocolParameters
@@ -1473,8 +1494,12 @@ genTxBodyContent era = do
                 , Api.txInsCollateral = collateral
                 }
         else do
-            pparams <-
-                (BuildTxWith . Just) <$> genProtocolParametersWithAlonzoScripts
+            -- The protocol parameters will be used by cardano-api only to
+            -- produce a script integrity hash. We gain a lot of performance by
+            -- using 'genProtocolParametersFastTinyRange' instead of
+            -- 'genProtocolParameters'.
+            pparams <- (BuildTxWith . Just)
+                <$> genProtocolParametersFastTinyRange
             collateral <-
                 case collateralSupportedInEra era of
                     Nothing -> pure TxInsCollateralNone
