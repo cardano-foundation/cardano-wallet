@@ -682,7 +682,6 @@ verifySelection = mconcat
     [ verifySelectionCollateralSufficient
     , verifySelectionCollateralSuitable
     , verifySelectionDeltaValid
-    , verifySelectionInputCountWithinLimit
     , verifySelectionOutputCoinsSufficient
     , verifySelectionOutputSizesWithinLimit
     , verifySelectionOutputTokenQuantitiesWithinLimit
@@ -766,34 +765,6 @@ verifySelectionDeltaValid cs ps selection =
     delta = selectionDeltaAllAssets selection
     minimumCost = selectionMinimumCost cs ps selection
     maximumCost = selectionMaximumCost cs ps selection
-
---------------------------------------------------------------------------------
--- Selection verification: selection limit
---------------------------------------------------------------------------------
-
-data FailureToVerifySelectionInputCountWithinLimit =
-    FailureToVerifySelectionInputCountWithinLimit
-    { collateralInputCount
-        :: Int
-    , ordinaryInputCount
-        :: Int
-    , totalInputCount
-        :: Int
-    , selectionLimit
-        :: SelectionLimit
-    }
-    deriving (Eq, Show)
-
-verifySelectionInputCountWithinLimit :: VerifySelection ctx
-verifySelectionInputCountWithinLimit cs _ps selection =
-    verify
-        (True)
-        (FailureToVerifySelectionInputCountWithinLimit {..})
-  where
-    collateralInputCount = length (selection ^. #collateral)
-    ordinaryInputCount = length (selection ^. #inputs)
-    totalInputCount = collateralInputCount + ordinaryInputCount
-    selectionLimit = (cs ^. #computeSelectionLimit) (selection ^. #outputs)
 
 --------------------------------------------------------------------------------
 -- Selection verification: minimum ada quantities
