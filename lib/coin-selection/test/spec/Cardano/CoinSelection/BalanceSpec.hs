@@ -778,11 +778,8 @@ prop_performSelection_small mockConstraints (Blind (Small params)) =
             . fmap snd
             $ view #outputsToCover params
 
-    selectionLimited :: Bool
-    selectionLimited = False
-
     selectionUnlimited :: Bool
-    selectionUnlimited = not selectionLimited
+    selectionUnlimited = True
 
     selectionSufficient :: PerformSelectionResult -> Bool
     selectionSufficient = \case
