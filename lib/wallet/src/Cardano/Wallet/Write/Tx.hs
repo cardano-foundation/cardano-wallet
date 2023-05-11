@@ -50,6 +50,7 @@ module Cardano.Wallet.Write.Tx
     , toCardanoUTxO
     , fromCardanoUTxO
     , toCardanoValue
+    , toCardanoLovelace
     , toCardanoTx
 
     -- ** Existential wrapper
@@ -852,6 +853,11 @@ toCardanoValue
     => Core.Value (ShelleyLedgerEra era)
     -> Cardano.Value
 toCardanoValue = withConstraints (recentEra @era) Cardano.fromMaryValue
+
+toCardanoLovelace
+    :: Coin
+    -> Cardano.Lovelace
+toCardanoLovelace = Cardano.fromShelleyLovelace
 
 --------------------------------------------------------------------------------
 -- PParams
