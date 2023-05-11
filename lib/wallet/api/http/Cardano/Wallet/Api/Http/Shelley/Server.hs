@@ -155,10 +155,6 @@ import Cardano.Api
     , toNetworkMagic
     , unNetworkMagic
     )
-import Cardano.Api.Extra
-    ( inAnyCardanoEra )
-import Cardano.Api.Shelley
-    ( ShelleyLedgerEra )
 import Cardano.BM.Tracing
     ( HasPrivacyAnnotation (..), HasSeverityAnnotation (..) )
 import Cardano.Mnemonic
@@ -509,7 +505,7 @@ import Cardano.Wallet.Primitive.Types.Tx
     , TxChange (..)
     , TxStatus (..)
     , UnsignedTx (..)
-    , cardanoTxIdeallyNoLaterThan
+    , cardanoTxInExactEra
     , getSealedTxWitnesses
     , sealedTxFromCardanoBody
     )
@@ -559,7 +555,7 @@ import Control.DeepSeq
 import Control.Error.Util
     ( failWith )
 import Control.Monad
-    ( forM, forever, join, void, when, (<=<), (>=>) )
+    ( forM, forever, join, void, when, (>=>) )
 import Control.Monad.Error.Class
     ( throwError )
 import Control.Monad.IO.Class
@@ -3078,77 +3074,32 @@ balanceTransaction
 balanceTransaction
     ctx@ApiLayer{..} argGenChange utxoAssumptions (ApiT wid) body = do
     -- NOTE: Ideally we'd read @pp@ and @era@ atomically.
-    pp <- liftIO $ NW.currentProtocolParameters nl
-    era <- liftIO $ NW.currentNodeEra nl
+    era <- liftIO $ NW.currentNodeEra netLayer
+    pp <- liftIO (currentProtocolParameters netLayer)
+    Write.AnyRecentEra recentEra <- guardIsRecentEra era
+
     withWorkerCtx ctx wid liftE liftE $ \wrk -> do
-        (walletUTxO, wallet, _txs) <- handler $ W.readWalletUTxO @_ @s wrk
+        (utxo, wallet, _txs) <- handler $ W.readWalletUTxO wrk
         timeTranslation <- liftIO $ toTimeTranslation (timeInterpreter netLayer)
-        let mkPartialTx
-                :: forall era. Write.IsRecentEra era => Cardano.Tx era
-                -> Handler (Write.PartialTx era)
-            mkPartialTx tx = do
-                utxo <- fmap Write.toCardanoUTxO $ mkLedgerUTxO $ body ^. #inputs
-                pure $ Write.PartialTx
-                    tx
-                    utxo
-                    (fromApiRedeemer <$> body ^. #redeemers)
-              where
-                -- NOTE: There are a couple of spread-out pieces of logic
-                -- dealing with the choice of era, most prominantly: tx, utxo,
-                -- pparams / current node era. It /might/ be neater to have a
-                -- single function dedicated to this choice instead; something
-                -- like
-                -- @@
-                --      chooseEra
-                --          :: InRecentEra Tx
-                --          -> InRecentEra UTxO
-                --          -> InRecentEra PParams
-                --          -> (IsRecentEra era
-                --              => Tx era
-                --              -> UTxO era
-                --              -> PParams era
-                --              -> res)
-                --          -> res
-                -- @@
 
-                mkRecentEra :: Handler (Write.RecentEra era)
-                mkRecentEra = case Cardano.cardanoEra @era of
-                    Cardano.ConwayEra -> pure Write.RecentEraConway
-                    Cardano.BabbageEra -> pure Write.RecentEraBabbage
-                    _ -> liftHandler $ throwE $ W.ErrOldEraNotSupported era
-
-                mkLedgerUTxO
-                    :: [ApiExternalInput n]
-                    -> Handler (Write.UTxO (ShelleyLedgerEra era))
-                mkLedgerUTxO ins = do
-                    recentEra <- mkRecentEra
-                    pure
-                        . Write.utxoFromTxOutsInRecentEra recentEra
-                        . map fromExternalInput
-                        $ ins
+        partialTx <- parsePartialTx recentEra
 
         let balanceTx
                 :: forall era. Write.IsRecentEra era
                 => Write.PartialTx era
                 -> Handler (Cardano.Tx era)
-            balanceTx partialTx =
+            balanceTx ptx =
                 liftHandler $ fst <$> Write.balanceTransaction @_ @IO @s
                     (MsgWallet . W.MsgBalanceTx >$< wrk ^. W.logger)
                     utxoAssumptions
                     (Write.unsafeFromWalletProtocolParameters pp)
                     timeTranslation
-                    (constructUTxOIndex walletUTxO)
+                    (Write.constructUTxOIndex utxo)
                     (W.defaultChangeAddressGen argGenChange)
                     (getState wallet)
-                    partialTx
+                    ptx
 
-        anyRecentTx <- maybeToHandler (W.ErrOldEraNotSupported era)
-            . Write.asAnyRecentEra
-            . cardanoTxIdeallyNoLaterThan era
-            . getApiT $ body ^. #transaction
-
-        res <- Write.withInAnyRecentEra anyRecentTx
-            (fmap inAnyCardanoEra . balanceTx <=< mkPartialTx)
+        res <- Cardano.InAnyCardanoEra Write.cardanoEra <$> balanceTx partialTx
 
         case body ^. #encoding of
             Just HexEncoded ->
@@ -3157,11 +3108,27 @@ balanceTransaction
             _ -> pure $ ApiSerialisedTransaction
                 (ApiT $ W.sealedTxFromCardano res) Base64Encoded
   where
-    nl = ctx ^. networkLayer
+    parsePartialTx
+        :: Write.IsRecentEra era
+        => Write.RecentEra era
+        -> Handler (Write.PartialTx era)
+    parsePartialTx era = do
+        let externalUTxO = Write.toCardanoUTxO
+                $ Write.utxoFromTxOutsInRecentEra era
+                $ map fromExternalInput
+                $ body ^. #inputs
 
-    maybeToHandler :: IsServerError e => e -> Maybe a -> Handler a
-    maybeToHandler _ (Just a) = pure a
-    maybeToHandler e Nothing  = liftHandler $ throwE e
+        tx <- maybe
+                (liftHandler $ throwE $ W.ErrTxNotInNodeEra $ AnyRecentEra era)
+                pure
+            . cardanoTxInExactEra (Write.cardanoEraFromRecentEra era)
+            . getApiT
+            $ body ^. #transaction
+
+        return $ Write.PartialTx
+            tx
+            externalUTxO
+            (fromApiRedeemer <$> body ^. #redeemers)
 
 decodeTransaction
     :: forall s n

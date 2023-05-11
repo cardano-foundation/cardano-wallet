@@ -4748,6 +4748,17 @@ x-errBalanceTxEraNotSupported: &errBalanceTxEraNotSupported
       type: string
       enum: ["balance_tx_era_not_supported"]
 
+x-errTxNotInNodeEra: &errTxNotInNodeEra
+  <<: *responsesErr
+  title: tx_not_in_node_era
+  properties:
+    message:
+      type: string
+      description: The transaction could be deserialised, just not in the era of the local node.
+    code:
+      type: string
+      enum: ["tx_not_in_node_era"]
+
 x-errBalanceTxConflictingNetworks: &errBalanceTxConflictingNetworks
   <<: *responsesErr
   title: balance_tx_conflicting_networks
@@ -6191,6 +6202,7 @@ x-responsesBalanceTransaction: &responsesBalanceTransaction
             - <<: *errTransactionAlreadyBalanced
             - <<: *errTransactionIsTooBig
             - <<: *errUtxoTooSmall
+            - <<: *errTxNotInNodeEra
 
   <<: *responsesErr404WalletNotFound
   <<: *responsesErr406

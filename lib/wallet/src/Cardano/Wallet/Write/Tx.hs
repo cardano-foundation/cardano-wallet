@@ -1,8 +1,8 @@
 {-# LANGUAGE AllowAmbiguousTypes #-}
 {-# LANGUAGE ConstraintKinds #-}
-{-# LANGUAGE ExplicitNamespaces #-}
 {-# LANGUAGE DataKinds #-}
 {-# LANGUAGE EmptyCase #-}
+{-# LANGUAGE ExplicitNamespaces #-}
 {-# LANGUAGE FlexibleContexts #-}
 {-# LANGUAGE FlexibleInstances #-}
 {-# LANGUAGE GADTs #-}
@@ -202,7 +202,7 @@ import Data.IntCast
 import Data.Maybe
     ( fromMaybe, isJust )
 import Data.Type.Equality
-    ( TestEquality (testEquality), type (:~:) (Refl) )
+    ( (:~:) (Refl), TestEquality (testEquality) )
 import Data.Typeable
     ( Typeable )
 import Numeric.Natural
