@@ -87,7 +87,7 @@ import Cardano.Wallet.Primitive.Passphrase.Types
 import Cardano.Wallet.Primitive.Slotting
     ( PastHorizonException )
 import Cardano.Wallet.Primitive.Types
-    ( Certificate, ProtocolParameters, SlotNo (..), TokenBundleMaxSize (..) )
+    ( Certificate, ProtocolParameters, SlotNo (..) )
 import Cardano.Wallet.Primitive.Types.Address
     ( Address (..) )
 import Cardano.Wallet.Primitive.Types.Coin
@@ -98,6 +98,8 @@ import Cardano.Wallet.Primitive.Types.Redeemer
     ( Redeemer )
 import Cardano.Wallet.Primitive.Types.RewardAccount
     ( RewardAccount )
+import Cardano.Wallet.Primitive.Types.TokenBundle.MaxSize
+    ( TokenBundleMaxSize )
 import Cardano.Wallet.Primitive.Types.TokenMap
     ( AssetId, TokenMap )
 import Cardano.Wallet.Primitive.Types.TokenPolicy

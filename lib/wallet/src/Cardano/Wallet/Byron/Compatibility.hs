@@ -62,6 +62,8 @@ import Cardano.Crypto.ProtocolMagic
     ( ProtocolMagicId, unProtocolMagicId )
 import Cardano.Wallet.Primitive.Types.MinimumUTxO
     ( minimumUTxONone )
+import Cardano.Wallet.Primitive.Types.TokenBundle.MaxSize
+    ( TokenBundleMaxSize (..) )
 import Cardano.Wallet.Read.Primitive.Tx.Byron
     ( fromTxAux )
 import Cardano.Wallet.Read.Primitive.Tx.Features.Inputs
@@ -103,9 +105,7 @@ import qualified Cardano.Wallet.Primitive.Types.Coin as W
 import qualified Cardano.Wallet.Primitive.Types.Hash as W
 import qualified Cardano.Wallet.Primitive.Types.ProtocolMagic as W
 import qualified Cardano.Wallet.Primitive.Types.Tx as W
-import qualified Cardano.Wallet.Primitive.Types.Tx.Constraints as W
 import qualified Cardano.Wallet.Primitive.Types.Tx.TxOut as W
-    ( TxOut (TxOut) )
 import qualified Data.Map.Strict as Map
 import qualified Ouroboros.Consensus.Block as O
 
@@ -162,8 +162,8 @@ mainnetNetworkParameters = W.NetworkParameters
 --
 -- NOTE: A bit weird to define in "Cardano.Wallet.Byron.Compatibility", but we
 -- need it both here and in "Cardano.Wallet.Shelley.Compatibility".
-maryTokenBundleMaxSize :: W.TokenBundleMaxSize
-maryTokenBundleMaxSize = W.TokenBundleMaxSize $ W.TxSize 4_000
+maryTokenBundleMaxSize :: TokenBundleMaxSize
+maryTokenBundleMaxSize = TokenBundleMaxSize 4_000
 
 -- NOTE
 -- For MainNet and TestNet, we can get away with empty genesis blocks with

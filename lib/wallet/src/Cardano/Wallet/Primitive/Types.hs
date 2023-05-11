@@ -70,7 +70,6 @@ module Cardano.Wallet.Primitive.Types
     , SlottingParameters (..)
     , ProtocolParameters (..)
     , TxParameters (..)
-    , TokenBundleMaxSize (..)
     , EraInfo (..)
     , emptyEraInfo
     , ActiveSlotCoefficient (..)
@@ -169,8 +168,8 @@ import Cardano.Wallet.Primitive.Types.MinimumUTxO
     ( MinimumUTxO )
 import Cardano.Wallet.Primitive.Types.RewardAccount
     ( RewardAccount (..) )
-import Cardano.Wallet.Primitive.Types.Tx.Constraints
-    ( TxSize (..) )
+import Cardano.Wallet.Primitive.Types.TokenBundle.MaxSize
+    ( TokenBundleMaxSize )
 import Cardano.Wallet.Primitive.Types.Tx.Tx
     ( Tx (..) )
 import Cardano.Wallet.Util
@@ -253,8 +252,6 @@ import NoThunks.Class
     ( NoThunks )
 import Numeric.Natural
     ( Natural )
-import Test.QuickCheck
-    ( Arbitrary (..), oneof )
 
 import qualified Cardano.Api.Shelley as Node
 import qualified Data.Text as T
@@ -1004,30 +1001,6 @@ instance NFData DecentralizationLevel
 
 instance Buildable DecentralizationLevel where
     build = build . getDecentralizationLevel
-
--- | The maximum size of a serialized `TokenBundle` (`_maxValSize` in the Alonzo
--- ledger)
-newtype TokenBundleMaxSize = TokenBundleMaxSize
-    { unTokenBundleMaxSize :: TxSize }
-    deriving (Eq, Generic, Show)
-
-instance NFData TokenBundleMaxSize
-
-instance Arbitrary TokenBundleMaxSize where
-    arbitrary = TokenBundleMaxSize . TxSize <$>
-        oneof
-          -- Generate values close to the mainnet value of 4000 (and guard
-          -- against underflow)
-          [ fromIntegral . max 0 . (4000 +) <$> arbitrary @Int
-
-          -- Generate more extreme values (both small and large)
-          , fromIntegral <$> arbitrary @Word64
-          ]
-    shrink (TokenBundleMaxSize (TxSize s)) =
-        map (TokenBundleMaxSize . TxSize . fromIntegral)
-        . shrink @Word64 -- Safe w.r.t the generator, despite TxSize wrapping a
-                         -- Natural
-        $ fromIntegral s
 
 -- | Parameters that relate to the construction of __transactions__.
 --

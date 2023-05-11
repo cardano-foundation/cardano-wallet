@@ -45,7 +45,6 @@ import Cardano.Wallet.Primitive.Types
     , SlotNo (..)
     , SlottingParameters (..)
     , StartTime (..)
-    , TokenBundleMaxSize (..)
     , TxParameters (..)
     , emptyEraInfo
     )
@@ -57,10 +56,10 @@ import Cardano.Wallet.Primitive.Types.MinimumUTxO
     ( MinimumUTxO (MinimumUTxONone) )
 import Cardano.Wallet.Primitive.Types.RewardAccount
     ( RewardAccount (..) )
+import Cardano.Wallet.Primitive.Types.TokenBundle.MaxSize
+    ( TokenBundleMaxSize (TokenBundleMaxSize) )
 import Cardano.Wallet.Primitive.Types.Tx
     ( Tx (..), TxCBOR, TxMetadata (..), TxScriptValidity (..) )
-import Cardano.Wallet.Primitive.Types.Tx.Constraints
-    ( TxSize (..) )
 import Cardano.Wallet.Primitive.Types.Tx.TxIn
     ( TxIn (..) )
 import Cardano.Wallet.Primitive.Types.Tx.TxOut
@@ -119,7 +118,7 @@ dummyTxParameters :: TxParameters
 dummyTxParameters = TxParameters
     { getFeePolicy = LinearFee $ LinearFunction { intercept = 14, slope = 42 }
     , getTxMaxSize = Quantity 8192
-    , getTokenBundleMaxSize = TokenBundleMaxSize (TxSize 2_000)
+    , getTokenBundleMaxSize = TokenBundleMaxSize 2_000
     , getMaxExecutionUnits = ExecutionUnits 10 14
     }
 

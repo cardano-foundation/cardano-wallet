@@ -160,8 +160,7 @@ data NetworkLayer m block = NetworkLayer
         -> m StakePoolsSummary
 
     , getCachedRewardAccountBalance
-        :: RewardAccount
-        -- Either reward account from key hash or script hash
+        :: RewardAccount -- Either reward account from key hash or script hash
         -> m Coin
         -- ^ Return the cached reward balance of an account.
         --

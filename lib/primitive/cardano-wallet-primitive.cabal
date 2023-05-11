@@ -88,6 +88,7 @@ library
     Cardano.Wallet.Primitive.Types.Hash
     Cardano.Wallet.Primitive.Types.TokenBundle
     Cardano.Wallet.Primitive.Types.TokenBundle.Gen
+    Cardano.Wallet.Primitive.Types.TokenBundle.MaxSize
     Cardano.Wallet.Primitive.Types.TokenMap
     Cardano.Wallet.Primitive.Types.TokenMap.Gen
     Cardano.Wallet.Primitive.Types.TokenPolicy

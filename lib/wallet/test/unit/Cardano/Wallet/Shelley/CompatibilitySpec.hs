@@ -52,7 +52,7 @@ import Cardano.Wallet.Address.Derivation.Shelley
 import Cardano.Wallet.Byron.Compatibility
     ( maryTokenBundleMaxSize )
 import Cardano.Wallet.Primitive.Types
-    ( SlotId (..), TokenBundleMaxSize (..), getDecentralizationLevel )
+    ( SlotId (..), getDecentralizationLevel )
 import Cardano.Wallet.Primitive.Types.Address
     ( Address (..) )
 import Cardano.Wallet.Primitive.Types.Coin
@@ -65,6 +65,8 @@ import Cardano.Wallet.Primitive.Types.TokenBundle
     ( TokenBundle )
 import Cardano.Wallet.Primitive.Types.TokenBundle.Gen
     ( genTokenBundle, genTokenBundleSmallRange, shrinkTokenBundleSmallRange )
+import Cardano.Wallet.Primitive.Types.TokenBundle.MaxSize
+    ( TokenBundleMaxSize )
 import Cardano.Wallet.Primitive.Types.Tx.Constraints
     ( TokenBundleSizeAssessment (..)
     , TokenBundleSizeAssessor (..)
@@ -79,7 +81,6 @@ import Cardano.Wallet.Read.NetworkId
 import Cardano.Wallet.Shelley.Compatibility
     ( CardanoBlock
     , StandardCrypto
-    , computeTokenBundleSerializedLengthBytes
     , decentralizationLevelFromPParams
     , decodeAddress
     , decodeStakeAddress
@@ -93,6 +94,7 @@ import Cardano.Wallet.Shelley.Compatibility
     , toCardanoHash
     , toCardanoValue
     , toTip
+    , tokenBundleSerializedLengthBytes
     , tokenBundleSizeAssessor
     )
 import Cardano.Wallet.Unsafe
@@ -482,10 +484,10 @@ unit_assessTokenBundleSize_fixedSizeBundle
             , actualLengthBytes <= expectedMaxLengthBytes
             ]
   where
-    actualAssessment = assessTokenBundleSize
-        (tokenBundleSizeAssessor maxSize)
-        bundle
-    actualLengthBytes = computeTokenBundleSerializedLengthBytes bundle
+    actualAssessment =
+        assessTokenBundleSize (tokenBundleSizeAssessor maxSize) bundle
+    actualLengthBytes =
+        TxSize $ tokenBundleSerializedLengthBytes bundle
     counterexampleText = unlines
         [ "Expected min length bytes:"
         , show expectedMinLengthBytes

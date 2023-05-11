@@ -162,7 +162,6 @@ import Cardano.Wallet.Primitive.Types
     , FeePolicy (..)
     , LinearFunction (..)
     , ProtocolParameters (..)
-    , TokenBundleMaxSize (..)
     , TxParameters (..)
     )
 import Cardano.Wallet.Primitive.Types.Address
@@ -187,6 +186,8 @@ import Cardano.Wallet.Primitive.Types.TokenBundle
     ( AssetId, TokenBundle, tokenName )
 import Cardano.Wallet.Primitive.Types.TokenBundle.Gen
     ( genTokenBundleSmallRange, shrinkTokenBundleSmallRange )
+import Cardano.Wallet.Primitive.Types.TokenBundle.MaxSize
+    ( TokenBundleMaxSize (..) )
 import Cardano.Wallet.Primitive.Types.TokenPolicy
     ( TokenName (UnsafeTokenName), TokenPolicyId, unTokenName )
 import Cardano.Wallet.Primitive.Types.TokenPolicy.Gen
@@ -205,7 +206,7 @@ import Cardano.Wallet.Primitive.Types.Tx
     , txMetadataIsNull
     )
 import Cardano.Wallet.Primitive.Types.Tx.Constraints
-    ( TokenBundleSizeAssessor, TxConstraints (..), TxSize (..) )
+    ( TxConstraints (..), TxSize (..) )
 import Cardano.Wallet.Primitive.Types.Tx.TxIn
     ( TxIn (..) )
 import Cardano.Wallet.Primitive.Types.Tx.TxIn.Gen
@@ -227,12 +228,12 @@ import Cardano.Wallet.Read.Primitive.Tx.Features.Integrity
 import Cardano.Wallet.Read.Tx.Cardano
     ( fromCardanoApiTx )
 import Cardano.Wallet.Shelley.Compatibility
-    ( computeTokenBundleSerializedLengthBytes
-    , fromCardanoLovelace
+    ( fromCardanoLovelace
     , fromCardanoValue
     , toCardanoLovelace
     , toCardanoTxIn
     , toCardanoValue
+    , tokenBundleSerializedLengthBytes
     )
 import Cardano.Wallet.Shelley.Compatibility.Ledger
     ( toBabbageTxOut, toLedger, toLedgerTokenBundle, toWallet )
@@ -2030,7 +2031,7 @@ mockProtocolParameters = dummyProtocolParameters
     , txParameters = TxParameters
         { getFeePolicy = mockFeePolicy
         , getTxMaxSize = Quantity 16_384
-        , getTokenBundleMaxSize = TokenBundleMaxSize $ TxSize 4_000
+        , getTokenBundleMaxSize = TokenBundleMaxSize 4_000
         , getMaxExecutionUnits = ExecutionUnits 10_000_000_000 14_000_000
         }
     , minimumUTxO = minimumUTxOForShelleyBasedEra Cardano.ShelleyBasedEraAlonzo
@@ -2179,13 +2180,14 @@ prop_txConstraints_txOutputMaximumSize era (Blind (Large bundle)) =
     simulatedComparison = compare simulatedSize simulatedSizeMax
 
     authenticSize :: TxSize
-    authenticSize = computeTokenBundleSerializedLengthBytes bundle
+    authenticSize = TxSize $ tokenBundleSerializedLengthBytes bundle
 
     authenticSizeMax :: TxSize
-    authenticSizeMax = unTokenBundleMaxSize maryTokenBundleMaxSize
+    authenticSizeMax = TxSize $ naturalTokenBundleMaxSize maryTokenBundleMaxSize
 
     simulatedSize :: TxSize
     simulatedSize = txOutputSize (mockTxConstraints era) bundle
+
     simulatedSizeMax :: TxSize
     simulatedSizeMax = txOutputMaximumSize (mockTxConstraints era)
 
@@ -3024,7 +3026,6 @@ instance MonadRandom Gen where
 data Wallet' = Wallet'
     TxWitnessTag
     UTxOAssumptions
-    (TokenBundleMaxSize -> TokenBundleSizeAssessor)
     UTxO
     AnyChangeAddressGenWithState
     deriving Show via (ShowBuildable Wallet')
@@ -3047,7 +3048,7 @@ instance Buildable AnyChangeAddressGenWithState where
             ]
 
 instance Buildable Wallet' where
-    build (Wallet' witnessTag assumptions _sizeAssessor utxo changeAddressGen) =
+    build (Wallet' witnessTag assumptions utxo changeAddressGen) =
         nameF "Wallet" $ mconcat
             [ nameF "txWitnessTag" $ build witnessTag
             , nameF "assumptions" $ build assumptions
@@ -3066,14 +3067,12 @@ instance Arbitrary Wallet' where
         [ Wallet'
             TxWitnessShelleyUTxO
             AllKeyPaymentCredentials
-            Compatibility.tokenBundleSizeAssessor
             <$> genWalletUTxO genShelleyVkAddr
             <*> pure dummyShelleyChangeAddressGen
 
         , Wallet'
             TxWitnessByronUTxO
             AllByronKeyPaymentCredentials
-            Compatibility.tokenBundleSizeAssessor
             <$> genWalletUTxO genByronVkAddr
             <*> pure dummyByronChangeAddressGen
         ]
@@ -3111,13 +3110,11 @@ instance Arbitrary Wallet' where
         ( Wallet'
             witnessTag
             utxoAssumptions
-            sizeAssessor
             utxo
             changeAddressGen ) =
             [ Wallet'
                 witnessTag
                 utxoAssumptions
-                sizeAssessor
                 utxo'
                 changeAddressGen
             | utxo' <- shrinkUTxO utxo
@@ -3139,7 +3136,6 @@ mkTestWallet utxo =
     Wallet'
         TxWitnessShelleyUTxO
         AllKeyPaymentCredentials
-        Compatibility.tokenBundleSizeAssessor
         utxo
         dummyShelleyChangeAddressGen
 
@@ -3429,7 +3425,6 @@ balanceTx
     ( Wallet'
         witnessTag
         utxoAssumptions
-        sizeAssessor
         utxo
         (AnyChangeAddressGenWithState genChange s)
     )
@@ -3440,7 +3435,7 @@ balanceTx
                     nullTracer
                     witnessTag
                     utxoAssumptions
-                    sizeAssessor
+                    Compatibility.tokenBundleSizeAssessor
                     pp
                     timeTranslation
                     (constructUTxOIndex utxo)
@@ -3698,7 +3693,7 @@ prop_balanceTransactionValid
     -> StdGenSeed
     -> Property
 prop_balanceTransactionValid
-    wallet@(Wallet' _ _ _ walletUTxO _) (ShowBuildable partialTx) seed =
+    wallet@(Wallet' _ _ walletUTxO _) (ShowBuildable partialTx) seed =
         withMaxSuccess 1_000 $ do
         let combinedUTxO =
                 view #inputs partialTx

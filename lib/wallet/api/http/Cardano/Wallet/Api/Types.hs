@@ -1269,9 +1269,10 @@ toApiNetworkParameters (NetworkParameters gp sp pp) toEpochInfo = do
             view #maximumCollateralInputCount pp
         , minimumCollateralPercentage =
             view #minimumCollateralPercentage pp
-        , maximumTokenBundleSize = Quantity $ pp ^.
-            (#txParameters . #getTokenBundleMaxSize . #unTokenBundleMaxSize .
-            #unTxSize)
+        , maximumTokenBundleSize = Quantity $
+            pp ^. #txParameters
+                . #getTokenBundleMaxSize
+                . #naturalTokenBundleMaxSize
         , executionUnitPrices = view #executionUnitPrices pp
         }
 

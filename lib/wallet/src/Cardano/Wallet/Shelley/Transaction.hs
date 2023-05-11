@@ -1353,11 +1353,9 @@ txConstraints era protocolParams witnessTag = TxConstraints
     txOutputSize bundle =
         marginalSizeOf empty {txOutputs = [mkTxOut bundle]}
 
-    txOutputMaximumSize = (<>)
-        (txOutputSize mempty)
-        (view
-            (#txParameters . #getTokenBundleMaxSize . #unTokenBundleMaxSize)
-            protocolParams)
+    txOutputMaximumSize =
+        txOutputSize mempty <> TxSize (protocolParams ^.
+            #txParameters . #getTokenBundleMaxSize . #naturalTokenBundleMaxSize)
 
     txOutputMaximumTokenQuantity =
         TokenQuantity $ fromIntegral $ maxBound @Word64

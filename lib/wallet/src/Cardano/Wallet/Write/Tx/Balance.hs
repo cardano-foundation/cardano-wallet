@@ -76,14 +76,14 @@ import Cardano.Tx.Balance.Internal.CoinSelection
     , performSelection
     , toInternalUTxOMap
     )
-import Cardano.Wallet.Primitive.Types
-    ( TokenBundleMaxSize (TokenBundleMaxSize) )
 import Cardano.Wallet.Primitive.Types.Hash
     ( Hash (..) )
 import Cardano.Wallet.Primitive.Types.Redeemer
     ( Redeemer )
 import Cardano.Wallet.Primitive.Types.TokenBundle
     ( TokenBundle (..) )
+import Cardano.Wallet.Primitive.Types.TokenBundle.MaxSize
+    ( TokenBundleMaxSize (..) )
 import Cardano.Wallet.Primitive.Types.TokenPolicy
     ( TokenName (..), TokenPolicyId (..) )
 import Cardano.Wallet.Primitive.Types.TokenQuantity
@@ -878,7 +878,6 @@ selectAssets' era (ProtocolParameters pp) txWitnessTag utxoAssumptions outs
             view #assessTokenBundleSize
             $ bundleSizeAssessor
             $ TokenBundleMaxSize
-            $ TxSize
             $ case era of
                 RecentEraBabbage -> pp ^. #_maxValSize
                 RecentEraConway -> pp ^. #_maxValSize
