@@ -170,7 +170,6 @@ library
     , random
     , random-shuffle
     , resource-pool
-    , resourcet
     , retry
     , safe
     , safe-money
@@ -902,6 +901,7 @@ test-suite unit
     Cardano.Wallet.DB.Arbitrary
     Cardano.Wallet.DB.Fixtures
     Cardano.Wallet.DB.LayerSpec
+    Cardano.Wallet.DB.MigrationSpec
     Cardano.Wallet.DB.Properties
     Cardano.Wallet.DB.Pure.ImplementationSpec
     Cardano.Wallet.DB.Sqlite.StoresSpec
