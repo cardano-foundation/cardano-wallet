@@ -706,6 +706,8 @@ import qualified Network.Ntp as Ntp
 import qualified Network.Wai.Handler.Warp as Warp
 import qualified Network.Wai.Handler.WarpTLS as Warp
 
+import qualified Debug.Trace as TR
+
 -- | How the server should listen for incoming requests.
 data Listen
     = ListenOnPort Port
@@ -2879,8 +2881,8 @@ constructSharedTransaction
 
         withdrawal <- case body ^. #withdrawal of
             Just SelfWithdraw -> liftIO $
-                W.mkSelfWithdrawalShared @_ @_ @n
-                    netLayer txLayer era db wid
+                W.mkSelfWithdrawalShared @n
+                    netLayer (txWitnessTagFor @SharedKey) era db
             _ -> pure NoWithdrawal
 
         let delegationTemplateM = Shared.delegationTemplate $ getState cp
@@ -2891,13 +2893,7 @@ constructSharedTransaction
             forM delegationRequest $
                 WD.handleDelegationRequest
                     trWorker db epoch knownPools
-                    getPoolStatus NoWithdrawal
-
-        withdrawal <- case body ^. #withdrawal of
-            Just SelfWithdraw -> liftIO $
-                W.shelleyOnlyMkSelfWithdrawal @_ @_ @n
-                      netLayer (txWitnessTagFor @SharedKey) era db
-            _ -> pure NoWithdrawal
+                    getPoolStatus withdrawal
 
         let txCtx = defaultTransactionCtx
                 { txWithdrawal = withdrawal
@@ -2943,26 +2939,26 @@ constructSharedTransaction
                 let refunds = case optionalDelegationAction of
                         Just Quit -> [W.getStakeKeyDeposit pp]
                         _ -> []
+                rewardAccountM <- handler $ W.readSharedRewardAccount @n db
                 delCerts <- case optionalDelegationAction of
                     Nothing -> pure Nothing
                     Just action -> do
-                        resM <- handler $ W.readSharedRewardAccount @n db
                         --at this moment we are sure reward account is present
                         --if not ErrConstructTxDelegationInvalid would be thrown already
-                        pure $ Just (action, snd $ fromJust resM)
+                        pure $ Just (action, snd $ fromJust rewardAccountM)
 
                 pure $ ApiConstructTransaction
                     { transaction = balancedTx
                     , coinSelection =
                         mkApiCoinSelection deposits refunds
-                        delCerts md (unsignedTx outs apiDecoded delCerts)
+                        delCerts md (unsignedTx outs apiDecoded rewardAccountM)
                     , fee = apiDecoded ^. #fee
                     }
   where
     ti :: TimeInterpreter (ExceptT PastHorizonException IO)
     ti = timeInterpreter (api ^. networkLayer)
 
-    unsignedTx initialOuts decodedTx rewardDel = UnsignedTx
+    unsignedTx initialOuts decodedTx rewardAccountM = TR.trace ("unsignedTx:"<> show rewardAccountM<>" decodedTx:"<>show decodedTx) $ UnsignedTx
         { unsignedCollateral =
             mapMaybe toUnsignedTxInp (decodedTx ^. #collateral)
         , unsignedInputs =
@@ -2973,11 +2969,12 @@ constructSharedTransaction
         , unsignedChange =
             drop (length initialOuts)
                 $ map toUnsignedTxChange (decodedTx ^. #outputs)
-        , unsignedWithdrawals = case rewardDel of
+        , unsignedWithdrawals = case rewardAccountM of
                 Nothing -> []
                 Just (_, path) ->
                     mapMaybe (toUsignedTxWdrl path) (decodedTx ^. #withdrawals)
         }
+
 
 decodeSharedTransaction
     :: forall n . HasSNetworkId n
@@ -2988,7 +2985,7 @@ decodeSharedTransaction
 decodeSharedTransaction ctx (ApiT wid) (ApiSerialisedTransaction (ApiT sealed) _) = do
     era <- liftIO $ NW.currentNodeEra nl
     (txinsOutsPaths, collateralInsOutsPaths, outsPath, pp, certs, txId, fee
-        , metadata, scriptValidity, interval, witsCount)
+        , metadata, scriptValidity, interval, witsCount, withdrawals, rewardAcctM)
         <- withWorkerCtx ctx wid liftE liftE $ \wrk -> do
         (cp, _, _) <- handler $ W.readWallet wrk
         let witCountCtx = toWitnessCountCtx SharedWallet (getState cp)
@@ -2999,6 +2996,7 @@ decodeSharedTransaction ctx (ApiT wid) (ApiSerialisedTransaction (ApiT sealed) _
                 , resolvedInputs
                 , resolvedCollateralInputs
                 , outputs
+                , withdrawals
                 , metadata
                 , scriptValidity
                 }) = decodedTx
@@ -3035,6 +3033,8 @@ decodeSharedTransaction ctx (ApiT wid) (ApiSerialisedTransaction (ApiT sealed) _
             , scriptValidity
             , interval
             , witsCount
+            , withdrawals
+            , rewardAcctM
             )
     pure $ ApiDecodedTransaction
         { id = ApiT txId
@@ -3044,7 +3044,9 @@ decodeSharedTransaction ctx (ApiT wid) (ApiSerialisedTransaction (ApiT sealed) _
         , collateral = map toInp collateralInsOutsPaths
         -- TODO: [ADP-1670]
         , collateralOutputs = ApiAsArray Nothing
-        , withdrawals = []
+        , withdrawals = case rewardAcctM of
+                Nothing -> []
+                Just acct -> map (toWrdl acct) $ Map.assocs withdrawals
         -- TODO minting/burning multisig
         , mint = emptyApiAssetMntBurn
         , burn = emptyApiAssetMntBurn
@@ -3200,13 +3202,17 @@ decodeTransaction
   where
     tl = ctx ^. W.transactionLayer @(KeyOf s) @'CredFromKeyK
 
-    toWrdl acct (rewardKey, (Coin c)) =
-        if rewardKey == acct then
-            ApiWithdrawalGeneral (ApiRewardAccount rewardKey)
-                (Quantity $ fromIntegral c) Our
-        else
-            ApiWithdrawalGeneral (ApiRewardAccount rewardKey)
-                (Quantity $ fromIntegral c) External
+toWrdl
+    :: RewardAccount
+    -> (RewardAccount, Coin)
+    -> ApiWithdrawalGeneral n
+toWrdl acct (rewardKey, (Coin c)) =
+    if rewardKey == acct then
+        ApiWithdrawalGeneral (ApiRewardAccount rewardKey)
+            (Quantity $ fromIntegral c) Our
+    else
+        ApiWithdrawalGeneral (ApiRewardAccount rewardKey)
+            (Quantity $ fromIntegral c) External
 
 ourRewardAccountRegistration :: ApiAnyCertificate n -> Bool
 ourRewardAccountRegistration = \case

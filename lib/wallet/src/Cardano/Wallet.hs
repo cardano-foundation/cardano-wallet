@@ -586,7 +586,9 @@ import Data.List
 import Data.List.NonEmpty
     ( NonEmpty (..) )
 import Data.Maybe
-    ( fromMaybe, isJust, mapMaybe, maybeToList )
+    ( fromJust, fromMaybe, isJust, isNothing, mapMaybe, maybeToList )
+import Data.Proxy
+    ( Proxy (..) )
 import Data.Quantity
     ( Quantity (..) )
 import Data.Set
@@ -1270,23 +1272,20 @@ shelleyOnlyMkSelfWithdrawal netLayer txWitnessTag db =
         $ ExceptionReadRewardAccount ErrReadRewardAccountNotAShelleyWallet
 
 mkSelfWithdrawalShared
-    :: forall ktype tx n block
+    :: forall n block
      . NetworkLayer IO block
-    -> TransactionLayer SharedKey ktype tx
+    -> TxWitnessTag
     -> AnyCardanoEra
     -> DBLayer IO (SharedState n SharedKey) SharedKey
-    -> WalletId
     -> IO Withdrawal
-mkSelfWithdrawalShared netLayer txLayer era db wallet = do
-    rewardAccountM <-
-        runExceptT (readSharedRewardAccount db wallet)
-            >>= either (throwIO . ExceptionReadRewardAccount) pure
+mkSelfWithdrawalShared netLayer txWitnessTag era db = do
+    rewardAccountM <- readSharedRewardAccount db
     when (isNothing rewardAccountM) $
         throwIO $ ExceptionReadRewardAccount ErrReadRewardAccountMissing
     let (rewardAccount, derivationPath) = fromJust rewardAccountM
     balance <- getCachedRewardAccountBalance netLayer rewardAccount
     pp <- currentProtocolParameters netLayer
-    return $ case checkRewardIsWorthTxCost txLayer pp era balance of
+    return $ case checkRewardIsWorthTxCost txWitnessTag pp era balance of
         Left ErrWithdrawalNotBeneficial -> NoWithdrawal
         Right () -> WithdrawalSelf rewardAccount derivationPath balance
 
