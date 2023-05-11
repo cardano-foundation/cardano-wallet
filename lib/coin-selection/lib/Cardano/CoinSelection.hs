@@ -69,7 +69,6 @@ import Algebra.PartialOrd
 import Cardano.CoinSelection.Balance
     ( SelectionBalanceError (..)
     , SelectionDelta (..)
-    , SelectionLimit
     , SelectionSkeleton
     , SelectionStrategy (..)
     )
@@ -165,10 +164,6 @@ data SelectionConstraints ctx = SelectionConstraints
     , computeMinimumCost
         :: SelectionSkeleton ctx -> Coin
         -- ^ Computes the minimum cost of a given selection skeleton.
-    , computeSelectionLimit
-        :: [(Address ctx, TokenBundle)] -> SelectionLimit
-        -- ^ Computes an upper bound for the number of ordinary inputs to
-        -- select, given a current set of outputs.
     , maximumCollateralInputCount
         :: Int
         -- ^ Specifies an inclusive upper bound on the number of unique inputs
@@ -411,8 +406,6 @@ toBalanceConstraintsParams (constraints, params) =
         , computeMinimumCost =
             view #computeMinimumCost constraints
                 & adjustComputeMinimumCost
-        , computeSelectionLimit =
-            view #computeSelectionLimit constraints
         , assessTokenBundleSize =
             view #assessTokenBundleSize constraints
         , maximumOutputAdaQuantity =
@@ -1027,7 +1020,6 @@ verifyUnableToConstructChangeError cs ps errorOriginal =
         cs' = cs
             { computeMinimumAdaQuantity = const $ const $ Coin 0
             , computeMinimumCost = const $ Coin 0
-            , computeSelectionLimit = const Balance.NoLimit
             }
 
 --------------------------------------------------------------------------------

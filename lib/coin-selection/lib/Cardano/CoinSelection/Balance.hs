@@ -219,10 +219,6 @@ data SelectionConstraints ctx = SelectionConstraints
     , computeMinimumCost
         :: SelectionSkeleton ctx -> Coin
         -- ^ Computes the minimum cost of a given selection skeleton.
-    , computeSelectionLimit
-        :: [(Address ctx, TokenBundle)] -> SelectionLimit
-        -- ^ Computes an upper bound for the number of ordinary inputs to
-        -- select, given a current set of outputs.
     , maximumLengthChangeAddress
         :: Address ctx
     , maximumOutputAdaQuantity

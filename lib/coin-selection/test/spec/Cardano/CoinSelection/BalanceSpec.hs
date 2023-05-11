@@ -852,8 +852,6 @@ prop_performSelection mockConstraints params coverage =
         "extraCoinSource" $
     report extraCoinSink
         "extraCoinSink" $
-    report selectionLimit
-        "selectionLimit" $
     report assetsToMint
         "assetsToMint" $
     report assetsToBurn
@@ -867,8 +865,7 @@ prop_performSelection mockConstraints params coverage =
     constraints = unMockSelectionConstraints mockConstraints
 
     SelectionParams
-        { outputsToCover
-        , extraCoinSource
+        { extraCoinSource
         , extraCoinSink
         , assetsToMint
         , assetsToBurn
@@ -922,9 +919,7 @@ prop_performSelection mockConstraints params coverage =
         verify
             (view #extraCoinSink result == view #extraCoinSink params)
             "view #extraCoinSink result == view #extraCoinSink params" $
-        case selectionLimit of
-            NoLimit ->
-                property True
+        property True
       where
         initialSelectionIsSubsetOfFinalSelection :: Bool
         initialSelectionIsSubsetOfFinalSelection =
@@ -1010,7 +1005,6 @@ prop_performSelection mockConstraints params coverage =
                     , computeMinimumAdaQuantity =
                         const computeMinimumAdaQuantityZero
                     , computeMinimumCost = computeMinimumCostZero
-                    , computeSelectionLimit = const NoLimit
                     } :: SelectionConstraints TestSelectionContext
             performSelection' = performSelection constraints' params
         in
@@ -1032,8 +1026,6 @@ prop_performSelection mockConstraints params coverage =
             "view #utxoAvailable params == UTxOSelection.empty" $
         property True
 
-    selectionLimit = view #computeSelectionLimit constraints $
-        F.toList outputsToCover
     utxoBalanceAvailable = computeUTxOBalanceAvailable params
     utxoBalanceRequired = computeUTxOBalanceRequired params
     utxoBalanceSufficiencyInfo = computeUTxOBalanceSufficiencyInfo params
@@ -1770,7 +1762,6 @@ mkBoundaryTestExpectation (BoundaryTestData params expectedResult) = do
         , computeMinimumCost = computeMinimumCostZero
         , assessTokenBundleSize = unMockAssessTokenBundleSize $
             boundaryTestBundleSizeAssessor params
-        , computeSelectionLimit = const NoLimit
         , maximumOutputAdaQuantity = testMaximumOutputAdaQuantity
         , maximumOutputTokenQuantity = testMaximumOutputTokenQuantity
         , maximumLengthChangeAddress = TestAddress 0x0
@@ -2371,8 +2362,6 @@ data MockSelectionConstraints = MockSelectionConstraints
         :: MockComputeMinimumAdaQuantity
     , computeMinimumCost
         :: MockComputeMinimumCost
-    , computeSelectionLimit
-        :: MockComputeSelectionLimit
     } deriving (Eq, Generic, Show)
 
 genMockSelectionConstraints :: Gen MockSelectionConstraints
@@ -2380,7 +2369,6 @@ genMockSelectionConstraints = MockSelectionConstraints
     <$> genMockAssessTokenBundleSize
     <*> genMockComputeMinimumAdaQuantity
     <*> genMockComputeMinimumCost
-    <*> genMockComputeSelectionLimit
 
 shrinkMockSelectionConstraints
     :: MockSelectionConstraints -> [MockSelectionConstraints]
@@ -2388,7 +2376,6 @@ shrinkMockSelectionConstraints = genericRoundRobinShrink
     <@> shrinkMockAssessTokenBundleSize
     <:> shrinkMockComputeMinimumAdaQuantity
     <:> shrinkMockComputeMinimumCost
-    <:> shrinkMockComputeSelectionLimit
     <:> Nil
 
 unMockSelectionConstraints
@@ -2401,8 +2388,6 @@ unMockSelectionConstraints m = SelectionConstraints
         unMockComputeMinimumAdaQuantity $ view #computeMinimumAdaQuantity m
     , computeMinimumCost =
         unMockComputeMinimumCost $ view #computeMinimumCost m
-    , computeSelectionLimit =
-        unMockComputeSelectionLimit $ view #computeSelectionLimit m
     , maximumOutputAdaQuantity =
         testMaximumOutputAdaQuantity
     , maximumOutputTokenQuantity =

@@ -38,7 +38,7 @@ import Cardano.CoinSelection
     , verifySelectionError
     )
 import Cardano.CoinSelection.Balance
-    ( SelectionLimit, SelectionSkeleton )
+    ( SelectionSkeleton )
 import Cardano.CoinSelection.Balance.Gen
     ( genSelectionSkeleton
     , genSelectionStrategy
@@ -49,22 +49,18 @@ import Cardano.CoinSelection.BalanceSpec
     ( MockAssessTokenBundleSize
     , MockComputeMinimumAdaQuantity
     , MockComputeMinimumCost
-    , MockComputeSelectionLimit
     , TestAddress (..)
     , TestSelectionContext
     , TestUTxO
     , genMockAssessTokenBundleSize
     , genMockComputeMinimumAdaQuantity
     , genMockComputeMinimumCost
-    , genMockComputeSelectionLimit
     , shrinkMockAssessTokenBundleSize
     , shrinkMockComputeMinimumAdaQuantity
     , shrinkMockComputeMinimumCost
-    , shrinkMockComputeSelectionLimit
     , unMockAssessTokenBundleSize
     , unMockComputeMinimumAdaQuantity
     , unMockComputeMinimumCost
-    , unMockComputeSelectionLimit
     )
 import Cardano.Wallet.Primitive.Types.Coin
     ( Coin (..) )
@@ -94,8 +90,6 @@ import Data.Either
     ( isRight )
 import Data.Function
     ( (&) )
-import Data.Functor
-    ( (<&>) )
 import Data.Generics.Internal.VL.Lens
     ( over, view, (^.) )
 import Data.IntCast
@@ -491,8 +485,6 @@ data MockSelectionConstraints = MockSelectionConstraints
         :: MockComputeMinimumAdaQuantity
     , computeMinimumCost
         :: MockComputeMinimumCost
-    , computeSelectionLimit
-        :: MockComputeSelectionLimit
     , maximumCollateralInputCount
         :: Int
     , minimumCollateralPercentage
@@ -510,7 +502,6 @@ genMockSelectionConstraints = MockSelectionConstraints
     <*> genCertificateDepositAmount
     <*> genMockComputeMinimumAdaQuantity
     <*> genMockComputeMinimumCost
-    <*> genMockComputeSelectionLimit
     <*> genMaximumCollateralInputCount
     <*> genMinimumCollateralPercentage
     <*> genMaximumOutputAdaQuantity
@@ -523,7 +514,6 @@ shrinkMockSelectionConstraints = genericRoundRobinShrink
     <:> shrinkCertificateDepositAmount
     <:> shrinkMockComputeMinimumAdaQuantity
     <:> shrinkMockComputeMinimumCost
-    <:> shrinkMockComputeSelectionLimit
     <:> shrinkMaximumCollateralInputCount
     <:> shrinkMinimumCollateralPercentage
     <:> shrinkMaximumOutputAdaQuantity
@@ -543,8 +533,6 @@ unMockSelectionConstraints m = SelectionConstraints
         unMockIsBelowMinimumAdaQuantity $ view #computeMinimumAdaQuantity m
     , computeMinimumCost =
         unMockComputeMinimumCost $ view #computeMinimumCost m
-    , computeSelectionLimit =
-        unMockComputeSelectionLimit $ view #computeSelectionLimit m
     , maximumCollateralInputCount =
         view #maximumCollateralInputCount m
     , minimumCollateralPercentage =

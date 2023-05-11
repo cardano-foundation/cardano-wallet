@@ -235,10 +235,6 @@ data SelectionConstraints = SelectionConstraints
     , computeMinimumCost
         :: SelectionSkeleton -> Coin
         -- ^ Computes the minimum cost of a given selection skeleton.
-    , computeSelectionLimit
-        :: [TxOut] -> SelectionLimit
-        -- ^ Computes an upper bound for the number of ordinary inputs to
-        -- select, given a current set of outputs.
     , maximumCollateralInputCount
         :: Int
         -- ^ Specifies an inclusive upper bound on the number of unique inputs
@@ -259,8 +255,6 @@ toInternalSelectionConstraints SelectionConstraints {..} =
     Internal.SelectionConstraints
         { computeMinimumCost =
             computeMinimumCost . toExternalSelectionSkeleton
-        , computeSelectionLimit =
-            computeSelectionLimit . fmap (uncurry TxOut)
         , maximumOutputAdaQuantity =
             txOutMaxCoin
         , maximumOutputTokenQuantity =
