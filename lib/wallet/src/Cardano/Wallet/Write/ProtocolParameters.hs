@@ -1,5 +1,7 @@
+{-# LANGUAGE FlexibleContexts #-}
 {-# LANGUAGE ScopedTypeVariables #-}
-{-# LANGUAGE TypeApplications #-}
+{-# LANGUAGE StandaloneDeriving #-}
+{-# LANGUAGE UndecidableInstances #-}
 
 -- |
 -- Copyright: © 2023 IOHK
@@ -9,14 +11,10 @@
 --
 module Cardano.Wallet.Write.ProtocolParameters
     ( ProtocolParameters (..)
-    , unsafeFromWalletProtocolParameters
     ) where
 
 import Prelude
 
-import qualified Cardano.Api as CardanoApi
-import qualified Cardano.Api.Extra as CardanoApi
-import qualified Cardano.Wallet.Primitive.Types as Wallet
 import qualified Cardano.Wallet.Write.Tx as Write
 
 -- TODO:
@@ -27,24 +25,6 @@ newtype ProtocolParameters era = ProtocolParameters
         :: Write.PParams (Write.ShelleyLedgerEra era)
     }
 
--- TODO: ADP-2459 - replace with something nicer.
-unsafeFromWalletProtocolParameters
-    :: forall era. CardanoApi.IsShelleyBasedEra era
-    => Wallet.ProtocolParameters
-    -> ProtocolParameters era
-unsafeFromWalletProtocolParameters pparamsWallet = ProtocolParameters $
-    maybe
-        (error missingNodeParamsError)
-        unbundleParameters
-        (Wallet.currentNodeProtocolParameters pparamsWallet)
-  where
-    unbundleParameters
-                = CardanoApi.unbundleLedgerShelleyBasedProtocolParams
-                    (CardanoApi.shelleyBasedEra @era)
-                . CardanoApi.bundleProtocolParams
-                    (CardanoApi.cardanoEra @era)
-    missingNodeParamsError = unwords
-        [ "unsafeFromWalletProtocolParameters: no nodePParams."
-        , "This should only be possible in Byron, where IsShelleyBasedEra"
-        , "should prevent this from being reached."
-        ]
+deriving instance Eq (Write.PParams (Write.ShelleyLedgerEra era)) => Eq (ProtocolParameters era)
+deriving instance Show (Write.PParams (Write.ShelleyLedgerEra era)) => Show (ProtocolParameters era)
+

@@ -75,6 +75,8 @@ import Data.Time.Clock.POSIX
     ( posixSecondsToUTCTime )
 
 import qualified Cardano.Api.Shelley as C
+import qualified Cardano.Wallet.Write.ProtocolParameters as Write
+import qualified Cardano.Wallet.Write.Tx as Write
 import qualified Data.ByteString.Char8 as B8
 
 {-----------------------------------------------------------------------------
@@ -145,7 +147,10 @@ dummyProtocolParameters = ProtocolParameters
             { pricePerStep = 7.21e-5
             , pricePerMemoryUnit = 0.0577
             }
-    , currentNodeProtocolParameters = Just dummyNodeProtocolParameters
+    , currentLedgerProtocolParameters =
+        Write.InRecentEraBabbage
+        $ Write.ProtocolParameters
+        $ C.toLedgerPParams C.ShelleyBasedEraBabbage dummyNodeProtocolParameters
     }
 
 -- | Dummy parameters that are consistent with the @dummy*@ parameters.

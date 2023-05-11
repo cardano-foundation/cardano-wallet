@@ -136,6 +136,7 @@ module Cardano.Wallet
     , assignChangeAddressesAndUpdateDb
     , assignChangeAddressesWithoutDbUpdate
     , selectionToUnsignedTx
+    , readNodeTipStateForTxWrite
     , buildSignSubmitTransaction
     , buildTransaction
     , buildTransactionPure
@@ -170,6 +171,7 @@ module Cardano.Wallet
     , Percentile (..)
     , DelegationFee (..)
     , delegationFee
+    , getStakeKeyDeposit
     , transactionFee
     , calculateFeePercentiles
     , padFeePercentiles
@@ -213,7 +215,6 @@ module Cardano.Wallet
     -- * Utilities
     , throttle
     , guardHardIndex
-    , toBalanceTxPParams
     , utxoAssumptionsForWallet
 
     -- * Logging
@@ -417,9 +418,7 @@ import Cardano.Wallet.Primitive.Types
     , BlockHeader (..)
     , ChainPoint (..)
     , DelegationCertificate (..)
-    , FeePolicy (..)
     , GenesisParameters (..)
-    , LinearFunction (..)
     , NetworkParameters (..)
     , ProtocolParameters (..)
     , Range (..)
@@ -505,7 +504,7 @@ import Cardano.Wallet.Transaction.Built
 import Cardano.Wallet.TxWitnessTag
     ( TxWitnessTag )
 import Cardano.Wallet.Write.Tx
-    ( AnyRecentEra )
+    ( recentEra )
 import Cardano.Wallet.Write.Tx.Balance
     ( BalanceTxLog (..)
     , ChangeAddressGen (..)
@@ -579,6 +578,8 @@ import Data.Generics.Labels
     ()
 import Data.Generics.Product.Typed
     ( HasType, typed )
+import Data.IntCast
+    ( intCast )
 import Data.List
     ( foldl' )
 import Data.List.NonEmpty
@@ -1874,6 +1875,24 @@ data ErrWriteTxEra
     -- but would require some work.
     deriving (Show, Eq)
 
+readNodeTipStateForTxWrite
+    :: NetworkLayer IO Read.Block
+    -> IO (Write.InAnyRecentEra Write.ProtocolParameters, TimeTranslation)
+readNodeTipStateForTxWrite netLayer = do
+    let ti = timeInterpreter netLayer
+    timeTranslation <- toTimeTranslation ti
+
+    res <- currentLedgerProtocolParameters
+        <$> currentProtocolParameters netLayer
+
+    case Write.toRecentEraGADT res of
+        Right pp ->
+            pure (pp, timeTranslation)
+        Left era -> throwIO $ invalidEra era
+  where
+    invalidEra = ExceptionWriteTxEra
+        . ErrNodeNotYetInRecentEra
+
 -- | Build, Sign, Submit transaction.
 --
 -- Requires the encryption passphrase in order to decrypt the root private key.
@@ -1894,18 +1913,16 @@ buildSignSubmitTransaction
     -> Passphrase "user"
     -> WalletId
     -> ChangeAddressGen s
-    -> AnyRecentEra
     -> PreSelection
     -> TransactionCtx
     -> IO (BuiltTx, UTCTime)
-buildSignSubmitTransaction db@DBLayer{..} netLayer txLayer pwd walletId
-    changeAddrGen era preSelection txCtx = do
+buildSignSubmitTransaction db@DBLayer{..} netLayer txLayer
+    pwd walletId changeAddrGen preSelection txCtx = do
     --
     stdGen <- initStdGen
-    protocolParameters <- currentProtocolParameters netLayer
+    (Write.InAnyRecentEra _era protocolParams, timeTranslation)
+        <- readNodeTipStateForTxWrite netLayer
     let ti = timeInterpreter netLayer
-    timeTranslation <- toTimeTranslation ti
-
     throwOnErr <=< runExceptT $ withRootKey db walletId pwd wrapRootKeyError $
         \rootKey scheme -> lift $ do
         (BuiltTx{..}, slot) <- atomically $ do
@@ -1927,10 +1944,9 @@ buildSignSubmitTransaction db@DBLayer{..} netLayer txLayer pwd walletId
                         rootKey
                         scheme
                         pwd
-                        protocolParameters
+                        protocolParams
                         txLayer
                         changeAddrGen
-                        era
                         preSelection
                         txCtx
                         & (`runStateT` wallet)
@@ -1970,7 +1986,7 @@ buildSignSubmitTransaction db@DBLayer{..} netLayer txLayer pwd walletId
     wrapBalanceConstructError = either ExceptionBalanceTx ExceptionConstructTx
 
 buildAndSignTransactionPure
-    :: forall k s
+    :: forall k s era
      . ( HardDerivation k
        , Bounded (Index (AddressIndexDerivationType k) (AddressCredential k))
        , IsOwned s k 'CredFromKeyK
@@ -1979,16 +1995,16 @@ buildAndSignTransactionPure
        , HardDerivation k
        , IsOurs s RewardAccount
        , WalletFlavor s
+       , Write.IsRecentEra era
        )
     => TimeTranslation
     -> UTxO
     -> k 'RootK XPrv
     -> PassphraseScheme
     -> Passphrase "user"
-    -> ProtocolParameters
+    -> Write.ProtocolParameters era
     -> TransactionLayer k 'CredFromKeyK SealedTx
     -> ChangeAddressGen s
-    -> AnyRecentEra
     -> PreSelection
     -> TransactionCtx
     -> StateT
@@ -1996,81 +2012,77 @@ buildAndSignTransactionPure
         (ExceptT (Either ErrBalanceTx ErrConstructTx) (Rand StdGen))
         BuiltTx
 buildAndSignTransactionPure
-    timeTranslation utxo rootKey passphraseScheme userPassphrase
-    protocolParams txLayer changeAddrGen era preSelection txCtx =
-    --
-    Write.withRecentEra era $ \(_ :: Write.RecentEra recentEra) -> do
-        wallet <- get
-        (unsignedBalancedTx, updatedWalletState) <- lift $
-            buildTransactionPure @s @recentEra
-                wallet timeTranslation utxo txLayer changeAddrGen
-                (Write.unsafeFromWalletProtocolParameters protocolParams)
-                preSelection txCtx
-        put wallet { getState = updatedWalletState }
+    timeTranslation utxoIndex rootKey passphraseScheme userPassphrase
+    pp txLayer changeAddrGen preSelection txCtx = do
+    wallet <- get
+    (unsignedBalancedTx, updatedWalletState) <- lift $
+        buildTransactionPure @s @era
+            wallet timeTranslation utxoIndex txLayer changeAddrGen pp preSelection txCtx
+    put wallet { getState = updatedWalletState }
 
-        let mExternalRewardAccount = case view #txWithdrawal txCtx of
-                WithdrawalExternal _ _ _ externalXPrv
-                    -> Just (externalXPrv, mempty) -- no passphrase
-                _
-                    -> Nothing
+    let mExternalRewardAccount = case view #txWithdrawal txCtx of
+            WithdrawalExternal _ _ _ externalXPrv
+                -> Just (externalXPrv, mempty) -- no passphrase
+            _
+                -> Nothing
 
-        let passphrase = preparePassphrase passphraseScheme userPassphrase
-            signedTx = signTransaction @k @'CredFromKeyK
-                (keyFlavorFromState @s)
-                txLayer
-                anyCardanoEra
-                AnyWitnessCountCtx
-                (isOwned (getState wallet) (rootKey, passphrase))
-                mExternalRewardAccount
-                (rootKey, passphrase)
-                (wallet ^. #utxo)
-                Nothing
-                (sealedTxFromCardano $ inAnyCardanoEra unsignedBalancedTx)
+    let passphrase = preparePassphrase passphraseScheme userPassphrase
+        signedTx = signTransaction @k @'CredFromKeyK
+            (keyFlavorFromState @s)
+            txLayer
+            anyCardanoEra
+            AnyWitnessCountCtx
+            (isOwned (getState wallet) (rootKey, passphrase))
+            mExternalRewardAccount
+            (rootKey, passphrase)
+            (wallet ^. #utxo)
+            Nothing
+            (sealedTxFromCardano $ inAnyCardanoEra unsignedBalancedTx)
 
-        let ( tx
-                , _tokenMapWithScripts1
-                , _tokenMapWithScripts2
-                , _certificates
-                , _validityIntervalExplicit
-                , _witnessCount
-                ) = decodeTx txLayer anyCardanoEra AnyWitnessCountCtx signedTx
+    let ( tx
+            , _tokenMapWithScripts1
+            , _tokenMapWithScripts2
+            , _certificates
+            , _validityIntervalExplicit
+            , _witnessCount
+            ) = decodeTx txLayer anyCardanoEra AnyWitnessCountCtx signedTx
 
-        let utxo' = applyOurTxToUTxO
-                (Slot.at $ currentTip wallet ^. #slotNo)
-                (currentTip wallet ^. #blockHeight)
-                (getState wallet)
-                tx
-                (wallet ^. #utxo)
-            meta = case utxo' of
-                Nothing -> error $ unwords
-                    [ "buildAndSignTransactionPure:"
-                    , "Can't apply constructed transaction."
-                    ]
-                Just ((_tx, appliedMeta), _deltaUtxo, _nextUtxo) ->
-                    appliedMeta
-                        { status = Pending
-                        , expiry = Just (snd (txValidityInterval txCtx))
-                        }
+    let utxo' = applyOurTxToUTxO
+            (Slot.at $ currentTip wallet ^. #slotNo)
+            (currentTip wallet ^. #blockHeight)
+            (getState wallet)
+            tx
+            (wallet ^. #utxo)
+        meta = case utxo' of
+            Nothing -> error $ unwords
+                [ "buildAndSignTransactionPure:"
+                , "Can't apply constructed transaction."
+                ]
+            Just ((_tx, appliedMeta), _deltaUtxo, _nextUtxo) ->
+                appliedMeta
+                    { status = Pending
+                    , expiry = Just (snd (txValidityInterval txCtx))
+                    }
 
-        -- tx coming from `decodeTx` doesn't contain previous tx outputs that
-        -- correspond to this tx inputs, so its inputs aren't "resolved".
-        -- We restore corresponding outputs by searching them in the UTxO again.
-        let txResolved = tx
-                { resolvedInputs =
-                    resolveInputs  (resolvedInputs tx)
-                , resolvedCollateralInputs =
-                    resolveInputs  (resolvedCollateralInputs tx)
-                }
-            resolveInputs = fmap (\(txIn, _) ->
-                (txIn, UTxO.lookup txIn (wallet ^. #utxo)))
-
-        pure BuiltTx
-            { builtTx = txResolved
-            , builtTxMeta = meta
-            , builtSealedTx = signedTx
+    -- tx coming from `decodeTx` doesn't contain previous tx outputs that
+    -- correspond to this tx inputs, so its inputs aren't "resolved".
+    -- We restore corresponding outputs by searching them in the UTxO again.
+    let txResolved = tx
+            { resolvedInputs =
+                resolveInputs  (resolvedInputs tx)
+            , resolvedCollateralInputs =
+                resolveInputs  (resolvedCollateralInputs tx)
             }
+        resolveInputs = fmap (\(txIn, _) ->
+            (txIn, UTxO.lookup txIn (wallet ^. #utxo)))
+
+    pure BuiltTx
+        { builtTx = txResolved
+        , builtTxMeta = meta
+        , builtSealedTx = signedTx
+        }
   where
-    anyCardanoEra = Write.toAnyCardanoEra era
+    anyCardanoEra = Cardano.AnyCardanoEra $ Write.cardanoEra @era
 
 buildTransaction
     :: forall s era.
@@ -2083,7 +2095,7 @@ buildTransaction
     -> TransactionLayer (KeyOf s) 'CredFromKeyK SealedTx
     -> TimeTranslation
     -> ChangeAddressGen s
-    -> ProtocolParameters
+    -> Write.ProtocolParameters era
     -> TransactionCtx
     -> [TxOut] -- ^ payment outputs
     -> IO (Cardano.Tx era, Wallet s)
@@ -2106,7 +2118,7 @@ buildTransaction DBLayer{..} txLayer timeTranslation changeAddrGen
                 utxo
                 txLayer
                 changeAddrGen
-                (Write.unsafeFromWalletProtocolParameters protocolParameters)
+                protocolParameters
                 PreSelection { outputs = paymentOuts }
                 txCtx
                 & runExceptT . withExceptT
@@ -2179,24 +2191,6 @@ unsafeShelleyOnlyGetRewardXPub walletState =
             [ "buildAndSignTransactionPure:"
             , "can't delegate using non-shelley wallet"
             ]
-
--- TODO: ADP-2459 - replace with something nicer.
-toBalanceTxPParams
-    :: forall era. Write.IsRecentEra era
-    => ProtocolParameters
-    -> (ProtocolParameters, Cardano.BundledProtocolParameters era)
-toBalanceTxPParams pp =
-    ( pp
-    , maybe
-        (error $ unwords
-            [ "toBalanceTxPParams: no nodePParams."
-            , "This should only be possible in Byron, where withRecentEra"
-            , "should prevent this from being reached."
-            ])
-        (Cardano.bundleProtocolParams
-            (Write.fromRecentEra (Write.recentEra @era)))
-        $ currentNodeProtocolParameters pp
-    )
 
 -- | Produce witnesses and construct a transaction from a given selection.
 --
@@ -2737,6 +2731,14 @@ data DelegationFee = DelegationFee
 
 instance NFData DelegationFee
 
+getStakeKeyDeposit
+    :: forall era. Write.IsRecentEra era
+    => Write.ProtocolParameters era
+    -> Coin
+getStakeKeyDeposit = toWallet
+    . Write.stakeKeyDeposit (recentEra @era)
+    . Write.pparamsLedger
+
 delegationFee
     :: forall s
      . ( AddressBookIso s
@@ -2746,29 +2748,25 @@ delegationFee
     => DBLayer IO s
     -> NetworkLayer IO Read.Block
     -> TransactionLayer (KeyOf s) 'CredFromKeyK SealedTx
-    -> TimeTranslation
-    -> AnyRecentEra
     -> ChangeAddressGen s
     -> IO DelegationFee
-delegationFee db@DBLayer{..} netLayer txLayer timeTranslation era
-    changeAddressGen =
-    Write.withRecentEra era $ \(recentEra :: Write.RecentEra era) -> do
-        protocolParams <- Write.unsafeFromWalletProtocolParameters
-            <$> liftIO (currentProtocolParameters netLayer)
-        feePercentiles <- transactionFee @s
-            db protocolParams txLayer timeTranslation recentEra changeAddressGen
-            defaultTransactionCtx
-            -- It would seem that we should add a delegation action
-            -- to the partial tx we construct, this was not done
-            -- previously, and the difference should be negligible.
-            (PreSelection [])
-        deposit <- liftIO
-            $ atomically isStakeKeyRegistered <&> \case
-                False -> toWallet
-                    $ Write.stakeKeyDeposit recentEra
-                    $ Write.pparamsLedger protocolParams
-                True -> Coin 0
-        pure DelegationFee { feePercentiles, deposit }
+delegationFee db@DBLayer{..} netLayer txLayer changeAddressGen = do
+    (Write.InAnyRecentEra era protocolParams, timeTranslation)
+        <- readNodeTipStateForTxWrite netLayer
+    feePercentiles <- transactionFee @s
+        db protocolParams txLayer timeTranslation changeAddressGen
+        defaultTransactionCtx
+        -- It would seem that we should add a delegation action
+        -- to the partial tx we construct, this was not done
+        -- previously, and the difference should be negligible.
+        (PreSelection [])
+    deposit <- liftIO
+        $ atomically isStakeKeyRegistered <&> \case
+            False -> toWallet
+                $ Write.stakeKeyDeposit era
+                $ Write.pparamsLedger protocolParams
+            True -> Coin 0
+    pure DelegationFee { feePercentiles, deposit }
 
 transactionFee
     :: forall s era
@@ -2781,13 +2779,12 @@ transactionFee
     -> Write.ProtocolParameters era
     -> TransactionLayer (KeyOf s) 'CredFromKeyK SealedTx
     -> TimeTranslation
-    -> Write.RecentEra era
     -> ChangeAddressGen s
     -> TransactionCtx
     -> PreSelection
     -> IO (Percentile 10 Fee, Percentile 90 Fee)
 transactionFee DBLayer{atomically, walletState} protocolParams txLayer
-    timeTranslation recentEra changeAddressGen txCtx preSelection = do
+    timeTranslation changeAddressGen txCtx preSelection = do
         wallet <- liftIO . atomically
             $ readDBVar walletState <&> WalletState.getLatest
         utxoIndex <-
@@ -2835,7 +2832,7 @@ transactionFee DBLayer{atomically, walletState} protocolParams txLayer
                         Cardano.TxFeeExplicit _ coin
                             -> Fee (fromCardanoLovelace coin)
                         Cardano.TxFeeImplicit Cardano.TxFeesImplicitInByronEra
-                            -> case recentEra of {}
+                            -> case Write.recentEra @era of {}
                 Left (ErrBalanceTxSelectAssets errSelectAssets)
                     -> throwE errSelectAssets
                 Left otherErr -> throwIO $ ExceptionBalanceTx otherErr
@@ -2918,13 +2915,13 @@ calculateFeePercentiles
 -- computes the superinterval `(p - x, q + x)`, where `x` is the cost of
 -- encoding `n` bytes according to the given protocol parameters.
 padFeePercentiles
-    :: ProtocolParameters
+    :: Write.FeePerByte
     -> Quantity "byte" Word
     -- ^ Number of bytes by which to extend the interval in both directions.
     -> (Percentile 10 Fee, Percentile 90 Fee)
     -> (Percentile 10 Fee, Percentile 90 Fee)
 padFeePercentiles
-    pp
+    feePerByte
     (Quantity byteDelta)
     (Percentile (Fee a), Percentile (Fee b)) =
         ( Percentile $ Fee $ a `Coin.difference` coinDelta
@@ -2933,10 +2930,7 @@ padFeePercentiles
   where
     coinDelta :: Coin
     coinDelta =
-        Coin.fromNatural . ceiling @Double @Natural $
-            fromIntegral @Word @Double byteDelta * slope feeFunction
-
-    LinearFee feeFunction = pp ^. #txParameters . #getFeePolicy
+        toWallet $ Write.feeOfBytes feePerByte (intCast byteDelta)
 
 {-------------------------------------------------------------------------------
                                   Key Store

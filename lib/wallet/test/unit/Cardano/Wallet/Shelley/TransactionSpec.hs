@@ -1976,8 +1976,8 @@ dummyProtocolParameters = ProtocolParameters
         error "dummyProtocolParameters: minimumCollateralPercentage"
     , executionUnitPrices =
         error "dummyProtocolParameters: executionUnitPrices"
-    , currentNodeProtocolParameters =
-        error "dummyProtocolParameters: currentNodeProtocolParameters"
+    , currentLedgerProtocolParameters =
+        error "dummyProtocolParameters: currentLedgerProtocolParameters"
     }
 
 --------------------------------------------------------------------------------

@@ -150,12 +150,7 @@ import Cardano.Address.Script
     , validateScriptOfTemplate
     )
 import Cardano.Api
-    ( AnyCardanoEra
-    , NetworkId
-    , SerialiseAsCBOR (..)
-    , toNetworkMagic
-    , unNetworkMagic
-    )
+    ( NetworkId, SerialiseAsCBOR (..), toNetworkMagic, unNetworkMagic )
 import Cardano.BM.Tracing
     ( HasPrivacyAnnotation (..), HasSeverityAnnotation (..) )
 import Cardano.Mnemonic
@@ -475,7 +470,6 @@ import Cardano.Wallet.Primitive.Slotting
     , slotToUTCTime
     , timeOfEpoch
     , toSlotId
-    , toTimeTranslation
     , unsafeExtendSafeZone
     )
 import Cardano.Wallet.Primitive.SyncProgress
@@ -1775,13 +1769,12 @@ selectCoins
     -> ApiSelectCoinsPayments n
     -> Handler (ApiCoinSelection n)
 selectCoins ctx@ApiLayer {..} argGenChange (ApiT walletId) body = do
-    era <- liftIO $ NW.currentNodeEra netLayer
-    AnyRecentEra (_ :: Write.RecentEra e) <- guardIsRecentEra era
     withWorkerCtx ctx walletId liftE liftE $ \workerCtx -> do
         let db = workerCtx ^. dbLayer
-            ti = timeInterpreter netLayer
-        timeTranslation <- liftIO $ toTimeTranslation ti
-        pp <- liftIO $ NW.currentProtocolParameters (workerCtx ^. networkLayer)
+
+        (Write.InAnyRecentEra _era pp, timeTranslation)
+            <- liftIO $ W.readNodeTipStateForTxWrite netLayer
+
         withdrawal <-
             body ^. #withdrawal
                 & maybe (pure NoWithdrawal)
@@ -1794,14 +1787,14 @@ selectCoins ctx@ApiLayer {..} argGenChange (ApiT walletId) body = do
                 , txMetadata = getApiT <$> body ^. #metadata
                 }
 
-        (cardanoTx, walletState) <- liftIO $ W.buildTransaction @s @e
+        (cardanoTx, walletState) <- liftIO $ W.buildTransaction @s
             db txLayer timeTranslation genChange pp txCtx paymentOuts
 
         let W.CoinSelection{..} =
                 W.buildCoinSelectionForTransaction @s @n
                     walletState
                     paymentOuts
-                    (W.stakeKeyDeposit pp)
+                    (W.getStakeKeyDeposit pp)
                     Nothing -- delegation action
                     cardanoTx
 
@@ -1839,16 +1832,13 @@ selectCoinsForJoin
 selectCoinsForJoin ctx@ApiLayer{..}
     knownPools getPoolStatus poolId walletId = do
     --
-    era <- liftIO $ NW.currentNodeEra netLayer
     poolStatus <- liftIO $ getPoolStatus poolId
     pools <- liftIO knownPools
     curEpoch <- getCurrentEpoch ctx
-    AnyRecentEra (_ :: Write.RecentEra e) <- guardIsRecentEra era
+    (Write.InAnyRecentEra _era pp, timeTranslation)
+        <- liftIO $ W.readNodeTipStateForTxWrite netLayer
     withWorkerCtx ctx walletId liftE liftE $ \workerCtx -> liftIO $ do
         let db = workerCtx ^. typed @(DBLayer IO s)
-        timeTranslation <- liftIO $
-            toTimeTranslation (timeInterpreter netLayer)
-        pp <- NW.currentProtocolParameters netLayer
         action <- liftIO $ WD.joinStakePoolDelegationAction @s
             (contramap MsgWallet $ workerCtx ^. logger)
             db
@@ -1862,7 +1852,7 @@ selectCoinsForJoin ctx@ApiLayer{..}
 
         let paymentOuts = []
 
-        (cardanoTx, walletState) <- W.buildTransaction @s @e
+        (cardanoTx, walletState) <- W.buildTransaction @s
             db txLayer timeTranslation changeAddrGen pp txCtx
             paymentOuts
 
@@ -1870,7 +1860,7 @@ selectCoinsForJoin ctx@ApiLayer{..}
                 W.buildCoinSelectionForTransaction @s @n
                     walletState
                     paymentOuts
-                    (W.stakeKeyDeposit pp)
+                    (W.getStakeKeyDeposit pp)
                     (Just action)
                     cardanoTx
 
@@ -1901,13 +1891,10 @@ selectCoinsForQuit
     -> ApiT WalletId
     -> Handler (ApiCoinSelection n)
 selectCoinsForQuit ctx@ApiLayer{..} (ApiT walletId) = do
-    era <- liftIO $ NW.currentNodeEra netLayer
-    AnyRecentEra (_ :: Write.RecentEra e) <- guardIsRecentEra era
+    (Write.InAnyRecentEra _era pp, timeTranslation)
+        <- liftIO $ W.readNodeTipStateForTxWrite netLayer
     withWorkerCtx ctx walletId liftE liftE $ \workerCtx -> liftIO $ do
         let db = workerCtx ^. typed @(DBLayer IO s)
-        timeTranslation <- liftIO $
-            toTimeTranslation (timeInterpreter netLayer)
-        pp <- NW.currentProtocolParameters netLayer
         withdrawal <- W.shelleyOnlyMkSelfWithdrawal @s
             netLayer (txWitnessTagFor @k) db
         action <- WD.quitStakePoolDelegationAction db withdrawal
@@ -1919,14 +1906,14 @@ selectCoinsForQuit ctx@ApiLayer{..} (ApiT walletId) = do
 
         let paymentOuts = []
 
-        (cardanoTx, walletState) <- W.buildTransaction @s @e
+        (cardanoTx, walletState) <- W.buildTransaction @s
             db txLayer timeTranslation changeAddrGen pp txCtx paymentOuts
 
         let W.CoinSelection{..} =
                 W.buildCoinSelectionForTransaction @s @n
                     walletState
                     paymentOuts
-                    (W.stakeKeyDeposit pp)
+                    (W.getStakeKeyDeposit pp)
                     (Just action)
                     cardanoTx
 
@@ -2185,9 +2172,6 @@ postTransactionOld ctx@ApiLayer{..} argGenChange (ApiT wid) body = do
     let mTTL = body ^? #timeToLive . traverse . #getQuantity
     withWorkerCtx ctx wid liftE liftE $ \wrk -> do
         let db = wrk ^. dbLayer
-        era <- liftIO $ NW.currentNodeEra netLayer
-        AnyRecentEra (recentEra :: Write.RecentEra era)
-            <- guardIsRecentEra era
         ttl <- liftIO $ W.transactionExpirySlot ti mTTL
         wdrl <- case body ^. #withdrawal of
             Nothing -> pure NoWithdrawal
@@ -2208,7 +2192,6 @@ postTransactionOld ctx@ApiLayer{..} argGenChange (ApiT wid) body = do
                     (coerce $ getApiT $ body ^. #passphrase)
                     wid
                     (W.defaultChangeAddressGen argGenChange)
-                    (AnyRecentEra recentEra)
                     (PreSelection $ NE.toList outs)
                     txCtx
 
@@ -2361,15 +2344,16 @@ postTransactionFeeOld
     -> PostTransactionFeeOldData n
     -> Handler ApiFee
 postTransactionFeeOld ctx@ApiLayer{..} (ApiT walletId) body = do
-    era <- liftIO $ NW.currentNodeEra netLayer
-    AnyRecentEra (recentEra :: Write.RecentEra era) <- guardIsRecentEra era
-    (protocolParameters, _bundledProtocolParameters) <- liftIO $
-        W.toBalanceTxPParams @era <$> currentProtocolParameters netLayer
+    (Write.InAnyRecentEra era pp, timeTranslation)
+        <- liftIO $ W.readNodeTipStateForTxWrite netLayer
+
+    -- Needed only for calcMinimumCoinValues. We'd ideally use the ledger @pp@
+    -- above instead.
+    walletPP <- liftIO $ currentProtocolParameters netLayer
+
     let mTTL = body ^? #timeToLive . traverse . #getQuantity
     withWorkerCtx ctx walletId liftE liftE $ \workerCtx -> do
         let db = workerCtx ^. dbLayer
-        timeTranslation <- liftIO $
-            toTimeTranslation (timeInterpreter netLayer)
         ttl <- liftIO $ W.transactionExpirySlot (timeInterpreter netLayer) mTTL
         wdrl <- case body ^. #withdrawal of
             Nothing -> pure NoWithdrawal
@@ -2377,14 +2361,13 @@ postTransactionFeeOld ctx@ApiLayer{..} (ApiT walletId) body = do
                 shelleyOnlyMkWithdrawal @s
                     netLayer (txWitnessTagFor @k) db apiWdrl
         let outputs = F.toList $ addressAmountToTxOut <$> body ^. #payments
-            minCoins = W.calcMinimumCoinValues protocolParameters txLayer
+            minCoins = W.calcMinimumCoinValues walletPP txLayer
                 <$> outputs
         feePercentiles <- liftIO $ W.transactionFee @s
             db
-            (Write.unsafeFromWalletProtocolParameters protocolParameters)
+            pp
             txLayer
             timeTranslation
-            recentEra
             dummyChangeAddressGen
             defaultTransactionCtx
                 { txWithdrawal = wdrl
@@ -2395,7 +2378,10 @@ postTransactionFeeOld ctx@ApiLayer{..} (ApiT walletId) body = do
             PreSelection{outputs}
         pure
             $ mkApiFee Nothing minCoins
-            $ W.padFeePercentiles protocolParameters padding feePercentiles
+            $ W.padFeePercentiles
+                (Write.getFeePerByte era $ Write.pparamsLedger pp)
+                padding
+                feePercentiles
   where
     -- Padding to make the fee percentiles more imprecise, for the following
     -- reasons:
@@ -2464,12 +2450,12 @@ constructTransaction api argGenChange knownPools poolStatus apiWalletId body = d
             netLayer = wrk ^. networkLayer
             txLayer = wrk ^. transactionLayer @_ @'CredFromKeyK
             trWorker = MsgWallet >$< wrk ^. logger
-        pp <- liftIO $ NW.currentProtocolParameters netLayer
-        era <- liftIO $ NW.currentNodeEra netLayer
+
+        (Write.InAnyRecentEra (_era :: Write.RecentEra era) pp, _)
+            <- liftIO $ W.readNodeTipStateForTxWrite netLayer
+
         epoch <- getCurrentEpoch api
 
-        AnyRecentEra (_recentEra :: Write.RecentEra era)
-            <- guardIsRecentEra era
         withdrawal <- case body ^. #withdrawal of
             Just SelfWithdraw -> liftIO $
                 W.shelleyOnlyMkSelfWithdrawal
@@ -2586,11 +2572,11 @@ constructTransaction api argGenChange knownPools poolStatus apiWalletId body = d
         (_, _, rewardPath) <- handler $ W.readRewardAccount @n db
 
         let deposits = case txDelegationAction transactionCtx2 of
-                Just (JoinRegisteringKey _poolId) -> [W.stakeKeyDeposit pp]
+                Just (JoinRegisteringKey _poolId) -> [W.getStakeKeyDeposit pp]
                 _ -> []
 
         let refunds = case txDelegationAction transactionCtx2 of
-                Just Quit -> [W.stakeKeyDeposit pp]
+                Just Quit -> [W.getStakeKeyDeposit pp]
                 _ -> []
 
         pure ApiConstructTransaction
@@ -2885,11 +2871,9 @@ constructSharedTransaction
             txLayer = wrk ^. transactionLayer @SharedKey @'CredFromScriptK
             trWorker = MsgWallet >$< wrk ^. logger
 
-        pp <- liftIO $ NW.currentProtocolParameters netLayer
         epoch <- getCurrentEpoch api
-        era <- liftIO $ NW.currentNodeEra (wrk ^. networkLayer)
-        AnyRecentEra (_recentEra :: Write.RecentEra era)
-            <- guardIsRecentEra era
+        (Write.InAnyRecentEra (_ :: Write.RecentEra era) pp, _)
+            <- liftIO $ W.readNodeTipStateForTxWrite netLayer
         (cp, _, _) <- handler $ W.readWallet wrk
         let delegationTemplateM = Shared.delegationTemplate $ getState cp
         when (isNothing delegationTemplateM && isJust delegationRequest) $
@@ -2940,10 +2924,10 @@ constructSharedTransaction
                 apiDecoded <- decodeSharedTransaction api (ApiT wid) balancedTx
                 let deposits = case optionalDelegationAction of
                         Just (JoinRegisteringKey _poolId) ->
-                            [W.stakeKeyDeposit pp]
+                            [W.getStakeKeyDeposit pp]
                         _ -> []
                 let refunds = case optionalDelegationAction of
-                        Just Quit -> [W.stakeKeyDeposit pp]
+                        Just Quit -> [W.getStakeKeyDeposit pp]
                         _ -> []
                 delCerts <- case optionalDelegationAction of
                     Nothing -> pure Nothing
@@ -3081,23 +3065,19 @@ balanceTransaction
     -> Handler ApiSerialisedTransaction
 balanceTransaction
     ctx@ApiLayer{..} argGenChange utxoAssumptions (ApiT wid) body = do
-    -- NOTE: Ideally we'd read @pp@ and @era@ atomically.
-    pp <- liftIO $ currentProtocolParameters netLayer
-    era <- liftIO $ NW.currentNodeEra netLayer
-    Write.AnyRecentEra recentEra <- guardIsRecentEra era
+    (Write.InAnyRecentEra recentEra pp, timeTranslation)
+        <- liftIO $ W.readNodeTipStateForTxWrite netLayer
 
     withWorkerCtx ctx wid liftE liftE $ \wrk -> do
         (utxo, wallet, _txs) <- handler $ W.readWalletUTxO wrk
-        timeTranslation <- liftIO $ toTimeTranslation (timeInterpreter netLayer)
 
         partialTx <- parsePartialTx recentEra
-
         balancedTx <- liftHandler
             . fmap (Cardano.InAnyCardanoEra Write.cardanoEra . fst)
             $ Write.balanceTransaction
                 (MsgWallet . W.MsgBalanceTx >$< wrk ^. W.logger)
                 utxoAssumptions
-                (Write.unsafeFromWalletProtocolParameters pp)
+                pp
                 timeTranslation
                 (Write.constructUTxOIndex utxo)
                 (W.defaultChangeAddressGen argGenChange)
@@ -3509,10 +3489,6 @@ joinStakePool
     poolStatus <- liftIO (getPoolStatus poolId)
     pools <- liftIO knownPools
     curEpoch <- getCurrentEpoch ctx
-    -- FIXME [ADP-1489] pp and era are not guaranteed to be consistent,
-    -- which could cause problems under exceptional circumstances.
-    era <- liftIO $ NW.currentNodeEra netLayer
-    AnyRecentEra (recentEra :: Write.RecentEra era) <- guardIsRecentEra era
     withWorkerCtx ctx walletId liftE liftE $ \wrk -> do
         let tr = wrk ^. logger
             db = wrk ^. typed @(DBLayer IO s)
@@ -3525,7 +3501,6 @@ joinStakePool
                 (coerce $ getApiT $ body ^. #passphrase)
                 walletId
                 (W.defaultChangeAddressGen argGenChange)
-                (AnyRecentEra recentEra)
                 (PreSelection [])
                 =<< WD.joinStakePool
                     (MsgWallet >$< tr)
@@ -3568,18 +3543,12 @@ delegationFee
     -> ApiT WalletId
     -> Handler ApiFee
 delegationFee ctx@ApiLayer{..} (ApiT walletId) = do
-    era <- liftIO $ NW.currentNodeEra netLayer
-    AnyRecentEra (recentEra :: Write.RecentEra era) <- guardIsRecentEra era
     withWorkerCtx ctx walletId liftE liftE $ \workerCtx -> liftIO $ do
-        timeTranslation <-
-            toTimeTranslation (timeInterpreter netLayer)
         W.DelegationFee {feePercentiles, deposit} <-
             W.delegationFee @s
                 (workerCtx ^. dbLayer)
                 netLayer
                 txLayer
-                timeTranslation
-                (AnyRecentEra recentEra)
                 (W.defaultChangeAddressGen (delegationAddressS @n))
         pure $ mkApiFee (Just deposit) [] feePercentiles
 
@@ -3598,8 +3567,6 @@ quitStakePool
     -> ApiWalletPassphrase
     -> Handler (ApiTransaction n)
 quitStakePool ctx@ApiLayer{..} argGenChange (ApiT walletId) body = do
-    era <- liftIO $ NW.currentNodeEra netLayer
-    AnyRecentEra (recentEra :: Write.RecentEra era) <- guardIsRecentEra era
     withWorkerCtx ctx walletId liftE liftE $ \wrk -> do
         let db = wrk ^. typed @(DBLayer IO s)
             ti = timeInterpreter netLayer
@@ -3612,7 +3579,6 @@ quitStakePool ctx@ApiLayer{..} argGenChange (ApiT walletId) body = do
                 (coerce $ getApiT $ body ^. #passphrase)
                 walletId
                 (W.defaultChangeAddressGen argGenChange)
-                (AnyRecentEra recentEra)
                 (PreSelection [])
                 txCtx
 
@@ -4202,19 +4168,6 @@ rndStateChange ctx (ApiT wid) pwd =
 type RewardAccountBuilder k
     =  (k 'RootK XPrv, Passphrase "encryption")
     -> (XPrv, Passphrase "encryption")
-
-
-guardIsRecentEra :: AnyCardanoEra -> Handler AnyRecentEra
-guardIsRecentEra (Cardano.AnyCardanoEra era) = case era of
-    Cardano.ConwayEra -> pure $ Write.AnyRecentEra Write.RecentEraConway
-    Cardano.BabbageEra -> pure $ Write.AnyRecentEra Write.RecentEraBabbage
-    Cardano.AlonzoEra  -> liftE invalidEra
-    Cardano.MaryEra    -> liftE invalidEra
-    Cardano.AllegraEra -> liftE invalidEra
-    Cardano.ShelleyEra -> liftE invalidEra
-    Cardano.ByronEra   -> liftE invalidEra
-  where
-    invalidEra = W.ErrNodeNotYetInRecentEra $ Cardano.AnyCardanoEra era
 
 mkWithdrawal
     :: forall n block

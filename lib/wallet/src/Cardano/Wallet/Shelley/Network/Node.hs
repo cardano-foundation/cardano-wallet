@@ -279,7 +279,6 @@ import UnliftIO.Concurrent
 import UnliftIO.Exception
     ( Handler (..), IOException )
 
-import qualified Cardano.Api as Cardano
 import qualified Cardano.Crypto.Hash as Crypto
 import qualified Cardano.Ledger.Alonzo.PParams as Alonzo
 import qualified Cardano.Ledger.Babbage.PParams as Babbage
@@ -710,35 +709,20 @@ mkWalletToNodeProtocols
                 ((slottingParametersFromGenesis . getCompactGenesis)
                     <$> LSQry Shelley.GetGenesisConfig)
 
-            ppNode <- onAnyEra
-                (pure Nothing)
-                (Just . Cardano.fromLedgerPParams Cardano.ShelleyBasedEraShelley
-                    <$> LSQry Shelley.GetCurrentPParams)
-                (Just . Cardano.fromLedgerPParams Cardano.ShelleyBasedEraAllegra
-                    <$> LSQry Shelley.GetCurrentPParams)
-                (Just . Cardano.fromLedgerPParams Cardano.ShelleyBasedEraMary
-                    <$> LSQry Shelley.GetCurrentPParams)
-                (Just . Cardano.fromLedgerPParams Cardano.ShelleyBasedEraAlonzo
-                    <$> LSQry Shelley.GetCurrentPParams)
-                (Just . Cardano.fromLedgerPParams Cardano.ShelleyBasedEraBabbage
-                    <$> LSQry Shelley.GetCurrentPParams)
-                (Just . Cardano.fromLedgerPParams Cardano.ShelleyBasedEraConway
-                    <$> LSQry Shelley.GetCurrentPParams)
-
             pp <- onAnyEra
-                (protocolParametersFromUpdateState eraBounds ppNode
+                (protocolParametersFromUpdateState eraBounds
                     <$> LSQry Byron.GetUpdateInterfaceState)
-                (fromShelleyPParams eraBounds ppNode
+                (fromShelleyPParams eraBounds
                     <$> LSQry Shelley.GetCurrentPParams)
-                (fromAllegraPParams eraBounds ppNode
+                (fromAllegraPParams eraBounds
                     <$> LSQry Shelley.GetCurrentPParams)
-                (fromMaryPParams eraBounds ppNode
+                (fromMaryPParams eraBounds
                     <$> LSQry Shelley.GetCurrentPParams)
-                (fromAlonzoPParams eraBounds ppNode
+                (fromAlonzoPParams eraBounds
                     <$> LSQry Shelley.GetCurrentPParams)
-                (fromBabbagePParams eraBounds ppNode
+                (fromBabbagePParams eraBounds
                     <$> LSQry Shelley.GetCurrentPParams)
-                (fromConwayPParams eraBounds ppNode
+                (fromConwayPParams eraBounds
                     <$> LSQry Shelley.GetCurrentPParams)
 
             return (pp, sp)
