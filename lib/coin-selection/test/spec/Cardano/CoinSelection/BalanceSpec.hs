@@ -762,8 +762,8 @@ prop_performSelection_small mockConstraints (Blind (Small params)) =
         "Some minted assets were neither spent nor burned" $
 
     prop_performSelection mockConstraints params $ \result ->
-        cover 10 (selectionUnlimited && selectionSufficient result)
-            "selection unlimited and sufficient"
+        cover 10 (selectionSufficient result)
+            "selection sufficient"
   where
     utxoHasAtLeastOneAsset = not
         . Set.null
@@ -777,9 +777,6 @@ prop_performSelection_small mockConstraints (Blind (Small params)) =
             . F.toList
             . fmap snd
             $ view #outputsToCover params
-
-    selectionUnlimited :: Bool
-    selectionUnlimited = True
 
     selectionSufficient :: PerformSelectionResult -> Bool
     selectionSufficient = \case
