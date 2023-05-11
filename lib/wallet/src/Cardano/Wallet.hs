@@ -308,12 +308,7 @@ import Cardano.Wallet.Address.Discovery.Shared
     , isShared
     )
 import Cardano.Wallet.Checkpoints
-    ( DeltaCheckpoints (..)
-    , SparseCheckpointsConfig (..)
-    , defaultSparseCheckpointsConfig
-    , pruneCheckpoints
-    , sparseCheckpoints
-    )
+    ( DeltaCheckpoints (..), extendCheckpoints, pruneCheckpoints )
 import Cardano.Wallet.DB
     ( DBFresh (..)
     , DBLayer (..)
@@ -1146,42 +1141,17 @@ restoreBlocks ctx tr blocks nodeTip = db & \DBLayer{..} -> atomically $ do
     let finalitySlot = nodeTip ^. #slotNo
             - stabilityWindowShelley slottingParams
 
-    -- FIXME LATER during ADP-1403
-    -- We need to rethink checkpoint creation and consider the case
-    -- where the blocks are given as a 'Summary' and not a full 'List'
-    -- of blocks. In this case, it could happen that the current
-    -- scheme fails to create sufficiently many checkpoint as
-    -- it was never able to touch the corresponding block.
-    -- For now, we avoid this situation by being always supplied a 'List'
-    -- in the unstable region close to the tip.
-    let unstable = Set.fromList $ sparseCheckpoints cfg (nodeTip ^. #blockHeight)
-            where
-                -- NOTE
-                -- The edge really is an optimization to avoid rolling back too
-                -- "far" in the past. Yet, we let the edge construct itself
-                -- organically once we reach the tip of the chain and start
-                -- processing blocks one by one.
-                --
-                -- This prevents the wallet from trying to create too many
-                -- checkpoints at once during restoration which causes massive
-                -- performance degradation on large wallets.
-                --
-                -- Rollback may still occur during this short period, but
-                -- rolling back from a few hundred blocks is relatively fast
-                -- anyway.
-                cfg = (defaultSparseCheckpointsConfig epochStability) { edgeSize = 0 }
+    -- Checkpoint deltas
+    let wcps = snd . fromWallet <$> cps
+        deltaPutCheckpoints =
+            extendCheckpoints
+                getSlot
+                (view $ #currentTip . #blockHeight)
+                epochStability
+                (nodeTip ^. #blockHeight)
+                wcps
 
-        getBlockHeight cp = fromIntegral $
-            cp ^. #currentTip . #blockHeight . #getQuantity
-        willKeep cp = getBlockHeight cp `Set.member` unstable
-        cpsKeep = filter willKeep (NE.init cps) <> [NE.last cps]
-
-        deltaPutCheckpoints = reverse
-            [ PutCheckpoint (getSlot wcp) wcp
-            | wcp <- map (snd . fromWallet) cpsKeep
-            ]
-
-    let deltaPruneCheckpoints wallet =
+        deltaPruneCheckpoints wallet =
             pruneCheckpoints
                 (view $ #currentTip . #blockHeight)
                 epochStability
@@ -1216,8 +1186,6 @@ restoreBlocks ctx tr blocks nodeTip = db & \DBLayer{..} -> atomically $ do
             liftIO $ logDelegation delegation
             putDelegationCertificate cert slotNo
 
-    liftIO $ mapM_ logCheckpoint cpsKeep
-
     Delta.onDBVar walletState $ Delta.update $ \_wallet ->
         deltaPrologue
         <> [ UpdateCheckpoints deltaPutCheckpoints ]
@@ -1232,9 +1200,6 @@ restoreBlocks ctx tr blocks nodeTip = db & \DBLayer{..} -> atomically $ do
   where
     nl = ctx ^. networkLayer
     db = ctx ^. dbLayer @IO @s
-
-    logCheckpoint :: Wallet s -> IO ()
-    logCheckpoint cp = traceWith tr $ MsgCheckpoint (currentTip cp)
 
     logDelegation :: (SlotNo, DelegationCertificate) -> IO ()
     logDelegation = traceWith tr . uncurry MsgDiscoveredDelegationCert
