@@ -114,8 +114,6 @@ newDBFresh timeInterpreter wid = do
         , rollbackTo = noErrorAlterDB db
             . mRollbackTo
 
-        , prune = \_ _ -> error "MVar.prune: not implemented"
-
         {-----------------------------------------------------------------------
                                    Wallet Metadata
         -----------------------------------------------------------------------}

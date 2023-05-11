@@ -620,8 +620,6 @@ newDBFreshFromDBOpen ti wid_ DBOpen{atomically=atomically_} =
                 RollbackTxWalletsHistory nearestPoint
             pure $ W.chainPointFromBlockHeader currentTip
 
-        prune_ epochStability finalitySlot = pure ()
-
         {-----------------------------------------------------------------------
                                      Tx History
         -----------------------------------------------------------------------}

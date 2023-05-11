@@ -114,14 +114,10 @@ import Data.Maybe
     ( catMaybes )
 import Data.Ord
     ( Down (..) )
-import Data.Quantity
-    ( Quantity (..) )
 import Data.Store
     ( Store (..) )
 import Data.Traversable
     ( for )
-import Data.Word
-    ( Word32 )
 import GHC.Num
     ( Natural )
 
@@ -345,18 +341,6 @@ data DBLayer m s k = forall stm. (MonadIO stm, MonadFail stm) => DBLayer
         -- point of rollback but can't be guaranteed to be exactly the same
         -- because the database may only keep sparse checkpoints.
 
-    , prune
-        :: Quantity "block" Word32
-        -> SlotNo
-        -> stm ()
-        -- ^ Prune database entities and remove entities that can be discarded.
-        --
-        -- The second argument represents the stability window, or said
-        -- length of the deepest rollback.
-        --
-        -- The third argument is the finality slot, or said
-        -- most recent stable slot
-
     , atomically
         :: forall a. stm a -> m a
         -- ^ Execute operations of the database in isolation and atomically.
@@ -433,10 +417,6 @@ data DBLayerCollection stm m s k = DBLayerCollection
     , rollbackTo_
         :: Slot
         -> stm ChainPoint
-    , prune_
-        :: Quantity "block" Word32
-        -> SlotNo
-        -> stm ()
     , atomically_
         :: forall a. stm a -> m a
     , transactionsStore_
@@ -521,7 +501,6 @@ mkDBLayerFromParts ti wid_ DBLayerCollection{..} = DBLayer
     , readPrivateKey = readPrivateKey_ dbPrivateKey
     , readGenesisParameters = readGenesisParameters_ dbCheckpoints
     , rollbackTo = rollbackTo_
-    , prune = prune_
     , atomically = atomically_
     }
   where
