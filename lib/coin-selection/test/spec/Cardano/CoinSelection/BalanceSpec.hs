@@ -972,7 +972,6 @@ prop_performSelection mockConstraints params coverage =
         --        the maximum token bundle size, so it's necessary to break
         --        them up, but there isn't enough ada to pay for either the fee
         --        or the minimum ada quantities of the broken-up outputs.
-        --    4.  The input selection limit has been reached.
         --
         -- So to test that our expectation is really true, we run the selection
         -- again with modified constraints that:
@@ -980,7 +979,6 @@ prop_performSelection mockConstraints params coverage =
         --    1.  Require no fee.
         --    2.  Require no minimum ada quantity.
         --    3.  Impose no maximum token bundle size.
-        --    4.  Impose no selection limit.
         --
         -- We expect that the selection should succeed.
         --
