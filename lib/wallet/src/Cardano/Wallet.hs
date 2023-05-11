@@ -310,6 +310,7 @@ import Cardano.Wallet.Checkpoints
     ( DeltaCheckpoints (..)
     , SparseCheckpointsConfig (..)
     , defaultSparseCheckpointsConfig
+    , pruneCheckpoints
     , sparseCheckpoints
     )
 import Cardano.Wallet.DB
@@ -1179,6 +1180,13 @@ restoreBlocks ctx tr blocks nodeTip = db & \DBLayer{..} -> atomically $ do
             | wcp <- map (snd . fromWallet) cpsKeep
             ]
 
+    let deltaPruneCheckpoints wallet =
+            pruneCheckpoints
+                (view $ #currentTip . #blockHeight)
+                epochStability
+                (localTip ^. #blockHeight)
+                (wallet ^. #checkpoints)
+
     let
         -- NOTE: We have to update the 'Prologue' as well,
         -- as it can contain addresses for pending transactions,
@@ -1214,7 +1222,8 @@ restoreBlocks ctx tr blocks nodeTip = db & \DBLayer{..} -> atomically $ do
         <> [ UpdateCheckpoints deltaPutCheckpoints ]
         <> deltaPruneSubmissions
 
-    prune epochStability finalitySlot
+    Delta.onDBVar walletState $ Delta.update $ \wallet ->
+        [ UpdateCheckpoints $ deltaPruneCheckpoints wallet ]
 
     liftIO $ do
         traceWith tr $ MsgDiscoveredTxs txs
