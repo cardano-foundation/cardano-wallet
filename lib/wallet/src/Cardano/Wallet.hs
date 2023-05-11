@@ -1174,6 +1174,12 @@ restoreBlocks ctx tr blocks nodeTip = db & \DBLayer{..} -> atomically $ do
         willKeep cp = getBlockHeight cp `Set.member` unstable
         cpsKeep = filter willKeep (NE.init cps) <> [NE.last cps]
 
+        deltaPutCheckpoints = reverse
+            [ PutCheckpoint (getSlot wcp) wcp
+            | wcp <- map (snd . fromWallet) cpsKeep
+            ]
+
+    let
         -- NOTE: We have to update the 'Prologue' as well,
         -- as it can contain addresses for pending transactions,
         -- which are removed from the 'Prologue' once the
@@ -1184,10 +1190,6 @@ restoreBlocks ctx tr blocks nodeTip = db & \DBLayer{..} -> atomically $ do
         -- as the code that came before.
         deltaPrologue =
             [ ReplacePrologue $ getPrologue $ getState $ NE.last cps ]
-        delta = deltaPrologue ++ reverse
-            [ UpdateCheckpoints [ PutCheckpoint (getSlot wcp) wcp ]
-            | wcp <- map (snd . fromWallet) cpsKeep
-            ]
 
     liftIO $ forM_ txs $ \(Tx {txCBOR=mcbor},_) ->
         forM_ mcbor $ \cbor -> do
@@ -1203,8 +1205,10 @@ restoreBlocks ctx tr blocks nodeTip = db & \DBLayer{..} -> atomically $ do
             putDelegationCertificate cert slotNo
 
     liftIO $ mapM_ logCheckpoint cpsKeep
-    Delta.onDBVar walletState $ Delta.update
-        $ const delta
+
+    Delta.onDBVar walletState $ Delta.update $ \_wallet ->
+        deltaPrologue
+        <> [ UpdateCheckpoints deltaPutCheckpoints ]
 
     prune epochStability finalitySlot
 
