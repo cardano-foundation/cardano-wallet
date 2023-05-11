@@ -778,17 +778,8 @@ prop_performSelection_small mockConstraints (Blind (Small params)) =
             . fmap snd
             $ view #outputsToCover params
 
-    constraints :: SelectionConstraints TestSelectionContext
-    constraints = unMockSelectionConstraints mockConstraints
-
-    selectionLimit :: SelectionLimit
-    selectionLimit = view #computeSelectionLimit constraints
-        $ F.toList
-        $ view #outputsToCover params
-
     selectionLimited :: Bool
-    selectionLimited = case selectionLimit of
-        NoLimit -> False
+    selectionLimited = False
 
     selectionUnlimited :: Bool
     selectionUnlimited = not selectionLimited
