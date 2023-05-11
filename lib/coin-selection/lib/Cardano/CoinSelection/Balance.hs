@@ -1224,16 +1224,10 @@ selectMatchingQuantity
     -> m (Maybe (UTxOSelectionNonEmpty u))
         -- ^ An updated selection state that includes a matching UTxO entry,
         -- or 'Nothing' if no such entry could be found.
-selectMatchingQuantity filters limit s
-    | limitReached =
-        pure Nothing
-    | otherwise =
-        (updateState =<<) <$> UTxOIndex.selectRandomWithPriority
-            (UTxOSelection.leftoverIndex s) filters
+selectMatchingQuantity filters _limit s =
+    (updateState =<<) <$> UTxOIndex.selectRandomWithPriority
+        (UTxOSelection.leftoverIndex s) filters
   where
-    limitReached = case limit of
-        NoLimit -> False
-
     updateState
         :: ((u, TokenBundle), UTxOIndex u) -> Maybe (UTxOSelectionNonEmpty u)
     updateState ((i, _b), _remaining) = UTxOSelection.select i s
