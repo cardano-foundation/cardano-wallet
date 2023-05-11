@@ -1246,8 +1246,7 @@ prop_runSelection_UTxO_empty :: TokenBundle -> SelectionStrategy -> Property
 prop_runSelection_UTxO_empty balanceRequested strategy = monadicIO $ do
     result <- run $ runSelection @_ @TestUTxO
         RunSelectionParams
-            { selectionLimit = NoLimit
-            , utxoAvailable
+            { utxoAvailable
             , minimumBalance = balanceRequested
             , selectionStrategy = strategy
             }
@@ -1270,8 +1269,7 @@ prop_runSelection_UTxO_notEnough
 prop_runSelection_UTxO_notEnough utxoAvailable strategy = monadicIO $ do
     result <- run $ runSelection
         RunSelectionParams
-            { selectionLimit = NoLimit
-            , utxoAvailable
+            { utxoAvailable
             , minimumBalance = balanceRequested
             , selectionStrategy = strategy
             }
@@ -1295,8 +1293,7 @@ prop_runSelection_UTxO_exactlyEnough
 prop_runSelection_UTxO_exactlyEnough utxoAvailable strategy = monadicIO $ do
     result <- run $ runSelection
         RunSelectionParams
-            { selectionLimit = NoLimit
-            , utxoAvailable
+            { utxoAvailable
             , minimumBalance = balanceRequested
             , selectionStrategy = strategy
             }
@@ -1324,8 +1321,7 @@ prop_runSelection_UTxO_moreThanEnough
 prop_runSelection_UTxO_moreThanEnough utxoAvailable strategy = monadicIO $ do
     result <- run $ runSelection
         RunSelectionParams
-            { selectionLimit = NoLimit
-            , utxoAvailable
+            { utxoAvailable
             , minimumBalance = balanceRequested
             , selectionStrategy = strategy
             }
@@ -1373,8 +1369,7 @@ prop_runSelection_UTxO_muchMoreThanEnough (Blind (Large index)) strategy =
     monadicIO $ do
         result <- run $ runSelection
             RunSelectionParams
-                { selectionLimit = NoLimit
-                , utxoAvailable
+                { utxoAvailable
                 , minimumBalance = balanceRequested
                 , selectionStrategy = strategy
                 }

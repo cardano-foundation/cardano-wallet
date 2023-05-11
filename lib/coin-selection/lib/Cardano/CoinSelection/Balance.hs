@@ -862,8 +862,7 @@ performSelectionNonEmpty constraints params
 
     | otherwise = do
         maybeSelection <- runSelectionNonEmpty RunSelectionParams
-            { selectionLimit
-            , utxoAvailable
+            { utxoAvailable
             , minimumBalance = utxoBalanceRequired
             , selectionStrategy
             }
@@ -884,7 +883,6 @@ performSelectionNonEmpty constraints params
         { assessTokenBundleSize
         , computeMinimumAdaQuantity
         , computeMinimumCost
-        , computeSelectionLimit
         , maximumOutputAdaQuantity
         , maximumOutputTokenQuantity
         , maximumLengthChangeAddress
@@ -907,9 +905,6 @@ performSelectionNonEmpty constraints params
             , utxoBalanceRequired
             , outputsToCover
             }
-
-    selectionLimit :: SelectionLimit
-    selectionLimit = computeSelectionLimit $ F.toList outputsToCover
 
     utxoBalanceAvailable :: TokenBundle
     utxoBalanceAvailable = computeUTxOBalanceAvailable params
@@ -1091,9 +1086,7 @@ performSelectionNonEmpty constraints params
 -- | Parameters for 'runSelection'.
 --
 data RunSelectionParams u = RunSelectionParams
-    { selectionLimit :: SelectionLimit
-        -- ^ A limit to adhere to when performing a selection.
-    , utxoAvailable :: (UTxOSelection u)
+    { utxoAvailable :: (UTxOSelection u)
         -- ^ UTxO entries available for selection.
     , minimumBalance :: TokenBundle
         -- ^ Minimum balance to cover.
