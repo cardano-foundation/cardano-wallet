@@ -166,8 +166,6 @@ spec = describe "Cardano.CoinSelectionSpec" $ do
 
         it "prop_toBalanceConstraintsParams_computeMinimumCost" $
             property prop_toBalanceConstraintsParams_computeMinimumCost
-        it "prop_toBalanceConstraintsParams_computeSelectionLimit" $
-            property prop_toBalanceConstraintsParams_computeSelectionLimit
 
     describe "Preparing outputs" $ do
 
@@ -380,59 +378,6 @@ prop_toBalanceConstraintsParams_computeMinimumCost
 
     costAdjusted :: Coin
     costAdjusted = computeMinimumCostAdjusted skeleton
-
--- Tests that function 'toBalanceConstraintsParams' applies the correct
--- transformation to the 'computeSelectionLimit' function.
---
-prop_toBalanceConstraintsParams_computeSelectionLimit
-    :: MockSelectionConstraints
-    -> SelectionParams TestSelectionContext
-    -> Property
-prop_toBalanceConstraintsParams_computeSelectionLimit mockConstraints params =
-    checkCoverage $
-    cover 10 (selectionCollateralRequired params)
-        "collateral required: yes" $
-    cover 10 (not (selectionCollateralRequired params))
-        "collateral required: no" $
-    report selectionLimitOriginal
-        "selection limit (original)" $
-    report selectionLimitAdjusted
-        "selection limit (adjusted)" $
-    if selectionCollateralRequired params
-    then
-        conjoin
-            [ selectionLimitOriginal >= selectionLimitAdjusted
-            -- Here we apply a transformation that is the *inverse* of
-            -- the transformation within 'toBalanceConstraintsParams':
-            , selectionLimitOriginal ==
-                (selectionLimitAdjusted <&> (+ maximumCollateralInputCount))
-            ]
-    else
-        selectionLimitOriginal === selectionLimitAdjusted
-  where
-    constraints :: SelectionConstraints TestSelectionContext
-    constraints = unMockSelectionConstraints mockConstraints
-
-    maximumCollateralInputCount :: Int
-    maximumCollateralInputCount = constraints ^. #maximumCollateralInputCount
-
-    computeSelectionLimitOriginal
-        :: [(TestAddress, TokenBundle)] -> SelectionLimit
-    computeSelectionLimitOriginal = constraints ^. #computeSelectionLimit
-
-    computeSelectionLimitAdjusted
-        :: [(TestAddress, TokenBundle)] -> SelectionLimit
-    computeSelectionLimitAdjusted =
-        toBalanceConstraintsParams (constraints, params)
-            & fst & view #computeSelectionLimit
-
-    selectionLimitOriginal :: SelectionLimit
-    selectionLimitOriginal = computeSelectionLimitOriginal $
-        params ^. #outputsToCover
-
-    selectionLimitAdjusted :: SelectionLimit
-    selectionLimitAdjusted = computeSelectionLimitAdjusted $
-        params ^. #outputsToCover
 
 --------------------------------------------------------------------------------
 -- Preparing outputs

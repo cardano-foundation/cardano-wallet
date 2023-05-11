@@ -413,7 +413,6 @@ toBalanceConstraintsParams (constraints, params) =
                 & adjustComputeMinimumCost
         , computeSelectionLimit =
             view #computeSelectionLimit constraints
-                & adjustComputeSelectionLimit
         , assessTokenBundleSize =
             view #assessTokenBundleSize constraints
         , maximumOutputAdaQuantity =
@@ -453,23 +452,6 @@ toBalanceConstraintsParams (constraints, params) =
                 -> SelectionSkeleton ctx
             adjustSelectionSkeleton = over #skeletonInputCount
                 (+ view #maximumCollateralInputCount constraints)
-
-        adjustComputeSelectionLimit
-            :: ([(Address ctx, TokenBundle)] -> SelectionLimit)
-            -> ([(Address ctx, TokenBundle)] -> SelectionLimit)
-        adjustComputeSelectionLimit =
-            whenCollateralRequired params (fmap adjustSelectionLimit)
-          where
-            -- When collateral is required, we reserve space for collateral
-            -- inputs ahead of time by subtracting the maximum allowed number
-            -- of collateral inputs (defined by 'maximumCollateralInputCount')
-            -- from the selection limit.
-            --
-            -- This ensures that when we come to perform collateral selection,
-            -- there is still space available.
-            --
-            adjustSelectionLimit :: SelectionLimit -> SelectionLimit
-            adjustSelectionLimit = id
 
     balanceParams = Balance.SelectionParams
         { assetsToBurn =
