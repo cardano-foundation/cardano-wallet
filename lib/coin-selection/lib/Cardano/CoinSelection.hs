@@ -957,27 +957,6 @@ verifySelectionOutputCoinInsufficientError cs _ps e =
         (snd reportedOutput ^. #tokens)
 
 --------------------------------------------------------------------------------
--- Selection error verification: selection limit errors
---------------------------------------------------------------------------------
-
-data FailureToVerifySelectionLimitReachedError u =
-    FailureToVerifySelectionLimitReachedError
-        { selectedInputs
-            :: [(u, TokenBundle)]
-            -- ^ The inputs that were actually selected.
-        , selectedInputCount
-            :: Int
-            -- ^ The number of inputs that were actually selected.
-        , selectionLimitOriginal
-            :: SelectionLimit
-            -- ^ The selection limit before accounting for collateral inputs.
-        , selectionLimitAdjusted
-            :: SelectionLimit
-            -- ^ The selection limit after accounting for collateral inputs.
-        }
-    deriving (Eq, Show)
-
---------------------------------------------------------------------------------
 -- Selection error verification: change construction errors
 --------------------------------------------------------------------------------
 
