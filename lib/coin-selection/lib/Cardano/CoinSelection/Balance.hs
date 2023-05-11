@@ -1129,8 +1129,7 @@ runSelection params =
     runRoundRobinM utxoAvailable UTxOSelection.fromNonEmpty selectors
   where
     RunSelectionParams
-        { selectionLimit
-        , utxoAvailable
+        { utxoAvailable
         , minimumBalance
         , selectionStrategy
         } = params
@@ -1144,7 +1143,7 @@ runSelection params =
         reverse (coinSelector : fmap assetSelector minimumAssetQuantities)
       where
         assetSelector = runSelectionStep .
-            assetSelectionLens selectionLimit selectionStrategy
+            assetSelectionLens selectionStrategy
         coinSelector = runSelectionStep $
             coinSelectionLens selectionStrategy
             minimumCoinQuantity
@@ -1154,11 +1153,10 @@ runSelection params =
 
 assetSelectionLens
     :: (MonadRandom m, Ord u)
-    => SelectionLimit
-    -> SelectionStrategy
+    => SelectionStrategy
     -> (AssetId, TokenQuantity)
     -> SelectionLens m (UTxOSelection u) (UTxOSelectionNonEmpty u)
-assetSelectionLens _limit strategy (asset, minimumAssetQuantity) = SelectionLens
+assetSelectionLens strategy (asset, minimumAssetQuantity) = SelectionLens
     { currentQuantity = selectedAssetQuantity asset
     , updatedQuantity = selectedAssetQuantity asset
     , minimumQuantity = unTokenQuantity minimumAssetQuantity

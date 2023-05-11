@@ -1729,7 +1729,7 @@ prop_assetSelectionLens_givesPriorityToSingletonAssets (Blind (Small u)) =
     nonAdaAssetCount = Set.size (utxoIndexNonAdaAssets u)
     initialState = UTxOSelection.fromIndex u
     lens = assetSelectionLens
-        NoLimit SelectionStrategyOptimal (nonAdaAsset, minimumAssetQuantity)
+        SelectionStrategyOptimal (nonAdaAsset, minimumAssetQuantity)
     minimumAssetQuantity = TokenQuantity 1
 
 prop_coinSelectionLens_givesPriorityToCoins
