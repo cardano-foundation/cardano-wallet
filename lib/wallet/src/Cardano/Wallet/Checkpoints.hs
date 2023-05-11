@@ -25,6 +25,8 @@ module Cardano.Wallet.Checkpoints
     , DeltasCheckpoints
 
     -- * Checkpoint hygiene
+    , CheckpointPolicy
+    , extendAndPrune
     , BlockHeight
     , extendCheckpoints
     , pruneCheckpoints
@@ -38,6 +40,8 @@ module Cardano.Wallet.Checkpoints
 
 import Prelude
 
+import Cardano.Wallet.Checkpoints.Policy
+    ( CheckpointPolicy, keepWhereTip )
 import Data.Delta
     ( Delta (..) )
 import Data.Generics.Internal.VL.Lens
@@ -55,6 +59,7 @@ import Fmt
 import GHC.Generics
     ( Generic )
 
+import qualified Cardano.Wallet.Checkpoints.Policy as CP
 import qualified Cardano.Wallet.Primitive.Types as W
 import qualified Data.List as L
 import qualified Data.List.NonEmpty as NE
@@ -160,6 +165,52 @@ instance Buildable (DeltaCheckpoints a) where
     Checkpoint hygiene
 -------------------------------------------------------------------------------}
 type BlockHeight = Quantity "block" Word32
+
+{- Note [extendAndPrune]
+
+The function 'extendAndPrune' expects a list of new checkpoints that
+are to be pruned and added to the existing checkpoints.
+
+As a precondition, we assume that these new checkpoints
+have been created at least at those block heights
+specified by 'nextCheckpoint' from the 'CheckpointPolicy' argument.
+Except for the most recent checkpoint,
+the function 'extendAndPrune' will prune all checkpoints
+whose block height does not align with the policy.
+It's ok to supply a list of new checkpoints that is denser than required.
+-}
+
+-- | Extend the known checkpoints and prune unnecessary ones.
+extendAndPrune
+    :: (a -> W.Slot)
+        -- ^ Convert checkpoint to slot.
+    -> (a -> CP.BlockHeight)
+        -- ^ Convert checkpoint to block height.
+    -> CheckpointPolicy
+        -- ^ Policy to use for pruning checkpoints.
+    -> CP.BlockHeight
+        -- ^ Current tip of the blockchain,
+        -- which is *different* from block height of the latest checkpoint.
+    -> NE.NonEmpty a
+        -- ^ New checkpoints, ordered by increasing @Slot@.
+    -> Checkpoints a
+        -- ^ Current checkpoints.
+    -> DeltasCheckpoints a
+extendAndPrune getSlot getHeight policy nodeTip xs (Checkpoints cps) =
+    prunes ++ additions
+  where
+    additions = reverse -- latest slot needs to be applied last
+        [ PutCheckpoint (getSlot x) x | x <- new ]
+    prunes = [ RestrictTo $ map getSlot (old ++ new) ]
+
+    new = filter willKeep (NE.toList xs)
+    old = filter willKeep (Map.elems cps)
+
+    latest = NE.last xs
+    isLatest x = getHeight x == getHeight latest
+
+    willKeep x = isLatest x || keepWhereTip policy (getHeight x) nodeTip
+        -- We must keep the most recent checkpoint or nothing will be extended
 
 {- Note [Checkpoints-SummaryVsList]
 
