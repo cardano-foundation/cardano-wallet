@@ -170,6 +170,7 @@ library
     , random
     , random-shuffle
     , resource-pool
+    , resourcet
     , retry
     , safe
     , safe-money
@@ -249,6 +250,7 @@ library
     Cardano.Wallet.DB
     Cardano.Wallet.DB.Errors
     Cardano.Wallet.DB.Layer
+    Cardano.Wallet.DB.Migration
     Cardano.Wallet.DB.Pure.Implementation
     Cardano.Wallet.DB.Pure.Layer
     Cardano.Wallet.DB.Sqlite.Migration
