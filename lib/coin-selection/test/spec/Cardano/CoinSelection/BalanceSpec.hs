@@ -26,22 +26,18 @@ module Cardano.CoinSelection.BalanceSpec
     , MockAssessTokenBundleSize
     , MockComputeMinimumAdaQuantity
     , MockComputeMinimumCost
-    , MockComputeSelectionLimit
     , TestAddress (..)
     , TestSelectionContext
     , TestUTxO
     , genMockAssessTokenBundleSize
     , genMockComputeMinimumAdaQuantity
     , genMockComputeMinimumCost
-    , genMockComputeSelectionLimit
     , shrinkMockAssessTokenBundleSize
     , shrinkMockComputeMinimumAdaQuantity
     , shrinkMockComputeMinimumCost
-    , shrinkMockComputeSelectionLimit
     , unMockAssessTokenBundleSize
     , unMockComputeMinimumAdaQuantity
     , unMockComputeMinimumCost
-    , unMockComputeSelectionLimit
     ) where
 
 import Prelude
@@ -57,8 +53,6 @@ import Cardano.CoinSelection.Balance
     , SelectionBalanceError (..)
     , SelectionConstraints (..)
     , SelectionLens (..)
-    , SelectionLimit
-    , SelectionLimitOf (..)
     , SelectionParams
     , SelectionParamsOf (..)
     , SelectionResult
@@ -102,11 +96,7 @@ import Cardano.CoinSelection.Balance
     , ungroupByKey
     )
 import Cardano.CoinSelection.Balance.Gen
-    ( genSelectionLimit
-    , genSelectionStrategy
-    , shrinkSelectionLimit
-    , shrinkSelectionStrategy
-    )
+    ( genSelectionStrategy, shrinkSelectionStrategy )
 import Cardano.Numeric.Util
     ( inAscendingPartialOrder )
 import Cardano.Wallet.Primitive.Types.Coin
@@ -269,10 +259,6 @@ spec = describe "Cardano.CoinSelection.BalanceSpec" $
     describe "Class instances respect laws" $ do
 
         testLawsMany @(AssetCount TokenMap)
-            [ eqLaws
-            , ordLaws
-            ]
-        testLawsMany @SelectionLimit
             [ eqLaws
             , ordLaws
             ]
@@ -2501,32 +2487,6 @@ computeMinimumCostLinear s
     + F.sum (Set.size <$> skeletonChange s)
 
 --------------------------------------------------------------------------------
--- Computing selection limits
---------------------------------------------------------------------------------
-
-data MockComputeSelectionLimit
-    = MockComputeSelectionLimitNone
-    deriving (Eq, Show)
-
-genMockComputeSelectionLimit :: Gen MockComputeSelectionLimit
-genMockComputeSelectionLimit = oneof
-    [ pure MockComputeSelectionLimitNone
-    ]
-
-shrinkMockComputeSelectionLimit
-    :: MockComputeSelectionLimit -> [MockComputeSelectionLimit]
-shrinkMockComputeSelectionLimit = \case
-    MockComputeSelectionLimitNone ->
-        []
-
-unMockComputeSelectionLimit
-    :: MockComputeSelectionLimit
-    -> ([(TestAddress, TokenBundle)] -> SelectionLimit)
-unMockComputeSelectionLimit = \case
-    MockComputeSelectionLimitNone ->
-        const NoLimit
-
---------------------------------------------------------------------------------
 -- Assessing token bundle sizes
 --------------------------------------------------------------------------------
 
@@ -4353,10 +4313,6 @@ genTokenMapLarge = do
     genAssetQuantity = (,)
         <$> genAssetIdLargeRange
         <*> genTokenQuantityPositive
-
-instance Arbitrary SelectionLimit where
-    arbitrary = genSelectionLimit
-    shrink = shrinkSelectionLimit
 
 instance Arbitrary TokenMap where
     arbitrary = genTokenMapSmallRange

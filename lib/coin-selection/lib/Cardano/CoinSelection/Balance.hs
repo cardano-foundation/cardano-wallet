@@ -45,10 +45,6 @@ module Cardano.CoinSelection.Balance
     , BalanceInsufficientError (..)
     , UnableToConstructChangeError (..)
 
-    -- * Selection limits
-    , SelectionLimit
-    , SelectionLimitOf (..)
-
     -- * Querying selections
     , SelectionDelta (..)
     , selectionDeltaAllAssets
@@ -449,19 +445,6 @@ data SelectionSkeleton ctx = SelectionSkeleton
 
 deriving instance SelectionContext ctx => Eq (SelectionSkeleton ctx)
 deriving instance SelectionContext ctx => Show (SelectionSkeleton ctx)
-
--- | Specifies a limit to adhere to when performing a selection.
---
-type SelectionLimit = SelectionLimitOf Int
-
-data SelectionLimitOf a
-    = NoLimit
-      -- ^ Indicates that there is no limit.
-    deriving (Eq, Functor, Show)
-
-instance Ord a => Ord (SelectionLimitOf a) where
-    compare a b = case (a, b) of
-        (NoLimit, NoLimit) -> EQ
 
 type SelectionResult = SelectionResultOf []
 

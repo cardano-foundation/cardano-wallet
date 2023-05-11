@@ -45,8 +45,6 @@ module Cardano.Tx.Balance.Internal.CoinSelection
     , SelectionCollateralRequirement (..)
     , SelectionConstraints (..)
     , SelectionError (..)
-    , SelectionLimit
-    , SelectionLimitOf (..)
     , SelectionOf (..)
     , SelectionParams (..)
     , SelectionStrategy (..)
@@ -90,8 +88,6 @@ import Cardano.CoinSelection
 import Cardano.CoinSelection.Balance
     ( BalanceInsufficientError (..)
     , SelectionBalanceError (..)
-    , SelectionLimit
-    , SelectionLimitOf (..)
     , SelectionStrategy (..)
     , UnableToConstructChangeError (..)
     )
