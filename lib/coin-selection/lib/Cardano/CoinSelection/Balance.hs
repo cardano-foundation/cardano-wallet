@@ -143,7 +143,7 @@ import Cardano.Wallet.Primitive.Types.UTxOIndex
 import Cardano.Wallet.Primitive.Types.UTxOSelection
     ( IsUTxOSelection, UTxOSelection, UTxOSelectionNonEmpty )
 import Control.Monad.Extra
-    ( andM )
+    ( andM, (<=<) )
 import Control.Monad.Random.Class
     ( MonadRandom (..) )
 import Data.Bifunctor
@@ -1060,7 +1060,7 @@ performSelectionNonEmpty constraints params
             , assetsToBurn
             }
 
-        selectOneEntry = selectQuantityOf AssetLovelace selectionLimit
+        selectOneEntry = selectQuantityOf AssetLovelace
 
         requiredCost = computeMinimumCost SelectionSkeleton
             { skeletonInputCount = UTxOSelection.selectedSize s
@@ -1106,11 +1106,10 @@ runSelectionNonEmpty
     :: (MonadRandom m, Ord u)
     => RunSelectionParams u
     -> m (Maybe (UTxOSelectionNonEmpty u))
-runSelectionNonEmpty = (=<<)
-    <$> runSelectionNonEmptyWith
-        . selectQuantityOf AssetLovelace
-        . view #selectionLimit
-    <*> runSelection
+runSelectionNonEmpty =
+    runSelectionNonEmptyWith (selectQuantityOf AssetLovelace)
+    <=<
+    runSelection
 
 runSelectionNonEmptyWith
     :: Monad m
@@ -1159,11 +1158,11 @@ assetSelectionLens
     -> SelectionStrategy
     -> (AssetId, TokenQuantity)
     -> SelectionLens m (UTxOSelection u) (UTxOSelectionNonEmpty u)
-assetSelectionLens limit strategy (asset, minimumAssetQuantity) = SelectionLens
+assetSelectionLens _limit strategy (asset, minimumAssetQuantity) = SelectionLens
     { currentQuantity = selectedAssetQuantity asset
     , updatedQuantity = selectedAssetQuantity asset
     , minimumQuantity = unTokenQuantity minimumAssetQuantity
-    , selectQuantity = selectQuantityOf (Asset asset) limit
+    , selectQuantity = selectQuantityOf (Asset asset)
     , selectionStrategy = strategy
     }
 
@@ -1174,11 +1173,11 @@ coinSelectionLens
     -> Coin
     -- ^ Minimum coin quantity.
     -> SelectionLens m (UTxOSelection u) (UTxOSelectionNonEmpty u)
-coinSelectionLens limit strategy minimumCoinQuantity = SelectionLens
+coinSelectionLens _limit strategy minimumCoinQuantity = SelectionLens
     { currentQuantity = selectedCoinQuantity
     , updatedQuantity = selectedCoinQuantity
     , minimumQuantity = intCast $ unCoin minimumCoinQuantity
-    , selectQuantity  = selectQuantityOf AssetLovelace limit
+    , selectQuantity  = selectQuantityOf AssetLovelace
     , selectionStrategy = strategy
     }
 
@@ -1186,10 +1185,9 @@ selectQuantityOf
     :: (MonadRandom m, Ord u)
     => IsUTxOSelection utxoSelection u
     => Asset
-    -> SelectionLimit
     -> utxoSelection u
     -> m (Maybe (UTxOSelectionNonEmpty u))
-selectQuantityOf a _limit = selectMatchingQuantity
+selectQuantityOf a = selectMatchingQuantity
     [ SelectSingleton a
     , SelectPairWith a
     , SelectAnyWith a
