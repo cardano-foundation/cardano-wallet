@@ -644,9 +644,6 @@ newDBFreshFromDBOpen ti wid_ DBOpen{atomically=atomically_} =
             readCheckpoint >>= \cp -> do
                 let tip = cp ^. #currentTip
                 pruneCheckpoints epochStability tip
-            updateDBVar walletState
-                [ UpdateSubmissions [pruneByFinality finalitySlot]
-                ]
 
         {-----------------------------------------------------------------------
                                      Tx History

@@ -1199,6 +1199,9 @@ restoreBlocks ctx tr blocks nodeTip = db & \DBLayer{..} -> atomically $ do
 
     rollForwardTxSubmissions (localTip ^. #slotNo)
         $ fmap (\(tx,meta) -> (meta ^. #slotNo, txId tx)) txs
+    let deltaPruneSubmissions =
+            [ UpdateSubmissions [Submissions.pruneByFinality finalitySlot]
+            ]
 
     forM_ slotPoolDelegations $ \delegation@(slotNo, cert) -> do
             liftIO $ logDelegation delegation
@@ -1209,6 +1212,7 @@ restoreBlocks ctx tr blocks nodeTip = db & \DBLayer{..} -> atomically $ do
     Delta.onDBVar walletState $ Delta.update $ \_wallet ->
         deltaPrologue
         <> [ UpdateCheckpoints deltaPutCheckpoints ]
+        <> deltaPruneSubmissions
 
     prune epochStability finalitySlot
 
