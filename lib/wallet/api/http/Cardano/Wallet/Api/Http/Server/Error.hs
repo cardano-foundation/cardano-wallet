@@ -950,14 +950,6 @@ instance IsServerError (SelectionBalanceError WalletSelectionContext) where
                 , "enough funds available in the wallet. I am "
                 , "missing: ", pretty . Flat $ e ^. #utxoBalanceShortfall
                 ]
-        SelectionLimitReached e ->
-            apiError err403 TransactionIsTooBig $ mconcat
-                [ "I am not able to finalize the transaction "
-                , "because I need to select additional inputs and "
-                , "doing so will make the transaction too big. Try "
-                , "sending a smaller amount. I had already selected "
-                , showT (length $ view #inputsSelected e), " inputs."
-                ]
         UnableToConstructChange e ->
             apiError err403 CannotCoverFee $ T.unwords
                 [ "I am unable to finalize the transaction, as there"

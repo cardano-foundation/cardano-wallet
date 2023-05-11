@@ -309,7 +309,6 @@ prop_performSelection_coverage params r innerProperty =
     _checkExhaustivenessForSelectionError = case undefined of
         SelectionBalanceErrorOf e -> case e of
             Balance.BalanceInsufficient {} -> ()
-            Balance.SelectionLimitReached {} -> ()
             Balance.UnableToConstructChange {} -> ()
             Balance.EmptyUTxO {} -> ()
         SelectionCollateralErrorOf e -> case e of

@@ -48,7 +48,6 @@ module Cardano.CoinSelection.Balance
     -- * Selection limits
     , SelectionLimit
     , SelectionLimitOf (..)
-    , SelectionLimitReachedError (..)
     , reduceSelectionLimitBy
 
     -- * Querying selections
@@ -676,8 +675,6 @@ selectionMaximumCost c = mtimesDefault (2 :: Int) . selectionMinimumCost c
 data SelectionBalanceError ctx
     = BalanceInsufficient
         BalanceInsufficientError
-    | SelectionLimitReached
-        (SelectionLimitReachedError ctx)
     | UnableToConstructChange
         UnableToConstructChangeError
     | EmptyUTxO
@@ -685,24 +682,6 @@ data SelectionBalanceError ctx
 
 deriving instance SelectionContext ctx => Eq (SelectionBalanceError ctx)
 deriving instance SelectionContext ctx => Show (SelectionBalanceError ctx)
-
--- | Indicates that the balance of selected UTxO entries was insufficient to
---   cover the balance required while remaining within the selection limit.
---
-data SelectionLimitReachedError ctx = SelectionLimitReachedError
-    { utxoBalanceRequired
-        :: !TokenBundle
-      -- ^ The UTXO balance required.
-    , inputsSelected
-        :: ![(UTxO ctx, TokenBundle)]
-      -- ^ The inputs that could be selected while satisfying the
-      -- 'selectionLimit'.
-    , outputsToCover
-        :: !(NonEmpty (Address ctx, TokenBundle))
-    } deriving Generic
-
-deriving instance SelectionContext ctx => Eq (SelectionLimitReachedError ctx)
-deriving instance SelectionContext ctx => Show (SelectionLimitReachedError ctx)
 
 -- | Indicates that the balance of available UTxO entries is insufficient to
 --   cover the balance required.
@@ -896,15 +875,6 @@ performSelectionNonEmpty constraints params
         , assetsToBurn
         , selectionStrategy
         } = params
-
-    _selectionLimitReachedError
-        :: [(UTxO ctx, TokenBundle)] -> m (Either (SelectionBalanceError ctx) a)
-    _selectionLimitReachedError inputsSelected =
-        pure $ Left $ SelectionLimitReached $ SelectionLimitReachedError
-            { inputsSelected
-            , utxoBalanceRequired
-            , outputsToCover
-            }
 
     utxoBalanceAvailable :: TokenBundle
     utxoBalanceAvailable = computeUTxOBalanceAvailable params

@@ -914,8 +914,6 @@ verifySelectionBalanceError cs ps = \case
         verifyEmptyUTxOError cs ps ()
     Balance.UnableToConstructChange e->
         verifyUnableToConstructChangeError cs ps e
-    Balance.SelectionLimitReached e ->
-        verifySelectionLimitReachedError cs ps e
 
 --------------------------------------------------------------------------------
 -- Selection error verification: balance insufficient errors
@@ -1008,36 +1006,6 @@ data FailureToVerifySelectionLimitReachedError u =
             -- ^ The selection limit after accounting for collateral inputs.
         }
     deriving (Eq, Show)
-
--- | Verifies a 'Balance.SelectionLimitReachedError'.
---
--- This function verifies that the number of the selected inputs is correct
--- given the amount of space we expect to be reserved for collateral inputs.
---
-verifySelectionLimitReachedError
-    :: forall ctx. SelectionContext ctx
-    => VerifySelectionError (Balance.SelectionLimitReachedError ctx) ctx
-verifySelectionLimitReachedError cs ps e =
-    verify
-        (True)
-        (FailureToVerifySelectionLimitReachedError {..})
-  where
-    selectedInputs :: [(UTxO ctx, TokenBundle)]
-    selectedInputs = e ^. #inputsSelected
-
-    selectedInputCount :: Int
-    selectedInputCount = F.length selectedInputs
-
-    selectionLimitAdjusted :: SelectionLimit
-    selectionLimitAdjusted = toBalanceConstraintsParams (cs, ps)
-        & fst
-        & view #computeSelectionLimit
-        & ($ F.toList $ e ^. #outputsToCover)
-
-    selectionLimitOriginal :: SelectionLimit
-    selectionLimitOriginal = cs
-        & view #computeSelectionLimit
-        & ($ F.toList $ e ^. #outputsToCover)
 
 --------------------------------------------------------------------------------
 -- Selection error verification: change construction errors

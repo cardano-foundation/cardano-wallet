@@ -59,7 +59,6 @@ import Cardano.CoinSelection.Balance
     , SelectionLens (..)
     , SelectionLimit
     , SelectionLimitOf (..)
-    , SelectionLimitReachedError (..)
     , SelectionParams
     , SelectionParamsOf (..)
     , SelectionResult
@@ -952,8 +951,6 @@ prop_performSelection mockConstraints params coverage =
     onFailure = \case
         BalanceInsufficient e ->
             onBalanceInsufficient e
-        SelectionLimitReached e ->
-            onSelectionLimitReached e
         UnableToConstructChange e ->
             onUnableToConstructChange e
         EmptyUTxO ->
@@ -988,27 +985,6 @@ prop_performSelection mockConstraints params coverage =
             errorBalanceAvailable
             errorBalanceRequired
             errorBalanceShortfall = e
-
-    onSelectionLimitReached
-        :: SelectionLimitReachedError TestSelectionContext -> Property
-    onSelectionLimitReached e =
-        counterexample "onSelectionLimitReached" $
-        report errorBalanceRequired
-            "required balance" $
-        report errorBalanceSelected
-            "selected balance" $
-        verify
-            (utxoBalanceRequired == errorBalanceRequired)
-            "utxoBalanceRequired == errorBalanceRequired" $
-        verify
-            (view #utxoAvailable params /= UTxOSelection.empty)
-            "view #utxoAvailable params /= UTxOSelection.empty" $
-        property True
-      where
-        SelectionLimitReachedError
-            errorBalanceRequired errorInputsSelected _ = e
-        errorBalanceSelected =
-            F.foldMap (view #tokens . snd) errorInputsSelected
 
     onUnableToConstructChange :: UnableToConstructChangeError -> Property
     onUnableToConstructChange e =
