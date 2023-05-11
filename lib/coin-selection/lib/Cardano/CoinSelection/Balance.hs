@@ -48,7 +48,6 @@ module Cardano.CoinSelection.Balance
     -- * Selection limits
     , SelectionLimit
     , SelectionLimitOf (..)
-    , selectionLimitExceeded
     , SelectionLimitReachedError (..)
     , reduceSelectionLimitBy
 
@@ -470,12 +469,6 @@ instance Ord a => Ord (SelectionLimitOf a) where
     compare a b = case (a, b) of
         (NoLimit, NoLimit) -> EQ
 
--- | Indicates whether or not the given selection limit has been exceeded.
---
-selectionLimitExceeded :: s u -> SelectionLimit -> Bool
-selectionLimitExceeded _ = \case
-    NoLimit -> False
-
 -- | Reduces a selection limit by a given reduction amount.
 --
 -- If the given reduction amount is positive, then this function will reduce
@@ -879,9 +872,6 @@ performSelectionNonEmpty constraints params
                 pure $ Left EmptyUTxO
             Nothing ->
                 selectionLimitReachedError []
-            Just selection | selectionLimitExceeded selection selectionLimit ->
-                selectionLimitReachedError $ F.toList $
-                    UTxOSelection.selectedList selection
             Just selection -> do
                 let utxoSelected = UTxOSelection.selectedIndex selection
                 let utxoBalanceSelected = UTxOIndex.balance utxoSelected
