@@ -479,8 +479,6 @@ unitTests_computeMinimumCollateral = unitTests
 data MockSelectionConstraints = MockSelectionConstraints
     { assessTokenBundleSize
         :: MockAssessTokenBundleSize
-    , certificateDepositAmount
-        :: Coin
     , computeMinimumAdaQuantity
         :: MockComputeMinimumAdaQuantity
     , computeMinimumCost
@@ -499,7 +497,6 @@ data MockSelectionConstraints = MockSelectionConstraints
 genMockSelectionConstraints :: Gen MockSelectionConstraints
 genMockSelectionConstraints = MockSelectionConstraints
     <$> genMockAssessTokenBundleSize
-    <*> genCertificateDepositAmount
     <*> genMockComputeMinimumAdaQuantity
     <*> genMockComputeMinimumCost
     <*> genMaximumCollateralInputCount
@@ -511,7 +508,6 @@ shrinkMockSelectionConstraints
     :: MockSelectionConstraints -> [MockSelectionConstraints]
 shrinkMockSelectionConstraints = genericRoundRobinShrink
     <@> shrinkMockAssessTokenBundleSize
-    <:> shrinkCertificateDepositAmount
     <:> shrinkMockComputeMinimumAdaQuantity
     <:> shrinkMockComputeMinimumCost
     <:> shrinkMaximumCollateralInputCount
@@ -525,8 +521,6 @@ unMockSelectionConstraints
 unMockSelectionConstraints m = SelectionConstraints
     { assessTokenBundleSize =
         unMockAssessTokenBundleSize $ view #assessTokenBundleSize m
-    , certificateDepositAmount =
-        view #certificateDepositAmount m
     , computeMinimumAdaQuantity =
         unMockComputeMinimumAdaQuantity $ view #computeMinimumAdaQuantity m
     , isBelowMinimumAdaQuantity =
@@ -546,16 +540,6 @@ unMockSelectionConstraints m = SelectionConstraints
     , nullAddress =
         TestAddress 0x0
     }
-
---------------------------------------------------------------------------------
--- Certificate deposit amounts
---------------------------------------------------------------------------------
-
-genCertificateDepositAmount :: Gen Coin
-genCertificateDepositAmount = genCoinPositive
-
-shrinkCertificateDepositAmount :: Coin -> [Coin]
-shrinkCertificateDepositAmount = shrinkCoinPositive
 
 --------------------------------------------------------------------------------
 -- Minimum ada quantities
@@ -631,9 +615,6 @@ genSelectionParams = SelectionParams
     <*> genExtraCoinIn
     <*> genExtraCoinOut
     <*> genOutputsToCover
-    <*> genRewardWithdrawal
-    <*> genCertificateDepositsTaken
-    <*> genCertificateDepositsReturned
     <*> genCollateralRequirement
     <*> genUTxOAvailableForCollateral
     <*> genUTxOAvailableForInputs
@@ -648,9 +629,6 @@ shrinkSelectionParams = genericRoundRobinShrink
     <:> shrinkExtraCoinIn
     <:> shrinkExtraCoinOut
     <:> shrinkOutputsToCover
-    <:> shrinkRewardWithdrawal
-    <:> shrinkCerticateDepositsTaken
-    <:> shrinkCerticateDepositsReturned
     <:> shrinkCollateralRequirement
     <:> shrinkUTxOAvailableForCollateral
     <:> shrinkUTxOAvailableForInputs
@@ -757,32 +735,6 @@ shrinkOutputsToCover = shrinkList shrinkOutput
 
 tokenBundleHasNonZeroCoin :: TokenBundle -> Bool
 tokenBundleHasNonZeroCoin b = TokenBundle.getCoin b /= Coin 0
-
---------------------------------------------------------------------------------
--- Reward withdrawals
---------------------------------------------------------------------------------
-
-genRewardWithdrawal :: Gen Coin
-genRewardWithdrawal = genCoin
-
-shrinkRewardWithdrawal :: Coin -> [Coin]
-shrinkRewardWithdrawal = shrinkCoin
-
---------------------------------------------------------------------------------
--- Certificate deposits taken and returned
---------------------------------------------------------------------------------
-
-genCertificateDepositsTaken :: Gen Natural
-genCertificateDepositsTaken = chooseNatural (0, 3)
-
-genCertificateDepositsReturned :: Gen Natural
-genCertificateDepositsReturned = chooseNatural (0, 3)
-
-shrinkCerticateDepositsTaken :: Natural -> [Natural]
-shrinkCerticateDepositsTaken = shrinkNatural
-
-shrinkCerticateDepositsReturned :: Natural -> [Natural]
-shrinkCerticateDepositsReturned = shrinkNatural
 
 --------------------------------------------------------------------------------
 -- Collateral requirements

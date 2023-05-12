@@ -217,10 +217,6 @@ data SelectionConstraints = SelectionConstraints
         -- what can be included in a transaction output. See documentation for
         -- the 'TokenBundleSizeAssessor' type to learn about the expected
         -- properties of this field.
-    , certificateDepositAmount
-        :: Coin
-        -- ^ Amount that should be taken from/returned back to the wallet for
-        -- each stake key registration/de-registration in the transaction.
     , computeMinimumAdaQuantity
         :: Address -> TokenMap -> Coin
         -- ^ Computes the minimum ada quantity required for a given output.
@@ -282,15 +278,6 @@ data SelectionParams = SelectionParams
     , outputsToCover
         :: ![TxOut]
         -- ^ Specifies a set of outputs that must be paid for.
-    , rewardWithdrawal
-        :: !Coin
-        -- ^ Specifies the value of a withdrawal from a reward account.
-    , certificateDepositsTaken
-        :: !Natural
-        -- ^ Number of deposits for stake key registrations.
-    , certificateDepositsReturned
-        :: !Natural
-        -- ^ Number of deposits from stake key de-registrations.
     , collateralRequirement
         :: !SelectionCollateralRequirement
         -- ^ Specifies the collateral requirement for this selection.

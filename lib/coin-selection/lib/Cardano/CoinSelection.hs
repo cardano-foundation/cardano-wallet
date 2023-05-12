@@ -150,10 +150,6 @@ data SelectionConstraints ctx = SelectionConstraints
         -- what can be included in a transaction output. See documentation for
         -- the 'TokenBundleSizeAssessor' type to learn about the expected
         -- properties of this field.
-    , certificateDepositAmount
-        :: Coin
-        -- ^ Amount that should be taken from/returned back to the wallet for
-        -- each stake key registration/de-registration in the transaction.
     , computeMinimumAdaQuantity
         :: Address ctx -> TokenMap -> Coin
         -- ^ Computes the minimum ada quantity required for a given output.
@@ -205,15 +201,6 @@ data SelectionParams ctx = SelectionParams
     , outputsToCover
         :: ![(Address ctx, TokenBundle)]
         -- ^ Specifies a set of outputs that must be paid for.
-    , rewardWithdrawal
-        :: !Coin
-        -- ^ Specifies the value of a withdrawal from a reward account.
-    , certificateDepositsTaken
-        :: !Natural
-        -- ^ Number of deposits for stake key registrations.
-    , certificateDepositsReturned
-        :: !Natural
-        -- ^ Number of deposits from stake key de-registrations.
     , collateralRequirement
         :: !SelectionCollateralRequirement
         -- ^ Specifies the collateral requirement for this selection.
@@ -452,14 +439,9 @@ toBalanceConstraintsParams (constraints, params) =
         , assetsToMint =
             view #assetsToMint params
         , extraCoinSource =
-            view #rewardWithdrawal params <> view #extraCoinIn params <>
-            mtimesDefault
-                (view #certificateDepositsReturned params)
-                (view #certificateDepositAmount constraints)
-        , extraCoinSink = view #extraCoinOut params <>
-            mtimesDefault
-                (view #certificateDepositsTaken params)
-                (view #certificateDepositAmount constraints)
+            view #extraCoinIn params
+        , extraCoinSink =
+            view #extraCoinOut params
         , outputsToCover =
             view #outputsToCover params
         , utxoAvailable =

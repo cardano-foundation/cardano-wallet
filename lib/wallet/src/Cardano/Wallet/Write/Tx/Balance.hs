@@ -968,9 +968,6 @@ balanceTransactionWithSelectionStrategyAndNoZeroAdaAdjustment
                 $ case recentEra @era of
                     RecentEraBabbage -> pp ^. #_maxValSize
                     RecentEraConway -> pp ^. #_maxValSize
-            , certificateDepositAmount = W.toWallet $ case recentEra @era of
-                RecentEraBabbage -> getField @"_keyDeposit" pp
-                RecentEraConway -> getField @"_keyDeposit" pp
             , computeMinimumAdaQuantity = \addr tokens -> W.toWallet $
                 computeMinimumCoinForTxOut
                     (recentEra @era)
@@ -1024,14 +1021,6 @@ balanceTransactionWithSelectionStrategyAndNoZeroAdaAdjustment
                 <> adaInOutputs
                 <> fromCardanoLovelace fee0
             , extraCoinOut = negativeAda <> adaInInputs
-
-            -- We don't use the following 3 fields because certs and
-            -- withdrawals are already included in the balance (passed in
-            -- above).
-            , rewardWithdrawal = W.Coin 0
-            , certificateDepositsReturned = 0
-            , certificateDepositsTaken = 0
-
             -- NOTE: It is important that coin selection has the correct
             -- notion of fees, because it will be used to tell how much
             -- collateral is needed.
