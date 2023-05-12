@@ -100,7 +100,7 @@ import Cardano.Wallet.Shelley.Transaction
     ( KeyWitnessCount (..)
     , TxFeeUpdate (..)
     , TxUpdate (..)
-    , TxWitnessTag
+    , TxWitnessTag (..)
     , assignScriptRedeemers
     , calculateMinimumFee
     , distributeSurplus
@@ -362,12 +362,11 @@ constructUTxOIndex walletUTxO =
     cardanoUTxO = toCardanoUTxO Cardano.shelleyBasedEra walletUTxO
 
 balanceTransaction
-    :: forall era m changeState
-     . ( MonadRandom m
-       , IsRecentEra era
-       )
+    :: forall era m changeState.
+        ( MonadRandom m
+        , IsRecentEra era
+        )
     => Tracer m BalanceTxLog
-    -> TxWitnessTag
     -> UTxOAssumptions
     -> (TokenBundleMaxSize -> TokenBundleSizeAssessor)
     -> ProtocolParameters era
@@ -395,7 +394,7 @@ balanceTransaction
     -> changeState
     -> PartialTx era
     -> ExceptT ErrBalanceTx m (Cardano.Tx era, changeState)
-balanceTransaction tr txWitnessTag utxoAssumptions mkTokenBundleSizeAssessor pp
+balanceTransaction tr utxoAssumptions mkTokenBundleSizeAssessor pp
     timeTranslation utxo genChange s partialTx = do
     let adjustedPartialTx = over #tx
             (increaseZeroAdaOutputs (recentEra @era) (pparamsLedger pp))
@@ -403,7 +402,7 @@ balanceTransaction tr txWitnessTag utxoAssumptions mkTokenBundleSizeAssessor pp
     let balanceWith strategy =
             balanceTransactionWithSelectionStrategyAndNoZeroAdaAdjustment
                 @era @m @changeState
-                tr txWitnessTag utxoAssumptions mkTokenBundleSizeAssessor pp
+                tr utxoAssumptions mkTokenBundleSizeAssessor pp
                 timeTranslation utxo genChange s strategy adjustedPartialTx
     balanceWith SelectionStrategyOptimal
         `catchE` \e ->
@@ -482,7 +481,6 @@ balanceTransactionWithSelectionStrategyAndNoZeroAdaAdjustment
        , IsRecentEra era
        )
     => Tracer m BalanceTxLog
-    -> TxWitnessTag
     -> UTxOAssumptions
     -> (TokenBundleMaxSize -> TokenBundleSizeAssessor)
     -> ProtocolParameters era
@@ -494,7 +492,7 @@ balanceTransactionWithSelectionStrategyAndNoZeroAdaAdjustment
     -> PartialTx era
     -> ExceptT ErrBalanceTx m (Cardano.Tx era, changeState)
 balanceTransactionWithSelectionStrategyAndNoZeroAdaAdjustment
-    tr txWitnessTag utxoAssumptions mkTokenBundleSizeAssessor
+    tr utxoAssumptions mkTokenBundleSizeAssessor
     protocolParameters@(ProtocolParameters pp) timeTranslation
     (UTxOIndex walletUTxO internalUtxoAvailable cardanoUTxO) genChange s
     selectionStrategy ptx@(PartialTx partialTx inputUTxO redeemers) = do
@@ -544,7 +542,6 @@ balanceTransactionWithSelectionStrategyAndNoZeroAdaAdjustment
         let mSel = selectAssets'
                 (recentEra @era)
                 protocolParameters
-                txWitnessTag
                 utxoAssumptions
                 (extractOutputsFromTx partialTx)
                 redeemers
@@ -852,7 +849,6 @@ selectAssets'
      . Cardano.IsCardanoEra era
     => RecentEra era
     -> ProtocolParameters era
-    -> TxWitnessTag
     -> UTxOAssumptions
     -> [W.TxOut]
     -> [Redeemer]
@@ -867,8 +863,8 @@ selectAssets'
     -> (TokenBundleMaxSize -> TokenBundleSizeAssessor)
     -- ^ A function to assess the size of a token bundle.
     -> Either (SelectionError WalletSelectionContext) Selection
-selectAssets' era (ProtocolParameters pp) txWitnessTag utxoAssumptions outs
-    redeemers utxoSelection balance fee0 seed changeGen selectionStrategy
+selectAssets' era (ProtocolParameters pp) utxoAssumptions outs redeemers
+    utxoSelection balance fee0 seed changeGen selectionStrategy
     bundleSizeAssessor =
         (`evalRand` stdGenFromSeed seed) . runExceptT
             $ performSelection selectionConstraints selectionParams
@@ -898,7 +894,7 @@ selectAssets' era (ProtocolParameters pp) txWitnessTag utxoAssumptions outs
             , calculateMinimumFee
                 (Cardano.AnyCardanoEra (Write.fromRecentEra era))
                 feePerByte
-                txWitnessTag
+                (assumedTxWitnessTag utxoAssumptions)
                 (defaultTransactionCtx
                     { txPaymentCredentialScriptTemplate =
                         assumedInputScriptTemplate utxoAssumptions })
@@ -974,7 +970,7 @@ selectAssets' era (ProtocolParameters pp) txWitnessTag utxoAssumptions outs
         calculateMinimumFee
             (Cardano.AnyCardanoEra (Write.fromRecentEra era))
             feePerByte
-            txWitnessTag
+            (assumedTxWitnessTag utxoAssumptions)
             defaultTransactionCtx
             SelectionSkeleton
                 { skeletonInputCount = UTxOSelection.selectedSize utxoSelection
@@ -1007,6 +1003,12 @@ selectAssets' era (ProtocolParameters pp) txWitnessTag utxoAssumptions outs
         AllKeyPaymentCredentials -> Nothing
         AllByronKeyPaymentCredentials -> Nothing
         AllScriptPaymentCredentialsFrom scriptTemplate _ -> Just scriptTemplate
+
+    assumedTxWitnessTag :: UTxOAssumptions -> TxWitnessTag
+    assumedTxWitnessTag = \case
+        AllKeyPaymentCredentials -> TxWitnessShelleyUTxO
+        AllByronKeyPaymentCredentials -> TxWitnessByronUTxO
+        AllScriptPaymentCredentialsFrom {} -> TxWitnessShelleyUTxO
 
 data ChangeAddressGen s = ChangeAddressGen
     { getChangeAddressGen :: s -> (W.Address, s)

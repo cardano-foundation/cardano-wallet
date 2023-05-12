@@ -2123,7 +2123,6 @@ buildTransactionPure
     withExceptT Left $
         balanceTransaction @_ @_ @s
             nullTracer
-            (transactionWitnessTag txLayer)
             AllKeyPaymentCredentials
             (tokenBundleSizeAssessor txLayer)
             pparams
@@ -2794,7 +2793,6 @@ transactionFee DBLayer{atomically, walletState} protocolParams txLayer
             res <- runExceptT $
                     balanceTransaction @_ @_ @s
                         nullTracer
-                        (transactionWitnessTag txLayer)
                         AllKeyPaymentCredentials
                         (tokenBundleSizeAssessor txLayer)
                         protocolParams
