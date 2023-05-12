@@ -150,10 +150,6 @@ data SelectionConstraints ctx = SelectionConstraints
         -- what can be included in a transaction output. See documentation for
         -- the 'TokenBundleSizeAssessor' type to learn about the expected
         -- properties of this field.
-    , certificateDepositAmount
-        :: Coin
-        -- ^ Amount that should be taken from/returned back to the wallet for
-        -- each stake key registration/de-registration in the transaction.
     , computeMinimumAdaQuantity
         :: Address ctx -> TokenMap -> Coin
         -- ^ Computes the minimum ada quantity required for a given output.

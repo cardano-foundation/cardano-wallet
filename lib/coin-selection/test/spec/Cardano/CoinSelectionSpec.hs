@@ -479,8 +479,6 @@ unitTests_computeMinimumCollateral = unitTests
 data MockSelectionConstraints = MockSelectionConstraints
     { assessTokenBundleSize
         :: MockAssessTokenBundleSize
-    , certificateDepositAmount
-        :: Coin
     , computeMinimumAdaQuantity
         :: MockComputeMinimumAdaQuantity
     , computeMinimumCost
@@ -499,7 +497,6 @@ data MockSelectionConstraints = MockSelectionConstraints
 genMockSelectionConstraints :: Gen MockSelectionConstraints
 genMockSelectionConstraints = MockSelectionConstraints
     <$> genMockAssessTokenBundleSize
-    <*> genCertificateDepositAmount
     <*> genMockComputeMinimumAdaQuantity
     <*> genMockComputeMinimumCost
     <*> genMaximumCollateralInputCount
@@ -511,7 +508,6 @@ shrinkMockSelectionConstraints
     :: MockSelectionConstraints -> [MockSelectionConstraints]
 shrinkMockSelectionConstraints = genericRoundRobinShrink
     <@> shrinkMockAssessTokenBundleSize
-    <:> shrinkCertificateDepositAmount
     <:> shrinkMockComputeMinimumAdaQuantity
     <:> shrinkMockComputeMinimumCost
     <:> shrinkMaximumCollateralInputCount
@@ -525,8 +521,6 @@ unMockSelectionConstraints
 unMockSelectionConstraints m = SelectionConstraints
     { assessTokenBundleSize =
         unMockAssessTokenBundleSize $ view #assessTokenBundleSize m
-    , certificateDepositAmount =
-        view #certificateDepositAmount m
     , computeMinimumAdaQuantity =
         unMockComputeMinimumAdaQuantity $ view #computeMinimumAdaQuantity m
     , isBelowMinimumAdaQuantity =
@@ -546,16 +540,6 @@ unMockSelectionConstraints m = SelectionConstraints
     , nullAddress =
         TestAddress 0x0
     }
-
---------------------------------------------------------------------------------
--- Certificate deposit amounts
---------------------------------------------------------------------------------
-
-genCertificateDepositAmount :: Gen Coin
-genCertificateDepositAmount = genCoinPositive
-
-shrinkCertificateDepositAmount :: Coin -> [Coin]
-shrinkCertificateDepositAmount = shrinkCoinPositive
 
 --------------------------------------------------------------------------------
 -- Minimum ada quantities

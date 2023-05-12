@@ -968,9 +968,6 @@ balanceTransactionWithSelectionStrategyAndNoZeroAdaAdjustment
                 $ case recentEra @era of
                     RecentEraBabbage -> pp ^. #_maxValSize
                     RecentEraConway -> pp ^. #_maxValSize
-            , certificateDepositAmount = W.toWallet $ case recentEra @era of
-                RecentEraBabbage -> getField @"_keyDeposit" pp
-                RecentEraConway -> getField @"_keyDeposit" pp
             , computeMinimumAdaQuantity = \addr tokens -> W.toWallet $
                 computeMinimumCoinForTxOut
                     (recentEra @era)
