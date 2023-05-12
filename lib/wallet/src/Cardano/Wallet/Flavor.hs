@@ -1,10 +1,13 @@
+{-# LANGUAGE AllowAmbiguousTypes #-}
 {-# LANGUAGE ConstraintKinds #-}
 {-# LANGUAGE DataKinds #-}
 {-# LANGUAGE DeriveGeneric #-}
+{-# LANGUAGE FlexibleContexts #-}
 {-# LANGUAGE FlexibleInstances #-}
 {-# LANGUAGE GADTs #-}
 {-# LANGUAGE MultiParamTypeClasses #-}
 {-# LANGUAGE ScopedTypeVariables #-}
+{-# LANGUAGE TypeApplications #-}
 {-# LANGUAGE TypeFamilies #-}
 
 module Cardano.Wallet.Flavor
@@ -12,6 +15,9 @@ module Cardano.Wallet.Flavor
     , WalletFlavor (..)
     , KeyOf
     , TestState (..)
+    , KeyFlavorS (..)
+    , keyFlavor
+    , StateWithKey
     )
 where
 
@@ -38,6 +44,7 @@ import Data.Kind
 import GHC.Generics
     ( Generic )
 
+-- | A singleton type to capture the flavor of a state.
 data WalletFlavorS s where
     ShelleyWallet :: WalletFlavorS (SeqState n ShelleyKey)
     IcarusWallet :: WalletFlavorS (SeqState n IcarusKey)
@@ -46,6 +53,7 @@ data WalletFlavorS s where
     BenchByronWallet :: WalletFlavorS (RndAnyState n p)
     BenchShelleyWallet :: WalletFlavorS (SeqAnyState n ShelleyKey p)
 
+-- | A function to reify the flavor of a state.
 class WalletFlavor s where
     walletFlavor :: WalletFlavorS s
 
@@ -67,9 +75,11 @@ instance WalletFlavor (RndAnyState n p) where
 instance WalletFlavor (SharedState n SharedKey) where
     walletFlavor = SharedWallet
 
+-- | A type for states that will be used in tests.
 newtype TestState s (k :: (Depth -> Type -> Type)) = TestState s
     deriving (Generic, Show, Eq)
 
+-- | A type family to get the key type from a state.
 type family KeyOf (s :: Type) :: (Depth -> Type -> Type) where
     KeyOf (SeqState n k) = k
     KeyOf (RndState n) = ByronKey
@@ -77,3 +87,29 @@ type family KeyOf (s :: Type) :: (Depth -> Type -> Type) where
     KeyOf (SeqAnyState n k p) = k
     KeyOf (RndAnyState n p) = ByronKey
     KeyOf (TestState s k) = k
+
+-- | A singleton type to capture the flavor of a key.
+data KeyFlavorS a where
+    ByronKeyS :: KeyFlavorS ByronKey
+    IcarusKeyS :: KeyFlavorS IcarusKey
+    ShelleyKeyS :: KeyFlavorS ShelleyKey
+    SharedKeyS :: KeyFlavorS SharedKey
+
+-- | Map a wallet flavor to a key flavor.
+keyOfWallet :: WalletFlavorS s -> KeyFlavorS (KeyOf s)
+keyOfWallet ShelleyWallet = ShelleyKeyS
+keyOfWallet IcarusWallet = IcarusKeyS
+keyOfWallet ByronWallet = ByronKeyS
+keyOfWallet SharedWallet = SharedKeyS
+keyOfWallet BenchByronWallet = ByronKeyS
+keyOfWallet BenchShelleyWallet = ShelleyKeyS
+
+-- | A function to reify the flavor of a key from a state type.
+--
+-- use with
+-- > keyFlavor @s
+keyFlavor :: forall s. WalletFlavor s => KeyFlavorS (KeyOf s)
+keyFlavor = keyOfWallet (walletFlavor @s)
+
+-- | Constraints for a state with a specific key.
+type StateWithKey s k = (WalletFlavor s, KeyOf s ~ k)
