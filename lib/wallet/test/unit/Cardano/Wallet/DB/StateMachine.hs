@@ -59,13 +59,7 @@ import Cardano.Pool.Types
 import Cardano.Wallet.Address.Book
     ( AddressBookIso )
 import Cardano.Wallet.Address.Derivation
-    ( Depth (..)
-    , DerivationPrefix
-    , Index
-    , KeyFingerprint
-    , PersistPrivateKey (..)
-    , Role (..)
-    )
+    ( Depth (..), DerivationPrefix, Index, KeyFingerprint, Role (..) )
 import Cardano.Wallet.Address.Derivation.Byron
     ( ByronKey )
 import Cardano.Wallet.Address.Derivation.Shared
@@ -86,6 +80,8 @@ import Cardano.Wallet.Address.Discovery.Shared
     , SharedAddressPools (..)
     , SharedState (..)
     )
+import Cardano.Wallet.Address.Keys.PersistPrivateKey
+    ( unsafeDeserializeXPrv )
 import Cardano.Wallet.DB
     ( DBLayer (..), DBLayerParams (..) )
 import Cardano.Wallet.DB.Arbitrary
@@ -113,7 +109,7 @@ import Cardano.Wallet.DB.Pure.Implementation
 import Cardano.Wallet.DummyTarget.Primitive.Types
     ( dummyGenesisParameters, dummyTimeInterpreter )
 import Cardano.Wallet.Flavor
-    ( KeyOf )
+    ( KeyFlavorS (..), KeyOf )
 import Cardano.Wallet.Primitive.Model
     ( Wallet )
 import Cardano.Wallet.Primitive.Passphrase.Types
@@ -301,7 +297,7 @@ unMockWid (MWid wid) = WalletId m
 -- | Represent (XPrv, Hash) as a string.
 type MPrivKey = String
 
-class PersistPrivateKey k => MockPrivKey k where
+class MockPrivKey k where
     -- | Stuff a mock private key into the type used by 'DBLayer'.
     fromMockPrivKey
         :: MPrivKey
@@ -316,15 +312,19 @@ zeroes = B8.replicate 256 '0'
 
 instance MockPrivKey (ShelleyKey 'RootK) where
     fromMockPrivKey s = (k, unMockPrivKeyHash s)
-      where (k, _) = unsafeDeserializeXPrv (zeroes, mempty)
+      where
+        (k, _) = unsafeDeserializeXPrv ShelleyKeyS (zeroes, mempty)
 
 instance MockPrivKey (SharedKey 'RootK) where
     fromMockPrivKey s = (k, unMockPrivKeyHash s)
-      where (k, _) = unsafeDeserializeXPrv (zeroes, mempty)
+      where
+        (k, _) = unsafeDeserializeXPrv SharedKeyS (zeroes, mempty)
 
 instance MockPrivKey (ByronKey 'RootK) where
     fromMockPrivKey s = (k, unMockPrivKeyHash s)
-      where (k, _) = unsafeDeserializeXPrv (zeroes <> ":", mempty)
+      where
+        (k, _) = unsafeDeserializeXPrv ByronKeyS
+            (zeroes <> ":", mempty)
 
 unMockPrivKeyHash :: MPrivKey -> PassphraseHash
 unMockPrivKeyHash = PassphraseHash .  BA.convert . B8.pack

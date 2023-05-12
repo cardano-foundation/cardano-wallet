@@ -66,7 +66,6 @@ module Cardano.Wallet.Address.Derivation
     , PaymentAddress(..)
     , DelegationAddress(..)
     , WalletKey(..)
-    , PersistPrivateKey(..)
     , PersistPublicKey(..)
     , MkKeyFingerprint(..)
     , ErrMkKeyFingerprint(..)
@@ -89,7 +88,7 @@ import Cardano.Address.Script
 import Cardano.Mnemonic
     ( SomeMnemonic )
 import Cardano.Wallet.Primitive.Passphrase.Types
-    ( Passphrase (..), PassphraseHash (..), PassphraseScheme )
+    ( Passphrase (..), PassphraseScheme )
 import Cardano.Wallet.Primitive.Types.Address
     ( Address (..) )
 import Cardano.Wallet.Primitive.Types.RewardAccount
@@ -694,21 +693,6 @@ liftDelegationAddressS
     -> key ktype XPub
     -> Address
 liftDelegationAddressS = liftDelegationAddress @_ @ktype (sNetworkId @n)
-
--- | Operations for saving a private key into a database, and restoring it from
--- a database. The keys should be encoded in hexadecimal strings.
-class PersistPrivateKey (key :: Type -> Type) where
-    -- | Convert a private key and its password hash into hexadecimal strings
-    -- suitable for storing in a text file or database column.
-    serializeXPrv
-        :: (key XPrv, PassphraseHash)
-        -> (ByteString, ByteString)
-
-    -- | The reverse of 'serializeXPrv'. This may fail if the inputs are not
-    -- valid hexadecimal strings, or if the key is of the wrong length.
-    unsafeDeserializeXPrv
-        :: (ByteString, ByteString)
-        -> (key XPrv, PassphraseHash)
 
 -- | Operations for saving a public key into a database, and restoring it from
 -- a database. The keys should be encoded in hexadecimal strings.

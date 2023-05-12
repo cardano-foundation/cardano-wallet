@@ -8,6 +8,7 @@
 {-# LANGUAGE NamedFieldPuns #-}
 {-# LANGUAGE RankNTypes #-}
 {-# LANGUAGE RecordWildCards #-}
+{-# LANGUAGE ScopedTypeVariables #-}
 {-# LANGUAGE TupleSections #-}
 {-# LANGUAGE TypeApplications #-}
 {-# LANGUAGE TypeFamilies #-}
@@ -67,7 +68,6 @@ import Cardano.Wallet.Address.Derivation
     , Depth (..)
     , Index (..)
     , PaymentAddress (..)
-    , PersistPrivateKey
     , WalletKey (..)
     )
 import Cardano.Wallet.Address.Derivation.Byron
@@ -93,7 +93,7 @@ import Cardano.Wallet.DB.Layer
 import Cardano.Wallet.DummyTarget.Primitive.Types
     ( block0, dummyGenesisParameters, mkTxId )
 import Cardano.Wallet.Flavor
-    ( KeyOf )
+    ( KeyOf, WalletFlavor )
 import Cardano.Wallet.Logging
     ( trMessageText )
 import Cardano.Wallet.Primitive.Model
@@ -726,11 +726,10 @@ withTempSqliteFile :: (FilePath -> IO a) -> IO a
 withTempSqliteFile action = withSystemTempFile "bench.db" $ \fp _ -> action fp
 
 setupDB
-    :: forall s k.
+    :: forall s .
         ( PersistAddressBook s
-        , PersistPrivateKey (k 'RootK)
-        , WalletKey k
-        , k ~ KeyOf s
+        , WalletFlavor s
+        , WalletKey (KeyOf s)
         )
     => Tracer IO WalletDBLog
     -> IO (BenchEnv s)
@@ -757,10 +756,10 @@ singleEraInterpreter = hoistTimeInterpreter (pure . runIdentity) $
 withCleanDB
     :: ( NFData c
        , PersistAddressBook s
-       , PersistPrivateKey (k 'RootK)
+       , WalletFlavor s
+       , KeyOf s ~ k
        , WalletKey k
        , NFData b
-       , k ~ KeyOf s
        )
     => Tracer IO WalletDBLog
     -- ^ db messages tracer

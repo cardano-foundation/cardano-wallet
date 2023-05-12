@@ -54,13 +54,7 @@ import Cardano.Mnemonic
 import Cardano.Wallet
     ( readWalletMeta )
 import Cardano.Wallet.Address.Derivation
-    ( Depth (..)
-    , DerivationType (..)
-    , Index
-    , PaymentAddress (..)
-    , PersistPrivateKey
-    , WalletKey
-    )
+    ( Depth (..), DerivationType (..), Index, PaymentAddress (..), WalletKey )
 import Cardano.Wallet.Address.Derivation.Byron
     ( ByronKey (..) )
 import Cardano.Wallet.Address.Derivation.Icarus
@@ -112,7 +106,7 @@ import Cardano.Wallet.DB.StateMachine
 import Cardano.Wallet.DummyTarget.Primitive.Types
     ( block0, dummyGenesisParameters, dummyTimeInterpreter )
 import Cardano.Wallet.Flavor
-    ( KeyOf )
+    ( KeyOf, WalletFlavor )
 import Cardano.Wallet.Gen
     ( genMnemonic )
 import Cardano.Wallet.Logging
@@ -301,12 +295,13 @@ stateMachineSpec
      . ( PersistAddressBook s
        , TestConstraints s k
        , Typeable s
-       , k ~ KeyOf s
+       , WalletFlavor s
+       , KeyOf s ~ k
        )
     => Spec
 stateMachineSpec = describe ("State machine test (" ++ showState @s ++ ")") $ do
     validateGenerators @s
-    it "Sequential" $ prop_sequential boot
+    it "Sequential" $ prop_sequential @s boot
   where
     boot wid sp = do
         let newDB = newDBFreshInMemory @s nullTracer dummyTimeInterpreter
@@ -380,7 +375,7 @@ loggingSpec = withLoggingDB @(SeqState 'Mainnet ShelleyKey) $ do
 
 withLoggingDB
     :: ( PersistAddressBook s
-       , PersistPrivateKey (KeyOf s 'RootK)
+       , WalletFlavor s
        )
     => SpecWith (IO [DBLog], DBFresh IO s)
     -> Spec
@@ -817,7 +812,7 @@ prop_randomOpChunks
     :: ( Eq s
        , PersistAddressBook s
        , Show s
-       , PersistPrivateKey (KeyOf s 'RootK)
+       , WalletFlavor s
        , WalletKey (KeyOf s)
        )
     => NonEmptyList (Wallet s, WalletMetadata)
@@ -916,14 +911,14 @@ defaultFieldValues = DefaultFieldValues
 -- Note: Having helper with concrete key types reduces the need
 -- for type-application everywhere.
 withShelleyDBLayer
-    :: (PersistAddressBook s, PersistPrivateKey (KeyOf s 'RootK))
+    :: (PersistAddressBook s, WalletFlavor s)
     => (DBFresh IO s -> IO a)
     -> IO a
 withShelleyDBLayer = withDBFreshInMemory nullTracer dummyTimeInterpreter testWid
 
 withShelleyFileDBFresh
     :: ( PersistAddressBook s
-       , PersistPrivateKey (KeyOf s 'RootK)
+       , WalletFlavor s
        , WalletKey (KeyOf s)
        )
     => FilePath
@@ -1167,7 +1162,7 @@ manualMigrationsSpec = describe "Manual migrations" $ do
 withDBLayerFromCopiedFile
     :: forall k s a.
         ( PersistAddressBook s
-        , PersistPrivateKey (k 'RootK)
+        , WalletFlavor s
         , WalletKey k
         , s ~ SeqState 'Mainnet k
         )
@@ -1178,7 +1173,7 @@ withDBLayerFromCopiedFile
     -> IO ([WalletDBLog], a)
         -- ^ (logs, result of the action)
 withDBLayerFromCopiedFile dbName action = withinCopiedFile dbName
-    $ \path tr -> withDBOpenFromFile tr (Just defaultFieldValues) path
+    $ \path tr -> withDBOpenFromFile @s @k tr (Just defaultFieldValues) path
     $ \db -> do
         mwid <- retrieveWalletId db
         case mwid of
@@ -1186,7 +1181,7 @@ withDBLayerFromCopiedFile dbName action = withinCopiedFile dbName
             Just wid -> do
                 let action' DBFresh{loadDBLayer} = do
                         unsafeRunExceptT loadDBLayer >>= action
-                withDBFreshFromDBOpen @k @s dummyTimeInterpreter wid action' db
+                withDBFreshFromDBOpen @s dummyTimeInterpreter wid action' db
 
 withinCopiedFile
     :: FilePath
@@ -1286,7 +1281,7 @@ testMigrationSeqStateDerivationPrefix
         ( s ~ SeqState 'Mainnet k
         , WalletKey k
         , PersistAddressBook s
-        , PersistPrivateKey (k 'RootK)
+        , WalletFlavor s
         )
     => String
     -> ( Index 'Hardened 'PurposeK
@@ -1415,7 +1410,7 @@ testMigrationSubmissionsEncoding
     :: FilePath -> IO ()
 testMigrationSubmissionsEncoding dbName = do
     let performMigrations path =
-          withDBFresh @(SeqState 'Mainnet ShelleyKey) @ShelleyKey
+          withDBFresh @(SeqState 'Mainnet ShelleyKey)
             nullTracer (Just defaultFieldValues) path dummyTimeInterpreter
                 testWid $ \_ -> pure ()
         testOnCopiedAndMigrated test = fmap snd

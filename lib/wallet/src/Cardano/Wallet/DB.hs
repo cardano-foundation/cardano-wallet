@@ -1,12 +1,13 @@
 {-# LANGUAGE DataKinds #-}
 {-# LANGUAGE DuplicateRecordFields #-}
 {-# LANGUAGE ExistentialQuantification #-}
-{-# LANGUAGE KindSignatures #-}
+{-# LANGUAGE FlexibleContexts #-}
 {-# LANGUAGE LambdaCase #-}
 {-# LANGUAGE OverloadedLabels #-}
 {-# LANGUAGE RankNTypes #-}
 {-# LANGUAGE RecordWildCards #-}
 {-# LANGUAGE ScopedTypeVariables #-}
+{-# LANGUAGE TypeFamilies #-}
 
 -- |
 -- Copyright: © 2018-2020 IOHK
@@ -47,7 +48,7 @@ import Cardano.Wallet.DB.Errors
 import Cardano.Wallet.DB.Store.Submissions.Layer
     ( getInSubmissionTransaction, getInSubmissionTransactions )
 import Cardano.Wallet.DB.Store.Submissions.Operations
-    ( SubmissionMeta (..), TxSubmissionsStatus )
+    ( SubmissionMeta (..), TxSubmissions, TxSubmissionsStatus )
 import Cardano.Wallet.DB.Store.Transactions.Decoration
     ( TxInDecorator )
 import Cardano.Wallet.DB.Store.Transactions.TransactionInfo
@@ -106,8 +107,6 @@ import Data.DBVar
     ( DBVar, readDBVar )
 import Data.Generics.Internal.VL
     ( (^.) )
-import Data.Kind
-    ( Type )
 import Data.List
     ( sortOn )
 import Data.Maybe
@@ -159,7 +158,7 @@ data DBFactory m s = DBFactory
 --
 -- In our use case, this will be typically be an open SQLite database
 -- (file or in-memory).
-newtype DBOpen stm m s (k :: Depth -> Type -> Type) = DBOpen
+newtype DBOpen stm m s = DBOpen
     { atomically :: forall a. stm a -> m a
         -- ^ Execute a sequence of database operations atomically.
     }
@@ -494,6 +493,7 @@ mkDBLayerFromParts ti wid_ DBLayerCollection{..} = DBLayer
     , atomically = atomically_
     }
   where
+    withSubmissions :: forall a. (TxSubmissions -> stm a) -> stm a
     withSubmissions action = do
         state <- readDBVar $ walletsDB_ dbCheckpoints
         action $ submissions state
