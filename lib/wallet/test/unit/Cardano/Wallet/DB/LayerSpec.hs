@@ -268,12 +268,15 @@ import UnliftIO.Temporary
     ( withSystemTempDirectory, withSystemTempFile )
 
 import qualified Cardano.Wallet.Address.Derivation.Shelley as Seq
+import qualified Cardano.Wallet.Checkpoints as Checkpoints
 import qualified Cardano.Wallet.DB.Sqlite.Schema as DB
 import qualified Cardano.Wallet.DB.Sqlite.Types as DB
+import qualified Cardano.Wallet.DB.WalletState as WalletState
 import qualified Cardano.Wallet.Primitive.Types.Coin as Coin
 import qualified Cardano.Wallet.Primitive.Types.TokenBundle as TokenBundle
 import qualified Data.ByteArray as BA
 import qualified Data.ByteString as BS
+import qualified Data.Delta.Update as Delta
 import qualified Data.List as L
 import qualified Data.Set as Set
 import qualified Data.Text as T
@@ -575,10 +578,19 @@ fileModeSpec =  do
                             mempty
                     let (FilteredBlock{transactions=txs}, (_,cpB)) =
                             applyBlock fakeBlock cpA
+                        epochStability = Quantity 2160
+                        deltaPruneCheckpoints =
+                            Checkpoints.pruneCheckpoints
+                                (view $ #currentTip . #blockHeight)
+                                epochStability
+                                (currentTip cpB ^. #blockHeight)
+
                     atomically $ do
                         putCheckpoint cpB
                         putTxHistory txs
-                        prune (Quantity 2_160) $ 2_160 * 3 * 20
+                        Delta.onDBVar walletState
+                            $ WalletState.updateCheckpoints
+                            $ Delta.update deltaPruneCheckpoints
 
             it "Should spend collateral inputs and create spendable collateral \
                 \outputs if validation fails" $

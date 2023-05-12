@@ -131,7 +131,10 @@ removePendingOrExpiredTx txId walletSubmissions = do
 rollBackSubmissions :: SlotNo -> DeltaTxSubmissions
 rollBackSubmissions = RollBack
 
-pruneByFinality :: SlotNo -> DeltaTxSubmissions
+pruneByFinality
+    :: SlotNo
+        -- ^ Finality slot = most recent stable slot.
+    -> DeltaTxSubmissions
 pruneByFinality = Prune
 
 mkLocalTxSubmission

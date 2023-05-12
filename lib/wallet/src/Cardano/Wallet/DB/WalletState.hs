@@ -33,6 +33,7 @@ module Cardano.Wallet.DB.WalletState
     , DeltaWalletState
 
     -- * Helpers
+    , updateCheckpoints
     , updateSubmissions
     ) where
 
@@ -185,6 +186,11 @@ instance Show (DeltaWalletState1 s) where
 {-------------------------------------------------------------------------------
     Helper functions
 -------------------------------------------------------------------------------}
+updateCheckpoints
+    :: Update (CPS.DeltasCheckpoints (WalletCheckpoint s)) r
+    -> Update (DeltaWalletState s) r
+updateCheckpoints = updateField checkpoints ((:[]) . UpdateCheckpoints)
+
 updateSubmissions
     :: Update [DeltaTxSubmissions] r
     -> Update (DeltaWalletState s) r

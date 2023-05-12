@@ -311,6 +311,7 @@ import Cardano.Wallet.Checkpoints
     ( DeltaCheckpoints (..)
     , SparseCheckpointsConfig (..)
     , defaultSparseCheckpointsConfig
+    , pruneCheckpoints
     , sparseCheckpoints
     )
 import Cardano.Wallet.DB
@@ -1175,6 +1176,19 @@ restoreBlocks ctx tr blocks nodeTip = db & \DBLayer{..} -> atomically $ do
         willKeep cp = getBlockHeight cp `Set.member` unstable
         cpsKeep = filter willKeep (NE.init cps) <> [NE.last cps]
 
+        deltaPutCheckpoints = reverse
+            [ PutCheckpoint (getSlot wcp) wcp
+            | wcp <- map (snd . fromWallet) cpsKeep
+            ]
+
+    let deltaPruneCheckpoints wallet =
+            pruneCheckpoints
+                (view $ #currentTip . #blockHeight)
+                epochStability
+                (localTip ^. #blockHeight)
+                (wallet ^. #checkpoints)
+
+    let
         -- NOTE: We have to update the 'Prologue' as well,
         -- as it can contain addresses for pending transactions,
         -- which are removed from the 'Prologue' once the
@@ -1185,10 +1199,6 @@ restoreBlocks ctx tr blocks nodeTip = db & \DBLayer{..} -> atomically $ do
         -- as the code that came before.
         deltaPrologue =
             [ ReplacePrologue $ getPrologue $ getState $ NE.last cps ]
-        delta = deltaPrologue ++ reverse
-            [ UpdateCheckpoints [ PutCheckpoint (getSlot wcp) wcp ]
-            | wcp <- map (snd . fromWallet) cpsKeep
-            ]
 
     liftIO $ forM_ txs $ \(Tx {txCBOR=mcbor},_) ->
         forM_ mcbor $ \cbor -> do
@@ -1198,16 +1208,23 @@ restoreBlocks ctx tr blocks nodeTip = db & \DBLayer{..} -> atomically $ do
 
     rollForwardTxSubmissions (localTip ^. #slotNo)
         $ fmap (\(tx,meta) -> (meta ^. #slotNo, txId tx)) txs
+    let deltaPruneSubmissions =
+            [ UpdateSubmissions [Submissions.pruneByFinality finalitySlot]
+            ]
 
     forM_ slotPoolDelegations $ \delegation@(slotNo, cert) -> do
             liftIO $ logDelegation delegation
             putDelegationCertificate cert slotNo
 
     liftIO $ mapM_ logCheckpoint cpsKeep
-    Delta.onDBVar walletState $ Delta.update
-        $ const delta
 
-    prune epochStability finalitySlot
+    Delta.onDBVar walletState $ Delta.update $ \_wallet ->
+        deltaPrologue
+        <> [ UpdateCheckpoints deltaPutCheckpoints ]
+        <> deltaPruneSubmissions
+
+    Delta.onDBVar walletState $ Delta.update $ \wallet ->
+        [ UpdateCheckpoints $ deltaPruneCheckpoints wallet ]
 
     liftIO $ do
         traceWith tr $ MsgDiscoveredTxs txs

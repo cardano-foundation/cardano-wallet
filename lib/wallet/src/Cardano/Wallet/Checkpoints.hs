@@ -25,6 +25,10 @@ module Cardano.Wallet.Checkpoints
     , DeltasCheckpoints
 
     -- * Checkpoint hygiene
+    , BlockHeight
+    , pruneCheckpoints
+
+    -- * Checkpoint creation
     , SparseCheckpointsConfig (..)
     , defaultSparseCheckpointsConfig
     , sparseCheckpoints
@@ -152,6 +156,31 @@ instance Buildable (DeltaCheckpoints a) where
 {-------------------------------------------------------------------------------
     Checkpoint hygiene
 -------------------------------------------------------------------------------}
+type BlockHeight = Quantity "block" Word32
+
+-- | Compute a delta to prune the 'Checkpoints'
+-- according to 'defaultSparseCheckpointsConfig'.
+pruneCheckpoints
+    :: (a -> BlockHeight)
+        -- ^ Retrieve 'BlockHeight' from checkpoint data.
+    -> BlockHeight
+        -- ^ Epoch stability window = length of the deepest rollback.
+    -> BlockHeight
+        -- ^ Block height of the latest checkpoint.
+    -> Checkpoints a
+    -> DeltasCheckpoints a
+pruneCheckpoints getHeight epochStability tip (Checkpoints cps) =
+    [ RestrictTo slots ]
+  where
+    willKeep cp = getQuantity (getHeight cp) `Set.member` heights
+    slots = Map.keys $ Map.filter willKeep cps
+    heights = Set.fromList $ sparseCheckpoints
+        (defaultSparseCheckpointsConfig epochStability)
+        tip
+
+{-------------------------------------------------------------------------------
+    Checkpoint creation
+-------------------------------------------------------------------------------}
 -- | Storing EVERY checkpoints in the database is quite expensive and useless.
 -- We make the following assumptions:
 --
@@ -204,7 +233,7 @@ instance Buildable (DeltaCheckpoints a) where
 sparseCheckpoints
     :: SparseCheckpointsConfig
         -- ^ Parameters for the function.
-    -> Quantity "block" Word32
+    -> BlockHeight
         -- ^ A given block height
     -> [Word32]
         -- ^ The list of checkpoint heights that should be kept in DB.
@@ -239,7 +268,7 @@ data SparseCheckpointsConfig = SparseCheckpointsConfig
     } deriving Show
 
 -- | A sensible default to use in production. See also 'SparseCheckpointsConfig'
-defaultSparseCheckpointsConfig :: Quantity "block" Word32 -> SparseCheckpointsConfig
+defaultSparseCheckpointsConfig :: BlockHeight -> SparseCheckpointsConfig
 defaultSparseCheckpointsConfig (Quantity epochStability) =
     SparseCheckpointsConfig
         { edgeSize = 5

@@ -67,10 +67,7 @@ import Cardano.Slotting.Slot
 import Cardano.Wallet.Address.Derivation
     ( Depth (..), PersistPrivateKey (..), WalletKey (..) )
 import Cardano.Wallet.Checkpoints
-    ( DeltaCheckpoints (..)
-    , defaultSparseCheckpointsConfig
-    , sparseCheckpoints
-    )
+    ( DeltaCheckpoints (..) )
 import Cardano.Wallet.DB
     ( DBCheckpoints (..)
     , DBDelegation (..)
@@ -112,7 +109,7 @@ import Cardano.Wallet.DB.Store.Info.Store
 import Cardano.Wallet.DB.Store.Meta.Model
     ( mkTxMetaFromEntity )
 import Cardano.Wallet.DB.Store.Submissions.Layer
-    ( pruneByFinality, rollBackSubmissions )
+    ( rollBackSubmissions )
 import Cardano.Wallet.DB.Store.Submissions.Operations
     ( submissionMetaFromTxMeta )
 import Cardano.Wallet.DB.Store.Transactions.Decoration
@@ -137,7 +134,6 @@ import Cardano.Wallet.DB.WalletState
     , findNearestPoint
     , fromGenesis
     , fromWallet
-    , getBlockHeight
     , getLatest
     , getSlot
     )
@@ -170,7 +166,7 @@ import Data.Bifunctor
 import Data.Coerce
     ( coerce )
 import Data.DBVar
-    ( DBVar, initDBVar, loadDBVar, readDBVar, updateDBVar )
+    ( DBVar, initDBVar, loadDBVar, readDBVar )
 import Data.Functor
     ( (<&>) )
 import Data.Generics.Internal.VL.Lens
@@ -179,8 +175,6 @@ import Data.Maybe
     ( catMaybes, fromMaybe, maybeToList )
 import Data.Proxy
     ( Proxy (..) )
-import Data.Quantity
-    ( Quantity (..) )
 import Data.Store
     ( Store (..), UpdateStore )
 import Data.Text
@@ -230,7 +224,6 @@ import qualified Cardano.Wallet.Read.Tx as Read
 import qualified Data.Delta.Update as Delta
 import qualified Data.Generics.Internal.VL as L
 import qualified Data.Map.Strict as Map
-import qualified Data.Set as Set
 import qualified Data.Text as T
 
 {-------------------------------------------------------------------------------
@@ -579,19 +572,6 @@ newDBFreshFromDBOpen ti wid_ DBOpen{atomically=atomically_} =
             ::  SqlPersistT IO (W.Wallet s)
         readCheckpoint = getLatest <$> readDBVar walletState
 
-        pruneCheckpoints
-            :: Quantity "block" Word32 -> W.BlockHeader
-            -> SqlPersistT IO ()
-        pruneCheckpoints epochStability tip = do
-            let heights = Set.fromList $ sparseCheckpoints
-                    (defaultSparseCheckpointsConfig epochStability)
-                    (tip ^. #blockHeight)
-            Delta.onDBVar walletState $ Delta.update $ \ wal ->
-                let willKeep cp = getBlockHeight cp `Set.member` heights
-                    slots = Map.filter willKeep
-                        $ wal ^. #checkpoints . #checkpoints
-                in [ UpdateCheckpoints [ RestrictTo $ Map.keys slots ] ]
-
         {-----------------------------------------------------------------------
                                     Checkpoints
         -----------------------------------------------------------------------}
@@ -649,14 +629,6 @@ newDBFreshFromDBOpen ti wid_ DBOpen{atomically=atomically_} =
             updateS transactionsQS Nothing $
                 RollbackTxWalletsHistory nearestPoint
             pure $ W.chainPointFromBlockHeader currentTip
-
-        prune_ epochStability finalitySlot = do
-            readCheckpoint >>= \cp -> do
-                let tip = cp ^. #currentTip
-                pruneCheckpoints epochStability tip
-            updateDBVar walletState
-                [ UpdateSubmissions [pruneByFinality finalitySlot]
-                ]
 
         {-----------------------------------------------------------------------
                                      Tx History
