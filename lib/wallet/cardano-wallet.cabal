@@ -239,6 +239,7 @@ library
     Cardano.Wallet.Address.Discovery.Sequential
     Cardano.Wallet.Address.Discovery.Shared
     Cardano.Wallet.Address.HasDelegation
+    Cardano.Wallet.Address.Keys.BoundedAddressLength
     Cardano.Wallet.Address.Pool
     Cardano.Wallet.Byron.Compatibility
     Cardano.Wallet.Checkpoints

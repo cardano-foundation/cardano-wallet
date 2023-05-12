@@ -115,8 +115,6 @@ import Control.Monad.IO.Class
     ( liftIO )
 import Data.Aeson
     ( ToJSON (..), genericToJSON, (.=) )
-import Data.Proxy
-    ( Proxy (..) )
 import Data.Quantity
     ( Quantity (..) )
 import Data.Text
@@ -278,7 +276,7 @@ benchmarksSeq BenchmarkConfig{benchmarkName,ctx} = do
             (dbLayer ctx) (networkLayer ctx) (transactionLayer ctx)
             timeTranslation
             (Write.AnyRecentEra Write.RecentEraBabbage)
-            (W.defaultChangeAddressGen (delegationAddressS @n) (Proxy @k))
+            (W.defaultChangeAddressGen (delegationAddressS @n))
 
     pure BenchSeqResults
         { benchName = benchmarkName

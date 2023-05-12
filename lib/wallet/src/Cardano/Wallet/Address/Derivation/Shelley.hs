@@ -59,7 +59,6 @@ import Cardano.Mnemonic
 import Cardano.Wallet.Address.Derivation
     ( AccountIxForStaking (..)
     , AddressParts (..)
-    , BoundedAddressLength (..)
     , DelegationAddress (..)
     , Depth (..)
     , DerivationIndex (..)
@@ -379,9 +378,6 @@ instance
     where
     paymentKeyFingerprint (_, paymentK) =
         Right $ KeyFingerprint $ blake2b224 $ xpubPublicKey $ getKey paymentK
-
-instance BoundedAddressLength ShelleyKey where
-    maxLengthAddressFor _ = Address $ BS.replicate 57 0
 
 instance NetworkDiscriminantCheck ShelleyKey where
     networkDiscriminantCheck network networkTag =

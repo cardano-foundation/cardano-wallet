@@ -2241,9 +2241,7 @@ data AnyChangeAddressGenWithState where
 -- "byron wallets".
 dummyByronChangeAddressGen :: AnyChangeAddressGenWithState
 dummyByronChangeAddressGen = AnyChangeAddressGenWithState
-    (defaultChangeAddressGen @(RndState 'Mainnet)
-        (byronRootK, pwd)
-        (Proxy @ByronKey))
+    (defaultChangeAddressGen @(RndState 'Mainnet) (byronRootK, pwd))
     (mkRndState byronRootK 0)
   where
     byronRootK = Byron.generateKeyFromSeed mw mempty
@@ -2255,9 +2253,9 @@ dummyByronChangeAddressGen = AnyChangeAddressGenWithState
 -- normal shelley wallets.
 dummyShelleyChangeAddressGen :: AnyChangeAddressGenWithState
 dummyShelleyChangeAddressGen = AnyChangeAddressGenWithState
-    (defaultChangeAddressGen @(SeqState 'Mainnet ShelleyKey )
+    (defaultChangeAddressGen @(SeqState 'Mainnet ShelleyKey)
         (delegationAddress @ShelleyKey SMainnet)
-        (Proxy @ShelleyKey))
+        )
     (mkSeqStateFromRootXPrv
         (rootK, pwd)
         purposeCIP1852

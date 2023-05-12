@@ -17,12 +17,10 @@ import Cardano.Api
     ( ShelleyBasedEra (..) )
 import Cardano.Api.Gen
     ( genAddressAny )
-import Cardano.Wallet.Address.Derivation
-    ( BoundedAddressLength (..) )
-import Cardano.Wallet.Address.Derivation.Byron
-    ( ByronKey )
-import Cardano.Wallet.Address.Derivation.Shelley
-    ( ShelleyKey )
+import Cardano.Wallet.Address.Keys.BoundedAddressLength
+    ( maxLengthAddressFor )
+import Cardano.Wallet.Flavor
+    ( KeyFlavorS (..) )
 import Cardano.Wallet.Primitive.Types.Address
     ( Address (..) )
 import Cardano.Wallet.Primitive.Types.Address.Constants
@@ -67,8 +65,6 @@ import Cardano.Wallet.Shelley.MinimumUTxO
     ( computeMinimumCoinForUTxO, isBelowMinimumCoinForUTxO )
 import Control.Monad
     ( forM_ )
-import Data.Data
-    ( Proxy (..) )
 import Data.Default
     ( Default (..) )
 import Data.Function
@@ -398,7 +394,7 @@ goldenMinimumUTxO_BabbageEra =
 --------------------------------------------------------------------------------
 
 maxLengthAddressBryon :: Address
-maxLengthAddressBryon = maxLengthAddressFor $ Proxy @ByronKey
+maxLengthAddressBryon = maxLengthAddressFor ByronKeyS
 
 goldenMinimumCoins_ByronAddress_ShelleyEra :: [(Address, TokenMap, Coin)]
 goldenMinimumCoins_ByronAddress_ShelleyEra =
@@ -450,7 +446,7 @@ goldenMinimumCoins_ByronAddress_BabbageEra =
 --------------------------------------------------------------------------------
 
 maxLengthAddressShelley :: Address
-maxLengthAddressShelley = maxLengthAddressFor $ Proxy @ShelleyKey
+maxLengthAddressShelley = maxLengthAddressFor ShelleyKeyS
 
 goldenMinimumCoins_ShelleyAddress_ShelleyEra :: [(Address, TokenMap, Coin)]
 goldenMinimumCoins_ShelleyAddress_ShelleyEra =
