@@ -1028,7 +1028,6 @@ balanceTransactionWithSelectionStrategyAndNoZeroAdaAdjustment
             -- We don't use the following 3 fields because certs and
             -- withdrawals are already included in the balance (passed in
             -- above).
-            , rewardWithdrawal = W.Coin 0
             , certificateDepositsReturned = 0
             , certificateDepositsTaken = 0
 

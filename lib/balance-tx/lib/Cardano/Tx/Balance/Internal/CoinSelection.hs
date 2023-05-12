@@ -282,9 +282,6 @@ data SelectionParams = SelectionParams
     , outputsToCover
         :: ![TxOut]
         -- ^ Specifies a set of outputs that must be paid for.
-    , rewardWithdrawal
-        :: !Coin
-        -- ^ Specifies the value of a withdrawal from a reward account.
     , certificateDepositsTaken
         :: !Natural
         -- ^ Number of deposits for stake key registrations.
@@ -323,6 +320,8 @@ toInternalSelectionParams SelectionParams {..} =
             Map.mapMaybeWithKey identifyCollateral utxoAvailableForCollateral
         , outputsToCover =
             (view #address &&& view #tokens) <$> outputsToCover
+        , rewardWithdrawal =
+            Coin 0
         , ..
         }
   where
