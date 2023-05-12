@@ -3106,19 +3106,10 @@ instance Arbitrary Wallet' where
                   where
                     era = Cardano.BabbageEra
 
-    shrink
-        ( Wallet'
-            witnessTag
-            utxoAssumptions
-            utxo
-            changeAddressGen ) =
-            [ Wallet'
-                witnessTag
-                utxoAssumptions
-                utxo'
-                changeAddressGen
-            | utxo' <- shrinkUTxO utxo
-            ]
+    shrink (Wallet' witnessTag utxoAssumptions utxo changeAddressGen) =
+        [ Wallet' witnessTag utxoAssumptions utxo' changeAddressGen
+        | utxo' <- shrinkUTxO utxo
+        ]
       where
         -- We cannot use 'Cardano.Wallet.Primitive.Types.UTxO.Gen.shrinkUTxO'
         -- because it will shrink to invalid addresses.
