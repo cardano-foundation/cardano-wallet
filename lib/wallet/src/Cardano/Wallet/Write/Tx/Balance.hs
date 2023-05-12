@@ -1024,12 +1024,6 @@ balanceTransactionWithSelectionStrategyAndNoZeroAdaAdjustment
                 <> adaInOutputs
                 <> fromCardanoLovelace fee0
             , extraCoinOut = negativeAda <> adaInInputs
-
-            -- We don't use the following 3 fields because certs and
-            -- withdrawals are already included in the balance (passed in
-            -- above).
-            , certificateDepositsTaken = 0
-
             -- NOTE: It is important that coin selection has the correct
             -- notion of fees, because it will be used to tell how much
             -- collateral is needed.

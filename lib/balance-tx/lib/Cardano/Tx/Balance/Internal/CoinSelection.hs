@@ -282,9 +282,6 @@ data SelectionParams = SelectionParams
     , outputsToCover
         :: ![TxOut]
         -- ^ Specifies a set of outputs that must be paid for.
-    , certificateDepositsTaken
-        :: !Natural
-        -- ^ Number of deposits for stake key registrations.
     , collateralRequirement
         :: !SelectionCollateralRequirement
         -- ^ Specifies the collateral requirement for this selection.
@@ -317,6 +314,7 @@ toInternalSelectionParams SelectionParams {..} =
             Map.mapMaybeWithKey identifyCollateral utxoAvailableForCollateral
         , outputsToCover =
             (view #address &&& view #tokens) <$> outputsToCover
+        , certificateDepositsTaken = 0
         , ..
         }
   where
