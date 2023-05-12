@@ -6,7 +6,6 @@
 {-# LANGUAGE RankNTypes #-}
 {-# LANGUAGE RecordWildCards #-}
 {-# LANGUAGE ScopedTypeVariables #-}
-{-# LANGUAGE TypeApplications #-}
 
 module Cardano.Wallet.Delegation
     ( joinStakePoolDelegationAction
@@ -92,9 +91,9 @@ data DelegationRequest
     deriving (Eq, Show)
 
 handleDelegationRequest
-    :: forall s k
+    :: forall s
      . Tracer IO WalletLog
-    -> DBLayer IO s k
+    -> DBLayer IO s
     -> W.EpochNo
     -> IO (Set PoolId)
     -> (PoolId -> IO PoolLifeCycleStatus)
@@ -112,7 +111,7 @@ handleDelegationRequest
 
 joinStakePoolDelegationAction
     :: Tracer IO WalletLog
-    -> DBLayer IO s k
+    -> DBLayer IO s
     -> W.EpochNo
     -> Set PoolId
     -> PoolId
@@ -148,7 +147,7 @@ joinStakePoolDelegationAction
 joinStakePool
     :: Tracer IO WalletLog
     -> TimeInterpreter (ExceptT PastHorizonException IO)
-    -> DBLayer IO s k
+    -> DBLayer IO s
     -> W.EpochNo
     -> Set PoolId
     -> PoolId
@@ -193,13 +192,13 @@ guardJoin knownPools delegation pid mRetirementEpochInfo = do
 
 -- | Helper function to factor necessary logic for quitting a stake pool.
 quitStakePoolDelegationAction
-    :: forall s k
-     . DBLayer IO s k
+    :: forall s
+     . DBLayer IO s
     -> Withdrawal
     -> IO Tx.DelegationAction
 quitStakePoolDelegationAction db@DBLayer{..} withdrawal = do
     delegation <- atomically readDelegation
-    rewards <- liftIO $ fetchRewardBalance @s @k db
+    rewards <- liftIO $ fetchRewardBalance db
     either (throwIO . ExceptionStakePoolDelegation . ErrStakePoolQuit) pure
         (guardQuit delegation withdrawal rewards)
     pure Tx.Quit
@@ -207,7 +206,7 @@ quitStakePoolDelegationAction db@DBLayer{..} withdrawal = do
 quitStakePool
     :: forall n block
      . NetworkLayer IO block
-    -> DBLayer IO (SeqState n ShelleyKey) ShelleyKey
+    -> DBLayer IO (SeqState n ShelleyKey)
     -> TimeInterpreter (ExceptT PastHorizonException IO)
     -> IO TransactionCtx
 quitStakePool netLayer db timeInterpreter = do

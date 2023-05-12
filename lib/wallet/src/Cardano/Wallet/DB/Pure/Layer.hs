@@ -68,12 +68,13 @@ import UnliftIO.MVar
 -- | Instantiate a new in-memory "database" layer that simply stores data in
 -- a local MVar. Data vanishes if the software is shut down.
 newDBFresh
-    :: forall m s k.
-       ( MonadUnliftIO m
-       , MonadFail m )
+    :: forall m s
+     . ( MonadUnliftIO m
+       , MonadFail m
+       )
     => TimeInterpreter Identity
     -> WalletId
-    -> m (DBFresh m s k)
+    -> m (DBFresh m s)
 newDBFresh timeInterpreter wid = do
     lock <- newMVar ()
     db <- newEmptyMVar

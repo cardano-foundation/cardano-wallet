@@ -6,6 +6,7 @@
 {-# LANGUAGE RecordWildCards #-}
 {-# LANGUAGE ScopedTypeVariables #-}
 {-# LANGUAGE TypeApplications #-}
+{-# LANGUAGE TypeFamilies #-}
 
 -- |
 -- Copyright: © 2020 IOHK
@@ -30,8 +31,6 @@ import Cardano.Wallet
     ( WalletException )
 import Cardano.Wallet.Address.Derivation
     ( Depth (..), PersistPrivateKey, WalletKey )
-import Cardano.Wallet.Address.Derivation.Byron
-    ( ByronKey )
 import Cardano.Wallet.Address.Derivation.Icarus
     ( IcarusKey )
 import Cardano.Wallet.Address.Derivation.SharedKey
@@ -63,6 +62,8 @@ import Cardano.Wallet.DB.Sqlite.Migration
     ( DefaultFieldValues (..) )
 import Cardano.Wallet.DB.Store.Checkpoints
     ( PersistAddressBook )
+import Cardano.Wallet.Flavor
+    ( KeyOf )
 import Cardano.Wallet.Network
     ( NetworkLayer (..) )
 import Cardano.Wallet.Pools
@@ -296,10 +297,10 @@ serveWallet
             )
         => SNetworkId n
         -> Socket
-        -> ApiLayer (RndState n) ByronKey 'CredFromKeyK
-        -> ApiLayer (SeqState n IcarusKey) IcarusKey 'CredFromKeyK
-        -> ApiLayer (SeqState n ShelleyKey) ShelleyKey 'CredFromKeyK
-        -> ApiLayer (SharedState n SharedKey) SharedKey 'CredFromScriptK
+        -> ApiLayer (RndState n) 'CredFromKeyK
+        -> ApiLayer (SeqState n IcarusKey) 'CredFromKeyK
+        -> ApiLayer (SeqState n ShelleyKey) 'CredFromKeyK
+        -> ApiLayer (SharedState n SharedKey) 'CredFromScriptK
         -> StakePoolLayer
         -> NtpClient
         -> IO ()
@@ -321,11 +322,12 @@ serveWallet
             , PersistAddressBook s
             , PersistPrivateKey (k 'RootK)
             , WalletKey k
+            , k ~ KeyOf s
             )
         => TransactionLayer k ktype SealedTx
         -> NetworkLayer IO (CardanoBlock StandardCrypto)
-        -> (WorkerCtx (ApiLayer s k ktype) -> WalletId -> IO ())
-        -> IO (ApiLayer s k ktype)
+        -> (WorkerCtx (ApiLayer s ktype) -> WalletId -> IO ())
+        -> IO (ApiLayer s ktype)
     apiLayer txLayer netLayer coworker = do
         tokenMetaClient <- newMetadataClient tokenMetadataTracer tokenMetaUri
         dbFactory <- Sqlite.newDBFactory

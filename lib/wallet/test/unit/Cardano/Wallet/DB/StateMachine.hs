@@ -112,6 +112,8 @@ import Cardano.Wallet.DB.Pure.Implementation
     )
 import Cardano.Wallet.DummyTarget.Primitive.Types
     ( dummyGenesisParameters, dummyTimeInterpreter )
+import Cardano.Wallet.Flavor
+    ( KeyOf )
 import Cardano.Wallet.Primitive.Model
     ( Wallet )
 import Cardano.Wallet.Primitive.Passphrase.Types
@@ -433,8 +435,8 @@ runMock = \case
 -------------------------------------------------------------------------------}
 
 runIO
-    :: forall m s k. (MonadIO m, MockPrivKey (k 'RootK))
-    => DBLayer m s k
+    :: forall m s k. (MonadIO m, MockPrivKey (k 'RootK), k ~ KeyOf s)
+    => DBLayer m s
     -> Cmd s WalletId
     -> m (Resp s WalletId)
 runIO DBLayer{..} = fmap Resp . go
@@ -685,8 +687,8 @@ postcondition m c r =
     e = lockstep m c r
 
 semantics
-    :: (MonadIO m, MockPrivKey (k 'RootK))
-    => DBLayer m s k
+    :: (MonadIO m, MockPrivKey (k 'RootK), k ~ KeyOf s)
+    => DBLayer m s
     -> Cmd s :@ Concrete
     -> m (Resp s :@ Concrete)
 semantics db (At c) =
@@ -708,10 +710,10 @@ type TestConstraints s k =
     )
 
 sm
-    :: (MonadIO m, TestConstraints s k)
+    :: (MonadIO m, TestConstraints s k, k ~ KeyOf s)
     => MWid
     -> DBLayerParams s
-    -> DBLayer m s k
+    -> DBLayer m s
     -> StateMachine (Model s) (At (Cmd s)) m (At (Resp s))
 sm mwid params db = QSM.StateMachine
     { initModel = initModel mwid params
@@ -1092,8 +1094,8 @@ genDBParams =
         <*> pure dummyGenesisParameters
 
 prop_sequential
-    :: forall s k. (TestConstraints s k)
-    => (WalletId -> DBLayerParams s -> (IO (IO (),DBLayer IO s k)))
+    :: forall s k. (TestConstraints s k,  k ~ KeyOf s)
+    => (WalletId -> DBLayerParams s -> (IO (IO (),DBLayer IO s)))
     -> Property
 prop_sequential newDB =
     QC.forAll genDBParams $ \params ->
@@ -1175,5 +1177,5 @@ validateGenerators = describe "Validate generators & shrinkers" $ do
         [x] -> sanityCheckShrink (concatMap shrinker [x])
         xs  -> sanityCheckShrink (concatMap shrinker [head xs, last xs])
 
-dbLayerUnused :: DBLayer m s k
+dbLayerUnused :: DBLayer m s
 dbLayerUnused = error "DBLayer not used during command generation"

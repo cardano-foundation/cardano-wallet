@@ -141,6 +141,8 @@ import Cardano.Wallet.DB.WalletState
     , getLatest
     , getSlot
     )
+import Cardano.Wallet.Flavor
+    ( KeyOf )
 import Cardano.Wallet.Primitive.Passphrase.Types
     ( PassphraseHash )
 import Cardano.Wallet.Primitive.Slotting
@@ -242,6 +244,7 @@ newDBFactory
         ( PersistAddressBook s
         , PersistPrivateKey (k 'RootK)
         , WalletKey k
+        , k ~ KeyOf s
         )
     => Tracer IO DBFactoryLog
        -- ^ Logging object
@@ -251,7 +254,7 @@ newDBFactory
        -- ^ Time interpreter for slot to time conversions
     -> Maybe FilePath
        -- ^ Path to database directory, or Nothing for in-memory database
-    -> IO (DBFactory IO s k)
+    -> IO (DBFactory IO s )
 newDBFactory tr defaultFieldValues ti = \case
     Nothing -> do
         -- NOTE1
@@ -454,12 +457,15 @@ retrieveWalletId DBOpen{atomically} =
 
 withDBFreshFromDBOpen
     :: forall k s a
-     . (PersistAddressBook s, PersistPrivateKey (k 'RootK))
+     . ( PersistAddressBook s
+       , PersistPrivateKey (k 'RootK)
+       , k ~ KeyOf s
+       )
     => TimeInterpreter IO
     -- ^ Time interpreter for slot to time conversions
     -> W.WalletId
     -- ^ Wallet ID of the database
-    -> (DBFresh IO s k -> IO a)
+    -> (DBFresh IO s -> IO a)
     -- ^ Action to run.
     -> DBOpen (SqlPersistT IO) IO s k
     -- ^ Already opened database.
@@ -477,6 +483,7 @@ withDBFresh
         ( PersistAddressBook s
         , PersistPrivateKey (k 'RootK)
         , WalletKey k
+        , k ~ KeyOf s
         )
     => Tracer IO WalletDBLog
        -- ^ Logging object
@@ -489,7 +496,7 @@ withDBFresh
        -- ^ Time interpreter for slot to time conversions.
     -> W.WalletId
          -- ^ Wallet ID of the database.
-    -> (DBFresh IO s k -> IO a)
+    -> (DBFresh IO s -> IO a)
        -- ^ Action to run.
     -> IO a
 withDBFresh tr defaultFieldValues dbFile ti wid action =
@@ -502,6 +509,7 @@ withDBFreshInMemory
     :: forall s k a.
         ( PersistAddressBook s
         , PersistPrivateKey (k 'RootK)
+        , k ~ KeyOf s
         )
     => Tracer IO WalletDBLog
        -- ^ Logging object.
@@ -509,7 +517,7 @@ withDBFreshInMemory
        -- ^ Time interpreter for slot to time conversions
     -> W.WalletId
        -- ^ Wallet ID of the database.
-    -> (DBFresh IO s k -> IO a)
+    -> (DBFresh IO s -> IO a)
        -- ^ Action to run.
     -> IO a
 withDBFreshInMemory tr ti wid action = bracket
@@ -523,6 +531,7 @@ newDBFreshInMemory
     :: forall s k.
         ( PersistAddressBook s
         , PersistPrivateKey (k 'RootK)
+        , k ~ KeyOf s
         )
     => Tracer IO WalletDBLog
        -- ^ Logging object.
@@ -530,7 +539,7 @@ newDBFreshInMemory
        -- ^ Time interpreter for slot to time conversions.
     -> W.WalletId
        -- ^ Wallet ID of the database.
-    -> IO (IO (), DBFresh IO s k)
+    -> IO (IO (), DBFresh IO s)
 newDBFreshInMemory tr ti wid = do
     second (newDBFreshFromDBOpen ti wid) <$> newDBOpenInMemory tr
 
@@ -540,6 +549,7 @@ newDBFreshFromDBOpen
     :: forall s k.
         ( PersistAddressBook s
         , PersistPrivateKey (k 'RootK)
+        , k ~ KeyOf s
         )
     => TimeInterpreter IO
        -- ^ Time interpreter for slot to time conversions
@@ -547,7 +557,7 @@ newDBFreshFromDBOpen
        -- ^ Wallet ID of the database.
     -> DBOpen (SqlPersistT IO) IO s k
        -- ^ A (thread-)safe wrapper for query execution.
-    -> DBFresh IO s k
+    -> DBFresh IO s
 newDBFreshFromDBOpen ti wid_ DBOpen{atomically=atomically_} =
     mkDBFreshFromParts ti wid_
         getWalletId_ (mkStoreWallet wid_)
@@ -676,7 +686,7 @@ newDBFreshFromDBOpen ti wid_ DBOpen{atomically=atomically_} =
     dbPrivateKey = mkDBPrivateKey wid_
 
 mkDBFreshFromParts
-    :: forall stm m s k
+    :: forall stm m s
      . ( PersistAddressBook s
        , stm ~ SqlPersistT IO
        , MonadIO m
@@ -685,9 +695,9 @@ mkDBFreshFromParts
     -> W.WalletId
     -> stm Bool
     -> UpdateStore stm (DeltaWalletState s)
-    -> (DBVar stm (DeltaWalletState s) -> DBLayerCollection stm m s k)
+    -> (DBVar stm (DeltaWalletState s) -> DBLayerCollection stm m s)
     -> (forall a. stm a -> m a)
-    -> DBFresh m s k
+    -> DBFresh m s
 mkDBFreshFromParts
     ti
     wid_

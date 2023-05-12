@@ -90,6 +90,8 @@ import Cardano.Wallet.DB
     ( DBFresh )
 import Cardano.Wallet.DB.Layer
     ( PersistAddressBook, withDBFresh )
+import Cardano.Wallet.Flavor
+    ( KeyOf )
 import Cardano.Wallet.Launch
     ( CardanoNodeConn, NetworkConfiguration (..), parseGenesisData )
 import Cardano.Wallet.Logging
@@ -234,7 +236,6 @@ import qualified Cardano.Wallet.Address.Derivation.Byron as Byron
 import qualified Cardano.Wallet.Address.Derivation.Shelley as Shelley
 import qualified Cardano.Wallet.Checkpoints.Policy as CP
 import qualified Cardano.Wallet.DB.Sqlite.Migration as Sqlite
-    ( DefaultFieldValues (..) )
 import qualified Cardano.Wallet.Primitive.Types.TokenBundle as TokenBundle
 import qualified Cardano.Wallet.Primitive.Types.UTxOStatistics as UTxOStatistics
 import qualified Cardano.Wallet.Shelley.Compatibility as Cardano
@@ -447,7 +448,7 @@ benchmarksRnd
         , KnownNat p
         )
     => SNetworkId n
-    -> WalletLayer IO s k 'CredFromKeyK
+    -> WalletLayer IO s 'CredFromKeyK
     -> WalletName
     -> Text
     -> Time
@@ -468,11 +469,11 @@ benchmarksRnd network w@(WalletLayer _ _ netLayer txLayer dbLayer) wname
     (transactions, listTransactionsTime) <- bench "list transactions"
         $ fmap (fromIntegral . length)
         $ unsafeRunExceptT
-        $ W.listTransactions @_ @s @k w Nothing Nothing Nothing Descending
+        $ W.listTransactions @_ @s w Nothing Nothing Nothing Descending
             Nothing
     (_, listTransactionsLimitedTime) <- bench "list transactions (max_count = 100)" $ do
         unsafeRunExceptT
-        $ W.listTransactions @_ @s @k w Nothing Nothing Nothing Descending
+        $ W.listTransactions @_ @s w Nothing Nothing Nothing Descending
             (Just 100)
 
     (_, estimateFeesTime) <- bench "estimate tx fee" $ do
@@ -486,7 +487,7 @@ benchmarksRnd network w@(WalletLayer _ _ netLayer txLayer dbLayer) wname
         -- before balancing the transaction and computing the fee:
         let bundleWithZeroAda = TokenBundle.fromCoin (Coin 0)
         let outputWithZeroAda = TxOut (dummyAddress network) bundleWithZeroAda
-        W.transactionFee @s @k @n
+        W.transactionFee @s @n
             dbLayer
             (Write.unsafeFromWalletProtocolParameters protocolParameters)
             txLayer
@@ -499,12 +500,12 @@ benchmarksRnd network w@(WalletLayer _ _ netLayer txLayer dbLayer) wname
     oneAddress <- genAddresses 1 cp
     (_, importOneAddressTime) <- bench "import one addresses" $ do
         runExceptT $ withExceptT show $
-            W.importRandomAddresses @_ @s @k w oneAddress
+            W.importRandomAddresses @_ @s w oneAddress
 
     manyAddresses <- genAddresses 1000 cp
     (_, importManyAddressesTime) <- bench "import many addresses" $ do
         runExceptT $ withExceptT show $
-            W.importRandomAddresses @_ @s @k w manyAddresses
+            W.importRandomAddresses @_ @s w manyAddresses
 
     let walletOverview = WalletOverview{utxo,addresses,transactions}
 
@@ -557,7 +558,7 @@ benchmarksSeq
         , KnownNat p
         )
     => SNetworkId n
-    -> WalletLayer IO s k 'CredFromKeyK
+    -> WalletLayer IO s 'CredFromKeyK
     -> WalletName
     -> Text -- ^ Bench name
     -> Time
@@ -576,11 +577,11 @@ benchmarksSeq network w@(WalletLayer _ _ netLayer txLayer dbLayer) _wname
     (transactions, listTransactionsTime) <- bench "list transactions"
         $ fmap (fromIntegral . length)
         $ unsafeRunExceptT
-        $ W.listTransactions @_ @s @k w Nothing Nothing Nothing Descending
+        $ W.listTransactions @_ @s w Nothing Nothing Nothing Descending
             Nothing
     (_, listTransactionsLimitedTime) <- bench "list transactions (max_count = 100)" $ do
         unsafeRunExceptT
-        $ W.listTransactions @_ @s @k w Nothing Nothing Nothing Descending
+        $ W.listTransactions @_ @s w Nothing Nothing Nothing Descending
             (Just 100)
 
     (_, estimateFeesTime) <- bench "estimate tx fee" $ do
@@ -589,7 +590,7 @@ benchmarksSeq network w@(WalletLayer _ _ netLayer txLayer dbLayer) _wname
         (protocolParameters, _bundledProtocolParameters) <-
             W.toBalanceTxPParams @era <$> currentProtocolParameters netLayer
         timeTranslation <- toTimeTranslation (timeInterpreter netLayer)
-        W.transactionFee @s @k @n
+        W.transactionFee @s @n
             dbLayer
             (Write.unsafeFromWalletProtocolParameters protocolParameters)
             txLayer
@@ -707,6 +708,7 @@ bench_restoration
         , TxWitnessTagFor k
         , Buildable results
         , ToJSON results
+        , k ~ KeyOf s
         )
     => PipeliningStrategy (CardanoBlock StandardCrypto)
     -> SNetworkId n
@@ -720,7 +722,7 @@ bench_restoration
     -> Bool -- ^ If @True@, will trace detailed progress to a .timelog file.
     -> Percentage -- ^ Target sync progress
     -> (SNetworkId n
-        -> WalletLayer IO s k 'CredFromKeyK
+        -> WalletLayer IO s 'CredFromKeyK
         -> WalletName
         -> Text
         -> Time
@@ -737,7 +739,7 @@ bench_restoration
         np socket vData sTol $ \nw -> do
             let ti = neverFails "bench db shouldn't forecast into future"
                     $ timeInterpreter nw
-            withBenchDBLayer ti wlTr wid
+            withBenchDBLayer @s ti wlTr wid
                 $ \dbf -> withWalletLayerTracer
                     benchname pipeliningStrat traceToDisk
                 $ \progressTrace -> do
@@ -750,7 +752,7 @@ bench_restoration
                     void
                         $ forkIO
                         $ unsafeRunExceptT
-                        $ W.restoreWallet @_ @s @k w
+                        $ W.restoreWallet @_ @s w
 
                     -- NOTE: This is now the time to restore /all/ wallets.
                     (_, restorationTime) <- bench "restoration" $ do
@@ -838,15 +840,16 @@ traceBlockHeadersProgressForPlotting t0  tr = Tracer $ \bs -> do
         Nothing -> pure ()
 
 withBenchDBLayer
-    :: forall s k a.
+    :: forall s a k.
         ( PersistAddressBook s
         , PersistPrivateKey (k 'RootK)
         , WalletKey k
+        , k ~ KeyOf s
         )
     => TimeInterpreter IO
     -> Trace IO Text
     -> WalletId
-    -> (DBFresh IO s k -> IO a)
+    -> (DBFresh IO s -> IO a)
     -> IO a
 withBenchDBLayer ti tr wid action =
     withSystemTempFile "bench.db" $ \dbFile _ ->
@@ -884,11 +887,11 @@ prepareNode tr proxy socketPath np vData = do
 -- | Regularly poll the wallets to monitor syncing progress. Block until all
 -- wallets reach the given percentage.
 waitForWalletSyncTo
-    :: forall s k n
+    :: forall s n
     .  Percentage
     -> Tracer IO (BenchmarkLog n)
     -> SNetworkId n
-    -> WalletLayer IO s k 'CredFromKeyK
+    -> WalletLayer IO s 'CredFromKeyK
     -> WalletId
     -> GenesisParameters
     -> NodeToClientVersionData
