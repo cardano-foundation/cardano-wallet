@@ -631,7 +631,6 @@ genSelectionParams = SelectionParams
     <*> genExtraCoinIn
     <*> genExtraCoinOut
     <*> genOutputsToCover
-    <*> genCertificateDepositsTaken
     <*> genCollateralRequirement
     <*> genUTxOAvailableForCollateral
     <*> genUTxOAvailableForInputs
@@ -646,7 +645,6 @@ shrinkSelectionParams = genericRoundRobinShrink
     <:> shrinkExtraCoinIn
     <:> shrinkExtraCoinOut
     <:> shrinkOutputsToCover
-    <:> shrinkCerticateDepositsTaken
     <:> shrinkCollateralRequirement
     <:> shrinkUTxOAvailableForCollateral
     <:> shrinkUTxOAvailableForInputs
@@ -753,16 +751,6 @@ shrinkOutputsToCover = shrinkList shrinkOutput
 
 tokenBundleHasNonZeroCoin :: TokenBundle -> Bool
 tokenBundleHasNonZeroCoin b = TokenBundle.getCoin b /= Coin 0
-
---------------------------------------------------------------------------------
--- Certificate deposits taken and returned
---------------------------------------------------------------------------------
-
-genCertificateDepositsTaken :: Gen Natural
-genCertificateDepositsTaken = chooseNatural (0, 3)
-
-shrinkCerticateDepositsTaken :: Natural -> [Natural]
-shrinkCerticateDepositsTaken = shrinkNatural
 
 --------------------------------------------------------------------------------
 -- Collateral requirements

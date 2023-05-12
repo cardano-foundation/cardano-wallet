@@ -205,9 +205,6 @@ data SelectionParams ctx = SelectionParams
     , outputsToCover
         :: ![(Address ctx, TokenBundle)]
         -- ^ Specifies a set of outputs that must be paid for.
-    , certificateDepositsTaken
-        :: !Natural
-        -- ^ Number of deposits for stake key registrations.
     , collateralRequirement
         :: !SelectionCollateralRequirement
         -- ^ Specifies the collateral requirement for this selection.
@@ -447,10 +444,8 @@ toBalanceConstraintsParams (constraints, params) =
             view #assetsToMint params
         , extraCoinSource =
             view #extraCoinIn params
-        , extraCoinSink = view #extraCoinOut params <>
-            mtimesDefault
-                (view #certificateDepositsTaken params)
-                (view #certificateDepositAmount constraints)
+        , extraCoinSink =
+            view #extraCoinOut params
         , outputsToCover =
             view #outputsToCover params
         , utxoAvailable =
