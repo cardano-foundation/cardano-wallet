@@ -317,7 +317,6 @@ toInternalSelectionParams SelectionParams {..} =
             Map.mapMaybeWithKey identifyCollateral utxoAvailableForCollateral
         , outputsToCover =
             (view #address &&& view #tokens) <$> outputsToCover
-        , certificateDepositsReturned = 0
         , ..
         }
   where

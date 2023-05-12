@@ -208,9 +208,6 @@ data SelectionParams ctx = SelectionParams
     , certificateDepositsTaken
         :: !Natural
         -- ^ Number of deposits for stake key registrations.
-    , certificateDepositsReturned
-        :: !Natural
-        -- ^ Number of deposits from stake key de-registrations.
     , collateralRequirement
         :: !SelectionCollateralRequirement
         -- ^ Specifies the collateral requirement for this selection.
@@ -449,10 +446,7 @@ toBalanceConstraintsParams (constraints, params) =
         , assetsToMint =
             view #assetsToMint params
         , extraCoinSource =
-            view #extraCoinIn params <>
-            mtimesDefault
-                (view #certificateDepositsReturned params)
-                (view #certificateDepositAmount constraints)
+            view #extraCoinIn params
         , extraCoinSink = view #extraCoinOut params <>
             mtimesDefault
                 (view #certificateDepositsTaken params)
