@@ -422,18 +422,18 @@ genTxTotalCollateral :: CardanoEra era -> Gen (TxTotalCollateral era)
 genTxTotalCollateral era =
     case totalAndReturnCollateralSupportedInEra era of
         Nothing -> pure TxTotalCollateralNone
-        Just supported -> oneof
-            [ pure TxTotalCollateralNone
-            , TxTotalCollateral supported <$> genLovelace
+        Just supported -> frequency
+            [ (90, pure TxTotalCollateralNone)
+            , (10, TxTotalCollateral supported <$> genLovelace)
             ]
 
 genTxReturnCollateral :: CardanoEra era -> Gen (TxReturnCollateral ctx era)
 genTxReturnCollateral era =
     case totalAndReturnCollateralSupportedInEra era of
         Nothing -> pure TxReturnCollateralNone
-        Just supported -> oneof
-            [ pure TxReturnCollateralNone
-            , TxReturnCollateral supported <$> genTxOut era
+        Just supported -> frequency
+            [ (90, pure TxReturnCollateralNone)
+            , (10, TxReturnCollateral supported <$> genTxOut era)
             ]
 
 genPlutusScript :: PlutusScriptVersion lang -> Gen (PlutusScript lang)
