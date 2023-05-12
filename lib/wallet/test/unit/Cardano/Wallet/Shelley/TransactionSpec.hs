@@ -284,6 +284,7 @@ import Cardano.Wallet.Write.Tx
     , cardanoEraFromRecentEra
     , recentEra
     , shelleyBasedEraFromRecentEra
+    , (<->)
     )
 import Cardano.Wallet.Write.Tx.Balance
     ( ChangeAddressGen (..)
@@ -446,7 +447,6 @@ import Test.QuickCheck
     , (.||.)
     , (=/=)
     , (===)
-    , (==>)
     )
 import Test.QuickCheck.Extra
     ( chooseNatural
@@ -2272,12 +2272,6 @@ balanceTransactionSpec :: Spec
 balanceTransactionSpec = describe "balanceTransaction" $ do
     -- TODO: Create a test to show that datums are passed through...
 
-    it "doesn't balance transactions with existing 'totalCollateral'"
-        $ property prop_balanceTransactionExistingTotalCollateral
-
-    it "doesn't balance transactions with existing 'returnCollateral'"
-        $ property prop_balanceTransactionExistingReturnCollateral
-
     it "produces valid transactions or fails"
         $ property prop_balanceTransactionValid
 
@@ -3726,6 +3720,7 @@ prop_balanceTransactionValid wallet@(Wallet' _ walletUTxO _) (ShowBuildable part
                                   (minUTxOValue <> upperBoundCostOfOutput)
                                   tx
                                   combinedUTxO
+                        , prop_txCollBalance tx combinedUTxO
 
                         -- FIXME [ADP-2419] Re-enable when we have stricter
                         -- validation. Will otherwise fail with:
@@ -3809,6 +3804,8 @@ prop_balanceTransactionValid wallet@(Wallet' _ walletUTxO _) (ShowBuildable part
             Left err -> label "other error" $
                 counterexample ("balanceTransaction failed: " <> show err) False
   where
+    era = recentEra @era
+
     prop_expectFeeExcessSmallerThan
         :: Cardano.Lovelace
         -> Cardano.Tx era
@@ -3869,6 +3866,43 @@ prop_balanceTransactionValid wallet@(Wallet' _ walletUTxO _) (ShowBuildable part
                 ]
         counterexample msg $ property (size <= limit)
 
+    prop_txCollBalance
+        :: Cardano.Tx era
+        -> Cardano.UTxO era
+        -> Property
+    prop_txCollBalance cardanoTx' cardanoUTxO = Write.withConstraints era $
+        let
+            tx = Write.fromCardanoTx cardanoTx'
+            body = Write.txBody era tx
+
+            lookupOut
+                :: Write.TxIn
+                -> Write.TxOut (Write.ShelleyLedgerEra era)
+            lookupOut i = fromMaybe err $ Write.txinLookup i utxo
+              where
+                err = error "prop_txCollBalance: unable to lookup input"
+                utxo = Write.fromCardanoUTxO cardanoUTxO
+
+            mtotalCol = view Write.totalCollateralBabbageTxBodyL body
+            colIn = foldMap (Write.txOutValue era . lookupOut)
+                $ Set.toList
+                $ view Write.collateralInputsBabbageTxBodyL body
+            mcolRet = Write.txOutValue era
+                <$> view Write.collateralReturnBabbageTxBodyL body
+        in
+            case (mtotalCol, mcolRet) of
+                (SJust totalCol, SJust colRet) ->
+                    colIn <-> colRet === (Value.inject totalCol)
+                (SNothing, SJust colRet) ->
+                    let
+                        colBal = colIn <-> colRet
+                    in
+                        property $ Value.isAdaOnly colBal
+                (SJust totalCol, SNothing) ->
+                    colIn === Value.inject totalCol
+                (SNothing, SNothing) ->
+                    property True
+
     _prop_outputsSatisfyMinAdaRequirement
         :: Cardano.Tx era
         -> Property
@@ -3876,8 +3910,6 @@ prop_balanceTransactionValid wallet@(Wallet' _ walletUTxO _) (ShowBuildable part
         let outputs = Write.outputs era $ Write.txBody era tx
         conjoin $ map valid outputs
       where
-        era = recentEra @era
-
         valid :: Write.TxOut (Cardano.ShelleyLedgerEra era) -> Property
         valid out = counterexample msg $ property $
             not $ Write.isBelowMinimumCoinForTxOut era ledgerPParams out
@@ -3900,7 +3932,6 @@ prop_balanceTransactionValid wallet@(Wallet' _ walletUTxO _) (ShowBuildable part
     hasZeroAdaOutputs (Cardano.ShelleyTx _ tx) =
         any hasZeroAda (Write.outputs era $ Write.txBody era tx)
       where
-        era = recentEra @era
         hasZeroAda (Write.BabbageTxOut _ val _ _) =
             Value.coin val == Ledger.Coin 0
 
@@ -3936,8 +3967,6 @@ prop_balanceTransactionValid wallet@(Wallet' _ walletUTxO _) (ShowBuildable part
             ledgerPParams
             (Write.fromCardanoUTxO u)
             (Write.txBody era $ Write.fromCardanoTx tx)
-      where
-        era = recentEra @era
 
     ledgerPParams = Write.pparamsLedger $
         mockPParamsForBalancing @era
@@ -3945,38 +3974,6 @@ prop_balanceTransactionValid wallet@(Wallet' _ walletUTxO _) (ShowBuildable part
     txOutputs :: Cardano.Tx era -> [Cardano.TxOut Cardano.CtxTx era]
     txOutputs (Cardano.Tx (Cardano.TxBody content) _) =
         Cardano.txOuts content
-
-prop_balanceTransactionExistingTotalCollateral
-    :: Wallet'
-    -> ShowBuildable (PartialTx Cardano.BabbageEra)
-    -> StdGenSeed
-    -> Property
-prop_balanceTransactionExistingTotalCollateral
-    wallet (ShowBuildable partialTx@PartialTx{tx}) seed = withMaxSuccess 10 $
-        hasTotalCollateral tx
-            && not (hasInsCollateral tx)
-            && not (hasReturnCollateral tx) ==>
-        case balanceTx wallet pp dummyTimeTranslation seed partialTx of
-            Left err -> ErrBalanceTxExistingTotalCollateral === err
-            e -> counterexample (show e) False
-  where
-    pp = mockPParamsForBalancing
-
-prop_balanceTransactionExistingReturnCollateral
-    :: Wallet'
-    -> ShowBuildable (PartialTx Cardano.BabbageEra)
-    -> StdGenSeed
-    -> Property
-prop_balanceTransactionExistingReturnCollateral
-    wallet (ShowBuildable partialTx@PartialTx{tx}) seed = withMaxSuccess 10 $
-        hasReturnCollateral tx
-            && not (hasInsCollateral tx)
-            && not (hasTotalCollateral tx) ==>
-        case balanceTx wallet pp dummyTimeTranslation seed partialTx of
-            Left err -> ErrBalanceTxExistingReturnCollateral === err
-            e -> counterexample (show e) False
-  where
-    pp = mockPParamsForBalancing
 
 {-# ANN prop_bootstrapWitnesses ("HLint: ignore Eta reduce" :: String) #-}
 prop_bootstrapWitnesses
@@ -4045,25 +4042,6 @@ serializedSize = BS.length
     . serialisedTx
     . sealedTxFromCardano
     . Cardano.InAnyCardanoEra (Cardano.cardanoEra @era)
-
-hasInsCollateral :: Cardano.Tx era -> Bool
-hasInsCollateral (Cardano.Tx (Cardano.TxBody content) _) =
-    case Cardano.txInsCollateral content of
-        Cardano.TxInsCollateralNone -> False
-        Cardano.TxInsCollateral _ [] -> False
-        Cardano.TxInsCollateral _ _ -> True
-
-hasTotalCollateral :: Cardano.Tx era -> Bool
-hasTotalCollateral (Cardano.Tx (Cardano.TxBody content) _) =
-    case Cardano.txTotalCollateral content of
-        Cardano.TxTotalCollateralNone -> False
-        Cardano.TxTotalCollateral _ _ -> True
-
-hasReturnCollateral :: Cardano.Tx era -> Bool
-hasReturnCollateral (Cardano.Tx (Cardano.TxBody content) _) =
-    case Cardano.txReturnCollateral content of
-        Cardano.TxReturnCollateralNone -> False
-        Cardano.TxReturnCollateral _ _ -> True
 
 -- | We try to use similar parameters to mainnet where it matters (in particular
 -- fees, execution unit prices, and the cost model.)

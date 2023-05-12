@@ -82,6 +82,9 @@ module Cardano.Wallet.Write.Tx
     , modifyTxOutputs
     , modifyLedgerBody
     , emptyTx
+    , Babbage.totalCollateralBabbageTxBodyL
+    , Babbage.collateralReturnBabbageTxBodyL
+    , Babbage.collateralInputsBabbageTxBodyL
 
     -- * TxOut
     , Core.TxOut
@@ -105,6 +108,7 @@ module Cardano.Wallet.Write.Tx
     , modifyCoin
     , coin
     , Coin (..)
+    , (<->)
 
     -- ** Datum
     , Datum (..)
@@ -137,6 +141,13 @@ module Cardano.Wallet.Write.Tx
     , Shelley.UTxO (..)
     , utxoFromTxOutsInRecentEra
     , utxoFromTxOuts
+    , Shelley.txins
+    , Shelley.txinLookup
+    , Shelley.txouts
+    , Shelley.balance
+    , Shelley.sumAllValue
+    , Shelley.verifyWitVKey
+    , Shelley.getScriptHash
 
     -- * Balancing
     , evaluateMinimumFee
@@ -175,7 +186,7 @@ import Cardano.Ledger.Serialization
 import Cardano.Ledger.Shelley.API
     ( CLI (evaluateMinLovelaceOutput) )
 import Cardano.Ledger.Val
-    ( coin, modifyCoin )
+    ( Val ((<->)), coin, modifyCoin )
 import Cardano.Wallet.Primitive.Types.Tx.Constraints
     ( txOutMaxCoin )
 import Cardano.Wallet.Shelley.Compatibility.Ledger
@@ -282,6 +293,7 @@ type RecentEraLedgerConstraints era =
     , HasField' "_prices" (Core.PParams era) ExUnitPrices
     , HasField' "_maxTxExUnits" (Core.PParams era) ExUnits
     , HasField' "_keyDeposit" (Core.PParams era) Coin
+    , Babbage.BabbageEraTxBody era
     )
 
 -- | Bring useful constraints into scope from a value-level
