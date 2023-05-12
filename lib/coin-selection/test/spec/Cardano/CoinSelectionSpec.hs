@@ -631,7 +631,6 @@ genSelectionParams = SelectionParams
     <*> genExtraCoinIn
     <*> genExtraCoinOut
     <*> genOutputsToCover
-    <*> genRewardWithdrawal
     <*> genCertificateDepositsTaken
     <*> genCertificateDepositsReturned
     <*> genCollateralRequirement
@@ -648,7 +647,6 @@ shrinkSelectionParams = genericRoundRobinShrink
     <:> shrinkExtraCoinIn
     <:> shrinkExtraCoinOut
     <:> shrinkOutputsToCover
-    <:> shrinkRewardWithdrawal
     <:> shrinkCerticateDepositsTaken
     <:> shrinkCerticateDepositsReturned
     <:> shrinkCollateralRequirement
@@ -757,16 +755,6 @@ shrinkOutputsToCover = shrinkList shrinkOutput
 
 tokenBundleHasNonZeroCoin :: TokenBundle -> Bool
 tokenBundleHasNonZeroCoin b = TokenBundle.getCoin b /= Coin 0
-
---------------------------------------------------------------------------------
--- Reward withdrawals
---------------------------------------------------------------------------------
-
-genRewardWithdrawal :: Gen Coin
-genRewardWithdrawal = genCoin
-
-shrinkRewardWithdrawal :: Coin -> [Coin]
-shrinkRewardWithdrawal = shrinkCoin
 
 --------------------------------------------------------------------------------
 -- Certificate deposits taken and returned

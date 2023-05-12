@@ -205,9 +205,6 @@ data SelectionParams ctx = SelectionParams
     , outputsToCover
         :: ![(Address ctx, TokenBundle)]
         -- ^ Specifies a set of outputs that must be paid for.
-    , rewardWithdrawal
-        :: !Coin
-        -- ^ Specifies the value of a withdrawal from a reward account.
     , certificateDepositsTaken
         :: !Natural
         -- ^ Number of deposits for stake key registrations.
@@ -452,7 +449,7 @@ toBalanceConstraintsParams (constraints, params) =
         , assetsToMint =
             view #assetsToMint params
         , extraCoinSource =
-            view #rewardWithdrawal params <> view #extraCoinIn params <>
+            view #extraCoinIn params <>
             mtimesDefault
                 (view #certificateDepositsReturned params)
                 (view #certificateDepositAmount constraints)

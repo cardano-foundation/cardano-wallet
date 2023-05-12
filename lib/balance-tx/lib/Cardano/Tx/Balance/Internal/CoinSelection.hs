@@ -320,8 +320,6 @@ toInternalSelectionParams SelectionParams {..} =
             Map.mapMaybeWithKey identifyCollateral utxoAvailableForCollateral
         , outputsToCover =
             (view #address &&& view #tokens) <$> outputsToCover
-        , rewardWithdrawal =
-            Coin 0
         , ..
         }
   where
