@@ -285,9 +285,6 @@ data SelectionParams = SelectionParams
     , certificateDepositsTaken
         :: !Natural
         -- ^ Number of deposits for stake key registrations.
-    , certificateDepositsReturned
-        :: !Natural
-        -- ^ Number of deposits from stake key de-registrations.
     , collateralRequirement
         :: !SelectionCollateralRequirement
         -- ^ Specifies the collateral requirement for this selection.
@@ -320,6 +317,7 @@ toInternalSelectionParams SelectionParams {..} =
             Map.mapMaybeWithKey identifyCollateral utxoAvailableForCollateral
         , outputsToCover =
             (view #address &&& view #tokens) <$> outputsToCover
+        , certificateDepositsReturned = 0
         , ..
         }
   where
