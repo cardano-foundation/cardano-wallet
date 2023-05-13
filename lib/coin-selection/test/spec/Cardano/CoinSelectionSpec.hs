@@ -457,18 +457,18 @@ unitTests_computeMinimumCollateral = unitTests
     -- However, the result of this multiplication may be non-integral.
     -- In the event that the result is non-integral, we always round up.
     tests =
-        --( Min, Tx     , Min     )
-        --(   %, Fee    , Required)
-        --(----, -------, --------)
-        [ (   0, Coin  0, Coin   0)
-        , (   0, Coin 10, Coin   0)
-        , (  90, Coin 10, Coin   9)
-        , (  91, Coin 10, Coin  10) -- result is non-integral so we round up
-        , (  99, Coin 10, Coin  10) -- result is non-integral so we round up
-        , ( 100, Coin 10, Coin  10)
-        , ( 990, Coin 10, Coin  99)
-        , ( 991, Coin 10, Coin 100) -- result is non-integral so we round up
-        , ( 999, Coin 10, Coin 100) -- result is non-integral so we round up
+        --(  Min, Tx     , Min     )
+        --(    %, Fee    , Required)
+        --(-----, -------, --------)
+        [ (    0, Coin  0, Coin   0)
+        , (    0, Coin 10, Coin   0)
+        , (   90, Coin 10, Coin   9)
+        , (   91, Coin 10, Coin  10) -- result is non-integral so we round up
+        , (   99, Coin 10, Coin  10) -- result is non-integral so we round up
+        , (  100, Coin 10, Coin  10)
+        , (  990, Coin 10, Coin  99)
+        , (  991, Coin 10, Coin 100) -- result is non-integral so we round up
+        , (  999, Coin 10, Coin 100) -- result is non-integral so we round up
         , (1_000, Coin 10, Coin 100)
         ]
 
