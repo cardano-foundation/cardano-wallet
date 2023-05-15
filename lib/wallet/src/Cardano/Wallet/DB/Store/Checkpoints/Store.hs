@@ -27,7 +27,7 @@
 -- * Inline the contents of this module into its new name
 --   "Cardano.Wallet.DB.Sqlite.Stores"
 
-module Cardano.Wallet.DB.Store.Checkpoints
+module Cardano.Wallet.DB.Store.Checkpoints.Store
     ( PersistAddressBook (..)
     , blockHeaderFromEntity
 

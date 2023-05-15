@@ -98,7 +98,7 @@ import Cardano.Wallet.DB.Sqlite.Schema
     )
 import Cardano.Wallet.DB.Sqlite.Types
     ( BlockId (..), TxId (..) )
-import Cardano.Wallet.DB.Store.Checkpoints
+import Cardano.Wallet.DB.Store.Checkpoints.Store
     ( PersistAddressBook (..), blockHeaderFromEntity, mkStoreWallet )
 import Cardano.Wallet.DB.Store.Info.Store
     ( WalletInfo (..) )

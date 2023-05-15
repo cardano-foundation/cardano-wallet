@@ -56,10 +56,10 @@ import Cardano.Wallet.Api.Http.Shelley.Server
     , TlsConfiguration
     , toServerError
     )
+import Cardano.Wallet.DB.Layer
+    ( PersistAddressBook )
 import Cardano.Wallet.DB.Sqlite.Migration
     ( DefaultFieldValues (..) )
-import Cardano.Wallet.DB.Store.Checkpoints
-    ( PersistAddressBook )
 import Cardano.Wallet.Flavor
     ( CredFromOf, KeyFlavorS (..), KeyOf, WalletFlavor (..) )
 import Cardano.Wallet.Network

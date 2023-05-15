@@ -34,7 +34,7 @@ import Cardano.Wallet.DB.Arbitrary
     ( GenState, InitialCheckpoint (..) )
 import Cardano.Wallet.DB.Fixtures
     ( initializeWallet, withDBInMemory )
-import Cardano.Wallet.DB.Store.Checkpoints
+import Cardano.Wallet.DB.Store.Checkpoints.Store
     ( PersistAddressBook (..), mkStoreWallet )
 import Cardano.Wallet.DB.Store.Info.Store
     ( WalletInfo (WalletInfo) )

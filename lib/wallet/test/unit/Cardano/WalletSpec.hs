@@ -278,7 +278,7 @@ import qualified Cardano.Crypto.Wallet as CC
 import qualified Cardano.Wallet as W
 import qualified Cardano.Wallet.Address.Book as Sqlite
 import qualified Cardano.Wallet.DB.Sqlite.Types as DB
-import qualified Cardano.Wallet.DB.Store.Checkpoints as Sqlite
+import qualified Cardano.Wallet.DB.Store.Checkpoints.Store as Sqlite
 import qualified Cardano.Wallet.Primitive.Migration as Migration
 import qualified Cardano.Wallet.Primitive.Types.TokenBundle as TokenBundle
 import qualified Cardano.Wallet.Primitive.Types.TokenMap as TokenMap
