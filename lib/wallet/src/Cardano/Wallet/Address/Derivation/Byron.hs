@@ -27,6 +27,7 @@
 module Cardano.Wallet.Address.Derivation.Byron
     ( -- * Types
       ByronKey(..)
+    , byronKey
     , DerivationPathFrom
 
       -- * Generation
@@ -35,6 +36,7 @@ module Cardano.Wallet.Address.Derivation.Byron
     , minSeedLengthBytes
     , unsafeMkByronKeyFromMasterKey
     , mkByronKeyFromMasterKey
+    , hdPassphrase
 
       -- * Derivation
     , deriveAccountPrivateKey
@@ -77,6 +79,8 @@ import Cardano.Wallet.TxWitnessTag
     ( TxWitnessTag (..), TxWitnessTagFor (..) )
 import Control.DeepSeq
     ( NFData )
+import Control.Lens
+    ( Lens, lens )
 import Crypto.Hash
     ( hash )
 import Crypto.Hash.Algorithms
@@ -115,6 +119,9 @@ data ByronKey (depth :: Depth) key = ByronKey
     , payloadPassphrase :: Passphrase "addr-derivation-payload"
     -- ^ Used for encryption of payload containing address derivation path.
     } deriving stock (Generic)
+
+byronKey :: Lens (ByronKey depth key) (ByronKey depth key') key key'
+byronKey = lens getKey (\x k -> x { getKey = k })
 
 instance (NFData key, NFData (DerivationPathFrom depth)) => NFData (ByronKey depth key)
 deriving instance (Show key, Show (DerivationPathFrom depth)) => Show (ByronKey depth key)

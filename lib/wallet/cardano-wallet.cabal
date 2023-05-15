@@ -241,6 +241,7 @@ library
     Cardano.Wallet.Address.HasDelegation
     Cardano.Wallet.Address.Keys.BoundedAddressLength
     Cardano.Wallet.Address.Keys.PersistPrivateKey
+    Cardano.Wallet.Address.Keys.WalletKey
     Cardano.Wallet.Address.Pool
     Cardano.Wallet.Byron.Compatibility
     Cardano.Wallet.Checkpoints

@@ -21,6 +21,7 @@
 module Cardano.Wallet.Address.Derivation.Icarus
     ( -- * Types
       IcarusKey(..)
+    , icarusKey
 
     -- * Generation and derivation
     , generateKeyFromSeed
@@ -84,6 +85,8 @@ import Control.Arrow
     ( first, left )
 import Control.DeepSeq
     ( NFData (..) )
+import Control.Lens
+    ( Iso, iso )
 import Control.Monad
     ( (<=<) )
 import Crypto.Error
@@ -132,6 +135,9 @@ import qualified Data.Text.Encoding as T
 newtype IcarusKey (depth :: Depth) key =
     IcarusKey { getKey :: key }
     deriving stock (Generic, Show, Eq)
+
+icarusKey :: Iso (IcarusKey depth key) (IcarusKey depth key') key key'
+icarusKey = iso getKey IcarusKey
 
 instance NFData key => NFData (IcarusKey depth key)
 

@@ -23,6 +23,7 @@
 module Cardano.Wallet.Address.Derivation.Shelley
     ( -- * Types
       ShelleyKey(..)
+    , shelleyKey
 
     -- * Constants
     , minSeedLengthBytes
@@ -103,6 +104,8 @@ import Cardano.Wallet.TxWitnessTag
     ( TxWitnessTag (..), TxWitnessTagFor (..) )
 import Control.DeepSeq
     ( NFData (..) )
+import Control.Lens
+    ( Iso, iso )
 import Control.Monad
     ( guard, (<=<) )
 import Crypto.Hash
@@ -144,6 +147,9 @@ import qualified Data.List.NonEmpty as NE
 newtype ShelleyKey (depth :: Depth) key =
     ShelleyKey { getKey :: key }
     deriving stock (Generic, Show, Eq)
+
+shelleyKey :: Iso (ShelleyKey depth key) (ShelleyKey depth key') key key'
+shelleyKey = iso getKey ShelleyKey
 
 instance NFData key => NFData (ShelleyKey depth key)
 
