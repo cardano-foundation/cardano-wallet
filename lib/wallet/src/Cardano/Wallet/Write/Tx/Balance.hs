@@ -165,7 +165,6 @@ import Data.Bits
     ( Bits )
 import Data.Either
     ( lefts, partitionEithers )
-import qualified Data.Foldable as F
 import Data.Generics.Internal.VL.Lens
     ( over, view, (^.) )
 import Data.Generics.Labels
@@ -221,6 +220,7 @@ import qualified Cardano.Wallet.Primitive.Types.UTxO as UTxO
 import qualified Cardano.Wallet.Primitive.Types.UTxOIndex as UTxOIndex
 import qualified Cardano.Wallet.Primitive.Types.UTxOSelection as UTxOSelection
 import qualified Cardano.Wallet.Shelley.Compatibility.Ledger as W
+import qualified Data.Foldable as F
 import qualified Data.Map as Map
 import qualified Data.Set as Set
 
@@ -836,7 +836,6 @@ balanceTransactionWithSelectionStrategyAndNoZeroAdaAdjustment
             assignScriptRedeemers
                 pp timeTranslation combinedUTxO redeemers tx'
 
-
     guardConflictingWithdrawalNetworks
         (Cardano.Tx (Cardano.TxBody body) _) = do
         -- Use of withdrawals with different networks breaks balancing.
@@ -931,8 +930,7 @@ balanceTransactionWithSelectionStrategyAndNoZeroAdaAdjustment
                 txWitnessTag
                 defaultTransactionCtx
                 SelectionSkeleton
-                    { skeletonInputCount =
-                        UTxOSelection.selectedSize utxoSelection
+                { skeletonInputCount = UTxOSelection.selectedSize utxoSelection
                     , skeletonOutputs = outs
                     , skeletonChange = []
                     }
@@ -1033,7 +1031,7 @@ balanceTransactionWithSelectionStrategyAndNoZeroAdaAdjustment
             }
 
 data ChangeAddressGen s = ChangeAddressGen
-    { getChangeAddressGen ::  (s -> (W.Address, s))
+    { getChangeAddressGen :: s -> (W.Address, s)
 
     -- | Returns the longest address that the wallet can generate for a given
     --   key.
@@ -1107,4 +1105,3 @@ unsafeIntCast
 unsafeIntCast x = fromMaybe err $ intCastMaybe x
   where
     err = error $ "unsafeIntCast failed for " <> show x
-
