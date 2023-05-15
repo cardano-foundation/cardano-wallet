@@ -73,7 +73,7 @@ import Cardano.Wallet.DummyTarget.Primitive.Types
     , dummyTimeInterpreter
     )
 import Cardano.Wallet.Flavor
-    ( KeyOf, WalletFlavor (..) )
+    ( WalletFlavor (..) )
 import Cardano.Wallet.Logging
     ( trMessageText )
 import Cardano.Wallet.Network
@@ -460,7 +460,6 @@ benchmarkWallets
        , Buildable results
        , ToJSON results
        , WalletFlavor s
-       , KeyOf s ~ k
        )
     => Text
         -- ^ Benchmark name (used for naming resulting files)
@@ -518,7 +517,6 @@ withWalletsFromDirectory
        , WalletKey k
        , TxWitnessTagFor k
        , WalletFlavor s
-       , KeyOf s ~ k
        )
     => FilePath
         -- ^ Directory of database files

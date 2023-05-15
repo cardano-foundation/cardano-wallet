@@ -30,7 +30,7 @@ import Prelude
 import Cardano.Wallet
     ( WalletException )
 import Cardano.Wallet.Address.Derivation
-    ( Depth (..), WalletKey )
+    ( Depth (..) )
 import Cardano.Wallet.Address.Derivation.Icarus
     ( IcarusKey )
 import Cardano.Wallet.Address.Derivation.SharedKey
@@ -320,7 +320,6 @@ serveWallet
             , IsOurs s RewardAccount
             , MaybeLight s
             , PersistAddressBook s
-            , WalletKey k
             , WalletFlavor s
             , KeyOf s ~ k
             )

@@ -11,6 +11,7 @@
 {-# LANGUAGE TypeApplications #-}
 {-# LANGUAGE TypeFamilies #-}
 
+
 module Cardano.Wallet.Flavor
     ( WalletFlavorS (..)
     , WalletFlavor (..)

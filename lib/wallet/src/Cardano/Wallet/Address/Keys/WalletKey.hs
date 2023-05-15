@@ -1,10 +1,12 @@
+{-# LANGUAGE ConstraintKinds #-}
 {-# LANGUAGE DataKinds #-}
 {-# LANGUAGE DuplicateRecordFields #-}
 {-# LANGUAGE GADTs #-}
 {-# LANGUAGE LambdaCase #-}
 {-# LANGUAGE TypeFamilies #-}
-{-# LANGUAGE ConstraintKinds #-}
 
+-- ghc , at least 8.10.7 cannot figure out the constraint is necessary in
+-- liftRawKeyNew, so we disable the warning.
 {-# OPTIONS_GHC -Wno-redundant-constraints #-}
 
 -- | Interface over keys / address types
