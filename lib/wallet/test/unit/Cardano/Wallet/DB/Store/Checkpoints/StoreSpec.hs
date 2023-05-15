@@ -4,7 +4,7 @@
 {-# LANGUAGE RankNTypes #-}
 {-# LANGUAGE ScopedTypeVariables #-}
 {-# LANGUAGE TypeApplications #-}
-module Cardano.Wallet.DB.Sqlite.StoresSpec
+module Cardano.Wallet.DB.Store.Checkpoints.StoreSpec
     ( spec
     ) where
 
