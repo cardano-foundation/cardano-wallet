@@ -286,6 +286,7 @@ library
     Cardano.Wallet.DB.Store.Wallets.Layer
     Cardano.Wallet.DB.Store.Wallets.Model
     Cardano.Wallet.DB.Store.Wallets.Store
+    Cardano.Wallet.DB.Store.WalletState.Store
     Cardano.Wallet.DB.WalletState
     Cardano.Wallet.Delegation
     Cardano.Wallet.Delegation.Model
