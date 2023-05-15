@@ -38,7 +38,6 @@ module Cardano.Api.Gen
     , genPlutusScript
     , genPolicyId
     , genPoolId
-    , genProtocolParameters
     , genProtocolParametersUpdate
     , genPtr
     , genRational
@@ -1059,36 +1058,6 @@ genCostModels = do
 genExecutionUnitPrices :: Gen ExecutionUnitPrices
 genExecutionUnitPrices = ExecutionUnitPrices <$> genRational <*> genRational
 
-genProtocolParameters :: Gen ProtocolParameters
-genProtocolParameters =
-  ProtocolParameters
-    <$> ((,) <$> genNat <*> genNat)
-    <*> (Just <$> genRational)
-    <*> liftArbitrary genPraosNonce
-    <*> genNat
-    <*> genNat
-    <*> genNat
-    <*> genNat
-    <*> genNat
-    <*> liftArbitrary genLovelace
-    <*> genLovelace
-    <*> genLovelace
-    <*> genLovelace
-    <*> genEpochNo
-    <*> genNat
-    <*> genRationalInt64
-    <*> genRational
-    <*> genRational
-    <*> liftArbitrary genLovelace
-    <*> genCostModels
-    <*> liftArbitrary genExecutionUnitPrices
-    <*> liftArbitrary genExecutionUnits
-    <*> liftArbitrary genExecutionUnits
-    <*> liftArbitrary genNat
-    <*> liftArbitrary genNat
-    <*> liftArbitrary genNat
-    <*> liftArbitrary genLovelace
-
 -- | A generator which only selects between two values for the sake of being
 -- fast. This is useful for generating values for @Cardano.TxBodyContent@,
 -- which only purpose is being hashed to produce part of the script integrity
@@ -1108,8 +1077,8 @@ genProtocolParametersForHashing = elements
     variantB = generateWith (GenSeed 1) (GenSize 30)
         genRecentEraProtocolParameters
 
-    -- | Like 'genProtocolParameters' but with 'Just' as necessary to be
-    -- convertible to @Ledger.PParams era@ for 'IsRecentEra' eras.
+    -- | With 'Just' as necessary to be convertible to @Ledger.PParams era@
+    -- for 'IsRecentEra' eras, and keep our tests from throwing exceptions.
     genRecentEraProtocolParameters :: Gen ProtocolParameters
     genRecentEraProtocolParameters =
       ProtocolParameters
