@@ -429,7 +429,15 @@ import Cardano.Wallet.Compat
 import Cardano.Wallet.DB
     ( DBFactory (..), DBFresh, DBLayer, loadDBLayer )
 import Cardano.Wallet.Flavor
-    ( Excluding, KeyOf, WalletFlavor (..), WalletFlavorS (..) )
+    ( Excluding
+    , KeyOf
+    , KeyOf
+    , WalletFlavor (..)
+    , WalletFlavor (..)
+    , WalletFlavorS (..)
+    , WalletFlavorS (ShelleyWallet)
+    , keyFlavor
+    )
 import Cardano.Wallet.Network
     ( NetworkLayer (..), fetchRewardAccountBalances, timeInterpreter )
 import Cardano.Wallet.Pools
@@ -1660,7 +1668,8 @@ putWalletPassphrase
         ( WalletKey k
         , ctx ~ ApiLayer s ktype
         , GetAccount s k
-        , k ~ KeyOf s
+        , WalletFlavor s
+        , KeyOf s ~ k
         , HardDerivation k
         )
     => ctx
@@ -1704,7 +1713,7 @@ putWalletPassphrase ctx createKey getKey (ApiT wid)
 
 putByronWalletPassphrase
     :: forall ctx s
-     . ( WalletKey (KeyOf s)
+     . ( WalletFlavor s
        , ctx ~ ApiLayer s 'CredFromKeyK
        )
     => ctx
@@ -2095,10 +2104,10 @@ signTransaction
     :: forall ctx s k ktype.
         ( ctx ~ ApiLayer s ktype
         , Bounded (Index (AddressIndexDerivationType k) (AddressCredential k))
-        , WalletKey k
         , IsOwned s k ktype
         , HardDerivation k
-        , k ~ KeyOf s
+        , WalletFlavor s
+        , KeyOf s ~ k
         , AccountIxForStaking s
         , ToWitnessCountCtx s
         )
@@ -2137,7 +2146,9 @@ signTransaction ctx (ApiT wid) body = do
 
                     era <- liftIO $ NW.currentNodeEra nl
                     let sealedTx = body ^. #transaction . #getApiT
-                    pure $ W.signTransaction tl era witCountCtx keyLookup
+                    pure $ W.signTransaction
+                        (keyFlavor @s)
+                        tl era witCountCtx keyLookup
                         Nothing (rootK, pwdP) utxo accIxForStakingM sealedTx
 
     -- TODO: The body+witnesses seem redundant with the sealedTx already. What's
@@ -2156,14 +2167,13 @@ postTransactionOld
         , HasNetworkLayer IO ctx
         , IsOwned s k 'CredFromKeyK
         , Bounded (Index (AddressIndexDerivationType k) (AddressCredential k))
-        , WalletKey k
         , TxWitnessTagFor k
         , AddressBookIso s
         , HasDelegation s
         , WalletFlavor s
         , Excluding '[SharedKey] k
+        , KeyOf s ~ k
         , IsOurs s RewardAccount
-        , k ~ KeyOf s
         )
     => ctx
     -> ArgGenChange s
@@ -3513,7 +3523,6 @@ joinStakePool
         , IsOwned s k 'CredFromKeyK
         , IsOurs (SeqState n k) RewardAccount
         , SoftDerivation k
-        , WalletKey k
         , AddressBookIso s
         , HasDelegation s
         )
@@ -4064,7 +4073,7 @@ signMetadata ctx (ApiT wid) (ApiT role_) (ApiT ix) body = do
     let pwd  = body ^. #passphrase . #getApiT
 
     withWorkerCtx @_ @s ctx wid liftE liftE $ \wrk -> liftHandler $ do
-        getSignature <$> W.signMetadataWith @_ @s @n
+        getSignature <$> W.signMetadataWith @_ @s
             wrk wid (coerce pwd) (role_, ix) meta
 
 derivePublicKey

@@ -167,7 +167,7 @@ data TransactionLayer k ktype tx = TransactionLayer
         -> WitnessCountCtx
         -> [(XPrv, Passphrase "encryption")]
             -- Reward accounts
-        -> (KeyHash, XPrv, Passphrase "encryption")
+        -> Maybe (KeyHash, XPrv, Passphrase "encryption")
             -- policy key hash and private key
         -> Maybe (KeyHash, XPrv, Passphrase "encryption")
             -- optional staking key hash and private key

@@ -3,6 +3,7 @@
 {-# LANGUAGE DuplicateRecordFields #-}
 {-# LANGUAGE GADTs #-}
 {-# LANGUAGE LambdaCase #-}
+{-# LANGUAGE RankNTypes #-}
 {-# LANGUAGE TypeFamilies #-}
 
 -- ghc , at least 8.10.7 cannot figure out the constraint is necessary in
@@ -17,12 +18,17 @@ module Cardano.Wallet.Address.Keys.WalletKey
     , digestNew
     , publicKeyNew
     , changePassphraseNew
+    , hashVerificationKeyNew
+    , AfterByron
+    , afterByron
     ) where
 
 import Prelude
 
 import Cardano.Address.Derivation
-    ( XPrv )
+    ( XPrv, xpubPublicKey )
+import Cardano.Address.Script
+    ( KeyHash (..), KeyRole )
 import Cardano.Crypto.Wallet
     ( XPub, toXPub, unXPub )
 import Cardano.Wallet.Address.Derivation.Byron
@@ -45,6 +51,8 @@ import Control.Lens
     ( over, view, (^.) )
 import Crypto.Hash
     ( Digest, HashAlgorithm, hash )
+import Crypto.Hash.Utils
+    ( blake2b224 )
 
 -- | Re-encrypt a private key using a different passphrase.
 --
@@ -135,3 +143,20 @@ liftRawKeyNew = \case
     IcarusKeyS -> IcarusKey
     ShelleyKeyS -> ShelleyKey
     SharedKeyS -> SharedKey
+
+afterByron :: KeyFlavorS k
+    -> (AfterByron k => KeyFlavorS k -> x)
+    -> Maybe x
+afterByron x h = case x of
+    ByronKeyS -> Nothing
+    ShelleyKeyS -> Just $ h ShelleyKeyS
+    IcarusKeyS -> Just $ h IcarusKeyS
+    SharedKeyS -> Just $ h SharedKeyS
+
+hashVerificationKeyNew
+    :: KeyFlavorS k
+    -> KeyRole
+    -> k depth XPub
+    -> KeyHash
+hashVerificationKeyNew key keyRole =
+    KeyHash keyRole . blake2b224 . xpubPublicKey . getRawKeyNew key

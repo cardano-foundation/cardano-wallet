@@ -612,7 +612,7 @@ newTransactionLayer networkId = TransactionLayer
             let policyResolver
                     :: KeyHash -> Maybe (XPrv, Passphrase "encryption")
                 policyResolver keyhash = do
-                    let (keyhash', xprv, encP) = policyCreds
+                    (keyhash', xprv, encP) <- policyCreds
                     guard (keyhash == keyhash') $> (xprv, encP)
             let stakingScriptResolver
                     :: KeyHash -> Maybe (XPrv, Passphrase "encryption")
