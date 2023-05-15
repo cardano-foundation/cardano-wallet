@@ -1094,9 +1094,9 @@ genProtocolParameters =
 -- which only purpose is being hashed to produce part of the script integrity
 -- hash in the transaction.
 genProtocolParametersForHashing :: Gen ProtocolParameters
-genProtocolParametersForHashing = frequency
-    [ (70, pure variantA)
-    , (30, pure variantB)
+genProtocolParametersForHashing = elements
+    [ variantA
+    , variantB
     ]
 
   where
