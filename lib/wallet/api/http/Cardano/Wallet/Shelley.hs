@@ -63,7 +63,7 @@ import Cardano.Wallet.DB.Sqlite.Migration
 import Cardano.Wallet.DB.Store.Checkpoints
     ( PersistAddressBook )
 import Cardano.Wallet.Flavor
-    ( KeyOf, WalletFlavor )
+    ( KeyOf, WalletFlavor (..) )
 import Cardano.Wallet.Network
     ( NetworkLayer (..) )
 import Cardano.Wallet.Pools
@@ -331,6 +331,7 @@ serveWallet
     apiLayer txLayer netLayer coworker = do
         tokenMetaClient <- newMetadataClient tokenMetadataTracer tokenMetaUri
         dbFactory <- Sqlite.newDBFactory
+            (walletFlavor @s)
             walletDbTracer
             (DefaultFieldValues
                 { defaultActiveSlotCoefficient =

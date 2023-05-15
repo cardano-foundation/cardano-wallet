@@ -78,7 +78,7 @@ import Cardano.Wallet.DummyTarget.Primitive.Types
     , mkTxId
     )
 import Cardano.Wallet.Flavor
-    ( KeyOf, TestState (..), WalletFlavor )
+    ( KeyOf, TestState (..), WalletFlavor (..) )
 import Cardano.Wallet.Gen
     ( genMnemonic, genSlotNo )
 import Cardano.Wallet.Network
@@ -1207,7 +1207,7 @@ setupFixture
     -> m (WalletLayerFixture s m)
 setupFixture wd@(wid,  _wname, _wstate) = do
     (_kill, dbf) <-
-        liftIO $ newDBFreshInMemory nullTracer dummyTimeInterpreter wid
+        liftIO $ newDBFreshInMemory (walletFlavor @s) nullTracer dummyTimeInterpreter wid
     db <- liftIO $ unsafeRunExceptT $ createFixtureWallet dbf wd
     let db' = hoistDBLayer liftIO db
         wl =

@@ -10,7 +10,6 @@
 {-# LANGUAGE ScopedTypeVariables #-}
 {-# LANGUAGE TypeApplications #-}
 {-# LANGUAGE TypeFamilies #-}
-{-# LANGUAGE TypeOperators #-}
 
 module Cardano.Wallet.Flavor
     ( WalletFlavorS (..)
@@ -20,8 +19,9 @@ module Cardano.Wallet.Flavor
     , KeyFlavorS (..)
     , keyFlavor
     , keyOfWallet
-    , Including
+    , NetworkOf
     , Excluding
+    , Including
     )
 where
 
@@ -43,6 +43,10 @@ import Cardano.Wallet.Address.Discovery.Sequential
     ( SeqAnyState, SeqState )
 import Cardano.Wallet.Address.Discovery.Shared
     ( SharedState (..) )
+import Cardano.Wallet.Read.NetworkId
+    ( NetworkDiscriminant )
+import Cardano.Wallet.TypeLevel
+    ( Excluding, Including )
 import Data.Kind
     ( Type )
 import GHC.Generics
@@ -120,22 +124,9 @@ keyOfWallet TestStateS = ShelleyKeyS
 keyFlavor :: forall s. WalletFlavor s => KeyFlavorS (KeyOf s)
 keyFlavor = keyOfWallet (walletFlavor @s)
 
--- | A type family to check if a type is included in a list of types.
--- This type family exists as a way to refine types in functions.
--- Ideally we wouldn't need it, as we want our types to describe the domain
--- precisely enough not to need a refinement.
--- However, in practice, we need to temporary refine types in functions,
--- as we're refactoring the codebase.
-type family Exclude xs x where
-    Exclude '[] _ = 'True
-    Exclude (x ': xs) x = 'False
-    Exclude (x ': xs) y = Exclude xs y
-
-type family Include xs x where
-    Include '[] _ = 'False
-    Include (x ': xs) x = 'True
-    Include (x ': xs) y = Include xs y
-
-type Excluding (xs :: [k]) (x :: k) = Exclude xs x ~ 'True
-
-type Including xs x = Include xs x ~ 'True
+type family NetworkOf (s :: Type) :: NetworkDiscriminant where
+    NetworkOf (SeqState n k) = n
+    NetworkOf (RndState n) = n
+    NetworkOf (SharedState n k) = n
+    NetworkOf (SeqAnyState n k p) = n
+    NetworkOf (RndAnyState n p) = n

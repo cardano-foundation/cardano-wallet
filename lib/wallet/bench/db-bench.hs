@@ -93,7 +93,7 @@ import Cardano.Wallet.DB.Layer
 import Cardano.Wallet.DummyTarget.Primitive.Types
     ( block0, dummyGenesisParameters, mkTxId )
 import Cardano.Wallet.Flavor
-    ( KeyOf, WalletFlavor )
+    ( WalletFlavor (..) )
 import Cardano.Wallet.Logging
     ( trMessageText )
 import Cardano.Wallet.Primitive.Model
@@ -726,11 +726,10 @@ withTempSqliteFile :: (FilePath -> IO a) -> IO a
 withTempSqliteFile action = withSystemTempFile "bench.db" $ \fp _ -> action fp
 
 setupDB
-    :: forall s .
-        ( PersistAddressBook s
-        , WalletFlavor s
-        , WalletKey (KeyOf s)
-        )
+    :: forall s
+     . ( PersistAddressBook s
+       , WalletFlavor s
+       )
     => Tracer IO WalletDBLog
     -> IO (BenchEnv s)
 setupDB tr = do
@@ -738,8 +737,9 @@ setupDB tr = do
     uncurry (BenchEnv destroyPool) <$> createPool
   where
     withSetup action = withTempSqliteFile $ \fp -> do
-        withDBFresh tr Nothing fp singleEraInterpreter testWid $ \db ->
-            action (fp, db)
+        withDBFresh (walletFlavor @s)
+            tr Nothing fp singleEraInterpreter testWid
+                $ \db -> action (fp, db)
 
 singleEraInterpreter :: TimeInterpreter IO
 singleEraInterpreter = hoistTimeInterpreter (pure . runIdentity) $
@@ -757,8 +757,6 @@ withCleanDB
     :: ( NFData c
        , PersistAddressBook s
        , WalletFlavor s
-       , KeyOf s ~ k
-       , WalletKey k
        , NFData b
        )
     => Tracer IO WalletDBLog

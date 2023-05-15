@@ -73,7 +73,7 @@ import Cardano.Wallet.DummyTarget.Primitive.Types
     , dummyTimeInterpreter
     )
 import Cardano.Wallet.Flavor
-    ( KeyOf, WalletFlavor )
+    ( KeyOf, WalletFlavor (..) )
 import Cardano.Wallet.Logging
     ( trMessageText )
 import Cardano.Wallet.Network
@@ -528,7 +528,8 @@ withWalletsFromDirectory
     -> IO [a]
 withWalletsFromDirectory dir tr networkId action = do
     DB.DBFactory{listDatabases,withDatabase}
-        <- DB.newDBFactory tr' migrationDefaultValues ti (Just dir)
+        <- DB.newDBFactory (walletFlavor @s)
+            tr' migrationDefaultValues ti (Just dir)
     wids <- listDatabases
     forM wids $ \wid ->
         withDatabase wid $ \DBFresh{loadDBLayer} -> do

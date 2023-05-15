@@ -3,6 +3,7 @@
 {-# LANGUAGE GADTs #-}
 {-# LANGUAGE LambdaCase #-}
 {-# LANGUAGE TypeFamilies #-}
+{-# LANGUAGE ConstraintKinds #-}
 
 {-# OPTIONS_GHC -Wno-redundant-constraints #-}
 
@@ -36,11 +37,12 @@ import Cardano.Wallet.Primitive.Passphrase
     ( PassphraseScheme, changePassphraseXPrv )
 import Cardano.Wallet.Primitive.Passphrase.Types
     ( Passphrase (..) )
+import Cardano.Wallet.TypeLevel
+    ( Excluding )
 import Control.Lens
     ( over, view, (^.) )
 import Crypto.Hash
     ( Digest, HashAlgorithm, hash )
-
 
 -- | Re-encrypt a private key using a different passphrase.
 --
@@ -117,13 +119,11 @@ getRawKeyNew = \case
     ShelleyKeyS -> view shelleyKey
     SharedKeyS -> view sharedKey
 
-type family LiftRawKey k where
-    LiftRawKey ByronKey = 'False
-    LiftRawKey _ = 'True
+type AfterByron k = Excluding '[ByronKey] k
 
 -- | Lift 'XPrv' or 'XPub' to 'WalletKey'.
 liftRawKeyNew
-    :: LiftRawKey key ~ 'True
+    :: AfterByron key
     => KeyFlavorS key
     -- ^ The type of key to serialize.
     -> raw

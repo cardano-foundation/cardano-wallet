@@ -93,7 +93,7 @@ import Cardano.Wallet.DB
 import Cardano.Wallet.DB.Layer
     ( PersistAddressBook, withDBFresh )
 import Cardano.Wallet.Flavor
-    ( Excluding, KeyOf, WalletFlavor )
+    ( Excluding, KeyOf, WalletFlavor (..) )
 import Cardano.Wallet.Launch
     ( CardanoNodeConn, NetworkConfiguration (..), parseGenesisData )
 import Cardano.Wallet.Logging
@@ -828,7 +828,6 @@ traceBlockHeadersProgressForPlotting t0  tr = Tracer $ \bs -> do
 withBenchDBLayer
     :: forall s a
      . ( PersistAddressBook s
-       , WalletKey (KeyOf s)
        , WalletFlavor s
        )
     => TimeInterpreter IO
@@ -838,7 +837,8 @@ withBenchDBLayer
     -> IO a
 withBenchDBLayer ti tr wid action =
     withSystemTempFile "bench.db" $ \dbFile _ ->
-        withDBFresh tr' (Just migrationDefaultValues) dbFile ti wid action
+        withDBFresh (walletFlavor @s) tr'
+            (Just migrationDefaultValues) dbFile ti wid action
   where
     migrationDefaultValues = Sqlite.DefaultFieldValues
         { Sqlite.defaultActiveSlotCoefficient = 1
