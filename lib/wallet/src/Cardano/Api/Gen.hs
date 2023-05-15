@@ -1089,12 +1089,12 @@ genProtocolParameters =
     <*> liftArbitrary genNat
     <*> liftArbitrary genLovelace
 
-
-
 -- | A generator which only selects between two values for the sake of being
--- fast. This is useful for hashing.
-genProtocolParametersFastTinyRange :: Gen ProtocolParameters
-genProtocolParametersFastTinyRange = frequency
+-- fast. This is useful for generating values for @Cardano.TxBodyContent@,
+-- which only purpose is being hashed to produce part of the script integrity
+-- hash in the transaction.
+genProtocolParametersForHashing :: Gen ProtocolParameters
+genProtocolParametersForHashing = frequency
     [ (70, pure variantA)
     , (30, pure variantB)
     ]
@@ -1102,41 +1102,43 @@ genProtocolParametersFastTinyRange = frequency
   where
     variantA :: ProtocolParameters
     variantA = generateWith (GenSeed 0) (GenSize 30)
-        genProtocolParametersWithAlonzoScripts
+        genRecentEraProtocolParameters
 
     variantB :: ProtocolParameters
     variantB = generateWith (GenSeed 1) (GenSize 30)
-        genProtocolParametersWithAlonzoScripts
+        genRecentEraProtocolParameters
 
-genProtocolParametersWithAlonzoScripts :: Gen ProtocolParameters
-genProtocolParametersWithAlonzoScripts =
-  ProtocolParameters
-    <$> ((,) <$> genNat <*> genNat)
-    <*> (Just <$> genRational)
-    <*> liftArbitrary genPraosNonce
-    <*> genNat
-    <*> genNat
-    <*> genNat
-    <*> genNat
-    <*> genNat
-    <*> liftArbitrary genLovelace
-    <*> genLovelace
-    <*> genLovelace
-    <*> genLovelace
-    <*> genEpochNo
-    <*> genNat
-    <*> genRationalInt64
-    <*> genRational
-    <*> genRational
-    <*> (Just <$> genLovelace)
-    <*> genCostModels
-    <*> (Just <$> genExecutionUnitPrices)
-    <*> (Just <$> genExecutionUnits)
-    <*> (Just <$> genExecutionUnits)
-    <*> (Just <$> genNat)
-    <*> (Just <$> genNat)
-    <*> (Just <$> genNat)
-    <*> (Just <$> genLovelace)
+    -- | Like 'genProtocolParameters' but with 'Just' as necessary to be
+    -- convertible to @Ledger.PParams era@ for 'IsRecentEra' eras.
+    genRecentEraProtocolParameters :: Gen ProtocolParameters
+    genRecentEraProtocolParameters =
+      ProtocolParameters
+        <$> ((,) <$> genNat <*> genNat)
+        <*> (Just <$> genRational)
+        <*> liftArbitrary genPraosNonce
+        <*> genNat
+        <*> genNat
+        <*> genNat
+        <*> genNat
+        <*> genNat
+        <*> liftArbitrary genLovelace
+        <*> genLovelace
+        <*> genLovelace
+        <*> genLovelace
+        <*> genEpochNo
+        <*> genNat
+        <*> genRationalInt64
+        <*> genRational
+        <*> genRational
+        <*> (Just <$> genLovelace)
+        <*> genCostModels
+        <*> (Just <$> genExecutionUnitPrices)
+        <*> (Just <$> genExecutionUnits)
+        <*> (Just <$> genExecutionUnits)
+        <*> (Just <$> genNat)
+        <*> (Just <$> genNat)
+        <*> (Just <$> genNat)
+        <*> (Just <$> genLovelace)
 
 genWitnessNetworkIdOrByronAddress :: Gen WitnessNetworkIdOrByronAddress
 genWitnessNetworkIdOrByronAddress =
@@ -1487,19 +1489,16 @@ genTxBodyContent era = do
     -- No use of a script language means no need for collateral
     if Set.null (languages witnesses)
         then do
-            pparams <- BuildTxWith <$> liftArbitrary genProtocolParameters
+            pparams <- BuildTxWith
+                <$> liftArbitrary genProtocolParametersForHashing
             collateral <- genTxInsCollateral era
             pure txBody
                 { Api.txProtocolParams = pparams
                 , Api.txInsCollateral = collateral
                 }
         else do
-            -- The protocol parameters will be used by cardano-api only to
-            -- produce a script integrity hash. We gain a lot of performance by
-            -- using 'genProtocolParametersFastTinyRange' instead of
-            -- 'genProtocolParameters'.
             pparams <- (BuildTxWith . Just)
-                <$> genProtocolParametersFastTinyRange
+                <$> genProtocolParametersForHashing
             collateral <-
                 case collateralSupportedInEra era of
                     Nothing -> pure TxInsCollateralNone
