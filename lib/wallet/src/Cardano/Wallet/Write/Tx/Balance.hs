@@ -137,6 +137,7 @@ import Cardano.Wallet.Write.Tx
     , feeOfBytes
     , fromCardanoTx
     , fromCardanoUTxO
+    , fromRecentEra
     , getFeePerByte
     , isBelowMinimumCoinForTxOut
     , maxScriptExecutionCost
@@ -220,7 +221,6 @@ import qualified Cardano.Wallet.Primitive.Types.UTxO as UTxO
 import qualified Cardano.Wallet.Primitive.Types.UTxOIndex as UTxOIndex
 import qualified Cardano.Wallet.Primitive.Types.UTxOSelection as UTxOSelection
 import qualified Cardano.Wallet.Shelley.Compatibility.Ledger as W
-import qualified Cardano.Wallet.Write.Tx as Write
 import qualified Data.Foldable as F
 import qualified Data.Map as Map
 import qualified Data.Set as Set
@@ -936,7 +936,7 @@ selectAssets era (ProtocolParameters pp) txWitnessTag outs redeemers
             , fee0
             , txPlutusScriptExecutionCost
             , calculateMinimumFee
-                (Cardano.AnyCardanoEra (Write.fromRecentEra era))
+                (Cardano.AnyCardanoEra (fromRecentEra era))
                 feePerByte
                 txWitnessTag
                 (defaultTransactionCtx
@@ -1011,7 +1011,7 @@ selectAssets era (ProtocolParameters pp) txWitnessTag outs redeemers
 
     boringFee =
         calculateMinimumFee
-            (Cardano.AnyCardanoEra (Write.fromRecentEra era))
+            (Cardano.AnyCardanoEra (fromRecentEra era))
             feePerByte
             txWitnessTag
             defaultTransactionCtx
