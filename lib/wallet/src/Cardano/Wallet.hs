@@ -311,7 +311,8 @@ import Cardano.Wallet.Address.Discovery.Shared
 import Cardano.Wallet.Address.Keys.BoundedAddressLength
     ( maxLengthAddressFor )
 import Cardano.Wallet.Address.Keys.WalletKey
-    ( afterByron
+    ( AfterByron
+    , afterByron
     , changePassphraseNew
     , getRawKeyNew
     , hashVerificationKeyNew
@@ -3063,7 +3064,7 @@ signMetadataWith
         ( HasDBLayer IO s ctx
         , HardDerivation k
         , AddressIndexDerivationType k ~ 'Soft
-        , WalletKey k
+        , WalletFlavor s
         , s ~ SeqState n k
         )
     => ctx
@@ -3084,7 +3085,7 @@ signMetadataWith ctx wid pwd (role_, ix) metadata = db & \DBLayer{..} -> do
         let addrK = deriveAddressPrivateKey encPwd acctK role_ addrIx
         pure $
             Signature $ BA.convert $
-            CC.sign encPwd (getRawKey addrK) $
+            CC.sign encPwd (getRawKeyNew (keyFlavor @s) addrK) $
             hash @ByteString @Blake2b_256 $
             serialiseToCBOR metadata
   where
@@ -3145,7 +3146,7 @@ writePolicyPublicKey ctx wid pwd = db & \DBLayer{..} -> do
         \rootK scheme -> do
             let encPwd = preparePassphrase scheme pwd
             let xprv = derivePolicyPrivateKey encPwd (getRawKey rootK) minBound
-            pure $ liftRawKey $ toXPub xprv
+            pure $ ShelleyKey $ toXPub xprv
 
     let seqState' = seqState & #policyXPub .~ Just policyXPub
     lift $ atomically $ Delta.onDBVar walletState $ Delta.update
@@ -3159,9 +3160,10 @@ writePolicyPublicKey ctx wid pwd = db & \DBLayer{..} -> do
 getAccountPublicKeyAtIndex
     :: forall ctx s k
      . ( HasDBLayer IO s ctx
-       , WalletKey k
        , GetPurpose k
+       , WalletFlavor s
        , k ~ KeyOf s
+       , AfterByron k
        )
     => ctx
     -> WalletId
@@ -3177,12 +3179,13 @@ getAccountPublicKeyAtIndex ctx wid pwd ix purposeM = db & \DBLayer{..} -> do
         purposeM
 
     _cp <- lift $ atomically readCheckpoint
-
+    let kf = keyFlavor @s
     withRootKey @s db wid pwd ErrReadAccountPublicKeyRootKey
         $ \rootK scheme -> do
             let encPwd = preparePassphrase scheme pwd
-            let xprv = deriveAccountPrivateKeyShelley purpose encPwd (getRawKey rootK) acctIx
-            pure $ liftRawKey $ toXPub xprv
+            let xprv = deriveAccountPrivateKeyShelley purpose encPwd
+                    (getRawKeyNew kf rootK) acctIx
+            pure $ liftRawKeyNew kf $ toXPub xprv
   where
     db = ctx ^. dbLayer @IO @s
 
