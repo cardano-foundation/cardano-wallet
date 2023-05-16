@@ -201,7 +201,7 @@ import Test.QuickCheck
     , vectorOf
     )
 import Test.QuickCheck.Extra
-    ( GenSeed (..), GenSize (..), generateWith )
+    ( GenSeed (..), genSizeDefault, generateWith )
 import Test.QuickCheck.Hedgehog
     ( hedgehog )
 import Test.QuickCheck.Instances.ByteString
@@ -1073,7 +1073,9 @@ protocolParametersForHashing =
     generateWithSeed <$> [0 .. 50]
   where
     generateWithSeed seed =
-        generateWith (GenSeed seed) (GenSize 30) genRecentEraProtocolParameters
+        generateWith (GenSeed seed)
+            genSizeDefault
+            genRecentEraProtocolParameters
 
     -- | With 'Just' as necessary to be convertible to @Ledger.PParams era@
     -- for 'IsRecentEra' eras, and keep our tests from throwing exceptions.
