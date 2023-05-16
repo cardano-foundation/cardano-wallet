@@ -1263,7 +1263,7 @@ mkSelfWithdrawalShared
      . NetworkLayer IO block
     -> TxWitnessTag
     -> AnyCardanoEra
-    -> DBLayer IO (SharedState n SharedKey) SharedKey
+    -> DBLayer IO (SharedState n SharedKey)
     -> IO Withdrawal
 mkSelfWithdrawalShared netLayer txWitnessTag era db = do
     rewardAccountM <- readSharedRewardAccount db
