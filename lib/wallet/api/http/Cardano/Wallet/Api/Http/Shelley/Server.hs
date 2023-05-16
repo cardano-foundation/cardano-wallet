@@ -1246,7 +1246,6 @@ patchSharedWallet
         , k ~ SharedKey
         , ctx ~ ApiLayer s 'CredFromScriptK
         , Shared.SupportsDiscovery n k
-        , WalletKey k
         , HasDBFactory s ctx
         )
     => ctx

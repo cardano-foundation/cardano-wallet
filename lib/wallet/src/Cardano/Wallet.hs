@@ -3214,7 +3214,6 @@ updateCosigner
      . ( s ~ SharedState n k
        , k ~ SharedKey
        , Shared.SupportsDiscovery n k
-       , WalletKey k
        , HasDBLayer IO s ctx
        )
     => ctx
