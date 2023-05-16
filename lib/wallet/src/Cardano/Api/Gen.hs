@@ -1058,24 +1058,22 @@ genCostModels = do
 genExecutionUnitPrices :: Gen ExecutionUnitPrices
 genExecutionUnitPrices = ExecutionUnitPrices <$> genRational <*> genRational
 
--- | A generator which only selects between two values for the sake of being
--- fast. This is useful for generating values for @Cardano.TxBodyContent@,
--- which only purpose is being hashed to produce part of the script integrity
--- hash in the transaction.
+-- | A generator which only selects from predefined values for the sake of
+-- being fast.
+--
+-- This is useful for generating values for @Cardano.TxBodyContent@, which only
+-- purpose is being hashed to produce part of the script integrity hash in the
+-- transaction.
 genProtocolParametersForHashing :: Gen ProtocolParameters
-genProtocolParametersForHashing = elements
-    [ variantA
-    , variantB
-    ]
+genProtocolParametersForHashing = elements protocolParametersForHashing
 
+{-# NOINLINE protocolParametersForHashing #-}
+protocolParametersForHashing :: [ProtocolParameters]
+protocolParametersForHashing =
+    generateWithSeed <$> [0 .. 50]
   where
-    variantA :: ProtocolParameters
-    variantA = generateWith (GenSeed 0) (GenSize 30)
-        genRecentEraProtocolParameters
-
-    variantB :: ProtocolParameters
-    variantB = generateWith (GenSeed 1) (GenSize 30)
-        genRecentEraProtocolParameters
+    generateWithSeed seed =
+        generateWith (GenSeed seed) (GenSize 30) genRecentEraProtocolParameters
 
     -- | With 'Just' as necessary to be convertible to @Ledger.PParams era@
     -- for 'IsRecentEra' eras, and keep our tests from throwing exceptions.
