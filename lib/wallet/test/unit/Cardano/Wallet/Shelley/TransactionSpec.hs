@@ -3037,7 +3037,7 @@ data Wallet' = Wallet'
     deriving Show via (ShowBuildable Wallet')
 
 instance Buildable UTxOAssumptions where
-    build (UTxOAssumptions _tl _scriptLookup scriptTemplate _txWitnessTag) =
+    build (UTxOAssumptions _scriptLookup scriptTemplate _txWitnessTag) =
         blockListF [ nameF "scriptTemplate" $ build scriptTemplate ]
 
 instance Buildable AnyChangeAddressGenWithState where

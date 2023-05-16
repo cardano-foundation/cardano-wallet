@@ -3132,7 +3132,6 @@ balanceTransaction
                 liftHandler $ fst <$> Write.balanceTransaction @_ @IO @s
                     (MsgWallet . W.MsgBalanceTx >$< wrk ^. W.logger)
                     (Write.UTxOAssumptions
-                        txLayer
                         genInpScripts
                         mScriptTemplate
                         (txWitnessTagFor @k))
