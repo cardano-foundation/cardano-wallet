@@ -81,8 +81,10 @@ import Cardano.Address.Script
     , KeyHash (..)
     , KeyRole (..)
     , Script (..)
+    , ScriptHash (..)
     , ScriptTemplate (..)
     , foldScript
+    , toScriptHash
     )
 import Cardano.Api
     ( AnyCardanoEra (..)
@@ -310,6 +312,7 @@ import qualified Data.Map.Merge.Strict as Map
 import qualified Data.Sequence.Strict as StrictSeq
 import qualified Data.Set as Set
 import qualified Data.Text as T
+
 
 -- | Type encapsulating what we need to know to add things -- payloads,
 -- certificates -- to a transaction.
@@ -663,10 +666,24 @@ newTransactionLayer keyF networkId = TransactionLayer
         case view #txDelegationAction ctx of
             Nothing -> do
                 let md = view #txMetadata ctx
-                constructUnsignedTx networkId (md, []) ttl wdrl
-                    selection delta assetsToBeMinted assetsToBeBurned inpsScripts
-                    Nothing
-                    (Write.shelleyBasedEraFromRecentEra Write.recentEra)
+                let ourRewardAcctM = FromScriptHash . unScriptHash . toScriptHash <$> stakingScriptM
+                case wdrl of
+                    WithdrawalSelf rewardAcct _ _ ->
+                        if ourRewardAcctM == Just rewardAcct then
+                            constructUnsignedTx networkId (md, []) ttl wdrl
+                            selection delta assetsToBeMinted assetsToBeBurned inpsScripts
+                            stakingScriptM
+                            (Write.shelleyBasedEraFromRecentEra Write.recentEra)
+                        else
+                            constructUnsignedTx networkId (md, []) ttl wdrl
+                            selection delta assetsToBeMinted assetsToBeBurned inpsScripts
+                            Nothing
+                            (Write.shelleyBasedEraFromRecentEra Write.recentEra)
+                    _ ->
+                        constructUnsignedTx networkId (md, []) ttl wdrl
+                        selection delta assetsToBeMinted assetsToBeBurned inpsScripts
+                        Nothing
+                        (Write.shelleyBasedEraFromRecentEra Write.recentEra)
             Just action -> do
                 let certs = case stakeCred of
                         Left xpub ->
@@ -2228,12 +2245,21 @@ mkUnsignedTx
     , txInsReference = Cardano.TxInsReferenceNone
 
     , Cardano.txOuts = map (toCardanoTxOut era) outs
-    , Cardano.txWithdrawals =
-        let wit = Cardano.BuildTxWith
-                $ Cardano.KeyWitness Cardano.KeyWitnessForStakeAddr
-        in
-        Cardano.TxWithdrawals wdrlsSupported
-            (map (\(key, coin) -> (key, coin, wit)) wdrls)
+    , Cardano.txWithdrawals = case stakingScriptM of
+        Nothing ->
+            let ctx = Cardano.BuildTxWith
+                    $ Cardano.KeyWitness Cardano.KeyWitnessForStakeAddr
+            in
+                Cardano.TxWithdrawals wdrlsSupported
+                (map (\(key, coin) -> (key, coin, ctx)) wdrls)
+        Just stakingScript ->
+            let
+                buildVal = Cardano.ScriptWitness Cardano.ScriptWitnessForStakeAddr
+                    (toScriptWitness stakingScript)
+                ctx = Cardano.BuildTxWith buildVal
+            in
+                Cardano.TxWithdrawals wdrlsSupported
+                (map (\(key, coin) -> (key, coin, ctx)) wdrls)
 
     -- @mkUnsignedTx@ is never used with Plutus scripts, and so we never have to
     -- care about collateral or PParams (for script integrity hash) here.
