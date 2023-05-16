@@ -1,4 +1,3 @@
-{-# LANGUAGE ConstraintKinds #-}
 {-# LANGUAGE DataKinds #-}
 {-# LANGUAGE DuplicateRecordFields #-}
 {-# LANGUAGE GADTs #-}
@@ -9,6 +8,7 @@
 -- ghc , at least 8.10.7 cannot figure out the constraint is necessary in
 -- liftRawKeyNew, so we disable the warning.
 {-# OPTIONS_GHC -Wno-redundant-constraints #-}
+{-# LANGUAGE ConstraintKinds #-}
 
 -- | Interface over keys / address types
 module Cardano.Wallet.Address.Keys.WalletKey

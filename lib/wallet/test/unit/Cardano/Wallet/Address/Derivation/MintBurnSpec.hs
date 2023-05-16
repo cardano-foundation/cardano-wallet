@@ -26,15 +26,15 @@ import Cardano.Wallet.Address.Derivation
     , liftRawKey
     )
 import Cardano.Wallet.Address.Derivation.MintBurn
-    ( derivePolicyKeyAndHash
-    , derivePolicyPrivateKey
-    , scriptSlotIntervals
-    , withinSlotInterval
-    )
+    ( derivePolicyPrivateKey, scriptSlotIntervals, withinSlotInterval )
 import Cardano.Wallet.Address.Derivation.Shelley
     ( ShelleyKey )
 import Cardano.Wallet.Address.DerivationSpec
     ()
+import Cardano.Wallet.Address.Keys.MintBurn
+    ( derivePolicyKeyAndHash )
+import Cardano.Wallet.Flavor
+    ( KeyFlavorS (..) )
 import Cardano.Wallet.Primitive.Passphrase
     ( Passphrase )
 import Cardano.Wallet.Primitive.Types
@@ -330,13 +330,16 @@ prop_keyHashMatchesXPrv pwd masterkey policyIx =
   where
     rndKey :: ShelleyKey 'PolicyK XPrv
     keyHash :: KeyHash
-    (rndKey, keyHash) = derivePolicyKeyAndHash pwd masterkey policyIx
+    (rndKey, keyHash)
+        = derivePolicyKeyAndHash ShelleyKeyS pwd masterkey policyIx
 
     getPublicKey
         :: ShelleyKey 'PolicyK XPrv
         -> ShelleyKey 'CredFromScriptK XPub
     getPublicKey =
-        publicKey . (liftRawKey :: XPrv -> ShelleyKey 'CredFromScriptK XPrv) . getRawKey
+        publicKey
+            . (liftRawKey :: XPrv -> ShelleyKey 'CredFromScriptK XPrv)
+            . getRawKey
 
 prop_keyDerivationSameIndexSameKey
     :: Passphrase "encryption"
@@ -377,7 +380,8 @@ prop_keyDerivationRelation pwd masterkey policyIx =
     key1 = derivePolicyPrivateKey pwd masterkey policyIx
 
     keyAndHash :: (ShelleyKey 'PolicyK XPrv, KeyHash)
-    keyAndHash = derivePolicyKeyAndHash pwd (liftRawKey masterkey) policyIx
+    keyAndHash = derivePolicyKeyAndHash ShelleyKeyS
+        pwd (liftRawKey masterkey) policyIx
 
     key2 :: XPrv
     key2 = getRawKey $ fst keyAndHash
@@ -423,7 +427,7 @@ unit_comparePolicyKeyHashes mnemonic index goldenPolicyKeyHashHex =
 
         walletPolicyData :: (ShelleyKey 'PolicyK XPrv, KeyHash)
         walletPolicyData =
-            derivePolicyKeyAndHash
+            derivePolicyKeyAndHash ShelleyKeyS
               (mempty :: Passphrase pwd) (liftRawKey walletRootKey) index
 
         walletPolicyKeyHashBytes :: BS.ByteString

@@ -1,5 +1,6 @@
 {-# LANGUAGE AllowAmbiguousTypes #-}
 {-# LANGUAGE DataKinds #-}
+{-# LANGUAGE KindSignatures #-}
 {-# LANGUAGE LambdaCase #-}
 {-# LANGUAGE ScopedTypeVariables #-}
 {-# LANGUAGE TypeApplications #-}
@@ -24,11 +25,8 @@ module Cardano.Wallet.Address.Derivation.MintBurn
     ( -- * Constants
       purposeCIP1855
       -- * Helpers
-    , derivePolicyKeyAndHash
     , derivePolicyPrivateKey
     , policyDerivationPath
-    , toTokenMapAndScript
-    , toTokenPolicyId
     , scriptSlotIntervals
     , withinSlotInterval
     ) where
@@ -36,9 +34,9 @@ module Cardano.Wallet.Address.Derivation.MintBurn
 import Prelude
 
 import Cardano.Address.Derivation
-    ( XPrv, XPub )
+    ( XPrv )
 import Cardano.Address.Script
-    ( Cosigner, KeyHash, Script (..), ScriptHash (..), toScriptHash )
+    ( Script (..) )
 import Cardano.Crypto.Wallet
     ( deriveXPrv )
 import Cardano.Crypto.Wallet.Types
@@ -48,12 +46,7 @@ import Cardano.Wallet.Address.Derivation
     , DerivationIndex (..)
     , DerivationType (..)
     , Index (..)
-    , WalletKey
     , getIndex
-    , getRawKey
-    , hashVerificationKey
-    , liftRawKey
-    , publicKey
     )
 import Cardano.Wallet.Address.Discovery
     ( coinTypeAda )
@@ -61,35 +54,20 @@ import Cardano.Wallet.Primitive.Passphrase
     ( Passphrase (..) )
 import Cardano.Wallet.Primitive.Types
     ( SlotNo (..) )
-import Cardano.Wallet.Primitive.Types.Hash
-    ( Hash (..) )
-import Cardano.Wallet.Primitive.Types.TokenMap
-    ( AssetId (..) )
-import Cardano.Wallet.Primitive.Types.TokenPolicy
-    ( TokenName, TokenPolicyId (..) )
-import Cardano.Wallet.Primitive.Types.TokenQuantity
-    ( TokenQuantity (..) )
 import Data.IntCast
     ( intCast )
 import Data.Interval
     ( Interval, (<=..<=) )
 import Data.List.NonEmpty
     ( NonEmpty )
-import Data.Map.Strict
-    ( Map )
 import Data.Word
     ( Word64 )
-import GHC.Stack
-    ( HasCallStack )
 import Numeric.Natural
     ( Natural )
 
-import qualified Cardano.Address.Script as CA
 import qualified Data.Interval as I
 import qualified Data.List as L
 import qualified Data.List.NonEmpty as NE
-import qualified Data.Map.Strict as Map
-
 
 -- | Purpose for forged policy keys is a constant set to 1855' (or 0x8000073F)
 -- following the original CIP-1855: "Forging policy keys for HD Wallets".
@@ -121,24 +99,6 @@ derivePolicyPrivateKey (Passphrase pwd) rootXPrv (Index policyIx) =
      -- lvl3 derivation; hardened derivation of policy' index
     in deriveXPrv DerivationScheme2 pwd coinTypeXPrv policyIx
 
--- | Derive the policy private key that should be used to create mint/burn
--- scripts, as well as the key hash of the policy public key.
-derivePolicyKeyAndHash
-  :: WalletKey key
-  => Passphrase "encryption"
-  -- ^ Passphrase for wallet
-  -> key 'RootK XPrv
-  -- ^ Root private key to derive policy private key from
-  -> Index 'Hardened 'PolicyK
-  -- ^ Index of policy script
-  -> (key 'PolicyK XPrv, KeyHash)
-  -- ^ Policy private key
-derivePolicyKeyAndHash pwd rootPrv policyIx = (policyK, vkeyHash)
-  where
-    policyK = liftRawKey policyPrv
-    policyPrv = derivePolicyPrivateKey pwd (getRawKey rootPrv) policyIx
-    vkeyHash = hashVerificationKey CA.Payment (publicKey policyK)
-
 policyDerivationPath
     :: NonEmpty DerivationIndex
 policyDerivationPath =  NE.fromList
@@ -149,57 +109,6 @@ policyDerivationPath =  NE.fromList
   where
     policyIx :: Index 'Hardened 'PolicyK
     policyIx = minBound
-
-toTokenPolicyId
-    :: forall key. WalletKey key
-    => Script Cosigner
-    -> Map Cosigner XPub
-    -> TokenPolicyId
-toTokenPolicyId scriptTempl cosignerMap =
-      UnsafeTokenPolicyId
-    . Hash
-    . unScriptHash
-    . toScriptHash
-    $ replaceCosigner @key cosignerMap scriptTempl
-
-toTokenMapAndScript
-    :: forall key. WalletKey key
-    => Script Cosigner
-    -> Map Cosigner XPub
-    -> TokenName
-    -> Natural
-    -> (AssetId, TokenQuantity, Script KeyHash)
-toTokenMapAndScript scriptTempl cosignerMap tName val =
-    ( AssetId (toTokenPolicyId @key scriptTempl cosignerMap) tName
-    , TokenQuantity val
-    , replaceCosigner @key cosignerMap scriptTempl
-    )
-
-replaceCosigner
-    :: forall key
-     . HasCallStack
-    => WalletKey key
-    => Map Cosigner XPub
-    -> Script Cosigner
-    -> Script KeyHash
-replaceCosigner cosignerMap = \case
-    RequireSignatureOf c ->
-        RequireSignatureOf $ toKeyHash c
-    RequireAllOf xs ->
-        RequireAllOf (map (replaceCosigner @key cosignerMap) xs)
-    RequireAnyOf xs ->
-        RequireAnyOf (map (replaceCosigner @key cosignerMap) xs)
-    RequireSomeOf m xs ->
-        RequireSomeOf m (map (replaceCosigner @key cosignerMap) xs)
-    ActiveFromSlot s ->
-        ActiveFromSlot s
-    ActiveUntilSlot s ->
-        ActiveUntilSlot s
-  where
-    toKeyHash :: HasCallStack => Cosigner -> KeyHash
-    toKeyHash c = case Map.lookup c cosignerMap of
-        Just xpub -> hashVerificationKey @key CA.Policy (liftRawKey xpub)
-        Nothing -> error "Impossible: cosigner without xpub."
 
 scriptSlotIntervals
     :: Script a

@@ -223,11 +223,7 @@ import Cardano.Wallet.Address.Derivation.Byron
 import Cardano.Wallet.Address.Derivation.Icarus
     ( IcarusKey )
 import Cardano.Wallet.Address.Derivation.MintBurn
-    ( scriptSlotIntervals
-    , toTokenMapAndScript
-    , toTokenPolicyId
-    , withinSlotInterval
-    )
+    ( scriptSlotIntervals, withinSlotInterval )
 import Cardano.Wallet.Address.Derivation.SharedKey
     ( SharedKey (..), replaceCosignersWithVerKeys )
 import Cardano.Wallet.Address.Derivation.Shelley
@@ -264,6 +260,8 @@ import Cardano.Wallet.Address.Discovery.Shared
     )
 import Cardano.Wallet.Address.HasDelegation
     ( HasDelegation (..) )
+import Cardano.Wallet.Address.Keys.MintBurn
+    ( toTokenMapAndScript, toTokenPolicyId )
 import Cardano.Wallet.Api
     ( ApiLayer (..)
     , HasDBFactory
@@ -430,9 +428,8 @@ import Cardano.Wallet.DB
     ( DBFactory (..), DBFresh, DBLayer, loadDBLayer )
 import Cardano.Wallet.Flavor
     ( Excluding
+    , KeyFlavorS (..)
     , KeyOf
-    , KeyOf
-    , WalletFlavor (..)
     , WalletFlavor (..)
     , WalletFlavorS (..)
     , WalletFlavorS (ShelleyWallet)
@@ -2509,7 +2506,7 @@ constructTransaction api argGenChange knownPools poolStatus apiWalletId body = d
                             (ApiT scriptT)
                             (Just (ApiT tName))
                             (ApiMint (ApiMintData _ amt)) ->
-                            toTokenMapAndScript @k
+                            toTokenMapAndScript ShelleyKeyS
                                 scriptT
                                 (Map.singleton (Cosigner 0) policyXPub)
                                 tName
@@ -2520,7 +2517,7 @@ constructTransaction api argGenChange knownPools poolStatus apiWalletId body = d
                             (ApiT scriptT)
                             (Just (ApiT tName))
                             (ApiBurn (ApiBurnData amt)) ->
-                            toTokenMapAndScript @k
+                            toTokenMapAndScript ShelleyKeyS
                                 scriptT
                                 (Map.singleton (Cosigner 0) policyXPub)
                                 tName
@@ -2712,7 +2709,7 @@ constructTransaction api argGenChange knownPools poolStatus apiWalletId body = d
         (ApiMintBurnData (ApiT scriptT) (Just (ApiT tName))
             (ApiMint (ApiMintData (Just addr) amt))) =
                 let (assetId, tokenQuantity, _) =
-                        toTokenMapAndScript @ShelleyKey
+                        toTokenMapAndScript ShelleyKeyS
                             scriptT (Map.singleton (Cosigner 0) policyXPub)
                             tName amt
                     assets = fromFlatList [(assetId, tokenQuantity)]
@@ -4181,13 +4178,12 @@ postPolicyKey ctx (ApiT wid) hashed apiPassphrase =
     pwd = getApiT (apiPassphrase ^. #passphrase)
 
 postPolicyId
-    :: forall ctx s k
-     . ( ctx ~ ApiLayer s 'CredFromKeyK
-       , WalletKey k
-       , WalletFlavor s
-       , k ~ KeyOf s
+    :: forall s k
+     . ( WalletFlavor s
+       , KeyOf s ~ k
+       , AfterByron k
        )
-    => ctx
+    => ApiLayer s 'CredFromKeyK
     -> ApiT WalletId
     -> ApiPostPolicyIdData
     -> Handler ApiPolicyId
@@ -4203,7 +4199,8 @@ postPolicyId ctx (ApiT wid) payload = do
     withWorkerCtx @_ @s ctx wid liftE liftE $ \wrk -> do
         (xpub, _) <- liftHandler $ W.readPolicyPublicKey @_ @s wrk
         pure $ ApiPolicyId $ ApiT $
-            toTokenPolicyId @k scriptTempl (Map.singleton (Cosigner 0) xpub)
+            toTokenPolicyId (keyFlavor @s)
+                scriptTempl (Map.singleton (Cosigner 0) xpub)
   where
     scriptTempl = getApiT (payload ^. #policyScriptTemplate)
 
