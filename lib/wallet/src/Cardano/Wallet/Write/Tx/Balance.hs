@@ -1021,25 +1021,24 @@ selectAssets era (ProtocolParameters pp) txWitnessTag outs redeemers
                 , skeletonChange = []
                 }
 
-    feePadding =
-        let
-            -- Could be made smarter by only padding for the script
-            -- integrity hash when we intend to add one. [ADP-2621]
-            scriptIntegrityHashBytes = 32 + 2
+    feePadding
+        = W.toWallet . feeOfBytes feePerByte
+        $ extraBytes + scriptIntegrityHashBytes
+      where
+        -- Could be made smarter by only padding for the script
+        -- integrity hash when we intend to add one. [ADP-2621]
+        scriptIntegrityHashBytes = 32 + 2
 
-            -- Add padding to allow the fee value to increase.
-            -- Out of caution, assume it can increase by the theoretical
-            -- maximum of 8 bytes ('maximumCostOfIncreasingCoin').
-            --
-            -- NOTE: It's not convenient to import the constant at the
-            -- moment because of the package split.
-            --
-            -- Any overestimation will be reduced by 'distributeSurplus'
-            -- in the final stage of 'balanceTransaction'.
-            extraBytes = 8
-        in
-            W.toWallet . feeOfBytes feePerByte $
-                    extraBytes + scriptIntegrityHashBytes
+        -- Add padding to allow the fee value to increase.
+        -- Out of caution, assume it can increase by the theoretical
+        -- maximum of 8 bytes ('maximumCostOfIncreasingCoin').
+        --
+        -- NOTE: It's not convenient to import the constant at the
+        -- moment because of the package split.
+        --
+        -- Any overestimation will be reduced by 'distributeSurplus'
+        -- in the final stage of 'balanceTransaction'.
+        extraBytes = 8
 
 data ChangeAddressGen s = ChangeAddressGen
     { getChangeAddressGen :: s -> (W.Address, s)
