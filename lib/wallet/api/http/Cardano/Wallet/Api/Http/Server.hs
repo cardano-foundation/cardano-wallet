@@ -282,9 +282,9 @@ server byron icarus shelley multisig spl ntp blockchainSource =
         :<|> signMetadata shelley
         :<|> postAccountPublicKey shelley ApiAccountKey
         :<|> getAccountPublicKey shelley ApiAccountKey
-        :<|> getPolicyKey @_ @_ @n shelley
+        :<|> getPolicyKey shelley
         :<|> postPolicyKey shelley
-        :<|> postPolicyId @_ @_ @_ @n shelley
+        :<|> postPolicyId shelley
 
     assets :: Server Assets
     assets =

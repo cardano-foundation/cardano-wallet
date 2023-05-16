@@ -1,8 +1,10 @@
+{-# LANGUAGE ConstraintKinds #-}
 {-# LANGUAGE DataKinds #-}
 {-# LANGUAGE DeriveGeneric #-}
 {-# LANGUAGE FlexibleInstances #-}
 {-# LANGUAGE GADTs #-}
 {-# LANGUAGE MultiParamTypeClasses #-}
+{-# LANGUAGE ScopedTypeVariables #-}
 {-# LANGUAGE TypeFamilies #-}
 
 module Cardano.Wallet.Flavor
@@ -36,33 +38,33 @@ import Data.Kind
 import GHC.Generics
     ( Generic )
 
-data WalletFlavorS s n where
-    ShelleyWallet :: WalletFlavorS (SeqState n ShelleyKey) n
-    IcarusWallet :: WalletFlavorS (SeqState n IcarusKey) n
-    ByronWallet :: WalletFlavorS (RndState n) n
-    SharedWallet :: WalletFlavorS (SharedState n SharedKey) n
-    BenchByronWallet :: WalletFlavorS (RndAnyState n p) n
-    BenchShelleyWallet :: WalletFlavorS (SeqAnyState n ShelleyKey p) n
+data WalletFlavorS s where
+    ShelleyWallet :: WalletFlavorS (SeqState n ShelleyKey)
+    IcarusWallet :: WalletFlavorS (SeqState n IcarusKey)
+    ByronWallet :: WalletFlavorS (RndState n)
+    SharedWallet :: WalletFlavorS (SharedState n SharedKey)
+    BenchByronWallet :: WalletFlavorS (RndAnyState n p)
+    BenchShelleyWallet :: WalletFlavorS (SeqAnyState n ShelleyKey p)
 
-class WalletFlavor s n where
-    walletFlavor :: WalletFlavorS s n
+class WalletFlavor s where
+    walletFlavor :: WalletFlavorS s
 
-instance WalletFlavor (SeqState n IcarusKey) n where
+instance WalletFlavor (SeqState n IcarusKey) where
     walletFlavor = IcarusWallet
 
-instance WalletFlavor (SeqState n ShelleyKey) n where
+instance WalletFlavor (SeqState n ShelleyKey) where
     walletFlavor = ShelleyWallet
 
-instance WalletFlavor (RndState n) n where
+instance WalletFlavor (RndState n) where
     walletFlavor = ByronWallet
 
-instance WalletFlavor (SeqAnyState n ShelleyKey p) n where
+instance WalletFlavor (SeqAnyState n ShelleyKey p) where
     walletFlavor = BenchShelleyWallet
 
-instance WalletFlavor (RndAnyState n p) n where
+instance WalletFlavor (RndAnyState n p) where
     walletFlavor = BenchByronWallet
 
-instance WalletFlavor (SharedState n SharedKey) n where
+instance WalletFlavor (SharedState n SharedKey) where
     walletFlavor = SharedWallet
 
 newtype TestState s (k :: (Depth -> Type -> Type)) = TestState s
