@@ -1077,37 +1077,37 @@ protocolParametersForHashing =
             genSizeDefault
             genRecentEraProtocolParameters
 
-    -- | With 'Just' as necessary to be convertible to @Ledger.PParams era@
-    -- for 'IsRecentEra' eras, and keep our tests from throwing exceptions.
-    genRecentEraProtocolParameters :: Gen ProtocolParameters
-    genRecentEraProtocolParameters =
-      ProtocolParameters
-        <$> ((,) <$> genNat <*> genNat)
-        <*> (Just <$> genRational)
-        <*> liftArbitrary genPraosNonce
-        <*> genNat
-        <*> genNat
-        <*> genNat
-        <*> genNat
-        <*> genNat
-        <*> liftArbitrary genLovelace
-        <*> genLovelace
-        <*> genLovelace
-        <*> genLovelace
-        <*> genEpochNo
-        <*> genNat
-        <*> genRationalInt64
-        <*> genRational
-        <*> genRational
-        <*> (Just <$> genLovelace)
-        <*> genCostModels
-        <*> (Just <$> genExecutionUnitPrices)
-        <*> (Just <$> genExecutionUnits)
-        <*> (Just <$> genExecutionUnits)
-        <*> (Just <$> genNat)
-        <*> (Just <$> genNat)
-        <*> (Just <$> genNat)
-        <*> (Just <$> genLovelace)
+-- | With 'Just' as necessary to be convertible to @Ledger.PParams era@
+-- for 'IsRecentEra' eras, and keep our tests from throwing exceptions.
+genRecentEraProtocolParameters :: Gen ProtocolParameters
+genRecentEraProtocolParameters =
+  ProtocolParameters
+    <$> ((,) <$> genNat <*> genNat)
+    <*> (Just <$> genRational)
+    <*> liftArbitrary genPraosNonce
+    <*> genNat
+    <*> genNat
+    <*> genNat
+    <*> genNat
+    <*> genNat
+    <*> liftArbitrary genLovelace
+    <*> genLovelace
+    <*> genLovelace
+    <*> genLovelace
+    <*> genEpochNo
+    <*> genNat
+    <*> genRationalInt64
+    <*> genRational
+    <*> genRational
+    <*> (Just <$> genLovelace)
+    <*> genCostModels
+    <*> (Just <$> genExecutionUnitPrices)
+    <*> (Just <$> genExecutionUnits)
+    <*> (Just <$> genExecutionUnits)
+    <*> (Just <$> genNat)
+    <*> (Just <$> genNat)
+    <*> (Just <$> genNat)
+    <*> (Just <$> genLovelace)
 
 genWitnessNetworkIdOrByronAddress :: Gen WitnessNetworkIdOrByronAddress
 genWitnessNetworkIdOrByronAddress =
