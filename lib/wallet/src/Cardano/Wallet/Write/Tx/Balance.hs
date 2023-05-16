@@ -958,8 +958,8 @@ selectAssets era (ProtocolParameters pp) txWitnessTag outs redeemers
     }
 
     selectionParams = SelectionParams
-        -- The following fields are essensially adjusting the coin
-        -- selections notion of balance by @balance0 - sum inputs + sum
+        -- The following fields are essentially adjusting the coin selection
+        -- algorithm's notion of balance by @balance0 - sum inputs + sum
         -- outputs + fee0@ where @balance0@ is the balance of the
         -- partial tx.
         { assetsToMint = positiveTokens <> tokensInOutputs
