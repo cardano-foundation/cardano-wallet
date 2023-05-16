@@ -1758,7 +1758,7 @@ getWalletUtxoSnapshot ctx (ApiT wid) = do
 selectCoins
     :: forall s n k .
         ( IsOurs s Address
-        , WalletFlavor s n
+        , WalletFlavor s
         , s ~ SeqState n k
         , AddressBookIso s
         , GenChange s
@@ -1781,7 +1781,7 @@ selectCoins ctx@ApiLayer {..} argGenChange (ApiT walletId) body = do
         withdrawal <-
             body ^. #withdrawal
                 & maybe (pure NoWithdrawal)
-                    (shelleyOnlyMkWithdrawal @s @n
+                    (shelleyOnlyMkWithdrawal @s
                         netLayer (txWitnessTagFor @k) db era)
         let genChange = W.defaultChangeAddressGen argGenChange (Proxy @k)
         let paymentOuts = NE.toList $ addressAmountToTxOut <$> body ^. #payments
@@ -1790,7 +1790,7 @@ selectCoins ctx@ApiLayer {..} argGenChange (ApiT walletId) body = do
                 , txMetadata = getApiT <$> body ^. #metadata
                 }
 
-        (cardanoTx, walletState) <- liftIO $ W.buildTransaction @s @n @e
+        (cardanoTx, walletState) <- liftIO $ W.buildTransaction @s @e
             db txLayer timeTranslation genChange pp txCtx paymentOuts
 
         let W.CoinSelection{..} =
@@ -1818,7 +1818,7 @@ selectCoins ctx@ApiLayer {..} argGenChange (ApiT walletId) body = do
 selectCoinsForJoin
     :: forall s n k.
         ( s ~ SeqState n k
-        , WalletFlavor s n
+        , WalletFlavor s
         , AddressBookIso s
         , Seq.SupportsDiscovery n k
         , BoundedAddressLength k
@@ -1859,7 +1859,7 @@ selectCoinsForJoin ctx@ApiLayer{..}
 
         let paymentOuts = []
 
-        (cardanoTx, walletState) <- W.buildTransaction @s @n @e
+        (cardanoTx, walletState) <- W.buildTransaction @s @e
             db txLayer timeTranslation changeAddrGen pp txCtx
             paymentOuts
 
@@ -1887,7 +1887,7 @@ selectCoinsForJoin ctx@ApiLayer{..}
 selectCoinsForQuit
     :: forall s n k.
         ( s ~ SeqState n k
-        , WalletFlavor s n
+        , WalletFlavor s
         , AddressBookIso s
         , Seq.SupportsDiscovery n k
         , BoundedAddressLength k
@@ -1905,7 +1905,7 @@ selectCoinsForQuit ctx@ApiLayer{..} (ApiT walletId) = do
         timeTranslation <- liftIO $
             toTimeTranslation (timeInterpreter netLayer)
         pp <- NW.currentProtocolParameters netLayer
-        withdrawal <- W.shelleyOnlyMkSelfWithdrawal @s @n
+        withdrawal <- W.shelleyOnlyMkSelfWithdrawal @s
             netLayer (txWitnessTagFor @k) era db
         action <- WD.quitStakePoolDelegationAction db withdrawal
         let changeAddrGen = W.defaultChangeAddressGen (delegationAddressS @n)
@@ -1917,7 +1917,7 @@ selectCoinsForQuit ctx@ApiLayer{..} (ApiT walletId) = do
 
         let paymentOuts = []
 
-        (cardanoTx, walletState) <- W.buildTransaction @s @n @e
+        (cardanoTx, walletState) <- W.buildTransaction @s @e
             db txLayer timeTranslation changeAddrGen pp txCtx paymentOuts
 
         let W.CoinSelection{..} =
@@ -2164,7 +2164,7 @@ postTransactionOld
         , AddressBookIso s
         , BoundedAddressLength k
         , HasDelegation s
-        , WalletFlavor s n
+        , WalletFlavor s
         , IsOurs s RewardAccount
         , k ~ KeyOf s
         )
@@ -2186,7 +2186,7 @@ postTransactionOld ctx@ApiLayer{..} argGenChange (ApiT wid) body = do
         wdrl <- case body ^. #withdrawal of
             Nothing -> pure NoWithdrawal
             Just apiWdrl ->
-                shelleyOnlyMkWithdrawal @s @n
+                shelleyOnlyMkWithdrawal @s
                     netLayer (txWitnessTagFor @k) db era apiWdrl
         let txCtx = defaultTransactionCtx
                 { txWithdrawal = wdrl
@@ -2195,7 +2195,7 @@ postTransactionOld ctx@ApiLayer{..} argGenChange (ApiT wid) body = do
                 }
         (BuiltTx{..}, txTime) <- atomicallyWithHandler
             (ctx ^. walletLocks) (PostTransactionOld wid) $ liftIO $
-                W.buildSignSubmitTransaction @s @n
+                W.buildSignSubmitTransaction @s
                     db
                     netLayer
                     txLayer
@@ -2246,7 +2246,7 @@ deleteTransaction ctx (ApiT wid) (ApiTxId (ApiT (tid))) = do
 listTransactions
     :: forall s ktype n
      . ( HasDelegation s
-       , WalletFlavor s n
+       , WalletFlavor s
        )
     => ApiLayer s ktype
     -> ApiT WalletId
@@ -2283,7 +2283,7 @@ listTransactions
 getTransaction
     :: forall s ktype n
      . ( HasDelegation s
-       , WalletFlavor s n
+       , WalletFlavor s
        )
     => ApiLayer s ktype
     -> ApiT WalletId
@@ -2303,7 +2303,7 @@ getTransaction ctx (ApiT wid) (ApiTxId (ApiT (tid))) metadataSchema =
 -- layer.
 mkApiTransactionFromInfo
     :: ( HasDelegation s
-       , WalletFlavor s n
+       , WalletFlavor s
        )
     => TimeInterpreter (ExceptT PastHorizonException IO)
     -> W.WalletLayer IO s ktype
@@ -2343,7 +2343,7 @@ mkApiTransactionFromInfo ti wrk deposit info metadataSchema = do
 
 postTransactionFeeOld
     :: forall s n k
-     . ( WalletFlavor s n
+     . ( WalletFlavor s
        , AddressBookIso s
        , BoundedAddressLength k
        , TxWitnessTagFor k
@@ -2367,12 +2367,12 @@ postTransactionFeeOld ctx@ApiLayer{..} (ApiT walletId) body = do
         wdrl <- case body ^. #withdrawal of
             Nothing -> pure NoWithdrawal
             Just apiWdrl ->
-                shelleyOnlyMkWithdrawal @s @n
+                shelleyOnlyMkWithdrawal @s
                     netLayer (txWitnessTagFor @k) db era apiWdrl
         let outputs = F.toList $ addressAmountToTxOut <$> body ^. #payments
             minCoins = W.calcMinimumCoinValues protocolParameters txLayer era
                 <$> outputs
-        feePercentiles <- liftIO $ W.transactionFee @s @n
+        feePercentiles <- liftIO $ W.transactionFee @s
             db
             (Write.unsafeFromWalletProtocolParameters protocolParameters)
             txLayer
@@ -2465,7 +2465,7 @@ constructTransaction api argGenChange knownPools poolStatus apiWalletId body = d
             <- guardIsRecentEra era
         withdrawal <- case body ^. #withdrawal of
             Just SelfWithdraw -> liftIO $
-                W.shelleyOnlyMkSelfWithdrawal @_ @n
+                W.shelleyOnlyMkSelfWithdrawal
                     netLayer (txWitnessTagFor @ShelleyKey) era db
             _ -> pure NoWithdrawal
 
@@ -2490,7 +2490,7 @@ constructTransaction api argGenChange knownPools poolStatus apiWalletId body = d
         (transactionCtx2, policyXPubM) <-
             if isJust mintBurnData then do
                 (policyXPub, _) <-
-                    liftHandler $ W.readPolicyPublicKey @_ @_ @n wrk
+                    liftHandler $ W.readPolicyPublicKey wrk
                 let isMinting (ApiMintBurnData _ _ (ApiMint _)) = True
                     isMinting _ = False
                 let getMinting = \case
@@ -3167,7 +3167,7 @@ balanceTransaction
 decodeTransaction
     :: forall s n
      . ( IsOurs s Address
-       , WalletFlavor s n
+       , WalletFlavor s
        )
     => ApiLayer s 'CredFromKeyK
     -> ApiT WalletId
@@ -3177,7 +3177,7 @@ decodeTransaction
     ctx@ApiLayer{..} (ApiT wid) (ApiSerialisedTransaction (ApiT sealed) _) = do
     era <- liftIO $ NW.currentNodeEra netLayer
     withWorkerCtx ctx wid liftE liftE $ \wrk -> do
-        (k, _) <- liftHandler $ W.readPolicyPublicKey @_ @s @n wrk
+        (k, _) <- liftHandler $ W.readPolicyPublicKey @_ @s wrk
         let keyhash = KeyHash Policy (xpubToBytes k)
         let (decodedTx, toMint, toBurn, allCerts, interval, witsCount) =
                 decodeTx tl era (ShelleyWalletCtx keyhash) sealed
@@ -3192,7 +3192,7 @@ decodeTransaction
                } = decodedTx
         let db = wrk ^. dbLayer
         (acct, _, acctPath) <-
-            liftHandler $ W.shelleyOnlyReadRewardAccount @s @n db
+            liftHandler $ W.shelleyOnlyReadRewardAccount @s db
         inputPaths <-
             handler $ W.lookupTxIns @_ @s wrk $
             fst <$> resolvedInputs
@@ -3203,7 +3203,7 @@ decodeTransaction
             handler $ W.lookupTxOuts @_ @s wrk outputs
         pp <- liftIO $ NW.currentProtocolParameters (wrk ^. networkLayer)
         (minted, burned) <-
-            convertApiAssetMintBurn @_ @s @n wrk (toMint, toBurn)
+            convertApiAssetMintBurn @_ @s wrk (toMint, toBurn)
         let certs = mkApiAnyCertificate (Just acct) acctPath <$> allCerts
         pure $ ApiDecodedTransaction
             { id = ApiT txId
@@ -3283,7 +3283,7 @@ submitTransaction
     :: forall ctx s k n
      . ( ctx ~ ApiLayer s 'CredFromKeyK
        , s ~ SeqState n k
-       , WalletFlavor s n
+       , WalletFlavor s
        , HasNetworkLayer IO ctx
        , IsOwned s k 'CredFromKeyK
        )
@@ -3325,13 +3325,13 @@ submitTransaction ctx apiw@(ApiT wid) apitx = do
             witsRequiredForInputs totalNumberOfWits
 
     void $ withWorkerCtx ctx wid liftE liftE $ \wrk -> do
-        (k, _) <- liftHandler $ W.readPolicyPublicKey @_ @s @n wrk
+        (k, _) <- liftHandler $ W.readPolicyPublicKey @_ @s wrk
         let keyhash = KeyHash Policy (xpubToBytes k)
         let (tx,_,_,_,_,_) = decodeTx tl era (ShelleyWalletCtx keyhash) sealedTx
 
         let db = wrk ^. dbLayer
         (acct, _, path) <- liftHandler
-            $ W.shelleyOnlyReadRewardAccount @s @n db
+            $ W.shelleyOnlyReadRewardAccount @s db
         let wdrl = getOurWdrl acct path apiDecoded
         let txCtx = defaultTransactionCtx
                 { -- TODO: [ADP-1193]
@@ -3507,7 +3507,7 @@ submitSharedTransaction ctx apiw@(ApiT wid) apitx = do
 joinStakePool
     :: forall s n k.
         ( s ~ SeqState n k
-        , WalletFlavor s n
+        , WalletFlavor s
         , AddressIndexDerivationType k ~ 'Soft
         , GenChange s
         , IsOwned s k 'CredFromKeyK
@@ -3546,7 +3546,7 @@ joinStakePool
             db = wrk ^. typed @(DBLayer IO s)
             ti = timeInterpreter netLayer
         (BuiltTx{..}, txTime) <- liftIO $
-            W.buildSignSubmitTransaction @s @n
+            W.buildSignSubmitTransaction @s
                 db
                 netLayer
                 txLayer
@@ -3603,7 +3603,7 @@ delegationFee ctx@ApiLayer{..} (ApiT walletId) = do
         timeTranslation <-
             toTimeTranslation (timeInterpreter netLayer)
         W.DelegationFee {feePercentiles, deposit} <-
-            W.delegationFee @s @n
+            W.delegationFee @s
                 (workerCtx ^. dbLayer)
                 netLayer
                 txLayer
@@ -3635,7 +3635,7 @@ quitStakePool ctx@ApiLayer{..} argGenChange (ApiT walletId) body = do
             ti = timeInterpreter netLayer
         txCtx <- liftIO $ WD.quitStakePool netLayer db ti
         (BuiltTx{..}, txTime) <- liftIO $ do
-            W.buildSignSubmitTransaction @s @n
+            W.buildSignSubmitTransaction @s
                 db
                 netLayer
                 txLayer
@@ -3758,9 +3758,9 @@ listStakeKeys lookupStakeRef ctx@ApiLayer{..} (ApiT wid) =
 -------------------------------------------------------------------------------}
 
 createMigrationPlan
-    :: forall n s k
+    :: forall s n k
      . ( IsOwned s k 'CredFromKeyK
-       , WalletFlavor s n
+       , WalletFlavor s
        , TxWitnessTagFor k
        , k ~ KeyOf s
        )
@@ -3778,7 +3778,7 @@ createMigrationPlan ctx@ApiLayer{..} withdrawalType (ApiT wid) postData =
         era <- liftIO $ NW.currentNodeEra netLayer
         rewardWithdrawal <- case withdrawalType of
             Nothing -> pure NoWithdrawal
-            Just pd -> shelleyOnlyMkWithdrawal @s @n
+            Just pd -> shelleyOnlyMkWithdrawal @s
                 netLayer (txWitnessTagFor @k) db era pd
         (wallet, _, _) <- handler $ W.readWallet wrk
         plan <- handler $ W.createMigrationPlan @_ wrk era rewardWithdrawal
@@ -3851,13 +3851,13 @@ mkApiWalletMigrationPlan s addresses rewardWithdrawal plan =
         }
 
 migrateWallet
-    :: forall s n p k.
+    :: forall s p k n.
         ( Bounded (Index (AddressIndexDerivationType k) (AddressCredential k))
         , HardDerivation k
         , IsOwned s k 'CredFromKeyK
         , WalletKey k
         , TxWitnessTagFor k
-        , WalletFlavor s n
+        , WalletFlavor s
         , HasDelegation s
         , k ~ KeyOf s
         )
@@ -3872,14 +3872,14 @@ migrateWallet ctx@ApiLayer{..} withdrawalType (ApiT wid) postData = do
         case withdrawalType of
             Nothing -> pure selfRewardAccountBuilder
             Just w ->
-                either liftE pure $ shelleyOnlyRewardAccountBuilder @s @_ @n w
+                either liftE pure $ shelleyOnlyRewardAccountBuilder @s @_ w
     withWorkerCtx ctx wid liftE liftE $ \wrk -> do
         let db = wrk ^. dbLayer
             tr = wrk ^. logger
         era <- liftIO $ NW.currentNodeEra netLayer
         rewardWithdrawal <- case withdrawalType of
             Nothing -> pure NoWithdrawal
-            Just pd -> shelleyOnlyMkWithdrawal @s @n
+            Just pd -> shelleyOnlyMkWithdrawal @s
                 netLayer (txWitnessTagFor @k) db era pd
         plan <- handler $ W.createMigrationPlan @_ wrk era rewardWithdrawal
         ttl <- liftIO $ W.transactionExpirySlot ti Nothing
@@ -4141,9 +4141,9 @@ getAccountPublicKey ctx mkAccount (ApiT wid) extended = do
           _ -> NonExtended
 
 getPolicyKey
-    :: forall ctx s n
+    :: forall ctx s
      . ( ctx ~ ApiLayer s 'CredFromKeyK
-       , WalletFlavor s n
+       , WalletFlavor s
        )
     => ctx
     -> ApiT WalletId
@@ -4151,7 +4151,7 @@ getPolicyKey
     -> Handler ApiPolicyKey
 getPolicyKey ctx (ApiT wid) hashed = do
     withWorkerCtx @_ @s ctx wid liftE liftE $ \wrk -> do
-        (k, _) <- liftHandler $ W.readPolicyPublicKey @_ @s @n wrk
+        (k, _) <- liftHandler $ W.readPolicyPublicKey @_ @s wrk
         pure $ uncurry ApiPolicyKey (computeKeyPayload hashed k)
 
 postPolicyKey
@@ -4172,10 +4172,10 @@ postPolicyKey ctx (ApiT wid) hashed apiPassphrase =
     pwd = getApiT (apiPassphrase ^. #passphrase)
 
 postPolicyId
-    :: forall ctx s k n
+    :: forall ctx s k
      . ( ctx ~ ApiLayer s 'CredFromKeyK
        , WalletKey k
-       , WalletFlavor s n
+       , WalletFlavor s
        , k ~ KeyOf s
        )
     => ctx
@@ -4192,7 +4192,7 @@ postPolicyId ctx (ApiT wid) payload = do
         liftHandler $ throwE ErrGetPolicyIdWrongMintingBurningTemplate
 
     withWorkerCtx @_ @s ctx wid liftE liftE $ \wrk -> do
-        (xpub, _) <- liftHandler $ W.readPolicyPublicKey @_ @s @n wrk
+        (xpub, _) <- liftHandler $ W.readPolicyPublicKey @_ @s wrk
         pure $ ApiPolicyId $ ApiT $
             toTokenPolicyId @k scriptTempl (Map.singleton (Cosigner 0) xpub)
   where
@@ -4253,8 +4253,8 @@ mkWithdrawal netLayer txWitnessTag db era = \case
 -- | Unsafe version of `mkWithdrawal` that throws runtime error
 -- when applied to a non-shelley or non-sequential wallet state.
 shelleyOnlyMkWithdrawal
-    :: forall s n block
-     . WalletFlavor s n
+    :: forall s block
+     . WalletFlavor s
     => NetworkLayer IO block
     -> TxWitnessTag
     -> DBLayer IO s
@@ -4262,7 +4262,7 @@ shelleyOnlyMkWithdrawal
     -> ApiWithdrawalPostData
     -> Handler Withdrawal
 shelleyOnlyMkWithdrawal netLayer txWitnessTag db era postData =
-    case walletFlavor @s @n of
+    case walletFlavor @s of
         ShelleyWallet ->
             mkWithdrawal netLayer txWitnessTag db era postData
         _ -> notShelleyWallet
@@ -4271,16 +4271,16 @@ shelleyOnlyMkWithdrawal netLayer txWitnessTag db era postData =
         liftHandler $ throwE ErrReadRewardAccountNotAShelleyWallet
 
 shelleyOnlyRewardAccountBuilder
-    :: forall s k n
+    :: forall s k
      . ( HardDerivation k
        , Bounded (Index (AddressIndexDerivationType k) (AddressCredential k))
        , WalletKey k
-       , WalletFlavor s n
+       , WalletFlavor s
        )
     => ApiWithdrawalPostData
     -> Either ErrReadRewardAccount (RewardAccountBuilder k)
 shelleyOnlyRewardAccountBuilder w =
-    case walletFlavor @s @n of
+    case walletFlavor @s of
         ShelleyWallet -> case w of
             SelfWithdrawal -> pure selfRewardAccountBuilder
             ExternalWithdrawal (ApiMnemonicT m) -> do
@@ -4428,7 +4428,7 @@ data MkApiTransactionParams = MkApiTransactionParams
 mkApiTransaction
     :: forall n s ktype
      . ( HasDelegation s
-       , WalletFlavor s n
+       , WalletFlavor s
        )
     => TimeInterpreter (ExceptT PastHorizonException IO)
     -> W.WalletLayer IO s ktype
@@ -4450,7 +4450,7 @@ mkApiTransaction timeInterpreter wrk timeRefLens tx = do
             then traverse (getApiAnyCertificates db) parsedValues
             else pure Nothing
     parsedMintBurn <- forM parsedValues
-        $ getTxApiAssetMintBurn @_ @s @n wrk
+        $ getTxApiAssetMintBurn @_ @s wrk
 
     pure $ set timeRefLens (Just timeRef) $ ApiTransaction
         { id = ApiT $ tx ^. #txId
@@ -4500,7 +4500,7 @@ mkApiTransaction timeInterpreter wrk timeRefLens tx = do
     -- using additional context from the 'WorkerCtx'.
     getApiAnyCertificates db ParsedTxCBOR{certificates} = do
         (rewardAccount, _, derivPath) <- liftHandler
-            $ W.shelleyOnlyReadRewardAccount @s @n db
+            $ W.shelleyOnlyReadRewardAccount @s db
         pure $ mkApiAnyCertificate (Just rewardAccount) derivPath <$> certificates
 
     depositIfAny :: Natural

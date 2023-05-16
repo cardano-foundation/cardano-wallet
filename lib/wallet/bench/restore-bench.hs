@@ -487,7 +487,7 @@ benchmarksRnd network w@(WalletLayer _ _ netLayer txLayer dbLayer) wname
         -- before balancing the transaction and computing the fee:
         let bundleWithZeroAda = TokenBundle.fromCoin (Coin 0)
         let outputWithZeroAda = TxOut (dummyAddress network) bundleWithZeroAda
-        W.transactionFee @s @n
+        W.transactionFee @s
             dbLayer
             (Write.unsafeFromWalletProtocolParameters protocolParameters)
             txLayer
@@ -590,7 +590,7 @@ benchmarksSeq network w@(WalletLayer _ _ netLayer txLayer dbLayer) _wname
         (protocolParameters, _bundledProtocolParameters) <-
             W.toBalanceTxPParams @era <$> currentProtocolParameters netLayer
         timeTranslation <- toTimeTranslation (timeInterpreter netLayer)
-        W.transactionFee @s @n
+        W.transactionFee @s
             dbLayer
             (Write.unsafeFromWalletProtocolParameters protocolParameters)
             txLayer
@@ -627,9 +627,8 @@ instance ToJSON BenchBaselineResults where
 
 {- HLINT ignore bench_baseline_restoration "Use camelCase" -}
 bench_baseline_restoration
-    :: forall n .
-        ( HasSNetworkId n
-        )
+    :: forall n
+     . HasSNetworkId n
     => PipeliningStrategy (CardanoBlock StandardCrypto)
     -> SNetworkId n
     -> Tracer IO (BenchmarkLog n)

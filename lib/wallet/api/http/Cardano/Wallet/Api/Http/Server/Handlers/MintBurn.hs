@@ -47,16 +47,16 @@ import Servant
 
 -- | Promote mint and burn to their API type.
 convertApiAssetMintBurn
-    :: forall ctx s n
+    :: forall ctx s
      . ( HasDBLayer IO s ctx
-       , WalletFlavor s n
+       , WalletFlavor s
        )
     => ctx
     -> (TokenMapWithScripts, TokenMapWithScripts)
     -> Handler (ApiAssetMintBurn, ApiAssetMintBurn)
 convertApiAssetMintBurn ctx (mint, burn) = do
     xpubM <- fmap (fmap fst . eitherToMaybe)
-        <$> liftIO . runExceptT $ readPolicyPublicKey @ctx @s @n ctx
+        <$> liftIO . runExceptT $ readPolicyPublicKey @ctx @s ctx
     let  convert tokenWithScripts =  ApiAssetMintBurn
             { tokens = toApiTokens tokenWithScripts
             , walletPolicyKeyHash =
@@ -68,12 +68,12 @@ convertApiAssetMintBurn ctx (mint, burn) = do
     pure (convert mint, convert burn)
 
 getTxApiAssetMintBurn
-    :: forall ctx s n
+    :: forall ctx s
      . ( HasDBLayer IO s ctx
-       , WalletFlavor s n
+       , WalletFlavor s
        )
     => ctx
     -> ParsedTxCBOR
     -> (Handler (ApiAssetMintBurn, ApiAssetMintBurn))
 getTxApiAssetMintBurn ctx ParsedTxCBOR{..} =
-    convertApiAssetMintBurn @ctx @s @n ctx mintBurn
+    convertApiAssetMintBurn @ctx @s ctx mintBurn

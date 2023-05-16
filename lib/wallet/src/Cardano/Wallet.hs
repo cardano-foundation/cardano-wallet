@@ -1243,15 +1243,15 @@ mkSelfWithdrawal netLayer txWitnessTag era db = do
 -- | Unsafe version of the `mkSelfWithdrawal` function that throws an exception
 -- when applied to a non-shelley or a non-sequential wallet.
 shelleyOnlyMkSelfWithdrawal
-    :: forall s n block
-     . WalletFlavor s n
+    :: forall s block
+     . WalletFlavor s
     => NetworkLayer IO block
     -> TxWitnessTag
     -> AnyCardanoEra
     -> DBLayer IO s
     -> IO Withdrawal
 shelleyOnlyMkSelfWithdrawal netLayer txWitnessTag era db =
-    case walletFlavor @s @n  of
+    case walletFlavor @s  of
         ShelleyWallet -> mkSelfWithdrawal netLayer txWitnessTag era db
         _ -> notShelleyWallet
   where
@@ -1315,26 +1315,26 @@ readSharedRewardAccount db = do
 -- that throws error when applied to a non-sequential
 -- or a non-shelley wallet state.
 shelleyOnlyReadRewardAccount
-    :: forall s n
-     . WalletFlavor s n
+    :: forall s
+     . WalletFlavor s
     => DBLayer IO s
     -> ExceptT ErrReadRewardAccount IO
         (RewardAccount, XPub, NonEmpty DerivationIndex)
 shelleyOnlyReadRewardAccount db = do
-    case walletFlavor @s @n of
+    case walletFlavor @s of
         ShelleyWallet -> lift $ readRewardAccount db
         _ -> throwE ErrReadRewardAccountNotAShelleyWallet
 
 readPolicyPublicKey
-    :: forall ctx s n
+    :: forall ctx s
      . ( HasDBLayer IO s ctx
-       , WalletFlavor s n
+       , WalletFlavor s
        )
     => ctx
     -> ExceptT ErrReadPolicyPublicKey IO (XPub, NonEmpty DerivationIndex)
 readPolicyPublicKey ctx = db & \DBLayer{..} -> do
     cp <- lift $ atomically readCheckpoint
-    case walletFlavor @s @n of
+    case walletFlavor @s of
         ShelleyWallet -> do
             let s = getState cp
             case Seq.policyXPub s of
@@ -1843,14 +1843,14 @@ type MakeRewardAccountBuilder k =
 --
 -- Requires the encryption passphrase in order to decrypt the root private key.
 buildSignSubmitTransaction
-    :: forall s n k
+    :: forall s k
      . ( WalletKey k
        , HardDerivation k
        , Bounded (Index (AddressIndexDerivationType k) (AddressCredential k))
        , IsOwned s k 'CredFromKeyK
        , IsOurs s RewardAccount
        , AddressBookIso s
-       , WalletFlavor s n
+       , WalletFlavor s
        , k ~ KeyOf s
        )
     => DBLayer IO s
@@ -1886,7 +1886,7 @@ buildSignSubmitTransaction db@DBLayer{..} netLayer txLayer pwd walletId
                 \s -> do
                     let wallet = WalletState.getLatest s
                     let utxo = availableUTxO @s (Set.fromList pendingTxs) wallet
-                    buildAndSignTransactionPure @k @s @n
+                    buildAndSignTransactionPure @k @s
                         timeTranslation
                         utxo
                         rootKey
@@ -1935,13 +1935,13 @@ buildSignSubmitTransaction db@DBLayer{..} netLayer txLayer pwd walletId
     wrapBalanceConstructError = either ExceptionBalanceTx ExceptionConstructTx
 
 buildAndSignTransactionPure
-    :: forall k s n
+    :: forall k s
      . ( WalletKey k
        , HardDerivation k
        , Bounded (Index (AddressIndexDerivationType k) (AddressCredential k))
        , IsOwned s k 'CredFromKeyK
        , IsOurs s RewardAccount
-       , WalletFlavor s n
+       , WalletFlavor s
        , k ~ KeyOf s
        )
     => TimeTranslation
@@ -1966,7 +1966,7 @@ buildAndSignTransactionPure
     Write.withRecentEra era $ \(_ :: Write.RecentEra recentEra) -> do
         wallet <- get
         (unsignedBalancedTx, updatedWalletState) <- lift $
-            buildTransactionPure @s @n @recentEra
+            buildTransactionPure @s @recentEra
                 wallet timeTranslation utxo txLayer changeAddrGen
                 (Write.unsafeFromWalletProtocolParameters protocolParams)
                 preSelection txCtx
@@ -2036,8 +2036,8 @@ buildAndSignTransactionPure
     anyCardanoEra = Write.fromAnyRecentEra era
 
 buildTransaction
-    :: forall s n era
-    . ( WalletFlavor s n
+    :: forall s era
+    . ( WalletFlavor s
       , Write.IsRecentEra era
       , AddressBookIso s
       )
@@ -2062,7 +2062,7 @@ buildTransaction DBLayer{..} txLayer timeTranslation changeAddrGen
         let utxo = availableUTxO @s pendingTxs wallet
 
         fmap (\s' -> wallet { getState = s' }) <$>
-            buildTransactionPure @s @n @era
+            buildTransactionPure @s @era
                 wallet
                 timeTranslation
                 utxo
@@ -2077,9 +2077,9 @@ buildTransaction DBLayer{..} txLayer timeTranslation changeAddrGen
                 & either (liftIO . throwIO) pure
 
 buildTransactionPure
-    :: forall s n era
+    :: forall s era
      . ( Write.IsRecentEra era
-       , WalletFlavor s n
+       , WalletFlavor s
        )
     => Wallet s
     -> TimeTranslation
@@ -2100,7 +2100,7 @@ buildTransactionPure
     unsignedTxBody <-
         withExceptT (Right . ErrConstructTxBody) . except $
             mkUnsignedTransaction txLayer @era
-                (Left $ unsafeShelleyOnlyGetRewardXPub @s @n (getState wallet))
+                (Left $ unsafeShelleyOnlyGetRewardXPub @s (getState wallet))
                 txCtx
                 (Left preSelection)
 
@@ -2130,11 +2130,11 @@ buildTransactionPure
 -- https://input-output.atlassian.net/browse/ADP-2933
 
 unsafeShelleyOnlyGetRewardXPub
-    :: forall s n
-     . WalletFlavor s n
+    :: forall s
+     . WalletFlavor s
     => s -> XPub
 unsafeShelleyOnlyGetRewardXPub walletState =
-    case walletFlavor @s @n of
+    case walletFlavor @s of
         ShelleyWallet -> getRawKey $ Seq.rewardAccountKey walletState
         _  -> error $ unwords
             [ "buildAndSignTransactionPure:"
@@ -2700,9 +2700,9 @@ data DelegationFee = DelegationFee
 instance NFData DelegationFee
 
 delegationFee
-    :: forall s n
+    :: forall s
      . ( AddressBookIso s
-       , WalletFlavor s n
+       , WalletFlavor s
        )
     => DBLayer IO s
     -> NetworkLayer IO Read.Block
@@ -2716,7 +2716,7 @@ delegationFee db@DBLayer{..} netLayer txLayer timeTranslation era
     Write.withRecentEra era $ \(recentEra :: Write.RecentEra era) -> do
         protocolParams <- Write.unsafeFromWalletProtocolParameters
             <$> liftIO (currentProtocolParameters netLayer)
-        feePercentiles <- transactionFee @s @n
+        feePercentiles <- transactionFee @s
             db protocolParams txLayer timeTranslation recentEra changeAddressGen
             defaultTransactionCtx
             -- It would seem that we should add a delegation action
@@ -2732,10 +2732,10 @@ delegationFee db@DBLayer{..} netLayer txLayer timeTranslation era
         pure DelegationFee { feePercentiles, deposit }
 
 transactionFee
-    :: forall s n era
+    :: forall s era
      . ( AddressBookIso s
        , Write.IsRecentEra era
-       , WalletFlavor s n
+       , WalletFlavor s
        )
     => DBLayer IO s
     -> Write.ProtocolParameters era
@@ -2768,7 +2768,7 @@ transactionFee DBLayer{atomically, walletState} protocolParams txLayer
             evaluate $ constructUTxOIndex $ availableUTxO @s mempty wallet
         unsignedTxBody <- wrapErrMkTransaction $
             mkUnsignedTransaction txLayer @era
-                (Left $ unsafeShelleyOnlyGetRewardXPub @s @n (getState wallet))
+                (Left $ unsafeShelleyOnlyGetRewardXPub @s (getState wallet))
                 txCtx
                 (Left preSelection)
 

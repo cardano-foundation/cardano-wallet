@@ -274,7 +274,7 @@ benchmarksSeq BenchmarkConfig{benchmarkName,ctx} = do
     (_, delegationFeeTime) <- bench "delegationFee" $ do
         timeTranslation <-
             toTimeTranslation (timeInterpreter (networkLayer ctx))
-        W.delegationFee @_ @n
+        W.delegationFee
             (dbLayer ctx) (networkLayer ctx) (transactionLayer ctx)
             timeTranslation
             (Write.AnyRecentEra Write.RecentEraBabbage)
