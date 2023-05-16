@@ -70,6 +70,8 @@ import qualified Data.Map.Strict as Map
 emptyTxSubmissions :: TxSubmissions
 emptyTxSubmissions = mkEmpty 0
 
+-- | Add a /new/ transaction to the local submission pool
+-- with the most recent submission slot.
 addTxSubmission
     :: BuiltTx
     -> SlotNo
@@ -79,14 +81,15 @@ addTxSubmission BuiltTx{..} resubmitted =
         expiry = case builtTxMeta ^. #expiry of
             Nothing -> SlotNo maxBound
             Just slot -> slot
-    in AddSubmission expiry (txId, builtSealedTx)
-        $ submissionMetaFromTxMeta builtTxMeta resubmitted
+    in  [ AddSubmission expiry (txId, builtSealedTx)
+          $ submissionMetaFromTxMeta builtTxMeta resubmitted
+        ]
 
 resubmitTx
     :: Hash "Tx"
     -> SlotNo
     -> TxSubmissions
-    -> [DeltaTxSubmissions]
+    -> DeltaTxSubmissions
 resubmitTx (TxId -> txId) resubmitted walletSubmissions
     = fromMaybe [] $ do
         (TxStatusMeta datas meta) <-
@@ -113,12 +116,12 @@ getInSubmissionTransaction txId submissions
 
 rollForwardTxSubmissions
     :: SlotNo -> [(SlotNo, Hash "Tx")] -> DeltaTxSubmissions
-rollForwardTxSubmissions tip txs = RollForward tip (second TxId <$> txs)
+rollForwardTxSubmissions tip txs = [ RollForward tip (second TxId <$> txs) ]
 
 removePendingOrExpiredTx
     :: Hash "Tx"
     -> TxSubmissions
-    -> Either ErrRemoveTx [DeltaTxSubmissions]
+    -> Either ErrRemoveTx DeltaTxSubmissions
 removePendingOrExpiredTx txId walletSubmissions = do
     let
         errNoTx = ErrRemoveTxNoSuchTransaction $ ErrNoSuchTransaction txId
@@ -129,13 +132,13 @@ removePendingOrExpiredTx txId walletSubmissions = do
         _ -> Right [Forget (TxId txId)]
 
 rollBackSubmissions :: SlotNo -> DeltaTxSubmissions
-rollBackSubmissions = RollBack
+rollBackSubmissions slot = [ RollBack slot ]
 
 pruneByFinality
     :: SlotNo
         -- ^ Finality slot = most recent stable slot.
     -> DeltaTxSubmissions
-pruneByFinality = Prune
+pruneByFinality finality = [ Prune finality ]
 
 mkLocalTxSubmission
     :: TxSubmissionsStatus

@@ -94,8 +94,6 @@ import Cardano.Wallet.Submissions.Submissions
     ( TxStatusMeta (..), txStatus )
 import Cardano.Wallet.Submissions.TxStatus
     ( _Expired, _InSubmission )
-import Cardano.Wallet.Transaction.Built
-    ( BuiltTx )
 import Control.Lens
     ( has )
 import Control.Monad
@@ -294,13 +292,6 @@ data DBLayer m s = forall stm. (MonadIO stm, MonadFail stm) => DBLayer
         -- ^ Fetch the latest transaction by id, returns Nothing when the
         -- transaction isn't found.
 
-    , addTxSubmission
-        :: BuiltTx
-        -> SlotNo
-        -> stm ()
-        -- ^ Add a /new/ transaction to the local submission pool
-        -- with the most recent submission slot.
-
     , resubmitTx
         :: Hash "Tx"
         -> SealedTx -- TODO: ADP-2596 really not needed
@@ -490,15 +481,12 @@ mkDBLayerFromParts ti wid_ DBLayerCollection{..} = DBLayer
                     (hoistTimeInterpreter liftIO ti)
                     (mkDecorator_ dbTxHistory) tip
                         . fmap snd
-    , addTxSubmission = \builtTx slotNo ->
-            updateSubmissionsNoError dbCheckpoints
-                $ \_ -> [Sbms.addTxSubmission builtTx slotNo]
     , resubmitTx = \hash _ slotNo ->
             updateSubmissionsNoError dbCheckpoints
                 $ Sbms.resubmitTx hash slotNo
     , rollForwardTxSubmissions = \tip txs ->
             updateSubmissionsNoError dbCheckpoints
-                $ \_ -> [Sbms.rollForwardTxSubmissions tip txs]
+                $ \_ -> Sbms.rollForwardTxSubmissions tip txs
     , putPrivateKey = putPrivateKey_ dbPrivateKey
     , readPrivateKey = readPrivateKey_ dbPrivateKey
     , readGenesisParameters = readGenesisParameters_ dbCheckpoints

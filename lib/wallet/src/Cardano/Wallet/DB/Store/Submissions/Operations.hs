@@ -79,12 +79,14 @@ type TxSubmissions
     = Sbm.Submissions SubmissionMeta SlotNo (TxId, W.SealedTx)
 type TxSubmissionsStatus
     = Sbm.TxStatusMeta SubmissionMeta SlotNo (TxId, W.SealedTx)
-type DeltaTxSubmissions
+type DeltaTxSubmissions1
     = Sbm.Operation SubmissionMeta SlotNo (TxId, W.SealedTx)
+type DeltaTxSubmissions
+    = [DeltaTxSubmissions1]
 
-instance Delta DeltaTxSubmissions where
-  type Base DeltaTxSubmissions = TxSubmissions
-  apply = applyOperations
+instance Delta DeltaTxSubmissions1 where
+    type Base DeltaTxSubmissions1 = TxSubmissions
+    apply = applyOperations
 
 {-----------------------------------------------------------------------------
     Data types
@@ -212,5 +214,5 @@ mkStatus _ _ _ _ _
 
 mkStoreSubmissions
     :: WalletId
-    -> UpdateStore (SqlPersistT IO) DeltaTxSubmissions
+    -> UpdateStore (SqlPersistT IO) DeltaTxSubmissions1
 mkStoreSubmissions = mkStoreAnySubmissions

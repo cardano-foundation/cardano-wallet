@@ -171,9 +171,6 @@ newDBFresh timeInterpreter wid = do
                                        Pending Tx
         -----------------------------------------------------------------------}
 
-        , addTxSubmission =
-            error "addTxSubmission not tested in State Machine tests"
-
         , resubmitTx =
             error "resubmitTx not tested in State Machine tests"
 

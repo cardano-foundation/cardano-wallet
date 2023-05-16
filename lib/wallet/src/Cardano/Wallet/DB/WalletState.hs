@@ -164,7 +164,7 @@ data DeltaWalletState1 s
     -- ^ Replace the prologue of the address discovery state
     | UpdateCheckpoints (CPS.DeltasCheckpoints (WalletCheckpoint s))
     -- ^ Update the wallet checkpoints.
-    | UpdateSubmissions [DeltaTxSubmissions]
+    | UpdateSubmissions DeltaTxSubmissions
     | UpdateInfo DeltaWalletInfo
 
 instance Delta (DeltaWalletState1 s) where
@@ -192,6 +192,6 @@ updateCheckpoints
 updateCheckpoints = updateField checkpoints ((:[]) . UpdateCheckpoints)
 
 updateSubmissions
-    :: Update [DeltaTxSubmissions] r
+    :: Update DeltaTxSubmissions r
     -> Update (DeltaWalletState s) r
 updateSubmissions = updateField submissions ((:[]) . UpdateSubmissions)

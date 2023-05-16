@@ -1209,8 +1209,7 @@ restoreBlocks ctx tr blocks nodeTip = db & \DBLayer{..} -> atomically $ do
     rollForwardTxSubmissions (localTip ^. #slotNo)
         $ fmap (\(tx,meta) -> (meta ^. #slotNo, txId tx)) txs
     let deltaPruneSubmissions =
-            [ UpdateSubmissions [Submissions.pruneByFinality finalitySlot]
-            ]
+            [ UpdateSubmissions $ Submissions.pruneByFinality finalitySlot ]
 
     forM_ slotPoolDelegations $ \delegation@(slotNo, cert) -> do
             liftIO $ logDelegation delegation
@@ -1945,7 +1944,10 @@ buildSignSubmitTransaction db@DBLayer{..} netLayer txLayer pwd walletId
                             )
                         )
 
-            addTxSubmission builtTx slot
+            Delta.onDBVar walletState
+                . WalletState.updateSubmissions
+                . Delta.update
+                $ \_ -> Submissions.addTxSubmission builtTx slot
 
             pure txWithSlot
 
@@ -2360,17 +2362,22 @@ mkTxMeta latestBlockHeader txValidity amountIn amountOut =
         }
 
 -- | Broadcast a (signed) transaction to the network.
-
-submitTx :: MonadUnliftIO m =>
-    Tracer m WalletWorkerLog
+submitTx
+    :: MonadUnliftIO m
+    => Tracer m WalletWorkerLog
     -> DBLayer m s
     -> NetworkLayer m block
     -> BuiltTx
     -> ExceptT ErrSubmitTx m ()
-submitTx tr DBLayer{addTxSubmission, atomically} nw tx@BuiltTx{..} =
+submitTx tr DBLayer{walletState, atomically} nw tx@BuiltTx{..} =
     traceResult (MsgWallet . MsgTxSubmit . MsgSubmitTx tx >$< tr) $ do
         withExceptT ErrSubmitTxNetwork $ postTx nw builtSealedTx
-        lift $ atomically $ addTxSubmission tx (builtTxMeta ^. #slotNo)
+        lift
+            . atomically
+            . Delta.onDBVar walletState
+            . WalletState.updateSubmissions
+            . Delta.update
+            $ \_ -> Submissions.addTxSubmission tx (builtTxMeta ^. #slotNo)
 
 -- | Broadcast an externally-signed transaction to the network.
 --

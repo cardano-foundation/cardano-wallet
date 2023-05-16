@@ -607,10 +607,9 @@ newDBFreshFromDBOpen ti wid_ DBOpen{atomically=atomically_} =
                         (  [ UpdateCheckpoints
                                 [ RollbackTo nearestPoint ]
                             , UpdateSubmissions
-                                [ rollBackSubmissions $
-                                        case nearestPoint of
+                                $ rollBackSubmissions $
+                                    case nearestPoint of
                                         { At s -> s; Origin -> 0 }
-                                ]
                             ]
                         ,   case Map.lookup nearestPoint
                                     (wal ^. #checkpoints . #checkpoints) of
