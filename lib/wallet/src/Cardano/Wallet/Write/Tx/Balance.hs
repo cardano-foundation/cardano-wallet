@@ -97,7 +97,7 @@ import Cardano.Wallet.Primitive.Types.TokenQuantity
 import Cardano.Wallet.Primitive.Types.Tx
     ( SealedTx, sealedTxFromCardano )
 import Cardano.Wallet.Primitive.Types.Tx.Constraints
-    ( TokenBundleSizeAssessor, TxSize (..), txOutMaxCoin )
+    ( TxSize (..), txOutMaxCoin )
 import Cardano.Wallet.Primitive.Types.UTxOSelection
     ( UTxOSelection )
 import Cardano.Wallet.Shelley.Compatibility
@@ -220,6 +220,7 @@ import qualified Cardano.Wallet.Primitive.Types.UTxO as W
 import qualified Cardano.Wallet.Primitive.Types.UTxO as UTxO
 import qualified Cardano.Wallet.Primitive.Types.UTxOIndex as UTxOIndex
 import qualified Cardano.Wallet.Primitive.Types.UTxOSelection as UTxOSelection
+import qualified Cardano.Wallet.Shelley.Compatibility as Compatibility
 import qualified Cardano.Wallet.Shelley.Compatibility.Ledger as W
 import qualified Data.Foldable as F
 import qualified Data.Map as Map
@@ -352,10 +353,8 @@ instance Buildable (PartialTx era) where
 -- @
 --
 -- however representing it as such is inconvenient at the moment.
-data UTxOAssumptions = forall k ktype. UTxOAssumptions
-    { txLayer :: TransactionLayer k ktype SealedTx
-    -- TODO: Replace with smaller and smaller parts of 'TransactionLayer'
-    , inputScriptLookup :: Maybe (W.Address -> CA.Script KeyHash)
+data UTxOAssumptions = UTxOAssumptions
+    { inputScriptLookup :: Maybe (W.Address -> CA.Script KeyHash)
     , inputScriptTemplate :: Maybe ScriptTemplate
     , txWitnessTag :: TxWitnessTag
     }
@@ -379,8 +378,7 @@ constructUTxOIndex walletUTxO =
 allKeyPaymentCredentials
     :: forall k. TransactionLayer k 'CredFromKeyK SealedTx -> UTxOAssumptions
 allKeyPaymentCredentials tl = UTxOAssumptions
-    { txLayer = tl
-    , inputScriptLookup = Nothing
+    { inputScriptLookup = Nothing
     , inputScriptTemplate = Nothing
     , txWitnessTag = transactionWitnessTag tl
     }
@@ -394,8 +392,7 @@ allScriptPaymentCredentials
     -> TransactionLayer SharedKey 'CredFromScriptK SealedTx
     -> UTxOAssumptions
 allScriptPaymentCredentials scriptLookup template tl = UTxOAssumptions
-    { txLayer = tl
-    , inputScriptLookup = Just scriptLookup
+    { inputScriptLookup = Just scriptLookup
     , inputScriptTemplate = Just template
     , txWitnessTag = transactionWitnessTag tl
     }
@@ -530,7 +527,7 @@ balanceTransactionWithSelectionStrategyAndNoZeroAdaAdjustment
     -> ExceptT ErrBalanceTx m (Cardano.Tx era, changeState)
 balanceTransactionWithSelectionStrategyAndNoZeroAdaAdjustment
     tr
-    (UTxOAssumptions txLayer toInpScriptsM mScriptTemplate txWitnessTag)
+    (UTxOAssumptions toInpScriptsM mScriptTemplate txWitnessTag)
     protocolParameters@(ProtocolParameters pp)
     timeTranslation
     (UTxOIndex walletUTxO internalUtxoAvailable cardanoUTxO)
@@ -596,7 +593,6 @@ balanceTransactionWithSelectionStrategyAndNoZeroAdaAdjustment
                 mScriptTemplate
                 genChange
                 selectionStrategy
-                (tokenBundleSizeAssessor txLayer)
 
         case mSel of
             Left e -> lift $ traceWith tr $ MsgSelectionError e
@@ -903,24 +899,22 @@ selectAssets
     -> Maybe ScriptTemplate
     -> ChangeAddressGen changeState
     -> SelectionStrategy
-    -> (TokenBundleMaxSize -> TokenBundleSizeAssessor)
     -- ^ A function to assess the size of a token bundle.
     -> Either (SelectionError WalletSelectionContext) Selection
 selectAssets era (ProtocolParameters pp) txWitnessTag outs redeemers
     utxoSelection balance fee0 seed inputScriptTemplate changeGen
-    selectionStrategy bundleSizeAssessor =
+    selectionStrategy =
         (`evalRand` stdGenFromSeed seed) . runExceptT
             $ performSelection selectionConstraints selectionParams
   where
     selectionConstraints = SelectionConstraints
         { assessTokenBundleSize =
-            view #assessTokenBundleSize
-            $ bundleSizeAssessor
-            $ TokenBundleMaxSize
-            $ TxSize
-            $ case era of
-                RecentEraBabbage -> pp ^. #_maxValSize
-                RecentEraConway -> pp ^. #_maxValSize
+            let maxBundleSize = TokenBundleMaxSize $ TxSize $ case era of
+                    RecentEraBabbage -> pp ^. #_maxValSize
+                    RecentEraConway -> pp ^. #_maxValSize
+             in view #assessTokenBundleSize $
+                    Compatibility.tokenBundleSizeAssessor maxBundleSize
+                    -- TODO (ADP-2967): avoid importing Compatibility.
         , computeMinimumAdaQuantity = \addr tokens -> W.toWallet $
             computeMinimumCoinForTxOut
                 era
