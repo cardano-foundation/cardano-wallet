@@ -94,8 +94,6 @@ import Cardano.Wallet.Address.Derivation
     , utxoExternal
     , utxoInternal
     )
-import Cardano.Wallet.Address.Derivation.Shared
-    ( allCosignerStakingKeys )
 import Cardano.Wallet.Address.Derivation.SharedKey
     ( SharedKey (..)
     , constructAddressFromIx
@@ -127,8 +125,6 @@ import Cardano.Wallet.Primitive.Types.RewardAccount
     ( RewardAccount (..) )
 import Cardano.Wallet.Read.NetworkId
     ( HasSNetworkId (..), NetworkDiscriminant, networkDiscriminantBits )
-import Cardano.Wallet.Transaction
-    ( ToWitnessCountCtx (..), WitnessCountCtx (..) )
 import Control.Applicative
     ( (<|>) )
 import Control.Arrow
@@ -852,10 +848,3 @@ instance AccountIxForStaking (SharedState n SharedKey) where
     getAccountIx st =
         let DerivationPrefix (_, _, ix) = derivationPrefix st
         in Just ix
-
-instance ToWitnessCountCtx (SharedState n SharedKey) where
-    toWitnessCountCtx s =
-        let delegationTemplateM = delegationTemplate s
-            stakingKeyHashes =
-                maybe [] allCosignerStakingKeys delegationTemplateM
-        in SharedWalletCtx stakingKeyHashes

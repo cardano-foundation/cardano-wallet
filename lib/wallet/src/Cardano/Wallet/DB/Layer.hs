@@ -401,7 +401,7 @@ withDBOpenFromFile
 withDBOpenFromFile walletF tr defaultFieldValues dbFile action = do
     let trDB = contramap MsgDB tr
     let manualMigrations =
-            maybe [] (migrateManually trDB (keyOfWallet walletF))
+            maybe [] (migrateManually trDB $ keyOfWallet walletF)
                 defaultFieldValues
     let autoMigrations   = migrateAll
     withConnectionPool trDB dbFile $ \pool -> do
@@ -409,6 +409,7 @@ withDBOpenFromFile walletF tr defaultFieldValues dbFile action = do
         case res of
             Left err -> throwIO err
             Right sqliteContext -> action =<< newQueryLock sqliteContext
+
 
 -- | Open an SQLite database in-memory.
 --

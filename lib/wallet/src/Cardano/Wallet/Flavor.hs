@@ -7,10 +7,12 @@
 {-# LANGUAGE GADTs #-}
 {-# LANGUAGE MultiParamTypeClasses #-}
 {-# LANGUAGE PolyKinds #-}
+{-# LANGUAGE RankNTypes #-}
 {-# LANGUAGE ScopedTypeVariables #-}
 {-# LANGUAGE TypeApplications #-}
 {-# LANGUAGE TypeFamilies #-}
-
+{-# LANGUAGE TypeOperators #-}
+{-# LANGUAGE UndecidableInstances #-}
 
 module Cardano.Wallet.Flavor
     ( WalletFlavorS (..)
@@ -21,8 +23,13 @@ module Cardano.Wallet.Flavor
     , keyFlavor
     , keyOfWallet
     , NetworkOf
+    , StateWithKey
+    , FlavorOf
+    , WalletFlavors (..)
     , Excluding
+    , shelleyOrShared
     , Including
+    , IncludingStates
     )
 where
 
@@ -62,6 +69,37 @@ data WalletFlavorS s where
     BenchByronWallet :: WalletFlavorS (RndAnyState n p)
     BenchShelleyWallet :: WalletFlavorS (SeqAnyState n ShelleyKey p)
     TestStateS :: WalletFlavorS (TestState s ShelleyKey)
+
+data WalletFlavors
+    = ShelleyF
+    | IcarusF
+    | ByronF
+    | SharedF
+    | BenchByronF
+    | BenchShelleyF
+    | TestStateF
+
+type family FlavorOf s where
+    FlavorOf (SeqState n ShelleyKey) = 'ShelleyF
+    FlavorOf (SeqState n IcarusKey) = 'IcarusF
+    FlavorOf (RndState n) = 'ByronF
+    FlavorOf (SharedState n SharedKey) = 'SharedF
+    FlavorOf (RndAnyState n p) = 'BenchByronF
+    FlavorOf (SeqAnyState n ShelleyKey p) = 'BenchShelleyF
+    FlavorOf (TestState s ShelleyKey) = 'TestStateF
+
+
+type AllFlavors =
+    '[ 'ShelleyF
+     , 'IcarusF
+     , 'ByronF
+     , 'SharedF
+     , 'BenchByronF
+     , 'BenchShelleyF
+     , 'TestStateF
+     ]
+
+type IncludingStates ss s = Including AllFlavors ss s
 
 -- | A function to reify the flavor of a state.
 class WalletFlavor s where
@@ -131,3 +169,19 @@ type family NetworkOf (s :: Type) :: NetworkDiscriminant where
     NetworkOf (SharedState n k) = n
     NetworkOf (SeqAnyState n k p) = n
     NetworkOf (RndAnyState n p) = n
+
+-- | Constraints for a state with a specific key.
+type StateWithKey s k = (WalletFlavor s, KeyOf s ~ k)
+
+-- | Helper lemma to specialize on a subset of wallet flavors.
+shelleyOrShared
+    :: WalletFlavorS s
+    -> x
+    -> (IncludingStates '[ 'IcarusF, 'ShelleyF, 'SharedF] (FlavorOf s)
+            => WalletFlavorS s -> x)
+    -> x
+shelleyOrShared x r h = case x of
+    ShelleyWallet -> h ShelleyWallet
+    SharedWallet -> h SharedWallet
+    IcarusWallet -> h IcarusWallet
+    _ -> r

@@ -72,9 +72,9 @@ module Cardano.Wallet.Address.Discovery.Sequential
 import Prelude
 
 import Cardano.Address.Derivation
-    ( xpubPublicKey, xpubToBytes )
+    ( xpubPublicKey )
 import Cardano.Address.Script
-    ( Cosigner (..), KeyHash (..), KeyRole (..), ScriptTemplate (..) )
+    ( Cosigner (..), ScriptTemplate (..) )
 import Cardano.Crypto.Wallet
     ( XPrv, XPub )
 import Cardano.Wallet.Address.Derivation
@@ -128,8 +128,7 @@ import Cardano.Wallet.Primitive.Types.Address
 import Cardano.Wallet.Primitive.Types.RewardAccount
     ( RewardAccount )
 import Cardano.Wallet.Read.NetworkId
-import Cardano.Wallet.Transaction
-    ( ToWitnessCountCtx (..), WitnessCountCtx (..) )
+    ( HasSNetworkId (..), NetworkDiscriminant, NetworkDiscriminantCheck (..) )
 import Codec.Binary.Encoding
     ( AbstractEncoding (..), encode )
 import Control.Applicative
@@ -801,11 +800,3 @@ instance (PaymentAddress k 'CredFromKeyK, HasSNetworkId n)
 
 instance MaybeLight (SeqAnyState n k p) where
     maybeDiscover = Nothing
-
-instance WalletKey k => ToWitnessCountCtx (SeqState n k) where
-    toWitnessCountCtx s =
-        let keyM = policyXPub s
-        in case keyM of
-            Just key ->
-                ShelleyWalletCtx $ KeyHash Policy (xpubToBytes $ getRawKey key)
-            Nothing -> AnyWitnessCountCtx

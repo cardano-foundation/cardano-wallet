@@ -243,6 +243,7 @@ library
     Cardano.Wallet.Address.Keys.MintBurn
     Cardano.Wallet.Address.Keys.PersistPrivateKey
     Cardano.Wallet.Address.Keys.WalletKey
+    Cardano.Wallet.Address.Keys.WitnessCount
     Cardano.Wallet.Address.Pool
     Cardano.Wallet.Byron.Compatibility
     Cardano.Wallet.Checkpoints

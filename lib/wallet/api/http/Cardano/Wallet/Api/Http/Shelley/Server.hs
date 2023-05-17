@@ -8,6 +8,7 @@
 {-# LANGUAGE LambdaCase #-}
 {-# LANGUAGE MultiParamTypeClasses #-}
 {-# LANGUAGE NamedFieldPuns #-}
+{-# LANGUAGE NoMonoLocalBinds #-}
 {-# LANGUAGE OverloadedLabels #-}
 {-# LANGUAGE RankNTypes #-}
 {-# LANGUAGE RecordWildCards #-}
@@ -262,6 +263,10 @@ import Cardano.Wallet.Address.HasDelegation
     ( HasDelegation (..) )
 import Cardano.Wallet.Address.Keys.MintBurn
     ( toTokenMapAndScript, toTokenPolicyId )
+import Cardano.Wallet.Address.Keys.WalletKey
+    ( AfterByron )
+import Cardano.Wallet.Address.Keys.WitnessCount
+    ( toWitnessCountCtx )
 import Cardano.Wallet.Api
     ( ApiLayer (..)
     , HasDBFactory
@@ -432,8 +437,8 @@ import Cardano.Wallet.Flavor
     , KeyOf
     , WalletFlavor (..)
     , WalletFlavorS (..)
-    , WalletFlavorS (ShelleyWallet)
     , keyFlavor
+    , shelleyOrShared
     )
 import Cardano.Wallet.Network
     ( NetworkLayer (..), fetchRewardAccountBalances, timeInterpreter )
@@ -543,7 +548,6 @@ import Cardano.Wallet.Transaction
     ( AnyExplicitScript (..)
     , DelegationAction (..)
     , PreSelection (..)
-    , ToWitnessCountCtx (..)
     , TransactionCtx (..)
     , TransactionLayer (..)
     , Withdrawal (..)
@@ -683,8 +687,6 @@ import qualified Cardano.Wallet.Address.Derivation.Byron as Byron
 import qualified Cardano.Wallet.Address.Derivation.Icarus as Icarus
 import qualified Cardano.Wallet.Address.Discovery.Sequential as Seq
 import qualified Cardano.Wallet.Address.Discovery.Shared as Shared
-import Cardano.Wallet.Address.Keys.WalletKey
-    ( AfterByron )
 import qualified Cardano.Wallet.Api.Types as Api
 import qualified Cardano.Wallet.DB as W
 import qualified Cardano.Wallet.Delegation as WD
@@ -2107,7 +2109,6 @@ signTransaction
         , WalletFlavor s
         , KeyOf s ~ k
         , AccountIxForStaking s
-        , ToWitnessCountCtx s
         )
     => ctx
     -> ApiT WalletId
@@ -2140,7 +2141,10 @@ signTransaction ctx (ApiT wid) body = do
                         accIxForStakingM :: Maybe (Index 'Hardened 'AccountK)
                         accIxForStakingM = getAccountIx @s (getState cp)
 
-                        witCountCtx = toWitnessCountCtx @s (getState cp)
+                        witCountCtx = shelleyOrShared
+                            (walletFlavor @s)
+                            AnyWitnessCountCtx $
+                                \flavor -> toWitnessCountCtx flavor (getState cp)
 
                     era <- liftIO $ NW.currentNodeEra nl
                     let sealedTx = body ^. #transaction . #getApiT
@@ -2992,7 +2996,7 @@ decodeSharedTransaction ctx (ApiT wid) (ApiSerialisedTransaction (ApiT sealed) _
         , metadata, scriptValidity, interval, witsCount)
         <- withWorkerCtx ctx wid liftE liftE $ \wrk -> do
         (cp, _, _) <- handler $ W.readWallet wrk
-        let witCountCtx = toWitnessCountCtx @(SharedState n SharedKey) (getState cp)
+        let witCountCtx = toWitnessCountCtx SharedWallet (getState cp)
         let (decodedTx, _toMint, _toBurn, allCerts, interval, witsCount) =
                 decodeTx tl era witCountCtx sealed
         let (Tx { txId
@@ -3448,7 +3452,7 @@ submitSharedTransaction ctx apiw@(ApiT wid) apitx = do
     void $ withWorkerCtx ctx wid liftE liftE $ \wrk -> do
 
         (cp, _, _) <- handler $ W.readWallet @_ wrk
-        let witCountCtx = toWitnessCountCtx @(SharedState n SharedKey) (getState cp)
+        let witCountCtx = toWitnessCountCtx SharedWallet (getState cp)
         let (tx,_,_,_,_, (WitnessCount _ nativeScripts _)) =
                 decodeTx tl era witCountCtx sealedTx
 

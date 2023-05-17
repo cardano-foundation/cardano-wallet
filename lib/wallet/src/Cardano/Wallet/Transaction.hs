@@ -45,7 +45,6 @@ module Cardano.Wallet.Transaction
     , WitnessCount (..)
     , emptyWitnessCount
     , WitnessCountCtx (..)
-    , ToWitnessCountCtx (..)
     , toKeyRole
 
     -- * Errors
@@ -416,9 +415,6 @@ toKeyRole witCtx (Hash key) = case witCtx of
            else
                Payment
     AnyWitnessCountCtx -> Unknown
-
-class ToWitnessCountCtx s where
-    toWitnessCountCtx :: s -> WitnessCountCtx
 
 data ErrMkTransaction
     =  ErrMkTransactionTxBodyError Text
