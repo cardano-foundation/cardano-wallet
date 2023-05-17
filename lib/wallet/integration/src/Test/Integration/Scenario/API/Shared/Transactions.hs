@@ -2126,6 +2126,11 @@ spec = describe "SHARED_TRANSACTIONS" $ do
                 , "passphrase": #{fixturePassphrase},
                   "withdrawal": "self"
                 }|]
+
+        rGet <- request @ApiWallet ctx (Link.getWallet @'Shared party1)
+                    Default Empty
+        let previousBalance = getFromResponse (#balance . #available) rGet
+
         rTx3 <- request @(ApiConstructTransaction n) ctx
             (Link.createUnsignedTransaction @'Shared party1) Default payloadWithdrawal
         verify rTx3
@@ -2147,6 +2152,28 @@ spec = describe "SHARED_TRANSACTIONS" $ do
         verify submittedTx4
             [ expectResponseCode HTTP.status202
             ]
+
+        -- Rewards are have been consumed.
+        eventually "Party1's wallet has consumed rewards" $ do
+            request @ApiWallet ctx (Link.getWallet @'Shared party1) Default Empty
+                >>= flip verify
+                    [ expectField
+                        (#balance . #reward)
+                        (`shouldBe` (Quantity 0))
+                    , expectField
+                        (#balance . #available)
+                        (.> previousBalance)
+                    ]
+        eventually "Party2's wallet has consumed rewards" $ do
+            request @ApiWallet ctx (Link.getWallet @'Shared party2) Default Empty
+                >>= flip verify
+                    [ expectField
+                        (#balance . #reward)
+                        (`shouldBe` (Quantity 0))
+                    , expectField
+                        (#balance . #available)
+                        (.> previousBalance)
+                    ]
 
   where
      listSharedTransactions ctx w mStart mEnd mOrder mLimit = do
