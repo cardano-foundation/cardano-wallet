@@ -963,8 +963,7 @@ selectAssets era (ProtocolParameters pp) txWitnessTag outs redeemers
             ]
         , extraValueOut = mconcat
             [ negativeBundle
-            , TokenBundle.fromTokenMap tokensInInputs
-            , TokenBundle.fromCoin adaInInputs
+            , valueOfInputs
             ]
         -- NOTE: It is important that coin selection has the correct
         -- notion of fees, because it will be used to tell how much
@@ -1000,8 +999,7 @@ selectAssets era (ProtocolParameters pp) txWitnessTag outs redeemers
 
     (positiveBundle, negativeBundle) = posAndNegFromCardanoValue balance
     valueOfOutputs = F.foldMap (view #tokens) outs
-    TokenBundle adaInInputs tokensInInputs =
-        UTxOSelection.selectedBalance utxoSelection
+    valueOfInputs = UTxOSelection.selectedBalance utxoSelection
 
     feePerByte = getFeePerByte era pp
 
