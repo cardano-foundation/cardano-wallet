@@ -280,7 +280,7 @@ assignMinimumAdaQuantity :: TxConstraints -> TokenMap -> TokenBundle
 assignMinimumAdaQuantity constraints m =
     TokenBundle c m
   where
-    -- Using @maxLengthAddressFor $ Proxy @k@ via @constraints@ would not help
+    -- Using @maxLengthAddressFor@ via @constraints@ would not help
     -- here, as outputs created by the migration algorithm are assigned with
     -- user-defined addresses.
     --

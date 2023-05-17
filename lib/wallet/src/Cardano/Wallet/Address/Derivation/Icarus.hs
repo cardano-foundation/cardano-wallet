@@ -47,8 +47,7 @@ import Cardano.Crypto.Wallet
 import Cardano.Mnemonic
     ( SomeMnemonic (..), entropyToBytes, mnemonicToEntropy, mnemonicToText )
 import Cardano.Wallet.Address.Derivation
-    ( BoundedAddressLength (..)
-    , Depth (..)
+    ( Depth (..)
     , DerivationType (..)
     , ErrMkKeyFingerprint (..)
     , HardDerivation (..)
@@ -74,7 +73,7 @@ import Cardano.Wallet.Primitive.Passphrase
 import Cardano.Wallet.Primitive.Types.Address
     ( Address (..) )
 import Cardano.Wallet.Primitive.Types.ProtocolMagic
-    ( ProtocolMagic (..), magicSNetworkId )
+    ( magicSNetworkId )
 import Cardano.Wallet.Read.NetworkId
     ( HasSNetworkId
     , NetworkDiscriminant
@@ -412,18 +411,6 @@ instance HasSNetworkId n => MaybeLight (SeqState n IcarusKey)
   where
     maybeDiscover = Just $ DiscoverTxs discoverSeq
 
-instance BoundedAddressLength IcarusKey where
-    -- Matching 'paymentAddress' above.
-    maxLengthAddressFor _ = Address
-        $ CBOR.toStrictByteString
-        $ CBOR.encodeAddress xpub
-            [ CBOR.encodeProtocolMagicAttr (ProtocolMagic maxBound)
-            ]
-      where
-        xpub :: CC.XPub
-        xpub = CC.toXPub $ CC.generate (BS.replicate 32 0) xprvPass
-          where
-            xprvPass = mempty :: BS.ByteString
 
 {-------------------------------------------------------------------------------
                           Storing and retrieving keys

@@ -44,7 +44,6 @@ import Cardano.Mnemonic
     ( SomeMnemonic )
 import Cardano.Wallet.Address.Derivation
     ( AddressParts (..)
-    , BoundedAddressLength (..)
     , Depth (..)
     , DerivationType (..)
     , ErrMkKeyFingerprint (..)
@@ -222,9 +221,6 @@ instance
     where
     paymentKeyFingerprint (_, paymentK) =
         Right $ KeyFingerprint $ blake2b224 $ xpubPublicKey $ getKey paymentK
-
-instance BoundedAddressLength SharedKey where
-    maxLengthAddressFor _ = Address $ BS.replicate 57 0
 
 {-------------------------------------------------------------------------------
                                  Internals

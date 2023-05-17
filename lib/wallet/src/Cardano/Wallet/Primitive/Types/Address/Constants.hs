@@ -1,6 +1,5 @@
 {-# LANGUAGE BinaryLiterals #-}
 {-# LANGUAGE DataKinds #-}
-{-# LANGUAGE TypeApplications #-}
 
 -- |
 -- Copyright: © 2022 IOHK
@@ -14,22 +13,14 @@ module Cardano.Wallet.Primitive.Types.Address.Constants
 
 import Prelude
 
-import Cardano.Wallet.Address.Derivation
-    ( BoundedAddressLength (..) )
-import Cardano.Wallet.Address.Derivation.Byron
-    ( ByronKey )
-import Cardano.Wallet.Address.Derivation.Icarus
-    ( IcarusKey )
-import Cardano.Wallet.Address.Derivation.Shared
-    ( SharedKey )
-import Cardano.Wallet.Address.Derivation.Shelley
-    ( ShelleyKey )
+import Cardano.Wallet.Address.Keys.BoundedAddressLength
+    ( maxLengthAddressFor )
+import Cardano.Wallet.Flavor
+    ( KeyFlavorS (..) )
 import Cardano.Wallet.Primitive.Types.Address
     ( Address (..) )
 import Data.Function
     ( on )
-import Data.Proxy
-    ( Proxy (..) )
 
 import qualified Data.ByteString as BS
 import qualified Data.List as L
@@ -43,8 +34,8 @@ import qualified Data.List as L
 --
 maxLengthAddress :: Address
 maxLengthAddress = L.maximumBy (compare `on` (BS.length . unAddress))
-    [ maxLengthAddressFor $ Proxy @ByronKey
-    , maxLengthAddressFor $ Proxy @IcarusKey
-    , maxLengthAddressFor $ Proxy @ShelleyKey
-    , maxLengthAddressFor $ Proxy @SharedKey
+    [ maxLengthAddressFor ByronKeyS
+    , maxLengthAddressFor IcarusKeyS
+    , maxLengthAddressFor ShelleyKeyS
+    , maxLengthAddressFor SharedKeyS
     ]

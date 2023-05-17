@@ -441,9 +441,8 @@ instance ToJSON BenchRndResults where
     toJSON = genericToJSON Aeson.defaultOptions
 
 benchmarksRnd
-    :: forall n s k p.
+    :: forall n s p.
         ( s ~ RndAnyState n p
-        , k ~ ByronKey
         , HasSNetworkId n
         , KnownNat p
         )
@@ -493,7 +492,7 @@ benchmarksRnd network w@(WalletLayer _ _ netLayer txLayer dbLayer) wname
             txLayer
             timeTranslation
             recentEra
-            (dummyChangeAddressGen @k)
+            dummyChangeAddressGen
             defaultTransactionCtx
             (PreSelection [outputWithZeroAda])
 
@@ -596,7 +595,7 @@ benchmarksSeq network w@(WalletLayer _ _ netLayer txLayer dbLayer) _wname
             txLayer
             timeTranslation
             recentEra
-            (dummyChangeAddressGen @k)
+            dummyChangeAddressGen
             defaultTransactionCtx
             (PreSelection
                 [TxOut (dummyAddress network) (TokenBundle.fromCoin (Coin 1))])

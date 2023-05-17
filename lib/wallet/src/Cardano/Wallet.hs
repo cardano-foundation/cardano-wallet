@@ -251,8 +251,7 @@ import Cardano.Tx.Balance.Internal.CoinSelection
 import Cardano.Wallet.Address.Book
     ( AddressBookIso, Prologue (..), getDiscoveries, getPrologue )
 import Cardano.Wallet.Address.Derivation
-    ( BoundedAddressLength (..)
-    , DelegationAddress (..)
+    ( DelegationAddress (..)
     , Depth (..)
     , DerivationIndex (..)
     , DerivationPrefix (..)
@@ -307,6 +306,8 @@ import Cardano.Wallet.Address.Discovery.Shared
     , addCosignerAccXPub
     , isShared
     )
+import Cardano.Wallet.Address.Keys.BoundedAddressLength
+    ( maxLengthAddressFor )
 import Cardano.Wallet.Checkpoints
     ( DeltaCheckpoints (..), extendCheckpoints, pruneCheckpoints )
 import Cardano.Wallet.DB
@@ -335,7 +336,7 @@ import Cardano.Wallet.DB.WalletState
     , getSlot
     )
 import Cardano.Wallet.Flavor
-    ( KeyOf, WalletFlavor (..), WalletFlavorS (..) )
+    ( KeyOf, WalletFlavor (..), WalletFlavorS (..), keyFlavor )
 import Cardano.Wallet.Logging
     ( BracketLog
     , BracketLog' (..)
@@ -560,16 +561,12 @@ import Data.Generics.Labels
     ()
 import Data.Generics.Product.Typed
     ( HasType, typed )
-import Data.Kind
-    ( Type )
 import Data.List
     ( foldl' )
 import Data.List.NonEmpty
     ( NonEmpty (..) )
 import Data.Maybe
     ( fromMaybe, isJust, mapMaybe, maybeToList )
-import Data.Proxy
-    ( Proxy (..) )
 import Data.Quantity
     ( Quantity (..) )
 import Data.Set
@@ -1560,11 +1557,11 @@ normalizeDelegationAddress s addr = do
         $ Seq.rewardAccountKey s
 
 assignChangeAddressesAndUpdateDb
-    :: forall ctx s (k :: Depth -> Type -> Type)
+    :: forall ctx s
      . ( GenChange s
-       , BoundedAddressLength k
        , HasDBLayer IO s ctx
        , AddressBookIso s
+       , WalletFlavor s
        )
     => ctx
     -> ArgGenChange s
@@ -1581,16 +1578,16 @@ assignChangeAddressesAndUpdateDb ctx argGenChange selection =
         s = getState $ getLatest wallet
         (selectionUpdated, stateUpdated) =
             assignChangeAddresses
-                (defaultChangeAddressGen argGenChange (Proxy @k))
+                (defaultChangeAddressGen argGenChange )
                 selection
                 s
 
 assignChangeAddressesWithoutDbUpdate
-    :: forall ctx s (k :: Depth -> Type -> Type) .
-        ( GenChange s
-        , HasDBLayer IO s ctx
-        , BoundedAddressLength k
-        )
+    :: forall ctx s
+     . ( GenChange s
+       , HasDBLayer IO s ctx
+       , WalletFlavor s
+       )
     => ctx
     -> ArgGenChange s
     -> Selection
@@ -1600,7 +1597,7 @@ assignChangeAddressesWithoutDbUpdate ctx argGenChange selection =
         cp <- readCheckpoint
         let (selectionUpdated, _) =
                 assignChangeAddresses
-                    (defaultChangeAddressGen argGenChange (Proxy @k))
+                    (defaultChangeAddressGen argGenChange)
                     selection
                     (getState cp)
         pure selectionUpdated
@@ -3662,25 +3659,24 @@ instance HasSeverityAnnotation TxSubmitLog where
 
 -- | Construct the default 'ChangeAddressGen s' for a given 's'.
 defaultChangeAddressGen
-    :: forall s (k :: Depth -> Type -> Type).
+    :: forall s .
         ( GenChange s
-        , BoundedAddressLength k
+        , WalletFlavor s
         )
     => ArgGenChange s
-    -> Proxy k
     -> ChangeAddressGen s
-defaultChangeAddressGen arg proxy =
+defaultChangeAddressGen arg =
     ChangeAddressGen
         (genChange arg)
-        (maxLengthAddressFor proxy)
+        (maxLengthAddressFor (keyFlavor @s))
 
 -- WARNING: Must never be used to create real transactions for submission to the
 -- blockchain as funds sent to a dummy change address would be irrecoverable.
 dummyChangeAddressGen
-    :: forall (k :: Depth -> Type -> Type) s
-     . BoundedAddressLength k
+    :: forall s
+     . WalletFlavor s
     => ChangeAddressGen s
 dummyChangeAddressGen =
     ChangeAddressGen
-        (maxLengthAddressFor (Proxy @k),)
-        (maxLengthAddressFor (Proxy @k))
+        (maxLengthAddressFor (keyFlavor @s),)
+        (maxLengthAddressFor (keyFlavor @s))
