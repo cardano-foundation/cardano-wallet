@@ -200,6 +200,8 @@ import Test.QuickCheck
     , vector
     , vectorOf
     )
+import Test.QuickCheck.Extra
+    ( GenSeed (..), genSizeDefault, generateWith )
 import Test.QuickCheck.Hedgehog
     ( hedgehog )
 import Test.QuickCheck.Instances.ByteString
@@ -1056,9 +1058,17 @@ genCostModels = do
 genExecutionUnitPrices :: Gen ExecutionUnitPrices
 genExecutionUnitPrices = ExecutionUnitPrices <$> genRational <*> genRational
 
+-- | Dummy value for suitable for being included in the pre-image of the script
+-- integrity hash.
+{-# NOINLINE protocolParametersForHashing #-}
+protocolParametersForHashing :: ProtocolParameters
+protocolParametersForHashing = generateWith (GenSeed 0) genSizeDefault
+    genRecentEraProtocolParameters
 
-genProtocolParametersWithAlonzoScripts :: Gen ProtocolParameters
-genProtocolParametersWithAlonzoScripts =
+-- | With 'Just' as necessary to be convertible to @Ledger.PParams era@
+-- for 'IsRecentEra' eras, and keep our tests from throwing exceptions.
+genRecentEraProtocolParameters :: Gen ProtocolParameters
+genRecentEraProtocolParameters =
   ProtocolParameters
     <$> ((,) <$> genNat <*> genNat)
     <*> (Just <$> genRational)
@@ -1436,15 +1446,15 @@ genTxBodyContent era = do
     -- No use of a script language means no need for collateral
     if Set.null (languages witnesses)
         then do
-            pparams <- BuildTxWith <$> liftArbitrary genProtocolParameters
+            pparams <- BuildTxWith
+                <$> liftArbitrary (pure protocolParametersForHashing)
             collateral <- genTxInsCollateral era
             pure txBody
                 { Api.txProtocolParams = pparams
                 , Api.txInsCollateral = collateral
                 }
         else do
-            pparams <-
-                (BuildTxWith . Just) <$> genProtocolParametersWithAlonzoScripts
+            let pparams = BuildTxWith . Just $ protocolParametersForHashing
             collateral <-
                 case collateralSupportedInEra era of
                     Nothing -> pure TxInsCollateralNone
