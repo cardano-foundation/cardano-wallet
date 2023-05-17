@@ -98,7 +98,7 @@ import Cardano.Wallet.Primitive.Types.Address
 import Cardano.Wallet.Primitive.Types.Coin
     ( Coin (..) )
 import Cardano.Wallet.Primitive.Types.TokenBundle
-    ( Flat (..), TokenBundle )
+    ( Flat (..), TokenBundle (..) )
 import Cardano.Wallet.Primitive.Types.TokenMap
     ( AssetId, TokenMap )
 import Cardano.Wallet.Primitive.Types.Tx.Constraints
@@ -263,18 +263,12 @@ toInternalSelectionConstraints SelectionConstraints {..} =
 -- | Specifies all parameters that are specific to a given selection.
 --
 data SelectionParams = SelectionParams
-    { assetsToBurn
-        :: !TokenMap
-        -- ^ Specifies a set of assets to burn.
-    , assetsToMint
-        :: !TokenMap
-        -- ^ Specifies a set of assets to mint.
-    , extraCoinIn
-        :: !Coin
-       -- ^ Specifies extra 'Coin' in.
-    , extraCoinOut
-        :: !Coin
-        -- ^ Specifies extra 'Coin' out.
+    { extraValueIn
+        :: !TokenBundle
+        -- ^ Specifies extra value on the input side.
+    , extraValueOut
+        :: !TokenBundle
+        -- ^ Specifies extra value on the output side.
     , outputsToCover
         :: ![TxOut]
         -- ^ Specifies a set of outputs that must be paid for.
@@ -313,6 +307,9 @@ toInternalSelectionParams SelectionParams {..} =
         , ..
         }
   where
+    TokenBundle extraCoinIn  assetsToMint = extraValueIn
+    TokenBundle extraCoinOut assetsToBurn = extraValueOut
+
     identifyCollateral :: WalletUTxO -> TokenBundle -> Maybe Coin
     identifyCollateral (WalletUTxO _ a) b = asCollateral (TxOut a b)
 
