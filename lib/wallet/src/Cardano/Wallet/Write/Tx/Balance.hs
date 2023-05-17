@@ -956,11 +956,19 @@ selectAssets era (ProtocolParameters pp) txWitnessTag outs redeemers
         -- algorithm's notion of balance by @balance0 - sum inputs + sum
         -- outputs + fee0@ where @balance0@ is the balance of the
         -- partial tx.
-        { assetsToMint = positiveTokens <> tokensInOutputs
-        , assetsToBurn = negativeTokens <> tokensInInputs
-        , extraCoinIn = positiveAda <> adaInOutputs <> fee0
-        , extraCoinOut = negativeAda <> adaInInputs
-
+        { extraValueIn = mconcat
+            [ TokenBundle.fromTokenMap positiveTokens
+            , TokenBundle.fromTokenMap tokensInOutputs
+            , TokenBundle.fromCoin positiveAda
+            , TokenBundle.fromCoin adaInOutputs
+            , TokenBundle.fromCoin fee0
+            ]
+        , extraValueOut = mconcat
+            [ TokenBundle.fromTokenMap negativeTokens
+            , TokenBundle.fromTokenMap tokensInInputs
+            , TokenBundle.fromCoin negativeAda
+            , TokenBundle.fromCoin adaInInputs
+            ]
         -- NOTE: It is important that coin selection has the correct
         -- notion of fees, because it will be used to tell how much
         -- collateral is needed.
