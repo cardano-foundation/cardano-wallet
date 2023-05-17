@@ -84,22 +84,18 @@ import Cardano.Wallet.Address.Derivation.Shared
     ( SharedKey (..) )
 import Cardano.Wallet.Primitive.Types
     ( TokenBundleMaxSize (TokenBundleMaxSize) )
-import Cardano.Wallet.Primitive.Types.Hash
-    ( Hash (..) )
 import Cardano.Wallet.Primitive.Types.Redeemer
     ( Redeemer )
 import Cardano.Wallet.Primitive.Types.TokenBundle
     ( TokenBundle (..) )
-import Cardano.Wallet.Primitive.Types.TokenPolicy
-    ( TokenName (..), TokenPolicyId (..) )
-import Cardano.Wallet.Primitive.Types.TokenQuantity
-    ( TokenQuantity (..) )
 import Cardano.Wallet.Primitive.Types.Tx
     ( SealedTx, sealedTxFromCardano )
 import Cardano.Wallet.Primitive.Types.Tx.Constraints
     ( TxSize (..), txOutMaxCoin )
 import Cardano.Wallet.Primitive.Types.UTxOSelection
     ( UTxOSelection )
+import Cardano.Wallet.Read.Primitive.Tx.Features.Outputs
+    ( fromCardanoValue )
 import Cardano.Wallet.Shelley.Compatibility
     ( fromCardanoTxIn, fromCardanoTxOut, toCardanoUTxO )
 import Cardano.Wallet.Shelley.Transaction
@@ -162,6 +158,8 @@ import Control.Monad.Trans.Except
     ( ExceptT (ExceptT), catchE, except, runExceptT, throwE, withExceptT )
 import Control.Monad.Trans.State
     ( runState, state )
+import Data.Bifunctor
+    ( bimap, second )
 import Data.Bits
     ( Bits )
 import Data.Either
@@ -223,6 +221,7 @@ import qualified Cardano.Wallet.Primitive.Types.UTxOSelection as UTxOSelection
 import qualified Cardano.Wallet.Shelley.Compatibility as Compatibility
 import qualified Cardano.Wallet.Shelley.Compatibility.Ledger as W
 import qualified Data.Foldable as F
+import qualified Data.List as L
 import qualified Data.Map as Map
 import qualified Data.Set as Set
 
@@ -1072,35 +1071,12 @@ assignChangeAddresses (ChangeAddressGen genChange _) sel = runState $ do
 posAndNegFromCardanoValue
     :: Cardano.Value
     -> (TokenBundle.TokenBundle, TokenBundle.TokenBundle)
-posAndNegFromCardanoValue = foldMap go . Cardano.valueToList
-  where
-    go :: (Cardano.AssetId, Cardano.Quantity)
-       -> (TokenBundle.TokenBundle, TokenBundle.TokenBundle)
-    go (Cardano.AdaAssetId, q) = partition q $
-        TokenBundle.fromCoin . Coin.fromNatural
-    go (Cardano.AssetId policy name, q) = partition q $ \n ->
-        TokenBundle.fromFlatList (W.Coin 0)
-            [ ( TokenBundle.AssetId (mkPolicyId policy) (mkTokenName name)
-              , TokenQuantity n
-              )
-            ]
-
-    -- | Convert a 'Cardano.Quantity' to a 'TokenBundle' using the supplied
-    -- function. The result is stored in 'fst' for positive quantities, and
-    -- 'snd' for negative quantities.
-    partition
-        :: Cardano.Quantity
-        -> (Natural -> TokenBundle.TokenBundle)
-        -> (TokenBundle.TokenBundle, TokenBundle.TokenBundle)
-    partition (Cardano.Quantity i) f
-        | Just n <- maybeIntegerToNatural      i  = (f n, mempty)
-        | Just n <- maybeIntegerToNatural (abs i) = (mempty, f n)
-        | otherwise = (mempty, mempty)
-
-    maybeIntegerToNatural = intCastMaybe @Integer @Natural
-
-    mkPolicyId = UnsafeTokenPolicyId . Hash . Cardano.serialiseToRawBytes
-    mkTokenName = UnsafeTokenName . Cardano.serialiseToRawBytes
+posAndNegFromCardanoValue
+    = bimap
+        (fromCardanoValue . Cardano.valueFromList)
+        (fromCardanoValue . Cardano.valueFromList . L.map (second negate))
+    . L.partition ((>= 0) . snd)
+    . Cardano.valueToList
 
 unsafeIntCast
     :: (HasCallStack, Integral a, Integral b, Bits a, Bits b, Show a)
