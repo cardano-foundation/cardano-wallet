@@ -590,6 +590,10 @@ benchmarksSeq network w@(WalletLayer _ _ netLayer txLayer dbLayer) _wname
         (protocolParameters, _bundledProtocolParameters) <-
             W.toBalanceTxPParams @era <$> currentProtocolParameters netLayer
         timeTranslation <- toTimeTranslation (timeInterpreter netLayer)
+        -- For an output with zero ada, the transactionFee function should
+        -- automatically assign a minimal amount of lovelace to the output
+        -- before balancing the transaction and computing the fee:
+        let bundleWithZeroAda = TokenBundle.fromCoin (Coin 0)
         W.transactionFee @s
             dbLayer
             (Write.unsafeFromWalletProtocolParameters protocolParameters)
@@ -599,7 +603,7 @@ benchmarksSeq network w@(WalletLayer _ _ netLayer txLayer dbLayer) _wname
             (dummyChangeAddressGen @k)
             defaultTransactionCtx
             (PreSelection
-                [TxOut (dummyAddress network) (TokenBundle.fromCoin (Coin 1))])
+                [TxOut (dummyAddress network) bundleWithZeroAda])
 
     let walletOverview = WalletOverview{utxo,addresses,transactions}
 
