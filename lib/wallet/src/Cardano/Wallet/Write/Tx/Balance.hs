@@ -958,8 +958,7 @@ selectAssets era (ProtocolParameters pp) txWitnessTag outs redeemers
         -- partial tx.
         { extraValueIn = mconcat
             [ positiveBundle
-            , TokenBundle.fromTokenMap tokensInOutputs
-            , TokenBundle.fromCoin adaInOutputs
+            , valueOfOutputs
             , TokenBundle.fromCoin fee0
             ]
         , extraValueOut = mconcat
@@ -1001,8 +1000,6 @@ selectAssets era (ProtocolParameters pp) txWitnessTag outs redeemers
 
     (positiveBundle, negativeBundle) = posAndNegFromCardanoValue balance
     valueOfOutputs = F.foldMap (view #tokens) outs
-    adaInOutputs = view #coin valueOfOutputs
-    tokensInOutputs = view #tokens valueOfOutputs
     TokenBundle adaInInputs tokensInInputs =
         UTxOSelection.selectedBalance utxoSelection
 
