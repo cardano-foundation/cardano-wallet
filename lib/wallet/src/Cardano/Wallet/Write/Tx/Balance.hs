@@ -971,7 +971,7 @@ selectAssets era (ProtocolParameters pp) txWitnessTag outs redeemers
         }
       where
         (balancePositive, balanceNegative) = posAndNegFromCardanoValue balance
-        valueOfOutputs = F.foldMap (view #tokens) outs
+        valueOfOutputs = F.foldMap' (view #tokens) outs
         valueOfInputs = UTxOSelection.selectedBalance utxoSelection
 
     mkLedgerTxOut
