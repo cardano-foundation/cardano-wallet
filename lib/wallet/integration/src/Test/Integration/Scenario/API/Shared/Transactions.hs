@@ -2175,6 +2175,22 @@ spec = describe "SHARED_TRANSACTIONS" $ do
                         (.> previousBalance)
                     ]
 
+        -- now we can quit
+        let delegationQuit = Json [json|{
+                "delegations": [{
+                    "quit": {
+                        "stake_key_index": "0H"
+                    }
+                }]
+            }|]
+        rTx4 <- request @(ApiConstructTransaction n) ctx
+            (Link.createUnsignedTransaction @'Shared party1) Default delegationQuit
+        verify rTx4
+            [ expectResponseCode HTTP.status202
+            , expectField (#coinSelection . #depositsTaken) (`shouldBe` [])
+            , expectField (#coinSelection . #depositsReturned) (`shouldBe` [depositAmt])
+            ]
+
   where
      listSharedTransactions ctx w mStart mEnd mOrder mLimit = do
          let path = Link.listTransactions' @'Shared w
