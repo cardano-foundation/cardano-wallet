@@ -38,7 +38,6 @@ module Cardano.Api.Gen
     , genPlutusScript
     , genPolicyId
     , genPoolId
-    , genProtocolParameters
     , genProtocolParametersUpdate
     , genPtr
     , genRational
@@ -201,6 +200,8 @@ import Test.QuickCheck
     , vector
     , vectorOf
     )
+import Test.QuickCheck.Extra
+    ( GenSeed (..), genSizeDefault, generateWith )
 import Test.QuickCheck.Hedgehog
     ( hedgehog )
 import Test.QuickCheck.Instances.ByteString
@@ -1057,39 +1058,20 @@ genCostModels = do
 genExecutionUnitPrices :: Gen ExecutionUnitPrices
 genExecutionUnitPrices = ExecutionUnitPrices <$> genRational <*> genRational
 
-genProtocolParameters :: Gen ProtocolParameters
-genProtocolParameters =
-  ProtocolParameters
-    <$> ((,) <$> genNat <*> genNat)
-    <*> (Just <$> genRational)
-    <*> liftArbitrary genPraosNonce
-    <*> genNat
-    <*> genNat
-    <*> genNat
-    <*> genNat
-    <*> genNat
-    <*> liftArbitrary genLovelace
-    <*> genLovelace
-    <*> genLovelace
-    <*> genLovelace
-    <*> genEpochNo
-    <*> genNat
-    <*> genRationalInt64
-    <*> genRational
-    <*> genRational
-    <*> liftArbitrary genLovelace
-    <*> genCostModels
-    <*> liftArbitrary genExecutionUnitPrices
-    <*> liftArbitrary genExecutionUnits
-    <*> liftArbitrary genExecutionUnits
-    <*> liftArbitrary genNat
-    <*> liftArbitrary genNat
-    <*> liftArbitrary genNat
-    <*> liftArbitrary genLovelace
+-- | Dummy value suitable for being included in the pre-image of the script
+-- integrity hash.
+{-# NOINLINE protocolParametersForHashing #-}
+protocolParametersForHashing :: ProtocolParameters
+protocolParametersForHashing =
+    generateWith (GenSeed 0) genSizeDefault
+        genRecentEraProtocolParameters
 
-genProtocolParametersWithAlonzoScripts :: Gen ProtocolParameters
-genProtocolParametersWithAlonzoScripts =
-  ProtocolParameters
+-- | Generates a set of protocol parameters for a recent era.
+--
+-- Uses 'Just' as necessary to be convertible to @Ledger.PParams era@
+-- for 'IsRecentEra' eras, and keep our tests from throwing exceptions.
+genRecentEraProtocolParameters :: Gen ProtocolParameters
+genRecentEraProtocolParameters = ProtocolParameters
     <$> ((,) <$> genNat <*> genNat)
     <*> (Just <$> genRational)
     <*> liftArbitrary genPraosNonce
@@ -1399,9 +1381,9 @@ genUpdateProposal era =
         Nothing ->
             pure TxUpdateProposalNone
         Just supported ->
-            oneof
-                [ pure TxUpdateProposalNone
-                , TxUpdateProposal supported
+            frequency
+                [ (95, pure TxUpdateProposalNone)
+                , (5, TxUpdateProposal supported
                   <$> ( UpdateProposal
                         <$> ( Map.fromList
                               <$> scale (`div` 3) (listOf ( (,)
@@ -1411,6 +1393,7 @@ genUpdateProposal era =
                             )
                         <*> genEpochNo
                       )
+                    )
                 ]
 
 genTxBodyContent :: CardanoEra era -> Gen (TxBodyContent BuildTx era)
@@ -1465,15 +1448,15 @@ genTxBodyContent era = do
     -- No use of a script language means no need for collateral
     if Set.null (languages witnesses)
         then do
-            pparams <- BuildTxWith <$> liftArbitrary genProtocolParameters
+            pparams <- BuildTxWith
+                <$> liftArbitrary (pure protocolParametersForHashing)
             collateral <- genTxInsCollateral era
             pure txBody
                 { Api.txProtocolParams = pparams
                 , Api.txInsCollateral = collateral
                 }
         else do
-            pparams <-
-                (BuildTxWith . Just) <$> genProtocolParametersWithAlonzoScripts
+            let pparams = BuildTxWith . Just $ protocolParametersForHashing
             collateral <-
                 case collateralSupportedInEra era of
                     Nothing -> pure TxInsCollateralNone
