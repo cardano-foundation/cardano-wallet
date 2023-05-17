@@ -963,9 +963,8 @@ selectAssets era (ProtocolParameters pp) txWitnessTag outs redeemers
             , TokenBundle.fromCoin fee0
             ]
         , extraValueOut = mconcat
-            [ TokenBundle.fromTokenMap negativeTokens
+            [ negativeBundle
             , TokenBundle.fromTokenMap tokensInInputs
-            , TokenBundle.fromCoin negativeAda
             , TokenBundle.fromCoin adaInInputs
             ]
         -- NOTE: It is important that coin selection has the correct
@@ -1001,7 +1000,6 @@ selectAssets era (ProtocolParameters pp) txWitnessTag outs redeemers
             else SelectionCollateralNotRequired
 
     (positiveBundle, negativeBundle) = posAndNegFromCardanoValue balance
-    TokenBundle negativeAda negativeTokens = negativeBundle
     adaInOutputs = F.foldMap (TokenBundle.getCoin . view #tokens) outs
     tokensInOutputs = F.foldMap (TokenBundle.tokens . view #tokens) outs
     TokenBundle adaInInputs tokensInInputs =
