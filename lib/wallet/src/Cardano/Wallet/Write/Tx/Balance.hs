@@ -974,6 +974,10 @@ selectAssets era (ProtocolParameters pp) txWitnessTag outs redeemers
         , utxoAvailableForInputs = utxoSelection
         , selectionStrategy = selectionStrategy
         }
+      where
+        (positiveBundle, negativeBundle) = posAndNegFromCardanoValue balance
+        valueOfOutputs = F.foldMap (view #tokens) outs
+        valueOfInputs = UTxOSelection.selectedBalance utxoSelection
 
     mkLedgerTxOut
         :: RecentEra era
@@ -996,10 +1000,6 @@ selectAssets era (ProtocolParameters pp) txWitnessTag outs redeemers
         if txPlutusScriptExecutionCost > W.Coin 0
             then SelectionCollateralRequired
             else SelectionCollateralNotRequired
-
-    (positiveBundle, negativeBundle) = posAndNegFromCardanoValue balance
-    valueOfOutputs = F.foldMap (view #tokens) outs
-    valueOfInputs = UTxOSelection.selectedBalance utxoSelection
 
     feePerByte = getFeePerByte era pp
 
