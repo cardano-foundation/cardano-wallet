@@ -27,7 +27,7 @@ import Cardano.Wallet.DB.Store.Transactions.Model
 import Cardano.Wallet.Primitive.Slotting
     ( TimeInterpreter, interpretQuery, slotToUTCTime )
 import Cardano.Wallet.Primitive.Types.Tx
-    ( TxCBOR, TxMeta (..) )
+    ( TxCBOR )
 import Cardano.Wallet.Read.Eras
     ( EraFun, EraValue, K, applyEraFun, extractEraValue )
 import Cardano.Wallet.Read.Primitive.Tx.Features.CollateralInputs
