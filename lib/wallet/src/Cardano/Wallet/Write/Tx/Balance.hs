@@ -1000,8 +1000,9 @@ selectAssets era (ProtocolParameters pp) txWitnessTag outs redeemers
             else SelectionCollateralNotRequired
 
     (positiveBundle, negativeBundle) = posAndNegFromCardanoValue balance
-    adaInOutputs = F.foldMap (TokenBundle.getCoin . view #tokens) outs
-    tokensInOutputs = F.foldMap (TokenBundle.tokens . view #tokens) outs
+    valueOfOutputs = F.foldMap (view #tokens) outs
+    adaInOutputs = view #coin valueOfOutputs
+    tokensInOutputs = view #tokens valueOfOutputs
     TokenBundle adaInInputs tokensInInputs =
         UTxOSelection.selectedBalance utxoSelection
 
