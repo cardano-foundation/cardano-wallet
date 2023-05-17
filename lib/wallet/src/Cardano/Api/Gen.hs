@@ -1058,18 +1058,20 @@ genCostModels = do
 genExecutionUnitPrices :: Gen ExecutionUnitPrices
 genExecutionUnitPrices = ExecutionUnitPrices <$> genRational <*> genRational
 
--- | Dummy value for suitable for being included in the pre-image of the script
+-- | Dummy value suitable for being included in the pre-image of the script
 -- integrity hash.
 {-# NOINLINE protocolParametersForHashing #-}
 protocolParametersForHashing :: ProtocolParameters
-protocolParametersForHashing = generateWith (GenSeed 0) genSizeDefault
-    genRecentEraProtocolParameters
+protocolParametersForHashing =
+    generateWith (GenSeed 0) genSizeDefault
+        genRecentEraProtocolParameters
 
--- | With 'Just' as necessary to be convertible to @Ledger.PParams era@
+-- | Generates a set of protocol parameters for a recent era.
+--
+-- Uses 'Just' as necessary to be convertible to @Ledger.PParams era@
 -- for 'IsRecentEra' eras, and keep our tests from throwing exceptions.
 genRecentEraProtocolParameters :: Gen ProtocolParameters
-genRecentEraProtocolParameters =
-  ProtocolParameters
+genRecentEraProtocolParameters = ProtocolParameters
     <$> ((,) <$> genNat <*> genNat)
     <*> (Just <$> genRational)
     <*> liftArbitrary genPraosNonce

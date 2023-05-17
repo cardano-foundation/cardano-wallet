@@ -854,9 +854,7 @@ toCardanoValue
     -> Cardano.Value
 toCardanoValue = withConstraints (recentEra @era) Cardano.fromMaryValue
 
-toCardanoLovelace
-    :: Coin
-    -> Cardano.Lovelace
+toCardanoLovelace :: Coin -> Cardano.Lovelace
 toCardanoLovelace = Cardano.fromShelleyLovelace
 
 --------------------------------------------------------------------------------
