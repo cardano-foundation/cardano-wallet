@@ -957,9 +957,9 @@ selectAssets era (ProtocolParameters pp) txWitnessTag outs redeemers
         -- outputs + fee0@ where @balance0@ is the balance of the
         -- partial tx.
         { extraValueIn =
-            positiveBundle <> valueOfOutputs <> TokenBundle.fromCoin fee0
+            balancePositive <> valueOfOutputs <> TokenBundle.fromCoin fee0
         , extraValueOut =
-            negativeBundle <> valueOfInputs
+            balanceNegative <> valueOfInputs
         -- NOTE: It is important that coin selection has the correct
         -- notion of fees, because it will be used to tell how much
         -- collateral is needed.
@@ -970,7 +970,7 @@ selectAssets era (ProtocolParameters pp) txWitnessTag outs redeemers
         , selectionStrategy = selectionStrategy
         }
       where
-        (positiveBundle, negativeBundle) = posAndNegFromCardanoValue balance
+        (balancePositive, balanceNegative) = posAndNegFromCardanoValue balance
         valueOfOutputs = F.foldMap (view #tokens) outs
         valueOfInputs = UTxOSelection.selectedBalance utxoSelection
 
