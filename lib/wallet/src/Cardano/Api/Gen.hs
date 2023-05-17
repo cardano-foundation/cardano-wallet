@@ -38,7 +38,6 @@ module Cardano.Api.Gen
     , genPlutusScript
     , genPolicyId
     , genPoolId
-    , genProtocolParameters
     , genProtocolParametersUpdate
     , genPtr
     , genRational
@@ -1057,35 +1056,6 @@ genCostModels = do
 genExecutionUnitPrices :: Gen ExecutionUnitPrices
 genExecutionUnitPrices = ExecutionUnitPrices <$> genRational <*> genRational
 
-genProtocolParameters :: Gen ProtocolParameters
-genProtocolParameters =
-  ProtocolParameters
-    <$> ((,) <$> genNat <*> genNat)
-    <*> (Just <$> genRational)
-    <*> liftArbitrary genPraosNonce
-    <*> genNat
-    <*> genNat
-    <*> genNat
-    <*> genNat
-    <*> genNat
-    <*> liftArbitrary genLovelace
-    <*> genLovelace
-    <*> genLovelace
-    <*> genLovelace
-    <*> genEpochNo
-    <*> genNat
-    <*> genRationalInt64
-    <*> genRational
-    <*> genRational
-    <*> liftArbitrary genLovelace
-    <*> genCostModels
-    <*> liftArbitrary genExecutionUnitPrices
-    <*> liftArbitrary genExecutionUnits
-    <*> liftArbitrary genExecutionUnits
-    <*> liftArbitrary genNat
-    <*> liftArbitrary genNat
-    <*> liftArbitrary genNat
-    <*> liftArbitrary genLovelace
 
 genProtocolParametersWithAlonzoScripts :: Gen ProtocolParameters
 genProtocolParametersWithAlonzoScripts =
