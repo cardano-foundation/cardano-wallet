@@ -140,6 +140,7 @@ import Test.Integration.Framework.DSL
     , json
     , listAddresses
     , minUTxOValue
+    , notDelegating
     , patchSharedWallet
     , postSharedWallet
     , request
@@ -2222,6 +2223,16 @@ spec = describe "SHARED_TRANSACTIONS" $ do
             [ expectResponseCode HTTP.status202
             ]
 
+        eventually "party1: Wallet is not delegating" $ do
+            request @ApiWallet ctx (Link.getWallet @'Shared party1) Default Empty
+                >>= flip verify
+                    [ expectField #delegation (`shouldBe` notDelegating [])
+                    ]
+        eventually "party2: Wallet is not delegating" $ do
+            request @ApiWallet ctx (Link.getWallet @'Shared party2) Default Empty
+                >>= flip verify
+                    [ expectField #delegation (`shouldBe` notDelegating [])
+                    ]
   where
      listSharedTransactions ctx w mStart mEnd mOrder mLimit = do
          let path = Link.listTransactions' @'Shared w
