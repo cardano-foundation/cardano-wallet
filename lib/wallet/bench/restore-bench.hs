@@ -593,6 +593,7 @@ benchmarksSeq network w@(WalletLayer _ _ netLayer txLayer dbLayer) _wname
         -- automatically assign a minimal amount of lovelace to the output
         -- before balancing the transaction and computing the fee:
         let bundleWithZeroAda = TokenBundle.fromCoin (Coin 0)
+        let outputWithZeroAda = TxOut (dummyAddress network) bundleWithZeroAda
         W.transactionFee @s
             dbLayer
             (Write.unsafeFromWalletProtocolParameters protocolParameters)
@@ -601,8 +602,7 @@ benchmarksSeq network w@(WalletLayer _ _ netLayer txLayer dbLayer) _wname
             recentEra
             dummyChangeAddressGen
             defaultTransactionCtx
-            (PreSelection
-                [TxOut (dummyAddress network) bundleWithZeroAda])
+            (PreSelection [outputWithZeroAda])
 
     let walletOverview = WalletOverview{utxo,addresses,transactions}
 
