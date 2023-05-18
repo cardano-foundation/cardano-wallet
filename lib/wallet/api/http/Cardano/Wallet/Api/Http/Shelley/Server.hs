@@ -1946,11 +1946,10 @@ data ErrGetAsset
 -- | All assets associated with this wallet, and their metadata (if metadata is
 -- available). This list may include assets which have already been spent.
 listAssets
-    :: forall ctx s k
+    :: forall ctx s
      . ( ctx ~ ApiLayer s 'CredFromKeyK
        , IsOurs s Address
        , HasTokenMetadataClient ctx
-       , k ~ KeyOf s
        )
     => ctx
     -> ApiT WalletId
