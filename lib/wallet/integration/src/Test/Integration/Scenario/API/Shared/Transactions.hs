@@ -2191,6 +2191,21 @@ spec = describe "SHARED_TRANSACTIONS" $ do
             , expectField (#coinSelection . #depositsReturned) (`shouldBe` [depositAmt])
             ]
 
+        let (ApiSerialisedTransaction apiTx7 _) =
+                getFromResponse #transaction rTx4
+        signedTx6 <-
+            signSharedTx ctx party1 apiTx7
+                [ expectResponseCode HTTP.status202 ]
+        let (ApiSerialisedTransaction apiTx8 _) = signedTx6
+        signedTx7 <-
+            signSharedTx ctx party2 apiTx8
+                [ expectResponseCode HTTP.status202 ]
+
+        submittedTx5 <- submitSharedTxWithWid ctx party1 signedTx7
+        verify submittedTx5
+            [ expectResponseCode HTTP.status202
+            ]
+
   where
      listSharedTransactions ctx w mStart mEnd mOrder mLimit = do
          let path = Link.listTransactions' @'Shared w
