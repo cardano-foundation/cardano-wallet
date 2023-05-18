@@ -126,14 +126,11 @@ import Cardano.Wallet.Address.Derivation.Shelley
 import Cardano.Wallet.Address.Discovery.Random
     ( RndState, mkRndState )
 import Cardano.Wallet.Address.Discovery.Sequential
-    ( SeqState
-    , defaultAddressPoolGap
-    , mkSeqStateFromRootXPrv
-    , purposeBIP44
-    , purposeCIP1852
-    )
+    ( SeqState, defaultAddressPoolGap, purposeBIP44, purposeCIP1852 )
 import Cardano.Wallet.Address.Discovery.Shared
     ( estimateMaxWitnessRequiredPerInput )
+import Cardano.Wallet.Address.Keys.SequentialAny
+    ( mkSeqStateFromRootXPrv )
 import Cardano.Wallet.Byron.Compatibility
     ( maryTokenBundleMaxSize )
 import Cardano.Wallet.Flavor
@@ -1837,7 +1834,7 @@ compareOnCBOR b sealed = case cardanoTx sealed of
 --------------------------------------------------------------------------------
 
 testTxLayer :: TransactionLayer ShelleyKey 'CredFromKeyK SealedTx
-testTxLayer = newTransactionLayer @ShelleyKey Cardano.Mainnet
+testTxLayer = newTransactionLayer ShelleyKeyS Cardano.Mainnet
 
 newtype ForByron a = ForByron { getForByron :: a } deriving (Show, Eq)
 
@@ -2245,7 +2242,7 @@ dummyShelleyChangeAddressGen = AnyChangeAddressGenWithState
     (defaultChangeAddressGen @(SeqState 'Mainnet ShelleyKey)
         (delegationAddress @ShelleyKey SMainnet)
         )
-    (mkSeqStateFromRootXPrv
+    (mkSeqStateFromRootXPrv ShelleyKeyS
         (rootK, pwd)
         purposeCIP1852
         defaultAddressPoolGap)

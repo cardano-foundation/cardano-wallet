@@ -20,7 +20,7 @@ module Cardano.Wallet.Flavor
     , KeyOf
     , TestState (..)
     , KeyFlavorS (..)
-    , keyFlavor
+    , keyFlavorFromState
     , keyOfWallet
     , NetworkOf
     , StateWithKey
@@ -28,8 +28,9 @@ module Cardano.Wallet.Flavor
     , WalletFlavors (..)
     , Excluding
     , shelleyOrShared
-    , Including
+    , notByronKey
     , IncludingStates
+    , KeyFlavor (..)
     )
 where
 
@@ -146,6 +147,23 @@ data KeyFlavorS a where
     ShelleyKeyS :: KeyFlavorS ShelleyKey
     SharedKeyS :: KeyFlavorS SharedKey
 
+
+class KeyFlavor a where
+    keyFlavor :: KeyFlavorS a
+
+instance KeyFlavor ByronKey where
+    keyFlavor = ByronKeyS
+
+instance KeyFlavor IcarusKey where
+    keyFlavor = IcarusKeyS
+
+instance KeyFlavor ShelleyKey where
+    keyFlavor = ShelleyKeyS
+
+instance KeyFlavor SharedKey where
+    keyFlavor = SharedKeyS
+
+
 -- | Map a wallet flavor to a key flavor.
 keyOfWallet :: WalletFlavorS s -> KeyFlavorS (KeyOf s)
 keyOfWallet ShelleyWallet = ShelleyKeyS
@@ -159,9 +177,9 @@ keyOfWallet TestStateS = ShelleyKeyS
 -- | A function to reify the flavor of a key from a state type.
 --
 -- use with
--- > keyFlavor @s
-keyFlavor :: forall s. WalletFlavor s => KeyFlavorS (KeyOf s)
-keyFlavor = keyOfWallet (walletFlavor @s)
+-- > keyFlavorFromState @s
+keyFlavorFromState :: forall s. WalletFlavor s => KeyFlavorS (KeyOf s)
+keyFlavorFromState = keyOfWallet (walletFlavor @s)
 
 type family NetworkOf (s :: Type) :: NetworkDiscriminant where
     NetworkOf (SeqState n k) = n
@@ -172,6 +190,15 @@ type family NetworkOf (s :: Type) :: NetworkDiscriminant where
 
 -- | Constraints for a state with a specific key.
 type StateWithKey s k = (WalletFlavor s, KeyOf s ~ k)
+
+notByronKey :: KeyFlavorS k
+    -> (Excluding '[ByronKey] k  => KeyFlavorS k -> x)
+    -> Maybe x
+notByronKey x h = case x of
+    ByronKeyS -> Nothing
+    ShelleyKeyS -> Just $ h ShelleyKeyS
+    IcarusKeyS -> Just $ h IcarusKeyS
+    SharedKeyS -> Just $ h SharedKeyS
 
 -- | Helper lemma to specialize on a subset of wallet flavors.
 shelleyOrShared

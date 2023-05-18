@@ -74,12 +74,13 @@ import Cardano.Wallet.Address.Discovery.Sequential
     , SeqState (..)
     , coinTypeAda
     , defaultAddressPoolGap
-    , mkSeqStateFromRootXPrv
     , purposeBIP44
     , purposeCIP1852
     )
 import Cardano.Wallet.Address.Discovery.Shared
     ( SharedState )
+import Cardano.Wallet.Address.Keys.SequentialAny
+    ( mkSeqStateFromRootXPrv )
 import Cardano.Wallet.DB
     ( DBFactory (..), DBFresh (..), DBLayer (..), DBLayerParams (..) )
 import Cardano.Wallet.DB.Layer
@@ -106,7 +107,7 @@ import Cardano.Wallet.DB.StateMachine
 import Cardano.Wallet.DummyTarget.Primitive.Types
     ( block0, dummyGenesisParameters, dummyTimeInterpreter )
 import Cardano.Wallet.Flavor
-    ( KeyOf, WalletFlavor (..), WalletFlavorS (..) )
+    ( KeyFlavorS (..), KeyOf, WalletFlavor (..), WalletFlavorS (..) )
 import Cardano.Wallet.Gen
     ( genMnemonic )
 import Cardano.Wallet.Logging
@@ -1472,7 +1473,8 @@ testCp :: Wallet TestState
 testCp = snd $ initWallet block0 initDummyState
   where
     initDummyState :: TestState
-    initDummyState = mkSeqStateFromRootXPrv (xprv, mempty) purposeCIP1852 defaultAddressPoolGap
+    initDummyState = mkSeqStateFromRootXPrv
+        ShelleyKeyS (xprv, mempty) purposeCIP1852 defaultAddressPoolGap
       where
         mw = SomeMnemonic . unsafePerformIO . generate $ genMnemonic @15
         xprv = generateKeyFromSeed (mw, Nothing) mempty
@@ -1576,7 +1578,8 @@ testCpSeq :: Wallet TestState
 testCpSeq = snd $ initWallet block0 initDummyStateSeq
 
 initDummyStateSeq :: TestState
-initDummyStateSeq = mkSeqStateFromRootXPrv (xprv, mempty) purposeCIP1852 defaultAddressPoolGap
+initDummyStateSeq = mkSeqStateFromRootXPrv
+    ShelleyKeyS (xprv, mempty) purposeCIP1852 defaultAddressPoolGap
   where
       mw = SomeMnemonic $ unsafePerformIO (generate $ genMnemonic @15)
       xprv = Seq.generateKeyFromSeed (mw, Nothing) mempty

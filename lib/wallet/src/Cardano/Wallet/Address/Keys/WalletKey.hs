@@ -40,13 +40,11 @@ import Cardano.Wallet.Address.Derivation.SharedKey
 import Cardano.Wallet.Address.Derivation.Shelley
     ( ShelleyKey (..), shelleyKey )
 import Cardano.Wallet.Flavor
-    ( KeyFlavorS (..) )
+    ( Excluding, KeyFlavorS (..) )
 import Cardano.Wallet.Primitive.Passphrase
     ( PassphraseScheme, changePassphraseXPrv )
 import Cardano.Wallet.Primitive.Passphrase.Types
     ( Passphrase (..) )
-import Cardano.Wallet.TypeLevel
-    ( Excluding )
 import Control.Lens
     ( over, view, (^.) )
 import Crypto.Hash

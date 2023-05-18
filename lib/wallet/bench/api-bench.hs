@@ -47,7 +47,7 @@ import Cardano.BM.Trace
 import Cardano.Wallet
     ( readWalletMeta )
 import Cardano.Wallet.Address.Derivation
-    ( DelegationAddress (..), Depth (..), WalletKey, delegationAddressS )
+    ( DelegationAddress (..), Depth (..), delegationAddressS )
 import Cardano.Wallet.Address.Derivation.Byron
     ( ByronKey )
 import Cardano.Wallet.Address.Derivation.Shared
@@ -73,7 +73,7 @@ import Cardano.Wallet.DummyTarget.Primitive.Types
     , dummyTimeInterpreter
     )
 import Cardano.Wallet.Flavor
-    ( WalletFlavor (..) )
+    ( KeyOf, WalletFlavor (..), keyFlavorFromState )
 import Cardano.Wallet.Logging
     ( trMessageText )
 import Cardano.Wallet.Network
@@ -455,11 +455,11 @@ data BenchmarkConfig (n :: NetworkDiscriminant) s k ktype =
 benchmarkWallets
     :: forall n (k :: Depth -> * -> *) ktype s results
      . ( PersistAddressBook s
-       , WalletKey k
        , TxWitnessTagFor k
        , Buildable results
        , ToJSON results
        , WalletFlavor s
+       , KeyOf s ~ k
        )
     => Text
         -- ^ Benchmark name (used for naming resulting files)
@@ -514,9 +514,9 @@ mockTimeInterpreter = dummyTimeInterpreter
 withWalletsFromDirectory
     :: forall n s k ktype a
      . ( PersistAddressBook s
-       , WalletKey k
        , TxWitnessTagFor k
        , WalletFlavor s
+       , KeyOf s ~ k
        )
     => FilePath
         -- ^ Directory of database files
@@ -537,7 +537,7 @@ withWalletsFromDirectory dir tr networkId action = do
     mkMockWalletLayer db =
         MockWalletLayer mockNetworkLayer tl db tr
     ti = mockTimeInterpreter
-    tl = newTransactionLayer @k (networkIdVal networkId)
+    tl = newTransactionLayer (keyFlavorFromState @s) (networkIdVal networkId)
     tr' = trMessageText tr
     migrationDefaultValues = Sqlite.DefaultFieldValues
         { Sqlite.defaultActiveSlotCoefficient = 1

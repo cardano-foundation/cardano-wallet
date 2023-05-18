@@ -295,11 +295,7 @@ import Cardano.Wallet.Address.Discovery
 import Cardano.Wallet.Address.Discovery.Random
     ( ErrImportAddress (..), RndStateLike )
 import Cardano.Wallet.Address.Discovery.Sequential
-    ( SeqState (..)
-    , defaultAddressPoolGap
-    , mkSeqStateFromRootXPrv
-    , purposeBIP44
-    )
+    ( SeqState (..), defaultAddressPoolGap, purposeBIP44 )
 import Cardano.Wallet.Address.Discovery.Shared
     ( CredentialType (..)
     , ErrAddCosigner (..)
@@ -310,6 +306,8 @@ import Cardano.Wallet.Address.Discovery.Shared
     )
 import Cardano.Wallet.Address.Keys.BoundedAddressLength
     ( maxLengthAddressFor )
+import Cardano.Wallet.Address.Keys.SequentialAny
+    ( mkSeqStateFromRootXPrv )
 import Cardano.Wallet.Address.Keys.WalletKey
     ( AfterByron
     , afterByron
@@ -351,7 +349,7 @@ import Cardano.Wallet.Flavor
     , KeyOf
     , WalletFlavor (..)
     , WalletFlavorS (..)
-    , keyFlavor
+    , keyFlavorFromState
     , keyOfWallet
     )
 import Cardano.Wallet.Logging
@@ -843,7 +841,7 @@ createIcarusWallet
     wname
     credentials = do
         let g = defaultAddressPoolGap
-        let s = mkSeqStateFromRootXPrv @n credentials purposeBIP44 g
+        let s = mkSeqStateFromRootXPrv @n IcarusKeyS credentials purposeBIP44 g
         let (hist, cp) = initWallet block0 s
         now <- lift getCurrentTime
         let meta =
@@ -941,7 +939,7 @@ updateWalletPassphraseWithOldPassphrase ctx wid (old, new) =
             -- current scheme, we'll re-encrypt it using the current scheme,
             -- always.
             let new' = (currentPassphraseScheme, new)
-            let xprv' = changePassphraseNew (keyFlavor @s)
+            let xprv' = changePassphraseNew (keyFlavorFromState @s)
                     (scheme, old) new' xprv
             lift $ attachPrivateKeyFromPwdScheme @ctx @s ctx (xprv', new')
   where
@@ -2006,7 +2004,7 @@ buildAndSignTransactionPure
 
         let passphrase = preparePassphrase passphraseScheme userPassphrase
             signedTx = signTransaction @k @'CredFromKeyK
-                (keyFlavor @s)
+                (keyFlavorFromState @s)
                 txLayer
                 anyCardanoEra
                 AnyWitnessCountCtx
@@ -3085,7 +3083,7 @@ signMetadataWith ctx wid pwd (role_, ix) metadata = db & \DBLayer{..} -> do
         let addrK = deriveAddressPrivateKey encPwd acctK role_ addrIx
         pure $
             Signature $ BA.convert $
-            CC.sign encPwd (getRawKeyNew (keyFlavor @s) addrK) $
+            CC.sign encPwd (getRawKeyNew (keyFlavorFromState @s) addrK) $
             hash @ByteString @Blake2b_256 $
             serialiseToCBOR metadata
   where
@@ -3179,7 +3177,7 @@ getAccountPublicKeyAtIndex ctx wid pwd ix purposeM = db & \DBLayer{..} -> do
         purposeM
 
     _cp <- lift $ atomically readCheckpoint
-    let kf = keyFlavor @s
+    let kf = keyFlavorFromState @s
     withRootKey @s db wid pwd ErrReadAccountPublicKeyRootKey
         $ \rootK scheme -> do
             let encPwd = preparePassphrase scheme pwd
@@ -3703,15 +3701,15 @@ defaultChangeAddressGen
 defaultChangeAddressGen arg =
     ChangeAddressGen
         (genChange arg)
-        (maxLengthAddressFor (keyFlavor @s))
+        (maxLengthAddressFor (keyFlavorFromState @s))
 
 -- WARNING: Must never be used to create real transactions for submission to the
 -- blockchain as funds sent to a dummy change address would be irrecoverable.
 dummyChangeAddressGen :: forall s. WalletFlavor s => ChangeAddressGen s
 dummyChangeAddressGen =
     ChangeAddressGen
-        (maxLengthAddressFor (keyFlavor @s),)
-        (maxLengthAddressFor (keyFlavor @s))
+        (maxLengthAddressFor (keyFlavorFromState @s),)
+        (maxLengthAddressFor (keyFlavorFromState @s))
 
 utxoAssumptionsForWallet
     :: forall s.

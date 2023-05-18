@@ -198,6 +198,7 @@ library
     , tracer-transformers
     , transformers
     , transformers-base
+    , type-level-sets
     , typed-process
     , typed-protocols
     , unliftio
@@ -242,6 +243,7 @@ library
     Cardano.Wallet.Address.Keys.BoundedAddressLength
     Cardano.Wallet.Address.Keys.MintBurn
     Cardano.Wallet.Address.Keys.PersistPrivateKey
+    Cardano.Wallet.Address.Keys.SequentialAny
     Cardano.Wallet.Address.Keys.WalletKey
     Cardano.Wallet.Address.Keys.WitnessCount
     Cardano.Wallet.Address.Pool

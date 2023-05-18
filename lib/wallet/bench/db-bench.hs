@@ -83,9 +83,10 @@ import Cardano.Wallet.Address.Discovery.Sequential
     , coinTypeAda
     , defaultAddressPoolGap
     , mkSeqStateFromAccountXPub
-    , mkSeqStateFromRootXPrv
     , purposeCIP1852
     )
+import Cardano.Wallet.Address.Keys.SequentialAny
+    ( mkSeqStateFromRootXPrv )
 import Cardano.Wallet.DB
     ( DBFresh (..), DBLayer (..), DBLayerParams (..) )
 import Cardano.Wallet.DB.Layer
@@ -93,7 +94,7 @@ import Cardano.Wallet.DB.Layer
 import Cardano.Wallet.DummyTarget.Primitive.Types
     ( block0, dummyGenesisParameters, mkTxId )
 import Cardano.Wallet.Flavor
-    ( WalletFlavor (..) )
+    ( KeyFlavorS (..), WalletFlavor (..) )
 import Cardano.Wallet.Logging
     ( trMessageText )
 import Cardano.Wallet.Primitive.Model
@@ -801,8 +802,8 @@ testCpByron = snd $ initWallet block0 initDummyRndState
 
 {-# NOINLINE initDummySeqState #-}
 initDummySeqState :: SeqState 'Mainnet ShelleyKey
-initDummySeqState =
-    mkSeqStateFromRootXPrv (xprv, mempty) purposeCIP1852 defaultAddressPoolGap
+initDummySeqState = mkSeqStateFromRootXPrv
+    ShelleyKeyS (xprv, mempty) purposeCIP1852 defaultAddressPoolGap
   where
     mnemonic = unsafePerformIO
         $ SomeMnemonic . entropyToMnemonic @15

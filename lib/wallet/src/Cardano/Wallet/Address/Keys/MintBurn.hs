@@ -11,10 +11,14 @@ module Cardano.Wallet.Address.Keys.MintBurn
 
 import Prelude
 
+import Cardano.Address.Derivation
+    ( XPrv, XPub )
 import Cardano.Address.Script
     ( Cosigner, KeyHash, Script (..), ScriptHash (unScriptHash), toScriptHash )
 import Cardano.Wallet.Address.Derivation
     ( Depth (..), DerivationType (..), Index )
+import Cardano.Wallet.Address.Derivation.MintBurn
+    ( derivePolicyPrivateKey )
 import Cardano.Wallet.Address.Keys.WalletKey
     ( AfterByron
     , getRawKeyNew
@@ -24,6 +28,8 @@ import Cardano.Wallet.Address.Keys.WalletKey
     )
 import Cardano.Wallet.Flavor
     ( KeyFlavorS )
+import Cardano.Wallet.Primitive.Passphrase
+    ( Passphrase (..) )
 import Cardano.Wallet.Primitive.Types.Hash
     ( Hash (..) )
 import Cardano.Wallet.Primitive.Types.TokenMap
@@ -39,13 +45,7 @@ import GHC.Natural
 import GHC.Stack
     ( HasCallStack )
 
-import Cardano.Address.Derivation
-    ( XPrv, XPub )
 import qualified Cardano.Address.Script as CA
-import Cardano.Wallet.Address.Derivation.MintBurn
-    ( derivePolicyPrivateKey )
-import Cardano.Wallet.Primitive.Passphrase
-    ( Passphrase (..) )
 import qualified Data.Map as Map
 
 toTokenPolicyId

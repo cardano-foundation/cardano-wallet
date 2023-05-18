@@ -213,7 +213,6 @@ import Cardano.Wallet.Address.Derivation
     , RewardAccount (..)
     , Role
     , SoftDerivation (..)
-    , WalletKey (..)
     , delegationAddressS
     , deriveRewardAccount
     , publicKey
@@ -248,7 +247,6 @@ import Cardano.Wallet.Address.Discovery.Sequential
     , defaultAddressPoolGap
     , getGap
     , mkSeqStateFromAccountXPub
-    , mkSeqStateFromRootXPrv
     , purposeCIP1852
     )
 import Cardano.Wallet.Address.Discovery.Shared
@@ -263,8 +261,10 @@ import Cardano.Wallet.Address.HasDelegation
     ( HasDelegation (..) )
 import Cardano.Wallet.Address.Keys.MintBurn
     ( toTokenMapAndScript, toTokenPolicyId )
+import Cardano.Wallet.Address.Keys.SequentialAny
+    ( mkSeqStateFromRootXPrv )
 import Cardano.Wallet.Address.Keys.WalletKey
-    ( AfterByron )
+    ( AfterByron, digestNew, getRawKeyNew, publicKeyNew )
 import Cardano.Wallet.Address.Keys.WitnessCount
     ( toWitnessCountCtx )
 import Cardano.Wallet.Api
@@ -437,7 +437,7 @@ import Cardano.Wallet.Flavor
     , KeyOf
     , WalletFlavor (..)
     , WalletFlavorS (..)
-    , keyFlavor
+    , keyFlavorFromState
     , shelleyOrShared
     )
 import Cardano.Wallet.Network
@@ -636,8 +636,6 @@ import Data.Time
     ( UTCTime )
 import Data.Traversable
     ( for )
-import Data.Type.Equality
-    ( type (==) )
 import Data.Word
     ( Word32 )
 import Fmt
@@ -841,7 +839,6 @@ postWallet
         , k ~ ShelleyKey
         , ctx ~ ApiLayer s 'CredFromKeyK
         , Seq.SupportsDiscovery n k
-        , WalletKey k
         , HasDBFactory s ctx
         , HasWorkerRegistry s ctx
         , AddressBookIso s
@@ -868,7 +865,6 @@ postShelleyWallet
         ( s ~ SeqState n k
         , k ~ ShelleyKey
         , ctx ~ ApiLayer s 'CredFromKeyK
-        , WalletKey k
         , Seq.SupportsDiscovery n k
         , HasDBFactory s ctx
         , HasWorkerRegistry s ctx
@@ -881,7 +877,8 @@ postShelleyWallet
     -> WalletPostData
     -> Handler ApiWallet
 postShelleyWallet ctx generateKey body = do
-    let state = mkSeqStateFromRootXPrv (rootXPrv, pwdP) purposeCIP1852 g
+    let state = mkSeqStateFromRootXPrv
+            (keyFlavorFromState @s) (rootXPrv, pwdP) purposeCIP1852 g
     void $ liftHandler $ createWalletWorker @_ @s ctx wid
         (\dbf -> W.createWallet @_ @s genesisParams dbf wid wName state)
         (\workerCtx _ -> W.manageRewardBalance
@@ -907,13 +904,13 @@ postAccountWallet
     :: forall ctx s k n w.
         ( s ~ SeqState n k
         , ctx ~ ApiLayer s 'CredFromKeyK
-        , WalletKey k
         , Seq.SupportsDiscovery n k
         , HasWorkerRegistry s ctx
         , IsOurs s RewardAccount
         , MaybeLight s
-        , (k == SharedKey) ~ 'False
+        , Excluding '[SharedKey] k
         , AddressBookIso s
+        , WalletFlavor s
         )
     => ctx
     -> MkApiWallet ctx s w
@@ -934,7 +931,7 @@ postAccountWallet ctx mkWallet liftKey coworker body = do
     wName = getApiT (body ^. #name)
     (ApiAccountPublicKey accXPubApiT) =  body ^. #accountPublicKey
     accXPub = getApiT accXPubApiT
-    wid = WalletId $ Addr.digest (liftKey accXPub)
+    wid = WalletId $ digestNew (keyFlavorFromState @s) (liftKey accXPub)
     genesisParams = ctx ^. #netParams
 
 mkShelleyWallet
@@ -1025,7 +1022,6 @@ postSharedWallet
         , k ~ SharedKey
         , ctx ~ ApiLayer s 'CredFromScriptK
         , Shared.SupportsDiscovery n k
-        , WalletKey k
         , HasDBFactory s ctx
         , HasWorkerRegistry s ctx
         )
@@ -1050,7 +1046,6 @@ postSharedWalletFromRootXPrv
         , k ~ SharedKey
         , ctx ~ ApiLayer s 'CredFromScriptK
         , Shared.SupportsDiscovery n k
-        , WalletKey k
         , HasDBFactory s ctx
         , HasWorkerRegistry s ctx
         )
@@ -1098,9 +1093,9 @@ postSharedWalletFromRootXPrv ctx generateKey body = do
     rootXPrv = generateKey (seed, secondFactor) pwdP
     g = defaultAddressPoolGap
     ix = getApiT (body ^. #accountIndex)
-    pTemplate = scriptTemplateFromSelf (getRawKey accXPub)
+    pTemplate = scriptTemplateFromSelf (getRawKeyNew SharedKeyS accXPub)
         $ body ^. #paymentScriptTemplate
-    dTemplateM = scriptTemplateFromSelf (getRawKey accXPub)
+    dTemplateM = scriptTemplateFromSelf (getRawKeyNew SharedKeyS accXPub)
         <$> body ^. #delegationScriptTemplate
     wName = getApiT (body ^. #name)
     accXPub = publicKey
@@ -1116,7 +1111,6 @@ postSharedWalletFromAccountXPub
         , k ~ SharedKey
         , ctx ~ ApiLayer s 'CredFromScriptK
         , Shared.SupportsDiscovery n k
-        , WalletKey k
         , HasDBFactory s ctx
         , HasWorkerRegistry s ctx
         )
@@ -1309,9 +1303,9 @@ postLegacyWallet
         , IsOurs s Address
         , MaybeLight s
         , HasNetworkLayer IO ctx
-        , WalletKey k
         , k ~ KeyOf s
         , AddressBookIso s
+        , WalletFlavor s
         )
     => ctx
         -- ^ Surrounding Context
@@ -1331,7 +1325,10 @@ postLegacyWallet ctx (rootXPrv, pwd) createWallet = do
         W.attachPrivateKeyFromPwd wrk (rootXPrv, pwd)
     fst <$> getWallet ctx mkLegacyWallet (ApiT wid)
   where
-    wid = WalletId $ Addr.digest $ publicKey rootXPrv
+    kF = keyFlavorFromState @s
+    wid = WalletId
+        $ digestNew kF
+        $ publicKeyNew kF rootXPrv
 
 mkLegacyWallet
     :: forall ctx s .
@@ -1665,8 +1662,7 @@ putWallet ctx mkApiWallet (ApiT wid) body = do
 
 putWalletPassphrase
     :: forall ctx s k ktype.
-        ( WalletKey k
-        , ctx ~ ApiLayer s ktype
+        ( ctx ~ ApiLayer s ktype
         , GetAccount s k
         , WalletFlavor s
         , KeyOf s ~ k
@@ -1697,7 +1693,7 @@ putWalletPassphrase ctx createKey getKey (ApiT wid)
             let encrPass = preparePassphrase currentPassphraseScheme new
                 challengeKey = createKey
                     (mnemonic, getApiMnemonicT <$> sndFactor) encrPass
-                challengPubKey = publicKey
+                challengPubKey = publicKeyNew (keyFlavorFromState @s)
                     $ deriveAccountPrivateKey encrPass challengeKey minBound
             storedPubKey <- handler $ W.readAccountPublicKey wrk
             if getKey challengPubKey == getKey storedPubKey
@@ -2149,7 +2145,7 @@ signTransaction ctx (ApiT wid) body = do
                     era <- liftIO $ NW.currentNodeEra nl
                     let sealedTx = body ^. #transaction . #getApiT
                     pure $ W.signTransaction
-                        (keyFlavor @s)
+                        (keyFlavorFromState @s)
                         tl era witCountCtx keyLookup
                         Nothing (rootK, pwdP) utxo accIxForStakingM sealedTx
 
@@ -3863,7 +3859,6 @@ migrateWallet
         ( Bounded (Index (AddressIndexDerivationType k) (AddressCredential k))
         , HardDerivation k
         , IsOwned s k 'CredFromKeyK
-        , WalletKey k
         , TxWitnessTagFor k
         , WalletFlavor s
         , HasDelegation s
@@ -3878,9 +3873,9 @@ migrateWallet
 migrateWallet ctx@ApiLayer{..} withdrawalType (ApiT wid) postData = do
     mkRewardAccount <-
         case withdrawalType of
-            Nothing -> pure selfRewardAccountBuilder
-            Just w ->
-                either liftE pure $ shelleyOnlyRewardAccountBuilder @s @_ w
+            Nothing -> pure $ selfRewardAccountBuilder (keyFlavorFromState @s)
+            Just w -> either liftE pure
+                $ shelleyOnlyRewardAccountBuilder (walletFlavor @s) w
     withWorkerCtx ctx wid liftE liftE $ \wrk -> do
         let db = wrk ^. dbLayer
             tr = wrk ^. logger
@@ -4079,13 +4074,13 @@ signMetadata ctx (ApiT wid) (ApiT role_) (ApiT ix) body = do
             wrk wid (coerce pwd) (role_, ix) meta
 
 derivePublicKey
-    :: forall ctx s k ktype ver.
-        ( ctx ~ ApiLayer s ktype
-        , SoftDerivation k
-        , WalletKey k
+    :: forall s k ktype ver.
+        ( SoftDerivation k
         , GetAccount s k
+        , k ~ KeyOf s
+        , WalletFlavor s
         )
-    => ctx
+    => ApiLayer s ktype
     -> ((ByteString, Role) -> VerificationKeyHashing -> ver)
     -> ApiT WalletId
     -> ApiT Role
@@ -4095,13 +4090,13 @@ derivePublicKey
 derivePublicKey ctx mkVer (ApiT wid) (ApiT role_) (ApiT ix) hashed = do
     withWorkerCtx @_ @s ctx wid liftE liftE $ \wrk -> do
         k <- liftHandler $ W.derivePublicKey @_ @s wrk role_ ix
-        let (payload, hashing) = computeKeyPayload hashed (getRawKey k)
+        let (payload, hashing) = computeKeyPayload hashed
+                $ getRawKeyNew (keyFlavorFromState @s) k
         pure $ mkVer (payload, role_) hashing
 
 postAccountPublicKey
     :: forall ctx s k ktype account.
         ( ctx ~ ApiLayer s ktype
-        , WalletKey k
         , GetPurpose k
         , k ~ KeyOf s
         , AfterByron k
@@ -4118,7 +4113,10 @@ postAccountPublicKey ctx mkAccount (ApiT wid) (ApiT ix)
     withWorkerCtx @_ @s ctx wid liftE liftE $ \wrk -> do
         k <- liftHandler $ W.getAccountPublicKeyAtIndex @_ @s
             wrk wid pwd ix (getApiT <$> purposeM)
-        pure $ mkAccount (publicKeyToBytes' extd $ getRawKey k) extd ixPurpose'
+        pure $ mkAccount
+            (publicKeyToBytes' extd $ getRawKeyNew (keyFlavorFromState @s) k)
+            extd
+            ixPurpose'
   where
     ixPurpose' =
         maybe (getPurpose @k) (Index . getDerivationIndex . getApiT) purposeM
@@ -4129,13 +4127,13 @@ publicKeyToBytes' = \case
     NonExtended -> xpubPublicKey
 
 getAccountPublicKey
-    :: forall ctx s k ktype account.
-        ( ctx ~ ApiLayer s ktype
-        , GetAccount s k
-        , WalletKey k
+    :: forall s k ktype account.
+        ( GetAccount s k
         , GetPurpose k
+        , k ~ KeyOf s
+        , WalletFlavor s
         )
-    => ctx
+    => ApiLayer s ktype
     -> (ByteString -> KeyFormat -> Index 'Hardened 'PurposeK -> account)
     -> ApiT WalletId
     -> Maybe KeyFormat
@@ -4143,7 +4141,9 @@ getAccountPublicKey
 getAccountPublicKey ctx mkAccount (ApiT wid) extended = do
     withWorkerCtx @_ @s ctx wid liftE liftE $ \wrk -> do
         k <- handler $ W.readAccountPublicKey @_ @s wrk
-        pure $ mkAccount (publicKeyToBytes' extd $ getRawKey k) extd
+        pure $ mkAccount
+            (publicKeyToBytes' extd $ getRawKeyNew (keyFlavorFromState @s) k)
+            extd
             (getPurpose @k)
   where
       extd = case extended of
@@ -4177,7 +4177,10 @@ postPolicyKey
 postPolicyKey ctx (ApiT wid) hashed apiPassphrase =
     withWorkerCtx @_ @s ctx wid liftE liftE $ \wrk -> do
         k <- liftHandler $ W.writePolicyPublicKey @_ @s @n wrk wid pwd
-        pure $ uncurry ApiPolicyKey (computeKeyPayload hashed (getRawKey k))
+        pure
+            $ uncurry ApiPolicyKey
+            $ computeKeyPayload hashed
+            $ getRawKeyNew (keyFlavorFromState @s) k
   where
     pwd = getApiT (apiPassphrase ^. #passphrase)
 
@@ -4203,7 +4206,7 @@ postPolicyId ctx (ApiT wid) payload = do
     withWorkerCtx @_ @s ctx wid liftE liftE $ \wrk -> do
         (xpub, _) <- liftHandler $ W.readPolicyPublicKey @_ @s wrk
         pure $ ApiPolicyId $ ApiT $
-            toTokenPolicyId (keyFlavor @s)
+            toTokenPolicyId (keyFlavorFromState @s)
                 scriptTempl (Map.singleton (Cosigner 0) xpub)
   where
     scriptTempl = getApiT (payload ^. #policyScriptTemplate)
@@ -4229,8 +4232,8 @@ rndStateChange ctx (ApiT wid) pwd =
             \xprv scheme -> pure (xprv, preparePassphrase scheme pwd)
 
 type RewardAccountBuilder k
-        =  (k 'RootK XPrv, Passphrase "encryption")
-        -> (XPrv, Passphrase "encryption")
+    =  (k 'RootK XPrv, Passphrase "encryption")
+    -> (XPrv, Passphrase "encryption")
 
 
 guardIsRecentEra :: AnyCardanoEra -> Handler AnyRecentEra
@@ -4282,17 +4285,17 @@ shelleyOnlyMkWithdrawal netLayer txWitnessTag db era postData =
 
 shelleyOnlyRewardAccountBuilder
     :: forall s k
-     . ( HardDerivation k
-       , Bounded (Index (AddressIndexDerivationType k) (AddressCredential k))
-       , WalletKey k
-       , WalletFlavor s
+     . ( Bounded (Index (AddressIndexDerivationType k) (AddressCredential k))
+       , k ~ KeyOf s
        )
-    => ApiWithdrawalPostData
+    => WalletFlavorS s
+    -> ApiWithdrawalPostData
     -> Either ErrReadRewardAccount (RewardAccountBuilder k)
-shelleyOnlyRewardAccountBuilder w =
-    case walletFlavor @s of
+shelleyOnlyRewardAccountBuilder wF w =
+    case wF of
         ShelleyWallet -> case w of
-            SelfWithdrawal -> pure selfRewardAccountBuilder
+            SelfWithdrawal -> pure
+                $ selfRewardAccountBuilder ShelleyKeyS
             ExternalWithdrawal (ApiMnemonicT m) -> do
                 let (xprv, _acct, _path) = W.someRewardAccount @ShelleyKey m
                 pure (const (xprv, mempty))
@@ -4302,11 +4305,11 @@ selfRewardAccountBuilder
     :: forall k
      . ( HardDerivation k
        , Bounded (Index (AddressIndexDerivationType k) (AddressCredential k))
-       , WalletKey k
        )
-    => RewardAccountBuilder k
-selfRewardAccountBuilder (rootK, pwdP) =
-    (getRawKey (deriveRewardAccount pwdP rootK minBound), pwdP)
+    => KeyFlavorS k
+    -> RewardAccountBuilder k
+selfRewardAccountBuilder keyF (rootK, pwdP) =
+    (getRawKeyNew keyF (deriveRewardAccount pwdP rootK minBound), pwdP)
 
 -- | Makes an 'ApiCoinSelection' from the given 'UnsignedTx'.
 mkApiCoinSelection

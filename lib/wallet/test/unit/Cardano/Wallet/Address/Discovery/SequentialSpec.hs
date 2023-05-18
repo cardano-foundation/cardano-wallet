@@ -67,13 +67,16 @@ import Cardano.Wallet.Address.Discovery.Sequential
     , defaultAddressPoolGap
     , mkAddressPoolGap
     , mkSeqStateFromAccountXPub
-    , mkSeqStateFromRootXPrv
     , mkUnboundedAddressPoolGap
     , newSeqAddressPool
     , purposeCIP1852
     )
+import Cardano.Wallet.Address.Keys.SequentialAny
+    ( mkSeqStateFromRootXPrv )
 import Cardano.Wallet.Address.PoolSpec
     ( genPool, shrinkPool )
+import Cardano.Wallet.Flavor
+    ( KeyFlavorS (..) )
 import Cardano.Wallet.Primitive.Types.Address
     ( Address (..), AddressState (..) )
 import Cardano.Wallet.Read.NetworkId
@@ -259,7 +262,7 @@ prop_genChangeGapFromRootXPrv g = property $
   where
     mw = someDummyMnemonic (Proxy @12)
     key = Shelley.unsafeGenerateKeyFromSeed (mw, Nothing) mempty
-    s0 = mkSeqStateFromRootXPrv (key, mempty) purposeCIP1852 g
+    s0 = mkSeqStateFromRootXPrv ShelleyKeyS (key, mempty) purposeCIP1852 g
 
 -- | We can always generate at exactly `gap` change addresses (on the internal
 -- chain) using mkSeqStateFromAccountXPub

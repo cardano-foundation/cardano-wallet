@@ -18,7 +18,6 @@ import Cardano.Address.Derivation
     ( xpubToBytes )
 import Cardano.Address.Script
     ( KeyHash (..), KeyRole (..), ScriptTemplate (..) )
-import qualified Cardano.Address.Script as CA
 import Cardano.Wallet.Address.Derivation
     ( Role (MutableAccount), deriveAddressPublicKey )
 import Cardano.Wallet.Address.Derivation.Shared
@@ -36,10 +35,12 @@ import Cardano.Wallet.Flavor
     , WalletFlavor
     , WalletFlavorS (..)
     , WalletFlavors (..)
-    , keyFlavor
+    , keyFlavorFromState
     )
 import Cardano.Wallet.Transaction
     ( WitnessCountCtx (..) )
+
+import qualified Cardano.Address.Script as CA
 import qualified Data.Map as Map
 
 toWitnessCountCtx
@@ -62,7 +63,7 @@ count s = case policyXPub s of
         ShelleyWalletCtx
             $ KeyHash Policy
             $ xpubToBytes
-            $ getRawKeyNew (keyFlavor @s) key
+            $ getRawKeyNew (keyFlavorFromState @s) key
     Nothing -> AnyWitnessCountCtx
 
 allCosignerStakingKeys
