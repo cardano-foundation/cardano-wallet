@@ -215,7 +215,7 @@ import Numeric
 import Ouroboros.Network.Client.Wallet
     ( PipeliningStrategy, tunedForMainnetPipeliningStrategy )
 import Say
-    ( sayErr )
+    ( sayErr, sayShow )
 import System.Exit
     ( exitWith )
 import System.FilePath
@@ -470,6 +470,15 @@ benchmarksRnd network w@(WalletLayer _ _ netLayer txLayer dbLayer) wname
         $ unsafeRunExceptT
         $ W.listTransactions @_ @s w Nothing Nothing Nothing Descending
             Nothing
+
+    -- To aid with debugging, write the current wallet state to the log:
+    let walletOverview = WalletOverview{utxo,addresses,transactions}
+    sayShow $ unlines
+        [ "Wallet overview (rnd):"
+        , show benchname
+        , show walletOverview
+        ]
+
     (_, listTransactionsLimitedTime) <- bench "list transactions (max_count = 100)" $ do
         unsafeRunExceptT
         $ W.listTransactions @_ @s w Nothing Nothing Nothing Descending
@@ -505,8 +514,6 @@ benchmarksRnd network w@(WalletLayer _ _ netLayer txLayer dbLayer) wname
     (_, importManyAddressesTime) <- bench "import many addresses" $ do
         runExceptT $ withExceptT show $
             W.importRandomAddresses @_ @s w manyAddresses
-
-    let walletOverview = WalletOverview{utxo,addresses,transactions}
 
     pure BenchRndResults
         { benchName = benchname
@@ -578,6 +585,15 @@ benchmarksSeq network w@(WalletLayer _ _ netLayer txLayer dbLayer) _wname
         $ unsafeRunExceptT
         $ W.listTransactions @_ @s w Nothing Nothing Nothing Descending
             Nothing
+
+    -- To aid with debugging, write the current wallet state to the log:
+    let walletOverview = WalletOverview{utxo,addresses,transactions}
+    sayShow $ unlines
+        [ "Wallet overview (seq):"
+        , show benchname
+        , show walletOverview
+        ]
+
     (_, listTransactionsLimitedTime) <- bench "list transactions (max_count = 100)" $ do
         unsafeRunExceptT
         $ W.listTransactions @_ @s w Nothing Nothing Nothing Descending
@@ -603,8 +619,6 @@ benchmarksSeq network w@(WalletLayer _ _ netLayer txLayer dbLayer) _wname
             dummyChangeAddressGen
             defaultTransactionCtx
             (PreSelection [outputWithZeroAda])
-
-    let walletOverview = WalletOverview{utxo,addresses,transactions}
 
     pure BenchSeqResults
         { benchName = benchname
