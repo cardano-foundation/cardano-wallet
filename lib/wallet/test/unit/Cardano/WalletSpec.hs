@@ -78,7 +78,7 @@ import Cardano.Wallet.DummyTarget.Primitive.Types
     , mkTxId
     )
 import Cardano.Wallet.Flavor
-    ( KeyOf, TestState (..) )
+    ( KeyOf, TestState (..), WalletFlavor )
 import Cardano.Wallet.Gen
     ( genMnemonic, genSlotNo )
 import Cardano.Wallet.Network
@@ -1201,6 +1201,7 @@ setupFixture
        , IsOurs s RewardAccount
        , Sqlite.PersistAddressBook s
        , KeyOf s ~ ShelleyKey
+       , WalletFlavor s
        )
     => (WalletId, WalletName, s)
     -> m (WalletLayerFixture s m)

@@ -49,9 +49,7 @@ import Cardano.Crypto.Wallet
     , deriveXPub
     , generateNew
     , toXPub
-    , unXPrv
     , unXPub
-    , xprv
     , xpub
     )
 import Cardano.Mnemonic
@@ -69,7 +67,6 @@ import Cardano.Wallet.Address.Derivation
     , KeyFingerprint (..)
     , MkKeyFingerprint (..)
     , PaymentAddress (..)
-    , PersistPrivateKey (..)
     , PersistPublicKey (..)
     , RewardAccount (..)
     , Role (..)
@@ -92,7 +89,7 @@ import Cardano.Wallet.Address.Discovery.Sequential
     , rewardAccountKey
     )
 import Cardano.Wallet.Primitive.Passphrase
-    ( Passphrase (..), PassphraseHash (..), changePassphraseXPrv )
+    ( Passphrase (..), changePassphraseXPrv )
 import Cardano.Wallet.Primitive.Types.Address
     ( Address (..) )
 import Cardano.Wallet.Read.NetworkId
@@ -435,19 +432,6 @@ instance AccountIxForStaking (SeqState n ShelleyKey) where
 {-------------------------------------------------------------------------------
                           Storing and retrieving keys
 -------------------------------------------------------------------------------}
-
-instance PersistPrivateKey (ShelleyKey 'RootK) where
-    serializeXPrv (k, h) =
-        ( hex . unXPrv . getKey $ k
-        , hex . getPassphraseHash $ h
-        )
-
-    unsafeDeserializeXPrv (k, h) = either err id $ (,)
-        <$> fmap ShelleyKey (xprvFromText k)
-        <*> fmap PassphraseHash (fromHex h)
-      where
-        xprvFromText = xprv <=< fromHex @ByteString
-        err _ = error "unsafeDeserializeXPrv: unable to deserialize ShelleyKey"
 
 instance PersistPublicKey (ShelleyKey depth) where
     serializeXPub =

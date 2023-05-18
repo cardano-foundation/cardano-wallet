@@ -17,7 +17,6 @@ module Cardano.Wallet.Flavor
     , TestState (..)
     , KeyFlavorS (..)
     , keyFlavor
-    , StateWithKey
     )
 where
 
@@ -52,6 +51,7 @@ data WalletFlavorS s where
     SharedWallet :: WalletFlavorS (SharedState n SharedKey)
     BenchByronWallet :: WalletFlavorS (RndAnyState n p)
     BenchShelleyWallet :: WalletFlavorS (SeqAnyState n ShelleyKey p)
+    TestStateS :: WalletFlavorS (TestState s ShelleyKey)
 
 -- | A function to reify the flavor of a state.
 class WalletFlavor s where
@@ -74,6 +74,9 @@ instance WalletFlavor (RndAnyState n p) where
 
 instance WalletFlavor (SharedState n SharedKey) where
     walletFlavor = SharedWallet
+
+instance WalletFlavor (TestState n ShelleyKey) where
+    walletFlavor = TestStateS
 
 -- | A type for states that will be used in tests.
 newtype TestState s (k :: (Depth -> Type -> Type)) = TestState s
@@ -103,6 +106,7 @@ keyOfWallet ByronWallet = ByronKeyS
 keyOfWallet SharedWallet = SharedKeyS
 keyOfWallet BenchByronWallet = ByronKeyS
 keyOfWallet BenchShelleyWallet = ShelleyKeyS
+keyOfWallet TestStateS = ShelleyKeyS
 
 -- | A function to reify the flavor of a key from a state type.
 --
@@ -110,6 +114,3 @@ keyOfWallet BenchShelleyWallet = ShelleyKeyS
 -- > keyFlavor @s
 keyFlavor :: forall s. WalletFlavor s => KeyFlavorS (KeyOf s)
 keyFlavor = keyOfWallet (walletFlavor @s)
-
--- | Constraints for a state with a specific key.
-type StateWithKey s k = (WalletFlavor s, KeyOf s ~ k)

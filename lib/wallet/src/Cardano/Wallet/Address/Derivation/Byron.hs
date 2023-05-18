@@ -3,7 +3,6 @@
 {-# LANGUAGE DerivingStrategies #-}
 {-# LANGUAGE FlexibleContexts #-}
 {-# LANGUAGE FlexibleInstances #-}
-{-# LANGUAGE InstanceSigs #-}
 {-# LANGUAGE MultiParamTypeClasses #-}
 {-# LANGUAGE NamedFieldPuns #-}
 {-# LANGUAGE RankNTypes #-}
@@ -52,9 +51,7 @@ import Cardano.Crypto.Wallet
     , deriveXPrv
     , generate
     , toXPub
-    , unXPrv
     , unXPub
-    , xprv
     )
 import Cardano.Mnemonic
     ( SomeMnemonic (..), entropyToBytes, mnemonicToEntropy )
@@ -66,17 +63,10 @@ import Cardano.Wallet.Address.Derivation
     , KeyFingerprint (..)
     , MkKeyFingerprint (..)
     , PaymentAddress (..)
-    , PersistPrivateKey (..)
     , WalletKey (..)
-    , fromHex
-    , hex
     )
 import Cardano.Wallet.Primitive.Passphrase
-    ( Passphrase (..)
-    , PassphraseHash (..)
-    , PassphraseScheme (..)
-    , changePassphraseXPrv
-    )
+    ( Passphrase (..), PassphraseScheme (..), changePassphraseXPrv )
 import Cardano.Wallet.Primitive.Types.Address
     ( Address (..) )
 import Cardano.Wallet.Primitive.Types.ProtocolMagic
@@ -110,7 +100,6 @@ import qualified Codec.CBOR.Encoding as CBOR
 import qualified Codec.CBOR.Write as CBOR
 import qualified Crypto.KDF.PBKDF2 as PBKDF2
 import qualified Data.ByteArray as BA
-import qualified Data.ByteString.Char8 as B8
 
 {-------------------------------------------------------------------------------
                                    Key Types
@@ -352,35 +341,6 @@ deriveAddressPrivateKey (Passphrase pwd) accountKey idx@(Index addrIx) = ByronKe
     , payloadPassphrase = payloadPassphrase accountKey
     }
 
-{-------------------------------------------------------------------------------
-                          Storing and retrieving keys
--------------------------------------------------------------------------------}
-
-instance PersistPrivateKey (ByronKey 'RootK) where
-    serializeXPrv ((ByronKey k _ (Passphrase p)), h) =
-        ( hex (unXPrv k) <> ":" <> hex p
-        , hex . getPassphraseHash $ h
-        )
-
-    unsafeDeserializeXPrv (k, h) = either err id $ (,)
-        <$> fmap mkKey (deserializeKey k)
-        <*> fmap PassphraseHash (fromHex h)
-      where
-        err _ = error "unsafeDeserializeXPrv: unable to deserialize ByronKey"
-        mkKey (key, pwd) = ByronKey key () pwd
-        deserializeKey
-            :: ByteString
-            -> Either String
-                ( XPrv
-                , Passphrase "addr-derivation-payload"
-                )
-        deserializeKey b = case map (fromHex @ByteString) (B8.split ':' b) of
-            [Right rawK, Right p] ->
-                case xprv rawK of
-                    Right k' -> Right (k', Passphrase (BA.convert p))
-                    Left e -> Left e
-            _ ->
-                Left "Key input must be two hex strings separated by :"
 
 {-------------------------------------------------------------------------------
                                      Utils

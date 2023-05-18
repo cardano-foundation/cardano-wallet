@@ -30,7 +30,7 @@ import Prelude
 import Cardano.Wallet
     ( WalletException )
 import Cardano.Wallet.Address.Derivation
-    ( Depth (..), PersistPrivateKey, WalletKey )
+    ( Depth (..), WalletKey )
 import Cardano.Wallet.Address.Derivation.Icarus
     ( IcarusKey )
 import Cardano.Wallet.Address.Derivation.SharedKey
@@ -63,7 +63,7 @@ import Cardano.Wallet.DB.Sqlite.Migration
 import Cardano.Wallet.DB.Store.Checkpoints
     ( PersistAddressBook )
 import Cardano.Wallet.Flavor
-    ( KeyOf )
+    ( KeyOf, WalletFlavor )
 import Cardano.Wallet.Network
     ( NetworkLayer (..) )
 import Cardano.Wallet.Pools
@@ -320,9 +320,9 @@ serveWallet
             , IsOurs s RewardAccount
             , MaybeLight s
             , PersistAddressBook s
-            , PersistPrivateKey (k 'RootK)
             , WalletKey k
-            , k ~ KeyOf s
+            , WalletFlavor s
+            , KeyOf s ~ k
             )
         => TransactionLayer k ktype SealedTx
         -> NetworkLayer IO (CardanoBlock StandardCrypto)

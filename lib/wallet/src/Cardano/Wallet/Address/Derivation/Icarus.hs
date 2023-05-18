@@ -39,7 +39,6 @@ import Cardano.Crypto.Wallet
     , deriveXPub
     , generateNew
     , toXPub
-    , unXPrv
     , unXPub
     , xPrvChangePass
     , xprv
@@ -55,7 +54,6 @@ import Cardano.Wallet.Address.Derivation
     , KeyFingerprint (..)
     , MkKeyFingerprint (..)
     , PaymentAddress (..)
-    , PersistPrivateKey (..)
     , PersistPublicKey (..)
     , RewardAccount (..)
     , SoftDerivation (..)
@@ -69,7 +67,7 @@ import Cardano.Wallet.Address.Discovery
 import Cardano.Wallet.Address.Discovery.Sequential
     ( SeqState, coinTypeAda, discoverSeq, purposeBIP44 )
 import Cardano.Wallet.Primitive.Passphrase
-    ( Passphrase (..), PassphraseHash (..), changePassphraseXPrv )
+    ( Passphrase (..), changePassphraseXPrv )
 import Cardano.Wallet.Primitive.Types.Address
     ( Address (..) )
 import Cardano.Wallet.Primitive.Types.ProtocolMagic
@@ -415,19 +413,6 @@ instance HasSNetworkId n => MaybeLight (SeqState n IcarusKey)
 {-------------------------------------------------------------------------------
                           Storing and retrieving keys
 -------------------------------------------------------------------------------}
-
-instance PersistPrivateKey (IcarusKey 'RootK) where
-    serializeXPrv (k, h) =
-        ( hex . unXPrv . getKey $ k
-        , hex . getPassphraseHash $ h
-        )
-
-    unsafeDeserializeXPrv (k, h) = either err id $ (,)
-        <$> fmap IcarusKey (xprvFromText k)
-        <*> fmap PassphraseHash (fromHex h)
-      where
-        xprvFromText = xprv <=< fromHex @ByteString
-        err _ = error "unsafeDeserializeXPrv: unable to deserialize IcarusKey"
 
 instance PersistPublicKey (IcarusKey depth) where
     serializeXPub =

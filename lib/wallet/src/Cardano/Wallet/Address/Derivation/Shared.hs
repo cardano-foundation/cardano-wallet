@@ -39,7 +39,7 @@ import Cardano.Address.Derivation
 import Cardano.Address.Script
     ( KeyHash, ScriptTemplate (..) )
 import Cardano.Crypto.Wallet
-    ( XPrv, XPub, toXPub, unXPrv, unXPub, xprv, xpub )
+    ( XPrv, XPub, toXPub, unXPub, xpub )
 import Cardano.Mnemonic
     ( SomeMnemonic )
 import Cardano.Wallet.Address.Derivation
@@ -50,7 +50,6 @@ import Cardano.Wallet.Address.Derivation
     , HardDerivation (..)
     , KeyFingerprint (..)
     , MkKeyFingerprint (..)
-    , PersistPrivateKey (..)
     , PersistPublicKey (..)
     , Role (..)
     , SoftDerivation (..)
@@ -71,7 +70,7 @@ import Cardano.Wallet.Address.Derivation.Shelley
 import Cardano.Wallet.Address.Discovery
     ( GetPurpose (..) )
 import Cardano.Wallet.Primitive.Passphrase
-    ( Passphrase (..), PassphraseHash (..), changePassphraseXPrv )
+    ( Passphrase (..), changePassphraseXPrv )
 import Cardano.Wallet.Primitive.Types.Address
     ( Address (..) )
 import Cardano.Wallet.Read.NetworkId
@@ -178,19 +177,6 @@ instance GetPurpose SharedKey where
 {-------------------------------------------------------------------------------
                           Storing and retrieving keys
 -------------------------------------------------------------------------------}
-
-instance PersistPrivateKey (SharedKey 'RootK) where
-    serializeXPrv (k, h) =
-        ( hex . unXPrv . getKey $ k
-        , hex . getPassphraseHash $ h
-        )
-
-    unsafeDeserializeXPrv (k, h) = either err id $ (,)
-        <$> fmap SharedKey (xprvFromText k)
-        <*> fmap PassphraseHash (fromHex h)
-      where
-        xprvFromText = xprv <=< fromHex @ByteString
-        err _ = error "unsafeDeserializeXPrv: unable to deserialize SharedKey"
 
 instance PersistPublicKey (SharedKey depth) where
     serializeXPub =
