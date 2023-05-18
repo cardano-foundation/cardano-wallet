@@ -2193,15 +2193,31 @@ spec = describe "SHARED_TRANSACTIONS" $ do
 
         let (ApiSerialisedTransaction apiTx7 _) =
                 getFromResponse #transaction rTx4
-        signedTx6 <-
+        signedTx7 <-
             signSharedTx ctx party1 apiTx7
                 [ expectResponseCode HTTP.status202 ]
-        let (ApiSerialisedTransaction apiTx8 _) = signedTx6
-        signedTx7 <-
+        let (ApiSerialisedTransaction apiTx8 _) = signedTx7
+        signedTx8 <-
             signSharedTx ctx party2 apiTx8
                 [ expectResponseCode HTTP.status202 ]
 
-        submittedTx5 <- submitSharedTxWithWid ctx party1 signedTx7
+        let delegatingCert3 path =
+                WalletDelegationCertificate $ QuitPool path
+        let decodePayload5 = Json (toJSON signedTx8)
+        rDecodedTx9 <- request @(ApiDecodedTransaction n) ctx
+            (Link.decodeTransaction @'Shared party1) Default decodePayload5
+        rDecodedTx10 <- request @(ApiDecodedTransaction n) ctx
+            (Link.decodeTransaction @'Shared party2) Default decodePayload5
+        let certExpectation5 =
+                [expectField #certificates
+                     (`shouldBe` [ delegatingCert3 stakeKeyDerPathParty1])]
+        verify rDecodedTx9 certExpectation5
+        let certExpectation6 =
+                [expectField #certificates
+                     (`shouldBe` [ delegatingCert3 stakeKeyDerPathParty2])]
+        verify rDecodedTx10 certExpectation6
+
+        submittedTx5 <- submitSharedTxWithWid ctx party1 signedTx8
         verify submittedTx5
             [ expectResponseCode HTTP.status202
             ]
