@@ -17,18 +17,22 @@ import Prelude
 import Cardano.Address.Derivation
     ( xpubToBytes )
 import Cardano.Address.Script
-    ( KeyHash (..), KeyRole (..) )
+    ( KeyHash (..), KeyRole (..), ScriptTemplate (..) )
+import qualified Cardano.Address.Script as CA
+import Cardano.Wallet.Address.Derivation
+    ( Role (MutableAccount), deriveAddressPublicKey )
 import Cardano.Wallet.Address.Derivation.Shared
-    ( allCosignerStakingKeys )
+    ( SharedKey (..) )
 import Cardano.Wallet.Address.Discovery.Sequential
     ( SeqState, policyXPub )
 import Cardano.Wallet.Address.Discovery.Shared
     ( delegationTemplate )
 import Cardano.Wallet.Address.Keys.WalletKey
-    ( getRawKeyNew )
+    ( getRawKeyNew, hashVerificationKeyNew )
 import Cardano.Wallet.Flavor
     ( FlavorOf
     , IncludingStates
+    , KeyFlavorS (..)
     , WalletFlavor
     , WalletFlavorS (..)
     , WalletFlavors (..)
@@ -36,6 +40,7 @@ import Cardano.Wallet.Flavor
     )
 import Cardano.Wallet.Transaction
     ( WitnessCountCtx (..) )
+import qualified Data.Map as Map
 
 toWitnessCountCtx
     :: IncludingStates '[ 'IcarusF, 'ShelleyF,  'SharedF] (FlavorOf s)
@@ -59,3 +64,14 @@ count s = case policyXPub s of
             $ xpubToBytes
             $ getRawKeyNew (keyFlavor @s) key
     Nothing -> AnyWitnessCountCtx
+
+allCosignerStakingKeys
+    :: ScriptTemplate
+    -> [KeyHash]
+allCosignerStakingKeys (ScriptTemplate xpubs _) =
+    map toKeyHash (Map.elems xpubs)
+  where
+    stakingKey accXPub =
+        deriveAddressPublicKey (SharedKey accXPub) MutableAccount minBound
+    toKeyHash =
+        hashVerificationKeyNew SharedKeyS CA.Delegation . stakingKey

@@ -22,7 +22,6 @@ import Cardano.Wallet.Address.Derivation
     , Index (..)
     , WalletKey (publicKey)
     , getRawKey
-    , hashVerificationKey
     , liftRawKey
     )
 import Cardano.Wallet.Address.Derivation.MintBurn
@@ -66,6 +65,8 @@ import Test.QuickCheck.Arbitrary
 
 import qualified Cardano.Address.Script as CA
 import qualified Cardano.Wallet.Address.Derivation.Shelley as Shelley
+import Cardano.Wallet.Address.Keys.WalletKey
+    ( hashVerificationKeyNew )
 import qualified Data.ByteString as BS
 import qualified Data.ByteString.Lazy as BL
 import qualified Data.Interval as I
@@ -323,7 +324,7 @@ prop_keyHashMatchesXPrv
     -> Index 'Hardened 'PolicyK
     -> Property
 prop_keyHashMatchesXPrv pwd masterkey policyIx =
-    hashVerificationKey
+    hashVerificationKeyNew ShelleyKeyS
       CA.Payment
       (getPublicKey rndKey)
       === keyHash

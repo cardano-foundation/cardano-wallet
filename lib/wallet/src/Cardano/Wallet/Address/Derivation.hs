@@ -48,7 +48,6 @@ module Cardano.Wallet.Address.Derivation
     , DerivationPrefix (..)
     , DerivationIndex (..)
     , liftIndex
-    , hashVerificationKey
 
     -- * Delegation
     , RewardAccount (..)
@@ -82,9 +81,7 @@ module Cardano.Wallet.Address.Derivation
 import Prelude
 
 import Cardano.Address.Derivation
-    ( XPrv, XPub, xpubPublicKey )
-import Cardano.Address.Script
-    ( KeyHash (..), KeyRole )
+    ( XPrv, XPub )
 import Cardano.Mnemonic
     ( SomeMnemonic )
 import Cardano.Wallet.Primitive.Passphrase.Types
@@ -103,8 +100,6 @@ import Control.Monad
     ( (>=>) )
 import Crypto.Hash
     ( Digest, HashAlgorithm )
-import Crypto.Hash.Utils
-    ( blake2b224 )
 import Data.Bifunctor
     ( first )
 import Data.Bits
@@ -562,14 +557,6 @@ deriveRewardAccount
 deriveRewardAccount pwd rootPrv accIx =
     let accPrv = deriveAccountPrivateKey pwd rootPrv accIx
     in deriveAddressPrivateKey pwd accPrv MutableAccount minBound
-
-hashVerificationKey
-    :: WalletKey k
-    => KeyRole
-    -> k depth XPub
-    -> KeyHash
-hashVerificationKey keyRole =
-    KeyHash keyRole . blake2b224 . xpubPublicKey . getRawKey
 
 -- | This class is used to determine account index in the context of script
 -- staking. It is supposed to be not Nothing only for shared wallets
