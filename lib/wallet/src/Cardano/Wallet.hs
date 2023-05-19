@@ -266,7 +266,6 @@ import Cardano.Wallet.Address.Derivation
     , Role (..)
     , SoftDerivation (..)
     , ToRewardAccount (..)
-    , WalletKey (..)
     , deriveRewardAccount
     , liftDelegationAddressS
     , liftIndex
@@ -1303,7 +1302,7 @@ readRewardAccount db = do
     walletState <- getState <$> readWalletCheckpoint db
     let xpub = Seq.rewardAccountKey walletState
     let path = stakeDerivationPath $ Seq.derivationPrefix walletState
-    pure (toRewardAccount xpub, getRawKey xpub, path)
+    pure (toRewardAccount xpub, getRawKeyNew ShelleyKeyS xpub, path)
   where
     readWalletCheckpoint
         :: DBLayer IO s ->  IO (Wallet s)
@@ -1352,7 +1351,10 @@ readPolicyPublicKey ctx = db & \DBLayer{..} -> do
             let s = getState cp
             case Seq.policyXPub s of
                 Nothing -> throwE ErrReadPolicyPublicKeyAbsent
-                Just xpub -> pure (getRawKey xpub, policyDerivationPath)
+                Just xpub -> pure
+                    ( getRawKeyNew (keyFlavorFromState @s) xpub
+                    , policyDerivationPath
+                    )
         _ ->
             throwE ErrReadPolicyPublicKeyNotAShelleyWallet
   where
@@ -2162,7 +2164,8 @@ unsafeShelleyOnlyGetRewardXPub
     => s -> XPub
 unsafeShelleyOnlyGetRewardXPub walletState =
     case walletFlavor @s of
-        ShelleyWallet -> getRawKey $ Seq.rewardAccountKey walletState
+        ShelleyWallet -> getRawKeyNew (keyFlavorFromState @s)
+                $ Seq.rewardAccountKey walletState
         _  -> error $ unwords
             [ "buildAndSignTransactionPure:"
             , "can't delegate using non-shelley wallet"
@@ -3144,7 +3147,9 @@ writePolicyPublicKey ctx wid pwd = db & \DBLayer{..} -> do
         db wid pwd ErrWritePolicyPublicKeyWithRootKey $
         \rootK scheme -> do
             let encPwd = preparePassphrase scheme pwd
-            let xprv = derivePolicyPrivateKey encPwd (getRawKey rootK) minBound
+            let xprv = derivePolicyPrivateKey encPwd
+                    (getRawKeyNew ShelleyKeyS rootK)
+                    minBound
             pure $ ShelleyKey $ toXPub xprv
 
     let seqState' = seqState & #policyXPub .~ Just policyXPub
