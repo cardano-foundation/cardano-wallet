@@ -22,7 +22,6 @@ import Cardano.Wallet.Address.Derivation
     , DerivationType (..)
     , Index
     , paymentAddressS
-    , publicKey
     )
 import Cardano.Wallet.Address.Derivation.Byron
     ( ByronKey, generateKeyFromSeed, unsafeGenerateKeyFromSeed )
@@ -30,6 +29,10 @@ import Cardano.Wallet.Address.Discovery
     ( IsOurs (..), knownAddresses )
 import Cardano.Wallet.Address.Discovery.Random
     ( mkRndState )
+import Cardano.Wallet.Address.Keys.WalletKey
+    ( publicKeyNew )
+import Cardano.Wallet.Flavor
+    ( KeyFlavorS (ByronKeyS) )
 import Cardano.Wallet.Gen
     ( genMnemonic )
 import Cardano.Wallet.Primitive.Passphrase
@@ -95,7 +98,8 @@ prop_derivedKeysAreOurs seed encPwd accIx addrIx rk' =
     fst' (a,_,_) = a
     (resPos, stPos') = isOurs addr (mkRndState @n rootXPrv 0)
     (resNeg, stNeg') = isOurs addr (mkRndState @n rk' 0)
-    key = publicKey $ unsafeGenerateKeyFromSeed @'CredFromKeyK (accIx, addrIx) seed encPwd
+    key = publicKeyNew ByronKeyS
+        $ unsafeGenerateKeyFromSeed @'CredFromKeyK (accIx, addrIx) seed encPwd
     rootXPrv = generateKeyFromSeed seed encPwd
     addr = paymentAddressS @n key
 
