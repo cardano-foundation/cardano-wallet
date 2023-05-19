@@ -75,7 +75,7 @@ import Cardano.Wallet.Address.Discovery.Sequential
 import Cardano.Wallet.Address.Keys.SequentialAny
     ( mkSeqAnyState )
 import Cardano.Wallet.Address.Keys.WalletKey
-    ( digestNew, publicKeyNew )
+    ( digest, publicKey )
 import Cardano.Wallet.Api.Types
     ( toApiUtxoStatistics )
 import Cardano.Wallet.BenchShared
@@ -355,7 +355,7 @@ cardanoRestoreBench tr c socketFile = do
         let
             seed = dummySeedFromName wname
             xprv = Byron.generateKeyFromSeed seed mempty
-            wid = WalletId $ digestNew ByronKeyS $ publicKeyNew ByronKeyS xprv
+            wid = WalletId $ digest ByronKeyS $ publicKey ByronKeyS xprv
             rngSeed = 0
             s = mkState xprv rngSeed
         in
@@ -371,7 +371,7 @@ cardanoRestoreBench tr c socketFile = do
         let
             seed = dummySeedFromName wname
             xprv = Shelley.generateKeyFromSeed (seed, Nothing) mempty
-            wid = WalletId $ digestNew ShelleyKeyS $ publicKeyNew ShelleyKeyS xprv
+            wid = WalletId $ digest ShelleyKeyS $ publicKey ShelleyKeyS xprv
             Right gap = mkAddressPoolGap 20
             s = mkState (xprv, mempty) gap
         in

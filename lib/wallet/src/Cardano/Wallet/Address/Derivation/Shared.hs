@@ -49,7 +49,6 @@ import Cardano.Wallet.Address.Derivation
     , MkKeyFingerprint (..)
     , PersistPublicKey (..)
     , SoftDerivation (..)
-
     , fromHex
     , hex
     , toAddressParts

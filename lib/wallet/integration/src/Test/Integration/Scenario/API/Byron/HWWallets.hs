@@ -26,7 +26,7 @@ import Cardano.Wallet.Address.Derivation
 import Cardano.Wallet.Address.Discovery.Sequential
     ( defaultAddressPoolGap, getAddressPoolGap )
 import Cardano.Wallet.Address.Keys.WalletKey
-    ( publicKeyNew )
+    ( publicKey )
 import Cardano.Wallet.Api.Types
     ( AddressAmount (..)
     , ApiAddress (..)
@@ -406,7 +406,7 @@ spec = describe "BYRON_HW_WALLETS" $ do
 -- Helper for HWWallets, getting pubKey from mnemonic sentence
 pubKeyFromMnemonics :: Mnemonic 15 -> Text
 pubKeyFromMnemonics seed =
-    T.decodeUtf8 $ serializeXPub $ publicKeyNew IcarusKeyS $
+    T.decodeUtf8 $ serializeXPub $ publicKey IcarusKeyS $
         deriveAccountPrivateKey mempty rootXPrv minBound
   where
     rootXPrv = Icarus.generateKeyFromSeed (SomeMnemonic seed) mempty

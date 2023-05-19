@@ -129,7 +129,7 @@ import Cardano.Wallet.Address.Discovery.Shared
 import Cardano.Wallet.Address.Keys.SequentialAny
     ( mkSeqStateFromRootXPrv )
 import Cardano.Wallet.Address.Keys.WalletKey
-    ( getRawKeyNew, liftRawKeyNew, publicKeyNew )
+    ( getRawKey, liftRawKey, publicKey )
 import Cardano.Wallet.Byron.Compatibility
     ( maryTokenBundleMaxSize )
 import Cardano.Wallet.Flavor
@@ -637,11 +637,11 @@ prop_signTransaction_addsRewardAccountKey
     \(supported :: Cardano.WithdrawalsSupportedInEra era) -> do
         let
             rootK :: (ShelleyKey 'RootK XPrv, Passphrase "encryption")
-            rootK = first (liftRawKeyNew ShelleyKeyS) rootXPrv
+            rootK = first (liftRawKey ShelleyKeyS) rootXPrv
 
             rawRewardK :: (XPrv, Passphrase "encryption")
             rawRewardK =
-                ( getRawKeyNew ShelleyKeyS
+                ( getRawKey ShelleyKeyS
                     $ deriveRewardAccount (snd rootK) (fst rootK) minBound
                 , snd rootK
                 )
@@ -753,7 +753,7 @@ prop_signTransaction_addsExtraKeyWitnesses
                 AnyWitnessCountCtx
                 (lookupFnFromKeys extraKeys)
                 Nothing
-                (first (liftRawKeyNew ShelleyKeyS) rootK)
+                (first (liftRawKey ShelleyKeyS) rootK)
                 utxo
                 Nothing
                 sealedTx
@@ -777,8 +777,8 @@ keyToAddress :: (XPrv, Passphrase "encryption") -> Address
 keyToAddress (xprv, _pwd) =
     -- TODO, decrypt?
     paymentAddress @ShelleyKey @'CredFromKeyK SMainnet
-        . publicKeyNew ShelleyKeyS
-        . liftRawKeyNew ShelleyKeyS
+        . publicKey ShelleyKeyS
+        . liftRawKey ShelleyKeyS
         $ xprv
 
 utxoFromKeys
@@ -811,7 +811,7 @@ lookupFnFromKeys keys addr =
             :: Map Address (ShelleyKey 'CredFromKeyK XPrv, Passphrase "encryption")
         addrMap = Map.fromList
             $ zip (keyToAddress <$> keys)
-                (first (liftRawKeyNew ShelleyKeyS) <$> keys)
+                (first (liftRawKey ShelleyKeyS) <$> keys)
     in
         Map.lookup addr addrMap
 
@@ -892,7 +892,7 @@ prop_signTransaction_addsTxInWitnesses
                     AnyWitnessCountCtx
                     (lookupFnFromKeys extraKeys)
                     Nothing
-                    (first (liftRawKeyNew ShelleyKeyS) rootK)
+                    (first (liftRawKey ShelleyKeyS) rootK)
                     utxo
                     Nothing
                     sealedTx
@@ -948,7 +948,7 @@ prop_signTransaction_addsTxInCollateralWitnesses
                         AnyWitnessCountCtx
                         (lookupFnFromKeys extraKeys)
                         Nothing
-                        (first (liftRawKeyNew ShelleyKeyS) rootK)
+                        (first (liftRawKey ShelleyKeyS) rootK)
                         utxo
                         Nothing
                         sealedTx
@@ -987,7 +987,7 @@ prop_signTransaction_neverRemovesWitnesses
                 AnyWitnessCountCtx
                 (lookupFnFromKeys extraKeys)
                 Nothing
-                (first (liftRawKeyNew ShelleyKeyS) rootK)
+                (first (liftRawKey ShelleyKeyS) rootK)
                 utxo
                 Nothing
                 sealedTx
@@ -1022,7 +1022,7 @@ prop_signTransaction_neverChangesTxBody
                 AnyWitnessCountCtx
                 (lookupFnFromKeys extraKeys)
                 Nothing
-                (first (liftRawKeyNew ShelleyKeyS) rootK)
+                (first (liftRawKey ShelleyKeyS) rootK)
                 utxo
                 Nothing
                 sealedTx
@@ -1062,7 +1062,7 @@ prop_signTransaction_preservesScriptIntegrity (AnyCardanoEra era) rootK utxo =
                 AnyWitnessCountCtx
                 (const Nothing)
                 Nothing
-                (first (liftRawKeyNew ShelleyKeyS) rootK)
+                (first (liftRawKey ShelleyKeyS) rootK)
                 utxo
                 Nothing
                 sealedTx
@@ -3359,7 +3359,7 @@ dummyChangeAddrGen = ChangeAddressGen
                 'CredFromKeyK
             -> Address
         addressAtIx ix = paymentAddress @ShelleyKey @'CredFromKeyK SMainnet
-            $ publicKeyNew ShelleyKeyS
+            $ publicKey ShelleyKeyS
             $ Shelley.ShelleyKey
             $ Shelley.deriveAddressPrivateKeyShelley
                 pwd
@@ -3372,7 +3372,7 @@ dummyChangeAddrGen = ChangeAddressGen
         acctK = Shelley.deriveAccountPrivateKeyShelley
                     purposeBIP44
                     pwd
-                    (getRawKeyNew ShelleyKeyS rootK)
+                    (getRawKey ShelleyKeyS rootK)
                     minBound
 
 -- | Warpper for testing convenience. Does hide the monad 'm', tracing, and the
@@ -3599,7 +3599,7 @@ balanceTransactionGoldenSpec = describe "balance goldens" $ do
           where
             poolId = PoolId "\236(\243=\203\230\214@\n\RS^3\155\208d|\
                             \\ts\202l\f\249\194\187\230\131\141\198"
-            xpub = getRawKeyNew ShelleyKeyS $ publicKeyNew ShelleyKeyS rootK
+            xpub = getRawKey ShelleyKeyS $ publicKey ShelleyKeyS rootK
             delegationAction = JoinRegisteringKey poolId
         ledgerBody = Babbage.BabbageTxBody
           { Babbage.inputs = mempty
@@ -4005,22 +4005,22 @@ prop_bootstrapWitnesses
             addrK = addrKeyAtIx $ toEnum $ fromEnum ix
             addr = case net of
                 Cardano.Mainnet ->
-                    paymentAddress SMainnet $ publicKeyNew ByronKeyS addrK
+                    paymentAddress SMainnet $ publicKey ByronKeyS addrK
                 Cardano.Testnet _magic ->
                     -- The choice of network magic here is not important. The
                     -- size of the witness will not be affected by it. What may
                     -- affect the size, is the 'Cardano.NetworkId' we pass to
                     -- 'mkByronWitness' above.
                     withSNetworkId (NTestnet 0) $ \testnet ->
-                        paymentAddress testnet $ publicKeyNew ByronKeyS addrK
+                        paymentAddress testnet $ publicKey ByronKeyS addrK
         in
             case era of
                 RecentEraConway ->
                     mkByronWitness body net addr
-                        (getRawKeyNew ByronKeyS addrK, pwd)
+                        (getRawKey ByronKeyS addrK, pwd)
                 RecentEraBabbage ->
                     mkByronWitness body net addr
-                        (getRawKeyNew ByronKeyS addrK, pwd)
+                        (getRawKey ByronKeyS addrK, pwd)
 
 serializedSize :: forall era. Cardano.IsCardanoEra era => Cardano.Tx era -> Int
 serializedSize = BS.length

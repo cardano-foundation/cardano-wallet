@@ -312,9 +312,9 @@ import Cardano.Wallet.Address.Keys.WalletKey
     ( AfterByron
     , afterByron
     , changePassphraseNew
-    , getRawKeyNew
-    , hashVerificationKeyNew
-    , liftRawKeyNew
+    , getRawKey
+    , hashVerificationKey
+    , liftRawKey
     )
 import Cardano.Wallet.Checkpoints
     ( DeltaCheckpoints (..), extendCheckpoints, pruneCheckpoints )
@@ -1302,7 +1302,7 @@ readRewardAccount db = do
     walletState <- getState <$> readWalletCheckpoint db
     let xpub = Seq.rewardAccountKey walletState
     let path = stakeDerivationPath $ Seq.derivationPrefix walletState
-    pure (toRewardAccount xpub, getRawKeyNew ShelleyKeyS xpub, path)
+    pure (toRewardAccount xpub, getRawKey ShelleyKeyS xpub, path)
   where
     readWalletCheckpoint
         :: DBLayer IO s ->  IO (Wallet s)
@@ -1352,7 +1352,7 @@ readPolicyPublicKey ctx = db & \DBLayer{..} -> do
             case Seq.policyXPub s of
                 Nothing -> throwE ErrReadPolicyPublicKeyAbsent
                 Just xpub -> pure
-                    ( getRawKeyNew (keyFlavorFromState @s) xpub
+                    ( getRawKey (keyFlavorFromState @s) xpub
                     , policyDerivationPath
                     )
         _ ->
@@ -1813,20 +1813,20 @@ signTransaction key tl preferredLatestEra witCountCtx keyLookup mextraRewardAcc
         rewardAcnts = ourRewardAcc : maybeToList mextraRewardAcc
           where
             ourRewardAcc =
-                (getRawKeyNew key $
+                (getRawKey key $
                     deriveRewardAccount @k rootPwd rootKey minBound
                 , rootPwd
                 )
 
         policyKey :: Maybe (KeyHash, XPrv, Passphrase "encryption")
         policyKey = afterByron key $ \key' ->
-                ( hashVerificationKeyNew key CA.Policy $ liftRawKeyNew key'
+                ( hashVerificationKey key CA.Policy $ liftRawKey key'
                     $ toXPub xprv
                 , xprv
                 , rootPwd
                 )
           where
-            xprv = derivePolicyPrivateKey rootPwd (getRawKeyNew key rootKey)
+            xprv = derivePolicyPrivateKey rootPwd (getRawKey key rootKey)
                 minBound
 
         stakingKeyM :: Maybe (KeyHash, XPrv, Passphrase "encryption")
@@ -1834,8 +1834,8 @@ signTransaction key tl preferredLatestEra witCountCtx keyLookup mextraRewardAcc
             case xprvM of
                 Just xprv ->
                     Just
-                        ( hashVerificationKeyNew key CA.Delegation
-                            $ liftRawKeyNew key'
+                        ( hashVerificationKey key CA.Delegation
+                            $ liftRawKey key'
                             $ toXPub xprv
                         , xprv
                         , rootPwd
@@ -1843,7 +1843,7 @@ signTransaction key tl preferredLatestEra witCountCtx keyLookup mextraRewardAcc
                 Nothing -> Nothing
           where
             xprvM =
-                getRawKeyNew key
+                getRawKey key
                     . deriveRewardAccount @k rootPwd rootKey
                     <$> accIxForStakingM
 
@@ -2164,7 +2164,7 @@ unsafeShelleyOnlyGetRewardXPub
     => s -> XPub
 unsafeShelleyOnlyGetRewardXPub walletState =
     case walletFlavor @s of
-        ShelleyWallet -> getRawKeyNew (keyFlavorFromState @s)
+        ShelleyWallet -> getRawKey (keyFlavorFromState @s)
                 $ Seq.rewardAccountKey walletState
         _  -> error $ unwords
             [ "buildAndSignTransactionPure:"
@@ -3087,7 +3087,7 @@ signMetadataWith ctx wid pwd (role_, ix) metadata = db & \DBLayer{..} -> do
         let addrK = deriveAddressPrivateKey encPwd acctK role_ addrIx
         pure $
             Signature $ BA.convert $
-            CC.sign encPwd (getRawKeyNew (keyFlavorFromState @s) addrK) $
+            CC.sign encPwd (getRawKey (keyFlavorFromState @s) addrK) $
             hash @ByteString @Blake2b_256 $
             serialiseToCBOR metadata
   where
@@ -3148,7 +3148,7 @@ writePolicyPublicKey ctx wid pwd = db & \DBLayer{..} -> do
         \rootK scheme -> do
             let encPwd = preparePassphrase scheme pwd
             let xprv = derivePolicyPrivateKey encPwd
-                    (getRawKeyNew ShelleyKeyS rootK)
+                    (getRawKey ShelleyKeyS rootK)
                     minBound
             pure $ ShelleyKey $ toXPub xprv
 
@@ -3188,8 +3188,8 @@ getAccountPublicKeyAtIndex ctx wid pwd ix purposeM = db & \DBLayer{..} -> do
         $ \rootK scheme -> do
             let encPwd = preparePassphrase scheme pwd
             let xprv = deriveAccountPrivateKeyShelley purpose encPwd
-                    (getRawKeyNew kf rootK) acctIx
-            pure $ liftRawKeyNew kf $ toXPub xprv
+                    (getRawKey kf rootK) acctIx
+            pure $ liftRawKey kf $ toXPub xprv
   where
     db = ctx ^. dbLayer @IO @s
 

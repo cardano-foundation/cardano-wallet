@@ -27,7 +27,7 @@ import Cardano.Wallet.Address.DerivationSpec
 import Cardano.Wallet.Address.Keys.MintBurn
     ( derivePolicyKeyAndHash )
 import Cardano.Wallet.Address.Keys.WalletKey
-    ( getRawKeyNew, hashVerificationKeyNew, liftRawKeyNew, publicKeyNew )
+    ( getRawKey, hashVerificationKey, liftRawKey, publicKey )
 import Cardano.Wallet.Flavor
     ( KeyFlavorS (..) )
 import Cardano.Wallet.Primitive.Passphrase
@@ -318,7 +318,7 @@ prop_keyHashMatchesXPrv
     -> Index 'Hardened 'PolicyK
     -> Property
 prop_keyHashMatchesXPrv pwd masterkey policyIx =
-    hashVerificationKeyNew ShelleyKeyS
+    hashVerificationKey ShelleyKeyS
       CA.Payment
       (getPublicKey rndKey)
       === keyHash
@@ -332,9 +332,9 @@ prop_keyHashMatchesXPrv pwd masterkey policyIx =
         :: ShelleyKey 'PolicyK XPrv
         -> ShelleyKey 'CredFromScriptK XPub
     getPublicKey =
-        publicKeyNew kF
-            . (liftRawKeyNew kF :: XPrv -> ShelleyKey 'CredFromScriptK XPrv)
-            . getRawKeyNew kF
+        publicKey kF
+            . (liftRawKey kF :: XPrv -> ShelleyKey 'CredFromScriptK XPrv)
+            . getRawKey kF
         where
             kF = ShelleyKeyS
 
@@ -378,10 +378,10 @@ prop_keyDerivationRelation pwd masterkey policyIx =
 
     keyAndHash :: (ShelleyKey 'PolicyK XPrv, KeyHash)
     keyAndHash = derivePolicyKeyAndHash ShelleyKeyS
-        pwd (liftRawKeyNew ShelleyKeyS masterkey) policyIx
+        pwd (liftRawKey ShelleyKeyS masterkey) policyIx
 
     key2 :: XPrv
-    key2 = getRawKeyNew ShelleyKeyS $ fst keyAndHash
+    key2 = getRawKey ShelleyKeyS $ fst keyAndHash
 
 unit_comparePolicyKeys
     :: KnownNat n
@@ -394,7 +394,7 @@ unit_comparePolicyKeys mnemonic index goldenPolicyKeyBech32 =
         walletRootKey :: XPrv
         walletRootKey =
             Shelley.generateKeyFromSeed (SomeMnemonic mnemonic, Nothing) mempty
-            & getRawKeyNew ShelleyKeyS
+            & getRawKey ShelleyKeyS
 
         walletPolicyKey :: XPrv
         walletPolicyKey =
@@ -420,13 +420,13 @@ unit_comparePolicyKeyHashes mnemonic index goldenPolicyKeyHashHex =
         walletRootKey :: XPrv
         walletRootKey =
             Shelley.generateKeyFromSeed (SomeMnemonic mnemonic, Nothing) mempty
-            & getRawKeyNew ShelleyKeyS
+            & getRawKey ShelleyKeyS
 
         walletPolicyData :: (ShelleyKey 'PolicyK XPrv, KeyHash)
         walletPolicyData =
             derivePolicyKeyAndHash ShelleyKeyS
               (mempty :: Passphrase pwd)
-                (liftRawKeyNew ShelleyKeyS walletRootKey) index
+                (liftRawKey ShelleyKeyS walletRootKey) index
 
         walletPolicyKeyHashBytes :: BS.ByteString
         walletPolicyKeyHashBytes = CA.digest $ snd walletPolicyData

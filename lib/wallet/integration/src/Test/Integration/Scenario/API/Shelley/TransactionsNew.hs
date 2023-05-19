@@ -39,7 +39,7 @@ import Cardano.Pool.Types
 import Cardano.Wallet.Address.Derivation
     ( DerivationIndex (..), HardDerivation (..), Role (..), hex )
 import Cardano.Wallet.Address.Keys.WalletKey
-    ( getRawKeyNew, publicKeyNew )
+    ( getRawKey, publicKey )
 import Cardano.Wallet.Api.Hex
     ( fromHexText )
 import Cardano.Wallet.Api.Types
@@ -2378,7 +2378,7 @@ spec = describe "NEW_SHELLEY_TRANSACTIONS" $ do
         let rootSk = Shelley.generateKeyFromSeed (SomeMnemonic mw, Nothing) mempty
             acctSk = deriveAccountPrivateKey mempty rootSk minBound
             addrSk = deriveAddressPrivateKey mempty acctSk UtxoExternal (toEnum 14)
-            addrVk = getRawKeyNew ShelleyKeyS $ publicKeyNew ShelleyKeyS addrSk
+            addrVk = getRawKey ShelleyKeyS $ publicKey ShelleyKeyS addrSk
         let apiTx' = ApiT (apiTx `addRequiredSigners` [addrVk])
 
         -- Sign Tx

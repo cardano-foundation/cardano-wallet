@@ -273,7 +273,7 @@ import Cardano.Wallet.Address.Discovery.Sequential
 import Cardano.Wallet.Address.Discovery.Shared
     ( CredentialType (..) )
 import Cardano.Wallet.Address.Keys.WalletKey
-    ( getRawKeyNew, publicKeyNew )
+    ( getRawKey, publicKey )
 import Cardano.Wallet.Api.Types
     ( AddressAmount
     , ApiAccountKeyShared
@@ -1051,7 +1051,7 @@ accPubKeyFromMnemonics
     -> Passphrase "encryption"
     -> Text
 accPubKeyFromMnemonics mnemonic1 mnemonic2 ix passphrase =
-    T.decodeUtf8 $ serializeXPub $ publicKeyNew SharedKeyS $
+    T.decodeUtf8 $ serializeXPub $ publicKey SharedKeyS $
         deriveAccountPrivateKey passphrase rootXPrv (Index $ 2_147_483_648 + ix)
   where
     rootXPrv = Shared.generateKeyFromSeed (mnemonic1, mnemonic2) passphrase
@@ -1065,8 +1065,8 @@ sharedAccPubKeyFromMnemonics
 sharedAccPubKeyFromMnemonics mnemonic1 mnemonic2 ix passphrase =
     T.decodeUtf8 $ encode (EBech32 hrp)
         $ xpubToBytes
-        $ getRawKeyNew SharedKeyS
-        $ publicKeyNew SharedKeyS
+        $ getRawKey SharedKeyS
+        $ publicKey SharedKeyS
         $ deriveAccountPrivateKey passphrase rootXPrv
         $ Index $ 2_147_483_648 + ix
   where
@@ -2502,7 +2502,7 @@ randomAddresses mw =
         addrXPrv =
             Byron.deriveAddressPrivateKey pwd accXPrv
     in
-        [ paymentAddressS @n (publicKeyNew ByronKeyS $ addrXPrv ix)
+        [ paymentAddressS @n (publicKey ByronKeyS $ addrXPrv ix)
         | ix <- [minBound..maxBound]
         ]
 
@@ -2528,7 +2528,7 @@ icarusAddresses mw =
         addrXPrv =
             deriveAddressPrivateKey pwd accXPrv UtxoExternal
     in
-        [ paymentAddressS @n (publicKeyNew IcarusKeyS $ addrXPrv ix)
+        [ paymentAddressS @n (publicKey IcarusKeyS $ addrXPrv ix)
         | ix <- [minBound..maxBound]
         ]
 
@@ -2554,7 +2554,7 @@ shelleyAddresses mw =
         addrXPrv =
             deriveAddressPrivateKey pwd accXPrv UtxoExternal
     in
-        [ paymentAddressS @n (publicKeyNew ShelleyKeyS $ addrXPrv ix)
+        [ paymentAddressS @n (publicKey ShelleyKeyS $ addrXPrv ix)
         | ix <- [minBound..maxBound]
         ]
 
@@ -3268,7 +3268,7 @@ rootPrvKeyFromMnemonics mnemonics pass =
 --
 pubKeyFromMnemonics :: [Text] -> Text
 pubKeyFromMnemonics mnemonics =
-    T.decodeUtf8 $ serializeXPub $ publicKeyNew ShelleyKeyS
+    T.decodeUtf8 $ serializeXPub $ publicKey ShelleyKeyS
        $ deriveAccountPrivateKey mempty rootXPrv minBound
  where
      seed = either (error . show) id $ mkSomeMnemonic @'[15,24] mnemonics

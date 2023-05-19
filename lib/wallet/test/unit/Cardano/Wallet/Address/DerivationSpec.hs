@@ -36,7 +36,7 @@ import Cardano.Wallet.Address.Derivation.Shelley
 import Cardano.Wallet.Address.Keys.PersistPrivateKey
     ( serializeXPrv, unsafeDeserializeXPrv )
 import Cardano.Wallet.Address.Keys.WalletKey
-    ( getRawKeyNew, publicKeyNew )
+    ( getRawKey, publicKey )
 import Cardano.Wallet.Flavor
     ( KeyFlavorS (..) )
 import Cardano.Wallet.Gen
@@ -326,12 +326,12 @@ instance Arbitrary (ShelleyKey 'RootK XPrv) where
 instance Arbitrary (ShelleyKey 'AccountK XPub) where
     shrink _ = []
     arbitrary =
-        publicKeyNew ShelleyKeyS
+        publicKey ShelleyKeyS
             <$> (genRootKeysSeqWithPass =<< genPassphrase (0, 16))
 
 instance Arbitrary (ShelleyKey 'RootK XPub) where
     shrink _ = []
-    arbitrary = publicKeyNew ShelleyKeyS <$> arbitrary
+    arbitrary = publicKey ShelleyKeyS <$> arbitrary
 
 instance Arbitrary (ByronKey 'RootK XPrv) where
     shrink _ = []
@@ -344,7 +344,7 @@ instance Arbitrary (IcarusKey 'RootK XPrv) where
 instance Arbitrary (IcarusKey 'AccountK XPub) where
     shrink _ = []
     arbitrary =
-        publicKeyNew IcarusKeyS
+        publicKey IcarusKeyS
             <$> (genRootKeysIcaWithPass =<< genPassphrase (0, 16))
 
 newtype Unencrypted a = Unencrypted { getUnencrypted :: a }
@@ -374,11 +374,11 @@ genAnyKeyWithPass
     :: Passphrase "encryption"
     -> Gen XPrv
 genAnyKeyWithPass pwd = oneof
-    [ getRawKeyNew ShelleyKeyS
+    [ getRawKey ShelleyKeyS
         <$> genRootKeysSeqWithPass pwd
-    , getRawKeyNew ByronKeyS
+    , getRawKey ByronKeyS
         <$> genRootKeysRndWithPass pwd
-    , getRawKeyNew IcarusKeyS
+    , getRawKey IcarusKeyS
         <$> genRootKeysIcaWithPass pwd
     ]
 

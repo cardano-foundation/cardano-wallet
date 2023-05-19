@@ -44,7 +44,7 @@ import Cardano.Wallet.Address.Derivation.Byron
 import Cardano.Wallet.Address.Derivation.Shelley
     ( ShelleyKey (..) )
 import Cardano.Wallet.Address.Keys.WalletKey
-    ( publicKeyNew )
+    ( publicKey )
 import Cardano.Wallet.Byron.Compatibility
     ( maryTokenBundleMaxSize )
 import Cardano.Wallet.Flavor
@@ -771,7 +771,7 @@ instance (KeyFlavor k, Arbitrary (k 'CredFromKeyK XPrv)) =>
     Arbitrary (k 'CredFromKeyK XPub)
   where
     shrink _ = []
-    arbitrary = publicKeyNew (keyFlavor @k) <$> arbitrary
+    arbitrary = publicKey (keyFlavor @k) <$> arbitrary
 
 instance Arbitrary SomeMnemonic where
     arbitrary = SomeMnemonic <$> genMnemonic @12

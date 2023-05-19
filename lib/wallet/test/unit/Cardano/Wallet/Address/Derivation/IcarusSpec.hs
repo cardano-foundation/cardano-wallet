@@ -37,7 +37,7 @@ import Cardano.Wallet.Address.Derivation.Icarus
 import Cardano.Wallet.Address.DerivationSpec
     ()
 import Cardano.Wallet.Address.Keys.WalletKey
-    ( publicKeyNew )
+    ( publicKey )
 import Cardano.Wallet.Flavor
     ( KeyFlavorS (IcarusKeyS) )
 import Cardano.Wallet.Gen
@@ -105,9 +105,9 @@ prop_publicChildKeyDerivation seed encPwd cc ix =
   where
     accXPrv = unsafeGenerateKeyFromSeed seed encPwd :: IcarusKey 'AccountK XPrv
     -- N(CKDpriv((kpar, cpar), i))
-    addrXPub1 = publicKeyNew IcarusKeyS  $ deriveAddressPrivateKey encPwd accXPrv cc ix
+    addrXPub1 = publicKey IcarusKeyS  $ deriveAddressPrivateKey encPwd accXPrv cc ix
     -- CKDpub(N(kpar, cpar), i)
-    addrXPub2 = deriveAddressPublicKey (publicKeyNew IcarusKeyS accXPrv) cc ix
+    addrXPub2 = deriveAddressPublicKey (publicKey IcarusKeyS accXPrv) cc ix
 
 prop_accountKeyDerivation
     :: SomeMnemonic

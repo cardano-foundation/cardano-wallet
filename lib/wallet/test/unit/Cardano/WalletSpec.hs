@@ -61,7 +61,7 @@ import Cardano.Wallet.Address.Discovery
     , KnownAddresses (..)
     )
 import Cardano.Wallet.Address.Keys.WalletKey
-    ( publicKeyNew )
+    ( publicKey )
 import Cardano.Wallet.DB
     ( DBFresh, DBLayer (..), hoistDBFresh, hoistDBLayer, putTxHistory )
 import Cardano.Wallet.DB.Fixtures
@@ -1250,7 +1250,7 @@ dummyTransactionLayer = TransactionLayer
                 let sigData = tx ^. #txId . #getHash
                 let sig = CC.unXSignature $ CC.sign pwd (getKey xprv) sigData
                 return
-                    $ xpubToBytes (getKey $ publicKeyNew ShelleyKeyS xprv)
+                    $ xpubToBytes (getKey $ publicKey ShelleyKeyS xprv)
                         <> sig
 
         -- (tx1, wit1) == (tx2, wit2) <==> fakebinary1 == fakebinary2

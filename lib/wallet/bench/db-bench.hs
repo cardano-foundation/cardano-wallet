@@ -83,7 +83,7 @@ import Cardano.Wallet.Address.Discovery.Sequential
 import Cardano.Wallet.Address.Keys.SequentialAny
     ( mkSeqStateFromRootXPrv )
 import Cardano.Wallet.Address.Keys.WalletKey
-    ( publicKeyNew )
+    ( publicKey )
 import Cardano.Wallet.DB
     ( DBFresh (..), DBLayer (..), DBLayerParams (..) )
 import Cardano.Wallet.DB.Layer
@@ -834,13 +834,13 @@ defaultPrefix = DerivationPrefix
     )
 
 ourAccount :: ShelleyKey 'AccountK XPub
-ourAccount = publicKeyNew ShelleyKeyS
+ourAccount = publicKey ShelleyKeyS
     $ unsafeGenerateKeyFromSeed (seed, Nothing) mempty
   where
     seed = someDummyMnemonic (Proxy @15)
 
 rewardAccount :: ShelleyKey 'CredFromKeyK XPub
-rewardAccount = publicKeyNew ShelleyKeyS
+rewardAccount = publicKey ShelleyKeyS
     $ unsafeGenerateKeyFromSeed (seed, Nothing) mempty
   where
     seed = someDummyMnemonic (Proxy @15)

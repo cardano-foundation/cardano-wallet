@@ -69,7 +69,7 @@ import Cardano.Wallet.Address.Derivation
 import Cardano.Wallet.Address.Keys.PersistPrivateKey
     ( serializeXPrv, unsafeDeserializeXPrv )
 import Cardano.Wallet.Address.Keys.WalletKey
-    ( keyTypeDescriptorNew )
+    ( keyTypeDescriptor )
 import Cardano.Wallet.Checkpoints
     ( DeltaCheckpoints (..) )
 import Cardano.Wallet.DB
@@ -306,7 +306,7 @@ newDBFactory wf tr defaultFieldValues ti = \case
             }
       where
         key = keyOfWallet wf
-        databaseFilePrefix = keyTypeDescriptorNew key
+        databaseFilePrefix = keyTypeDescriptor key
         databaseFile wid =
             databaseDir </>
             databaseFilePrefix <> "." <>
@@ -334,7 +334,7 @@ findDatabases key tr dir = do
                         return Nothing
             _ -> return Nothing
   where
-    expectedPrefix = T.pack $ keyTypeDescriptorNew key
+    expectedPrefix = T.pack $ keyTypeDescriptor key
 
 data DBFactoryLog
     = MsgFoundDatabase FilePath Text

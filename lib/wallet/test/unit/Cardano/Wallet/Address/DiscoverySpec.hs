@@ -30,7 +30,7 @@ import Cardano.Wallet.Address.Discovery
 import Cardano.Wallet.Address.Discovery.Random
     ( mkRndState )
 import Cardano.Wallet.Address.Keys.WalletKey
-    ( publicKeyNew )
+    ( publicKey )
 import Cardano.Wallet.Flavor
     ( KeyFlavorS (ByronKeyS) )
 import Cardano.Wallet.Gen
@@ -98,7 +98,7 @@ prop_derivedKeysAreOurs seed encPwd accIx addrIx rk' =
     fst' (a,_,_) = a
     (resPos, stPos') = isOurs addr (mkRndState @n rootXPrv 0)
     (resNeg, stNeg') = isOurs addr (mkRndState @n rk' 0)
-    key = publicKeyNew ByronKeyS
+    key = publicKey ByronKeyS
         $ unsafeGenerateKeyFromSeed @'CredFromKeyK (accIx, addrIx) seed encPwd
     rootXPrv = generateKeyFromSeed seed encPwd
     addr = paymentAddressS @n key

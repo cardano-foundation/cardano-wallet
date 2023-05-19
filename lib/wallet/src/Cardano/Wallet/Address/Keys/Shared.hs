@@ -66,7 +66,7 @@ import Cardano.Wallet.Address.Discovery.Shared
     , retrieveAllCosigners
     )
 import Cardano.Wallet.Address.Keys.WalletKey
-    ( getRawKeyNew, publicKeyNew )
+    ( getRawKey, publicKey )
 import Cardano.Wallet.Flavor
     ( KeyFlavorS )
 import Cardano.Wallet.Primitive.Passphrase
@@ -123,7 +123,7 @@ mkSharedStateFromRootXPrv
 mkSharedStateFromRootXPrv kF (rootXPrv, pwd) accIx =
     mkSharedStateFromAccountXPub kF accXPub accIx
   where
-    accXPub = publicKeyNew kF $ deriveAccountPrivateKey pwd rootXPrv accIx
+    accXPub = publicKey kF $ deriveAccountPrivateKey pwd rootXPrv accIx
 
 -- | Turn a 'Pending' into an 'Active' state if all templates are complete.
 activate
@@ -189,13 +189,13 @@ addCosignerAccXPub kF (cosigner, cosignerXPub) cred st = case ready st of
   where
     walletKey = accountXPub st
     isKeyAlreadyPresent (ScriptTemplate cosignerKeys _) =
-        getRawKeyNew kF cosignerXPub `F.elem` cosignerKeys
+        getRawKey kF cosignerXPub `F.elem` cosignerKeys
     isCosignerMissing (ScriptTemplate _ script') =
         cosigner `notElem` retrieveAllCosigners script'
     tryingUpdateWalletCosigner (ScriptTemplate cosignerKeys _) =
         case Map.lookup cosigner cosignerKeys of
             Nothing -> False
-            Just key' -> key' == getRawKeyNew kF walletKey
+            Just key' -> key' == getRawKey kF walletKey
 
 addCosignerPending
     :: KeyFlavorS k
@@ -212,7 +212,7 @@ addCosignerPending kF (cosigner, cosignerXPub) cred st = case cred of
     updateScriptTemplate sc@(ScriptTemplate cosignerMap script')
         | cosigner `elem` retrieveAllCosigners script' =
             ScriptTemplate
-                (Map.insert cosigner (getRawKeyNew kF  cosignerXPub) cosignerMap)
+                (Map.insert cosigner (getRawKey kF  cosignerXPub) cosignerMap)
                 script'
         | otherwise = sc
 
@@ -227,7 +227,7 @@ accountXPubCondition
     -> ScriptTemplate
     -> Bool
 accountXPubCondition kF accXPub (ScriptTemplate cosignerKeys _) =
-    getRawKeyNew kF accXPub `F.elem` cosignerKeys
+    getRawKey kF accXPub `F.elem` cosignerKeys
 
 
 validateScriptTemplates
@@ -283,7 +283,7 @@ toSharedWalletId
     -> Digest Blake2b_160
 toSharedWalletId kF accXPub pTemplate dTemplateM =
     hash $
-    (unXPub . getRawKeyNew kF $ accXPub) <>
+    (unXPub . getRawKey kF $ accXPub) <>
     serializeScriptTemplate pTemplate <>
     maybe mempty serializeScriptTemplate dTemplateM
   where

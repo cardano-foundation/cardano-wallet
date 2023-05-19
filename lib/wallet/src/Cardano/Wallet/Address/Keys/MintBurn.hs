@@ -20,12 +20,7 @@ import Cardano.Wallet.Address.Derivation
 import Cardano.Wallet.Address.Derivation.MintBurn
     ( derivePolicyPrivateKey )
 import Cardano.Wallet.Address.Keys.WalletKey
-    ( AfterByron
-    , getRawKeyNew
-    , hashVerificationKeyNew
-    , liftRawKeyNew
-    , publicKeyNew
-    )
+    ( AfterByron, getRawKey, hashVerificationKey, liftRawKey, publicKey )
 import Cardano.Wallet.Flavor
     ( KeyFlavorS )
 import Cardano.Wallet.Primitive.Passphrase
@@ -100,7 +95,7 @@ replaceCosigner kf cosignerMap = \case
   where
     toKeyHash :: HasCallStack => Cosigner -> KeyHash
     toKeyHash c = case Map.lookup c cosignerMap of
-        Just xpub -> hashVerificationKeyNew kf CA.Policy (liftRawKeyNew kf xpub)
+        Just xpub -> hashVerificationKey kf CA.Policy (liftRawKey kf xpub)
         Nothing -> error "Impossible: cosigner without xpub."
 
 
@@ -119,6 +114,6 @@ derivePolicyKeyAndHash
   -- ^ Policy private key
 derivePolicyKeyAndHash kf pwd rootPrv policyIx = (policyK, vkeyHash)
   where
-    policyK = liftRawKeyNew kf policyPrv
-    policyPrv = derivePolicyPrivateKey pwd (getRawKeyNew kf rootPrv) policyIx
-    vkeyHash = hashVerificationKeyNew kf CA.Payment (publicKeyNew kf policyK)
+    policyK = liftRawKey kf policyPrv
+    policyPrv = derivePolicyPrivateKey pwd (getRawKey kf rootPrv) policyIx
+    vkeyHash = hashVerificationKey kf CA.Payment (publicKey kf policyK)

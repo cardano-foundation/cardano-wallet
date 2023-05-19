@@ -69,7 +69,7 @@ import Cardano.Wallet.Address.Discovery
 import Cardano.Wallet.Address.Discovery.Shared
     ( CredentialType (..) )
 import Cardano.Wallet.Address.Keys.WalletKey
-    ( getRawKeyNew, liftRawKeyNew )
+    ( getRawKey, liftRawKey )
 import Cardano.Wallet.Checkpoints
     ( DeltaCheckpoints (..), DeltasCheckpoints, loadCheckpoints )
 import Cardano.Wallet.DB.Errors
@@ -584,7 +584,7 @@ instance
                 [CosignerKeyWalletId ==. wid, CosignerKeyCredential ==. cred]
             dbChunked insertMany_
                 [ CosignerKey wid cred (serializeXPub @(key 'AccountK)
-                    $ liftRawKeyNew SharedKeyS xpub) c
+                    $ liftRawKey SharedKeyS xpub) c
                 | ((Cosigner c), xpub) <- Map.assocs cs
                 ]
 
@@ -617,7 +617,7 @@ instance
         pCosigners <- lift $ selectCosigners @key wid Payment
         dCosigners <- lift $ selectCosigners @key wid Delegation
 
-        let prepareKeys = fmap $ second $ getRawKeyNew SharedKeyS
+        let prepareKeys = fmap $ second $ getRawKey SharedKeyS
             pTemplate =
                 ScriptTemplate (Map.fromList $ prepareKeys pCosigners) pScript
             dTemplateM =

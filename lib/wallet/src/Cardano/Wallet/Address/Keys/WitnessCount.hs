@@ -27,7 +27,7 @@ import Cardano.Wallet.Address.Discovery.Sequential
 import Cardano.Wallet.Address.Discovery.Shared
     ( delegationTemplate )
 import Cardano.Wallet.Address.Keys.WalletKey
-    ( getRawKeyNew, hashVerificationKeyNew )
+    ( getRawKey, hashVerificationKey )
 import Cardano.Wallet.Flavor
     ( FlavorOf
     , IncludingStates
@@ -63,7 +63,7 @@ count s = case policyXPub s of
         ShelleyWalletCtx
             $ KeyHash Policy
             $ xpubToBytes
-            $ getRawKeyNew (keyFlavorFromState @s) key
+            $ getRawKey (keyFlavorFromState @s) key
     Nothing -> AnyWitnessCountCtx
 
 allCosignerStakingKeys
@@ -75,4 +75,4 @@ allCosignerStakingKeys (ScriptTemplate xpubs _) =
     stakingKey accXPub =
         deriveAddressPublicKey (SharedKey accXPub) MutableAccount minBound
     toKeyHash =
-        hashVerificationKeyNew SharedKeyS CA.Delegation . stakingKey
+        hashVerificationKey SharedKeyS CA.Delegation . stakingKey

@@ -37,7 +37,7 @@ import GHC.TypeLits
 import Cardano.Wallet.Address.Derivation.Byron
     ( ByronKey (..) )
 import Cardano.Wallet.Address.Keys.WalletKey
-    ( getRawKeyNew, liftRawKeyNew, publicKeyNew )
+    ( getRawKey, liftRawKey, publicKey )
 
 
 -- | Initialize the HD random address discovery state from a root key and RNG
@@ -74,8 +74,8 @@ mkSeqStateFromRootXPrv
     -> SeqState n k
 mkSeqStateFromRootXPrv kF (rootXPrv, pwd) =
     mkSeqStateFromAccountXPub
-        (publicKeyNew kF $ deriveAccountPrivateKey pwd rootXPrv minBound)
+        (publicKey kF $ deriveAccountPrivateKey pwd rootXPrv minBound)
             $ Just
-            $ publicKeyNew kF
-            $ liftRawKeyNew kF
-            $ derivePolicyPrivateKey pwd (getRawKeyNew kF rootXPrv) minBound
+            $ publicKey kF
+            $ liftRawKey kF
+            $ derivePolicyPrivateKey pwd (getRawKey kF rootXPrv) minBound

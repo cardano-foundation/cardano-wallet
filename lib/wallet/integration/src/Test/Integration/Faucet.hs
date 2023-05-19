@@ -73,7 +73,7 @@ import Cardano.Wallet.Address.Derivation
     , liftIndex
     )
 import Cardano.Wallet.Address.Keys.WalletKey
-    ( getRawKeyNew, publicKeyNew )
+    ( getRawKey, publicKey )
 import Cardano.Wallet.Flavor
     ( KeyFlavorS (ByronKeyS, IcarusKeyS, ShelleyKeyS) )
 import Cardano.Wallet.Primitive.Types.Address
@@ -2246,7 +2246,7 @@ byronAddresses mw =
             Byron.deriveAddressPrivateKey pwd accXPrv
     in
         [ paymentAddress SMainnet
-            $ publicKeyNew ByronKeyS $ addrXPrv $ liftIndex @'Hardened ix
+            $ publicKey ByronKeyS $ addrXPrv $ liftIndex @'Hardened ix
         | ix <- [minBound..maxBound]
         ]
 
@@ -2262,7 +2262,7 @@ icaAddresses mw =
         addrXPrv =
             deriveAddressPrivateKey pwd accXPrv UtxoExternal
     in
-        [ paymentAddress SMainnet $ publicKeyNew IcarusKeyS $ addrXPrv ix
+        [ paymentAddress SMainnet $ publicKey IcarusKeyS $ addrXPrv ix
         | ix <- [minBound..maxBound]
         ]
 
@@ -2294,7 +2294,7 @@ genShelleyAddresses mw =
         addrXPrv =
             deriveAddressPrivateKey pwd accXPrv UtxoExternal
     in
-        [ paymentAddress SMainnet $ publicKeyNew ShelleyKeyS $ addrXPrv ix
+        [ paymentAddress SMainnet $ publicKey ShelleyKeyS $ addrXPrv ix
         | ix <- [minBound..maxBound]
         ]
 
@@ -2308,7 +2308,7 @@ genRewardAccounts mw =
         acctXPrv =
             deriveRewardAccount pwd rootXPrv minBound
     in
-        [getRawKeyNew ShelleyKeyS $ publicKeyNew ShelleyKeyS acctXPrv]
+        [getRawKey ShelleyKeyS $ publicKey ShelleyKeyS acctXPrv]
 
 -- | Abstract function for generating a faucet as a YAML file.
 --

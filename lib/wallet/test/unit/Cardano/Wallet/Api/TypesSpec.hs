@@ -521,7 +521,7 @@ import Web.HttpApiData
 
 import qualified Cardano.Api as Cardano
 import Cardano.Wallet.Address.Keys.WalletKey
-    ( publicKeyNew )
+    ( publicKey )
 import qualified Cardano.Wallet.Api.Types as Api
 import qualified Cardano.Wallet.Primitive.Types.Coin as Coin
 import qualified Cardano.Wallet.Primitive.Types.UTxOStatistics as UTxOStatistics
@@ -1326,7 +1326,7 @@ instance Arbitrary ApiAccountPublicKey where
     arbitrary = do
         seed <- SomeMnemonic <$> genMnemonic @15
         let rootXPrv = generateKeyFromSeed (seed, Nothing) mempty
-        let accXPub = publicKeyNew ShelleyKeyS
+        let accXPub = publicKey ShelleyKeyS
                 $ deriveAccountPrivateKey mempty rootXPrv minBound
         pure $ ApiAccountPublicKey $ ApiT $ getKey accXPub
 
@@ -1334,7 +1334,7 @@ instance Arbitrary ApiAccountSharedPublicKey where
     arbitrary = do
         seed <- SomeMnemonic <$> genMnemonic @15
         let rootXPrv = generateKeyFromSeed (seed, Nothing) mempty
-        let accXPub = publicKeyNew ShelleyKeyS
+        let accXPub = publicKey ShelleyKeyS
                 $ deriveAccountPrivateKey mempty rootXPrv minBound
         pure $ ApiAccountSharedPublicKey $ ApiT $ getKey accXPub
 

@@ -39,7 +39,7 @@ import Cardano.Wallet.Address.Discovery
 import Cardano.Wallet.Address.Discovery.Random
     ( RndState (..), findUnusedPath, mkRndState )
 import Cardano.Wallet.Address.Keys.WalletKey
-    ( publicKeyNew )
+    ( publicKey )
 import Cardano.Wallet.Flavor
 import Cardano.Wallet.Gen
     ( genMnemonic )
@@ -299,7 +299,7 @@ prop_derivedKeysAreOwned (Rnd st rk pwd) (Rnd st' rk' pwd') addrIx =
     .&&.
     isOwned @_ @_ @'CredFromKeyK st' (rk', pwd') addr === Nothing
   where
-    addr = paymentAddress SMainnet (publicKeyNew ByronKeyS addrKey)
+    addr = paymentAddress SMainnet (publicKey ByronKeyS addrKey)
     addrKey = deriveAddressPrivateKey pwd acctKey addrIx
     acctKey = deriveAccountPrivateKey pwd rk (liftIndex $ accountIndex st)
 
@@ -371,4 +371,4 @@ mkAddress (Rnd (RndState _ accIx _ _ _) rk pwd) addrIx =
         acctKey = deriveAccountPrivateKey pwd rk (liftIndex accIx)
         addrKey = deriveAddressPrivateKey pwd acctKey addrIx
     in
-        paymentAddress SMainnet (publicKeyNew ByronKeyS addrKey)
+        paymentAddress SMainnet (publicKey ByronKeyS addrKey)

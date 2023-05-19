@@ -6,19 +6,19 @@
 {-# LANGUAGE TypeFamilies #-}
 
 -- ghc , at least 8.10.7 cannot figure out the constraint is necessary in
--- liftRawKeyNew, so we disable the warning.
+-- liftRawKey, so we disable the warning.
 {-# OPTIONS_GHC -Wno-redundant-constraints #-}
 {-# LANGUAGE ConstraintKinds #-}
 
 -- | Interface over keys / address types
 module Cardano.Wallet.Address.Keys.WalletKey
-    ( liftRawKeyNew
-    , getRawKeyNew
-    , keyTypeDescriptorNew
-    , digestNew
-    , publicKeyNew
+    ( liftRawKey
+    , getRawKey
+    , keyTypeDescriptor
+    , digest
+    , publicKey
     , changePassphraseNew
-    , hashVerificationKeyNew
+    , hashVerificationKey
     , AfterByron
     , afterByron
     ) where
@@ -28,7 +28,7 @@ import Prelude
 import Cardano.Address.Derivation
     ( XPrv, xpubPublicKey )
 import Cardano.Address.Script
-    ( KeyHash (..), KeyRole )
+    ( KeyHash (KeyHash), KeyRole )
 import Cardano.Crypto.Wallet
     ( XPub, toXPub, unXPub )
 import Cardano.Wallet.Address.Derivation.Byron
@@ -81,47 +81,47 @@ changePassphraseNew = \case
     SharedKeyS -> \old new -> over sharedKey $ changePassphraseXPrv old new
 
 -- | Extract the public key part of a private key.
-publicKeyNew
+publicKey
     :: KeyFlavorS key
     -- ^ The type of key to serialize.
     -> key depth XPrv
     -- ^ Private key.
     -> key depth XPub
-publicKeyNew = \case
+publicKey = \case
     ByronKeyS -> over byronKey toXPub
     IcarusKeyS ->  over icarusKey toXPub
     ShelleyKeyS -> over shelleyKey toXPub
     SharedKeyS -> over sharedKey toXPub
 
 -- | Hash a public key to some other representation.
-digestNew
+digest
     :: HashAlgorithm a
     => KeyFlavorS key
     -- ^ The type of key to serialize.
     -> key depth XPub
     -- ^ Public key.
     -> Digest a
-digestNew k = hash . unXPub . getRawKeyNew k
+digest k = hash . unXPub . getRawKey k
 
 -- | Get a short, human-readable string descriptor that uniquely identifies
 --   the specified key type.
-keyTypeDescriptorNew :: KeyFlavorS k
+keyTypeDescriptor :: KeyFlavorS k
     -- ^ The type of key to serialize.
     -> String
-keyTypeDescriptorNew = \case
+keyTypeDescriptor = \case
     ByronKeyS -> "rnd"
     IcarusKeyS -> "ica"
     ShelleyKeyS -> "she"
     SharedKeyS -> "sha"
 
 -- | Unwrap the 'WalletKey' to use the 'XPrv' or 'XPub'.
-getRawKeyNew
+getRawKey
     :: KeyFlavorS key
     -- ^ The type of key to serialize.
     -> key depth raw
     -- ^ The key to unwrap, public or private.
     -> raw
-getRawKeyNew = \case
+getRawKey = \case
     ByronKeyS -> view byronKey
     IcarusKeyS -> view icarusKey
     ShelleyKeyS -> view shelleyKey
@@ -130,14 +130,14 @@ getRawKeyNew = \case
 type AfterByron k = Excluding '[ByronKey] k
 
 -- | Lift 'XPrv' or 'XPub' to 'WalletKey'.
-liftRawKeyNew
+liftRawKey
     :: AfterByron key
     => KeyFlavorS key
     -- ^ The type of key to serialize.
     -> raw
     -- ^ The key to unwrap, public or private.
     -> key depth raw
-liftRawKeyNew = \case
+liftRawKey = \case
     IcarusKeyS -> IcarusKey
     ShelleyKeyS -> ShelleyKey
     SharedKeyS -> SharedKey
@@ -151,10 +151,10 @@ afterByron x h = case x of
     IcarusKeyS -> Just $ h IcarusKeyS
     SharedKeyS -> Just $ h SharedKeyS
 
-hashVerificationKeyNew
+hashVerificationKey
     :: KeyFlavorS k
     -> KeyRole
     -> k depth XPub
     -> KeyHash
-hashVerificationKeyNew key keyRole =
-    KeyHash keyRole . blake2b224 . xpubPublicKey . getRawKeyNew key
+hashVerificationKey key keyRole =
+    KeyHash keyRole . blake2b224 . xpubPublicKey . getRawKey key

@@ -124,7 +124,7 @@ import Cardano.Wallet.Address.Derivation.Shelley
 import Cardano.Wallet.Address.Discovery.Shared
     ( estimateMaxWitnessRequiredPerInput )
 import Cardano.Wallet.Address.Keys.WalletKey
-    ( getRawKeyNew )
+    ( getRawKey )
 import Cardano.Wallet.Flavor
     ( KeyFlavorS )
 import Cardano.Wallet.Primitive.Passphrase
@@ -542,7 +542,7 @@ signTransaction
     mkTxInWitness i = do
         addr <- resolveInput i
         (k, pwd) <- resolveAddress addr
-        let  pk = (getRawKeyNew keyF k, pwd)
+        let  pk = (getRawKey keyF k, pwd)
         pure $ case txWitnessTagFor @k of
             TxWitnessShelleyUTxO -> mkShelleyWitness body pk
             TxWitnessByronUTxO ->
@@ -571,7 +571,7 @@ signTransaction
                 (Cardano.PaymentCredentialByKey vkh)
                 Cardano.NoStakeAddress
         (k, pwd) <- resolveAddress (fromCardanoAddress addr)
-        pure $ mkShelleyWitness body (getRawKeyNew keyF k, pwd)
+        pure $ mkShelleyWitness body (getRawKey keyF k, pwd)
 
 newTransactionLayer
     :: forall k ktype

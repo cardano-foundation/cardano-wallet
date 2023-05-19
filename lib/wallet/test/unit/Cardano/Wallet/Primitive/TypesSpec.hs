@@ -26,7 +26,7 @@ import Cardano.Wallet.Address.Derivation
 import Cardano.Wallet.Address.Derivation.Shelley
     ( ShelleyKey, generateKeyFromSeed )
 import Cardano.Wallet.Address.Keys.WalletKey
-    ( digestNew, publicKeyNew )
+    ( digest, publicKey )
 import Cardano.Wallet.Flavor
     ( KeyFlavorS (ShelleyKeyS) )
 import Cardano.Wallet.Gen
@@ -258,8 +258,8 @@ spec = describe "Cardano.Wallet.Primitive.Types" $ do
             let xprv = generateKeyFromSeed
                     (mw, Nothing) mempty :: ShelleyKey 'RootK XPrv
             let wid = WalletId
-                    $ digestNew ShelleyKeyS
-                    $ publicKeyNew ShelleyKeyS xprv
+                    $ digest ShelleyKeyS
+                    $ publicKey ShelleyKeyS xprv
             "c225b83f...1d9d620e" === pretty @_ @Text wid
         it "TxMeta (1)" $ do
             let txMeta = TxMeta

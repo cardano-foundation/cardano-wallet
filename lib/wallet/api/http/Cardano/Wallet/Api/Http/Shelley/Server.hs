@@ -142,7 +142,7 @@ import Cardano.Address.Derivation
     ( XPrv, XPub, xpubPublicKey, xpubToBytes )
 import Cardano.Address.Script
     ( Cosigner (..)
-    , KeyHash (..)
+    , KeyHash (KeyHash)
     , KeyRole (..)
     , ScriptTemplate (..)
     , ValidationLevel (..)
@@ -263,7 +263,7 @@ import Cardano.Wallet.Address.Keys.Shared
     , validateScriptTemplates
     )
 import Cardano.Wallet.Address.Keys.WalletKey
-    ( AfterByron, digestNew, getRawKeyNew, publicKeyNew )
+    ( AfterByron, digest, getRawKey, publicKey )
 import Cardano.Wallet.Address.Keys.WitnessCount
     ( toWitnessCountCtx )
 import Cardano.Wallet.Api
@@ -894,7 +894,7 @@ postShelleyWallet ctx generateKey body = do
     pwdP = preparePassphrase currentPassphraseScheme pwd
     rootXPrv = generateKey (seed, secondFactor) pwdP
     g = maybe defaultAddressPoolGap getApiT (body ^. #addressPoolGap)
-    wid = WalletId $ digestNew ShelleyKeyS $ publicKeyNew ShelleyKeyS rootXPrv
+    wid = WalletId $ digest ShelleyKeyS $ publicKey ShelleyKeyS rootXPrv
     wName = getApiT (body ^. #name)
     genesisParams = ctx ^. #netParams
 
@@ -929,7 +929,7 @@ postAccountWallet ctx mkWallet liftKey coworker body = do
     wName = getApiT (body ^. #name)
     (ApiAccountPublicKey accXPubApiT) =  body ^. #accountPublicKey
     accXPub = getApiT accXPubApiT
-    wid = WalletId $ digestNew (keyFlavorFromState @s) (liftKey accXPub)
+    wid = WalletId $ digest (keyFlavorFromState @s) (liftKey accXPub)
     genesisParams = ctx ^. #netParams
 
 mkShelleyWallet
@@ -1093,12 +1093,12 @@ postSharedWalletFromRootXPrv ctx generateKey body = do
     rootXPrv = generateKey (seed, secondFactor) pwdP
     g = defaultAddressPoolGap
     ix = getApiT (body ^. #accountIndex)
-    pTemplate = scriptTemplateFromSelf (getRawKeyNew SharedKeyS accXPub)
+    pTemplate = scriptTemplateFromSelf (getRawKey SharedKeyS accXPub)
         $ body ^. #paymentScriptTemplate
-    dTemplateM = scriptTemplateFromSelf (getRawKeyNew SharedKeyS accXPub)
+    dTemplateM = scriptTemplateFromSelf (getRawKey SharedKeyS accXPub)
         <$> body ^. #delegationScriptTemplate
     wName = getApiT (body ^. #name)
-    accXPub = publicKeyNew SharedKeyS
+    accXPub = publicKey SharedKeyS
         $ deriveAccountPrivateKey pwdP rootXPrv (Index $ getDerivationIndex ix)
     scriptValidation =
         maybe RecommendedValidation getApiT (body ^. #scriptValidation)
@@ -1328,8 +1328,8 @@ postLegacyWallet ctx (rootXPrv, pwd) createWallet = do
   where
     kF = keyFlavorFromState @s
     wid = WalletId
-        $ digestNew kF
-        $ publicKeyNew kF rootXPrv
+        $ digest kF
+        $ publicKey kF rootXPrv
 
 mkLegacyWallet
     :: forall ctx s .
@@ -1439,7 +1439,7 @@ postRandomWalletFromXPrv ctx body = do
     pwd   = getApiT (body ^. #passphraseHash)
     masterKey = getApiT (body ^. #encryptedRootPrivateKey)
     byronKey = mkByronKeyFromMasterKey masterKey
-    wid = WalletId $ digestNew ByronKeyS $ publicKeyNew ByronKeyS byronKey
+    wid = WalletId $ digest ByronKeyS $ publicKey ByronKeyS byronKey
     genesisParams = ctx ^. #netParams
 
 postIcarusWallet
@@ -1694,7 +1694,7 @@ putWalletPassphrase ctx createKey getKey (ApiT wid)
             let encrPass = preparePassphrase currentPassphraseScheme new
                 challengeKey = createKey
                     (mnemonic, getApiMnemonicT <$> sndFactor) encrPass
-                challengPubKey = publicKeyNew (keyFlavorFromState @s)
+                challengPubKey = publicKey (keyFlavorFromState @s)
                     $ deriveAccountPrivateKey encrPass challengeKey minBound
             storedPubKey <- handler $ W.readAccountPublicKey wrk
             if getKey challengPubKey == getKey storedPubKey
@@ -4092,7 +4092,7 @@ derivePublicKey ctx mkVer (ApiT wid) (ApiT role_) (ApiT ix) hashed = do
     withWorkerCtx @_ @s ctx wid liftE liftE $ \wrk -> do
         k <- liftHandler $ W.derivePublicKey @_ @s wrk role_ ix
         let (payload, hashing) = computeKeyPayload hashed
-                $ getRawKeyNew (keyFlavorFromState @s) k
+                $ getRawKey (keyFlavorFromState @s) k
         pure $ mkVer (payload, role_) hashing
 
 postAccountPublicKey
@@ -4115,7 +4115,7 @@ postAccountPublicKey ctx mkAccount (ApiT wid) (ApiT ix)
         k <- liftHandler $ W.getAccountPublicKeyAtIndex @_ @s
             wrk wid pwd ix (getApiT <$> purposeM)
         pure $ mkAccount
-            (publicKeyToBytes' extd $ getRawKeyNew (keyFlavorFromState @s) k)
+            (publicKeyToBytes' extd $ getRawKey (keyFlavorFromState @s) k)
             extd
             ixPurpose'
   where
@@ -4143,7 +4143,7 @@ getAccountPublicKey ctx mkAccount (ApiT wid) extended = do
     withWorkerCtx @_ @s ctx wid liftE liftE $ \wrk -> do
         k <- handler $ W.readAccountPublicKey @_ @s wrk
         pure $ mkAccount
-            (publicKeyToBytes' extd $ getRawKeyNew (keyFlavorFromState @s) k)
+            (publicKeyToBytes' extd $ getRawKey (keyFlavorFromState @s) k)
             extd
             (getPurpose @k)
   where
@@ -4181,7 +4181,7 @@ postPolicyKey ctx (ApiT wid) hashed apiPassphrase =
         pure
             $ uncurry ApiPolicyKey
             $ computeKeyPayload hashed
-            $ getRawKeyNew (keyFlavorFromState @s) k
+            $ getRawKey (keyFlavorFromState @s) k
   where
     pwd = getApiT (apiPassphrase ^. #passphrase)
 
@@ -4310,7 +4310,7 @@ selfRewardAccountBuilder
     => KeyFlavorS k
     -> RewardAccountBuilder k
 selfRewardAccountBuilder keyF (rootK, pwdP) =
-    (getRawKeyNew keyF (deriveRewardAccount pwdP rootK minBound), pwdP)
+    (getRawKey keyF (deriveRewardAccount pwdP rootK minBound), pwdP)
 
 -- | Makes an 'ApiCoinSelection' from the given 'UnsignedTx'.
 mkApiCoinSelection
