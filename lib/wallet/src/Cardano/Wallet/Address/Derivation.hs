@@ -64,7 +64,6 @@ module Cardano.Wallet.Address.Derivation
     -- * Backends Interoperability
     , PaymentAddress(..)
     , DelegationAddress(..)
-    , WalletKey(..)
     , PersistPublicKey(..)
     , MkKeyFingerprint(..)
     , ErrMkKeyFingerprint(..)
@@ -85,7 +84,7 @@ import Cardano.Address.Derivation
 import Cardano.Mnemonic
     ( SomeMnemonic )
 import Cardano.Wallet.Primitive.Passphrase.Types
-    ( Passphrase (..), PassphraseScheme )
+    ( Passphrase (..) )
 import Cardano.Wallet.Primitive.Types.Address
     ( Address (..) )
 import Cardano.Wallet.Primitive.Types.RewardAccount
@@ -98,8 +97,6 @@ import Control.DeepSeq
     ( NFData )
 import Control.Monad
     ( (>=>) )
-import Crypto.Hash
-    ( Digest, HashAlgorithm )
 import Data.Bifunctor
     ( first )
 import Data.Bits
@@ -562,50 +559,6 @@ deriveRewardAccount pwd rootPrv accIx =
 -- staking. It is supposed to be not Nothing only for shared wallets
 class AccountIxForStaking s where
     getAccountIx :: s -> Maybe (Index 'Hardened 'AccountK)
-
-{-------------------------------------------------------------------------------
-                     Interface over keys / address types
--------------------------------------------------------------------------------}
-
-class WalletKey (key :: Depth -> Type -> Type) where
-    -- | Re-encrypt a private key using a different passphrase.
-    --
-    -- **Important**:
-    -- This function doesn't check that the old passphrase is correct! Caller is
-    -- expected to have already checked that. Using an incorrect passphrase here
-    -- will lead to very bad thing.
-    changePassphrase
-        :: (PassphraseScheme, Passphrase "user")
-            -- ^ Old passphrase
-        -> (PassphraseScheme, Passphrase "user")
-            -- ^ New passphrase
-        -> key depth XPrv
-        -> key depth XPrv
-
-    -- | Extract the public key part of a private key.
-    publicKey
-        :: key depth XPrv
-        -> key depth XPub
-
-    -- | Hash a public key to some other representation.
-    digest
-        :: HashAlgorithm a
-        => key depth XPub
-        -> Digest a
-
-    -- | Get a short, human-readable string descriptor that uniquely identifies
-    --   the specified key type.
-    keyTypeDescriptor :: Proxy key -> String
-
-    -- | Unwrap the 'WalletKey' to use the 'XPrv' or 'XPub'.
-    getRawKey
-        :: key depth raw
-        -> raw
-
-    -- | Lift 'XPrv' or 'XPub' to 'WalletKey'.
-    liftRawKey
-        :: raw
-        -> key depth raw
 
 -- | Encoding of addresses for certain key types and backend targets.
 class MkKeyFingerprint key Address

@@ -36,7 +36,7 @@ import Prelude
 import Cardano.Address.Derivation
     ( xpubPublicKey )
 import Cardano.Crypto.Wallet
-    ( XPrv, XPub, toXPub, unXPub, xpub )
+    ( XPrv, XPub, unXPub, xpub )
 import Cardano.Mnemonic
     ( SomeMnemonic )
 import Cardano.Wallet.Address.Derivation
@@ -49,7 +49,7 @@ import Cardano.Wallet.Address.Derivation
     , MkKeyFingerprint (..)
     , PersistPublicKey (..)
     , SoftDerivation (..)
-    , WalletKey (..)
+
     , fromHex
     , hex
     , toAddressParts
@@ -65,15 +65,13 @@ import Cardano.Wallet.Address.Derivation.Shelley
 import Cardano.Wallet.Address.Discovery
     ( GetPurpose (..) )
 import Cardano.Wallet.Primitive.Passphrase
-    ( Passphrase (..), changePassphraseXPrv )
+    ( Passphrase (..) )
 import Cardano.Wallet.Primitive.Types.Address
     ( Address (..) )
 import Cardano.Wallet.Read.NetworkId
     ( NetworkDiscriminant )
 import Control.Monad
     ( (<=<) )
-import Crypto.Hash
-    ( hash )
 import Crypto.Hash.Algorithms
     ( Blake2b_224 (..) )
 import Crypto.Hash.IO
@@ -125,29 +123,6 @@ instance HardDerivation SharedKey where
 instance SoftDerivation SharedKey where
     deriveAddressPublicKey (SharedKey accXPub) role ix =
         SharedKey $ deriveAddressPublicKeyShelley accXPub role ix
-
-{-------------------------------------------------------------------------------
-                            WalletKey implementation
--------------------------------------------------------------------------------}
-
-instance WalletKey SharedKey where
-    changePassphrase oldPwd newPwd (SharedKey prv) =
-        SharedKey $ changePassphraseXPrv oldPwd newPwd prv
-
-    publicKey (SharedKey prv) =
-        SharedKey (toXPub prv)
-
-    digest (SharedKey pub) =
-        hash (unXPub pub)
-
-    getRawKey =
-        getKey
-
-    liftRawKey =
-        SharedKey
-
-    keyTypeDescriptor _ =
-        "sha"
 
 {-------------------------------------------------------------------------------
                          Relationship Key / Address
