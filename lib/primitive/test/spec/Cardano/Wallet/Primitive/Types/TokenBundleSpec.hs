@@ -17,14 +17,7 @@ import Algebra.PartialOrd
 import Cardano.Numeric.Util
     ( inAscendingPartialOrder )
 import Cardano.Wallet.Primitive.Types.TokenBundle
-    ( Lexicographic (..)
-    , TokenBundle (..)
-    , add
-    , difference
-    , isCoin
-    , subtract
-    , unsafeSubtract
-    )
+    ( Lexicographic (..), TokenBundle (..), add, difference, isCoin, subtract )
 import Cardano.Wallet.Primitive.Types.TokenBundle.Gen
     ( genTokenBundlePartition
     , genTokenBundleSmallRange
@@ -165,8 +158,8 @@ prop_difference_equality x y = checkCoverage $
         "reduced bundles are not coins" $
     xReduced === yReduced
   where
-    xReduced = x `unsafeSubtract` xExcess
-    yReduced = y `unsafeSubtract` yExcess
+    xReduced = x `difference` xExcess
+    yReduced = y `difference` yExcess
     xExcess = x `difference` y
     yExcess = y `difference` x
 

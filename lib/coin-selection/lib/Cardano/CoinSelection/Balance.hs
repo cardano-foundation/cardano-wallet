@@ -1338,7 +1338,7 @@ makeChange criteria
     -- that the total input value is greater than the total output
     -- value:
     excess :: TokenBundle
-    excess = totalInputValue `TokenBundle.unsafeSubtract` totalOutputValue
+    excess = totalInputValue `TokenBundle.difference` totalOutputValue
 
     (excessCoin, excessAssets) = TokenBundle.toFlatList excess
 

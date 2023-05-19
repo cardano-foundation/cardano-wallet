@@ -559,8 +559,8 @@ prop_difference_equality x y = checkCoverage $
         "reduced maps are not empty" $
     xReduced === yReduced
   where
-    xReduced = x `TokenMap.unsafeSubtract` xExcess
-    yReduced = y `TokenMap.unsafeSubtract` yExcess
+    xReduced = x `TokenMap.difference` xExcess
+    yReduced = y `TokenMap.difference` yExcess
     xExcess = x `TokenMap.difference` y
     yExcess = y `TokenMap.difference` x
 
@@ -812,7 +812,7 @@ prop_equipartitionQuantities_fair m count = property $
     --  - the greatest quantity of that token in the resulting maps.
     --
     differences :: TokenMap
-    differences = NE.last results `TokenMap.unsafeSubtract` NE.head results
+    differences = NE.last results `TokenMap.difference` NE.head results
 
     isZeroOrOne :: TokenQuantity -> Bool
     isZeroOrOne (TokenQuantity q) = q == 0 || q == 1

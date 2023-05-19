@@ -307,7 +307,7 @@ delete u i =
         -- This operation is safe, since we have already determined that the
         -- entry is a member of the index, and therefore the balance must be
         -- greater than or equal to the value of this output:
-        & over #balance (`TokenBundle.unsafeSubtract` b)
+        & over #balance (`TokenBundle.difference` b)
         & over #universe (Map.delete u)
         & case categorizeTokenBundle b of
             BundleWithNoAssets -> id
