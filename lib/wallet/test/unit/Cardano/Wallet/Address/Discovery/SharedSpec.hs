@@ -53,6 +53,7 @@ import Cardano.Wallet.Address.Discovery.Shared
 import Cardano.Wallet.Address.Keys.Shared
     ( mkSharedStateFromAccountXPub, mkSharedStateFromRootXPrv )
 import Cardano.Wallet.Flavor
+    ( KeyFlavorS (SharedKeyS) )
 import Cardano.Wallet.Gen
     ( genNatural, genScript, genScriptTemplate )
 import Cardano.Wallet.Primitive.Passphrase.Gen
