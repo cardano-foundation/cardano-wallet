@@ -215,7 +215,6 @@ import Cardano.Wallet.Address.Derivation
     , SoftDerivation (..)
     , delegationAddressS
     , deriveRewardAccount
-    , publicKey
     , stakeDerivationPath
     )
 import Cardano.Wallet.Address.Derivation.Byron
@@ -680,7 +679,6 @@ import qualified Cardano.Address.Script as CA
 import qualified Cardano.Address.Style.Shelley as CA
 import qualified Cardano.Api as Cardano
 import qualified Cardano.Wallet as W
-import qualified Cardano.Wallet.Address.Derivation as Addr
 import qualified Cardano.Wallet.Address.Derivation.Byron as Byron
 import qualified Cardano.Wallet.Address.Derivation.Icarus as Icarus
 import qualified Cardano.Wallet.Address.Discovery.Sequential as Seq
@@ -896,7 +894,7 @@ postShelleyWallet ctx generateKey body = do
     pwdP = preparePassphrase currentPassphraseScheme pwd
     rootXPrv = generateKey (seed, secondFactor) pwdP
     g = maybe defaultAddressPoolGap getApiT (body ^. #addressPoolGap)
-    wid = WalletId $ Addr.digest $ publicKey rootXPrv
+    wid = WalletId $ digestNew ShelleyKeyS $ publicKeyNew ShelleyKeyS rootXPrv
     wName = getApiT (body ^. #name)
     genesisParams = ctx ^. #netParams
 
@@ -1100,7 +1098,7 @@ postSharedWalletFromRootXPrv ctx generateKey body = do
     dTemplateM = scriptTemplateFromSelf (getRawKeyNew SharedKeyS accXPub)
         <$> body ^. #delegationScriptTemplate
     wName = getApiT (body ^. #name)
-    accXPub = publicKey
+    accXPub = publicKeyNew SharedKeyS
         $ deriveAccountPrivateKey pwdP rootXPrv (Index $ getDerivationIndex ix)
     scriptValidation =
         maybe RecommendedValidation getApiT (body ^. #scriptValidation)
@@ -1441,7 +1439,7 @@ postRandomWalletFromXPrv ctx body = do
     pwd   = getApiT (body ^. #passphraseHash)
     masterKey = getApiT (body ^. #encryptedRootPrivateKey)
     byronKey = mkByronKeyFromMasterKey masterKey
-    wid = WalletId $ Addr.digest $ publicKey byronKey
+    wid = WalletId $ digestNew ByronKeyS $ publicKeyNew ByronKeyS byronKey
     genesisParams = ctx ^. #netParams
 
 postIcarusWallet
