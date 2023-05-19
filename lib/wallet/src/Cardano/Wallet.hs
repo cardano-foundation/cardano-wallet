@@ -301,13 +301,14 @@ import Cardano.Wallet.Address.Discovery.Shared
     , ErrAddCosigner (..)
     , ErrScriptTemplate (..)
     , SharedState (..)
-    , addCosignerAccXPub
     , isShared
     )
 import Cardano.Wallet.Address.Keys.BoundedAddressLength
     ( maxLengthAddressFor )
 import Cardano.Wallet.Address.Keys.SequentialAny
     ( mkSeqStateFromRootXPrv )
+import Cardano.Wallet.Address.Keys.Shared
+    ( addCosignerAccXPub )
 import Cardano.Wallet.Address.Keys.WalletKey
     ( AfterByron
     , afterByron
@@ -3223,8 +3224,9 @@ updateCosigner ctx cosignerXPub cosigner cred =
     ExceptT . onWalletState @IO @s ctx . Delta.updateWithError
         $ updateCosigner'
   where
+    kF = keyFlavorFromState @s
     updateCosigner' wallet =
-        case addCosignerAccXPub (cosigner, cosignerXPub) cred s0 of
+        case addCosignerAccXPub kF (cosigner, cosignerXPub) cred s0 of
             Left err -> Left $ ErrAddCosignerKey err
             Right s1 -> Right $ case ready s1 of
                 Shared.Pending -> prologueUpdate s1

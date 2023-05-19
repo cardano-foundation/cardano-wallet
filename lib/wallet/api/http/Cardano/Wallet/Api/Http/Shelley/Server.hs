@@ -250,19 +250,19 @@ import Cardano.Wallet.Address.Discovery.Sequential
     , purposeCIP1852
     )
 import Cardano.Wallet.Address.Discovery.Shared
-    ( CredentialType (..)
-    , SharedState (..)
-    , mkSharedStateFromAccountXPub
-    , mkSharedStateFromRootXPrv
-    , toSharedWalletId
-    , validateScriptTemplates
-    )
+    ( CredentialType (..), SharedState (..) )
 import Cardano.Wallet.Address.HasDelegation
     ( HasDelegation (..) )
 import Cardano.Wallet.Address.Keys.MintBurn
     ( toTokenMapAndScript, toTokenPolicyId )
 import Cardano.Wallet.Address.Keys.SequentialAny
     ( mkSeqStateFromRootXPrv )
+import Cardano.Wallet.Address.Keys.Shared
+    ( mkSharedStateFromAccountXPub
+    , mkSharedStateFromRootXPrv
+    , toSharedWalletId
+    , validateScriptTemplates
+    )
 import Cardano.Wallet.Address.Keys.WalletKey
     ( AfterByron, digestNew, getRawKeyNew, publicKeyNew )
 import Cardano.Wallet.Address.Keys.WitnessCount
@@ -1057,7 +1057,9 @@ postSharedWalletFromRootXPrv
     -> ApiSharedWalletPostDataFromMnemonics
     -> Handler ApiSharedWallet
 postSharedWalletFromRootXPrv ctx generateKey body = do
-    validateScriptTemplates accXPub scriptValidation pTemplate dTemplateM
+    let kF = keyFlavorFromState @s
+        wid = WalletId $ toSharedWalletId kF accXPub pTemplate dTemplateM
+    validateScriptTemplates kF accXPub scriptValidation pTemplate dTemplateM
         & \case
             Left err -> liftHandler
                 $ throwE
@@ -1065,7 +1067,7 @@ postSharedWalletFromRootXPrv ctx generateKey body = do
             Right _ -> pure ()
     ix' <- liftHandler $ withExceptT ErrConstructSharedWalletInvalidIndex $
         W.guardHardIndex ix
-    let state = mkSharedStateFromRootXPrv
+    let state = mkSharedStateFromRootXPrv kF
             (rootXPrv, pwdP) ix' g pTemplate dTemplateM
     let stateReadiness = state ^. #ready
     if stateReadiness == Shared.Pending
@@ -1100,7 +1102,6 @@ postSharedWalletFromRootXPrv ctx generateKey body = do
     wName = getApiT (body ^. #name)
     accXPub = publicKey
         $ deriveAccountPrivateKey pwdP rootXPrv (Index $ getDerivationIndex ix)
-    wid = WalletId $ toSharedWalletId accXPub pTemplate dTemplateM
     scriptValidation =
         maybe RecommendedValidation getApiT (body ^. #scriptValidation)
     genesisParams = ctx ^. #netParams
@@ -1119,7 +1120,10 @@ postSharedWalletFromAccountXPub
     -> ApiSharedWalletPostDataFromAccountPubX
     -> Handler ApiSharedWallet
 postSharedWalletFromAccountXPub ctx liftKey body = do
-    validateScriptTemplates
+    let kF = keyFlavorFromState @s
+        wid = WalletId $ toSharedWalletId kF
+                (liftKey accXPub) pTemplate dTemplateM
+    validateScriptTemplates kF
         (liftKey accXPub)
         scriptValidation
         pTemplate
@@ -1131,7 +1135,7 @@ postSharedWalletFromAccountXPub ctx liftKey body = do
             Right _ -> pure ()
     acctIx <- liftHandler $ withExceptT ErrConstructSharedWalletInvalidIndex $
         W.guardHardIndex ix
-    let state = mkSharedStateFromAccountXPub
+    let state = mkSharedStateFromAccountXPub kF
             (liftKey accXPub) acctIx g pTemplate dTemplateM
     let stateReadiness = state ^. #ready
     if stateReadiness == Shared.Pending
@@ -1159,7 +1163,6 @@ postSharedWalletFromAccountXPub ctx liftKey body = do
     wName = getApiT (body ^. #name)
     (ApiAccountSharedPublicKey accXPubApiT) =  body ^. #accountPublicKey
     accXPub = getApiT accXPubApiT
-    wid = WalletId $ toSharedWalletId (liftKey accXPub) pTemplate dTemplateM
     scriptValidation =
         maybe RecommendedValidation getApiT (body ^. #scriptValidation)
     genesisParams = ctx ^. #netParams
