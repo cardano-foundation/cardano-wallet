@@ -1936,6 +1936,9 @@ spec = describe "SHARED_TRANSACTIONS" $ do
                 , expectField (#direction . #getApiT) (`shouldBe` Outgoing)
                 , expectField #depositTaken (`shouldBe` depositAmt)
                 , expectField #depositReturned (`shouldBe` Quantity 0)
+                , expectField #certificates
+                     (`shouldBe` [ registerStakeKeyCert stakeKeyDerPathParty1
+                                 , delegatingCert stakeKeyDerPathParty1])
                 ]
         eventually "Party2's wallet has joined pool and deposit info persists" $ do
             rJoin' <- request @(ApiTransaction n) ctx
@@ -1948,6 +1951,9 @@ spec = describe "SHARED_TRANSACTIONS" $ do
                 , expectField (#direction . #getApiT) (`shouldBe` Outgoing)
                 , expectField #depositTaken (`shouldBe` depositAmt)
                 , expectField #depositReturned (`shouldBe` Quantity 0)
+                , expectField #certificates
+                     (`shouldBe` [ registerStakeKeyCert stakeKeyDerPathParty2
+                                 , delegatingCert stakeKeyDerPathParty2])
                 ]
 
         let txId2 = getFromResponse #id submittedTx2
