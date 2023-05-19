@@ -987,7 +987,7 @@ prop_2_6_2 (ins, u) =
     prop =
         balance (u `excluding` ins)
             ===
-        balance u `TokenBundle.unsafeSubtract` balance (u `restrictedBy` ins)
+        balance u `TokenBundle.difference` balance (u `restrictedBy` ins)
 
 {-------------------------------------------------------------------------------
                         UTxO statistics Properties

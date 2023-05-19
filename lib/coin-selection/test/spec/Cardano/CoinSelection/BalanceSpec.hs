@@ -2806,7 +2806,7 @@ prop_makeChange_success_delta p change =
             totalOutputValue
             (F.fold change)
 
-        delta = TokenBundle.unsafeSubtract totalInputValue totalOutputWithChange
+        delta = TokenBundle.difference totalInputValue totalOutputWithChange
     in
         (delta === TokenBundle.fromCoin (view #requiredCost p))
             & counterexample counterExampleText
@@ -2890,7 +2890,7 @@ prop_makeChange_fail_costTooBig
     -> Property
 prop_makeChange_fail_costTooBig p =
     let
-        deltaCoin = TokenBundle.getCoin $ TokenBundle.unsafeSubtract
+        deltaCoin = TokenBundle.getCoin $ TokenBundle.difference
             totalInputValue
             totalOutputValue
     in
@@ -2947,7 +2947,7 @@ prop_makeChange_fail_minValueTooBig p =
                 , "totalMinCoinDeposit:"
                 , pretty totalMinCoinDeposit
                 ]
-            deltaCoin = TokenBundle.getCoin $ TokenBundle.unsafeSubtract
+            deltaCoin = TokenBundle.getCoin $ TokenBundle.difference
                 totalInputValue
                 totalOutputValue
             minCoinValueFor =

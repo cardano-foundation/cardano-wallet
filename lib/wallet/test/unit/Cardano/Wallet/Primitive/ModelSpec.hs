@@ -2364,7 +2364,7 @@ prop_spendTx_balance tx u =
     lhs === rhs
   where
     lhs = balance (spendTx tx u)
-    rhs = TokenBundle.unsafeSubtract
+    rhs = TokenBundle.difference
         (balance u)
         (balance (u `UTxO.restrictedBy` inputsSpentByTx tx))
 
