@@ -262,7 +262,6 @@ import Cardano.Wallet.Address.Derivation
     , Index (..)
     , PersistPublicKey (..)
     , Role (..)
-    , WalletKey (..)
     , fromHex
     , hex
     , paymentAddressS
@@ -273,6 +272,8 @@ import Cardano.Wallet.Address.Discovery.Sequential
     ( coinTypeAda )
 import Cardano.Wallet.Address.Discovery.Shared
     ( CredentialType (..) )
+import Cardano.Wallet.Address.Keys.WalletKey
+    ( getRawKeyNew, publicKeyNew )
 import Cardano.Wallet.Api.Types
     ( AddressAmount
     , ApiAccountKeyShared
@@ -314,6 +315,8 @@ import Cardano.Wallet.Api.Types.Transaction
     ( ApiAddress (..), ApiLimit (..) )
 import Cardano.Wallet.Compat
     ( (^?) )
+import Cardano.Wallet.Flavor
+    ( KeyFlavorS (..) )
 import Cardano.Wallet.Pools
     ( EpochInfo, StakePool )
 import Cardano.Wallet.Primitive.Passphrase
@@ -1048,7 +1051,7 @@ accPubKeyFromMnemonics
     -> Passphrase "encryption"
     -> Text
 accPubKeyFromMnemonics mnemonic1 mnemonic2 ix passphrase =
-    T.decodeUtf8 $ serializeXPub $ publicKey $
+    T.decodeUtf8 $ serializeXPub $ publicKeyNew SharedKeyS $
         deriveAccountPrivateKey passphrase rootXPrv (Index $ 2_147_483_648 + ix)
   where
     rootXPrv = Shared.generateKeyFromSeed (mnemonic1, mnemonic2) passphrase
@@ -1060,8 +1063,12 @@ sharedAccPubKeyFromMnemonics
     -> Passphrase "encryption"
     -> Text
 sharedAccPubKeyFromMnemonics mnemonic1 mnemonic2 ix passphrase =
-    T.decodeUtf8 $ encode (EBech32 hrp) $ xpubToBytes $ getRawKey $ publicKey $
-        deriveAccountPrivateKey passphrase rootXPrv (Index $ 2_147_483_648 + ix)
+    T.decodeUtf8 $ encode (EBech32 hrp)
+        $ xpubToBytes
+        $ getRawKeyNew SharedKeyS
+        $ publicKeyNew SharedKeyS
+        $ deriveAccountPrivateKey passphrase rootXPrv
+        $ Index $ 2_147_483_648 + ix
   where
     hrp = [Bech32.humanReadablePart|acct_shared_xvk|]
     rootXPrv = Shared.generateKeyFromSeed (mnemonic1, mnemonic2) passphrase
@@ -2495,7 +2502,7 @@ randomAddresses mw =
         addrXPrv =
             Byron.deriveAddressPrivateKey pwd accXPrv
     in
-        [ paymentAddressS @n (publicKey $ addrXPrv ix)
+        [ paymentAddressS @n (publicKeyNew ByronKeyS $ addrXPrv ix)
         | ix <- [minBound..maxBound]
         ]
 
@@ -2521,7 +2528,7 @@ icarusAddresses mw =
         addrXPrv =
             deriveAddressPrivateKey pwd accXPrv UtxoExternal
     in
-        [ paymentAddressS @n (publicKey $ addrXPrv ix)
+        [ paymentAddressS @n (publicKeyNew IcarusKeyS $ addrXPrv ix)
         | ix <- [minBound..maxBound]
         ]
 
@@ -2547,7 +2554,7 @@ shelleyAddresses mw =
         addrXPrv =
             deriveAddressPrivateKey pwd accXPrv UtxoExternal
     in
-        [ paymentAddressS @n (publicKey $ addrXPrv ix)
+        [ paymentAddressS @n (publicKeyNew ShelleyKeyS $ addrXPrv ix)
         | ix <- [minBound..maxBound]
         ]
 
@@ -3261,7 +3268,7 @@ rootPrvKeyFromMnemonics mnemonics pass =
 --
 pubKeyFromMnemonics :: [Text] -> Text
 pubKeyFromMnemonics mnemonics =
-    T.decodeUtf8 $ serializeXPub $ publicKey
+    T.decodeUtf8 $ serializeXPub $ publicKeyNew ShelleyKeyS
        $ deriveAccountPrivateKey mempty rootXPrv minBound
  where
      seed = either (error . show) id $ mkSomeMnemonic @'[15,24] mnemonics
