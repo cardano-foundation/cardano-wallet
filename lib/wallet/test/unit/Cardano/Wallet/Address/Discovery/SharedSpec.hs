@@ -32,7 +32,6 @@ import Cardano.Wallet.Address.Derivation
     , Index (..)
     , KeyFingerprint
     , Role (..)
-    , WalletKey (..)
     )
 import Cardano.Wallet.Address.Derivation.Shared
     ( unsafeGenerateKeyFromSeed )
@@ -52,6 +51,8 @@ import Cardano.Wallet.Address.Discovery.Shared
     )
 import Cardano.Wallet.Address.Keys.Shared
     ( mkSharedStateFromAccountXPub, mkSharedStateFromRootXPrv )
+import Cardano.Wallet.Address.Keys.WalletKey
+    ( getRawKeyNew, publicKeyNew )
 import Cardano.Wallet.Flavor
     ( KeyFlavorS (SharedKeyS) )
 import Cardano.Wallet.Gen
@@ -207,7 +208,8 @@ prop_addressDiscoveryImpossibleFromOtherAccXPub (CatalystSharedState _ accIx' pT
   where
     addr = constructAddressFromIx @n UtxoExternal pTemplate' dTemplate' keyIx
     (ScriptTemplate _ script') = pTemplate'
-    pTemplate'' = ScriptTemplate (Map.fromList [(Cosigner 0, getRawKey accXPub')]) script'
+    pTemplate'' = ScriptTemplate
+        (Map.fromList [(Cosigner 0, getRawKeyNew SharedKeyS accXPub')]) script'
     sharedState = mkSharedStateFromAccountXPub' @n accXPub' accIx' g pTemplate'' dTemplate'
 
 prop_addressDiscoveryImpossibleFromOtherAccountOfTheSameRootXPrv
@@ -221,11 +223,15 @@ prop_addressDiscoveryImpossibleFromOtherAccountOfTheSameRootXPrv (CatalystShared
     fst (isShared addr sharedState) === Nothing .&&.
     snd (isShared addr sharedState) === sharedState
   where
-    accXPub' = publicKey $ deriveAccountPrivateKey mempty rootXPrv accIx'
-    accXPub'' = publicKey $ deriveAccountPrivateKey mempty rootXPrv accIx''
+    accXPub' = publicKeyNew SharedKeyS
+        $ deriveAccountPrivateKey mempty rootXPrv accIx'
+    accXPub'' = publicKeyNew SharedKeyS
+        $ deriveAccountPrivateKey mempty rootXPrv accIx''
     (ScriptTemplate _ script') = pTemplate'
-    pTemplate'' = ScriptTemplate (Map.fromList [(Cosigner 0, getRawKey accXPub')]) script'
-    pTemplate''' = ScriptTemplate (Map.fromList [(Cosigner 0, getRawKey accXPub'')]) script'
+    pTemplate'' = ScriptTemplate
+        (Map.fromList [(Cosigner 0, getRawKeyNew SharedKeyS accXPub')]) script'
+    pTemplate''' = ScriptTemplate
+        (Map.fromList [(Cosigner 0, getRawKeyNew SharedKeyS accXPub'')]) script'
     sharedState = mkSharedStateFromAccountXPub' @n accXPub'' accIx'' g pTemplate'' dTemplate'
     addr = constructAddressFromIx @n UtxoExternal pTemplate''' dTemplate' keyIx
 
@@ -314,10 +320,13 @@ instance Arbitrary CatalystSharedState where
         let script' = RequireAllOf
                 [ RequireSignatureOf (Cosigner 0)
                 , RequireAnyOf [ ActiveUntilSlot slotUntil, ActiveFromSlot slotAfter] ]
-        let pTemplate' =
-                ScriptTemplate (Map.fromList [(Cosigner 0, getRawKey accXPub')]) script'
+        let pTemplate' = ScriptTemplate
+                (Map.fromList [(Cosigner 0, getRawKeyNew SharedKeyS accXPub')])
+                script'
         (OneCosignerScript otherScript) <- arbitrary
-        let _otherTemplate = ScriptTemplate (Map.fromList [(Cosigner 0, getRawKey accXPub')]) otherScript
+        let _otherTemplate = ScriptTemplate
+                (Map.fromList [(Cosigner 0, getRawKeyNew SharedKeyS accXPub')])
+                otherScript
         --dTemplate' <- elements [Nothing, Just pTemplate', Just otherTemplate]
         dTemplate' <- elements [Nothing, Just pTemplate']
         CatalystSharedState accXPub' accIx' pTemplate' dTemplate'  <$> arbitrary
@@ -347,7 +356,11 @@ genKeys
 genKeys accIx' = do
     let mw = someDummyMnemonic (Proxy @12)
     let rootXPrv = unsafeGenerateKeyFromSeed (mw, Nothing) mempty
-    pure (rootXPrv, publicKey $ deriveAccountPrivateKey mempty rootXPrv accIx')
+    pure
+        ( rootXPrv
+        , publicKeyNew SharedKeyS
+            $ deriveAccountPrivateKey mempty rootXPrv accIx'
+        )
 
 instance Arbitrary AddressPoolGap where
     shrink _ = []

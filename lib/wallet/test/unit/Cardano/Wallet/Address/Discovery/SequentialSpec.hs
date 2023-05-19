@@ -38,7 +38,6 @@ import Cardano.Wallet.Address.Derivation
     , PaymentAddress (..)
     , Role (..)
     , SoftDerivation (..)
-    , WalletKey (..)
     )
 import Cardano.Wallet.Address.Derivation.Icarus
     ( IcarusKey (..) )
@@ -73,6 +72,8 @@ import Cardano.Wallet.Address.Discovery.Sequential
     )
 import Cardano.Wallet.Address.Keys.SequentialAny
     ( mkSeqStateFromRootXPrv )
+import Cardano.Wallet.Address.Keys.WalletKey
+    ( publicKeyNew )
 import Cardano.Wallet.Address.PoolSpec
     ( genPool, shrinkPool )
 import Cardano.Wallet.Flavor
@@ -273,7 +274,8 @@ prop_genChangeGapFromAccountXPub g = property $
     mw = someDummyMnemonic (Proxy @12)
     rootXPrv = Shelley.unsafeGenerateKeyFromSeed (mw, Nothing) mempty
     accIx = toEnum 0x80000000
-    accXPub = publicKey $ deriveAccountPrivateKey mempty rootXPrv accIx
+    accXPub = publicKeyNew ShelleyKeyS
+        $ deriveAccountPrivateKey mempty rootXPrv accIx
     s0 = mkSeqStateFromAccountXPub accXPub Nothing purposeCIP1852 g
 
 prop_changeAddressRotation
@@ -436,7 +438,7 @@ class AddressPoolTest k where
         -> [Address]
 
 instance AddressPoolTest IcarusKey where
-    ourAccount = publicKey $
+    ourAccount = publicKeyNew IcarusKeyS $
         Icarus.unsafeGenerateKeyFromSeed mw mempty
       where
         mw = someDummyMnemonic (Proxy @12)
@@ -447,7 +449,7 @@ instance AddressPoolTest IcarusKey where
         mkAddress = paymentAddress @IcarusKey SMainnet
 
 instance AddressPoolTest ShelleyKey where
-    ourAccount = publicKey $
+    ourAccount = publicKeyNew ShelleyKeyS $
         Shelley.unsafeGenerateKeyFromSeed (mw, Nothing) mempty
       where
         mw = someDummyMnemonic (Proxy @15)
@@ -459,7 +461,7 @@ instance AddressPoolTest ShelleyKey where
 
 rewardAccount
     :: ShelleyKey 'CredFromKeyK XPub
-rewardAccount = publicKey $
+rewardAccount = publicKeyNew ShelleyKeyS $
     Shelley.unsafeGenerateKeyFromSeed (mw, Nothing) mempty
   where
     mw = someDummyMnemonic (Proxy @15)
