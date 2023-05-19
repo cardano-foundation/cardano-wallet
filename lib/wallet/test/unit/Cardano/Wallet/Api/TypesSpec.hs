@@ -74,7 +74,6 @@ import Cardano.Wallet.Address.Derivation
     , HardDerivation (..)
     , Index (..)
     , Role (..)
-    , WalletKey (..)
     , fromHex
     )
 import Cardano.Wallet.Address.Derivation.SharedKey
@@ -257,6 +256,8 @@ import Cardano.Wallet.Api.Types.Transaction
     , ApiWitnessCount (..)
     , mkApiWitnessCount
     )
+import Cardano.Wallet.Flavor
+    ( KeyFlavorS (ShelleyKeyS) )
 import Cardano.Wallet.Gen
     ( genMnemonic
     , genMockXPub
@@ -519,6 +520,8 @@ import Web.HttpApiData
     ( FromHttpApiData (..) )
 
 import qualified Cardano.Api as Cardano
+import Cardano.Wallet.Address.Keys.WalletKey
+    ( publicKeyNew )
 import qualified Cardano.Wallet.Api.Types as Api
 import qualified Cardano.Wallet.Primitive.Types.Coin as Coin
 import qualified Cardano.Wallet.Primitive.Types.UTxOStatistics as UTxOStatistics
@@ -1323,14 +1326,16 @@ instance Arbitrary ApiAccountPublicKey where
     arbitrary = do
         seed <- SomeMnemonic <$> genMnemonic @15
         let rootXPrv = generateKeyFromSeed (seed, Nothing) mempty
-        let accXPub = publicKey $ deriveAccountPrivateKey mempty rootXPrv minBound
+        let accXPub = publicKeyNew ShelleyKeyS
+                $ deriveAccountPrivateKey mempty rootXPrv minBound
         pure $ ApiAccountPublicKey $ ApiT $ getKey accXPub
 
 instance Arbitrary ApiAccountSharedPublicKey where
     arbitrary = do
         seed <- SomeMnemonic <$> genMnemonic @15
         let rootXPrv = generateKeyFromSeed (seed, Nothing) mempty
-        let accXPub = publicKey $ deriveAccountPrivateKey mempty rootXPrv minBound
+        let accXPub = publicKeyNew ShelleyKeyS
+                $ deriveAccountPrivateKey mempty rootXPrv minBound
         pure $ ApiAccountSharedPublicKey $ ApiT $ getKey accXPub
 
 instance Arbitrary AccountPostData where
