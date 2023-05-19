@@ -64,12 +64,7 @@ import Cardano.Mnemonic
 import Cardano.Startup
     ( withUtf8Encoding )
 import Cardano.Wallet.Address.Derivation
-    ( DelegationAddress (..)
-    , Depth (..)
-    , Index (..)
-    , PaymentAddress (..)
-    , WalletKey (..)
-    )
+    ( DelegationAddress (..), Depth (..), Index (..), PaymentAddress (..) )
 import Cardano.Wallet.Address.Derivation.Byron
     ( ByronKey (..) )
 import Cardano.Wallet.Address.Derivation.Shelley
@@ -87,6 +82,8 @@ import Cardano.Wallet.Address.Discovery.Sequential
     )
 import Cardano.Wallet.Address.Keys.SequentialAny
     ( mkSeqStateFromRootXPrv )
+import Cardano.Wallet.Address.Keys.WalletKey
+    ( publicKeyNew )
 import Cardano.Wallet.DB
     ( DBFresh (..), DBLayer (..), DBLayerParams (..) )
 import Cardano.Wallet.DB.Layer
@@ -837,12 +834,14 @@ defaultPrefix = DerivationPrefix
     )
 
 ourAccount :: ShelleyKey 'AccountK XPub
-ourAccount = publicKey $ unsafeGenerateKeyFromSeed (seed, Nothing) mempty
+ourAccount = publicKeyNew ShelleyKeyS
+    $ unsafeGenerateKeyFromSeed (seed, Nothing) mempty
   where
     seed = someDummyMnemonic (Proxy @15)
 
 rewardAccount :: ShelleyKey 'CredFromKeyK XPub
-rewardAccount = publicKey $ unsafeGenerateKeyFromSeed (seed, Nothing) mempty
+rewardAccount = publicKeyNew ShelleyKeyS
+    $ unsafeGenerateKeyFromSeed (seed, Nothing) mempty
   where
     seed = someDummyMnemonic (Proxy @15)
 
