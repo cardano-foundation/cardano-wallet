@@ -50,7 +50,6 @@ import Cardano.Wallet.Address.Derivation
     , HardDerivation (..)
     , Index
     , Role (..)
-    , publicKey
     )
 import Cardano.Wallet.Address.Derivation.Shelley
     ( ShelleyKey (..), generateKeyFromSeed )
@@ -61,6 +60,8 @@ import Cardano.Wallet.Address.Discovery
     , IsOwned (..)
     , KnownAddresses (..)
     )
+import Cardano.Wallet.Address.Keys.WalletKey
+    ( publicKeyNew )
 import Cardano.Wallet.DB
     ( DBFresh, DBLayer (..), hoistDBFresh, hoistDBLayer, putTxHistory )
 import Cardano.Wallet.DB.Fixtures
@@ -78,7 +79,7 @@ import Cardano.Wallet.DummyTarget.Primitive.Types
     , mkTxId
     )
 import Cardano.Wallet.Flavor
-    ( KeyOf, TestState (..), WalletFlavor (..) )
+    ( KeyFlavorS (ShelleyKeyS), KeyOf, TestState (..), WalletFlavor (..) )
 import Cardano.Wallet.Gen
     ( genMnemonic, genSlotNo )
 import Cardano.Wallet.Network
@@ -1248,7 +1249,9 @@ dummyTransactionLayer = TransactionLayer
                 (xprv, Passphrase pwd) <- keystore addr
                 let sigData = tx ^. #txId . #getHash
                 let sig = CC.unXSignature $ CC.sign pwd (getKey xprv) sigData
-                return $ xpubToBytes (getKey $ publicKey xprv) <> sig
+                return
+                    $ xpubToBytes (getKey $ publicKeyNew ShelleyKeyS xprv)
+                        <> sig
 
         -- (tx1, wit1) == (tx2, wit2) <==> fakebinary1 == fakebinary2
         let fakeBinary = fakeSealedTx (tx ^. #txId, wit)
