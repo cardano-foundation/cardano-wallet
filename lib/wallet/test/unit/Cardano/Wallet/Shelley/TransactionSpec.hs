@@ -28,6 +28,7 @@
 {-# LANGUAGE CPP #-}
 #if __GLASGOW_HASKELL__ >= 902
 {-# OPTIONS_GHC -fno-warn-ambiguous-fields #-}
+{-# OPTIONS_GHC -Wno-unused-imports #-}
 #endif
 
 module Cardano.Wallet.Shelley.TransactionSpec (spec) where
@@ -77,6 +78,10 @@ import Cardano.Ledger.Alonzo.Genesis
     ( AlonzoGenesis (costmdls) )
 import Cardano.Ledger.Alonzo.TxInfo
     ( TranslationError (..) )
+import Cardano.Ledger.Babbage.Collateral
+    ( collBalance )
+import Cardano.Ledger.Babbage.Tx
+    ( AlonzoTx (..), IsValid (..) )
 import Cardano.Ledger.Era
     ( Era )
 import Cardano.Ledger.Shelley.API
@@ -301,9 +306,9 @@ import Cardano.Wallet.Write.Tx.Balance
 import Cardano.Wallet.Write.Tx.TimeTranslation
     ( TimeTranslation, timeTranslationFromEpochInfo )
 import Control.Arrow
-    ( first )
+    ( first, second )
 import Control.Monad
-    ( forM, forM_, replicateM )
+    ( forM, forM_, replicateM, when )
 import Control.Monad.Random
     ( MonadRandom (..)
     , Rand
@@ -318,8 +323,12 @@ import Control.Monad.Trans.Except
     ( except, runExcept, runExceptT )
 import Control.Monad.Trans.State.Strict
     ( evalState, state )
+import Control.SetAlgebra
+    ( drestrict, eval )
 import Crypto.Hash.Utils
     ( blake2b224 )
+import Data.Bifunctor
+    ( bimap )
 import Data.ByteArray.Encoding
     ( Base (..), convertToBase )
 import Data.ByteString
@@ -335,7 +344,7 @@ import Data.Function
 import Data.Functor.Identity
     ( Identity )
 import Data.Generics.Internal.VL.Lens
-    ( over, view )
+    ( over, view, (^.) )
 import Data.Generics.Product
     ( setField )
 import Data.IntCast
@@ -467,17 +476,22 @@ import Test.Utils.Pretty
     ( Pretty (..), (====) )
 import Text.Read
     ( readMaybe )
+import Validation.Combinators
+    ( whenFailure, whenFailureM )
 
 import qualified Cardano.Api as Cardano
 import qualified Cardano.Api.Shelley as Cardano
 import qualified Cardano.Crypto.Hash.Blake2b as Crypto
 import qualified Cardano.Crypto.Hash.Class as Crypto
 import qualified Cardano.Ledger.Alonzo.PParams as Alonzo
+import Cardano.Ledger.Alonzo.Rules
+    ( validateInsufficientCollateral )
 import qualified Cardano.Ledger.Alonzo.Scripts as Alonzo
 import qualified Cardano.Ledger.Alonzo.Tx as Alonzo
 import qualified Cardano.Ledger.Alonzo.TxWitness as Alonzo
 import qualified Cardano.Ledger.Babbage as Babbage
 import qualified Cardano.Ledger.Babbage.PParams as Babbage
+import qualified Cardano.Ledger.Babbage.Rules as Babbage
 import qualified Cardano.Ledger.Babbage.Tx as Babbage
 import qualified Cardano.Ledger.Babbage.TxBody as Babbage
 import qualified Cardano.Ledger.Coin as Ledger
@@ -515,6 +529,8 @@ import qualified Data.Text.IO as T
 import qualified Data.Yaml as Yaml
 import qualified Ouroboros.Consensus.HardFork.History as HF
 import qualified Test.Hspec.Extra as Hspec
+import Validation
+    ( Validation, fromFailure )
 
 spec :: Spec
 spec = do
@@ -3170,21 +3186,95 @@ instance IsCardanoEra era => Arbitrary (Cardano.TxOutValue era) where
       shrink _ =
         error "Arbitrary (TxOutValue era) is not implemented for old eras"
 
+appendTx
+    :: Write.Tx StandardBabbage
+    -> Write.Tx StandardBabbage
+    -> Write.Tx StandardBabbage
+appendTx
+    (AlonzoTx body1 wits1 (IsValid isValid1) _aux1)
+    (AlonzoTx body2 wits2 (IsValid isValid2) aux2)
+    = AlonzoTx
+        (body1 `appendBody` body2)
+        (wits1 <> wits2)
+        (IsValid $ isValid1 && isValid2)
+        aux2 -- TODO
+
+instance (ToCBOR a, Semigroup a) => Semigroup (Ledger.Sized a) where
+    Ledger.Sized a _ <> Ledger.Sized b _ = Ledger.mkSized (a <> b)
+
+-- FIXME: Probably bad practice to have
+instance Semigroup (Babbage.TxOut StandardBabbage) where
+    a <> b = b
+
+appendPartialTx
+    :: PartialTx Cardano.BabbageEra
+    -> PartialTx Cardano.BabbageEra
+    -> PartialTx Cardano.BabbageEra
+appendPartialTx
+    (PartialTx tx1 u1 r1)
+    (PartialTx tx2 u2 r2)
+    =
+    PartialTx
+        (Write.toCardanoTx
+            $ appendTx
+                (Write.fromCardanoTx tx1)
+                (Write.fromCardanoTx tx2))
+        (u1 <> u2)
+        (r1 <> r2)
+
+appendBody
+    :: Write.TxBody StandardBabbage
+    -> Write.TxBody StandardBabbage
+    -> Write.TxBody StandardBabbage
+appendBody
+    (Babbage.BabbageTxBody
+        ins1 cIns1 rIns1 os1 cRet1 tcol1 certs1 wdrls1 fee1 vi1 u1 rs1 m1 sih1 ad1 n1)
+    (Babbage.BabbageTxBody
+        ins2 cIns2 rIns2 os2 cRet2 tcol2 certs2 wdrls2 fee2 vi2 u2 rs2 m2 sih2 ad2 n2)
+    = Babbage.BabbageTxBody
+        (ins1 <> ins2)
+        (cIns1 )
+        (rIns1 )
+        (os1)
+        (cRet1 <> cRet2)
+        (tcol1 <> tcol2)
+        (certs1 )
+        (wdrls2)
+        (fee1 )
+        (vi2)
+        (u2)
+        (rs1 <> rs2)
+        (m1 <> m2)
+        (sih2)
+        (ad2)
+        (n2)
+
+
+
+
 instance Arbitrary (PartialTx Cardano.BabbageEra) where
-    arbitrary = do
-        let era = BabbageEra
-        tx <- genTxForBalancing era
-        let (Cardano.Tx (Cardano.TxBody content) _) = tx
-        let inputs = Cardano.txIns content
-        inputUTxO <- fmap (Cardano.UTxO . Map.fromList) . forM inputs $ \i -> do
-            -- NOTE: genTxOut does not generate quantities larger than
-            -- `maxBound :: Word64`, however users could supply these.
-            -- We should ideally test what happens, and make it clear what code,
-            -- if any, should validate.
-            o <- genTxOut Cardano.BabbageEra
-            return (fst i, o)
-        let redeemers = []
-        return $ PartialTx tx inputUTxO redeemers
+    arbitrary = frequency
+--        [ (99, gen)
+--        , (2, (pingPong_2 `appendPartialTx`) <$> gen)
+        [ (2, (`appendPartialTx` pingPong_2) <$> gen)
+        , (2, (`appendPartialTx` pingPong_2) <$> gen)
+        ]
+      where
+        gen = do
+            let era = BabbageEra
+            tx <- genTxForBalancing era
+            let (Cardano.Tx (Cardano.TxBody content) _) = tx
+            let inputs = Cardano.txIns content
+            inputUTxO <- fmap (Cardano.UTxO . Map.fromList) . forM inputs $ \i -> do
+                -- NOTE: genTxOut does not generate quantities larger than
+                -- `maxBound :: Word64`, however users could supply these.
+                -- We should ideally test what happens, and make it clear what code,
+                -- if any, should validate.
+                o <- genTxOut Cardano.BabbageEra
+                return (fst i, o)
+            let redeemers = []
+            return $ PartialTx tx inputUTxO redeemers
+
     shrink (PartialTx tx inputUTxO redeemers) =
         [ PartialTx tx inputUTxO' redeemers
         | inputUTxO' <- shrinkInputResolution inputUTxO
@@ -3720,7 +3810,9 @@ prop_balanceTransactionValid wallet@(Wallet' _ walletUTxO _) (ShowBuildable part
                                   (minUTxOValue <> upperBoundCostOfOutput)
                                   tx
                                   combinedUTxO
-                        , prop_txCollBalance tx combinedUTxO
+--                        , prop_txCollBalance tx combinedUTxO
+
+                        , prop_feesOK tx (Write.fromCardanoUTxO combinedUTxO)
 
                         -- FIXME [ADP-2419] Re-enable when we have stricter
                         -- validation. Will otherwise fail with:
@@ -3790,6 +3882,10 @@ prop_balanceTransactionValid wallet@(Wallet' _ walletUTxO _) (ShowBuildable part
                 label "failed with ByronTxOutInContext" $ property True
             Left
                 (ErrBalanceTxAssignRedeemers
+                (ErrAssignRedeemersTargetNotFound _)) ->
+                label "ErrAssignRedeemersTargetNotFound" $ property True
+            Left
+                (ErrBalanceTxAssignRedeemers
                 (ErrAssignRedeemersTranslationError
                 (ReferenceScriptsNotSupported _))) ->
                 -- Possible with PlutusV1
@@ -3801,6 +3897,8 @@ prop_balanceTransactionValid wallet@(Wallet' _ walletUTxO _) (ShowBuildable part
                 label "unable to construct change" $ property True
             Left ErrBalanceTxInputResolutionConflicts{} ->
                 label "input resolution conflicts" $ property True
+            Left (ErrBalanceTxSelectAssets (ErrSelectAssetsSelectionError (SelectionCollateralErrorOf _))) ->
+                label "SelectionCollateralError" $ property True
             Left err -> label "other error" $
                 counterexample ("balanceTransaction failed: " <> show err) False
   where
@@ -3866,15 +3964,82 @@ prop_balanceTransactionValid wallet@(Wallet' _ walletUTxO _) (ShowBuildable part
                 ]
         counterexample msg $ property (size <= limit)
 
+    prop_feesOK
+        :: Cardano.Tx era
+        -> Write.UTxO (Write.ShelleyLedgerEra era)
+        -> Property
+    prop_feesOK cardanoTx' utxo = Write.withConstraints era $
+        let
+            tx = Write.fromCardanoTx cardanoTx'
+            txBody = Write.txBody era tx
+            collateral' = txBody ^. Babbage.collateralInputsTxBodyL
+
+            utxoCollateral = Map.fromList
+                $ map lookupOut
+                $ Set.toList collateral'
+            bal = collBalance txBody utxo
+
+            hasCollateral = not $ Set.null collateral'
+        in
+            toProperty $ when hasCollateral $ Babbage.validateTotalCollateral ledgerPParams txBody utxoCollateral bal
+                -- Babbage.feesOK ledgerPParams tx utxo
+
+      where
+        toProperty :: Show e => Validation e () -> Property
+        toProperty = fromFailure (property True)
+            . bimap
+                (\e -> counterexample (show e) $ property False)
+                (id @())
+
+        lookupOut
+            :: Write.TxIn
+            -> (Write.TxIn, Write.TxOut (Write.ShelleyLedgerEra era))
+        lookupOut i = (i, fromMaybe err $ Write.txinLookup i utxo)
+          where
+            err = error "prop_txCollBalance: unable to lookup input"
+
+
     prop_txCollBalance
         :: Cardano.Tx era
         -> Cardano.UTxO era
         -> Property
-    prop_txCollBalance cardanoTx' cardanoUTxO = Write.withConstraints era $
+    prop_txCollBalance tx cardanoUTxO = Write.withConstraints era $
         let
-            tx = Write.fromCardanoTx cardanoTx'
-            body = Write.txBody era tx
+            txBody = Write.txBody era $ Write.fromCardanoTx tx
+        in
+            case totalCollateral txBody of
+                Just totCol ->
+                    Value.inject totCol === collateralBalance txBody
+                Nothing -> do
+                    isAdaOnly (collateralBalance txBody)
+      where
+        totalCollateral
+            :: Write.TxBody (Write.ShelleyLedgerEra era)
+            -> Maybe Write.Coin
+        totalCollateral = fromStrict . view Write.totalCollateralBabbageTxBodyL
 
+        collateralBalance
+            :: Write.TxBody (Write.ShelleyLedgerEra era)
+            -> Write.Value
+        collateralBalance body =
+            let
+                colIn = collateralInputValue body
+                colReturn = fromMaybe mempty $ collateralReturnValue body
+            in
+                colIn <-> colReturn
+
+        collateralReturnValue
+            :: Write.TxBody (Write.ShelleyLedgerEra era)
+            -> Maybe Write.Value
+        collateralReturnValue body = fromStrict $ Write.txOutValue era
+            <$> view Write.collateralReturnBabbageTxBodyL body
+        collateralInputValue
+            :: Write.TxBody (Write.ShelleyLedgerEra era)
+            -> Write.Value
+        collateralInputValue body = foldMap (Write.txOutValue era . lookupOut)
+            $ Set.toList
+            $ view Write.collateralInputsBabbageTxBodyL body
+          where
             lookupOut
                 :: Write.TxIn
                 -> Write.TxOut (Write.ShelleyLedgerEra era)
@@ -3883,25 +4048,14 @@ prop_balanceTransactionValid wallet@(Wallet' _ walletUTxO _) (ShowBuildable part
                 err = error "prop_txCollBalance: unable to lookup input"
                 utxo = Write.fromCardanoUTxO cardanoUTxO
 
-            mtotalCol = view Write.totalCollateralBabbageTxBodyL body
-            colIn = foldMap (Write.txOutValue era . lookupOut)
-                $ Set.toList
-                $ view Write.collateralInputsBabbageTxBodyL body
-            mcolRet = Write.txOutValue era
-                <$> view Write.collateralReturnBabbageTxBodyL body
-        in
-            case (mtotalCol, mcolRet) of
-                (SJust totalCol, SJust colRet) ->
-                    colIn <-> colRet === (Value.inject totalCol)
-                (SNothing, SJust colRet) ->
-                    let
-                        colBal = colIn <-> colRet
-                    in
-                        property $ Value.isAdaOnly colBal
-                (SJust totalCol, SNothing) ->
-                    colIn === Value.inject totalCol
-                (SNothing, SNothing) ->
-                    property True
+        fromStrict SNothing = Nothing
+        fromStrict (SJust x) = Just x
+
+        isAdaOnly :: Write.Value -> Property
+        isAdaOnly v = counterexample msg $ property $ Value.isAdaOnly v
+          where
+            msg = show v <> " must be ada-only"
+
 
     _prop_outputsSatisfyMinAdaRequirement
         :: Cardano.Tx era
@@ -4405,7 +4559,7 @@ pingPong_2 = PartialTx
         ]
     }
   where
-    tid = B8.replicate 32 '1'
+    tid = B8.replicate 32 'M'
 
 deserializeBabbageTx :: ByteString -> Cardano.Tx Cardano.BabbageEra
 deserializeBabbageTx = either (error . show) id

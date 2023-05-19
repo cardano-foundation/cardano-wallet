@@ -750,6 +750,7 @@ test-suite unit
     , cardano-balance-tx
     , cardano-binary
     , cardano-crypto
+    , set-algebra
     , cardano-crypto-class
     , cardano-crypto-wrapper
     , cardano-ledger-alonzo
@@ -760,6 +761,7 @@ test-suite unit
     , cardano-ledger-core
     , cardano-ledger-shelley
     , cardano-ledger-shelley-ma
+    , validation-selective
     , cardano-ledger-shelley-test
     , cardano-numeric
     , cardano-sl-x509
