@@ -1744,7 +1744,7 @@ getWalletUtxoSnapshot
     -> Handler ApiWalletUtxoSnapshot
 getWalletUtxoSnapshot ctx (ApiT wid) = do
     entries <- withWorkerCtx ctx wid liftE liftE $ \wrk -> handler $
-        W.getWalletUtxoSnapshot @_ @s @(CredFromOf s) wrk
+        W.getWalletUtxoSnapshot @_ @s wrk
     return $ mkApiWalletUtxoSnapshot entries
   where
     mkApiWalletUtxoSnapshot :: [(TokenBundle, Coin)] -> ApiWalletUtxoSnapshot

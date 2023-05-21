@@ -957,10 +957,10 @@ updateWalletPassphraseWithMnemonic ctx (xprv, new) =
         (xprv, (currentPassphraseScheme , new))
 
 getWalletUtxoSnapshot
-    :: forall ctx s ktype
+    :: forall ctx s
      . ( HasDBLayer IO s ctx
        , HasNetworkLayer IO ctx
-       , HasTransactionLayer (KeyOf s) ktype ctx
+       , HasTransactionLayer (KeyOf s) (CredFromOf s) ctx
        )
     => ctx
     -> IO [(TokenBundle, Coin)]
@@ -974,7 +974,7 @@ getWalletUtxoSnapshot ctx = do
     pure $ first (view #tokens) . pairTxOutWithMinAdaQuantity era pp <$> txOuts
   where
     nl = ctx ^. networkLayer
-    tl = ctx ^. transactionLayer @(KeyOf s) @ktype
+    tl = ctx ^. transactionLayer @(KeyOf s) @(CredFromOf s)
 
     pairTxOutWithMinAdaQuantity
         :: Cardano.AnyCardanoEra
