@@ -1897,11 +1897,7 @@ buildSignSubmitTransaction
        , k ~ KeyOf s
        , CredFromOf s ~ 'CredFromKeyK
        , HasSNetworkId (NetworkOf s)
-        , Excluding '[SharedKey] k
-        , Excluding '[SharedKey] k
-        , k ~ KeyOf s
        , Excluding '[SharedKey] k
-        , k ~ KeyOf s
        )
     => DBLayer IO s
     -> NetworkLayer IO Read.Block
