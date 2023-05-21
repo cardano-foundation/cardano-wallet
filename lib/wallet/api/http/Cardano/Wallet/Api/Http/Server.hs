@@ -236,10 +236,10 @@ import qualified Data.Text as T
 server
     :: forall n
      . HasSNetworkId n
-    => ApiLayer (RndState n) 'CredFromKeyK
-    -> ApiLayer (SeqState n IcarusKey) 'CredFromKeyK
-    -> ApiLayer (SeqState n ShelleyKey) 'CredFromKeyK
-    -> ApiLayer (SharedState n SharedKey) 'CredFromScriptK
+    => ApiLayer (RndState n)
+    -> ApiLayer (SeqState n IcarusKey)
+    -> ApiLayer (SeqState n ShelleyKey)
+    -> ApiLayer (SharedState n SharedKey)
     -> StakePoolLayer
     -> NtpClient
     -> BlockchainSource
@@ -570,7 +570,7 @@ server byron icarus shelley multisig spl ntp blockchainSource =
                 _ -> pure (ApiHealthCheck NoSmashConfigured)
 
     sharedWallets
-        :: ApiLayer (SharedState n SharedKey) 'CredFromScriptK
+        :: ApiLayer (SharedState n SharedKey)
         -> Server SharedWallets
     sharedWallets apilayer =
              postSharedWallet @_ @_ @SharedKey apilayer Shared.generateKeyFromSeed SharedKey
@@ -583,7 +583,7 @@ server byron icarus shelley multisig spl ntp blockchainSource =
         :<|> getWalletUtxoSnapshot apilayer
 
     sharedWalletKeys
-        :: ApiLayer (SharedState n SharedKey) 'CredFromScriptK
+        :: ApiLayer (SharedState n SharedKey)
         -> Server SharedWalletKeys
     sharedWalletKeys apilayer = derivePublicKey apilayer ApiVerificationKeyShared
         :<|> (\wid ix p -> postAccountPublicKey apilayer ApiAccountKeyShared wid ix (toKeyDataPurpose p) )
@@ -594,13 +594,13 @@ server byron icarus shelley multisig spl ntp blockchainSource =
               ApiPostAccountKeyDataWithPurpose p f Nothing
 
     sharedAddresses
-        :: ApiLayer (SharedState n SharedKey) 'CredFromScriptK
+        :: ApiLayer (SharedState n SharedKey)
         -> Server (SharedAddresses n)
     sharedAddresses apilayer =
         listAddresses apilayer normalizeSharedAddress
 
     sharedTransactions
-        :: ApiLayer (SharedState n SharedKey) 'CredFromScriptK
+        :: ApiLayer (SharedState n SharedKey)
         -> Server (SharedTransactions n)
     sharedTransactions apilayer =
         constructSharedTransaction apilayer (constructAddressFromIx @n UtxoInternal)

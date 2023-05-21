@@ -29,8 +29,6 @@ import Prelude
 
 import Cardano.Wallet
     ( WalletException )
-import Cardano.Wallet.Address.Derivation
-    ( Depth (..) )
 import Cardano.Wallet.Address.Derivation.Icarus
     ( IcarusKey )
 import Cardano.Wallet.Address.Derivation.SharedKey
@@ -63,7 +61,7 @@ import Cardano.Wallet.DB.Sqlite.Migration
 import Cardano.Wallet.DB.Store.Checkpoints
     ( PersistAddressBook )
 import Cardano.Wallet.Flavor
-    ( KeyFlavorS (..), KeyOf, WalletFlavor (..) )
+    ( CredFromOf, KeyFlavorS (..), KeyOf, WalletFlavor (..) )
 import Cardano.Wallet.Network
     ( NetworkLayer (..) )
 import Cardano.Wallet.Pools
@@ -299,10 +297,10 @@ serveWallet
             )
         => SNetworkId n
         -> Socket
-        -> ApiLayer (RndState n) 'CredFromKeyK
-        -> ApiLayer (SeqState n IcarusKey) 'CredFromKeyK
-        -> ApiLayer (SeqState n ShelleyKey) 'CredFromKeyK
-        -> ApiLayer (SharedState n SharedKey) 'CredFromScriptK
+        -> ApiLayer (RndState n)
+        -> ApiLayer (SeqState n IcarusKey)
+        -> ApiLayer (SeqState n ShelleyKey)
+        -> ApiLayer (SharedState n SharedKey)
         -> StakePoolLayer
         -> NtpClient
         -> IO ()
@@ -317,7 +315,7 @@ serveWallet
         Server.start serverSettings apiServerTracer tlsConfig socket application
 
     apiLayer
-        :: forall s k ktype.
+        :: forall s k .
             ( IsOurs s Address
             , IsOurs s RewardAccount
             , MaybeLight s
@@ -325,10 +323,10 @@ serveWallet
             , WalletFlavor s
             , KeyOf s ~ k
             )
-        => TransactionLayer k ktype SealedTx
+        => TransactionLayer k (CredFromOf s) SealedTx
         -> NetworkLayer IO (CardanoBlock StandardCrypto)
-        -> (WorkerCtx (ApiLayer s ktype) -> WalletId -> IO ())
-        -> IO (ApiLayer s ktype)
+        -> (WorkerCtx (ApiLayer s) -> WalletId -> IO ())
+        -> IO (ApiLayer s)
     apiLayer txLayer netLayer coworker = do
         tokenMetaClient <- newMetadataClient tokenMetadataTracer tokenMetaUri
         dbFactory <- Sqlite.newDBFactory

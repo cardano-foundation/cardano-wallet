@@ -249,7 +249,7 @@ import Cardano.Wallet.Api.Types.Transaction
 import Cardano.Wallet.DB
     ( DBFactory, DBLayer )
 import Cardano.Wallet.Flavor
-    ( KeyOf )
+    ( CredFromOf, KeyOf )
 import Cardano.Wallet.Network
     ( NetworkLayer )
 import Cardano.Wallet.Pools
@@ -1210,13 +1210,13 @@ type PostExternalTransaction = "proxy"
                                Api Layer
 -------------------------------------------------------------------------------}
 
-data ApiLayer s ktype
+data ApiLayer s
     = ApiLayer
         { tracerTxSubmit :: Tracer IO TxSubmitLog
         , tracerWalletWorker :: Tracer IO (WorkerLog WalletId WalletWorkerLog)
         , netParams :: (Block, NetworkParameters)
         , netLayer :: NetworkLayer IO Read.Block
-        , txLayer :: TransactionLayer (KeyOf s) ktype SealedTx
+        , txLayer :: TransactionLayer (KeyOf s) (CredFromOf s) SealedTx
         , _dbFactory :: DBFactory IO s
         , _workerRegistry :: WorkerRegistry WalletId (DBLayer IO s)
         , concierge :: Concierge IO WalletLock
@@ -1230,10 +1230,10 @@ data ApiLayer s ktype
 data WalletLock = PostTransactionOld WalletId
     deriving (Eq, Ord, Show)
 
-instance HasWorkerCtx (DBLayer IO s) (ApiLayer s ktype) where
-    type WorkerCtx (ApiLayer s ktype) = WalletLayer IO s ktype
-    type WorkerMsg (ApiLayer s ktype) = WalletWorkerLog
-    type WorkerKey (ApiLayer s ktype) = WalletId
+instance HasWorkerCtx (DBLayer IO s) (ApiLayer s) where
+    type WorkerCtx (ApiLayer s) = WalletLayer IO s (CredFromOf s)
+    type WorkerMsg (ApiLayer s) = WalletWorkerLog
+    type WorkerKey (ApiLayer s) = WalletId
     hoistResource db transform (ApiLayer _ tr gp nw tl _ _ _ _) =
         WalletLayer (contramap transform tr) gp nw tl db
 
