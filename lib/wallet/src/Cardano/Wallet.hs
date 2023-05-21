@@ -1939,6 +1939,7 @@ buildSignSubmitTransaction
        , AddressBookIso s
        , IsOurs s Address
        , WalletFlavor s
+       , CredFromOf s ~ 'CredFromKeyK
        , k ~ KeyOf s
        , CredFromOf s ~ 'CredFromKeyK
        , HasSNetworkId (NetworkOf s)
