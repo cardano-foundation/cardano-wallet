@@ -2316,7 +2316,7 @@ mkApiTransactionFromInfo
        , WalletFlavor s
        )
     => TimeInterpreter (ExceptT PastHorizonException IO)
-    -> W.WalletLayer IO s (CredFromOf s)
+    -> W.WalletLayer IO s
     -> Coin
     -> TransactionInfo
     -> TxMetadataSchema
@@ -4448,7 +4448,7 @@ mkApiTransaction
        , WalletFlavor s
        )
     => TimeInterpreter (ExceptT PastHorizonException IO)
-    -> W.WalletLayer IO s (CredFromOf s)
+    -> W.WalletLayer IO s
     -> Lens' (ApiTransaction n) (Maybe ApiBlockReference)
     -> MkApiTransactionParams
     -> Handler (ApiTransaction n)

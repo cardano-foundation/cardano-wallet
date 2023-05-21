@@ -92,7 +92,8 @@ import Cardano.Wallet.DB
 import Cardano.Wallet.DB.Layer
     ( PersistAddressBook, withDBFresh )
 import Cardano.Wallet.Flavor
-    ( Excluding
+    ( CredFromOf
+    , Excluding
     , KeyFlavorS (..)
     , KeyOf
     , WalletFlavor (..)
@@ -457,7 +458,7 @@ benchmarksRnd
         , KnownNat p
         )
     => SNetworkId n
-    -> WalletLayer IO s 'CredFromKeyK
+    -> WalletLayer IO s
     -> WalletName
     -> Text
     -> Time
@@ -555,7 +556,7 @@ benchmarksSeq
         , KnownNat p
         )
     => SNetworkId n
-    -> WalletLayer IO s 'CredFromKeyK
+    -> WalletLayer IO s
     -> WalletName
     -> Text -- ^ Bench name
     -> Time
@@ -711,7 +712,7 @@ bench_restoration
     -> Bool -- ^ If @True@, will trace detailed progress to a .timelog file.
     -> Percentage -- ^ Target sync progress
     -> (SNetworkId n
-        -> WalletLayer IO s 'CredFromKeyK
+        -> WalletLayer IO s
         -> WalletName
         -> Text
         -> Time
@@ -879,7 +880,7 @@ waitForWalletSyncTo
     .  Percentage
     -> Tracer IO (BenchmarkLog n)
     -> SNetworkId n
-    -> WalletLayer IO s 'CredFromKeyK
+    -> WalletLayer IO s
     -> WalletId
     -> GenesisParameters
     -> NodeToClientVersionData
@@ -1029,9 +1030,10 @@ benchEstimateTxFee
         ( AddressBookIso s
         , WalletFlavor s
         , Excluding '[SharedKey] (KeyOf s)
+        , CredFromOf s ~ 'CredFromKeyK
         )
     => SNetworkId n
-    -> WalletLayer IO s 'CredFromKeyK
+    -> WalletLayer IO s
     -> IO Time
 benchEstimateTxFee network (WalletLayer _ _ netLayer txLayer dbLayer) =
     fmap snd <$> bench "estimate tx fee" $ do

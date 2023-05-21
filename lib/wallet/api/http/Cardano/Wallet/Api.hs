@@ -1231,7 +1231,7 @@ data WalletLock = PostTransactionOld WalletId
     deriving (Eq, Ord, Show)
 
 instance HasWorkerCtx (DBLayer IO s) (ApiLayer s) where
-    type WorkerCtx (ApiLayer s) = WalletLayer IO s (CredFromOf s)
+    type WorkerCtx (ApiLayer s) = WalletLayer IO s
     type WorkerMsg (ApiLayer s) = WalletWorkerLog
     type WorkerKey (ApiLayer s) = WalletId
     hoistResource db transform (ApiLayer _ tr gp nw tl _ _ _ _) =
