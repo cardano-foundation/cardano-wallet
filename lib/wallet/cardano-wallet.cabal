@@ -251,6 +251,7 @@ library
     Cardano.Wallet.Address.States.Families
     Cardano.Wallet.Address.States.Features
     Cardano.Wallet.Address.States.Test.State
+    Cardano.Wallet.Address.States.IsOwned
     Cardano.Wallet.Byron.Compatibility
     Cardano.Wallet.Checkpoints
     Cardano.Wallet.Checkpoints.Policy

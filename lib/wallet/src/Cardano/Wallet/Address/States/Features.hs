@@ -29,10 +29,10 @@ type IsOwned s =
     -> Maybe (KeyOf s (CredFromOf s) XPrv, Passphrase "encryption")
 
 newtype TestFeatures s = TestFeatures
-    { isOwned :: IsOwned s
+    { isOwnedTest :: IsOwned s
     }
 
 defaultTestFeatures :: TestFeatures s
 defaultTestFeatures = TestFeatures
-    { isOwned = error "isOwned: not implemented"
+    { isOwnedTest = error "isOwned: not implemented"
     }

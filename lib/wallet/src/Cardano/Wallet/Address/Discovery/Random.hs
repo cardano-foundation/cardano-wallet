@@ -28,12 +28,15 @@ module Cardano.Wallet.Address.Discovery.Random
     , mkRndState
     , DerivationPath
     , toDerivationIndexes
+    , isOwnedFunction
 
     -- ** Low-level API
     , importAddress
+    , addressToPath
     , ErrImportAddress(..)
     , addPendingAddress
     , deriveRndStateAddress
+    , deriveCredFromKeyKeyFromPath
     , findUnusedPath
     , unavailablePaths
     , defaultAccountIndex
@@ -83,6 +86,8 @@ import Control.Arrow
     ( second )
 import Control.DeepSeq
     ( NFData (..) )
+import Control.Lens
+    ( over )
 import Control.Monad
     ( join )
 import Data.Digest.CRC32
@@ -106,8 +111,6 @@ import GHC.TypeLits
 import System.Random
     ( RandomGen, StdGen, mkStdGen, randomR )
 
-import Control.Lens
-    ( over )
 import qualified Data.List.NonEmpty as NE
 import qualified Data.Map as Map
 import qualified Data.Set as Set
@@ -224,10 +227,18 @@ instance IsOurs (RndState n) Address where
 instance IsOurs (RndState n) RewardAccount where
     isOurs _account state = (Nothing, state)
 
+isOwnedFunction
+    :: forall (network :: NetworkDiscriminant)
+     . RndState network
+    -> (ByronKey 'RootK XPrv, Passphrase "encryption")
+    -> Address
+    -> Maybe (ByronKey 'CredFromKeyK XPrv, Passphrase "encryption")
+isOwnedFunction st (key, pwd) addr =
+    (,pwd) . deriveCredFromKeyKeyFromPath key pwd
+        <$> addressToPath addr (hdPassphrase st)
+
 instance IsOwned (RndState n) ByronKey 'CredFromKeyK where
-    isOwned st (key, pwd) addr =
-        (, pwd) . deriveCredFromKeyKeyFromPath key pwd
-            <$> addressToPath addr (hdPassphrase st)
+    isOwned = isOwnedFunction
 
 -- Updates a 'RndState' by adding an address and its derivation path to the
 -- set of discovered addresses. If the address was in the 'pendingAddresses' set

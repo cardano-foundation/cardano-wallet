@@ -290,7 +290,6 @@ import Cardano.Wallet.Address.Discovery
     , GetAccount (..)
     , GetPurpose (..)
     , IsOurs (..)
-    , IsOwned (..)
     , KnownAddresses (..)
     , MaybeLight (..)
     )
@@ -319,6 +318,8 @@ import Cardano.Wallet.Address.Keys.WalletKey
     , hashVerificationKey
     , liftRawKey
     )
+import Cardano.Wallet.Address.States.IsOwned
+    ( isOwned )
 import Cardano.Wallet.Checkpoints
     ( DeltaCheckpoints (..), extendCheckpoints, pruneCheckpoints )
 import Cardano.Wallet.DB
@@ -354,6 +355,7 @@ import Cardano.Wallet.Flavor
     , Including
     , KeyFlavorS (..)
     , KeyOf
+    , NetworkOf
     , WalletFlavor (..)
     , WalletFlavorS (..)
     , WalletFlavors (..)
@@ -932,14 +934,13 @@ updateWallet ctx f = onWalletState @IO @s ctx $ update $ \s ->
 -- | Change a wallet's passphrase to the given passphrase.
 updateWalletPassphraseWithOldPassphrase
     :: forall ctx s
-     . ( HasDBLayer IO s ctx
-       , WalletFlavor s
-       )
-    => ctx
+     . HasDBLayer IO s ctx
+    => WalletFlavorS s
+    -> ctx
     -> WalletId
     -> (Passphrase "user", Passphrase "user")
     -> ExceptT ErrUpdatePassphrase IO ()
-updateWalletPassphraseWithOldPassphrase ctx wid (old, new) =
+updateWalletPassphraseWithOldPassphrase wF ctx wid (old, new) =
     withRootKey @s db wid old ErrUpdatePassphraseWithRootKey
         $ \xprv scheme -> do
             -- IMPORTANT NOTE:
@@ -947,20 +948,21 @@ updateWalletPassphraseWithOldPassphrase ctx wid (old, new) =
             -- current scheme, we'll re-encrypt it using the current scheme,
             -- always.
             let new' = (currentPassphraseScheme, new)
-            let xprv' = changePassphraseNew (keyFlavorFromState @s)
+            let xprv' = changePassphraseNew (keyOfWallet wF)
                     (scheme, old) new' xprv
-            lift $ attachPrivateKeyFromPwdScheme @ctx @s ctx (xprv', new')
+            lift $ attachPrivateKeyFromPwdScheme wF ctx (xprv', new')
   where
     db = ctx ^. typed
 
 updateWalletPassphraseWithMnemonic
     :: forall ctx s
      . HasDBLayer IO s ctx
-    => ctx
+    => WalletFlavorS s
+    -> ctx
     -> (KeyOf s 'RootK XPrv, Passphrase "user")
     -> IO ()
-updateWalletPassphraseWithMnemonic ctx (xprv, new) =
-    attachPrivateKeyFromPwdScheme @ctx @s ctx
+updateWalletPassphraseWithMnemonic wF ctx (xprv, new) =
+    attachPrivateKeyFromPwdScheme wF ctx
         (xprv, (currentPassphraseScheme , new))
 
 getWalletUtxoSnapshot
@@ -1930,16 +1932,22 @@ readNodeTipStateForTxWrite netLayer = do
 --
 -- Requires the encryption passphrase in order to decrypt the root private key.
 buildSignSubmitTransaction
-    :: forall s k.
-        ( HardDerivation k
-        , Bounded (Index (AddressIndexDerivationType k) (AddressCredential k))
-        , IsOwned s k 'CredFromKeyK
-        , IsOurs s RewardAccount
-        , AddressBookIso s
-        , WalletFlavor s
+    :: forall s k
+     . ( HardDerivation k
+       , Bounded (Index (AddressIndexDerivationType k) (AddressCredential k))
+       , IsOurs s RewardAccount
+       , AddressBookIso s
+       , IsOurs s Address
+       , WalletFlavor s
+       , k ~ KeyOf s
+       , CredFromOf s ~ 'CredFromKeyK
+       , HasSNetworkId (NetworkOf s)
+        , Excluding '[SharedKey] k
         , Excluding '[SharedKey] k
         , k ~ KeyOf s
-        )
+       , Excluding '[SharedKey] k
+        , k ~ KeyOf s
+       )
     => DBLayer IO s
     -> NetworkLayer IO Read.Block
     -> TransactionLayer k 'CredFromKeyK SealedTx
@@ -2022,13 +2030,14 @@ buildAndSignTransactionPure
     :: forall k s era
      . ( HardDerivation k
        , Bounded (Index (AddressIndexDerivationType k) (AddressCredential k))
-       , IsOwned s k 'CredFromKeyK
-       , Excluding '[SharedKey] k
-       , k ~ KeyOf s
-       , HardDerivation k
        , IsOurs s RewardAccount
+       , IsOurs s Address
        , WalletFlavor s
        , Write.IsRecentEra era
+       , k ~ KeyOf s
+       , CredFromOf s ~ 'CredFromKeyK
+       , Excluding '[SharedKey] k
+       , HasSNetworkId (NetworkOf s)
        )
     => TimeTranslation
     -> UTxO
@@ -2072,7 +2081,7 @@ buildAndSignTransactionPure
             txLayer
             anyCardanoEra
             AnyWitnessCountCtx
-            (isOwned (getState wallet) (rootKey, passphrase))
+            (isOwned wF (getState wallet) (rootKey, passphrase))
             mExternalRewardAccount
             (rootKey, passphrase)
             (wallet ^. #utxo)
@@ -2103,7 +2112,6 @@ buildAndSignTransactionPure
                     { status = Pending
                     , expiry = Just (snd (txValidityInterval txCtx))
                     }
-
     -- tx coming from `decodeTx` doesn't contain previous tx outputs that
     -- correspond to this tx inputs, so its inputs aren't "resolved".
     -- We restore corresponding outputs by searching them in the UTxO again.
@@ -2122,6 +2130,7 @@ buildAndSignTransactionPure
         , builtSealedTx = signedTx
         }
   where
+    wF = walletFlavor @s
     anyCardanoEra = Cardano.AnyCardanoEra $ Write.cardanoEra @era
 
 buildTransaction
@@ -2243,8 +2252,11 @@ buildAndSignTransaction
         ( HasTransactionLayer k 'CredFromKeyK ctx
         , HasDBLayer IO s ctx
         , HasNetworkLayer IO ctx
-        , IsOwned s k 'CredFromKeyK
+        , IsOurs s Address
         , k ~ KeyOf s
+        , HasSNetworkId (NetworkOf s)
+        , CredFromOf s ~ 'CredFromKeyK
+        , WalletFlavor s
         )
     => ctx
     -> WalletId
@@ -2260,7 +2272,7 @@ buildAndSignTransaction ctx wid era mkRwdAcct pwd txCtx sel = db & \DBLayer{..} 
         mapExceptT atomically $ do
             cp <- lift readCheckpoint
             pp <- liftIO $ currentProtocolParameters nl
-            let keyFrom = isOwned (getState cp) (xprv, pwdP)
+            let keyFrom = isOwned wF (getState cp) (xprv, pwdP)
             let rewardAcnt = mkRwdAcct (xprv, pwdP)
             (tx, sealedTx) <- withExceptT ErrSignPaymentMkTx $ ExceptT $ pure $
                 mkTransaction tl era rewardAcnt keyFrom pp txCtx sel
@@ -2286,6 +2298,7 @@ buildAndSignTransaction ctx wid era mkRwdAcct pwd txCtx sel = db & \DBLayer{..} 
                     amountIn amountOut
             pure (tx, meta, time, sealedTx)
   where
+    wF = walletFlavor @s
     db = ctx ^. dbLayer @IO @s
     tl = ctx ^. transactionLayer @k @'CredFromKeyK
     nl = ctx ^. networkLayer
@@ -2980,10 +2993,11 @@ padFeePercentiles
 attachPrivateKeyFromPwdScheme
     :: forall ctx s
      . HasDBLayer IO s ctx
-    => ctx
+    => WalletFlavorS s
+    -> ctx
     -> (KeyOf s 'RootK XPrv, (PassphraseScheme, Passphrase "user"))
     -> IO ()
-attachPrivateKeyFromPwdScheme ctx (xprv, (scheme, pwd)) = db & \_ -> do
+attachPrivateKeyFromPwdScheme _ ctx (xprv, (scheme, pwd)) = db & \_ -> do
     hpwd <- liftIO $ encryptPassphrase' scheme pwd
     -- NOTE Only new wallets are constructed through this function, so the
     -- passphrase is encrypted with the new scheme (i.e. PBKDF2)
@@ -3007,11 +3021,12 @@ attachPrivateKeyFromPwdScheme ctx (xprv, (scheme, pwd)) = db & \_ -> do
 attachPrivateKeyFromPwd
     :: forall ctx s
      . HasDBLayer IO s ctx
-    => ctx
+    => WalletFlavorS s
+    -> ctx
     -> (KeyOf s 'RootK XPrv, Passphrase "user")
     -> IO ()
-attachPrivateKeyFromPwd ctx (xprv, pwd) =
-    attachPrivateKeyFromPwdScheme @ctx @s ctx
+attachPrivateKeyFromPwd wF ctx (xprv, pwd) =
+    attachPrivateKeyFromPwdScheme wF ctx
        (xprv, (currentPassphraseScheme, pwd))
 
 -- | The hash here is the output of Scrypt function with the following parameters:
@@ -3765,7 +3780,7 @@ dummyChangeAddressGen =
 
 utxoAssumptionsForWallet
     :: forall s
-     . Excluding '[SharedKey] (KeyOf s)
+     . (Excluding '[SharedKey] (KeyOf s))
     => WalletFlavorS s
     -> UTxOAssumptions
 utxoAssumptionsForWallet = keyOfWallet >>> \case

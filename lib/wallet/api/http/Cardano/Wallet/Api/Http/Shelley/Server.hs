@@ -430,6 +430,7 @@ import Cardano.Wallet.Flavor
     , WalletFlavor (..)
     , WalletFlavorS (..)
     , keyFlavorFromState
+    , keyOfWallet
     , shelleyOrShared
     )
 import Cardano.Wallet.Network
@@ -878,9 +879,10 @@ postShelleyWallet ctx generateKey body = do
             (workerCtx ^. typed @(DBLayer IO (SeqState n ShelleyKey)))
         )
     withWorkerCtx @_ @s ctx wid liftE liftE $ \wrk -> handler $
-        W.attachPrivateKeyFromPwd @_ @s wrk (rootXPrv, pwd)
+        W.attachPrivateKeyFromPwd wF wrk (rootXPrv, pwd)
     fst <$> getWallet ctx (mkShelleyWallet @_ @s) (ApiT wid)
   where
+    wF = walletFlavor @s
     seed = getApiMnemonicT (body ^. #mnemonicSentence)
     secondFactor = getApiMnemonicT <$> (body ^. #mnemonicSecondFactor)
     pwd = getApiT (body ^. #passphrase)
@@ -1048,8 +1050,7 @@ postSharedWalletFromRootXPrv
     -> ApiSharedWalletPostDataFromMnemonics
     -> Handler ApiSharedWallet
 postSharedWalletFromRootXPrv ctx generateKey body = do
-    let kF = keyFlavorFromState @s
-        wid = WalletId $ toSharedWalletId kF accXPub pTemplate dTemplateM
+    let wid = WalletId $ toSharedWalletId kF accXPub pTemplate dTemplateM
     validateScriptTemplates kF accXPub scriptValidation pTemplate dTemplateM
         & \case
             Left err -> liftHandler
@@ -1076,9 +1077,11 @@ postSharedWalletFromRootXPrv ctx generateKey body = do
             (workerCtx ^. typed @(DBLayer IO (SharedState n SharedKey)))
         )
     withWorkerCtx @_ @s ctx wid liftE liftE $ \wrk -> handler $
-        W.attachPrivateKeyFromPwd @_ @s wrk (rootXPrv, pwd)
+        W.attachPrivateKeyFromPwd wF wrk (rootXPrv, pwd)
     fst <$> getWallet ctx (mkSharedWallet @_ @s) (ApiT wid)
   where
+    kF = keyOfWallet wF
+    wF = walletFlavor @s
     seed = body ^. #mnemonicSentence . #getApiMnemonicT
     secondFactor = getApiMnemonicT <$> body ^. #mnemonicSecondFactor
     pwdP = preparePassphrase currentPassphraseScheme pwd
@@ -1316,10 +1319,11 @@ postLegacyWallet ctx (rootXPrv, pwd) createWallet = do
         (`createWallet` wid)
         idleWorker
     withWorkerCtx ctx wid liftE liftE $ \wrk -> handler $
-        W.attachPrivateKeyFromPwd wrk (rootXPrv, pwd)
+        W.attachPrivateKeyFromPwd wF wrk (rootXPrv, pwd)
     fst <$> getWallet ctx mkLegacyWallet (ApiT wid)
   where
-    kF = keyFlavorFromState @s
+    kF = keyOfWallet wF
+    wF = walletFlavor @s
     wid = WalletId
         $ digest kF
         $ publicKey kF rootXPrv
@@ -1679,7 +1683,8 @@ putWalletPassphrase ctx createKey getKey (ApiT wid)
                 (ApiT old)
                 (ApiT new)
             ) -> liftHandler
-                $ W.updateWalletPassphraseWithOldPassphrase wrk wid (old, new)
+                $ W.updateWalletPassphraseWithOldPassphrase
+                    (walletFlavor @s) wrk wid (old, new)
         Right
             (Api.WalletPutPassphraseMnemonicData
                     (ApiMnemonicT mnemonic) sndFactor (ApiT new)
@@ -1691,15 +1696,16 @@ putWalletPassphrase ctx createKey getKey (ApiT wid)
                     $ deriveAccountPrivateKey encrPass challengeKey minBound
             storedPubKey <- handler $ W.readAccountPublicKey wrk
             if getKey challengPubKey == getKey storedPubKey
-                then handler $ W.updateWalletPassphraseWithMnemonic wrk
+                then handler $ W.updateWalletPassphraseWithMnemonic wF wrk
                         (challengeKey, new)
                 else liftHandler
                     $ throwE
                     $ ErrUpdatePassphraseWithRootKey
                     $ ErrWithRootKeyWrongMnemonic wid
-    where
-        withWrk :: (WorkerCtx (ApiLayer s) -> Handler a) -> Handler a
-        withWrk = withWorkerCtx ctx wid liftE liftE
+  where
+    wF = walletFlavor @s
+    withWrk :: (WorkerCtx (ApiLayer s) -> Handler a) -> Handler a
+    withWrk = withWorkerCtx ctx wid liftE liftE
 
 putByronWalletPassphrase
     :: forall ctx s
@@ -1714,7 +1720,8 @@ putByronWalletPassphrase ctx (ApiT wid) body = do
     let (ByronWalletPutPassphraseData oldM (ApiT new)) = body
     withWorkerCtx ctx wid liftE liftE $ \wrk -> liftHandler $ do
         let old = maybe mempty (coerce . getApiT) oldM
-        W.updateWalletPassphraseWithOldPassphrase wrk wid (old, new)
+        W.updateWalletPassphraseWithOldPassphrase
+            (walletFlavor @s) wrk wid (old, new)
     return NoContent
 
 getUTxOsStatistics
@@ -2161,6 +2168,8 @@ postTransactionOld
         , KeyOf s ~ k
         , IsOurs s RewardAccount
         , CredFromOf s ~ 'CredFromKeyK
+        , HasSNetworkId (NetworkOf s)
+        , n ~ NetworkOf s
         )
     => ctx
     -> ArgGenChange s
@@ -3497,6 +3506,7 @@ joinStakePool
         , SoftDerivation k
         , AddressBookIso s
         , HasDelegation s
+        , HasSNetworkId n
         )
     => ApiLayer s
     -> ArgGenChange s
@@ -3588,6 +3598,7 @@ quitStakePool
         , IsOwned s k 'CredFromKeyK
         , AddressBookIso s
         , IsOurs (SeqState n k) RewardAccount
+        , HasSNetworkId n
         )
     => ApiLayer s
     -> ArgGenChange s
@@ -3824,6 +3835,8 @@ migrateWallet
         , HasDelegation s
         , k ~ KeyOf s
         , CredFromOf s ~ 'CredFromKeyK
+        , HasSNetworkId n
+        , n ~ NetworkOf s
         )
     => ApiLayer s
     -> Maybe ApiWithdrawalPostData

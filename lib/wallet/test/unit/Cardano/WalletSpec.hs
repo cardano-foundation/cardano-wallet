@@ -44,7 +44,17 @@ import Cardano.Wallet
     , throttle
     )
 import Cardano.Wallet.Address.Derivation
-    ( Depth (..), DerivationIndex (..), HardDerivation (..), Role (..) )
+    ( Depth (..)
+    , DerivationIndex (..)
+    , DerivationIndex (..)
+    , DerivationType (..)
+    , HardDerivation (..)
+    , HardDerivation (..)
+    , Index (..)
+    , Index (..)
+    , Role (..)
+    , Role (..)
+    )
 import Cardano.Wallet.Address.Derivation.Shelley
     ( ShelleyKey (..), generateKeyFromSeed )
 import Cardano.Wallet.Address.Discovery
@@ -56,6 +66,8 @@ import Cardano.Wallet.Address.Discovery
     )
 import Cardano.Wallet.Address.Keys.WalletKey
     ( publicKey )
+import Cardano.Wallet.Address.States.Features
+    ( TestFeatures (..), defaultTestFeatures )
 import Cardano.Wallet.Address.States.Test.State
     ( TestState (..) )
 import Cardano.Wallet.DB
@@ -75,7 +87,7 @@ import Cardano.Wallet.DummyTarget.Primitive.Types
     , mkTxId
     )
 import Cardano.Wallet.Flavor
-    ( CredFromOf, KeyFlavorS (ShelleyKeyS), KeyOf, WalletFlavor (..) )
+    ( CredFromOf, KeyFlavorS (ShelleyKeyS), KeyOf, WalletFlavorS (TestStateS) )
 import Cardano.Wallet.Gen
     ( genMnemonic, genSlotNo )
 import Cardano.Wallet.Network
@@ -136,6 +148,8 @@ import Cardano.Wallet.Primitive.Types.Tx.TxOut
     ( TxOut (..) )
 import Cardano.Wallet.Primitive.Types.UTxO
     ( UTxO (..) )
+import Cardano.Wallet.Read.NetworkId
+    ( NetworkDiscriminant (Mainnet) )
 import Cardano.Wallet.Transaction
     ( TransactionLayer (..)
     , Withdrawal (..)
@@ -196,6 +210,8 @@ import Data.List
     ( nubBy, sort, sortOn )
 import Data.List.NonEmpty
     ( NonEmpty (..) )
+import Data.Map
+    ( Map )
 import Data.Maybe
     ( catMaybes, fromMaybe, isJust, isNothing, mapMaybe )
 import Data.Ord
@@ -275,8 +291,6 @@ import qualified Cardano.Wallet.Primitive.Migration as Migration
 import qualified Cardano.Wallet.Primitive.Types.TokenBundle as TokenBundle
 import qualified Cardano.Wallet.Primitive.Types.TokenMap as TokenMap
 import qualified Cardano.Wallet.Read as Read
-import Cardano.Wallet.Read.NetworkId
-    ( NetworkDiscriminant (Mainnet) )
 import qualified Cardano.Wallet.Submissions.Submissions as Smbs
 import qualified Cardano.Wallet.Submissions.TxStatus as Sbms
 import qualified Data.ByteArray as BA
@@ -343,13 +357,14 @@ spec = describe "Cardano.WalletSpec" $ do
                                     Properties
 -------------------------------------------------------------------------------}
 
+
 walletDoubleCreationProp
     :: (WalletId, WalletName, DummyState)
     -> Property
 walletDoubleCreationProp newWallet =
     monadicIO $ do
         WalletLayerFixture dbf _db _wl _walletIds
-            <- run $ setupFixture newWallet
+            <- run $ setupFixture dummyStateF newWallet
         secondTrial <- run $ runExceptT $ createFixtureWallet dbf newWallet
         assert (isLeft secondTrial)
 
@@ -357,16 +372,16 @@ walletIdDeterministic
     :: (WalletId, WalletName, DummyState)
     -> Property
 walletIdDeterministic newWallet = monadicIO $ do
-    WalletLayerFixture _ _ _ widsA <- run $ setupFixture newWallet
-    WalletLayerFixture _ _ _ widsB <- run $ setupFixture newWallet
+    WalletLayerFixture _ _ _ widsA <- run $ setupFixture dummyStateF newWallet
+    WalletLayerFixture _ _ _ widsB <- run $ setupFixture dummyStateF newWallet
     assert (widsA == widsB)
 
 walletIdInjective
     :: ((WalletId, WalletName, DummyState), (WalletId, WalletName, DummyState))
     -> Property
 walletIdInjective (walletA, walletB) = monadicIO $ do
-    WalletLayerFixture _ _ _ widsA <- run $ setupFixture walletA
-    WalletLayerFixture _ _ _ widsB <- run $ setupFixture walletB
+    WalletLayerFixture _ _ _ widsA <- run $ setupFixture dummyStateF walletA
+    WalletLayerFixture _ _ _ widsB <- run $ setupFixture dummyStateF walletB
     assert (widsA /= widsB)
 
 walletUpdateName
@@ -375,7 +390,7 @@ walletUpdateName
     -> Property
 walletUpdateName wallet wName = monadicIO $ do
     wName' <- run $ do
-        WalletLayerFixture _ _ wl _ <- setupFixture wallet
+        WalletLayerFixture _ _ wl _ <- setupFixture dummyStateF wallet
         W.updateWallet wl (\x -> x { name = wName })
         (name . (\(_, (b, _), _) -> b)) <$> W.readWallet wl
     assert (wName == wName')
@@ -386,20 +401,21 @@ walletUpdatePassphrase
     -> Maybe (ShelleyKey 'RootK XPrv, Passphrase "user")
     -> Property
 walletUpdatePassphrase wallet new mxprv = monadicIO $ do
-    WalletLayerFixture _ _ wl wid <- run $ setupFixture wallet
+    WalletLayerFixture _ _ wl wid <- run $ setupFixture dummyStateF wallet
     case mxprv of
         Nothing -> prop_withoutPrivateKey wl wid
         Just (xprv, pwd) -> prop_withPrivateKey wl wid (xprv, pwd)
   where
     prop_withoutPrivateKey wl wid = do
         attempt <- run $ runExceptT
-            $ W.updateWalletPassphraseWithOldPassphrase wl wid (new, new)
+            $ W.updateWalletPassphraseWithOldPassphrase dummyStateF wl wid (new, new)
         let err = ErrUpdatePassphraseWithRootKey $ ErrWithRootKeyNoRootKey wid
         assert (attempt == Left err)
     prop_withPrivateKey wl wid (xprv, pwd) = do
-        run $ W.attachPrivateKeyFromPwd @_ @DummyState wl (xprv, pwd)
+        run $ W.attachPrivateKeyFromPwd dummyStateF wl (xprv, pwd)
         attempt <- run $ runExceptT
-            $ W.updateWalletPassphraseWithOldPassphrase wl wid (coerce pwd, new)
+            $ W.updateWalletPassphraseWithOldPassphrase dummyStateF
+                wl wid (coerce pwd, new)
         assert (attempt == Right ())
 
 walletUpdatePassphraseWrong
@@ -409,11 +425,12 @@ walletUpdatePassphraseWrong
     -> Property
 walletUpdatePassphraseWrong wallet (xprv, pwd) (old, new) =
     pwd /= coerce old ==> monadicIO $ do
-        WalletLayerFixture _ _ wl wid <- run $ setupFixture wallet
+        WalletLayerFixture _ _ wl wid <- run $ setupFixture dummyStateF wallet
         attempt <- run $ do
-            W.attachPrivateKeyFromPwd wl (xprv, pwd)
+            W.attachPrivateKeyFromPwd dummyStateF wl (xprv, pwd)
             runExceptT
-                $ W.updateWalletPassphraseWithOldPassphrase wl wid (old, new)
+                $ W.updateWalletPassphraseWithOldPassphrase
+                    dummyStateF wl wid (old, new)
         let err = ErrUpdatePassphraseWithRootKey
                 $ ErrWithRootKeyWrongPassphrase wid
                 ErrWrongPassphrase
@@ -426,9 +443,10 @@ walletUpdatePassphraseNoRootKey
     -> Property
 walletUpdatePassphraseNoRootKey wallet@(wid', _, _) wid (old, new) =
     wid /= wid' ==> monadicIO $ do
-        WalletLayerFixture _ _ wl _ <- run $ setupFixture wallet
+        WalletLayerFixture _ _ wl _ <- run $ setupFixture dummyStateF wallet
         attempt <- run $ runExceptT
-            $ W.updateWalletPassphraseWithOldPassphrase wl wid (old, new)
+            $ W.updateWalletPassphraseWithOldPassphrase
+                dummyStateF wl wid (old, new)
         let err = ErrUpdatePassphraseWithRootKey $ ErrWithRootKeyNoRootKey wid
         assert (attempt == Left err)
 
@@ -437,7 +455,7 @@ walletUpdatePassphraseDate
     -> (ShelleyKey 'RootK XPrv, Passphrase "user")
     -> Property
 walletUpdatePassphraseDate wallet (xprv, pwd) = monadicIO $ liftIO $ do
-    WalletLayerFixture _ _ wl wid  <- liftIO $ setupFixture wallet
+    WalletLayerFixture _ _ wl wid  <- liftIO $ setupFixture dummyStateF wallet
     let infoShouldSatisfy predicate = do
             info <- (passphraseInfo . (\(_, (b, _), _) -> b))
                 <$> W.readWallet wl
@@ -445,12 +463,12 @@ walletUpdatePassphraseDate wallet (xprv, pwd) = monadicIO $ liftIO $ do
             return info
 
     void $ infoShouldSatisfy isNothing
-    W.attachPrivateKeyFromPwd wl (xprv, pwd)
+    W.attachPrivateKeyFromPwd dummyStateF wl (xprv, pwd)
     info <- infoShouldSatisfy isJust
     pause
     unsafeRunExceptT
-        $ W.updateWalletPassphraseWithOldPassphrase wl wid
-            (coerce pwd, coerce pwd)
+        $ W.updateWalletPassphraseWithOldPassphrase
+            dummyStateF wl wid (coerce pwd, coerce pwd)
     void $ infoShouldSatisfy (\info' -> isJust info' && info' > info)
   where
     pause = threadDelay 500
@@ -470,7 +488,7 @@ walletListTransactionsSorted
 walletListTransactionsSorted wallet@(_, _, _) _order (_mstart, _mend) =
     forAll (logScale' 1.5 arbitrary) $ \history ->
     monadicIO $ liftIO $ do
-        WalletLayerFixture _ DBLayer{..} wl _ <- setupFixture wallet
+        WalletLayerFixture _ DBLayer{..} wl _ <- setupFixture dummyStateF wallet
         atomically $ putTxHistory history
         txs <- unsafeRunExceptT $
             W.listTransactions @_ @_ wl Nothing Nothing Nothing
@@ -514,7 +532,7 @@ walletListTransactionsWithLimit wallet@(_, _, _) =
             -> PropertyM IO ()
         limitNatural = fromIntegral limit
         test start stop order dir cut = liftIO @(PropertyM IO) $ do
-            WalletLayerFixture _ DBLayer{..} wl _ <- setupFixture wallet
+            WalletLayerFixture _ DBLayer{..} wl _ <- setupFixture dummyStateF wallet
             atomically $ putTxHistory history'
             txs <- unsafeRunExceptT $
                 W.listTransactions @_ @_ wl Nothing start stop order
@@ -553,6 +571,9 @@ walletListTransactionsWithLimit wallet@(_, _, _) =
 
 type DummyStateWithAddresses = TestState [Address] 'Mainnet ShelleyKey 'CredFromKeyK
 
+dummyStateWithAddressesF :: WalletFlavorS DummyStateWithAddresses
+dummyStateWithAddressesF = TestStateS defaultTestFeatures
+
 instance IsOurs DummyStateWithAddresses Address where
     isOurs a s@(TestState addr) =
         if a `elem` addr
@@ -588,7 +609,8 @@ instance Sqlite.PersistAddressBook DummyStateWithAddresses where
 walletListsOnlyRelatedAssets :: Hash "Tx" -> TxMeta -> Property
 walletListsOnlyRelatedAssets txId txMeta =
     forAll genOuts $ \(out1, out2, wallet) -> monadicIO $ do
-        WalletLayerFixture _ DBLayer{..} wl _ <- liftIO $ setupFixture wallet
+        WalletLayerFixture _ DBLayer{..} wl _ <- liftIO
+            $ setupFixture dummyStateWithAddressesF wallet
         let listHistoricalAssets hry = do
                 liftIO . atomically $ putTxHistory hry
                 liftIO $ W.listAssets wl
@@ -840,7 +862,7 @@ prop_localTxSubmission tc = monadicIO $ do
         (msgs, res) <- captureLogging' $ \tr -> do
             flip runReaderT st $ unTxRetryTestM $ do
                 WalletLayerFixture _ db _wl wid <-
-                    setupFixture $ retryTestWallet tc
+                    setupFixture dummyStateF $ retryTestWallet tc
                 let ctx = TxRetryTestCtx db (mockNetwork submittedVar)
                         (natTracer liftIO tr) tr wid
 
@@ -1200,13 +1222,13 @@ setupFixture
        , Sqlite.PersistAddressBook s
        , KeyOf s ~ ShelleyKey
        , CredFromOf s ~ 'CredFromKeyK
-       , WalletFlavor s
        )
-    => (WalletId, WalletName, s)
+    => WalletFlavorS s
+    -> (WalletId, WalletName, s)
     -> m (WalletLayerFixture s m)
-setupFixture wd@(wid,  _wname, _wstate) = do
+setupFixture wF wd@(wid,  _wname, _wstate) = do
     (_kill, dbf) <-
-        liftIO $ newDBFreshInMemory (walletFlavor @s) nullTracer dummyTimeInterpreter wid
+        liftIO $ newDBFreshInMemory wF nullTracer dummyTimeInterpreter wid
     db <- liftIO $ unsafeRunExceptT $ createFixtureWallet dbf wd
     let db' = hoistDBLayer liftIO db
         wl =
@@ -1315,6 +1337,18 @@ type DummyState =
         'Mainnet
         ShelleyKey
         'CredFromKeyK
+
+dummyStateF :: WalletFlavorS DummyState
+dummyStateF =
+    TestStateS
+        $ defaultTestFeatures
+            { isOwnedTest = \(TestState m) (rootK, pwd) addr -> do
+                ix <- Map.lookup addr m
+                let accXPrv = deriveAccountPrivateKey pwd rootK minBound
+                    addrXPrv
+                        = deriveAddressPrivateKey pwd accXPrv UtxoExternal ix
+                return (addrXPrv, pwd)
+            }
 
 instance Sqlite.AddressBookIso DummyState where
     data Prologue DummyState = DummyPrologue

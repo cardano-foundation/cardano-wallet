@@ -54,7 +54,7 @@ import Cardano.Wallet.Address.Discovery.Shared
     ( SharedState (..) )
 import Cardano.Wallet.Address.States.Families
 import Cardano.Wallet.Address.States.Features
-    ( TestFeatures, defaultTestFeatures )
+    ( TestFeatures )
 import Cardano.Wallet.Address.States.Test.State
     ( TestState )
 import Cardano.Wallet.TypeLevel
@@ -68,9 +68,13 @@ data WalletFlavorS s where
     SharedWallet :: WalletFlavorS (SharedState n SharedKey)
     BenchByronWallet :: WalletFlavorS (RndAnyState n p)
     BenchShelleyWallet :: WalletFlavorS (SeqAnyState n ShelleyKey p)
-    TestStateS :: KeyFlavorS k -> TestFeatures s
-        -> WalletFlavorS (TestState s n k kt)
+    TestStateS
+        :: KeyFlavor k
+        => TestFeatures (TestState s1 n k kt)
+        -> WalletFlavorS (TestState s1 n k kt)
 
+type family TestStateOf s where
+    TestStateOf (TestState s n k kt) = s
 data WalletFlavors
     = ShelleyF
     | IcarusF
@@ -78,8 +82,7 @@ data WalletFlavors
     | SharedF
     | BenchByronF
     | BenchShelleyF
-    | TestAddressesWithCredsF
-    | TestOnlyAddressesF
+    | TestStateF
 
 type family FlavorOf s where
     FlavorOf (SeqState n ShelleyKey) = 'ShelleyF
@@ -97,8 +100,7 @@ type AllFlavors =
      , 'SharedF
      , 'BenchByronF
      , 'BenchShelleyF
-     , 'TestAddressesWithCredsF
-     , 'TestOnlyAddressesF
+     , 'TestStateF
      ]
 
 type IncludingStates ss s = Including AllFlavors ss s
@@ -124,10 +126,6 @@ instance WalletFlavor (RndAnyState n p) where
 
 instance WalletFlavor (SharedState n SharedKey) where
     walletFlavor = SharedWallet
-
-instance (KeyFlavor k)
-    => WalletFlavor (TestState s n k kt ) where
-    walletFlavor = TestStateS keyFlavor defaultTestFeatures
 
 -- | A singleton type to capture the flavor of a key.
 data KeyFlavorS a where
@@ -159,13 +157,16 @@ keyOfWallet ByronWallet = ByronKeyS
 keyOfWallet SharedWallet = SharedKeyS
 keyOfWallet BenchByronWallet = ByronKeyS
 keyOfWallet BenchShelleyWallet = ShelleyKeyS
-keyOfWallet (TestStateS kf _) = kf
+keyOfWallet (TestStateS _) = keyFlavor
 
 -- | A function to reify the flavor of a key from a state type.
 --
 -- use with
 -- > keyFlavorFromState @s
-keyFlavorFromState :: forall s. WalletFlavor s => KeyFlavorS (KeyOf s)
+keyFlavorFromState
+    :: forall s
+     . WalletFlavor s
+    => KeyFlavorS (KeyOf s)
 keyFlavorFromState = keyOfWallet (walletFlavor @s)
 
 -- | Constraints for a state with a specific key.
