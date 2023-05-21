@@ -62,6 +62,7 @@ module Cardano.Wallet.Address.Discovery.Sequential
     , mkSeqStateFromAccountXPub
     , discoverSeq
     , discoverSeqWithRewards
+    , isOwnedFunction
 
     -- ** Benchmarking
     , SeqAnyState (..)
@@ -160,6 +161,8 @@ import Type.Reflection
     ( Typeable )
 
 import qualified Cardano.Wallet.Address.Pool as AddressPool
+import Cardano.Wallet.Primitive.Passphrase
+    ( Passphrase )
 import qualified Data.List as L
 import qualified Data.List.NonEmpty as NE
 import qualified Data.Map.Strict as Map
@@ -524,34 +527,47 @@ instance
         addressXPub = deriveAddressPublicKey (accountXPub st) UtxoInternal ix
         addr = mkAddress addressXPub (rewardAccountKey st)
 
+isOwnedFunction
+    :: forall n k
+     . ( MkKeyFingerprint k Address
+       , HardDerivation k
+       , AddressCredential k ~ 'CredFromKeyK
+       , AddressIndexDerivationType k ~ 'Soft
+       )
+    => (SeqState n k)
+    -> (k 'RootK XPrv, Passphrase "encryption")
+    -> Address
+    -> Maybe (k 'CredFromKeyK XPrv, Passphrase "encryption")
+isOwnedFunction st (rootPrv, pwd) addrRaw =
+    case paymentKeyFingerprint addrRaw of
+        Left _ -> Nothing
+        Right addr ->
+            let
+                xPrv1 = lookupAndDeriveXPrv addr (internalPool st)
+                xPrv2 = lookupAndDeriveXPrv addr (externalPool st)
+                xPrv = xPrv1 <|> xPrv2
+            in
+                (,pwd) <$> xPrv
+  where
+    -- We are assuming there is only one account
+    accountPrv = deriveAccountPrivateKey pwd rootPrv minBound
+    lookupAndDeriveXPrv
+        :: forall c
+         . Typeable c
+        => KeyFingerprint "payment" k
+        -> SeqAddressPool c k
+        -> Maybe (k 'CredFromKeyK XPrv)
+    lookupAndDeriveXPrv addr (SeqAddressPool pool) =
+        deriveAddressPrivateKey pwd accountPrv (roleVal @c)
+            <$> AddressPool.lookup addr pool
+
 instance
     ( IsOurs (SeqState n k) Address
     , SupportsDiscovery n k
     , AddressIndexDerivationType k ~ 'Soft
     )
     => IsOwned (SeqState n k) k 'CredFromKeyK where
-    isOwned st (rootPrv, pwd) addrRaw =
-        case paymentKeyFingerprint addrRaw of
-            Left _ -> Nothing
-            Right addr ->
-                let
-                    xPrv1 = lookupAndDeriveXPrv addr (internalPool st)
-                    xPrv2 = lookupAndDeriveXPrv addr (externalPool st)
-                    xPrv = xPrv1 <|> xPrv2
-                in
-                    (,pwd) <$> xPrv
-      where
-        -- We are assuming there is only one account
-        accountPrv = deriveAccountPrivateKey pwd rootPrv minBound
-
-        lookupAndDeriveXPrv
-            :: forall c. (Typeable c)
-            => KeyFingerprint "payment" k
-            -> SeqAddressPool c k
-            -> Maybe (k 'CredFromKeyK XPrv)
-        lookupAndDeriveXPrv addr (SeqAddressPool pool) =
-                deriveAddressPrivateKey pwd accountPrv (roleVal @c)
-            <$> AddressPool.lookup addr pool
+    isOwned = isOwnedFunction
 
 instance SupportsDiscovery n k => CompareDiscovery (SeqState n k) where
     compareDiscovery (SeqState !s1 !s2 _ _ _ _ _) a1 a2 =
