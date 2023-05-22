@@ -44,13 +44,7 @@ import Cardano.Wallet
     , throttle
     )
 import Cardano.Wallet.Address.Derivation
-    ( Depth (..)
-    , DerivationIndex (..)
-    , DerivationType (..)
-    , HardDerivation (..)
-    , Index
-    , Role (..)
-    )
+    ( Depth (..), DerivationIndex (..), HardDerivation (..), Role (..) )
 import Cardano.Wallet.Address.Derivation.Shelley
     ( ShelleyKey (..), generateKeyFromSeed )
 import Cardano.Wallet.Address.Discovery
@@ -202,8 +196,6 @@ import Data.List
     ( nubBy, sort, sortOn )
 import Data.List.NonEmpty
     ( NonEmpty (..) )
-import Data.Map.Strict
-    ( Map )
 import Data.Maybe
     ( catMaybes, fromMaybe, isJust, isNothing, mapMaybe )
 import Data.Ord
