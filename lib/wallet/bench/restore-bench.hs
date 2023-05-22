@@ -63,7 +63,7 @@ import Cardano.Wallet.Address.Derivation.Shared
 import Cardano.Wallet.Address.Derivation.Shelley
     ( ShelleyKey )
 import Cardano.Wallet.Address.Discovery
-    ( GenChange (..), IsOurs, IsOwned, MaybeLight )
+    ( GenChange (..), IsOurs, MaybeLight )
 import Cardano.Wallet.Address.Discovery.Random
     ( RndAnyState, mkRndAnyState )
 import Cardano.Wallet.Address.Discovery.Sequential
@@ -686,7 +686,6 @@ bench_restoration
     :: forall n (k :: Depth -> * -> *) s results.
         ( IsOurs s RewardAccount
         , MaybeLight s
-        , IsOwned s k 'CredFromKeyK
         , PersistAddressBook s
         , WalletFlavor s
         , KeyOf s ~ k
@@ -694,6 +693,7 @@ bench_restoration
         , TxWitnessTagFor k
         , Buildable results
         , ToJSON results
+        , IsOurs s Address
         )
     => PipeliningStrategy (CardanoBlock StandardCrypto)
     -> SNetworkId n

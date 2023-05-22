@@ -21,7 +21,6 @@
 
 module Cardano.Wallet.Address.Discovery
     ( IsOurs(..)
-    , IsOwned(..)
     , GenChange(..)
     , CompareDiscovery(..)
     , KnownAddresses(..)
@@ -42,7 +41,7 @@ module Cardano.Wallet.Address.Discovery
 import Prelude
 
 import Cardano.Crypto.Wallet
-    ( XPrv, XPub )
+    ( XPub )
 import Cardano.Wallet.Address.Derivation
     ( Depth (..)
     , DerivationIndex (..)
@@ -53,8 +52,6 @@ import Cardano.Wallet.Address.Derivation
     )
 import Cardano.Wallet.Primitive.BlockSummary
     ( ChainEvents )
-import Cardano.Wallet.Primitive.Passphrase.Types
-    ( Passphrase (..) )
 import Cardano.Wallet.Primitive.Types.Address
     ( Address (..), AddressState (..) )
 import Control.DeepSeq
@@ -93,25 +90,6 @@ class IsOurs s entity where
         -> s
         -> (Maybe (NonEmpty DerivationIndex), s)
         -- ^ Returns derivation path if the entity is ours, otherwise Nothing.
-
--- | More powerful than 'isOurs', this abstractions offer the underlying state
--- the ability to find / compute the address private key corresponding to a
--- given known address.
---
--- Requiring 'IsOwned' as a constraint supposed that there is a way to recover
--- the root private key of a particular wallet. This isn't true for externally
--- owned wallet which would delegate its key management to a third party (like
--- a hardware Ledger or Trezor).
-class IsOurs s Address => IsOwned s key ktype where
-    isOwned
-        :: s
-        -> (key 'RootK XPrv, Passphrase "encryption")
-        -> Address
-        -> Maybe (key ktype XPrv, Passphrase "encryption")
-        -- ^ Derive the private key corresponding to an address. Careful, this
-        -- operation can be costly. Note that the state is discarded from this
-        -- function as we do not intend to discover any addresses from this
-        -- operation; This is merely a lookup from known addresses.
 
 -- | Abstracting over change address generation. In theory, this is only needed
 -- for sending transactions on a wallet following a particular scheme. This
