@@ -50,7 +50,6 @@ import Cardano.Wallet.Address.Discovery
     , GenChange (..)
     , GetPurpose
     , IsOurs (..)
-    , IsOwned (..)
     , KnownAddresses (..)
     , emptyPendingIxs
     , genChange
@@ -76,8 +75,10 @@ import Cardano.Wallet.Address.Keys.WalletKey
     ( publicKey )
 import Cardano.Wallet.Address.PoolSpec
     ( genPool, shrinkPool )
+import Cardano.Wallet.Address.States.IsOwned
+    ( isOwned )
 import Cardano.Wallet.Flavor
-    ( KeyFlavorS (..) )
+    ( KeyFlavorS (..), WalletFlavorS (ShelleyWallet) )
 import Cardano.Wallet.Primitive.Types.Address
     ( Address (..), AddressState (..) )
 import Cardano.Wallet.Read.NetworkId
@@ -309,7 +310,7 @@ prop_lookupDiscovered (s0, addr) =
     mw = someDummyMnemonic (Proxy @12)
     key = Shelley.unsafeGenerateKeyFromSeed (mw, Nothing) mempty
     prop s = monadicIO $ liftIO $ do
-        unless (isJust $ isOwned @_ @_ @'CredFromKeyK s (key, mempty) addr) $ do
+        unless (isJust $ isOwned ShelleyWallet s (key, mempty) addr) $ do
             expectationFailure "couldn't find private key corresponding to addr"
 
 {-------------------------------------------------------------------------------
