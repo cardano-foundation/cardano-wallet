@@ -249,6 +249,7 @@ library
     Cardano.Wallet.DB
     Cardano.Wallet.DB.Errors
     Cardano.Wallet.DB.Layer
+    Cardano.Wallet.DB.Migration
     Cardano.Wallet.DB.Pure.Implementation
     Cardano.Wallet.DB.Pure.Layer
     Cardano.Wallet.DB.Sqlite.Migration
@@ -900,6 +901,7 @@ test-suite unit
     Cardano.Wallet.DB.Arbitrary
     Cardano.Wallet.DB.Fixtures
     Cardano.Wallet.DB.LayerSpec
+    Cardano.Wallet.DB.MigrationSpec
     Cardano.Wallet.DB.Properties
     Cardano.Wallet.DB.Pure.ImplementationSpec
     Cardano.Wallet.DB.Sqlite.StoresSpec
