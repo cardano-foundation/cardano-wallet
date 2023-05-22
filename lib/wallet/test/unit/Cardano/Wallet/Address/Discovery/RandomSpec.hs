@@ -35,12 +35,15 @@ import Cardano.Wallet.Address.Derivation.Byron
 import Cardano.Wallet.Address.DerivationSpec
     ()
 import Cardano.Wallet.Address.Discovery
-    ( GenChange (..), IsOurs (..), IsOwned (..), KnownAddresses (..) )
+    ( GenChange (..), IsOurs (..), KnownAddresses (..) )
 import Cardano.Wallet.Address.Discovery.Random
     ( RndState (..), findUnusedPath, mkRndState )
 import Cardano.Wallet.Address.Keys.WalletKey
     ( publicKey )
+import Cardano.Wallet.Address.States.IsOwned
+    ( isOwned )
 import Cardano.Wallet.Flavor
+    ( KeyFlavorS (ByronKeyS), WalletFlavorS (ByronWallet) )
 import Cardano.Wallet.Gen
     ( genMnemonic )
 import Cardano.Wallet.Primitive.Passphrase
@@ -238,7 +241,7 @@ checkIsOurs GoldenTest{..} = do
 
 checkIsOwned :: GoldenTest -> Expectation
 checkIsOwned GoldenTest{..} = do
-    isOwned st (rndKey, pwd) addr' `shouldBe` expectation
+    isOwned ByronWallet st (rndKey, pwd) addr' `shouldBe` expectation
   where
     pwd = Passphrase ""
     Right addr' = Address <$> convertFromBase Base16 addr
@@ -295,9 +298,9 @@ prop_derivedKeysAreOwned
     -> Index 'WholeDomain 'CredFromKeyK
     -> Property
 prop_derivedKeysAreOwned (Rnd st rk pwd) (Rnd st' rk' pwd') addrIx =
-    isOwned @_ @_ @'CredFromKeyK st (rk, pwd) addr === Just (addrKey, pwd)
+    isOwned ByronWallet st (rk, pwd) addr === Just (addrKey, pwd)
     .&&.
-    isOwned @_ @_ @'CredFromKeyK st' (rk', pwd') addr === Nothing
+    isOwned ByronWallet st' (rk', pwd') addr === Nothing
   where
     addr = paymentAddress SMainnet (publicKey ByronKeyS addrKey)
     addrKey = deriveAddressPrivateKey pwd acctKey addrIx

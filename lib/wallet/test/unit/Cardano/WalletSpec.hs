@@ -46,24 +46,16 @@ import Cardano.Wallet
 import Cardano.Wallet.Address.Derivation
     ( Depth (..)
     , DerivationIndex (..)
-    , DerivationIndex (..)
     , DerivationType (..)
     , HardDerivation (..)
-    , HardDerivation (..)
-    , Index (..)
     , Index (..)
     , Role (..)
-    , Role (..)
+    , deriveAccountPrivateKey
     )
 import Cardano.Wallet.Address.Derivation.Shelley
     ( ShelleyKey (..), generateKeyFromSeed )
 import Cardano.Wallet.Address.Discovery
-    ( CompareDiscovery (..)
-    , GenChange (..)
-    , IsOurs (..)
-    , IsOwned (..)
-    , KnownAddresses (..)
-    )
+    ( CompareDiscovery (..), GenChange (..), IsOurs (..), KnownAddresses (..) )
 import Cardano.Wallet.Address.Keys.WalletKey
     ( publicKey )
 import Cardano.Wallet.Address.States.Features
@@ -1379,14 +1371,6 @@ instance IsOurs DummyState Address where
 
 instance IsOurs DummyState RewardAccount where
     isOurs _ s = (Nothing, s)
-
-instance IsOwned DummyState ShelleyKey 'CredFromKeyK where
-    isOwned (TestState m) (rootK, pwd) addr = do
-        ix <- Map.lookup addr m
-        let accXPrv = deriveAccountPrivateKey pwd rootK minBound
-        let addrXPrv = deriveAddressPrivateKey pwd accXPrv UtxoExternal ix
-        return (addrXPrv, pwd)
-
 instance GenChange DummyState where
     type ArgGenChange DummyState = ()
     genChange _ s = (Address "dummy", s)
