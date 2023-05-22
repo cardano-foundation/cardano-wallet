@@ -89,6 +89,7 @@ module Cardano.Wallet
     , mkSelfWithdrawal
     , mkSelfWithdrawalShared
     , shelleyOnlyMkSelfWithdrawal
+    , sharedOnlyReadRewardAccount
     , readRewardAccount
     , shelleyOnlyReadRewardAccount
     , someRewardAccount
@@ -568,8 +569,6 @@ import Data.List.NonEmpty
     ( NonEmpty (..) )
 import Data.Maybe
     ( fromJust, fromMaybe, isJust, isNothing, mapMaybe, maybeToList )
-import Data.Proxy
-    ( Proxy (..) )
 import Data.Quantity
     ( Quantity (..) )
 import Data.Set
@@ -1309,10 +1308,6 @@ readRewardAccount db = do
     let xpub = Seq.rewardAccountKey walletState
     let path = stakeDerivationPath $ Seq.derivationPrefix walletState
     pure (toRewardAccount xpub, getRawKey xpub, path)
-  where
-    readWalletCheckpoint
-        :: DBLayer IO s ->  IO (Wallet s)
-    readWalletCheckpoint DBLayer{..} = liftIO $ atomically readCheckpoint
 
 readSharedRewardAccount
     :: forall n
@@ -1324,10 +1319,26 @@ readSharedRewardAccount db = do
     case Shared.rewardAccountKey walletState of
         Just rewardAcct -> pure $ Just (rewardAcct, path)
         Nothing -> pure Nothing
-  where
-    readWalletCheckpoint
-        :: DBLayer IO s -> IO (Wallet s)
-    readWalletCheckpoint DBLayer{..} = liftIO $ atomically readCheckpoint
+
+readWalletCheckpoint
+    :: DBLayer IO s -> IO (Wallet s)
+readWalletCheckpoint DBLayer{..} = liftIO $ atomically readCheckpoint
+
+sharedOnlyReadRewardAccount
+    :: forall s
+     . WalletFlavor s
+    => DBLayer IO s
+    -> ExceptT ErrReadRewardAccount IO
+        (Maybe (RewardAccount, NonEmpty DerivationIndex))
+sharedOnlyReadRewardAccount db = do
+    case walletFlavor @s of
+        SharedWallet -> do
+            walletState <- lift $ getState <$> readWalletCheckpoint db
+            let path = stakeDerivationPath $ Shared.derivationPrefix walletState
+            case Shared.rewardAccountKey walletState of
+                Just rewardAcct -> pure $ Just (rewardAcct, path)
+                Nothing -> pure Nothing
+        _ -> throwE ErrReadRewardAccountNotASharedWallet
 
 -- | Unsafe version of the `readRewardAccount` function
 -- that throws error when applied to a non-sequential
@@ -3422,6 +3433,7 @@ data ErrNotASequentialWallet
 
 data ErrReadRewardAccount
     = ErrReadRewardAccountNotAShelleyWallet
+    | ErrReadRewardAccountNotASharedWallet
     | ErrReadRewardAccountMissing
     deriving (Generic, Eq, Show)
 
