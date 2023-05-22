@@ -142,7 +142,7 @@ import Cardano.Wallet.DB.WalletState
     , getSlot
     )
 import Cardano.Wallet.Flavor
-    ( KeyFlavorS, WalletFlavorS, keyOfWallet )
+    ( KeyFlavor, KeyFlavorS, KeyOf, WalletFlavorS, keyOfWallet )
 import Cardano.Wallet.Primitive.Passphrase.Types
     ( PassphraseHash )
 import Cardano.Wallet.Primitive.Slotting
@@ -236,7 +236,7 @@ import qualified Data.Text as T
 -- | Instantiate a 'DBFactory' from a given directory, or in-memory for testing.
 newDBFactory
     :: forall s
-     . PersistAddressBook s
+     . (PersistAddressBook s, KeyFlavor (KeyOf s))
     => WalletFlavorS s
     -> Tracer IO DBFactoryLog
        -- ^ Logging object
@@ -387,7 +387,8 @@ instance ToText DBFactoryLog where
 --
 -- If the given file path does not exist, it will be created.
 withDBOpenFromFile
-    :: WalletFlavorS s
+    :: KeyFlavor (KeyOf s)
+    => WalletFlavorS s
     -> Tracer IO WalletDBLog
        -- ^ Logging object
     -> Maybe DefaultFieldValues
@@ -451,7 +452,7 @@ retrieveWalletId DBOpen{atomically} =
 
 withDBFreshFromDBOpen
     :: forall s a
-     . PersistAddressBook s
+     . (PersistAddressBook s, KeyFlavor (KeyOf s))
     => WalletFlavorS s
     -- ^ Wallet flavor
     -> TimeInterpreter IO
@@ -473,7 +474,7 @@ withDBFreshFromDBOpen wf ti wid action = action . newDBFreshFromDBOpen wf ti wid
 -- library.
 withDBFresh
     :: forall s a
-     . PersistAddressBook s
+     . (PersistAddressBook s, KeyFlavor (KeyOf s))
     => WalletFlavorS s
     -- ^ Wallet flavor
     -> Tracer IO WalletDBLog
@@ -498,7 +499,7 @@ withDBFresh wf tr defaultFieldValues dbFile ti wid action =
 -- database.
 withDBFreshInMemory
     :: forall s a
-     . PersistAddressBook s
+     . (PersistAddressBook s, KeyFlavor (KeyOf s))
     => WalletFlavorS s
     -- ^ Wallet flavor
     -> Tracer IO WalletDBLog
@@ -519,7 +520,7 @@ withDBFreshInMemory wf tr ti wid action = bracket
 -- finished with the 'DBFresh'.
 newDBFreshInMemory
     :: forall s
-     . PersistAddressBook s
+     . (PersistAddressBook s, KeyFlavor (KeyOf s))
     => WalletFlavorS s
     -- ^ Wallet flavor
     -> Tracer IO WalletDBLog
@@ -536,7 +537,7 @@ newDBFreshInMemory wf tr ti wid = do
 -- of one wallet with a specific 'WalletId'.
 newDBFreshFromDBOpen
     :: forall s
-     . PersistAddressBook s
+     . (PersistAddressBook s, KeyFlavor (KeyOf s))
     => WalletFlavorS s
     -- ^ Wallet flavor
     -> TimeInterpreter IO

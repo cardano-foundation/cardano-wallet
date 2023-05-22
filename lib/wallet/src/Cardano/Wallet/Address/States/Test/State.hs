@@ -1,6 +1,7 @@
 {-# LANGUAGE DataKinds #-}
 {-# LANGUAGE DeriveGeneric #-}
 {-# LANGUAGE KindSignatures #-}
+{-# LANGUAGE RankNTypes #-}
 
 module Cardano.Wallet.Address.States.Test.State where
 
@@ -23,3 +24,5 @@ newtype
         (ktype :: Depth)
     = TestState s
     deriving (Generic, Show, Eq)
+
+newtype TestStateModel s = TestStateModel s

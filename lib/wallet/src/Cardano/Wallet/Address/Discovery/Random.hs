@@ -5,6 +5,7 @@
 {-# LANGUAGE DerivingStrategies #-}
 {-# LANGUAGE FlexibleContexts #-}
 {-# LANGUAGE FlexibleInstances #-}
+{-# LANGUAGE InstanceSigs #-}
 {-# LANGUAGE MultiParamTypeClasses #-}
 {-# LANGUAGE RankNTypes #-}
 {-# LANGUAGE ScopedTypeVariables #-}
@@ -29,6 +30,7 @@ module Cardano.Wallet.Address.Discovery.Random
     , DerivationPath
     , toDerivationIndexes
     , isOwned
+    , isOurAddress
 
     -- ** Low-level API
     , importAddress
@@ -45,6 +47,7 @@ module Cardano.Wallet.Address.Discovery.Random
     -- ** Benchmarking
     , RndAnyState (..)
     , mkRndAnyState
+    , isOurAddressAnyState
     ) where
 import Prelude
 
@@ -212,16 +215,19 @@ instance RndStateLike (RndState n) where
     withRNG s action =
         let (result, gen') = action (gen s) in (result, s { gen = gen' })
 
--- An address is considered to belong to the 'RndState' wallet if it can be
--- decoded as a Byron HD random address, and where the wallet key can be used
--- to decrypt the address derivation path.
-instance IsOurs (RndState n) Address where
-    isOurs addr st =
+isOurAddress :: Address -> RndState n -> (Maybe (NonEmpty DerivationIndex), RndState n)
+isOurAddress addr st =
         ( toDerivationIndexes <$> path
         , maybe id (addDiscoveredAddress addr Used) path st
         )
       where
         path = addressToPath addr (hdPassphrase st)
+-- An address is considered to belong to the 'RndState' wallet if it can be
+-- decoded as a Byron HD random address, and where the wallet key can be used
+-- to decrypt the address derivation path.
+instance IsOurs (RndState n) Address where
+    isOurs = isOurAddress
+
 
 instance IsOurs (RndState n) RewardAccount where
     isOurs _account state = (Nothing, state)
@@ -428,29 +434,42 @@ instance RndStateLike (RndAnyState n p) where
     withRNG (RndAnyState inner) action =
         second RndAnyState $ withRNG inner action
 
-instance KnownNat p => IsOurs (RndAnyState n p) Address where
-    isOurs addr@(Address bytes) st@(RndAnyState inner) =
-        case isOurs addr inner of
-            (Just path, inner') ->
-                (Just path, RndAnyState inner')
-
-            (Nothing, _) | crc32 bytes < p ->
+isOurAddressAnyState
+    :: forall n p
+     . KnownNat p
+    => Address
+    -> RndAnyState n p
+    -> (Maybe (NonEmpty DerivationIndex), RndAnyState n p)
+isOurAddressAnyState addr@(Address bytes) st@(RndAnyState inner) =
+    case isOurs addr inner of
+        (Just path, inner') ->
+            (Just path, RndAnyState inner')
+        (Nothing, _)
+            | crc32 bytes < p ->
                 let
-                    (path, gen') = findUnusedPath
-                        (gen inner) (accountIndex inner) (unavailablePaths inner)
+                    (path, gen') =
+                        findUnusedPath
+                            (gen inner)
+                            (accountIndex inner)
+                            (unavailablePaths inner)
 
-                    inner' = addDiscoveredAddress
-                        addr Used path (inner { gen = gen' })
+                    inner' =
+                        addDiscoveredAddress
+                            addr
+                            Used
+                            path
+                            (inner{gen = gen'})
                 in
-                (Just (toDerivationIndexes path), RndAnyState inner')
+                    (Just (toDerivationIndexes path), RndAnyState inner')
+        (Nothing, _) ->
+            (Nothing, st)
+  where
+    p = floor (double (maxBound :: Word32) * double (natVal (Proxy @p)) / 10000)
+    double :: Integral a => a -> Double
+    double = fromIntegral
 
-            (Nothing, _) ->
-                (Nothing, st)
-      where
-        p = floor (double (maxBound :: Word32) * double (natVal (Proxy @p)) / 10000)
-
-        double :: Integral a => a -> Double
-        double = fromIntegral
+instance KnownNat p => IsOurs (RndAnyState n p) Address where
+    isOurs = isOurAddressAnyState
 
 instance IsOurs (RndAnyState n p) RewardAccount where
     isOurs _account state = (Nothing, state)

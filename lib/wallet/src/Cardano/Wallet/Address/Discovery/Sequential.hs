@@ -63,9 +63,11 @@ module Cardano.Wallet.Address.Discovery.Sequential
     , discoverSeq
     , discoverSeqWithRewards
     , isOwned
+    , isOurAddress
 
     -- ** Benchmarking
     , SeqAnyState (..)
+    , isOurAddressAnyState
     ) where
 
 import Prelude
@@ -116,6 +118,8 @@ import Cardano.Wallet.Address.Discovery
     )
 import Cardano.Wallet.Primitive.BlockSummary
     ( ChainEvents )
+import Cardano.Wallet.Primitive.Passphrase
+    ( Passphrase )
 import Cardano.Wallet.Primitive.Types.Address
     ( Address (..), AddressState (..) )
 import Cardano.Wallet.Primitive.Types.RewardAccount
@@ -160,8 +164,6 @@ import Type.Reflection
     ( Typeable )
 
 import qualified Cardano.Wallet.Address.Pool as AddressPool
-import Cardano.Wallet.Primitive.Passphrase
-    ( Passphrase )
 import qualified Data.List as L
 import qualified Data.List.NonEmpty as NE
 import qualified Data.Map.Strict as Map
@@ -463,6 +465,48 @@ decoratePath st r ix = NE.fromList
         } = st
 
 
+isOurAddress
+    :: forall k n
+     . (MkKeyFingerprint k Address, NetworkDiscriminantCheck k, HasSNetworkId n)
+    => Address
+    -> SeqState n k
+    -> (Maybe (NonEmpty DerivationIndex), SeqState n k)
+isOurAddress addrRaw st =
+    if networkDiscriminantCheck @k (sNetworkId @n) networkTag
+        then case paymentKeyFingerprint addrRaw of
+            Left _ -> (Nothing, st)
+            Right addr ->
+                let (internalIndex, !internalPool') =
+                        lookupAddress addr (internalPool st)
+                    (externalIndex, !externalPool') =
+                        lookupAddress addr (externalPool st)
+
+                    ours =
+                        (decoratePath st UtxoExternal <$> externalIndex)
+                            <|> (decoratePath st UtxoInternal <$> internalIndex)
+
+                    pendingChangeIxs' =
+                        case internalIndex of
+                            Nothing -> pendingChangeIxs st
+                            Just ix ->
+                                dropLowerPendingIxs ix (pendingChangeIxs st)
+                in  ( ours `deepseq` ours
+                    , st
+                        { internalPool = internalPool'
+                        , externalPool = externalPool'
+                        , pendingChangeIxs =
+                            pendingChangeIxs' `deepseq` pendingChangeIxs'
+                        }
+                    )
+        else (Nothing, st)
+  where
+    AddressParts _ networkTag _ = toAddressParts addrRaw
+    lookupAddress addr (SeqAddressPool pool) =
+        case AddressPool.lookup addr pool of
+            Nothing ->
+                (Nothing, SeqAddressPool pool)
+            Just ix ->
+                (Just ix, SeqAddressPool $ AddressPool.update addr pool)
 
 -- NOTE
 -- We have to scan both the internal and external chain. Note that, the
@@ -470,42 +514,7 @@ decoratePath st r ix = NE.fromList
 -- chain so in theory, there's nothing forcing a wallet to generate change
 -- addresses on the internal chain anywhere in the available range.
 instance SupportsDiscovery n k => IsOurs (SeqState n k) Address where
-    isOurs addrRaw st =
-        if networkDiscriminantCheck @k (sNetworkId @n) networkTag then
-            case paymentKeyFingerprint addrRaw of
-                Left _ -> (Nothing, st)
-                Right addr ->
-                    let (internalIndex, !internalPool') =
-                            lookupAddress addr (internalPool st)
-                        (externalIndex, !externalPool') =
-                            lookupAddress addr (externalPool st)
-
-                        ours = (decoratePath st UtxoExternal <$> externalIndex)
-                           <|> (decoratePath st UtxoInternal <$> internalIndex)
-
-                        pendingChangeIxs' =
-                            case internalIndex of
-                                Nothing -> pendingChangeIxs st
-                                Just ix ->
-                                    dropLowerPendingIxs ix (pendingChangeIxs st)
-                    in
-                        ( ours `deepseq` ours
-                        , st { internalPool = internalPool'
-                             , externalPool = externalPool'
-                             , pendingChangeIxs =
-                                   pendingChangeIxs' `deepseq` pendingChangeIxs'
-                             }
-                        )
-        else
-            (Nothing, st)
-      where
-        AddressParts _ networkTag _ = toAddressParts addrRaw
-        lookupAddress addr (SeqAddressPool pool) =
-            case AddressPool.lookup addr pool of
-                Nothing ->
-                    (Nothing, SeqAddressPool pool)
-                Just ix ->
-                    (Just ix, SeqAddressPool $ AddressPool.update addr pool)
+    isOurs = isOurAddress
 
 instance
     ( SoftDerivation k, AddressCredential k ~ 'CredFromKeyK
@@ -711,28 +720,35 @@ instance
     )
     => NFData (SeqAnyState n k p)
 
-instance KnownNat p => IsOurs (SeqAnyState n k p) Address where
-    isOurs (Address bytes) st@(SeqAnyState inner)
-        | crc32 bytes < p =
-            let
-                pool = getPool $ externalPool inner
-                ix = toEnum $ AddressPool.size pool - AddressPool.gap pool
-                addr = AddressPool.addressFromIx pool ix
-                pool' = AddressPool.update addr pool
-                path = DerivationIndex (getIndex ix) :| []
-            in
-                ( Just path
-                , SeqAnyState $ inner{externalPool = SeqAddressPool pool'}
-                )
-        | otherwise =
-            (Nothing, st)
+isOurAddressAnyState
+    :: forall n k p
+     . KnownNat p
+    => Address
+    -> SeqAnyState n k p
+    -> (Maybe (NonEmpty DerivationIndex), SeqAnyState n k p)
+isOurAddressAnyState (Address bytes) st@(SeqAnyState inner)
+    | crc32 bytes < p =
+        let
+            pool = getPool $ externalPool inner
+            ix = toEnum $ AddressPool.size pool - AddressPool.gap pool
+            addr = AddressPool.addressFromIx pool ix
+            pool' = AddressPool.update addr pool
+            path = DerivationIndex (getIndex ix) :| []
+        in
+            ( Just path
+            , SeqAnyState $ inner{externalPool = SeqAddressPool pool'}
+            )
+    | otherwise =
+        (Nothing, st)
+  where
+    p = floor (double sup * double (natVal (Proxy @p)) / 10_000)
       where
-        p = floor (double sup * double (natVal (Proxy @p)) / 10_000)
-          where
-            sup = maxBound :: Word32
-
+        sup = maxBound :: Word32
         double :: Integral a => a -> Double
         double = fromIntegral
+
+instance KnownNat p => IsOurs (SeqAnyState n k p) Address where
+    isOurs = isOurAddressAnyState
 
 instance IsOurs (SeqAnyState n k p) RewardAccount where
     isOurs _account state = (Nothing, state)

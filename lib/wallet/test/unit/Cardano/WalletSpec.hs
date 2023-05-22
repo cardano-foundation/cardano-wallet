@@ -79,7 +79,11 @@ import Cardano.Wallet.DummyTarget.Primitive.Types
     , mkTxId
     )
 import Cardano.Wallet.Flavor
-    ( CredFromOf, KeyFlavorS (ShelleyKeyS), KeyOf, WalletFlavorS (TestStateS) )
+    ( CredFromOf
+    , KeyFlavorS (ShelleyKeyS)
+    , KeyOf
+    , WalletFlavorS (TestStateS, testFeatures)
+    )
 import Cardano.Wallet.Gen
     ( genMnemonic, genSlotNo )
 import Cardano.Wallet.Network
@@ -561,16 +565,20 @@ walletListTransactionsWithLimit wallet@(_, _, _) =
                 test (Just l) (Just r) Ascending Identity
                     $ \slot -> slot >= l && slot <= r
 
-type DummyStateWithAddresses = TestState [Address] 'Mainnet ShelleyKey 'CredFromKeyK
+type DummyStateWithAddresses
+    = TestState [Address] 'Mainnet ShelleyKey 'CredFromKeyK
 
 dummyStateWithAddressesF :: WalletFlavorS DummyStateWithAddresses
-dummyStateWithAddressesF = TestStateS defaultTestFeatures
+dummyStateWithAddressesF = TestStateS
+    defaultTestFeatures
+        { isOurAddressTest = \a s@(TestState addr) ->
+                if a `elem` addr
+                    then (Just (DerivationIndex 0 :| []), s)
+                    else (Nothing, s)
+        }
 
 instance IsOurs DummyStateWithAddresses Address where
-    isOurs a s@(TestState addr) =
-        if a `elem` addr
-            then (Just (DerivationIndex 0 :| []), s)
-            else (Nothing, s)
+    isOurs = isOurAddressTest $ testFeatures dummyStateWithAddressesF
 
 instance IsOurs DummyStateWithAddresses RewardAccount where
     isOurs _ s = (Nothing, s)
@@ -1333,13 +1341,14 @@ type DummyState =
 dummyStateF :: WalletFlavorS DummyState
 dummyStateF =
     TestStateS
-        $ defaultTestFeatures
+        defaultTestFeatures
             { isOwnedTest = \(TestState m) (rootK, pwd) addr -> do
                 ix <- Map.lookup addr m
                 let accXPrv = deriveAccountPrivateKey pwd rootK minBound
                     addrXPrv
                         = deriveAddressPrivateKey pwd accXPrv UtxoExternal ix
                 return (addrXPrv, pwd)
+            , isOurAddressTest = \_ s -> (Just (DerivationIndex 0 :| []), s)
             }
 
 instance Sqlite.AddressBookIso DummyState where
@@ -1367,7 +1376,7 @@ instance Arbitrary DummyState where
     arbitrary = return (TestState mempty)
 
 instance IsOurs DummyState Address where
-    isOurs _ s = (Just (DerivationIndex 0 :| []), s)
+    isOurs = isOurAddressTest $ testFeatures dummyStateF
 
 instance IsOurs DummyState RewardAccount where
     isOurs _ s = (Nothing, s)

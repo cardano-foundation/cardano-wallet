@@ -44,3 +44,7 @@ type family NetworkOf (s :: Type) :: NetworkDiscriminant where
     NetworkOf (SeqAnyState n k p) = n
     NetworkOf (RndAnyState n p) = n
     NetworkOf (TestState s n k kt) = n
+
+type family DiscoveryPercentageOf s where
+    DiscoveryPercentageOf (SeqAnyState n k p) = p
+    DiscoveryPercentageOf (RndAnyState n p) = p

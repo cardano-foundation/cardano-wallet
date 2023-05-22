@@ -22,7 +22,7 @@ import Cardano.Wallet.Address.States.Families
 import Cardano.Wallet.Address.States.Features
     ( TestFeatures (isOwnedTest) )
 import Cardano.Wallet.Flavor
-    ( WalletFlavorS (..) )
+    ( Excluding, FlavorOf, WalletFlavorS (..), WalletFlavors (..) )
 import Cardano.Wallet.Primitive.Passphrase.Types
     ( Passphrase (..) )
 import Cardano.Wallet.Primitive.Types.Address
@@ -49,7 +49,9 @@ import qualified Cardano.Wallet.Address.Discovery.Shared as Sha
 -- operation; This is merely a lookup from known addresses.
 isOwned
     :: forall s
-     . HasSNetworkId (NetworkOf s)
+     . ( HasSNetworkId (NetworkOf s)
+       , Excluding '[ 'TestStateModelF] (FlavorOf s)
+       )
     => WalletFlavorS s
     -> s
     -> (KeyOf s 'RootK XPrv, Passphrase "encryption")

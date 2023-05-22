@@ -430,11 +430,13 @@ import Cardano.Wallet.DB
 import Cardano.Wallet.Flavor
     ( CredFromOf
     , Excluding
+    , FlavorOf
     , KeyFlavorS (..)
     , KeyOf
     , NetworkOf
     , WalletFlavor (..)
     , WalletFlavorS (..)
+    , WalletFlavors (..)
     , keyFlavorFromState
     , keyOfWallet
     , shelleyOrShared
@@ -2112,6 +2114,7 @@ signTransaction
         , AccountIxForStaking s
         , IsOurs s Address
         , HasSNetworkId (NetworkOf s)
+        , Excluding '[ 'TestStateModelF] (FlavorOf s)
         )
     => ApiLayer s
     -> ApiT WalletId
@@ -2178,6 +2181,7 @@ postTransactionOld
         , CredFromOf s ~ 'CredFromKeyK
         , HasSNetworkId (NetworkOf s)
         , n ~ NetworkOf s
+        , Excluding '[ 'TestStateModelF] (FlavorOf s)
         )
     => ctx
     -> ArgGenChange s
@@ -3502,6 +3506,7 @@ joinStakePool
         , MkKeyFingerprint k Address, NetworkDiscriminantCheck k
         , AddressCredential k ~ 'CredFromKeyK
         , HasSNetworkId n
+        , Excluding '[ 'TestStateModelF] (FlavorOf s)
         )
     => ApiLayer s
     -> ArgGenChange s
@@ -3846,6 +3851,7 @@ migrateWallet
         , HasSNetworkId n
         , n ~ NetworkOf s
         , IsOurs s Address
+        , Excluding '[ 'TestStateModelF] (FlavorOf s)
         )
     => ApiLayer s
     -> Maybe ApiWithdrawalPostData

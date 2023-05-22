@@ -348,11 +348,14 @@ import Cardano.Wallet.DB.WalletState
 import Cardano.Wallet.Flavor
     ( CredFromOf
     , Excluding
+    , FlavorOf
+    , KeyFlavor
     , KeyFlavorS (..)
     , KeyOf
     , NetworkOf
     , WalletFlavor (..)
     , WalletFlavorS (..)
+    , WalletFlavors (TestStateModelF)
     , keyFlavorFromState
     , keyOfWallet
     )
@@ -928,7 +931,7 @@ updateWallet ctx f = onWalletState @IO @s ctx $ update $ \s ->
 -- | Change a wallet's passphrase to the given passphrase.
 updateWalletPassphraseWithOldPassphrase
     :: forall ctx s
-     . HasDBLayer IO s ctx
+     . (HasDBLayer IO s ctx, KeyFlavor (KeyOf s))
     => WalletFlavorS s
     -> ctx
     -> WalletId
@@ -1898,6 +1901,7 @@ buildSignSubmitTransaction
        , CredFromOf s ~ 'CredFromKeyK
        , HasSNetworkId (NetworkOf s)
        , Excluding '[SharedKey] k
+       , Excluding '[ 'TestStateModelF] (FlavorOf s)
        )
     => DBLayer IO s
     -> NetworkLayer IO Read.Block
@@ -1990,6 +1994,7 @@ buildAndSignTransactionPure
        , k ~ KeyOf s
        , CredFromOf s ~ 'CredFromKeyK
        , Excluding '[SharedKey] k
+       , Excluding '[ 'TestStateModelF] (FlavorOf s)
        , HasSNetworkId (NetworkOf s)
        )
     => TimeTranslation
@@ -2227,6 +2232,7 @@ buildAndSignTransaction
         , HasSNetworkId (NetworkOf s)
         , CredFromOf s ~ 'CredFromKeyK
         , WalletFlavor s
+        , Excluding '[ 'TestStateModelF] (FlavorOf s)
         )
     => ctx
     -> WalletId
@@ -3748,8 +3754,7 @@ dummyChangeAddressGen =
         (maxLengthAddressFor (keyFlavorFromState @s))
 
 utxoAssumptionsForWallet
-    :: forall s
-     . (Excluding '[SharedKey] (KeyOf s))
+    :: (Excluding '[SharedKey] (KeyOf s), KeyFlavor (KeyOf s))
     => WalletFlavorS s
     -> UTxOAssumptions
 utxoAssumptionsForWallet = keyOfWallet >>> \case

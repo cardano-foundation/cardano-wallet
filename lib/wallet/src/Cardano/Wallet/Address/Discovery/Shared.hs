@@ -46,6 +46,7 @@ module Cardano.Wallet.Address.Discovery.Shared
     , CredentialType (..)
     , liftPaymentAddress
     , liftDelegationAddress
+    , isOurAddress
     ) where
 
 import Prelude
@@ -377,7 +378,8 @@ instance ToText ErrValidateScriptTemplate where
 -------------------------------------------------------------------------------}
 
 isShared
-    :: forall n k. SupportsDiscovery n k
+    :: forall n k
+     . (HasSNetworkId n, MkKeyFingerprint k Address)
     => Address
     -> SharedState n k
     -> (Maybe (Index 'Soft 'CredFromScriptK, Role), SharedState n k)
@@ -414,10 +416,15 @@ isShared addrRaw st = case ready st of
     nop = (Nothing, st)
     AddressParts _ networkTag _ = toAddressParts addrRaw
 
-instance SupportsDiscovery n k => IsOurs (SharedState n k) Address
-  where
-    isOurs addr st =
-        first (fmap (decoratePath st utxoExternal . fst)) (isShared addr st)
+isOurAddress
+    :: (HasSNetworkId n, MkKeyFingerprint k Address)
+    => Address
+    -> SharedState n k
+    -> (Maybe (NE.NonEmpty DerivationIndex), SharedState n k)
+isOurAddress addr st =
+    first (fmap (decoratePath st utxoExternal . fst)) (isShared addr st)
+instance SupportsDiscovery n k => IsOurs (SharedState n k) Address where
+    isOurs = isOurAddress
 
 -- | Decorate an index with the derivation prefix corresponding to the state.
 decoratePath

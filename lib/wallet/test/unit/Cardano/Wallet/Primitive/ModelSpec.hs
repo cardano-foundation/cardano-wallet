@@ -211,6 +211,13 @@ import Test.QuickCheck.Instances.ByteString
 import Test.Utils.Pretty
     ( (====) )
 
+import Cardano.Wallet.Address.States.Features
+    ( TestFeatures (..), defaultTestFeatures )
+import Cardano.Wallet.Address.States.Test.State
+    ( TestStateModel (TestStateModel) )
+import Cardano.Wallet.Flavor
+    ( WalletFlavorS (..) )
+
 import qualified Cardano.Wallet.Primitive.Types.Coin as Coin
 import qualified Cardano.Wallet.Primitive.Types.TokenBundle as TokenBundle
 import qualified Cardano.Wallet.Primitive.Types.Tx.TxOut as TxOut
@@ -744,10 +751,15 @@ isOursIf condition a s
 -- Total UTxO properties
 --------------------------------------------------------------------------------
 
-data TestStateForTotalUTxO = TestStateForTotalUTxO
+type TestStateForTotalUTxO = TestStateModel ()
 
+testStateForTotalUTxO :: WalletFlavorS TestStateForTotalUTxO
+testStateForTotalUTxO = TestStateModelS
+    defaultTestFeatures
+        { isOurAddressTest = isOursIf ((== Even) . addressParity)
+        }
 instance IsOurs TestStateForTotalUTxO Address where
-    isOurs = isOursIf ((== Even) . addressParity)
+    isOurs = isOurAddressTest $ testModelFeatures testStateForTotalUTxO
 
 prop_totalUTxO_pendingChangeIncluded :: Property
 prop_totalUTxO_pendingChangeIncluded =
@@ -842,7 +854,8 @@ prop_totalUTxO makeProperty =
     walletFromUTxO :: UTxO -> Wallet TestStateForTotalUTxO
     walletFromUTxO utxo = unsafeInitWallet utxo
         (shouldNotEvaluate "currentTip")
-        TestStateForTotalUTxO
+        $ TestStateModel ()
+
       where
         shouldNotEvaluate :: String -> a
         shouldNotEvaluate fieldName = error $ unwords
