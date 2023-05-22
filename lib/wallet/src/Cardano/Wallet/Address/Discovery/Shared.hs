@@ -34,7 +34,7 @@ module Cardano.Wallet.Address.Discovery.Shared
     , SharedAddressPools (..)
     , SharedAddressPool (..)
     , newSharedAddressPool
-    , isOwnedFunction
+    , isOwned
 
     , ErrAddCosigner (..)
     , ErrScriptTemplate (..)
@@ -94,7 +94,6 @@ import Cardano.Wallet.Address.Discovery
     , GenChange (..)
     , GetAccount (..)
     , IsOurs (..)
-    , IsOwned (..)
     , KnownAddresses (..)
     , MaybeLight (..)
     , PendingIxs
@@ -575,13 +574,13 @@ liftDelegationAddress ix dTemplate (KeyFingerprint fingerprint) =
     dScript =
         replaceCosignersWithVerKeys CA.Stake dTemplate ix
 
-isOwnedFunction
+isOwned
     :: HasSNetworkId n
     => SharedState n SharedKey
     -> (SharedKey 'RootK XPrv, Passphrase "encryption")
     -> Address
     -> Maybe (SharedKey 'CredFromScriptK XPrv, Passphrase "encryption")
-isOwnedFunction st (rootPrv, pwd) addr = case isShared addr st of
+isOwned st (rootPrv, pwd) addr = case isShared addr st of
     (Just (ix, role'), _) ->
         let DerivationPrefix (_, _, accIx) = derivationPrefix st
             accXPrv = deriveAccountPrivateKey pwd rootPrv accIx
@@ -590,10 +589,6 @@ isOwnedFunction st (rootPrv, pwd) addr = case isShared addr st of
                 , pwd
                 )
     (Nothing, _) -> Nothing
-
-instance ( key ~ SharedKey , SupportsDiscovery n key ) =>
-         IsOwned (SharedState n key) key 'CredFromScriptK where
-    isOwned = isOwnedFunction
 
 estimateMinWitnessRequiredPerInput :: Script k -> Natural
 estimateMinWitnessRequiredPerInput = \case

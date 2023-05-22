@@ -28,7 +28,7 @@ module Cardano.Wallet.Address.Discovery.Random
     , mkRndState
     , DerivationPath
     , toDerivationIndexes
-    , isOwnedFunction
+    , isOwned
 
     -- ** Low-level API
     , importAddress
@@ -70,7 +70,6 @@ import Cardano.Wallet.Address.Discovery
     ( CompareDiscovery (..)
     , GenChange (..)
     , IsOurs (isOurs)
-    , IsOwned (..)
     , KnownAddresses (..)
     , MaybeLight (..)
     )
@@ -227,18 +226,15 @@ instance IsOurs (RndState n) Address where
 instance IsOurs (RndState n) RewardAccount where
     isOurs _account state = (Nothing, state)
 
-isOwnedFunction
+isOwned
     :: forall (network :: NetworkDiscriminant)
      . RndState network
     -> (ByronKey 'RootK XPrv, Passphrase "encryption")
     -> Address
     -> Maybe (ByronKey 'CredFromKeyK XPrv, Passphrase "encryption")
-isOwnedFunction st (key, pwd) addr =
+isOwned st (key, pwd) addr =
     (,pwd) . deriveCredFromKeyKeyFromPath key pwd
         <$> addressToPath addr (hdPassphrase st)
-
-instance IsOwned (RndState n) ByronKey 'CredFromKeyK where
-    isOwned = isOwnedFunction
 
 -- Updates a 'RndState' by adding an address and its derivation path to the
 -- set of discovered addresses. If the address was in the 'pendingAddresses' set
@@ -458,9 +454,6 @@ instance KnownNat p => IsOurs (RndAnyState n p) Address where
 
 instance IsOurs (RndAnyState n p) RewardAccount where
     isOurs _account state = (Nothing, state)
-
-instance KnownNat p => IsOwned (RndAnyState n p) ByronKey 'CredFromKeyK where
-    isOwned _ _ _ = Nothing
 
 instance HasSNetworkId n => GenChange (RndAnyState n p) where
     type ArgGenChange (RndAnyState n p) = ArgGenChange (RndState n)

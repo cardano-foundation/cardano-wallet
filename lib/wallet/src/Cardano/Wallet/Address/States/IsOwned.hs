@@ -55,10 +55,10 @@ isOwned
     -> (KeyOf s 'RootK XPrv, Passphrase "encryption")
     -> Address
     -> Maybe (KeyOf s (CredFromOf s) XPrv, Passphrase "encryption")
-isOwned ByronWallet = Rnd.isOwnedFunction
-isOwned IcarusWallet = Seq.isOwnedFunction
-isOwned ShelleyWallet = Seq.isOwnedFunction
-isOwned SharedWallet = Sha.isOwnedFunction
+isOwned ByronWallet = Rnd.isOwned
+isOwned IcarusWallet = Seq.isOwned
+isOwned ShelleyWallet = Seq.isOwned
+isOwned SharedWallet = Sha.isOwned
 isOwned BenchByronWallet = \_ _ _ -> Nothing
 isOwned BenchShelleyWallet = \_ _ _ -> Nothing
 isOwned (TestStateS fs) = isOwnedTest fs

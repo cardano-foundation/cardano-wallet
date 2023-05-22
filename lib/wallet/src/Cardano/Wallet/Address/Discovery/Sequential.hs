@@ -62,7 +62,7 @@ module Cardano.Wallet.Address.Discovery.Sequential
     , mkSeqStateFromAccountXPub
     , discoverSeq
     , discoverSeqWithRewards
-    , isOwnedFunction
+    , isOwned
 
     -- ** Benchmarking
     , SeqAnyState (..)
@@ -71,11 +71,11 @@ module Cardano.Wallet.Address.Discovery.Sequential
 import Prelude
 
 import Cardano.Address.Derivation
-    ( xpubPublicKey )
+    ( XPrv, xpubPublicKey )
 import Cardano.Address.Script
     ( Cosigner (..), ScriptTemplate (..) )
 import Cardano.Crypto.Wallet
-    ( XPrv, XPub )
+    ( XPub )
 import Cardano.Wallet.Address.Derivation
     ( AddressParts (..)
     , DelegationAddress (..)
@@ -105,7 +105,6 @@ import Cardano.Wallet.Address.Discovery
     , GenChange (..)
     , GetAccount (..)
     , IsOurs (..)
-    , IsOwned (..)
     , KnownAddresses (..)
     , MaybeLight (..)
     , PendingIxs
@@ -527,7 +526,7 @@ instance
         addressXPub = deriveAddressPublicKey (accountXPub st) UtxoInternal ix
         addr = mkAddress addressXPub (rewardAccountKey st)
 
-isOwnedFunction
+isOwned
     :: forall n k
      . ( MkKeyFingerprint k Address
        , HardDerivation k
@@ -538,7 +537,7 @@ isOwnedFunction
     -> (k 'RootK XPrv, Passphrase "encryption")
     -> Address
     -> Maybe (k 'CredFromKeyK XPrv, Passphrase "encryption")
-isOwnedFunction st (rootPrv, pwd) addrRaw =
+isOwned st (rootPrv, pwd) addrRaw =
     case paymentKeyFingerprint addrRaw of
         Left _ -> Nothing
         Right addr ->
@@ -560,14 +559,6 @@ isOwnedFunction st (rootPrv, pwd) addrRaw =
     lookupAndDeriveXPrv addr (SeqAddressPool pool) =
         deriveAddressPrivateKey pwd accountPrv (roleVal @c)
             <$> AddressPool.lookup addr pool
-
-instance
-    ( IsOurs (SeqState n k) Address
-    , SupportsDiscovery n k
-    , AddressIndexDerivationType k ~ 'Soft
-    )
-    => IsOwned (SeqState n k) k 'CredFromKeyK where
-    isOwned = isOwnedFunction
 
 instance SupportsDiscovery n k => CompareDiscovery (SeqState n k) where
     compareDiscovery (SeqState !s1 !s2 _ _ _ _ _) a1 a2 =
@@ -745,13 +736,6 @@ instance KnownNat p => IsOurs (SeqAnyState n k p) Address where
 
 instance IsOurs (SeqAnyState n k p) RewardAccount where
     isOurs _account state = (Nothing, state)
-
-instance
-    ( AddressIndexDerivationType k ~ 'Soft
-    , KnownNat p
-    ) => IsOwned (SeqAnyState n k p) k 'CredFromKeyK
-  where
-    isOwned _ _ _ = Nothing
 
 instance
     ( SoftDerivation k
