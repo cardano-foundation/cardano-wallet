@@ -4400,7 +4400,7 @@ mkApiTransaction timeInterpreter wrk timeRefLens tx = do
     parsedValues <- traverse parseTxCBOR $ tx ^. #txCBOR
     parsedCertificates <-
         if hasDelegation (Proxy @s)
-            then traverse (getApiAnyCertificates db) parsedValues
+            then traverse (getApiAnyCertificates db (keyFlavorFromState @s)) parsedValues
             else pure Nothing
     parsedMintBurn <- forM parsedValues
         $ getTxApiAssetMintBurn @_ @s wrk
@@ -4451,10 +4451,20 @@ mkApiTransaction timeInterpreter wrk timeRefLens tx = do
 
     -- | Promote certificates of a transaction to API type,
     -- using additional context from the 'WorkerCtx'.
-    getApiAnyCertificates db ParsedTxCBOR{certificates} = do
-        (rewardAccount, _, derivPath) <- liftHandler
-            $ W.shelleyOnlyReadRewardAccount @s db
-        pure $ mkApiAnyCertificate (Just rewardAccount) derivPath <$> certificates
+    getApiAnyCertificates db flavor ParsedTxCBOR{certificates} = case flavor of
+        ShelleyKeyS -> do
+            (rewardAcct, _, path) <- liftHandler
+                $ W.shelleyOnlyReadRewardAccount @s db
+            pure $ mkApiAnyCertificate (Just rewardAcct) path <$> certificates
+        SharedKeyS -> do
+            infoM <- liftHandler
+                $ W.sharedOnlyReadRewardAccount @s db
+            case infoM of
+                Just (rewardAcct, path) ->
+                    pure $ mkApiAnyCertificate (Just rewardAcct) path <$> certificates
+                _ -> pure []
+        _ ->
+            pure []
 
     depositIfAny :: Natural
     depositIfAny

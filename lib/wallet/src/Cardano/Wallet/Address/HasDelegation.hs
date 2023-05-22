@@ -39,4 +39,4 @@ instance HasDelegation (SeqState n IcarusKey) where
     hasDelegation _ = False
 
 instance HasDelegation (SharedState n SharedKey) where
-    hasDelegation _ = False
+    hasDelegation _ = True
