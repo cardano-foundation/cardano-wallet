@@ -76,7 +76,8 @@ data WalletFlavors
     | SharedF
     | BenchByronF
     | BenchShelleyF
-    | TestStateF
+    | TestAddressesWithCredsF
+    | TestOnlyAddressesF
 
 type family FlavorOf s where
     FlavorOf (SeqState n ShelleyKey) = 'ShelleyF
@@ -94,7 +95,8 @@ type AllFlavors =
      , 'SharedF
      , 'BenchByronF
      , 'BenchShelleyF
-     , 'TestStateF
+     , 'TestAddressesWithCredsF
+     , 'TestOnlyAddressesF
      ]
 
 type IncludingStates ss s = Including AllFlavors ss s
