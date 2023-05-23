@@ -2096,6 +2096,35 @@ spec = describe "SHARED_TRANSACTIONS" $ do
                     [ expectField #delegation (`shouldBe` delegating (ApiT pool2) [])
                     ]
 
+        eventually "Party1's wallet has joined another pool" $ do
+            rJoin' <- request @(ApiTransaction n) ctx
+                (Link.getTransaction @'Shared party1
+                    (getFromResponse Prelude.id submittedTx3))
+                Default Empty
+            verify rJoin'
+                [ expectResponseCode HTTP.status200
+                , expectField (#status . #getApiT) (`shouldBe` InLedger)
+                , expectField (#direction . #getApiT) (`shouldBe` Outgoing)
+                , expectField #depositTaken (`shouldBe` Quantity 0)
+                , expectField #depositReturned (`shouldBe` Quantity 0)
+                , expectField #certificates
+                     (`shouldBe` [ delegatingCert2 stakeKeyDerPathParty1])
+                ]
+        eventually "Party2's wallet has joined another pool" $ do
+            rJoin' <- request @(ApiTransaction n) ctx
+                (Link.getTransaction @'Shared party2
+                    (getFromResponse Prelude.id submittedTx3))
+                Default Empty
+            verify rJoin'
+                [ expectResponseCode HTTP.status200
+                , expectField (#status . #getApiT) (`shouldBe` InLedger)
+                , expectField (#direction . #getApiT) (`shouldBe` Outgoing)
+                , expectField #depositTaken (`shouldBe` Quantity 0)
+                , expectField #depositReturned (`shouldBe` Quantity 0)
+                , expectField #certificates
+                     (`shouldBe` [ delegatingCert2 stakeKeyDerPathParty2])
+                ]
+
         -- there's currently no withdrawals in the wallet
         rw1 <- request @[ApiTransaction n] ctx
             (Link.listTransactions' @'Shared party1 (Just 1)
