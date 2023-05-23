@@ -546,8 +546,6 @@ signTransaction
                 mkShelleyWitness body (getRawKey k, pwd)
             TxWitnessByronUTxO ->
                 mkByronWitness body networkId addr (getRawKey k, pwd)
-            TxWitnessByronIcarusUTxO ->
-                mkByronWitness body networkId addr (getRawKey k, pwd)
 
     mkWdrlCertWitness :: RewardAccount -> Maybe (Cardano.KeyWitness era)
     mkWdrlCertWitness a =
@@ -1745,7 +1743,6 @@ estimateTxSize era skeleton =
     numberOf_VkeyWitnesses
         = case txWitnessTag of
             TxWitnessByronUTxO -> 0
-            TxWitnessByronIcarusUTxO -> 0
             TxWitnessShelleyUTxO ->
                 if numberOf_ScriptVkeyWitnesses == 0 then
                     numberOf_Inputs
@@ -1761,7 +1758,6 @@ estimateTxSize era skeleton =
     numberOf_BootstrapWitnesses
         = case txWitnessTag of
             TxWitnessByronUTxO -> numberOf_Inputs
-            TxWitnessByronIcarusUTxO -> numberOf_Inputs
             TxWitnessShelleyUTxO -> 0
 
     -- transaction =
@@ -1992,7 +1988,6 @@ estimateTxSize era skeleton =
     sizeOf_ChangeAddress
         = case txWitnessTag of
             TxWitnessByronUTxO -> 85
-            TxWitnessByronIcarusUTxO -> 85
             TxWitnessShelleyUTxO -> 59
 
     -- value = coin / [coin,multiasset<uint>]

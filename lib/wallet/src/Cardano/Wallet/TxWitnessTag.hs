@@ -13,7 +13,6 @@ import Data.Kind
 
 data TxWitnessTag
     = TxWitnessByronUTxO
-    | TxWitnessByronIcarusUTxO
     | TxWitnessShelleyUTxO
     deriving (Show, Eq)
 
