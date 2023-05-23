@@ -496,6 +496,7 @@ import Cardano.Wallet.Write.Tx.Balance
     , ErrBalanceTxInternalError (..)
     , ErrSelectAssets (..)
     , PartialTx (..)
+    , UTxOAssumptions (..)
     , assignChangeAddresses
     , balanceTransaction
     , constructUTxOIndex
@@ -630,7 +631,6 @@ import qualified Cardano.Wallet.Primitive.Types.UTxOStatistics as UTxOStatistics
 import qualified Cardano.Wallet.Read as Read
 import qualified Cardano.Wallet.Write.ProtocolParameters as Write
 import qualified Cardano.Wallet.Write.Tx as Write
-import qualified Cardano.Wallet.Write.Tx.Balance as Write
 import qualified Data.ByteArray as BA
 import qualified Data.Delta.Update as Delta
 import qualified Data.Foldable as F
@@ -2091,9 +2091,8 @@ buildTransactionPure
         (Rand StdGen)
         (Cardano.Tx era, s)
 buildTransactionPure
-    wallet timeTranslation utxo txLayer changeAddrGen
-    pparams preSelection txCtx = do
-    --
+    wallet timeTranslation utxo txLayer changeAddrGen pparams preSelection txCtx
+    = do
     unsignedTxBody <-
         withExceptT (Right . ErrConstructTxBody) . except $
             mkUnsignedTransaction txLayer @era
@@ -2101,10 +2100,22 @@ buildTransactionPure
                 txCtx
                 (Left preSelection)
 
+    let utxoAssumptions :: UTxOAssumptions =
+            case walletFlavor @s of
+                ShelleyWallet -> AllKeyPaymentCredentials
+                IcarusWallet -> AllByronKeyPaymentCredentials
+                ByronWallet -> AllByronKeyPaymentCredentials
+                SharedWallet -> AllScriptPaymentCredentialsFrom
+                    (error "buildTransactionPure.scriptTemplate")
+                    (error "buildTransactionPure.scriptLookup")
+                BenchByronWallet -> AllByronKeyPaymentCredentials
+                BenchShelleyWallet -> AllKeyPaymentCredentials
+
     withExceptT Left $
         balanceTransaction @_ @_ @s
             nullTracer
-            (Write.allKeyPaymentCredentials txLayer)
+            (transactionWitnessTag txLayer)
+            utxoAssumptions
             pparams
             timeTranslation
             (constructUTxOIndex utxo)
@@ -2778,7 +2789,8 @@ transactionFee DBLayer{atomically, walletState} protocolParams txLayer
             res <- runExceptT $
                     balanceTransaction @_ @_ @s
                         nullTracer
-                        (Write.allKeyPaymentCredentials txLayer)
+                        (transactionWitnessTag txLayer)
+                        AllKeyPaymentCredentials
                         protocolParams
                         timeTranslation
                         utxoIndex
