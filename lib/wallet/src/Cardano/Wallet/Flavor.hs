@@ -120,6 +120,12 @@ keyOfWallet TestStateS = ShelleyKeyS
 keyFlavor :: forall s. WalletFlavor s => KeyFlavorS (KeyOf s)
 keyFlavor = keyOfWallet (walletFlavor @s)
 
+-- | A type family to check if a type is included in a list of types.
+-- This type family exists as a way to refine types in functions.
+-- Ideally we wouldn't need it, as we want our types to describe the domain
+-- precisely enough not to need a refinement.
+-- However, in practice, we need to temporary refine types in functions,
+-- as we're refactoring the codebase.
 type family Exclude xs x where
     Exclude '[] _ = 'True
     Exclude (x ': xs) x = 'False
