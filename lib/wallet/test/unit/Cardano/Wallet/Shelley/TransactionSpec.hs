@@ -3400,24 +3400,25 @@ balanceTx
     -> TimeTranslation
     -> StdGenSeed
     -> PartialTx era
-    -> Either
-        ErrBalanceTx (Cardano.Tx era)
+    -> Either ErrBalanceTx (Cardano.Tx era)
 balanceTx
     (Wallet' utxoAssumptions utxo (AnyChangeAddressGenWithState genChange s))
-    pp
+    protocolParameters
     timeTranslation
     seed
-    ptx =
-    fmap fst $ flip evalRand (stdGenFromSeed seed) $ runExceptT $
-        balanceTransaction @_ @(Rand StdGen)
-            (nullTracer @(Rand StdGen))
-            utxoAssumptions
-            pp
-            timeTranslation
-            (constructUTxOIndex utxo)
-            genChange
-            s
-            ptx
+    partialTx
+    = (`evalRand` stdGenFromSeed seed) $ runExceptT $ do
+            (transactionInEra, _nextChangeState) <-
+                balanceTransaction
+                    nullTracer
+                    utxoAssumptions
+                    protocolParameters
+                    timeTranslation
+                    (constructUTxOIndex utxo)
+                    genChange
+                    s
+                    partialTx
+            pure transactionInEra
 
 -- | Also returns the updated change state
 balanceTransactionWithDummyChangeState
@@ -3685,20 +3686,20 @@ prop_balanceTransactionValid wallet@(Wallet' _ walletUTxO _) (ShowBuildable part
         let originalOuts = txOutputs (view #tx partialTx)
 
         let classifications =
-                    classify (hasZeroAdaOutputs $ view #tx partialTx)
-                        "partial tx had zero ada outputs"
-                    . classify (hasZeroAdaOutputs $ view #tx partialTx)
-                        "partial tx had zero ada outputs"
-                    . classify (length originalOuts > 0)
-                        "has payment outputs"
-                    . classify (length originalOuts > 5)
-                        ">5 payment outputs"
-                    . classify (length originalOuts > 10)
-                        ">10 payment outputs"
-                    . classify (length originalOuts > 20)
-                        ">20 payment outputs"
-                    . classify (length originalOuts > 100)
-                        ">100 payment outputs"
+                classify (hasZeroAdaOutputs $ view #tx partialTx)
+                    "partial tx had zero ada outputs"
+                . classify (hasZeroAdaOutputs $ view #tx partialTx)
+                    "partial tx had zero ada outputs"
+                . classify (length originalOuts > 0)
+                    "has payment outputs"
+                . classify (length originalOuts > 5)
+                    ">5 payment outputs"
+                . classify (length originalOuts > 10)
+                    ">10 payment outputs"
+                . classify (length originalOuts > 20)
+                    ">20 payment outputs"
+                . classify (length originalOuts > 100)
+                    ">100 payment outputs"
 
         classifications $ case res of
             Right tx -> counterexample ("\nResult: " <> show (Pretty tx)) $ do

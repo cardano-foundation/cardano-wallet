@@ -2555,11 +2555,11 @@ constructTransaction api argGenChange knownPools poolStatus apiWalletId body = d
         balancedTx <-
             balanceTransaction api argGenChange Nothing Nothing apiWalletId
                 ApiBalanceTransactionPostData
-                { transaction = ApiT (sealedTxFromCardanoBody unbalancedTx)
-                , inputs = []
-                , redeemers = []
-                , encoding = body ^. #encoding
-                }
+                    { transaction = ApiT (sealedTxFromCardanoBody unbalancedTx)
+                    , inputs = []
+                    , redeemers = []
+                    , encoding = body ^. #encoding
+                    }
 
         apiDecoded <- decodeTransaction @_ @n api apiWalletId balancedTx
 
@@ -3049,12 +3049,11 @@ decodeSharedTransaction ctx (ApiT wid) (ApiSerialisedTransaction (ApiT sealed) _
         }
 
 balanceTransaction
-    :: forall s k ktype n
-     . ( GenChange s
-       , WalletFlavor s
-       , TxWitnessTagFor k
-       , k ~ KeyOf s
-       )
+    :: forall s k ktype n.
+        ( GenChange s
+        , WalletFlavor s
+        , k ~ KeyOf s
+        )
     => ApiLayer s ktype
     -> ArgGenChange s
     -> Maybe (Address -> Script KeyHash)
