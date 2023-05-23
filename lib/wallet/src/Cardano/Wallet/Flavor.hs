@@ -19,6 +19,7 @@ module Cardano.Wallet.Flavor
     , TestState (..)
     , KeyFlavorS (..)
     , keyFlavor
+    , keyOfWallet
     , Including
     , Excluding
     )

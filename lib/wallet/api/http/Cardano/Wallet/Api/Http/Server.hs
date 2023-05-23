@@ -39,6 +39,7 @@ import Cardano.Wallet
     , networkLayer
     , normalizeDelegationAddress
     , normalizeSharedAddress
+    , utxoAssumptionsForWallet
     )
 import Cardano.Wallet.Address.Derivation
     ( Depth (..), Role (..), delegationAddressS, paymentAddressS )
@@ -185,6 +186,8 @@ import Cardano.Wallet.Api.Types.Error
     ( ApiErrorInfo (..) )
 import Cardano.Wallet.Api.Types.SchemaMetadata
     ( TxMetadataSchema (..), parseSimpleMetadataFlag )
+import Cardano.Wallet.Flavor
+    ( WalletFlavorS (..) )
 import Cardano.Wallet.Pools
     ( StakePoolLayer (..) )
 import Cardano.Wallet.Primitive.Types
@@ -195,8 +198,6 @@ import Cardano.Wallet.Shelley.BlockchainSource
     ( BlockchainSource (..) )
 import Cardano.Wallet.Shelley.Compatibility
     ( inspectAddress, rewardAccountFromAddress )
-import Cardano.Wallet.Write.Tx.Balance
-    ( UTxOAssumptions (AllKeyPaymentCredentials) )
 import Control.Applicative
     ( liftA2 )
 import Control.Monad
@@ -347,7 +348,7 @@ server byron icarus shelley multisig spl ntp blockchainSource =
         :<|> postTransactionOld shelley (delegationAddressS @n)
         :<|> postTransactionFeeOld shelley
         :<|> balanceTransaction
-            shelley (delegationAddressS @n) AllKeyPaymentCredentials
+            shelley (delegationAddressS @n) (utxoAssumptionsForWallet ShelleyWallet)
         :<|> decodeTransaction shelley
         :<|> submitTransaction @_ @_ @_ @n shelley
 

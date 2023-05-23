@@ -197,6 +197,7 @@ import Cardano.Wallet
     , networkLayer
     , readWalletMeta
     , transactionLayer
+    , utxoAssumptionsForWallet
     )
 import Cardano.Wallet.Address.Book
     ( AddressBookIso )
@@ -2413,10 +2414,14 @@ postTransactionFeeOld ctx@ApiLayer{..} (ApiT walletId) body = do
     padding = Quantity 20
 
 constructTransaction
-    :: forall n
-     . HasSNetworkId n
-    => ApiLayer (SeqState n ShelleyKey) 'CredFromKeyK
-    -> ArgGenChange (SeqState n ShelleyKey)
+    :: forall n s k.
+        ( HasSNetworkId n
+        , s ~ SeqState n k
+        , k ~ ShelleyKey
+        , Excluding '[SharedKey] k
+        )
+    => ApiLayer s 'CredFromKeyK
+    -> ArgGenChange s
     -> IO (Set PoolId)
     -> (PoolId -> IO PoolLifeCycleStatus)
     -> ApiT WalletId
@@ -2451,7 +2456,7 @@ constructTransaction api argGenChange knownPools poolStatus apiWalletId body = d
     withWorkerCtx api walletId liftE liftE $ \wrk -> do
         let db = wrk ^. dbLayer
             netLayer = wrk ^. networkLayer
-            txLayer = wrk ^. transactionLayer @ShelleyKey @'CredFromKeyK
+            txLayer = wrk ^. transactionLayer @k @'CredFromKeyK
             trWorker = MsgWallet >$< wrk ^. logger
         pp <- liftIO $ NW.currentProtocolParameters netLayer
         era <- liftIO $ NW.currentNodeEra netLayer
@@ -2462,7 +2467,7 @@ constructTransaction api argGenChange knownPools poolStatus apiWalletId body = d
         withdrawal <- case body ^. #withdrawal of
             Just SelfWithdraw -> liftIO $
                 W.shelleyOnlyMkSelfWithdrawal
-                    netLayer (txWitnessTagFor @ShelleyKey) era db
+                    netLayer (txWitnessTagFor @k) era db
             _ -> pure NoWithdrawal
 
         let transactionCtx0 = defaultTransactionCtx
@@ -2494,7 +2499,7 @@ constructTransaction api argGenChange knownPools poolStatus apiWalletId body = d
                             (ApiT scriptT)
                             (Just (ApiT tName))
                             (ApiMint (ApiMintData _ amt)) ->
-                            toTokenMapAndScript @ShelleyKey
+                            toTokenMapAndScript @k
                                 scriptT
                                 (Map.singleton (Cosigner 0) policyXPub)
                                 tName
@@ -2505,7 +2510,7 @@ constructTransaction api argGenChange knownPools poolStatus apiWalletId body = d
                             (ApiT scriptT)
                             (Just (ApiT tName))
                             (ApiBurn (ApiBurnData amt)) ->
-                            toTokenMapAndScript @ShelleyKey
+                            toTokenMapAndScript @k
                                 scriptT
                                 (Map.singleton (Cosigner 0) policyXPub)
                                 tName
@@ -2561,7 +2566,7 @@ constructTransaction api argGenChange knownPools poolStatus apiWalletId body = d
             balanceTransaction
                 api
                 argGenChange
-                AllKeyPaymentCredentials
+                (utxoAssumptionsForWallet (walletFlavor @s))
                 apiWalletId
                 ApiBalanceTransactionPostData
                     { transaction = ApiT (sealedTxFromCardanoBody unbalancedTx)
