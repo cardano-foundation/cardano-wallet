@@ -1981,6 +1981,7 @@ spec = describe "SHARED_TRANSACTIONS" $ do
 
         waitForNextEpoch ctx
         waitForNextEpoch ctx
+        waitForNextEpoch ctx
 
         eventually "party1: Wallet gets rewards from pool1" $ do
             r <- request @ApiWallet ctx (Link.getWallet @'Shared party1) Default Empty
@@ -2268,6 +2269,35 @@ spec = describe "SHARED_TRANSACTIONS" $ do
                 >>= flip verify
                     [ expectField #delegation (`shouldBe` notDelegating [])
                     ]
+
+        eventually "Party1's wallet has quitted" $ do
+            rJoin' <- request @(ApiTransaction n) ctx
+                (Link.getTransaction @'Shared party1
+                    (getFromResponse Prelude.id submittedTx5))
+                Default Empty
+            verify rJoin'
+                [ expectResponseCode HTTP.status200
+                , expectField (#status . #getApiT) (`shouldBe` InLedger)
+                , expectField (#direction . #getApiT) (`shouldBe` Incoming)
+                , expectField #depositTaken (`shouldBe` Quantity 0)
+                , expectField #depositReturned (`shouldBe` depositAmt)
+                , expectField #certificates
+                     (`shouldBe` [ delegatingCert3 stakeKeyDerPathParty1])
+                ]
+        eventually "Party2's wallet has quitted" $ do
+            rJoin' <- request @(ApiTransaction n) ctx
+                (Link.getTransaction @'Shared party2
+                    (getFromResponse Prelude.id submittedTx3))
+                Default Empty
+            verify rJoin'
+                [ expectResponseCode HTTP.status200
+                , expectField (#status . #getApiT) (`shouldBe` InLedger)
+                , expectField (#direction . #getApiT) (`shouldBe` Incoming)
+                , expectField #depositTaken (`shouldBe` Quantity 0)
+                , expectField #depositReturned (`shouldBe` depositAmt)
+                , expectField #certificates
+                     (`shouldBe` [ delegatingCert3 stakeKeyDerPathParty2])
+                ]
   where
      listSharedTransactions ctx w mStart mEnd mOrder mLimit = do
          let path = Link.listTransactions' @'Shared w
