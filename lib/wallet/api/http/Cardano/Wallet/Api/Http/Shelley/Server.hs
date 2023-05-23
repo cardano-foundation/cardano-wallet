@@ -2555,11 +2555,11 @@ constructTransaction api argGenChange knownPools poolStatus apiWalletId body = d
         balancedTx <-
             balanceTransaction api argGenChange Nothing Nothing apiWalletId
                 ApiBalanceTransactionPostData
-                { transaction = ApiT (sealedTxFromCardanoBody unbalancedTx)
-                , inputs = []
-                , redeemers = []
-                , encoding = body ^. #encoding
-                }
+                    { transaction = ApiT (sealedTxFromCardanoBody unbalancedTx)
+                    , inputs = []
+                    , redeemers = []
+                    , encoding = body ^. #encoding
+                    }
 
         apiDecoded <- decodeTransaction @_ @n api apiWalletId balancedTx
 
