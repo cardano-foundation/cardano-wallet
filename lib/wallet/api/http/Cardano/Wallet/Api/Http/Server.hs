@@ -195,6 +195,8 @@ import Cardano.Wallet.Shelley.BlockchainSource
     ( BlockchainSource (..) )
 import Cardano.Wallet.Shelley.Compatibility
     ( inspectAddress, rewardAccountFromAddress )
+import Cardano.Wallet.Write.Tx.Balance
+    ( UTxOAssumptions (AllKeyPaymentCredentials) )
 import Control.Applicative
     ( liftA2 )
 import Control.Monad
@@ -344,7 +346,8 @@ server byron icarus shelley multisig spl ntp blockchainSource =
         :<|> deleteTransaction shelley
         :<|> postTransactionOld shelley (delegationAddressS @n)
         :<|> postTransactionFeeOld shelley
-        :<|> balanceTransaction shelley (delegationAddressS @n) Nothing Nothing
+        :<|> balanceTransaction
+            shelley (delegationAddressS @n) AllKeyPaymentCredentials
         :<|> decodeTransaction shelley
         :<|> submitTransaction @_ @_ @_ @n shelley
 

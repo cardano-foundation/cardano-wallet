@@ -142,7 +142,6 @@ import Cardano.Address.Script
     ( Cosigner (..)
     , KeyHash (..)
     , KeyRole (..)
-    , Script
     , ScriptTemplate (..)
     , ValidationLevel (..)
     , foldScript
@@ -550,7 +549,7 @@ import Cardano.Wallet.Unsafe
 import Cardano.Wallet.Write.Tx
     ( AnyRecentEra (..) )
 import Cardano.Wallet.Write.Tx.Balance
-    ( constructUTxOIndex )
+    ( UTxOAssumptions (..), constructUTxOIndex )
 import Control.Arrow
     ( second, (&&&) )
 import Control.DeepSeq
@@ -2553,7 +2552,11 @@ constructTransaction api argGenChange knownPools poolStatus apiWalletId body = d
                     PreSelection { outputs = outs <> mintingOuts }
 
         balancedTx <-
-            balanceTransaction api argGenChange Nothing Nothing apiWalletId
+            balanceTransaction
+                api
+                argGenChange
+                AllKeyPaymentCredentials
+                apiWalletId
                 ApiBalanceTransactionPostData
                     { transaction = ApiT (sealedTxFromCardanoBody unbalancedTx)
                     , inputs = []
@@ -2905,8 +2908,10 @@ constructSharedTransaction
                     txLayer db txCtx PreSelection {outputs = outs}
 
                 balancedTx <-
-                    balanceTransaction api argGenChange (Just scriptLookup)
-                    (Just (Shared.paymentTemplate $ getState cp)) (ApiT wid)
+                    balanceTransaction api argGenChange
+                    (AllScriptPaymentCredentialsFrom
+                        (Shared.paymentTemplate (getState cp)) scriptLookup)
+                    (ApiT wid)
                         ApiBalanceTransactionPostData
                         { transaction =
                             ApiT $ sealedTxFromCardanoBody unbalancedTx
@@ -3049,26 +3054,19 @@ decodeSharedTransaction ctx (ApiT wid) (ApiSerialisedTransaction (ApiT sealed) _
         }
 
 balanceTransaction
-    :: forall s k ktype n
-     . ( GenChange s
-       , WalletFlavor s
-       , TxWitnessTagFor k
-       , k ~ KeyOf s
-       )
+    :: forall s k ktype n.
+        (  GenChange s
+        , WalletFlavor s
+        , k ~ KeyOf s
+        )
     => ApiLayer s ktype
     -> ArgGenChange s
-    -> Maybe (Address -> Script KeyHash)
-    -> Maybe ScriptTemplate
+    -> UTxOAssumptions
     -> ApiT WalletId
     -> ApiBalanceTransactionPostData n
     -> Handler ApiSerialisedTransaction
 balanceTransaction
-    ctx@ApiLayer{..}
-    argGenChange
-    genInpScripts
-    mScriptTemplate
-    (ApiT wid)
-    body = do
+    ctx@ApiLayer{..} argGenChange utxoAssumptions (ApiT wid) body = do
     -- NOTE: Ideally we'd read @pp@ and @era@ atomically.
     pp <- liftIO $ NW.currentProtocolParameters nl
     era <- liftIO $ NW.currentNodeEra nl
@@ -3126,10 +3124,8 @@ balanceTransaction
             balanceTx partialTx =
                 liftHandler $ fst <$> Write.balanceTransaction @_ @IO @s
                     (MsgWallet . W.MsgBalanceTx >$< wrk ^. W.logger)
-                    (Write.UTxOAssumptions
-                        genInpScripts
-                        mScriptTemplate
-                        (txWitnessTagFor @k))
+                    (transactionWitnessTag txLayer)
+                    utxoAssumptions
                     (Write.unsafeFromWalletProtocolParameters pp)
                     timeTranslation
                     (constructUTxOIndex walletUTxO)
