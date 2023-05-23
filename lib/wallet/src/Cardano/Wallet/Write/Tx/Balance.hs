@@ -78,6 +78,8 @@ import Cardano.Tx.Balance.Internal.CoinSelection
     )
 import Cardano.Wallet.Primitive.Types
     ( TokenBundleMaxSize (TokenBundleMaxSize) )
+import Cardano.Wallet.Primitive.Types.Address
+    ( Address )
 import Cardano.Wallet.Primitive.Types.Redeemer
     ( Redeemer )
 import Cardano.Wallet.Primitive.Types.TokenBundle
@@ -96,7 +98,6 @@ import Cardano.Wallet.Shelley.Transaction
     ( KeyWitnessCount (..)
     , TxFeeUpdate (..)
     , TxUpdate (..)
-    , TxWitnessTag (..)
     , assignScriptRedeemers
     , calculateMinimumFee
     , distributeSurplus
@@ -112,6 +113,8 @@ import Cardano.Wallet.Transaction
     , TxFeeAndChange (..)
     , defaultTransactionCtx
     )
+import Cardano.Wallet.TxWitnessTag
+    ( TxWitnessTag (..) )
 import Cardano.Wallet.Write.ProtocolParameters
     ( ProtocolParameters (..) )
 import Cardano.Wallet.Write.Tx
@@ -333,21 +336,6 @@ instance Buildable (PartialTx era) where
         cardanoTxF :: Cardano.Tx era -> Builder
         cardanoTxF tx' = pretty $ pShow tx'
 
--- | Assumptions about the UTxO which are needed for coin-selection.
-data UTxOAssumptions
-    = AllKeyPaymentCredentials
-    -- Assumes all 'UTxO' entries have addresses with the post-Shelley
-    -- key payment credentials.
-    | AllByronKeyPaymentCredentials
-    -- Assumes all 'UTxO' entries have addresses with the boostrap/byron
-    -- key payment credentials.
-    | AllScriptPaymentCredentialsFrom
-    -- Assumes all 'UTxO' entries have addresses with script
-    -- payment credentials, where the scripts are both derived
-    -- from the 'ScriptTemplate' and can be looked up using the given function.
-        ScriptTemplate
-        (W.Address -> CA.Script KeyHash)
-
 data UTxOIndex era = UTxOIndex
     { walletUTxO :: !W.UTxO
     , walletUTxOIndex :: !(UTxOIndex.UTxOIndex WalletUTxO)
@@ -360,6 +348,35 @@ constructUTxOIndex walletUTxO =
   where
     walletUTxOIndex = UTxOIndex.fromMap $ toInternalUTxOMap walletUTxO
     cardanoUTxO = toCardanoUTxO Cardano.shelleyBasedEra walletUTxO
+
+
+-- | Assumptions about the UTxO which are needed for coin-selection.
+data UTxOAssumptions
+    = AllKeyPaymentCredentials
+    -- Assumes all 'UTxO' entries have addresses with the post-Shelley
+    -- key payment credentials.
+    | AllByronKeyPaymentCredentials
+    -- Assumes all 'UTxO' entries have addresses with the boostrap/byron
+    -- key payment credentials.
+    | AllScriptPaymentCredentialsFrom
+    -- Assumes all 'UTxO' entries have addresses with script
+    -- payment credentials, where the scripts are both derived
+    -- from the 'ScriptTemplate' and can be looked up using the given function.
+        !ScriptTemplate
+        !(Address -> CA.Script KeyHash)
+
+assumedInputScriptTemplate :: UTxOAssumptions -> Maybe ScriptTemplate
+assumedInputScriptTemplate = \case
+    AllKeyPaymentCredentials -> Nothing
+    AllByronKeyPaymentCredentials -> Nothing
+    AllScriptPaymentCredentialsFrom scriptTemplate _ -> Just scriptTemplate
+
+assumedTxWitnessTag :: UTxOAssumptions -> TxWitnessTag
+assumedTxWitnessTag = \case
+    AllKeyPaymentCredentials -> TxWitnessShelleyUTxO
+    AllByronKeyPaymentCredentials -> TxWitnessByronUTxO
+    AllScriptPaymentCredentialsFrom {} -> TxWitnessShelleyUTxO
+
 
 balanceTransaction
     :: forall era m changeState.
@@ -490,10 +507,10 @@ increaseZeroAdaOutputs era pp = modifyLedgerBody $
 
 -- | Internal helper to 'balanceTransaction'
 balanceTransactionWithSelectionStrategyAndNoZeroAdaAdjustment
-    :: forall era m changeState
-     . ( MonadRandom m
-       , IsRecentEra era
-       )
+    :: forall era m changeState.
+        ( MonadRandom m
+        , IsRecentEra era
+        )
     => Tracer m BalanceTxLog
     -> UTxOAssumptions
     -> ProtocolParameters era
@@ -1008,18 +1025,6 @@ selectAssets era (ProtocolParameters pp) utxoAssumptions outs redeemers
         -- Any overestimation will be reduced by 'distributeSurplus'
         -- in the final stage of 'balanceTransaction'.
         extraBytes = 8
-
-    assumedInputScriptTemplate :: UTxOAssumptions -> Maybe ScriptTemplate
-    assumedInputScriptTemplate = \case
-        AllKeyPaymentCredentials -> Nothing
-        AllByronKeyPaymentCredentials -> Nothing
-        AllScriptPaymentCredentialsFrom scriptTemplate _ -> Just scriptTemplate
-
-    assumedTxWitnessTag :: UTxOAssumptions -> TxWitnessTag
-    assumedTxWitnessTag = \case
-        AllKeyPaymentCredentials -> TxWitnessShelleyUTxO
-        AllByronKeyPaymentCredentials -> TxWitnessByronUTxO
-        AllScriptPaymentCredentialsFrom {} -> TxWitnessShelleyUTxO
 
 data ChangeAddressGen s = ChangeAddressGen
     { getChangeAddressGen :: s -> (W.Address, s)

@@ -213,6 +213,7 @@ module Cardano.Wallet
     , throttle
     , guardHardIndex
     , toBalanceTxPParams
+    , utxoAssumptionsForWallet
 
     -- * Logging
     , WalletWorkerLog (..)
@@ -344,6 +345,7 @@ import Cardano.Wallet.Flavor
     , WalletFlavor (..)
     , WalletFlavorS (..)
     , keyFlavor
+    , keyOfWallet
     )
 import Cardano.Wallet.Logging
     ( BracketLog
@@ -512,7 +514,7 @@ import Cardano.Wallet.Write.Tx.Balance
 import Cardano.Wallet.Write.Tx.TimeTranslation
     ( TimeTranslation )
 import Control.Arrow
-    ( first )
+    ( first, (>>>) )
 import Control.DeepSeq
     ( NFData )
 import Control.Monad
@@ -2112,16 +2114,10 @@ buildTransactionPure
                 txCtx
                 (Left preSelection)
 
-    let utxoAssumptions =
-            case keyFlavor @s of
-                ByronKeyS -> AllByronKeyPaymentCredentials
-                IcarusKeyS -> AllByronKeyPaymentCredentials
-                ShelleyKeyS -> AllKeyPaymentCredentials
-
     withExceptT Left $
         balanceTransaction @_ @_ @s
             nullTracer
-            utxoAssumptions
+            (utxoAssumptionsForWallet (walletFlavor @s))
             pparams
             timeTranslation
             (constructUTxOIndex utxo)
@@ -2794,17 +2790,11 @@ transactionFee DBLayer{atomically, walletState} protocolParams txLayer
                 , redeemers = []
                 }
 
-        let utxoAssumptions =
-                case keyFlavor @s of
-                    ByronKeyS -> AllByronKeyPaymentCredentials
-                    IcarusKeyS -> AllByronKeyPaymentCredentials
-                    ShelleyKeyS -> AllKeyPaymentCredentials
-
         wrapErrSelectAssets $ calculateFeePercentiles $ do
             res <- runExceptT $
                     balanceTransaction @_ @_ @s
                         nullTracer
-                        utxoAssumptions
+                        (utxoAssumptionsForWallet (walletFlavor @s))
                         protocolParams
                         timeTranslation
                         utxoIndex
@@ -3706,3 +3696,13 @@ dummyChangeAddressGen =
     ChangeAddressGen
         (maxLengthAddressFor (keyFlavor @s),)
         (maxLengthAddressFor (keyFlavor @s))
+
+utxoAssumptionsForWallet
+    :: forall s
+     . Excluding '[SharedKey] (KeyOf s)
+    => WalletFlavorS s
+    -> UTxOAssumptions
+utxoAssumptionsForWallet = keyOfWallet >>> \case
+    ByronKeyS -> AllByronKeyPaymentCredentials
+    IcarusKeyS -> AllByronKeyPaymentCredentials
+    ShelleyKeyS -> AllKeyPaymentCredentials
