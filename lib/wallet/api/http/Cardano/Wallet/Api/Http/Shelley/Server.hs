@@ -17,6 +17,7 @@
 {-# LANGUAGE TypeFamilies #-}
 {-# LANGUAGE TypeOperators #-}
 {-# OPTIONS_GHC -Wno-unrecognised-pragmas #-}
+{-# OPTIONS_GHC -Wno-unticked-promoted-constructors #-}
 
 {-# HLINT ignore "Use record patterns" #-}
 
@@ -427,7 +428,7 @@ import Cardano.Wallet.Compat
 import Cardano.Wallet.DB
     ( DBFactory (..), DBFresh, DBLayer, loadDBLayer )
 import Cardano.Wallet.Flavor
-    ( KeyOf, WalletFlavor (..), WalletFlavorS (ShelleyWallet) )
+    ( Excluding, KeyOf, WalletFlavor (..), WalletFlavorS (..) )
 import Cardano.Wallet.Network
     ( NetworkLayer (..), fetchRewardAccountBalances, timeInterpreter )
 import Cardano.Wallet.Pools
@@ -1754,9 +1755,10 @@ getWalletUtxoSnapshot ctx (ApiT wid) = do
 -------------------------------------------------------------------------------}
 
 selectCoins
-    :: forall s n k .
+    :: forall s n k.
         ( IsOurs s Address
         , WalletFlavor s
+        , Excluding '[SharedKey] k
         , s ~ SeqState n k
         , AddressBookIso s
         , GenChange s
@@ -1816,6 +1818,7 @@ selectCoinsForJoin
     :: forall s n k.
         ( s ~ SeqState n k
         , WalletFlavor s
+        , Excluding '[SharedKey] k
         , AddressBookIso s
         , Seq.SupportsDiscovery n k
         , DelegationAddress k 'CredFromKeyK
@@ -1883,6 +1886,7 @@ selectCoinsForQuit
     :: forall s n k.
         ( s ~ SeqState n k
         , WalletFlavor s
+        , Excluding '[SharedKey] k
         , AddressBookIso s
         , Seq.SupportsDiscovery n k
         , DelegationAddress k 'CredFromKeyK
@@ -2156,6 +2160,7 @@ postTransactionOld
         , AddressBookIso s
         , HasDelegation s
         , WalletFlavor s
+        , Excluding '[SharedKey] k
         , IsOurs s RewardAccount
         , k ~ KeyOf s
         )
@@ -2335,6 +2340,7 @@ mkApiTransactionFromInfo ti wrk deposit info metadataSchema = do
 postTransactionFeeOld
     :: forall s n k
      . ( WalletFlavor s
+       , Excluding '[SharedKey] k
        , AddressBookIso s
        , TxWitnessTagFor k
        , k ~ KeyOf s
@@ -2407,10 +2413,13 @@ postTransactionFeeOld ctx@ApiLayer{..} (ApiT walletId) body = do
     padding = Quantity 20
 
 constructTransaction
-    :: forall n
-     . HasSNetworkId n
-    => ApiLayer (SeqState n ShelleyKey) 'CredFromKeyK
-    -> ArgGenChange (SeqState n ShelleyKey)
+    :: forall n s k.
+        ( HasSNetworkId n
+        , s ~ SeqState n k
+        , k ~ ShelleyKey
+        )
+    => ApiLayer s 'CredFromKeyK
+    -> ArgGenChange s
     -> IO (Set PoolId)
     -> (PoolId -> IO PoolLifeCycleStatus)
     -> ApiT WalletId
@@ -3497,6 +3506,7 @@ joinStakePool
     :: forall s n k.
         ( s ~ SeqState n k
         , WalletFlavor s
+        , Excluding '[SharedKey] k
         , AddressIndexDerivationType k ~ 'Soft
         , GenChange s
         , IsOwned s k 'CredFromKeyK

@@ -62,6 +62,8 @@ import Cardano.Wallet.Address.Derivation
     ( Depth (..), WalletKey, digest, publicKey )
 import Cardano.Wallet.Address.Derivation.Byron
     ( ByronKey )
+import Cardano.Wallet.Address.Derivation.Shared
+    ( SharedKey )
 import Cardano.Wallet.Address.Derivation.Shelley
     ( ShelleyKey )
 import Cardano.Wallet.Address.Discovery
@@ -91,7 +93,7 @@ import Cardano.Wallet.DB
 import Cardano.Wallet.DB.Layer
     ( PersistAddressBook, withDBFresh )
 import Cardano.Wallet.Flavor
-    ( KeyOf, WalletFlavor )
+    ( Excluding, KeyOf, WalletFlavor )
 import Cardano.Wallet.Launch
     ( CardanoNodeConn, NetworkConfiguration (..), parseGenesisData )
 import Cardano.Wallet.Logging
@@ -275,8 +277,7 @@ cardanoRestoreBench
     -> CardanoNodeConn
     -> IO ()
 cardanoRestoreBench tr c socketFile = do
-    (networkId, np, vData, _b)
-        <- unsafeRunExceptT $ parseGenesisData c
+    (networkId, np, vData, _b) <- unsafeRunExceptT $ parseGenesisData c
     (_, walletTr) <- initBenchmarkLogging "wallet" Notice
 
     withSNetworkId networkId $ \(sNetwork :: SNetworkId n)-> do
@@ -1021,7 +1022,11 @@ withNonEmptyUTxO wallet pendingTxs failure action
     emptyUTxO = UTxO.null (availableUTxO pendingTxs wallet)
 
 benchEstimateTxFee
-    :: forall n s. (AddressBookIso s, WalletFlavor s)
+    :: forall n s.
+        ( AddressBookIso s
+        , WalletFlavor s
+        , Excluding '[SharedKey] (KeyOf s)
+        )
     => SNetworkId n
     -> WalletLayer IO s 'CredFromKeyK
     -> IO Time

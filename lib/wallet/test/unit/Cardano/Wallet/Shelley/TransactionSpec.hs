@@ -121,8 +121,6 @@ import Cardano.Wallet.Address.Derivation
     , paymentAddress
     , publicKey
     )
-import Cardano.Wallet.Address.Derivation.Byron
-    ( ByronKey )
 import Cardano.Wallet.Address.Derivation.Shelley
     ( ShelleyKey )
 import Cardano.Wallet.Address.Discovery.Random
