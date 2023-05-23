@@ -3124,7 +3124,6 @@ balanceTransaction
             balanceTx partialTx =
                 liftHandler $ fst <$> Write.balanceTransaction @_ @IO @s
                     (MsgWallet . W.MsgBalanceTx >$< wrk ^. W.logger)
-                    (transactionWitnessTag txLayer)
                     utxoAssumptions
                     (Write.unsafeFromWalletProtocolParameters pp)
                     timeTranslation

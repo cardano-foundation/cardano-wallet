@@ -96,7 +96,7 @@ import Cardano.Wallet.Shelley.Transaction
     ( KeyWitnessCount (..)
     , TxFeeUpdate (..)
     , TxUpdate (..)
-    , TxWitnessTag
+    , TxWitnessTag (..)
     , assignScriptRedeemers
     , calculateMinimumFee
     , distributeSurplus
@@ -336,13 +336,13 @@ instance Buildable (PartialTx era) where
 -- | Assumptions about the UTxO which are needed for coin-selection.
 data UTxOAssumptions
     = AllKeyPaymentCredentials
-    -- ^ Assumes all 'UTxO' entries have addresses with the post-Shelley
+    -- Assumes all 'UTxO' entries have addresses with the post-Shelley
     -- key payment credentials.
     | AllByronKeyPaymentCredentials
-    -- ^ Assumes all 'UTxO' entries have addresses with the boostrap/byron
+    -- Assumes all 'UTxO' entries have addresses with the boostrap/byron
     -- key payment credentials.
     | AllScriptPaymentCredentialsFrom
-    -- ^ Assumes all 'UTxO' entries have addresses with script
+    -- Assumes all 'UTxO' entries have addresses with script
     -- payment credentials, where the scripts are both derived
     -- from the 'ScriptTemplate' and can be looked up using the given function.
         ScriptTemplate
@@ -362,12 +362,11 @@ constructUTxOIndex walletUTxO =
     cardanoUTxO = toCardanoUTxO Cardano.shelleyBasedEra walletUTxO
 
 balanceTransaction
-    :: forall era m changeState
-     . ( MonadRandom m
-       , IsRecentEra era
-       )
+    :: forall era m changeState.
+        ( MonadRandom m
+        , IsRecentEra era
+        )
     => Tracer m BalanceTxLog
-    -> TxWitnessTag
     -> UTxOAssumptions
     -> ProtocolParameters era
     -- ^ 'Cardano.ProtocolParameters' can be retrieved via a Local State Query
@@ -396,7 +395,6 @@ balanceTransaction
     -> ExceptT ErrBalanceTx m (Cardano.Tx era, changeState)
 balanceTransaction
     tr
-    txWitnessTag
     utxoAssumptions
     pp
     timeTranslation
@@ -412,7 +410,6 @@ balanceTransaction
             balanceTransactionWithSelectionStrategyAndNoZeroAdaAdjustment
                 @era @m @changeState
                 tr
-                txWitnessTag
                 utxoAssumptions
                 pp
                 timeTranslation
@@ -498,7 +495,6 @@ balanceTransactionWithSelectionStrategyAndNoZeroAdaAdjustment
        , IsRecentEra era
        )
     => Tracer m BalanceTxLog
-    -> TxWitnessTag
     -> UTxOAssumptions
     -> ProtocolParameters era
     -> TimeTranslation
@@ -510,7 +506,6 @@ balanceTransactionWithSelectionStrategyAndNoZeroAdaAdjustment
     -> ExceptT ErrBalanceTx m (Cardano.Tx era, changeState)
 balanceTransactionWithSelectionStrategyAndNoZeroAdaAdjustment
     tr
-    txWitnessTag
     utxoAssumptions
     protocolParameters@(ProtocolParameters pp)
     timeTranslation
@@ -518,8 +513,8 @@ balanceTransactionWithSelectionStrategyAndNoZeroAdaAdjustment
     genChange
     s
     selectionStrategy
-    ptx@(PartialTx partialTx inputUTxO redeemers) = do
-    --
+    ptx@(PartialTx partialTx inputUTxO redeemers)
+    = do
     guardExistingCollateral partialTx
     guardExistingTotalCollateral partialTx
     guardExistingReturnCollateral partialTx
@@ -566,7 +561,6 @@ balanceTransactionWithSelectionStrategyAndNoZeroAdaAdjustment
         let mSel = selectAssets
                 (recentEra @era)
                 protocolParameters
-                txWitnessTag
                 utxoAssumptions
                 (extractOutputsFromTx partialTx)
                 redeemers
@@ -873,7 +867,6 @@ selectAssets
      . Cardano.IsCardanoEra era
     => RecentEra era
     -> ProtocolParameters era
-    -> TxWitnessTag
     -> UTxOAssumptions
     -> [W.TxOut]
     -> [Redeemer]
@@ -887,8 +880,8 @@ selectAssets
     -> SelectionStrategy
     -- ^ A function to assess the size of a token bundle.
     -> Either (SelectionError WalletSelectionContext) Selection
-selectAssets era (ProtocolParameters pp) txWitnessTag utxoAssumptions outs
-    redeemers utxoSelection balance fee0 seed changeGen selectionStrategy =
+selectAssets era (ProtocolParameters pp) utxoAssumptions outs redeemers
+    utxoSelection balance fee0 seed changeGen selectionStrategy =
         (`evalRand` stdGenFromSeed seed) . runExceptT
             $ performSelection selectionConstraints selectionParams
   where
@@ -897,7 +890,8 @@ selectAssets era (ProtocolParameters pp) txWitnessTag utxoAssumptions outs
             let maxBundleSize = TokenBundleMaxSize $ TxSize $ case era of
                     RecentEraBabbage -> pp ^. #_maxValSize
                     RecentEraConway -> pp ^. #_maxValSize
-             in view #assessTokenBundleSize $
+            in
+                view #assessTokenBundleSize $
                     Compatibility.tokenBundleSizeAssessor maxBundleSize
                     -- TODO (ADP-2967): avoid importing Compatibility.
         , computeMinimumAdaQuantity = \addr tokens -> W.toWallet $
@@ -917,7 +911,7 @@ selectAssets era (ProtocolParameters pp) txWitnessTag utxoAssumptions outs
             , calculateMinimumFee
                 (Cardano.AnyCardanoEra (fromRecentEra era))
                 feePerByte
-                txWitnessTag
+                (assumedTxWitnessTag utxoAssumptions)
                 (defaultTransactionCtx
                     { txPaymentCredentialScriptTemplate =
                         assumedInputScriptTemplate utxoAssumptions })
@@ -988,7 +982,7 @@ selectAssets era (ProtocolParameters pp) txWitnessTag utxoAssumptions outs
         calculateMinimumFee
             (Cardano.AnyCardanoEra (fromRecentEra era))
             feePerByte
-            txWitnessTag
+            (assumedTxWitnessTag utxoAssumptions)
             defaultTransactionCtx
             SelectionSkeleton
                 { skeletonInputCount = UTxOSelection.selectedSize utxoSelection
@@ -1020,6 +1014,12 @@ selectAssets era (ProtocolParameters pp) txWitnessTag utxoAssumptions outs
         AllKeyPaymentCredentials -> Nothing
         AllByronKeyPaymentCredentials -> Nothing
         AllScriptPaymentCredentialsFrom scriptTemplate _ -> Just scriptTemplate
+
+    assumedTxWitnessTag :: UTxOAssumptions -> TxWitnessTag
+    assumedTxWitnessTag = \case
+        AllKeyPaymentCredentials -> TxWitnessShelleyUTxO
+        AllByronKeyPaymentCredentials -> TxWitnessByronUTxO
+        AllScriptPaymentCredentialsFrom {} -> TxWitnessShelleyUTxO
 
 data ChangeAddressGen s = ChangeAddressGen
     { getChangeAddressGen :: s -> (W.Address, s)

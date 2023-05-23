@@ -3016,8 +3016,7 @@ instance MonadRandom Gen where
     getRandomR range = mkGen (fst . randomR range)
     getRandomRs range = mkGen (randomRs range)
 
-data Wallet' =
-    Wallet' TxWitnessTag UTxOAssumptions UTxO AnyChangeAddressGenWithState
+data Wallet' = Wallet' UTxOAssumptions UTxO AnyChangeAddressGenWithState
     deriving Show via (ShowBuildable Wallet')
 
 instance Buildable UTxOAssumptions where
@@ -3038,31 +3037,20 @@ instance Buildable AnyChangeAddressGenWithState where
             ]
 
 instance Buildable Wallet' where
-    build (Wallet' witnessTag assumptions utxo changeAddressGen) =
+    build (Wallet' assumptions utxo changeAddressGen) =
         nameF "Wallet" $ mconcat
-            [ nameF "txWitnessTag" $ build witnessTag
-            , nameF "assumptions" $ build assumptions
+            [ nameF "assumptions" $ build assumptions
             , nameF "changeAddressGen" $ build changeAddressGen
             , nameF "utxo" $ pretty utxo
             ]
 
-instance Buildable TxWitnessTag where
-    build = \case
-        TxWitnessByronUTxO -> "TxWitnessByronUTxO"
-        TxWitnessByronIcarusUTxO -> "TxWitnessByronIcarusUTxO"
-        TxWitnessShelleyUTxO -> "TxWitnessShelleyUTxO"
-
 instance Arbitrary Wallet' where
     arbitrary = oneof
-        [ Wallet'
-            TxWitnessShelleyUTxO
-            AllKeyPaymentCredentials
+        [ Wallet' AllKeyPaymentCredentials
             <$> genWalletUTxO genShelleyVkAddr
             <*> pure dummyShelleyChangeAddressGen
 
-        , Wallet'
-            TxWitnessByronUTxO
-            AllByronKeyPaymentCredentials
+        , Wallet' AllByronKeyPaymentCredentials
             <$> genWalletUTxO genByronVkAddr
             <*> pure dummyByronChangeAddressGen
         ]
@@ -3096,10 +3084,10 @@ instance Arbitrary Wallet' where
                   where
                     era = Cardano.BabbageEra
 
-    shrink ( Wallet' witnessTag utxoAssumptions utxo changeAddressGen ) =
-            [ Wallet' witnessTag utxoAssumptions utxo' changeAddressGen
-            | utxo' <- shrinkUTxO utxo
-            ]
+    shrink (Wallet' utxoAssumptions utxo changeAddressGen) =
+        [ Wallet' utxoAssumptions utxo' changeAddressGen
+        | utxo' <- shrinkUTxO utxo
+        ]
       where
         -- We cannot use 'Cardano.Wallet.Primitive.Types.UTxO.Gen.shrinkUTxO'
         -- because it will shrink to invalid addresses.
@@ -3114,11 +3102,7 @@ instance Arbitrary Wallet' where
 
 mkTestWallet :: UTxO -> Wallet'
 mkTestWallet utxo =
-    Wallet'
-        TxWitnessShelleyUTxO
-        AllKeyPaymentCredentials
-        utxo
-        dummyShelleyChangeAddressGen
+    Wallet' AllKeyPaymentCredentials utxo dummyShelleyChangeAddressGen
 
 newtype ShowBuildable a = ShowBuildable a
     deriving newtype Arbitrary
@@ -3404,7 +3388,6 @@ balanceTx
     -> Either ErrBalanceTx (Cardano.Tx era)
 balanceTx
     ( Wallet'
-        witnessTag
         utxoAssumptions
         utxo
         (AnyChangeAddressGenWithState genChange s)
@@ -3414,7 +3397,6 @@ balanceTx
             (transactionInEra, _nextChangeState) <-
                 balanceTransaction
                     nullTracer
-                    witnessTag
                     utxoAssumptions
                     pp
                     timeTranslation
@@ -3433,11 +3415,9 @@ balanceTransactionWithDummyChangeState
     -> PartialTx era
     -> Either ErrBalanceTx (Cardano.Tx era, DummyChangeState)
 balanceTransactionWithDummyChangeState utxoAssumptions utxo seed partialTx =
-    (`evalRand` stdGenFromSeed seed) $ runExceptT $ do
-        let txLayer = newTransactionLayer @ShelleyKey Cardano.Mainnet
+    (`evalRand` stdGenFromSeed seed) $ runExceptT $
         balanceTransaction
             nullTracer
-            (transactionWitnessTag txLayer)
             utxoAssumptions
             mockPParamsForBalancing
             dummyTimeTranslation
@@ -3672,7 +3652,7 @@ prop_balanceTransactionValid
     -> StdGenSeed
     -> Property
 prop_balanceTransactionValid
-    wallet@(Wallet' _ _ walletUTxO _) (ShowBuildable partialTx) seed =
+    wallet@(Wallet' _ walletUTxO _) (ShowBuildable partialTx) seed =
         withMaxSuccess 1_000 $ do
         let combinedUTxO =
                 view #inputs partialTx

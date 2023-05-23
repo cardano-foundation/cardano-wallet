@@ -2114,7 +2114,6 @@ buildTransactionPure
     withExceptT Left $
         balanceTransaction @_ @_ @s
             nullTracer
-            (transactionWitnessTag txLayer)
             utxoAssumptions
             pparams
             timeTranslation
@@ -2789,7 +2788,6 @@ transactionFee DBLayer{atomically, walletState} protocolParams txLayer
             res <- runExceptT $
                     balanceTransaction @_ @_ @s
                         nullTracer
-                        (transactionWitnessTag txLayer)
                         AllKeyPaymentCredentials
                         protocolParams
                         timeTranslation
