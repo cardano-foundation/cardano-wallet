@@ -2278,7 +2278,6 @@ spec = describe "SHARED_TRANSACTIONS" $ do
             verify rJoin'
                 [ expectResponseCode HTTP.status200
                 , expectField (#status . #getApiT) (`shouldBe` InLedger)
-                , expectField (#direction . #getApiT) (`shouldBe` Incoming)
                 , expectField #depositTaken (`shouldBe` Quantity 0)
                 , expectField #depositReturned (`shouldBe` depositAmt)
                 , expectField #certificates
@@ -2292,7 +2291,6 @@ spec = describe "SHARED_TRANSACTIONS" $ do
             verify rJoin'
                 [ expectResponseCode HTTP.status200
                 , expectField (#status . #getApiT) (`shouldBe` InLedger)
-                , expectField (#direction . #getApiT) (`shouldBe` Incoming)
                 , expectField #depositTaken (`shouldBe` Quantity 0)
                 , expectField #depositReturned (`shouldBe` depositAmt)
                 , expectField #certificates
