@@ -185,8 +185,8 @@ cardanoTxIdeallyNoLaterThan
     -> InAnyCardanoEra Cardano.Tx
 cardanoTxIdeallyNoLaterThan era = unsafeCardanoTx . ideallyNoLaterThan era
 
--- | Re-deserialises the bytes 'SealedTx' as a transaction in the provided era
--- exactly.
+-- | Re-deserialises the bytes of the 'SealedTx' as a transaction in the
+-- provided era, and that era only.
 cardanoTxInExactEra
     :: forall era. Cardano.IsCardanoEra era
     => CardanoEra era
