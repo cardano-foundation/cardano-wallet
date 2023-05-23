@@ -3084,29 +3084,24 @@ balanceTransaction
 
         partialTx <- parsePartialTx recentEra
 
-        let balanceTx
-                :: forall era. Write.IsRecentEra era
-                => Write.PartialTx era
-                -> Handler (Cardano.Tx era)
-            balanceTx partialTx =
-                liftHandler $ fst <$> Write.balanceTransaction @_ @IO @s
-                    (MsgWallet . W.MsgBalanceTx >$< wrk ^. W.logger)
-                    utxoAssumptions
-                    (Write.unsafeFromWalletProtocolParameters pp)
-                    timeTranslation
-                    (Write.constructUTxOIndex utxo)
-                    (W.defaultChangeAddressGen argGenChange)
-                    (getState wallet)
-                    partialTx
-
-        res <- Cardano.InAnyCardanoEra Write.cardanoEra <$> balanceTx partialTx
+        balancedTx <- liftHandler
+            . fmap (Cardano.InAnyCardanoEra Write.cardanoEra . fst)
+            $ Write.balanceTransaction
+                (MsgWallet . W.MsgBalanceTx >$< wrk ^. W.logger)
+                utxoAssumptions
+                (Write.unsafeFromWalletProtocolParameters pp)
+                timeTranslation
+                (Write.constructUTxOIndex utxo)
+                (W.defaultChangeAddressGen argGenChange)
+                (getState wallet)
+                partialTx
 
         case body ^. #encoding of
             Just HexEncoded ->
                 pure $ ApiSerialisedTransaction
-                (ApiT $ W.sealedTxFromCardano res) HexEncoded
+                (ApiT $ W.sealedTxFromCardano balancedTx) HexEncoded
             _ -> pure $ ApiSerialisedTransaction
-                (ApiT $ W.sealedTxFromCardano res) Base64Encoded
+                (ApiT $ W.sealedTxFromCardano balancedTx) Base64Encoded
   where
     parsePartialTx
         :: Write.IsRecentEra era
