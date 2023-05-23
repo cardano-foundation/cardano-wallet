@@ -23,6 +23,8 @@
 {-# LANGUAGE TypeApplications #-}
 {-# LANGUAGE TypeFamilies #-}
 {-# LANGUAGE TypeOperators #-}
+{-# OPTIONS_GHC -Wno-redundant-constraints #-} -- suppress false warning
+{-# OPTIONS_GHC -Wno-unticked-promoted-constructors #-}
 
 -- |
 -- Copyright: © 2018-2020 IOHK
@@ -336,7 +338,13 @@ import Cardano.Wallet.DB.WalletState
     , getSlot
     )
 import Cardano.Wallet.Flavor
-    ( KeyOf, WalletFlavor (..), WalletFlavorS (..), keyFlavor )
+    ( Excluding
+    , KeyFlavorS (..)
+    , KeyOf
+    , WalletFlavor (..)
+    , WalletFlavorS (..)
+    , keyFlavor
+    )
 import Cardano.Wallet.Logging
     ( BracketLog
     , BracketLog' (..)
@@ -1840,16 +1848,17 @@ type MakeRewardAccountBuilder k =
 --
 -- Requires the encryption passphrase in order to decrypt the root private key.
 buildSignSubmitTransaction
-    :: forall s k
-     . ( WalletKey k
-       , HardDerivation k
-       , Bounded (Index (AddressIndexDerivationType k) (AddressCredential k))
-       , IsOwned s k 'CredFromKeyK
-       , IsOurs s RewardAccount
-       , AddressBookIso s
-       , WalletFlavor s
-       , k ~ KeyOf s
-       )
+    :: forall s k.
+        ( WalletKey k
+        , HardDerivation k
+        , Bounded (Index (AddressIndexDerivationType k) (AddressCredential k))
+        , IsOwned s k 'CredFromKeyK
+        , IsOurs s RewardAccount
+        , AddressBookIso s
+        , WalletFlavor s
+        , Excluding '[SharedKey] k
+        , k ~ KeyOf s
+        )
     => DBLayer IO s
     -> NetworkLayer IO Read.Block
     -> TransactionLayer k 'CredFromKeyK SealedTx
@@ -1932,15 +1941,16 @@ buildSignSubmitTransaction db@DBLayer{..} netLayer txLayer pwd walletId
     wrapBalanceConstructError = either ExceptionBalanceTx ExceptionConstructTx
 
 buildAndSignTransactionPure
-    :: forall k s
-     . ( WalletKey k
-       , HardDerivation k
-       , Bounded (Index (AddressIndexDerivationType k) (AddressCredential k))
-       , IsOwned s k 'CredFromKeyK
-       , IsOurs s RewardAccount
-       , WalletFlavor s
-       , k ~ KeyOf s
-       )
+    :: forall k s.
+        ( WalletKey k
+        , HardDerivation k
+        , Bounded (Index (AddressIndexDerivationType k) (AddressCredential k))
+        , IsOwned s k 'CredFromKeyK
+        , IsOurs s RewardAccount
+        , WalletFlavor s
+        , Excluding '[SharedKey] k
+        , k ~ KeyOf s
+        )
     => TimeTranslation
     -> UTxO
     -> k 'RootK XPrv
@@ -2033,11 +2043,12 @@ buildAndSignTransactionPure
     anyCardanoEra = Write.fromAnyRecentEra era
 
 buildTransaction
-    :: forall s era
-    . ( WalletFlavor s
-      , Write.IsRecentEra era
-      , AddressBookIso s
-      )
+    :: forall s era.
+        ( WalletFlavor s
+        , Write.IsRecentEra era
+        , AddressBookIso s
+        , Excluding '[SharedKey] (KeyOf s)
+        )
     => DBLayer IO s
     -> TransactionLayer (KeyOf s) 'CredFromKeyK SealedTx
     -> TimeTranslation
@@ -2074,10 +2085,11 @@ buildTransaction DBLayer{..} txLayer timeTranslation changeAddrGen
                 & either (liftIO . throwIO) pure
 
 buildTransactionPure
-    :: forall s era
-     . ( Write.IsRecentEra era
-       , WalletFlavor s
-       )
+    :: forall s era.
+        ( Write.IsRecentEra era
+        , WalletFlavor s
+        , Excluding '[SharedKey] (KeyOf s)
+        )
     => Wallet s
     -> TimeTranslation
     -> UTxO
@@ -2100,16 +2112,11 @@ buildTransactionPure
                 txCtx
                 (Left preSelection)
 
-    let utxoAssumptions :: UTxOAssumptions =
-            case walletFlavor @s of
-                ShelleyWallet -> AllKeyPaymentCredentials
-                IcarusWallet -> AllByronKeyPaymentCredentials
-                ByronWallet -> AllByronKeyPaymentCredentials
-                SharedWallet -> AllScriptPaymentCredentialsFrom
-                    (error "buildTransactionPure.scriptTemplate")
-                    (error "buildTransactionPure.scriptLookup")
-                BenchByronWallet -> AllByronKeyPaymentCredentials
-                BenchShelleyWallet -> AllKeyPaymentCredentials
+    let utxoAssumptions =
+            case keyFlavor @s of
+                ByronKeyS -> AllByronKeyPaymentCredentials
+                IcarusKeyS -> AllByronKeyPaymentCredentials
+                ShelleyKeyS -> AllKeyPaymentCredentials
 
     withExceptT Left $
         balanceTransaction @_ @_ @s
@@ -2710,6 +2717,7 @@ delegationFee
     :: forall s
      . ( AddressBookIso s
        , WalletFlavor s
+       , Excluding '[SharedKey] (KeyOf s)
        )
     => DBLayer IO s
     -> NetworkLayer IO Read.Block
@@ -2743,6 +2751,7 @@ transactionFee
      . ( AddressBookIso s
        , Write.IsRecentEra era
        , WalletFlavor s
+       , Excluding '[SharedKey] (KeyOf s)
        )
     => DBLayer IO s
     -> Write.ProtocolParameters era
@@ -2784,11 +2793,18 @@ transactionFee DBLayer{atomically, walletState} protocolParams txLayer
                 , inputs = Cardano.UTxO mempty
                 , redeemers = []
                 }
+
+        let utxoAssumptions =
+                case keyFlavor @s of
+                    ByronKeyS -> AllByronKeyPaymentCredentials
+                    IcarusKeyS -> AllByronKeyPaymentCredentials
+                    ShelleyKeyS -> AllKeyPaymentCredentials
+
         wrapErrSelectAssets $ calculateFeePercentiles $ do
             res <- runExceptT $
                     balanceTransaction @_ @_ @s
                         nullTracer
-                        AllKeyPaymentCredentials
+                        utxoAssumptions
                         protocolParams
                         timeTranslation
                         utxoIndex
