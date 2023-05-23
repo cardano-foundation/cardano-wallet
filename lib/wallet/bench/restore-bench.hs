@@ -430,7 +430,7 @@ data BenchRndResults = BenchRndResults
     , listTransactionsLimitedTime :: Time
     , importOneAddressTime :: Time
     , importManyAddressesTime :: Time
-    , estimateFeesTime :: Time
+    , estimateFeesTime :: Either CannotEstimateFeeForWalletWithEmptyUTxO Time
     , walletOverview :: WalletOverview
     } deriving (Show, Generic)
 
@@ -503,7 +503,7 @@ benchmarksRnd network w wname
         , listAddressesTime
         , listTransactionsTime
         , listTransactionsLimitedTime
-        , estimateFeesTime
+        , estimateFeesTime = Right estimateFeesTime
         , importOneAddressTime
         , importManyAddressesTime
         , walletOverview
@@ -525,7 +525,7 @@ data BenchSeqResults = BenchSeqResults
     , listAddressesTime :: Time
     , listTransactionsTime :: Time
     , listTransactionsLimitedTime :: Time
-    , estimateFeesTime :: Time
+    , estimateFeesTime :: Either CannotEstimateFeeForWalletWithEmptyUTxO Time
     , walletOverview :: WalletOverview
     } deriving (Show, Generic)
 
@@ -587,7 +587,7 @@ benchmarksSeq network w _wname
         , listAddressesTime
         , listTransactionsTime
         , listTransactionsLimitedTime
-        , estimateFeesTime
+        , estimateFeesTime = Right estimateFeesTime
         , walletOverview
         }
 
@@ -1030,3 +1030,13 @@ benchEstimateTxFee network (WalletLayer _ _ netLayer txLayer dbLayer) =
             dummyChangeAddressGen
             defaultTransactionCtx
             (PreSelection [outputWithZeroAda])
+
+data CannotEstimateFeeForWalletWithEmptyUTxO =
+    CannotEstimateFeeForWalletWithEmptyUTxO
+    deriving (Show, Generic)
+
+instance Buildable CannotEstimateFeeForWalletWithEmptyUTxO where
+    build = genericF
+
+instance ToJSON CannotEstimateFeeForWalletWithEmptyUTxO where
+    toJSON = genericToJSON Aeson.defaultOptions
