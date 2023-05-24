@@ -3391,17 +3391,17 @@ balanceTx
     seed
     partialTx
     = (`evalRand` stdGenFromSeed seed) $ runExceptT $ do
-            (transactionInEra, _nextChangeState) <-
-                balanceTransaction
-                    nullTracer
-                    utxoAssumptions
-                    protocolParameters
-                    timeTranslation
-                    (constructUTxOIndex utxo)
-                    genChange
-                    s
-                    partialTx
-            pure transactionInEra
+        (transactionInEra, _nextChangeState) <-
+            balanceTransaction
+                nullTracer
+                utxoAssumptions
+                protocolParameters
+                timeTranslation
+                (constructUTxOIndex utxo)
+                genChange
+                s
+                partialTx
+        pure transactionInEra
 
 -- | Also returns the updated change state
 balanceTransactionWithDummyChangeState
