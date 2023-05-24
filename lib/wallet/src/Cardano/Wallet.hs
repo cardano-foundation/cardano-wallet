@@ -23,6 +23,8 @@
 {-# LANGUAGE TypeApplications #-}
 {-# LANGUAGE TypeFamilies #-}
 {-# LANGUAGE TypeOperators #-}
+{-# OPTIONS_GHC -Wno-redundant-constraints #-} -- suppress false warning
+{-# OPTIONS_GHC -Wno-unticked-promoted-constructors #-}
 
 -- |
 -- Copyright: © 2018-2020 IOHK
@@ -211,6 +213,7 @@ module Cardano.Wallet
     , throttle
     , guardHardIndex
     , toBalanceTxPParams
+    , utxoAssumptionsForWallet
 
     -- * Logging
     , WalletWorkerLog (..)
@@ -336,7 +339,14 @@ import Cardano.Wallet.DB.WalletState
     , getSlot
     )
 import Cardano.Wallet.Flavor
-    ( KeyOf, WalletFlavor (..), WalletFlavorS (..), keyFlavor )
+    ( Excluding
+    , KeyFlavorS (..)
+    , KeyOf
+    , WalletFlavor (..)
+    , WalletFlavorS (..)
+    , keyFlavor
+    , keyOfWallet
+    )
 import Cardano.Wallet.Logging
     ( BracketLog
     , BracketLog' (..)
@@ -496,6 +506,7 @@ import Cardano.Wallet.Write.Tx.Balance
     , ErrBalanceTxInternalError (..)
     , ErrSelectAssets (..)
     , PartialTx (..)
+    , UTxOAssumptions (..)
     , assignChangeAddresses
     , balanceTransaction
     , constructUTxOIndex
@@ -503,7 +514,7 @@ import Cardano.Wallet.Write.Tx.Balance
 import Cardano.Wallet.Write.Tx.TimeTranslation
     ( TimeTranslation )
 import Control.Arrow
-    ( first )
+    ( first, (>>>) )
 import Control.DeepSeq
     ( NFData )
 import Control.Monad
@@ -630,7 +641,6 @@ import qualified Cardano.Wallet.Primitive.Types.UTxOStatistics as UTxOStatistics
 import qualified Cardano.Wallet.Read as Read
 import qualified Cardano.Wallet.Write.ProtocolParameters as Write
 import qualified Cardano.Wallet.Write.Tx as Write
-import qualified Cardano.Wallet.Write.Tx.Balance as Write
 import qualified Data.ByteArray as BA
 import qualified Data.Delta.Update as Delta
 import qualified Data.Foldable as F
@@ -1840,16 +1850,17 @@ type MakeRewardAccountBuilder k =
 --
 -- Requires the encryption passphrase in order to decrypt the root private key.
 buildSignSubmitTransaction
-    :: forall s k
-     . ( WalletKey k
-       , HardDerivation k
-       , Bounded (Index (AddressIndexDerivationType k) (AddressCredential k))
-       , IsOwned s k 'CredFromKeyK
-       , IsOurs s RewardAccount
-       , AddressBookIso s
-       , WalletFlavor s
-       , k ~ KeyOf s
-       )
+    :: forall s k.
+        ( WalletKey k
+        , HardDerivation k
+        , Bounded (Index (AddressIndexDerivationType k) (AddressCredential k))
+        , IsOwned s k 'CredFromKeyK
+        , IsOurs s RewardAccount
+        , AddressBookIso s
+        , WalletFlavor s
+        , Excluding '[SharedKey] k
+        , k ~ KeyOf s
+        )
     => DBLayer IO s
     -> NetworkLayer IO Read.Block
     -> TransactionLayer k 'CredFromKeyK SealedTx
@@ -1932,15 +1943,16 @@ buildSignSubmitTransaction db@DBLayer{..} netLayer txLayer pwd walletId
     wrapBalanceConstructError = either ExceptionBalanceTx ExceptionConstructTx
 
 buildAndSignTransactionPure
-    :: forall k s
-     . ( WalletKey k
-       , HardDerivation k
-       , Bounded (Index (AddressIndexDerivationType k) (AddressCredential k))
-       , IsOwned s k 'CredFromKeyK
-       , IsOurs s RewardAccount
-       , WalletFlavor s
-       , k ~ KeyOf s
-       )
+    :: forall k s.
+        ( WalletKey k
+        , HardDerivation k
+        , Bounded (Index (AddressIndexDerivationType k) (AddressCredential k))
+        , IsOwned s k 'CredFromKeyK
+        , IsOurs s RewardAccount
+        , WalletFlavor s
+        , Excluding '[SharedKey] k
+        , k ~ KeyOf s
+        )
     => TimeTranslation
     -> UTxO
     -> k 'RootK XPrv
@@ -2033,11 +2045,12 @@ buildAndSignTransactionPure
     anyCardanoEra = Write.fromAnyRecentEra era
 
 buildTransaction
-    :: forall s era
-    . ( WalletFlavor s
-      , Write.IsRecentEra era
-      , AddressBookIso s
-      )
+    :: forall s era.
+        ( WalletFlavor s
+        , Write.IsRecentEra era
+        , AddressBookIso s
+        , Excluding '[SharedKey] (KeyOf s)
+        )
     => DBLayer IO s
     -> TransactionLayer (KeyOf s) 'CredFromKeyK SealedTx
     -> TimeTranslation
@@ -2074,10 +2087,11 @@ buildTransaction DBLayer{..} txLayer timeTranslation changeAddrGen
                 & either (liftIO . throwIO) pure
 
 buildTransactionPure
-    :: forall s era
-     . ( Write.IsRecentEra era
-       , WalletFlavor s
-       )
+    :: forall s era.
+        ( Write.IsRecentEra era
+        , WalletFlavor s
+        , Excluding '[SharedKey] (KeyOf s)
+        )
     => Wallet s
     -> TimeTranslation
     -> UTxO
@@ -2091,9 +2105,8 @@ buildTransactionPure
         (Rand StdGen)
         (Cardano.Tx era, s)
 buildTransactionPure
-    wallet timeTranslation utxo txLayer changeAddrGen
-    pparams preSelection txCtx = do
-    --
+    wallet timeTranslation utxo txLayer changeAddrGen pparams preSelection txCtx
+    = do
     unsignedTxBody <-
         withExceptT (Right . ErrConstructTxBody) . except $
             mkUnsignedTransaction txLayer @era
@@ -2104,7 +2117,7 @@ buildTransactionPure
     withExceptT Left $
         balanceTransaction @_ @_ @s
             nullTracer
-            (Write.allKeyPaymentCredentials txLayer)
+            (utxoAssumptionsForWallet (walletFlavor @s))
             pparams
             timeTranslation
             (constructUTxOIndex utxo)
@@ -2700,6 +2713,7 @@ delegationFee
     :: forall s
      . ( AddressBookIso s
        , WalletFlavor s
+       , Excluding '[SharedKey] (KeyOf s)
        )
     => DBLayer IO s
     -> NetworkLayer IO Read.Block
@@ -2733,6 +2747,7 @@ transactionFee
      . ( AddressBookIso s
        , Write.IsRecentEra era
        , WalletFlavor s
+       , Excluding '[SharedKey] (KeyOf s)
        )
     => DBLayer IO s
     -> Write.ProtocolParameters era
@@ -2774,11 +2789,12 @@ transactionFee DBLayer{atomically, walletState} protocolParams txLayer
                 , inputs = Cardano.UTxO mempty
                 , redeemers = []
                 }
+
         wrapErrSelectAssets $ calculateFeePercentiles $ do
             res <- runExceptT $
                     balanceTransaction @_ @_ @s
                         nullTracer
-                        (Write.allKeyPaymentCredentials txLayer)
+                        (utxoAssumptionsForWallet (walletFlavor @s))
                         protocolParams
                         timeTranslation
                         utxoIndex
@@ -3659,7 +3675,7 @@ instance HasSeverityAnnotation TxSubmitLog where
 
 -- | Construct the default 'ChangeAddressGen s' for a given 's'.
 defaultChangeAddressGen
-    :: forall s .
+    :: forall s.
         ( GenChange s
         , WalletFlavor s
         )
@@ -3672,11 +3688,18 @@ defaultChangeAddressGen arg =
 
 -- WARNING: Must never be used to create real transactions for submission to the
 -- blockchain as funds sent to a dummy change address would be irrecoverable.
-dummyChangeAddressGen
-    :: forall s
-     . WalletFlavor s
-    => ChangeAddressGen s
+dummyChangeAddressGen :: forall s. WalletFlavor s => ChangeAddressGen s
 dummyChangeAddressGen =
     ChangeAddressGen
         (maxLengthAddressFor (keyFlavor @s),)
         (maxLengthAddressFor (keyFlavor @s))
+
+utxoAssumptionsForWallet
+    :: forall s.
+        Excluding '[SharedKey] (KeyOf s)
+    => WalletFlavorS s
+    -> UTxOAssumptions
+utxoAssumptionsForWallet = keyOfWallet >>> \case
+    ByronKeyS -> AllByronKeyPaymentCredentials
+    IcarusKeyS -> AllByronKeyPaymentCredentials
+    ShelleyKeyS -> AllKeyPaymentCredentials

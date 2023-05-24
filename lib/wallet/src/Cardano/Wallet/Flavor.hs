@@ -6,9 +6,11 @@
 {-# LANGUAGE FlexibleInstances #-}
 {-# LANGUAGE GADTs #-}
 {-# LANGUAGE MultiParamTypeClasses #-}
+{-# LANGUAGE PolyKinds #-}
 {-# LANGUAGE ScopedTypeVariables #-}
 {-# LANGUAGE TypeApplications #-}
 {-# LANGUAGE TypeFamilies #-}
+{-# LANGUAGE TypeOperators #-}
 
 module Cardano.Wallet.Flavor
     ( WalletFlavorS (..)
@@ -17,6 +19,9 @@ module Cardano.Wallet.Flavor
     , TestState (..)
     , KeyFlavorS (..)
     , keyFlavor
+    , keyOfWallet
+    , Including
+    , Excluding
     )
 where
 
@@ -114,3 +119,23 @@ keyOfWallet TestStateS = ShelleyKeyS
 -- > keyFlavor @s
 keyFlavor :: forall s. WalletFlavor s => KeyFlavorS (KeyOf s)
 keyFlavor = keyOfWallet (walletFlavor @s)
+
+-- | A type family to check if a type is included in a list of types.
+-- This type family exists as a way to refine types in functions.
+-- Ideally we wouldn't need it, as we want our types to describe the domain
+-- precisely enough not to need a refinement.
+-- However, in practice, we need to temporary refine types in functions,
+-- as we're refactoring the codebase.
+type family Exclude xs x where
+    Exclude '[] _ = 'True
+    Exclude (x ': xs) x = 'False
+    Exclude (x ': xs) y = Exclude xs y
+
+type family Include xs x where
+    Include '[] _ = 'False
+    Include (x ': xs) x = 'True
+    Include (x ': xs) y = Include xs y
+
+type Excluding (xs :: [k]) (x :: k) = Exclude xs x ~ 'True
+
+type Including xs x = Include xs x ~ 'True

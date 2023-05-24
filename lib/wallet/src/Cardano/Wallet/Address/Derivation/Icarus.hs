@@ -136,7 +136,7 @@ newtype IcarusKey (depth :: Depth) key =
 instance NFData key => NFData (IcarusKey depth key)
 
 instance TxWitnessTagFor IcarusKey where
-    txWitnessTagFor = TxWitnessByronIcarusUTxO
+    txWitnessTagFor = TxWitnessByronUTxO
 
 -- | The minimum seed length for 'generateKeyFromSeed' and 'unsafeGenerateKeyFromSeed'.
 minSeedLengthBytes :: Int

@@ -17,6 +17,7 @@
 {-# LANGUAGE TypeFamilies #-}
 {-# LANGUAGE TypeOperators #-}
 {-# OPTIONS_GHC -Wno-unrecognised-pragmas #-}
+{-# OPTIONS_GHC -Wno-unticked-promoted-constructors #-}
 
 {-# HLINT ignore "Use record patterns" #-}
 
@@ -142,7 +143,6 @@ import Cardano.Address.Script
     ( Cosigner (..)
     , KeyHash (..)
     , KeyRole (..)
-    , Script
     , ScriptTemplate (..)
     , ValidationLevel (..)
     , foldScript
@@ -197,6 +197,7 @@ import Cardano.Wallet
     , networkLayer
     , readWalletMeta
     , transactionLayer
+    , utxoAssumptionsForWallet
     )
 import Cardano.Wallet.Address.Book
     ( AddressBookIso )
@@ -428,7 +429,7 @@ import Cardano.Wallet.Compat
 import Cardano.Wallet.DB
     ( DBFactory (..), DBFresh, DBLayer, loadDBLayer )
 import Cardano.Wallet.Flavor
-    ( KeyOf, WalletFlavor (..), WalletFlavorS (ShelleyWallet) )
+    ( Excluding, KeyOf, WalletFlavor (..), WalletFlavorS (..) )
 import Cardano.Wallet.Network
     ( NetworkLayer (..), fetchRewardAccountBalances, timeInterpreter )
 import Cardano.Wallet.Pools
@@ -550,7 +551,7 @@ import Cardano.Wallet.Unsafe
 import Cardano.Wallet.Write.Tx
     ( AnyRecentEra (..) )
 import Cardano.Wallet.Write.Tx.Balance
-    ( constructUTxOIndex )
+    ( UTxOAssumptions (..), constructUTxOIndex )
 import Control.Arrow
     ( second, (&&&) )
 import Control.DeepSeq
@@ -1755,9 +1756,10 @@ getWalletUtxoSnapshot ctx (ApiT wid) = do
 -------------------------------------------------------------------------------}
 
 selectCoins
-    :: forall s n k .
+    :: forall s n k.
         ( IsOurs s Address
         , WalletFlavor s
+        , Excluding '[SharedKey] k
         , s ~ SeqState n k
         , AddressBookIso s
         , GenChange s
@@ -1817,6 +1819,7 @@ selectCoinsForJoin
     :: forall s n k.
         ( s ~ SeqState n k
         , WalletFlavor s
+        , Excluding '[SharedKey] k
         , AddressBookIso s
         , Seq.SupportsDiscovery n k
         , DelegationAddress k 'CredFromKeyK
@@ -1884,6 +1887,7 @@ selectCoinsForQuit
     :: forall s n k.
         ( s ~ SeqState n k
         , WalletFlavor s
+        , Excluding '[SharedKey] k
         , AddressBookIso s
         , Seq.SupportsDiscovery n k
         , DelegationAddress k 'CredFromKeyK
@@ -2157,6 +2161,7 @@ postTransactionOld
         , AddressBookIso s
         , HasDelegation s
         , WalletFlavor s
+        , Excluding '[SharedKey] k
         , IsOurs s RewardAccount
         , k ~ KeyOf s
         )
@@ -2336,6 +2341,7 @@ mkApiTransactionFromInfo ti wrk deposit info metadataSchema = do
 postTransactionFeeOld
     :: forall s n k
      . ( WalletFlavor s
+       , Excluding '[SharedKey] k
        , AddressBookIso s
        , TxWitnessTagFor k
        , k ~ KeyOf s
@@ -2408,10 +2414,13 @@ postTransactionFeeOld ctx@ApiLayer{..} (ApiT walletId) body = do
     padding = Quantity 20
 
 constructTransaction
-    :: forall n
-     . HasSNetworkId n
-    => ApiLayer (SeqState n ShelleyKey) 'CredFromKeyK
-    -> ArgGenChange (SeqState n ShelleyKey)
+    :: forall n s k.
+        ( HasSNetworkId n
+        , s ~ SeqState n k
+        , k ~ ShelleyKey
+        )
+    => ApiLayer s 'CredFromKeyK
+    -> ArgGenChange s
     -> IO (Set PoolId)
     -> (PoolId -> IO PoolLifeCycleStatus)
     -> ApiT WalletId
@@ -2446,7 +2455,7 @@ constructTransaction api argGenChange knownPools poolStatus apiWalletId body = d
     withWorkerCtx api walletId liftE liftE $ \wrk -> do
         let db = wrk ^. dbLayer
             netLayer = wrk ^. networkLayer
-            txLayer = wrk ^. transactionLayer @ShelleyKey @'CredFromKeyK
+            txLayer = wrk ^. transactionLayer @k @'CredFromKeyK
             trWorker = MsgWallet >$< wrk ^. logger
         pp <- liftIO $ NW.currentProtocolParameters netLayer
         era <- liftIO $ NW.currentNodeEra netLayer
@@ -2457,7 +2466,7 @@ constructTransaction api argGenChange knownPools poolStatus apiWalletId body = d
         withdrawal <- case body ^. #withdrawal of
             Just SelfWithdraw -> liftIO $
                 W.shelleyOnlyMkSelfWithdrawal
-                    netLayer (txWitnessTagFor @ShelleyKey) era db
+                    netLayer (txWitnessTagFor @k) era db
             _ -> pure NoWithdrawal
 
         let transactionCtx0 = defaultTransactionCtx
@@ -2489,7 +2498,7 @@ constructTransaction api argGenChange knownPools poolStatus apiWalletId body = d
                             (ApiT scriptT)
                             (Just (ApiT tName))
                             (ApiMint (ApiMintData _ amt)) ->
-                            toTokenMapAndScript @ShelleyKey
+                            toTokenMapAndScript @k
                                 scriptT
                                 (Map.singleton (Cosigner 0) policyXPub)
                                 tName
@@ -2500,7 +2509,7 @@ constructTransaction api argGenChange knownPools poolStatus apiWalletId body = d
                             (ApiT scriptT)
                             (Just (ApiT tName))
                             (ApiBurn (ApiBurnData amt)) ->
-                            toTokenMapAndScript @ShelleyKey
+                            toTokenMapAndScript @k
                                 scriptT
                                 (Map.singleton (Cosigner 0) policyXPub)
                                 tName
@@ -2553,13 +2562,17 @@ constructTransaction api argGenChange knownPools poolStatus apiWalletId body = d
                     PreSelection { outputs = outs <> mintingOuts }
 
         balancedTx <-
-            balanceTransaction api argGenChange Nothing Nothing apiWalletId
+            balanceTransaction
+                api
+                argGenChange
+                (utxoAssumptionsForWallet (walletFlavor @s))
+                apiWalletId
                 ApiBalanceTransactionPostData
-                { transaction = ApiT (sealedTxFromCardanoBody unbalancedTx)
-                , inputs = []
-                , redeemers = []
-                , encoding = body ^. #encoding
-                }
+                    { transaction = ApiT (sealedTxFromCardanoBody unbalancedTx)
+                    , inputs = []
+                    , redeemers = []
+                    , encoding = body ^. #encoding
+                    }
 
         apiDecoded <- decodeTransaction @_ @n api apiWalletId balancedTx
 
@@ -2905,8 +2918,10 @@ constructSharedTransaction
                     txLayer db txCtx PreSelection {outputs = outs}
 
                 balancedTx <-
-                    balanceTransaction api argGenChange (Just scriptLookup)
-                    (Just (Shared.paymentTemplate $ getState cp)) (ApiT wid)
+                    balanceTransaction api argGenChange
+                    (AllScriptPaymentCredentialsFrom
+                        (Shared.paymentTemplate (getState cp)) scriptLookup)
+                    (ApiT wid)
                         ApiBalanceTransactionPostData
                         { transaction =
                             ApiT $ sealedTxFromCardanoBody unbalancedTx
@@ -3049,26 +3064,19 @@ decodeSharedTransaction ctx (ApiT wid) (ApiSerialisedTransaction (ApiT sealed) _
         }
 
 balanceTransaction
-    :: forall s k ktype n
-     . ( GenChange s
-       , WalletFlavor s
-       , TxWitnessTagFor k
-       , k ~ KeyOf s
-       )
+    :: forall s k ktype n.
+        ( GenChange s
+        , WalletFlavor s
+        , k ~ KeyOf s
+        )
     => ApiLayer s ktype
     -> ArgGenChange s
-    -> Maybe (Address -> Script KeyHash)
-    -> Maybe ScriptTemplate
+    -> UTxOAssumptions
     -> ApiT WalletId
     -> ApiBalanceTransactionPostData n
     -> Handler ApiSerialisedTransaction
 balanceTransaction
-    ctx@ApiLayer{..}
-    argGenChange
-    genInpScripts
-    mScriptTemplate
-    (ApiT wid)
-    body = do
+    ctx@ApiLayer{..} argGenChange utxoAssumptions (ApiT wid) body = do
     -- NOTE: Ideally we'd read @pp@ and @era@ atomically.
     pp <- liftIO $ NW.currentProtocolParameters nl
     era <- liftIO $ NW.currentNodeEra nl
@@ -3126,10 +3134,7 @@ balanceTransaction
             balanceTx partialTx =
                 liftHandler $ fst <$> Write.balanceTransaction @_ @IO @s
                     (MsgWallet . W.MsgBalanceTx >$< wrk ^. W.logger)
-                    (Write.UTxOAssumptions
-                        genInpScripts
-                        mScriptTemplate
-                        (txWitnessTagFor @k))
+                    utxoAssumptions
                     (Write.unsafeFromWalletProtocolParameters pp)
                     timeTranslation
                     (constructUTxOIndex walletUTxO)
@@ -3502,6 +3507,7 @@ joinStakePool
     :: forall s n k.
         ( s ~ SeqState n k
         , WalletFlavor s
+        , Excluding '[SharedKey] k
         , AddressIndexDerivationType k ~ 'Soft
         , GenChange s
         , IsOwned s k 'CredFromKeyK

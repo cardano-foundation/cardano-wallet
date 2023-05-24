@@ -38,8 +38,6 @@ module Cardano.Wallet.Write.Tx.Balance
 
     -- * UTxO assumptions
     , UTxOAssumptions (..)
-    , allKeyPaymentCredentials
-    , allScriptPaymentCredentials
 
     -- * UTxO indices
     , UTxOIndex
@@ -78,12 +76,10 @@ import Cardano.Tx.Balance.Internal.CoinSelection
     , performSelection
     , toInternalUTxOMap
     )
-import Cardano.Wallet.Address.Derivation
-    ( Depth (..) )
-import Cardano.Wallet.Address.Derivation.Shared
-    ( SharedKey (..) )
 import Cardano.Wallet.Primitive.Types
     ( TokenBundleMaxSize (TokenBundleMaxSize) )
+import Cardano.Wallet.Primitive.Types.Address
+    ( Address )
 import Cardano.Wallet.Primitive.Types.Redeemer
     ( Redeemer )
 import Cardano.Wallet.Primitive.Types.TokenBundle
@@ -102,7 +98,6 @@ import Cardano.Wallet.Shelley.Transaction
     ( KeyWitnessCount (..)
     , TxFeeUpdate (..)
     , TxUpdate (..)
-    , TxWitnessTag
     , assignScriptRedeemers
     , calculateMinimumFee
     , distributeSurplus
@@ -115,10 +110,11 @@ import Cardano.Wallet.Transaction
     , ErrMoreSurplusNeeded (..)
     , ErrUpdateSealedTx
     , TransactionCtx (..)
-    , TransactionLayer (..)
     , TxFeeAndChange (..)
     , defaultTransactionCtx
     )
+import Cardano.Wallet.TxWitnessTag
+    ( TxWitnessTag (..) )
 import Cardano.Wallet.Write.ProtocolParameters
     ( ProtocolParameters (..) )
 import Cardano.Wallet.Write.Tx
@@ -340,24 +336,6 @@ instance Buildable (PartialTx era) where
         cardanoTxF :: Cardano.Tx era -> Builder
         cardanoTxF tx' = pretty $ pShow tx'
 
--- | Assumptions about the UTxO which are needed for coin-selection.
---
--- In practice turns out to be
---
--- @
---  data UTxOAssumptions
---      = AllKeyPaymentCredentials
---      | AllByronKeyPaymentCredentials
---      | AllScriptPaymentCredentialsFrom ScriptTemplate scriptLookup
--- @
---
--- however representing it as such is inconvenient at the moment.
-data UTxOAssumptions = UTxOAssumptions
-    { inputScriptLookup :: Maybe (W.Address -> CA.Script KeyHash)
-    , inputScriptTemplate :: Maybe ScriptTemplate
-    , txWitnessTag :: TxWitnessTag
-    }
-
 data UTxOIndex era = UTxOIndex
     { walletUTxO :: !W.UTxO
     , walletUTxOIndex :: !(UTxOIndex.UTxOIndex WalletUTxO)
@@ -371,30 +349,34 @@ constructUTxOIndex walletUTxO =
     walletUTxOIndex = UTxOIndex.fromMap $ toInternalUTxOMap walletUTxO
     cardanoUTxO = toCardanoUTxO Cardano.shelleyBasedEra walletUTxO
 
--- | Assumes all 'UTxO' entries have addresses with key payment credentials;
--- either normal, post-Shelley credentials, or boostrap/byron credentials
--- depending on the 'k' of the supplied 'TransactionLayer'.
-allKeyPaymentCredentials
-    :: forall k. TransactionLayer k 'CredFromKeyK SealedTx -> UTxOAssumptions
-allKeyPaymentCredentials tl = UTxOAssumptions
-    { inputScriptLookup = Nothing
-    , inputScriptTemplate = Nothing
-    , txWitnessTag = transactionWitnessTag tl
-    }
 
--- | Assumes all 'UTxO' entries have addresses with script payment credentials,
--- where the scripts are both derived from the 'ScriptTemplate' and can be
--- looked up using the given function.
-allScriptPaymentCredentials
-    :: (W.Address -> (CA.Script KeyHash))
-    -> ScriptTemplate
-    -> TransactionLayer SharedKey 'CredFromScriptK SealedTx
-    -> UTxOAssumptions
-allScriptPaymentCredentials scriptLookup template tl = UTxOAssumptions
-    { inputScriptLookup = Just scriptLookup
-    , inputScriptTemplate = Just template
-    , txWitnessTag = transactionWitnessTag tl
-    }
+-- | Assumptions about the UTxO which are needed for coin-selection.
+data UTxOAssumptions
+    = AllKeyPaymentCredentials
+    -- ^ Assumes all 'UTxO' entries have addresses with the post-Shelley
+    -- key payment credentials.
+    | AllByronKeyPaymentCredentials
+    -- ^ Assumes all 'UTxO' entries have addresses with the boostrap/byron
+    -- key payment credentials.
+    | AllScriptPaymentCredentialsFrom
+    -- ^ Assumes all 'UTxO' entries have addresses with script
+    -- payment credentials, where the scripts are both derived
+    -- from the 'ScriptTemplate' and can be looked up using the given function.
+        !ScriptTemplate
+        !(Address -> CA.Script KeyHash)
+
+assumedInputScriptTemplate :: UTxOAssumptions -> Maybe ScriptTemplate
+assumedInputScriptTemplate = \case
+    AllKeyPaymentCredentials -> Nothing
+    AllByronKeyPaymentCredentials -> Nothing
+    AllScriptPaymentCredentialsFrom scriptTemplate _ -> Just scriptTemplate
+
+assumedTxWitnessTag :: UTxOAssumptions -> TxWitnessTag
+assumedTxWitnessTag = \case
+    AllKeyPaymentCredentials -> TxWitnessShelleyUTxO
+    AllByronKeyPaymentCredentials -> TxWitnessByronUTxO
+    AllScriptPaymentCredentialsFrom {} -> TxWitnessShelleyUTxO
+
 
 balanceTransaction
     :: forall era m changeState.
@@ -429,15 +411,30 @@ balanceTransaction
     -> PartialTx era
     -> ExceptT ErrBalanceTx m (Cardano.Tx era, changeState)
 balanceTransaction
-    tr utxoAssumptions pp timeTranslation utxo genChange s partialTx = do
+    tr
+    utxoAssumptions
+    pp
+    timeTranslation
+    utxo
+    genChange
+    s
+    partialTx
+    = do
     let adjustedPartialTx = over #tx
             (increaseZeroAdaOutputs (recentEra @era) (pparamsLedger pp))
             partialTx
     let balanceWith strategy =
             balanceTransactionWithSelectionStrategyAndNoZeroAdaAdjustment
                 @era @m @changeState
-                tr utxoAssumptions pp timeTranslation utxo
-                genChange s strategy adjustedPartialTx
+                tr
+                utxoAssumptions
+                pp
+                timeTranslation
+                utxo
+                genChange
+                s
+                strategy
+                adjustedPartialTx
     balanceWith SelectionStrategyOptimal
         `catchE` \e ->
             if minimalStrategyIsWorthTrying e
@@ -526,7 +523,7 @@ balanceTransactionWithSelectionStrategyAndNoZeroAdaAdjustment
     -> ExceptT ErrBalanceTx m (Cardano.Tx era, changeState)
 balanceTransactionWithSelectionStrategyAndNoZeroAdaAdjustment
     tr
-    (UTxOAssumptions toInpScriptsM mScriptTemplate txWitnessTag)
+    utxoAssumptions
     protocolParameters@(ProtocolParameters pp)
     timeTranslation
     (UTxOIndex walletUTxO internalUtxoAvailable cardanoUTxO)
@@ -581,7 +578,7 @@ balanceTransactionWithSelectionStrategyAndNoZeroAdaAdjustment
         let mSel = selectAssets
                 (recentEra @era)
                 protocolParameters
-                txWitnessTag
+                utxoAssumptions
                 (extractOutputsFromTx partialTx)
                 redeemers
                 (UTxOSelection.fromIndexPair
@@ -589,7 +586,6 @@ balanceTransactionWithSelectionStrategyAndNoZeroAdaAdjustment
                 balance0
                 (fromCardanoLovelace minfee0)
                 randomSeed
-                mScriptTemplate
                 genChange
                 selectionStrategy
 
@@ -625,12 +621,14 @@ balanceTransactionWithSelectionStrategyAndNoZeroAdaAdjustment
     -- doing such a thing is considered bonkers and this is not a behavior we
     -- ought to support.
 
-    let extraInputScripts = case toInpScriptsM of
-            Just toInpScripts ->
-                map (toInpScripts . (view #address) . snd)
-                $ extraInputs <> extraCollateral'
-            Nothing ->
-                []
+    let extraInputScripts =
+            case utxoAssumptions of
+                AllKeyPaymentCredentials -> []
+                AllByronKeyPaymentCredentials -> []
+                AllScriptPaymentCredentialsFrom _template toInpScripts ->
+                    toInpScripts . view #address . snd <$>
+                        extraInputs <> extraCollateral'
+
     let extraCollateral = fst <$> extraCollateral'
     let unsafeFromLovelace (Cardano.Lovelace l) = Coin.unsafeFromIntegral l
     candidateTx <- assembleTransaction $ TxUpdate
@@ -886,23 +884,21 @@ selectAssets
      . Cardano.IsCardanoEra era
     => RecentEra era
     -> ProtocolParameters era
-    -> TxWitnessTag
+    -> UTxOAssumptions
     -> [W.TxOut]
     -> [Redeemer]
     -> UTxOSelection WalletUTxO
-    -- ^ Describes which utxos are pre-selected, and which can be used as
+    -- ^ Specifies which UTxOs are pre-selected, and which UTxOs can be used as
     -- inputs or collateral.
     -> Cardano.Value -- Balance to cover
     -> W.Coin -- Current minfee (before selecting assets)
     -> StdGenSeed
-    -> Maybe ScriptTemplate
     -> ChangeAddressGen changeState
     -> SelectionStrategy
     -- ^ A function to assess the size of a token bundle.
     -> Either (SelectionError WalletSelectionContext) Selection
-selectAssets era (ProtocolParameters pp) txWitnessTag outs redeemers
-    utxoSelection balance fee0 seed inputScriptTemplate changeGen
-    selectionStrategy =
+selectAssets era (ProtocolParameters pp) utxoAssumptions outs redeemers
+    utxoSelection balance fee0 seed changeGen selectionStrategy =
         (`evalRand` stdGenFromSeed seed) . runExceptT
             $ performSelection selectionConstraints selectionParams
   where
@@ -911,7 +907,8 @@ selectAssets era (ProtocolParameters pp) txWitnessTag outs redeemers
             let maxBundleSize = TokenBundleMaxSize $ TxSize $ case era of
                     RecentEraBabbage -> pp ^. #_maxValSize
                     RecentEraConway -> pp ^. #_maxValSize
-             in view #assessTokenBundleSize $
+            in
+                view #assessTokenBundleSize $
                     Compatibility.tokenBundleSizeAssessor maxBundleSize
                     -- TODO (ADP-2967): avoid importing Compatibility.
         , computeMinimumAdaQuantity = \addr tokens -> W.toWallet $
@@ -931,9 +928,10 @@ selectAssets era (ProtocolParameters pp) txWitnessTag outs redeemers
             , calculateMinimumFee
                 (Cardano.AnyCardanoEra (fromRecentEra era))
                 feePerByte
-                txWitnessTag
+                (assumedTxWitnessTag utxoAssumptions)
                 (defaultTransactionCtx
-                    { txPaymentCredentialScriptTemplate = inputScriptTemplate })
+                    { txPaymentCredentialScriptTemplate =
+                        assumedInputScriptTemplate utxoAssumptions })
                 skeleton
             ] `Coin.difference` boringFee
         , maximumCollateralInputCount = unsafeIntCast @Natural @Int $
@@ -1001,7 +999,7 @@ selectAssets era (ProtocolParameters pp) txWitnessTag outs redeemers
         calculateMinimumFee
             (Cardano.AnyCardanoEra (fromRecentEra era))
             feePerByte
-            txWitnessTag
+            (assumedTxWitnessTag utxoAssumptions)
             defaultTransactionCtx
             SelectionSkeleton
                 { skeletonInputCount = UTxOSelection.selectedSize utxoSelection
