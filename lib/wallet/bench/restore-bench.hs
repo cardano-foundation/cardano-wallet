@@ -56,6 +56,8 @@ import Cardano.Wallet
     , WalletWorkerLog (..)
     , dummyChangeAddressGen
     )
+import Cardano.Wallet.Address.Book
+    ( AddressBookIso )
 import Cardano.Wallet.Address.Derivation
     ( Depth (..), WalletKey, digest, publicKey )
 import Cardano.Wallet.Address.Derivation.Byron
@@ -450,7 +452,7 @@ benchmarksRnd
     -> Text
     -> Time
     -> IO BenchRndResults
-benchmarksRnd network w@(WalletLayer _ _ netLayer txLayer dbLayer) wname
+benchmarksRnd network w wname
     benchname restoreTime = do
     ((cp, pending), readWalletTime) <- bench "read wallet" $ do
         (cp, _, pending) <- W.readWallet w
@@ -482,26 +484,7 @@ benchmarksRnd network w@(WalletLayer _ _ netLayer txLayer dbLayer) wname
         $ W.listTransactions @_ @s w Nothing Nothing Nothing Descending
             (Just 100)
 
-    (_, estimateFeesTime) <- bench "estimate tx fee" $ do
-        AnyRecentEra (recentEra :: Write.RecentEra era) <-
-            guardIsRecentEra =<< currentNodeEra netLayer
-        (protocolParameters, _bundledProtocolParameters) <-
-            W.toBalanceTxPParams @era <$> currentProtocolParameters netLayer
-        timeTranslation <- toTimeTranslation (timeInterpreter netLayer)
-        -- For an output with zero ada, the transactionFee function should
-        -- automatically assign a minimal amount of lovelace to the output
-        -- before balancing the transaction and computing the fee:
-        let bundleWithZeroAda = TokenBundle.fromCoin (Coin 0)
-        let outputWithZeroAda = TxOut (dummyAddress network) bundleWithZeroAda
-        W.transactionFee @s
-            dbLayer
-            (Write.unsafeFromWalletProtocolParameters protocolParameters)
-            txLayer
-            timeTranslation
-            recentEra
-            dummyChangeAddressGen
-            defaultTransactionCtx
-            (PreSelection [outputWithZeroAda])
+    (_, estimateFeesTime) <- benchEstimateTxFee network w
 
     oneAddress <- genAddresses 1 cp
     (_, importOneAddressTime) <- bench "import one addresses" $ do
@@ -565,7 +548,7 @@ benchmarksSeq
     -> Text -- ^ Bench name
     -> Time
     -> IO BenchSeqResults
-benchmarksSeq network w@(WalletLayer _ _ netLayer txLayer dbLayer) _wname
+benchmarksSeq network w _wname
     benchname restoreTime = do
     ((cp, pending), readWalletTime) <- bench "read wallet" $ do
         (cp, _, pending) <- W.readWallet w
@@ -595,26 +578,7 @@ benchmarksSeq network w@(WalletLayer _ _ netLayer txLayer dbLayer) _wname
         $ W.listTransactions @_ @s w Nothing Nothing Nothing Descending
             (Just 100)
 
-    (_, estimateFeesTime) <- bench "estimate tx fee" $ do
-        AnyRecentEra (recentEra :: Write.RecentEra era) <-
-            guardIsRecentEra =<< currentNodeEra netLayer
-        (protocolParameters, _bundledProtocolParameters) <-
-            W.toBalanceTxPParams @era <$> currentProtocolParameters netLayer
-        timeTranslation <- toTimeTranslation (timeInterpreter netLayer)
-        -- For an output with zero ada, the transactionFee function should
-        -- automatically assign a minimal amount of lovelace to the output
-        -- before balancing the transaction and computing the fee:
-        let bundleWithZeroAda = TokenBundle.fromCoin (Coin 0)
-        let outputWithZeroAda = TxOut (dummyAddress network) bundleWithZeroAda
-        W.transactionFee @s
-            dbLayer
-            (Write.unsafeFromWalletProtocolParameters protocolParameters)
-            txLayer
-            timeTranslation
-            recentEra
-            dummyChangeAddressGen
-            defaultTransactionCtx
-            (PreSelection [outputWithZeroAda])
+    (_, estimateFeesTime) <- benchEstimateTxFee network w
 
     pure BenchSeqResults
         { benchName = benchname
@@ -1039,3 +1003,30 @@ guardIsRecentEra (Cardano.AnyCardanoEra era) = case era of
     where
     invalidEra = throwIO $ ExceptionBalanceTx $ Write.ErrOldEraNotSupported $
         Cardano.AnyCardanoEra era
+
+benchEstimateTxFee
+    :: forall n s. (AddressBookIso s, WalletFlavor s)
+    => SNetworkId n
+    -> WalletLayer IO s 'CredFromKeyK
+    -> IO ((W.Percentile 10 W.Fee, W.Percentile 90 W.Fee), Time)
+benchEstimateTxFee network (WalletLayer _ _ netLayer txLayer dbLayer) =
+    bench "estimate tx fee" $ do
+        AnyRecentEra (recentEra :: Write.RecentEra era) <-
+            guardIsRecentEra =<< currentNodeEra netLayer
+        (protocolParameters, _bundledProtocolParameters) <-
+            W.toBalanceTxPParams @era <$> currentProtocolParameters netLayer
+        timeTranslation <- toTimeTranslation (timeInterpreter netLayer)
+        -- For an output with zero ada, the transactionFee function should
+        -- automatically assign a minimal amount of lovelace to the output
+        -- before balancing the transaction and computing the fee:
+        let bundleWithZeroAda = TokenBundle.fromCoin (Coin 0)
+        let outputWithZeroAda = TxOut (dummyAddress network) bundleWithZeroAda
+        W.transactionFee @s
+            dbLayer
+            (Write.unsafeFromWalletProtocolParameters protocolParameters)
+            txLayer
+            timeTranslation
+            recentEra
+            dummyChangeAddressGen
+            defaultTransactionCtx
+            (PreSelection [outputWithZeroAda])
