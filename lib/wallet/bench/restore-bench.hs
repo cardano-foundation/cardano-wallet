@@ -484,7 +484,7 @@ benchmarksRnd network w wname
         $ W.listTransactions @_ @s w Nothing Nothing Nothing Descending
             (Just 100)
 
-    (_, estimateFeesTime) <- benchEstimateTxFee network w
+    estimateFeesTime <- benchEstimateTxFee network w
 
     oneAddress <- genAddresses 1 cp
     (_, importOneAddressTime) <- bench "import one addresses" $ do
@@ -578,7 +578,7 @@ benchmarksSeq network w _wname
         $ W.listTransactions @_ @s w Nothing Nothing Nothing Descending
             (Just 100)
 
-    (_, estimateFeesTime) <- benchEstimateTxFee network w
+    estimateFeesTime <- benchEstimateTxFee network w
 
     pure BenchSeqResults
         { benchName = benchname
@@ -1008,9 +1008,9 @@ benchEstimateTxFee
     :: forall n s. (AddressBookIso s, WalletFlavor s)
     => SNetworkId n
     -> WalletLayer IO s 'CredFromKeyK
-    -> IO ((W.Percentile 10 W.Fee, W.Percentile 90 W.Fee), Time)
+    -> IO Time
 benchEstimateTxFee network (WalletLayer _ _ netLayer txLayer dbLayer) =
-    bench "estimate tx fee" $ do
+    fmap snd <$> bench "estimate tx fee" $ do
         AnyRecentEra (recentEra :: Write.RecentEra era) <-
             guardIsRecentEra =<< currentNodeEra netLayer
         (protocolParameters, _bundledProtocolParameters) <-
