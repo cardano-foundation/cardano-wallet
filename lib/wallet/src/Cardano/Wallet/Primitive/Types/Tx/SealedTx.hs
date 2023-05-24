@@ -22,10 +22,8 @@ module Cardano.Wallet.Primitive.Types.Tx.SealedTx (
     , sealedTxFromCardano
     , sealedTxFromCardano'
     , sealedTxFromCardanoBody
-    , getSerialisedTxParts
     , unsafeSealedTxFromBytes
     , SerialisedTx (..)
-    , SerialisedTxParts (..)
     , getSealedTxBody
     , getSealedTxWitnesses
     , persistSealedTx
@@ -45,7 +43,6 @@ import Cardano.Api
     , InAnyCardanoEra (..)
     , anyCardanoEra
     , deserialiseFromCBOR
-    , serialiseToCBOR
     )
 import Cardano.Binary
     ( DecoderError )
@@ -295,26 +292,11 @@ unPersistMock bs
   where
     (header, body) = B8.splitAt (B8.length mockSealedTxMagic) bs
 
--- | Get the serialised transaction body and witnesses from a 'SealedTx'.
-getSerialisedTxParts :: SealedTx -> SerialisedTxParts
-getSerialisedTxParts (SealedTx _ (InAnyCardanoEra _ tx) _) = SerialisedTxParts
-    { serialisedTxBody = serialiseToCBOR $ Cardano.getTxBody tx
-    , serialisedTxWitnesses = serialiseToCBOR <$> Cardano.getTxWitnesses tx
-    }
-
 -- | A serialised transaction that may be only partially signed, or even
 -- invalid.
 newtype SerialisedTx = SerialisedTx { payload :: ByteString }
     deriving stock (Show, Eq, Generic, Ord)
     deriving newtype (Semigroup, Monoid, ByteArray, ByteArrayAccess, NFData)
-
--- | @SerialisedTxParts@ is a serialised transaction body, and a possibly
--- incomplete set of serialised witnesses.
-data SerialisedTxParts = SerialisedTxParts
-    { serialisedTxBody :: ByteString
-    , serialisedTxWitnesses :: [ByteString]
-    } deriving stock (Show, Eq, Generic)
-
 
 {-------------------------------------------------------------------------------
                       Internal functions for unit testing
