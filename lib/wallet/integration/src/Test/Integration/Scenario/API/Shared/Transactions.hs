@@ -133,6 +133,7 @@ import Test.Integration.Framework.DSL
     , fixturePassphrase
     , fixtureSharedWallet
     , fixtureSharedWalletDelegating
+    , fixtureWallet
     , fundSharedWallet
     , genMnemonics
     , getFromResponse
@@ -143,6 +144,7 @@ import Test.Integration.Framework.DSL
     , notDelegating
     , patchSharedWallet
     , postSharedWallet
+    , postWallet
     , request
     , sharedAccPubKeyFromMnemonics
     , signSharedTx
@@ -2295,6 +2297,46 @@ spec = describe "SHARED_TRANSACTIONS" $ do
                 , expectField #certificates
                      (`shouldBe` [ delegatingCert3 stakeKeyDerPathParty2])
                 ]
+
+    it "SHARED_TRANSACTIONS_DELEGATION_02 - \
+       \Emulating multi-delegation using shared wallets" $ \ctx -> runResourceT $ do
+
+        -- creating empty parent Shelley wallet
+        m15 <- liftIO $ genMnemonics M15
+        m12 <- liftIO $ genMnemonics M12
+        let payloadCreate = Json [json|{
+                "name": "Parent Shelley Wallet",
+                "mnemonic_sentence": #{m15},
+                "mnemonic_second_factor": #{m12},
+                "passphrase": #{fixturePassphrase}
+             }|]
+        rPostCreate <- postWallet ctx payloadCreate
+        verify rPostCreate
+            [ expectResponseCode HTTP.status201 ]
+        let parentWal = getFromResponse Prelude.id rPostCreate
+
+        -- financing the parent Shelley wallet
+        rAddr <- request @[ApiAddressWithPath n] ctx
+            (Link.listAddresses @'Shelley parentWal) Default Empty
+        expectResponseCode HTTP.status200 rAddr
+        let addrs = getFromResponse Prelude.id rAddr
+        let destination = (addrs !! 1) ^. #id
+        wShelley <- fixtureWallet ctx
+        let payloadTx = Json [json|{
+                "payments": [{
+                    "address": #{destination},
+                    "amount": {
+                        "quantity": #{faucetUtxoAmt},
+                        "unit": "lovelace"
+                    }
+                }],
+                "passphrase": #{fixturePassphrase}
+            }|]
+        let ep = Link.createTransactionOld @'Shelley
+        rTx <- request @(ApiTransaction n) ctx (ep wShelley) Default payloadTx
+        expectResponseCode HTTP.status202 rTx
+
+
   where
      listSharedTransactions ctx w mStart mEnd mOrder mLimit = do
          let path = Link.listTransactions' @'Shared w
