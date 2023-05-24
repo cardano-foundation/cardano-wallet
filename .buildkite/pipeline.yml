@@ -14,6 +14,7 @@ steps:
     command: './.buildkite/check-bors.sh'
     agents:
       system: ${linux}
+      queue: adrestia
 
   - wait: ~
     if: 'build.branch == "staging"'
@@ -25,6 +26,7 @@ steps:
       - './nix/regenerate.sh'
     agents:
       system: ${linux}
+      queue: adrestia
     env:
       TMPDIR: "/cache"
 
@@ -37,6 +39,7 @@ steps:
 
     agents:
       system: ${linux}
+      queue: adrestia
     env:
       TMPDIR: "/cache"
 
@@ -45,6 +48,7 @@ steps:
     command: 'nix develop --command scripts/buildkite/check-haskell-nix-cabal.sh'
     agents:
       system: ${linux}
+      queue: adrestia
     env:
       TMPDIR: "/cache"
 
@@ -53,6 +57,7 @@ steps:
     command: 'nix develop --command .buildkite/check-stylish.sh'
     agents:
       system: ${linux}
+      queue: adrestia
     env:
       TMPDIR: "/cache"
 
@@ -61,6 +66,7 @@ steps:
     command: 'nix develop --command bash -c "echo +++ HLint ; hlint lib"'
     agents:
       system: ${linux}
+      queue: adrestia
     env:
       TMPDIR: "/cache"
 
@@ -69,6 +75,7 @@ steps:
     command: 'nix develop --command bash -c "echo +++ openapi-spec-validator ; openapi-spec-validator --schema 3.0.0 specifications/api/swagger.yaml"'
     agents:
       system: ${linux}
+      queue: adrestia
     env:
       TMPDIR: "/cache"
 
@@ -77,6 +84,7 @@ steps:
     command: 'nix develop --command scripts/todo-list.sh'
     agents:
       system: ${linux}
+      queue: adrestia
     env:
       TMPDIR: "/cache"
 
@@ -87,6 +95,7 @@ steps:
       - './scripts/shellcheck.sh'
     agents:
       system: ${linux}
+      queue: adrestia
     env:
       TMPDIR: "/cache"
 
@@ -97,6 +106,7 @@ steps:
         nix develop --command bash -c "haskell-language-server lib/wallet/src/Cardano/Wallet.hs"
     agents:
       system: ${linux}
+      queue: adrestia
     env:
       TMPDIR: "/cache"
 
@@ -111,6 +121,7 @@ steps:
     depends_on: trigger-linux
     agents:
       system: ${linux}
+      queue: adrestia
     env:
       TMPDIR: "/cache"
 
@@ -124,6 +135,7 @@ steps:
     timeout_in_minutes: 20
     agents:
       system: x86_64-linux
+      queue: adrestia
     # We do not use the  benchmark  queue here, as we don't want
     # to use system resources that are intended for long-running processes
     # to perform quick-and-dirty benchmark runs.
@@ -172,6 +184,7 @@ steps:
     artifact_paths: [ "./result/linux/**" ]
     agents:
       system: ${linux}
+      queue: adrestia
     env:
       TMPDIR: "/cache"
 
@@ -184,6 +197,7 @@ steps:
       - "./docker-build-push"
     agents:
       system: ${linux}
+      queue: adrestia
     env:
       TMPDIR: "/cache"
     soft_fail:
@@ -201,6 +215,7 @@ steps:
     artifact_paths: [ "./result/windows/**" ]
     agents:
       system: ${linux}
+      queue: adrestia
     env:
       TMPDIR: "/cache"
 
@@ -211,6 +226,7 @@ steps:
     artifact_paths: [ "./result/windows-tests/**" ]
     agents:
       system: ${linux}
+      queue: adrestia
     env:
       TMPDIR: "/cache"
 
