@@ -2304,16 +2304,16 @@ spec = describe "SHARED_TRANSACTIONS" $ do
         -- creating empty parent Shelley wallet
         m15 <- liftIO $ genMnemonics M15
         m12 <- liftIO $ genMnemonics M12
-        let payloadCreate = Json [json|{
+        let payloadCreateParent = Json [json|{
                 "name": "Parent Shelley Wallet",
                 "mnemonic_sentence": #{m15},
                 "mnemonic_second_factor": #{m12},
                 "passphrase": #{fixturePassphrase}
              }|]
-        rPostCreate <- postWallet ctx payloadCreate
-        verify rPostCreate
+        rPostCreateParent <- postWallet ctx payloadCreateParent
+        verify rPostCreateParent
             [ expectResponseCode HTTP.status201 ]
-        let parentWal = getFromResponse Prelude.id rPostCreate
+        let parentWal = getFromResponse Prelude.id rPostCreateParent
 
         -- financing the parent Shelley wallet
         rAddr <- request @[ApiAddressWithPath n] ctx
@@ -2345,6 +2345,46 @@ spec = describe "SHARED_TRANSACTIONS" $ do
                     (`shouldBe` Quantity faucetUtxoAmt)
                 ]
 
+        -- create two child shared wallets using the same mnemonic as parent
+        -- Shelley wallet and different account indices
+        let payloadCreateChild :: T.Text -> T.Text -> Payload
+            payloadCreateChild ix name = Json [json| {
+                "name": #{name},
+                "mnemonic_sentence": #{m15},
+                "mnemonic_second_factor": #{m12},
+                "passphrase": #{fixturePassphrase},
+                "account_index": #{ix},
+                "payment_script_template":
+                    { "cosigners":
+                        { "cosigner#0": "self" },
+                      "template":
+                          { "all": ["cosigner#0"]
+                          }
+                    },
+                "delegation_script_template":
+                    { "cosigners":
+                        { "cosigner#0": "self" },
+                      "template":
+                          { "all": ["cosigner#0"]
+                          }
+                    }
+                } |]
+
+        rPostCreateChild1 <- postSharedWallet ctx Default
+            (payloadCreateChild "0H" "Shared Wallet 1")
+        verify (fmap (view #wallet) <$> rPostCreateChild1)
+            [ expectResponseCode HTTP.status201
+            ]
+        let sharedWal1 = getFromResponse Prelude.id rPostCreateChild1
+        let (ApiSharedWallet (Right walActive1)) = sharedWal1
+
+        rPostCreateChild2 <- postSharedWallet ctx Default
+            (payloadCreateChild "1H" "Shared Wallet 2")
+        let sharedWal2 = getFromResponse Prelude.id rPostCreateChild2
+        let (ApiSharedWallet (Right walActive2)) = sharedWal2
+        verify (fmap (view #wallet) <$> rPostCreateChild2)
+            [ expectResponseCode HTTP.status201
+            ]
 
   where
      listSharedTransactions ctx w mStart mEnd mOrder mLimit = do
