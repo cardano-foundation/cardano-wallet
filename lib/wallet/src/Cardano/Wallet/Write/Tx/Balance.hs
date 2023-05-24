@@ -353,13 +353,13 @@ constructUTxOIndex walletUTxO =
 -- | Assumptions about the UTxO which are needed for coin-selection.
 data UTxOAssumptions
     = AllKeyPaymentCredentials
-    -- Assumes all 'UTxO' entries have addresses with the post-Shelley
+    -- ^ Assumes all 'UTxO' entries have addresses with the post-Shelley
     -- key payment credentials.
     | AllByronKeyPaymentCredentials
-    -- Assumes all 'UTxO' entries have addresses with the boostrap/byron
+    -- ^ Assumes all 'UTxO' entries have addresses with the boostrap/byron
     -- key payment credentials.
     | AllScriptPaymentCredentialsFrom
-    -- Assumes all 'UTxO' entries have addresses with script
+    -- ^ Assumes all 'UTxO' entries have addresses with script
     -- payment credentials, where the scripts are both derived
     -- from the 'ScriptTemplate' and can be looked up using the given function.
         !ScriptTemplate
