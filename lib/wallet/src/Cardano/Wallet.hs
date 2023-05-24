@@ -3675,7 +3675,7 @@ instance HasSeverityAnnotation TxSubmitLog where
 
 -- | Construct the default 'ChangeAddressGen s' for a given 's'.
 defaultChangeAddressGen
-    :: forall s .
+    :: forall s.
         ( GenChange s
         , WalletFlavor s
         )
@@ -3688,18 +3688,15 @@ defaultChangeAddressGen arg =
 
 -- WARNING: Must never be used to create real transactions for submission to the
 -- blockchain as funds sent to a dummy change address would be irrecoverable.
-dummyChangeAddressGen
-    :: forall s
-     . WalletFlavor s
-    => ChangeAddressGen s
+dummyChangeAddressGen :: forall s. WalletFlavor s => ChangeAddressGen s
 dummyChangeAddressGen =
     ChangeAddressGen
         (maxLengthAddressFor (keyFlavor @s),)
         (maxLengthAddressFor (keyFlavor @s))
 
 utxoAssumptionsForWallet
-    :: forall s
-     . Excluding '[SharedKey] (KeyOf s)
+    :: forall s.
+        Excluding '[SharedKey] (KeyOf s)
     => WalletFlavorS s
     -> UTxOAssumptions
 utxoAssumptionsForWallet = keyOfWallet >>> \case
