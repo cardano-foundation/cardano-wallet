@@ -2413,7 +2413,7 @@ spec = describe "SHARED_TRANSACTIONS" $ do
                         "unit": "lovelace"
                     }
                 }, {
-                    "address": #{destAddr1},
+                    "address": #{destAddr2},
                     "amount": {
                         "quantity": #{transfer},
                         "unit": "lovelace"
@@ -2424,6 +2424,24 @@ spec = describe "SHARED_TRANSACTIONS" $ do
         rTx2 <- request @(ApiTransaction n) ctx (ep parentWal) Default payloadTx1
         expectResponseCode HTTP.status202 rTx2
 
+        eventually "Child shared wallet 1 balance is increased by target" $ do
+            rGet <- request @ApiWallet ctx
+                (Link.getWallet @'Shared walActive1) Default Empty
+            verify rGet
+                [ expectField
+                        (#balance . #total) (`shouldBe` Quantity transfer)
+                , expectField
+                        (#balance . #available) (`shouldBe` Quantity transfer)
+                ]
+        eventually "Child shared wallet 2 balance is increased by target" $ do
+            rGet <- request @ApiWallet ctx
+                (Link.getWallet @'Shared walActive2) Default Empty
+            verify rGet
+                [ expectField
+                        (#balance . #total) (`shouldBe` Quantity transfer)
+                , expectField
+                        (#balance . #available) (`shouldBe` Quantity transfer)
+                ]
 
   where
      listSharedTransactions ctx w mStart mEnd mOrder mLimit = do
