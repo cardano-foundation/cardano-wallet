@@ -81,7 +81,6 @@ module Test.Integration.Framework.TestData
     , errMsgNotInDictionary
     , errMsg400MinWithdrawalWrong
     , errMsg403WithdrawalNotBeneficial
-    , errMsg403NotAShelleyWallet
     , errMsg403MinUTxOValue
     , errMsg403CouldntIdentifyAddrAsMine
     , errMsg503PastHorizon
@@ -511,12 +510,6 @@ errMsg403WithdrawalNotBeneficial =
     "I've noticed that you're requesting a withdrawal from an account that is \
     \either empty or doesn't have a balance big enough to deserve being \
     \withdrawn. I won't proceed with that request."
-
-errMsg403NotAShelleyWallet :: String
-errMsg403NotAShelleyWallet =
-    "It is regrettable but you've just attempted an operation that is invalid \
-    \for this type of wallet. Only new 'Shelley' wallets can do something with \
-    \rewards and this one isn't."
 
 errMsg403CouldntIdentifyAddrAsMine :: String
 errMsg403CouldntIdentifyAddrAsMine = "I \

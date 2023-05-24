@@ -1981,7 +1981,6 @@ spec = describe "SHARED_TRANSACTIONS" $ do
 
         waitForNextEpoch ctx
         waitForNextEpoch ctx
-        waitForNextEpoch ctx
 
         eventually "party1: Wallet gets rewards from pool1" $ do
             r <- request @ApiWallet ctx (Link.getWallet @'Shared party1) Default Empty
@@ -2286,7 +2285,7 @@ spec = describe "SHARED_TRANSACTIONS" $ do
         eventually "Party2's wallet has quitted" $ do
             rJoin' <- request @(ApiTransaction n) ctx
                 (Link.getTransaction @'Shared party2
-                    (getFromResponse Prelude.id submittedTx3))
+                    (getFromResponse Prelude.id submittedTx5))
                 Default Empty
             verify rJoin'
                 [ expectResponseCode HTTP.status200

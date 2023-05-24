@@ -158,7 +158,6 @@ import Test.Integration.Framework.TestData
     , errMsg403EmptyUTxO
     , errMsg403Fee
     , errMsg403MinUTxOValue
-    , errMsg403NotAShelleyWallet
     , errMsg403NotEnoughMoney
     , errMsg403WithdrawalNotBeneficial
     , errMsg403WrongPass
@@ -2287,8 +2286,8 @@ spec = describe "SHELLEY_TRANSACTIONS" $ do
             (Link.createTransactionOld @'Byron wSelf) Default payload
         verify rTx
             [ expectResponseCode HTTP.status403
-            , expectErrorMessage errMsg403NotAShelleyWallet
             ]
+        decodeErrorInfo rTx `shouldBe` InvalidWalletType
 
     it "SHELLEY_TX_REDEEM_06a - Can't redeem rewards if utxo = 0 from other" $
         \ctx -> runResourceT $ do
