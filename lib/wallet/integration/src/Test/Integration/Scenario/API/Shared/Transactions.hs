@@ -2335,6 +2335,15 @@ spec = describe "SHARED_TRANSACTIONS" $ do
         let ep = Link.createTransactionOld @'Shelley
         rTx <- request @(ApiTransaction n) ctx (ep wShelley) Default payloadTx
         expectResponseCode HTTP.status202 rTx
+        eventually "Parent Shelley Wallet balance is as expected" $ do
+            rGet <- request @ApiWallet ctx
+                (Link.getWallet @'Shelley parentWal) Default Empty
+            verify rGet
+                [ expectField (#balance . #total)
+                    (`shouldBe` Quantity faucetUtxoAmt)
+                , expectField (#balance . #available)
+                    (`shouldBe` Quantity faucetUtxoAmt)
+                ]
 
 
   where
