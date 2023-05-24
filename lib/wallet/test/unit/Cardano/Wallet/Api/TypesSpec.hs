@@ -336,7 +336,6 @@ import Cardano.Wallet.Primitive.Types.Tx
     ( Direction (..)
     , SealedTx (..)
     , SerialisedTx (..)
-    , SerialisedTxParts (..)
     , TxMetadata (..)
     , TxScriptValidity (..)
     , TxStatus (..)
@@ -2188,11 +2187,6 @@ instance Arbitrary SealedTx where
 
 instance Arbitrary SerialisedTx where
     arbitrary = SerialisedTx <$> selectFromPreparedBinaries
-
-instance Arbitrary SerialisedTxParts where
-    arbitrary = SerialisedTxParts
-        <$> selectFromPreparedBinaries
-        <*> listOf genWits
 
 instance Arbitrary TxMetadata where
     arbitrary = genNestedTxMetadata
