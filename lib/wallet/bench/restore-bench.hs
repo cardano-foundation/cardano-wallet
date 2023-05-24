@@ -21,7 +21,6 @@
 
 {- HLINT ignore "Redundant pure" -}
 
-
 -- | Benchmark measuring how long restoration takes for different wallets.
 --
 -- Easiest run using
@@ -37,7 +36,6 @@
 --
 -- since it relies on lots of configuration most most easily retrieved with nix.
 --
-
 module Main where
 
 import Prelude
@@ -536,8 +534,6 @@ benchmarksRnd network w@(WalletLayer _ _ netLayer txLayer dbLayer) wname
       where
         seed = dummySeedFromName $ getWalletName wname
         xprv = Byron.generateKeyFromSeed seed mempty
-
-
 
 data BenchSeqResults = BenchSeqResults
     { benchName :: Text
