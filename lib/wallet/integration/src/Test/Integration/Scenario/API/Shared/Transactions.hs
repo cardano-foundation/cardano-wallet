@@ -2316,10 +2316,10 @@ spec = describe "SHARED_TRANSACTIONS" $ do
         let parentWal = getFromResponse Prelude.id rPostCreateParent
 
         -- financing the parent Shelley wallet
-        rAddr <- request @[ApiAddressWithPath n] ctx
+        rAddrShelley <- request @[ApiAddressWithPath n] ctx
             (Link.listAddresses @'Shelley parentWal) Default Empty
-        expectResponseCode HTTP.status200 rAddr
-        let addrs = getFromResponse Prelude.id rAddr
+        expectResponseCode HTTP.status200 rAddrShelley
+        let addrs = getFromResponse Prelude.id rAddrShelley
         let destination = (addrs !! 1) ^. #id
         wShelley <- fixtureWallet ctx
         let payloadTx = Json [json|{
@@ -2333,8 +2333,8 @@ spec = describe "SHARED_TRANSACTIONS" $ do
                 "passphrase": #{fixturePassphrase}
             }|]
         let ep = Link.createTransactionOld @'Shelley
-        rTx <- request @(ApiTransaction n) ctx (ep wShelley) Default payloadTx
-        expectResponseCode HTTP.status202 rTx
+        rTx1 <- request @(ApiTransaction n) ctx (ep wShelley) Default payloadTx
+        expectResponseCode HTTP.status202 rTx1
         eventually "Parent Shelley Wallet balance is as expected" $ do
             rGet <- request @ApiWallet ctx
                 (Link.getWallet @'Shelley parentWal) Default Empty
@@ -2385,6 +2385,45 @@ spec = describe "SHARED_TRANSACTIONS" $ do
         verify (fmap (view #wallet) <$> rPostCreateChild2)
             [ expectResponseCode HTTP.status201
             ]
+
+        -- transfer money to the child shared wallets from parent wallet
+        -- parent wallet has 100k ada (faucetUtxoAmt) and will transfer 40k
+        -- to every child shared wallet
+        let ada = (*) (1_000_000)
+        let transfer :: Natural
+            transfer = ada 40_000
+
+        rAddrShared1 <- request @[ApiAddressWithPath n] ctx
+            (Link.listAddresses @'Shared walActive1) Default Empty
+        expectResponseCode HTTP.status200 rAddrShared1
+        let addrs1 = getFromResponse Prelude.id rAddrShared1
+        let destAddr1 = (addrs1 !! 1) ^. #id
+
+        rAddrShared2 <- request @[ApiAddressWithPath n] ctx
+            (Link.listAddresses @'Shared walActive2) Default Empty
+        expectResponseCode HTTP.status200 rAddrShared2
+        let addrs2 = getFromResponse Prelude.id rAddrShared2
+        let destAddr2 = (addrs2 !! 1) ^. #id
+
+        let payloadTx1 = Json [json|{
+                "payments": [{
+                    "address": #{destAddr1},
+                    "amount": {
+                        "quantity": #{transfer},
+                        "unit": "lovelace"
+                    }
+                }, {
+                    "address": #{destAddr1},
+                    "amount": {
+                        "quantity": #{transfer},
+                        "unit": "lovelace"
+                    }
+                }],
+                "passphrase": #{fixturePassphrase}
+            }|]
+        rTx2 <- request @(ApiTransaction n) ctx (ep parentWal) Default payloadTx1
+        expectResponseCode HTTP.status202 rTx2
+
 
   where
      listSharedTransactions ctx w mStart mEnd mOrder mLimit = do
