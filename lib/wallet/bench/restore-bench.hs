@@ -103,7 +103,7 @@ import Cardano.Wallet.Network
     , NetworkLayer (..)
     )
 import Cardano.Wallet.Primitive.Model
-    ( Wallet, currentTip, getState, totalUTxO )
+    ( Wallet, availableUTxO, currentTip, getState, totalUTxO )
 import Cardano.Wallet.Primitive.Passphrase.Types
     ( Passphrase (..) )
 import Cardano.Wallet.Primitive.Slotting
@@ -127,6 +127,8 @@ import Cardano.Wallet.Primitive.Types.Coin
     ( Coin (..) )
 import Cardano.Wallet.Primitive.Types.RewardAccount
     ( RewardAccount )
+import Cardano.Wallet.Primitive.Types.Tx.Tx
+    ( Tx )
 import Cardano.Wallet.Primitive.Types.Tx.TxOut
     ( TxOut (..) )
 import Cardano.Wallet.Primitive.Types.UTxOStatistics
@@ -182,6 +184,8 @@ import Data.Proxy
     ( Proxy (..) )
 import Data.Quantity
     ( Percentage (..), Quantity (..) )
+import Data.Set
+    ( Set )
 import Data.Text
     ( Text )
 import Data.Text.Class
@@ -237,6 +241,7 @@ import qualified Cardano.Wallet.Address.Derivation.Shelley as Shelley
 import qualified Cardano.Wallet.Checkpoints.Policy as CP
 import qualified Cardano.Wallet.DB.Sqlite.Migration as Sqlite
 import qualified Cardano.Wallet.Primitive.Types.TokenBundle as TokenBundle
+import qualified Cardano.Wallet.Primitive.Types.UTxO as UTxO
 import qualified Cardano.Wallet.Primitive.Types.UTxOStatistics as UTxOStatistics
 import qualified Cardano.Wallet.Shelley.Compatibility as Cardano
 import qualified Cardano.Wallet.Write.ProtocolParameters as Write
@@ -484,7 +489,9 @@ benchmarksRnd network w wname
         $ W.listTransactions @_ @s w Nothing Nothing Nothing Descending
             (Just 100)
 
-    estimateFeesTime <- benchEstimateTxFee network w
+    estimateFeesTime <-
+        withNonEmptyUTxO cp pending CannotEstimateFeeForWalletWithEmptyUTxO $
+            benchEstimateTxFee network w
 
     oneAddress <- genAddresses 1 cp
     (_, importOneAddressTime) <- bench "import one addresses" $ do
@@ -503,7 +510,7 @@ benchmarksRnd network w wname
         , listAddressesTime
         , listTransactionsTime
         , listTransactionsLimitedTime
-        , estimateFeesTime = Right estimateFeesTime
+        , estimateFeesTime
         , importOneAddressTime
         , importManyAddressesTime
         , walletOverview
@@ -578,7 +585,9 @@ benchmarksSeq network w _wname
         $ W.listTransactions @_ @s w Nothing Nothing Nothing Descending
             (Just 100)
 
-    estimateFeesTime <- benchEstimateTxFee network w
+    estimateFeesTime <-
+        withNonEmptyUTxO cp pending CannotEstimateFeeForWalletWithEmptyUTxO $
+            benchEstimateTxFee network w
 
     pure BenchSeqResults
         { benchName = benchname
@@ -587,7 +596,7 @@ benchmarksSeq network w _wname
         , listAddressesTime
         , listTransactionsTime
         , listTransactionsLimitedTime
-        , estimateFeesTime = Right estimateFeesTime
+        , estimateFeesTime
         , walletOverview
         }
 
@@ -1003,6 +1012,13 @@ guardIsRecentEra (Cardano.AnyCardanoEra era) = case era of
     where
     invalidEra = throwIO $ ExceptionBalanceTx $ Write.ErrOldEraNotSupported $
         Cardano.AnyCardanoEra era
+
+withNonEmptyUTxO :: Wallet s -> Set Tx -> e -> IO a -> IO (Either e a)
+withNonEmptyUTxO wallet pendingTxs failure action
+    | emptyUTxO = pure (Left failure)
+    | otherwise = Right <$> action
+  where
+    emptyUTxO = UTxO.null (availableUTxO pendingTxs wallet)
 
 benchEstimateTxFee
     :: forall n s. (AddressBookIso s, WalletFlavor s)
