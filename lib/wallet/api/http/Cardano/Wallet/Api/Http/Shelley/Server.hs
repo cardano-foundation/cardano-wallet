@@ -4192,7 +4192,7 @@ guardIsRecentEra (Cardano.AnyCardanoEra era) = case era of
     Cardano.ShelleyEra -> liftE invalidEra
     Cardano.ByronEra   -> liftE invalidEra
   where
-    invalidEra = W.ErrOldEraNotSupported $ Cardano.AnyCardanoEra era
+    invalidEra = W.ErrNodeNotInRecentEra $ Cardano.AnyCardanoEra era
 
 mkWithdrawal
     :: forall n block

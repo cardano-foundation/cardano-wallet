@@ -457,17 +457,19 @@ instance IsServerError ErrGetPolicyId where
 
 instance IsServerError ErrWriteTxEra where
     toServerError = \case
-        ErrTxNotInNodeEra era ->
+        ErrTxNotInNodeEra nodeEra ->
             apiError err403 TxNotInNodeEra $ T.unwords
                 [ "The provided transaction could be deserialised, just not in"
-                , showT era <> ","
+                , showT nodeEra <> ","
                 , "the era the local node currently is in."
                 , "If the node is not yet fully synced, try waiting."
                 , "If you're constructing a transaction for a future era for"
                 , "testing purposes, try doing so on a testnet in that era"
                 , "instead."
+                , "If you're attempting to balance a partial transaction from"
+                , "an old era, please use one "
                 ]
-        ErrOldEraNotSupported (Cardano.AnyCardanoEra era) ->
+        ErrNodeNotInRecentEra (Cardano.AnyCardanoEra era) ->
             apiError err403 BalanceTxEraNotSupported $ T.unwords
                 [ "Balancing transactions in ", showT era
                 , "(the era the local node currently is in)"
