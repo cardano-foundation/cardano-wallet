@@ -93,12 +93,17 @@ import Cardano.Wallet.Address.Discovery.Shared
 import Cardano.Wallet.Api.Hex
     ( hexText )
 import Cardano.Wallet.Api.Types
-    ( ApiCosignerIndex (..), ApiCredentialType (..), Iso8601Time (..) )
+    ( ApiCosignerIndex (..)
+    , ApiCredentialType (..)
+    , Iso8601Time (..)
+    , toApiEra
+    )
 import Cardano.Wallet.Api.Types.Error
     ( ApiError (..)
     , ApiErrorBalanceTxUnderestimatedFee (..)
     , ApiErrorInfo (..)
     , ApiErrorMessage (..)
+    , ApiErrorNodeNotYetInRecentEra (..)
     , ApiErrorSharedWalletNoSuchCosigner (..)
     , ApiErrorTxOutputLovelaceInsufficient (..)
     )
@@ -162,6 +167,7 @@ import qualified Cardano.Api as Cardano
 import qualified Cardano.Wallet.Primitive.Types.Coin as Coin
 import qualified Cardano.Wallet.Primitive.Types.TokenBundle as TokenBundle
 import qualified Cardano.Wallet.Primitive.Types.TokenMap as TokenMap
+import qualified Cardano.Wallet.Write.Tx as Write
 import qualified Data.Aeson as Aeson
 import qualified Data.ByteString as BS
 import qualified Data.ByteString.Lazy as BL
@@ -471,13 +477,19 @@ instance IsServerError ErrWriteTxEra where
                 , "compatible with a recent era."
                 ]
         ErrNodeNotYetInRecentEra (Cardano.AnyCardanoEra era) ->
-            apiError err403 NodeNotYetInRecentEra $ T.unwords
+            apiError err403 (NodeNotYetInRecentEra info) $ T.unwords
                 [ "This operation requires the node to be synchronised to a"
                 , "recent era, but the node is currently only synchronised to the"
                 , showT era
                 , "era. Please wait until the node is fully synchronised and"
                 , "try again."
                 ]
+          where
+            info = ApiErrorNodeNotYetInRecentEra
+                { nodeEra = toApiEra $ Cardano.AnyCardanoEra era
+                , supportedRecentEras =
+                    map (toApiEra . Write.toAnyCardanoEra) [minBound .. maxBound]
+                }
 
 instance IsServerError ErrBalanceTx where
     toServerError = \case

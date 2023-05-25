@@ -58,7 +58,8 @@ module Cardano.Wallet.Write.Tx
     , AnyRecentEra (..)
     , InAnyRecentEra (..)
     , asAnyRecentEra
-    , fromAnyRecentEra
+    , toAnyCardanoEra
+    , fromAnyCardanoEra
     , withInAnyRecentEra
     , withRecentEra
 
@@ -390,6 +391,20 @@ data AnyRecentEra where
                   => RecentEra era   -- and explicit value.
                   -> AnyRecentEra    -- and that's it.
 
+instance Enum AnyRecentEra where
+    -- NOTE: We're not starting at 0! 0 would be Byron, which is not a recent
+    -- era.
+    fromEnum = fromEnum . toAnyCardanoEra
+    toEnum n = fromMaybe err . fromAnyCardanoEra $ toEnum n
+      where
+        err = error $ unwords
+            [ "AnyRecentEra.toEnum:", show n
+            , "doesn't correspond to a recent era."
+            ]
+instance Bounded AnyRecentEra where
+    minBound = AnyRecentEra RecentEraBabbage
+    maxBound = AnyRecentEra RecentEraConway
+
 instance Show AnyRecentEra where
     show (AnyRecentEra era) = "AnyRecentEra " <> show era
 
@@ -397,8 +412,22 @@ instance Eq AnyRecentEra where
     AnyRecentEra e1 == AnyRecentEra e2 =
         isJust $ testEquality e1 e2
 
-fromAnyRecentEra :: AnyRecentEra -> Cardano.AnyCardanoEra
-fromAnyRecentEra (AnyRecentEra era) = Cardano.AnyCardanoEra (fromRecentEra era)
+toAnyCardanoEra :: AnyRecentEra -> Cardano.AnyCardanoEra
+toAnyCardanoEra (AnyRecentEra era) = Cardano.AnyCardanoEra (fromRecentEra era)
+
+fromAnyCardanoEra
+    :: Cardano.AnyCardanoEra
+    -> Maybe AnyRecentEra
+fromAnyCardanoEra = \case
+    Cardano.AnyCardanoEra Cardano.ByronEra -> Nothing
+    Cardano.AnyCardanoEra Cardano.ShelleyEra -> Nothing
+    Cardano.AnyCardanoEra Cardano.AllegraEra -> Nothing
+    Cardano.AnyCardanoEra Cardano.MaryEra -> Nothing
+    Cardano.AnyCardanoEra Cardano.AlonzoEra -> Nothing
+    Cardano.AnyCardanoEra Cardano.BabbageEra
+        -> Just $ AnyRecentEra RecentEraBabbage
+    Cardano.AnyCardanoEra Cardano.ConwayEra
+        -> Just $ AnyRecentEra RecentEraConway
 
 withRecentEra ::
     AnyRecentEra -> (forall era. IsRecentEra era => RecentEra era -> a) -> a

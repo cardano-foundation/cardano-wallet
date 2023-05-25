@@ -24,6 +24,7 @@ module Cardano.Wallet.Api.Types.Error
     , ApiErrorSharedWalletNoSuchCosigner (..)
     , ApiErrorTxOutputLovelaceInsufficient (..)
     , ApiErrorBalanceTxUnderestimatedFee (..)
+    , ApiErrorNodeNotYetInRecentEra (..)
     )
     where
 
@@ -32,7 +33,7 @@ import Prelude
 import Cardano.Wallet.Api.Lib.Options
     ( DefaultRecord (..), defaultSumTypeOptions )
 import Cardano.Wallet.Api.Types
-    ( ApiCosignerIndex (..), ApiCredentialType (..) )
+    ( ApiCosignerIndex (..), ApiCredentialType (..), ApiEra )
 import Control.DeepSeq
     ( NFData (..) )
 import Data.Aeson
@@ -122,6 +123,7 @@ data ApiErrorInfo
     | NetworkQueryFailed
     | NetworkUnreachable
     | NodeNotYetInRecentEra
+        !ApiErrorNodeNotYetInRecentEra
     | NoRootKey
     | NoSuchPool
     | NoSuchTransaction
@@ -223,4 +225,13 @@ data ApiErrorBalanceTxUnderestimatedFee = ApiErrorBalanceTxUnderestimatedFee
     deriving (Data, Eq, Generic, Show, Typeable)
     deriving (FromJSON, ToJSON)
         via DefaultRecord ApiErrorBalanceTxUnderestimatedFee
+    deriving anyclass NFData
+
+data ApiErrorNodeNotYetInRecentEra = ApiErrorNodeNotYetInRecentEra
+    { nodeEra :: ApiEra
+    , supportedRecentEras :: [ApiEra]
+    }
+    deriving (Data, Eq, Generic, Show, Typeable)
+    deriving (FromJSON, ToJSON)
+        via DefaultRecord ApiErrorNodeNotYetInRecentEra
     deriving anyclass NFData
