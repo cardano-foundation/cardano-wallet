@@ -40,12 +40,10 @@ import Control.Monad.Reader
     ( ReaderT (runReaderT) )
 import Data.Proxy
     ( Proxy (..) )
-import GHC.Base
-    ( Nat )
 import GHC.Natural
     ( Natural )
 import GHC.TypeNats
-    ( type (+), KnownNat, natVal )
+    ( type (+), KnownNat, Nat, natVal )
 
 --------------------------------------------------------------------------------
 -------  public ----------------------------------------------------------------
