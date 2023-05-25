@@ -58,6 +58,7 @@ module Cardano.Wallet.Write.Tx
     , InAnyRecentEra (..)
     , asAnyRecentEra
     , toAnyCardanoEra
+    , fromAnyCardanoEra
     , withInAnyRecentEra
     , withRecentEra
 
@@ -386,6 +387,20 @@ instance Show AnyRecentEra where
 
 toAnyCardanoEra :: AnyRecentEra -> Cardano.AnyCardanoEra
 toAnyCardanoEra (AnyRecentEra era) = Cardano.AnyCardanoEra (fromRecentEra era)
+
+fromAnyCardanoEra
+    :: Cardano.AnyCardanoEra
+    -> Maybe AnyRecentEra
+fromAnyCardanoEra = \case
+    Cardano.AnyCardanoEra Cardano.ByronEra -> Nothing
+    Cardano.AnyCardanoEra Cardano.ShelleyEra -> Nothing
+    Cardano.AnyCardanoEra Cardano.AllegraEra -> Nothing
+    Cardano.AnyCardanoEra Cardano.MaryEra -> Nothing
+    Cardano.AnyCardanoEra Cardano.AlonzoEra -> Nothing
+    Cardano.AnyCardanoEra Cardano.BabbageEra
+        -> Just $ AnyRecentEra RecentEraBabbage
+    Cardano.AnyCardanoEra Cardano.ConwayEra
+        -> Just $ AnyRecentEra RecentEraConway
 
 withRecentEra ::
     AnyRecentEra -> (forall era. IsRecentEra era => RecentEra era -> a) -> a
