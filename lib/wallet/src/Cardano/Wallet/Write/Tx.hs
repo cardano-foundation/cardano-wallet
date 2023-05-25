@@ -28,6 +28,7 @@ module Cardano.Wallet.Write.Tx
     (
     -- * Eras
     module Cardano.Wallet.Write.Era -- until we create a Write umbrella module
+    , withConstraints
 
     -- ** Key witness counts
     , KeyWitnessCount (..)
