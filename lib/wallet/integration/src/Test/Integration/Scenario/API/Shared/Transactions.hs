@@ -2521,6 +2521,47 @@ spec = describe "SHARED_TRANSACTIONS" $ do
                       (.> (Quantity 0))
                 ]
 
+        --sending back funds to parent with self withdrawal
+        let payloadWithdrawal = Json [json|
+                { "payments":
+                    [ { "address": #{destination}
+                      , "amount":
+                        { "quantity": #{transfer}
+                        , "unit": "lovelace"
+                        }
+                      }
+                    ]
+                , "passphrase": #{fixturePassphrase},
+                  "withdrawal": "self"
+                }|]
+        rTx5 <- request @(ApiConstructTransaction n) ctx
+            (Link.createUnsignedTransaction @'Shared walActive1) Default payloadWithdrawal
+        verify rTx5
+            [ expectResponseCode HTTP.status202 ]
+        let (ApiSerialisedTransaction apiTx5 _) =
+                getFromResponse #transaction rTx5
+        signedTx5 <-
+            signSharedTx ctx walActive1 apiTx5
+                [ expectResponseCode HTTP.status202 ]
+        submittedTx5 <- submitSharedTxWithWid ctx walActive1 signedTx5
+        verify submittedTx5
+            [ expectResponseCode HTTP.status202
+            ]
+
+        rTx6 <- request @(ApiConstructTransaction n) ctx
+            (Link.createUnsignedTransaction @'Shared walActive2) Default payloadWithdrawal
+        verify rTx6
+            [ expectResponseCode HTTP.status202 ]
+        let (ApiSerialisedTransaction apiTx6 _) =
+                getFromResponse #transaction rTx6
+        signedTx6 <-
+            signSharedTx ctx walActive2 apiTx6
+                [ expectResponseCode HTTP.status202 ]
+        submittedTx6 <- submitSharedTxWithWid ctx walActive2 signedTx6
+        verify submittedTx6
+            [ expectResponseCode HTTP.status202
+            ]
+
   where
      listSharedTransactions ctx w mStart mEnd mOrder mLimit = do
          let path = Link.listTransactions' @'Shared w
