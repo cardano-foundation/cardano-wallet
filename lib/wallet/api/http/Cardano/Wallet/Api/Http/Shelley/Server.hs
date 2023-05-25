@@ -547,7 +547,7 @@ import Cardano.Wallet.Unsafe
 import Cardano.Wallet.Write.Tx
     ( AnyRecentEra (..) )
 import Cardano.Wallet.Write.Tx.Balance
-    ( UTxOAssumptions (..), constructUTxOIndex )
+    ( UTxOAssumptions (..) )
 import Control.Arrow
     ( second, (&&&) )
 import Control.DeepSeq
