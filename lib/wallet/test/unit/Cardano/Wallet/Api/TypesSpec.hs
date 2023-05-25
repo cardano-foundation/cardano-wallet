@@ -621,6 +621,7 @@ spec = do
         jsonTest @ApiError
         jsonTest @ApiErrorSharedWalletNoSuchCosigner
         jsonTest @ApiErrorTxOutputLovelaceInsufficient
+        jsonTest @ApiErrorBalanceTxUnderestimatedFee
         jsonTest @ApiFee
         jsonTest @ApiHealthCheck
         jsonTest @ApiIncompleteSharedWallet
