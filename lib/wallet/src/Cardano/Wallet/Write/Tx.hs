@@ -11,7 +11,6 @@
 {-# LANGUAGE OverloadedLabels #-}
 {-# LANGUAGE RankNTypes #-}
 {-# LANGUAGE ScopedTypeVariables #-}
-{-# LANGUAGE StandaloneDeriving #-}
 {-# LANGUAGE TypeApplications #-}
 
 -- |
@@ -28,45 +27,18 @@
 module Cardano.Wallet.Write.Tx
     (
     -- * Eras
-
-    -- ** RecentEra
-      RecentEra (..)
-    , IsRecentEra (..)
-    , toRecentEra
-    , fromRecentEra
-    , LatestLedgerEra
-    , LatestEra
-    , withConstraints
+    module Cardano.Wallet.Write.Era
 
     -- ** Key witness counts
     , KeyWitnessCount (..)
 
     -- ** Helpers for cardano-api compatibility
-    , cardanoEra
-    , shelleyBasedEra
-    , ShelleyLedgerEra
-    , cardanoEraFromRecentEra
-    , shelleyBasedEraFromRecentEra
     , fromCardanoTx
     , toCardanoUTxO
     , fromCardanoUTxO
     , toCardanoValue
     , toCardanoLovelace
     , toCardanoTx
-
-    -- ** Existential wrapper
-    , AnyRecentEra (..)
-    , InAnyRecentEra (..)
-    , asAnyRecentEra
-    , toAnyCardanoEra
-    , fromAnyCardanoEra
-    , withInAnyRecentEra
-    , withRecentEra
-
-    -- ** Misc
-    , StandardCrypto
-    , StandardBabbage
-    , StandardConway
 
     -- * PParams
     , Core.PParams
@@ -148,10 +120,6 @@ module Cardano.Wallet.Write.Tx
 
 import Prelude
 
-import Cardano.Api
-    ( BabbageEra, ConwayEra )
-import Cardano.Api.Shelley
-    ( ShelleyLedgerEra )
 import Cardano.Crypto.Hash
     ( Hash (UnsafeHash) )
 import Cardano.Ledger.Alonzo.Data
@@ -164,8 +132,6 @@ import Cardano.Ledger.BaseTypes
     ( maybeToStrictMaybe )
 import Cardano.Ledger.Coin
     ( Coin (..) )
-import Cardano.Ledger.Crypto
-    ( StandardCrypto )
 import Cardano.Ledger.Era
     ( Crypto )
 import Cardano.Ledger.Mary
@@ -182,6 +148,7 @@ import Cardano.Wallet.Primitive.Types.Tx.Constraints
     ( txOutMaxCoin )
 import Cardano.Wallet.Shelley.Compatibility.Ledger
     ( toLedger )
+import Cardano.Wallet.Write.Era
 import Control.Arrow
     ( second )
 import Data.ByteString
@@ -201,15 +168,9 @@ import Data.Generics.Product
 import Data.IntCast
     ( intCast )
 import Data.Maybe
-    ( fromMaybe, isJust )
-import Data.Type.Equality
-    ( (:~:) (Refl), TestEquality (testEquality) )
-import Data.Typeable
-    ( Typeable )
+    ( fromMaybe )
 import Numeric.Natural
     ( Natural )
-import Ouroboros.Consensus.Shelley.Eras
-    ( StandardBabbage, StandardConway )
 
 import qualified Cardano.Api as Cardano
 import qualified Cardano.Api.Byron as Cardano
@@ -231,207 +192,6 @@ import qualified Cardano.Ledger.TxIn as Ledger
 import qualified Data.Aeson as Aeson
 import qualified Data.Aeson.Types as Aeson
 import qualified Data.Map as Map
-
---------------------------------------------------------------------------------
--- Eras
---------------------------------------------------------------------------------
-
-type LatestEra = ConwayEra
-
-type LatestLedgerEra = StandardConway
-
---------------------------------------------------------------------------------
--- RecentEra
---------------------------------------------------------------------------------
-
-
--- | 'RecentEra' respresents the eras we care about constructing transactions
--- for.
---
--- To have the same software constructing transactions just before and just
--- after a hard-fork, we need to, at that time, support the two latest eras. We
--- could get away with just supporting one era at other times, but for
--- simplicity we stick with always supporting the two latest eras for now.
---
--- NOTE: We /could/ let 'era' refer to eras from the ledger rather than from
--- cardano-api.
-data RecentEra era where
-    RecentEraBabbage :: RecentEra BabbageEra
-    RecentEraConway :: RecentEra ConwayEra
-
-deriving instance Eq (RecentEra era)
-deriving instance Show (RecentEra era)
-
-instance TestEquality RecentEra where
-    testEquality RecentEraBabbage RecentEraBabbage = Just Refl
-    testEquality RecentEraConway RecentEraConway = Just Refl
-    testEquality RecentEraBabbage RecentEraConway = Nothing
-    testEquality RecentEraConway RecentEraBabbage = Nothing
-
-class
-    ( Cardano.IsShelleyBasedEra era
-    , Typeable era
-    ) => IsRecentEra era where
-    recentEra :: RecentEra era
-
--- | Convenient constraints. Constraints may be dropped as we move to new eras.
---
--- Adding too many constraints shouldn't be a concern as the point of 'RecentEra'
--- is to work with a small closed set of eras, anyway.
-type RecentEraLedgerConstraints era =
-    ( Core.Era era
-    , Core.Script era ~ AlonzoScript era
-    , CLI era
-    , Crypto era ~ StandardCrypto
-    , Core.Tx era ~ Babbage.AlonzoTx era
-    , Core.Value era ~ MaryValue StandardCrypto
-    , Babbage.ShelleyEraTxBody era
-    , HasField' "_collateralPercentage" (Core.PParams era) Natural
-    , HasField' "_maxCollateralInputs" (Core.PParams era) Natural
-    , HasField' "_minfeeA" (Core.PParams era) Natural
-    , HasField' "_prices" (Core.PParams era) ExUnitPrices
-    , HasField' "_maxTxExUnits" (Core.PParams era) ExUnits
-    , HasField' "_keyDeposit" (Core.PParams era) Coin
-    )
-
--- | Bring useful constraints into scope from a value-level
--- 'RecentEra'.
---
--- TODO [ADP-2354] Make 'RecentEraLedgerConstraints' superclass of
--- 'IsRecentEra'. Currently this would cause weird type-inference errors in the
--- wallet code specifically with GHC 8.10.
--- https://input-output.atlassian.net/browse/ADP-2353
-withConstraints
-    :: RecentEra era
-    -> ((RecentEraLedgerConstraints (ShelleyLedgerEra era)) => a)
-    -> a
-withConstraints era a = case era of
-    RecentEraBabbage -> a
-    RecentEraConway -> a
-
--- | Return a proof that the wallet can create txs in this era, or @Nothing@.
-toRecentEra :: Cardano.CardanoEra era -> Maybe (RecentEra era)
-toRecentEra = \case
-    Cardano.ConwayEra  -> Just RecentEraConway
-    Cardano.BabbageEra -> Just RecentEraBabbage
-    Cardano.AlonzoEra  -> Nothing
-    Cardano.MaryEra    -> Nothing
-    Cardano.AllegraEra -> Nothing
-    Cardano.ShelleyEra -> Nothing
-    Cardano.ByronEra   -> Nothing
-
-fromRecentEra :: RecentEra era -> Cardano.CardanoEra era
-fromRecentEra = \case
-  RecentEraConway -> Cardano.ConwayEra
-  RecentEraBabbage -> Cardano.BabbageEra
-
-instance IsRecentEra BabbageEra where
-    recentEra = RecentEraBabbage
-
-instance IsRecentEra ConwayEra where
-    recentEra = RecentEraConway
-
-cardanoEraFromRecentEra :: RecentEra era -> Cardano.CardanoEra era
-cardanoEraFromRecentEra =
-    Cardano.shelleyBasedToCardanoEra
-    . shelleyBasedEraFromRecentEra
-
-shelleyBasedEraFromRecentEra :: RecentEra era -> Cardano.ShelleyBasedEra era
-shelleyBasedEraFromRecentEra = \case
-    RecentEraConway -> Cardano.ShelleyBasedEraConway
-    RecentEraBabbage -> Cardano.ShelleyBasedEraBabbage
-
--- | For convenience working with 'IsRecentEra'. Similar to 'Cardano.cardanoEra,
--- but with a 'IsRecentEra era' constraint instead of 'Cardano.IsCardanoEra.
-cardanoEra :: forall era. IsRecentEra era => Cardano.CardanoEra era
-cardanoEra = cardanoEraFromRecentEra $ recentEra @era
-
--- | For convenience working with 'IsRecentEra'. Similar to
--- 'Cardano.shelleyBasedEra, but with a 'IsRecentEra era' constraint instead of
--- 'Cardano.IsShelleyBasedEra'.
-shelleyBasedEra :: forall era. IsRecentEra era => Cardano.ShelleyBasedEra era
-shelleyBasedEra = shelleyBasedEraFromRecentEra $ recentEra @era
-
-data InAnyRecentEra thing where
-     InAnyRecentEra
-         :: IsRecentEra era -- Provide class constraint
-         => RecentEra era   -- and explicit value.
-         -> thing era
-         -> InAnyRecentEra thing
-
-withInAnyRecentEra
-    :: InAnyRecentEra thing
-    -> (forall era. IsRecentEra era => thing era -> a)
-    -> a
-withInAnyRecentEra (InAnyRecentEra _era tx) f = f tx
-
--- | "Downcast" something existentially wrapped in 'Cardano.InAnyCardanoEra'.
-asAnyRecentEra
-    :: Cardano.InAnyCardanoEra a
-    -> Maybe (InAnyRecentEra a)
-asAnyRecentEra = \case
-    Cardano.InAnyCardanoEra Cardano.ByronEra _ ->
-        Nothing
-    Cardano.InAnyCardanoEra Cardano.ShelleyEra _ ->
-        Nothing
-    Cardano.InAnyCardanoEra Cardano.AllegraEra _ ->
-        Nothing
-    Cardano.InAnyCardanoEra Cardano.MaryEra _ ->
-        Nothing
-    Cardano.InAnyCardanoEra Cardano.AlonzoEra _ ->
-        Nothing
-    Cardano.InAnyCardanoEra Cardano.BabbageEra a ->
-        Just $ InAnyRecentEra RecentEraBabbage a
-    Cardano.InAnyCardanoEra Cardano.ConwayEra a ->
-        Just $ InAnyRecentEra RecentEraConway a
-
--- | An existential type like 'AnyCardanoEra', but for 'RecentEra'.
-data AnyRecentEra where
-     AnyRecentEra :: IsRecentEra era -- Provide class constraint
-                  => RecentEra era   -- and explicit value.
-                  -> AnyRecentEra    -- and that's it.
-
-instance Enum AnyRecentEra where
-    -- NOTE: We're not starting at 0! 0 would be Byron, which is not a recent
-    -- era.
-    fromEnum = fromEnum . toAnyCardanoEra
-    toEnum n = fromMaybe err . fromAnyCardanoEra $ toEnum n
-      where
-        err = error $ unwords
-            [ "AnyRecentEra.toEnum:", show n
-            , "doesn't correspond to a recent era."
-            ]
-instance Bounded AnyRecentEra where
-    minBound = AnyRecentEra RecentEraBabbage
-    maxBound = AnyRecentEra RecentEraConway
-
-instance Show AnyRecentEra where
-    show (AnyRecentEra era) = "AnyRecentEra " <> show era
-
-instance Eq AnyRecentEra where
-    AnyRecentEra e1 == AnyRecentEra e2 =
-        isJust $ testEquality e1 e2
-
-toAnyCardanoEra :: AnyRecentEra -> Cardano.AnyCardanoEra
-toAnyCardanoEra (AnyRecentEra era) = Cardano.AnyCardanoEra (fromRecentEra era)
-
-fromAnyCardanoEra
-    :: Cardano.AnyCardanoEra
-    -> Maybe AnyRecentEra
-fromAnyCardanoEra = \case
-    Cardano.AnyCardanoEra Cardano.ByronEra -> Nothing
-    Cardano.AnyCardanoEra Cardano.ShelleyEra -> Nothing
-    Cardano.AnyCardanoEra Cardano.AllegraEra -> Nothing
-    Cardano.AnyCardanoEra Cardano.MaryEra -> Nothing
-    Cardano.AnyCardanoEra Cardano.AlonzoEra -> Nothing
-    Cardano.AnyCardanoEra Cardano.BabbageEra
-        -> Just $ AnyRecentEra RecentEraBabbage
-    Cardano.AnyCardanoEra Cardano.ConwayEra
-        -> Just $ AnyRecentEra RecentEraConway
-
-withRecentEra ::
-    AnyRecentEra -> (forall era. IsRecentEra era => RecentEra era -> a) -> a
-withRecentEra (AnyRecentEra era) f = f era
 
 --------------------------------------------------------------------------------
 -- Key witness counts
@@ -1004,3 +764,44 @@ evaluateTransactionBalance era pp utxo = withConstraints era $
         -- Pass this parameter in as a function instead of hard-coding the
         -- value here:
         const True
+
+
+--------------------------------------------------------------------------------
+-- Constraints
+--------------------------------------------------------------------------------
+
+-- | Convenient constraints. Constraints may be dropped as we move to new eras.
+--
+-- Adding too many constraints shouldn't be a concern as the point of 'RecentEra'
+-- is to work with a small closed set of eras, anyway.
+type RecentEraLedgerConstraints era =
+    ( Core.Era era
+    , Core.Script era ~ AlonzoScript era
+    , CLI era
+    , Crypto era ~ StandardCrypto
+    , Core.Tx era ~ Babbage.AlonzoTx era
+    , Core.Value era ~ MaryValue StandardCrypto
+    , Babbage.ShelleyEraTxBody era
+    , HasField' "_collateralPercentage" (Core.PParams era) Natural
+    , HasField' "_maxCollateralInputs" (Core.PParams era) Natural
+    , HasField' "_minfeeA" (Core.PParams era) Natural
+    , HasField' "_prices" (Core.PParams era) ExUnitPrices
+    , HasField' "_maxTxExUnits" (Core.PParams era) ExUnits
+    , HasField' "_keyDeposit" (Core.PParams era) Coin
+    )
+
+-- | Bring useful constraints into scope from a value-level
+-- 'RecentEra'.
+--
+-- TODO [ADP-2354] Make 'RecentEraLedgerConstraints' superclass of
+-- 'IsRecentEra'. Currently this would cause weird type-inference errors in the
+-- wallet code specifically with GHC 8.10.
+-- https://input-output.atlassian.net/browse/ADP-2353
+withConstraints
+    :: RecentEra era
+    -> ((RecentEraLedgerConstraints (ShelleyLedgerEra era)) => a)
+    -> a
+withConstraints era a = case era of
+    RecentEraBabbage -> a
+    RecentEraConway -> a
+

@@ -396,6 +396,7 @@ library
     Cardano.Wallet.TypeLevel
     Cardano.Wallet.Version
     Cardano.Wallet.Version.TH
+    Cardano.Wallet.Write.Era
     Cardano.Wallet.Write.ProtocolParameters
     Cardano.Wallet.Write.Tx
     Cardano.Wallet.Write.Tx.Balance
