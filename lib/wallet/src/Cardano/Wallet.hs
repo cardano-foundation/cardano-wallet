@@ -2061,7 +2061,7 @@ buildAndSignTransactionPure
             , builtSealedTx = signedTx
             }
   where
-    anyCardanoEra = Write.fromAnyRecentEra era
+    anyCardanoEra = Write.toAnyCardanoEra era
 
 buildTransaction
     :: forall s era.

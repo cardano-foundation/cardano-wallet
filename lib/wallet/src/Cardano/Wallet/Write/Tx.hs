@@ -57,7 +57,7 @@ module Cardano.Wallet.Write.Tx
     , AnyRecentEra (..)
     , InAnyRecentEra (..)
     , asAnyRecentEra
-    , fromAnyRecentEra
+    , toAnyCardanoEra
     , withInAnyRecentEra
     , withRecentEra
 
@@ -384,8 +384,8 @@ data AnyRecentEra where
 instance Show AnyRecentEra where
     show (AnyRecentEra era) = "AnyRecentEra " <> show era
 
-fromAnyRecentEra :: AnyRecentEra -> Cardano.AnyCardanoEra
-fromAnyRecentEra (AnyRecentEra era) = Cardano.AnyCardanoEra (fromRecentEra era)
+toAnyCardanoEra :: AnyRecentEra -> Cardano.AnyCardanoEra
+toAnyCardanoEra (AnyRecentEra era) = Cardano.AnyCardanoEra (fromRecentEra era)
 
 withRecentEra ::
     AnyRecentEra -> (forall era. IsRecentEra era => RecentEra era -> a) -> a
