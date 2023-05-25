@@ -431,9 +431,11 @@ import Cardano.Wallet.Compat
 import Cardano.Wallet.DB
     ( DBFactory (..), DBFresh, DBLayer, loadDBLayer )
 import Cardano.Wallet.Flavor
-    ( Excluding
+    ( CredFromOf
+    , Excluding
     , KeyFlavorS (..)
     , KeyOf
+    , NetworkOf
     , WalletFlavor (..)
     , WalletFlavorS (..)
     , keyFlavorFromState
@@ -835,7 +837,7 @@ postWallet
     :: forall ctx s k n.
         ( s ~ SeqState n k
         , k ~ ShelleyKey
-        , ctx ~ ApiLayer s 'CredFromKeyK
+        , ctx ~ ApiLayer s
         , Seq.SupportsDiscovery n k
         , HasDBFactory s ctx
         , HasWorkerRegistry s ctx
@@ -862,7 +864,7 @@ postShelleyWallet
     :: forall ctx s k n.
         ( s ~ SeqState n k
         , k ~ ShelleyKey
-        , ctx ~ ApiLayer s 'CredFromKeyK
+        , ctx ~ ApiLayer s
         , Seq.SupportsDiscovery n k
         , HasDBFactory s ctx
         , HasWorkerRegistry s ctx
@@ -901,7 +903,7 @@ postShelleyWallet ctx generateKey body = do
 postAccountWallet
     :: forall ctx s k n w.
         ( s ~ SeqState n k
-        , ctx ~ ApiLayer s 'CredFromKeyK
+        , ctx ~ ApiLayer s
         , Seq.SupportsDiscovery n k
         , HasWorkerRegistry s ctx
         , IsOurs s RewardAccount
@@ -934,7 +936,7 @@ postAccountWallet ctx mkWallet liftKey coworker body = do
 
 mkShelleyWallet
     :: forall ctx s k n.
-        ( ctx ~ ApiLayer s 'CredFromKeyK
+        ( ctx ~ ApiLayer s
         , s ~ SeqState n k
         , IsOurs s Address
         , IsOurs s RewardAccount
@@ -1018,7 +1020,7 @@ postSharedWallet
     :: forall ctx s k n.
         ( s ~ SharedState n k
         , k ~ SharedKey
-        , ctx ~ ApiLayer s 'CredFromScriptK
+        , ctx ~ ApiLayer s
         , Shared.SupportsDiscovery n k
         , HasDBFactory s ctx
         , HasWorkerRegistry s ctx
@@ -1042,7 +1044,7 @@ postSharedWalletFromRootXPrv
     :: forall ctx s k n.
         ( s ~ SharedState n k
         , k ~ SharedKey
-        , ctx ~ ApiLayer s 'CredFromScriptK
+        , ctx ~ ApiLayer s
         , Shared.SupportsDiscovery n k
         , HasDBFactory s ctx
         , HasWorkerRegistry s ctx
@@ -1108,7 +1110,7 @@ postSharedWalletFromAccountXPub
     :: forall ctx s k n.
         ( s ~ SharedState n k
         , k ~ SharedKey
-        , ctx ~ ApiLayer s 'CredFromScriptK
+        , ctx ~ ApiLayer s
         , Shared.SupportsDiscovery n k
         , HasDBFactory s ctx
         , HasWorkerRegistry s ctx
@@ -1175,7 +1177,7 @@ scriptTemplateFromSelf xpub (ApiScriptTemplateEntry cosigners' template') =
 
 mkSharedWallet
     :: forall ctx s k n.
-        ( ctx ~ ApiLayer s 'CredFromScriptK
+        ( ctx ~ ApiLayer s
         , s ~ SharedState n k
         , HasWorkerRegistry s ctx
         , Shared.SupportsDiscovery n k
@@ -1238,7 +1240,7 @@ patchSharedWallet
     :: forall ctx s k n.
         ( s ~ SharedState n k
         , k ~ SharedKey
-        , ctx ~ ApiLayer s 'CredFromScriptK
+        , ctx ~ ApiLayer s
         , Shared.SupportsDiscovery n k
         , HasDBFactory s ctx
         )
@@ -1298,7 +1300,7 @@ patchSharedWallet ctx liftKey cred (ApiT wid) body = do
 
 postLegacyWallet
     :: forall ctx s k.
-        ( ctx ~ ApiLayer s 'CredFromKeyK
+        ( ctx ~ ApiLayer s
         , KnownDiscovery s
         , IsOurs s RewardAccount
         , IsOurs s Address
@@ -1397,7 +1399,7 @@ mkLegacyWallet ctx wid cp meta _ pending progress = do
 
 postRandomWallet
     :: forall ctx s k n.
-        ( ctx ~ ApiLayer s 'CredFromKeyK
+        ( ctx ~ ApiLayer s
         , s ~ RndState n
         , k ~ ByronKey
         )
@@ -1418,7 +1420,7 @@ postRandomWallet ctx body = do
 
 postRandomWalletFromXPrv
     :: forall ctx s n.
-        ( ctx ~ ApiLayer s 'CredFromKeyK
+        ( ctx ~ ApiLayer s
         , s ~ RndState n
         , HasNetworkLayer IO ctx
         )
@@ -1444,7 +1446,7 @@ postRandomWalletFromXPrv ctx body = do
 
 postIcarusWallet
     :: forall ctx s k n.
-        ( ctx ~ ApiLayer s 'CredFromKeyK
+        ( ctx ~ ApiLayer s
         , s ~ SeqState n k
         , k ~ IcarusKey
         , HasSNetworkId n
@@ -1466,7 +1468,7 @@ postIcarusWallet ctx body = do
 
 postTrezorWallet
     :: forall ctx s k n.
-        ( ctx ~ ApiLayer s 'CredFromKeyK
+        ( ctx ~ ApiLayer s
         , s ~ SeqState n k
         , k ~ IcarusKey
         , HasSNetworkId n
@@ -1488,7 +1490,7 @@ postTrezorWallet ctx body = do
 
 postLedgerWallet
     :: forall ctx s k n.
-        ( ctx ~ ApiLayer s 'CredFromKeyK
+        ( ctx ~ ApiLayer s
         , s ~ SeqState n k
         , k ~ IcarusKey
         , HasSNetworkId n
@@ -1517,8 +1519,8 @@ postLedgerWallet ctx body = do
 -- Since they have identical ids, we actually lookup both contexts in sequence.
 withLegacyLayer
     :: forall byron icarus n a.
-        ( byron ~ ApiLayer (RndState n) 'CredFromKeyK
-        , icarus ~ ApiLayer (SeqState n IcarusKey) 'CredFromKeyK
+        ( byron ~ ApiLayer (RndState n)
+        , icarus ~ ApiLayer (SeqState n IcarusKey)
         )
     => ApiT WalletId
     -> (byron, Handler a)
@@ -1533,8 +1535,8 @@ withLegacyLayer (ApiT wid) (byron, withByron) (icarus, withIcarus) =
 -- workers.
 withLegacyLayer'
     :: forall byron icarus n a.
-        ( byron ~ ApiLayer (RndState n) 'CredFromKeyK
-        , icarus ~ ApiLayer (SeqState n IcarusKey) 'CredFromKeyK
+        ( byron ~ ApiLayer (RndState n)
+        , icarus ~ ApiLayer (SeqState n IcarusKey)
         )
     => ApiT WalletId
     -> (byron, Handler a, ErrWalletNotResponding -> Handler a)
@@ -1566,8 +1568,8 @@ withLegacyLayer' (ApiT wid)
 -------------------------------------------------------------------------------}
 
 deleteWallet
-    :: forall ctx s ktype
-     . ctx ~ ApiLayer s ktype
+    :: forall ctx s
+     . ctx ~ ApiLayer s
     => ctx
     -> ApiT WalletId
     -> Handler NoContent
@@ -1585,8 +1587,8 @@ deleteWallet ctx (ApiT wid) = do
     df = ctx ^. dbFactory @s
 
 getWallet
-    :: forall ctx s ktype apiWallet.
-        ( ctx ~ ApiLayer s ktype
+    :: forall ctx s apiWallet.
+        ( ctx ~ ApiLayer s
         , HasWorkerRegistry s ctx
         , HasDBFactory s ctx
         )
@@ -1616,8 +1618,8 @@ getWallet ctx mkApiWallet (ApiT wid) = do
                 <$> mkApiWallet ctx wid cp meta delegation pending NotResponding
 
 listWallets
-    :: forall ctx s ktype apiWallet
-     . ( ctx ~ ApiLayer s ktype
+    :: forall ctx s apiWallet
+     . ( ctx ~ ApiLayer s
        , NFData apiWallet
        )
     => ctx
@@ -1643,8 +1645,8 @@ listWallets ctx mkApiWallet = do
         . getWallet ctx mkApiWallet
 
 putWallet
-    :: forall ctx s ktype apiWallet
-     . ctx ~ ApiLayer s ktype
+    :: forall ctx s apiWallet
+     . ctx ~ ApiLayer s
     => ctx
     -> MkApiWallet ctx s apiWallet
     -> ApiT WalletId
@@ -1662,8 +1664,8 @@ putWallet ctx mkApiWallet (ApiT wid) body = do
     modify wName meta = meta { name = wName }
 
 putWalletPassphrase
-    :: forall ctx s k ktype.
-        ( ctx ~ ApiLayer s ktype
+    :: forall ctx s k .
+        ( ctx ~ ApiLayer s
         , GetAccount s k
         , WalletFlavor s
         , KeyOf s ~ k
@@ -1705,13 +1707,13 @@ putWalletPassphrase ctx createKey getKey (ApiT wid)
                     $ ErrUpdatePassphraseWithRootKey
                     $ ErrWithRootKeyWrongMnemonic wid
     where
-        withWrk :: (WorkerCtx (ApiLayer s ktype) -> Handler a) -> Handler a
+        withWrk :: (WorkerCtx (ApiLayer s) -> Handler a) -> Handler a
         withWrk = withWorkerCtx ctx wid liftE liftE
 
 putByronWalletPassphrase
     :: forall ctx s
      . ( WalletFlavor s
-       , ctx ~ ApiLayer s 'CredFromKeyK
+       , ctx ~ ApiLayer s
        )
     => ctx
     -> ApiT WalletId
@@ -1725,8 +1727,8 @@ putByronWalletPassphrase ctx (ApiT wid) body = do
     return NoContent
 
 getUTxOsStatistics
-    :: forall ctx s ktype
-     . ctx ~ ApiLayer s ktype
+    :: forall ctx s
+     . ctx ~ ApiLayer s
     => ctx
     -> ApiT WalletId
     -> Handler ApiUtxoStatistics
@@ -1736,13 +1738,13 @@ getUTxOsStatistics ctx (ApiT wid) = do
     return $ toApiUtxoStatistics stats
 
 getWalletUtxoSnapshot
-    :: forall s ktype
-     . ApiLayer s ktype
+    :: forall s
+     . ApiLayer s
     -> ApiT WalletId
     -> Handler ApiWalletUtxoSnapshot
 getWalletUtxoSnapshot ctx (ApiT wid) = do
     entries <- withWorkerCtx ctx wid liftE liftE $ \wrk -> handler $
-        W.getWalletUtxoSnapshot @_ @s @ktype wrk
+        W.getWalletUtxoSnapshot @_ @s wrk
     return $ mkApiWalletUtxoSnapshot entries
   where
     mkApiWalletUtxoSnapshot :: [(TokenBundle, Coin)] -> ApiWalletUtxoSnapshot
@@ -1771,7 +1773,7 @@ selectCoins
         , GenChange s
         , TxWitnessTagFor k
         )
-    => ApiLayer s 'CredFromKeyK
+    => ApiLayer s
     -> ArgGenChange s
     -> ApiT WalletId
     -> ApiSelectCoinsPayments n
@@ -1830,7 +1832,7 @@ selectCoinsForJoin
         , Seq.SupportsDiscovery n k
         , DelegationAddress k 'CredFromKeyK
         )
-    => ApiLayer s 'CredFromKeyK
+    => ApiLayer s
     -> IO (Set PoolId)
        -- ^ Known pools
        -- We could maybe replace this with a @IO (PoolId -> Bool)@
@@ -1899,7 +1901,7 @@ selectCoinsForQuit
         , DelegationAddress k 'CredFromKeyK
         , TxWitnessTagFor k
         )
-    => ApiLayer (SeqState n k) 'CredFromKeyK
+    => ApiLayer (SeqState n k)
     -> ApiT WalletId
     -> Handler (ApiCoinSelection n)
 selectCoinsForQuit ctx@ApiLayer{..} (ApiT walletId) = do
@@ -1957,7 +1959,7 @@ data ErrGetAsset
 -- available). This list may include assets which have already been spent.
 listAssets
     :: forall ctx s
-     . ( ctx ~ ApiLayer s 'CredFromKeyK
+     . ( ctx ~ ApiLayer s
        , IsOurs s Address
        , HasTokenMetadataClient ctx
        )
@@ -1973,8 +1975,8 @@ listAssets ctx wid = do
 -- | Return a list of all AssetIds involved in the transaction history of this
 -- wallet.
 listAssetsBase
-    :: forall s k ktype. (IsOurs s Address, k ~ KeyOf s) =>
-    ApiLayer s ktype -> ApiT WalletId -> Handler (Set AssetId)
+    :: forall s k . (IsOurs s Address, k ~ KeyOf s) =>
+    ApiLayer s -> ApiT WalletId -> Handler (Set AssetId)
 listAssetsBase ctx (ApiT wallet) =
     withWorkerCtx ctx wallet liftE liftE $ \wctx ->
         handler $ W.listAssets wctx
@@ -1984,8 +1986,8 @@ listAssetsBase ctx (ApiT wallet) =
 -- NOTE: This is slightly inefficient because it greps through the transaction
 -- history to check if the asset is associated with this wallet.
 getAsset
-    :: forall ctx s ktype.
-        ( ctx ~ ApiLayer s ktype
+    :: forall ctx s .
+        ( ctx ~ ApiLayer s
         , IsOurs s Address
         , HasTokenMetadataClient ctx
         )
@@ -2004,8 +2006,8 @@ getAsset ctx wid (ApiT policyId) (ApiT assetName) = do
 
 -- | The handler for 'getAsset' when 'TokenName' is empty.
 getAssetDefault
-    :: forall ctx s ktype.
-        ( ctx ~ ApiLayer s ktype
+    :: forall ctx s .
+        ( ctx ~ ApiLayer s
         , IsOurs s Address
         , HasTokenMetadataClient ctx
         )
@@ -2023,7 +2025,7 @@ postRandomAddress
     :: forall ctx s k n.
         ( s ~ RndState n
         , k ~ ByronKey
-        , ctx ~ ApiLayer s 'CredFromKeyK
+        , ctx ~ ApiLayer s
         , HasSNetworkId n
         )
     => ctx
@@ -2043,7 +2045,7 @@ postRandomAddress ctx (ApiT wid) body = do
 putRandomAddress
     :: forall ctx s n.
         ( s ~ RndState n
-        , ctx ~ ApiLayer s 'CredFromKeyK
+        , ctx ~ ApiLayer s
         )
     => ctx
     -> ApiT WalletId
@@ -2057,7 +2059,7 @@ putRandomAddress ctx (ApiT wid) (ApiAddress addr)  = do
 putRandomAddresses
     :: forall ctx s n
      . ( s ~ RndState n
-       , ctx ~ ApiLayer s 'CredFromKeyK
+       , ctx ~ ApiLayer s
        )
     => ctx
     -> ApiT WalletId
@@ -2071,8 +2073,8 @@ putRandomAddresses ctx (ApiT wid) (ApiPutAddressesData addrs)  = do
     addrs' = apiAddress <$> addrs
 
 listAddresses
-    :: forall ctx s ktype n.
-        ( ctx ~ ApiLayer s ktype
+    :: forall ctx s n.
+        ( ctx ~ ApiLayer s
         , CompareDiscovery s
         , KnownAddresses s
         )
@@ -2099,13 +2101,14 @@ listAddresses ctx normalize (ApiT wid) stateFilter = do
 
 signTransaction
     :: forall ctx s k ktype.
-        ( ctx ~ ApiLayer s ktype
+        ( ctx ~ ApiLayer s
         , Bounded (Index (AddressIndexDerivationType k) (AddressCredential k))
         , IsOwned s k ktype
         , HardDerivation k
         , WalletFlavor s
         , KeyOf s ~ k
         , AccountIxForStaking s
+        , ktype ~ CredFromOf s
         )
     => ctx
     -> ApiT WalletId
@@ -2160,7 +2163,7 @@ signTransaction ctx (ApiT wid) body = do
 
 postTransactionOld
     :: forall ctx s n k.
-        ( ctx ~ ApiLayer s 'CredFromKeyK
+        ( ctx ~ ApiLayer s
         , GenChange s
         , HardDerivation k
         , HasNetworkLayer IO ctx
@@ -2173,6 +2176,7 @@ postTransactionOld
         , Excluding '[SharedKey] k
         , KeyOf s ~ k
         , IsOurs s RewardAccount
+        , CredFromOf s ~ 'CredFromKeyK
         )
     => ctx
     -> ArgGenChange s
@@ -2239,7 +2243,7 @@ postTransactionOld ctx@ApiLayer{..} argGenChange (ApiT wid) body = do
 
 deleteTransaction
     :: forall ctx s
-     . ctx ~ ApiLayer s 'CredFromKeyK
+     . ctx ~ ApiLayer s
     => ctx
     -> ApiT WalletId
     -> ApiTxId
@@ -2250,11 +2254,11 @@ deleteTransaction ctx (ApiT wid) (ApiTxId (ApiT (tid))) = do
     return NoContent
 
 listTransactions
-    :: forall s ktype n
+    :: forall s n
      . ( HasDelegation s
        , WalletFlavor s
        )
-    => ApiLayer s ktype
+    => ApiLayer s
     -> ApiT WalletId
     -> Maybe MinWithdrawal
     -> Maybe Iso8601Time
@@ -2287,11 +2291,11 @@ listTransactions
     defaultSortOrder = Descending
 
 getTransaction
-    :: forall s ktype n
+    :: forall s n
      . ( HasDelegation s
        , WalletFlavor s
        )
-    => ApiLayer s ktype
+    => ApiLayer s
     -> ApiT WalletId
     -> ApiTxId
     -> TxMetadataSchema
@@ -2312,7 +2316,7 @@ mkApiTransactionFromInfo
        , WalletFlavor s
        )
     => TimeInterpreter (ExceptT PastHorizonException IO)
-    -> W.WalletLayer IO s ktype
+    -> W.WalletLayer IO s
     -> Coin
     -> TransactionInfo
     -> TxMetadataSchema
@@ -2354,8 +2358,9 @@ postTransactionFeeOld
        , AddressBookIso s
        , TxWitnessTagFor k
        , k ~ KeyOf s
+       , CredFromOf s ~ 'CredFromKeyK
        )
-    => ApiLayer s 'CredFromKeyK
+    => ApiLayer s
     -> ApiT WalletId
     -> PostTransactionFeeOldData n
     -> Handler ApiFee
@@ -2423,12 +2428,9 @@ postTransactionFeeOld ctx@ApiLayer{..} (ApiT walletId) body = do
     padding = Quantity 20
 
 constructTransaction
-    :: forall n s k.
-        ( HasSNetworkId n
-        , s ~ SeqState n k
-        , k ~ ShelleyKey
-        )
-    => ApiLayer s 'CredFromKeyK
+    :: forall s k n
+     . (HasSNetworkId n, s ~ SeqState n ShelleyKey, k ~ KeyOf s)
+    => ApiLayer s
     -> ArgGenChange s
     -> IO (Set PoolId)
     -> (PoolId -> IO PoolLifeCycleStatus)
@@ -2464,7 +2466,7 @@ constructTransaction api argGenChange knownPools poolStatus apiWalletId body = d
     withWorkerCtx api walletId liftE liftE $ \wrk -> do
         let db = wrk ^. dbLayer
             netLayer = wrk ^. networkLayer
-            txLayer = wrk ^. transactionLayer @k @'CredFromKeyK
+            txLayer = wrk ^. transactionLayer @_ @'CredFromKeyK
             trWorker = MsgWallet >$< wrk ^. logger
         pp <- liftIO $ NW.currentProtocolParameters netLayer
         era <- liftIO $ NW.currentNodeEra netLayer
@@ -2855,7 +2857,7 @@ parseValidityInterval ti validityInterval = do
 -- TO-DO reference scripts
 constructSharedTransaction
     :: forall n . HasSNetworkId n
-    => ApiLayer (SharedState n SharedKey) 'CredFromScriptK
+    => ApiLayer (SharedState n SharedKey)
     -> ArgGenChange (SharedState n SharedKey)
     -> IO (Set PoolId)
     -> (PoolId -> IO PoolLifeCycleStatus)
@@ -2983,7 +2985,7 @@ constructSharedTransaction
 
 decodeSharedTransaction
     :: forall n . HasSNetworkId n
-    => ApiLayer (SharedState n SharedKey) 'CredFromScriptK
+    => ApiLayer (SharedState n SharedKey)
     -> ApiT WalletId
     -> ApiSerialisedTransaction
     -> Handler (ApiDecodedTransaction n)
@@ -3073,16 +3075,13 @@ decodeSharedTransaction ctx (ApiT wid) (ApiSerialisedTransaction (ApiT sealed) _
         }
 
 balanceTransaction
-    :: forall s k ktype n.
-        ( GenChange s
-        , WalletFlavor s
-        , k ~ KeyOf s
-        )
-    => ApiLayer s ktype
+    :: forall s
+     . (GenChange s, WalletFlavor s)
+    => ApiLayer s
     -> ArgGenChange s
     -> UTxOAssumptions
     -> ApiT WalletId
-    -> ApiBalanceTransactionPostData n
+    -> ApiBalanceTransactionPostData (NetworkOf s)
     -> Handler ApiSerialisedTransaction
 balanceTransaction
     ctx@ApiLayer{..} argGenChange utxoAssumptions (ApiT wid) body = do
@@ -3176,8 +3175,9 @@ decodeTransaction
     :: forall s n
      . ( IsOurs s Address
        , WalletFlavor s
+       , CredFromOf s ~ 'CredFromKeyK
        )
-    => ApiLayer s 'CredFromKeyK
+    => ApiLayer s
     -> ApiT WalletId
     -> ApiSerialisedTransaction
     -> Handler (ApiDecodedTransaction n)
@@ -3289,7 +3289,7 @@ toOut ((TxOut addr (TokenBundle (Coin c) tmap)), (Just path)) =
 
 submitTransaction
     :: forall ctx s k n
-     . ( ctx ~ ApiLayer s 'CredFromKeyK
+     . ( ctx ~ ApiLayer s
        , s ~ SeqState n k
        , WalletFlavor s
        , HasNetworkLayer IO ctx
@@ -3430,7 +3430,7 @@ isForeign apiDecodedTx =
 
 submitSharedTransaction
     :: forall n . HasSNetworkId n
-    => ApiLayer (SharedState n SharedKey) 'CredFromScriptK
+    => ApiLayer (SharedState n SharedKey)
     -> ApiT WalletId
     -> ApiSerialisedTransaction
     -> Handler ApiTxId
@@ -3525,7 +3525,7 @@ joinStakePool
         , AddressBookIso s
         , HasDelegation s
         )
-    => ApiLayer s 'CredFromKeyK
+    => ApiLayer s
     -> ArgGenChange s
     -> IO (Set PoolId)
        -- ^ Known pools
@@ -3599,7 +3599,7 @@ delegationFee
        , s ~ SeqState n k
        , HasSNetworkId n
        )
-    => ApiLayer s 'CredFromKeyK
+    => ApiLayer s
     -> ApiT WalletId
     -> Handler ApiFee
 delegationFee ctx@ApiLayer{..} (ApiT walletId) = do
@@ -3627,7 +3627,7 @@ quitStakePool
         , AddressBookIso s
         , IsOurs (SeqState n k) RewardAccount
         )
-    => ApiLayer s 'CredFromKeyK
+    => ApiLayer s
     -> ArgGenChange s
     -> ApiT WalletId
     -> ApiWalletPassphrase
@@ -3739,7 +3739,7 @@ listStakeKeys
     :: forall s n
      . (s ~ SeqState n ShelleyKey)
     => (Address -> Maybe RewardAccount)
-    -> ApiLayer s 'CredFromKeyK
+    -> ApiLayer s
     -> ApiT WalletId
     -> Handler (ApiStakeKeys n)
 listStakeKeys lookupStakeRef ctx@ApiLayer{..} (ApiT wid) =
@@ -3768,8 +3768,9 @@ createMigrationPlan
        , WalletFlavor s
        , TxWitnessTagFor k
        , k ~ KeyOf s
+       , CredFromOf s ~ 'CredFromKeyK
        )
-    => ApiLayer s 'CredFromKeyK
+    => ApiLayer s
     -> Maybe ApiWithdrawalPostData
     -- ^ What type of reward withdrawal to attempt
     -> ApiT WalletId
@@ -3864,8 +3865,9 @@ migrateWallet
         , WalletFlavor s
         , HasDelegation s
         , k ~ KeyOf s
+        , CredFromOf s ~ 'CredFromKeyK
         )
-    => ApiLayer s 'CredFromKeyK
+    => ApiLayer s
     -> Maybe ApiWithdrawalPostData
         -- ^ What type of reward withdrawal to attempt
     -> ApiT WalletId
@@ -3948,7 +3950,7 @@ data ErrCurrentEpoch
     | ErrCurrentEpochPastHorizonException PastHorizonException
 
 getCurrentEpoch
-    :: forall ctx s ktype. (ctx ~ ApiLayer s ktype)
+    :: forall ctx s . (ctx ~ ApiLayer s)
     => ctx
     -> Handler W.EpochNo
 getCurrentEpoch ctx = liftIO (runExceptT (currentEpoch ti)) >>= \case
@@ -4044,17 +4046,18 @@ getBlocksLatestHeader nl = liftIO $ mkApiBlockHeader <$> NW.currentNodeTip nl
 -------------------------------------------------------------------------------}
 
 postExternalTransaction
-    :: forall s ktype
-     . ApiLayer s ktype
+    :: forall s
+     . ApiLayer s
     -> ApiT W.SealedTx
     -> Handler ApiTxId
 postExternalTransaction ctx (ApiT sealed) = do
-    tx <- liftHandler $ W.submitExternalTx @_ @ktype @(KeyOf s) ctx sealed
+    tx <- liftHandler $ W.submitExternalTx
+            @_ @(CredFromOf s) @(KeyOf s) ctx sealed
     return $ ApiTxId (ApiT (tx ^. #txId))
 
 signMetadata
     :: forall ctx s k n.
-        ( ctx ~ ApiLayer s 'CredFromKeyK
+        ( ctx ~ ApiLayer s
         , s ~ SeqState n k
         , HardDerivation k
         , AddressIndexDerivationType k ~ 'Soft
@@ -4075,13 +4078,13 @@ signMetadata ctx (ApiT wid) (ApiT role_) (ApiT ix) body = do
             wrk wid (coerce pwd) (role_, ix) meta
 
 derivePublicKey
-    :: forall s k ktype ver.
+    :: forall s k ver.
         ( SoftDerivation k
         , GetAccount s k
         , k ~ KeyOf s
         , WalletFlavor s
         )
-    => ApiLayer s ktype
+    => ApiLayer s
     -> ((ByteString, Role) -> VerificationKeyHashing -> ver)
     -> ApiT WalletId
     -> ApiT Role
@@ -4096,8 +4099,8 @@ derivePublicKey ctx mkVer (ApiT wid) (ApiT role_) (ApiT ix) hashed = do
         pure $ mkVer (payload, role_) hashing
 
 postAccountPublicKey
-    :: forall ctx s k ktype account.
-        ( ctx ~ ApiLayer s ktype
+    :: forall ctx s k account.
+        ( ctx ~ ApiLayer s
         , GetPurpose k
         , k ~ KeyOf s
         , AfterByron k
@@ -4128,13 +4131,13 @@ publicKeyToBytes' = \case
     NonExtended -> xpubPublicKey
 
 getAccountPublicKey
-    :: forall s k ktype account.
+    :: forall s k account.
         ( GetAccount s k
         , GetPurpose k
         , k ~ KeyOf s
         , WalletFlavor s
         )
-    => ApiLayer s ktype
+    => ApiLayer s
     -> (ByteString -> KeyFormat -> Index 'Hardened 'PurposeK -> account)
     -> ApiT WalletId
     -> Maybe KeyFormat
@@ -4153,7 +4156,7 @@ getAccountPublicKey ctx mkAccount (ApiT wid) extended = do
 
 getPolicyKey
     :: forall ctx s
-     . ( ctx ~ ApiLayer s 'CredFromKeyK
+     . ( ctx ~ ApiLayer s
        , WalletFlavor s
        )
     => ctx
@@ -4167,7 +4170,7 @@ getPolicyKey ctx (ApiT wid) hashed = do
 
 postPolicyKey
     :: forall ctx s n
-     . ( ctx ~ ApiLayer s 'CredFromKeyK
+     . ( ctx ~ ApiLayer s
        , s ~ SeqState n ShelleyKey
        )
     => ctx
@@ -4191,7 +4194,7 @@ postPolicyId
        , KeyOf s ~ k
        , AfterByron k
        )
-    => ApiLayer s 'CredFromKeyK
+    => ApiLayer s
     -> ApiT WalletId
     -> ApiPostPolicyIdData
     -> Handler ApiPolicyId
@@ -4220,7 +4223,7 @@ postPolicyId ctx (ApiT wid) payload = do
 -- XPrv), necessary to derive new change addresses.
 rndStateChange
     :: forall ctx s n.
-        ( ctx ~ ApiLayer s 'CredFromKeyK
+        ( ctx ~ ApiLayer s
         , s ~ RndState n
         )
     => ctx
@@ -4440,12 +4443,12 @@ data MkApiTransactionParams = MkApiTransactionParams
     deriving (Eq, Generic, Show)
 
 mkApiTransaction
-    :: forall n s ktype
+    :: forall n s
      . ( HasDelegation s
        , WalletFlavor s
        )
     => TimeInterpreter (ExceptT PastHorizonException IO)
-    -> W.WalletLayer IO s ktype
+    -> W.WalletLayer IO s
     -> Lens' (ApiTransaction n) (Maybe ApiBlockReference)
     -> MkApiTransactionParams
     -> Handler (ApiTransaction n)
@@ -4684,8 +4687,8 @@ fromApiRedeemer = \case
 
 -- | Create a new instance of the wallet layer.
 newApiLayer
-    :: forall ctx s k ktype.
-        ( ctx ~ ApiLayer s ktype
+    :: forall ctx s k.
+        ( ctx ~ ApiLayer s
         , IsOurs s RewardAccount
         , IsOurs s Address
         , AddressBookIso s
@@ -4695,7 +4698,7 @@ newApiLayer
     => Tracer IO WalletEngineLog
     -> (Block, NetworkParameters)
     -> NetworkLayer IO Read.Block
-    -> TransactionLayer k ktype W.SealedTx
+    -> TransactionLayer k (CredFromOf s) W.SealedTx
     -> DBFactory IO s
     -> TokenMetadataClient IO
     -> (WorkerCtx ctx -> WalletId -> IO ())
@@ -4712,8 +4715,8 @@ newApiLayer tr g0 nw tl df tokenMeta coworker = do
 
 -- | Register a wallet restoration thread with the worker registry.
 startWalletWorker
-    :: forall ctx s ktype.
-        ( ctx ~ ApiLayer s ktype
+    :: forall ctx s .
+        ( ctx ~ ApiLayer s
         , IsOurs s RewardAccount
         , IsOurs s Address
         , AddressBookIso s
@@ -4741,8 +4744,8 @@ startWalletWorker ctx coworker = void . registerWorker ctx before coworker
 -- | Register a wallet create and restore thread with the worker registry.
 -- See 'Cardano.Wallet#createWallet'
 createWalletWorker
-    :: forall ctx s ktype.
-        ( ctx ~ ApiLayer s ktype
+    :: forall ctx s .
+        ( ctx ~ ApiLayer s
         , IsOurs s RewardAccount
         , IsOurs s Address
         , AddressBookIso s
@@ -4770,9 +4773,7 @@ createWalletWorker ctx wid createWallet coworker =
     re = ctx ^. workerRegistry @s
 
 createNonRestoringWalletWorker
-    :: forall ctx s ktype.
-        ( ctx ~ ApiLayer s ktype
-        )
+    :: forall ctx s .  ( ctx ~ ApiLayer s)
     => ctx
         -- ^ Surrounding API context
     -> WalletId
@@ -4804,8 +4805,8 @@ createNonRestoringWalletWorker ctx wid createWallet =
 -- | Create a worker for an existing wallet, register it, then start the worker
 -- thread. This is used by 'startWalletWorker' and 'createWalletWorker'.
 registerWorker
-    :: forall ctx s ktype.
-        ( ctx ~ ApiLayer s ktype
+    :: forall ctx s .
+        ( ctx ~ ApiLayer s
         , IsOurs s RewardAccount
         , IsOurs s Address
         , AddressBookIso s

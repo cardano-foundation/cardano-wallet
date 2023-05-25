@@ -344,7 +344,8 @@ import Cardano.Wallet.DB.WalletState
     , getSlot
     )
 import Cardano.Wallet.Flavor
-    ( Excluding
+    ( CredFromOf
+    , Excluding
     , KeyFlavorS (..)
     , KeyOf
     , WalletFlavor (..)
@@ -696,12 +697,12 @@ import qualified Data.Vector as V
 --
 -- __Fix__: Add type-applications at the call-site "@myFunction \@ctx \@s \\@k@"
 
-data WalletLayer m s ktype
+data WalletLayer m s
     = WalletLayer
         (Tracer m WalletWorkerLog)
         (Block, NetworkParameters)
         (NetworkLayer m Read.Block)
-        (TransactionLayer (KeyOf s) ktype SealedTx)
+        (TransactionLayer (KeyOf s) (CredFromOf s) SealedTx)
         (DBLayer m s)
     deriving (Generic)
 
@@ -956,10 +957,10 @@ updateWalletPassphraseWithMnemonic ctx (xprv, new) =
         (xprv, (currentPassphraseScheme , new))
 
 getWalletUtxoSnapshot
-    :: forall ctx s ktype
+    :: forall ctx s
      . ( HasDBLayer IO s ctx
        , HasNetworkLayer IO ctx
-       , HasTransactionLayer (KeyOf s) ktype ctx
+       , HasTransactionLayer (KeyOf s) (CredFromOf s) ctx
        )
     => ctx
     -> IO [(TokenBundle, Coin)]
@@ -973,7 +974,7 @@ getWalletUtxoSnapshot ctx = do
     pure $ first (view #tokens) . pairTxOutWithMinAdaQuantity era pp <$> txOuts
   where
     nl = ctx ^. networkLayer
-    tl = ctx ^. transactionLayer @(KeyOf s) @ktype
+    tl = ctx ^. transactionLayer @(KeyOf s) @(CredFromOf s)
 
     pairTxOutWithMinAdaQuantity
         :: Cardano.AnyCardanoEra
@@ -3719,8 +3720,8 @@ dummyChangeAddressGen =
         (maxLengthAddressFor (keyFlavorFromState @s))
 
 utxoAssumptionsForWallet
-    :: forall s.
-        Excluding '[SharedKey] (KeyOf s)
+    :: forall s
+     . Excluding '[SharedKey] (KeyOf s)
     => WalletFlavorS s
     -> UTxOAssumptions
 utxoAssumptionsForWallet = keyOfWallet >>> \case

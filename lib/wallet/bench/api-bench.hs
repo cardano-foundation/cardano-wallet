@@ -48,8 +48,6 @@ import Cardano.Wallet
     ( readWalletMeta )
 import Cardano.Wallet.Address.Derivation
     ( DelegationAddress (..), Depth (..), delegationAddressS )
-import Cardano.Wallet.Address.Derivation.Byron
-    ( ByronKey )
 import Cardano.Wallet.Address.Derivation.Shared
     ( SharedKey )
 import Cardano.Wallet.Address.Derivation.Shelley
@@ -73,7 +71,7 @@ import Cardano.Wallet.DummyTarget.Primitive.Types
     , dummyTimeInterpreter
     )
 import Cardano.Wallet.Flavor
-    ( KeyOf, WalletFlavor (..), keyFlavorFromState )
+    ( CredFromOf, KeyOf, WalletFlavor (..), keyFlavorFromState )
 import Cardano.Wallet.Logging
     ( trMessageText )
 import Cardano.Wallet.Network
@@ -220,14 +218,12 @@ instance ToJSON BenchSeqResults where
     toJSON = genericToJSON Aeson.defaultOptions
 
 benchmarksSeq
-    :: forall n s k ktype.
-        ( s ~ SeqState n k
-        , k ~ ShelleyKey
-        , ktype ~ 'CredFromKeyK
+    :: forall n s .
+        ( s ~ SeqState n ShelleyKey
         , HasSNetworkId n
-        , DelegationAddress k ktype
+        , DelegationAddress ShelleyKey 'CredFromKeyK
         )
-    => BenchmarkConfig n s k ktype
+    => BenchmarkConfig n s
     -> IO BenchSeqResults
 benchmarksSeq BenchmarkConfig{benchmarkName,ctx} = do
     ((cp, pending), readWalletTime) <- bench "readWallet" $ do
@@ -239,7 +235,7 @@ benchmarksSeq BenchmarkConfig{benchmarkName,ctx} = do
 
     (_, getWalletUtxoSnapshotTime) <- bench "getWalletUtxoSnapshot"
         $ length
-        <$> W.getWalletUtxoSnapshot @_ @s @ktype ctx
+        <$> W.getWalletUtxoSnapshot @_ @s ctx
 
     (addresses, listAddressesTime) <- bench "listAddresses"
         $ fromIntegral . length
@@ -308,13 +304,11 @@ instance ToJSON BenchSharedResults where
     toJSON = genericToJSON Aeson.defaultOptions
 
 benchmarksShared
-    :: forall n s k ktype
-     . ( s ~ SharedState n k
-       , k ~ SharedKey
-       , ktype ~ 'CredFromScriptK
+    :: forall n s
+     . ( s ~ SharedState n SharedKey
        , HasSNetworkId n
        )
-    => BenchmarkConfig n s k ktype
+    => BenchmarkConfig n s
     -> IO BenchSharedResults
 benchmarksShared BenchmarkConfig{benchmarkName,ctx} = do
     ((cp, pending), readWalletTime) <- bench "readWallet" $ do
@@ -326,7 +320,7 @@ benchmarksShared BenchmarkConfig{benchmarkName,ctx} = do
 
     (_, getWalletUtxoSnapshotTime) <- bench "getWalletUtxoSnapshot"
         $ length
-        <$> W.getWalletUtxoSnapshot @_ @s @ktype ctx
+        <$> W.getWalletUtxoSnapshot @_ @s ctx
 
     (addresses, listAddressesTime) <- bench "listAddresses"
         $ fromIntegral . length
@@ -381,12 +375,9 @@ instance ToJSON BenchRndResults where
     toJSON = genericToJSON Aeson.defaultOptions
 
 benchmarksRnd
-    :: forall n s k ktype
-     . ( s ~ RndState n
-       , k ~ ByronKey
-       , ktype ~ 'CredFromKeyK
-       )
-    => BenchmarkConfig n s k ktype
+    :: forall n s
+     . s ~ RndState n
+    => BenchmarkConfig n s
     -> IO BenchRndResults
 benchmarksRnd BenchmarkConfig{benchmarkName,ctx} = do
     ((cp, pending), readWalletTime) <- bench "readWallet" $ do
@@ -398,7 +389,7 @@ benchmarksRnd BenchmarkConfig{benchmarkName,ctx} = do
 
     (_, getWalletUtxoSnapshotTime) <- bench "getWalletUtxoSnapshot"
         $ length
-        <$> W.getWalletUtxoSnapshot @_ @s @ktype ctx
+        <$> W.getWalletUtxoSnapshot @_ @s ctx
 
     (addresses, listAddressesTime) <- bench "listAddresses"
         $ fromIntegral . length
@@ -443,23 +434,22 @@ newtype SomeBenchmarkResults = SomeBenchmarkResults Builder
 instance Buildable SomeBenchmarkResults where
     build (SomeBenchmarkResults x) = x
 
-data BenchmarkConfig (n :: NetworkDiscriminant) s k ktype =
+data BenchmarkConfig (n :: NetworkDiscriminant) s =
     BenchmarkConfig
         { benchmarkName :: Text
         , networkId :: SNetworkId n
-        , ctx :: MockWalletLayer IO s k ktype
+        , ctx :: MockWalletLayer IO s
         , wid :: WalletId
         }
 
 -- | Run benchmarks on all wallet databases in a given directory.
 benchmarkWallets
-    :: forall n (k :: Depth -> * -> *) ktype s results
+    :: forall n s results
      . ( PersistAddressBook s
-       , TxWitnessTagFor k
+       , TxWitnessTagFor (KeyOf s)
        , Buildable results
        , ToJSON results
        , WalletFlavor s
-       , KeyOf s ~ k
        )
     => Text
         -- ^ Benchmark name (used for naming resulting files)
@@ -468,7 +458,7 @@ benchmarkWallets
     -> Trace IO Text
         -- ^ For wallet tracing
     -> SNetworkId n
-    -> ( BenchmarkConfig n s k ktype -> IO results )
+    -> ( BenchmarkConfig n s -> IO results )
         -- ^ Benchmark to run
     -> IO [SomeBenchmarkResults]
 benchmarkWallets benchName dir walletTr networkId action = do
@@ -492,10 +482,11 @@ benchmarkWallets benchName dir walletTr networkId action = do
     saveBenchmarkPoints benchname =
         Aeson.encodeFile (T.unpack benchname <> ".json")
 
-data MockWalletLayer m s (k :: Depth -> * -> *) ktype =
+data MockWalletLayer m s =
     MockWalletLayer
         { networkLayer :: NetworkLayer m Read.Block
-        , transactionLayer :: TransactionLayer k ktype SealedTx
+        , transactionLayer
+            :: TransactionLayer (KeyOf s) (CredFromOf s) SealedTx
         , dbLayer :: DBLayer m s
         , tracer :: Trace IO Text
         } deriving (Generic)
@@ -512,7 +503,7 @@ mockTimeInterpreter :: TimeInterpreter IO
 mockTimeInterpreter = dummyTimeInterpreter
 
 withWalletsFromDirectory
-    :: forall n s k ktype a
+    :: forall n s k a
      . ( PersistAddressBook s
        , TxWitnessTagFor k
        , WalletFlavor s
@@ -522,7 +513,7 @@ withWalletsFromDirectory
         -- ^ Directory of database files
     -> Trace IO Text
     -> SNetworkId n
-    -> (MockWalletLayer IO s k ktype -> WalletId -> IO a)
+    -> (MockWalletLayer IO s -> WalletId -> IO a)
     -> IO [a]
 withWalletsFromDirectory dir tr networkId action = do
     DB.DBFactory{listDatabases,withDatabase}

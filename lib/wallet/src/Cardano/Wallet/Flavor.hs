@@ -31,13 +31,14 @@ module Cardano.Wallet.Flavor
     , notByronKey
     , IncludingStates
     , KeyFlavor (..)
+    , CredFromOf
     )
 where
 
 import Prelude
 
 import Cardano.Wallet.Address.Derivation
-    ( Depth )
+    ( Depth (CredFromKeyK, CredFromScriptK) )
 import Cardano.Wallet.Address.Derivation.Byron
     ( ByronKey )
 import Cardano.Wallet.Address.Derivation.Icarus
@@ -212,3 +213,11 @@ shelleyOrShared x r h = case x of
     SharedWallet -> h SharedWallet
     IcarusWallet -> h IcarusWallet
     _ -> r
+
+type family CredFromOf s where
+    CredFromOf (SharedState n key) = 'CredFromScriptK
+    CredFromOf (SeqState n key) = 'CredFromKeyK
+    CredFromOf (RndState n) = 'CredFromKeyK
+    CredFromOf (TestState n key) = 'CredFromKeyK
+    CredFromOf (RndAnyState n p) = 'CredFromKeyK
+    CredFromOf (SeqAnyState n key p) = 'CredFromKeyK

@@ -79,7 +79,12 @@ import Cardano.Wallet.DummyTarget.Primitive.Types
     , mkTxId
     )
 import Cardano.Wallet.Flavor
-    ( KeyFlavorS (ShelleyKeyS), KeyOf, TestState (..), WalletFlavor (..) )
+    ( CredFromOf
+    , KeyFlavorS (ShelleyKeyS)
+    , KeyOf
+    , TestState (..)
+    , WalletFlavor (..)
+    )
 import Cardano.Wallet.Gen
     ( genMnemonic, genSlotNo )
 import Cardano.Wallet.Network
@@ -352,7 +357,8 @@ walletDoubleCreationProp
     -> Property
 walletDoubleCreationProp newWallet =
     monadicIO $ do
-        WalletLayerFixture dbf _db _wl _walletIds <- run $ setupFixture newWallet
+        WalletLayerFixture dbf _db _wl _walletIds
+            <- run $ setupFixture newWallet
         secondTrial <- run $ runExceptT $ createFixtureWallet dbf newWallet
         assert (isLeft secondTrial)
 
@@ -1179,7 +1185,7 @@ instance Arbitrary UTxO where
 data WalletLayerFixture s m = WalletLayerFixture
     { _fixtureDBFresh :: DBFresh m s
     , _fixtureDBLayer :: DBLayer m s
-    , _fixtureWalletLayer :: WalletLayer m s 'CredFromKeyK
+    , _fixtureWalletLayer :: WalletLayer m s
     , _fixtureWallet :: WalletId
     }
 
@@ -1202,6 +1208,7 @@ setupFixture
        , IsOurs s RewardAccount
        , Sqlite.PersistAddressBook s
        , KeyOf s ~ ShelleyKey
+       , CredFromOf s ~ 'CredFromKeyK
        , WalletFlavor s
        )
     => (WalletId, WalletName, s)
