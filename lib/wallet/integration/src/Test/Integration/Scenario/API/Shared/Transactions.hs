@@ -2505,6 +2505,8 @@ spec = describe "SHARED_TRANSACTIONS" $ do
         waitForNextEpoch ctx
         waitForNextEpoch ctx
         waitForNextEpoch ctx
+        waitForNextEpoch ctx
+        waitForNextEpoch ctx
 
         eventually "Shared Wallet 1 gets rewards from pool1" $ do
             r <- request @ApiWallet ctx (Link.getWallet @'Shared walActive1) Default Empty
@@ -2522,11 +2524,18 @@ spec = describe "SHARED_TRANSACTIONS" $ do
                 ]
 
         --sending back funds to parent with self withdrawal
-        let payloadWithdrawal = Json [json|
+        rGet1 <- request @ApiWallet ctx (Link.getWallet @'Shared walActive1)
+                    Default Empty
+        let (Quantity rewards1) = getFromResponse (#balance . #reward) rGet1
+        rGet2 <- request @ApiWallet ctx (Link.getWallet @'Shared walActive2)
+                    Default Empty
+        let (Quantity rewards2) = getFromResponse (#balance . #reward) rGet2
+
+        let payloadWithdrawal amt = Json [json|
                 { "payments":
                     [ { "address": #{destination}
                       , "amount":
-                        { "quantity": #{transfer}
+                        { "quantity": #{amt}
                         , "unit": "lovelace"
                         }
                       }
@@ -2534,8 +2543,17 @@ spec = describe "SHARED_TRANSACTIONS" $ do
                 , "passphrase": #{fixturePassphrase},
                   "withdrawal": "self"
                 }|]
+        rTx5a <- request @(ApiConstructTransaction n) ctx
+            (Link.createUnsignedTransaction @'Shared walActive1) Default
+            (payloadWithdrawal $ transfer + rewards1)
+        verify rTx5a
+            [ expectResponseCode HTTP.status202 ]
+        let expectedFee = getFromResponse (#fee . #getQuantity) rTx5a
+
+
         rTx5 <- request @(ApiConstructTransaction n) ctx
-            (Link.createUnsignedTransaction @'Shared walActive1) Default payloadWithdrawal
+            (Link.createUnsignedTransaction @'Shared walActive1) Default
+            (payloadWithdrawal $ transfer + rewards1 - expectedFee)
         verify rTx5
             [ expectResponseCode HTTP.status202 ]
         let (ApiSerialisedTransaction apiTx5 _) =
@@ -2549,7 +2567,8 @@ spec = describe "SHARED_TRANSACTIONS" $ do
             ]
 
         rTx6 <- request @(ApiConstructTransaction n) ctx
-            (Link.createUnsignedTransaction @'Shared walActive2) Default payloadWithdrawal
+            (Link.createUnsignedTransaction @'Shared walActive2) Default
+            (payloadWithdrawal $ transfer + rewards2 - expectedFee)
         verify rTx6
             [ expectResponseCode HTTP.status202 ]
         let (ApiSerialisedTransaction apiTx6 _) =
@@ -2562,6 +2581,15 @@ spec = describe "SHARED_TRANSACTIONS" $ do
             [ expectResponseCode HTTP.status202
             ]
 
+        eventually "Parent Shelley Wallet balance is higher than before" $ do
+            rGet <- request @ApiWallet ctx
+                (Link.getWallet @'Shelley parentWal) Default Empty
+            verify rGet
+                [ expectField (#balance . #total)
+                    (.> (Quantity faucetUtxoAmt))
+                , expectField (#balance . #available)
+                    (.> (Quantity faucetUtxoAmt))
+                ]
   where
      listSharedTransactions ctx w mStart mEnd mOrder mLimit = do
          let path = Link.listTransactions' @'Shared w
