@@ -471,9 +471,11 @@ instance IsServerError ErrWriteTxEra where
                 ]
         ErrNodeNotInRecentEra (Cardano.AnyCardanoEra era) ->
             apiError err403 NodeNotInRecentEra $ T.unwords
-                [ "Balancing transactions in ", showT era
-                , "(the era the local node currently is in)"
-                , "is not supported."
+                [ "This operation requires the node to be synchronised to a"
+                , "recent era, but the node is currently only synchronised to the"
+                , showT era
+                , "era. Please wait until the node is fully synchronised and"
+                , "try again."
                 ]
 
 instance IsServerError ErrBalanceTx where
