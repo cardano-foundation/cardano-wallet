@@ -59,7 +59,7 @@ import Cardano.Wallet
 import Cardano.Wallet.Address.Book
     ( AddressBookIso )
 import Cardano.Wallet.Address.Derivation
-    ( Depth (..), WalletKey, digest, publicKey )
+    ( Depth (..) )
 import Cardano.Wallet.Address.Derivation.Byron
     ( ByronKey )
 import Cardano.Wallet.Address.Derivation.Shared
@@ -71,12 +71,11 @@ import Cardano.Wallet.Address.Discovery
 import Cardano.Wallet.Address.Discovery.Random
     ( RndAnyState, mkRndAnyState )
 import Cardano.Wallet.Address.Discovery.Sequential
-    ( AddressPoolGap
-    , SeqAnyState (..)
-    , mkAddressPoolGap
-    , mkSeqAnyState
-    , purposeCIP1852
-    )
+    ( AddressPoolGap, SeqAnyState (..), mkAddressPoolGap, purposeCIP1852 )
+import Cardano.Wallet.Address.Keys.SequentialAny
+    ( mkSeqAnyState )
+import Cardano.Wallet.Address.Keys.WalletKey
+    ( digest, publicKey )
 import Cardano.Wallet.Api.Types
     ( toApiUtxoStatistics )
 import Cardano.Wallet.BenchShared
@@ -93,7 +92,12 @@ import Cardano.Wallet.DB
 import Cardano.Wallet.DB.Layer
     ( PersistAddressBook, withDBFresh )
 import Cardano.Wallet.Flavor
-    ( Excluding, KeyOf, WalletFlavor )
+    ( Excluding
+    , KeyFlavorS (..)
+    , KeyOf
+    , WalletFlavor (..)
+    , keyFlavorFromState
+    )
 import Cardano.Wallet.Launch
     ( CardanoNodeConn, NetworkConfiguration (..), parseGenesisData )
 import Cardano.Wallet.Logging
@@ -351,7 +355,7 @@ cardanoRestoreBench tr c socketFile = do
         let
             seed = dummySeedFromName wname
             xprv = Byron.generateKeyFromSeed seed mempty
-            wid = WalletId $ digest $ publicKey xprv
+            wid = WalletId $ digest ByronKeyS $ publicKey ByronKeyS xprv
             rngSeed = 0
             s = mkState xprv rngSeed
         in
@@ -367,7 +371,7 @@ cardanoRestoreBench tr c socketFile = do
         let
             seed = dummySeedFromName wname
             xprv = Shelley.generateKeyFromSeed (seed, Nothing) mempty
-            wid = WalletId $ digest $ publicKey xprv
+            wid = WalletId $ digest ShelleyKeyS $ publicKey ShelleyKeyS xprv
             Right gap = mkAddressPoolGap 20
             s = mkState (xprv, mempty) gap
         in
@@ -381,7 +385,7 @@ cardanoRestoreBench tr c socketFile = do
         -> AddressPoolGap
         -> SeqAnyState n ShelleyKey p
     mkSeqAnyState' _ _ credentials =
-        mkSeqAnyState @p @n credentials purposeCIP1852
+        mkSeqAnyState @p @n ShelleyKeyS credentials purposeCIP1852
 
 
     mkRndAnyState'
@@ -687,7 +691,6 @@ bench_restoration
         ( IsOurs s RewardAccount
         , MaybeLight s
         , IsOwned s k 'CredFromKeyK
-        , WalletKey k
         , PersistAddressBook s
         , WalletFlavor s
         , KeyOf s ~ k
@@ -719,7 +722,7 @@ bench_restoration
         targetSync benchmarks = do
     putStrLn $ "*** " ++ T.unpack benchname
     let networkId = networkIdVal (sNetworkId @n)
-    let tl = newTransactionLayer @k networkId
+    let tl = newTransactionLayer (keyFlavorFromState @s) networkId
     let gp = genesisParameters np
     withNetworkLayer (trMessageText wlTr) pipeliningStrat
         np socket vData sTol $ \nw -> do
@@ -828,7 +831,6 @@ traceBlockHeadersProgressForPlotting t0  tr = Tracer $ \bs -> do
 withBenchDBLayer
     :: forall s a
      . ( PersistAddressBook s
-       , WalletKey (KeyOf s)
        , WalletFlavor s
        )
     => TimeInterpreter IO
@@ -838,7 +840,8 @@ withBenchDBLayer
     -> IO a
 withBenchDBLayer ti tr wid action =
     withSystemTempFile "bench.db" $ \dbFile _ ->
-        withDBFresh tr' (Just migrationDefaultValues) dbFile ti wid action
+        withDBFresh (walletFlavor @s) tr'
+            (Just migrationDefaultValues) dbFile ti wid action
   where
     migrationDefaultValues = Sqlite.DefaultFieldValues
         { Sqlite.defaultActiveSlotCoefficient = 1

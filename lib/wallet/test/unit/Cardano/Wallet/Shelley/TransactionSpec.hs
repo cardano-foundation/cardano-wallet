@@ -115,27 +115,25 @@ import Cardano.Wallet.Address.Derivation
     , Index
     , Role (..)
     , deriveRewardAccount
-    , getRawKey
     , hex
-    , liftRawKey
     , paymentAddress
-    , publicKey
     )
 import Cardano.Wallet.Address.Derivation.Shelley
     ( ShelleyKey )
 import Cardano.Wallet.Address.Discovery.Random
     ( RndState, mkRndState )
 import Cardano.Wallet.Address.Discovery.Sequential
-    ( SeqState
-    , defaultAddressPoolGap
-    , mkSeqStateFromRootXPrv
-    , purposeBIP44
-    , purposeCIP1852
-    )
+    ( SeqState, defaultAddressPoolGap, purposeBIP44, purposeCIP1852 )
 import Cardano.Wallet.Address.Discovery.Shared
     ( estimateMaxWitnessRequiredPerInput )
+import Cardano.Wallet.Address.Keys.SequentialAny
+    ( mkSeqStateFromRootXPrv )
+import Cardano.Wallet.Address.Keys.WalletKey
+    ( getRawKey, liftRawKey, publicKey )
 import Cardano.Wallet.Byron.Compatibility
     ( maryTokenBundleMaxSize )
+import Cardano.Wallet.Flavor
+    ( KeyFlavorS (..) )
 import Cardano.Wallet.Gen
     ( genMnemonic, genScript )
 import Cardano.Wallet.Primitive.Model
@@ -639,11 +637,12 @@ prop_signTransaction_addsRewardAccountKey
     \(supported :: Cardano.WithdrawalsSupportedInEra era) -> do
         let
             rootK :: (ShelleyKey 'RootK XPrv, Passphrase "encryption")
-            rootK = first liftRawKey rootXPrv
+            rootK = first (liftRawKey ShelleyKeyS) rootXPrv
 
             rawRewardK :: (XPrv, Passphrase "encryption")
             rawRewardK =
-                ( getRawKey $ deriveRewardAccount (snd rootK) (fst rootK) minBound
+                ( getRawKey ShelleyKeyS
+                    $ deriveRewardAccount (snd rootK) (fst rootK) minBound
                 , snd rootK
                 )
 
@@ -673,7 +672,8 @@ prop_signTransaction_addsRewardAccountKey
                 tl = testTxLayer
 
                 sealedTx = sealedTxFromCardano' $ Cardano.Tx txBody wits
-                sealedTx' = signTransaction tl (AnyCardanoEra era) AnyWitnessCountCtx
+                sealedTx' = signTransaction ShelleyKeyS
+                    tl (AnyCardanoEra era) AnyWitnessCountCtx
                     (const Nothing) Nothing rootK utxo Nothing sealedTx
 
                 expectedWits :: [InAnyCardanoEra Cardano.KeyWitness]
@@ -748,12 +748,12 @@ prop_signTransaction_addsExtraKeyWitnesses
             tl = testTxLayer
 
             sealedTx = sealedTxFromCardano' $ Cardano.Tx txBody wits
-            sealedTx' = signTransaction tl
+            sealedTx' = signTransaction ShelleyKeyS tl
                 (AnyCardanoEra era)
                 AnyWitnessCountCtx
                 (lookupFnFromKeys extraKeys)
                 Nothing
-                (first liftRawKey rootK)
+                (first (liftRawKey ShelleyKeyS) rootK)
                 utxo
                 Nothing
                 sealedTx
@@ -776,9 +776,10 @@ instance Arbitrary a => Arbitrary (NonEmpty a) where
 keyToAddress :: (XPrv, Passphrase "encryption") -> Address
 keyToAddress (xprv, _pwd) =
     -- TODO, decrypt?
-    paymentAddress @ShelleyKey @'CredFromKeyK SMainnet.
-    publicKey .
-    liftRawKey @ShelleyKey $ xprv
+    paymentAddress @ShelleyKey @'CredFromKeyK SMainnet
+        . publicKey ShelleyKeyS
+        . liftRawKey ShelleyKeyS
+        $ xprv
 
 utxoFromKeys
     :: [(XPrv, Passphrase "encryption")]
@@ -809,7 +810,8 @@ lookupFnFromKeys keys addr =
         addrMap
             :: Map Address (ShelleyKey 'CredFromKeyK XPrv, Passphrase "encryption")
         addrMap = Map.fromList
-            $ zip (keyToAddress <$> keys) (first liftRawKey <$> keys)
+            $ zip (keyToAddress <$> keys)
+                (first (liftRawKey ShelleyKeyS) <$> keys)
     in
         Map.lookup addr addrMap
 
@@ -885,12 +887,12 @@ prop_signTransaction_addsTxInWitnesses
                 tl = testTxLayer
 
                 sealedTx = sealedTxFromCardano' $ Cardano.Tx txBody wits
-                sealedTx' = signTransaction tl
+                sealedTx' = signTransaction ShelleyKeyS tl
                     (AnyCardanoEra era)
                     AnyWitnessCountCtx
                     (lookupFnFromKeys extraKeys)
                     Nothing
-                    (first liftRawKey rootK)
+                    (first (liftRawKey ShelleyKeyS) rootK)
                     utxo
                     Nothing
                     sealedTx
@@ -941,12 +943,12 @@ prop_signTransaction_addsTxInCollateralWitnesses
                     tl = testTxLayer
 
                     sealedTx = sealedTxFromCardano' $ Cardano.Tx txBody wits
-                    sealedTx' = signTransaction tl
+                    sealedTx' = signTransaction ShelleyKeyS tl
                         (AnyCardanoEra era)
                         AnyWitnessCountCtx
                         (lookupFnFromKeys extraKeys)
                         Nothing
-                        (first liftRawKey rootK)
+                        (first (liftRawKey ShelleyKeyS) rootK)
                         utxo
                         Nothing
                         sealedTx
@@ -980,12 +982,12 @@ prop_signTransaction_neverRemovesWitnesses
             tl = testTxLayer
 
             sealedTx = sealedTxFromCardano' tx
-            sealedTx' = signTransaction tl
+            sealedTx' = signTransaction ShelleyKeyS tl
                 (AnyCardanoEra era)
                 AnyWitnessCountCtx
                 (lookupFnFromKeys extraKeys)
                 Nothing
-                (first liftRawKey rootK)
+                (first (liftRawKey ShelleyKeyS) rootK)
                 utxo
                 Nothing
                 sealedTx
@@ -1015,12 +1017,12 @@ prop_signTransaction_neverChangesTxBody
             tl = testTxLayer
 
             sealedTx = sealedTxFromCardano' tx
-            sealedTx' = signTransaction tl
+            sealedTx' = signTransaction ShelleyKeyS tl
                 (AnyCardanoEra era)
                 AnyWitnessCountCtx
                 (lookupFnFromKeys extraKeys)
                 Nothing
-                (first liftRawKey rootK)
+                (first (liftRawKey ShelleyKeyS) rootK)
                 utxo
                 Nothing
                 sealedTx
@@ -1055,12 +1057,12 @@ prop_signTransaction_preservesScriptIntegrity (AnyCardanoEra era) rootK utxo =
             tl = testTxLayer
 
             sealedTx = sealedTxFromCardano' tx
-            sealedTx' = signTransaction tl
+            sealedTx' = signTransaction ShelleyKeyS tl
                 (AnyCardanoEra era)
                 AnyWitnessCountCtx
                 (const Nothing)
                 Nothing
-                (first liftRawKey rootK)
+                (first (liftRawKey ShelleyKeyS) rootK)
                 utxo
                 Nothing
                 sealedTx
@@ -1834,7 +1836,7 @@ compareOnCBOR b sealed = case cardanoTx sealed of
 --------------------------------------------------------------------------------
 
 testTxLayer :: TransactionLayer ShelleyKey 'CredFromKeyK SealedTx
-testTxLayer = newTransactionLayer @ShelleyKey Cardano.Mainnet
+testTxLayer = newTransactionLayer ShelleyKeyS Cardano.Mainnet
 
 newtype ForByron a = ForByron { getForByron :: a } deriving (Show, Eq)
 
@@ -2242,7 +2244,7 @@ dummyShelleyChangeAddressGen = AnyChangeAddressGenWithState
     (defaultChangeAddressGen @(SeqState 'Mainnet ShelleyKey)
         (delegationAddress @ShelleyKey SMainnet)
         )
-    (mkSeqStateFromRootXPrv
+    (mkSeqStateFromRootXPrv ShelleyKeyS
         (rootK, pwd)
         purposeCIP1852
         defaultAddressPoolGap)
@@ -3357,7 +3359,7 @@ dummyChangeAddrGen = ChangeAddressGen
                 'CredFromKeyK
             -> Address
         addressAtIx ix = paymentAddress @ShelleyKey @'CredFromKeyK SMainnet
-            $ publicKey
+            $ publicKey ShelleyKeyS
             $ Shelley.ShelleyKey
             $ Shelley.deriveAddressPrivateKeyShelley
                 pwd
@@ -3370,7 +3372,7 @@ dummyChangeAddrGen = ChangeAddressGen
         acctK = Shelley.deriveAccountPrivateKeyShelley
                     purposeBIP44
                     pwd
-                    (getRawKey rootK)
+                    (getRawKey ShelleyKeyS rootK)
                     minBound
 
 -- | Warpper for testing convenience. Does hide the monad 'm', tracing, and the
@@ -3597,7 +3599,7 @@ balanceTransactionGoldenSpec = describe "balance goldens" $ do
           where
             poolId = PoolId "\236(\243=\203\230\214@\n\RS^3\155\208d|\
                             \\ts\202l\f\249\194\187\230\131\141\198"
-            xpub = getRawKey $ publicKey rootK
+            xpub = getRawKey ShelleyKeyS $ publicKey ShelleyKeyS rootK
             delegationAction = JoinRegisteringKey poolId
         ledgerBody = Babbage.BabbageTxBody
           { Babbage.inputs = mempty
@@ -4003,20 +4005,22 @@ prop_bootstrapWitnesses
             addrK = addrKeyAtIx $ toEnum $ fromEnum ix
             addr = case net of
                 Cardano.Mainnet ->
-                    paymentAddress SMainnet $ publicKey addrK
+                    paymentAddress SMainnet $ publicKey ByronKeyS addrK
                 Cardano.Testnet _magic ->
                     -- The choice of network magic here is not important. The
                     -- size of the witness will not be affected by it. What may
                     -- affect the size, is the 'Cardano.NetworkId' we pass to
                     -- 'mkByronWitness' above.
                     withSNetworkId (NTestnet 0) $ \testnet ->
-                        paymentAddress testnet $ publicKey addrK
+                        paymentAddress testnet $ publicKey ByronKeyS addrK
         in
             case era of
                 RecentEraConway ->
-                    mkByronWitness body net addr (getRawKey addrK, pwd)
+                    mkByronWitness body net addr
+                        (getRawKey ByronKeyS addrK, pwd)
                 RecentEraBabbage ->
-                    mkByronWitness body net addr (getRawKey addrK, pwd)
+                    mkByronWitness body net addr
+                        (getRawKey ByronKeyS addrK, pwd)
 
 serializedSize :: forall era. Cardano.IsCardanoEra era => Cardano.Tx era -> Int
 serializedSize = BS.length

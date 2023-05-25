@@ -48,7 +48,6 @@ module Cardano.Wallet.Address.Derivation
     , DerivationPrefix (..)
     , DerivationIndex (..)
     , liftIndex
-    , hashVerificationKey
 
     -- * Delegation
     , RewardAccount (..)
@@ -65,7 +64,6 @@ module Cardano.Wallet.Address.Derivation
     -- * Backends Interoperability
     , PaymentAddress(..)
     , DelegationAddress(..)
-    , WalletKey(..)
     , PersistPublicKey(..)
     , MkKeyFingerprint(..)
     , ErrMkKeyFingerprint(..)
@@ -82,13 +80,11 @@ module Cardano.Wallet.Address.Derivation
 import Prelude
 
 import Cardano.Address.Derivation
-    ( XPrv, XPub, xpubPublicKey )
-import Cardano.Address.Script
-    ( KeyHash (..), KeyRole )
+    ( XPrv, XPub )
 import Cardano.Mnemonic
     ( SomeMnemonic )
 import Cardano.Wallet.Primitive.Passphrase.Types
-    ( Passphrase (..), PassphraseScheme )
+    ( Passphrase (..) )
 import Cardano.Wallet.Primitive.Types.Address
     ( Address (..) )
 import Cardano.Wallet.Primitive.Types.RewardAccount
@@ -101,10 +97,6 @@ import Control.DeepSeq
     ( NFData )
 import Control.Monad
     ( (>=>) )
-import Crypto.Hash
-    ( Digest, HashAlgorithm )
-import Crypto.Hash.Utils
-    ( blake2b224 )
 import Data.Bifunctor
     ( first )
 import Data.Bits
@@ -563,62 +555,10 @@ deriveRewardAccount pwd rootPrv accIx =
     let accPrv = deriveAccountPrivateKey pwd rootPrv accIx
     in deriveAddressPrivateKey pwd accPrv MutableAccount minBound
 
-hashVerificationKey
-    :: WalletKey k
-    => KeyRole
-    -> k depth XPub
-    -> KeyHash
-hashVerificationKey keyRole =
-    KeyHash keyRole . blake2b224 . xpubPublicKey . getRawKey
-
 -- | This class is used to determine account index in the context of script
 -- staking. It is supposed to be not Nothing only for shared wallets
 class AccountIxForStaking s where
     getAccountIx :: s -> Maybe (Index 'Hardened 'AccountK)
-
-{-------------------------------------------------------------------------------
-                     Interface over keys / address types
--------------------------------------------------------------------------------}
-
-class WalletKey (key :: Depth -> Type -> Type) where
-    -- | Re-encrypt a private key using a different passphrase.
-    --
-    -- **Important**:
-    -- This function doesn't check that the old passphrase is correct! Caller is
-    -- expected to have already checked that. Using an incorrect passphrase here
-    -- will lead to very bad thing.
-    changePassphrase
-        :: (PassphraseScheme, Passphrase "user")
-            -- ^ Old passphrase
-        -> (PassphraseScheme, Passphrase "user")
-            -- ^ New passphrase
-        -> key depth XPrv
-        -> key depth XPrv
-
-    -- | Extract the public key part of a private key.
-    publicKey
-        :: key depth XPrv
-        -> key depth XPub
-
-    -- | Hash a public key to some other representation.
-    digest
-        :: HashAlgorithm a
-        => key depth XPub
-        -> Digest a
-
-    -- | Get a short, human-readable string descriptor that uniquely identifies
-    --   the specified key type.
-    keyTypeDescriptor :: Proxy key -> String
-
-    -- | Unwrap the 'WalletKey' to use the 'XPrv' or 'XPub'.
-    getRawKey
-        :: key depth raw
-        -> raw
-
-    -- | Lift 'XPrv' or 'XPub' to 'WalletKey'.
-    liftRawKey
-        :: raw
-        -> key depth raw
 
 -- | Encoding of addresses for certain key types and backend targets.
 class MkKeyFingerprint key Address

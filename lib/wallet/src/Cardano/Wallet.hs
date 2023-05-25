@@ -266,9 +266,7 @@ import Cardano.Wallet.Address.Derivation
     , Role (..)
     , SoftDerivation (..)
     , ToRewardAccount (..)
-    , WalletKey (..)
     , deriveRewardAccount
-    , hashVerificationKey
     , liftDelegationAddressS
     , liftIndex
     , stakeDerivationPath
@@ -296,21 +294,28 @@ import Cardano.Wallet.Address.Discovery
 import Cardano.Wallet.Address.Discovery.Random
     ( ErrImportAddress (..), RndStateLike )
 import Cardano.Wallet.Address.Discovery.Sequential
-    ( SeqState (..)
-    , defaultAddressPoolGap
-    , mkSeqStateFromRootXPrv
-    , purposeBIP44
-    )
+    ( SeqState (..), defaultAddressPoolGap, purposeBIP44 )
 import Cardano.Wallet.Address.Discovery.Shared
     ( CredentialType (..)
     , ErrAddCosigner (..)
     , ErrScriptTemplate (..)
     , SharedState (..)
-    , addCosignerAccXPub
     , isShared
     )
 import Cardano.Wallet.Address.Keys.BoundedAddressLength
     ( maxLengthAddressFor )
+import Cardano.Wallet.Address.Keys.SequentialAny
+    ( mkSeqStateFromRootXPrv )
+import Cardano.Wallet.Address.Keys.Shared
+    ( addCosignerAccXPub )
+import Cardano.Wallet.Address.Keys.WalletKey
+    ( AfterByron
+    , afterByron
+    , changePassphraseNew
+    , getRawKey
+    , hashVerificationKey
+    , liftRawKey
+    )
 import Cardano.Wallet.Checkpoints
     ( DeltaCheckpoints (..), extendCheckpoints, pruneCheckpoints )
 import Cardano.Wallet.DB
@@ -344,7 +349,7 @@ import Cardano.Wallet.Flavor
     , KeyOf
     , WalletFlavor (..)
     , WalletFlavorS (..)
-    , keyFlavor
+    , keyFlavorFromState
     , keyOfWallet
     )
 import Cardano.Wallet.Logging
@@ -518,7 +523,7 @@ import Control.Arrow
 import Control.DeepSeq
     ( NFData )
 import Control.Monad
-    ( forM, forM_, replicateM, unless, when, (<=<) )
+    ( forM, forM_, join, replicateM, unless, when, (<=<) )
 import Control.Monad.Class.MonadTime
     ( DiffTime
     , MonadMonotonicTime (..)
@@ -836,7 +841,7 @@ createIcarusWallet
     wname
     credentials = do
         let g = defaultAddressPoolGap
-        let s = mkSeqStateFromRootXPrv @n credentials purposeBIP44 g
+        let s = mkSeqStateFromRootXPrv @n IcarusKeyS credentials purposeBIP44 g
         let (hist, cp) = initWallet block0 s
         now <- lift getCurrentTime
         let meta =
@@ -918,11 +923,10 @@ updateWallet ctx f = onWalletState @IO @s ctx $ update $ \s ->
 
 -- | Change a wallet's passphrase to the given passphrase.
 updateWalletPassphraseWithOldPassphrase
-    :: forall ctx s k.
-        ( HasDBLayer IO s ctx
-        , WalletKey k
-        , k ~ KeyOf s
-        )
+    :: forall ctx s
+     . ( HasDBLayer IO s ctx
+       , WalletFlavor s
+       )
     => ctx
     -> WalletId
     -> (Passphrase "user", Passphrase "user")
@@ -935,7 +939,8 @@ updateWalletPassphraseWithOldPassphrase ctx wid (old, new) =
             -- current scheme, we'll re-encrypt it using the current scheme,
             -- always.
             let new' = (currentPassphraseScheme, new)
-            let xprv' = changePassphrase (scheme, old) new' xprv
+            let xprv' = changePassphraseNew (keyFlavorFromState @s)
+                    (scheme, old) new' xprv
             lift $ attachPrivateKeyFromPwdScheme @ctx @s ctx (xprv', new')
   where
     db = ctx ^. typed
@@ -1297,7 +1302,7 @@ readRewardAccount db = do
     walletState <- getState <$> readWalletCheckpoint db
     let xpub = Seq.rewardAccountKey walletState
     let path = stakeDerivationPath $ Seq.derivationPrefix walletState
-    pure (toRewardAccount xpub, getRawKey xpub, path)
+    pure (toRewardAccount xpub, getRawKey ShelleyKeyS xpub, path)
   where
     readWalletCheckpoint
         :: DBLayer IO s ->  IO (Wallet s)
@@ -1346,7 +1351,10 @@ readPolicyPublicKey ctx = db & \DBLayer{..} -> do
             let s = getState cp
             case Seq.policyXPub s of
                 Nothing -> throwE ErrReadPolicyPublicKeyAbsent
-                Just xpub -> pure (getRawKey xpub, policyDerivationPath)
+                Just xpub -> pure
+                    ( getRawKey (keyFlavorFromState @s) xpub
+                    , policyDerivationPath
+                    )
         _ ->
             throwE ErrReadPolicyPublicKeyNotAShelleyWallet
   where
@@ -1773,11 +1781,11 @@ calcMinimumCoinValues pp txLayer era =
 
 signTransaction
   :: forall k ktype
-   . ( WalletKey k
-     , HardDerivation k
+   . ( HardDerivation k
      , Bounded (Index (AddressIndexDerivationType k) (AddressCredential k))
      )
-  => TransactionLayer k ktype SealedTx
+  => KeyFlavorS k
+  -> TransactionLayer k ktype SealedTx
   -- ^ The way to interact with the wallet backend
   -> Cardano.AnyCardanoEra
   -- ^ Preferred latest era
@@ -1798,35 +1806,46 @@ signTransaction
   -> SealedTx
   -- ^ The original transaction, with additional signatures added where
   -- necessary
-signTransaction tl preferredLatestEra witCountCtx keyLookup mextraRewardAcc
+signTransaction key tl preferredLatestEra witCountCtx keyLookup mextraRewardAcc
     (rootKey, rootPwd) utxo accIxForStakingM =
     let
         rewardAcnts :: [(XPrv, Passphrase "encryption")]
         rewardAcnts = ourRewardAcc : maybeToList mextraRewardAcc
           where
             ourRewardAcc =
-                (getRawKey $ deriveRewardAccount @k rootPwd rootKey minBound, rootPwd)
+                (getRawKey key $
+                    deriveRewardAccount @k rootPwd rootKey minBound
+                , rootPwd
+                )
 
-        policyKey :: (KeyHash, XPrv, Passphrase "encryption")
-        policyKey =
-            ( hashVerificationKey @k CA.Policy $ liftRawKey $ toXPub xprv
-            , xprv
-            , rootPwd
-            )
-          where
-            xprv = derivePolicyPrivateKey rootPwd (getRawKey rootKey) minBound
-
-        stakingKeyM :: Maybe (KeyHash, XPrv, Passphrase "encryption")
-        stakingKeyM = case xprvM of
-            Just xprv -> Just
-                ( hashVerificationKey @k CA.Delegation $ liftRawKey $ toXPub xprv
+        policyKey :: Maybe (KeyHash, XPrv, Passphrase "encryption")
+        policyKey = afterByron key $ \key' ->
+                ( hashVerificationKey key CA.Policy $ liftRawKey key'
+                    $ toXPub xprv
                 , xprv
                 , rootPwd
                 )
-            Nothing -> Nothing
           where
-            xprvM = getRawKey . deriveRewardAccount @k rootPwd rootKey <$>
-                accIxForStakingM
+            xprv = derivePolicyPrivateKey rootPwd (getRawKey key rootKey)
+                minBound
+
+        stakingKeyM :: Maybe (KeyHash, XPrv, Passphrase "encryption")
+        stakingKeyM = join $ afterByron key $ \key' ->
+            case xprvM of
+                Just xprv ->
+                    Just
+                        ( hashVerificationKey key CA.Delegation
+                            $ liftRawKey key'
+                            $ toXPub xprv
+                        , xprv
+                        , rootPwd
+                        )
+                Nothing -> Nothing
+          where
+            xprvM =
+                getRawKey key
+                    . deriveRewardAccount @k rootPwd rootKey
+                    <$> accIxForStakingM
 
         inputResolver :: TxIn -> Maybe Address
         inputResolver i = do
@@ -1851,8 +1870,7 @@ type MakeRewardAccountBuilder k =
 -- Requires the encryption passphrase in order to decrypt the root private key.
 buildSignSubmitTransaction
     :: forall s k.
-        ( WalletKey k
-        , HardDerivation k
+        ( HardDerivation k
         , Bounded (Index (AddressIndexDerivationType k) (AddressCredential k))
         , IsOwned s k 'CredFromKeyK
         , IsOurs s RewardAccount
@@ -1943,16 +1961,16 @@ buildSignSubmitTransaction db@DBLayer{..} netLayer txLayer pwd walletId
     wrapBalanceConstructError = either ExceptionBalanceTx ExceptionConstructTx
 
 buildAndSignTransactionPure
-    :: forall k s.
-        ( WalletKey k
-        , HardDerivation k
-        , Bounded (Index (AddressIndexDerivationType k) (AddressCredential k))
-        , IsOwned s k 'CredFromKeyK
-        , IsOurs s RewardAccount
-        , WalletFlavor s
-        , Excluding '[SharedKey] k
-        , k ~ KeyOf s
-        )
+    :: forall k s
+     . ( HardDerivation k
+       , Bounded (Index (AddressIndexDerivationType k) (AddressCredential k))
+       , IsOwned s k 'CredFromKeyK
+       , Excluding '[SharedKey] k
+       , k ~ KeyOf s
+       , HardDerivation k
+       , IsOurs s RewardAccount
+       , WalletFlavor s
+       )
     => TimeTranslation
     -> UTxO
     -> k 'RootK XPrv
@@ -1989,6 +2007,7 @@ buildAndSignTransactionPure
 
         let passphrase = preparePassphrase passphraseScheme userPassphrase
             signedTx = signTransaction @k @'CredFromKeyK
+                (keyFlavorFromState @s)
                 txLayer
                 anyCardanoEra
                 AnyWitnessCountCtx
@@ -2145,7 +2164,8 @@ unsafeShelleyOnlyGetRewardXPub
     => s -> XPub
 unsafeShelleyOnlyGetRewardXPub walletState =
     case walletFlavor @s of
-        ShelleyWallet -> getRawKey $ Seq.rewardAccountKey walletState
+        ShelleyWallet -> getRawKey (keyFlavorFromState @s)
+                $ Seq.rewardAccountKey walletState
         _  -> error $ unwords
             [ "buildAndSignTransactionPure:"
             , "can't delegate using non-shelley wallet"
@@ -3046,7 +3066,7 @@ signMetadataWith
         ( HasDBLayer IO s ctx
         , HardDerivation k
         , AddressIndexDerivationType k ~ 'Soft
-        , WalletKey k
+        , WalletFlavor s
         , s ~ SeqState n k
         )
     => ctx
@@ -3067,7 +3087,7 @@ signMetadataWith ctx wid pwd (role_, ix) metadata = db & \DBLayer{..} -> do
         let addrK = deriveAddressPrivateKey encPwd acctK role_ addrIx
         pure $
             Signature $ BA.convert $
-            CC.sign encPwd (getRawKey addrK) $
+            CC.sign encPwd (getRawKey (keyFlavorFromState @s) addrK) $
             hash @ByteString @Blake2b_256 $
             serialiseToCBOR metadata
   where
@@ -3127,8 +3147,10 @@ writePolicyPublicKey ctx wid pwd = db & \DBLayer{..} -> do
         db wid pwd ErrWritePolicyPublicKeyWithRootKey $
         \rootK scheme -> do
             let encPwd = preparePassphrase scheme pwd
-            let xprv = derivePolicyPrivateKey encPwd (getRawKey rootK) minBound
-            pure $ liftRawKey $ toXPub xprv
+            let xprv = derivePolicyPrivateKey encPwd
+                    (getRawKey ShelleyKeyS rootK)
+                    minBound
+            pure $ ShelleyKey $ toXPub xprv
 
     let seqState' = seqState & #policyXPub .~ Just policyXPub
     lift $ atomically $ Delta.onDBVar walletState $ Delta.update
@@ -3142,9 +3164,10 @@ writePolicyPublicKey ctx wid pwd = db & \DBLayer{..} -> do
 getAccountPublicKeyAtIndex
     :: forall ctx s k
      . ( HasDBLayer IO s ctx
-       , WalletKey k
        , GetPurpose k
+       , WalletFlavor s
        , k ~ KeyOf s
+       , AfterByron k
        )
     => ctx
     -> WalletId
@@ -3160,12 +3183,13 @@ getAccountPublicKeyAtIndex ctx wid pwd ix purposeM = db & \DBLayer{..} -> do
         purposeM
 
     _cp <- lift $ atomically readCheckpoint
-
+    let kf = keyFlavorFromState @s
     withRootKey @s db wid pwd ErrReadAccountPublicKeyRootKey
         $ \rootK scheme -> do
             let encPwd = preparePassphrase scheme pwd
-            let xprv = deriveAccountPrivateKeyShelley purpose encPwd (getRawKey rootK) acctIx
-            pure $ liftRawKey $ toXPub xprv
+            let xprv = deriveAccountPrivateKeyShelley purpose encPwd
+                    (getRawKey kf rootK) acctIx
+            pure $ liftRawKey kf $ toXPub xprv
   where
     db = ctx ^. dbLayer @IO @s
 
@@ -3194,7 +3218,6 @@ updateCosigner
      . ( s ~ SharedState n k
        , k ~ SharedKey
        , Shared.SupportsDiscovery n k
-       , WalletKey k
        , HasDBLayer IO s ctx
        )
     => ctx
@@ -3206,8 +3229,9 @@ updateCosigner ctx cosignerXPub cosigner cred =
     ExceptT . onWalletState @IO @s ctx . Delta.updateWithError
         $ updateCosigner'
   where
+    kF = keyFlavorFromState @s
     updateCosigner' wallet =
-        case addCosignerAccXPub (cosigner, cosignerXPub) cred s0 of
+        case addCosignerAccXPub kF (cosigner, cosignerXPub) cred s0 of
             Left err -> Left $ ErrAddCosignerKey err
             Right s1 -> Right $ case ready s1 of
                 Shared.Pending -> prologueUpdate s1
@@ -3684,15 +3708,15 @@ defaultChangeAddressGen
 defaultChangeAddressGen arg =
     ChangeAddressGen
         (genChange arg)
-        (maxLengthAddressFor (keyFlavor @s))
+        (maxLengthAddressFor (keyFlavorFromState @s))
 
 -- WARNING: Must never be used to create real transactions for submission to the
 -- blockchain as funds sent to a dummy change address would be irrecoverable.
 dummyChangeAddressGen :: forall s. WalletFlavor s => ChangeAddressGen s
 dummyChangeAddressGen =
     ChangeAddressGen
-        (maxLengthAddressFor (keyFlavor @s),)
-        (maxLengthAddressFor (keyFlavor @s))
+        (maxLengthAddressFor (keyFlavorFromState @s),)
+        (maxLengthAddressFor (keyFlavorFromState @s))
 
 utxoAssumptionsForWallet
     :: forall s.

@@ -198,6 +198,7 @@ library
     , tracer-transformers
     , transformers
     , transformers-base
+    , type-level-sets
     , typed-process
     , typed-protocols
     , unliftio
@@ -240,7 +241,12 @@ library
     Cardano.Wallet.Address.Discovery.Shared
     Cardano.Wallet.Address.HasDelegation
     Cardano.Wallet.Address.Keys.BoundedAddressLength
+    Cardano.Wallet.Address.Keys.MintBurn
     Cardano.Wallet.Address.Keys.PersistPrivateKey
+    Cardano.Wallet.Address.Keys.SequentialAny
+    Cardano.Wallet.Address.Keys.Shared
+    Cardano.Wallet.Address.Keys.WalletKey
+    Cardano.Wallet.Address.Keys.WitnessCount
     Cardano.Wallet.Address.Pool
     Cardano.Wallet.Byron.Compatibility
     Cardano.Wallet.Checkpoints
@@ -387,6 +393,7 @@ library
     Cardano.Wallet.Transaction
     Cardano.Wallet.Transaction.Built
     Cardano.Wallet.TxWitnessTag
+    Cardano.Wallet.TypeLevel
     Cardano.Wallet.Version
     Cardano.Wallet.Version.TH
     Cardano.Wallet.Write.ProtocolParameters

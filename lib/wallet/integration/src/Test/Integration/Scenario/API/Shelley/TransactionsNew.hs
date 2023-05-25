@@ -15,6 +15,7 @@ module Test.Integration.Scenario.API.Shelley.TransactionsNew (spec) where
 
 import Prelude
 
+
 import Cardano.Address.Derivation
     ( XPub, xpubPublicKey )
 import Cardano.Address.Script
@@ -36,12 +37,9 @@ import Cardano.Pool.Metadata.Types
 import Cardano.Pool.Types
     ( PoolId (..), PoolOwner (..), decodePoolIdBech32 )
 import Cardano.Wallet.Address.Derivation
-    ( DerivationIndex (..)
-    , HardDerivation (..)
-    , Role (..)
-    , WalletKey (..)
-    , hex
-    )
+    ( DerivationIndex (..), HardDerivation (..), Role (..), hex )
+import Cardano.Wallet.Address.Keys.WalletKey
+    ( getRawKey, publicKey )
 import Cardano.Wallet.Api.Hex
     ( fromHexText )
 import Cardano.Wallet.Api.Types
@@ -81,6 +79,8 @@ import Cardano.Wallet.Api.Types.Certificate
     ( ApiRewardAccount (..) )
 import Cardano.Wallet.Api.Types.Transaction
     ( ApiAddress (..), ApiValidityIntervalExplicit (..), mkApiWitnessCount )
+import Cardano.Wallet.Flavor
+    ( KeyFlavorS (..) )
 import Cardano.Wallet.Pools
     ( StakePool )
 import Cardano.Wallet.Primitive.Types
@@ -2378,7 +2378,7 @@ spec = describe "NEW_SHELLEY_TRANSACTIONS" $ do
         let rootSk = Shelley.generateKeyFromSeed (SomeMnemonic mw, Nothing) mempty
             acctSk = deriveAccountPrivateKey mempty rootSk minBound
             addrSk = deriveAddressPrivateKey mempty acctSk UtxoExternal (toEnum 14)
-            addrVk = getRawKey $ publicKey addrSk
+            addrVk = getRawKey ShelleyKeyS $ publicKey ShelleyKeyS addrSk
         let apiTx' = ApiT (apiTx `addRequiredSigners` [addrVk])
 
         -- Sign Tx

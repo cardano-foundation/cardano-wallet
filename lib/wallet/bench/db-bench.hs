@@ -64,12 +64,7 @@ import Cardano.Mnemonic
 import Cardano.Startup
     ( withUtf8Encoding )
 import Cardano.Wallet.Address.Derivation
-    ( DelegationAddress (..)
-    , Depth (..)
-    , Index (..)
-    , PaymentAddress (..)
-    , WalletKey (..)
-    )
+    ( DelegationAddress (..), Depth (..), Index (..), PaymentAddress (..) )
 import Cardano.Wallet.Address.Derivation.Byron
     ( ByronKey (..) )
 import Cardano.Wallet.Address.Derivation.Shelley
@@ -83,9 +78,12 @@ import Cardano.Wallet.Address.Discovery.Sequential
     , coinTypeAda
     , defaultAddressPoolGap
     , mkSeqStateFromAccountXPub
-    , mkSeqStateFromRootXPrv
     , purposeCIP1852
     )
+import Cardano.Wallet.Address.Keys.SequentialAny
+    ( mkSeqStateFromRootXPrv )
+import Cardano.Wallet.Address.Keys.WalletKey
+    ( publicKey )
 import Cardano.Wallet.DB
     ( DBFresh (..), DBLayer (..), DBLayerParams (..) )
 import Cardano.Wallet.DB.Layer
@@ -93,7 +91,7 @@ import Cardano.Wallet.DB.Layer
 import Cardano.Wallet.DummyTarget.Primitive.Types
     ( block0, dummyGenesisParameters, mkTxId )
 import Cardano.Wallet.Flavor
-    ( KeyOf, WalletFlavor )
+    ( KeyFlavorS (..), WalletFlavor (..) )
 import Cardano.Wallet.Logging
     ( trMessageText )
 import Cardano.Wallet.Primitive.Model
@@ -726,11 +724,10 @@ withTempSqliteFile :: (FilePath -> IO a) -> IO a
 withTempSqliteFile action = withSystemTempFile "bench.db" $ \fp _ -> action fp
 
 setupDB
-    :: forall s .
-        ( PersistAddressBook s
-        , WalletFlavor s
-        , WalletKey (KeyOf s)
-        )
+    :: forall s
+     . ( PersistAddressBook s
+       , WalletFlavor s
+       )
     => Tracer IO WalletDBLog
     -> IO (BenchEnv s)
 setupDB tr = do
@@ -738,8 +735,9 @@ setupDB tr = do
     uncurry (BenchEnv destroyPool) <$> createPool
   where
     withSetup action = withTempSqliteFile $ \fp -> do
-        withDBFresh tr Nothing fp singleEraInterpreter testWid $ \db ->
-            action (fp, db)
+        withDBFresh (walletFlavor @s)
+            tr Nothing fp singleEraInterpreter testWid
+                $ \db -> action (fp, db)
 
 singleEraInterpreter :: TimeInterpreter IO
 singleEraInterpreter = hoistTimeInterpreter (pure . runIdentity) $
@@ -757,8 +755,6 @@ withCleanDB
     :: ( NFData c
        , PersistAddressBook s
        , WalletFlavor s
-       , KeyOf s ~ k
-       , WalletKey k
        , NFData b
        )
     => Tracer IO WalletDBLog
@@ -803,8 +799,8 @@ testCpByron = snd $ initWallet block0 initDummyRndState
 
 {-# NOINLINE initDummySeqState #-}
 initDummySeqState :: SeqState 'Mainnet ShelleyKey
-initDummySeqState =
-    mkSeqStateFromRootXPrv (xprv, mempty) purposeCIP1852 defaultAddressPoolGap
+initDummySeqState = mkSeqStateFromRootXPrv
+    ShelleyKeyS (xprv, mempty) purposeCIP1852 defaultAddressPoolGap
   where
     mnemonic = unsafePerformIO
         $ SomeMnemonic . entropyToMnemonic @15
@@ -838,12 +834,14 @@ defaultPrefix = DerivationPrefix
     )
 
 ourAccount :: ShelleyKey 'AccountK XPub
-ourAccount = publicKey $ unsafeGenerateKeyFromSeed (seed, Nothing) mempty
+ourAccount = publicKey ShelleyKeyS
+    $ unsafeGenerateKeyFromSeed (seed, Nothing) mempty
   where
     seed = someDummyMnemonic (Proxy @15)
 
 rewardAccount :: ShelleyKey 'CredFromKeyK XPub
-rewardAccount = publicKey $ unsafeGenerateKeyFromSeed (seed, Nothing) mempty
+rewardAccount = publicKey ShelleyKeyS
+    $ unsafeGenerateKeyFromSeed (seed, Nothing) mempty
   where
     seed = someDummyMnemonic (Proxy @15)
 

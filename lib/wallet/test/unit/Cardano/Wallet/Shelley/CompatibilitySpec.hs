@@ -38,19 +38,17 @@ import Cardano.Mnemonic
     , entropyToMnemonic
     )
 import Cardano.Wallet.Address.Derivation
-    ( Depth (..)
-    , Index (getIndex)
-    , PaymentAddress (..)
-    , WalletKey
-    , delegationAddress
-    , publicKey
-    )
+    ( Depth (..), Index (getIndex), PaymentAddress (..), delegationAddress )
 import Cardano.Wallet.Address.Derivation.Byron
     ( ByronKey (..) )
 import Cardano.Wallet.Address.Derivation.Shelley
     ( ShelleyKey (..) )
+import Cardano.Wallet.Address.Keys.WalletKey
+    ( publicKey )
 import Cardano.Wallet.Byron.Compatibility
     ( maryTokenBundleMaxSize )
+import Cardano.Wallet.Flavor
+    ( KeyFlavor, keyFlavor )
 import Cardano.Wallet.Primitive.Types
     ( SlotId (..), TokenBundleMaxSize (..), getDecentralizationLevel )
 import Cardano.Wallet.Primitive.Types.Address
@@ -769,11 +767,11 @@ instance
         maxIndex = fromIntegral . getIndex $
             maxBound @(Address.Derivation.Index derivationType depth)
 
-instance (WalletKey k, Arbitrary (k 'CredFromKeyK XPrv)) =>
+instance (KeyFlavor k, Arbitrary (k 'CredFromKeyK XPrv)) =>
     Arbitrary (k 'CredFromKeyK XPub)
   where
     shrink _ = []
-    arbitrary = publicKey <$> arbitrary
+    arbitrary = publicKey (keyFlavor @k) <$> arbitrary
 
 instance Arbitrary SomeMnemonic where
     arbitrary = SomeMnemonic <$> genMnemonic @12

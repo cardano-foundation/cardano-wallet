@@ -59,22 +59,20 @@ module Cardano.Wallet.Address.Discovery.Sequential
     , purposeBIP44
     , purposeCIP1852
     , coinTypeAda
-    , mkSeqStateFromRootXPrv
     , mkSeqStateFromAccountXPub
     , discoverSeq
     , discoverSeqWithRewards
 
     -- ** Benchmarking
     , SeqAnyState (..)
-    , mkSeqAnyState
     ) where
 
 import Prelude
 
 import Cardano.Address.Derivation
-    ( xpubPublicKey, xpubToBytes )
+    ( xpubPublicKey )
 import Cardano.Address.Script
-    ( Cosigner (..), KeyHash (..), KeyRole (..), ScriptTemplate (..) )
+    ( Cosigner (..), ScriptTemplate (..) )
 import Cardano.Crypto.Wallet
     ( XPrv, XPub )
 import Cardano.Wallet.Address.Derivation
@@ -93,15 +91,12 @@ import Cardano.Wallet.Address.Derivation
     , Role (..)
     , SoftDerivation (..)
     , ToRewardAccount (..)
-    , WalletKey (..)
     , liftDelegationAddressS
     , liftPaymentAddressS
     , roleVal
     , toAddressParts
     , unsafePaymentKeyFingerprint
     )
-import Cardano.Wallet.Address.Derivation.MintBurn
-    ( derivePolicyPrivateKey )
 import Cardano.Wallet.Address.Derivation.SharedKey
     ( SharedKey (..) )
 import Cardano.Wallet.Address.Discovery
@@ -121,15 +116,14 @@ import Cardano.Wallet.Address.Discovery
     )
 import Cardano.Wallet.Primitive.BlockSummary
     ( ChainEvents )
-import Cardano.Wallet.Primitive.Passphrase.Types
-    ( Passphrase )
 import Cardano.Wallet.Primitive.Types.Address
     ( Address (..), AddressState (..) )
 import Cardano.Wallet.Primitive.Types.RewardAccount
     ( RewardAccount )
 import Cardano.Wallet.Read.NetworkId
-import Cardano.Wallet.Transaction
-    ( ToWitnessCountCtx (..), WitnessCountCtx (..) )
+    ( HasSNetworkId (..), NetworkDiscriminant, NetworkDiscriminantCheck (..) )
+import Cardano.Wallet.TypeLevel
+    ( Excluding )
 import Codec.Binary.Encoding
     ( AbstractEncoding (..), encode )
 import Control.Applicative
@@ -154,8 +148,6 @@ import Data.Text.Class
     ( FromText (..), TextDecodingError (..), ToText (..) )
 import Data.Text.Read
     ( decimal )
-import Data.Type.Equality
-    ( type (==) )
 import Data.Word
     ( Word32 )
 import Fmt
@@ -427,31 +419,11 @@ purposeBIP44 = toEnum 0x8000_002C
 purposeCIP1852 :: Index 'Hardened 'PurposeK
 purposeCIP1852 = toEnum 0x8000_073c
 
--- | Construct a Sequential state for a wallet
--- from root private key and password.
-mkSeqStateFromRootXPrv
-    :: forall n k.
-        ( WalletKey k
-        , SupportsDiscovery n k
-        , (k == SharedKey) ~ 'False
-        )
-    => (k 'RootK XPrv, Passphrase "encryption")
-    -> Index 'Hardened 'PurposeK
-    -> AddressPoolGap
-    -> SeqState n k
-mkSeqStateFromRootXPrv (rootXPrv, pwd) =
-    mkSeqStateFromAccountXPub
-        (publicKey $ deriveAccountPrivateKey pwd rootXPrv minBound)
-            $ Just
-            $ publicKey
-            $ liftRawKey
-            $ derivePolicyPrivateKey pwd (getRawKey rootXPrv) minBound
-
 -- | Construct a Sequential state for a wallet from public account key.
 mkSeqStateFromAccountXPub
     :: forall (n :: NetworkDiscriminant) k.
         ( SupportsDiscovery n k
-        , (k == SharedKey) ~ 'False
+        , Excluding '[SharedKey] k
         )
     => k 'AccountK XPub
     -> Maybe (k 'PolicyK XPub)
@@ -732,25 +704,6 @@ instance
     )
     => NFData (SeqAnyState n k p)
 
--- | Initialize the HD random address discovery state from a root key and RNG
--- seed.
---
--- The type parameter is expected to be a ratio of addresses we ought to simply
--- recognize as ours. It is expressed in per-myriad, so "1" means 0.01%,
--- "100" means 1% and 10000 means 100%.
-mkSeqAnyState
-    :: forall (p :: Nat) n k.
-        ( SupportsDiscovery n k
-        , WalletKey k
-        , (k == SharedKey) ~ 'False
-        )
-    => (k 'RootK XPrv, Passphrase "encryption")
-    -> Index 'Hardened 'PurposeK
-    -> AddressPoolGap
-    -> SeqAnyState n k p
-mkSeqAnyState credentials purpose poolGap =
-    SeqAnyState{innerState = mkSeqStateFromRootXPrv credentials purpose poolGap}
-
 instance KnownNat p => IsOurs (SeqAnyState n k p) Address where
     isOurs (Address bytes) st@(SeqAnyState inner)
         | crc32 bytes < p =
@@ -801,11 +754,3 @@ instance (PaymentAddress k 'CredFromKeyK, HasSNetworkId n)
 
 instance MaybeLight (SeqAnyState n k p) where
     maybeDiscover = Nothing
-
-instance WalletKey k => ToWitnessCountCtx (SeqState n k) where
-    toWitnessCountCtx s =
-        let keyM = policyXPub s
-        in case keyM of
-            Just key ->
-                ShelleyWalletCtx $ KeyHash Policy (xpubToBytes $ getRawKey key)
-            Nothing -> AnyWitnessCountCtx

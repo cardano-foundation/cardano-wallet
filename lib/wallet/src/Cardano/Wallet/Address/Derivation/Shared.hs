@@ -27,7 +27,6 @@ module Cardano.Wallet.Address.Derivation.Shared
     -- * Generation and derivation
     , generateKeyFromSeed
     , unsafeGenerateKeyFromSeed
-    , allCosignerStakingKeys
 
     , purposeCIP1854
     ) where
@@ -36,10 +35,8 @@ import Prelude
 
 import Cardano.Address.Derivation
     ( xpubPublicKey )
-import Cardano.Address.Script
-    ( KeyHash, ScriptTemplate (..) )
 import Cardano.Crypto.Wallet
-    ( XPrv, XPub, toXPub, unXPub, xpub )
+    ( XPrv, XPub, unXPub, xpub )
 import Cardano.Mnemonic
     ( SomeMnemonic )
 import Cardano.Wallet.Address.Derivation
@@ -51,11 +48,8 @@ import Cardano.Wallet.Address.Derivation
     , KeyFingerprint (..)
     , MkKeyFingerprint (..)
     , PersistPublicKey (..)
-    , Role (..)
     , SoftDerivation (..)
-    , WalletKey (..)
     , fromHex
-    , hashVerificationKey
     , hex
     , toAddressParts
     )
@@ -70,15 +64,13 @@ import Cardano.Wallet.Address.Derivation.Shelley
 import Cardano.Wallet.Address.Discovery
     ( GetPurpose (..) )
 import Cardano.Wallet.Primitive.Passphrase
-    ( Passphrase (..), changePassphraseXPrv )
+    ( Passphrase (..) )
 import Cardano.Wallet.Primitive.Types.Address
     ( Address (..) )
 import Cardano.Wallet.Read.NetworkId
     ( NetworkDiscriminant )
 import Control.Monad
     ( (<=<) )
-import Crypto.Hash
-    ( hash )
 import Crypto.Hash.Algorithms
     ( Blake2b_224 (..) )
 import Crypto.Hash.IO
@@ -90,9 +82,7 @@ import Data.ByteString
 import Data.Proxy
     ( Proxy (..) )
 
-import qualified Cardano.Address.Script as CA
 import qualified Data.ByteString as BS
-import qualified Data.Map.Strict as Map
 
 {-------------------------------------------------------------------------------
                             Sequential Derivation
@@ -132,40 +122,6 @@ instance HardDerivation SharedKey where
 instance SoftDerivation SharedKey where
     deriveAddressPublicKey (SharedKey accXPub) role ix =
         SharedKey $ deriveAddressPublicKeyShelley accXPub role ix
-
-allCosignerStakingKeys
-    :: ScriptTemplate
-    -> [KeyHash]
-allCosignerStakingKeys (ScriptTemplate xpubs _) =
-    map toKeyHash (Map.elems xpubs)
-  where
-    stakingKey accXPub =
-        deriveAddressPublicKey (SharedKey accXPub) MutableAccount minBound
-    toKeyHash =
-        hashVerificationKey CA.Delegation . stakingKey
-
-{-------------------------------------------------------------------------------
-                            WalletKey implementation
--------------------------------------------------------------------------------}
-
-instance WalletKey SharedKey where
-    changePassphrase oldPwd newPwd (SharedKey prv) =
-        SharedKey $ changePassphraseXPrv oldPwd newPwd prv
-
-    publicKey (SharedKey prv) =
-        SharedKey (toXPub prv)
-
-    digest (SharedKey pub) =
-        hash (unXPub pub)
-
-    getRawKey =
-        getKey
-
-    liftRawKey =
-        SharedKey
-
-    keyTypeDescriptor _ =
-        "sha"
 
 {-------------------------------------------------------------------------------
                          Relationship Key / Address

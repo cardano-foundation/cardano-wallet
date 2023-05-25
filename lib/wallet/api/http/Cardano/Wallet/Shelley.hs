@@ -30,7 +30,7 @@ import Prelude
 import Cardano.Wallet
     ( WalletException )
 import Cardano.Wallet.Address.Derivation
-    ( Depth (..), WalletKey )
+    ( Depth (..) )
 import Cardano.Wallet.Address.Derivation.Icarus
     ( IcarusKey )
 import Cardano.Wallet.Address.Derivation.SharedKey
@@ -63,7 +63,7 @@ import Cardano.Wallet.DB.Sqlite.Migration
 import Cardano.Wallet.DB.Store.Checkpoints
     ( PersistAddressBook )
 import Cardano.Wallet.Flavor
-    ( KeyOf, WalletFlavor )
+    ( KeyFlavorS (..), KeyOf, WalletFlavor (..) )
 import Cardano.Wallet.Network
     ( NetworkLayer (..) )
 import Cardano.Wallet.Pools
@@ -274,21 +274,23 @@ serveWallet
     bindSocket = ContT $ Server.withListeningSocket hostPref listen
 
     withRandomApi netId netLayer =
-        lift $ apiLayer (newTransactionLayer netId) netLayer Server.idleWorker
+        lift $ apiLayer (newTransactionLayer ByronKeyS netId)
+            netLayer Server.idleWorker
 
     withIcarusApi netId netLayer =
-        lift $ apiLayer (newTransactionLayer netId) netLayer Server.idleWorker
+        lift $ apiLayer (newTransactionLayer IcarusKeyS netId)
+            netLayer Server.idleWorker
 
     withShelleyApi netId netLayer =
-        lift $ apiLayer (newTransactionLayer netId) netLayer $ \wrk _ ->
-            Server.manageRewardBalance
+        lift $ apiLayer (newTransactionLayer ShelleyKeyS netId) netLayer
+            $ \wrk _ -> Server.manageRewardBalance
                 <$> view typed
                 <*> pure netLayer
                 <*> view typed
                 $ wrk
 
     withMultisigApi netId netLayer =
-        lift $ apiLayer (newTransactionLayer netId) netLayer Server.idleWorker
+        lift $ apiLayer (newTransactionLayer SharedKeyS netId) netLayer Server.idleWorker
 
     startServer
         :: forall n.
@@ -320,7 +322,6 @@ serveWallet
             , IsOurs s RewardAccount
             , MaybeLight s
             , PersistAddressBook s
-            , WalletKey k
             , WalletFlavor s
             , KeyOf s ~ k
             )
@@ -331,6 +332,7 @@ serveWallet
     apiLayer txLayer netLayer coworker = do
         tokenMetaClient <- newMetadataClient tokenMetadataTracer tokenMetaUri
         dbFactory <- Sqlite.newDBFactory
+            (walletFlavor @s)
             walletDbTracer
             (DefaultFieldValues
                 { defaultActiveSlotCoefficient =

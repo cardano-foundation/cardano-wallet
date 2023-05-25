@@ -54,7 +54,7 @@ import Cardano.Mnemonic
 import Cardano.Wallet
     ( readWalletMeta )
 import Cardano.Wallet.Address.Derivation
-    ( Depth (..), DerivationType (..), Index, PaymentAddress (..), WalletKey )
+    ( Depth (..), DerivationType (..), Index, PaymentAddress (..) )
 import Cardano.Wallet.Address.Derivation.Byron
     ( ByronKey (..) )
 import Cardano.Wallet.Address.Derivation.Icarus
@@ -74,12 +74,13 @@ import Cardano.Wallet.Address.Discovery.Sequential
     , SeqState (..)
     , coinTypeAda
     , defaultAddressPoolGap
-    , mkSeqStateFromRootXPrv
     , purposeBIP44
     , purposeCIP1852
     )
 import Cardano.Wallet.Address.Discovery.Shared
     ( SharedState )
+import Cardano.Wallet.Address.Keys.SequentialAny
+    ( mkSeqStateFromRootXPrv )
 import Cardano.Wallet.DB
     ( DBFactory (..), DBFresh (..), DBLayer (..), DBLayerParams (..) )
 import Cardano.Wallet.DB.Layer
@@ -106,7 +107,7 @@ import Cardano.Wallet.DB.StateMachine
 import Cardano.Wallet.DummyTarget.Primitive.Types
     ( block0, dummyGenesisParameters, dummyTimeInterpreter )
 import Cardano.Wallet.Flavor
-    ( KeyOf, WalletFlavor )
+    ( KeyFlavorS (..), KeyOf, WalletFlavor (..), WalletFlavorS (..) )
 import Cardano.Wallet.Gen
     ( genMnemonic )
 import Cardano.Wallet.Logging
@@ -304,14 +305,15 @@ stateMachineSpec = describe ("State machine test (" ++ showState @s ++ ")") $ do
     it "Sequential" $ prop_sequential @s boot
   where
     boot wid sp = do
-        let newDB = newDBFreshInMemory @s nullTracer dummyTimeInterpreter
+        let newDB = newDBFreshInMemory (walletFlavor @s)
+                nullTracer dummyTimeInterpreter
         (cleanup, dbf) <- newDB wid
         db <- unsafeRunExceptT $ bootDBLayer dbf sp
         pure (cleanup, db)
 
 stateMachineSpecSeq, stateMachineSpecRnd, stateMachineSpecShared :: Spec
 stateMachineSpecSeq =
-    stateMachineSpec @ShelleyKey @(SeqState 'Mainnet ShelleyKey)
+    stateMachineSpec @ShelleyKey @TestState
 stateMachineSpecRnd =
     stateMachineSpec @ByronKey @(RndState 'Mainnet)
 stateMachineSpecShared =
@@ -329,11 +331,12 @@ showState = show (typeOf @s undefined)
 withFreshDB
     :: (MonadIO m )
     => WalletId
-    -> (DBFresh IO (SeqState 'Mainnet ShelleyKey) -> m ())
+    -> (DBFresh IO TestState -> m ())
     -> m ()
 withFreshDB wid f = do
     (kill, db) <-
-        liftIO $ newDBFreshInMemory nullTracer dummyTimeInterpreter wid
+        liftIO $ newDBFreshInMemory ShelleyWallet
+            nullTracer dummyTimeInterpreter wid
     f db
     liftIO kill
 
@@ -345,7 +348,7 @@ propertiesSpecSeq = describe "Properties" $ properties withFreshDB
 -------------------------------------------------------------------------------}
 
 loggingSpec :: Spec
-loggingSpec = withLoggingDB @(SeqState 'Mainnet ShelleyKey) $ do
+loggingSpec = withLoggingDB @TestState $ do
     describe "Sqlite query logging" $ do
         it "should log queries at DEBUG level"
             $ \(getLogs, DBFresh{bootDBLayer}) -> do
@@ -374,7 +377,8 @@ loggingSpec = withLoggingDB @(SeqState 'Mainnet ShelleyKey) $ do
                 length msgs `shouldBe` (count + 3) * 2
 
 withLoggingDB
-    :: ( PersistAddressBook s
+    :: forall s
+     . ( PersistAddressBook s
        , WalletFlavor s
        )
     => SpecWith (IO [DBLog], DBFresh IO s)
@@ -383,7 +387,7 @@ withLoggingDB = around f . beforeWith clean
   where
     f act = do
         logVar <- newTVarIO []
-        withDBFreshInMemory
+        withDBFreshInMemory (walletFlavor @s)
             (traceInTVarIO logVar)
             dummyTimeInterpreter
             testWid
@@ -416,7 +420,8 @@ findObserveDiffs = filter isObserveDiff
                                 File Mode Spec
 -------------------------------------------------------------------------------}
 
-type TestDBSeqFresh = DBFresh IO (SeqState 'Mainnet ShelleyKey)
+type TestDBSeqFresh = DBFresh IO TestState
+type TestState = SeqState 'Mainnet ShelleyKey
 
 fileModeSpec :: Spec
 fileModeSpec =  do
@@ -424,13 +429,14 @@ fileModeSpec =  do
         it "Opening and closing of db works" $ do
             replicateM_ 25 $ do
                 db <- temporaryDBFile
-                withShelleyFileDBFresh @(SeqState 'Mainnet ShelleyKey) db
+                withShelleyFileDBFresh @TestState db
                     (\_ -> pure ())
 
     describe "DBFactory" $ do
         let ti = dummyTimeInterpreter
         let withDBFactory action = withSystemTempDirectory "DBFactory" $ \dir -> do
-                dbf <- newDBFactory nullTracer defaultFieldValues ti (Just dir)
+                dbf <- newDBFactory ShelleyWallet
+                    nullTracer defaultFieldValues ti (Just dir)
                 action dir dbf
 
         let whileFileOpened delay f action = do
@@ -803,7 +809,7 @@ fileModeSpec =  do
 
     describe "random operation chunks property" $ do
         it "realize a random batch of operations upon one db open"
-            (property $ prop_randomOpChunks @(SeqState 'Mainnet ShelleyKey))
+            (property $ prop_randomOpChunks @TestState)
 
 -- This property checks that executing series of wallet operations in a single
 -- SQLite session has the same effect as executing the same operations over
@@ -813,7 +819,6 @@ prop_randomOpChunks
        , PersistAddressBook s
        , Show s
        , WalletFlavor s
-       , WalletKey (KeyOf s)
        )
     => NonEmptyList (Wallet s, WalletMetadata)
     -> Property
@@ -866,7 +871,7 @@ prop_randomOpChunks (NonEmpty (p : pairs)) =
 testReopening
     :: (Show s, Eq s)
     => FilePath
-    -> (DBLayer IO (SeqState 'Mainnet ShelleyKey) -> IO s)
+    -> (DBLayer IO TestState -> IO s)
     -> s
     -> Expectation
 testReopening filepath call expectedAfterOpen = do
@@ -876,7 +881,7 @@ testReopening filepath call expectedAfterOpen = do
 
 -- | Run a test action inside withDBLayer, then check assertions.
 withTestDBFile
-    :: (DBFresh IO (SeqState 'Mainnet ShelleyKey) -> IO ())
+    :: (DBFresh IO TestState -> IO ())
     -> (FilePath -> IO a)
     -> IO a
 withTestDBFile action expectations = do
@@ -885,7 +890,7 @@ withTestDBFile action expectations = do
     withSystemTempFile "spec.db" $ \fp h -> do
         hClose h
         removeFile fp
-        withDBFresh
+        withDBFresh ShelleyWallet
             (trMessageText trace)
             (Just defaultFieldValues)
             fp
@@ -911,21 +916,23 @@ defaultFieldValues = DefaultFieldValues
 -- Note: Having helper with concrete key types reduces the need
 -- for type-application everywhere.
 withShelleyDBLayer
-    :: (PersistAddressBook s, WalletFlavor s)
+    :: forall s a
+     . (PersistAddressBook s, WalletFlavor s)
     => (DBFresh IO s -> IO a)
     -> IO a
-withShelleyDBLayer = withDBFreshInMemory nullTracer dummyTimeInterpreter testWid
+withShelleyDBLayer = withDBFreshInMemory (walletFlavor @s)
+    nullTracer dummyTimeInterpreter testWid
 
 withShelleyFileDBFresh
-    :: ( PersistAddressBook s
+    :: forall s a
+     . ( PersistAddressBook s
        , WalletFlavor s
-       , WalletKey (KeyOf s)
        )
     => FilePath
     -> (DBFresh IO s -> IO a)
     -> IO a
 withShelleyFileDBFresh fp =
-    withDBFresh
+    withDBFresh (walletFlavor @s)
         nullTracer -- fixme: capture logging
         (Just defaultFieldValues)
         fp
@@ -1160,11 +1167,10 @@ manualMigrationsSpec = describe "Manual migrations" $ do
 --
 -- Useful for testing the logs and results of migrations.
 withDBLayerFromCopiedFile
-    :: forall k s a.
+    :: forall s a.
         ( PersistAddressBook s
         , WalletFlavor s
-        , WalletKey k
-        , s ~ SeqState 'Mainnet k
+        , s ~ SeqState 'Mainnet (KeyOf s)
         )
     => FilePath
         -- ^ Filename of the @.sqlite@ file to load.
@@ -1173,7 +1179,8 @@ withDBLayerFromCopiedFile
     -> IO ([WalletDBLog], a)
         -- ^ (logs, result of the action)
 withDBLayerFromCopiedFile dbName action = withinCopiedFile dbName
-    $ \path tr -> withDBOpenFromFile @s @k tr (Just defaultFieldValues) path
+    $ \path tr -> withDBOpenFromFile (walletFlavor @s) tr
+        (Just defaultFieldValues) path
     $ \db -> do
         mwid <- retrieveWalletId db
         case mwid of
@@ -1181,7 +1188,8 @@ withDBLayerFromCopiedFile dbName action = withinCopiedFile dbName
             Just wid -> do
                 let action' DBFresh{loadDBLayer} = do
                         unsafeRunExceptT loadDBLayer >>= action
-                withDBFreshFromDBOpen @s dummyTimeInterpreter wid action' db
+                withDBFreshFromDBOpen (walletFlavor @s)
+                    dummyTimeInterpreter wid action' db
 
 withinCopiedFile
     :: FilePath
@@ -1199,7 +1207,8 @@ testMigrationTxMetaFee
     -> [(Hash "Tx", Coin)]
     -> IO ()
 testMigrationTxMetaFee dbName expectedLength caseByCase = do
-    (logs, result) <- withDBLayerFromCopiedFile @ShelleyKey dbName
+    (logs, result) <- withDBLayerFromCopiedFile
+            @TestState dbName
         $ \DBLayer{..} -> atomically $ do
             readTransactions
                 Nothing Descending wholeRange Nothing Nothing
@@ -1241,7 +1250,7 @@ testMigrationCleanupCheckpoints
     -> BlockHeader
     -> IO ()
 testMigrationCleanupCheckpoints dbName genesisParameters tip = do
-    (logs, result) <- withDBLayerFromCopiedFile @ShelleyKey dbName
+    (logs, result) <- withDBLayerFromCopiedFile @TestState dbName
         $ \DBLayer{..} -> atomically $ do
             (,) <$> readGenesisParameters
                 <*> readCheckpoint
@@ -1263,7 +1272,7 @@ testMigrationRole
     :: String
     -> IO ()
 testMigrationRole dbName = do
-    (logs, cp) <- withDBLayerFromCopiedFile @ShelleyKey dbName
+    (logs, cp) <- withDBLayerFromCopiedFile @TestState dbName
         $ \DBLayer{..} -> atomically $ do
             readCheckpoint
 
@@ -1279,7 +1288,6 @@ testMigrationRole dbName = do
 testMigrationSeqStateDerivationPrefix
     :: forall k s.
         ( s ~ SeqState 'Mainnet k
-        , WalletKey k
         , PersistAddressBook s
         , WalletFlavor s
         )
@@ -1290,7 +1298,7 @@ testMigrationSeqStateDerivationPrefix
        )
     -> IO ()
 testMigrationSeqStateDerivationPrefix dbName prefix = do
-    (logs, cp) <- withDBLayerFromCopiedFile @k @s dbName
+    (logs, cp) <- withDBLayerFromCopiedFile @s dbName
         $ \DBLayer{..} -> atomically readCheckpoint
 
     let migrationMsg = filter isMsgManualMigration logs
@@ -1309,7 +1317,7 @@ testMigrationPassphraseScheme1 = do
     -- The first wallet is stored in the database with only a
     -- 'passphraseLastUpdatedAt' field, but no 'passphraseScheme'. So,
     -- after the migration, both should now be `Just`.
-    (logs, a) <- withDBLayerFromCopiedFile @ShelleyKey
+    (logs, a) <- withDBLayerFromCopiedFile @TestState
         "passphraseScheme/she.17ca0ed41a372e483f2968aa386a4b6b0ca6b5ee.sqlite"
         inspectMeta
 
@@ -1322,7 +1330,7 @@ testMigrationPassphraseScheme2 :: IO ()
 testMigrationPassphraseScheme2 = do
     -- The second wallet was just fine and already has a passphrase
     -- scheme set to use PBKDF2. Nothing should have changed.
-    (logs, a) <- withDBLayerFromCopiedFile @ShelleyKey
+    (logs, a) <- withDBLayerFromCopiedFile @TestState
         "passphraseScheme/she.2e8353d2bb937445948669a1dcc69ec9628a558c.sqlite"
         inspectMeta
 
@@ -1334,7 +1342,7 @@ testMigrationPassphraseScheme3 :: IO ()
 testMigrationPassphraseScheme3 = do
     -- The third wallet had a scheme too, but was using the legacy
     -- scheme. Nothing should have changed.
-    (logs, a) <- withDBLayerFromCopiedFile @ShelleyKey
+    (logs, a) <- withDBLayerFromCopiedFile @TestState
         "passphraseScheme/she.899abf7137aa8b3200d55d70474f6fdd2649fa2f.sqlite"
         inspectMeta
 
@@ -1346,7 +1354,7 @@ testMigrationPassphraseScheme4 :: IO ()
 testMigrationPassphraseScheme4 = do
     -- The last wallet had no passphrase whatsoever (restored from
     -- account public key), so it should still have NO scheme.
-    (logs, a ) <- withDBLayerFromCopiedFile @ShelleyKey
+    (logs, a ) <- withDBLayerFromCopiedFile @TestState
         "passphraseScheme/she.be92ab4ec9399449e53b94378e6cb6724691f8b3.sqlite"
         inspectMeta
 
@@ -1360,12 +1368,11 @@ isMsgManualMigrationPw = matchMsgManualMigration $ \field ->
     in  fieldName field == unFieldNameDB fieldInDB
 
 
-testCreateMetadataTable ::
-    forall k. (k ~ ShelleyKey) => IO ()
+testCreateMetadataTable :: IO ()
 testCreateMetadataTable = withSystemTempFile "db.sql" $ \path _ -> do
     let noop _ = pure ()
         tr = nullTracer
-    withDBOpenFromFile @_ @k tr (Just defaultFieldValues) path noop
+    withDBOpenFromFile ShelleyWallet tr (Just defaultFieldValues) path noop
     actualVersion <- Sqlite.runSqlite (T.pack path) $ do
         [Sqlite.Single (version :: Int)] <- Sqlite.rawSql
             "SELECT version FROM database_schema_version \
@@ -1373,8 +1380,7 @@ testCreateMetadataTable = withSystemTempFile "db.sql" $ \path _ -> do
         pure $ SchemaVersion $ fromIntegral version
     actualVersion `shouldBe` currentSchemaVersion
 
-testNewerDatabaseIsNeverModified ::
-    forall k. (k ~ ShelleyKey) => IO ()
+testNewerDatabaseIsNeverModified :: IO ()
 testNewerDatabaseIsNeverModified = withSystemTempFile "db.sql" $ \path _ -> do
     let newerVersion = SchemaVersion 100
     _ <- Sqlite.runSqlite (T.pack path) $ do
@@ -1386,7 +1392,7 @@ testNewerDatabaseIsNeverModified = withSystemTempFile "db.sql" $ \path _ -> do
             ) []
     let noop _ = pure ()
         tr = nullTracer
-    withDBOpenFromFile @_ @k tr (Just defaultFieldValues) path noop
+    withDBOpenFromFile ShelleyWallet tr (Just defaultFieldValues) path noop
         `shouldThrow` \case
             InvalidDatabaseSchemaVersion {..}
                 | expectedVersion == currentSchemaVersion
@@ -1410,9 +1416,9 @@ testMigrationSubmissionsEncoding
     :: FilePath -> IO ()
 testMigrationSubmissionsEncoding dbName = do
     let performMigrations path =
-          withDBFresh @(SeqState 'Mainnet ShelleyKey)
+          withDBFresh ShelleyWallet
             nullTracer (Just defaultFieldValues) path dummyTimeInterpreter
-                testWid $ \_ -> pure ()
+                testWid $ \(_  :: TestDBSeqFresh) -> pure ()
         testOnCopiedAndMigrated test = fmap snd
             $ withinCopiedFile dbName $ \path _  -> do
                 performMigrations path
@@ -1463,11 +1469,12 @@ testMigrationSubmissionsEncoding dbName = do
 coinToBundle :: Word64 -> TokenBundle
 coinToBundle = TokenBundle.fromCoin . Coin.fromWord64
 
-testCp :: Wallet (SeqState 'Mainnet ShelleyKey)
+testCp :: Wallet TestState
 testCp = snd $ initWallet block0 initDummyState
   where
-    initDummyState :: SeqState 'Mainnet ShelleyKey
-    initDummyState = mkSeqStateFromRootXPrv (xprv, mempty) purposeCIP1852 defaultAddressPoolGap
+    initDummyState :: TestState
+    initDummyState = mkSeqStateFromRootXPrv
+        ShelleyKeyS (xprv, mempty) purposeCIP1852 defaultAddressPoolGap
       where
         mw = SomeMnemonic . unsafePerformIO . generate $ genMnemonic @15
         xprv = generateKeyFromSeed (mw, Nothing) mempty
@@ -1479,7 +1486,7 @@ testMetadata = WalletMetadata
     , passphraseInfo = Nothing
     }
 
-testDBLayerParams :: DBLayerParams (SeqState 'Mainnet ShelleyKey)
+testDBLayerParams :: DBLayerParams TestState
 testDBLayerParams = DBLayerParams testCp testMetadata mempty gp
 
 testWid :: WalletId
@@ -1567,11 +1574,12 @@ getTxsInLedger DBLayer {..} = do
                            Test data - Sequential AD
 -------------------------------------------------------------------------------}
 
-testCpSeq :: Wallet (SeqState 'Mainnet ShelleyKey)
+testCpSeq :: Wallet TestState
 testCpSeq = snd $ initWallet block0 initDummyStateSeq
 
-initDummyStateSeq :: SeqState 'Mainnet ShelleyKey
-initDummyStateSeq = mkSeqStateFromRootXPrv (xprv, mempty) purposeCIP1852 defaultAddressPoolGap
+initDummyStateSeq :: TestState
+initDummyStateSeq = mkSeqStateFromRootXPrv
+    ShelleyKeyS (xprv, mempty) purposeCIP1852 defaultAddressPoolGap
   where
       mw = SomeMnemonic $ unsafePerformIO (generate $ genMnemonic @15)
       xprv = Seq.generateKeyFromSeed (mw, Nothing) mempty

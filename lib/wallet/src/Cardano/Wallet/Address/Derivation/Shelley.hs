@@ -23,6 +23,7 @@
 module Cardano.Wallet.Address.Derivation.Shelley
     ( -- * Types
       ShelleyKey(..)
+    , shelleyKey
 
     -- * Constants
     , minSeedLengthBytes
@@ -72,7 +73,6 @@ import Cardano.Wallet.Address.Derivation
     , Role (..)
     , SoftDerivation (..)
     , ToRewardAccount (..)
-    , WalletKey (..)
     , fromHex
     , hex
     , mutableAccount
@@ -89,7 +89,7 @@ import Cardano.Wallet.Address.Discovery.Sequential
     , rewardAccountKey
     )
 import Cardano.Wallet.Primitive.Passphrase
-    ( Passphrase (..), changePassphraseXPrv )
+    ( Passphrase (..) )
 import Cardano.Wallet.Primitive.Types.Address
     ( Address (..) )
 import Cardano.Wallet.Read.NetworkId
@@ -103,10 +103,10 @@ import Cardano.Wallet.TxWitnessTag
     ( TxWitnessTag (..), TxWitnessTagFor (..) )
 import Control.DeepSeq
     ( NFData (..) )
+import Control.Lens
+    ( Iso, iso, over, (^.) )
 import Control.Monad
     ( guard, (<=<) )
-import Crypto.Hash
-    ( hash )
 import Crypto.Hash.Algorithms
     ( Blake2b_224 (..) )
 import Crypto.Hash.IO
@@ -144,6 +144,9 @@ import qualified Data.List.NonEmpty as NE
 newtype ShelleyKey (depth :: Depth) key =
     ShelleyKey { getKey :: key }
     deriving stock (Generic, Show, Eq)
+
+shelleyKey :: Iso (ShelleyKey depth key) (ShelleyKey depth key') key key'
+shelleyKey = iso getKey ShelleyKey
 
 instance NFData key => NFData (ShelleyKey depth key)
 
@@ -259,29 +262,6 @@ instance HardDerivation ShelleyKey where
 instance SoftDerivation ShelleyKey where
     deriveAddressPublicKey (ShelleyKey accXPub) role ix =
         ShelleyKey $ deriveAddressPublicKeyShelley accXPub role ix
-
-{-------------------------------------------------------------------------------
-                            WalletKey implementation
--------------------------------------------------------------------------------}
-
-instance WalletKey ShelleyKey where
-    changePassphrase oldPwd newPwd (ShelleyKey prv) =
-        ShelleyKey $ changePassphraseXPrv oldPwd newPwd prv
-
-    publicKey (ShelleyKey prv) =
-        ShelleyKey (toXPub prv)
-
-    digest (ShelleyKey pub) =
-        hash (unXPub pub)
-
-    getRawKey =
-        getKey
-
-    liftRawKey =
-        ShelleyKey
-
-    keyTypeDescriptor _ =
-        "she"
 
 {-------------------------------------------------------------------------------
                          Relationship Key / Address
@@ -413,7 +393,9 @@ instance ToRewardAccount ShelleyKey where
                 , DerivationIndex $ getIndex @'Soft minBound
                 ]
         in
-            (getRawKey stakK, toRewardAccount (publicKey stakK), path)
+            (stakK ^. shelleyKey, toRewardAccount
+                (over shelleyKey toXPub stakK)
+            , path)
       where
         rootK = generateKeyFromSeed (mw, Nothing) mempty
         acctK = deriveAccountPrivateKey mempty rootK minBound

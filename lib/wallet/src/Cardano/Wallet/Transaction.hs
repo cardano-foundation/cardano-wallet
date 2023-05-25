@@ -45,7 +45,6 @@ module Cardano.Wallet.Transaction
     , WitnessCount (..)
     , emptyWitnessCount
     , WitnessCountCtx (..)
-    , ToWitnessCountCtx (..)
     , toKeyRole
 
     -- * Errors
@@ -167,7 +166,7 @@ data TransactionLayer k ktype tx = TransactionLayer
         -> WitnessCountCtx
         -> [(XPrv, Passphrase "encryption")]
             -- Reward accounts
-        -> (KeyHash, XPrv, Passphrase "encryption")
+        -> Maybe (KeyHash, XPrv, Passphrase "encryption")
             -- policy key hash and private key
         -> Maybe (KeyHash, XPrv, Passphrase "encryption")
             -- optional staking key hash and private key
@@ -416,9 +415,6 @@ toKeyRole witCtx (Hash key) = case witCtx of
            else
                Payment
     AnyWitnessCountCtx -> Unknown
-
-class ToWitnessCountCtx s where
-    toWitnessCountCtx :: s -> WitnessCountCtx
 
 data ErrMkTransaction
     =  ErrMkTransactionTxBodyError Text

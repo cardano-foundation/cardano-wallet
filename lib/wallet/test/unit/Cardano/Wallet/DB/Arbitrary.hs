@@ -43,13 +43,7 @@ import Cardano.Pool.Types
 import Cardano.Wallet.Address.Book
     ( AddressBookIso (..) )
 import Cardano.Wallet.Address.Derivation
-    ( Depth (..)
-    , DerivationType (..)
-    , Index (..)
-    , Role (..)
-    , WalletKey (..)
-    , publicKey
-    )
+    ( Depth (..), DerivationType (..), Index (..), Role (..) )
 import Cardano.Wallet.Address.Derivation.Byron
     ( ByronKey (..) )
 import Cardano.Wallet.Address.Derivation.Shared
@@ -75,6 +69,8 @@ import Cardano.Wallet.DB.Pure.Implementation
     ( TxHistory, filterTxHistory )
 import Cardano.Wallet.DummyTarget.Primitive.Types as DummyTarget
     ( block0, mkTx )
+import Cardano.Wallet.Flavor
+    ( KeyFlavorS (SharedKeyS, ShelleyKeyS) )
 import Cardano.Wallet.Gen
     ( genMnemonic, genSimpleTxMetadata, shrinkSlotNo, shrinkTxMetadata )
 import Cardano.Wallet.Primitive.Model
@@ -232,6 +228,8 @@ import qualified Cardano.Wallet.Address.Derivation.Shared as Shared
 import qualified Cardano.Wallet.Address.Derivation.Shelley as Shelley
 import qualified Cardano.Wallet.Address.Discovery.Sequential as Seq
 import qualified Cardano.Wallet.Address.Discovery.Shared as Shared
+import Cardano.Wallet.Address.Keys.WalletKey
+    ( getRawKey, liftRawKey, publicKey )
 import qualified Data.ByteArray as BA
 import qualified Data.ByteString as BS
 import qualified Data.ByteString.Char8 as B8
@@ -585,24 +583,27 @@ rootKeysSeq = unsafePerformIO $ generate (vectorOf 10 genRootKeysSeq)
 arbitrarySeqAccount
     :: ShelleyKey 'AccountK XPub
 arbitrarySeqAccount =
-    publicKey $ Shelley.unsafeGenerateKeyFromSeed (mw, Nothing) mempty
+    publicKey ShelleyKeyS
+        $ Shelley.unsafeGenerateKeyFromSeed (mw, Nothing) mempty
   where
     mw = someDummyMnemonic (Proxy @15)
 
 arbitraryRewardAccount
     :: ShelleyKey 'CredFromKeyK XPub
 arbitraryRewardAccount =
-    publicKey $ Shelley.unsafeGenerateKeyFromSeed (mw, Nothing) mempty
+    publicKey ShelleyKeyS
+        $ Shelley.unsafeGenerateKeyFromSeed (mw, Nothing) mempty
   where
     mw = someDummyMnemonic (Proxy @15)
 
 arbitraryPolicyKey
     :: ShelleyKey 'PolicyK XPub
 arbitraryPolicyKey =
-    publicKey $ liftRawKey $
+    publicKey ShelleyKeyS
+        $ liftRawKey ShelleyKeyS $
     MintBurn.derivePolicyPrivateKey mempty rootXPrv minBound
   where
-    rootXPrv:_ = map getRawKey $ take 1 rootKeysSeq
+    rootXPrv:_ = getRawKey ShelleyKeyS <$> take 1 rootKeysSeq
 
 {-------------------------------------------------------------------------------
                                  Random State
@@ -678,7 +679,11 @@ instance Arbitrary (Script Cosigner) where
 
 genScriptTemplateHardCoded :: Gen ScriptTemplate
 genScriptTemplateHardCoded =
-    ScriptTemplate (Map.fromList [(Cosigner 0, getRawKey arbitrarySeqAccount)] ) <$> arbitrary
+    ScriptTemplate
+        (Map.fromList
+            [(Cosigner 0, getRawKey ShelleyKeyS arbitrarySeqAccount)]
+        )
+        <$> arbitrary
 
 instance Arbitrary Seq.AddressPoolGap where
     arbitrary = pure defaultAddressPoolGap
@@ -686,7 +691,8 @@ instance Arbitrary Seq.AddressPoolGap where
 arbitrarySharedAccount
     :: SharedKey 'AccountK XPub
 arbitrarySharedAccount =
-    publicKey $ Shared.unsafeGenerateKeyFromSeed (mw, Nothing) mempty
+    publicKey SharedKeyS
+        $ Shared.unsafeGenerateKeyFromSeed (mw, Nothing) mempty
   where
     mw = someDummyMnemonic (Proxy @15)
 

@@ -116,13 +116,17 @@ import Cardano.Tx.Balance.Internal.CoinSelection
     , selectionDelta
     )
 import Cardano.Wallet.Address.Derivation
-    ( Depth (..), RewardAccount (..), WalletKey (..) )
+    ( Depth (..), RewardAccount (..) )
 import Cardano.Wallet.Address.Derivation.SharedKey
     ( replaceCosignersWithVerKeys )
 import Cardano.Wallet.Address.Derivation.Shelley
     ( toRewardAccountRaw )
 import Cardano.Wallet.Address.Discovery.Shared
     ( estimateMaxWitnessRequiredPerInput )
+import Cardano.Wallet.Address.Keys.WalletKey
+    ( getRawKey )
+import Cardano.Wallet.Flavor
+    ( KeyFlavorS )
 import Cardano.Wallet.Primitive.Passphrase
     ( Passphrase (..) )
 import Cardano.Wallet.Primitive.Types
@@ -370,12 +374,10 @@ constructUnsignedTx
     mintingScripts = Map.union (snd toMint) (snd toBurn)
 
 mkTx
-    :: forall k era.
-        ( TxWitnessTagFor k
-        , WalletKey k
-        , EraConstraints era
-        )
-    => Cardano.NetworkId
+    :: forall k era
+     .  (TxWitnessTagFor k, EraConstraints era)
+    => KeyFlavorS k
+    -> Cardano.NetworkId
     -> TxPayload era
     -> (Maybe SlotNo, SlotNo)
     -- ^ Slot at which the transaction will start and expire.
@@ -391,7 +393,7 @@ mkTx
     -- ^ Explicit fee amount
     -> ShelleyBasedEra era
     -> Either ErrMkTransaction (Tx, SealedTx)
-mkTx networkId payload ttl (rewardAcnt, pwdAcnt) addrResolver wdrl cs fees era =
+mkTx keyF networkId payload ttl (rewardAcnt, pwdAcnt) addrResolver wdrl cs fees era =
     do
 
     let TxPayload md certs mkExtraWits = payload
@@ -400,7 +402,7 @@ mkTx networkId payload ttl (rewardAcnt, pwdAcnt) addrResolver wdrl cs fees era =
     unsigned <- mkUnsignedTx era ttl (Right cs) md wdrls certs
         (toCardanoLovelace fees)
         TokenMap.empty TokenMap.empty Map.empty Map.empty Nothing
-    let signed = signTransaction networkId AnyWitnessCountCtx acctResolver
+    let signed = signTransaction keyF networkId AnyWitnessCountCtx acctResolver
             (const Nothing) (const Nothing) addrResolver inputResolver
             (unsigned, mkExtraWits unsigned)
 
@@ -429,12 +431,10 @@ mkTx networkId payload ttl (rewardAcnt, pwdAcnt) addrResolver wdrl cs fees era =
 --
 -- If a key for a given input isn't found, the input is skipped.
 signTransaction
-    :: forall k ktype era.
-        ( EraConstraints era
-        , TxWitnessTagFor k
-        , WalletKey k
-        )
-    => Cardano.NetworkId
+    :: forall k ktype era
+     . (EraConstraints era, TxWitnessTagFor k)
+    => KeyFlavorS k
+    -> Cardano.NetworkId
     -- ^ Network identifier (e.g. mainnet, testnet)
     -> WitnessCountCtx
     -> (RewardAccount -> Maybe (XPrv, Passphrase "encryption"))
@@ -451,6 +451,7 @@ signTransaction
     -- ^ The transaction to sign, possibly with already some existing witnesses
     -> Cardano.Tx era
 signTransaction
+    keyF
     networkId
     witCountCtx
     resolveRewardAcct
@@ -541,11 +542,11 @@ signTransaction
     mkTxInWitness i = do
         addr <- resolveInput i
         (k, pwd) <- resolveAddress addr
+        let  pk = (getRawKey keyF k, pwd)
         pure $ case txWitnessTagFor @k of
-            TxWitnessShelleyUTxO ->
-                mkShelleyWitness body (getRawKey k, pwd)
+            TxWitnessShelleyUTxO -> mkShelleyWitness body pk
             TxWitnessByronUTxO ->
-                mkByronWitness body networkId addr (getRawKey k, pwd)
+                mkByronWitness body networkId addr pk
 
     mkWdrlCertWitness :: RewardAccount -> Maybe (Cardano.KeyWitness era)
     mkWdrlCertWitness a =
@@ -570,16 +571,15 @@ signTransaction
                 (Cardano.PaymentCredentialByKey vkh)
                 Cardano.NoStakeAddress
         (k, pwd) <- resolveAddress (fromCardanoAddress addr)
-        pure $ mkShelleyWitness body (getRawKey k, pwd)
+        pure $ mkShelleyWitness body (getRawKey keyF k, pwd)
 
 newTransactionLayer
-    :: forall k ktype.
-        ( TxWitnessTagFor k
-        , WalletKey k
-        )
-    => NetworkId
+    :: forall k ktype
+     . TxWitnessTagFor k
+    => KeyFlavorS k
+    -> NetworkId
     -> TransactionLayer k ktype SealedTx
-newTransactionLayer networkId = TransactionLayer
+newTransactionLayer keyF networkId = TransactionLayer
     { mkTransaction = \era stakeCreds keystore _pp ctx selection -> do
         let ttl   = txValidityInterval ctx
         let wdrl = view #txWithdrawal ctx
@@ -587,14 +587,14 @@ newTransactionLayer networkId = TransactionLayer
         case view #txDelegationAction ctx of
             Nothing -> withShelleyBasedEra era $ do
                 let payload = TxPayload (view #txMetadata ctx) mempty mempty
-                mkTx networkId payload ttl stakeCreds keystore wdrl
+                mkTx keyF networkId payload ttl stakeCreds keystore wdrl
                     selection delta
 
             Just action -> withShelleyBasedEra era $ do
                 let stakeXPub = toXPub $ fst stakeCreds
                 let certs = mkDelegationCertificates action (Left stakeXPub)
                 let payload = TxPayload (view #txMetadata ctx) certs (const [])
-                mkTx networkId payload ttl stakeCreds keystore wdrl
+                mkTx keyF networkId payload ttl stakeCreds keystore wdrl
                     selection delta
 
     , addVkWitnesses =
@@ -612,7 +612,7 @@ newTransactionLayer networkId = TransactionLayer
             let policyResolver
                     :: KeyHash -> Maybe (XPrv, Passphrase "encryption")
                 policyResolver keyhash = do
-                    let (keyhash', xprv, encP) = policyCreds
+                    (keyhash', xprv, encP) <- policyCreds
                     guard (keyhash == keyhash') $> (xprv, encP)
             let stakingScriptResolver
                     :: KeyHash -> Maybe (XPrv, Passphrase "encryption")
@@ -625,27 +625,27 @@ newTransactionLayer networkId = TransactionLayer
                 InAnyCardanoEra ByronEra _ ->
                     sealedTx
                 InAnyCardanoEra ShelleyEra (Cardano.Tx body wits) ->
-                    signTransaction networkId witCountCtx acctResolver (const Nothing)
+                    signTransaction keyF networkId witCountCtx acctResolver (const Nothing)
                     (const Nothing) addressResolver inputResolver (body, wits)
                     & sealedTxFromCardano'
                 InAnyCardanoEra AllegraEra (Cardano.Tx body wits) ->
-                    signTransaction networkId witCountCtx acctResolver (const Nothing)
+                    signTransaction keyF networkId witCountCtx acctResolver (const Nothing)
                     (const Nothing) addressResolver inputResolver (body, wits)
                     & sealedTxFromCardano'
                 InAnyCardanoEra MaryEra (Cardano.Tx body wits) ->
-                    signTransaction networkId witCountCtx acctResolver policyResolver
+                    signTransaction keyF networkId witCountCtx acctResolver policyResolver
                     stakingScriptResolver addressResolver inputResolver (body, wits)
                     & sealedTxFromCardano'
                 InAnyCardanoEra AlonzoEra (Cardano.Tx body wits) ->
-                    signTransaction networkId witCountCtx acctResolver policyResolver
+                    signTransaction keyF networkId witCountCtx acctResolver policyResolver
                     stakingScriptResolver addressResolver inputResolver (body, wits)
                     & sealedTxFromCardano'
                 InAnyCardanoEra BabbageEra (Cardano.Tx body wits) ->
-                    signTransaction networkId witCountCtx acctResolver policyResolver
+                    signTransaction keyF networkId witCountCtx acctResolver policyResolver
                     stakingScriptResolver addressResolver inputResolver (body, wits)
                     & sealedTxFromCardano'
                 InAnyCardanoEra ConwayEra (Cardano.Tx body wits) ->
-                    signTransaction networkId witCountCtx acctResolver policyResolver
+                    signTransaction keyF networkId witCountCtx acctResolver policyResolver
                     stakingScriptResolver addressResolver inputResolver (body, wits)
                     & sealedTxFromCardano'
 

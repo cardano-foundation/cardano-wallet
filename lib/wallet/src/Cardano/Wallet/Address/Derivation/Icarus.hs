@@ -21,6 +21,7 @@
 module Cardano.Wallet.Address.Derivation.Icarus
     ( -- * Types
       IcarusKey(..)
+    , icarusKey
 
     -- * Generation and derivation
     , generateKeyFromSeed
@@ -38,7 +39,6 @@ import Cardano.Crypto.Wallet
     , deriveXPrv
     , deriveXPub
     , generateNew
-    , toXPub
     , unXPub
     , xPrvChangePass
     , xprv
@@ -57,7 +57,6 @@ import Cardano.Wallet.Address.Derivation
     , PersistPublicKey (..)
     , RewardAccount (..)
     , SoftDerivation (..)
-    , WalletKey (..)
     , fromHex
     , hex
     , paymentAddressS
@@ -67,7 +66,7 @@ import Cardano.Wallet.Address.Discovery
 import Cardano.Wallet.Address.Discovery.Sequential
     ( SeqState, coinTypeAda, discoverSeq, purposeBIP44 )
 import Cardano.Wallet.Primitive.Passphrase
-    ( Passphrase (..), changePassphraseXPrv )
+    ( Passphrase (..) )
 import Cardano.Wallet.Primitive.Types.Address
     ( Address (..) )
 import Cardano.Wallet.Primitive.Types.ProtocolMagic
@@ -84,12 +83,12 @@ import Control.Arrow
     ( first, left )
 import Control.DeepSeq
     ( NFData (..) )
+import Control.Lens
+    ( Iso, iso )
 import Control.Monad
     ( (<=<) )
 import Crypto.Error
     ( eitherCryptoError )
-import Crypto.Hash
-    ( hash )
 import Crypto.Hash.Algorithms
     ( SHA256 (..), SHA512 (..) )
 import Crypto.MAC.HMAC
@@ -132,6 +131,9 @@ import qualified Data.Text.Encoding as T
 newtype IcarusKey (depth :: Depth) key =
     IcarusKey { getKey :: key }
     deriving stock (Generic, Show, Eq)
+
+icarusKey :: Iso (IcarusKey depth key) (IcarusKey depth key') key key'
+icarusKey = iso getKey IcarusKey
 
 instance NFData key => NFData (IcarusKey depth key)
 
@@ -342,28 +344,6 @@ instance SoftDerivation IcarusKey where
             \index for soft path derivation ( " ++ show addrIx ++ "). This is \
             \either a programmer error, or, we may have reached the maximum \
             \number of addresses for a given wallet."
-
-{-------------------------------------------------------------------------------
-                            WalletKey implementation
--------------------------------------------------------------------------------}
-
-instance WalletKey IcarusKey where
-    keyTypeDescriptor _ = "ica"
-
-    changePassphrase old new (IcarusKey prv) =
-        IcarusKey $ changePassphraseXPrv old new prv
-
-    publicKey (IcarusKey prv) =
-        IcarusKey (toXPub prv)
-
-    digest (IcarusKey prv) =
-        hash (unXPub prv)
-
-    getRawKey =
-        getKey
-
-    liftRawKey =
-        IcarusKey
 
 {-------------------------------------------------------------------------------
                          Relationship Key / Address

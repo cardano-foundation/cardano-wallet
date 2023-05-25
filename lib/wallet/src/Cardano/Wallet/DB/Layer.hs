@@ -8,7 +8,6 @@
 {-# LANGUAGE RankNTypes #-}
 {-# LANGUAGE RecordWildCards #-}
 {-# LANGUAGE ScopedTypeVariables #-}
-{-# LANGUAGE TypeApplications #-}
 {-# LANGUAGE TypeFamilies #-}
 
 -- |
@@ -66,9 +65,11 @@ import Cardano.DB.Sqlite.Delete
 import Cardano.Slotting.Slot
     ( WithOrigin (..) )
 import Cardano.Wallet.Address.Derivation
-    ( Depth (..), WalletKey (..) )
+    ( Depth (..) )
 import Cardano.Wallet.Address.Keys.PersistPrivateKey
     ( serializeXPrv, unsafeDeserializeXPrv )
+import Cardano.Wallet.Address.Keys.WalletKey
+    ( keyTypeDescriptor )
 import Cardano.Wallet.Checkpoints
     ( DeltaCheckpoints (..) )
 import Cardano.Wallet.DB
@@ -141,7 +142,7 @@ import Cardano.Wallet.DB.WalletState
     , getSlot
     )
 import Cardano.Wallet.Flavor
-    ( KeyFlavorS, KeyOf, WalletFlavor, keyFlavor )
+    ( KeyFlavorS, WalletFlavorS, keyOfWallet )
 import Cardano.Wallet.Primitive.Passphrase.Types
     ( PassphraseHash )
 import Cardano.Wallet.Primitive.Slotting
@@ -176,8 +177,6 @@ import Data.Generics.Internal.VL.Lens
     ( (^.) )
 import Data.Maybe
     ( catMaybes, fromMaybe, maybeToList )
-import Data.Proxy
-    ( Proxy (..) )
 import Data.Store
     ( Store (..), UpdateStore )
 import Data.Text
@@ -236,12 +235,10 @@ import qualified Data.Text as T
 
 -- | Instantiate a 'DBFactory' from a given directory, or in-memory for testing.
 newDBFactory
-    :: forall s .
-        ( PersistAddressBook s
-        , WalletFlavor s
-        , WalletKey (KeyOf s)
-        )
-    => Tracer IO DBFactoryLog
+    :: forall s
+     . PersistAddressBook s
+    => WalletFlavorS s
+    -> Tracer IO DBFactoryLog
        -- ^ Logging object
     -> DefaultFieldValues
        -- ^ Default database field values, used during migration.
@@ -250,7 +247,7 @@ newDBFactory
     -> Maybe FilePath
        -- ^ Path to database directory, or Nothing for in-memory database
     -> IO (DBFactory IO s )
-newDBFactory tr defaultFieldValues ti = \case
+newDBFactory wf tr defaultFieldValues ti = \case
     Nothing -> do
         -- NOTE1
         -- For the in-memory database, we do actually preserve the database
@@ -270,7 +267,7 @@ newDBFactory tr defaultFieldValues ti = \case
                     Just db -> pure (m, db)
                     Nothing -> do
                         let tr' = contramap (MsgWalletDB "") tr
-                        (_cleanup, db) <- newDBFreshInMemory tr' ti wid
+                        (_cleanup, db) <- newDBFreshInMemory wf tr' ti wid
                         pure (Map.insert wid db m, db)
                 action db
             , removeDatabase = \wid -> do
@@ -284,7 +281,7 @@ newDBFactory tr defaultFieldValues ti = \case
     Just databaseDir -> do
         refs <- newRefCount
         pure DBFactory
-            { withDatabase = \wid action -> withRef refs wid $ withDBFresh
+            { withDatabase = \wid action -> withRef refs wid $ withDBFresh wf
                 (contramap (MsgWalletDB (databaseFile wid)) tr)
                 (Just defaultFieldValues)
                 (databaseFile wid)
@@ -305,10 +302,11 @@ newDBFactory tr defaultFieldValues ti = \case
                     let trDel = contramap (MsgRemovingDatabaseFile widp) tr
                     deleteSqliteDatabase trDel (databaseFile wid)
             , listDatabases =
-                findDatabases @(KeyOf s) tr databaseDir
+                findDatabases key tr databaseDir
             }
       where
-        databaseFilePrefix = keyTypeDescriptor $ Proxy @(KeyOf s)
+        key = keyOfWallet wf
+        databaseFilePrefix = keyTypeDescriptor key
         databaseFile wid =
             databaseDir </>
             databaseFilePrefix <> "." <>
@@ -317,11 +315,11 @@ newDBFactory tr defaultFieldValues ti = \case
 -- | Return all wallet databases that match the specified key type within the
 --   specified directory.
 findDatabases
-    :: forall k. WalletKey k
-    => Tracer IO DBFactoryLog
+    :: KeyFlavorS k
+    -> Tracer IO DBFactoryLog
     -> FilePath
     -> IO [W.WalletId]
-findDatabases tr dir = do
+findDatabases key tr dir = do
     files <- listDirectory dir
     fmap catMaybes $ forM files $ \file -> do
         isFile <- doesFileExist (dir </> file)
@@ -336,7 +334,7 @@ findDatabases tr dir = do
                         return Nothing
             _ -> return Nothing
   where
-    expectedPrefix = T.pack $ keyTypeDescriptor $ Proxy @k
+    expectedPrefix = T.pack $ keyTypeDescriptor key
 
 data DBFactoryLog
     = MsgFoundDatabase FilePath Text
@@ -389,9 +387,8 @@ instance ToText DBFactoryLog where
 --
 -- If the given file path does not exist, it will be created.
 withDBOpenFromFile
-    :: forall s k a
-     . WalletKey k
-    => Tracer IO WalletDBLog
+    :: WalletFlavorS s
+    -> Tracer IO WalletDBLog
        -- ^ Logging object
     -> Maybe DefaultFieldValues
        -- ^ Default database field values, used during manual migration.
@@ -401,16 +398,18 @@ withDBOpenFromFile
     -> (DBOpen (SqlPersistT IO) IO s -> IO a)
        -- ^ Action to run.
     -> IO a
-withDBOpenFromFile tr defaultFieldValues dbFile action = do
+withDBOpenFromFile walletF tr defaultFieldValues dbFile action = do
     let trDB = contramap MsgDB tr
     let manualMigrations =
-            maybe [] (migrateManually trDB (Proxy @k)) defaultFieldValues
+            maybe [] (migrateManually trDB $ keyOfWallet walletF)
+                defaultFieldValues
     let autoMigrations   = migrateAll
     withConnectionPool trDB dbFile $ \pool -> do
         res <- newSqliteContext trDB pool manualMigrations autoMigrations
         case res of
             Left err -> throwIO err
             Right sqliteContext -> action =<< newQueryLock sqliteContext
+
 
 -- | Open an SQLite database in-memory.
 --
@@ -452,10 +451,10 @@ retrieveWalletId DBOpen{atomically} =
 
 withDBFreshFromDBOpen
     :: forall s a
-     . ( PersistAddressBook s
-       , WalletFlavor s
-       )
-    => TimeInterpreter IO
+     . PersistAddressBook s
+    => WalletFlavorS s
+    -- ^ Wallet flavor
+    -> TimeInterpreter IO
     -- ^ Time interpreter for slot to time conversions
     -> W.WalletId
     -- ^ Wallet ID of the database
@@ -464,7 +463,7 @@ withDBFreshFromDBOpen
     -> DBOpen (SqlPersistT IO) IO s
     -- ^ Already opened database.
     -> IO a
-withDBFreshFromDBOpen ti wid action = action . newDBFreshFromDBOpen ti wid
+withDBFreshFromDBOpen wf ti wid action = action . newDBFreshFromDBOpen wf ti wid
 
 -- | Runs an action with a connection to the SQLite database.
 --
@@ -473,12 +472,11 @@ withDBFreshFromDBOpen ti wid action = action . newDBFreshFromDBOpen ti wid
 -- If the given file path does not exist, it will be created by the sqlite
 -- library.
 withDBFresh
-    :: forall s a.
-        ( PersistAddressBook s
-        , WalletFlavor s
-        , WalletKey (KeyOf s)
-        )
-    => Tracer IO WalletDBLog
+    :: forall s a
+     . PersistAddressBook s
+    => WalletFlavorS s
+    -- ^ Wallet flavor
+    -> Tracer IO WalletDBLog
        -- ^ Logging object
     -> Maybe DefaultFieldValues
        -- ^ Default database field values, used during manual migration.
@@ -492,18 +490,18 @@ withDBFresh
     -> (DBFresh IO s -> IO a)
        -- ^ Action to run.
     -> IO a
-withDBFresh tr defaultFieldValues dbFile ti wid action =
-    withDBOpenFromFile @_ @(KeyOf s) tr defaultFieldValues dbFile
-        $  action . newDBFreshFromDBOpen ti wid
+withDBFresh wf tr defaultFieldValues dbFile ti wid action =
+    withDBOpenFromFile wf tr defaultFieldValues dbFile
+        $  action . newDBFreshFromDBOpen wf ti wid
 
 -- | Runs an IO action with a new 'DBFresh' backed by a sqlite in-memory
 -- database.
 withDBFreshInMemory
     :: forall s a
-     . ( PersistAddressBook s
-       , WalletFlavor s
-       )
-    => Tracer IO WalletDBLog
+     . PersistAddressBook s
+    => WalletFlavorS s
+    -- ^ Wallet flavor
+    -> Tracer IO WalletDBLog
     -- ^ Logging object.
     -> TimeInterpreter IO
     -- ^ Time interpreter for slot to time conversions
@@ -512,8 +510,8 @@ withDBFreshInMemory
     -> (DBFresh IO s -> IO a)
     -- ^ Action to run.
     -> IO a
-withDBFreshInMemory tr ti wid action = bracket
-    (newDBFreshInMemory tr ti wid) fst (action . snd)
+withDBFreshInMemory wf tr ti wid action = bracket
+    (newDBFreshInMemory wf tr ti wid) fst (action . snd)
 
 -- | Creates a 'DBFresh' backed by a sqlite in-memory database.
 --
@@ -521,32 +519,34 @@ withDBFreshInMemory tr ti wid action = bracket
 -- finished with the 'DBFresh'.
 newDBFreshInMemory
     :: forall s
-     . ( PersistAddressBook s
-       , WalletFlavor s
-       )
-    => Tracer IO WalletDBLog
+     . PersistAddressBook s
+    => WalletFlavorS s
+    -- ^ Wallet flavor
+    -> Tracer IO WalletDBLog
     -- ^ Logging object.
     -> TimeInterpreter IO
     -- ^ Time interpreter for slot to time conversions.
     -> W.WalletId
     -- ^ Wallet ID of the database.
     -> IO (IO (), DBFresh IO s)
-newDBFreshInMemory tr ti wid = do
-    second (newDBFreshFromDBOpen ti wid) <$> newDBOpenInMemory tr
+newDBFreshInMemory wf tr ti wid = do
+    second (newDBFreshFromDBOpen wf ti wid) <$> newDBOpenInMemory tr
 
 -- | From a 'DBOpen', create a database which can store the state
 -- of one wallet with a specific 'WalletId'.
 newDBFreshFromDBOpen
     :: forall s
-     . (PersistAddressBook s, WalletFlavor s)
-    => TimeInterpreter IO
+     . PersistAddressBook s
+    => WalletFlavorS s
+    -- ^ Wallet flavor
+    -> TimeInterpreter IO
     -- ^ Time interpreter for slot to time conversions
     -> W.WalletId
     -- ^ Wallet ID of the database.
     -> DBOpen (SqlPersistT IO) IO s
     -- ^ A (thread-)safe wrapper for query execution.
     -> DBFresh IO s
-newDBFreshFromDBOpen ti wid_ DBOpen{atomically=atomically_} =
+newDBFreshFromDBOpen wf ti wid_ DBOpen{atomically=atomically_} =
     mkDBFreshFromParts ti wid_
         getWalletId_ (mkStoreWallet wid_)
             dbLayerCollection atomically_
@@ -649,7 +649,7 @@ newDBFreshFromDBOpen ti wid_ DBOpen{atomically=atomically_} =
     dbDelegation = mkDBDelegation ti wid_
 
 
-    dbPrivateKey = mkDBPrivateKey (keyFlavor @s) wid_
+    dbPrivateKey = mkDBPrivateKey (keyOfWallet wf) wid_
 
 mkDBFreshFromParts
     :: forall stm m s

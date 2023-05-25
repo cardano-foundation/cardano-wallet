@@ -69,10 +69,13 @@ import Cardano.Wallet.Address.Derivation
     , HardDerivation (..)
     , PaymentAddress (..)
     , Role (..)
-    , WalletKey (..)
     , deriveRewardAccount
     , liftIndex
     )
+import Cardano.Wallet.Address.Keys.WalletKey
+    ( getRawKey, publicKey )
+import Cardano.Wallet.Flavor
+    ( KeyFlavorS (ByronKeyS, IcarusKeyS, ShelleyKeyS) )
 import Cardano.Wallet.Primitive.Types.Address
     ( Address (..) )
 import Cardano.Wallet.Primitive.Types.Coin
@@ -103,6 +106,7 @@ import GHC.TypeLits
     ( KnownNat, Nat, Symbol )
 import UnliftIO.MVar
     ( MVar, modifyMVar )
+
 
 import qualified Cardano.Wallet.Address.Derivation.Byron as Byron
 import qualified Cardano.Wallet.Address.Derivation.Icarus as Icarus
@@ -2242,7 +2246,7 @@ byronAddresses mw =
             Byron.deriveAddressPrivateKey pwd accXPrv
     in
         [ paymentAddress SMainnet
-            $ publicKey $ addrXPrv $ liftIndex @'Hardened ix
+            $ publicKey ByronKeyS $ addrXPrv $ liftIndex @'Hardened ix
         | ix <- [minBound..maxBound]
         ]
 
@@ -2258,7 +2262,7 @@ icaAddresses mw =
         addrXPrv =
             deriveAddressPrivateKey pwd accXPrv UtxoExternal
     in
-        [ paymentAddress SMainnet $ publicKey $ addrXPrv ix
+        [ paymentAddress SMainnet $ publicKey IcarusKeyS $ addrXPrv ix
         | ix <- [minBound..maxBound]
         ]
 
@@ -2290,7 +2294,7 @@ genShelleyAddresses mw =
         addrXPrv =
             deriveAddressPrivateKey pwd accXPrv UtxoExternal
     in
-        [ paymentAddress SMainnet $ publicKey $ addrXPrv ix
+        [ paymentAddress SMainnet $ publicKey ShelleyKeyS $ addrXPrv ix
         | ix <- [minBound..maxBound]
         ]
 
@@ -2304,7 +2308,7 @@ genRewardAccounts mw =
         acctXPrv =
             deriveRewardAccount pwd rootXPrv minBound
     in
-        [getRawKey $ publicKey acctXPrv]
+        [getRawKey ShelleyKeyS $ publicKey ShelleyKeyS acctXPrv]
 
 -- | Abstract function for generating a faucet as a YAML file.
 --

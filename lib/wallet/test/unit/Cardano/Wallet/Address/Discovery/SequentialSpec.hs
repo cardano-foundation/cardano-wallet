@@ -38,7 +38,6 @@ import Cardano.Wallet.Address.Derivation
     , PaymentAddress (..)
     , Role (..)
     , SoftDerivation (..)
-    , WalletKey (..)
     )
 import Cardano.Wallet.Address.Derivation.Icarus
     ( IcarusKey (..) )
@@ -67,13 +66,18 @@ import Cardano.Wallet.Address.Discovery.Sequential
     , defaultAddressPoolGap
     , mkAddressPoolGap
     , mkSeqStateFromAccountXPub
-    , mkSeqStateFromRootXPrv
     , mkUnboundedAddressPoolGap
     , newSeqAddressPool
     , purposeCIP1852
     )
+import Cardano.Wallet.Address.Keys.SequentialAny
+    ( mkSeqStateFromRootXPrv )
+import Cardano.Wallet.Address.Keys.WalletKey
+    ( publicKey )
 import Cardano.Wallet.Address.PoolSpec
     ( genPool, shrinkPool )
+import Cardano.Wallet.Flavor
+    ( KeyFlavorS (..) )
 import Cardano.Wallet.Primitive.Types.Address
     ( Address (..), AddressState (..) )
 import Cardano.Wallet.Read.NetworkId
@@ -259,7 +263,7 @@ prop_genChangeGapFromRootXPrv g = property $
   where
     mw = someDummyMnemonic (Proxy @12)
     key = Shelley.unsafeGenerateKeyFromSeed (mw, Nothing) mempty
-    s0 = mkSeqStateFromRootXPrv (key, mempty) purposeCIP1852 g
+    s0 = mkSeqStateFromRootXPrv ShelleyKeyS (key, mempty) purposeCIP1852 g
 
 -- | We can always generate at exactly `gap` change addresses (on the internal
 -- chain) using mkSeqStateFromAccountXPub
@@ -270,7 +274,8 @@ prop_genChangeGapFromAccountXPub g = property $
     mw = someDummyMnemonic (Proxy @12)
     rootXPrv = Shelley.unsafeGenerateKeyFromSeed (mw, Nothing) mempty
     accIx = toEnum 0x80000000
-    accXPub = publicKey $ deriveAccountPrivateKey mempty rootXPrv accIx
+    accXPub = publicKey ShelleyKeyS
+        $ deriveAccountPrivateKey mempty rootXPrv accIx
     s0 = mkSeqStateFromAccountXPub accXPub Nothing purposeCIP1852 g
 
 prop_changeAddressRotation
@@ -433,7 +438,7 @@ class AddressPoolTest k where
         -> [Address]
 
 instance AddressPoolTest IcarusKey where
-    ourAccount = publicKey $
+    ourAccount = publicKey IcarusKeyS $
         Icarus.unsafeGenerateKeyFromSeed mw mempty
       where
         mw = someDummyMnemonic (Proxy @12)
@@ -444,7 +449,7 @@ instance AddressPoolTest IcarusKey where
         mkAddress = paymentAddress @IcarusKey SMainnet
 
 instance AddressPoolTest ShelleyKey where
-    ourAccount = publicKey $
+    ourAccount = publicKey ShelleyKeyS $
         Shelley.unsafeGenerateKeyFromSeed (mw, Nothing) mempty
       where
         mw = someDummyMnemonic (Proxy @15)
@@ -456,7 +461,7 @@ instance AddressPoolTest ShelleyKey where
 
 rewardAccount
     :: ShelleyKey 'CredFromKeyK XPub
-rewardAccount = publicKey $
+rewardAccount = publicKey ShelleyKeyS $
     Shelley.unsafeGenerateKeyFromSeed (mw, Nothing) mempty
   where
     mw = someDummyMnemonic (Proxy @15)

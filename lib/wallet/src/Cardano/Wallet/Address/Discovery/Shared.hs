@@ -37,13 +37,8 @@ module Cardano.Wallet.Address.Discovery.Shared
 
     , ErrAddCosigner (..)
     , ErrScriptTemplate (..)
-    , mkSharedStateFromAccountXPub
-    , mkSharedStateFromRootXPrv
-    , addCosignerAccXPub
     , isShared
     , retrieveAllCosigners
-    , validateScriptTemplates
-    , toSharedWalletId
     , estimateMinWitnessRequiredPerInput
     , estimateMaxWitnessRequiredPerInput
 
@@ -60,18 +55,14 @@ import Cardano.Address.Script
     , Script (..)
     , ScriptHash (..)
     , ScriptTemplate (..)
-    , ValidationLevel (..)
     , foldScript
     , prettyErrValidateScriptTemplate
     , toScriptHash
-    , validateScriptTemplate
     )
-import Cardano.Address.Script.Parser
-    ( scriptToText )
 import Cardano.Address.Style.Shelley
     ( Credential (..), delegationAddress, paymentAddress )
 import Cardano.Crypto.Wallet
-    ( XPrv, XPub, unXPub )
+    ( XPub )
 import Cardano.Wallet.Address.Derivation
     ( AccountIxForStaking (..)
     , AddressParts (..)
@@ -86,7 +77,6 @@ import Cardano.Wallet.Address.Derivation
     , PersistPublicKey (..)
     , Role (..)
     , SoftDerivation
-    , WalletKey (..)
     , mutableAccount
     , roleVal
     , toAddressParts
@@ -94,12 +84,9 @@ import Cardano.Wallet.Address.Derivation
     , utxoExternal
     , utxoInternal
     )
-import Cardano.Wallet.Address.Derivation.Shared
-    ( allCosignerStakingKeys )
 import Cardano.Wallet.Address.Derivation.SharedKey
     ( SharedKey (..)
     , constructAddressFromIx
-    , purposeCIP1854
     , replaceCosignersWithVerKeys
     , toNetworkTag
     )
@@ -112,23 +99,17 @@ import Cardano.Wallet.Address.Discovery
     , KnownAddresses (..)
     , MaybeLight (..)
     , PendingIxs
-    , coinTypeAda
-    , emptyPendingIxs
     , nextChangeIndex
     , pendingIxsToList
     )
 import Cardano.Wallet.Address.Discovery.Sequential
     ( AddressPoolGap (..) )
-import Cardano.Wallet.Primitive.Passphrase
-    ( Passphrase )
 import Cardano.Wallet.Primitive.Types.Address
     ( Address (..), AddressState (..) )
 import Cardano.Wallet.Primitive.Types.RewardAccount
     ( RewardAccount (..) )
 import Cardano.Wallet.Read.NetworkId
     ( HasSNetworkId (..), NetworkDiscriminant, networkDiscriminantBits )
-import Cardano.Wallet.Transaction
-    ( ToWitnessCountCtx (..), WitnessCountCtx (..) )
 import Control.Applicative
     ( (<|>) )
 import Control.Arrow
@@ -136,15 +117,9 @@ import Control.Arrow
 import Control.DeepSeq
     ( NFData )
 import Control.Monad
-    ( guard, unless )
-import Crypto.Hash
-    ( Blake2b_160, Digest, hash )
+    ( guard )
 import Data.Data
     ( Data )
-import Data.Either
-    ( isRight )
-import Data.Either.Combinators
-    ( mapLeft )
 import Data.Kind
     ( Type )
 import Data.Proxy
@@ -165,12 +140,10 @@ import Type.Reflection
 import qualified Cardano.Address as CA
 import qualified Cardano.Address.Style.Shelley as CA
 import qualified Cardano.Wallet.Address.Pool as AddressPool
-import qualified Data.Foldable as F
 import qualified Data.List as L
 import qualified Data.List.NonEmpty as NE
 import qualified Data.Map.Strict as Map
 import qualified Data.Text as T
-import qualified Data.Text.Encoding as T
 
 -- | Convenient alias for commonly used class contexts on keys.
 type SupportsDiscovery (n :: NetworkDiscriminant) k =
@@ -361,63 +334,8 @@ data Readiness a
 
 instance (NFData a) => NFData (Readiness a)
 
--- | Create a new SharedState from public account key.
-mkSharedStateFromAccountXPub
-    :: (SupportsDiscovery n k, WalletKey k, k ~ SharedKey)
-    => k 'AccountK XPub
-    -> Index 'Hardened 'AccountK
-    -> AddressPoolGap
-    -> ScriptTemplate
-    -> Maybe ScriptTemplate
-    -> SharedState n k
-mkSharedStateFromAccountXPub accXPub accIx gap pTemplate dTemplateM =
-    activate $ SharedState
-        { derivationPrefix = DerivationPrefix (purposeCIP1854, coinTypeAda, accIx)
-        , accountXPub = accXPub
-        , paymentTemplate = pTemplate
-        , delegationTemplate = dTemplateM
-        , rewardAccountKey = Nothing
-        , poolGap = gap
-        , ready = Pending
-        }
 
--- | Create a new SharedState from root private key and password.
-mkSharedStateFromRootXPrv
-    :: (SupportsDiscovery n k, WalletKey k, k ~ SharedKey)
-    => (k 'RootK XPrv, Passphrase "encryption")
-    -> Index 'Hardened 'AccountK
-    -> AddressPoolGap
-    -> ScriptTemplate
-    -> Maybe ScriptTemplate
-    -> SharedState n k
-mkSharedStateFromRootXPrv (rootXPrv, pwd) accIx =
-    mkSharedStateFromAccountXPub accXPub accIx
-  where
-    accXPub = publicKey $ deriveAccountPrivateKey pwd rootXPrv accIx
 
--- | Turn a 'Pending' into an 'Active' state if all templates are complete.
-activate
-    :: forall n k. (SupportsDiscovery n k, WalletKey k, k ~ SharedKey)
-    => SharedState n k -> SharedState n k
-activate
-    st@(SharedState{accountXPub,paymentTemplate=pT,delegationTemplate=dT
-                   ,rewardAccountKey,poolGap,ready})
-  = st { ready = updateReady ready, rewardAccountKey = updateRewardAccount ready }
-  where
-    updateReady Pending
-        | templatesComplete accountXPub pT dT
-            = Active $ SharedAddressPools
-              { externalPool = newSharedAddressPool @n poolGap pT dT
-              , internalPool = newSharedAddressPool @n poolGap pT dT
-              , pendingChangeIxs = emptyPendingIxs
-              }
-    updateReady r = r
-
-    updateRewardAccount Pending
-        | templatesComplete accountXPub pT dT
-            = FromScriptHash . unScriptHash . toScriptHash .
-                  flip (replaceCosignersWithVerKeys CA.Stake) minBound <$> dT
-    updateRewardAccount _ = rewardAccountKey
 
 -- | Possible errors from adding a co-signer key to the shared wallet state.
 data ErrAddCosigner
@@ -437,68 +355,6 @@ data ErrAddCosigner
         -- belonging to the shared wallet.
     deriving (Eq, Show)
 
--- | The cosigner with his account public key is updated per template.
---
--- For each template the script is checked for presence of the cosigner:
---   * If present, then the key is inserted into the state.
---   * Otherwise, fail with 'NoSuchCosigner'.
--- If the key is already present it is going to be updated.
--- For a given template all keys must be unique. If already present key is tried to be added,
--- `KeyAlreadyPresent` error is produced. The updating works only with pending shared state,
---
--- When an active shared state is used `WalletAlreadyActive` error is triggered.
---
--- Updating the key for delegation script can be successful only if delegation script is
--- present. Otherwise, `NoDelegationTemplate` error is triggered.
-addCosignerAccXPub
-    :: (SupportsDiscovery n k, WalletKey k, k ~ SharedKey)
-    => (Cosigner, k 'AccountK XPub)
-    -> CredentialType
-    -> SharedState n k
-    -> Either ErrAddCosigner (SharedState n k)
-addCosignerAccXPub (cosigner, cosignerXPub) cred st = case ready st of
-    Active{} ->
-        Left WalletAlreadyActive
-    Pending ->
-        case (cred, paymentTemplate st, delegationTemplate st) of
-            (Payment, pt, _)
-                | tryingUpdateWalletCosigner pt -> Left CannotUpdateSharedWalletKey
-                | isCosignerMissing pt -> Left $ NoSuchCosigner cred cosigner
-                | isKeyAlreadyPresent pt -> Left $ KeyAlreadyPresent cred
-            (Delegation, _, Just dt)
-                | tryingUpdateWalletCosigner dt -> Left CannotUpdateSharedWalletKey
-                | isCosignerMissing dt -> Left $ NoSuchCosigner cred cosigner
-                | isKeyAlreadyPresent dt -> Left $ KeyAlreadyPresent cred
-            (Delegation, _, Nothing) -> Left NoDelegationTemplate
-            _ -> Right $
-                activate $ addCosignerPending (cosigner, cosignerXPub) cred st
-  where
-    walletKey = accountXPub st
-    isKeyAlreadyPresent (ScriptTemplate cosignerKeys _) =
-        getRawKey cosignerXPub `F.elem` cosignerKeys
-    isCosignerMissing (ScriptTemplate _ script') =
-        cosigner `notElem` retrieveAllCosigners script'
-    tryingUpdateWalletCosigner (ScriptTemplate cosignerKeys _) =
-        case Map.lookup cosigner cosignerKeys of
-            Nothing -> False
-            Just key' -> key' == getRawKey walletKey
-
-addCosignerPending
-    :: WalletKey k
-    => (Cosigner, k 'AccountK XPub)
-    -> CredentialType
-    -> SharedState n k
-    -> SharedState n k
-addCosignerPending (cosigner, cosignerXPub) cred st = case cred of
-    Payment ->
-        st { paymentTemplate = updateScriptTemplate (paymentTemplate st) }
-    Delegation ->
-        st { delegationTemplate = updateScriptTemplate <$> (delegationTemplate st) }
-  where
-    updateScriptTemplate sc@(ScriptTemplate cosignerMap script')
-        | cosigner `elem` retrieveAllCosigners script' =
-            ScriptTemplate (Map.insert cosigner (getRawKey cosignerXPub) cosignerMap) script'
-        | otherwise = sc
 
 retrieveAllCosigners :: Script Cosigner -> [Cosigner]
 retrieveAllCosigners = foldScript (:) []
@@ -506,15 +362,6 @@ retrieveAllCosigners = foldScript (:) []
 {-------------------------------------------------------------------------------
     Template validation
 -------------------------------------------------------------------------------}
-
--- | Is the given account public key among the cosigners?
-accountXPubCondition
-    :: WalletKey k
-    => k 'AccountK XPub
-    -> ScriptTemplate
-    -> Bool
-accountXPubCondition accXPub (ScriptTemplate cosignerKeys _) =
-    getRawKey accXPub `F.elem` cosignerKeys
 
 data ErrScriptTemplate =
       ErrScriptTemplateInvalid !CredentialType !ErrValidateScriptTemplate
@@ -524,50 +371,6 @@ data ErrScriptTemplate =
 instance ToText ErrValidateScriptTemplate where
     toText = T.pack . prettyErrValidateScriptTemplate
 
-validateScriptTemplates
-    :: WalletKey k
-    => k 'AccountK XPub
-    -> ValidationLevel
-    -> ScriptTemplate
-    -> Maybe ScriptTemplate
-    -> Either ErrScriptTemplate ()
-validateScriptTemplates accXPub level pTemplate dTemplateM = do
-    checkTemplate Payment pTemplate
-    unless (checkXPub pTemplate) $ Left $ ErrScriptTemplateMissingKey Payment accXPubErr
-    case dTemplateM of
-        Just dTemplate -> do
-            checkTemplate Delegation dTemplate
-            unless (checkXPub dTemplate) $ Left $ ErrScriptTemplateMissingKey Delegation accXPubErr
-        Nothing -> pure ()
-  where
-      --when creating the shared wallet we can have cosigners in script with missing
-      --account public key. They are supposed to be collected when patching.
-      handleUnusedCosigner
-          :: Either ErrValidateScriptTemplate ()
-          -> Either ErrValidateScriptTemplate ()
-      handleUnusedCosigner = \case
-          Left MissingCosignerXPub -> Right ()
-          rest -> rest
-      checkTemplate cred template' =
-          mapLeft (ErrScriptTemplateInvalid cred) $
-          handleUnusedCosigner $
-          validateScriptTemplate level template'
-      checkXPub = accountXPubCondition accXPub
-      accXPubErr = "The wallet's account key must be always present for the script template."
-
--- | Do we have all public keys in the templates?
-templatesComplete
-    :: WalletKey k
-    => k 'AccountK XPub
-    -> ScriptTemplate
-    -> Maybe ScriptTemplate
-    -> Bool
-templatesComplete accXPub pTemplate dTemplate =
-    isValid pTemplate && maybe True isValid dTemplate
-  where
-    isValid template' =
-        isRight (validateScriptTemplate RequiredValidation template')
-        && (accountXPubCondition accXPub template')
 
 {-------------------------------------------------------------------------------
     Address discovery
@@ -771,21 +574,6 @@ liftDelegationAddress ix dTemplate (KeyFingerprint fingerprint) =
     dScript =
         replaceCosignersWithVerKeys CA.Stake dTemplate ix
 
-toSharedWalletId
-    :: (WalletKey k, k ~ SharedKey)
-    => k 'AccountK XPub
-    -> ScriptTemplate
-    -> Maybe ScriptTemplate
-    -> Digest Blake2b_160
-toSharedWalletId accXPub pTemplate dTemplateM =
-    hash $
-    (unXPub . getRawKey $ accXPub) <>
-    serializeScriptTemplate pTemplate <>
-    maybe mempty serializeScriptTemplate dTemplateM
-  where
-    serializeScriptTemplate (ScriptTemplate _ script) =
-        T.encodeUtf8 $ scriptToText script
-
 instance ( key ~ SharedKey
          , SupportsDiscovery n key ) =>
          IsOwned (SharedState n key) key 'CredFromScriptK where
@@ -852,10 +640,3 @@ instance AccountIxForStaking (SharedState n SharedKey) where
     getAccountIx st =
         let DerivationPrefix (_, _, ix) = derivationPrefix st
         in Just ix
-
-instance ToWitnessCountCtx (SharedState n SharedKey) where
-    toWitnessCountCtx s =
-        let delegationTemplateM = delegationTemplate s
-            stakingKeyHashes =
-                maybe [] allCosignerStakingKeys delegationTemplateM
-        in SharedWalletCtx stakingKeyHashes

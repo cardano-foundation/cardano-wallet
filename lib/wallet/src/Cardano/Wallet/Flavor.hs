@@ -7,10 +7,12 @@
 {-# LANGUAGE GADTs #-}
 {-# LANGUAGE MultiParamTypeClasses #-}
 {-# LANGUAGE PolyKinds #-}
+{-# LANGUAGE RankNTypes #-}
 {-# LANGUAGE ScopedTypeVariables #-}
 {-# LANGUAGE TypeApplications #-}
 {-# LANGUAGE TypeFamilies #-}
 {-# LANGUAGE TypeOperators #-}
+{-# LANGUAGE UndecidableInstances #-}
 
 module Cardano.Wallet.Flavor
     ( WalletFlavorS (..)
@@ -18,10 +20,17 @@ module Cardano.Wallet.Flavor
     , KeyOf
     , TestState (..)
     , KeyFlavorS (..)
-    , keyFlavor
+    , keyFlavorFromState
     , keyOfWallet
-    , Including
+    , NetworkOf
+    , StateWithKey
+    , FlavorOf
+    , WalletFlavors (..)
     , Excluding
+    , shelleyOrShared
+    , notByronKey
+    , IncludingStates
+    , KeyFlavor (..)
     )
 where
 
@@ -43,6 +52,10 @@ import Cardano.Wallet.Address.Discovery.Sequential
     ( SeqAnyState, SeqState )
 import Cardano.Wallet.Address.Discovery.Shared
     ( SharedState (..) )
+import Cardano.Wallet.Read.NetworkId
+    ( NetworkDiscriminant )
+import Cardano.Wallet.TypeLevel
+    ( Excluding, Including )
 import Data.Kind
     ( Type )
 import GHC.Generics
@@ -57,6 +70,37 @@ data WalletFlavorS s where
     BenchByronWallet :: WalletFlavorS (RndAnyState n p)
     BenchShelleyWallet :: WalletFlavorS (SeqAnyState n ShelleyKey p)
     TestStateS :: WalletFlavorS (TestState s ShelleyKey)
+
+data WalletFlavors
+    = ShelleyF
+    | IcarusF
+    | ByronF
+    | SharedF
+    | BenchByronF
+    | BenchShelleyF
+    | TestStateF
+
+type family FlavorOf s where
+    FlavorOf (SeqState n ShelleyKey) = 'ShelleyF
+    FlavorOf (SeqState n IcarusKey) = 'IcarusF
+    FlavorOf (RndState n) = 'ByronF
+    FlavorOf (SharedState n SharedKey) = 'SharedF
+    FlavorOf (RndAnyState n p) = 'BenchByronF
+    FlavorOf (SeqAnyState n ShelleyKey p) = 'BenchShelleyF
+    FlavorOf (TestState s ShelleyKey) = 'TestStateF
+
+
+type AllFlavors =
+    '[ 'ShelleyF
+     , 'IcarusF
+     , 'ByronF
+     , 'SharedF
+     , 'BenchByronF
+     , 'BenchShelleyF
+     , 'TestStateF
+     ]
+
+type IncludingStates ss s = Including AllFlavors ss s
 
 -- | A function to reify the flavor of a state.
 class WalletFlavor s where
@@ -103,6 +147,23 @@ data KeyFlavorS a where
     ShelleyKeyS :: KeyFlavorS ShelleyKey
     SharedKeyS :: KeyFlavorS SharedKey
 
+
+class KeyFlavor a where
+    keyFlavor :: KeyFlavorS a
+
+instance KeyFlavor ByronKey where
+    keyFlavor = ByronKeyS
+
+instance KeyFlavor IcarusKey where
+    keyFlavor = IcarusKeyS
+
+instance KeyFlavor ShelleyKey where
+    keyFlavor = ShelleyKeyS
+
+instance KeyFlavor SharedKey where
+    keyFlavor = SharedKeyS
+
+
 -- | Map a wallet flavor to a key flavor.
 keyOfWallet :: WalletFlavorS s -> KeyFlavorS (KeyOf s)
 keyOfWallet ShelleyWallet = ShelleyKeyS
@@ -116,26 +177,38 @@ keyOfWallet TestStateS = ShelleyKeyS
 -- | A function to reify the flavor of a key from a state type.
 --
 -- use with
--- > keyFlavor @s
-keyFlavor :: forall s. WalletFlavor s => KeyFlavorS (KeyOf s)
-keyFlavor = keyOfWallet (walletFlavor @s)
+-- > keyFlavorFromState @s
+keyFlavorFromState :: forall s. WalletFlavor s => KeyFlavorS (KeyOf s)
+keyFlavorFromState = keyOfWallet (walletFlavor @s)
 
--- | A type family to check if a type is included in a list of types.
--- This type family exists as a way to refine types in functions.
--- Ideally we wouldn't need it, as we want our types to describe the domain
--- precisely enough not to need a refinement.
--- However, in practice, we need to temporary refine types in functions,
--- as we're refactoring the codebase.
-type family Exclude xs x where
-    Exclude '[] _ = 'True
-    Exclude (x ': xs) x = 'False
-    Exclude (x ': xs) y = Exclude xs y
+type family NetworkOf (s :: Type) :: NetworkDiscriminant where
+    NetworkOf (SeqState n k) = n
+    NetworkOf (RndState n) = n
+    NetworkOf (SharedState n k) = n
+    NetworkOf (SeqAnyState n k p) = n
+    NetworkOf (RndAnyState n p) = n
 
-type family Include xs x where
-    Include '[] _ = 'False
-    Include (x ': xs) x = 'True
-    Include (x ': xs) y = Include xs y
+-- | Constraints for a state with a specific key.
+type StateWithKey s k = (WalletFlavor s, KeyOf s ~ k)
 
-type Excluding (xs :: [k]) (x :: k) = Exclude xs x ~ 'True
+notByronKey :: KeyFlavorS k
+    -> (Excluding '[ByronKey] k  => KeyFlavorS k -> x)
+    -> Maybe x
+notByronKey x h = case x of
+    ByronKeyS -> Nothing
+    ShelleyKeyS -> Just $ h ShelleyKeyS
+    IcarusKeyS -> Just $ h IcarusKeyS
+    SharedKeyS -> Just $ h SharedKeyS
 
-type Including xs x = Include xs x ~ 'True
+-- | Helper lemma to specialize on a subset of wallet flavors.
+shelleyOrShared
+    :: WalletFlavorS s
+    -> x
+    -> (IncludingStates '[ 'IcarusF, 'ShelleyF, 'SharedF] (FlavorOf s)
+            => WalletFlavorS s -> x)
+    -> x
+shelleyOrShared x r h = case x of
+    ShelleyWallet -> h ShelleyWallet
+    SharedWallet -> h SharedWallet
+    IcarusWallet -> h IcarusWallet
+    _ -> r

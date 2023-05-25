@@ -59,7 +59,6 @@ import Cardano.Wallet.Address.Derivation
     , PersistPublicKey (..)
     , Role (..)
     , SoftDerivation (..)
-    , WalletKey (..)
     , roleVal
     , unsafePaymentKeyFingerprint
     )
@@ -69,6 +68,8 @@ import Cardano.Wallet.Address.Discovery
     ( PendingIxs, pendingIxsFromList, pendingIxsToList )
 import Cardano.Wallet.Address.Discovery.Shared
     ( CredentialType (..) )
+import Cardano.Wallet.Address.Keys.WalletKey
+    ( getRawKey, liftRawKey )
 import Cardano.Wallet.Checkpoints
     ( DeltaCheckpoints (..), DeltasCheckpoints, loadCheckpoints )
 import Cardano.Wallet.DB.Errors
@@ -108,6 +109,8 @@ import Cardano.Wallet.DB.WalletState
     , WalletState (..)
     , getSlot
     )
+import Cardano.Wallet.Flavor
+    ( KeyFlavorS (..) )
 import Cardano.Wallet.Primitive.Types.TokenBundle
     ( TokenBundle )
 import Cardano.Wallet.Primitive.Types.TokenMap
@@ -547,7 +550,6 @@ selectSeqAddressMap wid sl = do
 instance
     ( PersistPublicKey (key 'AccountK)
     , Shared.SupportsDiscovery n key
-    , WalletKey key
     , key ~ SharedKey
     ) => PersistAddressBook (Shared.SharedState n key) where
 
@@ -564,26 +566,31 @@ instance
                 deleteWhere [SharedStatePendingWalletId ==. wid]
                 dbChunked insertMany_ (mkSharedStatePendingIxs pendingIxs)
       where
-        insertSharedState prefix accXPub gap pTemplate dTemplateM rewardAcctM = do
-            deleteWhere [SharedStateWalletId ==. wid]
-            insert_ $ SharedState
-                { sharedStateWalletId = wid
-                , sharedStateAccountXPub = serializeXPub accXPub
-                , sharedStateScriptGap = gap
-                , sharedStatePaymentScript = template pTemplate
-                , sharedStateDelegationScript = template <$> dTemplateM
-                , sharedStateRewardAccount = rewardAcctM
-                , sharedStateDerivationPrefix = prefix
-                }
+        insertSharedState prefix accXPub gap pTemplate dTemplateM rewardAcctM =
+            do
+                deleteWhere [SharedStateWalletId ==. wid]
+                insert_ $ SharedState
+                    { sharedStateWalletId = wid
+                    , sharedStateAccountXPub = serializeXPub accXPub
+                    , sharedStateScriptGap = gap
+                    , sharedStatePaymentScript = template pTemplate
+                    , sharedStateDelegationScript = template <$> dTemplateM
+                    , sharedStateRewardAccount = rewardAcctM
+                    , sharedStateDerivationPrefix = prefix
+                    }
 
         insertCosigner cs cred = do
-            deleteWhere [CosignerKeyWalletId ==. wid, CosignerKeyCredential ==. cred]
+            deleteWhere
+                [CosignerKeyWalletId ==. wid, CosignerKeyCredential ==. cred]
             dbChunked insertMany_
-                [ CosignerKey wid cred (serializeXPub @(key 'AccountK) $ liftRawKey xpub) c
+                [ CosignerKey wid cred (serializeXPub @(key 'AccountK)
+                    $ liftRawKey SharedKeyS xpub) c
                 | ((Cosigner c), xpub) <- Map.assocs cs
                 ]
 
-        mkSharedStatePendingIxs :: PendingIxs 'CredFromScriptK -> [SharedStatePendingIx]
+        mkSharedStatePendingIxs
+            :: PendingIxs 'CredFromScriptK
+            -> [SharedStatePendingIx]
         mkSharedStatePendingIxs =
             fmap (SharedStatePendingIx wid . W.getIndex) . pendingIxsToList
 
@@ -610,7 +617,7 @@ instance
         pCosigners <- lift $ selectCosigners @key wid Payment
         dCosigners <- lift $ selectCosigners @key wid Delegation
 
-        let prepareKeys = map (second getRawKey)
+        let prepareKeys = fmap $ second $ getRawKey SharedKeyS
             pTemplate =
                 ScriptTemplate (Map.fromList $ prepareKeys pCosigners) pScript
             dTemplateM =

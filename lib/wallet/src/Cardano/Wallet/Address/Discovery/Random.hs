@@ -46,7 +46,7 @@ module Cardano.Wallet.Address.Discovery.Random
 import Prelude
 
 import Cardano.Address.Derivation
-    ( XPrv )
+    ( XPrv, toXPub )
 import Cardano.Byron.Codec.Cbor
     ( decodeAddressDerivationPath, decodeAddressPayload, deserialiseCbor )
 import Cardano.Wallet.Address.Derivation
@@ -56,10 +56,13 @@ import Cardano.Wallet.Address.Derivation
     , Index (..)
     , liftIndex
     , paymentAddressS
-    , publicKey
     )
 import Cardano.Wallet.Address.Derivation.Byron
-    ( ByronKey (..), deriveAccountPrivateKey, deriveAddressPrivateKey )
+    ( ByronKey (..)
+    , byronKey
+    , deriveAccountPrivateKey
+    , deriveAddressPrivateKey
+    )
 import Cardano.Wallet.Address.Discovery
     ( CompareDiscovery (..)
     , GenChange (..)
@@ -103,6 +106,8 @@ import GHC.TypeLits
 import System.Random
     ( RandomGen, StdGen, mkStdGen, randomR )
 
+import Control.Lens
+    ( over )
 import qualified Data.List.NonEmpty as NE
 import qualified Data.Map as Map
 import qualified Data.Set as Set
@@ -326,7 +331,9 @@ deriveRndStateAddress
     -> DerivationPath
     -> Address
 deriveRndStateAddress k passphrase path =
-    paymentAddressS @n $ publicKey $ deriveCredFromKeyKeyFromPath k passphrase path
+    paymentAddressS @n
+        $ over byronKey toXPub
+        $ deriveCredFromKeyKeyFromPath k passphrase path
 
 -- Unlike sequential derivation, we can't derive an order from the index only
 -- (they are randomly generated), nor anything else in the address itself.

@@ -27,6 +27,7 @@
 module Cardano.Wallet.Address.Derivation.Byron
     ( -- * Types
       ByronKey(..)
+    , byronKey
     , DerivationPathFrom
 
       -- * Generation
@@ -35,6 +36,7 @@ module Cardano.Wallet.Address.Derivation.Byron
     , minSeedLengthBytes
     , unsafeMkByronKeyFromMasterKey
     , mkByronKeyFromMasterKey
+    , hdPassphrase
 
       -- * Derivation
     , deriveAccountPrivateKey
@@ -63,10 +65,9 @@ import Cardano.Wallet.Address.Derivation
     , KeyFingerprint (..)
     , MkKeyFingerprint (..)
     , PaymentAddress (..)
-    , WalletKey (..)
     )
 import Cardano.Wallet.Primitive.Passphrase
-    ( Passphrase (..), PassphraseScheme (..), changePassphraseXPrv )
+    ( Passphrase (..) )
 import Cardano.Wallet.Primitive.Types.Address
     ( Address (..) )
 import Cardano.Wallet.Primitive.Types.ProtocolMagic
@@ -77,8 +78,8 @@ import Cardano.Wallet.TxWitnessTag
     ( TxWitnessTag (..), TxWitnessTagFor (..) )
 import Control.DeepSeq
     ( NFData )
-import Crypto.Hash
-    ( hash )
+import Control.Lens
+    ( Lens, lens )
 import Crypto.Hash.Algorithms
     ( SHA512 (..) )
 import Crypto.Hash.Utils
@@ -116,6 +117,9 @@ data ByronKey (depth :: Depth) key = ByronKey
     -- ^ Used for encryption of payload containing address derivation path.
     } deriving stock (Generic)
 
+byronKey :: Lens (ByronKey depth key) (ByronKey depth key') key key'
+byronKey = lens getKey (\x k -> x { getKey = k })
+
 instance (NFData key, NFData (DerivationPathFrom depth)) => NFData (ByronKey depth key)
 deriving instance (Show key, Show (DerivationPathFrom depth)) => Show (ByronKey depth key)
 deriving instance (Eq key, Eq (DerivationPathFrom depth)) => Eq (ByronKey depth key)
@@ -134,16 +138,6 @@ type family DerivationPathFrom (depth :: Depth) :: Type where
     -- The address key is generated from the account key and address index.
     DerivationPathFrom 'CredFromKeyK =
         (Index 'WholeDomain 'AccountK, Index 'WholeDomain 'CredFromKeyK)
-
-instance WalletKey ByronKey where
-    changePassphrase = changePassphraseRnd
-    -- Extract the public key part of a private key.
-    publicKey = mapKey toXPub
-    -- Hash a public key to some other representation.
-    digest = hash . unXPub . getKey
-    getRawKey = getKey
-    liftRawKey = error "not supported"
-    keyTypeDescriptor _ = "rnd"
 
 instance PaymentAddress ByronKey 'CredFromKeyK where
     paymentAddress s@(STestnet _) k = Address
@@ -259,29 +253,6 @@ unsafeMkByronKeyFromMasterKey derivationPath masterKey = ByronKey
     , payloadPassphrase = hdPassphrase (toXPub masterKey)
     }
 
-{-------------------------------------------------------------------------------
-                                   Passphrase
--------------------------------------------------------------------------------}
-
--- | Re-encrypt the private key using a different passphrase, and regenerate
--- the payload passphrase.
---
--- **Important**:
--- This function doesn't check that the old passphrase is correct! Caller is
--- expected to have already checked that. Using an incorrect passphrase here
--- will lead to very bad thing.
-changePassphraseRnd
-    :: (PassphraseScheme, Passphrase "user")
-    -> (PassphraseScheme, Passphrase "user")
-    -> ByronKey depth XPrv
-    -> ByronKey depth XPrv
-changePassphraseRnd old new key = ByronKey
-    { getKey = masterKey
-    , derivationPath = derivationPath key
-    , payloadPassphrase = hdPassphrase (toXPub masterKey)
-    }
-  where
-    masterKey = changePassphraseXPrv old new (getKey key)
 
 {-------------------------------------------------------------------------------
                                  HD derivation
@@ -340,12 +311,3 @@ deriveAddressPrivateKey (Passphrase pwd) accountKey idx@(Index addrIx) = ByronKe
     , derivationPath = (derivationPath accountKey, idx)
     , payloadPassphrase = payloadPassphrase accountKey
     }
-
-
-{-------------------------------------------------------------------------------
-                                     Utils
--------------------------------------------------------------------------------}
-
--- | Transform the wrapped key.
-mapKey :: (key -> key') -> ByronKey depth key -> ByronKey depth key'
-mapKey f rnd = rnd { getKey = f (getKey rnd) }

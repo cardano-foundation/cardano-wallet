@@ -21,6 +21,7 @@
 module Cardano.Wallet.Address.Derivation.SharedKey
     ( -- * Types
       SharedKey(..)
+    , sharedKey
 
     , purposeCIP1854
     , constructAddressFromIx
@@ -46,6 +47,8 @@ import Cardano.Wallet.TxWitnessTag
     ( TxWitnessTag (..), TxWitnessTagFor (..) )
 import Control.DeepSeq
     ( NFData (..) )
+import Control.Lens
+    ( Iso, iso )
 import Data.Maybe
     ( fromJust )
 import GHC.Generics
@@ -81,6 +84,9 @@ purposeCIP1854 = toEnum 0x8000073E
 newtype SharedKey (depth :: Depth) key =
     SharedKey { getKey :: key }
     deriving stock (Generic, Show, Eq)
+
+sharedKey :: Iso (SharedKey depth key) (SharedKey depth1 key') key key'
+sharedKey = iso getKey SharedKey
 
 instance NFData key => NFData (SharedKey depth key)
 
