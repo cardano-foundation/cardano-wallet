@@ -1,0 +1,105 @@
+{
+    "samples": [
+        {
+            "candidate_tx_hex": "",
+            "candidate_tx_readable": "DNz|qr",
+            "estimated_number_of_bootstrap_key_wits": 1,
+            "estimated_number_of_key_wits": 5,
+            "underestimation": {
+                "quantity": 6,
+                "unit": "lovelace"
+            }
+        },
+        {
+            "candidate_tx_hex": "4󶙃g~\u001f>",
+            "candidate_tx_readable": "𧫅",
+            "estimated_number_of_bootstrap_key_wits": 5,
+            "estimated_number_of_key_wits": 1,
+            "underestimation": {
+                "quantity": 8,
+                "unit": "lovelace"
+            }
+        },
+        {
+            "candidate_tx_hex": "M𠤍B\u0017",
+            "candidate_tx_readable": "\"]󸄍",
+            "estimated_number_of_bootstrap_key_wits": 3,
+            "estimated_number_of_key_wits": 6,
+            "underestimation": {
+                "quantity": 7,
+                "unit": "lovelace"
+            }
+        },
+        {
+            "candidate_tx_hex": "𧟃0\u00115Z\u001f",
+            "candidate_tx_readable": "EN􎡤$!",
+            "estimated_number_of_bootstrap_key_wits": 4,
+            "estimated_number_of_key_wits": 0,
+            "underestimation": {
+                "quantity": 7,
+                "unit": "lovelace"
+            }
+        },
+        {
+            "candidate_tx_hex": "B仰",
+            "candidate_tx_readable": "\u0018Q󹺲􆦈𣐔y",
+            "estimated_number_of_bootstrap_key_wits": 2,
+            "estimated_number_of_key_wits": 0,
+            "underestimation": {
+                "quantity": 5,
+                "unit": "lovelace"
+            }
+        },
+        {
+            "candidate_tx_hex": "",
+            "candidate_tx_readable": "\u0004s",
+            "estimated_number_of_bootstrap_key_wits": 3,
+            "estimated_number_of_key_wits": 0,
+            "underestimation": {
+                "quantity": 1,
+                "unit": "lovelace"
+            }
+        },
+        {
+            "candidate_tx_hex": "HF􌁲(",
+            "candidate_tx_readable": "xPSX𢋛",
+            "estimated_number_of_bootstrap_key_wits": 1,
+            "estimated_number_of_key_wits": 6,
+            "underestimation": {
+                "quantity": 6,
+                "unit": "lovelace"
+            }
+        },
+        {
+            "candidate_tx_hex": "P~|􂜚3",
+            "candidate_tx_readable": "􊉫􀩳Z\u0010>\u001e",
+            "estimated_number_of_bootstrap_key_wits": 3,
+            "estimated_number_of_key_wits": 3,
+            "underestimation": {
+                "quantity": 2,
+                "unit": "lovelace"
+            }
+        },
+        {
+            "candidate_tx_hex": "?.R\u0011\u0018p",
+            "candidate_tx_readable": "n\u0019{^𝌈h",
+            "estimated_number_of_bootstrap_key_wits": 3,
+            "estimated_number_of_key_wits": 6,
+            "underestimation": {
+                "quantity": 7,
+                "unit": "lovelace"
+            }
+        },
+        {
+            "candidate_tx_hex": "+\u0014󾵡s\u0007𨛡",
+            "candidate_tx_readable": " (\u0005$i",
+            "estimated_number_of_bootstrap_key_wits": 0,
+            "estimated_number_of_key_wits": 0,
+            "underestimation": {
+                "quantity": 8,
+                "unit": "lovelace"
+            }
+        }
+    ],
+    "seed": -1754547698
+}
