@@ -457,7 +457,7 @@ instance IsServerError ErrGetPolicyId where
 
 instance IsServerError ErrWriteTxEra where
     toServerError = \case
-        ErrTxNotInNodeEra nodeEra ->
+        ErrPartialTxNotInNodeEra nodeEra ->
             apiError err403 TxNotInNodeEra $ T.unwords
                 [ "The provided transaction could be deserialised, just not in"
                 , showT nodeEra <> ","
