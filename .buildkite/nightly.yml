@@ -33,7 +33,7 @@ steps:
     timeout_in_minutes: 1200
     agents:
       system: x86_64-linux
-      queue: benchmark
+      queue: adrestia-bench
     if: 'build.env("step") == null || build.env("step") =~ /restore-mainnet/'
 
   - label: 'API benchmark'
@@ -41,7 +41,7 @@ steps:
     timeout_in_minutes: 210
     agents:
       system: x86_64-linux
-      queue: benchmark
+      queue: adrestia-bench
     if: 'build.env("step") == null || build.env("step") =~ /bench-api/'
 
   - label: 'Database benchmark'
@@ -49,7 +49,7 @@ steps:
     timeout_in_minutes: 210
     agents:
       system: x86_64-linux
-      queue: benchmark
+      queue: adrestia-bench
     if: 'build.env("step") == null || build.env("step") =~ /bench-db/'
 
   - label: 'Latency benchmark'
@@ -57,7 +57,7 @@ steps:
     timeout_in_minutes: 120
     agents:
       system: x86_64-linux
-      queue: benchmark
+      queue: adrestia-bench
     if: 'build.env("step") == null || build.env("step") =~ /bench-latency/'
 
   # TODO: ADP-549 Port migrations test to shelley
