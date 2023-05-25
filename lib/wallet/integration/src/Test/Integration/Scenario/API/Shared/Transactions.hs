@@ -2443,6 +2443,54 @@ spec = describe "SHARED_TRANSACTIONS" $ do
                         (#balance . #available) (`shouldBe` Quantity transfer)
                 ]
 
+        -- child shared wallets delegate to different pools and get rewards
+        -- after several epochs
+        pool1:pool2:_ <- map (view $ _Unwrapped . #id) . snd <$>
+            unsafeRequest @[ApiT StakePool]
+            ctx (Link.listStakePools arbitraryStake) Empty
+
+        let delegationJoin pool = Json [json|{
+                "delegations": [{
+                    "join": {
+                        "pool": #{ApiT pool},
+                        "stake_key_index": "0H"
+                    }
+                }]
+            }|]
+        -- one child shared wallet delegating to pool1
+        rTx3 <- request @(ApiConstructTransaction n) ctx
+            (Link.createUnsignedTransaction @'Shared walActive1) Default
+            (delegationJoin pool1)
+        verify rTx3
+            [ expectResponseCode HTTP.status202 ]
+        let (ApiSerialisedTransaction apiTx3 _) =
+                getFromResponse #transaction rTx3
+        signedTx3 <-
+            signSharedTx ctx walActive1 apiTx3
+                [ expectResponseCode HTTP.status202 ]
+        submittedTx3 <- submitSharedTxWithWid ctx walActive1 signedTx3
+        verify submittedTx3
+            [ expectResponseCode HTTP.status202
+            ]
+
+        -- one child shared wallet delegating to pool2
+        rTx4 <- request @(ApiConstructTransaction n) ctx
+            (Link.createUnsignedTransaction @'Shared walActive2) Default
+            (delegationJoin pool2)
+        verify rTx4
+            [ expectResponseCode HTTP.status202 ]
+        let (ApiSerialisedTransaction apiTx4 _) =
+                getFromResponse #transaction rTx4
+        signedTx4 <-
+            signSharedTx ctx walActive2 apiTx4
+                [ expectResponseCode HTTP.status202 ]
+        submittedTx4 <- submitSharedTxWithWid ctx walActive2 signedTx4
+        verify submittedTx4
+            [ expectResponseCode HTTP.status202
+            ]
+
+
+
   where
      listSharedTransactions ctx w mStart mEnd mOrder mLimit = do
          let path = Link.listTransactions' @'Shared w
