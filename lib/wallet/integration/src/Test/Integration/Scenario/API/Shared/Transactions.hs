@@ -2489,7 +2489,37 @@ spec = describe "SHARED_TRANSACTIONS" $ do
             [ expectResponseCode HTTP.status202
             ]
 
+        -- checking awards
+        eventually "Shared Wallet 1 is delegating to pool1" $ do
+            request @ApiWallet ctx (Link.getWallet @'Shared walActive1) Default Empty
+                >>= flip verify
+                    [ expectField #delegation (`shouldBe` delegating (ApiT pool1) [])
+                    ]
+        eventually "Shared Wallet 2 is delegating to pool2" $ do
+            request @ApiWallet ctx (Link.getWallet @'Shared walActive2) Default Empty
+                >>= flip verify
+                    [ expectField #delegation (`shouldBe` delegating (ApiT pool2) [])
+                    ]
 
+        waitForNextEpoch ctx
+        waitForNextEpoch ctx
+        waitForNextEpoch ctx
+        waitForNextEpoch ctx
+
+        eventually "Shared Wallet 1 gets rewards from pool1" $ do
+            r <- request @ApiWallet ctx (Link.getWallet @'Shared walActive1) Default Empty
+            verify r
+                [ expectField
+                      (#balance . #reward)
+                      (.> (Quantity 0))
+                ]
+        eventually "Shared Wallet 2 gets rewards from pool2" $ do
+            r <- request @ApiWallet ctx (Link.getWallet @'Shared walActive2) Default Empty
+            verify r
+                [ expectField
+                      (#balance . #reward)
+                      (.> (Quantity 0))
+                ]
 
   where
      listSharedTransactions ctx w mStart mEnd mOrder mLimit = do
