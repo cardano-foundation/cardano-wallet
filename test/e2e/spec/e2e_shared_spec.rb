@@ -28,7 +28,16 @@ RSpec.describe 'Cardano Wallet E2E tests - Shared wallets', :all, :e2e, :shared 
   end
 
   after(:all) do
-    SHELLEY.stake_pools.quit(@target_id, PASS)
+    quit_pool = [{ 'quit' => { 'stake_key_index' => '0H' } }]
+    tx_constructed = SHARED.transactions.construct(@wid_sha,
+                                                   nil, # payment
+                                                   nil, # withdrawal
+                                                   nil, # metadata
+                                                   quit_pool,
+                                                   nil, # mint_burn
+                                                   nil) # validity_interval
+    tx_signed = SHARED.transactions.sign(@wid_sha, PASS, tx_constructed['transaction'])
+    SHARED.transactions.submit(@wid_sha, tx_signed['transaction'])
   end
 
   describe 'E2E Shared' do
@@ -1178,7 +1187,7 @@ RSpec.describe 'Cardano Wallet E2E tests - Shared wallets', :all, :e2e, :shared 
         expect(new_balance['total']).to eq(balance['total'] - expected_fee)
       end
 
-      it 'Delegation (without submitting)' do
+      it 'Delegation (join and quit)' do
         balance = get_shared_balances(@wid_sha)
         expected_deposit = CARDANO_CLI.protocol_params['stakeAddressDeposit']
         puts "Expected deposit #{expected_deposit}"
@@ -1270,11 +1279,10 @@ RSpec.describe 'Cardano Wallet E2E tests - Shared wallets', :all, :e2e, :shared 
         tx_extra_signatures(tx, present: false)
         tx_script_integrity(tx, present: false)
         tx_validity_interval_default(tx)
-        tx_certificates(tx, present: false)
-        # tx_certificates(tx, present: true, certificates: tx_decoded['certificates'])
-        # expect(tx['certificates'].to_s).to include 'register_reward_account'
-        # expect(tx['certificates'].to_s).to include 'join_pool'
-        # expect(tx['certificates'].to_s).to include pool_id
+        tx_certificates(tx, present: true, certificates: tx_decoded['certificates'])
+        expect(tx['certificates'].to_s).to include 'register_reward_account'
+        expect(tx['certificates'].to_s).to include 'join_pool'
+        expect(tx['certificates'].to_s).to include pool_id
 
         join_balance = get_shared_balances(@wid_sha)
         expected_join_balance = balance['total'] - deposit_taken - expected_fee
@@ -1344,9 +1352,8 @@ RSpec.describe 'Cardano Wallet E2E tests - Shared wallets', :all, :e2e, :shared 
         tx_extra_signatures(tx, present: false)
         tx_script_integrity(tx, present: false)
         tx_validity_interval_default(tx)
-        tx_certificates(tx, present: false)
-        # tx_certificates(tx, present: true, certificates: decoded_tx['certificates'])
-        # expect(tx['certificates'].to_s).to include 'quit_pool'
+        tx_certificates(tx, present: true, certificates: decoded_tx['certificates'])
+        expect(tx['certificates'].to_s).to include 'quit_pool'
 
         expected_quit_balance = join_balance['total'] + deposit_returned - expected_fee
         expect(quit_balance['total']).to eq expected_quit_balance
