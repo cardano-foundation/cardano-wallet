@@ -3114,7 +3114,10 @@ balanceTransaction
                 $ body ^. #inputs
 
         tx <- maybe
-                (liftHandler $ throwE $ W.ErrTxNotInNodeEra $ AnyRecentEra era)
+                (liftHandler
+                    . throwE
+                    . W.ErrPartialTxNotInNodeEra
+                    $ AnyRecentEra era)
                 pure
             . cardanoTxInExactEra (Write.cardanoEraFromRecentEra era)
             . getApiT
@@ -4192,7 +4195,7 @@ guardIsRecentEra (Cardano.AnyCardanoEra era) = case era of
     Cardano.ShelleyEra -> liftE invalidEra
     Cardano.ByronEra   -> liftE invalidEra
   where
-    invalidEra = W.ErrNodeNotInRecentEra $ Cardano.AnyCardanoEra era
+    invalidEra = W.ErrNodeNotYetInRecentEra $ Cardano.AnyCardanoEra era
 
 mkWithdrawal
     :: forall n block

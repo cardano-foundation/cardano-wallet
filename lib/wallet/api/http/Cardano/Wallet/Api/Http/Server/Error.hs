@@ -470,8 +470,8 @@ instance IsServerError ErrWriteTxEra where
                 , "an old era, please recreate your transaction so that it is"
                 , "compatible with a recent era."
                 ]
-        ErrNodeNotInRecentEra (Cardano.AnyCardanoEra era) ->
-            apiError err403 NodeNotInRecentEra $ T.unwords
+        ErrNodeNotYetInRecentEra (Cardano.AnyCardanoEra era) ->
+            apiError err403 NodeNotYetInRecentEra $ T.unwords
                 [ "This operation requires the node to be synchronised to a"
                 , "recent era, but the node is currently only synchronised to the"
                 , showT era

@@ -121,7 +121,7 @@ data ApiErrorInfo
     | NetworkMisconfigured
     | NetworkQueryFailed
     | NetworkUnreachable
-    | NodeNotInRecentEra
+    | NodeNotYetInRecentEra
     | NoRootKey
     | NoSuchPool
     | NoSuchTransaction

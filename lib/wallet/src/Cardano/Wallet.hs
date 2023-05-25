@@ -1848,7 +1848,7 @@ type MakeRewardAccountBuilder k =
     (k 'RootK XPrv, Passphrase "encryption") -> (XPrv, Passphrase "encryption")
 
 data ErrWriteTxEra
-    = ErrNodeNotInRecentEra Cardano.AnyCardanoEra
+    = ErrNodeNotYetInRecentEra Cardano.AnyCardanoEra
     -- ^ Node is not synced enough or on an unsupported testnet in an older era.
     | ErrPartialTxNotInNodeEra
         Write.AnyRecentEra -- node era
