@@ -2170,9 +2170,6 @@ selectFromPreparedBinaries = elements $ toByteString <$>
         let (Right bs) = fromHex $ T.encodeUtf8 txt
         in bs
 
-genWits :: Gen ByteString
-genWits = BS.pack <$> Test.QuickCheck.scale (min 32) (listOf arbitrary)
-
 deriving instance Arbitrary a => Arbitrary (ApiAsArray s a)
 
 instance Arbitrary (ApiBytesT base ByteString) where
