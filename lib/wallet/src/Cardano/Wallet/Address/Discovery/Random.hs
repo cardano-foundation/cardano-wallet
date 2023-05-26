@@ -31,6 +31,7 @@ module Cardano.Wallet.Address.Discovery.Random
     , toDerivationIndexes
     , isOwned
     , isOurAddress
+    , isOurRewardAccount
 
     -- ** Low-level API
     , importAddress
@@ -48,6 +49,7 @@ module Cardano.Wallet.Address.Discovery.Random
     , RndAnyState (..)
     , mkRndAnyState
     , isOurAddressAnyState
+    , isOurRewardAccountAnyState
     ) where
 import Prelude
 
@@ -215,22 +217,31 @@ instance RndStateLike (RndState n) where
     withRNG s action =
         let (result, gen') = action (gen s) in (result, s { gen = gen' })
 
-isOurAddress :: Address -> RndState n -> (Maybe (NonEmpty DerivationIndex), RndState n)
+isOurAddress
+    :: Address
+    -> RndState n
+    -> (Maybe (NonEmpty DerivationIndex), RndState n)
 isOurAddress addr st =
-        ( toDerivationIndexes <$> path
-        , maybe id (addDiscoveredAddress addr Used) path st
-        )
-      where
-        path = addressToPath addr (hdPassphrase st)
+    ( toDerivationIndexes <$> path
+    , maybe id (addDiscoveredAddress addr Used) path st
+    )
+  where
+    path = addressToPath addr (hdPassphrase st)
+
 -- An address is considered to belong to the 'RndState' wallet if it can be
 -- decoded as a Byron HD random address, and where the wallet key can be used
 -- to decrypt the address derivation path.
 instance IsOurs (RndState n) Address where
     isOurs = isOurAddress
 
+isOurRewardAccount
+    :: RewardAccount
+    -> RndState n
+    -> (Maybe (NonEmpty DerivationIndex), RndState n)
+isOurRewardAccount _ state = (Nothing, state)
 
 instance IsOurs (RndState n) RewardAccount where
-    isOurs _account state = (Nothing, state)
+    isOurs = isOurRewardAccount
 
 isOwned
     :: forall (network :: NetworkDiscriminant)
@@ -471,8 +482,14 @@ isOurAddressAnyState addr@(Address bytes) st@(RndAnyState inner) =
 instance KnownNat p => IsOurs (RndAnyState n p) Address where
     isOurs = isOurAddressAnyState
 
+isOurRewardAccountAnyState
+    :: RewardAccount
+    -> RndAnyState n p
+    -> (Maybe (NonEmpty DerivationIndex), RndAnyState n p)
+isOurRewardAccountAnyState _account state = (Nothing, state)
+
 instance IsOurs (RndAnyState n p) RewardAccount where
-    isOurs _account state = (Nothing, state)
+    isOurs = isOurRewardAccountAnyState
 
 instance HasSNetworkId n => GenChange (RndAnyState n p) where
     type ArgGenChange (RndAnyState n p) = ArgGenChange (RndState n)

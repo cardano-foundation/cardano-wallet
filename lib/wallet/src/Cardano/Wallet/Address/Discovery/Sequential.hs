@@ -11,6 +11,7 @@
 {-# LANGUAGE NumericUnderscores #-}
 {-# LANGUAGE ScopedTypeVariables #-}
 {-# LANGUAGE StandaloneDeriving #-}
+{-# LANGUAGE TupleSections #-}
 {-# LANGUAGE TypeApplications #-}
 {-# LANGUAGE TypeFamilies #-}
 {-# LANGUAGE TypeInType #-}
@@ -19,7 +20,6 @@
 
 {-# OPTIONS_GHC -fno-warn-orphans #-}
 {-# OPTIONS_GHC -Wno-redundant-constraints #-}
-{-# LANGUAGE TupleSections #-}
 
 -- We intentionally specify the constraint  (k == SharedKey) ~ 'False
 -- in some exports.
@@ -68,6 +68,7 @@ module Cardano.Wallet.Address.Discovery.Sequential
     -- ** Benchmarking
     , SeqAnyState (..)
     , isOurAddressAnyState
+    , isOurRewardAccountAnyState
     ) where
 
 import Prelude
@@ -750,8 +751,14 @@ isOurAddressAnyState (Address bytes) st@(SeqAnyState inner)
 instance KnownNat p => IsOurs (SeqAnyState n k p) Address where
     isOurs = isOurAddressAnyState
 
+isOurRewardAccountAnyState
+    :: RewardAccount
+    -> SeqAnyState n k p
+    -> (Maybe (NonEmpty DerivationIndex), SeqAnyState n k p)
+isOurRewardAccountAnyState _account state = (Nothing, state)
+
 instance IsOurs (SeqAnyState n k p) RewardAccount where
-    isOurs _account state = (Nothing, state)
+    isOurs = isOurRewardAccountAnyState
 
 instance
     ( SoftDerivation k

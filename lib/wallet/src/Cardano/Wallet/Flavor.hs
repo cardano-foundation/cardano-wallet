@@ -51,6 +51,7 @@ import Cardano.Wallet.Address.Discovery.Sequential
 import Cardano.Wallet.Address.Discovery.Shared
     ( SharedState (..) )
 import Cardano.Wallet.Address.States.Families
+    ( CredFromOf, KeyOf, NetworkOf )
 import Cardano.Wallet.Address.States.Features
     ( Freedom (..), TestFeatures )
 import Cardano.Wallet.Address.States.Test.State
@@ -73,8 +74,6 @@ data WalletFlavorS s where
         :: {testModelFeatures :: TestFeatures 'Model (TestStateModel s1)}
         -> WalletFlavorS (TestStateModel s1)
 
-type family TestStateOf s where
-    TestStateOf (TestState s n k kt) = s
 data WalletFlavors
     = ShelleyF
     | IcarusF
@@ -169,7 +168,7 @@ keyOfWallet (TestStateModelS _) = keyFlavor
 -- > keyFlavorFromState @s
 keyFlavorFromState
     :: forall s
-     . (WalletFlavor s, KeyFlavor (KeyOf s))
+     . WalletFlavor s
     => KeyFlavorS (KeyOf s)
 keyFlavorFromState = keyOfWallet (walletFlavor @s)
 

@@ -47,6 +47,7 @@ module Cardano.Wallet.Address.Discovery.Shared
     , liftPaymentAddress
     , liftDelegationAddress
     , isOurAddress
+    , isOurRewardAccount
     ) where
 
 import Prelude
@@ -423,6 +424,7 @@ isOurAddress
     -> (Maybe (NE.NonEmpty DerivationIndex), SharedState n k)
 isOurAddress addr st =
     first (fmap (decoratePath st utxoExternal . fst)) (isShared addr st)
+
 instance SupportsDiscovery n k => IsOurs (SharedState n k) Address where
     isOurs = isOurAddress
 
@@ -442,23 +444,30 @@ decoratePath st role' ix = NE.fromList
   where
     DerivationPrefix (purpose, coinType, accIx) = derivationPrefix st
 
-instance IsOurs (SharedState n k) RewardAccount where
-    isOurs account state@SharedState{derivationPrefix, rewardAccountKey} =
-        let
-            DerivationPrefix (purpose, coinType, accountIx) = derivationPrefix
-            path = NE.fromList
+isOurRewardAccount
+    :: RewardAccount
+    -> SharedState n k
+    -> (Maybe (NE.NonEmpty DerivationIndex), SharedState n k)
+isOurRewardAccount account state@SharedState{derivationPrefix, rewardAccountKey} =
+    let
+        DerivationPrefix (purpose, coinType, accountIx) = derivationPrefix
+        path =
+            NE.fromList
                 [ DerivationIndex $ getIndex purpose
                 , DerivationIndex $ getIndex coinType
                 , DerivationIndex $ getIndex accountIx
                 , DerivationIndex $ getIndex mutableAccount
                 , DerivationIndex $ getIndex @'Soft minBound
                 ]
-        in
-            case rewardAccountKey of
-                Just rewardAcct ->
-                    (guard (account == rewardAcct) *> Just path, state)
-                Nothing ->
-                    (Nothing, state)
+    in
+        case rewardAccountKey of
+            Just rewardAcct ->
+                (guard (account == rewardAcct) *> Just path, state)
+            Nothing ->
+                (Nothing, state)
+
+instance IsOurs (SharedState n k) RewardAccount where
+    isOurs = isOurRewardAccount
 
 instance GetAccount (SharedState n k) k where
     getAccount = accountXPub

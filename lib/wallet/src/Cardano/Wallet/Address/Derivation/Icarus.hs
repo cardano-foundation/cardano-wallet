@@ -47,6 +47,7 @@ import Cardano.Mnemonic
     ( SomeMnemonic (..), entropyToBytes, mnemonicToEntropy, mnemonicToText )
 import Cardano.Wallet.Address.Derivation
     ( Depth (..)
+    , DerivationIndex
     , DerivationType (..)
     , ErrMkKeyFingerprint (..)
     , HardDerivation (..)
@@ -103,6 +104,8 @@ import Data.Coerce
     ( coerce )
 import Data.Function
     ( (&) )
+import Data.List.NonEmpty
+    ( NonEmpty )
 import Data.Maybe
     ( fromMaybe )
 import Data.Proxy
@@ -382,8 +385,16 @@ instance HasSNetworkId n => MkKeyFingerprint IcarusKey
       where
         err = ErrInvalidAddress (proxy, k) Proxy
 
+isOurRewardAccount
+    :: RewardAccount
+    -> SeqState n IcarusKey
+    -> (Maybe (NonEmpty DerivationIndex), SeqState n IcarusKey)
+isOurRewardAccount
+        _account
+        state = (Nothing, state)
+
 instance IsOurs (SeqState n IcarusKey) RewardAccount where
-    isOurs _account state = (Nothing, state)
+    isOurs = isOurRewardAccount
 
 instance HasSNetworkId n => MaybeLight (SeqState n IcarusKey)
   where

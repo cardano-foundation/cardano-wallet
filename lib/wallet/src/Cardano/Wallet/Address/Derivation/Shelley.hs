@@ -38,6 +38,7 @@ module Cardano.Wallet.Address.Derivation.Shelley
 
     -- * Reward Account
     , toRewardAccountRaw
+    , isOurRewardAccount
     ) where
 
 import Prelude
@@ -364,22 +365,29 @@ instance NetworkDiscriminantCheck ShelleyKey where
                           Dealing with Rewards
 -------------------------------------------------------------------------------}
 
-instance IsOurs (SeqState n ShelleyKey) RewardAccount
-  where
-    isOurs account state@SeqState{derivationPrefix} =
-        let
-            DerivationPrefix (purpose, coinType, accountIx) = derivationPrefix
-            path = NE.fromList
+isOurRewardAccount
+    :: ToRewardAccount k
+    => RewardAccount
+    -> SeqState n k
+    -> (Maybe (NE.NonEmpty DerivationIndex), SeqState n k)
+isOurRewardAccount account state@SeqState{derivationPrefix} =
+    let
+        DerivationPrefix (purpose, coinType, accountIx) = derivationPrefix
+        path =
+            NE.fromList
                 [ DerivationIndex $ getIndex purpose
                 , DerivationIndex $ getIndex coinType
                 , DerivationIndex $ getIndex accountIx
                 , DerivationIndex $ getIndex mutableAccount
                 , DerivationIndex $ getIndex @'Soft minBound
                 ]
-        in
-            (guard (account == ourAccount) *> Just path, state)
-      where
-        ourAccount = toRewardAccount $ rewardAccountKey state
+    in
+        (guard (account == ourAccount) *> Just path, state)
+  where
+    ourAccount = toRewardAccount $ rewardAccountKey state
+
+instance IsOurs (SeqState n ShelleyKey) RewardAccount where
+    isOurs = isOurRewardAccount
 
 instance ToRewardAccount ShelleyKey where
     toRewardAccount = toRewardAccountRaw . getKey
