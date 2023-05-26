@@ -483,7 +483,6 @@ import Test.QuickCheck
     , forAll
     , frequency
     , liftArbitrary
-    , listOf
     , oneof
     , property
     , scale

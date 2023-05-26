@@ -51,11 +51,7 @@ import Cardano.BM.Trace
 import Cardano.Mnemonic
     ( SomeMnemonic (..), entropyToMnemonic )
 import Cardano.Wallet
-    ( WalletException (..)
-    , WalletLayer (..)
-    , WalletWorkerLog (..)
-    , dummyChangeAddressGen
-    )
+    ( WalletLayer (..), WalletWorkerLog (..), dummyChangeAddressGen )
 import Cardano.Wallet.Address.Book
     ( AddressBookIso )
 import Cardano.Wallet.Address.Derivation
