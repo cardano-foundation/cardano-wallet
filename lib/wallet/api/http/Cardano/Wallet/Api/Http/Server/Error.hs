@@ -82,6 +82,7 @@ import Cardano.Wallet
     , ErrWithdrawalNotBeneficial (..)
     , ErrWitnessTx (..)
     , ErrWritePolicyPublicKey (..)
+    , ErrWriteTxEra (..)
     , ErrWrongPassphrase (..)
     , WalletException (..)
     )
@@ -214,6 +215,7 @@ instance IsServerError WalletException where
         ExceptionReadAccountPublicKey e -> toServerError e
         ExceptionSignPayment e -> toServerError e
         ExceptionBalanceTx e -> toServerError e
+        ExceptionWriteTxEra e -> toServerError e
         ExceptionBalanceTxInternalError e -> toServerError e
         ExceptionSubmitTransaction e -> toServerError e
         ExceptionConstructTx e -> toServerError e
@@ -453,13 +455,16 @@ instance IsServerError ErrGetPolicyId where
             , "from cosigner#0."
             ]
 
-instance IsServerError ErrBalanceTx where
+instance IsServerError ErrWriteTxEra where
     toServerError = \case
         ErrOldEraNotSupported (Cardano.AnyCardanoEra era) ->
             apiError err403 BalanceTxEraNotSupported $ T.unwords
                 [ "Balancing in ", showT era, " "
                 , "is not supported."
                 ]
+
+instance IsServerError ErrBalanceTx where
+    toServerError = \case
         ErrBalanceTxUpdateError (ErrExistingKeyWitnesses n) ->
             apiError err403 BalanceTxExistingKeyWitnesses $ mconcat
                 [ "The transaction could not be balanced, because it contains "
