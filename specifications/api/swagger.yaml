@@ -4737,16 +4737,27 @@ x-errBadRequest: &errBadRequest
       type: string
       enum: ['bad_request']
 
-x-errBalanceTxEraNotSupported: &errBalanceTxEraNotSupported
+x-errNodeNotYetInRecentEra: &errNodeNotYetInRecentEra
   <<: *responsesErr
-  title: balance_tx_era_not_supported
+  title: node_not_yet_in_recent_era
+  description: Occurs when the operation requires the node to be in a recent era, but is not.
   properties:
     message:
       type: string
-      description: Balancing transactions is not supported in this era.
     code:
       type: string
-      enum: ["balance_tx_era_not_supported"]
+      enum: ['node_not_yet_in_recent_era']
+    info:
+      type: object
+      required:
+        - node_era
+        - recent_eras
+      properties:
+          node_era: *ApiEra
+          recent_eras:
+            type: array
+            items: *ApiEra
+
 
 x-errBalanceTxConflictingNetworks: &errBalanceTxConflictingNetworks
   <<: *responsesErr
@@ -6177,7 +6188,7 @@ x-responsesBalanceTransaction: &responsesBalanceTransaction
         schema:
           oneOf:
             - <<: *errAlreadyWithdrawing
-            - <<: *errBalanceTxEraNotSupported
+            - <<: *errNodeNotYetInRecentEra
             - <<: *errBalanceTxConflictingNetworks
             - <<: *errBalanceTxExistingCollateral
             - <<: *errBalanceTxExistingKeyWitnesses

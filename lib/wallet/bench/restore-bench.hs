@@ -1010,7 +1010,7 @@ guardIsRecentEra (Cardano.AnyCardanoEra era) = case era of
     Cardano.ShelleyEra -> invalidEra
     Cardano.ByronEra -> invalidEra
     where
-    invalidEra = throwIO $ W.ExceptionWriteTxEra $ W.ErrOldEraNotSupported $
+    invalidEra = throwIO $ W.ExceptionWriteTxEra $ W.ErrNodeNotYetInRecentEra $
         Cardano.AnyCardanoEra era
 
 withNonEmptyUTxO :: Wallet s -> Set Tx -> e -> IO a -> IO (Either e a)

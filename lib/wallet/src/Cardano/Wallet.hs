@@ -1868,7 +1868,8 @@ type MakeRewardAccountBuilder k =
     (k 'RootK XPrv, Passphrase "encryption") -> (XPrv, Passphrase "encryption")
 
 data ErrWriteTxEra
-    = ErrOldEraNotSupported Cardano.AnyCardanoEra
+    = ErrNodeNotYetInRecentEra Cardano.AnyCardanoEra
+    -- ^ Node is not synced enough or on an unsupported testnet in an older era.
     deriving (Show, Eq)
 
 -- | Build, Sign, Submit transaction.
@@ -2067,7 +2068,7 @@ buildAndSignTransactionPure
             , builtSealedTx = signedTx
             }
   where
-    anyCardanoEra = Write.fromAnyRecentEra era
+    anyCardanoEra = Write.toAnyCardanoEra era
 
 buildTransaction
     :: forall s era.
