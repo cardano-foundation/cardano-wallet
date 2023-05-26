@@ -272,7 +272,6 @@ specWithServer testDir (tr, tracers) = aroundAll withContext
                     , _manager = (baseUrl, manager)
                     , _walletPort = Port . fromIntegral $ portFromURL baseUrl
                     , _faucet = faucet
-                    , _feeEstimator = error "feeEstimator: unused in shelley specs"
                     , _networkParameters = np
                     , _poolGarbageCollectionEvents = poolGarbageCollectionEvents
                     , _mainEra = clusterToApiEra era

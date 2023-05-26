@@ -33,8 +33,6 @@ import Network.HTTP.Client
     ( Manager )
 import Network.URI
     ( URI )
-import Numeric.Natural
-    ( Natural )
 import Test.Integration.Faucet
     ( Faucet )
 
@@ -57,8 +55,6 @@ data Context = Context
         :: (ByteString, Coin)
         -> IO ()
         -- ^ A function to inject rewards into some stake address.
-    , _feeEstimator :: TxDescription -> (Natural, Natural)
-        -- ^ A fee estimator.
     , _networkParameters :: NetworkParameters
         -- ^ Blockchain parameters for the underlying chain.
     , _poolGarbageCollectionEvents
