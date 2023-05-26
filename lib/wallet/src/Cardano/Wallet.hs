@@ -231,7 +231,7 @@ import Cardano.Address.Derivation
 import Cardano.Address.Script
     ( Cosigner (..), KeyHash )
 import Cardano.Api
-    ( AnyCardanoEra, serialiseToCBOR )
+    ( serialiseToCBOR )
 import Cardano.Api.Extra
     ( inAnyCardanoEra )
 import Cardano.BM.Data.Severity
@@ -968,27 +968,25 @@ getWalletUtxoSnapshot
 getWalletUtxoSnapshot ctx = do
     (wallet, _, pending) <- readWallet @ctx @s ctx
     pp <- liftIO $ currentProtocolParameters nl
-    era <- liftIO $ currentNodeEra nl
     let txOuts = availableUTxO @s pending wallet
             & unUTxO
             & F.toList
-    pure $ first (view #tokens) . pairTxOutWithMinAdaQuantity era pp <$> txOuts
+    pure $ first (view #tokens) . pairTxOutWithMinAdaQuantity pp <$> txOuts
   where
     nl = ctx ^. networkLayer
     tl = ctx ^. transactionLayer @(KeyOf s) @(CredFromOf s)
 
     pairTxOutWithMinAdaQuantity
-        :: Cardano.AnyCardanoEra
-        -> ProtocolParameters
+        :: ProtocolParameters
         -> TxOut
         -> (TxOut, Coin)
-    pairTxOutWithMinAdaQuantity era pp out =
+    pairTxOutWithMinAdaQuantity pp out =
         (out, computeMinAdaQuantity out)
       where
         computeMinAdaQuantity :: TxOut -> Coin
         computeMinAdaQuantity (TxOut addr bundle) =
             view #txOutputMinimumAdaQuantity
-                (constraints tl era pp)
+                (constraints tl pp)
                 (addr)
                 (view #tokens bundle)
 
@@ -1228,29 +1226,27 @@ fetchRewardBalance DBLayer{..} = atomically readDelegationRewardBalance
 mkExternalWithdrawal
     :: NetworkLayer IO block
     -> TxWitnessTag
-    -> AnyCardanoEra
     -> SomeMnemonic
     -> IO (Either ErrWithdrawalNotBeneficial Withdrawal)
-mkExternalWithdrawal netLayer txWitnessTag era mnemonic = do
+mkExternalWithdrawal netLayer txWitnessTag mnemonic = do
     let (_, rewardAccount, derivationPath) =
             someRewardAccount @ShelleyKey mnemonic
     balance <- getCachedRewardAccountBalance netLayer rewardAccount
     pp <- currentProtocolParameters netLayer
     let (xprv, _acct , _path) = someRewardAccount @ShelleyKey mnemonic
-    pure $ checkRewardIsWorthTxCost txWitnessTag pp era balance $>
+    pure $ checkRewardIsWorthTxCost txWitnessTag pp balance $>
         WithdrawalExternal rewardAccount derivationPath balance xprv
 
 mkSelfWithdrawal
     :: NetworkLayer IO block
     -> TxWitnessTag
-    -> AnyCardanoEra
     -> DBLayer IO (SeqState n ShelleyKey)
     -> IO Withdrawal
-mkSelfWithdrawal netLayer txWitnessTag era db = do
+mkSelfWithdrawal netLayer txWitnessTag db = do
     (rewardAccount, _, derivationPath) <- readRewardAccount db
     balance <- getCachedRewardAccountBalance netLayer rewardAccount
     pp <- currentProtocolParameters netLayer
-    pure $ case checkRewardIsWorthTxCost txWitnessTag pp era balance of
+    pure $ case checkRewardIsWorthTxCost txWitnessTag pp balance of
         Left ErrWithdrawalNotBeneficial -> NoWithdrawal
         Right () -> WithdrawalSelf rewardAccount derivationPath balance
 
@@ -1261,12 +1257,11 @@ shelleyOnlyMkSelfWithdrawal
      . WalletFlavor s
     => NetworkLayer IO block
     -> TxWitnessTag
-    -> AnyCardanoEra
     -> DBLayer IO s
     -> IO Withdrawal
-shelleyOnlyMkSelfWithdrawal netLayer txWitnessTag era db =
+shelleyOnlyMkSelfWithdrawal netLayer txWitnessTag db =
     case walletFlavor @s  of
-        ShelleyWallet -> mkSelfWithdrawal netLayer txWitnessTag era db
+        ShelleyWallet -> mkSelfWithdrawal netLayer txWitnessTag db
         _ -> notShelleyWallet
   where
     notShelleyWallet = throwIO
@@ -1275,14 +1270,13 @@ shelleyOnlyMkSelfWithdrawal netLayer txWitnessTag era db =
 checkRewardIsWorthTxCost
     :: TxWitnessTag
     -> ProtocolParameters
-    -> AnyCardanoEra
     -> Coin
     -> Either ErrWithdrawalNotBeneficial ()
-checkRewardIsWorthTxCost txWitnessTag pp era balance = do
+checkRewardIsWorthTxCost txWitnessTag pp balance = do
     when (balance == Coin 0)
         $ Left ErrWithdrawalNotBeneficial
     let minimumCost txCtx =
-            calculateMinimumFee era feePerByte txWitnessTag txCtx emptySkeleton
+            calculateMinimumFee feePerByte txWitnessTag txCtx emptySkeleton
         costWith = minimumCost $ mkTxCtx balance
         costWithout = minimumCost $ mkTxCtx $ Coin 0
         worthOfWithdrawal = Coin.toInteger costWith - Coin.toInteger costWithout
@@ -1774,11 +1768,10 @@ readWalletUTxO ctx = do
 calcMinimumCoinValues
     :: ProtocolParameters
     -> TransactionLayer k ktype tx
-    -> Cardano.AnyCardanoEra
     -> TxOut
     -> Coin
-calcMinimumCoinValues pp txLayer era =
-    uncurry (constraints txLayer era pp ^. #txOutputMinimumAdaQuantity)
+calcMinimumCoinValues pp txLayer =
+    uncurry (constraints txLayer pp ^. #txOutputMinimumAdaQuantity)
      . (\o -> (o ^. #address, o ^. #tokens . #tokens))
 
 signTransaction
@@ -2643,13 +2636,12 @@ createMigrationPlan
        , HasTransactionLayer (KeyOf s) 'CredFromKeyK ctx
        )
     => ctx
-    -> Cardano.AnyCardanoEra
     -> Withdrawal
     -> IO MigrationPlan
-createMigrationPlan ctx era rewardWithdrawal = do
+createMigrationPlan ctx rewardWithdrawal = do
     (wallet, _, pending) <- readWallet @ctx @s ctx
     pp <- liftIO $ currentProtocolParameters nl
-    let txConstraints = constraints tl era pp
+    let txConstraints = constraints tl pp
     let utxo = availableUTxO @s pending wallet
     pure
         $ Migration.createPlan txConstraints utxo

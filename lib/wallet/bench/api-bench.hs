@@ -256,9 +256,8 @@ benchmarksSeq BenchmarkConfig{benchmarkName,ctx} = do
         $ W.listTransactions @_ @s ctx
             Nothing Nothing Nothing Descending (Just 50)
 
-    let era = Cardano.anyCardanoEra Cardano.BabbageEra
     (_, createMigrationPlanTime) <- bench "createMigrationPlan"
-        $ W.createMigrationPlan @_ @s ctx era Tx.NoWithdrawal
+        $ W.createMigrationPlan @_ @s ctx Tx.NoWithdrawal
 
     (_, delegationFeeTime) <- bench "delegationFee" $ do
         timeTranslation <-
@@ -410,9 +409,8 @@ benchmarksRnd BenchmarkConfig{benchmarkName,ctx} = do
         $ W.listTransactions @_ @s ctx
             Nothing Nothing Nothing Descending (Just 50)
 
-    let era = Cardano.anyCardanoEra Cardano.BabbageEra
     (_, createMigrationPlanTime) <- bench "createMigrationPlan"
-        $ W.createMigrationPlan @_ @s ctx era Tx.NoWithdrawal
+        $ W.createMigrationPlan @_ @s ctx Tx.NoWithdrawal
 
     pure BenchRndResults
         { benchName = benchmarkName

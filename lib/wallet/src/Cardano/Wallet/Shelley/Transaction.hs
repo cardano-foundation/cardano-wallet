@@ -159,7 +159,6 @@ import Cardano.Wallet.Primitive.Types.Tx
     , cardanoTxIdeallyNoLaterThan
     , sealedTxFromCardano'
     , sealedTxFromCardanoBody
-    , withinEra
     )
 import Cardano.Wallet.Primitive.Types.Tx.Constraints
     ( TxConstraints (..), TxSize (..), txOutMaxTokenQuantity, txSizeDistance )
@@ -686,7 +685,7 @@ newTransactionLayer keyF networkId = TransactionLayer
     , tokenBundleSizeAssessor =
         Compatibility.tokenBundleSizeAssessor
 
-    , constraints = \era pp -> txConstraints era pp (txWitnessTagFor @k)
+    , constraints = \pp -> txConstraints pp (txWitnessTagFor @k)
 
     , decodeTx = _decodeSealedTx
 
@@ -1311,8 +1310,8 @@ getFeePerByteFromWalletPParams pp =
     LinearFee LinearFunction{slope} = getFeePolicy $ txParameters pp
 
 txConstraints
-    :: AnyCardanoEra -> ProtocolParameters -> TxWitnessTag -> TxConstraints
-txConstraints era protocolParams witnessTag = TxConstraints
+    :: ProtocolParameters -> TxWitnessTag -> TxConstraints
+txConstraints protocolParams witnessTag = TxConstraints
     { txBaseCost
     , txBaseSize
     , txInputCost
@@ -1329,7 +1328,7 @@ txConstraints era protocolParams witnessTag = TxConstraints
     }
   where
     txBaseCost =
-        constantTxFee <> estimateTxCost era feePerByte empty
+        constantTxFee <> estimateTxCost feePerByte empty
 
     constantTxFee = Coin $ ceiling intercept
     feePerByte = getFeePerByteFromWalletPParams protocolParams
@@ -1337,7 +1336,7 @@ txConstraints era protocolParams witnessTag = TxConstraints
         = getFeePolicy $ txParameters protocolParams
 
     txBaseSize =
-        estimateTxSize era empty
+        estimateTxSize empty
 
     txInputCost =
         marginalCostOf empty {txInputCount = 1}
@@ -1386,14 +1385,14 @@ txConstraints era protocolParams witnessTag = TxConstraints
     marginalCostOf :: TxSkeleton -> Coin
     marginalCostOf skeleton =
         Coin.distance
-            (estimateTxCost era feePerByte empty)
-            (estimateTxCost era feePerByte skeleton)
+            (estimateTxCost feePerByte empty)
+            (estimateTxCost feePerByte skeleton)
 
     -- Computes the size difference between the given skeleton and an empty
     -- skeleton.
     marginalSizeOf :: TxSkeleton -> TxSize
     marginalSizeOf =
-        txSizeDistance txBaseSize . estimateTxSize era
+        txSizeDistance txBaseSize . estimateTxSize
 
     -- Constructs a real transaction output from a token bundle.
     mkTxOut :: TokenBundle -> TxOut
@@ -1485,9 +1484,9 @@ mkTxSkeleton witness context skeleton = TxSkeleton
 -- | Estimates the final cost of a transaction based on its skeleton.
 --
 -- The constant tx fee is /not/ included in the result of this function.
-estimateTxCost :: AnyCardanoEra -> FeePerByte -> TxSkeleton -> Coin
-estimateTxCost era (FeePerByte feePerByte) skeleton =
-    computeFee (estimateTxSize era skeleton)
+estimateTxCost :: FeePerByte -> TxSkeleton -> Coin
+estimateTxCost (FeePerByte feePerByte) skeleton =
+    computeFee (estimateTxSize skeleton)
   where
     computeFee :: TxSize -> Coin
     computeFee (TxSize size) = Coin $ feePerByte * size
@@ -1497,9 +1496,7 @@ estimateTxCost era (FeePerByte feePerByte) skeleton =
 --
 -- The constant tx fee is /not/ included in the result of this function.
 calculateMinimumFee
-    :: AnyCardanoEra
-    -- ^ Era for which the transaction should be created.
-    -> FeePerByte
+    :: FeePerByte
     -> TxWitnessTag
     -- ^ Witness tag
     -> TransactionCtx
@@ -1507,8 +1504,8 @@ calculateMinimumFee
     -> SelectionSkeleton
     -- ^ An intermediate representation of an ongoing selection
     -> Coin
-calculateMinimumFee era feePerByte witnessTag ctx skeleton =
-    estimateTxCost era feePerByte (mkTxSkeleton witnessTag ctx skeleton)
+calculateMinimumFee feePerByte witnessTag ctx skeleton =
+    estimateTxCost feePerByte (mkTxSkeleton witnessTag ctx skeleton)
 
 -- | Calculate the cost of increasing a CBOR-encoded Coin-value by another Coin
 -- with the lovelace/byte cost given by the 'FeePolicy'.
@@ -1705,10 +1702,9 @@ burnSurplusAsFees feePolicy surplus (TxFeeAndChange fee0 ())
 -- https://github.com/input-output-hk/cardano-ledger/blob/master/eras/alonzo/test-suite/cddl-files/alonzo.cddl
 --
 estimateTxSize
-    :: AnyCardanoEra
-    -> TxSkeleton
+    :: TxSkeleton
     -> TxSize
-estimateTxSize era skeleton =
+estimateTxSize skeleton =
     TxSize $ fromIntegral sizeOf_Transaction
   where
     TxSkeleton
@@ -1877,17 +1873,6 @@ estimateTxSize era skeleton =
         + sizeOf_Hash32
         + sizeOf_UInt
 
-    -- legacy_transaction_output =
-    --   [address, amount : value]
-    -- value =
-    --   coin / [coin,multiasset<uint>]
-    sizeOf_LegacyTransactionOutput TxOut {address, tokens}
-        = sizeOf_SmallArray
-        + sizeOf_Address address
-        + sizeOf_SmallArray
-        + sizeOf_Coin (TokenBundle.getCoin tokens)
-        + sumVia sizeOf_NativeAsset (TokenBundle.getAssets tokens)
-
     -- post_alonzo_transaction_output =
     --   { 0 : address
     --   , 1 : value
@@ -1906,27 +1891,11 @@ estimateTxSize era skeleton =
         + sumVia sizeOf_NativeAsset (TokenBundle.getAssets tokens)
 
     sizeOf_Output
-        = if withinEra (AnyCardanoEra AlonzoEra) era
-          then sizeOf_LegacyTransactionOutput
-          else sizeOf_PostAlonzoTransactionOutput
+        = sizeOf_PostAlonzoTransactionOutput
 
     sizeOf_ChangeOutput :: Set AssetId -> Integer
     sizeOf_ChangeOutput
-        = if withinEra (AnyCardanoEra AlonzoEra) era
-          then sizeOf_LegacyChangeOutput
-          else sizeOf_PostAlonzoChangeOutput
-
-    -- transaction_output =
-    --   [address, amount : value]
-    -- value =
-    --   coin / [coin,multiasset<uint>]
-    sizeOf_LegacyChangeOutput :: Set AssetId -> Integer
-    sizeOf_LegacyChangeOutput xs
-        = sizeOf_SmallArray
-        + sizeOf_ChangeAddress
-        + sizeOf_SmallArray
-        + sizeOf_LargeUInt
-        + sumVia sizeOf_NativeAsset xs
+        = sizeOf_PostAlonzoChangeOutput
 
     -- post_alonzo_transaction_output =
     --   { 0 : address

@@ -205,9 +205,7 @@ data TransactionLayer k ktype tx = TransactionLayer
         -- ^ A function to assess the size of a token bundle.
 
     , constraints
-        :: AnyCardanoEra
-        -- Era for which the transaction should be created.
-        -> ProtocolParameters
+        :: ProtocolParameters
         -- Current protocol parameters.
         -> TxConstraints
         -- The set of constraints that apply to all transactions.
