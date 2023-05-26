@@ -18,7 +18,8 @@ import Cardano.Ledger.Babbage.TxBody
 import Cardano.Wallet.Unsafe
     ( unsafeFromHex )
 import Cardano.Wallet.Write.Tx
-    ( BinaryData
+    ( AnyRecentEra
+    , BinaryData
     , RecentEra (..)
     , Script
     , StandardBabbage
@@ -59,11 +60,18 @@ import Test.QuickCheck
     ( Arbitrary (..)
     , Arbitrary1 (liftArbitrary)
     , Property
+    , arbitraryBoundedEnum
     , conjoin
     , counterexample
     , property
     , (===)
     )
+import Test.QuickCheck.Classes
+    ( boundedEnumLaws, eqLaws, showLaws )
+import Test.QuickCheck.Extra
+    ( shrinkBoundedEnum )
+import Test.Utils.Laws
+    ( testLawsMany )
 
 import qualified Cardano.Api as Cardano
 import qualified Cardano.Api.Gen as Cardano
@@ -75,6 +83,15 @@ import qualified Data.Map as Map
 
 spec :: Spec
 spec = do
+
+    describe "AnyRecentEra" $ do
+        describe "Class instances obey laws" $ do
+            testLawsMany @AnyRecentEra
+                [ boundedEnumLaws
+                , eqLaws
+                , showLaws
+                ]
+
     describe "BinaryData" $ do
         it "BinaryData is isomorphic to Cardano.ScriptData" $
             testIsomorphism
@@ -185,6 +202,15 @@ spec = do
                     (fromCardanoUTxO @Cardano.BabbageEra)
                     "fromCardanoUTxO")
                 id
+
+--------------------------------------------------------------------------------
+-- Arbitrary instances
+--------------------------------------------------------------------------------
+
+instance Arbitrary AnyRecentEra where
+    arbitrary = arbitraryBoundedEnum
+    shrink = shrinkBoundedEnum
+
 
 instance Arbitrary Cardano.HashableScriptData where
      arbitrary = genHashableScriptData

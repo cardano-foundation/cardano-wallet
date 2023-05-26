@@ -82,6 +82,7 @@ import Cardano.Wallet
     , ErrWithdrawalNotBeneficial (..)
     , ErrWitnessTx (..)
     , ErrWritePolicyPublicKey (..)
+    , ErrWriteTxEra (..)
     , ErrWrongPassphrase (..)
     , WalletException (..)
     )
@@ -92,12 +93,17 @@ import Cardano.Wallet.Address.Discovery.Shared
 import Cardano.Wallet.Api.Hex
     ( hexText )
 import Cardano.Wallet.Api.Types
-    ( ApiCosignerIndex (..), ApiCredentialType (..), Iso8601Time (..) )
+    ( ApiCosignerIndex (..)
+    , ApiCredentialType (..)
+    , Iso8601Time (..)
+    , toApiEra
+    )
 import Cardano.Wallet.Api.Types.Error
     ( ApiError (..)
     , ApiErrorBalanceTxUnderestimatedFee (..)
     , ApiErrorInfo (..)
     , ApiErrorMessage (..)
+    , ApiErrorNodeNotYetInRecentEra (..)
     , ApiErrorSharedWalletNoSuchCosigner (..)
     , ApiErrorTxOutputLovelaceInsufficient (..)
     )
@@ -161,6 +167,7 @@ import qualified Cardano.Api as Cardano
 import qualified Cardano.Wallet.Primitive.Types.Coin as Coin
 import qualified Cardano.Wallet.Primitive.Types.TokenBundle as TokenBundle
 import qualified Cardano.Wallet.Primitive.Types.TokenMap as TokenMap
+import qualified Cardano.Wallet.Write.Tx as Write
 import qualified Data.Aeson as Aeson
 import qualified Data.ByteString as BS
 import qualified Data.ByteString.Lazy as BL
@@ -214,6 +221,7 @@ instance IsServerError WalletException where
         ExceptionReadAccountPublicKey e -> toServerError e
         ExceptionSignPayment e -> toServerError e
         ExceptionBalanceTx e -> toServerError e
+        ExceptionWriteTxEra e -> toServerError e
         ExceptionBalanceTxInternalError e -> toServerError e
         ExceptionSubmitTransaction e -> toServerError e
         ExceptionConstructTx e -> toServerError e
@@ -453,13 +461,38 @@ instance IsServerError ErrGetPolicyId where
             , "from cosigner#0."
             ]
 
+instance IsServerError ErrWriteTxEra where
+    toServerError = \case
+        ErrNodeNotYetInRecentEra (Cardano.AnyCardanoEra era) ->
+            apiError err403 (NodeNotYetInRecentEra info) $ T.unwords
+                [ "This operation requires the node to be synchronised to a"
+                , "recent era, but the node is currently only synchronised to the"
+                , showT era
+                , "era. Please wait until the node is fully synchronised and"
+                , "try again."
+                ]
+          where
+            info = ApiErrorNodeNotYetInRecentEra
+                { nodeEra = toApiEra $ Cardano.AnyCardanoEra era
+                , supportedRecentEras =
+                    map (toApiEra . Write.toAnyCardanoEra) [minBound .. maxBound]
+                }
+        ErrPartialTxNotInNodeEra nodeEra ->
+            apiError err403 TxNotInNodeEra $ T.unwords
+                [ "The provided transaction could be deserialised, just not in"
+                , showT nodeEra <> ","
+                , "the era the local node is currently in."
+                , "If the node is not yet fully synchronised, try waiting."
+                , "If you're constructing a transaction for a future era for"
+                , "testing purposes, try doing so on a testnet in that era"
+                , "instead."
+                , "If you're attempting to balance a partial transaction from"
+                , "an old era, please recreate your transaction so that it is"
+                , "compatible with a recent era."
+                ]
+
 instance IsServerError ErrBalanceTx where
     toServerError = \case
-        ErrOldEraNotSupported (Cardano.AnyCardanoEra era) ->
-            apiError err403 BalanceTxEraNotSupported $ T.unwords
-                [ "Balancing in ", showT era, " "
-                , "is not supported."
-                ]
         ErrBalanceTxUpdateError (ErrExistingKeyWitnesses n) ->
             apiError err403 BalanceTxExistingKeyWitnesses $ mconcat
                 [ "The transaction could not be balanced, because it contains "

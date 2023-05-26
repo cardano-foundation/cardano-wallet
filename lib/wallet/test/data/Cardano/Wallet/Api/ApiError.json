@@ -1,45 +1,54 @@
 {
     "samples": [
         {
-            "code": "balance_tx_era_not_supported",
-            "message": "%􂹡pO&aἵ"
+            "code": "network_misconfigured",
+            "message": "U\t"
+        },
+        {
+            "code": "balance_tx_existing_collateral",
+            "message": "'᎗*L􀛽vlﾽ󲅄අ󼊆"
+        },
+        {
+            "code": "not_synced",
+            "message": "\u001ch\u000f6𘈳QG\u001f"
+        },
+        {
+            "code": "redeemer_script_failure",
+            "message": "F𓉴)缺O\u0013"
         },
         {
             "code": "wallet_already_exists",
-            "message": "2\u0003>\u000bj"
-        },
-        {
-            "code": "invalid_coin_selection",
             "message": ""
         },
         {
-            "code": "withdrawal_not_beneficial",
-            "message": "􀳵n󲶛#Z󳎷\u000f1\u0013𡽑"
+            "code": "asset_not_present",
+            "message": "\u0005[\u001b\u0005 n{=5"
         },
         {
-            "code": "translation_error",
-            "message": "?;n 􏪫iH󸕴{@튬\u0017w\u001a"
+            "code": "node_not_yet_in_recent_era",
+            "info": {
+                "node_era": "allegra",
+                "supported_recent_eras": [
+                    "shelley",
+                    "alonzo",
+                    "mary",
+                    "shelley"
+                ]
+            },
+            "message": "U"
         },
         {
-            "code": "foreign_transaction",
-            "message": "󹵎LUe􅱋𬼳𝂝H?𧿛\u0007c$"
+            "code": "mempool_is_full",
+            "message": "~<znw𬻠􆇨nZ󰐍\u0008"
         },
         {
-            "code": "wallet_already_exists",
-            "message": "󱡉_&𢵈󵒂v\u000f;!\u0004!󺺼l1"
+            "code": "delegation_invalid",
+            "message": "vn𰋈o\u0004D𡭣󳝃7􍷌v!\u0010k"
         },
         {
-            "code": "mint_or_burn_asset_quantity_out_of_bounds",
-            "message": ""
-        },
-        {
-            "code": "network_unreachable",
-            "message": "\u000c\u001b=𑲰􈁸1$"
-        },
-        {
-            "code": "no_such_wallet",
-            "message": "􂗵o5􁓁牄\u0003"
+            "code": "pool_already_joined",
+            "message": "+H_TSB􄗟𣕄𖬀$-"
         }
     ],
-    "seed": -715238823
+    "seed": 531934170
 }

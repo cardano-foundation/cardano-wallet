@@ -195,6 +195,7 @@ module Cardano.Wallet
     , ErrNoSuchTransaction (..)
     , ErrStartTimeLaterThanEndTime (..)
     , ErrWitnessTx (..)
+    , ErrWriteTxEra (..)
 
     -- ** Root Key
     , withRootKey
@@ -1866,6 +1867,20 @@ signTransaction key tl preferredLatestEra witCountCtx keyLookup mextraRewardAcc
 type MakeRewardAccountBuilder k =
     (k 'RootK XPrv, Passphrase "encryption") -> (XPrv, Passphrase "encryption")
 
+data ErrWriteTxEra
+    = ErrNodeNotYetInRecentEra Cardano.AnyCardanoEra
+    -- ^ Node is not synced enough or on an unsupported testnet in an older era.
+    | ErrPartialTxNotInNodeEra
+        Write.AnyRecentEra -- node era
+    -- ^ The provided partial tx is not deserialisable as a tx in the era of the
+    -- node.
+    --
+    -- NOTE: In general we don't have /one/ known tx era. The tx could in theory
+    -- be deserialisable in all other eras than the one node era we need.
+    -- Exposing a 'Set AnyCardanoEra' of the candidate tx eras /could/ be done,
+    -- but would require some work.
+    deriving (Show, Eq)
+
 -- | Build, Sign, Submit transaction.
 --
 -- Requires the encryption passphrase in order to decrypt the root private key.
@@ -2062,7 +2077,7 @@ buildAndSignTransactionPure
             , builtSealedTx = signedTx
             }
   where
-    anyCardanoEra = Write.fromAnyRecentEra era
+    anyCardanoEra = Write.toAnyCardanoEra era
 
 buildTransaction
     :: forall s era.
@@ -3469,6 +3484,7 @@ data WalletException
     | ExceptionReadAccountPublicKey ErrReadAccountPublicKey
     | ExceptionSignPayment ErrSignPayment
     | ExceptionBalanceTx ErrBalanceTx
+    | ExceptionWriteTxEra ErrWriteTxEra
     | ExceptionBalanceTxInternalError ErrBalanceTxInternalError
     | ExceptionSubmitTransaction ErrSubmitTransaction
     | ExceptionConstructTx ErrConstructTx

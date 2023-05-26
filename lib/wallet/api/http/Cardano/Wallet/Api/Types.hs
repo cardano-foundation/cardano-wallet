@@ -1426,7 +1426,7 @@ data ApiEra
     | ApiAlonzo
     | ApiBabbage
     | ApiConway
-    deriving (Show, Eq, Generic, Enum, Ord, Bounded)
+    deriving (Data, Show, Eq, Generic, Enum, Ord, Bounded)
     deriving anyclass NFData
 
 toApiEra :: AnyCardanoEra -> ApiEra

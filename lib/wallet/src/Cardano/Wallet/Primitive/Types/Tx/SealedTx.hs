@@ -5,6 +5,7 @@
 {-# LANGUAGE FlexibleInstances #-}
 {-# LANGUAGE GeneralizedNewtypeDeriving #-}
 {-# LANGUAGE ScopedTypeVariables #-}
+{-# LANGUAGE TypeApplications #-}
 {-# LANGUAGE TypeFamilies #-}
 
 -- |
@@ -17,6 +18,7 @@ module Cardano.Wallet.Primitive.Types.Tx.SealedTx (
      -- * Types
     SealedTx (serialisedTx, unsafeCardanoTx)
     , cardanoTxIdeallyNoLaterThan
+    , cardanoTxInExactEra
     , sealedTxFromBytes
     , sealedTxFromBytes'
     , sealedTxFromCardano
@@ -56,8 +58,12 @@ import Data.ByteArray
     ( ByteArray, ByteArrayAccess )
 import Data.ByteString
     ( ByteString )
+import Data.Data
+    ( Proxy (..) )
 import Data.Either
     ( partitionEithers )
+import Data.Either.Extra
+    ( eitherToMaybe )
 import Data.Function
     ( on )
 import Data.Text
@@ -175,6 +181,18 @@ cardanoTxIdeallyNoLaterThan
     -> SealedTx
     -> InAnyCardanoEra Cardano.Tx
 cardanoTxIdeallyNoLaterThan era = unsafeCardanoTx . ideallyNoLaterThan era
+
+-- | Re-deserialises the bytes of the 'SealedTx' as a transaction in the
+-- provided era, and that era only.
+cardanoTxInExactEra
+    :: forall era. Cardano.IsCardanoEra era
+    => CardanoEra era
+    -> SealedTx
+    -> Maybe (Cardano.Tx era)
+cardanoTxInExactEra _ tx =
+    eitherToMaybe
+    $ deserialiseFromCBOR (Cardano.AsTx (Cardano.proxyToAsType $ Proxy @era))
+    $ serialisedTx tx
 
 getSealedTxBody :: SealedTx -> InAnyCardanoEra Cardano.TxBody
 getSealedTxBody (SealedTx _ (InAnyCardanoEra era tx) _) =

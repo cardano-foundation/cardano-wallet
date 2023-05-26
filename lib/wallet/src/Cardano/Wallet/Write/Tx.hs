@@ -2,6 +2,7 @@
 {-# LANGUAGE ConstraintKinds #-}
 {-# LANGUAGE DataKinds #-}
 {-# LANGUAGE EmptyCase #-}
+{-# LANGUAGE ExplicitNamespaces #-}
 {-# LANGUAGE FlexibleContexts #-}
 {-# LANGUAGE FlexibleInstances #-}
 {-# LANGUAGE GADTs #-}
@@ -57,7 +58,8 @@ module Cardano.Wallet.Write.Tx
     , AnyRecentEra (..)
     , InAnyRecentEra (..)
     , asAnyRecentEra
-    , fromAnyRecentEra
+    , toAnyCardanoEra
+    , fromAnyCardanoEra
     , withInAnyRecentEra
     , withRecentEra
 
@@ -199,7 +201,9 @@ import Data.Generics.Product
 import Data.IntCast
     ( intCast )
 import Data.Maybe
-    ( fromMaybe )
+    ( fromMaybe, isJust )
+import Data.Type.Equality
+    ( (:~:) (Refl), TestEquality (testEquality) )
 import Data.Typeable
     ( Typeable )
 import Numeric.Natural
@@ -257,6 +261,12 @@ data RecentEra era where
 
 deriving instance Eq (RecentEra era)
 deriving instance Show (RecentEra era)
+
+instance TestEquality RecentEra where
+    testEquality RecentEraBabbage RecentEraBabbage = Just Refl
+    testEquality RecentEraConway RecentEraConway = Just Refl
+    testEquality RecentEraBabbage RecentEraConway = Nothing
+    testEquality RecentEraConway RecentEraBabbage = Nothing
 
 class
     ( Cardano.IsShelleyBasedEra era
@@ -381,11 +391,43 @@ data AnyRecentEra where
                   => RecentEra era   -- and explicit value.
                   -> AnyRecentEra    -- and that's it.
 
+instance Enum AnyRecentEra where
+    -- NOTE: We're not starting at 0! 0 would be Byron, which is not a recent
+    -- era.
+    fromEnum = fromEnum . toAnyCardanoEra
+    toEnum n = fromMaybe err . fromAnyCardanoEra $ toEnum n
+      where
+        err = error $ unwords
+            [ "AnyRecentEra.toEnum:", show n
+            , "doesn't correspond to a recent era."
+            ]
+instance Bounded AnyRecentEra where
+    minBound = AnyRecentEra RecentEraBabbage
+    maxBound = AnyRecentEra RecentEraConway
+
 instance Show AnyRecentEra where
     show (AnyRecentEra era) = "AnyRecentEra " <> show era
 
-fromAnyRecentEra :: AnyRecentEra -> Cardano.AnyCardanoEra
-fromAnyRecentEra (AnyRecentEra era) = Cardano.AnyCardanoEra (fromRecentEra era)
+instance Eq AnyRecentEra where
+    AnyRecentEra e1 == AnyRecentEra e2 =
+        isJust $ testEquality e1 e2
+
+toAnyCardanoEra :: AnyRecentEra -> Cardano.AnyCardanoEra
+toAnyCardanoEra (AnyRecentEra era) = Cardano.AnyCardanoEra (fromRecentEra era)
+
+fromAnyCardanoEra
+    :: Cardano.AnyCardanoEra
+    -> Maybe AnyRecentEra
+fromAnyCardanoEra = \case
+    Cardano.AnyCardanoEra Cardano.ByronEra -> Nothing
+    Cardano.AnyCardanoEra Cardano.ShelleyEra -> Nothing
+    Cardano.AnyCardanoEra Cardano.AllegraEra -> Nothing
+    Cardano.AnyCardanoEra Cardano.MaryEra -> Nothing
+    Cardano.AnyCardanoEra Cardano.AlonzoEra -> Nothing
+    Cardano.AnyCardanoEra Cardano.BabbageEra
+        -> Just $ AnyRecentEra RecentEraBabbage
+    Cardano.AnyCardanoEra Cardano.ConwayEra
+        -> Just $ AnyRecentEra RecentEraConway
 
 withRecentEra ::
     AnyRecentEra -> (forall era. IsRecentEra era => RecentEra era -> a) -> a
