@@ -108,13 +108,6 @@ CHaP: haskell-nix: nixpkgs-recent: nodePkgs: haskell-nix.cabalProject' [
         tools = {
           cabal = "latest";
           cabal-cache.version = "1.0.2.1";
-          haskell-language-server = {
-            version = "1.8.0.0";
-            modules = [{ reinstallableLibGhc = false; }];
-          };
-          hie-bios = {
-            modules = [{ reinstallableLibGhc = false; }];
-          };
           hoogle.version = "5.0.18.1";
           hlint.version = "3.3.1";
           lentil.version = "1.5.2.0";
@@ -128,6 +121,7 @@ CHaP: haskell-nix: nixpkgs-recent: nodePkgs: haskell-nix.cabalProject' [
           bech32.components.exes.bech32
           pretty-simple.components.exes.pretty-simple
         ] ++ (with pkgs.buildPackages.buildPackages; [
+          haskell-language-server
           go-jira
           haskellPackages.ghcid
           pkgconfig
@@ -280,7 +274,7 @@ CHaP: haskell-nix: nixpkgs-recent: nodePkgs: haskell-nix.cabalProject' [
 
           ({ config, ... }:
             let
-              setGitRevPostInstall = setGitRevPostInstall' config.packages.cardano-node.src.rev;
+              setGitRevPostInstall = setGitRevPostInstall' nodePkgs.gitrev;
             in
             {
               # Add shell completions for tools.

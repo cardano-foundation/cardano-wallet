@@ -49,11 +49,8 @@ repository cardano-haskell-packages
     c00aae8461a256275598500ea0e187588c35a5d5d7454fb57eac18d9edb86a56
     d4a35cd3121aa00d18544bb0ac01c3e1691d618f462c46129271bccf39f7e8ee
 
--- repeating the index-state for hackage to work around hackage.nix parsing limitation
-index-state: 2023-03-06T05:24:58Z
-
 index-state:
-  , hackage.haskell.org 2023-03-06T05:24:58Z
+  , hackage.haskell.org 2023-05-25T22:29:25Z
   , cardano-haskell-packages 2023-05-25T17:36:19Z
 
 packages:
@@ -106,31 +103,6 @@ source-repository-package
     tag: a91add165152fa36f08e95fafe7da24f1dba4690
     --sha256: 1ia8vlqghis92cla8qmqa6kh8f3jn29b01fshyk5hmgy5373s684
 
-source-repository-package
-    type: git
-    location: https://github.com/input-output-hk/cardano-crypto
-    tag: f73079303f663e028288f9f4a9e08bcca39a923e
-    --sha256: 1n87i15x54s0cjkh3nsxs4r1x016cdw1fypwmr68936n3xxsjn6q
-
--- It seems that if we remove this source-repository-package to rely on CHaP,
--- for some reason, we're unable to retrieve the cardano-node executables in
--- our nix/haskell.nix file.
-
-source-repository-package
-   type: git
-   location: https://github.com/input-output-hk/cardano-node
-   tag: c02b0ab3786dce24bcd9899509be767057286f53
-   --sha256: 1igxway613vzgkjypk4vbn9dkws7faygbdd72x90h0n14p47i2js
-   subdir:
-     cardano-api
-     cardano-git-rev
-     cardano-cli
-     cardano-node
-     cardano-node-chairman
-     trace-dispatcher
-     trace-resources
-     trace-forward
-
 -- -------------------------------------------------------------------------
 -- Constraints tweaking
 
@@ -150,7 +122,6 @@ allow-newer:
 
 constraints:
     bimap >= 0.4.0
-  , cardano-binary == 1.5.*
   , openapi3 >= 3.2.0
   , libsystemd-journal >= 1.4.4
   , systemd >= 2.3.0
@@ -159,11 +130,8 @@ constraints:
   -- choose versions that work with base >= 4.12
   , hjsonpointer >= 1.5.0
   , hjsonschema >= 1.10.0
-  , Cabal >= 3.4.0.0
   , async-timer >= 0.2.0.0
   , unliftio-core >= 0.2.0.1
-  , cardano-api >= 1.35.6
-  , cardano-node >= 1.35.6
   , generic-arbitrary >= 0.2.2
   , iohk-monitoring >= 0.1.11
 
@@ -172,30 +140,6 @@ constraints:
 
   -- TH Name shadowing warnings need to be addressed when bumping to 2.13.3.5
   , persistent == 2.13.3.3
-
-  -- Copied from cardano-node's cabal.project:
-  , systemd >= 2.3.0
-    -- systemd-2.3.0 requires at least network 3.1.1.0 but it doesn't declare
-    -- that dependency
-  , network >= 3.1.1.0
-  , HSOpenSSL >= 0.11.7.2
-  , cardano-prelude >= 0.1.0.0
-  , base-deriving-via >= 0.1.0.0
-  , cardano-binary >= 1.5.0
-  , cardano-binary-test >= 1.3.0
-  , cardano-crypto-class >= 2.0.0.0.1
-  , cardano-crypto-praos >= 2.0.0.0.1
-  , cardano-crypto-tests >= 2.0.0.0.1
-  , cardano-slotting >= 0.1.0.0
-  , measures >= 0.1.0.0
-  , orphans-deriving-via >= 0.1.0.0
-  , plutus-core >= 1.0.0.1
-  , plutus-ledger-api >= 1.0.0.1
-  , plutus-tx >= 1.0.0.0
-  , plutus-tx-plugin >= 1.0.0.0
-  , prettyprinter-configurable >= 0.1.0.0
-  , plutus-ghc-stub >= 8.6.5
-  , word-array >= 0.1.0.0
 
   -- Haddock is broken in this release. Waiting for the next release
   , http2 < 4.0.0
