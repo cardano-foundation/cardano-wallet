@@ -1,7 +1,6 @@
 {-# LANGUAGE AllowAmbiguousTypes #-}
 {-# LANGUAGE ConstraintKinds #-}
 {-# LANGUAGE DataKinds #-}
-{-# LANGUAGE DeriveGeneric #-}
 {-# LANGUAGE FlexibleContexts #-}
 {-# LANGUAGE FlexibleInstances #-}
 {-# LANGUAGE GADTs #-}
@@ -18,7 +17,7 @@ module Cardano.Wallet.Flavor
     ( WalletFlavorS (..)
     , WalletFlavor (..)
     , KeyOf
-    , TestState (..)
+    , TestState
     , KeyFlavorS (..)
     , keyFlavorFromState
     , keyOfWallet
@@ -39,8 +38,6 @@ where
 
 import Prelude
 
-import Cardano.Wallet.Address.Derivation
-    ( Depth (CredFromKeyK, CredFromScriptK) )
 import Cardano.Wallet.Address.Derivation.Byron
     ( ByronKey )
 import Cardano.Wallet.Address.Derivation.Icarus
@@ -55,14 +52,13 @@ import Cardano.Wallet.Address.Discovery.Sequential
     ( SeqAnyState, SeqState )
 import Cardano.Wallet.Address.Discovery.Shared
     ( SharedState (..) )
-import Cardano.Wallet.Read.NetworkId
-    ( NetworkDiscriminant )
+import Cardano.Wallet.Address.States.Families
+import Cardano.Wallet.Address.States.Features
+    ( TestFeatures, defaultTestFeatures )
+import Cardano.Wallet.Address.States.Test.State
+    ( TestState )
 import Cardano.Wallet.TypeLevel
     ( Excluding, Including )
-import Data.Kind
-    ( Type )
-import GHC.Generics
-    ( Generic )
 
 -- | A singleton type to capture the flavor of a state.
 data WalletFlavorS s where
@@ -72,7 +68,8 @@ data WalletFlavorS s where
     SharedWallet :: WalletFlavorS (SharedState n SharedKey)
     BenchByronWallet :: WalletFlavorS (RndAnyState n p)
     BenchShelleyWallet :: WalletFlavorS (SeqAnyState n ShelleyKey p)
-    TestStateS :: WalletFlavorS (TestState s ShelleyKey)
+    TestStateS :: KeyFlavorS k -> TestFeatures s
+        -> WalletFlavorS (TestState s n k kt)
 
 data WalletFlavors
     = ShelleyF
@@ -90,8 +87,7 @@ type family FlavorOf s where
     FlavorOf (SharedState n SharedKey) = 'SharedF
     FlavorOf (RndAnyState n p) = 'BenchByronF
     FlavorOf (SeqAnyState n ShelleyKey p) = 'BenchShelleyF
-    FlavorOf (TestState s ShelleyKey) = 'TestStateF
-
+    FlavorOf (TestState s n k ktype) = 'TestStateF
 
 type AllFlavors =
     '[ 'ShelleyF
@@ -127,21 +123,9 @@ instance WalletFlavor (RndAnyState n p) where
 instance WalletFlavor (SharedState n SharedKey) where
     walletFlavor = SharedWallet
 
-instance WalletFlavor (TestState n ShelleyKey) where
-    walletFlavor = TestStateS
-
--- | A type for states that will be used in tests.
-newtype TestState s (k :: (Depth -> Type -> Type)) = TestState s
-    deriving (Generic, Show, Eq)
-
--- | A type family to get the key type from a state.
-type family KeyOf (s :: Type) :: (Depth -> Type -> Type) where
-    KeyOf (SeqState n k) = k
-    KeyOf (RndState n) = ByronKey
-    KeyOf (SharedState n k) = k
-    KeyOf (SeqAnyState n k p) = k
-    KeyOf (RndAnyState n p) = ByronKey
-    KeyOf (TestState s k) = k
+instance (KeyFlavor k)
+    => WalletFlavor (TestState s n k kt ) where
+    walletFlavor = TestStateS keyFlavor defaultTestFeatures
 
 -- | A singleton type to capture the flavor of a key.
 data KeyFlavorS a where
@@ -149,7 +133,6 @@ data KeyFlavorS a where
     IcarusKeyS :: KeyFlavorS IcarusKey
     ShelleyKeyS :: KeyFlavorS ShelleyKey
     SharedKeyS :: KeyFlavorS SharedKey
-
 
 class KeyFlavor a where
     keyFlavor :: KeyFlavorS a
@@ -166,7 +149,6 @@ instance KeyFlavor ShelleyKey where
 instance KeyFlavor SharedKey where
     keyFlavor = SharedKeyS
 
-
 -- | Map a wallet flavor to a key flavor.
 keyOfWallet :: WalletFlavorS s -> KeyFlavorS (KeyOf s)
 keyOfWallet ShelleyWallet = ShelleyKeyS
@@ -175,7 +157,7 @@ keyOfWallet ByronWallet = ByronKeyS
 keyOfWallet SharedWallet = SharedKeyS
 keyOfWallet BenchByronWallet = ByronKeyS
 keyOfWallet BenchShelleyWallet = ShelleyKeyS
-keyOfWallet TestStateS = ShelleyKeyS
+keyOfWallet (TestStateS kf _) = kf
 
 -- | A function to reify the flavor of a key from a state type.
 --
@@ -183,13 +165,6 @@ keyOfWallet TestStateS = ShelleyKeyS
 -- > keyFlavorFromState @s
 keyFlavorFromState :: forall s. WalletFlavor s => KeyFlavorS (KeyOf s)
 keyFlavorFromState = keyOfWallet (walletFlavor @s)
-
-type family NetworkOf (s :: Type) :: NetworkDiscriminant where
-    NetworkOf (SeqState n k) = n
-    NetworkOf (RndState n) = n
-    NetworkOf (SharedState n k) = n
-    NetworkOf (SeqAnyState n k p) = n
-    NetworkOf (RndAnyState n p) = n
 
 -- | Constraints for a state with a specific key.
 type StateWithKey s k = (WalletFlavor s, KeyOf s ~ k)
@@ -215,11 +190,3 @@ shelleyOrShared x r h = case x of
     SharedWallet -> h SharedWallet
     IcarusWallet -> h IcarusWallet
     _ -> r
-
-type family CredFromOf s where
-    CredFromOf (SharedState n key) = 'CredFromScriptK
-    CredFromOf (SeqState n key) = 'CredFromKeyK
-    CredFromOf (RndState n) = 'CredFromKeyK
-    CredFromOf (TestState n key) = 'CredFromKeyK
-    CredFromOf (RndAnyState n p) = 'CredFromKeyK
-    CredFromOf (SeqAnyState n key p) = 'CredFromKeyK

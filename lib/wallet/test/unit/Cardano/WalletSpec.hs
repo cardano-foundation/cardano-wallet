@@ -62,6 +62,8 @@ import Cardano.Wallet.Address.Discovery
     )
 import Cardano.Wallet.Address.Keys.WalletKey
     ( publicKey )
+import Cardano.Wallet.Address.States.Test.State
+    ( TestState (..) )
 import Cardano.Wallet.DB
     ( DBFresh, DBLayer (..), hoistDBFresh, hoistDBLayer, putTxHistory )
 import Cardano.Wallet.DB.Fixtures
@@ -79,12 +81,7 @@ import Cardano.Wallet.DummyTarget.Primitive.Types
     , mkTxId
     )
 import Cardano.Wallet.Flavor
-    ( CredFromOf
-    , KeyFlavorS (ShelleyKeyS)
-    , KeyOf
-    , TestState (..)
-    , WalletFlavor (..)
-    )
+    ( CredFromOf, KeyFlavorS (ShelleyKeyS), KeyOf, WalletFlavor (..) )
 import Cardano.Wallet.Gen
     ( genMnemonic, genSlotNo )
 import Cardano.Wallet.Network
@@ -286,6 +283,8 @@ import qualified Cardano.Wallet.Primitive.Migration as Migration
 import qualified Cardano.Wallet.Primitive.Types.TokenBundle as TokenBundle
 import qualified Cardano.Wallet.Primitive.Types.TokenMap as TokenMap
 import qualified Cardano.Wallet.Read as Read
+import Cardano.Wallet.Read.NetworkId
+    ( NetworkDiscriminant (Mainnet) )
 import qualified Cardano.Wallet.Submissions.Submissions as Smbs
 import qualified Cardano.Wallet.Submissions.TxStatus as Sbms
 import qualified Data.ByteArray as BA
@@ -560,7 +559,7 @@ walletListTransactionsWithLimit wallet@(_, _, _) =
                 test (Just l) (Just r) Ascending Identity
                     $ \slot -> slot >= l && slot <= r
 
-type DummyStateWithAddresses = TestState [Address] ShelleyKey
+type DummyStateWithAddresses = TestState [Address] 'Mainnet ShelleyKey 'CredFromKeyK
 
 instance IsOurs DummyStateWithAddresses Address where
     isOurs a s@(TestState addr) =
@@ -1318,8 +1317,12 @@ mockNetworkLayer = dummyNetworkLayer
     dummyTip = BlockHeader (SlotNo 0) (Quantity 0) dummyHash (Just dummyHash)
     dummyHash = Hash "dummy hash"
 
-type DummyState
-    = TestState (Map Address (Index 'Soft 'CredFromKeyK)) ShelleyKey
+type DummyState =
+    TestState
+        (Map Address (Index 'Soft 'CredFromKeyK))
+        'Mainnet
+        ShelleyKey
+        'CredFromKeyK
 
 instance Sqlite.AddressBookIso DummyState where
     data Prologue DummyState = DummyPrologue
