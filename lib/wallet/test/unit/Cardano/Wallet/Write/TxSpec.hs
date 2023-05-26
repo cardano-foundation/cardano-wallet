@@ -203,6 +203,15 @@ spec = do
                     "fromCardanoUTxO")
                 id
 
+--------------------------------------------------------------------------------
+-- Arbitrary instances
+--------------------------------------------------------------------------------
+
+instance Arbitrary AnyRecentEra where
+    arbitrary = arbitraryBoundedEnum
+    shrink = shrinkBoundedEnum
+
+
 instance Arbitrary Cardano.HashableScriptData where
      arbitrary = genHashableScriptData
      shrink = const []
@@ -281,14 +290,6 @@ testIsomorphism (NamedFun f fName) (NamedFun g gName) normalize =
             (gName <> " . " <> gName <> " == id")
             (property $ \x -> g (f x) === x)
         ]
-
---------------------------------------------------------------------------------
--- Arbitrary instances
---------------------------------------------------------------------------------
-
-instance Arbitrary AnyRecentEra where
-    arbitrary = arbitraryBoundedEnum
-    shrink = shrinkBoundedEnum
 
 --------------------------------------------------------------------------------
 -- Test Data
