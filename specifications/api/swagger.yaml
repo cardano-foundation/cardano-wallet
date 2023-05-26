@@ -4758,6 +4758,16 @@ x-errNodeNotYetInRecentEra: &errNodeNotYetInRecentEra
             type: array
             items: *ApiEra
 
+x-errTxNotInNodeEra: &errTxNotInNodeEra
+  <<: *responsesErr
+  title: tx_not_in_node_era
+  properties:
+    message:
+      type: string
+      description: The transaction could be deserialised, just not in the era of the local node.
+    code:
+      type: string
+      enum: ["tx_not_in_node_era"]
 
 x-errBalanceTxConflictingNetworks: &errBalanceTxConflictingNetworks
   <<: *responsesErr
@@ -6202,6 +6212,7 @@ x-responsesBalanceTransaction: &responsesBalanceTransaction
             - <<: *errTransactionAlreadyBalanced
             - <<: *errTransactionIsTooBig
             - <<: *errUtxoTooSmall
+            - <<: *errTxNotInNodeEra
 
   <<: *responsesErr404WalletNotFound
   <<: *responsesErr406

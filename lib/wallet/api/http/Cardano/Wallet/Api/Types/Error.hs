@@ -89,6 +89,7 @@ data ApiErrorInfo
     | BalanceTxExistingCollateral
     | BalanceTxExistingKeyWitnesses
     | BalanceTxExistingReturnCollateral
+    | TxNotInNodeEra
     | BalanceTxExistingTotalCollateral
     | BalanceTxInternalError
     | BalanceTxUnderestimatedFee

@@ -1870,6 +1870,15 @@ type MakeRewardAccountBuilder k =
 data ErrWriteTxEra
     = ErrNodeNotYetInRecentEra Cardano.AnyCardanoEra
     -- ^ Node is not synced enough or on an unsupported testnet in an older era.
+    | ErrPartialTxNotInNodeEra
+        Write.AnyRecentEra -- node era
+    -- ^ The provided partial tx is not deserialisable as a tx in the era of the
+    -- node.
+    --
+    -- NOTE: In general we don't have /one/ known tx era. The tx could in theory
+    -- be deserialisable in all other eras than the one node era we need.
+    -- Exposing a 'Set AnyCardanoEra' of the candidate tx eras /could/ be done,
+    -- but would require some work.
     deriving (Show, Eq)
 
 -- | Build, Sign, Submit transaction.

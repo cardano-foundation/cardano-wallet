@@ -477,6 +477,19 @@ instance IsServerError ErrWriteTxEra where
                 , supportedRecentEras =
                     map (toApiEra . Write.toAnyCardanoEra) [minBound .. maxBound]
                 }
+        ErrPartialTxNotInNodeEra nodeEra ->
+            apiError err403 TxNotInNodeEra $ T.unwords
+                [ "The provided transaction could be deserialised, just not in"
+                , showT nodeEra <> ","
+                , "the era the local node is currently in."
+                , "If the node is not yet fully synchronised, try waiting."
+                , "If you're constructing a transaction for a future era for"
+                , "testing purposes, try doing so on a testnet in that era"
+                , "instead."
+                , "If you're attempting to balance a partial transaction from"
+                , "an old era, please recreate your transaction so that it is"
+                , "compatible with a recent era."
+                ]
 
 instance IsServerError ErrBalanceTx where
     toServerError = \case
