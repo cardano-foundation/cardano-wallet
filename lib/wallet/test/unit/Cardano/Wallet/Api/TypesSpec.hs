@@ -337,7 +337,6 @@ import Cardano.Wallet.Primitive.Types.Tx
     ( Direction (..)
     , SealedTx (..)
     , SerialisedTx (..)
-    , SerialisedTxParts (..)
     , TxMetadata (..)
     , TxScriptValidity (..)
     , TxStatus (..)
@@ -484,7 +483,6 @@ import Test.QuickCheck
     , forAll
     , frequency
     , liftArbitrary
-    , listOf
     , oneof
     , property
     , scale
@@ -2173,9 +2171,6 @@ selectFromPreparedBinaries = elements $ toByteString <$>
         let (Right bs) = fromHex $ T.encodeUtf8 txt
         in bs
 
-genWits :: Gen ByteString
-genWits = BS.pack <$> Test.QuickCheck.scale (min 32) (listOf arbitrary)
-
 deriving instance Arbitrary a => Arbitrary (ApiAsArray s a)
 
 instance Arbitrary (ApiBytesT base ByteString) where
@@ -2193,11 +2188,6 @@ instance Arbitrary SealedTx where
 
 instance Arbitrary SerialisedTx where
     arbitrary = SerialisedTx <$> selectFromPreparedBinaries
-
-instance Arbitrary SerialisedTxParts where
-    arbitrary = SerialisedTxParts
-        <$> selectFromPreparedBinaries
-        <*> listOf genWits
 
 instance Arbitrary TxMetadata where
     arbitrary = genNestedTxMetadata

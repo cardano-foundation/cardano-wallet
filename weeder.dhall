@@ -37,7 +37,6 @@
   -- TODO: [ADP-919] Temporary weeder roots
   , "signTransaction"
   , "getSealedTxWitnesses"
-  , "getSerialisedTxParts"
   ]
 , type-class-roots = True
 }
