@@ -248,6 +248,9 @@ library
     Cardano.Wallet.Address.Keys.WalletKey
     Cardano.Wallet.Address.Keys.WitnessCount
     Cardano.Wallet.Address.Pool
+    Cardano.Wallet.Address.States.Families
+    Cardano.Wallet.Address.States.Features
+    Cardano.Wallet.Address.States.Test.State
     Cardano.Wallet.Byron.Compatibility
     Cardano.Wallet.Checkpoints
     Cardano.Wallet.Checkpoints.Policy
