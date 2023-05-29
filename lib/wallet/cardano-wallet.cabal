@@ -277,6 +277,8 @@ library
     Cardano.Wallet.DB.Store.Transactions.TransactionInfo
     Cardano.Wallet.DB.Store.UTxOHistory.Model
     Cardano.Wallet.DB.Store.UTxOHistory.Model.Internal
+    Cardano.Wallet.DB.Store.UTxOHistory.Store
+    Cardano.Wallet.DB.Store.UTxOHistory.TxOutCBOR
     Cardano.Wallet.DB.Store.Wallets.Layer
     Cardano.Wallet.DB.Store.Wallets.Model
     Cardano.Wallet.DB.Store.Wallets.Store
@@ -921,6 +923,8 @@ test-suite unit
     Cardano.Wallet.DB.Store.Submissions.StoreSpec
     Cardano.Wallet.DB.Store.Transactions.StoreSpec
     Cardano.Wallet.DB.Store.UTxOHistory.ModelSpec
+    Cardano.Wallet.DB.Store.UTxOHistory.StoreSpec
+    Cardano.Wallet.DB.Store.UTxOHistory.TxOutCBORSpec
     Cardano.Wallet.DB.Store.Wallets.LayerSpec
     Cardano.Wallet.DB.Store.Wallets.StoreSpec
     Cardano.Wallet.Delegation.ModelSpec

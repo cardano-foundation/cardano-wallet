@@ -46,13 +46,17 @@ import Cardano.Wallet.Address.Discovery.Sequential
     )
 import Cardano.Wallet.Address.Discovery.Shared
     ( CredentialType )
+import Cardano.Wallet.DB.Store.UTxOHistory.Model
+    ( Pruned (..), Spent (..) )
 import Cardano.Wallet.Primitive.Passphrase.Types
     ( Passphrase (..), PassphraseScheme (..) )
 import Cardano.Wallet.Primitive.Types
     ( EpochNo (..)
     , FeePolicy
     , PoolMetadataSource (..)
+    , Slot
     , WalletId (..)
+    , WithOrigin (..)
     , isValidEpochNo
     , unsafeEpochNo
     , unsafeToPMS
@@ -122,6 +126,8 @@ import Database.Persist.TH
     ( MkPersistSettings (..), sqlSettings )
 import GHC.Generics
     ( Generic )
+import GHC.Int
+    ( Int64 )
 import Network.URI
     ( parseAbsoluteURI )
 import System.Random.Internal
@@ -764,3 +770,38 @@ readDelegationStatus other = Left $ "Invalid delegation status: " <> other
 
 instance PersistFieldSql DelegationStatusEnum where
     sqlType _ = sqlType (Proxy @Text)
+
+instance PersistField Slot where
+    toPersistValue Origin = toPersistValue ((-1) :: Int64)
+    toPersistValue (At s) = toPersistValue (fromIntegral $ unSlotNo s :: Int64)
+    fromPersistValue v = case fromPersistValue v of
+        Right (PersistInt64 x)
+            | x < (-1) -> Left "Slot must be positive or -1"
+            | x == (-1) -> Right Origin
+            | otherwise -> Right . At . SlotNo . fromIntegral $ x
+        _ -> Left "Slot must be an Int64"
+
+instance PersistFieldSql Slot where
+    sqlType _ = sqlType (Proxy @Int64)
+
+instance PersistField Pruned where
+    toPersistValue NotPruned = toPersistValue @(Maybe Word64) Nothing
+    toPersistValue (PrunedUpTo h) = toPersistValue (Just h)
+    fromPersistValue v = case fromPersistValue @(Maybe Word64) v of
+        Right Nothing -> Right NotPruned
+        Right (Just x) -> Right $ PrunedUpTo $ fromIntegral x
+        _ -> Left "Pruned must be an Int64 or Null"
+
+instance PersistFieldSql Pruned where
+    sqlType _ = sqlType (Proxy @(Maybe Word64))
+
+instance PersistField Spent where
+    toPersistValue Unspent = toPersistValue @(Maybe Word64) Nothing
+    toPersistValue (Spent h) = toPersistValue (Just h)
+    fromPersistValue v = case fromPersistValue @(Maybe Word64) v of
+        Right Nothing -> Right Unspent
+        Right (Just x) -> Right $ Spent $ fromIntegral x
+        _ -> Left "Spent must be an Int64 or Null"
+
+instance PersistFieldSql Spent where
+    sqlType _ = sqlType (Proxy @(Maybe Word64))

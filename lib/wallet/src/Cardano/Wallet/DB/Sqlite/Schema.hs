@@ -45,6 +45,10 @@ import Cardano.Wallet.DB.Sqlite.Types
     , TxSubmissionStatusEnum (..)
     , sqlSettings'
     )
+import Cardano.Wallet.DB.Store.UTxOHistory.Model
+    ( Pruned, Spent )
+import Cardano.Wallet.Primitive.Types
+    ( Slot )
 import Data.Quantity
     ( Percentage (..) )
 import Data.Text
@@ -515,5 +519,25 @@ Delegations                                     sql=delegations
     delegationPool      PoolId Maybe            sql=pool
 
     Primary delegationSlot
+    deriving Show Generic Eq
+
+DeltaUTxOValue
+    deltaUTxOValueWalletId W.WalletId sql=wallet_id
+    deltaUTxOValueCreation Slot sql=slot
+    deltaUTxOValueSpent Spent nullable sql=spent
+    deltaUTxOValueTxInTx TxId sql=tx_in_tx
+    deltaUTxOValueTxInIx Word32 sql=tx_in_ix
+    deltaUTxOValueTxOut B8.ByteString sql=tx_out
+    deltaUTxOValueBoot Bool sql=boot
+
+    Primary  deltaUTxOValueWalletId deltaUTxOValueTxInTx deltaUTxOValueTxInIx deltaUTxOValueBoot
+    deriving Show Generic Eq
+
+DeltaUTxOSlots
+    deltaUTxOSlotsWallet W.WalletId sql=wallet_id
+    deltaUTxOSlotsFinality Pruned nullable sql=finality
+    deltaUTxOSlotsTip Slot sql=tip
+
+    Primary deltaUTxOSlotsWallet
     deriving Show Generic Eq
 |]
