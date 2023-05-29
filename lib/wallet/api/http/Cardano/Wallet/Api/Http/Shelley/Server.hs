@@ -187,6 +187,7 @@ import Cardano.Wallet
     , logger
     , manageRewardBalance
     , networkLayer
+    , readPrivateKey
     , readWalletMeta
     , transactionLayer
     , utxoAssumptionsForWallet
@@ -1261,13 +1262,12 @@ patchSharedWallet ctx liftKey cred (ApiT wid) body = do
                 db & \W.DBLayer
                     { atomically
                     , readCheckpoint
-                    , readPrivateKey
                     , walletState
                     } -> do
                         cp <- atomically readCheckpoint
                         let state = getState cp
                         --could be for account and root key wallets
-                        prvKeyM <- atomically readPrivateKey
+                        prvKeyM <- atomically $ readPrivateKey walletState
                         meta <- atomically (readWalletMeta walletState)
                         pure (state, prvKeyM, meta)
 

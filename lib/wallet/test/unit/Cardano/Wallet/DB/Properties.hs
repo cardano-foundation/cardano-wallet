@@ -25,10 +25,6 @@ module Cardano.Wallet.DB.Properties
 
 import Prelude
 
-import Cardano.Address.Derivation
-    ( XPrv )
-import Cardano.Wallet.Address.Derivation
-    ( Depth (RootK) )
 import Cardano.Wallet.DB
     ( DBFresh (..)
     , DBLayer (..)
@@ -42,12 +38,8 @@ import Cardano.Wallet.DB.Pure.Implementation
     ( filterTxHistory )
 import Cardano.Wallet.DummyTarget.Primitive.Types
     ( dummyGenesisParameters )
-import Cardano.Wallet.Flavor
-    ( KeyOf )
 import Cardano.Wallet.Primitive.Model
     ( Wallet (currentTip), applyBlock, currentTip )
-import Cardano.Wallet.Primitive.Passphrase.Types
-    ( PassphraseHash )
 import Cardano.Wallet.Primitive.Types
     ( ChainPoint (..)
     , GenesisParameters
@@ -146,12 +138,7 @@ testWid = WalletId (hash ("test" :: ByteString))
 
 -- | Wallet properties.
 properties
-    :: ( GenState s
-       , Show (KeyOf s 'RootK XPrv)
-       , Arbitrary (KeyOf s 'RootK XPrv)
-       , Buildable (KeyOf s 'RootK XPrv, PassphraseHash)
-       , Eq (KeyOf s 'RootK XPrv)
-       )
+    :: GenState s
     => WithDBFresh s
     -> SpecWith ()
 properties withFreshDB = describe "DB.Properties" $ do
@@ -176,12 +163,6 @@ properties withFreshDB = describe "DB.Properties" $ do
                 testOnLayer
                 (\db _ -> lift . putTxHistory_ db)
                 (\db _ -> readTxHistory_ db)
-        it "Private Key"
-            $ property
-            $ prop_readAfterPut
-                testOnLayer
-                (\DBLayer{..} _wid -> lift . atomically . putPrivateKey)
-                (\DBLayer{..} _wid -> atomically readPrivateKey)
 
     describe "getTx properties" $ do
         it "can read after putting tx history for valid tx id"
@@ -192,23 +173,21 @@ properties withFreshDB = describe "DB.Properties" $ do
             $ prop_getTxAfterPutInvalidTxId testOnLayer
 
     describe "put doesn't affect other resources" $ do
-        it "Checkpoint vs Wallet Metadata & Tx History & Private Key"
+        it "Checkpoint vs Wallet Metadata & Tx History"
             $ property
             $ prop_isolation
                 testOnLayer
                 (\DBLayer{..} _wid -> lift . atomically . putCheckpoint)
                 (\db _ -> readTxHistory_ db)
-                (\DBLayer{..} _wid -> atomically readPrivateKey)
-        it "Tx History vs Checkpoint & Wallet Metadata & Private Key"
+                (\DBLayer{} _wid -> pure [0 :: Int])
+        it "Tx History vs Checkpoint & Wallet Metadata"
             $ property
             $ prop_isolation
                 testOnLayer
                 (\db _ -> lift . putTxHistory_ db)
                 (\DBLayer{..} _ -> atomically readCheckpoint)
-                (\DBLayer{..} _wid -> atomically readPrivateKey)
+                (\DBLayer{} _wid -> pure [0 :: Int])
 
-    let lastMay [] = Nothing
-        lastMay xs = Just (last xs)
     describe "sequential puts replace values in order" $ do
         it "Checkpoint"
             $ checkCoverage
@@ -230,13 +209,6 @@ properties withFreshDB = describe "DB.Properties" $ do
                             . unGenTxHistory
                   in  Identity . sort' . fold
                 )
-        it "Private Key"
-            $ checkCoverage
-            $ prop_sequentialPut
-                testOnLayer
-                (\DBLayer{..} _wid -> lift . atomically . putPrivateKey)
-                (\DBLayer{..} _wid -> atomically readPrivateKey)
-                lastMay
 
     describe "rollback" $ do
         it

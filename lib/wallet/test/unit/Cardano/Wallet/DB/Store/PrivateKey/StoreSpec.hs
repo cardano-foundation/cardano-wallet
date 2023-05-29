@@ -40,7 +40,7 @@ import Cardano.Wallet.Flavor
 import Cardano.Wallet.Primitive.Types
     ( WalletId )
 import Cardano.Wallet.Primitive.Types.Credentials
-    ( Credentials (Credentials), HashedCredentials )
+    ( HashedCredentials, RootCredentials (RootCredentials) )
 import Data.Delta
     ( Replace (..) )
 import Fmt
@@ -85,7 +85,7 @@ propStore runQ wid kF =
         (logScale . genDelta)
 
 genPrivateKey :: Arbitrary (k 'RootK XPrv) => Gen (Maybe (HashedCredentials k))
-genPrivateKey = fmap Just $ Credentials <$> arbitrary <*> arbitrary
+genPrivateKey = fmap Just $ RootCredentials <$> arbitrary <*> arbitrary
 
 instance Buildable (DeltaPrivateKey k) where
     build _ = "DeltaPrivateKey"

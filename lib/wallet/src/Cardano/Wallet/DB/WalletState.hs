@@ -193,7 +193,7 @@ instance Delta (DeltaWalletState1 s) where
     apply (UpdateInfo d) = over #info $ apply d
     apply (UpdateCredentials d) = over #credentials $ apply d
 
-instance  Buildable (DeltaWalletState1 s) where
+instance Buildable (DeltaWalletState1 s) where
     build (ReplacePrologue _) = "ReplacePrologue …"
     build (UpdateCheckpoints d) = "UpdateCheckpoints (" <> build d <> ")"
     build (UpdateSubmissions d) = "UpdateSubmissions (" <> build d <> ")"

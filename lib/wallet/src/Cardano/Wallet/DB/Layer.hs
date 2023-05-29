@@ -41,8 +41,6 @@ module Cardano.Wallet.DB.Layer
 
 import Prelude
 
-import Cardano.Address.Derivation
-    ( XPrv )
 import Cardano.BM.Data.Severity
     ( Severity (..) )
 import Cardano.BM.Data.Tracer
@@ -64,10 +62,6 @@ import Cardano.DB.Sqlite.Delete
     )
 import Cardano.Slotting.Slot
     ( WithOrigin (..) )
-import Cardano.Wallet.Address.Derivation
-    ( Depth (..) )
-import Cardano.Wallet.Address.Keys.PersistPrivateKey
-    ( serializeXPrv, unsafeDeserializeXPrv )
 import Cardano.Wallet.Address.Keys.WalletKey
     ( keyTypeDescriptor )
 import Cardano.Wallet.Checkpoints
@@ -81,7 +75,6 @@ import Cardano.Wallet.DB
     , DBLayerCollection (..)
     , DBLayerParams (..)
     , DBOpen (..)
-    , DBPrivateKey (..)
     , DBTxHistory (..)
     , ErrNotGenesisBlockHeader (ErrNotGenesisBlockHeader)
     , ErrWalletAlreadyInitialized (ErrWalletAlreadyInitialized)
@@ -97,7 +90,6 @@ import Cardano.Wallet.DB.Sqlite.Schema
     , DelegationReward (..)
     , EntityField (..)
     , Key (..)
-    , PrivateKey (..)
     , StakeKeyCertificate (..)
     , TxMeta (..)
     , Wallet (..)
@@ -143,8 +135,6 @@ import Cardano.Wallet.DB.WalletState
     )
 import Cardano.Wallet.Flavor
     ( KeyFlavorS, WalletFlavorS, keyOfWallet )
-import Cardano.Wallet.Primitive.Passphrase.Types
-    ( PassphraseHash )
 import Cardano.Wallet.Primitive.Slotting
     ( TimeInterpreter, firstSlotInEpoch, hoistTimeInterpreter, interpretQuery )
 import Cardano.Wallet.Read.Eras.EraValue
@@ -190,7 +180,6 @@ import Database.Persist.Sql
     , Filter
     , SelectOpt (..)
     , deleteWhere
-    , insert_
     , repsert
     , selectFirst
     , selectKeysList
@@ -216,7 +205,6 @@ import UnliftIO.MVar
     ( modifyMVar, modifyMVar_, newMVar, readMVar, withMVar )
 
 import qualified Cardano.Wallet.Primitive.Model as W
-import qualified Cardano.Wallet.Primitive.Passphrase as W
 import qualified Cardano.Wallet.Primitive.Types as W
 import qualified Cardano.Wallet.Primitive.Types.Coin as Coin
 import qualified Cardano.Wallet.Primitive.Types.Hash as W
@@ -649,8 +637,6 @@ newDBFreshFromDBOpen wF ti wid_ DBOpen{atomically=atomically_} =
     dbDelegation = mkDBDelegation ti wid_
 
 
-    dbPrivateKey = mkDBPrivateKey (keyOfWallet wF) wid_
-
 mkDBFreshFromParts
     :: forall stm m s
      . ( PersistAddressBook s
@@ -833,42 +819,7 @@ genesisParametersFromEntity (Wallet _ _ _ _ _ hash startTime) =
         , W.getGenesisBlockDate = W.StartTime startTime
         }
 
-{-----------------------------------------------------------------------
-                    Private Key store
------------------------------------------------------------------------}
-mkDBPrivateKey
-    :: forall k
-     . KeyFlavorS k
-    -> W.WalletId
-    -> DBPrivateKey (SqlPersistT IO) k
-mkDBPrivateKey keyF wid = DBPrivateKey
-    { putPrivateKey_ = \key -> do
-        deleteWhere [PrivateKeyWalletId ==. wid]
-        insert_ (mkPrivateKeyEntity keyF wid key)
-    , readPrivateKey_ = selectPrivateKey keyF wid
-    }
 
-mkPrivateKeyEntity
-    :: forall k
-     . KeyFlavorS k
-    -> W.WalletId
-    -> (k 'RootK XPrv, W.PassphraseHash)
-    -> PrivateKey
-mkPrivateKeyEntity keyF wid kh = PrivateKey
-    { privateKeyWalletId = wid
-    , privateKeyRootKey = root
-    , privateKeyHash = hash
-    }
-  where
-    (root, hash) = serializeXPrv keyF kh
-
-privateKeyFromEntity
-    :: forall k
-     . KeyFlavorS k
-    -> PrivateKey
-    -> (k 'RootK XPrv, PassphraseHash)
-privateKeyFromEntity keyF (PrivateKey _ k h) =
-    unsafeDeserializeXPrv keyF (k, h)
 
 {-------------------------------------------------------------------------------
     SQLite database operations
@@ -947,16 +898,6 @@ selectTransactionInfo ti tip lookupTx lookupTxOut meta = do
                     Left _ -> error "failed to parse cbor"
                 Left _ -> error "failed to extract cbor for era"
     liftIO . evaluate $ force result
-
-selectPrivateKey
-    :: forall k m
-     . MonadIO m
-    => KeyFlavorS k
-    -> W.WalletId
-    -> SqlPersistT m (Maybe (k 'RootK XPrv, PassphraseHash))
-selectPrivateKey keyF wid = do
-    keys <- selectFirst [PrivateKeyWalletId ==. wid] []
-    pure $ (privateKeyFromEntity keyF . entityVal) <$> keys
 
 selectGenesisParameters
     :: MonadIO m

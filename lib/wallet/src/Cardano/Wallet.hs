@@ -76,6 +76,7 @@ module Cardano.Wallet
     , getWalletUtxoSnapshot
     , listUtxoStatistics
     , readWallet
+    , readPrivateKey
     , restoreWallet
     , updateWallet
     , updateWalletPassphraseWithOldPassphrase
@@ -223,6 +224,7 @@ module Cardano.Wallet
     , WalletFollowLog (..)
     , WalletLog (..)
     , TxSubmitLog (..)
+    , putPrivateKey
     ) where
 
 import Prelude hiding
@@ -447,6 +449,8 @@ import Cardano.Wallet.Primitive.Types.Address
     ( Address (..), AddressState (..) )
 import Cardano.Wallet.Primitive.Types.Coin
     ( Coin (..) )
+import Cardano.Wallet.Primitive.Types.Credentials
+    ( RootCredentials (..) )
 import Cardano.Wallet.Primitive.Types.Hash
     ( Hash (..) )
 import Cardano.Wallet.Primitive.Types.RewardAccount
@@ -567,6 +571,8 @@ import Data.ByteString
     ( ByteString )
 import Data.DBVar
     ( DBVar, readDBVar )
+import Data.Delta
+    ( Replace (..) )
 import Data.Delta.Update
     ( onDBVar, update )
 import Data.Either
@@ -877,6 +883,23 @@ checkWalletIntegrity db gp = db & \DBLayer{..} -> do
 
 readWalletMeta :: Functor f => DBVar f (DeltaWalletState s) -> f WalletMetadata
 readWalletMeta walletState = walletMeta . info <$> readDBVar walletState
+
+readPrivateKey
+    :: Functor stm
+    => DBVar stm (DeltaWalletState s)
+    -> stm (Maybe (KeyOf s 'RootK XPrv, PassphraseHash))
+readPrivateKey walletState =
+    readDBVar walletState <&> \mc -> do
+        (RootCredentials pk h) <- credentials mc
+        pure (pk, h)
+
+putPrivateKey
+    :: Monad m
+    => DBVar m (DeltaWalletState s)
+    -> (KeyOf s 'RootK XPrv, PassphraseHash)
+    -> m ()
+putPrivateKey walletState (pk, hpw) = onDBVar walletState $ update $ \_ ->
+    [UpdateCredentials $ Replace $ Just $ RootCredentials pk hpw]
 
 -- | Retrieve the wallet state for the wallet with the given ID.
 readWallet
@@ -3060,10 +3083,10 @@ attachPrivateKey
     -> (KeyOf s 'RootK XPrv, PassphraseHash)
     -> PassphraseScheme
     -> IO ()
-attachPrivateKey db (xprv, hpwd) scheme = db & \DBLayer{..} -> do
+attachPrivateKey db pk  scheme = db & \DBLayer{..} -> do
     now <- liftIO getCurrentTime
     atomically $ do
-        putPrivateKey (xprv, hpwd)
+        putPrivateKey walletState pk
         meta <- readWalletMeta walletState
         let modify x = x
                 { passphraseInfo = Just $ WalletPassphraseInfo
@@ -3101,7 +3124,7 @@ withRootKey DBLayer{..} wid pwd embed action = do
     (xprv, scheme) <- withExceptT embed . ExceptT . atomically $ do
         wMetadata <- readWalletMeta walletState
         let mScheme = passphraseScheme <$> passphraseInfo wMetadata
-        mXPrv <- readPrivateKey
+        mXPrv <- readPrivateKey walletState
         pure $ case (mXPrv, mScheme) of
             (Just (xprv, hpwd), Just scheme) ->
                 case checkPassphrase scheme pwd hpwd of

@@ -52,11 +52,9 @@ import Cardano.DB.Sqlite
 import Cardano.Mnemonic
     ( SomeMnemonic (..) )
 import Cardano.Wallet
-    ( readWalletMeta )
+    ( putPrivateKey, readPrivateKey, readWalletMeta )
 import Cardano.Wallet.Address.Derivation
     ( Depth (..), DerivationType (..), Index, PaymentAddress (..) )
-import Cardano.Wallet.Address.Derivation.Byron
-    ( ByronKey (..) )
 import Cardano.Wallet.Address.Derivation.Icarus
     ( IcarusKey )
 import Cardano.Wallet.Address.Derivation.Shared
@@ -292,12 +290,11 @@ spec =
             manualMigrationsSpec
 
 stateMachineSpec
-    :: forall k s
+    :: forall s
      . ( PersistAddressBook s
-       , TestConstraints s k
+       , TestConstraints s
        , Typeable s
        , WalletFlavor s
-       , KeyOf s ~ k
        )
     => Spec
 stateMachineSpec = describe ("State machine test (" ++ showState @s ++ ")") $ do
@@ -313,11 +310,11 @@ stateMachineSpec = describe ("State machine test (" ++ showState @s ++ ")") $ do
 
 stateMachineSpecSeq, stateMachineSpecRnd, stateMachineSpecShared :: Spec
 stateMachineSpecSeq =
-    stateMachineSpec @ShelleyKey @TestState
+    stateMachineSpec @TestState
 stateMachineSpecRnd =
-    stateMachineSpec @ByronKey @(RndState 'Mainnet)
+    stateMachineSpec @(RndState 'Mainnet)
 stateMachineSpecShared =
-    stateMachineSpec @SharedKey @(SharedState 'Mainnet SharedKey)
+    stateMachineSpec @(SharedState 'Mainnet SharedKey)
 
 instance PaymentAddress SharedKey 'CredFromScriptK where
     paymentAddress _ = error
@@ -968,7 +965,7 @@ readTransactions' DBLayer{..} a1 a2 mstatus =
 readPrivateKey'
     :: DBLayer m s
     -> m (Maybe (KeyOf s 'RootK XPrv, PassphraseHash))
-readPrivateKey' DBLayer{..} = atomically readPrivateKey
+readPrivateKey' DBLayer{..} = atomically $ readPrivateKey walletState
 
 -- | Attach an arbitrary private key to a wallet
 attachPrivateKey
@@ -980,7 +977,7 @@ attachPrivateKey DBLayer{..} = do
     seed <- liftIO $ generate $ SomeMnemonic <$> genMnemonic @15
     (scheme, h) <- liftIO $ encryptPassphrase pwd
     let k = generateKeyFromSeed (seed, Nothing) (preparePassphrase scheme pwd)
-    atomically $ putPrivateKey (k, h)
+    atomically $ putPrivateKey walletState (k, h)
     return (k, h)
 
 cutRandomly :: [a] -> IO [[a]]

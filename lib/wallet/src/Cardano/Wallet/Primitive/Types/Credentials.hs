@@ -19,10 +19,10 @@ import Cardano.Wallet.Primitive.Passphrase.Types
     ( Passphrase, PassphraseHash )
 
 -- | A 'PrivateKey' for a given 'KeyFlavor'.
-data RootCredentials k pw = Credentials
-         { credentialsKey :: k 'RootK XPrv
-         , credentialsPassword :: pw
-         }
+data RootCredentials k pw = RootCredentials
+    { credentialsKey :: k 'RootK XPrv
+    , credentialsPassword :: pw
+    }
 
 deriving instance (Eq (k 'RootK XPrv), Eq pw) => Eq (RootCredentials k pw)
 deriving instance (Show (k 'RootK XPrv), Show pw) => Show (RootCredentials k pw)

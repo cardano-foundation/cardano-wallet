@@ -10,8 +10,8 @@
 -- License: Apache-2.0
 module Cardano.Wallet.DB.Store.PrivateKey.Store
     ( mkStorePrivateKey
-    , StorePrivateKey
     , DeltaPrivateKey
+    , StorePrivateKey
     ) where
 
 import Prelude
@@ -66,7 +66,7 @@ mkStorePrivateKey kF wid = mkSimpleStore load write
             where
                 privateKeyFromEntity :: Schema.PrivateKey -> HashedCredentials k
                 privateKeyFromEntity (Schema.PrivateKey _ k h) =
-                    uncurry Credentials $ unsafeDeserializeXPrv kF (k, h)
+                    uncurry RootCredentials $ unsafeDeserializeXPrv kF (k, h)
 
         write :: Maybe (HashedCredentials k) -> SqlPersistT IO ()
         write (Just key) = do
@@ -74,7 +74,7 @@ mkStorePrivateKey kF wid = mkSimpleStore load write
             insert_ (mkPrivateKeyEntity key)
         write Nothing = deleteWhere ([] :: [Filter Schema.PrivateKey])
 
-        mkPrivateKeyEntity (Credentials k h) =
+        mkPrivateKeyEntity (RootCredentials k h) =
             Schema.PrivateKey
                 { Schema.privateKeyWalletId = wid
                 , Schema.privateKeyRootKey = root
