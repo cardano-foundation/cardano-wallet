@@ -2,7 +2,6 @@
 {-# LANGUAGE MultiParamTypeClasses #-}
 {-# LANGUAGE RankNTypes #-}
 {-# LANGUAGE ScopedTypeVariables #-}
-{-# LANGUAGE StandaloneDeriving #-}
 {-# LANGUAGE TypeFamilies #-}
 {-# LANGUAGE UndecidableInstances #-}
 
@@ -11,31 +10,26 @@
 -- License: Apache-2.0
 module Cardano.Wallet.DB.Store.PrivateKey.Store
     ( mkStorePrivateKey
-    , DeltaPrivateKey
-    , PrivateKey (..)
     , StorePrivateKey
+    , DeltaPrivateKey
     ) where
 
 import Prelude
 
-import Cardano.Address.Derivation
-    ( XPrv )
-import Cardano.Wallet.Address.Derivation
-    ( Depth (..) )
 import Cardano.Wallet.Address.Keys.PersistPrivateKey
     ( serializeXPrv, unsafeDeserializeXPrv )
-import Cardano.Wallet.DB.Errors
-    ( ErrWalletNotInitialized (ErrWalletNotInitialized) )
 import Cardano.Wallet.Flavor
     ( KeyFlavorS )
-import Cardano.Wallet.Primitive.Passphrase.Types
-    ( PassphraseHash )
 import Cardano.Wallet.Primitive.Types
     ( WalletId )
+import Cardano.Wallet.Primitive.Types.Credentials
+    ( HashedCredentials, RootCredentials (..) )
 import Control.Exception
     ( SomeException (..) )
 import Data.Delta
     ( Replace )
+import Data.Functor
+    ( (<&>) )
 import Data.Store
     ( SimpleStore, mkSimpleStore )
 import Database.Persist
@@ -45,17 +39,12 @@ import Database.Persist.Sql
 
 import qualified Cardano.Wallet.DB.Sqlite.Schema as Schema
 
--- | A 'PrivateKey' for a given 'KeyFlavor'.
-data PrivateKey k = PrivateKey (k 'RootK XPrv) PassphraseHash
-
-deriving instance Eq (k 'RootK XPrv) => Eq (PrivateKey k)
-deriving instance Show (k 'RootK XPrv) => Show (PrivateKey k)
-
 -- | A 'Store' for 'PrivateKey'.
-type StorePrivateKey k = SimpleStore (SqlPersistT IO) (PrivateKey k)
+type StorePrivateKey k = SimpleStore (SqlPersistT IO)
+    (Maybe (HashedCredentials k))
 
 -- | A 'Delta' for 'PrivateKey'.
-type DeltaPrivateKey k = Replace (PrivateKey k)
+type DeltaPrivateKey k = Replace (Maybe (HashedCredentials k))
 
 -- | Construct a 'StorePrivateKey' for a given 'KeyFlavor'.  ATM a WalletId is
 -- required to be able to store the private key.  This limitation is due to the
@@ -68,23 +57,24 @@ mkStorePrivateKey
     -> StorePrivateKey k
 mkStorePrivateKey kF wid = mkSimpleStore load write
     where
-        load :: SqlPersistT IO (Either SomeException (PrivateKey k))
+        load :: SqlPersistT IO
+            (Either SomeException (Maybe (HashedCredentials k)))
         load = do
             keys <- selectFirst [] []
-            case keys of
-                Nothing -> pure $ Left $ SomeException ErrWalletNotInitialized
-                Just key -> pure $ Right $ privateKeyFromEntity $ entityVal key
+            pure $ Right $ keys <&> \key ->
+                    privateKeyFromEntity $ entityVal key
             where
-                privateKeyFromEntity :: Schema.PrivateKey -> PrivateKey k
+                privateKeyFromEntity :: Schema.PrivateKey -> HashedCredentials k
                 privateKeyFromEntity (Schema.PrivateKey _ k h) =
-                    uncurry PrivateKey $ unsafeDeserializeXPrv kF (k, h)
+                    uncurry Credentials $ unsafeDeserializeXPrv kF (k, h)
 
-        write :: PrivateKey k -> SqlPersistT IO ()
-        write key = do
+        write :: Maybe (HashedCredentials k) -> SqlPersistT IO ()
+        write (Just key) = do
             deleteWhere ([] :: [Filter Schema.PrivateKey])
             insert_ (mkPrivateKeyEntity key)
+        write Nothing = deleteWhere ([] :: [Filter Schema.PrivateKey])
 
-        mkPrivateKeyEntity (PrivateKey k h) =
+        mkPrivateKeyEntity (Credentials k h) =
             Schema.PrivateKey
                 { Schema.privateKeyWalletId = wid
                 , Schema.privateKeyRootKey = root

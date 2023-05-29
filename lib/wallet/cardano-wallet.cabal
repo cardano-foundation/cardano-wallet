@@ -315,6 +315,7 @@ library
     Cardano.Wallet.Primitive.SyncProgress
     Cardano.Wallet.Primitive.Types
     Cardano.Wallet.Primitive.Types.Address.Constants
+    Cardano.Wallet.Primitive.Types.Credentials
     Cardano.Wallet.Primitive.Types.MinimumUTxO
     Cardano.Wallet.Primitive.Types.MinimumUTxO.Gen
     Cardano.Wallet.Primitive.Types.ProtocolMagic

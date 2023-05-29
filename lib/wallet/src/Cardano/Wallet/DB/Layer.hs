@@ -546,9 +546,9 @@ newDBFreshFromDBOpen
     -> DBOpen (SqlPersistT IO) IO s
     -- ^ A (thread-)safe wrapper for query execution.
     -> DBFresh IO s
-newDBFreshFromDBOpen wf ti wid_ DBOpen{atomically=atomically_} =
+newDBFreshFromDBOpen wF ti wid_ DBOpen{atomically=atomically_} =
     mkDBFreshFromParts ti wid_
-        getWalletId_ (mkStoreWallet wid_)
+        getWalletId_ (mkStoreWallet wF wid_)
             dbLayerCollection atomically_
   where
     transactionsQS = newQueryStoreTxWalletsHistory
@@ -649,7 +649,7 @@ newDBFreshFromDBOpen wf ti wid_ DBOpen{atomically=atomically_} =
     dbDelegation = mkDBDelegation ti wid_
 
 
-    dbPrivateKey = mkDBPrivateKey (keyOfWallet wf) wid_
+    dbPrivateKey = mkDBPrivateKey (keyOfWallet wF) wid_
 
 mkDBFreshFromParts
     :: forall stm m s
