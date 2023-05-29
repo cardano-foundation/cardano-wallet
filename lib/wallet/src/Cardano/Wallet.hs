@@ -1320,14 +1320,13 @@ readRewardAccount
     => DBLayer IO s
     -> IO (RewardAccount, Maybe XPub, NonEmpty DerivationIndex)
 readRewardAccount db = do
+    walletState <- getState <$> readWalletCheckpoint db
     case walletFlavor @s of
         ShelleyWallet -> do
-            walletState <- getState <$> readWalletCheckpoint db
             let xpub = Seq.rewardAccountKey walletState
             let path = stakeDerivationPath $ Seq.derivationPrefix walletState
             pure (toRewardAccount xpub, Just $ getRawKey ShelleyKeyS xpub, path)
         SharedWallet -> do
-            walletState <- getState <$> readWalletCheckpoint db
             let path = stakeDerivationPath $ Shared.derivationPrefix walletState
             case Shared.rewardAccountKey walletState of
                 Just rewardAcct -> pure $ (rewardAcct, Nothing, path)
@@ -1337,6 +1336,9 @@ readWalletCheckpoint
     :: DBLayer IO s -> IO (Wallet s)
 readWalletCheckpoint DBLayer{..} = liftIO $ atomically readCheckpoint
 
+-- | Unsafe version of the `readRewardAccount` function
+-- that throws error when applied to a non-shared
+-- or a non-shared wallet state.
 sharedOnlyReadRewardAccount
     :: forall s
      . WalletFlavor s

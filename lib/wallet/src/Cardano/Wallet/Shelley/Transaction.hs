@@ -1445,6 +1445,7 @@ data TxSkeleton = TxSkeleton
     , txOutputs :: ![TxOut]
     , txChange :: ![Set AssetId]
     , txPaymentTemplate :: !(Maybe (Script Cosigner))
+    , txDelegationTemplate :: !(Maybe (Script Cosigner))
     , txMintOrBurnScripts :: [Script KeyHash]
     , txAssetsToMintOrBurn :: Set AssetId
     -- ^ The set of assets to mint or burn.
@@ -1465,6 +1466,7 @@ emptyTxSkeleton txWitnessTag = TxSkeleton
     , txOutputs = []
     , txChange = []
     , txPaymentTemplate = Nothing
+    , txDelegationTemplate = Nothing
     , txMintOrBurnScripts = []
     , txAssetsToMintOrBurn = Set.empty
     }
@@ -1490,6 +1492,9 @@ mkTxSkeleton witness context skeleton = TxSkeleton
     , txPaymentTemplate =
         template <$>
         view #txPaymentCredentialScriptTemplate context
+    , txDelegationTemplate =
+        template <$>
+        view #txStakingCredentialScriptTemplate context
     , txMintOrBurnScripts = (<>)
         (Map.elems (snd $ view #txAssetsToMint context))
         (Map.elems (snd $ view #txAssetsToBurn context))
@@ -1733,6 +1738,7 @@ estimateTxSize skeleton =
         , txOutputs
         , txChange
         , txPaymentTemplate
+        , txDelegationTemplate
         , txMintOrBurnScripts
         , txAssetsToMintOrBurn
         } = skeleton
@@ -1750,21 +1756,31 @@ estimateTxSize skeleton =
     numberOf_MintingWitnesses
         = intCast $ sumVia estimateMaxWitnessRequiredPerInput txMintOrBurnScripts
 
-    numberOf_ScriptVkeyWitnesses
+    numberOf_ScriptVkeyWitnessesForPayment
         = intCast $ maybe 0 estimateMaxWitnessRequiredPerInput txPaymentTemplate
+
+    numberOf_ScriptVkeyWitnessesForDelegation
+        = intCast $ maybe 0 estimateMaxWitnessRequiredPerInput txDelegationTemplate
 
     numberOf_VkeyWitnesses
         = case txWitnessTag of
             TxWitnessByronUTxO -> 0
             TxWitnessShelleyUTxO ->
-                if numberOf_ScriptVkeyWitnesses == 0 then
+                -- there cannot be missing payment script if there is delegation script
+                -- the latter is optional
+                if numberOf_ScriptVkeyWitnessesForPayment == 0 then
                     numberOf_Inputs
                     + numberOf_Withdrawals
                     + numberOf_CertificateSignatures
                     + numberOf_MintingWitnesses
-                else
-                    (numberOf_Inputs * numberOf_ScriptVkeyWitnesses)
+                else if numberOf_ScriptVkeyWitnessesForDelegation == 0 then
+                    (numberOf_Inputs * numberOf_ScriptVkeyWitnessesForPayment)
                     + numberOf_Withdrawals
+                    + numberOf_CertificateSignatures
+                    + numberOf_MintingWitnesses
+               else
+                    (numberOf_Inputs * numberOf_ScriptVkeyWitnessesForPayment)
+                    + (numberOf_Withdrawals * numberOf_ScriptVkeyWitnessesForDelegation)
                     + numberOf_CertificateSignatures
                     + numberOf_MintingWitnesses
 
