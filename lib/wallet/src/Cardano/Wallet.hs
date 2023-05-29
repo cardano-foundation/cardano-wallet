@@ -1329,7 +1329,7 @@ readRewardAccount db = do
         SharedWallet -> do
             let path = stakeDerivationPath $ Shared.derivationPrefix walletState
             case Shared.rewardAccountKey walletState of
-                Just rewardAcct -> pure $ (rewardAcct, Nothing, path)
+                Just rewardAcct -> pure (rewardAcct, Nothing, path)
                 Nothing -> throwIO $ ExceptionReadRewardAccount ErrReadRewardAccountMissing
 
 readWalletCheckpoint
