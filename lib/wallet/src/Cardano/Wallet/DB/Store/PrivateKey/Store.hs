@@ -2,13 +2,18 @@
 {-# LANGUAGE MultiParamTypeClasses #-}
 {-# LANGUAGE RankNTypes #-}
 {-# LANGUAGE ScopedTypeVariables #-}
+{-# LANGUAGE StandaloneDeriving #-}
 {-# LANGUAGE TypeFamilies #-}
+{-# LANGUAGE UndecidableInstances #-}
+
 -- |
 -- Copyright: © 2023 IOHK
 -- License: Apache-2.0
 module Cardano.Wallet.DB.Store.PrivateKey.Store
     ( mkStorePrivateKey
     , DeltaPrivateKey
+    , PrivateKey (..)
+    , StorePrivateKey
     ) where
 
 import Prelude
@@ -42,6 +47,9 @@ import qualified Cardano.Wallet.DB.Sqlite.Schema as Schema
 
 -- | A 'PrivateKey' for a given 'KeyFlavor'.
 data PrivateKey k = PrivateKey (k 'RootK XPrv) PassphraseHash
+
+deriving instance Eq (k 'RootK XPrv) => Eq (PrivateKey k)
+deriving instance Show (k 'RootK XPrv) => Show (PrivateKey k)
 
 -- | A 'Store' for 'PrivateKey'.
 type StorePrivateKey k = SimpleStore (SqlPersistT IO) (PrivateKey k)

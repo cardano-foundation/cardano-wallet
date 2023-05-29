@@ -13,12 +13,12 @@
 {-# LANGUAGE RankNTypes #-}
 {-# LANGUAGE ScopedTypeVariables #-}
 {-# LANGUAGE StandaloneDeriving #-}
+{-# LANGUAGE TupleSections #-}
 {-# LANGUAGE TypeApplications #-}
 {-# LANGUAGE TypeFamilies #-}
 {-# LANGUAGE UndecidableInstances #-}
 
 {-# OPTIONS_GHC -fno-warn-orphans #-}
-{-# LANGUAGE TupleSections #-}
 
 module Cardano.Wallet.DB.Arbitrary
     ( GenTxHistory (..)
@@ -65,6 +65,8 @@ import Cardano.Wallet.Address.Discovery.Sequential
     )
 import Cardano.Wallet.Address.Discovery.Shared
     ( SharedAddressPools (..), SharedState (..) )
+import Cardano.Wallet.Address.Keys.WalletKey
+    ( getRawKey, liftRawKey, publicKey )
 import Cardano.Wallet.DB.Pure.Implementation
     ( TxHistory, filterTxHistory )
 import Cardano.Wallet.DummyTarget.Primitive.Types as DummyTarget
@@ -228,8 +230,6 @@ import qualified Cardano.Wallet.Address.Derivation.Shared as Shared
 import qualified Cardano.Wallet.Address.Derivation.Shelley as Shelley
 import qualified Cardano.Wallet.Address.Discovery.Sequential as Seq
 import qualified Cardano.Wallet.Address.Discovery.Shared as Shared
-import Cardano.Wallet.Address.Keys.WalletKey
-    ( getRawKey, liftRawKey, publicKey )
 import qualified Cardano.Wallet.Write.Tx as Write
 import qualified Data.ByteArray as BA
 import qualified Data.ByteString as BS

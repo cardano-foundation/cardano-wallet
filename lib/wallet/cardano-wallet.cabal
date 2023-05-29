@@ -925,6 +925,7 @@ test-suite unit
     Cardano.Wallet.DB.Store.Info.StoreSpec
     Cardano.Wallet.DB.Store.Meta.ModelSpec
     Cardano.Wallet.DB.Store.Meta.StoreSpec
+    Cardano.Wallet.DB.Store.PrivateKey.StoreSpec
     Cardano.Wallet.DB.Store.Submissions.StoreSpec
     Cardano.Wallet.DB.Store.Transactions.StoreSpec
     Cardano.Wallet.DB.Store.UTxOHistory.ModelSpec
