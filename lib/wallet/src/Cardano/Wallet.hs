@@ -84,7 +84,6 @@ module Cardano.Wallet
     , fetchRewardBalance
     , manageRewardBalance
     , manageSharedRewardBalance
-    , readSharedRewardAccount
     , rollbackBlocks
     , checkWalletIntegrity
     , mkExternalWithdrawal
@@ -348,12 +347,16 @@ import Cardano.Wallet.DB.WalletState
     , getSlot
     )
 import Cardano.Wallet.Flavor
-    ( CredFromOf
+    ( AllFlavors
+    , CredFromOf
     , Excluding
+    , FlavorOf
+    , Including
     , KeyFlavorS (..)
     , KeyOf
     , WalletFlavor (..)
     , WalletFlavorS (..)
+    , WalletFlavors (..)
     , keyFlavorFromState
     , keyOfWallet
     )
@@ -587,7 +590,7 @@ import Data.List
 import Data.List.NonEmpty
     ( NonEmpty (..) )
 import Data.Maybe
-    ( fromJust, fromMaybe, isJust, isNothing, mapMaybe, maybeToList )
+    ( fromJust, fromMaybe, isJust, mapMaybe, maybeToList )
 import Data.Quantity
     ( Quantity (..) )
 import Data.Set
@@ -1278,10 +1281,8 @@ mkSelfWithdrawalShared
     -> DBLayer IO (SharedState n SharedKey)
     -> IO Withdrawal
 mkSelfWithdrawalShared netLayer txWitnessTag era db = do
-    rewardAccountM <- readSharedRewardAccount db
-    when (isNothing rewardAccountM) $
-        throwIO $ ExceptionReadRewardAccount ErrReadRewardAccountMissing
-    let (rewardAccount, derivationPath) = fromJust rewardAccountM
+    (rewardAccount, _, derivationPath) <-
+        readRewardAccount @(SharedState n SharedKey) db
     balance <- getCachedRewardAccountBalance netLayer rewardAccount
     pp <- currentProtocolParameters netLayer
     return $ case checkRewardIsWorthTxCost txWitnessTag pp era balance of
@@ -1312,25 +1313,25 @@ checkRewardIsWorthTxCost txWitnessTag pp balance = do
         dummyPath = DerivationIndex 0 :| []
 
 readRewardAccount
-    :: forall n
-     . DBLayer IO (SeqState n ShelleyKey)
-    -> IO (RewardAccount, XPub, NonEmpty DerivationIndex)
+    :: forall s.
+    ( WalletFlavor s
+    , Including AllFlavors '[ 'ShelleyF, 'SharedF] (FlavorOf s)
+    )
+    => DBLayer IO s
+    -> IO (RewardAccount, Maybe XPub, NonEmpty DerivationIndex)
 readRewardAccount db = do
-    walletState <- getState <$> readWalletCheckpoint db
-    let xpub = Seq.rewardAccountKey walletState
-    let path = stakeDerivationPath $ Seq.derivationPrefix walletState
-    pure (toRewardAccount xpub, getRawKey ShelleyKeyS xpub, path)
-
-readSharedRewardAccount
-    :: forall n
-     . DBLayer IO (SharedState n SharedKey)
-    -> IO (Maybe (RewardAccount, NonEmpty DerivationIndex))
-readSharedRewardAccount db = do
-    walletState <- getState <$> readWalletCheckpoint db
-    let path = stakeDerivationPath $ Shared.derivationPrefix walletState
-    case Shared.rewardAccountKey walletState of
-        Just rewardAcct -> pure $ Just (rewardAcct, path)
-        Nothing -> pure Nothing
+    case walletFlavor @s of
+        ShelleyWallet -> do
+            walletState <- getState <$> readWalletCheckpoint db
+            let xpub = Seq.rewardAccountKey walletState
+            let path = stakeDerivationPath $ Seq.derivationPrefix walletState
+            pure (toRewardAccount xpub, Just $ getRawKey ShelleyKeyS xpub, path)
+        SharedWallet -> do
+            walletState <- getState <$> readWalletCheckpoint db
+            let path = stakeDerivationPath $ Shared.derivationPrefix walletState
+            case Shared.rewardAccountKey walletState of
+                Just rewardAcct -> pure $ (rewardAcct, Nothing, path)
+                Nothing -> throwIO $ ExceptionReadRewardAccount ErrReadRewardAccountMissing
 
 readWalletCheckpoint
     :: DBLayer IO s -> IO (Wallet s)
@@ -1360,7 +1361,7 @@ shelleyOnlyReadRewardAccount
      . WalletFlavor s
     => DBLayer IO s
     -> ExceptT ErrReadRewardAccount IO
-        (RewardAccount, XPub, NonEmpty DerivationIndex)
+        (RewardAccount, Maybe XPub, NonEmpty DerivationIndex)
 shelleyOnlyReadRewardAccount db = do
     case walletFlavor @s of
         ShelleyWallet -> lift $ readRewardAccount db
@@ -1434,11 +1435,9 @@ manageSharedRewardBalance tr' netLayer db = do
     watchNodeTip netLayer $ \bh -> do
          traceWith tr $ MsgRewardBalanceQuery bh
          query <- runExceptT $ do
-            acctM <- lift $ readSharedRewardAccount db
-            case acctM of
-                Nothing -> throwE ErrFetchRewardsMissingRewardAccount
-                Just acct ->
-                    liftIO $ getCachedRewardAccountBalance netLayer (fst acct)
+            (acct, _, _) <-
+                lift $ readRewardAccount @(SharedState n SharedKey) db
+            liftIO $ getCachedRewardAccountBalance netLayer acct
          handleRewardAccountQuery tr db query
     traceWith tr MsgRewardBalanceExited
   where
@@ -2302,7 +2301,7 @@ constructTransaction
     -> ExceptT ErrConstructTx IO (Cardano.TxBody era)
 constructTransaction txLayer db txCtx preSel = do
     (_, xpub, _) <- lift $ readRewardAccount db
-    mkUnsignedTransaction txLayer (Left xpub) txCtx (Left preSel)
+    mkUnsignedTransaction txLayer (Left $ fromJust xpub) txCtx (Left preSel)
         & withExceptT ErrConstructTxBody . except
 
 constructUnbalancedSharedTransaction

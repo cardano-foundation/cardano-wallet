@@ -2570,7 +2570,7 @@ constructTransaction api argGenChange knownPools poolStatus apiWalletId body = d
 
         apiDecoded <- decodeTransaction @_ @n api apiWalletId balancedTx
 
-        (_, _, rewardPath) <- handler $ W.readRewardAccount @n db
+        (_, _, rewardPath) <- handler $ W.readRewardAccount @s db
 
         let deposits = case txDelegationAction transactionCtx2 of
                 Just (JoinRegisteringKey _poolId) -> [W.getStakeKeyDeposit pp]
@@ -2938,26 +2938,26 @@ constructSharedTransaction
                 let refunds = case optionalDelegationAction of
                         Just Quit -> [W.getStakeKeyDeposit pp]
                         _ -> []
-                rewardAccountM <- handler $ W.readSharedRewardAccount @n db
-                delCerts <- case optionalDelegationAction of
+                delCertsWithPath <- case optionalDelegationAction of
                     Nothing -> pure Nothing
                     Just action -> do
-                        --at this moment we are sure reward account is present
-                        --if not ErrConstructTxDelegationInvalid would be thrown already
-                        pure $ Just (action, snd $ fromJust rewardAccountM)
+                        (_, _, path) <-
+                            handler $ W.readRewardAccount @((SharedState n SharedKey)) db
+                        pure $ Just (action, path)
 
                 pure $ ApiConstructTransaction
                     { transaction = balancedTx
                     , coinSelection =
                         mkApiCoinSelection deposits refunds
-                        delCerts md (unsignedTx outs apiDecoded rewardAccountM)
+                        delCertsWithPath md
+                        (unsignedTx outs apiDecoded (snd <$> delCertsWithPath))
                     , fee = apiDecoded ^. #fee
                     }
   where
     ti :: TimeInterpreter (ExceptT PastHorizonException IO)
     ti = timeInterpreter (api ^. networkLayer)
 
-    unsignedTx initialOuts decodedTx rewardAccountM = UnsignedTx
+    unsignedTx initialOuts decodedTx pathM = UnsignedTx
         { unsignedCollateral =
             mapMaybe toUnsignedTxInp (decodedTx ^. #collateral)
         , unsignedInputs =
@@ -2968,9 +2968,9 @@ constructSharedTransaction
         , unsignedChange =
             drop (length initialOuts)
                 $ map toUnsignedTxChange (decodedTx ^. #outputs)
-        , unsignedWithdrawals = case rewardAccountM of
+        , unsignedWithdrawals = case pathM of
                 Nothing -> []
-                Just (_, path) ->
+                Just path ->
                     mapMaybe (toUsignedTxWdrl path) (decodedTx ^. #withdrawals)
         }
 
@@ -3700,7 +3700,7 @@ listStakeKeys lookupStakeRef ctx@ApiLayer{..} (ApiT wid) =
         (wal, (_, delegation) ,pending) <- W.readWallet @_ @s wrk
         let utxo = availableUTxO @s pending wal
         let takeFst (a,_,_) = a
-        ourAccount <- takeFst <$> liftIO (W.readRewardAccount @n db)
+        ourAccount <- takeFst <$> liftIO (W.readRewardAccount @s db)
         ourApiDelegation <- liftIO $ toApiWalletDelegation delegation
             (unsafeExtendSafeZone (timeInterpreter $ ctx ^. networkLayer))
         let ourKeys = [(ourAccount, 0, ourApiDelegation)]

@@ -27,6 +27,8 @@ module Cardano.Wallet.Flavor
     , FlavorOf
     , WalletFlavors (..)
     , Excluding
+    , Including
+    , AllFlavors
     , shelleyOrShared
     , notByronKey
     , IncludingStates
