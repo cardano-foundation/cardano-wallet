@@ -164,6 +164,8 @@ import Cardano.Wallet.Primitive.Types.Coin
     ( Coin (..) )
 import Cardano.Wallet.Primitive.Types.Coin.Gen
     ( genCoin, genCoinPositive, shrinkCoin, shrinkCoinPositive )
+import Cardano.Wallet.Primitive.Types.Credentials
+    ( ClearCredentials, RootCredentials (..) )
 import Cardano.Wallet.Primitive.Types.Hash
     ( Hash (..), mockHash )
 import Cardano.Wallet.Primitive.Types.MinimumUTxO
@@ -611,6 +613,11 @@ whenSupportedInEra test era f =
         Just supported ->
             f supported
 
+mkCredentials
+    :: (XPrv, Passphrase "encryption")
+    -> ClearCredentials ShelleyKey
+mkCredentials (pk, hpwd) = RootCredentials (liftRawKey ShelleyKeyS pk) hpwd
+
 prop_signTransaction_addsRewardAccountKey
     :: AnyCardanoEra
     -- ^ Era
@@ -627,14 +634,13 @@ prop_signTransaction_addsRewardAccountKey
     whenSupportedInEra Cardano.withdrawalsSupportedInEra era $
     \(supported :: Cardano.WithdrawalsSupportedInEra era) -> do
         let
-            rootK :: (ShelleyKey 'RootK XPrv, Passphrase "encryption")
-            rootK = first (liftRawKey ShelleyKeyS) rootXPrv
+            creds@(RootCredentials pk hpwd) = mkCredentials rootXPrv
 
             rawRewardK :: (XPrv, Passphrase "encryption")
             rawRewardK =
                 ( getRawKey ShelleyKeyS
-                    $ deriveRewardAccount (snd rootK) (fst rootK) minBound
-                , snd rootK
+                    $ deriveRewardAccount hpwd pk minBound
+                , hpwd
                 )
 
             rewardAcctPubKey :: XPub
@@ -665,7 +671,7 @@ prop_signTransaction_addsRewardAccountKey
                 sealedTx = sealedTxFromCardano' $ Cardano.Tx txBody wits
                 sealedTx' = signTransaction ShelleyKeyS
                     tl (AnyCardanoEra era) AnyWitnessCountCtx
-                    (const Nothing) Nothing rootK utxo Nothing sealedTx
+                    (const Nothing) Nothing creds utxo Nothing sealedTx
 
                 expectedWits :: [InAnyCardanoEra Cardano.KeyWitness]
                 expectedWits = InAnyCardanoEra era <$>
@@ -744,7 +750,7 @@ prop_signTransaction_addsExtraKeyWitnesses
                 AnyWitnessCountCtx
                 (lookupFnFromKeys extraKeys)
                 Nothing
-                (first (liftRawKey ShelleyKeyS) rootK)
+                (mkCredentials rootK)
                 utxo
                 Nothing
                 sealedTx
@@ -883,7 +889,7 @@ prop_signTransaction_addsTxInWitnesses
                     AnyWitnessCountCtx
                     (lookupFnFromKeys extraKeys)
                     Nothing
-                    (first (liftRawKey ShelleyKeyS) rootK)
+                    (mkCredentials rootK)
                     utxo
                     Nothing
                     sealedTx
@@ -939,7 +945,7 @@ prop_signTransaction_addsTxInCollateralWitnesses
                         AnyWitnessCountCtx
                         (lookupFnFromKeys extraKeys)
                         Nothing
-                        (first (liftRawKey ShelleyKeyS) rootK)
+                        (mkCredentials rootK)
                         utxo
                         Nothing
                         sealedTx
@@ -978,7 +984,7 @@ prop_signTransaction_neverRemovesWitnesses
                 AnyWitnessCountCtx
                 (lookupFnFromKeys extraKeys)
                 Nothing
-                (first (liftRawKey ShelleyKeyS) rootK)
+                (mkCredentials rootK)
                 utxo
                 Nothing
                 sealedTx
@@ -1013,7 +1019,7 @@ prop_signTransaction_neverChangesTxBody
                 AnyWitnessCountCtx
                 (lookupFnFromKeys extraKeys)
                 Nothing
-                (first (liftRawKey ShelleyKeyS) rootK)
+                (mkCredentials rootK)
                 utxo
                 Nothing
                 sealedTx
@@ -1053,7 +1059,7 @@ prop_signTransaction_preservesScriptIntegrity (AnyCardanoEra era) rootK utxo =
                 AnyWitnessCountCtx
                 (const Nothing)
                 Nothing
-                (first (liftRawKey ShelleyKeyS) rootK)
+                (mkCredentials rootK)
                 utxo
                 Nothing
                 sealedTx
@@ -2220,7 +2226,7 @@ dummyShelleyChangeAddressGen = AnyChangeAddressGenWithState
         (delegationAddress @ShelleyKey SMainnet)
         )
     (mkSeqStateFromRootXPrv ShelleyKeyS
-        (rootK, pwd)
+        (RootCredentials rootK pwd)
         purposeCIP1852
         defaultAddressPoolGap)
 

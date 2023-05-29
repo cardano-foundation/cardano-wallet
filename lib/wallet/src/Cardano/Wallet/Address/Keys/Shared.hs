@@ -40,7 +40,7 @@ import Cardano.Address.Script
     , validateScriptTemplate
     )
 import Cardano.Crypto.Wallet
-    ( XPrv, XPub, unXPub )
+    ( XPub, unXPub )
 import Cardano.Wallet.Address.Derivation
     ( Depth (..)
     , DerivationPrefix (..)
@@ -69,8 +69,6 @@ import Cardano.Wallet.Address.Keys.WalletKey
     ( getRawKey, publicKey )
 import Cardano.Wallet.Flavor
     ( KeyFlavorS )
-import Cardano.Wallet.Primitive.Passphrase
-    ( Passphrase )
 import Cardano.Wallet.Primitive.Types.RewardAccount
     ( RewardAccount (..) )
 import Control.Monad
@@ -85,6 +83,8 @@ import Data.Either.Combinators
 import Cardano.Address.Script.Parser
     ( scriptToText )
 import qualified Cardano.Address.Style.Shelley as CA
+import Cardano.Wallet.Primitive.Types.Credentials
+    ( ClearCredentials, RootCredentials (..) )
 import qualified Data.Foldable as F
 import qualified Data.Map.Strict as Map
 import qualified Data.Text.Encoding as T
@@ -114,13 +114,13 @@ mkSharedStateFromAccountXPub kF accXPub accIx gap pTemplate dTemplateM =
 mkSharedStateFromRootXPrv
     :: (SupportsDiscovery n k, k ~ SharedKey)
     => KeyFlavorS k
-    -> (k 'RootK XPrv, Passphrase "encryption")
+    -> ClearCredentials k
     -> Index 'Hardened 'AccountK
     -> AddressPoolGap
     -> ScriptTemplate
     -> Maybe ScriptTemplate
     -> SharedState n k
-mkSharedStateFromRootXPrv kF (rootXPrv, pwd) accIx =
+mkSharedStateFromRootXPrv kF (RootCredentials rootXPrv pwd) accIx =
     mkSharedStateFromAccountXPub kF accXPub accIx
   where
     accXPub = publicKey kF $ deriveAccountPrivateKey pwd rootXPrv accIx

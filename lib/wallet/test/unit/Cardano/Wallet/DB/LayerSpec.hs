@@ -146,6 +146,8 @@ import Cardano.Wallet.Primitive.Types.Address
     ( Address (..) )
 import Cardano.Wallet.Primitive.Types.Coin
     ( Coin (..) )
+import Cardano.Wallet.Primitive.Types.Credentials
+    ( RootCredentials (..) )
 import Cardano.Wallet.Primitive.Types.Hash
     ( Hash (..), mockHash )
 import Cardano.Wallet.Primitive.Types.TokenBundle
@@ -1471,7 +1473,8 @@ testCp = snd $ initWallet block0 initDummyState
   where
     initDummyState :: TestState
     initDummyState = mkSeqStateFromRootXPrv
-        ShelleyKeyS (xprv, mempty) purposeCIP1852 defaultAddressPoolGap
+        ShelleyKeyS (RootCredentials xprv mempty)
+        purposeCIP1852 defaultAddressPoolGap
       where
         mw = SomeMnemonic . unsafePerformIO . generate $ genMnemonic @15
         xprv = generateKeyFromSeed (mw, Nothing) mempty
@@ -1576,7 +1579,7 @@ testCpSeq = snd $ initWallet block0 initDummyStateSeq
 
 initDummyStateSeq :: TestState
 initDummyStateSeq = mkSeqStateFromRootXPrv
-    ShelleyKeyS (xprv, mempty) purposeCIP1852 defaultAddressPoolGap
+    ShelleyKeyS (RootCredentials xprv mempty) purposeCIP1852 defaultAddressPoolGap
   where
       mw = SomeMnemonic $ unsafePerformIO (generate $ genMnemonic @15)
       xprv = Seq.generateKeyFromSeed (mw, Nothing) mempty

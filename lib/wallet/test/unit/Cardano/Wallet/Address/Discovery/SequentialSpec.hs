@@ -81,6 +81,8 @@ import Cardano.Wallet.Flavor
     ( KeyFlavorS (..), WalletFlavorS (ShelleyWallet) )
 import Cardano.Wallet.Primitive.Types.Address
     ( Address (..), AddressState (..) )
+import Cardano.Wallet.Primitive.Types.Credentials
+    ( RootCredentials (..) )
 import Cardano.Wallet.Read.NetworkId
     ( NetworkDiscriminant (..), SNetworkId (..) )
 import Cardano.Wallet.Unsafe
@@ -264,7 +266,8 @@ prop_genChangeGapFromRootXPrv g = property $
   where
     mw = someDummyMnemonic (Proxy @12)
     key = Shelley.unsafeGenerateKeyFromSeed (mw, Nothing) mempty
-    s0 = mkSeqStateFromRootXPrv ShelleyKeyS (key, mempty) purposeCIP1852 g
+    s0 = mkSeqStateFromRootXPrv ShelleyKeyS
+        (RootCredentials key mempty) purposeCIP1852 g
 
 -- | We can always generate at exactly `gap` change addresses (on the internal
 -- chain) using mkSeqStateFromAccountXPub

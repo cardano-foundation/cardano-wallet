@@ -450,7 +450,7 @@ import Cardano.Wallet.Primitive.Types.Address
 import Cardano.Wallet.Primitive.Types.Coin
     ( Coin (..) )
 import Cardano.Wallet.Primitive.Types.Credentials
-    ( RootCredentials (..) )
+    ( ClearCredentials, RootCredentials (..) )
 import Cardano.Wallet.Primitive.Types.Hash
     ( Hash (..) )
 import Cardano.Wallet.Primitive.Types.RewardAccount
@@ -848,7 +848,7 @@ createIcarusWallet
     -> DBFresh IO s
     -> WalletId
     -> WalletName
-    -> (k 'RootK XPrv, Passphrase "encryption")
+    -> ClearCredentials k
     -> ExceptT ErrWalletAlreadyExists IO (DBLayer IO s)
 createIcarusWallet
     (block0, NetworkParameters gp _sp _pp)
@@ -1850,7 +1850,7 @@ signTransaction
   -- ^ The wallets address-key lookup function
   -> (Maybe (XPrv, Passphrase "encryption"))
   -- ^ Optional external reward account
-  -> (k 'RootK XPrv, Passphrase "encryption")
+  -> ClearCredentials k
   -- ^ The root key of the wallet
   -> UTxO
   -- ^ The total UTxO set of the wallet (i.e. if pending transactions all
@@ -1863,7 +1863,7 @@ signTransaction
   -- ^ The original transaction, with additional signatures added where
   -- necessary
 signTransaction key tl preferredLatestEra witCountCtx keyLookup mextraRewardAcc
-    (rootKey, rootPwd) utxo accIxForStakingM =
+    (RootCredentials rootKey rootPwd) utxo accIxForStakingM =
     let
         rewardAcnts :: [(XPrv, Passphrase "encryption")]
         rewardAcnts = ourRewardAcc : maybeToList mextraRewardAcc
@@ -1919,7 +1919,7 @@ signTransaction key tl preferredLatestEra witCountCtx keyLookup mextraRewardAcc
             inputResolver
 
 type MakeRewardAccountBuilder k =
-    (k 'RootK XPrv, Passphrase "encryption") -> (XPrv, Passphrase "encryption")
+    ClearCredentials k -> (XPrv, Passphrase "encryption")
 
 data ErrWriteTxEra
     = ErrNodeNotYetInRecentEra Cardano.AnyCardanoEra
@@ -2103,7 +2103,7 @@ buildAndSignTransactionPure
             AnyWitnessCountCtx
             (isOwned wF (getState wallet) (rootKey, passphrase))
             mExternalRewardAccount
-            (rootKey, passphrase)
+            (RootCredentials rootKey passphrase)
             (wallet ^. #utxo)
             Nothing
             (sealedTxFromCardano $ inAnyCardanoEra unsignedBalancedTx)
@@ -2293,7 +2293,7 @@ buildAndSignTransaction ctx wid era mkRwdAcct pwd txCtx sel = db & \DBLayer{..} 
             cp <- lift readCheckpoint
             pp <- liftIO $ currentProtocolParameters nl
             let keyFrom = isOwned wF (getState cp) (xprv, pwdP)
-            let rewardAcnt = mkRwdAcct (xprv, pwdP)
+            let rewardAcnt = mkRwdAcct $ RootCredentials xprv pwdP
             (tx, sealedTx) <- withExceptT ErrSignPaymentMkTx $ ExceptT $ pure $
                 mkTransaction tl era rewardAcnt keyFrom pp txCtx sel
             let amountOut :: Coin =
