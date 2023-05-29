@@ -215,7 +215,6 @@ import Cardano.Wallet.Transaction
     , WitnessCount (..)
     , WitnessCountCtx (..)
     , mapTxFeeAndChange
-    , withdrawalToCoin
     )
 import Cardano.Wallet.TxWitnessTag
     ( TxWitnessTag (..), TxWitnessTagFor (..) )
@@ -1433,7 +1432,6 @@ txConstraints protocolParams witnessTag = TxConstraints
 data TxSkeleton = TxSkeleton
     { txMetadata :: !(Maybe TxMetadata)
     , txDelegationAction :: !(Maybe DelegationAction)
-    , txRewardWithdrawal :: !Coin
     , txWitnessTag :: !TxWitnessTag
     , txInputCount :: !Int
     , txOutputs :: ![TxOut]
@@ -1453,7 +1451,6 @@ emptyTxSkeleton :: TxWitnessTag -> TxSkeleton
 emptyTxSkeleton txWitnessTag = TxSkeleton
     { txMetadata = Nothing
     , txDelegationAction = Nothing
-    , txRewardWithdrawal = Coin 0
     , txWitnessTag
     , txInputCount = 0
     , txOutputs = []
@@ -1476,7 +1473,6 @@ mkTxSkeleton
 mkTxSkeleton witness context skeleton = TxSkeleton
     { txMetadata = view #txMetadata context
     , txDelegationAction = view #txDelegationAction context
-    , txRewardWithdrawal = withdrawalToCoin $ view #txWithdrawal context
     , txWitnessTag = witness
     , txInputCount = view #skeletonInputCount skeleton
     , txOutputs = view #skeletonOutputs skeleton
@@ -1721,7 +1717,6 @@ estimateTxSize skeleton =
     TxSkeleton
         { txMetadata
         , txDelegationAction
-        , txRewardWithdrawal
         , txWitnessTag
         , txInputCount
         , txOutputs
@@ -1737,9 +1732,6 @@ estimateTxSize skeleton =
     numberOf_CertificateSignatures
         = maybe 0 (const 1) txDelegationAction
 
-    numberOf_Withdrawals
-        = if txRewardWithdrawal > Coin 0 then 1 else 0
-
     -- Total number of signatures the scripts require
     numberOf_MintingWitnesses
         = intCast $ sumVia estimateMaxWitnessRequiredPerInput txMintOrBurnScripts
@@ -1753,12 +1745,10 @@ estimateTxSize skeleton =
             TxWitnessShelleyUTxO ->
                 if numberOf_ScriptVkeyWitnesses == 0 then
                     numberOf_Inputs
-                    + numberOf_Withdrawals
                     + numberOf_CertificateSignatures
                     + numberOf_MintingWitnesses
                 else
                     (numberOf_Inputs * numberOf_ScriptVkeyWitnesses)
-                    + numberOf_Withdrawals
                     + numberOf_CertificateSignatures
                     + numberOf_MintingWitnesses
 
@@ -1797,7 +1787,6 @@ estimateTxSize skeleton =
         + sizeOf_Fee
         + sizeOf_Ttl
         + sizeOf_Certificates
-        + sizeOf_Withdrawals
         + sizeOf_Update
         + sizeOf_MetadataHash
         + sizeOf_ValidityIntervalStart
@@ -1844,13 +1833,6 @@ estimateTxSize skeleton =
                     sizeOf_SmallUInt
                     + sizeOf_SmallArray
                     + sizeOf_StakeDeregistration
-
-        -- ?5 => withdrawals
-        sizeOf_Withdrawals
-            = (if numberOf_Withdrawals > 0
-                then sizeOf_SmallUInt + sizeOf_SmallMap
-                else 0)
-            + intCast sizeOfSignedWithdrawal * numberOf_Withdrawals
 
         -- ?6 => update
         sizeOf_Update

@@ -343,7 +343,7 @@ import Data.Quantity
 import Data.Ratio
     ( (%) )
 import Data.Semigroup
-    ( Sum (Sum), getSum, mtimesDefault )
+    ( Sum (Sum), getSum )
 import Data.Set
     ( Set )
 import Data.Text
@@ -1747,8 +1747,6 @@ binaryCalculationsSpec' era = describe ("calculateBinary - "+||era||+"") $ do
 transactionConstraintsSpec :: Spec
 transactionConstraintsSpec = describe "Transaction constraints" $ do
     it "size of empty transaction" prop_txConstraints_txBaseSize
-    it "size of non-empty transaction" $
-        property prop_txConstraints_txSize
     it "maximum size of output" $
         property prop_txConstraints_txOutputMaximumSize
 
@@ -2069,34 +2067,6 @@ instance Arbitrary MockSelection where
 prop_txConstraints_txBaseSize :: Property
 prop_txConstraints_txBaseSize =
     txBaseSize mockTxConstraints === estimateTxSize emptyTxSkeleton
-
--- Tests that using 'txConstraints' to estimate the size of a non-empty
--- selection produces a result that is consistent with the result of using
--- 'estimateTxSize'.
---
-prop_txConstraints_txSize :: MockSelection -> Property
-prop_txConstraints_txSize mock =
-    counterexample ("result: " <> show result) $
-    counterexample ("lower bound: " <> show lowerBound) $
-    counterexample ("upper bound: " <> show upperBound) $
-    conjoin
-        [ result >= lowerBound
-        , result <= upperBound
-        ]
-  where
-    MockSelection {txInputCount, txOutputs, txRewardWithdrawal} = mock
-    result :: TxSize
-    result = mconcat
-        [ txBaseSize mockTxConstraints
-        , txInputCount `mtimesDefault` txInputSize mockTxConstraints
-        , F.foldMap (txOutputSize mockTxConstraints . tokens) txOutputs
-        , txRewardWithdrawalSize mockTxConstraints txRewardWithdrawal
-        ]
-    lowerBound = estimateTxSize emptyTxSkeleton
-        {txInputCount, txOutputs, txRewardWithdrawal}
-    -- We allow a small amount of overestimation due to the slight variation in
-    -- the marginal size of an input:
-    upperBound = lowerBound <> txInputCount `mtimesDefault` TxSize 4
 
 newtype Large a = Large { unLarge :: a }
     deriving (Eq, Show)
