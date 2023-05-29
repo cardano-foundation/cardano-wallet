@@ -471,7 +471,6 @@ withShelleyServer tracers action = do
                 , _manager = manager
                 , _walletPort = Port . fromIntegral $ portFromURL baseUrl
                 , _faucet = faucet
-                , _feeEstimator = \_ -> error "feeEstimator not available"
                 , _networkParameters = np
                 , _poolGarbageCollectionEvents =
                     error "poolGarbageCollectionEvents not available"
