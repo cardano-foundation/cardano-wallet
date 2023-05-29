@@ -251,7 +251,6 @@ import Cardano.Tx.Balance.Internal.CoinSelection
     , SelectionError (..)
     , SelectionOf (..)
     , UnableToConstructChangeError (..)
-    , emptySkeleton
     )
 import Cardano.Wallet.Address.Book
     ( AddressBookIso, Prologue (..), getDiscoveries, getPrologue )
@@ -481,8 +480,6 @@ import Cardano.Wallet.Shelley.Compatibility
     )
 import Cardano.Wallet.Shelley.Compatibility.Ledger
     ( toWallet )
-import Cardano.Wallet.Shelley.Transaction
-    ( calculateMinimumFee, getFeePerByteFromWalletPParams )
 import Cardano.Wallet.Transaction
     ( DelegationAction (..)
     , ErrCannotJoin (..)
@@ -501,8 +498,6 @@ import Cardano.Wallet.Transaction
     )
 import Cardano.Wallet.Transaction.Built
     ( BuiltTx (..) )
-import Cardano.Wallet.TxWitnessTag
-    ( TxWitnessTag )
 import Cardano.Wallet.Write.Tx
     ( recentEra )
 import Cardano.Wallet.Write.Tx.Balance
@@ -517,6 +512,8 @@ import Cardano.Wallet.Write.Tx.Balance
     , balanceTransaction
     , constructUTxOIndex
     )
+import Cardano.Wallet.Write.Tx.Size
+    ( sizeOfSignedWithdrawal )
 import Cardano.Wallet.Write.Tx.TimeTranslation
     ( TimeTranslation )
 import Control.Arrow
@@ -1225,71 +1222,65 @@ fetchRewardBalance :: forall s . DBLayer IO s -> IO Coin
 fetchRewardBalance DBLayer{..} = atomically readDelegationRewardBalance
 
 mkExternalWithdrawal
-    :: NetworkLayer IO block
-    -> TxWitnessTag
+    :: Write.IsRecentEra era
+    => NetworkLayer IO block
+    -> Write.ProtocolParameters era
     -> SomeMnemonic
     -> IO (Either ErrWithdrawalNotBeneficial Withdrawal)
-mkExternalWithdrawal netLayer txWitnessTag mnemonic = do
+mkExternalWithdrawal netLayer pp mnemonic = do
     let (_, rewardAccount, derivationPath) =
             someRewardAccount @ShelleyKey mnemonic
     balance <- getCachedRewardAccountBalance netLayer rewardAccount
-    pp <- currentProtocolParameters netLayer
     let (xprv, _acct , _path) = someRewardAccount @ShelleyKey mnemonic
-    pure $ checkRewardIsWorthTxCost txWitnessTag pp balance $>
+    pure $ checkRewardIsWorthTxCost pp balance $>
         WithdrawalExternal rewardAccount derivationPath balance xprv
 
 mkSelfWithdrawal
-    :: NetworkLayer IO block
-    -> TxWitnessTag
+    :: Write.IsRecentEra era
+    => NetworkLayer IO block
+    -> Write.ProtocolParameters era
     -> DBLayer IO (SeqState n ShelleyKey)
     -> IO Withdrawal
-mkSelfWithdrawal netLayer txWitnessTag db = do
+mkSelfWithdrawal netLayer pp db = do
     (rewardAccount, _, derivationPath) <- readRewardAccount db
     balance <- getCachedRewardAccountBalance netLayer rewardAccount
-    pp <- currentProtocolParameters netLayer
-    pure $ case checkRewardIsWorthTxCost txWitnessTag pp balance of
+    pure $ case checkRewardIsWorthTxCost pp balance of
         Left ErrWithdrawalNotBeneficial -> NoWithdrawal
         Right () -> WithdrawalSelf rewardAccount derivationPath balance
 
 -- | Unsafe version of the `mkSelfWithdrawal` function that throws an exception
 -- when applied to a non-shelley or a non-sequential wallet.
 shelleyOnlyMkSelfWithdrawal
-    :: forall s block
-     . WalletFlavor s
+    :: forall s block era.
+        ( WalletFlavor s
+        , Write.IsRecentEra era
+        )
     => NetworkLayer IO block
-    -> TxWitnessTag
+    -> Write.ProtocolParameters era
     -> DBLayer IO s
     -> IO Withdrawal
-shelleyOnlyMkSelfWithdrawal netLayer txWitnessTag db =
+shelleyOnlyMkSelfWithdrawal netLayer pp db =
     case walletFlavor @s  of
-        ShelleyWallet -> mkSelfWithdrawal netLayer txWitnessTag db
+        ShelleyWallet -> mkSelfWithdrawal netLayer pp db
         _ -> notShelleyWallet
   where
     notShelleyWallet = throwIO
         $ ExceptionReadRewardAccount ErrReadRewardAccountNotAShelleyWallet
 
+-- Assumes shelley wallet
 checkRewardIsWorthTxCost
-    :: TxWitnessTag
-    -> ProtocolParameters
+    :: forall era. Write.IsRecentEra era
+    => Write.ProtocolParameters era
     -> Coin
     -> Either ErrWithdrawalNotBeneficial ()
-checkRewardIsWorthTxCost txWitnessTag pp balance = do
+checkRewardIsWorthTxCost (Write.ProtocolParameters pp) balance = do
     when (balance == Coin 0)
         $ Left ErrWithdrawalNotBeneficial
-    let minimumCost txCtx =
-            calculateMinimumFee feePerByte txWitnessTag txCtx emptySkeleton
-        costWith = minimumCost $ mkTxCtx balance
-        costWithout = minimumCost $ mkTxCtx $ Coin 0
-        worthOfWithdrawal = Coin.toInteger costWith - Coin.toInteger costWithout
-    when (Coin.toInteger balance < 2 * worthOfWithdrawal)
+    let costOfWithdrawal = toWallet $ Write.feeOfBytes
+            (Write.getFeePerByte (recentEra @era) pp)
+            sizeOfSignedWithdrawal
+    when (Coin.toInteger balance < 2 * Coin.toInteger costOfWithdrawal)
         $ Left ErrWithdrawalNotBeneficial
-  where
-    feePerByte = getFeePerByteFromWalletPParams pp
-    mkTxCtx wdrl = defaultTransactionCtx
-        { txWithdrawal = WithdrawalSelf dummyAcct dummyPath wdrl }
-      where
-        dummyAcct = FromKeyHash mempty
-        dummyPath = DerivationIndex 0 :| []
 
 readRewardAccount
     :: forall n

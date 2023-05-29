@@ -1761,7 +1761,6 @@ selectCoins
         , s ~ SeqState n k
         , AddressBookIso s
         , GenChange s
-        , TxWitnessTagFor k
         )
     => ApiLayer s
     -> ArgGenChange s
@@ -1779,7 +1778,7 @@ selectCoins ctx@ApiLayer {..} argGenChange (ApiT walletId) body = do
             body ^. #withdrawal
                 & maybe (pure NoWithdrawal)
                     (shelleyOnlyMkWithdrawal @s
-                        netLayer (txWitnessTagFor @k) db)
+                        netLayer pp db)
         let genChange = W.defaultChangeAddressGen argGenChange
         let paymentOuts = NE.toList $ addressAmountToTxOut <$> body ^. #payments
         let txCtx = defaultTransactionCtx
@@ -1885,7 +1884,6 @@ selectCoinsForQuit
         , AddressBookIso s
         , Seq.SupportsDiscovery n k
         , DelegationAddress k 'CredFromKeyK
-        , TxWitnessTagFor k
         )
     => ApiLayer (SeqState n k)
     -> ApiT WalletId
@@ -1895,8 +1893,7 @@ selectCoinsForQuit ctx@ApiLayer{..} (ApiT walletId) = do
         <- liftIO $ W.readNodeTipStateForTxWrite netLayer
     withWorkerCtx ctx walletId liftE liftE $ \workerCtx -> liftIO $ do
         let db = workerCtx ^. typed @(DBLayer IO s)
-        withdrawal <- W.shelleyOnlyMkSelfWithdrawal @s
-            netLayer (txWitnessTagFor @k) db
+        withdrawal <- W.shelleyOnlyMkSelfWithdrawal @s netLayer pp db
         action <- WD.quitStakePoolDelegationAction db withdrawal
         let changeAddrGen = W.defaultChangeAddressGen (delegationAddressS @n)
         let txCtx = defaultTransactionCtx
@@ -2152,7 +2149,6 @@ postTransactionOld
         , HasNetworkLayer IO ctx
         , IsOwned s k 'CredFromKeyK
         , Bounded (Index (AddressIndexDerivationType k) (AddressCredential k))
-        , TxWitnessTagFor k
         , AddressBookIso s
         , HasDelegation s
         , WalletFlavor s
@@ -2173,11 +2169,17 @@ postTransactionOld ctx@ApiLayer{..} argGenChange (ApiT wid) body = do
     withWorkerCtx ctx wid liftE liftE $ \wrk -> do
         let db = wrk ^. dbLayer
         ttl <- liftIO $ W.transactionExpirySlot ti mTTL
+
+
+        -- FIXME: Is only used for withdrawals. Is read again in
+        -- buildSignSubmitTransaction.
+        (Write.InAnyRecentEra _ ppForWithdrawals, _)
+            <- liftIO $ W.readNodeTipStateForTxWrite netLayer
+
         wdrl <- case body ^. #withdrawal of
             Nothing -> pure NoWithdrawal
             Just apiWdrl ->
-                shelleyOnlyMkWithdrawal @s
-                    netLayer (txWitnessTagFor @k) db apiWdrl
+                shelleyOnlyMkWithdrawal @s netLayer ppForWithdrawals db apiWdrl
         let txCtx = defaultTransactionCtx
                 { txWithdrawal = wdrl
                 , txMetadata = md
@@ -2335,7 +2337,6 @@ postTransactionFeeOld
      . ( WalletFlavor s
        , Excluding '[SharedKey] k
        , AddressBookIso s
-       , TxWitnessTagFor k
        , k ~ KeyOf s
        , CredFromOf s ~ 'CredFromKeyK
        )
@@ -2359,7 +2360,7 @@ postTransactionFeeOld ctx@ApiLayer{..} (ApiT walletId) body = do
             Nothing -> pure NoWithdrawal
             Just apiWdrl ->
                 shelleyOnlyMkWithdrawal @s
-                    netLayer (txWitnessTagFor @k) db apiWdrl
+                    netLayer pp db apiWdrl
         let outputs = F.toList $ addressAmountToTxOut <$> body ^. #payments
             minCoins = W.calcMinimumCoinValues walletPP txLayer
                 <$> outputs
@@ -2410,8 +2411,8 @@ postTransactionFeeOld ctx@ApiLayer{..} (ApiT walletId) body = do
     padding = Quantity 20
 
 constructTransaction
-    :: forall s k n
-     . (HasSNetworkId n, s ~ SeqState n ShelleyKey, k ~ KeyOf s)
+    :: forall s n
+     . (HasSNetworkId n, s ~ SeqState n ShelleyKey)
     => ApiLayer s
     -> ArgGenChange s
     -> IO (Set PoolId)
@@ -2459,7 +2460,7 @@ constructTransaction api argGenChange knownPools poolStatus apiWalletId body = d
         withdrawal <- case body ^. #withdrawal of
             Just SelfWithdraw -> liftIO $
                 W.shelleyOnlyMkSelfWithdrawal
-                    netLayer (txWitnessTagFor @k) db
+                    netLayer pp db
             _ -> pure NoWithdrawal
 
         let transactionCtx0 = defaultTransactionCtx
@@ -3697,7 +3698,6 @@ createMigrationPlan
     :: forall s n k
      . ( IsOwned s k 'CredFromKeyK
        , WalletFlavor s
-       , TxWitnessTagFor k
        , k ~ KeyOf s
        , CredFromOf s ~ 'CredFromKeyK
        )
@@ -3712,10 +3712,12 @@ createMigrationPlan
 createMigrationPlan ctx@ApiLayer{..} withdrawalType (ApiT wid) postData =
     withWorkerCtx ctx wid liftE liftE $ \wrk -> do
         let db = wrk ^. dbLayer
+        (Write.InAnyRecentEra _ ppForWithdrawals, _)
+            <- liftIO $ W.readNodeTipStateForTxWrite netLayer
         rewardWithdrawal <- case withdrawalType of
             Nothing -> pure NoWithdrawal
             Just pd -> shelleyOnlyMkWithdrawal @s
-                netLayer (txWitnessTagFor @k) db pd
+                netLayer ppForWithdrawals db pd
         (wallet, _, _) <- handler $ W.readWallet wrk
         plan <- handler $ W.createMigrationPlan @_ wrk rewardWithdrawal
         liftHandler
@@ -3791,7 +3793,6 @@ migrateWallet
         ( Bounded (Index (AddressIndexDerivationType k) (AddressCredential k))
         , HardDerivation k
         , IsOwned s k 'CredFromKeyK
-        , TxWitnessTagFor k
         , WalletFlavor s
         , HasDelegation s
         , k ~ KeyOf s
@@ -3813,10 +3814,14 @@ migrateWallet ctx@ApiLayer{..} withdrawalType (ApiT wid) postData = do
         let db = wrk ^. dbLayer
             tr = wrk ^. logger
         era <- liftIO $ NW.currentNodeEra netLayer
+        -- FIXME: Is only used for withdrawals. Is read again in
+        -- buildSignSubmitTransaction.
+        (Write.InAnyRecentEra _ ppForWithdrawals, _)
+            <- liftIO $ W.readNodeTipStateForTxWrite netLayer
         rewardWithdrawal <- case withdrawalType of
             Nothing -> pure NoWithdrawal
             Just pd -> shelleyOnlyMkWithdrawal @s
-                netLayer (txWitnessTagFor @k) db pd
+                netLayer ppForWithdrawals db pd
         plan <- handler $ W.createMigrationPlan @_ wrk rewardWithdrawal
         ttl <- liftIO $ W.transactionExpirySlot ti Nothing
         pp <- liftIO $ NW.currentProtocolParameters netLayer
@@ -4170,9 +4175,10 @@ type RewardAccountBuilder k
     -> (XPrv, Passphrase "encryption")
 
 mkWithdrawal
-    :: forall n block
-     . NetworkLayer IO block
-    -> TxWitnessTag
+    :: forall n block era
+     . Write.IsRecentEra era
+    => NetworkLayer IO block
+    -> Write.ProtocolParameters era
     -> DBLayer IO (SeqState n ShelleyKey)
     -> ApiWithdrawalPostData
     -> Handler Withdrawal
@@ -4186,17 +4192,19 @@ mkWithdrawal netLayer txWitnessTag db = \case
 -- | Unsafe version of `mkWithdrawal` that throws runtime error
 -- when applied to a non-shelley or non-sequential wallet state.
 shelleyOnlyMkWithdrawal
-    :: forall s block
-     . WalletFlavor s
+    :: forall s block era
+     . ( WalletFlavor s
+       , Write.IsRecentEra era
+       )
     => NetworkLayer IO block
-    -> TxWitnessTag
+    -> Write.ProtocolParameters era
     -> DBLayer IO s
     -> ApiWithdrawalPostData
     -> Handler Withdrawal
-shelleyOnlyMkWithdrawal netLayer txWitnessTag db postData =
+shelleyOnlyMkWithdrawal netLayer pp db postData =
     case walletFlavor @s of
         ShelleyWallet ->
-            mkWithdrawal netLayer txWitnessTag db postData
+            mkWithdrawal netLayer pp db postData
         _ -> notShelleyWallet
   where
     notShelleyWallet =

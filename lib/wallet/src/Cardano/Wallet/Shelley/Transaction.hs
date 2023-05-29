@@ -188,7 +188,13 @@ import Cardano.Wallet.Shelley.Compatibility
     , toStakePoolDlgCert
     )
 import Cardano.Wallet.Shelley.Compatibility.Ledger
-    ( toBabbageTxOut, toConwayTxOut, toLedger, toWalletCoin, toWalletScript )
+    ( toBabbageTxOut
+    , toConwayTxOut
+    , toLedger
+    , toWallet
+    , toWalletCoin
+    , toWalletScript
+    )
 import Cardano.Wallet.Shelley.MinimumUTxO
     ( computeMinimumCoinForUTxO, isBelowMinimumCoinForUTxO )
 import Cardano.Wallet.Transaction
@@ -222,6 +228,8 @@ import Cardano.Wallet.Write.Tx
     , RecentEra (..)
     , fromCardanoUTxO
     )
+import Cardano.Wallet.Write.Tx.Size
+    ( sizeOfSignedWithdrawal )
 import Cardano.Wallet.Write.Tx.TimeTranslation
     ( TimeTranslation, epochInfo, systemStartTime )
 import Codec.Serialise
@@ -1332,6 +1340,9 @@ txConstraints protocolParams witnessTag = TxConstraints
 
     constantTxFee = Coin $ ceiling intercept
     feePerByte = getFeePerByteFromWalletPParams protocolParams
+
+    feeOf = toWallet . Write.feeOfBytes feePerByte . unTxSize
+
     LinearFee LinearFunction {intercept}
         = getFeePolicy $ txParameters protocolParams
 
@@ -1365,11 +1376,11 @@ txConstraints protocolParams witnessTag = TxConstraints
     txOutputBelowMinimumAdaQuantity =
         isBelowMinimumCoinForUTxO (minimumUTxO protocolParams)
 
-    txRewardWithdrawalCost c =
-        marginalCostOf empty {txRewardWithdrawal = c}
+    txRewardWithdrawalCost =
+        feeOf . txRewardWithdrawalSize
 
-    txRewardWithdrawalSize c =
-        marginalSizeOf empty {txRewardWithdrawal = c}
+    txRewardWithdrawalSize (Coin 0) = TxSize 0
+    txRewardWithdrawalSize _ = TxSize sizeOfSignedWithdrawal
 
     txMaximumSize = protocolParams
         & view (#txParameters . #getTxMaxSize)
@@ -1839,7 +1850,7 @@ estimateTxSize skeleton =
             = (if numberOf_Withdrawals > 0
                 then sizeOf_SmallUInt + sizeOf_SmallMap
                 else 0)
-            + sizeOf_Withdrawal * numberOf_Withdrawals
+            + intCast sizeOfSignedWithdrawal * numberOf_Withdrawals
 
         -- ?6 => update
         sizeOf_Update
@@ -1991,12 +2002,6 @@ estimateTxSize skeleton =
         . CBOR.toStrictByteString
         . CBOR.encodeWord64
         . Coin.unsafeToWord64
-
-    -- withdrawals =
-    --   { * reward_account => coin }
-    sizeOf_Withdrawal
-        = sizeOf_Hash28
-        + sizeOf_LargeUInt
 
     -- [* native_script ]
     sizeOf_NativeScripts []
