@@ -2945,12 +2945,20 @@ constructSharedTransaction
                             handler $ W.readRewardAccount @((SharedState n SharedKey)) db
                         pure $ Just (action, path)
 
+                pathForWithdrawal <- case withdrawal of
+                    WithdrawalSelf _ _ _ -> do
+                        (_, _, path) <-
+                            handler $ W.readRewardAccount @((SharedState n SharedKey)) db
+                        pure $ Just path
+                    _ ->
+                        pure Nothing
+
                 pure $ ApiConstructTransaction
                     { transaction = balancedTx
                     , coinSelection =
                         mkApiCoinSelection deposits refunds
                         delCertsWithPath md
-                        (unsignedTx outs apiDecoded (snd <$> delCertsWithPath))
+                        (unsignedTx outs apiDecoded pathForWithdrawal)
                     , fee = apiDecoded ^. #fee
                     }
   where
