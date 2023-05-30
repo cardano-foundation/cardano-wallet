@@ -14,5 +14,6 @@ import Cardano.Wallet.Primitive.Types
 -- | Wallet delegation history
 type Delegations = History SlotNo PoolId
 
--- | Delta of wallet delegation history
-type DeltaDelegations  = Operation SlotNo PoolId
+-- | Delta of wallet delegation history. As always with deltas, the
+-- order of the operations matters and it's reversed! (ask the architects)
+type DeltaDelegations = [Operation SlotNo PoolId]
