@@ -506,7 +506,7 @@ import qualified Test.Hspec.Extra as Hspec
 spec :: Spec
 spec = do
     decodeSealedTxSpec
-    forAllEras feeCalculationSpec
+    feeCalculationSpec
     feeEstimationRegressionSpec
     forAllRecentEras binaryCalculationsSpec
     transactionConstraintsSpec
@@ -550,15 +550,6 @@ spec_forAllRecentEras description p =
   where
     forAllRecentEras' f = forAllRecentEras $ \(AnyRecentEra era) ->
         f $ AnyCardanoEra $ Write.cardanoEraFromRecentEra era
-
-spec_forAllEras
-    :: Testable prop => String -> (AnyCardanoEra -> prop) -> Spec
-spec_forAllEras description p =
-    describe description $
-    forAllEras
-        $ \(AnyCardanoEra era) -> it (show era)
-        $ property
-        $ p (AnyCardanoEra era)
 
 instance Arbitrary SealedTx where
     arbitrary = sealedTxFromCardano <$> genTx
@@ -1095,20 +1086,6 @@ prop_signTransaction_preservesScriptIntegrity (AnyCardanoEra era) rootK utxo =
                         )
                 ]
 
-forAllEras :: (AnyCardanoEra -> Spec) -> Spec
-forAllEras eraSpec = do
-    eraSpec (AnyCardanoEra ByronEra)
-    forAllShelleyBasedEras eraSpec
-
-forAllShelleyBasedEras :: (AnyCardanoEra -> Spec) -> Spec
-forAllShelleyBasedEras eraSpec = do
-    eraSpec (AnyCardanoEra ShelleyEra)
-    eraSpec (AnyCardanoEra AllegraEra)
-    eraSpec (AnyCardanoEra MaryEra)
-    eraSpec (AnyCardanoEra AlonzoEra)
-    eraSpec (AnyCardanoEra BabbageEra)
-    eraSpec (AnyCardanoEra ConwayEra)
-
 forAllRecentEras :: (AnyRecentEra -> Spec) -> Spec
 forAllRecentEras eraSpec = do
     eraSpec (AnyRecentEra RecentEraBabbage)
@@ -1160,8 +1137,8 @@ decodeSealedTxSpec = describe "SealedTx serialisation/deserialisation" $ do
         , "b77b47f2ddb31c19326b87ed6f71fb9a27133ad51b000000e8d4a510000e80a0f5f6"
         ]
 
-feeCalculationSpec :: AnyCardanoEra -> Spec
-feeCalculationSpec era = describe "fee calculations" $ do
+feeCalculationSpec :: Spec
+feeCalculationSpec = describe "fee calculations" $ do
     it "withdrawals incur fees" $ property $ \wdrl ->
         let
             costWith =
@@ -1456,15 +1433,15 @@ feeCalculationSpec era = describe "fee calculations" $ do
 
     minFee :: TransactionCtx -> Integer
     minFee ctx = Coin.toInteger $
-        calculateMinimumFee era feePerByte witnessTag ctx emptySkeleton
+        calculateMinimumFee feePerByte witnessTag ctx emptySkeleton
       where
         witnessTag = txWitnessTagFor @ShelleyKey
 
     minFeeSkeleton :: TxSkeleton -> Integer
-    minFeeSkeleton = Coin.toInteger . estimateTxCost era feePerByte
+    minFeeSkeleton = Coin.toInteger . estimateTxCost feePerByte
 
     estimateTxSize' :: TxSkeleton -> Integer
-    estimateTxSize' = fromIntegral . unTxSize . estimateTxSize era
+    estimateTxSize' = fromIntegral . unTxSize . estimateTxSize
 
     (dummyAcct, dummyPath) =
         (FromKeyHash mempty, DerivationIndex 0 :| [])
@@ -1769,7 +1746,7 @@ binaryCalculationsSpec' era = describe ("calculateBinary - "+||era||+"") $ do
 
 transactionConstraintsSpec :: Spec
 transactionConstraintsSpec = describe "Transaction constraints" $ do
-    spec_forAllEras "size of empty transaction" prop_txConstraints_txBaseSize
+    it "size of empty transaction" prop_txConstraints_txBaseSize
     it "size of non-empty transaction" $
         property prop_txConstraints_txSize
     it "maximum size of output" $
@@ -2038,9 +2015,9 @@ mockProtocolParameters = dummyProtocolParameters
     , minimumCollateralPercentage = 150
     }
 
-mockTxConstraints :: AnyCardanoEra -> TxConstraints
-mockTxConstraints era =
-    txConstraints era mockProtocolParameters TxWitnessShelleyUTxO
+mockTxConstraints :: TxConstraints
+mockTxConstraints =
+    txConstraints mockProtocolParameters TxWitnessShelleyUTxO
 
 data MockSelection = MockSelection
     { txInputCount :: Int
@@ -2089,17 +2066,16 @@ instance Arbitrary MockSelection where
 -- produces a result that is consistent with the result of using
 -- 'estimateTxSize'.
 --
-prop_txConstraints_txBaseSize :: AnyCardanoEra -> Property
-prop_txConstraints_txBaseSize era =
-    txBaseSize (mockTxConstraints era)
-        === estimateTxSize era emptyTxSkeleton
+prop_txConstraints_txBaseSize :: Property
+prop_txConstraints_txBaseSize =
+    txBaseSize mockTxConstraints === estimateTxSize emptyTxSkeleton
 
 -- Tests that using 'txConstraints' to estimate the size of a non-empty
 -- selection produces a result that is consistent with the result of using
 -- 'estimateTxSize'.
 --
-prop_txConstraints_txSize :: AnyCardanoEra -> MockSelection -> Property
-prop_txConstraints_txSize era mock =
+prop_txConstraints_txSize :: MockSelection -> Property
+prop_txConstraints_txSize mock =
     counterexample ("result: " <> show result) $
     counterexample ("lower bound: " <> show lowerBound) $
     counterexample ("upper bound: " <> show upperBound) $
@@ -2111,12 +2087,12 @@ prop_txConstraints_txSize era mock =
     MockSelection {txInputCount, txOutputs, txRewardWithdrawal} = mock
     result :: TxSize
     result = mconcat
-        [ txBaseSize (mockTxConstraints era)
-        , txInputCount `mtimesDefault` txInputSize (mockTxConstraints era)
-        , F.foldMap (txOutputSize (mockTxConstraints era) . tokens) txOutputs
-        , txRewardWithdrawalSize (mockTxConstraints era) txRewardWithdrawal
+        [ txBaseSize mockTxConstraints
+        , txInputCount `mtimesDefault` txInputSize mockTxConstraints
+        , F.foldMap (txOutputSize mockTxConstraints . tokens) txOutputs
+        , txRewardWithdrawalSize mockTxConstraints txRewardWithdrawal
         ]
-    lowerBound = estimateTxSize era emptyTxSkeleton
+    lowerBound = estimateTxSize emptyTxSkeleton
         {txInputCount, txOutputs, txRewardWithdrawal}
     -- We allow a small amount of overestimation due to the slight variation in
     -- the marginal size of an input:
@@ -2133,10 +2109,9 @@ instance Arbitrary (Large TokenBundle) where
 -- the bundle is oversized.
 --
 prop_txConstraints_txOutputMaximumSize
-    :: AnyCardanoEra
-    -> Blind (Large TokenBundle)
+    :: Blind (Large TokenBundle)
     -> Property
-prop_txConstraints_txOutputMaximumSize era (Blind (Large bundle)) =
+prop_txConstraints_txOutputMaximumSize (Blind (Large bundle)) =
     checkCoverage $
     cover 10 (authenticComparison == LT)
         "authentic bundle size is smaller than maximum" $
@@ -2182,9 +2157,9 @@ prop_txConstraints_txOutputMaximumSize era (Blind (Large bundle)) =
     authenticSizeMax = unTokenBundleMaxSize maryTokenBundleMaxSize
 
     simulatedSize :: TxSize
-    simulatedSize = txOutputSize (mockTxConstraints era) bundle
+    simulatedSize = txOutputSize mockTxConstraints bundle
     simulatedSizeMax :: TxSize
-    simulatedSizeMax = txOutputMaximumSize (mockTxConstraints era)
+    simulatedSizeMax = txOutputMaximumSize mockTxConstraints
 
 instance Arbitrary AssetId where
     arbitrary =

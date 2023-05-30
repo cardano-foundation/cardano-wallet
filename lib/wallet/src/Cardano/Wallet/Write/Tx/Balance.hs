@@ -129,7 +129,6 @@ import Cardano.Wallet.Write.Tx
     , feeOfBytes
     , fromCardanoTx
     , fromCardanoUTxO
-    , fromRecentEra
     , getFeePerByte
     , isBelowMinimumCoinForTxOut
     , maxScriptExecutionCost
@@ -879,9 +878,7 @@ balanceTransactionWithSelectionStrategyAndNoZeroAdaAdjustment
 -- transaction. For this, and other reasons, the selection may include too
 -- much ada.
 selectAssets
-    :: forall era changeState
-     . Cardano.IsCardanoEra era
-    => RecentEra era
+    :: forall era changeState. RecentEra era
     -> ProtocolParameters era
     -> UTxOAssumptions
     -> [W.TxOut]
@@ -925,7 +922,6 @@ selectAssets era (ProtocolParameters pp) utxoAssumptions outs redeemers
             , fee0
             , txPlutusScriptExecutionCost
             , calculateMinimumFee
-                (Cardano.AnyCardanoEra (fromRecentEra era))
                 feePerByte
                 (assumedTxWitnessTag utxoAssumptions)
                 (defaultTransactionCtx
@@ -996,7 +992,6 @@ selectAssets era (ProtocolParameters pp) utxoAssumptions outs redeemers
 
     boringFee =
         calculateMinimumFee
-            (Cardano.AnyCardanoEra (fromRecentEra era))
             feePerByte
             (assumedTxWitnessTag utxoAssumptions)
             defaultTransactionCtx
