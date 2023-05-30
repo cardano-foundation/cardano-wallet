@@ -9,12 +9,21 @@ import Prelude
 
 import Cardano.Wallet.DB.Store.Delegations.Model
     ( Delegations, DeltaDelegations )
+import Cardano.Wallet.Delegation.Model
+    ( Status (..) )
 import Cardano.Wallet.Primitive.Types
     ( DelegationCertificate, SlotNo, WalletDelegation )
+import Data.Map.Strict
+    ( lookupMax )
+import Data.Maybe
+    ( fromMaybe )
 
 
+-- | Check whether the stake key is registered in the delegation state.
 isStakeKeyRegistered :: Delegations -> Bool
-isStakeKeyRegistered = error "TODO: isStakeKeyRegistered"
+isStakeKeyRegistered m = fromMaybe False $ do
+    (_, v) <- lookupMax m
+    pure $ v /= Inactive
 
 -- ^ Binds a stake pool id to a wallet. This will have an influence on
 -- the wallet metadata: the last known certificate will indicate to
