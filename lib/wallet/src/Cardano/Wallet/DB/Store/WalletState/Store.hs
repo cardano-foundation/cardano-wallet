@@ -17,6 +17,8 @@ import Cardano.Wallet.DB.Errors
     ( ErrBadFormat (..) )
 import Cardano.Wallet.DB.Store.Checkpoints.Store
     ( PersistAddressBook (..), mkStoreCheckpoints )
+import Cardano.Wallet.DB.Store.Delegations.Store
+    ( mkStoreDelegations )
 import Cardano.Wallet.DB.Store.Info.Store
     ( mkStoreInfo )
 import Cardano.Wallet.DB.Store.PrivateKey.Store
@@ -44,6 +46,7 @@ import qualified Cardano.Wallet.Primitive.Types as W
     WalletState Store
 -------------------------------------------------------------------------------}
 
+
 -- | Store for 'WalletState' of a single wallet.
 mkStoreWallet
     :: PersistAddressBook s
@@ -56,6 +59,7 @@ mkStoreWallet wF wid = mkUpdateStore load write update
     submissionsStore = mkStoreSubmissions wid
     infoStore = mkStoreInfo
     pkStore = mkStorePrivateKey (keyOfWallet wF) wid
+    delegationsStore = mkStoreDelegations
 
     load = do
         eprologue <-
@@ -65,6 +69,7 @@ mkStoreWallet wF wid = mkUpdateStore load write update
         esubmissions <- loadS submissionsStore
         einfo <- loadS infoStore
         ecredentials <- loadS pkStore
+        edelegations <- loadS delegationsStore
         pure
             $ WalletState
                 <$> eprologue
@@ -72,6 +77,7 @@ mkStoreWallet wF wid = mkUpdateStore load write update
                 <*> esubmissions
                 <*> einfo
                 <*> ecredentials
+                <*> edelegations
 
     write wallet = do
         writeS infoStore (wallet ^. #info)
@@ -79,6 +85,7 @@ mkStoreWallet wF wid = mkUpdateStore load write update
         writeS checkpointsStore (wallet ^. #checkpoints)
         writeS submissionsStore (wallet ^. #submissions)
         writeS pkStore (wallet ^. #credentials)
+        writeS delegationsStore (wallet ^. #delegations)
 
     update = updateLoad load throwIO $ updateSequence update1
       where
@@ -93,3 +100,8 @@ mkStoreWallet wF wid = mkUpdateStore load write update
         update1 _ (UpdateInfo delta) = updateS infoStore Nothing delta
         update1 _ (UpdateCredentials delta) = do
             updateS pkStore Nothing delta
+        update1 s (UpdateDelegations deltas) = do
+            updateSequence
+                (updateS delegationsStore . Just)
+                (delegations s)
+                deltas
