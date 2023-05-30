@@ -26,7 +26,7 @@ import Cardano.Wallet.DB.Arbitrary
     ()
 import Cardano.Wallet.DB.Fixtures
     ( WalletProperty, logScale, withDBInMemory, withInitializedWalletProp )
-import Cardano.Wallet.DB.Store.Delegations
+import Cardano.Wallet.DB.Store.Delegations.Store
     ( mkStoreDelegations )
 import Cardano.Wallet.Delegation.Model
     ( Operation (..), Status (..), status )

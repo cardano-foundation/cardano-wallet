@@ -10,7 +10,7 @@
 -- License: Apache-2.0
 --
 -- Delegations-history store and migration from old db tables.
-module Cardano.Wallet.DB.Store.Delegations
+module Cardano.Wallet.DB.Store.Delegations.Store
     ( mkStoreDelegations
     , migration
     )
