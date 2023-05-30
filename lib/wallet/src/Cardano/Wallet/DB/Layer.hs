@@ -691,22 +691,12 @@ mkDBDelegation ::
     TimeInterpreter IO -> W.WalletId -> DBDelegation (SqlPersistT IO)
 mkDBDelegation ti wid =
     DBDelegation
-        { isStakeKeyRegistered_
-        , putDelegationCertificate_
+        { putDelegationCertificate_
         , putDelegationRewardBalance_
         , readDelegationRewardBalance_
         , readDelegation_
         }
   where
-    isStakeKeyRegistered_ :: SqlPersistT IO Bool
-    isStakeKeyRegistered_ = do
-        val <- fmap entityVal <$>
-            selectFirst [StakeKeyCertWalletId ==. wid] [Desc StakeKeyCertSlot]
-        pure $
-            case val of
-                Nothing -> False
-                Just (StakeKeyCertificate _ _ status) ->
-                    status == W.StakeKeyRegistration
 
     putDelegationCertificate_ ::
         W.DelegationCertificate -> W.SlotNo -> SqlPersistT IO ()

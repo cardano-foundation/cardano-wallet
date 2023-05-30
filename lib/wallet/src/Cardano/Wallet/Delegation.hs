@@ -33,6 +33,7 @@ import Cardano.Wallet
     , WalletException (..)
     , WalletLog (..)
     , fetchRewardBalance
+    , isStakeKeyRegistered
     , readRewardAccount
     , transactionExpirySlot
     )
@@ -122,7 +123,7 @@ joinStakePoolDelegationAction
     (walletDelegation, stakeKeyIsRegistered) <-
         atomically $
             (,) <$> readDelegation
-                <*> isStakeKeyRegistered
+                <*> isStakeKeyRegistered walletState
 
     let retirementInfo =
             PoolRetirementEpochInfo currentEpoch . view #retirementEpoch <$>

@@ -87,7 +87,6 @@ import Cardano.Wallet.DB.Pure.Implementation
     , TxHistory
     , WalletDatabase (..)
     , mInitializeWallet
-    , mIsStakeKeyRegistered
     , mListCheckpoints
     , mPutDelegationCertificate
     , mPutDelegationRewardBalance
@@ -301,7 +300,6 @@ data Cmd s wid
     | ReadGenesisParameters
     | RollbackTo wid Slot
     | PutDelegationCertificate DelegationCertificate SlotNo
-    | IsStakeKeyRegistered wid
     | PutDelegationRewardBalance wid Coin
     | ReadDelegationRewardBalance
     deriving stock (Show, Generic1, Eq, Functor, Foldable, Traversable)
@@ -349,8 +347,6 @@ runMock = \case
         first (Resp . fmap Checkpoint) . mReadCheckpoint
     PutDelegationCertificate cert sl ->
         first (Resp . fmap Unit) . mPutDelegationCertificate cert sl
-    IsStakeKeyRegistered _wid ->
-        first (Resp . fmap StakeKeyStatus) . mIsStakeKeyRegistered
     PutTxHistory txs ->
         first (Resp . fmap Unit) . mPutTxHistory txs
     ReadTxHistory minW order range status ->
@@ -407,8 +403,6 @@ runIO DBLayer{..} = fmap Resp . go
             atomically listCheckpoints
         PutDelegationCertificate pool sl ->
             runDBSuccess atomically Unit $ putDelegationCertificate pool sl
-        IsStakeKeyRegistered _wid ->
-            runDBSuccess atomically StakeKeyStatus isStakeKeyRegistered
         PutTxHistory txs -> runDBSuccess atomically Unit $ putTxHistory txs
         ReadTxHistory minWith order range status ->
             fmap (Right . TxHistory) $
@@ -537,8 +531,6 @@ generatorWithWid wids =
         $ pure ListCheckpoints
     , declareGenerator "PutDelegationCertificate" 5
         $ PutDelegationCertificate <$> arbitrary <*> arbitrary
-    , declareGenerator "IsStakeKeyRegistered" 1
-        $ IsStakeKeyRegistered <$> genId
     , declareGenerator "PutTxHistory" 5
         $ PutTxHistory <$> fmap unGenTxHistory arbitrary
     , declareGenerator "ReadTxHistory" 5

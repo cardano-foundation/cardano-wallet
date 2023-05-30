@@ -109,6 +109,7 @@ module Cardano.Wallet
     , ErrWritePolicyPublicKey (..)
     , ErrGetPolicyId (..)
     , readWalletMeta
+    , isStakeKeyRegistered
 
     -- * Shared Wallet
     , updateCosigner
@@ -651,6 +652,7 @@ import qualified Cardano.Wallet.Address.Discovery.Random as Rnd
 import qualified Cardano.Wallet.Address.Discovery.Sequential as Seq
 import qualified Cardano.Wallet.Address.Discovery.Shared as Shared
 import qualified Cardano.Wallet.Checkpoints.Policy as CP
+import qualified Cardano.Wallet.DB.Store.Delegations.Layer as Dlgs
 import qualified Cardano.Wallet.DB.Store.Submissions.Layer as Submissions
 import qualified Cardano.Wallet.DB.WalletState as WS
 import qualified Cardano.Wallet.DB.WalletState as WalletState
@@ -2835,6 +2837,14 @@ getStakeKeyDeposit = toWallet
     . Write.stakeKeyDeposit (recentEra @era)
     . Write.pparamsLedger
 
+isStakeKeyRegistered
+    :: Functor stm
+    => DBVar stm (DeltaWalletState s)
+    -> stm Bool
+isStakeKeyRegistered walletState =
+    Dlgs.isStakeKeyRegistered . view #delegations
+        <$> readDBVar walletState
+
 delegationFee
     :: forall s
      . ( AddressBookIso s
@@ -2857,7 +2867,7 @@ delegationFee db@DBLayer{..} netLayer txLayer changeAddressGen = do
         -- previously, and the difference should be negligible.
         (PreSelection [])
     deposit <- liftIO
-        $ atomically isStakeKeyRegistered <&> \case
+        $ atomically (isStakeKeyRegistered walletState) <&> \case
             False -> toWallet
                 $ Write.stakeKeyDeposit era
                 $ Write.pparamsLedger protocolParams

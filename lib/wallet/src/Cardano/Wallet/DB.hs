@@ -224,8 +224,6 @@ data DBLayer m s = forall stm. (MonadIO stm, MonadFail stm) => DBLayer
 
     , readDelegation :: stm WalletDelegation
 
-    , isStakeKeyRegistered :: stm Bool
-
     , putDelegationCertificate
         :: DelegationCertificate
         -> SlotNo
@@ -405,7 +403,6 @@ mkDBLayerFromParts ti wid_ DBLayerCollection{..} = DBLayer
             currentEpoch <- liftIO $
                 interpretQuery ti (epochOf $ cp ^. #currentTip . #slotNo)
             readDelegation_ dbDelegation currentEpoch
-    , isStakeKeyRegistered = isStakeKeyRegistered_ dbDelegation
     , putDelegationCertificate = putDelegationCertificate_ dbDelegation
     , putDelegationRewardBalance = putDelegationRewardBalance_ dbDelegation
     , readDelegationRewardBalance = readDelegationRewardBalance_ dbDelegation
@@ -502,10 +499,7 @@ data DBCheckpoints stm s = DBCheckpoints
 -- | A database layer for storing delegation certificates
 -- and the reward balance.
 data DBDelegation stm = DBDelegation
-    { isStakeKeyRegistered_
-        :: stm Bool
-
-    , putDelegationCertificate_
+    { putDelegationCertificate_
         :: DelegationCertificate
         -> SlotNo
         -> stm ()

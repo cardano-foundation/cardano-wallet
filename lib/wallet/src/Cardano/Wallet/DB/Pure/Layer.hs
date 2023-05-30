@@ -28,7 +28,6 @@ import Cardano.Wallet.DB.Pure.Implementation
     , Err (..)
     , ModelOp
     , mInitializeWallet
-    , mIsStakeKeyRegistered
     , mListCheckpoints
     , mPutDelegationCertificate
     , mPutDelegationRewardBalance
@@ -120,8 +119,6 @@ newDBFresh timeInterpreter wid = do
 
         , putDelegationCertificate = \cert sl -> noErrorAlterDB db $
             mPutDelegationCertificate cert sl
-
-        , isStakeKeyRegistered = throwErrorReadDB db mIsStakeKeyRegistered
 
         {-----------------------------------------------------------------------
                                      Tx History
