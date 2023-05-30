@@ -894,7 +894,6 @@ fromShelleyPParams eraInfo pp =
         , minimumCollateralPercentage = 0
         , executionUnitPrices = Nothing
         , currentLedgerProtocolParameters = Write.InNonRecentEraShelley
-
         }
 
 fromAllegraPParams

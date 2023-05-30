@@ -25,6 +25,9 @@ newtype ProtocolParameters era = ProtocolParameters
         :: Write.PParams (Write.ShelleyLedgerEra era)
     }
 
-deriving instance Eq (Write.PParams (Write.ShelleyLedgerEra era)) => Eq (ProtocolParameters era)
-deriving instance Show (Write.PParams (Write.ShelleyLedgerEra era)) => Show (ProtocolParameters era)
-
+deriving instance
+    Eq (Write.PParams (Write.ShelleyLedgerEra era)) =>
+    Eq (ProtocolParameters era)
+deriving instance
+    Show (Write.PParams (Write.ShelleyLedgerEra era)) =>
+    Show (ProtocolParameters era)

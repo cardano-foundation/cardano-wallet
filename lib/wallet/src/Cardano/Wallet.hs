@@ -1879,19 +1879,17 @@ readNodeTipStateForTxWrite
     :: NetworkLayer IO Read.Block
     -> IO (Write.InAnyRecentEra Write.ProtocolParameters, TimeTranslation)
 readNodeTipStateForTxWrite netLayer = do
-    let ti = timeInterpreter netLayer
-    timeTranslation <- toTimeTranslation ti
+    timeTranslation <- toTimeTranslation (timeInterpreter netLayer)
 
     res <- currentLedgerProtocolParameters
         <$> currentProtocolParameters netLayer
 
     case Write.toRecentEraGADT res of
-        Right pp ->
-            pure (pp, timeTranslation)
+        Right pp -> pure (pp, timeTranslation)
         Left era -> throwIO $ invalidEra era
   where
-    invalidEra = ExceptionWriteTxEra
-        . ErrNodeNotYetInRecentEra
+    invalidEra =
+        ExceptionWriteTxEra . ErrNodeNotYetInRecentEra
 
 -- | Build, Sign, Submit transaction.
 --
@@ -2017,7 +2015,14 @@ buildAndSignTransactionPure
     wallet <- get
     (unsignedBalancedTx, updatedWalletState) <- lift $
         buildTransactionPure @s @era
-            wallet timeTranslation utxoIndex txLayer changeAddrGen pp preSelection txCtx
+            wallet
+            timeTranslation
+            utxoIndex
+            txLayer
+            changeAddrGen
+            pp
+            preSelection
+            txCtx
     put wallet { getState = updatedWalletState }
 
     let mExternalRewardAccount = case view #txWithdrawal txCtx of
