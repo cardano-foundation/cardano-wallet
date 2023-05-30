@@ -1277,15 +1277,14 @@ mkSelfWithdrawalShared
     :: forall n block
      . NetworkLayer IO block
     -> TxWitnessTag
-    -> AnyCardanoEra
     -> DBLayer IO (SharedState n SharedKey)
     -> IO Withdrawal
-mkSelfWithdrawalShared netLayer txWitnessTag era db = do
+mkSelfWithdrawalShared netLayer txWitnessTag db = do
     (rewardAccount, _, derivationPath) <-
         readRewardAccount @(SharedState n SharedKey) db
     balance <- getCachedRewardAccountBalance netLayer rewardAccount
     pp <- currentProtocolParameters netLayer
-    return $ case checkRewardIsWorthTxCost txWitnessTag pp era balance of
+    return $ case checkRewardIsWorthTxCost txWitnessTag pp balance of
         Left ErrWithdrawalNotBeneficial -> NoWithdrawal
         Right () -> WithdrawalSelf rewardAccount derivationPath balance
 

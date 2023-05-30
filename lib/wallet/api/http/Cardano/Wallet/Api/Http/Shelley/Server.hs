@@ -2881,7 +2881,7 @@ constructSharedTransaction
         withdrawal <- case body ^. #withdrawal of
             Just SelfWithdraw -> liftIO $
                 W.mkSelfWithdrawalShared @n
-                    netLayer (txWitnessTagFor @SharedKey) era db
+                    netLayer (txWitnessTagFor @SharedKey) db
             _ -> pure NoWithdrawal
 
         let delegationTemplateM = Shared.delegationTemplate $ getState cp
