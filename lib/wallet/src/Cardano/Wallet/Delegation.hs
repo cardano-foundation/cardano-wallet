@@ -33,7 +33,9 @@ import Cardano.Wallet
     , WalletException (..)
     , WalletLog (..)
     , fetchRewardBalance
+    , getDelegationSlots
     , isStakeKeyRegistered
+    , readDelegation
     , readRewardAccount
     , transactionExpirySlot
     )
@@ -43,6 +45,8 @@ import Cardano.Wallet.Address.Discovery.Sequential
     ( SeqState (..) )
 import Cardano.Wallet.DB
     ( DBLayer (..) )
+import Cardano.Wallet.DB.Store.Delegations.Layer
+    ( ReadDelegationSlots )
 import Cardano.Wallet.Network
     ( NetworkLayer (..) )
 import Cardano.Wallet.Primitive.Slotting
@@ -95,6 +99,7 @@ handleDelegationRequest
     :: forall s
      . Tracer IO WalletLog
     -> DBLayer IO s
+    -> ReadDelegationSlots
     -> W.EpochNo
     -> IO (Set PoolId)
     -> (PoolId -> IO PoolLifeCycleStatus)
@@ -102,35 +107,41 @@ handleDelegationRequest
     -> DelegationRequest
     -> ExceptT ErrStakePoolDelegation IO Tx.DelegationAction
 handleDelegationRequest
-    tr db currEpoch getKnownPools getPoolStatus withdrawal = \case
+    tr db delegationSlots currEpoch getKnownPools getPoolStatus withdrawal = \case
     Join poolId -> liftIO $ do
         poolStatus <- getPoolStatus poolId
         pools <- getKnownPools
         joinStakePoolDelegationAction
-            tr db currEpoch pools poolId poolStatus
-    Quit -> liftIO $ quitStakePoolDelegationAction db withdrawal
+            tr db delegationSlots currEpoch pools poolId poolStatus
+    Quit -> liftIO $ quitStakePoolDelegationAction db delegationSlots withdrawal
 
 joinStakePoolDelegationAction
     :: Tracer IO WalletLog
     -> DBLayer IO s
+    -> ReadDelegationSlots
     -> W.EpochNo
     -> Set PoolId
     -> PoolId
     -> PoolLifeCycleStatus
     -> IO Tx.DelegationAction
 joinStakePoolDelegationAction
-    tr DBLayer{..} currentEpoch knownPools poolId poolStatus = do
+    tr DBLayer{..} delegationSlots
+        currentEpoch knownPools poolId poolStatus = do
     (walletDelegation, stakeKeyIsRegistered) <-
         atomically $
-            (,) <$> readDelegation
+            (,) <$> readDelegation walletState
                 <*> isStakeKeyRegistered walletState
 
     let retirementInfo =
             PoolRetirementEpochInfo currentEpoch . view #retirementEpoch <$>
                 W.getPoolRetirementCertificate poolStatus
 
-    throwInIO ErrStakePoolJoin . except $
-        guardJoin knownPools walletDelegation poolId retirementInfo
+    throwInIO ErrStakePoolJoin . except
+        $ guardJoin
+            knownPools
+            (walletDelegation delegationSlots)
+            poolId
+            retirementInfo
 
     traceWith tr $ MsgIsStakeKeyRegistered stakeKeyIsRegistered
 
@@ -149,15 +160,17 @@ joinStakePool
     :: Tracer IO WalletLog
     -> TimeInterpreter (ExceptT PastHorizonException IO)
     -> DBLayer IO s
+    -> ReadDelegationSlots
     -> W.EpochNo
     -> Set PoolId
     -> PoolId
     -> PoolLifeCycleStatus
     -> IO TransactionCtx
-joinStakePool tr ti db curEpoch pools poolId poolStatus = do
+joinStakePool tr ti db delegationSlots curEpoch pools poolId poolStatus = do
     action <- joinStakePoolDelegationAction
         tr
         db
+        delegationSlots
         curEpoch
         pools
         poolId
@@ -195,13 +208,14 @@ guardJoin knownPools delegation pid mRetirementEpochInfo = do
 quitStakePoolDelegationAction
     :: forall s
      . DBLayer IO s
+    -> ReadDelegationSlots
     -> Withdrawal
     -> IO Tx.DelegationAction
-quitStakePoolDelegationAction db@DBLayer{..} withdrawal = do
-    delegation <- atomically readDelegation
+quitStakePoolDelegationAction db@DBLayer{..} delegationSlots withdrawal = do
+    delegation <- atomically $ readDelegation walletState
     rewards <- liftIO $ fetchRewardBalance db
     either (throwIO . ExceptionStakePoolDelegation . ErrStakePoolQuit) pure
-        (guardQuit delegation withdrawal rewards)
+        (guardQuit (delegation delegationSlots) withdrawal rewards)
     pure Tx.Quit
 
 quitStakePool
@@ -214,7 +228,8 @@ quitStakePool netLayer db timeInterpreter = do
     (rewardAccount, _, derivationPath) <- readRewardAccount db
     withdrawal <- WithdrawalSelf rewardAccount derivationPath
         <$> getCachedRewardAccountBalance netLayer rewardAccount
-    action <- quitStakePoolDelegationAction db withdrawal
+    delegationSlots <- getDelegationSlots db netLayer
+    action <- quitStakePoolDelegationAction db delegationSlots withdrawal
     ttl <- transactionExpirySlot timeInterpreter  Nothing
     pure defaultTransactionCtx
         { txWithdrawal = withdrawal

@@ -111,6 +111,8 @@ module Cardano.Wallet
     , readWalletMeta
     , isStakeKeyRegistered
     , putDelegationCertificate
+    , readDelegation
+    , getDelegationSlots
 
     -- * Shared Wallet
     , updateCosigner
@@ -340,6 +342,8 @@ import Cardano.Wallet.DB
     )
 import Cardano.Wallet.DB.Errors
     ( ErrNoSuchWallet (..) )
+import Cardano.Wallet.DB.Store.Delegations.Layer
+    ( ReadDelegationSlots, mkReadDelegationSlots )
 import Cardano.Wallet.DB.Store.Info.Store
     ( DeltaWalletInfo (..), WalletInfo (..) )
 import Cardano.Wallet.DB.Store.Submissions.Layer
@@ -417,6 +421,7 @@ import Cardano.Wallet.Primitive.Slotting
     , addRelTime
     , ceilingSlotAt
     , currentRelativeTime
+    , epochOf
     , interpretQuery
     , neverFails
     , slotRangeFromTimeRange
@@ -907,25 +912,51 @@ putPrivateKey
 putPrivateKey walletState (pk, hpw) = onDBVar walletState $ update $ \_ ->
     [UpdateCredentials $ Replace $ Just $ RootCredentials pk hpw]
 
+readDelegation
+    :: Monad stm
+    => DBVar stm (DeltaWalletState s)
+    -> stm (ReadDelegationSlots -> WalletDelegation)
+readDelegation walletState = do
+    dels <- view #delegations <$> readDBVar walletState
+    pure $ \dsarg -> Dlgs.readDelegation dsarg dels
+
+getDelegationSlots
+    :: DBLayer IO s
+    -> NetworkLayer IO block
+    -> IO ReadDelegationSlots
+getDelegationSlots DBLayer{..} nl = do
+    cp <- atomically readCheckpoint
+    currentEpoch <-
+        liftIO
+            $ interpretQuery ti (epochOf $ cp ^. #currentTip . #slotNo)
+    mkReadDelegationSlots ti currentEpoch
+  where
+    ti = neverFails "currentEpoch is past horizon" $ timeInterpreter nl
+
 -- | Retrieve the wallet state for the wallet with the given ID.
 readWallet
     :: forall ctx s
-     . HasDBLayer IO s ctx
+     . (HasDBLayer IO s ctx, HasNetworkLayer IO ctx)
     => ctx
     -> IO (Wallet s, (WalletMetadata, WalletDelegation), Set Tx)
-readWallet ctx = db & \DBLayer{..} -> atomically $ do
-    cp <- readCheckpoint
-    meta <- readWalletMeta walletState
-    dele <- readDelegation
-    pending <- readTransactions
-        Nothing
-        Descending
-        wholeRange
-        (Just Pending)
-        Nothing
-    pure (cp, (meta, dele) , Set.fromList (fromTransactionInfo <$> pending))
+readWallet ctx = do
+    delegationSlots <- getDelegationSlots db nl
+    db & \DBLayer{..} -> atomically $ do
+        cp <- readCheckpoint
+        meta <- readWalletMeta walletState
+        dele <- readDelegation walletState
+        pending <-
+            readTransactions
+                Nothing
+                Descending
+                wholeRange
+                (Just Pending)
+                Nothing
+        pure (cp, (meta, dele delegationSlots), Set.fromList (fromTransactionInfo <$> pending))
+
   where
     db = ctx ^. dbLayer @IO @s
+    nl = ctx ^. networkLayer
 
 walletSyncProgress
     :: forall ctx s. HasNetworkLayer IO ctx
@@ -1030,7 +1061,9 @@ getWalletUtxoSnapshot ctx = do
 -- | List the wallet's UTxO statistics.
 listUtxoStatistics
     :: forall ctx s
-     . HasDBLayer IO s ctx
+     . ( HasDBLayer IO s ctx
+       , HasNetworkLayer IO ctx
+       )
     => ctx
     -> IO UTxOStatistics
 listUtxoStatistics ctx = do
@@ -1853,7 +1886,9 @@ buildCoinSelectionForTransaction
 -- 'selectAssetsNoOutputs'.
 readWalletUTxO
     :: forall ctx s
-     . HasDBLayer IO s ctx
+     . ( HasDBLayer IO s ctx
+       , HasNetworkLayer IO ctx
+       )
     => ctx
     -> IO (UTxO, Wallet s, Set Tx)
 readWalletUTxO ctx = do

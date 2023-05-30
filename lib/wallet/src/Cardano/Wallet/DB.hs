@@ -3,7 +3,6 @@
 {-# LANGUAGE ExistentialQuantification #-}
 {-# LANGUAGE FlexibleContexts #-}
 {-# LANGUAGE LambdaCase #-}
-{-# LANGUAGE OverloadedLabels #-}
 {-# LANGUAGE RankNTypes #-}
 {-# LANGUAGE RecordWildCards #-}
 {-# LANGUAGE ScopedTypeVariables #-}
@@ -57,7 +56,7 @@ import Cardano.Wallet.DB.WalletState
 import Cardano.Wallet.Primitive.Model
     ( Wallet, currentTip )
 import Cardano.Wallet.Primitive.Slotting
-    ( TimeInterpreter, epochOf, hoistTimeInterpreter, interpretQuery )
+    ( TimeInterpreter, hoistTimeInterpreter )
 import Cardano.Wallet.Primitive.Types
     ( BlockHeader
     , ChainPoint
@@ -95,8 +94,6 @@ import Control.Monad.Trans.Except
     ( ExceptT (..), mapExceptT )
 import Data.DBVar
     ( DBVar, readDBVar )
-import Data.Generics.Internal.VL
-    ( (^.) )
 import Data.List
     ( sortOn )
 import Data.Maybe
@@ -220,8 +217,6 @@ data DBLayer m s = forall stm. (MonadIO stm, MonadFail stm) => DBLayer
         :: stm [ChainPoint]
         -- ^ List all known checkpoint tips, ordered by slot ids from the oldest
         -- to the newest.
-
-    , readDelegation :: stm WalletDelegation
 
     , putDelegationRewardBalance :: Coin -> stm ()
         -- ^ Store the latest known reward account balance.
@@ -383,11 +378,6 @@ mkDBLayerFromParts ti wid_ DBLayerCollection{..} = DBLayer
     , transactionsStore = transactionsStore_
     , readCheckpoint = readCheckpoint'
     , listCheckpoints = listCheckpoints_ dbCheckpoints
-    , readDelegation = do
-        readCheckpoint' >>= \cp -> do
-            currentEpoch <- liftIO $
-                interpretQuery ti (epochOf $ cp ^. #currentTip . #slotNo)
-            readDelegation_ dbDelegation currentEpoch
     , putDelegationRewardBalance = putDelegationRewardBalance_ dbDelegation
     , readDelegationRewardBalance = readDelegationRewardBalance_ dbDelegation
     , putTxHistory = putTxHistory_ dbTxHistory

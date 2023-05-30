@@ -184,6 +184,7 @@ import Cardano.Wallet
     , dbLayer
     , dummyChangeAddressGen
     , genesisData
+    , getDelegationSlots
     , logger
     , manageRewardBalance
     , networkLayer
@@ -1850,9 +1851,11 @@ selectCoinsForJoin ctx@ApiLayer{..}
         <- liftIO $ W.readNodeTipStateForTxWrite netLayer
     withWorkerCtx ctx walletId liftE liftE $ \workerCtx -> liftIO $ do
         let db = workerCtx ^. typed @(DBLayer IO s)
+        delegationSlots <- liftIO $ getDelegationSlots db netLayer
         action <- liftIO $ WD.joinStakePoolDelegationAction @s
             (contramap MsgWallet $ workerCtx ^. logger)
             db
+            delegationSlots
             curEpoch
             pools
             poolId
@@ -1908,7 +1911,8 @@ selectCoinsForQuit ctx@ApiLayer{..} (ApiT walletId) = do
         let db = workerCtx ^. typed @(DBLayer IO s)
         withdrawal <- W.shelleyOnlyMkSelfWithdrawal @s
             netLayer (txWitnessTagFor @k) db
-        action <- WD.quitStakePoolDelegationAction db withdrawal
+        delegationSlots <- liftIO $ getDelegationSlots db netLayer
+        action <- WD.quitStakePoolDelegationAction db delegationSlots withdrawal
         let changeAddrGen = W.defaultChangeAddressGen (delegationAddressS @n)
         let txCtx = defaultTransactionCtx
                 { txDelegationAction = Just action
@@ -2475,11 +2479,12 @@ constructTransaction api argGenChange knownPools poolStatus apiWalletId body = d
                 , txMetadata = metadata
                 , txValidityInterval = first Just validityInterval
                 }
-
+        delegationSlots <- liftIO $ getDelegationSlots db netLayer
         optionalDelegationAction <- liftHandler $
             forM delegationRequest $
                 WD.handleDelegationRequest
-                    trWorker db epoch knownPools
+                    trWorker
+                    db delegationSlots epoch knownPools
                     poolStatus withdrawal
 
         let transactionCtx1 =
@@ -2880,6 +2885,7 @@ constructSharedTransaction
             txLayer = wrk ^. transactionLayer @SharedKey @'CredFromScriptK
             trWorker = MsgWallet >$< wrk ^. logger
 
+        delegationSlots <- liftIO $ getDelegationSlots db netLayer
         epoch <- getCurrentEpoch api
         (Write.InAnyRecentEra (_ :: Write.RecentEra era) pp, _)
             <- liftIO $ W.readNodeTipStateForTxWrite netLayer
@@ -2898,8 +2904,8 @@ constructSharedTransaction
         optionalDelegationAction <- liftHandler $
             forM delegationRequest $
                 WD.handleDelegationRequest
-                    trWorker db epoch knownPools
-                    getPoolStatus withdrawal
+                    trWorker db delegationSlots epoch knownPools
+                    getPoolStatus NoWithdrawal
 
         let txCtx = defaultTransactionCtx
                 { txWithdrawal = withdrawal
@@ -3536,6 +3542,7 @@ joinStakePool
         let tr = wrk ^. logger
             db = wrk ^. typed @(DBLayer IO s)
             ti = timeInterpreter netLayer
+        delegationSlots <- liftIO $ getDelegationSlots db netLayer
         (BuiltTx{..}, txTime) <- liftIO $
             W.buildSignSubmitTransaction @s
                 db
@@ -3549,6 +3556,7 @@ joinStakePool
                     (MsgWallet >$< tr)
                     ti
                     db
+                    delegationSlots
                     curEpoch
                     pools
                     poolId

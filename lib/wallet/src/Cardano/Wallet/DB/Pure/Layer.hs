@@ -114,8 +114,6 @@ newDBFresh timeInterpreter wid = do
 
         -- , putWalletMeta = noErrorAlterDB db .  mPutWalletMeta
 
-        , readDelegation = error "MVar.readDelegation: not implemented"
-
 
         {-----------------------------------------------------------------------
                                      Tx History
