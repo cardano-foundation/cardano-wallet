@@ -691,32 +691,11 @@ mkDBDelegation ::
     TimeInterpreter IO -> W.WalletId -> DBDelegation (SqlPersistT IO)
 mkDBDelegation ti wid =
     DBDelegation
-        { putDelegationCertificate_
-        , putDelegationRewardBalance_
+        { putDelegationRewardBalance_
         , readDelegationRewardBalance_
         , readDelegation_
         }
   where
-
-    putDelegationCertificate_ ::
-        W.DelegationCertificate -> W.SlotNo -> SqlPersistT IO ()
-    putDelegationCertificate_ cert sl =
-        case cert of
-            W.CertDelegateNone _ -> do
-                repsert
-                    (DelegationCertificateKey wid sl)
-                    (DelegationCertificate wid sl Nothing)
-                repsert
-                    (StakeKeyCertificateKey wid sl)
-                    (StakeKeyCertificate wid sl W.StakeKeyDeregistration)
-            W.CertDelegateFull _ pool ->
-                repsert
-                    (DelegationCertificateKey wid sl)
-                    (DelegationCertificate wid sl (Just pool))
-            W.CertRegisterKey _ ->
-                repsert
-                    (StakeKeyCertificateKey wid sl)
-                    (StakeKeyCertificate wid sl W.StakeKeyRegistration)
 
     putDelegationRewardBalance_ :: Coin.Coin -> SqlPersistT IO ()
     putDelegationRewardBalance_ amount =

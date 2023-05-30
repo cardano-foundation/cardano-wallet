@@ -110,6 +110,7 @@ module Cardano.Wallet
     , ErrGetPolicyId (..)
     , readWalletMeta
     , isStakeKeyRegistered
+    , putDelegationCertificate
 
     -- * Shared Wallet
     , updateCosigner
@@ -1231,7 +1232,7 @@ restoreBlocks ctx tr blocks nodeTip = db & \DBLayer{..} -> atomically $ do
 
     forM_ slotPoolDelegations $ \delegation@(slotNo, cert) -> do
             liftIO $ logDelegation delegation
-            putDelegationCertificate cert slotNo
+            putDelegationCertificate walletState cert slotNo
 
     Delta.onDBVar walletState $ Delta.update $ \_wallet ->
         deltaPrologue
@@ -1254,6 +1255,16 @@ restoreBlocks ctx tr blocks nodeTip = db & \DBLayer{..} -> atomically $ do
     isParentOf :: Wallet s -> BlockHeader -> Bool
     isParentOf cp = (== Just parent) . parentHeaderHash
       where parent = headerHash $ currentTip cp
+
+putDelegationCertificate
+    :: Monad stm
+    => DBVar stm (DeltaWalletState s)
+    -> DelegationCertificate
+    -> SlotNo
+    -> stm ()
+putDelegationCertificate walletState cert slot
+    = onDBVar walletState $ update $ \_ ->
+        [UpdateDelegations $ Dlgs.putDelegationCertificate cert slot]
 
 -- | Fetch the cached reward balance of a given wallet from the database.
 fetchRewardBalance :: forall s . DBLayer IO s -> IO Coin

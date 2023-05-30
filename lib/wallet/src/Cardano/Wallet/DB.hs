@@ -61,7 +61,6 @@ import Cardano.Wallet.Primitive.Slotting
 import Cardano.Wallet.Primitive.Types
     ( BlockHeader
     , ChainPoint
-    , DelegationCertificate
     , EpochNo (..)
     , GenesisParameters
     , Range (..)
@@ -223,20 +222,6 @@ data DBLayer m s = forall stm. (MonadIO stm, MonadFail stm) => DBLayer
         -- to the newest.
 
     , readDelegation :: stm WalletDelegation
-
-    , putDelegationCertificate
-        :: DelegationCertificate
-        -> SlotNo
-        -> stm ()
-        -- ^ Binds a stake pool id to a wallet. This will have an influence on
-        -- the wallet metadata: the last known certificate will indicate to
-        -- which pool a wallet is currently delegating.
-        --
-        -- This is done separately from 'putWalletMeta' because certificate
-        -- declarations are:
-        --
-        -- 1. Stored on-chain.
-        -- 2. Affected by rollbacks (or said differently, tied to a 'SlotNo').
 
     , putDelegationRewardBalance :: Coin -> stm ()
         -- ^ Store the latest known reward account balance.
@@ -403,7 +388,6 @@ mkDBLayerFromParts ti wid_ DBLayerCollection{..} = DBLayer
             currentEpoch <- liftIO $
                 interpretQuery ti (epochOf $ cp ^. #currentTip . #slotNo)
             readDelegation_ dbDelegation currentEpoch
-    , putDelegationCertificate = putDelegationCertificate_ dbDelegation
     , putDelegationRewardBalance = putDelegationRewardBalance_ dbDelegation
     , readDelegationRewardBalance = readDelegationRewardBalance_ dbDelegation
     , putTxHistory = putTxHistory_ dbTxHistory
@@ -499,21 +483,7 @@ data DBCheckpoints stm s = DBCheckpoints
 -- | A database layer for storing delegation certificates
 -- and the reward balance.
 data DBDelegation stm = DBDelegation
-    { putDelegationCertificate_
-        :: DelegationCertificate
-        -> SlotNo
-        -> stm ()
-        -- ^ Binds a stake pool id to a wallet. This will have an influence on
-        -- the wallet metadata: the last known certificate will indicate to
-        -- which pool a wallet is currently delegating.
-        --
-        -- This is done separately from 'putWalletMeta' because certificate
-        -- declarations are:
-        --
-        -- 1. Stored on-chain.
-        -- 2. Affected by rollbacks (or said differently, tied to a 'SlotNo').
-
-    , putDelegationRewardBalance_
+    { putDelegationRewardBalance_
         :: Coin
         -> stm ()
         -- ^ Store the latest known reward account balance.
