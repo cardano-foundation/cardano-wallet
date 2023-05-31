@@ -61,6 +61,8 @@ import Cardano.Wallet.Primitive.Passphrase.Gen
     ( genEncryptionPassphrase )
 import Cardano.Wallet.Primitive.Types.Address
     ( Address (..), AddressState (..) )
+import Cardano.Wallet.Primitive.Types.Credentials
+    ( RootCredentials (..) )
 import Cardano.Wallet.Read.NetworkId
     ( HasSNetworkId, NetworkDiscriminant (..) )
 import Cardano.Wallet.Unsafe
@@ -391,5 +393,6 @@ instance Arbitrary (SharedState 'Mainnet SharedKey) where
         pwd <- genEncryptionPassphrase
         accIx' <- arbitrary
         scriptTemplate <- genScriptTemplate
-        pure $ mkSharedStateFromRootXPrv SharedKeyS (rootXPrv, pwd) accIx'
+        pure $ mkSharedStateFromRootXPrv SharedKeyS
+            (RootCredentials rootXPrv pwd) accIx'
             defaultAddressPoolGap scriptTemplate Nothing

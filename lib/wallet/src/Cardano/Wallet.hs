@@ -76,6 +76,7 @@ module Cardano.Wallet
     , getWalletUtxoSnapshot
     , listUtxoStatistics
     , readWallet
+    , readPrivateKey
     , restoreWallet
     , updateWallet
     , updateWalletPassphraseWithOldPassphrase
@@ -223,6 +224,7 @@ module Cardano.Wallet
     , WalletFollowLog (..)
     , WalletLog (..)
     , TxSubmitLog (..)
+    , putPrivateKey
     ) where
 
 import Prelude hiding
@@ -447,6 +449,8 @@ import Cardano.Wallet.Primitive.Types.Address
     ( Address (..), AddressState (..) )
 import Cardano.Wallet.Primitive.Types.Coin
     ( Coin (..) )
+import Cardano.Wallet.Primitive.Types.Credentials
+    ( ClearCredentials, RootCredentials (..) )
 import Cardano.Wallet.Primitive.Types.Hash
     ( Hash (..) )
 import Cardano.Wallet.Primitive.Types.RewardAccount
@@ -567,6 +571,8 @@ import Data.ByteString
     ( ByteString )
 import Data.DBVar
     ( DBVar, readDBVar )
+import Data.Delta
+    ( Replace (..) )
 import Data.Delta.Update
     ( onDBVar, update )
 import Data.Either
@@ -842,7 +848,7 @@ createIcarusWallet
     -> DBFresh IO s
     -> WalletId
     -> WalletName
-    -> (k 'RootK XPrv, Passphrase "encryption")
+    -> ClearCredentials k
     -> ExceptT ErrWalletAlreadyExists IO (DBLayer IO s)
 createIcarusWallet
     (block0, NetworkParameters gp _sp _pp)
@@ -877,6 +883,23 @@ checkWalletIntegrity db gp = db & \DBLayer{..} -> do
 
 readWalletMeta :: Functor f => DBVar f (DeltaWalletState s) -> f WalletMetadata
 readWalletMeta walletState = walletMeta . info <$> readDBVar walletState
+
+readPrivateKey
+    :: Functor stm
+    => DBVar stm (DeltaWalletState s)
+    -> stm (Maybe (KeyOf s 'RootK XPrv, PassphraseHash))
+readPrivateKey walletState =
+    readDBVar walletState <&> \mc -> do
+        (RootCredentials pk h) <- credentials mc
+        pure (pk, h)
+
+putPrivateKey
+    :: Monad m
+    => DBVar m (DeltaWalletState s)
+    -> (KeyOf s 'RootK XPrv, PassphraseHash)
+    -> m ()
+putPrivateKey walletState (pk, hpw) = onDBVar walletState $ update $ \_ ->
+    [UpdateCredentials $ Replace $ Just $ RootCredentials pk hpw]
 
 -- | Retrieve the wallet state for the wallet with the given ID.
 readWallet
@@ -1827,7 +1850,7 @@ signTransaction
   -- ^ The wallets address-key lookup function
   -> (Maybe (XPrv, Passphrase "encryption"))
   -- ^ Optional external reward account
-  -> (k 'RootK XPrv, Passphrase "encryption")
+  -> ClearCredentials k
   -- ^ The root key of the wallet
   -> UTxO
   -- ^ The total UTxO set of the wallet (i.e. if pending transactions all
@@ -1840,7 +1863,7 @@ signTransaction
   -- ^ The original transaction, with additional signatures added where
   -- necessary
 signTransaction key tl preferredLatestEra witCountCtx keyLookup mextraRewardAcc
-    (rootKey, rootPwd) utxo accIxForStakingM =
+    (RootCredentials rootKey rootPwd) utxo accIxForStakingM =
     let
         rewardAcnts :: [(XPrv, Passphrase "encryption")]
         rewardAcnts = ourRewardAcc : maybeToList mextraRewardAcc
@@ -1896,7 +1919,7 @@ signTransaction key tl preferredLatestEra witCountCtx keyLookup mextraRewardAcc
             inputResolver
 
 type MakeRewardAccountBuilder k =
-    (k 'RootK XPrv, Passphrase "encryption") -> (XPrv, Passphrase "encryption")
+    ClearCredentials k -> (XPrv, Passphrase "encryption")
 
 data ErrWriteTxEra
     = ErrNodeNotYetInRecentEra Cardano.AnyCardanoEra
@@ -2080,7 +2103,7 @@ buildAndSignTransactionPure
             AnyWitnessCountCtx
             (isOwned wF (getState wallet) (rootKey, passphrase))
             mExternalRewardAccount
-            (rootKey, passphrase)
+            (RootCredentials rootKey passphrase)
             (wallet ^. #utxo)
             Nothing
             (sealedTxFromCardano $ inAnyCardanoEra unsignedBalancedTx)
@@ -2270,7 +2293,7 @@ buildAndSignTransaction ctx wid era mkRwdAcct pwd txCtx sel = db & \DBLayer{..} 
             cp <- lift readCheckpoint
             pp <- liftIO $ currentProtocolParameters nl
             let keyFrom = isOwned wF (getState cp) (xprv, pwdP)
-            let rewardAcnt = mkRwdAcct (xprv, pwdP)
+            let rewardAcnt = mkRwdAcct $ RootCredentials xprv pwdP
             (tx, sealedTx) <- withExceptT ErrSignPaymentMkTx $ ExceptT $ pure $
                 mkTransaction tl era rewardAcnt keyFrom pp txCtx sel
             let amountOut :: Coin =
@@ -3060,10 +3083,10 @@ attachPrivateKey
     -> (KeyOf s 'RootK XPrv, PassphraseHash)
     -> PassphraseScheme
     -> IO ()
-attachPrivateKey db (xprv, hpwd) scheme = db & \DBLayer{..} -> do
+attachPrivateKey db pk  scheme = db & \DBLayer{..} -> do
     now <- liftIO getCurrentTime
     atomically $ do
-        putPrivateKey (xprv, hpwd)
+        putPrivateKey walletState pk
         meta <- readWalletMeta walletState
         let modify x = x
                 { passphraseInfo = Just $ WalletPassphraseInfo
@@ -3101,7 +3124,7 @@ withRootKey DBLayer{..} wid pwd embed action = do
     (xprv, scheme) <- withExceptT embed . ExceptT . atomically $ do
         wMetadata <- readWalletMeta walletState
         let mScheme = passphraseScheme <$> passphraseInfo wMetadata
-        mXPrv <- readPrivateKey
+        mXPrv <- readPrivateKey walletState
         pure $ case (mXPrv, mScheme) of
             (Just (xprv, hpwd), Just scheme) ->
                 case checkPassphrase scheme pwd hpwd of

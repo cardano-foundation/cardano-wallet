@@ -100,6 +100,8 @@ import Cardano.Wallet.DB.Sqlite.Types
     )
 import Cardano.Wallet.DB.Store.Info.Store
     ( mkStoreInfo )
+import Cardano.Wallet.DB.Store.PrivateKey.Store
+    ( mkStorePrivateKey )
 import Cardano.Wallet.DB.Store.Submissions.Operations
     ( mkStoreSubmissions )
 import Cardano.Wallet.DB.WalletState
@@ -110,7 +112,7 @@ import Cardano.Wallet.DB.WalletState
     , getSlot
     )
 import Cardano.Wallet.Flavor
-    ( KeyFlavorS (..) )
+    ( KeyFlavorS (..), WalletFlavorS, keyOfWallet )
 import Cardano.Wallet.Primitive.Types.TokenBundle
     ( TokenBundle )
 import Cardano.Wallet.Primitive.Types.TokenMap
@@ -119,6 +121,8 @@ import Cardano.Wallet.Read.NetworkId
     ( HasSNetworkId (..), NetworkDiscriminantCheck )
 import Control.Monad
     ( forM, forM_, unless, void, when )
+import Control.Monad.Class.MonadThrow
+    ( throwIO )
 import Control.Monad.Trans.Class
     ( lift )
 import Control.Monad.Trans.Maybe
@@ -178,8 +182,6 @@ import qualified Cardano.Wallet.Primitive.Types.Tx.TxOut as W
     ( TxOut (TxOut) )
 import qualified Cardano.Wallet.Primitive.Types.Tx.TxOut as W.TxOut
 import qualified Cardano.Wallet.Primitive.Types.UTxO as W
-import Control.Monad.Class.MonadThrow
-    ( throwIO )
 import qualified Data.Map.Merge.Strict as Map
 import qualified Data.Map.Strict as Map
 
@@ -190,13 +192,15 @@ import qualified Data.Map.Strict as Map
 -- | Store for 'WalletState' of a single wallet.
 mkStoreWallet
     :: forall s. PersistAddressBook s
-    => W.WalletId
+    => WalletFlavorS s
+    -> W.WalletId
     -> UpdateStore (SqlPersistT IO) (DeltaWalletState s)
-mkStoreWallet wid = mkUpdateStore load write update
+mkStoreWallet wF wid = mkUpdateStore load write update
   where
     checkpointsStore = mkStoreCheckpoints wid
     submissionsStore = mkStoreSubmissions wid
     infoStore = mkStoreInfo
+    pkStore = mkStorePrivateKey (keyOfWallet wF) wid
 
     load = do
         eprologue <-
@@ -205,18 +209,21 @@ mkStoreWallet wid = mkUpdateStore load write update
         echeckpoints <- loadS checkpointsStore
         esubmissions <- loadS submissionsStore
         einfo <- loadS infoStore
+        ecredentials <- loadS pkStore
         pure
             $ WalletState
                 <$> eprologue
                 <*> echeckpoints
                 <*> esubmissions
                 <*> einfo
+                <*> ecredentials
 
     write wallet = do
         writeS infoStore (wallet ^. #info)
         insertPrologue wid (wallet ^. #prologue)
         writeS checkpointsStore (wallet ^. #checkpoints)
         writeS submissionsStore (wallet ^. #submissions)
+        writeS pkStore (wallet ^. #credentials)
 
     update = updateLoad load throwIO $ updateSequence update1
       where
@@ -229,6 +236,8 @@ mkStoreWallet wid = mkUpdateStore load write update
                 (submissions s)
                 deltas
         update1 _ (UpdateInfo delta) = updateS infoStore Nothing delta
+        update1 _ (UpdateCredentials delta) = do
+            updateS pkStore Nothing delta
 
 -- | Store for the 'Checkpoints' belonging to a 'WalletState'.
 mkStoreCheckpoints

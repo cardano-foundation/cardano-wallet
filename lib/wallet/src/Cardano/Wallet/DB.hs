@@ -29,7 +29,6 @@ module Cardano.Wallet.DB
     , DBCheckpoints (..)
     , DBDelegation (..)
     , DBTxHistory (..)
-    , DBPrivateKey (..)
     , mkDBLayerFromParts
 
     , hoistDBLayer
@@ -40,10 +39,6 @@ module Cardano.Wallet.DB
 
 import Prelude
 
-import Cardano.Address.Derivation
-    ( XPrv )
-import Cardano.Wallet.Address.Derivation
-    ( Depth (..) )
 import Cardano.Wallet.DB.Errors
 import Cardano.Wallet.DB.Store.Submissions.Layer
     ( getInSubmissionTransaction, getInSubmissionTransactions )
@@ -59,12 +54,8 @@ import Cardano.Wallet.DB.Store.Wallets.Model
     ( DeltaTxWalletsHistory )
 import Cardano.Wallet.DB.WalletState
     ( DeltaWalletState, WalletState (submissions), updateSubmissions )
-import Cardano.Wallet.Flavor
-    ( KeyOf )
 import Cardano.Wallet.Primitive.Model
     ( Wallet, currentTip )
-import Cardano.Wallet.Primitive.Passphrase
-    ( PassphraseHash )
 import Cardano.Wallet.Primitive.Slotting
     ( TimeInterpreter, epochOf, hoistTimeInterpreter, interpretQuery )
 import Cardano.Wallet.Primitive.Types
@@ -305,19 +296,6 @@ data DBLayer m s = forall stm. (MonadIO stm, MonadFail stm) => DBLayer
         -- ^ Removes any expired transactions from the pending set and marks
         -- their status as expired.
 
-    , putPrivateKey
-        :: (KeyOf s 'RootK XPrv, PassphraseHash)
-        -> stm ()
-        -- ^ Store or replace a private key for a given wallet. Note that wallet
-        -- _could_ be stored and manipulated without any private key associated
-        -- to it. A private key is only seldomly required for very specific
-        -- operations (like transaction signing).
-
-    , readPrivateKey
-        :: stm (Maybe (KeyOf s 'RootK XPrv, PassphraseHash))
-        -- ^ Read a previously stored private key and its associated passphrase
-        -- hash.
-
     , readGenesisParameters
         :: stm (Maybe GenesisParameters)
         -- ^ Read the *Byron* genesis parameters.
@@ -402,7 +380,6 @@ data DBLayerCollection stm m s = DBLayerCollection
     { dbCheckpoints :: DBCheckpoints stm s
     , dbDelegation :: DBDelegation stm
     , dbTxHistory :: DBTxHistory stm
-    , dbPrivateKey :: DBPrivateKey stm (KeyOf s)
 
     -- The following two functions will need to be split up
     -- and distributed the smaller layer parts as well.
@@ -486,8 +463,6 @@ mkDBLayerFromParts ti wid_ DBLayerCollection{..} = DBLayer
     , rollForwardTxSubmissions = \tip txs ->
             updateSubmissionsNoError dbCheckpoints
                 $ \_ -> Sbms.rollForwardTxSubmissions tip txs
-    , putPrivateKey = putPrivateKey_ dbPrivateKey
-    , readPrivateKey = readPrivateKey_ dbPrivateKey
     , readGenesisParameters = readGenesisParameters_ dbCheckpoints
     , rollbackTo = rollbackTo_
     , atomically = atomically_
@@ -610,22 +585,6 @@ data DBTxHistory stm = DBTxHistory
         -- ^ Resolve TxIn for a given Tx.
     }
 
-
--- | A database layer for storing the private key.
-data DBPrivateKey stm k = DBPrivateKey
-    { putPrivateKey_
-        :: (k 'RootK XPrv, PassphraseHash)
-        -> stm ()
-        -- ^ Store or replace a private key for a given wallet. Note that wallet
-        -- _could_ be stored and manipulated without any private key associated
-        -- to it. A private key is only seldomly required for very specific
-        -- operations (like transaction signing).
-
-    , readPrivateKey_
-        :: stm (Maybe (k 'RootK XPrv, PassphraseHash))
-        -- ^ Read a previously stored private key and its associated passphrase
-        -- hash.
-    }
 
 {-----------------------------------------------------------------------------
     Helper functions

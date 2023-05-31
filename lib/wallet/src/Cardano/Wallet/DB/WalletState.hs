@@ -1,8 +1,11 @@
+{-# LANGUAGE DataKinds #-}
 {-# LANGUAGE DeriveGeneric #-}
+{-# LANGUAGE FlexibleContexts #-}
 {-# LANGUAGE NamedFieldPuns #-}
 {-# LANGUAGE OverloadedLabels #-}
 {-# LANGUAGE StandaloneDeriving #-}
 {-# LANGUAGE TypeFamilies #-}
+{-# LANGUAGE UndecidableInstances #-}
 
 -- |
 -- Copyright: © 2022 IOHK
@@ -39,18 +42,28 @@ module Cardano.Wallet.DB.WalletState
 
 import Prelude
 
+import Cardano.Address.Derivation
+    ( XPrv )
 import Cardano.Wallet.Address.Book
     ( AddressBookIso (..), Discoveries, Prologue )
+import Cardano.Wallet.Address.Derivation
+    ( Depth (RootK) )
 import Cardano.Wallet.Checkpoints
     ( Checkpoints )
 import Cardano.Wallet.DB.Store.Info.Store
     ( DeltaWalletInfo, WalletInfo (..) )
+import Cardano.Wallet.DB.Store.PrivateKey.Store
+    ( DeltaPrivateKey )
 import Cardano.Wallet.DB.Store.Submissions.Layer
     ( emptyTxSubmissions )
 import Cardano.Wallet.DB.Store.Submissions.Operations
     ( DeltaTxSubmissions, TxSubmissions )
+import Cardano.Wallet.Flavor
+    ( KeyOf )
 import Cardano.Wallet.Primitive.Types
     ( BlockHeader )
+import Cardano.Wallet.Primitive.Types.Credentials
+    ( HashedCredentials )
 import Cardano.Wallet.Primitive.Types.UTxO
     ( UTxO )
 import Data.Delta
@@ -121,9 +134,12 @@ data WalletState s = WalletState
     , checkpoints :: !(Checkpoints (WalletCheckpoint s))
     , submissions :: !TxSubmissions
     , info :: !WalletInfo
+    , credentials :: Maybe (HashedCredentials (KeyOf s))
     } deriving (Generic)
 
-deriving instance AddressBookIso s => Eq (WalletState s)
+deriving instance
+    (AddressBookIso s, Eq (KeyOf s 'RootK XPrv))
+    => Eq (WalletState s)
 
 -- | Create a wallet from the genesis block.
 fromGenesis
@@ -139,6 +155,7 @@ fromGenesis cp winfo
                 , checkpoints = CPS.fromGenesis checkpoint
                 , submissions = emptyTxSubmissions
                 , info = winfo
+                , credentials = Nothing
                 }
     | otherwise = Nothing
   where
@@ -166,6 +183,7 @@ data DeltaWalletState1 s
     -- ^ Update the wallet checkpoints.
     | UpdateSubmissions DeltaTxSubmissions
     | UpdateInfo DeltaWalletInfo
+    | UpdateCredentials (DeltaPrivateKey (KeyOf s))
 
 instance Delta (DeltaWalletState1 s) where
     type Base (DeltaWalletState1 s) = WalletState s
@@ -173,12 +191,14 @@ instance Delta (DeltaWalletState1 s) where
     apply (UpdateCheckpoints d) = over #checkpoints $ apply d
     apply (UpdateSubmissions d) = over #submissions $ apply d
     apply (UpdateInfo d) = over #info $ apply d
+    apply (UpdateCredentials d) = over #credentials $ apply d
 
 instance Buildable (DeltaWalletState1 s) where
     build (ReplacePrologue _) = "ReplacePrologue …"
     build (UpdateCheckpoints d) = "UpdateCheckpoints (" <> build d <> ")"
     build (UpdateSubmissions d) = "UpdateSubmissions (" <> build d <> ")"
     build (UpdateInfo d) = "UpdateInfo (" <> build d <> ")"
+    build (UpdateCredentials _d) = "UpdatePrivateKey"
 
 instance Show (DeltaWalletState1 s) where
     show = pretty

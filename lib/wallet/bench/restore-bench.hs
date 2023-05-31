@@ -107,8 +107,6 @@ import Cardano.Wallet.Network
     )
 import Cardano.Wallet.Primitive.Model
     ( Wallet, availableUTxO, currentTip, getState, totalUTxO )
-import Cardano.Wallet.Primitive.Passphrase.Types
-    ( Passphrase (..) )
 import Cardano.Wallet.Primitive.Slotting
     ( TimeInterpreter, neverFails )
 import Cardano.Wallet.Primitive.SyncProgress
@@ -128,6 +126,8 @@ import Cardano.Wallet.Primitive.Types.Address
     ( Address (..) )
 import Cardano.Wallet.Primitive.Types.Coin
     ( Coin (..) )
+import Cardano.Wallet.Primitive.Types.Credentials
+    ( ClearCredentials, RootCredentials (..) )
 import Cardano.Wallet.Primitive.Types.RewardAccount
     ( RewardAccount )
 import Cardano.Wallet.Primitive.Types.Tx.Tx
@@ -358,9 +358,7 @@ cardanoRestoreBench tr c socketFile = do
 
     walletSeq
         :: Text
-        -> ((ShelleyKey 'RootK XPrv, Passphrase "encryption")
-            -> AddressPoolGap -> s
-            )
+        -> (ClearCredentials ShelleyKey -> AddressPoolGap -> s)
         -> (WalletId, WalletName, s)
     walletSeq wname mkState =
         let
@@ -368,7 +366,7 @@ cardanoRestoreBench tr c socketFile = do
             xprv = Shelley.generateKeyFromSeed (seed, Nothing) mempty
             wid = WalletId $ digest ShelleyKeyS $ publicKey ShelleyKeyS xprv
             Right gap = mkAddressPoolGap 20
-            s = mkState (xprv, mempty) gap
+            s = mkState (RootCredentials xprv mempty) gap
         in
             (wid, WalletName wname, s)
 
@@ -376,7 +374,7 @@ cardanoRestoreBench tr c socketFile = do
         :: forall (p :: Nat) n. HasSNetworkId n
         => Proxy p
         -> SNetworkId n
-        -> (ShelleyKey 'RootK XPrv, Passphrase "encryption")
+        -> ClearCredentials ShelleyKey
         -> AddressPoolGap
         -> SeqAnyState n ShelleyKey p
     mkSeqAnyState' _ _ credentials =

@@ -50,8 +50,6 @@ module Cardano.Wallet.DB.StateMachine
 
 import Prelude
 
-import Cardano.Address.Derivation
-    ( XPrv )
 import Cardano.Address.Script
     ( ScriptTemplate (..) )
 import Cardano.Pool.Types
@@ -60,8 +58,6 @@ import Cardano.Wallet.Address.Book
     ( AddressBookIso )
 import Cardano.Wallet.Address.Derivation
     ( Depth (..), DerivationPrefix, Index, KeyFingerprint, Role (..) )
-import Cardano.Wallet.Address.Derivation.Byron
-    ( ByronKey )
 import Cardano.Wallet.Address.Derivation.Shared
     ()
 import Cardano.Wallet.Address.Derivation.SharedKey
@@ -80,8 +76,6 @@ import Cardano.Wallet.Address.Discovery.Shared
     , SharedAddressPools (..)
     , SharedState (..)
     )
-import Cardano.Wallet.Address.Keys.PersistPrivateKey
-    ( unsafeDeserializeXPrv )
 import Cardano.Wallet.DB
     ( DBLayer (..), DBLayerParams (..) )
 import Cardano.Wallet.DB.Arbitrary
@@ -97,23 +91,17 @@ import Cardano.Wallet.DB.Pure.Implementation
     , mPutCheckpoint
     , mPutDelegationCertificate
     , mPutDelegationRewardBalance
-    , mPutPrivateKey
     , mPutTxHistory
     , mReadCheckpoint
     , mReadDelegationRewardBalance
     , mReadGenesisParameters
-    , mReadPrivateKey
     , mReadTxHistory
     , mRollbackTo
     )
 import Cardano.Wallet.DummyTarget.Primitive.Types
     ( dummyGenesisParameters, dummyTimeInterpreter )
-import Cardano.Wallet.Flavor
-    ( KeyFlavorS (..), KeyOf )
 import Cardano.Wallet.Primitive.Model
     ( Wallet )
-import Cardano.Wallet.Primitive.Passphrase.Types
-    ( PassphraseHash (..) )
 import Cardano.Wallet.Primitive.Types
     ( BlockHeader (..)
     , ChainPoint
@@ -187,8 +175,6 @@ import Crypto.Hash
     ( Blake2b_160, Digest, digestFromByteString, hash )
 import Data.Bifunctor
     ( first )
-import Data.ByteString
-    ( ByteString )
 import Data.Foldable
     ( foldl', toList )
 import Data.Functor.Classes
@@ -225,7 +211,6 @@ import Test.QuickCheck
     , Property
     , applyArbitrary2
     , arbitraryBoundedEnum
-    , elements
     , frequency
     , generate
     , resize
@@ -297,37 +282,6 @@ unMockWid (MWid wid) = WalletId m
 -- | Represent (XPrv, Hash) as a string.
 type MPrivKey = String
 
-class MockPrivKey k where
-    -- | Stuff a mock private key into the type used by 'DBLayer'.
-    fromMockPrivKey
-        :: MPrivKey
-        -> (k XPrv, PassphraseHash)
-
-    -- | Unstuff the DBLayer private key into the mock type.
-    toMockPrivKey :: (k XPrv, PassphraseHash) -> MPrivKey
-    toMockPrivKey (_, h) = B8.unpack (BA.convert h)
-
-zeroes :: ByteString
-zeroes = B8.replicate 256 '0'
-
-instance MockPrivKey (ShelleyKey 'RootK) where
-    fromMockPrivKey s = (k, unMockPrivKeyHash s)
-      where
-        (k, _) = unsafeDeserializeXPrv ShelleyKeyS (zeroes, mempty)
-
-instance MockPrivKey (SharedKey 'RootK) where
-    fromMockPrivKey s = (k, unMockPrivKeyHash s)
-      where
-        (k, _) = unsafeDeserializeXPrv SharedKeyS (zeroes, mempty)
-
-instance MockPrivKey (ByronKey 'RootK) where
-    fromMockPrivKey s = (k, unMockPrivKeyHash s)
-      where
-        (k, _) = unsafeDeserializeXPrv ByronKeyS
-            (zeroes <> ":", mempty)
-
-unMockPrivKeyHash :: MPrivKey -> PassphraseHash
-unMockPrivKeyHash = PassphraseHash .  BA.convert . B8.pack
 
 {-------------------------------------------------------------------------------
   Language
@@ -345,8 +299,6 @@ data Cmd s wid
         (Range SlotNo)
         (Maybe TxStatus)
     | GetTx (Hash "Tx")
-    | PutPrivateKey MPrivKey
-    | ReadPrivateKey
     | ReadGenesisParameters
     | RollbackTo wid Slot
     | PutDelegationCertificate DelegationCertificate SlotNo
@@ -364,7 +316,6 @@ data Success s wid
     | Metadata WalletMetadata
     | TxHistory [TransactionInfo]
     | LocalTxSubmission [LocalTxSubmissionStatus (Hash "Tx")]
-    | PrivateKey (Maybe MPrivKey)
     | GenesisParams (Maybe GenesisParameters)
     | ChainPoints [ChainPoint]
     | Point ChainPoint
@@ -413,10 +364,6 @@ runMock = \case
         -- TODO: Implement mGetTx
         -- . mGetTx wid tid
         . (Right Nothing,)
-    PutPrivateKey pk ->
-        first (Resp . fmap Unit) . mPutPrivateKey pk
-    ReadPrivateKey ->
-        first (Resp . fmap PrivateKey) . mReadPrivateKey
     ReadGenesisParameters ->
         first (Resp . fmap GenesisParams) . mReadGenesisParameters
     PutDelegationRewardBalance _wid amt ->
@@ -435,7 +382,8 @@ runMock = \case
 -------------------------------------------------------------------------------}
 
 runIO
-    :: forall m s k. (MonadIO m, MockPrivKey (k 'RootK), k ~ KeyOf s)
+    :: forall m s
+     . MonadIO m
     => DBLayer m s
     -> Cmd s WalletId
     -> m (Resp s WalletId)
@@ -472,11 +420,6 @@ runIO DBLayer{..} = fmap Resp . go
             readTransactions minWith order range status Nothing
         GetTx tid ->
             runDBSuccess atomically (TxHistory . maybe [] pure) $ getTx tid
-        PutPrivateKey pk ->
-            runDBSuccess atomically  Unit $
-            putPrivateKey (fromMockPrivKey pk)
-        ReadPrivateKey -> Right . PrivateKey . fmap toMockPrivKey <$>
-            atomically readPrivateKey
         ReadGenesisParameters -> Right . GenesisParams <$>
             atomically readGenesisParameters
         PutDelegationRewardBalance _wid amt -> runDBSuccess atomically Unit $
@@ -611,10 +554,6 @@ generatorWithWid wids =
             <*> genSortOrder
             <*> genRange
             <*> arbitrary
-    , declareGenerator "PutPrivateKey" 3
-        $ PutPrivateKey <$> genPrivKey
-    , declareGenerator "ReadPrivateKey" 3
-        $ pure ReadPrivateKey
     , declareGenerator "RollbackTo" 1
         $ RollbackTo <$> genId <*> arbitrary
     -- TODO: Implement mPrune
@@ -626,9 +565,6 @@ generatorWithWid wids =
   where
     genId :: Gen (Reference WalletId r)
     genId = QC.elements wids
-
-    genPrivKey :: Gen MPrivKey
-    genPrivKey = elements ["pk1", "pk2", "pk3"]
 
     genSortOrder :: Gen SortOrder
     genSortOrder = arbitraryBoundedEnum
@@ -687,7 +623,7 @@ postcondition m c r =
     e = lockstep m c r
 
 semantics
-    :: (MonadIO m, MockPrivKey (k 'RootK), k ~ KeyOf s)
+    :: MonadIO m
     => DBLayer m s
     -> Cmd s :@ Concrete
     -> m (Resp s :@ Concrete)
@@ -701,16 +637,15 @@ symbolicResp m c =
   where
     (resp, _mock') = step m c
 
-type TestConstraints s k =
-    ( MockPrivKey (k 'RootK)
-    , Eq s
+type TestConstraints s =
+    ( Eq s
     , GenState s
     , Arbitrary (Wallet s)
     , ToExpr s
     )
 
 sm
-    :: (MonadIO m, TestConstraints s k, k ~ KeyOf s)
+    :: (MonadIO m, TestConstraints s)
     => MWid
     -> DBLayerParams s
     -> DBLayer m s
@@ -947,8 +882,6 @@ data Tag
     | TxUnsortedInputs
       -- ^ Putting a transaction with unsorted inputs.
     | TxUnsortedOutputs
-    | SuccessfulReadPrivateKey
-      -- ^ Private key was written then read.
     | PutCheckpointTwice
       -- ^ Multiple checkpoints are successfully saved to a wallet.
     | RolledBackOnce
@@ -965,7 +898,6 @@ tag = Foldl.fold $ catMaybes <$> sequenceA
     , readTransactions null UnsuccessfulReadTxHistory
     , txUnsorted inputs TxUnsortedInputs
     , txUnsorted outputs TxUnsortedOutputs
-    , countAction SuccessfulReadPrivateKey (>= 1) isReadPrivateKeySuccess
     , countAction PutCheckpointTwice (>= 2) isPutCheckpointSuccess
     , countAction RolledBackOnce (>= 1) isRollbackSuccess
     ]
@@ -995,15 +927,6 @@ tag = Foldl.fold $ catMaybes <$> sequenceA
         extract matches
             | any enough matches = Just res
             | otherwise = Nothing
-
-    isReadPrivateKeySuccess :: Event s Symbolic -> Maybe ()
-    isReadPrivateKeySuccess ev = case (cmd ev, mockResp ev, before ev) of
-        (At ReadPrivateKey
-            , Resp (Right (PrivateKey (Just _)))
-            , Model _ _wids )
-                -> Just ()
-        _otherwise
-            -> Nothing
 
     readTransactions
         :: ([TransactionInfo] -> Bool)
@@ -1094,7 +1017,8 @@ genDBParams =
         <*> pure dummyGenesisParameters
 
 prop_sequential
-    :: forall s k. (TestConstraints s k,  k ~ KeyOf s)
+    :: forall s
+     . TestConstraints s
     => (WalletId -> DBLayerParams s -> (IO (IO (),DBLayer IO s)))
     -> Property
 prop_sequential newDB =
@@ -1110,7 +1034,7 @@ prop_sequential newDB =
                 measureTag p t =
                     QC.cover 5 (t `Set.member` matchedTags) (show t) p
         in QC.checkCoverage $
-        forAllCommands (sm @IO @s @k testMWid params dbLayerUnused) Nothing $
+        forAllCommands (sm @IO @s testMWid params dbLayerUnused) Nothing $
             \cmds -> monadicIO $ do
                 (destroyDB, db) <- run (newDB testWid params)
                 let sm' = sm testMWid params db

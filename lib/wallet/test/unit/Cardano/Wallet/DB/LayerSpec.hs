@@ -52,11 +52,9 @@ import Cardano.DB.Sqlite
 import Cardano.Mnemonic
     ( SomeMnemonic (..) )
 import Cardano.Wallet
-    ( readWalletMeta )
+    ( putPrivateKey, readPrivateKey, readWalletMeta )
 import Cardano.Wallet.Address.Derivation
     ( Depth (..), DerivationType (..), Index, PaymentAddress (..) )
-import Cardano.Wallet.Address.Derivation.Byron
-    ( ByronKey (..) )
 import Cardano.Wallet.Address.Derivation.Icarus
     ( IcarusKey )
 import Cardano.Wallet.Address.Derivation.Shared
@@ -148,6 +146,8 @@ import Cardano.Wallet.Primitive.Types.Address
     ( Address (..) )
 import Cardano.Wallet.Primitive.Types.Coin
     ( Coin (..) )
+import Cardano.Wallet.Primitive.Types.Credentials
+    ( RootCredentials (..) )
 import Cardano.Wallet.Primitive.Types.Hash
     ( Hash (..), mockHash )
 import Cardano.Wallet.Primitive.Types.TokenBundle
@@ -292,12 +292,11 @@ spec =
             manualMigrationsSpec
 
 stateMachineSpec
-    :: forall k s
+    :: forall s
      . ( PersistAddressBook s
-       , TestConstraints s k
+       , TestConstraints s
        , Typeable s
        , WalletFlavor s
-       , KeyOf s ~ k
        )
     => Spec
 stateMachineSpec = describe ("State machine test (" ++ showState @s ++ ")") $ do
@@ -313,11 +312,11 @@ stateMachineSpec = describe ("State machine test (" ++ showState @s ++ ")") $ do
 
 stateMachineSpecSeq, stateMachineSpecRnd, stateMachineSpecShared :: Spec
 stateMachineSpecSeq =
-    stateMachineSpec @ShelleyKey @TestState
+    stateMachineSpec @TestState
 stateMachineSpecRnd =
-    stateMachineSpec @ByronKey @(RndState 'Mainnet)
+    stateMachineSpec @(RndState 'Mainnet)
 stateMachineSpecShared =
-    stateMachineSpec @SharedKey @(SharedState 'Mainnet SharedKey)
+    stateMachineSpec @(SharedState 'Mainnet SharedKey)
 
 instance PaymentAddress SharedKey 'CredFromScriptK where
     paymentAddress _ = error
@@ -968,7 +967,7 @@ readTransactions' DBLayer{..} a1 a2 mstatus =
 readPrivateKey'
     :: DBLayer m s
     -> m (Maybe (KeyOf s 'RootK XPrv, PassphraseHash))
-readPrivateKey' DBLayer{..} = atomically readPrivateKey
+readPrivateKey' DBLayer{..} = atomically $ readPrivateKey walletState
 
 -- | Attach an arbitrary private key to a wallet
 attachPrivateKey
@@ -980,7 +979,7 @@ attachPrivateKey DBLayer{..} = do
     seed <- liftIO $ generate $ SomeMnemonic <$> genMnemonic @15
     (scheme, h) <- liftIO $ encryptPassphrase pwd
     let k = generateKeyFromSeed (seed, Nothing) (preparePassphrase scheme pwd)
-    atomically $ putPrivateKey (k, h)
+    atomically $ putPrivateKey walletState (k, h)
     return (k, h)
 
 cutRandomly :: [a] -> IO [[a]]
@@ -1474,7 +1473,8 @@ testCp = snd $ initWallet block0 initDummyState
   where
     initDummyState :: TestState
     initDummyState = mkSeqStateFromRootXPrv
-        ShelleyKeyS (xprv, mempty) purposeCIP1852 defaultAddressPoolGap
+        ShelleyKeyS (RootCredentials xprv mempty)
+        purposeCIP1852 defaultAddressPoolGap
       where
         mw = SomeMnemonic . unsafePerformIO . generate $ genMnemonic @15
         xprv = generateKeyFromSeed (mw, Nothing) mempty
@@ -1579,7 +1579,7 @@ testCpSeq = snd $ initWallet block0 initDummyStateSeq
 
 initDummyStateSeq :: TestState
 initDummyStateSeq = mkSeqStateFromRootXPrv
-    ShelleyKeyS (xprv, mempty) purposeCIP1852 defaultAddressPoolGap
+    ShelleyKeyS (RootCredentials xprv mempty) purposeCIP1852 defaultAddressPoolGap
   where
       mw = SomeMnemonic $ unsafePerformIO (generate $ genMnemonic @15)
       xprv = Seq.generateKeyFromSeed (mw, Nothing) mempty

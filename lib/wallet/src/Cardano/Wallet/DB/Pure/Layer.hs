@@ -33,12 +33,10 @@ import Cardano.Wallet.DB.Pure.Implementation
     , mPutCheckpoint
     , mPutDelegationCertificate
     , mPutDelegationRewardBalance
-    , mPutPrivateKey
     , mPutTxHistory
     , mReadCheckpoint
     , mReadDelegationRewardBalance
     , mReadGenesisParameters
-    , mReadPrivateKey
     , mReadTxHistory
     , mRollbackTo
     )
@@ -158,14 +156,6 @@ newDBFresh timeInterpreter wid = do
                 case filter txPresent txInfos of
                     [] -> pure Nothing
                     t:_ -> pure $ Just t
-
-        {-----------------------------------------------------------------------
-                                       Keystore
-        -----------------------------------------------------------------------}
-
-        , putPrivateKey = noErrorAlterDB db . mPutPrivateKey
-
-        , readPrivateKey = join <$> readDBMaybe db mReadPrivateKey
 
         {-----------------------------------------------------------------------
                                        Pending Tx

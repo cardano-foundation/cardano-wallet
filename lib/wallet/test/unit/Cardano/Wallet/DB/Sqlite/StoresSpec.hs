@@ -10,10 +10,14 @@ module Cardano.Wallet.DB.Sqlite.StoresSpec
 
 import Prelude
 
+import Cardano.Address.Derivation
+    ( XPrv )
 import Cardano.DB.Sqlite
     ( ForeignKeysSetting (..), SqliteContext (runQuery) )
 import Cardano.Wallet.Address.Book
     ( AddressBookIso (..), Prologue, getPrologue )
+import Cardano.Wallet.Address.Derivation
+    ( Depth (RootK) )
 import Cardano.Wallet.Address.Derivation.Shared
     ( SharedKey )
 import Cardano.Wallet.Address.Derivation.Shelley
@@ -44,6 +48,8 @@ import Cardano.Wallet.DB.WalletState
     )
 import Cardano.Wallet.DummyTarget.Primitive.Types
     ( dummyGenesisParameters )
+import Cardano.Wallet.Flavor
+    ( KeyOf, WalletFlavorS (ShelleyWallet) )
 import Cardano.Wallet.Primitive.Types
     ( SlotNo (..), WalletId (..), WithOrigin (..) )
 import Cardano.Wallet.Read.NetworkId
@@ -100,7 +106,7 @@ spec = do
     around (withDBInMemory ForeignKeysEnabled) $ do
         describe "Update" $ do
             it "mkStoreWallet" $
-                property . prop_StoreWallet @(SeqState 'Mainnet ShelleyKey)
+                property . prop_StoreWallet (ShelleyWallet @'Mainnet)
 
 {-------------------------------------------------------------------------------
     Properties
@@ -148,11 +154,13 @@ prop_StoreWallet
     :: forall s
      . ( PersistAddressBook s
        , GenState s
+       , Eq (KeyOf s 'RootK XPrv)
        )
-    => SqliteContext
+    => WalletFlavorS s
+    -> SqliteContext
     -> (WalletId, InitialCheckpoint s)
     -> Property
-prop_StoreWallet db (wid, InitialCheckpoint cp0) =
+prop_StoreWallet wF db (wid, InitialCheckpoint cp0) =
     monadicIO (setup >> prop)
   where
     toIO = runQuery db
@@ -166,7 +174,7 @@ prop_StoreWallet db (wid, InitialCheckpoint cp0) =
     prop = do
         prop_StoreUpdates
             toIO
-            (mkStoreWallet wid)
+            (mkStoreWallet wF wid)
             genState
             genDeltaWalletState
 

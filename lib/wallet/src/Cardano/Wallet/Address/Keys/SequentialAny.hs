@@ -12,8 +12,6 @@ where
 
 import Prelude
 
-import Cardano.Crypto.Wallet
-    ( XPrv )
 import Cardano.Wallet.Address.Derivation
     ( Depth (..), DerivationType (..), HardDerivation (..), Index (..) )
 import Cardano.Wallet.Address.Derivation.MintBurn
@@ -29,8 +27,6 @@ import Cardano.Wallet.Address.Discovery.Sequential
     )
 import Cardano.Wallet.Flavor
     ( Excluding, KeyFlavorS )
-import Cardano.Wallet.Primitive.Passphrase.Types
-    ( Passphrase )
 import GHC.TypeLits
     ( Nat )
 
@@ -38,6 +34,9 @@ import Cardano.Wallet.Address.Derivation.Byron
     ( ByronKey (..) )
 import Cardano.Wallet.Address.Keys.WalletKey
     ( getRawKey, liftRawKey, publicKey )
+import Cardano.Wallet.Primitive.Types.Credentials
+    ( ClearCredentials, RootCredentials (..) )
+
 
 
 -- | Initialize the HD random address discovery state from a root key and RNG
@@ -52,7 +51,7 @@ mkSeqAnyState
         , Excluding '[SharedKey, ByronKey] k
         )
     => KeyFlavorS k
-    -> (k 'RootK XPrv, Passphrase "encryption")
+    -> ClearCredentials k
     -> Index 'Hardened 'PurposeK
     -> AddressPoolGap
     -> SeqAnyState n k p
@@ -68,11 +67,11 @@ mkSeqStateFromRootXPrv
         , Excluding '[ByronKey, SharedKey] k
         )
     => KeyFlavorS k
-    -> (k 'RootK XPrv, Passphrase "encryption")
+    -> ClearCredentials k
     -> Index 'Hardened 'PurposeK
     -> AddressPoolGap
     -> SeqState n k
-mkSeqStateFromRootXPrv kF (rootXPrv, pwd) =
+mkSeqStateFromRootXPrv kF (RootCredentials rootXPrv pwd) =
     mkSeqStateFromAccountXPub
         (publicKey kF $ deriveAccountPrivateKey pwd rootXPrv minBound)
             $ Just

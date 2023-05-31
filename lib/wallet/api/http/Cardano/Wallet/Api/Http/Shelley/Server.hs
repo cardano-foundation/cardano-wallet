@@ -187,6 +187,7 @@ import Cardano.Wallet
     , logger
     , manageRewardBalance
     , networkLayer
+    , readPrivateKey
     , readWalletMeta
     , transactionLayer
     , utxoAssumptionsForWallet
@@ -493,6 +494,8 @@ import Cardano.Wallet.Primitive.Types.Address
     ( Address (..), AddressState (..) )
 import Cardano.Wallet.Primitive.Types.Coin
     ( Coin (..) )
+import Cardano.Wallet.Primitive.Types.Credentials
+    ( ClearCredentials, RootCredentials (..) )
 import Cardano.Wallet.Primitive.Types.Hash
     ( Hash (..) )
 import Cardano.Wallet.Primitive.Types.Redeemer
@@ -871,7 +874,7 @@ postShelleyWallet
     -> Handler ApiWallet
 postShelleyWallet ctx generateKey body = do
     let state = mkSeqStateFromRootXPrv
-            (keyFlavorFromState @s) (rootXPrv, pwdP) purposeCIP1852 g
+            (keyFlavorFromState @s) (RootCredentials rootXPrv pwdP) purposeCIP1852 g
     void $ liftHandler $ createWalletWorker @_ @s ctx wid
         (\dbf -> W.createWallet @_ @s genesisParams dbf wid wName state)
         (\workerCtx _ -> W.manageRewardBalance
@@ -1061,7 +1064,7 @@ postSharedWalletFromRootXPrv ctx generateKey body = do
     ix' <- liftHandler $ withExceptT ErrConstructSharedWalletInvalidIndex $
         W.guardHardIndex ix
     let state = mkSharedStateFromRootXPrv kF
-            (rootXPrv, pwdP) ix' g pTemplate dTemplateM
+            (RootCredentials rootXPrv pwdP) ix' g pTemplate dTemplateM
     let stateReadiness = state ^. #ready
     if stateReadiness == Shared.Pending
     then void $ liftHandler $ createNonRestoringWalletWorker @_ @s ctx wid
@@ -1261,13 +1264,12 @@ patchSharedWallet ctx liftKey cred (ApiT wid) body = do
                 db & \W.DBLayer
                     { atomically
                     , readCheckpoint
-                    , readPrivateKey
                     , walletState
                     } -> do
                         cp <- atomically readCheckpoint
                         let state = getState cp
                         --could be for account and root key wallets
-                        prvKeyM <- atomically readPrivateKey
+                        prvKeyM <- atomically $ readPrivateKey walletState
                         meta <- atomically (readWalletMeta walletState)
                         pure (state, prvKeyM, meta)
 
@@ -1453,7 +1455,7 @@ postIcarusWallet
 postIcarusWallet ctx body = do
     postLegacyWallet ctx (rootXPrv, pwd) $ \wrk wid ->
         W.createIcarusWallet @s genesisParams wrk wid wName
-            (rootXPrv, pwdP)
+            (RootCredentials rootXPrv pwdP)
   where
     wName    = body ^. #name . #getApiT
     seed     = body ^. #mnemonicSentence . #getApiMnemonicT
@@ -1475,7 +1477,7 @@ postTrezorWallet
 postTrezorWallet ctx body = do
     postLegacyWallet ctx (rootXPrv, pwd) $ \wrk wid ->
         W.createIcarusWallet @s genesisParams wrk wid wName
-            (rootXPrv, pwdP)
+            (RootCredentials rootXPrv pwdP)
   where
     wName    = body ^. #name . #getApiT
     seed     = body ^. #mnemonicSentence . #getApiMnemonicT
@@ -1497,7 +1499,7 @@ postLedgerWallet
 postLedgerWallet ctx body = do
     postLegacyWallet ctx (rootXPrv, pwd) $ \wrk wid ->
         W.createIcarusWallet @s genesisParams wrk wid wName
-            (rootXPrv, pwdP)
+            (RootCredentials rootXPrv pwdP)
   where
     wName    = body ^. #name . #getApiT
     mw       = body ^. #mnemonicSentence . #getApiMnemonicT
@@ -2138,7 +2140,7 @@ signTransaction ctx (ApiT wid) body = do
                     pure $ W.signTransaction
                         (keyFlavorFromState @s)
                         tl era witCountCtx keyLookup
-                        Nothing (rootK, pwdP) utxo accIxForStakingM sealedTx
+                        Nothing (RootCredentials rootK pwdP) utxo accIxForStakingM sealedTx
 
     -- TODO: The body+witnesses seem redundant with the sealedTx already. What's
     -- the use-case for having them provided separately? In the end, the client
@@ -4209,7 +4211,7 @@ rndStateChange ctx (ApiT wid) pwd =
             \xprv scheme -> pure (xprv, preparePassphrase scheme pwd)
 
 type RewardAccountBuilder k
-    =  (k 'RootK XPrv, Passphrase "encryption")
+    =  ClearCredentials k
     -> (XPrv, Passphrase "encryption")
 
 mkWithdrawal
@@ -4270,7 +4272,7 @@ selfRewardAccountBuilder
        )
     => KeyFlavorS k
     -> RewardAccountBuilder k
-selfRewardAccountBuilder keyF (rootK, pwdP) =
+selfRewardAccountBuilder keyF (RootCredentials rootK pwdP) =
     (getRawKey keyF (deriveRewardAccount pwdP rootK minBound), pwdP)
 
 -- | Makes an 'ApiCoinSelection' from the given 'UnsignedTx'.

@@ -119,6 +119,8 @@ import Cardano.Wallet.Primitive.Types.Address
     ( Address (..), AddressState (..) )
 import Cardano.Wallet.Primitive.Types.Coin
     ( Coin (..) )
+import Cardano.Wallet.Primitive.Types.Credentials
+    ( RootCredentials (..) )
 import Cardano.Wallet.Primitive.Types.Hash
     ( Hash (..) )
 import Cardano.Wallet.Primitive.Types.TokenPolicy
@@ -800,7 +802,7 @@ testCpByron = snd $ initWallet block0 initDummyRndState
 {-# NOINLINE initDummySeqState #-}
 initDummySeqState :: SeqState 'Mainnet ShelleyKey
 initDummySeqState = mkSeqStateFromRootXPrv
-    ShelleyKeyS (xprv, mempty) purposeCIP1852 defaultAddressPoolGap
+    ShelleyKeyS (RootCredentials xprv mempty) purposeCIP1852 defaultAddressPoolGap
   where
     mnemonic = unsafePerformIO
         $ SomeMnemonic . entropyToMnemonic @15
