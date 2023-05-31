@@ -1240,7 +1240,7 @@ mkExternalWithdrawal netLayer txWitnessTag mnemonic = do
     balance <- getCachedRewardAccountBalance netLayer rewardAccount
     pp <- currentProtocolParameters netLayer
     let (xprv, _acct , _path) = someRewardAccount @ShelleyKey mnemonic
-    pure $ checkRewardIsWorthTxCost txWitnessTag pp balance $>
+    pure $ checkRewardIsWorthTxCost txWitnessTag pp balance Nothing $>
         WithdrawalExternal rewardAccount derivationPath balance xprv
 
 mkSelfWithdrawal
@@ -1252,7 +1252,7 @@ mkSelfWithdrawal netLayer txWitnessTag db = do
     (rewardAccount, _, derivationPath) <- readRewardAccount db
     balance <- getCachedRewardAccountBalance netLayer rewardAccount
     pp <- currentProtocolParameters netLayer
-    pure $ case checkRewardIsWorthTxCost txWitnessTag pp balance of
+    pure $ case checkRewardIsWorthTxCost txWitnessTag pp balance Nothing of
         Left ErrWithdrawalNotBeneficial -> NoWithdrawal
         Right () -> WithdrawalSelf rewardAccount derivationPath balance
 
@@ -1277,14 +1277,15 @@ mkSelfWithdrawalShared
     :: forall n block
      . NetworkLayer IO block
     -> TxWitnessTag
+    -> Maybe CA.ScriptTemplate
     -> DBLayer IO (SharedState n SharedKey)
     -> IO Withdrawal
-mkSelfWithdrawalShared netLayer txWitnessTag db = do
+mkSelfWithdrawalShared netLayer txWitnessTag delegationTemplateM db = do
     (rewardAccount, _, derivationPath) <-
         readRewardAccount @(SharedState n SharedKey) db
     balance <- getCachedRewardAccountBalance netLayer rewardAccount
     pp <- currentProtocolParameters netLayer
-    return $ case checkRewardIsWorthTxCost txWitnessTag pp balance of
+    return $ case checkRewardIsWorthTxCost txWitnessTag pp balance delegationTemplateM of
         Left ErrWithdrawalNotBeneficial -> NoWithdrawal
         Right () -> WithdrawalSelf rewardAccount derivationPath balance
 
@@ -1292,8 +1293,9 @@ checkRewardIsWorthTxCost
     :: TxWitnessTag
     -> ProtocolParameters
     -> Coin
+    -> Maybe CA.ScriptTemplate
     -> Either ErrWithdrawalNotBeneficial ()
-checkRewardIsWorthTxCost txWitnessTag pp balance = do
+checkRewardIsWorthTxCost txWitnessTag pp balance delegationTemplateM = do
     when (balance == Coin 0)
         $ Left ErrWithdrawalNotBeneficial
     let minimumCost txCtx =
@@ -1306,7 +1308,8 @@ checkRewardIsWorthTxCost txWitnessTag pp balance = do
   where
     feePerByte = getFeePerByteFromWalletPParams pp
     mkTxCtx wdrl = defaultTransactionCtx
-        { txWithdrawal = WithdrawalSelf dummyAcct dummyPath wdrl }
+        { txWithdrawal = WithdrawalSelf dummyAcct dummyPath wdrl
+        , txStakingCredentialScriptTemplate = delegationTemplateM}
       where
         dummyAcct = FromKeyHash mempty
         dummyPath = DerivationIndex 0 :| []

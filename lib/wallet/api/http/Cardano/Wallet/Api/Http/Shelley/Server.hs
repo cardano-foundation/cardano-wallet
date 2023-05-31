@@ -2878,13 +2878,13 @@ constructSharedTransaction
             <- liftIO $ W.readNodeTipStateForTxWrite netLayer
         (cp, _, _) <- handler $ W.readWallet wrk
 
+        let delegationTemplateM = Shared.delegationTemplate $ getState cp
         withdrawal <- case body ^. #withdrawal of
             Just SelfWithdraw -> liftIO $
                 W.mkSelfWithdrawalShared @n
-                    netLayer (txWitnessTagFor @SharedKey) db
+                    netLayer (txWitnessTagFor @SharedKey) delegationTemplateM db
             _ -> pure NoWithdrawal
 
-        let delegationTemplateM = Shared.delegationTemplate $ getState cp
         when (isNothing delegationTemplateM && isJust delegationRequest) $
             liftHandler $ throwE ErrConstructTxDelegationInvalid
 
@@ -2901,8 +2901,7 @@ constructSharedTransaction
                 , txDelegationAction = optionalDelegationAction
                 , txPaymentCredentialScriptTemplate =
                         Just (Shared.paymentTemplate $ getState cp)
-                , txStakingCredentialScriptTemplate =
-                        Shared.delegationTemplate $ getState cp
+                , txStakingCredentialScriptTemplate = delegationTemplateM
                 }
         case Shared.ready (getState cp) of
             Shared.Pending ->
