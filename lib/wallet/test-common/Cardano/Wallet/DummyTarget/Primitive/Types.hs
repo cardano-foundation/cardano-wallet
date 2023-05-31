@@ -148,7 +148,8 @@ dummyProtocolParameters = ProtocolParameters
             , pricePerMemoryUnit = 0.0577
             }
     , currentLedgerProtocolParameters =
-        Write.InRecentEraBabbage
+        Write.InRecentEra
+        $ Write.InEraBabbage
         $ Write.ProtocolParameters
         $ C.toLedgerPParams C.ShelleyBasedEraBabbage dummyNodeProtocolParameters
     }

@@ -151,7 +151,7 @@ mainnetNetworkParameters = W.NetworkParameters
         , maximumCollateralInputCount = 0
         , minimumCollateralPercentage = 0
         , executionUnitPrices = Nothing
-        , currentLedgerProtocolParameters = Write.InNonRecentEraByron
+        , currentLedgerProtocolParameters = Write.InBygoneEra Write.InEraByron
         }
     }
 
@@ -333,7 +333,7 @@ protocolParametersFromPP eraInfo pp =
         , maximumCollateralInputCount = 0
         , minimumCollateralPercentage = 0
         , executionUnitPrices = Nothing
-        , currentLedgerProtocolParameters = Write.InNonRecentEraByron
+        , currentLedgerProtocolParameters = Write.InBygoneEra Write.InEraByron
         }
   where
     fromBound (Bound _relTime _slotNo (O.EpochNo e)) =
