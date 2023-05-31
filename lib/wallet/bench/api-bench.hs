@@ -79,7 +79,7 @@ import Cardano.Wallet.Network
 import Cardano.Wallet.Primitive.Model
     ( totalUTxO )
 import Cardano.Wallet.Primitive.Slotting
-    ( TimeInterpreter, hoistTimeInterpreter, toTimeTranslation )
+    ( TimeInterpreter, hoistTimeInterpreter )
 import Cardano.Wallet.Primitive.Types
     ( SortOrder (..), WalletId, WalletMetadata (..) )
 import Cardano.Wallet.Primitive.Types.Coin
@@ -129,7 +129,6 @@ import qualified Cardano.Wallet.DB.Layer as Sqlite
 import qualified Cardano.Wallet.Primitive.Types.UTxOStatistics as UTxOStatistics
 import qualified Cardano.Wallet.Read as Read
 import qualified Cardano.Wallet.Transaction as Tx
-import qualified Cardano.Wallet.Write.Tx as Write
 import qualified Data.Aeson as Aeson
 import qualified Data.Map.Strict as Map
 import qualified Data.Text as T
@@ -260,12 +259,8 @@ benchmarksSeq BenchmarkConfig{benchmarkName,ctx} = do
         $ W.createMigrationPlan @_ @s ctx Tx.NoWithdrawal
 
     (_, delegationFeeTime) <- bench "delegationFee" $ do
-        timeTranslation <-
-            toTimeTranslation (timeInterpreter (networkLayer ctx))
         W.delegationFee
             (dbLayer ctx) (networkLayer ctx) (transactionLayer ctx)
-            timeTranslation
-            (Write.AnyRecentEra Write.RecentEraBabbage)
             (W.defaultChangeAddressGen (delegationAddressS @n))
 
     pure BenchSeqResults

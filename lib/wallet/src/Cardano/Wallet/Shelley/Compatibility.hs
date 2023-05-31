@@ -416,6 +416,8 @@ import qualified Cardano.Wallet.Primitive.Types.Tx.TxIn as W
 import qualified Cardano.Wallet.Primitive.Types.Tx.TxOut as W
     ( TxOut (TxOut) )
 import qualified Cardano.Wallet.Primitive.Types.UTxO as W
+import qualified Cardano.Wallet.Write.ProtocolParameters as Write
+import qualified Cardano.Wallet.Write.Tx as Write
 import qualified Codec.Binary.Bech32 as Bech32
 import qualified Codec.Binary.Bech32.TH as Bech32
 import qualified Codec.CBOR.Decoding as CBOR
@@ -872,10 +874,9 @@ fromMaxSize = Quantity . fromIntegral
 
 fromShelleyPParams
     :: W.EraInfo Bound
-    -> Maybe Cardano.ProtocolParameters
     -> Shelley.ShelleyPParams StandardShelley
     -> W.ProtocolParameters
-fromShelleyPParams eraInfo currentNodeProtocolParameters pp =
+fromShelleyPParams eraInfo pp =
     W.ProtocolParameters
         { decentralizationLevel =
             decentralizationLevelFromPParams pp
@@ -892,15 +893,14 @@ fromShelleyPParams eraInfo currentNodeProtocolParameters pp =
         , maximumCollateralInputCount = 0
         , minimumCollateralPercentage = 0
         , executionUnitPrices = Nothing
-        , currentNodeProtocolParameters
+        , currentLedgerProtocolParameters = Write.InNonRecentEraShelley
         }
 
 fromAllegraPParams
     :: W.EraInfo Bound
-    -> Maybe Cardano.ProtocolParameters
     -> Shelley.ShelleyPParams StandardAllegra
     -> W.ProtocolParameters
-fromAllegraPParams eraInfo currentNodeProtocolParameters pp =
+fromAllegraPParams eraInfo pp =
     W.ProtocolParameters
         { decentralizationLevel =
             decentralizationLevelFromPParams pp
@@ -917,15 +917,14 @@ fromAllegraPParams eraInfo currentNodeProtocolParameters pp =
         , maximumCollateralInputCount = 0
         , minimumCollateralPercentage = 0
         , executionUnitPrices = Nothing
-        , currentNodeProtocolParameters
+        , currentLedgerProtocolParameters = Write.InNonRecentEraAllegra
         }
 
 fromMaryPParams
     :: W.EraInfo Bound
-    -> Maybe Cardano.ProtocolParameters
     -> Mary.ShelleyPParams StandardMary
     -> W.ProtocolParameters
-fromMaryPParams eraInfo currentNodeProtocolParameters pp =
+fromMaryPParams eraInfo pp =
     W.ProtocolParameters
         { decentralizationLevel =
             decentralizationLevelFromPParams pp
@@ -942,7 +941,7 @@ fromMaryPParams eraInfo currentNodeProtocolParameters pp =
         , maximumCollateralInputCount = 0
         , minimumCollateralPercentage = 0
         , executionUnitPrices = Nothing
-        , currentNodeProtocolParameters
+        , currentLedgerProtocolParameters = Write.InNonRecentEraMary
         }
 
 fromBoundToEpochNo :: Bound -> W.EpochNo
@@ -952,10 +951,9 @@ fromBoundToEpochNo (Bound _relTime _slotNo (EpochNo e)) =
 fromAlonzoPParams
     :: HasCallStack
     => W.EraInfo Bound
-    -> Maybe Cardano.ProtocolParameters
     -> Alonzo.AlonzoPParams StandardAlonzo
     -> W.ProtocolParameters
-fromAlonzoPParams eraInfo currentNodeProtocolParameters pp =
+fromAlonzoPParams eraInfo pp =
     W.ProtocolParameters
         { decentralizationLevel =
             decentralizationLevelFromPParams pp
@@ -975,16 +973,15 @@ fromAlonzoPParams eraInfo currentNodeProtocolParameters pp =
             Alonzo._collateralPercentage pp
         , executionUnitPrices =
             Just $ executionUnitPricesFromPParams pp
-        , currentNodeProtocolParameters
+        , currentLedgerProtocolParameters = Write.InNonRecentEraAlonzo
         }
 
 fromBabbagePParams
     :: HasCallStack
     => W.EraInfo Bound
-    -> Maybe Cardano.ProtocolParameters
     -> Babbage.BabbagePParams StandardBabbage
     -> W.ProtocolParameters
-fromBabbagePParams eraInfo currentNodeProtocolParameters pp =
+fromBabbagePParams eraInfo pp =
     W.ProtocolParameters
         { decentralizationLevel =
             decentralizationLevelFromPParams pp
@@ -1004,16 +1001,16 @@ fromBabbagePParams eraInfo currentNodeProtocolParameters pp =
             Babbage._collateralPercentage pp
         , executionUnitPrices =
             Just $ executionUnitPricesFromPParams pp
-        , currentNodeProtocolParameters
+        , currentLedgerProtocolParameters =
+            Write.InRecentEraBabbage $ Write.ProtocolParameters pp
         }
 
 fromConwayPParams
     :: HasCallStack
     => W.EraInfo Bound
-    -> Maybe Cardano.ProtocolParameters
     -> Babbage.BabbagePParams StandardConway
     -> W.ProtocolParameters
-fromConwayPParams eraInfo currentNodeProtocolParameters pp =
+fromConwayPParams eraInfo pp =
     W.ProtocolParameters
         { decentralizationLevel = decentralizationLevelFromPParams pp
         , txParameters = txParametersFromPParams
@@ -1028,7 +1025,8 @@ fromConwayPParams eraInfo currentNodeProtocolParameters pp =
             unsafeIntToWord $ Conway._maxCollateralInputs pp
         , minimumCollateralPercentage = Conway._collateralPercentage pp
         , executionUnitPrices = Just $ executionUnitPricesFromPParams pp
-        , currentNodeProtocolParameters
+        , currentLedgerProtocolParameters =
+            Write.InRecentEraConway $ Write.ProtocolParameters pp
         }
 
 -- | Extract the current network decentralization level from the given set of
@@ -1154,7 +1152,7 @@ fromGenesisData g =
             }
         , slottingParameters = slottingParametersFromGenesis g
         , protocolParameters =
-            fromShelleyPParams W.emptyEraInfo Nothing $ sgProtocolParams g
+            fromShelleyPParams W.emptyEraInfo $ sgProtocolParams g
         }
     , genesisBlockFromTxOuts (ListMap.toList $ sgInitialFunds g)
     , poolCerts $ sgStaking g

@@ -110,7 +110,7 @@ import Cardano.Wallet.Primitive.Model
 import Cardano.Wallet.Primitive.Passphrase.Types
     ( Passphrase (..) )
 import Cardano.Wallet.Primitive.Slotting
-    ( TimeInterpreter, neverFails, toTimeTranslation )
+    ( TimeInterpreter, neverFails )
 import Cardano.Wallet.Primitive.SyncProgress
     ( SyncProgress (..), SyncTolerance, mkSyncTolerance )
 import Cardano.Wallet.Primitive.Types
@@ -247,7 +247,6 @@ import qualified Cardano.Wallet.Primitive.Types.TokenBundle as TokenBundle
 import qualified Cardano.Wallet.Primitive.Types.UTxO as UTxO
 import qualified Cardano.Wallet.Primitive.Types.UTxOStatistics as UTxOStatistics
 import qualified Cardano.Wallet.Shelley.Compatibility as Cardano
-import qualified Cardano.Wallet.Write.ProtocolParameters as Write
 import qualified Cardano.Wallet.Write.Tx as Write
 import qualified Data.Aeson as Aeson
 import qualified Data.ByteString as BS
@@ -1032,11 +1031,8 @@ benchEstimateTxFee
     -> IO Time
 benchEstimateTxFee network (WalletLayer _ _ netLayer txLayer dbLayer) =
     fmap snd <$> bench "estimate tx fee" $ do
-        AnyRecentEra (recentEra :: Write.RecentEra era) <-
-            guardIsRecentEra =<< currentNodeEra netLayer
-        (protocolParameters, _bundledProtocolParameters) <-
-            W.toBalanceTxPParams @era <$> currentProtocolParameters netLayer
-        timeTranslation <- toTimeTranslation (timeInterpreter netLayer)
+        (Write.InAnyRecentEra _era protocolParams, timeTranslation)
+            <- W.readNodeTipStateForTxWrite netLayer
         -- For an output with zero ada, the transactionFee function should
         -- automatically assign a minimal amount of lovelace to the output
         -- before balancing the transaction and computing the fee:
@@ -1044,10 +1040,9 @@ benchEstimateTxFee network (WalletLayer _ _ netLayer txLayer dbLayer) =
         let outputWithZeroAda = TxOut (dummyAddress network) bundleWithZeroAda
         W.transactionFee @s
             dbLayer
-            (Write.unsafeFromWalletProtocolParameters protocolParameters)
+            protocolParams
             txLayer
             timeTranslation
-            recentEra
             dummyChangeAddressGen
             defaultTransactionCtx
             (PreSelection [outputWithZeroAda])

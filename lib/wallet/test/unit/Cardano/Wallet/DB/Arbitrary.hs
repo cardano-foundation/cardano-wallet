@@ -230,6 +230,7 @@ import qualified Cardano.Wallet.Address.Discovery.Sequential as Seq
 import qualified Cardano.Wallet.Address.Discovery.Shared as Shared
 import Cardano.Wallet.Address.Keys.WalletKey
     ( getRawKey, liftRawKey, publicKey )
+import qualified Cardano.Wallet.Write.Tx as Write
 import qualified Data.ByteArray as BA
 import qualified Data.ByteString as BS
 import qualified Data.ByteString.Char8 as B8
@@ -723,7 +724,7 @@ instance Arbitrary ProtocolParameters where
         <*> genMaximumCollateralInputCount
         <*> genMinimumCollateralPercentage
         <*> arbitrary
-        <*> pure Nothing
+        <*> pure Write.InNonRecentEraAlonzo
       where
         genMaximumCollateralInputCount :: Gen Word16
         genMaximumCollateralInputCount = arbitrarySizedNatural

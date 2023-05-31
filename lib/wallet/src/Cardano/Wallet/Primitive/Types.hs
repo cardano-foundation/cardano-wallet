@@ -175,6 +175,8 @@ import Cardano.Wallet.Primitive.Types.Tx.Tx
     ( Tx (..) )
 import Cardano.Wallet.Util
     ( ShowFmt (..), parseURI, uriToText )
+import Cardano.Wallet.Write.Tx
+    ( MaybeInRecentEra )
 import Control.Arrow
     ( left, right )
 import Control.DeepSeq
@@ -256,7 +258,7 @@ import Numeric.Natural
 import Test.QuickCheck
     ( Arbitrary (..), oneof )
 
-import qualified Cardano.Api.Shelley as Node
+import qualified Cardano.Wallet.Write.ProtocolParameters as Write
 import qualified Data.Text as T
 import qualified Data.Text.Encoding as T
 
@@ -883,10 +885,10 @@ data ProtocolParameters = ProtocolParameters
         -- used to determine the fee for the use of a script within a
         -- transaction, based on the 'ExecutionUnits' needed by the use of
         -- the script.
-    , currentNodeProtocolParameters
-        :: Maybe Node.ProtocolParameters
-        -- ^ Get the last known node's protocol parameters.
-        -- In principle, these can only change once per epoch.
+    , currentLedgerProtocolParameters
+        :: MaybeInRecentEra Write.ProtocolParameters
+        -- ^ The full, raw ledger protocol parameters for writing (constructing)
+        -- transactions in case the node is in a recent era.
     } deriving (Eq, Generic, Show)
 
 instance NFData ProtocolParameters where
@@ -900,7 +902,7 @@ instance NFData ProtocolParameters where
         , rnf maximumCollateralInputCount
         , rnf minimumCollateralPercentage
         , rnf executionUnitPrices
-        -- currentNodeProtocolParameters is omitted
+        -- currentLedgerProtocolParameters is omitted
         ]
 
 instance Buildable ProtocolParameters where

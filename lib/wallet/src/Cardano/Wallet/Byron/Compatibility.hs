@@ -93,7 +93,6 @@ import Ouroboros.Consensus.HardFork.History.Summary
 import Ouroboros.Network.Block
     ( BlockNo (..), ChainHash, SlotNo (..) )
 
-import qualified Cardano.Api.Shelley as Node
 import qualified Cardano.Chain.Update as Update
 import qualified Cardano.Chain.Update.Validation.Interface as Update
 import qualified Cardano.Crypto.Hashing as CC
@@ -106,6 +105,7 @@ import qualified Cardano.Wallet.Primitive.Types.Tx as W
 import qualified Cardano.Wallet.Primitive.Types.Tx.Constraints as W
 import qualified Cardano.Wallet.Primitive.Types.Tx.TxOut as W
     ( TxOut (TxOut) )
+import qualified Cardano.Wallet.Write.Tx as Write
 import qualified Data.Map.Strict as Map
 import qualified Ouroboros.Consensus.Block as O
 
@@ -151,7 +151,7 @@ mainnetNetworkParameters = W.NetworkParameters
         , maximumCollateralInputCount = 0
         , minimumCollateralPercentage = 0
         , executionUnitPrices = Nothing
-        , currentNodeProtocolParameters = Nothing
+        , currentLedgerProtocolParameters = Write.InNonRecentEraByron
         }
     }
 
@@ -314,10 +314,9 @@ fromMaxSize =
 
 protocolParametersFromPP
     :: W.EraInfo Bound
-    -> Maybe Node.ProtocolParameters
     -> Update.ProtocolParameters
     -> W.ProtocolParameters
-protocolParametersFromPP eraInfo currentNodeProtocolParameters pp =
+protocolParametersFromPP eraInfo pp =
     W.ProtocolParameters
         { decentralizationLevel = minBound
         , txParameters = W.TxParameters
@@ -334,7 +333,7 @@ protocolParametersFromPP eraInfo currentNodeProtocolParameters pp =
         , maximumCollateralInputCount = 0
         , minimumCollateralPercentage = 0
         , executionUnitPrices = Nothing
-        , currentNodeProtocolParameters
+        , currentLedgerProtocolParameters = Write.InNonRecentEraByron
         }
   where
     fromBound (Bound _relTime _slotNo (O.EpochNo e)) =
@@ -344,11 +343,10 @@ protocolParametersFromPP eraInfo currentNodeProtocolParameters pp =
 --   cardano-chain update state record.
 protocolParametersFromUpdateState
     :: W.EraInfo Bound
-    -> Maybe Node.ProtocolParameters
     -> Update.State
     -> W.ProtocolParameters
-protocolParametersFromUpdateState b ppNode =
-    (protocolParametersFromPP b ppNode) . Update.adoptedProtocolParameters
+protocolParametersFromUpdateState b =
+    (protocolParametersFromPP b) . Update.adoptedProtocolParameters
 
 -- | Convert non AVVM balances to genesis UTxO.
 fromNonAvvmBalances :: GenesisNonAvvmBalances -> [W.TxOut]
@@ -375,7 +373,7 @@ fromGenesisData (genesisData, genesisHash) =
             }
         , protocolParameters =
             -- emptyEraInfo contains no info about byron. Should we add it?
-            protocolParametersFromPP W.emptyEraInfo Nothing $
+            protocolParametersFromPP W.emptyEraInfo $
                 gdProtocolParameters genesisData
         }
     , fromNonAvvmBalances . gdNonAvvmBalances $ genesisData

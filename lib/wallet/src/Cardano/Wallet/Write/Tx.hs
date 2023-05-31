@@ -9,10 +9,12 @@
 {-# LANGUAGE LambdaCase #-}
 {-# LANGUAGE NamedFieldPuns #-}
 {-# LANGUAGE OverloadedLabels #-}
+{-# LANGUAGE PolyKinds #-}
 {-# LANGUAGE RankNTypes #-}
 {-# LANGUAGE ScopedTypeVariables #-}
 {-# LANGUAGE StandaloneDeriving #-}
 {-# LANGUAGE TypeApplications #-}
+{-# LANGUAGE UndecidableInstances #-}
 
 -- |
 -- Copyright: © 2022 IOHK
@@ -34,6 +36,8 @@ module Cardano.Wallet.Write.Tx
     , IsRecentEra (..)
     , toRecentEra
     , fromRecentEra
+    , MaybeInRecentEra (..)
+    , toRecentEraGADT
     , LatestLedgerEra
     , LatestEra
     , withConstraints
@@ -200,6 +204,8 @@ import Data.Generics.Product
     ( HasField' )
 import Data.IntCast
     ( intCast )
+import Data.Kind
+    ( Type )
 import Data.Maybe
     ( fromMaybe, isJust )
 import Data.Type.Equality
@@ -351,6 +357,32 @@ cardanoEra = cardanoEraFromRecentEra $ recentEra @era
 -- 'Cardano.IsShelleyBasedEra'.
 shelleyBasedEra :: forall era. IsRecentEra era => Cardano.ShelleyBasedEra era
 shelleyBasedEra = shelleyBasedEraFromRecentEra $ recentEra @era
+
+data MaybeInRecentEra (thing :: Type -> Type)
+    = InNonRecentEraByron
+    | InNonRecentEraShelley
+    | InNonRecentEraAllegra
+    | InNonRecentEraMary
+    | InNonRecentEraAlonzo
+    | InRecentEraBabbage (thing BabbageEra)
+    | InRecentEraConway (thing ConwayEra)
+
+deriving instance (Eq (a BabbageEra), (Eq (a ConwayEra)))
+    => Eq (MaybeInRecentEra a)
+deriving instance (Show (a BabbageEra), (Show (a ConwayEra)))
+    => Show (MaybeInRecentEra a)
+
+toRecentEraGADT
+    :: MaybeInRecentEra a
+    -> Either Cardano.AnyCardanoEra (InAnyRecentEra a)
+toRecentEraGADT = \case
+    InNonRecentEraByron   -> Left $ Cardano.AnyCardanoEra Cardano.ByronEra
+    InNonRecentEraShelley -> Left $ Cardano.AnyCardanoEra Cardano.ShelleyEra
+    InNonRecentEraAllegra -> Left $ Cardano.AnyCardanoEra Cardano.AllegraEra
+    InNonRecentEraMary    -> Left $ Cardano.AnyCardanoEra Cardano.MaryEra
+    InNonRecentEraAlonzo  -> Left $ Cardano.AnyCardanoEra Cardano.AlonzoEra
+    InRecentEraBabbage a  -> Right $ InAnyRecentEra recentEra a
+    InRecentEraConway a   -> Right $ InAnyRecentEra recentEra a
 
 data InAnyRecentEra thing where
      InAnyRecentEra
