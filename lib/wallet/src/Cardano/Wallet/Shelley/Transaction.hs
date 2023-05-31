@@ -81,8 +81,10 @@ import Cardano.Address.Script
     , KeyHash (..)
     , KeyRole (..)
     , Script (..)
+    , ScriptHash (..)
     , ScriptTemplate (..)
     , foldScript
+    , toScriptHash
     )
 import Cardano.Api
     ( AnyCardanoEra (..)
@@ -310,6 +312,7 @@ import qualified Data.Map.Merge.Strict as Map
 import qualified Data.Sequence.Strict as StrictSeq
 import qualified Data.Set as Set
 import qualified Data.Text as T
+
 
 -- | Type encapsulating what we need to know to add things -- payloads,
 -- certificates -- to a transaction.
@@ -663,10 +666,24 @@ newTransactionLayer keyF networkId = TransactionLayer
         case view #txDelegationAction ctx of
             Nothing -> do
                 let md = view #txMetadata ctx
-                constructUnsignedTx networkId (md, []) ttl wdrl
-                    selection delta assetsToBeMinted assetsToBeBurned inpsScripts
-                    Nothing
-                    (Write.shelleyBasedEraFromRecentEra Write.recentEra)
+                let ourRewardAcctM = FromScriptHash . unScriptHash . toScriptHash <$> stakingScriptM
+                case wdrl of
+                    WithdrawalSelf rewardAcct _ _ ->
+                        if ourRewardAcctM == Just rewardAcct then
+                            constructUnsignedTx networkId (md, []) ttl wdrl
+                            selection delta assetsToBeMinted assetsToBeBurned inpsScripts
+                            stakingScriptM
+                            (Write.shelleyBasedEraFromRecentEra Write.recentEra)
+                        else
+                            constructUnsignedTx networkId (md, []) ttl wdrl
+                            selection delta assetsToBeMinted assetsToBeBurned inpsScripts
+                            Nothing
+                            (Write.shelleyBasedEraFromRecentEra Write.recentEra)
+                    _ ->
+                        constructUnsignedTx networkId (md, []) ttl wdrl
+                        selection delta assetsToBeMinted assetsToBeBurned inpsScripts
+                        Nothing
+                        (Write.shelleyBasedEraFromRecentEra Write.recentEra)
             Just action -> do
                 let certs = case stakeCred of
                         Left xpub ->
@@ -1428,6 +1445,7 @@ data TxSkeleton = TxSkeleton
     , txOutputs :: ![TxOut]
     , txChange :: ![Set AssetId]
     , txPaymentTemplate :: !(Maybe (Script Cosigner))
+    , txDelegationTemplate :: !(Maybe (Script Cosigner))
     , txMintOrBurnScripts :: [Script KeyHash]
     , txAssetsToMintOrBurn :: Set AssetId
     -- ^ The set of assets to mint or burn.
@@ -1448,6 +1466,7 @@ emptyTxSkeleton txWitnessTag = TxSkeleton
     , txOutputs = []
     , txChange = []
     , txPaymentTemplate = Nothing
+    , txDelegationTemplate = Nothing
     , txMintOrBurnScripts = []
     , txAssetsToMintOrBurn = Set.empty
     }
@@ -1473,6 +1492,9 @@ mkTxSkeleton witness context skeleton = TxSkeleton
     , txPaymentTemplate =
         template <$>
         view #txPaymentCredentialScriptTemplate context
+    , txDelegationTemplate =
+        template <$>
+        view #txStakingCredentialScriptTemplate context
     , txMintOrBurnScripts = (<>)
         (Map.elems (snd $ view #txAssetsToMint context))
         (Map.elems (snd $ view #txAssetsToBurn context))
@@ -1716,6 +1738,7 @@ estimateTxSize skeleton =
         , txOutputs
         , txChange
         , txPaymentTemplate
+        , txDelegationTemplate
         , txMintOrBurnScripts
         , txAssetsToMintOrBurn
         } = skeleton
@@ -1733,21 +1756,31 @@ estimateTxSize skeleton =
     numberOf_MintingWitnesses
         = intCast $ sumVia estimateMaxWitnessRequiredPerInput txMintOrBurnScripts
 
-    numberOf_ScriptVkeyWitnesses
+    numberOf_ScriptVkeyWitnessesForPayment
         = intCast $ maybe 0 estimateMaxWitnessRequiredPerInput txPaymentTemplate
+
+    numberOf_ScriptVkeyWitnessesForDelegation
+        = intCast $ maybe 0 estimateMaxWitnessRequiredPerInput txDelegationTemplate
 
     numberOf_VkeyWitnesses
         = case txWitnessTag of
             TxWitnessByronUTxO -> 0
             TxWitnessShelleyUTxO ->
-                if numberOf_ScriptVkeyWitnesses == 0 then
+                -- there cannot be missing payment script if there is delegation script
+                -- the latter is optional
+                if numberOf_ScriptVkeyWitnessesForPayment == 0 then
                     numberOf_Inputs
                     + numberOf_Withdrawals
                     + numberOf_CertificateSignatures
                     + numberOf_MintingWitnesses
-                else
-                    (numberOf_Inputs * numberOf_ScriptVkeyWitnesses)
+                else if numberOf_ScriptVkeyWitnessesForDelegation == 0 then
+                    (numberOf_Inputs * numberOf_ScriptVkeyWitnessesForPayment)
                     + numberOf_Withdrawals
+                    + numberOf_CertificateSignatures
+                    + numberOf_MintingWitnesses
+               else
+                    (numberOf_Inputs * numberOf_ScriptVkeyWitnessesForPayment)
+                    + (numberOf_Withdrawals * numberOf_ScriptVkeyWitnessesForDelegation)
                     + numberOf_CertificateSignatures
                     + numberOf_MintingWitnesses
 
@@ -2228,12 +2261,21 @@ mkUnsignedTx
     , txInsReference = Cardano.TxInsReferenceNone
 
     , Cardano.txOuts = map (toCardanoTxOut era) outs
-    , Cardano.txWithdrawals =
-        let wit = Cardano.BuildTxWith
-                $ Cardano.KeyWitness Cardano.KeyWitnessForStakeAddr
-        in
-        Cardano.TxWithdrawals wdrlsSupported
-            (map (\(key, coin) -> (key, coin, wit)) wdrls)
+    , Cardano.txWithdrawals = case stakingScriptM of
+        Nothing ->
+            let ctx = Cardano.BuildTxWith
+                    $ Cardano.KeyWitness Cardano.KeyWitnessForStakeAddr
+            in
+                Cardano.TxWithdrawals wdrlsSupported
+                (map (\(key, coin) -> (key, coin, ctx)) wdrls)
+        Just stakingScript ->
+            let
+                buildVal = Cardano.ScriptWitness Cardano.ScriptWitnessForStakeAddr
+                    (toScriptWitness stakingScript)
+                ctx = Cardano.BuildTxWith buildVal
+            in
+                Cardano.TxWithdrawals wdrlsSupported
+                (map (\(key, coin) -> (key, coin, ctx)) wdrls)
 
     -- @mkUnsignedTx@ is never used with Plutus scripts, and so we never have to
     -- care about collateral or PParams (for script integrity hash) here.

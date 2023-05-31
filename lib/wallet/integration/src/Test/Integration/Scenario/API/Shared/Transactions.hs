@@ -140,6 +140,7 @@ import Test.Integration.Framework.DSL
     , json
     , listAddresses
     , minUTxOValue
+    , notDelegating
     , patchSharedWallet
     , postSharedWallet
     , request
@@ -1935,6 +1936,9 @@ spec = describe "SHARED_TRANSACTIONS" $ do
                 , expectField (#direction . #getApiT) (`shouldBe` Outgoing)
                 , expectField #depositTaken (`shouldBe` depositAmt)
                 , expectField #depositReturned (`shouldBe` Quantity 0)
+                , expectField #certificates
+                     (`shouldBe` [ registerStakeKeyCert stakeKeyDerPathParty1
+                                 , delegatingCert stakeKeyDerPathParty1])
                 ]
         eventually "Party2's wallet has joined pool and deposit info persists" $ do
             rJoin' <- request @(ApiTransaction n) ctx
@@ -1947,6 +1951,9 @@ spec = describe "SHARED_TRANSACTIONS" $ do
                 , expectField (#direction . #getApiT) (`shouldBe` Outgoing)
                 , expectField #depositTaken (`shouldBe` depositAmt)
                 , expectField #depositReturned (`shouldBe` Quantity 0)
+                , expectField #certificates
+                     (`shouldBe` [ registerStakeKeyCert stakeKeyDerPathParty2
+                                 , delegatingCert stakeKeyDerPathParty2])
                 ]
 
         let txId2 = getFromResponse #id submittedTx2
@@ -2089,6 +2096,205 @@ spec = describe "SHARED_TRANSACTIONS" $ do
                     [ expectField #delegation (`shouldBe` delegating (ApiT pool2) [])
                     ]
 
+        eventually "Party1's wallet has joined another pool" $ do
+            rJoin' <- request @(ApiTransaction n) ctx
+                (Link.getTransaction @'Shared party1
+                    (getFromResponse Prelude.id submittedTx3))
+                Default Empty
+            verify rJoin'
+                [ expectResponseCode HTTP.status200
+                , expectField (#status . #getApiT) (`shouldBe` InLedger)
+                , expectField (#direction . #getApiT) (`shouldBe` Outgoing)
+                , expectField #depositTaken (`shouldBe` Quantity 0)
+                , expectField #depositReturned (`shouldBe` Quantity 0)
+                , expectField #certificates
+                     (`shouldBe` [ delegatingCert2 stakeKeyDerPathParty1])
+                ]
+        eventually "Party2's wallet has joined another pool" $ do
+            rJoin' <- request @(ApiTransaction n) ctx
+                (Link.getTransaction @'Shared party2
+                    (getFromResponse Prelude.id submittedTx3))
+                Default Empty
+            verify rJoin'
+                [ expectResponseCode HTTP.status200
+                , expectField (#status . #getApiT) (`shouldBe` InLedger)
+                , expectField (#direction . #getApiT) (`shouldBe` Outgoing)
+                , expectField #depositTaken (`shouldBe` Quantity 0)
+                , expectField #depositReturned (`shouldBe` Quantity 0)
+                , expectField #certificates
+                     (`shouldBe` [ delegatingCert2 stakeKeyDerPathParty2])
+                ]
+
+        -- there's currently no withdrawals in the wallet
+        rw1 <- request @[ApiTransaction n] ctx
+            (Link.listTransactions' @'Shared party1 (Just 1)
+                Nothing Nothing Nothing Nothing)
+            Default Empty
+        verify rw1 [ expectListSize 0 ]
+        rw2 <- request @[ApiTransaction n] ctx
+            (Link.listTransactions' @'Shared party2 (Just 1)
+                Nothing Nothing Nothing Nothing)
+            Default Empty
+        verify rw2 [ expectListSize 0 ]
+
+        dest <- emptyWallet ctx
+        -- We can use rewards
+        -- Tested by making an explicit withdrawal request to self.
+
+        -- We wait for the start of a new epoch here
+        -- so that there is a good chance that we spend all rewards
+        -- in the next transaction, and don't receive any new rewards
+        -- before that transaction has concluded.
+        waitForNextEpoch ctx
+
+        addrs <- listAddresses @n ctx dest
+        let coin = minUTxOValue (_mainEra ctx) :: Natural
+        let addr = (addrs !! 1) ^. #id
+        let payloadWithdrawal = Json [json|
+                { "payments":
+                    [ { "address": #{addr}
+                      , "amount":
+                        { "quantity": #{coin}
+                        , "unit": "lovelace"
+                        }
+                      }
+                    ]
+                , "passphrase": #{fixturePassphrase},
+                  "withdrawal": "self"
+                }|]
+
+        rGet <- request @ApiWallet ctx (Link.getWallet @'Shared party1)
+                    Default Empty
+        let previousBalance = getFromResponse (#balance . #available) rGet
+
+        rTx3 <- request @(ApiConstructTransaction n) ctx
+            (Link.createUnsignedTransaction @'Shared party1) Default payloadWithdrawal
+        verify rTx3
+            [ expectResponseCode HTTP.status202
+            , expectField (#coinSelection . #withdrawals) (`shouldSatisfy` (not . null))
+            ]
+
+        let (ApiSerialisedTransaction apiTx5 _) =
+                getFromResponse #transaction rTx3
+        signedTx5 <-
+            signSharedTx ctx party1 apiTx5
+                [ expectResponseCode HTTP.status202 ]
+        let (ApiSerialisedTransaction apiTx6 _) = signedTx5
+        signedTx6 <-
+            signSharedTx ctx party2 apiTx6
+                [ expectResponseCode HTTP.status202 ]
+
+        submittedTx4 <- submitSharedTxWithWid ctx party1 signedTx6
+        verify submittedTx4
+            [ expectResponseCode HTTP.status202
+            ]
+
+        -- Rewards are have been consumed.
+        eventually "Party1's wallet has consumed rewards" $ do
+            request @ApiWallet ctx (Link.getWallet @'Shared party1) Default Empty
+                >>= flip verify
+                    [ expectField
+                        (#balance . #reward)
+                        (`shouldBe` (Quantity 0))
+                    , expectField
+                        (#balance . #available)
+                        (.> previousBalance)
+                    ]
+        eventually "Party2's wallet has consumed rewards" $ do
+            request @ApiWallet ctx (Link.getWallet @'Shared party2) Default Empty
+                >>= flip verify
+                    [ expectField
+                        (#balance . #reward)
+                        (`shouldBe` (Quantity 0))
+                    , expectField
+                        (#balance . #available)
+                        (.> previousBalance)
+                    ]
+
+        -- now we can quit
+        let delegationQuit = Json [json|{
+                "delegations": [{
+                    "quit": {
+                        "stake_key_index": "0H"
+                    }
+                }]
+            }|]
+        rTx4 <- request @(ApiConstructTransaction n) ctx
+            (Link.createUnsignedTransaction @'Shared party1) Default delegationQuit
+        verify rTx4
+            [ expectResponseCode HTTP.status202
+            , expectField (#coinSelection . #depositsTaken) (`shouldBe` [])
+            , expectField (#coinSelection . #depositsReturned) (`shouldBe` [depositAmt])
+            ]
+
+        let (ApiSerialisedTransaction apiTx7 _) =
+                getFromResponse #transaction rTx4
+        signedTx7 <-
+            signSharedTx ctx party1 apiTx7
+                [ expectResponseCode HTTP.status202 ]
+        let (ApiSerialisedTransaction apiTx8 _) = signedTx7
+        signedTx8 <-
+            signSharedTx ctx party2 apiTx8
+                [ expectResponseCode HTTP.status202 ]
+
+        let delegatingCert3 path =
+                WalletDelegationCertificate $ QuitPool path
+        let decodePayload5 = Json (toJSON signedTx8)
+        rDecodedTx9 <- request @(ApiDecodedTransaction n) ctx
+            (Link.decodeTransaction @'Shared party1) Default decodePayload5
+        rDecodedTx10 <- request @(ApiDecodedTransaction n) ctx
+            (Link.decodeTransaction @'Shared party2) Default decodePayload5
+        let certExpectation5 =
+                [expectField #certificates
+                     (`shouldBe` [ delegatingCert3 stakeKeyDerPathParty1])]
+        verify rDecodedTx9 certExpectation5
+        let certExpectation6 =
+                [expectField #certificates
+                     (`shouldBe` [ delegatingCert3 stakeKeyDerPathParty2])]
+        verify rDecodedTx10 certExpectation6
+
+        submittedTx5 <- submitSharedTxWithWid ctx party1 signedTx8
+        verify submittedTx5
+            [ expectResponseCode HTTP.status202
+            ]
+
+        eventually "party1: Wallet is not delegating" $ do
+            request @ApiWallet ctx (Link.getWallet @'Shared party1) Default Empty
+                >>= flip verify
+                    [ expectField #delegation (`shouldBe` notDelegating [])
+                    ]
+        eventually "party2: Wallet is not delegating" $ do
+            request @ApiWallet ctx (Link.getWallet @'Shared party2) Default Empty
+                >>= flip verify
+                    [ expectField #delegation (`shouldBe` notDelegating [])
+                    ]
+
+        eventually "Party1's wallet has quitted" $ do
+            rJoin' <- request @(ApiTransaction n) ctx
+                (Link.getTransaction @'Shared party1
+                    (getFromResponse Prelude.id submittedTx5))
+                Default Empty
+            verify rJoin'
+                [ expectResponseCode HTTP.status200
+                , expectField (#status . #getApiT) (`shouldBe` InLedger)
+                , expectField #depositTaken (`shouldBe` Quantity 0)
+                , expectField #depositReturned (`shouldBe` depositAmt)
+                , expectField #certificates
+                     (`shouldBe` [ delegatingCert3 stakeKeyDerPathParty1])
+                ]
+        eventually "Party2's wallet has quitted" $ do
+            rJoin' <- request @(ApiTransaction n) ctx
+                (Link.getTransaction @'Shared party2
+                    (getFromResponse Prelude.id submittedTx5))
+                Default Empty
+            verify rJoin'
+                [ expectResponseCode HTTP.status200
+                , expectField (#status . #getApiT) (`shouldBe` InLedger)
+                , expectField #depositTaken (`shouldBe` Quantity 0)
+                , expectField #depositReturned (`shouldBe` depositAmt)
+                , expectField #certificates
+                     (`shouldBe` [ delegatingCert3 stakeKeyDerPathParty2])
+                ]
   where
      listSharedTransactions ctx w mStart mEnd mOrder mLimit = do
          let path = Link.listTransactions' @'Shared w

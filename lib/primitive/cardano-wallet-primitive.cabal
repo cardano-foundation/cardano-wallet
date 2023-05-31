@@ -50,6 +50,7 @@ library
     , cardano-numeric
     , cardano-wallet-test-utils
     , cborg
+    , commutative-semigroups
     , containers
     , cryptonite
     , delta-types
@@ -64,6 +65,7 @@ library
     , lattices
     , memory
     , MonadRandom
+    , monoid-subclasses
     , network-uri
     , nothunks
     , OddWord

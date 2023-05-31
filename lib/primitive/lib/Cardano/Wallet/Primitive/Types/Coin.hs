@@ -63,8 +63,20 @@ import Data.List.NonEmpty
     ( NonEmpty (..) )
 import Data.Maybe
     ( fromMaybe )
+import Data.Monoid
+    ( Sum (..) )
+import Data.Monoid.Cancellative
+    ( LeftReductive, Reductive ((</>)), RightReductive )
+import Data.Monoid.GCD
+    ( GCDMonoid, LeftGCDMonoid, RightGCDMonoid )
+import Data.Monoid.Monus
+    ( Monus ((<\>)), OverlappingGCDMonoid )
+import Data.Monoid.Null
+    ( MonoidNull )
 import Data.Quantity
     ( Quantity (..) )
+import Data.Semigroup.Commutative
+    ( Commutative )
 import Data.Text.Class
     ( FromText (..), ToText (..) )
 import Data.Word
@@ -94,16 +106,11 @@ newtype Coin = Coin
     { unCoin :: Natural
     }
     deriving stock (Ord, Eq, Generic)
-    deriving (Read, Show) via (Quiet Coin)
-
--- | The 'Semigroup' instance for 'Coin' corresponds to ordinary addition.
---
-instance Semigroup Coin where
-    -- Natural doesn't have a default Semigroup instance.
-    (<>) = add
-
-instance Monoid Coin where
-    mempty = Coin 0
+    deriving (Read, Show) via Quiet Coin
+    deriving (Commutative, Semigroup, Monoid, MonoidNull) via Sum Natural
+    deriving (LeftReductive, RightReductive, Reductive) via Sum Natural
+    deriving (LeftGCDMonoid, RightGCDMonoid, GCDMonoid) via Sum Natural
+    deriving (OverlappingGCDMonoid, Monus) via Sum Natural
 
 instance ToText Coin where
     toText (Coin c) = T.pack $ show c
@@ -252,25 +259,23 @@ unsafeToWord64 c = fromMaybe onError (toWord64Maybe c)
 -- Returns 'Nothing' if the second coin is strictly greater than the first.
 --
 subtract :: Coin -> Coin -> Maybe Coin
-subtract (Coin a) (Coin b)
-    | a >= b    = Just $ Coin (a - b)
-    | otherwise = Nothing
+subtract = (</>)
 
 -- | Calculates the combined value of two coins.
 --
 add :: Coin -> Coin -> Coin
-add (Coin a) (Coin b) = Coin (a + b)
+add = (<>)
 
 -- | Subtracts the second coin from the first.
 --
 -- Returns 'Coin 0' if the second coin is strictly greater than the first.
 --
 difference :: Coin -> Coin -> Coin
-difference a b = fromMaybe (Coin 0) (subtract a b)
+difference = (<\>)
 
 -- | Absolute difference between two coin amounts. The result is never negative.
 distance :: Coin -> Coin -> Coin
-distance (Coin a) (Coin b) = if a < b then Coin (b - a) else Coin (a - b)
+distance a b = (a <\> b) <> (b <\> a)
 
 --------------------------------------------------------------------------------
 -- Partitioning

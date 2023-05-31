@@ -40,18 +40,26 @@ import Cardano.Numeric.Util
     ( equipartitionNatural, partitionNatural )
 import Control.DeepSeq
     ( NFData (..) )
-import Control.Monad
-    ( guard )
 import Data.Aeson
     ( FromJSON (..), ToJSON (..) )
-import Data.Functor
-    ( ($>) )
 import Data.Hashable
     ( Hashable )
 import Data.List.NonEmpty
     ( NonEmpty (..) )
 import Data.Maybe
     ( fromMaybe )
+import Data.Monoid
+    ( Sum (..) )
+import Data.Monoid.Cancellative
+    ( LeftReductive, Reductive ((</>)), RightReductive )
+import Data.Monoid.GCD
+    ( GCDMonoid, LeftGCDMonoid, RightGCDMonoid )
+import Data.Monoid.Monus
+    ( Monus ((<\>)), OverlappingGCDMonoid )
+import Data.Monoid.Null
+    ( MonoidNull )
+import Data.Semigroup.Commutative
+    ( Commutative )
 import Data.Text.Class
     ( FromText (..), ToText (..) )
 import Fmt
@@ -79,18 +87,16 @@ import Quiet
 newtype TokenQuantity = TokenQuantity
     { unTokenQuantity :: Natural }
     deriving stock (Eq, Ord, Generic)
-    deriving (Read, Show) via (Quiet TokenQuantity)
     deriving anyclass (NFData, Hashable)
+    deriving (Read, Show) via Quiet TokenQuantity
+    deriving (Commutative, Semigroup, Monoid, MonoidNull) via Sum Natural
+    deriving (LeftReductive, RightReductive, Reductive) via Sum Natural
+    deriving (LeftGCDMonoid, RightGCDMonoid, GCDMonoid) via Sum Natural
+    deriving (OverlappingGCDMonoid, Monus) via Sum Natural
 
 --------------------------------------------------------------------------------
 -- Instances
 --------------------------------------------------------------------------------
-
-instance Semigroup TokenQuantity where
-    (<>) = add
-
-instance Monoid TokenQuantity where
-    mempty = zero
 
 instance Buildable TokenQuantity where
     build = build . toText . unTokenQuantity
@@ -118,14 +124,14 @@ zero = TokenQuantity 0
 --------------------------------------------------------------------------------
 
 add :: TokenQuantity -> TokenQuantity -> TokenQuantity
-add (TokenQuantity x) (TokenQuantity y) = TokenQuantity $ x + y
+add = (<>)
 
 -- | Subtracts the second token quantity from the first.
 --
 -- Returns 'Nothing' if the first quantity is less than the second quantity.
 --
 subtract :: TokenQuantity -> TokenQuantity -> Maybe TokenQuantity
-subtract x y = guard (x >= y) $> unsafeSubtract x y
+subtract = (</>)
 
 -- | Finds the predecessor of a given token quantity.
 --
@@ -155,7 +161,7 @@ succ = (`add` TokenQuantity 1)
 -- Returns 'zero' if the first quantity is less than the second quantity.
 --
 difference :: TokenQuantity -> TokenQuantity -> TokenQuantity
-difference x y = fromMaybe zero $ subtract x y
+difference = (<\>)
 
 --------------------------------------------------------------------------------
 -- Partitioning

@@ -715,11 +715,22 @@ instance IsServerError ErrFetchRewards where
 instance IsServerError ErrReadRewardAccount where
     toServerError = \case
         ErrReadRewardAccountNotAShelleyWallet ->
-            apiError err403 InvalidWalletType $ mconcat
-                [ "It is regrettable but you've just attempted an operation "
-                , "that is invalid for this type of wallet. Only new 'Shelley' "
-                , "wallets can do something with rewards and this one isn't."
+            apiError err403 InvalidWalletType $ mconcat errMsg
+        ErrReadRewardAccountNotASharedWallet ->
+            apiError err403 InvalidWalletType $ mconcat errMsg
+        ErrReadRewardAccountMissing ->
+            apiError err501 MissingRewardAccount $ mconcat
+                [ "Unable to read the reward account required for withdrawals. "
+                , "It appears that the withdrawals feature was utilized for a "
+                , "shared wallet without the corresponding delegation template."
                 ]
+      where
+        errMsg =
+            [ "It is regrettable but you've just attempted an operation "
+            , "that is invalid for this type of wallet. Only new 'Shelley' and "
+            , "'Shared' wallets have the capability to perform actions with rewards, "
+            , "which is not applicable to the current wallet."
+            ]
 
 instance IsServerError ErrReadPolicyPublicKey where
     toServerError = \case

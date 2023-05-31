@@ -84,12 +84,13 @@ module Cardano.Wallet
     , fetchRewardBalance
     , manageRewardBalance
     , manageSharedRewardBalance
-    , readSharedRewardAccount
     , rollbackBlocks
     , checkWalletIntegrity
     , mkExternalWithdrawal
     , mkSelfWithdrawal
+    , mkSelfWithdrawalShared
     , shelleyOnlyMkSelfWithdrawal
+    , sharedOnlyReadRewardAccount
     , readRewardAccount
     , shelleyOnlyReadRewardAccount
     , someRewardAccount
@@ -346,12 +347,16 @@ import Cardano.Wallet.DB.WalletState
     , getSlot
     )
 import Cardano.Wallet.Flavor
-    ( CredFromOf
+    ( AllFlavors
+    , CredFromOf
     , Excluding
+    , FlavorOf
+    , Including
     , KeyFlavorS (..)
     , KeyOf
     , WalletFlavor (..)
     , WalletFlavorS (..)
+    , WalletFlavors (..)
     , keyFlavorFromState
     , keyOfWallet
     )
@@ -585,7 +590,7 @@ import Data.List
 import Data.List.NonEmpty
     ( NonEmpty (..) )
 import Data.Maybe
-    ( fromMaybe, isJust, mapMaybe, maybeToList )
+    ( fromJust, fromMaybe, isJust, mapMaybe, maybeToList )
 import Data.Quantity
     ( Quantity (..) )
 import Data.Set
@@ -1235,7 +1240,7 @@ mkExternalWithdrawal netLayer txWitnessTag mnemonic = do
     balance <- getCachedRewardAccountBalance netLayer rewardAccount
     pp <- currentProtocolParameters netLayer
     let (xprv, _acct , _path) = someRewardAccount @ShelleyKey mnemonic
-    pure $ checkRewardIsWorthTxCost txWitnessTag pp balance $>
+    pure $ checkRewardIsWorthTxCost txWitnessTag pp balance Nothing $>
         WithdrawalExternal rewardAccount derivationPath balance xprv
 
 mkSelfWithdrawal
@@ -1247,7 +1252,7 @@ mkSelfWithdrawal netLayer txWitnessTag db = do
     (rewardAccount, _, derivationPath) <- readRewardAccount db
     balance <- getCachedRewardAccountBalance netLayer rewardAccount
     pp <- currentProtocolParameters netLayer
-    pure $ case checkRewardIsWorthTxCost txWitnessTag pp balance of
+    pure $ case checkRewardIsWorthTxCost txWitnessTag pp balance Nothing of
         Left ErrWithdrawalNotBeneficial -> NoWithdrawal
         Right () -> WithdrawalSelf rewardAccount derivationPath balance
 
@@ -1268,12 +1273,29 @@ shelleyOnlyMkSelfWithdrawal netLayer txWitnessTag db =
     notShelleyWallet = throwIO
         $ ExceptionReadRewardAccount ErrReadRewardAccountNotAShelleyWallet
 
+mkSelfWithdrawalShared
+    :: forall n block
+     . NetworkLayer IO block
+    -> TxWitnessTag
+    -> Maybe CA.ScriptTemplate
+    -> DBLayer IO (SharedState n SharedKey)
+    -> IO Withdrawal
+mkSelfWithdrawalShared netLayer txWitnessTag delegationTemplateM db = do
+    (rewardAccount, _, derivationPath) <-
+        readRewardAccount @(SharedState n SharedKey) db
+    balance <- getCachedRewardAccountBalance netLayer rewardAccount
+    pp <- currentProtocolParameters netLayer
+    return $ case checkRewardIsWorthTxCost txWitnessTag pp balance delegationTemplateM of
+        Left ErrWithdrawalNotBeneficial -> NoWithdrawal
+        Right () -> WithdrawalSelf rewardAccount derivationPath balance
+
 checkRewardIsWorthTxCost
     :: TxWitnessTag
     -> ProtocolParameters
     -> Coin
+    -> Maybe CA.ScriptTemplate
     -> Either ErrWithdrawalNotBeneficial ()
-checkRewardIsWorthTxCost txWitnessTag pp balance = do
+checkRewardIsWorthTxCost txWitnessTag pp balance delegationTemplateM = do
     when (balance == Coin 0)
         $ Left ErrWithdrawalNotBeneficial
     let minimumCost txCtx =
@@ -1286,39 +1308,54 @@ checkRewardIsWorthTxCost txWitnessTag pp balance = do
   where
     feePerByte = getFeePerByteFromWalletPParams pp
     mkTxCtx wdrl = defaultTransactionCtx
-        { txWithdrawal = WithdrawalSelf dummyAcct dummyPath wdrl }
+        { txWithdrawal = WithdrawalSelf dummyAcct dummyPath wdrl
+        , txStakingCredentialScriptTemplate = delegationTemplateM}
       where
         dummyAcct = FromKeyHash mempty
         dummyPath = DerivationIndex 0 :| []
 
 readRewardAccount
-    :: forall n
-     . DBLayer IO (SeqState n ShelleyKey)
-    -> IO (RewardAccount, XPub, NonEmpty DerivationIndex)
+    :: forall s.
+    ( WalletFlavor s
+    , Including AllFlavors '[ 'ShelleyF, 'SharedF] (FlavorOf s)
+    )
+    => DBLayer IO s
+    -> IO (RewardAccount, Maybe XPub, NonEmpty DerivationIndex)
 readRewardAccount db = do
     walletState <- getState <$> readWalletCheckpoint db
-    let xpub = Seq.rewardAccountKey walletState
-    let path = stakeDerivationPath $ Seq.derivationPrefix walletState
-    pure (toRewardAccount xpub, getRawKey ShelleyKeyS xpub, path)
-  where
-    readWalletCheckpoint
-        :: DBLayer IO s ->  IO (Wallet s)
-    readWalletCheckpoint DBLayer{..} = liftIO $ atomically readCheckpoint
+    case walletFlavor @s of
+        ShelleyWallet -> do
+            let xpub = Seq.rewardAccountKey walletState
+            let path = stakeDerivationPath $ Seq.derivationPrefix walletState
+            pure (toRewardAccount xpub, Just $ getRawKey ShelleyKeyS xpub, path)
+        SharedWallet -> do
+            let path = stakeDerivationPath $ Shared.derivationPrefix walletState
+            case Shared.rewardAccountKey walletState of
+                Just rewardAcct -> pure (rewardAcct, Nothing, path)
+                Nothing -> throwIO $ ExceptionReadRewardAccount ErrReadRewardAccountMissing
 
-readSharedRewardAccount
-    :: forall n
-     . DBLayer IO (SharedState n SharedKey)
-    -> IO (Maybe (RewardAccount, NonEmpty DerivationIndex))
-readSharedRewardAccount db = do
-    walletState <- getState <$> readWalletCheckpoint db
-    let path = stakeDerivationPath $ Shared.derivationPrefix walletState
-    case Shared.rewardAccountKey walletState of
-        Just rewardAcct -> pure $ Just (rewardAcct, path)
-        Nothing -> pure Nothing
-  where
-    readWalletCheckpoint
-        :: DBLayer IO s -> IO (Wallet s)
-    readWalletCheckpoint DBLayer{..} = liftIO $ atomically readCheckpoint
+readWalletCheckpoint
+    :: DBLayer IO s -> IO (Wallet s)
+readWalletCheckpoint DBLayer{..} = liftIO $ atomically readCheckpoint
+
+-- | Unsafe version of the `readRewardAccount` function
+-- that throws error when applied to a non-shared
+-- or a non-shared wallet state.
+sharedOnlyReadRewardAccount
+    :: forall s
+     . WalletFlavor s
+    => DBLayer IO s
+    -> ExceptT ErrReadRewardAccount IO
+        (Maybe (RewardAccount, NonEmpty DerivationIndex))
+sharedOnlyReadRewardAccount db = do
+    case walletFlavor @s of
+        SharedWallet -> do
+            walletState <- lift $ getState <$> readWalletCheckpoint db
+            let path = stakeDerivationPath $ Shared.derivationPrefix walletState
+            case Shared.rewardAccountKey walletState of
+                Just rewardAcct -> pure $ Just (rewardAcct, path)
+                Nothing -> pure Nothing
+        _ -> throwE ErrReadRewardAccountNotASharedWallet
 
 -- | Unsafe version of the `readRewardAccount` function
 -- that throws error when applied to a non-sequential
@@ -1328,7 +1365,7 @@ shelleyOnlyReadRewardAccount
      . WalletFlavor s
     => DBLayer IO s
     -> ExceptT ErrReadRewardAccount IO
-        (RewardAccount, XPub, NonEmpty DerivationIndex)
+        (RewardAccount, Maybe XPub, NonEmpty DerivationIndex)
 shelleyOnlyReadRewardAccount db = do
     case walletFlavor @s of
         ShelleyWallet -> lift $ readRewardAccount db
@@ -1402,11 +1439,9 @@ manageSharedRewardBalance tr' netLayer db = do
     watchNodeTip netLayer $ \bh -> do
          traceWith tr $ MsgRewardBalanceQuery bh
          query <- runExceptT $ do
-            acctM <- lift $ readSharedRewardAccount db
-            case acctM of
-                Nothing -> throwE ErrFetchRewardsMissingRewardAccount
-                Just acct ->
-                    liftIO $ getCachedRewardAccountBalance netLayer (fst acct)
+            (acct, _, _) <-
+                lift $ readRewardAccount @(SharedState n SharedKey) db
+            liftIO $ getCachedRewardAccountBalance netLayer acct
          handleRewardAccountQuery tr db query
     traceWith tr MsgRewardBalanceExited
   where
@@ -2270,7 +2305,7 @@ constructTransaction
     -> ExceptT ErrConstructTx IO (Cardano.TxBody era)
 constructTransaction txLayer db txCtx preSel = do
     (_, xpub, _) <- lift $ readRewardAccount db
-    mkUnsignedTransaction txLayer (Left xpub) txCtx (Left preSel)
+    mkUnsignedTransaction txLayer (Left $ fromJust xpub) txCtx (Left preSel)
         & withExceptT ErrConstructTxBody . except
 
 constructUnbalancedSharedTransaction
@@ -3448,6 +3483,8 @@ data ErrNotASequentialWallet
 
 data ErrReadRewardAccount
     = ErrReadRewardAccountNotAShelleyWallet
+    | ErrReadRewardAccountNotASharedWallet
+    | ErrReadRewardAccountMissing
     deriving (Generic, Eq, Show)
 
 data ErrWithdrawalNotBeneficial

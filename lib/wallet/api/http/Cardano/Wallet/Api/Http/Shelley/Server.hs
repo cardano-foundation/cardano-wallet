@@ -706,6 +706,7 @@ import qualified Network.Ntp as Ntp
 import qualified Network.Wai.Handler.Warp as Warp
 import qualified Network.Wai.Handler.WarpTLS as Warp
 
+
 -- | How the server should listen for incoming requests.
 data Listen
     = ListenOnPort Port
@@ -2569,7 +2570,7 @@ constructTransaction api argGenChange knownPools poolStatus apiWalletId body = d
 
         apiDecoded <- decodeTransaction @_ @n api apiWalletId balancedTx
 
-        (_, _, rewardPath) <- handler $ W.readRewardAccount @n db
+        (_, _, rewardPath) <- handler $ W.readRewardAccount @s db
 
         let deposits = case txDelegationAction transactionCtx2 of
                 Just (JoinRegisteringKey _poolId) -> [W.getStakeKeyDeposit pp]
@@ -2663,12 +2664,6 @@ constructTransaction api argGenChange knownPools poolStatus apiWalletId body = d
                 not $ withinSlotInterval before hereafter $
                     scriptSlotIntervals script
 
-    toUsignedTxWdrl p = \case
-        ApiWithdrawalGeneral (ApiRewardAccount rewardAcc) amount Our ->
-            Just (rewardAcc, Coin.fromQuantity amount, p)
-        ApiWithdrawalGeneral _ _ External ->
-            Nothing
-
     unsignedTx path initialOuts decodedTx = UnsignedTx
         { unsignedCollateral =
             mapMaybe toUnsignedTxInp (decodedTx ^. #collateral)
@@ -2713,6 +2708,14 @@ constructTransaction api argGenChange knownPools poolStatus apiWalletId body = d
         map toTxOut
             . Map.toList
             . foldr (uncurry (Map.insertWith (<>))) Map.empty
+
+toUsignedTxWdrl
+    :: c -> ApiWithdrawalGeneral n -> Maybe (RewardAccount, Coin, c)
+toUsignedTxWdrl p = \case
+    ApiWithdrawalGeneral (ApiRewardAccount rewardAcc) amount Our ->
+        Just (rewardAcc, Coin.fromQuantity amount, p)
+    ApiWithdrawalGeneral _ _ External ->
+        Nothing
 
 toUnsignedTxOut :: ApiTxOutputGeneral n -> TxOut
 toUnsignedTxOut = \case
@@ -2834,7 +2837,6 @@ parseValidityInterval ti validityInterval = do
 
     pure (before, hereafter)
 
--- TO-DO withdrawals
 -- TO-DO minting/burning
 -- TO-DO reference scripts
 constructSharedTransaction
@@ -2875,7 +2877,14 @@ constructSharedTransaction
         (Write.InAnyRecentEra (_ :: Write.RecentEra era) pp, _)
             <- liftIO $ W.readNodeTipStateForTxWrite netLayer
         (cp, _, _) <- handler $ W.readWallet wrk
+
         let delegationTemplateM = Shared.delegationTemplate $ getState cp
+        withdrawal <- case body ^. #withdrawal of
+            Just SelfWithdraw -> liftIO $
+                W.mkSelfWithdrawalShared @n
+                    netLayer (txWitnessTagFor @SharedKey) delegationTemplateM db
+            _ -> pure NoWithdrawal
+
         when (isNothing delegationTemplateM && isJust delegationRequest) $
             liftHandler $ throwE ErrConstructTxDelegationInvalid
 
@@ -2883,17 +2892,16 @@ constructSharedTransaction
             forM delegationRequest $
                 WD.handleDelegationRequest
                     trWorker db epoch knownPools
-                    getPoolStatus NoWithdrawal
+                    getPoolStatus withdrawal
 
         let txCtx = defaultTransactionCtx
-                { txWithdrawal = NoWithdrawal
+                { txWithdrawal = withdrawal
                 , txMetadata = md
                 , txValidityInterval = (Just before, hereafter)
                 , txDelegationAction = optionalDelegationAction
                 , txPaymentCredentialScriptTemplate =
                         Just (Shared.paymentTemplate $ getState cp)
-                , txStakingCredentialScriptTemplate =
-                        Shared.delegationTemplate $ getState cp
+                , txStakingCredentialScriptTemplate = delegationTemplateM
                 }
         case Shared.ready (getState cp) of
             Shared.Pending ->
@@ -2929,26 +2937,34 @@ constructSharedTransaction
                 let refunds = case optionalDelegationAction of
                         Just Quit -> [W.getStakeKeyDeposit pp]
                         _ -> []
-                delCerts <- case optionalDelegationAction of
+                delCertsWithPath <- case optionalDelegationAction of
                     Nothing -> pure Nothing
                     Just action -> do
-                        resM <- handler $ W.readSharedRewardAccount @n db
-                        --at this moment we are sure reward account is present
-                        --if not ErrConstructTxDelegationInvalid would be thrown already
-                        pure $ Just (action, snd $ fromJust resM)
+                        (_, _, path) <-
+                            handler $ W.readRewardAccount @((SharedState n SharedKey)) db
+                        pure $ Just (action, path)
+
+                pathForWithdrawal <- case withdrawal of
+                    WithdrawalSelf _ _ _ -> do
+                        (_, _, path) <-
+                            handler $ W.readRewardAccount @((SharedState n SharedKey)) db
+                        pure $ Just path
+                    _ ->
+                        pure Nothing
 
                 pure $ ApiConstructTransaction
                     { transaction = balancedTx
                     , coinSelection =
                         mkApiCoinSelection deposits refunds
-                        delCerts md (unsignedTx outs apiDecoded)
+                        delCertsWithPath md
+                        (unsignedTx outs apiDecoded pathForWithdrawal)
                     , fee = apiDecoded ^. #fee
                     }
   where
     ti :: TimeInterpreter (ExceptT PastHorizonException IO)
     ti = timeInterpreter (api ^. networkLayer)
 
-    unsignedTx initialOuts decodedTx = UnsignedTx
+    unsignedTx initialOuts decodedTx pathM = UnsignedTx
         { unsignedCollateral =
             mapMaybe toUnsignedTxInp (decodedTx ^. #collateral)
         , unsignedInputs =
@@ -2959,9 +2975,12 @@ constructSharedTransaction
         , unsignedChange =
             drop (length initialOuts)
                 $ map toUnsignedTxChange (decodedTx ^. #outputs)
-        , unsignedWithdrawals =
-            []
+        , unsignedWithdrawals = case pathM of
+                Nothing -> []
+                Just path ->
+                    mapMaybe (toUsignedTxWdrl path) (decodedTx ^. #withdrawals)
         }
+
 
 decodeSharedTransaction
     :: forall n . HasSNetworkId n
@@ -2972,7 +2991,7 @@ decodeSharedTransaction
 decodeSharedTransaction ctx (ApiT wid) (ApiSerialisedTransaction (ApiT sealed) _) = do
     era <- liftIO $ NW.currentNodeEra nl
     (txinsOutsPaths, collateralInsOutsPaths, outsPath, pp, certs, txId, fee
-        , metadata, scriptValidity, interval, witsCount)
+        , metadata, scriptValidity, interval, witsCount, withdrawals, rewardAcctM)
         <- withWorkerCtx ctx wid liftE liftE $ \wrk -> do
         (cp, _, _) <- handler $ W.readWallet wrk
         let witCountCtx = toWitnessCountCtx SharedWallet (getState cp)
@@ -2983,6 +3002,7 @@ decodeSharedTransaction ctx (ApiT wid) (ApiSerialisedTransaction (ApiT sealed) _
                 , resolvedInputs
                 , resolvedCollateralInputs
                 , outputs
+                , withdrawals
                 , metadata
                 , scriptValidity
                 }) = decodedTx
@@ -3019,6 +3039,8 @@ decodeSharedTransaction ctx (ApiT wid) (ApiSerialisedTransaction (ApiT sealed) _
             , scriptValidity
             , interval
             , witsCount
+            , withdrawals
+            , rewardAcctM
             )
     pure $ ApiDecodedTransaction
         { id = ApiT txId
@@ -3028,7 +3050,9 @@ decodeSharedTransaction ctx (ApiT wid) (ApiSerialisedTransaction (ApiT sealed) _
         , collateral = map toInp collateralInsOutsPaths
         -- TODO: [ADP-1670]
         , collateralOutputs = ApiAsArray Nothing
-        , withdrawals = []
+        , withdrawals = case rewardAcctM of
+                Nothing -> []
+                Just acct -> map (toWrdl acct) $ Map.assocs withdrawals
         -- TODO minting/burning multisig
         , mint = emptyApiAssetMntBurn
         , burn = emptyApiAssetMntBurn
@@ -3184,13 +3208,17 @@ decodeTransaction
   where
     tl = ctx ^. W.transactionLayer @(KeyOf s) @'CredFromKeyK
 
-    toWrdl acct (rewardKey, (Coin c)) =
-        if rewardKey == acct then
-            ApiWithdrawalGeneral (ApiRewardAccount rewardKey)
-                (Quantity $ fromIntegral c) Our
-        else
-            ApiWithdrawalGeneral (ApiRewardAccount rewardKey)
-                (Quantity $ fromIntegral c) External
+toWrdl
+    :: RewardAccount
+    -> (RewardAccount, Coin)
+    -> ApiWithdrawalGeneral n
+toWrdl acct (rewardKey, (Coin c)) =
+    if rewardKey == acct then
+        ApiWithdrawalGeneral (ApiRewardAccount rewardKey)
+            (Quantity $ fromIntegral c) Our
+    else
+        ApiWithdrawalGeneral (ApiRewardAccount rewardKey)
+            (Quantity $ fromIntegral c) External
 
 ourRewardAccountRegistration :: ApiAnyCertificate n -> Bool
 ourRewardAccountRegistration = \case
@@ -3679,7 +3707,7 @@ listStakeKeys lookupStakeRef ctx@ApiLayer{..} (ApiT wid) =
         (wal, (_, delegation) ,pending) <- W.readWallet @_ @s wrk
         let utxo = availableUTxO @s pending wal
         let takeFst (a,_,_) = a
-        ourAccount <- takeFst <$> liftIO (W.readRewardAccount @n db)
+        ourAccount <- takeFst <$> liftIO (W.readRewardAccount @s db)
         ourApiDelegation <- liftIO $ toApiWalletDelegation delegation
             (unsafeExtendSafeZone (timeInterpreter $ ctx ^. networkLayer))
         let ourKeys = [(ourAccount, 0, ourApiDelegation)]
@@ -4379,7 +4407,7 @@ mkApiTransaction timeInterpreter wrk timeRefLens tx = do
     parsedValues <- traverse parseTxCBOR $ tx ^. #txCBOR
     parsedCertificates <-
         if hasDelegation (Proxy @s)
-            then traverse (getApiAnyCertificates db) parsedValues
+            then traverse (getApiAnyCertificates db (keyFlavorFromState @s)) parsedValues
             else pure Nothing
     parsedMintBurn <- forM parsedValues
         $ getTxApiAssetMintBurn @_ @s wrk
@@ -4430,10 +4458,20 @@ mkApiTransaction timeInterpreter wrk timeRefLens tx = do
 
     -- | Promote certificates of a transaction to API type,
     -- using additional context from the 'WorkerCtx'.
-    getApiAnyCertificates db ParsedTxCBOR{certificates} = do
-        (rewardAccount, _, derivPath) <- liftHandler
-            $ W.shelleyOnlyReadRewardAccount @s db
-        pure $ mkApiAnyCertificate (Just rewardAccount) derivPath <$> certificates
+    getApiAnyCertificates db flavor ParsedTxCBOR{certificates} = case flavor of
+        ShelleyKeyS -> do
+            (rewardAcct, _, path) <- liftHandler
+                $ W.shelleyOnlyReadRewardAccount @s db
+            pure $ mkApiAnyCertificate (Just rewardAcct) path <$> certificates
+        SharedKeyS -> do
+            infoM <- liftHandler
+                $ W.sharedOnlyReadRewardAccount @s db
+            case infoM of
+                Just (rewardAcct, path) ->
+                    pure $ mkApiAnyCertificate (Just rewardAcct) path <$> certificates
+                _ -> pure []
+        _ ->
+            pure []
 
     depositIfAny :: Natural
     depositIfAny
