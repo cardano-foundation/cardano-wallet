@@ -34,6 +34,7 @@ module Cardano.Wallet.Address.Discovery.Shared
     , SharedAddressPools (..)
     , SharedAddressPool (..)
     , newSharedAddressPool
+    , isOwned
 
     , ErrAddCosigner (..)
     , ErrScriptTemplate (..)
@@ -62,7 +63,7 @@ import Cardano.Address.Script
 import Cardano.Address.Style.Shelley
     ( Credential (..), delegationAddress, paymentAddress )
 import Cardano.Crypto.Wallet
-    ( XPub )
+    ( XPrv, XPub )
 import Cardano.Wallet.Address.Derivation
     ( AccountIxForStaking (..)
     , AddressParts (..)
@@ -84,18 +85,15 @@ import Cardano.Wallet.Address.Derivation
     , utxoExternal
     , utxoInternal
     )
+import Cardano.Wallet.Address.Derivation.Shared
+    ( SharedKey )
 import Cardano.Wallet.Address.Derivation.SharedKey
-    ( SharedKey (..)
-    , constructAddressFromIx
-    , replaceCosignersWithVerKeys
-    , toNetworkTag
-    )
+    ( constructAddressFromIx, replaceCosignersWithVerKeys, toNetworkTag )
 import Cardano.Wallet.Address.Discovery
     ( CompareDiscovery (..)
     , GenChange (..)
     , GetAccount (..)
     , IsOurs (..)
-    , IsOwned (..)
     , KnownAddresses (..)
     , MaybeLight (..)
     , PendingIxs
@@ -104,6 +102,8 @@ import Cardano.Wallet.Address.Discovery
     )
 import Cardano.Wallet.Address.Discovery.Sequential
     ( AddressPoolGap (..) )
+import Cardano.Wallet.Primitive.Passphrase
+    ( Passphrase )
 import Cardano.Wallet.Primitive.Types.Address
     ( Address (..), AddressState (..) )
 import Cardano.Wallet.Primitive.Types.RewardAccount
@@ -574,16 +574,21 @@ liftDelegationAddress ix dTemplate (KeyFingerprint fingerprint) =
     dScript =
         replaceCosignersWithVerKeys CA.Stake dTemplate ix
 
-instance ( key ~ SharedKey
-         , SupportsDiscovery n key ) =>
-         IsOwned (SharedState n key) key 'CredFromScriptK where
-    isOwned st (rootPrv, pwd) addr = case isShared addr st of
-        (Just (ix, role'), _) ->
-            let DerivationPrefix (_,_,accIx) = derivationPrefix st
-                accXPrv = deriveAccountPrivateKey pwd rootPrv accIx
-            in Just ( deriveAddressPrivateKey pwd accXPrv role' ix
-                    , pwd )
-        (Nothing, _) -> Nothing
+isOwned
+    :: HasSNetworkId n
+    => SharedState n SharedKey
+    -> (SharedKey 'RootK XPrv, Passphrase "encryption")
+    -> Address
+    -> Maybe (SharedKey 'CredFromScriptK XPrv, Passphrase "encryption")
+isOwned st (rootPrv, pwd) addr = case isShared addr st of
+    (Just (ix, role'), _) ->
+        let DerivationPrefix (_, _, accIx) = derivationPrefix st
+            accXPrv = deriveAccountPrivateKey pwd rootPrv accIx
+        in  Just
+                ( deriveAddressPrivateKey pwd accXPrv role' ix
+                , pwd
+                )
+    (Nothing, _) -> Nothing
 
 estimateMinWitnessRequiredPerInput :: Script k -> Natural
 estimateMinWitnessRequiredPerInput = \case

@@ -42,7 +42,7 @@ import Cardano.Wallet
     , utxoAssumptionsForWallet
     )
 import Cardano.Wallet.Address.Derivation
-    ( Depth (..), Role (..), delegationAddressS, paymentAddressS )
+    ( Role (..), delegationAddressS, paymentAddressS )
 import Cardano.Wallet.Address.Derivation.Icarus
     ( IcarusKey (..) )
 import Cardano.Wallet.Address.Derivation.Shared
@@ -333,7 +333,7 @@ server byron icarus shelley multisig spl ntp blockchainSource =
                 (delegationAddressS @n)
                 (knownPools spl)
                 (getPoolLifeCycleStatus spl)
-        :<|> signTransaction @_ @_ @_ @'CredFromKeyK shelley
+        :<|> signTransaction shelley
         :<|>
             (\wid mMinWithdrawal mStart mEnd mOrder mLimit simpleMetadataFlag ->
                 listTransactions shelley wid mMinWithdrawal mStart mEnd mOrder mLimit
@@ -605,7 +605,7 @@ server byron icarus shelley multisig spl ntp blockchainSource =
     sharedTransactions apilayer =
         constructSharedTransaction apilayer (constructAddressFromIx @n UtxoInternal)
             (knownPools spl) (getPoolLifeCycleStatus spl)
-        :<|> signTransaction @_ @_ @_ @'CredFromScriptK apilayer
+        :<|> signTransaction apilayer
         :<|> decodeSharedTransaction apilayer
         :<|> submitSharedTransaction @_ apilayer
         :<|>
