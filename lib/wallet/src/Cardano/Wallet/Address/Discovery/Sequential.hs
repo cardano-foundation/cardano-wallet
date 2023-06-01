@@ -746,6 +746,7 @@ instance KnownNat p => IsOurs (SeqAnyState n k p) Address where
             Ledger.Addr _net (Ledger.KeyHashObj _) _ -> True
             Ledger.Addr _net (Ledger.ScriptHashObj _) _ -> True
             Ledger.AddrBootstrap _ -> False
+
 instance IsOurs (SeqAnyState n k p) RewardAccount where
     isOurs _account state = (Nothing, state)
 
