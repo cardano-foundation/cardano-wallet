@@ -1,15 +1,24 @@
 {-# LANGUAGE LambdaCase #-}
 module Cardano.Wallet.Write.UTxOAssumptions
-    ( UTxOAssumptions (..)
+    (
+    -- * UTxOAssumptions
+      UTxOAssumptions (..)
     , assumedInputScriptTemplate
     , assumedTxWitnessTag
+
+    -- * Validation
+    , validateAddress
     )
     where
 
 import Prelude
 
+import Cardano.Ledger.Shelley.API
+    ( Addr (..), Credential (..) )
 import Cardano.Wallet.TxWitnessTag
     ( TxWitnessTag (..) )
+import Cardano.Wallet.Write.Tx
+    ( Address )
 
 import qualified Cardano.Address.Script as CA
 import qualified Cardano.Wallet.Primitive.Types.Address as W
@@ -40,3 +49,11 @@ assumedTxWitnessTag = \case
     AllKeyPaymentCredentials -> TxWitnessShelleyUTxO
     AllByronKeyPaymentCredentials -> TxWitnessByronUTxO
     AllScriptPaymentCredentialsFrom {} -> TxWitnessShelleyUTxO
+
+validateAddress :: UTxOAssumptions -> Address -> Bool
+validateAddress = valid
+  where
+    valid AllKeyPaymentCredentials          (Addr _ KeyHashObj{}    _) = True
+    valid AllScriptPaymentCredentialsFrom{} (Addr _ ScriptHashObj{} _) = True
+    valid AllByronKeyPaymentCredentials     (AddrBootstrap _)          = True
+    valid _                                 _                          = False
