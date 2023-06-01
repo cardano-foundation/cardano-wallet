@@ -133,6 +133,7 @@ import Test.Integration.Framework.DSL
     , fixturePassphrase
     , fixtureSharedWallet
     , fixtureSharedWalletDelegating
+    , fixtureWallet
     , fundSharedWallet
     , genMnemonics
     , getFromResponse
@@ -143,6 +144,7 @@ import Test.Integration.Framework.DSL
     , notDelegating
     , patchSharedWallet
     , postSharedWallet
+    , postWallet
     , request
     , sharedAccPubKeyFromMnemonics
     , signSharedTx
@@ -2294,6 +2296,298 @@ spec = describe "SHARED_TRANSACTIONS" $ do
                 , expectField #depositReturned (`shouldBe` depositAmt)
                 , expectField #certificates
                      (`shouldBe` [ delegatingCert3 stakeKeyDerPathParty2])
+                ]
+
+    it "SHARED_TRANSACTIONS_DELEGATION_02 - \
+       \Emulating multi-delegation using shared wallets" $ \ctx -> runResourceT $ do
+
+        -- creating empty parent Shelley wallet
+        m15 <- liftIO $ genMnemonics M15
+        m12 <- liftIO $ genMnemonics M12
+        let payloadCreateParent = Json [json|{
+                "name": "Parent Shelley Wallet",
+                "mnemonic_sentence": #{m15},
+                "mnemonic_second_factor": #{m12},
+                "passphrase": #{fixturePassphrase}
+             }|]
+        rPostCreateParent <- postWallet ctx payloadCreateParent
+        verify rPostCreateParent
+            [ expectResponseCode HTTP.status201 ]
+        let parentWal = getFromResponse Prelude.id rPostCreateParent
+
+        -- financing the parent Shelley wallet
+        rAddrShelley <- request @[ApiAddressWithPath n] ctx
+            (Link.listAddresses @'Shelley parentWal) Default Empty
+        expectResponseCode HTTP.status200 rAddrShelley
+        let addrs = getFromResponse Prelude.id rAddrShelley
+        let destination = (addrs !! 1) ^. #id
+        wShelley <- fixtureWallet ctx
+        let payloadTx = Json [json|{
+                "payments": [{
+                    "address": #{destination},
+                    "amount": {
+                        "quantity": #{faucetUtxoAmt},
+                        "unit": "lovelace"
+                    }
+                }],
+                "passphrase": #{fixturePassphrase}
+            }|]
+        let ep = Link.createTransactionOld @'Shelley
+        rTx1 <- request @(ApiTransaction n) ctx (ep wShelley) Default payloadTx
+        expectResponseCode HTTP.status202 rTx1
+        eventually "Parent Shelley Wallet balance is as expected" $ do
+            rGet <- request @ApiWallet ctx
+                (Link.getWallet @'Shelley parentWal) Default Empty
+            verify rGet
+                [ expectField (#balance . #total)
+                    (`shouldBe` Quantity faucetUtxoAmt)
+                , expectField (#balance . #available)
+                    (`shouldBe` Quantity faucetUtxoAmt)
+                ]
+
+        -- create two child shared wallets using the same mnemonic as parent
+        -- Shelley wallet and different account indices
+        let payloadCreateChild :: T.Text -> T.Text -> Payload
+            payloadCreateChild ix name = Json [json| {
+                "name": #{name},
+                "mnemonic_sentence": #{m15},
+                "mnemonic_second_factor": #{m12},
+                "passphrase": #{fixturePassphrase},
+                "account_index": #{ix},
+                "payment_script_template":
+                    { "cosigners":
+                        { "cosigner#0": "self" },
+                      "template":
+                          { "all": ["cosigner#0"]
+                          }
+                    },
+                "delegation_script_template":
+                    { "cosigners":
+                        { "cosigner#0": "self" },
+                      "template":
+                          { "all": ["cosigner#0"]
+                          }
+                    }
+                } |]
+
+        rPostCreateChild1 <- postSharedWallet ctx Default
+            (payloadCreateChild "0H" "Shared Wallet 1")
+        verify (fmap (view #wallet) <$> rPostCreateChild1)
+            [ expectResponseCode HTTP.status201
+            ]
+        let sharedWal1 = getFromResponse Prelude.id rPostCreateChild1
+        let (ApiSharedWallet (Right walActive1)) = sharedWal1
+
+        rPostCreateChild2 <- postSharedWallet ctx Default
+            (payloadCreateChild "1H" "Shared Wallet 2")
+        let sharedWal2 = getFromResponse Prelude.id rPostCreateChild2
+        let (ApiSharedWallet (Right walActive2)) = sharedWal2
+        verify (fmap (view #wallet) <$> rPostCreateChild2)
+            [ expectResponseCode HTTP.status201
+            ]
+
+        -- transfer money to the child shared wallets from parent wallet
+        -- parent wallet has 100k ada (faucetUtxoAmt) and will transfer 40k
+        -- to every child shared wallet
+        let ada = (*) (1_000_000)
+        let transfer :: Natural
+            transfer = ada 40_000
+
+        rAddrShared1 <- request @[ApiAddressWithPath n] ctx
+            (Link.listAddresses @'Shared walActive1) Default Empty
+        expectResponseCode HTTP.status200 rAddrShared1
+        let addrs1 = getFromResponse Prelude.id rAddrShared1
+        let destAddr1 = (addrs1 !! 1) ^. #id
+
+        rAddrShared2 <- request @[ApiAddressWithPath n] ctx
+            (Link.listAddresses @'Shared walActive2) Default Empty
+        expectResponseCode HTTP.status200 rAddrShared2
+        let addrs2 = getFromResponse Prelude.id rAddrShared2
+        let destAddr2 = (addrs2 !! 1) ^. #id
+
+        let payloadTx1 = Json [json|{
+                "payments": [{
+                    "address": #{destAddr1},
+                    "amount": {
+                        "quantity": #{transfer},
+                        "unit": "lovelace"
+                    }
+                }, {
+                    "address": #{destAddr2},
+                    "amount": {
+                        "quantity": #{transfer},
+                        "unit": "lovelace"
+                    }
+                }],
+                "passphrase": #{fixturePassphrase}
+            }|]
+        rTx2 <- request @(ApiTransaction n) ctx (ep parentWal) Default payloadTx1
+        expectResponseCode HTTP.status202 rTx2
+
+        eventually "Child shared wallet 1 balance is increased by target" $ do
+            rGet <- request @ApiWallet ctx
+                (Link.getWallet @'Shared walActive1) Default Empty
+            verify rGet
+                [ expectField
+                        (#balance . #total) (`shouldBe` Quantity transfer)
+                , expectField
+                        (#balance . #available) (`shouldBe` Quantity transfer)
+                ]
+        eventually "Child shared wallet 2 balance is increased by target" $ do
+            rGet <- request @ApiWallet ctx
+                (Link.getWallet @'Shared walActive2) Default Empty
+            verify rGet
+                [ expectField
+                        (#balance . #total) (`shouldBe` Quantity transfer)
+                , expectField
+                        (#balance . #available) (`shouldBe` Quantity transfer)
+                ]
+
+        -- child shared wallets delegate to different pools and get rewards
+        -- after several epochs
+        pool1:pool2:_ <- map (view $ _Unwrapped . #id) . snd <$>
+            unsafeRequest @[ApiT StakePool]
+            ctx (Link.listStakePools arbitraryStake) Empty
+
+        let delegationJoin pool = Json [json|{
+                "delegations": [{
+                    "join": {
+                        "pool": #{ApiT pool},
+                        "stake_key_index": "0H"
+                    }
+                }]
+            }|]
+        -- one child shared wallet delegating to pool1
+        rTx3 <- request @(ApiConstructTransaction n) ctx
+            (Link.createUnsignedTransaction @'Shared walActive1) Default
+            (delegationJoin pool1)
+        verify rTx3
+            [ expectResponseCode HTTP.status202 ]
+        let (ApiSerialisedTransaction apiTx3 _) =
+                getFromResponse #transaction rTx3
+        signedTx3 <-
+            signSharedTx ctx walActive1 apiTx3
+                [ expectResponseCode HTTP.status202 ]
+        submittedTx3 <- submitSharedTxWithWid ctx walActive1 signedTx3
+        verify submittedTx3
+            [ expectResponseCode HTTP.status202
+            ]
+
+        -- one child shared wallet delegating to pool2
+        rTx4 <- request @(ApiConstructTransaction n) ctx
+            (Link.createUnsignedTransaction @'Shared walActive2) Default
+            (delegationJoin pool2)
+        verify rTx4
+            [ expectResponseCode HTTP.status202 ]
+        let (ApiSerialisedTransaction apiTx4 _) =
+                getFromResponse #transaction rTx4
+        signedTx4 <-
+            signSharedTx ctx walActive2 apiTx4
+                [ expectResponseCode HTTP.status202 ]
+        submittedTx4 <- submitSharedTxWithWid ctx walActive2 signedTx4
+        verify submittedTx4
+            [ expectResponseCode HTTP.status202
+            ]
+
+        -- checking awards
+        eventually "Shared Wallet 1 is delegating to pool1" $ do
+            request @ApiWallet ctx (Link.getWallet @'Shared walActive1) Default Empty
+                >>= flip verify
+                    [ expectField #delegation (`shouldBe` delegating (ApiT pool1) [])
+                    ]
+        eventually "Shared Wallet 2 is delegating to pool2" $ do
+            request @ApiWallet ctx (Link.getWallet @'Shared walActive2) Default Empty
+                >>= flip verify
+                    [ expectField #delegation (`shouldBe` delegating (ApiT pool2) [])
+                    ]
+
+        waitForNextEpoch ctx
+        waitForNextEpoch ctx
+        waitForNextEpoch ctx
+        waitForNextEpoch ctx
+        waitForNextEpoch ctx
+        waitForNextEpoch ctx
+
+        eventually "Shared Wallet 1 gets rewards from pool1" $ do
+            r <- request @ApiWallet ctx (Link.getWallet @'Shared walActive1) Default Empty
+            verify r
+                [ expectField
+                      (#balance . #reward)
+                      (.> (Quantity 0))
+                ]
+        eventually "Shared Wallet 2 gets rewards from pool2" $ do
+            r <- request @ApiWallet ctx (Link.getWallet @'Shared walActive2) Default Empty
+            verify r
+                [ expectField
+                      (#balance . #reward)
+                      (.> (Quantity 0))
+                ]
+
+        --sending back funds to parent with self withdrawal
+        rGet1 <- request @ApiWallet ctx (Link.getWallet @'Shared walActive1)
+                    Default Empty
+        let (Quantity rewards1) = getFromResponse (#balance . #reward) rGet1
+        rGet2 <- request @ApiWallet ctx (Link.getWallet @'Shared walActive2)
+                    Default Empty
+        let (Quantity rewards2) = getFromResponse (#balance . #reward) rGet2
+
+        let payloadWithdrawal amt = Json [json|
+                { "payments":
+                    [ { "address": #{destination}
+                      , "amount":
+                        { "quantity": #{amt}
+                        , "unit": "lovelace"
+                        }
+                      }
+                    ]
+                , "passphrase": #{fixturePassphrase},
+                  "withdrawal": "self"
+                }|]
+        rTx5a <- request @(ApiConstructTransaction n) ctx
+            (Link.createUnsignedTransaction @'Shared walActive1) Default
+            (payloadWithdrawal $ transfer + rewards1 - ada 2)
+        verify rTx5a
+            [ expectResponseCode HTTP.status202 ]
+        let expectedFee = getFromResponse (#fee . #getQuantity) rTx5a
+
+        rTx5 <- request @(ApiConstructTransaction n) ctx
+            (Link.createUnsignedTransaction @'Shared walActive1) Default
+            (payloadWithdrawal $ transfer + rewards1 - expectedFee)
+        verify rTx5
+            [ expectResponseCode HTTP.status202 ]
+        let (ApiSerialisedTransaction apiTx5 _) =
+                getFromResponse #transaction rTx5
+        signedTx5 <-
+            signSharedTx ctx walActive1 apiTx5
+                [ expectResponseCode HTTP.status202 ]
+        submittedTx5 <- submitSharedTxWithWid ctx walActive1 signedTx5
+        verify submittedTx5
+            [ expectResponseCode HTTP.status202
+            ]
+
+        rTx6 <- request @(ApiConstructTransaction n) ctx
+            (Link.createUnsignedTransaction @'Shared walActive2) Default
+            (payloadWithdrawal $ transfer + rewards2 - expectedFee)
+        verify rTx6
+            [ expectResponseCode HTTP.status202 ]
+        let (ApiSerialisedTransaction apiTx6 _) =
+                getFromResponse #transaction rTx6
+        signedTx6 <-
+            signSharedTx ctx walActive2 apiTx6
+                [ expectResponseCode HTTP.status202 ]
+        submittedTx6 <- submitSharedTxWithWid ctx walActive2 signedTx6
+        verify submittedTx6
+            [ expectResponseCode HTTP.status202
+            ]
+
+        eventually "Parent Shelley Wallet balance is higher than before" $ do
+            rGet <- request @ApiWallet ctx
+                (Link.getWallet @'Shelley parentWal) Default Empty
+            verify rGet
+                [ expectField (#balance . #total)
+                    (.> (Quantity faucetUtxoAmt))
+                , expectField (#balance . #available)
+                    (.> (Quantity faucetUtxoAmt))
                 ]
   where
      listSharedTransactions ctx w mStart mEnd mOrder mLimit = do
