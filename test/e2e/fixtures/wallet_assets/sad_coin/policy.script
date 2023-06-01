@@ -1,0 +1,9 @@
+{
+       "type": "all",
+       "scripts": [
+         {
+           "type": "sig",
+           "keyHash": "fda874ee455948ba27fe50ea44228995f47b278ef0f35cec8cd31933"
+         }
+       ]
+   }
