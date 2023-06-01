@@ -568,6 +568,9 @@ instance IsServerError ErrBalanceTxInternalError where
                 , "The balance is"
                 , T.pack (show v)
                 ]
+        ErrUTxOViolatesAssumptions violation ->
+            apiError err500 UTxOAssumptionsViolated $
+                fmt $ build violation
 
 instance IsServerError ErrRemoveTx where
     toServerError = \case

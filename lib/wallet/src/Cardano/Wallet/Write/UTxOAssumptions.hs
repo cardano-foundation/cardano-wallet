@@ -14,6 +14,8 @@ module Cardano.Wallet.Write.UTxOAssumptions
 
     -- * Validation
     , validateAddress
+    , validateAddresses
+    , UTxOAssumptionViolation (..)
     )
     where
 
@@ -25,6 +27,12 @@ import Cardano.Wallet.TxWitnessTag
     ( TxWitnessTag (..) )
 import Cardano.Wallet.Write.Tx
     ( Address )
+import Control.Monad
+    ( forM_ )
+import Data.Text
+    ( Text )
+import Fmt
+    ( Buildable, build )
 
 import qualified Cardano.Address.Script as CA
 import qualified Cardano.Wallet.Primitive.Types.Address as W
@@ -55,6 +63,44 @@ assumedTxWitnessTag = \case
     AllKeyPaymentCredentials -> TxWitnessShelleyUTxO
     AllByronKeyPaymentCredentials -> TxWitnessByronUTxO
     AllScriptPaymentCredentialsFrom {} -> TxWitnessShelleyUTxO
+
+--
+-- Validation
+--
+
+data UTxOAssumptionViolation
+    = UTxOAssumptionViolation
+        Address  -- Address violating assumptions
+        Text -- ^ Textual description of assumptions
+    deriving (Eq, Show)
+
+instance Buildable UTxOAssumptionViolation where
+    build (UTxOAssumptionViolation addr assumptions)
+        = mconcat
+            [ "UTxOAssumption "
+            , build assumptions
+            , " broken by "
+            , build $ show addr
+            ]
+
+validateAddresses
+    :: UTxOAssumptions
+    -> [Address]
+    -> Either UTxOAssumptionViolation ()
+validateAddresses assumptions = case assumptions of
+    AllKeyPaymentCredentials
+        -> validateAll "AllKeyPaymentCredentials"
+    AllByronKeyPaymentCredentials
+        -> validateAll "AllByronKeyPaymentCredentials"
+    AllScriptPaymentCredentialsFrom{}
+        -> validateAll "AllScriptPaymentCredentials"
+        -- NOTE: The script lookup could provide bigger scripts than predicted
+        -- by the template. This is not currently validated.
+  where
+    validateAll assumptionText addrs = forM_ addrs $ \addr ->
+        if validateAddress assumptions addr
+        then Right ()
+        else Left $ UTxOAssumptionViolation addr assumptionText
 
 validateAddress :: UTxOAssumptions -> Address -> Bool
 validateAddress = valid

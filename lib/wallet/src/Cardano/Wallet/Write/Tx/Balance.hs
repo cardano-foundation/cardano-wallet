@@ -136,7 +136,12 @@ import Cardano.Wallet.Write.Tx
 import Cardano.Wallet.Write.Tx.TimeTranslation
     ( TimeTranslation )
 import Cardano.Wallet.Write.UTxOAssumptions
-    ( UTxOAssumptions (..), assumedInputScriptTemplate, assumedTxWitnessTag )
+    ( UTxOAssumptionViolation (..)
+    , UTxOAssumptions (..)
+    , assumedInputScriptTemplate
+    , assumedTxWitnessTag
+    , validateAddresses
+    )
 import Control.Arrow
     ( left )
 import Control.Monad
@@ -277,6 +282,7 @@ data ErrSelectAssets
 
 data ErrBalanceTxInternalError
     = ErrUnderestimatedFee W.Coin SealedTx KeyWitnessCount
+    | ErrUTxOViolatesAssumptions UTxOAssumptionViolation
     | ErrFailedBalancing Cardano.Value
     deriving (Show, Eq)
 
@@ -516,6 +522,12 @@ balanceTransactionWithSelectionStrategyAndNoZeroAdaAdjustment
         -- sensible than the max execution cost.
 
         randomSeed <- stdGenSeed
+        lift $ traceWith tr $ MsgSelectionForBalancingStart
+            (UTxOIndex.size internalUtxoAvailable)
+            (BuildableInAnyEra Cardano.cardanoEra ptx)
+
+        externalSelectedUtxo <- extractExternallySelectedUTxO ptx
+
         let
             transform
                 :: Selection
@@ -527,17 +539,14 @@ balanceTransactionWithSelectionStrategyAndNoZeroAdaAdjustment
             transform sel =
                 let (sel', s') = assignChangeAddresses genChange sel s
                     inputs = F.toList (sel' ^. #inputs)
-                in  ( inputs
+                    isPreselected (i, W.TxOut o _) =
+                        UTxOIndex.member (WalletUTxO i o) externalSelectedUtxo
+                in  ( filter (not . isPreselected) inputs
                     , sel' ^. #collateral
                     , sel' ^. #change
                     , s'
                     )
 
-        lift $ traceWith tr $ MsgSelectionForBalancingStart
-            (UTxOIndex.size internalUtxoAvailable)
-            (BuildableInAnyEra Cardano.cardanoEra ptx)
-
-        externalSelectedUtxo <- extractExternallySelectedUTxO ptx
 
         let mSel = selectAssets
                 (recentEra @era)
@@ -602,6 +611,16 @@ balanceTransactionWithSelectionStrategyAndNoZeroAdaAdjustment
         , extraInputScripts
         , feeUpdate = UseNewTxFee $ unsafeFromLovelace minfee0
         }
+
+    let selectedUTxOAddresses = map (W.toLedger . view #address . snd)
+            $ extraInputs <> extraCollateral'
+    case validateAddresses utxoAssumptions selectedUTxOAddresses of
+        Right ()
+            -> pure ()
+        Left violation
+            -> throwE
+                $ ErrBalanceTxInternalError
+                $ ErrUTxOViolatesAssumptions violation
 
     (balance, candidateMinFee, witCount) <- balanceAfterSettingMinFee candidateTx
     surplus <- case Cardano.selectLovelace balance of
