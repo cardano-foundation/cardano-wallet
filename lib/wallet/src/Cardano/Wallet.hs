@@ -112,7 +112,7 @@ module Cardano.Wallet
     , isStakeKeyRegistered
     , putDelegationCertificate
     , readDelegation
-    , getDelegationSlots
+    , getCurrentEpochSlotting
 
     -- * Shared Wallet
     , updateCosigner
@@ -343,7 +343,7 @@ import Cardano.Wallet.DB
 import Cardano.Wallet.DB.Errors
     ( ErrNoSuchWallet (..) )
 import Cardano.Wallet.DB.Store.Delegations.Layer
-    ( ReadDelegationSlots, mkReadDelegationSlots )
+    ( CurrentEpochSlotting, mkCurrentEpochSlotting )
 import Cardano.Wallet.DB.Store.Info.Store
     ( DeltaWalletInfo (..), WalletInfo (..) )
 import Cardano.Wallet.DB.Store.Submissions.Layer
@@ -421,7 +421,6 @@ import Cardano.Wallet.Primitive.Slotting
     , addRelTime
     , ceilingSlotAt
     , currentRelativeTime
-    , epochOf
     , interpretQuery
     , neverFails
     , slotRangeFromTimeRange
@@ -663,6 +662,7 @@ import qualified Cardano.Wallet.DB.Store.Submissions.Layer as Submissions
 import qualified Cardano.Wallet.DB.WalletState as WS
 import qualified Cardano.Wallet.DB.WalletState as WalletState
 import qualified Cardano.Wallet.Primitive.Migration as Migration
+import qualified Cardano.Wallet.Primitive.Slotting as Slotting
 import qualified Cardano.Wallet.Primitive.Types as W
 import qualified Cardano.Wallet.Primitive.Types.Coin as Coin
 import qualified Cardano.Wallet.Primitive.Types.TokenBundle as TokenBundle
@@ -915,21 +915,17 @@ putPrivateKey walletState (pk, hpw) = onDBVar walletState $ update $ \_ ->
 readDelegation
     :: Monad stm
     => DBVar stm (DeltaWalletState s)
-    -> stm (ReadDelegationSlots -> WalletDelegation)
+    -> stm (CurrentEpochSlotting -> WalletDelegation)
 readDelegation walletState = do
     dels <- view #delegations <$> readDBVar walletState
     pure $ \dsarg -> Dlgs.readDelegation dsarg dels
 
-getDelegationSlots
-    :: DBLayer IO s
-    -> NetworkLayer IO block
-    -> IO ReadDelegationSlots
-getDelegationSlots DBLayer{..} nl = do
-    cp <- atomically readCheckpoint
-    currentEpoch <-
-        liftIO
-            $ interpretQuery ti (epochOf $ cp ^. #currentTip . #slotNo)
-    mkReadDelegationSlots ti currentEpoch
+getCurrentEpochSlotting
+    :: NetworkLayer IO block
+    -> IO CurrentEpochSlotting
+getCurrentEpochSlotting nl = do
+    epoch <- Slotting.currentEpoch ti
+    mkCurrentEpochSlotting ti epoch
   where
     ti = neverFails "currentEpoch is past horizon" $ timeInterpreter nl
 
@@ -940,7 +936,7 @@ readWallet
     => ctx
     -> IO (Wallet s, (WalletMetadata, WalletDelegation), Set Tx)
 readWallet ctx = do
-    delegationSlots <- getDelegationSlots db nl
+    currentEpochSlotting <- getCurrentEpochSlotting nl
     db & \DBLayer{..} -> atomically $ do
         cp <- readCheckpoint
         meta <- readWalletMeta walletState
@@ -952,7 +948,7 @@ readWallet ctx = do
                 wholeRange
                 (Just Pending)
                 Nothing
-        pure (cp, (meta, dele delegationSlots), Set.fromList (fromTransactionInfo <$> pending))
+        pure (cp, (meta, dele currentEpochSlotting), Set.fromList (fromTransactionInfo <$> pending))
 
   where
     db = ctx ^. dbLayer @IO @s

@@ -1,3 +1,4 @@
+{-# LANGUAGE DeriveGeneric #-}
 {-# LANGUAGE LambdaCase #-}
 {-# LANGUAGE ScopedTypeVariables #-}
 
@@ -5,8 +6,8 @@ module Cardano.Wallet.DB.Store.Delegations.Layer
     ( isStakeKeyRegistered
     , putDelegationCertificate
     , readDelegation
-    , ReadDelegationSlots (..)
-    , mkReadDelegationSlots
+    , CurrentEpochSlotting (..)
+    , mkCurrentEpochSlotting
     )
 where
 
@@ -34,9 +35,12 @@ import Data.Function
     ( (&) )
 import Data.Map.Strict
     ( lookupMax )
-import qualified Data.Map.Strict as Map
 import Data.Maybe
     ( catMaybes, fromMaybe )
+import GHC.Generics
+    ( Generic )
+
+import qualified Data.Map.Strict as Map
 
 -- | Check whether the stake key is registered in the delegation state.
 isStakeKeyRegistered :: Delegations -> Bool
@@ -63,7 +67,7 @@ putDelegationCertificate cert sl = case cert of
     CertRegisterKey _ -> [Register sl]
 
 -- | Arguments to 'readDelegation'.
-data ReadDelegationSlots = ReadDelegationSlots
+data CurrentEpochSlotting = CurrentEpochSlotting
     { currentEpoch :: EpochNo
     -- ^ The current epoch.
     , currentEpochStartSlot :: SlotNo
@@ -71,10 +75,11 @@ data ReadDelegationSlots = ReadDelegationSlots
     , previousEpochStartSlot :: Maybe SlotNo
     -- ^ The previous epoch start slot, if any.
     }
+    deriving (Eq, Show, Generic)
 
 -- | Read the delegation status of a wallet.
-readDelegation :: ReadDelegationSlots -> Delegations -> WalletDelegation
-readDelegation (ReadDelegationSlots epoch cur Nothing) hist =
+readDelegation :: CurrentEpochSlotting -> Delegations -> WalletDelegation
+readDelegation (CurrentEpochSlotting epoch cur Nothing) hist =
     WalletDelegation currentDelegation nextDelegations
   where
     currentDelegation = NotDelegating
@@ -83,7 +88,7 @@ readDelegation (ReadDelegationSlots epoch cur Nothing) hist =
             [ nextDelegation (epoch + 2)
                 $ readDelegationStatus (>= cur) hist
             ]
-readDelegation (ReadDelegationSlots epoch cur (Just prev)) hist =
+readDelegation (CurrentEpochSlotting epoch cur (Just prev)) hist =
     WalletDelegation currentDelegation nextDelegations
   where
     currentDelegation = readDelegationStatus (< prev) hist
@@ -119,16 +124,16 @@ walletDelegationStatus = \case
     Registered -> NotDelegating
     Active pid -> Delegating pid
 
--- | Construct 'ReadDelegationSlots' from an 'EpochNo' using a 'TimeInterpreter'
+-- | Construct 'CurrentEpochSlotting' from an 'EpochNo' using a 'TimeInterpreter'
 -- .
-mkReadDelegationSlots
+mkCurrentEpochSlotting
     :: forall m
      . Monad m
     => TimeInterpreter m
     -> EpochNo
-    -> m ReadDelegationSlots
-mkReadDelegationSlots ti epoch =
-    ReadDelegationSlots epoch
+    -> m CurrentEpochSlotting
+mkCurrentEpochSlotting ti epoch =
+    CurrentEpochSlotting epoch
         <$> slotOf epoch
         <*> case epoch of
             0 -> pure Nothing
