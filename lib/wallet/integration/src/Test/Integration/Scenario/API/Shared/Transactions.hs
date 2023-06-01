@@ -2545,11 +2545,10 @@ spec = describe "SHARED_TRANSACTIONS" $ do
                 }|]
         rTx5a <- request @(ApiConstructTransaction n) ctx
             (Link.createUnsignedTransaction @'Shared walActive1) Default
-            (payloadWithdrawal $ transfer + rewards1)
+            (payloadWithdrawal $ transfer + rewards1 - ada 2)
         verify rTx5a
             [ expectResponseCode HTTP.status202 ]
         let expectedFee = getFromResponse (#fee . #getQuantity) rTx5a
-
 
         rTx5 <- request @(ApiConstructTransaction n) ctx
             (Link.createUnsignedTransaction @'Shared walActive1) Default
