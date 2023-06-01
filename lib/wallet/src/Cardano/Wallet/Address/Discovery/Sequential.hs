@@ -116,12 +116,16 @@ import Cardano.Wallet.Address.Discovery
     )
 import Cardano.Wallet.Primitive.BlockSummary
     ( ChainEvents )
+import Cardano.Wallet.Primitive.Passphrase
+    ( Passphrase )
 import Cardano.Wallet.Primitive.Types.Address
     ( Address (..), AddressState (..) )
 import Cardano.Wallet.Primitive.Types.RewardAccount
     ( RewardAccount )
 import Cardano.Wallet.Read.NetworkId
     ( HasSNetworkId (..), NetworkDiscriminant, NetworkDiscriminantCheck (..) )
+import Cardano.Wallet.Shelley.Compatibility.Ledger
+    ( toLedger )
 import Cardano.Wallet.TypeLevel
     ( Excluding )
 import Codec.Binary.Encoding
@@ -159,9 +163,9 @@ import GHC.TypeLits
 import Type.Reflection
     ( Typeable )
 
+import qualified Cardano.Ledger.Address as Ledger
+import qualified Cardano.Ledger.Credential as Ledger
 import qualified Cardano.Wallet.Address.Pool as AddressPool
-import Cardano.Wallet.Primitive.Passphrase
-    ( Passphrase )
 import qualified Data.List as L
 import qualified Data.List.NonEmpty as NE
 import qualified Data.Map.Strict as Map
@@ -713,7 +717,7 @@ instance
 
 instance KnownNat p => IsOurs (SeqAnyState n k p) Address where
     isOurs (Address bytes) st@(SeqAnyState inner)
-        | crc32 bytes < p =
+        | crc32 bytes < p && correctAddressType =
             let
                 pool = getPool $ externalPool inner
                 ix = toEnum $ AddressPool.size pool - AddressPool.gap pool
@@ -734,6 +738,14 @@ instance KnownNat p => IsOurs (SeqAnyState n k p) Address where
         double :: Integral a => a -> Double
         double = fromIntegral
 
+        -- ADP-3056: Consider making this implementation a part of a
+        -- @validate :: UTxOAssumptions -> Address -> Bool@ function
+        -- somewhere in the Write module hierarchy.
+        correctAddressType :: Bool
+        correctAddressType = case toLedger (Address bytes) of
+            Ledger.Addr _net (Ledger.KeyHashObj _) _ -> True
+            Ledger.Addr _net (Ledger.ScriptHashObj _) _ -> True
+            Ledger.AddrBootstrap _ -> False
 instance IsOurs (SeqAnyState n k p) RewardAccount where
     isOurs _account state = (Nothing, state)
 

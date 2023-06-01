@@ -81,6 +81,8 @@ import Cardano.Wallet.Primitive.Types.RewardAccount
     ( RewardAccount )
 import Cardano.Wallet.Read.NetworkId
     ( HasSNetworkId, NetworkDiscriminant )
+import Cardano.Wallet.Shelley.Compatibility.Ledger
+    ( toLedger )
 import Control.Arrow
     ( second )
 import Control.DeepSeq
@@ -110,6 +112,7 @@ import GHC.TypeLits
 import System.Random
     ( RandomGen, StdGen, mkStdGen, randomR )
 
+import qualified Cardano.Ledger.Address as Ledger
 import qualified Data.List.NonEmpty as NE
 import qualified Data.Map as Map
 import qualified Data.Set as Set
@@ -434,7 +437,7 @@ instance KnownNat p => IsOurs (RndAnyState n p) Address where
             (Just path, inner') ->
                 (Just path, RndAnyState inner')
 
-            (Nothing, _) | crc32 bytes < p ->
+            (Nothing, _) | crc32 bytes < p && correctAddressType ->
                 let
                     (path, gen') = findUnusedPath
                         (gen inner) (accountIndex inner) (unavailablePaths inner)
@@ -451,6 +454,14 @@ instance KnownNat p => IsOurs (RndAnyState n p) Address where
 
         double :: Integral a => a -> Double
         double = fromIntegral
+
+        -- ADP-3056: Consider making this implementation a part of a
+        -- @validate :: UTxOAssumptions -> Address -> Bool@ function
+        -- somewhere in the Write module hierarchy.
+        correctAddressType :: Bool
+        correctAddressType = case toLedger (Address bytes) of
+            Ledger.Addr _net _ _ -> False
+            Ledger.AddrBootstrap _ -> True
 
 instance IsOurs (RndAnyState n p) RewardAccount where
     isOurs _account state = (Nothing, state)
