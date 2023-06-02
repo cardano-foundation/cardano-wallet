@@ -577,6 +577,15 @@ fileModeSpec =  do
                                 (view $ #currentTip . #blockHeight)
                                 epochStability
                                 (currentTip cpB ^. #blockHeight)
+                    let putCheckpoint cp =
+                              Delta.onDBVar walletState
+                            $ Delta.update $ \_ ->
+                                let (prologue, wcp) = WalletState.fromWallet cp
+                                    slot = WalletState.getSlot wcp
+                                in  [ WalletState.UpdateCheckpoints
+                                        [ Checkpoints.PutCheckpoint slot wcp ]
+                                    , WalletState.ReplacePrologue prologue
+                                    ]
 
                     atomically $ do
                         putCheckpoint cpB
