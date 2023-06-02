@@ -11,7 +11,7 @@
 -- Delegations-history store and migration from old db tables.
 module Cardano.Wallet.DB.Store.Delegations.Store
     ( mkStoreDelegations
-    , migration
+    , encodeStatus
     )
     where
 
@@ -21,11 +21,6 @@ import Cardano.Pool.Types
     ( PoolId )
 import Cardano.Slotting.Slot
     ( SlotNo )
-import Cardano.Wallet.DB.Sqlite.Schema
-    ( DelegationCertificate (DelegationCertificate)
-    , EntityField (..)
-    , StakeKeyCertificate (StakeKeyCertificate)
-    )
 import Cardano.Wallet.DB.Sqlite.Types
     ( DelegationStatusEnum (..) )
 import Cardano.Wallet.DB.Store.Delegations.Schema
@@ -36,8 +31,6 @@ import Cardano.Wallet.DB.Store.Delegations.Schema
     )
 import Cardano.Wallet.Delegation.Model
     ( History, Operation (..), Status (..), slotOf )
-import Cardano.Wallet.Primitive.Types
-    ( WalletId )
 import Control.Exception
     ( Exception, SomeException (SomeException) )
 import Control.Monad
@@ -45,13 +38,9 @@ import Control.Monad
 import Control.Monad.Class.MonadThrow
     ( throwIO )
 import Data.Delta
-    ( Delta (Base, apply) )
-import Data.Map.Strict
-    ( Map )
+    ( Delta (apply) )
 import Data.Store
     ( UpdateStore, mkUpdateStore, updateLoad )
-import Data.These
-    ( These (..) )
 import Database.Persist
     ( Entity (..)
     , PersistQueryWrite (deleteWhere)
@@ -63,8 +52,6 @@ import Database.Persist
 import Database.Persist.Sql
     ( SqlPersistT, insertMany_ )
 
-import qualified Cardano.Wallet.Primitive.Types as W
-import qualified Data.Map.Merge.Strict as Map
 import qualified Data.Map.Strict as Map
 
 mkStoreDelegations :: UpdateStore (SqlPersistT IO) (Operation SlotNo PoolId)
@@ -118,58 +105,3 @@ writeS' :: History SlotNo PoolId -> SqlPersistT IO ()
 writeS' h = do
     resetDelegationTable
     insertMany_ [encodeStatus slot x | (slot, x) <- Map.assocs h]
-
-readOldEncoding
-    :: WalletId
-    -> SqlPersistT IO (Base (Operation SlotNo PoolId))
-readOldEncoding wid = do
-    skcs <- selectList [StakeKeyCertWalletId ==. wid] []
-    dcs <- selectList [CertWalletId ==. wid] []
-    pure $ Map.foldlWithKey' applyChange mempty (slotMap skcs dcs)
-  where
-    applyChange
-        :: History SlotNo PoolId
-        -> SlotNo
-        -> These W.StakeKeyCertificate (Maybe PoolId)
-        -> History SlotNo PoolId
-    applyChange h s = \case
-        This W.StakeKeyDeregistration -> apply (Deregister s) h
-        This W.StakeKeyRegistration -> apply (Register s) h
-        That Nothing -> h
-        That (Just p) -> apply (Delegate p s) h
-        These W.StakeKeyDeregistration _ -> apply (Deregister s) h
-        These W.StakeKeyRegistration (Just p) ->
-            apply (Delegate p s) $ apply (Register s) h
-        These W.StakeKeyRegistration Nothing ->
-            apply (Register s) h
-
-    slotMap
-        :: [Entity StakeKeyCertificate]
-        -> [Entity DelegationCertificate]
-        -> Map SlotNo (These W.StakeKeyCertificate (Maybe PoolId))
-    slotMap skcs dcs =
-        mapMergeThese
-            ( Map.fromList
-                [ (slot, type')
-                | Entity _ (StakeKeyCertificate _ slot type') <- skcs
-                ]
-            )
-            ( Map.fromList
-                [ (slot, type')
-                | Entity _ (DelegationCertificate _ slot type') <- dcs
-                ]
-            )
-
-    mapMergeThese :: Ord k => Map k a -> Map k b -> Map k (These a b)
-    mapMergeThese =
-        Map.merge
-            (Map.mapMaybeMissing $ \_ -> Just . This)
-            (Map.mapMaybeMissing $ \_ -> Just . That)
-            (Map.zipWithMaybeMatched $ \_ x y -> Just $ These x y)
-
-migration :: WalletId -> SqlPersistT IO ()
-migration wid = do
-    old <- readOldEncoding wid
-    writeS' old
-    deleteWhere [StakeKeyCertWalletId ==. wid]
-    deleteWhere [CertWalletId ==. wid]

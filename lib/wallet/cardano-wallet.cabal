@@ -266,6 +266,8 @@ library
     Cardano.Wallet.DB.Sqlite.Schema
     Cardano.Wallet.DB.Sqlite.Types
     Cardano.Wallet.DB.Store.Checkpoints.Store
+    Cardano.Wallet.DB.Store.Delegations.Migration
+    Cardano.Wallet.DB.Store.Delegations.Migration.Schema
     Cardano.Wallet.DB.Store.Delegations.Schema
     Cardano.Wallet.DB.Store.Delegations.Store
     Cardano.Wallet.DB.Store.Info.Store
