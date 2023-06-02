@@ -98,8 +98,8 @@ import Cardano.Wallet.DB.Sqlite.Schema
     )
 import Cardano.Wallet.DB.Sqlite.Types
     ( BlockId (..), TxId (..) )
-import Cardano.Wallet.DB.Store.Checkpoints
-    ( PersistAddressBook (..), blockHeaderFromEntity, mkStoreWallet )
+import Cardano.Wallet.DB.Store.Checkpoints.Store
+    ( PersistAddressBook (..), blockHeaderFromEntity )
 import Cardano.Wallet.DB.Store.Info.Store
     ( WalletInfo (..) )
 import Cardano.Wallet.DB.Store.Meta.Model
@@ -124,6 +124,8 @@ import Cardano.Wallet.DB.Store.Wallets.Layer
     )
 import Cardano.Wallet.DB.Store.Wallets.Model
     ( DeltaTxWalletsHistory (..) )
+import Cardano.Wallet.DB.Store.WalletState.Store
+    ( mkStoreWallet )
 import Cardano.Wallet.DB.WalletState
     ( DeltaWalletState
     , DeltaWalletState1 (..)

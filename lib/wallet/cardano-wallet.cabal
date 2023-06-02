@@ -264,9 +264,8 @@ library
     Cardano.Wallet.DB.Pure.Layer
     Cardano.Wallet.DB.Sqlite.Migration
     Cardano.Wallet.DB.Sqlite.Schema
-    Cardano.Wallet.DB.Sqlite.Stores
     Cardano.Wallet.DB.Sqlite.Types
-    Cardano.Wallet.DB.Store.Checkpoints
+    Cardano.Wallet.DB.Store.Checkpoints.Store
     Cardano.Wallet.DB.Store.Delegations
     Cardano.Wallet.DB.Store.Info.Store
     Cardano.Wallet.DB.Store.Meta.Layer
@@ -287,6 +286,7 @@ library
     Cardano.Wallet.DB.Store.Wallets.Layer
     Cardano.Wallet.DB.Store.Wallets.Model
     Cardano.Wallet.DB.Store.Wallets.Store
+    Cardano.Wallet.DB.Store.WalletState.Store
     Cardano.Wallet.DB.WalletState
     Cardano.Wallet.Delegation
     Cardano.Wallet.Delegation.Model
@@ -919,9 +919,9 @@ test-suite unit
     Cardano.Wallet.DB.MigrationSpec
     Cardano.Wallet.DB.Properties
     Cardano.Wallet.DB.Pure.ImplementationSpec
-    Cardano.Wallet.DB.Sqlite.StoresSpec
     Cardano.Wallet.DB.Sqlite.TypesSpec
     Cardano.Wallet.DB.StateMachine
+    Cardano.Wallet.DB.Store.Checkpoints.StoreSpec
     Cardano.Wallet.DB.Store.Delegations.StoreSpec
     Cardano.Wallet.DB.Store.Info.StoreSpec
     Cardano.Wallet.DB.Store.Meta.ModelSpec
@@ -934,6 +934,7 @@ test-suite unit
     Cardano.Wallet.DB.Store.UTxOHistory.TxOutCBORSpec
     Cardano.Wallet.DB.Store.Wallets.LayerSpec
     Cardano.Wallet.DB.Store.Wallets.StoreSpec
+    Cardano.Wallet.DB.Store.WalletState.StoreSpec
     Cardano.Wallet.Delegation.ModelSpec
     Cardano.Wallet.DelegationSpec
     Cardano.Wallet.DummyTarget.Primitive.Types

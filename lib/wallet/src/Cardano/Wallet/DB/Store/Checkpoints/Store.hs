@@ -14,28 +14,18 @@
 {-# LANGUAGE UndecidableInstances #-}
 
 {-# OPTIONS_GHC -fno-warn-orphans #-}
-
 -- |
--- Copyright: © 2021 IOHK
+-- Copyright: © 2021–2023 IOHK
 -- License: Apache-2.0
 --
--- 'Store' implementations that can store various wallet types
--- in an SQLite database using `persistent`.
---
--- FIXME LATER during ADP-1043:
---
--- * Inline the contents of this module into its new name
---   "Cardano.Wallet.DB.Sqlite.Stores"
-
-module Cardano.Wallet.DB.Store.Checkpoints
+-- 'Store' implementation for the 'Checkpoints' type,
+-- specialized to 'WalletCheckpoint'.
+module Cardano.Wallet.DB.Store.Checkpoints.Store
     ( PersistAddressBook (..)
     , blockHeaderFromEntity
-
-    -- * Testing
-    , mkStoreWallet
+    , mkStoreCheckpoints
     )
     where
-
 import Prelude
 
 import Cardano.Address.Derivation
@@ -98,21 +88,10 @@ import Cardano.Wallet.DB.Sqlite.Types
     , hashOfNoParent
     , toMaybeHash
     )
-import Cardano.Wallet.DB.Store.Info.Store
-    ( mkStoreInfo )
-import Cardano.Wallet.DB.Store.PrivateKey.Store
-    ( mkStorePrivateKey )
-import Cardano.Wallet.DB.Store.Submissions.Operations
-    ( mkStoreSubmissions )
 import Cardano.Wallet.DB.WalletState
-    ( DeltaWalletState
-    , DeltaWalletState1 (..)
-    , WalletCheckpoint (..)
-    , WalletState (..)
-    , getSlot
-    )
+    ( WalletCheckpoint (..), getSlot )
 import Cardano.Wallet.Flavor
-    ( KeyFlavorS (..), WalletFlavorS, keyOfWallet )
+    ( KeyFlavorS (..) )
 import Cardano.Wallet.Primitive.Types.TokenBundle
     ( TokenBundle )
 import Cardano.Wallet.Primitive.Types.TokenMap
@@ -121,8 +100,6 @@ import Cardano.Wallet.Read.NetworkId
     ( HasSNetworkId (..), NetworkDiscriminantCheck )
 import Control.Monad
     ( forM, forM_, unless, void, when )
-import Control.Monad.Class.MonadThrow
-    ( throwIO )
 import Control.Monad.Trans.Class
     ( lift )
 import Control.Monad.Trans.Maybe
@@ -144,7 +121,7 @@ import Data.Proxy
 import Data.Quantity
     ( Quantity (..) )
 import Data.Store
-    ( Store (..), UpdateStore, mkUpdateStore, updateLoad, updateSequence )
+    ( UpdateStore, mkUpdateStore )
 import Data.Type.Equality
     ( type (==) )
 import Data.Typeable
@@ -186,58 +163,8 @@ import qualified Data.Map.Merge.Strict as Map
 import qualified Data.Map.Strict as Map
 
 {-------------------------------------------------------------------------------
-    WalletState Store
+    Store for 'Checkpoints'
 -------------------------------------------------------------------------------}
-
--- | Store for 'WalletState' of a single wallet.
-mkStoreWallet
-    :: forall s. PersistAddressBook s
-    => WalletFlavorS s
-    -> W.WalletId
-    -> UpdateStore (SqlPersistT IO) (DeltaWalletState s)
-mkStoreWallet wF wid = mkUpdateStore load write update
-  where
-    checkpointsStore = mkStoreCheckpoints wid
-    submissionsStore = mkStoreSubmissions wid
-    infoStore = mkStoreInfo
-    pkStore = mkStorePrivateKey (keyOfWallet wF) wid
-
-    load = do
-        eprologue <-
-            maybe (Left $ toException ErrBadFormatAddressPrologue) Right
-                <$> loadPrologue wid
-        echeckpoints <- loadS checkpointsStore
-        esubmissions <- loadS submissionsStore
-        einfo <- loadS infoStore
-        ecredentials <- loadS pkStore
-        pure
-            $ WalletState
-                <$> eprologue
-                <*> echeckpoints
-                <*> esubmissions
-                <*> einfo
-                <*> ecredentials
-
-    write wallet = do
-        writeS infoStore (wallet ^. #info)
-        insertPrologue wid (wallet ^. #prologue)
-        writeS checkpointsStore (wallet ^. #checkpoints)
-        writeS submissionsStore (wallet ^. #submissions)
-        writeS pkStore (wallet ^. #credentials)
-
-    update = updateLoad load throwIO $ updateSequence update1
-      where
-        update1 _ (ReplacePrologue prologue) = insertPrologue wid prologue
-        update1 s (UpdateCheckpoints delta) =
-            updateS checkpointsStore (Just $ checkpoints s) delta
-        update1 s (UpdateSubmissions deltas) =
-            updateSequence
-                (updateS submissionsStore . Just)
-                (submissions s)
-                deltas
-        update1 _ (UpdateInfo delta) = updateS infoStore Nothing delta
-        update1 _ (UpdateCredentials delta) = do
-            updateS pkStore Nothing delta
 
 -- | Store for the 'Checkpoints' belonging to a 'WalletState'.
 mkStoreCheckpoints
