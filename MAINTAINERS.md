@@ -4,10 +4,10 @@ If you were a maintainer and would like to add your name to the Emeritus list, p
 
 See CONTRIBUTING.md for general contribution guidelines.
 
-== Active Maintainers (in alphabetical order)
+## Active Maintainers (in alphabetical order)
 
 | Name                | Username              |
-+---------------------+-----------------------|
+|:--------------------|:----------------------|
 | Heinrich Apfelmus   | @HeinrichApfelmus     |
 | Johannes Lund       | @Anviking             |
 | Jonathan Knowles    | @jonathanknowles      |
@@ -16,10 +16,10 @@ See CONTRIBUTING.md for general contribution guidelines.
 | Piotr Stachyra      | @piotr-iohk           |
 | Yuriy Lazaryev      | @Unisay               |
 
-== Emeritus Maintainers (in alphabetical order)
+## Emeritus Maintainers (in alphabetical order)
 
 | Name                | Username              |
-+---------------------+-----------------------|
+|:--------------------|:----------------------|
 | Ante Kegalj         | @akegalj              |
 | Julian Ospald       | @hasufell             |
 | Matthias Benkort    | @KtorZ                |
