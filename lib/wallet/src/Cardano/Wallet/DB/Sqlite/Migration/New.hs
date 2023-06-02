@@ -8,7 +8,7 @@ import Prelude hiding
     ( id, (.) )
 
 import Cardano.DB.Sqlite
-    ( DBHandle (..), DBLog, withDBHandle )
+    ( DBHandle (..), DBLog, ReadDBHandle, withDBHandle )
 import Cardano.Wallet.DB.Migration
     ( Migration
     , MigrationInterface (..)
@@ -22,17 +22,16 @@ import Control.Category
     ( Category (id), (.) )
 import Control.Monad.Reader
     ( withReaderT )
-import Control.Monad.Trans.Reader
-    ( ReaderT )
 import Control.Tracer
     ( Tracer )
 import Database.Persist.Sqlite
     ( SqlPersistT )
+import Database.Sqlite
+    ( Connection )
 import System.Directory
     ( copyFile )
 
 import qualified Cardano.Wallet.DB.Sqlite.Migration.Old as Old
-import qualified Database.Sqlite as Sqlite
 
 newMigrationInterface
     :: Tracer IO DBLog
@@ -53,10 +52,10 @@ oldToNewSchemaVersion (Old.SchemaVersion v) = Version v
 newToOldSchemaVersion :: Version -> Old.SchemaVersion
 newToOldSchemaVersion (Version v) = Old.SchemaVersion v
 
-getVersionNew :: Sqlite.Connection -> IO Version
+getVersionNew :: Connection -> IO Version
 getVersionNew = fmap oldToNewSchemaVersion . getSchemaVersion
 
-setVersionNew :: Sqlite.Connection -> Version -> IO ()
+setVersionNew :: Connection -> Version -> IO ()
 setVersionNew conn = putSchemaVersion conn . newToOldSchemaVersion
 
 noMigrations :: Migration m 2 2
@@ -64,9 +63,9 @@ noMigrations = id
 
 _useSqlBackend
     :: Migration (SqlPersistT m) from to
-    -> Migration (ReaderT DBHandle m) from to
+    -> Migration (ReadDBHandle m) from to
 _useSqlBackend = hoistMigration $ withReaderT dbBackend
 
 runNewStyleMigrations :: Tracer IO DBLog -> FilePath -> IO ()
-runNewStyleMigrations tr fp = runMigrations (newMigrationInterface tr) fp
-    noMigrations
+runNewStyleMigrations tr fp =
+    runMigrations (newMigrationInterface tr) fp noMigrations

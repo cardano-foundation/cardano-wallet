@@ -54,6 +54,7 @@ module Cardano.DB.Sqlite
 
     -- * Logging
     , DBLog (..)
+    , ReadDBHandle
     ) where
 
 import Prelude
@@ -74,6 +75,8 @@ import Control.Monad.IO.Unlift
     ( MonadUnliftIO (..) )
 import Control.Monad.Logger
     ( LogLevel (..) )
+import Control.Monad.Reader
+    ( ReaderT )
 import Control.Monad.Trans.Except
     ( ExceptT (..), runExceptT )
 import Control.Retry
@@ -235,6 +238,8 @@ data DBHandle = DBHandle
     , dbBackend :: SqlBackend
     , dbFile :: FilePath
     }
+
+type ReadDBHandle m = ReaderT DBHandle m
 
 withDBHandle
     :: Tracer IO DBLog

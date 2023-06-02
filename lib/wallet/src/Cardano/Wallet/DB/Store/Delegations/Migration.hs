@@ -1,25 +1,36 @@
 {-# LANGUAGE DataKinds #-}
 {-# LANGUAGE LambdaCase #-}
+{-# LANGUAGE ScopedTypeVariables #-}
 
 module Cardano.Wallet.DB.Store.Delegations.Migration
-    ( migration
+    ( migrateDelegations
     ) where
 
 import Prelude
 
+import Cardano.DB.Sqlite
+    ( DBField (..), ReadDBHandle, dbBackend, dbConn )
 import Cardano.Pool.Types
     ( PoolId )
+import Cardano.Wallet.DB.Migration
+    ( Migration, mkMigration )
+import Cardano.Wallet.DB.Sqlite.Migration.Old
+    ( SqlColumnStatus (..), isFieldPresent )
 import Cardano.Wallet.DB.Store.Delegations.Migration.Schema
     ( DelegationCertificate (..)
     , EntityField (..)
+    , EntityField (StakeKeyCertSlot)
     , StakeKeyCertificate (..)
     , WStakeKeyCertificate (..)
-    , WalletId
     )
+import Cardano.Wallet.DB.Store.Delegations.Store
+    ( mkStoreDelegations )
 import Cardano.Wallet.Delegation.Model
     ( History, Operation (Delegate, Deregister, Register) )
 import Cardano.Wallet.Primitive.Types
     ( SlotNo )
+import Control.Monad.Reader
+    ( asks, liftIO, withReaderT )
 import Data.Delta
     ( Delta (Base, apply) )
 import Data.Map.Strict
@@ -29,22 +40,16 @@ import Data.Store
 import Data.These
     ( These (..) )
 import Database.Persist.Sql
-    ( Entity (Entity)
-    , PersistQueryWrite (deleteWhere)
-    , SqlPersistT
-    , selectList
-    , (==.)
-    )
+    ( Entity (Entity), SqlPersistT, rawExecute, selectList )
 
 import qualified Data.Map as Map
 import qualified Data.Map.Merge.Strict as Map
 
 readOldEncoding
-    :: WalletId
-    -> SqlPersistT IO (Base (Operation SlotNo PoolId))
-readOldEncoding wid = do
-    skcs <- selectList [StakeKeyCertWalletId ==. wid] []
-    dcs <- selectList [CertWalletId ==. wid] []
+    :: SqlPersistT IO (Base (Operation SlotNo PoolId))
+readOldEncoding = do
+    skcs <- selectList [] []
+    dcs <- selectList [] []
     pure $ Map.foldlWithKey' applyChange mempty (slotMap skcs dcs)
   where
     applyChange
@@ -89,10 +94,18 @@ readOldEncoding wid = do
 
 migration
     :: UpdateStore (SqlPersistT IO) (Operation SlotNo PoolId)
-    -> WalletId
-    -> SqlPersistT IO ()
-migration store wid = do
-    old <- readOldEncoding wid
-    writeS store old
-    deleteWhere [StakeKeyCertWalletId ==. wid]
-    deleteWhere [CertWalletId ==. wid]
+    -> ReadDBHandle IO ()
+migration store = do
+    conn <- asks dbConn
+    r <- liftIO $ isFieldPresent conn $ DBField StakeKeyCertSlot
+    case r of
+        TableMissing -> return ()
+        ColumnMissing -> return ()
+        ColumnPresent -> withReaderT dbBackend $ do
+            old <- readOldEncoding
+            writeS store old
+            rawExecute "DROP TABLE stake_key_certificate"  []
+            rawExecute "DROP TABLE delegation_certificate"  []
+
+migrateDelegations :: Migration (ReadDBHandle IO) 2 3
+migrateDelegations = mkMigration $ migration mkStoreDelegations
