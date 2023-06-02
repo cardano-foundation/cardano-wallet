@@ -242,7 +242,7 @@ import Test.Hspec
     , shouldThrow
     )
 import Test.QuickCheck
-    ( NonEmptyList (..), Property, generate, property, (==>) )
+    ( Property, generate, property, (==>) )
 import Test.QuickCheck.Monadic
     ( monadicIO )
 import Test.Utils.Paths
@@ -267,6 +267,7 @@ import qualified Cardano.Wallet.Checkpoints as Checkpoints
 import qualified Cardano.Wallet.DB.Sqlite.Schema as DB
 import qualified Cardano.Wallet.DB.Sqlite.Types as DB
 import qualified Cardano.Wallet.DB.WalletState as WalletState
+import qualified Cardano.Wallet.DB.Store.Info.Store as WalletInfo
 import qualified Cardano.Wallet.Primitive.Types.Coin as Coin
 import qualified Cardano.Wallet.Primitive.Types.TokenBundle as TokenBundle
 import qualified Data.ByteArray as BA
@@ -815,39 +816,46 @@ fileModeSpec =  do
 -- This property checks that executing series of wallet operations in a single
 -- SQLite session has the same effect as executing the same operations over
 -- multiple sessions.
+--
+-- This test focuses on the WalletMetadata.
 prop_randomOpChunks
     :: ( Eq s
-       , PersistAddressBook s
        , Show s
        , WalletFlavor s
+       , PersistAddressBook s
        )
-    => NonEmptyList (Wallet s, WalletMetadata)
+    => (Wallet s, WalletMetadata)
+    -> [WalletMetadata]
     -> Property
-prop_randomOpChunks (NonEmpty []) = error "arbitrary generated an empty list"
-prop_randomOpChunks (NonEmpty (p : pairs)) =
-    not (null pairs) ==> monadicIO (liftIO prop)
+prop_randomOpChunks (cp,meta) ops =
+    not (null ops) ==> monadicIO (liftIO prop)
   where
     prop = do
         filepath <- temporaryDBFile
         withShelleyFileDBFresh filepath $ \dbfF -> do
             withShelleyDBLayer $ \dbfM -> do
-                dbM <- boot dbfM p
-                dbF <- boot dbfF p
-                forM_ (fst <$> pairs) (insertPair dbM)
-                cutRandomly (fst <$> pairs) >>= mapM_ (mapM (insertPair dbF))
+                dbM <- boot dbfM
+                dbF <- boot dbfF
+                forM_ ops (runOp dbM)
+                cutRandomly ops >>= mapM_ (mapM (runOp dbF))
                 dbF `shouldBeConsistentWith` dbM
-    boot DBFresh{bootDBLayer} (cp, meta) = do
+    boot DBFresh{bootDBLayer} = do
         let cp0 = imposeGenesisState cp
         unsafeRunExceptT
             $ bootDBLayer
             $ DBLayerParams cp0 meta mempty gp
 
-    insertPair
+    runOp
         :: DBLayer IO s
-        -> Wallet s
+        -> WalletMetadata
         -> IO ()
-    insertPair DBLayer{..} cp = atomically $ do
-        putCheckpoint cp
+    runOp DBLayer{..} meta' =
+          atomically
+        $ Delta.onDBVar walletState
+        $ Delta.update $ \_ ->
+            [ WalletState.UpdateInfo
+                $ WalletInfo.UpdateWalletMetadata meta'
+            ]
 
     imposeGenesisState :: Wallet s -> Wallet s
     imposeGenesisState = over #currentTip $ \(BlockHeader _ _ h _) ->
@@ -855,14 +863,6 @@ prop_randomOpChunks (NonEmpty (p : pairs)) =
 
     shouldBeConsistentWith :: (Eq s, Show s) => DBLayer IO s -> DBLayer IO s -> IO ()
     shouldBeConsistentWith db1 db2 = do
-        walId1 <-  getWalletId' db1
-        walId2 <-  getWalletId' db2
-        walId1 `shouldBe` walId2
-
-        cps1 <- readCheckpoint' db1
-        cps2 <- readCheckpoint' db2
-        cps1 `shouldBe` cps2
-
         meta1 <- readWalletMeta' db1
         meta2 <- readWalletMeta' db2
         meta1 `shouldBe` meta2
@@ -945,11 +945,6 @@ getWalletId'
     => DBLayer m s
     -> m WalletId
 getWalletId' DBLayer{..} = pure walletId_
-
-readCheckpoint'
-    :: DBLayer m s
-    -> m (Wallet s)
-readCheckpoint' DBLayer{..} = atomically readCheckpoint
 
 readWalletMeta'
     :: DBLayer m s
