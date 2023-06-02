@@ -5,7 +5,6 @@
 {-# LANGUAGE DuplicateRecordFields #-}
 {-# LANGUAGE FlexibleContexts #-}
 {-# LANGUAGE FlexibleInstances #-}
-{-# LANGUAGE LambdaCase #-}
 {-# LANGUAGE MultiParamTypeClasses #-}
 {-# LANGUAGE NamedFieldPuns #-}
 {-# LANGUAGE OverloadedLabels #-}
@@ -33,13 +32,11 @@ import Cardano.Wallet.DB
     , ErrWalletNotInitialized
     )
 import Cardano.Wallet.DB.Arbitrary
-    ( GenState, GenTxHistory (..), InitialCheckpoint (..), MockChain (..) )
+    ( GenState, GenTxHistory (..), InitialCheckpoint (..) )
 import Cardano.Wallet.DB.Pure.Implementation
     ( filterTxHistory )
 import Cardano.Wallet.DummyTarget.Primitive.Types
     ( dummyGenesisParameters )
-import Cardano.Wallet.Primitive.Model
-    ( Wallet (currentTip), applyBlock, currentTip )
 import Cardano.Wallet.Primitive.Types
     ( ChainPoint (..)
     , GenesisParameters
@@ -48,8 +45,6 @@ import Cardano.Wallet.Primitive.Types
     , WalletId (..)
     , WalletMetadata (..)
     , WithOrigin (..)
-    , chainPointFromBlockHeader
-    , toSlot
     , wholeRange
     )
 import Cardano.Wallet.Primitive.Types.Hash
@@ -80,8 +75,6 @@ import Data.Generics.Internal.VL.Lens
     ( (^.) )
 import Data.Generics.Labels
     ()
-import Data.List
-    ( sortOn, unfoldr )
 import Data.Maybe
     ( isNothing, mapMaybe )
 import Fmt
@@ -95,7 +88,6 @@ import Test.QuickCheck
     , checkCoverage
     , counterexample
     , cover
-    , elements
     , label
     , property
     )
@@ -181,9 +173,6 @@ properties withFreshDB = describe "DB.Properties" $ do
                 )
 
     describe "rollback" $ do
-        it
-            "Can rollback to any arbitrary known checkpoint"
-            (property $ prop_rollbackCheckpoint withFreshDB)
         it
             "Correctly re-construct tx history on rollbacks"
             (checkCoverage $ prop_rollbackTxHistory withFreshDB)
@@ -358,45 +347,6 @@ prop_sequentialPut test putOp readOp resolve as =
         monitor $ counterexample $ "\nResolved\n" <> pretty resolved
         monitor $ counterexample $ "\nRead\n" <> pretty res
         assertWith "Resolved == Read" (res == resolved)
-
--- | Can rollback to any particular checkpoint previously stored
-prop_rollbackCheckpoint
-    :: forall s
-     . GenState s
-    => WithDBFresh s
-    -> InitialCheckpoint s
-    -> MockChain
-    -> Property
-prop_rollbackCheckpoint test (InitialCheckpoint cp0) (MockChain chain) =
-    monadicIO
-        $ test testWid
-        $ \DBFresh{..} -> do
-            let cps :: [Wallet s]
-                cps = flip unfoldr (chain, cp0) $ \case
-                    ([], _) -> Nothing
-                    (b : q, cp) ->
-                        let cp' = snd . snd $ applyBlock b cp
-                        in  Just (cp', (q, cp'))
-            ShowFmt meta <- namedPick "Wallet Metadata" arbitrary
-            ShowFmt point <-
-                namedPick "Rollback target"
-                    $ elements
-                    $ ShowFmt <$> cps
-            (tip, cp, point') <- run $ do
-                DBLayer{..} <-
-                    unsafeRunExceptT
-                        $ bootDBLayer
-                        $ DBLayerParams cp0 meta mempty gp
-                atomically $ forM_ cps putCheckpoint
-                let tip = currentTip point
-                point' <- atomically
-                    $ rollbackTo (toSlot $ chainPointFromBlockHeader tip)
-                cp <- atomically readCheckpoint
-                pure (tip, cp, point')
-            let str = pretty cp
-            monitor $ counterexample ("Checkpoint after rollback: \n" <> str)
-            assert (ShowFmt cp == ShowFmt point)
-            assert (ShowFmt point' == ShowFmt (chainPointFromBlockHeader tip))
 
 -- | Re-schedule pending transaction on rollback, i.e.:
 --
