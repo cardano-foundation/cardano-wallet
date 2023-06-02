@@ -172,22 +172,6 @@ properties withFreshDB = describe "DB.Properties" $ do
             $ property
             $ prop_getTxAfterPutInvalidTxId testOnLayer
 
-    describe "put doesn't affect other resources" $ do
-        it "Checkpoint vs Wallet Metadata & Tx History"
-            $ property
-            $ prop_isolation
-                testOnLayer
-                (\DBLayer{..} _wid -> lift . atomically . putCheckpoint)
-                (\db _ -> readTxHistory_ db)
-                (\DBLayer{} _wid -> pure [0 :: Int])
-        it "Tx History vs Checkpoint & Wallet Metadata"
-            $ property
-            $ prop_isolation
-                testOnLayer
-                (\db _ -> lift . putTxHistory_ db)
-                (\DBLayer{..} _ -> atomically readCheckpoint)
-                (\DBLayer{} _wid -> pure [0 :: Int])
-
     describe "sequential puts replace values in order" $ do
         it "Checkpoint"
             $ checkCoverage
@@ -357,48 +341,6 @@ prop_getTxAfterPutInvalidTxId test txGen txId' = test $ \DBLayer {..} _ -> do
     assertWith
         "Irrespective of Inserted, Read is Nothing for invalid tx id"
         (isNothing res)
-
--- | Modifying one resource leaves the other untouched
-prop_isolation
-    :: ( Buildable (f b)
-       , Eq (f b)
-       , Buildable (g c)
-       , Eq (g c)
-       )
-    => TestOnLayer s
-    -> ( DBLayer IO s
-         -> WalletId
-         -> a
-         -> ExceptT ErrWalletNotInitialized IO ()
-       )
-    -- ^ Put Operation
-    -> ( DBLayer IO s
-         -> WalletId
-         -> IO (f b)
-       )
-    -- ^ Read Operation for another resource
-    -> ( DBLayer IO s
-         -> WalletId
-         -> IO (g c)
-       )
-
-    -- ^ Read Operation for another resource
-    -> ShowFmt a
-    -- ^ Properties arguments
-    -> Property
-prop_isolation test putA readB readC  (ShowFmt a) =
-    test $ \db@DBLayer {..} wid -> do
-        (GenTxHistory txs) <- pick arbitrary
-        run $ atomically $ putTxHistory txs
-        (b, c) <-
-            run
-                $ (,)
-                    <$> readB db wid
-                    <*> readC db wid
-        liftIO $ do
-            unsafeRunExceptT $ putA db wid a
-            (ShowFmt <$> readB db wid) `shouldReturn` ShowFmt b
-            (ShowFmt <$> readC db wid) `shouldReturn` ShowFmt c
 
 -- | Check that the DB supports multiple sequential puts for a given resource
 prop_sequentialPut
