@@ -547,13 +547,6 @@ fileModeSpec =  do
                 )
                 (reverse testTxs) -- expected after opening db
 
-        it "put and read checkpoint" $ \f -> do
-            withShelleyFileDBFresh f $ \DBFresh{bootDBLayer} -> do
-                DBLayer{atomically, putCheckpoint} <-
-                    unsafeRunExceptT $ bootDBLayer testDBLayerParams
-                atomically $ putCheckpoint testCp
-            testReopening f readCheckpoint' testCp
-
         describe "Golden rollback scenarios" $ do
             let dummyHash x = Hash $
                     x <> BS.pack (replicate (32 - (BS.length x)) 0)

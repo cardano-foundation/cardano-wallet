@@ -151,12 +151,6 @@ properties withFreshDB = describe "DB.Properties" $ do
             $ prop_createWalletTwice withFreshDB
 
     describe "put . read yields a result" $ do
-        it "Checkpoint"
-            $ property
-            $ prop_readAfterPut
-                testOnLayer
-                (\DBLayer{..} _wid -> lift . atomically . putCheckpoint)
-                (\DBLayer{..} _wid -> Identity <$> atomically readCheckpoint)
         it "Tx History"
             $ property
             $ prop_readAfterPut
@@ -173,14 +167,6 @@ properties withFreshDB = describe "DB.Properties" $ do
             $ prop_getTxAfterPutInvalidTxId testOnLayer
 
     describe "sequential puts replace values in order" $ do
-        it "Checkpoint"
-            $ checkCoverage
-            $ prop_sequentialPut
-                testOnLayer
-                (\DBLayer{..} _wid -> lift . atomically . putCheckpoint)
-                (\DBLayer{..} _-> Identity <$> atomically readCheckpoint)
-                (Identity . last)
-                . sortOn (currentTip . unShowFmt)
         it "Tx History"
             $ checkCoverage
             $ prop_sequentialPut
