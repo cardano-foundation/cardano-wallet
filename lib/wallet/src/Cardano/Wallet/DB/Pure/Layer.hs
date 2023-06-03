@@ -30,7 +30,6 @@ import Cardano.Wallet.DB.Pure.Implementation
     , mInitializeWallet
     , mIsStakeKeyRegistered
     , mListCheckpoints
-    , mPutCheckpoint
     , mPutDelegationCertificate
     , mPutDelegationRewardBalance
     , mPutTxHistory
@@ -104,7 +103,7 @@ newDBFresh timeInterpreter wid = do
         , walletState = error "MVar.walletState: not implemented"
         , transactionsStore = error "MVar.transactionsStore: not implemented"
 
-        , putCheckpoint = noErrorAlterDB  db .  mPutCheckpoint
+        , putCheckpoint = error "MVar.putCheckpoint: implementation deleted"
 
         , readCheckpoint = throwErrorReadDB db mReadCheckpoint
 

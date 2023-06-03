@@ -47,7 +47,6 @@ module Cardano.Wallet.DB.Pure.Implementation
     -- * Model database functions
     , mInitializeWallet
     , mGetWalletId
-    , mPutCheckpoint
     , mReadCheckpoint
     , mListCheckpoints
     , mRollbackTo
@@ -221,10 +220,6 @@ mInitializeWallet wid (DBLayerParams cp meta txs0 gp) =
 mGetWalletId :: ModelOp wid s xprv wid
 mGetWalletId db@(Database wid _wallet _) = (Right wid, db)
 
-mPutCheckpoint
-    :: Wallet s -> ModelOp wid s xprv ()
-mPutCheckpoint cp = alterModelNoTxs' $ \wal
-    -> wal { checkpoints = Map.insert (tip cp) cp (checkpoints wal) }
 
 mReadCheckpoint
     :: ModelOp wid s xprv (Wallet s)
