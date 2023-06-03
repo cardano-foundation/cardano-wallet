@@ -266,8 +266,8 @@ import qualified Cardano.Wallet.Address.Derivation.Shelley as Seq
 import qualified Cardano.Wallet.Checkpoints as Checkpoints
 import qualified Cardano.Wallet.DB.Sqlite.Schema as DB
 import qualified Cardano.Wallet.DB.Sqlite.Types as DB
-import qualified Cardano.Wallet.DB.WalletState as WalletState
 import qualified Cardano.Wallet.DB.Store.Info.Store as WalletInfo
+import qualified Cardano.Wallet.DB.WalletState as WalletState
 import qualified Cardano.Wallet.Primitive.Types.Coin as Coin
 import qualified Cardano.Wallet.Primitive.Types.TokenBundle as TokenBundle
 import qualified Data.ByteArray as BA
@@ -819,9 +819,8 @@ fileModeSpec =  do
 --
 -- This test focuses on the WalletMetadata.
 prop_randomOpChunks
-    :: ( Eq s
-       , Show s
-       , WalletFlavor s
+    :: forall s
+     . ( WalletFlavor s
        , PersistAddressBook s
        )
     => (Wallet s, WalletMetadata)
@@ -832,18 +831,18 @@ prop_randomOpChunks (cp,meta) ops =
   where
     prop = do
         filepath <- temporaryDBFile
-        withShelleyFileDBFresh filepath $ \dbfF -> do
-            withShelleyDBLayer $ \dbfM -> do
-                dbM <- boot dbfM
-                dbF <- boot dbfF
-                forM_ ops (runOp dbM)
-                cutRandomly ops >>= mapM_ (mapM (runOp dbF))
+        _ <- withShelleyFileDBFresh filepath boot
+        withShelleyDBLayer $ \dbfM -> do
+            dbM <- boot dbfM
+            runOps ops dbM
+
+            opss <- cutRandomly ops
+            forM_ opss $
+                withShelleyFileLoadedDBLayer filepath . runOps
+            withShelleyFileLoadedDBLayer filepath $ \dbF ->
                 dbF `shouldBeConsistentWith` dbM
-    boot DBFresh{bootDBLayer} = do
-        let cp0 = imposeGenesisState cp
-        unsafeRunExceptT
-            $ bootDBLayer
-            $ DBLayerParams cp0 meta mempty gp
+
+    runOps ops' db = forM_ ops' (runOp db)
 
     runOp
         :: DBLayer IO s
@@ -857,11 +856,17 @@ prop_randomOpChunks (cp,meta) ops =
                 $ WalletInfo.UpdateWalletMetadata meta'
             ]
 
+    boot DBFresh{bootDBLayer} = do
+        let cp0 = imposeGenesisState cp
+        unsafeRunExceptT
+            $ bootDBLayer
+            $ DBLayerParams cp0 meta mempty gp
+
     imposeGenesisState :: Wallet s -> Wallet s
     imposeGenesisState = over #currentTip $ \(BlockHeader _ _ h _) ->
         BlockHeader (SlotNo 0) (Quantity 0) h Nothing
 
-    shouldBeConsistentWith :: (Eq s, Show s) => DBLayer IO s -> DBLayer IO s -> IO ()
+    shouldBeConsistentWith :: DBLayer IO s -> DBLayer IO s -> IO ()
     shouldBeConsistentWith db1 db2 = do
         meta1 <- readWalletMeta' db1
         meta2 <- readWalletMeta' db2
@@ -875,10 +880,9 @@ testReopening
     -> (DBLayer IO TestState -> IO s)
     -> s
     -> Expectation
-testReopening filepath call expectedAfterOpen = do
-    withShelleyFileDBFresh filepath $ \DBFresh{loadDBLayer} -> do
-        db <- unsafeRunExceptT loadDBLayer
-        call db `shouldReturn` expectedAfterOpen
+testReopening filepath action expectedAfterOpen =
+    withShelleyFileLoadedDBLayer filepath $ \db ->
+        action db `shouldReturn` expectedAfterOpen
 
 -- | Run a test action inside withDBLayer, then check assertions.
 withTestDBFile
@@ -939,6 +943,19 @@ withShelleyFileDBFresh fp =
         fp
         dummyTimeInterpreter
         testWid
+
+withShelleyFileLoadedDBLayer
+    :: forall s a
+     . ( PersistAddressBook s
+       , WalletFlavor s
+       )
+    => FilePath
+    -> (DBLayer IO s -> IO a)
+    -> IO a
+withShelleyFileLoadedDBLayer filepath action =
+    withShelleyFileDBFresh filepath $ \DBFresh{loadDBLayer} -> do
+        db <- unsafeRunExceptT loadDBLayer
+        action db
 
 getWalletId'
     :: Applicative m
