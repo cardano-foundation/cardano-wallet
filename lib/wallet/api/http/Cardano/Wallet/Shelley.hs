@@ -58,7 +58,7 @@ import Cardano.Wallet.Api.Http.Shelley.Server
     )
 import Cardano.Wallet.DB.Layer
     ( PersistAddressBook )
-import Cardano.Wallet.DB.Sqlite.Migration
+import Cardano.Wallet.DB.Sqlite.MigrationOld
     ( DefaultFieldValues (..) )
 import Cardano.Wallet.Flavor
     ( CredFromOf, KeyFlavorS (..), KeyOf, WalletFlavor (..) )

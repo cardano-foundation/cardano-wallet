@@ -15,12 +15,14 @@
 -- These migrations are soon to be removed in favor of
 -- a file format with version number.
 
-module Cardano.Wallet.DB.Sqlite.Migration
+module Cardano.Wallet.DB.Sqlite.MigrationOld
     ( DefaultFieldValues (..)
     , migrateManually
     , SchemaVersion (..)
     , currentSchemaVersion
     , InvalidDatabaseSchemaVersion (..)
+    , putSchemaVersion
+    , getSchemaVersion
     )
     where
 
@@ -182,23 +184,7 @@ migrateManually tr key defaultFieldValues =
             \)"
            _ -> pure TableExisted
 
-    putSchemaVersion :: Sqlite.Connection -> SchemaVersion -> IO ()
-    putSchemaVersion conn schemaVersion = void $ runSql conn $ T.unwords
-        [ "INSERT INTO database_schema_version (name, version)"
-        , "VALUES ('schema',"
-        , version
-        , ") ON CONFLICT (name) DO UPDATE SET version ="
-        , version
-        ]
-      where
-        version = T.pack $ show schemaVersion
 
-    getSchemaVersion :: Sqlite.Connection -> IO SchemaVersion
-    getSchemaVersion conn =
-        runSql conn "SELECT version FROM database_schema_version" >>= \case
-            [[PersistInt64 int]] | int >= 0 -> pure $ SchemaVersion
-                $ fromIntegral int
-            _ -> throwString "Database metadata table is corrupt"
 
     -- NOTE
     -- We originally stored script pool gap inside sequential state in the 'SeqState' table,
@@ -942,3 +928,21 @@ runSql conn raw = do
                 collect query (result : acc)
             Sqlite.Done -> do
                 return (reverse acc)
+
+putSchemaVersion :: Sqlite.Connection -> SchemaVersion -> IO ()
+putSchemaVersion conn schemaVersion = void $ runSql conn $ T.unwords
+    [ "INSERT INTO database_schema_version (name, version)"
+    , "VALUES ('schema',"
+    , version
+    , ") ON CONFLICT (name) DO UPDATE SET version ="
+    , version
+    ]
+    where
+    version = T.pack $ show schemaVersion
+
+getSchemaVersion :: Sqlite.Connection -> IO SchemaVersion
+getSchemaVersion conn =
+    runSql conn "SELECT version FROM database_schema_version" >>= \case
+        [[PersistInt64 int]] | int >= 0 -> pure $ SchemaVersion
+            $ fromIntegral int
+        _ -> throwString "Database metadata table is corrupt"
