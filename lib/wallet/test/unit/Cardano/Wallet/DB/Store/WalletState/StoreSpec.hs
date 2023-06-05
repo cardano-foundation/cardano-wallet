@@ -14,38 +14,30 @@ import Cardano.DB.Sqlite
     ( ForeignKeysSetting (..), SqliteContext (runQuery) )
 import Cardano.Wallet.Address.Derivation
     ( Depth (..) )
-import Cardano.Wallet.Checkpoints
-    ( DeltaCheckpoints (..) )
 import Cardano.Wallet.DB.Arbitrary
     ( GenState, InitialCheckpoint (..) )
 import Cardano.Wallet.DB.Fixtures
     ( initializeWallet, withDBInMemory )
 import Cardano.Wallet.DB.Store.Checkpoints.Store
     ( PersistAddressBook (..) )
+import Cardano.Wallet.DB.Store.Checkpoints.StoreSpec
+    ( genDeltaCheckpoints )
 import Cardano.Wallet.DB.Store.Info.Store
     ( WalletInfo (WalletInfo) )
 import Cardano.Wallet.DB.Store.WalletState.Store
     ( mkStoreWallet )
 import Cardano.Wallet.DB.WalletState
-    ( DeltaWalletState
-    , DeltaWalletState1 (..)
-    , fromGenesis
-    , fromWallet
-    , getLatest
-    , getSlot
-    )
+    ( DeltaWalletState, DeltaWalletState1 (..), fromGenesis, fromWallet )
 import Cardano.Wallet.DummyTarget.Primitive.Types
     ( dummyGenesisParameters )
 import Cardano.Wallet.Flavor
     ( KeyOf, WalletFlavorS (ShelleyWallet) )
 import Cardano.Wallet.Primitive.Types
-    ( SlotNo (..), WalletId (..), WithOrigin (..) )
+    ( WalletId (..) )
 import Cardano.Wallet.Read.NetworkId
     ( NetworkDiscriminant (..) )
 import Control.Monad
     ( forM_ )
-import Data.Bifunctor
-    ( second )
 import Data.Delta
     ( Base, Delta (..) )
 import Data.Generics.Internal.VL.Lens
@@ -63,12 +55,9 @@ import Test.QuickCheck
     , Blind (..)
     , Gen
     , Property
-    , choose
     , counterexample
-    , frequency
     , property
     , sized
-    , vectorOf
     )
 import Test.QuickCheck.Monadic
     ( PropertyM, assert, monadicIO, monitor, pick, run )
@@ -77,7 +66,6 @@ import UnliftIO.Exception
 
 import Cardano.Address.Derivation
     ( XPrv )
-import qualified Data.Map.Strict as Map
 
 spec :: Spec
 spec = do
@@ -119,31 +107,15 @@ prop_StoreWallet wF db (wid, InitialCheckpoint cp0) =
 genDeltaWalletState
     :: GenState s
     => GenDelta (DeltaWalletState s)
-genDeltaWalletState wallet = frequency . map (second updateCheckpoints) $
-    [ (8, genPutCheckpoint)
-    , (1, pure $ RollbackTo Origin)
-    , (1, RollbackTo . At . SlotNo <$> choose (0, slotLatest))
-    , (1, RollbackTo . At . SlotNo <$> choose (slotLatest+1, slotLatest+10))
-    , (2, RestrictTo <$> genFilteredSlots)
-    , (1, pure $ RestrictTo [])
-    ]
+genDeltaWalletState =
+    withCheckpoints $ genDeltaCheckpoints genCheckpoint
   where
-    updateCheckpoints gen = (\x -> [UpdateCheckpoints [x]]) <$> gen
+    withCheckpoints f = fmap updateCheckpoints . f . (^. #checkpoints)
+    updateCheckpoints x = [UpdateCheckpoints [x]]
 
-    slotLatest = case getSlot . snd . fromWallet $ getLatest wallet of
-        Origin -> 0
-        At (SlotNo s) -> s
-    genSlotNo = SlotNo . (slotLatest +) <$> choose (1,10)
-
-    genPutCheckpoint = do
-        slot <- genSlotNo
-        cp   <- over (#currentTip . #slotNo) (const slot) <$> arbitrary
-        pure $ PutCheckpoint (At slot) (snd $ fromWallet cp)
-
-    genFilteredSlots = do
-        let slots = Map.keys $ wallet ^. (#checkpoints . #checkpoints)
-        keeps <- vectorOf (length slots) arbitrary
-        pure . map fst . filter snd $ zip slots keeps
+    genCheckpoint slotNo = do
+        cp <- over (#currentTip . #slotNo) (const slotNo) <$> arbitrary
+        pure . snd $ fromWallet cp
 
 -- | Given a value, generate a random delta starting from this value.
 type GenDelta da = Base da -> Gen da
