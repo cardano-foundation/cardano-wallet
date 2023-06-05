@@ -48,6 +48,18 @@ import Test.QuickCheck
     )
 import Test.QuickCheck.Classes
     ( eqLaws, monoidLaws, ordLaws, semigroupLaws, semigroupMonoidLaws )
+import Test.QuickCheck.Classes.Monoid.GCD
+    ( gcdMonoidLaws
+    , leftGCDMonoidLaws
+    , overlappingGCDMonoidLaws
+    , rightGCDMonoidLaws
+    )
+import Test.QuickCheck.Classes.Monoid.Monus
+    ( monusLaws )
+import Test.QuickCheck.Classes.Monoid.Null
+    ( monoidNullLaws )
+import Test.QuickCheck.Classes.Semigroup.Cancellative
+    ( commutativeLaws, leftReductiveLaws, reductiveLaws, rightReductiveLaws )
 import Test.Utils.Laws
     ( testLawsMany )
 import Test.Utils.Laws.PartialOrd
@@ -66,9 +78,19 @@ spec =
 
     describe "Class instances obey laws" $ do
         testLawsMany @TokenBundle
-            [ eqLaws
+            [ commutativeLaws
+            , eqLaws
+            , gcdMonoidLaws
+            , leftGCDMonoidLaws
+            , leftReductiveLaws
             , monoidLaws
+            , monoidNullLaws
+            , monusLaws
+            , overlappingGCDMonoidLaws
             , partialOrdLaws
+            , reductiveLaws
+            , rightGCDMonoidLaws
+            , rightReductiveLaws
             , semigroupLaws
             , semigroupMonoidLaws
             ]

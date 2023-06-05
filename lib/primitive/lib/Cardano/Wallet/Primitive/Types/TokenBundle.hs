@@ -71,7 +71,7 @@ module Cardano.Wallet.Primitive.Types.TokenBundle
     ) where
 
 import Prelude hiding
-    ( subtract )
+    ( gcd, null, subtract )
 
 import Algebra.PartialOrd
     ( PartialOrd (..) )
@@ -97,8 +97,23 @@ import Data.List.NonEmpty
     ( NonEmpty (..) )
 import Data.Map.Strict
     ( Map )
+import Data.Monoid.Cancellative
+    ( GCDMonoid (..)
+    , LeftGCDMonoid (..)
+    , LeftReductive (..)
+    , OverlappingGCDMonoid (..)
+    , Reductive ((</>))
+    , RightGCDMonoid (..)
+    , RightReductive (..)
+    )
+import Data.Monoid.Monus
+    ( Monus ((<\>)) )
+import Data.Monoid.Null
+    ( MonoidNull (..) )
 import Data.Ord
     ( comparing )
+import Data.Semigroup.Commutative
+    ( Commutative )
 import Data.Set
     ( Set )
 import Fmt
@@ -132,8 +147,40 @@ instance Semigroup TokenBundle where
     TokenBundle c1 m1 <> TokenBundle c2 m2 =
         TokenBundle (c1 <> c2) (m1 <> m2)
 
+instance Commutative TokenBundle
+
 instance Monoid TokenBundle where
     mempty = TokenBundle mempty mempty
+
+instance MonoidNull TokenBundle where
+    null (TokenBundle c m) = null c && null m
+
+instance LeftReductive TokenBundle where
+    stripPrefix = flip (</>)
+
+instance RightReductive TokenBundle where
+    stripSuffix = flip (</>)
+
+instance Reductive TokenBundle where
+    TokenBundle c1 m1 </> TokenBundle c2 m2 =
+        TokenBundle <$> (c1 </> c2) <*> (m1 </> m2)
+
+instance LeftGCDMonoid TokenBundle where
+    commonPrefix = gcd
+
+instance RightGCDMonoid TokenBundle where
+    commonSuffix = gcd
+
+instance GCDMonoid TokenBundle where
+    gcd (TokenBundle c1 m1) (TokenBundle c2 m2) =
+        TokenBundle (gcd c1 c2) (gcd m1 m2)
+
+instance OverlappingGCDMonoid TokenBundle where
+    stripOverlap b1 b2 = let o = gcd b1 b2 in (b1 <\> o, o, b2 <\> o)
+
+instance Monus TokenBundle where
+    TokenBundle c1 m1 <\> TokenBundle c2 m2 =
+        TokenBundle (c1 <\> c2) (m1 <\> m2)
 
 --------------------------------------------------------------------------------
 -- Ordering
