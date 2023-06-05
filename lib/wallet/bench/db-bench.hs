@@ -63,6 +63,8 @@ import Cardano.Mnemonic
     ( EntropySize, SomeMnemonic (..), entropyToMnemonic, genEntropy )
 import Cardano.Startup
     ( withUtf8Encoding )
+import Cardano.Wallet
+    ( putWalletCheckpoints )
 import Cardano.Wallet.Address.Derivation
     ( DelegationAddress (..), Depth (..), Index (..), PaymentAddress (..) )
 import Cardano.Wallet.Address.Derivation.Byron
@@ -280,9 +282,8 @@ bgroupReadUTxO tr = bgroup "UTxO (Read)"
                   | otherwise = n|+" CP ("+|a|+" assets per output) x "+|s|+" UTxO"
 
 benchPutUTxO :: Int -> Int -> Int -> DBLayerBench -> IO ()
-benchPutUTxO numCheckpoints utxoSize numAssets DBLayer{..} = do
-    let cps = mkCheckpoints numCheckpoints utxoSize numAssets
-    atomically $ mapM_ putCheckpoint cps
+benchPutUTxO numCheckpoints utxoSize numAssets db =
+    putWalletCheckpoints db $ mkCheckpoints numCheckpoints utxoSize numAssets
 
 mkCheckpoints :: Int -> Int -> Int -> [WalletBench]
 mkCheckpoints numCheckpoints utxoSize numAssets =
@@ -307,9 +308,8 @@ benchReadUTxO DBLayer{..} = atomically readCheckpoint
 
 utxoFixture ::  Int -> Int -> Int -> DBFreshBench -> IO DBLayerBench
 utxoFixture  numCheckpoints utxoSize numAssets dbf = do
-    db@DBLayer{atomically, putCheckpoint} <- walletFixture dbf
-    let cps = mkCheckpoints numCheckpoints utxoSize numAssets
-    mapM_ (atomically . putCheckpoint) cps
+    db <- walletFixture dbf
+    putWalletCheckpoints db $ mkCheckpoints numCheckpoints utxoSize numAssets
     pure db
 
 ----------------------------------------------------------------------------
@@ -340,7 +340,7 @@ bgroupWriteSeqState tr = bgroup "SeqState"
             ]
 
 benchPutSeqState :: DBLayerBench -> [WalletBench] -> IO ()
-benchPutSeqState DBLayer{..} cps = atomically $ mapM_ putCheckpoint cps
+benchPutSeqState = putWalletCheckpoints
 
 mkSeqState :: Int -> Int -> SeqState 'Mainnet ShelleyKey
 mkSeqState numAddrs _ = s
@@ -394,7 +394,7 @@ bgroupWriteRndState tr = bgroup "RndState"
             ]
 
 benchPutRndState :: DBLayerBenchByron -> [Wallet (RndState 'Mainnet)] -> IO ()
-benchPutRndState DBLayer{..} cps = atomically $ mapM_ putCheckpoint cps
+benchPutRndState = putWalletCheckpoints
 
 ----------------------------------------------------------------------------
 -- Tx history Benchmarks

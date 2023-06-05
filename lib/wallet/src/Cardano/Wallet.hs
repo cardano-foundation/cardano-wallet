@@ -225,6 +225,9 @@ module Cardano.Wallet
     , WalletLog (..)
     , TxSubmitLog (..)
     , putPrivateKey
+
+    -- * Internal
+    , putWalletCheckpoints
     ) where
 
 import Prelude hiding
@@ -1362,6 +1365,26 @@ readRewardAccount db = do
 readWalletCheckpoint
     :: DBLayer IO s -> IO (Wallet s)
 readWalletCheckpoint DBLayer{..} = liftIO $ atomically readCheckpoint
+
+-- | Put a sequence of checkpoints into the database.
+--
+-- WARNING: This function is broken. It is only used in the `db` benchmark.
+-- To be removed.
+putWalletCheckpoints
+    :: AddressBookIso s
+    => DBLayer IO s -> [Wallet s] -> IO ()
+putWalletCheckpoints DBLayer{..} = atomically . mapM_ putCheckpoint
+  where
+    putCheckpoint cp =
+        Delta.onDBVar walletState
+        $ Delta.update $ \_ ->
+            let (prologue, wcp) = WalletState.fromWallet cp
+                slot = WalletState.getSlot wcp
+            in  [ WalletState.UpdateCheckpoints
+                    [ PutCheckpoint slot wcp ]
+                    , WalletState.ReplacePrologue prologue
+                ]
+
 
 -- | Unsafe version of the `readRewardAccount` function
 -- that throws error when applied to a non-shared
