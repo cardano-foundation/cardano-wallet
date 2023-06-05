@@ -130,9 +130,7 @@ import Cardano.Wallet.DB.WalletState
     , DeltaWalletState1 (..)
     , findNearestPoint
     , fromGenesis
-    , fromWallet
     , getLatest
-    , getSlot
     )
 import Cardano.Wallet.Flavor
     ( KeyFlavorS, WalletFlavorS, keyOfWallet )
@@ -563,14 +561,6 @@ newDBFreshFromDBOpen wF ti wid_ DBOpen{atomically=atomically_} =
         -----------------------------------------------------------------------}
         dbCheckpoints = DBCheckpoints
             { walletsDB_ = walletState
-
-            , putCheckpoint_ = \cp ->
-                Delta.onDBVar walletState $ Delta.update $ \_ ->
-                    let (prologue, wcp) = fromWallet cp
-                        slot = getSlot wcp
-                    in  [ UpdateCheckpoints [ PutCheckpoint slot wcp ]
-                        , ReplacePrologue prologue
-                        ]
 
             , readCheckpoint_ = readCheckpoint
 

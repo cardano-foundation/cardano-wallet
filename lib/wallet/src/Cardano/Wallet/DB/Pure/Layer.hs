@@ -103,8 +103,6 @@ newDBFresh timeInterpreter wid = do
         , walletState = error "MVar.walletState: not implemented"
         , transactionsStore = error "MVar.transactionsStore: not implemented"
 
-        , putCheckpoint = error "MVar.putCheckpoint: implementation deleted"
-
         , readCheckpoint = throwErrorReadDB db mReadCheckpoint
 
         , listCheckpoints = fromMaybe [] <$> readDBMaybe db mListCheckpoints

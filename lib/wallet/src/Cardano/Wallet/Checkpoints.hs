@@ -135,8 +135,9 @@ type DeltasCheckpoints a = [DeltaCheckpoints a]
 
 data DeltaCheckpoints a
     = PutCheckpoint W.Slot a
+        -- ^ Insert a checkpoint at a specified slot.
     | RollbackTo W.Slot
-        -- Rolls back to the latest checkpoint at or before this slot.
+        -- ^ Rolls back to the latest checkpoint at or before this slot.
     | RestrictTo [W.Slot]
         -- ^ Restrict to the intersection of this list with
         -- the checkpoints that are already present.
