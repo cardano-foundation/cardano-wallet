@@ -95,7 +95,7 @@ import Cardano.Wallet.DB.Layer
     )
 import Cardano.Wallet.DB.Properties
     ( properties )
-import Cardano.Wallet.DB.Sqlite.Migration
+import Cardano.Wallet.DB.Sqlite.MigrationOld
     ( InvalidDatabaseSchemaVersion (..)
     , SchemaVersion (..)
     , currentSchemaVersion
