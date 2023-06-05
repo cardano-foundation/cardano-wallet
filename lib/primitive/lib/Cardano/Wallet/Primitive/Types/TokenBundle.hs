@@ -129,10 +129,11 @@ data TokenBundle = TokenBundle
     deriving anyclass (NFData, Hashable)
 
 instance Semigroup TokenBundle where
-    (<>) = add
+    TokenBundle c1 m1 <> TokenBundle c2 m2 =
+        TokenBundle (c1 <> c2) (m1 <> m2)
 
 instance Monoid TokenBundle where
-    mempty = empty
+    mempty = TokenBundle mempty mempty
 
 --------------------------------------------------------------------------------
 -- Ordering
