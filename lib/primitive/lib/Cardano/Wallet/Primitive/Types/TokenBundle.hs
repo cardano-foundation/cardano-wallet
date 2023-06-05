@@ -242,7 +242,7 @@ buildMap = blockMapF . fmap (first $ id @String)
 -- | The empty token bundle.
 --
 empty :: TokenBundle
-empty = TokenBundle (Coin 0) mempty
+empty = mempty
 
 -- | Creates a token bundle from a coin and a flat list of token quantities.
 --
