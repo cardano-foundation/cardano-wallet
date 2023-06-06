@@ -138,7 +138,7 @@ import Cardano.Wallet.DB.WalletState
 import Cardano.Wallet.Flavor
     ( KeyFlavorS, WalletFlavorS, keyOfWallet )
 import Cardano.Wallet.Primitive.Slotting
-    ( TimeInterpreter, firstSlotInEpoch, hoistTimeInterpreter, interpretQuery )
+    ( TimeInterpreter, hoistTimeInterpreter )
 import Cardano.Wallet.Read.Eras.EraValue
     ( EraValue )
 import Cardano.Wallet.Read.Tx.CBOR
@@ -163,12 +163,10 @@ import Data.Coerce
     ( coerce )
 import Data.DBVar
     ( DBVar, initDBVar, loadDBVar, readDBVar )
-import Data.Functor
-    ( (<&>) )
 import Data.Generics.Internal.VL.Lens
     ( (^.) )
 import Data.Maybe
-    ( catMaybes, fromMaybe, maybeToList )
+    ( catMaybes, fromMaybe )
 import Data.Store
     ( Store (..), UpdateStore )
 import Data.Text
@@ -186,10 +184,8 @@ import Database.Persist.Sql
     , selectFirst
     , selectKeysList
     , selectList
-    , (<.)
     , (==.)
     , (>.)
-    , (>=.)
     )
 import Database.Persist.Sqlite
     ( SqlPersistT )
@@ -617,7 +613,7 @@ newDBFreshFromDBOpen wF ti wid_ DBOpen{atomically=atomically_} =
         , mkDecorator_ = mkDecorator transactionsQS
         }
 
-    dbDelegation = mkDBDelegation ti wid_
+    dbDelegation = mkDBDelegation wid_
 
 
 mkDBFreshFromParts
@@ -687,13 +683,11 @@ mkDecorator transactionsQS =
                             Wallet Delegation
 -----------------------------------------------------------------------}
 
-mkDBDelegation ::
-    TimeInterpreter IO -> W.WalletId -> DBDelegation (SqlPersistT IO)
-mkDBDelegation ti wid =
+mkDBDelegation :: W.WalletId -> DBDelegation (SqlPersistT IO)
+mkDBDelegation wid =
     DBDelegation
         { putDelegationRewardBalance_
         , readDelegationRewardBalance_
-        , readDelegation_
         }
   where
 
@@ -708,44 +702,6 @@ mkDBDelegation ti wid =
         Coin.fromWord64 . maybe 0 (rewardAccountBalance . entityVal) <$>
             selectFirst [RewardWalletId ==. wid] []
 
-    readDelegation_ :: W.EpochNo -> SqlPersistT IO W.WalletDelegation
-    readDelegation_ epoch = case epoch of
-        0 -> do
-            currEpochStartSlot <-
-                liftIO $ interpretQuery ti $ firstSlotInEpoch epoch
-            let nextDelegations =
-                    readDelegationStatus [CertSlot >=. currEpochStartSlot]
-                    <&> maybeToList . (<&> W.WalletDelegationNext (epoch + 2))
-            W.WalletDelegation W.NotDelegating <$> nextDelegations
-        _ -> do
-            (prevEpochStartSlot, currEpochStartSlot) <-
-                liftIO $ interpretQuery ti $
-                    (,) <$> firstSlotInEpoch (epoch - 1)
-                        <*> firstSlotInEpoch epoch
-            let currentDelegation =
-                    readDelegationStatus [CertSlot <. prevEpochStartSlot]
-                        <&> fromMaybe W.NotDelegating
-            let nextDelegations = catMaybes <$> sequence
-                    [ readDelegationStatus
-                        [ CertSlot >=. prevEpochStartSlot
-                        , CertSlot <. currEpochStartSlot
-                        ] <&> (<&> W.WalletDelegationNext (epoch + 1))
-                    , readDelegationStatus
-                        [CertSlot >=. currEpochStartSlot]
-                        <&> (<&> W.WalletDelegationNext (epoch + 2))
-                    ]
-            W.WalletDelegation <$> currentDelegation <*> nextDelegations
-      where
-        readDelegationStatus =
-            (fmap . fmap) toWalletDelegationStatus
-                . readDelegationCertificate wid
-
-readDelegationCertificate
-    :: W.WalletId
-    -> [Filter DelegationCertificate]
-    -> SqlPersistT IO (Maybe DelegationCertificate)
-readDelegationCertificate wid filters = fmap entityVal
-    <$> selectFirst ((CertWalletId ==. wid) : filters) [Desc CertSlot]
 
 {-------------------------------------------------------------------------------
     Conversion between types
@@ -753,14 +709,6 @@ readDelegationCertificate wid filters = fmap entityVal
         and from the wallet core ( Cardano.Wallet.Primitive.Types.*)
 -------------------------------------------------------------------------------}
 
-toWalletDelegationStatus
-    :: DelegationCertificate
-    -> W.WalletDelegationStatus
-toWalletDelegationStatus = \case
-    DelegationCertificate _ _ Nothing ->
-        W.NotDelegating
-    DelegationCertificate _ _ (Just pool) ->
-        W.Delegating pool
 
 genesisParametersFromEntity
     :: Wallet

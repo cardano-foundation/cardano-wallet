@@ -60,13 +60,11 @@ import Cardano.Wallet.Primitive.Slotting
 import Cardano.Wallet.Primitive.Types
     ( BlockHeader
     , ChainPoint
-    , EpochNo (..)
     , GenesisParameters
     , Range (..)
     , Slot
     , SlotNo (..)
     , SortOrder (..)
-    , WalletDelegation (..)
     , WalletId
     , WalletMetadata (..)
     )
@@ -487,9 +485,7 @@ data DBDelegation stm = DBDelegation
         -- ^ Get the reward account balance.
         --
         -- Returns zero if the wallet hasn't delegated stake.
-    , readDelegation_
-        :: EpochNo
-        -> stm WalletDelegation
+
     }
 
 -- | A database layer that stores the transaction history.
