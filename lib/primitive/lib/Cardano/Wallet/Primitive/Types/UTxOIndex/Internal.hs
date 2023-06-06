@@ -696,26 +696,25 @@ indexIsComplete i =
         BundleWithNoAssets ->
             True
         BundleWithOneAsset a -> and
-            [ hasEntryForAsset a u indexAll
-            , hasEntryForAsset a u indexSingletons
+            [ hasEntryForAsset a indexAll
+            , hasEntryForAsset a indexSingletons
             ]
         BundleWithTwoAssets (a1, a2) -> and
-            [ hasEntryForAsset a1 u indexAll
-            , hasEntryForAsset a2 u indexAll
-            , hasEntryForAsset a1 u indexPairs
-            , hasEntryForAsset a2 u indexPairs
+            [ hasEntryForAsset a1 indexAll
+            , hasEntryForAsset a2 indexAll
+            , hasEntryForAsset a1 indexPairs
+            , hasEntryForAsset a2 indexPairs
             ]
         BundleWithMultipleAssets as ->
-            F.all (\a -> hasEntryForAsset a u indexAll) as
-
-    hasEntryForAsset
-        :: Ord asset
-        => asset
-        -> u
-        -> (UTxOIndex u -> MonoidMap asset (Set u))
-        -> Bool
-    hasEntryForAsset asset u assetsMap =
-        Set.member u $ MonoidMap.get asset $ assetsMap i
+            F.all (\a -> hasEntryForAsset a indexAll) as
+      where
+        hasEntryForAsset
+            :: Ord asset
+            => asset
+            -> (UTxOIndex u -> MonoidMap asset (Set u))
+            -> Bool
+        hasEntryForAsset asset assetsMap =
+            Set.member u $ MonoidMap.get asset $ assetsMap i
 
 -- | Checks that every indexed entry is required by some entry in the 'universe'
 --   map.
