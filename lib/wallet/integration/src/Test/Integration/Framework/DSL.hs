@@ -33,7 +33,7 @@ module Test.Integration.Framework.DSL
     , expectSuccess
     , expectError
     , expectErrorMessage
-    , expectErrorCode
+    , expectErrorInfo
     , expectField
     , expectListField
     , expectListSize
@@ -362,7 +362,7 @@ import Cardano.Wallet.Shelley.Compatibility
 import "cardano-addresses" Codec.Binary.Encoding
     ( AbstractEncoding (..), encode )
 import Control.Arrow
-    ( second, (>>>) )
+    ( second )
 import Control.Monad
     ( forM_, join, replicateM, unless, void, (>=>) )
 import Control.Monad.IO.Unlift
@@ -496,7 +496,6 @@ import qualified Codec.Binary.Bech32 as Bech32
 import qualified Codec.Binary.Bech32.TH as Bech32
 import qualified Data.Aeson as Aeson
 import qualified Data.Aeson.Key as Aeson
-import qualified Data.Aeson.KeyMap as Key
 import qualified Data.ByteArray as BA
 import qualified Data.ByteString as BS
 import qualified Data.ByteString.Char8 as B8
@@ -538,26 +537,14 @@ expectErrorMessage want = either expectation wantedErrorButSuccess . snd
         RawClientError val    -> BL8.unpack val
         HttpException err     -> show err
 
--- | Expect an error identified by its code.
-expectErrorCode
-    :: (HasCallStack, MonadIO m, Show a)
-    => String
+-- | Defines an expectation about an API error, assuming it can successfully
+--   be decoded as an 'ApiErrorInfo' object.
+expectErrorInfo
+    :: (HasCallStack, Show a)
+    => (ApiErrorInfo -> m ())
     -> (s, Either RequestException a)
     -> m ()
-expectErrorCode expectedErrCode = snd >>> \case
-    Right a -> wantedErrorButSuccess a
-    Left (ClientError payload) ->
-        case payload of
-            Aeson.Object object ->
-                Key.lookup "code" object `shouldBe`
-                    Just (Aeson.String (T.pack expectedErrCode))
-            _otherTypeOfPayload -> expectationFailure $
-                "Expected a 'ClientError' with a JSON object payload \
-                \but got something else: " <> show payload
-    Left otherError ->
-        expectationFailure $
-            "Expected a 'ClientError' with code " <> show expectedErrCode
-            <> " but got " <> show otherError
+expectErrorInfo f = f . decodeErrorInfo
 
 -- | Decodes the information about an error into an 'ApiErrorInfo' value.
 decodeErrorInfo
