@@ -23,6 +23,9 @@ module Cardano.Wallet.DB.Sqlite.MigrationOld
     , InvalidDatabaseSchemaVersion (..)
     , putSchemaVersion
     , getSchemaVersion
+    , isFieldPresent
+    , isFieldPresentByName
+    , onFieldPresent
     )
     where
 
@@ -38,6 +41,8 @@ import Cardano.DB.Sqlite
     )
 import Cardano.Wallet.DB.Sqlite.Schema
     ( EntityField (..) )
+import Cardano.Wallet.Flavor
+    ( KeyFlavorS (..) )
 import Cardano.Wallet.Primitive.Passphrase.Types
     ( PassphraseScheme (..) )
 import Control.Monad
@@ -73,8 +78,6 @@ import UnliftIO.Exception
 
 import qualified Cardano.Wallet.Address.Derivation as W
 import qualified Cardano.Wallet.Address.Discovery.Sequential as Seq
-import Cardano.Wallet.Flavor
-    ( KeyFlavorS (..) )
 import qualified Cardano.Wallet.Primitive.Types as W
 import qualified Cardano.Wallet.Primitive.Types.Address as W
 import qualified Cardano.Wallet.Primitive.Types.Coin as W
@@ -760,27 +763,6 @@ migrateManually tr key defaultFieldValues =
       where
         value = "NULL"
 
-    -- | Determines whether a field is present in its parent table.
-    isFieldPresent :: Sqlite.Connection -> DBField -> IO SqlColumnStatus
-    isFieldPresent conn field =
-        isFieldPresentByName conn (tableName field) (fieldName field)
-
-    isFieldPresentByName :: Sqlite.Connection -> Text -> Text -> IO SqlColumnStatus
-    isFieldPresentByName conn table field = do
-        getTableInfo' <- Sqlite.prepare conn $ mconcat
-            [ "SELECT sql FROM sqlite_master "
-            , "WHERE type = 'table' "
-            , "AND name = '" <> table <> "';"
-            ]
-        row <- Sqlite.step getTableInfo'
-            >> Sqlite.columns getTableInfo'
-        Sqlite.finalize getTableInfo'
-        pure $ case row of
-            [PersistText t]
-                | field `T.isInfixOf` t -> ColumnPresent
-                | otherwise             -> ColumnMissing
-            _ -> TableMissing
-
     addColumn_
         :: Sqlite.Connection
         -> Bool
@@ -845,13 +827,6 @@ migrateManually tr key defaultFieldValues =
     removeOldSubmissions :: Sqlite.Connection -> IO ()
     removeOldSubmissions conn = void $
         runSql conn "DROP TABLE IF EXISTS local_tx_submission;"
-
-    onFieldPresent :: Sqlite.Connection -> DBField -> IO () -> IO ()
-    onFieldPresent conn field action = do
-        isFieldPresent conn field >>= \case
-            TableMissing -> return ()
-            ColumnMissing -> return ()
-            ColumnPresent -> action
 
     removeMetasOfSubmissions :: Sqlite.Connection -> IO ()
     removeMetasOfSubmissions conn = do
@@ -946,3 +921,31 @@ getSchemaVersion conn =
         [[PersistInt64 int]] | int >= 0 -> pure $ SchemaVersion
             $ fromIntegral int
         _ -> throwString "Database metadata table is corrupt"
+
+onFieldPresent :: Sqlite.Connection -> DBField -> IO () -> IO ()
+onFieldPresent conn field action = do
+    isFieldPresent conn field >>= \case
+        TableMissing -> return ()
+        ColumnMissing -> return ()
+        ColumnPresent -> action
+
+-- | Determines whether a field is present in its parent table.
+isFieldPresent :: Sqlite.Connection -> DBField -> IO SqlColumnStatus
+isFieldPresent conn field =
+    isFieldPresentByName conn (tableName field) (fieldName field)
+
+isFieldPresentByName :: Sqlite.Connection -> Text -> Text -> IO SqlColumnStatus
+isFieldPresentByName conn table field = do
+    getTableInfo' <- Sqlite.prepare conn $ mconcat
+        [ "SELECT sql FROM sqlite_master "
+        , "WHERE type = 'table' "
+        , "AND name = '" <> table <> "';"
+        ]
+    row <- Sqlite.step getTableInfo'
+        >> Sqlite.columns getTableInfo'
+    Sqlite.finalize getTableInfo'
+    pure $ case row of
+        [PersistText t]
+            | field `T.isInfixOf` t -> ColumnPresent
+            | otherwise             -> ColumnMissing
+        _ -> TableMissing
