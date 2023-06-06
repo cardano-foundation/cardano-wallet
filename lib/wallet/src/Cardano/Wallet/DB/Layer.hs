@@ -50,8 +50,7 @@ import Cardano.DB.Sqlite
     , ForeignKeysSetting (ForeignKeysEnabled)
     , SqliteContext (..)
     , newInMemorySqliteContext
-    , newSqliteContext
-    , withConnectionPool
+    , newSqliteContextFile
     )
 import Cardano.DB.Sqlite.Delete
     ( DeleteSqliteDatabaseLog
@@ -206,6 +205,8 @@ import UnliftIO.Exception
 import UnliftIO.MVar
     ( modifyMVar, modifyMVar_, newMVar, readMVar, withMVar )
 
+import Cardano.Wallet.DB.Sqlite.MigrationNew
+    ( runNewStyleMigrations )
 import qualified Cardano.Wallet.Primitive.Model as W
 import qualified Cardano.Wallet.Primitive.Types as W
 import qualified Cardano.Wallet.Primitive.Types.Coin as Coin
@@ -394,11 +395,11 @@ withDBOpenFromFile walletF tr defaultFieldValues dbFile action = do
             maybe [] (migrateManually trDB $ keyOfWallet walletF)
                 defaultFieldValues
     let autoMigrations   = migrateAll
-    withConnectionPool trDB dbFile $ \pool -> do
-        res <- newSqliteContext trDB pool manualMigrations autoMigrations
-        case res of
-            Left err -> throwIO err
-            Right sqliteContext -> action =<< newQueryLock sqliteContext
+    res <- newSqliteContextFile trDB dbFile manualMigrations autoMigrations
+        runNewStyleMigrations
+    case res of
+        Left err -> throwIO err
+        Right sqliteContext -> action =<< newQueryLock sqliteContext
 
 
 -- | Open an SQLite database in-memory.

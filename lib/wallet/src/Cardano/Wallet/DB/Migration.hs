@@ -1,10 +1,13 @@
 {-# LANGUAGE DataKinds #-}
 {-# LANGUAGE DeriveAnyClass #-}
+{-# LANGUAGE DerivingStrategies #-}
+{-# LANGUAGE GeneralizedNewtypeDeriving #-}
 {-# LANGUAGE KindSignatures #-}
 {-# LANGUAGE Rank2Types #-}
 {-# LANGUAGE RecordWildCards #-}
 {-# LANGUAGE ScopedTypeVariables #-}
 {-# LANGUAGE TypeOperators #-}
+{-# LANGUAGE TypeSynonymInstances #-}
 
 -- |
 -- Copyright: © 2023 IOHK
@@ -19,10 +22,11 @@ module Cardano.Wallet.DB.Migration
     , VersionT
 
       -- * Run migrations
-    , Version
+    , Version (..)
     , MigrationInterface (..)
     , runMigrations
     , ErrWrongVersion (..)
+    , hoistMigration
     ) where
 
 import Prelude hiding
@@ -40,6 +44,8 @@ import Control.Monad.Reader
     ( ReaderT (runReaderT) )
 import Data.Proxy
     ( Proxy (..) )
+import Fmt
+    ( Buildable (..) )
 import GHC.Natural
     ( Natural )
 import GHC.TypeNats
@@ -53,13 +59,23 @@ import GHC.TypeNats
 type VersionT = Nat
 
 -- | A version number at value level.
-type Version = Natural
+newtype Version = Version Natural
+    deriving newtype (Show, Eq, Enum, Num, Ord)
+
+instance Buildable Version where
+    build = build . show
 
 -- | A migration path between two database versions.
 --
 -- This path contains migration steps between any two consecutive
 -- versions in the range @from@ @to@.
 newtype Migration m (from :: VersionT) (to :: VersionT) = Migration [m ()]
+
+hoistMigration
+    :: (forall x. m x -> n x)
+    -> Migration m from to
+    -> Migration n from to
+hoistMigration f (Migration steps) = Migration (fmap f steps)
 
 -- | A migration path between two consecutive versions.
 mkMigration :: forall v m. m () -> Migration m v (v + 1)
@@ -103,8 +119,8 @@ runMigrations
         -- @vtarget@ is the version to which the database is migrated.
     -> m ()
 runMigrations interface filepath (Migration steps) = do
-    let nfrom = natVal (Proxy :: Proxy vmin)
-        nto = natVal (Proxy :: Proxy vtarget)
+    let nfrom = Version $ natVal (Proxy :: Proxy vmin)
+        nto = Version $ natVal (Proxy :: Proxy vtarget)
     forM_ (zip [nfrom .. nto] steps)
         $ uncurry (runMigrationStep interface filepath)
 
@@ -115,6 +131,12 @@ data ErrWrongVersion = ErrWrongVersion
     }
     deriving (Show, Eq, Exception)
 
+instance Buildable ErrWrongVersion where
+    build (ErrWrongVersion expected actual) = "Expected database version "
+        <> build expected
+        <> ", but found "
+        <> build actual
+        <> "."
 --------------------------------------------------------------------------------
 -------  internal --------------------------------------------------------------
 --------------------------------------------------------------------------------
