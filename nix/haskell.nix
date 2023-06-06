@@ -54,9 +54,12 @@ CHaP: haskell-nix: nixpkgs-recent: nodePkgs: haskell-nix.cabalProject' [
       # use buildPackages here, we want set-git-rev on the build machine even under
       # cross compilation (e.g. to windows)
       setGitRevPostInstall = setGitRevPostInstall' config.gitrev;
-      setGitRevPostInstall' = gitrev: ''
-        ${pkgs.buildPackages.haskellBuildUtils}/bin/set-git-rev "${gitrev}" $out/bin/*
-      '';
+      setGitRevPostInstall' = gitrev: '' '';
+      # The following is commented out because it causes error with
+      # 'packages.cardano-node.package.identifier.name' not being defined.
+      # setGitRevPostInstall' = gitrev: ''
+      #   ${pkgs.buildPackages.haskellBuildUtils}/bin/set-git-rev "${gitrev}" $out/bin/*
+      # '';
 
       rewriteLibsPostInstall = lib.optionalString (pkgs.stdenv.hostPlatform.isDarwin) ''
         export PATH=$PATH:${lib.makeBinPath (with pkgs.buildPackages; [ haskellBuildUtils binutils nix ])}
@@ -110,6 +113,7 @@ CHaP: haskell-nix: nixpkgs-recent: nodePkgs: haskell-nix.cabalProject' [
           cabal-cache.version = "1.0.2.1";
           haskell-language-server = {
             version = "1.8.0.0";
+            index-state = "2023-03-06T05:24:58Z";
             modules = [{ reinstallableLibGhc = false; }];
           };
           hie-bios = {
