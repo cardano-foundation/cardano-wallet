@@ -149,13 +149,13 @@
       flake = false;
     };
     customConfig.url = "github:input-output-hk/empty-flake";
-    cardano-node-1_35_4.url = "github:input-output-hk/cardano-node?ref=1.35.4";
+    cardano-node-runtime.url = "github:input-output-hk/cardano-node?ref=8.0.0";
     emanote.url = "github:srid/emanote";
     ema.url = "github:srid/ema";
   };
 
   outputs = { self, nixpkgs, nixpkgs-unstable, hostNixpkgs, flake-utils,
-              haskellNix, iohkNix, CHaP, customConfig, emanote, cardano-node-1_35_4,
+              haskellNix, iohkNix, CHaP, customConfig, emanote, cardano-node-runtime,
               ... }:
     let
       inherit (nixpkgs) lib;
@@ -217,7 +217,7 @@
             collectChecks
             check;
 
-          nodePkgs = cardano-node-1_35_4.packages.${system};
+          nodePkgs = cardano-node-runtime.legacyPackages.${system};
 
           project = (import ./nix/haskell.nix
               CHaP
@@ -334,8 +334,8 @@
                   linuxPackages.cardano-wallet
                   linuxPackages.bech32
                   linuxPackages.cardano-address
-                  cardano-node-1_35_4.hydraJobs.linux.musl.cardano-cli
-                  cardano-node-1_35_4.hydraJobs.linux.musl.cardano-node
+                  nodePkgs.hydraJobs.musl.cardano-cli
+                  nodePkgs.hydraJobs.musl.cardano-node
                 ];
                 # Which exes should be put in the release archives.
                 checkReleaseContents = jobs: map (exe: jobs.${exe}) [
@@ -364,8 +364,8 @@
                       windowsPackages.cardano-wallet
                       windowsPackages.bech32
                       windowsPackages.cardano-address
-                      cardano-node-1_35_4.hydraJobs.linux.windows.cardano-cli
-                      cardano-node-1_35_4.hydraJobs.linux.windows.cardano-node
+                      nodePkgs.hydraJobs.windows.cardano-cli
+                      nodePkgs.hydraJobs.windows.cardano-node
                     ];
                     platform = "win64";
                     format = "zip";
@@ -374,8 +374,8 @@
                   tests = import ./nix/windows-testing-bundle.nix {
                     inherit pkgs;
                     cardano-wallet = windowsPackages.cardano-wallet;
-                    cardano-node = cardano-node-1_35_4.hydraJobs.linux.windows.cardano-node;
-                    cardano-cli = cardano-node-1_35_4.hydraJobs.linux.windows.cardano-cli;
+                    cardano-node = nodePkgs.hydraJobs.windows.cardano-node;
+                    cardano-cli = nodePkgs.hydraJobs.windows.cardano-cli;
                     tests = lib.collect lib.isDerivation windowsPackages.tests;
                     benchmarks = lib.collect lib.isDerivation windowsPackages.benchmarks;
                   };
@@ -390,8 +390,8 @@
                     macOsPkgs.cardano-wallet
                     macOsPkgs.bech32
                     macOsPkgs.cardano-address
-                    cardano-node-1_35_4.hydraJobs.macos.cardano-cli
-                    cardano-node-1_35_4.hydraJobs.macos.cardano-node
+                    nodePkgs.hydraJobs.native.cardano-cli
+                    nodePkgs.hydraJobs.native.cardano-node
                   ];
                   platform = "macos-intel";
                   format = "tar.gz";
@@ -404,8 +404,8 @@
                     macOsPkgs.cardano-wallet
                     macOsPkgs.bech32
                     macOsPkgs.cardano-address
-                    cardano-node-1_35_4.hydraJobs.macos.cardano-cli
-                    cardano-node-1_35_4.hydraJobs.macos.cardano-node
+                    nodePkgs.hydraJobs.native.cardano-cli
+                    nodePkgs.hydraJobs.native.cardano-node
                   ];
                   platform = "macos-silicon";
                   format = "tar.gz";
