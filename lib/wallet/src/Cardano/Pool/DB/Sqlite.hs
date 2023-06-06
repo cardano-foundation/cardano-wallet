@@ -45,9 +45,8 @@ import Cardano.DB.Sqlite
     , fieldName
     , handleConstraint
     , newInMemorySqliteContext
-    , newSqliteContext
+    , newSqliteContextFile
     , tableName
-    , withConnectionPool
     )
 import Cardano.Pool.DB
     ( DBLayer (..), ErrPointAlreadyExists (..), determinePoolLifeCycleStatus )
@@ -213,12 +212,12 @@ withDecoratedDBLayer dbDecorator tr mDatabaseDir ti action = do
             fst
             (action . decorateDBLayer dbDecorator . newDBLayer tr ti . snd)
 
-        Just fp -> handlingPersistError tr fp $
-            withConnectionPool tr' fp $ \pool -> do
-                ctx <- newSqliteContext tr' pool createViews migrateAll
-                ctx & either
-                    throwIO
-                    (action . decorateDBLayer dbDecorator . newDBLayer tr ti)
+        Just fp -> handlingPersistError tr fp $ do
+            ctx <- newSqliteContextFile tr' fp createViews migrateAll
+                $  \_ _ -> pure ()
+            ctx & either
+                throwIO
+                (action . decorateDBLayer dbDecorator . newDBLayer tr ti)
   where
     tr' = contramap MsgGeneric tr
 

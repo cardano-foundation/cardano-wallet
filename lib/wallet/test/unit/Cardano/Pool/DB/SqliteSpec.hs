@@ -70,7 +70,7 @@ test_migrationFromv20191216 =
             let databaseResetMsg = filter (== MsgGeneric MsgDatabaseReset) logs
             let migrationErrMsg  = filter isMsgMigrationError logs
 
-            length databaseConnMsg  `shouldBe` 3
+            length databaseConnMsg  `shouldBe` 6
             length databaseResetMsg `shouldBe` 1
             length migrationErrMsg  `shouldBe` 1
 

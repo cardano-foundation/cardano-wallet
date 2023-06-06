@@ -28,7 +28,7 @@
 
 module Cardano.DB.Sqlite
     ( SqliteContext (..)
-    , newSqliteContext
+    , newSqliteContextFile
     , newInMemorySqliteContext
     , ForeignKeysSetting (..)
 
@@ -61,14 +61,20 @@ import Cardano.BM.Data.Severity
     ( Severity (..) )
 import Cardano.BM.Data.Tracer
     ( HasPrivacyAnnotation (..), HasSeverityAnnotation (..) )
+import Cardano.Wallet.DB.Migration
+    ( ErrWrongVersion (..) )
 import Cardano.Wallet.Logging
     ( BracketLog, bracketTracer )
+import Control.Lens
+    ( strict, view )
 import Control.Monad
     ( join, void, when )
 import Control.Monad.IO.Unlift
     ( MonadUnliftIO (..) )
 import Control.Monad.Logger
     ( LogLevel (..) )
+import Control.Monad.Trans.Except
+    ( ExceptT (..), runExceptT )
 import Control.Retry
     ( RetryStatus (..)
     , constantDelay
@@ -83,7 +89,7 @@ import Data.Aeson
 import Data.Function
     ( (&) )
 import Data.Functor
-    ( (<&>) )
+    ( ($>), (<&>) )
 import Data.List
     ( isInfixOf )
 import Data.List.Split
@@ -96,6 +102,8 @@ import Data.Text
     ( Text )
 import Data.Text.Class
     ( ToText (..) )
+import Data.Text.Lazy.Builder
+    ( toLazyText )
 import Data.Time.Clock
     ( NominalDiffTime )
 import Database.Persist.EntityDef
@@ -119,9 +127,9 @@ import Database.Persist.Sql
 import Database.Persist.Sqlite
     ( SqlBackend, wrapConnection )
 import Database.Sqlite
-    ( Error (ErrorConstraint), SqliteException (SqliteException) )
+    ( Connection, Error (ErrorConstraint), SqliteException (SqliteException) )
 import Fmt
-    ( fmt, ordinalF, (+|), (+||), (|+), (||+) )
+    ( Buildable (..), fmt, ordinalF, (+|), (+||), (|+), (||+) )
 import GHC.Generics
     ( Generic )
 import System.Environment
@@ -198,26 +206,16 @@ newInMemorySqliteContext tr manualMigrations autoMigration disableFK = do
 
 -- | Sets up query logging and timing, runs schema migrations if necessary and
 -- provide a safe 'SqliteContext' for interacting with the database.
-newSqliteContext
-    :: Tracer IO DBLog
-    -> ConnectionPool
-    -> [ManualMigration]
-    -> Migration
+newSqliteContextFile
+    :: Tracer IO DBLog -- ^ Logging
+    -> FilePath -- ^ Database file
+    -> [ManualMigration] -- ^ Manual migrations
+    -> Migration -- ^ Auto migration
+    -> (Tracer IO DBLog -> FilePath -> IO ()) -- ^ New style migrations
     -> IO (Either MigrationError SqliteContext)
-newSqliteContext tr pool manualMigrations autoMigration = do
-    migrationResult <- withResource pool $ \(backend, conn) -> do
-        let executeAutoMigration = runSqlConn
-                (runMigrationUnsafeQuiet autoMigration)
-                backend
-        migrationResult <- withForeignKeysDisabled tr conn $ do
-            mapM_ (`executeManualMigration` conn) manualMigrations
-            executeAutoMigration
-                & tryJust (matchMigrationError @PersistException)
-                & tryJust (matchMigrationError @SqliteException)
-                & fmap join
-        traceWith tr $ MsgMigrations $ fmap length migrationResult
-        return migrationResult
-    return $ case migrationResult of
+newSqliteContextFile tr fp old auto new = do
+    migrationResult <- runAllMigrations tr fp old auto new
+    pure $ case migrationResult of
         Left e  -> Left e
         Right{} ->
             let observe :: IO a -> IO a
@@ -229,12 +227,76 @@ newSqliteContext tr pool manualMigrations autoMigration = do
                -- asynchronous exception occurs (or actually any exception), the
                -- resource is NOT placed back in the pool.
                 runQuery :: SqlPersistT IO a -> IO a
-                runQuery cmd = withResource pool $
-                    observe
+                runQuery cmd = runDBAction tr fp $
+                   observe
                     . retryOnBusy tr retryOnBusyTimeout
                     . runSqlConn cmd . fst
-
             in Right $ SqliteContext { runQuery }
+
+matchWrongVersionError :: ErrWrongVersion -> Maybe MigrationError
+matchWrongVersionError =
+    Just
+        . MigrationError
+        . view strict
+        . toLazyText
+        . build
+
+type DBAction a = (SqlBackend, Connection) -> IO a
+
+runDBAction
+    :: Tracer IO DBLog
+    -> FilePath
+    -> DBAction a
+    -- ^ New style migrations
+    -> IO a
+runDBAction trDB dbFile action =
+    withConnectionPool trDB dbFile $ \pool ->
+        withResource pool action
+
+runAutoMigration
+    :: Tracer IO DBLog
+    -> Migration
+    -> DBAction (Either MigrationError ())
+runAutoMigration tr autoMigration (backend, conn) = do
+    let executeAutoMigration =
+            runSqlConn
+                (runMigrationUnsafeQuiet autoMigration)
+                backend
+    migrationResult <- withForeignKeysDisabled tr conn $ do
+        executeAutoMigration
+            & tryJust (matchMigrationError @PersistException)
+            & tryJust (matchMigrationError @SqliteException)
+            & fmap join
+    traceWith tr $ MsgMigrations $ length <$> migrationResult
+    return $ migrationResult $> ()
+
+runManualOldMigrations
+    :: Tracer IO DBLog
+    -> [ManualMigration]
+    -> DBAction (Either MigrationError ())
+runManualOldMigrations tr manualMigration (_backend, conn) = do
+    withForeignKeysDisabled tr conn $ Right <$>
+        mapM_ (`executeManualMigration` conn) manualMigration
+
+runManualNewMigrations
+    :: Tracer IO DBLog
+    -> FilePath
+    -> (Tracer IO DBLog -> FilePath -> IO ())
+    -> IO (Either MigrationError ())
+runManualNewMigrations tr fp newMigrations  =
+    newMigrations tr fp
+        & tryJust matchWrongVersionError
+
+runAllMigrations :: Tracer IO DBLog
+    -> FilePath
+    -> [ManualMigration]
+    -> Migration
+    -> (Tracer IO DBLog -> FilePath -> IO ())
+    -> IO (Either MigrationError ())
+runAllMigrations tr fp old auto new = runExceptT $ do
+    ExceptT $ runDBAction tr fp $ runManualOldMigrations tr old
+    ExceptT $ runDBAction tr fp $ runAutoMigration tr auto
+    ExceptT $ runManualNewMigrations tr fp new
 
 -- | Finalize database statements and close the database connection.
 --

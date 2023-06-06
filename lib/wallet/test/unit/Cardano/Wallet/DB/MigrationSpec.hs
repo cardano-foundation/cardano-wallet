@@ -15,7 +15,7 @@ import Cardano.Wallet.DB.Migration
     ( ErrWrongVersion (ErrWrongVersion)
     , Migration
     , MigrationInterface (..)
-    , Version
+    , Version (..)
     , mkMigration
     , runMigrations
     )
@@ -137,4 +137,4 @@ runTestMigrations v0 =
     runMonadDatabase initialDatabase
     . runMigrations mkMigrationInterface "filepath"
   where
-    initialDatabase = Database v0 [] []
+    initialDatabase = Database (Version v0) [] []
