@@ -39,7 +39,6 @@ import Cardano.Wallet.Address.Discovery.Shared
 import Cardano.Wallet.DB.Sqlite.Types
     ( BlockHeight
     , BlockId
-    , DelegationStatusEnum (..)
     , HDPassphrase
     , TxId
     , TxSubmissionStatusEnum (..)
@@ -512,14 +511,6 @@ SubmissionsSlots
     submissionsSlotsWallet W.WalletId sql=wallet_id
 
     Primary submissionsSlotsWallet
-
-Delegations                                     sql=delegations
-    delegationSlot      SlotNo                  sql=slot
-    delegationStatus    DelegationStatusEnum    sql=status
-    delegationPool      PoolId Maybe            sql=pool
-
-    Primary delegationSlot
-    deriving Show Generic Eq
 
 DeltaUTxOValue
     deltaUTxOValueWalletId W.WalletId sql=wallet_id

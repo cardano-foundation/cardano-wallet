@@ -3,7 +3,6 @@
 {-# LANGUAGE LambdaCase #-}
 {-# LANGUAGE NoMonomorphismRestriction #-}
 {-# LANGUAGE ScopedTypeVariables #-}
-{-# LANGUAGE TypeApplications #-}
 
 -- |
 -- Copyright: © 2022–2023 IOHK
@@ -24,13 +23,17 @@ import Cardano.Slotting.Slot
     ( SlotNo )
 import Cardano.Wallet.DB.Sqlite.Schema
     ( DelegationCertificate (DelegationCertificate)
-    , Delegations (..)
     , EntityField (..)
-    , Key (DelegationsKey)
     , StakeKeyCertificate (StakeKeyCertificate)
     )
 import Cardano.Wallet.DB.Sqlite.Types
     ( DelegationStatusEnum (..) )
+import Cardano.Wallet.DB.Store.Delegations.Schema
+    ( Delegations (..)
+    , EntityField (DelegationSlot)
+    , Key (DelegationsKey)
+    , resetDelegationTable
+    )
 import Cardano.Wallet.Delegation.Model
     ( History, Operation (..), Status (..), slotOf )
 import Cardano.Wallet.Primitive.Types
@@ -113,7 +116,7 @@ encodeStatus slot = \case
 
 writeS' :: History SlotNo PoolId -> SqlPersistT IO ()
 writeS' h = do
-    deleteWhere @_ @_ @Delegations []
+    resetDelegationTable
     insertMany_ [encodeStatus slot x | (slot, x) <- Map.assocs h]
 
 readOldEncoding
