@@ -81,9 +81,9 @@ import Cardano.Wallet.DB
     , mkDBLayerFromParts
     , transactionsStore
     )
-import Cardano.Wallet.DB.Sqlite.MigrationNew
+import Cardano.Wallet.DB.Sqlite.Migration.New
     ( runNewStyleMigrations )
-import Cardano.Wallet.DB.Sqlite.MigrationOld
+import Cardano.Wallet.DB.Sqlite.Migration.Old
     ( DefaultFieldValues (..), migrateManually )
 import Cardano.Wallet.DB.Sqlite.Schema
     ( CBOR (..)

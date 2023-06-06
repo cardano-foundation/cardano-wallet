@@ -261,8 +261,8 @@ library
     Cardano.Wallet.DB.Migration
     Cardano.Wallet.DB.Pure.Implementation
     Cardano.Wallet.DB.Pure.Layer
-    Cardano.Wallet.DB.Sqlite.MigrationNew
-    Cardano.Wallet.DB.Sqlite.MigrationOld
+    Cardano.Wallet.DB.Sqlite.Migration.New
+    Cardano.Wallet.DB.Sqlite.Migration.Old
     Cardano.Wallet.DB.Sqlite.Schema
     Cardano.Wallet.DB.Sqlite.Types
     Cardano.Wallet.DB.Store.Checkpoints.Store

@@ -1,6 +1,6 @@
 {-# LANGUAGE DataKinds #-}
 
-module Cardano.Wallet.DB.Sqlite.MigrationNew
+module Cardano.Wallet.DB.Sqlite.Migration.New
     ( runNewStyleMigrations
     ) where
 
@@ -16,7 +16,7 @@ import Cardano.Wallet.DB.Migration
     , hoistMigration
     , runMigrations
     )
-import Cardano.Wallet.DB.Sqlite.MigrationOld
+import Cardano.Wallet.DB.Sqlite.Migration.Old
     ( getSchemaVersion, putSchemaVersion )
 import Control.Category
     ( Category (id), (.) )
@@ -31,7 +31,7 @@ import Database.Persist.Sqlite
 import System.Directory
     ( copyFile )
 
-import qualified Cardano.Wallet.DB.Sqlite.MigrationOld as MigrateOld
+import qualified Cardano.Wallet.DB.Sqlite.Migration.Old as Old
 import qualified Database.Sqlite as Sqlite
 
 newMigrationInterface
@@ -47,11 +47,11 @@ newMigrationInterface tr =
         , setVersion = setVersionNew . dbConn
         }
 
-oldToNewSchemaVersion :: MigrateOld.SchemaVersion -> Version
-oldToNewSchemaVersion (MigrateOld.SchemaVersion v) = Version v
+oldToNewSchemaVersion :: Old.SchemaVersion -> Version
+oldToNewSchemaVersion (Old.SchemaVersion v) = Version v
 
-newToOldSchemaVersion :: Version -> MigrateOld.SchemaVersion
-newToOldSchemaVersion (Version v) = MigrateOld.SchemaVersion v
+newToOldSchemaVersion :: Version -> Old.SchemaVersion
+newToOldSchemaVersion (Version v) = Old.SchemaVersion v
 
 getVersionNew :: Sqlite.Connection -> IO Version
 getVersionNew = fmap oldToNewSchemaVersion . getSchemaVersion

@@ -15,7 +15,7 @@
 -- These migrations are soon to be removed in favor of
 -- a file format with version number.
 
-module Cardano.Wallet.DB.Sqlite.MigrationOld
+module Cardano.Wallet.DB.Sqlite.Migration.Old
     ( DefaultFieldValues (..)
     , migrateManually
     , SchemaVersion (..)
