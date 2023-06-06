@@ -88,11 +88,9 @@ import Cardano.Wallet.DB.Sqlite.Migration.Old
     ( DefaultFieldValues (..), migrateManually )
 import Cardano.Wallet.DB.Sqlite.Schema
     ( CBOR (..)
-    , DelegationCertificate (..)
     , DelegationReward (..)
     , EntityField (..)
     , Key (..)
-    , StakeKeyCertificate (..)
     , TxMeta (..)
     , Wallet (..)
     , migrateAll
@@ -177,15 +175,12 @@ import Data.Word
     ( Word32 )
 import Database.Persist.Sql
     ( Entity (..)
-    , Filter
     , SelectOpt (..)
-    , deleteWhere
     , repsert
     , selectFirst
     , selectKeysList
     , selectList
     , (==.)
-    , (>.)
     )
 import Database.Persist.Sqlite
     ( SqlPersistT )
@@ -202,6 +197,7 @@ import UnliftIO.Exception
 import UnliftIO.MVar
     ( modifyMVar, modifyMVar_, newMVar, readMVar )
 
+import qualified Cardano.Wallet.Delegation.Model as Dlgs
 import qualified Cardano.Wallet.Primitive.Model as W
 import qualified Cardano.Wallet.Primitive.Types as W
 import qualified Cardano.Wallet.Primitive.Types.Coin as Coin
@@ -566,12 +562,15 @@ newDBFreshFromDBOpen wF ti wid_ DBOpen{atomically=atomically_} =
                 case findNearestPoint wal requestedPoint of
                     Nothing -> throw $ ErrNoOlderCheckpoint wid_ requestedPoint
                     Just nearestPoint ->
+                        let nearestSlotNo = case nearestPoint of
+                                        { At s -> s; Origin -> 0 }
+                        in
                         (  [ UpdateCheckpoints
                                 [ RollbackTo nearestPoint ]
                             , UpdateSubmissions
-                                $ rollBackSubmissions $
-                                    case nearestPoint of
-                                        { At s -> s; Origin -> 0 }
+                                $ rollBackSubmissions nearestSlotNo
+                            , UpdateDelegations
+                                [Dlgs.Rollback nearestSlotNo]
                             ]
                         ,   case Map.lookup nearestPoint
                                     (wal ^. #checkpoints . #checkpoints) of
@@ -581,12 +580,6 @@ newDBFreshFromDBOpen wF ti wid_ DBOpen{atomically=atomically_} =
                         )
             let currentTip = nearestCheckpoint ^. #currentTip
                 nearestPoint = currentTip ^. #slotNo
-            deleteDelegationCertificates wid_
-                [ CertSlot >. nearestPoint
-                ]
-            deleteStakeKeyCerts wid_
-                [ StakeKeyCertSlot >. nearestPoint
-                ]
             updateS transactionsQS Nothing $
                 RollbackTxWalletsHistory nearestPoint
             pure $ W.chainPointFromBlockHeader currentTip
@@ -724,22 +717,6 @@ genesisParametersFromEntity (Wallet _ _ _ _ _ hash startTime) =
 {-------------------------------------------------------------------------------
     SQLite database operations
 -------------------------------------------------------------------------------}
-
--- | Delete stake key certificates for a wallet.
-deleteStakeKeyCerts
-    :: W.WalletId
-    -> [Filter StakeKeyCertificate]
-    -> SqlPersistT IO ()
-deleteStakeKeyCerts wid filters =
-    deleteWhere ((StakeKeyCertWalletId ==. wid) : filters)
-
--- | Delete all delegation certificates matching the given filter
-deleteDelegationCertificates
-    :: W.WalletId
-    -> [Filter DelegationCertificate]
-    -> SqlPersistT IO ()
-deleteDelegationCertificates wid filters = do
-    deleteWhere ((CertWalletId ==. wid) : filters)
 
 -- | For a given 'TxMeta', read all necessary data to construct
 -- the corresponding 'W.TransactionInfo'.
