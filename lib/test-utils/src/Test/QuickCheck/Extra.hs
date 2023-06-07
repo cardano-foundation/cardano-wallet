@@ -33,7 +33,6 @@ module Test.QuickCheck.Extra
 
       -- * Shrinking
     , liftShrinker
-    , shrinkBoundedEnum
     , shrinkInterleaved
     , shrinkMapWith
     , groundRobinShrink
@@ -220,36 +219,6 @@ genSized2With f genA genB = uncurry f <$> genSized2 genA genB
 --
 interleaveRoundRobin :: [[a]] -> [a]
 interleaveRoundRobin = concat . L.transpose
-
--- | Shrinks a 'Bounded' 'Enum' value.
---
--- Example:
---
--- @
--- data MyEnum = A0 | A1 | A2 | A3 | A4 | A5 | A6 | A7
---    deriving (Bounded, Enum, Eq, Ord, Show)
--- @
---
--- >>> shrinkBoundedEnum A7
--- [A0,A4,A6]
---
--- >>> shrinkBoundedEnum A4
--- [A0,A2,A3]
---
--- >>> shrinkBoundedEnum A0
--- []
---
--- See 'arbitraryBoundedEnum'.
---
-shrinkBoundedEnum :: forall a. (Eq a, Enum a, Bounded a) => a -> [a]
-shrinkBoundedEnum a
-    | a == minBound =
-        []
-    | otherwise =
-        toEnum <$> filter (>= minBoundInt) (shrinkIntegral $ fromEnum a)
-  where
-    minBoundInt :: Int
-    minBoundInt = fromEnum (minBound @a)
 
 -- | Shrink the given pair in interleaved fashion.
 --
