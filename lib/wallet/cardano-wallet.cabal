@@ -78,6 +78,8 @@ library
     , cardano-crypto-test
     , cardano-crypto-wrapper
     , cardano-data
+    , cardano-ledger-api
+    , cardano-ledger-allegra
     , cardano-ledger-alonzo
     , cardano-ledger-alonzo-test
     , cardano-ledger-babbage
@@ -85,8 +87,8 @@ library
     , cardano-ledger-byron-test
     , cardano-ledger-conway
     , cardano-ledger-core
+    , cardano-ledger-mary
     , cardano-ledger-shelley
-    , cardano-ledger-shelley-ma
     , cardano-ledger-shelley-test
     , cardano-numeric
     , cardano-protocol-tpraos

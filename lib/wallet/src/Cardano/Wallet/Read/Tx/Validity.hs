@@ -34,9 +34,9 @@ import Cardano.Ledger.Core
     ( bodyTxL )
 import Cardano.Ledger.Shelley.TxBody
     ( ttlTxBodyL )
-import Cardano.Ledger.ShelleyMA.Timelocks
+import Cardano.Ledger.Allegra.Scripts
     ( ValidityInterval )
-import Cardano.Ledger.ShelleyMA.TxBody
+import Cardano.Ledger.Allegra.TxBody
     ( vldtTxBodyL )
 import Cardano.Ledger.Slot
     ( SlotNo )

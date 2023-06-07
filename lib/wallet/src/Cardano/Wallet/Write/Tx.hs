@@ -169,9 +169,7 @@ import Cardano.Ledger.BaseTypes
 import Cardano.Ledger.Coin
     ( Coin (..) )
 import Cardano.Ledger.Crypto
-    ( StandardCrypto )
-import Cardano.Ledger.Era
-    ( Crypto )
+    ( StandardCrypto , Crypto )
 import Cardano.Ledger.Mary
     ( MaryValue )
 import Cardano.Ledger.SafeHash
@@ -179,7 +177,7 @@ import Cardano.Ledger.SafeHash
 import Cardano.Ledger.Serialization
     ( Sized (..), mkSized )
 import Cardano.Ledger.Shelley.API
-    ( CLI (evaluateMinLovelaceOutput) )
+    ( evaluateMinLovelaceOutput )
 import Cardano.Ledger.Val
     ( coin, modifyCoin )
 import Cardano.Wallet.Primitive.Types.Tx.Constraints
@@ -187,7 +185,7 @@ import Cardano.Wallet.Primitive.Types.Tx.Constraints
 import Cardano.Wallet.Shelley.Compatibility.Ledger
     ( toLedger )
 import Control.Arrow
-    ( second )
+    ( second, (>>>) )
 import Data.ByteString
     ( ByteString )
 import Data.ByteString.Short
@@ -203,7 +201,7 @@ import Data.Generics.Labels
 import Data.Generics.Product
     ( HasField' )
 import Data.IntCast
-    ( intCast )
+    ( intCast, intCastMaybe )
 import Data.Kind
     ( Type )
 import Data.Maybe
@@ -216,27 +214,34 @@ import Numeric.Natural
     ( Natural )
 import Ouroboros.Consensus.Shelley.Eras
     ( StandardBabbage, StandardConway )
+import Cardano.Ledger.Allegra.Scripts
+    (translateTimelock)
+import GHC.Stack (HasCallStack)
 
 import qualified Cardano.Api as Cardano
 import qualified Cardano.Api.Byron as Cardano
-import qualified Cardano.Api.Extra as Cardano
 import qualified Cardano.Api.Shelley as Cardano
 import qualified Cardano.Binary as CBOR
 import qualified Cardano.Crypto.Hash.Class as Crypto
 import qualified Cardano.Ledger.Address as Ledger
-import qualified Cardano.Ledger.Alonzo.Data as Alonzo
+import qualified Cardano.Ledger.Alonzo.Scripts.Data as Alonzo
 import qualified Cardano.Ledger.Alonzo.Scripts as Alonzo
+import qualified Cardano.Ledger.Alonzo.PParams as Alonzo
 import qualified Cardano.Ledger.Babbage as Babbage
 import qualified Cardano.Ledger.Babbage.Tx as Babbage
 import qualified Cardano.Ledger.Babbage.TxBody as Babbage
 import qualified Cardano.Ledger.Conway.TxBody as Conway
 import qualified Cardano.Ledger.Core as Core
+import qualified Cardano.Ledger.Credential as Core
 import qualified Cardano.Ledger.Shelley.API.Wallet as Shelley
 import qualified Cardano.Ledger.Shelley.UTxO as Shelley
 import qualified Cardano.Ledger.TxIn as Ledger
+import qualified Cardano.Ledger.BaseTypes as Ledger
+import qualified Cardano.Ledger.Keys as Ledger
 import qualified Data.Aeson as Aeson
 import qualified Data.Aeson.Types as Aeson
 import qualified Data.Map as Map
+import qualified Cardano.Ledger.Api.Tx.Body as LedgerApi
 
 --------------------------------------------------------------------------------
 -- Eras
@@ -286,18 +291,12 @@ class
 -- is to work with a small closed set of eras, anyway.
 type RecentEraLedgerConstraints era =
     ( Core.Era era
+    , Core.EraTx era
+    , Core.EraCrypto era ~ StandardCrypto
     , Core.Script era ~ AlonzoScript era
-    , CLI era
-    , Crypto era ~ StandardCrypto
     , Core.Tx era ~ Babbage.AlonzoTx era
     , Core.Value era ~ MaryValue StandardCrypto
     , Babbage.ShelleyEraTxBody era
-    , HasField' "_collateralPercentage" (Core.PParams era) Natural
-    , HasField' "_maxCollateralInputs" (Core.PParams era) Natural
-    , HasField' "_minfeeA" (Core.PParams era) Natural
-    , HasField' "_prices" (Core.PParams era) ExUnitPrices
-    , HasField' "_maxTxExUnits" (Core.PParams era) ExUnits
-    , HasField' "_keyDeposit" (Core.PParams era) Coin
     )
 
 -- | Bring useful constraints into scope from a value-level
@@ -649,29 +648,20 @@ binaryDataFromBytes =
 
 binaryDataToBytes :: BinaryData LatestLedgerEra -> ByteString
 binaryDataToBytes =
-    CBOR.serialize'
-    . Alonzo.getPlutusData
-    . Alonzo.binaryDataToData
+    CBOR.serialize' . Alonzo.getPlutusData . Alonzo.binaryDataToData
 
 datumFromCardanoScriptData
-    :: Cardano.HashableScriptData
-    -> BinaryData era
-datumFromCardanoScriptData =
-    Alonzo.dataToBinaryData
-    . Cardano.toAlonzoData
+    :: Core.Era era => Cardano.HashableScriptData -> BinaryData era
+datumFromCardanoScriptData = Alonzo.dataToBinaryData . Cardano.toAlonzoData
 
 datumToCardanoScriptData
-    :: BinaryData era
-    -> Cardano.HashableScriptData
-datumToCardanoScriptData =
-    Cardano.fromAlonzoData
-    . Alonzo.binaryDataToData
+    :: Core.Era era => BinaryData era -> Cardano.HashableScriptData
+datumToCardanoScriptData = Cardano.fromAlonzoData . Alonzo.binaryDataToData
 
 type DatumHash = Alonzo.DataHash StandardCrypto
 
 datumHashFromBytes :: ByteString -> Maybe DatumHash
-datumHashFromBytes =
-    fmap unsafeMakeSafeHash <$> Crypto.hashFromBytes
+datumHashFromBytes = fmap unsafeMakeSafeHash <$> Crypto.hashFromBytes
 
 datumHashToBytes :: SafeHash crypto a -> ByteString
 datumHashToBytes = Crypto.hashToBytes . extractHash
@@ -724,9 +714,10 @@ recentEraToBabbageTxOut (TxOutInRecentEra addr val datum mscript) =
             Alonzo.DatumHash h
         Alonzo.Datum binaryData ->
             Alonzo.Datum (coerce binaryData)
+    castScript :: AlonzoScript StandardConway -> AlonzoScript StandardBabbage
     castScript = \case
         Alonzo.TimelockScript timelockEra ->
-            Alonzo.TimelockScript (coerce timelockEra)
+            Alonzo.TimelockScript (translateTimelock timelockEra)
         Alonzo.PlutusScript l bs ->
             Alonzo.PlutusScript l bs
 
@@ -812,19 +803,24 @@ utxoFromTxOutsInRecentEra era = withConstraints era $
 --------------------------------------------------------------------------------
 
 modifyTxOutputs
-    :: RecentEra era
+    :: forall era
+     . RecentEra era
+    -> Ledger.ProtVer
     -> (TxOut (ShelleyLedgerEra era) -> TxOut (ShelleyLedgerEra era))
     -> Core.TxBody (ShelleyLedgerEra era)
     -> Core.TxBody (ShelleyLedgerEra era)
-modifyTxOutputs era f body = case era of
-    RecentEraConway -> body
-        { Babbage.outputs = mapSized f <$> Babbage.outputs body
+modifyTxOutputs era (Ledger.ProtVer majorVer _) f body =
+    case era of
+        RecentEraConway -> body {
+            Conway.ctbOutputs =
+                mkSized majorVer . f . sizedValue <$> Conway.ctbOutputs body
         }
-    RecentEraBabbage -> body
-        { Babbage.outputs = mapSized f <$> Babbage.outputs body
+        RecentEraBabbage -> body {
+            Babbage.btbOutputs =
+                mkSized majorVer . f . sizedValue <$> Babbage.btbOutputs body
         }
   where
-    mapSized f' = mkSized . f' . sizedValue
+
 
 txBody
     :: RecentEra era
@@ -839,8 +835,8 @@ outputs
     :: RecentEra era
     -> Core.TxBody (ShelleyLedgerEra era)
     -> [TxOut (ShelleyLedgerEra era)]
-outputs RecentEraConway = map sizedValue . toList . Conway.outputs
-outputs RecentEraBabbage = map sizedValue . toList . Babbage.outputs
+outputs RecentEraConway = map sizedValue . toList . Conway.ctbOutputs
+outputs RecentEraBabbage = map sizedValue . toList . Babbage.btbOutputs
 
 -- NOTE: To reduce the need for the caller to deal with @CardanoApiEra
 -- (ShelleyLedgerEra era) ~ era@, we quantify this function over @cardanoEra@
@@ -874,8 +870,7 @@ modifyLedgerBody f (Cardano.Tx body keyWits) = Cardano.Tx body' keyWits
                         validity
 
 emptyTx :: RecentEra era -> Core.Tx (ShelleyLedgerEra era)
-emptyTx era = withConstraints era $
-    Core.mkBasicTx Core.mkBasicTxBody
+emptyTx era = withConstraints era $ Core.mkBasicTx Core.mkBasicTxBody
 
 --------------------------------------------------------------------------------
 -- Compatibility
@@ -940,17 +935,22 @@ newtype FeePerByte = FeePerByte Natural
     deriving (Show, Eq)
 
 getFeePerByte
-    :: RecentEra era
+    :: HasCallStack
+    => RecentEra era
     -> Core.PParams (Cardano.ShelleyLedgerEra era)
     -> FeePerByte
-getFeePerByte era pp = FeePerByte $ case era of
-    RecentEraConway -> pp ^. #_minfeeA
-    RecentEraBabbage -> pp ^. #_minfeeA
+getFeePerByte era pp =
+    unsafeCoinToFee $
+        case era of
+            RecentEraConway -> pp ^. Core.ppMinFeeAL
+            RecentEraBabbage -> pp ^. Core.ppMinFeeAL
+  where
+    unsafeCoinToFee :: Coin -> FeePerByte
+    unsafeCoinToFee = unCoin >>> intCastMaybe >>> \case
+        Just fee -> FeePerByte fee
+        Nothing -> error "Impossible: min fee protocol parameter is negative"
 
-feeOfBytes
-    :: FeePerByte
-    -> Natural
-    -> Coin
+feeOfBytes :: FeePerByte -> Natural -> Coin
 feeOfBytes (FeePerByte perByte) bytes = Coin $ intCast $ perByte * bytes
 
 type ExUnitPrices = Alonzo.Prices
@@ -965,14 +965,13 @@ maxScriptExecutionCost
     -> Core.PParams (ShelleyLedgerEra era)
     -> Coin
 maxScriptExecutionCost era pp = withConstraints era $
-    txscriptfee (pp ^. #_prices) (pp ^. #_maxTxExUnits)
+    txscriptfee (pp ^. Alonzo.ppPricesL) (pp ^. Alonzo.ppMaxTxExUnitsL)
 
 stakeKeyDeposit
     :: RecentEra era
     -> Core.PParams (Cardano.ShelleyLedgerEra era)
     -> Coin
-stakeKeyDeposit era pp = withConstraints era $
-    pp ^. #_keyDeposit
+stakeKeyDeposit era pp = withConstraints era $ pp ^. Core.ppKeyDepositL
 
 --------------------------------------------------------------------------------
 -- Balancing
@@ -1023,16 +1022,29 @@ evaluateMinimumFee era pp tx kwc =
 -- is not automatically the minimum fee.
 --
 evaluateTransactionBalance
-    :: RecentEra era
+    :: forall era.
+        ( Core.EraCrypto era ~ StandardCrypto
+        , Shelley.EraUTxO (Cardano.ShelleyLedgerEra era)
+        )
+    => RecentEra era
     -> Core.PParams (Cardano.ShelleyLedgerEra era)
     -> Shelley.UTxO (Cardano.ShelleyLedgerEra era)
     -> Core.TxBody (Cardano.ShelleyLedgerEra era)
     -> Core.Value (Cardano.ShelleyLedgerEra era)
 evaluateTransactionBalance era pp utxo = withConstraints era $
-    Shelley.evaluateTransactionBalance pp utxo isNewPool
+    LedgerApi.evalBalanceTxBody pp lookupRefund isRegPoolId utxo
   where
-    isNewPool =
-        -- TODO: ADP-2651
-        -- Pass this parameter in as a function instead of hard-coding the
-        -- value here:
-        const True
+    -- | Lookup current deposit amount for a registered stake credential delegation. This
+    -- function must produce valid answer for all of the stake credentials present in any of
+    -- the `DeRegKey` delegation certificates in the supplied `TxBody`. In other words,
+    -- there is no requirement to know about all of the delegation certificates in the
+    -- ledger state, just the ones this transaction cares about.
+    lookupRefund :: Core.StakeCredential (Core.EraCrypto era) -> Maybe Coin
+    lookupRefund _stakeCred = Just $ pp ^. Core.ppKeyDepositL
+    -- TODO: @yura
+
+    -- | Check whether a pool with a supplied PoolStakeId is already registered. There is no
+    -- requirement to answer this question for all stake pool credentials, just for the ones
+    -- that have the registration certificates included in the supplied `TxBody`
+    isRegPoolId :: Ledger.KeyHash 'Ledger.StakePool (Core.EraCrypto era) -> Bool
+    isRegPoolId _keyHash = True

@@ -224,7 +224,6 @@ import qualified Data.Set as Set
 import qualified Data.Text as T
 import qualified Data.Text.Encoding as T
 import qualified Test.Cardano.Ledger.Alonzo.PlutusScripts as Plutus
-import qualified Test.Cardano.Ledger.Shelley.Serialisation.Generators.Genesis as Ledger
 
 --------------------------------------------------------------------------------
 -- Constants
