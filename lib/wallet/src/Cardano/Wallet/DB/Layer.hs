@@ -50,7 +50,7 @@ import Cardano.DB.Sqlite
     , ForeignKeysSetting (ForeignKeysEnabled)
     , SqliteContext (..)
     , newInMemorySqliteContext
-    , newSqliteContextFile
+    , withSqliteContextFile
     )
 import Cardano.DB.Sqlite.Delete
     ( DeleteSqliteDatabaseLog
@@ -145,7 +145,7 @@ import Control.DeepSeq
 import Control.Exception
     ( evaluate, throw )
 import Control.Monad
-    ( forM, unless )
+    ( forM, unless, (>=>) )
 import Control.Monad.IO.Class
     ( MonadIO (..) )
 import Control.Monad.Trans
@@ -393,12 +393,10 @@ withDBOpenFromFile walletF tr defaultFieldValues dbFile action = do
             maybe [] (migrateManually trDB $ keyOfWallet walletF)
                 defaultFieldValues
     let autoMigrations   = migrateAll
-    res <- newSqliteContextFile trDB dbFile manualMigrations autoMigrations
-        runNewStyleMigrations
-    case res of
-        Left err -> throwIO err
-        Right sqliteContext -> action =<< newQueryLock sqliteContext
-
+    res <- withSqliteContextFile trDB dbFile
+            manualMigrations autoMigrations runNewStyleMigrations
+        $ newQueryLock >=> action
+    either throwIO pure res
 
 -- | Open an SQLite database in-memory.
 --

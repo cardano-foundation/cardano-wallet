@@ -26,7 +26,7 @@
 -- A wrapper for SQLite database connections, to be used with 'persistent'.
 module Cardano.DB.Sqlite
     ( SqliteContext (..)
-    , newSqliteContextFile
+    , withSqliteContextFile
     , newInMemorySqliteContext
     , ForeignKeysSetting (..)
 
@@ -199,32 +199,31 @@ newInMemorySqliteContext tr manualMigrations autoMigration disableFK = do
 
 -- | Sets up query logging and timing, runs schema migrations if necessary and
 -- provide a safe 'SqliteContext' for interacting with the database.
-newSqliteContextFile
+withSqliteContextFile
     :: Tracer IO DBLog -- ^ Logging
     -> FilePath -- ^ Database file
     -> [ManualMigration] -- ^ Manual migrations
     -> Migration -- ^ Auto migration
     -> (Tracer IO DBLog -> FilePath -> IO ()) -- ^ New style migrations
-    -> IO (Either MigrationError SqliteContext)
-newSqliteContextFile tr fp old auto new = do
+    -> (SqliteContext -> IO a)
+    -> IO (Either MigrationError a)
+withSqliteContextFile tr fp old auto new action = do
     migrationResult <- runAllMigrations tr fp old auto new
-    pure $ case migrationResult of
-        Left e  -> Left e
+    case migrationResult of
+        Left e  -> pure $ Left e
         Right{} ->
-            let observe :: IO a -> IO a
-                observe = bracketTracer (contramap MsgRun tr)
-
-               -- Note that `withResource` does already mask async exception but
-               -- only for dealing with the pool resource acquisition. The action
-               -- is then ran unmasked with the acquired resource. If an
-               -- asynchronous exception occurs (or actually any exception), the
-               -- resource is NOT placed back in the pool.
-                runQuery :: SqlPersistT IO a -> IO a
-                runQuery cmd = runDBAction tr fp $
-                   observe
-                    . retryOnBusy tr retryOnBusyTimeout
-                    . runSqlConn cmd . dbBackend
-            in Right $ SqliteContext { runQuery }
+            withDBHandle tr fp $ \DBHandle{dbBackend} ->
+                let -- Run a query on the open database,
+                    -- but retry on busy.
+                    runQuery :: SqlPersistT IO a -> IO a
+                    runQuery cmd =
+                        observe
+                        . retryOnBusy tr retryOnBusyTimeout
+                        $ runSqlConn cmd dbBackend
+                in  Right <$> action (SqliteContext{runQuery})
+  where
+    observe :: IO a -> IO a
+    observe = bracketTracer (contramap MsgRun tr)
 
 {-------------------------------------------------------------------------------
     SQL connection life-cycle
@@ -235,16 +234,6 @@ data DBHandle = DBHandle
     , dbBackend :: SqlBackend
     , dbFile :: FilePath
     }
-
-type DBAction a = DBHandle -> IO a
-
-runDBAction
-    :: Tracer IO DBLog
-    -> FilePath
-    -> DBAction a
-    -- ^ New style migrations
-    -> IO a
-runDBAction = withDBHandle
 
 withDBHandle
     :: Tracer IO DBLog
@@ -477,7 +466,8 @@ newtype ManualMigration = ManualMigration
 runAutoMigration
     :: Tracer IO DBLog
     -> Migration
-    -> DBAction (Either MigrationError ())
+    -> DBHandle
+    -> IO (Either MigrationError ())
 runAutoMigration tr autoMigration DBHandle{dbConn,dbBackend} = do
     let executeAutoMigration =
             runSqlConn
@@ -494,7 +484,8 @@ runAutoMigration tr autoMigration DBHandle{dbConn,dbBackend} = do
 runManualOldMigrations
     :: Tracer IO DBLog
     -> [ManualMigration]
-    -> DBAction (Either MigrationError ())
+    -> DBHandle
+    -> IO (Either MigrationError ())
 runManualOldMigrations tr manualMigration DBHandle{dbConn} = do
     withForeignKeysDisabled tr dbConn $ Right <$>
         mapM_ (`executeManualMigration` dbConn) manualMigration
@@ -515,8 +506,8 @@ runAllMigrations :: Tracer IO DBLog
     -> (Tracer IO DBLog -> FilePath -> IO ())
     -> IO (Either MigrationError ())
 runAllMigrations tr fp old auto new = runExceptT $ do
-    ExceptT $ runDBAction tr fp $ runManualOldMigrations tr old
-    ExceptT $ runDBAction tr fp $ runAutoMigration tr auto
+    ExceptT $ withDBHandle tr fp $ runManualOldMigrations tr old
+    ExceptT $ withDBHandle tr fp $ runAutoMigration tr auto
     ExceptT $ runManualNewMigrations tr fp new
 
 {-------------------------------------------------------------------------------
