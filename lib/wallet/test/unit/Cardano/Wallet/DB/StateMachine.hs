@@ -20,6 +20,7 @@
 {-# LANGUAGE TypeOperators #-}
 {-# LANGUAGE UndecidableInstances #-}
 
+{-# OPTIONS_GHC -Wno-unused-foralls #-}
 {-# OPTIONS_GHC -fno-warn-orphans #-}
 
 -- |
@@ -88,7 +89,6 @@ import Cardano.Wallet.DB.Pure.Implementation
     , mInitializeWallet
     , mIsStakeKeyRegistered
     , mListCheckpoints
-    , mPutCheckpoint
     , mPutDelegationCertificate
     , mPutDelegationRewardBalance
     , mPutTxHistory
@@ -289,7 +289,6 @@ type MPrivKey = String
 
 data Cmd s wid
     = CreateWallet
-    | PutCheckpoint (Wallet s)
     | ReadCheckpoint
     | ListCheckpoints
     | PutTxHistory TxHistory
@@ -344,8 +343,6 @@ instance Traversable (Resp s) where
 runMock :: HasCallStack => Cmd s MWid -> Mock s -> (Resp s MWid, Mock s)
 runMock = \case
     CreateWallet -> \db@(Database wid _ _) -> (Resp $ Right $ NewWallet wid, db)
-    PutCheckpoint wal ->
-        first (Resp . fmap Unit) . mPutCheckpoint wal
     ListCheckpoints ->
         first (Resp . fmap ChainPoints) . mListCheckpoints
     ReadCheckpoint ->
@@ -404,7 +401,6 @@ runIO DBLayer{..} = fmap Resp . go
         -> m (Either Err (Success s WalletId))
     go = \case
         CreateWallet -> pure $ Right $ NewWallet wid
-        PutCheckpoint wal -> runDBSuccess atomically Unit $ putCheckpoint wal
         ReadCheckpoint -> Right . Checkpoint <$>
             atomically readCheckpoint
         ListCheckpoints -> Right . ChainPoints <$>
@@ -510,8 +506,7 @@ lockstep m@(Model _ ws) c (At resp) = Event
 
 {- HLINT ignore generator "Use ++" -}
 generator
-    :: forall s. Arbitrary (Wallet s)
-    => Model s Symbolic
+    :: Model s Symbolic
     -> Maybe (Gen (Cmd s :@ Symbolic))
 generator (Model _ wids) = Just $ frequency $ fmap (fmap At) . snd <$> concat
     [ generatorWithoutId
@@ -532,13 +527,11 @@ generatorWithoutId =
     ]
 
 generatorWithWid
-    :: forall s r. Arbitrary (Wallet s)
-    => [Reference WalletId r]
+    :: forall s r
+     . [Reference WalletId r]
     -> [(String, (Int, Gen (Cmd s (Reference WalletId r))))]
 generatorWithWid wids =
-    [ declareGenerator "PutCheckpoints" 5
-        $ PutCheckpoint <$> arbitrary
-    , declareGenerator "ReadCheckpoint" 5
+    [ declareGenerator "ReadCheckpoint" 5
         $ pure ReadCheckpoint
     , declareGenerator "ListCheckpoints" 5
         $ pure ListCheckpoints
@@ -582,13 +575,9 @@ isUnordered :: Ord x => [x] -> Bool
 isUnordered xs = xs /= L.sort xs
 
 shrinker
-    :: Arbitrary (Wallet s)
-    => Cmd s :@ r
+    :: Cmd s :@ r
     -> [Cmd s :@ r]
 shrinker (At cmd) = case cmd of
-    PutCheckpoint wal ->
-        [ At $ PutCheckpoint wal'
-        | wal' <- shrink wal ]
     PutTxHistory h ->
         [ At $ PutTxHistory h'
         | h' <- map unGenTxHistory . shrink . GenTxHistory $ h
@@ -882,8 +871,6 @@ data Tag
     | TxUnsortedInputs
       -- ^ Putting a transaction with unsorted inputs.
     | TxUnsortedOutputs
-    | PutCheckpointTwice
-      -- ^ Multiple checkpoints are successfully saved to a wallet.
     | RolledBackOnce
       -- ^ We have rolled back at least once
     deriving (Bounded, Enum, Eq, Ord, Show)
@@ -898,7 +885,6 @@ tag = Foldl.fold $ catMaybes <$> sequenceA
     , readTransactions null UnsuccessfulReadTxHistory
     , txUnsorted inputs TxUnsortedInputs
     , txUnsorted outputs TxUnsortedOutputs
-    , countAction PutCheckpointTwice (>= 2) isPutCheckpointSuccess
     , countAction RolledBackOnce (>= 1) isRollbackSuccess
     ]
   where
@@ -956,14 +942,6 @@ tag = Foldl.fold $ catMaybes <$> sequenceA
                 _otherwise ->
                     False
 
-    isPutCheckpointSuccess :: Event s Symbolic -> Maybe ()
-    isPutCheckpointSuccess ev = case (cmd ev, mockResp ev, before ev) of
-        (At (PutCheckpoint _wal)
-            , Resp (Right (Unit ()))
-            , Model _ _ )
-                -> Just ()
-        _otherwise
-            -> Nothing
     extractf :: a -> Bool -> Maybe a
     extractf a t = if t then Just a else Nothing
 
@@ -1044,13 +1022,11 @@ prop_sequential newDB =
                     $ res === Ok
                 run destroyDB -- fixme: bracket difficult
 
-
 -- Controls that generators and shrinkers can run within a reasonable amount of
 -- time. We have been bitten several times already by generators which took much
 -- longer than what they should, causing timeouts in the test suite.
 validateGenerators
-    :: forall s. (Arbitrary (Wallet s), GenState s)
-    => SpecWith ()
+    :: forall s. SpecWith ()
 validateGenerators = describe "Validate generators & shrinkers" $ do
     forM_ allGenerators $ \(name, (_frequency, gen)) -> do
         let titleGen = "Generator for " <> name

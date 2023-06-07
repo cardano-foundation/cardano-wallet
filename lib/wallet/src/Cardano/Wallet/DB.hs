@@ -214,12 +214,6 @@ data DBLayer m s = forall stm. (MonadIO stm, MonadFail stm) => DBLayer
     , transactionsStore :: Store stm QueryTxWalletsHistory DeltaTxWalletsHistory
         -- ^ 'Store' containing all transactions of all wallets in the database.
 
-    , putCheckpoint :: Wallet s -> stm ()
-        -- ^ Replace the current checkpoint for a given wallet. We do not handle
-        -- rollbacks yet, and therefore only stores the latest available
-        -- checkpoint.
-        --
-
     , readCheckpoint :: stm (Wallet s)
         -- ^ Fetch the most recent checkpoint of a given wallet.
 
@@ -404,7 +398,6 @@ mkDBLayerFromParts ti wid_ DBLayerCollection{..} = DBLayer
     { walletId_ = wid_
     , walletState = walletsDB_ dbCheckpoints
     , transactionsStore = transactionsStore_
-    , putCheckpoint = putCheckpoint_ dbCheckpoints
     , readCheckpoint = readCheckpoint'
     , listCheckpoints = listCheckpoints_ dbCheckpoints
     , readDelegation = do
@@ -490,11 +483,6 @@ data DBCheckpoints stm s = DBCheckpoints
         --
         -- Intended to replace 'putCheckpoint' and 'readCheckpoint' in the short-term,
         -- and all other functions in the long-term.
-
-    , putCheckpoint_ :: Wallet s -> stm ()
-        -- ^ Replace the current checkpoint for a given wallet. We do not handle
-        -- rollbacks yet, and therefore only stores the latest available
-        -- checkpoint.
 
     , readCheckpoint_ :: stm (Wallet s)
         -- ^ Fetch the most recent checkpoint of a given wallet.

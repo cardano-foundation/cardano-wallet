@@ -5,6 +5,7 @@
 {-# LANGUAGE TypeApplications #-}
 module Cardano.Wallet.DB.Store.Checkpoints.StoreSpec
     ( spec
+    , genDeltaCheckpoints
     ) where
 
 import Prelude
@@ -23,6 +24,8 @@ import Cardano.Wallet.Address.Discovery.Sequential
     ( SeqState )
 import Cardano.Wallet.Address.Discovery.Shared
     ( Readiness (Pending), SharedState (..) )
+import Cardano.Wallet.Checkpoints
+    ( Checkpoints, DeltaCheckpoints (..), checkpoints, getLatest )
 import Cardano.Wallet.DB.Arbitrary
     ()
 import Cardano.Wallet.DB.Fixtures
@@ -30,7 +33,7 @@ import Cardano.Wallet.DB.Fixtures
 import Cardano.Wallet.DB.Store.Checkpoints.Store
     ( PersistAddressBook (..) )
 import Cardano.Wallet.Primitive.Types
-    ( WalletId )
+    ( SlotNo (..), WalletId, WithOrigin (..) )
 import Cardano.Wallet.Read.NetworkId
     ( NetworkDiscriminant (..) )
 import Fmt
@@ -38,9 +41,19 @@ import Fmt
 import Test.Hspec
     ( Spec, around, describe, it )
 import Test.QuickCheck
-    ( Property, counterexample, property )
+    ( Gen
+    , Property
+    , arbitrary
+    , choose
+    , counterexample
+    , frequency
+    , property
+    , vectorOf
+    )
 import Test.QuickCheck.Monadic
     ( PropertyM, assert, monadicIO, monitor, run )
+
+import qualified Data.Map.Strict as Map
 
 spec :: Spec
 spec = do
@@ -94,6 +107,35 @@ prop_loadAfterWrite toIO writeOp loadOp a = do
     monitor $ counterexample $ "\nInserted\n" <> pretty fa
     monitor $ counterexample $ "\nRead\n" <> pretty res
     assertWith "Inserted == Read" (res == fa)
+
+{-------------------------------------------------------------------------------
+    Generators
+-------------------------------------------------------------------------------}
+genDeltaCheckpoints
+    :: (SlotNo -> Gen a) -> Checkpoints a -> Gen (DeltaCheckpoints a)
+genDeltaCheckpoints genCheckpoint cps = frequency
+    [ (8, genPutCheckpoint)
+    , (1, pure $ RollbackTo Origin)
+    , (1, RollbackTo . At . SlotNo <$> choose (0, slotLatest))
+    , (1, RollbackTo . At . SlotNo <$> choose (slotLatest+1, slotLatest+10))
+    , (2, RestrictTo <$> genFilteredSlots)
+    , (1, pure $ RestrictTo [])
+    ]
+  where
+    slotLatest = case fst $ getLatest cps of
+        Origin -> 0
+        At (SlotNo s) -> s
+    genSlotNo = SlotNo . (slotLatest +) <$> choose (1,10)
+
+    genPutCheckpoint = do
+        slotNo <- genSlotNo
+        cp <- genCheckpoint slotNo
+        pure $ PutCheckpoint (At slotNo) cp
+
+    genFilteredSlots = do
+        let slots = Map.keys $ checkpoints cps
+        keeps <- vectorOf (length slots) arbitrary
+        pure . map fst . filter snd $ zip slots keeps
 
 {-------------------------------------------------------------------------------
     QuickCheck utilities

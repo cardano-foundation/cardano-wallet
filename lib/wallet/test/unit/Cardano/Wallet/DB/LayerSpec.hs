@@ -242,7 +242,7 @@ import Test.Hspec
     , shouldThrow
     )
 import Test.QuickCheck
-    ( NonEmptyList (..), Property, generate, property, (==>) )
+    ( Property, generate, property, (==>) )
 import Test.QuickCheck.Monadic
     ( monadicIO )
 import Test.Utils.Paths
@@ -266,6 +266,7 @@ import qualified Cardano.Wallet.Address.Derivation.Shelley as Seq
 import qualified Cardano.Wallet.Checkpoints as Checkpoints
 import qualified Cardano.Wallet.DB.Sqlite.Schema as DB
 import qualified Cardano.Wallet.DB.Sqlite.Types as DB
+import qualified Cardano.Wallet.DB.Store.Info.Store as WalletInfo
 import qualified Cardano.Wallet.DB.WalletState as WalletState
 import qualified Cardano.Wallet.Primitive.Types.Coin as Coin
 import qualified Cardano.Wallet.Primitive.Types.TokenBundle as TokenBundle
@@ -547,13 +548,6 @@ fileModeSpec =  do
                 )
                 (reverse testTxs) -- expected after opening db
 
-        it "put and read checkpoint" $ \f -> do
-            withShelleyFileDBFresh f $ \DBFresh{bootDBLayer} -> do
-                DBLayer{atomically, putCheckpoint} <-
-                    unsafeRunExceptT $ bootDBLayer testDBLayerParams
-                atomically $ putCheckpoint testCp
-            testReopening f readCheckpoint' testCp
-
         describe "Golden rollback scenarios" $ do
             let dummyHash x = Hash $
                     x <> BS.pack (replicate (32 - (BS.length x)) 0)
@@ -584,6 +578,15 @@ fileModeSpec =  do
                                 (view $ #currentTip . #blockHeight)
                                 epochStability
                                 (currentTip cpB ^. #blockHeight)
+                    let putCheckpoint cp =
+                              Delta.onDBVar walletState
+                            $ Delta.update $ \_ ->
+                                let (prologue, wcp) = WalletState.fromWallet cp
+                                    slot = WalletState.getSlot wcp
+                                in  [ WalletState.UpdateCheckpoints
+                                        [ Checkpoints.PutCheckpoint slot wcp ]
+                                    , WalletState.ReplacePrologue prologue
+                                    ]
 
                     atomically $ do
                         putCheckpoint cpB
@@ -813,54 +816,58 @@ fileModeSpec =  do
 -- This property checks that executing series of wallet operations in a single
 -- SQLite session has the same effect as executing the same operations over
 -- multiple sessions.
+--
+-- This test focuses on the WalletMetadata.
 prop_randomOpChunks
-    :: ( Eq s
+    :: forall s
+     . ( WalletFlavor s
        , PersistAddressBook s
-       , Show s
-       , WalletFlavor s
        )
-    => NonEmptyList (Wallet s, WalletMetadata)
+    => (Wallet s, WalletMetadata)
+    -> [WalletMetadata]
     -> Property
-prop_randomOpChunks (NonEmpty []) = error "arbitrary generated an empty list"
-prop_randomOpChunks (NonEmpty (p : pairs)) =
-    not (null pairs) ==> monadicIO (liftIO prop)
+prop_randomOpChunks (cp,meta) ops =
+    not (null ops) ==> monadicIO (liftIO prop)
   where
     prop = do
         filepath <- temporaryDBFile
-        withShelleyFileDBFresh filepath $ \dbfF -> do
-            withShelleyDBLayer $ \dbfM -> do
-                dbM <- boot dbfM p
-                dbF <- boot dbfF p
-                forM_ (fst <$> pairs) (insertPair dbM)
-                cutRandomly (fst <$> pairs) >>= mapM_ (mapM (insertPair dbF))
+        _ <- withShelleyFileDBFresh filepath boot
+        withShelleyDBLayer $ \dbfM -> do
+            dbM <- boot dbfM
+            runOps ops dbM
+
+            opss <- cutRandomly ops
+            forM_ opss $
+                withShelleyFileLoadedDBLayer filepath . runOps
+            withShelleyFileLoadedDBLayer filepath $ \dbF ->
                 dbF `shouldBeConsistentWith` dbM
-    boot DBFresh{bootDBLayer} (cp, meta) = do
+
+    runOps ops' db = forM_ ops' (runOp db)
+
+    runOp
+        :: DBLayer IO s
+        -> WalletMetadata
+        -> IO ()
+    runOp DBLayer{..} meta' =
+          atomically
+        $ Delta.onDBVar walletState
+        $ Delta.update $ \_ ->
+            [ WalletState.UpdateInfo
+                $ WalletInfo.UpdateWalletMetadata meta'
+            ]
+
+    boot DBFresh{bootDBLayer} = do
         let cp0 = imposeGenesisState cp
         unsafeRunExceptT
             $ bootDBLayer
             $ DBLayerParams cp0 meta mempty gp
 
-    insertPair
-        :: DBLayer IO s
-        -> Wallet s
-        -> IO ()
-    insertPair DBLayer{..} cp = atomically $ do
-        putCheckpoint cp
-
     imposeGenesisState :: Wallet s -> Wallet s
     imposeGenesisState = over #currentTip $ \(BlockHeader _ _ h _) ->
         BlockHeader (SlotNo 0) (Quantity 0) h Nothing
 
-    shouldBeConsistentWith :: (Eq s, Show s) => DBLayer IO s -> DBLayer IO s -> IO ()
+    shouldBeConsistentWith :: DBLayer IO s -> DBLayer IO s -> IO ()
     shouldBeConsistentWith db1 db2 = do
-        walId1 <-  getWalletId' db1
-        walId2 <-  getWalletId' db2
-        walId1 `shouldBe` walId2
-
-        cps1 <- readCheckpoint' db1
-        cps2 <- readCheckpoint' db2
-        cps1 `shouldBe` cps2
-
         meta1 <- readWalletMeta' db1
         meta2 <- readWalletMeta' db2
         meta1 `shouldBe` meta2
@@ -873,10 +880,9 @@ testReopening
     -> (DBLayer IO TestState -> IO s)
     -> s
     -> Expectation
-testReopening filepath call expectedAfterOpen = do
-    withShelleyFileDBFresh filepath $ \DBFresh{loadDBLayer} -> do
-        db <- unsafeRunExceptT loadDBLayer
-        call db `shouldReturn` expectedAfterOpen
+testReopening filepath action expectedAfterOpen =
+    withShelleyFileLoadedDBLayer filepath $ \db ->
+        action db `shouldReturn` expectedAfterOpen
 
 -- | Run a test action inside withDBLayer, then check assertions.
 withTestDBFile
@@ -938,16 +944,24 @@ withShelleyFileDBFresh fp =
         dummyTimeInterpreter
         testWid
 
+withShelleyFileLoadedDBLayer
+    :: forall s a
+     . ( PersistAddressBook s
+       , WalletFlavor s
+       )
+    => FilePath
+    -> (DBLayer IO s -> IO a)
+    -> IO a
+withShelleyFileLoadedDBLayer filepath action =
+    withShelleyFileDBFresh filepath $ \DBFresh{loadDBLayer} -> do
+        db <- unsafeRunExceptT loadDBLayer
+        action db
+
 getWalletId'
     :: Applicative m
     => DBLayer m s
     -> m WalletId
 getWalletId' DBLayer{..} = pure walletId_
-
-readCheckpoint'
-    :: DBLayer m s
-    -> m (Wallet s)
-readCheckpoint' DBLayer{..} = atomically readCheckpoint
 
 readWalletMeta'
     :: DBLayer m s
