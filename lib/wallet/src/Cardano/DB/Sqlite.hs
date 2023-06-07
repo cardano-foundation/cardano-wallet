@@ -24,8 +24,7 @@
 -- Copyright: © 2018-2020 IOHK
 -- License: Apache-2.0
 --
--- An implementation of the DBLayer which uses Persistent and SQLite.
-
+-- A wrapper for SQLite database connections, to be used with 'persistent'.
 module Cardano.DB.Sqlite
     ( SqliteContext (..)
     , newSqliteContextFile
@@ -43,7 +42,7 @@ module Cardano.DB.Sqlite
     , dbChunked'
     , handleConstraint
 
-    -- * Manual Migration
+    -- * Old-style Manual Migration
     , ManualMigration (..)
     , MigrationError (..)
     , DBField (..)
@@ -160,8 +159,6 @@ newtype SqliteContext = SqliteContext
     -- ^ Run a query with a connection from the pool.
     }
 
-type ConnectionPool = Pool (SqlBackend, Sqlite.Connection)
-
 -- | Run an action, and convert any Sqlite constraints exception into the given
 -- error result. No other exceptions are handled.
 handleConstraint :: MonadUnliftIO m => e -> m a -> m (Either e a)
@@ -170,10 +167,6 @@ handleConstraint e = handleJust select handler . fmap Right
     select (SqliteException ErrorConstraint _ _) = Just ()
     select _ = Nothing
     handler = const . pure  . Left $ e
-
-{-------------------------------------------------------------------------------
-                           Internal / Database Setup
--------------------------------------------------------------------------------}
 
 newInMemorySqliteContext
     :: Tracer IO DBLog
@@ -233,14 +226,10 @@ newSqliteContextFile tr fp old auto new = do
                     . runSqlConn cmd . fst
             in Right $ SqliteContext { runQuery }
 
-matchWrongVersionError :: ErrWrongVersion -> Maybe MigrationError
-matchWrongVersionError =
-    Just
-        . MigrationError
-        . view strict
-        . toLazyText
-        . build
-
+{-------------------------------------------------------------------------------
+    SQL connection life-cycle
+    low level
+-------------------------------------------------------------------------------}
 type DBAction a = (SqlBackend, Connection) -> IO a
 
 runDBAction
@@ -253,50 +242,45 @@ runDBAction trDB dbFile action =
     withConnectionPool trDB dbFile $ \pool ->
         withResource pool action
 
-runAutoMigration
-    :: Tracer IO DBLog
-    -> Migration
-    -> DBAction (Either MigrationError ())
-runAutoMigration tr autoMigration (backend, conn) = do
-    let executeAutoMigration =
-            runSqlConn
-                (runMigrationUnsafeQuiet autoMigration)
-                backend
-    migrationResult <- withForeignKeysDisabled tr conn $ do
-        executeAutoMigration
-            & tryJust (matchMigrationError @PersistException)
-            & tryJust (matchMigrationError @SqliteException)
-            & fmap join
-    traceWith tr $ MsgMigrations $ length <$> migrationResult
-    return $ migrationResult $> ()
+type ConnectionPool = Pool (SqlBackend, Sqlite.Connection)
 
-runManualOldMigrations
-    :: Tracer IO DBLog
-    -> [ManualMigration]
-    -> DBAction (Either MigrationError ())
-runManualOldMigrations tr manualMigration (_backend, conn) = do
-    withForeignKeysDisabled tr conn $ Right <$>
-        mapM_ (`executeManualMigration` conn) manualMigration
-
-runManualNewMigrations
+withConnectionPool
     :: Tracer IO DBLog
     -> FilePath
-    -> (Tracer IO DBLog -> FilePath -> IO ())
-    -> IO (Either MigrationError ())
-runManualNewMigrations tr fp newMigrations  =
-    newMigrations tr fp
-        & tryJust matchWrongVersionError
+    -> (ConnectionPool -> IO a)
+    -> IO a
+withConnectionPool tr fp =
+    bracket (newConnectionPool tr fp) (destroyConnectionPool tr fp)
 
-runAllMigrations :: Tracer IO DBLog
+newConnectionPool
+    :: Tracer IO DBLog
     -> FilePath
-    -> [ManualMigration]
-    -> Migration
-    -> (Tracer IO DBLog -> FilePath -> IO ())
-    -> IO (Either MigrationError ())
-runAllMigrations tr fp old auto new = runExceptT $ do
-    ExceptT $ runDBAction tr fp $ runManualOldMigrations tr old
-    ExceptT $ runDBAction tr fp $ runAutoMigration tr auto
-    ExceptT $ runManualNewMigrations tr fp new
+    -> IO ConnectionPool
+newConnectionPool tr fp = do
+    traceWith tr $ MsgStartConnectionPool fp
+
+    let acquireConnection = do
+            conn <- Sqlite.open (T.pack fp)
+            (,conn) <$> wrapConnection conn (queryLogFunc tr)
+
+    let releaseConnection (backend, _) =
+            destroySqliteBackend tr backend fp
+
+    createPool
+        acquireConnection
+        releaseConnection
+        numberOfStripes
+        timeToLive
+        maximumConnections
+  where
+    numberOfStripes = 1
+    maximumConnections = 10
+    timeToLive = 600 {- 10 minutes -} :: NominalDiffTime
+
+destroyConnectionPool :: Tracer IO DBLog -> FilePath -> Pool a -> IO ()
+destroyConnectionPool tr fp pool = do
+    traceWith tr (MsgStopConnectionPool fp)
+    destroyAllResources pool
 
 -- | Finalize database statements and close the database connection.
 --
@@ -387,6 +371,9 @@ retryOnBusy tr timeout action = recovering policy
     trace m RetryStatus{rsIterNumber} = traceWith tr $
         MsgRetryOnBusy rsIterNumber m
 
+{-------------------------------------------------------------------------------
+    Foreign key settings
+-------------------------------------------------------------------------------}
 -- | Run the given task in a context where foreign key constraints are
 --   /temporarily disabled/, before re-enabling them.
 --
@@ -463,48 +450,10 @@ updateForeignKeysSetting trace connection desiredValue = do
         ForeignKeysEnabled  -> "ON"
         ForeignKeysDisabled -> "OFF"
 
-withConnectionPool
-    :: Tracer IO DBLog
-    -> FilePath
-    -> (ConnectionPool -> IO a)
-    -> IO a
-withConnectionPool tr fp =
-    bracket (newConnectionPool tr fp) (destroyConnectionPool tr fp)
-
-newConnectionPool
-    :: Tracer IO DBLog
-    -> FilePath
-    -> IO ConnectionPool
-newConnectionPool tr fp = do
-    traceWith tr $ MsgStartConnectionPool fp
-
-    let acquireConnection = do
-            conn <- Sqlite.open (T.pack fp)
-            (,conn) <$> wrapConnection conn (queryLogFunc tr)
-
-    let releaseConnection (backend, _) =
-            destroySqliteBackend tr backend fp
-
-    createPool
-        acquireConnection
-        releaseConnection
-        numberOfStripes
-        timeToLive
-        maximumConnections
-  where
-    numberOfStripes = 1
-    maximumConnections = 10
-    timeToLive = 600 {- 10 minutes -} :: NominalDiffTime
-
-destroyConnectionPool :: Tracer IO DBLog -> FilePath -> Pool a -> IO ()
-destroyConnectionPool tr fp pool = do
-    traceWith tr (MsgStopConnectionPool fp)
-    destroyAllResources pool
-
 {-------------------------------------------------------------------------------
-                                    Migrations
+    Database migrations
+    old style and new style
 -------------------------------------------------------------------------------}
-
 -- | Error type for when migrations go wrong after opening a database.
 newtype MigrationError = MigrationError
     { getMigrationErrorMessage :: Text }
@@ -530,12 +479,68 @@ instance MatchMigrationError SqliteException where
     matchMigrationError _ =
         Nothing
 
--- | Encapsulates a manual migration action (or sequence of actions) to be
+matchWrongVersionError :: ErrWrongVersion -> Maybe MigrationError
+matchWrongVersionError =
+    Just
+        . MigrationError
+        . view strict
+        . toLazyText
+        . build
+
+-- | Encapsulates an old-style manual migration action
+--   (or sequence of actions) to be
 --   performed immediately after an SQL connection is initiated.
---
 newtype ManualMigration = ManualMigration
     { executeManualMigration :: Sqlite.Connection -> IO () }
 
+runAutoMigration
+    :: Tracer IO DBLog
+    -> Migration
+    -> DBAction (Either MigrationError ())
+runAutoMigration tr autoMigration (backend, conn) = do
+    let executeAutoMigration =
+            runSqlConn
+                (runMigrationUnsafeQuiet autoMigration)
+                backend
+    migrationResult <- withForeignKeysDisabled tr conn $ do
+        executeAutoMigration
+            & tryJust (matchMigrationError @PersistException)
+            & tryJust (matchMigrationError @SqliteException)
+            & fmap join
+    traceWith tr $ MsgMigrations $ length <$> migrationResult
+    return $ migrationResult $> ()
+
+runManualOldMigrations
+    :: Tracer IO DBLog
+    -> [ManualMigration]
+    -> DBAction (Either MigrationError ())
+runManualOldMigrations tr manualMigration (_backend, conn) = do
+    withForeignKeysDisabled tr conn $ Right <$>
+        mapM_ (`executeManualMigration` conn) manualMigration
+
+runManualNewMigrations
+    :: Tracer IO DBLog
+    -> FilePath
+    -> (Tracer IO DBLog -> FilePath -> IO ())
+    -> IO (Either MigrationError ())
+runManualNewMigrations tr fp newMigrations  =
+    newMigrations tr fp
+        & tryJust matchWrongVersionError
+
+runAllMigrations :: Tracer IO DBLog
+    -> FilePath
+    -> [ManualMigration]
+    -> Migration
+    -> (Tracer IO DBLog -> FilePath -> IO ())
+    -> IO (Either MigrationError ())
+runAllMigrations tr fp old auto new = runExceptT $ do
+    ExceptT $ runDBAction tr fp $ runManualOldMigrations tr old
+    ExceptT $ runDBAction tr fp $ runAutoMigration tr auto
+    ExceptT $ runManualNewMigrations tr fp new
+
+{-------------------------------------------------------------------------------
+    Database migration helpers
+-------------------------------------------------------------------------------}
 data DBField where
     DBField
         :: forall record typ. (PersistEntity record)
