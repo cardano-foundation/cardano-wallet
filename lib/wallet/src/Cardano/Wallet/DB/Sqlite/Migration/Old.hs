@@ -27,6 +27,7 @@ module Cardano.Wallet.DB.Sqlite.Migration.Old
     , isFieldPresentByName
     , onFieldPresent
     , SqlColumnStatus (..)
+    , isTablePresentByName
     )
     where
 
@@ -38,6 +39,7 @@ import Cardano.DB.Sqlite
     , ManualMigration (..)
     , fieldName
     , fieldType
+    , foldMigrations
     , tableName
     )
 import Cardano.Wallet.DB.Sqlite.Schema
@@ -124,15 +126,28 @@ data InvalidDatabaseSchemaVersion
 currentSchemaVersion :: SchemaVersion
 currentSchemaVersion = SchemaVersion 2
 
+schemaVersionIsOlderOrEqual2 :: Sqlite.Connection -> IO Bool
+schemaVersionIsOlderOrEqual2 conn = do
+    isTablePresentByName conn "database_schema_version" >>= \case
+        False -> pure True
+        True -> do
+            schemaVersion <- getSchemaVersion conn
+            pure $ schemaVersion <= SchemaVersion 2
+
+onlyOnSchemaForOldMigrations :: ManualMigration -> ManualMigration
+onlyOnSchemaForOldMigrations (ManualMigration m) = ManualMigration $ \conn -> do
+    isOldSchema <- schemaVersionIsOlderOrEqual2 conn
+    when isOldSchema $ m conn
+
 -- | Executes any manual database migration steps that may be required on
 -- startup.
 migrateManually
     :: Tracer IO DBLog
     -> KeyFlavorS k
     -> DefaultFieldValues
-    -> [ManualMigration]
+    -> ManualMigration
 migrateManually tr key defaultFieldValues =
-    ManualMigration <$>
+    onlyOnSchemaForOldMigrations $ foldMigrations
     [ initializeSchemaVersionTable
     , cleanupCheckpointTable
     , assignDefaultPassphraseScheme
@@ -950,3 +965,16 @@ isFieldPresentByName conn table field = do
             | field `T.isInfixOf` t -> ColumnPresent
             | otherwise             -> ColumnMissing
         _ -> TableMissing
+
+isTablePresentByName :: Sqlite.Connection -> Text -> IO Bool
+isTablePresentByName conn table = do
+    getTableInfo' <- Sqlite.prepare conn $ mconcat
+        [ "SELECT sql FROM sqlite_master "
+        , "WHERE type = 'table' "
+        , "AND name = '" <> table <> "';"
+        ]
+    mrow <- Sqlite.step getTableInfo'
+    Sqlite.finalize getTableInfo'
+    pure $ case mrow of
+        Sqlite.Done -> False
+        Sqlite.Row -> True

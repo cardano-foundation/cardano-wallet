@@ -235,7 +235,7 @@ import Test.Hspec
     , describe
     , it
     , shouldBe
-    , shouldNotBe
+    , shouldContain
     , shouldNotContain
     , shouldReturn
     , shouldSatisfy
@@ -468,15 +468,17 @@ fileModeSpec =  do
             withDBFactory $ \dir DBFactory{..} -> do
                 -- set up a database file
                 withDatabase testWid $ \(_ :: TestDBSeqFresh) -> pure ()
-                files <- listDirectory dir
-                files `shouldNotBe` mempty
+                openfs <- listDirectory dir
+                let dbfile = "she." <> show (getWalletId testWid) <> ".sqlite"
+                openfs `shouldContain` [dbfile]
 
                 -- Try removing the database when it's already opened for
                 -- reading for 100ms.
                 -- This simulates an antivirus program on windows which may
                 -- interfere with file deletion.
-                whileFileOpened 100_000 (dir </> head files) (removeDatabase testWid)
-                listDirectory dir `shouldReturn` mempty
+                whileFileOpened 100_000 (dir </> dbfile) (removeDatabase testWid)
+                closedfs <- listDirectory dir
+                closedfs `shouldNotContain` [dbfile]
 
         it "removeDatabase waits for connections to close" $ do
             withDBFactory $ \_ DBFactory{..} -> do
@@ -1168,9 +1170,6 @@ manualMigrationsSpec = describe "Manual migrations" $ do
     it "'migrate' db to create metadata table when it doesn't exist"
         testCreateMetadataTable
 
-    it "'migrate' db never modifies database with newer version"
-        testNewerDatabaseIsNeverModified
-
     it "'migrate' db submissions encoding" $
         testMigrationSubmissionsEncoding
             "before_submission-v2022-12-14.sqlite"
@@ -1392,25 +1391,6 @@ testCreateMetadataTable = withSystemTempFile "db.sql" $ \path _ -> do
             \WHERE name = 'schema'" []
         pure $ SchemaVersion $ fromIntegral version
     actualVersion `shouldBe` currentSchemaVersion
-
-testNewerDatabaseIsNeverModified :: IO ()
-testNewerDatabaseIsNeverModified = withSystemTempFile "db.sql" $ \path _ -> do
-    let newerVersion = SchemaVersion 100
-    _ <- Sqlite.runSqlite (T.pack path) $ do
-        Sqlite.rawExecute
-            "CREATE TABLE database_schema_version (name, version)" []
-        Sqlite.rawExecute (
-            "INSERT INTO database_schema_version \
-            \VALUES ('schema', " <> T.pack (show newerVersion) <> ")"
-            ) []
-    let noop _ = pure ()
-        tr = nullTracer
-    withDBOpenFromFile ShelleyWallet tr (Just defaultFieldValues) path noop
-        `shouldThrow` \case
-            InvalidDatabaseSchemaVersion {..}
-                | expectedVersion == currentSchemaVersion
-                && actualVersion == newerVersion -> True
-            _ -> False
 
 localTxSubmissionTableExists :: Text
 localTxSubmissionTableExists = [i|

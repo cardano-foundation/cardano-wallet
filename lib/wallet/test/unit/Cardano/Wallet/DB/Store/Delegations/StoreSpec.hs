@@ -99,7 +99,7 @@ units = withInitializedWalletProp $ \_ runQ -> do
     let
         unit x f = context (counterexample x) $ reset >> f >> checkLaw
         observeStatus s x = observe $ \h -> status s h === x
-    runQ $ unitTestStore mkStoreDelegations $ do
+    runQ $ unitTestStore mempty mkStoreDelegations $ do
         unit "reg-dereg" $ do
             applyS $ Register 0
             applyS $ Deregister 0
