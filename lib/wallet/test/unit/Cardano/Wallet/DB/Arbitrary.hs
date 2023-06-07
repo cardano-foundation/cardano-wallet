@@ -724,7 +724,7 @@ instance Arbitrary ProtocolParameters where
         <*> genMaximumCollateralInputCount
         <*> genMinimumCollateralPercentage
         <*> arbitrary
-        <*> pure Write.InNonRecentEraAlonzo
+        <*> pure (Write.InBygoneEra Write.InEraAlonzo)
       where
         genMaximumCollateralInputCount :: Gen Word16
         genMaximumCollateralInputCount = arbitrarySizedNatural

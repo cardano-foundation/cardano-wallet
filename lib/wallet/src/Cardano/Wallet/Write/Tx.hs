@@ -37,6 +37,8 @@ module Cardano.Wallet.Write.Tx
     , toRecentEra
     , fromRecentEra
     , MaybeInRecentEra (..)
+    , InRecentEra (..)
+    , InBygoneEra (..)
     , toRecentEraGADT
     , LatestLedgerEra
     , LatestEra
@@ -359,30 +361,47 @@ shelleyBasedEra :: forall era. IsRecentEra era => Cardano.ShelleyBasedEra era
 shelleyBasedEra = shelleyBasedEraFromRecentEra $ recentEra @era
 
 data MaybeInRecentEra (thing :: Type -> Type)
-    = InNonRecentEraByron
-    | InNonRecentEraShelley
-    | InNonRecentEraAllegra
-    | InNonRecentEraMary
-    | InNonRecentEraAlonzo
-    | InRecentEraBabbage (thing BabbageEra)
-    | InRecentEraConway (thing ConwayEra)
+    = InBygoneEra !(InBygoneEra)
+    | InRecentEra !(InRecentEra thing)
+
+data InBygoneEra
+    = InEraByron
+    | InEraShelley
+    | InEraAllegra
+    | InEraMary
+    | InEraAlonzo
+    deriving (Eq, Show)
+
+data InRecentEra (thing :: Type -> Type)
+    = InEraBabbage !(thing BabbageEra)
+    | InEraConway  !(thing ConwayEra)
 
 deriving instance (Eq (a BabbageEra), (Eq (a ConwayEra)))
     => Eq (MaybeInRecentEra a)
 deriving instance (Show (a BabbageEra), (Show (a ConwayEra)))
     => Show (MaybeInRecentEra a)
 
+deriving instance (Eq (a BabbageEra), (Eq (a ConwayEra)))
+    => Eq (InRecentEra a)
+deriving instance (Show (a BabbageEra), (Show (a ConwayEra)))
+    => Show (InRecentEra a)
+
 toRecentEraGADT
     :: MaybeInRecentEra a
     -> Either Cardano.AnyCardanoEra (InAnyRecentEra a)
 toRecentEraGADT = \case
-    InNonRecentEraByron   -> Left $ Cardano.AnyCardanoEra Cardano.ByronEra
-    InNonRecentEraShelley -> Left $ Cardano.AnyCardanoEra Cardano.ShelleyEra
-    InNonRecentEraAllegra -> Left $ Cardano.AnyCardanoEra Cardano.AllegraEra
-    InNonRecentEraMary    -> Left $ Cardano.AnyCardanoEra Cardano.MaryEra
-    InNonRecentEraAlonzo  -> Left $ Cardano.AnyCardanoEra Cardano.AlonzoEra
-    InRecentEraBabbage a  -> Right $ InAnyRecentEra recentEra a
-    InRecentEraConway a   -> Right $ InAnyRecentEra recentEra a
+    InBygoneEra e -> Left  $ inBygoneEra e
+    InRecentEra e -> Right $ inRecentEra e
+  where
+    inBygoneEra = \case
+        InEraByron   -> Cardano.AnyCardanoEra Cardano.ByronEra
+        InEraShelley -> Cardano.AnyCardanoEra Cardano.ShelleyEra
+        InEraAllegra -> Cardano.AnyCardanoEra Cardano.AllegraEra
+        InEraMary    -> Cardano.AnyCardanoEra Cardano.MaryEra
+        InEraAlonzo  -> Cardano.AnyCardanoEra Cardano.AlonzoEra
+    inRecentEra = \case
+        InEraBabbage a -> InAnyRecentEra recentEra a
+        InEraConway  a -> InAnyRecentEra recentEra a
 
 data InAnyRecentEra thing where
      InAnyRecentEra

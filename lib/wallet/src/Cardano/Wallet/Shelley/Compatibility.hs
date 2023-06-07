@@ -893,7 +893,8 @@ fromShelleyPParams eraInfo pp =
         , maximumCollateralInputCount = 0
         , minimumCollateralPercentage = 0
         , executionUnitPrices = Nothing
-        , currentLedgerProtocolParameters = Write.InNonRecentEraShelley
+        , currentLedgerProtocolParameters =
+            Write.InBygoneEra Write.InEraShelley
         }
 
 fromAllegraPParams
@@ -917,7 +918,8 @@ fromAllegraPParams eraInfo pp =
         , maximumCollateralInputCount = 0
         , minimumCollateralPercentage = 0
         , executionUnitPrices = Nothing
-        , currentLedgerProtocolParameters = Write.InNonRecentEraAllegra
+        , currentLedgerProtocolParameters =
+            Write.InBygoneEra Write.InEraAllegra
         }
 
 fromMaryPParams
@@ -941,7 +943,8 @@ fromMaryPParams eraInfo pp =
         , maximumCollateralInputCount = 0
         , minimumCollateralPercentage = 0
         , executionUnitPrices = Nothing
-        , currentLedgerProtocolParameters = Write.InNonRecentEraMary
+        , currentLedgerProtocolParameters =
+            Write.InBygoneEra Write.InEraMary
         }
 
 fromBoundToEpochNo :: Bound -> W.EpochNo
@@ -973,7 +976,8 @@ fromAlonzoPParams eraInfo pp =
             Alonzo._collateralPercentage pp
         , executionUnitPrices =
             Just $ executionUnitPricesFromPParams pp
-        , currentLedgerProtocolParameters = Write.InNonRecentEraAlonzo
+        , currentLedgerProtocolParameters =
+            Write.InBygoneEra Write.InEraAlonzo
         }
 
 fromBabbagePParams
@@ -1002,7 +1006,7 @@ fromBabbagePParams eraInfo pp =
         , executionUnitPrices =
             Just $ executionUnitPricesFromPParams pp
         , currentLedgerProtocolParameters =
-            Write.InRecentEraBabbage $ Write.ProtocolParameters pp
+            Write.InRecentEra $ Write.InEraBabbage $ Write.ProtocolParameters pp
         }
 
 fromConwayPParams
@@ -1026,7 +1030,7 @@ fromConwayPParams eraInfo pp =
         , minimumCollateralPercentage = Conway._collateralPercentage pp
         , executionUnitPrices = Just $ executionUnitPricesFromPParams pp
         , currentLedgerProtocolParameters =
-            Write.InRecentEraConway $ Write.ProtocolParameters pp
+            Write.InRecentEra $ Write.InEraConway $ Write.ProtocolParameters pp
         }
 
 -- | Extract the current network decentralization level from the given set of
