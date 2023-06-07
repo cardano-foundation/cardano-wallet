@@ -11,7 +11,7 @@ module Cardano.Wallet.DB.Store.Checkpoints.StoreSpec
 import Prelude
 
 import Cardano.DB.Sqlite
-    ( ForeignKeysSetting (..), SqliteContext (runQuery) )
+    ( ForeignKeysSetting (..), SqliteContext, runQuery )
 import Cardano.Wallet.Address.Book
     ( AddressBookIso (..), Prologue, getPrologue )
 import Cardano.Wallet.Address.Derivation.Shared

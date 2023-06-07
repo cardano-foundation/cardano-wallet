@@ -10,11 +10,11 @@ module Cardano.Wallet.DB.Store.UTxOHistory.StoreSpec (spec) where
 import Prelude
 
 import Cardano.DB.Sqlite
-    ( ForeignKeysSetting (..) )
+    ( ForeignKeysSetting (..), runQuery )
 import Cardano.Wallet.DB.Arbitrary
     ()
 import Cardano.Wallet.DB.Fixtures
-    ( WalletProperty, logScale, withDBInMemory, withInitializedWalletProp )
+    ( WalletProperty, initializeWalletTable, logScale, withDBInMemory )
 import Cardano.Wallet.DB.Store.UTxOHistory.Model
     ( DeltaUTxOHistory (AppendBlock, Prune, Rollback), UTxOHistory, empty )
 import Cardano.Wallet.DB.Store.UTxOHistory.ModelSpec
@@ -28,13 +28,13 @@ import Test.Hspec
 import Test.QuickCheck
     ( Gen, frequency, property )
 import Test.Store
-    ( prop_StoreUpdates )
+    ( prop_StoreUpdate )
 
 spec :: Spec
 spec = around (withDBInMemory ForeignKeysEnabled) $ do
     describe "UTxOHistory store" $ do
         it "respects store laws" $
-            property . prop_StoreMetaLaws
+            property . prop_StoreUTxOHistoryLaws
 
 genDeltas :: UTxOHistory -> Gen DeltaUTxOHistory
 genDeltas history =
@@ -44,13 +44,17 @@ genDeltas history =
         , (5, Prune <$> genSlotNo history (1, 4, 1))
         ]
 
-prop_StoreMetaLaws :: WalletProperty
-prop_StoreMetaLaws = withInitializedWalletProp $ \wid runQ ->
-    prop_StoreUpdates
-        runQ
-        (mkStoreUTxOHistory wid)
+prop_StoreUTxOHistoryLaws :: WalletProperty
+prop_StoreUTxOHistoryLaws db wid =
+    prop_StoreUpdate
+        (runQuery db)
+        setupStore
         (empty <$> genUTxO (empty mempty))
         (logScale . genDeltas)
+  where
+    setupStore = do
+        initializeWalletTable wid
+        pure $ mkStoreUTxOHistory wid
 
 instance Buildable DeltaUTxOHistory where
     build = build . show

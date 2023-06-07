@@ -10,11 +10,11 @@ module Cardano.Wallet.DB.Store.Submissions.StoreSpec ( spec ) where
 import Prelude
 
 import Cardano.DB.Sqlite
-    ( ForeignKeysSetting (ForeignKeysDisabled) )
+    ( ForeignKeysSetting (..), runQuery )
 import Cardano.Wallet.DB.Arbitrary
     ()
 import Cardano.Wallet.DB.Fixtures
-    ( WalletProperty, logScale, withDBInMemory, withInitializedWalletProp )
+    ( WalletProperty, initializeWalletTable, logScale, withDBInMemory )
 import Cardano.Wallet.DB.Sqlite.Types
     ( TxId (..) )
 import Cardano.Wallet.DB.Store.Submissions.Operations
@@ -32,7 +32,7 @@ import Cardano.Wallet.Submissions.OperationsSpec
 import Cardano.Wallet.Submissions.Submissions
     ( Submissions (..) )
 import Control.Monad
-    ( replicateM, void )
+    ( replicateM )
 import Data.Quantity
     ( Quantity (..) )
 import System.Random
@@ -42,7 +42,7 @@ import Test.Hspec
 import Test.QuickCheck
     ( Arbitrary (..), property )
 import Test.Store
-    ( prop_StoreUpdates )
+    ( prop_StoreUpdate )
 
 import qualified Data.ByteString as BS
 
@@ -59,13 +59,16 @@ dummyMetadata :: SubmissionMeta
 dummyMetadata = SubmissionMeta 0 (Quantity 0) (Coin 0) Outgoing 0
 
 prop_SingleWalletStoreLawsOperations :: WalletProperty
-prop_SingleWalletStoreLawsOperations = withInitializedWalletProp
-    $ \wid runQ -> do
-        void $ prop_StoreUpdates
-            runQ
-            (mkStoreSubmissions wid)
-            (pure $ Submissions mempty 0 0)
-            (logScale . genOperationsDelta (pure dummyMetadata))
+prop_SingleWalletStoreLawsOperations db wid =
+    prop_StoreUpdate
+        (runQuery db)
+        setupStore
+        (pure $ Submissions mempty 0 0)
+        (logScale . genOperationsDelta (pure dummyMetadata))
+  where
+    setupStore = do
+        initializeWalletTable wid
+        pure $ mkStoreSubmissions wid
 
 {-------------------------------------------------------------------------------
     Arbitrary instances

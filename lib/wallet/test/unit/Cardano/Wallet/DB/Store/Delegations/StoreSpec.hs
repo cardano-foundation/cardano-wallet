@@ -17,7 +17,7 @@ where
 import Prelude
 
 import Cardano.DB.Sqlite
-    ( ForeignKeysSetting (ForeignKeysDisabled) )
+    ( ForeignKeysSetting (..), runQuery )
 import Cardano.Pool.Types
     ( PoolId (..) )
 import Cardano.Slotting.Slot
@@ -56,7 +56,7 @@ import Test.Store
     , context
     , ignore
     , observe
-    , prop_StoreUpdates
+    , prop_StoreUpdate
     , reset
     , unitTestStore
     )
@@ -66,17 +66,16 @@ spec =
     around (withDBInMemory ForeignKeysDisabled) $ do
         describe "delegations-history single wallet store" $ do
             it "probably respects store laws"
-                $ property . prop_SingleWalletStoreLaws
+                $ property . prop_StoreDelegationsLaws
             it "unit pass store laws" $ property . units
 
-prop_SingleWalletStoreLaws :: WalletProperty
-prop_SingleWalletStoreLaws = do
-    withInitializedWalletProp $ \_ runQ ->
-        prop_StoreUpdates
-            runQ
-            mkStoreDelegations
-            (pure mempty)
-            (logScale . genDelta conf)
+prop_StoreDelegationsLaws :: WalletProperty
+prop_StoreDelegationsLaws db _ =
+    prop_StoreUpdate
+        (runQuery db)
+        (pure mkStoreDelegations)
+        (pure mempty)
+        (logScale . genDelta conf)
 
 conf :: Config SlotNo PoolId
 conf =

@@ -14,7 +14,7 @@ import Prelude
 import Cardano.Address.Derivation
     ( XPrv )
 import Cardano.DB.Sqlite
-    ( ForeignKeysSetting (..), SqliteContext (runQuery) )
+    ( ForeignKeysSetting (..), SqliteContext, runQuery )
 import Cardano.Wallet.Address.Derivation
     ( Depth (..) )
 import Cardano.Wallet.DB.Arbitrary
@@ -52,10 +52,8 @@ import Test.Hspec
     ( Spec, around, describe, it )
 import Test.QuickCheck
     ( Arbitrary (..), Property, property )
-import Test.QuickCheck.Monadic
-    ( monadicIO, run )
 import Test.Store
-    ( GenDelta, prop_StoreUpdates )
+    ( GenDelta, prop_StoreUpdate )
 
 spec :: Spec
 spec = do
@@ -77,22 +75,21 @@ prop_StoreWallet
     -> (WalletId, InitialCheckpoint s)
     -> Property
 prop_StoreWallet wF db (wid, InitialCheckpoint cp0) =
-    monadicIO (setup >> prop)
+    prop_StoreUpdate
+        (runQuery db)
+        setupStore
+        genState
+        genDeltaWalletState
   where
-    toIO = runQuery db
-    setup = run . toIO $ initializeWalletTable wid
+    setupStore = do
+        initializeWalletTable wid
+        pure $ mkStoreWallet wF wid
     genState = do
         wi <-
             WalletInfo wid
                 <$> arbitrary
                 <*> pure dummyGenesisParameters
         pure $ fromJust . fromGenesis cp0 $ wi
-    prop =
-        prop_StoreUpdates
-            (run . toIO)
-            (mkStoreWallet wF wid)
-            genState
-            genDeltaWalletState
 
 genDeltaWalletState
     :: GenState s
