@@ -10,7 +10,6 @@
 {-# LANGUAGE NumericUnderscores #-}
 {-# LANGUAGE RankNTypes #-}
 {-# LANGUAGE ScopedTypeVariables #-}
-{-# LANGUAGE TupleSections #-}
 {-# LANGUAGE TypeApplications #-}
 {-# LANGUAGE TypeFamilies #-}
 {-# LANGUAGE UndecidableInstances #-}
@@ -31,9 +30,12 @@ module Cardano.DB.Sqlite
     , newInMemorySqliteContext
     , ForeignKeysSetting (..)
 
-    -- * ConnectionPool
-    , ConnectionPool
-    , withConnectionPool
+    -- * DB Connections
+    , DBHandle
+    , withDBHandle
+    , dbConn
+    , dbFile
+    , dbBackend
 
     -- * Helpers
     , chunkSize
@@ -93,8 +95,6 @@ import Data.List
     ( isInfixOf )
 import Data.List.Split
     ( chunksOf )
-import Data.Pool
-    ( Pool, createPool, destroyAllResources, withResource )
 import Data.Proxy
     ( Proxy (..) )
 import Data.Text
@@ -126,7 +126,7 @@ import Database.Persist.Sql
 import Database.Persist.Sqlite
     ( SqlBackend, wrapConnection )
 import Database.Sqlite
-    ( Connection, Error (ErrorConstraint), SqliteException (SqliteException) )
+    ( Error (ErrorConstraint), SqliteException (SqliteException) )
 import Fmt
     ( Buildable (..), fmt, ordinalF, (+|), (+||), (|+), (||+) )
 import GHC.Generics
@@ -223,14 +223,20 @@ newSqliteContextFile tr fp old auto new = do
                 runQuery cmd = runDBAction tr fp $
                    observe
                     . retryOnBusy tr retryOnBusyTimeout
-                    . runSqlConn cmd . fst
+                    . runSqlConn cmd . dbBackend
             in Right $ SqliteContext { runQuery }
 
 {-------------------------------------------------------------------------------
     SQL connection life-cycle
     low level
 -------------------------------------------------------------------------------}
-type DBAction a = (SqlBackend, Connection) -> IO a
+data DBHandle = DBHandle
+    { dbConn :: Sqlite.Connection
+    , dbBackend :: SqlBackend
+    , dbFile :: FilePath
+    }
+
+type DBAction a = DBHandle -> IO a
 
 runDBAction
     :: Tracer IO DBLog
@@ -238,49 +244,25 @@ runDBAction
     -> DBAction a
     -- ^ New style migrations
     -> IO a
-runDBAction trDB dbFile action =
-    withConnectionPool trDB dbFile $ \pool ->
-        withResource pool action
+runDBAction = withDBHandle
 
-type ConnectionPool = Pool (SqlBackend, Sqlite.Connection)
-
-withConnectionPool
+withDBHandle
     :: Tracer IO DBLog
     -> FilePath
-    -> (ConnectionPool -> IO a)
+    -> (DBHandle -> IO a)
     -> IO a
-withConnectionPool tr fp =
-    bracket (newConnectionPool tr fp) (destroyConnectionPool tr fp)
+withDBHandle tr fp =
+    bracket (newDBHandle tr fp) (destroyDBHandle tr)
 
-newConnectionPool
+newDBHandle
     :: Tracer IO DBLog
     -> FilePath
-    -> IO ConnectionPool
-newConnectionPool tr fp = do
-    traceWith tr $ MsgStartConnectionPool fp
-
-    let acquireConnection = do
-            conn <- Sqlite.open (T.pack fp)
-            (,conn) <$> wrapConnection conn (queryLogFunc tr)
-
-    let releaseConnection (backend, _) =
-            destroySqliteBackend tr backend fp
-
-    createPool
-        acquireConnection
-        releaseConnection
-        numberOfStripes
-        timeToLive
-        maximumConnections
-  where
-    numberOfStripes = 1
-    maximumConnections = 10
-    timeToLive = 600 {- 10 minutes -} :: NominalDiffTime
-
-destroyConnectionPool :: Tracer IO DBLog -> FilePath -> Pool a -> IO ()
-destroyConnectionPool tr fp pool = do
-    traceWith tr (MsgStopConnectionPool fp)
-    destroyAllResources pool
+    -> IO DBHandle
+newDBHandle tr dbFile = do
+    traceWith tr $ MsgOpenSingleConnection dbFile
+    dbConn <- Sqlite.open (T.pack dbFile)
+    dbBackend <- wrapConnection dbConn (queryLogFunc tr)
+    pure $ DBHandle{dbFile,dbConn,dbBackend}
 
 -- | Finalize database statements and close the database connection.
 --
@@ -289,12 +271,11 @@ destroyConnectionPool tr fp pool = do
 --
 -- This function is idempotent: if the database connection has already been
 -- closed, calling this function will exit without doing anything.
-destroySqliteBackend
+destroyDBHandle
     :: Tracer IO DBLog
-    -> SqlBackend
-    -> FilePath
+    -> DBHandle
     -> IO ()
-destroySqliteBackend tr sqlBackend dbFile = do
+destroyDBHandle tr DBHandle{dbFile,dbBackend=sqlBackend} = do
     traceWith tr (MsgCloseSingleConnection dbFile)
 
     -- Hack for ADP-827: timeout earlier in integration tests.
@@ -497,12 +478,12 @@ runAutoMigration
     :: Tracer IO DBLog
     -> Migration
     -> DBAction (Either MigrationError ())
-runAutoMigration tr autoMigration (backend, conn) = do
+runAutoMigration tr autoMigration DBHandle{dbConn,dbBackend} = do
     let executeAutoMigration =
             runSqlConn
                 (runMigrationUnsafeQuiet autoMigration)
-                backend
-    migrationResult <- withForeignKeysDisabled tr conn $ do
+                dbBackend
+    migrationResult <- withForeignKeysDisabled tr dbConn $ do
         executeAutoMigration
             & tryJust (matchMigrationError @PersistException)
             & tryJust (matchMigrationError @SqliteException)
@@ -514,9 +495,9 @@ runManualOldMigrations
     :: Tracer IO DBLog
     -> [ManualMigration]
     -> DBAction (Either MigrationError ())
-runManualOldMigrations tr manualMigration (_backend, conn) = do
-    withForeignKeysDisabled tr conn $ Right <$>
-        mapM_ (`executeManualMigration` conn) manualMigration
+runManualOldMigrations tr manualMigration DBHandle{dbConn} = do
+    withForeignKeysDisabled tr dbConn $ Right <$>
+        mapM_ (`executeManualMigration` dbConn) manualMigration
 
 runManualNewMigrations
     :: Tracer IO DBLog
@@ -595,9 +576,8 @@ data DBLog
     = MsgMigrations (Either MigrationError Int)
     | MsgQuery Text Severity
     | MsgRun BracketLog
+    | MsgOpenSingleConnection FilePath
     | MsgCloseSingleConnection FilePath
-    | MsgStartConnectionPool FilePath
-    | MsgStopConnectionPool FilePath
     | MsgDatabaseReset
     | MsgIsAlreadyClosed Text
     | MsgStatementAlreadyFinalized Text
@@ -620,8 +600,6 @@ instance HasSeverityAnnotation DBLog where
         MsgQuery _ sev -> sev
         MsgRun _ -> Debug
         MsgCloseSingleConnection _ -> Info
-        MsgStartConnectionPool _ -> Info
-        MsgStopConnectionPool _ -> Info
         MsgExpectedMigration _ -> Debug
         MsgDatabaseReset -> Notice
         MsgIsAlreadyClosed _ -> Warning
@@ -633,6 +611,7 @@ instance HasSeverityAnnotation DBLog where
             | n <= 1 -> Debug
             | n <= 3 -> Notice
             | otherwise -> Warning
+        MsgOpenSingleConnection _ -> Debug
 
 instance ToText DBLog where
     toText = \case
@@ -645,13 +624,11 @@ instance ToText DBLog where
         MsgQuery stmt _ -> stmt
         MsgRun b ->
             "Running database action - " <> toText b
-        MsgStartConnectionPool fp ->
-            "Starting connection pool for " <> T.pack fp
-        MsgStopConnectionPool fp ->
-            "Stopping database connection pool " <> T.pack fp
         MsgDatabaseReset ->
             "Non backward compatible database found. Removing old database \
             \and re-creating it from scratch. Ignore the previous error."
+        MsgOpenSingleConnection fp ->
+            "Opening single database connection ("+|fp|+")"
         MsgCloseSingleConnection fp ->
             "Closing single database connection ("+|fp|+")"
         MsgIsAlreadyClosed msg ->
