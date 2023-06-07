@@ -47,12 +47,11 @@ import Test.QuickCheck
     , conjoin
     , counterexample
     , property
+    , shrinkBoundedEnum
     , (===)
     )
 import Test.QuickCheck.Classes
     ( boundedEnumLaws, eqLaws, showLaws )
-import Test.QuickCheck.Extra
-    ( shrinkBoundedEnum )
 import Test.Utils.Laws
     ( testLawsMany )
 
