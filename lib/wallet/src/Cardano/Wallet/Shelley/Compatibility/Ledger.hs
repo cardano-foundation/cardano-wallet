@@ -97,13 +97,14 @@ import qualified Cardano.Ledger.Alonzo as Alonzo
 import qualified Cardano.Ledger.Alonzo.TxBody as Alonzo
 import qualified Cardano.Ledger.Babbage as Babbage
 import qualified Cardano.Ledger.Babbage.TxBody as Babbage
+import qualified Cardano.Ledger.Core as LCore
 import qualified Cardano.Ledger.Crypto as Ledger
 import qualified Cardano.Ledger.Keys as Ledger
 import qualified Cardano.Ledger.Mary.Value as Ledger
 import qualified Cardano.Ledger.SafeHash as SafeHash
 import qualified Cardano.Ledger.Shelley.API as Ledger
 import qualified Cardano.Ledger.Shelley.TxBody as Shelley
-import qualified Cardano.Ledger.ShelleyMA.Timelocks as MA
+import qualified Cardano.Ledger.Allegra.Scripts as Scripts
 import qualified Cardano.Wallet.Primitive.Types.Coin as Coin
 import qualified Cardano.Wallet.Primitive.Types.TokenBundle as TokenBundle
 import qualified Cardano.Wallet.Primitive.Types.TokenMap as TokenMap
@@ -163,19 +164,22 @@ toLedgerTokenBundle bundle =
     Ledger.MaryValue ledgerAda ledgerTokens
   where
     (Ledger.Coin ledgerAda) = toLedgerCoin $ TokenBundle.getCoin bundle
+    ledgerTokens :: Ledger.MultiAsset StandardCrypto
     ledgerTokens = bundle
         & view #tokens
         & TokenMap.toNestedMap
         & Map.mapKeys toLedgerTokenPolicyId
         & Map.map mapInner
+        & Ledger.MultiAsset
     mapInner inner = inner
         & NonEmptyMap.toMap
         & Map.mapKeys toLedgerTokenName
         & Map.map toLedgerTokenQuantity
 
 toWalletTokenBundle :: Ledger.MaryValue StandardCrypto -> TokenBundle
-toWalletTokenBundle (Ledger.MaryValue ledgerAda ledgerTokens) =
-    TokenBundle.fromNestedMap (walletAda, walletTokens)
+toWalletTokenBundle
+    (Ledger.MaryValue ledgerAda (Ledger.MultiAsset ledgerTokens)) =
+        TokenBundle.fromNestedMap (walletAda, walletTokens)
   where
     walletAda = toWalletCoin $ Ledger.Coin ledgerAda
     walletTokens = ledgerTokens
@@ -354,28 +358,28 @@ fromBabbageTxOut (Babbage.BabbageTxOut addr val _ _)
     = TxOut (toWallet addr) (toWallet val)
 
 toWalletScript
-    :: Ledger.Crypto crypto
+    :: LCore.Era crypto
     => (Hash "VerificationKey" -> KeyRole)
-    -> MA.Timelock crypto
+    -> Scripts.Timelock crypto
     -> Script KeyHash
 toWalletScript tokeyrole = fromLedgerScript
   where
-    fromLedgerScript (MA.RequireSignature (Ledger.KeyHash h)) =
+    fromLedgerScript (Scripts.RequireSignature (Ledger.KeyHash h)) =
         let payload = hashToBytes h
         in RequireSignatureOf (KeyHash (tokeyrole (Hash payload)) payload)
-    fromLedgerScript (MA.RequireAllOf contents) =
+    fromLedgerScript (Scripts.RequireAllOf contents) =
         RequireAllOf $ map fromLedgerScript $ toList contents
-    fromLedgerScript (MA.RequireAnyOf contents) =
+    fromLedgerScript (Scripts.RequireAnyOf contents) =
         RequireAnyOf $ map fromLedgerScript $ toList contents
-    fromLedgerScript (MA.RequireMOf num contents) =
+    fromLedgerScript (Scripts.RequireMOf num contents) =
         RequireSomeOf (fromIntegral num) $ fromLedgerScript <$> toList contents
-    fromLedgerScript (MA.RequireTimeExpire (O.SlotNo slot)) =
+    fromLedgerScript (Scripts.RequireTimeExpire (O.SlotNo slot)) =
         ActiveUntilSlot $ fromIntegral slot
-    fromLedgerScript (MA.RequireTimeStart (O.SlotNo slot)) =
+    fromLedgerScript (Scripts.RequireTimeStart (O.SlotNo slot)) =
         ActiveFromSlot $ fromIntegral slot
 
 toWalletScriptFromShelley
-    :: Ledger.Crypto crypto
+    :: LCore.Era crypto
     => KeyRole
     -> Ledger.MultiSig crypto
     -> Script KeyHash

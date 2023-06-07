@@ -29,8 +29,6 @@ import Cardano.Ledger.Crypto
     ( StandardCrypto )
 import Cardano.Ledger.Shelley.Tx
     ( WitnessSetHKD )
-import Cardano.Ledger.ShelleyMA
-    ( MaryOrAllegra (..), ShelleyMAEra )
 import Cardano.Wallet.Read.Eras
     ( EraFun (..) )
 import Cardano.Wallet.Read.Tx
