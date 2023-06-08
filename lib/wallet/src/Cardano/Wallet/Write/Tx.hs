@@ -297,6 +297,7 @@ type RecentEraLedgerConstraints era =
     , Core.Script era ~ AlonzoScript era
     , Core.Tx era ~ Babbage.AlonzoTx era
     , Core.Value era ~ MaryValue StandardCrypto
+    , Alonzo.AlonzoEraPParams era
     , Babbage.ShelleyEraTxBody era
     )
 
