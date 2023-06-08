@@ -304,18 +304,20 @@ instance Buildable DelegationAction where
     build = genericF
 
 data PlutusVersion =
-    PlutusVersionV1 | PlutusVersionV2
+    PlutusVersionV1 | PlutusVersionV2 | PlutusVersionV3
     deriving (Eq, Generic, Show)
     deriving anyclass NFData
 
 instance ToText PlutusVersion where
     toText PlutusVersionV1 = "v1"
     toText PlutusVersionV2 = "v2"
+    toText PlutusVersionV3 = "v3"
 
 instance FromText PlutusVersion where
     fromText txt = case txt of
         "v1" -> Right PlutusVersionV1
         "v2" -> Right PlutusVersionV2
+        "v3" -> Right PlutusVersionV3
         _ -> Left $ TextDecodingError $ unwords
             [ "I couldn't parse the given plutus version."
             , "I am expecting one of the words 'v1' or"
