@@ -81,6 +81,8 @@ import Cardano.Wallet.DB
     , mkDBLayerFromParts
     , transactionsStore
     )
+import Cardano.Wallet.DB.Sqlite.MigrationNew
+    ( runNewStyleMigrations )
 import Cardano.Wallet.DB.Sqlite.MigrationOld
     ( DefaultFieldValues (..), migrateManually )
 import Cardano.Wallet.DB.Sqlite.Schema
@@ -145,7 +147,7 @@ import Control.DeepSeq
 import Control.Exception
     ( evaluate, throw )
 import Control.Monad
-    ( forM, unless, (>=>) )
+    ( forM, unless )
 import Control.Monad.IO.Class
     ( MonadIO (..) )
 import Control.Monad.Trans
@@ -201,10 +203,8 @@ import System.FilePath
 import UnliftIO.Exception
     ( Exception, bracket, throwIO )
 import UnliftIO.MVar
-    ( modifyMVar, modifyMVar_, newMVar, readMVar, withMVar )
+    ( modifyMVar, modifyMVar_, newMVar, readMVar )
 
-import Cardano.Wallet.DB.Sqlite.MigrationNew
-    ( runNewStyleMigrations )
 import qualified Cardano.Wallet.Primitive.Model as W
 import qualified Cardano.Wallet.Primitive.Types as W
 import qualified Cardano.Wallet.Primitive.Types.Coin as Coin
@@ -395,7 +395,8 @@ withDBOpenFromFile walletF tr defaultFieldValues dbFile action = do
     let autoMigrations   = migrateAll
     res <- withSqliteContextFile trDB dbFile
             manualMigrations autoMigrations runNewStyleMigrations
-        $ newQueryLock >=> action
+        $ \ctx -> action $ DBOpen { atomically = runQuery ctx}
+
     either throwIO pure res
 
 -- | Open an SQLite database in-memory.
@@ -411,19 +412,7 @@ newDBOpenInMemory tr = do
     let tr' = contramap MsgDB tr
     (destroy, sqliteContext) <-
         newInMemorySqliteContext tr' [] migrateAll ForeignKeysEnabled
-    db <- newQueryLock sqliteContext
-    pure (destroy, db)
-
-newQueryLock
-    :: SqliteContext
-    -> IO (DBOpen (SqlPersistT IO) IO s)
-newQueryLock SqliteContext{runQuery} = do
-    -- NOTE
-    -- The cache will not work properly unless 'atomically' is protected by a
-    -- mutex (queryLock), which means no concurrent queries.
-    queryLock <- newMVar () -- fixme: ADP-586
-    pure $ DBOpen
-        { atomically = withMVar queryLock . const . runQuery }
+    pure (destroy, DBOpen { atomically = runQuery sqliteContext})
 
 -- | Retrieve the wallet id from the database if it's initialized.
 retrieveWalletId :: DBOpen (SqlPersistT IO) IO s -> IO (Maybe W.WalletId)

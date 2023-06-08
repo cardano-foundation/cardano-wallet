@@ -140,7 +140,7 @@ import UnliftIO.Compat
 import UnliftIO.Exception
     ( Exception, bracket, bracket_, handleJust, tryJust )
 import UnliftIO.MVar
-    ( newMVar, withMVarMasked )
+    ( newMVar, withMVar, withMVarMasked )
 
 import qualified Data.Aeson as Aeson
 import qualified Data.ByteString.Char8 as B8
@@ -211,7 +211,8 @@ withSqliteContextFile tr fp old auto new action = do
     migrationResult <- runAllMigrations tr fp old auto new
     case migrationResult of
         Left e  -> pure $ Left e
-        Right{} ->
+        Right{} -> do
+            lock <- newMVar ()
             withDBHandle tr fp $ \DBHandle{dbBackend} ->
                 let -- Run a query on the open database,
                     -- but retry on busy.
@@ -219,7 +220,8 @@ withSqliteContextFile tr fp old auto new action = do
                     runQuery cmd =
                         observe
                         . retryOnBusy tr retryOnBusyTimeout
-                        $ runSqlConn cmd dbBackend
+                        $ withMVar lock
+                        $ const $ runSqlConn cmd dbBackend
                 in  Right <$> action (SqliteContext{runQuery})
   where
     observe :: IO a -> IO a
