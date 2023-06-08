@@ -24,14 +24,14 @@ import Prelude
 import Cardano.Api
     ( AllegraEra, AlonzoEra, BabbageEra, ByronEra, ConwayEra, MaryEra,
     ShelleyEra )
-import Cardano.Ledger.Core
-    ( bodyTxL )
-import Cardano.Ledger.Shelley.TxBody
-    ( ttlTxBodyL )
 import Cardano.Ledger.Allegra.Scripts
     ( ValidityInterval )
 import Cardano.Ledger.Allegra.TxBody
     ( vldtTxBodyL )
+import Cardano.Ledger.Core
+    ( bodyTxL )
+import Cardano.Ledger.Shelley.TxBody
+    ( ttlTxBodyL )
 import Cardano.Ledger.Slot
     ( SlotNo )
 import Cardano.Wallet.Read.Eras
