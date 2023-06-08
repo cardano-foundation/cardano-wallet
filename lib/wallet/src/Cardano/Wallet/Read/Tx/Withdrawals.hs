@@ -29,31 +29,35 @@ import Cardano.Api
     , MaryEra
     , ShelleyEra
     )
+import Cardano.Ledger.Address
+    ( RewardAcnt, unWithdrawals )
+import Cardano.Ledger.Coin
+    ( Coin )
 import Cardano.Ledger.Core
-    ( bodyTxL )
+    ( bodyTxL, withdrawalsTxBodyL )
 import Cardano.Ledger.Crypto
     ( StandardCrypto )
-import Cardano.Ledger.Shelley.TxBody
-    ( wdrlsTxBodyL )
-import Cardano.Wallet.Read.Eras
+import Cardano.Wallet.Read.Eras.EraFun
     ( EraFun (..) )
 import Cardano.Wallet.Read.Tx
     ( Tx (..) )
 import Cardano.Wallet.Read.Tx.Eras
     ( onTx )
 import Control.Lens
-    ( (^.) )
-
-import qualified Cardano.Ledger.Shelley.API as SH
+    ( view )
+import Data.Map
+    ( Map )
 
 type family WithdrawalsType era where
   WithdrawalsType ByronEra = ()
-  WithdrawalsType ShelleyEra = SH.Wdrl StandardCrypto
-  WithdrawalsType AllegraEra = SH.Wdrl StandardCrypto
-  WithdrawalsType MaryEra = SH.Wdrl StandardCrypto
-  WithdrawalsType AlonzoEra = SH.Wdrl StandardCrypto
-  WithdrawalsType BabbageEra = SH.Wdrl StandardCrypto
-  WithdrawalsType ConwayEra = SH.Wdrl StandardCrypto
+  WithdrawalsType ShelleyEra = RewardWithdrawals
+  WithdrawalsType AllegraEra = RewardWithdrawals
+  WithdrawalsType MaryEra = RewardWithdrawals
+  WithdrawalsType AlonzoEra = RewardWithdrawals
+  WithdrawalsType BabbageEra = RewardWithdrawals
+  WithdrawalsType ConwayEra = RewardWithdrawals
+
+type RewardWithdrawals = Map (RewardAcnt StandardCrypto) Coin
 
 newtype Withdrawals era = Withdrawals (WithdrawalsType era)
 
@@ -65,13 +69,13 @@ getEraWithdrawals :: EraFun Tx Withdrawals
 getEraWithdrawals =
     EraFun
         { byronFun = \_ -> Withdrawals ()
-        , shelleyFun = shelleyWithdrawals
-        , allegraFun = shelleyWithdrawals
-        , maryFun = shelleyWithdrawals
-        , alonzoFun = shelleyWithdrawals
-        , babbageFun = shelleyWithdrawals
-        , conwayFun = shelleyWithdrawals
+        , shelleyFun = withdrawals
+        , allegraFun = withdrawals
+        , maryFun = withdrawals
+        , alonzoFun = withdrawals
+        , babbageFun = withdrawals
+        , conwayFun = withdrawals
         }
   where
-    shelleyWithdrawals = onTx $
-        \tx -> Withdrawals $ tx ^. bodyTxL . wdrlsTxBodyL
+    withdrawals = onTx $
+        Withdrawals . unWithdrawals . view (bodyTxL . withdrawalsTxBodyL)
