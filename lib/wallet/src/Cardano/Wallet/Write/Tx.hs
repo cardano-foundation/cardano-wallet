@@ -186,6 +186,8 @@ import Cardano.Wallet.Primitive.Types.Tx.Constraints
     ( txOutMaxCoin )
 import Cardano.Wallet.Shelley.Compatibility.Ledger
     ( toLedger )
+import Codec.Serialise
+    ( serialise )
 import Control.Arrow
     ( second, (>>>) )
 import Data.ByteString
@@ -649,7 +651,7 @@ binaryDataFromBytes =
 
 binaryDataToBytes :: BinaryData LatestLedgerEra -> ByteString
 binaryDataToBytes =
-    CBOR.serialize' . Alonzo.getPlutusData . Alonzo.binaryDataToData
+    BL.toStrict . serialise . Alonzo.getPlutusData . Alonzo.binaryDataToData
 
 datumFromCardanoScriptData
     :: Core.Era era => Cardano.HashableScriptData -> BinaryData era
