@@ -17,10 +17,18 @@ module Cardano.Wallet.Read.Primitive.Tx.Features.Certificates
 
 import Prelude
 
+import Cardano.Api
+    ( ConwayEra )
 import Cardano.Crypto.Hash.Class
     ( hashToBytes )
+import Cardano.Ledger.Api
+    ( StandardCrypto )
 import Cardano.Ledger.BaseTypes
     ( strictMaybeToMaybe, urlToText )
+import Cardano.Ledger.Conway.Delegation.Certificates
+    ( ConwayDCert (..), ConwayDelegCert (..) )
+import Cardano.Ledger.Shelley.API
+    ( PoolCert (..), PoolMetadata (..), PoolParams (..) )
 import Cardano.Ledger.Shelley.TxBody
     ( DCert )
 import Cardano.Pool.Metadata.Types
@@ -61,21 +69,70 @@ import qualified Data.Set as Set
 certificates :: EraFun Certificates (K [W.Certificate])
 certificates = EraFun
     { byronFun = const $ K []
-    , shelleyFun = mkCertsK
-    , allegraFun = mkCertsK
-    , maryFun = mkCertsK
-    , alonzoFun = mkCertsK
-    , babbageFun = mkCertsK
-    , conwayFun = mkCertsK
+    , shelleyFun = mkShelleyCertsK
+    , allegraFun = mkShelleyCertsK
+    , maryFun = mkShelleyCertsK
+    , alonzoFun = mkShelleyCertsK
+    , babbageFun = mkShelleyCertsK
+    , conwayFun = mkConwayCertsK
     }
 
-mkCertsK :: (Foldable t, CertificatesType era ~ t (DCert crypto))
+mkConwayCertsK :: Certificates ConwayEra
+    -> K [W.Certificate] ConwayEra
+mkConwayCertsK (Certificates cs) = K $ fromConwayCerts <$> toList cs
+
+fromConwayCerts :: ConwayDCert StandardCrypto -> W.Certificate
+fromConwayCerts = \case
+    ConwayDCertDeleg cdc -> case cdc of
+        ConwayDeleg cre del co -> error "TODO: ConwayDeleg, ADP-3065"
+        ConwayReDeleg cre del -> error "TODO: ConwayReDeleg, ADP-3065"
+        ConwayUnDeleg cre _co -> mkDelegationNone cre
+            -- "TODO: ConwayUnDeleg, ADP-3065"
+    ConwayDCertPool pc -> case pc of
+        RegPool pp -> mkPoolRegistrationCertificate pp
+        RetirePool kh en -> mkPoolRetirementCertificate kh en
+    ConwayDCertConstitutional _cdc ->
+        error "TODO: ConwayDCertConstitutional, ADP-3065"
+
+mkShelleyCertsK :: (Foldable t, CertificatesType era ~ t (DCert crypto))
     => Certificates era
     -> K [W.Certificate] b
-mkCertsK (Certificates cs) = K . anyEraCerts $ cs
+mkShelleyCertsK (Certificates cs) = K . anyEraCerts $ cs
 
 anyEraCerts :: Foldable t => t (DCert crypto) -> [W.Certificate]
 anyEraCerts cs = fromShelleyCert <$> toList cs
+
+mkPoolRegistrationCertificate :: PoolParams c -> W.Certificate
+mkPoolRegistrationCertificate pp =
+    W.CertificateOfPool
+        $ Registration
+        $ PoolRegistrationCertificate
+            { poolId = fromPoolKeyHash (ppId pp)
+            , poolOwners = fromOwnerKeyHash <$> Set.toList (ppOwners pp)
+            , poolMargin = fromUnitInterval (ppMargin pp)
+            , poolCost = toWalletCoin (ppCost pp)
+            , poolPledge = toWalletCoin (ppPledge pp)
+            , poolMetadata =
+                fromPoolMetadata
+                    <$> strictMaybeToMaybe (ppMetadata pp)
+            }
+
+mkPoolRetirementCertificate :: (SL.KeyHash rol sc) -> EpochNo -> W.Certificate
+mkPoolRetirementCertificate pid (EpochNo e) =
+    W.CertificateOfPool $ Retirement $ PoolRetirementCertificate
+        { poolId = fromPoolKeyHash pid
+        , retirementEpoch = W.EpochNo $ fromIntegral e
+        }
+
+mkRegisterKeyCertificate :: SL.Credential 'SL.Staking crypto -> W.Certificate
+mkRegisterKeyCertificate =
+    W.CertificateOfDelegation
+        . W.CertRegisterKey
+        . fromStakeCredential
+
+mkDelegationNone :: SL.Credential 'SL.Staking crypto -> W.Certificate
+mkDelegationNone credentials = W.CertificateOfDelegation
+    $ W.CertDelegateNone (fromStakeCredential credentials)
 
 fromShelleyCert
     :: SL.DCert crypto
@@ -83,31 +140,17 @@ fromShelleyCert
 fromShelleyCert = \case
     SL.DCertDeleg (SL.Delegate delegation)  ->
         W.CertificateOfDelegation $ W.CertDelegateFull
-            (fromStakeCredential (SL._delegator delegation))
-            (fromPoolKeyHash (SL._delegatee delegation))
+            (fromStakeCredential (SL.dDelegator delegation))
+            (fromPoolKeyHash (SL.dDelegatee delegation))
 
-    SL.DCertDeleg (SL.DeRegKey credentials) ->
-        W.CertificateOfDelegation $ W.CertDelegateNone
-            (fromStakeCredential credentials)
+    SL.DCertDeleg (SL.DeRegKey credentials) -> mkDelegationNone credentials
 
-    SL.DCertDeleg (SL.RegKey cred) ->
-        W.CertificateOfDelegation $ W.CertRegisterKey $ fromStakeCredential cred
+    SL.DCertDeleg (SL.RegKey cred) -> mkRegisterKeyCertificate cred
 
-    SL.DCertPool (SL.RegPool pp) -> W.CertificateOfPool $ Registration
-        ( PoolRegistrationCertificate
-            { poolId = fromPoolKeyHash $ SL._poolId pp
-            , poolOwners = fromOwnerKeyHash <$> Set.toList (SL._poolOwners pp)
-            , poolMargin = fromUnitInterval (SL._poolMargin pp)
-            , poolCost = toWalletCoin (SL._poolCost pp)
-            , poolPledge = toWalletCoin (SL._poolPledge pp)
-            , poolMetadata = fromPoolMetadata <$> strictMaybeToMaybe
-                (SL._poolMD pp)
-            }
-        )
+    SL.DCertPool (SL.RegPool pp) -> mkPoolRegistrationCertificate pp
 
-    SL.DCertPool (SL.RetirePool pid (EpochNo e)) ->
-        W.CertificateOfPool $ Retirement $ PoolRetirementCertificate (fromPoolKeyHash pid)
-        (W.EpochNo $ fromIntegral e)
+    SL.DCertPool (SL.RetirePool pid en) ->
+        mkPoolRetirementCertificate pid en
 
     SL.DCertGenesis{} -> W.CertificateOther W.GenesisCertificate
 
@@ -115,8 +158,8 @@ fromShelleyCert = \case
 
 fromPoolMetadata :: SL.PoolMetadata -> (StakePoolMetadataUrl, StakePoolMetadataHash)
 fromPoolMetadata meta =
-    ( StakePoolMetadataUrl (urlToText (SL._poolMDUrl meta))
-    , StakePoolMetadataHash (SL._poolMDHash meta)
+    ( StakePoolMetadataUrl (urlToText (pmUrl meta))
+    , StakePoolMetadataHash (pmHash meta)
     )
 
 -- | Convert a stake credentials to a 'RewardAccount' type.
