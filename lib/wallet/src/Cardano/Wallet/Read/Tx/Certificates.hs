@@ -25,20 +25,24 @@ import Prelude
 import Cardano.Api
     ( AllegraEra, AlonzoEra, BabbageEra, ByronEra, ConwayEra, MaryEra,
     ShelleyEra )
+import Cardano.Ledger.Conway.Core
+    ( conwayCertsTxBodyL )
+import Cardano.Ledger.Conway.Delegation.Certificates
+    ( ConwayDCert )
 import Cardano.Ledger.Core
     ( bodyTxL )
 import Cardano.Ledger.Crypto
     ( StandardCrypto )
 import Cardano.Ledger.Shelley.TxBody
     ( DCert, certsTxBodyL )
-import Cardano.Wallet.Read.Eras
+import Cardano.Wallet.Read.Eras.EraFun
     ( EraFun (..) )
 import Cardano.Wallet.Read.Tx
     ( Tx (..) )
 import Cardano.Wallet.Read.Tx.Eras
     ( onTx )
 import Control.Lens
-    ( (^.) )
+    ( view )
 import Data.Sequence.Strict
     ( StrictSeq )
 
@@ -49,7 +53,7 @@ type family CertificatesType era where
     CertificatesType MaryEra = StrictSeq (DCert StandardCrypto)
     CertificatesType AlonzoEra = StrictSeq (DCert StandardCrypto)
     CertificatesType BabbageEra = StrictSeq (DCert StandardCrypto)
-    CertificatesType ConwayEra = StrictSeq (DCert StandardCrypto)
+    CertificatesType ConwayEra = StrictSeq (ConwayDCert StandardCrypto)
 
 newtype Certificates era = Certificates (CertificatesType era)
 
@@ -58,15 +62,15 @@ deriving instance Eq (CertificatesType era) => Eq (Certificates era)
 
 -- | Extract certificates from a 'Tx' in any era.
 getEraCertificates :: EraFun Tx Certificates
-getEraCertificates = EraFun
-    { byronFun = \_ -> Certificates ()
-    , shelleyFun = shellyCertificates
-    , allegraFun = shellyCertificates
-    , maryFun = shellyCertificates
-    , alonzoFun = shellyCertificates
-    , babbageFun = shellyCertificates
-    , conwayFun = shellyCertificates
-    }
-    where
-    shellyCertificates = onTx
-        $ \tx -> Certificates $ tx ^. bodyTxL . certsTxBodyL
+getEraCertificates =
+    EraFun
+        { byronFun = \_ -> Certificates ()
+        , shelleyFun = certificates
+        , allegraFun = certificates
+        , maryFun = certificates
+        , alonzoFun = certificates
+        , babbageFun = certificates
+        , conwayFun = onTx $ Certificates . view (bodyTxL . conwayCertsTxBodyL)
+        }
+  where
+    certificates = onTx $ Certificates . view (bodyTxL . certsTxBodyL)
