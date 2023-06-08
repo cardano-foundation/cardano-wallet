@@ -31,8 +31,9 @@ import Cardano.Ledger.Binary.Decoding
     ( DecCBOR (decCBOR)
     , DecoderError
     , byronProtVer
+    , decodeFull
     , decodeFullAnnotator
-    , shelleyProtVer, decodeFull
+    , shelleyProtVer
     )
 import Cardano.Wallet.Read.Eras
     ( (:.:) (..)

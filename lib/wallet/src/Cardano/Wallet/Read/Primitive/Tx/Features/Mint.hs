@@ -27,6 +27,12 @@ import Cardano.Address.Script
     ( KeyRole (..), ScriptHash (..) )
 import Cardano.Crypto.Hash
     ( hashToBytes )
+import Cardano.Ledger.Alonzo.TxWits
+    ( AlonzoTxWits, txscripts' )
+import Cardano.Ledger.Mary.Value
+    ( MultiAsset (..) )
+import Cardano.Ledger.Shelley.TxWits
+    ( ShelleyTxWits, scriptWits )
 import Cardano.Wallet.Primitive.Types.Hash
     ( Hash (..) )
 import Cardano.Wallet.Primitive.Types.TokenMap
@@ -75,12 +81,6 @@ import Ouroboros.Consensus.Shelley.Eras
     , StandardCrypto
     , StandardMary
     )
-import Cardano.Ledger.Alonzo.TxWits
-    ( AlonzoTxWits, txscripts' )
-import Cardano.Ledger.Mary.Value
-    ( MultiAsset (..) )
-import Cardano.Ledger.Shelley.TxWits
-    ( ShelleyTxWits, scriptWits )
 
 import qualified Cardano.Api as Cardano
 import qualified Cardano.Api.Shelley as Cardano

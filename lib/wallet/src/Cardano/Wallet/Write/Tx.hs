@@ -159,14 +159,16 @@ import Cardano.Crypto.Hash
     ( Hash (UnsafeHash) )
 import Cardano.Ledger.Allegra.Scripts
     ( translateTimelock )
-import Cardano.Ledger.Alonzo.Scripts.Data
-    ( BinaryData, Datum (..) )
 import Cardano.Ledger.Alonzo.Scripts
     ( AlonzoScript (..) )
+import Cardano.Ledger.Alonzo.Scripts.Data
+    ( BinaryData, Datum (..) )
 import Cardano.Ledger.Babbage.TxBody
     ( BabbageTxOut (..) )
 import Cardano.Ledger.BaseTypes
     ( maybeToStrictMaybe )
+import Cardano.Ledger.Binary
+    ( Sized (..), mkSized )
 import Cardano.Ledger.Coin
     ( Coin (..) )
 import Cardano.Ledger.Crypto
@@ -175,8 +177,6 @@ import Cardano.Ledger.Mary
     ( MaryValue )
 import Cardano.Ledger.SafeHash
     ( SafeHash, extractHash, unsafeMakeSafeHash )
-import Cardano.Ledger.Binary
-    ( Sized (..), mkSized )
 import Cardano.Ledger.Val
     ( coin, modifyCoin )
 import Cardano.Wallet.Primitive.Types.Tx.Constraints
