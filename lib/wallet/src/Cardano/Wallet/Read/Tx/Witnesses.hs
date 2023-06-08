@@ -29,36 +29,37 @@ import Cardano.Api
     , MaryEra
     , ShelleyEra
     )
+import Cardano.Ledger.Alonzo.TxWits
+    ( AlonzoTxWits )
 import Cardano.Ledger.Core
     ( witsTxL )
-import Cardano.Ledger.Crypto
-    ( StandardCrypto )
-import Cardano.Ledger.Shelley.Tx
-    ( WitnessSetHKD )
-import Cardano.Wallet.Read.Eras
+import Cardano.Ledger.Shelley.TxWits
+    ( ShelleyTxWits )
+import Cardano.Wallet.Read.Eras.EraFun
     ( EraFun (..) )
 import Cardano.Wallet.Read.Tx
     ( Tx (..) )
 import Cardano.Wallet.Read.Tx.Eras
     ( onTx )
 import Control.Lens
-    ( (^.) )
-import Data.Functor.Identity
-    ( Identity )
+    ( view )
 import Ouroboros.Consensus.Shelley.Eras
-    ( StandardAlonzo, StandardBabbage, StandardConway )
-
-import qualified Cardano.Ledger.Alonzo.TxWitness as AL
+    ( StandardAllegra
+    , StandardAlonzo
+    , StandardBabbage
+    , StandardConway
+    , StandardMary
+    , StandardShelley
+    )
 
 type family WitnessesType era where
   WitnessesType ByronEra = ()
-  WitnessesType ShelleyEra = ()
-  WitnessesType AllegraEra = ()
-  WitnessesType MaryEra = WitnessSetHKD Identity
-    (ShelleyMAEra 'Mary StandardCrypto)
-  WitnessesType AlonzoEra = AL.TxWitness StandardAlonzo
-  WitnessesType BabbageEra = AL.TxWitness StandardBabbage
-  WitnessesType ConwayEra = AL.TxWitness StandardConway
+  WitnessesType ShelleyEra = ShelleyTxWits StandardShelley
+  WitnessesType AllegraEra = ShelleyTxWits StandardAllegra
+  WitnessesType MaryEra = ShelleyTxWits StandardMary
+  WitnessesType AlonzoEra = AlonzoTxWits StandardAlonzo
+  WitnessesType BabbageEra = AlonzoTxWits StandardBabbage
+  WitnessesType ConwayEra = AlonzoTxWits StandardConway
 
 newtype Witnesses era = Witnesses (WitnessesType era)
 
@@ -69,12 +70,12 @@ getEraWitnesses :: EraFun Tx Witnesses
 getEraWitnesses =
     EraFun
         { byronFun = \_ -> Witnesses ()
-        , shelleyFun = \_ -> Witnesses ()
-        , allegraFun = \_ -> Witnesses ()
-        , maryFun = maryWitnesses
-        , alonzoFun = maryWitnesses
-        , babbageFun = maryWitnesses
-        , conwayFun = maryWitnesses
+        , shelleyFun = witnesses
+        , allegraFun = witnesses
+        , maryFun = witnesses
+        , alonzoFun = witnesses
+        , babbageFun = witnesses
+        , conwayFun = witnesses
         }
   where
-    maryWitnesses = onTx $ \tx -> Witnesses $ tx ^. witsTxL
+    witnesses = onTx $ Witnesses . view witsTxL
