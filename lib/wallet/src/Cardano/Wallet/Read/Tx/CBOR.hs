@@ -24,12 +24,15 @@ module Cardano.Wallet.Read.Tx.CBOR
 import Prelude
 
 import Cardano.Api
-    ( FromCBOR, ToCBOR )
-import Cardano.Binary
-    ( Annotator (runAnnotator)
-    , FromCBOR (fromCBOR)
-    , FullByteString (Full)
-    , toCBOR
+    ( ToCBOR )
+import Cardano.Ledger.Binary
+    ( toCBOR )
+import Cardano.Ledger.Binary.Decoding
+    ( DecCBOR (decCBOR)
+    , DecoderError
+    , byronProtVer
+    , decodeFullAnnotator
+    , shelleyProtVer, decodeFull
     )
 import Cardano.Wallet.Read.Eras
     ( (:.:) (..)
@@ -42,16 +45,12 @@ import Cardano.Wallet.Read.Eras
     )
 import Cardano.Wallet.Read.Tx
     ( Tx (..), TxT )
-import Codec.CBOR.Read
-    ( DeserialiseFailure, deserialiseFromBytes )
 import Codec.CBOR.Write
     ( toLazyByteString )
 import Data.ByteArray.Encoding
     ( Base (Base16), convertToBase )
 import Data.ByteString.Lazy
     ( toStrict )
-import Data.Functor.Identity
-    ( Identity (..) )
 import Data.Text.Class
     ( ToText )
 import Data.Text.Encoding
@@ -92,30 +91,22 @@ serializeTx = EraFun
 
 -- | Parse CBOR into a transaction in any eras
 -- , smart application  of `deserializeTx`.
-parseTxFromCBOR :: TxCBOR -> Either DeserialiseFailure (EraValue Tx)
+parseTxFromCBOR :: TxCBOR -> Either DecoderError (EraValue Tx)
 parseTxFromCBOR = sequenceEraValue . applyEraFun deserializeTx
 
 -- | CBOR deserialization of a tx in any era.
-deserializeTx :: EraFun (K BL.ByteString) (Either DeserialiseFailure :.: Tx)
-deserializeTx = EraFun
-    { byronFun = deserialize $ const runIdentity
-    , shelleyFun = deserialize runA
-    , allegraFun = deserialize runA
-    , maryFun = deserialize runA
-    , alonzoFun = deserialize runA
-    , babbageFun = deserialize runA
-    , conwayFun = deserialize runA
-    }
-    where
-    deserialize
-        :: FromCBOR (k (TxT x))
-        => (BL.ByteString -> k (TxT x) -> TxT x)
-        -> K BL.ByteString x
-        -> (Either DeserialiseFailure :.: Tx) x
-    deserialize untag (K txCBOR) = Comp $ Tx .  untag txCBOR . snd
-        <$> deserialiseFromBytes fromCBOR txCBOR
-    runA :: BL.ByteString -> Annotator x -> x
-    runA txCBOR x = runAnnotator x $ Full txCBOR
-
-instance FromCBOR a => FromCBOR (Identity a) where
-    fromCBOR = fmap Identity fromCBOR
+deserializeTx :: EraFun (K BL.ByteString) (Either DecoderError :.: Tx)
+deserializeTx =
+    EraFun
+        { byronFun = \(K txCBOR) ->
+            Comp $ Tx <$> decodeFull byronProtVer txCBOR
+        , shelleyFun = decodeTx "ShelleyTx"
+        , allegraFun = decodeTx "AllegraTx"
+        , maryFun = decodeTx "MaryTx"
+        , alonzoFun = decodeTx "AlonzoTx"
+        , babbageFun = decodeTx "BabbageTx"
+        , conwayFun = decodeTx "ConwayTx"
+        }
+  where
+    decodeTx label (K txCBOR) =
+        Comp $ Tx <$> decodeFullAnnotator shelleyProtVer label decCBOR txCBOR
