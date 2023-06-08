@@ -26,7 +26,7 @@ import Cardano.Wallet.Transaction
 import Data.Quantity
     ( Quantity (..) )
 
-import qualified Cardano.Ledger.ShelleyMA.TxBody as MA
+import qualified Cardano.Ledger.Mary.TxBody as MA
 import qualified Ouroboros.Network.Block as O
 
 getValidity :: EraFun Validity (K (Maybe ValidityIntervalExplicit))
