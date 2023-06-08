@@ -101,8 +101,6 @@ import Cardano.Binary
     ( serialize' )
 import Cardano.Crypto.Wallet
     ( XPub )
-import Cardano.Ledger.Alonzo.Tools
-    ( evaluateTransactionExecutionUnits )
 import Cardano.Ledger.Crypto
     ( DSIGN )
 import Cardano.Ledger.Era
@@ -285,7 +283,6 @@ import qualified Cardano.Ledger.Alonzo.PlutusScriptApi as Alonzo
 import qualified Cardano.Ledger.Alonzo.PParams as Alonzo
 import qualified Cardano.Ledger.Alonzo.Scripts as Alonzo
 import qualified Cardano.Ledger.Alonzo.Tx as Alonzo
-import qualified Cardano.Ledger.Alonzo.TxWitness as Alonzo
 import qualified Cardano.Ledger.Babbage.PParams as Babbage
 import qualified Cardano.Ledger.Babbage.Tx as Babbage
 import qualified Cardano.Ledger.Coin as Ledger

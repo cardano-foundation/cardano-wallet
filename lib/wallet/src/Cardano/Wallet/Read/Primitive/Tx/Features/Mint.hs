@@ -83,14 +83,12 @@ import Ouroboros.Consensus.Shelley.Eras
 
 import qualified Cardano.Api as Cardano
 import qualified Cardano.Api.Shelley as Cardano
+import qualified Cardano.Ledger.Allegra.Scripts as Scripts
 import qualified Cardano.Ledger.Alonzo.Language as Alonzo
 import qualified Cardano.Ledger.Alonzo.Scripts as Alonzo
-import qualified Cardano.Ledger.Alonzo.TxWitness as AL
 import qualified Cardano.Ledger.Core as SL.Core
 import qualified Cardano.Ledger.Mary.Value as SL
 import qualified Cardano.Ledger.Shelley.API as SL
-import qualified Cardano.Ledger.ShelleyMA as MA
-import qualified Cardano.Ledger.ShelleyMA.Timelocks as ShelleyMA
 import qualified Cardano.Wallet.Primitive.Types.TokenMap as TokenMap
 import qualified Data.Map.Strict as Map
 import qualified Data.Map.Strict.NonEmptyMap as NonEmptyMap
@@ -116,7 +114,7 @@ mint = EraFun
         noMints = const $ K (emptyTokenMapWithScripts, emptyTokenMapWithScripts)
 
 maryMint ::
-    ( SL.Core.Script era ~ ShelleyMA.Timelock StandardCrypto
+    ( SL.Core.Script era ~ Scripts.Timelock StandardCrypto
     , Crypto era ~ StandardCrypto
     , SL.Core.EraScript era
     )
@@ -126,8 +124,8 @@ maryMint ::
 maryMint = yesMints $ fromMaryScriptMap . scriptWits
 
 alonzoMint ::
-    (   SL.Core.Script era ~ Alonzo.AlonzoScript (AlonzoEra StandardCrypto)
-    ,   Crypto era ~ StandardCrypto
+    ( SL.Core.Script era ~ Alonzo.AlonzoScript (AlonzoEra StandardCrypto)
+    , Crypto era ~ StandardCrypto
     )
     => SL.MaryValue StandardCrypto
     -> AL.TxWitness era
