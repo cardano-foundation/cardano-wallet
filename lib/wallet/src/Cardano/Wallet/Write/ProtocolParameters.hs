@@ -1,9 +1,9 @@
+{-# LANGUAGE DerivingStrategies #-}
 {-# LANGUAGE FlexibleContexts #-}
+{-# LANGUAGE GeneralizedNewtypeDeriving #-}
 {-# LANGUAGE ScopedTypeVariables #-}
 {-# LANGUAGE StandaloneDeriving #-}
 {-# LANGUAGE UndecidableInstances #-}
-{-# LANGUAGE DerivingStrategies #-}
-{-# LANGUAGE GeneralizedNewtypeDeriving #-}
 
 -- |
 -- Copyright: © 2023 IOHK
@@ -17,10 +17,11 @@ module Cardano.Wallet.Write.ProtocolParameters
 
 import Prelude
 
-import Data.Functor.Identity (Identity)
+import Data.Functor.Identity
+    ( Identity )
 
-import qualified Cardano.Wallet.Write.Tx as Write
 import qualified Cardano.Ledger.Core as Ledger
+import qualified Cardano.Wallet.Write.Tx as Write
 
 -- TODO:
 --  - Make this data type abstract: don't export the constructor.
