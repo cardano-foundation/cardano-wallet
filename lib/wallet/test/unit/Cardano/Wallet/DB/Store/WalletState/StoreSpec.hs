@@ -20,7 +20,7 @@ import Cardano.Wallet.Address.Derivation
 import Cardano.Wallet.DB.Arbitrary
     ( GenState, InitialCheckpoint (..) )
 import Cardano.Wallet.DB.Fixtures
-    ( initializeWallet, withDBInMemory )
+    ( initializeWalletTable, withDBInMemory )
 import Cardano.Wallet.DB.Store.Checkpoints.Store
     ( PersistAddressBook (..) )
 import Cardano.Wallet.DB.Store.Checkpoints.StoreSpec
@@ -80,7 +80,7 @@ prop_StoreWallet wF db (wid, InitialCheckpoint cp0) =
     monadicIO (setup >> prop)
   where
     toIO = runQuery db
-    setup = run . toIO $ initializeWallet wid
+    setup = run . toIO $ initializeWalletTable wid
     genState = do
         wi <-
             WalletInfo wid

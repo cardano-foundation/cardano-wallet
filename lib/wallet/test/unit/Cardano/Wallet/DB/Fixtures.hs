@@ -8,7 +8,7 @@
 
 module Cardano.Wallet.DB.Fixtures
     ( withDBInMemory
-    , initializeWallet
+    , initializeWalletTable
     , assertWith
     , RunQuery
     , unsafeLoadS
@@ -88,8 +88,8 @@ withDBInMemory disableFK action = bracket (newDBInMemory disableFK) fst (action 
 newDBInMemory :: ForeignKeysSetting -> IO (IO (), SqliteContext)
 newDBInMemory = newInMemorySqliteContext nullTracer [] migrateAll
 
-initializeWallet :: WalletId -> SqlPersistT IO ()
-initializeWallet wid = do
+initializeWalletTable :: WalletId -> SqlPersistT IO ()
+initializeWalletTable wid = do
     deleteWhere [TH.WalId ==. wid] -- triggers delete cascade
     insertWalletTable wid
 
@@ -175,7 +175,7 @@ withInitializedWalletProp
 withInitializedWalletProp prop db wid = monadicIO $ do
     let runQ :: SqlPersistT IO a -> PropertyM IO a
         runQ = run . runQuery db
-    runQ $ initializeWallet wid
+    runQ $ initializeWalletTable wid
     prop wid runQ
 
 -- store unsafe ops

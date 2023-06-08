@@ -29,7 +29,7 @@ import Cardano.Wallet.Checkpoints
 import Cardano.Wallet.DB.Arbitrary
     ()
 import Cardano.Wallet.DB.Fixtures
-    ( initializeWallet, withDBInMemory )
+    ( initializeWalletTable, withDBInMemory )
 import Cardano.Wallet.DB.Store.Checkpoints.Store
     ( PersistAddressBook (..) )
 import Cardano.Wallet.Primitive.Types
@@ -83,7 +83,7 @@ prop_prologue_load_write preprocess db (wid, s) =
     monadicIO $ run (toIO setup) >> prop
   where
     toIO = runQuery db
-    setup = initializeWallet wid
+    setup = initializeWalletTable wid
     prop = prop_loadAfterWrite toIO (insertPrologue wid) (loadPrologue wid) pro
     pro = getPrologue $ preprocess s
     -- FIXME during ADP-1043: See note at 'multisigPoolAbsent'
