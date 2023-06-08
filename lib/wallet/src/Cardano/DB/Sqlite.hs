@@ -153,10 +153,9 @@ import qualified Database.Sqlite as Sqlite
                             Sqlite connection set up
 -------------------------------------------------------------------------------}
 
--- | 'SqliteContext' is a function to execute queries.
+-- | 'SqliteContext' is a facility to run database queries.
 newtype SqliteContext = SqliteContext
     { runQuery :: forall a. SqlPersistT IO a -> IO a
-    -- ^ Run a query with a connection from the pool.
     }
 
 -- | Run an action, and convert any Sqlite constraints exception into the given
