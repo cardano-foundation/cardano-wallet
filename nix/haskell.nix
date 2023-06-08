@@ -110,6 +110,7 @@ CHaP: haskell-nix: nixpkgs-recent: nodePkgs: haskell-nix.cabalProject' [
         packages = ps: builtins.attrValues (haskellLib.selectProjectPackages ps);
         tools = {
           cabal = "latest";
+          cabal-fmt = "latest";
           cabal-cache.version = "1.0.2.1";
           haskell-language-server = {
             version = "1.8.0.0";
