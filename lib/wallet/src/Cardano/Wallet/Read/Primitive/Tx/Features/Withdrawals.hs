@@ -15,8 +15,6 @@ module Cardano.Wallet.Read.Primitive.Tx.Features.Withdrawals
 
 import Prelude
 
-import Cardano.Ledger.Crypto
-    ( StandardCrypto )
 import Cardano.Wallet.Primitive.Types.Coin
     ( Coin )
 import Cardano.Wallet.Primitive.Types.RewardAccount
@@ -28,15 +26,11 @@ import Cardano.Wallet.Read.Primitive.Tx.Features.Certificates
 import Cardano.Wallet.Read.Primitive.Tx.Features.Fee
     ( fromShelleyCoin )
 import Cardano.Wallet.Read.Tx.Withdrawals
-    ( Withdrawals (..) )
-import Data.Bifunctor
-    ( Bifunctor (..) )
+    ( RewardWithdrawals, Withdrawals (..) )
 import Data.Map.Strict
     ( Map )
 
 import qualified Cardano.Ledger.Shelley.TxBody as SL
-import qualified Cardano.Wallet.Primitive.Types.Coin as W
-import qualified Cardano.Wallet.Primitive.Types.RewardAccount as W
 import qualified Data.Map.Strict as Map
 
 getWithdrawals :: EraFun Withdrawals (K (Maybe (Map RewardAccount Coin)))
@@ -54,7 +48,8 @@ getWithdrawals = EraFun
         yesWithdrawals (Withdrawals ttl)
             = K . Just . fromShelleyWdrl $ ttl
 
-fromShelleyWdrl :: SL.Wdrl StandardCrypto -> Map W.RewardAccount W.Coin
-fromShelleyWdrl (SL.Wdrl wdrl) = Map.fromList $
-    bimap (fromStakeCredential . SL.getRwdCred) fromShelleyCoin
-        <$> Map.toList wdrl
+fromShelleyWdrl :: RewardWithdrawals -> Map RewardAccount Coin
+fromShelleyWdrl m = Map.fromList $ do
+    -- TODO conway: Do we need the network value here?
+    (SL.RewardAcnt _network cred, coin) <- Map.toList m
+    pure (fromStakeCredential cred, fromShelleyCoin coin)

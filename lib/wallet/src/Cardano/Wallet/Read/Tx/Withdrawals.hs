@@ -16,6 +16,7 @@ module Cardano.Wallet.Read.Tx.Withdrawals
     ( WithdrawalsType
     , Withdrawals (..)
     , getEraWithdrawals
+    , RewardWithdrawals
     ) where
 
 import Prelude
