@@ -1,6 +1,8 @@
 {-# LANGUAGE DataKinds #-}
 {-# LANGUAGE FlexibleContexts #-}
 {-# LANGUAGE NoMonomorphismRestriction #-}
+{-# LANGUAGE RankNTypes #-}
+{-# LANGUAGE ScopedTypeVariables #-}
 {-# LANGUAGE StandaloneDeriving #-}
 {-# LANGUAGE TypeFamilies #-}
 {-# LANGUAGE UndecidableInstances #-}
@@ -21,34 +23,39 @@ module Cardano.Wallet.Read.Tx.Mint
 import Prelude
 
 import Cardano.Api
-    ( AllegraEra, AlonzoEra, BabbageEra, ByronEra, ConwayEra, MaryEra,
-    ShelleyEra )
-import Cardano.Ledger.Alonzo.TxBody
-    ( mintTxBodyL )
+    ( AllegraEra
+    , AlonzoEra
+    , BabbageEra
+    , ByronEra
+    , ConwayEra
+    , MaryEra
+    , ShelleyEra
+    )
 import Cardano.Ledger.Core
     ( bodyTxL )
 import Cardano.Ledger.Crypto
     ( StandardCrypto )
-import Cardano.Wallet.Read.Eras
+import Cardano.Ledger.Mary.Core
+    ( mintTxBodyL )
+import Cardano.Ledger.Mary.Value
+    ( MultiAsset )
+import Cardano.Wallet.Read.Eras.EraFun
     ( EraFun (..) )
 import Cardano.Wallet.Read.Tx
     ( Tx (..) )
 import Cardano.Wallet.Read.Tx.Eras
     ( onTx )
 import Control.Lens
-    ( (^.) )
-
-import qualified Cardano.Ledger.Mary.Value as Mary
-import qualified Cardano.Ledger.Shelley.API as SH
+    ( view )
 
 type family MintType era where
   MintType ByronEra = ()
   MintType ShelleyEra = ()
-  MintType AllegraEra = SH.Coin
-  MintType MaryEra = Mary.MaryValue StandardCrypto
-  MintType AlonzoEra = Mary.MaryValue StandardCrypto
-  MintType BabbageEra = Mary.MaryValue StandardCrypto
-  MintType ConwayEra = Mary.MaryValue StandardCrypto
+  MintType AllegraEra = ()
+  MintType MaryEra = MultiAsset StandardCrypto
+  MintType AlonzoEra = MultiAsset StandardCrypto
+  MintType BabbageEra = MultiAsset StandardCrypto
+  MintType ConwayEra = MultiAsset StandardCrypto
 
 newtype Mint era = Mint (MintType era)
 
@@ -60,11 +67,11 @@ getEraMint =
     EraFun
         { byronFun = \_ -> Mint ()
         , shelleyFun = \_ -> Mint ()
-        , allegraFun = allegraMint
-        , maryFun = allegraMint
-        , alonzoFun = allegraMint
-        , babbageFun = allegraMint
-        , conwayFun = allegraMint
+        , allegraFun =  \_ -> Mint ()
+        , maryFun = mint
+        , alonzoFun = mint
+        , babbageFun = mint
+        , conwayFun = mint
         }
   where
-    allegraMint = onTx $ \tx -> Mint $ tx ^. bodyTxL . mintTxBodyL
+    mint = onTx $ Mint . view (bodyTxL . mintTxBodyL)

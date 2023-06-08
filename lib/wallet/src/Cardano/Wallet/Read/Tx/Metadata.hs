@@ -23,17 +23,22 @@ import Prelude
 import Cardano.Api
     ( AllegraEra, AlonzoEra, BabbageEra, ByronEra, ConwayEra, MaryEra,
     ShelleyEra )
-import Cardano.Wallet.Read.Eras
-    ( EraFun (..) )
-import Control.Lens
-    ( (^.) )
-
+import Cardano.Ledger.Allegra.TxAuxData
+    ( AllegraTxAuxData )
+import Cardano.Ledger.Alonzo.TxAuxData
+    ( AlonzoTxAuxData )
 import Cardano.Ledger.Core
-    ( AuxiliaryData, auxDataTxL )
+    ( auxDataTxL )
+import Cardano.Ledger.Shelley.TxAuxData
+    ( ShelleyTxAuxData )
+import Cardano.Wallet.Read.Eras.EraFun
+    ( EraFun (..) )
 import Cardano.Wallet.Read.Tx
     ( Tx (..) )
 import Cardano.Wallet.Read.Tx.Eras
     ( onTx )
+import Control.Lens
+    ( view )
 import Data.Maybe.Strict
     ( StrictMaybe )
 import Ouroboros.Consensus.Shelley.Eras
@@ -42,12 +47,12 @@ import Ouroboros.Consensus.Shelley.Eras
 
 type family MetadataType era where
   MetadataType ByronEra = ()
-  MetadataType ShelleyEra = StrictMaybe (AuxiliaryData StandardShelley)
-  MetadataType AllegraEra = StrictMaybe (AuxiliaryData StandardAllegra)
-  MetadataType MaryEra = StrictMaybe (AuxiliaryData StandardMary)
-  MetadataType AlonzoEra = StrictMaybe (AuxiliaryData StandardAlonzo)
-  MetadataType BabbageEra = StrictMaybe (AuxiliaryData StandardBabbage)
-  MetadataType ConwayEra = StrictMaybe (AuxiliaryData StandardConway)
+  MetadataType ShelleyEra = StrictMaybe (ShelleyTxAuxData StandardShelley)
+  MetadataType AllegraEra = StrictMaybe (AllegraTxAuxData StandardAllegra)
+  MetadataType MaryEra = StrictMaybe (AllegraTxAuxData StandardMary)
+  MetadataType AlonzoEra = StrictMaybe (AlonzoTxAuxData StandardAlonzo)
+  MetadataType BabbageEra = StrictMaybe (AlonzoTxAuxData StandardBabbage)
+  MetadataType ConwayEra = StrictMaybe (AlonzoTxAuxData StandardConway)
 
 newtype Metadata era = Metadata (MetadataType era)
 
@@ -58,12 +63,12 @@ getEraMetadata :: EraFun Tx Metadata
 getEraMetadata =
     EraFun
         { byronFun = \_ -> Metadata ()
-        , shelleyFun = shelleyMetadata
-        , allegraFun = shelleyMetadata
-        , maryFun = shelleyMetadata
-        , alonzoFun = shelleyMetadata
-        , babbageFun = shelleyMetadata
-        , conwayFun = shelleyMetadata
+        , shelleyFun = metadata
+        , allegraFun = metadata
+        , maryFun = metadata
+        , alonzoFun = metadata
+        , babbageFun = metadata
+        , conwayFun = metadata
         }
   where
-    shelleyMetadata = onTx $ \tx -> Metadata (tx ^. auxDataTxL)
+    metadata = onTx $ Metadata . view auxDataTxL

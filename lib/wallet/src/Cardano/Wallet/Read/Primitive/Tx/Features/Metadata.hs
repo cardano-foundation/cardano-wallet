@@ -25,8 +25,6 @@ import Cardano.Ledger.BaseTypes
     ( strictMaybeToMaybe )
 import Cardano.Ledger.Core
     ( AuxiliaryData )
-import Cardano.Ledger.ShelleyMA
-    ( MaryOrAllegra (..), ShelleyMAEra )
 import Cardano.Wallet.Read.Eras
     ( EraFun (..), K (..) )
 import Cardano.Wallet.Read.Tx.Metadata
@@ -38,7 +36,7 @@ import qualified Cardano.Api.Shelley as Cardano
 import qualified Cardano.Api.Shelley as CardanoAPI
 import qualified Cardano.Ledger.Alonzo.Data as AL
 import qualified Cardano.Ledger.Shelley.API as SL
-import qualified Cardano.Ledger.ShelleyMA.AuxiliaryData as MA
+import qualified Cardano.Ledger.Allegra.TxAuxData as AuxData
 import qualified Cardano.Wallet.Primitive.Types.Tx.Tx as W
 
 getMetadata :: EraFun Metadata (K (Maybe (W.TxMetadata) ))
@@ -64,12 +62,12 @@ fromShelleyMetadata (SL.Metadata m) =
 -- multisig/script balance reporting.
 fromAllegraMetadata :: AuxiliaryData (ShelleyMAEra 'Allegra StandardCrypto)
     -> W.TxMetadata
-fromAllegraMetadata (MA.MAAuxiliaryData blob _scripts)
+fromAllegraMetadata (AuxData.MAAuxiliaryData blob _scripts)
     = fromShelleyMetadata $ SL.Metadata blob
 
 fromMaryMetadata :: AuxiliaryData (ShelleyMAEra 'Mary StandardCrypto)
     -> W.TxMetadata
-fromMaryMetadata (MA.MAAuxiliaryData blob _scripts)
+fromMaryMetadata (AuxData.MAAuxiliaryData blob _scripts)
     = fromShelleyMetadata $ SL.Metadata blob
 
 fromAlonzoMetadata :: AuxiliaryData (AlonzoEra StandardCrypto) -> W.TxMetadata
