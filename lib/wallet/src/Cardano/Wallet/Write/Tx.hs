@@ -171,7 +171,7 @@ import Cardano.Ledger.BaseTypes
 import Cardano.Ledger.Coin
     ( Coin (..) )
 import Cardano.Ledger.Crypto
-    ( Crypto, StandardCrypto )
+    ( StandardCrypto )
 import Cardano.Ledger.Mary
     ( MaryValue )
 import Cardano.Ledger.SafeHash
@@ -202,8 +202,6 @@ import Data.Generics.Internal.VL.Lens
     ( (^.) )
 import Data.Generics.Labels
     ()
-import Data.Generics.Product
-    ( HasField' )
 import Data.IntCast
     ( intCast, intCastMaybe )
 import Data.Kind
@@ -224,7 +222,6 @@ import Ouroboros.Consensus.Shelley.Eras
 import qualified Cardano.Api as Cardano
 import qualified Cardano.Api.Byron as Cardano
 import qualified Cardano.Api.Shelley as Cardano
-import qualified Cardano.Binary as CBOR
 import qualified Cardano.Crypto.Hash.Class as Crypto
 import qualified Cardano.Ledger.Address as Ledger
 import qualified Cardano.Ledger.Alonzo.PParams as Alonzo
@@ -244,6 +241,7 @@ import qualified Cardano.Ledger.Shelley.UTxO as Shelley
 import qualified Cardano.Ledger.TxIn as Ledger
 import qualified Data.Aeson as Aeson
 import qualified Data.Aeson.Types as Aeson
+import qualified Data.ByteString.Lazy as BL
 import qualified Data.Map as Map
 
 --------------------------------------------------------------------------------
