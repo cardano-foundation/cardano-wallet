@@ -33,25 +33,21 @@ import Data.Quantity
 import qualified Ouroboros.Network.Block as O
 
 getValidity :: EraFun Validity (K (Maybe ValidityIntervalExplicit))
-getValidity = EraFun
-    { byronFun = noValidity
-    , shelleyFun = yesShelleyValidity
-    , allegraFun = yesMaryValidity
-    , maryFun = yesMaryValidity
-    , alonzoFun = yesMaryValidity
-    , babbageFun = yesMaryValidity
-    , conwayFun = yesMaryValidity
-    }
-    where
-        noValidity = const $ K Nothing
-        yesShelleyValidity (Validity ttl)
-            = K . Just . shelleyValidityInterval $ ttl
-        yesMaryValidity (Validity validity')
-            = K . Just $ afterShelleyValidityInterval validity'
+getValidity =
+    EraFun
+        { byronFun = \_validity -> K Nothing
+        , shelleyFun = \(Validity ttl) -> K . Just $ shelleyValidityInterval ttl
+        , allegraFun = afterShelleyValidity
+        , maryFun = afterShelleyValidity
+        , alonzoFun = afterShelleyValidity
+        , babbageFun = afterShelleyValidity
+        , conwayFun = afterShelleyValidity
+        }
+  where
+    afterShelleyValidity (Validity validity)
+        = K . Just $ afterShelleyValidityInterval validity
 
-afterShelleyValidityInterval
-    :: ValidityInterval
-    -> ValidityIntervalExplicit
+afterShelleyValidityInterval :: ValidityInterval -> ValidityIntervalExplicit
 afterShelleyValidityInterval (ValidityInterval from to) =
     case (from, to) of
         (SNothing, SJust (O.SlotNo s)) ->
@@ -65,4 +61,4 @@ afterShelleyValidityInterval (ValidityInterval from to) =
 
 shelleyValidityInterval :: O.SlotNo -> ValidityIntervalExplicit
 shelleyValidityInterval (O.SlotNo n)
-    = ValidityIntervalExplicit (Quantity 0) $ Quantity n
+    = ValidityIntervalExplicit (Quantity 0) (Quantity n)
