@@ -10,7 +10,6 @@
 {-# LANGUAGE NumericUnderscores #-}
 {-# LANGUAGE RankNTypes #-}
 {-# LANGUAGE ScopedTypeVariables #-}
-{-# LANGUAGE TupleSections #-}
 {-# LANGUAGE TypeApplications #-}
 {-# LANGUAGE TypeFamilies #-}
 {-# LANGUAGE UndecidableInstances #-}
@@ -24,17 +23,19 @@
 -- Copyright: © 2018-2020 IOHK
 -- License: Apache-2.0
 --
--- An implementation of the DBLayer which uses Persistent and SQLite.
-
+-- A wrapper for SQLite database connections, to be used with 'persistent'.
 module Cardano.DB.Sqlite
     ( SqliteContext (..)
-    , newSqliteContextFile
+    , withSqliteContextFile
     , newInMemorySqliteContext
     , ForeignKeysSetting (..)
 
-    -- * ConnectionPool
-    , ConnectionPool
-    , withConnectionPool
+    -- * DB Connections
+    , DBHandle
+    , withDBHandle
+    , dbConn
+    , dbFile
+    , dbBackend
 
     -- * Helpers
     , chunkSize
@@ -43,7 +44,7 @@ module Cardano.DB.Sqlite
     , dbChunked'
     , handleConstraint
 
-    -- * Manual Migration
+    -- * Old-style Manual Migration
     , ManualMigration (..)
     , MigrationError (..)
     , DBField (..)
@@ -94,8 +95,6 @@ import Data.List
     ( isInfixOf )
 import Data.List.Split
     ( chunksOf )
-import Data.Pool
-    ( Pool, createPool, destroyAllResources, withResource )
 import Data.Proxy
     ( Proxy (..) )
 import Data.Text
@@ -127,7 +126,7 @@ import Database.Persist.Sql
 import Database.Persist.Sqlite
     ( SqlBackend, wrapConnection )
 import Database.Sqlite
-    ( Connection, Error (ErrorConstraint), SqliteException (SqliteException) )
+    ( Error (ErrorConstraint), SqliteException (SqliteException) )
 import Fmt
     ( Buildable (..), fmt, ordinalF, (+|), (+||), (|+), (||+) )
 import GHC.Generics
@@ -141,7 +140,7 @@ import UnliftIO.Compat
 import UnliftIO.Exception
     ( Exception, bracket, bracket_, handleJust, tryJust )
 import UnliftIO.MVar
-    ( newMVar, withMVarMasked )
+    ( newMVar, withMVar, withMVarMasked )
 
 import qualified Data.Aeson as Aeson
 import qualified Data.ByteString.Char8 as B8
@@ -160,8 +159,6 @@ newtype SqliteContext = SqliteContext
     -- ^ Run a query with a connection from the pool.
     }
 
-type ConnectionPool = Pool (SqlBackend, Sqlite.Connection)
-
 -- | Run an action, and convert any Sqlite constraints exception into the given
 -- error result. No other exceptions are handled.
 handleConstraint :: MonadUnliftIO m => e -> m a -> m (Either e a)
@@ -170,10 +167,6 @@ handleConstraint e = handleJust select handler . fmap Right
     select (SqliteException ErrorConstraint _ _) = Just ()
     select _ = Nothing
     handler = const . pure  . Left $ e
-
-{-------------------------------------------------------------------------------
-                           Internal / Database Setup
--------------------------------------------------------------------------------}
 
 newInMemorySqliteContext
     :: Tracer IO DBLog
@@ -206,97 +199,61 @@ newInMemorySqliteContext tr manualMigrations autoMigration disableFK = do
 
 -- | Sets up query logging and timing, runs schema migrations if necessary and
 -- provide a safe 'SqliteContext' for interacting with the database.
-newSqliteContextFile
+withSqliteContextFile
     :: Tracer IO DBLog -- ^ Logging
     -> FilePath -- ^ Database file
     -> [ManualMigration] -- ^ Manual migrations
     -> Migration -- ^ Auto migration
     -> (Tracer IO DBLog -> FilePath -> IO ()) -- ^ New style migrations
-    -> IO (Either MigrationError SqliteContext)
-newSqliteContextFile tr fp old auto new = do
+    -> (SqliteContext -> IO a)
+    -> IO (Either MigrationError a)
+withSqliteContextFile tr fp old auto new action = do
     migrationResult <- runAllMigrations tr fp old auto new
-    pure $ case migrationResult of
-        Left e  -> Left e
-        Right{} ->
-            let observe :: IO a -> IO a
-                observe = bracketTracer (contramap MsgRun tr)
+    case migrationResult of
+        Left e  -> pure $ Left e
+        Right{} -> do
+            lock <- newMVar ()
+            withDBHandle tr fp $ \DBHandle{dbBackend} ->
+                let -- Run a query on the open database,
+                    -- but retry on busy.
+                    runQuery :: SqlPersistT IO a -> IO a
+                    runQuery cmd =
+                        observe
+                        . retryOnBusy tr retryOnBusyTimeout
+                        $ withMVar lock
+                        $ const $ runSqlConn cmd dbBackend
+                in  Right <$> action (SqliteContext{runQuery})
+  where
+    observe :: IO a -> IO a
+    observe = bracketTracer (contramap MsgRun tr)
 
-               -- Note that `withResource` does already mask async exception but
-               -- only for dealing with the pool resource acquisition. The action
-               -- is then ran unmasked with the acquired resource. If an
-               -- asynchronous exception occurs (or actually any exception), the
-               -- resource is NOT placed back in the pool.
-                runQuery :: SqlPersistT IO a -> IO a
-                runQuery cmd = runDBAction tr fp $
-                   observe
-                    . retryOnBusy tr retryOnBusyTimeout
-                    . runSqlConn cmd . fst
-            in Right $ SqliteContext { runQuery }
+{-------------------------------------------------------------------------------
+    SQL connection life-cycle
+    low level
+-------------------------------------------------------------------------------}
+data DBHandle = DBHandle
+    { dbConn :: Sqlite.Connection
+    , dbBackend :: SqlBackend
+    , dbFile :: FilePath
+    }
 
-matchWrongVersionError :: ErrWrongVersion -> Maybe MigrationError
-matchWrongVersionError =
-    Just
-        . MigrationError
-        . view strict
-        . toLazyText
-        . build
-
-type DBAction a = (SqlBackend, Connection) -> IO a
-
-runDBAction
+withDBHandle
     :: Tracer IO DBLog
     -> FilePath
-    -> DBAction a
-    -- ^ New style migrations
+    -> (DBHandle -> IO a)
     -> IO a
-runDBAction trDB dbFile action =
-    withConnectionPool trDB dbFile $ \pool ->
-        withResource pool action
+withDBHandle tr fp =
+    bracket (newDBHandle tr fp) (destroyDBHandle tr)
 
-runAutoMigration
-    :: Tracer IO DBLog
-    -> Migration
-    -> DBAction (Either MigrationError ())
-runAutoMigration tr autoMigration (backend, conn) = do
-    let executeAutoMigration =
-            runSqlConn
-                (runMigrationUnsafeQuiet autoMigration)
-                backend
-    migrationResult <- withForeignKeysDisabled tr conn $ do
-        executeAutoMigration
-            & tryJust (matchMigrationError @PersistException)
-            & tryJust (matchMigrationError @SqliteException)
-            & fmap join
-    traceWith tr $ MsgMigrations $ length <$> migrationResult
-    return $ migrationResult $> ()
-
-runManualOldMigrations
-    :: Tracer IO DBLog
-    -> [ManualMigration]
-    -> DBAction (Either MigrationError ())
-runManualOldMigrations tr manualMigration (_backend, conn) = do
-    withForeignKeysDisabled tr conn $ Right <$>
-        mapM_ (`executeManualMigration` conn) manualMigration
-
-runManualNewMigrations
+newDBHandle
     :: Tracer IO DBLog
     -> FilePath
-    -> (Tracer IO DBLog -> FilePath -> IO ())
-    -> IO (Either MigrationError ())
-runManualNewMigrations tr fp newMigrations  =
-    newMigrations tr fp
-        & tryJust matchWrongVersionError
-
-runAllMigrations :: Tracer IO DBLog
-    -> FilePath
-    -> [ManualMigration]
-    -> Migration
-    -> (Tracer IO DBLog -> FilePath -> IO ())
-    -> IO (Either MigrationError ())
-runAllMigrations tr fp old auto new = runExceptT $ do
-    ExceptT $ runDBAction tr fp $ runManualOldMigrations tr old
-    ExceptT $ runDBAction tr fp $ runAutoMigration tr auto
-    ExceptT $ runManualNewMigrations tr fp new
+    -> IO DBHandle
+newDBHandle tr dbFile = do
+    traceWith tr $ MsgOpenSingleConnection dbFile
+    dbConn <- Sqlite.open (T.pack dbFile)
+    dbBackend <- wrapConnection dbConn (queryLogFunc tr)
+    pure $ DBHandle{dbFile,dbConn,dbBackend}
 
 -- | Finalize database statements and close the database connection.
 --
@@ -305,12 +262,11 @@ runAllMigrations tr fp old auto new = runExceptT $ do
 --
 -- This function is idempotent: if the database connection has already been
 -- closed, calling this function will exit without doing anything.
-destroySqliteBackend
+destroyDBHandle
     :: Tracer IO DBLog
-    -> SqlBackend
-    -> FilePath
+    -> DBHandle
     -> IO ()
-destroySqliteBackend tr sqlBackend dbFile = do
+destroyDBHandle tr DBHandle{dbFile,dbBackend=sqlBackend} = do
     traceWith tr (MsgCloseSingleConnection dbFile)
 
     -- Hack for ADP-827: timeout earlier in integration tests.
@@ -387,6 +343,9 @@ retryOnBusy tr timeout action = recovering policy
     trace m RetryStatus{rsIterNumber} = traceWith tr $
         MsgRetryOnBusy rsIterNumber m
 
+{-------------------------------------------------------------------------------
+    Foreign key settings
+-------------------------------------------------------------------------------}
 -- | Run the given task in a context where foreign key constraints are
 --   /temporarily disabled/, before re-enabling them.
 --
@@ -463,48 +422,10 @@ updateForeignKeysSetting trace connection desiredValue = do
         ForeignKeysEnabled  -> "ON"
         ForeignKeysDisabled -> "OFF"
 
-withConnectionPool
-    :: Tracer IO DBLog
-    -> FilePath
-    -> (ConnectionPool -> IO a)
-    -> IO a
-withConnectionPool tr fp =
-    bracket (newConnectionPool tr fp) (destroyConnectionPool tr fp)
-
-newConnectionPool
-    :: Tracer IO DBLog
-    -> FilePath
-    -> IO ConnectionPool
-newConnectionPool tr fp = do
-    traceWith tr $ MsgStartConnectionPool fp
-
-    let acquireConnection = do
-            conn <- Sqlite.open (T.pack fp)
-            (,conn) <$> wrapConnection conn (queryLogFunc tr)
-
-    let releaseConnection (backend, _) =
-            destroySqliteBackend tr backend fp
-
-    createPool
-        acquireConnection
-        releaseConnection
-        numberOfStripes
-        timeToLive
-        maximumConnections
-  where
-    numberOfStripes = 1
-    maximumConnections = 10
-    timeToLive = 600 {- 10 minutes -} :: NominalDiffTime
-
-destroyConnectionPool :: Tracer IO DBLog -> FilePath -> Pool a -> IO ()
-destroyConnectionPool tr fp pool = do
-    traceWith tr (MsgStopConnectionPool fp)
-    destroyAllResources pool
-
 {-------------------------------------------------------------------------------
-                                    Migrations
+    Database migrations
+    old style and new style
 -------------------------------------------------------------------------------}
-
 -- | Error type for when migrations go wrong after opening a database.
 newtype MigrationError = MigrationError
     { getMigrationErrorMessage :: Text }
@@ -530,12 +451,70 @@ instance MatchMigrationError SqliteException where
     matchMigrationError _ =
         Nothing
 
--- | Encapsulates a manual migration action (or sequence of actions) to be
+matchWrongVersionError :: ErrWrongVersion -> Maybe MigrationError
+matchWrongVersionError =
+    Just
+        . MigrationError
+        . view strict
+        . toLazyText
+        . build
+
+-- | Encapsulates an old-style manual migration action
+--   (or sequence of actions) to be
 --   performed immediately after an SQL connection is initiated.
---
 newtype ManualMigration = ManualMigration
     { executeManualMigration :: Sqlite.Connection -> IO () }
 
+runAutoMigration
+    :: Tracer IO DBLog
+    -> Migration
+    -> DBHandle
+    -> IO (Either MigrationError ())
+runAutoMigration tr autoMigration DBHandle{dbConn,dbBackend} = do
+    let executeAutoMigration =
+            runSqlConn
+                (runMigrationUnsafeQuiet autoMigration)
+                dbBackend
+    migrationResult <- withForeignKeysDisabled tr dbConn $ do
+        executeAutoMigration
+            & tryJust (matchMigrationError @PersistException)
+            & tryJust (matchMigrationError @SqliteException)
+            & fmap join
+    traceWith tr $ MsgMigrations $ length <$> migrationResult
+    return $ migrationResult $> ()
+
+runManualOldMigrations
+    :: Tracer IO DBLog
+    -> [ManualMigration]
+    -> DBHandle
+    -> IO (Either MigrationError ())
+runManualOldMigrations tr manualMigration DBHandle{dbConn} = do
+    withForeignKeysDisabled tr dbConn $ Right <$>
+        mapM_ (`executeManualMigration` dbConn) manualMigration
+
+runManualNewMigrations
+    :: Tracer IO DBLog
+    -> FilePath
+    -> (Tracer IO DBLog -> FilePath -> IO ())
+    -> IO (Either MigrationError ())
+runManualNewMigrations tr fp newMigrations  =
+    newMigrations tr fp
+        & tryJust matchWrongVersionError
+
+runAllMigrations :: Tracer IO DBLog
+    -> FilePath
+    -> [ManualMigration]
+    -> Migration
+    -> (Tracer IO DBLog -> FilePath -> IO ())
+    -> IO (Either MigrationError ())
+runAllMigrations tr fp old auto new = runExceptT $ do
+    ExceptT $ withDBHandle tr fp $ runManualOldMigrations tr old
+    ExceptT $ withDBHandle tr fp $ runAutoMigration tr auto
+    ExceptT $ runManualNewMigrations tr fp new
+
+{-------------------------------------------------------------------------------
+    Database migration helpers
+-------------------------------------------------------------------------------}
 data DBField where
     DBField
         :: forall record typ. (PersistEntity record)
@@ -590,9 +569,8 @@ data DBLog
     = MsgMigrations (Either MigrationError Int)
     | MsgQuery Text Severity
     | MsgRun BracketLog
+    | MsgOpenSingleConnection FilePath
     | MsgCloseSingleConnection FilePath
-    | MsgStartConnectionPool FilePath
-    | MsgStopConnectionPool FilePath
     | MsgDatabaseReset
     | MsgIsAlreadyClosed Text
     | MsgStatementAlreadyFinalized Text
@@ -615,8 +593,6 @@ instance HasSeverityAnnotation DBLog where
         MsgQuery _ sev -> sev
         MsgRun _ -> Debug
         MsgCloseSingleConnection _ -> Info
-        MsgStartConnectionPool _ -> Info
-        MsgStopConnectionPool _ -> Info
         MsgExpectedMigration _ -> Debug
         MsgDatabaseReset -> Notice
         MsgIsAlreadyClosed _ -> Warning
@@ -628,6 +604,7 @@ instance HasSeverityAnnotation DBLog where
             | n <= 1 -> Debug
             | n <= 3 -> Notice
             | otherwise -> Warning
+        MsgOpenSingleConnection _ -> Debug
 
 instance ToText DBLog where
     toText = \case
@@ -640,13 +617,11 @@ instance ToText DBLog where
         MsgQuery stmt _ -> stmt
         MsgRun b ->
             "Running database action - " <> toText b
-        MsgStartConnectionPool fp ->
-            "Starting connection pool for " <> T.pack fp
-        MsgStopConnectionPool fp ->
-            "Stopping database connection pool " <> T.pack fp
         MsgDatabaseReset ->
             "Non backward compatible database found. Removing old database \
             \and re-creating it from scratch. Ignore the previous error."
+        MsgOpenSingleConnection fp ->
+            "Opening single database connection ("+|fp|+")"
         MsgCloseSingleConnection fp ->
             "Closing single database connection ("+|fp|+")"
         MsgIsAlreadyClosed msg ->

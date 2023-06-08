@@ -2,13 +2,13 @@
 
 module Cardano.Wallet.DB.Sqlite.MigrationNew
     ( runNewStyleMigrations
-    , DBHandle(..)) where
+    ) where
 
 import Prelude hiding
     ( id, (.) )
 
 import Cardano.DB.Sqlite
-    ( DBLog, withConnectionPool )
+    ( DBHandle (..), DBLog, withDBHandle )
 import Cardano.Wallet.DB.Migration
     ( Migration
     , MigrationInterface (..)
@@ -26,27 +26,13 @@ import Control.Monad.Trans.Reader
     ( ReaderT )
 import Control.Tracer
     ( Tracer )
-import Data.Pool
-    ( withResource )
-import Database.Persist.Sql
-    ( SqlBackend )
 import Database.Persist.Sqlite
     ( SqlPersistT )
-import Database.Sqlite
-    ( Connection )
 import System.Directory
     ( copyFile )
 
 import qualified Cardano.Wallet.DB.Sqlite.MigrationOld as MigrateOld
 import qualified Database.Sqlite as Sqlite
-
-data DBHandle = DBHandle
-    { dbConn :: Connection
-    , dbBackend :: SqlBackend
-    }
-
-mkDBHandle :: (SqlBackend, Connection) -> DBHandle
-mkDBHandle (backend, conn) = DBHandle conn backend
 
 newMigrationInterface
     :: Tracer IO DBLog
@@ -56,9 +42,7 @@ newMigrationInterface tr =
         { backupDatabaseFile = \fp v -> do
             let backupFile = fp <> ".v" <> show v <> ".bak"
             copyFile fp backupFile
-        , withDatabaseFile = \fp f -> do
-            withConnectionPool tr fp $ \pool ->
-                withResource pool $ f . mkDBHandle
+        , withDatabaseFile = withDBHandle tr
         , getVersion = getVersionNew . dbConn
         , setVersion = setVersionNew . dbConn
         }

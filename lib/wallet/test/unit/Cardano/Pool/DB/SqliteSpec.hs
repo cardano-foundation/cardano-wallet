@@ -70,12 +70,12 @@ test_migrationFromv20191216 =
             let databaseResetMsg = filter (== MsgGeneric MsgDatabaseReset) logs
             let migrationErrMsg  = filter isMsgMigrationError logs
 
-            length databaseConnMsg  `shouldBe` 6
+            length databaseConnMsg  `shouldBe` 8
             length databaseResetMsg `shouldBe` 1
             length migrationErrMsg  `shouldBe` 1
 
 isMsgOpenDB :: PoolDbLog -> Bool
-isMsgOpenDB (MsgGeneric (MsgStartConnectionPool _)) = True
+isMsgOpenDB (MsgGeneric (MsgOpenSingleConnection _)) = True
 isMsgOpenDB _ = False
 
 isMsgMigrationError :: PoolDbLog -> Bool

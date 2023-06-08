@@ -58,7 +58,7 @@ import Cardano.BM.Data.Tracer
 import Cardano.BM.Setup
     ( setupTrace_, shutdown )
 import Cardano.DB.Sqlite
-    ( ConnectionPool, SqliteContext (..) )
+    ( SqliteContext (..) )
 import Cardano.Mnemonic
     ( EntropySize, SomeMnemonic (..), entropyToMnemonic, genEntropy )
 import Cardano.Startup
@@ -788,9 +788,6 @@ instance NFData (DBLayer m s) where
     rnf _ = ()
 
 instance NFData SqliteContext where
-    rnf _ = ()
-
-instance NFData ConnectionPool where
     rnf _ = ()
 
 testCp :: WalletBench

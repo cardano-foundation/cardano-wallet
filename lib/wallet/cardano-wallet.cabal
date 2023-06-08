@@ -169,7 +169,6 @@ library
     , quiet
     , random
     , random-shuffle
-    , resource-pool
     , retry
     , safe
     , safe-money
