@@ -780,7 +780,6 @@ test-suite unit
     , cardano-ledger-byron-test
     , cardano-ledger-core
     , cardano-ledger-shelley
-    , cardano-ledger-shelley-ma
     , cardano-ledger-shelley-test
     , cardano-numeric
     , cardano-sl-x509
