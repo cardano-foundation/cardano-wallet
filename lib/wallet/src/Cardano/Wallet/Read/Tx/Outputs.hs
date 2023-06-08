@@ -24,50 +24,40 @@ import Prelude
 import Cardano.Api
     ( AllegraEra, AlonzoEra, BabbageEra, ByronEra, ConwayEra, MaryEra,
     ShelleyEra )
+import Cardano.Ledger.Alonzo.TxOut
+    ( AlonzoTxOut )
+import Cardano.Ledger.Babbage.TxOut
+    ( BabbageTxOut )
 import Cardano.Ledger.Core
     ( bodyTxL, outputsTxBodyL )
-import Cardano.Ledger.Crypto
-    ( StandardCrypto )
-import Cardano.Wallet.Read.Eras
+import Cardano.Ledger.Shelley.TxOut
+    ( ShelleyTxOut )
+import Cardano.Wallet.Read.Eras.EraFun
     ( EraFun (..) )
 import Cardano.Wallet.Read.Tx
     ( Tx (..) )
 import Cardano.Wallet.Read.Tx.Eras
     ( onTx )
 import Control.Lens
-    ( (^.) )
+    ( view )
 import Data.List.NonEmpty
     ( NonEmpty )
 import Data.Sequence.Strict
     ( StrictSeq )
+import Ouroboros.Consensus.Cardano.Block
+    ( StandardAllegra, StandardAlonzo, StandardBabbage, StandardConway,
+    StandardMary, StandardShelley )
 
 import qualified Cardano.Chain.UTxO as BY
-import qualified Cardano.Ledger.Alonzo as AL
-import qualified Cardano.Ledger.Babbage as BA
-import qualified Cardano.Ledger.Conway as Conway
-import qualified Cardano.Ledger.Shelley as SH
-import qualified Cardano.Ledger.ShelleyMA as SMA
 
 type family OutputsType era where
     OutputsType ByronEra = NonEmpty BY.TxOut
-    OutputsType ShelleyEra
-        = StrictSeq
-            (SH.ShelleyTxOut (SH.ShelleyEra StandardCrypto))
-    OutputsType AllegraEra
-        = StrictSeq
-            (SH.ShelleyTxOut (SMA.ShelleyMAEra 'SMA.Allegra StandardCrypto))
-    OutputsType MaryEra
-        = StrictSeq
-            (SH.ShelleyTxOut (SMA.ShelleyMAEra 'SMA.Mary StandardCrypto))
-    OutputsType AlonzoEra
-        = StrictSeq
-            (AL.AlonzoTxOut (AL.AlonzoEra StandardCrypto))
-    OutputsType BabbageEra
-        = StrictSeq
-            (BA.BabbageTxOut (BA.BabbageEra StandardCrypto))
-    OutputsType ConwayEra
-        = StrictSeq
-            (BA.BabbageTxOut (Conway.ConwayEra StandardCrypto))
+    OutputsType ShelleyEra = StrictSeq (ShelleyTxOut StandardShelley)
+    OutputsType AllegraEra = StrictSeq (ShelleyTxOut StandardAllegra)
+    OutputsType MaryEra = StrictSeq (ShelleyTxOut StandardMary)
+    OutputsType AlonzoEra = StrictSeq (AlonzoTxOut StandardAlonzo)
+    OutputsType BabbageEra = StrictSeq (BabbageTxOut StandardBabbage)
+    OutputsType ConwayEra = StrictSeq (BabbageTxOut StandardConway)
 
 newtype Outputs era = Outputs (OutputsType era)
 
@@ -77,14 +67,13 @@ deriving instance Eq (OutputsType era) => Eq (Outputs era)
 getEraOutputs :: EraFun Tx Outputs
 getEraOutputs =
     EraFun
-        { byronFun = onTx $ \tx -> Outputs $ BY.txOutputs (BY.taTx tx)
-        , shelleyFun = shelleyOutputs
-        , allegraFun = shelleyOutputs
-        , maryFun = shelleyOutputs
-        , alonzoFun = shelleyOutputs
-        , babbageFun = shelleyOutputs
-        , conwayFun = shelleyOutputs
+        { byronFun = onTx $ Outputs . BY.txOutputs . BY.taTx
+        , shelleyFun = outputs
+        , allegraFun = outputs
+        , maryFun = outputs
+        , alonzoFun = outputs
+        , babbageFun = outputs
+        , conwayFun = outputs
         }
   where
-    shelleyOutputs =
-        onTx $ \tx -> Outputs $ tx ^. bodyTxL . outputsTxBodyL
+    outputs = onTx $ Outputs . view (bodyTxL . outputsTxBodyL)
