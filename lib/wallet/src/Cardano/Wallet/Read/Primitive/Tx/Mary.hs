@@ -18,13 +18,19 @@ import Prelude
 import Cardano.Api
     ( MaryEra )
 import Cardano.Ledger.Core
-    ( auxDataTxL, bodyTxL, feeTxBodyL, inputsTxBodyL, outputsTxBodyL, witsTxL )
+    ( auxDataTxL
+    , bodyTxL
+    , feeTxBodyL
+    , inputsTxBodyL
+    , mintTxBodyL
+    , outputsTxBodyL
+    , vldtTxBodyL
+    , witsTxL
+    )
 import Cardano.Ledger.Era
     ( Era (..) )
 import Cardano.Ledger.Shelley.TxBody
     ( certsTxBodyL, wdrlsTxBodyL )
-import Cardano.Ledger.ShelleyMA.TxBody
-    ( mintTxBodyL, vldtTxBodyL )
 import Cardano.Wallet.Primitive.Types.TokenPolicy
     ( TokenPolicyId )
 import Cardano.Wallet.Read.Eras
@@ -71,7 +77,6 @@ import qualified Cardano.Ledger.Crypto as Crypto
 import qualified Cardano.Ledger.Mary.Value as SL
 import qualified Cardano.Ledger.Shelley.API as SL
 import qualified Cardano.Ledger.Shelley.Tx as Shelley
-import qualified Cardano.Ledger.ShelleyMA as MA
 import qualified Cardano.Wallet.Primitive.Types as W
 import qualified Cardano.Wallet.Primitive.Types.Hash as W
 import qualified Cardano.Wallet.Primitive.Types.Tx as W

@@ -363,7 +363,6 @@ import qualified Cardano.Ledger.Shelley as SL hiding
 import qualified Cardano.Ledger.Shelley.API as SL
 import qualified Cardano.Ledger.Shelley.API as SLAPI
 import qualified Cardano.Ledger.Shelley.BlockChain as SL
-import qualified Cardano.Ledger.ShelleyMA as MA
 import qualified Cardano.Protocol.TPraos.BHeader as SL
 import qualified Cardano.Wallet.Primitive.Types as W
 import qualified Cardano.Wallet.Primitive.Types.Address as W

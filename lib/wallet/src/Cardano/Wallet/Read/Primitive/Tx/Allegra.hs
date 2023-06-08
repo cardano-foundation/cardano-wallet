@@ -28,7 +28,14 @@ import Cardano.Address.Script
 import Cardano.Api
     ( AllegraEra )
 import Cardano.Ledger.Core
-    ( auxDataTxL, bodyTxL, feeTxBodyL, inputsTxBodyL, outputsTxBodyL, witsTxL )
+    ( auxDataTxL
+    , bodyTxL
+    , feeTxBodyL
+    , inputsTxBodyL
+    , outputsTxBodyL
+    , vldtTxBodyL
+    , witsTxL
+    )
 import Cardano.Ledger.Shelley.TxBody
     ( certsTxBodyL, wdrlsTxBodyL )
 import Cardano.Wallet.Read.Eras
@@ -67,7 +74,6 @@ import qualified Cardano.Api.Shelley as Cardano
 import qualified Cardano.Ledger.BaseTypes as SL
 import qualified Cardano.Ledger.Shelley.API as SL
 import qualified Cardano.Ledger.Shelley.Tx as SL
-import qualified Cardano.Ledger.ShelleyMA.TxBody as MA
 import qualified Cardano.Wallet.Primitive.Types as W
 import qualified Cardano.Wallet.Primitive.Types.Hash as W
 import qualified Cardano.Wallet.Primitive.Types.Tx as W
@@ -121,7 +127,7 @@ fromAllegraTx tx =
     certs = tx ^. bodyTxL . certsTxBodyL
     wdrls = tx ^. bodyTxL . wdrlsTxBodyL
     fee = tx ^. bodyTxL . feeTxBodyL
-    vldl = tx ^. bodyTxL . MA.vldtTxBodyL
+    vldl = tx ^. bodyTxL . vldtTxBodyL
     wits = tx ^. witsTxL
     mmd = tx ^. auxDataTxL
 
