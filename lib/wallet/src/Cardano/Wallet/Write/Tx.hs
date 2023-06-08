@@ -8,7 +8,6 @@
 {-# LANGUAGE GADTs #-}
 {-# LANGUAGE LambdaCase #-}
 {-# LANGUAGE NamedFieldPuns #-}
-{-# LANGUAGE OverloadedLabels #-}
 {-# LANGUAGE PolyKinds #-}
 {-# LANGUAGE RankNTypes #-}
 {-# LANGUAGE ScopedTypeVariables #-}
@@ -160,7 +159,7 @@ import Cardano.Crypto.Hash
     ( Hash (UnsafeHash) )
 import Cardano.Ledger.Allegra.Scripts
     ( translateTimelock )
-import Cardano.Ledger.Alonzo.Data
+import Cardano.Ledger.Alonzo.Scripts.Data
     ( BinaryData, Datum (..) )
 import Cardano.Ledger.Alonzo.Scripts
     ( AlonzoScript (..) )
@@ -176,10 +175,8 @@ import Cardano.Ledger.Mary
     ( MaryValue )
 import Cardano.Ledger.SafeHash
     ( SafeHash, extractHash, unsafeMakeSafeHash )
-import Cardano.Ledger.Serialization
+import Cardano.Ledger.Binary
     ( Sized (..), mkSized )
-import Cardano.Ledger.Shelley.API
-    ( evaluateMinLovelaceOutput )
 import Cardano.Ledger.Val
     ( coin, modifyCoin )
 import Cardano.Wallet.Primitive.Types.Tx.Constraints
@@ -592,6 +589,7 @@ scriptToCardanoEnvelopeJSON =
             Cardano.SimpleScriptLanguage -> f
             Cardano.PlutusScriptLanguage Cardano.PlutusScriptV1 -> f
             Cardano.PlutusScriptLanguage Cardano.PlutusScriptV2 -> f
+            Cardano.PlutusScriptLanguage Cardano.PlutusScriptV3 -> f
 
 -- NOTE: Should use 'LatestLedgerEra' instead of 'StandardBabbage'. C.f. comment
 -- in 'scriptToCardanoEnvelopeJSON'.
@@ -751,7 +749,7 @@ computeMinimumCoinForTxOut
     -> TxOut (ShelleyLedgerEra era)
     -> Coin
 computeMinimumCoinForTxOut era pp out = withConstraints era $
-    evaluateMinLovelaceOutput pp (withMaxLengthSerializedCoin out)
+    Core.getMinCoinTxOut pp (withMaxLengthSerializedCoin out)
   where
     withMaxLengthSerializedCoin
         :: TxOut (ShelleyLedgerEra era)
@@ -770,7 +768,7 @@ isBelowMinimumCoinForTxOut era pp out =
   where
     -- IMPORTANT to use the exact minimum from the ledger function, and not our
     -- overestimating 'computeMinimumCoinForTxOut'.
-    requiredMin = withConstraints era $ evaluateMinLovelaceOutput pp out
+    requiredMin = withConstraints era $ Core.getMinCoinTxOut pp out
     actualCoin = getCoin era out
 
     getCoin :: RecentEra era -> TxOut (ShelleyLedgerEra era) -> Coin
@@ -821,8 +819,6 @@ modifyTxOutputs era (Ledger.ProtVer majorVer _) f body =
             Babbage.btbOutputs =
                 mkSized majorVer . f . sizedValue <$> Babbage.btbOutputs body
         }
-  where
-
 
 txBody
     :: RecentEra era
@@ -963,7 +959,8 @@ txscriptfee :: ExUnitPrices -> ExUnits -> Coin
 txscriptfee = Alonzo.txscriptfee
 
 maxScriptExecutionCost
-    :: RecentEra era
+    :: Alonzo.AlonzoEraPParams (ShelleyLedgerEra era)
+    => RecentEra era
     -> Core.PParams (ShelleyLedgerEra era)
     -> Coin
 maxScriptExecutionCost era pp = withConstraints era $
