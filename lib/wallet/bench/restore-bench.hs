@@ -338,7 +338,7 @@ cardanoRestoreBench tr c socketFile = do
                 tunedForMainnetPipeliningStrategy
             , benchRestoreSeqWithOwnership (Proxy @1)
                 tunedForMainnetPipeliningStrategy
-            , benchRestoreRndWithOwnership (Proxy @1)
+            , benchRestoreRndWithOwnership (Proxy @10)
                 tunedForMainnetPipeliningStrategy
             ]
   where
