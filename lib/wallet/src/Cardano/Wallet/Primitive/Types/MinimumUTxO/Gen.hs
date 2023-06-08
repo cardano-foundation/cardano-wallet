@@ -28,23 +28,28 @@ import Prelude
 
 import Cardano.Api
     ( ShelleyBasedEra (..) )
+import Cardano.Ledger.Api
+    ( CoinPerByte (..)
+    , CoinPerWord (..)
+    , emptyPParams
+    , ppCoinsPerUTxOByteL
+    , ppCoinsPerUTxOWordL
+    , ppMinUTxOValueL
+    )
 import Cardano.Wallet.Primitive.Types.Coin
     ( Coin (..) )
 import Cardano.Wallet.Primitive.Types.Coin.Gen
     ( chooseCoin )
 import Cardano.Wallet.Primitive.Types.MinimumUTxO
     ( MinimumUTxO (..), MinimumUTxOForShelleyBasedEra (..) )
-import Data.Default
-    ( Default (..) )
+import Control.Lens
+    ( (&), (.~) )
 import Data.Semigroup
     ( stimes )
 import Test.QuickCheck
     ( Gen, chooseInteger, frequency, oneof )
 
-import qualified Cardano.Ledger.Alonzo.PParams as Alonzo
-import qualified Cardano.Ledger.Babbage.PParams as Babbage
 import qualified Cardano.Ledger.Coin as Ledger
-import qualified Cardano.Ledger.Shelley.PParams as Shelley
 
 --------------------------------------------------------------------------------
 -- Generating 'MinimumUTxO' values
@@ -61,9 +66,9 @@ genMinimumUTxO = frequency
     genMinimumUTxONone = pure MinimumUTxONone
 
     genMinimumUTxOConstant :: Gen MinimumUTxO
-    genMinimumUTxOConstant = MinimumUTxOConstant <$>
+    genMinimumUTxOConstant =
         -- The 'MinimumUTxOConstant' constructor is only used for testing.
-        genCoinOfSimilarMagnitude (Coin 1_000_000)
+        MinimumUTxOConstant <$> genCoinOfSimilarMagnitude (Coin 1_000_000)
 
 shrinkMinimumUTxO :: MinimumUTxO -> [MinimumUTxO]
 shrinkMinimumUTxO = const []
@@ -84,38 +89,41 @@ genMinimumUTxOForShelleyBasedEra = oneof
   where
     genShelley :: Gen MinimumUTxOForShelleyBasedEra
     genShelley = do
-        minUTxOValue <- genLedgerCoinOfSimilarMagnitude
-            testParameter_minUTxOValue_Shelley
-        pure $ MinimumUTxOForShelleyBasedEra ShelleyBasedEraShelley
-            def {Shelley._minUTxOValue = minUTxOValue}
+        minUTxOValue <-
+            genLedgerCoinOfSimilarMagnitude testParameter_minUTxOValue_Shelley
+        let pParams = emptyPParams & ppMinUTxOValueL .~ minUTxOValue
+        pure $ MinimumUTxOForShelleyBasedEra ShelleyBasedEraShelley pParams
 
     genAllegra :: Gen MinimumUTxOForShelleyBasedEra
     genAllegra = do
-        minUTxOValue <- genLedgerCoinOfSimilarMagnitude
-            testParameter_minUTxOValue_Allegra
-        pure $ MinimumUTxOForShelleyBasedEra ShelleyBasedEraAllegra
-            def {Shelley._minUTxOValue = minUTxOValue}
+        minUTxOValue <-
+            genLedgerCoinOfSimilarMagnitude testParameter_minUTxOValue_Allegra
+        let pParams = emptyPParams & ppMinUTxOValueL .~ minUTxOValue
+        pure $ MinimumUTxOForShelleyBasedEra ShelleyBasedEraAllegra pParams
 
     genMary :: Gen MinimumUTxOForShelleyBasedEra
     genMary = do
-        minUTxOValue <- genLedgerCoinOfSimilarMagnitude
-            testParameter_minUTxOValue_Mary
-        pure $ MinimumUTxOForShelleyBasedEra ShelleyBasedEraMary
-            def {Shelley._minUTxOValue = minUTxOValue}
+        minUTxOValue <-
+            genLedgerCoinOfSimilarMagnitude testParameter_minUTxOValue_Mary
+        let pParams = emptyPParams & ppMinUTxOValueL .~ minUTxOValue
+        pure $ MinimumUTxOForShelleyBasedEra ShelleyBasedEraMary pParams
 
     genAlonzo :: Gen MinimumUTxOForShelleyBasedEra
     genAlonzo = do
-        coinsPerUTxOWord <- genLedgerCoinOfSimilarMagnitude
-            testParameter_coinsPerUTxOWord_Alonzo
-        pure $ MinimumUTxOForShelleyBasedEra ShelleyBasedEraAlonzo
-            def {Alonzo._coinsPerUTxOWord = coinsPerUTxOWord}
+        coinsPerUTxOWord <-
+            genLedgerCoinOfSimilarMagnitude
+                testParameter_coinsPerUTxOWord_Alonzo
+        let pParams = emptyPParams
+                & ppCoinsPerUTxOWordL .~ CoinPerWord coinsPerUTxOWord
+        pure $ MinimumUTxOForShelleyBasedEra ShelleyBasedEraAlonzo pParams
 
     genBabbage :: Gen MinimumUTxOForShelleyBasedEra
     genBabbage = do
         coinsPerUTxOByte <- genLedgerCoinOfSimilarMagnitude
             testParameter_coinsPerUTxOByte_Babbage
-        pure $ MinimumUTxOForShelleyBasedEra ShelleyBasedEraBabbage
-            def {Babbage._coinsPerUTxOByte = coinsPerUTxOByte}
+        let pParams = emptyPParams
+                & ppCoinsPerUTxOByteL .~ CoinPerByte coinsPerUTxOByte
+        pure $ MinimumUTxOForShelleyBasedEra ShelleyBasedEraBabbage pParams
 
 shrinkMinimumUTxOForShelleyBasedEra
     :: MinimumUTxOForShelleyBasedEra -> [MinimumUTxOForShelleyBasedEra]
@@ -165,22 +173,18 @@ testParameter_coinsPerUTxOByte_Babbage = Ledger.Coin 4_310
 -- Internal functions
 --------------------------------------------------------------------------------
 
--- | Chooses a 'Ledger.Coin' value from within the given range.
---
+-- | Chooses a 'Coin' value from within the given range.
 chooseLedgerCoin :: (Ledger.Coin, Ledger.Coin) -> Gen Ledger.Coin
 chooseLedgerCoin (Ledger.Coin lo, Ledger.Coin hi) =
     Ledger.Coin <$> chooseInteger (lo, hi)
 
 -- | Generates a wallet 'Coin' value that has a similar magnitude to the given
 --   value.
---
 genCoinOfSimilarMagnitude :: Coin -> Gen Coin
 genCoinOfSimilarMagnitude coin =
     chooseCoin (mempty, stimes (2 :: Int) coin)
 
--- | Generates a 'Ledger.Coin' value that has a similar magnitude to the given
---   value.
---
+-- | Generates a 'Coin' value that has a similar magnitude to the given value.
 genLedgerCoinOfSimilarMagnitude :: Ledger.Coin -> Gen Ledger.Coin
 genLedgerCoinOfSimilarMagnitude coin =
     chooseLedgerCoin (mempty, stimes (2 :: Int) coin)
