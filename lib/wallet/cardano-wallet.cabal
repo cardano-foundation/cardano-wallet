@@ -21,8 +21,7 @@ common language
     OverloadedStrings
 
 common opts-lib
-  ghc-options:
-    -Wall -Wcompat -Wredundant-constraints
+  ghc-options: -Wall -Wcompat -Wredundant-constraints
 
   if flag(release)
     ghc-options: -O2 -Werror
@@ -45,9 +44,7 @@ flag scrypt
 library
   import:          language, opts-lib
   hs-source-dirs:  src
-
-  ghc-options:
-    -Wincomplete-uni-patterns -Wincomplete-record-updates
+  ghc-options:     -Wincomplete-uni-patterns -Wincomplete-record-updates
 
   if flag(scrypt)
     cpp-options:   -DHAVE_SCRYPT
@@ -78,11 +75,12 @@ library
     , cardano-crypto-test
     , cardano-crypto-wrapper
     , cardano-data
-    , cardano-ledger-api
     , cardano-ledger-allegra
     , cardano-ledger-alonzo
     , cardano-ledger-alonzo-test
+    , cardano-ledger-api
     , cardano-ledger-babbage
+    , cardano-ledger-binary
     , cardano-ledger-byron
     , cardano-ledger-byron-test
     , cardano-ledger-conway
@@ -93,6 +91,7 @@ library
     , cardano-numeric
     , cardano-protocol-tpraos
     , cardano-slotting
+    , cardano-strict-containers
     , cardano-wallet-launcher
     , cardano-wallet-primitive
     , cardano-wallet-test-utils
@@ -157,9 +156,9 @@ library
     , ouroboros-network-framework
     , ouroboros-network-protocols
     , path-pieces
-    , persistent                    ^>=2.13
-    , persistent-sqlite             ^>=2.13
-    , persistent-template           ^>=2.12
+    , persistent                     ^>=2.13
+    , persistent-sqlite              ^>=2.13
+    , persistent-template            ^>=2.12
     , plutus-core
     , plutus-ledger-api
     , pretty-simple
@@ -182,13 +181,11 @@ library
     , statistics
     , stm
     , streaming-commons
-    , cardano-strict-containers
     , strict-non-empty-containers
     , strict-stm
     , string-interpolate
     , template-haskell
     , temporary
-    , these
     , text
     , text-class
     , these
@@ -249,8 +246,8 @@ library
     Cardano.Wallet.Address.Pool
     Cardano.Wallet.Address.States.Families
     Cardano.Wallet.Address.States.Features
-    Cardano.Wallet.Address.States.Test.State
     Cardano.Wallet.Address.States.IsOwned
+    Cardano.Wallet.Address.States.Test.State
     Cardano.Wallet.Byron.Compatibility
     Cardano.Wallet.Checkpoints
     Cardano.Wallet.Checkpoints.Policy
@@ -665,9 +662,9 @@ library cardano-wallet-bench
     , containers
     , criterion-measurement
     , deepseq
-    , fmt
-    , filepath
     , directory
+    , filepath
+    , fmt
     , iohk-monitoring
     , optparse-applicative
     , say
@@ -675,8 +672,8 @@ library cardano-wallet-bench
     , text-class
     , transformers
     , unliftio
-  exposed-modules:
-    Cardano.Wallet.BenchShared
+
+  exposed-modules: Cardano.Wallet.BenchShared
 
 library mock-token-metadata
   import:          language, opts-lib
@@ -788,6 +785,7 @@ test-suite unit
     , cardano-numeric
     , cardano-sl-x509
     , cardano-slotting
+    , cardano-strict-containers
     , cardano-wallet
     , cardano-wallet-api-http
     , cardano-wallet-launcher
@@ -800,9 +798,9 @@ test-suite unit
     , cryptonite
     , data-default
     , data-interval
+    , deepseq
     , delta-store
     , delta-types
-    , deepseq
     , directory
     , either
     , extra                        >=1.6.17
@@ -865,7 +863,6 @@ test-suite unit
     , servant-server
     , should-not-typecheck
     , splitmix
-    , cardano-strict-containers
     , strict-non-empty-containers
     , string-interpolate
     , string-qq
@@ -1125,8 +1122,8 @@ benchmark api
     , aeson
     , base
     , bytestring
-    , cardano-balance-tx
     , cardano-api
+    , cardano-balance-tx
     , cardano-wallet
     , cardano-wallet-bench
     , cardano-wallet-primitive
@@ -1142,4 +1139,5 @@ benchmark api
     , time
     , transformers
     , unliftio
+
   other-modules:  Cardano.Wallet.DummyTarget.Primitive.Types

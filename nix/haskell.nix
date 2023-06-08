@@ -112,6 +112,7 @@ CHaP: haskell-nix: nixpkgs-recent: nodePkgs: haskell-nix.cabalProject' [
         tools = {
           # cabal-cache = {};
           cabal = { index-state = indexState; };
+          cabal-fmt = { index-state = indexState; };
           haskell-language-server = {
             index-state = indexState;
             version = "1.10.0.0";
