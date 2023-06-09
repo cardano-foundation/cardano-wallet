@@ -1299,7 +1299,10 @@ genTxCertificate =
     oneof
         [ StakeAddressRegistrationCertificate <$> genStakeCredential
         , StakeAddressDeregistrationCertificate <$> genStakeCredential
+        {-
+        For some reason, this constructor is no longer exported:
         , StakeAddressDelegationCertificate <$> genStakeCredential <*> genPoolId
+        -}
         , StakePoolRegistrationCertificate <$> genStakePoolParameters
         , StakePoolRetirementCertificate <$> genPoolId <*> genEpochNo
         , GenesisKeyDelegationCertificate
