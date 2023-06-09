@@ -130,6 +130,7 @@ library
     , int-cast
     , io-classes
     , iohk-monitoring
+    , iproute
     , lattices
     , lens
     , lifted-async

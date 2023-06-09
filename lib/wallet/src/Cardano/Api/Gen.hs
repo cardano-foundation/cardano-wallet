@@ -149,6 +149,8 @@ import Data.Int
     ( Int64 )
 import Data.IntCast
     ( intCast )
+import Data.IP
+    ( IPv4, IPv6, fromHostAddress, fromHostAddress6 )
 import Data.List
     ( nub )
 import Data.Map
@@ -181,6 +183,8 @@ import Test.QuickCheck
     , NonNegative (..)
     , Positive (..)
     , arbitrary
+    , arbitraryASCIIChar
+    , arbitraryBoundedIntegral
     , arbitrarySizedNatural
     , choose
     , chooseInt
@@ -1219,7 +1223,7 @@ genStakePoolMetadataReference = do
 
 genStakePoolRelay :: Gen StakePoolRelay
 genStakePoolRelay = do
-    relay <- hedgehog Ledger.genStakePoolRelay
+    relay <- genLedgerStakePoolRelay
     pure $ case relay of
         Ledger.SingleHostAddr mPort mIPv4 mIPv6 ->
             StakePoolRelayIp
@@ -1234,9 +1238,48 @@ genStakePoolRelay = do
             StakePoolRelayDnsSrvRecord
                 (T.encodeUtf8 . Ledger.dnsToText $ dnsName)
 
-    where
-        castPort :: Ledger.Port -> PortNumber
-        castPort = fromInteger . toInteger . Ledger.portToWord16
+  where
+    castPort :: Ledger.Port -> PortNumber
+    castPort = fromInteger . toInteger . Ledger.portToWord16
+
+    -- See https://github.com/input-output-hk/cardano-ledger-1-tech-writing-tweaks/blob/2de173e8574ab079c9e18013d7906c20a70a7251/eras/shelley/test-suite/src/Test/Cardano/Ledger/Shelley/Serialisation/Generators/Genesis.hs#L113
+    genLedgerStakePoolRelay :: Gen Ledger.StakePoolRelay
+    genLedgerStakePoolRelay = oneof
+        [ Ledger.SingleHostAddr
+            <$> genStrictMaybe genPort
+            <*> genStrictMaybe genIPv4
+            <*> genStrictMaybe genIPv6
+        , Ledger.SingleHostName
+            <$> genStrictMaybe genPort
+            <*> genDnsName
+        , Ledger.MultiHostName
+            <$> genDnsName
+        ]
+
+    genDnsName :: Gen Ledger.DnsName
+    genDnsName = do
+        txtLength <- choose (1, 63)
+        txt <- T.pack <$> flip vectorOf arbitraryASCIIChar txtLength
+        case Ledger.textToDns txt of
+            Nothing -> error "wrong generator for DnsName"
+            Just dns -> return dns
+
+    genIPv4 :: Gen IPv4
+    genIPv4 = fromHostAddress <$> arbitraryBoundedIntegral
+
+    genIPv6 :: Gen IPv6
+    genIPv6 = do
+        w1 <- arbitraryBoundedIntegral
+        w2 <- arbitraryBoundedIntegral
+        w3 <- arbitraryBoundedIntegral
+        w4 <- arbitraryBoundedIntegral
+        pure $ fromHostAddress6 (w1, w2, w3, w4)
+
+    genPort :: Gen Ledger.Port
+    genPort = Ledger.Port <$> arbitraryBoundedIntegral
+
+    genStrictMaybe :: Gen a -> Gen (Ledger.StrictMaybe a)
+    genStrictMaybe gen = Ledger.maybeToStrictMaybe <$> liftArbitrary gen
 
 genStakePoolParameters :: Gen StakePoolParameters
 genStakePoolParameters =
