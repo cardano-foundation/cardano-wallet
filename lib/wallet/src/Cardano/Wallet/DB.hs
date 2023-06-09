@@ -157,7 +157,6 @@ newtype DBOpen stm m s = DBOpen
 {-----------------------------------------------------------------------------
     DBFresh
 ------------------------------------------------------------------------------}
-
 -- | Necessary arguments to create a new wallet.
 data DBLayerParams s = DBLayerParams
     { dBLayerParamsState :: Wallet s
@@ -167,7 +166,13 @@ data DBLayerParams s = DBLayerParams
     }
     deriving (Eq, Show)
 
-data DBFresh m s  = DBFresh
+-- | An open database which can store the state of one wallet with a specific
+-- 'WalletId'.
+--
+-- This database does not necessarily contain a valid wallet state yet.
+-- You can initialize a valid wallet state with 'bootDBLayer',
+-- or load a valid wallet state from the database using 'loadDBLayer'.
+data DBFresh m s = DBFresh
     { bootDBLayer
         :: DBLayerParams s
         -> ExceptT ErrWalletAlreadyInitialized m (DBLayer m s)
@@ -182,16 +187,11 @@ hoistDBFresh f (DBFresh boot load) = DBFresh
     , loadDBLayer = mapExceptT f $ hoistDBLayer f <$> load
     }
 
-
-
 {-----------------------------------------------------------------------------
     DBLayer
 ------------------------------------------------------------------------------}
--- | An open database which can store the state of one wallet with a specific
--- 'WalletId'.
---
--- Even though this database is fixed to a specific 'WalletId',
--- the database does not necessarily contain a valid wallet state yet.
+-- | An open database which contains the state of one wallet with a specific
+-- 'WalletId'. You can access the state using 'walletState'.
 --
 -- Caveat: When using this type, you have to pattern match, e.g. use it like this
 -- @db & \DBLayer{..} -> …@. See Note [DBLayerRecordFields].
