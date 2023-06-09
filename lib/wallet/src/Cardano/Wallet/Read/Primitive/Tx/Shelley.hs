@@ -67,9 +67,7 @@ import Cardano.Wallet.Transaction
     , emptyTokenMapWithScripts
     )
 import Control.Lens
-    ( (^.) )
-import Data.Foldable
-    ( toList )
+    ( folded, (^.), (^..) )
 import Data.Word
     ( Word16, Word32, Word64 )
 
@@ -81,7 +79,6 @@ import qualified Cardano.Wallet.Primitive.Types.Hash as W
 import qualified Cardano.Wallet.Primitive.Types.Tx as W
 import qualified Cardano.Wallet.Primitive.Types.Tx.TxIn as W
     ( TxIn (TxIn) )
-import qualified Data.Map.Strict as Map
 import qualified Data.Set as Set
 
 fromShelleyTxIn
@@ -119,18 +116,17 @@ fromShelleyTx tx =
         , txCBOR =
             Just $ renderTxToCBOR $ inject shelley $ Tx tx
         , fee =
-            Just $ fromShelleyCoin $ tx ^. bodyTxL . feeTxBodyL
+            Just $ fromShelleyCoin $ tx ^. bodyTxL.feeTxBodyL
         , resolvedInputs =
-            (,Nothing) . fromShelleyTxIn
-                <$> toList (tx ^. bodyTxL . inputsTxBodyL)
+            (,Nothing) . fromShelleyTxIn <$> tx ^.. bodyTxL.inputsTxBodyL.folded
         , resolvedCollateralInputs =
             []
         , outputs =
-            fromShelleyTxOut <$> toList (tx ^. bodyTxL . outputsTxBodyL)
+            fromShelleyTxOut <$> tx ^.. bodyTxL.outputsTxBodyL.folded
         , collateralOutput =
             Nothing -- Collateral outputs are not supported in Shelley.
         , withdrawals =
-            fromLedgerWithdrawals (tx ^. bodyTxL . withdrawalsTxBodyL)
+            fromLedgerWithdrawals (tx ^. bodyTxL.withdrawalsTxBodyL)
         , metadata =
             fromShelleyMetadata <$> SL.strictMaybeToMaybe (tx ^. auxDataTxL)
         , scriptValidity =
@@ -139,11 +135,11 @@ fromShelleyTx tx =
     , anyEraCerts $ tx ^. bodyTxL . certsTxBodyL
     , emptyTokenMapWithScripts
     , emptyTokenMapWithScripts
-    , Just $ shelleyValidityInterval $ tx ^. bodyTxL . ttlTxBodyL
+    , Just $ shelleyValidityInterval $ tx ^. bodyTxL.ttlTxBodyL
     , WitnessCount
-        (fromIntegral $ Set.size $ tx ^. witsTxL . addrTxWitsL)
+        (fromIntegral $ Set.size $ tx ^. witsTxL.addrTxWitsL)
         ((`NativeExplicitScript` ViaSpending)
          . toWalletScriptFromShelley Payment
-            <$> Map.elems (tx ^. witsTxL . scriptTxWitsL))
-        (fromIntegral $ Set.size $ tx ^. witsTxL . bootAddrTxWitsL)
+            <$> tx ^.. witsTxL.scriptTxWitsL.folded)
+        (fromIntegral $ Set.size $ tx ^. witsTxL.bootAddrTxWitsL)
     )

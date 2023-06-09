@@ -79,7 +79,7 @@ import Cardano.Wallet.Transaction
     , emptyTokenMapWithScripts
     )
 import Control.Lens
-    ( (^.) )
+    ( folded, (^.), (^..) )
 import Data.Foldable
     ( toList )
 
@@ -88,7 +88,6 @@ import qualified Cardano.Ledger.BaseTypes as SL
 import qualified Cardano.Wallet.Primitive.Types as W
 import qualified Cardano.Wallet.Primitive.Types.Hash as W
 import qualified Cardano.Wallet.Primitive.Types.Tx as W
-import qualified Data.Map.Strict as Map
 import qualified Data.Set as Set
 
 -- NOTE: For resolved inputs we have to pass in a dummy value of 0.
@@ -111,8 +110,7 @@ fromAllegraTx tx =
         , fee =
             Just $ fromShelleyCoin $ tx ^. bodyTxL . feeTxBodyL
         , resolvedInputs =
-            (,Nothing) . fromShelleyTxIn
-                <$> toList (tx ^. bodyTxL . inputsTxBodyL)
+            (,Nothing) . fromShelleyTxIn <$> tx ^.. bodyTxL.inputsTxBodyL.folded
         , resolvedCollateralInputs =
             [] -- TODO: (ADP-957)
         , outputs =
@@ -129,11 +127,11 @@ fromAllegraTx tx =
     , anyEraCerts $ tx ^. bodyTxL . certsTxBodyL
     , emptyTokenMapWithScripts
     , emptyTokenMapWithScripts
-    , Just $ afterShelleyValidityInterval $ tx ^. bodyTxL . vldtTxBodyL
+    , Just $ afterShelleyValidityInterval $ tx ^. bodyTxL.vldtTxBodyL
     , WitnessCount
-        (fromIntegral $ Set.size $ tx ^. witsTxL . addrTxWitsL)
+        (fromIntegral $ Set.size $ tx ^. witsTxL.addrTxWitsL)
         ((`NativeExplicitScript` ViaSpending)
          . toWalletScript (\_vkey -> Payment)
-            <$> Map.elems (tx ^. witsTxL . scriptTxWitsL))
-        (fromIntegral $ Set.size $ tx ^. witsTxL . bootAddrTxWitsL)
+            <$> tx ^.. witsTxL.scriptTxWitsL.folded)
+        (fromIntegral $ Set.size $ tx ^. witsTxL.bootAddrTxWitsL)
     )
