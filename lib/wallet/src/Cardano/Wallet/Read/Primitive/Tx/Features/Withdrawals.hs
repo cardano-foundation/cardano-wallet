@@ -9,7 +9,7 @@
 
 module Cardano.Wallet.Read.Primitive.Tx.Features.Withdrawals
     ( getWithdrawals
-    , fromShelleyWdrl
+    , fromRewardWithdrawals
     )
     where
 
@@ -30,26 +30,26 @@ import Cardano.Wallet.Read.Tx.Withdrawals
 import Data.Map.Strict
     ( Map )
 
-import qualified Cardano.Ledger.Shelley.TxBody as SL
+import qualified Cardano.Ledger.Api as Ledger
 import qualified Data.Map.Strict as Map
 
 getWithdrawals :: EraFun Withdrawals (K (Maybe (Map RewardAccount Coin)))
-getWithdrawals = EraFun
-    { byronFun = noWithdrawals
-    , shelleyFun = yesWithdrawals
-    , allegraFun = yesWithdrawals
-    , maryFun = yesWithdrawals
-    , alonzoFun = yesWithdrawals
-    , babbageFun = yesWithdrawals
-    , conwayFun = yesWithdrawals
-    }
-    where
-        noWithdrawals = const $ K Nothing
-        yesWithdrawals (Withdrawals ttl)
-            = K . Just . fromShelleyWdrl $ ttl
+getWithdrawals =
+    EraFun
+        { byronFun = \_withdrawals -> K Nothing
+        , shelleyFun = eraFromWithdrawals
+        , allegraFun = eraFromWithdrawals
+        , maryFun = eraFromWithdrawals
+        , alonzoFun = eraFromWithdrawals
+        , babbageFun = eraFromWithdrawals
+        , conwayFun = eraFromWithdrawals
+        }
+  where
+    eraFromWithdrawals (Withdrawals withdrawals) =
+        K . Just $ fromRewardWithdrawals withdrawals
 
-fromShelleyWdrl :: RewardWithdrawals -> Map RewardAccount Coin
-fromShelleyWdrl m = Map.fromList $ do
-    -- TODO conway: Do we need the network value here?
-    (SL.RewardAcnt _network cred, coin) <- Map.toList m
-    pure (fromStakeCredential cred, fromShelleyCoin coin)
+fromRewardWithdrawals :: RewardWithdrawals -> Map RewardAccount Coin
+fromRewardWithdrawals withdrawals = Map.fromList
+    [ (fromStakeCredential cred, fromShelleyCoin coin)
+    | (Ledger.RewardAcnt _network cred, coin) <- Map.toList withdrawals
+    ]

@@ -17,6 +17,7 @@ module Cardano.Wallet.Read.Tx.Withdrawals
     , Withdrawals (..)
     , getEraWithdrawals
     , RewardWithdrawals
+    , fromLedgerWithdrawals
     ) where
 
 import Prelude
@@ -48,6 +49,13 @@ import Control.Lens
     ( view )
 import Data.Map
     ( Map )
+import qualified Cardano.Ledger.Api as Ledger
+import qualified Cardano.Wallet.Primitive.Types.RewardAccount as Wallet
+import qualified Cardano.Wallet.Primitive.Types.Coin as Wallet
+import qualified Data.Map.Strict as Map
+import Cardano.Wallet.Read.Primitive.Tx.Features.Certificates (fromStakeCredential)
+import qualified Cardano.Wallet.Read.Primitive.Tx.Features.Certificates as Certificates
+import qualified Cardano.Wallet.Read.Primitive.Tx.Features.Fee as Fee
 
 type family WithdrawalsType era where
   WithdrawalsType ByronEra = ()
@@ -60,7 +68,8 @@ type family WithdrawalsType era where
 
 type RewardWithdrawals = Map (RewardAcnt StandardCrypto) Coin
 
-newtype Withdrawals era = Withdrawals (WithdrawalsType era)
+newtype Withdrawals era
+    = Withdrawals { withdrawalsAsMap :: WithdrawalsType era }
 
 deriving instance Show (WithdrawalsType era) => Show (Withdrawals era)
 deriving instance Eq (WithdrawalsType era) => Eq (Withdrawals era)
@@ -80,3 +89,10 @@ getEraWithdrawals =
   where
     withdrawals = onTx $
         Withdrawals . unWithdrawals . view (bodyTxL . withdrawalsTxBodyL)
+
+fromLedgerWithdrawals
+    ::Ledger.Withdrawals crypto -> Map Wallet.RewardAccount Wallet.Coin
+fromLedgerWithdrawals (Ledger.Withdrawals withdrawals) = Map.fromList
+    [ (Certificates.fromStakeCredential cred, Fee.fromShelleyCoin coin)
+    | (Ledger.RewardAcnt _network cred, coin) <- Map.toList withdrawals
+    ]
