@@ -108,6 +108,11 @@ fromShelleyBasedScript era script = case era of
                 error
                     "fromShelleyBasedScript: \
                     \PlutusV2 not supported in Alonzo era"
+            Alonzo.PlutusScript Alonzo.PlutusV3 _ ->
+                error
+                    "fromShelleyBasedScript: \
+                    \PlutusV3 not supported in Alonzo era"
+
     ShelleyBasedEraBabbage ->
         case script of
             Alonzo.TimelockScript s ->
@@ -122,6 +127,10 @@ fromShelleyBasedScript era script = case era of
                 ScriptInEra PlutusScriptV2InBabbage $
                 PlutusScript PlutusScriptV2 $
                 PlutusScriptSerialised s
+            Alonzo.PlutusScript Alonzo.PlutusV3 _ ->
+                error
+                    "fromShelleyBasedScript: \
+                    \PlutusV3 not supported in Babbage era"
 
     ShelleyBasedEraConway ->
         case script of
@@ -136,6 +145,10 @@ fromShelleyBasedScript era script = case era of
             Alonzo.PlutusScript Alonzo.PlutusV2 s ->
                 ScriptInEra PlutusScriptV2InConway $
                 PlutusScript PlutusScriptV2 $
+                PlutusScriptSerialised s
+            Alonzo.PlutusScript Alonzo.PlutusV3 s ->
+                ScriptInEra PlutusScriptV3InConway $
+                PlutusScript PlutusScriptV3 $
                 PlutusScriptSerialised s
 
 -- Not exposed by cardano-api
