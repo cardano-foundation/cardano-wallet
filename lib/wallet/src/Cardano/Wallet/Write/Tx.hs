@@ -1033,17 +1033,25 @@ evaluateTransactionBalance
 evaluateTransactionBalance era pp utxo = withConstraints era $
     LedgerApi.evalBalanceTxBody pp lookupRefund isRegPoolId utxo
   where
-    -- | Lookup current deposit amount for a registered stake credential delegation. This
-    -- function must produce valid answer for all of the stake credentials present in any of
-    -- the `DeRegKey` delegation certificates in the supplied `TxBody`. In other words,
-    -- there is no requirement to know about all of the delegation certificates in the
-    -- ledger state, just the ones this transaction cares about.
+    -- Looks up the current deposit amount for a registered stake credential
+    -- delegation.
+    --
+    -- This function must produce a valid answer for all stake credentials
+    -- present in any of the 'DeRegKey' delegation certificates in the supplied
+    -- 'TxBody'. In other words, there is no requirement to know about all of
+    -- the delegation certificates in the ledger state, just those this
+    -- transaction cares about.
+    --
     lookupRefund :: Core.StakeCredential (Core.EraCrypto era) -> Maybe Coin
     lookupRefund _stakeCred = Just $ pp ^. Core.ppKeyDepositL
     -- TODO: @yura
 
-    -- | Check whether a pool with a supplied PoolStakeId is already registered. There is no
-    -- requirement to answer this question for all stake pool credentials, just for the ones
-    -- that have the registration certificates included in the supplied `TxBody`
+    -- Checks whether a pool with a supplied 'PoolStakeId' is already
+    -- registered.
+    --
+    -- There is no requirement to answer this question for all stake pool
+    -- credentials, just those that have their registration certificates
+    -- included in the supplied 'TxBody'.
+    --
     isRegPoolId :: Ledger.KeyHash 'Ledger.StakePool (Core.EraCrypto era) -> Bool
     isRegPoolId _keyHash = True
