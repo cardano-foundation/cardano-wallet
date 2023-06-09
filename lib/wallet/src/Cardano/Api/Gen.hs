@@ -1351,9 +1351,9 @@ genProtocolParametersUpdate = do
     protocolUpdateMaxTxSize <-
         liftArbitrary genNat
     protocolUpdateTxFeeFixed <-
-        liftArbitrary genNat
+        liftArbitrary genLovelace
     protocolUpdateTxFeePerByte <-
-        liftArbitrary genNat
+        liftArbitrary genLovelace
     protocolUpdateMinUTxOValue <-
         liftArbitrary genLovelace
     protocolUpdateStakeAddressDeposit <-
