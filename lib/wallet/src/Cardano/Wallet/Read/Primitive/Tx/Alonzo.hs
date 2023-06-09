@@ -1,6 +1,7 @@
 {-# LANGUAGE DataKinds #-}
 {-# LANGUAGE DuplicateRecordFields #-}
 {-# LANGUAGE FlexibleContexts #-}
+{-# LANGUAGE LambdaCase #-}
 {-# LANGUAGE TupleSections #-}
 {-# LANGUAGE TypeApplications #-}
 {-# LANGUAGE TypeFamilies #-}
@@ -19,10 +20,23 @@ import Prelude
 
 import Cardano.Api
     ( AlonzoEra )
-import Cardano.Ledger.Era
-    ( Era (..) )
-import Cardano.Wallet.Primitive.Types.TokenPolicy
-    ( TokenPolicyId )
+import Cardano.Ledger.Api
+    ( addrTxWitsL
+    , auxDataTxL
+    , bodyTxL
+    , bootAddrTxWitsL
+    , certsTxBodyL
+    , collateralInputsTxBodyL
+    , feeTxBodyL
+    , inputsTxBodyL
+    , isValidTxL
+    , mintTxBodyL
+    , outputsTxBodyL
+    , scriptTxWitsL
+    , vldtTxBodyL
+    , withdrawalsTxBodyL
+    , witsTxL
+    )
 import Cardano.Wallet.Read.Eras
     ( alonzo, inject )
 import Cardano.Wallet.Read.Primitive.Tx.Features.Certificates
@@ -39,16 +53,16 @@ import Cardano.Wallet.Read.Primitive.Tx.Features.Outputs
     ( fromAlonzoTxOut )
 import Cardano.Wallet.Read.Primitive.Tx.Features.Validity
     ( afterShelleyValidityInterval )
-import Cardano.Wallet.Read.Primitive.Tx.Features.Withdrawals
-    ( fromShelleyWdrl )
 import Cardano.Wallet.Read.Tx
     ( Tx (..) )
 import Cardano.Wallet.Read.Tx.CBOR
     ( renderTxToCBOR )
 import Cardano.Wallet.Read.Tx.Hash
     ( shelleyTxHash )
+import Cardano.Wallet.Read.Tx.Withdrawals
+    ( fromLedgerWithdrawals )
 import Cardano.Wallet.Shelley.Compatibility.Ledger
-    ( toWalletScript, toWalletTokenPolicyId )
+    ( toWalletScript )
 import Cardano.Wallet.Transaction
     ( AnyExplicitScript (..)
     , PlutusScriptInfo (..)
@@ -60,25 +74,18 @@ import Cardano.Wallet.Transaction
     , WitnessCountCtx
     , toKeyRole
     )
-import Data.Foldable
-    ( toList )
-import Data.Map.Strict
-    ( Map )
-import Ouroboros.Consensus.Cardano.Block
-    ( StandardAlonzo )
+import Control.Lens
+    ( folded, (^.), (^..) )
 
 import qualified Cardano.Api.Shelley as Cardano
-import qualified Cardano.Ledger.Alonzo.Language as Alonzo
 import qualified Cardano.Ledger.Alonzo.Scripts as Alonzo
 import qualified Cardano.Ledger.Alonzo.Tx as Alonzo
 import qualified Cardano.Ledger.BaseTypes as SL
-import qualified Cardano.Ledger.Core as SL.Core
-import qualified Cardano.Ledger.Mary.Value as SL
-import qualified Cardano.Ledger.Shelley.API as SL
+import qualified Cardano.Ledger.Core as Core
+import qualified Cardano.Ledger.Language as Language
 import qualified Cardano.Wallet.Primitive.Types as W
 import qualified Cardano.Wallet.Primitive.Types.Hash as W
 import qualified Cardano.Wallet.Primitive.Types.Tx as W
-import qualified Data.Map.Strict as Map
 import qualified Data.Set as Set
 
 fromAlonzoTx
@@ -91,83 +98,59 @@ fromAlonzoTx
        , Maybe ValidityIntervalExplicit
        , WitnessCount
        )
-fromAlonzoTx tx@(Alonzo.AlonzoTx bod wits (Alonzo.IsValid isValid) aux) witCtx =
+fromAlonzoTx tx witCtx =
     ( W.Tx
         { txId =
             W.Hash $ shelleyTxHash tx
         , txCBOR =
             Just $ renderTxToCBOR $ inject alonzo $ Tx tx
         , fee =
-            Just $ fromShelleyCoin fee
+            Just $ fromShelleyCoin $ tx ^. bodyTxL.feeTxBodyL
         , resolvedInputs =
-            map ((,Nothing) . fromShelleyTxIn) (toList ins)
+            (,Nothing) . fromShelleyTxIn <$> tx ^.. bodyTxL.inputsTxBodyL.folded
         , resolvedCollateralInputs =
-            map ((,Nothing) . fromShelleyTxIn) (toList collateral)
+            (,Nothing) . fromShelleyTxIn <$>
+                tx ^.. bodyTxL.collateralInputsTxBodyL.folded
         , outputs =
-            map fromAlonzoTxOut (toList outs)
+            fromAlonzoTxOut <$> tx ^.. bodyTxL.outputsTxBodyL.folded
         , collateralOutput =
-            -- Collateral outputs are not supported in Alonzo.
-            Nothing
+            Nothing -- Collateral outputs are not supported in Alonzo.
         , withdrawals =
-            fromShelleyWdrl wdrls
+            fromLedgerWithdrawals (tx ^. bodyTxL.withdrawalsTxBodyL)
         , metadata =
-            fromAlonzoMetadata<$> SL.strictMaybeToMaybe aux
+            fromAlonzoMetadata <$> SL.strictMaybeToMaybe (tx ^. auxDataTxL)
         , scriptValidity =
-            validity
+            Just $ case tx ^. isValidTxL of
+                Alonzo.IsValid True -> W.TxScriptValid
+                Alonzo.IsValid False -> W.TxScriptInvalid
         }
-    , anyEraCerts certs
+    , anyEraCerts $ tx ^. bodyTxL . certsTxBodyL
     , assetsToMint
     , assetsToBurn
-    , Just $ afterShelleyValidityInterval ttl
-    , countWits
+    , Just $ afterShelleyValidityInterval $ tx ^. bodyTxL.vldtTxBodyL
+    , WitnessCount
+        (fromIntegral $ Set.size $ tx ^. witsTxL.addrTxWitsL)
+        (fromAlonzoScriptMap <$> tx ^.. witsTxL.scriptTxWitsL.folded)
+        (fromIntegral $ Set.size $ tx ^. witsTxL.bootAddrTxWitsL)
     )
   where
-    Alonzo.AlonzoTxBody
-        ins
-        collateral
-        outs
-        certs
-        wdrls
-        fee
-        ttl
-        _upd
-        _reqSignerHashes
-        mint
-        _wwpHash
-        _adHash
-        _network
-        = bod
-    (assetsToMint, assetsToBurn) = alonzoMint mint wits
-    scriptMap = fromAlonzoScriptMap $ Alonzo.txscripts' wits
+    (assetsToMint, assetsToBurn) =
+        alonzoMint (tx ^. bodyTxL.mintTxBodyL) (tx ^. witsTxL)
 
-    countWits = WitnessCount
-        (fromIntegral $ Set.size $ Alonzo.txwitsVKey' wits)
-        (Map.elems scriptMap)
-        (fromIntegral $ Set.size $ Alonzo.txwitsBoot' wits)
+    fromAlonzoScriptMap = \case
+        Alonzo.TimelockScript script ->
+            NativeExplicitScript
+                (toWalletScript (toKeyRole witCtx) script)
+                ViaSpending
+        script@(Alonzo.PlutusScript ver _) ->
+            PlutusExplicitScript
+                (PlutusScriptInfo (toPlutusVer ver) (hashAlonzoScript script))
+                ViaSpending
+          where
+            toPlutusVer Language.PlutusV1 = PlutusVersionV1
+            toPlutusVer Language.PlutusV2 = PlutusVersionV2
+            toPlutusVer Language.PlutusV3 = PlutusVersionV3
 
-    hashAlonzoScript =
-        fromLedgerScriptHash .
-        SL.Core.hashScript @(Cardano.ShelleyLedgerEra AlonzoEra)
-
-    fromAlonzoScriptMap
-        :: Map
-            (SL.ScriptHash (Crypto StandardAlonzo))
-            (SL.Core.Script StandardAlonzo)
-        -> Map TokenPolicyId AnyExplicitScript
-    fromAlonzoScriptMap =
-        Map.map toAnyScript .
-        Map.mapKeys (toWalletTokenPolicyId . SL.PolicyID)
-      where
-        toAnyScript (Alonzo.TimelockScript script) =
-            NativeExplicitScript (toWalletScript (toKeyRole witCtx) script) ViaSpending
-        toAnyScript s@(Alonzo.PlutusScript ver _) =
-            PlutusExplicitScript (PlutusScriptInfo (toPlutusVer ver)
-                          (hashAlonzoScript s)) ViaSpending
-
-        toPlutusVer Alonzo.PlutusV1 = PlutusVersionV1
-        toPlutusVer Alonzo.PlutusV2 = PlutusVersionV2
-
-    validity =
-        if isValid
-        then Just W.TxScriptValid
-        else Just W.TxScriptInvalid
+            hashAlonzoScript =
+                fromLedgerScriptHash
+                    . Core.hashScript @(Cardano.ShelleyLedgerEra AlonzoEra)

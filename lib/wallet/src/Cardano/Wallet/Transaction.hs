@@ -306,8 +306,7 @@ data DelegationAction
 instance Buildable DelegationAction where
     build = genericF
 
-data PlutusVersion =
-    PlutusVersionV1 | PlutusVersionV2 | PlutusVersionV3
+data PlutusVersion = PlutusVersionV1 | PlutusVersionV2 | PlutusVersionV3
     deriving (Eq, Generic, Show)
     deriving anyclass NFData
 

@@ -116,11 +116,11 @@ fromMaryTx tx witCtx =
     , assetsToBurn
     , Just $ afterShelleyValidityInterval $ tx ^. bodyTxL.vldtTxBodyL
     , WitnessCount
-        (fromIntegral $ Set.size $ tx ^. witsTxL . addrTxWitsL)
+        (fromIntegral $ Set.size $ tx ^. witsTxL.addrTxWitsL)
         ((`NativeExplicitScript` ViaSpending)
          . toWalletScript (toKeyRole witCtx)
             <$> tx ^.. witsTxL.scriptTxWitsL.folded)
-        (fromIntegral $ Set.size $ tx ^. witsTxL . bootAddrTxWitsL)
+        (fromIntegral $ Set.size $ tx ^. witsTxL.bootAddrTxWitsL)
     )
   where
     (assetsToMint, assetsToBurn) =
