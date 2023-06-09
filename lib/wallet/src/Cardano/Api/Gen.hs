@@ -1052,8 +1052,8 @@ genRecentEraProtocolParameters = ProtocolParameters
     <*> genNat
     <*> genNat
     <*> genNat
-    <*> genNat
-    <*> genNat
+    <*> genLovelace
+    <*> genLovelace
     <*> liftArbitrary genLovelace
     <*> genLovelace
     <*> genLovelace
