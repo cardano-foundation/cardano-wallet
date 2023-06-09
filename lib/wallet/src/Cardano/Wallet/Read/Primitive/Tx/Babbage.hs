@@ -1,5 +1,7 @@
 {-# LANGUAGE DuplicateRecordFields #-}
 {-# LANGUAGE FlexibleContexts #-}
+{-# LANGUAGE LambdaCase #-}
+{-# LANGUAGE NamedFieldPuns #-}
 {-# LANGUAGE TupleSections #-}
 {-# LANGUAGE TypeApplications #-}
 {-# LANGUAGE TypeFamilies #-}
@@ -18,14 +20,31 @@ import Prelude
 
 import Cardano.Api
     ( BabbageEra )
-import Cardano.Ledger.Era
-    ( Era (..) )
-import Cardano.Ledger.Serialization
-    ( sizedValue )
-import Cardano.Ledger.Shelley.API
-    ( StrictMaybe (SJust, SNothing) )
+import Cardano.Ledger.Alonzo
+    ( AlonzoScript )
+import Cardano.Ledger.Api
+    ( addrTxWitsL
+    , auxDataTxL
+    , bodyTxL
+    , bootAddrTxWitsL
+    , certsTxBodyL
+    , collateralInputsTxBodyL
+    , collateralReturnTxBodyL
+    , feeTxBodyL
+    , inputsTxBodyL
+    , isValidTxL
+    , mintTxBodyL
+    , outputsTxBodyL
+    , referenceInputsTxBodyL
+    , scriptTxWitsL
+    , vldtTxBodyL
+    , withdrawalsTxBodyL
+    , witsTxL
+    )
+import Cardano.Ledger.Api
+    ( StandardCrypto )
 import Cardano.Wallet.Primitive.Types.TokenPolicy
-    ( TokenPolicyId (..) )
+    ( TokenPolicyId )
 import Cardano.Wallet.Primitive.Types.Tx.TxIn
     ( TxIn (..) )
 import Cardano.Wallet.Read.Eras
@@ -44,14 +63,14 @@ import Cardano.Wallet.Read.Primitive.Tx.Features.Outputs
     ( fromBabbageTxOut )
 import Cardano.Wallet.Read.Primitive.Tx.Features.Validity
     ( afterShelleyValidityInterval )
-import Cardano.Wallet.Read.Primitive.Tx.Features.Withdrawals
-    ( fromShelleyWdrl )
 import Cardano.Wallet.Read.Tx
     ( Tx (..) )
 import Cardano.Wallet.Read.Tx.CBOR
     ( renderTxToCBOR )
 import Cardano.Wallet.Read.Tx.Hash
     ( shelleyTxHash )
+import Cardano.Wallet.Read.Tx.Withdrawals
+    ( fromLedgerWithdrawals )
 import Cardano.Wallet.Shelley.Compatibility.Ledger
     ( toWalletScript, toWalletTokenPolicyId )
 import Cardano.Wallet.Transaction
@@ -66,23 +85,25 @@ import Cardano.Wallet.Transaction
     , WitnessCountCtx
     , toKeyRole
     )
-import Data.Foldable
-    ( toList )
-import Data.Maybe
-    ( catMaybes )
-import Ouroboros.Consensus.Cardano.Block
-    ( StandardBabbage )
+import Cardano.Wallet.Write.Tx
+    ( BabbageTxOut, StandardBabbage )
+import Control.Lens
+    ( folded, (^.), (^..), (<&>) )
+import Data.Map
+    ( Map )
+import Data.Maybe.Strict
+    ( strictMaybeToMaybe )
+import Data.Word
+    ( Word32 )
 
 import qualified Cardano.Api.Shelley as Cardano
-import qualified Cardano.Ledger.Alonzo.Language as Alonzo
 import qualified Cardano.Ledger.Alonzo.Scripts as Alonzo
 import qualified Cardano.Ledger.Alonzo.Tx as Alonzo
-import qualified Cardano.Ledger.Alonzo.TxWits as Alonzo
-import qualified Cardano.Ledger.Babbage.TxBody as Babbage
+import qualified Cardano.Ledger.Api.Scripts as Ledger
 import qualified Cardano.Ledger.BaseTypes as SL
-import qualified Cardano.Ledger.Core as SL.Core
+import qualified Cardano.Ledger.Core as Core
+import qualified Cardano.Ledger.Language as Language
 import qualified Cardano.Ledger.Mary.Value as SL
-import qualified Cardano.Ledger.Shelley.API as SL
 import qualified Cardano.Wallet.Primitive.Types as W
 import qualified Cardano.Wallet.Primitive.Types.Hash as W
 import qualified Cardano.Wallet.Primitive.Types.Tx as W
@@ -100,106 +121,104 @@ fromBabbageTx
        , Maybe ValidityIntervalExplicit
        , WitnessCount
        )
-fromBabbageTx tx@(Alonzo.AlonzoTx bod wits (Alonzo.IsValid isValid) aux) witCtx =
+fromBabbageTx tx witCtx =
     ( W.Tx
-        { txId =
-            transactionId
+        { txId
         , txCBOR =
             Just $ renderTxToCBOR $ inject babbage $ Tx tx
         , fee =
-            Just $ fromShelleyCoin fee
+            Just $ fromShelleyCoin $ tx ^. bodyTxL.feeTxBodyL
         , resolvedInputs =
-            map ((,Nothing) . fromShelleyTxIn) (toList inps)
+            (,Nothing) . fromShelleyTxIn
+                <$> tx ^.. bodyTxL.inputsTxBodyL.folded
         , resolvedCollateralInputs =
-            map ((,Nothing) . fromShelleyTxIn) (toList collateralInps)
+            (,Nothing) . fromShelleyTxIn
+                <$> tx ^.. bodyTxL.collateralInputsTxBodyL.folded
         , outputs =
-            map (fst . fromBabbageTxOut . sizedValue) (toList outs)
+            fst . fromBabbageTxOut <$> tx ^.. bodyTxL.outputsTxBodyL.folded
         , collateralOutput =
-            case fmap (fst . fromBabbageTxOut . sizedValue) collateralReturn of
-                SNothing -> Nothing
-                SJust txout -> Just txout
+            strictMaybeToMaybe $
+                fst . fromBabbageTxOut <$> tx ^. bodyTxL.collateralReturnTxBodyL
         , withdrawals =
-            fromShelleyWdrl wdrls
+            fromLedgerWithdrawals (tx ^. bodyTxL.withdrawalsTxBodyL)
         , metadata =
-            fromBabbageMetadata <$> SL.strictMaybeToMaybe aux
+            fromBabbageMetadata <$> SL.strictMaybeToMaybe (tx ^. auxDataTxL)
         , scriptValidity =
-            validity
+            Just $ case tx ^. isValidTxL of
+                Alonzo.IsValid True -> W.TxScriptValid
+                Alonzo.IsValid False -> W.TxScriptInvalid
         }
-    , anyEraCerts certs
+    , anyEraCerts $ tx ^. bodyTxL . certsTxBodyL
     , assetsToMint
     , assetsToBurn
-    , Just $ afterShelleyValidityInterval ttl
-    , countWits
+    , Just $ afterShelleyValidityInterval $ tx ^. bodyTxL.vldtTxBodyL
+    , WitnessCount
+        (fromIntegral $ Set.size $ tx ^. witsTxL.addrTxWitsL)
+        (Map.elems $ Map.union anyScriptsFromWits anyScriptsFromTxOuts)
+        (fromIntegral $ Set.size $ tx ^. witsTxL.bootAddrTxWitsL)
     )
   where
-    Babbage.BabbageTxBody
-        inps
-        collateralInps
-        refInps
-        outs
-        collateralReturn
-        _collateralTotal
-        certs
-        wdrls
-        fee
-        ttl
-        _upd
-        _reqSignerHashes
-        mint
-        _wwpHash
-        _adHash
-        _network
-        = bod
+    txId = W.Hash $ shelleyTxHash tx
 
-    transactionId = W.Hash $ shelleyTxHash tx
-    scriptWithHashIx ix txout =
-        case (snd . fromBabbageTxOut $ txout) of
-            Just s -> Just ( ViaReferenceInput (ReferenceInput $ TxIn transactionId ix)
-                           , hashBabbageScript s
-                           , s)
-            Nothing -> Nothing
-    scriptsFromTxOuts =
-        catMaybes $
-        L.zipWith scriptWithHashIx [0..] (map sizedValue $ toList outs)
+    anyScriptsFromTxOuts :: Map TokenPolicyId AnyExplicitScript
     anyScriptsFromTxOuts =
-        Map.fromList $
-        map fromLedgerToAnyScript scriptsFromTxOuts
-    scriptsFromWits =
-        map (\(scriptH,script) -> (ViaSpending, scriptH,script)) $
-        Map.toList $
-        Alonzo.txscripts' wits
+        Map.fromList
+            [ fromLedgerToAnyScript ledgerScript
+            | Just ledgerScript <- L.zipWith scriptWithHashIx
+                [0..] (tx ^.. bodyTxL.outputsTxBodyL.folded)
+            ]
+      where
+        scriptWithHashIx
+            :: Word32
+            -> BabbageTxOut StandardBabbage
+            -> Maybe
+                ( ScriptReference
+                , Ledger.ScriptHash StandardCrypto
+                , AlonzoScript StandardBabbage
+                )
+        scriptWithHashIx ix txout =
+            snd (fromBabbageTxOut txout) <&> \script ->
+                ( ViaReferenceInput (ReferenceInput (TxIn txId ix))
+                , hashBabbageScript script
+                , script
+                )
+
+    anyScriptsFromWits :: Map TokenPolicyId AnyExplicitScript
     anyScriptsFromWits =
-        Map.fromList $
-        map fromLedgerToAnyScript scriptsFromWits
-    allAnyScripts = Map.union anyScriptsFromWits anyScriptsFromTxOuts
+        Map.fromList
+            [ fromLedgerToAnyScript (ViaSpending, scriptH, script)
+            | (scriptH, script) <- Map.toList (tx ^. witsTxL.scriptTxWitsL)
+            ]
 
-    (assetsToMint, assetsToBurn) = babbageMint refInps mint wits
-
-    countWits = WitnessCount
-        (fromIntegral $ Set.size $ Alonzo.txwitsVKey' wits)
-        (Map.elems allAnyScripts)
-        (fromIntegral $ Set.size $ Alonzo.txwitsBoot' wits)
-
-    hashBabbageScript = SL.Core.hashScript @(Cardano.ShelleyLedgerEra BabbageEra)
+    (assetsToMint, assetsToBurn) =
+        babbageMint
+            (tx ^. bodyTxL.referenceInputsTxBodyL)
+            (tx ^. bodyTxL.mintTxBodyL)
+            (tx ^. witsTxL)
 
     fromLedgerToAnyScript
         :: ( ScriptReference
-           , (SL.ScriptHash (Crypto StandardBabbage))
-           , (SL.Core.Script StandardBabbage) )
+           , Ledger.ScriptHash StandardCrypto
+           , AlonzoScript StandardBabbage
+           )
         -> (TokenPolicyId, AnyExplicitScript)
     fromLedgerToAnyScript (scriptRef, scriptH, script) =
-        (toWalletTokenPolicyId . SL.PolicyID $ scriptH, toAnyScript script)
+        (toWalletTokenPolicyId (SL.PolicyID scriptH), toAnyScript script)
       where
-        toAnyScript (Alonzo.TimelockScript script') =
-            NativeExplicitScript (toWalletScript (toKeyRole witCtx) script') scriptRef
-        toAnyScript s@(Alonzo.PlutusScript ver _) =
-            PlutusExplicitScript (PlutusScriptInfo (toPlutusVer ver)
-                          (fromLedgerScriptHash $ hashBabbageScript s)) scriptRef
+        toAnyScript = \case
+            Alonzo.TimelockScript timelockScript ->
+                NativeExplicitScript
+                    (toWalletScript (toKeyRole witCtx) timelockScript)
+                    scriptRef
+            Alonzo.PlutusScript ver _ ->
+                PlutusExplicitScript
+                    (PlutusScriptInfo
+                        (toPlutusVer ver)
+                        (fromLedgerScriptHash $ hashBabbageScript script))
+                    scriptRef
 
-        toPlutusVer Alonzo.PlutusV1 = PlutusVersionV1
-        toPlutusVer Alonzo.PlutusV2 = PlutusVersionV2
+        toPlutusVer Language.PlutusV1 = PlutusVersionV1
+        toPlutusVer Language.PlutusV2 = PlutusVersionV2
+        toPlutusVer Language.PlutusV3 = PlutusVersionV3
 
-    validity =
-        if isValid
-        then Just W.TxScriptValid
-        else Just W.TxScriptInvalid
+    hashBabbageScript = Core.hashScript @(Cardano.ShelleyLedgerEra BabbageEra)
