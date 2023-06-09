@@ -8,6 +8,7 @@
 {-# LANGUAGE RankNTypes #-}
 {-# LANGUAGE ScopedTypeVariables #-}
 {-# LANGUAGE TupleSections #-}
+{-# LANGUAGE TypeApplications #-}
 {-# LANGUAGE TypeFamilies #-}
 {-# LANGUAGE UndecidableInstances #-}
 
@@ -27,17 +28,24 @@ import Cardano.Address.Script
     ( KeyRole (..) )
 import Cardano.Api
     ( AllegraEra )
-import Cardano.Ledger.Core
-    ( auxDataTxL
+import Cardano.Ledger.Api
+    ( addrTxWitsL
+    , auxDataTxL
     , bodyTxL
+    , bootAddrTxWitsL
+    , certsTxBodyL
     , feeTxBodyL
     , inputsTxBodyL
     , outputsTxBodyL
+    , scriptTxWitsL
     , vldtTxBodyL
+    , withdrawalsTxBodyL
     , witsTxL
     )
-import Cardano.Ledger.Shelley.TxBody
-    ( certsTxBodyL, wdrlsTxBodyL )
+import Cardano.Ledger.Core
+    ()
+import Cardano.Ledger.Shelley.Tx
+    ( ShelleyTx )
 import Cardano.Wallet.Read.Eras
     ( allegra, inject )
 import Cardano.Wallet.Read.Primitive.Tx.Features.Certificates
@@ -52,14 +60,14 @@ import Cardano.Wallet.Read.Primitive.Tx.Features.Outputs
     ( fromAllegraTxOut )
 import Cardano.Wallet.Read.Primitive.Tx.Features.Validity
     ( afterShelleyValidityInterval )
-import Cardano.Wallet.Read.Primitive.Tx.Features.Withdrawals
-    ( fromShelleyWdrl )
 import Cardano.Wallet.Read.Tx
     ( Tx (..) )
 import Cardano.Wallet.Read.Tx.CBOR
     ( renderTxToCBOR )
 import Cardano.Wallet.Read.Tx.Hash
     ( shelleyTxHash )
+import Cardano.Wallet.Read.Tx.Withdrawals
+    ( fromLedgerWithdrawals )
 import Cardano.Wallet.Shelley.Compatibility.Ledger
     ( toWalletScript )
 import Cardano.Wallet.Transaction
@@ -72,17 +80,16 @@ import Data.Foldable
 
 import qualified Cardano.Api.Shelley as Cardano
 import qualified Cardano.Ledger.BaseTypes as SL
-import qualified Cardano.Ledger.Shelley.API as SL
-import qualified Cardano.Ledger.Shelley.Tx as SL
 import qualified Cardano.Wallet.Primitive.Types as W
 import qualified Cardano.Wallet.Primitive.Types.Hash as W
 import qualified Cardano.Wallet.Primitive.Types.Tx as W
 import qualified Data.Map.Strict as Map
 import qualified Data.Set as Set
+
 -- NOTE: For resolved inputs we have to pass in a dummy value of 0.
 
 fromAllegraTx
-    :: SL.ShelleyTx (Cardano.ShelleyLedgerEra AllegraEra)
+    :: ShelleyTx (Cardano.ShelleyLedgerEra AllegraEra)
     -> ( W.Tx
        , [W.Certificate]
        , TokenMapWithScripts
@@ -97,44 +104,31 @@ fromAllegraTx tx =
         , txCBOR =
             Just $ renderTxToCBOR $ inject allegra $ Tx tx
         , fee =
-            Just $ fromShelleyCoin fee
+            Just $ fromShelleyCoin $ tx ^. bodyTxL . feeTxBodyL
         , resolvedInputs =
-            map ((,Nothing) . fromShelleyTxIn) (toList ins)
+            (,Nothing) . fromShelleyTxIn
+                <$> toList (tx ^. bodyTxL . inputsTxBodyL)
         , resolvedCollateralInputs =
-            -- TODO: (ADP-957)
-            []
+            [] -- TODO: (ADP-957)
         , outputs =
-            map fromAllegraTxOut (toList outs)
+            fromAllegraTxOut <$> toList (tx ^. bodyTxL . outputsTxBodyL)
         , collateralOutput =
-            -- Collateral outputs are not supported in Allegra.
-            Nothing
+            Nothing -- Collateral outputs are not supported in Allegra.
         , withdrawals =
-            fromShelleyWdrl wdrls
+            fromLedgerWithdrawals (tx ^. bodyTxL . withdrawalsTxBodyL)
         , metadata =
-            fromAllegraMetadata <$> SL.strictMaybeToMaybe mmd
+            fromAllegraMetadata <$> SL.strictMaybeToMaybe (tx ^. auxDataTxL)
         , scriptValidity =
             Nothing
         }
-    , anyEraCerts certs
+    , anyEraCerts $ tx ^. bodyTxL . certsTxBodyL
     , emptyTokenMapWithScripts
     , emptyTokenMapWithScripts
-    , Just $ afterShelleyValidityInterval vldl
-    , countWits
+    , Just $ afterShelleyValidityInterval $ tx ^. bodyTxL . vldtTxBodyL
+    , WitnessCount
+        (fromIntegral $ Set.size $ tx ^. witsTxL . addrTxWitsL)
+        ((`NativeExplicitScript` ViaSpending)
+         . toWalletScript (\_vkey -> Payment)
+            <$> Map.elems (tx ^. witsTxL . scriptTxWitsL))
+        (fromIntegral $ Set.size $ tx ^. witsTxL . bootAddrTxWitsL)
     )
-  where
-    ins = tx ^. bodyTxL . inputsTxBodyL
-    outs = tx ^. bodyTxL . outputsTxBodyL
-    certs = tx ^. bodyTxL . certsTxBodyL
-    wdrls = tx ^. bodyTxL . wdrlsTxBodyL
-    fee = tx ^. bodyTxL . feeTxBodyL
-    vldl = tx ^. bodyTxL . vldtTxBodyL
-    wits = tx ^. witsTxL
-    mmd = tx ^. auxDataTxL
-
-    scriptMap =
-        Map.map (flip NativeExplicitScript ViaSpending . toWalletScript (const Payment))
-        $ SL.scriptWits wits
-    countWits = WitnessCount
-        (fromIntegral $ Set.size $ SL.addrWits wits)
-        (Map.elems scriptMap)
-        (fromIntegral $ Set.size $ SL.bootWits wits)

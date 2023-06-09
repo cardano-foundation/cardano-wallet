@@ -35,11 +35,11 @@ import Cardano.Ledger.Core
 import Cardano.Ledger.Shelley
     ( ShelleyTx )
 import Cardano.Ledger.Shelley.TxBody
-    ( Withdrawals (..), certsTxBodyL, ttlTxBodyL )
+    ( certsTxBodyL, ttlTxBodyL )
 import Cardano.Wallet.Read.Eras
     ( inject, shelley )
 import Cardano.Wallet.Read.Primitive.Tx.Features.Certificates
-    ( anyEraCerts, fromStakeCredential )
+    ( anyEraCerts )
 import Cardano.Wallet.Read.Primitive.Tx.Features.Fee
     ( fromShelleyCoin )
 import Cardano.Wallet.Read.Primitive.Tx.Features.Metadata
@@ -54,6 +54,8 @@ import Cardano.Wallet.Read.Tx.CBOR
     ( renderTxToCBOR )
 import Cardano.Wallet.Read.Tx.Hash
     ( fromShelleyTxId, shelleyTxHash )
+import Cardano.Wallet.Read.Tx.Withdrawals
+    ( fromLedgerWithdrawals )
 import Cardano.Wallet.Shelley.Compatibility.Ledger
     ( toWalletScriptFromShelley )
 import Cardano.Wallet.Transaction
@@ -61,23 +63,16 @@ import Cardano.Wallet.Transaction
     ValidityIntervalExplicit (..), WitnessCount (..), emptyTokenMapWithScripts )
 import Control.Lens
     ( (^.) )
-import Data.Bifunctor
-    ( bimap )
 import Data.Foldable
     ( toList )
-import Data.Map.Strict
-    ( Map )
 import Data.Word
     ( Word16, Word32, Word64 )
 
 import qualified Cardano.Api.Shelley as Cardano
-import qualified Cardano.Ledger.Address as SL
 import qualified Cardano.Ledger.BaseTypes as SL
 import qualified Cardano.Ledger.Shelley.API as SL
 import qualified Cardano.Wallet.Primitive.Types as W
-import qualified Cardano.Wallet.Primitive.Types.Coin as W
 import qualified Cardano.Wallet.Primitive.Types.Hash as W
-import qualified Cardano.Wallet.Primitive.Types.RewardAccount as W
 import qualified Cardano.Wallet.Primitive.Types.Tx as W
 import qualified Cardano.Wallet.Primitive.Types.Tx.TxIn as W
     ( TxIn (TxIn) )
@@ -128,10 +123,9 @@ fromShelleyTx tx =
         , outputs =
             fromShelleyTxOut <$> toList (tx ^. bodyTxL . outputsTxBodyL)
         , collateralOutput =
-            -- Collateral outputs are not supported in Shelley.
-            Nothing
+            Nothing -- Collateral outputs are not supported in Shelley.
         , withdrawals =
-            fromShelleyWithdrawals (tx ^. bodyTxL . withdrawalsTxBodyL)
+            fromLedgerWithdrawals (tx ^. bodyTxL . withdrawalsTxBodyL)
         , metadata =
             fromShelleyMetadata <$> SL.strictMaybeToMaybe (tx ^. auxDataTxL)
         , scriptValidity =
@@ -143,13 +137,8 @@ fromShelleyTx tx =
     , Just $ shelleyValidityInterval $ tx ^. bodyTxL . ttlTxBodyL
     , WitnessCount
         (fromIntegral $ Set.size $ tx ^. witsTxL . addrTxWitsL)
-        (flip NativeExplicitScript ViaSpending . toWalletScriptFromShelley Payment
+        ((`NativeExplicitScript` ViaSpending)
+         . toWalletScriptFromShelley Payment
             <$> Map.elems (tx ^. witsTxL . scriptTxWitsL))
         (fromIntegral $ Set.size $ tx ^. witsTxL . bootAddrTxWitsL)
     )
-
-fromShelleyWithdrawals :: Withdrawals crypto -> Map W.RewardAccount W.Coin
-fromShelleyWithdrawals (Withdrawals withdrawals) =
-    Map.fromList $
-        bimap (fromStakeCredential . SL.getRwdCred) fromShelleyCoin
-            <$> Map.toList withdrawals
