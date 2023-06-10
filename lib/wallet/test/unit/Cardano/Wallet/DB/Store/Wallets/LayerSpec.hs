@@ -10,9 +10,9 @@ module Cardano.Wallet.DB.Store.Wallets.LayerSpec
 import Prelude
 
 import Cardano.DB.Sqlite
-    ( ForeignKeysSetting (..) )
+    ( ForeignKeysSetting (..), runQuery )
 import Cardano.Wallet.DB.Fixtures
-    ( WalletProperty, logScale, withDBInMemory, withInitializedWalletProp )
+    ( WalletProperty, logScale, withDBInMemory )
 import Cardano.Wallet.DB.Store.Wallets.Layer
     ( newQueryStoreTxWalletsHistory )
 import Cardano.Wallet.DB.Store.Wallets.StoreSpec
@@ -22,7 +22,7 @@ import Test.Hspec
 import Test.QuickCheck
     ( property )
 import Test.Store
-    ( prop_StoreUpdates )
+    ( prop_StoreUpdate )
 
 spec :: Spec
 spec = do
@@ -31,11 +31,9 @@ spec = do
             it "respects store laws" $ property . prop_StoreWalletsLaws
 
 prop_StoreWalletsLaws :: WalletProperty
-prop_StoreWalletsLaws =
-  withInitializedWalletProp $ \wid runQ -> do
-    let qs = newQueryStoreTxWalletsHistory
-    prop_StoreUpdates
-      runQ
-      qs
-      (pure mempty)
-      (logScale . genDeltaTxWallets wid)
+prop_StoreWalletsLaws db wid =
+    prop_StoreUpdate
+        (runQuery db)
+        (pure newQueryStoreTxWalletsHistory)
+        (pure mempty)
+        (logScale . genDeltaTxWallets wid)

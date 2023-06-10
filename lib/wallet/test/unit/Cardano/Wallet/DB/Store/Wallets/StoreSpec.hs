@@ -11,11 +11,11 @@ module Cardano.Wallet.DB.Store.Wallets.StoreSpec
 import Prelude
 
 import Cardano.DB.Sqlite
-    ( ForeignKeysSetting (..) )
+    ( ForeignKeysSetting (..), runQuery )
 import Cardano.Wallet.DB.Arbitrary
     ()
 import Cardano.Wallet.DB.Fixtures
-    ( WalletProperty, logScale, withDBInMemory, withInitializedWalletProp )
+    ( WalletProperty, initializeWalletTable, logScale, withDBInMemory )
 import Cardano.Wallet.DB.Sqlite.Schema
     ( TxMeta (..) )
 import Cardano.Wallet.DB.Store.Meta.Layer
@@ -39,7 +39,7 @@ import Test.Hspec
 import Test.QuickCheck
     ( Gen, NonEmptyList (..), arbitrary, choose, frequency, property )
 import Test.Store
-    ( GenDelta, prop_StoreUpdates )
+    ( GenDelta, prop_StoreUpdate )
 
 import qualified Cardano.Wallet.Primitive.Types as W
 import qualified Data.Map.Strict as Map
@@ -54,20 +54,18 @@ spec = do
             it "respects store laws" $ property . prop_StoreWalletsLaws
 
 prop_StoreWalletsLaws :: WalletProperty
-prop_StoreWalletsLaws =
-  withInitializedWalletProp $ \wid runQ -> do
-    -- Note: We have already tested `mkStoreTransactions`,
-    -- so we use `newStore` here for a faster test.
-    storeTransactions <- runQ newUpdateStore
-    let storeWalletsMeta = mkQueryStoreTxMeta
-        storeTxWalletsHistory =
-            mkStoreTxWalletsHistory storeTransactions storeWalletsMeta
-
-    prop_StoreUpdates
-      runQ
-      storeTxWalletsHistory
-      (pure mempty)
-      (logScale . genDeltaTxWallets wid)
+prop_StoreWalletsLaws db wid =
+    prop_StoreUpdate
+        (runQuery db)
+        setupStore
+        (pure mempty)
+        (logScale . genDeltaTxWallets wid)
+  where
+    setupStore = do
+        initializeWalletTable wid
+        storeTransactions <- newUpdateStore
+        let storeWalletsMeta = mkQueryStoreTxMeta
+        pure $ mkStoreTxWalletsHistory storeTransactions storeWalletsMeta
 
 newUpdateStore
     :: (Delta da, MonadSTM m, MonadThrow m)

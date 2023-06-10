@@ -21,24 +21,17 @@ import Prelude
 import Cardano.Address.Derivation
     ( XPrv )
 import Cardano.DB.Sqlite
-    ( ForeignKeysSetting (ForeignKeysDisabled) )
+    ( ForeignKeysSetting (..), runQuery )
 import Cardano.Wallet.Address.Derivation
     ( Depth (RootK) )
 import Cardano.Wallet.DB.Arbitrary
     ()
 import Cardano.Wallet.DB.Fixtures
-    ( RunQuery
-    , WalletProperty
-    , logScale
-    , withDBInMemory
-    , withInitializedWalletProp
-    )
+    ( WalletProperty, logScale, withDBInMemory )
 import Cardano.Wallet.DB.Store.PrivateKey.Store
     ( DeltaPrivateKey, mkStorePrivateKey )
 import Cardano.Wallet.Flavor
     ( KeyFlavorS (..) )
-import Cardano.Wallet.Primitive.Types
-    ( WalletId )
 import Cardano.Wallet.Primitive.Types.Credentials
     ( HashedCredentials, RootCredentials (RootCredentials) )
 import Data.Delta
@@ -49,38 +42,26 @@ import Test.Hspec
     ( Spec, around, describe, it )
 import Test.QuickCheck
     ( Arbitrary, Gen, arbitrary, property )
-import Test.QuickCheck.Monadic
-    ( PropertyM )
 import Test.Store
-    ( prop_StoreUpdates )
+    ( prop_StoreUpdate )
 
 spec :: Spec
 spec =
     around (withDBInMemory ForeignKeysDisabled) $ do
         describe "private-key store" $ do
             it "respects store laws for ShelleyKeyS"
-                $ property . prop_SingleWalletStoreLaws ShelleyKeyS
+                $ property . prop_StorePrivateKeyLaws ShelleyKeyS
             it "respects store laws for ByronKeyS"
-                $ property . prop_SingleWalletStoreLaws ByronKeyS
+                $ property . prop_StorePrivateKeyLaws ByronKeyS
 
-prop_SingleWalletStoreLaws
+prop_StorePrivateKeyLaws
     :: (Eq (k 'RootK XPrv), Show (k 'RootK XPrv), Arbitrary (k 'RootK XPrv))
     => KeyFlavorS k
     -> WalletProperty
-prop_SingleWalletStoreLaws kF = do
-    withInitializedWalletProp $ \wid runQ -> do
-        propStore runQ wid kF
-
-propStore
-    :: (Eq (k 'RootK XPrv), Show (k 'RootK XPrv), Arbitrary (k 'RootK XPrv))
-    => RunQuery
-    -> WalletId
-    -> KeyFlavorS k
-    -> PropertyM IO ()
-propStore runQ wid kF =
-    prop_StoreUpdates
-        runQ
-        (mkStorePrivateKey kF wid)
+prop_StorePrivateKeyLaws kF db wid = do
+    prop_StoreUpdate
+        (runQuery db)
+        (pure $ mkStorePrivateKey kF wid)
         genPrivateKey
         (logScale . genDelta)
 

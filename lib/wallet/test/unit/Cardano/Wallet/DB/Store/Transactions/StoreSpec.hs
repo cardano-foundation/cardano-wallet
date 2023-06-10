@@ -14,7 +14,7 @@ module Cardano.Wallet.DB.Store.Transactions.StoreSpec
 import Prelude
 
 import Cardano.DB.Sqlite
-    ( ForeignKeysSetting (..) )
+    ( ForeignKeysSetting (..), runQuery )
 import Cardano.Wallet.DB.Arbitrary
     ()
 import Cardano.Wallet.DB.Fixtures
@@ -73,7 +73,7 @@ import Test.QuickCheck
 import Test.QuickCheck.Monadic
     ( forAllM, pick )
 import Test.Store
-    ( GenDelta, prop_StoreUpdates )
+    ( GenDelta, prop_StoreUpdate )
 
 import qualified Cardano.Wallet.DB.Store.Transactions.Layer as TxSet
 import qualified Cardano.Wallet.Primitive.Types.Tx as W
@@ -86,7 +86,7 @@ spec = do
     around (withDBInMemory ForeignKeysEnabled) $ do
         describe "Transactions store" $ do
             it "respects store laws" $
-                property . prop_StoreLaws
+                property . prop_StoreTransactionsLaws
         describe "selectTx" $
             it "retrieves transaction that was written" $
                 property . prop_selectTx
@@ -169,11 +169,11 @@ prop_DecorateLinksTxCollateralsToTxOuts = do
             ]
             === map Just txouts
 
-prop_StoreLaws :: StoreProperty
-prop_StoreLaws = withStoreProp $ \runQ ->
-    prop_StoreUpdates
-        runQ
-        mkStoreTransactions
+prop_StoreTransactionsLaws :: StoreProperty
+prop_StoreTransactionsLaws db =
+    prop_StoreUpdate
+        (runQuery db)
+        (pure mkStoreTransactions)
         (pure mempty)
         (logScale . genDeltas)
 

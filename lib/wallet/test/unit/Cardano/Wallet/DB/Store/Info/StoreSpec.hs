@@ -3,11 +3,11 @@ module Cardano.Wallet.DB.Store.Info.StoreSpec (spec) where
 import Prelude
 
 import Cardano.DB.Sqlite
-    ( ForeignKeysSetting (ForeignKeysDisabled) )
+    ( ForeignKeysSetting (..), runQuery )
 import Cardano.Wallet.DB.Arbitrary
     ()
 import Cardano.Wallet.DB.Fixtures
-    ( WalletProperty, logScale, withDBInMemory, withInitializedWalletProp )
+    ( WalletProperty, logScale, withDBInMemory )
 import Cardano.Wallet.DB.Store.Info.Store
     ( DeltaWalletInfo (..), WalletInfo (..), mkStoreInfo )
 import Cardano.Wallet.DummyTarget.Primitive.Types
@@ -17,27 +17,26 @@ import Test.Hspec
 import Test.QuickCheck
     ( Arbitrary (..), Gen, property )
 import Test.Store
-    ( prop_StoreUpdates )
+    ( prop_StoreUpdate )
 
 spec :: Spec
 spec = do
     around (withDBInMemory ForeignKeysDisabled) $ do
-        describe "wallet metadata store" $ do
+        describe "wallet info store" $ do
             it "respects store laws"
-                $ property . prop_WalletMetadataStore
+                $ property . prop_StoreWalletInfo
 
-prop_WalletMetadataStore :: WalletProperty
-prop_WalletMetadataStore = withInitializedWalletProp
-    $ \_ runQ ->
-        prop_StoreUpdates
-            runQ
-            mkStoreInfo
-            ( WalletInfo
-                <$> arbitrary
-                <*> arbitrary
-                <*> pure dummyGenesisParameters
-            )
-            (logScale . genDeltas)
+prop_StoreWalletInfo :: WalletProperty
+prop_StoreWalletInfo db _ =
+    prop_StoreUpdate
+        (runQuery db)
+        (pure mkStoreInfo)
+        ( WalletInfo
+            <$> arbitrary
+            <*> arbitrary
+            <*> pure dummyGenesisParameters
+        )
+        (logScale . genDeltas)
 
 genDeltas :: WalletInfo -> Gen DeltaWalletInfo
 genDeltas _ = UpdateWalletMetadata <$> arbitrary

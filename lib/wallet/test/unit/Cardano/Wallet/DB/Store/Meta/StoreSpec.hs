@@ -10,7 +10,7 @@ where
 import Prelude
 
 import Cardano.DB.Sqlite
-    ( ForeignKeysSetting (..) )
+    ( ForeignKeysSetting (..), runQuery )
 import Cardano.Slotting.Slot
     ( SlotNo )
 import Cardano.Wallet.DB.Arbitrary
@@ -18,6 +18,7 @@ import Cardano.Wallet.DB.Arbitrary
 import Cardano.Wallet.DB.Fixtures
     ( WalletProperty
     , assertWith
+    , initializeWalletTable
     , logScale
     , queryLaw
     , withDBInMemory
@@ -52,7 +53,7 @@ import Test.QuickCheck
 import Test.QuickCheck.Monadic
     ( forAllM, pick )
 import Test.Store
-    ( prop_StoreUpdates )
+    ( prop_StoreUpdate )
 
 import qualified Data.Map.Strict as Map
 
@@ -73,12 +74,16 @@ genDeltas wid history =
         ]
 
 prop_StoreMetaLaws :: WalletProperty
-prop_StoreMetaLaws = withInitializedWalletProp $ \wid runQ ->
-    prop_StoreUpdates
-        runQ
-        mkStoreMetaTransactions
+prop_StoreMetaLaws db wid =
+    prop_StoreUpdate
+        (runQuery db)
+        setupStore
         (pure mempty)
         (logScale . genDeltas wid)
+  where
+    setupStore = do
+        initializeWalletTable wid
+        pure mkStoreMetaTransactions
 
 prop_QueryLaw :: WalletProperty
 prop_QueryLaw =

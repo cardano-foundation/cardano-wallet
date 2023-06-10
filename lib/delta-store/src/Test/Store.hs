@@ -7,10 +7,16 @@
 -- Copyright: © 2023 IOHK
 -- License: Apache-2.0
 module Test.Store
-    ( genUpdates
-    , prop_StoreUpdates
-    , GenDelta
-    , Updates (..)
+    ( -- * Store laws
+      GenDelta
+    , prop_StoreUpdate
+
+    -- * Generators
+    , Chain (..)
+    , genChain
+    , shrinkChain
+
+    -- * Unit test DSL for developing a Store
     , unitTestStore
     , applyS
     , checkLaw
@@ -22,8 +28,8 @@ module Test.Store
 
 import Prelude
 
-import Control.Exception.Safe
-    ( impureThrow )
+import Control.Exception
+    ( throwIO )
 import Control.Monad
     ( forM_ )
 import Control.Monad.RWS
@@ -37,75 +43,98 @@ import Control.Monad.RWS.Class
 import Data.Delta
     ( Delta (..) )
 import Data.Either
+    ( isRight )
 import Data.Store
     ( Store (loadS, updateS, writeS) )
 import Fmt
     ( Buildable, listF, pretty )
 import Test.QuickCheck
-    ( Blind (Blind), Gen, Property, conjoin, counterexample, sized, (===) )
+    ( Gen
+    , Property
+    , conjoin
+    , counterexample
+    , forAll
+    , forAllShrink
+    , getSize
+    , (===)
+    )
 import Test.QuickCheck.Monadic
-    ( PropertyM, assert, monitor, pick )
+    ( assert, monadicIO, monitor, run )
 
--- | Given a value, generate a random delta starting from this value.
+{-----------------------------------------------------------------------------
+    Store laws
+------------------------------------------------------------------------------}
+-- | Given a value, generate a random delta that applies to this value.
 type GenDelta da = Base da -> Gen da
 
--- The update that is applied *last* appears in the list *first*.
-newtype Updates da = Updates [(Base da, da)]
-
-instance Show da => Show (Updates da) where
-    show (Updates xs) = show . map snd $ xs
-
--- | Randomly generate a sequence of updates
-genUpdates :: Delta da => Gen (Base da) -> GenDelta da -> Gen (Updates da)
-genUpdates gen0 more = sized $ \n -> go n [] =<< gen0
-  where
-    go 0 das _ = pure $ Updates das
-    go n das a0 = do
-        da <- more a0
-        let a1 = apply da a0
-        go (n - 1) ((a1, da) : das) a1
-
--- | Test whether 'updateS' and 'loadS' behave as expected.
+-- | Chain of deltas and the results of their application.
 --
--- TODO: Shrinking of the update sequence.
-prop_StoreUpdates
-    :: (Monad m, Delta da, Eq (Base da), Buildable da, Show (Base da))
-    => (forall b. m b -> PropertyM IO b)
+-- The delta that is applied *last* appears in the list *first*.
+data Chain da = Chain [(Base da, da)] (Base da)
+
+instance Show da => Show (Chain da) where
+    show (Chain adas _) = show . map snd $ adas
+
+-- | Randomly generate a chain of deltas.
+genChain :: Delta da => Gen (Base da) -> GenDelta da -> Gen (Chain da)
+genChain gen0 more = do
+    n <- getSize
+    a0 <- gen0
+    go n a0 [] a0
+  where
+    go 0 _  das a0 = pure $ Chain das a0
+    go n alast das a0 = do
+        da <- more alast
+        let a = apply da alast
+        go (n - 1) a ((a, da) : das) a0
+
+-- | Shrink a chain of deltas.
+shrinkChain :: Chain da -> [Chain da]
+shrinkChain (Chain [] _) = []
+shrinkChain (Chain das a0) =
+    [ Chain [] a0, Chain [last das] a0, Chain (tail das) a0 ]
+
+-- | Test whether the law on 'updateS' is satisfied.
+--
+-- Subsumes test for the law on 'writeS' / 'loadS'.
+prop_StoreUpdate
+    :: (Monad m, Delta da, Eq (Base da), Buildable da, Show da, Show (Base da))
+    => (forall b. m b -> IO b)
     -- ^ Function to embed the monad in 'IO'
-    -> Store m qa da
-    -- ^ Store that is to be tested.
+    -> m (Store m qa da)
+    -- ^ Creation for 'Store' that is to be tested.
     -> Gen (Base da)
     -- ^ Generator for the initial value.
     -> GenDelta da
     -- ^ Generator for deltas.
-    -> PropertyM IO ()
-prop_StoreUpdates toPropertyM store gen0 more = do
-    -- randomly generate a sequence of updates
-    Blind a0 <- pick $ Blind <$> gen0
-    Blind (Updates adas) <- pick $ Blind <$> genUpdates (pure a0) more
-    let as = map fst adas ++ [a0]
-        das = map snd adas
+    -> Property
+prop_StoreUpdate toIO mkStore gen0 more =
+    forAll gen0 $ \a0' ->
+    forAllShrink (genChain (pure a0') more) shrinkChain $ \chain ->
+        let Chain adas a0 = chain
+            as = map fst adas ++ [a0]
+            das = map snd adas
+        in  counterexample ("\nUpdates applied:\n" <> pretty (listF das))
+            $ monadicIO $ do
+                ea <- run . toIO $ do
+                    store <- mkStore
+                    writeS store a0
+                    -- first update is applied last!
+                    let updates = reverse $ zip das (drop 1 as)
+                    forM_ updates $ \(da, a) -> updateS store (Just a) da
+                    loadS store
+                case ea of
+                    Left err -> run $ throwIO err
+                    Right a -> do
+                        monitor $ counterexample
+                            $ "\nExpected:\n" <> show (head as)
+                        monitor $ counterexample
+                            $ "\nGot:\n" <> show a
+                        assert $ a == head as
 
-    monitor
-        $ counterexample
-        $ "\nUpdates applied:\n" <> pretty (listF das)
-
-    -- apply those updates
-    ea <- toPropertyM $ do
-        writeS store a0
-        -- first update is applied last!
-        let updates = reverse $ zip das (drop 1 as)
-        forM_ updates $ \(da, a) -> updateS store (Just a) da
-        loadS store
-
-    -- check whether the last value is correct
-    case ea of
-        Left err -> impureThrow err
-        Right a -> do
-            monitor $ counterexample $ "\nExpected:\n" <> show (head as)
-            monitor $ counterexample $ "\nGot:\n" <> show a
-            assert $ a == head as
-
+{-----------------------------------------------------------------------------
+    DSL for developing
+------------------------------------------------------------------------------}
 -- | A DSL to unit test a 'Store'.
 type StoreUnitTest m qa da =
     RWST

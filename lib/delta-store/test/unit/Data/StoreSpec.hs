@@ -24,7 +24,7 @@ import Test.QuickCheck.Gen
 import Test.QuickCheck.Monadic
     ( monadicIO, run )
 import Test.Store
-    ( prop_StoreUpdates )
+    ( prop_StoreUpdate )
 
 spec :: Spec
 spec = do
@@ -32,15 +32,17 @@ spec = do
         it "Dummy test, to be expanded"
             True
     describe "CachedStore" $ do
-        it "respects store laws" $ monadicIO $ do
-            cachedStore <- run $ do
-                testStore <- newTestStore
-                resetTestStoreBase testStore
-                newCachedStore testStore
-            prop_StoreUpdates run
-                cachedStore
-                (pure emptyTestStore)
-                $ const genTestStoreDeltas
+        it "respects store laws" $
+            let setupStore = do
+                    testStore <- newTestStore
+                    resetTestStoreBase testStore
+                    newCachedStore testStore
+            in  prop_StoreUpdate
+                    id
+                    setupStore
+                    (pure emptyTestStore)
+                    $ const genTestStoreDeltas
+
         it "behaves like the cached one" $ monadicIO $ run $ do
 
             das <- generate $ listOf genTestStoreDeltas
