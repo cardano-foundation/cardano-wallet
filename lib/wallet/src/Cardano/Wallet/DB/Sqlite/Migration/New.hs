@@ -1,7 +1,7 @@
 {-# LANGUAGE DataKinds #-}
 
 module Cardano.Wallet.DB.Sqlite.Migration.New
-    ( runNewStyleMigrations
+    ( runNewStyleMigrations, newMigrationInterface
     ) where
 
 import Prelude hiding

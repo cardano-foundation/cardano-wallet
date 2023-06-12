@@ -32,7 +32,7 @@
 -- >>> quickCheck $ prop_sequential db
 
 module Cardano.Wallet.DB.LayerSpec
-    ( spec
+    ( spec, withinCopiedFile
     ) where
 
 import Prelude
@@ -96,10 +96,7 @@ import Cardano.Wallet.DB.Layer
 import Cardano.Wallet.DB.Properties
     ( properties )
 import Cardano.Wallet.DB.Sqlite.Migration.Old
-    ( InvalidDatabaseSchemaVersion (..)
-    , SchemaVersion (..)
-    , currentSchemaVersion
-    )
+    ( SchemaVersion (..), currentSchemaVersion )
 import Cardano.Wallet.DB.StateMachine
     ( TestConstraints, prop_sequential, validateGenerators )
 import Cardano.Wallet.DummyTarget.Primitive.Types
@@ -1455,6 +1452,8 @@ testMigrationSubmissionsEncoding dbName = do
                 $ Sqlite.rawSql "SELECT status FROM tx_meta" []
             forM_ metas $ \(Single status) ->
                 status `shouldBe` ("in_ledger" :: Text)
+
+
 {-------------------------------------------------------------------------------
                                    Test data
 -------------------------------------------------------------------------------}

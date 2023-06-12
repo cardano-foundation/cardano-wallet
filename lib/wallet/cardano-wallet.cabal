@@ -926,6 +926,7 @@ test-suite unit
     Cardano.Wallet.DB.StateMachine
     Cardano.Wallet.DB.Store.Checkpoints.StoreSpec
     Cardano.Wallet.DB.Store.Delegations.StoreSpec
+    Cardano.Wallet.DB.Store.Delegations.MigrationSpec
     Cardano.Wallet.DB.Store.Info.StoreSpec
     Cardano.Wallet.DB.Store.Meta.ModelSpec
     Cardano.Wallet.DB.Store.Meta.StoreSpec
