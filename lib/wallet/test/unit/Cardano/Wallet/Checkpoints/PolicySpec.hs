@@ -6,7 +6,12 @@ module Cardano.Wallet.Checkpoints.PolicySpec
 import Prelude
 
 import Cardano.Wallet.Checkpoints.Policy
-    ( BlockHeight, CheckpointPolicy, nextCheckpoint, toListAtTip )
+    ( BlockHeight
+    , CheckpointPolicy
+    , keepWhereTip
+    , nextCheckpoint
+    , toListAtTip
+    )
 import Test.Hspec
     ( Spec, describe, it )
 import Test.QuickCheck
@@ -59,6 +64,10 @@ spec = do
 
         it "trailingArithmetic checkpoints are located at grid points" $
             property prop_trailingGrid
+
+        it "sparseArithmetic has genesis" $
+            property $ \(GenHeightContext epochStability tip) ->
+                keepWhereTip (CP.sparseArithmetic epochStability) tip 0
 
         it "sparseArithmetic checkpoints after genesis are close to tip" $
             property $ \(GenHeightContext epochStability tip) ->
