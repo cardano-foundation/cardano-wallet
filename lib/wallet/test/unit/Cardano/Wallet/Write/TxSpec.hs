@@ -26,7 +26,7 @@ import Cardano.Wallet.Write.Tx
     scriptFromCardanoEnvelopeJSON, scriptFromCardanoScriptInAnyLang,
     scriptToCardanoEnvelopeJSON, scriptToCardanoScriptInAnyLang, toCardanoUTxO )
 import Cardano.Wallet.Write.Tx.Gen
-    ( genBinaryData, genTxOut, shrinkBinaryData )
+    ( genTxOut )
 import Data.Aeson
     ( (.=) )
 import Data.Aeson.Types
@@ -68,43 +68,6 @@ spec = do
                 , showLaws
                 ]
 
-    describe "BinaryData" $ do
-        it "BinaryData is isomorphic to Cardano.ScriptData" $
-            testIsomorphism
-                (NamedFun
-                    datumToCardanoScriptData "datumToCardanoScriptData")
-                (NamedFun
-                    datumFromCardanoScriptData "datumFromCardanoScriptData")
-                id
-        it "binaryDataFromBytes . binaryDataToBytes == Right"
-            $ property $ \d -> do
-                 let f = binaryDataFromBytes . binaryDataToBytes
-                 f d === Right d
-
-        describe "binaryDataFromBytes goldens" $ do
-            let decodePlutusData hex =
-                    Alonzo.getPlutusData . Alonzo.binaryDataToData
-                    <$> binaryDataFromBytes (unsafeFromHex hex)
-            let shouldBeRight a b = a `shouldBe` Right b
-
-            it "I 42" $
-                (decodePlutusData "182a") `shouldBe` Right (I 42)
-
-            it "Constr 0 []" $
-                (decodePlutusData "D87980") `shouldBe` Right (Constr 0 [])
-
-            it "Constr 1 [B \"hello\", B ..., Map ...]" $ do
-                let longDatum =
-                        "D87A834568656C6C6F5820859601DEB772672B933EF30D66609610\
-                        \C928BCF116951A52F4B8698F34C1FC80A140A1401A001E8480"
-                decodePlutusData longDatum `shouldBeRight`
-                    Constr 1
-                        [ B "hello"
-                        , B "\133\150\SOH\222\183rg+\147>\243\rf`\150\DLE\201(\
-                            \\188\241\SYN\149\SUBR\244\184i\143\&4\193\252\128"
-                        , Map [(B "", Map [(B "", I 2000000)])]
-                        ]
-
     describe "DatumHash" $ do
         it "datumHashFromBytes . datumHashToBytes == Just"
             $ property $ \h -> do
@@ -121,29 +84,6 @@ spec = do
             it "33 bytes -> Nothing" $ do
                 datumHashFromBytes (BS.replicate 28 0)
                     `shouldBe` Nothing
-
-    describe "Script" $ do
-        it "is isomorphic to Cardano.ScriptInAnyLang (modulo SimpleScriptV1/2)"
-            $ testIsomorphism
-                (NamedFun
-                    (scriptToCardanoScriptInAnyLang @Cardano.BabbageEra)
-                    "scriptToCardanoScriptInAnyLang")
-                (NamedFun
-                    (scriptFromCardanoScriptInAnyLang @Cardano.BabbageEra)
-                    "scriptFromCardanoScriptInAnyLang")
-                id
-
-
-        it "parseEither (scriptFromCardanoEnvelopeJSON . \
-           \scriptToCardanoEnvelopeJSON) == Right" $ property $ \s -> do
-            let f = scriptFromCardanoEnvelopeJSON
-                    . scriptToCardanoEnvelopeJSON
-            parseEither f s === Right s
-
-        it "scriptFromCardanoEnvelopeJSON golden" $ do
-            case Aeson.parse scriptFromCardanoEnvelopeJSON plutusScriptV2Json of
-                Aeson.Success s -> isPlutusScript s `shouldBe` True
-                Aeson.Error e -> expectationFailure e
 
     describe "TxOut" $ do
         describe "computeMinimumCoinForTxOut" $ do

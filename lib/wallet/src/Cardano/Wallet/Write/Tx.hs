@@ -113,13 +113,9 @@ module Cardano.Wallet.Write.Tx
 
     -- ** Datum
     , Datum (..)
-    , datumFromCardanoScriptData
-    , datumToCardanoScriptData
 
     -- *** Binary Data
     , BinaryData
-    , binaryDataFromBytes
-    , binaryDataToBytes
 
     -- *** Datum Hash
     , DatumHash
@@ -128,10 +124,6 @@ module Cardano.Wallet.Write.Tx
 
     -- ** Script
     , Script
-    , scriptFromCardanoScriptInAnyLang
-    , scriptToCardanoScriptInAnyLang
-    , scriptToCardanoEnvelopeJSON
-    , scriptFromCardanoEnvelopeJSON
     , Alonzo.isPlutusScript
 
     -- * TxIn
@@ -183,8 +175,6 @@ import Cardano.Wallet.Primitive.Types.Tx.Constraints
     ( txOutMaxCoin )
 import Cardano.Wallet.Shelley.Compatibility.Ledger
     ( toLedger )
-import Codec.Serialise
-    ( serialise )
 import Control.Arrow
     ( second, (>>>) )
 import Data.ByteString
@@ -236,9 +226,6 @@ import qualified Cardano.Ledger.Keys as Ledger
 import qualified Cardano.Ledger.Shelley.API.Wallet as Shelley
 import qualified Cardano.Ledger.Shelley.UTxO as Shelley
 import qualified Cardano.Ledger.TxIn as Ledger
-import qualified Data.Aeson as Aeson
-import qualified Data.Aeson.Types as Aeson
-import qualified Data.ByteString.Lazy as BL
 import qualified Data.Map as Map
 
 --------------------------------------------------------------------------------
@@ -539,124 +526,6 @@ unsafeAddressFromBytes :: ByteString -> Address
 unsafeAddressFromBytes bytes = case Ledger.deserialiseAddr bytes of
     Just addr -> addr
     Nothing -> error "unsafeAddressFromBytes: failed to deserialise"
-
-scriptFromCardanoScriptInAnyLang
-    :: forall era. IsRecentEra era
-    => Cardano.ScriptInAnyLang
-    -> Script (Cardano.ShelleyLedgerEra era)
-scriptFromCardanoScriptInAnyLang = withConstraints (recentEra @era) $
-    Cardano.toShelleyScript
-    . fromMaybe (error "all valid scripts should be valid in latest era")
-    . Cardano.toScriptInEra era
-  where
-    era = cardanoEraFromRecentEra $ recentEra @era
-
-scriptToCardanoScriptInAnyLang
-    :: forall era. IsRecentEra era
-    => Script (Cardano.ShelleyLedgerEra era)
-    -> Cardano.ScriptInAnyLang
-scriptToCardanoScriptInAnyLang = withConstraints (recentEra @era) $
-    rewrap . Cardano.fromShelleyBasedScript shelleyEra
-  where
-    rewrap (Cardano.ScriptInEra _ s) = Cardano.toScriptInAnyLang s
-    shelleyEra = shelleyBasedEraFromRecentEra $ recentEra @era
-
--- | NOTE: Specializing to 'LatestLedgerEra' would make more sense than
--- 'StandardBabbage', as this function is useful together with
--- 'TxOutInRecentEra'. With conway this is prevented by
--- https://github.com/input-output-hk/cardano-node/issues/4989
--- but it shouldn't matter in practice. We may want to
--- 1. Switch back to 'LatestLedgerEra' when possible
--- 2. Create a clearer and more uniform approach to the 'TxOutInRecentEra' style
--- of relying on the types from the latest era being a superset of the types of
--- the previous era.
-scriptToCardanoEnvelopeJSON :: AlonzoScript StandardBabbage -> Aeson.Value
-scriptToCardanoEnvelopeJSON =
-    scriptToJSON . scriptToCardanoScriptInAnyLang @Cardano.BabbageEra
-  where
-    scriptToJSON
-        :: Cardano.ScriptInAnyLang
-        -> Aeson.Value
-    scriptToJSON (Cardano.ScriptInAnyLang l s) = Aeson.toJSON
-        $ obtainScriptLangConstraint l
-        $ Cardano.serialiseToTextEnvelope Nothing s
-      where
-        obtainScriptLangConstraint
-            :: Cardano.ScriptLanguage lang
-            -> (Cardano.IsScriptLanguage lang => a)
-            -> a
-        obtainScriptLangConstraint lang f = case lang of
-            Cardano.SimpleScriptLanguage -> f
-            Cardano.PlutusScriptLanguage Cardano.PlutusScriptV1 -> f
-            Cardano.PlutusScriptLanguage Cardano.PlutusScriptV2 -> f
-            -- Cardano.PlutusScriptLanguage Cardano.PlutusScriptV3 -> f
-
--- NOTE: Should use 'LatestLedgerEra' instead of 'StandardBabbage'. C.f. comment
--- in 'scriptToCardanoEnvelopeJSON'.
-scriptFromCardanoEnvelopeJSON
-    :: Aeson.Value
-    -> Aeson.Parser (AlonzoScript StandardBabbage)
-scriptFromCardanoEnvelopeJSON v =
-    fmap (scriptFromCardanoScriptInAnyLang @Cardano.BabbageEra) $ do
-        envelope <- Aeson.parseJSON v
-        case textEnvelopeToScript envelope of
-            Left textEnvErr
-                -> fail $ Cardano.displayError textEnvErr
-            Right (Cardano.ScriptInAnyLang l s)
-                -> pure $ Cardano.ScriptInAnyLang l s
-  where
-    textEnvelopeToScript
-        :: Cardano.TextEnvelope
-        -> Either Cardano.TextEnvelopeError Cardano.ScriptInAnyLang
-    textEnvelopeToScript =
-        Cardano.deserialiseFromTextEnvelopeAnyOf textEnvTypes
-
-    textEnvTypes
-      :: [Cardano.FromSomeType Cardano.HasTextEnvelope Cardano.ScriptInAnyLang]
-    textEnvTypes =
-        [ Cardano.FromSomeType
-            (Cardano.AsScript Cardano.AsSimpleScript)
-            (Cardano.ScriptInAnyLang Cardano.SimpleScriptLanguage)
-        , Cardano.FromSomeType
-            (Cardano.AsScript Cardano.AsSimpleScript)
-            (Cardano.ScriptInAnyLang Cardano.SimpleScriptLanguage)
-        , Cardano.FromSomeType
-            (Cardano.AsScript Cardano.AsPlutusScriptV1)
-            (Cardano.ScriptInAnyLang
-                (Cardano.PlutusScriptLanguage Cardano.PlutusScriptV1))
-        , Cardano.FromSomeType
-            (Cardano.AsScript Cardano.AsPlutusScriptV2)
-            (Cardano.ScriptInAnyLang
-                (Cardano.PlutusScriptLanguage Cardano.PlutusScriptV2))
-        ]
-
--- NOTE on binary format: There are a couple of related types in the ledger each
--- with their own binary encoding. 'Plutus.Data' seems to be the type with the
--- least amount of wrapping tags in the encoding.
---
--- - 'Plutus.Data' - the simplest encoding of the following options
--- - 'Alonzo.BinaryData' - adds a preceding @24@ tag
--- - 'Alonzo.Data' - n/a; doesn't have a ToCBOR
--- - 'Alonzo.Datum' - adds tags to differentiate between e.g. inline datums and
--- datum hashes. We could add helpers for this roundtrip, but they would be
--- separate from the existing 'datum{From,To}Bytes' pair.
-binaryDataFromBytes
-    :: ByteString
-    -> Either String (BinaryData LatestLedgerEra)
-binaryDataFromBytes =
-    Alonzo.makeBinaryData . toShort
-
-binaryDataToBytes :: BinaryData LatestLedgerEra -> ByteString
-binaryDataToBytes =
-    BL.toStrict . serialise . Alonzo.getPlutusData . Alonzo.binaryDataToData
-
-datumFromCardanoScriptData
-    :: Core.Era era => Cardano.HashableScriptData -> BinaryData era
-datumFromCardanoScriptData = Alonzo.dataToBinaryData . Cardano.toAlonzoData
-
-datumToCardanoScriptData
-    :: Core.Era era => BinaryData era -> Cardano.HashableScriptData
-datumToCardanoScriptData = Cardano.fromAlonzoData . Alonzo.binaryDataToData
 
 type DatumHash = Alonzo.DataHash StandardCrypto
 
