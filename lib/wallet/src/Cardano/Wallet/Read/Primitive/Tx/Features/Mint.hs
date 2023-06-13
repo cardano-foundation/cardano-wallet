@@ -251,6 +251,7 @@ fromLedgerScriptToAnyScriptConway = toAnyScript
 toPlutusVer :: Ledger.Language -> PlutusVersion
 toPlutusVer Ledger.PlutusV1 = PlutusVersionV1
 toPlutusVer Ledger.PlutusV2 = PlutusVersionV2
+toPlutusVer Ledger.PlutusV3 = PlutusVersionV3
 
 fromBabbageScriptMap
     :: Map (SL.ScriptHash StandardCrypto) (Core.Script StandardBabbage)
