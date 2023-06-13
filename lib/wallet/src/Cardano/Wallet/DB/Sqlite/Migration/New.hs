@@ -1,14 +1,14 @@
 {-# LANGUAGE DataKinds #-}
 
-module Cardano.Wallet.DB.Sqlite.MigrationNew
-    ( runNewStyleMigrations
+module Cardano.Wallet.DB.Sqlite.Migration.New
+    ( runNewStyleMigrations, newMigrationInterface
     ) where
 
 import Prelude hiding
     ( id, (.) )
 
 import Cardano.DB.Sqlite
-    ( DBHandle (..), DBLog, withDBHandle )
+    ( DBHandle (..), DBLog, ReadDBHandle, withDBHandle )
 import Cardano.Wallet.DB.Migration
     ( Migration
     , MigrationInterface (..)
@@ -16,23 +16,22 @@ import Cardano.Wallet.DB.Migration
     , hoistMigration
     , runMigrations
     )
-import Cardano.Wallet.DB.Sqlite.MigrationOld
+import Cardano.Wallet.DB.Sqlite.Migration.Old
     ( getSchemaVersion, putSchemaVersion )
 import Control.Category
     ( Category (id), (.) )
 import Control.Monad.Reader
     ( withReaderT )
-import Control.Monad.Trans.Reader
-    ( ReaderT )
 import Control.Tracer
     ( Tracer )
 import Database.Persist.Sqlite
     ( SqlPersistT )
+import Database.Sqlite
+    ( Connection )
 import System.Directory
     ( copyFile )
 
-import qualified Cardano.Wallet.DB.Sqlite.MigrationOld as MigrateOld
-import qualified Database.Sqlite as Sqlite
+import qualified Cardano.Wallet.DB.Sqlite.Migration.Old as Old
 
 newMigrationInterface
     :: Tracer IO DBLog
@@ -47,16 +46,16 @@ newMigrationInterface tr =
         , setVersion = setVersionNew . dbConn
         }
 
-oldToNewSchemaVersion :: MigrateOld.SchemaVersion -> Version
-oldToNewSchemaVersion (MigrateOld.SchemaVersion v) = Version v
+oldToNewSchemaVersion :: Old.SchemaVersion -> Version
+oldToNewSchemaVersion (Old.SchemaVersion v) = Version v
 
-newToOldSchemaVersion :: Version -> MigrateOld.SchemaVersion
-newToOldSchemaVersion (Version v) = MigrateOld.SchemaVersion v
+newToOldSchemaVersion :: Version -> Old.SchemaVersion
+newToOldSchemaVersion (Version v) = Old.SchemaVersion v
 
-getVersionNew :: Sqlite.Connection -> IO Version
+getVersionNew :: Connection -> IO Version
 getVersionNew = fmap oldToNewSchemaVersion . getSchemaVersion
 
-setVersionNew :: Sqlite.Connection -> Version -> IO ()
+setVersionNew :: Connection -> Version -> IO ()
 setVersionNew conn = putSchemaVersion conn . newToOldSchemaVersion
 
 noMigrations :: Migration m 2 2
@@ -64,9 +63,9 @@ noMigrations = id
 
 _useSqlBackend
     :: Migration (SqlPersistT m) from to
-    -> Migration (ReaderT DBHandle m) from to
+    -> Migration (ReadDBHandle m) from to
 _useSqlBackend = hoistMigration $ withReaderT dbBackend
 
 runNewStyleMigrations :: Tracer IO DBLog -> FilePath -> IO ()
-runNewStyleMigrations tr fp = runMigrations (newMigrationInterface tr) fp
-    noMigrations
+runNewStyleMigrations tr fp =
+    runMigrations (newMigrationInterface tr) fp noMigrations

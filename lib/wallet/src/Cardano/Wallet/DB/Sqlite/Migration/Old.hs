@@ -15,7 +15,7 @@
 -- These migrations are soon to be removed in favor of
 -- a file format with version number.
 
-module Cardano.Wallet.DB.Sqlite.MigrationOld
+module Cardano.Wallet.DB.Sqlite.Migration.Old
     ( DefaultFieldValues (..)
     , migrateManually
     , SchemaVersion (..)
@@ -23,6 +23,11 @@ module Cardano.Wallet.DB.Sqlite.MigrationOld
     , InvalidDatabaseSchemaVersion (..)
     , putSchemaVersion
     , getSchemaVersion
+    , isFieldPresent
+    , isFieldPresentByName
+    , onFieldPresent
+    , SqlColumnStatus (..)
+    , isTablePresentByName
     )
     where
 
@@ -34,10 +39,13 @@ import Cardano.DB.Sqlite
     , ManualMigration (..)
     , fieldName
     , fieldType
+    , foldMigrations
     , tableName
     )
 import Cardano.Wallet.DB.Sqlite.Schema
     ( EntityField (..) )
+import Cardano.Wallet.Flavor
+    ( KeyFlavorS (..) )
 import Cardano.Wallet.Primitive.Passphrase.Types
     ( PassphraseScheme (..) )
 import Control.Monad
@@ -73,8 +81,6 @@ import UnliftIO.Exception
 
 import qualified Cardano.Wallet.Address.Derivation as W
 import qualified Cardano.Wallet.Address.Discovery.Sequential as Seq
-import Cardano.Wallet.Flavor
-    ( KeyFlavorS (..) )
 import qualified Cardano.Wallet.Primitive.Types as W
 import qualified Cardano.Wallet.Primitive.Types.Address as W
 import qualified Cardano.Wallet.Primitive.Types.Coin as W
@@ -120,15 +126,28 @@ data InvalidDatabaseSchemaVersion
 currentSchemaVersion :: SchemaVersion
 currentSchemaVersion = SchemaVersion 2
 
+schemaVersionIsOlderOrEqual2 :: Sqlite.Connection -> IO Bool
+schemaVersionIsOlderOrEqual2 conn = do
+    isTablePresentByName conn "database_schema_version" >>= \case
+        False -> pure True
+        True -> do
+            schemaVersion <- getSchemaVersion conn
+            pure $ schemaVersion <= SchemaVersion 2
+
+onlyOnSchemaForOldMigrations :: ManualMigration -> ManualMigration
+onlyOnSchemaForOldMigrations (ManualMigration m) = ManualMigration $ \conn -> do
+    isOldSchema <- schemaVersionIsOlderOrEqual2 conn
+    when isOldSchema $ m conn
+
 -- | Executes any manual database migration steps that may be required on
 -- startup.
 migrateManually
     :: Tracer IO DBLog
     -> KeyFlavorS k
     -> DefaultFieldValues
-    -> [ManualMigration]
+    -> ManualMigration
 migrateManually tr key defaultFieldValues =
-    ManualMigration <$>
+    onlyOnSchemaForOldMigrations $ foldMigrations
     [ initializeSchemaVersionTable
     , cleanupCheckpointTable
     , assignDefaultPassphraseScheme
@@ -760,27 +779,6 @@ migrateManually tr key defaultFieldValues =
       where
         value = "NULL"
 
-    -- | Determines whether a field is present in its parent table.
-    isFieldPresent :: Sqlite.Connection -> DBField -> IO SqlColumnStatus
-    isFieldPresent conn field =
-        isFieldPresentByName conn (tableName field) (fieldName field)
-
-    isFieldPresentByName :: Sqlite.Connection -> Text -> Text -> IO SqlColumnStatus
-    isFieldPresentByName conn table field = do
-        getTableInfo' <- Sqlite.prepare conn $ mconcat
-            [ "SELECT sql FROM sqlite_master "
-            , "WHERE type = 'table' "
-            , "AND name = '" <> table <> "';"
-            ]
-        row <- Sqlite.step getTableInfo'
-            >> Sqlite.columns getTableInfo'
-        Sqlite.finalize getTableInfo'
-        pure $ case row of
-            [PersistText t]
-                | field `T.isInfixOf` t -> ColumnPresent
-                | otherwise             -> ColumnMissing
-            _ -> TableMissing
-
     addColumn_
         :: Sqlite.Connection
         -> Bool
@@ -845,13 +843,6 @@ migrateManually tr key defaultFieldValues =
     removeOldSubmissions :: Sqlite.Connection -> IO ()
     removeOldSubmissions conn = void $
         runSql conn "DROP TABLE IF EXISTS local_tx_submission;"
-
-    onFieldPresent :: Sqlite.Connection -> DBField -> IO () -> IO ()
-    onFieldPresent conn field action = do
-        isFieldPresent conn field >>= \case
-            TableMissing -> return ()
-            ColumnMissing -> return ()
-            ColumnPresent -> action
 
     removeMetasOfSubmissions :: Sqlite.Connection -> IO ()
     removeMetasOfSubmissions conn = do
@@ -946,3 +937,44 @@ getSchemaVersion conn =
         [[PersistInt64 int]] | int >= 0 -> pure $ SchemaVersion
             $ fromIntegral int
         _ -> throwString "Database metadata table is corrupt"
+
+onFieldPresent :: Sqlite.Connection -> DBField -> IO () -> IO ()
+onFieldPresent conn field action = do
+    isFieldPresent conn field >>= \case
+        TableMissing -> return ()
+        ColumnMissing -> return ()
+        ColumnPresent -> action
+
+-- | Determines whether a field is present in its parent table.
+isFieldPresent :: Sqlite.Connection -> DBField -> IO SqlColumnStatus
+isFieldPresent conn field =
+    isFieldPresentByName conn (tableName field) (fieldName field)
+
+isFieldPresentByName :: Sqlite.Connection -> Text -> Text -> IO SqlColumnStatus
+isFieldPresentByName conn table field = do
+    getTableInfo' <- Sqlite.prepare conn $ mconcat
+        [ "SELECT sql FROM sqlite_master "
+        , "WHERE type = 'table' "
+        , "AND name = '" <> table <> "';"
+        ]
+    row <- Sqlite.step getTableInfo'
+        >> Sqlite.columns getTableInfo'
+    Sqlite.finalize getTableInfo'
+    pure $ case row of
+        [PersistText t]
+            | field `T.isInfixOf` t -> ColumnPresent
+            | otherwise             -> ColumnMissing
+        _ -> TableMissing
+
+isTablePresentByName :: Sqlite.Connection -> Text -> IO Bool
+isTablePresentByName conn table = do
+    getTableInfo' <- Sqlite.prepare conn $ mconcat
+        [ "SELECT sql FROM sqlite_master "
+        , "WHERE type = 'table' "
+        , "AND name = '" <> table <> "';"
+        ]
+    mrow <- Sqlite.step getTableInfo'
+    Sqlite.finalize getTableInfo'
+    pure $ case mrow of
+        Sqlite.Done -> False
+        Sqlite.Row -> True

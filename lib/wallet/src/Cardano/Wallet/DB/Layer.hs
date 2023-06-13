@@ -50,6 +50,7 @@ import Cardano.DB.Sqlite
     , ForeignKeysSetting (ForeignKeysEnabled)
     , SqliteContext (..)
     , newInMemorySqliteContext
+    , noManualMigration
     , withSqliteContextFile
     )
 import Cardano.DB.Sqlite.Delete
@@ -81,9 +82,9 @@ import Cardano.Wallet.DB
     , mkDBLayerFromParts
     , transactionsStore
     )
-import Cardano.Wallet.DB.Sqlite.MigrationNew
+import Cardano.Wallet.DB.Sqlite.Migration.New
     ( runNewStyleMigrations )
-import Cardano.Wallet.DB.Sqlite.MigrationOld
+import Cardano.Wallet.DB.Sqlite.Migration.Old
     ( DefaultFieldValues (..), migrateManually )
 import Cardano.Wallet.DB.Sqlite.Schema
     ( CBOR (..)
@@ -390,7 +391,9 @@ withDBOpenFromFile
 withDBOpenFromFile walletF tr defaultFieldValues dbFile action = do
     let trDB = contramap MsgDB tr
     let manualMigrations =
-            maybe [] (migrateManually trDB $ keyOfWallet walletF)
+            maybe
+                noManualMigration
+                (migrateManually trDB $ keyOfWallet walletF)
                 defaultFieldValues
     let autoMigrations   = migrateAll
     res <- withSqliteContextFile trDB dbFile
@@ -411,7 +414,7 @@ newDBOpenInMemory
 newDBOpenInMemory tr = do
     let tr' = contramap MsgDB tr
     (destroy, sqliteContext) <-
-        newInMemorySqliteContext tr' [] migrateAll ForeignKeysEnabled
+        newInMemorySqliteContext tr' noManualMigration migrateAll ForeignKeysEnabled
     pure (destroy, DBOpen { atomically = runQuery sqliteContext})
 
 -- | Retrieve the wallet id from the database if it's initialized.

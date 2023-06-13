@@ -43,6 +43,7 @@ import Cardano.DB.Sqlite
     , MigrationError
     , SqliteContext (..)
     , fieldName
+    , foldMigrations
     , handleConstraint
     , newInMemorySqliteContext
     , tableName
@@ -682,8 +683,8 @@ runRawQuery tr q = do
         . ParseFailure (queryName q)
     pure results
 
-createViews :: [ManualMigration]
-createViews = ManualMigration <$>
+createViews :: ManualMigration
+createViews = foldMigrations
     [ createView activePoolLifeCycleData
     , createView activePoolOwners
     , createView activePoolRegistrations

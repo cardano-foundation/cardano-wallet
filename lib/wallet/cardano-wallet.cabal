@@ -261,12 +261,15 @@ library
     Cardano.Wallet.DB.Migration
     Cardano.Wallet.DB.Pure.Implementation
     Cardano.Wallet.DB.Pure.Layer
-    Cardano.Wallet.DB.Sqlite.MigrationNew
-    Cardano.Wallet.DB.Sqlite.MigrationOld
+    Cardano.Wallet.DB.Sqlite.Migration.New
+    Cardano.Wallet.DB.Sqlite.Migration.Old
     Cardano.Wallet.DB.Sqlite.Schema
     Cardano.Wallet.DB.Sqlite.Types
     Cardano.Wallet.DB.Store.Checkpoints.Store
-    Cardano.Wallet.DB.Store.Delegations
+    Cardano.Wallet.DB.Store.Delegations.Migration
+    Cardano.Wallet.DB.Store.Delegations.Migration.Schema
+    Cardano.Wallet.DB.Store.Delegations.Schema
+    Cardano.Wallet.DB.Store.Delegations.Store
     Cardano.Wallet.DB.Store.Info.Store
     Cardano.Wallet.DB.Store.Meta.Layer
     Cardano.Wallet.DB.Store.Meta.Model
@@ -923,6 +926,7 @@ test-suite unit
     Cardano.Wallet.DB.StateMachine
     Cardano.Wallet.DB.Store.Checkpoints.StoreSpec
     Cardano.Wallet.DB.Store.Delegations.StoreSpec
+    Cardano.Wallet.DB.Store.Delegations.MigrationSpec
     Cardano.Wallet.DB.Store.Info.StoreSpec
     Cardano.Wallet.DB.Store.Meta.ModelSpec
     Cardano.Wallet.DB.Store.Meta.StoreSpec

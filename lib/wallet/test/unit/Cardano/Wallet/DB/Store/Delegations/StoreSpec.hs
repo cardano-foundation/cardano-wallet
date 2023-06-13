@@ -26,7 +26,7 @@ import Cardano.Wallet.DB.Arbitrary
     ()
 import Cardano.Wallet.DB.Fixtures
     ( WalletProperty, logScale, withDBInMemory, withInitializedWalletProp )
-import Cardano.Wallet.DB.Store.Delegations
+import Cardano.Wallet.DB.Store.Delegations.Store
     ( mkStoreDelegations )
 import Cardano.Wallet.Delegation.Model
     ( Operation (..), Status (..), status )
@@ -99,7 +99,7 @@ units = withInitializedWalletProp $ \_ runQ -> do
     let
         unit x f = context (counterexample x) $ reset >> f >> checkLaw
         observeStatus s x = observe $ \h -> status s h === x
-    runQ $ unitTestStore mkStoreDelegations $ do
+    runQ $ unitTestStore mempty mkStoreDelegations $ do
         unit "reg-dereg" $ do
             applyS $ Register 0
             applyS $ Deregister 0

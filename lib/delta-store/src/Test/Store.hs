@@ -179,15 +179,11 @@ reset = do
 -- | Run a unit test for a 'Store'.
 unitTestStore
     :: (Monad m, Eq (Base da), Show (Base da), Show da)
-    => Store m qa da
+    => Base da
+    -> Store m qa da
     -> StoreUnitTest m qa da a
     -> m Property
-unitTestStore s f = do
-    mx <- loadS s
-    w <- case mx of
-        Right x -> snd <$> evalRWST (f >> checkLaw) s (x, x, [])
-        Left e -> pure [counterexample (show e) (isRight mx)]
-    pure $ conjoin w
+unitTestStore x s f = conjoin . snd <$> evalRWST (f >> checkLaw) s (x, x, [])
 
 -- | Add a context to test.
 context

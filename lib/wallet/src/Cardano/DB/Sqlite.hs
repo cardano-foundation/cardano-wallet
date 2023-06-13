@@ -46,6 +46,7 @@ module Cardano.DB.Sqlite
 
     -- * Old-style Manual Migration
     , ManualMigration (..)
+    , noManualMigration
     , MigrationError (..)
     , DBField (..)
     , tableName
@@ -54,6 +55,8 @@ module Cardano.DB.Sqlite
 
     -- * Logging
     , DBLog (..)
+    , ReadDBHandle
+    , foldMigrations
     ) where
 
 import Prelude
@@ -74,6 +77,8 @@ import Control.Monad.IO.Unlift
     ( MonadUnliftIO (..) )
 import Control.Monad.Logger
     ( LogLevel (..) )
+import Control.Monad.Reader
+    ( ReaderT )
 import Control.Monad.Trans.Except
     ( ExceptT (..), runExceptT )
 import Control.Retry
@@ -169,13 +174,13 @@ handleConstraint e = handleJust select handler . fmap Right
 
 newInMemorySqliteContext
     :: Tracer IO DBLog
-    -> [ManualMigration]
+    -> ManualMigration
     -> Migration
     -> ForeignKeysSetting
     -> IO (IO (), SqliteContext)
 newInMemorySqliteContext tr manualMigrations autoMigration disableFK = do
     conn <- Sqlite.open ":memory:"
-    mapM_ (`executeManualMigration` conn) manualMigrations
+    executeManualMigration manualMigrations conn
     unsafeBackend <- wrapConnection conn (queryLogFunc tr)
     void $ runSqlConn (runMigrationUnsafeQuiet autoMigration) unsafeBackend
 
@@ -201,7 +206,7 @@ newInMemorySqliteContext tr manualMigrations autoMigration disableFK = do
 withSqliteContextFile
     :: Tracer IO DBLog -- ^ Logging
     -> FilePath -- ^ Database file
-    -> [ManualMigration] -- ^ Manual migrations
+    -> ManualMigration -- ^ Manual migrations
     -> Migration -- ^ Auto migration
     -> (Tracer IO DBLog -> FilePath -> IO ()) -- ^ New style migrations
     -> (SqliteContext -> IO a)
@@ -236,6 +241,8 @@ data DBHandle = DBHandle
     , dbFile :: FilePath
     }
 
+type ReadDBHandle m = ReaderT DBHandle m
+
 withDBHandle
     :: Tracer IO DBLog
     -> FilePath
@@ -255,7 +262,6 @@ newDBHandle tr dbFile = do
     pure $ DBHandle{dbFile,dbConn,dbBackend}
 
 -- | Finalize database statements and close the database connection.
---
 -- If the database connection is still in use, it will retry for up to a minute,
 -- to let other threads finish up.
 --
@@ -425,11 +431,11 @@ updateForeignKeysSetting trace connection desiredValue = do
     Database migrations
     old style and new style
 -------------------------------------------------------------------------------}
+
 -- | Error type for when migrations go wrong after opening a database.
 newtype MigrationError = MigrationError
     { getMigrationErrorMessage :: Text }
     deriving (Show, Eq, Generic, ToJSON)
-
 instance Exception MigrationError
 
 class Exception e => MatchMigrationError e where
@@ -484,12 +490,12 @@ runAutoMigration tr autoMigration DBHandle{dbConn,dbBackend} = do
 
 runManualOldMigrations
     :: Tracer IO DBLog
-    -> [ManualMigration]
+    -> ManualMigration
     -> DBHandle
     -> IO (Either MigrationError ())
 runManualOldMigrations tr manualMigration DBHandle{dbConn} = do
     withForeignKeysDisabled tr dbConn $ Right <$>
-        mapM_ (`executeManualMigration` dbConn) manualMigration
+        (`executeManualMigration` dbConn) manualMigration
 
 runManualNewMigrations
     :: Tracer IO DBLog
@@ -502,7 +508,7 @@ runManualNewMigrations tr fp newMigrations  =
 
 runAllMigrations :: Tracer IO DBLog
     -> FilePath
-    -> [ManualMigration]
+    -> ManualMigration
     -> Migration
     -> (Tracer IO DBLog -> FilePath -> IO ())
     -> IO (Either MigrationError ())
@@ -514,6 +520,13 @@ runAllMigrations tr fp old auto new = runExceptT $ do
 {-------------------------------------------------------------------------------
     Database migration helpers
 -------------------------------------------------------------------------------}
+
+noManualMigration :: ManualMigration
+noManualMigration = ManualMigration $ const $ pure ()
+
+foldMigrations :: [Sqlite.Connection -> IO ()] -> ManualMigration
+foldMigrations ms = ManualMigration $ \conn -> sequence_ $ ms <&> ($conn)
+
 data DBField where
     DBField
         :: forall record typ. (PersistEntity record)
