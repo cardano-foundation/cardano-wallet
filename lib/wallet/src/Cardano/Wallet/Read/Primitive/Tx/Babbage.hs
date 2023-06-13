@@ -23,7 +23,8 @@ import Cardano.Api
 import Cardano.Ledger.Alonzo
     ( AlonzoScript )
 import Cardano.Ledger.Api
-    ( addrTxWitsL
+    ( StandardCrypto
+    , addrTxWitsL
     , auxDataTxL
     , bodyTxL
     , bootAddrTxWitsL
@@ -38,11 +39,8 @@ import Cardano.Ledger.Api
     , referenceInputsTxBodyL
     , scriptTxWitsL
     , vldtTxBodyL
-    , withdrawalsTxBodyL
     , witsTxL
     )
-import Cardano.Ledger.Api
-    ( StandardCrypto )
 import Cardano.Wallet.Primitive.Types.TokenPolicy
     ( TokenPolicyId )
 import Cardano.Wallet.Primitive.Types.Tx.TxIn
@@ -51,8 +49,6 @@ import Cardano.Wallet.Read.Eras
     ( babbage, inject )
 import Cardano.Wallet.Read.Primitive.Tx.Features.Certificates
     ( anyEraCerts )
-import Cardano.Wallet.Read.Primitive.Tx.Features.Fee
-    ( fromShelleyCoin )
 import Cardano.Wallet.Read.Primitive.Tx.Features.Inputs
     ( fromShelleyTxIn )
 import Cardano.Wallet.Read.Primitive.Tx.Features.Metadata
@@ -63,7 +59,7 @@ import Cardano.Wallet.Read.Primitive.Tx.Features.Outputs
     ( fromBabbageTxOut )
 import Cardano.Wallet.Read.Primitive.Tx.Features.Validity
     ( afterShelleyValidityInterval )
-import Cardano.Wallet.Read.Primitive.Tx.Shelley
+import Cardano.Wallet.Read.Primitive.Tx.Features.Withdrawals
     ( fromLedgerWithdrawals )
 import Cardano.Wallet.Read.Tx
     ( Tx (..) )
@@ -71,6 +67,8 @@ import Cardano.Wallet.Read.Tx.CBOR
     ( renderTxToCBOR )
 import Cardano.Wallet.Read.Tx.Hash
     ( shelleyTxHash )
+import Cardano.Wallet.Read.Tx.Withdrawals
+    ( shelleyWithdrawals )
 import Cardano.Wallet.Shelley.Compatibility.Ledger
     ( toWalletScript, toWalletTokenPolicyId )
 import Cardano.Wallet.Transaction
@@ -107,6 +105,7 @@ import qualified Cardano.Ledger.Mary.Value as SL
 import qualified Cardano.Wallet.Primitive.Types as W
 import qualified Cardano.Wallet.Primitive.Types.Hash as W
 import qualified Cardano.Wallet.Primitive.Types.Tx as W
+import qualified Cardano.Wallet.Read.Primitive.Coin as Coin
 import qualified Data.List as L
 import qualified Data.Map.Strict as Map
 import qualified Data.Set as Set
@@ -127,7 +126,7 @@ fromBabbageTx tx witCtx =
         , txCBOR =
             Just $ renderTxToCBOR $ inject babbage $ Tx tx
         , fee =
-            Just $ fromShelleyCoin $ tx ^. bodyTxL.feeTxBodyL
+            Just $ Coin.unsafeFromLedger $ tx ^. bodyTxL.feeTxBodyL
         , resolvedInputs =
             (,Nothing) . fromShelleyTxIn
                 <$> tx ^.. bodyTxL.inputsTxBodyL.folded
@@ -140,7 +139,7 @@ fromBabbageTx tx witCtx =
             strictMaybeToMaybe $
                 fst . fromBabbageTxOut <$> tx ^. bodyTxL.collateralReturnTxBodyL
         , withdrawals =
-            fromLedgerWithdrawals (tx ^. bodyTxL.withdrawalsTxBodyL)
+            fromLedgerWithdrawals . shelleyWithdrawals $ tx
         , metadata =
             fromBabbageMetadata <$> SL.strictMaybeToMaybe (tx ^. auxDataTxL)
         , scriptValidity =

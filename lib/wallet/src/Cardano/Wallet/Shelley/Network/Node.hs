@@ -84,7 +84,6 @@ import Cardano.Wallet.Shelley.Compatibility
     , fromNonMyopicMemberRewards
     , fromPoint
     , fromPoolDistr
-    , fromShelleyCoin
     , fromShelleyPParams
     , fromStakeCredential
     , fromTip
@@ -844,7 +843,7 @@ fetchRewardAccounts tr queryRewardQ accounts = do
         -> (Map W.RewardAccount W.Coin, [Log])
     fromBalanceResult (deleg, rewardAccounts) =
         ( Map.mapKeys fromStakeCredential $
-            Map.map fromShelleyCoin rewardAccounts
+            Map.map Coin.unsafeFromLedger rewardAccounts
         , [MsgAccountDelegationAndRewards deleg rewardAccounts]
         )
 

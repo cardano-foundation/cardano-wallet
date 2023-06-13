@@ -1,9 +1,7 @@
 {-# LANGUAGE TypeFamilies #-}
 
 module Cardano.Wallet.Read.Primitive.Tx.Features.Fee
-    ( getFee
-    , fromShelleyCoin
-    )
+    ( getFee)
     where
 
 import Prelude
@@ -15,7 +13,6 @@ import Cardano.Wallet.Read.Eras
 import Cardano.Wallet.Read.Tx.Fee
     ( Fee (..), FeeType )
 
-import qualified Cardano.Ledger.Coin as Ledger
 import qualified Cardano.Wallet.Primitive.Types.Coin as W
 import qualified Cardano.Wallet.Read.Primitive.Coin as Coin
 

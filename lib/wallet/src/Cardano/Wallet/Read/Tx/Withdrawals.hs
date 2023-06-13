@@ -17,7 +17,7 @@ module Cardano.Wallet.Read.Tx.Withdrawals
     , Withdrawals (..)
     , getEraWithdrawals
     , RewardWithdrawals
-    , fromLedgerWithdrawals
+    , shelleyWithdrawals
     ) where
 
 import Prelude
@@ -51,12 +51,6 @@ import Data.Map
     ( Map )
 
 import qualified Cardano.Ledger.Api as Ledger
-import qualified Cardano.Wallet.Primitive.Types.Coin as Wallet
-import qualified Cardano.Wallet.Primitive.Types.RewardAccount as Wallet
-import qualified Cardano.Wallet.Read.Primitive.Coin as Coin
-import qualified Cardano.Wallet.Read.Primitive.Tx.Features.Certificates as Certificates
-import qualified Cardano.Wallet.Read.Primitive.Tx.Features.Fee as Fee
-import qualified Data.Map.Strict as Map
 
 type family WithdrawalsType era where
   WithdrawalsType ByronEra = ()
@@ -88,5 +82,10 @@ getEraWithdrawals =
         , conwayFun = withdrawals
         }
   where
-    withdrawals = onTx $
-        Withdrawals . unWithdrawals . view (bodyTxL . withdrawalsTxBodyL)
+    withdrawals = onTx $ Withdrawals . shelleyWithdrawals
+
+shelleyWithdrawals
+    :: Ledger.EraTx era
+    => Ledger.Tx era
+    -> Map (RewardAcnt (Ledger.EraCrypto era)) Coin
+shelleyWithdrawals = unWithdrawals . view (bodyTxL . withdrawalsTxBodyL)

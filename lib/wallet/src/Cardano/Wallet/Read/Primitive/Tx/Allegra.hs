@@ -8,7 +8,6 @@
 {-# LANGUAGE RankNTypes #-}
 {-# LANGUAGE ScopedTypeVariables #-}
 {-# LANGUAGE TupleSections #-}
-{-# LANGUAGE TypeApplications #-}
 {-# LANGUAGE TypeFamilies #-}
 {-# LANGUAGE UndecidableInstances #-}
 
@@ -39,7 +38,6 @@ import Cardano.Ledger.Api
     , outputsTxBodyL
     , scriptTxWitsL
     , vldtTxBodyL
-    , withdrawalsTxBodyL
     , witsTxL
     )
 import Cardano.Ledger.Core
@@ -50,8 +48,6 @@ import Cardano.Wallet.Read.Eras
     ( allegra, inject )
 import Cardano.Wallet.Read.Primitive.Tx.Features.Certificates
     ( anyEraCerts )
-import Cardano.Wallet.Read.Primitive.Tx.Features.Fee
-    ( fromShelleyCoin )
 import Cardano.Wallet.Read.Primitive.Tx.Features.Inputs
     ( fromShelleyTxIn )
 import Cardano.Wallet.Read.Primitive.Tx.Features.Metadata
@@ -60,7 +56,7 @@ import Cardano.Wallet.Read.Primitive.Tx.Features.Outputs
     ( fromAllegraTxOut )
 import Cardano.Wallet.Read.Primitive.Tx.Features.Validity
     ( afterShelleyValidityInterval )
-import Cardano.Wallet.Read.Primitive.Tx.Shelley
+import Cardano.Wallet.Read.Primitive.Tx.Features.Withdrawals
     ( fromLedgerWithdrawals )
 import Cardano.Wallet.Read.Tx
     ( Tx (..) )
@@ -68,6 +64,8 @@ import Cardano.Wallet.Read.Tx.CBOR
     ( renderTxToCBOR )
 import Cardano.Wallet.Read.Tx.Hash
     ( shelleyTxHash )
+import Cardano.Wallet.Read.Tx.Withdrawals
+    ( shelleyWithdrawals )
 import Cardano.Wallet.Shelley.Compatibility.Ledger
     ( toWalletScript )
 import Cardano.Wallet.Transaction
@@ -88,6 +86,7 @@ import qualified Cardano.Ledger.BaseTypes as SL
 import qualified Cardano.Wallet.Primitive.Types as W
 import qualified Cardano.Wallet.Primitive.Types.Hash as W
 import qualified Cardano.Wallet.Primitive.Types.Tx as W
+import qualified Cardano.Wallet.Read.Primitive.Coin as Coin
 import qualified Data.Set as Set
 
 -- NOTE: For resolved inputs we have to pass in a dummy value of 0.
@@ -108,7 +107,7 @@ fromAllegraTx tx =
         , txCBOR =
             Just $ renderTxToCBOR $ inject allegra $ Tx tx
         , fee =
-            Just $ fromShelleyCoin $ tx ^. bodyTxL . feeTxBodyL
+            Just $ Coin.unsafeFromLedger $ tx ^. bodyTxL . feeTxBodyL
         , resolvedInputs =
             (,Nothing) . fromShelleyTxIn <$> tx ^.. bodyTxL.inputsTxBodyL.folded
         , resolvedCollateralInputs =
@@ -118,7 +117,7 @@ fromAllegraTx tx =
         , collateralOutput =
             Nothing -- Collateral outputs are not supported in Allegra.
         , withdrawals =
-            fromLedgerWithdrawals (tx ^. bodyTxL . withdrawalsTxBodyL)
+            fromLedgerWithdrawals . shelleyWithdrawals $ tx
         , metadata =
             fromAllegraMetadata <$> SL.strictMaybeToMaybe (tx ^. auxDataTxL)
         , scriptValidity =
