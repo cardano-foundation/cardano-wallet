@@ -65,10 +65,10 @@ import Cardano.Wallet.Primitive.Types.Tx
 import Cardano.Wallet.Shelley.Compatibility
     ( StandardCrypto, fromAllegraPParams, fromAlonzoPParams, fromBabbagePParams,
     fromConwayPParams, fromMaryPParams, fromNonMyopicMemberRewards, fromPoint,
-    fromPoolDistr, fromShelleyCoin, fromShelleyPParams, fromStakeCredential,
-    fromTip, fromTip', nodeToClientVersions, optimumNumberOfPools,
-    slottingParametersFromGenesis, toCardanoBlockHeader, toCardanoEra,
-    toLedgerStakeCredential, toPoint, toShelleyCoin, unsealShelleyTx )
+    fromPoolDistr, fromShelleyPParams, fromStakeCredential, fromTip, fromTip',
+    nodeToClientVersions, optimumNumberOfPools, slottingParametersFromGenesis,
+    toCardanoBlockHeader, toCardanoEra, toLedgerStakeCredential, toPoint,
+    toShelleyCoin, unsealShelleyTx )
 import Control.Applicative
     ( liftA3 )
 import Control.Concurrent.Class.MonadSTM
@@ -765,7 +765,7 @@ fetchRewardAccounts tr queryRewardQ accounts = do
         -> (Map W.RewardAccount W.Coin, [Log])
     fromBalanceResult (deleg, rewardAccounts) =
         ( Map.mapKeys fromStakeCredential $
-            Map.map fromShelleyCoin rewardAccounts
+            Map.map Coin.unsafeFromLedger rewardAccounts
         , [MsgAccountDelegationAndRewards deleg rewardAccounts]
         )
 

@@ -12,6 +12,7 @@ module Cardano.Wallet.Read.Primitive.Tx.Features.Certificates
     ( certificates
     , anyEraCerts
     , fromStakeCredential
+    , fromConwayCerts
     )
  where
 

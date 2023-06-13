@@ -24,10 +24,9 @@ import Cardano.Ledger.Alonzo.Scripts
     ( AlonzoScript )
 import Cardano.Ledger.Api
     ( StandardCrypto, addrTxWitsL, auxDataTxL, bodyTxL, bootAddrTxWitsL,
-    certsTxBodyL, collateralInputsTxBodyL, collateralReturnTxBodyL, feeTxBodyL,
-    inputsTxBodyL, isValidTxL, mintTxBodyL, outputsTxBodyL,
-    referenceInputsTxBodyL, scriptTxWitsL, vldtTxBodyL, withdrawalsTxBodyL,
-    witsTxL )
+    collateralInputsTxBodyL, collateralReturnTxBodyL, conwayCertsTxBodyL,
+    feeTxBodyL, inputsTxBodyL, isValidTxL, mintTxBodyL, outputsTxBodyL,
+    referenceInputsTxBodyL, scriptTxWitsL, vldtTxBodyL, witsTxL )
 import Cardano.Ledger.Babbage
     ( BabbageTxOut )
 import Cardano.Wallet.Primitive.Types.TokenPolicy
@@ -37,9 +36,7 @@ import Cardano.Wallet.Primitive.Types.Tx.TxIn
 import Cardano.Wallet.Read.Eras
     ( conway, inject )
 import Cardano.Wallet.Read.Primitive.Tx.Features.Certificates
-    ( anyEraCerts )
-import Cardano.Wallet.Read.Primitive.Tx.Features.Fee
-    ( fromShelleyCoin )
+    ( fromConwayCerts )
 import Cardano.Wallet.Read.Primitive.Tx.Features.Inputs
     ( fromShelleyTxIn )
 import Cardano.Wallet.Read.Primitive.Tx.Features.Metadata
@@ -50,6 +47,8 @@ import Cardano.Wallet.Read.Primitive.Tx.Features.Outputs
     ( fromConwayTxOut )
 import Cardano.Wallet.Read.Primitive.Tx.Features.Validity
     ( afterShelleyValidityInterval )
+import Cardano.Wallet.Read.Primitive.Tx.Features.Withdrawals
+    ( fromLedgerWithdrawals )
 import Cardano.Wallet.Read.Tx
     ( Tx (..) )
 import Cardano.Wallet.Read.Tx.CBOR
@@ -57,7 +56,7 @@ import Cardano.Wallet.Read.Tx.CBOR
 import Cardano.Wallet.Read.Tx.Hash
     ( shelleyTxHash )
 import Cardano.Wallet.Read.Tx.Withdrawals
-    ( fromLedgerWithdrawals )
+    ( shelleyWithdrawals )
 import Cardano.Wallet.Shelley.Compatibility.Ledger
     ( toWalletScript, toWalletTokenPolicyId )
 import Cardano.Wallet.Transaction
@@ -67,6 +66,8 @@ import Cardano.Wallet.Transaction
     toKeyRole )
 import Control.Lens
     ( folded, (<&>), (^.), (^..) )
+import Data.Foldable
+    ( toList )
 import Data.Map
     ( Map )
 import Data.Maybe.Strict
@@ -87,10 +88,10 @@ import qualified Cardano.Ledger.Mary.Value as SL
 import qualified Cardano.Wallet.Primitive.Types as W
 import qualified Cardano.Wallet.Primitive.Types.Hash as W
 import qualified Cardano.Wallet.Primitive.Types.Tx as W
+import qualified Cardano.Wallet.Read.Primitive.Coin as Coin
 import qualified Data.List as L
 import qualified Data.Map.Strict as Map
 import qualified Data.Set as Set
-import Cardano.Ledger.Api.Tx.Body (conwayCertsTxBodyL)
 
 fromConwayTx
     :: Alonzo.AlonzoTx (Cardano.ShelleyLedgerEra ConwayEra)
@@ -108,7 +109,7 @@ fromConwayTx tx witCtx =
         , txCBOR =
             Just $ renderTxToCBOR $ inject conway $ Tx tx
         , fee =
-            Just $ fromShelleyCoin $ tx ^. bodyTxL.feeTxBodyL
+            Just $ Coin.unsafeFromLedger $ tx ^. bodyTxL.feeTxBodyL
         , resolvedInputs =
             (,Nothing) . fromShelleyTxIn
                 <$> tx ^.. bodyTxL.inputsTxBodyL.folded
@@ -121,7 +122,7 @@ fromConwayTx tx witCtx =
             strictMaybeToMaybe $
                 fst . fromConwayTxOut <$> tx ^. bodyTxL.collateralReturnTxBodyL
         , withdrawals =
-            fromLedgerWithdrawals (tx ^. bodyTxL.withdrawalsTxBodyL)
+            fromLedgerWithdrawals . shelleyWithdrawals $ tx
         , metadata =
             fromConwayMetadata <$> SL.strictMaybeToMaybe (tx ^. auxDataTxL)
         , scriptValidity =
@@ -129,7 +130,7 @@ fromConwayTx tx witCtx =
                 Alonzo.IsValid True -> W.TxScriptValid
                 Alonzo.IsValid False -> W.TxScriptInvalid
         }
-    , _ $ tx ^. bodyTxL . conwayCertsTxBodyL
+    , fmap fromConwayCerts . toList $ tx ^. bodyTxL . conwayCertsTxBodyL
     , assetsToMint
     , assetsToBurn
     , Just $ afterShelleyValidityInterval $ tx ^. bodyTxL.vldtTxBodyL

@@ -23,13 +23,11 @@ import Cardano.Api
 import Cardano.Ledger.Api
     ( addrTxWitsL, auxDataTxL, bodyTxL, bootAddrTxWitsL, certsTxBodyL,
     collateralInputsTxBodyL, feeTxBodyL, inputsTxBodyL, isValidTxL, mintTxBodyL,
-    outputsTxBodyL, scriptTxWitsL, vldtTxBodyL, withdrawalsTxBodyL, witsTxL )
+    outputsTxBodyL, scriptTxWitsL, vldtTxBodyL, witsTxL )
 import Cardano.Wallet.Read.Eras
     ( alonzo, inject )
 import Cardano.Wallet.Read.Primitive.Tx.Features.Certificates
     ( anyEraCerts )
-import Cardano.Wallet.Read.Primitive.Tx.Features.Fee
-    ( fromShelleyCoin )
 import Cardano.Wallet.Read.Primitive.Tx.Features.Inputs
     ( fromShelleyTxIn )
 import Cardano.Wallet.Read.Primitive.Tx.Features.Metadata
@@ -40,14 +38,16 @@ import Cardano.Wallet.Read.Primitive.Tx.Features.Outputs
     ( fromAlonzoTxOut )
 import Cardano.Wallet.Read.Primitive.Tx.Features.Validity
     ( afterShelleyValidityInterval )
+import Cardano.Wallet.Read.Primitive.Tx.Features.Withdrawals
+    ( fromLedgerWithdrawals )
 import Cardano.Wallet.Read.Tx
     ( Tx (..) )
 import Cardano.Wallet.Read.Tx.CBOR
     ( renderTxToCBOR )
 import Cardano.Wallet.Read.Tx.Hash
     ( shelleyTxHash )
-import Cardano.Wallet.Read.Primitive.Tx.Shelley
-    ( fromLedgerWithdrawals )
+import Cardano.Wallet.Read.Tx.Withdrawals
+    ( shelleyWithdrawals )
 import Cardano.Wallet.Shelley.Compatibility.Ledger
     ( toWalletScript )
 import Cardano.Wallet.Transaction
@@ -67,6 +67,7 @@ import qualified Cardano.Ledger.Language as Language
 import qualified Cardano.Wallet.Primitive.Types as W
 import qualified Cardano.Wallet.Primitive.Types.Hash as W
 import qualified Cardano.Wallet.Primitive.Types.Tx as W
+import qualified Cardano.Wallet.Read.Primitive.Coin as Coin
 import qualified Data.Set as Set
 
 fromAlonzoTx
@@ -86,7 +87,7 @@ fromAlonzoTx tx witCtx =
         , txCBOR =
             Just $ renderTxToCBOR $ inject alonzo $ Tx tx
         , fee =
-            Just $ fromShelleyCoin $ tx ^. bodyTxL.feeTxBodyL
+            Just $ Coin.unsafeFromLedger $ tx ^. bodyTxL.feeTxBodyL
         , resolvedInputs =
             (,Nothing) . fromShelleyTxIn <$> tx ^.. bodyTxL.inputsTxBodyL.folded
         , resolvedCollateralInputs =
@@ -97,7 +98,7 @@ fromAlonzoTx tx witCtx =
         , collateralOutput =
             Nothing -- Collateral outputs are not supported in Alonzo.
         , withdrawals =
-            fromLedgerWithdrawals (tx ^. bodyTxL.withdrawalsTxBodyL)
+            fromLedgerWithdrawals . shelleyWithdrawals $ tx
         , metadata =
             fromAlonzoMetadata <$> SL.strictMaybeToMaybe (tx ^. auxDataTxL)
         , scriptValidity =

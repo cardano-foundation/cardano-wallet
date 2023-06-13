@@ -259,8 +259,6 @@ import Ouroboros.Consensus.Config
     ( SecurityParam (..) )
 import Ouroboros.Consensus.Shelley.Eras
     ( StandardBabbage )
-import Ouroboros.Consensus.Util.Counting
-    ( exactlyOne )
 import Ouroboros.Network.Block
     ( SlotNo (..) )
 import System.Directory

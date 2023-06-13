@@ -49,6 +49,8 @@ import Data.Maybe
     ( isJust, isNothing )
 import Data.Quantity
     ( Quantity (..) )
+import Data.SOP
+    ( exactlyOne )
 import Data.Time.Clock
     ( addUTCTime, getCurrentTime )
 import Network.Socket
@@ -58,8 +60,6 @@ import Ouroboros.Consensus.BlockchainTime.WallClock.Types
     ( RelativeTime (..), mkSlotLength )
 import Ouroboros.Consensus.Config.SecurityParam
     ( SecurityParam (..) )
-import Ouroboros.Consensus.Util.Counting
-    ( exactlyOne )
 import Servant.Server
     ( ServerError (..), runHandler )
 import Test.Hspec

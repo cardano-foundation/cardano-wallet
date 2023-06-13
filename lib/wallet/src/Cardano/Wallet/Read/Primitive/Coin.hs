@@ -1,4 +1,6 @@
-module Cardano.Wallet.Read.Primitive.Coin where
+module Cardano.Wallet.Read.Primitive.Coin
+    ( unsafeFromLedger
+    ) where
 
 import GHC.Stack
     ( HasCallStack )

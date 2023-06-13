@@ -75,7 +75,6 @@ module Cardano.Wallet.Shelley.Compatibility
     , toLedgerStakeCredential
     , fromStakeCredential
     , toShelleyCoin
-    , fromShelleyCoin
     , toHDPayloadAddress
     , toCardanoStakeCredential
     , toCardanoValue
@@ -222,8 +221,6 @@ import Cardano.Wallet.Read.Primitive.Tx.Babbage
     ( fromBabbageTx )
 import Cardano.Wallet.Read.Primitive.Tx.Conway
     ( fromConwayTx )
-import Cardano.Wallet.Read.Primitive.Tx.Features.Fee
-    ( fromShelleyCoin )
 import Cardano.Wallet.Read.Primitive.Tx.Features.Inputs
     ( fromShelleyTxIn )
 import Cardano.Wallet.Read.Primitive.Tx.Features.Outputs
@@ -1172,7 +1169,7 @@ fromGenesisData g =
             , outputs =
                 [W.TxOut
                     (fromShelleyAddress addr)
-                    (TokenBundle.fromCoin $ fromShelleyCoin c)
+                    (TokenBundle.fromCoin $ Coin.unsafeFromLedger c)
                 ]
             -- Collateral outputs were not supported at the time of genesis:
             , collateralOutput = Nothing
@@ -1207,7 +1204,7 @@ fromNonMyopicMemberRewards
     -> Map (Either W.Coin W.RewardAccount) (Map PoolId W.Coin)
 fromNonMyopicMemberRewards =
     Map.map (Map.map toWalletCoin . Map.mapKeys fromPoolId)
-    . Map.mapKeys (bimap fromShelleyCoin fromStakeCredential)
+    . Map.mapKeys (bimap Coin.unsafeFromLedger fromStakeCredential)
     . O.unNonMyopicMemberRewards
 
 optimumNumberOfPools
