@@ -527,19 +527,19 @@ toConwayBlockHeader genesisHash blk =
     ShelleyBlock (SL.Block header _txSeq) _headerHash = blk
 
 getProducer
-    :: (Era era, ToCBORGroup (Ledger.Era.TxSeq era))
+    :: Era era
     => ShelleyBlock (Consensus.TPraos StandardCrypto) era -> PoolId
 getProducer (ShelleyBlock (SL.Block (SL.BHeader header _) _) _) =
     fromPoolKeyHash $ SL.hashKey (SL.bheaderVk header)
 
 getBabbageProducer
-    :: (Era era, ToCBORGroup (Ledger.Era.TxSeq era))
+    :: Era era
     => ShelleyBlock (Consensus.Praos StandardCrypto) era -> PoolId
 getBabbageProducer (ShelleyBlock (SL.Block (Consensus.Header header _) _) _) =
     fromPoolKeyHash $ SL.hashKey (Consensus.hbVk header)
 
 getConwayProducer
-    :: (Era era, ToCBORGroup (Ledger.Era.TxSeq era))
+    :: Era era
     => ShelleyBlock (Consensus.Praos StandardCrypto) era -> PoolId
 getConwayProducer (ShelleyBlock (SL.Block (Consensus.Header header _) _) _) =
     fromPoolKeyHash $ SL.hashKey (Consensus.hbVk header)
