@@ -1,3 +1,6 @@
+{-# LANGUAGE AllowAmbiguousTypes #-}
+{-# LANGUAGE RankNTypes #-}
+{-# LANGUAGE ScopedTypeVariables #-}
 {-# LANGUAGE TypeFamilies #-}
 
 -- |
@@ -16,19 +19,17 @@ module Cardano.Wallet.Write.Tx.Gen
 
 import Prelude
 
-import Cardano.Ledger.Alonzo.Data
+import Cardano.Ledger.Alonzo.Scripts.Data
     ( Data (..), dataToBinaryData )
 import Cardano.Wallet.Write.Tx
     ( BinaryData, Datum (..), DatumHash, LatestLedgerEra, RecentEra,
     ShelleyLedgerEra, TxOut, cardanoEraFromRecentEra,
     datumFromCardanoScriptData, datumHashFromBytes, datumToCardanoScriptData,
-    shelleyBasedEraFromRecentEra )
+    shelleyBasedEraFromRecentEra, withConstraints )
 import Data.ByteString
     ( ByteString )
 import Data.Maybe
     ( fromMaybe )
-import Ouroboros.Consensus.Cardano.Block
-    ( EraCrypto, StandardCrypto )
 import Test.QuickCheck
     ( Gen, arbitrary, choose, listOf, oneof, scale, shrinkMapBy, sized, vector,
     vectorOf )
@@ -38,16 +39,18 @@ import qualified Cardano.Api.Shelley as Cardano
 import qualified Data.ByteString as BS
 import qualified PlutusLedgerApi.V1 as PV1
 
-genDatum :: (EraCrypto era ~ StandardCrypto) => Gen (Datum era)
-genDatum = oneof
-    [ Datum <$> genBinaryData
-    , DatumHash <$> genDatumHash
-    , pure NoDatum
-    ]
+genDatum :: RecentEra era -> Gen (Datum (ShelleyLedgerEra era))
+genDatum recentEra = withConstraints recentEra $
+    oneof
+        [ Datum <$> genBinaryData recentEra
+        , DatumHash <$> genDatumHash
+        , pure NoDatum
+        ]
 
 -- Originally from https://github.com/input-output-hk/cardano-ledger/blob/c7c63dabdb215ebdaed8b63274965966f2bf408f/eras/alonzo/test-suite/src/Test/Cardano/Ledger/Alonzo/Serialisation/Generators.hs#L66-L79
-genBinaryData :: Gen (BinaryData era)
-genBinaryData = dataToBinaryData . Data <$> scale (`div` 10) (sized gendata)
+genBinaryData :: RecentEra era -> Gen (BinaryData (ShelleyLedgerEra era))
+genBinaryData recentEra = withConstraints recentEra $
+    dataToBinaryData . Data <$> scale (`div` 10) (sized gendata)
   where
     gendata n | n > 0 = oneof
         [ PV1.I <$> arbitrary
@@ -63,18 +66,19 @@ genBinaryData = dataToBinaryData . Data <$> scale (`div` 10) (sized gendata)
     gendata _ = oneof [PV1.I <$> arbitrary, PV1.B <$> genByteString]
 
 shrinkDatum :: Datum LatestLedgerEra -> [Datum LatestLedgerEra]
-shrinkDatum (Datum x) = NoDatum : map Datum (shrinkBinaryData x)
+shrinkDatum (Datum x) = NoDatum : map Datum (shrinkBinaryData _recentEra x)
 shrinkDatum (DatumHash _) = [NoDatum]
 shrinkDatum NoDatum = []
 
-shrinkBinaryData :: BinaryData era -> [BinaryData era]
-shrinkBinaryData = shrinkMapBy
-    datumFromCardanoScriptData
-    datumToCardanoScriptData $
+shrinkBinaryData :: RecentEra era -> BinaryData era -> [BinaryData era]
+shrinkBinaryData recentEra = withConstraints recentEra $
     shrinkMapBy
-        Cardano.unsafeHashableScriptData
-        Cardano.getScriptData
-        Cardano.shrinkScriptData
+        datumFromCardanoScriptData
+        datumToCardanoScriptData $
+        shrinkMapBy
+            Cardano.unsafeHashableScriptData
+            Cardano.getScriptData
+            Cardano.shrinkScriptData
 
 genDatumHash :: Gen DatumHash
 genDatumHash =
