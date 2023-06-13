@@ -63,14 +63,14 @@ import Cardano.Wallet.Read.Primitive.Tx.Features.Outputs
     ( fromBabbageTxOut )
 import Cardano.Wallet.Read.Primitive.Tx.Features.Validity
     ( afterShelleyValidityInterval )
+import Cardano.Wallet.Read.Primitive.Tx.Shelley
+    ( fromLedgerWithdrawals )
 import Cardano.Wallet.Read.Tx
     ( Tx (..) )
 import Cardano.Wallet.Read.Tx.CBOR
     ( renderTxToCBOR )
 import Cardano.Wallet.Read.Tx.Hash
     ( shelleyTxHash )
-import Cardano.Wallet.Read.Tx.Withdrawals
-    ( fromLedgerWithdrawals )
 import Cardano.Wallet.Shelley.Compatibility.Ledger
     ( toWalletScript, toWalletTokenPolicyId )
 import Cardano.Wallet.Transaction
@@ -88,7 +88,7 @@ import Cardano.Wallet.Transaction
 import Cardano.Wallet.Write.Tx
     ( BabbageTxOut, StandardBabbage )
 import Control.Lens
-    ( folded, (^.), (^..), (<&>) )
+    ( folded, (<&>), (^.), (^..) )
 import Data.Map
     ( Map )
 import Data.Maybe.Strict

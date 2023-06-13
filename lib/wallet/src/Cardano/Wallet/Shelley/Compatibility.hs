@@ -211,8 +211,6 @@ import Cardano.Ledger.BaseTypes
     ( strictMaybeToMaybe, urlToText )
 import Cardano.Ledger.Era
     ( Era (..) )
-import Cardano.Ledger.Serialization
-    ( ToCBORGroup )
 import Cardano.Pool.Metadata.Types
     ( StakePoolMetadataHash (..), StakePoolMetadataUrl (..) )
 import Cardano.Pool.Types

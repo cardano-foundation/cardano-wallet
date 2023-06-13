@@ -589,7 +589,7 @@ scriptToCardanoEnvelopeJSON =
             Cardano.SimpleScriptLanguage -> f
             Cardano.PlutusScriptLanguage Cardano.PlutusScriptV1 -> f
             Cardano.PlutusScriptLanguage Cardano.PlutusScriptV2 -> f
-            Cardano.PlutusScriptLanguage Cardano.PlutusScriptV3 -> f
+            -- Cardano.PlutusScriptLanguage Cardano.PlutusScriptV3 -> f
 
 -- NOTE: Should use 'LatestLedgerEra' instead of 'StandardBabbage'. C.f. comment
 -- in 'scriptToCardanoEnvelopeJSON'.

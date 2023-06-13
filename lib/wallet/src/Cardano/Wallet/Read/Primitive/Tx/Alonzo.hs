@@ -59,7 +59,7 @@ import Cardano.Wallet.Read.Tx.CBOR
     ( renderTxToCBOR )
 import Cardano.Wallet.Read.Tx.Hash
     ( shelleyTxHash )
-import Cardano.Wallet.Read.Tx.Withdrawals
+import Cardano.Wallet.Read.Primitive.Tx.Shelley
     ( fromLedgerWithdrawals )
 import Cardano.Wallet.Shelley.Compatibility.Ledger
     ( toWalletScript )

@@ -53,6 +53,7 @@ import Data.Map
 import qualified Cardano.Ledger.Api as Ledger
 import qualified Cardano.Wallet.Primitive.Types.Coin as Wallet
 import qualified Cardano.Wallet.Primitive.Types.RewardAccount as Wallet
+import qualified Cardano.Wallet.Read.Primitive.Coin as Coin
 import qualified Cardano.Wallet.Read.Primitive.Tx.Features.Certificates as Certificates
 import qualified Cardano.Wallet.Read.Primitive.Tx.Features.Fee as Fee
 import qualified Data.Map.Strict as Map
@@ -89,10 +90,3 @@ getEraWithdrawals =
   where
     withdrawals = onTx $
         Withdrawals . unWithdrawals . view (bodyTxL . withdrawalsTxBodyL)
-
-fromLedgerWithdrawals
-    :: Ledger.Withdrawals crypto -> Map Wallet.RewardAccount Wallet.Coin
-fromLedgerWithdrawals (Ledger.Withdrawals withdrawals) = Map.fromList
-    [ (Certificates.fromStakeCredential cred, Fee.fromShelleyCoin coin)
-    | (Ledger.RewardAcnt _network cred, coin) <- Map.toList withdrawals
-    ]

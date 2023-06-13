@@ -84,8 +84,8 @@ mkConwayCertsK (Certificates cs) = K $ fromConwayCerts <$> toList cs
 fromConwayCerts :: ConwayDCert StandardCrypto -> W.Certificate
 fromConwayCerts = \case
     ConwayDCertDeleg cdc -> case cdc of
-        ConwayDeleg cre del co -> error "TODO: ConwayDeleg, ADP-3065"
-        ConwayReDeleg cre del -> error "TODO: ConwayReDeleg, ADP-3065"
+        ConwayDeleg _cre _del _co -> error "TODO: ConwayDeleg, ADP-3065"
+        ConwayReDeleg _cre _del -> error "TODO: ConwayReDeleg, ADP-3065"
         ConwayUnDeleg cre _co -> mkDelegationNone cre
             -- "TODO: ConwayUnDeleg, ADP-3065"
     ConwayDCertPool pc -> case pc of

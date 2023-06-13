@@ -60,14 +60,14 @@ import Cardano.Wallet.Read.Primitive.Tx.Features.Outputs
     ( fromAllegraTxOut )
 import Cardano.Wallet.Read.Primitive.Tx.Features.Validity
     ( afterShelleyValidityInterval )
+import Cardano.Wallet.Read.Primitive.Tx.Shelley
+    ( fromLedgerWithdrawals )
 import Cardano.Wallet.Read.Tx
     ( Tx (..) )
 import Cardano.Wallet.Read.Tx.CBOR
     ( renderTxToCBOR )
 import Cardano.Wallet.Read.Tx.Hash
     ( shelleyTxHash )
-import Cardano.Wallet.Read.Tx.Withdrawals
-    ( fromLedgerWithdrawals )
 import Cardano.Wallet.Shelley.Compatibility.Ledger
     ( toWalletScript )
 import Cardano.Wallet.Transaction

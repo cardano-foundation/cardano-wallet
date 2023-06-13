@@ -11,6 +11,7 @@
 
 module Cardano.Wallet.Read.Primitive.Tx.Shelley
     ( fromShelleyTx
+    , fromLedgerWithdrawals
     )
     where
 
@@ -54,8 +55,6 @@ import Cardano.Wallet.Read.Tx.CBOR
     ( renderTxToCBOR )
 import Cardano.Wallet.Read.Tx.Hash
     ( fromShelleyTxId, shelleyTxHash )
-import Cardano.Wallet.Read.Tx.Withdrawals
-    ( fromLedgerWithdrawals )
 import Cardano.Wallet.Shelley.Compatibility.Ledger
     ( toWalletScriptFromShelley )
 import Cardano.Wallet.Transaction
@@ -143,3 +142,10 @@ fromShelleyTx tx =
             <$> tx ^.. witsTxL.scriptTxWitsL.folded)
         (fromIntegral $ Set.size $ tx ^. witsTxL.bootAddrTxWitsL)
     )
+
+fromLedgerWithdrawals
+    :: Ledger.Withdrawals crypto -> Map Wallet.RewardAccount Wallet.Coin
+fromLedgerWithdrawals (Ledger.Withdrawals withdrawals) = Map.fromList
+    [ (Certificates.fromStakeCredential cred, Coin.unsafeFromLedger coin)
+    | (Ledger.RewardAcnt _network cred, coin) <- Map.toList withdrawals
+    ]
