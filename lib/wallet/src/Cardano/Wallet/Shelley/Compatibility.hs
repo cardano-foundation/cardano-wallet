@@ -153,7 +153,6 @@ module Cardano.Wallet.Shelley.Compatibility
     , invertUnitInterval
     , interval0
     , interval1
-    , getScriptIntegrityHash
     , numberOfTransactionsInBlock
     , encodeAddress
     , decodeAddress
@@ -1305,44 +1304,6 @@ cardanoCertKeysForWitnesses = \case
 
 toShelleyCoin :: W.Coin -> SL.Coin
 toShelleyCoin (W.Coin c) = SL.Coin $ intCast c
-
-getScriptIntegrityHash
-    :: Cardano.Tx era
-    -> Maybe ByteString
-getScriptIntegrityHash = \case
-    Cardano.ShelleyTx era tx -> case era of
-        Cardano.ShelleyBasedEraShelley -> Nothing
-        Cardano.ShelleyBasedEraAllegra -> Nothing
-        Cardano.ShelleyBasedEraMary    -> Nothing
-        Cardano.ShelleyBasedEraAlonzo  ->
-            SafeHash.originalBytes <$> scriptIntegrityHashOfAlonzoTx tx
-        Cardano.ShelleyBasedEraBabbage ->
-            SafeHash.originalBytes <$> scriptIntegrityHashOfBabbageTx tx
-        Cardano.ShelleyBasedEraConway ->
-            SafeHash.originalBytes <$> scriptIntegrityHashOfConwayTx tx
-    Cardano.ByronTx _                  -> Nothing
-
-    where
-      scriptIntegrityHashOfAlonzoTx
-          :: Alonzo.AlonzoTx (Alonzo.AlonzoEra StandardCrypto)
-          -> Maybe (Alonzo.ScriptIntegrityHash StandardCrypto)
-      scriptIntegrityHashOfAlonzoTx
-          (Alonzo.AlonzoTx body _wits _isValid _auxData)
-              = strictMaybeToMaybe . Alonzo.scriptIntegrityHash $ body
-
-      scriptIntegrityHashOfBabbageTx
-          :: Alonzo.AlonzoTx (Babbage.BabbageEra StandardCrypto)
-          -> Maybe (Babbage.ScriptIntegrityHash StandardCrypto)
-      scriptIntegrityHashOfBabbageTx
-          (Alonzo.AlonzoTx body _wits _isValid _auxData)
-              = strictMaybeToMaybe . Babbage.scriptIntegrityHash $ body
-
-      scriptIntegrityHashOfConwayTx
-          :: Alonzo.AlonzoTx (Conway.ConwayEra StandardCrypto)
-          -> Maybe (Babbage.ScriptIntegrityHash StandardCrypto)
-      scriptIntegrityHashOfConwayTx
-          (Alonzo.AlonzoTx body _wits _isValid _auxData)
-              = strictMaybeToMaybe . Babbage.scriptIntegrityHash $ body
 
 -- Lovelace to coin. Quantities from ledger should always fit in Word64.
 fromCardanoLovelace :: HasCallStack => Cardano.Lovelace -> W.Coin
