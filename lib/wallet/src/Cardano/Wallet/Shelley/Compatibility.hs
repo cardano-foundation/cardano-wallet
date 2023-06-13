@@ -1705,11 +1705,11 @@ toStakeKeyRegCert cred = case cred of
 toStakePoolDlgCert :: Either XPub (Script KeyHash) -> PoolId -> Cardano.Certificate
 toStakePoolDlgCert cred (PoolId pid) = case cred of
     Left xpub ->
-        Cardano.makeStakeAddressDelegationCertificate
+        Cardano.makeStakeAddressPoolDelegationCertificate
         (Cardano.StakeCredentialByKey $ Cardano.StakeKeyHash (toKeyHash xpub))
         (Cardano.StakePoolKeyHash pool)
     Right script ->
-        Cardano.makeStakeAddressDelegationCertificate
+        Cardano.makeStakeAddressPoolDelegationCertificate
         (Cardano.StakeCredentialByScript
         . Cardano.hashScript
         . Cardano.SimpleScript
