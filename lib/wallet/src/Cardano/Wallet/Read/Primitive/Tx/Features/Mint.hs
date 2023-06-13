@@ -84,8 +84,8 @@ import Ouroboros.Consensus.Shelley.Eras
 
 import qualified Cardano.Api as Cardano
 import qualified Cardano.Api.Shelley as Cardano
-import qualified Cardano.Ledger.Alonzo.Language as Alonzo
 import qualified Cardano.Ledger.Alonzo.Scripts as Alonzo
+import qualified Cardano.Ledger.Language as Ledger
 import qualified Cardano.Ledger.Core as Core
 import qualified Cardano.Ledger.Mary.Value as SL
 import qualified Cardano.Ledger.Shelley.API as SL
@@ -256,10 +256,9 @@ fromLedgerScriptToAnyScriptConway = toAnyScript
     hashConwayScript = fromLedgerScriptHash .
         Core.hashScript @(Cardano.ShelleyLedgerEra Cardano.ConwayEra)
 
-toPlutusVer :: Alonzo.Language -> PlutusVersion
-toPlutusVer Alonzo.PlutusV1 = PlutusVersionV1
-toPlutusVer Alonzo.PlutusV2 = PlutusVersionV2
-toPlutusVer Alonzo.PlutusV3 = PlutusVersionV3
+toPlutusVer :: Ledger.Language -> PlutusVersion
+toPlutusVer Ledger.PlutusV1 = PlutusVersionV1
+toPlutusVer Ledger.PlutusV2 = PlutusVersionV2
 
 fromBabbageScriptMap
     :: Map (SL.ScriptHash StandardCrypto) (Core.Script StandardBabbage)
