@@ -90,6 +90,7 @@ import qualified Cardano.Wallet.Primitive.Types.Tx as W
 import qualified Data.List as L
 import qualified Data.Map.Strict as Map
 import qualified Data.Set as Set
+import Cardano.Ledger.Api.Tx.Body (conwayCertsTxBodyL)
 
 fromConwayTx
     :: Alonzo.AlonzoTx (Cardano.ShelleyLedgerEra ConwayEra)
@@ -128,7 +129,7 @@ fromConwayTx tx witCtx =
                 Alonzo.IsValid True -> W.TxScriptValid
                 Alonzo.IsValid False -> W.TxScriptInvalid
         }
-    , anyEraCerts $ tx ^. bodyTxL . certsTxBodyL
+    , _ $ tx ^. bodyTxL . conwayCertsTxBodyL
     , assetsToMint
     , assetsToBurn
     , Just $ afterShelleyValidityInterval $ tx ^. bodyTxL.vldtTxBodyL

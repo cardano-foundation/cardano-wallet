@@ -15,9 +15,9 @@ import Cardano.Wallet.Read.Eras
 import Cardano.Wallet.Read.Tx.Fee
     ( Fee (..), FeeType )
 
-import qualified Cardano.Ledger.Coin as SL
-import qualified Cardano.Wallet.Primitive.Types.Coin as Coin
+import qualified Cardano.Ledger.Coin as Ledger
 import qualified Cardano.Wallet.Primitive.Types.Coin as W
+import qualified Cardano.Wallet.Read.Primitive.Coin as Coin
 
 getFee :: EraFun Fee (K (Maybe W.Coin))
 getFee = EraFun
@@ -30,10 +30,5 @@ getFee = EraFun
     , conwayFun = mkShelleyTxFee
     }
 
-mkShelleyTxFee :: (FeeType era ~ Coin)
-    => Fee era -- ^
-    -> K (Maybe W.Coin) b
-mkShelleyTxFee (Fee c) = K $ Just $ fromShelleyCoin c
-
-fromShelleyCoin :: SL.Coin -> W.Coin
-fromShelleyCoin (SL.Coin c) = Coin.unsafeFromIntegral c
+mkShelleyTxFee :: (FeeType era ~ Coin) => Fee era -> K (Maybe W.Coin) b
+mkShelleyTxFee (Fee c) = K $ Just $ Coin.unsafeFromLedger c
