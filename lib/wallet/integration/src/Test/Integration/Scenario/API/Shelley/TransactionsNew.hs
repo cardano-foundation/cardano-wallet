@@ -138,8 +138,6 @@ import Data.Function
     ( (&) )
 import Data.Generics.Internal.VL.Lens
     ( view, (^.) )
-import Data.Generics.Wrapped
-    ( _Unwrapped )
 import Data.Maybe
     ( fromJust, isJust )
 import Data.Proxy
@@ -2644,8 +2642,16 @@ spec = describe "NEW_SHELLEY_TRANSACTIONS" $ do
         dest <- emptyWallet ctx
         let depositAmt = Quantity 1_000_000
 
-        pool1:pool2:_ <- map (view $ _Unwrapped . #id) . snd <$> unsafeRequest @[ApiT StakePool]
-            ctx (Link.listStakePools arbitraryStake) Empty
+        -- Note: In the local cluster, some of the pools retire early.
+        -- When running the test in isolation, we have to delegate
+        -- to pools which will retire later.
+        let won'tRetire pool' = case pool' ^. #retirement of
+                Nothing -> True
+                Just epoch -> epoch ^. #epochNumber >= 100
+        pools <- filter won'tRetire . map getApiT . snd <$>
+            unsafeRequest @[ApiT StakePool] ctx
+                (Link.listStakePools arbitraryStake) Empty
+        let pool1:pool2:_ = map (view #id) pools
 
         let delegationJoin = Json [json|{
                 "delegations": [{
@@ -2891,28 +2897,29 @@ spec = describe "NEW_SHELLEY_TRANSACTIONS" $ do
             , expectResponseCode HTTP.status202
             ]
 
-        let txid3 = getFromResponse (#id) submittedTx4
-        let queryTx3 = Link.getTransaction @'Shelley src (ApiTxId txid3)
-        rGetTx3 <- request @(ApiTransaction n) ctx queryTx3 Default Empty
-        verify rGetTx3
+        -- Wait for the transaction to be accepted into the ledger
+        let txidQuit = getFromResponse (#id) submittedTx4
+            queryTxQuit = Link.getTransaction @'Shelley src (ApiTxId txidQuit)
+        eventually "Wait for ledger to accept Quit transaction" $ do
+            rGetTxQuit <- request @(ApiTransaction n) ctx queryTxQuit Default Empty
+            verify rGetTxQuit
+                [ expectResponseCode HTTP.status200
+                , expectField #insertedAt (`shouldSatisfy` isJust)
+                ]
+
+        -- Wallet will stop delegating
+        rGetTxQuit' <- request @(ApiTransaction n) ctx queryTxQuit Default Empty
+        verify rGetTxQuit'
             [ expectResponseCode HTTP.status200
             , expectField #depositTaken (`shouldBe` Quantity 0)
             , expectField #depositReturned (`shouldBe` depositAmt)
             ]
-
-        eventually "Wallet is not delegating" $ do
-            request @ApiWallet ctx (Link.getWallet @'Shelley src) Default Empty
-                >>= flip verify
-                    [ expectField #delegation (`shouldBe` notDelegating [])
-                    ]
-
-        -- transaction history shows deposit returned
-        rGetTx4 <- request @(ApiTransaction n) ctx queryTx3 Default Empty
-        verify rGetTx4
-            [ expectResponseCode HTTP.status200
-            , expectField #depositTaken (`shouldBe` Quantity 0)
-            , expectField #depositReturned (`shouldBe` depositAmt)
-            ]
+        eventually "Wallet not delegating" $ do
+            rGetQuit <- request @ApiWallet ctx (Link.getWallet @'Shelley src) Default Empty
+            verify rGetQuit
+                [ expectResponseCode HTTP.status200
+                , expectField #delegation (`shouldBe` notDelegating [])
+                ]
 
     it "TRANS_NEW_JOIN_01b - Invalid pool id" $ \ctx -> runResourceT $ do
         wa <- fixtureWallet ctx
