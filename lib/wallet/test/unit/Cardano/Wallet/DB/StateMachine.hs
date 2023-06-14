@@ -341,7 +341,7 @@ runMock = \case
         first (Resp . fmap Unit) . mPutTxHistory txs
     ReadTxHistory minW order range status ->
         first (Resp . fmap TxHistory)
-        . mReadTxHistory timeInterpreter minW order range status
+        . mReadTxHistory timeInterpreter minW order range status Nothing
     GetTx _tid ->
         first (Resp . fmap (TxHistory . maybe [] pure))
         -- TODO: Implement mGetTx
@@ -390,7 +390,7 @@ runIO DBLayer{..} = fmap Resp . go
         ReadTxHistory minWith order range status ->
             fmap (Right . TxHistory) $
             atomically $
-            readTransactions minWith order range status Nothing
+            readTransactions minWith order range status Nothing Nothing
         GetTx tid ->
             runDBSuccess atomically (TxHistory . maybe [] pure) $ getTx tid
         ReadGenesisParameters -> Right . GenesisParams <$>

@@ -976,7 +976,7 @@ readTransactions'
     -> m [(Tx, TxMeta)]
 readTransactions' DBLayer{..} a1 a2 mstatus =
     atomically . fmap (fmap toTxHistory)
-        $ readTransactions Nothing a1 a2 mstatus Nothing
+        $ readTransactions Nothing a1 a2 mstatus Nothing Nothing
 
 readPrivateKey'
     :: DBLayer m s
@@ -1218,7 +1218,7 @@ testMigrationTxMetaFee dbName expectedLength caseByCase = do
             @TestState dbName
         $ \DBLayer{..} -> atomically $ do
             readTransactions
-                Nothing Descending wholeRange Nothing Nothing
+                Nothing Descending wholeRange Nothing Nothing Nothing
 
     -- Check that we've indeed logged a needed migration for 'fee'
     length (filter isMsgManualMigration logs) `shouldBe` 1
@@ -1538,7 +1538,7 @@ getAvailableBalance DBLayer{..} = do
     cp <- atomically readCheckpoint
     pend <- atomically $ fmap toTxHistory
         <$> readTransactions Nothing Descending wholeRange
-                (Just Pending) Nothing
+                (Just Pending) Nothing Nothing
     return $ fromIntegral $ unCoin $ TokenBundle.getCoin $
         availableBalance (Set.fromList $ map fst pend) cp
 
@@ -1546,7 +1546,7 @@ getTxsInLedger :: DBLayer IO s -> IO ([(Direction, Natural)])
 getTxsInLedger DBLayer {..} = do
     pend <- atomically $ fmap toTxHistory
         <$> readTransactions Nothing Descending wholeRange
-                (Just InLedger) Nothing
+                (Just InLedger) Nothing Nothing
     pure $ map (\(_, m) -> (direction m, fromIntegral $ unCoin $ amount m)) pend
 
 {-------------------------------------------------------------------------------

@@ -957,8 +957,8 @@ readWallet ctx = do
                 wholeRange
                 (Just Pending)
                 Nothing
+                Nothing
         pure (cp, (meta, dele currentEpochSlotting), Set.fromList (fromTransactionInfo <$> pending))
-
   where
     db = ctx ^. dbLayer
     nl = ctx ^. networkLayer
@@ -2038,6 +2038,7 @@ buildSignSubmitTransaction db@DBLayer{..} netLayer txLayer
                     wholeRange
                     (Just Pending)
                     Nothing
+                    Nothing
             txWithSlot@(builtTx, slot) <- (throwOnErr <=<
                 (Delta.onDBVar walletState . Delta.updateWithResultAndError)) $
                 \s -> do
@@ -2220,7 +2221,7 @@ buildTransaction DBLayer{..} txLayer timeTranslation changeAddrGen
 
         pendingTxs <- Set.fromList . fmap fromTransactionInfo <$>
             readTransactions
-                Nothing Descending wholeRange (Just Pending) Nothing
+                Nothing Descending wholeRange (Just Pending) Nothing Nothing
 
         let utxo = availableUTxO @s pendingTxs wallet
 
@@ -2649,7 +2650,7 @@ listTransactions ctx mMinWithdrawal mStart mEnd order mLimit
             mapExceptT liftIO getSlotRange >>= maybe
                 (pure [])
                 (\r -> lift
-                $ readTransactions mMinWithdrawal order r Nothing mLimit)
+                $ readTransactions mMinWithdrawal order r Nothing mLimit Nothing)
   where
     ti :: TimeInterpreter (ExceptT PastHorizonException IO)
     ti = timeInterpreter (ctx ^. networkLayer)
@@ -2682,7 +2683,7 @@ listAssets ctx = db & \DBLayer{..} -> do
         let noMinWithdrawal = Nothing
             allTxStatuses = Nothing
         in readTransactions noMinWithdrawal Ascending wholeRange
-            allTxStatuses Nothing
+            allTxStatuses Nothing Nothing
     let txAssets :: TransactionInfo -> Set TokenMap.AssetId
         txAssets = Set.unions
             . map (TokenBundle.getAssets . view #tokens)
