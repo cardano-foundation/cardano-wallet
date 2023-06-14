@@ -416,6 +416,7 @@ library
     Cardano.Wallet.Write.UTxOAssumptions
     Control.Concurrent.Concierge
     Control.Monad.Exception.Unchecked
+    Control.Monad.Fail.Extended
     Control.Monad.Util
     Crypto.Hash.Utils
     Data.Aeson.Extra
