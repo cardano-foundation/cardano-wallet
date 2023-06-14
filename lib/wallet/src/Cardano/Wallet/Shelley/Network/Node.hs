@@ -22,7 +22,7 @@
 --     - In particular sections 4.1, 4.2, 4.6 and 4.8
 module Cardano.Wallet.Shelley.Network.Node
     ( withNetworkLayer
-    , Observer (query,startObserving,stopObserving)
+    , Observer (query, startObserving, stopObserving)
     , newObserver
     , ObserverLog (..)
 
@@ -172,9 +172,16 @@ import Ouroboros.Network.Mux
     ( MuxMode (..), MuxPeer (..), OuroborosApplication (..),
     RunMiniProtocol (..) )
 import Ouroboros.Network.NodeToClient
-    ( ConnectionId (..), Handshake, LocalAddress, NetworkConnectTracers (..),
-    NodeToClientProtocols (..), NodeToClientVersionData (..), connectTo,
-    localSnocket, nodeToClientProtocols, withIOManager )
+    ( ConnectionId (..)
+    , Handshake
+    , LocalAddress
+    , NetworkConnectTracers (..)
+    , NodeToClientProtocols (..)
+    , connectTo
+    , localSnocket
+    , nodeToClientProtocols
+    , withIOManager
+    )
 import Ouroboros.Network.Protocol.ChainSync.Client
     ( chainSyncClientPeer )
 import Ouroboros.Network.Protocol.ChainSync.ClientPipelined
@@ -213,12 +220,15 @@ import qualified Cardano.Wallet.Primitive.Types as W
 import qualified Cardano.Wallet.Primitive.Types.Coin as W
 import qualified Cardano.Wallet.Primitive.Types.RewardAccount as W
 import qualified Cardano.Wallet.Primitive.Types.Tx as W
+import qualified Cardano.Wallet.Read.Primitive.Coin as Coin
 import qualified Codec.CBOR.Term as CBOR
 import qualified Data.Map as Map
 import qualified Data.Set as Set
 import qualified Data.Text as T
 import qualified Ouroboros.Consensus.Byron.Ledger as Byron
 import qualified Ouroboros.Consensus.Shelley.Ledger as Shelley
+import Ouroboros.Network.NodeToClient
+    ( NodeToClientVersionData )
 
 {- HLINT ignore "Use readTVarIO" -}
 {- HLINT ignore "Use newTVarIO" -}
@@ -424,12 +434,9 @@ withNodeNetworkLayerBase
             (Just . optimumNumberOfPools <$> LSQry Shelley.GetCurrentPParams)
             (Just . optimumNumberOfPools <$> LSQry Shelley.GetCurrentPParams)
             (Just . optimumNumberOfPools <$> LSQry Shelley.GetCurrentPParams)
-            (Just . fromIntegral . Alonzo._nOpt
-                <$> LSQry Shelley.GetCurrentPParams)
-            (Just . fromIntegral . Babbage._nOpt
-                <$> LSQry Shelley.GetCurrentPParams)
-            (Just . fromIntegral . Conway._nOpt
-                <$> LSQry Shelley.GetCurrentPParams)
+            (Just . optimumNumberOfPools <$> LSQry Shelley.GetCurrentPParams)
+            (Just . optimumNumberOfPools <$> LSQry Shelley.GetCurrentPParams)
+            (Just . optimumNumberOfPools <$> LSQry Shelley.GetCurrentPParams)
 
         queryNonMyopicMemberRewards
             :: LSQ (CardanoBlock StandardCrypto) IO
@@ -456,8 +463,7 @@ withNodeNetworkLayerBase
             let header = fromTip getGenesisBlockHash tip
             bracketTracer (contramap (MsgWatcherUpdate header) tr) $ cb header
 
-    -- TODO(#2042): Make wallets call manually, with matching
-    -- stopObserving.
+    -- TODO(#2042): Make wallets call manually, with matching stopObserving.
     _getCachedRewardAccountBalance rewardsObserver k = do
         startObserving rewardsObserver k
         fromMaybe (W.Coin 0) <$> query rewardsObserver k
@@ -500,8 +506,7 @@ withNodeNetworkLayerBase
 doNothingProtocol
     :: MonadTimer m => RunMiniProtocol 'InitiatorMode ByteString m a Void
 doNothingProtocol =
-    InitiatorProtocolOnly $ MuxPeerRaw $
-    const $ forever $ threadDelay 1e6
+    InitiatorProtocolOnly $ MuxPeerRaw $ const $ forever $ threadDelay 1_000_000
 
 type WalletOuroborosApplication m = OuroborosApplication
     'InitiatorMode -- Initiator ~ Client (as opposed to Responder / Server)

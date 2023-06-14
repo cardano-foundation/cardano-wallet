@@ -1224,22 +1224,14 @@ fromNonMyopicMemberRewards =
     . O.unNonMyopicMemberRewards
 
 optimumNumberOfPools
-    :: HasField "_nOpt" pparams Natural
-    => pparams
-    -> Int
-optimumNumberOfPools = unsafeConvert . getField @"_nOpt"
-  where
-    -- A value of ~100 can be expected, so should be fine.
-    unsafeConvert :: Natural -> Int
-    unsafeConvert = fromIntegral
+    :: (HasCallStack, Ledger.EraPParams era) => Ledger.PParams era -> Int
+optimumNumberOfPools = intCast . desiredNumberOfStakePoolsFromPParams
 
 --
 -- Txs
 --
 
-fromCardanoTxIn
-    :: Cardano.TxIn
-    -> W.TxIn
+fromCardanoTxIn :: Cardano.TxIn -> W.TxIn
 fromCardanoTxIn (Cardano.TxIn txid (Cardano.TxIx ix)) =
     W.TxIn
         (W.Hash $ fromShelleyTxId $ Cardano.toShelleyTxId txid)
