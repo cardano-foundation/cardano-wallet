@@ -361,6 +361,7 @@ import qualified Cardano.Byron.Codec.Cbor as CBOR
 import qualified Cardano.Chain.Common as Byron
 import qualified Cardano.Crypto.Hash as Crypto
 import qualified Cardano.Ledger.Address as SL
+import qualified Cardano.Ledger.Allegra as Allegra
 import qualified Cardano.Ledger.Alonzo as Alonzo
 import qualified Cardano.Ledger.Alonzo.Language as Alonzo
 import qualified Cardano.Ledger.Alonzo.PParams as Alonzo
@@ -672,7 +673,7 @@ fromShelleyBlock
     :: W.GenesisParameters
     -> ShelleyBlock
         (Consensus.TPraos StandardCrypto)
-        (SL.ShelleyEra StandardCrypto)
+        (Shelley.ShelleyEra StandardCrypto)
     -> (W.Block, [PoolCertificate])
 fromShelleyBlock gp blk@(ShelleyBlock (SL.Block _ (SL.ShelleyTxSeq txs')) _) =
     let
@@ -691,7 +692,7 @@ fromAllegraBlock
     :: W.GenesisParameters
     -> ShelleyBlock
         (Consensus.TPraos StandardCrypto)
-        (MA.ShelleyMAEra 'MA.Allegra StandardCrypto)
+        (Allegra.AllegraEra StandardCrypto)
     -> (W.Block, [PoolCertificate])
 fromAllegraBlock gp blk@(ShelleyBlock (SL.Block _ (SL.ShelleyTxSeq txs')) _) =
     let
@@ -710,7 +711,7 @@ fromMaryBlock
     :: W.GenesisParameters
     -> ShelleyBlock
         (Consensus.TPraos StandardCrypto)
-        (MA.ShelleyMAEra 'MA.Mary StandardCrypto)
+        (Mary.MaryEra StandardCrypto)
     -> (W.Block, [PoolCertificate])
 fromMaryBlock gp blk@(ShelleyBlock (SL.Block _ (SL.ShelleyTxSeq txs')) _) =
     let
