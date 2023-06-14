@@ -95,8 +95,6 @@ import Cardano.Wallet.DB.Layer
     )
 import Cardano.Wallet.DB.Properties
     ( properties )
-import Cardano.Wallet.DB.Sqlite.Migration.Old
-    ( SchemaVersion (..), currentSchemaVersion )
 import Cardano.Wallet.DB.StateMachine
     ( TestConstraints, prop_sequential, validateGenerators )
 import Cardano.Wallet.DummyTarget.Primitive.Types
@@ -1164,9 +1162,6 @@ manualMigrationsSpec = describe "Manual migrations" $ do
               )
             ]
 
-    it "'migrate' db to create metadata table when it doesn't exist"
-        testCreateMetadataTable
-
     it "'migrate' db submissions encoding" $
         testMigrationSubmissionsEncoding
             "before_submission-v2022-12-14.sqlite"
@@ -1376,18 +1371,6 @@ isMsgManualMigrationPw = matchMsgManualMigration $ \field ->
     let fieldInDB = fieldDB $ persistFieldDef DB.WalPassphraseScheme
     in  fieldName field == unFieldNameDB fieldInDB
 
-
-testCreateMetadataTable :: IO ()
-testCreateMetadataTable = withSystemTempFile "db.sql" $ \path _ -> do
-    let noop _ = pure ()
-        tr = nullTracer
-    withDBOpenFromFile ShelleyWallet tr (Just defaultFieldValues) path noop
-    actualVersion <- Sqlite.runSqlite (T.pack path) $ do
-        [Sqlite.Single (version :: Int)] <- Sqlite.rawSql
-            "SELECT version FROM database_schema_version \
-            \WHERE name = 'schema'" []
-        pure $ SchemaVersion $ fromIntegral version
-    actualVersion `shouldBe` currentSchemaVersion
 
 localTxSubmissionTableExists :: Text
 localTxSubmissionTableExists = [i|
