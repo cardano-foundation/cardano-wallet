@@ -23,7 +23,7 @@ import Cardano.Wallet.Write.Tx
 import qualified Cardano.Address.Script as CA
 import qualified Cardano.Wallet.Primitive.Types.Address as W
 
--- | Assumptions about the UTxO which are needed for coin-selection.
+-- | Assumptions about UTxOs that are needed for coin selection.
 data UTxOAssumptions
     = AllKeyPaymentCredentials
     -- ^ Assumes all 'UTxO' entries have addresses with the post-Shelley
