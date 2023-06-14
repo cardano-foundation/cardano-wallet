@@ -101,10 +101,14 @@ import Cardano.Binary
     ( serialize' )
 import Cardano.Crypto.Wallet
     ( XPub )
+import Cardano.Ledger.Allegra.Core
+    ( inputsTxBodyL, ppMinFeeAL )
+import Cardano.Ledger.Api
+    ( collateralInputsTxBodyL, feeTxBodyL, outputsTxBodyL )
+import Cardano.Ledger.Babbage.TxBody
+    ( outputsBabbageTxBodyL )
 import Cardano.Ledger.Crypto
     ( DSIGN )
-import Cardano.Ledger.Era
-    ( Crypto )
 import Cardano.Ledger.Shelley.API
     ( StrictMaybe (..) )
 import Cardano.Slotting.EpochInfo
@@ -180,7 +184,6 @@ import Cardano.Wallet.Shelley.Compatibility
     , toCardanoTxIn
     , toCardanoTxOut
     , toCardanoValue
-    , toCostModelsAsArray
     , toHDPayloadAddress
     , toScriptPurpose
     , toStakeKeyDeregCert
@@ -188,7 +191,7 @@ import Cardano.Wallet.Shelley.Compatibility
     , toStakePoolDlgCert
     )
 import Cardano.Wallet.Shelley.Compatibility.Ledger
-    ( toBabbageTxOut, toConwayTxOut, toLedger, toWalletCoin, toWalletScript )
+    ( toBabbageTxOut, toConwayTxOut, toWalletCoin, toWalletScript )
 import Cardano.Wallet.Shelley.MinimumUTxO
     ( computeMinimumCoinForUTxO, isBelowMinimumCoinForUTxO )
 import Cardano.Wallet.Transaction
@@ -228,6 +231,8 @@ import Codec.Serialise
     ( deserialiseOrFail )
 import Control.Arrow
     ( left, second )
+import Control.Lens
+    ( over )
 import Control.Monad
     ( forM, forM_, guard, when )
 import Control.Monad.Trans.Class
@@ -278,24 +283,18 @@ import qualified Cardano.Crypto as CC
 import qualified Cardano.Crypto.DSIGN as DSIGN
 import qualified Cardano.Crypto.Hash.Class as Crypto
 import qualified Cardano.Crypto.Wallet as Crypto.HD
-import qualified Cardano.Ledger.Alonzo.Data as Alonzo
 import qualified Cardano.Ledger.Alonzo.PlutusScriptApi as Alonzo
-import qualified Cardano.Ledger.Alonzo.PParams as Alonzo
 import qualified Cardano.Ledger.Alonzo.Scripts as Alonzo
 import qualified Cardano.Ledger.Alonzo.Tx as Alonzo
-import qualified Cardano.Ledger.Babbage.PParams as Babbage
-import qualified Cardano.Ledger.Babbage.Tx as Babbage
+import qualified Cardano.Ledger.Alonzo.TxWits as Alonzo
+import qualified Cardano.Ledger.Api as Ledger
 import qualified Cardano.Ledger.Coin as Ledger
-import qualified Cardano.Ledger.Conway.PParams as Conway
-import qualified Cardano.Ledger.Conway.Tx as Conway
-import qualified Cardano.Ledger.Conway.TxBody as Conway
-import qualified Cardano.Ledger.Core as Ledger
 import qualified Cardano.Ledger.Keys.Bootstrap as SL
-import qualified Cardano.Ledger.Serialization as Ledger
 import qualified Cardano.Wallet.Primitive.Types.Coin as Coin
 import qualified Cardano.Wallet.Primitive.Types.TokenBundle as TokenBundle
 import qualified Cardano.Wallet.Primitive.Types.TokenMap as TokenMap
 import qualified Cardano.Wallet.Primitive.Types.Tx.TxOut as TxOut
+import qualified Cardano.Wallet.Read.Primitive.Coin as Coin
 import qualified Cardano.Wallet.Shelley.Compatibility as Compatibility
 import qualified Cardano.Wallet.Write.Tx as Write
 import qualified Codec.CBOR.Encoding as CBOR
@@ -309,6 +308,7 @@ import qualified Data.Map.Merge.Strict as Map
 import qualified Data.Sequence.Strict as StrictSeq
 import qualified Data.Set as Set
 import qualified Data.Text as T
+import qualified Cardano.Ledger.Alonzo.Scripts.Data as Alonzo
 
 
 -- | Type encapsulating what we need to know to add things -- payloads,
@@ -334,7 +334,7 @@ data TxPayload era = TxPayload
 type EraConstraints era =
     ( IsShelleyBasedEra era
     , ToCBOR (Ledger.TxBody (Cardano.ShelleyLedgerEra era))
-    , DSIGN (Crypto (Cardano.ShelleyLedgerEra era)) ~ DSIGN.Ed25519DSIGN
+    , DSIGN (Ledger.EraCrypto (Cardano.ShelleyLedgerEra era)) ~ DSIGN.Ed25519DSIGN
     , (era == ByronEra) ~ 'False
     )
 
@@ -787,7 +787,7 @@ updateTx (Cardano.Tx body existingKeyWits) extraContent = do
     -- `anyEraBody`.
     body' <- modifyTxBody extraContent body
 
-    if (null existingKeyWits)
+    if null existingKeyWits
        then Right $ Cardano.Tx body' mempty
        else Left $ ErrExistingKeyWitnesses $ length existingKeyWits
   where
@@ -824,50 +824,36 @@ updateTx (Cardano.Tx body existingKeyWits) extraContent = do
             Cardano.SimpleScriptInConway
             (Cardano.SimpleScript $ toCardanoSimpleScript walletScript)
 
--- NOTE: If the ShelleyMA MAClass were exposed, the Allegra and Mary
--- cases could perhaps be joined. It is not however. And we still need
--- to treat Alonzo and Shelley differently.
 modifyShelleyTxBody
     :: TxUpdate
     -> RecentEra era
     -> Ledger.TxBody (Cardano.ShelleyLedgerEra era)
     -> Ledger.TxBody (Cardano.ShelleyLedgerEra era)
-modifyShelleyTxBody txUpdate era ledgerBody = case era of
-    RecentEraConway -> ledgerBody
-        { Conway.outputs = Conway.outputs ledgerBody
-            <> StrictSeq.fromList
-                (Ledger.mkSized . toConwayTxOut <$> extraOutputs)
-        , Conway.inputs = Conway.inputs ledgerBody
-            <> Set.fromList (Cardano.toShelleyTxIn <$> extraInputs')
-        , Conway.collateral = Conway.collateral ledgerBody
-            <> Set.fromList (Cardano.toShelleyTxIn <$> extraCollateral')
-        , Conway.txfee =
-            modifyFee $ Conway.txfee ledgerBody
-        }
-    RecentEraBabbage -> ledgerBody
-        { Babbage.outputs = Babbage.outputs ledgerBody
-            <> StrictSeq.fromList
-                (Ledger.mkSized . toBabbageTxOut <$> extraOutputs)
-        , Babbage.inputs = Babbage.inputs ledgerBody
-            <> Set.fromList (Cardano.toShelleyTxIn <$> extraInputs')
-        , Babbage.collateral = Babbage.collateral ledgerBody
-            <> Set.fromList (Cardano.toShelleyTxIn <$> extraCollateral')
-        , Babbage.txfee =
-            modifyFee $ Babbage.txfee ledgerBody
-        }
+modifyShelleyTxBody txUpdate = \case
+    RecentEraBabbage ->
+        over feeTxBodyL modifyFee
+        . over outputsBabbageTxBodyL
+            (<> StrictSeq.fromList (toBabbageTxOut <$> extraOutputs))
+        . over inputsTxBodyL
+            (<> Set.fromList (Cardano.toShelleyTxIn <$> extraInputs'))
+        . over collateralInputsTxBodyL
+            (<> Set.fromList (Cardano.toShelleyTxIn <$> extraCollateral'))
+    RecentEraConway ->
+        over feeTxBodyL modifyFee
+        . over outputsTxBodyL
+            (<> StrictSeq.fromList (toConwayTxOut <$> extraOutputs))
+        . over inputsTxBodyL
+            (<> Set.fromList (Cardano.toShelleyTxIn <$> extraInputs'))
+        . over collateralInputsTxBodyL
+            (<> Set.fromList (Cardano.toShelleyTxIn <$> extraCollateral'))
   where
-    TxUpdate extraInputs extraCollateral extraOutputs _ feeUpdate
-        = txUpdate
-
+    TxUpdate extraInputs extraCollateral extraOutputs _ feeUpdate = txUpdate
     extraInputs' = toCardanoTxIn . fst <$> extraInputs
     extraCollateral' = toCardanoTxIn <$> extraCollateral
-
-    modifyFee old = case feeUpdate of
-        UseNewTxFee new -> toLedgerCoin new
-        UseOldTxFee -> old
-      where
-        toLedgerCoin :: Coin -> Ledger.Coin
-        toLedgerCoin (Coin c) = Ledger.Coin (intCast c)
+    modifyFee old =
+        case feeUpdate of
+            UseNewTxFee (Coin c) -> Ledger.Coin (intCast c)
+            UseOldTxFee -> old
 
 -- | Evaluate a minimal fee amount necessary to pay for a given tx
 -- using ledger's functionality.
@@ -883,10 +869,14 @@ evaluateMinimumFee pp (KeyWitnessCount nWits nBootWits) body =
     -- NOTE: Cardano.evaluateTransactionFee will error if passed non-zero
     -- nBootWits, so we need to account for it separately.
   where
-    bootWitFees = Coin.fromNatural $
-        Cardano.protocolParamTxFeePerByte
-            (Cardano.unbundleProtocolParams pp) * bytes
+    bootWitFees = Coin.fromNatural $ feePerByte * bytes
       where
+        feePerByte :: Natural
+        feePerByte =
+            Coin.toNatural . fromCardanoLovelace
+                $ Cardano.protocolParamTxFeePerByte
+                $ Cardano.unbundleProtocolParams pp
+
         bytes :: Natural
         bytes = fromIntegral $ sizeOf_BootstrapWitnesses $ intCast nBootWits
 
@@ -935,17 +925,16 @@ estimateSignedTxSize pparams nWits body =
     minfee witCount = toWalletCoin $ Write.evaluateMinimumFee
         (Write.recentEra @era) pparams (toLedgerTx body) witCount
 
-    toLedgerTx
-        :: Cardano.TxBody era -> Write.Tx (Write.ShelleyLedgerEra era)
+    toLedgerTx :: Cardano.TxBody era -> Write.Tx (Write.ShelleyLedgerEra era)
     toLedgerTx b = case Cardano.Tx b [] of
-        Byron.ByronTx {} -> case Write.recentEra @era of
-            {}
+        Byron.ByronTx {} -> case Write.recentEra @era of {}
         Cardano.ShelleyTx _era ledgerTx -> ledgerTx
 
     feePerByte :: Coin
-    feePerByte = Coin.fromNatural $ case Write.recentEra @era of
-        Write.RecentEraBabbage -> Babbage._minfeeA pparams
-        Write.RecentEraConway -> Conway._minfeeA pparams
+    feePerByte = Coin.unsafeFromLedger $
+        case Write.recentEra @era of
+            Write.RecentEraBabbage -> pparams ^. ppMinFeeAL
+            Write.RecentEraConway -> pparams ^. ppMinFeeAL
 
 numberOfShelleyWitnesses :: Word -> KeyWitnessCount
 numberOfShelleyWitnesses n = KeyWitnessCount n 0
@@ -1031,7 +1020,7 @@ estimateKeyWitnessCount utxo txbody@(Cardano.TxBody txbodycontent) =
         Cardano.StakeAddressRegistrationCertificate _ -> 0
         Cardano.StakeAddressDeregistrationCertificate cred ->
             estimateWitNumForCred cred
-        Cardano.StakeAddressDelegationCertificate cred _ ->
+        Cardano.StakeAddressPoolDelegationCertificate cred _ ->
             estimateWitNumForCred cred
         _ -> 1
       where
@@ -1184,16 +1173,13 @@ assignScriptRedeemers pparams timeTranslation utxo redeemers tx =
         -> Either ErrAssignRedeemers
             (Map Alonzo.RdmrPtr (Either ErrAssignRedeemers Alonzo.ExUnits))
     evaluateExecutionUnitsBabbage indexedRedeemers babbageTx = do
-        let costs = toCostModelsAsArray
-                (Alonzo.unCostModels $ Babbage._costmdls pparams)
-
-        let res = evaluateTransactionExecutionUnits
-                pparams
-                babbageTx
-                (fromCardanoUTxO utxo)
-                epochInformation
-                systemStart
-                costs
+        let res =
+                Ledger.evalTxExUnits
+                    pparams
+                    babbageTx
+                    (fromCardanoUTxO utxo)
+                    epochInformation
+                    systemStart
         case res of
             Left translationError ->
                 Left $ ErrAssignRedeemersTranslationError translationError
@@ -1207,16 +1193,13 @@ assignScriptRedeemers pparams timeTranslation utxo redeemers tx =
         -> Either ErrAssignRedeemers
             (Map Alonzo.RdmrPtr (Either ErrAssignRedeemers Alonzo.ExUnits))
     evaluateExecutionUnitsConway indexedRedeemers conwayTx = do
-        let costs = toCostModelsAsArray
-                (Alonzo.unCostModels $ Conway._costmdls pparams)
-
-        let res = evaluateTransactionExecutionUnits
-                pparams
-                conwayTx
-                (fromCardanoUTxO utxo)
-                epochInformation
-                systemStart
-                costs
+        let res =
+                Ledger.evalTxExUnits
+                    pparams
+                    conwayTx
+                    (fromCardanoUTxO utxo)
+                    epochInformation
+                    systemStart
         case res of
             Left translationError ->
                 Left $ ErrAssignRedeemersTranslationError translationError
@@ -1285,14 +1268,13 @@ assignScriptRedeemers pparams timeTranslation utxo redeemers tx =
                 , Just l <- [Alonzo.language script]
                 ]
         in babbageTx
-            { Babbage.body = (Babbage.body babbageTx)
+            {- Babbage.body = (Babbage.body babbageTx)
                 { Babbage.scriptIntegrityHash = Alonzo.hashScriptIntegrity
-                    (Set.fromList $ Alonzo.getLanguageView pparams
-                        <$> langs)
+                    (Set.fromList $ Alonzo.getLanguageView pparams <$> langs)
                     (Alonzo.txrdmrs wits)
                     (Alonzo.txdats wits)
                 }
-            }
+            -}
 
     addScriptIntegrityHashConway
         :: era ~ Cardano.ConwayEra
@@ -1306,14 +1288,14 @@ assignScriptRedeemers pparams timeTranslation utxo redeemers tx =
                 , Just l <- [Alonzo.language script]
                 ]
         in conwayTx
-            { Conway.body = (Conway.body conwayTx)
+            {- Conway.body = (Conway.body conwayTx)
                 { Conway.scriptIntegrityHash = Alonzo.hashScriptIntegrity
                     (Set.fromList $ Alonzo.getLanguageView pparams
                         <$> langs)
                     (Alonzo.txrdmrs wits)
                     (Alonzo.txdats wits)
                 }
-            }
+            -}
 
 getFeePerByteFromWalletPParams
     :: ProtocolParameters
@@ -2506,11 +2488,11 @@ removeDummyInput = \case
             ShelleyBasedEraMary -> bailOut
             ShelleyBasedEraAlonzo ->
                 let body' = body
-                        { Alonzo.inputs =
+                        {- Alonzo.inputs =
                             Set.delete
                                 (toLedger dummyInput)
                                 (Alonzo.inputs body)
-                        }
+                        -}
                 in Cardano.ShelleyTxBody
                     era
                     body'
@@ -2520,11 +2502,11 @@ removeDummyInput = \case
                     val
             ShelleyBasedEraBabbage ->
                 let body' = body
-                        { Babbage.inputs =
+                        {- Babbage.inputs =
                             Set.delete
                                 (toLedger dummyInput)
                                 (Babbage.inputs body)
-                        }
+                        -}
                 in Cardano.ShelleyTxBody
                     era
                     body'
@@ -2534,11 +2516,11 @@ removeDummyInput = \case
                     val
             ShelleyBasedEraConway ->
                 let body' = body
-                        { Conway.inputs =
+                        {- Conway.inputs =
                             Set.delete
                                 (toLedger dummyInput)
                                 (Conway.inputs body)
-                        }
+                        -}
                 in Cardano.ShelleyTxBody
                     era
                     body'
