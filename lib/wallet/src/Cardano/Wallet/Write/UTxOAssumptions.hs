@@ -1,4 +1,10 @@
 {-# LANGUAGE LambdaCase #-}
+
+-- |
+-- Copyright: © 2023 IOHK
+-- License: Apache-2.0
+--
+-- Module containing 'UTxOAssumptions' and related functionality.
 module Cardano.Wallet.Write.UTxOAssumptions
     (
     -- * UTxOAssumptions
