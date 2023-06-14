@@ -196,8 +196,6 @@ import Cardano.Api.Shelley
     , ShelleyBasedEra (..)
     , ShelleyGenesis (..)
     )
-import Cardano.Binary
-    ( serialize' )
 import Cardano.Chain.Block
     ( ABlockOrBoundary (ABOBBlock, ABOBBoundary), blockTxPayload )
 import Cardano.Chain.UTxO
@@ -209,14 +207,20 @@ import Cardano.Launcher.Node
 import Cardano.Ledger.Api
     ( ppCollateralPercentageL
     , ppDL
+    , ppKeyDepositL
     , ppMaxCollateralInputsL
+    , ppMaxTxExUnitsL
     , ppMaxTxSizeL
     , ppMaxValSizeL
     , ppMinFeeAL
     , ppMinFeeBL
+    , ppNOptL
+    , ppPricesL
     )
 import Cardano.Ledger.BaseTypes
     ( strictMaybeToMaybe, urlToText )
+import Cardano.Ledger.Binary
+    ( serialize', shelleyProtVer )
 import Cardano.Ledger.Binary
     ( EncCBORGroup )
 import Cardano.Ledger.Era
@@ -280,7 +284,7 @@ import Control.Applicative
 import Control.Arrow
     ( left )
 import Control.Lens
-    ( (&), (^.) )
+    ( view, (&), (^.) )
 import Control.Monad
     ( when, (>=>) )
 import Control.Monad.Fail.Extended
@@ -323,8 +327,6 @@ import Data.Text.Class
     ( TextDecodingError (..) )
 import Data.Type.Equality
     ( (:~:) (..), testEquality )
-import Data.Typeable
-    ( Typeable )
 import Data.Word
     ( Word16, Word32, Word8 )
 import Fmt
@@ -959,7 +961,7 @@ fromAlonzoPParams eraInfo pp =
         { decentralizationLevel = decentralizationLevelFromPParams pp
         , txParameters = txParametersFromPParams
             (W.TokenBundleMaxSize $ W.TxSize $ pp ^. ppMaxValSizeL)
-            (fromLedgerExUnits (getField @"_maxTxExUnits" pp))
+            (fromLedgerExUnits (pp ^. ppMaxTxExUnitsL))
             pp
         , desiredNumberOfStakePools =
             desiredNumberOfStakePoolsFromPParams pp
@@ -987,7 +989,7 @@ fromBabbagePParams eraInfo pp =
             W.fromFederationPercentage $ clipToPercentage 0
         , txParameters = txParametersFromPParams
             (W.TokenBundleMaxSize $ W.TxSize $ pp ^. ppMaxValSizeL)
-            (fromLedgerExUnits (getField @"_maxTxExUnits" pp))
+            (fromLedgerExUnits (pp ^. ppMaxTxExUnitsL))
             pp
         , desiredNumberOfStakePools =
             desiredNumberOfStakePoolsFromPParams pp
@@ -1016,7 +1018,7 @@ fromConwayPParams eraInfo pp =
             W.fromFederationPercentage $ clipToPercentage 0
         , txParameters = txParametersFromPParams
             (W.TokenBundleMaxSize $ W.TxSize $ pp ^. ppMaxValSizeL)
-            (fromLedgerExUnits (getField @"_maxTxExUnits" pp))
+            (fromLedgerExUnits (pp ^. ppMaxTxExUnitsL))
             pp
         , desiredNumberOfStakePools = desiredNumberOfStakePoolsFromPParams pp
         , minimumUTxO = minimumUTxOForShelleyBasedEra ShelleyBasedEraConway pp
@@ -1041,13 +1043,11 @@ decentralizationLevelFromPParams pp =
     W.fromFederationPercentage $ fromUnitInterval $ pp ^. ppDL
 
 executionUnitPricesFromPParams
-    :: HasField "_prices" pparams Alonzo.Prices
-    => pparams
+    :: Ledger.AlonzoEraPParams era
+    => Ledger.PParams era
     -> W.ExecutionUnitPrices
-executionUnitPricesFromPParams pp =
-    fromAlonzoPrices prices
+executionUnitPricesFromPParams pp = fromAlonzoPrices (pp ^. ppPricesL)
   where
-    prices = getField @"_prices" pp
     fromAlonzoPrices Alonzo.Prices{prMem, prSteps} =
         W.ExecutionUnitPrices
         { W.pricePerStep = SL.unboundRational prSteps
@@ -1098,16 +1098,14 @@ toCostModelsAsArray costModels =
 --------------------------------------------------------------------------------
 
 desiredNumberOfStakePoolsFromPParams
-    :: HasField "_nOpt" pparams Natural
-    => pparams
-    -> Word16
-desiredNumberOfStakePoolsFromPParams pp = fromIntegral $ getField @"_nOpt" pp
+    :: (HasCallStack, Ledger.EraPParams era) => Ledger.PParams era -> Word16
+desiredNumberOfStakePoolsFromPParams pp =
+    intCastMaybe (pp ^. ppNOptL)
+        & fromMaybe (error "Desired number of stake pools exceeds 2^16")
 
 stakeKeyDepositFromPParams
-    :: HasField "_keyDeposit" pparams SLAPI.Coin
-    => pparams
-    -> W.Coin
-stakeKeyDepositFromPParams = toWalletCoin . getField @"_keyDeposit"
+    :: Ledger.EraPParams era => Ledger.PParams era -> W.Coin
+stakeKeyDepositFromPParams = toWalletCoin . view ppKeyDepositL
 
 slottingParametersFromGenesis :: ShelleyGenesis e -> W.SlottingParameters
 slottingParametersFromGenesis g =
@@ -1115,11 +1113,11 @@ slottingParametersFromGenesis g =
         { getSlotLength =
             W.SlotLength . fromNominalDiffTimeMicro $ sgSlotLength g
         , getEpochLength =
-            W.EpochLength . fromIntegral . unEpochSize . sgEpochLength $ g
+            W.EpochLength . fromIntegral . unEpochSize $ sgEpochLength g
         , getActiveSlotCoefficient =
-            W.ActiveSlotCoefficient . fromRational . SL.unboundRational . sgActiveSlotsCoeff $ g
+            W.ActiveSlotCoefficient . fromRational . SL.unboundRational $ sgActiveSlotsCoeff g
         , getSecurityParameter =
-            Quantity . fromIntegral . sgSecurityParam $ g
+            Quantity . fromIntegral $ sgSecurityParam g
         }
 
 -- note: upcasts Word32 -> Word64
@@ -1262,11 +1260,7 @@ fromCardanoTxIn (Cardano.TxIn txid (Cardano.TxIx ix)) =
         (fromIntegral ix)
 
 -- | WARNING: Datum hashes are lost in the conversion!
-fromCardanoTxOut
-    :: Typeable era
-    => IsCardanoEra era
-    => Cardano.TxOut ctx era
-    -> W.TxOut
+fromCardanoTxOut :: IsCardanoEra era => Cardano.TxOut ctx era -> W.TxOut
 fromCardanoTxOut (Cardano.TxOut addr out _datumHash _) =
     W.TxOut
         (W.Address $ Cardano.serialiseToRawBytes addr)
@@ -1865,8 +1859,13 @@ tokenBundleSizeAssessor maxSize = TokenBundleSizeAssessor {..}
         maxSize' = W.unTokenBundleMaxSize maxSize
 
 computeTokenBundleSerializedLengthBytes :: TokenBundle.TokenBundle -> W.TxSize
-computeTokenBundleSerializedLengthBytes = W.TxSize . safeCast
-    . BS.length . serialize' . Cardano.toMaryValue . toCardanoValue
+computeTokenBundleSerializedLengthBytes =
+    W.TxSize
+        . safeCast
+        . BS.length
+        . serialize' shelleyProtVer
+        . Cardano.toMaryValue
+        . toCardanoValue
   where
     safeCast :: Int -> Natural
     safeCast = fromIntegral
