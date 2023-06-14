@@ -1197,7 +1197,10 @@ restoreBlocks ctx tr blocks nodeTip = db & \DBLayer{..} -> atomically $ do
                 getSlot
                 (fromIntegral . getBlockHeight)
                 (sparseArithmetic epochStability')
-                (fromIntegral $ getQuantity $ nodeTip ^. #blockHeight)
+                (fromIntegral $ getQuantity $ localTip ^. #blockHeight)
+                    -- nodeTip instead of localTip should work as well,
+                    -- but for some reason, the integration tests
+                    -- become flakier.
                 wcps
                 (checkpoints wallet)
 
