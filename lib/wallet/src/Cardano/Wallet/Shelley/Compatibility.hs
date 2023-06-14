@@ -180,6 +180,7 @@ import Cardano.Api
     , ConsensusModeParams (CardanoModeParams)
     , ConwayEra
     , EraInMode (..)
+    , File (..)
     , InAnyCardanoEra (..)
     , IsCardanoEra (..)
     , LocalNodeConnectInfo (LocalNodeConnectInfo)
@@ -189,8 +190,6 @@ import Cardano.Api
     , TxInMode (..)
     , cardanoEraStyle
     )
-import Cardano.Api
-    ( File (..) )
 import Cardano.Api.Shelley
     ( InAnyShelleyBasedEra (..), IsShelleyBasedEra (..), ShelleyBasedEra (..),
     ShelleyGenesis (..) )
@@ -205,11 +204,18 @@ import Cardano.Crypto.Hash.Class
 import Cardano.Launcher.Node
     ( CardanoNodeConn, nodeSocketFile )
 import Cardano.Ledger.Api
-    ( ppCollateralPercentageL, ppMaxCollateralInputsL, ppMaxValSizeL, ppDL, ppMinFeeBL, ppMinFeeAL, ppMaxTxSizeL )
+    ( ppCollateralPercentageL
+    , ppDL
+    , ppMaxCollateralInputsL
+    , ppMaxTxSizeL
+    , ppMaxValSizeL
+    , ppMinFeeAL
+    , ppMinFeeBL
+    )
 import Cardano.Ledger.BaseTypes
     ( strictMaybeToMaybe, urlToText )
 import Cardano.Ledger.Binary
-    (EncCBORGroup)
+    ( EncCBORGroup )
 import Cardano.Ledger.Era
     ( Era (..), TxSeq )
 import Cardano.Ledger.PoolParams
@@ -265,7 +271,7 @@ import Codec.Binary.Bech32
 import Control.Applicative
     ( Const (..), (<|>) )
 import Control.Arrow
-    ( ArrowChoice, left )
+    ( left )
 import Control.Lens
     ( (&), (^.) )
 import Control.Monad
@@ -278,8 +284,6 @@ import Data.Array
     ( Array )
 import Data.Bifunctor
     ( bimap )
-import Data.Binary.Get
-    ( Get, runGetOrFail )
 import Data.Binary.Put
     ( putByteString, putWord8, runPut )
 import Data.Bits
@@ -305,7 +309,7 @@ import Data.Map.Strict
 import Data.Maybe
     ( fromMaybe, isJust, mapMaybe )
 import Data.Quantity
-    ( Percentage, Quantity (..), mkPercentage, clipToPercentage )
+    ( Percentage, Quantity (..), clipToPercentage, mkPercentage )
 import Data.Text
     ( Text )
 import Data.Text.Class
@@ -365,6 +369,7 @@ import qualified Cardano.Ledger.Alonzo.TxSeq as Alonzo
 import qualified Cardano.Ledger.Api as Ledger
 import qualified Cardano.Ledger.Babbage as Babbage
 import qualified Cardano.Ledger.BaseTypes as SL
+import qualified Cardano.Ledger.Coin as Ledger
 import qualified Cardano.Ledger.Conway as Conway
 import qualified Cardano.Ledger.Credential as SL
 import qualified Cardano.Ledger.Crypto as SL
@@ -419,7 +424,6 @@ import qualified Ouroboros.Consensus.Shelley.Ledger as O
 import qualified Ouroboros.Consensus.Shelley.Protocol.Abstract as Consensus
 import qualified Ouroboros.Network.Block as O
 import qualified Ouroboros.Network.Point as Point
-import qualified Cardano.Ledger.Coin as Ledger
 
 --------------------------------------------------------------------------------
 --
