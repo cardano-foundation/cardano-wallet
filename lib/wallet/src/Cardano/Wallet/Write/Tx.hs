@@ -84,7 +84,6 @@ module Cardano.Wallet.Write.Tx
     , Core.TxBody
     , txBody
     , outputs
-    , modifyTxOutputs
     , modifyLedgerBody
     , emptyTx
 
@@ -160,7 +159,7 @@ import Cardano.Ledger.Babbage.TxBody
 import Cardano.Ledger.BaseTypes
     ( maybeToStrictMaybe )
 import Cardano.Ledger.Binary
-    ( Sized (..), mkSized )
+    ( Sized (..) )
 import Cardano.Ledger.Coin
     ( Coin (..) )
 import Cardano.Ledger.Crypto
@@ -214,11 +213,10 @@ import qualified Cardano.Ledger.Address as Ledger
 import qualified Cardano.Ledger.Alonzo.PParams as Alonzo
 import qualified Cardano.Ledger.Alonzo.Scripts as Alonzo
 import qualified Cardano.Ledger.Alonzo.Scripts.Data as Alonzo
-import qualified Cardano.Ledger.Api.Tx.Body as LedgerApi
+import qualified Cardano.Ledger.Api as Ledger
 import qualified Cardano.Ledger.Babbage as Babbage
 import qualified Cardano.Ledger.Babbage.Tx as Babbage
 import qualified Cardano.Ledger.Babbage.TxBody as Babbage
-import qualified Cardano.Ledger.BaseTypes as Ledger
 import qualified Cardano.Ledger.Conway.TxBody as Conway
 import qualified Cardano.Ledger.Core as Core
 import qualified Cardano.Ledger.Credential as Core
@@ -283,6 +281,7 @@ type RecentEraLedgerConstraints era =
     , Core.Value era ~ MaryValue StandardCrypto
     , Alonzo.AlonzoEraPParams era
     , Babbage.ShelleyEraTxBody era
+    , Shelley.EraUTxO era
     )
 
 -- | Bring useful constraints into scope from a value-level
@@ -671,24 +670,6 @@ utxoFromTxOutsInRecentEra era = withConstraints era $
 -- Tx
 --------------------------------------------------------------------------------
 
-modifyTxOutputs
-    :: forall era
-     . RecentEra era
-    -> Ledger.ProtVer
-    -> (TxOut (ShelleyLedgerEra era) -> TxOut (ShelleyLedgerEra era))
-    -> Core.TxBody (ShelleyLedgerEra era)
-    -> Core.TxBody (ShelleyLedgerEra era)
-modifyTxOutputs era (Ledger.ProtVer majorVer _) f body =
-    case era of
-        RecentEraConway -> body {
-            Conway.ctbOutputs =
-                mkSized majorVer . f . sizedValue <$> Conway.ctbOutputs body
-        }
-        RecentEraBabbage -> body {
-            Babbage.btbOutputs =
-                mkSized majorVer . f . sizedValue <$> Babbage.btbOutputs body
-        }
-
 txBody
     :: RecentEra era
     -> Core.Tx (ShelleyLedgerEra era)
@@ -828,17 +809,12 @@ txscriptfee :: ExUnitPrices -> ExUnits -> Coin
 txscriptfee = Alonzo.txscriptfee
 
 maxScriptExecutionCost
-    :: Alonzo.AlonzoEraPParams (ShelleyLedgerEra era)
-    => RecentEra era
-    -> Core.PParams (ShelleyLedgerEra era)
-    -> Coin
+    :: RecentEra era -> Core.PParams (ShelleyLedgerEra era) -> Coin
 maxScriptExecutionCost era pp = withConstraints era $
     txscriptfee (pp ^. Alonzo.ppPricesL) (pp ^. Alonzo.ppMaxTxExUnitsL)
 
 stakeKeyDeposit
-    :: RecentEra era
-    -> Core.PParams (Cardano.ShelleyLedgerEra era)
-    -> Coin
+    :: RecentEra era -> Core.PParams (Cardano.ShelleyLedgerEra era) -> Coin
 stakeKeyDeposit era pp = withConstraints era $ pp ^. Core.ppKeyDepositL
 
 --------------------------------------------------------------------------------
@@ -865,8 +841,7 @@ evaluateMinimumFee era pp tx kwc =
     FeePerByte feePerByte = getFeePerByte era pp
 
     bootWitnessFee :: Coin
-    bootWitnessFee = Coin $
-        intCast $ feePerByte * byteCount
+    bootWitnessFee = Coin $ intCast $ feePerByte * byteCount
       where
         byteCount :: Natural
         byteCount = sizeOf_BootstrapWitnesses $ intCast nBootstrapWits
@@ -890,37 +865,31 @@ evaluateMinimumFee era pp tx kwc =
 -- is not automatically the minimum fee.
 --
 evaluateTransactionBalance
-    :: forall era.
-        ( Core.EraCrypto era ~ StandardCrypto
-        , Shelley.EraUTxO (Cardano.ShelleyLedgerEra era)
-        )
-    => RecentEra era
+    :: forall era
+     . RecentEra era
     -> Core.PParams (Cardano.ShelleyLedgerEra era)
     -> Shelley.UTxO (Cardano.ShelleyLedgerEra era)
     -> Core.TxBody (Cardano.ShelleyLedgerEra era)
     -> Core.Value (Cardano.ShelleyLedgerEra era)
 evaluateTransactionBalance era pp utxo = withConstraints era $
-    LedgerApi.evalBalanceTxBody pp lookupRefund isRegPoolId utxo
-  where
-    -- Looks up the current deposit amount for a registered stake credential
-    -- delegation.
-    --
-    -- This function must produce a valid answer for all stake credentials
-    -- present in any of the 'DeRegKey' delegation certificates in the supplied
-    -- 'TxBody'. In other words, there is no requirement to know about all of
-    -- the delegation certificates in the ledger state, just those this
-    -- transaction cares about.
-    --
-    lookupRefund :: Core.StakeCredential (Core.EraCrypto era) -> Maybe Coin
-    lookupRefund _stakeCred = Just $ pp ^. Core.ppKeyDepositL
-    -- TODO: @yura
+    let -- Looks up the current deposit amount for a registered stake credential
+        -- delegation.
+        --
+        -- This function must produce a valid answer for all stake credentials
+        -- present in any of the 'DeRegKey' delegation certificates in the
+        -- supplied 'TxBody'. In other words, there is no requirement to know
+        -- about all of the delegation certificates in the ledger state,
+        -- just those this transaction cares about.
+        lookupRefund :: Core.StakeCredential StandardCrypto -> Maybe Coin
+        lookupRefund _stakeCred = Just $ pp ^. Core.ppKeyDepositL
 
-    -- Checks whether a pool with a supplied 'PoolStakeId' is already
-    -- registered.
-    --
-    -- There is no requirement to answer this question for all stake pool
-    -- credentials, just those that have their registration certificates
-    -- included in the supplied 'TxBody'.
-    --
-    isRegPoolId :: Ledger.KeyHash 'Ledger.StakePool (Core.EraCrypto era) -> Bool
-    isRegPoolId _keyHash = True
+        -- Checks whether a pool with a supplied 'PoolStakeId' is already
+        -- registered.
+        --
+        -- There is no requirement to answer this question for all stake pool
+        -- credentials, just those that have their registration certificates
+        -- included in the supplied 'TxBody'.
+        isRegPoolId :: Ledger.KeyHash 'Ledger.StakePool StandardCrypto -> Bool
+        isRegPoolId _keyHash = True
+
+    in Ledger.evalBalanceTxBody pp lookupRefund isRegPoolId utxo
