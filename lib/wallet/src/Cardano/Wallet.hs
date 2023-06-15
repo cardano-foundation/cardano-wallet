@@ -2504,14 +2504,12 @@ submitExternalTx ctx sealedTx = do
 -- If a 'Pending' transaction is removed, but later appears in a block, it will
 -- be added back to the transaction history.
 forgetTx
-    :: forall ctx s
-     . HasDBLayer IO s ctx
-    => ctx
+    :: WalletLayer m s
     -> Hash "Tx"
-    -> ExceptT ErrRemoveTx IO ()
+    -> ExceptT ErrRemoveTx m ()
 forgetTx ctx txid =
     ExceptT
-        . onWalletState @IO @s ctx
+        . onWalletState ctx
         . WalletState.updateSubmissions
         . Delta.updateWithError
         $ Submissions.removePendingOrExpiredTx txid
@@ -2626,11 +2624,7 @@ throttle interval action = do
 
 -- | List all transactions and metadata from history for a given wallet.
 listTransactions
-    :: forall ctx s
-     . ( HasDBLayer IO s ctx
-       , HasNetworkLayer IO ctx
-       )
-    => ctx
+    :: WalletLayer IO s
     -> Maybe Coin
     -- Inclusive minimum value of at least one withdrawal in each transaction
     -> Maybe UTCTime
@@ -2654,7 +2648,7 @@ listTransactions ctx mMinWithdrawal mStart mEnd order mLimit
     ti :: TimeInterpreter (ExceptT PastHorizonException IO)
     ti = timeInterpreter (ctx ^. networkLayer)
 
-    db = ctx ^. dbLayer @IO @s
+    db = ctx ^. dbLayer
 
     -- Transforms the user-specified time range into a slot range. If the
     -- user-specified range terminates before the start of the blockchain,
@@ -2673,9 +2667,8 @@ listTransactions ctx mMinWithdrawal mStart mEnd order mLimit
 
 -- | Extract assets associated with a given wallet from its transaction history.
 listAssets
-    :: forall s ctx
-    . (HasDBLayer IO s ctx, IsOurs s Address)
-    => ctx
+    :: IsOurs s Address
+    => WalletLayer IO s
     -> IO (Set TokenMap.AssetId)
 listAssets ctx = db & \DBLayer{..} -> do
     cp <- atomically readCheckpoint
@@ -2693,13 +2686,11 @@ listAssets ctx = db & \DBLayer{..} -> do
         ourAddress addr = isJust . fst . isOurs addr $ getState cp
     pure $ Set.unions $ map txAssets txs
   where
-    db = ctx ^. dbLayer @IO @s
+    db = ctx ^. dbLayer
 
 -- | Get transaction and metadata from history for a given wallet.
 getTransaction
-    :: forall ctx s
-     . HasDBLayer IO s ctx
-    => ctx
+    :: WalletLayer IO s
     -> Hash "Tx"
     -> ExceptT ErrGetTransaction IO TransactionInfo
 getTransaction ctx tid =
@@ -2711,7 +2702,7 @@ getTransaction ctx tid =
                 $ ErrNoSuchTransaction tid
             Just tx -> pure tx
   where
-    db = ctx ^. dbLayer @IO @s
+    db = ctx ^. dbLayer
 
 {-------------------------------------------------------------------------------
                                   Migration

@@ -474,7 +474,7 @@ benchmarksRnd network w wname
     (transactions, listTransactionsTime) <- bench "list transactions"
         $ fmap (fromIntegral . length)
         $ unsafeRunExceptT
-        $ W.listTransactions @_ @s w Nothing Nothing Nothing Descending
+        $ W.listTransactions w Nothing Nothing Nothing Descending
             Nothing
 
     -- To aid with debugging, write the current wallet state to the log:
@@ -487,7 +487,7 @@ benchmarksRnd network w wname
 
     (_, listTransactionsLimitedTime) <- bench "list transactions (max_count = 100)" $ do
         unsafeRunExceptT
-        $ W.listTransactions @_ @s w Nothing Nothing Nothing Descending
+        $ W.listTransactions w Nothing Nothing Nothing Descending
             (Just 100)
 
     estimateFeesTime <-
@@ -570,7 +570,7 @@ benchmarksSeq network w _wname
     (transactions, listTransactionsTime) <- bench "list transactions"
         $ fmap (fromIntegral . length)
         $ unsafeRunExceptT
-        $ W.listTransactions @_ @s w Nothing Nothing Nothing Descending
+        $ W.listTransactions w Nothing Nothing Nothing Descending
             Nothing
 
     -- To aid with debugging, write the current wallet state to the log:
@@ -583,7 +583,7 @@ benchmarksSeq network w _wname
 
     (_, listTransactionsLimitedTime) <- bench "list transactions (max_count = 100)" $ do
         unsafeRunExceptT
-        $ W.listTransactions @_ @s w Nothing Nothing Nothing Descending
+        $ W.listTransactions w Nothing Nothing Nothing Descending
             (Just 100)
 
     estimateFeesTime <-
