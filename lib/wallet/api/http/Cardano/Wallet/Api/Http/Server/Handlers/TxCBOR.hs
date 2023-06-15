@@ -13,9 +13,10 @@ module Cardano.Wallet.Api.Http.Server.Handlers.TxCBOR
   )
   where
 
-import Prelude hiding
-    ( (.) )
+import Prelude
 
+import Cardano.Binary
+    ( DecoderError )
 import Cardano.Wallet.Api.Http.Server.Error
     ( IsServerError (..), apiError, liftE, showT )
 import Cardano.Wallet.Api.Types.Error
@@ -23,6 +24,7 @@ import Cardano.Wallet.Api.Types.Error
 import Cardano.Wallet.Primitive.Types
     ( Certificate )
 import Cardano.Wallet.Primitive.Types.Hash
+    ( Hash )
 import Cardano.Wallet.Read
     ( Tx (..) )
 import Cardano.Wallet.Read.Eras
@@ -48,10 +50,10 @@ import Cardano.Wallet.Read.Tx.Witnesses
     ( getEraWitnesses )
 import Cardano.Wallet.Transaction
     ( TokenMapWithScripts, ValidityIntervalExplicit )
-import Codec.CBOR.Read
-    ( DeserialiseFailure )
 import Control.Category
-    ( (.) )
+    ( (<<<) )
+import Data.Function
+    ( (&) )
 import GHC.Generics
     ( Generic )
 import Servant.Server
@@ -63,15 +65,16 @@ import qualified Cardano.Wallet.Read.Primitive.Tx.Features.Integrity as Feature
 import qualified Cardano.Wallet.Read.Primitive.Tx.Features.Mint as Feature
 import qualified Cardano.Wallet.Read.Primitive.Tx.Features.Validity as Feature
 import qualified Data.ByteString.Lazy as BL
+import qualified Data.Text as Text
 
-newtype ErrParseCBOR = ErrParseCBOR DeserialiseFailure
+newtype ErrParseCBOR = ErrParseCBOR DecoderError
     deriving (Eq, Show)
 
 instance IsServerError ErrParseCBOR where
-    toServerError (ErrParseCBOR df) =
-        apiError err500 UnexpectedError $ mconcat
+    toServerError (ErrParseCBOR decoderError) =
+        apiError err500 UnexpectedError $ Text.unwords
             [ "Error while trying to parse a transaction CBOR from the database"
-            , showT df
+            , showT decoderError
             ]
 
 -- | Values parsed out of a CBOR for a 'Tx' in any era
@@ -87,25 +90,19 @@ data ParsedTxCBOR = ParsedTxCBOR
 parser :: EraFun Tx (K ParsedTxCBOR)
 parser = fromEraFunK
     $ ParsedTxCBOR
-        <$> EraFunK (Feature.certificates . getEraCertificates)
-        <*> EraFunK (Feature.mint . (getEraMint *&&&* getEraWitnesses *&&&* getEraReferenceInputs))
-        <*> EraFunK (Feature.getValidity . getEraValidity)
-        <*> EraFunK (Feature.integrity . getEraIntegrity)
-        <*> EraFunK (Feature.extraSigs . getEraExtraSigs)
+        <$> EraFunK (Feature.certificates <<< getEraCertificates)
+        <*> EraFunK (Feature.mint <<<
+            getEraMint *&&&* getEraWitnesses *&&&* getEraReferenceInputs)
+        <*> EraFunK (Feature.getValidity <<< getEraValidity)
+        <*> EraFunK (Feature.integrity <<< getEraIntegrity)
+        <*> EraFunK (Feature.extraSigs <<< getEraExtraSigs)
 
-txCBORParser :: EraFun
-    (K BL.ByteString)
-    (Either DeserialiseFailure :.: K (ParsedTxCBOR))
-txCBORParser  = parser *.** deserializeTx
+txCBORParser ::
+    EraFun (K BL.ByteString) (Either DecoderError :.: K (ParsedTxCBOR))
+txCBORParser = parser *.** deserializeTx
 
 -- | Parse CBOR to some values and throw a server deserialize error if failing.
-parseTxCBOR
-    :: TxCBOR
-    -> Handler ParsedTxCBOR
+parseTxCBOR :: TxCBOR -> Handler ParsedTxCBOR
 parseTxCBOR cbor =
-    case  fmap extractEraValue
-            $ sequenceEraValue
-            $ applyEraFun txCBORParser cbor
-    of
-        Left df -> liftE $ ErrParseCBOR df
-        Right result -> pure result
+    extractEraValue <$> sequenceEraValue (applyEraFun txCBORParser cbor)
+        & either (liftE . ErrParseCBOR) pure
