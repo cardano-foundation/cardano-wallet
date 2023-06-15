@@ -90,7 +90,7 @@ import Cardano.Crypto.Wallet
 import Cardano.Ledger.Allegra.Core
     ( inputsTxBodyL, ppMinFeeAL )
 import Cardano.Ledger.Api
-    ( collateralInputsTxBodyL, feeTxBodyL, outputsTxBodyL )
+    ( collateralInputsTxBodyL, feeTxBodyL, outputsTxBodyL, bodyTxL, scriptIntegrityHashTxBodyL )
 import Cardano.Ledger.Babbage.TxBody
     ( outputsBabbageTxBodyL )
 import Cardano.Ledger.Crypto
@@ -190,7 +190,7 @@ import Codec.Serialise
 import Control.Arrow
     ( left, second )
 import Control.Lens
-    ( over )
+    ( over, (.~) )
 import Control.Monad
     ( forM, forM_, guard, when )
 import Control.Monad.Trans.Class
@@ -1215,45 +1215,38 @@ assignScriptRedeemers pparams timeTranslation utxo redeemers tx =
     -- | Finally, calculate and add the script integrity hash with the new
     -- final redeemers, if any.
     addScriptIntegrityHashBabbage
-        :: era ~ Cardano.BabbageEra
-        => BabbageTx -> BabbageTx
+        :: era ~ Cardano.BabbageEra => BabbageTx -> BabbageTx
     addScriptIntegrityHashBabbage babbageTx =
-        let wits  = Alonzo.wits babbageTx
-            langs =
-                [ l
-                | (_hash, script) <- Map.toList (Alonzo.txscripts wits)
-                , (not . Ledger.isNativeScript @StandardBabbage) script
-                , Just l <- [Alonzo.language script]
-                ]
-        in babbageTx
-            {- Babbage.body = (Babbage.body babbageTx)
-                { Babbage.scriptIntegrityHash = Alonzo.hashScriptIntegrity
-                    (Set.fromList $ Alonzo.getLanguageView pparams <$> langs)
-                    (Alonzo.txrdmrs wits)
-                    (Alonzo.txdats wits)
-                }
-            -}
+        babbageTx & bodyTxL . scriptIntegrityHashTxBodyL .~
+            Alonzo.hashScriptIntegrity
+                (Set.fromList $ Alonzo.getLanguageView pparams <$> langs)
+                (Alonzo.txrdmrs wits)
+                (Alonzo.txdats wits)
+      where
+        wits = Alonzo.wits babbageTx
+        langs =
+            [ l
+            | (_hash, script) <- Map.toList (Alonzo.txscripts wits)
+            , (not . Ledger.isNativeScript @StandardBabbage) script
+            , Just l <- [Alonzo.language script]
+            ]
 
     addScriptIntegrityHashConway
-        :: era ~ Cardano.ConwayEra
-        => ConwayTx -> ConwayTx
+        :: era ~ Cardano.ConwayEra => ConwayTx -> ConwayTx
     addScriptIntegrityHashConway conwayTx =
-        let wits  = Alonzo.wits conwayTx
-            langs =
-                [ l
-                | (_hash, script) <- Map.toList (Alonzo.txscripts wits)
-                , (not . Ledger.isNativeScript @StandardConway) script
-                , Just l <- [Alonzo.language script]
-                ]
-        in conwayTx
-            {- Conway.body = (Conway.body conwayTx)
-                { Conway.scriptIntegrityHash = Alonzo.hashScriptIntegrity
-                    (Set.fromList $ Alonzo.getLanguageView pparams
-                        <$> langs)
-                    (Alonzo.txrdmrs wits)
-                    (Alonzo.txdats wits)
-                }
-            -}
+        conwayTx & bodyTxL . scriptIntegrityHashTxBodyL .~
+            Alonzo.hashScriptIntegrity
+                (Set.fromList $ Alonzo.getLanguageView pparams <$> langs)
+                (Alonzo.txrdmrs wits)
+                (Alonzo.txdats wits)
+      where
+        wits = Alonzo.wits conwayTx
+        langs =
+            [ l
+            | (_hash, script) <- Map.toList (Alonzo.txscripts wits)
+            , (not . Ledger.isNativeScript @StandardConway) script
+            , Just l <- [Alonzo.language script]
+            ]
 
 getFeePerByteFromWalletPParams
     :: ProtocolParameters
