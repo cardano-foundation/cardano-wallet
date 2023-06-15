@@ -120,10 +120,10 @@ import Control.Concurrent.Class.MonadSTM
     , readTVarIO
     , takeTMVar
     , tryReadTMVar
-    , writeTVar
+    , writeTVar, retry
     )
 import Control.Monad
-    ( forever, guard, unless, void, when )
+    ( forever, unless, void, when )
 import Control.Monad.Class.MonadAsync
     ( MonadAsync )
 import Control.Monad.Class.MonadST
@@ -278,9 +278,6 @@ import UnliftIO.Exception
     ( Handler (..), IOException )
 
 import qualified Cardano.Crypto.Hash as Crypto
-import qualified Cardano.Ledger.Alonzo.PParams as Alonzo
-import qualified Cardano.Ledger.Babbage.PParams as Babbage
-import qualified Cardano.Ledger.Conway.PParams as Conway
 import qualified Cardano.Ledger.Credential as SL
 import qualified Cardano.Ledger.Crypto as SL
 import qualified Cardano.Ledger.Shelley.API as SL
@@ -1068,7 +1065,7 @@ observeForever readVal action = go Nothing
     go old = do
         new <- atomically $ do
             new <- readVal
-            guard (old /= Just new)
+            unless (old /= Just new) retry
             return new
         action new
         go (Just new)
