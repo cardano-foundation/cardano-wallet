@@ -115,7 +115,6 @@ library
     , filepath
     , fmt
     , foldl
-    , formatting
     , free
     , generic-arbitrary
     , generic-lens

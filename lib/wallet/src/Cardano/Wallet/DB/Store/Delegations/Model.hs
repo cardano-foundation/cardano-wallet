@@ -1,11 +1,11 @@
 {-# LANGUAGE FlexibleInstances #-}
 {-# LANGUAGE LambdaCase #-}
 {-# OPTIONS_GHC -Wno-orphans #-}
+
 module Cardano.Wallet.DB.Store.Delegations.Model
     ( Delegations
     , DeltaDelegations
     ) where
-
 
 import Prelude
 
@@ -15,10 +15,8 @@ import Cardano.Wallet.Delegation.Model
     ( History, Operation (..) )
 import Cardano.Wallet.Primitive.Types
     ( SlotNo )
-import Formatting
-    ( bformat, intercalated, later )
-import Formatting.Buildable
-    ( Buildable (..) )
+import Fmt
+    ( Buildable (..), listF' )
 
 -- | Wallet delegation history
 type Delegations = History SlotNo PoolId
@@ -28,8 +26,10 @@ type Delegations = History SlotNo PoolId
 type DeltaDelegations = [Operation SlotNo PoolId]
 
 instance Buildable DeltaDelegations where
-    build = bformat $ intercalated ", " $ later $ \case
-        Register slot -> "Register " <> build slot
-        Deregister slot -> "Deregister " <> build slot
-        Delegate pool slot -> "Delegate " <> build pool <> " " <> build slot
-        Rollback slot -> "Rollback " <> build slot
+    build = listF' build1
+      where
+        build1 = \case
+            Register slot -> "Register " <> build slot
+            Deregister slot -> "Deregister " <> build slot
+            Delegate pool slot -> "Delegate " <> build pool <> " " <> build slot
+            Rollback slot -> "Rollback " <> build slot
