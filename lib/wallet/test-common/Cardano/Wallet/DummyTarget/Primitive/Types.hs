@@ -135,9 +135,11 @@ dummyProtocolParameters = ProtocolParameters
             , pricePerMemoryUnit = 0.057_7
             }
     , currentLedgerProtocolParameters =
-        Write.InRecentEraBabbage
-        $ Write.ProtocolParameters
-        $ C.toLedgerPParams C.ShelleyBasedEraBabbage dummyNodeProtocolParameters
+        Write.InRecentEraBabbage . Write.ProtocolParameters $
+            either (error . show) id $
+                C.toLedgerPParams
+                    C.ShelleyBasedEraBabbage
+                    dummyNodeProtocolParameters
     }
 
 -- | Dummy parameters that are consistent with the @dummy*@ parameters.
