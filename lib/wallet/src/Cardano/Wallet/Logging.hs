@@ -41,7 +41,6 @@ module Cardano.Wallet.Logging
     , produceTimings
 
       -- * Tracer conversions
-    , unliftIOTracer
     , flatContramapTracer
     ) where
 
@@ -69,7 +68,7 @@ import Control.Monad.IO.Unlift
 import Control.Monad.Trans.Except
     ( ExceptT (..), runExceptT )
 import Control.Tracer
-    ( Tracer (..), contramap, natTracer, nullTracer, traceWith )
+    ( Tracer (..), contramap, nullTracer, traceWith )
 import Control.Tracer.Transformers.ObserveOutcome
     ( Outcome (..)
     , OutcomeFidelity (..)
@@ -397,11 +396,6 @@ produceTimings f trDiffTime = do
 {-------------------------------------------------------------------------------
                                Tracer conversions
 -------------------------------------------------------------------------------}
-
--- | Convert an IO tracer to a 'm' tracer.
-unliftIOTracer :: MonadIO m => Tracer IO a -> Tracer m a
-unliftIOTracer = natTracer liftIO
-
 -- | Conditional mapping of a 'Tracer'.
 flatContramapTracer
     :: Monad m

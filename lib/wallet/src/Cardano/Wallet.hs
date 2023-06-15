@@ -379,7 +379,6 @@ import Cardano.Wallet.Logging
     , formatResultMsg
     , resultSeverity
     , traceResult
-    , unliftIOTracer
     )
 import Cardano.Wallet.Network
     ( ChainFollowLog (..)
@@ -2476,26 +2475,19 @@ submitTx tr DBLayer{walletState, atomically} nw tx@BuiltTx{..} =
 -- NOTE: external transactions will not be added to the LocalTxSubmission pool,
 -- so the user must retry submission themselves.
 submitExternalTx
-    :: forall ctx ktype k.
-        ( HasNetworkLayer IO ctx
-        , HasTransactionLayer k ktype ctx
-        , HasLogger IO TxSubmitLog ctx
-        )
-    => ctx
+    :: Tracer IO TxSubmitLog
+    -> NetworkLayer IO block
+    -> TransactionLayer k ktype SealedTx
     -> SealedTx
     -> ExceptT ErrPostTx IO Tx
-submitExternalTx ctx sealedTx = do
+submitExternalTx tr nw tl sealedTx = do
     -- FIXME: We read the current era to constrain the @sealedTx@ **twice**:
     -- once here for decodeTx, and once in postTx before submitting.
     era <- liftIO $ currentNodeEra nw
     let (tx, _, _, _, _, _) = decodeTx tl era AnyWitnessCountCtx sealedTx
-    let trPost = contramap (MsgSubmitExternalTx (tx ^. #txId)) (ctx ^. logger)
-    traceResult trPost $ do
+    traceResult (MsgSubmitExternalTx (tx ^. #txId) >$< tr) $ do
         postTx nw sealedTx
         pure tx
-  where
-    tl = ctx ^. transactionLayer @k @ktype
-    nw = ctx ^. networkLayer
 
 -- | Remove a pending or expired transaction from the transaction history. This
 -- happens at the request of the user. If the transaction is already on chain,
@@ -2519,16 +2511,13 @@ forgetTx ctx txid =
 -- slot numbers for first submission and most recent submission are
 -- included.
 readLocalTxSubmissionPending
-    :: forall m s ctx.
-        ( HasDBLayer m s ctx
-        )
-    => ctx
+    :: WalletLayer m s
     -> m [TxSubmissionsStatus]
 readLocalTxSubmissionPending ctx = db & \DBLayer{..} ->
     atomically
         $ readLocalTxSubmissionPending' <$> readDBVar walletState
   where
-    db = ctx ^. dbLayer @m @s
+    db = ctx ^. dbLayer
 
     readLocalTxSubmissionPending' =
           filter Submissions.isInSubmission
@@ -2572,20 +2561,17 @@ defaultLocalTxSubmissionConfig = LocalTxSubmissionConfig 1 10
 --
 -- This only exits if the network layer 'watchNodeTip' function exits.
 runLocalTxSubmissionPool
-    :: forall ctx s m.
+    :: forall s m.
         ( MonadUnliftIO m
         , MonadMonotonicTime m
-        , HasLogger IO WalletWorkerLog ctx
-        , HasNetworkLayer m ctx
-        , HasDBLayer m s ctx
         )
     => LocalTxSubmissionConfig
-    -> ctx
+    -> WalletLayer m s
     -> m ()
 runLocalTxSubmissionPool cfg ctx = db & \DBLayer{..} -> do
     submitPending <- rateLimited $ \bh -> bracketTracer trBracket $ do
         sp <- currentSlottingParameters nw
-        pending <- readLocalTxSubmissionPending @m @s ctx
+        pending <- readLocalTxSubmissionPending ctx
         let sl = bh ^. #slotNo
             pendingOldStyle = pending >>= mkLocalTxSubmission
         -- Re-submit transactions due, ignore errors
@@ -2595,16 +2581,15 @@ runLocalTxSubmissionPool cfg ctx = db & \DBLayer{..} -> do
             atomically $ resubmitTx (st ^. #txId) (st ^. #submittedTx) sl
     watchNodeTip nw submitPending
   where
-    nw = ctx ^. networkLayer @m
-    db = ctx ^. dbLayer @m @s
+    nw = networkLayer_ ctx
+    db = dbLayer_ ctx
 
     isScheduled sp now =
         (<= now) . scheduleLocalTxSubmission (blockInterval cfg) sp
 
     rateLimited = throttle (rateLimit cfg) . const
 
-    tr = unliftIOTracer $ contramap (MsgWallet . MsgTxSubmit) $
-        ctx ^. logger @_ @WalletWorkerLog
+    tr = contramap (MsgWallet . MsgTxSubmit) $ logger_ ctx
     trBracket = contramap MsgProcessPendingPool tr
     trRetry i = contramap (MsgRetryPostTx i) tr
 
