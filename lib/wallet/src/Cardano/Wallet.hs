@@ -2033,7 +2033,7 @@ buildSignSubmitTransaction db@DBLayer{..} netLayer txLayer
                 (Delta.onDBVar walletState . Delta.updateWithResultAndError)) $
                 \s -> do
                     let wallet = WalletState.getLatest s
-                    let utxo = availableUTxO @s (Set.fromList pendingTxs) wallet
+                    let utxo = availableUTxO (Set.fromList pendingTxs) wallet
                     buildAndSignTransactionPure @k @s
                         timeTranslation
                         utxo
@@ -2303,11 +2303,8 @@ unsafeShelleyOnlyGetRewardXPub walletState =
 -- do so, use 'submitTx'.
 --
 buildAndSignTransaction
-    :: forall ctx s k.
-        ( HasTransactionLayer k 'CredFromKeyK ctx
-        , HasDBLayer IO s ctx
-        , HasNetworkLayer IO ctx
-        , IsOurs s Address
+    :: forall s k.
+        ( IsOurs s Address
         , k ~ KeyOf s
         , HasSNetworkId (NetworkOf s)
         , CredFromOf s ~ 'CredFromKeyK
@@ -2322,7 +2319,7 @@ buildAndSignTransaction
     -> SelectionOf TxOut
     -> ExceptT ErrSignPayment IO (Tx, TxMeta, UTCTime, SealedTx)
 buildAndSignTransaction ctx wid era mkRwdAcct pwd txCtx sel = db & \DBLayer{..} ->
-    withRootKey @s db wid pwd ErrSignPaymentWithRootKey $ \xprv scheme -> do
+    withRootKey db wid pwd ErrSignPaymentWithRootKey $ \xprv scheme -> do
         let pwdP = preparePassphrase scheme pwd
         mapExceptT atomically $ do
             cp <- lift readCheckpoint
@@ -2354,8 +2351,8 @@ buildAndSignTransaction ctx wid era mkRwdAcct pwd txCtx sel = db & \DBLayer{..} 
             pure (tx, meta, time, sealedTx)
   where
     wF = walletFlavor @s
-    db = ctx ^. dbLayer @IO @s
-    tl = ctx ^. transactionLayer @k @'CredFromKeyK
+    db = ctx ^. dbLayer
+    tl = transactionLayer_ ctx
     nl = ctx ^. networkLayer
     ti = timeInterpreter nl
     tipSlotStartTime tipHeader = interpretQuery
@@ -2864,7 +2861,7 @@ delegationFee
 delegationFee db@DBLayer{..} netLayer txLayer changeAddressGen = do
     (Write.InAnyRecentEra era protocolParams, timeTranslation)
         <- readNodeTipStateForTxWrite netLayer
-    feePercentiles <- transactionFee @s
+    feePercentiles <- transactionFee
         db protocolParams txLayer timeTranslation changeAddressGen
         defaultTransactionCtx
         -- It would seem that we should add a delegation action
@@ -2913,7 +2910,7 @@ transactionFee DBLayer{atomically, walletState} protocolParams txLayer
             -- fully evaluated, as all fields of the 'UTxOIndex' type are
             -- strict, and each field is defined in terms of 'Data.Map.Strict'.
             --
-            evaluate $ constructUTxOIndex $ availableUTxO @s mempty wallet
+            evaluate $ constructUTxOIndex $ availableUTxO mempty wallet
         unsignedTxBody <- wrapErrMkTransaction $
             mkUnsignedTransaction txLayer @era
                 (Left $ unsafeShelleyOnlyGetRewardXPub @s (getState wallet))

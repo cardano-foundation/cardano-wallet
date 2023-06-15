@@ -3874,7 +3874,7 @@ migrateWallet ctx@ApiLayer{..} withdrawalType (ApiT wid) postData = do
                     , txDelegationAction = Nothing
                     }
             (tx, txMeta, txTime, sealedTx) <- liftHandler $
-                W.buildAndSignTransaction @_ @s
+                W.buildAndSignTransaction
                     wrk
                     wid
                     era
