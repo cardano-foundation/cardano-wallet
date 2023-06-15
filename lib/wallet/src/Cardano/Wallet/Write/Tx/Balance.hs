@@ -50,8 +50,6 @@ module Cardano.Wallet.Write.Tx.Balance
 
 import Prelude
 
-import Cardano.Address.Script
-    ( KeyHash, ScriptTemplate )
 import Cardano.BM.Data.Tracer
     ( HasPrivacyAnnotation, HasSeverityAnnotation, Tracer )
 import Cardano.BM.Tracing
@@ -78,8 +76,6 @@ import Cardano.Tx.Balance.Internal.CoinSelection
     )
 import Cardano.Wallet.Primitive.Types
     ( TokenBundleMaxSize (TokenBundleMaxSize) )
-import Cardano.Wallet.Primitive.Types.Address
-    ( Address )
 import Cardano.Wallet.Primitive.Types.Redeemer
     ( Redeemer )
 import Cardano.Wallet.Primitive.Types.TokenBundle
@@ -113,8 +109,6 @@ import Cardano.Wallet.Transaction
     , TxFeeAndChange (..)
     , defaultTransactionCtx
     )
-import Cardano.Wallet.TxWitnessTag
-    ( TxWitnessTag (..) )
 import Cardano.Wallet.Write.ProtocolParameters
     ( ProtocolParameters (..) )
 import Cardano.Wallet.Write.Tx
@@ -141,6 +135,8 @@ import Cardano.Wallet.Write.Tx
     )
 import Cardano.Wallet.Write.Tx.TimeTranslation
     ( TimeTranslation )
+import Cardano.Wallet.Write.UTxOAssumptions
+    ( UTxOAssumptions (..), assumedInputScriptTemplate, assumedTxWitnessTag )
 import Control.Arrow
     ( left )
 import Control.Monad
@@ -198,7 +194,6 @@ import System.Random.StdGenSeed
 import Text.Pretty.Simple
     ( pShow )
 
-import qualified Cardano.Address.Script as CA
 import qualified Cardano.Api as Cardano
 import qualified Cardano.Api.Byron as Cardano
 import qualified Cardano.Api.Shelley as Cardano
@@ -346,35 +341,6 @@ constructUTxOIndex walletUTxO =
   where
     walletUTxOIndex = UTxOIndex.fromMap $ toInternalUTxOMap walletUTxO
     cardanoUTxO = toCardanoUTxO Cardano.shelleyBasedEra walletUTxO
-
-
--- | Assumptions about the UTxO which are needed for coin-selection.
-data UTxOAssumptions
-    = AllKeyPaymentCredentials
-    -- ^ Assumes all 'UTxO' entries have addresses with the post-Shelley
-    -- key payment credentials.
-    | AllByronKeyPaymentCredentials
-    -- ^ Assumes all 'UTxO' entries have addresses with the boostrap/byron
-    -- key payment credentials.
-    | AllScriptPaymentCredentialsFrom
-    -- ^ Assumes all 'UTxO' entries have addresses with script
-    -- payment credentials, where the scripts are both derived
-    -- from the 'ScriptTemplate' and can be looked up using the given function.
-        !ScriptTemplate
-        !(Address -> CA.Script KeyHash)
-
-assumedInputScriptTemplate :: UTxOAssumptions -> Maybe ScriptTemplate
-assumedInputScriptTemplate = \case
-    AllKeyPaymentCredentials -> Nothing
-    AllByronKeyPaymentCredentials -> Nothing
-    AllScriptPaymentCredentialsFrom scriptTemplate _ -> Just scriptTemplate
-
-assumedTxWitnessTag :: UTxOAssumptions -> TxWitnessTag
-assumedTxWitnessTag = \case
-    AllKeyPaymentCredentials -> TxWitnessShelleyUTxO
-    AllByronKeyPaymentCredentials -> TxWitnessByronUTxO
-    AllScriptPaymentCredentialsFrom {} -> TxWitnessShelleyUTxO
-
 
 balanceTransaction
     :: forall era m changeState.

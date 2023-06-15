@@ -163,9 +163,8 @@ import GHC.TypeLits
 import Type.Reflection
     ( Typeable )
 
-import qualified Cardano.Ledger.Address as Ledger
-import qualified Cardano.Ledger.Credential as Ledger
 import qualified Cardano.Wallet.Address.Pool as AddressPool
+import qualified Cardano.Wallet.Write.UTxOAssumptions as UTxOAssumptions
 import qualified Data.List as L
 import qualified Data.List.NonEmpty as NE
 import qualified Data.Map.Strict as Map
@@ -738,14 +737,11 @@ instance KnownNat p => IsOurs (SeqAnyState n k p) Address where
         double :: Integral a => a -> Double
         double = fromIntegral
 
-        -- ADP-3056: Consider making this implementation a part of a
-        -- @validate :: UTxOAssumptions -> Address -> Bool@ function
-        -- somewhere in the Write module hierarchy.
-        correctAddressType :: Bool
-        correctAddressType = case toLedger (Address bytes) of
-            Ledger.Addr _net (Ledger.KeyHashObj _) _ -> True
-            Ledger.Addr _net (Ledger.ScriptHashObj _) _ -> True
-            Ledger.AddrBootstrap _ -> False
+        correctAddressType =
+            UTxOAssumptions.validateAddress
+                UTxOAssumptions.AllKeyPaymentCredentials
+                (toLedger $ Address bytes)
+
 instance IsOurs (SeqAnyState n k p) RewardAccount where
     isOurs _account state = (Nothing, state)
 
