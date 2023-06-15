@@ -87,9 +87,7 @@ import Cardano.Wallet.DB.Pure.Implementation
     , TxHistory
     , WalletDatabase (..)
     , mInitializeWallet
-    , mIsStakeKeyRegistered
     , mListCheckpoints
-    , mPutDelegationCertificate
     , mPutDelegationRewardBalance
     , mPutTxHistory
     , mReadCheckpoint
@@ -106,7 +104,6 @@ import Cardano.Wallet.Primitive.Types
     ( BlockHeader (..)
     , ChainPoint
     , DecentralizationLevel
-    , DelegationCertificate
     , EpochNo (..)
     , ExecutionUnits (..)
     , FeePolicy
@@ -300,8 +297,6 @@ data Cmd s wid
     | GetTx (Hash "Tx")
     | ReadGenesisParameters
     | RollbackTo wid Slot
-    | PutDelegationCertificate DelegationCertificate SlotNo
-    | IsStakeKeyRegistered wid
     | PutDelegationRewardBalance wid Coin
     | ReadDelegationRewardBalance
     deriving stock (Show, Generic1, Eq, Functor, Foldable, Traversable)
@@ -347,10 +342,7 @@ runMock = \case
         first (Resp . fmap ChainPoints) . mListCheckpoints
     ReadCheckpoint ->
         first (Resp . fmap Checkpoint) . mReadCheckpoint
-    PutDelegationCertificate cert sl ->
-        first (Resp . fmap Unit) . mPutDelegationCertificate cert sl
-    IsStakeKeyRegistered _wid ->
-        first (Resp . fmap StakeKeyStatus) . mIsStakeKeyRegistered
+
     PutTxHistory txs ->
         first (Resp . fmap Unit) . mPutTxHistory txs
     ReadTxHistory minW order range status ->
@@ -405,10 +397,6 @@ runIO DBLayer{..} = fmap Resp . go
             atomically readCheckpoint
         ListCheckpoints -> Right . ChainPoints <$>
             atomically listCheckpoints
-        PutDelegationCertificate pool sl ->
-            runDBSuccess atomically Unit $ putDelegationCertificate pool sl
-        IsStakeKeyRegistered _wid ->
-            runDBSuccess atomically StakeKeyStatus isStakeKeyRegistered
         PutTxHistory txs -> runDBSuccess atomically Unit $ putTxHistory txs
         ReadTxHistory minWith order range status ->
             fmap (Right . TxHistory) $
@@ -535,10 +523,6 @@ generatorWithWid wids =
         $ pure ReadCheckpoint
     , declareGenerator "ListCheckpoints" 5
         $ pure ListCheckpoints
-    , declareGenerator "PutDelegationCertificate" 5
-        $ PutDelegationCertificate <$> arbitrary <*> arbitrary
-    , declareGenerator "IsStakeKeyRegistered" 1
-        $ IsStakeKeyRegistered <$> genId
     , declareGenerator "PutTxHistory" 5
         $ PutTxHistory <$> fmap unGenTxHistory arbitrary
     , declareGenerator "ReadTxHistory" 5

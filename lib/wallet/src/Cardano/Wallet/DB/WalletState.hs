@@ -50,6 +50,8 @@ import Cardano.Wallet.Address.Derivation
     ( Depth (RootK) )
 import Cardano.Wallet.Checkpoints
     ( Checkpoints )
+import Cardano.Wallet.DB.Store.Delegations.Model
+    ( Delegations, DeltaDelegations )
 import Cardano.Wallet.DB.Store.Info.Store
     ( DeltaWalletInfo, WalletInfo (..) )
 import Cardano.Wallet.DB.Store.PrivateKey.Store
@@ -135,6 +137,7 @@ data WalletState s = WalletState
     , submissions :: !TxSubmissions
     , info :: !WalletInfo
     , credentials :: Maybe (HashedCredentials (KeyOf s))
+    , delegations :: Delegations
     } deriving (Generic)
 
 deriving instance
@@ -156,6 +159,7 @@ fromGenesis cp winfo
                 , submissions = emptyTxSubmissions
                 , info = winfo
                 , credentials = Nothing
+                , delegations = mempty
                 }
     | otherwise = Nothing
   where
@@ -184,6 +188,7 @@ data DeltaWalletState1 s
     | UpdateSubmissions DeltaTxSubmissions
     | UpdateInfo DeltaWalletInfo
     | UpdateCredentials (DeltaPrivateKey (KeyOf s))
+    | UpdateDelegations DeltaDelegations
 
 instance Delta (DeltaWalletState1 s) where
     type Base (DeltaWalletState1 s) = WalletState s
@@ -192,6 +197,7 @@ instance Delta (DeltaWalletState1 s) where
     apply (UpdateSubmissions d) = over #submissions $ apply d
     apply (UpdateInfo d) = over #info $ apply d
     apply (UpdateCredentials d) = over #credentials $ apply d
+    apply (UpdateDelegations d) = over #delegations $ apply d
 
 instance Buildable (DeltaWalletState1 s) where
     build (ReplacePrologue _) = "ReplacePrologue …"
@@ -199,6 +205,7 @@ instance Buildable (DeltaWalletState1 s) where
     build (UpdateSubmissions d) = "UpdateSubmissions (" <> build d <> ")"
     build (UpdateInfo d) = "UpdateInfo (" <> build d <> ")"
     build (UpdateCredentials _d) = "UpdatePrivateKey"
+    build (UpdateDelegations d) = "UpdateDelegations (" <> build d <> ")"
 
 instance Show (DeltaWalletState1 s) where
     show = pretty

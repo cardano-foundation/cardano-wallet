@@ -109,6 +109,10 @@ module Cardano.Wallet
     , ErrWritePolicyPublicKey (..)
     , ErrGetPolicyId (..)
     , readWalletMeta
+    , isStakeKeyRegistered
+    , putDelegationCertificate
+    , readDelegation
+    , getCurrentEpochSlotting
 
     -- * Shared Wallet
     , updateCosigner
@@ -338,6 +342,8 @@ import Cardano.Wallet.DB
     )
 import Cardano.Wallet.DB.Errors
     ( ErrNoSuchWallet (..) )
+import Cardano.Wallet.DB.Store.Delegations.Layer
+    ( CurrentEpochSlotting, mkCurrentEpochSlotting )
 import Cardano.Wallet.DB.Store.Info.Store
     ( DeltaWalletInfo (..), WalletInfo (..) )
 import Cardano.Wallet.DB.Store.Submissions.Layer
@@ -651,10 +657,12 @@ import qualified Cardano.Wallet.Address.Discovery.Random as Rnd
 import qualified Cardano.Wallet.Address.Discovery.Sequential as Seq
 import qualified Cardano.Wallet.Address.Discovery.Shared as Shared
 import qualified Cardano.Wallet.Checkpoints.Policy as CP
+import qualified Cardano.Wallet.DB.Store.Delegations.Layer as Dlgs
 import qualified Cardano.Wallet.DB.Store.Submissions.Layer as Submissions
 import qualified Cardano.Wallet.DB.WalletState as WS
 import qualified Cardano.Wallet.DB.WalletState as WalletState
 import qualified Cardano.Wallet.Primitive.Migration as Migration
+import qualified Cardano.Wallet.Primitive.Slotting as Slotting
 import qualified Cardano.Wallet.Primitive.Types as W
 import qualified Cardano.Wallet.Primitive.Types.Coin as Coin
 import qualified Cardano.Wallet.Primitive.Types.TokenBundle as TokenBundle
@@ -904,25 +912,47 @@ putPrivateKey
 putPrivateKey walletState (pk, hpw) = onDBVar walletState $ update $ \_ ->
     [UpdateCredentials $ Replace $ Just $ RootCredentials pk hpw]
 
+readDelegation
+    :: Monad stm
+    => DBVar stm (DeltaWalletState s)
+    -> stm (CurrentEpochSlotting -> WalletDelegation)
+readDelegation walletState = do
+    dels <- view #delegations <$> readDBVar walletState
+    pure $ \dsarg -> Dlgs.readDelegation dsarg dels
+
+getCurrentEpochSlotting
+    :: NetworkLayer IO block
+    -> IO CurrentEpochSlotting
+getCurrentEpochSlotting nl = do
+    epoch <- Slotting.currentEpoch ti
+    mkCurrentEpochSlotting ti epoch
+  where
+    ti = neverFails "currentEpoch is past horizon" $ timeInterpreter nl
+
 -- | Retrieve the wallet state for the wallet with the given ID.
 readWallet
     :: forall ctx s
-     . HasDBLayer IO s ctx
+     . (HasDBLayer IO s ctx, HasNetworkLayer IO ctx)
     => ctx
     -> IO (Wallet s, (WalletMetadata, WalletDelegation), Set Tx)
-readWallet ctx = db & \DBLayer{..} -> atomically $ do
-    cp <- readCheckpoint
-    meta <- readWalletMeta walletState
-    dele <- readDelegation
-    pending <- readTransactions
-        Nothing
-        Descending
-        wholeRange
-        (Just Pending)
-        Nothing
-    pure (cp, (meta, dele) , Set.fromList (fromTransactionInfo <$> pending))
+readWallet ctx = do
+    currentEpochSlotting <- getCurrentEpochSlotting nl
+    db & \DBLayer{..} -> atomically $ do
+        cp <- readCheckpoint
+        meta <- readWalletMeta walletState
+        dele <- readDelegation walletState
+        pending <-
+            readTransactions
+                Nothing
+                Descending
+                wholeRange
+                (Just Pending)
+                Nothing
+        pure (cp, (meta, dele currentEpochSlotting), Set.fromList (fromTransactionInfo <$> pending))
+
   where
     db = ctx ^. dbLayer @IO @s
+    nl = ctx ^. networkLayer
 
 walletSyncProgress
     :: forall ctx s. HasNetworkLayer IO ctx
@@ -1027,7 +1057,9 @@ getWalletUtxoSnapshot ctx = do
 -- | List the wallet's UTxO statistics.
 listUtxoStatistics
     :: forall ctx s
-     . HasDBLayer IO s ctx
+     . ( HasDBLayer IO s ctx
+       , HasNetworkLayer IO ctx
+       )
     => ctx
     -> IO UTxOStatistics
 listUtxoStatistics ctx = do
@@ -1229,7 +1261,7 @@ restoreBlocks ctx tr blocks nodeTip = db & \DBLayer{..} -> atomically $ do
 
     forM_ slotPoolDelegations $ \delegation@(slotNo, cert) -> do
             liftIO $ logDelegation delegation
-            putDelegationCertificate cert slotNo
+            putDelegationCertificate walletState cert slotNo
 
     Delta.onDBVar walletState $ Delta.update $ \_wallet ->
         deltaPrologue
@@ -1252,6 +1284,16 @@ restoreBlocks ctx tr blocks nodeTip = db & \DBLayer{..} -> atomically $ do
     isParentOf :: Wallet s -> BlockHeader -> Bool
     isParentOf cp = (== Just parent) . parentHeaderHash
       where parent = headerHash $ currentTip cp
+
+putDelegationCertificate
+    :: Monad stm
+    => DBVar stm (DeltaWalletState s)
+    -> DelegationCertificate
+    -> SlotNo
+    -> stm ()
+putDelegationCertificate walletState cert slot
+    = onDBVar walletState $ update $ \_ ->
+        [UpdateDelegations $ Dlgs.putDelegationCertificate cert slot]
 
 -- | Fetch the cached reward balance of a given wallet from the database.
 fetchRewardBalance :: forall s . DBLayer IO s -> IO Coin
@@ -1840,7 +1882,9 @@ buildCoinSelectionForTransaction
 -- 'selectAssetsNoOutputs'.
 readWalletUTxO
     :: forall ctx s
-     . HasDBLayer IO s ctx
+     . ( HasDBLayer IO s ctx
+       , HasNetworkLayer IO ctx
+       )
     => ctx
     -> IO (UTxO, Wallet s, Set Tx)
 readWalletUTxO ctx = do
@@ -2835,6 +2879,14 @@ getStakeKeyDeposit = toWallet
     . Write.stakeKeyDeposit (recentEra @era)
     . Write.pparamsLedger
 
+isStakeKeyRegistered
+    :: Functor stm
+    => DBVar stm (DeltaWalletState s)
+    -> stm Bool
+isStakeKeyRegistered walletState =
+    Dlgs.isStakeKeyRegistered . view #delegations
+        <$> readDBVar walletState
+
 delegationFee
     :: forall s
      . ( AddressBookIso s
@@ -2857,7 +2909,7 @@ delegationFee db@DBLayer{..} netLayer txLayer changeAddressGen = do
         -- previously, and the difference should be negligible.
         (PreSelection [])
     deposit <- liftIO
-        $ atomically isStakeKeyRegistered <&> \case
+        $ atomically (isStakeKeyRegistered walletState) <&> \case
             False -> toWallet
                 $ Write.stakeKeyDeposit era
                 $ Write.pparamsLedger protocolParams

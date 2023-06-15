@@ -88,11 +88,9 @@ import Cardano.Wallet.DB.Sqlite.Migration.Old
     ( DefaultFieldValues (..), migrateManually )
 import Cardano.Wallet.DB.Sqlite.Schema
     ( CBOR (..)
-    , DelegationCertificate (..)
     , DelegationReward (..)
     , EntityField (..)
     , Key (..)
-    , StakeKeyCertificate (..)
     , TxMeta (..)
     , Wallet (..)
     , migrateAll
@@ -138,7 +136,7 @@ import Cardano.Wallet.DB.WalletState
 import Cardano.Wallet.Flavor
     ( KeyFlavorS, WalletFlavorS, keyOfWallet )
 import Cardano.Wallet.Primitive.Slotting
-    ( TimeInterpreter, firstSlotInEpoch, hoistTimeInterpreter, interpretQuery )
+    ( TimeInterpreter, hoistTimeInterpreter )
 import Cardano.Wallet.Read.Eras.EraValue
     ( EraValue )
 import Cardano.Wallet.Read.Tx.CBOR
@@ -163,12 +161,10 @@ import Data.Coerce
     ( coerce )
 import Data.DBVar
     ( DBVar, initDBVar, loadDBVar, readDBVar )
-import Data.Functor
-    ( (<&>) )
 import Data.Generics.Internal.VL.Lens
     ( (^.) )
 import Data.Maybe
-    ( catMaybes, fromMaybe, maybeToList )
+    ( catMaybes, fromMaybe )
 import Data.Store
     ( Store (..), UpdateStore )
 import Data.Text
@@ -179,17 +175,12 @@ import Data.Word
     ( Word32 )
 import Database.Persist.Sql
     ( Entity (..)
-    , Filter
     , SelectOpt (..)
-    , deleteWhere
     , repsert
     , selectFirst
     , selectKeysList
     , selectList
-    , (<.)
     , (==.)
-    , (>.)
-    , (>=.)
     )
 import Database.Persist.Sqlite
     ( SqlPersistT )
@@ -206,6 +197,7 @@ import UnliftIO.Exception
 import UnliftIO.MVar
     ( modifyMVar, modifyMVar_, newMVar, readMVar )
 
+import qualified Cardano.Wallet.Delegation.Model as Dlgs
 import qualified Cardano.Wallet.Primitive.Model as W
 import qualified Cardano.Wallet.Primitive.Types as W
 import qualified Cardano.Wallet.Primitive.Types.Coin as Coin
@@ -570,12 +562,15 @@ newDBFreshFromDBOpen wF ti wid_ DBOpen{atomically=atomically_} =
                 case findNearestPoint wal requestedPoint of
                     Nothing -> throw $ ErrNoOlderCheckpoint wid_ requestedPoint
                     Just nearestPoint ->
+                        let nearestSlotNo = case nearestPoint of
+                                        { At s -> s; Origin -> 0 }
+                        in
                         (  [ UpdateCheckpoints
                                 [ RollbackTo nearestPoint ]
                             , UpdateSubmissions
-                                $ rollBackSubmissions $
-                                    case nearestPoint of
-                                        { At s -> s; Origin -> 0 }
+                                $ rollBackSubmissions nearestSlotNo
+                            , UpdateDelegations
+                                [Dlgs.Rollback nearestSlotNo]
                             ]
                         ,   case Map.lookup nearestPoint
                                     (wal ^. #checkpoints . #checkpoints) of
@@ -585,12 +580,6 @@ newDBFreshFromDBOpen wF ti wid_ DBOpen{atomically=atomically_} =
                         )
             let currentTip = nearestCheckpoint ^. #currentTip
                 nearestPoint = currentTip ^. #slotNo
-            deleteDelegationCertificates wid_
-                [ CertSlot >. nearestPoint
-                ]
-            deleteStakeKeyCerts wid_
-                [ StakeKeyCertSlot >. nearestPoint
-                ]
             updateS transactionsQS Nothing $
                 RollbackTxWalletsHistory nearestPoint
             pure $ W.chainPointFromBlockHeader currentTip
@@ -617,7 +606,7 @@ newDBFreshFromDBOpen wF ti wid_ DBOpen{atomically=atomically_} =
         , mkDecorator_ = mkDecorator transactionsQS
         }
 
-    dbDelegation = mkDBDelegation ti wid_
+    dbDelegation = mkDBDelegation wid_
 
 
 mkDBFreshFromParts
@@ -687,46 +676,13 @@ mkDecorator transactionsQS =
                             Wallet Delegation
 -----------------------------------------------------------------------}
 
-mkDBDelegation ::
-    TimeInterpreter IO -> W.WalletId -> DBDelegation (SqlPersistT IO)
-mkDBDelegation ti wid =
+mkDBDelegation :: W.WalletId -> DBDelegation (SqlPersistT IO)
+mkDBDelegation wid =
     DBDelegation
-        { isStakeKeyRegistered_
-        , putDelegationCertificate_
-        , putDelegationRewardBalance_
+        { putDelegationRewardBalance_
         , readDelegationRewardBalance_
-        , readDelegation_
         }
   where
-    isStakeKeyRegistered_ :: SqlPersistT IO Bool
-    isStakeKeyRegistered_ = do
-        val <- fmap entityVal <$>
-            selectFirst [StakeKeyCertWalletId ==. wid] [Desc StakeKeyCertSlot]
-        pure $
-            case val of
-                Nothing -> False
-                Just (StakeKeyCertificate _ _ status) ->
-                    status == W.StakeKeyRegistration
-
-    putDelegationCertificate_ ::
-        W.DelegationCertificate -> W.SlotNo -> SqlPersistT IO ()
-    putDelegationCertificate_ cert sl =
-        case cert of
-            W.CertDelegateNone _ -> do
-                repsert
-                    (DelegationCertificateKey wid sl)
-                    (DelegationCertificate wid sl Nothing)
-                repsert
-                    (StakeKeyCertificateKey wid sl)
-                    (StakeKeyCertificate wid sl W.StakeKeyDeregistration)
-            W.CertDelegateFull _ pool ->
-                repsert
-                    (DelegationCertificateKey wid sl)
-                    (DelegationCertificate wid sl (Just pool))
-            W.CertRegisterKey _ ->
-                repsert
-                    (StakeKeyCertificateKey wid sl)
-                    (StakeKeyCertificate wid sl W.StakeKeyRegistration)
 
     putDelegationRewardBalance_ :: Coin.Coin -> SqlPersistT IO ()
     putDelegationRewardBalance_ amount =
@@ -739,44 +695,6 @@ mkDBDelegation ti wid =
         Coin.fromWord64 . maybe 0 (rewardAccountBalance . entityVal) <$>
             selectFirst [RewardWalletId ==. wid] []
 
-    readDelegation_ :: W.EpochNo -> SqlPersistT IO W.WalletDelegation
-    readDelegation_ epoch = case epoch of
-        0 -> do
-            currEpochStartSlot <-
-                liftIO $ interpretQuery ti $ firstSlotInEpoch epoch
-            let nextDelegations =
-                    readDelegationStatus [CertSlot >=. currEpochStartSlot]
-                    <&> maybeToList . (<&> W.WalletDelegationNext (epoch + 2))
-            W.WalletDelegation W.NotDelegating <$> nextDelegations
-        _ -> do
-            (prevEpochStartSlot, currEpochStartSlot) <-
-                liftIO $ interpretQuery ti $
-                    (,) <$> firstSlotInEpoch (epoch - 1)
-                        <*> firstSlotInEpoch epoch
-            let currentDelegation =
-                    readDelegationStatus [CertSlot <. prevEpochStartSlot]
-                        <&> fromMaybe W.NotDelegating
-            let nextDelegations = catMaybes <$> sequence
-                    [ readDelegationStatus
-                        [ CertSlot >=. prevEpochStartSlot
-                        , CertSlot <. currEpochStartSlot
-                        ] <&> (<&> W.WalletDelegationNext (epoch + 1))
-                    , readDelegationStatus
-                        [CertSlot >=. currEpochStartSlot]
-                        <&> (<&> W.WalletDelegationNext (epoch + 2))
-                    ]
-            W.WalletDelegation <$> currentDelegation <*> nextDelegations
-      where
-        readDelegationStatus =
-            (fmap . fmap) toWalletDelegationStatus
-                . readDelegationCertificate wid
-
-readDelegationCertificate
-    :: W.WalletId
-    -> [Filter DelegationCertificate]
-    -> SqlPersistT IO (Maybe DelegationCertificate)
-readDelegationCertificate wid filters = fmap entityVal
-    <$> selectFirst ((CertWalletId ==. wid) : filters) [Desc CertSlot]
 
 {-------------------------------------------------------------------------------
     Conversion between types
@@ -784,14 +702,6 @@ readDelegationCertificate wid filters = fmap entityVal
         and from the wallet core ( Cardano.Wallet.Primitive.Types.*)
 -------------------------------------------------------------------------------}
 
-toWalletDelegationStatus
-    :: DelegationCertificate
-    -> W.WalletDelegationStatus
-toWalletDelegationStatus = \case
-    DelegationCertificate _ _ Nothing ->
-        W.NotDelegating
-    DelegationCertificate _ _ (Just pool) ->
-        W.Delegating pool
 
 genesisParametersFromEntity
     :: Wallet
@@ -807,22 +717,6 @@ genesisParametersFromEntity (Wallet _ _ _ _ _ hash startTime) =
 {-------------------------------------------------------------------------------
     SQLite database operations
 -------------------------------------------------------------------------------}
-
--- | Delete stake key certificates for a wallet.
-deleteStakeKeyCerts
-    :: W.WalletId
-    -> [Filter StakeKeyCertificate]
-    -> SqlPersistT IO ()
-deleteStakeKeyCerts wid filters =
-    deleteWhere ((StakeKeyCertWalletId ==. wid) : filters)
-
--- | Delete all delegation certificates matching the given filter
-deleteDelegationCertificates
-    :: W.WalletId
-    -> [Filter DelegationCertificate]
-    -> SqlPersistT IO ()
-deleteDelegationCertificates wid filters = do
-    deleteWhere ((CertWalletId ==. wid) : filters)
 
 -- | For a given 'TxMeta', read all necessary data to construct
 -- the corresponding 'W.TransactionInfo'.

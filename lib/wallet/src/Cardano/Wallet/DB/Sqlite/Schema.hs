@@ -30,8 +30,6 @@ import Prelude
 
 import Cardano.Address.Script
     ( Cosigner, Script )
-import Cardano.Pool.Types
-    ( PoolId )
 import Cardano.Slotting.Slot
     ( SlotNo )
 import Cardano.Wallet.Address.Discovery.Shared
@@ -263,26 +261,6 @@ ProtocolParameters
 
     Primary protocolParametersWalletId
     Foreign Wallet OnDeleteCascade fk_wallet_protocol_parameters protocolParametersWalletId
-    deriving Show Generic
-
--- Track whether the wallet's stake key is registered or not.
-StakeKeyCertificate
-    stakeKeyCertWalletId             W.WalletId            sql=wallet_id
-    stakeKeyCertSlot                 SlotNo                sql=slot
-    stakeKeyCertType                 W.StakeKeyCertificate sql=type
-
-    Primary stakeKeyCertWalletId stakeKeyCertSlot
-    Foreign Wallet OnDeleteCascade stakeKeyRegistration stakeKeyCertWalletId
-    deriving Show Generic
-
--- Store known delegation certificates for a particular wallet
-DelegationCertificate
-    certWalletId             W.WalletId     sql=wallet_id
-    certSlot                 SlotNo         sql=slot
-    certPoolId               PoolId Maybe sql=delegation
-
-    Primary certWalletId certSlot
-    Foreign Wallet OnDeleteCascade delegationCertificate certWalletId
     deriving Show Generic
 
 -- Latest balance of the reward account associated with

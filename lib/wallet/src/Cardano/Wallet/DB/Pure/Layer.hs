@@ -28,9 +28,7 @@ import Cardano.Wallet.DB.Pure.Implementation
     , Err (..)
     , ModelOp
     , mInitializeWallet
-    , mIsStakeKeyRegistered
     , mListCheckpoints
-    , mPutDelegationCertificate
     , mPutDelegationRewardBalance
     , mPutTxHistory
     , mReadCheckpoint
@@ -116,12 +114,6 @@ newDBFresh timeInterpreter wid = do
 
         -- , putWalletMeta = noErrorAlterDB db .  mPutWalletMeta
 
-        , readDelegation = error "MVar.readDelegation: not implemented"
-
-        , putDelegationCertificate = \cert sl -> noErrorAlterDB db $
-            mPutDelegationCertificate cert sl
-
-        , isStakeKeyRegistered = throwErrorReadDB db mIsStakeKeyRegistered
 
         {-----------------------------------------------------------------------
                                      Tx History
