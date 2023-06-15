@@ -411,8 +411,7 @@ import Control.DeepSeq
 import Control.Monad
     ( forM, forM_, join, replicateM, unless, when, (<=<) )
 import Control.Monad.Class.MonadTime
-    ( DiffTime, MonadMonotonicTime (..), MonadTime (..), Time, diffTime,
-    getCurrentTime )
+    ( MonadTime (..) )
 import Control.Monad.IO.Unlift
     ( MonadIO (..), MonadUnliftIO )
 import Control.Monad.Random.Strict
@@ -471,7 +470,7 @@ import Data.Text
 import Data.Text.Class
     ( ToText (..) )
 import Data.Time.Clock
-    ( NominalDiffTime, UTCTime )
+    ( DiffTime, NominalDiffTime, UTCTime )
 import Data.Void
     ( Void )
 import Data.Word
@@ -525,6 +524,8 @@ import qualified Data.List.NonEmpty as NE
 import qualified Data.Set as Set
 import qualified Data.Text as T
 import qualified Data.Vector as V
+import Ouroboros.Consensus.Util.IOLike
+    ( MonadMonotonicTime, Time, diffTime, getMonotonicTime )
 
 -- $Development
 -- __Naming Conventions__
