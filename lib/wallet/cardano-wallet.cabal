@@ -483,6 +483,7 @@ library cardano-wallet-api-http
     , http-types
     , int-cast
     , iohk-monitoring
+    , lens
     , memory
     , mtl
     , network
