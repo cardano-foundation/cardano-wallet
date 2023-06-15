@@ -1055,23 +1055,19 @@ listUtxoStatistics ctx = do
 -- and apply them, or roll back to a previous point whenever
 -- the chain switches.
 restoreWallet
-    :: forall ctx s.
-        ( HasNetworkLayer IO ctx
-        , HasDBLayer IO s ctx
-        , HasLogger IO WalletWorkerLog ctx
-        , HasGenesisData ctx
-        , IsOurs s Address
+    :: forall s.
+        ( IsOurs s Address
         , IsOurs s RewardAccount
         , AddressBookIso s
         , MaybeLight s
         )
-    => ctx
+    => WalletLayer IO s
     -> ExceptT ErrNoSuchWallet IO ()
 restoreWallet ctx = db & \DBLayer{..} ->
     let checkpointPolicy = CP.defaultPolicy
         readChainPoints = atomically listCheckpoints
-        rollBackward = rollbackBlocks @_ @s ctx . toSlot
-        rollForward' = restoreBlocks @_ @s ctx (contramap MsgWalletFollow tr)
+        rollBackward = rollbackBlocks ctx . toSlot
+        rollForward' = restoreBlocks ctx (contramap MsgWalletFollow tr)
     in
       catchFromIO $ case (maybeDiscover, lightSync nw) of
         (Just discover, Just sync) ->
@@ -1090,9 +1086,9 @@ restoreWallet ctx = db & \DBLayer{..} ->
                 , rollBackward
                 }
   where
-    db = ctx ^. dbLayer @IO @s
-    nw = ctx ^. networkLayer @IO
-    tr = ctx ^. logger @_ @WalletWorkerLog
+    db = ctx ^. dbLayer
+    nw = ctx ^. networkLayer
+    tr = ctx ^. logger
     (_block0, NetworkParameters{genesisParameters=gp}) = ctx ^. genesisData
 
     catchFromIO :: IO a -> ExceptT ErrNoSuchWallet IO a
@@ -1136,15 +1132,13 @@ and present it as a checked exception.
 -- | Rewind the UTxO snapshots, transaction history and other information to a
 -- the earliest point in the past that is before or is the point of rollback.
 rollbackBlocks
-    :: forall ctx s
-      . HasDBLayer IO s ctx
-    => ctx
+    :: WalletLayer IO s
     -> Slot
     -> IO ChainPoint
 rollbackBlocks ctx point = db & \DBLayer{..} ->
     atomically $ rollbackTo point
   where
-    db = ctx ^. dbLayer @IO @s
+    db = ctx ^. dbLayer
 
 -- | Apply the given blocks to the wallet and update the wallet state,
 -- transaction history and corresponding metadata.
@@ -1153,14 +1147,11 @@ rollbackBlocks ctx point = db & \DBLayer{..} ->
 -- However, in the future, we may assume that
 -- it is called in a sequential fashion for each wallet.
 restoreBlocks
-    :: forall ctx s .
-        ( HasDBLayer IO s ctx
-        , HasNetworkLayer IO ctx
-        , IsOurs s Address
+    ::  ( IsOurs s Address
         , IsOurs s RewardAccount
         , AddressBookIso s
         )
-    => ctx
+    => WalletLayer IO s
     -> Tracer IO WalletFollowLog
     -> BlockData IO (Either Address RewardAccount) ChainEvents s
     -> BlockHeader
@@ -1181,7 +1172,7 @@ restoreBlocks ctx tr blocks nodeTip = db & \DBLayer{..} -> atomically $ do
     -- not wrapping this into a call to 'atomically'.
     -- However, this only works if the latest database checkpoint, `cp0`,
     -- does not change in the meantime.
-    (filteredBlocks', cps') <- liftIO $ NE.unzip <$> applyBlocks @s blocks cp0
+    (filteredBlocks', cps') <- liftIO $ NE.unzip <$> applyBlocks blocks cp0
     let cps = NE.map snd cps'
         filteredBlocks = concat filteredBlocks'
     let slotPoolDelegations =
@@ -1255,7 +1246,7 @@ restoreBlocks ctx tr blocks nodeTip = db & \DBLayer{..} -> atomically $ do
         traceWith tr $ MsgDiscoveredTxsContent txs
   where
     nl = ctx ^. networkLayer
-    db = ctx ^. dbLayer @IO @s
+    db = ctx ^. dbLayer
 
     logDelegation :: (SlotNo, DelegationCertificate) -> IO ()
     logDelegation = traceWith tr . uncurry MsgDiscoveredDelegationCert
@@ -2310,7 +2301,7 @@ buildAndSignTransaction
         , CredFromOf s ~ 'CredFromKeyK
         , WalletFlavor s
         )
-    => ctx
+    => WalletLayer IO s
     -> WalletId
     -> Cardano.AnyCardanoEra
     -> MakeRewardAccountBuilder k

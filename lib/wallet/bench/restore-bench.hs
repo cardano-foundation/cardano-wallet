@@ -737,7 +737,7 @@ bench_restoration
                     void
                         $ forkIO
                         $ unsafeRunExceptT
-                        $ W.restoreWallet @_ @s w
+                        $ W.restoreWallet w
 
                     -- NOTE: This is now the time to restore /all/ wallets.
                     (_, restorationTime) <- bench "restoration" $ do
