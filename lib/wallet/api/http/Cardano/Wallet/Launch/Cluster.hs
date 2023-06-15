@@ -5,6 +5,7 @@
 {-# LANGUAGE LambdaCase #-}
 {-# LANGUAGE NamedFieldPuns #-}
 {-# LANGUAGE NumericUnderscores #-}
+{-# LANGUAGE OverloadedLabels #-}
 {-# LANGUAGE PackageImports #-}
 {-# LANGUAGE QuasiQuotes #-}
 {-# LANGUAGE RankNTypes #-}
@@ -71,6 +72,7 @@ import Cardano.Address.Derivation
     ( XPub, xpubPublicKey )
 import Cardano.Api
     ( AsType (AsStakeKey, AsStakePoolKey)
+    , File (..)
     , Key (verificationKeyHash)
     , serialiseToCBOR
     )
@@ -90,8 +92,6 @@ import Cardano.BM.Data.Tracer
     ( HasPrivacyAnnotation (..), HasSeverityAnnotation (..) )
 import Cardano.CLI
     ( parseLoggingSeverity )
-import Cardano.CLI.Byron.Commands
-    ( VerificationKeyFile (VerificationKeyFile) )
 import Cardano.CLI.Shelley.Key
     ( VerificationKeyOrFile (..), readVerificationKeyOrFile )
 import Cardano.Launcher
@@ -110,12 +110,30 @@ import Cardano.Ledger.BaseTypes
     , StrictMaybe (..)
     , UnitInterval
     , boundRational
+    , natVersion
     , textToUrl
+    )
+import Cardano.Ledger.Core
+    ( ppA0L
+    , ppDL
+    , ppEMaxL
+    , ppExtraEntropyL
+    , ppKeyDepositL
+    , ppMaxBBSizeL
+    , ppMaxBHSizeL
+    , ppMaxTxSizeL
+    , ppMinFeeAL
+    , ppMinFeeBL
+    , ppMinPoolCostL
+    , ppMinUTxOValueL
+    , ppNOptL
+    , ppPoolDepositL
+    , ppProtocolVersionL
+    , ppRhoL
+    , ppTauL
     )
 import Cardano.Ledger.Crypto
     ( StandardCrypto )
-import Cardano.Ledger.Era
-    ( Era (Crypto) )
 import Cardano.Ledger.Shelley.API
     ( ShelleyGenesis (..), ShelleyGenesisStaking (sgsPools) )
 import Cardano.Pool.Metadata
@@ -156,7 +174,7 @@ import Cardano.Wallet.Primitive.Types.TokenQuantity
 import Cardano.Wallet.Read.NetworkId
     ( SNetworkId (..) )
 import Cardano.Wallet.Shelley.Compatibility
-    ( StandardShelley, decodeAddress, encodeAddress, fromGenesisData )
+    ( decodeAddress, encodeAddress, fromGenesisData )
 import Cardano.Wallet.Unsafe
     ( unsafeBech32Decode, unsafeFromHex )
 import Cardano.Wallet.Util
@@ -165,6 +183,8 @@ import Codec.Binary.Bech32.TH
     ( humanReadablePart )
 import Control.Arrow
     ( first )
+import Control.Lens
+    ( over, set, (&), (.~) )
 import Control.Monad
     ( forM, forM_, liftM2, replicateM, replicateM_, void, when, (>=>) )
 import Control.Retry
@@ -191,8 +211,6 @@ import Data.Either
     ( fromRight, isLeft, isRight )
 import Data.Foldable
     ( traverse_ )
-import Data.Generics.Product.Fields
-    ( setField )
 import Data.IntCast
     ( intCast )
 import Data.List
@@ -241,6 +259,7 @@ import UnliftIO.MVar
     ( MVar, modifyMVar, newMVar, swapMVar )
 
 import qualified Cardano.Ledger.Address as Ledger
+import qualified Cardano.Ledger.Core as Ledger
 import qualified Cardano.Ledger.Shelley.API as Ledger
 import qualified Cardano.Wallet.Primitive.Types.TokenBundle as TokenBundle
 import qualified Cardano.Wallet.Primitive.Types.TokenMap as TokenMap
@@ -443,7 +462,7 @@ data ConfiguredPool = ConfiguredPool
         :: PoolRecipe
       -- ^ The 'PoolRecipe' used to create this 'ConfiguredPool'.
     , registerViaShelleyGenesis
-        :: IO (ShelleyGenesis StandardShelley -> ShelleyGenesis StandardShelley)
+        :: IO (ShelleyGenesis StandardCrypto -> ShelleyGenesis StandardCrypto)
     , finalizeShelleyGenesisSetup :: RunningNode -> IO ()
       -- ^ Submit any pool retirement certificate according to the 'recipe'
       -- on-chain.
@@ -519,7 +538,7 @@ configurePool tr baseDir era metadataServer recipe = do
     registerMetadataForPoolIndex metadataServer i metadata
     let metadataBytes = Aeson.encode metadata
 
-    pure $ ConfiguredPool
+    pure ConfiguredPool
         { operatePool = \nodeParams action -> do
 
             let NodeParams genesisFiles hardForks (port, peers) logCfg = nodeParams
@@ -561,15 +580,17 @@ configurePool tr baseDir era metadataServer recipe = do
             pledgeAddr <- stakingAddrFromVkFile ownerPub
 
             let params = Ledger.PoolParams
-                  { _poolId = poolId
-                  , _poolVrf = vrf
-                  , _poolPledge = Ledger.Coin $ intCast pledgeAmt
-                  , _poolCost = Ledger.Coin 0
-                  , _poolMargin = unsafeUnitInterval 0.1
-                  , _poolRAcnt = Ledger.RewardAcnt Mainnet $ Ledger.KeyHashObj stakePubHash
-                  , _poolOwners = Set.fromList [stakePubHash]
-                  , _poolRelays = mempty
-                  , _poolMD = SJust $ Ledger.PoolMetadata
+                  { ppId = poolId
+                  , ppVrf = vrf
+                  , ppPledge = Ledger.Coin $ intCast pledgeAmt
+                  , ppCost = Ledger.Coin 0
+                  , ppMargin = unsafeUnitInterval 0.1
+                  , ppRewardAcnt =
+                        Ledger.RewardAcnt Mainnet $
+                            Ledger.KeyHashObj stakePubHash
+                  , ppOwners = Set.fromList [stakePubHash]
+                  , ppRelays = mempty
+                  , ppMetadata = SJust $ Ledger.PoolMetadata
                         (fromMaybe (error "invalid url (too long)")
                             $ textToUrl
                             $ T.pack metadataURL)
@@ -578,19 +599,17 @@ configurePool tr baseDir era metadataServer recipe = do
 
             let updateStaking sgs = sgs
                     { Ledger.sgsPools =
-                        (ListMap.ListMap [(poolId, params)])
-                            <> (sgsPools sgs)
+                        ListMap.ListMap [(poolId, params)] <> sgsPools sgs
                     , Ledger.sgsStake =
-                        (ListMap.fromList [(stakePubHash, poolId)])
+                        ListMap.fromList [(stakePubHash, poolId)]
                             <> Ledger.sgsStake sgs
                     }
             let poolSpecificFunds = ListMap.fromList
                     [(pledgeAddr, Ledger.Coin $ intCast pledgeAmt)]
 
-            return $ \sg -> sg
-                { sgInitialFunds = poolSpecificFunds <> sgInitialFunds sg
-                , sgStaking = updateStaking (sgStaking sg)
-                }
+            pure
+                $ over #sgInitialFunds (poolSpecificFunds <>)
+                . over #sgStaking updateStaking
 
         , finalizeShelleyGenesisSetup = \(RunningNode socket _ _ _) -> do
             -- Here is our chance to respect the 'retirementEpoch' of
@@ -893,7 +912,7 @@ generateGenesis
     :: FilePath
     -> UTCTime
     -> [(Address, Coin)]
-    -> (ShelleyGenesis StandardShelley -> ShelleyGenesis StandardShelley)
+    -> (ShelleyGenesis StandardCrypto -> ShelleyGenesis StandardCrypto)
        -- ^ For adding genesis pools and staking in Babbage and later.
     -> IO GenesisFiles
 generateGenesis dir systemStart initialFunds addPoolsToGenesis = do
@@ -907,41 +926,34 @@ generateGenesis dir systemStart initialFunds addPoolsToGenesis = do
     let startTime = round @_ @Int . utcTimeToPOSIXSeconds $ systemStart
     let systemStart' = posixSecondsToUTCTime . fromRational . toRational $ startTime
 
-    let pparams = Ledger.ShelleyPParams
-            { _minfeeA = 100
-            , _minfeeB = 100_000
-            , _minUTxOValue = Ledger.Coin 1_000_000
-
-            , _keyDeposit = Ledger.Coin 1_000_000
-            , _poolDeposit = Ledger.Coin 0
-
-            , _maxBBSize = 239_857
-            , _maxBHSize = 217_569
-            , _maxTxSize = 16_384
-
-            , _minPoolCost = Ledger.Coin 0
-
-            , _extraEntropy = Ledger.NeutralNonce
-
+    let pparams =
+            Ledger.emptyPParams
+            & ppMinFeeAL .~ Ledger.Coin 100
+            & ppMinFeeBL .~ Ledger.Coin 100_000
+            & ppMinUTxOValueL .~ Ledger.Coin 1_000_000
+            & ppKeyDepositL .~ Ledger.Coin 1_000_000
+            & ppPoolDepositL .~ Ledger.Coin 0
+            & ppMaxBBSizeL .~ 239_857
+            & ppMaxBHSizeL .~ 217_569
+            & ppMaxTxSizeL .~ 16_384
+            & ppMinPoolCostL .~ Ledger.Coin 0
+            & ppExtraEntropyL .~ Ledger.NeutralNonce
             -- There are a few smaller features/fixes which are enabled based on
             -- the protocol version rather than just the era, so we need to
             -- set it to a realisitic value.
-            , _protocolVersion = Ledger.ProtVer 8 0
-
+            & ppProtocolVersionL .~ Ledger.ProtVer (natVersion @8) 0
             -- Sensible pool & reward parameters:
-            , _nOpt = 3
-            , _rho = unsafeUnitInterval 0.178_650_067
-            , _tau = unsafeUnitInterval 0.1
-            , _a0 = unsafeNonNegativeInterval 0.1
-            , _d = unsafeUnitInterval 0
-
+            & ppNOptL .~ 3
+            & ppRhoL .~ unsafeUnitInterval 0.178_650_067
+            & ppTauL .~ unsafeUnitInterval 0.1
+            & ppA0L .~ unsafeNonNegativeInterval 0.1
+            & ppDL .~ unsafeUnitInterval 0
             -- The epoch bound on pool retirements specifies how many epochs
             -- in advance retirements may be announced. For testing purposes,
             -- we allow retirements to be announced far into the future.
-            ,  _eMax = 1_000_000
-            }
+            & ppEMaxL .~ 1_000_000
 
-    let sg = addPoolsToGenesis $ ShelleyGenesis
+    let sg = addPoolsToGenesis ShelleyGenesis
             { sgSystemStart = systemStart'
             , sgActiveSlotsCoeff = unsafePositiveUnitInterval 0.5
             , sgSlotLength = 0.2
@@ -976,7 +988,7 @@ generateGenesis dir systemStart initialFunds addPoolsToGenesis = do
         >>= withAddedKey "startTime" startTime
         >>= Aeson.encodeFile byronGenesisFile
 
-    return $ GenesisFiles
+    pure GenesisFiles
         { byronGenesis = byronGenesisFile
         , shelleyGenesis = dir </> "genesis.json"
         , alonzoGenesis = dir </> "genesis.alonzo.json"
@@ -984,8 +996,7 @@ generateGenesis dir systemStart initialFunds addPoolsToGenesis = do
         }
 
   where
-    extraInitialFunds
-        :: ListMap (Ledger.Addr (Crypto StandardShelley)) Ledger.Coin
+    extraInitialFunds :: ListMap (Ledger.Addr StandardCrypto) Ledger.Coin
     extraInitialFunds = ListMap.fromList
         [ ( fromMaybe (error "extraFunds: invalid addr")
           $ Ledger.deserialiseAddr addrBytes
@@ -995,7 +1006,7 @@ generateGenesis dir systemStart initialFunds addPoolsToGenesis = do
         ]
 
 data FaucetFunds = FaucetFunds
-    { pureAdaFunds :: [(Address, Coin)]
+    { pureAdaFunds :: [(Address, Coin)]
       -- ^ Pure ada funds
     , maFunds :: [(Address, (TokenBundle, [(String, String)]))]
       -- ^ Multi asset funds. Slower to setup than pure ada funds.
@@ -1052,11 +1063,7 @@ withCluster tr dir LocalClusterConfig{..} faucetFunds onClusterStart = bracketTr
             genesisDeltas <- mapM registerViaShelleyGenesis configuredPools
             pure $ foldr (.) id genesisDeltas
         let federalizeNetwork =
-                let
-                    adjustPParams f genesis = genesis
-                        { sgProtocolParams = f (sgProtocolParams genesis) }
-                in
-                    adjustPParams (setField @"_d" (unsafeUnitInterval 0.25))
+                over #sgProtocolParams (set ppDL (unsafeUnitInterval 0.25))
 
         genesisFiles <- generateGenesis
             dir
@@ -1486,18 +1493,14 @@ genNodeConfig dir name genesisFiles clusterEra logCfg = do
 
 
     -- Parameters
-    sg <- Yaml.decodeFileThrow
-        @_ @(ShelleyGenesis StandardShelley) shelleyGenesis
-
-    let (np, block0, genesisPools) = fromGenesisData sg
-    let networkMagic = sgNetworkMagic sg
-    let versionData = NodeToClientVersionData $ NetworkMagic networkMagic
-
+    genesisData <- Yaml.decodeFileThrow shelleyGenesis
+    let (networkParameters, block0, genesisPools) = fromGenesisData genesisData
+    let networkMagic = NetworkMagic $ sgNetworkMagic genesisData
     pure
         ( dir </> ("node" <> name <> ".config")
         , block0
-        , np
-        , versionData
+        , networkParameters
+        , NodeToClientVersionData { networkMagic, query = False }
         , genesisPools
         )
   where
@@ -1643,7 +1646,7 @@ stakePoolIdFromOperatorVerKey
     :: FilePath -> IO (Ledger.KeyHash 'Ledger.StakePool (StandardCrypto))
 stakePoolIdFromOperatorVerKey filepath = do
     stakePoolVerKey <- either (error . show) id <$> readVerificationKeyOrFile AsStakePoolKey
-        (VerificationKeyFilePath $ VerificationKeyFile filepath)
+        (VerificationKeyFilePath $ File filepath)
     let bytes = serialiseToCBOR $ verificationKeyHash stakePoolVerKey
     pure $ either (error . show) snd $ CBOR.deserialiseFromBytes fromCBOR (BL.fromStrict bytes)
 
@@ -1651,7 +1654,7 @@ poolVrfFromFile
     :: FilePath -> IO (Ledger.Hash StandardCrypto (Ledger.VerKeyVRF StandardCrypto))
 poolVrfFromFile filepath = do
     stakePoolVerKey <- either (error . show) id <$> readVerificationKeyOrFile AsVrfKey
-        (VerificationKeyFilePath $ VerificationKeyFile filepath)
+        (VerificationKeyFilePath $ File filepath)
     let bytes = serialiseToCBOR $ verificationKeyHash stakePoolVerKey
     pure $ either (error . show) snd $ CBOR.deserialiseFromBytes fromCBOR (BL.fromStrict bytes)
 
@@ -1659,7 +1662,7 @@ stakingKeyHashFromFile
     :: FilePath -> IO (Ledger.KeyHash 'Ledger.Staking StandardCrypto)
 stakingKeyHashFromFile filepath = do
     stakePoolVerKey <- either (error . show) id <$> readVerificationKeyOrFile AsStakeKey
-        (VerificationKeyFilePath $ VerificationKeyFile filepath)
+        (VerificationKeyFilePath $ File filepath)
     let bytes = serialiseToCBOR $ verificationKeyHash stakePoolVerKey
     pure $ either (error . show) snd $ CBOR.deserialiseFromBytes fromCBOR (BL.fromStrict bytes)
 
@@ -1667,7 +1670,7 @@ stakingAddrFromVkFile
     :: FilePath -> IO (Ledger.Addr StandardCrypto)
 stakingAddrFromVkFile filepath = do
     stakePoolVerKey <- either (error . show) id <$> readVerificationKeyOrFile AsStakeKey
-        (VerificationKeyFilePath $ VerificationKeyFile filepath)
+        (VerificationKeyFilePath $ File filepath)
     let bytes = serialiseToCBOR $ verificationKeyHash stakePoolVerKey
     let payKH = either (error . show) snd $ CBOR.deserialiseFromBytes fromCBOR (BL.fromStrict bytes)
     let delegKH = either (error . show) snd $ CBOR.deserialiseFromBytes fromCBOR (BL.fromStrict bytes)
