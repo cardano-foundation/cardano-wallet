@@ -1425,11 +1425,9 @@ shelleyOnlyReadRewardAccount db = do
         _ -> throwE ErrReadRewardAccountNotAShelleyWallet
 
 readPolicyPublicKey
-    :: forall ctx s
-     . ( HasDBLayer IO s ctx
-       , WalletFlavor s
-       )
-    => ctx
+    :: forall s
+     . WalletFlavor s
+    => WalletLayer IO s
     -> ExceptT ErrReadPolicyPublicKey IO (XPub, NonEmpty DerivationIndex)
 readPolicyPublicKey ctx = db & \DBLayer{..} -> do
     cp <- lift $ atomically readCheckpoint
@@ -1445,7 +1443,7 @@ readPolicyPublicKey ctx = db & \DBLayer{..} -> do
         _ ->
             throwE ErrReadPolicyPublicKeyNotAShelleyWallet
   where
-    db = ctx ^. dbLayer @IO @s
+    db = ctx ^. dbLayer
 
 manageRewardBalance
     :: forall n block
@@ -3187,12 +3185,12 @@ signMetadataWith ctx wid pwd (role_, ix) metadata = db & \DBLayer{..} -> do
     db = ctx ^. dbLayer @IO @s
 
 derivePublicKey
-    :: forall ctx s k.
-        ( HasDBLayer IO s ctx
+    :: forall s k.
+        ( k ~ KeyOf s
         , SoftDerivation k
         , GetAccount s k
         )
-    => ctx
+    => WalletLayer IO s
     -> Role
     -> DerivationIndex
     -> ExceptT ErrDerivePublicKey IO (k (AddressCredential k) XPub)
@@ -3206,28 +3204,26 @@ derivePublicKey ctx role_ ix = db & \DBLayer{..} -> do
 
     return addrK
   where
-    db = ctx ^. dbLayer @IO @s
+    db = ctx ^. dbLayer
 
 -- | Retrieve current public account key of a wallet.
 readAccountPublicKey
-    :: forall ctx s k.
-        ( HasDBLayer IO s ctx
+    :: forall s k.
+        ( k ~ KeyOf s
         , GetAccount s k
         )
-    => ctx
+    => WalletLayer IO s
     -> IO (k 'AccountK XPub)
 readAccountPublicKey ctx = db & \DBLayer{..} -> do
     cp <- atomically readCheckpoint
     pure $ getAccount (getState cp)
   where
-    db = ctx ^. dbLayer @IO @s
+    db = ctx ^. dbLayer
 
 writePolicyPublicKey
-    :: forall ctx s n
-     . ( HasDBLayer IO s ctx
-       , s ~ SeqState n ShelleyKey
-       )
-    => ctx
+    :: forall s n
+     . s ~ SeqState n ShelleyKey
+    => WalletLayer IO s
     -> WalletId
     -> Passphrase "user"
     -> ExceptT ErrWritePolicyPublicKey IO (ShelleyKey 'PolicyK XPub)
@@ -3236,7 +3232,7 @@ writePolicyPublicKey ctx wid pwd = db & \DBLayer{..} -> do
 
     let (SeqPrologue seqState) = getPrologue $ getState cp
 
-    policyXPub <- withRootKey @s
+    policyXPub <- withRootKey
         db wid pwd ErrWritePolicyPublicKeyWithRootKey $
         \rootK scheme -> do
             let encPwd = preparePassphrase scheme pwd
@@ -3251,18 +3247,17 @@ writePolicyPublicKey ctx wid pwd = db & \DBLayer{..} -> do
 
     pure policyXPub
   where
-    db = ctx ^. dbLayer @IO @s
+    db = ctx ^. dbLayer
 
 -- | Retrieve any public account key of a wallet.
 getAccountPublicKeyAtIndex
-    :: forall ctx s k
-     . ( HasDBLayer IO s ctx
-       , GetPurpose k
+    :: forall s k
+     . ( GetPurpose k
        , WalletFlavor s
        , k ~ KeyOf s
        , AfterByron k
        )
-    => ctx
+    => WalletLayer IO s
     -> WalletId
     -> Passphrase "user"
     -> DerivationIndex
@@ -3277,14 +3272,14 @@ getAccountPublicKeyAtIndex ctx wid pwd ix purposeM = db & \DBLayer{..} -> do
 
     _cp <- lift $ atomically readCheckpoint
     let kf = keyFlavorFromState @s
-    withRootKey @s db wid pwd ErrReadAccountPublicKeyRootKey
+    withRootKey db wid pwd ErrReadAccountPublicKeyRootKey
         $ \rootK scheme -> do
             let encPwd = preparePassphrase scheme pwd
             let xprv = deriveAccountPrivateKeyShelley purpose encPwd
                     (getRawKey kf rootK) acctIx
             pure $ liftRawKey kf $ toXPub xprv
   where
-    db = ctx ^. dbLayer @IO @s
+    db = ctx ^. dbLayer
 
 guardSoftIndex
     :: Monad m

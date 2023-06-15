@@ -1,12 +1,4 @@
-{-# LANGUAGE AllowAmbiguousTypes #-}
-{-# LANGUAGE DataKinds #-}
-{-# LANGUAGE FlexibleContexts #-}
-{-# LANGUAGE GADTs #-}
-{-# LANGUAGE PolyKinds #-}
-{-# LANGUAGE RankNTypes #-}
 {-# LANGUAGE RecordWildCards #-}
-{-# LANGUAGE ScopedTypeVariables #-}
-{-# LANGUAGE TypeApplications #-}
 
 -- |
 -- Copyright: © 2020 IOHK
@@ -23,7 +15,7 @@ import Prelude hiding
     ( (.) )
 
 import Cardano.Wallet
-    ( HasDBLayer, readPolicyPublicKey )
+    ( WalletLayer, readPolicyPublicKey )
 import Cardano.Wallet.Api.Http.Server.Handlers.TxCBOR
     ( ParsedTxCBOR (..) )
 import Cardano.Wallet.Api.Types.Key
@@ -47,16 +39,13 @@ import Servant
 
 -- | Promote mint and burn to their API type.
 convertApiAssetMintBurn
-    :: forall ctx s
-     . ( HasDBLayer IO s ctx
-       , WalletFlavor s
-       )
-    => ctx
+    :: WalletFlavor s
+    => WalletLayer IO s
     -> (TokenMapWithScripts, TokenMapWithScripts)
     -> Handler (ApiAssetMintBurn, ApiAssetMintBurn)
 convertApiAssetMintBurn ctx (mint, burn) = do
     xpubM <- fmap (fmap fst . eitherToMaybe)
-        <$> liftIO . runExceptT $ readPolicyPublicKey @ctx @s ctx
+        <$> liftIO . runExceptT $ readPolicyPublicKey ctx
     let  convert tokenWithScripts =  ApiAssetMintBurn
             { tokens = toApiTokens tokenWithScripts
             , walletPolicyKeyHash =
@@ -68,12 +57,9 @@ convertApiAssetMintBurn ctx (mint, burn) = do
     pure (convert mint, convert burn)
 
 getTxApiAssetMintBurn
-    :: forall ctx s
-     . ( HasDBLayer IO s ctx
-       , WalletFlavor s
-       )
-    => ctx
+    :: WalletFlavor s
+    => WalletLayer IO s
     -> ParsedTxCBOR
     -> (Handler (ApiAssetMintBurn, ApiAssetMintBurn))
 getTxApiAssetMintBurn ctx ParsedTxCBOR{..} =
-    convertApiAssetMintBurn @ctx @s ctx mintBurn
+    convertApiAssetMintBurn ctx mintBurn

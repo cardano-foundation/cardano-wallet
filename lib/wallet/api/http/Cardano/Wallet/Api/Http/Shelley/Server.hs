@@ -3159,7 +3159,7 @@ decodeTransaction
     ctx@ApiLayer{..} (ApiT wid) (ApiSerialisedTransaction (ApiT sealed) _) = do
     era <- liftIO $ NW.currentNodeEra netLayer
     withWorkerCtx ctx wid liftE liftE $ \wrk -> do
-        (k, _) <- liftHandler $ W.readPolicyPublicKey @_ @s wrk
+        (k, _) <- liftHandler $ W.readPolicyPublicKey wrk
         let keyhash = KeyHash Policy (xpubToBytes k)
         let (decodedTx, toMint, toBurn, allCerts, interval, witsCount) =
                 decodeTx tl era (ShelleyWalletCtx keyhash) sealed
@@ -3185,7 +3185,7 @@ decodeTransaction
             handler $ W.lookupTxOuts @_ @s wrk outputs
         pp <- liftIO $ NW.currentProtocolParameters (wrk ^. networkLayer)
         (minted, burned) <-
-            convertApiAssetMintBurn @_ @s wrk (toMint, toBurn)
+            convertApiAssetMintBurn wrk (toMint, toBurn)
         let certs = mkApiAnyCertificate (Just acct) acctPath <$> allCerts
         pure $ ApiDecodedTransaction
             { id = ApiT txId
@@ -3316,7 +3316,7 @@ submitTransaction ctx apiw@(ApiT wid) apitx = do
             witsRequiredForInputs totalNumberOfWits
 
     void $ withWorkerCtx ctx wid liftE liftE $ \wrk -> do
-        (k, _) <- liftHandler $ W.readPolicyPublicKey @_ @s wrk
+        (k, _) <- liftHandler $ W.readPolicyPublicKey wrk
         let keyhash = KeyHash Policy (xpubToBytes k)
         let (tx,_,_,_,_,_) = decodeTx tl era (ShelleyWalletCtx keyhash) sealedTx
 
@@ -4066,7 +4066,7 @@ derivePublicKey
     -> Handler ver
 derivePublicKey ctx mkVer (ApiT wid) (ApiT role_) (ApiT ix) hashed = do
     withWorkerCtx @_ @s ctx wid liftE liftE $ \wrk -> do
-        k <- liftHandler $ W.derivePublicKey @_ @s wrk role_ ix
+        k <- liftHandler $ W.derivePublicKey wrk role_ ix
         let (payload, hashing) = computeKeyPayload hashed
                 $ getRawKey (keyFlavorFromState @s) k
         pure $ mkVer (payload, role_) hashing
@@ -4088,7 +4088,7 @@ postAccountPublicKey
 postAccountPublicKey ctx mkAccount (ApiT wid) (ApiT ix)
     (ApiPostAccountKeyDataWithPurpose (ApiT pwd) extd purposeM) = do
     withWorkerCtx @_ @s ctx wid liftE liftE $ \wrk -> do
-        k <- liftHandler $ W.getAccountPublicKeyAtIndex @_ @s
+        k <- liftHandler $ W.getAccountPublicKeyAtIndex
             wrk wid pwd ix (getApiT <$> purposeM)
         pure $ mkAccount
             (publicKeyToBytes' extd $ getRawKey (keyFlavorFromState @s) k)
@@ -4117,7 +4117,7 @@ getAccountPublicKey
     -> Handler account
 getAccountPublicKey ctx mkAccount (ApiT wid) extended = do
     withWorkerCtx @_ @s ctx wid liftE liftE $ \wrk -> do
-        k <- handler $ W.readAccountPublicKey @_ @s wrk
+        k <- handler $ W.readAccountPublicKey wrk
         pure $ mkAccount
             (publicKeyToBytes' extd $ getRawKey (keyFlavorFromState @s) k)
             extd
@@ -4138,7 +4138,7 @@ getPolicyKey
     -> Handler ApiPolicyKey
 getPolicyKey ctx (ApiT wid) hashed = do
     withWorkerCtx @_ @s ctx wid liftE liftE $ \wrk -> do
-        (k, _) <- liftHandler $ W.readPolicyPublicKey @_ @s wrk
+        (k, _) <- liftHandler $ W.readPolicyPublicKey wrk
         pure $ uncurry ApiPolicyKey (computeKeyPayload hashed k)
 
 postPolicyKey
@@ -4153,7 +4153,7 @@ postPolicyKey
     -> Handler ApiPolicyKey
 postPolicyKey ctx (ApiT wid) hashed apiPassphrase =
     withWorkerCtx @_ @s ctx wid liftE liftE $ \wrk -> do
-        k <- liftHandler $ W.writePolicyPublicKey @_ @s @n wrk wid pwd
+        k <- liftHandler $ W.writePolicyPublicKey wrk wid pwd
         pure
             $ uncurry ApiPolicyKey
             $ computeKeyPayload hashed
@@ -4181,7 +4181,7 @@ postPolicyId ctx (ApiT wid) payload = do
         liftHandler $ throwE ErrGetPolicyIdWrongMintingBurningTemplate
 
     withWorkerCtx @_ @s ctx wid liftE liftE $ \wrk -> do
-        (xpub, _) <- liftHandler $ W.readPolicyPublicKey @_ @s wrk
+        (xpub, _) <- liftHandler $ W.readPolicyPublicKey wrk
         pure $ ApiPolicyId $ ApiT $
             toTokenPolicyId (keyFlavorFromState @s)
                 scriptTempl (Map.singleton (Cosigner 0) xpub)
@@ -4425,7 +4425,7 @@ mkApiTransaction timeInterpreter wrk timeRefLens tx = do
             then traverse (getApiAnyCertificates db (keyFlavorFromState @s)) parsedValues
             else pure Nothing
     parsedMintBurn <- forM parsedValues
-        $ getTxApiAssetMintBurn @_ @s wrk
+        $ getTxApiAssetMintBurn wrk
 
     pure $ set timeRefLens (Just timeRef) $ ApiTransaction
         { id = ApiT $ tx ^. #txId
