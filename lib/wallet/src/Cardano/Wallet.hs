@@ -983,15 +983,14 @@ updateWallet ctx f = onWalletState @IO @s ctx $ update $ \s ->
 
 -- | Change a wallet's passphrase to the given passphrase.
 updateWalletPassphraseWithOldPassphrase
-    :: forall ctx s
-     . HasDBLayer IO s ctx
-    => WalletFlavorS s
-    -> ctx
+    :: forall s
+     . WalletFlavorS s
+    -> WalletLayer IO s
     -> WalletId
     -> (Passphrase "user", Passphrase "user")
     -> ExceptT ErrUpdatePassphrase IO ()
 updateWalletPassphraseWithOldPassphrase wF ctx wid (old, new) =
-    withRootKey @s db wid old ErrUpdatePassphraseWithRootKey
+    withRootKey db wid old ErrUpdatePassphraseWithRootKey
         $ \xprv scheme -> do
             -- IMPORTANT NOTE:
             -- This use 'EncryptWithPBKDF2', regardless of the passphrase
@@ -1000,19 +999,16 @@ updateWalletPassphraseWithOldPassphrase wF ctx wid (old, new) =
             let new' = (currentPassphraseScheme, new)
             let xprv' = changePassphraseNew (keyOfWallet wF)
                     (scheme, old) new' xprv
-            lift $ attachPrivateKeyFromPwdScheme wF ctx (xprv', new')
+            lift $ attachPrivateKeyFromPwdScheme ctx (xprv', new')
   where
     db = ctx ^. typed
 
 updateWalletPassphraseWithMnemonic
-    :: forall ctx s
-     . HasDBLayer IO s ctx
-    => WalletFlavorS s
-    -> ctx
+    :: WalletLayer IO s
     -> (KeyOf s 'RootK XPrv, Passphrase "user")
     -> IO ()
-updateWalletPassphraseWithMnemonic wF ctx (xprv, new) =
-    attachPrivateKeyFromPwdScheme wF ctx
+updateWalletPassphraseWithMnemonic ctx (xprv, new) =
+    attachPrivateKeyFromPwdScheme ctx
         (xprv, (currentPassphraseScheme , new))
 
 getWalletUtxoSnapshot
@@ -3053,13 +3049,10 @@ padFeePercentiles
 -- | The password here undergoes PBKDF2 encryption using HMAC
 -- with the hash algorithm SHA512 which is realized in encryptPassphrase
 attachPrivateKeyFromPwdScheme
-    :: forall ctx s
-     . HasDBLayer IO s ctx
-    => WalletFlavorS s
-    -> ctx
+    :: WalletLayer IO s
     -> (KeyOf s 'RootK XPrv, (PassphraseScheme, Passphrase "user"))
     -> IO ()
-attachPrivateKeyFromPwdScheme _ ctx (xprv, (scheme, pwd)) = db & \_ -> do
+attachPrivateKeyFromPwdScheme ctx (xprv, (scheme, pwd)) = db & \_ -> do
     hpwd <- liftIO $ encryptPassphrase' scheme pwd
     -- NOTE Only new wallets are constructed through this function, so the
     -- passphrase is encrypted with the new scheme (i.e. PBKDF2)
@@ -3078,17 +3071,14 @@ attachPrivateKeyFromPwdScheme _ ctx (xprv, (scheme, pwd)) = db & \_ -> do
             \to this function and make sure that the given Passphrase wasn't not \
             \prepared using 'EncryptWithScrypt'!"
   where
-    db = ctx ^. dbLayer @IO @s
+    db = ctx ^. dbLayer
 
 attachPrivateKeyFromPwd
-    :: forall ctx s
-     . HasDBLayer IO s ctx
-    => WalletFlavorS s
-    -> ctx
+    :: WalletLayer IO s
     -> (KeyOf s 'RootK XPrv, Passphrase "user")
     -> IO ()
-attachPrivateKeyFromPwd wF ctx (xprv, pwd) =
-    attachPrivateKeyFromPwdScheme wF ctx
+attachPrivateKeyFromPwd ctx (xprv, pwd) =
+    attachPrivateKeyFromPwdScheme ctx
        (xprv, (currentPassphraseScheme, pwd))
 
 -- | The hash here is the output of Scrypt function with the following parameters:
@@ -3097,9 +3087,7 @@ attachPrivateKeyFromPwd wF ctx (xprv, pwd) =
 -- - p = 1
 -- - bytesNumber = 64
 attachPrivateKeyFromPwdHashByron
-    :: forall ctx s
-     . HasDBLayer IO s ctx
-    => ctx
+    :: WalletLayer IO s
     -> (KeyOf s 'RootK XPrv, PassphraseHash)
     -> IO ()
 attachPrivateKeyFromPwdHashByron ctx (xprv, hpwd) = db & \_ ->
@@ -3107,18 +3095,16 @@ attachPrivateKeyFromPwdHashByron ctx (xprv, hpwd) = db & \_ ->
     -- were encrypted with the legacy scheme (Scrypt).
     attachPrivateKey db (xprv, hpwd) EncryptWithScrypt
   where
-    db = ctx ^. dbLayer @IO @s
+    db = ctx ^. dbLayer
 
 attachPrivateKeyFromPwdHashShelley
-    :: forall ctx s
-     . HasDBLayer IO s ctx
-    => ctx
+    :: WalletLayer IO s
     -> (KeyOf s 'RootK XPrv, PassphraseHash)
     -> IO ()
 attachPrivateKeyFromPwdHashShelley ctx (xprv, hpwd) = db & \_ ->
     attachPrivateKey db (xprv, hpwd) currentPassphraseScheme
   where
-    db = ctx ^. dbLayer @IO @s
+    db = ctx ^. dbLayer
 
 attachPrivateKey
     :: DBLayer IO s

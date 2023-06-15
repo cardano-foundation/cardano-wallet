@@ -402,7 +402,7 @@ walletUpdatePassphrase wallet new mxprv = monadicIO $ do
         let err = ErrUpdatePassphraseWithRootKey $ ErrWithRootKeyNoRootKey wid
         assert (attempt == Left err)
     prop_withPrivateKey wl wid (xprv, pwd) = do
-        run $ W.attachPrivateKeyFromPwd dummyStateF wl (xprv, pwd)
+        run $ W.attachPrivateKeyFromPwd wl (xprv, pwd)
         attempt <- run $ runExceptT
             $ W.updateWalletPassphraseWithOldPassphrase dummyStateF
                 wl wid (coerce pwd, new)
@@ -417,7 +417,7 @@ walletUpdatePassphraseWrong wallet (xprv, pwd) (old, new) =
     pwd /= coerce old ==> monadicIO $ do
         WalletLayerFixture _ _ wl wid <- run $ setupFixture dummyStateF wallet
         attempt <- run $ do
-            W.attachPrivateKeyFromPwd dummyStateF wl (xprv, pwd)
+            W.attachPrivateKeyFromPwd wl (xprv, pwd)
             runExceptT
                 $ W.updateWalletPassphraseWithOldPassphrase
                     dummyStateF wl wid (old, new)
@@ -453,7 +453,7 @@ walletUpdatePassphraseDate wallet (xprv, pwd) = monadicIO $ liftIO $ do
             return info
 
     void $ infoShouldSatisfy isNothing
-    W.attachPrivateKeyFromPwd dummyStateF wl (xprv, pwd)
+    W.attachPrivateKeyFromPwd wl (xprv, pwd)
     info <- infoShouldSatisfy isJust
     pause
     unsafeRunExceptT

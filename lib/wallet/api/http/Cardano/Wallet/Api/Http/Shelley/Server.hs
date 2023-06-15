@@ -884,10 +884,9 @@ postShelleyWallet ctx generateKey body = do
             (workerCtx ^. typed @(DBLayer IO (SeqState n ShelleyKey)))
         )
     withWorkerCtx @_ @s ctx wid liftE liftE $ \wrk -> handler $
-        W.attachPrivateKeyFromPwd wF wrk (rootXPrv, pwd)
+        W.attachPrivateKeyFromPwd wrk (rootXPrv, pwd)
     fst <$> getWallet ctx (mkShelleyWallet @_ @s) (ApiT wid)
   where
-    wF = walletFlavor @s
     seed = getApiMnemonicT (body ^. #mnemonicSentence)
     secondFactor = getApiMnemonicT <$> (body ^. #mnemonicSecondFactor)
     pwd = getApiT (body ^. #passphrase)
@@ -1082,7 +1081,7 @@ postSharedWalletFromRootXPrv ctx generateKey body = do
             (workerCtx ^. typed @(DBLayer IO (SharedState n SharedKey)))
         )
     withWorkerCtx @_ @s ctx wid liftE liftE $ \wrk -> handler $
-        W.attachPrivateKeyFromPwd wF wrk (rootXPrv, pwd)
+        W.attachPrivateKeyFromPwd wrk (rootXPrv, pwd)
     fst <$> getWallet ctx (mkSharedWallet @_ @s) (ApiT wid)
   where
     kF = keyOfWallet wF
@@ -1284,8 +1283,7 @@ patchSharedWallet ctx liftKey cred (ApiT wid) body = do
             handler $ W.updateWallet wrk (const meta)
         when (isJust prvKeyM)
             $ withWorkerCtx @_ @s ctx wid liftE liftE $ \wrk -> handler
-            $ W.attachPrivateKeyFromPwdHashShelley
-                @_ @s wrk (fromJust prvKeyM)
+            $ W.attachPrivateKeyFromPwdHashShelley wrk (fromJust prvKeyM)
 
     fst <$> getWallet ctx (mkSharedWallet @_ @s) (ApiT wid)
   where
@@ -1323,7 +1321,7 @@ postLegacyWallet ctx (rootXPrv, pwd) createWallet = do
         (`createWallet` wid)
         idleWorker
     withWorkerCtx ctx wid liftE liftE $ \wrk -> handler $
-        W.attachPrivateKeyFromPwd wF wrk (rootXPrv, pwd)
+        W.attachPrivateKeyFromPwd wrk (rootXPrv, pwd)
     fst <$> getWallet ctx mkLegacyWallet (ApiT wid)
   where
     kF = keyOfWallet wF
@@ -1700,14 +1698,13 @@ putWalletPassphrase ctx createKey getKey (ApiT wid)
                     $ deriveAccountPrivateKey encrPass challengeKey minBound
             storedPubKey <- handler $ W.readAccountPublicKey wrk
             if getKey challengPubKey == getKey storedPubKey
-                then handler $ W.updateWalletPassphraseWithMnemonic wF wrk
+                then handler $ W.updateWalletPassphraseWithMnemonic wrk
                         (challengeKey, new)
                 else liftHandler
                     $ throwE
                     $ ErrUpdatePassphraseWithRootKey
                     $ ErrWithRootKeyWrongMnemonic wid
   where
-    wF = walletFlavor @s
     withWrk :: (WorkerCtx (ApiLayer s) -> Handler a) -> Handler a
     withWrk = withWorkerCtx ctx wid liftE liftE
 
