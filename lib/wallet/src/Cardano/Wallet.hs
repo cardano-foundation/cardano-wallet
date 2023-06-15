@@ -2641,8 +2641,9 @@ listTransactions
     -> SortOrder
     -> Maybe Natural
     -- ^ Maximum number of transactions to return.
+    -> Maybe Address
     -> ExceptT ErrListTransactions IO [TransactionInfo]
-listTransactions ctx mMinWithdrawal mStart mEnd order mLimit
+listTransactions ctx mMinWithdrawal mStart mEnd order mLimit mAddress
     = db & \DBLayer{..} -> do
         when (Just True == ( (<(Coin 1)) <$> mMinWithdrawal )) $
             throwE ErrListTransactionsMinWithdrawalWrong
@@ -2650,7 +2651,7 @@ listTransactions ctx mMinWithdrawal mStart mEnd order mLimit
             mapExceptT liftIO getSlotRange >>= maybe
                 (pure [])
                 (\r -> lift
-                $ readTransactions mMinWithdrawal order r Nothing mLimit Nothing)
+                $ readTransactions mMinWithdrawal order r Nothing mLimit mAddress)
   where
     ti :: TimeInterpreter (ExceptT PastHorizonException IO)
     ti = timeInterpreter (ctx ^. networkLayer)

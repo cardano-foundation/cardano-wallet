@@ -473,7 +473,7 @@ benchmarksRnd network w wname
         $ fmap (fromIntegral . length)
         $ unsafeRunExceptT
         $ W.listTransactions w Nothing Nothing Nothing Descending
-            Nothing
+            Nothing Nothing
 
     -- To aid with debugging, write the current wallet state to the log:
     let walletOverview = WalletOverview{utxo,addresses,transactions}
@@ -486,7 +486,7 @@ benchmarksRnd network w wname
     (_, listTransactionsLimitedTime) <- bench "list transactions (max_count = 100)" $ do
         unsafeRunExceptT
         $ W.listTransactions w Nothing Nothing Nothing Descending
-            (Just 100)
+            (Just 100) Nothing
 
     estimateFeesTime <-
         withNonEmptyUTxO cp pending CannotEstimateFeeForWalletWithEmptyUTxO $
@@ -569,7 +569,7 @@ benchmarksSeq network w _wname
         $ fmap (fromIntegral . length)
         $ unsafeRunExceptT
         $ W.listTransactions w Nothing Nothing Nothing Descending
-            Nothing
+            Nothing Nothing
 
     -- To aid with debugging, write the current wallet state to the log:
     let walletOverview = WalletOverview{utxo,addresses,transactions}
@@ -582,7 +582,7 @@ benchmarksSeq network w _wname
     (_, listTransactionsLimitedTime) <- bench "list transactions (max_count = 100)" $ do
         unsafeRunExceptT
         $ W.listTransactions w Nothing Nothing Nothing Descending
-            (Just 100)
+            (Just 100) Nothing
 
     estimateFeesTime <-
         withNonEmptyUTxO cp pending CannotEstimateFeeForWalletWithEmptyUTxO $

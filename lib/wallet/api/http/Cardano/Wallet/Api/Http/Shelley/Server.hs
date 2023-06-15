@@ -2258,7 +2258,7 @@ listTransactions
     -> TxMetadataSchema
     -> Handler [ApiTransaction n]
 listTransactions
-    ctx (ApiT wid) mMinWithdrawal mStart mEnd mOrder mLimit _ metadataSchema =
+    ctx (ApiT wid) mMinWithdrawal mStart mEnd mOrder mLimit mAddress metadataSchema =
         withWorkerCtx ctx wid liftE liftE $ \wrk -> do
             txs <- liftHandler $
                 W.listTransactions wrk
@@ -2267,6 +2267,7 @@ listTransactions
                 (getIso8601Time <$> mEnd)
                 (maybe defaultSortOrder getApiT mOrder)
                 (fromApiLimit <$> mLimit)
+                (apiAddress <$> mAddress)
             depo <- liftIO $ W.stakeKeyDeposit <$>
                 NW.currentProtocolParameters (wrk ^. networkLayer)
             forM txs $ \tx ->
