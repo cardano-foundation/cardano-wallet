@@ -182,11 +182,11 @@ extendAndPrune
         -- ^ Current checkpoints.
     -> DeltasCheckpoints a
 extendAndPrune getSlot getHeight policy nodeTip xs (Checkpoints cps) =
-    prunes ++ additions
+    additions <> pruneOld
   where
     additions = reverse -- latest slot needs to be applied last
         [ PutCheckpoint (getSlot x) x | x <- new ]
-    prunes = [ RestrictTo $ map getSlot (old ++ new) ]
+    pruneOld = [ RestrictTo $ map getSlot old ]
 
     new = filter willKeep (NE.toList xs)
     old = filter willKeep (Map.elems cps)
