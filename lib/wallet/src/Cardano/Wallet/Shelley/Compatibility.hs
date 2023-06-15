@@ -331,8 +331,6 @@ import Data.Word
     ( Word16, Word32, Word8 )
 import Fmt
     ( Buildable (..), Builder, (+|), (+||), (||+) )
-import GHC.Records
-    ( HasField (..) )
 import GHC.Stack
     ( HasCallStack )
 import Numeric.Natural
