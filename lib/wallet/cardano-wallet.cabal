@@ -924,6 +924,7 @@ test-suite unit
     Cardano.Wallet.DB.MigrationSpec
     Cardano.Wallet.DB.Properties
     Cardano.Wallet.DB.Pure.ImplementationSpec
+    Cardano.Wallet.DB.Sqlite.Migration.NewSpec
     Cardano.Wallet.DB.Sqlite.TypesSpec
     Cardano.Wallet.DB.StateMachine
     Cardano.Wallet.DB.Store.Checkpoints.StoreSpec
