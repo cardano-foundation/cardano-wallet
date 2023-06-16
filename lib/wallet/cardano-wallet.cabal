@@ -1,4 +1,4 @@
-cabal-version:      2.2
+cabal-version:      3.0
 name:               cardano-wallet
 version:            2023.4.14
 synopsis:           The Wallet Backend for a Cardano node.
@@ -781,9 +781,10 @@ test-suite unit
     , cardano-ledger-alonzo
     , cardano-ledger-alonzo-test
     , cardano-ledger-api
-    , cardano-ledger-babbage
+    , cardano-ledger-babbage:{cardano-ledger-babbage, testlib}
     , cardano-ledger-byron
     , cardano-ledger-byron-test
+    , cardano-ledger-conway:{cardano-ledger-conway, testlib}
     , cardano-ledger-core
     , cardano-ledger-shelley
     , cardano-ledger-shelley-test
