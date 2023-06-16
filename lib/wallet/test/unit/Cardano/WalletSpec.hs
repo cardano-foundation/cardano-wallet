@@ -127,8 +127,11 @@ import Control.Monad
     ( forM_, guard, replicateM, void )
 import Control.Monad.Class.MonadTime
     ( MonadMonotonicTimeNSec (..), MonadTime (..) )
+    ( MonadMonotonicTimeNSec (..), MonadTime (..) )
 import Control.Monad.IO.Unlift
     ( MonadUnliftIO (..), wrappedWithRunInIO )
+import Control.Monad.Trans
+    ( MonadIO, MonadTrans, lift, liftIO )
 import Control.Monad.Trans
     ( MonadIO, MonadTrans, lift, liftIO )
 import Control.Monad.Trans.Except
@@ -181,6 +184,8 @@ import GHC.Generics
     ( Generic )
 import Ouroboros.Consensus.Util.IOLike
     ( DiffTime, MonadMonotonicTime (..), Time (..), addTime, diffTime )
+import Ouroboros.Consensus.Util.IOLike
+    ( DiffTime, MonadMonotonicTime (..), Time (..), addTime, diffTime )
 import System.Random
     ( Random )
 import Test.Hspec
@@ -200,8 +205,16 @@ import Test.Utils.Time
 import Test.Utils.Trace
     ( captureLogging' )
 import UnliftIO.Concurrent
-    ( MVar, modifyMVar, modifyMVar_, newEmptyMVar, newMVar, putMVar, readMVar,
-    takeMVar, threadDelay )
+    ( MVar
+    , modifyMVar
+    , modifyMVar_
+    , newEmptyMVar
+    , newMVar
+    , putMVar
+    , readMVar
+    , takeMVar
+    , threadDelay
+    )
 
 import qualified Cardano.Crypto.Wallet as CC
 import qualified Cardano.Wallet as W
