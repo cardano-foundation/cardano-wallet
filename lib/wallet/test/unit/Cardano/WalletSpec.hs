@@ -7,6 +7,7 @@
 {-# LANGUAGE GeneralizedNewtypeDeriving #-}
 {-# LANGUAGE MultiParamTypeClasses #-}
 {-# LANGUAGE NamedFieldPuns #-}
+{-# LANGUAGE NumericUnderscores #-}
 {-# LANGUAGE OverloadedLabels #-}
 {-# LANGUAGE RecordWildCards #-}
 {-# LANGUAGE ScopedTypeVariables #-}
@@ -175,7 +176,7 @@ import Data.Quantity
 import Data.Text.Class
     ( ToText (..) )
 import Data.Time.Clock
-    ( UTCTime )
+    ( DiffTime, UTCTime )
 import Data.Time.Clock.POSIX
     ( posixSecondsToUTCTime )
 import Data.Word
@@ -185,17 +186,40 @@ import GHC.Generics
 import Ouroboros.Consensus.Util.IOLike
     ( DiffTime, MonadMonotonicTime (..), Time (..), addTime, diffTime )
 import Ouroboros.Consensus.Util.IOLike
-    ( DiffTime, MonadMonotonicTime (..), Time (..), addTime, diffTime )
+    ( MonadMonotonicTime (..), Time (..) )
 import System.Random
     ( Random )
 import Test.Hspec
     ( Spec, describe, it, shouldBe, shouldSatisfy, xit )
 import Test.QuickCheck
-    ( Arbitrary (..), Blind (..), Gen, NonEmptyList (..), Property,
-    arbitraryBoundedEnum, arbitrarySizedFractional, checkCoverage, choose,
-    conjoin, counterexample, cover, elements, forAll, forAllBlind, frequency,
-    label, liftArbitrary, listOf1, oneof, property, scale, sized, suchThat,
-    vector, withMaxSuccess, (===), (==>) )
+    ( Arbitrary (..)
+    , Blind (..)
+    , Gen
+    , NonEmptyList (..)
+    , Property
+    , arbitraryBoundedEnum
+    , checkCoverage
+    , choose
+    , conjoin
+    , counterexample
+    , cover
+    , elements
+    , forAll
+    , forAllBlind
+    , frequency
+    , label
+    , liftArbitrary
+    , listOf1
+    , oneof
+    , property
+    , scale
+    , sized
+    , suchThat
+    , vector
+    , withMaxSuccess
+    , (===)
+    , (==>)
+    )
 import Test.QuickCheck.Extra
     ( report )
 import Test.QuickCheck.Monadic
@@ -235,6 +259,7 @@ import qualified Data.List as L
 import qualified Data.List.NonEmpty as NE
 import qualified Data.Map.Strict as Map
 import qualified Data.Text as T
+import qualified Data.Time.Clock as Time
 
 spec :: Spec
 spec = describe "Cardano.WalletSpec" $ do
@@ -706,12 +731,24 @@ data TxRetryTestCtx = TxRetryTestCtx
     , ctxWalletId :: WalletId
     } deriving (Generic)
 
+type NanoTime = Word64
+
+nanoToDiffTime :: NanoTime -> DiffTime
+nanoToDiffTime = Time.picosecondsToDiffTime . (* 1_000) . toInteger
+
+diffTimeToNano :: DiffTime -> NanoTime
+diffTimeToNano = fromInteger . (`div` 1_000) . Time.diffTimeToPicoseconds
+
+timeToNanoTime :: Time -> NanoTime
+timeToNanoTime (Time d) = diffTimeToNano d
+
 -- | Context of 'TxRetryTestM'.
 data TxRetryTestState = TxRetryTestState
     { testCase :: TxRetryTest
-    , timeStep :: DiffTime
-    , timeVar :: MVar Time
+    , timeStep :: NanoTime
+    , timeVar :: MVar NanoTime
     } deriving (Generic)
+
 -- | Collected info from test execution.
 data TxRetryTestResult a = TxRetryTestResult
     { resLogs :: [W.WalletWorkerLog]
@@ -724,25 +761,22 @@ newtype TxRetryTestM a = TxRetryTestM
     { unTxRetryTestM :: ReaderT TxRetryTestState IO a
     } deriving (Functor, Applicative, Monad, MonadIO, MonadFail)
 
-instance MonadMonotonicTimeNSec TxRetryTestM where
-    getMonotonicTimeNSec = liftIO getMonotonicTimeNSec
-
 instance MonadUnliftIO TxRetryTestM where
     withRunInIO = wrappedWithRunInIO TxRetryTestM unTxRetryTestM
 
-instance MonadMonotonicTime TxRetryTestM where
-    getMonotonicTime = do
-        st <- TxRetryTestM ask
-        modifyMVar (timeVar st) $ \t -> do
-            let t' = addTime (timeStep st) t
-            pure (t', t')
+instance MonadMonotonicTimeNSec TxRetryTestM where
+    getMonotonicTimeNSec = do
+        TxRetryTestState {timeVar, timeStep} <- TxRetryTestM ask
+        modifyMVar timeVar $ \t -> let t' = timeStep + t in pure (t', t')
+
+instance MonadMonotonicTime TxRetryTestM
 
 instance MonadTime TxRetryTestM where
     getCurrentTime = liftIO getCurrentTime
 
 prop_localTxSubmission :: TxRetryTest -> Property
 prop_localTxSubmission tc = monadicIO $ do
-    st <- TxRetryTestState tc 2 <$> newMVar (Time 0)
+    st <- TxRetryTestState tc 2 <$> newMVar 0
     assert $ not $ null $ retryTestPool tc
     res <- run $ runTest st
         $ \ctx@(TxRetryTestCtx dbl nl tr _ _) -> do
@@ -750,7 +784,7 @@ prop_localTxSubmission tc = monadicIO $ do
             $ forM_ (retryTestPool tc) $ submitTx tr dbl nl
         res0 <- W.readLocalTxSubmissionPending @_ @DummyState  ctx
         -- Run test
-        let cfg = LocalTxSubmissionConfig (timeStep st) 10
+        let cfg = LocalTxSubmissionConfig (nanoToDiffTime (timeStep st)) 10
         W.runLocalTxSubmissionPool @_ @DummyState cfg ctx
 
         -- Gather state
@@ -831,9 +865,9 @@ prop_localTxSubmission tc = monadicIO $ do
 -------------------------------------------------------------------------------}
 
 data ThrottleTest = ThrottleTest
-    { interval :: DiffTime
+    { interval :: NanoTime
         -- ^ Interval parameter provided to 'throttle'
-    , diffTimes :: [DiffTime]
+    , diffTimes :: [NanoTime]
         -- ^ Times when throttled function is called.
     } deriving (Generic, Show, Eq)
 
@@ -841,16 +875,18 @@ instance Arbitrary ThrottleTest where
     arbitrary = ThrottleTest <$> genInterval <*> listOf1 genDiffTime
       where
         genInterval = genDiffTime `suchThat` (> 0)
-        genDiffTime = abs <$> arbitrarySizedFractional
+        genDiffTime = abs <$> arbitraryBoundedEnum
     shrink (ThrottleTest i dts) =
-        [ ThrottleTest (fromRational i') (map fromRational dts')
-        | (i', dts') <- shrink (toRational i, map toRational dts)
-        , i' > 0, not (null dts') ]
+        [ ThrottleTest i' dts'
+        | (i', dts') <- shrink (i, dts)
+        , i' > 0
+        , not (null dts')
+        ]
 
 data ThrottleTestState = ThrottleTestState
-    { remainingDiffTimes :: [DiffTime]
-    , now :: Time
-    , actions :: [(Time, Int)]
+    { remainingDiffTimes :: [NanoTime]
+    , now :: NanoTime
+    , actions :: [(NanoTime, Int)]
     } deriving (Generic, Show, Eq)
 
 newtype ThrottleTestT m a = ThrottleTestT
@@ -870,24 +906,24 @@ runThrottleTest action = fmap r . runStateT (runMaybeT (unThrottleTestT action))
     r (res, ThrottleTestState d n a) = (res, ThrottleTestState d n (reverse a))
 
 initState :: ThrottleTest -> ThrottleTestState
-initState (ThrottleTest _ dts) = ThrottleTestState dts (Time 0) []
+initState (ThrottleTest _ dts) = ThrottleTestState dts 0 []
 
-recordTime :: Monad m => (Time, Int) -> ThrottleTestT m ()
+recordTime :: Monad m => (NanoTime, Int) -> ThrottleTestT m ()
 recordTime x = ThrottleTestT $ lift $ state $
     \(ThrottleTestState ts now xs) -> ((), ThrottleTestState ts now (x:xs))
 
-instance (MonadMonotonicTime m, MonadMonotonicTimeNSec (ThrottleTestT m))
-        => MonadMonotonicTime (ThrottleTestT m) where
-    getMonotonicTime = ThrottleTestT $ MaybeT $ state mockTime
+instance Monad m => MonadMonotonicTimeNSec (ThrottleTestT m) where
+    getMonotonicTimeNSec =
+        ThrottleTestT $ MaybeT $ state mockTime
       where
-        mockTime (ThrottleTestState later now as) = case later of
-            [] -> (Nothing, ThrottleTestState later now as)
-            (t:ts) ->
-                let now' = addTime t now
-                in  (Just now', ThrottleTestState ts now' as)
+        mockTime (ThrottleTestState later now as) =
+            case later of
+                [] -> (Nothing, ThrottleTestState later now as)
+                (t : ts) ->
+                    let now' = t + now
+                    in  (Just now', ThrottleTestState ts now' as)
 
-instance MonadMonotonicTime m => MonadMonotonicTimeNSec (ThrottleTestT m) where
-    getMonotonicTimeNSec = lift $ getMonotonicTimeNSec
+instance Monad m => MonadMonotonicTime (ThrottleTestT m)
 
 instance MonadUnliftIO m => MonadUnliftIO (StateT ThrottleTestState m) where
   withRunInIO inner = StateT $ \tts -> do
@@ -933,24 +969,27 @@ prop_throttle tc@(ThrottleTest interval diffTimes) = monadicIO $ do
   where
     testAction :: ThrottleTestT IO ()
     testAction = do
-        rateLimited <- throttle interval (curry recordTime)
+        rateLimited <-
+            throttle
+                (nanoToDiffTime interval)
+                (\t -> curry recordTime (timeToNanoTime t))
         mockEventSource rateLimited 0
 
     mockEventSource cb n
          | n < length diffTimes = cb n >> mockEventSource cb (n + 1)
          | otherwise = pure ()
 
-    finalTime = addTime (sum diffTimes) (Time 0)
-    accTimes = drop 1 $ L.scanl' (flip addTime) (Time 0) diffTimes
+    finalTime = sum diffTimes
+    accTimes = drop 1 $ L.scanl' (+) 0 diffTimes
 
-    expected = reverse $ snd $ L.foldl' model (Time (negate interval), []) $
+    expected = reverse $ snd $ L.foldl' model (negate interval, []) $
         zip accTimes [0..]
 
     model (prev, xs) (now, i)
-        | diffTime now prev >= interval = (now, (now, i):xs)
+        | now - prev >= interval = (now, (now, i):xs)
         | otherwise = (prev, xs)
 
-    timeDeltas xs = zipWith diffTime (drop 1 xs) xs
+    timeDeltas xs = zipWith (-) (drop 1 xs) xs
 
     assertNamed lbl prop = do
         monitor $ counterexample $ lbl ++ ": " ++ show prop
@@ -962,8 +1001,10 @@ prop_throttle tc@(ThrottleTest interval diffTimes) = monadicIO $ do
         . cover 25 (length diffTimes >= 10) "long mockEventSource"
         . cover 25 (testRatio >= 0.5 && testRatio <= 1.5) "reasonable interval"
       where
-        avgDiffTime = sum diffTimes / fromIntegral (length diffTimes)
-        testRatio = avgDiffTime / interval
+        avgDiffTime :: Double =
+            fromIntegral (sum diffTimes) / fromIntegral (length diffTimes)
+        testRatio :: Double =
+            avgDiffTime / fromIntegral interval
 
 {-------------------------------------------------------------------------------
                                 Migration
