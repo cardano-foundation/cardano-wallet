@@ -1240,7 +1240,6 @@ patchSharedWallet
         , k ~ SharedKey
         , ctx ~ ApiLayer s
         , Shared.SupportsDiscovery n k
-        , HasDBFactory s ctx
         )
     => ctx
     -> (XPub -> k 'AccountK XPub)

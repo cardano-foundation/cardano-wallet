@@ -968,12 +968,10 @@ putWalletMeta walletState wm = onDBVar walletState $ update $ \_ ->
 
 -- | Update a wallet's metadata with the given update function.
 updateWallet
-    :: forall ctx s
-     . HasDBLayer IO s ctx
-    => ctx
+    :: WalletLayer IO s
     -> (WalletMetadata -> WalletMetadata)
     -> IO ()
-updateWallet ctx f = onWalletState @IO @s ctx $ update $ \s ->
+updateWallet ctx f = onWalletState ctx $ update $ \s ->
     [ UpdateInfo
         $ UpdateWalletMetadata
         $ f
@@ -3265,19 +3263,18 @@ guardHardIndex ix =
     else pure (Index $ getDerivationIndex ix)
 
 updateCosigner
-    :: forall ctx s k n
+    :: forall s k n
      . ( s ~ SharedState n k
        , k ~ SharedKey
        , Shared.SupportsDiscovery n k
-       , HasDBLayer IO s ctx
        )
-    => ctx
+    => WalletLayer IO s
     -> k 'AccountK XPub
     -> Cosigner
     -> CredentialType
     -> ExceptT ErrAddCosignerKey IO ()
 updateCosigner ctx cosignerXPub cosigner cred =
-    ExceptT . onWalletState @IO @s ctx . Delta.updateWithError
+    ExceptT . onWalletState ctx . Delta.updateWithError
         $ updateCosigner'
   where
     kF = keyFlavorFromState @s
