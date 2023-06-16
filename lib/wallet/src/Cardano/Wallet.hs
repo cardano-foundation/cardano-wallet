@@ -55,7 +55,6 @@ module Cardano.Wallet
 
     -- * Capabilities
     -- $Capabilities
-    , HasDBLayer
     , dbLayer
     , HasLogger
     , logger
@@ -683,7 +682,7 @@ import qualified Data.Vector as V
 -- lenses (see Cardano.Wallet#Capabilities). These components are extracted from the context
 -- in a @where@ clause according to the following naming convention:
 --
--- - @db = ctx ^. dbLayer \@s \\@k@ for the 'DBLayer'.
+-- - @db = ctx ^. dbLayer for the 'DBLayer'.
 -- - @tr = ctx ^. logger@ for the Logger.
 -- - @nw = ctx ^. networkLayer@ for the 'NetworkLayer'.
 -- - @tl = ctx ^. transactionLayer \\@k@ for the 'TransactionLayer'.
@@ -757,7 +756,6 @@ data WalletLayer m s =
 -- One can build an interface using only a subset of the wallet layer
 -- capabilities and functions, for instance, something to fiddle with wallets
 -- and their metadata does not require any networking layer.
-type HasDBLayer m s = HasType (DBLayer m s)
 
 type HasGenesisData = HasType (Block, NetworkParameters)
 
@@ -769,8 +767,8 @@ type HasNetworkLayer m = HasType (NetworkLayer m Read.Block)
 
 type HasTransactionLayer k ktype = HasType (TransactionLayer k ktype SealedTx)
 
-dbLayer :: forall m s ctx. HasDBLayer m s ctx => Lens' ctx (DBLayer m s)
-dbLayer = typed @(DBLayer m s)
+dbLayer :: Lens' (WalletLayer m s) (DBLayer m s)
+dbLayer = #dbLayer_
 
 genesisData ::
     forall ctx. HasGenesisData ctx => Lens' ctx (Block, NetworkParameters)
