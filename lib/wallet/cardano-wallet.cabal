@@ -780,6 +780,7 @@ test-suite unit
     , cardano-crypto-wrapper
     , cardano-ledger-alonzo
     , cardano-ledger-alonzo-test
+    , cardano-ledger-api
     , cardano-ledger-babbage
     , cardano-ledger-byron
     , cardano-ledger-byron-test
@@ -866,6 +867,7 @@ test-suite unit
     , servant-openapi3
     , servant-server
     , should-not-typecheck
+    , sop-core
     , splitmix
     , strict-non-empty-containers
     , string-interpolate
