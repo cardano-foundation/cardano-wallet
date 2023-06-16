@@ -49,6 +49,7 @@ import Data.Semigroup
 import Test.QuickCheck
     ( Gen, chooseInteger, frequency, oneof )
 
+import qualified Cardano.Ledger.Api as Ledger
 import qualified Cardano.Ledger.Coin as Ledger
 
 --------------------------------------------------------------------------------
@@ -158,16 +159,16 @@ testParameter_minUTxOValue_Mary = Ledger.Coin 1_000_000
 --
 -- Value derived from 'mainnet-alonzo-genesis.json'.
 --
-testParameter_coinsPerUTxOWord_Alonzo :: Ledger.Coin
-testParameter_coinsPerUTxOWord_Alonzo = Ledger.Coin 34_482
+testParameter_coinsPerUTxOWord_Alonzo :: Ledger.CoinPerWord
+testParameter_coinsPerUTxOWord_Alonzo = Ledger.CoinPerWord 34_482
 
 -- | A test value of the Babbage-era 'coinsPerUTxOByte' parameter.
 --
 -- Value derived from 'mainnet-alonzo-genesis.json':
 -- >>> 34_482 `div` 8 == 4_310
 --
-testParameter_coinsPerUTxOByte_Babbage :: Ledger.Coin
-testParameter_coinsPerUTxOByte_Babbage = Ledger.Coin 4_310
+testParameter_coinsPerUTxOByte_Babbage :: Ledger.CoinPerByte
+testParameter_coinsPerUTxOByte_Babbage = Ledger.CoinPerByte 4_310
 
 --------------------------------------------------------------------------------
 -- Internal functions

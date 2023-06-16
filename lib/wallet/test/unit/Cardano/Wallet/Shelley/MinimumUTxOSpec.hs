@@ -17,6 +17,8 @@ import Cardano.Api
     ( ShelleyBasedEra (..) )
 import Cardano.Api.Gen
     ( genAddressAny )
+import Cardano.Ledger.Core
+    ( ppMinUTxOValueL )
 import Cardano.Wallet.Address.Keys.BoundedAddressLength
     ( maxLengthAddressFor )
 import Cardano.Wallet.Flavor
@@ -55,6 +57,8 @@ import Cardano.Wallet.Primitive.Types.Tx.TxOut.Gen
     ( genTxOutTokenBundle )
 import Cardano.Wallet.Shelley.MinimumUTxO
     ( computeMinimumCoinForUTxO, isBelowMinimumCoinForUTxO )
+import Control.Lens
+    ( (.~) )
 import Control.Monad
     ( forM_ )
 import Data.Default
@@ -75,8 +79,7 @@ import Test.Utils.Laws
 
 import qualified Cardano.Api.Shelley as Cardano
 import qualified Cardano.Ledger.Alonzo.PParams as Alonzo
-import qualified Cardano.Ledger.Babbage.PParams as Babbage
-import qualified Cardano.Ledger.Shelley.PParams as Shelley
+import qualified Cardano.Ledger.Api as Babbage
 import qualified Cardano.Wallet.Primitive.Types.TokenBundle as TokenBundle
 import qualified Cardano.Wallet.Primitive.Types.TokenMap as TokenMap
 import qualified Cardano.Wallet.Shelley.MinimumUTxO.Internal as Internal
@@ -349,28 +352,30 @@ goldenTests_computeMinimumCoinForUTxO
 
 goldenMinimumUTxO_ShelleyEra :: MinimumUTxO
 goldenMinimumUTxO_ShelleyEra =
-    minimumUTxOForShelleyBasedEra ShelleyBasedEraShelley
-        def {Shelley._minUTxOValue = testParameter_minUTxOValue_Shelley}
+    minimumUTxOForShelleyBasedEra ShelleyBasedEraShelley $
+        def & ppMinUTxOValueL .~ testParameter_minUTxOValue_Shelley
 
 goldenMinimumUTxO_AllegraEra :: MinimumUTxO
 goldenMinimumUTxO_AllegraEra =
-    minimumUTxOForShelleyBasedEra ShelleyBasedEraAllegra
-        def {Shelley._minUTxOValue = testParameter_minUTxOValue_Allegra}
+    minimumUTxOForShelleyBasedEra ShelleyBasedEraAllegra $
+        def & ppMinUTxOValueL .~ testParameter_minUTxOValue_Allegra
 
 goldenMinimumUTxO_MaryEra :: MinimumUTxO
 goldenMinimumUTxO_MaryEra =
-    minimumUTxOForShelleyBasedEra ShelleyBasedEraMary
-        def {Shelley._minUTxOValue = testParameter_minUTxOValue_Mary}
+    minimumUTxOForShelleyBasedEra ShelleyBasedEraMary $
+        def & ppMinUTxOValueL .~ testParameter_minUTxOValue_Mary
 
 goldenMinimumUTxO_AlonzoEra :: MinimumUTxO
 goldenMinimumUTxO_AlonzoEra =
     minimumUTxOForShelleyBasedEra ShelleyBasedEraAlonzo
-        def {Alonzo._coinsPerUTxOWord = testParameter_coinsPerUTxOWord_Alonzo}
+        $ def
+        & Alonzo.ppCoinsPerUTxOWordL .~ testParameter_coinsPerUTxOWord_Alonzo
 
 goldenMinimumUTxO_BabbageEra :: MinimumUTxO
 goldenMinimumUTxO_BabbageEra =
     minimumUTxOForShelleyBasedEra ShelleyBasedEraBabbage
-        def {Babbage._coinsPerUTxOByte = testParameter_coinsPerUTxOByte_Babbage}
+        $ def
+        & Babbage.ppCoinsPerUTxOByteL .~ testParameter_coinsPerUTxOByte_Babbage
 
 --------------------------------------------------------------------------------
 -- Golden minimum 'Coin' values: Byron-style addresses
