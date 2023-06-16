@@ -492,6 +492,7 @@ library cardano-wallet-api-http
     , OddWord
     , optparse-applicative
     , ouroboros-network
+    , prettyprinter
     , quiet
     , random
     , retry
