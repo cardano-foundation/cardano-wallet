@@ -161,10 +161,11 @@ import Control.DeepSeq
 import Control.Monad
     ( forM_, guard, replicateM, void )
 import Control.Monad.Class.MonadTime
-    ( MonadTime (..), MonadMonotonicTimeNSec (..)
-    )
+    ( MonadMonotonicTimeNSec (..), MonadTime (..) )
 import Control.Monad.IO.Unlift
     ( MonadUnliftIO (..), wrappedWithRunInIO )
+import Control.Monad.Trans
+    ( MonadIO, MonadTrans, lift, liftIO )
 import Control.Monad.Trans.Except
     ( ExceptT (..), except, runExceptT )
 import Control.Monad.Trans.Maybe
@@ -213,6 +214,8 @@ import Data.Word
     ( Word64 )
 import GHC.Generics
     ( Generic )
+import Ouroboros.Consensus.Util.IOLike
+    ( DiffTime, MonadMonotonicTime (..), Time (..), addTime, diffTime )
 import System.Random
     ( Random )
 import Test.Hspec
@@ -266,8 +269,6 @@ import UnliftIO.Concurrent
     , takeMVar
     , threadDelay
     )
-import Ouroboros.Consensus.Util.IOLike (DiffTime, Time (..), MonadMonotonicTime (..), addTime, diffTime)
-import Control.Monad.Trans (lift, MonadIO, MonadTrans, liftIO)
 
 import qualified Cardano.Crypto.Wallet as CC
 import qualified Cardano.Wallet as W
