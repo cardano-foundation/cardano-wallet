@@ -4,7 +4,6 @@
 {-# LANGUAGE DerivingStrategies #-}
 {-# LANGUAGE FlexibleContexts #-}
 {-# LANGUAGE FlexibleInstances #-}
-{-# LANGUAGE GeneralizedNewtypeDeriving #-}
 {-# LANGUAGE MultiParamTypeClasses #-}
 {-# LANGUAGE NamedFieldPuns #-}
 {-# LANGUAGE OverloadedLabels #-}
@@ -15,6 +14,7 @@
 {-# LANGUAGE UndecidableInstances #-}
 
 {-# OPTIONS_GHC -fno-warn-orphans #-}
+{-# LANGUAGE GeneralizedNewtypeDeriving #-}
 
 module Cardano.WalletSpec
     ( spec
@@ -161,17 +161,10 @@ import Control.DeepSeq
 import Control.Monad
     ( forM_, guard, replicateM, void )
 import Control.Monad.Class.MonadTime
-    ( DiffTime
-    , MonadMonotonicTime (..)
-    , MonadTime (..)
-    , Time (..)
-    , addTime
-    , diffTime
+    ( MonadTime (..), MonadMonotonicTimeNSec (..)
     )
 import Control.Monad.IO.Unlift
-    ( MonadIO (..), MonadUnliftIO (..), wrappedWithRunInIO )
-import Control.Monad.Trans.Class
-    ( lift )
+    ( MonadUnliftIO (..), wrappedWithRunInIO )
 import Control.Monad.Trans.Except
     ( ExceptT (..), except, runExceptT )
 import Control.Monad.Trans.Maybe
@@ -273,6 +266,8 @@ import UnliftIO.Concurrent
     , takeMVar
     , threadDelay
     )
+import Ouroboros.Consensus.Util.IOLike (DiffTime, Time (..), MonadMonotonicTime (..), addTime, diffTime)
+import Control.Monad.Trans (lift, MonadIO, MonadTrans, liftIO)
 
 import qualified Cardano.Crypto.Wallet as CC
 import qualified Cardano.Wallet as W
@@ -784,6 +779,9 @@ newtype TxRetryTestM a = TxRetryTestM
     { unTxRetryTestM :: ReaderT TxRetryTestState IO a
     } deriving (Functor, Applicative, Monad, MonadIO, MonadFail)
 
+instance MonadMonotonicTimeNSec TxRetryTestM where
+    getMonotonicTimeNSec = liftIO getMonotonicTimeNSec
+
 instance MonadUnliftIO TxRetryTestM where
     withRunInIO = wrappedWithRunInIO TxRetryTestM unTxRetryTestM
 
@@ -914,6 +912,9 @@ newtype ThrottleTestT m a = ThrottleTestT
     { unThrottleTestT :: MaybeT (StateT ThrottleTestState m) a
     } deriving (Functor, Applicative, Monad, MonadIO)
 
+instance MonadTrans ThrottleTestT where
+    lift = ThrottleTestT . lift . lift
+
 runThrottleTest
     :: MonadIO m
     => ThrottleTestT m a
@@ -930,7 +931,8 @@ recordTime :: Monad m => (Time, Int) -> ThrottleTestT m ()
 recordTime x = ThrottleTestT $ lift $ state $
     \(ThrottleTestState ts now xs) -> ((), ThrottleTestState ts now (x:xs))
 
-instance MonadMonotonicTime m => MonadMonotonicTime (ThrottleTestT m) where
+instance (MonadMonotonicTime m, MonadMonotonicTimeNSec (ThrottleTestT m))
+        => MonadMonotonicTime (ThrottleTestT m) where
     getMonotonicTime = ThrottleTestT $ MaybeT $ state mockTime
       where
         mockTime (ThrottleTestState later now as) = case later of
@@ -938,6 +940,9 @@ instance MonadMonotonicTime m => MonadMonotonicTime (ThrottleTestT m) where
             (t:ts) ->
                 let now' = addTime t now
                 in  (Just now', ThrottleTestState ts now' as)
+
+instance MonadMonotonicTime m => MonadMonotonicTimeNSec (ThrottleTestT m) where
+    getMonotonicTimeNSec = lift $ getMonotonicTimeNSec
 
 instance MonadUnliftIO m => MonadUnliftIO (StateT ThrottleTestState m) where
   withRunInIO inner = StateT $ \tts -> do
