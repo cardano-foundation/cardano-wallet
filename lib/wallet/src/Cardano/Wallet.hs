@@ -790,15 +790,13 @@ transactionLayer = typed @(TransactionLayer k ktype SealedTx)
 
 -- | Convenience to apply an 'Update' to the 'WalletState' via the 'DBLayer'.
 onWalletState
-    :: forall m s ctx r
-     . HasDBLayer m s ctx
-    => ctx
+    :: WalletLayer m s
     -> Delta.Update (WalletState.DeltaWalletState s) r
     -> m r
 onWalletState ctx update' = db & \DBLayer{..} ->
     atomically $ Delta.onDBVar walletState update'
   where
-    db = ctx ^. dbLayer @m @s
+    db = ctx ^. dbLayer
 
 {-------------------------------------------------------------------------------
                                    Wallet
