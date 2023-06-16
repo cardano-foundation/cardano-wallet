@@ -3175,13 +3175,13 @@ decodeTransaction
         (acct, _, acctPath) <-
             liftHandler $ W.shelleyOnlyReadRewardAccount @s db
         inputPaths <-
-            handler $ W.lookupTxIns @_ @s wrk $
+            handler $ W.lookupTxIns wrk $
             fst <$> resolvedInputs
         collateralInputPaths <-
-            handler $ W.lookupTxIns @_ @s wrk $
+            handler $ W.lookupTxIns wrk $
             fst <$> resolvedCollateralInputs
         outputPaths <-
-            handler $ W.lookupTxOuts @_ @s wrk outputs
+            handler $ W.lookupTxOuts wrk outputs
         pp <- liftIO $ NW.currentProtocolParameters (wrk ^. networkLayer)
         (minted, burned) <-
             convertApiAssetMintBurn wrk (toMint, toBurn)

@@ -1502,18 +1502,15 @@ manageSharedRewardBalance tr' netLayer db = do
 -------------------------------------------------------------------------------}
 
 lookupTxIns
-    :: forall ctx s .
-        ( HasDBLayer IO s ctx
-        , IsOurs s Address
-        )
-    => ctx
+    :: IsOurs s Address
+    => WalletLayer IO s
     -> [TxIn]
     -> IO [(TxIn, Maybe (TxOut, NonEmpty DerivationIndex))]
 lookupTxIns ctx txins = db & \DBLayer{..} -> do
     cp <- atomically readCheckpoint
     pure $ map (\i -> (i, lookupTxIn cp i)) txins
   where
-    db = ctx ^. dbLayer @IO @s
+    db = ctx ^. dbLayer
 
 lookupTxIn
     :: IsOurs s Address
@@ -1525,11 +1522,8 @@ lookupTxIn wallet txIn = do
     (out,) <$> fst (isOurs addr (getState wallet))
 
 lookupTxOuts
-    :: forall ctx s .
-        ( HasDBLayer IO s ctx
-        , IsOurs s Address
-        )
-    => ctx
+    :: IsOurs s Address
+    => WalletLayer IO s
     -> [TxOut]
     -> IO [(TxOut, Maybe (NonEmpty DerivationIndex))]
 lookupTxOuts ctx txouts = db & \DBLayer{..} -> do
@@ -1541,7 +1535,7 @@ lookupTxOuts ctx txouts = db & \DBLayer{..} -> do
     pure $ flip evalState (getState cp) $ forM txouts $ \out@(TxOut addr _) ->
         (out,) <$> state (isOurs addr)
   where
-    db = ctx ^. dbLayer @IO @s
+    db = ctx ^. dbLayer
 
 -- | List all addresses of a wallet with their metadata. Addresses
 -- are ordered from the most-recently-discovered to the oldest known.
