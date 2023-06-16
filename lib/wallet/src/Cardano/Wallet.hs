@@ -330,7 +330,9 @@ import Cardano.Wallet.Address.Keys.WalletKey
 import Cardano.Wallet.Address.States.IsOwned
     ( isOwned )
 import Cardano.Wallet.Checkpoints
-    ( DeltaCheckpoints (..), extendCheckpoints, pruneCheckpoints )
+    ( DeltaCheckpoints (..), extendAndPrune )
+import Cardano.Wallet.Checkpoints.Policy
+    ( sparseArithmetic )
 import Cardano.Wallet.DB
     ( DBFresh (..)
     , DBLayer (..)
@@ -355,6 +357,7 @@ import Cardano.Wallet.DB.WalletState
     , DeltaWalletState1 (..)
     , WalletState (..)
     , fromWallet
+    , getBlockHeight
     , getLatest
     , getSlot
     )
@@ -1219,22 +1222,19 @@ restoreBlocks ctx tr blocks nodeTip = db & \DBLayer{..} -> atomically $ do
     let finalitySlot = nodeTip ^. #slotNo
             - stabilityWindowShelley slottingParams
 
-    -- Checkpoint deltas
     let wcps = snd . fromWallet <$> cps
-        deltaPutCheckpoints =
-            extendCheckpoints
+        epochStability' = fromIntegral $ getQuantity epochStability
+        deltaCheckpoints wallet =
+            extendAndPrune
                 getSlot
-                (view $ #currentTip . #blockHeight)
-                epochStability
-                (nodeTip ^. #blockHeight)
+                (fromIntegral . getBlockHeight)
+                (sparseArithmetic epochStability')
+                (fromIntegral $ getQuantity $ localTip ^. #blockHeight)
+                    -- nodeTip instead of localTip should work as well,
+                    -- but for some reason, the integration tests
+                    -- become flakier.
                 wcps
-
-        deltaPruneCheckpoints wallet =
-            pruneCheckpoints
-                (view $ #currentTip . #blockHeight)
-                epochStability
-                (localTip ^. #blockHeight)
-                (wallet ^. #checkpoints)
+                (checkpoints wallet)
 
     let
         -- NOTE: We have to update the 'Prologue' as well,
@@ -1263,13 +1263,10 @@ restoreBlocks ctx tr blocks nodeTip = db & \DBLayer{..} -> atomically $ do
             liftIO $ logDelegation delegation
             putDelegationCertificate walletState cert slotNo
 
-    Delta.onDBVar walletState $ Delta.update $ \_wallet ->
-        deltaPrologue
-        <> [ UpdateCheckpoints deltaPutCheckpoints ]
-        <> deltaPruneSubmissions
-
     Delta.onDBVar walletState $ Delta.update $ \wallet ->
-        [ UpdateCheckpoints $ deltaPruneCheckpoints wallet ]
+        deltaPrologue
+        <> [ UpdateCheckpoints $ deltaCheckpoints wallet ]
+        <> deltaPruneSubmissions
 
     liftIO $ do
         traceWith tr $ MsgDiscoveredTxs txs

@@ -1,6 +1,5 @@
 {-# LANGUAGE DataKinds #-}
 {-# LANGUAGE DeriveGeneric #-}
-{-# LANGUAGE NamedFieldPuns #-}
 {-# LANGUAGE OverloadedLabels #-}
 {-# LANGUAGE TypeFamilies #-}
 
@@ -26,18 +25,14 @@ module Cardano.Wallet.Checkpoints
 
     -- * Checkpoint hygiene
     , BlockHeight
-    , extendCheckpoints
-    , pruneCheckpoints
-
-    -- * Checkpoint creation
-    , SparseCheckpointsConfig (..)
-    , defaultSparseCheckpointsConfig
-    , sparseCheckpoints
-    , gapSize
+    , CheckpointPolicy
+    , extendAndPrune
     ) where
 
 import Prelude
 
+import Cardano.Wallet.Checkpoints.Policy
+    ( BlockHeight, CheckpointPolicy, keepWhereTip )
 import Data.Delta
     ( Delta (..) )
 import Data.Generics.Internal.VL.Lens
@@ -46,17 +41,12 @@ import Data.Map.Strict
     ( Map )
 import Data.Maybe
     ( fromMaybe )
-import Data.Quantity
-    ( Quantity (..) )
-import Data.Word
-    ( Word32, Word8 )
 import Fmt
     ( Buildable (..), listF )
 import GHC.Generics
     ( Generic )
 
 import qualified Cardano.Wallet.Primitive.Types as W
-import qualified Data.List as L
 import qualified Data.List.NonEmpty as NE
 import qualified Data.Map.Strict as Map
 import qualified Data.Set as Set
@@ -159,195 +149,50 @@ instance Buildable (DeltaCheckpoints a) where
 {-------------------------------------------------------------------------------
     Checkpoint hygiene
 -------------------------------------------------------------------------------}
-type BlockHeight = Quantity "block" Word32
 
-{- Note [Checkpoints-SummaryVsList]
+{- Note [extendAndPrune]
 
-The 'extendCheckpoints' is designed for the case where the blocks are
-given as a 'List', not as a 'Summary'.
-In this 'Summary' case, it could happen that the current
-scheme fails to create sufficiently many checkpoint as
-it was never able to touch the corresponding block.
+The function 'extendAndPrune' expects a list of new checkpoints that
+are to be pruned and added to the existing checkpoints.
 
-For now, we avoid this situation by being always supplied a 'List'
-in the unstable region close to the tip.
-
-Another solution is to use 'nextCheckpoint' from the
-'CheckpointPolicy' in order to drive the checkpoint collection in 'Summary'.
+As a precondition, we assume that these new checkpoints
+have been created at least at those block heights
+specified by 'nextCheckpoint' from the 'CheckpointPolicy' argument.
+Except for the most recent checkpoint,
+the function 'extendAndPrune' will prune all checkpoints
+whose block height does not align with the policy.
+It's ok to supply a list of new checkpoints that is denser than required.
 -}
 
--- | Extend the known checkpoints.
-extendCheckpoints
+-- | Extend the known checkpoints and prune unnecessary ones.
+extendAndPrune
     :: (a -> W.Slot)
         -- ^ Convert checkpoint to slot.
     -> (a -> BlockHeight)
         -- ^ Convert checkpoint to block height.
-    -> BlockHeight
-        -- ^ Epoch stability window = length of the deepest rollback.
+    -> CheckpointPolicy
+        -- ^ Policy to use for pruning checkpoints.
     -> BlockHeight
         -- ^ Current tip of the blockchain,
         -- which is *different* from block height of the latest checkpoint.
     -> NE.NonEmpty a
         -- ^ New checkpoints, ordered by increasing @Slot@.
-    -> DeltasCheckpoints a
-extendCheckpoints getSlot getBlockHeight epochStability nodeTip cps =
-    reverse
-        [ PutCheckpoint (getSlot wcp) wcp
-        | wcp <- cpsKeep
-        ]
-  where
-    unstable = Set.map Quantity $ Set.fromList $ sparseCheckpoints cfg nodeTip
-      where
-        -- NOTE
-        -- The edge really is an optimization to avoid rolling back too
-        -- "far" in the past. Yet, we let the edge construct itself
-        -- organically once we reach the tip of the chain and start
-        -- processing blocks one by one.
-        --
-        -- This prevents the wallet from trying to create too many
-        -- checkpoints at once during restoration which causes massive
-        -- performance degradation on large wallets.
-        --
-        -- Rollback may still occur during this short period, but
-        -- rolling back from a few hundred blocks is relatively fast
-        -- anyway.
-        cfg = (defaultSparseCheckpointsConfig epochStability) { edgeSize = 0 }
-    willKeep cp = getBlockHeight cp `Set.member` unstable
-    cpsKeep = filter willKeep (NE.init cps) <> [NE.last cps]
-
--- | Compute a delta to prune the 'Checkpoints'
--- according to 'defaultSparseCheckpointsConfig'.
-pruneCheckpoints
-    :: (a -> BlockHeight)
-        -- ^ Retrieve 'BlockHeight' from checkpoint data.
-    -> BlockHeight
-        -- ^ Epoch stability window = length of the deepest rollback.
-    -> BlockHeight
-        -- ^ Block height of the latest checkpoint.
+        -- See Note [extendAndPrune].
     -> Checkpoints a
+        -- ^ Current checkpoints.
     -> DeltasCheckpoints a
-pruneCheckpoints getHeight epochStability tip (Checkpoints cps) =
-    [ RestrictTo slots ]
+extendAndPrune getSlot getHeight policy nodeTip xs (Checkpoints cps) =
+    additions <> pruneOld
   where
-    willKeep cp = getQuantity (getHeight cp) `Set.member` heights
-    slots = Map.keys $ Map.filter willKeep cps
-    heights = Set.fromList $ sparseCheckpoints
-        (defaultSparseCheckpointsConfig epochStability)
-        tip
+    additions = reverse -- latest slot needs to be applied last
+        [ PutCheckpoint (getSlot x) x | x <- new ]
+    pruneOld = [ RestrictTo $ map getSlot old ]
 
-{-------------------------------------------------------------------------------
-    Checkpoint creation
--------------------------------------------------------------------------------}
--- | Storing EVERY checkpoints in the database is quite expensive and useless.
--- We make the following assumptions:
---
--- - We can't rollback for more than `k=epochStability` blocks in the past
--- - It is pretty fast to re-sync a few hundred blocks
--- - Small rollbacks may occur more often than deep ones
---
--- So, as we insert checkpoints, we make sure to:
---
--- - Prune any checkpoint that more than `k` blocks in the past
--- - Keep only one checkpoint every 100 blocks
--- - But still keep ~10 most recent checkpoints to cope with small rollbacks
---
--- __Example 1__: Inserting `cp153`
---
---  ℹ: `cp142` is discarded and `cp153` inserted.
---
---  @
---  Currently in DB:
--- ┌───┬───┬───┬─  ──┬───┐
--- │cp000 │cp100 │cp142 │..    ..│cp152 │
--- └───┴───┴───┴─  ──┴───┘
---  Want in DB:
--- ┌───┬───┬───┬─  ──┬───┐
--- │cp000 │cp100 │cp143 │..    ..│cp153 │
--- └───┴───┴───┴─  ──┴───┘
---  @
---
---
---  __Example 2__: Inserting `cp111`
---
---  ℹ: `cp100` is kept and `cp111` inserted.
---
---  @
---  Currently in DB:
--- ┌───┬───┬───┬─  ──┬───┐
--- │cp000 │cp100 │cp101 │..    ..│cp110 │
--- └───┴───┴───┴─  ──┴───┘
---  Want in DB:
--- ┌───┬───┬───┬─  ──┬───┐
--- │cp000 │cp100 │cp101 │..    ..│cp111 │
--- └───┴───┴───┴─  ──┴───┘
---  @
---
--- NOTE: There might be cases where the chain following "fails" (because, for
--- example, the node has switched to a different chain, different by more than k),
--- and in such cases, we have no choice but rolling back from genesis.
--- Therefore, we need to keep the very first checkpoint in the database, no
--- matter what.
-sparseCheckpoints
-    :: SparseCheckpointsConfig
-        -- ^ Parameters for the function.
-    -> BlockHeight
-        -- ^ A given block height
-    -> [Word32]
-        -- ^ The list of checkpoint heights that should be kept in DB.
-sparseCheckpoints cfg blkH  =
-    let
-        SparseCheckpointsConfig{edgeSize,epochStability} = cfg
-        g = gapSize cfg
-        h = getQuantity blkH
-        e = fromIntegral edgeSize
+    new = filter willKeep (NE.toList xs)
+    old = filter willKeep (Map.elems cps)
 
-        minH =
-            let x = if h < epochStability + g then 0 else h - epochStability - g
-            in g * (x `div` g)
+    latest = NE.last xs
+    isLatest x = getHeight x == getHeight latest
 
-        initial   = 0
-        longTerm  = [minH,minH+g..h]
-        shortTerm = if h < e
-            then [0..h]
-            else [h-e,h-e+1..h]
-    in
-        L.sort (L.nub $ initial : (longTerm ++ shortTerm))
-
--- | Captures the configuration for the `sparseCheckpoints` function.
---
--- NOTE: large values of 'edgeSize' aren't recommended as they would mean
--- storing many unnecessary checkpoints. In Ouroboros Praos, there's a
--- reasonable probability for small forks each a few blocks deep so it makes sense to
--- maintain a small part that is denser near the edge.
-data SparseCheckpointsConfig = SparseCheckpointsConfig
-    { edgeSize :: Word8
-    , epochStability :: Word32
-    } deriving Show
-
--- | A sensible default to use in production. See also 'SparseCheckpointsConfig'
-defaultSparseCheckpointsConfig :: BlockHeight -> SparseCheckpointsConfig
-defaultSparseCheckpointsConfig (Quantity epochStability) =
-    SparseCheckpointsConfig
-        { edgeSize = 5
-        , epochStability
-        }
-
--- | A reasonable gap size used internally in 'sparseCheckpoints'.
---
--- 'Reasonable' means that it's not _too frequent_ and it's not too large. A
--- value that is too small in front of k would require generating much more
--- checkpoints than necessary.
---
--- A value that is larger than `k` may have dramatic consequences in case of
--- deep rollbacks.
---
--- As a middle ground, we current choose `k / 3`, which is justified by:
---
--- - The current speed of the network layer (several thousands blocks per seconds)
--- - The current value of k = 2160
---
--- So, `k / 3` = 720, which should remain around a second of time needed to catch
--- up in case of large rollbacks.
-gapSize :: SparseCheckpointsConfig -> Word32
-gapSize SparseCheckpointsConfig{epochStability} =
-    epochStability `div` 3
+    willKeep x = isLatest x || keepWhereTip policy (getHeight x) nodeTip
+        -- We must keep the most recent checkpoint or nothing will be extended
