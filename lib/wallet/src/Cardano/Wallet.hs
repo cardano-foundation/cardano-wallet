@@ -3114,14 +3114,13 @@ withRootKey DBLayer{..} wid pwd embed action = do
 -- This is experimental, and will likely be replaced by a more robust to
 -- arbitrary message signing using COSE, or a subset of it.
 signMetadataWith
-    :: forall ctx s n k.
-        ( HasDBLayer IO s ctx
-        , HardDerivation k
+    :: forall s n k.
+        ( HardDerivation k
         , AddressIndexDerivationType k ~ 'Soft
         , WalletFlavor s
         , s ~ SeqState n k
         )
-    => ctx
+    => WalletLayer IO s
     -> WalletId
     -> Passphrase "user"
     -> (Role, DerivationIndex)
@@ -3143,7 +3142,7 @@ signMetadataWith ctx wid pwd (role_, ix) metadata = db & \DBLayer{..} -> do
             hash @ByteString @Blake2b_256 $
             serialiseToCBOR metadata
   where
-    db = ctx ^. dbLayer @IO @s
+    db = ctx ^. dbLayer
 
 derivePublicKey
     :: forall s k.

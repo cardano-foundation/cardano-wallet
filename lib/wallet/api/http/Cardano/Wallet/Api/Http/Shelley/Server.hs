@@ -4045,7 +4045,7 @@ signMetadata ctx (ApiT wid) (ApiT role_) (ApiT ix) body = do
     let pwd  = body ^. #passphrase . #getApiT
 
     withWorkerCtx @_ @s ctx wid liftE liftE $ \wrk -> liftHandler $ do
-        getSignature <$> W.signMetadataWith @_ @s
+        getSignature <$> W.signMetadataWith
             wrk wid (coerce pwd) (role_, ix) meta
 
 derivePublicKey
