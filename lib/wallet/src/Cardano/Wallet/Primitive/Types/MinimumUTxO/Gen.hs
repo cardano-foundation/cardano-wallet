@@ -80,51 +80,64 @@ shrinkMinimumUTxO = const []
 
 genMinimumUTxOForShelleyBasedEra
     :: Gen MinimumUTxOForShelleyBasedEra
-genMinimumUTxOForShelleyBasedEra = oneof
-    [ genShelley
-    , genAllegra
-    , genMary
-    , genAlonzo
-    , genBabbage
-    ]
+genMinimumUTxOForShelleyBasedEra =
+    oneof
+        [ genShelley
+        , genAllegra
+        , genMary
+        , genAlonzo
+        , genBabbage
+        ]
   where
     genShelley :: Gen MinimumUTxOForShelleyBasedEra
     genShelley = do
         minUTxOValue <-
-            genLedgerCoinOfSimilarMagnitude testParameter_minUTxOValue_Shelley
+            genLedgerCoinOfSimilarMagnitude
+                id
+                id
+                testParameter_minUTxOValue_Shelley
         let pParams = emptyPParams & ppMinUTxOValueL .~ minUTxOValue
         pure $ MinimumUTxOForShelleyBasedEra ShelleyBasedEraShelley pParams
 
     genAllegra :: Gen MinimumUTxOForShelleyBasedEra
     genAllegra = do
         minUTxOValue <-
-            genLedgerCoinOfSimilarMagnitude testParameter_minUTxOValue_Allegra
+            genLedgerCoinOfSimilarMagnitude
+                id
+                id
+                testParameter_minUTxOValue_Allegra
         let pParams = emptyPParams & ppMinUTxOValueL .~ minUTxOValue
         pure $ MinimumUTxOForShelleyBasedEra ShelleyBasedEraAllegra pParams
 
     genMary :: Gen MinimumUTxOForShelleyBasedEra
     genMary = do
         minUTxOValue <-
-            genLedgerCoinOfSimilarMagnitude testParameter_minUTxOValue_Mary
+            genLedgerCoinOfSimilarMagnitude
+                id
+                id
+                testParameter_minUTxOValue_Mary
         let pParams = emptyPParams & ppMinUTxOValueL .~ minUTxOValue
         pure $ MinimumUTxOForShelleyBasedEra ShelleyBasedEraMary pParams
 
-    genAlonzo :: Gen MinimumUTxOForShelleyBasedEra
-    genAlonzo = do
-        coinsPerUTxOWord <-
-            genLedgerCoinOfSimilarMagnitude
-                testParameter_coinsPerUTxOWord_Alonzo
-        let pParams = emptyPParams
-                & ppCoinsPerUTxOWordL .~ CoinPerWord coinsPerUTxOWord
-        pure $ MinimumUTxOForShelleyBasedEra ShelleyBasedEraAlonzo pParams
+genAlonzo :: Gen MinimumUTxOForShelleyBasedEra
+genAlonzo = do
+    coinsPerUTxOWord <-
+        genLedgerCoinOfSimilarMagnitude
+            CoinPerWord
+            unCoinPerWord
+            testParameter_coinsPerUTxOWord_Alonzo
+    let pParams = emptyPParams & ppCoinsPerUTxOWordL .~ coinsPerUTxOWord
+    pure $ MinimumUTxOForShelleyBasedEra ShelleyBasedEraAlonzo pParams
 
-    genBabbage :: Gen MinimumUTxOForShelleyBasedEra
-    genBabbage = do
-        coinsPerUTxOByte <- genLedgerCoinOfSimilarMagnitude
+genBabbage :: Gen MinimumUTxOForShelleyBasedEra
+genBabbage = do
+    coinsPerUTxOByte <-
+        genLedgerCoinOfSimilarMagnitude
+            CoinPerByte
+            unCoinPerByte
             testParameter_coinsPerUTxOByte_Babbage
-        let pParams = emptyPParams
-                & ppCoinsPerUTxOByteL .~ CoinPerByte coinsPerUTxOByte
-        pure $ MinimumUTxOForShelleyBasedEra ShelleyBasedEraBabbage pParams
+    let pParams = emptyPParams & ppCoinsPerUTxOByteL .~ coinsPerUTxOByte
+    pure $ MinimumUTxOForShelleyBasedEra ShelleyBasedEraBabbage pParams
 
 shrinkMinimumUTxOForShelleyBasedEra
     :: MinimumUTxOForShelleyBasedEra -> [MinimumUTxOForShelleyBasedEra]
@@ -160,7 +173,8 @@ testParameter_minUTxOValue_Mary = Ledger.Coin 1_000_000
 -- Value derived from 'mainnet-alonzo-genesis.json'.
 --
 testParameter_coinsPerUTxOWord_Alonzo :: Ledger.CoinPerWord
-testParameter_coinsPerUTxOWord_Alonzo = Ledger.CoinPerWord 34_482
+testParameter_coinsPerUTxOWord_Alonzo
+    = Ledger.CoinPerWord $ Ledger.Coin 34_482
 
 -- | A test value of the Babbage-era 'coinsPerUTxOByte' parameter.
 --
@@ -168,16 +182,19 @@ testParameter_coinsPerUTxOWord_Alonzo = Ledger.CoinPerWord 34_482
 -- >>> 34_482 `div` 8 == 4_310
 --
 testParameter_coinsPerUTxOByte_Babbage :: Ledger.CoinPerByte
-testParameter_coinsPerUTxOByte_Babbage = Ledger.CoinPerByte 4_310
+testParameter_coinsPerUTxOByte_Babbage
+    = Ledger.CoinPerByte $ Ledger.Coin 4_310
 
 --------------------------------------------------------------------------------
 -- Internal functions
 --------------------------------------------------------------------------------
 
+
 -- | Chooses a 'Coin' value from within the given range.
 chooseLedgerCoin :: (Ledger.Coin, Ledger.Coin) -> Gen Ledger.Coin
 chooseLedgerCoin (Ledger.Coin lo, Ledger.Coin hi) =
     Ledger.Coin <$> chooseInteger (lo, hi)
+
 
 -- | Generates a wallet 'Coin' value that has a similar magnitude to the given
 --   value.
@@ -186,6 +203,11 @@ genCoinOfSimilarMagnitude coin =
     chooseCoin (mempty, stimes (2 :: Int) coin)
 
 -- | Generates a 'Coin' value that has a similar magnitude to the given value.
-genLedgerCoinOfSimilarMagnitude :: Ledger.Coin -> Gen Ledger.Coin
-genLedgerCoinOfSimilarMagnitude coin =
-    chooseLedgerCoin (mempty, stimes (2 :: Int) coin)
+-- genLedgerCoinOfSimilarMagnitude :: Ledger.Coin -> Gen Ledger.Coin
+genLedgerCoinOfSimilarMagnitude
+    :: (Ledger.Coin -> b)
+    -> (b -> Ledger.Coin)
+    -> b
+    -> Gen b
+genLedgerCoinOfSimilarMagnitude l l' coin =
+    l <$> chooseLedgerCoin (mempty, stimes (2 :: Int) $ l' coin)
