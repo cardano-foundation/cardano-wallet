@@ -1546,12 +1546,11 @@ lookupTxOuts ctx txouts = db & \DBLayer{..} -> do
 -- | List all addresses of a wallet with their metadata. Addresses
 -- are ordered from the most-recently-discovered to the oldest known.
 listAddresses
-    :: forall ctx s .
-        ( HasDBLayer IO s ctx
-        , CompareDiscovery s
+    :: forall s .
+        ( CompareDiscovery s
         , KnownAddresses s
         )
-    => ctx
+    => WalletLayer IO s
     -> (s -> Address -> Maybe Address)
         -- ^ A function to normalize address, so that delegated addresses
         -- non-delegation addresses found in the transaction history are
@@ -1569,31 +1568,29 @@ listAddresses ctx normalize = db & \DBLayer{..} -> do
         $ mapMaybe (\(addr, st,path) -> (,st,path) <$> normalize s addr)
         $ knownAddresses s
   where
-    db = ctx ^. dbLayer @IO @s
+    db = ctx ^. dbLayer
 
 createRandomAddress
-    :: forall ctx s n k .
-        ( HasDBLayer IO s ctx
-        , RndStateLike s
-        , k ~ ByronKey
-        , k ~ KeyOf s
+    :: forall s n .
+        ( RndStateLike s
+        , ByronKey ~ KeyOf s
         , AddressBookIso s
         , HasSNetworkId n
         )
-    => ctx
+    => WalletLayer IO s
     -> WalletId
     -> Passphrase "user"
     -> Maybe (Index 'Hardened 'CredFromKeyK)
     -> ExceptT ErrCreateRandomAddress IO (Address, NonEmpty DerivationIndex)
 createRandomAddress ctx wid pwd mIx = db & \DBLayer{..} ->
-    withRootKey @s db wid pwd ErrCreateAddrWithRootKey $ \xprv scheme ->
+    withRootKey db wid pwd ErrCreateAddrWithRootKey $ \xprv scheme ->
         ExceptT
             . atomically
             . Delta.onDBVar walletState
             . Delta.updateWithResultAndError
             $ createRandomAddress' xprv scheme
   where
-    db = ctx ^. typed
+    db = ctx ^. dbLayer
 
     createRandomAddress' xprv scheme wal = case mIx of
         Just addrIx | isKnownIndex addrIx s0 ->
@@ -1618,16 +1615,15 @@ createRandomAddress ctx wid pwd mIx = db & \DBLayer{..} ->
             addr = Rnd.deriveRndStateAddress @n xprv prepared path
 
 importRandomAddresses
-    :: forall ctx s
-     . ( HasDBLayer IO s ctx
-       , RndStateLike s
+    :: forall s
+     . ( RndStateLike s
        , AddressBookIso s
        )
-    => ctx
+    => WalletLayer IO s
     -> [Address]
     -> ExceptT ErrImportRandomAddress IO ()
 importRandomAddresses ctx addrs =
-    ExceptT . onWalletState @IO @s ctx . Delta.updateWithError
+    ExceptT . onWalletState ctx . Delta.updateWithError
         $ importRandomAddresses'
   where
     importRandomAddresses' wal = case es1 of
@@ -1657,18 +1653,16 @@ normalizeDelegationAddress s addr = do
         $ Seq.rewardAccountKey s
 
 assignChangeAddressesAndUpdateDb
-    :: forall ctx s
-     . ( GenChange s
-       , HasDBLayer IO s ctx
+    :: ( GenChange s
        , AddressBookIso s
        , WalletFlavor s
        )
-    => ctx
+    => WalletLayer IO s
     -> ArgGenChange s
     -> Selection
     -> IO (SelectionOf TxOut)
 assignChangeAddressesAndUpdateDb ctx argGenChange selection =
-    onWalletState @IO @s ctx . Delta.updateWithResult
+    onWalletState ctx . Delta.updateWithResult
         $ assignChangeAddressesAndUpdateDb'
   where
     assignChangeAddressesAndUpdateDb' wallet =
@@ -1683,12 +1677,11 @@ assignChangeAddressesAndUpdateDb ctx argGenChange selection =
                 s
 
 assignChangeAddressesWithoutDbUpdate
-    :: forall ctx s
+    :: forall s
      . ( GenChange s
-       , HasDBLayer IO s ctx
        , WalletFlavor s
        )
-    => ctx
+    => WalletLayer IO s
     -> ArgGenChange s
     -> Selection
     -> IO (SelectionOf TxOut)
@@ -1702,7 +1695,7 @@ assignChangeAddressesWithoutDbUpdate ctx argGenChange selection =
                     (getState cp)
         pure selectionUpdated
   where
-    db = ctx ^. dbLayer @IO @s
+    db = ctx ^. dbLayer
 
 selectionToUnsignedTx
     :: forall s input output change withdrawal.

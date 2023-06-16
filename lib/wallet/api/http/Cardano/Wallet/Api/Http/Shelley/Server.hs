@@ -2015,9 +2015,8 @@ getAssetDefault ctx wid pid = getAsset ctx wid pid (ApiT nullTokenName)
 -------------------------------------------------------------------------------}
 
 postRandomAddress
-    :: forall ctx s k n.
+    :: forall ctx s n.
         ( s ~ RndState n
-        , k ~ ByronKey
         , ctx ~ ApiLayer s
         , HasSNetworkId n
         )
@@ -2029,7 +2028,7 @@ postRandomAddress ctx (ApiT wid) body = do
     let pwd = coerce $ getApiT $ body ^. #passphrase
     let mix = getApiT <$> (body ^. #addressIndex)
     (addr, path) <- withWorkerCtx ctx wid liftE liftE
-        $ \wrk -> liftHandler $ W.createRandomAddress @_ @s @n wrk wid pwd mix
+        $ \wrk -> liftHandler $ W.createRandomAddress @_ @n wrk wid pwd mix
     pure $ coerceAddress (addr, Unused, path)
   where
     coerceAddress (a, s, p) =
@@ -2046,7 +2045,7 @@ putRandomAddress
     -> Handler NoContent
 putRandomAddress ctx (ApiT wid) (ApiAddress addr)  = do
     withWorkerCtx ctx wid liftE liftE
-        $ \wrk -> liftHandler $ W.importRandomAddresses @_ @s wrk [addr]
+        $ \wrk -> liftHandler $ W.importRandomAddresses wrk [addr]
     pure NoContent
 
 putRandomAddresses
@@ -2060,7 +2059,7 @@ putRandomAddresses
     -> Handler NoContent
 putRandomAddresses ctx (ApiT wid) (ApiPutAddressesData addrs)  = do
     withWorkerCtx ctx wid liftE liftE
-        $ \wrk -> liftHandler $ W.importRandomAddresses @_ @s wrk addrs'
+        $ \wrk -> liftHandler $ W.importRandomAddresses wrk addrs'
     pure NoContent
   where
     addrs' = apiAddress <$> addrs
@@ -2078,7 +2077,7 @@ listAddresses
     -> Handler [ApiAddressWithPath n]
 listAddresses ctx normalize (ApiT wid) stateFilter = do
     addrs <- withWorkerCtx ctx wid liftE liftE $ \wrk -> handler $
-        W.listAddresses @_ @s wrk normalize
+        W.listAddresses wrk normalize
     return $ coerceAddress <$> filter filterCondition addrs
   where
     filterCondition :: (Address, AddressState, NonEmpty DerivationIndex) -> Bool

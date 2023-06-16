@@ -497,12 +497,12 @@ benchmarksRnd network w wname
     oneAddress <- genAddresses 1 cp
     (_, importOneAddressTime) <- bench "import one addresses" $ do
         runExceptT $ withExceptT show $
-            W.importRandomAddresses @_ @s w oneAddress
+            W.importRandomAddresses w oneAddress
 
     manyAddresses <- genAddresses 1000 cp
     (_, importManyAddressesTime) <- bench "import many addresses" $ do
         runExceptT $ withExceptT show $
-            W.importRandomAddresses @_ @s w manyAddresses
+            W.importRandomAddresses w manyAddresses
 
     pure BenchRndResults
         { benchName = benchname

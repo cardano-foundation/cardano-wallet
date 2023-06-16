@@ -236,7 +236,7 @@ benchmarksSeq BenchmarkConfig{benchmarkName,ctx} = do
 
     (addresses, listAddressesTime) <- bench "listAddresses"
         $ fromIntegral . length
-        <$> W.listAddresses @_ @s ctx (const pure)
+        <$> W.listAddresses ctx (const pure)
 
     (_, listAssetsTime) <- bench "listAssets"
         $ length
@@ -316,7 +316,7 @@ benchmarksShared BenchmarkConfig{benchmarkName,ctx} = do
 
     (addresses, listAddressesTime) <- bench "listAddresses"
         $ fromIntegral . length
-        <$> W.listAddresses @_ @s ctx (const pure)
+        <$> W.listAddresses ctx (const pure)
 
     (_, listAssetsTime) <- bench "listAssets"
         $ length
@@ -385,7 +385,7 @@ benchmarksRnd BenchmarkConfig{benchmarkName,ctx} = do
 
     (addresses, listAddressesTime) <- bench "listAddresses"
         $ fromIntegral . length
-        <$> W.listAddresses @_ @s ctx (const pure)
+        <$> W.listAddresses ctx (const pure)
 
     (_, listAssetsTime) <- bench "listAssets"
         $ length
