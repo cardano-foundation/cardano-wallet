@@ -49,8 +49,6 @@ import Data.Maybe
     ( isJust, isNothing )
 import Data.Quantity
     ( Quantity (..) )
-import Data.SOP
-    ( exactlyOne )
 import Data.Time.Clock
     ( addUTCTime, getCurrentTime )
 import Network.Socket
@@ -83,6 +81,7 @@ import qualified Data.ByteString.Lazy as BL
 import qualified Ouroboros.Consensus.HardFork.History.EraParams as HF
 import qualified Ouroboros.Consensus.HardFork.History.Qry as HF
 import qualified Ouroboros.Consensus.HardFork.History.Summary as HF
+import Data.SOP.Counting (exactlyOne)
 
 spec :: Spec
 spec = do
