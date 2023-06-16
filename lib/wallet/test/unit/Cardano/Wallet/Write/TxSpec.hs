@@ -1,5 +1,9 @@
+{-# LANGUAGE DerivingStrategies #-}
 {-# LANGUAGE FlexibleInstances #-}
+{-# LANGUAGE GeneralizedNewtypeDeriving #-}
+{-# LANGUAGE InstanceSigs #-}
 {-# LANGUAGE ScopedTypeVariables #-}
+{-# LANGUAGE StandaloneDeriving #-}
 {-# LANGUAGE TypeApplications #-}
 {-# LANGUAGE TypeFamilies #-}
 
@@ -11,34 +15,26 @@ import Prelude
 
 import Cardano.Api.Gen
     ( genHashableScriptData, genScriptInAnyLang, genTxIn )
-import Cardano.Ledger.Babbage.PParams
-    ( _coinsPerUTxOByte )
-import Cardano.Ledger.Babbage.TxBody
-    ( BabbageTxOut (..) )
-import Cardano.Wallet.Unsafe
-    ( unsafeFromHex )
+import Cardano.Ledger.Api
+    ( ppCoinsPerUTxOByteL )
 import Cardano.Wallet.Write.Tx
-    ( AnyRecentEra, BinaryData, RecentEra (..), Script, StandardBabbage,
-    StandardConway, TxOutInBabbage, binaryDataFromBytes, binaryDataToBytes,
-    computeMinimumCoinForTxOut, datumFromCardanoScriptData, datumHashFromBytes,
-    datumHashToBytes, datumToCardanoScriptData, fromCardanoUTxO,
-    isBelowMinimumCoinForTxOut, isPlutusScript, modifyTxOutCoin,
-    scriptFromCardanoEnvelopeJSON, scriptFromCardanoScriptInAnyLang,
-    scriptToCardanoEnvelopeJSON, scriptToCardanoScriptInAnyLang, toCardanoUTxO )
-import Cardano.Wallet.Write.Tx.Gen
-    ( genTxOut )
+    ( AnyRecentEra, RecentEra (..), computeMinimumCoinForTxOut,
+    datumHashFromBytes, datumHashToBytes, fromCardanoUTxO,
+    isBelowMinimumCoinForTxOut, modifyTxOutCoin, toCardanoUTxO )
+import Control.Lens
+    ( (&), (.~) )
 import Data.Aeson
     ( (.=) )
-import Data.Aeson.Types
-    ( parseEither )
 import Data.Default
     ( Default (..) )
-import PlutusLedgerApi.V1
-    ( Data (..) )
 import Test.Cardano.Ledger.Alonzo.Serialisation.Generators
     ()
+import Test.Cardano.Ledger.Babbage.Arbitrary
+    ()
+import Test.Cardano.Ledger.Conway.Arbitrary
+    ()
 import Test.Hspec
-    ( Spec, describe, expectationFailure, it, shouldBe, shouldNotBe )
+    ( Spec, describe, it, shouldBe, shouldNotBe )
 import Test.QuickCheck
     ( Arbitrary (..), Arbitrary1 (liftArbitrary), Property,
     arbitraryBoundedEnum, conjoin, counterexample, property, (===) )
@@ -51,15 +47,12 @@ import Test.Utils.Laws
 
 import qualified Cardano.Api as Cardano
 import qualified Cardano.Api.Gen as Cardano
-import qualified Cardano.Ledger.Alonzo.Data as Alonzo
 import qualified Data.Aeson as Aeson
-import qualified Data.Aeson.Types as Aeson
 import qualified Data.ByteString as BS
 import qualified Data.Map as Map
 
 spec :: Spec
 spec = do
-
     describe "AnyRecentEra" $ do
         describe "Class instances obey laws" $ do
             testLawsMany @AnyRecentEra
@@ -90,7 +83,7 @@ spec = do
             it "isBelowMinimumCoinForTxOut (setCoin (result <> delta)) \
                \ == False (Babbage)"
                 $ property $ \out delta perByte -> do
-                    let pp = def { _coinsPerUTxOByte = perByte }
+                    let pp = def & ppCoinsPerUTxOByteL .~ perByte
                     let era = RecentEraBabbage
                     let c = delta <> computeMinimumCoinForTxOut era pp out
                     isBelowMinimumCoinForTxOut era pp
@@ -100,13 +93,12 @@ spec = do
             it "isBelowMinimumCoinForTxOut (setCoin (result <> delta)) \
                \ == False (Conway)"
                 $ property $ \out delta perByte -> do
-                    let pp = def { _coinsPerUTxOByte = perByte }
+                    let pp = def & ppCoinsPerUTxOByteL .~ perByte
                     let era = RecentEraConway
                     let c = delta <> computeMinimumCoinForTxOut era pp out
                     isBelowMinimumCoinForTxOut era pp
                         (modifyTxOutCoin era (const c) out)
                         === False
-
 
     describe "UTxO" $ do
         it "is isomorphic to Cardano.UTxO (modulo SimpleScriptV1/2)" $ do
@@ -127,23 +119,12 @@ instance Arbitrary AnyRecentEra where
     arbitrary = arbitraryBoundedEnum
     shrink = shrinkBoundedEnum
 
-
 instance Arbitrary Cardano.HashableScriptData where
      arbitrary = genHashableScriptData
      shrink = const []
 
--- | The OVERLAPS can be removed when we remove import of
--- "Test.Cardano.Ledger.Alonzo.Serialisation.Generators"
-instance {-# INCOHERENT #-} Arbitrary (BinaryData StandardBabbage) where
-    arbitrary = genBinaryData
-    shrink = shrinkBinaryData
-
 instance Arbitrary Cardano.ScriptInAnyLang where
     arbitrary = genScriptInAnyLang
-
-instance {-# OVERLAPPING #-} Arbitrary (Script StandardBabbage) where
-    arbitrary = scriptFromCardanoScriptInAnyLang @Cardano.BabbageEra
-        <$> arbitrary
 
 instance Arbitrary (Cardano.UTxO Cardano.BabbageEra) where
     arbitrary = Cardano.UTxO . Map.fromList <$> liftArbitrary genTxInOutEntry
@@ -151,13 +132,6 @@ instance Arbitrary (Cardano.UTxO Cardano.BabbageEra) where
         genTxInOutEntry = (,)
             <$> genTxIn
             <*> Cardano.genTxOut Cardano.BabbageEra
-
-instance Arbitrary TxOutInBabbage where
-    arbitrary = genTxOut RecentEraBabbage
-
-instance Arbitrary (BabbageTxOut StandardConway) where
-    arbitrary = genTxOut RecentEraConway
-
 
 --------------------------------------------------------------------------------
 -- Helpers
