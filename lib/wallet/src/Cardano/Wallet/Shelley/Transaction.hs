@@ -104,7 +104,12 @@ import Cardano.Crypto.Wallet
 import Cardano.Ledger.Allegra.Core
     ( inputsTxBodyL, ppMinFeeAL )
 import Cardano.Ledger.Api
-    ( collateralInputsTxBodyL, feeTxBodyL, outputsTxBodyL, bodyTxL, scriptIntegrityHashTxBodyL )
+    ( bodyTxL
+    , collateralInputsTxBodyL
+    , feeTxBodyL
+    , outputsTxBodyL
+    , scriptIntegrityHashTxBodyL
+    )
 import Cardano.Ledger.Babbage.TxBody
     ( outputsBabbageTxBodyL )
 import Cardano.Ledger.Crypto
@@ -285,6 +290,7 @@ import qualified Cardano.Crypto.Hash.Class as Crypto
 import qualified Cardano.Crypto.Wallet as Crypto.HD
 import qualified Cardano.Ledger.Alonzo.PlutusScriptApi as Alonzo
 import qualified Cardano.Ledger.Alonzo.Scripts as Alonzo
+import qualified Cardano.Ledger.Alonzo.Scripts.Data as Alonzo
 import qualified Cardano.Ledger.Alonzo.Tx as Alonzo
 import qualified Cardano.Ledger.Alonzo.TxWits as Alonzo
 import qualified Cardano.Ledger.Api as Ledger
@@ -308,7 +314,6 @@ import qualified Data.Map.Merge.Strict as Map
 import qualified Data.Sequence.Strict as StrictSeq
 import qualified Data.Set as Set
 import qualified Data.Text as T
-import qualified Cardano.Ledger.Alonzo.Scripts.Data as Alonzo
 
 
 -- | Type encapsulating what we need to know to add things -- payloads,

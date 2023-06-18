@@ -131,7 +131,8 @@ import Cardano.Wallet.Write.Tx
     , modifyTxOutCoin
     , outputs
     , toCardanoValue
-    , txBody, withConstraints
+    , txBody
+    , withConstraints
     )
 import Cardano.Wallet.Write.Tx.TimeTranslation
     ( TimeTranslation )
