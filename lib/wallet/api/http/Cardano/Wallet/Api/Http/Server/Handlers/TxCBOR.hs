@@ -65,14 +65,14 @@ import qualified Cardano.Wallet.Read.Primitive.Tx.Features.Integrity as Feature
 import qualified Cardano.Wallet.Read.Primitive.Tx.Features.Mint as Feature
 import qualified Cardano.Wallet.Read.Primitive.Tx.Features.Validity as Feature
 import qualified Data.ByteString.Lazy as BL
-import qualified Data.Text as Text
+import qualified Data.Text as T
 
 newtype ErrParseCBOR = ErrParseCBOR DecoderError
     deriving (Eq, Show)
 
 instance IsServerError ErrParseCBOR where
     toServerError (ErrParseCBOR decoderError) =
-        apiError err500 UnexpectedError $ Text.unwords
+        apiError err500 UnexpectedError $ T.unwords
             [ "Error while trying to parse a transaction CBOR from the database"
             , showT decoderError
             ]

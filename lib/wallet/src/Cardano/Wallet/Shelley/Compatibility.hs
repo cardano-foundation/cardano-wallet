@@ -220,9 +220,7 @@ import Cardano.Ledger.Api
 import Cardano.Ledger.BaseTypes
     ( strictMaybeToMaybe, urlToText )
 import Cardano.Ledger.Binary
-    ( serialize', shelleyProtVer )
-import Cardano.Ledger.Binary
-    ( EncCBORGroup )
+    ( EncCBORGroup, serialize', shelleyProtVer )
 import Cardano.Ledger.Era
     ( Era (..), TxSeq )
 import Cardano.Ledger.PoolParams
