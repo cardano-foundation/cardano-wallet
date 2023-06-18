@@ -1511,7 +1511,7 @@ genCostModelCoverage (CostModel costModel) = checkCoverage $ conjoin
         & counterexample
             "Generated cost model did not have same size as default cost model"
     , checkCoverage
-        $ cover 1 (elem 0 costModel)
+        $ cover 1 (0 `elem` costModel)
             "model param is zero"
         $ cover 30 (any (> 0) costModel)
             "model param is greater than zero"

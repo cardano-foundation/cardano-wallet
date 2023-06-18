@@ -4106,10 +4106,10 @@ mockCardanoApiPParamsForBalancing = Cardano.ProtocolParameters
     , Cardano.protocolParamTreasuryCut  = 0
     , Cardano.protocolParamUTxOCostPerWord =
         Just $ fromIntegral $
-            SL.unCoin $ tbd 6 $ testParameter_coinsPerUTxOWord_Alonzo
+            SL.unCoin $ tbd 6 testParameter_coinsPerUTxOWord_Alonzo
     , Cardano.protocolParamUTxOCostPerByte =
         Just $ fromIntegral $
-            SL.unCoin $ tbd 7 $ testParameter_coinsPerUTxOByte_Babbage
+            SL.unCoin $ tbd 7 testParameter_coinsPerUTxOByte_Babbage
     , Cardano.protocolParamCostModels = Cardano.fromAlonzoCostModels
         costModelsForTesting
     , Cardano.protocolParamPrices =

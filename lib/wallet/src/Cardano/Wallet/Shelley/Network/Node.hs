@@ -248,6 +248,7 @@ import Ouroboros.Network.NodeToClient
     , LocalAddress
     , NetworkConnectTracers (..)
     , NodeToClientProtocols (..)
+    , NodeToClientVersionData
     , connectTo
     , localSnocket
     , nodeToClientProtocols
@@ -295,8 +296,6 @@ import qualified Data.Set as Set
 import qualified Data.Text as T
 import qualified Ouroboros.Consensus.Byron.Ledger as Byron
 import qualified Ouroboros.Consensus.Shelley.Ledger as Shelley
-import Ouroboros.Network.NodeToClient
-    ( NodeToClientVersionData )
 
 {- HLINT ignore "Use readTVarIO" -}
 {- HLINT ignore "Use newTVarIO" -}
