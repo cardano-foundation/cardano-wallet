@@ -755,6 +755,7 @@ executable mock-token-metadata-server
     , mock-token-metadata
     , optparse-applicative
     , wai-extra
+    , prettyprinter
 
 test-suite unit
   import:             language, opts-exe
@@ -847,6 +848,7 @@ test-suite unit
     , openapi3                     ==3.2.2
     , optparse-applicative
     , ouroboros-consensus
+    , ouroboros-consensus-cardano
     , ouroboros-network
     , ouroboros-network-api
     , persistent                   ^>=2.13
