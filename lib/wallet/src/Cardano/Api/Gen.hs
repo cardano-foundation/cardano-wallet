@@ -1230,7 +1230,7 @@ genStakePoolRelay = do
     genDnsName :: Gen Ledger.DnsName
     genDnsName = do
         txtLength <- choose (1, 63)
-        txt <- T.pack <$> flip vectorOf arbitraryASCIIChar txtLength
+        txt <- T.pack <$> vectorOf txtLength arbitraryASCIIChar
         case Ledger.textToDns txt of
             Nothing -> error "wrong generator for DnsName"
             Just dns -> return dns

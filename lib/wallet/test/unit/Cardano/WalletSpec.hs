@@ -972,7 +972,7 @@ prop_throttle tc@(ThrottleTest interval diffTimes) = monadicIO $ do
         rateLimited <-
             throttle
                 (nanoToDiffTime interval)
-                (\t -> curry recordTime (timeToNanoTime t))
+                (curry recordTime . timeToNanoTime)
         mockEventSource rateLimited 0
 
     mockEventSource cb n
