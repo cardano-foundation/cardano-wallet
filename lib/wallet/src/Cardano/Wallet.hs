@@ -484,6 +484,8 @@ import GHC.Num
     ( Natural )
 import GHC.TypeNats
     ( Nat )
+import Ouroboros.Consensus.Util.IOLike
+    ( MonadMonotonicTime, Time, diffTime, getMonotonicTime )
 import Statistics.Quantile
     ( medianUnbiased, quantiles )
 import UnliftIO.Exception
@@ -524,8 +526,6 @@ import qualified Data.List.NonEmpty as NE
 import qualified Data.Set as Set
 import qualified Data.Text as T
 import qualified Data.Vector as V
-import Ouroboros.Consensus.Util.IOLike
-    ( MonadMonotonicTime, Time, diffTime, getMonotonicTime )
 
 -- $Development
 -- __Naming Conventions__

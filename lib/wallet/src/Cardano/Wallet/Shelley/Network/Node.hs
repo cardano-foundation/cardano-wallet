@@ -89,9 +89,10 @@ import Control.Concurrent.Class.MonadSTM
     , readTMVar
     , readTVar
     , readTVarIO
+    , retry
     , takeTMVar
     , tryReadTMVar
-    , writeTVar, retry
+    , writeTVar
     )
 import Control.Monad
     ( forever, unless, void, when )
