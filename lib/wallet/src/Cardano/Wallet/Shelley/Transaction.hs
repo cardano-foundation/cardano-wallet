@@ -196,7 +196,7 @@ import Cardano.Wallet.Shelley.Compatibility
     , toStakePoolDlgCert
     )
 import Cardano.Wallet.Shelley.Compatibility.Ledger
-    ( toBabbageTxOut, toConwayTxOut, toWalletCoin, toWalletScript )
+    ( toBabbageTxOut, toConwayTxOut, toLedger, toWalletCoin, toWalletScript )
 import Cardano.Wallet.Shelley.MinimumUTxO
     ( computeMinimumCoinForUTxO, isBelowMinimumCoinForUTxO )
 import Cardano.Wallet.Transaction
@@ -2485,12 +2485,9 @@ removeDummyInput = \case
             ShelleyBasedEraAllegra -> bailOut
             ShelleyBasedEraMary -> bailOut
             ShelleyBasedEraAlonzo ->
-                let body' = body
-                        {- Alonzo.inputs =
-                            Set.delete
-                                (toLedger dummyInput)
-                                (Alonzo.inputs body)
-                        -}
+                let body' = over inputsTxBodyL
+                            (Set.delete
+                                (toLedger dummyInput)) body
                 in Cardano.ShelleyTxBody
                     era
                     body'
@@ -2499,12 +2496,9 @@ removeDummyInput = \case
                     aux
                     val
             ShelleyBasedEraBabbage ->
-                let body' = body
-                        {- Babbage.inputs =
-                            Set.delete
-                                (toLedger dummyInput)
-                                (Babbage.inputs body)
-                        -}
+                let body' = over inputsTxBodyL
+                            (Set.delete
+                                (toLedger dummyInput)) body
                 in Cardano.ShelleyTxBody
                     era
                     body'
