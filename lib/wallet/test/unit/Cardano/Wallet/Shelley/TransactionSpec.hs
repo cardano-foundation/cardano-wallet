@@ -3272,41 +3272,6 @@ shrinkTxBodyBabbage (Cardano.ShelleyTxBody e bod scripts scriptData aux val) =
 
         ]
 
-{-             { Babbage.txwdrls = wdrls'
-            , Babbage.outputs = outs'
-            , Babbage.inputs = ins'
-            , Babbage.txcerts = certs'
-            , Babbage.mint = mint'
-            , Babbage.reqSignerHashes = rsh'
-            , Babbage.txUpdates = updates'
-            , Babbage.txfee = txfee'
-            , Babbage.txvldt = vldt'
-            , Babbage.adHash = adHash'
-            }
-        | updates' <-
-            prependOriginal shrinkStrictMaybe (Babbage.txUpdates body)
-        , wdrls' <-
-            prependOriginal shrinkWdrl (Babbage.txwdrls body)
-        , outs' <-
-            prependOriginal (shrinkSeq (const [])) (Babbage.outputs body)
-        , ins' <-
-            prependOriginal (shrinkSet (const [])) (Babbage.inputs body)
-        , certs' <-
-            prependOriginal (shrinkSeq (const [])) (Babbage.txcerts body)
-        , mint' <-
-            prependOriginal shrinkValue (Babbage.mint body)
-        , rsh' <-
-            prependOriginal
-                (shrinkSet (const [])) (Babbage.reqSignerHashes body)
-        , txfee' <-
-            prependOriginal shrinkFee (Babbage.txfee body)
-        , adHash' <-
-            prependOriginal shrinkStrictMaybe (Babbage.adHash body)
-        , vldt' <-
-            prependOriginal shrinkValidity (Babbage.txvldt body)
-        ]
-        -}
-
     shrinkValidity (ValidityInterval a b) = tail
         [ ValidityInterval a' b'
         | a' <- prependOriginal shrinkStrictMaybe a
