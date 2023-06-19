@@ -24,9 +24,6 @@
 
 {-# OPTIONS_GHC -fno-warn-orphans #-}
 
-{-# OPTIONS_GHC -fno-warn-unused-matches #-} -- TO BE REMOVED!!!!!
-{-# OPTIONS_GHC -fno-warn-redundant-constraints #-} -- TO BE REMOVED!!!!!
-
 -- TODO: https://input-output.atlassian.net/browse/ADP-2841
 {-# LANGUAGE CPP #-}
 #if __GLASGOW_HASKELL__ >= 902
@@ -66,7 +63,7 @@ import Cardano.Ledger.Api
     ( AllegraEraTxBody (..), AlonzoEraTxBody (..), EraTxBody (..),
     MaryEraTxBody (..), ShelleyEraTxBody (..), ValidityInterval (..),
     bootAddrTxWitsL, ppCoinsPerUTxOByteL, ppCoinsPerUTxOWordL, ppMinFeeAL,
-    scriptTxWitsL, sizedOutputsTxBodyL, witsTxL )
+    scriptTxWitsL, witsTxL )
 import Cardano.Ledger.Era
     ( Era )
 import Cardano.Ledger.Shelley.API
@@ -353,9 +350,6 @@ import qualified Data.Text.IO as T
 import qualified Data.Yaml as Yaml
 import qualified Ouroboros.Consensus.HardFork.History as HF
 import qualified Test.Hspec.Extra as Hspec
-
-tbd :: Int -> a
-tbd n = error $ "To be done in Cardano.Wallet.Shelley.TransactionSpec #" <> show n
 
 spec :: Spec
 spec = do
