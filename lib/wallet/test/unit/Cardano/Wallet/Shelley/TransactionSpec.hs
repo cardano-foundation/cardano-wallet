@@ -89,11 +89,13 @@ import Cardano.Ledger.Api
     , MaryEraTxBody (..)
     , ShelleyEraTxBody (..)
     , ValidityInterval (..)
+    , bootAddrTxWitsL
     , ppCoinsPerUTxOByteL
     , ppCoinsPerUTxOWordL
     , ppMinFeeAL
     , scriptTxWitsL
-    , witsTxL, bootAddrTxWitsL, sizedOutputsTxBodyL
+    , sizedOutputsTxBodyL
+    , witsTxL
     )
 import Cardano.Ledger.Era
     ( Era )
@@ -315,7 +317,7 @@ import Cardano.Wallet.Write.Tx.TimeTranslation
 import Control.Arrow
     ( first )
 import Control.Lens
-    ( set, (.~), (^.), (%~) )
+    ( set, (%~), (.~), (^.) )
 import Control.Monad
     ( forM, forM_, replicateM )
 import Control.Monad.Random
@@ -479,6 +481,7 @@ import qualified Cardano.Crypto.Hash.Blake2b as Crypto
 import qualified Cardano.Crypto.Hash.Class as Crypto
 import qualified Cardano.Ledger.Alonzo.Core as Alonzo
 import qualified Cardano.Ledger.Alonzo.Scripts as Alonzo
+import qualified Cardano.Ledger.Alonzo.TxWits as Alonzo
 import qualified Cardano.Ledger.Babbage as Babbage
 import qualified Cardano.Ledger.Babbage.Core as Babbage
 import qualified Cardano.Ledger.Babbage.TxBody as Babbage
@@ -3322,9 +3325,6 @@ shrinkScriptData
     => Cardano.TxBodyScriptData era
     -> [Cardano.TxBodyScriptData era]
 shrinkScriptData Cardano.TxBodyNoScriptData = []
-shrinkScriptData _ = tbd 3
-{-
-shrinkScriptData Cardano.TxBodyNoScriptData = []
 shrinkScriptData (Cardano.TxBodyScriptData era
     (Alonzo.TxDats dats) (Alonzo.Redeemers redeemers)) = tail
         [ Cardano.TxBodyScriptData era
@@ -3334,7 +3334,7 @@ shrinkScriptData (Cardano.TxBodyScriptData era
             (Map.fromList <$> shrinkList (const []) (Map.toList dats))
         , redeemers' <- redeemers :
             (Map.fromList <$> shrinkList (const []) (Map.toList redeemers))
-        ] -}
+        ]
 
 -- | For writing shrinkers in the style of https://stackoverflow.com/a/14006575
 prependOriginal :: (t -> [t]) -> t -> [t]
