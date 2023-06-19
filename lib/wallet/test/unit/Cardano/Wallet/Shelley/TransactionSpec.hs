@@ -352,7 +352,7 @@ import qualified Ouroboros.Consensus.HardFork.History as HF
 import qualified Test.Hspec.Extra as Hspec
 
 spec :: Spec
-spec = do
+spec = describe "TransactionSpec" $ do
     decodeSealedTxSpec
     feeCalculationSpec
     feeEstimationRegressionSpec

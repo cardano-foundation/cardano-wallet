@@ -146,7 +146,7 @@ dummyProtocolParameters = ProtocolParameters
 dummyNodeProtocolParameters :: C.ProtocolParameters
 dummyNodeProtocolParameters = C.ProtocolParameters
     { C.protocolParamProtocolVersion = (8,0)
-    , C.protocolParamDecentralization = Just 1
+    , C.protocolParamDecentralization =Just 1
     , C.protocolParamExtraPraosEntropy = Nothing
     , C.protocolParamMaxBlockHeaderSize = 1_100
     , C.protocolParamMaxBlockBodySize = 90_112
