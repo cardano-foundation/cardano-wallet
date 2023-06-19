@@ -108,6 +108,7 @@ module Cardano.Api.Gen
     , genWitnesses
     , genWitnessNetworkIdOrByronAddress
     , genWitnessStake
+    , genValidProtocolVersion
     ) where
 
 import Prelude
@@ -1069,13 +1070,19 @@ protocolParametersForHashing =
     generateWith (GenSeed 0) genSizeDefault
         genRecentEraProtocolParameters
 
+genValidProtocolVersion :: Gen (Natural, Natural)
+genValidProtocolVersion = do
+    major <- fromIntegral @Int <$> choose (0, 9)
+    minor <- genNat
+    pure (major, minor)
+
 -- | Generates a set of protocol parameters for a recent era.
 --
 -- Uses 'Just' as necessary to be convertible to @Ledger.PParams era@
 -- for 'IsRecentEra' eras, and keep our tests from throwing exceptions.
 genRecentEraProtocolParameters :: Gen ProtocolParameters
 genRecentEraProtocolParameters = ProtocolParameters
-    <$> ((,) <$> genNat <*> genNat)
+    <$> genValidProtocolVersion
     <*> (Just <$> genRational)
     <*> liftArbitrary genPraosNonce
     <*> genNat
@@ -1339,7 +1346,7 @@ genTxCertificates era =
 genProtocolParametersUpdate :: Gen ProtocolParametersUpdate
 genProtocolParametersUpdate = do
     protocolUpdateProtocolVersion <-
-        liftArbitrary ((,) <$> genNat <*> genNat)
+        liftArbitrary genValidProtocolVersion
     protocolUpdateDecentralization <-
         liftArbitrary genRational
     protocolUpdateExtraPraosEntropy <-
@@ -1490,18 +1497,16 @@ genTxBodyContent era = do
             }
 
     let witnesses = collectTxBodyScriptWitnesses txBody
+        pparams = BuildTxWith $ Just protocolParametersForHashing
     -- No use of a script language means no need for collateral
     if Set.null (languages witnesses)
         then do
-            pparams <- BuildTxWith
-                <$> liftArbitrary (pure protocolParametersForHashing)
             collateral <- genTxInsCollateral era
             pure txBody
                 { Api.txProtocolParams = pparams
                 , Api.txInsCollateral = collateral
                 }
         else do
-            let pparams = BuildTxWith . Just $ protocolParametersForHashing
             collateral <-
                 case collateralSupportedInEra era of
                     Nothing -> pure TxInsCollateralNone
