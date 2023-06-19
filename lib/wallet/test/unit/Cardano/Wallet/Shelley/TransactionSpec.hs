@@ -52,6 +52,8 @@ import Cardano.Api.Gen
     genStakeAddressReference, genTx, genTxBodyContent, genTxForBalancing,
     genTxInEra, genTxOut, genTxOutDatum, genTxOutValue, genValueForTxOut,
     genWitnesses )
+import Cardano.Api.Shelley
+    ( fromShelleyLovelace )
 import Cardano.Binary
     ( FromCBOR, ToCBOR, serialize', unsafeDeserialize' )
 import Cardano.BM.Data.Tracer
@@ -61,15 +63,10 @@ import Cardano.Ledger.Alonzo.Genesis
 import Cardano.Ledger.Alonzo.TxInfo
     ( TranslationError (..) )
 import Cardano.Ledger.Api
-    ( AllegraEraTxBody (..)
-    , AlonzoEraTxBody (..)
-    , EraTxBody (..)
-    , MaryEraTxBody (..)
-    , ShelleyEraTxBody (..)
-    , ValidityInterval (..)
-    , ppCoinsPerUTxOByteL
-    , ppCoinsPerUTxOWordL
-    )
+    ( AllegraEraTxBody (..), AlonzoEraTxBody (..), EraTxBody (..),
+    MaryEraTxBody (..), ShelleyEraTxBody (..), ValidityInterval (..),
+    bootAddrTxWitsL, ppCoinsPerUTxOByteL, ppCoinsPerUTxOWordL, ppMinFeeAL,
+    scriptTxWitsL, sizedOutputsTxBodyL, witsTxL )
 import Cardano.Ledger.Era
     ( Era )
 import Cardano.Ledger.Shelley.API
@@ -204,7 +201,7 @@ import Cardano.Wallet.Write.Tx.TimeTranslation
 import Control.Arrow
     ( first )
 import Control.Lens
-    ( (.~), (^.) )
+    ( set, (%~), (.~), (^.) )
 import Control.Monad
     ( forM, forM_, replicateM )
 import Control.Monad.Random
@@ -316,9 +313,10 @@ import qualified Cardano.Api as Cardano
 import qualified Cardano.Api.Shelley as Cardano
 import qualified Cardano.Crypto.Hash.Blake2b as Crypto
 import qualified Cardano.Crypto.Hash.Class as Crypto
+import qualified Cardano.Ledger.Alonzo.Core as Alonzo
 import qualified Cardano.Ledger.Alonzo.Scripts as Alonzo
-import qualified Cardano.Ledger.Alonzo.Tx as Alonzo
 import qualified Cardano.Ledger.Babbage as Babbage
+import qualified Cardano.Ledger.Babbage.Core as Babbage
 import qualified Cardano.Ledger.Babbage.TxBody as Babbage
 import qualified Cardano.Ledger.Coin as Ledger
 import qualified Cardano.Ledger.Core as Ledger
@@ -2128,9 +2126,8 @@ balanceTransactionSpec = describe "balanceTransaction" $ do
               where
                 -- Dummy PParams to ensure a Coin-delta corresponds to a
                 -- size-delta.
-                pp = case Write.recentEra @era of
-                    RecentEraConway -> tbd 1 -- setField @"_minfeeA" 1 def
-                    RecentEraBabbage -> tbd 2 -- setField @"_minfeeA" 1 def
+                pp = Write.withConstraints (Write.recentEra @era) $
+                    Ledger.emptyPParams & set ppMinFeeAL (Ledger.Coin 1)
 
         let evaluateMinimumFeeDerivedWitSize (Cardano.Tx body wits)
                 = evaluateMinimumFeeSize (Cardano.Tx body wits)
@@ -2278,7 +2275,7 @@ balanceTransactionSpec = describe "balanceTransaction" $ do
 
             -- 1 output, 1 input without utxo entry
             let partialTx :: PartialTx Cardano.BabbageEra
-                partialTx = over #tx (addExtraTxIns [txin]) $
+                partialTx = addExtraTxIns [txin] $
                     paymentPartialTx
                         [ TxOut dummyAddr
                             (TokenBundle.fromCoin (Coin 1_000_000))
@@ -3457,40 +3454,20 @@ balanceTransactionGoldenSpec = describe "balance goldens" $ do
       where
         body = Cardano.ShelleyTxBody
             Cardano.ShelleyBasedEraBabbage
-            ledgerBody
+            (Ledger.mkBasicTxBody & certsTxBodyL .~ StrictSeq.fromList certs)
             []
             Cardano.TxBodyNoScriptData
             Nothing
             Cardano.TxScriptValidityNone
 
-        certs = mkDelegationCertificates delegationAction (Left xpub)
+        certs =
+            Cardano.toShelleyCertificate
+                <$> mkDelegationCertificates delegationAction (Left xpub)
           where
             poolId = PoolId "\236(\243=\203\230\214@\n\RS^3\155\208d|\
                             \\ts\202l\f\249\194\187\230\131\141\198"
             xpub = getRawKey ShelleyKeyS $ publicKey ShelleyKeyS rootK
             delegationAction = JoinRegisteringKey poolId
-        ledgerBody = tbd 4 certs
-{-
-            Babbage.BabbageTxBody
-                { Babbage.inputs = mempty
-                , Babbage.collateral = mempty
-                , Babbage.outputs = mempty
-                , Babbage.txcerts
-                    = StrictSeq.fromList $ map Cardano.toShelleyCertificate certs
-                , Babbage.txwdrls = Withdrawals mempty
-                , Babbage.txfee = mempty
-                , Babbage.txvldt = ValidityInterval SNothing SNothing
-                , Babbage.txUpdates = SNothing
-                , Babbage.reqSignerHashes = mempty
-                , Babbage.mint = mempty
-                , Babbage.scriptIntegrityHash = SNothing
-                , Babbage.adHash = SNothing
-                , Babbage.txnetworkid = SNothing
-                , Babbage.referenceInputs = mempty
-                , Babbage.collateralReturn = SNothing
-                , Babbage.totalCollateral = SNothing
-            }
--}
 
     txFee :: Cardano.Tx Cardano.BabbageEra -> Cardano.Lovelace
     txFee (Cardano.Tx (Cardano.TxBody content) _) =
@@ -3505,8 +3482,8 @@ txMinFee
 txMinFee (Cardano.Tx body _) u =
     toCardanoLovelace
         $ evaluateMinimumFee
-            ( tbd 5
-                $ Cardano.bundleProtocolParams
+            ( either (error . show) id $
+                Cardano.bundleProtocolParams
                     Cardano.BabbageEra
                     mockCardanoApiPParamsForBalancing
             )
@@ -3949,17 +3926,15 @@ mockCardanoApiPParamsForBalancing = Cardano.ProtocolParameters
     , Cardano.protocolParamMonetaryExpansion = 0
     , Cardano.protocolParamTreasuryCut  = 0
     , Cardano.protocolParamUTxOCostPerWord =
-        Just $ fromIntegral $
-            SL.unCoin $ tbd 6 testParameter_coinsPerUTxOWord_Alonzo
+        Just $ fromShelleyLovelace $
+            Alonzo.unCoinPerWord testParameter_coinsPerUTxOWord_Alonzo
     , Cardano.protocolParamUTxOCostPerByte =
-        Just $ fromIntegral $
-            SL.unCoin $ tbd 7 testParameter_coinsPerUTxOByte_Babbage
-    , Cardano.protocolParamCostModels = Cardano.fromAlonzoCostModels
-        costModelsForTesting
+        Just $ fromShelleyLovelace $
+            Babbage.unCoinPerByte testParameter_coinsPerUTxOByte_Babbage
+    , Cardano.protocolParamCostModels =
+        Cardano.fromAlonzoCostModels costModelsForTesting
     , Cardano.protocolParamPrices =
-        Just $ Cardano.ExecutionUnitPrices
-            (721 % 10_000_000)
-            (577 % 10_000)
+        Just $ Cardano.ExecutionUnitPrices (721 % 10_000_000) (577 % 10_000)
     , Cardano.protocolParamMaxBlockExUnits =
         Just $ Cardano.ExecutionUnits 10_000_000_000 14_000_000
     , Cardano.protocolParamCollateralPercent = Just 150
@@ -3967,13 +3942,10 @@ mockCardanoApiPParamsForBalancing = Cardano.ProtocolParameters
     }
 
 mockPParamsForBalancing
-    :: forall era
-     . Write.IsRecentEra era
-    => Write.ProtocolParameters era
+    :: forall era . Write.IsRecentEra era => Write.ProtocolParameters era
 mockPParamsForBalancing =
-    Write.ProtocolParameters
-        $ tbd 8
-        $ Cardano.toLedgerPParams
+    Write.ProtocolParameters . either (error . show) id $
+        Cardano.toLedgerPParams
             (Write.shelleyBasedEra @era)
             mockCardanoApiPParamsForBalancing
 
@@ -4108,17 +4080,12 @@ estimateSignedTxSizeSpec = describe "estimateSignedTxSize" $ do
             ledgerTx :: Write.Tx (Write.ShelleyLedgerEra era)
             ledgerTx = Write.fromCardanoTx @era tx
 
-            noScripts = Write.withConstraints (recentEra @era) $ Map.null $
-                view
-                (Alonzo.witsAlonzoTxL . tbd 9)  -- Alonzo.scriptAlonzoWitsL)
-                ledgerTx
-            noBootWits = Write.withConstraints (recentEra @era) $ Set.null $
-                view
-                (Alonzo.witsAlonzoTxL . tbd 10) -- Alonzo.bootAddrAlonzoWitsL)
-                ledgerTx
-
-            testDoesNotYetSupport x = pendingWith $
-                    "Test setup does not work for txs with " <> x
+            noScripts = Write.withConstraints (recentEra @era) $
+                Map.null $ ledgerTx ^. witsTxL . scriptTxWitsL
+            noBootWits = Write.withConstraints (recentEra @era) $
+                Set.null $ ledgerTx ^. witsTxL . bootAddrTxWitsL
+            testDoesNotYetSupport x =
+                pendingWith $ "Test setup does not work for txs with " <> x
 
         case (noScripts, noBootWits) of
                 (True, True) -> do
@@ -4217,38 +4184,13 @@ paymentPartialTx txouts = PartialTx (Cardano.Tx body []) mempty []
   where
     body = Cardano.ShelleyTxBody
         Cardano.ShelleyBasedEraBabbage
-        babbageBody
+        ( mkBasicTxBody &
+            outputsTxBodyL .~ StrictSeq.fromList (toBabbageTxOut <$> txouts)
+        )
         []
         Cardano.TxBodyNoScriptData
         Nothing
         Cardano.TxScriptValidityNone
-
-    -- NOTE: We should write this as @emptyTxBody { outputs = ... }@.
-    -- The next time we bump the ledger , this may already be availible to us
-    -- with 'mkBabbageTxBody' and 'initialTxBodyRaw'.
-    -- https://github.com/input-output-hk/cardano-ledger/blob/17649bc09e4c47923f7ad103d337cc1b8e6d3078/eras/babbage/impl/src/Cardano/Ledger/Babbage.BabbageTxBody.hs#L940
-    babbageBody = tbd 11
-     {-
-     Babbage.BabbageTxBody
-            { Babbage.inputs = mempty
-            , Babbage.collateral = mempty
-            , Babbage.outputs = StrictSeq.fromList $
-                map (Ledger.mkSized . toBabbageTxOut) txouts
-            , Babbage.txcerts = mempty
-            , Babbage.txwdrls = Withdrawals mempty
-            , Babbage.txfee = mempty
-            , Babbage.txvldt = ValidityInterval SNothing SNothing
-            , Babbage.txUpdates = SNothing
-            , Babbage.reqSignerHashes = mempty
-            , Babbage.mint = mempty
-            , Babbage.scriptIntegrityHash = SNothing
-            , Babbage.adHash = SNothing
-            , Babbage.txnetworkid = SNothing
-            , Babbage.referenceInputs = mempty
-            , Babbage.collateralReturn = SNothing
-            , Babbage.totalCollateral = SNothing
-            }
-        -}
 
 pingPong_1 :: PartialTx Cardano.BabbageEra
 pingPong_1 = PartialTx tx mempty []
@@ -4299,23 +4241,19 @@ deserializeBabbageTx = either (error . show) id
 -- Ideally merge with 'updateTx'
 addExtraTxIns
     :: [TxIn]
-    -> Cardano.Tx Cardano.BabbageEra
-    -> Cardano.Tx Cardano.BabbageEra
-addExtraTxIns extraIns = modifyBabbageTxBody $ \body ->
-    tbd 12 toLedgerInputs body -- { Babbage.inputs = Babbage.inputs body <> toLedgerInputs extraIns }
+    -> PartialTx Cardano.BabbageEra
+    -> PartialTx Cardano.BabbageEra
+addExtraTxIns extraIns =
+    #tx %~ modifyBabbageTxBody (inputsTxBodyL %~ (<> toLedgerInputs extraIns))
   where
     toLedgerInputs =
-        Set.map (Cardano.toShelleyTxIn . toCardanoTxIn)
-        . Set.fromList
+        Set.map (Cardano.toShelleyTxIn . toCardanoTxIn) . Set.fromList
 
 withValidityInterval
     :: ValidityInterval
     -> PartialTx Cardano.BabbageEra
     -> PartialTx Cardano.BabbageEra
-withValidityInterval vi ptx = ptx
-    { tx = flip modifyBabbageTxBody (tx ptx) $ \ledgerBody ->
-        tbd 13 ledgerBody -- { Babbage.txvldt = vi }
-    }
+withValidityInterval vi = #tx %~ modifyBabbageTxBody (vldtTxBodyL .~ vi)
 
 -- Ideally merge with 'updateTx'
 modifyBabbageTxBody
