@@ -925,7 +925,8 @@ selectAssets era (ProtocolParameters pp) utxoAssumptions outs redeemers
         valueOfInputs = UTxOSelection.selectedBalance utxoSelection
 
     mkLedgerTxOut
-        :: RecentEra era
+        :: HasCallStack
+        => RecentEra era
         -> W.Address
         -> TokenBundle
         -> TxOut (ShelleyLedgerEra era)

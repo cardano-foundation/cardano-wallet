@@ -916,8 +916,8 @@ genAddressAnyWithNetworkId genNetworkId' =
     oneof
         [ AddressByron
             <$> genAddressByronWithNetworkId genNetworkId'
-        {- , AddressShelley
-            <$> genAddressShelleyWithNetworkId genNetworkId' -}
+        , AddressShelley
+            <$> genAddressShelleyWithNetworkId genNetworkId'
         ]
 
 genAddressByronWithNetworkId :: Gen NetworkId -> Gen (Address ByronAddr)
