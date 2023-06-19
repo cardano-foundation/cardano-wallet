@@ -1394,7 +1394,8 @@ toCardanoUTxO era = Cardano.UTxO
     . Map.toList
     . W.unUTxO
 
-toCardanoTxOut :: ShelleyBasedEra era -> W.TxOut -> Cardano.TxOut ctx era
+toCardanoTxOut :: HasCallStack
+    => ShelleyBasedEra era -> W.TxOut -> Cardano.TxOut ctx era
 toCardanoTxOut era = case era of
     ShelleyBasedEraShelley -> toShelleyTxOut
     ShelleyBasedEraAllegra -> toAllegraTxOut
@@ -1499,7 +1500,8 @@ toCardanoTxOut era = case era of
         addrInEra = tina "toCardanoTxOut: malformed address"
             [ Cardano.AddressInEra
                 (Cardano.ShelleyAddressInEra Cardano.ShelleyBasedEraBabbage)
-                    <$> eitherToMaybe
+                    <$> either (error . show) Just
+                        -- eitherToMaybe
                         (Cardano.deserialiseFromRawBytes AsShelleyAddress addr)
 
             , Cardano.AddressInEra Cardano.ByronAddressInAnyEra

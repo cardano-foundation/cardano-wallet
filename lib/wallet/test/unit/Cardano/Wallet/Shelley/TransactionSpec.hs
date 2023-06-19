@@ -348,6 +348,8 @@ import qualified Data.Text as T
 import qualified Data.Text.Encoding as T
 import qualified Data.Text.IO as T
 import qualified Data.Yaml as Yaml
+import GHC.Stack
+    ( HasCallStack )
 import qualified Ouroboros.Consensus.HardFork.History as HF
 import qualified Test.Hspec.Extra as Hspec
 
@@ -4076,7 +4078,8 @@ estimateSignedTxSizeSpec = describe "estimateSignedTxSize" $ do
     -- as estimateSignedTxSize can tell that all inputs in the tx correspond to
     -- outputs with vk payment credentials.
     utxoPromisingInputsHaveVkPaymentCreds
-        :: forall era. Cardano.IsShelleyBasedEra era
+        :: forall era. HasCallStack
+        => Cardano.IsShelleyBasedEra era
         => Cardano.TxBody era
         -> Cardano.UTxO era
     utxoPromisingInputsHaveVkPaymentCreds (Cardano.TxBody body) =

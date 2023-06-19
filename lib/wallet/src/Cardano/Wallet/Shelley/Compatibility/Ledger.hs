@@ -323,7 +323,8 @@ toAlonzoTxOut (TxOut addr bundle) =
         Ledger.SNothing
 
 toBabbageTxOut
-    :: TxOut
+    :: HasCallStack
+    => TxOut
     -> Babbage.BabbageTxOut StandardBabbage
 toBabbageTxOut (TxOut addr bundle) =
     Babbage.BabbageTxOut
