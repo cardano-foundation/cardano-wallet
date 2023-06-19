@@ -1500,10 +1500,8 @@ toCardanoTxOut era = case era of
         addrInEra = tina "toCardanoTxOut: malformed address"
             [ Cardano.AddressInEra
                 (Cardano.ShelleyAddressInEra Cardano.ShelleyBasedEraBabbage)
-                    <$> either (error . show) Just
-                        -- eitherToMaybe
+                    <$> eitherToMaybe
                         (Cardano.deserialiseFromRawBytes AsShelleyAddress addr)
-
             , Cardano.AddressInEra Cardano.ByronAddressInAnyEra
                 <$> eitherToMaybe
                     (Cardano.deserialiseFromRawBytes AsByronAddress addr)

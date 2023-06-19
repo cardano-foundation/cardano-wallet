@@ -863,7 +863,6 @@ genStakeAddressReference :: Gen StakeAddressReference
 genStakeAddressReference =
   oneof
     [ StakeAddressByValue <$> genStakeCredential
-    , (StakeAddressByPointer . StakeAddressPointer) <$> genPtr
     , return NoStakeAddress
     ]
 
