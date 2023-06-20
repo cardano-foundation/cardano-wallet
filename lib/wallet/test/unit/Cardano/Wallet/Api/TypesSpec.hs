@@ -701,7 +701,7 @@ spec = do
                     \parsing AddressAmount failed, parsing Natural failed, \
                     \unexpected negative number -14"
             Aeson.parseEither parseJSON [aesonQQ|
-                { "address": "addr_test12rt90k38sak06mwtj6rfkgzpzw2nzgxtkp5675nxl6wqqc5p745g840sg6q73dcrf3w6up"
+                { "address": "addr_test1vquxc75xmzzy7sy955pyz4tqg0ycgttjcv2u39ay929q2yqul2q5p"
                 , "amount": {"unit":"lovelace","quantity":-14}
                 }
             |] `shouldBe` (Left @String @(AddressAmount (ApiAddress T0)) msg)
@@ -712,7 +712,7 @@ spec = do
                     \than or equal to " <> show (unCoin txOutMaxCoin)
                     <> " lovelace."
             Aeson.parseEither parseJSON [aesonQQ|
-                { "address": "addr_test12rt90k38sak06mwtj6rfkgzpzw2nzgxtkp5675nxl6wqqc5p745g840sg6q73dcrf3w6up"
+                { "address": "addr_test1vquxc75xmzzy7sy955pyz4tqg0ycgttjcv2u39ay929q2yqul2q5p"
                 , "amount":
                     { "unit":"lovelace"
                     ,"quantity":#{unCoin txOutMaxCoin + 1}
