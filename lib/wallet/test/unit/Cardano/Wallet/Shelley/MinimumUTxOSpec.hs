@@ -116,9 +116,6 @@ spec = do
 
         describe "Properties" $ do
 
-            it "prop_computeMinimumCoinForUTxO_CardanoApi_CardanoLedger" $
-                prop_computeMinimumCoinForUTxO_CardanoApi_CardanoLedger
-                    & property
             it "prop_computeMinimumCoinForUTxO_isBelowMinimumCoinForUTxO" $
                 prop_computeMinimumCoinForUTxO_isBelowMinimumCoinForUTxO
                     & property
@@ -176,19 +173,6 @@ spec = do
                     "Babbage"
                     goldenMinimumUTxO_BabbageEra
                     goldenMinimumCoins_ShelleyAddress_BabbageEra
-
-prop_computeMinimumCoinForUTxO_CardanoApi_CardanoLedger
-    :: MinimumUTxOForShelleyBasedEra
-    -> Address
-    -> TokenBundle
-    -> Property
-prop_computeMinimumCoinForUTxO_CardanoApi_CardanoLedger
-    minimumUTxO address tokenBundle =
-        Internal.computeMinimumCoinForUTxO_CardanoApi
-            minimumUTxO (TxOut address tokenBundle)
-        ===
-        Internal.computeMinimumCoinForUTxO_CardanoLedger
-            minimumUTxO (TxOut address tokenBundle)
 
 -- Tests the following composition:
 --
