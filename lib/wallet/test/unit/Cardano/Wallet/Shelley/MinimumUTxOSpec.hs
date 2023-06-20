@@ -99,7 +99,6 @@ import qualified Cardano.Ledger.Alonzo.PParams as Alonzo
 import qualified Cardano.Ledger.Api as Babbage
 import qualified Cardano.Wallet.Primitive.Types.TokenBundle as TokenBundle
 import qualified Cardano.Wallet.Primitive.Types.TokenMap as TokenMap
-import qualified Cardano.Wallet.Shelley.MinimumUTxO.Internal as Internal
 import qualified Data.ByteString as BS
 import qualified Data.Text as T
 import qualified Data.Text.Encoding as T
@@ -237,14 +236,14 @@ prop_computeMinimumCoinForUTxO_bounds
     -- minimum 'Coin' value.
     --
     apiComputeMinCoin :: Address -> TokenBundle -> Coin
-    apiComputeMinCoin a b = Internal.computeMinimumCoinForUTxO_CardanoApi
+    apiComputeMinCoin a b = error "to be removed"
         minimumUTxO (TxOut a b)
 
     -- Uses the wallet function 'computeMinimumCoinForUTxO' to compute a
     -- minimum 'Coin' value.
     --
     ourComputeMinCoin :: Address -> TokenMap -> Coin
-    ourComputeMinCoin = computeMinimumCoinForUTxO
+    ourComputeMinCoin = error "to be removed"
         (MinimumUTxOForShelleyBasedEraOf minimumUTxO)
 
 -- Compares the stability of:
@@ -308,7 +307,7 @@ prop_computeMinimumCoinForUTxO_stability
     -- minimum 'Coin' value.
     --
     apiComputeMinCoin :: TokenBundle -> Coin
-    apiComputeMinCoin b = Internal.computeMinimumCoinForUTxO_CardanoApi
+    apiComputeMinCoin b = error "to be removed"
         minimumUTxO (TxOut (fromCardanoAddressAny addr) b)
 
     -- Uses the wallet function 'computeMinimumCoinForUTxO' to compute a
