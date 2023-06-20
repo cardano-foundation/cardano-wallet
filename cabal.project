@@ -143,10 +143,13 @@ constraints:
   , Cabal >= 3.4.0.0
   , async-timer >= 0.2.0.0
   , unliftio-core >= 0.2.0.1
-  , cardano-api >= 1.35.6
-  , cardano-node >= 1.35.6
   , generic-arbitrary >= 0.2.2
   , iohk-monitoring >= 0.1.11
+
+  -- Cardano Node dependencies:
+  , cardano-api ^>=8.2
+  , cardano-slotting >= 0.1
+  , ouroboros-network ^>= 0.8.1.0
 
   -- Could probably be bumped with minor work in the wallet
   , resource-pool >= 0.2.3.2
