@@ -149,7 +149,7 @@
       flake = false;
     };
     customConfig.url = "github:input-output-hk/empty-flake";
-    cardano-node-runtime.url = "github:input-output-hk/cardano-node?ref=8.0.0";
+    cardano-node-runtime.url = "github:input-output-hk/cardano-node?ref=8.1.1";
     emanote.url = "github:srid/emanote";
     ema.url = "github:srid/ema";
   };
