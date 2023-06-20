@@ -380,6 +380,8 @@ import Fmt
     , (+||)
     , (||+)
     )
+import GHC.Stack
+    ( HasCallStack )
 import Numeric.Natural
     ( Natural )
 import Ouroboros.Consensus.BlockchainTime.WallClock.Types
@@ -513,8 +515,6 @@ import qualified Data.Text as T
 import qualified Data.Text.Encoding as T
 import qualified Data.Text.IO as T
 import qualified Data.Yaml as Yaml
-import GHC.Stack
-    ( HasCallStack )
 import qualified Ouroboros.Consensus.HardFork.History as HF
 import qualified Test.Hspec.Extra as Hspec
 

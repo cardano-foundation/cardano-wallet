@@ -761,9 +761,7 @@ fromCardanoUTxO = withConstraints (recentEra @era) $
     Shelley.UTxO
     . Map.mapKeys Cardano.toShelleyTxIn
     . Map.map (Cardano.toShelleyTxOut (shelleyBasedEra @era))
-    . unCardanoUTxO
-  where
-    unCardanoUTxO (Cardano.UTxO m) = m
+    . Cardano.unUTxO
 
 toCardanoValue
     :: forall era. IsRecentEra era
