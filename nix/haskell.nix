@@ -112,15 +112,19 @@ CHaP: haskell-nix: nixpkgs-recent: nodePkgs: haskell-nix.cabalProject' [
           cabal = "latest";
           cabal-fmt = "latest";
           cabal-cache.version = "1.0.2.1";
-          haskell-language-server = {
-            version = "1.8.0.0";
+/*           haskell-language-server = {
+            version = "1.9.0.0";
             index-state = "2023-03-06T05:24:58Z";
             modules = [{ reinstallableLibGhc = false; }];
-          };
+          }; */
           hie-bios = {
             modules = [{ reinstallableLibGhc = false; }];
           };
-          hoogle.version = "5.0.18.1";
+          hoogle = {
+            version = "5.0.18.1";
+            index-state = "2023-03-06T05:24:58Z";
+            };
+
           hlint.version = "3.3.1";
           lentil.version = "1.5.2.0";
           stylish-haskell.version = "0.11.0.3";
