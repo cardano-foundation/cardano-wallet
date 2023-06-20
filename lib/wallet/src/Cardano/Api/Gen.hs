@@ -469,16 +469,19 @@ genSimpleScriptOrReferenceInput =
           ]
 
 genScript :: ScriptLanguage lang -> Gen (Script lang)
-genScript SimpleScriptLanguage =
-    SimpleScript <$> genSimpleScript
-genScript (PlutusScriptLanguage lang) =
-    PlutusScript lang <$> genPlutusScript lang
+genScript = \case
+    SimpleScriptLanguage -> SimpleScript <$> genSimpleScript
+    PlutusScriptLanguage lang -> PlutusScript lang <$> genPlutusScript lang
 
-genScriptInAnyLang :: Gen ScriptInAnyLang
-genScriptInAnyLang =
+genScriptInAnyLang :: Maybe (CardanoEra era) -> Gen ScriptInAnyLang
+genScriptInAnyLang optionalEra =
     oneof
       [ ScriptInAnyLang lang <$> genScript lang
-      | AnyScriptLanguage lang <- [minBound..maxBound] ]
+      | AnyScriptLanguage lang <- [minBound..maxBound]
+      , case optionalEra of
+          Nothing -> True
+          Just era -> scriptLanguageSupportedInEra era lang /= Nothing
+      ]
 
 genScriptInEra :: CardanoEra era -> Gen (ScriptInEra era)
 genScriptInEra era =
@@ -489,7 +492,7 @@ genScriptInEra era =
 
 genScriptHash :: Gen ScriptHash
 genScriptHash = do
-    ScriptInAnyLang _ script <- genScriptInAnyLang
+    ScriptInAnyLang _ script <- genScriptInAnyLang Nothing
     return (hashScript script)
 
 genAssetName :: Gen AssetName
@@ -959,7 +962,7 @@ genReferenceScript era = case refInsScriptsAndInlineDatsSupportedInEra era of
     Nothing -> pure ReferenceScriptNone
     Just supported -> oneof
         [ pure ReferenceScriptNone
-        , ReferenceScript supported <$> genScriptInAnyLang
+        , ReferenceScript supported <$> genScriptInAnyLang (Just era)
         ]
 
 mkDummyHash :: forall h a. Crypto.HashAlgorithm h => Int -> Crypto.Hash h a

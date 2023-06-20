@@ -11,7 +11,7 @@ module Cardano.Wallet.Write.TxSpec where
 import Prelude
 
 import Cardano.Api.Gen
-    ( genHashableScriptData, genScriptInAnyLang, genTxIn )
+    ( genTxIn )
 import Cardano.Ledger.Api
     ( ppCoinsPerUTxOByteL )
 import Cardano.Wallet.Write.Tx
@@ -98,7 +98,7 @@ spec = do
                         === False
 
     describe "UTxO" $ do
-        it "is isomorphic to Cardano.UTxO (modulo SimpleScriptV1/2)" $ do
+        it "is isomorphic to Cardano.UTxO" $ do
             testIsomorphism
                 (NamedFun
                     (toCardanoUTxO @Cardano.BabbageEra)
@@ -115,13 +115,6 @@ spec = do
 instance Arbitrary AnyRecentEra where
     arbitrary = arbitraryBoundedEnum
     shrink = shrinkBoundedEnum
-
-instance Arbitrary Cardano.HashableScriptData where
-     arbitrary = genHashableScriptData
-     shrink = const []
-
-instance Arbitrary Cardano.ScriptInAnyLang where
-    arbitrary = genScriptInAnyLang
 
 instance Arbitrary (Cardano.UTxO Cardano.BabbageEra) where
     arbitrary = Cardano.UTxO . Map.fromList <$> liftArbitrary genTxInOutEntry
@@ -174,7 +167,7 @@ testIsomorphism (NamedFun f fName) (NamedFun g gName) normalize =
             (fName <> " . " <> gName <> " == id")
             (property $ \x -> f (g (normalize x)) === normalize x)
         , counterexample
-            (gName <> " . " <> gName <> " == id")
+            (gName <> " . " <> fName <> " == id")
             (property $ \x -> g (f x) === x)
         ]
 
