@@ -72,7 +72,7 @@ import Cardano.Api.Gen
 import Cardano.Api.Shelley
     ( fromShelleyLovelace )
 import Cardano.Binary
-    ( FromCBOR, ToCBOR, serialize', unsafeDeserialize' )
+    ( ToCBOR, serialize', unsafeDeserialize' )
 import Cardano.BM.Data.Tracer
     ( nullTracer )
 import Cardano.Ledger.Alonzo.Genesis
@@ -3454,17 +3454,17 @@ testStdGenSeed = StdGenSeed 0
 
 balanceTransactionGoldenSpec :: Spec
 balanceTransactionGoldenSpec = describe "balance goldens" $ do
-    it "testPParams" $ do
+    it "testPParams" $
         let name = "testPParams"
-        let dir = $(getTestData) </> "balanceTx" </> "binary"
-        let ledgerPParams = Write.pparamsLedger
+            dir = $(getTestData) </> "balanceTx" </> "binary"
+            ledgerPParams = Write.pparamsLedger
                 $ mockPParamsForBalancing @Cardano.BabbageEra
-        Golden
+        in Golden
             { output = ledgerPParams
             , encodePretty = show
-            , writeToFile = \fp x ->
-                T.writeFile fp $ T.pack . toCBORHex $ x
-            , readFromFile = fmap fromCBORHex . readFile
+            , writeToFile = \fp x -> T.writeFile fp $ T.pack $ toCBORHex x
+            , readFromFile = \fp ->
+                unsafeDeserialize' . unsafeFromHex . B8.pack <$> readFile fp
             , goldenFile = dir </> name </> "golden"
             , actualFile = Just (dir </> name </> "actual")
             , failFirstTime = False
@@ -3505,8 +3505,6 @@ balanceTransactionGoldenSpec = describe "balance goldens" $ do
         test "delegate" delegate
         test "1ada-payment" payment
   where
-    fromCBORHex :: FromCBOR a => String -> a
-    fromCBORHex = unsafeDeserialize' . unsafeFromHex . B8.pack
 
     toCBORHex :: ToCBOR a => a -> String
     toCBORHex = B8.unpack . hex . serialize'
