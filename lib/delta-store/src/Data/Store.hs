@@ -478,7 +478,7 @@ newCachedStore Store{loadS,writeS,updateS} = do
 
     -- Cache that need not be filled in the beginning
     cache    <- newTVarIO (Nothing :: Maybe (Base da))
-    let writeCache ma = writeTVar cache ma
+    let writeCache = writeTVar cache
 
     -- Load the value from the Store only if it is not cached and
     -- nobody else is writing to the store.
@@ -553,7 +553,7 @@ embedStore'
 embedStore' Embedding'{load,write,update} Store{loadS,writeS,updateS} =
     let
         loadL =  (load =<<) <$> loadS
-        updateL = \ma da -> case ma of
+        updateL ma da = case ma of
             Just a -> loadS >>= \case
                 Left  _ -> pure ()
                 Right b -> updateS (Just b) (update a b da)

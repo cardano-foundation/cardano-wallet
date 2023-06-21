@@ -569,7 +569,7 @@ fileModeSpec =  do
                             mempty
                     let (FilteredBlock{transactions=txs}, (_,cpB)) =
                             applyBlock fakeBlock cpA
-                        epochStability = Quantity 2160
+                        epochStability = Quantity 2_160
                         deltaPruneCheckpoints =
                             Checkpoints.pruneCheckpoints
                                 (view $ #currentTip . #blockHeight)
